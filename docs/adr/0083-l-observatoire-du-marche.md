@@ -1,0 +1,132 @@
+# ADR-0083 — L'observatoire du marché ne lit que les instantanés anonymes, et une annonce n'a disparu que de passages qui ont lu toute la liste
+
+- **Statut** : Accepté
+- **Date** : 2026-10-30
+- **Tickets** : [TCK-2393](../backlog/tickets/TCK-2393-radar-annonceurs-et-observatoire.md)
+- **Dépend de** : [ADR-0077](0077-le-radar.md) (le Radar), [TCK-2392](../backlog/tickets/TCK-2392-radar-collecte-automatique.md) (la collecte automatique, ADR-0080)
+
+## Contexte
+
+Mesuré le 2026-10-30 sur `feat/radar-collecte-automatique` `c3c3d638b` :
+
+- **La collecte écrit des instantanés datés** (`radar_listing_snapshots`, TCK-2392) : prix, contrat, type,
+  surface, chambres, quartier du référentiel, ville, empreinte du titre, et la plage de présence
+  (`first_seen_at`, `last_seen_at`). Aucun numéro, aucun nom, aucun texte.
+- **La purge (TCK-2391) ne supprime aucune annonce** : elle vide son texte brut, son adresse, ses photos et
+  son extraction, et la passe à `purged`. Elle supprime ou vide l'annonceur (numéro, nom, nature). Depuis
+  TCK-2392 (ADR-0080 §4), elle **supprime aussi les instantanés** de l'annonce, quelle qu'en soit la raison.
+- **Un passage de collecte peut s'arrêter avant la fin de la liste** (`max_pages`, page refusée, erreur) :
+  `radar_crawl_runs.reached_end` dit s'il a lu la dernière page.
+- **Les alertes de la console** naissent d'une activité journalisée dont l'événement est déclaré alertable
+  (`AlertableEvents`), livrée par les règles que le super-admin configure.
+
+## Décision
+
+**L'observatoire du marché se calcule à la lecture, sur les seuls instantanés et les colonnes anonymes de
+l'annonce. Une annonce n'est « disparue » que lorsque deux passages terminés de son site d'affilée, qui ont lu
+toute la liste, ne l'ont pas revue.**
+
+1. **Aucune table d'agrégats.** Prix au m², temps de mise sur le marché et écart d'offre se calculent à la
+   requête (`RadarObservatory`), depuis `radar_listing_snapshots`, les colonnes anonymes de `radar_listings`
+   (site, doublon, rattachement au catalogue, disparition) et le catalogue public. **Ils se calculent sur les
+   données conservées** : une purge retire ses lignes, et la période couverte est bornée par la rétention
+   (90 jours pour une annonce jamais publiée). Un historique au-delà passera par des compteurs anonymes
+   agrégés (TCK-2434). Un test refuse toute requête de l'observatoire qui nommerait `raw_text`, `extracted`,
+   `source_url`, `phone`, `display_name` ou `similarity_text`.
+2. **L'état courant d'une annonce est son dernier instantané.** Un doublon (`duplicate_of_listing_id`) ne
+   compte pas : la même maison vue sur trois sites est une annonce.
+3. **La disparition se constate, elle ne se déduit pas d'une absence.** `radar:observe-sources` marque
+   disparue (`radar_listings.source_gone_at`, `source_gone_run_id`) une annonce de son site lorsque
+   `radar.observe.confirm_runs` (2 par défaut) passages `finished` dont `reached_end` est vrai ont commencé
+   après sa dernière présence. **Un seul ne suffit pas** : une liste triée par date glisse pendant qu'on la
+   lit — une annonce retirée ou remontée en page 1 fait passer la première de la page 2 dans une page déjà
+   lue —, et le passage atteint la fin sans l'avoir vue (relevé par la vérification adverse, reproduit sur
+   le vrai passage de collecte). Une présence remet le compte à zéro : seuls comptent les passages
+   postérieurs à la dernière. Un passage incomplet ne compte pas. Une annonce revue plus tard redevient
+   présente. **Une annonce que la collecte ne suit plus n'est pas jugée et n'alerte pas** : purgée,
+   `do_not_contact`, ou d'un annonceur qui a dit STOP (TCK-2392, `RadarSnapshots::silenced()`) — ne plus la
+   voir ne dit rien d'elle, même doublure d'un bien publié. La purge supprime en plus ses instantanés.
+4. **L'alerte passe par le journal, un journal de plateforme.** Une disparition rattachée à un bien
+   (directement, ou par l'annonce dont elle est le doublon) écrit `radar_source_listing_gone`, événement
+   alertable : les règles d'alerte existantes la livrent, rien de neuf n'envoie quoi que ce soit. **Son sujet
+   est l'annonce collectée, le bien est dans `properties.property_id`** : avec le bien pour sujet,
+   `AuditAgencyResolver` donnait à la ligne l'agence du bien, et l'agence d'un bien du catalogue dont une
+   annonce collectée n'est que le doublon lisait dans son journal que la plateforme surveille ses annonces
+   ailleurs. C'est la forme de `radar_advertiser_revoked` (sujet Radar, biens en propriétés).
+5. **Le classement des annonceurs n'est pas anonyme**, et ne prétend pas l'être : c'est l'outil commercial
+   du démarchage, qui lit les annonces vivantes. La nature reste dans le Radar (ADR-0077 § 7) ; le
+   vocabulaire est « intermédiaire probable », jamais celui du courtier (ADR-0030).
+
+## Conséquences
+
+- **Pas de recalcul à maintenir**, pas de table qui diverge des instantanés ; le prix est une requête de
+  plus, bornée par les filtres (`since`, contrat, type, site).
+- **Le temps de mise sur le marché est censuré à gauche** : une annonce déjà en ligne avant le premier
+  passage semble plus récente qu'elle ne l'est. La médiane se lit avec son compte.
+- **La part d'intermédiaires ne se mesure que sur les annonceurs encore porteurs d'annonces** : la purge
+  remet la nature à `unknown`. Figer des compteurs anonymes par nature est la suite TCK-2431.
+- **Le marché ne remonte pas au-delà de la rétention** : une annonce jamais publiée quitte les agrégats à sa
+  purge (90 jours, ou aussitôt pour un STOP). Les séries longues sont la suite TCK-2434.
+- **Une disparition se constate un passage complet plus tard** qu'avec un seul : au rythme par défaut
+  (6 h), une demi-journée. `radar.observe.confirm_runs` à 1 rend l'ancien comportement.
+- **Une annonce saisie à la main n'a aucun instantané** : elle n'entre ni dans les agrégats ni dans la
+  détection de disparition, et le classement lit son extraction tant qu'elle n'est pas purgée.
+
+## Application
+
+- `App\Services\Radar\Observatory\RadarObservatory`, `RadarSourceWatch`, `RadarAdvertiserRanking` ;
+  commande `radar:observe-sources` inscrite au planificateur (`routes/console.php`).
+- `tests/Feature/Radar/Observatory/` : purge qui retire ses lignes et requêtes sans colonne personnelle (AC1),
+  alerte (AC2), passage incomplet (AC3), réapparition (AC4).
+
+## Amendement — la question au titulaire (TCK-2432, 2026-10-30)
+
+[TCK-2432](../backlog/tickets/TCK-2432-radar-source-disparue-demander-au-titulaire.md) prolonge le §4 : l'alerte prévient
+l'équipe, **le titulaire du bien est en plus questionné**, et **rien n'est jamais retiré automatiquement**.
+
+1. **Qui, et quand.** Quand une disparition emporte la **dernière** source en ligne (`other_sources_online` à 0) d'un bien
+   **que le Radar a publié** (une annonce collectée porte son `property_id`) et **encore en vitrine** (`Property::public()`),
+   `RadarAvailabilityCheck::ask()` notifie le titulaire du bien (`properties.user_id`) par le code
+   `property.source_listing_gone`. Le titulaire d'un bien du catalogue dont une annonce collectée n'est que le doublon n'est
+   pas questionné, pour la raison du §4 : il apprendrait que la plateforme surveille ses annonces ailleurs.
+2. **Un compte, jamais un numéro.** Le code n'est ni `mobile()` ni `reachesContacts()` : il ne part qu'à un compte, dans la
+   cloche et selon ses préférences (`property_availability_check`), comme toute notification produit. Un annonceur qui a dit
+   STOP n'est donc jamais joint par là ; s'il a réclamé son compte et en est le titulaire, il reçoit la question selon les
+   préférences de ce compte.
+3. **Une fois par disparition.** Le marqueur `radar_listings.availability_asked_at` se pose par un
+   `UPDATE … WHERE availability_asked_at IS NULL`, sous le verrou de la ligne du bien (une question ouverte par bien). Le
+   retour de l'annonce l'efface avec la réponse : une nouvelle disparition repose la question.
+4. **La réponse réutilise les statuts existants.** `rented` et `sold` passent le bien à `rented` ou `sold` (hors vitrine,
+   l'écriture de `PUT …/status`) ; `available` ne fait que noter la réponse. Qui peut modifier le bien répond.
+5. **Sans réponse, une proposition.** Après `radar.observe.owner_answer_days` (7) jours, `radar:observe-sources` écrit
+   `radar_withdrawal_proposed`, événement alertable, journal de plateforme (sujet l'annonce, bien en propriétés), une fois
+   par bien. L'équipe décide ; le bien reste en ligne tant qu'elle n'a rien fait.
+6. **« En ligne » ne compte que ce que la veille juge.** `other_sources_online` (le champ de `radar_source_listing_gone`
+   et la garde de la question) exclut les annonces que la collecte ne suit plus (§3 : purgées, `do_not_contact`, annonceur
+   STOP) et celles d'un site qui ne juge plus : éteint (`radar_crawl_sources.enabled` faux), ou sans passage complet
+   commencé depuis `radar.observe.online_horizon_days` (3 jours ; la fréquence du site × `confirm_runs` si elle est plus
+   longue). Jamais jugées, elles comptaient en ligne pour toujours et retenaient la question indéfiniment. Une question se tait quand le bien quitte la vitrine ; celle d'un bien supprimé se règle sans
+   proposition.
+
+## Amendement — les compteurs anonymes par nature (2026-10-30, TCK-2431)
+
+Le §1 (« aucune table d'agrégats ») vaut pour le marché. **La part par nature fait exception** : la nature vit sur
+l'annonceur, que la purge remet à `unknown`, et aucune requête ne la relit après coup. Elle se fige donc chaque jour dans
+`radar_nature_counts` : le jour (Dakar), la nature présumée, le nombre d'annonceurs porteurs d'au moins une annonce non
+purgée et non doublon, et le nombre de ces annonces — la définition de la section vivante `natures`
+(`RadarNatureCounter::live()`, partagée).
+
+- **Avant la purge** : `radar:count-natures` à 04:13, `radar:purge` à 04:15, et la purge pose le compte elle-même en
+  premier si le passage a manqué. `insertOrIgnore` sur (jour, nature) : une écriture rejouée garde le premier compte.
+- **Sans clé, pas anonyme pour autant** : ni identifiant, ni lieu, ni prix, ni site, ni horodatation de ligne ; jamais
+  purgée. Une ligne seule ne nomme personne, mais **la différence entre deux jours** rend la nature présumée d'un annonceur
+  qui a dit STOP : le compte de J l'incluait, celui de J+1 non, et `do_not_contact_at` (gardé) donne le jour ; de même pour
+  un annonceur lié à un compte, par les dates des fiches purgées. Un seuil k ne la ferme pas ; un grain plus gros (la
+  semaine), un arrondi ou un bruit le pourraient, au prix de la justesse — à trancher avec l'avis juridique de
+  [TCK-2434](../backlog/tickets/TCK-2434-radar-compteurs-anonymes-de-marche.md), qui décide aussi de toute colonne de plus
+  (site, ville).
+- **Éteint par défaut** (`radar.nature_counts.enabled`, `RADAR_NATURE_COUNTS=false`) : ni la commande ni la purge
+  n'écrivent rien, et l'observatoire le dit. Le porteur ne l'allume qu'après l'avis juridique. Une panne du compteur ne
+  fait jamais tomber la purge : signalée (`report()`), puis la purge continue.
+- **La part d'une période se lit en annonceurs-jours** (section `nature_history`, `filter[since|until]`) : sans
+  identifiant, les jours ne se dédoublonnent pas, et un annonceur présent dix jours compte dix fois.

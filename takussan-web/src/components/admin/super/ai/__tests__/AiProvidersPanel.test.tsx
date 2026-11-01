@@ -1,0 +1,81 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fetchAdminAiProviders, testAdminAiProvider } from '@/lib/queries/super-admin';
+import { withIntl } from '@/test/intl';
+import { AiProvidersPanel } from '../AiProvidersPanel';
+
+vi.mock('@/lib/queries/super-admin', () => ({ fetchAdminAiProviders: vi.fn(), testAdminAiProvider: vi.fn() }));
+
+function renderPanel() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(withIntl(<QueryClientProvider client={queryClient}><AiProvidersPanel /></QueryClientProvider>));
+}
+
+describe('fournisseurs IA (TCK-2385)', () => {
+  beforeEach(() => {
+    vi.mocked(fetchAdminAiProviders).mockReset().mockResolvedValue({ data: [{ key: 'anthropic', legal_name: 'Anthropic', key_present: true, selectable: true, reason: null, host: 'api.anthropic.com', models: ['modele-a'] }] });
+    vi.mocked(testAdminAiProvider).mockReset();
+  });
+
+  it('dit l’état de chaque fournisseur, l’hôte seul quand il fait défaut, et ne teste que celui qui est prêt (TCK-2450)', async () => {
+    vi.mocked(fetchAdminAiProviders).mockResolvedValue({
+      data: [
+        { key: 'anthropic', legal_name: 'Anthropic', key_present: true, selectable: true, reason: null, host: 'api.anthropic.com', models: ['modele-a'] },
+        { key: 'openai', legal_name: 'OpenAI', key_present: false, selectable: false, reason: 'key_missing', host: 'api.openai.com', models: [] },
+        { key: 'openrouter', legal_name: 'OpenRouter', key_present: true, selectable: false, reason: 'host_not_allowed', host: 'proxy.example.test', models: [] },
+      ],
+    });
+    renderPanel();
+
+    expect(await screen.findByText('Prêt')).toBeInTheDocument();
+    expect(screen.getByText('Clé absente')).toBeInTheDocument();
+    expect(screen.getByText('Adresse non acceptée')).toBeInTheDocument();
+    expect(screen.getByText('Hôte : proxy.example.test')).toBeInTheDocument();
+    expect(screen.queryByText(/api\.anthropic\.com/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/api\.openai\.com/)).not.toBeInTheDocument();
+
+    const boutons = screen.getAllByRole('button', { name: 'Tester la connexion' });
+    expect(boutons.map((b) => (b as HTMLButtonElement).disabled)).toEqual([false, true, true]);
+  });
+
+  it('un test réussi dit le modèle et la durée', async () => {
+    vi.mocked(testAdminAiProvider).mockResolvedValue({ data: { ok: true, model: 'modele-a', duration_ms: 320, error_code: null } });
+    renderPanel();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Tester la connexion' }));
+
+    expect(await screen.findByText('Connexion établie avec modele-a en 320 ms.')).toBeInTheDocument();
+  });
+
+  it('un échec connu se lit en clair, sans code technique', async () => {
+    vi.mocked(testAdminAiProvider).mockResolvedValue({ data: { ok: false, model: 'modele-a', duration_ms: null, error_code: 'ai.providers_unavailable' } });
+    renderPanel();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Tester la connexion' }));
+
+    expect(await screen.findByText(/Aucun fournisseur n’a répondu/)).toBeInTheDocument();
+    expect(screen.queryByText(/ai\.providers_unavailable/)).not.toBeInTheDocument();
+  });
+
+  it('un échec d’appel se lit par sa cause (TCK-2399)', async () => {
+    vi.mocked(testAdminAiProvider).mockResolvedValue({ data: { ok: false, model: 'modele-a', duration_ms: null, error_code: 'ai.provider_auth' } });
+    renderPanel();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Tester la connexion' }));
+
+    expect(await screen.findByText('Le fournisseur a refusé la clé : vérifiez-la.')).toBeInTheDocument();
+    expect(screen.queryByText(/ai\.provider_auth/)).not.toBeInTheDocument();
+  });
+
+  it('un code inconnu : message générique, code en retrait', async () => {
+    vi.mocked(testAdminAiProvider).mockResolvedValue({ data: { ok: false, model: 'modele-a', duration_ms: null, error_code: 'ai.code_futur' } });
+    renderPanel();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Tester la connexion' }));
+
+    expect(await screen.findByText('La connexion a échoué.')).toBeInTheDocument();
+    expect(screen.getByText('Code : ai.code_futur')).toBeInTheDocument();
+  });
+});

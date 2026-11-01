@@ -15,6 +15,12 @@ export type OptionsRelais = {
   enTetes?: Record<string, string>;
   /** Relaie l'`Accept` de la requête (téléchargements de la console) ; sinon `application/json`. */
   accepteDeLaRequete?: boolean;
+  /**
+   * TCK-2389 — la borne d'attente de CETTE route, quand le délai par défaut est trop court pour ce qu'elle fait (une
+   * écriture qui travaille des fichiers dans sa transaction). Sans elle : celle des fichiers pour un envoi multipart,
+   * sinon le défaut de TCK-1215 (30 s).
+   */
+  delaiMs?: number;
   /** Options de `fetch` côté Next (`cache`, `next.revalidate`). */
   init?: Pick<RequestInit, 'cache'> & { next?: { revalidate?: number | false } };
 };
@@ -127,7 +133,13 @@ export async function relayerVersApi(
     init.body = await request.arrayBuffer();
   }
 
-  const amont = await fetchVersApi(urlApiServeur(cheminAmont), init, { requete: request });
+  // TCK-2386 — un envoi multipart transporte des fichiers (captures du Radar, preuve du registre des
+  // droits) : il attend l'API jusqu'au délai des fichiers, comme les téléversements KYC.
+  const multipart = contentType?.toLowerCase().startsWith('multipart/form-data') ?? false;
+  const amont = await fetchVersApi(urlApiServeur(cheminAmont), init, {
+    requete: request,
+    ...(options.delaiMs !== undefined ? { delaiMs: options.delaiMs } : multipart ? { delaiMs: DELAI_RELAIS_FICHIER_MS } : {}),
+  });
   const enTetesReponse: Record<string, string> = {};
   for (const nom of EN_TETES_DE_REPONSE) {
     const valeur = amont.headers.get(nom);

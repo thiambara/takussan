@@ -7,6 +7,7 @@ use App\Exceptions\ApiError;
 use App\Exceptions\HttpErrorCode;
 use App\Models\Integration;
 use App\Models\IntegrationWebhookLog;
+use App\Support\AppKeyHmac;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
@@ -105,7 +106,7 @@ class WebhookJournal
     /** HMAC-SHA256 du corps sous la clé de l'application : il identifie, il ne se renverse pas. */
     public static function bodyDigest(string $raw): string
     {
-        return hash_hmac('sha256', $raw, (string) config('app.key'));
+        return AppKeyHmac::of($raw);
     }
 
     public function current(): ?IntegrationWebhookLog
@@ -190,7 +191,7 @@ class WebhookJournal
             'error_code' => $status >= 400 ? $this->errorCode($status, $error) : null,
             'error_message' => $status >= 400 && $error !== null ? class_basename($error) : null,
             'processed_at' => now(),
-        ])->save();
+        ] + (in_array($this->log->provider, IntegrationWebhookLog::BODY_DROPPED_AT_CLOSE, true) ? ['body' => null] : []))->save();
         $this->pending = null;
 
         if ($outcome === IntegrationWebhookLog::STATUS_FAILED) {

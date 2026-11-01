@@ -59,6 +59,8 @@
 2.8 [Internationalisation & préférences](#28-internationalisation--préférences)
 2.9 [Administration & configuration](#29-administration--configuration)
 2.10 [Pages légales publiques](#210-pages-légales-publiques)
+2.11 [Socle IA](#211-socle-ia)
+2.12 [Radar — acquisition d'annonces](#212-radar--acquisition-dannonces)
 
 ---
 
@@ -82,7 +84,7 @@ Gestion du cycle de vie d'un bien immobilier, de sa création à sa sortie du po
 | P1 | 🧑‍💼 | Associer des tags / amenités (piscine, climatisation, meublé…) — une seule liste d'équipements, traduite, en sélection multiple avec recherche ; un équipement absent s'ajoute à l'annonce tel que saisi, sans traduction, et n'est proposé aux autres qu'après validation super-admin (TCK-633) |
 | P1 | 🏢🧑‍💼 | Le prix d'un bien se saisit en franc CFA (XOF), seule devise proposée tant que la plateforme ne sert que le Sénégal (TCK-633) |
 | P1 | 🏢🧑‍💼 | Chambres, salles de bain, étage, places de parking et année de construction se choisissent dans des listes (TCK-633) |
-| P1 | 🏢🧑‍💼 | Contacts sur place : jusqu'à 3 numéros par annonce, sans vérification, chacun avec un titre facultatif (« Gardien »…) et l'indication WhatsApp ; révélés au même geste que le numéro principal (TCK-633) |
+| P1 | 🏢🧑‍💼 | Contacts sur place : jusqu'à 3 numéros par annonce, sans vérification, chacun avec un titre facultatif (« Gardien »…) et l'indication WhatsApp ; révélés au même geste que le numéro principal (TCK-633) ; un contact sur place qui répète un numéro déjà servi (principal ou second) n'est pas servi deux fois (TCK-2389) |
 | P1 | 🏢🧑‍💼 | Publier exige un contact joignable : prénom et numéro vérifié de la personne que les visiteurs appelleront — l'agent principal du bien, à défaut son titulaire — ; ce qui manque se complète au moment de publier (nom, numéro avec code SMS, WhatsApp) ; les CGU sont acceptées par le publieur, et sa première publication vaut acceptation, datée (TCK-633) |
 | P1 | 🏢🧑‍💼 | Booster une annonce avec les crédits de l'espace : **Remontée** (le bien repasse en tête du tri par récence, au plus une fois par délai réglé), **En vedette** (emplacements « Sponsorisé » pour une durée), **Badge** (« Urgent », « Prix en baisse ») ; un boost se met en pause quand le bien quitte la surface publique, et ses jours restants sont rendus quand le bien est loué, vendu ou supprimé par l'annonceur (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
 | P1 | 🏢🧑‍💼 | Historique de prix automatique à chaque changement |
@@ -216,8 +218,9 @@ Encaissements, factures et reversements.
 | P1 | 🛡️🏢 | Générer une facture à un Customer destinataire |
 | P1 | 🛡️🏢 | Facture opposable : numérotation chronologique continue par agence et par an, attribuée à l'émission ; mentions légales de l'agence (raison sociale, NINEA, RCCM, adresse) ; TVA par défaut de l'agence ; une facture émise ne s'annule que par un avoir (TCK-594), qui reprend ses lignes et sa désignation (TCK-2316) |
 | P1 | 🏢 | Reversement au bailleur après commission (Payout) |
-| P1 | 🏢🏠 | Reversement au bailleur calculé depuis les loyers et réservations encaissés de la période (loyer, charges, pénalités, régularisations ; jamais la caution), commission du bail sinon de l'agence, frais de travaux refacturés déduits ; le brut n'est pas saisi et un paiement n'est reversé qu'une fois (TCK-594) |
+| P1 | 🏢🏠 | Reversement au bailleur calculé depuis les loyers et réservations encaissés de la période (loyer, charges, pénalités — la pénalité réglée est une ligne propre du reversement, P206.01 —, régularisations ; jamais la caution), commission du bail sinon de l'agence, frais de travaux refacturés déduits ; le brut n'est pas saisi et un paiement n'est reversé qu'une fois (TCK-594) |
 | P1 | 🏢🏠 | Un reversement ne cite que des paiements de l'agence et du bailleur concernés ; un remboursement de caution est un versement au locataire, jamais compté comme reversé au bailleur (TCK-594) |
+| P1 | 🏢🏠 | Remboursement d'une somme déjà reversée au bailleur : le remboursement est constaté comme une sortie d'argent, et la part du bailleur, au net de commission, est reprise sur son reversement suivant, reliquat reporté ; chaque ligne d'un reversement garde le montant, le taux et la commission appliqués à sa création (TCK-2017, TCK-2052, TCK-2151, [ADR-0039](adr/0039-les-sorties-d-argent.md)) |
 | P1 | 🏢🏠 | Relevé de gérance mensuel (PDF / CSV) par bien et consolidé, et attestation annuelle de revenus locatifs, envoyés au bailleur en début de mois (TCK-594) ; le relevé mensuel envoyé est conservé tel qu'il a été envoyé, et ce qui a été écrit depuis se montre en rectificatif (TCK-2321) |
 | P1 | 🏢🛡️ | Double validation des sorties d'argent : la même personne ne tient jamais deux gestes consécutifs (préparer, approuver, marquer payé) ni n'approuve un versement dont elle est bénéficiaire. Reversements plateforme : toujours. Reversements d'agence : désactivée par défaut ; l'agence l'active par un seuil, possible seulement avec deux approbateurs (TCK-594) |
 | P1 | 🛡️ | Historique des paiements par entité (bien, bail, client) |
@@ -227,8 +230,8 @@ Encaissements, factures et reversements.
 | P1 | 🏠🧑‍💼 | Le payeur (locataire, client) voit les fournisseurs de paiement en ligne que l'agence a activés — intégration plateforme comprise — et seulement ceux-là (TCK-602) |
 | P2 | 🛡️ | Supervision des paiements (console plateforme) : paiements en échec, en retard et webhooks non appariés, par fournisseur et par agence (TCK-602) |
 | P2 | 🛡️ | Rapprochement bancaire semi-automatique — relevés, lignes, mapping CSV et clôture réservés à l'admin d'agence qui détient `payments.reconcile` (son rôle système la porte, jamais celui d'agent ; l'admin principal la garde toujours) (TCK-2260) |
-| P2 | 🛡️ | Régler depuis l'écran le mapping CSV des relevés de l'agence (colonnes, format de date, séparateur décimal déclaré) et voir les lignes ignorées à l'import (TCK-593) — les préréglages Wave Business / Orange Money attendent un export réel (dette D-67) |
-| P2 | 🛡️ | Rapprocher les débits d'un relevé avec les reversements (Payout) émis (TCK-593) |
+| P2 | 🛡️ | Régler depuis l'écran le mapping CSV des relevés de l'agence (colonnes, format de date, séparateur décimal déclaré) et voir les lignes ignorées à l'import (TCK-593) ; une ligne qui reprend une transaction déjà importée est marquée en doublon de la première, pas ignorée (TCK-1919) — les préréglages Wave Business / Orange Money attendent un export réel (dette D-67) |
+| P2 | 🛡️ | Rapprocher les débits d'un relevé avec les reversements (Payout) émis (TCK-593) ; le virement de clôture de la plateforme se rapproche d'un crédit du relevé (TCK-1421) |
 | P2 | 🛡️ | Relance automatique des factures en retard |
 | P2 | 🛡️ | Reversement plateforme → agence (commission plateforme retenue à la source, payout périodique agrégé) |
 | P2 | 🛡️ | Reversement plateforme refusé vers une agence non active ; une agence `standard` non vérifiée est bloquée à l'approbation (TCK-594) |
@@ -278,7 +281,7 @@ Gestion des contacts (Customer) liés ou non à un compte utilisateur.
 | P1 | 🏠🏢 | Liste des conversations avec statut non lu — messages d'un autre postérieurs à la dernière lecture, hors avis système ; ouvrir un fil le marque lu (TCK-579) |
 | P1 | 🏠🏢 | Notification en temps réel (in-app + email) |
 | P2 | 🏢🧑‍💼 | Conversations de groupe (multi-participants) — participants choisis par leur nom ; bien et bail rattachés par recherche (titre, référence), dans le périmètre visible de l'acteur ; un bail doit concerner le bien choisi (TCK-565, TCK-576). Une demande d'intervention ne se rattache pas à un groupe créé à la main (422) : son fil naît de l'assignation (TCK-2372, P250.03) |
-| P2 | 🏢🧑‍💼 | Groupe rattaché à un bail — il ne compte que des personnes qui lisent ce bail (`LeasePolicy::view` : parties au bail, personnel actif de l'agence) ; contrôlé à la création du groupe et à l'ajout de participants. Seule exception : le prestataire assigné à une intervention de ce bail reste dans le fil de cette intervention (TCK-592, `SyncMaintenanceConversation`), qu'il ne lise pas le bail. Un autre artisan ou un tiers se joint par un groupe sans bail rattaché (décisions du porteur du 2026-10-23, P191.04). ⚠ Au 2026-10-23, la règle n'est pas appliquée : `GuardsConversationScope` ne juge face au bail que l'acteur |
+| P2 | 🏢🧑‍💼 | Groupe rattaché à un bail — il ne compte que des personnes qui lisent ce bail (`LeasePolicy::view` : parties au bail, personnel actif de l'agence) ; contrôlé à la création du groupe et à l'ajout de participants. Seule exception : le prestataire assigné à une intervention de ce bail reste dans le fil de cette intervention (TCK-592, `SyncMaintenanceConversation`), qu'il ne lise pas le bail. Un autre artisan ou un tiers se joint par un groupe sans bail rattaché (décisions du porteur du 2026-10-23, P191.04 ; TCK-2191) |
 | P2 | 🏠🏢 | Accusés de lecture individuels (si > 5 participants) — non livré : la lecture se compte par participant (dernière lecture), aucune par message (`models-spec.md` EF5, refusé pour l'instant) ; le déclencheur d'EF5, des conversations à plus de 5 participants, est désormais atteignable — un groupe compte jusqu'à 20 participants actifs |
 | P2 | 🏠🏢 | Recherche dans l'historique des messages |
 | P2 | 🧑‍💼🔧🏠 | Fil de discussion automatique par intervention, avec un message système à chaque étape (TCK-592) |
@@ -477,8 +480,9 @@ Une agence porte un **`kind`** :
 | P1 | 🛡️🏢 | 2FA exigée pour le personnel de l'agence sur les opérations d'argent, d'intégrations, de rôles et d'équipe ; réglage d'agence « 2FA obligatoire pour toute l'équipe » ; statut 2FA visible dans la liste de l'équipe (TCK-589) |
 | P1 | Tous | Gestion des sessions actives |
 | P1 | Tous | Sessions bornées : jeton à durée absolue et expiration par inactivité ; session super-admin courte (`platform.session_max_minutes`) et confirmation 2FA récente (step-up) avant une action sensible de la console (TCK-589) |
-| P1 | Tous | Connexion et inscription par numéro de téléphone + code à usage unique reçu par SMS, sans mot de passe ; le compte est créé au premier code validé ; e-mail facultatif ; limiteurs et verrou par numéro — livrée entière, derrière un drapeau faux par défaut, allumée en production après un envoi réel mesuré ; décision par ADR (TCK-589) ; allumée en local et en préproduction sans fournisseur SMS, le code s'y affichant à l'écran (TCK-620, ADR-0060) |
+| P1 | Tous | Connexion et inscription par numéro de téléphone + code à usage unique reçu par SMS, sans mot de passe ; le compte est créé au premier code validé ; e-mail facultatif ; limiteurs et verrou par numéro — livrée entière, derrière un drapeau faux par défaut, allumée en production après un envoi réel mesuré ; décision par ADR (TCK-589) ; allumée en local et en préproduction sans fournisseur SMS, le code s'y affichant à l'écran (TCK-620, ADR-0060) ; le compte créé par le Radar pour un annonceur s'ouvre par ce code, et sa page de réclamation (`/claim/{jeton}`) partage les limiteurs et le verrou du numéro (TCK-2389, TCK-2390) ; le compte créé par le Radar accepte les conditions d'utilisation au premier code, avant le second facteur, sans que cette étape coûte un essai au limiteur (TCK-2404) |
 | P1 | Tous | Verrou de compte après échecs de connexion répétés (mot de passe ou code), levé seul au bout de 15 min ou par le support ; un compte bloqué ou supprimé n'ouvre aucune session, par aucun chemin (TCK-589) |
+| P1 | 🛡️ | Bloquer le seul administrateur d'un espace individuel ne retire pas l'espace : ses biens restent en ligne, et le modérateur suspend l'espace s'il le faut ([§2.9](#29-administration--configuration)) (décision du porteur du 2026-10-29, TCK-2390) |
 | P1 | Tous | L'inscription ouvre la session aussitôt (TCK-589) |
 | P1 | 👤 | L'inscription garde l'intention du visiteur (bien, dates, action) jusqu'au retour sur la fiche, quel que soit le chemin (connexion, inscription, téléphone, OAuth) (TCK-589) |
 | P1 | 🏠🛡️ | Données bancaires et d'identité des profils et des demandes de passage en agence (RIB, NINEA, n° de pièce, RIB professionnel, revenu déclaré), et pièce et revenu du locataire et de la caution, chiffrées au repos et masquées à l'affichage ; valeur complète réservée à l'admin de l'agence et au super-admin, sous second facteur récent, consultation journalisée (TCK-601, TCK-953 à TCK-956, [ADR-0070](adr/0070-piece-et-revenu-du-locataire-et-de-la-caution-chiffres-masques-lus-sous-step-up.md)) |
@@ -512,7 +516,7 @@ Cartographie complète des parcours d'entrée dans le système (référence : `d
 
 | Prio | Acteurs | Fonctionnalité |
 |------|---------|----------------|
-| P0 | Tous | Pattern d'invitation unifié — création par un inviteur autorisé, invitation par e-mail OU par SMS (lien court) quand l'invité n'a qu'un numéro (TCK-589), avec token signé (expiry 7j, rappel automatique J+2, renvoi self-service par l'inviteur, révocation possible avant acceptation) ; à l'acceptation, le profil cible passe en `active` et devient le profil actif |
+| P0 | Tous | Pattern d'invitation unifié — création par un inviteur autorisé, invitation par e-mail OU par SMS (lien court) quand l'invité n'a qu'un numéro (TCK-589), avec token signé (expiry 7j, rappel automatique J+2, retenté le lendemain si tous les fournisseurs SMS l'ont refusé, trois essais au plus (TCK-2155), renvoi self-service par l'inviteur, révocation possible avant acceptation) ; à l'acceptation, le profil cible passe en `active` et devient le profil actif |
 | P0 | 🛡️ | Un compte existant entre dans l'équipe d'une agence par l'invitation seule, au rôle agent ou administrateur (l'administrateur exige `team.assign_role`) ; aucun rattachement direct (`POST /api/agencies/{id}/members` retirée). Un membre retiré puis réinvité revient au rôle système, jamais à son ancien rôle personnalisé ; l'invitation ne dit pas à l'invitant si l'adresse a un compte (P242, TCK-2365, [ADR-0031](adr/0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md)) |
 | P0 | 🛡️ | Bootstrap super-admin via commande artisan `takussan:create-super-admin` (1ère installation par environnement) — exige 2FA TOTP au premier login |
 | P0 | 👤🏠 | Onboarding wizard Customer post-signup — welcome modale (3 slides skippables) + complétion différée du profil minimal (téléphone, ville, type de recherche) au moment de la première action sensible (favoris / réservation / contact) |
@@ -559,6 +563,8 @@ Cartographie complète des parcours d'entrée dans le système (référence : `d
 | P1 | 🏠🏢🧑‍💼 | WhatsApp (SMS en secours) activé par défaut, désactivable, pour l'échéance et le retard de loyer, le rappel de visite et le changement de statut d'une réservation, dès que le téléphone est vérifié (TCK-588) |
 | P1 | 🛡️🏢 | Les notifications de vérification KYC d'agence sont critiques : in-app et e-mail toujours, non désactivables (TCK-588) |
 | P1 | Tous | Un compte bloqué ou supprimé ne reçoit plus que les avis de son compte (blocage, réactivation, fin d'impersonation, effacement, réinitialisation du mot de passe, export de ses données prêt), par aucun canal et par aucun chemin d'envoi : les avis du bail, les rappels et les alertes ne lui parviennent plus (TCK-1350, TCK-2363) |
+| P1 | Tous | Une notification urgente n'attend jamais un appel au modèle : les jobs qui appellent la passerelle IA hors d'une requête HTTP (extraction d'une annonce du Radar, vérification d'une réponse de consentement) passent par une file à eux (`ai`), lue par un processus à lui (`worker-ia`) (TCK-2402, [ADR-0078](adr/0078-une-connexion-de-file-pour-les-jobs-longs.md), amendement) |
+| P1 | 🏢 | Question de disponibilité d'un bien publié par le Radar dont la source a disparu ([§2.12](#212-radar--acquisition-dannonces)) : interrupteur `property_availability_check` (groupe « Biens »), cloche et e-mail, jamais sur mobile (TCK-2432) |
 | P1 | Tous | Templates localisés via fichiers lang/ Laravel |
 | P2 | Tous | Notifications SMS (événements critiques) |
 | P2 | 🛡️ | Annonces in-app cross-tenant (broadcast) ciblées par rôle / agence / segment, avec dismissal côté utilisateur — le bandeau s'affiche dans le flux de la page, sous la barre du haut (site public comme consoles), jamais sous une barre fixe (TCK-572) |
@@ -678,7 +684,7 @@ cookie, ADR-0026 §5), y compris depuis ses appels serveur.
 | Prio | Acteurs | Fonctionnalité |
 |------|---------|----------------|
 | P0 | 🛡️ | Gestion des tags et amenités — dont la validation, le renommage et la fusion des équipements proposés par les annonceurs (TCK-633) |
-| P1 | 🛡️ | Référentiel géographique : validation, renommage et fusion des quartiers proposés (TCK-633, [ADR-0062](adr/0062-referentiel-geographique-region-ville-quartier.md)) |
+| P1 | 🛡️ | Référentiel géographique : validation, renommage et fusion des quartiers proposés (TCK-633, [ADR-0062](adr/0062-referentiel-geographique-region-ville-quartier.md)) ; un ancien nom continue de désigner le quartier ou la ville renommés dans la recherche, les alertes et le rapprochement CRM (TCK-1080, TCK-1169) |
 | P1 | 🛡️ | Crédits et boost : réglages (offre de bienvenue, validité, délai entre remontées, emplacements par page, places réservées en tête de la première page), catalogue des boosts, portefeuilles des espaces (octroi ou retrait motivé, sous 2FA récente, journalisé), boosts actifs (annulation avec ou sans remboursement, mise en avant offerte), statistiques (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
 | P0 | 🛡️ | Gestion des utilisateurs (activation, blocage) |
 | P0 | 🛡️ | Onboarding d'une agence par un super-admin (création + admin initial invité, hors auto-inscription) ; le numéro du gérant, facultatif, est cherché parmi les numéros vérifiés : s'il appartient à un compte, la création est refusée comme pour l'e-mail (409, P251.02, TCK-2365) |
@@ -690,7 +696,7 @@ cookie, ADR-0026 §5), y compris depuis ses appels serveur.
 | P1 | 🛡️ | Registre des demandes de droits (accès, rectification, opposition, effacement, portabilité) : réception, échéance légale, statut, preuve de réponse, export (loi n° 2008-12) (TCK-601) |
 | P2 | 🛡️ | Paramètres globaux de plateforme — seules des clés lues par l'application, écrites par une seule voie validée et journalisée (TCK-600) |
 | P2 | 🛡️ | Gestion des intégrations tierces (API keys) — chaque intégration de paiement reçoit ses webhooks sur une URL propre, porteuse d'un jeton secret (empreinte en base, clair chiffré) ; l'admin la relit et la régénère d'un geste sous double authentification, journalisé sans le jeton ; la signature du fournisseur reste exigée, et un webhook ne rapproche que des paiements de l'agence de son intégration ; l'ancienne URL commune par fournisseur rend 410 (TCK-293, [ADR-0046](adr/0046-un-webhook-de-paiement-par-integration.md)) |
-| P2 | 🛡️ | Healthcheck plateforme et supervision des jobs en arrière-plan (file de queue, échecs, rejouer) — par sondes actives et datées (courriel, SMS, moteur de recherche, âge de la file, battement des workers, stockage des médias), statut agrégé exposé à une sonde externe (TCK-600) |
+| P2 | 🛡️ | Healthcheck plateforme et supervision des jobs en arrière-plan (file de queue, échecs, rejouer) — par sondes actives et datées (courriel, SMS, moteur de recherche, âge de la file, battement des workers, stockage des médias), statut agrégé exposé à une sonde externe (TCK-600) ; la sonde des workers surveille la file des appels IA (`ai`) comme les autres files (TCK-2402) ; la sonde `ai_providers` passe en dégradé quand une clé de fournisseur d'IA est posée sur une adresse refusée, sans nommer ni ce fournisseur, ni son hôte, ni son adresse (TCK-2450) |
 | P2 | 🛡️ | Impersonation d'un utilisateur par un super-admin, pour voir ce qu'il voit : motif obligatoire, confirmation 2FA récente, lecture seule par défaut, durée courte et sortie explicite qui révoque l'accès, jamais un opérateur ni un compte bloqué ; aucun jeton exposé à la page (cookie httpOnly géré par le BFF) ; bannière persistante ; chaque acte journalisé au nom de l'opérateur ; l'utilisateur est informé après coup (TCK-600) |
 | P2 | 🛡️ | Recherche globale de la console plateforme (e-mail, téléphone, référence, identifiant de transaction, NINEA), par la base, brouillons et biens privés compris (TCK-600) |
 | P2 | 🛡️ | File de modération : prise en charge exclusive avec expiration, motifs types traduits, décision groupée, âge de l'élément (TCK-597) |
@@ -733,6 +739,633 @@ français absent fait toujours afficher l'état « texte à fournir ».
   annoncées par la politique de confidentialité et la minimisation de l'auteur d'un avis public.
 - **Tout nouveau prestataire, traceur, purge ou changement de commission** se reporte dans le texte
   concerné dans le même changement, et la date de version (`VERSION_DOCUMENTS`) avance.
+
+### 2.11 Socle IA
+
+Toute fonctionnalité qui fait appel à un modèle d'IA passe par un socle commun : elle **déclare un
+usage**, et le socle choisit le modèle, tient le budget, masque les données, journalise l'appel et
+le rend évaluable ([ADR-0076](adr/0076-le-socle-ia.md)). Le Radar ([§2.12](#212-radar--acquisition-dannonces))
+en est le premier usager. Vision et lots : [plan du 2026-10-26](plans/2026-10-26-radar-et-socle-ia.md).
+
+| Prio | Acteurs | Fonctionnalité |
+|------|---------|----------------|
+| P1 | 🛡️ | Affecter à chaque rôle de modèle (`extraction`, `redaction`, `raisonnement`, `vision`, `embedding`) une chaîne ordonnée de modèles depuis la console super-admin, avec bascule automatique à la panne ; forcer un modèle pour un usage ; un fournisseur d'embeddings ne sert que le rôle `embedding`, et ce rôle ne sert que lui (TCK-2423) ; seul un fournisseur sélectionnable s'affecte (TCK-2450) ; sous second facteur récent, journalisé |
+| P1 | 🛡️ | Évaluer un modèle candidat avant de l'affecter : score par champ et coût, comparés au modèle en place sur le jeu d'évaluation de chaque usage concerné ; un score sous le cliquet bloque l'affectation, sauf dérogation journalisée ; un candidat d'un fournisseur non sélectionnable est refusé, depuis la console comme par `ai:eval` (TCK-2450) |
+| P1 | 🛡️ | Voir, par fournisseur, s'il est prêt, sans clé, sans la déclaration du refus de l'entraînement ou sur une adresse non acceptée, dont l'hôte s'affiche alors (ni la clé ni l'adresse entière), et tester la connexion d'un fournisseur prêt (un fournisseur d'embeddings, en lui demandant un vecteur, TCK-2423) ; seuls sont sélectionnables les fournisseurs déclarés en configuration, avec une clé présente et une adresse acceptée, et, pour Voyage AI, la déclaration du refus de l'entraînement ; la politique de confidentialité nomme chaque fournisseur déclaré, ce qu'une garde de CI vérifie (TCK-2450, ADR-0085) |
+| P1 | 🛡️ | Ajouter un modèle d'un fournisseur sélectionnable (corriger ou retirer un modèle de la configuration reste permis chez un fournisseur déclaré sans clé, que la passerelle n'appelle pas pour autant, TCK-2450), corriger ses quatre tarifs en dollars par million de tokens, le retirer depuis la console, ou ramener à la configuration un modèle qui y figure (le tarif de la configuration s'applique de nouveau, et un modèle retiré est rétabli), sous second facteur récent, journalisé. Seul un modèle actif du catalogue s'affecte ; retirer un modèle employé par une chaîne, un modèle forcé ou une chaîne de repli de la configuration est refusé, en nommant ces emplois. Un tarif nul veut dire « gratuit au token ». Un tarif corrigé vaut pour les appels suivants : le coût déjà journalisé ne se recalcule pas (TCK-2448, ADR-0085) |
+| P1 | 🛡️ | Plafonds journaliers en dollars, avec leur équivalent approximatif en XOF : par usage, réglable depuis la console avec le coupe-circuit de l'usage ; global et par agence, fixés par la configuration du déploiement et non réglables depuis la console, qui affiche le global sans le modifier. Un appel d'évaluation n'y compte pas. Le taux d'affichage ne décide d'aucun blocage (TCK-2383, TCK-2448, ADR-0086) |
+| P1 | 🛡️ | Tableau de bord IA : coût en dollars avec son équivalent approximatif en XOF (un coût minuscule non nul ne se lit pas 0, TCK-2448) et latence par usage et par jour, erreurs, défauts du fournisseur (maillons refusés par un autre fournisseur qu'Anthropic, TCK-2449 ; redirections, sur tout pilote, et réponses sans décompte de jetons, comptées à zéro et inconnues du budget, TCK-2450), taux d'acceptation des suggestions, dernier score d'évaluation |
+
+**Règles de gestion.**
+
+- **Aucun nom de modèle dans le code applicatif** : le code demande un rôle, l'affectation vit en
+  base avec un repli sur la configuration.
+- **Un modèle se règle dans la console, un fournisseur dans le déploiement** : le catalogue
+  (`AiModelCatalogue`) est l'union de la table `ai_models` et de `config('ai.pricing')`, et une ligne
+  l'emporte sur la configuration pour le même couple, y compris pour en retirer un modèle. La liste des
+  fournisseurs reste fermée dans `config/ai.php`. Un modèle retiré peut rester employé (affectation
+  concurrente, changement de configuration) : l'appel part et se compte, et la console le signale
+  (TCK-2448, [ADR-0085](adr/0085-un-modele-se-regle-dans-la-console-un-fournisseur-dans-le-deploiement.md)).
+  Les chaînes de repli de la configuration restent sur Anthropic pour le texte, et aucun tarif d'OpenAI ni
+  d'OpenRouter n'y est écrit : leurs modèles s'ajoutent dans la console (TCK-2450).
+- **Le coût d'un appel, les plafonds et les tarifs sont en dollars, sans décimales figées** : des
+  chaînes décimales, en `numeric` sans précision, calculées par `bcmath`, sommées et comparées en SQL
+  ou par `bccomp`, jamais en `float` ni sous un cast `decimal:N` ; `scripts/check-ai-money.mjs` garde
+  les formes qu'il connaît. Le XOF n'existe qu'à l'affichage, présenté comme approximatif
+  (`AI_USD_TO_XOF`, 600 par défaut), et l'arrondi n'arrive qu'à l'écran (TCK-2448,
+  [ADR-0086](adr/0086-les-couts-ia-se-comptent-en-dollars-et-sans-decimales-figees.md)).
+- **Les clés des fournisseurs restent dans l'environnement**, jamais en base ni dans la console, comme
+  leur adresse ; aucune route de lecture ne rend ni l'une ni l'autre, et seul l'hôte de l'adresse en sort,
+  sous `platform.ai.view`. Une adresse vide ou absente vaut celle du fournisseur (TCK-2450).
+- **Un fournisseur se déclare par une entrée nommée de `config/ai.php`** : `anthropic`, `openai`, `openrouter`
+  et `voyageai` aujourd'hui, chacune avec son pilote, son `legal_name` et ses `allowed_hosts`, écrits en
+  configuration. Un point d'accès compatible OpenAI est une entrée de plus, à son nom, sur le pilote
+  `openai-compatible`. Aucune n'est déclarée, et il n'y a pas d'entrée générique dont l'adresse suffirait à
+  changer le destinataire. Déployée, une entrée n'est active que lorsque sa clé est posée, geste du porteur
+  ([procédure](infra/hebergement.md#allumer-openai-ou-openrouter-tck-2450-adr-0085)) (TCK-2450,
+  [ADR-0085](adr/0085-un-modele-se-regle-dans-la-console-un-fournisseur-dans-le-deploiement.md) §3, §4).
+- **Un fournisseur n'est sélectionnable que complet** : déclaré, avec une clé, avec la déclaration du refus de
+  l'entraînement quand il la demande (`VOYAGE_TRAINING_OPT_OUT`), et une adresse acceptée. Une adresse est
+  acceptée si son hôte figure dans `allowed_hosts`, comparé exactement, sans joker, port compris (un port hors
+  du schéma s'y écrit), sans identifiants, et en `https` hors `local` et `testing`. Une entrée sans hôtes n'est
+  pas sélectionnable. La chaîne d'un rôle, le modèle forcé d'un usage, l'évaluation et l'ajout d'un modèle
+  refusent un autre fournisseur (`ai.provider_key_missing`, `ai.provider_host_not_allowed`,
+  `ai.provider_unreachable`, `ai.provider_unknown`), comme `ai:eval` et le test de connexion, qui demande aussi
+  un modèle tarifé (`ai.model_unpriced`). Le double interne d'une entrée, à sortie par outil, n'y est jamais
+  admis (TCK-2450).
+- **Un maillon non sélectionnable ne reçoit rien** : une chaîne ou un forçage en base peut le nommer encore (un
+  forçage inchangé n'empêche pas de régler le reste de l'usage). La passerelle écrit sa ligne (`failed_over`, avec le code
+  du refus) et passe au maillon suivant ; il ne prend pas sa part du délai des autres. S'il était le dernier,
+  l'usage rend `ai.providers_unavailable`, qui en porte la cause (TCK-2450).
+- **Tout maillon du pilote `openai` envoie `store: false`, sans réglage, et tout maillon du pilote `openrouter`
+  envoie `provider.data_collection` et `provider.require_parameters`**, quel que soit le nom de l'entrée : à
+  défaut d'autre valeur sur l'entrée, `deny` et `true`. Une valeur de `data_collection` autre que `deny` fait
+  rougir `scripts/check-ai-providers-privacy.mjs` : `privacy.ts` promet `deny`. `zdr`, `only`, `order` et `ignore`
+  passent depuis l'entrée, sans être imposés. Le pilote `openai-compatible` n'envoie ni l'un ni l'autre. Cela dit
+  ce qui est demandé au fournisseur, pas ce qu'il en fait (TCK-2450, [ADR-0085, amendement du 2026-10-31](adr/0085-un-modele-se-regle-dans-la-console-un-fournisseur-dans-le-deploiement.md)).
+- **Une redirection n'est suivie sur aucun pilote, Anthropic compris, ni pour un appel d'embeddings** : tout statut
+  de 300 à 399, avec ou sans `Location`, vers un autre hôte ou le même, fait lever `ai.provider_redirected`, et
+  ni le corps ni la clé ne repartent. Le corps et la clé sont déjà chez l'hôte accepté, qui a reçu le premier
+  envoi. La ligne porte `failed_over` et `warning: provider_rejected`, le tableau de bord la compte, et la
+  chaîne passe au maillon suivant ; sur le dernier, l'usage rend `ai.providers_unavailable`. Un middleware de réponse
+  est posé autour de l'appel puis rendu, et le reste de l'application suit encore ses redirections. Limites :
+  une requête construite avant cette portée et envoyée dedans suivrait la redirection, et une `Fiber` suspendue
+  dedans ferait refuser les 3xx du reste du processus ; rien dans `app/` n'en fait aujourd'hui (TCK-2450).
+- **Une réponse sans décompte de jetons se signale, et le budget n'en sait rien** : sur tout pilote, entrée et
+  sortie à zéro écrivent `warning: usage_missing`, y compris sans tarif, et le tableau de bord la compte. Elle
+  vaut zéro au budget (TCK-2450).
+- **Ce que la politique de confidentialité dit de ces fournisseurs** (`privacy.ts` § 4.3 et § 5) : elle nomme
+  Anthropic, OpenAI, OpenRouter et Voyage AI ; le nom ou le numéro que contient une annonce ou une preuve d'accord
+  parvient en clair aux trois premiers. Par OpenRouter, une demande peut être traitée dans plusieurs pays, selon
+  les conditions du fournisseur du modèle et non sur les instructions de Takussan, et ces pays ne sont pas
+  présentés comme assurant une protection suffisante. **Le § 5 dit que les formalités auprès de la CDP ne sont pas
+  accomplies** : il se réécrit quand elles le seront (TCK-2450).
+- **Limites des fournisseurs hors d'Anthropic.** Rien ne vérifie le contrat de sous-traitance ni la formalité
+  CDP avant la pose d'une clé : c'est l'ordre de la procédure. `deny` agit à l'acheminement, d'après ce que chaque
+  fournisseur déclare à OpenRouter, et aucun réglage imposé ne filtre par pays. Une bascule peut envoyer le
+  contenu vers un maillon d'une autre garantie, et rien ne le vérifie : qui compose une chaîne y met des
+  fournisseurs de même garantie. La documentation d'OpenRouter ne dit pas quel statut rend une absence de point
+  d'accès : elle ne bascule que si ce statut figure parmi ceux de la règle des refus, ci-dessous. La garde ne voit
+  ni un bloc `provider` étalé (`[...$x]`) ni un hôte qui n'est pas écrit en toutes lettres. **Tout cela décrit le
+  code, vérifié contre un faux client HTTP et la documentation des fournisseurs : aucun vrai appel à OpenAI,
+  à OpenRouter ou à Voyage AI ne l'a éprouvé** (TCK-2450).
+- **L'IA propose, un humain décide** : une sortie qui modifierait une donnée est une suggestion
+  acceptée, corrigée ou rejetée, et la correction est conservée.
+- **Une demande qui déclare une donnée sensible** (pièce d'identité, revenu) **est refusée sans aucune requête,
+  sur tout pilote.** Limite : le code juge la classe déclarée par l'appelant, il ne lit pas le contenu. Un usage de
+  classe `personnelle` n'est pas masqué : le nom ou le numéro qu'il porte part en clair vers son fournisseur, et
+  la politique de confidentialité le dit (§ 4.3) (TCK-2450).
+- **Un numéro de téléphone, sénégalais ou étranger, ne part jamais en clair vers un fournisseur**
+  (usage `publique`) **et ne s'écrit en clair dans aucun jeu d'évaluation**, liens WhatsApp compris
+  (`wa.me/…`, `?phone=…`) : le socle le masque (`+221`, `00221`, `+33`, `+225`, `00…`, forme nationale
+  `0X XX XX XX XX`), et la garde des jeux d'évaluation le signale (TCK-2400, TCK-2410). Le préfixe
+  `+221 74`, qu'aucun opérateur n'attribue, est celui des numéros fictifs des jeux d'évaluation et
+  des tests dont le numéro ne doit pas être lu comme réel (par exemple `+221 74 123 45 67`) : il
+  n'est pas masqué. Un test qui a besoin d'un numéro lu comme réel (masqué, extrait, apparié) prend
+  un préfixe attribué, par défaut `+221 77` (le plus souvent `+221 77 123 45 67`) ; un autre préfixe
+  attribué (`78`, `70`, `76`) sert pour un numéro distinct du premier, ou pour éprouver ce préfixe
+  (`PhoneMaskerTest`, `RadarPhoneTest`) (décision du porteur du 2026-10-30). Le `+` d'un étage n'est
+  pas un indicatif : `R+0` à `R+19` ou `RDC+0` à `RDC+19`, derrière un `R` ou un `RDC` isolé, avec au
+  plus deux espaces de chaque côté du `+` (`R + 1`, `RDC+1`) ; le prix ou le numéro qui le suit reste
+  lu (TCK-2428, TCK-2435). Un étage `1` ou `7` cesse d'en être un quand un numéro complet de cet
+  indicatif le suit, `(0)` de trunk admis devant (`RDC +7 (0)495 123-45-67`) : dix chiffres (zone entre
+  parenthèses comprise) qu'aucune marque monétaire ne suit (`F`, `FCFA`, `F CFA`, `CFA`, `XOF`, `franc`
+  ou `francs` ; un `F.` suivi d'une lettre est une initiale, pas une marque), ou, quelle que soit la
+  marque, la forme nord-américaine `[2-9]XX [2-9]XX XXXX` derrière `1`, dix chiffres commençant par 3 à
+  9 derrière `7`, et une zone de trois chiffres quelconques entre parenthèses suivie de sept chiffres
+  derrière l'un comme l'autre (`RDC +7 (495) 123-45-67 F`, `RDC +1 (495) 123-45-67 F`) :
+  `au RDC +1 514 555 0199` est masqué (TCK-2435, TCK-2445). Derrière l'étage `1` ou `7`, `(221)` suivi d'un numéro groupé
+  2-3-2-2, 2-2-2-3 ou 3-2-2-2, chaque séparateur pouvant manquer (`77 0123 456`, ou d'un seul tenant),
+  sans marque monétaire derrière, n'est pas la suite d'un numéro `+1` / `+7` : l'étage reste, et le
+  numéro est masqué (`Villa R+1 (221) 77 012 34 56` donne `Villa R+1 (221) [TELEPHONE]`) (TCK-2447).
+  D'autres écritures de l'indicatif sénégalais gardent aussi l'étage, quand aucun chiffre ne suit le
+  numéro à trois séparateurs près ; un nombre d'un à trois chiffres sans 0 en tête suivi d'un mot ne
+  compte d'ordinaire pas (`3 chambres`, `1er étage`, une ligne suivante `2 salons`). Par exemple :
+  `Villa R+1 (221) 77 01 234 56` donne `Villa R+1 (221) [TELEPHONE]`, `Villa R+1 221 77 012 34 56` donne
+  `Villa R+1 [TELEPHONE]`, `Villa R+1 00221 77 012 34 56 F` donne `Villa R+1 [TELEPHONE] F`,
+  `Villa R+1 00221 77 012 34 56 3 chambres` donne `Villa R+1 [TELEPHONE] 3 chambres` (TCK-2451).
+  Ailleurs, un indicatif étranger suivi de `00221`, de `221` nu, ou de `(221)` derrière `1` ou `7`,
+  peut englober le numéro sénégalais qui suit. Par exemple : `Contact +1 (221) 77 012 34 56` donne
+  `Contact [TELEPHONE]`, `Villa R+1 221 77 01 234 56` donne `Villa R[TELEPHONE]`, `Immeuble R+20 00221 77 123 45 67` donne
+  `Immeuble R[TELEPHONE]`, `Contact +1 00221 77 012 34 56 3 chambres` donne
+  `Contact [TELEPHONE] 3 chambres` ; mais `Contact +1 (221) 770123456` donne
+  `Contact +1 (221) [TELEPHONE]` (TCK-2451). Derrière `221` nu ou `(221)`, neuf chiffres sont masqués
+  quel que soit leur groupement dans les écritures éprouvées, même suivis d'une marque ; l'indicatif part
+  avec eux ou reste, selon l'écriture : `Villa R+1 221 770 123 456` donne `Villa R+1 [TELEPHONE]`,
+  `Villa R+1 (221) 770123456 F` et `Villa R+1 (221) 77 012 34 56 F` donnent `Villa R+1 [TELEPHONE] F`,
+  `Villa R+1 (221) 7 7 0 1 2 3 4 5 6 3 chambres` donne `Villa R+1 [TELEPHONE] 3 chambres`, mais
+  `Villa (221) 7 7 0 1 2 3 4 5 6` donne `Villa (221) [TELEPHONE]`. Un montant reste entier : un groupement
+  3-3-3 en `000` (`Lot (221) 300 000 000 F`), ou coupé par une barre devant un montant
+  (`Villa R+1 221 77 012 3 / 450 000 F`) (TCK-2454). Un numéro à indicatif écrit par groupes s'arrête au
+  neuvième chiffre, et ce qui le suit reste en clair : `Villa R+1 00221 77 012 34 56 78 90` donne
+  `Villa R+1 [TELEPHONE] 78 90`, de même derrière `… 56` : `12 500 F`, `1234 m2`, `3,5 pièces`,
+  `3 /mois`, `0 frais`. Un numéro tronqué s'arrête devant le suivant :
+  `Villa R+1 00221 77 012 34 / 78 123 45 67` donne `Villa R[TELEPHONE] / [TELEPHONE]`, et
+  `Immeuble R+20 0221 77 123 45 67` donne `Immeuble R[TELEPHONE]` (TCK-2454). Un indicatif étranger qui
+  se lit aussi comme un préfixe sénégalais (`33`, `30`, `75`, `93`…), avec ou sans `+`, peut englober le
+  numéro sénégalais qui suit, écrit derrière `00221` ou `221` nu : `Tel +33 00221 7 7 0 1 2 3 4 5 6` donne
+  `Tel [TELEPHONE]`, `Tel 30 221 7 7 0 1 2 3 4 5 6` donne `Tel [TELEPHONE]`, mais
+  `Tel 33 221 77 012 34 56` donne `Tel 33 [TELEPHONE]` (TCK-2455). Limites connues, en
+  exemples non exhaustifs. Un numéro écrit en toutes lettres n'est pas masqué : le masque ne lit que des
+  chiffres. Un chiffre derrière `(221)` et un numéro peut rester hors du masque :
+  `Villa R+1 (221) 77 012 34 56 7` donne `Villa R+1 (221) [TELEPHONE] 7` (TCK-2447). Le groupe qui suit un
+  numéro entier reste en clair, et il peut être le début d'un second numéro :
+  `Villa 00221 77 012 34 56 78 90` donne `Villa [TELEPHONE] 78 90`,
+  `Villa R+1 00221 77 012 34 78 123 45 67` donne `Villa R+1 [TELEPHONE] 123 45 67`,
+  `Tel +33 00221 77 01 78 123 45 67` donne `Tel [TELEPHONE] 45 67`. `000` derrière neuf chiffres est lu comme
+  la fin d'un montant, et le dernier groupe du numéro reste en clair :
+  `Villa R+1 00221 77 012 34 56 000 F` donne `Villa R[TELEPHONE] 56 000 F`,
+  `Villa R+20 00221 77 0 12 34 56 450 000 F` donne `Villa R[TELEPHONE] 56 450 000 F`. D'un seul tenant ou en
+  3-3-3, un nombre en `000` derrière `221` ou `(221)` reste en clair, même s'il est un numéro
+  (`Villa (221) 770 123 000`, `Villa 221 770123000 F`) (TCK-2454).
+  Derrière `7`, avec ou sans étage, une zone
+  de quatre ou cinq chiffres entre parenthèses commençant par 3 à 9, suivie de six ou cinq chiffres, est
+  un numéro aussi (`+7 (3452) 12-34-56`, `+7 (34922) 1-23-45`) ; une année entre parenthèses n'en est
+  pas une (`Immeuble R+7 (2024) 450 000 000 F` garde son prix) (TCK-2445). Un prix d'étage qui a l'une
+  de ces formes est masqué, donc perdu (`R+1 2 345 678 900 F`, `Villa R+1 (150) 2 500 000 F`,
+  `R+7 (8000) 650 000 F`, un code postal `Studio R+7 (32000) 45 000 F`) ; suivi d'une unité, le nombre
+  entre parenthèses reste intact (`Immeuble R+7 (3500 m²) 450 000 000 F`) (TCK-2435, TCK-2445). Limites
+  connues : derrière un étage et suivi d'une marque, un `+7` sans parenthèses dont le premier chiffre va
+  de 0 à 2 (`RDC +7 202 555 0123 F`) et un `+1` hors forme nord-américaine (`RDC +1 495 123-45-67 F`)
+  restent en clair, avec ou sans `(0)` de trunk ; une zone de quatre ou cinq chiffres n'est
+  lue que derrière `+7` (`+33 (3452) 12-34-56` reste en clair) (TCK-2445).
+- **Seul le jeu d'évaluation de l'extraction du Radar part de vraies annonces** : 20 annonces
+  relevées le 2026-10-29 sur Expat-Dakar et CoinAfrique, anonymisées puis réécrites (titres
+  reformulés, prix et surfaces décalés, adresses ramenées au quartier ; provenance dans
+  `provenance.json`), et 10 cas synthétiques (4 messages, 6 captures) ; aucune capture réelle, qui
+  porte l'identité de l'annonceur dans l'image (TCK-2403). **Celui de la vérification d'une réponse
+  est entièrement synthétique** : 16 captures dessinées par `render-captures.php`, jamais prises sur
+  une vraie conversation, et 14 réponses texte inventées (`text-cases.php`) ; il mesure la lecture de formes
+  connues et ne dit rien de la distribution réelle des réponses. Il note le classement, la
+  concordance du numéro, le numéro transcrit et les clauses lisibles (TCK-2388, TCK-2427).
+- **Le schéma de sortie d'un usage tient sous les limites publiées de chaque pilote attesté**
+  (`anthropic` aujourd'hui : 16 paramètres à union, 24 optionnels) ; un test le vérifie pour chaque agent.
+  Le mode strict se déclare par agent et par pilote (`SocleAgent::strictDrivers()`), jamais d'après le nom
+  d'une entrée de configuration, et il n'est vrai que sur un pilote où un vrai appel a attesté la taille de
+  schéma ; un test refuse tout autre pilote. Une sortie stricte ne dépasse pas cette taille. Un usage dont
+  le schéma la dépasse (aujourd'hui l'extraction du Radar) ne déclare aucun pilote. Hors du mode strict, la
+  sortie passe par l'outil de sortie non forcé sur `anthropic`, et par `text.format` ou `response_format` à
+  `strict: false` sur `openai`, `openrouter` et `openai-compatible` ; une réponse sans sortie y est un échec
+  du maillon (`ai.response_invalid`), et la chaîne bascule, là où, en mode strict sur `anthropic`, elle reste
+  un succès à vide. C'est un choix déclaré, pas un repli à l'exécution : un refus du fournisseur n'est pas
+  rejoué autrement sur le même maillon (TCK-2411, TCK-2433, TCK-2449). Un test tient la forme des schémas envoyés
+  sur ces trois pilotes (racine `object`, tout en `required`, `additionalProperties` faux) ; aucun vrai fournisseur
+  ne les a reçus (TCK-2450).
+- **Un refus du fournisseur ne bascule que hors d'Anthropic, et s'il reste un maillon** : sur un autre
+  pilote qu'`anthropic`, un statut 400, 404, 408, 413, 422 ou 500, ou une erreur écrite dans le corps de la
+  réponse, y compris en HTTP 200, fait passer au maillon suivant ; la ligne du journal le dit
+  (`warning: provider_rejected`), et le tableau de bord les compte, sans alerte : un fournisseur cassé
+  s'efface derrière le secours. Sur `anthropic` et sur le dernier maillon, l'exception arrête l'appel ; une
+  redirection n'est pas un refus, et bascule aussi sur `anthropic`. Limite : le dernier maillon se juge sur la
+  chaîne, pas sur ce qui reste joignable : derrière un refus, un dernier maillon sans clé fait rendre
+  `ai.providers_unavailable`, pour cause `ai.provider_key_missing`, et seule la ligne du journal garde
+  `ai.request_rejected` (TCK-2450). Une
+  clé refusée (401, 403) ne bascule pas ; limite : le SDK ne garde du corps que `type`, ou `code` sur
+  OpenRouter, et un 401 sans `type` sur `openai` ou `openai-compatible` ne s'y lit pas et bascule. Un 408
+  vaut `ai.provider_timeout` sur tout pilote. Hors d'Anthropic, tout cela décrit le code, vérifié contre un
+  faux client HTTP et la documentation des fournisseurs : aucun vrai appel ne l'a éprouvé (TCK-2449,
+  [ADR-0085, amendement du 2026-10-31](adr/0085-un-modele-se-regle-dans-la-console-un-fournisseur-dans-le-deploiement.md)).
+- **Un usage d'embeddings se joue par `AiGateway::embed()`** : ni agent ni prompt, et il peut tourner sans
+  acteur, pour une tâche planifiée. Le coupe-circuit, les plafonds, le masquage, le journal et la bascule
+  restent ceux des autres usages. Il ne paie que son entrée, et le coût journalisé ignore les tokens offerts
+  par le fournisseur : c'est une estimation haute. Son fournisseur n'est appelé que s'il a une clé, la
+  déclaration de refus de l'entraînement quand il la demande, et une adresse `https`, même en `local` et
+  `testing`, sur un hôte que la configuration accepte (TCK-2423, TCK-2450,
+  [ADR-0076, amendement du 2026-10-31](adr/0076-le-socle-ia.md)).
+- **Tout job qui appelle le modèle hors d'une requête HTTP déclare la file des appels IA** (`ai`) ;
+  un appel plus long que le délai de reprise de la file par défaut (85 s au plus) prend la file des
+  jobs longs. Une règle de CI le vérifie (`scripts/check-queues.mjs`, TCK-2402).
+- **L'agence reste la frontière d'isolation** pour tout outil qu'un agent IA appelle.
+- **Un contenu externe est une donnée, jamais une consigne** : il arrive au modèle dans un bloc
+  délimité, dont la balise n'est pas prévisible et qu'il ne peut pas refermer, et l'usage qui le lit
+  n'a aucun outil, pas même de lecture, et ne rend qu'une sortie structurée (TCK-2398) — stricte
+  (grammaire du fournisseur) sur les pilotes qu'un agent déclare, sinon non stricte : par l'outil de
+  sortie du SDK sur `anthropic`, par le format de réponse ailleurs ; ce canal n'est pas un outil : rien
+  ne s'y exécute (TCK-2433, TCK-2449).
+- La suite de tests n'appelle jamais un vrai modèle ; les évaluations se lancent à part.
+
+### 2.12 Radar — acquisition d'annonces
+
+Un outil de la console super-admin qui relève des annonces immobilières publiées ailleurs, en
+extrait les biens par IA, aide à contacter leurs annonceurs et publie leurs biens sur Takussan **sur
+leur accord prouvé** ([ADR-0077](adr/0077-le-radar.md)). Une annonce relevée vit hors du
+catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26](plans/2026-10-26-radar-et-socle-ia.md).
+
+| Prio | Acteurs | Fonctionnalité |
+|------|---------|----------------|
+| P1 | 🛡️ | Saisir une annonce par URL (plusieurs à la fois), par texte collé ou par captures d'écran ; une lecture d'URL impossible le dit et propose les deux autres voies |
+| P1 | 🛡️ | Extraction IA des caractéristiques du bien, chaque champ avec sa confiance et le passage de la source qui le justifie ; quartier rapproché du référentiel géographique ; nature présumée de l'annonceur (propriétaire, intermédiaire, agence) et ses indices |
+| P1 | 🛡️ | Relecture : corriger, valider, marquer en doublon ou écarter ; rapprochements avec les biens publiés et les autres annonces relevées (téléphone, quartier, prix, pièces, empreinte des photos source, texte de l'annonce (TCK-2392)) |
+| P1 | 🛡️ | Fiche annonceur, une par numéro : ses annonces, ses messages, ses accords ; prise en charge exclusive de 10 minutes |
+| P1 | 🛡️ | Préparer le message d'accord pour une ou plusieurs annonces d'un annonceur (clauses fixes, salutation et résumé personnalisés par l'IA) et l'ouvrir dans WhatsApp ; relances après un délai sans réponse |
+| P1 | 🛡️ | Déposer la capture de la réponse : l'IA la transcrit, vérifie le numéro et les clauses et classe la réponse (accord, refus, STOP, question, ambigu) ; un opérateur confirme ; refus et STOP s'enregistrent aussi sans capture |
+| P1 | 🛡️ | « Publier pour lui » (`super_admin` seulement) : sur un accord confirmé, crée l'espace individuel de l'annonceur (compte sans mot de passe à son numéro) et y publie les annonces couvertes, après un écran de vérification (compte, biens, photos, doublons) ; une annonce relue sans titre se publie sous un titre construit de ses champs (type, chambres, contrat, quartier), que l'écran de vérification montre (TCK-2389) |
+| P1 | 👤🏢 | Réclamer ses annonces depuis le lien signé du message (`/claim/{jeton}`, 30 jours, mort après un STOP ou une révocation ; sous mandat, le même code reprend ses biens en ligne dans son espace, TCK-2421) : annonces en cartes à cocher et à corriger (titre, prix, description), prénom et nom de l'espace, acceptation des conditions avec leur version, code SMS envoyé au seul numéro de l'annonceur (affiché masqué), publication dans son espace individuel dès les photos prêtes ; un numéro déjà inscrit se connecte d'abord à son compte ; la même page active le compte créé par « publier pour lui » (TCK-2390) ; une annonce que la publication automatique ne peut pas mettre en ligne (photo, champ, refus) attend la vérification de l'équipe, et l'opérateur la reprend depuis la file « À reprendre », qui montre l'échéance de purge (TCK-2413) ; sous mandat, la page dit que Takussan diffuse ses annonces pour son compte et le code les fait reprendre dans l'espace de l'annonceur, sans republication, avec leurs vues et leurs demandes, dans la transaction de la réclamation ; un bien qui porte de la gestion (réservation, bail, facture de prestataire, mise en avant, maintenance, état des lieux, flux de calendrier) ou un lot renvoie au support (`radar.claim.mandate_support_required`), et un espace qui n'est pas actif (suspendu ou inactif) refuse la reprise (`radar.claim.space_suspended`), ses biens restant sous mandat, en ligne (TCK-2421, [ADR-0079](adr/0079-la-publication-sous-mandat-takussan.md), amendement « la reprise ») ; hors mandat, un espace qui n'est pas actif refuse la réclamation avant l'envoi du code, et la page le dit d'avance (`radar.claim.space_unavailable`, TCK-2446) |
+| P1 | 🛡️ | Retrait de l'accord (STOP, ou révocation par la plateforme, `POST /api/admin/radar/advertisers/{id}/revoke`, `super_admin` seulement, motif obligatoire) : les biens publiés quittent la surface publique et l'index de recherche sur-le-champ, l'annonceur n'est plus jamais contacté (TCK-2391) |
+| P1 | 🛡️ | Purge des annonces jamais publiées à 90 jours ou dès un STOP, en conservant l'empreinte du numéro qui a refusé ; purge quotidienne (`radar:purge`, 04:15 Dakar), doublée d'un job lancé dès la révocation (TCK-2391) |
+| P2 | 🛡️ | Collecte automatique planifiée sur Expat-Dakar et CoinAfrique, **éteinte par défaut** : le `super_admin` allume chaque site, règle sa fréquence, ses pages et ses URL de départ (plusieurs par site, une page par ville ou par catégorie ; `https` sur un hôte que l'adaptateur du site déclare ; vides : l'URL de la configuration), lance un passage (`/super-admin/radar/collecte`) ; chaque passage lit chacune de ses listes dans un plafond de pages et un budget de temps communs (`robots.txt` respecté, un seul passage actif par site), saisit les annonces nouvelles et date leurs instantanés (prix, surface, quartier, présence) ; la même annonce vue sur deux sites peut être fusionnée d'office en une fiche à deux provenances, que l'opérateur peut séparer — fusion **éteinte par défaut** (`RADAR_MERGE_AUTO`) (TCK-2392, TCK-2438, [ADR-0080](adr/0080-la-collecte-automatique-du-radar.md)) |
+| P2 | 🛡️ | Annonceurs et observatoire du marché (`/super-admin/radar/observatory`) : classement des annonceurs par volume d'annonces vivantes (quartiers principaux, gammes de prix, sites, nature présumée, piste commerciale jusqu'à la demande de passage en agence) ; prix au m² par quartier, type et contrat ; temps de mise sur le marché ; quartiers où Takussan manque d'annonces ; part d'intermédiaires probables ; alerte quand l'annonce source d'un bien publié disparaît (TCK-2393, [ADR-0083](adr/0083-l-observatoire-du-marche.md)) ; part par nature sur une période, en annonceurs-jours, lue sur des compteurs anonymes quotidiens qui survivent à la purge — **éteints par défaut** (`RADAR_NATURE_COUNTS`), jusqu'à l'avis juridique de TCK-2434 (TCK-2431) |
+| P2 | 🛡️ | Relance d'activation d'un compte créé par « publier pour lui » et jamais activé : texte fixe versionné (`activation.v1`) avec les chiffres réels de la période — vues, demandes de contact et de visite, crédits offerts à l'activation —, ouvert dans WhatsApp puis marqué envoyé ; une relance par semaine au plus (`radar.activation.min_interval_days`) (TCK-2394) |
+| P2 | 🛡️ | Publication sous mandat Takussan (`super_admin`, drapeau `radar_mandate`, [ADR-0079](adr/0079-la-publication-sous-mandat-takussan.md), accepté sur le principe ; drapeau éteint jusqu'à l'avis de l'avocat et la livraison de TCK-2422 ; la reprise de TCK-2421 est livrée) : sur un accord confirmé, l'annonceur qui ne veut pas de compte voit ses annonces publiées dans l'espace des mandats (réglage `radar.mandate_agency_id`), son numéro en contact, sans compte créé ; second message `mandat.v2`, qui porte le lien par lequel l'annonceur reprend ses biens dans son espace, ou `mandat.v1`, sans lien, quand la connexion par téléphone est éteinte ou l'aperçu des codes actif (TCK-2394, TCK-2421) |
+| P3 | 🛡️ | Démarchage par l'API WhatsApp Cloud sur un numéro dédié au Radar, réception des réponses par webhook signé et preuve par identifiant de message (TCK-2395, [ADR-0081](adr/0081-le-radar-prospecte-par-l-api-whatsapp-sur-son-propre-numero.md)) ; depuis la fiche annonceur, envoi confirmé, canal de chaque message, réponse reçue lue en texte (TCK-2426) ; état de remise suivi par les accusés de WhatsApp, journalisé (TCK-2427) et affiché à côté du canal (TCK-2437), avec le motif d'un message non remis quand Meta en donne un code que la fiche libelle (TCK-2444) ; un envoi resté sans confirmation de Meta rattaché à ses accusés par un jeton opaque posé à l'envoi (TCK-2436) |
+
+**Règles de gestion.**
+
+- **Aucun bien n'entre au catalogue sans un accord confirmé** qui le couvre ; l'API le refuse, pas
+  seulement l'écran.
+- **Un accord couvre toutes les annonces que le message listait**, et se rattache à l'annonceur.
+- **Les clauses du message d'accord sont un texte fixe**, jamais une génération.
+- **Chaque message garde la version de ses clauses** (`accord.v1`, `accord.v2`, `accord.v3`…) : une
+  version nouvelle ne réécrit jamais un message déjà envoyé. `accord.v3`, la version courante, reprend
+  `accord.v2` mot pour mot derrière l'ouverture « Takussan — » : c'est le corps du gabarit que Meta
+  approuve pour le démarchage par l'API (TCK-2395).
+- **Le lien de réclamation est signé, propre à l'annonceur et sans stockage** : il expire
+  (`radar.claim.link_ttl_days`, 30 jours) et ne sert plus après un STOP, un accord révoqué ou un
+  numéro purgé. `accord.v2`, `accord.v3`, `publie.v2`, `activation.v1` et, sous mandat, `mandat.v2`
+  le portent. La page ne révèle ni le numéro complet, ni rien du Radar (TCK-2390 ; `accord.v3` :
+  TCK-2395 ; `activation.v1` : TCK-2394 ; `mandat.v2` : TCK-2421).
+- **Réclamer, c'est donner un accord prouvé** : preuve `otp` rattachée au dernier message envoyé qui
+  couvre les annonces retenues, acceptation des conditions avec leur version. Une annonce décochée
+  est refusée (`radar.claim.declined`). Le code part au seul numéro de l'annonceur, sous les
+  limiteurs de la connexion par téléphone (TCK-2390).
+- **Un numéro déjà vérifié sur un compte ne se réclame que connecté à ce compte** : les annonces vont
+  dans son espace existant ; les biens qu'un compte du Radar **jamais activé** portait pour ce numéro
+  y sont rattachés, avec leurs demandes, prospects et conversations, puis ce compte est supprimé ; un
+  compte du Radar qui a servi renvoie au support (`radar.claim.support_required`). « Publier pour
+  lui » refuse de verser encore dans ce compte (décision 5a du porteur, 2026-10-29, TCK-2390). Ce
+  rattachement change le titulaire des biens sans journal du modèle : la réparation des titulaires
+  réattribués ([ADR-0059](adr/0059-changer-l-agent-responsable-et-transmettre-les-biens-a-la-passation.md) § 4, § 5) ne le lit pas
+  comme une réattribution à défaire (TCK-2439).
+- **Un compte rattaché à un annonceur, puis supprimé, se délie** (`super_admin`, motif facultatif,
+  journalisé) : que le Radar l'ait créé ou que l'annonceur ait réclamé avec. L'annonceur réclame
+  ensuite par un compte neuf, ou par celui qui a vérifié son numéro. Jamais après un STOP ou une
+  révocation ; un compte bloqué ne se délie pas (TCK-2413).
+- **Écrire sur un annonceur exige d'en tenir la prise en charge** (10 minutes, renouvelée tant que
+  la fiche est ouverte) ; un second opérateur est refusé.
+- **Une réponse classée par l'IA n'est jamais un accord** tant qu'un opérateur ne l'a pas confirmée ;
+  confirmer un accord contre un verdict discordant (numéro, clauses) ou absent exige un motif écrit.
+- **STOP est définitif** : l'annonceur passe « ne plus contacter », ses accords sont révoqués, ses
+  annonces fermées, ses biens publiés retirés du public, et aucun message ne peut plus lui être
+  préparé. La révocation par la plateforme fait exactement la même chose (`AdvertiserRevocation`) ;
+  elle ne demande pas la prise en charge de l'annonceur, et elle laisse son compte : le support le
+  supprime par la voie de [§2.1](#21-authentification--comptes), il ne le bloque pas (TCK-2391).
+- **Relances** : après un délai sans réponse (3 jours par défaut, en configuration), deux au plus ;
+  ensuite l'outil propose de classer « sans réponse ».
+- **Le compte créé pour un annonceur est l'espace individuel de [§1.12](#112-agence--équipe)** : pas
+  de mot de passe, première connexion par code SMS, aucun crédit de bienvenue avant la vérification
+  du numéro ; un numéro déjà inscrit n'autorise que la réclamation. Tant qu'il n'a pas accepté les
+  conditions d'utilisation, la connexion par code les lui présente avant l'entrée dans l'espace, et
+  avant le second facteur, puis date leur acceptation, version comprise, avec une trace d'audit
+  (`radar_terms_accepted`). Une acceptation déjà datée (réclamation, publication) ne se redemande pas
+  (TCK-2404).
+- **La relance d'activation cite les chiffres d'une période** : depuis la dernière relance envoyée,
+  sinon depuis la mise en ligne. Les vues dépassent la ligne de base posée à l'envoi précédent
+  (`views_count` n'est pas daté) ; les demandes sont datées de la période ; les crédits sont ceux que
+  l'activation accordera encore. Aucune relance pour un annonceur STOP, révoqué, purgé, déjà activé,
+  au compte indisponible, sans bien en ligne ou sous mandat, ni tant que la connexion par téléphone
+  est éteinte (`radar.publish.activation_unavailable`) ou que l'aperçu des codes est actif hors
+  `local` (`radar.publish.otp_preview_active`) — donc aucune en préproduction (relevé du 2026-10-20 :
+  `OTP_PREVIEW_ENABLED` y est allumé, en `staging`, [hébergement](infra/hebergement.md)) ; l'envoi rejuge sous verrou et
+  journalise les chiffres cités (`radar_activation_reminder_sent`) (TCK-2394).
+- **Un annonceur est publié pour lui OU sous mandat, jamais les deux** : le mandat refuse un
+  annonceur rattaché à un compte (`radar.mandate.account_exists`), « publier pour lui » refuse un
+  annonceur sous mandat (`radar.publish.under_mandate`). Le mandat garde les gardes de « publier pour
+  lui » sauf celles du compte ; il est refusé drapeau `radar_mandate` éteint (`radar.mandate.disabled`)
+  ou sans espace des mandats (`radar.mandate.space_missing`). Un annonceur est sous mandat quand
+  `mandate_at` est posé et `mandate_taken_back_at` nul (`RadarAdvertiser::underMandate()`, seule
+  définition) (TCK-2394, [ADR-0079](adr/0079-la-publication-sous-mandat-takussan.md)).
+- **Sous mandat, la réclamation par le lien reprend ses biens** (TCK-2421, ADR-0079, amendement
+  « la reprise ») : après la vérification du code envoyé à son numéro, sous le verrou de
+  l'annonceur et dans la même transaction, ses biens publiés sous mandat
+  (`metadata.radar_mandate` vrai) passent dans son espace, puis il est rattaché à son compte ; rien
+  ne passe à un compte qui n'a pas vérifié ce numéro, et un refus défait tout, compte compris. Une
+  confirmation sans annonce cochée suffit quand des biens sont à reprendre. Suivent le bien : ses
+  demandes et clics (espace et destinataire), ses visites (agent), ses empreintes de photos ; le lien
+  aux prospects de l'espace des mandats est retiré (`customer_id` nul), et ses collaborateurs sont
+  retirés. Aucun quota de l'espace n'est rejugé, et la reprise ne dépend pas du drapeau
+  `radar_mandate`. Les biens et l'espace se rejugent sous verrou : un bien qui porte de la gestion
+  (réservation, bail, facture de prestataire, mise en avant, maintenance, état des lieux, flux de
+  calendrier) ou un lot renvoie au support (409 `radar.claim.mandate_support_required`, état
+  `mandate_support` de la page) ; un espace cible qui n'est pas actif (suspendu ou inactif) refuse
+  (409 `radar.claim.space_suspended`), jugé aussi avant l'envoi du code et à la confirmation, et les
+  biens restent sous mandat, en ligne. Après le commit, un job rejouable mis en file après la
+  publication de la réclamation (`TransmitTakenBackConversations`) fait passer chaque fil direct de
+  prospect au contact principal actuel du bien, l'ancien répondant quittant le fil (TCK-888) ; un fil
+  de groupe ouvert sur le bien n'est pas transmis ; une transmission qui échoue ne défait ni la
+  réclamation ni sa publication, et son abandon est signalé
+  (`radar.take_back.conversations_not_transmitted`). `mandate_at` reste comme trace,
+  `mandate_taken_back_at` clôt la période et l'évènement `radar_mandate_taken_back` est journalisé.
+  Un mandat posé après la reprise, sur un annonceur délié de son compte, ouvre une période neuve :
+  une nouvelle réclamation reprend les biens de cette période, puis publie ; seule une publication
+  réclamée encore en file, d'avant ce mandat, refuse (409 `radar.claim.under_mandate`).
+- **Les biens du Radar n'entrent pas dans l'espace d'un annonceur qui n'est pas actif** (suspendu
+  ou inactif), qui ne les rendrait pas au public : la reprise sous mandat
+  (`radar.claim.space_suspended`), la réclamation hors mandat (`radar.claim.space_unavailable`), la
+  publication réclamée (le job `PublishClaimedRadarListings` qui suit la réclamation) et « publier
+  pour lui », aperçu compris (`radar.advertiser.account_unavailable`), le refusent ; sans espace, la
+  réclamation et « publier pour lui » en ouvrent un (TCK-2421). L'espace jugé est celui où iraient
+  les annonces : le premier dont le compte qui les recevrait est l'administrateur principal.
+  Sous mandat comme hors mandat, la réclamation refuse l'envoi du code (409), sans SMS, avant même
+  la connexion exigée d'un numéro déjà inscrit. Elle refuse encore à la confirmation, avant la
+  vérification du code, qui n'est pas consommé, puis le rejuge sous le verrou de l'annonceur : un
+  espace qui a cessé d'être actif pendant la confirmation ne reçoit ni accord `otp` ni compte
+  rattaché, la confirmation se défaisant entière, sauf ce que le code lui-même compte : il est alors
+  consommé, et le verrou du numéro est levé. Hors
+  mandat, la page le dit d'avance (« Votre espace n'est pas actif », sans formulaire de code, les
+  annonces affichées sans pouvoir être cochées ni corrigées), avec un texte qui ne parle pas de
+  mandat ; sous mandat, le refus se dit à l'envoi du code. Le compte préparé par « publier pour
+  lui » dont l'espace n'est pas actif est refusé comme indisponible
+  (`radar.claim.account_unavailable`). La garde du job reste : un espace qui cesse d'être actif
+  (suspendu ou inactif) entre la confirmation et la publication laisse les annonces `consented`,
+  avec `radar.advertiser.account_unavailable` pour raison, à l'opérateur dans la file « À reprendre » (TCK-2413, TCK-2446).
+- **La nature de l'annonceur reste dans le Radar**, jamais dans les profils.
+- **Le numéro WhatsApp des notifications ne sert jamais à prospecter.**
+- **Le démarchage par l'API part d'un numéro WhatsApp dédié au Radar, configuré à part** : le code
+  refuse le numéro et le jeton des notifications (`radar.whatsapp.same_number`). Le message envoyé
+  par l'API est le texte enregistré, ou rien ; son résumé ne dépasse pas 120 caractères. Une réponse
+  reçue devient une preuve à confirmer, identifiée par l'identifiant du message, jamais un accord ;
+  une réponse qui vaut « STOP », aux espaces, à la casse et à la ponctuation finale près, révoque
+  l'annonceur dès sa réception
+  (`RADAR_WHATSAPP_AUTO_STOP`, allumé par défaut). Tant qu'une réponse
+  reçue par l'API d'un annonceur n'est pas tranchée, sur n'importe laquelle de ses annonces, rien ne
+  se prépare ni ne part vers lui, par l'API ou à la main (`radar.outreach.reply_pending`) ; l'issue
+  reste posable (TCK-2395, [ADR-0081](adr/0081-le-radar-prospecte-par-l-api-whatsapp-sur-son-propre-numero.md)).
+- **La fiche annonceur offre « Envoyer par l'API WhatsApp »** quand l'envoi par l'API est configuré
+  (`whatsapp_api_available`), aux mêmes conditions que le lien `wa.me` et après une confirmation ;
+  chaque message envoyé dit son canal (à la main, par l'API, ou par l'API sans confirmation de
+  Meta). Une réponse reçue par l'API se lit en texte, sans capture, et son issue se pose comme celle
+  d'une capture ; une réponse sans texte (vocal, image) se dit illisible à la console. Tant qu'une
+  réponse reçue de l'annonceur n'est pas tranchée, la fiche le dit et ferme le démarchage (TCK-2426).
+- **L'état de remise d'un message envoyé par l'API suit les accusés de WhatsApp** : envoyé, remis,
+  lu, ou non remis. Il n'avance que dans cet ordre, quels que soient l'ordre et le nombre des accusés
+  reçus, et un message remis ne devient jamais « non remis ». Un accusé n'est jamais une preuve
+  d'accord : il ne change ni l'envoi, ni l'issue, ni les annonces. Un message non remis est
+  journalisé avec le code de WhatsApp (`radar_whatsapp_delivery_failed`), sans texte ni numéro, et ce
+  code est tenu par le message (TCK-2444) ; il reste envoyé, et l'opérateur juge de la suite. Un accusé d'identifiant inconnu est ignoré, jamais
+  rattaché par inférence (TCK-2427), sauf par le jeton opaque de l'envoi (voir la règle suivante).
+  La fiche annonceur affiche cet état à côté du canal, sur la carte du suivi comme dans
+  l'historique : « Envoyé » tant qu'aucun accusé de remise n'est arrivé, « Remis », « Lu », ou
+  « Non remis » en ton destructif. Sur la carte du suivi, un message non remis dit qu'il reste compté
+  comme envoyé et que l'opérateur juge de la suite ; aucun geste n'est proposé. Un envoi sans
+  confirmation de Meta n'a que son libellé de canal tant qu'aucun accusé ne l'a fait avancer (voir
+  la règle suivante), et un message envoyé à la main n'a pas d'état de remise (TCK-2437). Un message
+  non remis porte aussi, juste après « Non remis », le motif de l'un des codes de Meta que la fiche
+  libelle, liste fermée : destinataire injoignable sur WhatsApp (131026), limité par Meta (131049),
+  refus des messages marketing (131050), trop de messages à ce destinataire en peu de temps (131056),
+  envois limités sur le numéro du Radar, peut-être après des signalements (131048), retenu par une
+  expérience de Meta (130472). Tout autre code, ou pas de code, n'affiche que « Non remis ». L'API rend le code seul, jamais le texte de l'erreur (TCK-2444).
+- **Un envoi par l'API resté sans confirmation de Meta est rattaché à ses accusés par un jeton
+  opaque** (TCK-2436, [ADR-0081](adr/0081-le-radar-prospecte-par-l-api-whatsapp-sur-son-propre-numero.md),
+  amendement du 2026-10-30). Chaque envoi par l'API porte un jeton aléatoire, sans donnée
+  personnelle (`biz_opaque_callback_data`), écrit sur le message avant l'appel à Meta ; Meta le rend
+  dans ses accusés. Un accusé d'identifiant inconnu qui porte le jeton d'un envoi par l'API, envoyé,
+  sans identifiant, et qui est adressé au numéro de l'annonceur, donne à cet envoi l'identifiant de
+  Meta et fait avancer son état de remise selon la règle précédente. Tout autre cas reste ignoré :
+  sans jeton, jeton inconnu, envoi déjà identifié ou jamais parti, autre destinataire, annonceur
+  purgé, identifiant déjà porté par un autre message. Meta ne documente le renvoi du jeton que pour
+  envoyé, remis et lu : un « non remis » qui ne le porte pas laisse l'envoi sans confirmation, et
+  l'opérateur juge. Le jeton n'est ni journalisé, ni rendu par l'API.
+- **Les photos ne sont conservées qu'à partir de l'accord confirmé** : avant, seule leur empreinte (dHash, calculée à la volée sur la photo source, qui n'est jamais écrite) est gardée pour les rapprochements (TCK-2387). L'accord confirmé, qui autorise la publication avec les photos, fait télécharger les photos source dans une réserve **privée** de l'annonce ; l'opérateur peut y en retirer ou y en déposer à la main. La publication verse cette réserve au bien, sans appel réseau ; une annonce sans aucune photo en réserve ne se publie pas (TCK-2389). La réserve d'une annonce jamais publiée est purgée avec elle (TCK-2391).
+- **Révocation et purge** (TCK-2391, [ADR-0077 §8, §9](adr/0077-le-radar.md)). Une purge quotidienne
+  (`radar:purge`, 04:15 Dakar), doublée d'un job lancé dès la révocation (`PurgeRadarAdvertiser`),
+  efface le texte brut, l'URL, l'extraction, la réserve de photos et les captures des annonces
+  jamais publiées, à 90 jours ou dès un STOP ; l'annonce passe « purgée », et ses instantanés de
+  collecte sont supprimés (TCK-2392). Une annonce publiée ne l'est qu'avec la dernière preuve qui la
+  couvre, une fois son bien hors vitrine (ou supprimé), et seulement drapeau
+  `radar.purge_published_material` allumé (voir plus bas). Les suggestions de l'IA qui portaient sur elle perdent leurs champs, pas leur ligne :
+  le taux d'acceptation ne bouge pas. Un message dont toutes les annonces sont purgées perd son
+  texte, sauf s'il porte une preuve conservée ; une réponse non confirmée, ses captures, sa transcription et son verdict — une
+  vérification encore en cours finit en échec, motif `radar.verification.purged`. Un annonceur sans
+  annonce restante perd son numéro, son nom et ses indices ; l'empreinte du numéro qui a refusé est
+  conservée. Les copies de photos qu'une publication coupée a écrites sans ligne `media` (sous
+  `publications/`, sur les deux disques) sont balayées au même passage, au-delà d'une heure. La
+  purge de la matière d'une annonce publiée, avec la preuve de l'accord trois ans après le retrait du
+  dernier bien qu'il couvre, est codée et éteinte (`radar.purge_published_material`) : elle attend la
+  décision du porteur et la relecture du texte légal (TCK-2406).
+- **Clé de l'empreinte des refus** (TCK-2414, [ADR-0082](adr/0082-l-empreinte-des-refus-du-radar-a-sa-propre-cle.md)).
+  L'empreinte du numéro d'un annonceur qui a dit STOP se calcule sous une clé dédiée
+  (`RADAR_PHONE_HMAC_KEY`), indépendante de la clé de l'application : faire tourner celle-ci ne fait
+  oublier aucun refus. Les anciennes clés restent reconnues (`RADAR_PHONE_HMAC_PREVIOUS_KEYS`, repli
+  sur la clé de l'application) ; la page Santé signale la clé absente hors développement.
+- **La preuve d'un accord confirmé est conservée tant qu'une annonce qu'il couvre est en ligne ou
+  attend sa publication, puis trois ans** (`radar.consent_retention_years`, politique de
+  confidentialité § 6). Les trois ans courent du dernier retrait, observé par la purge quotidienne ;
+  un bien qui revient en ligne les remet à zéro.
+- **Les journaux `radar_purged` (des comptes) et `radar_advertiser_revoked` (des identifiants et
+  le motif de l'opérateur) suivent la rétention par défaut du journal d'activité**, 12 mois
+  ([§2.6](#26-audit--traçabilité)), sans famille dédiée (décision du porteur du 2026-10-29).
+- **La lecture d'une URL refuse les adresses privées et de métadonnées**, respecte le `robots.txt`
+  et limite sa fréquence par domaine. Airbnb est hors périmètre.
+- **Le Radar lit les numéros que le socle IA masque, et ne garde que les sénégalais** : toute
+  écriture que le masquage reconnaît (groupements libres, `_`, `,`, préfixe entre parenthèses, tirets
+  Unicode, `(0)` derrière `+221`) donne `+221…`. Un numéro étranger (un indicatif étranger écrit
+  devant) n'est jamais un numéro de l'annonce. Le refus STOP, la preuve qu'un numéro rendu par le
+  modèle est dans la source, et le choix de l'opérateur se jugent sur tous les numéros lus. Le contact
+  choisi d'office, sans humain (le modèle n'a rendu aucun numéro), écarte en plus une forme précédée
+  d'un `+` / `00` nu, suivie d'une unité, ou précédée d'un mot de prix ou de liste. L'étage `R+1`
+  n'est pas un indicatif, et aucun nombre qui fait partie d'un numéro n'est lu comme un prix
+  (TCK-2412). `RDC+1` et `R + 1` ne le sont pas non plus, sous la règle du masquage du socle IA
+  ([§2.11](#211-socle-ia)) : un numéro sénégalais qui les suit reste le contact de l'annonce, et un
+  numéro étranger complet écrit derrière (`RDC+33 6 12 34 56 78`, `R + 1 514 555 0199`) n'en
+  devient jamais un (TCK-2435), pas plus qu'un `+7` ou un `+1` écrit avec sa zone entre parenthèses
+  (`Villa RDC +7 (495) 123-45-67 F` ne donne ni contact ni prix) (TCK-2445). L'étage espacé de son `+`, de 0
+  à 19 (`R+ 2`, `RDC + 2`, `R + 12`), suivi d'une espace et d'un chiffre de 1 à 9, n'est pas lu comme
+  le début du prix qui le suit (`R+ 2 450 000 F` vaut 450 000 ; `R+ 15 000 000 F` vaut 15 000 000) et,
+  comme l'étage collé, ne compte pas comme un second nombre : un nombre resté seul devient le prix
+  (`Villa R + 2 4 chambres 2435` rend 2435 ; `R+ 1 33 821 00 00 F` rend 33 821, un fixe suivi d'une
+  marque n'étant pas masqué). Suivi d'une lettre ou d'une ponctuation, il reste un nombre et le prix
+  est perdu (`Villa R+ 2 à vendre 2435` ne rend aucun prix, quand `Villa R+2 à vendre 2435` rend 2435) ;
+  au-delà de 19, il se lit encore comme le début du prix (`R+ 20 450 000 F` vaut 20 450 000) (TCK-2445).
+  Derrière un `R+` collé, un numéro étranger complet garde son indicatif : `Villa R+33 6 12 34 56 78`
+  ne donne aucun contact. En retour, un étage collé de 20 ou plus perd le numéro sénégalais qui le
+  suit quand l'étage commence par un indicatif, écrit d'un seul tenant dans l'étage, et que la fin
+  de l'étage puis ce numéro complètent son plan : un étage qui est lui-même un indicatif (`R+20`,
+  `R+30`), un étage qui commence par `7` ou `1` suivi de dix chiffres en tout (`R+75`, `R+105`), un
+  étage de trois chiffres dont le début est un indicatif (`R+200`, `R+350`) ; devant
+  `77 123 45 67`, ces étages ne donnent aucun contact, quand `Immeuble R+25 77 123 45 67` et
+  `Immeuble R+999 77 123 45 67` gardent le leur, comme `Immeuble R+35 77 123 45 67` (l'indicatif
+  `357` serait à cheval sur l'espace). La perte vaut aussi quand le numéro porte un indicatif
+  `00221` ou `221` nu (`Immeuble R+20 00221 77 123 45 67`, `Immeuble R+30 221 77 123 45 67`), ou qu'un
+  tiret, court ou long, un point ou une barre l'en sépare (`Immeuble R+20 - 77 123 45 67`). Elle ne vaut ni avec
+  `+221` ou `(221)` (`Immeuble R+20 +221 77 123 45 67`, `Immeuble R+20 (221) 77 123 45 67`), ni
+  derrière une virgule, un deux-points, un point-virgule ou une parenthèse
+  (`Immeuble R+20, 77 123 45 67`). De même, le prix qui suit un étage collé est perdu quand
+  l'indicatif du début de l'étage, la fin de l'étage et le prix complètent son plan
+  (`Immeuble R+30 2 500 000 F`, `Immeuble R+150 25 000 000 F`), sauf quand ce qui suit l'indicatif
+  a la forme d'un montant : au plus trois chiffres, puis des groupes de trois chiffres finissant par
+  `000 000` (`Immeuble R+20 450 000 000 F`, `Immeuble R+30 25 000 000 F` gardent leur prix ; derrière
+  le `1` de `R+150`, `50 25 000 000` n'a pas cette forme). `Immeuble R+105 2 500 000 F` garde le sien,
+  trop court pour le plan du `1`. Le masquage le lit déjà ainsi (TCK-2441). Derrière l'étage `1` ou `7`, `(221)` suivi d'un numéro sénégalais groupé comme au
+  [§2.11](#211-socle-ia) n'est pas une zone : `Villa R+1 (221) 77 012 34 56` donne `+221770123456`
+  (TCK-2447). D'autres écritures donnent aussi le contact, par exemple
+  `Villa R+1 (221) 77 01 234 56`, `Villa R+1 00221 77 012 34 56 F`, `Villa R+1 00221 77 01 234 56`,
+  `Villa R+1 221 77 012 34 56`, `Villa R+1 00221 77 012 34 56 3 chambres` (TCK-2451). Le
+  `221` qui touche le numéro, nu ou entre parenthèses, au plus trois espaces, points, tirets `-` ou
+  barres `/` entre eux, n'est pas un prix : `Villa (221) 77 012 34 56` et `Villa 221 / 77 012 34 56`
+  ne rendent aucun prix (TCK-2447). Limites connues : `Villa ( 221 ) 77 012 34 56`, un tiret long
+  (`Villa (221) – 77 012 34 56`), un `:`, une `,` ou des crochets (`Villa [221] 77 012 34 56`) laissent
+  encore un prix de 221 (TCK-2447) ; l'écriture `0221` (`Villa 0221 77 012 34 56`) n'en laisse plus
+  (TCK-2454). Derrière l'étage `1` ou `7`, certaines écritures ne donnent pas le contact, en exemples non
+  exhaustifs : `Villa R+1 221 77 01 234 56`, `Villa R+1 (221) 7 70 12 34 56`,
+  `Villa R+1 00 221 77 012 34 56` et `Villa R+1 00221 77 1 23 45 67` sont masqués sans contact, de même
+  `Villa R+1 00221 7 7 0 1 2 3 4 5 6`, quand `Villa R+1 221 7 7 0 1 2 3 4 5 6` donne le contact et
+  laisse `221` en clair (TCK-2451). Une barre sépare deux numéros et donne les deux :
+  `Villa R+1 00221 77 012 34 56 / 78 123 45 67`, `Villa R+1 (221) 77 012 34 56 / 78 123 45 67` ; sans
+  barre, le numéro entier gagne : `Villa R+1 00221 77 012 34 78 123 45 67` donne `+221770123478` et laisse
+  `123 45 67` en clair (TCK-2454). Neuf chiffres derrière `221` nu ou `(221)`, sans marque derrière, peuvent
+  donner le contact : `Lot 221 77 012 34 56`, `Villa R+1 (221) 770 123 456`,
+  `Villa R+1 (221) 7 7 0 1 2 3 4 5 6 3 chambres`. D'autres sont masqués sans contact, en exemples non
+  exhaustifs : suivis d'une marque (`Villa R+1 221 77 012 34 56 F`, `Villa R+1 (221) 77 012 34 56 F`,
+  `Villa R+1 (221) 770123456 F`), en 3-3-3 derrière un mot de prix ou de liste
+  (`Lots 221 300 301 302`), ou dans certains groupements chiffre à chiffre
+  (`Villa R+1 (221) 7 7 0 1 2 3 4 56`, `Villa 221 7 70 1 2 3 4 5 6`) ; `Villa 221 77 012 3 500 F` perd en
+  plus son prix (TCK-2454). Ils ne sont pas un prix ; un chiffre qui suit peut l'être :
+  `Villa R+1 (221) 77 012 34 56 78 F` garde son contact et rend 78 (TCK-2447). Écrit par groupes et suivi
+  d'un groupe de chiffres, en exemples non exhaustifs, un numéro à indicatif garde son contact, et ce qui
+  suit se lit seul : `Contact : +221 76 330 45 67` à la ligne, `25 000 F par mois` rend 25 000,
+  `Villa R+1 00221 77 012 34 56 450 000 F` rend 450 000, `… 56 12 500 F` rend 12 500, `… 56 3 /mois`
+  rend 3, et `Tel 77 123 45 67 450 000 F`, sans indicatif, rend 450 000 ; sauf `000`, lu comme la fin d'un
+  montant : `Villa R+1 00221 77 012 34 56 000 F` rend 56 000, sans contact (TCK-2454). Limites connues, en
+  exemples non exhaustifs : `Villa R+20 00221 77 0 12 34 56 450 000 F` rend 56 450 000, sans contact ; donnent
+  un **faux contact**, écrit nulle part ou qui n'est pas un numéro, `Réf 221 300 123 456`,
+  `Villa 221 300 123 500`, `Villa 221 77 012 3 500`, `Lots 221 30 31 32 333`,
+  `Villa 7 70 12 34 56 2 salons` (`+221701234562`), `Villa R+1 00221 77 012 34-78` (`+221770123478`) et
+  `Tel +221 75 81 0 17 78 78 123 45 67` (`+221787812345`). `Tel 00221 77 012 34/56` reste lu sans
+  devenir le contact (TCK-2454). Un nombre nu de moins de 100, sans monnaie, période ni multiplicateur, n'est jamais
+  choisi comme prix (un compte, un horaire `H24/7`, le reste d'un numéro) (TCK-2428).
+- **La collecte ne part que d'un geste du porteur** : une source naît éteinte ; celui qui l'allume en
+  devient l'opérateur, au nom duquel l'extraction est jugée et comptée sur le budget d'IA. Une
+  annonce déjà connue n'est jamais relancée par un passage (TCK-2392).
+- **Les URL de départ d'un site se règlent dans la console, sous garde-fous** (TCK-2438,
+  [ADR-0080](adr/0080-la-collecte-automatique-du-radar.md) amendé) : `https` seulement, sur un hôte
+  de la liste exacte que déclare l'adaptateur du site (`www.expat-dakar.com` et `expat-dakar.com` ;
+  `sn.coinafrique.com`), sans identifiants, port explicite (même `:443`), fragment, espace ni
+  caractère de contrôle ; au plus `radar.crawl.max_start_urls` URL (10) d'au plus
+  `radar.crawl.start_url_max_length` caractères (500), telles qu'écrites et une fois canoniques ;
+  sans doublon, jugé sur la forme canonique, qui est celle enregistrée (celle de Guzzle : schéma et
+  hôte en minuscules, caractères hors ASCII encodés en pourcentage, d'où une longueur qui peut
+  croître). La barre oblique inverse est refusée aussi. Ces garde-fous se jugent à l'enregistrement
+  (422 codé, rien n'est enregistré, pas même les autres réglages de la requête :
+  `radar.crawl.start_urls_too_many`, `radar.crawl.start_url_too_long`,
+  `radar.crawl.start_url_invalid`, `radar.crawl.start_url_host`, `radar.crawl.start_url_duplicate`)
+  et de nouveau au passage (`RadarStartUrls::forRun()`), qui lit les URL enregistrées qui les
+  passent, dans l'ordre, sans doublon, et ignore les autres. Une URL écrite en base hors de la
+  console et conforme est donc lue ; au-delà de `radar.crawl.max_start_urls`, les dernières sont
+  ignorées sans refus. Une source dont la valeur est nulle, une liste vide ou n'est pas une liste
+  part de l'URL de la configuration, si elle passe les mêmes garde-fous. Une source qui règle une
+  liste dont aucune URL ne passe ne lit rien (`radar.crawl.no_start_url`) : elle ne retombe pas sur
+  la configuration. Le plafond de pages et le budget de temps valent pour le passage entier : eux, comme
+  le créneau du domaine déjà pris, arrêtent le passage ; la fin d'une liste, une page sans carte, une
+  lecture refusée ou une boucle n'arrêtent que la liste en cours, et la suivante est lue — mais le
+  passage n'a alors pas « lu toute la liste ». Une liste qui rejoint une page lue par une liste
+  précédente s'arrête sur sa fin : le verdict ne dépend pas de l'ordre des URL.
+- **Une fusion d'office désigne le bien, jamais l'annonceur, et elle est éteinte par défaut**
+  (`RADAR_MERGE_AUTO`, [ADR-0080](adr/0080-la-collecte-automatique-du-radar.md)) : allumée,
+  seulement une annonce trouvée par la collecte, vers une annonce plus ancienne d'un autre site, sur
+  un rapprochement fort dont la photo fait partie, ou le lieu (quartier, chambres, prix à 3 % près)
+  corroboré par un autre signal que le téléphone. Le même numéro ou le même texte ne suffisent pas.
+  Une fusion séparée n'est jamais retentée (TCK-2392).
+- **La collecte ne relit pas ce que la purge a fait taire** : une annonce purgée, `do_not_contact`,
+  ou d'un annonceur qui a dit STOP n'est plus observée ; toute purge supprime ses instantanés. Un
+  historique de marché au-delà de la rétention passera par des compteurs anonymes agrégés (TCK-2434,
+  à valider juridiquement) (TCK-2392, ADR-0080).
+- **Quatrième signal de rapprochement, le texte** : similarité des descriptions par trigrammes
+  (`pg_trgm`), sans aucun chiffre ; il ne rend jamais un rapprochement fort à lui seul. Avec une clé
+  Voyage AI, `VOYAGE_TRAINING_OPT_OUT=true` et la table `embeddings`, deux annonces qui ont chacune un
+  vecteur à jour se comparent par similarité cosinus, avec leurs propres seuils
+  (`radar.similarity.embeddings`) ; tout autre cas passe par `pg_trgm`, et le signal dit sa méthode
+  (`method`). Une panne du fournisseur n'empêche aucun appariement : aucun appel ne part de l'appariement
+  (TCK-2423).
+- **Les vecteurs se calculent en file `ai`, jamais à l'appariement** : `radar:embed-listings`, toutes les
+  15 minutes, met en file un lot d'annonces extraites et sans vecteur à jour, à une étape où le refus STOP a
+  été jugé ; une seule tentative, puis une pause des balayages après un refus ou une panne. L'usage est
+  `radar.embedding`. Seul le premier maillon du rôle `embedding` compte : deux modèles ne se comparent pas. À
+  réception d'un STOP, les envois suivants du texte de l'annonceur cessent, et son vecteur s'efface à la
+  purge suivante, comme celui d'une annonce purgée ; d'ici là il peut servir à un rapprochement, et un envoi
+  déjà en cours n'est pas annulé. La fusion automatique juge par `pg_trgm`, sans aucun vecteur (TCK-2423).
+- **Ce qui part chez Voyage AI** : `similarity_text`, sans chiffres, et masqué par le socle. Un nom, une adresse
+  électronique ou un numéro écrits en toutes lettres y restent, et partent ; la politique de confidentialité
+  le dit (§ 4.3). `VOYAGE_TRAINING_OPT_OUT` déclare le refus de l'entraînement posé sur le compte Voyage,
+  et ne le prouve pas : aucune API ne permet de le lire. Une clé sans déclaration n'envoie rien,
+  le journal le signale (`radar.embeddings.training_opt_out_undeclared`) (TCK-2423), et Voyage AI n'est alors pas
+  sélectionnable : la console le dit et refuse de l'affecter au rôle `embedding` (TCK-2450).
+- **Limites des vecteurs** : leurs seuils ne reposent sur aucune mesure, et rien n'a été éprouvé sur la
+  vraie API, dont le contrat est lu sur la documentation ; deux annonces d'un même annonceur peuvent
+  se ressembler assez pour faire monter un rapprochement. Sans extension `vector` disponible et permise, la
+  table n'existe pas, et le Radar reste sur `pg_trgm` (`ai:install-embeddings`, une fois l'extension posée)
+  (TCK-2423).
+- **Les agrégats de marché de l'observatoire ne lisent que des données anonymes** (prix au m²,
+  temps de mise sur le marché, écart d'offre, sources disparues : instantanés, site, rattachement au
+  catalogue, disparition) ; une annonce vue sur plusieurs sites compte une fois
+  ([ADR-0083](adr/0083-l-observatoire-du-marche.md)). Deux lectures ne le sont pas : la part
+  d'intermédiaires lit la nature présumée de l'annonceur (`radar_advertisers.nature`), et le
+  classement des annonceurs, outil commercial du démarchage, ne prétend pas être anonyme
+  (ADR-0083 § 5). Ses chiffres portent sur les annonces
+  conservées : une annonce purgée n'y est plus, et la période couverte ne remonte pas au-delà de la
+  rétention de 90 jours. La part d'intermédiaires ne porte que sur les annonceurs encore porteurs
+  d'annonces non purgées (TCK-2393).
+- **La part par nature d'une période passée se lit sur des compteurs anonymes quotidiens**
+  (`radar_nature_counts`) : chaque jour, avant la purge, le nombre d'annonceurs par nature présumée et
+  de leurs annonces, sans identifiant, lieu, prix ni site ; jamais purgés. Sans identifiant, les
+  jours ne se dédoublonnent pas : la part se lit en annonceurs-jours. **Éteints par défaut**
+  (`radar.nature_counts.enabled`, `RADAR_NATURE_COUNTS=false`), et l'observatoire le dit : la
+  différence entre deux jours rend la nature présumée d'un annonceur qui a dit STOP, et un seuil k ne
+  la ferme pas. Le porteur ne les allume qu'après l'avis juridique de TCK-2434, qui tranche le remède
+  (grain plus gros, arrondi ou bruit). Une panne du compteur ne fait jamais tomber la purge (TCK-2431,
+  [ADR-0083](adr/0083-l-observatoire-du-marche.md), amendement du 2026-10-30).
+- **Une annonce collectée n'a disparu qu'après deux passages complets de son site** (qui ont lu
+  chacune de leurs listes jusqu'au bout), **commencés après sa dernière présence, sans l'avoir
+  revue** (`radar.observe.confirm_runs`) : un seul ne suffit pas, la liste glisse pendant la lecture.
+  Revue plus tard, elle redevient présente. Un passage ne compte contre une annonce que si ses URL de
+  départ contiennent celles de chaque passage actif à sa dernière présence, et celles du dernier
+  passage commencé avant elle ; un passage complet qui ne les contient pas est sauté, sans
+  interrompre le compte. Élargir les URL de départ ne coupe pas la détection. Les restreindre ne
+  déclare aucune disparition, mais une annonce sortie du périmètre n'est plus jugée tant qu'elle n'est
+  pas revue, donc jamais si sa liste n'est plus lue : elle ne lève pas `radar_source_listing_gone`,
+  et elle compte encore comme une source en ligne de son bien, si bien que la question au titulaire
+  (règle suivante) peut ne pas partir quand sa dernière autre source disparaît (TCK-2438,
+  [ADR-0080](adr/0080-la-collecte-automatique-du-radar.md) amendé). Une annonce que
+  la collecte ne suit plus (purgée, `do_not_contact`, annonceur STOP) n'est plus jugée. La disparition
+  de la source d'un bien lève l'alerte `radar_source_listing_gone`, que les règles d'alerte de la
+  console livrent : un journal de plateforme, dont le sujet est l'annonce collectée et le bien dans
+  `properties.property_id`, qu'aucune agence ne lit (TCK-2393).
+- **Bien publié dont la source a disparu** (TCK-2432, ADR-0083 amendé). Quand la dernière annonce
+  collectée encore en ligne d'un bien que le Radar a publié disparaît, et que le bien est encore en
+  vitrine, son titulaire reçoit une notification (« Votre bien est-il toujours disponible ? »), une
+  fois par disparition, dans la cloche et selon ses préférences (`property_availability_check`,
+  [§2.3](#23-notifications)), jamais par SMS ni WhatsApp ; sous mandat, c'est l'administrateur
+  principal de l'espace des mandats. Sur la fiche du bien, qui peut le modifier répond : loué ou vendu
+  (le bien passe à ce statut et quitte la vitrine), ou toujours disponible (la réponse est notée).
+  Sans réponse après 7 jours (`radar.observe.owner_answer_days`), l'équipe reçoit une proposition de
+  retrait par les règles d'alerte de la console (`radar_withdrawal_proposed`) ; le bien n'est jamais
+  retiré automatiquement. Le retour de l'annonce efface la question. Une autre source ne compte
+  « en ligne » que si la collecte la suit encore, sur un site allumé dont un passage complet est
+  récent (`radar.observe.online_horizon_days`, 3 jours, ou la fréquence du site multipliée par
+  `radar.observe.confirm_runs` si elle est plus longue).
+- Droits : `support` saisit, relit, démarche (relance d'activation comprise), dépose les preuves,
+  sépare une fusion d'office et lit la collecte et l'observatoire ; seul `super_admin` publie pour l'annonceur ou sous mandat,
+  allume, règle et lance la collecte, et délie un compte supprimé (TCK-2392, TCK-2393, TCK-2394,
+  TCK-2413).
 
 ---
 

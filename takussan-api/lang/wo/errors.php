@@ -68,6 +68,26 @@ return [
     'agent_handover' => [
         'member_not_staff' => 'Jox liggéey bi, ajaŋ walla njiitu ajaans bi rekk la jëm ; boroom kër bokkul ci.',
     ],
+    'ai' => [
+        'eval' => [
+            'already_running' => 'Une évaluation de ce candidat est déjà en cours pour ce rôle.',
+            'job_failed' => "L'évaluation a échoué : le worker l'a interrompue avant la fin.",
+            'job_lost' => "L'évaluation a été perdue : son worker s'est arrêté avant d'écrire un résultat.",
+            'no_cases' => "Ce rôle n'a aucun jeu de cas à évaluer.",
+        ],
+        'evaluation_below_baseline' => "Ce modèle a été évalué sous la référence : indiquez un motif pour l'affecter quand même.",
+        'model_in_use' => 'Ce modèle est encore employé. Chaînes en base : :roles. Modèles forcés : :usages. Chaînes de repli de la configuration : :fallback_roles.',
+        'model_not_in_config' => "Ce modèle n'a pas d'entrée dans la configuration : il se retire, il ne s'efface pas.",
+        'model_unpriced' => "Ce modèle n'a pas de tarif : il ne peut pas être affecté.",
+        'provider_host_not_allowed' => "L'adresse de ce fournisseur n'est pas sur un hôte accepté.",
+        'provider_key_missing' => "Aucune clé n'est configurée pour ce fournisseur.",
+        'provider_redirected' => "Ce fournisseur a répondu par une redirection : la demande n'a pas été renvoyée.",
+        'provider_role_mismatch' => 'Ce fournisseur ne sert pas ce rôle : les embeddings et le texte ne se mélangent pas.',
+        'provider_unreachable' => "Rien n'est envoyé à ce fournisseur : refus de l'entraînement non déclaré, ou adresse non acceptée.",
+        'provider_unknown' => 'Fournisseur IA inconnu.',
+        'role_unknown' => 'Rôle IA inconnu.',
+        'usage_unknown' => 'Usage IA inconnu.',
+    ],
     'auth' => [
         'account_blocked' => 'Kont bii dañu ko tëj.',
         'insufficient_privileges' => 'Sañ-sañ yi doyuñu.',
@@ -659,6 +679,143 @@ return [
     'webhook_log' => [
         'not_replayable' => 'Bind bii mënuñu ko defaat : webhook bu ñu wóor, bu dañu ci tële walla bu amul lu mu méngóo, te ñu denc corps bi rekk lañuy defaat.',
         'integration_unavailable' => 'Intégration bi wóoral webhook bii dootul dox : mënuñu ko defaat.',
+    ],
+    'radar' => [
+        'captures' => [
+            'too_large' => 'Une capture est trop grande : 20 000 pixels de côté et 40 millions de pixels au plus.',
+            'unreadable' => 'Une capture ne se lit pas comme une image : envoyez une capture JPEG, PNG ou WebP.',
+        ],
+        'url' => [
+            'invalid' => 'Cette URL ne se lit pas : son nom d\'hôte est illisible.',
+            'airbnb' => 'Airbnb n\'est pas une source du Radar : son contenu ne se collecte pas.',
+        ],
+        'listing' => [
+            'nothing_to_update' => 'Aucun champ à corriger : envoyez au moins un champ de la fiche.',
+            'stage_conflict' => 'Cette annonce n\'est plus à cette étape : le geste n\'est pas permis.',
+            'no_source_photos' => 'Cette annonce n\'a aucune photo à récupérer à la source : déposez-en à la main.',
+        ],
+        'duplicate' => [
+            'self' => 'Une annonce ne peut pas être le doublon d\'elle-même.',
+            'chain' => 'Cette annonce est déjà un doublon, ou pointe déjà vers celle-ci : choisissez l\'annonce d\'origine.',
+        ],
+        'advertiser' => [
+            'phone_invalid' => 'Ce numéro ne se lit pas comme un numéro sénégalais.',
+            'phone_unknown' => 'Ce numéro n\'apparaît pas dans l\'annonce : on ne rattache qu\'un numéro qu\'elle a lu.',
+            'claim_required' => 'Prenez d\'abord cet annonceur en charge : le geste exige la prise en charge.',
+            'claimed_by_other' => 'Cet annonceur est pris en charge par un autre opérateur jusqu\'à :claimed_until.',
+            'claim_not_held' => 'Cette prise en charge n\'est pas la vôtre : elle ne se rend pas.',
+            'do_not_contact' => 'Cet annonceur a demandé à ne plus être contacté : aucun message ne lui est préparé ni envoyé.',
+            'busy' => 'Cet annonceur change en ce moment : réessayez dans un instant.',
+            'phone_registered' => 'Ce numéro est déjà celui d\'un compte : le Radar ne publie pas dans un compte existant, seule la réclamation est proposée à son titulaire.',
+            'account_unavailable' => 'Le compte rattaché à cet annonceur est supprimé ou bloqué, ou son espace est suspendu : rien n\'y est publié.',
+            'account_not_deleted' => 'Le compte rattaché à cet annonceur n\'est pas supprimé : seul un compte supprimé se délie.',
+        ],
+        'outreach' => [
+            'locale_unsupported' => 'Cette langue n\'est pas prise en charge pour le message d\'accord.',
+            'listing_foreign' => 'Une de ces annonces n\'est pas celle de cet annonceur.',
+            'listing_not_ready' => 'Une de ces annonces n\'est pas prête à être démarchée : elle doit être validée (ou déjà contactée, pour une relance).',
+            'listing_consented' => 'Une de ces annonces est déjà couverte par un accord valide : inutile de la démarcher à nouveau.',
+            'listing_pending' => 'Un message déjà envoyé pour l\'une de ces annonces attend encore une issue : relancez-le, ou saisissez son issue.',
+            'follow_up_invalid' => 'Ce message ne se relance pas : il doit être envoyé, sans issue, et être le dernier de sa chaîne.',
+            'follow_up_limit' => 'Le nombre de relances est atteint pour ce message.',
+            'not_prepared' => 'Ce message n\'est plus à l\'état préparé : il ne se modifie ni ne s\'envoie plus.',
+            'parts_missing' => 'La salutation et le résumé doivent être écrits : aucun des deux ne peut être vide.',
+            'nothing_to_update' => 'Aucun champ à modifier : indiquez la salutation ou le résumé.',
+            'not_sent' => 'Ce message n\'a pas été envoyé : aucune réponse ni issue ne s\'y enregistre.',
+            'outcome_final' => 'Ce message est clos : ni réponse ni issue ne s\'y ajoute plus.',
+            'superseded' => 'Ce message a été relancé : déposez la réponse ou l\'issue sur la dernière relance.',
+            'reply_pending' => 'Une réponse de ce message attend encore sa vérification ou son issue : attendez son verdict, ou posez son issue, avant d\'aller plus loin.',
+        ],
+        'consent' => [
+            'reply_required' => 'Aucune réponse n\'est déposée sur ce message : déposez les captures de l\'annonceur avant de confirmer l\'accord.',
+            'reason_required' => 'Le verdict de l\'IA ne va pas dans le sens d\'un accord (:discordances) : écrivez le motif de la confirmation.',
+        ],
+        'message' => [
+            'generation_incomplete' => 'Le modèle n\'a pas rédigé la salutation et le résumé : écrivez-les vous-même.',
+        ],
+        'review' => [
+            'incomplete' => 'La fiche est incomplète : le type, le contrat, le prix et un quartier du référentiel sont requis.',
+        ],
+        'photo' => [
+            'not_found' => 'Cette photo n\'est pas dans la réserve de cette annonce.',
+            'reserve_full' => 'La réserve de photos est pleine : :max photos au plus.',
+            'too_large' => 'Une photo est trop grande : ses dimensions dépassent les bornes acceptées.',
+            'unreadable' => 'Une photo ne se lit pas comme une image : envoyez un JPEG, un PNG ou un WebP.',
+        ],
+        'publish' => [
+            'listing_foreign' => 'Une de ces annonces n\'est pas celle de cet annonceur, ou n\'existe pas.',
+            'not_covered' => 'Une de ces annonces n\'est pas couverte par un accord confirmé et non révoqué : elle ne se publie pas.',
+            'photos_pending' => 'Les photos d\'une de ces annonces sont encore en préparation : attendez la fin, ou relancez la lecture.',
+            'no_photo' => 'Une de ces annonces n\'a aucune photo dans sa réserve : récupérez-en à la source, ou déposez-en.',
+            'missing_field' => 'Une de ces annonces est incomplète : le type, le contrat, le prix et un quartier du référentiel sont requis.',
+            'too_many_photos' => 'Ces annonces ont :count photos en tout, et une publication en accepte :max au plus : publiez-les en plusieurs fois.',
+            'activation_unavailable' => "La connexion par téléphone est éteinte dans cet environnement : le compte créé pour l'annonceur ne pourrait pas s'ouvrir par code SMS. Rien ne se publie tant qu'elle ne l'est pas.",
+            'otp_preview_active' => "L'aperçu des codes SMS est actif dans cet environnement : le code d'activation reviendrait dans la réponse, et quiconque connaît le numéro de l'annonceur pourrait ouvrir son compte. Rien ne se publie tant qu'il l'est.",
+            'nothing_published' => 'Aucun bien n\'est publié pour cet annonceur : il n\'y a pas de message à composer.',
+            // TCK-2394 (ADR-0079)
+            'under_mandate' => 'Les biens de cet annonceur sont publiés sous mandat : il ne se publie plus pour lui dans un compte.',
+        ],
+        // TCK-2395 — le démarchage par l'API, depuis le numéro WhatsApp dédié au Radar.
+        'whatsapp' => [
+            'not_configured' => 'Le numéro WhatsApp du Radar n\'est pas configuré : envoyez ce message par WhatsApp, à la main.',
+            'same_number' => 'Le numéro ou le jeton configuré pour le Radar est celui des notifications : il ne sert jamais à prospecter. Rien n\'est envoyé.',
+            'template_missing' => 'Aucun modèle Meta approuvé pour cette version des clauses ou cette langue : envoyez ce message par WhatsApp, à la main.',
+            'message_mismatch' => 'Le modèle Meta ne redonnerait pas exactement le texte enregistré de ce message : préparez-en un nouveau.',
+            'send_failed' => 'Meta a refusé l\'envoi (:reason) : rien n\'est enregistré, le message reste préparé.',
+            'summary_too_long' => 'Pour un envoi par l\'API, le résumé ne doit pas dépasser :max caractères : raccourcissez-le, ou envoyez ce message par WhatsApp, à la main.',
+        ],
+        // TCK-2390 — la réclamation par l'annonceur, page publique : aucun mot du Radar.
+        'claim' => [
+            'invalid' => 'Ce lien n\'existe pas.',
+            'expired' => 'Ce lien a expiré. Répondez au message reçu pour en demander un nouveau.',
+            'revoked' => 'Ce lien n\'est plus valable.',
+            'unavailable' => 'Cette page n\'est pas disponible pour le moment. Réessayez plus tard.',
+            'account_unavailable' => 'Le compte lié à ce numéro ne peut pas être ouvert ici. Écrivez-nous pour le retrouver.',
+            'terms_outdated' => 'Les conditions d\'utilisation ont changé depuis l\'ouverture de cette page : rechargez-la pour lire la version en vigueur.',
+            'listing_unavailable' => 'Une de ces annonces n\'est plus proposée : rechargez la page.',
+            'nothing_selected' => 'Choisissez au moins une annonce à publier.',
+            'login_required' => 'Ce numéro a déjà un compte Takussan : connectez-vous d\'abord.',
+            'wrong_account' => 'Vous êtes connecté avec un autre compte : déconnectez-vous, puis rouvrez ce lien.',
+            'account_changed' => 'Ce compte a changé entre-temps : rechargez la page.',
+            'support_required' => 'Ce numéro est lié à deux comptes Takussan : écrivez-nous, nous les réunirons.',
+            // TCK-2394 (ADR-0079) — un mandat posé après la reprise, sur un annonceur délié de son compte (TCK-2421).
+            'under_mandate' => 'Vos annonces sont de nouveau diffusées par Takussan pour votre compte : rechargez la page pour les reprendre dans votre propre espace.',
+            'name_contains_phone' => 'Le prénom et le nom de l\'espace ne peuvent pas contenir de numéro de téléphone.',
+            // TCK-2421 — un bien sous mandat porte de la gestion : la reprise passe par le support.
+            'mandate_support_required' => 'Vos annonces diffusées par Takussan ne peuvent pas être reprises depuis cette page : écrivez-nous, nous les déplacerons dans votre espace.',
+            // TCK-2421 — l'espace de l'annonceur n'est pas actif (suspendu ou inactif) : ses biens restent sous mandat, en ligne.
+            'space_suspended' => 'Votre espace Takussan n\'est pas actif : vos annonces restent diffusées par Takussan pour votre compte, et vous pourrez les reprendre une fois votre espace rétabli.',
+            // TCK-2446 — hors mandat, l'espace du compte n'est pas actif : rien ne s'y publie, la réclamation est refusée.
+            'space_unavailable' => 'Votre espace Takussan n\'est pas actif : vos annonces ne peuvent pas y être publiées pour l\'instant. Écrivez-nous pour le réactiver.',
+        ],
+        // TCK-2392 — la collecte automatique et la fusion des doublons entre sites.
+        'merge' => [
+            'not_automatic' => 'Cette annonce n\'a pas été fusionnée automatiquement : seule une fusion automatique se sépare ici.',
+        ],
+        'crawl' => [
+            'active' => 'Un passage est déjà en cours sur ce site : attendez sa fin.',
+            'unknown_site' => 'Ce site n\'est pas collecté : aucun adaptateur ne le lit.',
+            // TCK-2438 — les URL de départ réglées dans la console.
+            'start_urls_too_many' => 'Trop d\'URL de départ : :max au plus par site.',
+            'start_url_too_long' => 'Cette URL de départ est trop longue : :max caractères au plus.',
+            'start_url_invalid' => 'Cette URL de départ n\'est pas acceptée : une adresse https, sans identifiants, port ni fragment (#).',
+            'start_url_host' => 'Cette URL de départ n\'est pas sur le site : elle doit partir de :hosts.',
+            'start_url_duplicate' => 'Cette URL de départ est déjà dans la liste.',
+        ],
+        // TCK-2394 (ADR-0077, lot 4) — la relance d'activation ; (ADR-0079) la publication sous mandat.
+        'activation' => [
+            'already_active' => 'Le compte de cet annonceur est déjà activé : il n\'y a plus rien à relancer.',
+            'revoked' => 'Un accord de cet annonceur est retiré, ou son numéro est effacé : aucune relance ne lui est préparée.',
+            'nothing_published' => 'Aucun bien publié pour cet annonceur n\'est en ligne : la relance n\'aurait rien à dire.',
+            'too_soon' => 'La dernière relance, ou la mise en ligne, date de moins d\'une période : la prochaine relance part à partir de :available_at.',
+            'under_mandate' => 'Les biens de cet annonceur sont publiés sous mandat : il n\'a pas de compte à activer.',
+            'just_sent' => 'Cette relance vient d\'être marquée envoyée : un second marquage ne compterait pas une relance de plus.',
+        ],
+        'mandate' => [
+            'disabled' => 'La publication sous mandat est éteinte (ADR-0079 proposé) : rien ne se publie sous mandat.',
+            'space_missing' => 'Aucun espace des mandats n\'est désigné, ou il est suspendu : désignez-en un dans les paramètres de la plateforme.',
+            'account_exists' => 'Un compte est déjà rattaché à cet annonceur : publiez pour lui dans son espace, pas sous mandat.',
+        ],
     ],
     'pay_link' => [
         'not_found' => 'Lien fey bii amul.',

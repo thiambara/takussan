@@ -869,7 +869,8 @@ class PayoutService
             $approvedId === null
                 || (int) $approvedId !== (int) $destination->id
                 || ! is_string($approvedFingerprint)
-                || ! hash_equals($approvedFingerprint, $destination->fingerprint()),
+                // TCK-2430 — sous toutes les clés reconnues : une rotation d'`APP_KEY` ne bloque pas ce qui a été approuvé.
+                || array_filter($destination->fingerprints(), fn (string $fingerprint): bool => hash_equals($approvedFingerprint, $fingerprint)) === [],
             422,
             'payout.destination_changed_since_approval',
         );

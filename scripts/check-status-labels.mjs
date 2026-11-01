@@ -76,6 +76,7 @@ const LIBELLES = {
     { chemin: 'agency.upgrade.status.headings', lu: 'components/agency/UpgradeRequestStatus.tsx' },
     { chemin: 'agency.upgrade.status.badges', lu: 'components/agency/UpgradeRequestStatus.tsx' },
   ],
+  AiEvaluationStatus: [{ chemin: 'superAdmin.pages.ai.evaluationStatus', lu: 'components/admin/super/ai/AiChainDialog.tsx' }],
   BankStatementLineMatchStatus: [{ chemin: 'admin.reconciliation.lineStatus', lu: 'components/admin/reconciliation/StatementDetail.tsx' }],
   BankStatementStatus: [
     { chemin: 'admin.reconciliation.status', lu: 'components/admin/reconciliation/StatementsList.tsx' },
@@ -107,6 +108,7 @@ const LIBELLES = {
   PlatformPayoutStatus: [{ chemin: 'billing.platformPayouts.status', lu: 'components/admin/reconciliation/PayableStatusBadge.tsx' }],
   PrivacyRequestStatus: [{ chemin: 'superAdmin.privacyRequests.status', lu: 'components/admin/super/PrivacyRequestsConsole.tsx' }],
   PropertyStatus: [{ chemin: 'property.status', lu: 'components/admin/super/SuperAdminPropertiesTable.tsx' }],
+  RadarCrawlStatus: [{ chemin: 'superAdmin.pages.radar.crawl.status', lu: 'components/admin/super/radar/collecte/RadarCollecte.tsx' }],
   ReviewStatus: [
     { chemin: 'profile.reviews.status', lu: 'components/profile/ProfileReviewsList.tsx' },
     { chemin: 'admin.moderation.status', lu: 'components/admin/ModerationQueueList.tsx' },
@@ -124,6 +126,7 @@ const SANS_LIBELLE = {
   AgentProfileStatus: 'aucun écran relevé ne le traduit sous un espace complet',
   ConversationStatus: 'aucun espace du dictionnaire ne porte ses cas',
   InvitationStatus: 'aucun espace du dictionnaire ne porte ses cas',
+  RadarVerificationStatus: 'TCK-2388 : `ReponseVerdict` le lit en comparaison (`pending`, `failed`) et dit chaque état par une phrase (`superAdmin.pages.radar.advertiser.reply.pending`, `.failed`) — pas par une table à un cas par clé que `LIBELLES` puisse relever',
   ReferentialStatus: 'aucun écran relevé ne le traduit sous un espace complet',
   RelationshipStatus: 'aucun écran relevé ne le traduit (`billing.subscription.status` porte ses cas par coïncidence)',
   TaskStatus: 'aucun espace du dictionnaire ne porte ses quatre cas (`done` manque)',

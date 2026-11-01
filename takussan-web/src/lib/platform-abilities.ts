@@ -18,12 +18,16 @@ export const PLATFORM_ABILITIES = [
   'platform.users.block',
   'platform.moderation.view',
   'platform.search.global',
+  'platform.radar.operate',
   'platform.users.impersonate',
   'platform.users.erase',
   'platform.operators.manage',
   'platform.agencies.suspend',
   'platform.kyc.view',
   'platform.settings.manage',
+  'platform.radar.publish',
+  'platform.ai.view',
+  'platform.ai.manage',
 ] as const;
 
 export type PlatformAbility = (typeof PLATFORM_ABILITIES)[number];

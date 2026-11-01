@@ -225,7 +225,9 @@
         "privacyRequests": "Rights requests",
         "payments": "Payments",
         "credits": "Credits",
-        "boosts": "Promotion"
+        "boosts": "Promotion",
+        "ai": "Artificial intelligence",
+        "radar": "Radar"
       }
     },
     "notifications": {
@@ -520,7 +522,11 @@
       "blocked": "This account is suspended. Contact support to find out more.",
       "tooMany": "Too many requests in a short time. Please wait a moment before trying again.",
       "failed": "Something went wrong. Please try again in a moment.",
-      "termsNotice": "By continuing, you accept the <terms>terms of service</terms> and the <privacy>privacy policy</privacy>."
+      "termsNotice": "By continuing, you accept the <terms>terms of service</terms> and the <privacy>privacy policy</privacy>.",
+      "termsTitle": "Accept the terms of use",
+      "termsIntro": "Before entering your space, read the Takussan terms of use and accept them.",
+      "termsAccept": "I accept the Takussan <terms>terms of use</terms>.",
+      "termsContinue": "Accept and continue"
     },
     "otpPreview": {
       "title": "Test environment",
@@ -1757,6 +1763,15 @@
       "searchCity": "See properties in {city}",
       "searchAll": "See all properties",
       "metaDescription": "This Takussan listing is no longer available. Discover similar properties."
+    },
+    "availabilityCheck": {
+      "title": "Is this property still available?",
+      "body": "Its original listing has been offline since {date}. Tell us where it stands: a rented or sold property leaves the listings, an available one stays.",
+      "rented": "It is rented",
+      "sold": "It is sold",
+      "available": "Still available",
+      "done": "Thank you, your answer has been saved.",
+      "error": "Your answer could not be saved. Please try again."
     }
   },
   "dashboard": {
@@ -7774,7 +7789,9 @@
         "whatsapp": "WhatsApp",
         "scheduler": "Scheduler",
         "proxies": "Trusted proxies",
-        "lemon_squeezy_webhook": "Lemon Squeezy webhook"
+        "lemon_squeezy_webhook": "Lemon Squeezy webhook",
+        "radar_phone_key": "Radar refusal key",
+        "ai_providers": "AI providers"
       },
       "hint": {
         "error": "Error: {message}",
@@ -7787,7 +7804,9 @@
           "unreachable": "Server unreachable",
           "not_meilisearch": "Search not on Meilisearch",
           "wildcard_trusts_nobody": "“*” trusts no proxy",
-          "signing_secret_missing": "Signing secret missing from configuration"
+          "signing_secret_missing": "Signing secret missing from configuration",
+          "radar_phone_key_missing": "Dedicated key missing: refusal fingerprints depend on APP_KEY",
+          "ai_provider_host_not_allowed": "Key set on an address that is not on an accepted host"
         }
       },
       "status": {
@@ -8359,6 +8378,1387 @@
       "payments": {
         "title": "Payments",
         "subtitle": "Money that does not arrive: failed or late payments, and provider webhooks."
+      },
+      "ai": {
+        "title": "Artificial intelligence",
+        "subtitle": "What runs, on which model, and what it costs today.",
+        "tabs": {
+          "roles": "Roles",
+          "usages": "Usages",
+          "providers": "Providers",
+          "dashboard": "Costs"
+        },
+        "evaluationStatus": {
+          "queued": "Queued",
+          "running": "Running",
+          "done": "Done",
+          "failed": "Failed"
+        },
+        "callErrors": {
+          "providerTimeout": "The provider did not respond in time.",
+          "providerRateLimited": "The provider is rate limiting: try again in a moment.",
+          "providerCredits": "The account credit with the provider is exhausted.",
+          "providerUnavailable": "The provider is unavailable or unreachable.",
+          "providerAuth": "The provider rejected the key: check it.",
+          "requestRejected": "The provider rejected the request.",
+          "responseInvalid": "The model response cannot be used.",
+          "responseTruncated": "The model response was cut off before the end.",
+          "responseFiltered": "The model response was blocked by the provider’s filter.",
+          "unexpected": "Unexpected error: details are in the API log.",
+          "providerKeyMissing": "No key is set for this provider.",
+          "providerHostNotAllowed": "The address of this provider is not on an accepted host.",
+          "providerRedirected": "This provider answered with a redirect: the request was not sent again.",
+          "providerUnreachable": "Nothing is sent to this provider: training opt-out not declared, or address not accepted.",
+          "providerUnknown": "This provider is no longer declared."
+        },
+        "roles": {
+          "caption": "Model roles and their failover order",
+          "role": "Role",
+          "chain": "Chain (failover order)",
+          "source": "Source",
+          "sourceDatabase": "Set here",
+          "sourceConfig": "Default configuration",
+          "edit": "Edit",
+          "reset": "Back to configuration",
+          "resetFailed": "Going back to the configuration failed.",
+          "names": {
+            "extraction": "Extraction",
+            "redaction": "Writing",
+            "raisonnement": "Reasoning",
+            "vision": "Vision",
+            "embedding": "Semantic representation"
+          },
+          "emptyChain": "No model"
+        },
+        "chain": {
+          "title": "Chain of the “{role}” role",
+          "link": "Link {position}",
+          "provider": "Provider",
+          "model": "Model",
+          "maxTokens": "Token ceiling",
+          "up": "Move link {position} up",
+          "down": "Move link {position} down",
+          "remove": "Remove",
+          "add": "Add a link",
+          "evaluate": "Evaluate the first link",
+          "evaluating": "Evaluation running…",
+          "evaluationFailed": "The evaluation failed.",
+          "evaluationErrors": {
+            "jobLost": "The evaluation was lost: its worker stopped before writing a result.",
+            "jobFailed": "The evaluation was interrupted before it finished."
+          },
+          "evaluationErrorCode": "Code: {code}",
+          "comparison": "Current / candidate",
+          "field": "Field",
+          "current": "Current",
+          "candidate": "Candidate",
+          "verdictOk": "The candidate holds the baseline.",
+          "verdictBelow": "The candidate is below the baseline.",
+          "verdictFailures": "Calls failed during the evaluation: the result proves nothing.",
+          "verdictBaselineStale": "The baseline does not carry the same fields as the candidate: it is stale.",
+          "failuresCount": "{count, plural, one {# call failed} other {# calls failed}} out of {cases, plural, one {# case} other {# cases}}",
+          "overrideReason": "Reason for the override",
+          "overrideHint": "Required to apply a model below the baseline; it is logged.",
+          "save": "Apply",
+          "cancel": "Cancel",
+          "global": "Global",
+          "evaluationCost": "Evaluation cost",
+          "noBaseline": "No baseline recorded.",
+          "evaluatedCandidate": "Evaluated candidate: {model}"
+        },
+        "usages": {
+          "caption": "Declared usages",
+          "key": "Usage",
+          "model": "Model called",
+          "forced": "forced",
+          "budget": "Spent / today’s ceiling",
+          "noBudget": "no ceiling",
+          "state": "State",
+          "enabled": "Active",
+          "disabled": "Cut off",
+          "disable": "Cut off",
+          "enable": "Restore",
+          "settings": "Settings",
+          "forcedModel": "Forced model",
+          "noForcedModel": "The role’s",
+          "dailyBudget": "Daily ceiling (USD)",
+          "save": "Save",
+          "cancel": "Cancel",
+          "updateFailed": "The setting was not saved.",
+          "budgetDefaultHint": "Default: {default} — leave empty to follow the default.",
+          "budgetNoDefaultHint": "No default ceiling — leave empty to set none.",
+          "providersLoadError": "The available models could not be loaded: {message}",
+          "budgetEquivalent": "≈ {xof}",
+          "budgetInvalid": "Enter an amount in dollars, in digits: 0.50 for example."
+        },
+        "providers": {
+          "caption": "Allowed providers",
+          "name": "Provider",
+          "status": "Status",
+          "statusReady": "Ready",
+          "statusKeyMissing": "Key missing",
+          "statusHostNotAllowed": "Address not accepted",
+          "statusTrainingOptOutUndeclared": "Training opt-out not declared",
+          "host": "Host: {host}",
+          "models": "Active models",
+          "test": "Test the connection",
+          "testOk": "Connected to {model} in {duration} ms.",
+          "testFailed": "The connection failed.",
+          "testError": "The test could not be started.",
+          "testErrors": {
+            "roleUnassigned": "No model is assigned to this test’s role.",
+            "providersUnavailable": "No provider answered: try again, or check the key and the model’s price.",
+            "refusedKillSwitch": "The test usage is cut off.",
+            "refusedBudget": "The daily ceiling is reached: the test was refused.",
+            "refused": "The gateway refused the test call."
+          },
+          "testErrorCode": "Code: {code}"
+        },
+        "models": {
+          "title": "Models",
+          "description": "The assignable models of each declared provider, and their prices in dollars per million tokens. A correction applies to the next calls, never to past ones. A line set here hides the configuration price until you go back to it.",
+          "caption": "{provider} models",
+          "model": "Model",
+          "origin": "Origin",
+          "originConsole": "Set here",
+          "originConfig": "Configuration",
+          "state": "State",
+          "active": "Active",
+          "withdrawn": "Withdrawn",
+          "actions": "Actions",
+          "edit": "Correct",
+          "editModel": "Correct the price of {model}",
+          "withdraw": "Withdraw",
+          "withdrawModel": "Withdraw {model}",
+          "revert": "Back to configuration",
+          "revertModel": "Go back to the configuration price for {model}",
+          "revertTitle": "Go back to the configuration for {model}?",
+          "revertConfirm": "The line set here is deleted: the configuration price applies to the next calls.",
+          "revertConfirmWithdrawn": "This model was withdrawn: going back restores it. It becomes assignable again, at the configuration price. To keep it withdrawn, cancel.",
+          "withdrawnInUse": "Withdrawn, but still in use: {names}. Its calls continue and are still counted; whatever uses it can no longer be saved while it remains there.",
+          "restore": "Restore",
+          "restoreModel": "Restore {model}",
+          "add": "Add a model",
+          "addTitle": "Add a model",
+          "editTitle": "Prices of {model}",
+          "provider": "Provider",
+          "identifier": "Model identifier",
+          "identifierHint": "The provider’s exact identifier, character for character: the model is called under this name. Evaluate it before assigning it.",
+          "prices": {
+            "input": "Input ($/M tokens)",
+            "output": "Output ($/M tokens)",
+            "cache_read": "Cache read ($/M tokens)",
+            "cache_write": "Cache write ($/M tokens)"
+          },
+          "pricesHint": "All four prices are required. A price of 0 means “free per token”, not “unknown”: calls to this model will cost the budget 0.",
+          "save": "Save",
+          "cancel": "Cancel",
+          "updateFailed": "The model was not saved.",
+          "inUse": "This model is still in use: it cannot be withdrawn.",
+          "inUseRoles": "Chains set here: {names}.",
+          "inUseUsages": "Forced model of: {names}.",
+          "inUseFallback": "Configuration fallback chains: {names}."
+        },
+        "dashboard": {
+          "from": "From",
+          "to": "To",
+          "today": "Today: {spent} spent out of {budget}",
+          "todayNoBudget": "Today: {spent} spent, no global ceiling",
+          "caption": "Calls per day and usage",
+          "date": "Day",
+          "usage": "Usage",
+          "calls": "Calls served",
+          "cost": "Cost",
+          "latency": "Average latency (ms)",
+          "errors": "Errors",
+          "refusals": "Refusals",
+          "providerRejections": "Provider defects",
+          "providerRejectionsNotice": "{count, plural, one {# call reports a provider defect: a refusal or a redirect that the next link hid, or a response without a token count, counted as zero and unknown to the budget. Check this provider.} other {# calls report a provider defect: a refusal or a redirect that the next link hid, or a response without a token count, counted as zero and unknown to the budget. Check this provider.}}",
+          "acceptanceCaption": "Suggestion acceptance rate",
+          "acceptance": "Accepted as is",
+          "decided": "Decided",
+          "emptyTitle": "No calls in this period",
+          "emptyDescription": "Calls to the AI foundation will show here, per day and usage.",
+          "baselinesCaption": "Latest evaluation score per usage",
+          "baselineGlobal": "Global score",
+          "baselineModel": "Evaluated model",
+          "baselineDate": "Measured on"
+        },
+        "amount": "{usd} (≈ {xof})"
+      },
+      "radar": {
+        "metaTitle": "Radar",
+        "title": "Radar",
+        "subtitle": "Listings spotted elsewhere: to review, to contact, then to publish with the advertiser’s consent.",
+        "openIntake": "Add listings",
+        "loadError": "The Radar could not be loaded.",
+        "counters": {
+          "toReview": "To review",
+          "pending": "Pending",
+          "failed": "Failed",
+          "toContact": "To contact",
+          "published": "Published",
+          "aiCost": "AI cost today",
+          "aiCostBudget": "≈ {equivalent}, out of a {budget} cap",
+          "aiCostNoBudget": "≈ {equivalent}, no cap"
+        },
+        "filters": {
+          "stageAria": "Filter by stage",
+          "anyStage": "All stages"
+        },
+        "stages": {
+          "captured": "Captured",
+          "extracted": "To review",
+          "reviewed": "Reviewed",
+          "contacted": "Contacted",
+          "consented": "Consent received",
+          "published": "Published",
+          "extraction_failed": "Extraction failed",
+          "duplicate": "Duplicate",
+          "discarded": "Discarded",
+          "refused": "Refused",
+          "do_not_contact": "Do not contact",
+          "purged": "Purged"
+        },
+        "sites": {
+          "coinafrique": "CoinAfrique",
+          "expat_dakar": "Expat-Dakar",
+          "facebook": "Facebook",
+          "whatsapp": "WhatsApp",
+          "other": "Other"
+        },
+        "kinds": {
+          "url": "URL",
+          "text": "Text",
+          "captures": "Screenshots"
+        },
+        "columns": {
+          "stage": "Stage",
+          "site": "Site",
+          "title": "Extracted title",
+          "price": "Price",
+          "neighborhood": "Neighbourhood",
+          "reason": "Reason",
+          "date": "Captured on"
+        },
+        "tableCaption": "Radar listings, most recent first",
+        "untitled": "No extracted title",
+        "extracting": "Extracting…",
+        "pending": "Pending: {reason}",
+        "neighborhoodUnmatched": "to match",
+        "tryTextOrCaptures": "Try the text or screenshots instead.",
+        "periods": {
+          "daily": "/ day",
+          "weekly": "/ week",
+          "monthly": "/ month",
+          "yearly": "/ year"
+        },
+        "reasons": {
+          "fetchDeferred": "The site will be read again a little later.",
+          "fetchInvalidUrl": "The address is not a readable URL.",
+          "fetchAirbnb": "Airbnb listings are not taken.",
+          "fetchPrivateAddress": "The address points to a private network: it is not read.",
+          "fetchRobots": "The site forbids automated reading.",
+          "fetchRobotsUnavailable": "The site’s reading rules could not be reached.",
+          "fetchTooManyRedirects": "The page redirects too many times.",
+          "fetchTooLarge": "The page is too heavy to be read.",
+          "fetchNotHtml": "The address does not lead to a web page.",
+          "fetchHttpError": "The site answered with an error.",
+          "fetchTimeout": "The site did not answer in time.",
+          "fetchUnresolvable": "The site name cannot be found.",
+          "aiBudget": "Today’s AI spending cap is reached.",
+          "aiKillSwitch": "AI is switched off for this use from the AI console.",
+          "aiForbidden": "The operator may not run this AI operation.",
+          "aiDataClass": "This content may not be sent to the model.",
+          "aiSensitiveData": "The content carries sensitive data: it is not sent to the model.",
+          "aiRoleUnassigned": "No model is assigned to this use.",
+          "aiProvidersUnavailable": "Every AI provider is unavailable.",
+          "aiProviderAuth": "The AI provider rejected the key.",
+          "aiRequestRejected": "The AI provider rejected the request.",
+          "aiProviderRateLimited": "The AI provider is rate limiting.",
+          "aiProviderCredits": "The AI provider credit is exhausted.",
+          "aiProviderUnavailable": "The AI provider is unavailable.",
+          "aiProviderTimeout": "The AI provider did not answer in time.",
+          "aiResponseInvalid": "The model’s answer cannot be used.",
+          "aiResponseTruncated": "The model’s answer was cut off before the end.",
+          "aiResponseFiltered": "The model’s answer was blocked by the provider’s filter.",
+          "aiUnexpected": "Unexpected AI provider error.",
+          "extractionInvalidOutput": "The model’s output was invalid.",
+          "extractionEmptySource": "There was nothing to read: empty page or no screenshot.",
+          "extractionTimeout": "The extraction did not complete in time.",
+          "extractionError": "Unexpected error: the details are in the API log.",
+          "fetchNotImage": "A photo link does not lead to an image.",
+          "photoAbandoned": "The photo fingerprint calculation was abandoned.",
+          "photoTooManyPixels": "A photo is too large to be compared.",
+          "photoUnreadable": "A photo cannot be read as an image.",
+          "discardNotRealEstate": "Not a real-estate listing",
+          "discardOutOfScope": "Out of scope (short stay, outside Senegal…)",
+          "discardNoLongerAvailable": "No longer available",
+          "discardUnusableSource": "Unusable source",
+          "discardOther": "Other reason",
+          "mergeAuto": "Merged automatically: the same property seen on another site",
+          "claimLeftNoPhoto": "Left by the automatic publication: no photo in the reserve",
+          "claimLeftMissingField": "Left by the automatic publication: a required field is missing",
+          "claimLeftPhotosPending": "Left by the automatic publication: the photos were still being prepared",
+          "claimLeftFailed": "Left by the automatic publication: the publication failed",
+          "claimLeftAccountUnavailable": "Left by the automatic publication: the advertiser’s account or space is no longer available",
+          "claimLeftQuota": "Left by the automatic publication: the advertiser’s space has reached its listing quota",
+          "claimLeftStageConflict": "Left by the automatic publication: a listing in the batch changed stage in the meantime",
+          "claimLeftNotCovered": "Left by the automatic publication: the advertiser’s consent no longer covers it",
+          "claimLeftAccountChanged": "Left by the automatic publication: the advertiser changed accounts since claiming",
+          "claimLeftForeign": "Left by the automatic publication: the listing no longer belongs to this advertiser",
+          "claimLeftDoNotContact": "Left by the automatic publication: the advertiser asked not to be contacted again",
+          "claimLeftActivationUnavailable": "Left by the automatic publication: sending the login code is unavailable",
+          "claimLeftOtpPreview": "Left by the automatic publication: code login is in trial mode",
+          "claimLeftTooManyPhotos": "Left by the automatic publication: too many photos to copy at once",
+          "claimLeftRefused": "Left by the automatic publication: the publication was refused",
+          "claimLeftUnderMandate": "Left by the automatic publication: the advertiser is published under Takussan mandate"
+        },
+        "empty": {
+          "title": "No listing yet",
+          "description": "Paste a URL, a text or listing screenshots: extraction starts on its own."
+        },
+        "emptyFiltered": {
+          "title": "No listing at this stage",
+          "description": "Pick another stage, or go back to all stages."
+        },
+        "intake": {
+          "title": "Quick entry",
+          "description": "Paste, save, repeat: the form clears and stays open.",
+          "close": "Close quick entry",
+          "tabs": {
+            "urls": "URL",
+            "text": "Text",
+            "captures": "Screenshots"
+          },
+          "urlsLabel": "Listing URLs",
+          "urlsHint": "One URL per line, 20 at most. The site is read from the address.",
+          "textLabel": "Listing text",
+          "textHint": "The text as published, phone number included.",
+          "sourceSiteLabel": "Source site",
+          "capturesLabel": "Screenshots",
+          "capturesHint": "Up to 10 JPEG, PNG or WebP images, 8 MB each, 24 MB in total.",
+          "capturesSelected": "{count, plural, =0 {No image selected} one {# image selected} other {# images selected}}",
+          "submit": "Save",
+          "submitting": "Saving…",
+          "resultsTitle": "Last submission",
+          "created": "Listing #{id} created",
+          "existing": "Listing #{id} already captured",
+          "requeued": "Listing #{id} already captured: extraction restarted",
+          "failed": "The submission failed.",
+          "errors": {
+            "refusedUrl": "Refused address: {url}",
+            "urlAirbnb": "Airbnb listings are not taken: nothing was saved.",
+            "urlInvalid": "One of the addresses has no readable site name: nothing was saved.",
+            "capturesUnreadable": "One of the images cannot be read: nothing was saved.",
+            "capturesTooLarge": "One of the images is too large (in pixels): nothing was saved.",
+            "capturesTooMany": "No more than 10 images per submission. Nothing was sent.",
+            "captureFileTooLarge": "One of the images is over 8 MB. Nothing was sent.",
+            "capturesTotalTooLarge": "The images exceed 24 MB in total: send fewer at a time. Nothing was sent.",
+            "payloadTooLarge": "The submission is too heavy for the server: send fewer images at a time (24 MB at most)."
+          }
+        },
+        "forbidden": "The Radar is reserved to support and super-admin operators.",
+        "listing": {
+          "metaTitle": "Radar listing",
+          "title": "Listing no. {id}",
+          "back": "Back to Radar",
+          "forbidden": "Radar is restricted to support and super-admin operators.",
+          "loadError": "The listing could not be loaded.",
+          "source": {
+            "heading": "Source",
+            "rawText": "Listing text",
+            "noText": "No text was kept for this listing.",
+            "original": "View the original listing",
+            "photos": "Listing photos",
+            "photoAlt": "Listing photo {n}",
+            "captures": "Screenshots",
+            "captureAlt": "Screenshot {n}",
+            "capturesHint": "Screenshots cannot be highlighted: the cited passage is shown under each field.",
+            "capturesExpire": "Screenshot links expire after 30 minutes; reload the listing to renew them.",
+            "cited": "Cited passage:"
+          },
+          "sections": {
+            "listing": "The property",
+            "place": "The location",
+            "advertiser": "The advertiser"
+          },
+          "fields": {
+            "title": "Title",
+            "description": "Description",
+            "property_type": "Property type",
+            "contract": "Contract",
+            "price": "Price (XOF)",
+            "rent_period": "Rent period",
+            "bedrooms": "Bedrooms",
+            "bathrooms": "Bathrooms",
+            "surface_m2": "Surface (m²)",
+            "furnished": "Furnished",
+            "amenities": "Amenities",
+            "city": "City",
+            "neighborhood": "Neighborhood",
+            "advertiser_nature": "Presumed nature"
+          },
+          "hints": {
+            "amenities": "Separated by commas.",
+            "priceRead": "Read: {raw}"
+          },
+          "options": {
+            "none": "Not set",
+            "contracts": {
+              "rent": "Rental",
+              "sale": "Sale"
+            },
+            "furnished": {
+              "yes": "Yes",
+              "no": "No"
+            },
+            "natures": {
+              "probable_owner": "Probable owner",
+              "probable_intermediary": "Probable intermediary",
+              "agency": "Agency",
+              "unknown": "Unknown"
+            }
+          },
+          "confidence": {
+            "medium": "Medium confidence",
+            "corrected": "corrected",
+            "warning": "To check",
+            "flags": {
+              "evidence_missing": "No supporting passage cited",
+              "evidence_not_in_source": "The cited passage is not in the source",
+              "out_of_bounds": "Value outside plausible bounds",
+              "invalid_value": "Invalid value, discarded",
+              "unparsed_amount": "Unreadable amount"
+            },
+            "low": "Low confidence"
+          },
+          "neighborhood": {
+            "read": "Read in the listing: {value}",
+            "unread": "No neighborhood read in the listing.",
+            "linked": "Linked to {name} ({city})",
+            "linkedNoCity": "Linked to {name}",
+            "unlinked": "No neighborhood from the directory linked.",
+            "suggestions": "Suggestions",
+            "pickCity": "Directory city",
+            "pickNeighborhood": "Directory neighborhood",
+            "cityPlaceholder": "Choose a city",
+            "neighborhoodPlaceholder": "Choose a neighborhood",
+            "noResult": "No results",
+            "pendingChoice": "Neighborhood chosen, to be saved",
+            "pendingChoiceNamed": "Neighborhood chosen, to be saved: {name}"
+          },
+          "nature": {
+            "heading": "Advertiser's presumed nature",
+            "signals": "Signals found",
+            "noSignals": "No signals found.",
+            "advertiserName": "Name read: {name}"
+          },
+          "actions": {
+            "save": "Save",
+            "saving": "Saving…",
+            "saved": "Corrections saved.",
+            "dirty": "{count, plural, one {# unsaved correction} other {# unsaved corrections}}",
+            "discard": "Discard corrections"
+          },
+          "readOnly": "This listing can no longer be corrected (stage: {stage}).",
+          "errors": {
+            "generic": "Saving failed.",
+            "stageConflict": "This listing changed stage in the meantime; reload it.",
+            "nothingToUpdate": "No corrections to save.",
+            "reviewIncomplete": "The listing is incomplete: type, contract, price and a directory neighborhood are required.",
+            "duplicateSelf": "A listing cannot be its own duplicate.",
+            "advertiserPhoneInvalid": "This phone number is not valid.",
+            "advertiserPhoneUnknown": "No advertiser has this number.",
+            "duplicateChain": "This listing is already a duplicate, or already points to this one: pick the original listing.",
+            "reviewIncompleteFields": "Fields to complete: {fields}.",
+            "gestureFailed": "The action failed.",
+            "newMatches": "New matches appeared: check them, then validate again.",
+            "mergeNotAutomatic": "This listing was not merged automatically: only an automatic merge can be split here."
+          },
+          "matches": {
+            "heading": "Matches",
+            "alert": "{count, plural, one {This listing looks like # property or listing already known} other {This listing looks like # properties or listings already known}}: check before validating.",
+            "none": "No match with a known property or listing.",
+            "loadError": "Matches could not be computed.",
+            "photosProgress": "Photo fingerprints: {done} / {total}",
+            "strength": {
+              "high": "Strong",
+              "medium": "Medium",
+              "low": "Weak"
+            },
+            "strengthLabel": "{strength} similarity",
+            "signals": {
+              "phone": "same phone number",
+              "neighborhood_price_bedrooms": "same neighborhood, price and bedrooms",
+              "photo_high": "identical photo",
+              "photo_medium": "similar photo",
+              "photo_low": "similar photo",
+              "meaning_close": "same meaning",
+              "meaning_low": "related meaning",
+              "text_close": "nearly identical text",
+              "text_low": "similar text"
+            },
+            "kinds": {
+              "property": "Catalogue property",
+              "listing": "Radar listing"
+            },
+            "untitled": "Untitled",
+            "bedrooms": "{count, plural, one {# bedroom} other {# bedrooms}}",
+            "thumbnailAlt": "Thumbnail: {title}",
+            "openPublic": "View the public page",
+            "openConsole": "Search in the console",
+            "openListing": "Open the Radar card",
+            "notPublic": "Not public",
+            "duplicateOfThis": "Duplicate of this one",
+            "seeMore": "{count, plural, one {Show the other one} other {Show the other #}}",
+            "seeLess": "Show fewer",
+            "duplicateClosedHint": "This listing is already a duplicate: pick its original listing instead."
+          },
+          "gestures": {
+            "label": "Actions",
+            "validate": "Validate",
+            "duplicate": "Duplicate",
+            "discard": "Discard",
+            "working": "Working…",
+            "doNotContact": "This number asked not to be contacted: the listing is closed, no action is allowed.",
+            "unavailable": "No action is allowed at this stage.",
+            "validateKeys": "⌘/Ctrl + Enter"
+          },
+          "dialogs": {
+            "duplicate": {
+              "title": "Mark as duplicate",
+              "description": "The listing is the same as an already collected listing or a catalogue property. It is closed, the link set.",
+              "matches": "Among the matches",
+              "manual": "Another listing or property",
+              "manualKind": "Target type",
+              "kindListing": "Radar listing",
+              "kindProperty": "Catalogue property",
+              "manualId": "Identifier",
+              "confirm": "Mark as duplicate",
+              "alreadyDuplicate": "already a duplicate"
+            },
+            "discard": {
+              "title": "Discard the listing",
+              "description": "Choose the reason. The listing is closed; the reason is recorded.",
+              "confirm": "Discard"
+            },
+            "cancel": "Cancel"
+          },
+          "phones": {
+            "heading": "Phone numbers",
+            "kept": "Kept numbers",
+            "keptNone": "No number kept.",
+            "dropped": "Read by the AI, absent from the source",
+            "droppedWarning": "These numbers are not in the source text: the AI may be wrong, and such a number may belong to someone else. Only attach one if you are sure.",
+            "makeAdvertiser": "Make advertiser",
+            "currentAdvertiser": "Current advertiser",
+            "confirmTitle": "Make this number the advertiser?",
+            "confirmKept": "The listing will be attached to {phone}.",
+            "confirmDropped": "{phone} is not in the source. The listing will be attached to this number; if its owner asked not to be contacted, the listing will be closed.",
+            "confirm": "Attach",
+            "attached": "Advertiser attached.",
+            "doNotContact": "This number asked not to be contacted: the listing is closed (do not contact), actions are disabled.",
+            "makeAdvertiserFor": "Make advertiser: {phone}",
+            "openAdvertiser": "Open the advertiser’s page"
+          },
+          "provenances": {
+            "heading": "Sources",
+            "intro": "The same property seen on several sites: the main record prevails, the others are its duplicates.",
+            "root": "Main record",
+            "duplicate": "Duplicate",
+            "automatic": "Automatic merge",
+            "crawled": "Found by collection",
+            "seen": "Seen from {first} to {last}",
+            "lastPrice": "Last observed price: {price}",
+            "current": "This listing",
+            "open": "Open listing #{id}",
+            "source": "View source",
+            "unmerge": "Split",
+            "unmergeHint": "The listing goes back to review, unlinked; it will not be merged again."
+          }
+        },
+        "advertiser": {
+          "metaTitle": "Radar advertiser",
+          "title": "Advertiser #{id}",
+          "back": "Back to Radar",
+          "forbidden": "Radar is restricted to support and super-admin operators.",
+          "loadError": "The advertiser could not be loaded.",
+          "unnamed": "Unnamed advertiser",
+          "noPhone": "Unknown number",
+          "identity": {
+            "heading": "Identity",
+            "phone": "Number",
+            "name": "Name read",
+            "nature": "Presumed nature",
+            "signals": "Signals found",
+            "noSignals": "No signals found."
+          },
+          "doNotContact": "This advertiser asked not to be contacted again (on {date}). No message is prepared or sent to them.",
+          "claim": {
+            "heading": "Ownership",
+            "none": "Nobody is handling this advertiser. Take it over to prepare a message.",
+            "mine": "You are handling this advertiser, until {until}.",
+            "other": "{name} is handling this advertiser, until {until}. You cannot prepare anything in the meantime.",
+            "take": "Take over",
+            "taking": "Taking over…",
+            "release": "Hand back",
+            "releasing": "Handing back…"
+          },
+          "listings": {
+            "heading": "Listings",
+            "none": "No listing is attached to this advertiser.",
+            "tableCaption": "The advertiser's listings, to tick for the message",
+            "select": "Pick listing #{id} for the message",
+            "open": "Open the page of listing #{id}",
+            "untitled": "Untitled listing",
+            "price": "Price",
+            "neighborhood": "Neighborhood",
+            "stage": "Stage",
+            "limit": "A message covers {max} listings at most.",
+            "why": {
+              "covered": "Already covered by a valid consent",
+              "notReviewed": "Not reviewed yet",
+              "closed": "Closed: nothing left to contact",
+              "pending": "A sent message is waiting for its answer"
+            },
+            "number": "#{id}",
+            "purgeOn": "Erased on {date} unless someone publishes it"
+          },
+          "prepare": {
+            "heading": "New message",
+            "locale": "Message language",
+            "locales": {
+              "fr": "Français",
+              "en": "English"
+            },
+            "selected": "{count, plural, =0 {No listing picked} one {# listing picked} other {# listings picked}}",
+            "action": "Prepare the message",
+            "preparing": "Preparing…",
+            "replace": {
+              "title": "Replace the message being prepared?",
+              "body": "A message is already being prepared: preparing a new one replaces it and its edits are lost. If it was already sent on WhatsApp, cancel and mark it “I sent the message” first, otherwise the record of the text actually sent disappears.",
+              "cancel": "Cancel",
+              "confirm": "Replace the draft"
+            }
+          },
+          "message": {
+            "heading": "Message being prepared",
+            "listings": "Listings covered: {ids}",
+            "fixed": "Fixed text: the clauses cannot be edited",
+            "salutation": "Greeting",
+            "resume": "Listing summary",
+            "save": "Save",
+            "saving": "Saving…",
+            "aiMissing": "The AI did not write the greeting and the summary: fill in both fields.",
+            "aiReason": "Reason: {reason}",
+            "partsEmpty": "The greeting and the summary must be written before opening WhatsApp.",
+            "whatsapp": "Open WhatsApp",
+            "whatsappHint": "The link opens in a new tab, with the exact text above.",
+            "blocked": "This draft can no longer be sent. {reason} Prepare a new message.",
+            "sent": "I sent the message",
+            "sentTitle": "Confirm it was sent",
+            "sentBody": "Confirm this message was really sent to the advertiser. The listings will become “contacted” and the message can no longer be edited.",
+            "sentConfirm": "Yes, I sent it",
+            "sentSending": "Saving…",
+            "cancel": "Cancel",
+            "legacy": "This message was written with another template: its text is shown as it was saved.",
+            "number": "#{id}",
+            "unsaved": "Save your edits: WhatsApp only opens the saved text.",
+            "apiSend": "Send through the WhatsApp API",
+            "apiSending": "Sending…",
+            "apiTitle": "Send through the WhatsApp API",
+            "apiBody": "The message leaves the Radar WhatsApp number right away, with the exact text above. The listings will move to “contacted” and the message can no longer be edited.",
+            "apiConfirm": "Yes, send it",
+            "apiSent": "Message sent through the WhatsApp API: Meta accepted it.",
+            "apiAmbiguous": "Meta did not confirm the send: the message may have gone out. It counts as sent so the advertiser is never written to twice. Do not send it again by hand.",
+            "replyPending": "The advertiser replied on WhatsApp, and the reply has not been settled. Read it below, under “Messages sent, waiting for an outcome”, and record its outcome: until then, nothing can be prepared for or sent to them, whatever the listing."
+          },
+          "history": {
+            "heading": "Sent messages",
+            "none": "No message has been sent to this advertiser yet.",
+            "date": "Date",
+            "author": "Author",
+            "locale": "Language",
+            "clauses": "Clauses version",
+            "listings": "Listings covered",
+            "status": "Status",
+            "outcome": "Outcome",
+            "noOutcome": "No outcome yet",
+            "text": "Exact text",
+            "unknownAuthor": "Unknown author",
+            "sentAt": "Sent on {date}",
+            "statuses": {
+              "prepared": "Prepared",
+              "sent": "Sent",
+              "closed": "Closed"
+            },
+            "outcomes": {
+              "consented": "Consent confirmed",
+              "refused": "Refusal",
+              "stop": "Do not contact again",
+              "question": "Advertiser's question",
+              "no_answer": "No answer"
+            },
+            "number": "#{id}",
+            "replies": "Replies deposited",
+            "channel": "Channel",
+            "channels": {
+              "manual": "WhatsApp, by hand",
+              "cloud": "WhatsApp API",
+              "ambiguous": "WhatsApp API, send unconfirmed"
+            },
+            "ambiguousHint": "Meta did not confirm the send: the message may have gone out.",
+            "delivery": {
+              "sent": "Sent",
+              "delivered": "Delivered",
+              "read": "Read",
+              "failed": "Not delivered"
+            },
+            "deliveryFailedHint": "WhatsApp did not deliver this message. It still counts as sent: the next step is your call.",
+            "deliveryFailure": {
+              "code131026": "Recipient unreachable on WhatsApp",
+              "code131049": "Limited by Meta",
+              "code131050": "The recipient opted out of marketing messages",
+              "code131056": "Too many messages to this recipient in a short time",
+              "code131048": "Sending restricted on the Radar number, possibly after spam reports",
+              "code130472": "Held back by a Meta experiment"
+            }
+          },
+          "errors": {
+            "generic": "The action failed.",
+            "claimRequired": "Take this advertiser over first: the action requires it.",
+            "claimedByOther": "This advertiser is being handled by another operator until {until}.",
+            "claimNotHeld": "This is not your claim: it cannot be handed back.",
+            "doNotContact": "This advertiser asked not to be contacted: no message is prepared or sent to them.",
+            "busy": "This advertiser is changing right now: try again in a moment.",
+            "localeUnsupported": "This language is not supported for the consent message.",
+            "listingForeign": "One of these listings does not belong to this advertiser.",
+            "listingNotReady": "One of these listings is not ready to be contacted: it must be reviewed and validated.",
+            "listingConsented": "One of these listings is already covered by a valid consent: no need to contact them again.",
+            "listingPending": "A message already sent for one of these listings is still waiting for an outcome.",
+            "followUpInvalid": "This message cannot be followed up: it must be sent, without outcome, and be the last of its chain.",
+            "followUpLimit": "The follow-up limit is reached for this message.",
+            "notPrepared": "This message is no longer in the prepared state: it can no longer be edited or sent.",
+            "partsMissing": "The greeting and the summary must be written: neither can be empty.",
+            "nothingToUpdate": "No edit to save.",
+            "notSent": "This message was not sent: no reply or outcome is recorded on it.",
+            "outcomeFinal": "This message is closed: no reply or outcome can be added.",
+            "superseded": "This message was followed up: the reply goes on the last follow-up.",
+            "replyPending": "A reply to this message is still waiting for its verification or its outcome: wait for its verdict, or record its outcome.",
+            "generationIncomplete": "The AI did not write the greeting and the summary: write them yourself.",
+            "replyRequired": "No reply is filed on this message: file the advertiser’s captures before confirming the consent.",
+            "reasonRequired": "The AI verdict does not point to a consent: write the reason for the confirmation.",
+            "listingStageConflict": "One of this message's listings changed stage: the page changed in the meantime, it is reloaded.",
+            "whatsappNotConfigured": "The Radar WhatsApp number is not configured: send this message through WhatsApp by hand.",
+            "whatsappSameNumber": "The number or token configured for the Radar is the notifications one: nothing was sent.",
+            "whatsappTemplateMissing": "No approved Meta template for this clauses version or this language: send this message by hand.",
+            "whatsappMessageMismatch": "The Meta template would not render the exact saved text: prepare a new message.",
+            "whatsappSummaryTooLong": "The summary is too long to send through the API: shorten it.",
+            "whatsappSendFailed": "Meta refused to send it: nothing was recorded, the message is still prepared.",
+            "accountNotDeleted": "This advertiser’s account is not deleted: only a deleted account can be unlinked."
+          },
+          "reply": {
+            "heading": "Advertiser's reply",
+            "none": "No reply filed yet.",
+            "depositLabel": "Captures of the reply",
+            "deposit": "File the reply",
+            "depositing": "Sending…",
+            "selected": "{count, plural, =0 {No capture picked} one {# capture picked} other {# captures picked}}",
+            "depositHint": "Captures of the WhatsApp conversation: the message sent and the reply, with the number in the header.",
+            "waitVerdict": "A reply is still being checked: wait for its verdict before filing another.",
+            "depositedAt": "Filed on {date}",
+            "pending": "Checking…",
+            "pendingReason": "Check on hold: {reason}",
+            "failed": "The check failed: {reason}. Read the captures yourself.",
+            "failedNoReason": "The check failed. Read the captures yourself.",
+            "captures": "Captures",
+            "captureAlt": "Capture {n} of the reply",
+            "reasons": {
+              "error": "internal error in the check",
+              "invalidOutput": "the AI returned an unusable answer",
+              "timeout": "the AI did not answer in time",
+              "noCapture": "no readable capture",
+              "noNumber": "the advertiser has no number to compare",
+              "unexpected": "unexpected error",
+              "purged": "the reply was erased (STOP or advertiser withdrawal)",
+              "noText": "reply without text (voice note, image)"
+            },
+            "verdict": {
+              "heading": "AI verdict",
+              "confidence": "Confidence: {level}",
+              "levels": {
+                "high": "high",
+                "medium": "medium",
+                "low": "low"
+              },
+              "classifications": {
+                "consent": "Consent",
+                "refusal": "Refusal",
+                "stop": "STOP",
+                "question": "Question",
+                "ambiguous": "Ambiguous"
+              },
+              "numberMatches": "Number matches",
+              "numberMismatch": "Number mismatch: the header shows {phone}",
+              "numberMismatchUnknown": "Number mismatch",
+              "numberUnreadable": "Number unreadable: check it on the captures",
+              "checkedByCode": "judged by the code",
+              "checkedByModel": "judged by the AI",
+              "clauses": "Clauses found: {found} of {total}",
+              "clausesMissing": "missing: {missing}",
+              "replyText": "Reply read",
+              "noReplyText": "No readable reply",
+              "counterpart": "Counterpart: {name}",
+              "transcript": "Transcript",
+              "noTranscript": "No transcript.",
+              "discordances": "Gaps with a consent",
+              "confirmed": "Consent confirmed by {name} on {date}",
+              "confirmationReason": "Reason: {reason}",
+              "revoked": "Consent revoked on {date}",
+              "clausesIncomplete": "Clauses found: {found} — the verdict judges them incomplete"
+            },
+            "receivedAt": "Received through the WhatsApp API on {date}",
+            "receivedText": "Text received",
+            "noText": "This reply has no text (voice note, image): it cannot be read here. Listen to it or view it in WhatsApp, on the Radar number, then record its outcome.",
+            "failedReceived": "Verification failed: {reason}. Read the received text yourself.",
+            "failedReceivedNoReason": "Verification failed. Read the received text yourself."
+          },
+          "outcome": {
+            "open": "Record the outcome",
+            "title": "Message outcome",
+            "description": "Say what the advertiser answered. Only this confirmation makes a consent valid.",
+            "legend": "Outcome",
+            "hints": {
+              "consented": "They agree: the reply becomes a confirmed consent and the listings move to “consent received”.",
+              "refused": "They refuse: the listings are closed.",
+              "stop": "They no longer want to be contacted, for good.",
+              "question": "They asked a question: the message stays open.",
+              "no_answer": "They did not answer: the message is closed with no answer."
+            },
+            "noReply": "“Consent” is only possible with a reply filed.",
+            "discordancesHeading": "The AI verdict does not point to a consent:",
+            "discordances": {
+              "noVerdict": "no verdict (check in progress or failed)",
+              "numberMismatch": "the number in the header is not the advertiser's",
+              "identityUnverified": "neither the number nor the name shown confirms the advertiser",
+              "clausesMissing": "a clause of the message is not readable on the captures",
+              "notConsent": "the reply read is not a “yes”"
+            },
+            "reasonRequiredLabel": "Reason for the confirmation (required)",
+            "reasonRequiredHint": "Explain why you confirm the consent despite these gaps: the reason is kept with the consent.",
+            "stopWarning": "STOP is final: this advertiser's consents are revoked, their listings are no longer contacted and no message is prepared for them anymore.",
+            "stopContinue": "Continue",
+            "stopConfirm": "Yes, it is final",
+            "back": "Back",
+            "confirm": "Confirm",
+            "saving": "Saving…",
+            "cancel": "Cancel",
+            "options": {
+              "consented": "Consent",
+              "refused": "Refusal",
+              "stop": "STOP",
+              "question": "Question",
+              "no_answer": "No answer"
+            }
+          },
+          "followUp": {
+            "heading": "Follow-up",
+            "dueSince": "Follow-up due since {date}.",
+            "dueOn": "Follow-up planned for {date}.",
+            "prepare": "Prepare the follow-up",
+            "preparing": "Preparing…",
+            "noAnswer": "Close with no answer",
+            "noAnswering": "Saving…",
+            "noAnswerHint": "Follow-ups are used up and the due date has passed: close this message with no answer."
+          },
+          "awaiting": {
+            "heading": "Messages sent, waiting for an outcome",
+            "sentAt": "Sent on {date}",
+            "none": "No message is waiting for an outcome.",
+            "outcomeSet": "Outcome set: {outcome}, on {date}. A reply deposited later can still change it."
+          },
+          "publish": {
+            "heading": "Publish for them",
+            "hint": "Some of this advertiser’s listings are covered by a valid agreement: you can publish them in their name.",
+            "cta": "Publish for them"
+          },
+          "account": {
+            "heading": "Account deleted",
+            "body": "The account the Radar created for this advertiser has been deleted. While it stays linked, the advertiser cannot claim their listings from the message link.",
+            "bodyClaimed": "The account the advertiser used to claim their listings has been deleted. While it stays linked, the advertiser can no longer claim their listings from the message link.",
+            "cta": "Unlink the account",
+            "dialogTitle": "Unlink the deleted account?",
+            "dialogBody": "The advertiser will be able to claim their listings again: with a new account, or with the one that verified their number. The deleted account stays deleted, and the action is logged.",
+            "reasonLabel": "Reason (optional)",
+            "cancel": "Cancel",
+            "confirm": "Unlink",
+            "done": "Account unlinked: the advertiser can claim their listings again."
+          },
+          "activation": {
+            "heading": "Activation reminder",
+            "hint": "The account created for the advertiser is not activated yet. Send them what their listings are bringing in: a fixed text, with the real figures of the period.",
+            "period": "From {since} to {until}",
+            "views": "Views",
+            "contacts": "Contact requests",
+            "visits": "Visit requests",
+            "credits": "Credits offered on activation",
+            "figuresCaption": "What each property brought in over the period",
+            "property": "Property",
+            "untitled": "Property #{id}",
+            "reminders": "{count, plural, =0 {No reminder sent.} one {# reminder sent, the last on {date}.} other {# reminders sent, the last on {date}.}}",
+            "blocking": "The reminder is not possible right now:",
+            "availableAt": "Next reminder possible on {date}.",
+            "locale": "Message language",
+            "locales": {
+              "fr": "French",
+              "en": "English"
+            },
+            "whatsapp": "Open WhatsApp",
+            "markSent": "Mark as sent",
+            "marking": "Saving…",
+            "claimHint": "Take charge of the advertiser to mark the reminder as sent.",
+            "sent": "Reminder recorded.",
+            "loadError": "Unable to load the activation reminder.",
+            "retry": "Retry"
+          }
+        },
+        "advertisers": {
+          "metaTitle": "Radar advertisers",
+          "title": "Advertisers",
+          "subtitle": "The outreach queues: who to contact, who is waiting for a reply, who to follow up.",
+          "back": "Back to Radar",
+          "forbidden": "Radar is restricted to support and super-admin operators.",
+          "loadError": "The advertisers could not be loaded.",
+          "tabsAria": "Advertiser queue",
+          "tabs": {
+            "to_contact": "To contact",
+            "awaiting": "Waiting",
+            "follow_up": "To follow up",
+            "left_to_operator": "To take over"
+          },
+          "search": {
+            "label": "Search an advertiser",
+            "placeholder": "Name or number"
+          },
+          "columns": {
+            "name": "Advertiser",
+            "phone": "Number",
+            "nature": "Nature",
+            "counts": "Listings",
+            "due": "Follow-up due",
+            "claim": "Ownership",
+            "purge": "Purge deadline"
+          },
+          "tableCaption": "The advertisers in the queue",
+          "unnamed": "Unnamed advertiser",
+          "noPhone": "Unknown number",
+          "doNotContact": "Do not contact",
+          "claimedBy": "Handled by {name}",
+          "claimedByMe": "Handled by you",
+          "proposeNoAnswer": "Suggest “no answer”",
+          "empty": {
+            "to_contact": {
+              "title": "Nobody to contact",
+              "description": "Advertisers with a reviewed listing not yet contacted appear here."
+            },
+            "awaiting": {
+              "title": "No message waiting",
+              "description": "A sent message waits here until its follow-up date comes."
+            },
+            "follow_up": {
+              "title": "Nothing to follow up",
+              "description": "Messages left unanswered past their due date appear here."
+            },
+            "search": {
+              "title": "No advertiser found",
+              "description": "Try another name, or the number written as you have it."
+            },
+            "left_to_operator": {
+              "title": "Nothing to take over",
+              "description": "A claimed listing that the automatic publication could not put online appears here."
+            }
+          },
+          "countLine": "{label}: <n>{count}</n>",
+          "counts": {
+            "reviewed": "To contact",
+            "contacted": "Contacted",
+            "consented": "Consented"
+          },
+          "purgeHint": "First listing left, unless someone publishes it"
+        },
+        "advertisersLink": "Advertisers",
+        "followUpsDue": "{count, plural, =0 {No follow-up due} one {# follow-up due} other {# follow-ups due}}",
+        "observatoryLink": "Observatory",
+        "observatory": {
+          "metaTitle": "Radar observatory",
+          "title": "Observatory",
+          "subtitle": "Who weighs on the market, what a square metre is worth, how long a property stays online, and where Takussan lacks listings.",
+          "back": "Back to the Radar",
+          "forbidden": "The Radar is reserved for support and super-admin operators.",
+          "tabsAria": "Observatory view",
+          "tabs": {
+            "advertisers": "Advertisers",
+            "market": "Market"
+          },
+          "ranking": {
+            "columns": {
+              "rank": "Rank",
+              "name": "Advertiser",
+              "nature": "Nature",
+              "listings": "Listings",
+              "neighborhoods": "Neighbourhoods",
+              "prices": "Asking prices",
+              "sites": "Sites",
+              "pipeline": "Sales pipeline"
+            },
+            "tableCaption": "Radar advertisers, by number of listings",
+            "unnamed": "Unnamed advertiser",
+            "noPhone": "Unknown number",
+            "unknownNeighborhood": "Unknown neighbourhood",
+            "moreNeighborhoods": "{count, plural, one {and # other} other {and # others}}",
+            "published": "{count, plural, one {# published} other {# published}}",
+            "unknownContract": "Unknown contract",
+            "range": "{min} to {max}",
+            "results": "{count, plural, =0 {No advertiser} one {# advertiser} other {# advertisers}}",
+            "proposeUpgrade": "To offer: upgrade to agency",
+            "pipeline": {
+              "prospect": "To contact",
+              "contacted": "Contacted",
+              "account": "Account created",
+              "upgrade_pending": "Agency upgrade requested",
+              "agency": "Agency",
+              "do_not_contact": "Do not contact"
+            },
+            "filters": {
+              "searchLabel": "Search an advertiser",
+              "searchPlaceholder": "Name or number",
+              "natureAria": "Presumed nature",
+              "anyNature": "All natures",
+              "reset": "Reset"
+            },
+            "loadError": "The ranking could not be loaded.",
+            "empty": {
+              "title": "No ranked advertiser",
+              "description": "Advertisers appear here as soon as one of their listings is collected."
+            }
+          },
+          "market": {
+            "loadError": "The market could not be loaded.",
+            "emptyHint": "The figures fill up with automatic collection.",
+            "unknownNeighborhood": "Unknown neighbourhood",
+            "unmatchedNeighborhood": "Unmatched neighbourhood",
+            "untitledProperty": "Untitled property",
+            "days": "{count, plural, one {# day} other {# days}}",
+            "range": "{min} to {max}",
+            "natureLine": "{nature}: {count}",
+            "stillPublic": "Still online",
+            "notPublic": "Offline",
+            "filters": {
+              "since": "Seen since",
+              "contractAria": "Contract",
+              "anyContract": "All contracts",
+              "typeAria": "Property type",
+              "anyType": "All types",
+              "siteAria": "Site",
+              "anySite": "All sites",
+              "reset": "Reset"
+            },
+            "stats": {
+              "listings": "Tracked listings",
+              "listingsHint": "A listing seen on several sites counts once",
+              "online": "Online",
+              "gone": "Gone",
+              "inCatalog": "Already in the catalogue",
+              "intermediaries": "Probable intermediaries",
+              "intermediariesHint": "{count, plural, one {out of # advertiser} other {out of # advertisers}}"
+            },
+            "columns": {
+              "neighborhood": "Neighbourhood",
+              "radarOnline": "Online elsewhere",
+              "catalogPublic": "On Takussan",
+              "gap": "Gap",
+              "type": "Type",
+              "contract": "Contract",
+              "listings": "Listings",
+              "median": "Median per m²",
+              "spread": "Middle half",
+              "gone": "Gone",
+              "online": "Online",
+              "medianDays": "Median duration",
+              "property": "Property",
+              "site": "Source site",
+              "goneAt": "Gone on",
+              "propertyStatus": "On Takussan"
+            },
+            "gap": {
+              "title": "Neighbourhoods where Takussan lacks listings",
+              "description": "Listings online elsewhere and not yet on Takussan, against public properties in the same neighbourhood.",
+              "empty": "No neighbourhood to compare"
+            },
+            "price": {
+              "title": "Price per square metre",
+              "description": "Median of each listing’s latest asking price divided by its surface. The number of listings tells how much the median is worth. Figures cover retained listings only: a purged listing no longer counts, and the period covered goes back no further than the 90-day retention.",
+              "empty": "No listing with price and surface"
+            },
+            "time": {
+              "title": "Time on market",
+              "description": "Time between the first and last sighting of listings whose disappearance was confirmed. A listing already online before the first collection looks newer than it is. A disappearance is only confirmed after {runs, plural, one {a run that read the whole list without seeing it} other {# consecutive runs that read the whole list without seeing it}}. If a site’s list exceeds its collection page cap (5 by default), raise that cap in the Collection tab: it is limited to 20 pages, and beyond that no disappearance is ever recorded on that site.",
+              "empty": "No confirmed disappearance"
+            },
+            "goneSources": {
+              "title": "Gone sources of published properties",
+              "description": "The original listing of a published property has been absent from the list read by the collection, {runs, plural, one {in the last run} other {# runs in a row}}: it may have been removed (property rented or sold), or moved. If a site’s list exceeds its collection page cap (5 by default), raise that cap in the Collection tab: it is limited to 20 pages, and beyond that no disappearance is ever recorded on that site. A listing that was purged, or whose advertiser said STOP, is no longer tracked: its disappearance is no longer recorded.",
+              "empty": "No gone source"
+            },
+            "natureHistory": {
+              "title": "Share by type over time",
+              "description": "Advertisers counted each day by presumed type, before the purge: the share survives the deletion of listings, beyond the 90-day retention. With no identifier, an advertiser counts once per day present.",
+              "from": "From",
+              "to": "To",
+              "loadError": "The share by type could not be loaded.",
+              "empty": "No day counted in this period",
+              "emptyHint": "The count is frozen every night, just before the purge.",
+              "span": "{days, plural, one {# day counted} other {# days counted}}, from {from} to {to}",
+              "counts": "{advertisers, plural, one {# advertiser-day} other {# advertiser-days}} · {listings, plural, one {# listing-day} other {# listing-days}}",
+              "disabled": "Counting is not enabled",
+              "disabledHint": "It stays off until the legal opinion: comparing consecutive days could reveal the type of an advertiser who asked not to be contacted again.",
+              "disabledSince": "Counting is off: no more days are added.",
+              "zeroAdvertisers": "Days counted, no advertiser"
+            }
+          }
+        },
+        "publication": {
+          "metaTitle": "Publish for the advertiser",
+          "title": "Publish for {name}",
+          "titleUnnamed": "Publish for advertiser no. {id}",
+          "back": "Back to the advertiser’s record",
+          "forbidden": "Publishing for an advertiser is reserved to super administrators.",
+          "loadError": "The publication preview could not be loaded.",
+          "intro": "Check what will be created in the advertiser’s name, then confirm. Nothing is written before you confirm.",
+          "claimNone": "Nobody is handling this advertiser. Take them over to upload photos and publish.",
+          "blocking": {
+            "heading": "Publishing is not possible for now:",
+            "headingAccount": "Publishing for their account is not possible right now:"
+          },
+          "account": {
+            "heading": "What will be created in {name}’s name",
+            "headingUnnamed": "What will be created in the advertiser’s name",
+            "account": "Account",
+            "new": "A passwordless account, created for the occasion",
+            "existing": "Existing account, reused as is",
+            "name": "Name",
+            "noName": "No name",
+            "phone": "Number",
+            "space": "Space",
+            "existingSpace": "Their current space",
+            "noteNew": "The number is not verified: the advertiser activates the account by signing in with a code received by SMS. Visitors reach this number directly, by WhatsApp, about each listing.",
+            "noteExisting": "No account is created: the properties join the space already opened for this advertiser."
+          },
+          "listings": {
+            "heading": "Listings covered by an agreement",
+            "none": "No listing is covered by a valid agreement: there is nothing to publish.",
+            "select": "Publish listing no. {id}",
+            "untitled": "Untitled listing",
+            "titleBuilt": "Built title",
+            "titleBuiltHint": "This listing has no title: this one is built from the type, bedrooms, contract and neighbourhood, and will be published as is.",
+            "number": "no. {id}",
+            "open": "Open the record of listing no. {id}",
+            "matches": "Already looks like: {list}.",
+            "matchProperty": "property no. {id}",
+            "matchListing": "listing no. {id}",
+            "duplicateOfListing": "Marked as a duplicate of listing no. {id}.",
+            "duplicateOfProperty": "Marked as a duplicate of property no. {id}.",
+            "blocking": {
+              "noPhoto": "This listing has no photo in its reserve: collect some from the source, or upload some.",
+              "noPhotoNoSource": "This listing has no photo at the source: upload some by hand.",
+              "photosPending": "The photos of this listing are still being prepared: wait for them to finish, or restart the collection.",
+              "missingField": "This listing is incomplete: the type, the contract, the price and a neighbourhood from the reference list are required."
+            }
+          },
+          "photos": {
+            "heading": "Reserve photos ({taken}/{max})",
+            "preparing": "Reading the source photos: {done} of {total}.",
+            "prepared": "Source photos read: {done} of {total}.",
+            "none": "No photo: collect the source’s photos, or upload some by hand.",
+            "noneNoSource": "No photo at the source: upload some by hand.",
+            "list": "Photos of listing no. {id}, in publication order",
+            "alt": "Photo {rank} of listing no. {id}",
+            "remove": "Remove photo {rank} of listing no. {id}",
+            "input": "Upload photos for listing no. {id}",
+            "upload": "Upload photos",
+            "fetch": "Collect the source’s photos",
+            "full": "The reserve is full: {max} photos at most.",
+            "hint": "JPEG, PNG or WebP, {max} photos per upload. The first one is the cover."
+          },
+          "publish": "{count, plural, =0 {Publish} one {Publish # listing} other {Publish # listings}}",
+          "nothingChecked": "Tick at least one listing to publish.",
+          "overPhotoLimit": "The selection has {count, plural, one {# photo} other {# photos}}: one publication accepts {max} at most. Uncheck some listings, then publish them in several batches.",
+          "confirm": {
+            "title": "Publish for {name}?",
+            "titleUnnamed": "Publish for this advertiser?",
+            "body": "This publication creates an account in the advertiser’s name and puts their listings online. It cannot be undone with one click.",
+            "summaryNew": "1 account, 1 space, {biens, plural, one {# property published} other {# properties published}} with {photos, plural, =0 {no photo} one {# photo} other {# photos}}.",
+            "summaryExisting": "Existing account reused, {biens, plural, one {# property published} other {# properties published}} with {photos, plural, =0 {no photo} one {# photo} other {# photos}}.",
+            "cancel": "Cancel",
+            "publish": "Publish",
+            "publishing": "Publishing…",
+            "mandateTitle": "Publish under mandate for {name}?",
+            "mandateTitleUnnamed": "Publish under mandate for this advertiser?",
+            "mandateBody": "No account is created: the listings are created in the Takussan space. The phone number and WhatsApp shown are the advertiser’s; requests left through the form go to Takussan, which forwards them. It cannot be undone in one click; the advertiser can later take their listings back into their own space by verifying their number.",
+            "mandateSummary": "No account, {biens, plural, one {# property published} other {# properties published}} in the “{space}” space with {photos, plural, =0 {no photo} one {# photo} other {# photos}}."
+          },
+          "recap": {
+            "created": "What now exists",
+            "accountCreated": "Account created for {name}, with the space “{space}”.",
+            "accountExisting": "{name}’s existing account reused, space “{space}”.",
+            "links": "Public links of the published properties",
+            "untitled": "Property no. {id}",
+            "message": {
+              "heading": "The “your listings are online” message",
+              "hint": "A fixed text: it carries the public links, the link to activate the account and the STOP line. Send it as is.",
+              "locale": "Message language",
+              "locales": {
+                "fr": "French",
+                "en": "English"
+              },
+              "loadError": "The message could not be composed.",
+              "retry": "Try again",
+              "whatsapp": "Open WhatsApp",
+              "copy": "Copy the message",
+              "copied": "Message copied.",
+              "copyFailed": "Copying failed: select the text by hand.",
+              "hintMandate": "A fixed text: it carries the public links and the STOP line, without an activation link. Send it as is.",
+              "hintMandateTakeBack": "A fixed text: it carries the public links, the link through which the advertiser takes their listings back into their own space with an SMS code, and the STOP line. Send it as is."
+            },
+            "mandatePublished": "Published under mandate in the “{space}” space: no account was created."
+          },
+          "alreadyPublished": {
+            "heading": "Already online for this advertiser",
+            "hint": "These properties are published. The message below lists every property the Radar has published for them; it can be composed at any time, even if the response to a publication was lost.",
+            "stopped": "The advertiser has asked not to be contacted again: no message is sent to them.",
+            "unavailable": "The second message cannot be composed in this environment (see the block above): the public links above remain valid."
+          },
+          "errors": {
+            "listingForeign": "One of these listings is not this advertiser’s, or does not exist.",
+            "notCovered": "One of these listings is not covered by a confirmed, unrevoked agreement: it cannot be published.",
+            "photosPending": "The photos of a listing are still being prepared: wait for them to finish, or restart the collection.",
+            "noPhoto": "A listing has no photo in its reserve: collect some from the source, or upload some.",
+            "missingField": "A listing is incomplete: the type, contract, price and a neighbourhood from the reference list are required.",
+            "nothingCovered": "No listing of this advertiser is covered by a valid agreement.",
+            "activationUnavailable": "Phone login is off in this environment: the account created for the advertiser could not be opened with an SMS code. Nothing is published until it is on.",
+            "otpPreviewActive": "The SMS code preview is on in this environment: the activation code would come back in the response, and anyone who knows the advertiser’s number could open their account. Nothing is published while it is.",
+            "nothingPublished": "No property is published for this advertiser: there is no message to compose.",
+            "phoneRegistered": "This number already belongs to an account: the Radar does not publish into an existing account; only the claim is offered to its holder.",
+            "accountUnavailable": "The account linked to this advertiser is deleted or blocked, or its space is suspended: nothing is published there.",
+            "noSourcePhotos": "This listing has no photo to collect from its source: upload some by hand.",
+            "photoNotFound": "This photo is not in this listing’s reserve.",
+            "reserveFull": "The photo reserve is full: {max} photos at most.",
+            "tooManyPhotos": "These listings have {count, plural, one {# photo} other {# photos}} in all, and one publication accepts {max} at most: publish them in several batches.",
+            "photoTooLarge": "A photo is too large: its dimensions exceed the accepted limits.",
+            "photoUnreadable": "A photo cannot be read as an image: send a JPEG, PNG or WebP.",
+            "quotaExceeded": "This advertiser’s space has reached its quota of active listings: nothing was published.",
+            "keyReused": "The selection changed since a first submission: publish again.",
+            "inProgress": "A publication is already running for this advertiser: try again in a moment.",
+            "underMandate": "This advertiser is published under a Takussan mandate: their listings are published under mandate, not in an account.",
+            "mandateDisabled": "Publishing under mandate is turned off in this environment.",
+            "mandateSpaceMissing": "No mandate space is set, or it is suspended or has no primary admin: nothing is published under mandate.",
+            "mandateAccountExists": "An account is already linked to this advertiser: their listings are published in their space, not under mandate.",
+            "activationAlreadyActive": "The advertiser’s account is already activated: there is nothing to remind.",
+            "activationRevoked": "The advertiser’s consent was withdrawn or their number purged: no reminder is sent.",
+            "activationNothingPublished": "No property published by the Radar is live for this advertiser: the reminder would have nothing to say.",
+            "activationTooSoon": "The last reminder is too recent: wait for the period to end.",
+            "activationUnderMandate": "This advertiser is published under mandate: their properties are not in an account, the activation reminder does not apply.",
+            "activationJustSent": "This reminder was just marked as sent: a second marking would not count as another reminder."
+          },
+          "mandate": {
+            "heading": "Publish under a Takussan mandate",
+            "body": "The advertiser agreed but does not want an account: Takussan publishes their listings in its own space, “{space}”. No account is created. The phone number and WhatsApp shown are the advertiser’s: visitors reach them directly. Requests left through the form go to the administrator of “{space}”, who forwards them. A STOP reply removes their properties.",
+            "bodyNoSpace": "The advertiser agreed but does not want an account: Takussan can publish their listings in its own space, once it is set in the platform settings (“Radar mandate space”).",
+            "already": "Already published under mandate since {date}.",
+            "blocking": "Publishing under mandate is not possible:",
+            "cta": "{count, plural, =0 {Publish under mandate} one {Publish # listing under mandate} other {Publish # listings under mandate}}",
+            "takenBack": "Taken back by the advertiser into their own space on {date}: the publication under mandate is closed."
+          }
+        },
+        "crawlLink": "Collection",
+        "crawl": {
+          "metaTitle": "Collection — Radar",
+          "title": "Automatic collection",
+          "subtitle": "The sites read automatically, and each of their passes.",
+          "back": "Back to Radar",
+          "offNote": "Collection is off by default: no site is read until the super administrator turns it on. Turning a site on makes you its operator: listings found are extracted on your behalf, on the AI budget.",
+          "readOnly": "Only the super administrator turns a site on, sets its frequency or starts a pass.",
+          "sourcesHeading": "Sites",
+          "runsHeading": "Latest passes",
+          "enabled": "On",
+          "disabled": "Off",
+          "enable": "Turn on",
+          "disable": "Turn off",
+          "operator": "On behalf of {name}",
+          "noOperator": "No operator",
+          "frequency": "Frequency (minutes)",
+          "frequencyHint": "Between {min} and {max} minutes.",
+          "maxPages": "Pages at most",
+          "maxPagesHint": "1 to {max} list pages per pass.",
+          "save": "Save",
+          "saved": "Setting saved.",
+          "runNow": "Start a pass",
+          "runQueued": "Pass queued.",
+          "loadError": "Collection could not be loaded.",
+          "emptyRuns": "No pass yet.",
+          "reachedEnd": "end of list reached",
+          "columns": {
+            "site": "Site",
+            "started": "Started",
+            "status": "Status",
+            "pages": "Pages",
+            "cards": "Cards",
+            "created": "New",
+            "known": "Known",
+            "snapshots": "Snapshots",
+            "stop": "Stop"
+          },
+          "tableCaption": "Latest collection passes, most recent first.",
+          "status": {
+            "queued": "Queued",
+            "running": "Running",
+            "finished": "Finished",
+            "failed": "Failed"
+          },
+          "triggers": {
+            "schedule": "Scheduled",
+            "manual": "Manual"
+          },
+          "stops": {
+            "end": "End of list",
+            "maxPages": "Page limit reached",
+            "noCards": "Page without listings",
+            "domainBusy": "Site busy: reading postponed",
+            "timeBudget": "Maximum duration reached",
+            "noOperator": "No operator",
+            "error": "Pass error",
+            "lost": "Lost pass (queue stopped)",
+            "loop": "Pagination loops back to a page already read",
+            "noStartUrl": "No valid start URL"
+          },
+          "errors": {
+            "active": "A pass is already running on this site: wait for it to finish.",
+            "unknownSite": "This site is not collected.",
+            "generic": "The setting failed.",
+            "startUrlsTooMany": "Too many start URLs: {max} at most per site.",
+            "startUrlTooLong": "URL no. {rank} is too long: {max} characters at most.",
+            "startUrlInvalid": "URL no. {rank} is not accepted: an https address, without credentials, port or fragment (#).",
+            "startUrlHost": "URL no. {rank} is not on the site: it must start from {hosts}.",
+            "startUrlDuplicate": "URL no. {rank} is already in the list."
+          },
+          "summary": "Every {frequency} min · {pages} pages at most",
+          "enabledWithoutOperator": "Enabled without an operator: no run starts. Disable and re-enable it to become its operator.",
+          "startUrls": "Start URLs (one per line)",
+          "startUrlsHint": "The list pages each run reads, in order, on {hosts}; {max} at most. Empty: {fallback}.",
+          "startUrlsDefault": "Start page: {url} (configuration)",
+          "startUrlsSummary": "Start pages:"
+        }
       }
     },
     "featureFlags": {
@@ -8423,7 +9823,9 @@
         "ops_failed_jobs_spike": "Spike of failed jobs",
         "ops_queue_stalled": "Job queue stalled",
         "ops_health_degraded": "Platform health degraded",
-        "ops_critical_job_failed": "Money or lease job failed"
+        "ops_critical_job_failed": "Money or lease job failed",
+        "radar_source_listing_gone": "Source listing of a property gone",
+        "radar_withdrawal_proposed": "Removal suggested: the holder did not answer"
       },
       "channels": {
         "email": "Email",
@@ -8520,7 +9922,8 @@
         "currency": "Currencies",
         "limits": "Technical limits",
         "boost": "Credits and promotion",
-        "rentals": "Rentals"
+        "rentals": "Rentals",
+        "radar": "Radar"
       },
       "keys": {
         "currency": {
@@ -8591,6 +9994,12 @@
           "cap_percent": {
             "label": "Late fee cap",
             "description": "As a percentage of the instalment amount, from 0 to 100. Empty: no cap. An agency with its own setting keeps it."
+          }
+        },
+        "radar": {
+          "mandate_agency_id": {
+            "label": "Radar mandate space",
+            "description": "ID of the Takussan space where properties published under mandate are created. 0: none. The “radar_mandate” flag must also be on."
           }
         }
       },
@@ -9530,7 +10939,8 @@
         "favorite_unavailable": "Favorite — no longer available",
         "visit_reminder": "Visit reminder",
         "threshold_alert": "KPI threshold alert",
-        "lease_payment_received": "Rent — payment received"
+        "lease_payment_received": "Rent — payment received",
+        "property_availability_check": "Availability of my published properties"
       },
       "channels": {
         "inapp": "In-app",
@@ -9545,7 +10955,8 @@
         "leases": "Leases",
         "maintenance": "Maintenance",
         "reviews": "Reviews",
-        "alerts": "Alerts"
+        "alerts": "Alerts",
+        "properties": "Properties"
       },
       "reasons": {
         "inappAlwaysOn": "Always on so you miss nothing.",
@@ -10943,6 +12354,10 @@
         "unpublished_contact_erased": {
           "title": "Listing removed: {property}",
           "body": "The listing {property} ({reference}) has been removed from the site: its only contact erased their account. Assign an agent, then publish it again: {url}"
+        },
+        "source_listing_gone": {
+          "title": "Is your property still available? {property}",
+          "body": "The original listing for “{property}” is no longer online. Open the property to tell us whether it is rented, sold or still available."
         }
       },
       "lease": {
@@ -11288,5 +12703,108 @@
     "errors": {
       "generic": "The invitation could not be accepted. Try again."
     }
+  },
+  "radarClaim": {
+    "metaTitle": "Your listings on Takussan",
+    "title": "Your listings on Takussan",
+    "loading": "Opening the link…",
+    "greeting": "Hello {name},",
+    "greetingAnonymous": "Hello,",
+    "intro": "Takussan offers to publish the listings you shared, free of charge. Check them, fix what needs fixing, then confirm with the code sent by SMS to {phone}.",
+    "publishedTitle": "Already online",
+    "publishingTitle": "Being published",
+    "publishingHint": "You confirmed them: they will be online in a few minutes.",
+    "listingsTitle": "Your listings",
+    "listingsHint": "Untick the ones you don't want to publish.",
+    "keep": "Publish this listing",
+    "untitled": "Untitled listing",
+    "priceOnRequest": "Price to be set",
+    "perPeriod": "{price} / {period}",
+    "bedrooms": "{count, plural, one {# bedroom} other {# bedrooms}}",
+    "bathrooms": "{count, plural, one {# bathroom} other {# bathrooms}}",
+    "surface": "{surface} m²",
+    "furnished": "Furnished",
+    "edit": "Edit",
+    "editDone": "Close",
+    "fieldTitle": "Title",
+    "fieldPrice": "Price (FCFA)",
+    "fieldDescription": "Description",
+    "phoneHint": "Your number doesn't appear on the listing: visitors reach you through Takussan.",
+    "noListings": "No listing is waiting for your confirmation.",
+    "spaceTitle": "Your space",
+    "fieldFirstName": "Your first name",
+    "fieldSpaceName": "Name of your space",
+    "spaceHint": "This is the name visitors will see on your listings.",
+    "existingSpace": "Your listings will go to your space “{name}”.",
+    "existingLoginTitle": "This number already has a Takussan account",
+    "existingLoginBody": "Sign in to the account of {phone} to confirm your listings, then come back to this page.",
+    "login": "Sign in",
+    "otherAccountTitle": "You are signed in with another account",
+    "otherAccountBody": "These listings belong to the holder of {phone}. Sign out to continue.",
+    "logout": "Sign out",
+    "unavailableAccountTitle": "This account can't be opened here",
+    "unavailableAccountBody": "Contact us to publish your listings.",
+    "supportTitle": "This number is linked to two accounts",
+    "supportBody": "Write to us at {email}: we will merge your accounts, then your listings can be published.",
+    "terms": "I accept Takussan's <terms>terms of use</terms>.",
+    "sendCode": "Get the code by SMS",
+    "sending": "Sending…",
+    "codeSentTo": "A code was just sent to {phone}.",
+    "codeLabel": "Code received by SMS",
+    "confirm": "{count, plural, =0 {Activate my account} one {Publish my listing} other {Publish my # listings}}",
+    "confirming": "Confirming…",
+    "resend": "Resend the code",
+    "resendIn": "Resend in {seconds} s",
+    "doneTitle": "Confirmed",
+    "doneBody": "{count, plural, =0 {Your account is ready, in your space “{space}”.} one {Your listing will be online within a few minutes, in your space “{space}”.} other {Your # listings will be online within a few minutes, in your space “{space}”.}}",
+    "openSpace": "Open my space",
+    "expiredTitle": "This link has expired",
+    "expiredDescription": "Reply to the message that brought it to get a new one.",
+    "revokedTitle": "This link is no longer valid",
+    "revokedDescription": "It was deactivated: no listing will be published through it.",
+    "notFoundTitle": "Link not found",
+    "notFoundDescription": "Check the address you received in the message.",
+    "unavailableTitle": "Service temporarily unavailable",
+    "unavailableDescription": "Listing confirmation isn't open right now. Please try again later.",
+    "error": "The page couldn't be loaded. Please try again in a moment.",
+    "retry": "Try again",
+    "failed": "The confirmation failed. Please try again in a moment.",
+    "errors": {
+      "invalid": "Check the address you received in the message.",
+      "expired": "Reply to the message that brought it to get a new one.",
+      "revoked": "It was deactivated: no listing will be published through it.",
+      "unavailable": "Listing confirmation isn't open right now. Please try again later.",
+      "codeInvalid": "This code is invalid or has expired.",
+      "locked": "Too many attempts. Please try again later.",
+      "tooMany": "Too many requests. Please wait before trying again.",
+      "termsOutdated": "The terms have changed: reload the page to read the new version.",
+      "listingUnavailable": "A listing is no longer available: reload the page.",
+      "nothingSelected": "Tick at least one listing to publish.",
+      "loginRequired": "Sign in to the account of this number to continue.",
+      "wrongAccount": "You are signed in with another account: sign out to continue.",
+      "accountChanged": "The account of this number has changed: reload the page.",
+      "supportRequired": "This number is linked to two Takussan accounts: write to us and we will merge them.",
+      "accountUnavailable": "This account can't be opened here. Contact us.",
+      "phoneToken": "Remove “[TELEPHONE]” from the text: numbers are not shown on a listing.",
+      "price": "Enter a valid price.",
+      "nameContainsPhone": "The first name and the space name cannot contain a phone number.",
+      "firstNameContainsPhone": "Your first name cannot contain a phone number.",
+      "spaceNameContainsPhone": "Your space name cannot contain a phone number.",
+      "underMandate": "Your listings are published by Takussan on your behalf again: reload the page to take them back into your own space.",
+      "mandateSupportRequired": "Your listings published by Takussan cannot be taken back from this page: write to us and we will move them into your space.",
+      "spaceSuspended": "Your Takussan space is not active: your listings stay published by Takussan on your behalf, and you can take them back once your space is restored.",
+      "spaceUnavailable": "Your Takussan space is not active: your listings cannot be published there for now. Write to us to reactivate it."
+    },
+    "awaitingReviewTitle": "Awaiting review",
+    "awaitingReviewHint": "Our team still needs to check them before putting them online: they are not visible yet.",
+    "introMandate": "Takussan currently publishes your listings on your behalf. You can take them back into your own space: confirm with the code sent by SMS to {phone}.",
+    "mandateTitle": "Your listings published by Takussan",
+    "mandateBody": "{count, plural, one {Takussan publishes # listing on your behalf.} other {Takussan publishes # listings on your behalf.}} By confirming with the code, you take them back into your own space: they stay online, with their views and the requests already received, and you manage them yourself.",
+    "mandateSupportTitle": "Your listings cannot be taken back here",
+    "mandateSupportBody": "Write to us at {email}: we will move your listings into your own space.",
+    "confirmTakeBack": "{count, plural, =0 {Take back my listings} one {Take back my listings and publish the new one} other {Take back my listings and publish the # new ones}}",
+    "doneTakeBack": "{count, plural, one {Your listing is now in your space “{space}”, still online.} other {Your # listings are now in your space “{space}”, still online.}}",
+    "spaceUnavailableTitle": "Your space is not active",
+    "spaceUnavailableBody": "Your listings cannot be published there for now. Write to us at {email} to reactivate it."
   }
 }

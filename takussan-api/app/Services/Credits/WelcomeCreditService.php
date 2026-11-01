@@ -21,6 +21,9 @@ use Illuminate\Support\Facades\DB;
  * par une exception attrapée, qui abandonnerait la transaction PostgreSQL (piège n°1). Changer de
  * numéro principal puis le faire vérifier ne re-crédite donc pas l'espace. Deux octrois simultanés :
  * le second attend le premier sur l'index unique, puis n'insère rien.
+ *
+ * TCK-2430 (ADR-0084) — l'index unique ne voit que l'empreinte sous la clé courante. Un octroi écrit avant une rotation
+ * d'`APP_KEY` se cherche d'abord sous toutes les clés reconnues (`APP_PREVIOUS_KEYS`) : trouvé, rien n'est inséré.
  */
 final class WelcomeCreditService
 {
@@ -63,6 +66,9 @@ final class WelcomeCreditService
         $hash = PhoneFingerprint::of((string) $admin->phone);
 
         $lot = DB::transaction(function () use ($agency, $admin, $amount, $hash): ?CreditLot {
+            if (DB::table('credit_welcome_grants')->whereIn('phone_hash', PhoneFingerprint::all((string) $admin->phone))->exists()) {
+                return null;
+            }
             $inserted = DB::table('credit_welcome_grants')->insertOrIgnore([
                 'phone_hash' => $hash,
                 'agency_id' => $agency->getKey(),

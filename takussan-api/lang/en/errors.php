@@ -68,6 +68,26 @@ return [
     'agent_handover' => [
         'member_not_staff' => 'A handover only applies to an agent or an administrator of the agency; a landlord is not handed over.',
     ],
+    'ai' => [
+        'eval' => [
+            'already_running' => 'An evaluation of this candidate is already running for this role.',
+            'job_failed' => 'The evaluation failed: the worker interrupted it before it finished.',
+            'job_lost' => 'The evaluation was lost: its worker stopped before writing a result.',
+            'no_cases' => 'This role has no evaluation case set.',
+        ],
+        'evaluation_below_baseline' => 'This model was evaluated below the baseline: give a reason to assign it anyway.',
+        'model_in_use' => 'This model is still in use. Chains in the database: :roles. Forced models: :usages. Configuration fallback chains: :fallback_roles.',
+        'model_not_in_config' => 'This model has no configuration entry: it can be withdrawn, not deleted.',
+        'model_unpriced' => 'This model has no price: it cannot be assigned.',
+        'provider_host_not_allowed' => 'The address of this provider is not on an accepted host.',
+        'provider_key_missing' => 'No key is configured for this provider.',
+        'provider_redirected' => 'This provider answered with a redirect: the request was not sent again.',
+        'provider_role_mismatch' => 'This provider does not serve this role: embeddings and text do not mix.',
+        'provider_unreachable' => 'Nothing is sent to this provider: training opt-out not declared, or address not accepted.',
+        'provider_unknown' => 'Unknown AI provider.',
+        'role_unknown' => 'Unknown AI role.',
+        'usage_unknown' => 'Unknown AI usage.',
+    ],
     'auth' => [
         'account_blocked' => 'This account is blocked.',
         'insufficient_privileges' => 'Insufficient privileges.',
@@ -659,6 +679,143 @@ return [
     'webhook_log' => [
         'not_replayable' => 'This journal entry cannot be replayed: only an authenticated webhook that failed or matched nothing, with its body kept, can be.',
         'integration_unavailable' => 'The integration that validated this webhook is no longer active: it cannot be replayed.',
+    ],
+    'radar' => [
+        'captures' => [
+            'too_large' => 'A capture is too large: at most 20,000 pixels per side and 40 million pixels.',
+            'unreadable' => 'A capture cannot be read as an image: send a JPEG, PNG or WebP screenshot.',
+        ],
+        'url' => [
+            'invalid' => 'This URL cannot be read: its host name is unreadable.',
+            'airbnb' => 'Airbnb is not a Radar source: its content is not collected.',
+        ],
+        'listing' => [
+            'nothing_to_update' => 'Nothing to update: send at least one field of the listing.',
+            'stage_conflict' => 'This listing is no longer at that stage: the action is not allowed.',
+            'no_source_photos' => 'This listing has no photo to collect from its source: upload some by hand.',
+        ],
+        'duplicate' => [
+            'self' => 'A listing cannot be a duplicate of itself.',
+            'chain' => 'This listing is already a duplicate, or already points to this one: pick the original listing.',
+        ],
+        'advertiser' => [
+            'phone_invalid' => 'This number cannot be read as a Senegalese phone number.',
+            'phone_unknown' => 'This number does not appear in the listing: only a number it has read can be attached.',
+            'claim_required' => 'Take this advertiser in charge first: the action requires the claim.',
+            'claimed_by_other' => 'This advertiser is claimed by another operator until :claimed_until.',
+            'claim_not_held' => 'This claim is not yours: it cannot be released.',
+            'do_not_contact' => 'This advertiser asked not to be contacted again: no message is prepared or sent to them.',
+            'busy' => 'This advertiser is being changed right now: try again in a moment.',
+            'phone_registered' => 'This number already belongs to an account: the Radar does not publish into an existing account; only the claim is offered to its holder.',
+            'account_unavailable' => 'The account linked to this advertiser is deleted or blocked, or its space is suspended: nothing is published there.',
+            'account_not_deleted' => 'The account linked to this advertiser is not deleted: only a deleted account can be unlinked.',
+        ],
+        'outreach' => [
+            'locale_unsupported' => 'This language is not supported for the consent message.',
+            'listing_foreign' => 'One of these listings does not belong to this advertiser.',
+            'listing_not_ready' => 'One of these listings is not ready to be contacted: it must be reviewed (or already contacted, for a follow-up).',
+            'listing_consented' => 'One of these listings is already covered by a valid consent: no need to contact it again.',
+            'listing_pending' => 'A message about one of these listings has been sent and has no outcome yet: follow it up, or record its outcome.',
+            'follow_up_invalid' => 'This message cannot be followed up: it must be sent, without an outcome, and be the last of its chain.',
+            'follow_up_limit' => 'The follow-up limit is reached for this message.',
+            'not_prepared' => 'This message is no longer in the prepared state: it can no longer be edited or sent.',
+            'parts_missing' => 'The greeting and the summary must be written: neither can be empty.',
+            'nothing_to_update' => 'Nothing to update: give the greeting or the summary.',
+            'not_sent' => 'This message has not been sent: no reply or outcome can be recorded on it.',
+            'outcome_final' => 'This message is closed: no reply or outcome can be added to it any more.',
+            'superseded' => 'This message has been followed up: record the reply or outcome on the latest follow-up.',
+            'reply_pending' => 'A reply to this message is still waiting for its verification or its outcome: wait for its verdict, or record its outcome, before going further.',
+        ],
+        'consent' => [
+            'reply_required' => 'No reply has been added to this message: add the advertiser\'s captures before confirming the consent.',
+            'reason_required' => 'The AI verdict does not point to a consent (:discordances): write the reason for confirming it.',
+        ],
+        'message' => [
+            'generation_incomplete' => 'The model did not write the greeting and the summary: write them yourself.',
+        ],
+        'review' => [
+            'incomplete' => 'The listing is incomplete: a property type, a contract, a price and a neighborhood from the referential are required.',
+        ],
+        'photo' => [
+            'not_found' => 'This photo is not in this listing\'s reserve.',
+            'reserve_full' => 'The photo reserve is full: :max photos at most.',
+            'too_large' => 'A photo is too large: its dimensions exceed the accepted limits.',
+            'unreadable' => 'A photo cannot be read as an image: send a JPEG, PNG or WebP.',
+        ],
+        'publish' => [
+            'listing_foreign' => 'One of these listings is not this advertiser\'s, or does not exist.',
+            'not_covered' => 'One of these listings is not covered by a confirmed, unrevoked agreement: it cannot be published.',
+            'photos_pending' => 'The photos of one of these listings are still being prepared: wait for them to finish, or restart the collection.',
+            'no_photo' => 'One of these listings has no photo in its reserve: collect some from the source, or upload some.',
+            'missing_field' => 'One of these listings is incomplete: the type, contract, price and a neighbourhood from the reference list are required.',
+            'too_many_photos' => 'These listings have :count photos in all, and one publication accepts :max at most: publish them in several batches.',
+            'activation_unavailable' => 'Phone login is off in this environment: the account created for the advertiser could not be opened with an SMS code. Nothing is published until it is on.',
+            'otp_preview_active' => "The SMS code preview is active in this environment: the activation code would come back in the response, and anyone who knows the advertiser's number could open their account. Nothing is published while it is.",
+            'nothing_published' => 'No property is published for this advertiser: there is no message to compose.',
+            // TCK-2394 (ADR-0079)
+            'under_mandate' => 'This advertiser\'s properties are published under mandate: they are no longer published for them in an account.',
+        ],
+        // TCK-2395 — outreach through the API, from the WhatsApp number dedicated to the Radar.
+        'whatsapp' => [
+            'not_configured' => 'The Radar WhatsApp number is not configured: send this message through WhatsApp by hand.',
+            'same_number' => 'The number or token configured for the Radar is the notifications one: it is never used for outreach. Nothing was sent.',
+            'template_missing' => 'No approved Meta template for this clauses version or this language: send this message through WhatsApp by hand.',
+            'message_mismatch' => 'The Meta template would not render the exact saved text of this message: prepare a new one.',
+            'send_failed' => 'Meta refused to send it (:reason): nothing was recorded, the message is still prepared.',
+            'summary_too_long' => 'To send through the API, the summary must not exceed :max characters: shorten it, or send this message through WhatsApp by hand.',
+        ],
+        // TCK-2390 — the advertiser's claim, public page: no Radar wording.
+        'claim' => [
+            'invalid' => 'This link does not exist.',
+            'expired' => 'This link has expired. Reply to the message you received to ask for a new one.',
+            'revoked' => 'This link is no longer valid.',
+            'unavailable' => 'This page is not available right now. Please try again later.',
+            'account_unavailable' => 'The account linked to this number cannot be opened here. Write to us to recover it.',
+            'terms_outdated' => 'The terms of use have changed since this page was opened: reload it to read the current version.',
+            'listing_unavailable' => 'One of these listings is no longer offered: reload the page.',
+            'nothing_selected' => 'Choose at least one listing to publish.',
+            'login_required' => 'This number already has a Takussan account: sign in first.',
+            'wrong_account' => 'You are signed in with another account: sign out, then open this link again.',
+            'account_changed' => 'This account changed in the meantime: reload the page.',
+            'support_required' => 'This number is linked to two Takussan accounts: write to us and we will merge them.',
+            // TCK-2394 (ADR-0079) — un mandat posé après la reprise, sur un annonceur délié de son compte (TCK-2421).
+            'under_mandate' => 'Your listings are published by Takussan on your behalf again: reload the page to take them back into your own space.',
+            'name_contains_phone' => 'The first name and the space name cannot contain a phone number.',
+            // TCK-2421 — un bien sous mandat porte de la gestion : la reprise passe par le support.
+            'mandate_support_required' => 'Your listings published by Takussan cannot be taken back from this page: write to us and we will move them into your space.',
+            // TCK-2421 — l'espace de l'annonceur n'est pas actif (suspendu ou inactif) : ses biens restent sous mandat, en ligne.
+            'space_suspended' => 'Your Takussan space is not active: your listings stay published by Takussan on your behalf, and you can take them back once your space is restored.',
+            // TCK-2446 — hors mandat, l'espace du compte n'est pas actif : rien ne s'y publie, la réclamation est refusée.
+            'space_unavailable' => 'Your Takussan space is not active: your listings cannot be published there for now. Write to us to reactivate it.',
+        ],
+        // TCK-2392 — automatic collection and cross-site duplicate merging.
+        'merge' => [
+            'not_automatic' => 'This listing was not merged automatically: only an automatic merge can be split here.',
+        ],
+        'crawl' => [
+            'active' => 'A pass is already running on this site: wait for it to finish.',
+            'unknown_site' => 'This site is not collected: no adapter reads it.',
+            // TCK-2438 — start URLs set from the console.
+            'start_urls_too_many' => 'Too many start URLs: :max at most per site.',
+            'start_url_too_long' => 'This start URL is too long: :max characters at most.',
+            'start_url_invalid' => 'This start URL is not accepted: an https address, without credentials, port or fragment (#).',
+            'start_url_host' => 'This start URL is not on the site: it must start from :hosts.',
+            'start_url_duplicate' => 'This start URL is already in the list.',
+        ],
+        // TCK-2394 (ADR-0077, lot 4) — activation reminder; (ADR-0079) publication under mandate.
+        'activation' => [
+            'already_active' => 'This advertiser\'s account is already activated: there is nothing left to remind them of.',
+            'revoked' => 'One of this advertiser\'s agreements has been withdrawn, or their number erased: no reminder is prepared for them.',
+            'nothing_published' => 'None of the properties published for this advertiser is online: the reminder would have nothing to say.',
+            'too_soon' => 'The last reminder, or the publication, is less than a period old: the next reminder can go from :available_at.',
+            'under_mandate' => 'This advertiser\'s properties are published under mandate: they have no account to activate.',
+            'just_sent' => 'This reminder was just marked as sent: a second marking would not count as another reminder.',
+        ],
+        'mandate' => [
+            'disabled' => 'Publication under mandate is switched off (ADR-0079 proposed): nothing is published under mandate.',
+            'space_missing' => 'No mandate space is designated, or it is suspended: designate one in the platform settings.',
+            'account_exists' => 'An account is already linked to this advertiser: publish for them in their space, not under mandate.',
+        ],
     ],
     'pay_link' => [
         'not_found' => 'This payment link does not exist.',

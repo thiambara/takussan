@@ -32,6 +32,7 @@ const SUPPORT: PlatformAbilities = {
     'platform.users.block',
     'platform.moderation.view',
     'platform.search.global',
+    'platform.radar.operate',
   ],
 };
 
@@ -60,12 +61,15 @@ describe('SuperAdminSidebar — filtrée par niveau (TCK-600)', () => {
       '/super-admin/system/health',
       '/super-admin/system/scheduler',
     ]);
+    expect(liens(VIEWER)).not.toContain('/super-admin/radar');
   });
 
   it('un support voit en plus les utilisateurs et la modération, jamais les paramètres ni les opérateurs', () => {
     const vus = liens(SUPPORT);
     expect(vus).toContain('/super-admin/users');
     expect(vus).toContain('/super-admin/moderation');
+    // TCK-2386 — le Radar s'ouvre au support (`platform.radar.operate`), jamais au viewer.
+    expect(vus).toContain('/super-admin/radar');
     for (const reserve of ['/super-admin/settings', '/super-admin/super-admins', '/super-admin/kyc', '/super-admin/system/jobs']) {
       expect(vus).not.toContain(reserve);
     }

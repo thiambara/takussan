@@ -41,7 +41,8 @@ class UserAdminRoleAssignmentsTest extends ApiTestCase
     private function agent(): array
     {
         $user = User::factory()->create();
-        $profil = AgentProfile::factory()->create(['user_id' => $user->id, 'agency_id' => $this->agency->id]);
+        // Taux fixe : un taux tiré entier (12.00) revient du JSON en entier, et `assertContains` compare strictement.
+        $profil = AgentProfile::factory()->create(['user_id' => $user->id, 'agency_id' => $this->agency->id, 'commission_rate' => 12.5]);
 
         return [$user, $profil];
     }

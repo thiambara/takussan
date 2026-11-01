@@ -46,6 +46,8 @@ const EVENTS: readonly string[] = [
   // TCK-599 §5 — les favoris qui préviennent : deux interrupteurs, la baisse et l'indisponibilité.
   'favorite_price_drop',
   'favorite_unavailable',
+  // TCK-2432 — la source d'un bien publié par le Radar a disparu : son titulaire est questionné.
+  'property_availability_check',
 ];
 
 const GROUPS: { key: string; events: string[] }[] = [
@@ -70,6 +72,7 @@ const GROUPS: { key: string; events: string[] }[] = [
       'threshold_alert',
     ],
   },
+  { key: 'properties', events: ['property_availability_check'] },
 ];
 
 const PREFS_KEY = ['notifications', 'preferences'] as const;

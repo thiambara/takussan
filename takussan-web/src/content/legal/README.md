@@ -22,10 +22,19 @@ la plateforme fait réellement**, relevé dans le code le même jour.
    dénomination, forme juridique et capital, RCCM, NINEA, siège, téléphone, directeur de la
    publication.
 2. **Déclarer les traitements à la CDP** et reporter le numéro du récépissé dans `privacy.ts` et
-   `notice.ts`.
+   `notice.ts`. **Puis réécrire `privacy.ts` § 5**, en fr et en en : il dit ces formalités non accomplies
+   (TCK-2450), et dater `VERSION_DOCUMENTS`.
 3. **Créer les trois boîtes** `contact@`, `privacy@` et `legal@takussan.com` — les textes les citent.
-4. **Faire relire par un avocat inscrit au barreau du Sénégal.**
+4. **Faire relire par un avocat inscrit au barreau du Sénégal.** ⚠ Y compris les clauses du message
+   d'accord du Radar (`takussan-api/resources/radar/clauses/accord.v3.*.md`) : leur formulation
+   neutre « votre ou vos annonces » (TCK-2390, décision 6a du porteur) n'a pas été relue, ni
+   l'ouverture « Takussan — » d'`accord.v3` (TCK-2395 : Meta refuse un gabarit qui commence par une
+   variable ; clauses identiques à `accord.v2` mot pour mot).
 5. **Fermer TCK-537** : trois engagements de la politique ne sont pas encore tenus par le code.
+8. **Retirer les `⚠` du corps des textes**, avec la relecture de l'avocat (ligne 4), sans ticket : ceux de
+   l'article 6.3 des CGU et des § 3, § 4.3 et § 6 de la politique s'affichent tels quels sur la page
+   publique, comme les `[⚠ à compléter : …]` de la ligne 1, mais le test des marqueurs ne les voit pas.
+   Prérequis du porteur (ADR-0077, Conséquences).
 
 ## Tenir les textes à jour
 

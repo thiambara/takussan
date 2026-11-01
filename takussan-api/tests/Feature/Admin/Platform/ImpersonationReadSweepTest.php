@@ -93,6 +93,13 @@ class ImpersonationReadSweepTest extends TestCase
         'review', 'bill', 'tag', 'task',
         // TCK-1051 — route `signed`, liée au demandeur : sans la signature du courriel, 403.
         'reportExport',
+        // TCK-2385 — console IA des opérateurs de la plateforme : un opérateur n'est jamais une cible
+        // d'impersonation (`impersonation.target_operator`), la route n'est donc pas lisible sous session.
+        'evaluation',
+        // TCK-2386 — le Radar, console des opérateurs de la plateforme : même motif.
+        'listing',
+        // TCK-2388 — la fiche annonceur du Radar : même motif.
+        'advertiser',
     ];
 
     private User $cible;

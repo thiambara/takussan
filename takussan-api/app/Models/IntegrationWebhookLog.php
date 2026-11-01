@@ -33,6 +33,14 @@ class IntegrationWebhookLog extends AbstractModel
 
     public const CHANNELS = [self::CHANNEL_PAYMENT, self::CHANNEL_SMS, self::CHANNEL_WHATSAPP];
 
+    /**
+     * TCK-2395 (ADR-0081) — les fournisseurs dont le corps n'est gardé que le temps du traitement : vidé à la clôture
+     * (`WebhookJournal::close()`), quelle que soit l'issue. Le webhook du Radar reçoit le texte, le numéro et le nom de
+     * profil de quiconque écrit à son numéro, tiers inconnus compris ; après un STOP, seule l'empreinte du numéro doit
+     * subsister. La ligne garde la vue expurgée et l'empreinte du corps, et ne se rejoue pas.
+     */
+    public const BODY_DROPPED_AT_CLOSE = ['whatsapp_cloud_radar'];
+
     protected $fillable = [
         'integration_id',
         'agency_id',
@@ -120,7 +128,7 @@ class IntegrationWebhookLog extends AbstractModel
      */
     public function isReplayable(): bool
     {
-        if ($this->authenticated_at === null || $this->body_truncated) {
+        if ($this->authenticated_at === null || $this->body_truncated || in_array($this->provider, self::BODY_DROPPED_AT_CLOSE, true)) {
             return false;
         }
         // `body` n'est lu que par le rejeu : une liste à `fields[]` ne le charge pas (il est hors des

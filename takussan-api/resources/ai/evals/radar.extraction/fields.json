@@ -1,0 +1,53 @@
+{
+    "property_type": {
+        "type": "exact",
+        "path": "property_type.value"
+    },
+    "contract": {
+        "type": "exact",
+        "path": "contract.value"
+    },
+    "rent_period": {
+        "type": "exact",
+        "path": "rent_period.value"
+    },
+    "price": {
+        "type": "text",
+        "path": "price.value"
+    },
+    "neighborhood": {
+        "type": "exact",
+        "path": "neighborhood.value"
+    },
+    "city": {
+        "type": "exact",
+        "path": "city.value"
+    },
+    "bedrooms": {
+        "type": "number",
+        "tolerance": 0,
+        "path": "bedrooms.value"
+    },
+    "bathrooms": {
+        "type": "number",
+        "tolerance": 0,
+        "path": "bathrooms.value"
+    },
+    "surface_m2": {
+        "type": "number",
+        "tolerance": 0.05,
+        "path": "surface_m2.value"
+    },
+    "furnished": {
+        "type": "exact",
+        "path": "furnished.value"
+    },
+    "amenities": {
+        "type": "list",
+        "path": "amenities.value"
+    },
+    "advertiser_nature": {
+        "type": "exact",
+        "path": "advertiser_nature.value"
+    }
+}

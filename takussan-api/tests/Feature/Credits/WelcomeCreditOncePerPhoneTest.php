@@ -14,6 +14,7 @@ use App\Services\Credits\CreditLedger;
 use App\Services\Credits\WelcomeCreditService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Tests\Support\RotationDAppKey;
 use Tests\TestCase;
 
 /**
@@ -24,6 +25,7 @@ use Tests\TestCase;
 class WelcomeCreditOncePerPhoneTest extends TestCase
 {
     use RefreshDatabase;
+    use RotationDAppKey;
 
     private const NUMERO = '+221771234567';
 
@@ -79,6 +81,31 @@ class WelcomeCreditOncePerPhoneTest extends TestCase
 
         $this->assertNull(app(WelcomeCreditService::class)->onSpaceCreated($autreEspace));
         $this->assertSame(0, app(CreditLedger::class)->balance($autreEspace));
+    }
+
+    /**
+     * TCK-2430 AC2 (ADR-0084) — l'empreinte du numéro est un HMAC sous `APP_KEY`, et le numéro du compte anonymisé
+     * n'existe plus : seule l'ancienne clé, gardée dans `APP_PREVIOUS_KEYS`, reconnaît l'octroi d'avant la rotation.
+     */
+    public function test_ac2_apres_une_rotation_d_app_key_le_numero_deja_credite_ne_recoit_rien(): void
+    {
+        Notification::fake();
+        [$admin, $agency] = $this->espace(verifie: true);
+        app(WelcomeCreditService::class)->onSpaceCreated($agency);
+        $admin->forceFill(['phone' => null, 'phone_verified_at' => null])->save();
+
+        $this->tournerAppKey();
+        $autre = User::factory()->create(['phone' => '77 123 45 67', 'phone_verified_at' => now()]);
+        $autreEspace = Agency::factory()->create(['primary_admin_id' => $autre->id]);
+
+        $this->assertNull(app(WelcomeCreditService::class)->onSpaceCreated($autreEspace));
+        $this->assertNull(app(WelcomeCreditService::class)->onPhoneVerified($autre));
+        $this->assertSame(0, app(CreditLedger::class)->balance($autreEspace));
+        $this->assertSame(1, CreditWelcomeGrant::query()->count());
+
+        // Un numéro neuf, lui, reçoit sa bienvenue sous la clé courante : la lecture tolérante ne ferme rien d'autre.
+        $neuf = User::factory()->create(['phone' => '+221781112233', 'phone_verified_at' => now()]);
+        $this->assertNotNull(app(WelcomeCreditService::class)->onSpaceCreated(Agency::factory()->create(['primary_admin_id' => $neuf->id])));
     }
 
     /**

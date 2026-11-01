@@ -867,9 +867,19 @@ jobs:
           context: takussan-api
           target: runtime
           push: false
+          load: true
+          tags: ghcr.io/thiambara/takussan-api:local
           build-args: |
             BUILD_SHA=${{ github.sha }}
           cache-from: type=gha,scope=api
+      # Le masqueur compile avec le PCRE2 de L'IMAGE (TCK-2451). PCRE2 plafonne la taille d'un motif
+      # compilé, et le plafond change d'une version à l'autre : le PCRE2 du poste (brew) et celui du
+      # runner (setup-php) ne disent rien de celui de dunglas/frankenphp. Un MASK_PATTERN de 36 ko
+      # compilait sur le poste, passait `lint-and-test`, et levait « regular expression is too large »
+      # dans l'image : tout masquage IA échouait, le Radar ne lisait plus aucun numéro. Le mode
+      # `masqueur` seul, pas `image` : celui-ci attend BUILD_SHA=smoke, et l'image d'ici porte le SHA.
+      - name: Masqueur compilé par le PCRE2 de l'image
+        run: deploy/takussan/smoke-api.sh masqueur
       - name: seed
         uses: docker/build-push-action@v7
         with:

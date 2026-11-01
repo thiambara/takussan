@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Http\Filters\TypedExactFilter;
 use App\Models\Bases\AbstractModel;
 use App\Models\Enums\PayoutMethodKind;
+use App\Support\AppKeyHmac;
 use App\Support\Masking;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -69,7 +70,18 @@ class PayoutMethod extends AbstractModel
      */
     public function fingerprint(): string
     {
-        return hash_hmac('sha256', $this->kind?->value.'|'.self::normalize((string) $this->account_identifier), (string) config('app.key'));
+        return AppKeyHmac::of($this->kind?->value.'|'.self::normalize((string) $this->account_identifier));
+    }
+
+    /**
+     * TCK-2430 (ADR-0084) — les empreintes de cette destination sous toutes les clés reconnues : une approbation donnée
+     * avant une rotation d'`APP_KEY` couvre encore la même destination.
+     *
+     * @return list<string>
+     */
+    public function fingerprints(): array
+    {
+        return AppKeyHmac::all($this->kind?->value.'|'.self::normalize((string) $this->account_identifier));
     }
 
     /** Le numéro sans espaces ni ponctuation, pour comparer deux saisies d'un même numéro. */

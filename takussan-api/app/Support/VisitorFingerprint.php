@@ -23,7 +23,7 @@ final class VisitorFingerprint
 
     public static function ofIp(string $ip): string
     {
-        return hash_hmac('sha256', self::network($ip), (string) config('app.key'));
+        return AppKeyHmac::of(self::network($ip));
     }
 
     /**

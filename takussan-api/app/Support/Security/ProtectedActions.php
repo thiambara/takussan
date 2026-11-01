@@ -5,6 +5,11 @@ namespace App\Support\Security;
 use App\Http\Controllers\Api\Admin\AdminBoostController;
 use App\Http\Controllers\Api\Admin\AdminBoostProductController;
 use App\Http\Controllers\Api\Admin\AdminCreditWalletController;
+use App\Http\Controllers\Api\Admin\AiEvaluationController;
+use App\Http\Controllers\Api\Admin\AiModelController;
+use App\Http\Controllers\Api\Admin\AiProviderController;
+use App\Http\Controllers\Api\Admin\AiRoleController;
+use App\Http\Controllers\Api\Admin\AiUsageController;
 use App\Http\Controllers\Api\Admin\FeatureFlagController;
 use App\Http\Controllers\Api\Admin\IntegrationController as AdminIntegrationController;
 use App\Http\Controllers\Api\Admin\PlatformPayoutController;
@@ -210,6 +215,17 @@ final class ProtectedActions
         PlatformSettingController::class.'@bulkUpdate',
         FeatureFlagController::class.'@update',
         FeatureFlagController::class.'@override',
+        // TCK-2385 (ADR-0076 §2) — changer le modèle d'un rôle ou d'un usage, couper un usage ou
+        // en relever le plafond, tester une clé : un jeton volé ne le fait plus sans le TOTP.
+        AiRoleController::class.'@update',
+        AiRoleController::class.'@destroy',
+        AiUsageController::class.'@update',
+        AiProviderController::class.'@test',
+        AiEvaluationController::class.'@store',
+        // TCK-2448 (ADR-0085 §1) — un tarif décide du budget, et un modèle ajouté reçoit des données.
+        AiModelController::class.'@store',
+        AiModelController::class.'@update',
+        AiModelController::class.'@destroy',
         SuperAdminInvitationController::class.'@store',
         SuperAdminInvitationController::class.'@resend',
         SuperAdminInvitationController::class.'@revoke',

@@ -45,6 +45,7 @@ class PlatformOperatorLevelsTest extends TestCase
             foreach ([
                 PlatformAbility::UsersImpersonate, PlatformAbility::UsersErase, PlatformAbility::OperatorsManage,
                 PlatformAbility::AgenciesSuspend, PlatformAbility::KycView, PlatformAbility::SettingsManage,
+                PlatformAbility::RadarPublish,
             ] as $reserve) {
                 $this->assertFalse($reserve->grantedTo($level), "{$level->value} ne doit pas détenir {$reserve->value}");
             }

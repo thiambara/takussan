@@ -1,6 +1,7 @@
 #!/bin/sh
 # Service `release` de compose.api.yml : joué UNE fois par déploiement, AVANT api, worker,
-# worker-media et scheduler, qui attendent son succès (ADR-0028 §5). Reprend deploy.sh.
+# worker-long, worker-ia, worker-media et scheduler, qui attendent son succès (ADR-0028 §5).
+# Reprend deploy.sh.
 set -eu
 APP_ROOT=${APP_ROOT:-/app}   # déplacé seulement par scripts/test-release-reindex.sh
 # shellcheck source=takussan-api/docker/lib.sh

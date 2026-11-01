@@ -21,6 +21,7 @@ import { agenceDuBien } from '@/lib/visites/agence-du-bien';
 import { PropertyStatusBadge } from '@/components/property-dashboard/PropertyStatusBadge';
 import { PropertyVisibilityBadge } from '@/components/property-dashboard/PropertyVisibilityBadge';
 import { PropertyModerationBanner } from '@/components/property-form/PropertyModerationBanner';
+import { QuestionDeDisponibilite } from '@/components/property-dashboard/QuestionDeDisponibilite';
 import { PROPERTY_ENUM_NAMESPACES, enumLabel } from '@/components/property-form/options';
 import { contractTypeValues, propertyTypeValues } from '@/lib/schemas/property';
 import { getTranslations } from 'next-intl/server';
@@ -153,6 +154,9 @@ export default async function Page({ params, searchParams }: { params: Params; s
       />
 
       <PropertyModerationBanner property={property} />
+
+      {/* TCK-2432 — l'annonce d'origine d'un bien publié par le Radar a disparu : la question à son titulaire. */}
+      <QuestionDeDisponibilite propertyId={property.id} />
 
       {staff ? <PropertyMatchingCustomers propertyId={property.id} /> : null}
 

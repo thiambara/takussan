@@ -1,0 +1,14 @@
+{
+    "classification": {
+        "type": "exact"
+    },
+    "number_matches": {
+        "type": "exact"
+    },
+    "clauses_found": {
+        "type": "list"
+    },
+    "counterpart_phone": {
+        "type": "text"
+    }
+}

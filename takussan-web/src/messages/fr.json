@@ -225,7 +225,9 @@
         "privacyRequests": "Demandes de droits",
         "payments": "Paiements",
         "credits": "Crédits",
-        "boosts": "Mise en avant"
+        "boosts": "Mise en avant",
+        "ai": "Intelligence artificielle",
+        "radar": "Radar"
       }
     },
     "notifications": {
@@ -491,7 +493,11 @@
       "blocked": "Ce compte est suspendu. Contactez le support pour en savoir plus.",
       "tooMany": "Trop de demandes en peu de temps. Patientez un instant avant de réessayer.",
       "failed": "Une erreur est survenue. Réessayez dans un instant.",
-      "termsNotice": "En continuant, vous acceptez les <terms>conditions générales</terms> et la <privacy>politique de confidentialité</privacy>."
+      "termsNotice": "En continuant, vous acceptez les <terms>conditions générales</terms> et la <privacy>politique de confidentialité</privacy>.",
+      "termsTitle": "Acceptez les conditions d’utilisation",
+      "termsIntro": "Avant d’entrer dans votre espace, prenez connaissance des conditions d’utilisation de Takussan et acceptez-les.",
+      "termsAccept": "J’accepte les <terms>conditions d’utilisation</terms> de Takussan.",
+      "termsContinue": "Accepter et continuer"
     },
     "otpPreview": {
       "title": "Environnement de test",
@@ -1728,6 +1734,15 @@
       "searchCity": "Voir les biens à {city}",
       "searchAll": "Voir tous les biens",
       "metaDescription": "Cette annonce Takussan n'est plus disponible. Découvrez des biens similaires."
+    },
+    "availabilityCheck": {
+      "title": "Ce bien est-il toujours disponible ?",
+      "body": "Son annonce d’origine n’est plus en ligne depuis le {date}. Dites-nous où il en est : un bien loué ou vendu quitte la vitrine, un bien disponible y reste.",
+      "rented": "Il est loué",
+      "sold": "Il est vendu",
+      "available": "Toujours disponible",
+      "done": "Merci, votre réponse est enregistrée.",
+      "error": "Votre réponse n’a pas pu être enregistrée. Réessayez."
     }
   },
   "dashboard": {
@@ -7774,7 +7789,9 @@
         "whatsapp": "WhatsApp",
         "scheduler": "Planificateur",
         "proxies": "Mandataires de confiance",
-        "lemon_squeezy_webhook": "Webhook Lemon Squeezy"
+        "lemon_squeezy_webhook": "Webhook Lemon Squeezy",
+        "radar_phone_key": "Clé des refus du Radar",
+        "ai_providers": "Fournisseurs d’IA"
       },
       "hint": {
         "error": "Erreur : {message}",
@@ -7787,7 +7804,9 @@
           "unreachable": "Serveur injoignable",
           "not_meilisearch": "Recherche hors Meilisearch",
           "wildcard_trusts_nobody": "« * » ne fait confiance à aucun mandataire",
-          "signing_secret_missing": "Secret de signature absent de la configuration"
+          "signing_secret_missing": "Secret de signature absent de la configuration",
+          "radar_phone_key_missing": "Clé dédiée absente : l’empreinte des refus dépend d’APP_KEY",
+          "ai_provider_host_not_allowed": "Clé posée sur une adresse qui n’est pas sur un hôte accepté"
         }
       },
       "status": {
@@ -8359,6 +8378,1387 @@
       "payments": {
         "title": "Paiements",
         "subtitle": "L'argent qui n'arrive pas : paiements en échec ou en retard, et webhooks des fournisseurs."
+      },
+      "ai": {
+        "title": "Intelligence artificielle",
+        "subtitle": "Ce qui tourne, sur quel modèle, et ce que ça coûte aujourd’hui.",
+        "tabs": {
+          "roles": "Rôles",
+          "usages": "Usages",
+          "providers": "Fournisseurs",
+          "dashboard": "Coûts"
+        },
+        "evaluationStatus": {
+          "queued": "En attente",
+          "running": "En cours",
+          "done": "Terminée",
+          "failed": "Échouée"
+        },
+        "callErrors": {
+          "providerTimeout": "Le fournisseur n’a pas répondu dans le délai.",
+          "providerRateLimited": "Le fournisseur limite le débit : réessayez dans un moment.",
+          "providerCredits": "Le crédit du compte chez le fournisseur est épuisé.",
+          "providerUnavailable": "Le fournisseur est indisponible ou injoignable.",
+          "providerAuth": "Le fournisseur a refusé la clé : vérifiez-la.",
+          "requestRejected": "Le fournisseur a rejeté la requête.",
+          "responseInvalid": "La réponse du modèle n’est pas exploitable.",
+          "responseTruncated": "La réponse du modèle a été coupée avant la fin.",
+          "responseFiltered": "La réponse du modèle a été bloquée par le filtre du fournisseur.",
+          "unexpected": "Erreur inattendue : le détail est au journal de l’API.",
+          "providerKeyMissing": "Aucune clé n’est posée pour ce fournisseur.",
+          "providerHostNotAllowed": "L’adresse de ce fournisseur n’est pas sur un hôte accepté.",
+          "providerRedirected": "Ce fournisseur a répondu par une redirection : la demande n’a pas été renvoyée.",
+          "providerUnreachable": "Rien n’est envoyé à ce fournisseur : refus de l’entraînement non déclaré, ou adresse non acceptée.",
+          "providerUnknown": "Ce fournisseur n’est plus déclaré."
+        },
+        "roles": {
+          "caption": "Rôles de modèle et leur ordre de bascule",
+          "role": "Rôle",
+          "chain": "Chaîne (ordre de bascule)",
+          "source": "Source",
+          "sourceDatabase": "Réglé ici",
+          "sourceConfig": "Configuration par défaut",
+          "edit": "Modifier",
+          "reset": "Revenir à la configuration",
+          "resetFailed": "Le retour à la configuration a échoué.",
+          "names": {
+            "extraction": "Extraction",
+            "redaction": "Rédaction",
+            "raisonnement": "Raisonnement",
+            "vision": "Vision",
+            "embedding": "Représentation sémantique"
+          },
+          "emptyChain": "Aucun modèle"
+        },
+        "chain": {
+          "title": "Chaîne du rôle « {role} »",
+          "link": "Maillon {position}",
+          "provider": "Fournisseur",
+          "model": "Modèle",
+          "maxTokens": "Plafond de tokens",
+          "up": "Monter le maillon {position}",
+          "down": "Descendre le maillon {position}",
+          "remove": "Retirer",
+          "add": "Ajouter un maillon",
+          "evaluate": "Évaluer le premier maillon",
+          "evaluating": "Évaluation en cours…",
+          "evaluationFailed": "L’évaluation a échoué.",
+          "evaluationErrors": {
+            "jobLost": "L’évaluation a été perdue : son worker s’est arrêté avant d’écrire un résultat.",
+            "jobFailed": "L’évaluation a été interrompue avant la fin."
+          },
+          "evaluationErrorCode": "Code : {code}",
+          "comparison": "En place / candidat",
+          "field": "Champ",
+          "current": "En place",
+          "candidate": "Candidat",
+          "verdictOk": "Le candidat tient la référence.",
+          "verdictBelow": "Le candidat est sous la référence.",
+          "verdictFailures": "Des appels ont échoué pendant l’évaluation : le résultat ne prouve rien.",
+          "verdictBaselineStale": "La référence ne porte pas les mêmes champs que le candidat : elle est périmée.",
+          "failuresCount": "{count, plural, one {# appel a échoué} other {# appels ont échoué}} sur {cases, plural, one {# cas} other {# cas}}",
+          "overrideReason": "Motif de la dérogation",
+          "overrideHint": "Exigé pour appliquer un modèle sous la référence ; il est journalisé.",
+          "save": "Appliquer",
+          "cancel": "Annuler",
+          "global": "Global",
+          "evaluationCost": "Coût de l’évaluation",
+          "noBaseline": "Aucune référence enregistrée.",
+          "evaluatedCandidate": "Candidat évalué : {model}"
+        },
+        "usages": {
+          "caption": "Usages déclarés",
+          "key": "Usage",
+          "model": "Modèle appelé",
+          "forced": "forcé",
+          "budget": "Dépensé / plafond du jour",
+          "noBudget": "sans plafond",
+          "state": "État",
+          "enabled": "Actif",
+          "disabled": "Coupé",
+          "disable": "Couper",
+          "enable": "Rétablir",
+          "settings": "Réglages",
+          "forcedModel": "Modèle forcé",
+          "noForcedModel": "Celui du rôle",
+          "dailyBudget": "Plafond journalier (USD)",
+          "save": "Enregistrer",
+          "cancel": "Annuler",
+          "updateFailed": "Le réglage n’a pas été enregistré.",
+          "budgetDefaultHint": "Défaut : {default} — laisser vide pour suivre le défaut.",
+          "budgetNoDefaultHint": "Aucun plafond par défaut — laisser vide pour ne pas en fixer.",
+          "providersLoadError": "Les modèles disponibles n’ont pas pu être chargés : {message}",
+          "budgetEquivalent": "≈ {xof}",
+          "budgetInvalid": "Saisissez un montant en dollars, en chiffres : 0,50 par exemple."
+        },
+        "providers": {
+          "caption": "Fournisseurs autorisés",
+          "name": "Fournisseur",
+          "status": "État",
+          "statusReady": "Prêt",
+          "statusKeyMissing": "Clé absente",
+          "statusHostNotAllowed": "Adresse non acceptée",
+          "statusTrainingOptOutUndeclared": "Refus de l’entraînement non déclaré",
+          "host": "Hôte : {host}",
+          "models": "Modèles actifs",
+          "test": "Tester la connexion",
+          "testOk": "Connexion établie avec {model} en {duration} ms.",
+          "testFailed": "La connexion a échoué.",
+          "testError": "Le test n’a pas pu être lancé.",
+          "testErrors": {
+            "roleUnassigned": "Aucun modèle n’est affecté au rôle de ce test.",
+            "providersUnavailable": "Aucun fournisseur n’a répondu : réessayez, ou vérifiez la clé et le tarif du modèle.",
+            "refusedKillSwitch": "L’usage de test est coupé.",
+            "refusedBudget": "Le plafond journalier est atteint : le test a été refusé.",
+            "refused": "La passerelle a refusé l’appel de test."
+          },
+          "testErrorCode": "Code : {code}"
+        },
+        "models": {
+          "title": "Modèles",
+          "description": "Les modèles affectables de chaque fournisseur déclaré, et leurs tarifs en dollars par million de tokens. Une correction vaut pour les appels suivants, jamais pour les appels passés. Une ligne réglée ici masque le tarif de la configuration, jusqu’à ce qu’on y revienne.",
+          "caption": "Modèles de {provider}",
+          "model": "Modèle",
+          "origin": "Origine",
+          "originConsole": "Réglé ici",
+          "originConfig": "Configuration",
+          "state": "État",
+          "active": "Actif",
+          "withdrawn": "Retiré",
+          "actions": "Actions",
+          "edit": "Corriger",
+          "editModel": "Corriger le tarif de {model}",
+          "withdraw": "Retirer",
+          "withdrawModel": "Retirer {model}",
+          "revert": "Revenir à la configuration",
+          "revertModel": "Revenir au tarif de la configuration pour {model}",
+          "revertTitle": "Revenir à la configuration pour {model} ?",
+          "revertConfirm": "La ligne réglée ici s’efface : le tarif de la configuration s’applique aux appels suivants.",
+          "revertConfirmWithdrawn": "Ce modèle a été retiré : y revenir le rétablit. Il redevient affectable, au tarif de la configuration. Pour le garder retiré, annulez.",
+          "withdrawnInUse": "Retiré, mais encore employé : {names}. Ses appels continuent et restent comptés ; ce qui l’emploie ne s’enregistre plus tant qu’il y figure.",
+          "restore": "Rétablir",
+          "restoreModel": "Rétablir {model}",
+          "add": "Ajouter un modèle",
+          "addTitle": "Ajouter un modèle",
+          "editTitle": "Tarifs de {model}",
+          "provider": "Fournisseur",
+          "identifier": "Identifiant du modèle",
+          "identifierHint": "L’identifiant exact du fournisseur, caractère pour caractère : le modèle est appelé sous ce nom. Évaluez-le avant de l’affecter.",
+          "prices": {
+            "input": "Entrée ($/M tokens)",
+            "output": "Sortie ($/M tokens)",
+            "cache_read": "Lecture en cache ($/M tokens)",
+            "cache_write": "Écriture en cache ($/M tokens)"
+          },
+          "pricesHint": "Les quatre tarifs sont exigés. Un tarif à 0 veut dire « gratuit au token », et non « inconnu » : les appels de ce modèle coûteront 0 au budget.",
+          "save": "Enregistrer",
+          "cancel": "Annuler",
+          "updateFailed": "Le modèle n’a pas été enregistré.",
+          "inUse": "Ce modèle est encore employé : il ne peut pas être retiré.",
+          "inUseRoles": "Chaînes réglées ici : {names}.",
+          "inUseUsages": "Modèle forcé de : {names}.",
+          "inUseFallback": "Chaînes de repli de la configuration : {names}."
+        },
+        "dashboard": {
+          "from": "Du",
+          "to": "Au",
+          "today": "Aujourd’hui : {spent} dépensés sur {budget}",
+          "todayNoBudget": "Aujourd’hui : {spent} dépensés, sans plafond global",
+          "caption": "Appels par jour et par usage",
+          "date": "Jour",
+          "usage": "Usage",
+          "calls": "Appels servis",
+          "cost": "Coût",
+          "latency": "Latence moyenne (ms)",
+          "errors": "Erreurs",
+          "refusals": "Refus",
+          "providerRejections": "Défauts du fournisseur",
+          "providerRejectionsNotice": "{count, plural, one {# appel signale un défaut du fournisseur : un refus ou une redirection que le maillon suivant a effacés, ou une réponse sans décompte de jetons, comptée à zéro et inconnue du budget. Vérifiez ce fournisseur.} other {# appels signalent un défaut du fournisseur : un refus ou une redirection que le maillon suivant a effacés, ou une réponse sans décompte de jetons, comptée à zéro et inconnue du budget. Vérifiez ce fournisseur.}}",
+          "acceptanceCaption": "Taux d’acceptation des suggestions",
+          "acceptance": "Acceptées telles quelles",
+          "decided": "Décidées",
+          "emptyTitle": "Aucun appel sur la période",
+          "emptyDescription": "Les appels au socle IA apparaîtront ici, par jour et par usage.",
+          "baselinesCaption": "Dernier score d’évaluation par usage",
+          "baselineGlobal": "Score global",
+          "baselineModel": "Modèle évalué",
+          "baselineDate": "Mesuré le"
+        },
+        "amount": "{usd} (≈ {xof})"
+      },
+      "radar": {
+        "metaTitle": "Radar",
+        "title": "Radar",
+        "subtitle": "Les annonces repérées ailleurs : à relire, à contacter, puis à publier avec l’accord de l’annonceur.",
+        "openIntake": "Saisir des annonces",
+        "loadError": "Le Radar n’a pas pu être chargé.",
+        "counters": {
+          "toReview": "À relire",
+          "pending": "En attente",
+          "failed": "Échouées",
+          "toContact": "À contacter",
+          "published": "Publiées",
+          "aiCost": "Coût IA du jour",
+          "aiCostBudget": "≈ {equivalent}, sur un plafond de {budget}",
+          "aiCostNoBudget": "≈ {equivalent}, sans plafond"
+        },
+        "filters": {
+          "stageAria": "Filtrer par étape",
+          "anyStage": "Toutes les étapes"
+        },
+        "stages": {
+          "captured": "Saisie",
+          "extracted": "À relire",
+          "reviewed": "Relue",
+          "contacted": "Contactée",
+          "consented": "Accord reçu",
+          "published": "Publiée",
+          "extraction_failed": "Extraction échouée",
+          "duplicate": "Doublon",
+          "discarded": "Écartée",
+          "refused": "Refusée",
+          "do_not_contact": "Ne pas contacter",
+          "purged": "Purgée"
+        },
+        "sites": {
+          "coinafrique": "CoinAfrique",
+          "expat_dakar": "Expat-Dakar",
+          "facebook": "Facebook",
+          "whatsapp": "WhatsApp",
+          "other": "Autre"
+        },
+        "kinds": {
+          "url": "URL",
+          "text": "Texte",
+          "captures": "Captures"
+        },
+        "columns": {
+          "stage": "Étape",
+          "site": "Site",
+          "title": "Titre extrait",
+          "price": "Prix",
+          "neighborhood": "Quartier",
+          "reason": "Motif",
+          "date": "Saisie le"
+        },
+        "tableCaption": "Annonces du Radar, la plus récente en tête",
+        "untitled": "Sans titre extrait",
+        "extracting": "Extraction en cours…",
+        "pending": "En attente : {reason}",
+        "neighborhoodUnmatched": "à rattacher",
+        "tryTextOrCaptures": "Essayez le texte ou les captures.",
+        "periods": {
+          "daily": "/ jour",
+          "weekly": "/ semaine",
+          "monthly": "/ mois",
+          "yearly": "/ an"
+        },
+        "reasons": {
+          "fetchDeferred": "Le site sera relu un peu plus tard.",
+          "fetchInvalidUrl": "L’adresse n’est pas une URL lisible.",
+          "fetchAirbnb": "Les annonces Airbnb ne sont pas reprises.",
+          "fetchPrivateAddress": "L’adresse pointe vers un réseau privé : elle n’est pas lue.",
+          "fetchRobots": "Le site interdit sa lecture automatique.",
+          "fetchRobotsUnavailable": "Les règles de lecture du site sont injoignables.",
+          "fetchTooManyRedirects": "La page redirige trop de fois.",
+          "fetchTooLarge": "La page est trop lourde pour être lue.",
+          "fetchNotHtml": "L’adresse ne mène pas à une page web.",
+          "fetchHttpError": "Le site a répondu par une erreur.",
+          "fetchTimeout": "Le site n’a pas répondu à temps.",
+          "fetchUnresolvable": "Le nom du site est introuvable.",
+          "aiBudget": "Le plafond de dépense IA du jour est atteint.",
+          "aiKillSwitch": "L’IA est coupée pour cet usage depuis la console IA.",
+          "aiForbidden": "L’opérateur n’a pas le droit de lancer cette opération IA.",
+          "aiDataClass": "Ce contenu ne peut pas être confié au modèle.",
+          "aiSensitiveData": "Le contenu porte des données sensibles : il n’est pas envoyé au modèle.",
+          "aiRoleUnassigned": "Aucun modèle n’est affecté à cet usage.",
+          "aiProvidersUnavailable": "Tous les fournisseurs IA sont indisponibles.",
+          "aiProviderAuth": "Le fournisseur IA a refusé la clé.",
+          "aiRequestRejected": "Le fournisseur IA a rejeté la requête.",
+          "aiProviderRateLimited": "Le fournisseur IA limite le débit.",
+          "aiProviderCredits": "Le crédit chez le fournisseur IA est épuisé.",
+          "aiProviderUnavailable": "Le fournisseur IA est indisponible.",
+          "aiProviderTimeout": "Le fournisseur IA n’a pas répondu à temps.",
+          "aiResponseInvalid": "La réponse du modèle n’est pas exploitable.",
+          "aiResponseTruncated": "La réponse du modèle a été coupée avant la fin.",
+          "aiResponseFiltered": "La réponse du modèle a été bloquée par le filtre du fournisseur.",
+          "aiUnexpected": "Erreur inattendue du fournisseur IA.",
+          "extractionInvalidOutput": "La sortie du modèle était invalide.",
+          "extractionEmptySource": "Il n’y avait rien à lire : page vide ou aucune capture.",
+          "extractionTimeout": "L’extraction n’a pas abouti dans les délais.",
+          "extractionError": "Erreur inattendue : le détail est au journal de l’API.",
+          "fetchNotImage": "Le lien d’une photo ne mène pas à une image.",
+          "photoAbandoned": "Le calcul des empreintes de photo a été abandonné.",
+          "photoTooManyPixels": "Une photo est trop grande pour être comparée.",
+          "photoUnreadable": "Une photo ne se lit pas comme une image.",
+          "discardNotRealEstate": "Pas une annonce immobilière",
+          "discardOutOfScope": "Hors périmètre (location courte, hors Sénégal…)",
+          "discardNoLongerAvailable": "Plus disponible",
+          "discardUnusableSource": "Source inexploitable",
+          "discardOther": "Autre motif",
+          "mergeAuto": "Fusionnée automatiquement : le même bien vu sur un autre site",
+          "claimLeftNoPhoto": "Laissée par la publication automatique : aucune photo en réserve",
+          "claimLeftMissingField": "Laissée par la publication automatique : un champ requis manque",
+          "claimLeftPhotosPending": "Laissée par la publication automatique : les photos étaient encore en préparation",
+          "claimLeftFailed": "Laissée par la publication automatique : la publication a échoué",
+          "claimLeftAccountUnavailable": "Laissée par la publication automatique : le compte ou l’espace de l’annonceur n’est plus disponible",
+          "claimLeftQuota": "Laissée par la publication automatique : l’espace de l’annonceur a atteint son quota d’annonces",
+          "claimLeftStageConflict": "Laissée par la publication automatique : une annonce du lot a changé d’étape entre-temps",
+          "claimLeftNotCovered": "Laissée par la publication automatique : l’accord de l’annonceur ne la couvre plus",
+          "claimLeftAccountChanged": "Laissée par la publication automatique : l’annonceur a changé de compte depuis sa réclamation",
+          "claimLeftForeign": "Laissée par la publication automatique : l’annonce n’est plus rattachée à cet annonceur",
+          "claimLeftDoNotContact": "Laissée par la publication automatique : l’annonceur a demandé à ne plus être contacté",
+          "claimLeftActivationUnavailable": "Laissée par la publication automatique : l’envoi du code de connexion est indisponible",
+          "claimLeftOtpPreview": "Laissée par la publication automatique : la connexion par code est en mode d’essai",
+          "claimLeftTooManyPhotos": "Laissée par la publication automatique : trop de photos à copier en une fois",
+          "claimLeftRefused": "Laissée par la publication automatique : la publication a été refusée",
+          "claimLeftUnderMandate": "Laissée par la publication automatique : l’annonceur est publié sous mandat Takussan"
+        },
+        "empty": {
+          "title": "Aucune annonce pour l’instant",
+          "description": "Collez une URL, un texte ou des captures d’annonce : l’extraction se lance seule."
+        },
+        "emptyFiltered": {
+          "title": "Aucune annonce à cette étape",
+          "description": "Choisissez une autre étape, ou revenez à toutes les étapes."
+        },
+        "intake": {
+          "title": "Saisie rapide",
+          "description": "Collez, enregistrez, recommencez : le formulaire se vide et reste ouvert.",
+          "close": "Fermer la saisie",
+          "tabs": {
+            "urls": "URL",
+            "text": "Texte",
+            "captures": "Captures"
+          },
+          "urlsLabel": "URL des annonces",
+          "urlsHint": "Une URL par ligne, 20 au plus. Le site se déduit de l’adresse.",
+          "textLabel": "Texte de l’annonce",
+          "textHint": "Le texte tel que publié, numéro de téléphone compris.",
+          "sourceSiteLabel": "Site d’origine",
+          "capturesLabel": "Captures d’écran",
+          "capturesHint": "Jusqu’à 10 images JPEG, PNG ou WebP, 8 Mo chacune, 24 Mo au total.",
+          "capturesSelected": "{count, plural, =0 {Aucune image choisie} one {# image choisie} other {# images choisies}}",
+          "submit": "Enregistrer",
+          "submitting": "Enregistrement…",
+          "resultsTitle": "Dernier envoi",
+          "created": "Annonce n° {id} créée",
+          "existing": "Annonce n° {id} déjà saisie",
+          "requeued": "Annonce n° {id} déjà saisie : extraction relancée",
+          "failed": "L’envoi a échoué.",
+          "errors": {
+            "refusedUrl": "Adresse refusée : {url}",
+            "urlAirbnb": "Les annonces Airbnb ne sont pas reprises : rien n’a été enregistré.",
+            "urlInvalid": "Une des adresses n’a pas de nom de site lisible : rien n’a été enregistré.",
+            "capturesUnreadable": "Une des images ne se lit pas : rien n’a été enregistré.",
+            "capturesTooLarge": "Une des images est trop grande (en pixels) : rien n’a été enregistré.",
+            "capturesTooMany": "Pas plus de 10 images par envoi. Rien n’a été envoyé.",
+            "captureFileTooLarge": "Une des images dépasse 8 Mo. Rien n’a été envoyé.",
+            "capturesTotalTooLarge": "Les images dépassent 24 Mo au total : envoyez-en moins à la fois. Rien n’a été envoyé.",
+            "payloadTooLarge": "L’envoi est trop lourd pour le serveur : envoyez moins d’images à la fois (24 Mo au plus)."
+          }
+        },
+        "forbidden": "Le Radar est réservé aux opérateurs support et super-admin.",
+        "listing": {
+          "metaTitle": "Fiche Radar",
+          "title": "Annonce n° {id}",
+          "back": "Retour au Radar",
+          "forbidden": "Le Radar est réservé aux opérateurs support et super-admin.",
+          "loadError": "La fiche n’a pas pu être chargée.",
+          "source": {
+            "heading": "Source",
+            "rawText": "Texte de l’annonce",
+            "noText": "Aucun texte n’a été conservé pour cette annonce.",
+            "original": "Voir l’annonce d’origine",
+            "photos": "Photos de l’annonce",
+            "photoAlt": "Photo {n} de l’annonce",
+            "captures": "Captures d’écran",
+            "captureAlt": "Capture d’écran {n}",
+            "capturesHint": "Les captures ne se surlignent pas : le passage cité s’affiche sous chaque champ.",
+            "capturesExpire": "Les liens des captures expirent au bout de 30 minutes ; rechargez la fiche pour les renouveler.",
+            "cited": "Passage cité :"
+          },
+          "sections": {
+            "listing": "Le bien",
+            "place": "Le lieu",
+            "advertiser": "L’annonceur"
+          },
+          "fields": {
+            "title": "Titre",
+            "description": "Description",
+            "property_type": "Type de bien",
+            "contract": "Contrat",
+            "price": "Prix (XOF)",
+            "rent_period": "Période du loyer",
+            "bedrooms": "Chambres",
+            "bathrooms": "Salles de bain",
+            "surface_m2": "Surface (m²)",
+            "furnished": "Meublé",
+            "amenities": "Équipements",
+            "city": "Ville",
+            "neighborhood": "Quartier",
+            "advertiser_nature": "Nature présumée"
+          },
+          "hints": {
+            "amenities": "Séparés par des virgules.",
+            "priceRead": "Lu : {raw}"
+          },
+          "options": {
+            "none": "Non renseigné",
+            "contracts": {
+              "rent": "Location",
+              "sale": "Vente"
+            },
+            "furnished": {
+              "yes": "Oui",
+              "no": "Non"
+            },
+            "natures": {
+              "probable_owner": "Propriétaire probable",
+              "probable_intermediary": "Intermédiaire probable",
+              "agency": "Agence",
+              "unknown": "Inconnue"
+            }
+          },
+          "confidence": {
+            "medium": "Confiance moyenne",
+            "corrected": "corrigé",
+            "warning": "À vérifier",
+            "flags": {
+              "evidence_missing": "Aucun passage cité à l’appui",
+              "evidence_not_in_source": "Le passage cité n’est pas dans la source",
+              "out_of_bounds": "Valeur hors des bornes plausibles",
+              "invalid_value": "Valeur invalide, écartée",
+              "unparsed_amount": "Montant illisible"
+            },
+            "low": "Confiance faible"
+          },
+          "neighborhood": {
+            "read": "Lu dans l’annonce : {value}",
+            "unread": "Aucun quartier lu dans l’annonce.",
+            "linked": "Rattaché à {name} ({city})",
+            "linkedNoCity": "Rattaché à {name}",
+            "unlinked": "Aucun quartier du référentiel rattaché.",
+            "suggestions": "Propositions",
+            "pickCity": "Ville du référentiel",
+            "pickNeighborhood": "Quartier du référentiel",
+            "cityPlaceholder": "Choisir une ville",
+            "neighborhoodPlaceholder": "Choisir un quartier",
+            "noResult": "Aucun résultat",
+            "pendingChoice": "Quartier choisi, à enregistrer",
+            "pendingChoiceNamed": "Quartier choisi, à enregistrer : {name}"
+          },
+          "nature": {
+            "heading": "Nature présumée de l’annonceur",
+            "signals": "Indices relevés",
+            "noSignals": "Aucun indice relevé.",
+            "advertiserName": "Nom lu : {name}"
+          },
+          "actions": {
+            "save": "Enregistrer",
+            "saving": "Enregistrement…",
+            "saved": "Corrections enregistrées.",
+            "dirty": "{count, plural, one {# correction non enregistrée} other {# corrections non enregistrées}}",
+            "discard": "Annuler les corrections"
+          },
+          "readOnly": "Cette fiche n’est plus à corriger (étape : {stage}).",
+          "errors": {
+            "generic": "L’enregistrement a échoué.",
+            "stageConflict": "Cette fiche a changé d’étape entre-temps ; rechargez-la.",
+            "nothingToUpdate": "Aucune correction à enregistrer.",
+            "reviewIncomplete": "La fiche est incomplète : type, contrat, prix et quartier du référentiel sont requis.",
+            "duplicateSelf": "Une annonce ne peut pas être son propre doublon.",
+            "advertiserPhoneInvalid": "Ce numéro de téléphone n’est pas valide.",
+            "advertiserPhoneUnknown": "Aucun annonceur ne porte ce numéro.",
+            "duplicateChain": "Cette annonce est déjà un doublon, ou pointe déjà vers celle-ci : choisissez l’annonce d’origine.",
+            "reviewIncompleteFields": "Champs à compléter : {fields}.",
+            "gestureFailed": "Le geste a échoué.",
+            "newMatches": "De nouveaux rapprochements sont apparus : vérifiez-les, puis validez de nouveau.",
+            "mergeNotAutomatic": "Cette annonce n’a pas été fusionnée automatiquement : seule une fusion automatique se sépare ici."
+          },
+          "matches": {
+            "heading": "Rapprochements",
+            "alert": "{count, plural, one {Cette annonce ressemble à # bien ou annonce déjà connu} other {Cette annonce ressemble à # biens ou annonces déjà connus}} : vérifiez avant de valider.",
+            "none": "Aucun rapprochement avec un bien ou une annonce connus.",
+            "loadError": "Les rapprochements n’ont pas pu être calculés.",
+            "photosProgress": "Empreintes des photos : {done} / {total}",
+            "strength": {
+              "high": "Forte",
+              "medium": "Moyenne",
+              "low": "Faible"
+            },
+            "strengthLabel": "Ressemblance {strength}",
+            "signals": {
+              "phone": "même téléphone",
+              "neighborhood_price_bedrooms": "même quartier, prix et chambres",
+              "photo_high": "photo identique",
+              "photo_medium": "photo proche",
+              "photo_low": "photo proche",
+              "meaning_close": "même sens",
+              "meaning_low": "sens voisin",
+              "text_close": "texte presque identique",
+              "text_low": "texte ressemblant"
+            },
+            "kinds": {
+              "property": "Bien du catalogue",
+              "listing": "Annonce du Radar"
+            },
+            "untitled": "Sans titre",
+            "bedrooms": "{count, plural, one {# chambre} other {# chambres}}",
+            "thumbnailAlt": "Vignette : {title}",
+            "openPublic": "Voir la fiche publique",
+            "openConsole": "Chercher dans la console",
+            "openListing": "Ouvrir la fiche Radar",
+            "notPublic": "Non public",
+            "duplicateOfThis": "Doublon de celui-ci",
+            "seeMore": "{count, plural, one {Voir l’autre} other {Voir les # autres}}",
+            "seeLess": "Voir moins",
+            "duplicateClosedHint": "Cette annonce est déjà un doublon : choisissez son annonce d’origine."
+          },
+          "gestures": {
+            "label": "Gestes",
+            "validate": "Valider",
+            "duplicate": "Doublon",
+            "discard": "Écarter",
+            "working": "En cours…",
+            "doNotContact": "Ce numéro a demandé l’arrêt des contacts : l’annonce est fermée, aucun geste n’est permis.",
+            "unavailable": "Aucun geste n’est permis à cette étape.",
+            "validateKeys": "⌘/Ctrl + Entrée"
+          },
+          "dialogs": {
+            "duplicate": {
+              "title": "Marquer comme doublon",
+              "description": "L’annonce est la même qu’une annonce déjà collectée ou qu’un bien du catalogue. Elle est fermée, le lien posé.",
+              "matches": "Parmi les rapprochements",
+              "manual": "Une autre annonce ou un autre bien",
+              "manualKind": "Type de la cible",
+              "kindListing": "Annonce du Radar",
+              "kindProperty": "Bien du catalogue",
+              "manualId": "Identifiant",
+              "confirm": "Marquer comme doublon",
+              "alreadyDuplicate": "déjà un doublon"
+            },
+            "discard": {
+              "title": "Écarter l’annonce",
+              "description": "Choisissez le motif. L’annonce est fermée ; le motif est enregistré.",
+              "confirm": "Écarter"
+            },
+            "cancel": "Annuler"
+          },
+          "phones": {
+            "heading": "Numéros de téléphone",
+            "kept": "Numéros retenus",
+            "keptNone": "Aucun numéro retenu.",
+            "dropped": "Lus par l’IA, absents de la source",
+            "droppedWarning": "Ces numéros ne figurent pas dans le texte source : l’IA a pu se tromper, et un tel numéro peut appartenir à quelqu’un d’autre. Ne rattachez-en un que si vous en êtes sûr.",
+            "makeAdvertiser": "En faire l’annonceur",
+            "currentAdvertiser": "Annonceur actuel",
+            "confirmTitle": "Faire de ce numéro l’annonceur ?",
+            "confirmKept": "L’annonce sera rattachée à {phone}.",
+            "confirmDropped": "{phone} ne figure pas dans la source. L’annonce sera rattachée à ce numéro ; si son titulaire a demandé l’arrêt des contacts, l’annonce sera fermée.",
+            "confirm": "Rattacher",
+            "attached": "Annonceur rattaché.",
+            "doNotContact": "Ce numéro a demandé l’arrêt des contacts : l’annonce est fermée (ne pas contacter), les gestes sont désactivés.",
+            "makeAdvertiserFor": "En faire l’annonceur : {phone}",
+            "openAdvertiser": "Ouvrir la fiche de l’annonceur"
+          },
+          "provenances": {
+            "heading": "Provenances",
+            "intro": "Le même bien vu sur plusieurs sites : la fiche fait foi, les autres en sont les doublons.",
+            "root": "Fiche",
+            "duplicate": "Doublon",
+            "automatic": "Fusion automatique",
+            "crawled": "Trouvée par la collecte",
+            "seen": "Vue du {first} au {last}",
+            "lastPrice": "Dernier prix relevé : {price}",
+            "current": "Cette annonce",
+            "open": "Ouvrir l’annonce #{id}",
+            "source": "Voir la source",
+            "unmerge": "Séparer",
+            "unmergeHint": "L’annonce revient à relire, sans lien ; elle ne sera pas fusionnée de nouveau."
+          }
+        },
+        "advertiser": {
+          "metaTitle": "Annonceur du Radar",
+          "title": "Annonceur n° {id}",
+          "back": "Retour au Radar",
+          "forbidden": "Le Radar est réservé aux opérateurs support et super-admin.",
+          "loadError": "L’annonceur n’a pas pu être chargé.",
+          "unnamed": "Annonceur sans nom",
+          "noPhone": "Numéro inconnu",
+          "identity": {
+            "heading": "Identité",
+            "phone": "Numéro",
+            "name": "Nom lu",
+            "nature": "Nature présumée",
+            "signals": "Indices relevés",
+            "noSignals": "Aucun indice relevé."
+          },
+          "doNotContact": "Cet annonceur a demandé à ne plus être contacté (le {date}). Aucun message ne lui est préparé ni envoyé.",
+          "claim": {
+            "heading": "Prise en charge",
+            "none": "Personne ne traite cet annonceur. Prenez-le en charge pour préparer un message.",
+            "mine": "Vous traitez cet annonceur, jusqu’à {until}.",
+            "other": "{name} traite cet annonceur, jusqu’à {until}. Vous ne pouvez rien y préparer en attendant.",
+            "take": "Prendre en charge",
+            "taking": "Prise en charge…",
+            "release": "Rendre",
+            "releasing": "Restitution…"
+          },
+          "listings": {
+            "heading": "Annonces",
+            "none": "Aucune annonce n’est rattachée à cet annonceur.",
+            "tableCaption": "Les annonces de l’annonceur, à cocher pour le message",
+            "select": "Choisir l’annonce n° {id} pour le message",
+            "open": "Ouvrir la fiche de l’annonce n° {id}",
+            "untitled": "Annonce sans titre",
+            "price": "Prix",
+            "neighborhood": "Quartier",
+            "stage": "Étape",
+            "limit": "Un message couvre {max} annonces au plus.",
+            "why": {
+              "covered": "Déjà couverte par un accord valide",
+              "notReviewed": "Pas encore relue",
+              "closed": "Close : plus rien à démarcher",
+              "pending": "Un message envoyé attend sa réponse"
+            },
+            "number": "n° {id}",
+            "purgeOn": "S’efface le {date} si personne ne la publie"
+          },
+          "prepare": {
+            "heading": "Nouveau message",
+            "locale": "Langue du message",
+            "locales": {
+              "fr": "Français",
+              "en": "English"
+            },
+            "selected": "{count, plural, =0 {Aucune annonce choisie} one {# annonce choisie} other {# annonces choisies}}",
+            "action": "Préparer le message",
+            "preparing": "Préparation…",
+            "replace": {
+              "title": "Remplacer le message en préparation ?",
+              "body": "Un message est déjà en préparation : le préparer à nouveau le remplace, et ses retouches sont perdues. S’il a déjà été envoyé sur WhatsApp, annulez et marquez-le d’abord « J’ai envoyé le message » : sinon la trace du texte réellement envoyé disparaît.",
+              "cancel": "Annuler",
+              "confirm": "Remplacer le brouillon"
+            }
+          },
+          "message": {
+            "heading": "Message en préparation",
+            "listings": "Annonces couvertes : {ids}",
+            "fixed": "Texte figé : les clauses ne se modifient pas",
+            "salutation": "Salutation",
+            "resume": "Résumé de l’annonce",
+            "save": "Enregistrer",
+            "saving": "Enregistrement…",
+            "aiMissing": "L’IA n’a pas rédigé la salutation et le résumé : remplissez les deux champs.",
+            "aiReason": "Motif : {reason}",
+            "partsEmpty": "La salutation et le résumé doivent être écrits avant d’ouvrir WhatsApp.",
+            "whatsapp": "Ouvrir WhatsApp",
+            "whatsappHint": "Le lien s’ouvre dans un nouvel onglet, avec le texte exact ci-dessus.",
+            "blocked": "Ce brouillon ne peut plus être envoyé. {reason} Préparez un nouveau message.",
+            "sent": "J’ai envoyé le message",
+            "sentTitle": "Confirmer l’envoi",
+            "sentBody": "Confirmez que ce message a bien été envoyé à l’annonceur. Les annonces passeront en « contactée » et le message ne se modifiera plus.",
+            "sentConfirm": "Oui, je l’ai envoyé",
+            "sentSending": "Enregistrement…",
+            "cancel": "Annuler",
+            "legacy": "Ce message a été écrit avec un autre gabarit : son texte est affiché tel qu’il a été enregistré.",
+            "number": "n° {id}",
+            "unsaved": "Enregistrez vos retouches : WhatsApp n’ouvre que le texte enregistré.",
+            "apiSend": "Envoyer par l’API WhatsApp",
+            "apiSending": "Envoi…",
+            "apiTitle": "Envoyer par l’API WhatsApp",
+            "apiBody": "Le message part tout de suite du numéro WhatsApp du Radar, avec le texte exact ci-dessus. Les annonces passeront en « contactée » et le message ne se modifiera plus.",
+            "apiConfirm": "Oui, l’envoyer",
+            "apiSent": "Message envoyé par l’API WhatsApp : Meta l’a accepté.",
+            "apiAmbiguous": "Meta n’a pas confirmé l’envoi : le message a pu partir. Il est compté comme envoyé pour ne jamais écrire deux fois à l’annonceur. Ne le renvoyez pas à la main.",
+            "replyPending": "L’annonceur a répondu par WhatsApp, et sa réponse n’est pas tranchée. Lisez-la plus bas, dans « Messages envoyés, en attente d’une issue », et posez son issue : d’ici là, rien ne se prépare ni ne part vers lui, quelle que soit l’annonce."
+          },
+          "history": {
+            "heading": "Messages envoyés",
+            "none": "Aucun message n’a encore été envoyé à cet annonceur.",
+            "date": "Date",
+            "author": "Auteur",
+            "locale": "Langue",
+            "clauses": "Version des clauses",
+            "listings": "Annonces couvertes",
+            "status": "Statut",
+            "outcome": "Issue",
+            "noOutcome": "Sans issue pour l’instant",
+            "text": "Texte exact",
+            "unknownAuthor": "Auteur inconnu",
+            "sentAt": "Envoyé le {date}",
+            "statuses": {
+              "prepared": "Préparé",
+              "sent": "Envoyé",
+              "closed": "Clos"
+            },
+            "outcomes": {
+              "consented": "Accord confirmé",
+              "refused": "Refus",
+              "stop": "Ne plus contacter",
+              "question": "Question de l’annonceur",
+              "no_answer": "Sans réponse"
+            },
+            "number": "n° {id}",
+            "replies": "Réponses déposées",
+            "channel": "Canal",
+            "channels": {
+              "manual": "WhatsApp, à la main",
+              "cloud": "API WhatsApp",
+              "ambiguous": "API WhatsApp, envoi non confirmé"
+            },
+            "ambiguousHint": "Meta n’a pas confirmé l’envoi : le message a pu partir.",
+            "delivery": {
+              "sent": "Envoyé",
+              "delivered": "Remis",
+              "read": "Lu",
+              "failed": "Non remis"
+            },
+            "deliveryFailedHint": "WhatsApp n’a pas remis ce message. Il reste compté comme envoyé : à vous de juger de la suite.",
+            "deliveryFailure": {
+              "code131026": "Destinataire injoignable sur WhatsApp",
+              "code131049": "Limité par Meta",
+              "code131050": "Le destinataire a refusé les messages marketing",
+              "code131056": "Trop de messages à ce destinataire en peu de temps",
+              "code131048": "Envois limités sur le numéro du Radar, peut-être après des signalements",
+              "code130472": "Retenu par une expérience de Meta"
+            }
+          },
+          "errors": {
+            "generic": "Le geste a échoué.",
+            "claimRequired": "Prenez d’abord cet annonceur en charge : le geste l’exige.",
+            "claimedByOther": "Cet annonceur est pris en charge par un autre opérateur jusqu’à {until}.",
+            "claimNotHeld": "Cette prise en charge n’est pas la vôtre : elle ne se rend pas.",
+            "doNotContact": "Cet annonceur a demandé à ne plus être contacté : aucun message ne lui est préparé ni envoyé.",
+            "busy": "Cet annonceur change en ce moment : réessayez dans un instant.",
+            "localeUnsupported": "Cette langue n’est pas prise en charge pour le message d’accord.",
+            "listingForeign": "Une de ces annonces n’est pas celle de cet annonceur.",
+            "listingNotReady": "Une de ces annonces n’est pas prête à être démarchée : elle doit être relue et validée.",
+            "listingConsented": "Une de ces annonces est déjà couverte par un accord valide : inutile de la démarcher à nouveau.",
+            "listingPending": "Un message déjà envoyé pour l’une de ces annonces attend encore une issue.",
+            "followUpInvalid": "Ce message ne se relance pas : il doit être envoyé, sans issue, et être le dernier de sa chaîne.",
+            "followUpLimit": "Le nombre de relances est atteint pour ce message.",
+            "notPrepared": "Ce message n’est plus à l’état préparé : il ne se modifie ni ne s’envoie plus.",
+            "partsMissing": "La salutation et le résumé doivent être écrits : aucun des deux ne peut être vide.",
+            "nothingToUpdate": "Aucune retouche à enregistrer.",
+            "notSent": "Ce message n’a pas été envoyé : aucune réponse ni issue ne s’y enregistre.",
+            "outcomeFinal": "Ce message est clos : ni réponse ni issue ne s’y ajoute plus.",
+            "superseded": "Ce message a été relancé : la réponse se dépose sur la dernière relance.",
+            "replyPending": "Une réponse de ce message attend encore sa vérification ou son issue : attendez son verdict, ou posez son issue.",
+            "generationIncomplete": "L’IA n’a pas rédigé la salutation et le résumé : écrivez-les vous-même.",
+            "replyRequired": "Aucune réponse n’est déposée sur ce message : déposez les captures de l’annonceur avant de confirmer l’accord.",
+            "reasonRequired": "Le verdict de l’IA ne va pas dans le sens d’un accord : écrivez le motif de la confirmation.",
+            "listingStageConflict": "Une des annonces de ce message a changé d’étape : la fiche a changé entre-temps, elle est relue.",
+            "whatsappNotConfigured": "Le numéro WhatsApp du Radar n’est pas configuré : envoyez ce message par WhatsApp, à la main.",
+            "whatsappSameNumber": "Le numéro ou le jeton configuré pour le Radar est celui des notifications : rien n’est envoyé.",
+            "whatsappTemplateMissing": "Aucun modèle Meta approuvé pour cette version des clauses ou cette langue : envoyez ce message à la main.",
+            "whatsappMessageMismatch": "Le modèle Meta ne redonnerait pas exactement le texte enregistré : préparez un nouveau message.",
+            "whatsappSummaryTooLong": "Le résumé est trop long pour un envoi par l’API : raccourcissez-le.",
+            "whatsappSendFailed": "Meta a refusé l’envoi : rien n’est enregistré, le message reste préparé.",
+            "accountNotDeleted": "Le compte de cet annonceur n’est pas supprimé : seul un compte supprimé se délie."
+          },
+          "reply": {
+            "heading": "Réponse de l’annonceur",
+            "none": "Aucune réponse déposée pour l’instant.",
+            "depositLabel": "Captures de la réponse",
+            "deposit": "Déposer la réponse",
+            "depositing": "Envoi…",
+            "selected": "{count, plural, =0 {Aucune capture choisie} one {# capture choisie} other {# captures choisies}}",
+            "depositHint": "Des captures de la conversation WhatsApp : le message envoyé et la réponse, avec le numéro de l’en-tête.",
+            "waitVerdict": "Une réponse attend encore sa vérification : attendez son verdict avant d’en déposer une autre.",
+            "depositedAt": "Déposée le {date}",
+            "pending": "Vérification en cours…",
+            "pendingReason": "Vérification en attente : {reason}",
+            "failed": "La vérification a échoué : {reason}. Lisez les captures vous-même.",
+            "failedNoReason": "La vérification a échoué. Lisez les captures vous-même.",
+            "captures": "Captures",
+            "captureAlt": "Capture {n} de la réponse",
+            "reasons": {
+              "error": "erreur interne de la vérification",
+              "invalidOutput": "l’IA a rendu une réponse inexploitable",
+              "timeout": "l’IA n’a pas répondu à temps",
+              "noCapture": "aucune capture lisible",
+              "noNumber": "l’annonceur n’a pas de numéro à comparer",
+              "unexpected": "erreur imprévue",
+              "purged": "la réponse a été effacée (STOP ou retrait de l’annonceur)",
+              "noText": "réponse sans texte (vocal, image)"
+            },
+            "verdict": {
+              "heading": "Verdict de l’IA",
+              "confidence": "Confiance : {level}",
+              "levels": {
+                "high": "élevée",
+                "medium": "moyenne",
+                "low": "faible"
+              },
+              "classifications": {
+                "consent": "Accord",
+                "refusal": "Refus",
+                "stop": "STOP",
+                "question": "Question",
+                "ambiguous": "Ambigu"
+              },
+              "numberMatches": "Numéro concordant",
+              "numberMismatch": "Numéro discordant : l’en-tête affiche {phone}",
+              "numberMismatchUnknown": "Numéro discordant",
+              "numberUnreadable": "Numéro illisible : vérifiez-le sur les captures",
+              "checkedByCode": "jugé par le code",
+              "checkedByModel": "jugé par l’IA",
+              "clauses": "Clauses retrouvées : {found} sur {total}",
+              "clausesMissing": "manquantes : {missing}",
+              "replyText": "Réponse lue",
+              "noReplyText": "Aucune réponse lisible",
+              "counterpart": "Interlocuteur : {name}",
+              "transcript": "Transcription",
+              "noTranscript": "Aucune transcription.",
+              "discordances": "Écarts avec un accord",
+              "confirmed": "Accord confirmé par {name} le {date}",
+              "confirmationReason": "Motif : {reason}",
+              "revoked": "Accord révoqué le {date}",
+              "clausesIncomplete": "Clauses retrouvées : {found} — le verdict les juge incomplètes"
+            },
+            "receivedAt": "Reçue par l’API WhatsApp le {date}",
+            "receivedText": "Texte reçu",
+            "noText": "Cette réponse n’a pas de texte (message vocal, image) : elle n’est pas lisible ici. Écoutez-la ou regardez-la dans WhatsApp, sur le numéro du Radar, puis posez son issue.",
+            "failedReceived": "La vérification a échoué : {reason}. Lisez le texte reçu vous-même.",
+            "failedReceivedNoReason": "La vérification a échoué. Lisez le texte reçu vous-même."
+          },
+          "outcome": {
+            "open": "Saisir l’issue",
+            "title": "Issue du message",
+            "description": "Dites ce que l’annonceur a répondu. Seule cette confirmation rend un accord valide.",
+            "legend": "Issue",
+            "hints": {
+              "consented": "Il accepte : la réponse devient un accord confirmé et les annonces passent en « accord reçu ».",
+              "refused": "Il refuse : les annonces sont closes.",
+              "stop": "Il ne veut plus être contacté, définitivement.",
+              "question": "Il pose une question : le message reste ouvert.",
+              "no_answer": "Il n’a pas répondu : le message est classé sans réponse."
+            },
+            "noReply": "« Accord » n’est possible qu’avec une réponse déposée.",
+            "discordancesHeading": "Le verdict de l’IA ne va pas dans le sens d’un accord :",
+            "discordances": {
+              "noVerdict": "aucun verdict (vérification en cours ou échouée)",
+              "numberMismatch": "le numéro de l’en-tête n’est pas celui de l’annonceur",
+              "identityUnverified": "ni le numéro ni le nom affichés ne confirment l’annonceur",
+              "clausesMissing": "une clause du message n’est pas lisible sur les captures",
+              "notConsent": "la réponse lue n’est pas un « oui »"
+            },
+            "reasonRequiredLabel": "Motif de la confirmation (obligatoire)",
+            "reasonRequiredHint": "Expliquez pourquoi vous confirmez l’accord malgré ces écarts : le motif est conservé avec l’accord.",
+            "stopWarning": "STOP est définitif : les accords de cet annonceur sont révoqués, ses annonces ne sont plus démarchées et plus aucun message ne lui est préparé.",
+            "stopContinue": "Continuer",
+            "stopConfirm": "Oui, c’est définitif",
+            "back": "Retour",
+            "confirm": "Confirmer",
+            "saving": "Enregistrement…",
+            "cancel": "Annuler",
+            "options": {
+              "consented": "Accord",
+              "refused": "Refus",
+              "stop": "STOP",
+              "question": "Question",
+              "no_answer": "Sans réponse"
+            }
+          },
+          "followUp": {
+            "heading": "Relance",
+            "dueSince": "Relance due depuis le {date}.",
+            "dueOn": "Relance prévue le {date}.",
+            "prepare": "Préparer la relance",
+            "preparing": "Préparation…",
+            "noAnswer": "Classer sans réponse",
+            "noAnswering": "Enregistrement…",
+            "noAnswerHint": "Les relances sont épuisées et l’échéance est passée : classez ce message sans réponse."
+          },
+          "awaiting": {
+            "heading": "Messages envoyés, en attente d’une issue",
+            "sentAt": "Envoyé le {date}",
+            "none": "Aucun message n’attend d’issue.",
+            "outcomeSet": "Issue posée : {outcome}, le {date}. Une réponse déposée plus tard peut encore la changer."
+          },
+          "publish": {
+            "heading": "Publier pour lui",
+            "hint": "Des annonces de cet annonceur sont couvertes par un accord valide : vous pouvez les publier à son nom.",
+            "cta": "Publier pour lui"
+          },
+          "account": {
+            "heading": "Compte supprimé",
+            "body": "Le compte que le Radar a créé pour cet annonceur a été supprimé. Tant qu’il y reste lié, l’annonceur ne peut pas réclamer ses annonces depuis le lien du message.",
+            "bodyClaimed": "Le compte avec lequel l’annonceur a réclamé ses annonces a été supprimé. Tant qu’il y reste lié, l’annonceur ne peut plus réclamer ses annonces depuis le lien du message.",
+            "cta": "Délier le compte",
+            "dialogTitle": "Délier le compte supprimé ?",
+            "dialogBody": "L’annonceur pourra de nouveau réclamer ses annonces : par un compte neuf, ou par celui qui a vérifié son numéro. Le compte supprimé le reste, et le geste est journalisé.",
+            "reasonLabel": "Motif (facultatif)",
+            "cancel": "Annuler",
+            "confirm": "Délier",
+            "done": "Compte délié : l’annonceur peut de nouveau réclamer ses annonces."
+          },
+          "activation": {
+            "heading": "Relance d’activation",
+            "hint": "Le compte créé pour l’annonceur n’est pas encore activé. Envoyez-lui ce que ses annonces lui rapportent : un texte fixe, avec les chiffres réels de la période.",
+            "period": "Du {since} au {until}",
+            "views": "Vues",
+            "contacts": "Demandes de contact",
+            "visits": "Demandes de visite",
+            "credits": "Crédits offerts à l’activation",
+            "figuresCaption": "Ce que chaque bien a rapporté sur la période",
+            "property": "Bien",
+            "untitled": "Bien n° {id}",
+            "reminders": "{count, plural, =0 {Aucune relance envoyée.} one {# relance envoyée, la dernière le {date}.} other {# relances envoyées, la dernière le {date}.}}",
+            "blocking": "La relance est impossible pour l’instant :",
+            "availableAt": "Prochaine relance possible le {date}.",
+            "locale": "Langue du message",
+            "locales": {
+              "fr": "Français",
+              "en": "Anglais"
+            },
+            "whatsapp": "Ouvrir WhatsApp",
+            "markSent": "Marquer envoyée",
+            "marking": "Enregistrement…",
+            "claimHint": "Prenez l’annonceur en charge pour marquer la relance envoyée.",
+            "sent": "Relance enregistrée.",
+            "loadError": "Impossible de charger la relance d’activation.",
+            "retry": "Réessayer"
+          }
+        },
+        "advertisers": {
+          "metaTitle": "Annonceurs du Radar",
+          "title": "Annonceurs",
+          "subtitle": "Les files du démarchage : qui contacter, qui attend une réponse, qui relancer.",
+          "back": "Retour au Radar",
+          "forbidden": "Le Radar est réservé aux opérateurs support et super-admin.",
+          "loadError": "Les annonceurs n’ont pas pu être chargés.",
+          "tabsAria": "File d’annonceurs",
+          "tabs": {
+            "to_contact": "À contacter",
+            "awaiting": "En attente",
+            "follow_up": "À relancer",
+            "left_to_operator": "À reprendre"
+          },
+          "search": {
+            "label": "Rechercher un annonceur",
+            "placeholder": "Nom ou numéro"
+          },
+          "columns": {
+            "name": "Annonceur",
+            "phone": "Numéro",
+            "nature": "Nature",
+            "counts": "Annonces",
+            "due": "Échéance de relance",
+            "claim": "Prise en charge",
+            "purge": "Échéance de purge"
+          },
+          "tableCaption": "Les annonceurs de la file",
+          "unnamed": "Annonceur sans nom",
+          "noPhone": "Numéro inconnu",
+          "doNotContact": "Ne pas contacter",
+          "claimedBy": "Pris en charge par {name}",
+          "claimedByMe": "Pris en charge par vous",
+          "proposeNoAnswer": "Proposer « sans réponse »",
+          "empty": {
+            "to_contact": {
+              "title": "Personne à contacter",
+              "description": "Les annonceurs dont une annonce est relue et pas encore démarchée apparaissent ici."
+            },
+            "awaiting": {
+              "title": "Aucun message en attente",
+              "description": "Un message envoyé attend ici que son échéance de relance arrive."
+            },
+            "follow_up": {
+              "title": "Rien à relancer",
+              "description": "Les messages restés sans réponse après leur échéance apparaissent ici."
+            },
+            "search": {
+              "title": "Aucun annonceur trouvé",
+              "description": "Essayez un autre nom, ou le numéro écrit comme vous l’avez."
+            },
+            "left_to_operator": {
+              "title": "Rien à reprendre",
+              "description": "Une annonce réclamée que la publication automatique n’a pas pu mettre en ligne apparaît ici."
+            }
+          },
+          "countLine": "{label} : <n>{count}</n>",
+          "counts": {
+            "reviewed": "À contacter",
+            "contacted": "Contactées",
+            "consented": "Accord"
+          },
+          "purgeHint": "Première annonce laissée, si personne ne la publie"
+        },
+        "advertisersLink": "Annonceurs",
+        "followUpsDue": "{count, plural, =0 {Aucune relance due} one {# relance due} other {# relances dues}}",
+        "observatoryLink": "Observatoire",
+        "observatory": {
+          "metaTitle": "Observatoire du Radar",
+          "title": "Observatoire",
+          "subtitle": "Qui pèse sur le marché, ce que vaut le mètre carré, combien de temps un bien reste en ligne, et où Takussan manque d’annonces.",
+          "back": "Retour au Radar",
+          "forbidden": "Le Radar est réservé aux opérateurs support et super-admin.",
+          "tabsAria": "Vue de l’observatoire",
+          "tabs": {
+            "advertisers": "Annonceurs",
+            "market": "Marché"
+          },
+          "ranking": {
+            "columns": {
+              "rank": "Rang",
+              "name": "Annonceur",
+              "nature": "Nature",
+              "listings": "Annonces",
+              "neighborhoods": "Quartiers",
+              "prices": "Prix affichés",
+              "sites": "Sites",
+              "pipeline": "Piste commerciale"
+            },
+            "tableCaption": "Les annonceurs du Radar, par volume d’annonces",
+            "unnamed": "Annonceur sans nom",
+            "noPhone": "Numéro inconnu",
+            "unknownNeighborhood": "Quartier inconnu",
+            "moreNeighborhoods": "{count, plural, one {et # autre} other {et # autres}}",
+            "published": "{count, plural, one {# publiée} other {# publiées}}",
+            "unknownContract": "Contrat inconnu",
+            "range": "{min} à {max}",
+            "results": "{count, plural, =0 {Aucun annonceur} one {# annonceur} other {# annonceurs}}",
+            "proposeUpgrade": "À proposer : passage en agence",
+            "pipeline": {
+              "prospect": "À démarcher",
+              "contacted": "Contacté",
+              "account": "Compte créé",
+              "upgrade_pending": "Passage en agence demandé",
+              "agency": "Agence",
+              "do_not_contact": "Ne pas contacter"
+            },
+            "filters": {
+              "searchLabel": "Rechercher un annonceur",
+              "searchPlaceholder": "Nom ou numéro",
+              "natureAria": "Nature présumée",
+              "anyNature": "Toutes les natures",
+              "reset": "Réinitialiser"
+            },
+            "loadError": "Le classement n’a pas pu être chargé.",
+            "empty": {
+              "title": "Aucun annonceur classé",
+              "description": "Les annonceurs apparaissent ici dès qu’une de leurs annonces est relevée."
+            }
+          },
+          "market": {
+            "loadError": "Le marché n’a pas pu être chargé.",
+            "emptyHint": "Les chiffres se remplissent avec la collecte automatique.",
+            "unknownNeighborhood": "Quartier inconnu",
+            "unmatchedNeighborhood": "Quartier non rattaché",
+            "untitledProperty": "Bien sans titre",
+            "days": "{count, plural, one {# jour} other {# jours}}",
+            "range": "{min} à {max}",
+            "natureLine": "{nature} : {count}",
+            "stillPublic": "Encore en ligne",
+            "notPublic": "Hors ligne",
+            "filters": {
+              "since": "Vues depuis le",
+              "contractAria": "Contrat",
+              "anyContract": "Tous les contrats",
+              "typeAria": "Type de bien",
+              "anyType": "Tous les types",
+              "siteAria": "Site",
+              "anySite": "Tous les sites",
+              "reset": "Réinitialiser"
+            },
+            "stats": {
+              "listings": "Annonces suivies",
+              "listingsHint": "Une annonce vue sur plusieurs sites compte une fois",
+              "online": "En ligne",
+              "gone": "Disparues",
+              "inCatalog": "Déjà au catalogue",
+              "intermediaries": "Intermédiaires probables",
+              "intermediariesHint": "{count, plural, one {sur # annonceur} other {sur # annonceurs}}"
+            },
+            "columns": {
+              "neighborhood": "Quartier",
+              "radarOnline": "En ligne ailleurs",
+              "catalogPublic": "Sur Takussan",
+              "gap": "Manque",
+              "type": "Type",
+              "contract": "Contrat",
+              "listings": "Annonces",
+              "median": "Médiane au m²",
+              "spread": "Moitié centrale",
+              "gone": "Disparues",
+              "online": "En ligne",
+              "medianDays": "Durée médiane",
+              "property": "Bien",
+              "site": "Site source",
+              "goneAt": "Disparue le",
+              "propertyStatus": "Sur Takussan"
+            },
+            "gap": {
+              "title": "Quartiers où Takussan manque d’annonces",
+              "description": "Annonces en ligne ailleurs et pas encore sur Takussan, contre les biens publics du même quartier.",
+              "empty": "Aucun quartier à comparer"
+            },
+            "price": {
+              "title": "Prix au mètre carré",
+              "description": "Médiane du dernier prix affiché de chaque annonce, rapporté à sa surface. Le nombre d’annonces dit ce que vaut la médiane. Les chiffres portent sur les annonces conservées : une annonce purgée n’y est plus, et la période couverte ne remonte pas au-delà de la rétention de 90 jours.",
+              "empty": "Aucune annonce avec prix et surface"
+            },
+            "time": {
+              "title": "Temps de mise sur le marché",
+              "description": "Durée entre la première et la dernière présence des annonces dont la disparition est constatée. Une annonce déjà en ligne avant la première collecte paraît plus récente qu’elle ne l’est. Une disparition ne se constate {runs, plural, one {qu’après un passage qui a lu toute la liste sans la revoir} other {qu’après # passages d’affilée qui ont lu toute la liste sans la revoir}}. Si la liste d’un site dépasse le plafond de pages de sa collecte (5 par défaut), montez ce plafond dans l’onglet Collecte : il est borné à 20 pages, et au-delà aucune disparition n’est constatée sur ce site.",
+              "empty": "Aucune disparition constatée"
+            },
+            "goneSources": {
+              "title": "Sources disparues de biens publiés",
+              "description": "L’annonce d’origine d’un bien publié est absente de la liste lue par la collecte, {runs, plural, one {au dernier passage} other {# passages de suite}} : elle a peut-être été retirée (bien loué ou vendu), ou déplacée. Si la liste d’un site dépasse le plafond de pages de sa collecte (5 par défaut), montez ce plafond dans l’onglet Collecte : il est borné à 20 pages, et au-delà aucune disparition n’est constatée sur ce site. Une annonce purgée, ou dont l’annonceur a dit STOP, n’est plus suivie : sa disparition n’est plus constatée.",
+              "empty": "Aucune source disparue"
+            },
+            "natureHistory": {
+              "title": "Part par nature dans la durée",
+              "description": "Annonceurs comptés chaque jour par nature présumée, avant la purge : la part survit à l’effacement des annonces, au-delà des 90 jours de rétention. Sans identifiant, un annonceur compte une fois par jour de présence.",
+              "from": "Du",
+              "to": "Au",
+              "loadError": "La part par nature n’a pas pu être chargée.",
+              "empty": "Aucun jour compté sur cette période",
+              "emptyHint": "Le compte se fige chaque nuit, juste avant la purge.",
+              "span": "{days, plural, one {# jour compté} other {# jours comptés}}, du {from} au {to}",
+              "counts": "{advertisers, plural, one {# annonceur-jour} other {# annonceurs-jours}} · {listings, plural, one {# annonce-jour} other {# annonces-jours}}",
+              "disabled": "Le comptage n’est pas activé",
+              "disabledHint": "Il reste éteint jusqu’à l’avis juridique : comparer des jours consécutifs pourrait révéler la nature d’un annonceur qui a demandé à ne plus être contacté.",
+              "disabledSince": "Le comptage est éteint : plus aucun jour ne s’ajoute.",
+              "zeroAdvertisers": "Jours comptés, aucun annonceur"
+            }
+          }
+        },
+        "publication": {
+          "metaTitle": "Publier pour l’annonceur",
+          "title": "Publier pour {name}",
+          "titleUnnamed": "Publier pour l’annonceur n° {id}",
+          "back": "Retour à la fiche de l’annonceur",
+          "forbidden": "Publier pour un annonceur est réservé aux super-administrateurs.",
+          "loadError": "Impossible de charger l’aperçu de la publication.",
+          "intro": "Vérifiez ce qui sera créé au nom de l’annonceur, puis confirmez. Rien n’est écrit avant la confirmation.",
+          "claimNone": "Personne ne traite cet annonceur. Prenez-le en charge pour déposer des photos et publier.",
+          "blocking": {
+            "heading": "La publication est impossible pour l’instant :",
+            "headingAccount": "La publication pour son compte est impossible pour l’instant :"
+          },
+          "account": {
+            "heading": "Ce qui sera créé au nom de {name}",
+            "headingUnnamed": "Ce qui sera créé au nom de l’annonceur",
+            "account": "Compte",
+            "new": "Un compte sans mot de passe, créé pour l’occasion",
+            "existing": "Compte existant, repris tel quel",
+            "name": "Nom",
+            "noName": "Sans nom",
+            "phone": "Numéro",
+            "space": "Espace",
+            "existingSpace": "Son espace actuel",
+            "noteNew": "Le numéro n’est pas vérifié : l’annonceur active le compte en se connectant avec un code reçu par SMS. Les visiteurs joignent directement ce numéro, par WhatsApp, au sujet de chaque annonce.",
+            "noteExisting": "Aucun compte n’est créé : les biens rejoignent l’espace déjà ouvert pour cet annonceur."
+          },
+          "listings": {
+            "heading": "Annonces couvertes par un accord",
+            "none": "Aucune annonce n’est couverte par un accord valide : il n’y a rien à publier.",
+            "select": "Publier l’annonce n° {id}",
+            "untitled": "Annonce sans titre",
+            "titleBuilt": "Titre construit",
+            "titleBuiltHint": "Cette annonce n’a pas de titre : celui-ci est construit du type, des chambres, du contrat et du quartier, et sera publié tel quel.",
+            "number": "n° {id}",
+            "open": "Ouvrir la fiche de l’annonce n° {id}",
+            "matches": "Ressemble déjà à : {list}.",
+            "matchProperty": "le bien n° {id}",
+            "matchListing": "l’annonce n° {id}",
+            "duplicateOfListing": "Marquée comme doublon de l’annonce n° {id}.",
+            "duplicateOfProperty": "Marquée comme doublon du bien n° {id}.",
+            "blocking": {
+              "noPhoto": "Cette annonce n’a aucune photo dans sa réserve : récupérez-en à la source, ou déposez-en.",
+              "noPhotoNoSource": "Cette annonce n’a aucune photo à la source : déposez-en à la main.",
+              "photosPending": "Les photos de cette annonce sont encore en préparation : attendez la fin, ou relancez la lecture.",
+              "missingField": "Cette annonce est incomplète : le type, le contrat, le prix et un quartier du référentiel sont requis."
+            }
+          },
+          "photos": {
+            "heading": "Photos de la réserve ({taken}/{max})",
+            "preparing": "Lecture des photos de la source : {done} sur {total}.",
+            "prepared": "Photos de la source lues : {done} sur {total}.",
+            "none": "Aucune photo : récupérez celles de la source, ou déposez-en à la main.",
+            "noneNoSource": "Aucune photo à la source : déposez-en à la main.",
+            "list": "Photos de l’annonce n° {id}, dans l’ordre de publication",
+            "alt": "Photo {rank} de l’annonce n° {id}",
+            "remove": "Retirer la photo {rank} de l’annonce n° {id}",
+            "input": "Déposer des photos pour l’annonce n° {id}",
+            "upload": "Déposer des photos",
+            "fetch": "Récupérer les photos de la source",
+            "full": "La réserve est pleine : {max} photos au plus.",
+            "hint": "JPEG, PNG ou WebP, {max} photos par envoi. La première est la couverture."
+          },
+          "publish": "{count, plural, =0 {Publier} one {Publier # annonce} other {Publier # annonces}}",
+          "nothingChecked": "Cochez au moins une annonce à publier.",
+          "overPhotoLimit": "La sélection compte {count, plural, one {# photo} other {# photos}} : une publication en accepte {max} au plus. Décochez des annonces, puis publiez-les en plusieurs fois.",
+          "confirm": {
+            "title": "Publier pour {name} ?",
+            "titleUnnamed": "Publier pour cet annonceur ?",
+            "body": "Cette publication crée un compte au nom de l’annonceur et met ses annonces en ligne. Elle ne se défait pas d’un clic.",
+            "summaryNew": "1 compte, 1 espace, {biens, plural, one {# bien publié} other {# biens publiés}} avec {photos, plural, =0 {aucune photo} one {# photo} other {# photos}}.",
+            "summaryExisting": "Compte existant repris, {biens, plural, one {# bien publié} other {# biens publiés}} avec {photos, plural, =0 {aucune photo} one {# photo} other {# photos}}.",
+            "cancel": "Annuler",
+            "publish": "Publier",
+            "publishing": "Publication…",
+            "mandateTitle": "Publier sous mandat pour {name} ?",
+            "mandateTitleUnnamed": "Publier sous mandat pour cet annonceur ?",
+            "mandateBody": "Aucun compte n’est créé : les annonces naissent dans l’espace Takussan. Le téléphone et le WhatsApp affichés sont ceux de l’annonceur ; les demandes par formulaire arrivent à Takussan, qui les lui transmet. Elle ne se défait pas d’un clic ; l’annonceur peut ensuite reprendre ses annonces dans son propre espace en vérifiant son numéro.",
+            "mandateSummary": "Aucun compte, {biens, plural, one {# bien publié} other {# biens publiés}} dans l’espace « {space} » avec {photos, plural, =0 {aucune photo} one {# photo} other {# photos}}."
+          },
+          "recap": {
+            "created": "Ce qui existe désormais",
+            "accountCreated": "Compte créé pour {name}, avec l’espace « {space} ».",
+            "accountExisting": "Compte existant de {name} repris, espace « {space} ».",
+            "links": "Liens publics des biens publiés",
+            "untitled": "Bien n° {id}",
+            "message": {
+              "heading": "Le message « vos annonces sont en ligne »",
+              "hint": "Un texte fixe : il porte les liens publics, le lien pour activer le compte et la ligne STOP. Envoyez-le tel quel.",
+              "locale": "Langue du message",
+              "locales": {
+                "fr": "Français",
+                "en": "Anglais"
+              },
+              "loadError": "Impossible de composer le message.",
+              "retry": "Réessayer",
+              "whatsapp": "Ouvrir WhatsApp",
+              "copy": "Copier le message",
+              "copied": "Message copié.",
+              "copyFailed": "La copie a échoué : sélectionnez le texte à la main.",
+              "hintMandate": "Un texte fixe : il porte les liens publics et la ligne STOP, sans lien d’activation. Envoyez-le tel quel.",
+              "hintMandateTakeBack": "Un texte fixe : il porte les liens publics, le lien par lequel l’annonceur reprend ses annonces dans son propre espace avec un code SMS, et la ligne STOP. Envoyez-le tel quel."
+            },
+            "mandatePublished": "Publié sous mandat dans l’espace « {space} » : aucun compte n’a été créé."
+          },
+          "alreadyPublished": {
+            "heading": "Déjà en ligne pour cet annonceur",
+            "hint": "Ces biens sont publiés. Le message ci-dessous liste tous les biens que le Radar a publiés pour lui ; il se recompose à tout moment, même si la réponse d’une publication s’est perdue.",
+            "stopped": "L’annonceur a demandé à ne plus être contacté : aucun message ne lui est envoyé.",
+            "unavailable": "Le second message ne peut pas être composé dans cet environnement (voir le blocage ci-dessus) : les liens publics ci-dessus restent valables."
+          },
+          "errors": {
+            "listingForeign": "Une de ces annonces n’est pas celle de cet annonceur, ou n’existe pas.",
+            "notCovered": "Une de ces annonces n’est pas couverte par un accord confirmé et non révoqué : elle ne se publie pas.",
+            "photosPending": "Les photos d’une annonce sont encore en préparation : attendez la fin, ou relancez la lecture.",
+            "noPhoto": "Une annonce n’a aucune photo dans sa réserve : récupérez-en à la source, ou déposez-en.",
+            "missingField": "Une annonce est incomplète : le type, le contrat, le prix et un quartier du référentiel sont requis.",
+            "nothingCovered": "Aucune annonce de cet annonceur n’est couverte par un accord valide.",
+            "activationUnavailable": "La connexion par téléphone est éteinte dans cet environnement : le compte créé pour l’annonceur ne pourrait pas s’ouvrir par code SMS. Rien ne se publie tant qu’elle ne l’est pas.",
+            "otpPreviewActive": "L’aperçu des codes SMS est actif dans cet environnement : le code d’activation reviendrait dans la réponse, et quiconque connaît le numéro de l’annonceur pourrait ouvrir son compte. Rien ne se publie tant qu’il l’est.",
+            "nothingPublished": "Aucun bien n’est publié pour cet annonceur : il n’y a pas de message à composer.",
+            "phoneRegistered": "Ce numéro est déjà celui d’un compte : le Radar ne publie pas dans un compte existant, seule la réclamation est proposée à son titulaire.",
+            "accountUnavailable": "Le compte rattaché à cet annonceur est supprimé ou bloqué, ou son espace est suspendu : rien n’y est publié.",
+            "noSourcePhotos": "Cette annonce n’a aucune photo à récupérer à la source : déposez-en à la main.",
+            "photoNotFound": "Cette photo n’est pas dans la réserve de cette annonce.",
+            "reserveFull": "La réserve de photos est pleine : {max} photos au plus.",
+            "tooManyPhotos": "Ces annonces ont {count, plural, one {# photo} other {# photos}} en tout, et une publication en accepte {max} au plus : publiez-les en plusieurs fois.",
+            "photoTooLarge": "Une photo est trop grande : ses dimensions dépassent les bornes acceptées.",
+            "photoUnreadable": "Une photo ne se lit pas comme une image : envoyez un JPEG, un PNG ou un WebP.",
+            "quotaExceeded": "L’espace de cet annonceur a atteint son quota d’annonces actives : rien n’a été publié.",
+            "keyReused": "La sélection a changé depuis un premier envoi : relancez la publication.",
+            "inProgress": "Une publication est déjà en cours pour cet annonceur : réessayez dans un instant.",
+            "underMandate": "Cet annonceur est publié sous mandat Takussan : ses annonces se publient sous mandat, pas dans un compte.",
+            "mandateDisabled": "La publication sous mandat est éteinte dans cet environnement.",
+            "mandateSpaceMissing": "Aucun espace des mandats n’est désigné, ou il est suspendu ou sans administrateur principal : rien ne se publie sous mandat.",
+            "mandateAccountExists": "Un compte est déjà rattaché à cet annonceur : ses annonces se publient dans son espace, pas sous mandat.",
+            "activationAlreadyActive": "Le compte de l’annonceur est déjà activé : il n’y a rien à relancer.",
+            "activationRevoked": "L’accord de l’annonceur a été retiré ou son numéro purgé : aucune relance ne part.",
+            "activationNothingPublished": "Aucun bien publié par le Radar n’est en ligne pour cet annonceur : la relance n’aurait rien à dire.",
+            "activationTooSoon": "La dernière relance est trop récente : attendez la fin de la période.",
+            "activationUnderMandate": "Cet annonceur est publié sous mandat : ses biens ne sont pas dans un compte, la relance d’activation ne s’applique pas.",
+            "activationJustSent": "Cette relance vient d’être marquée envoyée : un second marquage ne compterait pas une relance de plus."
+          },
+          "mandate": {
+            "heading": "Publier sous mandat Takussan",
+            "body": "L’annonceur a donné son accord mais ne veut pas de compte : Takussan publie ses annonces dans son propre espace, « {space} ». Aucun compte n’est créé. Le téléphone et le WhatsApp affichés sont ceux de l’annonceur : les visiteurs le joignent directement. Les demandes laissées par formulaire arrivent à l’administrateur de « {space} », qui les lui transmet. Sa réponse STOP retire ses biens.",
+            "bodyNoSpace": "L’annonceur a donné son accord mais ne veut pas de compte : Takussan peut publier ses annonces dans son propre espace, une fois celui-ci désigné dans les paramètres de la plateforme (« Espace des mandats du Radar »).",
+            "already": "Déjà publié sous mandat depuis le {date}.",
+            "blocking": "La publication sous mandat est impossible :",
+            "cta": "{count, plural, =0 {Publier sous mandat} one {Publier # annonce sous mandat} other {Publier # annonces sous mandat}}",
+            "takenBack": "Repris par l’annonceur dans son propre espace le {date} : la publication sous mandat est close."
+          }
+        },
+        "crawlLink": "Collecte",
+        "crawl": {
+          "metaTitle": "Collecte — Radar",
+          "title": "Collecte automatique",
+          "subtitle": "Les sites lus d’office, et chacun de leurs passages.",
+          "back": "Retour au Radar",
+          "offNote": "La collecte est éteinte par défaut : aucun site n’est lu tant que le super-administrateur ne l’allume pas. Allumer un site vous en fait l’opérateur : les annonces trouvées sont extraites en votre nom, sur le budget d’IA.",
+          "readOnly": "Seul le super-administrateur allume un site, règle sa fréquence ou lance un passage.",
+          "sourcesHeading": "Sites",
+          "runsHeading": "Derniers passages",
+          "enabled": "Allumé",
+          "disabled": "Éteint",
+          "enable": "Allumer",
+          "disable": "Éteindre",
+          "operator": "Au nom de {name}",
+          "noOperator": "Aucun opérateur",
+          "frequency": "Fréquence (minutes)",
+          "frequencyHint": "Entre {min} et {max} minutes.",
+          "maxPages": "Pages au plus",
+          "maxPagesHint": "De 1 à {max} pages de la liste par passage.",
+          "save": "Enregistrer",
+          "saved": "Réglage enregistré.",
+          "runNow": "Lancer un passage",
+          "runQueued": "Passage mis en file.",
+          "loadError": "La collecte n’a pas pu être lue.",
+          "emptyRuns": "Aucun passage pour l’instant.",
+          "reachedEnd": "fin de liste atteinte",
+          "columns": {
+            "site": "Site",
+            "started": "Début",
+            "status": "État",
+            "pages": "Pages",
+            "cards": "Cartes",
+            "created": "Nouvelles",
+            "known": "Connues",
+            "snapshots": "Instantanés",
+            "stop": "Arrêt"
+          },
+          "tableCaption": "Les derniers passages de collecte, du plus récent au plus ancien.",
+          "status": {
+            "queued": "En file",
+            "running": "En cours",
+            "finished": "Terminé",
+            "failed": "Échoué"
+          },
+          "triggers": {
+            "schedule": "Planifié",
+            "manual": "Manuel"
+          },
+          "stops": {
+            "end": "Fin de la liste",
+            "maxPages": "Plafond de pages atteint",
+            "noCards": "Page sans annonce",
+            "domainBusy": "Site occupé : lecture remise",
+            "timeBudget": "Durée maximale atteinte",
+            "noOperator": "Aucun opérateur",
+            "error": "Erreur du passage",
+            "lost": "Passage perdu (file arrêtée)",
+            "loop": "La pagination renvoie vers une page déjà lue",
+            "noStartUrl": "Aucune URL de départ valable"
+          },
+          "errors": {
+            "active": "Un passage est déjà en cours sur ce site : attendez sa fin.",
+            "unknownSite": "Ce site n’est pas collecté.",
+            "generic": "Le réglage a échoué.",
+            "startUrlsTooMany": "Trop d’URL de départ : {max} au plus par site.",
+            "startUrlTooLong": "L’URL n° {rank} est trop longue : {max} caractères au plus.",
+            "startUrlInvalid": "L’URL n° {rank} n’est pas acceptée : une adresse https, sans identifiants, port ni fragment (#).",
+            "startUrlHost": "L’URL n° {rank} n’est pas sur le site : elle doit partir de {hosts}.",
+            "startUrlDuplicate": "L’URL n° {rank} est déjà dans la liste."
+          },
+          "summary": "Tous les {frequency} min · {pages} pages au plus",
+          "enabledWithoutOperator": "Allumée sans opérateur : aucun passage ne part. Éteignez-la puis rallumez-la pour en devenir l'opérateur.",
+          "startUrls": "URL de départ (une par ligne)",
+          "startUrlsHint": "Les pages de liste lues par chaque passage, dans l’ordre, sur {hosts} ; {max} au plus. Vide : {fallback}.",
+          "startUrlsDefault": "Page de départ : {url} (configuration)",
+          "startUrlsSummary": "Pages de départ :"
+        }
       }
     },
     "featureFlags": {
@@ -8423,7 +9823,9 @@
         "ops_failed_jobs_spike": "Rafale d’échecs de jobs",
         "ops_queue_stalled": "File de jobs à l’arrêt",
         "ops_health_degraded": "Santé de la plateforme dégradée",
-        "ops_critical_job_failed": "Échec d’un job d’argent ou de bail"
+        "ops_critical_job_failed": "Échec d’un job d’argent ou de bail",
+        "radar_source_listing_gone": "Annonce source d’un bien disparue",
+        "radar_withdrawal_proposed": "Retrait proposé : le titulaire n’a pas répondu"
       },
       "channels": {
         "email": "E-mail",
@@ -8520,7 +9922,8 @@
         "currency": "Devises",
         "limits": "Limites techniques",
         "boost": "Crédits et mise en avant",
-        "rentals": "Location"
+        "rentals": "Location",
+        "radar": "Radar"
       },
       "keys": {
         "currency": {
@@ -8591,6 +9994,12 @@
           "cap_percent": {
             "label": "Plafond des pénalités de retard",
             "description": "En pourcentage du montant de l’échéance, de 0 à 100. Vide : aucun plafond. Une agence qui a son propre réglage garde le sien."
+          }
+        },
+        "radar": {
+          "mandate_agency_id": {
+            "label": "Espace des mandats du Radar",
+            "description": "Identifiant de l’espace Takussan où naissent les biens publiés sous mandat. 0 : aucun. Le drapeau « radar_mandate » doit aussi être allumé."
           }
         }
       },
@@ -9530,7 +10939,8 @@
         "favorite_unavailable": "Favori — plus disponible",
         "visit_reminder": "Rappel de visite",
         "threshold_alert": "Alerte seuil KPI",
-        "lease_payment_received": "Loyer — paiement reçu"
+        "lease_payment_received": "Loyer — paiement reçu",
+        "property_availability_check": "Disponibilité de mes biens publiés"
       },
       "channels": {
         "inapp": "In-app",
@@ -9545,7 +10955,8 @@
         "leases": "Baux",
         "maintenance": "Maintenance",
         "reviews": "Avis",
-        "alerts": "Alertes"
+        "alerts": "Alertes",
+        "properties": "Biens"
       },
       "reasons": {
         "inappAlwaysOn": "Toujours actif pour ne rien manquer.",
@@ -10943,6 +12354,10 @@
         "unpublished_contact_erased": {
           "title": "Annonce retirée : {property}",
           "body": "L'annonce {property} ({reference}) a été retirée du site : son seul contact a effacé son compte. Attribuez-lui un agent puis republiez-la : {url}"
+        },
+        "source_listing_gone": {
+          "title": "Votre bien est-il toujours disponible ? {property}",
+          "body": "L’annonce d’origine de « {property} » n’est plus en ligne. Ouvrez le bien pour nous dire s’il est loué, vendu ou toujours disponible."
         }
       },
       "lease": {
@@ -11288,5 +12703,108 @@
     "errors": {
       "generic": "L’invitation n’a pas pu être acceptée. Réessayez."
     }
+  },
+  "radarClaim": {
+    "metaTitle": "Vos annonces sur Takussan",
+    "title": "Vos annonces sur Takussan",
+    "loading": "Ouverture du lien…",
+    "greeting": "Bonjour {name},",
+    "greetingAnonymous": "Bonjour,",
+    "intro": "Takussan propose de publier gratuitement les annonces que vous avez diffusées. Vérifiez-les, corrigez ce qui doit l'être, puis confirmez avec le code envoyé par SMS au {phone}.",
+    "publishedTitle": "Déjà en ligne",
+    "publishingTitle": "En cours de publication",
+    "publishingHint": "Vous les avez confirmées : elles seront en ligne dans quelques minutes.",
+    "listingsTitle": "Vos annonces",
+    "listingsHint": "Décochez celles que vous ne voulez pas publier.",
+    "keep": "Publier cette annonce",
+    "untitled": "Annonce sans titre",
+    "priceOnRequest": "Prix à préciser",
+    "perPeriod": "{price} / {period}",
+    "bedrooms": "{count, plural, one {# chambre} other {# chambres}}",
+    "bathrooms": "{count, plural, one {# salle de bain} other {# salles de bain}}",
+    "surface": "{surface} m²",
+    "furnished": "Meublé",
+    "edit": "Corriger",
+    "editDone": "Fermer",
+    "fieldTitle": "Titre",
+    "fieldPrice": "Prix (FCFA)",
+    "fieldDescription": "Description",
+    "phoneHint": "Votre numéro n'apparaît pas sur l'annonce : les visiteurs vous joignent par Takussan.",
+    "noListings": "Aucune annonce n'attend votre confirmation.",
+    "spaceTitle": "Votre espace",
+    "fieldFirstName": "Votre prénom",
+    "fieldSpaceName": "Nom de votre espace",
+    "spaceHint": "C'est le nom que les visiteurs verront sur vos annonces.",
+    "existingSpace": "Vos annonces iront dans votre espace « {name} ».",
+    "existingLoginTitle": "Ce numéro a déjà un compte Takussan",
+    "existingLoginBody": "Connectez-vous au compte du {phone} pour confirmer vos annonces, puis revenez sur cette page.",
+    "login": "Me connecter",
+    "otherAccountTitle": "Vous êtes connecté avec un autre compte",
+    "otherAccountBody": "Ces annonces appartiennent au titulaire du {phone}. Déconnectez-vous pour continuer.",
+    "logout": "Me déconnecter",
+    "unavailableAccountTitle": "Ce compte ne peut pas être ouvert ici",
+    "unavailableAccountBody": "Contactez-nous pour publier vos annonces.",
+    "supportTitle": "Ce numéro est lié à deux comptes",
+    "supportBody": "Écrivez-nous à {email} : nous réunirons vos comptes, puis vos annonces pourront être publiées.",
+    "terms": "J'accepte les <terms>conditions d'utilisation</terms> de Takussan.",
+    "sendCode": "Recevoir le code par SMS",
+    "sending": "Envoi…",
+    "codeSentTo": "Un code vient d'être envoyé au {phone}.",
+    "codeLabel": "Code reçu par SMS",
+    "confirm": "{count, plural, =0 {Activer mon compte} one {Publier mon annonce} other {Publier mes # annonces}}",
+    "confirming": "Confirmation…",
+    "resend": "Renvoyer le code",
+    "resendIn": "Renvoyer dans {seconds} s",
+    "doneTitle": "C'est confirmé",
+    "doneBody": "{count, plural, =0 {Votre compte est prêt, dans votre espace « {space} ».} one {Votre annonce sera en ligne d'ici quelques minutes, dans votre espace « {space} ».} other {Vos # annonces seront en ligne d'ici quelques minutes, dans votre espace « {space} ».}}",
+    "openSpace": "Ouvrir mon espace",
+    "expiredTitle": "Ce lien a expiré",
+    "expiredDescription": "Répondez au message qui vous l'a apporté pour en recevoir un nouveau.",
+    "revokedTitle": "Ce lien n'est plus valide",
+    "revokedDescription": "Il a été désactivé : aucune annonce ne sera publiée par lui.",
+    "notFoundTitle": "Lien introuvable",
+    "notFoundDescription": "Vérifiez l'adresse reçue dans le message.",
+    "unavailableTitle": "Service momentanément indisponible",
+    "unavailableDescription": "La confirmation des annonces n'est pas ouverte pour le moment. Réessayez plus tard.",
+    "error": "La page n'a pas pu être chargée. Réessayez dans un instant.",
+    "retry": "Réessayer",
+    "failed": "La confirmation a échoué. Réessayez dans un instant.",
+    "errors": {
+      "invalid": "Vérifiez l'adresse reçue dans le message.",
+      "expired": "Répondez au message qui vous l'a apporté pour en recevoir un nouveau.",
+      "revoked": "Il a été désactivé : aucune annonce ne sera publiée par lui.",
+      "unavailable": "La confirmation des annonces n'est pas ouverte pour le moment. Réessayez plus tard.",
+      "codeInvalid": "Ce code n'est pas valide ou a expiré.",
+      "locked": "Trop d'essais. Réessayez plus tard.",
+      "tooMany": "Trop de demandes. Patientez avant de réessayer.",
+      "termsOutdated": "Les conditions ont changé : rechargez la page pour lire la nouvelle version.",
+      "listingUnavailable": "Une annonce n'est plus disponible : rechargez la page.",
+      "nothingSelected": "Cochez au moins une annonce à publier.",
+      "loginRequired": "Connectez-vous au compte de ce numéro pour continuer.",
+      "wrongAccount": "Vous êtes connecté avec un autre compte : déconnectez-vous pour continuer.",
+      "accountChanged": "Le compte de ce numéro a changé : rechargez la page.",
+      "supportRequired": "Ce numéro est lié à deux comptes Takussan : écrivez-nous, nous les réunirons.",
+      "accountUnavailable": "Ce compte ne peut pas être ouvert ici. Contactez-nous.",
+      "phoneToken": "Retirez « [TELEPHONE] » du texte : les numéros ne s'affichent pas sur une annonce.",
+      "price": "Indiquez un prix valide.",
+      "nameContainsPhone": "Le prénom et le nom de l'espace ne peuvent pas contenir de numéro de téléphone.",
+      "firstNameContainsPhone": "Votre prénom ne peut pas contenir de numéro de téléphone.",
+      "spaceNameContainsPhone": "Le nom de votre espace ne peut pas contenir de numéro de téléphone.",
+      "underMandate": "Vos annonces sont de nouveau diffusées par Takussan pour votre compte : rechargez la page pour les reprendre dans votre propre espace.",
+      "mandateSupportRequired": "Vos annonces diffusées par Takussan ne peuvent pas être reprises depuis cette page : écrivez-nous, nous les déplacerons dans votre espace.",
+      "spaceSuspended": "Votre espace Takussan n'est pas actif : vos annonces restent diffusées par Takussan pour votre compte, et vous pourrez les reprendre une fois votre espace rétabli.",
+      "spaceUnavailable": "Votre espace Takussan n'est pas actif : vos annonces ne peuvent pas y être publiées pour l'instant. Écrivez-nous pour le réactiver."
+    },
+    "awaitingReviewTitle": "En attente de vérification",
+    "awaitingReviewHint": "Notre équipe doit encore les vérifier avant de les mettre en ligne : elles ne sont pas encore visibles.",
+    "introMandate": "Takussan diffuse aujourd'hui vos annonces pour votre compte. Vous pouvez les reprendre dans votre propre espace : confirmez avec le code envoyé par SMS au {phone}.",
+    "mandateTitle": "Vos annonces diffusées par Takussan",
+    "mandateBody": "{count, plural, one {Takussan diffuse # annonce pour votre compte.} other {Takussan diffuse # annonces pour votre compte.}} En confirmant avec le code, vous les reprenez dans votre propre espace : elles restent en ligne, avec leurs vues et les demandes déjà reçues, et vous les gérez vous-même.",
+    "mandateSupportTitle": "Vos annonces ne peuvent pas être reprises ici",
+    "mandateSupportBody": "Écrivez-nous à {email} : nous déplacerons vos annonces dans votre propre espace.",
+    "confirmTakeBack": "{count, plural, =0 {Reprendre mes annonces} one {Reprendre mes annonces et publier la nouvelle} other {Reprendre mes annonces et publier les # nouvelles}}",
+    "doneTakeBack": "{count, plural, one {Votre annonce est maintenant dans votre espace « {space} », toujours en ligne.} other {Vos # annonces sont maintenant dans votre espace « {space} », toujours en ligne.}}",
+    "spaceUnavailableTitle": "Votre espace n'est pas actif",
+    "spaceUnavailableBody": "Vos annonces ne peuvent pas y être publiées pour l'instant. Écrivez-nous à {email} pour le réactiver."
   }
 }

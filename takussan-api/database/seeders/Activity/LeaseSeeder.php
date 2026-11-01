@@ -166,7 +166,8 @@ class LeaseSeeder extends Seeder
 
             $statut = match (true) {
                 $resiliation !== null => LeaseStatus::Terminated,
-                $fin->greaterThanOrEqualTo($aujourdhui) => LeaseStatus::Active,
+                // `seedEnd()` est la fin de la journée, `$fin` son début : le bail qui finit aujourd'hui court encore.
+                $fin->greaterThanOrEqualTo($aujourdhui->startOfDay()) => LeaseStatus::Active,
                 default => LeaseStatus::from(StatusDistribution::pick([
                     LeaseStatus::Expired->value => 50,
                     LeaseStatus::Renewed->value => 50,

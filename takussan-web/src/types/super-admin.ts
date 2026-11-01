@@ -517,7 +517,7 @@ export type NotificationTemplatePreviewResponse = {
 };
 
 /** TCK-600 — le catalogue se réduit aux clés qu'un code lit : `format.*` et `transaction.*` sont partis. */
-export type PlatformSettingCategory = 'currency' | 'limits' | 'boost' | 'rentals';
+export type PlatformSettingCategory = 'currency' | 'limits' | 'boost' | 'rentals' | 'radar';
 /** TCK-651 (ADR-0065) — `boolean`, `decimal` et `integer_list` servent les réglages métier `rentals`. */
 export type PlatformSettingType = 'select' | 'multi_select' | 'integer' | 'decimal' | 'boolean' | 'integer_list';
 export type PlatformSettingValue = string | number | boolean | null | string[] | number[];
@@ -752,7 +752,9 @@ export type HealthReason =
   | 'unreachable'
   | 'not_meilisearch'
   | 'wildcard_trusts_nobody'
-  | 'signing_secret_missing';
+  | 'signing_secret_missing'
+  | 'radar_phone_key_missing'
+  | 'ai_provider_host_not_allowed';
 
 export type HealthcheckStatus = {
   status: HealthLevel;
@@ -787,6 +789,10 @@ export type PlatformHealth = {
   scheduler?: HealthcheckStatus & { last_run_at?: string | null };
   proxies?: HealthcheckStatus;
   lemon_squeezy_webhook?: HealthcheckStatus;
+  /** TCK-2414 — `degraded` hors local tant que `RADAR_PHONE_HMAC_KEY` n'est pas posée. */
+  radar_phone_key?: HealthcheckStatus;
+  /** TCK-2450 — `degraded` quand une clé est posée sur une adresse hors des hôtes acceptés. */
+  ai_providers?: HealthcheckStatus;
   status?: HealthLevel;
   generated_at: string;
 };
@@ -1042,4 +1048,110 @@ export type WebhookLog = {
 export type WebhookLogsResponse = {
   data: WebhookLog[];
   meta: { total: number; current_page: number; last_page: number; per_page: number };
+};
+
+// TCK-2385 (ADR-0076 §12) — la console IA.
+export type AiModelRole = 'extraction' | 'redaction' | 'raisonnement' | 'vision' | 'embedding';
+export type AiEvaluationStatus = 'queued' | 'running' | 'done' | 'failed';
+export type AiModelLink = { provider: string; model: string; max_tokens: number | null };
+/** TCK-2450 (ADR-0085 §4) — sélectionnable : déclaré, une clé, une adresse sur un hôte accepté. `host` : jamais l'adresse entière. */
+export type AiProvider = {
+  key: string;
+  legal_name: string;
+  key_present: boolean;
+  selectable: boolean;
+  reason: 'key_missing' | 'host_not_allowed' | 'training_opt_out_undeclared' | null;
+  host: string | null;
+  models: string[];
+};
+export type AiRoleRow = { role: AiModelRole; source: 'database' | 'config'; chain: AiModelLink[]; updated_at: string | null };
+export type AdminAiRolesResponse = { data: { roles: AiRoleRow[]; providers: AiProvider[] } };
+export type AiUsageRow = {
+  key: string;
+  role: AiModelRole;
+  prompt_version: number;
+  max_data_class: 'publique' | 'personnelle' | 'sensible';
+  authority: string;
+  enabled: boolean;
+  forced: AiModelLink | null;
+  /** ADR-0086 — des chaînes décimales en dollars, sans nombre de décimales figé : jamais de `Number`. */
+  daily_budget_usd: string | null;
+  default_daily_budget_usd: string | null;
+  spent_today_usd: string;
+  chain: AiModelLink[];
+};
+export type AdminAiUsagesResponse = { data: AiUsageRow[]; meta: { usd_to_xof: string } };
+export type AiModelPrices = { input: string; output: string; cache_read: string; cache_write: string };
+export type AiCatalogueModel = AiModelPrices & {
+  id: number | null;
+  provider: string;
+  model: string;
+  active: boolean;
+  origin: 'console' | 'config';
+  in_config: boolean;
+  updated_at: string | null;
+  /** Un modèle retiré encore employé : ses emplois. Nul sinon. */
+  uses: AiModelUses | null;
+};
+export type AdminAiModelsResponse = { data: AiCatalogueModel[]; meta: { usd_to_xof: string } };
+/** Ce que nomme un retrait refusé, code `ai.model_in_use`. */
+export type AiModelUses = { roles: string[]; usages: string[]; fallback_roles: string[] };
+export type AdminAiProvidersResponse = { data: AiProvider[] };
+export type AiProviderTestResponse = { data: { ok: boolean; model: string; duration_ms: number | null; error_code: string | null } };
+/** Le verdict du cliquet pour un usage : `null` quand l'évaluation passe (`EvaluationRunner::verdict`). */
+export type AiEvalVerdict = 'ai.eval.failures' | 'ai.eval.baseline_stale' | 'ai.eval.below_baseline';
+export type AiEvalBaseline = {
+  global: number;
+  fields?: Record<string, number>;
+  model?: string;
+  prompt_version?: number;
+  updated_at?: string | null;
+};
+export type AiEvalReport = {
+  usage: string;
+  model: string;
+  cases: number;
+  failures: number;
+  fields: Record<string, number>;
+  global: number;
+  cost_usd: string;
+  baseline: { global: number; fields: Record<string, number>; model?: string } | null;
+  below_baseline: boolean;
+  verdict?: AiEvalVerdict | null;
+};
+export type AiEvaluationRun = {
+  id: number;
+  role: AiModelRole;
+  candidate: AiModelLink;
+  status: AiEvaluationStatus;
+  below_baseline: boolean | null;
+  report: { usages: Record<string, AiEvalReport> } | null;
+  /** Un code pointé : `ai.eval.job_lost`, `ai.eval.job_failed`, ou un échec d'appel `ai.*` (`AiErrorCode`, TCK-2399). */
+  error_code: string | null;
+  created_at: string | null;
+  finished_at: string | null;
+  usd_to_xof: string;
+};
+export type AdminAiEvaluationResponse = { data: AiEvaluationRun };
+export type AiDashboardDay = {
+  date: string;
+  usage_key: string;
+  calls: number;
+  cost_usd: string;
+  avg_duration_ms: number | null;
+  errors: number;
+  refusals: number;
+  failovers: number;
+  cache_hits: number;
+  provider_rejections: number;
+};
+export type AdminAiDashboardResponse = {
+  data: {
+    days: AiDashboardDay[];
+    acceptance: Record<string, { decided: number; accepted: number; edited: number; rejected: number; rate: number | null }>;
+    /** `EvaluationRunner::writeBaseline` : la dernière référence d'évaluation de chaque usage qui en a une. */
+    baselines: Record<string, AiEvalBaseline>;
+    today: { spent_usd: string; daily_budget_usd: string | null };
+    usd_to_xof: string;
+  };
 };

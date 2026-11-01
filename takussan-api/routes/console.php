@@ -84,6 +84,11 @@ Schedule::job(new SendPropertyVisitReminders)->everyFiveMinutes()->withoutOverla
 // their digest_send_at and dispatches per-user BuildUserDigestJob sub-jobs.
 Schedule::job(new SendNotificationDigestJob)->hourly()->withoutOverlapping(60);
 Schedule::command('media:cleanup')->dailyAt('03:00');
+// TCK-2384 (ADR-0076 §8) — les évaluations du socle IA, la nuit. Idempotente : elle lit les jeux de
+// cas et écrit un rapport NEUF sous `storage/ai-evals/` ; la référence, seul `--update-baseline` à
+// la main la réécrit. Sans clé de fournisseur, elle ne fait rien. Ses appels sont journalisés
+// `is_evaluation` et ne consomment pas le budget du jour.
+Schedule::command('ai:eval --all')->dailyAt('02:30')->withoutOverlapping(120);
 // TCK-506 (revue de PR 253) — « neuf » est figé à l'indexation : sans ceci, un
 // bien de 2025 indexé en 2026 répond encore à `q=neuf` en 2028.
 Schedule::job(new RefreshNewBuildSearchLabel)->dailyAt('04:00')->withoutOverlapping();
@@ -212,6 +217,21 @@ Schedule::command('queue:prune-batches')->dailyAt('03:57')->timezone('Africa/Dak
 // disparaît avec ses tentatives d'envoi. Idempotente : une suppression par date.
 Schedule::command('notifications:prune-read')->dailyAt('04:05')->timezone('Africa/Dakar')->withoutOverlapping();
 
+// TCK-2391 (ADR-0077 §9) — la purge du Radar : annonces jamais publiées à 90 jours ou dès un STOP, réponses non confirmées,
+// preuves échues (3 ans après le retrait du dernier bien), numéro d'un annonceur sans annonce restante. Idempotente : chaque
+// étape ne choisit que ce qui est encore dû, relu sous verrou. Le job `PurgeRadarAdvertiser` la rejoue aussitôt après un STOP.
+Schedule::command('radar:purge')->dailyAt('04:15')->timezone('Africa/Dakar')->withoutOverlapping();
+
+// TCK-2431 (ADR-0077 §9, ADR-0083) — le compteur anonyme du jour des annonceurs par nature, AVANT la purge de 04:15 (qui remet
+// la nature à `unknown`) : le jour, la nature, deux nombres. Idempotent (`insertOrIgnore` sur jour et nature) ; la purge le
+// pose elle-même en premier si ce passage a manqué.
+Schedule::command('radar:count-natures')->dailyAt('04:13')->timezone('Africa/Dakar')->withoutOverlapping();
+
+// TCK-2393 (ADR-0083 §3) — les annonces collectées disparues de leur site, d'après le dernier passage qui a lu toute la liste ;
+// une disparition rattachée à un bien publié écrit `radar_source_listing_gone` (alertable). Idempotente : chaque disparition
+// se réclame une fois. Sans passage de collecte, elle ne trouve rien.
+Schedule::command('radar:observe-sources')->everyFifteenMinutes()->withoutOverlapping(15);
+
 // TCK-2342 (P19.04, ADR-0044 amendement du 2026-10-25) — le journal d'activité par famille : 12 mois
 // par défaut, 5 ans pour les journaux de preuve, 10 ans pour les pièces comptables
 // (`PruneActivityLog`). Idempotente : une suppression par date, par lots.
@@ -221,3 +241,12 @@ Schedule::command('audit:prune-activity-log')->dailyAt('04:10')->timezone('Afric
 // expiration et préavis des lots de crédits. Idempotent : chaque transition est réclamée par un
 // `UPDATE … WHERE status IN (…)`, un lot expiré est soldé à zéro, un préavis est marqué.
 Schedule::command('boosts:tick')->everyFiveMinutes()->withoutOverlapping(5);
+
+// TCK-2392 (ADR-0077 §10) — la collecte automatique du Radar : passages perdus clos, passages dus mis en file (file longue,
+// `CrawlRadarSource`), fusion des doublons entre sites. Rien ne part tant qu'aucune source n'est allumée par le porteur.
+// Idempotente : un seul passage actif par site (index unique partiel), une fusion jugée une fois (`merge_checked_at`).
+Schedule::command('radar:crawl')->everyFifteenMinutes()->withoutOverlapping(15);
+
+// TCK-2423 (ADR-0076, amendement du 2026-10-31) — le prochain lot d'annonces sans vecteur à jour, en file `ai`. Sans clé ni table,
+// rien ne part. Idempotente : une annonce à jour (empreinte du texte) n'est jamais reprise, et un échec suspend les balayages.
+Schedule::command('radar:embed-listings')->everyFifteenMinutes()->withoutOverlapping(15);

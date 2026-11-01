@@ -31,6 +31,8 @@ enum PlatformAbility: string
     case UsersBlock = 'platform.users.block';
     case ModerationView = 'platform.moderation.view';
     case SearchGlobal = 'platform.search.global';
+    // TCK-2386 (ADR-0077) — le Radar : saisir une annonce, lancer son extraction, la relire.
+    case RadarOperate = 'platform.radar.operate';
 
     // `super_admin` seul.
     case UsersImpersonate = 'platform.users.impersonate';
@@ -39,6 +41,12 @@ enum PlatformAbility: string
     case AgenciesSuspend = 'platform.agencies.suspend';
     case KycView = 'platform.kyc.view';
     case SettingsManage = 'platform.settings.manage';
+    // TCK-2389 (ADR-0077 §6, §11) — publier pour l'annonceur.
+    case RadarPublish = 'platform.radar.publish';
+
+    // TCK-2385 (ADR-0076 §12) — la console IA : lire, puis régler rôles, usages, évaluations.
+    case AiView = 'platform.ai.view';
+    case AiManage = 'platform.ai.manage';
 
     /**
      * La matrice de l'ADR-0047. `super_admin` = tous les gestes.
@@ -48,7 +56,7 @@ enum PlatformAbility: string
     public static function forLevel(PlatformProfileLevel $level): array
     {
         $viewer = [self::ConsoleAccess, self::ReportsView, self::HealthView, self::AgenciesView];
-        $support = [...$viewer, self::UsersView, self::UsersSupport, self::UsersBlock, self::ModerationView, self::SearchGlobal];
+        $support = [...$viewer, self::UsersView, self::UsersSupport, self::UsersBlock, self::ModerationView, self::SearchGlobal, self::RadarOperate];
 
         return match ($level) {
             PlatformProfileLevel::Viewer => $viewer,

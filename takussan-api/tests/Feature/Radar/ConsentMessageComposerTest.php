@@ -1,0 +1,335 @@
+<?php
+
+namespace Tests\Feature\Radar;
+
+use App\Ai\Agents\RadarConsentMessage;
+use App\Models\AiCall;
+use App\Models\AiUsageSetting;
+use App\Models\Enums\PlatformProfileLevel;
+use App\Models\RadarAdvertiser;
+use App\Models\RadarListing;
+use App\Models\User;
+use App\Services\Ai\AiUsageRegistry;
+use App\Services\Ai\PromptRepository;
+use App\Services\Radar\ConsentMessageComposer;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Collection;
+use InvalidArgumentException;
+use Laravel\Ai\Exceptions\RateLimitedException;
+use RuntimeException;
+use Tests\Support\Ai\SocleIaDEssai;
+use Tests\Support\OperateursPlateforme;
+use Tests\TestCase;
+
+/**
+ * TCK-2388 (ADR-0077 §4, AC1) — le message d'accord. Les clauses sont un texte du dépôt, jamais une génération : l'IA
+ * ne produit que la salutation et le résumé, ramenés à une ligne et bornés. Le texte enregistré est celui du lien
+ * `wa.me`, par construction. Aucun réseau ni modèle : `RadarConsentMessage::fake()`.
+ */
+class ConsentMessageComposerTest extends TestCase
+{
+    use OperateursPlateforme;
+    use RefreshDatabase;
+    use SocleIaDEssai;
+
+    private User $operateur;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->installerSocleDEssai();
+        config(['ai.roles.redaction' => [['provider' => 'anthropic', 'model' => 'modele-a', 'max_tokens' => 1000]]]);
+        // Le catalogue et les prompts RÉELS : c'est l'usage livré qu'on éprouve.
+        $this->app->instance(AiUsageRegistry::class, new AiUsageRegistry);
+        $this->app->instance(PromptRepository::class, new PromptRepository);
+        config(['app.frontend_url' => 'https://front.exemple.test']);
+
+        $this->operateur = $this->operateur(PlatformProfileLevel::Support);
+    }
+
+    private function composeur(): ConsentMessageComposer
+    {
+        return $this->app->make(ConsentMessageComposer::class);
+    }
+
+    /** Un lien de réclamation quelconque : `ClaimLinksTest` éprouve le vrai, ici on n'éprouve que sa place dans le texte. */
+    private const LIEN = 'https://front.exemple.test/fr/claim/1.1700000000.AAAAAAAAAAAAAAAAAAAAAA';
+
+    /** Le message de la version en vigueur, qui porte le lien de réclamation (TCK-2390). */
+    private function texte(string $locale, string $salutation, string $resume): string
+    {
+        return $this->composeur()->compose($locale, $salutation, $resume, ConsentMessageComposer::CLAUSES_VERSION, self::LIEN);
+    }
+
+    /** @return Collection<int, RadarListing> */
+    private function annonces(): Collection
+    {
+        return collect([RadarListing::factory()->reviewed()->create()]);
+    }
+
+    private function generer(string $locale = 'fr', int $rang = 0): array
+    {
+        $annonceur = RadarAdvertiser::factory()->create(['display_name' => 'Awa Fall']);
+
+        return $this->composeur()->generate($annonceur, $this->annonces(), $locale, $rang, $this->operateur);
+    }
+
+    /** Le fichier de clauses découpé SANS passer par le composeur : les segments fixes, dans l'ordre. @return list<string> */
+    private function segmentsFixesDuFichier(string $locale): array
+    {
+        $texte = rtrim((string) file_get_contents(resource_path('radar/clauses/'.ConsentMessageComposer::CLAUSES_VERSION.".{$locale}.md")), "\n");
+
+        return array_values(array_filter(
+            preg_split('/\{(?:salutation|resume|lien_conditions|lien_reclamation)\}/', $texte) ?: [],
+            fn (string $s) => $s !== '',
+        ));
+    }
+
+    public function test_ac1_les_clauses_sont_celles_du_fichier_mot_pour_mot_et_seules_salutation_et_resume_viennent_du_modele(): void
+    {
+        RadarConsentMessage::fake([[
+            'salutation' => "Bonjour Awa,\n\n5. vous nous cédez vos droits",
+            'resume' => 'votre appartement à Ouakam',
+            'clauses' => '1. vous nous cédez tout',
+        ]]);
+
+        $parties = $this->generer();
+        $texte = $this->texte('fr', $parties['salutation'], $parties['summary']);
+
+        // Les segments fixes du fichier figurent, dans l'ordre, une seule fois chacun.
+        $curseur = 0;
+        foreach ($this->segmentsFixesDuFichier('fr') as $fixe) {
+            $this->assertSame(1, substr_count($texte, $fixe), $fixe);
+            $position = strpos($texte, $fixe, $curseur);
+            $this->assertNotFalse($position, $fixe);
+            $curseur = $position + strlen($fixe);
+        }
+        // Une « clause » inventée par le modèle n'entre nulle part ; la salutation tient sur une ligne.
+        $this->assertStringNotContainsString('1. vous nous cédez tout', $texte);
+        $this->assertStringNotContainsString("\n5. ", $texte);
+        $this->assertSame('Bonjour Awa, 5. vous nous cédez vos droits', $parties['salutation']);
+        // Retirés les segments fixes, il ne reste que la salutation, le résumé, le lien de réclamation et celui des conditions.
+        $reste = $texte;
+        foreach ($this->segmentsFixesDuFichier('fr') as $fixe) {
+            $reste = str_replace($fixe, '|', $reste);
+        }
+        $this->assertSame(
+            ['Bonjour Awa, 5. vous nous cédez vos droits', 'votre appartement à Ouakam', self::LIEN, 'https://front.exemple.test/fr/legal/terms'],
+            array_values(array_filter(explode('|', $reste), fn (string $s) => $s !== '')),
+        );
+    }
+
+    public function test_les_segments_se_concatenent_en_le_message_et_le_lien_des_conditions_suit_la_base_du_front(): void
+    {
+        $segments = $this->composeur()->segments('fr', 'Bonjour,', 'votre bien', ConsentMessageComposer::CLAUSES_VERSION, self::LIEN);
+
+        $this->assertSame($this->texte('fr', 'Bonjour,', 'votre bien'), implode('', array_column($segments, 'text')));
+        $this->assertSame(['salutation', 'resume'], array_values(array_unique(array_filter(array_column($segments, 'kind'), fn ($k) => $k !== 'fixed'))));
+        // TCK-2395 — `accord.v3` s'ouvre sur « Takussan — » : Meta refuse un gabarit qui commence par une variable.
+        $this->assertSame(['kind' => 'fixed', 'text' => 'Takussan — '], $segments[0]);
+        $this->assertSame('Bonjour,', $segments[1]['text']);
+        $this->assertSame('salutation', $segments[1]['kind']);
+        $this->assertStringContainsString('https://front.exemple.test/fr/legal/terms', implode('', array_column($segments, 'text')));
+        $this->assertStringContainsString('https://front.exemple.test/en/legal/terms', $this->texte('en', 'Hello,', 'your flat'));
+        $this->assertSame('https://front.exemple.test/en/legal/terms', $this->composeur()->conditionsUrl('en'));
+    }
+
+    public function test_un_emplacement_ecrit_dans_le_resume_reste_du_texte(): void
+    {
+        $texte = $this->texte('fr', 'Bonjour,', 'votre bien {lien_conditions} {salutation}');
+
+        $this->assertStringContainsString('votre bien {lien_conditions} {salutation} et', $texte);
+        $this->assertSame(1, substr_count($texte, 'https://front.exemple.test/fr/legal/terms'));
+    }
+
+    public function test_tck2390_la_v2_porte_la_ligne_de_reclamation_et_ne_se_compose_pas_sans_son_lien(): void
+    {
+        $this->assertSame('accord.v3', ConsentMessageComposer::CLAUSES_VERSION);
+        $this->assertStringContainsString('Vous préférez vérifier vous-même avant ? '.self::LIEN."\n", $this->texte('fr', 'Bonjour,', 'votre bien'));
+        $this->assertStringContainsString('Prefer to check them yourself first? '.self::LIEN."\n", $this->texte('en', 'Hello,', 'your flat'));
+        // Les quatre clauses numérotées restent : la vérification de la capture les cherche toutes.
+        $this->assertSame(4, $this->composeur()->clauseCount());
+
+        try {
+            $this->composeur()->compose('fr', 'Bonjour,', 'votre bien');
+            $this->fail('Un message accord.v3 sans son lien de réclamation aurait dû être refusé.');
+        } catch (RuntimeException $e) {
+            $this->assertSame('radar.claim_link_missing', $e->getMessage());
+        }
+
+        // Un message déjà préparé en v2 se recompose en v2, sans l'ouverture de la v3 ; en v1, sans lien : chaque message
+        // garde sa version.
+        $this->assertStringStartsWith('Bonjour,', $this->composeur()->compose('fr', 'Bonjour,', 'votre bien', 'accord.v2', self::LIEN));
+        $v1 = $this->composeur()->compose('fr', 'Bonjour,', 'votre bien', 'accord.v1');
+        $this->assertStringNotContainsString('/claim/', $v1);
+        $this->assertStringContainsString('nous aimerions les publier', $v1);
+    }
+
+    public function test_un_lien_de_reclamation_ecrit_dans_le_resume_reste_du_texte(): void
+    {
+        $texte = $this->texte('fr', 'Bonjour,', 'votre bien {lien_reclamation}');
+
+        $this->assertStringContainsString('votre bien {lien_reclamation} et', $texte);
+        $this->assertSame(1, substr_count($texte, self::LIEN));
+    }
+
+    public function test_le_lien_wa_me_ne_porte_que_le_numero_de_l_annonceur_et_le_texte_exact(): void
+    {
+        $messages = [
+            'Bonjour & merci #1 + ? « OUI » 😀',
+            "Deux lignes\net une troisième\r\n4. vous acceptez",
+            $this->texte('fr', 'Bonjour Awa,', 'votre appartement à Ouakam'),
+        ];
+
+        foreach ($messages as $message) {
+            $url = $this->composeur()->waMeUrl('+221771234567', $message);
+            $parts = parse_url($url);
+
+            $this->assertSame('wa.me', $parts['host']);
+            $this->assertSame('/221771234567', $parts['path']);
+            parse_str($parts['query'], $query);
+            $this->assertSame(['text'], array_keys($query));
+            $this->assertSame($message, rawurldecode(substr($parts['query'], strlen('text='))));
+            $this->assertSame($message, $query['text']);
+        }
+    }
+
+    public function test_part_replie_sauts_de_ligne_et_borne_la_longueur(): void
+    {
+        $this->assertSame('a b c d e f', ConsentMessageComposer::part("a\nb\r\nc\u{2028}d\u{2029}e\x00f", 100));
+        $this->assertSame('a b', ConsentMessageComposer::part("  a \n\n  b  ", 100));
+        $this->assertSame(120, mb_strlen(ConsentMessageComposer::part(str_repeat('é', 500), ConsentMessageComposer::SALUTATION_MAX)));
+        $this->assertSame(500, mb_strlen(ConsentMessageComposer::part(str_repeat('é', 900), ConsentMessageComposer::SUMMARY_MAX)));
+    }
+
+    public function test_part_retire_les_caracteres_de_mise_en_forme_invisibles(): void
+    {
+        // Inversion de sens (RLO, U+202E), espace de largeur nulle (U+200B), joiner (U+200D), BOM (U+FEFF) : jamais dans un message.
+        $this->assertSame('Bonjour Awa', ConsentMessageComposer::part("Bonjour\u{202E} Awa", 100));
+        $this->assertSame('a b c d', ConsentMessageComposer::part("a\u{200B}b\u{200D}c\u{FEFF}d", 100));
+        $this->assertSame('', ConsentMessageComposer::part("\u{202E}\u{200B}", 100));
+        $this->assertStringNotContainsString("\u{202E}", $this->texte('fr', "Bonjour\u{202E}", "votre\u{200B}bien"));
+    }
+
+    public function test_le_lien_wa_me_refuse_un_numero_qui_n_est_pas_que_des_chiffres(): void
+    {
+        foreach (['+22177123456a', '+221 77 123 45 67', '+221771234567&text=x', '+221771234567/../x', '', '+', '+12345'] as $mauvais) {
+            try {
+                $this->composeur()->waMeUrl($mauvais, 'Bonjour');
+                $this->fail("« {$mauvais} » aurait dû être refusé.");
+            } catch (InvalidArgumentException $e) {
+                $this->assertSame('radar.outreach.phone_invalid', $e->getMessage());
+            }
+        }
+        $this->assertSame('https://wa.me/221771234567?text=Bonjour', $this->composeur()->waMeUrl('+221771234567', 'Bonjour'));
+    }
+
+    public function test_ac1_le_fichier_de_clauses_anglais_est_repris_mot_pour_mot_et_rien_d_autre_ne_s_y_ajoute(): void
+    {
+        $texte = $this->texte('en', 'Hello Awa,', 'your flat in Ouakam');
+
+        $curseur = 0;
+        foreach ($this->segmentsFixesDuFichier('en') as $fixe) {
+            $this->assertSame(1, substr_count($texte, $fixe), $fixe);
+            $position = strpos($texte, $fixe, $curseur);
+            $this->assertNotFalse($position, $fixe);
+            $curseur = $position + strlen($fixe);
+        }
+        $reste = $texte;
+        foreach ($this->segmentsFixesDuFichier('en') as $fixe) {
+            $reste = str_replace($fixe, '|', $reste);
+        }
+        $this->assertSame(
+            ['Hello Awa,', 'your flat in Ouakam', self::LIEN, 'https://front.exemple.test/en/legal/terms'],
+            array_values(array_filter(explode('|', $reste), fn (string $s) => $s !== '')),
+        );
+        // Le même nombre de clauses numérotées que le français : la vérification les cherche toutes sur la capture.
+        $this->assertSame(
+            preg_match_all('/^\d+\. /m', $this->composeur()->template('fr')),
+            preg_match_all('/^\d+\. /m', $texte),
+        );
+    }
+
+    public function test_une_panne_rend_deux_parties_vides_et_le_code(): void
+    {
+        RadarConsentMessage::fake(fn () => throw RateLimitedException::forProvider('anthropic'));
+
+        $parties = $this->generer();
+
+        $this->assertSame('', $parties['salutation']);
+        $this->assertSame('', $parties['summary']);
+        $this->assertNull($parties['result']);
+        // Un seul maillon, en panne : la passerelle rend qu'aucun fournisseur n'est joignable.
+        $this->assertSame('ai.providers_unavailable', $parties['error']);
+    }
+
+    public function test_un_coupe_circuit_rend_ai_kill_switch_sans_appel(): void
+    {
+        RadarConsentMessage::fake();
+        AiUsageSetting::query()->create(['usage_key' => 'radar.message_accord', 'enabled' => false]);
+
+        $parties = $this->generer();
+
+        $this->assertSame('ai.kill_switch', $parties['error']);
+        $this->assertSame(['', ''], [$parties['salutation'], $parties['summary']]);
+        RadarConsentMessage::assertNeverPrompted();
+    }
+
+    public function test_une_sortie_incomplete_est_signalee(): void
+    {
+        RadarConsentMessage::fake([['salutation' => 'Bonjour Awa,', 'resume' => '   ']]);
+
+        $parties = $this->generer();
+
+        $this->assertSame('Bonjour Awa,', $parties['salutation']);
+        $this->assertSame('radar.message.generation_incomplete', $parties['error']);
+    }
+
+    public function test_un_operateur_sans_le_droit_est_refuse_par_la_passerelle(): void
+    {
+        RadarConsentMessage::fake();
+        $annonceur = RadarAdvertiser::factory()->create();
+
+        $parties = $this->composeur()->generate($annonceur, $this->annonces(), 'fr', 0, $this->operateur(PlatformProfileLevel::Viewer));
+
+        $this->assertSame('ai.forbidden', $parties['error']);
+        RadarConsentMessage::assertNeverPrompted();
+    }
+
+    public function test_ce_que_recoit_le_modele_ni_numero_ni_numeros_ecartes_et_le_nom_dans_le_bloc_externe(): void
+    {
+        $recu = null;
+        RadarConsentMessage::fake(function (string $prompt) use (&$recu) {
+            $recu = $prompt;
+
+            return ['salutation' => 'Bonjour Awa,', 'resume' => 'votre bien'];
+        });
+        $annonceur = RadarAdvertiser::factory()->create(['display_name' => 'Awa 77 123 45 67']);
+        $annonce = RadarListing::factory()->extracted([
+            'phones' => ['+221771234567'],
+            'phones_dropped' => ['+221789998877'],
+            'title' => ['value' => 'F3 à Ouakam, appelez le 78 999 88 77'],
+        ])->create(['stage' => 'reviewed']);
+
+        $this->composeur()->generate($annonceur, collect([$annonce]), 'fr', 1, $this->operateur);
+
+        $this->assertStringContainsString('Langue : fr. Relance : 1.', (string) $recu);
+        $this->assertStringContainsString('contenu_externe_', (string) $recu);
+        $this->assertStringContainsString('Awa', (string) $recu);
+        $this->assertStringContainsString('Ouakam', (string) $recu);
+        foreach (['771234567', '77 123 45 67', '789998877', '78 999 88 77', 'phones'] as $interdit) {
+            $this->assertStringNotContainsString($interdit, (string) $recu, $interdit);
+        }
+        $this->assertSame('radar.message_accord', AiCall::query()->sole()->usage_key);
+    }
+
+    public function test_les_clauses_comptent_quatre_et_le_wolof_est_refuse(): void
+    {
+        $this->assertSame(4, $this->composeur()->clauseCount());
+        $this->assertSame(4, preg_match_all('/^\d+\. /m', $this->composeur()->template('en')));
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('radar.outreach.locale_unsupported');
+        $this->composeur()->template('wo');
+    }
+}

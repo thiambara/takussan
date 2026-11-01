@@ -62,6 +62,16 @@ import type {
   ReportGranularity,
   ReportPeriod,
   SharedLegalIdentifiers,
+  AdminAiDashboardResponse,
+  AdminAiEvaluationResponse,
+  AdminAiModelsResponse,
+  AdminAiProvidersResponse,
+  AdminAiRolesResponse,
+  AdminAiUsagesResponse,
+  AiModelLink,
+  AiModelRole,
+  AiModelPrices,
+  AiProviderTestResponse,
 } from '@/types/super-admin';
 import { cheminApi, requete } from '@/lib/chemin-api';
 import { jsonOrThrow, KYC_DOSSIER_FIELDS } from '@/lib/queries/super-admin-coque';
@@ -1450,4 +1460,105 @@ export async function rejectAdminAgencyUpgradeRequest(
   );
   const json = await jsonOrThrow<{ data: AdminAgencyUpgradeRequestRow }>(res);
   return json.data;
+}
+
+// TCK-2385 (ADR-0076 §12) — la console IA. Aucune de ces routes ne rend ni n'accepte une clé.
+export async function fetchAdminAiRoles(): Promise<AdminAiRolesResponse> {
+  const res = await fetch('/api/super-admin/ai/roles', { credentials: 'include' });
+  return jsonOrThrow<AdminAiRolesResponse>(res);
+}
+
+export async function putAdminAiRole(role: AiModelRole, chain: AiModelLink[], overrideReason?: string): Promise<AdminAiRolesResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/ai/roles/${role}`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chain, ...(overrideReason ? { override_reason: overrideReason } : {}) }),
+  });
+  return jsonOrThrow<AdminAiRolesResponse>(res);
+}
+
+export async function deleteAdminAiRole(role: AiModelRole): Promise<AdminAiRolesResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/ai/roles/${role}`, { method: 'DELETE', credentials: 'include' });
+  return jsonOrThrow<AdminAiRolesResponse>(res);
+}
+
+export async function fetchAdminAiUsages(): Promise<AdminAiUsagesResponse> {
+  const res = await fetch('/api/super-admin/ai/usages', { credentials: 'include' });
+  return jsonOrThrow<AdminAiUsagesResponse>(res);
+}
+
+export async function patchAdminAiUsage(
+  key: string,
+  payload: { enabled?: boolean; forced_provider?: string | null; forced_model?: string | null; daily_budget_usd?: string | null },
+): Promise<AdminAiUsagesResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/ai/usages/${key}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return jsonOrThrow<AdminAiUsagesResponse>(res);
+}
+
+export async function fetchAdminAiModels(): Promise<AdminAiModelsResponse> {
+  const res = await fetch('/api/super-admin/ai/models', { credentials: 'include' });
+  return jsonOrThrow<AdminAiModelsResponse>(res);
+}
+
+export async function postAdminAiModel(payload: AiModelPrices & { provider: string; model: string; active?: boolean }): Promise<AdminAiModelsResponse> {
+  const res = await fetch('/api/super-admin/ai/models', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return jsonOrThrow<AdminAiModelsResponse>(res);
+}
+
+export async function patchAdminAiModel(id: number, payload: Partial<AiModelPrices> & { active?: boolean }): Promise<AdminAiModelsResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/ai/models/${id}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return jsonOrThrow<AdminAiModelsResponse>(res);
+}
+
+/** Efface la ligne qui remplace un modèle de la configuration : le tarif de la configuration s'applique de nouveau. */
+export async function deleteAdminAiModel(id: number): Promise<AdminAiModelsResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/ai/models/${id}`, { method: 'DELETE', credentials: 'include' });
+  return jsonOrThrow<AdminAiModelsResponse>(res);
+}
+
+export async function fetchAdminAiProviders(): Promise<AdminAiProvidersResponse> {
+  const res = await fetch('/api/super-admin/ai/providers', { credentials: 'include' });
+  return jsonOrThrow<AdminAiProvidersResponse>(res);
+}
+
+export async function testAdminAiProvider(provider: string): Promise<AiProviderTestResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/ai/providers/${provider}/test`, { method: 'POST', credentials: 'include' });
+  return jsonOrThrow<AiProviderTestResponse>(res);
+}
+
+export async function postAdminAiEvaluation(payload: { role: AiModelRole; provider: string; model: string; max_tokens?: number | null }): Promise<AdminAiEvaluationResponse> {
+  const res = await fetch('/api/super-admin/ai/evaluations', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return jsonOrThrow<AdminAiEvaluationResponse>(res);
+}
+
+export async function fetchAdminAiEvaluation(id: number): Promise<AdminAiEvaluationResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/ai/evaluations/${id}`, { credentials: 'include' });
+  return jsonOrThrow<AdminAiEvaluationResponse>(res);
+}
+
+export async function fetchAdminAiDashboard(from: string, to: string): Promise<AdminAiDashboardResponse> {
+  const qs = new URLSearchParams({ from, to });
+  const res = await fetch(cheminApi`/api/super-admin/ai/dashboard${requete(qs)}`, { credentials: 'include' });
+  return jsonOrThrow<AdminAiDashboardResponse>(res);
 }

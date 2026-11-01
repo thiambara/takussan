@@ -3,6 +3,7 @@
 #
 #   deploy/takussan/smoke-api.sh image   # l'image seule
 #   deploy/takussan/smoke-api.sh pile    # la pile entière, contre les services de docker-compose.yml
+#   deploy/takussan/smoke-api.sh masqueur  # le masqueur seul, sans BUILD_SHA=smoke (joué par api-ci.yml)
 #
 # Prérequis : l'image construite sous le tag `local` (et `local-seed` pour la pile) :
 #   docker build --build-arg BUILD_SHA=smoke --target runtime -t ghcr.io/thiambara/takussan-api:local takussan-api
@@ -64,10 +65,34 @@ verifier_image() {
   dans test -w /config/psysh || echec "/config/psysh n'est pas inscriptible : artisan tinker meurt sous www-data"
   ok "artisan tinker utilisable"
 
+  verifier_masqueur_compile
   verifier_delai_d_execution
   verifier_exif_retire
   verifier_journal_des_exceptions
   verifier_refus_trop_gros_lisible
+}
+
+# TCK-2451 — le motif du masqueur (`PhoneMasker::MASK_PATTERN`) et celui des étages du Radar (`RadarPhone`)
+# compilent avec le PCRE2 de l'IMAGE, pas seulement celui du poste. PCRE2 plafonne la taille d'un motif
+# compilé, et le plafond change d'une version à l'autre : un motif de 36 ko compilait avec PCRE2 10.49
+# (brew) et levait « regular expression is too large » avec la 10.44 de l'image — tout masquage levait
+# alors `ai.phone_mask_failed`, et le Radar ne lisait plus aucun numéro (`[]`), sans qu'aucun test le
+# voie. Mesuré le 2026-10-30 : sur le motif de 36 ko, cette sonde sort en 1.
+verifier_masqueur_compile() {
+  # shellcheck disable=SC2016 # du PHP, évalué dans le conteneur.
+  dans php -r '
+    require "/app/vendor/autoload.php";
+    $attendus = [
+        "Tel 77 123 45 67" => "Tel [TELEPHONE]",
+        "Villa R+1 00221 77 012 34 56 3 chambres" => "Villa R+1 [TELEPHONE] 3 chambres",
+    ];
+    foreach ($attendus as $texte => $masque) {
+        if (App\Support\PhoneMasker::mask($texte) !== $masque) { fwrite(STDERR, "masque faux : $texte\n"); exit(1); }
+    }
+    if (App\Support\RadarPhone::contactsFromText("Villa R+1 00221 77 012 34 56") !== ["+221770123456"]) {
+        fwrite(STDERR, "contact du Radar perdu\n"); exit(1);
+    }' || echec "le masqueur ne compile pas avec le PCRE2 de l'image (ou masque faux) : PhoneMasker::mask lève, le Radar ne lit plus rien"
+  ok "le masqueur et les étages du Radar compilent avec le PCRE2 de l'image"
 }
 
 # TCK-2370 (P236.01) — le 413 que Caddy rend avant `php_server` (corps de plus de 25 Mio) porte les
@@ -319,7 +344,7 @@ verifier_release_en_echec() {
   [ "$(sonde -o /dev/null -w '%{http_code}' "$api/up")" = 200 ] || echec "release en échec : /up ne rend plus 200"
   grep -qix 'x-build-sha: smoke' <<<"$(sonde -D - -o /dev/null "$api/up" | tr -d '\r')" \
     || echec "release en échec : X-Build-Sha a changé"
-  for s in worker worker-media scheduler; do
+  for s in worker worker-long worker-ia worker-media scheduler; do
     [ "$(docker inspect -f '{{.State.Status}}' "$PROJET-$s-1")" = running ] \
       || echec "release en échec : $s ne tourne plus"
   done
@@ -372,7 +397,7 @@ verifier_pile() {
   [ "$(docker inspect -f '{{.State.ExitCode}}' "$PROJET-release-1")" = 0 ] \
     || { "${COMPOSE[@]}" logs release; echec "release a échoué"; }
   attendre_api_saine
-  for s in worker worker-media scheduler; do
+  for s in worker worker-long worker-ia worker-media scheduler; do
     [ "$(docker inspect -f '{{.State.Status}}' "$PROJET-$s-1")" = running ] \
       || { "${COMPOSE[@]}" logs "$s"; echec "$s ne tourne pas"; }
   done
@@ -397,7 +422,10 @@ verifier_pile() {
   # Une sonde par file que la production doit consommer — les files de check-queues.mjs. Un job
   # SÉRIALISABLE : une closure écrite dans tinker ne l'est pas (laravel/serializable-closure relit
   # le fichier source, et du code eval() n'en a pas). `inspire` vit dans routes/console.php.
-  for q in default notifications-urgent media reconciliation; do
+  # `ai` (TCK-2402) : lue par le seul `worker-ia`. Un `worker-ia` qui lirait autre chose, ou absent, laisse
+  # la sonde en table et fait échouer l'attente plus bas. (`long` est sur la connexion `database-long` : une
+  # sonde `onQueue('long')` partirait sur `database` et ne dirait rien de `worker-long`.)
+  for q in default notifications-urgent media reconciliation ai; do
     tinker "Artisan::queue('inspire')->onQueue('$q');" >/dev/null
   done
   for _ in $(seq 30); do
@@ -406,7 +434,7 @@ verifier_pile() {
   done
   [ "$n" = 0 ] || echec "$n job(s) jamais consommé(s) : $(tinker 'echo DB::table("jobs")->pluck("queue")->implode(",");')"
   [ "$(tinker 'echo DB::table("failed_jobs")->count();' | tr -dc '0-9')" = 0 ] || echec "des jobs sonde ont échoué"
-  ok "les quatre files sont consommées"
+  ok "les cinq files de la connexion database sont consommées (dont ai)"
 
   "${COMPOSE[@]}" exec -T api sh -c 'echo sonde > /app/storage/app/public/sonde.txt'
   grep -qix 'cache-control: public, max-age=604800, stale-while-revalidate=86400' \
@@ -435,7 +463,7 @@ verifier_pile() {
   ok "limite de corps à 25 Mio, comme nginx"
 
   sleep 30
-  for s in api worker worker-media scheduler; do
+  for s in api worker worker-long worker-ia worker-media scheduler; do
     [ "$(docker inspect -f '{{.RestartCount}}' "$PROJET-$s-1")" = 0 ] || echec "$s redémarre en boucle"
   done
   ok "aucun service ne redémarre"
@@ -450,6 +478,7 @@ verifier_pile() {
 
 case "${1:-}" in
   image) verifier_image ;;
+  masqueur) verifier_masqueur_compile ;;   # la seule sonde que la CI joue (api-ci.yml, job image)
   pile) verifier_pile ;;
-  *) echo "usage : $0 image|pile" >&2; exit 2 ;;
+  *) echo "usage : $0 image|pile|masqueur" >&2; exit 2 ;;
 esac

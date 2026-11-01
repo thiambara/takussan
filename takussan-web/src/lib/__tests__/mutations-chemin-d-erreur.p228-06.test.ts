@@ -13,7 +13,8 @@ import path from 'node:path';
  * - l'appel lui-même passe un `onError` ;
  * - le fichier lit `x.error` ou `x.isError` ;
  * - la déclaration `const x = …(…)` du fichier porte un `onError` ;
- * - `x` vient d'un crochet `useXxx` de `src/` dont la définition porte un `onError`.
+ * - `x` vient d'un crochet `useXxx` de `src/` dont la définition porte un `onError` (`const x = useXxx(…)`, ou
+ *   `const { x } = useXxx(…)` quand le crochet rend plusieurs mutations).
  *
  * Il ne voit ni un `mutate` déstructuré, ni une erreur rattrapée autrement (`onSettled`) : ces cas
  * vont dans `EXCEPTIONS`, avec leur motif. `mutateAsync` n'est pas relevé (son rejet se rattrape
@@ -85,6 +86,11 @@ function sansCheminDErreur(source: string, crochets: Set<string>): string[] {
       if (/\bonError\b/.test(bloc(source, decl.index + decl[0].length - 1))) continue;
       if (crochets.has(decl[1].split('.').pop() ?? '')) continue;
     }
+    // `const { x, y } = useXxx(…)` : les mutations rendues par un crochet de `src/` qui porte un `onError`.
+    const destructure = [
+      ...source.slice(0, m.index).matchAll(/\bconst\s+\{([^}]*)\}\s*=\s*([\w$.]+)\s*(?:<[^(]*>)?\(/g),
+    ].filter((d) => d[1].split(',').some((nom) => nom.trim() === x)).at(-1);
+    if (destructure && crochets.has(destructure[2].split('.').pop() ?? '')) continue;
     muets.push(x);
   }
   return muets;
@@ -104,6 +110,10 @@ describe('P228.06 — une mutation lancée par mutate() a un chemin d’erreur',
     expect(sansCheminDErreur('const a = useMutation({ mutationFn: f, onError: dire });\na.mutate();', crochets)).toEqual([]);
     expect(sansCheminDErreur('const a = useAvecErreur(3);\na.mutate();', crochets)).toEqual([]);
     expect(sansCheminDErreur('const a = useSansErreur();\na.mutate({ onSuccess: f });', crochets)).toEqual(['a']);
+    // Déstructurées d'un crochet : couvertes par le seul crochet qui porte un `onError`.
+    expect(sansCheminDErreur('const { a, b } = useAvecErreur(3);\na.mutate();\nb.mutate();', crochets)).toEqual([]);
+    expect(sansCheminDErreur('const { a } = useSansErreur();\na.mutate();', crochets)).toEqual(['a']);
+    expect(sansCheminDErreur('const { b } = useAvecErreur(3);\na.mutate();', crochets)).toEqual(['a']);
     // `b.isError` ne couvre pas `a`.
     expect(sansCheminDErreur('a.mutate();\nb.isError;', crochets)).toEqual(['a']);
     // Deux composants nomment `mutation` : l'`onError` du premier ne couvre pas le second.
