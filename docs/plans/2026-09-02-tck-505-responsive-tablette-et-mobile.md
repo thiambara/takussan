@@ -1,6 +1,6 @@
 # Plan — TCK-505 : responsive tablette et mobile, onze défauts mesurés
 
-Ticket : `docs/backlog/tickets/TCK-505-responsive-onze-defauts-mesures-sur-135-ecrans.md`.
+Ticket : `docs/backlog/tickets/done/TCK-505-responsive-onze-defauts-mesures-sur-135-ecrans.md`.
 Rapport de campagne : `docs/qa/responsive-2026-09-02.md`.
 
 ## Ce que le relevé a appris, et qui gouverne le plan

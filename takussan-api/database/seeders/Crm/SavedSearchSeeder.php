@@ -20,7 +20,7 @@ class SavedSearchSeeder extends Seeder
                     continue;
                 }
 
-                $count = random_int(1, 3);
+                $count = mt_rand(1, 3);
                 for ($i = 1; $i <= $count; $i++) {
                     $createdAt = Timeline::randomDateBetween(
                         Timeline::seedStart(),

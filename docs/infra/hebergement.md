@@ -20,7 +20,7 @@
 | `preview.api.takussan.com` | Compose `takussan-api-preview`, service `api:8080` — A en DNS seul | `ghcr.io/thiambara/takussan-api:preview` | 2026-09-14 : `/up` → `200`, `X-Build-Sha` = `preview`, Let's Encrypt |
 | `preview.takussan.com` | Application `takussan-web-preview` — A proxifié (était un CNAME Vercel) | `ghcr.io/thiambara/takussan-web:preview` | 2026-09-14 : `401` sans authentification, `200` avec (la racine rend `307` vers `/fr`) ; `cf-ray`, aucun `x-vercel-id` ; plafond **512 Mio** depuis le 2026-09-14 (TCK-520 : pic 327 Mio mesuré sous charge d'images sur l'ancien plafond de 384) |
 | `deploy.takussan.com` | l'interface de Dokploy — A proxifié, certificat d'origine Let's Encrypt | — | 2026-09-14 : `200`, `http` → `301` |
-| `api.takussan.com` — **le nom que le front public appelle** | **aucun service** jusqu'à la phase F (TCK-517) : A `178.18.247.62` en DNS seul, hérité de l'ancien serveur ; Traefik y présente `CN=TRAEFIK DEFAULT CERT` (auto-signé, réémis à chaque redémarrage de Traefik — `notAfter` 2027-09-14 20:46 Z, celui du redémarrage de TCK-518) et rend `404` derrière. Depuis `www.takussan.com`, l'appel **échoue sur la poignée de main TLS**, plus sur un 404 : même effet pour l'utilisateur (TCK-332, D-04). ⚠ Pas dans `certificats.sh` : il rougirait chaque jour ; le nom y entre en F3, étape 3. Décision de ne pas servir de `503` avant F : TCK-523 | — | 2026-09-14, 22:42 Z (TCK-523) : `curl -sS -o /dev/null -w '%{http_code} %{ssl_verify_result}' https://api.takussan.com/up` → `000 20` ; avec `-k` → `404` ; `openssl s_client -connect 178.18.247.62:443 -servername api.takussan.com </dev/null \| openssl x509 -noout -subject -enddate` |
+| `api.takussan.com` — le nom de l'API de production (le front public qui l'appelait a disparu avec Vercel, voir ci-dessous) | **aucun service** jusqu'à la phase F (TCK-517) : A `178.18.247.62` en DNS seul, hérité de l'ancien serveur ; Traefik y présente `CN=TRAEFIK DEFAULT CERT` (auto-signé, réémis à chaque redémarrage de Traefik — `notAfter` 2027-09-14 20:46 Z, celui du redémarrage de TCK-518) et rend `404` derrière. Au 2026-09-14, l'appel du front de `www.takussan.com` **échouait sur la poignée de main TLS**, plus sur un 404 (TCK-332, D-04). **Depuis le 2026-10-15, plus aucun front public ne l'appelle** : `www.takussan.com` n'a plus d'enregistrement DNS (relevé du 2026-10-18, tableau suivant). TCK-332 est `obsolete` depuis le 2026-11-03 (son objectif est l'AC2 de TCK-517). ⚠ Pas dans `certificats.sh` : il rougirait chaque jour ; le nom y entre en F3, étape 3. Décision de ne pas servir de `503` avant F : TCK-523 | — | 2026-09-14, 22:42 Z (TCK-523) : `curl -sS -o /dev/null -w '%{http_code} %{ssl_verify_result}' https://api.takussan.com/up` → `000 20` ; avec `-k` → `404` ; `openssl s_client -connect 178.18.247.62:443 -servername api.takussan.com </dev/null \| openssl x509 -noout -subject -enddate` |
 
 La production s'ajoute à ce tableau en phase F du plan. **D'ici là, il n'y a pas de site public** :
 Vercel, qui servait `www.takussan.com` ([ADR-0017](../adr/0017-deploiement-du-front-pilote-par-vercel.md)),
@@ -80,15 +80,18 @@ certification de Debian) pour les deux images de l'API, rien pour le front. Aucu
 
 | Élément | Valeur | Relevé le | Commande |
 |---|---|---|---|
-| Version de Dokploy | `dokploy/dokploy:v0.30.8` — v0.30.6 posée par `DOKPLOY_VERSION` à l'installation (runbook, étape 6, TCK-526), montée en v0.30.8 par Settings → Update le 2026-10-08 ; Traefik non redémarré, `traefik.yml` intact (accessLog et courriel ACME relus) ; relevée dans `versions.json` | 2026-10-08 | `docker service inspect dokploy --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}'` |
+| Version de Dokploy | `dokploy/dokploy:v0.30.10` — v0.30.6 posée par `DOKPLOY_VERSION` à l'installation (runbook, étape 6, TCK-526), montée en v0.30.8 par Settings → Update le 2026-10-08, puis en v0.30.10 dans la soirée du 2026-10-31 ; `traefik.yml` est resté intact à ces deux mises à jour ; relevée dans `versions.json`. Premiers déploiements sous v0.30.10 le 2026-11-01, 00:21 et 00:22 Z : `done`, `run --rm release` au journal, `images.yml` vert. ⚠ `env` n'est plus lisible en clair dans la base de Dokploy depuis cette version, et la conséquence pour « Reconstruire le serveur » n'est pas mesurée | 2026-11-01 | `docker service inspect dokploy --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}'` |
 | Version de Docker | `29.8.0` (paquets `5:29.8.0-1~ubuntu.24.04~noble`, containerd.io `2.3.5-1`, compose `5.5.1-1`, buildx `0.37.1-1`), **tenus par `apt-mark hold`** et épinglés dans `bootstrap.sh` § 0 (TCK-526). Rejoué le 2026-09-14 : `DOCKER_VERSION=99.0.0 bash bootstrap.sh` refuse avant tout geste ; `bash bootstrap.sh` sort en 0, `docker --version` inchangé | 2026-09-14 | `docker version --format '{{.Server.Version}}'` ; `apt-mark showhold` ; `dpkg-query -W docker-ce docker-ce-cli containerd.io docker-compose-plugin docker-buildx-plugin` |
-| Noyau et redémarrages | `6.8.0-147-generic` depuis le redémarrage du 2026-10-17, 22:26 Z, accordé par le porteur. Le serveur tournait en `-138` depuis 33 jours, alors que quatre noyaux plus récents et `libc6` étaient installés (`/var/run/reboot-required` daté du 2026-10-15). Les mises à jour automatiques installent, mais ne redémarrent jamais (`Automatic-Reboot` non posé) : le redémarrage se décide à la main. Retour en 40 s, les 11 mêmes conteneurs, port 3000 toujours fermé (règle reposée par `fermer-port-3000.service`). ⚠ Au démarrage, `worker` et `worker-media` échouent une vingtaine de secondes (`could not translate host name "serveur-postgres-egr6ii"`), le temps que le service PostgreSQL de Swarm démarre, puis repartent seuls (`restart: unless-stopped`). `cloud-init.service` échoue à chaque démarrage (commande `bootcmd` de Contabo, déjà en échec avant celui-ci), sans effet sur les services | 2026-10-17 | `uname -r` ; `ls /var/run/reboot-required` ; `cat /var/run/reboot-required.pkgs` ; `systemctl --failed` |
+| Noyau et redémarrages | `6.8.0-147-generic` depuis le redémarrage du 2026-10-17, 22:26 Z, accordé par le porteur. Le serveur tournait en `-138` depuis 33 jours, alors que quatre noyaux plus récents et `libc6` étaient installés (`/var/run/reboot-required` daté du 2026-10-15). Les mises à jour automatiques installent, mais ne redémarrent jamais (`Automatic-Reboot` non posé) : le redémarrage se décide à la main. Retour en 40 s, les 11 mêmes conteneurs, port 3000 toujours fermé (règle reposée par `fermer-port-3000.service`). ⚠ Au démarrage, `worker` et `worker-media` échouent une vingtaine de secondes (`could not translate host name "serveur-postgres-egr6ii"`), le temps que le service PostgreSQL de Swarm démarre, puis repartent seuls (`restart: unless-stopped`). Au 2026-10-17, `cloud-init.service` échouait à chaque démarrage (commande `bootcmd` de Contabo, déjà en échec avant celui-ci), sans effet sur les services. **Au 2026-11-01, l'unité en échec est `systemd-networkd-wait-online`**, depuis le 2026-10-22, 06:10 ; `eth0` reste `routable (configuring)`, *Online state* `online`. Lu et non corrigé : rien n'a été changé sur le réseau. Elle peut ajouter jusqu'à 2 minutes au prochain démarrage (non mesuré) | 2026-10-17, 2026-11-01 | `uname -r` ; `ls /var/run/reboot-required` ; `cat /var/run/reboot-required.pkgs` ; `systemctl --failed` ; `networkctl status eth0` |
 | Courriel ACME (Let's Encrypt) | l'adresse du compte administrateur de Dokploy, posée le 2026-09-14, 23:14 Z dans `certificatesResolvers.letsencrypt.acme.email` de `/etc/dokploy/traefik/traefik.yml` (TCK-527 ; était `test@localhost.com`, écart A3 étape 5) ; Traefik redémarré, `acme.json` **intact** (même `sha256`, même date). ⚠ Le compte Let's Encrypt déjà enregistré garde son contact d'origine : Traefik ne le met pas à jour sans ré-enregistrer, ce qui demanderait d'effacer `acme.json` et de ré-émettre les cinq certificats — non fait, `certificats.yml` porte l'alerte d'échéance | 2026-09-14 | `grep -n email: /etc/dokploy/traefik/traefik.yml` (ne rend plus `localhost`) ; `sha256sum /etc/dokploy/traefik/dynamic/acme.json` avant et après |
 | Compte et 2FA | un seul compte (le porteur, créé le 2026-09-14), **`two_factor_enabled = t`** ; l'interface est derrière Cloudflare et le port 3000 est fermé (ci-dessous) | 2026-09-14 | `docker exec $(docker ps -q -f name=dokploy-postgres) psql -U dokploy -d dokploy -tAc 'select two_factor_enabled, created_at::date from "user"'` |
 | Version de Traefik | `traefik:v3.6.7` — un conteneur hors Swarm, `dokploy-traefik` | 2026-09-14 | `docker ps --filter name=dokploy-traefik --format '{{.Image}}'` |
-| Hôte interne PostgreSQL | `serveur-postgres-egr6ii` — PostgreSQL 17.11, limite 1 Gio. Image **`ghcr.io/thiambara/takussan-postgres:sha-60c0a5f1ef780108b0d12c769c2fc0e34713f665`** depuis le 2026-10-18 (TCK-930 : `pgvector/pgvector:pg17` épinglée, plus WAL-G 3.0.9 et les autorités de certification) ; `pgvector/pgvector:pg17` jusque-là | 2026-09-14, 2026-10-18 | `docker service ls` (Dokploy suffixe le nom donné) ; `docker service inspect serveur-postgres-egr6ii -f '{{.Spec.TaskTemplate.ContainerSpec.Image}}'` |
+| API de Traefik | **Fermée le 2026-11-01** : `api.insecure: false` dans `/etc/dokploy/traefik/traefik.yml`, copie `.avant-insecure-20261101`, Traefik redémarré. Avant, `http://dokploy-traefik:8080/api/version` répondait `200` à tout conteneur du réseau partagé, sans port publié. Depuis le conteneur API, cette adresse ne répond plus (code `000`). Routes publiques inchangées : `preview.api` `200`, `deploy` `200`, `preview` `401` attendu. ⚠ Dokploy peut réécrire ce fichier : à revérifier après chaque mise à jour de Dokploy, comme les journaux de Traefik. **Cette vérification est manuelle aujourd'hui** : ni script, ni timer, ni garde ne la fait | 2026-11-01 | `grep -n 'insecure' /etc/dokploy/traefik/traefik.yml` ; `docker exec takussan-api-preview-4iza80-api-1 curl -sS -m 5 -o /dev/null -w '%{http_code}\n' http://dokploy-traefik:8080/api/version` |
+| Hôte interne PostgreSQL | `serveur-postgres-egr6ii` — PostgreSQL 17.11, limite 1 Gio. Image **`ghcr.io/thiambara/takussan-postgres:sha-60c0a5f1ef780108b0d12c769c2fc0e34713f665`** depuis le 2026-10-18 (TCK-930 : `pgvector/pgvector:pg17` épinglée, plus WAL-G 3.0.9 et les autorités de certification) ; `pgvector/pgvector:pg17` jusque-là. Version relue le 2026-11-01 : `17.11` | 2026-09-14, 2026-10-18, 2026-11-01 | `docker service ls` (Dokploy suffixe le nom donné) ; `docker service inspect serveur-postgres-egr6ii -f '{{.Spec.TaskTemplate.ContainerSpec.Image}}'` ; `docker exec $(docker ps -q -f name=serveur-postgres-egr6ii) psql -U pgadmin -d postgres -tAc 'show server_version'` |
+| Extensions PostgreSQL de la préproduction | **`pg_trgm` 1.6 installée**, propriétaire `takussan_preview` : la migration `2026_10_30_392200` (TCK-2392) l'a créée sans superutilisateur au déploiement de `f195f818d`, ce qui vérifie sa prémisse. **`vector` 0.8.7 installée le 2026-11-01** par `CREATE EXTENSION vector` en `pgadmin`, sa création exigeant un superutilisateur : ce déploiement avait laissé la migration de TCK-2423 réussir sans table `embeddings`, avec `ai.embeddings.extension_refused` en WARNING. `ai:install-embeddings` a été joué le même jour. ⚠ **Ces deux gestes ont été joués avant le contrat, les formalités CDP et le refus d'entraînement Voyage**, alors que le runbook les place après ces préalables. Aucune clé Voyage n'est posée : aucun embedding ne part. L'ordre reste obligatoire pour la pose des clés, et pour la production (runbook, « Allumer les embeddings du Radar ») | 2026-10-30, 2026-11-01 | `docker exec $(docker ps -q -f name=serveur-postgres-egr6ii) psql -U pgadmin -d takussan_preview -tAc "select name, version, trusted from pg_available_extension_versions where name in ('pg_trgm','vector')"` |
 | Archivage continu (WAL-G) | seau `takussan-wal`, préfixe `serveur-postgres`, verrou de 7 jours ; jeton propre au seau (`AccessDenied` sur `vps-sauvegardes` et sur la liste des seaux). 11 segments archivés, 0 échec ; première sauvegarde de base en 7 s ; restauration à un instant choisi depuis R2 seul, promue en 19 s, comptes identiques, `backup:verify-encryption` en 0 (1 avec `--cle-fausse`) ; timers `wal-g-base` (dimanche 03:30) et `wal-g-veille` (`*:0/15`) actifs | 2026-10-18 | `wal-g-takussan etat` ; épreuve de TCK-930, AC4 |
-| Meilisearch, Redis | `meilisearch:7700` (v1.16) — Compose `donnees` du projet *Serveur*, sans port publié. **Redis : un par environnement depuis le 2026-10-18** (TCK-880, ADR-0069 § 4). Préproduction : service `redis` de la pile `takussan-api-preview-4iza80` (`redis:8-alpine`, 128 Mo, `volatile-lru`), sur le seul réseau `interne` de la pile ; 1,60 Mo au lendemain de la bascule. Mesuré après le déploiement de `b2804272` : une clé `Cache::put` de l'API se lit dans ce Redis et **pas** dans l'ancien `redis-takussan` ; depuis `dokploy-network`, ni `redis` ni `takussan-api-preview-4iza80-redis-1` ne répondent ; `api`, `worker`, `worker-media` et `scheduler` lisent `REDIS_HOST=redis`. `redis-takussan` a quitté le Compose `donnees` le 2026-10-18 (TCK-880, AC4). Il n'y tourne plus que Meilisearch, et son onglet ne porte plus que `MEILI_MASTER_KEY`. Le volume `serveur-donnees-qomjjz_redis-takussan` (30 Mo, aucun conteneur) a été supprimé le 2026-10-18 au soir, avec l'accord du porteur ; `docker volume ls` n'en compte plus aucun | 2026-10-18 | `docker ps --format '{{.Names}} {{.Image}}'` ; `docker exec takussan-api-preview-4iza80-redis-1 redis-cli info memory` |
+| Meilisearch, Redis | `meilisearch:7700` (image `v1.16` ; `meilisearch --version` rend `1.16.0` le 2026-11-01) — Compose `donnees` du projet *Serveur*, sans port publié. **Redis : un par environnement depuis le 2026-10-18** (TCK-880, ADR-0069 § 4). Préproduction : service `redis` de la pile `takussan-api-preview-4iza80` (`redis:8-alpine`, 128 Mo, `volatile-lru`), sur le seul réseau `interne` de la pile ; 1,60 Mo au lendemain de la bascule. Mesuré après le déploiement de `b2804272` : une clé `Cache::put` de l'API se lit dans ce Redis et **pas** dans l'ancien `redis-takussan` ; depuis `dokploy-network`, ni `redis` ni `takussan-api-preview-4iza80-redis-1` ne répondent ; `api`, `worker`, `worker-long`, `worker-ia`, `worker-media` et `scheduler` lisent `REDIS_HOST=redis`. `redis-takussan` a quitté le Compose `donnees` le 2026-10-18 (TCK-880, AC4). Il n'y tourne plus que Meilisearch, et son onglet ne porte plus que `MEILI_MASTER_KEY`. Le volume `serveur-donnees-qomjjz_redis-takussan` (30 Mo, aucun conteneur) a été supprimé le 2026-10-18 au soir, avec l'accord du porteur ; `docker volume ls` n'en compte plus aucun | 2026-10-18, 2026-11-01 | `docker ps --format '{{.Names}} {{.Image}}'` ; `docker exec takussan-api-preview-4iza80-redis-1 redis-cli info memory` ; `docker exec serveur-donnees-qomjjz-meilisearch-1 meilisearch --version` |
+| Clé Meilisearch de la préproduction | `takussan preview`, uid `984e1fca-309a-4a82-b224-09d9991c0ca2`, index `preview_*`, 13 actions nommées : `search`, `documents.add`, `documents.get`, `documents.delete`, `indexes.create`, `indexes.get`, `indexes.update`, `indexes.delete`, `tasks.get`, `settings.get`, `settings.update`, `stats.get`, `version`. Elle remplace une clé `actions=*` dont `GET /keys` → `200` rendait la `Default Admin API Key` à qui lisait l'environnement de la préproduction. Avec la neuve : `/keys` `403`, `prod_properties` `403` ; statistiques, réglages, recherche, tâches, création d'index, ajout et suppression de document et d'index en `2xx`. Ancienne clé `5bbc672b…` supprimée (`204`). Copie au trousseau : `takussan-preview-MEILISEARCH_KEY` | 2026-11-01 | sonde inverse, depuis `dokploy-network` : `GET http://meilisearch:7700/keys` avec la clé, qui doit rendre `403` |
 | Bases de préproduction | `takussan_preview` (`LOCALE C`, `CONNECT` révoqué à `PUBLIC`) | 2026-09-14 | plan, tâche A4, étapes 9 et 10 |
 | Plages Cloudflare dans `traefik.yml` | 15 plages v4 et 7 v6 du 2026-09-14, sous `web` **et** `websecure` ; la page de Cloudflare en publie autant le 2026-10-17. Comparées chaque jour, avec le `TRUSTED_PROXIES` de chaque conteneur `api`, par `plages-cloudflare.timer` (`deploy/server/plages-cloudflare.sh`, P37.05) : alerte Telegram par franchissement, rien n'est écrit. **Installé le 2026-10-17, 18:52 CEST** (runbook, étape 10 ; `sha256` du script identique au dépôt, `0cc3f196…`), premier passage du timer le lendemain à 07:00 : `--etat` → les 22 plages dans `traefik.yml` et dans le `TRUSTED_PROXIES` de `takussan-api-preview-4iza80-api-1`. **Ablation jouée, timer arrêté** : une source qui publie `198.51.100.0/24` en plus → une alerte par liste (deux messages), rejouée → silence, source réelle → deux retours à la normale, rejouée → silence, aucun marqueur restant ; aucune ligne `✗` d'envoi Telegram. `systemctl start plages-cloudflare.service` → `Result=success` | 2026-10-17 | `plages-cloudflare --etat` ; `systemctl list-timers plages-cloudflare.timer` ; `journalctl -u plages-cloudflare.service` |
 | Sous-réseau de `dokploy-network` | `10.0.1.0/24` (overlay) — tête de `TRUSTED_PROXIES` | 2026-09-14 | `docker network inspect dokploy-network -f '{{range .IPAM.Config}}{{.Subnet}}{{end}}'` |
@@ -104,20 +107,23 @@ certification de Debian) pour les deux images de l'API, rien pour le front. Aucu
 | Surveillance externe | UptimeRobot (compte du porteur, version gratuite) : `https://preview.api.takussan.com/up`, `https://deploy.takussan.com/` (la sonde de `preview.api.checkprintplus.com` est à retirer au tableau de bord : l'hôte n'existe plus depuis le 2026-10-04), toutes les 5 minutes. Mesuré sur le serveur : deux adresses de la liste publique d'UptimeRobot, 6 connexions en 380 s sur les deux API en DNS seul ; `deploy.takussan.com` passe par Cloudflare et ne se voit qu'au tableau de bord. L'échéance des certificats n'est pas dans la version gratuite : `certificats.yml` la tient | 2026-09-14 | `tcpdump` des SYN sur `:443`, rapprochés de `https://uptimerobot.com/inc/files/ips/IPv4.txt` |
 | Surveillance des seuils du budget | `seuils.timer` toutes les 5 minutes → `/usr/local/sbin/seuils` (`deploy/server/seuils.sh`, TCK-519) : mémoire disponible ≥ 1 500 Mo, disque < 75 %, `st` < 10, Dokploy < 1 536 Mo ; une alerte Telegram par **franchissement**, un message de retour, silence sinon. **Ablation jouée le 2026-09-15, 00:09 Z, reçue sur Telegram** : `SEUIL_MEM_MO=100000 seuils` alerte, rejoué se tait, `seuils` annonce le retour, rejoué au repos se tait — exactement deux messages. ⚠ **Arrêter `seuils.timer` pendant l'ablation** (`systemctl stop seuils.timer`, puis `start`) : à 00:08 Z il est passé entre deux commandes, a annoncé le retour à la normale et retiré le marqueur, et la seconde commande a alerté de nouveau — quatre messages, qui décrivent le timer, pas le script. Secrets dans `/etc/default/seuils` (600), unités posées par `bootstrap.sh` § 7 | 2026-09-15 | `systemctl list-timers seuils.timer` ; `seuils --etat` ; `journalctl -u seuils.service` |
 | Journaux d'accès | **Traefik, une ligne JSON par requête sur stdout de `dokploy-traefik`** (TCK-518) : adresse cliente reconstruite (`ClientHost` — mesuré : l'IP du poste à travers Cloudflare **et** sur un hôte en DNS seul avec un `X-Forwarded-For: 203.0.113.7` forgé), hôte, méthode, chemin, statut, durée, routeur, `User-Agent`. **Aucun autre en-tête** : `Authorization` et `Cookie` sont écartés (`headers.defaultMode: drop`, mesuré sur un 401). ⚠ `ClientUsername` porte le nom d'utilisateur de l'authentification basique, jamais le mot de passe. Borné par la rotation de `daemon.json` (`10m × 3`, relu sur le conteneur). Les conteneurs `api` n'écrivent toujours rien par requête, et c'est voulu. Avant ce jour : aucun journal, la présence d'un client se mesurait en direct (`tcpdump`) | 2026-09-14 | `docker logs --since 10m dokploy-traefik \| jq -c 'select(.RequestHost=="preview.api.takussan.com") \| {ClientHost,RequestPath,DownstreamStatus,Duration}'` ; posé par `deploy/server/journaux-traefik.sh` |
-| Journal des erreurs | **Mesuré dans les images locales, pas encore sur le serveur** (TCK-2356) : une ligne JSON par exception rapportée sur la sortie **standard** des conteneurs de l'API (canal `exceptions`, quel que soit `LOG_CHANNEL` ; mesuré : une ligne sur stdout, zéro sur stderr, où écrit le serveur web), et une par erreur que le serveur de Next attrape sur celle du front (`onRequestError`, `src/instrumentation.ts`). Même enveloppe des deux côtés (celle du `JsonFormatter` de Monolog). **Ni message, ni corps, ni en-tête, ni chemin réel** : la classe, le `digest` côté front, `fichier:ligne`, le gabarit de la route, la méthode, l'utilisateur côté API. Bornées comme les autres journaux Docker (`10m × 3`) et perdues à chaque recréation du conteneur. Aucun rapporteur d'erreurs : son ADR (GlitchTip auto-hébergé ou Sentry) est à écrire avant la phase F | 2026-10-25 | `docker logs <conteneur> 2>/dev/null \| jq -c 'select(.message=="exception" or .message=="request_error") \| {datetime,context}'` ; revérifié par `deploy/takussan/smoke-api.sh image` |
+| Journal des erreurs | **Mesuré dans les images locales ; le code est sur le serveur depuis `c9dcc3335` (2026-10-26), et aucune de ces lignes n'y a encore été lue** (TCK-2356) : une ligne JSON par exception rapportée sur la sortie **standard** des conteneurs de l'API (canal `exceptions`, quel que soit `LOG_CHANNEL` ; mesuré : une ligne sur stdout, zéro sur stderr, où écrit le serveur web), et une par erreur que le serveur de Next attrape sur celle du front (`onRequestError`, `src/instrumentation.ts`). Même enveloppe des deux côtés (celle du `JsonFormatter` de Monolog). **Ni message, ni corps, ni en-tête, ni chemin réel** : la classe, le `digest` côté front, `fichier:ligne`, le gabarit de la route, la méthode, l'utilisateur côté API. Bornées comme les autres journaux Docker (`10m × 3`) et perdues à chaque recréation du conteneur. Aucun rapporteur d'erreurs : son ADR (GlitchTip auto-hébergé ou Sentry) est à écrire avant la phase F | 2026-10-25 | `docker logs <conteneur> 2>/dev/null \| jq -c 'select(.message=="exception" or .message=="request_error") \| {datetime,context}'` ; revérifié par `deploy/takussan/smoke-api.sh image` |
+| Clé d'IA de la préproduction | `ANTHROPIC_API_KEY` posée le 2026-11-01 à la demande du porteur, copie de sa clé locale, empreinte `d363c64c4894` dans les cinq conteneurs, `/v1/models` 200. Aucune clé Voyage, OpenAI ni OpenRouter. L'extraction du Radar appelle donc un vrai modèle sur cet environnement. `ai:eval --all` n'y tourne plus la nuit (`AI_EVAL_NIGHTLY=false`, TCK-2459) : il se lance à la main depuis `/super-admin/ai`, onglet Tableau de bord | 2026-11-01 | `docker exec takussan-api-preview-4iza80-api-1 sh -c 'printenv ANTHROPIC_API_KEY \| tr -d "\n" \| sha256sum \| cut -c1-12'` |
+| Mémoire du planificateur | `mem_limit` passé de 192m à **384m** : `memory.events` donnait `max` 17 en 1 h 10 le 2026-11-01, `oom_kill` 0, anonyme 45 Mo, pic 192 Mo (cache de pages compris), avec les commandes du Radar toutes les 15 minutes | 2026-11-01 | `i=$(docker inspect takussan-api-preview-4iza80-scheduler-1 --format '{{.Id}}'); cat /sys/fs/cgroup/system.slice/docker-$i.scope/memory.events` |
 | Nettoyage Docker quotidien | actif | 2026-09-14 | `settings.getWebServerSettings` → `enableDockerCleanup` |
-| Budget au repos | Takussan seule, après seed (02:04 Z) : 5 697 Mo disponibles sur 7 941, `st` 0, disque 24 %. Les deux préproductions servies (11:03 Z) : **5 349 Mo**, `st` 0, disque 25 %. Dokploy seul : 867 puis 1 013 Mo, **sans plafond** | 2026-09-14 | plan, tâche D6, étape 4 ; détail par conteneur au § Budget du plan |
+| Budget au repos | Takussan seule, après seed (02:04 Z) : 5 697 Mo disponibles sur 7 941, `st` 0, disque 24 %. Les deux préproductions servies (11:03 Z) : **5 349 Mo**, `st` 0, disque 25 %. Dokploy seul : 867 puis 1 013 Mo, **sans plafond**. **Le 2026-11-01, après le déploiement de `f195f818d`** (`worker-long` et `worker-ia` compris) : 5 552 à 5 668 Mo disponibles, seuil 1 500, disque 23 %. Dokploy a atteint un pic de 1 573 Mo pendant sa mise à jour, au-dessus du seuil de 1 536, sans qu'aucun échantillon de `seuils` ne l'attrape | 2026-09-14, 2026-11-01 | plan, tâche D6, étape 4 ; détail par conteneur au § Budget du plan |
 | Médias de la préproduction Takussan | **Sur R2 depuis le 2026-09-22 (TCK-541, ADR-0029)** : `takussan-preview-private` 3 444 objets, 201,4 Mo (originaux des photos) ; `takussan-preview-media` 10 660 objets, 483,1 Mo (conversions, 81 avatars, 4 logos). `media:move-disk public --to-declared` : 3 529 médias, 14 104 fichiers, 0 échec ; `local --to-declared` : 0. Les 3 529 répertoires de `storage/app/public` supprimés ensuite (une ancienne URL d'original → `403`). Reste au volume : `seed-media-cache` (209 Mo, le cache de téléchargement du seed, régénérable). Avant : 948 Mo dans le volume (2026-09-14) | 2026-09-22 | liste des deux seaux (SigV4, jeton `takussan-preview-app`) ; `media:move-disk public --to-declared --dry-run` → `would move 0` |
 | Destination des sauvegardes | seau R2 `vps-sauvegardes` (Cloudflare, région `auto`), jeton limité au seau : liste `200`, liste des seaux `403` ; *Test Connection* réussi. **Verrou de rétention de 7 jours sur tout le seau depuis le 2026-10-18** (TCK-548, ADR-0069 § 5) : avec chacun des deux jetons qui y écrivent depuis le VPS (destination Dokploy, `takussan-preview-backup`), effacer ou écraser un objet de moins de 7 jours — une sonde comme le dump le plus récent — rend `ObjectLockedByBucketPolicy`. Même verrou sur `takussan-wal`. Le lever : tableau de bord R2 → seau → *Settings* → *Bucket lock rules*, ou `PUT /accounts/<compte>/r2/buckets/vps-sauvegardes/lock` avec `{"rules":[]}` | 2026-10-18 | `GET /accounts/<compte>/r2/buckets/<seau>/lock` (API Cloudflare) ; épreuve de TCK-548 |
 | Sauvegardes planifiées | `takussan_preview` `0 3 * * *`, 14 exemplaires ; volume `takussan-api-preview-4iza80_storage` `0 4 * * *`, 7 — ramené à 1 le 2026-09-21, **désactivé le 2026-09-22** (TCK-541) : les médias n'y sont plus ; sa dernière archive (2026-09-22, 04:00, 902 Mo) reste dans `vps-sauvegardes` comme point de retour d'avant la bascule. Une manuelle de chaque, **lue dans R2** : 1 729 580 o, 27 683 o (après `ProductionSeeder`), 945 797 120 o. **Sous le verrou** (2026-10-18) : une manuelle de `takussan_preview` à 18:59 laisse 14 exemplaires, celui du 2026-10-05 supprimé par la rotation ; ⚠ réactiver la sauvegarde du volume demande **au moins 8 exemplaires**, sinon sa rotation vise un objet de moins de 7 jours, refusé | 2026-09-14, 2026-10-18 | liste du seau (ci-dessous), pas la liste de Dokploy |
 | Fraîcheur des sauvegardes de base | `fraicheur-sauvegardes.timer`, à 06:00 et 18:00 (heure du serveur, CEST) → `/usr/local/sbin/fraicheur-sauvegardes` (`deploy/server/fraicheur-sauvegardes.sh`, TCK-884, P42.04) : relit dans R2 la dernière sauvegarde de `takussan_preview` (lecture seule, jeton des sauvegardes) ; alerte Telegram par franchissement si elle a plus de 26 h, pèse moins de 1 Mo ou moins de la moitié de la précédente. **Installé le 2026-10-18, 06:42 UTC** (`sha256` identique au dépôt, `1984b61e…`). `--etat` → `2026-10-18 03:00:06 UTC (3 h), 3086349 o` ; un préfixe inexistant → « aucune sauvegarde lisible ». **Ablation jouée, timer arrêté, `ENVOI=0`** (rien n'est parti sur Telegram) : `AGE_MAX_H=1` → une alerte, marqueur posé ; rejouée → silence ; sans la variable → un retour, marqueur retiré ; rejouée → silence ; `TAILLE_MIN_O=999999999` → alerte, puis retour ; aucun marqueur restant. Les sauvegardes du 2026-10-05 au 2026-10-18 pèsent de 2,0 à 3,1 Mo, une par nuit à 03:00 UTC | 2026-10-18 | `fraicheur-sauvegardes --etat` ; `systemctl list-timers fraicheur-sauvegardes.timer` ; `journalctl -u fraicheur-sauvegardes.service` |
-| Copie du seau privé des médias | `sauvegarde-seau-prive.timer`, chaque nuit à 02:30 → `/usr/local/sbin/sauvegarde-seau-prive` (`deploy/server/sauvegarde-seau-prive.sh`, TCK-541) : `rclone copy` (jamais `sync` : un objet supprimé du seau reste dans la sauvegarde) de `takussan-preview-private` vers `vps-sauvegardes/takussan-preview-private/`, côté serveur. Premier passage : 3 444 objets, 201,4 Mo ; second : `There was nothing to transfer`, 3 444 vérifiés en 1 min 16 s. **Restauration à blanc** : `1082/f4e7dd7a….jpg` relu des deux côtés, même md5 (`6a36948f…`, 42 694 o). **Échec forcé** (`SOURCE=takussan-seau-inexistant`) : code 1, erreur au journal, **alerte reçue sur Telegram** (confirmé par le porteur). Jeton `takussan-preview-backup` (lecture du seau privé, écriture dans `vps-sauvegardes`), limité à l'IP du VPS (`178.18.247.62`, *Client IP Address Filtering*) le 2026-09-22 : refusé (`AccessDenied`) depuis le poste, accepté depuis le serveur. Il garde l'écriture sur le seau privé — un jeton de compte R2 n'a qu'UN type de permission pour tous ses seaux, « lecture ici, écriture là » est impossible (relevé par le porteur) — et c'est sans effet : le jeton de l'application, sur le même VPS, a déjà cette écriture, et `rclone copy` ne l'utilise pas. Le risque qui reste est l'inverse : un VPS compromis peut effacer `vps-sauvegardes` ; la parade est une règle de rétention (*Bucket Lock*) sur ce seau, non posée. Secrets dans `/etc/default/sauvegarde-seau-prive` (600), unités posées par `bootstrap.sh` § 8. Le seau public n'est pas copié : conversions régénérables depuis le privé, avatars et logos seulement | 2026-09-22 | `systemctl list-timers sauvegarde-seau-prive.timer` ; `journalctl -u sauvegarde-seau-prive -o cat` ; `sauvegarde-seau-prive --essai` |
-| File de la préproduction et délai de reprise | `QUEUE_CONNECTION=database` ; `DB_QUEUE_RETRY_AFTER` **non posée** dans Dokploy, donc `retry_after` = 90 s (défaut de `config/queue.php`), relu dans le conteneur. **Strictement au-dessus du `$timeout` de 75 s** de `RegenerateAgencyWatermarksJob` et `RegeneratePhotoConversionsJob` (TCK-539, V5-1) : à reposer au-dessus de 75 s si on pose un jour la clé | 2026-09-22 | `php artisan tinker` : `config('queue.default')`, `config('queue.connections.database.retry_after')` |
+| Copie du seau privé des médias | **Instantanés datés, déployés sur le serveur le 2026-10-30** (TCK-2407, ADR-0029 amendé) : chaque passage écrit `vps-sauvegardes/takussan-preview-private/jours/AAAA-MM-JJ/`, marqué `.complet` si la copie a réussi, puis retire ceux de `RETENTION_JOURS` jours ou plus (14), jamais le plus récent complet ; la liste des effacements a en plus une copie jamais tournée, `…/effacements/`. Script déployé : `sha256` `7a4bf1a24081` (12 premiers caractères), l'ancien gardé en `/root/sauvegarde-seau-prive.avant-tck-2407` ; § 8 de `bootstrap.sh` rejoué (`After=time-sync.target`, `systemd-time-wait-sync` activé). Premier passage : 5 130 objets, 295 MiB, **8 min 25** ; un second `--essai` : `There was nothing to transfer`. `jours/2026-10-30/.complet` présent ; `effacements/` absent (aucun effacement dans la source, code 3 toléré). Comptes : source 5 131 objets / 309 317 719 o, instantané 5 131 / 309 317 714 o. **L'écart de 5 octets est expliqué** (mesuré le 2026-10-30 vers 13:30) : les deux listes ne diffèrent que de deux fichiers — la source porte le témoin `essai-tck-2407/x.txt` (5 o, posé à 10:10, après l'instantané de 10:02), l'instantané porte le marqueur `.complet` (0 o). **AC3** : échec forcé → code 1 (« instantané partiel sans marqueur »), alerte Telegram. **AC2, partiel** : aucun objet de plus de 15 jours dans le seau (le plus ancien : 2026-10-26, 739 o) ; md5 identique dans la source et l'instantané (`0d85b1b02632`). ⚠ **AC1 en cours** (TCK-2407 en `review`) : objet témoin `essai-tck-2407/x.txt` posé le 2026-10-30, **effacé du seau le 2026-10-31 au soir** après avoir été copié dans l'instantané `2026-10-31` (5 132 objets, 5 131 la veille — relevé porté par le ticket, pas relu ici). **À relever le 2026-11-14 ou après** : son absence de la liste récursive des instantanés (commande du runbook, « Passer la copie du seau privé en instantanés », étape 5, qui doit rendre `0`). `--retirer-copie-plate` **à jouer le 2026-11-07 au plus tôt** (étape 6) — jusque-là, l'ancienne copie plate garde tout ce qui a été effacé depuis le 2026-09-22. Historique, l'ancienne copie unique (TCK-541, relevée le 2026-09-22) : `rclone copy` (jamais `sync`) de `takussan-preview-private` vers `vps-sauvegardes/takussan-preview-private/`, chaque nuit à 02:30 ; premier passage 3 444 objets, 201,4 Mo ; restauration à blanc (même md5) et échec forcé (code 1, alerte Telegram reçue) éprouvés. Jeton `takussan-preview-backup` (lecture du seau privé, écriture dans `vps-sauvegardes`), limité à l'IP du VPS (`178.18.247.62`, *Client IP Address Filtering*) le 2026-09-22 : refusé (`AccessDenied`) depuis le poste, accepté depuis le serveur. Il garde l'écriture sur le seau privé — un jeton de compte R2 n'a qu'UN type de permission pour tous ses seaux, « lecture ici, écriture là » est impossible (relevé par le porteur) — et c'est sans effet : le jeton de l'application, sur le même VPS, a déjà cette écriture, et `rclone copy` ne l'utilise pas. Le risque qui restait au 2026-09-22 était l'inverse : un VPS compromis pouvait effacer `vps-sauvegardes`. **La parade est posée depuis le 2026-10-18** : verrou de rétention de 7 jours sur tout le seau (TCK-548, ligne « Destination des sauvegardes » ci-dessus) ; un objet de plus de 7 jours reste effaçable. Secrets dans `/etc/default/sauvegarde-seau-prive` (600), unités posées par `bootstrap.sh` § 8. Le seau public n'est pas copié : conversions régénérables depuis le privé, avatars et logos seulement | 2026-09-22, 2026-10-30 | `systemctl list-timers sauvegarde-seau-prive.timer` ; `journalctl -u sauvegarde-seau-prive -o cat` ; `sauvegarde-seau-prive --essai` |
+| File de la préproduction et délai de reprise | `QUEUE_CONNECTION=database` ; `DB_QUEUE_RETRY_AFTER` **non posée** dans Dokploy au 2026-09-22, donc `retry_after` = 90 s (défaut de `config/queue.php`), relu dans le conteneur. ⚠ **À relever** : le gabarit la pose à `90` et `DB_LONG_QUEUE_RETRY_AFTER` à `1900` (`deploy/takussan/env.api.production.example:84-85`), et Dokploy porte les clés du gabarit depuis le 2026-11-01 (TCK-2456) ; leur présence n'a pas été relue — `python3 -I deploy/takussan/relever-cles-dokploy.py JbPrtvdkuq0aLTDrOx2Ss DB_QUEUE_RETRY_AFTER DB_LONG_QUEUE_RETRY_AFTER`. Les valeurs effectives, elles, sont relues (90 et 1900, ci-dessous). **Strictement au-dessus du `$timeout` de 75 s** de `RegenerateAgencyWatermarksJob` et `RegeneratePhotoConversionsJob` (TCK-539, V5-1) : à reposer au-dessus de 85 s (`ExportActivityLogJob`) si on pose un jour la clé. **Les jobs plus longs passent depuis TCK-2397 par la connexion `database-long`** ([ADR-0078](../adr/0078-une-connexion-de-file-pour-les-jobs-longs.md)), servie par `worker-long` : `DB_LONG_QUEUE_RETRY_AFTER` n'a pas à être posée (défaut 1900 s). Relevé le 2026-11-01 après le déploiement de `f195f818d` : `retry_after` vaut 1900 sur `database-long` et 90 sur `database`. **Les appels au modèle passent depuis TCK-2402 par la file `ai`** (même connexion `database`, donc le même délai de 90 s, qui couvre leurs 85 s), lue par le seul `worker-ia` (`queue:work --queue=ai`, `mem_limit` 384m) : ADR-0078, amendement du 2026-10-29. Relevé le 2026-11-01 : `worker-long` et `worker-ia` sont `Up`, plafond 384 Mo, 52 Mio au repos, `restarts=0`, 0 erreur ; sondes `workers`, `queue` et `scheduler` à `ok` ; 0 job en file, 0 en échec. `scripts/check-queues.mjs` tient les règles | 2026-09-22, 2026-11-01 | `php artisan tinker` : `config('queue.default')`, `config('queue.connections.database.retry_after')`, `config('queue.connections.database-long.retry_after')` ; `docker ps` ; `docker stats` |
 | Sauvegarde de la configuration de Dokploy | `web-server`, `30 4 * * *`, **10 exemplaires depuis le 2026-10-18** (7 avant) : avec 7, la rotation quotidienne vise l'exemplaire de 6 j 23 h 59, que le verrou de 7 jours refuse (TCK-548). Une manuelle lue dans R2 : `…/dokploy/webserver-backup-<date>.zip`, 94 409 314 o ; une autre le 2026-10-18 à 18:59, 8 exemplaires ensuite, statut `done` | 2026-09-14, 2026-10-18 | `backup.manualBackupWebServer` |
 | Clés des objets dans R2 | Dokploy fait **précéder** le préfixe déclaré du nom interne du service : `serveur-postgres-egr6ii/postgres/takussan_preview/<date>.sql.gz`, `takussan-api-preview-4iza80_api/volumes/takussan-preview/…tar`, `backup-parse-multi-byte-card-vlwhry/dokploy/…zip`. Une liste filtrée sur le seul préfixe déclaré ne trouve **rien** | 2026-09-14 | `GET …/vps-sauvegardes?list-type=2` (SigV4) |
 | Restauration à blanc | PostgreSQL : diff des comptes **vide**, 92 tables, 86 927 lignes (préproduction arrêtée) ; volume de médias : 17 629 fichiers, **même** `sha256` | 2026-09-14 | plan, tâche D6, étapes 2 et 3 ; ticket TCK-515 |
 | Restauration à blanc, **lue** | Sur le serveur, la dernière sauvegarde (2026-10-18, 03:00 Z, 3 086 349 o) est restaurée dans un conteneur jetable `pgvector/pgvector:pg17`, joint à `dokploy-network` avec un mot de passe tiré au hasard. Restauration en 11 s, sans erreur, 116 tables sur 116. Les comptes sont égaux, sauf `jobs`, `scheduled_task_runs` et `property_boost_daily_stats` : la préproduction n'était pas arrêtée et a eu de l'activité depuis 03:00. `backup:verify-encryption --connexion=restau`, lancé dans `takussan-api-preview-4iza80-api-1` (image `b2804272`), **sort en 0** : 39 valeurs chiffrées relues dans 20 colonnes, toutes déchiffrées. Avec `--cle-fausse`, **il sort en 1** : 39 sur 39 illisibles. Le conteneur et le dossier ont été retirés après | 2026-10-18 | TCK-882, AC2 |
 | `APP_KEY` hors du serveur | préproduction : empreinte **`e3227fc80eb0`** (12 premiers caractères du `sha256`). Une copie hors du VPS existe, avec la **même** empreinte : le fichier de secrets du poste du porteur. À ranger dans son gestionnaire de mots de passe (décision du 2026-10-18, ADR-0044 amendement C, P42.02). Production : clé créée et rangée en F3, avant le premier déploiement | 2026-10-18 | `docker exec takussan-api-preview-4iza80-api-1 sh -c 'printf %s "$APP_KEY" \| sha256sum \| cut -c1-12'` — n'imprime qu'une empreinte |
+| `RADAR_PHONE_HMAC_KEY` hors du serveur | **Posée le 2026-10-30** dans l'environnement du compose Dokploy `takussan-api-preview` (TCK-2414, [ADR-0082](../adr/0082-l-empreinte-des-refus-du-radar-a-sa-propre-cle.md)) : `compose.update` 200, relue présente, les autres lignes intactes ; l'environnement d'avant est sauvegardé (`~/Sauvegardes/env-takussan-api-preview-avant-radar-2026-10-30.env`, poste du porteur). Empreinte **`b6f4b5a7b69d`** (12 premiers caractères du `sha256`), **identique** sur la copie hors du VPS : le trousseau macOS du porteur, service `takussan-preview-RADAR_PHONE_HMAC_KEY`. **Dans le conteneur depuis le déploiement de `f195f818d`** : la commande ci-contre rend `b6f4b5a7b69d` le 2026-11-01, sonde `radar_phone_key` à `ok`. Perdue, elle rend méconnaissables les numéros qui ont dit STOP | 2026-10-30, 2026-11-01 | `docker exec takussan-api-preview-4iza80-api-1 sh -c 'printf %s "$RADAR_PHONE_HMAC_KEY" \| sha256sum \| cut -c1-12'` — n'imprime qu'une empreinte |
 
 Projets Dokploy :
 
@@ -156,61 +162,140 @@ qui ne filtre pas sur `takussan-api-preview` tombe sur son `compose.api.yml`, sa
 
 ### Les variables d'environnement, par service — les CLÉS, jamais les valeurs
 
-La table de référence est celle du plan, tâche D1. Toute clé ajoutée dans Dokploy s'ajoute ici.
+**Les clés de la production et leurs valeurs non secrètes vivent dans les gabarits, et nulle part ailleurs**
+(TCK-2456) : [`deploy/takussan/env.api.production.example`](../../deploy/takussan/env.api.production.example) pour le
+Compose, [`deploy/takussan/env.web.production.example`](../../deploy/takussan/env.web.production.example) pour
+l'Application du front. Mêmes sections que `takussan-api/.env.example`, `.env.docker` et `takussan-web/.env.example`.
+`scripts/check-env-production.mjs` exige que chaque clé lue par le code soit au gabarit, ou dans sa liste de résidus avec
+son motif, et aucun secret dans un gabarit. Une clé neuve s'ajoute donc là, pas ici.
 
-**`takussan-api-preview`** (Compose, onglet *Environment* ; relevé le 2026-09-14, 71 clés, aucune
-vide) :
+**Passer d'un gabarit à un environnement :**
 
-- fixées par le plan : `IMAGE_TAG`, `APP_KEY` (neuve), `APP_DEBUG`, `APP_URL`, `FRONTEND_URL`,
-  `SANCTUM_STATEFUL_DOMAINS`, `TRUSTED_PROXIES`, `DB_CONNECTION`, `DB_HOST`, `DB_PORT`,
-  `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, `SESSION_DRIVER`, `CACHE_STORE`, `QUEUE_CONNECTION`,
-  `REDIS_CLIENT`, `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`, `REDIS_DB`, `REDIS_CACHE_DB`,
-  `SCOUT_DRIVER`, `SCOUT_PREFIX` (`preview_`, relevé le 2026-10-19 dans Dokploy et dans le
-  conteneur `api`, TCK-995), `MEILISEARCH_HOST`, `MEILISEARCH_KEY` (la clé `preview_*`, jamais
-  la maîtresse), `LOG_CHANNEL`, `LOG_LEVEL`, `FILESYSTEM_DISK`, `LARAVEL_PDF_DRIVER` ;
-- relevées dans le `.env` de l'ancienne préproduction (export A1) : `APP_NAME`, `APP_ENV`,
-  `APP_LOCALE`, `APP_FALLBACK_LOCALE`, `APP_FAKER_LOCALE`, `APP_MAINTENANCE_DRIVER`,
-  `BCRYPT_ROUNDS`, `SESSION_LIFETIME`, `SESSION_ENCRYPT`, `SESSION_SECURE_COOKIE`, `SESSION_PATH`,
-  `SESSION_DOMAIN`, `SESSION_COOKIE`, `BROADCAST_CONNECTION`, `LOG_STACK`, `SCOUT_QUEUE`,
-  `SCOUT_AFTER_COMMIT`, `MAIL_MAILER`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`,
-  `MAIL_CONTACT_ADDRESS`, `RESEND_API_KEY`, `VITE_APP_NAME`, `GOOGLE_CLIENT_ID`,
-  `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, et
-  les `SEED_*` — **treize** au relevé du 2026-10-20, et non douze (dont `SEED_DOWNLOAD_MEDIA=true` :
-  le seed télécharge des médias) ;
-- ajoutées le 2026-09-22 par TCK-541 (ADR-0029), **80 clés** au total : `MEDIA_PUBLIC_DISK`
-  (`r2-media`), `MEDIA_PRIVATE_DISK` (`r2-private`), `MEDIA_QUEUE`, `R2_ACCESS_KEY_ID`,
-  `R2_SECRET_ACCESS_KEY` (le jeton `takussan-preview-app`, *Object Read & Write* limité aux deux
-  seaux de préproduction ; refusé sur `vps-sauvegardes`, mesuré), `R2_ENDPOINT`, `R2_MEDIA_BUCKET`,
-  `R2_MEDIA_URL` (`https://media-preview.takussan.com`), `R2_PRIVATE_BUCKET`.
-- ajoutées le 2026-10-10 par TCK-620 (ADR-0060), **82 clés** au total : `PHONE_LOGIN_ENABLED`
-  (`true` : connexion et inscription par téléphone) et `OTP_PREVIEW_ENABLED` (`true` : le code SMS
-  revient dans la réponse, `otp_preview`, et le front l'affiche — sans effet hors `APP_ENV`
-  `local`/`staging`). ⚠ **À éteindre avant que la préproduction reçoive des données réelles** :
-  qui joint l'API y entre dans tout compte dont il connaît le numéro vérifié.
-- ajoutées le 2026-10-18 : les cinq jetons des webhooks entrants, chacun neuf pour la préproduction
-  et relu dans le conteneur (TCK-943, TCK-720) : `SMS_ORANGE_WEBHOOK_URL_TOKEN`,
-  `SMS_MTARGET_WEBHOOK_URL_TOKEN`, `SMS_LAM_WEBHOOK_URL_TOKEN`, `WHATSAPP_WEBHOOK_URL_TOKEN`,
-  `WHATSAPP_WEBHOOK_VERIFY_TOKEN` ; et `API_ALIAS` (`takussan-api-preview`, l'alias de la pile sur
-  `dokploy-network`, ADR-0069 § 4, TCK-880). Retirées par TCK-880 : `REDIS_HOST` et `REDIS_PORT`
-  (le Redis est celui de la pile, et Compose les pose).
-- **relevé du 2026-10-20 : 86 clés** (`compose.one` → `env`, noms seuls, par un script qui n'imprime
-  aucune valeur secrète). Valeurs non secrètes relues le même jour, dont F3 a besoin : `APP_ENV` =
-  `staging` (ADR-0060 a raison, le docblock d'`AddRobotsTagOutsideProduction` se trompait et est
+1. Recopier le gabarit hors du dépôt (`~/Sauvegardes/`, mode `600`). Remplir ses vides. ⚠ **Sur un environnement qui tourne,
+   chaque secret se reprend, aucun ne se régénère** : une `APP_KEY` neuve rend les colonnes chiffrées illisibles, une
+   `RADAR_PHONE_HMAC_KEY` neuve fait oublier les refus du Radar, et `/up` reste à 200 dans les deux cas. Seule une création, comme
+   celle de la production en F3, génère des secrets neufs. `node scripts/check-env-production.mjs --report` nomme les vides, par
+   classe. Une clé `# intégration` reste vide tant que son compte n'existe pas.
+2. Pour la préproduction, poser ces valeurs :
+   - API : `IMAGE_TAG=preview`, `API_ALIAS=takussan-api-preview`, `APP_NAME="Takussan Preview"`, `APP_ENV=staging`,
+     `APP_URL=https://preview.api.takussan.com`, `FRONTEND_URL=https://preview.takussan.com`,
+     `SANCTUM_STATEFUL_DOMAINS=preview.takussan.com`, `DB_DATABASE` et `DB_USERNAME` à `takussan_preview`,
+     `SESSION_COOKIE=takussan_session_preview`, `SCOUT_PREFIX=preview_`, `MAIL_MAILER=log`,
+     `R2_MEDIA_BUCKET=takussan-preview-media`, `R2_PRIVATE_BUCKET=takussan-preview-private`,
+     `R2_MEDIA_URL=https://media-preview.takussan.com`, `OTP_PREVIEW_ENABLED=true`, `SEED_DOWNLOAD_MEDIA=true`, et les trois
+     `*_REDIRECT_URI` sur `https://preview.takussan.com` ;
+   - `CACHE_PREFIX=takussan-preview-cache-` et `REDIS_PREFIX=takussan-preview-database-`, à poser telles quelles : le défaut dérive
+     d'`APP_NAME`, et ce sont déjà ces valeurs-là. Mesuré dans le conteneur : `--contre-courant` ne change ni `cache.prefix` ni le
+     préfixe Redis, donc ni les sessions ni le cache ne tombent. Toute autre valeur les fait tomber une fois ;
+   - `PUBLIC_CACHE_REVALIDATE_URL=http://takussan-web-preview-j7msd1:3000/api/revalidation/fiche`, l'alias interne du front : l'URL
+     publique bute sur l'authentification basique de Traefik (`401` avant Next), et chaque changement de fiche finirait en
+     `failed_jobs`. Posée le 2026-11-01 ; mesuré depuis le conteneur API : appel signé `200`, fausse signature `401`. La production garde son URL publique ;
+   - front : `API_URL`, `SITE_URL`, `MEDIA_URL`, ceux des lignes ci-dessus, et `API_INTERNAL_URL=http://takussan-api-preview:8080`.
+3. Comparer **avant de poser**, dans le conteneur `api` de l'environnement. Le script n'imprime que des chemins de configuration et
+   des noms de clés, jamais une valeur. Le fichier passe par un tube et non par `docker cp` : celui-ci le crée en `root:root`, le
+   conteneur tourne en `www-data`, ne peut ni le lire ni l'effacer, et le fichier de secrets reste en place (mesuré le 2026-11-01).
+
+   ```bash
+   docker exec -i <conteneur> sh -c 'umask 077; cat > /tmp/comparer-config-env.php' < deploy/takussan/comparer-config-env.php
+   docker exec -i <conteneur> sh -c 'umask 077; cat > /tmp/env-candidat' < <fichier>
+   docker exec -w /app <conteneur> php /tmp/comparer-config-env.php /tmp/env-candidat --contre-courant; echo "code : $?"
+   docker exec <conteneur> rm -f /tmp/env-candidat /tmp/comparer-config-env.php
+   ```
+
+   `--contre-courant` nomme les chemins de configuration qui changent, les clés dont la valeur diffère du courant (dont celles que
+   `config()` ne voit pas : `TRUSTED_PROXIES`, `RESEND_BASE_URL`, `SEED_*`), les clés neuves et les clés posées que le fichier ne déclare
+   pas. **Code `3` : le fichier viderait une clé posée** ; elle est nommée, et il ne faut pas poser ce fichier. Sans cette option, il
+   compare le fichier aux défauts de `config/`, et attrape une ligne vide qui en écraserait un.
+4. Coller dans l'onglet *Environment*, puis déployer. Les commentaires y sont facultatifs : `grep -Ev '^(#|$)' <fichier>` les
+   retire. ⚠ **Ne pas doubler un `$`** : Dokploy l'échappe déjà en écrivant le `.env`, et seule la forme `${X}` reste interpolée.
+   **Mettre entre guillemets toute valeur qui porte un `#`** : sans guillemets, la valeur s'arrête en silence au premier `#`.
+   Mesuré le 2026-11-01 sur Dokploy v0.30.10 avec des clés témoins : `ab$cd` arrive tel quel, `re#123` sans guillemets arrive `re`, `"re#123"` arrive `re#123`.
+
+⚠ **Une ligne vide n'est pas une ligne absente** : `env('X', 'd')` rend `''`, et le défaut ne s'applique pas. Le gabarit écrit donc
+le défaut de `config/` de chaque clé qui en a un, sauf les secrets et les intégrations.
+
+**Le relevé de `takussan-api-preview`** (Compose, `compose.one` → `env`, noms et valeurs non secrètes seulement) :
+
+- 2026-09-22 (TCK-541, ADR-0029) : `R2_ACCESS_KEY_ID` et `R2_SECRET_ACCESS_KEY` portent le jeton `takussan-preview-app`,
+  *Object Read & Write* limité aux deux seaux de préproduction ; refusé sur `vps-sauvegardes`, mesuré.
+- 2026-10-10 (TCK-620, ADR-0060) : `PHONE_LOGIN_ENABLED` et `OTP_PREVIEW_ENABLED` à `true`. ⚠ **À éteindre avant que la
+  préproduction reçoive des données réelles** : qui joint l'API y entre dans tout compte dont il connaît le numéro vérifié.
+- 2026-10-18 : les cinq jetons des webhooks entrants, chacun neuf et relu dans le conteneur (TCK-943, TCK-720) ; `API_ALIAS`
+  (ADR-0069 § 4, TCK-880). `REDIS_HOST` et `REDIS_PORT` retirées (TCK-880) : Compose les pose.
+- 2026-10-19 (TCK-995) : `SCOUT_PREFIX` = `preview_`, relevé dans Dokploy et dans le conteneur `api`. `MEILISEARCH_KEY` est la clé
+  `preview_*`, jamais la maîtresse.
+- 2026-10-20 : `APP_ENV` = `staging` (ADR-0060 a raison, le docblock d'`AddRobotsTagOutsideProduction` se trompait et est
   corrigé), `APP_URL` = `https://preview.api.takussan.com`, `SESSION_DOMAIN` = `.takussan.com`,
   `SESSION_COOKIE` = `takussan_session_preview`, `GOOGLE_REDIRECT_URI` =
   `https://preview.takussan.com/auth/oauth/google/callback`, `PHONE_LOGIN_ENABLED` et
-  `OTP_PREVIEW_ENABLED` = `true`, `MAIL_MAILER` = `log`. Ni `CACHE_PREFIX` (TCK-720) ni aucune
+  `OTP_PREVIEW_ENABLED` = `true`, `MAIL_MAILER` = `log`, `SEED_DOWNLOAD_MEDIA` = `true`. Ni `CACHE_PREFIX` (TCK-720) ni aucune
   `SMS_*_WEBHOOK_IPS` ne sont posées : en `staging`, une liste vide ne filtre pas (P71.04).
-- **relevé du 2026-10-22, recherche** (`compose.one` → `env`, dans Dokploy) : `SCOUT_DRIVER` =
-  `meilisearch`, `SCOUT_QUEUE` = `true`, `SCOUT_AFTER_COMMIT` = `true`, `QUEUE_CONNECTION` =
-  `database`. Conséquence : l'indexation part en file, après le commit, et ce n'est plus la requête
+- 2026-10-22, recherche : `SCOUT_DRIVER` = `meilisearch`, `SCOUT_QUEUE` = `true`, `SCOUT_AFTER_COMMIT` = `true`,
+  `QUEUE_CONNECTION` = `database`. Conséquence : l'indexation part en file, après le commit, et ce n'est plus la requête
   qui appelle Meilisearch ; une panne du moteur n'y fait donc pas échouer une requête (P123.03). Le
   développement (`.env.docker` : `SCOUT_QUEUE=false`) et la suite (`phpunit.xml` : `false`/`false`)
   jouent d'autres régimes.
+- 2026-11-01 (TCK-2456) : Dokploy porte 200 clés pour l'API et 6 pour le front, rangées dans l'ordre des gabarits. Relu : aucune différence
+  entre le fichier et le conteneur, code 0 de `comparer-config-env.php --contre-courant`. Copie de retour arrière :
+  `~/Sauvegardes/env-preview-avant-tck2456-{api,web}.env`.
+- 2026-11-01, valeurs : `BROADCAST_CONNECTION` = `null`, `MAIL_FROM_ADDRESS` = `contact@takussan.com`, `CACHE_PREFIX` =
+  `takussan-preview-cache-`, `REDIS_PREFIX` = `takussan-preview-database-` ; ces deux dernières ne changent aucune valeur effective, mesuré.
+- 2026-11-01 : `MEILISEARCH_KEY` porte la clé aux actions nommées (relevé, « Clé Meilisearch de la préproduction »).
+- 2026-09-14 : `SMS_*` et `WHATSAPP_*` hors des cinq jetons, `FACEBOOK_*`, `APPLE_*`, `CDN_*`, `BUNNY_*` absentes de
+  l'export, donc aux défauts de `config/`. ⚠ **Dépassé par le rangement du 2026-11-01** (ligne TCK-2456 ci-dessus) : le gabarit
+  déclare ces familles (`deploy/takussan/env.api.production.example:208-247` et `269-295`), la plupart vides ou à leur défaut ;
+  lesquelles portent une valeur en préproduction est **à relever** — noms seuls par `comparer-config-env.php --contre-courant`
+  (étape 3 ci-dessus), valeurs non secrètes par `relever-cles-dokploy.py`. Une intégration dont les identifiants sont vides ne marche toujours pas en préproduction.
 
-Absentes de l'export, donc aux défauts de `config/` : `SMS_*` et `WHATSAPP_*` **hors des cinq jetons
-de webhook posés le 2026-10-18**, `FACEBOOK_*`, `APPLE_*`, `CDN_*`, `BUNNY_*`. Une fonctionnalité qui
-en dépend ne marche pas en préproduction tant qu'on ne les pose pas.
+**Les clés posées en préproduction avant le rangement du 2026-11-01, noms seuls** : le gabarit dit ce qui peut exister, et `--contre-courant`
+ce qui existe. Cumul des relevés du 2026-09-14 au 2026-10-30 :
+
+- application et réseau : `IMAGE_TAG`, `API_ALIAS`, `APP_NAME`, `APP_ENV`, `APP_KEY`, `APP_DEBUG`, `APP_URL`, `APP_LOCALE`, `APP_FALLBACK_LOCALE`,
+  `APP_FAKER_LOCALE`, `APP_MAINTENANCE_DRIVER`, `BCRYPT_ROUNDS`, `FRONTEND_URL`, `SANCTUM_STATEFUL_DOMAINS`, `TRUSTED_PROXIES` ;
+- base, sessions, cache, files : `DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, `SESSION_DRIVER`,
+  `SESSION_LIFETIME`, `SESSION_ENCRYPT`, `SESSION_SECURE_COOKIE`, `SESSION_PATH`, `SESSION_DOMAIN`, `SESSION_COOKIE`, `CACHE_STORE`,
+  `QUEUE_CONNECTION`, `BROADCAST_CONNECTION`, `FILESYSTEM_DISK`, `REDIS_CLIENT`, `REDIS_PASSWORD`, `REDIS_DB`, `REDIS_CACHE_DB` ;
+- journaux, recherche, courriel, PDF : `LOG_CHANNEL`, `LOG_LEVEL`, `LOG_STACK`, `SCOUT_DRIVER`, `SCOUT_PREFIX`, `SCOUT_QUEUE`, `SCOUT_AFTER_COMMIT`,
+  `MEILISEARCH_HOST`, `MEILISEARCH_KEY`, `MAIL_MAILER`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`, `RESEND_API_KEY`, `LARAVEL_PDF_DRIVER` ;
+- médias et comptes : `MEDIA_PUBLIC_DISK`, `MEDIA_PRIVATE_DISK`, `MEDIA_QUEUE`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT`, `R2_MEDIA_BUCKET`,
+  `R2_MEDIA_URL`, `R2_PRIVATE_BUCKET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` ;
+- connexion, webhooks, Radar : `PHONE_LOGIN_ENABLED`, `OTP_PREVIEW_ENABLED`, `SMS_ORANGE_WEBHOOK_URL_TOKEN`, `SMS_MTARGET_WEBHOOK_URL_TOKEN`,
+  `SMS_LAM_WEBHOOK_URL_TOKEN`, `WHATSAPP_WEBHOOK_URL_TOKEN`, `WHATSAPP_WEBHOOK_VERIFY_TOKEN`, `RADAR_PHONE_HMAC_KEY` ;
+- `SEED_*`, treize au relevé du 2026-10-20.
+
+`MAIL_CONTACT_ADDRESS` et `VITE_APP_NAME` ont été retirées le 2026-11-01 : rien ne les lit.
+
+**Le numéro WhatsApp du Radar** (TCK-2395, [ADR-0081](../adr/0081-le-radar-prospecte-par-l-api-whatsapp-sur-son-propre-numero.md)) :
+**aucune de ces clés n'est posée** au 2026-10-30, et rien ne le sera par le code. Le porteur les pose
+quand le numéro et l'application Meta du Radar existent : `RADAR_WHATSAPP_PHONE_NUMBER_ID`,
+`RADAR_WHATSAPP_ACCESS_TOKEN`, `RADAR_WHATSAPP_WEBHOOK_URL_TOKEN`, `RADAR_WHATSAPP_WEBHOOK_APP_SECRET`,
+`RADAR_WHATSAPP_WEBHOOK_VERIFY_TOKEN`, `RADAR_WHATSAPP_AUTO_STOP` (défaut `true`), puis **en dernier**
+`RADAR_WHATSAPP_DRIVER=cloud`. Absentes, le pilote est `log`, refusé hors `local`/`testing` : l'envoi
+par l'API rend 422 `radar.whatsapp.not_configured`, rien ne part, et le webhook du Radar rend 404. ⚠ Le
+jeton et l'identifiant de numéro ne doivent jamais être ceux de l'intégration `whatsapp_cloud` des
+notifications : le code les refuse (422 `radar.whatsapp.same_number`).
+
+**Le plafond du socle IA** (TCK-2448, [ADR-0086](../adr/0086-les-couts-ia-se-comptent-en-dollars-et-sans-decimales-figees.md)) :
+`AI_DAILY_BUDGET_USD` remplace `AI_DAILY_BUDGET_XOF`, et le code ne lit plus cette dernière. La clé est en
+dollars ; vide ou absente, le plafond global vaut 8,33 $ (`config/ai.php`). Sa forme est celle d'un
+montant décimal écrit en chiffres : `12.5` est lu, `1e-3` retombe sur le défaut. `AI_USD_TO_XOF` reste,
+et ne sert plus qu'à l'équivalent affiché. ⚠ L'environnement de Dokploy n'a pas été relu pour ce ticket :
+si `AI_DAILY_BUDGET_XOF` y est posée, elle n'a plus d'effet, et son plafond n'est pas repris.
+
+**Les fournisseurs d'IA** (TCK-2450, [ADR-0085](../adr/0085-un-modele-se-regle-dans-la-console-un-fournisseur-dans-le-deploiement.md)) :
+`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, et les adresses `ANTHROPIC_URL`, `OPENAI_URL`,
+`OPENROUTER_URL`. Vide ou absente, une adresse vaut celle du fournisseur. **Poser une clé active le fournisseur** : c'est
+un geste du porteur, et aucune de `OPENAI_API_KEY` ni `OPENROUTER_API_KEY` n'est posée par le code. Une adresse dont l'hôte
+n'est pas dans `allowed_hosts` de `config/ai.php`, ou en `http` hors `local` et `testing`, rend le fournisseur non
+sélectionnable : la console l'affiche, la chaîne bascule, et la sonde `ai_providers` passe à `degraded`.
+
+⚠ **Pas de clé OpenAI ni OpenRouter avant le contrat de sous-traitance et le geste CDP** :
+[les étapes, dans l'ordre](#allumer-openai-ou-openrouter-tck-2450-adr-0085).
+
+**Avant de poser `OPENROUTER_API_KEY`** : *Private Input & Output Logging* et l'usage des demandes pour améliorer le produit
+sont deux options du compte OpenRouter, éteintes par défaut. `privacy.ts` § 4.3 ne décrit pas le second : l'allumer demande de
+changer le texte d'abord, et le code ne le voit pas. L'entrée `openrouter` accepte aussi `zdr`, `only`, `order` et `ignore`
+dans son bloc `provider`, facultatifs, vérifiés sur la documentation : aucun n'est imposé, et aucun ne filtre par pays.
 
 **Courriels.** Le transport `resend` de Laravel exige `resend/resend-php`, que le dépôt n'a eu qu'à
 partir du 2026-09-14 : jusque-là, chaque notification par courriel mourait dans le worker (`Class
@@ -229,13 +314,43 @@ même `composer.lock`, n'en envoyait pas davantage. Décision du porteur, le mê
 `docs/infra/prod-drivers.json` porte les **drivers** (`CACHE_STORE`, `SESSION_DRIVER`,
 `QUEUE_CONNECTION`, `MAIL_MAILER`, …) tels que Dokploy les déclare, **régénéré depuis ce relevé le
 2026-09-14** (TCK-527) — il décrivait jusque-là les `.env` de l'ancien serveur, `MAIL_MAILER=resend`
-en préproduction compris. Les clés vivent ici, les drivers là-bas, les valeurs secrètes nulle part.
+en préproduction compris. Les clés vivent dans les gabarits, les drivers là-bas, les valeurs secrètes nulle part. Relu contre Dokploy le 2026-11-01 : 200 clés, valeurs conformes, `BROADCAST_CONNECTION=null` ajouté.
 
-**À poser par le porteur — TCK-598, ADR-0052** (ni Dokploy ni Vercel ne les portaient au 2026-10-08 ; re-mesuré le 2026-10-18 : seule `API_INTERNAL_URL` est posée, sur `takussan-web-preview`) :
+**À poser par le porteur — TCK-2414, [ADR-0082](../adr/0082-l-empreinte-des-refus-du-radar-a-sa-propre-cle.md)** (posée dans Dokploy pour la préproduction le 2026-10-30, déployée le 2026-11-01 — relevé ci-dessus) :
+
+- `takussan-api-preview` : `RADAR_PHONE_HMAC_KEY`, une valeur neuve (`openssl rand -base64 48`), jamais celle de la
+  production — **fait le 2026-10-30**. Après la promotion n°1632, `php artisan radar:rehash-phones` n'a rien réécrit (0)
+  et la sonde `radar_phone_key` est à `ok` (2026-11-01). `RADAR_PHONE_HMAC_PREVIOUS_KEYS` reste vide. Les refus déjà écrits
+  sous le repli restent reconnus tant que l'`APP_KEY` qui les a écrits est la courante ou figure dans
+  `APP_PREVIOUS_KEYS` ; ne **pas** recopier `APP_KEY` dans `RADAR_PHONE_HMAC_PREVIOUS_KEYS` ;
+- production (TCK-517, phase F) : la même clé, valeur distincte, **avant le premier démarchage** ;
+- les deux : une copie hors du VPS, comme `APP_KEY`. Une rotation (après une fuite seulement) passe l'ancienne valeur
+  dans `RADAR_PHONE_HMAC_PREVIOUS_KEYS`, puis `radar:rehash-phones`. **Une ancienne clé ne se retire jamais** : un refus
+  purgé ne dit pas sous quelle clé il a été écrit ([ADR-0082](../adr/0082-l-empreinte-des-refus-du-radar-a-sa-propre-cle.md)).
+
+**Rotation d'`APP_KEY` — ce qu'on garde dans `APP_PREVIOUS_KEYS`, et combien de temps** (TCK-2430,
+[ADR-0084](../adr/0084-les-empreintes-sous-app-key-se-lisent-sous-ses-anciennes-cles.md)) :
+
+- on ne la fait tourner qu'après une fuite ou le départ de quelqu'un qui l'a lue. La neuve (`php artisan key:generate --show`)
+  va dans `APP_KEY`, l'ancienne **en tête** d'`APP_PREVIOUS_KEYS` (séparées par des virgules, sans espace), les plus
+  anciennes derrière. **Chaque valeur se recopie à l'identique, `base64:` et `=` final compris** : les empreintes du Radar
+  (`RadarPhone`, `ClaimLinks`) se calculent sur la chaîne, et une clé tronquée qui déchiffre encore ne les retrouve plus.
+  On redéploie, et rien d'autre ne se lance : les colonnes chiffrées se relisent sous l'ancienne clé, et les empreintes
+  HMAC des alertes, du crédit de bienvenue et des versements approuvés y sont aussi reconnues ;
+- **une ancienne `APP_KEY` ne quitte jamais `APP_PREVIOUS_KEYS` tant que TCK-614 n'est pas livré** (ré-chiffrement et
+  réécriture des empreintes). Retirée trop tôt, elle rend illisibles les colonnes chiffrées sous elle (ADR-0044), rend
+  partielle une désinscription d'alerte, et laisse un numéro déjà crédité recevoir une seconde bienvenue ;
+- même après TCK-614, l'octroi de bienvenue d'un compte anonymisé ne se réécrit pas, faute de numéro. Retirer la clé qui
+  l'a écrit rend une bienvenue à chacun de ces numéros : une perte bornée, à peser à ce moment-là ;
+- l'ancienne valeur reste rangée hors du serveur, comme la courante. Une clé gardée dans `APP_PREVIOUS_KEYS` sert encore à
+  déchiffrer et à vérifier une URL signée : après une fuite, c'est le prix de ne rien perdre, jusqu'à TCK-614.
+
+**À poser par le porteur — TCK-598, ADR-0052** (ni Dokploy ni Vercel ne les portaient au 2026-10-08 ; **la préproduction les porte toutes depuis le 2026-11-01**, la production reste à poser en F3) :
 
 - `takussan-api-preview` : `PUBLIC_CACHE_REVALIDATE_URL`
-  (`https://preview.takussan.com/api/revalidation/fiche`) et `PUBLIC_CACHE_REVALIDATE_SECRET`. Vides,
-  aucune révocation ne part : une fiche dépubliée reste servie jusqu'à 300 s ;
+  (l'alias interne du front, voir « Passer d'un gabarit à un environnement » : l'URL publique bute sur l'authentification
+  basique) et `PUBLIC_CACHE_REVALIDATE_SECRET`, **posées le 2026-11-01**, avec le secret des deux côtés et une copie au trousseau
+  (`takussan-preview-PUBLIC_CACHE_REVALIDATE_SECRET`). Vides, aucune révocation ne part : une fiche dépubliée reste servie jusqu'à 300 s ;
 - `takussan-web-preview` (variables d'**exécution**, lues par le serveur Next, jamais inlinées) :
   `PUBLIC_CACHE_REVALIDATE_SECRET` (le même que l'API ; vide, le handler refuse tout en 401),
   `API_INTERNAL_URL` (`http://takussan-api-preview:8080`, l'alias de l'API de préproduction sur
@@ -252,13 +367,20 @@ et `MEDIA_URL` (`https://media-preview.takussan.com`). **Posées le 2026-10-18**
 service (`application.saveEnvironment`, relues) ; elles s'appliquent au déploiement suivant. ⚠ Sur
 un nouvel environnement, les poser AVANT le premier déploiement : sinon le nouveau conteneur sort en
 erreur, Swarm garde l'ancien, et la preuve d'`images.yml` rougit sur l'ancien commit. Une
-authentification basique (Traefik, onglet *Security* de l'Application) à **trois comptes** depuis le
-2026-09-14 (TCK-525) : ceux du porteur, et le compte **`ci`**, dont `ci:motdepasse` est le secret
+authentification basique (Traefik, onglet *Security* de l'Application) : trois comptes le 2026-09-14 (TCK-525), **six au relevé du
+2026-11-01** : `ci`, `takussan`, `fama`, `samba`, `ibrahima`, `sama`. Les trois derniers créés datent du 2026-09-15, du 2026-09-17 et
+du 2026-10-17. Lesquels restent : décision du porteur. **`ci`** a pour `ci:motdepasse` le secret
 de dépôt `PREVIEW_BASIC_AUTH` — la preuve d'`images.yml` ne dépend plus
 d'un mot de passe humain. Le mot de passe de `ci` vit dans le secret GitHub et dans le trousseau
 macOS du poste (`security find-generic-password -s takussan-preview-ci -w`), nulle part ailleurs.
 
 ## Runbook
+
+⚠ **Geste du porteur, à faire en premier : les formalités auprès de la CDP ne sont pas accomplies.** La loi n° 2008-12 demande
+d'informer la CDP avant un transfert vers un pays tiers qui assure une protection suffisante (art. 49) ; à défaut, d'obtenir
+son autorisation sur demande motivée (art. 51). `privacy.ts` § 5 dit qu'elles ne sont pas accomplies, et § 1.1 attend leur
+référence. Aucun code ne le garde, et poser une clé d'IA ne le demande pas. Le geste fait : la référence au § 1.1, le § 5
+réécrit, puis `VERSION_DOCUMENTS` dans `editeur.ts`.
 
 **Tester une image en local, avant de pousser** :
 
@@ -378,8 +500,8 @@ archive chaque segment de journal dans `takussan-wal` ; une sauvegarde de base p
 **Après une restauration** (piste P42.05, TCK-883). Une restauration rend la base, pas ce qui vit
 autour d'elle. Dans l'ordre, sur la pile de l'environnement (`<pile>` = `takussan-api-preview-4iza80`) :
 
-1. **Avant** de restaurer : arrêter `worker`, `worker-media` et `scheduler`
-   (`docker stop <pile>-worker-1 <pile>-worker-media-1 <pile>-scheduler-1`), et noter
+1. **Avant** de restaurer : arrêter `worker`, `worker-long`, `worker-ia`, `worker-media` et `scheduler`
+   (`docker stop <pile>-worker-1 <pile>-worker-long-1 <pile>-worker-ia-1 <pile>-worker-media-1 <pile>-scheduler-1`), et noter
    l'**instant restauré** en UTC (l'heure de la sauvegarde, par exemple `2026-10-18T03:00:00Z`).
    Les effacements n'ont plus à se relever dans la base courante : depuis TCK-885, chacun écrit un
    objet hors de la base (point 5), et la base courante peut être perdue.
@@ -417,13 +539,80 @@ autour d'elle. Dans l'ordre, sur la pile de l'environnement (`<pile>` = `takussa
    demandes de la copie devenues échues depuis l'instant.
    **Si le seau privé est perdu lui aussi**, remettre d'abord le préfixe `effacements/` depuis
    `vps-sauvegardes/takussan-preview-private/effacements/` (copie nocturne, ci-dessous
-   « Restaurer un média ») : un effacement de moins de 24 h n'y est pas encore.
-6. Redémarrer `worker`, `worker-media` et `scheduler`.
+   « Restaurer un média ») : un effacement de moins de 24 h n'y est pas encore. Ce chemin reste
+   le bon avec les instantanés (TCK-2407) : la copie de `effacements/` n'y est jamais tournée, et
+   `--retirer-copie-plate` ne la touche pas.
+6. Redémarrer `worker`, `worker-long`, `worker-ia`, `worker-media` et `scheduler`.
 
 **Restaurer un média** (depuis le 2026-09-22) : un original ou une pièce privée se relit dans
 `vps-sauvegardes/takussan-preview-private/<id>/<fichier>` et se remet à la même clé dans
 `takussan-preview-private` ; les conversions se régénèrent ensuite par
 `media:regenerate-property-conversions` — le seau public n'a pas de copie, c'est voulu.
+Depuis le passage de la copie en instantanés (TCK-2407, ci-dessous, déployé le 2026-10-30), le chemin est
+`vps-sauvegardes/takussan-preview-private/jours/<AAAA-MM-JJ>/<id>/<fichier>`, **toujours depuis un
+jour qui porte `jours/<AAAA-MM-JJ>/.complet`** : un jour sans marqueur est une copie interrompue,
+partielle. Le plus récent jour complet pour un objet vivant ; le dernier jour complet d'avant
+l'effacement pour un objet effacé par erreur (14 jours au plus, puis il n'est plus nulle part).
+Les jours complets se listent avec la commande de l'étape 5 ci-dessous, filtrée sur `.complet` :
+`lsf -R --files-only --include '/*/.complet' r2:vps-sauvegardes/takussan-preview-private/jours/`.
+
+**Passer la copie du seau privé en instantanés** (TCK-2407, ADR-0029 amendé le 2026-10-30, une fois
+par serveur ; **fait sur le serveur le 2026-10-30**, relevé dans « Copie du seau privé des médias » ci-dessus). Rien à changer chez Cloudflare : ni règle de cycle de vie, ni jeton, ni verrou.
+
+1. `scp deploy/server/sauvegarde-seau-prive.sh root@178.18.247.62:/usr/local/sbin/sauvegarde-seau-prive`,
+   puis rejouer le seul § 8 de `bootstrap.sh`, dont l'unité attend désormais `time-sync.target` (une
+   horloge en avance au démarrage retirerait toute la fenêtre de restauration) :
+   `awk '/^# ── 8\./,/^# ── 9\./' deploy/server/bootstrap.sh | sed '$d' | ssh root@178.18.247.62 bash`.
+   Preuve : `systemctl show sauvegarde-seau-prive.service -p After` cite `time-sync.target`, et
+   `systemctl is-enabled systemd-time-wait-sync` rend `enabled`.
+   `RETENTION_JOURS` est facultative dans `/etc/default/sauvegarde-seau-prive` : 14 par défaut, et
+   à garder entre 8 (sous 8, le verrou de 7 jours refuse la rotation) et 14 (au-delà, `privacy.ts`
+   § 6 ne tient plus, et le script l'écrit au journal). Une valeur invalide est alertée sur
+   Telegram, et le passage se fait avec 14.
+2. `sauvegarde-seau-prive --essai` : la copie annonce tout le seau vers `…/jours/<aujourd'hui>/`,
+   et aucun instantané n'est retiré.
+3. `systemctl start sauvegarde-seau-prive`, puis `journalctl -u sauvegarde-seau-prive -o cat | tail`.
+   Un second `sauvegarde-seau-prive --essai` le même jour doit rendre `There was nothing to
+   transfer`, avec autant de vérifiés que d'objets dans le seau : l'instantané du jour est complet,
+   et il porte `jours/<aujourd'hui>/.complet`. `…/effacements/` existe à côté de `jours/`.
+4. **AC2** : un objet de plus de 14 jours (par exemple `1082/f4e7dd7a….jpg` de la restauration à
+   blanc du 2026-09-22) se relit dans le dernier instantané complet, avec le même md5 que dans le seau.
+   **AC3** : `SOURCE=takussan-seau-inexistant sauvegarde-seau-prive` sort en 1 et envoie l'alerte
+   Telegram. Elle nomme l'étape (`copie vers …`). Le journal de chaque passage porte aussi
+   « instantané <jour> : N objets ; précédent complet (<jour>) : M » ; un instantané qui tombe sous
+   la moitié du précédent envoie une alerte (seau source vidé) : les bons instantanés partent
+   14 jours plus tard, c'est le temps d'agir.
+5. **AC1** : il se mesure en temps réel, sans simulation sur R2 : un `JOUR` futur écrirait un
+   instantané daté plus tard, que la rotation garderait. Poser un objet d'essai dans le seau privé,
+   attendre le passage de la nuit, puis l'effacer du seau :
+
+   ```bash
+   docker exec <pile>-api-1 php artisan tinker --execute="Storage::disk('r2-private')->put('essai-tck-2407/x.txt', 'essai')"
+   # le lendemain, après 02:30 :
+   docker exec <pile>-api-1 php artisan tinker --execute="Storage::disk('r2-private')->delete('essai-tck-2407/x.txt')"
+   ```
+
+   Quatorze jours plus tard, la liste récursive des instantanés ne doit plus le contenir. Elle se
+   prend avec le jeton des sauvegardes, comme le fait `fraicheur-sauvegardes.sh` :
+
+   ```bash
+   ( . /etc/default/sauvegarde-seau-prive
+     docker run --rm -e RCLONE_CONFIG_R2_TYPE=s3 -e RCLONE_CONFIG_R2_PROVIDER=Cloudflare \
+       -e RCLONE_CONFIG_R2_ACCESS_KEY_ID="$R2_BACKUP_ACCESS_KEY_ID" \
+       -e RCLONE_CONFIG_R2_SECRET_ACCESS_KEY="$R2_BACKUP_SECRET_ACCESS_KEY" \
+       -e RCLONE_CONFIG_R2_ENDPOINT="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" \
+       rclone/rclone:1.71 lsf -R --files-only r2:vps-sauvegardes/takussan-preview-private/jours/ ) \
+     | grep -c essai-tck-2407   # → 0
+   ```
+6. **Au moins 8 jours après le premier passage en instantanés** (le verrou de 7 jours refuse
+   d'effacer un objet plus récent) : `sauvegarde-seau-prive --retirer-copie-plate --essai`, puis
+   sans `--essai`. La commande refait un passage complet, puis efface tout ce qui est sous
+   `vps-sauvegardes/takussan-preview-private/` hors de `jours/` et de `effacements/`, c'est-à-dire
+   l'ancienne copie unique, qui garde tout ce qui a été effacé depuis le 2026-09-22. Elle refuse une
+   `CIBLE` à la racine d'un seau. La liste de `vps-sauvegardes/takussan-preview-private/` ne doit
+   plus porter que `jours/` et `effacements/`.
+7. Porter la date et les comptes relevés dans la ligne « Copie du seau privé des médias » du
+   relevé, et retirer son avertissement.
 
 **Basculer les photos en WebP** (TCK-585, une fois par environnement, après le déploiement qui
 l'apporte) : les photos téléversées depuis ce déploiement le sont déjà ; les plus anciennes gardent
@@ -464,9 +653,9 @@ puis restaurer les bases depuis R2. La réinstallation elle-même se fait dans l
    session SSH. Le 2026-09-14, une coupure réseau du poste a tué l'installation avec la session.
 
    ```bash
-   ssh root@178.18.247.62 'nohup sh -c "export DOKPLOY_VERSION=v0.30.8 && curl -sSL https://dokploy.com/install.sh | sh" > /root/dokploy-install.log 2>&1 < /dev/null &'
+   ssh root@178.18.247.62 'nohup sh -c "export DOKPLOY_VERSION=v0.30.10 && curl -sSL https://dokploy.com/install.sh | sh" > /root/dokploy-install.log 2>&1 < /dev/null &'
    ssh root@178.18.247.62 'tail -3 /root/dokploy-install.log'   # jusqu'à « Dokploy is installed! »
-   ssh root@178.18.247.62 "docker service inspect dokploy --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}'"   # → dokploy/dokploy:v0.30.8@sha256:…
+   ssh root@178.18.247.62 "docker service inspect dokploy --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}'"   # → dokploy/dokploy:v0.30.10@sha256:…
    ```
 
    ⚠ **La version se pose, elle ne se déduit pas** (TCK-526) : `install.sh` lit `DOKPLOY_VERSION`
@@ -479,6 +668,7 @@ puis restaurer les bases depuis R2. La réinstallation elle-même se fait dans l
 7. Le journal d'accès de Traefik (TCK-518) — l'installation ne le pose pas, et le fichier est hors
    dépôt : `scp deploy/server/journaux-traefik.sh root@178.18.247.62:` puis
    `ssh root@178.18.247.62 'bash journaux-traefik.sh'`. Le script prouve par une requête sonde.
+   ⚠ Il ne pose pas `api.insecure: false` : ce geste reste à la main dans `traefik.yml`, puis se relit (ligne « API de Traefik » du relevé).
 
 8. Les seuils du budget (TCK-519) — `bootstrap.sh` a posé les unités, qui attendent le script et
    ses secrets : `scp deploy/server/seuils.sh root@178.18.247.62:/usr/local/sbin/seuils`, puis
@@ -538,7 +728,9 @@ Le fichier se supprime à la fin de la migration.
 `docker service update --image dokploy/dokploy:<version> dokploy` sur le serveur. Puis, **dans le
 même geste** : relire la version (commande du relevé), la porter dans `docs/infra/versions.json`
 (`dokploy.prod`, date) et dans la ligne `DOKPLOY_VERSION=` du runbook ci-dessus ; la garde
-`check-infra-versions.mjs` rougit tant que les deux ne disent pas la même chose (TCK-526).
+`check-infra-versions.mjs` rougit tant que les deux ne disent pas la même chose (TCK-526). ⚠ Elle compare ces deux fichiers entre
+eux, jamais au serveur. Relire aussi `traefik.yml` : `accessLog`, courriel ACME, et `api.insecure: false`. Cette relecture est manuelle
+aujourd'hui (ligne « API de Traefik » du relevé).
 
 **Mettre Docker à jour** : jamais par `apt-get upgrade` — les cinq paquets sont tenus. Sur le
 serveur : `apt-mark unhold docker-ce docker-ce-cli containerd.io docker-compose-plugin
@@ -558,6 +750,74 @@ noms à 89 jours ; `SEUIL_JOURS=365` rougit les cinq, un nom non servi et une or
 rougissent aussi. ⚠ Un nom ajouté à Dokploy s'ajoute à la liste du script ; GitHub éteint un
 workflow planifié après 60 jours sans activité sur le dépôt (un `workflow_dispatch` le rallume).
 
+### Allumer OpenAI ou OpenRouter (TCK-2450, ADR-0085)
+
+Il faut la clé pour que quelque chose parte, et **rien ne vérifie les deux premières étapes : l'ordre compte**. `privacy.ts` § 4.3 dit
+« sur nos instructions et sous obligation de confidentialité », ce qui suppose un contrat écrit.
+
+1. **Le contrat de sous-traitance** (loi n° 2008-12, art. 39) : accepter celui d'OpenAI ou d'OpenRouter sur le compte qui portera la
+   clé, et le garder au dossier. Chez OpenRouter, il ne couvre pas les fournisseurs de modèles, qui traitent selon leurs conditions :
+   `privacy.ts` § 4.3 le dit.
+2. **Informer la Commission de protection des données** du transfert, avant le premier envoi (art. 49), ou lui demander son
+   autorisation (art. 51) : [en tête du runbook](#runbook). `privacy.ts` § 5 se réécrit ensuite.
+3. **Poser la clé** dans Dokploy : `OPENAI_API_KEY` ou `OPENROUTER_API_KEY`. C'est elle qui active le fournisseur.
+4. **Dans la console** : ajouter le modèle et ses tarifs, l'évaluer, l'affecter.
+
+### Déclarer un point d'accès compatible OpenAI
+
+Aucun n'est déclaré aujourd'hui. Un point d'accès est un sous-traitant : il se déclare par son nom, jamais par une
+entrée générique dont l'adresse suffirait à changer le destinataire (ADR-0085 §3).
+
+1. **`takussan-api/config/ai.php`** : une entrée de plus dans `providers`, sur le pilote `openai-compatible`.
+
+   ```php
+   'mon-point' => [
+       'driver' => 'openai-compatible',
+       'key' => env('MON_POINT_API_KEY'),
+       'url' => $adresse('MON_POINT_URL', 'https://api.mon-point.example/v1'),
+       'legal_name' => 'Nom légal du prestataire',
+       'allowed_hosts' => ['api.mon-point.example'],
+   ],
+   ```
+
+   Comparaison d'hôte exacte, sans joker, port compris : un port qui n'est pas celui du schéma s'écrit dans la liste
+   (`'api.mon-point.example:8443'`). `MON_POINT_API_KEY` et `MON_POINT_URL` vont, vides, dans `.env.example` et
+   `.env.docker` (`scripts/check-env-parity.mjs`), et dans le gabarit de production (`scripts/check-env-production.mjs`).
+2. **`takussan-web/src/content/legal/privacy.ts` § 4.3** : le `legal_name` et le pays dans la puce, en fr et en en, puis
+   `VERSION_DOCUMENTS` dans `editeur.ts`. `scripts/check-ai-providers-privacy.mjs` rougit sans lui. ⚠ Ce pilote n'envoie
+   ni `store` ni `data_collection` : dire ce que ce prestataire conserve, d'après ses conditions. Sur `openrouter.ai` ou
+   `api.openai.com`, la garde exige le pilote de l'hôte.
+3. **Le contrat et la CDP** : les étapes 1 et 2 d'[Allumer OpenAI ou OpenRouter](#allumer-openai-ou-openrouter-tck-2450-adr-0085), avant le premier envoi.
+4. **Déployer**, puis poser la clé dans Dokploy : c'est elle qui active le fournisseur.
+5. **Dans la console** : ajouter le modèle et ses tarifs, l'évaluer, l'affecter.
+
+### Allumer les embeddings du Radar (TCK-2423, ADR-0076)
+
+Il faut la clé **et** la déclaration : sans l'une d'elles, rien ne part, test de connexion de la console compris, et le Radar
+reste sur `pg_trgm`. **L'ordre compte : `privacy.ts` § 4.3 promet le refus de l'entraînement avant tout envoi.**
+
+⚠ **Sur la préproduction, l'étape 3 a été jouée le 2026-11-01, avant les étapes 1 et 2.** Aucune clé Voyage n'est posée :
+aucun embedding ne part. L'ordre reste obligatoire pour la pose des clés, et pour la production.
+
+1. **Refuser l'entraînement chez Voyage AI** : tableau de bord, Organization → Terms of Service, curseur sur « Opted Out »
+   (compte d'administrateur et moyen de paiement enregistré : une clé d'un compte gratuit ne peut pas être en règle). Par défaut,
+   Voyage peut entraîner ses modèles sur les textes reçus. Le refus efface les textes après traitement, mais ne vaut que pour ce
+   qui est envoyé ensuite. Au tableau de bord, il est sans retour : revenir dessus passe par legal@voyageai.com (conditions
+   relues le 2026-10-31, datées du 2026-10-29, et FAQ de Voyage).
+2. **Informer la Commission de protection des données** du transfert vers les États-Unis, avant le premier envoi
+   (loi n° 2008-12, art. 49). Le contrat de sous-traitance (art. 39) est le DPA de Voyage, `voyageai.com/dpa`, incorporé à
+   ses conditions : le garder au dossier.
+3. **Poser l'extension** avec le superutilisateur, puis créer la table avec l'application :
+   ```bash
+   docker exec $(docker ps -q -f name=serveur-postgres-egr6ii) psql -U pgadmin -d takussan_preview -c "CREATE EXTENSION IF NOT EXISTS vector"
+   php artisan ai:install-embeddings   # dans le conteneur de l'API ; sort en 1 si l'extension manque toujours
+   ```
+4. **Poser `VOYAGE_API_KEY` et `VOYAGE_TRAINING_OPT_OUT=true`** dans Dokploy. La variable déclare le geste de l'étape 1, elle ne
+   le prouve pas. `radar:embed-listings` (toutes les 15 min) met alors chaque lot en file `ai` ; les annonces passent une à une de
+   `pg_trgm` aux vecteurs. Le coût et les pannes se lisent dans la console IA, usage `radar.embedding`. Pour revenir en arrière
+   sans retirer la clé : `RADAR_SIMILARITY_DRIVER=trigram`, ou `VOYAGE_TRAINING_OPT_OUT=false`. Une clé sans déclaration, pilote `embeddings`, écrit
+   `radar.embeddings.training_opt_out_undeclared` au journal à chaque balayage.
+
 ## Ce que Caddy reprend de l'ancien vhost nginx
 
 | nginx (`scripts/server-setup.sh`, retiré) | `takussan-api/docker/Caddyfile` |
@@ -566,7 +826,7 @@ workflow planifié après 60 jours sans activité sur le dépôt (un `workflow_d
 | `gzip on; gzip_min_length 1024` (JSON compris) | `encode zstd gzip { minimum_length 1024 }` |
 | `location /storage/ { … max-age=604800, stale-while-revalidate=86400 }` | `@storage` + `header` — **sans** `immutable` |
 | `location ~ /\.(?!well-known) { deny all; }` | `@cache_hidden` → `respond 404` |
-| `fastcgi_read_timeout 60` | `max_execution_time = 60` (`docker/php.ini`). **Même borne d'horloge, mesurée le 2026-10-25** (TCK-2355, FrankenPHP 1.13.2, PHP 8.4.27 ZTS, image locale arm64) : PHP ZTS a les minuteurs de Zend, qui comptent le temps d'horloge, attente réseau comprise — une version NTS sous Linux n'aurait compté que le temps processeur. Derrière `php_server`, une requête lit `60` dans `php.ini`, et `sleep(5)` sous une borne de 2 s rend `500` à 2,0 s. Ce qui diffère : nginx rendait `504` en abandonnant la réponse, ici PHP est arrêté et rend `500`. Sans effet en CLI, où la valeur est `0` : `worker`, `worker-media`, `scheduler` et `release` ne sont bornés que par leur `--timeout`. `deploy/takussan/smoke-api.sh image` le revérifie. ⚠ Les délais de Traefik et de Cloudflare, devant, ne sont pas relevés. |
+| `fastcgi_read_timeout 60` | `max_execution_time = 60` (`docker/php.ini`). **Même borne d'horloge, mesurée le 2026-10-25** (TCK-2355, FrankenPHP 1.13.2, PHP 8.4.27 ZTS, image locale arm64) : PHP ZTS a les minuteurs de Zend, qui comptent le temps d'horloge, attente réseau comprise — une version NTS sous Linux n'aurait compté que le temps processeur. Derrière `php_server`, une requête lit `60` dans `php.ini`, et `sleep(5)` sous une borne de 2 s rend `500` à 2,0 s. Ce qui diffère : nginx rendait `504` en abandonnant la réponse, ici PHP est arrêté et rend `500`. Sans effet en CLI, où la valeur est `0` : `worker`, `worker-long`, `worker-ia`, `worker-media`, `scheduler` et `release` ne sont bornés que par leur `--timeout`. `deploy/takussan/smoke-api.sh image` le revérifie. ⚠ Les délais de Traefik et de Cloudflare, devant, ne sont pas relevés. |
 
 ## Ce qui n'est pas mesurable depuis le dépôt
 

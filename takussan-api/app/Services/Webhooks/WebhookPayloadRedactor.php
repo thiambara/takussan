@@ -83,6 +83,22 @@ final class WebhookPayloadRedactor
                 'entry.*.changes.*.value.statuses.*.recipient_id' => self::PHONE,
                 'entry.*.changes.*.value.statuses.*.errors.*.code' => self::KEEP,
             ],
+            // TCK-2395 — le numéro du Radar : les messages reçus par leur identifiant, leur type et leur expéditeur masqué,
+            // JAMAIS leur texte (une réponse d'annonceur est une donnée personnelle, que la réponse du Radar garde seule).
+            'whatsapp_cloud_radar' => [
+                'entry.*.changes.*.field' => self::KEEP,
+                'entry.*.changes.*.value.metadata.phone_number_id' => self::KEEP,
+                'entry.*.changes.*.value.messages.*.id' => self::KEEP,
+                'entry.*.changes.*.value.messages.*.type' => self::KEEP,
+                'entry.*.changes.*.value.messages.*.timestamp' => self::KEEP,
+                'entry.*.changes.*.value.messages.*.from' => self::PHONE,
+                'entry.*.changes.*.value.messages.*.context.id' => self::KEEP,
+                'entry.*.changes.*.value.statuses.*.id' => self::KEEP,
+                'entry.*.changes.*.value.statuses.*.status' => self::KEEP,
+                'entry.*.changes.*.value.statuses.*.timestamp' => self::KEEP,
+                'entry.*.changes.*.value.statuses.*.recipient_id' => self::PHONE,
+                'entry.*.changes.*.value.statuses.*.errors.*.code' => self::KEEP,
+            ],
         ],
     ];
 

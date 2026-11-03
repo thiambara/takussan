@@ -2,7 +2,7 @@
 
 - **Statut** : Accepté
 - **Date** : 2026-10-08
-- **Tickets** : [TCK-597](../backlog/tickets/TCK-597-avis-signalements-et-moderation.md)
+- **Tickets** : [TCK-597](../backlog/tickets/done/TCK-597-avis-signalements-et-moderation.md)
 - **Complète** : [ADR-0043](0043-avis-cible-eligibilite-moderation-et-verrou-plateforme.md) (le
   verrou plateforme, que la décision `hide` d'un doublon réutilise).
 
@@ -136,3 +136,8 @@ auteurs sur le même sujet). Il sert au tri de la file. Aucune action automatiqu
   `tests/Feature/Moderation/DuplicateListingDetectorTest.php`.
 - `UnifiedModerationService` (`suspected_duplicate`, drapeau `suspicious`) ;
   `tests/Feature/Api/Admin/SuspiciousReviewFlagTest.php`.
+- `DuplicateListingDetector::closeProperties(int $hash, ?int $exceptPropertyId = null)` : la recherche des
+  biens dont une photo est à distance ≤ `THRESHOLD`, extraite de `detectForPhoto()` (comportement identique).
+  Lue aussi par `App\Services\Radar\RadarMatcher` (TCK-2387, ADR-0077), qui y compare l'empreinte d'une photo
+  SOURCE d'une annonce collectée : ce qui est cherché est une empreinte, pas un média.
+  `tests/Feature/Radar/RadarMatcherTest.php`.

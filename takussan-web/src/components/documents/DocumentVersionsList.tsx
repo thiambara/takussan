@@ -17,6 +17,7 @@ import {
 
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -185,14 +186,14 @@ function UploadVersionModal({ open, documentId, onOpenChange }: UploadVersionMod
               {t('comment_label')}{' '}
               <span className="text-muted-foreground">{t('comment_optional')}</span>
             </label>
-            <textarea
+            <Textarea
               id="version-comment"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               maxLength={500}
               rows={2}
               placeholder={t('comment_placeholder')}
-              className="w-full resize-none rounded-md border border-border bg-muted px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              className="resize-none"
             />
           </div>
 

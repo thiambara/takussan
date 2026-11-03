@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { copyToClipboard, liensDePartage } from '@/lib/share';
 import { formatMontant } from '@/lib/format/currency';
 import type { PropertyDetail } from '@/types/property';
@@ -68,10 +69,10 @@ export function PropertyShareDialog({ open, onOpenChange, property, url }: Prope
           <DialogDescription>{t('shareDialog.description')}</DialogDescription>
         </DialogHeader>
         <div className="flex items-center gap-2">
-          <input
+          <Input
             readOnly
             value={url}
-            className="flex-1 rounded-md border border-border bg-muted/60 px-3 py-2 text-sm text-foreground"
+            className="flex-1 bg-muted/60"
             aria-label={t('shareDialog.linkAria')}
           />
           <Button type="button" variant="outline" onClick={handleCopy} className="gap-2 shrink-0">

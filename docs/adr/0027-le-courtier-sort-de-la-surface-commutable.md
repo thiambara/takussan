@@ -2,7 +2,7 @@
 
 - **Statut** : remplacé par [ADR-0030](0030-le-courtier-quitte-le-code-et-la-base.md) le 2026-10-06 — le courtier quitte aussi la base
 - **Date** : 2026-08-31
-- **Ticket** : [TCK-495](../backlog/tickets/TCK-495-le-courtier-est-un-profil-sans-surface.md)
+- **Ticket** : [TCK-495](../backlog/tickets/done/TCK-495-le-courtier-est-un-profil-sans-surface.md)
 - **Remplace / amende** : rien. Précise l'application d'[ADR-0002](0002-role-est-un-profil-polymorphe.md).
 
 ## Contexte
@@ -26,7 +26,7 @@ d'espaces et se retrouvait devant un produit qui ne le connaissait pas : `isAgen
 `isAdmin()`, `isServiceProvider()` rendaient tous `false`, et le menu latéral se réduisait au socle
 — `/app`, `/app/messages`, `/app/documents`.
 
-**Ce n'est pas un défaut découvert par hasard.** [TCK-494](../backlog/tickets/TCK-494-garde-de-parite-sur-l-axe-des-roles.md)
+**Ce n'est pas un défaut découvert par hasard.** [TCK-494](../backlog/tickets/done/TCK-494-garde-de-parite-sur-l-axe-des-roles.md)
 a posé la veille une garde de parité `UserRole` ↔ `profileTypes()`, dont l'effet immédiat a été
 d'écrire noir sur blanc, dans la table d'audience du menu, la ligne
 `broker: ['/app', '/app/messages', '/app/documents']`. *Une garde ne corrige rien ; elle rend

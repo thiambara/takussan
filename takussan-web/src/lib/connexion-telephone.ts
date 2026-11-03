@@ -48,10 +48,22 @@ export interface VerificationTelephonePayload {
   readonly device_name?: string;
   readonly two_factor_code?: string;
   readonly recovery_code?: string;
+  /** TCK-2404 — la version des conditions acceptées, celle que `requires_terms` a présentée. */
+  readonly terms_version?: string;
+}
+
+/**
+ * TCK-2404 — le compte que le Radar a ouvert pour ce numéro n'a pas encore accepté les conditions
+ * (article 6.3 des CGU) : aucune session, le même code se repose avec `terms_version`.
+ */
+export interface ConditionsAAccepter {
+  readonly requires_terms: true;
+  readonly terms_version: string;
 }
 
 export type VerificationTelephoneReponse =
   | { readonly requires_2fa: true }
+  | ConditionsAAccepter
   | (AuthResponse & { readonly is_new_account?: boolean });
 
 /** `POST /api/auth/phone/verify-code`. Le corps arrive enveloppé (`data`) ou nu : les deux sont lus. */
@@ -70,4 +82,9 @@ export function exigeDoubleFacteur(
   res: VerificationTelephoneReponse,
 ): res is { readonly requires_2fa: true } {
   return (res as { requires_2fa?: unknown }).requires_2fa === true;
+}
+
+export function exigeConditions(res: VerificationTelephoneReponse): res is ConditionsAAccepter {
+  const conditions = res as { requires_terms?: unknown; terms_version?: unknown };
+  return conditions.requires_terms === true && typeof conditions.terms_version === 'string';
 }

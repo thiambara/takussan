@@ -50,7 +50,7 @@ const SPEC = join(ROOT, 'docs', 'models-spec.md');
  * dette invisible.*
  */
 const EXCLUS_JUSTIFIES = new Map([
-  // Vide, et c'est l'état sain : les 62 modèles de premier niveau sont couverts.
+  // Vide, et c'est l'état sain : tous les modèles de premier niveau sont couverts.
 ]);
 
 if (!existsSync(SPEC)) {

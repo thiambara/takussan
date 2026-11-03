@@ -67,9 +67,12 @@ class RecordPublicSearchAlert implements ShouldBeEncrypted, ShouldQueue
             }
             RateLimiter::hit($cle, 3600);
 
-            $open = AlertSubscriber::query()->where('mailbox_hash', $boite)->count();
+            // TCK-2430 — les plafonds comptent la boîte sous toutes les clés reconnues : une rotation d'`APP_KEY` ne
+            // les remet pas à zéro. Le limiteur, lui, vit une heure dans le cache : il repart sous la clé courante.
+            $boites = AlertSubscriber::mailboxHashes($this->channel, $this->contact);
+            $open = AlertSubscriber::query()->whereIn('mailbox_hash', $boites)->count();
             if ($open < (int) config('search_alerts.max_open_per_contact', 5)) {
-                $this->createAndConfirm($codes, $hash, $boite);
+                $this->createAndConfirm($codes, $hash, $boite, $boites);
             }
         } catch (Throwable $e) {
             Log::error('search_alert.request_failed', ['channel' => $this->channel]
@@ -77,7 +80,8 @@ class RecordPublicSearchAlert implements ShouldBeEncrypted, ShouldQueue
         }
     }
 
-    private function createAndConfirm(PhoneVerificationService $codes, string $hash, string $boite): void
+    /** @param  list<string>  $boites */
+    private function createAndConfirm(PhoneVerificationService $codes, string $hash, string $boite, array $boites): void
     {
         $data = $this->data;
         $token = $this->channel === AlertSubscriber::CHANNEL_EMAIL ? AlertSubscriber::newToken() : null;
@@ -111,7 +115,7 @@ class RecordPublicSearchAlert implements ShouldBeEncrypted, ShouldQueue
         // Au plus N messages de confirmation au même contact sur 24 h : au-delà, la demande
         // reste en attente, muette, et la purge l'efface à 48 h.
         $sent = AlertSubscriber::query()
-            ->where('mailbox_hash', $boite)
+            ->whereIn('mailbox_hash', $boites)
             ->where('confirmation_sent_at', '>=', now()->subDay())
             ->count();
         if ($sent >= (int) config('search_alerts.max_confirmations_per_day', 2)) {

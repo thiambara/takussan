@@ -4,11 +4,14 @@ namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
 use App\Services\Notifications\Sms\PhoneNumber;
+use App\Support\AppKeyHmac;
 use App\Support\CaseInsensitive;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Notifiable;
+use InvalidArgumentException;
 
 /**
  * TCK-599 (ADR-0050 §4) — un visiteur qui demande une alerte sans compte : UNE LIGNE PAR DEMANDE.
@@ -16,7 +19,9 @@ use Illuminate\Notifications\Notifiable;
  * ⚠ **`contact` est la donnée d'une personne physique** (e-mail ou téléphone) : colonne `text`,
  * cast `encrypted`, `$hidden`, jamais journalisé (le modèle n'est pas `Auditable`). On la retrouve
  * par {@see self::contactHash()} — HMAC sous `app.key`, la forme de `PayoutMethod::fingerprint()` :
- * un SHA-256 nu d'un numéro se retrouve par force brute.
+ * un SHA-256 nu d'un numéro se retrouve par force brute. TCK-2430 (ADR-0084) — une écriture pose l'empreinte sous la
+ * clé courante, une lecture la cherche aussi sous `APP_PREVIOUS_KEYS` ({@see self::contactHashes()}) : une
+ * rotation d'`APP_KEY` ne coupe pas un contact de ses demandes d'avant.
  *
  * Rien ne part avant `confirmed_at`, sauf l'unique message qui le demande. La désinscription
  * efface TOUTES les demandes du contact ({@see self::eraseContact()}) ; une demande non confirmée
@@ -76,7 +81,17 @@ class AlertSubscriber extends AbstractModel implements HasLocalePreference
     /** L'empreinte de recherche d'un contact. Le canal en fait partie : un même texte, deux contacts. */
     public static function contactHash(string $channel, string $contact): string
     {
-        return hash_hmac('sha256', $channel.'|'.self::normalizeContact($channel, $contact), (string) config('app.key'));
+        return AppKeyHmac::of($channel.'|'.self::normalizeContact($channel, $contact));
+    }
+
+    /**
+     * TCK-2430 — les empreintes sous lesquelles ce contact a pu être écrit : ce qu'une lecture cherche.
+     *
+     * @return list<string>
+     */
+    public static function contactHashes(string $channel, string $contact): array
+    {
+        return AppKeyHmac::all($channel.'|'.self::normalizeContact($channel, $contact));
     }
 
     /**
@@ -87,12 +102,27 @@ class AlertSubscriber extends AbstractModel implements HasLocalePreference
      */
     public static function mailboxHash(string $channel, string $contact): string
     {
+        return AppKeyHmac::of(self::mailbox($channel, $contact));
+    }
+
+    /**
+     * TCK-2430 — les empreintes sous lesquelles cette boîte a pu être écrite : les plafonds les comptent toutes.
+     *
+     * @return list<string>
+     */
+    public static function mailboxHashes(string $channel, string $contact): array
+    {
+        return AppKeyHmac::all(self::mailbox($channel, $contact));
+    }
+
+    private static function mailbox(string $channel, string $contact): string
+    {
         $contact = self::normalizeContact($channel, $contact);
         if ($channel === self::CHANNEL_EMAIL) {
             $contact = (string) preg_replace('/\+[^@]*(?=@[^@]*$)/', '', $contact);
         }
 
-        return hash_hmac('sha256', 'mailbox|'.$channel.'|'.$contact, (string) config('app.key'));
+        return 'mailbox|'.$channel.'|'.$contact;
     }
 
     /** L'empreinte stockée d'un jeton : on ne garde jamais le jeton de confirmation lui-même. */
@@ -116,7 +146,7 @@ class AlertSubscriber extends AbstractModel implements HasLocalePreference
     /** @param  Builder<AlertSubscriber>  $query */
     public function scopeForContact(Builder $query, string $channel, string $contact): Builder
     {
-        return $query->where('contact_hash', self::contactHash($channel, $contact));
+        return $query->whereIn('contact_hash', self::contactHashes($channel, $contact));
     }
 
     public function isConfirmed(): bool
@@ -149,14 +179,28 @@ class AlertSubscriber extends AbstractModel implements HasLocalePreference
     /**
      * « Effacer le contact » : toutes les demandes de ce contact, et leurs recherches (FK en
      * cascade). Une ligne par demande ne doit pas laisser une seconde copie derrière la première.
+     * TCK-2430 — sous toutes les clés reconnues : une demande écrite avant une rotation d'`APP_KEY` part aussi.
      */
     public function eraseContact(): int
     {
         if ($this->channel === self::CHANNEL_WHATSAPP) {
-            $this->retirerLeConsentementWhatsapp();
+            try {
+                $this->retirerLeConsentementWhatsapp();
+            } catch (DecryptException) {
+                // Vérification adverse I2 — le numéro ne se déchiffre plus (ancienne `APP_KEY` perdue) : sa ligne de
+                // `whatsapp_contacts` ne se retrouve plus. La désinscription aboutit quand même ; seul ce consentement reste.
+            }
         }
 
-        return self::query()->where('contact_hash', $this->contact_hash)->delete();
+        $hashes = [$this->contact_hash];
+        try {
+            $hashes = [...$hashes, ...self::contactHashes((string) $this->channel, (string) $this->contact)];
+        } catch (InvalidArgumentException|DecryptException) {
+            // Un numéro que `PhoneNumber::normalize()` refuse, ou un contact qui ne se déchiffre plus (`APP_KEY` tournée
+            // sans son ancienne dans `APP_PREVIOUS_KEYS`) : la désinscription aboutit, sous l'empreinte stockée au moins.
+        }
+
+        return self::query()->whereIn('contact_hash', array_values(array_unique($hashes)))->delete();
     }
 
     /**

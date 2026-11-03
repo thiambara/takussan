@@ -2,7 +2,7 @@
 
 - **Statut** : Accepté
 - **Date** : 2026-10-08
-- **Tickets** : [TCK-603](../backlog/tickets/TCK-603-agent-responsable-bulk-assign-et-biens-a-la-passation.md)
+- **Tickets** : [TCK-603](../backlog/tickets/done/TCK-603-agent-responsable-bulk-assign-et-biens-a-la-passation.md)
 - **Applique** : [ADR-0036](0036-l-agent-responsable-est-le-collaborateur-principal.md) (l'agent responsable est le
   collaborateur `agent` principal) et [ADR-0053](0053-l-agent-principal-est-une-marque-unique-par-bien.md) (la marque
   et son service de désignation)

@@ -75,7 +75,7 @@ export function DefiSecondFacteur({ onValider, onAnnuler }: DefiSecondFacteurPro
             pattern={useRecovery ? undefined : '\\d{6}'}
             autoComplete="one-time-code"
             placeholder={useRecovery ? t2fa('recoveryPlaceholder') : t2fa('codePlaceholder')}
-            className="h-11 tabular-nums tracking-widest"
+            className="tabular-nums tracking-widest"
             required
           />
         </div>

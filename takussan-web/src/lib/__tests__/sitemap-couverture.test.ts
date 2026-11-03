@@ -354,7 +354,7 @@ describe('l’arborescence publique est bien celle qu’on croit', () => {
     ).toBe('jamais');
   });
 
-  it('les DIX-HUIT pages publiques déclarent leur métadonnée sur place', () => {
+  it('les VINGT pages publiques déclarent leur métadonnée sur place', () => {
     // Le contrôle qui rend la règle positive tenable : si une page cessait de le faire, elle
     // deviendrait `'inconnu'` et le test de classement complet la nommerait. On le fige ici pour
     // que la raison soit lisible plutôt que déduite d'un rouge ailleurs.
@@ -376,7 +376,9 @@ describe('l’arborescence publique est bien celle qu’on croit', () => {
     // 18 → 19 : TCK-1243 (P97.06) ajoute `/notifications/unsubscribe`, STATIQUE et `jamais` — le
     // désabonnement du résumé par courriel, dont l'URL porte la signature de l'API
     // (`?user=…&expires=…&signature=…`) ; tenue hors du sitemap par son `noindex`.
-    expect(ROUTES.length).toBe(19);
+    // 19 → 20 : TCK-2390 ajoute `/claim/[token]`, `jamais` — la réclamation de ses annonces par
+    // l'annonceur du Radar, lien signé porteur (tranchée `exclue` dans ROUTES_DYNAMIQUES_PUBLIQUES).
+    expect(ROUTES.length).toBe(20);
     for (const route of ROUTES) {
       expect(route.indexabilite, `${route.chemin} (${route.fichier})`).not.toBe('inconnu');
     }
@@ -479,11 +481,13 @@ describe('TCK-431 · AC4 — /playground n’est plus servi indexable', () => {
 describe('TCK-431 — le point d’extension des routes dynamiques (TCK-436)', () => {
   const dynamiques = ROUTES.filter((r) => r.dynamique);
 
-  it('trouve les cinq routes dynamiques publiques', () => {
+  it('trouve les six routes dynamiques publiques', () => {
     // 4 → 5 : TCK-602 ajoute `/pay/[token]`, le lien porteur de paiement, exclu du sitemap.
+    // 5 → 6 : TCK-2390 ajoute `/claim/[token]`, le lien signé de réclamation du Radar, exclu de même.
     expect(dynamiques.map((r) => r.chemin).sort()).toEqual([
       '/agencies/[slug]',
       '/agents/[slug]',
+      '/claim/[token]',
       '/pay/[token]',
       '/properties/[slug]',
       '/share/[token]',

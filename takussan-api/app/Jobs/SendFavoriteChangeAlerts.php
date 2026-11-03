@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Jobs\Concerns\RunsOnLongQueue;
 use App\Models\Enums\UserStatus;
 use App\Models\Favorite;
 use App\Models\User;
@@ -56,12 +57,17 @@ use Throwable;
  */
 class SendFavoriteChangeAlerts implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, RunsOnLongQueue, SerializesModels;
 
     /** Un passage long n'est ni coupé à 60 s par le worker, ni rejoué : le suivant reprend. */
     public int $timeout = 1800;
 
     public int $tries = 1;
+
+    public function __construct()
+    {
+        $this->onLongQueue();
+    }
 
     /** @return list<object> */
     public function middleware(): array

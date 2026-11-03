@@ -24,6 +24,14 @@ class SeedingConfig
      * @param  bool  $includeFilterCoverage  Générer données pour couverture filtres
      * @param  bool  $includeDemoUsers  Créer utilisateurs de test prédéfinis
      * @param  bool  $downloadMedia  Télécharger des images réelles
+     * @param  int  $graine  Graine de tous les tirages : même graine, même jeu (TCK-2380)
+     * @param  list<float>  $taillesDAgence  Taille relative de chaque agence `standard`, dans l'ordre de
+     *                                       création : les volumes « par agence » ci-dessus sont ceux de la
+     *                                       plus grande (TCK-2378)
+     * @param  float  $tailleIndividuelle  Taille relative d'une agence `individual` : une personne seule
+     * @param  bool  $contratsFiges  Figer le contrat PDF de chaque bail signé, comme l'application, pour
+     *                               que ses signatures portent sur un document (TCK-2379) — ~0,25 s par
+     *                               bail : seuls les tests qui ne lisent pas les signatures l'éteignent
      */
     public function __construct(
         public int $agencies = 3,
@@ -34,11 +42,15 @@ class SeedingConfig
         public int $maintenanceRequestsPerAgency = 50,
         public int $conversationsPerAgency = 60,
         public int $documentsPerAgency = 40,
-        public bool $includeEdgeCases = true,
+        public bool $includeEdgeCases = false,
         public bool $ensureReferentialIntegrity = true,
-        public bool $includeFilterCoverage = true,
+        public bool $includeFilterCoverage = false,
         public bool $includeDemoUsers = true,
         public bool $downloadMedia = false,
+        public int $graine = 2026,
+        public array $taillesDAgence = [1.0, 0.65, 0.4],
+        public float $tailleIndividuelle = 0.12,
+        public bool $contratsFiges = true,
     ) {}
 
     /**
@@ -55,9 +67,9 @@ class SeedingConfig
             maintenanceRequestsPerAgency: 50,
             conversationsPerAgency: 60,
             documentsPerAgency: 40,
-            includeEdgeCases: true,
+            includeEdgeCases: false,
             ensureReferentialIntegrity: true,
-            includeFilterCoverage: true,
+            includeFilterCoverage: false,
             downloadMedia: false,
         );
     }
@@ -119,11 +131,16 @@ class SeedingConfig
             maintenanceRequestsPerAgency: (int) env('SEED_MAINTENANCE_PER_AGENCY', 50),
             conversationsPerAgency: (int) env('SEED_CONVERSATIONS_PER_AGENCY', 60),
             documentsPerAgency: (int) env('SEED_DOCUMENTS_PER_AGENCY', 40),
-            includeEdgeCases: (bool) env('SEED_EDGE_CASES', true),
+            // TCK-2376 — les cas limites et la couverture des filtres sont des FIXTURES : ils posent
+            // un loyer de 301 M XOF, des biens loués sans bail. Allumés par défaut, ils se mêlaient
+            // au jeu réaliste et à ses tableaux de bord ; ils se demandent désormais.
+            includeEdgeCases: (bool) env('SEED_EDGE_CASES', false),
             ensureReferentialIntegrity: (bool) env('SEED_REFERENTIAL_INTEGRITY', true),
-            includeFilterCoverage: (bool) env('SEED_FILTER_COVERAGE', true),
+            includeFilterCoverage: (bool) env('SEED_FILTER_COVERAGE', false),
             includeDemoUsers: (bool) env('SEED_DEMO_USERS', true),
             downloadMedia: (bool) env('SEED_DOWNLOAD_MEDIA', false),
+            graine: (int) env('SEED_RANDOM_SEED', 2026),
+            contratsFiges: (bool) env('SEED_SIGNED_CONTRACTS', true),
         );
     }
 }

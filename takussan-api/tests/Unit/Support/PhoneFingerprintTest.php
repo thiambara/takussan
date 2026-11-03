@@ -23,4 +23,17 @@ class PhoneFingerprintTest extends TestCase
 
         $this->assertNotSame($avant, PhoneFingerprint::of('+221771234567'));
     }
+
+    /** TCK-2430 — la lecture cherche sous la clé courante d'abord, puis sous chaque ancienne d'`APP_PREVIOUS_KEYS`. */
+    public function test_all_reconnait_l_empreinte_ecrite_sous_une_ancienne_cle(): void
+    {
+        $ancienne = (string) config('app.key');
+        $avant = PhoneFingerprint::of('+221771234567');
+        config(['app.key' => 'base64:'.base64_encode(str_repeat('k', 32)), 'app.previous_keys' => [$ancienne, $ancienne, '']]);
+
+        $this->assertSame([PhoneFingerprint::of('+221771234567'), $avant], PhoneFingerprint::all('77 123 45 67'));
+
+        config(['app.previous_keys' => []]);
+        $this->assertSame([PhoneFingerprint::of('+221771234567')], PhoneFingerprint::all('+221771234567'));
+    }
 }

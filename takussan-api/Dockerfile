@@ -1,7 +1,8 @@
 # Image de l'API Takussan (ADR-0028 §3-4). UNE image par commit, qui sert la préproduction ET la
 # production : aucune configuration n'y est cuite, tout arrive par l'environnement du conteneur.
 #
-#   runtime — api, worker, worker-media, scheduler et release : même image, commandes différentes
+#   runtime — api, worker, worker-long, worker-ia, worker-media, scheduler et release : même image,
+#             commandes différentes
 #   seed    — runtime + dépendances de dev, pour `db:seed` (Faker en est une, TCK-353)
 #
 # Aucune sonde d'image (HEALTHCHECK NONE, plus bas) : worker et scheduler n'écoutent aucun port, une

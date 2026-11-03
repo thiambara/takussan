@@ -215,6 +215,10 @@ enum NotificationCode: string
     /** Aux autres `super_admin` : un opérateur a été retiré (ADR-0047). */
     case PlatformOperatorRevoked = 'platform_operator.revoked';
 
+    // ─── Radar (TCK-2432) ───────────────────────────────────────────────────────────────
+    /** Au titulaire d'un bien publié par le Radar : sa dernière annonce source a disparu — le bien est-il toujours disponible ? */
+    case PropertySourceListingGone = 'property.source_listing_gone';
+
     /** Les natures de paramètre, chacune formatée à sa façon au rendu. */
     public const PARAM_MONEY = 'money';
 
@@ -303,6 +307,7 @@ enum NotificationCode: string
             self::PayoutMethodAdded, self::PayoutMethodUpdated, self::PayoutMethodRemoved,
             self::PayoutThresholdRelaxRequested, self::OwnerStatementAvailable,
             self::ServiceProviderBillKeptOnReopen => NotificationType::Payment,
+            self::PropertySourceListingGone => NotificationType::System,
         };
     }
 
@@ -370,6 +375,8 @@ enum NotificationCode: string
             self::PlatformOperatorRevoked => null,
             // TCK-2164 — un portefeuille à passer avant l'effacement : non désactivable.
             self::AgencyMemberDeletionRequested => null,
+            // TCK-2432 — une question de produit, pas un avis de sécurité : elle suit les préférences du titulaire.
+            self::PropertySourceListingGone => 'property_availability_check',
         };
     }
 
@@ -480,6 +487,7 @@ enum NotificationCode: string
                 'contact_leads' => self::PARAM_COUNT, 'url' => self::PARAM_URL,
             ],
             self::PlatformOperatorRevoked => ['operator' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
+            self::PropertySourceListingGone => ['property' => self::PARAM_TEXT],
         };
     }
 

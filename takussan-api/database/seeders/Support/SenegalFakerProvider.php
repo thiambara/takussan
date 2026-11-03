@@ -281,7 +281,7 @@ class SenegalFakerProvider extends Base
         $data = static::$neighborhoods[$neighborhood];
         $range = $type === ContractType::Rent ? $data['rent'] : $data['sale'];
 
-        $price = random_int($range[0], $range[1]);
+        $price = mt_rand($range[0], $range[1]);
 
         // Arrondir pour plus de réalisme
         if ($type === ContractType::Rent) {

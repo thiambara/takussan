@@ -67,6 +67,7 @@ class ValeursEnListeParcoursDesRoutesTest extends ApiTestCase
     private const HORS_PARCOURS = [
         'api/admin/jobs/failed/{id}' => '{id} : sans liaison de modèle',
         'api/admin/kyc/{dossier}' => '{dossier} : KycDossier sans fabrique',
+        'api/admin/ai/evaluations/{evaluation}' => '{evaluation} : sans liaison de modèle',
         'api/admin/enums/{key}' => '{key} : sans liaison de modèle',
         'api/admin/notification-templates/{event}/{channel}' => '{event} : sans liaison de modèle',
         'api/admin/webhook-logs/{webhookLog}' => '{webhookLog} : IntegrationWebhookLog sans fabrique',
@@ -82,6 +83,7 @@ class ValeursEnListeParcoursDesRoutesTest extends ApiTestCase
         'api/documents/{document}/versions/{versionId}/download' => '{versionId} : sans liaison de modèle',
         'api/invitations/{token}/prefill' => '{token} : sans liaison de modèle',
         'api/share/{token}' => '{token} : sans liaison de modèle',
+        'api/radar/claims/{token}' => '{token} : sans liaison de modèle',
         'api/share/{token}/download' => '{token} : sans liaison de modèle',
         'api/enums/{key}' => '{key} : sans liaison de modèle',
         'api/export/{entity}' => '{entity} : sans liaison de modèle',
@@ -111,6 +113,7 @@ class ValeursEnListeParcoursDesRoutesTest extends ApiTestCase
         'api/service-provider-bills/{bill}' => '{bill} : sans liaison de modèle',
         'api/webhooks/sms/lafricamobile/status/{token}/{notification}' => '{token} : sans liaison de modèle',
         'api/webhooks/whatsapp/status/{token}' => '{token} : sans liaison de modèle',
+        'api/webhooks/whatsapp/radar/{token}' => '{token} : sans liaison de modèle',
     ];
 
     public function test_aucune_route_get_ne_rend_5xx_sur_une_valeur_en_liste(): void

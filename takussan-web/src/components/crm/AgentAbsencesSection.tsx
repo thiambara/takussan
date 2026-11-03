@@ -7,6 +7,7 @@ import { useLocale, useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/context/AuthContext';
 import { useCan } from '@/hooks/useCan';
 import type { Locale } from '@/i18n/config';
@@ -24,6 +25,9 @@ import {
   revokeAbsence,
 } from '@/lib/queries/agent-crm';
 import type { AgentAbsence } from '@/types/agent-crm';
+
+/** Valeur repère de « aucun remplaçant choisi » : une valeur vide n'est pas une option du Select. */
+const AUCUN_REMPLACANT = '__none__';
 
 /**
  * Miroir de `config('role_delegations.max_duration_days')`, que juge `StoreAgentAbsenceRequest`
@@ -111,6 +115,14 @@ export function AgentAbsencesSection({ agencyId, currentUserId }: AgentAbsencesS
   const people = staff.data ?? [];
   const substitutes = people.filter((p) => String(p.id) !== absentId);
   const rows = absences.data ?? [];
+  const optionsAbsent = [
+    ...(people.some((p) => p.id === currentUserId) ? [] : [{ value: String(currentUserId), label: t('me') }]),
+    ...people.map((p) => ({ value: String(p.id), label: p.id === currentUserId ? t('me') : p.name })),
+  ];
+  const optionsRemplacant = [
+    { value: AUCUN_REMPLACANT, label: t('chooseSubstitute') },
+    ...substitutes.map((p) => ({ value: String(p.id), label: p.name })),
+  ];
 
   return (
     <section aria-labelledby="agent-absences-title" className="rounded-lg border border-muted bg-card p-4" data-testid="agent-absences">
@@ -167,31 +179,47 @@ export function AgentAbsencesSection({ agencyId, currentUserId }: AgentAbsencesS
           {canDeclareForOthers ? (
             <label className="space-y-1 text-sm">
               <span className="font-medium">{t('absent')}</span>
-              <select
+              <Select
                 value={absentId}
-                onChange={(e) => setAbsentId(e.target.value)}
-                className="min-h-11 w-full rounded-md border border-input bg-background px-2"
+                onValueChange={(next) => {
+                  if (next !== null) setAbsentId(next);
+                }}
+                items={optionsAbsent}
               >
-                {people.some((p) => p.id === currentUserId) ? null : <option value={currentUserId}>{t('me')}</option>}
-                {people.map((p) => (
-                  <option key={p.id} value={p.id}>{p.id === currentUserId ? t('me') : p.name}</option>
-                ))}
-              </select>
+                <SelectTrigger className="w-full" aria-label={t('absent')}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {optionsAbsent.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </label>
           ) : null}
           <label className="space-y-1 text-sm">
             <span className="font-medium">{t('substitute')}</span>
-            <select
-              required
-              value={substituteId}
-              onChange={(e) => setSubstituteId(e.target.value)}
-              className="min-h-11 w-full rounded-md border border-input bg-background px-2"
+            <Select
+              value={substituteId === '' ? AUCUN_REMPLACANT : substituteId}
+              onValueChange={(next) => {
+                if (next === null) return;
+                setSubstituteId(next === AUCUN_REMPLACANT ? '' : next);
+              }}
+              items={optionsRemplacant}
             >
-              <option value="">{t('chooseSubstitute')}</option>
-              {substitutes.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
+              <SelectTrigger className="w-full" aria-label={t('substitute')}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {optionsRemplacant.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </label>
           <label className="space-y-1 text-sm">
             <span className="font-medium">{t('until')}</span>

@@ -123,7 +123,7 @@ contrainte.
 
 Décision du porteur du 2026-10-25 sur P234.02 du fichier de pistes
 (`docs/plans/2026-10-15-pistes-d-amelioration.md`). Ticket :
-[TCK-2280](../backlog/tickets/TCK-2280-invitation-acceptee-par-un-compte-existant.md).
+[TCK-2280](../backlog/tickets/done/TCK-2280-invitation-acceptee-par-un-compte-existant.md).
 
 **Constat.** Le tableau du Contexte donne `service_provider_profiles.user_id` **UNIQUE**. C'était
 déjà faux le jour de la décision : la migration `2026_05_10_170000` a retiré cette contrainte, pour

@@ -146,7 +146,8 @@ node docs/gen-features-by-actor.mjs --check
 > **Pourquoi une commande et pas une liste :** une liste de gardes écrite à la main est juste le
 > jour où on l'écrit — c'est le défaut que la moitié d'entre elles existent pour attraper ailleurs.
 > Chacune porte son motif et son histoire dans son propre en-tête ; c'est là qu'il faut lire.
-> `.github/workflows/repo-ci.yml` les rejoue toutes à chaque PR.
+> `.github/workflows/repo-ci.yml` les rejoue toutes à chaque PR — et `scripts/check-gardes-branchees.mjs`
+> le garde : jusqu'au 2026-11-03, cinq d'entre elles n'étaient jouées par aucun workflow.
 > [Ce bloc a cité deux gardes sur douze](docs/journal-des-corrections.md#j-03).
 
 ## Qui lance quoi — la règle des tests quand plusieurs agents travaillent
@@ -214,7 +215,8 @@ voit pas : une clé absente des DEUX fichiers (TCK-296).
 > ⚠️ **Les drivers réellement déclarés par les environnements déployés vivent dans
 > [`docs/infra/prod-drivers.json`](docs/infra/prod-drivers.json), et NULLE PART AILLEURS**
 > ([J-05](docs/journal-des-corrections.md#j-05)) — régénéré depuis Dokploy depuis le 2026-09-14 (TCK-527) ; les *clés* de
-> chaque environnement sont dans `docs/infra/hebergement.md`.
+> chaque environnement sont dans les gabarits `deploy/takussan/env.*.production.example` (TCK-2456), celles posées en
+> préproduction dans `docs/infra/hebergement.md`.
 
 `./dev.sh` sonde ce que le `.env` déclare et nomme ce qui ne répond pas : sans lui, un service
 déclaré et absent ne produit aucune erreur lisible — l'API démarre, et c'est la première requête
@@ -243,7 +245,7 @@ sortante** en phase F du plan (TCK-517), qui se décide par une personne.
 **L'API n'a jamais servi en production.** `api.takussan.com` pointe sur le VPS sans service
 derrière et **échoue sur la poignée de main TLS** (re-mesuré le 2026-09-14, TCK-523). Le front de
 Vercel qui l'appelait quand même
-([TCK-332](docs/backlog/tickets/TCK-332-front-public-appelle-une-api-absente.md)) a disparu avec
+([TCK-332](docs/backlog/tickets/obsolete/TCK-332-front-public-appelle-une-api-absente.md)) a disparu avec
 Vercel : le front et l'API de production arrivent ensemble en phase F (TCK-517). Relevé et
 commande : [`docs/infra/hebergement.md`](docs/infra/hebergement.md), « Ce qui sert quoi ».
 
@@ -298,7 +300,15 @@ vers `dev`. Le porteur la promeut vers `dev`. Les agents ne publient rien eux-m�
   (TCK-310, ex-dette D-18 : 16 modèles y manquaient). ⚠ La garde vérifie qu'un **nom** apparaît,
   jamais qu'il est bien décrit — c'est un plancher, pas une preuve de justesse.
 
-**Backlog** : `docs/backlog/` → `tickets/TCK-NNN-<slug>.md`, et `INDEX.md` à la demande.
+**Backlog** : `docs/backlog/` → `tickets/<status>/TCK-NNN-<slug>.md`, et `INDEX.md` à la demande.
+
+> **Les tickets sont rangés par statut** (`todo/`, `doing/`, `review/`, `blocked/`, `done/`,
+> `obsolete/`), et **le dossier est dérivé** du `status:` du frontmatter, qui reste la seule
+> source. Changer un statut, c'est éditer `status:` puis lancer `node docs/backlog/ranger-tickets.mjs` :
+> il déplace le fichier et réécrit dans tout le dépôt les liens qui le visent (y compris les liens
+> relatifs des tickets entre eux). Un ticket neuf s'écrit sous `tickets/todo/` ; posé à la racine
+> de `tickets/`, le script le range. `--check` (Repo CI) rougit sur un ticket mal rangé ou un lien
+> périmé ; `check-backlog.mjs` signale aussi le ticket mal rangé.
 
 > **`INDEX.md` est GÉNÉRÉ, et n'est plus versionné** ([ADR-0067](docs/adr/0067-l-index-du-backlog-n-est-plus-versionne.md)) :
 > `node docs/backlog/gen-index.mjs` l'écrit en local, git l'ignore. La source est le frontmatter
@@ -424,12 +434,9 @@ Direction retenue : **« Ancrage Local Contemporain »** — palette Lin (`--bac
 (Standard / Listing / Cover / Compact). Les primitives sont **shadcn style `base-nova` sur
 `@base-ui/react`** — il n'y a **aucune** dépendance Radix dans ce projet.
 
-⚠️ `docs/plans/routing-layouts-roles.md` prescrit une palette (« Takussan Heritage ») et une stack
-(Next 14, Tailwind v3) **entièrement révoquées**. Ne pas s'en servir.
-
 ## Workflows
 
-Deux voies équivalentes — `.windsurf/workflows/` ou `.claude/commands/` :
+Par `.claude/commands/` (Claude Code) — `.windsurf/` a été retiré le 2026-11-03 :
 
 - `/write-spec` — crée un ticket, ne touche jamais au code.
 - `/implement-spec` — implémente un ticket, ne modifie jamais les specs.
@@ -438,8 +445,8 @@ Deux voies équivalentes — `.windsurf/workflows/` ou `.claude/commands/` :
 Si l'utilisateur demande « crée un ticket » ou « implémente TCK-NNN » sans slash command, lire
 directement le workflow correspondant.
 
-**Les compétences vivent sous `.agent/skills/`, et nulle part ailleurs.** Les deux voies ci-dessus
-n'en sont que des relais : elles pointent toutes deux vers `.agent/workflows/`, qui pointe vers
+**Les compétences vivent sous `.agent/skills/`, et nulle part ailleurs.** Les commandes ci-dessus
+n'en sont que des relais : elles pointent vers `.agent/workflows/`, qui pointe vers
 `.agent/skills/`. Une compétence se corrige donc là, une seule fois.
 
 > ⚠️ **Un répertoire mort n'est pas inerte : il absorbe les corrections.** `.agents/` a coexisté

@@ -274,7 +274,7 @@ export function PropertyListFilters({
             type="search"
             enterKeyHint="search"
             placeholder={t('searchPlaceholder')}
-            className="h-11 rounded-xl bg-card pl-9 shadow-xs lg:h-8 lg:rounded-lg lg:bg-transparent lg:shadow-none"
+            className="rounded-xl bg-card pl-9 shadow-xs lg:rounded-lg lg:bg-transparent lg:shadow-none"
             defaultValue={currentSearch}
             key={currentSearch}
           />

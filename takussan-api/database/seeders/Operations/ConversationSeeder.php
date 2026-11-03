@@ -6,12 +6,12 @@ use App\Models\Conversation;
 use App\Models\ConversationParticipant;
 use App\Models\Enums\ConversationStatus;
 use App\Models\Enums\ConversationType;
-use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Services\Messaging\PropertyConversationResolver;
 use App\Services\Property\PrimaryPropertyContact;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\Timeline;
+use Database\Seeders\Support\Tirage;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
 
@@ -43,7 +43,7 @@ class ConversationSeeder extends Seeder
     {
         foreach ($this->ctx->agencies as $agency) {
             $users = $this->ctx->usersByAgency[$agency->id] ?? collect();
-            $agents = $this->ctx->usersWithProfile(AgentProfile::class, $agency->id);
+            $agents = $this->ctx->equipe($agency->id);
             $properties = $this->ctx->propertiesByAgency[$agency->id] ?? collect();
 
             if ($users->count() < 2 || $agents->isEmpty()) {
@@ -51,14 +51,13 @@ class ConversationSeeder extends Seeder
             }
 
             $userIds = $users->pluck('id')->values();
-            $agentIds = $agents->pluck('id')->values();
             $prospectIds = ($this->ctx->customersByAgency[$agency->id] ?? collect())
                 ->pluck('user_id')->filter()->map(fn ($id) => (int) $id)->unique()->values();
             $contacts = $this->contactsFor($properties);
             /** @var array<string, true> $prospectThreads */
             $prospectThreads = [];
 
-            $conversationsCount = $this->ctx->config->conversationsPerAgency;
+            $conversationsCount = $this->ctx->volume($this->ctx->config->conversationsPerAgency, $agency->id);
             for ($i = 0; $i < $conversationsCount; $i++) {
                 $createdAt = Timeline::randomDateBetween(
                     Timeline::seedStart(),
@@ -69,7 +68,7 @@ class ConversationSeeder extends Seeder
                     ? (int) array_rand($contacts)
                     : null;
                 $prospectId = $propertyId !== null
-                    ? $prospectIds->reject(fn (int $id) => $id === $contacts[$propertyId])->random()
+                    ? $prospectIds->reject(fn (int $id) => $id === $contacts[$propertyId])->pipe(Tirage::un(...))
                     : null;
 
                 if ($propertyId !== null && $prospectId !== null && ! isset($prospectThreads["{$propertyId}:{$prospectId}"])) {
@@ -82,18 +81,21 @@ class ConversationSeeder extends Seeder
                     continue;
                 }
 
-                $creator = (int) $agentIds->random();
-                $others = $userIds->map(fn ($id) => (int) $id)->reject(fn (int $id) => $id === $creator)->values();
+                // TCK-2378 — un fil d'équipe réunit ceux qui étaient là ce jour-là.
+                $creator = (int) $this->ctx->agentAu($agency->id, $createdAt);
+                $others = $users
+                    ->filter(fn ($u) => $u->created_at->lessThanOrEqualTo($createdAt) && ! (isset($this->ctx->departs[$u->id]) && $this->ctx->departs[$u->id]->lessThanOrEqualTo($createdAt)))
+                    ->keys()->map(fn ($id) => (int) $id)->reject(fn (int $id) => $id === $creator)->values();
                 if ($others->count() < 2) {
                     continue;
                 }
 
                 $this->conversations->push($this->seed(
                     ConversationType::Group,
-                    $this->ctx->faker()->sentence(4),
+                    $this->ctx->texts()->sujetDeGroupe(),
                     $creator,
                     null,
-                    $others->random(min($this->ctx->faker()->numberBetween(2, 3), $others->count()))->prepend($creator)->all(),
+                    Tirage::plusieurs($others, min($this->ctx->faker()->numberBetween(2, 3), $others->count()))->prepend($creator)->all(),
                     $creator,
                     $createdAt,
                 ));

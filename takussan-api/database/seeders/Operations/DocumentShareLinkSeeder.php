@@ -6,8 +6,8 @@ use App\Models\Document;
 use App\Models\DocumentShareLink;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\Timeline;
+use Database\Seeders\Support\Tirage;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Str;
 
 class DocumentShareLinkSeeder extends Seeder
 {
@@ -36,13 +36,13 @@ class DocumentShareLinkSeeder extends Seeder
 
                     DocumentShareLink::create([
                         'document_id' => $document->id,
-                        'token' => Str::random(48),
+                        'token' => Tirage::code(48),
                         'expires_at' => $createdAt->addDays(30),
                         'max_downloads' => $this->ctx->faker()->optional()->numberBetween(1, 10),
-                        'downloads_count' => random_int(0, 5),
+                        'downloads_count' => mt_rand(0, 5),
                         'created_by_id' => $document->uploaded_by,
                         'last_accessed_at' => $this->ctx->faker()->boolean(60)
-                            ? $createdAt->addDays(random_int(1, 15))
+                            ? $createdAt->addDays(mt_rand(1, 15))
                             : null,
                         'created_at' => $createdAt,
                         'updated_at' => $createdAt,

@@ -5,13 +5,13 @@
 - **Décision du porteur** : option a de P216.05 du 2026-10-24 (angle 216 du fichier de pistes,
   `docs/plans/2026-10-15-pistes-d-amelioration.md`), précisée le même jour pour les filtres des
   tâches (§ 2)
-- **Précédents** : [TCK-1407](../backlog/tickets/TCK-1407-valeur-en-liste-dans-un-filtre.md),
-  [TCK-1864](../backlog/tickets/TCK-1864-recherche-paiements-rapprochement-parametres-en-liste.md),
-  [TCK-1866](../backlog/tickets/TCK-1866-tableaux-de-bord-et-boosts-valeurs-en-liste.md), et
-  P216.01 à P216.04 ([TCK-2120](../backlog/tickets/TCK-2120-consoles-super-admin-valeurs-en-liste.md),
-  [TCK-2122](../backlog/tickets/TCK-2122-historique-des-paiements-valeurs-en-liste.md),
-  [TCK-2124](../backlog/tickets/TCK-2124-include-en-liste-lu-a-la-main.md),
-  [TCK-2126](../backlog/tickets/TCK-2126-tri-en-liste-avis-et-echeancier.md))
+- **Précédents** : [TCK-1407](../backlog/tickets/done/TCK-1407-valeur-en-liste-dans-un-filtre.md),
+  [TCK-1864](../backlog/tickets/done/TCK-1864-recherche-paiements-rapprochement-parametres-en-liste.md),
+  [TCK-1866](../backlog/tickets/done/TCK-1866-tableaux-de-bord-et-boosts-valeurs-en-liste.md), et
+  P216.01 à P216.04 ([TCK-2120](../backlog/tickets/done/TCK-2120-consoles-super-admin-valeurs-en-liste.md),
+  [TCK-2122](../backlog/tickets/done/TCK-2122-historique-des-paiements-valeurs-en-liste.md),
+  [TCK-2124](../backlog/tickets/done/TCK-2124-include-en-liste-lu-a-la-main.md),
+  [TCK-2126](../backlog/tickets/done/TCK-2126-tri-en-liste-avis-et-echeancier.md))
 
 ## Contexte
 

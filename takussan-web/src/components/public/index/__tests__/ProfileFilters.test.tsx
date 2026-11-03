@@ -189,14 +189,17 @@ describe('TCK-573 — cibles tactiles et champ lisible à 320 px', () => {
 
   // Mesuré à 768 et 1024 px en émulation tactile : `md:h-10` seul ramenait champ et bouton à 40 px
   // sur une tablette. Les 40 px du bureau ne valent qu'à la souris.
-  it('au-delà de `md`, champ et bouton ne descendent à 40 px qu’à la souris', () => {
+  it('au-delà de `md`, champ et bouton restent alignés à 44 px, sans descendre à 40 px', () => {
     monter();
 
     const champ = screen.getByRole('searchbox');
     const bouton = screen.getByRole('button', { name: 'Rechercher' });
+    // TCK-2460 — le champ tient ses 44 px de la portée de densité, le bouton s'aligne dessus, souris comprise.
+    expect(champ.closest('[data-field-density="comfortable"]')).not.toBeNull();
+    expect(bouton.className.split(/\s+/)).toContain('size-11');
     for (const cible of [champ, bouton]) {
       const classes = cible.className.split(/\s+/);
-      expect(classes).toContain('md:pointer-fine:h-10');
+      expect(classes).not.toContain('md:pointer-fine:h-10');
       expect(classes).not.toContain('md:h-10');
     }
   });

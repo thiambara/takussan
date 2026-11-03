@@ -42,6 +42,7 @@ vi.mock('@/components/property-dashboard/PropertyHeaderActions', () => ({ Proper
 vi.mock('@/components/property-dashboard/PropertyStatusBadge', () => ({ PropertyStatusBadge: () => null }));
 vi.mock('@/components/property-dashboard/PropertyVisibilityBadge', () => ({ PropertyVisibilityBadge: () => null }));
 vi.mock('@/components/property-form/PropertyModerationBanner', () => ({ PropertyModerationBanner: () => null }));
+vi.mock('@/components/property-dashboard/QuestionDeDisponibilite', () => ({ QuestionDeDisponibilite: () => null }));
 
 const { ApiError } = await import('@/lib/api');
 const { default: Page } = await import('../page');

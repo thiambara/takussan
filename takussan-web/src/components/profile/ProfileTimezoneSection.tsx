@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface ProfileTimezoneSectionProps {
   /** Le fuseau du compte (`users.timezone`), `null` ou absent : Dakar, le défaut de la colonne. */
@@ -11,9 +12,6 @@ interface ProfileTimezoneSectionProps {
 }
 
 const FUSEAU_PAR_DEFAUT = 'Africa/Dakar';
-
-const SELECT_CLASS =
-  'h-9 w-full rounded-md border border-border bg-transparent px-3 text-sm text-foreground';
 
 /** Les fuseaux IANA que connaît le moteur, le fuseau du compte compris s'il n'y est pas. */
 function fuseaux(courant: string): string[] {
@@ -60,6 +58,8 @@ export function ProfileTimezoneSection({ timezone }: ProfileTimezoneSectionProps
     });
   }
 
+  const optionsFuseau = fuseaux(choix).map((fuseau) => ({ value: fuseau, label: fuseau }));
+
   return (
     <section className="space-y-4 rounded-2xl bg-card p-6">
       <div>
@@ -69,18 +69,24 @@ export function ProfileTimezoneSection({ timezone }: ProfileTimezoneSectionProps
       <form onSubmit={enregistrer} className="space-y-3">
         <div className="space-y-1">
           <Label htmlFor="profile-timezone">{t('label')}</Label>
-          <select
-            id="profile-timezone"
-            className={SELECT_CLASS}
+          <Select
             value={choix}
-            onChange={(e) => setChoix(e.target.value)}
+            onValueChange={(next) => {
+              if (next !== null) setChoix(next);
+            }}
+            items={optionsFuseau}
           >
-            {fuseaux(choix).map((fuseau) => (
-              <option key={fuseau} value={fuseau}>
-                {fuseau}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger id="profile-timezone" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {optionsFuseau.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         {retour && (
           <p role="status" className={retour.ok ? 'text-sm text-success' : 'text-sm text-destructive'}>

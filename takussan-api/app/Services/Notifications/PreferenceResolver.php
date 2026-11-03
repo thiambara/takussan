@@ -82,6 +82,8 @@ class PreferenceResolver
         // coupe pas l'indisponibilité.
         'favorite_price_drop',
         'favorite_unavailable',
+        // TCK-2432 — l'annonce source d'un bien publié par le Radar a disparu : le bien est-il toujours disponible ?
+        'property_availability_check',
     ];
 
     /**

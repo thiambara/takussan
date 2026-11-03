@@ -11,6 +11,7 @@ import { messagesPour } from '@/i18n/messages';
 import { ArriveeEnHaut } from '@/components/auth/ArriveeEnHaut';
 import { ReinitialiserSessionClient } from '@/components/auth/ReinitialiserSessionClient';
 import { RetourAuth } from '@/components/auth/RetourAuth';
+import { fieldDensityScope } from '@/components/ui/field-density';
 
 /**
  * Auth layout — centered form panel with a visual panel on desktop.
@@ -95,7 +96,7 @@ function AuthPanneau({ children }: { children: ReactNode }) {
           au rembourrage du panneau : à 40 px, son titre passait SOUS le retour (revue du
           2026-09-23, « Dellu » imprimé sur « Sos sa kont »). 96 px laissent 20 px d'air. */}
       {/* TCK-896 (P31.03) — le repère du contenu : le panneau du formulaire, sans le panneau visuel. */}
-      <main className="relative flex items-center justify-center p-6 md:p-10 lg:pt-24 bg-background">
+      <main {...fieldDensityScope()} className="relative flex items-center justify-center p-6 md:p-10 lg:pt-24 bg-background">
         {/* TCK-568 — un retour vers la page quittée (la recherche, typiquement) : le logo seul
             menait à l'accueil. Discret à côté du formulaire dès `lg`.
             Sur la bannière mobile, blanc SUR UN VOILE : posé nu sur la photo, le texte de 14 px

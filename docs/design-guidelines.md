@@ -385,3 +385,16 @@ La page `src/app/(public)/playground/page.tsx` permet de switcher au runtime ent
 - Les autres palettes (Sahel, Côtier, Casamance, Saly, Coton, Calcaire) restent dispo dans le playground uniquement.
 - Les typos Éditorial (Fraunces) et Humaniste (Manrope) idem.
 - En production, utiliser exclusivement les tokens Tailwind héritant de `--primary`, `--background`, etc. — ne pas référencer `--pg-*` (réservés au playground).
+
+## Champs de formulaire — une seule hauteur (TCK-2460)
+
+La hauteur d'un contrôle ne s'écrit jamais chez l'appelant : `scripts/check-champs-uniformes.mjs` casse sur `h-*` posé sur
+`Input`, `SelectTrigger` ou `Textarea`, et sur `<select>`, `<textarea>` ou `<input>` de saisie natifs hors de `components/ui/`.
+
+| Contexte | Comment | Hauteur |
+|---|---|---|
+| Console, tableaux de bord, dialogues | primitive nue | `h-10` |
+| Site public, assistants, connexion | `{...fieldDensityScope()}` sur un élément déjà présent | `h-11` |
+| Pagination, filtre de ligne | `SelectTrigger size="sm"`, `Button size="sm"` | `h-8` |
+
+`Button` s'aligne sur la même échelle : défaut `h-10`, `sm` `h-8`, `lg` `h-11`. `min-h-*` reste permis sur `Textarea`.

@@ -188,7 +188,7 @@ export function TotpEnrollment({ mode, onComplete, onSkip }: TotpEnrollmentProps
               setCode(event.target.value.replace(/\D/g, '').slice(0, 6))
             }
             placeholder="123456"
-            className="h-11 max-w-48 tabular-nums tracking-widest"
+            className="max-w-48 tabular-nums tracking-widest"
             autoComplete="one-time-code"
             required
           />

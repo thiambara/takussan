@@ -110,7 +110,9 @@ describe('<PipelineKanban> — comptes, pagination, étape sans glisser', () => 
     rendu();
 
     const selects = await screen.findAllByRole('combobox', { name: 'Étape de Client n°1' }, { timeout: 3000 });
-    await userEvent.setup().selectOptions(selects[0], 'prospect');
+    const user = userEvent.setup();
+    await user.click(selects[0]);
+    await user.click(await screen.findByRole('option', { name: 'Prospect' }));
 
     await waitFor(() =>
       expect(mocks.patchCustomerPipelineStage).toHaveBeenCalledWith('test-token', 1, 'prospect', undefined),
@@ -122,7 +124,9 @@ describe('<PipelineKanban> — comptes, pagination, étape sans glisser', () => 
     rendu();
 
     const selects = await screen.findAllByRole('combobox', { name: 'Étape de Client n°1' }, { timeout: 3000 });
-    await userEvent.setup().selectOptions(selects[0], 'lost');
+    const user = userEvent.setup();
+    await user.click(selects[0]);
+    await user.click(await screen.findByRole('option', { name: 'Perdu' }));
 
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
     expect(mocks.patchCustomerPipelineStage).not.toHaveBeenCalled();

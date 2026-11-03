@@ -181,6 +181,19 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+const MEMBRE_42 = 'Awa Diop';
+
+/** Ouvre le Select de `nom` dans le dialogue et clique l'option au libellé donné. */
+async function choisirDansListe(
+  user: ReturnType<typeof userEvent.setup>,
+  dialogue: HTMLElement,
+  nom: string,
+  libelle: string,
+) {
+  await user.click(within(dialogue).getByRole('combobox', { name: nom }));
+  await user.click(await screen.findByRole('option', { name: libelle }));
+}
+
 async function ouvreLeFormulaire(user: ReturnType<typeof userEvent.setup>) {
   await user.click(await screen.findByRole('button', { name: 'Déléguer un rôle' }));
   const dialogue = await screen.findByRole('dialog');
@@ -204,8 +217,8 @@ describe('délégations — la chaîne complète (TCK-369)', () => {
     expect(await screen.findByText('Aucune délégation')).toBeInTheDocument();
 
     const dialogue = await ouvreLeFormulaire(user);
-    await user.selectOptions(within(dialogue).getByLabelText('Bénéficiaire'), '42');
-    await user.selectOptions(within(dialogue).getByLabelText('Rôle à déléguer'), 'agent');
+    await choisirDansListe(user, dialogue, 'Bénéficiaire', MEMBRE_42);
+    await choisirDansListe(user, dialogue, 'Rôle à déléguer', 'Agent');
     const debut = saisieDans(130);
     const fin = saisieDans(160);
     await user.type(within(dialogue).getByLabelText('Début (facultatif)'), debut);
@@ -241,7 +254,7 @@ describe('délégations — la chaîne complète (TCK-369)', () => {
     await screen.findByText('Aucune délégation');
 
     const dialogue = await ouvreLeFormulaire(user);
-    await user.selectOptions(within(dialogue).getByLabelText('Bénéficiaire'), '42');
+    await choisirDansListe(user, dialogue, 'Bénéficiaire', MEMBRE_42);
     await user.type(within(dialogue).getByLabelText('Fin'), saisieDans(160));
     await user.click(within(dialogue).getByRole('button', { name: 'Déléguer' }));
 
@@ -304,7 +317,7 @@ describe('délégations — la chaîne complète (TCK-369)', () => {
     await screen.findByText('Aucune délégation');
 
     const dialogue = await ouvreLeFormulaire(user);
-    await user.selectOptions(within(dialogue).getByLabelText('Bénéficiaire'), '42');
+    await choisirDansListe(user, dialogue, 'Bénéficiaire', MEMBRE_42);
     await user.type(within(dialogue).getByLabelText('Fin'), saisieDans(160));
     await user.click(within(dialogue).getByRole('button', { name: 'Déléguer' }));
 
@@ -337,7 +350,7 @@ describe('délégations — la chaîne complète (TCK-369)', () => {
     await screen.findByText('Aucune délégation');
 
     const dialogue = await ouvreLeFormulaire(user);
-    await user.selectOptions(within(dialogue).getByLabelText('Bénéficiaire'), '42');
+    await choisirDansListe(user, dialogue, 'Bénéficiaire', MEMBRE_42);
     await user.type(within(dialogue).getByLabelText('Fin'), saisieDans(1200));
     await user.click(within(dialogue).getByRole('button', { name: 'Déléguer' }));
 
@@ -362,9 +375,8 @@ describe('délégations — la chaîne complète (TCK-369)', () => {
     await screen.findByText('Aucune délégation');
 
     const dialogue = await ouvreLeFormulaire(user);
-    const options = Array.from(
-      within(dialogue).getByLabelText('Bénéficiaire').querySelectorAll('option'),
-    ).map((o) => o.textContent);
+    await user.click(within(dialogue).getByRole('combobox', { name: 'Bénéficiaire' }));
+    const options = (await screen.findAllByRole('option')).map((o) => o.textContent);
 
     expect(options).toEqual(['Choisir un membre', 'Awa Diop', 'Cheikh Sy']);
     // La source est `/agencies/{id}/members`, dont le contenu est exactement

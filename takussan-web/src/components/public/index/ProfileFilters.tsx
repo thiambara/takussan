@@ -8,6 +8,7 @@ import { useState, useTransition, type FormEvent } from 'react';
 import { BarreDeChargement } from '@/components/shared/BarreDeChargement';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { fieldDensityScope } from '@/components/ui/field-density';
 import { hrefLocalise } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/config';
 
@@ -80,7 +81,7 @@ export function ProfileFilters({ base, villes, placeholderRecherche }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-4" data-en-cours={enCours || undefined} aria-busy={enCours}>
+    <div {...fieldDensityScope()} className="flex flex-col gap-4" data-en-cours={enCours || undefined} aria-busy={enCours}>
       {enCours && <BarreDeChargement libelle={t('loading')} position="ecran" />}
       <form onSubmit={soumettre} role="search" className="flex gap-2">
         <div className="relative flex-1">
@@ -97,7 +98,7 @@ export function ProfileFilters({ base, villes, placeholderRecherche }: Props) {
             aria-label={placeholderRecherche}
             // TCK-573 — 40 px au bureau À LA SOURIS seulement : sur une tablette tactile (768,
             // 1024), `md:h-10` seul rendait champ et bouton à 40 px, sous la cible de 44 (mesuré).
-            className="h-11 pl-9 md:pointer-fine:h-10"
+            className="pl-9"
           />
         </div>
         {/* TCK-573 — sous `sm`, le bouton ne garde que son icône (44 × 44) et son nom accessible :
@@ -106,7 +107,7 @@ export function ProfileFilters({ base, villes, placeholderRecherche }: Props) {
             d'écran, et redevient visible dès `sm`. */}
         <Button
           type="submit"
-          className="size-11 shrink-0 px-0 sm:w-auto sm:px-4 md:pointer-fine:h-10"
+          className="size-11 shrink-0 px-0 sm:w-auto sm:px-4"
           disabled={enCours && villeDemandee === null}
         >
           {enCours && villeDemandee === null ? (

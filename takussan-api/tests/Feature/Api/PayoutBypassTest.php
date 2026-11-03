@@ -44,6 +44,7 @@ use Illuminate\Testing\TestResponse;
 use Tests\Concerns\BuildsMoneyOut;
 use Tests\Concerns\CreatesAgencyMembers;
 use Tests\Support\FakeSmsRouter;
+use Tests\Support\RotationDAppKey;
 use Tests\TestCase;
 
 /**
@@ -56,6 +57,7 @@ class PayoutBypassTest extends TestCase
     use BuildsMoneyOut;
     use CreatesAgencyMembers;
     use RefreshDatabase;
+    use RotationDAppKey;
 
     /**
      * B-1 — après une prise de compte, l'attaquant change le téléphone, le revérifie, puis déclare son
@@ -306,6 +308,26 @@ class PayoutBypassTest extends TestCase
         $this->postJson("/api/payouts/{$id}/mark-processed", ['payment_method' => 'wave', 'transaction_id' => 'W-1'])
             ->assertStatus(422)->assertJsonPath('code', 'payout.destination_changed_since_approval');
         $this->assertSame(PayoutStatus::Pending, Payout::query()->findOrFail($id)->status);
+    }
+
+    /**
+     * TCK-2430 (ADR-0084) — l'empreinte approuvée est un HMAC sous `APP_KEY` : une rotation qui garde l'ancienne clé
+     * dans `APP_PREVIOUS_KEYS` ne bloque pas un versement approuvé avant elle vers la même destination.
+     */
+    public function test_m4_une_rotation_d_app_key_ne_bloque_pas_la_destination_approuvee_avant_elle(): void
+    {
+        Notification::fake();
+        [$agency, $landlord, $issuer, $approver, $agent] = $this->fourEyesAgency();
+        $m1 = PayoutMethod::factory()->verifiedFor($agency, $agent, now()->subDays(3))->create(['user_id' => $landlord->id]);
+        $id = $this->awaitingPayoutTo($agency, $landlord, $issuer, $m1);
+        $this->actingWithStepUp($approver);
+        $this->postJson("/api/payouts/{$id}/approve")->assertOk();
+
+        $this->tournerAppKey();
+
+        $this->actingWithStepUp($issuer);
+        $this->postJson("/api/payouts/{$id}/mark-processed", ['payment_method' => 'wave', 'transaction_id' => 'W-R', 'payout_method_id' => $m1->id])
+            ->assertOk()->assertJsonPath('data.payout_method_id', $m1->id);
     }
 
     /** M-4 — le payeur ne choisit pas une AUTRE destination que celle approuvée, même vérifiée. */

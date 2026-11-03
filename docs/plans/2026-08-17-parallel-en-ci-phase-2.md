@@ -40,7 +40,7 @@ bon.* C'est exactement le défaut que l'ardoise existe pour attraper ailleurs.
 
 ```bash
 cd /Users/aminethiam/Documents/perso/takussan
-grep -n '^status:' docs/backlog/tickets/TCK-314-test-recherche-dependant-de-l-ordre.md
+grep -n '^status:' docs/backlog/tickets/done/TCK-314-test-recherche-dependant-de-l-ordre.md
 git log --oneline --grep='TCK-314' -3
 ```
 

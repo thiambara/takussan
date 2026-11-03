@@ -7,6 +7,7 @@ use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyStatus;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\Timeline;
+use Database\Seeders\Support\Tirage;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
@@ -26,6 +27,7 @@ class AgencySeeder extends Seeder
             [
                 'name' => 'Dakar Immo',
                 'slug' => 'dakar-immo',
+                'anciennete' => 70,
                 'email' => 'contact@dakarimmo.sn',
                 'phone' => '+221338212100',
                 'website' => 'https://dakarimmo.sn',
@@ -35,6 +37,7 @@ class AgencySeeder extends Seeder
             [
                 'name' => 'Thiès Properties',
                 'slug' => 'thies-properties',
+                'anciennete' => 34,
                 'email' => 'contact@thies-properties.sn',
                 'phone' => '+221338511010',
                 'website' => 'https://thies-properties.sn',
@@ -44,6 +47,7 @@ class AgencySeeder extends Seeder
             [
                 'name' => 'Saint-Louis Habitat',
                 'slug' => 'saint-louis-habitat',
+                'anciennete' => 14,
                 'email' => 'contact@sl-habitat.sn',
                 'phone' => '+221339612020',
                 'website' => 'https://sl-habitat.sn',
@@ -53,6 +57,7 @@ class AgencySeeder extends Seeder
             [
                 'name' => 'Studio de Aminata',
                 'slug' => 'studio-aminata',
+                'anciennete' => 3,
                 'email' => 'aminata@studio-aminata.sn',
                 'phone' => '+221770112233',
                 'website' => 'https://studio-aminata.sn',
@@ -74,7 +79,7 @@ class AgencySeeder extends Seeder
         for ($i = count($agencies); $i < $minimumAgencies; $i++) {
             do {
                 $city = $this->ctx->faker()->senegaleseCity();
-                $suffix = strtolower(Str::random(4));
+                $suffix = strtolower(Tirage::code(4));
                 $name = "{$city} Real Estate ".($i - 2);
                 $slug = Str::slug($name).'-'.$suffix;
             } while (in_array($slug, $existingSlugs, true));
@@ -93,18 +98,25 @@ class AgencySeeder extends Seeder
                 'website' => "https://{$slug}.sn",
                 'commission_rate' => $this->ctx->faker()->randomFloat(2, 5, 12),
                 'kind' => $kind,
+                'anciennete' => mt_rand(3, 80),
             ];
         }
 
-        $foundedAt = Timeline::seedStart()->subYears(5);
+        // TCK-2378 — chaque agence a son âge et sa taille : elles naissaient toutes le même jour avec le
+        // même volume. L'ancienneté se compte en mois avant l'arrivée de l'équipe (UserSeeder), qui
+        // précède le portefeuille (Timeline::portfolioStart()).
+        $rangStandard = 0;
 
         foreach ($agencies as $data) {
+            $foundedAt = Timeline::portfolioStart()->subMonths(1 + $data['anciennete']);
+            $individuelle = ($data['kind'] ?? AgencyKind::Standard) === AgencyKind::Individual;
+
             $agency = Agency::updateOrCreate(
                 ['slug' => $data['slug']],
                 [
                     'name' => $data['name'],
                     'kind' => $data['kind'] ?? AgencyKind::Standard,
-                    'license_number' => strtoupper(Str::random(8)),
+                    'license_number' => strtoupper(Tirage::code(8)),
                     'description' => 'Agence immobilière spécialisée dans la location et la vente au Sénégal.',
                     'email' => $data['email'],
                     'phone' => $data['phone'],
@@ -120,6 +132,10 @@ class AgencySeeder extends Seeder
             );
 
             $this->ctx->registerAgency($agency);
+            $tailles = $this->ctx->config->taillesDAgence;
+            $this->ctx->tailles[$agency->id] = $individuelle
+                ? $this->ctx->config->tailleIndividuelle
+                : $tailles[$rangStandard++ % count($tailles)];
 
             $logoUrl = 'https://ui-avatars.com/api/?name='.urlencode($agency->name).'&background=random&color=fff&size=512';
             $this->ctx->downloadMedia($agency, $logoUrl, 'logo');

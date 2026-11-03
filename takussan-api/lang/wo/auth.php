@@ -16,6 +16,7 @@ return [
     'logout_successful' => 'Génn gi am na.',
     'two_factor_required' => 'Dëggal ñaareel bi war na.',
     'two_factor_invalid' => 'Kod 2FA walla kod récupération bi baaxul.',
+    'terms_required' => 'Acceptez les conditions d\'utilisation pour activer votre compte.',
     // TCK-589 — duggu ak telefon, tëj, session, 2FA bu war (yokk rekk).
     'phone' => [
         'sms_code' => 'Takussan : sa kod mooy :code. Dina jeex ci :minutes simili. Bul ko wax kenn.',

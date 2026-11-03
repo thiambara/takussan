@@ -33,6 +33,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/toast';
@@ -40,6 +41,9 @@ import { cn } from '@/lib/utils';
 import type { Locale } from '@/i18n/config';
 import type { PaginatedResponse } from '@/types/api';
 import type { User } from '@/types/user';
+
+/** Valeur repère de « aucun membre choisi » : une valeur vide n'est pas une option du Select. */
+const AUCUN_MEMBRE = '__none__';
 
 const FILTRES: readonly FiltreDesDemandes[] = ['todo', 'handled', 'all'];
 
@@ -351,6 +355,11 @@ function AttribuerDialog({ leadId, agencyId, onClose }: { leadId: number; agency
     }
   }
 
+  const optionsMembre = [
+    { value: AUCUN_MEMBRE, label: t('assign.placeholder') },
+    ...(membres.data?.data ?? []).map((m) => ({ value: String(m.id), label: nomComplet(m) })),
+  ];
+
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-md">
@@ -363,19 +372,25 @@ function AttribuerDialog({ leadId, agencyId, onClose }: { leadId: number; agency
             <label htmlFor={`lead-${leadId}-assignee`} className="block text-sm font-medium text-foreground">
               {t('assign.label')}
             </label>
-            <select
-              id={`lead-${leadId}-assignee`}
-              value={choisi ?? ''}
-              onChange={(e) => setChoisi(e.target.value ? Number(e.target.value) : null)}
-              className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground"
+            <Select
+              value={choisi === null ? AUCUN_MEMBRE : String(choisi)}
+              onValueChange={(next) => {
+                if (next === null) return;
+                setChoisi(next === AUCUN_MEMBRE ? null : Number(next));
+              }}
+              items={optionsMembre}
             >
-              <option value="">{t('assign.placeholder')}</option>
-              {(membres.data?.data ?? []).map((m) => (
-                <option key={m.id} value={m.id}>
-                  {nomComplet(m)}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger id={`lead-${leadId}-assignee`} className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {optionsMembre.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>

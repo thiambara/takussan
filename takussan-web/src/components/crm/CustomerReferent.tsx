@@ -7,11 +7,15 @@ import { UserCheck } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/context/AuthContext';
 import { useCan } from '@/hooks/useCan';
 import { ApiError } from '@/lib/api';
 import { AGENT_CRM_QUERY_KEY, fetchAgencyAgents, setCustomerPrimaryContact } from '@/lib/queries/agent-crm';
 import type { CustomerRelationship } from '@/types/customer';
+
+/** Valeur repère de « aucun agent choisi » : une valeur vide n'est pas une option du Select. */
+const AUCUN_AGENT = '__none__';
 
 interface CustomerReferentProps {
   readonly customerId: number;
@@ -54,6 +58,10 @@ export function CustomerReferent({ customerId, agencyId, relationships }: Custom
   });
 
   const others = (agents.data ?? []).filter((a) => a.id !== current?.user_id);
+  const optionsAgent = [
+    { value: AUCUN_AGENT, label: t('pick') },
+    ...others.map((a) => ({ value: String(a.id), label: a.name })),
+  ];
 
   return (
     <section aria-labelledby="customer-referent" className="space-y-2 rounded-xl bg-card p-4 text-sm">
@@ -79,17 +87,25 @@ export function CustomerReferent({ customerId, agencyId, relationships }: Custom
             }}
           >
             <label htmlFor="referent-target" className="sr-only">{t('pick')}</label>
-            <select
-              id="referent-target"
-              value={target}
-              onChange={(e) => setTarget(e.target.value)}
-              className="h-9 min-w-40 rounded-md border border-input bg-background px-2 text-sm"
+            <Select
+              value={target === '' ? AUCUN_AGENT : target}
+              onValueChange={(next) => {
+                if (next === null) return;
+                setTarget(next === AUCUN_AGENT ? '' : next);
+              }}
+              items={optionsAgent}
             >
-              <option value="">{t('pick')}</option>
-              {others.map((a) => (
-                <option key={a.id} value={a.id}>{a.name}</option>
-              ))}
-            </select>
+              <SelectTrigger id="referent-target" className="min-w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {optionsAgent.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button type="submit" size="sm" disabled={!target || designate.isPending}>
               {t('designate')}
             </Button>

@@ -163,6 +163,70 @@ class HealthcheckProbesTest extends TestCase
     }
 
     /**
+     * TCK-2401 (ADR-0078) — `worker-long` n'écrit aucun battement pendant un job de 30 min : la file
+     * `long` reste `ok` tant que son battement est plus jeune que le délai de reprise de
+     * `database-long`, et passe `failed` au-delà.
+     */
+    public function test_la_file_long_muette_pendant_un_job_long_reste_ok_puis_echoue_au_dela_du_delai_de_reprise(): void
+    {
+        $delai = (int) config('queue.connections.database-long.retry_after');
+        $this->assertGreaterThan(20 * 60, $delai);
+
+        Cache::put(RecordQueueHeartbeat::cacheKey('long'), now()->subMinutes(20)->getTimestamp());
+        $this->assertSame('ok', $this->sonder()['workers']['queues']['long']['status']);
+
+        Cache::put(RecordQueueHeartbeat::cacheKey('long'), now()->subSeconds($delai)->getTimestamp());
+        $this->assertSame('failed', $this->sonder()['workers']['queues']['long']['status']);
+
+        Cache::forget(RecordQueueHeartbeat::cacheKey('long'));
+        $this->assertSame('failed', $this->sonder()['workers']['queues']['long']['status'], 'Un worker-long jamais vu est arrêté.');
+    }
+
+    public function test_les_seuils_de_long_suivent_le_delai_de_reprise_configure(): void
+    {
+        config(['queue.connections.database-long.retry_after' => 1000]);
+        Cache::put(RecordQueueHeartbeat::cacheKey('long'), now()->subSeconds(999)->getTimestamp());
+        $this->jobEnAttente('long', 999);
+        $sondes = $this->sonder();
+        $this->assertSame('ok', $sondes['workers']['queues']['long']['status']);
+        $this->assertSame('ok', $sondes['queue']['queues']['long']['status']);
+
+        Cache::put(RecordQueueHeartbeat::cacheKey('long'), now()->subSeconds(1000)->getTimestamp());
+        $this->jobEnAttente('long', 1000);
+        $sondes = $this->sonder();
+        $this->assertSame('failed', $sondes['workers']['queues']['long']['status']);
+        $this->assertSame('degraded', $sondes['queue']['queues']['long']['status']);
+
+        $this->jobEnAttente('long', 2000);
+        $this->assertSame('failed', $this->sonder()['queue']['queues']['long']['status']);
+    }
+
+    public function test_un_job_qui_attend_vingt_minutes_derriere_un_job_long_ne_degrade_que_les_files_courtes(): void
+    {
+        $this->jobEnAttente('long', 20 * 60);
+        $this->jobEnAttente('default', 20 * 60);
+
+        $file = $this->sonder()['queue'];
+
+        $this->assertSame('ok', $file['queues']['long']['status']);
+        $this->assertSame('degraded', $file['queues']['default']['status']);
+    }
+
+    public function test_les_seuils_des_files_courtes_ne_bougent_pas(): void
+    {
+        foreach (['default', 'media', 'notifications-urgent', 'reconciliation'] as $file) {
+            Cache::put(RecordQueueHeartbeat::cacheKey($file), now()->subSeconds(180)->getTimestamp());
+        }
+        $workers = $this->sonder()['workers'];
+        foreach (['default', 'media', 'notifications-urgent', 'reconciliation'] as $file) {
+            $this->assertSame('degraded', $workers['queues'][$file]['status'], $file);
+        }
+
+        $this->jobEnAttente('media', 3600);
+        $this->assertSame('failed', $this->sonder()['queue']['queues']['media']['status']);
+    }
+
+    /**
      * TCK-680 (P14.02) — la sonde `scheduler` relevait `last_run_at` sans `status` : un
      * planificateur arrêté ne comptait pas dans le statut global, qui restait `ok`.
      */
@@ -277,12 +341,15 @@ class HealthcheckProbesTest extends TestCase
         $this->assertNotNull($this->getJson('/api/health')->json('checked_at'));
     }
 
-    public function test_le_battement_et_la_sonde_sont_planifies_chaque_minute_sur_les_quatre_files(): void
+    public function test_le_battement_et_la_sonde_sont_planifies_chaque_minute_sur_chaque_file_surveillee(): void
     {
         $evenements = collect(app(Schedule::class)->events());
 
         $battements = $evenements->filter(fn ($e) => $e->description === RecordQueueHeartbeat::class);
-        $this->assertCount(4, $battements);
+        // Les six files du compose, `ai` comprise (TCK-2402) : un compte écrit en dur laisserait passer une file retirée.
+        $this->assertCount(6, RecordQueueHeartbeat::QUEUES);
+        $this->assertContains('ai', RecordQueueHeartbeat::QUEUES);
+        $this->assertCount(count(RecordQueueHeartbeat::QUEUES), $battements);
         $battements->each(fn ($e) => $this->assertSame('* * * * *', $e->expression));
         $this->assertTrue($evenements->contains(fn ($e) => str_contains((string) $e->command, 'health:probe') && $e->expression === '* * * * *'));
     }

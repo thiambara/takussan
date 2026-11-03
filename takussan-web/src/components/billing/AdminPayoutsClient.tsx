@@ -86,7 +86,7 @@ export function AdminPayoutsClient() {
             }}
             items={statuses}
           >
-            <SelectTrigger className="w-full h-10" aria-label={tFilters('statusAria')}>
+            <SelectTrigger className="w-full" aria-label={tFilters('statusAria')}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

@@ -188,7 +188,7 @@ export function CrossTenantAuditTable() {
           }}
           placeholder={t('causerPlaceholder')}
           aria-label={t('causerAria')}
-          className="h-10"
+         
         />
         <DatePicker
           value={dateFrom}

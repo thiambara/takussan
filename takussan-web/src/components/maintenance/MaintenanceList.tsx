@@ -95,7 +95,7 @@ export function MaintenanceList() {
             }}
             items={statusOptions}
           >
-            <SelectTrigger id="maintenance-filter-status" className="h-9 w-full">
+            <SelectTrigger id="maintenance-filter-status" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -120,7 +120,7 @@ export function MaintenanceList() {
               ...MAINTENANCE_PRIORITIES.map((p) => ({ value: p, label: tPriority(p) })),
             ]}
           >
-            <SelectTrigger id="maintenance-filter-priority" className="h-9 w-full">
+            <SelectTrigger id="maintenance-filter-priority" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

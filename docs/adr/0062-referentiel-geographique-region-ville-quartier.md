@@ -2,7 +2,7 @@
 
 - **Statut** : Accepté
 - **Date** : 2026-10-12
-- **Tickets** : [TCK-633](../backlog/tickets/TCK-633-lot-retours-porteur-publication-recherche-boost.md)
+- **Tickets** : [TCK-633](../backlog/tickets/done/TCK-633-lot-retours-porteur-publication-recherche-boost.md)
 
 ## Contexte
 

@@ -33,7 +33,7 @@ describe('les primitives de champ portent la variante de densité', () => {
     const champ = screen.getByLabelText('titre');
     // Les DEUX régimes, pas leur égalité : la hauteur de base reste 32 px pour le parc,
     // et 44 px n'arrive que sous une portée.
-    expect(champ.className).toContain('h-8');
+    expect(champ.className).toContain('h-10');
     expect(champ.className).toContain(FIELD_DENSITY_HEIGHT);
   });
 
@@ -46,17 +46,17 @@ describe('les primitives de champ portent la variante de densité', () => {
       </Select>,
     );
     const declencheur = screen.getByLabelText('devise');
-    // Revue 2026-09-16 : la base est `h-8` nue, pour qu'un `className="h-9"` d'appelant la
-    // remplace (twMerge) au lieu de perdre contre `data-[size=default]:h-8`.
-    expect(declencheur.className.split(' ')).toContain('h-8');
-    expect(declencheur.className).not.toContain('data-[size=default]:h-8');
+    // Revue 2026-09-16 : la base est nue (`h-10` depuis TCK-2460), jamais `data-[size=default]:…`,
+    // qui l'emporterait sur la portée de densité.
+    expect(declencheur.className.split(' ')).toContain('h-10');
+    expect(declencheur.className).not.toContain('data-[size=default]:h-10');
     expect(declencheur.className).toContain(FIELD_DENSITY_HEIGHT_SIZED);
   });
 
   it('DatePicker', () => {
     render(withIntl(<DatePicker value="" onValueChange={() => {}} data-testid="dp" />));
     const bouton = screen.getByTestId('dp');
-    expect(bouton.className).toContain('h-8');
+    expect(bouton.className).toContain('h-10');
     expect(bouton.className).toContain(FIELD_DENSITY_HEIGHT);
   });
 
@@ -130,10 +130,10 @@ async function feuille(candidats: readonly string[]): Promise<string> {
 }
 
 describe('la variante l’emporte réellement sur la hauteur de base', () => {
-  it('44 px sous portée, 32 px sans — et la règle de densité vient APRÈS', async () => {
-    const css = await feuille(['h-8', FIELD_DENSITY_HEIGHT]);
+  it('44 px sous portée, 40 px sans — et la règle de densité vient APRÈS', async () => {
+    const css = await feuille(['h-10', FIELD_DENSITY_HEIGHT]);
 
-    const base = css.indexOf('.h-8 {');
+    const base = css.indexOf('.h-10 {');
     const densite = css.indexOf('.in-data-\\[field-density\\=comfortable\\]\\:h-11');
     expect(base).toBeGreaterThan(-1);
 
@@ -144,9 +144,9 @@ describe('la variante l’emporte réellement sur la hauteur de base', () => {
     expect(css).toContain(':where(*[data-field-density="comfortable"])');
     expect(densite).toBeGreaterThan(base);
 
-    // Et les hauteurs elles-mêmes, en clair : 8 × 0.25rem = 2rem = 32 px ; 11 × 0.25rem = 44 px.
+    // Et les hauteurs elles-mêmes, en clair : 10 × 0.25rem = 2.5rem = 40 px ; 11 × 0.25rem = 44 px.
     expect(css).toMatch(/--spacing:\s*0\.25rem/);
-    expect(css.slice(base, base + 120)).toMatch(/height:\s*calc\(var\(--spacing\)\s*\*\s*8\)/);
+    expect(css.slice(base, base + 120)).toMatch(/height:\s*calc\(var\(--spacing\)\s*\*\s*10\)/);
     expect(css.slice(densite, densite + 260)).toMatch(
       /height:\s*calc\(var\(--spacing\)\s*\*\s*11\)/,
     );
@@ -162,7 +162,7 @@ describe('la variante l’emporte réellement sur la hauteur de base', () => {
     expect(base).toBeGreaterThan(-1);
     expect(densite).toBeGreaterThan(base);
     // Le sélecteur d'attribut est bien REPRIS dans la règle de densité : sans lui, (0,1,0) contre
-    // (0,2,0), et le Select serait le seul champ à rester à 32 px sous la portée.
+    // (0,2,0), et le Select serait le seul champ à rester à 40 px sous la portée.
     expect(css.slice(densite, densite + 300)).toContain('&[data-size="default"]');
   });
 });

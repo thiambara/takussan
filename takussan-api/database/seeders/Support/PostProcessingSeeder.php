@@ -5,12 +5,10 @@ namespace Database\Seeders\Support;
 use Illuminate\Database\Seeder;
 
 /**
- * Seeder de post-traitement pour normaliser et vérifier les données.
+ * Vérifie le jeu réaliste avant les cas limites et la couverture des filtres.
  *
- * Doit être exécuté en dernier dans le pipeline de seeding pour :
- * - Vérifier la cohérence référentielle
- * - Compléter les données manquantes
- * - Générer les rapports de seeding
+ * Il ne corrige rien : un invariant qui ne tient pas fait échouer le seeding (TCK-2376,
+ * {@see ReferentialIntegrityChecker}).
  */
 class PostProcessingSeeder extends Seeder
 {
@@ -22,11 +20,10 @@ class PostProcessingSeeder extends Seeder
             return;
         }
 
-        $this->command?->getOutput()?->writeln('  > Vérification de la cohérence référentielle...');
+        $this->command?->getOutput()?->writeln('  > Vérification des invariants du jeu semé...');
 
-        $checker = new ReferentialIntegrityChecker($this->ctx);
-        $checker->ensureIntegrity();
+        (new ReferentialIntegrityChecker)->assertIntegrity();
 
-        $this->command?->getOutput()?->writeln('  > Cohérence vérifiée et corrigée.');
+        $this->command?->getOutput()?->writeln('  > Invariants tenus.');
     }
 }

@@ -1,6 +1,10 @@
 /**
  * TCK-468 — la DENSITÉ DE CHAMP : une variante NOMMÉE, portée par une PORTÉE, pas par chaque appel.
  *
+ * TCK-2460 — la hauteur de base est passée de `h-8` à `h-10` dans toutes les primitives, et `Button` s'y
+ * aligne. Les hauteurs citées plus bas datent de TCK-468. Une hauteur de champ ne s'écrit jamais chez
+ * l'appelant : `scripts/check-champs-uniformes.mjs`.
+ *
  * ## L'arbitrage
  *
  * Les pastilles du parcours de publication tiennent 44 px (`min-h-11`, `ChoiceChips`), les champs

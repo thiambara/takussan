@@ -92,7 +92,7 @@ export function MaintenanceAssignmentBlock({ request }: { readonly request: Main
             onValueChange={(value) => setAssignee((value as string | null) ?? NONE)}
             items={[{ value: NONE, label: t('nobody') }, ...options]}
           >
-            <SelectTrigger id="maintenance-assignee" className="h-11 w-full sm:h-9">
+            <SelectTrigger id="maintenance-assignee" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

@@ -126,6 +126,16 @@ use App\Services\Notifications\Whatsapp\ServiceWindow;
 use App\Services\Notifications\Whatsapp\WhatsappDriverInterface;
 use App\Services\Payout\Disbursement\ManualDisbursementDriver;
 use App\Services\Pdf\DomPdfPageTotalDriver;
+use App\Services\Radar\ClaimLinks;
+use App\Services\Radar\DnsHostResolver;
+use App\Services\Radar\HostResolver;
+use App\Services\Radar\RadarAutoMerge;
+use App\Services\Radar\RadarMatcher;
+use App\Services\Radar\Similarity\RadarTextSimilarity;
+use App\Services\Radar\Similarity\TrigramTextSimilarity;
+use App\Services\Radar\Whatsapp\RadarCloudWhatsappDriver;
+use App\Services\Radar\Whatsapp\RadarLogWhatsappDriver;
+use App\Services\Radar\Whatsapp\RadarWhatsappDriver;
 use App\Services\Reporting\PlatformReportingService;
 use App\Services\Review\ReviewModerationScope;
 use App\Services\Webhooks\WebhookJournal;
@@ -163,6 +173,8 @@ class AppServiceProvider extends ServiceProvider
     /** Vérification adverse M1 (c) — codes SMS vérifiables par numéro et par 15 min. */
     public const PHONE_VERIFY_PER_WINDOW = 4;
 
+    public const PHONE_VERIFY_WINDOW_MINUTES = 15;
+
     /** Vérification adverse m1 — bornes des invitations (un SMS sous l'expéditeur Takussan). */
     public const INVITATIONS_PER_INVITER_PER_HOUR = 20;
 
@@ -191,6 +203,20 @@ class AppServiceProvider extends ServiceProvider
         // TCK-1235 (P109.02) — le pilote dompdf du paquet laisse `counter(pages)` à 0 : celui du
         // dépôt écrit le total de pages. Les autres pilotes de `spatie/laravel-pdf` ne changent pas.
         $this->app->singleton('laravel-pdf.driver.dompdf', fn () => new DomPdfPageTotalDriver(config('laravel-pdf.dompdf', [])));
+
+        // TCK-2386 (ADR-0077 §10) — la résolution DNS du Radar, injectée : `UrlFetcher` contrôle
+        // toutes les adresses d'un nom avant de s'y connecter, et les tests la doublent.
+        $this->app->bind(HostResolver::class, DnsHostResolver::class);
+
+        // TCK-2392 — le quatrième signal de rapprochement du Radar : un pilote par `radar.similarity.driver`, `trigram` à défaut.
+        $this->app->bind(RadarTextSimilarity::class, fn ($app) => $app->make(
+            config('radar.similarity.drivers.'.config('radar.similarity.driver')) ?? TrigramTextSimilarity::class,
+        ));
+
+        // TCK-2423 (ADR-0076, amendement du 2026-10-31) — une fusion automatique ne voit jamais un signal vectoriel.
+        $this->app->when(RadarAutoMerge::class)->needs(RadarMatcher::class)->give(
+            fn ($app) => $app->make(RadarMatcher::class, ['similarity' => $app->make(TrigramTextSimilarity::class)]),
+        );
 
         // TCK-594 (ADR-0039 §1) — décaisser, distinct d'encaisser. Un seul pilote : le manuel tracé.
         $this->app->bind(DisbursementDriverContract::class, ManualDisbursementDriver::class);
@@ -387,6 +413,15 @@ class AppServiceProvider extends ServiceProvider
                 default => $app->make(CloudApiWhatsappDriver::class),
             };
         });
+
+        // TCK-2395 (ADR-0077 §5) — le numéro du Radar, distinct de celui des notifications : un pilote à lui, qui ne lit que
+        // `config/radar_whatsapp.php`. `log` par défaut : rien ne part tant que le porteur n'a pas posé `cloud`.
+        $this->app->bind(RadarWhatsappDriver::class, function ($app): RadarWhatsappDriver {
+            return match ((string) $app['config']->get('radar_whatsapp.driver', 'log')) {
+                'cloud' => $app->make(RadarCloudWhatsappDriver::class),
+                default => $app->make(RadarLogWhatsappDriver::class),
+            };
+        });
     }
 
     // -----------------------------------------------------------------
@@ -519,7 +554,7 @@ class AppServiceProvider extends ServiceProvider
         // freine le forçage du jeton d'URL. Un refus se journalise ici, puisque le journal des
         // webhooks vient après le débit et n'en garde aucune ligne ; la réponse reste celle de
         // `ThrottleRequestsException`, que l'enveloppe globale rend en 429.
-        foreach (['webhook-sms-orange', 'webhook-sms-mtarget', 'webhook-sms-lafricamobile', 'webhook-whatsapp'] as $limiter) {
+        foreach (['webhook-sms-orange', 'webhook-sms-mtarget', 'webhook-sms-lafricamobile', 'webhook-whatsapp', 'webhook-whatsapp-radar'] as $limiter) {
             RateLimiter::for($limiter, fn (Request $request) => Limit::perMinute(600)
                 ->by('ip:'.$this->clientNetwork($request))
                 ->response(function (Request $request, array $headers) use ($limiter): never {
@@ -584,8 +619,8 @@ class AppServiceProvider extends ServiceProvider
             return $limits;
         });
 
-        RateLimiter::for('auth-phone-verify', fn (Request $request) => Limit::perMinutes(15, self::PHONE_VERIFY_PER_WINDOW)
-            ->by('phone:'.$this->phoneRateLimitKey($request)));
+        RateLimiter::for('auth-phone-verify', fn (Request $request) => Limit::perMinutes(self::PHONE_VERIFY_WINDOW_MINUTES, self::PHONE_VERIFY_PER_WINDOW)
+            ->by('phone:'.self::phoneRateLimitKey($request)));
 
         // TCK-272 — émission du code e-mail de step-up pour la suppression
         // de compte. Route authentifiée : la clé est l'utilisateur, pas
@@ -611,14 +646,38 @@ class AppServiceProvider extends ServiceProvider
             ->by($request->user() !== null ? 'user:'.$request->user()->id : $this->visitorRateLimitKey($request)));
     }
 
+    /**
+     * TCK-2404 (vérification adverse I1) — rend l'essai que `auth-phone-verify` a compté AVANT la requête, quand elle n'a
+     * rien réfuté : la présentation des conditions au compte du Radar suit un code JUSTE (non consommé). Sans ce rendu,
+     * l'étape de plus d'un compte du Radar coûtait un essai sur quatre, et un code expiré pendant la lecture suivi d'une
+     * faute de frappe finissait en 429 pour 15 min. Le compte reste pris avant la requête, comme pour toutes : un mauvais
+     * code compte toujours, et une rafale ne passe pas entre la lecture et l'écriture du seau. Jamais sous zéro.
+     */
+    public static function refundPhoneVerify(Request $request): void
+    {
+        $key = ThrottleRequestsByNetwork::namedLimiterKey('auth-phone-verify', 'phone:'.self::phoneRateLimitKey($request));
+        if ((int) RateLimiter::attempts($key) > 0) {
+            RateLimiter::decrement($key, self::PHONE_VERIFY_WINDOW_MINUTES * 60);
+        }
+    }
+
     /** TCK-589 — la clé d'un limiteur par numéro : le numéro saisi, espaces retirés. */
     /**
      * Le numéro DESTINATAIRE : celui du corps, sinon (M3) celui du compte — `phone/send-otp`
      * sans corps vise le numéro déjà enregistré, et une clé vide aurait mis tous ces envois
      * dans un même seau.
      */
-    private function phoneRateLimitKey(Request $request): string
+    private static function phoneRateLimitKey(Request $request): string
     {
+        // TCK-2390 — la réclamation du Radar vérifie un code du numéro de l'annonceur, que le jeton désigne : le même seau que
+        // la connexion par téléphone pour ce numéro (M1 c : la somme des deux entrées reste sous la moitié du verrou). Un
+        // jeton mal signé a son propre seau, sans numéro.
+        if ($request->routeIs('radar.claims.confirm')) {
+            $token = (string) $request->route('token');
+
+            return ClaimLinks::phoneOf($token) ?? 'radar-claim:'.hash('sha256', $token);
+        }
+
         // TCK-589 p3-1 — le code de preuve part TOUJOURS au numéro du compte : la clé aussi. Un
         // `phone` glissé dans le corps aurait ouvert un seau neuf à chaque appel.
         $phone = $request->routeIs('auth.phone.change-code') ? '' : (string) $request->input('phone');

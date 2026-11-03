@@ -19,6 +19,7 @@ import {
 import { PER_PAGE_PAR_DEFAUT, PER_PAGE_PROPOSES } from '@/lib/recherche-publique';
 import { ESPACE_DU_CATALOGUE } from '@/lib/libelle-equipement';
 import { libelleEquipementParNom } from '@/lib/libelle-equipement-par-nom';
+import { fieldDensityScope } from '@/components/ui/field-density';
 
 const SORT_VALUES = ['relevance', 'price_asc', 'price_desc', 'created_desc'] as const;
 
@@ -126,7 +127,7 @@ export function SearchToolbar({
   const sortOptions = valeursDeTri.map((v) => ({ value: v, label: tSort(v) }));
 
   return (
-    <div className="mb-5 flex flex-col gap-3 lg:mb-6 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
+    <div {...fieldDensityScope()} className="mb-5 flex flex-col gap-3 lg:mb-6 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
       <div data-entete-resultats className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
         {titre}
         <p className="shrink-0 whitespace-nowrap text-sm font-medium tabular-nums text-muted-foreground" aria-live="polite">
@@ -182,7 +183,7 @@ export function SearchToolbar({
           items={sortOptions}
         >
           <SelectTrigger
-            className={`h-11 min-w-0 flex-1 sm:max-w-60 lg:max-w-none rounded-full py-1.5 px-2.5 sm:px-3 border-border bg-card text-foreground cursor-pointer lg:h-8 lg:w-fit lg:flex-none ${
+            className={`min-w-0 flex-1 sm:max-w-60 lg:max-w-none rounded-full py-1.5 px-2.5 sm:px-3 border-border bg-card text-foreground cursor-pointer lg:w-fit lg:flex-none ${
               afficherTri ? '' : 'hidden lg:flex'
             }`}
             aria-label={t('sortAria')}
@@ -256,7 +257,7 @@ export function TailleDePage({
         items={perPageOptions}
       >
         <SelectTrigger
-          className="h-9 rounded-full py-1.5 px-3 border-border bg-card text-foreground cursor-pointer"
+          className="rounded-full py-1.5 px-3 border-border bg-card text-foreground cursor-pointer"
           aria-label={t('perPageAria')}
         >
           <SelectValue />

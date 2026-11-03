@@ -47,6 +47,7 @@ class WebhookThrottleTest extends TestCase
             'sms.webhook.mtarget' => 'webhook-sms-mtarget',
             'sms.webhook.lafricamobile' => 'webhook-sms-lafricamobile',
             'whatsapp.webhook.status' => 'webhook-whatsapp',
+            'whatsapp.webhook.radar' => 'webhook-whatsapp-radar',
         ];
         foreach ($routes as $route => $limiter) {
             $middleware = app('router')->getRoutes()->getByName($route)->middleware();

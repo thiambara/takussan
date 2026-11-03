@@ -1,0 +1,511 @@
+<?php
+
+namespace Tests\Feature\Radar;
+
+use App\Models\Enums\PlatformProfileLevel;
+use App\Models\Enums\RadarListingStage;
+use App\Models\GeoNeighborhood;
+use App\Models\RadarAdvertiser;
+use App\Models\RadarConsent;
+use App\Models\RadarListing;
+use App\Models\RadarOutreach;
+use App\Models\User;
+use App\Services\Radar\ConsentMessageComposer;
+use Carbon\Carbon;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Tests\Support\OperateursPlateforme;
+use Tests\TestCase;
+
+/**
+ * TCK-2388 (ADR-0077 §3, §4) — la fiche annonceur en lecture et les files de travail du démarchage : à contacter,
+ * en attente, à relancer. Toute lecture se fait sans prise en charge ; la fiche calcule ce qu'elle montre depuis
+ * les colonnes enregistrées, elle ne régénère rien.
+ */
+class RadarAdvertiserCardTest extends TestCase
+{
+    use OperateursPlateforme;
+    use RefreshDatabase;
+
+    private User $operateur;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Carbon::setTestNow('2026-10-28 10:00:00');
+        $this->operateur = $this->agirEnOperateur(PlatformProfileLevel::Support);
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+        parent::tearDown();
+    }
+
+    private function lue(RadarAdvertiser $annonceur, array $attributes = []): RadarListing
+    {
+        return RadarListing::factory()->reviewed()->create(
+            $attributes + ['radar_advertiser_id' => $annonceur->id],
+        );
+    }
+
+    public function test_la_fiche_rend_annonces_messages_reponses_et_prise_en_charge(): void
+    {
+        Storage::fake(config('media-library.disk_name'));
+        $quartier = GeoNeighborhood::factory()->create(['name' => 'Ouakam']);
+        $annonceur = RadarAdvertiser::factory()->create([
+            'phone' => '+221771234567', 'display_name' => 'Awa Fall', 'nature_signals' => [['signal' => 'x', 'evidence' => 'y']],
+        ]);
+        $lue = RadarListing::factory()->extracted([
+            'neighborhood' => ['value' => 'Mermoz', 'neighborhood_id' => $quartier->id],
+            'bedrooms' => ['value' => 2],
+        ])->create(['radar_advertiser_id' => $annonceur->id, 'stage' => RadarListingStage::Reviewed]);
+        $purgee = RadarListing::factory()->create(['radar_advertiser_id' => $annonceur->id, 'stage' => RadarListingStage::Purged]);
+        $outreach = RadarOutreach::factory()->withListings($lue)->sent()->create(['radar_advertiser_id' => $annonceur->id, 'created_by_id' => $this->operateur->id]);
+        $reponse = RadarConsent::factory()->verified([
+            'classification' => 'consent', 'confidence' => 'high', 'number_matches' => true,
+            'clauses_found' => [1, 2, 3, 4], 'clauses_complete' => true, 'discordances' => [], 'reply_text' => 'OUI',
+        ])->create(['radar_outreach_id' => $outreach->id, 'transcript' => 'Moi : OUI']);
+        $media = $reponse->addMedia(UploadedFile::fake()->image('r.jpg'))->withCustomProperties(['sha256' => str_repeat('a', 64)])->toMediaCollection('radar_consent_captures');
+        $annonceur->forceFill(['claimed_by_id' => $this->operateur->id, 'claimed_at' => now(), 'claim_expires_at' => now()->addMinutes(10)])->save();
+
+        $data = $this->getJson("/api/admin/radar/advertisers/{$annonceur->id}")->assertOk()->json('data');
+
+        $this->assertSame($annonceur->id, $data['id']);
+        $this->assertSame('+221771234567', $data['phone']);
+        $this->assertSame('Awa Fall', $data['display_name']);
+        $this->assertSame([['signal' => 'x', 'evidence' => 'y']], $data['nature_signals']);
+        $this->assertTrue($data['claim']['mine']);
+        $this->assertSame('2026-10-28T10:10:00+00:00', $data['claim']['until']);
+
+        // La purgée n'y est pas ; la lue porte ses valeurs, le quartier rattaché préféré au texte lu.
+        $this->assertSame([$lue->id], array_column($data['listings'], 'id'));
+        $this->assertSame(
+            ['id' => $lue->id, 'stage' => 'reviewed', 'source_site' => 'other', 'title' => 'Appartement 3 chambres à Mermoz', 'price' => 450000,
+                'property_type' => 'apartment', 'contract' => 'rent', 'neighborhood' => 'Ouakam', 'bedrooms' => 2,
+                'covered_by_consent' => false, 'created_at' => '2026-10-28T10:00:00+00:00', 'stage_reason' => null,
+                'purge_at' => '2027-01-26T10:00:00+00:00'],
+            $data['listings'][0],
+        );
+
+        $message = $data['outreaches'][0];
+        $this->assertSame($outreach->id, $message['id']);
+        $this->assertSame('sent', $message['status']);
+        $this->assertSame([$lue->id], $message['listing_ids']);
+        $this->assertSame('accord.v1', $message['clauses_version']);
+        $this->assertSame($outreach->message, $message['message']);
+        $this->assertSame(['id' => $this->operateur->id, 'name' => $this->operateur->nameWithoutContact()], $message['created_by']);
+        $this->assertNull($message['wa_me_url']);
+        $this->assertNull($message['outcome']);
+
+        $recu = $message['consents'][0];
+        $this->assertSame($reponse->id, $recu['id']);
+        $this->assertSame('screenshot', $recu['proof']);
+        $this->assertSame('done', $recu['verification_status']);
+        $this->assertSame('consent', $recu['verdict']['classification']);
+        $this->assertSame('Moi : OUI', $recu['transcript']);
+        $this->assertNull($recu['confirmed_by']);
+        $this->assertSame($media->id, $recu['captures'][0]['id']);
+        $this->assertSame(str_repeat('a', 64), $recu['captures'][0]['sha256']);
+        $this->assertStringContainsString('signature=', $recu['captures'][0]['url']);
+    }
+
+    public function test_une_annonce_couverte_par_un_accord_confirme_le_dit(): void
+    {
+        $annonceur = RadarAdvertiser::factory()->create();
+        $couverte = $this->lue($annonceur);
+        $this->lue($annonceur);
+        $outreach = RadarOutreach::factory()->withListings($couverte)->sent()->create(['radar_advertiser_id' => $annonceur->id]);
+        $consent = RadarConsent::factory()->confirmed($this->operateur)->create(['radar_outreach_id' => $outreach->id]);
+
+        $couvertes = fn () => collect($this->getJson("/api/admin/radar/advertisers/{$annonceur->id}")->json('data.listings'))
+            ->where('covered_by_consent', true)->pluck('id')->all();
+
+        $this->assertSame([$couverte->id], $couvertes());
+
+        // Un accord révoqué ne couvre plus rien.
+        $consent->forceFill(['revoked_at' => now()])->save();
+        $this->assertSame([], $couvertes());
+    }
+
+    public function test_un_message_prepare_porte_ses_segments_et_son_lien_wa_me_exact(): void
+    {
+        config(['app.frontend_url' => 'https://front.exemple.test']);
+        $annonceur = RadarAdvertiser::factory()->create(['phone' => '+221771234567']);
+        $composeur = $this->app->make(ConsentMessageComposer::class);
+        $message = $composeur->compose('fr', 'Bonjour Awa,', 'votre appartement à Ouakam', 'accord.v1');
+        $prepare = RadarOutreach::factory()->create([
+            'radar_advertiser_id' => $annonceur->id, 'salutation' => 'Bonjour Awa,', 'summary' => 'votre appartement à Ouakam', 'message' => $message,
+        ]);
+        $envoye = RadarOutreach::factory()->sent()->create([
+            'radar_advertiser_id' => $annonceur->id, 'salutation' => 'Bonjour Awa,', 'summary' => 'votre appartement à Ouakam', 'message' => $message,
+        ]);
+        $sansResume = RadarOutreach::factory()->create(['radar_advertiser_id' => $annonceur->id, 'salutation' => 'Bonjour,', 'summary' => '', 'message' => 'x']);
+
+        $messages = collect($this->getJson("/api/admin/radar/advertisers/{$annonceur->id}")->assertOk()->json('data.outreaches'))->keyBy('id');
+
+        $lien = $messages[$prepare->id]['wa_me_url'];
+        $this->assertSame('https://wa.me/221771234567?text='.rawurlencode($message), $lien);
+        $this->assertSame($message, $messages[$prepare->id]['message']);
+        $this->assertSame($message, implode('', array_column($messages[$prepare->id]['segments'], 'text')));
+        $this->assertSame(['salutation', 'fixed', 'resume', 'fixed'], array_slice(array_column($messages[$prepare->id]['segments'], 'kind'), 0, 4));
+        // Jamais deux fois le même lien : un message envoyé n'en a plus ; sans résumé écrit, il n'existe pas encore.
+        $this->assertNull($messages[$envoye->id]['wa_me_url']);
+        $this->assertNull($messages[$sansResume->id]['wa_me_url']);
+    }
+
+    public function test_le_texte_enregistre_fait_foi_quand_le_gabarit_d_aujourd_hui_ne_le_redonne_plus(): void
+    {
+        config(['app.frontend_url' => 'https://front.exemple.test']);
+        $annonceur = RadarAdvertiser::factory()->create(['phone' => '+221771234567']);
+        $message = $this->app->make(ConsentMessageComposer::class)->compose('fr', 'Bonjour Awa,', 'votre bien', 'accord.v1');
+        RadarOutreach::factory()->create([
+            'radar_advertiser_id' => $annonceur->id, 'salutation' => 'Bonjour Awa,', 'summary' => 'votre bien', 'message' => $message,
+        ]);
+        $carte = fn () => $this->getJson("/api/admin/radar/advertisers/{$annonceur->id}")->assertOk()->json('data.outreaches.0');
+
+        // Tant que le gabarit redonne le texte : les segments typés.
+        $this->assertSame($message, implode('', array_column($carte()['segments'], 'text')));
+        $this->assertContains('salutation', array_column($carte()['segments'], 'kind'));
+
+        // L'origine du front change après la préparation : le lien des conditions d'aujourd'hui n'est plus celui du texte.
+        config(['app.frontend_url' => 'https://autre.exemple.test']);
+        $apres = $carte();
+        $this->assertSame([['kind' => 'fixed', 'text' => $message]], $apres['segments']);
+        $this->assertSame($message, $apres['message']);
+        $this->assertSame('https://wa.me/221771234567?text='.rawurlencode($message), $apres['wa_me_url']);
+    }
+
+    public function test_une_langue_ou_des_clauses_qui_ne_se_servent_plus_ne_font_pas_tomber_la_fiche(): void
+    {
+        $annonceur = RadarAdvertiser::factory()->create(['phone' => '+221771234567']);
+        $mauvaiseLangue = RadarOutreach::factory()->create([
+            'radar_advertiser_id' => $annonceur->id, 'locale' => 'wo', 'message' => 'Texte enregistré en wolof',
+        ]);
+        $sansFichier = RadarOutreach::factory()->create([
+            'radar_advertiser_id' => $annonceur->id, 'clauses_version' => 'accord.v99', 'message' => 'Texte d\'une version disparue',
+        ]);
+
+        $messages = collect($this->getJson("/api/admin/radar/advertisers/{$annonceur->id}")->assertOk()->json('data.outreaches'))->keyBy('id');
+
+        $this->assertSame([['kind' => 'fixed', 'text' => 'Texte enregistré en wolof']], $messages[$mauvaiseLangue->id]['segments']);
+        $this->assertSame([['kind' => 'fixed', 'text' => 'Texte d\'une version disparue']], $messages[$sansFichier->id]['segments']);
+        $this->assertSame('https://wa.me/221771234567?text='.rawurlencode('Texte enregistré en wolof'), $messages[$mauvaiseLangue->id]['wa_me_url']);
+    }
+
+    public function test_un_annonceur_qui_a_dit_stop_n_a_aucun_lien_wa_me(): void
+    {
+        $annonceur = RadarAdvertiser::factory()->create(['phone' => '+221771234567', 'do_not_contact_at' => now()]);
+        RadarOutreach::factory()->create(['radar_advertiser_id' => $annonceur->id, 'salutation' => 'Bonjour,', 'summary' => 'votre bien']);
+
+        $this->getJson("/api/admin/radar/advertisers/{$annonceur->id}")->assertOk()->assertJsonPath('data.outreaches.0.wa_me_url', null);
+    }
+
+    /** Un brouillon complet (parties écrites, annonceur joignable) sur ces annonces, et la fiche telle que l'API la rend. */
+    private function brouillonDe(RadarAdvertiser $annonceur, array $attributes, RadarListing ...$annonces): array
+    {
+        config(['app.frontend_url' => 'https://front.exemple.test']);
+        $message = $this->app->make(ConsentMessageComposer::class)->compose('fr', 'Bonjour Awa,', 'votre appartement à Ouakam', 'accord.v1');
+        $brouillon = RadarOutreach::factory()->withListings(...$annonces)->create($attributes + [
+            'radar_advertiser_id' => $annonceur->id, 'salutation' => 'Bonjour Awa,', 'summary' => 'votre appartement à Ouakam', 'message' => $message,
+        ]);
+
+        return [$brouillon, collect($this->getJson("/api/admin/radar/advertisers/{$annonceur->id}")->assertOk()->json('data.outreaches'))->keyBy('id')[$brouillon->id]];
+    }
+
+    public function test_un_brouillon_qui_partirait_en_409_n_offre_pas_de_lien_wa_me_et_dit_pourquoi(): void
+    {
+        $annonceur = RadarAdvertiser::factory()->create(['phone' => '+221771234567']);
+        $annonce = $this->lue($annonceur, ['stage' => RadarListingStage::Reviewed]);
+
+        // Valide : le lien est là, rien n'est bloqué.
+        [$valide, $carte] = $this->brouillonDe($annonceur, [], $annonce);
+        $this->assertStringStartsWith('https://wa.me/221771234567?text=', $carte['wa_me_url']);
+        $this->assertNull($carte['send_blocked']);
+        $valide->delete();
+
+        // Une annonce passée à un autre annonceur depuis la préparation.
+        $etrangere = $this->lue(RadarAdvertiser::factory()->create(), ['stage' => RadarListingStage::Reviewed]);
+        [$brouillon, $carte] = $this->brouillonDe($annonceur, [], $annonce, $etrangere);
+        $this->assertNull($carte['wa_me_url']);
+        $this->assertSame('radar.outreach.listing_foreign', $carte['send_blocked']);
+        $brouillon->delete();
+
+        // Une annonce sortie de reviewed/contacted.
+        $ecartee = $this->lue($annonceur, ['stage' => RadarListingStage::Discarded]);
+        [$brouillon, $carte] = $this->brouillonDe($annonceur, [], $annonce, $ecartee);
+        $this->assertNull($carte['wa_me_url']);
+        $this->assertSame('radar.listing.stage_conflict', $carte['send_blocked']);
+    }
+
+    public function test_une_relance_dont_le_message_relance_a_une_issue_n_offre_pas_de_lien_wa_me(): void
+    {
+        $annonceur = RadarAdvertiser::factory()->create(['phone' => '+221771234567']);
+        $annonce = $this->lue($annonceur, ['stage' => RadarListingStage::Contacted]);
+        $origine = RadarOutreach::factory()->withListings($annonce)->sent()->create(['radar_advertiser_id' => $annonceur->id, 'outcome' => 'question', 'outcome_at' => now()]);
+
+        [$relance, $carte] = $this->brouillonDe($annonceur, ['follow_up_of_id' => $origine->id, 'follow_up_rank' => 1], $annonce);
+
+        $this->assertNull($carte['wa_me_url']);
+        $this->assertSame('radar.outreach.follow_up_invalid', $carte['send_blocked']);
+
+        // Sans issue, la même relance est envoyable.
+        $origine->forceFill(['outcome' => null, 'outcome_at' => null])->save();
+        $carte = collect($this->getJson("/api/admin/radar/advertisers/{$annonceur->id}")->json('data.outreaches'))->keyBy('id')[$relance->id];
+        $this->assertNotNull($carte['wa_me_url']);
+        $this->assertNull($carte['send_blocked']);
+    }
+
+    public function test_le_statut_d_un_message_est_prepare_envoye_ou_clos(): void
+    {
+        $annonceur = RadarAdvertiser::factory()->create();
+        $prepare = RadarOutreach::factory()->create(['radar_advertiser_id' => $annonceur->id]);
+        $envoye = RadarOutreach::factory()->sent()->create(['radar_advertiser_id' => $annonceur->id]);
+        $clos = RadarOutreach::factory()->sent()->create(['radar_advertiser_id' => $annonceur->id, 'outcome' => 'refused', 'outcome_at' => now()]);
+        $question = RadarOutreach::factory()->sent()->create(['radar_advertiser_id' => $annonceur->id, 'outcome' => 'question', 'outcome_at' => now()]);
+
+        $statuts = collect($this->getJson("/api/admin/radar/advertisers/{$annonceur->id}")->json('data.outreaches'))->pluck('status', 'id');
+
+        $this->assertSame('prepared', $statuts[$prepare->id]);
+        $this->assertSame('sent', $statuts[$envoye->id]);
+        $this->assertSame('closed', $statuts[$clos->id]);
+        // `question` n'est pas final : une réponse déposée plus tard peut encore le changer.
+        $this->assertSame('sent', $statuts[$question->id]);
+    }
+
+    public function test_un_message_a_relancer_porte_son_echeance(): void
+    {
+        $annonceur = RadarAdvertiser::factory()->create();
+        $listing = $this->lue($annonceur, ['stage' => RadarListingStage::Contacted]);
+        $outreach = RadarOutreach::factory()->withListings($listing)->create(['radar_advertiser_id' => $annonceur->id, 'sent_at' => now()->subDays(4), 'follow_up_rank' => 2]);
+        $ferme = RadarOutreach::factory()->sent()->create(['radar_advertiser_id' => $annonceur->id]);
+
+        $messages = collect($this->getJson("/api/admin/radar/advertisers/{$annonceur->id}")->json('data.outreaches'))->keyBy('id');
+
+        $this->assertSame(['due_at' => '2026-10-27T10:00:00+00:00', 'propose_no_answer' => true], $messages[$outreach->id]['follow_up']);
+        $this->assertNull($messages[$ferme->id]['follow_up']);
+    }
+
+    public function test_une_relance_de_dernier_rang_envoyee_hier_attend_et_ne_propose_pas_sans_reponse(): void
+    {
+        $annonceur = RadarAdvertiser::factory()->create();
+        $listing = $this->lue($annonceur, ['stage' => RadarListingStage::Contacted]);
+        $outreach = RadarOutreach::factory()->withListings($listing)->create(['radar_advertiser_id' => $annonceur->id, 'sent_at' => now()->subDay(), 'follow_up_rank' => 2]);
+
+        $this->getJson("/api/admin/radar/advertisers/{$annonceur->id}")
+            ->assertOk()
+            ->assertJsonPath('data.outreaches.0.follow_up', ['due_at' => '2026-10-30T10:00:00+00:00', 'propose_no_answer' => false]);
+        $this->getJson('/api/admin/radar/advertisers')->assertOk()
+            ->assertJsonPath('data.0.follow_up.outreach_id', $outreach->id)
+            ->assertJsonPath('data.0.follow_up.propose_no_answer', false);
+    }
+
+    public function test_un_brouillon_de_relance_garde_l_annonceur_dans_la_file_et_le_message_d_origine_a_relancer(): void
+    {
+        $annonceur = RadarAdvertiser::factory()->create();
+        $listing = $this->lue($annonceur, ['stage' => RadarListingStage::Contacted]);
+        $origine = RadarOutreach::factory()->withListings($listing)->create(['radar_advertiser_id' => $annonceur->id, 'sent_at' => now()->subDays(4)]);
+        // La relance est préparée et pas envoyée : elle ne ferme pas la chaîne.
+        $brouillon = RadarOutreach::factory()->withListings($listing)->followUpOf($origine)->create();
+
+        $this->assertSame([$annonceur->id], $this->file('follow_up'));
+        $messages = collect($this->getJson("/api/admin/radar/advertisers/{$annonceur->id}")->assertOk()->json('data.outreaches'))->keyBy('id');
+        $this->assertNotNull($messages[$origine->id]['follow_up']);
+        $this->assertNull($messages[$brouillon->id]['follow_up']);
+    }
+
+    public function test_la_fiche_ne_rend_pas_de_prise_expiree(): void
+    {
+        $annonceur = RadarAdvertiser::factory()->create();
+        $annonceur->forceFill(['claimed_by_id' => User::factory()->create()->id, 'claimed_at' => now()->subMinutes(20), 'claim_expires_at' => now()->subMinutes(10)])->save();
+
+        $this->getJson("/api/admin/radar/advertisers/{$annonceur->id}")->assertOk()->assertJsonPath('data.claim', null);
+    }
+
+    public function test_la_prise_d_un_autre_se_lit_sans_etre_la_mienne(): void
+    {
+        $autre = User::factory()->create(['first_name' => 'Moussa', 'last_name' => 'Sow']);
+        $annonceur = RadarAdvertiser::factory()->create();
+        $annonceur->forceFill(['claimed_by_id' => $autre->id, 'claimed_at' => now(), 'claim_expires_at' => now()->addMinutes(5)])->save();
+
+        $this->getJson("/api/admin/radar/advertisers/{$annonceur->id}")
+            ->assertOk()
+            ->assertJsonPath('data.claim.mine', false)
+            ->assertJsonPath('data.claim.by', ['id' => $autre->id, 'name' => 'Moussa Sow']);
+    }
+
+    public function test_un_annonceur_inconnu_rend_404(): void
+    {
+        $this->getJson('/api/admin/radar/advertisers/999999')->assertNotFound();
+    }
+
+    // --- Les files --------------------------------------------------------------------------------
+
+    /** @return list<int> */
+    private function file(string $queue): array
+    {
+        return array_column($this->getJson("/api/admin/radar/advertisers?filter[queue]={$queue}")->assertOk()->json('data'), 'id');
+    }
+
+    public function test_la_file_a_contacter_veut_une_annonce_lue_et_un_annonceur_joignable(): void
+    {
+        $pret = RadarAdvertiser::factory()->create();
+        $this->lue($pret);
+        $sansLue = RadarAdvertiser::factory()->create();
+        RadarListing::factory()->extracted()->create(['radar_advertiser_id' => $sansLue->id]);
+        $refuse = RadarAdvertiser::factory()->doNotContact()->create();
+        $this->lue($refuse);
+
+        $this->assertSame([$pret->id], $this->file('to_contact'));
+    }
+
+    public function test_les_files_en_attente_et_a_relancer_se_separent_a_l_echeance(): void
+    {
+        $attend = RadarAdvertiser::factory()->create();
+        $du = RadarAdvertiser::factory()->create();
+        foreach ([[$attend, 2], [$du, 3]] as [$annonceur, $jours]) {
+            $listing = $this->lue($annonceur, ['stage' => RadarListingStage::Contacted]);
+            RadarOutreach::factory()->withListings($listing)->create(['radar_advertiser_id' => $annonceur->id, 'sent_at' => now()->subDays($jours)]);
+        }
+
+        $this->assertSame([$attend->id], $this->file('awaiting'));
+        $this->assertSame([$du->id], $this->file('follow_up'));
+    }
+
+    public function test_une_ligne_de_file_porte_ses_comptes_et_son_message_ouvert(): void
+    {
+        $annonceur = RadarAdvertiser::factory()->create();
+        $this->lue($annonceur);
+        $contactee = $this->lue($annonceur, ['stage' => RadarListingStage::Contacted]);
+        $this->lue($annonceur, ['stage' => RadarListingStage::Consented]);
+        $outreach = RadarOutreach::factory()->withListings($contactee)->create(['radar_advertiser_id' => $annonceur->id, 'sent_at' => now()->subDays(4), 'follow_up_rank' => 1]);
+
+        $ligne = $this->getJson('/api/admin/radar/advertisers')->assertOk()->json('data.0');
+
+        $this->assertSame(['reviewed' => 1, 'contacted' => 1, 'consented' => 1], $ligne['counts']);
+        $this->assertSame([
+            'outreach_id' => $outreach->id, 'sent_at' => '2026-10-24T10:00:00+00:00', 'due_at' => '2026-10-27T10:00:00+00:00',
+            'rank' => 1, 'propose_no_answer' => false,
+        ], $ligne['follow_up']);
+        $this->assertNull($ligne['claim']);
+        $this->assertArrayNotHasKey('listings', $ligne);
+    }
+
+    public function test_une_ligne_sans_message_ouvert_n_a_pas_de_relance(): void
+    {
+        RadarAdvertiser::factory()->create();
+
+        $this->getJson('/api/admin/radar/advertisers')->assertOk()->assertJsonPath('data.0.follow_up', null);
+    }
+
+    public function test_la_recherche_par_nom_replie_la_casse_des_lettres_accentuees(): void
+    {
+        $eloi = RadarAdvertiser::factory()->create(['display_name' => 'Élodie Sarr']);
+        RadarAdvertiser::factory()->create(['display_name' => 'Moussa Sow']);
+
+        $ids = fn (string $q) => array_column($this->getJson('/api/admin/radar/advertisers?filter[search]='.rawurlencode($q))->assertOk()->json('data'), 'id');
+
+        $this->assertSame([$eloi->id], $ids('ÉLODIE'));
+        $this->assertSame([$eloi->id], $ids('élodie sa'));
+    }
+
+    public function test_la_recherche_par_numero_accepte_l_ecriture_du_terrain(): void
+    {
+        $awa = RadarAdvertiser::factory()->create(['phone' => '+221771234567']);
+        RadarAdvertiser::factory()->create(['phone' => '+221781234567']);
+
+        $ids = fn (string $q) => array_column($this->getJson('/api/admin/radar/advertisers?filter[search]='.rawurlencode($q))->assertOk()->json('data'), 'id');
+
+        $this->assertSame([$awa->id], $ids('77 123 45 67'));
+        $this->assertSame([$awa->id], $ids('+221771234567'));
+    }
+
+    public function test_un_sparse_fieldset_n_invente_rien(): void
+    {
+        $annonceur = RadarAdvertiser::factory()->create(['display_name' => 'Awa']);
+
+        $ligne = $this->getJson('/api/admin/radar/advertisers?fields[radar_advertisers]=id,display_name')->assertOk()->json('data.0');
+
+        $this->assertSame($annonceur->id, $ligne['id']);
+        $this->assertSame('Awa', $ligne['display_name']);
+        foreach (['phone', 'nature', 'do_not_contact_at'] as $cle) {
+            $this->assertArrayNotHasKey($cle, $ligne, $cle);
+        }
+        // `claim` est calculé : la liste lit ses colonnes même sous un sparse fieldset, `null` quand personne ne tient l'annonceur.
+        $this->assertArrayHasKey('claim', $ligne);
+        $this->assertNull($ligne['claim']);
+    }
+
+    public function test_une_prise_d_un_autre_operateur_se_rend_sous_un_sparse_fieldset(): void
+    {
+        $autre = User::factory()->create(['first_name' => 'Fatou', 'last_name' => 'Sow']);
+        $annonceur = RadarAdvertiser::factory()->create();
+        $annonceur->forceFill(['claimed_by_id' => $autre->id, 'claimed_at' => now(), 'claim_expires_at' => now()->addMinutes(5)])->save();
+
+        $ligne = $this->getJson('/api/admin/radar/advertisers?fields[radar_advertisers]=id')->assertOk()->json('data.0');
+
+        $this->assertFalse($ligne['claim']['mine']);
+        $this->assertSame($autre->id, $ligne['claim']['by']['id']);
+        $this->assertStringContainsString('Fatou', $ligne['claim']['by']['name']);
+        $this->assertArrayNotHasKey('phone', $ligne);
+    }
+
+    public function test_ma_prise_se_rend_mine_sous_un_sparse_fieldset(): void
+    {
+        $annonceur = RadarAdvertiser::factory()->create();
+        $annonceur->forceFill(['claimed_by_id' => $this->operateur->id, 'claimed_at' => now(), 'claim_expires_at' => now()->addMinutes(5)])->save();
+
+        $this->assertTrue($this->getJson('/api/admin/radar/advertisers?fields[radar_advertisers]=id')->assertOk()->json('data.0.claim.mine'));
+    }
+
+    public function test_une_prise_expiree_n_est_a_personne_sous_un_sparse_fieldset(): void
+    {
+        $annonceur = RadarAdvertiser::factory()->create();
+        $annonceur->forceFill(['claimed_by_id' => User::factory()->create()->id, 'claimed_at' => now()->subMinutes(20), 'claim_expires_at' => now()->subMinutes(10)])->save();
+
+        $ligne = $this->getJson('/api/admin/radar/advertisers?fields[radar_advertisers]=id')->assertOk()->json('data.0');
+
+        $this->assertArrayHasKey('claim', $ligne);
+        $this->assertNull($ligne['claim']);
+    }
+
+    public function test_une_file_inconnue_ne_rend_rien(): void
+    {
+        $this->lue(RadarAdvertiser::factory()->create());
+
+        $this->assertSame([], $this->file('nope'));
+    }
+
+    public function test_la_liste_se_pagine_par_derniere_activite(): void
+    {
+        RadarAdvertiser::factory()->create(['updated_at' => now()->subDay()]);
+        $recent = RadarAdvertiser::factory()->create(['updated_at' => now()]);
+
+        $reponse = $this->getJson('/api/admin/radar/advertisers?per_page=1')->assertOk();
+
+        $this->assertSame([$recent->id], array_column($reponse->json('data'), 'id'));
+        $this->assertSame(2, $reponse->json('meta.total'));
+    }
+
+    public function test_viewer_403_support_200_sur_les_quatre_routes(): void
+    {
+        $annonceur = RadarAdvertiser::factory()->create();
+        $routes = [
+            ['getJson', '/api/admin/radar/advertisers'],
+            ['getJson', "/api/admin/radar/advertisers/{$annonceur->id}"],
+            ['postJson', "/api/admin/radar/advertisers/{$annonceur->id}/claim"],
+            ['deleteJson', "/api/admin/radar/advertisers/{$annonceur->id}/claim"],
+        ];
+
+        $this->actingAsWithStepUp($this->operateur(PlatformProfileLevel::Viewer));
+        foreach ($routes as [$verbe, $url]) {
+            $this->{$verbe}($url)->assertForbidden()->assertJsonPath('code', 'platform.ability_missing');
+        }
+
+        $this->actingAsWithStepUp($this->operateur(PlatformProfileLevel::Support));
+        foreach ($routes as [$verbe, $url]) {
+            $this->assertContains($this->{$verbe}($url)->getStatusCode(), [200, 204], $url);
+        }
+    }
+}

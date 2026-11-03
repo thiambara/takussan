@@ -16,6 +16,7 @@ return [
     'logout_successful' => 'Logged out successfully.',
     'two_factor_required' => 'Two-factor authentication required.',
     'two_factor_invalid' => 'Invalid two-factor or recovery code.',
+    'terms_required' => 'Accept the terms of use to activate your account.',
     // TCK-589 — phone sign-in, lockout, sessions, required 2FA (additions only).
     'phone' => [
         'sms_code' => 'Takussan: your code is :code. It expires in :minutes min. Do not share it.',

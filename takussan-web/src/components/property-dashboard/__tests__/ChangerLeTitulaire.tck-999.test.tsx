@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -69,7 +69,8 @@ async function ouvrirEtChoisir() {
   const user = userEvent.setup();
   monter();
   await user.click(screen.getByRole('button', { name: 'Changer le titulaire' }));
-  fireEvent.change(await screen.findByLabelText('Nouveau titulaire'), { target: { value: '71' } });
+  await user.click(await screen.findByRole('combobox', { name: 'Nouveau titulaire' }));
+  await user.click(await screen.findByRole('option', { name: 'Awa Diop' }));
   return user;
 }
 
@@ -85,10 +86,12 @@ describe('ChangerLeTitulaire (TCK-999)', () => {
     monter();
     await user.click(screen.getByRole('button', { name: 'Changer le titulaire' }));
 
-    const choix = await screen.findByLabelText('Nouveau titulaire');
-    expect(screen.getByRole('option', { name: 'Awa Diop' })).toBeInTheDocument();
+    const choix = await screen.findByRole('combobox', { name: 'Nouveau titulaire' });
+    expect(choix).not.toHaveTextContent('Awa Diop');
+    await user.click(choix);
+    expect(await screen.findByRole('option', { name: 'Awa Diop' })).toBeInTheDocument();
     expect(screen.queryByRole('option', { name: /Invité/ })).not.toBeInTheDocument();
-    expect(choix).toHaveValue('');
+    await user.keyboard('{Escape}');
     expect(screen.getByRole('button', { name: 'Confirmer le changement' })).toBeDisabled();
     expect(api.apercu).not.toHaveBeenCalled();
   });

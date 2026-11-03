@@ -787,6 +787,12 @@ return [
                 'body' => 'Calendar ":feed" for :property has failed to sync three times in a row. Check its link.',
                 'sms' => 'Takussan: calendar ":feed" no longer syncs.',
             ],
+            // TCK-2432 — to the holder of a property the Radar published, when its last source listing is gone.
+            'source_listing_gone' => [
+                'title' => 'Is your property still available? :property',
+                'body' => 'The original listing for “:property” is no longer online. Open the property to tell us whether it is rented, sold or still available.',
+                'sms' => 'Takussan: is “:property” still available?',
+            ],
         ],
         // TCK-594 (ADR-0039) — les sorties d'argent.
         'payout' => [

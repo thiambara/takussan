@@ -32,7 +32,7 @@ TanStack Query, next-intl (fr/en/wo), base-ui (shadcn `base-nova`), vitest + Tes
 ## Sources qui font foi (relues pour ce plan)
 
 - `docs/adr/0061-credits-d-espace-et-boost-des-annonces.md` — §1 à §11.
-- `docs/backlog/tickets/TCK-633-lot-retours-porteur-publication-recherche-boost.md` — lot F, contrat
+- `docs/backlog/tickets/done/TCK-633-lot-retours-porteur-publication-recherche-boost.md` — lot F, contrat
   d'API, AC13 à AC16, exigences UX.
 - `docs/plans/2026-10-12-tck-633-lot-retours-porteur.md` — territoires, fichiers co-tenus, règles de
   l'arbre partagé, interfaces C → F, F → E, F → B.

@@ -11,7 +11,7 @@ Create backlog tickets that describe a **delta** to produce — never a copy of 
 
 **Announce at start:** "I'm using the writing-specs skill to create ticket TCK-NNN."
 
-**Save tickets to:** `docs/backlog/tickets/TCK-NNN-<slug>.md`
+**Save tickets to:** `docs/backlog/tickets/todo/TCK-NNN-<slug>.md` — tickets are filed by status (`tickets/<status>/`); `node docs/backlog/ranger-tickets.mjs` keeps the folder in step with `status:`.
 **Index:** `docs/backlog/INDEX.md` is **GENERATED and not versioned** (ADR-0067) — never edit it, never commit it.
 **Template:** `docs/backlog/_template.md`
 
@@ -79,7 +79,7 @@ Every ticket must point to **at least one** anchor in `features.md` **or** `mode
 ### 4. Pick the next TCK-NNN
 
 ```bash
-ls docs/backlog/tickets/ | grep -oE 'TCK-[0-9]+' | sort -u | tail -1
+find docs/backlog/tickets -name 'TCK-*.md' | grep -oE 'TCK-[0-9]+' | sort -t- -k2 -n | tail -1
 ```
 
 Increment by 1. IDs are sequential and **never reused**, even for deleted tickets.
@@ -87,7 +87,7 @@ Increment by 1. IDs are sequential and **never reused**, even for deleted ticket
 ### 5. Copy the template
 
 ```bash
-cp docs/backlog/_template.md docs/backlog/tickets/TCK-NNN-<slug>.md
+cp docs/backlog/_template.md docs/backlog/tickets/todo/TCK-NNN-<slug>.md
 ```
 
 `<slug>` = kebab-case, 3–5 words max (e.g., `payment-gateway`, `booking-cancellation`).

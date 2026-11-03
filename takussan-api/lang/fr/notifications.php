@@ -792,6 +792,12 @@ return [
                 'body' => 'Le calendrier « :feed » de :property ne se synchronise plus depuis trois tentatives. Vérifiez son lien.',
                 'sms' => 'Takussan : le calendrier « :feed » ne se synchronise plus.',
             ],
+            // TCK-2432 — au titulaire d'un bien publié par le Radar, quand sa dernière annonce source a disparu.
+            'source_listing_gone' => [
+                'title' => 'Votre bien est-il toujours disponible ? :property',
+                'body' => 'L\'annonce d\'origine de « :property » n\'est plus en ligne. Ouvrez le bien pour nous dire s\'il est loué, vendu ou toujours disponible.',
+                'sms' => 'Takussan : « :property » est-il toujours disponible ?',
+            ],
         ],
         // TCK-594 (ADR-0039) — les sorties d'argent.
         'payout' => [

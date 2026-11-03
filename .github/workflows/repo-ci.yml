@@ -11,10 +11,12 @@
 # Aucune de ces gardes ne compile. Elles tiennent la documentation au même niveau d'exigence que
 # le code, et c'est tout leur objet.
 #
-# UNE exception, et elle est assumée : `test-release-reindex.sh` est un vrai test. Il vit
-# ici parce que son sujet — la décision de réindexation de `release.sh` — n'a pas d'autre maison :
-# ni PHPUnit ni vitest ne lisent du bash. Cette phrase disait « ni ne teste quoi que ce soit »
-# avant que le test n'existe ; la corriger était moins cher que de laisser l'en-tête mentir.
+# DEUX exceptions, et elles sont assumées : `test-release-reindex.sh` et
+# `test-sauvegarde-seau-prive.sh` (TCK-2407) sont de vrais tests. Ils vivent ici parce que leur
+# sujet — la décision de réindexation de `release.sh`, la rotation de la copie du seau privé — n'a
+# pas d'autre maison : ni PHPUnit ni vitest ne lisent du bash. Cette phrase disait « ni ne teste
+# quoi que ce soit » avant que le premier n'existe, puis « UNE exception » avant le second ; la
+# corriger était moins cher que de laisser l'en-tête mentir.
 name: Repo CI
 
 on:
@@ -30,7 +32,8 @@ on:
       - 'takussan-api/.env.docker'
       # Chaque garde doit être déclenchée par les DEUX côtés qu'elle compare, sinon elle
       # ne voit qu'une moitié de l'écart qu'elle existe pour trouver :
-      #   check-queues       → les `onQueue()` de takussan-api/app, deploy/takussan/compose.api.yml ET dev.sh
+      #   check-queues       → les `onQueue()` et `$timeout` de takussan-api/app, takussan-api/config/queue.php,
+      #                        deploy/takussan/compose.api.yml ET dev.sh
       #   check-pro-routes   → PRO_ROUTES et les pages, tous deux sous takussan-web/src
       #   check-backlog      → les tickets ET les specs qu'ils citent
       #   check-models-spec  → takussan-api/app/Models ET docs/models-spec.md
@@ -77,6 +80,8 @@ on:
       # `check-notification-codes` (TCK-588) compare l'enum `NotificationCode` (`app/**`), les
       # textes de l'API (`lang/**`) et ceux du front (`src/**`) : les trois doivent la déclencher.
       - 'takussan-api/lang/**'
+      # `check-mail-button-paths` lit `CHEMINS_DU_FRONT` dans ce test, hors de `app/**`.
+      - 'takussan-api/tests/Feature/Notifications/LiensDesCourrielsTest.php'
       # ADR-0028 : `check-queues` lit `deploy/takussan/compose.api.yml`, `check-heredocs` tout le
       # shell (dont `deploy/**` et `takussan-api/docker/**`), `check-front-env-keys` le Dockerfile
       # du front, et `test-release-reindex` lit `takussan-api/docker/`. Les deux côtés de chaque
@@ -154,6 +159,15 @@ on:
       # `check-front-routes` (TCK-998) lit `route:list` : `bootstrap/app.php` enregistre les fichiers
       # de routes et le préfixe `api`.
       - 'takussan-api/bootstrap/**'
+      # Gardes du socle IA (TCK-2383, TCK-2384, ADR-0076) : `check-ai-providers-privacy` compare
+      # `takussan-api/config/ai.php` (couvert par `config/**`) ET `takussan-web/src/content/legal/
+      # privacy.ts` (par `takussan-web/src/**`) ; `check-ai-usages` lit `app/Ai/**` (`app/**`) et
+      # `takussan-api/resources/ai/` — le seul de ses dossiers qu'aucune ligne ci-dessus ne couvre ;
+      # `check-ai-evals-pii` lit `takussan-api/resources/ai/evals/` (couvert par la même ligne :
+      # les jeux vivent sous `resources/` et non `tests/` pour partir dans l'image, que
+      # `.dockerignore` prive de `tests`) ; ses épreuves lisent
+      # `takussan-api/tests/fixtures/ai/donnees-personnelles.json` (`tests/**`, TCK-2400).
+      - 'takussan-api/resources/ai/**'
   push:
     branches: [dev, master]
     paths:
@@ -186,6 +200,8 @@ on:
       # `check-notification-codes` (TCK-588) compare l'enum `NotificationCode` (`app/**`), les
       # textes de l'API (`lang/**`) et ceux du front (`src/**`) : les trois doivent la déclencher.
       - 'takussan-api/lang/**'
+      # `check-mail-button-paths` lit `CHEMINS_DU_FRONT` dans ce test, hors de `app/**`.
+      - 'takussan-api/tests/Feature/Notifications/LiensDesCourrielsTest.php'
       # ADR-0028 : `check-queues` lit `deploy/takussan/compose.api.yml`, `check-heredocs` tout le
       # shell (dont `deploy/**` et `takussan-api/docker/**`), `check-front-env-keys` le Dockerfile
       # du front, et `test-release-reindex` lit `takussan-api/docker/`. Les deux côtés de chaque
@@ -255,6 +271,8 @@ on:
       # `check-front-routes` (TCK-998) lit `route:list` : `bootstrap/app.php` enregistre les fichiers
       # de routes et le préfixe `api`.
       - 'takussan-api/bootstrap/**'
+      # Gardes du socle IA : voir le même bloc du déclencheur `pull_request`.
+      - 'takussan-api/resources/ai/**'
 
 jobs:
   guards:
@@ -315,6 +333,13 @@ jobs:
         # chaque exécution, pas recopiée : une clé fail-closed ajoutée demain est gardée
         # sans que personne ne pense à cette garde (TCK-296).
         run: node scripts/check-webhook-env-keys.mjs --report
+
+      - name: Les gabarits de production couvrent ce que le code lit, sans valeur de secret
+        # TCK-2456. Une clé oubliée de Dokploy garde le défaut de `config/`, sans erreur. Chaque clé lue
+        # est dans `.env.example`, chaque clé de `.env.example` dans un gabarit ou dans la liste des
+        # résidus, avec son motif. Elle lit `takussan-api/config`, `app`, `docker` et `.env.*`,
+        # `takussan-web/src` et `deploy/takussan` : tous sont couverts ci-dessus.
+        run: node scripts/check-env-production.mjs --report
 
       - name: shellcheck et hadolint, à version épinglée
         # Les exécuteurs Ubuntu embarquent un shellcheck dont la version bouge avec l'image : une
@@ -399,6 +424,16 @@ jobs:
         # dans un APP_ROOT jetable, talonne `php`, et finit par une ablation qui échoue exprès.
         run: ./scripts/test-release-reindex.sh
 
+      - name: La copie du seau privé garde 14 jours, et jamais moins qu'un objet vivant (TCK-2407)
+        # privacy.ts § 6 promet que les sauvegardes ne gardent rien plus de 14 jours ; la copie
+        # nocturne gardait pour toujours ce que la purge du Radar efface. Le harnais joue le VRAI
+        # `deploy/server/sauvegarde-seau-prive.sh` sur un R2 simulé, jours simulés par `JOUR` :
+        # l'objet effacé part au plus tard à J+13, l'objet vivant reste (même md5), la liste des
+        # effacements garde une copie jamais tournée, une copie interrompue reste sans marqueur et
+        # le dernier instantané complet ne part jamais, un seau vidé et tout échec alertent. Il
+        # finit par une ablation par garde, qui doit chacune rougir.
+        run: ./scripts/test-sauvegarde-seau-prive.sh
+
       - name: Le banc d'essai tourne sur le moteur de base de la production
         # `docker-compose.yml` et le job `migrations-mysql` tournaient sur `mariadb:11.4`, sur la
         # foi d'un `apt install mariadb-server` que personne n'avait exécuté. Mesuré le
@@ -432,6 +467,24 @@ jobs:
         # TCK-597 — `/admin/reviews` et `/app/reviews` — et ADR-0064 en déplaçait six autres.
         # Déclenchée par `takussan-api/app/**` ET `takussan-web/src/**` : les deux côtés.
         run: node scripts/check-notification-target-paths.mjs --report
+
+      # ── Cinq gardes qui existaient sans qu'aucun workflow ne les joue (relevé du 2026-11-03).
+      # CLAUDE.md affirmait que Repo CI « les rejoue toutes » : c'était faux pour elles. Chacune
+      # porte son motif dans son propre en-tête ; elles étaient vertes en local le jour du branchement.
+      - name: Chaque bouton de courriel mène à une page du front (TCK-1245)
+        run: node scripts/check-mail-button-paths.mjs
+      - name: Le front nomme une personne par nomAffichable(), jamais en collant prénom et nom (TCK-2142)
+        run: node scripts/check-nom-affichable.mjs
+      - name: Une cible de notification d'administration déclare l'exigence de sa page (TCK-1763)
+        run: node scripts/check-notification-target-audience.mjs
+      - name: Chaque statut émis par l'API et traduit par un écran a sa clé au dictionnaire (TCK-2127)
+        run: node scripts/check-status-labels.mjs
+      - name: Chaque enum *Status de l'API a au front une union qui porte exactement ses cas (TCK-1834)
+        run: node scripts/check-status-unions.mjs
+      - name: Chaque garde scripts/check-*.mjs est jouée par un workflow
+        # Sans elle, les cinq gardes ci-dessus avaient dormi : une garde neuve s'écrit, passe en local,
+        # et personne ne la branche. Prouvé par ablation sur le repo-ci.yml d'avant (6 rouges).
+        run: node scripts/check-gardes-branchees.mjs
 
       - name: Tout appel du front a sa route dans l'API, verbe compris
         # Quatre routes absentes ont vécu dans le code (`PATCH /api/users/me`, `generate-schedule`,
@@ -989,7 +1042,7 @@ jobs:
         # de quoi que ce soit qui la mesure. Un pointeur mort ne se signale jamais tout seul.
         #
         # ⚠ La garde est HONNÊTE SUR SON PÉRIMÈTRE et l'imprime : les documents NORMATIFS, pas tout
-        # `docs/`. Les 269 chemins morts de `_archive/INDEX-manuel-2026-08-12.md` et ceux des
+        # `docs/`. Les 269 chemins morts de `_archive/INDEX-manuel-2026-08-12.md` (retiré le 2026-11-03) et ceux des
         # `sync-passes/` sont des FAITS D'HISTOIRE dans des archives gelées à dessein — les
         # « corriger » falsifierait la pièce. Une garde qu'on ne peut pas rendre verte n'est pas
         # une garde, c'est un bandeau d'avertissement de plus.
@@ -1040,6 +1093,14 @@ jobs:
         # elle, le journal le montre. (`--report` ajoute de la sortie, il ne désarme pas la
         # garde : le script sort toujours en 1 sur une incohérence.)
         run: node docs/backlog/check-backlog.mjs --report
+
+      - name: Les tickets sont rangés par statut, et aucun lien ne vise un ancien emplacement
+        # Le dossier d'un ticket (`tickets/<status>/`) est DÉRIVÉ de son frontmatter. Un ticket passé
+        # `done` sans être déplacé ment à quiconque ouvre `todo/` ; un ticket déplacé sans réécriture
+        # laisse un pointeur mort dans les ADR, les plans et les tickets qui le citent. La garde rejoue
+        # le rangement à blanc et rougit s'il changerait quoi que ce soit — le correctif est la même
+        # commande sans `--check`.
+        run: node docs/backlog/ranger-tickets.mjs --check
 
       - name: Les versions d'infrastructure disent la vérité, y compris sur ce qu'on ignore
         # Même famille que `check-db-engine`, un cran plus haut : celle-ci garde TOUTES les versions
@@ -1166,3 +1227,38 @@ jobs:
         # d'ouvrir une PR d'intégration —
         #   git fetch origin dev && node scripts/check-skip-ci-marker.mjs --tete origin/dev
         run: node scripts/check-skip-ci-marker.mjs --report
+
+      - name: Tout fournisseur d'IA joignable est nommé par la politique de confidentialité
+        # TCK-2383 (ADR-0076 §3) — la console super-admin choisit le modèle de chaque rôle parmi les
+        # fournisseurs de `config/ai.php`. Ajouter un fournisseur et deux clics enverraient des
+        # contenus à un sous-traitant que `privacy.ts` ne déclare pas : la garde exige que chaque
+        # `legal_name` figure dans la puce « Intelligence artificielle » du § 4.3, en fr et en en.
+        # ⚠ Elle vérifie qu'un nom apparaît, pas que le texte décrive bien le traitement.
+        run: node scripts/check-ai-providers-privacy.mjs --report
+      - name: Aucun agent d'IA ne contourne la passerelle, aucun identifiant de modèle hors de config/ai.php
+        # TCK-2383 (ADR-0076 §4) — un agent appelé en direct contourne budget, masquage et journal ;
+        # un identifiant de modèle écrit dans un service ne se règle plus depuis la console. La
+        # garde relie chaque agent à un usage, chaque usage au registre, et cherche tout agent
+        # défini hors de `app/Ai/Agents/`.
+        run: node scripts/check-ai-usages.mjs --report
+      - name: Aucun float ne porte un coût, un tarif ou un plafond du socle IA
+        # TCK-2448 (ADR-0086) — un seul `(float)` ou un cast `decimal:N` réintroduit l'arrondi qui finit
+        # par lire 0 un modèle assez peu cher, et le budget ne compte plus rien. Lit `takussan-api/app`,
+        # `takussan-api/config/ai.php` et `takussan-web/src`, tous déjà couverts ci-dessus.
+        # ⚠ Elle voit un `float` écrit sur la ligne d'un montant, pas sous un autre nom.
+        run: node scripts/check-ai-money.mjs --report
+      - name: Une seule hauteur de champ, aucun contrôle natif de saisie
+        # TCK-2460 — une hauteur écrite chez l'appelant gagne contre la primitive par twMerge, sans que
+        # le typage ni le lint ne le voient. Lit `takussan-web/src`, déjà couvert ci-dessus.
+        # ⚠ Elle lit le texte source : un `className` calculé par une variable lui échappe.
+        run: node scripts/check-champs-uniformes.mjs
+      - name: Aucun numéro ni courriel dans les jeux d'évaluation de l'IA
+        # TCK-2384 — les cas viennent de vraies annonces corrigées (`ai:export-eval-cases`).
+        # L'export anonymise, mais un cas écrit à la main ferait entrer une donnée personnelle dans
+        # le dépôt, d'où elle ne sort plus. ⚠ Elle ne voit pas un nom de personne.
+        run: node scripts/check-ai-evals-pii.mjs
+      - name: L'API inscrit à l'acceptation la version des CGU que le front affiche
+        # `PublishReadiness::TERMS_VERSION` (couvert par `app/**`) doit désigner le même jour que
+        # `VERSION_DOCUMENTS` de `takussan-web/src/content/legal/editeur.ts` (`takussan-web/src/**`).
+        # Mesuré le 2026-10-27 : l'API inscrivait `2026-09-17` sous des textes plus récents.
+        run: node scripts/check-terms-version.mjs --report

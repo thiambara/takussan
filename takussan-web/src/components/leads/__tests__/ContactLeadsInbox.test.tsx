@@ -121,6 +121,7 @@ describe('<ContactLeadsInbox> — TCK-590', () => {
 
     expect(screen.getByText('Pour #7')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Attribuer' }));
+    await user.click(await screen.findByRole('combobox', { name: 'Collègue' }));
     expect(await screen.findByRole('option', { name: '#21' })).toBeInTheDocument();
   });
 
@@ -226,7 +227,8 @@ describe('<ContactLeadsInbox> — TCK-590', () => {
     render(withIntl(<ContactLeadsInbox />));
 
     await user.click(screen.getByRole('button', { name: 'Attribuer' }));
-    await user.selectOptions(await screen.findByLabelText('Collègue'), '21');
+    await user.click(await screen.findByRole('combobox', { name: 'Collègue' }));
+    await user.click(await screen.findByRole('option', { name: 'Moussa Fall' }));
     await user.click(screen.getAllByRole('button', { name: 'Attribuer' }).at(-1)!);
 
     await waitFor(() => expect(assign.mutateAsync).toHaveBeenCalledWith({ id: 1, user_id: 21 }));
@@ -238,7 +240,7 @@ describe('<ContactLeadsInbox> — TCK-590', () => {
     render(withIntl(<ContactLeadsInbox />));
 
     await user.click(screen.getByRole('button', { name: 'Attribuer' }));
-    await screen.findByLabelText('Collègue');
+    await screen.findByRole('combobox', { name: 'Collègue' });
 
     const [, chemin, options] = lecturesDesMembres.at(-1) as [unknown, string, { params: { filter?: unknown } }];
     expect(chemin).toBe('/api/agencies/3/members');
@@ -260,7 +262,8 @@ describe('<ContactLeadsInbox> — TCK-590', () => {
     render(withIntl(<ContactLeadsInbox />));
 
     await user.click(screen.getByRole('button', { name: 'Attribuer' }));
-    await user.selectOptions(await screen.findByLabelText('Collègue'), '21');
+    await user.click(await screen.findByRole('combobox', { name: 'Collègue' }));
+    await user.click(await screen.findByRole('option', { name: 'Moussa Fall' }));
     await user.click(screen.getAllByRole('button', { name: 'Attribuer' }).at(-1)!);
 
     await waitFor(() => expect(assign.mutateAsync).toHaveBeenCalledWith({ id: 1, user_id: 21 }));

@@ -11,7 +11,7 @@ Execute a backlog ticket against the codebase. The ticket is the **contract**, t
 
 **Announce at start:** "I'm using the implementing-specs skill to execute TCK-NNN."
 
-**Ticket location:** `docs/backlog/tickets/TCK-NNN-<slug>.md`
+**Ticket location:** `docs/backlog/tickets/<status>/TCK-NNN-<slug>.md` — the folder is derived from the `status:` frontmatter; after any status change run `node docs/backlog/ranger-tickets.mjs`, which moves the file and rewrites every link to it.
 **Index (GENERATED, not versioned — ADR-0067):** `docs/backlog/INDEX.md`, written locally by `node docs/backlog/gen-index.mjs` and ignored by git. Never commit it.
 **Specs (read-only):** `docs/features.md`, `docs/models-spec.md`
 
@@ -44,7 +44,7 @@ Execute a backlog ticket against the codebase. The ticket is the **contract**, t
 **1. Load the ticket.**
 
 ```bash
-cat docs/backlog/tickets/TCK-NNN-*.md
+cat docs/backlog/tickets/*/TCK-NNN-*.md
 ```
 
 **2. Check `status`.**
@@ -56,7 +56,7 @@ cat docs/backlog/tickets/TCK-NNN-*.md
 
 **3. Verify `depends_on`.**
 
-For each ID in `depends_on`, open `docs/backlog/tickets/TCK-*.md` and check its `status`. **All** must be `done`. If any isn't, STOP and report which parent is blocking.
+For each ID in `depends_on`, open `docs/backlog/tickets/*/TCK-*.md` and check (a parent under `done/` is done) its `status`. **All** must be `done`. If any isn't, STOP and report which parent is blocking.
 
 **4. Load the specs.**
 
@@ -90,6 +90,7 @@ updated: <today YYYY-MM-DD>
 **7. Check the backlog source — there is no index to commit.**
 
 ```bash
+node docs/backlog/ranger-tickets.mjs     # moves the ticket to tickets/<status>/, rewrites links
 node docs/backlog/gen-index.mjs --check  # the source renders: no duplicate id, no unknown status
 node docs/backlog/check-backlog.mjs      # verifies the source still tells the truth
 ```
@@ -204,7 +205,7 @@ Use `done` directly only if the user explicitly asked to auto-close.
 **19. Check the backlog source again.**
 
 ```bash
-node docs/backlog/gen-index.mjs --check && node docs/backlog/check-backlog.mjs
+node docs/backlog/ranger-tickets.mjs && node docs/backlog/gen-index.mjs --check && node docs/backlog/check-backlog.mjs
 ```
 
 Same rule as step 7: the frontmatter is the source, the index is derived and never committed.

@@ -122,7 +122,7 @@ function ResetPasswordForm() {
               aria-describedby={errors.password ? 'password-error' : undefined}
               onChange={(e) => setPassword(e.target.value)}
               placeholder={t('passwordPlaceholder')}
-              className="h-11 pr-12"
+              className="pr-12"
             />
             <button
               type="button"
@@ -154,7 +154,7 @@ function ResetPasswordForm() {
               }
               onChange={(e) => setPasswordConfirmation(e.target.value)}
               placeholder={t('confirmationPlaceholder')}
-              className="h-11 pr-12"
+              className="pr-12"
             />
             <button
               type="button"

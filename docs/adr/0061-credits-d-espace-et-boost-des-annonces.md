@@ -2,8 +2,8 @@
 
 - **Statut** : Accepté
 - **Date** : 2026-10-12
-- **Tickets** : [TCK-633](../backlog/tickets/TCK-633-lot-retours-porteur-publication-recherche-boost.md),
-  [TCK-942](../backlog/tickets/TCK-942-remboursement-d-une-vedette-prolongee-par-tranche.md) (amendement du 2026-10-18)
+- **Tickets** : [TCK-633](../backlog/tickets/done/TCK-633-lot-retours-porteur-publication-recherche-boost.md),
+  [TCK-942](../backlog/tickets/done/TCK-942-remboursement-d-une-vedette-prolongee-par-tranche.md) (amendement du 2026-10-18)
 - **Amendement du 2026-10-18** (piste P24.05) : le remboursement d'une Vedette prolongée rend les
   jours restants tranche par tranche, en partant des plus tardifs. Voir
   [§ Amendement du 2026-10-18](#amendement-du-2026-10-18--le-remboursement-dune-vedette-prolongée-p2405).
@@ -253,7 +253,7 @@ quand le bien est loué au 25ᵉ jour, alors que les 7 jours payés restent enti
 **Gardes** : un test « offerte puis achetée » (les jours payés restants sont rendus en entier) et un
 test « achetée puis offerte » (seuls les jours payés restants sont rendus).
 
-**Application** (2026-10-18, [TCK-942](../backlog/tickets/TCK-942-remboursement-d-une-vedette-prolongee-par-tranche.md)).
+**Application** (2026-10-18, [TCK-942](../backlog/tickets/done/TCK-942-remboursement-d-une-vedette-prolongee-par-tranche.md)).
 Les mouvements de crédits ne suffisaient pas à reconstituer les tranches : un `spend` ne porte ni
 durée ni offre, et une tranche offerte n'en écrit aucun. Les tranches vivent donc dans
 `property_boost_tranches` ([models-spec § 100](../models-spec.md#100-propertyboosttranche-)) ; la

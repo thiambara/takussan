@@ -449,12 +449,13 @@ class AccountDeletionService
         if ($verifiedPhones !== []) {
             WhatsappContact::query()->whereIn('phone', $verifiedPhones)->delete();
         }
-        $alertHashes = array_map(
-            fn (string $phone) => AlertSubscriber::contactHash(AlertSubscriber::CHANNEL_WHATSAPP, $phone),
-            $verifiedPhones,
-        );
+        // TCK-2430 — sous toutes les clés reconnues : une alerte écrite avant une rotation d'`APP_KEY` part aussi.
+        $alertHashes = array_merge(...array_map(
+            fn (string $phone) => AlertSubscriber::contactHashes(AlertSubscriber::CHANNEL_WHATSAPP, $phone),
+            array_values($verifiedPhones),
+        ));
         if ($verifiedEmail !== null && $verifiedEmail !== '') {
-            $alertHashes[] = AlertSubscriber::contactHash(AlertSubscriber::CHANNEL_EMAIL, $verifiedEmail);
+            $alertHashes = [...$alertHashes, ...AlertSubscriber::contactHashes(AlertSubscriber::CHANNEL_EMAIL, $verifiedEmail)];
         }
         if ($alertHashes !== []) {
             AlertSubscriber::query()->whereIn('contact_hash', $alertHashes)->delete();

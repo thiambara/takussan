@@ -51,8 +51,8 @@ function rendu(garde: GardeDoubleFacteurFn) {
 
 async function declarer() {
   await userEvent.click(await screen.findByRole('button', { name: 'Déclarer une absence' }));
-  await screen.findByRole('option', { name: 'Awa Diop' });
-  await userEvent.selectOptions(screen.getByLabelText('Remplacé par'), '8');
+  await userEvent.click(await screen.findByRole('combobox', { name: 'Remplacé par' }));
+  await userEvent.click(await screen.findByRole('option', { name: 'Awa Diop' }));
   await userEvent.type(screen.getByLabelText("Jusqu'au"), '2026-10-20');
   await userEvent.click(screen.getByRole('button', { name: 'Déclarer' }));
 }

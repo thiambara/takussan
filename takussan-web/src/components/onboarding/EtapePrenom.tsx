@@ -66,7 +66,7 @@ export function EtapePrenom() {
           aria-invalid={erreur !== null}
           aria-describedby={erreur ? 'etape-prenom-erreur' : undefined}
           disabled={enCours}
-          className="h-11"
+         
         />
       </div>
       <div className="flex flex-col gap-2">
@@ -79,7 +79,7 @@ export function EtapePrenom() {
           value={nom}
           onChange={(e) => setNom(e.target.value)}
           disabled={enCours}
-          className="h-11"
+         
         />
       </div>
 

@@ -130,6 +130,16 @@
         <env name="SCOUT_QUEUE" value="false"/>
         <env name="SCOUT_AFTER_COMMIT" value="false"/>
         <env name="LARAVEL_PDF_DRIVER" value="dompdf"/>
+        <!-- TCK-2383 (ADR-0076) — la suite ne joint jamais un vrai modèle : la clé locale de .env
+             ne doit pas l'atteindre. Les tests qui en ont besoin posent une clé factice. -->
+        <env name="ANTHROPIC_API_KEY" value=""/>
+        <env name="OPENAI_API_KEY" value=""/>
+        <env name="OPENROUTER_API_KEY" value=""/>
+        <!-- TCK-2383 — vides comme dans .env.example, que la CI charge : config/ai.php doit alors
+             retomber sur ses défauts (AiConfigTest). -->
+        <env name="AI_USD_TO_XOF" value=""/>
+        <env name="AI_DAILY_BUDGET_USD" value=""/>
+        <env name="AI_TIMEOUT_SECONDS" value=""/>
 
         <!-- ⚠ LES URLS DES FOURNISSEURS SMS SONT ÉPINGLÉES ICI, ET CE N'EST PAS DE LA
              CONFIGURATION : c'est ce qui rend 14 tests indépendants du `.env` de la machine.

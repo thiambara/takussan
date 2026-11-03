@@ -39,6 +39,11 @@ vi.mock('@/hooks/useApiQuery', () => ({
   },
 }));
 
+async function choisir(user: ReturnType<typeof userEvent.setup>, champ: string | RegExp, option: string) {
+  await user.click(screen.getByRole('combobox', { name: champ }));
+  await user.click(await screen.findByRole('option', { name: option }));
+}
+
 async function ouvrir(ui: React.ReactElement) {
   const user = userEvent.setup();
   render(withIntl(ui));
@@ -87,7 +92,7 @@ describe('<PlanifierUneVisite> — TCK-590', () => {
     const user = await ouvrir(<PlanifierUneVisite property={{ id: 10, libelle: 'Villa à Almadies' }} />);
 
     fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2026-11-12' } });
-    await user.selectOptions(screen.getByLabelText(/^Heure/), '10:00');
+    await choisir(user, /^Heure/, '10:00');
     await user.type(screen.getByLabelText('Nom du prospect'), 'Moussa Fall');
     await user.type(screen.getByLabelText('Téléphone'), '771234567');
     await user.click(screen.getByRole('button', { name: 'Planifier' }));
@@ -108,7 +113,7 @@ describe('<PlanifierUneVisite> — TCK-590', () => {
     const user = await ouvrir(<PlanifierUneVisite property={{ id: 10, libelle: 'Villa à Almadies' }} />);
 
     fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2026-11-12' } });
-    await user.selectOptions(screen.getByLabelText(/^Heure/), '10:00');
+    await choisir(user, /^Heure/, '10:00');
     await user.type(screen.getByLabelText('Nom du prospect'), 'Moussa Fall');
     await user.type(screen.getByLabelText('Téléphone'), '771234567');
     await user.click(screen.getByRole('button', { name: 'Planifier' }));
@@ -126,9 +131,9 @@ describe('<PlanifierUneVisite> — TCK-590', () => {
     expect(screen.queryByLabelText('Nom du prospect')).not.toBeInTheDocument();
     await user.type(screen.getByRole('textbox', { name: 'Rechercher un bien' }), 'Villa');
     expect(recherches).toContain('/api/properties:Villa');
-    await user.selectOptions(screen.getByLabelText('Bien'), '10');
+    await choisir(user, 'Bien', 'Villa à Almadies');
     fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2026-11-12' } });
-    await user.selectOptions(screen.getByLabelText(/^Heure/), '15:30');
+    await choisir(user, /^Heure/, '15:30');
     await user.click(screen.getByRole('button', { name: 'Planifier' }));
 
     await waitFor(() =>
@@ -149,8 +154,9 @@ describe('<PlanifierUneVisite> — TCK-590', () => {
   });
 
   it('la grille d’heures est celle du serveur : 09:00 → 18:30, toutes les 30 minutes', async () => {
-    await ouvrir(<PlanifierUneVisite />);
-    const heures = Array.from((screen.getByLabelText(/^Heure/) as HTMLSelectElement).options).map((o) => o.value);
+    const user = await ouvrir(<PlanifierUneVisite />);
+    await user.click(screen.getByRole('combobox', { name: /^Heure/ }));
+    const heures = (await screen.findAllByRole('option')).map((o) => o.textContent);
     expect(heures).toHaveLength(20);
     expect(heures[0]).toBe('09:00');
     expect(heures.at(-1)).toBe('18:30');

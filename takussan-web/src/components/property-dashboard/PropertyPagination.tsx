@@ -111,7 +111,7 @@ export function PropertyPagination({ meta }: { meta: PaginationMeta }) {
               onValueChange={(v) => setPerPage((v ?? '20') as string)}
               items={items}
             >
-              <SelectTrigger className="h-8 w-[120px]" aria-label={tToolbar('perPageAria')}>
+              <SelectTrigger size="sm" className="w-[120px]" aria-label={tToolbar('perPageAria')}>
                 <SelectValue placeholder={t('perPagePlaceholder')} />
               </SelectTrigger>
               <SelectContent>

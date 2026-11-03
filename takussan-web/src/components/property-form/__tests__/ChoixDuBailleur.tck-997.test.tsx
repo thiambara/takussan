@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
+import { render, renderHook, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import userEvent from '@testing-library/user-event';
 
@@ -114,7 +114,8 @@ async function allerAuBoutDepuisLePremierPas(choisir: string | null, agence: num
   render(withIntl(<PropertyWizard agenceDuChoixDuBailleur={agence} />));
   await screen.findByRole('progressbar', { value: { text: 'Étape 1 sur 6' } });
   if (choisir !== null) {
-    fireEvent.change(screen.getByLabelText(LIBELLE), { target: { value: choisir } });
+    await user.click(screen.getByRole('combobox', { name: LIBELLE }));
+    await user.click(await screen.findByRole('option', { name: choisir }));
   }
   for (let etape = 2; etape <= 6; etape++) {
     await user.click(screen.getByRole('button', { name: /^continuer$/i }));
@@ -182,26 +183,30 @@ describe('ChoixDuBailleur — la liste proposée', () => {
     expect(urls[0].searchParams.get('per_page')).toBe('100');
   });
 
-  it('propose l’agence par défaut, puis les comptes des bailleurs — jamais un invité sans compte', () => {
+  it('propose l’agence par défaut, puis les comptes des bailleurs — jamais un invité sans compte', async () => {
+    const user = userEvent.setup();
     const onChange = vi.fn();
     render(withIntl(<ChoixDuBailleur agencyId={3} valeur={null} onChange={onChange} />));
-    const choix = screen.getByLabelText(LIBELLE) as HTMLSelectElement;
+    const choix = screen.getByRole('combobox', { name: LIBELLE });
 
-    expect(Array.from(choix.options).map((o) => [o.value, o.text])).toEqual([
-      ['', "L'agence (aucun bailleur)"],
-      ['71', 'Bineta Sarr'],
-      ['72', 'Ousmane Ba'],
+    await user.click(choix);
+    expect((await screen.findAllByRole('option')).map((o) => o.textContent)).toEqual([
+      "L'agence (aucun bailleur)",
+      'Bineta Sarr',
+      'Ousmane Ba',
     ]);
-    fireEvent.change(choix, { target: { value: '72' } });
+    await user.click(screen.getByRole('option', { name: 'Ousmane Ba' }));
     expect(onChange).toHaveBeenLastCalledWith(72);
-    fireEvent.change(choix, { target: { value: '' } });
+    // Le choix est contrôlé (`valeur={null}`) : on rouvre pour revenir à « l'agence ».
+    await user.click(choix);
+    await user.click(await screen.findByRole('option', { name: "L'agence (aucun bailleur)" }));
     expect(onChange).toHaveBeenLastCalledWith(null);
   });
 });
 
 describe('PropertyWizard — le choix du bailleur (TCK-997)', () => {
   it('le bailleur choisi part en `owner_id` à la création', async () => {
-    const corps = await allerAuBoutDepuisLePremierPas('71');
+    const corps = await allerAuBoutDepuisLePremierPas('Bineta Sarr');
 
     expect(corps.owner_id).toBe(71);
   });

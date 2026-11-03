@@ -7,6 +7,7 @@ use App\Http\Resources\AgentProfileResource;
 use App\Http\Resources\Api\Admin\AgencyDetailResource;
 use App\Http\Resources\Api\Admin\AgencyProvisioningResource;
 use App\Http\Resources\Api\Admin\ModerationItemResource;
+use App\Http\Resources\Api\Admin\RadarAdvertiserRankingResource;
 use App\Http\Resources\Api\Admin\UserDetailResource;
 use App\Http\Resources\Api\Admin\UserListResource;
 use App\Http\Resources\Api\Me\ProfileResource;
@@ -177,6 +178,7 @@ final class ResourceInventory
         AgencyProvisioningResource::class => "Enveloppe un tableau `{agency, admin}` de deux modèles déjà persistés : le sujet est le tableau, pas l'un des deux.",
         MediaResource::class => 'Enveloppe un `Spatie\\MediaLibrary\\…\\Media`, modèle d\'un paquet tiers sans factory : instancié à la main avec des attributs concrets (`getUrl()` exige `disk`, `id`, `file_name`).',
         DocumentVersionResource::class => 'Même sujet `Media` que ci-dessus, lu par ses `custom_properties` de version.',
+        RadarAdvertiserRankingResource::class => 'TCK-2393 — un `RadarAdvertiser` vu par le classement : il exige les trois `withCount` du contrôleur (`listings_count`, `published_count`, `outreaches_count`), que la convention `<Modele>Resource` ne poserait pas.',
     ];
 
     /**

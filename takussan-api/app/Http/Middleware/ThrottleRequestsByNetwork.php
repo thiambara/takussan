@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Providers\AppServiceProvider;
 use App\Support\VisitorFingerprint;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 
@@ -23,5 +24,14 @@ class ThrottleRequestsByNetwork extends ThrottleRequests
         $signature = $request->route()->getDomain().'|'.VisitorFingerprint::network((string) $request->ip());
 
         return self::$shouldHashKeys ? sha1($signature) : $signature;
+    }
+
+    /**
+     * TCK-2404 — la clé de cache sous laquelle un limiteur nommé range le seau `$key`, celle que
+     * `handleRequestUsingNamedLimiter()` calcule : pour rendre un essai ({@see AppServiceProvider::refundPhoneVerify()}).
+     */
+    public static function namedLimiterKey(string $limiterName, string $key): string
+    {
+        return self::$shouldHashKeys ? md5($limiterName.$key) : $limiterName.':'.$key;
     }
 }

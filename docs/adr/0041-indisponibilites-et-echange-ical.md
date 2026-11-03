@@ -2,7 +2,7 @@
 
 - **Statut** : Accepté
 - **Date** : 2026-10-08
-- **Tickets** : [TCK-596](../backlog/tickets/TCK-596-cycle-locatif-conge-annulation-signature-edl.md) (O12)
+- **Tickets** : [TCK-596](../backlog/tickets/done/TCK-596-cycle-locatif-conge-annulation-signature-edl.md) (O12)
 - **Précise** : [ADR-0031](0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md) (qui modifie
   un bien), [ADR-0032](0032-l-api-n-ecrit-plus-de-prose.md) (notifications par code).
 

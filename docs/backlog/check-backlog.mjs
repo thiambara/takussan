@@ -23,7 +23,7 @@
  */
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const DIR = dirname(fileURLToPath(import.meta.url));
@@ -113,8 +113,10 @@ function frontmatter(txt) {
 }
 
 const tickets = new Map();
-for (const fn of readdirSync(join(DIR, 'tickets')).sort()) {
-  if (!fn.endsWith('.md') || fn.startsWith('_')) continue;
+// Les tickets sont rangés par statut, `tickets/<status>/` (`ranger-tickets.mjs`) : on les lit tous,
+// à toute profondeur — un ticket neuf posé à la racine de `tickets/` compte aussi.
+for (const fn of readdirSync(join(DIR, 'tickets'), { recursive: true }).map((p) => p.split('\\').join('/')).sort()) {
+  if (!fn.endsWith('.md') || basename(fn).startsWith('_')) continue;
   const fm = frontmatter(readFileSync(join(DIR, 'tickets', fn), 'utf8'));
   if (!fm) { ko(`${fn} : aucun frontmatter`); continue; }
   fm._fichier = fn;
@@ -131,8 +133,14 @@ for (const t of tickets.values()) {
   if (t.status && !STATUTS.includes(t.status)) ko(`${t.id} : statut inconnu "${t.status}"`);
   // Le nom de fichier doit porter l'id : sans ça, un lien de l'INDEX pointe à côté sans que rien
   // ne le dise — le fichier existe, il décrit juste un autre ticket.
-  if (t._fichier && !t._fichier.startsWith(`${t.id}-`)) {
+  if (t._fichier && !basename(t._fichier).startsWith(`${t.id}-`)) {
     ko(`${t.id} : le fichier "${t._fichier}" ne commence pas par son id`);
+  }
+  // Le dossier d'un ticket est DÉRIVÉ de son statut : un ticket passé `done` et resté sous `todo/`
+  // ment sur la liste des ouverts à quiconque ouvre le dossier. `ranger-tickets.mjs` le déplace.
+  if (t._fichier && t.status && dirname(t._fichier) !== t.status) {
+    ko(`${t.id} : statut "${t.status}" mais rangé sous tickets/${dirname(t._fichier) === '.' ? '' : `${dirname(t._fichier)}/`}`
+      + ' — node docs/backlog/ranger-tickets.mjs');
   }
 }
 

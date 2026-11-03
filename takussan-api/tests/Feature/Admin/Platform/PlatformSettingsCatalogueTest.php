@@ -14,7 +14,7 @@ class PlatformSettingsCatalogueTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_le_catalogue_se_reduit_aux_quatorze_cles_lues(): void
+    public function test_le_catalogue_se_reduit_aux_quinze_cles_lues(): void
     {
         $this->assertSame(
             [
@@ -24,6 +24,8 @@ class PlatformSettingsCatalogueTest extends TestCase
                 // TCK-651 (ADR-0065) — les réglages métier à repli par agence.
                 'invoice.reminder_offsets_days', 'lease.rent_review_max_pct',
                 'lease.early_termination_penalty_months', 'lease.require_signature', 'late_fees.cap_percent',
+                // TCK-2394 (ADR-0079) — l'espace des mandats du Radar.
+                'radar.mandate_agency_id',
             ],
             array_keys(EditablePlatformSettings::all()),
         );
@@ -53,6 +55,8 @@ class PlatformSettingsCatalogueTest extends TestCase
                 // TCK-651 (ADR-0065) — les réglages métier à repli par agence.
                 'invoice.reminder_offsets_days', 'lease.rent_review_max_pct',
                 'lease.early_termination_penalty_months', 'lease.require_signature', 'late_fees.cap_percent',
+                // TCK-2394 (ADR-0079) — l'espace des mandats du Radar.
+                'radar.mandate_agency_id',
             ],
             $entrees->pluck('key')->all(),
         );

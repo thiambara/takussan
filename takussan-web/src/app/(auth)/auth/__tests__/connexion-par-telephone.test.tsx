@@ -180,6 +180,125 @@ describe('drapeau allumé (AC2b)', () => {
     );
   });
 
+  it('TCK-2404 — compte du Radar : les conditions avant l’entrée, leur version renvoyée avec le même code', async () => {
+    const user = userEvent.setup();
+    actif.mockResolvedValue(true);
+    demander.mockResolvedValue({ attente: 60, codeApercu: null });
+    verifier
+      .mockResolvedValueOnce({ requires_terms: true, terms_version: '2026-10-29' })
+      .mockResolvedValueOnce({ token: 'jeton', user: { id: 9 }, is_new_account: false });
+    await monter(<LoginPage />);
+
+    await user.type(await screen.findByLabelText('Numéro de téléphone'), '771234567');
+    await user.click(screen.getByRole('button', { name: 'Recevoir un code' }));
+    await user.type(await screen.findByLabelText('Code reçu par SMS'), '123456');
+    await user.click(screen.getByRole('button', { name: 'Valider' }));
+
+    // Aucune session tant que les conditions ne sont pas acceptées : la case, puis le bouton.
+    expect(await screen.findByRole('heading', { name: 'Acceptez les conditions d’utilisation' })).toBeInTheDocument();
+    expect(openSessionMock).not.toHaveBeenCalled();
+    expect(screen.getByRole('link', { name: 'conditions d’utilisation' })).toHaveAttribute('target', '_blank');
+    const continuer = screen.getByRole('button', { name: 'Accepter et continuer' });
+    expect(continuer).toBeDisabled();
+
+    await user.click(screen.getByRole('checkbox', { name: /J’accepte les conditions d’utilisation/ }));
+    await user.click(continuer);
+
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/onboarding/intention'));
+    expect(verifier).toHaveBeenLastCalledWith(
+      { phone: '+221771234567', code: '123456', terms_version: '2026-10-29' },
+      'fr',
+    );
+    expect(openSessionMock).toHaveBeenCalledWith('jeton', { id: 9 }, undefined);
+  });
+
+  it('TCK-2404 — les conditions acceptées suivent le second facteur', async () => {
+    const user = userEvent.setup();
+    actif.mockResolvedValue(true);
+    demander.mockResolvedValue({ attente: 60, codeApercu: null });
+    verifier
+      .mockResolvedValueOnce({ requires_terms: true, terms_version: '2026-10-29' })
+      .mockResolvedValueOnce({ requires_2fa: true })
+      .mockResolvedValueOnce({ token: 'jeton', user: { id: 5 } });
+    await monter(<LoginPage />);
+
+    await user.type(await screen.findByLabelText('Numéro de téléphone'), '771234567');
+    await user.click(screen.getByRole('button', { name: 'Recevoir un code' }));
+    await user.type(await screen.findByLabelText('Code reçu par SMS'), '123456');
+    await user.click(screen.getByRole('button', { name: 'Valider' }));
+    await user.click(await screen.findByRole('checkbox', { name: /J’accepte les conditions d’utilisation/ }));
+    await user.click(screen.getByRole('button', { name: 'Accepter et continuer' }));
+
+    await user.type(await screen.findByLabelText('Code à 6 chiffres'), '654321');
+    await user.click(screen.getByRole('button', { name: 'Vérifier' }));
+
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/onboarding/intention'));
+    expect(verifier).toHaveBeenLastCalledWith(
+      { phone: '+221771234567', code: '123456', terms_version: '2026-10-29', two_factor_code: '654321' },
+      'fr',
+    );
+  });
+
+  it('TCK-2404 (I2) — code expiré pendant la lecture : retour au code, acceptation gardée, nouveau code', async () => {
+    const user = userEvent.setup();
+    actif.mockResolvedValue(true);
+    demander.mockResolvedValue({ attente: 0, codeApercu: null });
+    verifier
+      .mockResolvedValueOnce({ requires_terms: true, terms_version: '2026-10-29' })
+      .mockRejectedValueOnce(new ApiError(422, { code: 'phone_code_invalid' }))
+      .mockResolvedValueOnce({ token: 'jeton', user: { id: 9 }, is_new_account: false });
+    await monter(<LoginPage />);
+
+    await user.type(await screen.findByLabelText('Numéro de téléphone'), '771234567');
+    await user.click(screen.getByRole('button', { name: 'Recevoir un code' }));
+    await user.type(await screen.findByLabelText('Code reçu par SMS'), '123456');
+    await user.click(screen.getByRole('button', { name: 'Valider' }));
+    await user.click(await screen.findByRole('checkbox', { name: /J’accepte les conditions d’utilisation/ }));
+    await user.click(screen.getByRole('button', { name: 'Accepter et continuer' }));
+
+    // Plus d'impasse : l'étape du code revient, vidée, avec son message et son bouton de renvoi.
+    expect(await screen.findByText(/Code incorrect ou expiré/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Code reçu par SMS')).toHaveValue('');
+    await user.click(screen.getByRole('button', { name: 'Renvoyer le code' }));
+    expect(demander).toHaveBeenCalledTimes(2);
+
+    await user.type(screen.getByLabelText('Code reçu par SMS'), '654321');
+    await user.click(screen.getByRole('button', { name: 'Valider' }));
+
+    // Les conditions déjà acceptées accompagnent le nouveau code : elles ne sont pas redemandées.
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/onboarding/intention'));
+    expect(verifier).toHaveBeenLastCalledWith(
+      { phone: '+221771234567', code: '654321', terms_version: '2026-10-29' },
+      'fr',
+    );
+  });
+
+  it('TCK-2404 (I2) — l’étape des conditions offre le renvoi du code et le changement de numéro', async () => {
+    const user = userEvent.setup();
+    actif.mockResolvedValue(true);
+    demander.mockResolvedValue({ attente: 0, codeApercu: null });
+    verifier.mockResolvedValueOnce({ requires_terms: true, terms_version: '2026-10-29' });
+    await monter(<LoginPage />);
+
+    await user.type(await screen.findByLabelText('Numéro de téléphone'), '771234567');
+    await user.click(screen.getByRole('button', { name: 'Recevoir un code' }));
+    await user.type(await screen.findByLabelText('Code reçu par SMS'), '123456');
+    await user.click(screen.getByRole('button', { name: 'Valider' }));
+    await screen.findByRole('heading', { name: 'Acceptez les conditions d’utilisation' });
+
+    await user.click(screen.getByRole('button', { name: 'Renvoyer le code' }));
+    expect(demander).toHaveBeenCalledTimes(2);
+    expect(await screen.findByLabelText('Code reçu par SMS')).toHaveValue('');
+
+    await user.type(screen.getByLabelText('Code reçu par SMS'), '111111');
+    verifier.mockResolvedValueOnce({ requires_terms: true, terms_version: '2026-10-29' });
+    await user.click(screen.getByRole('button', { name: 'Valider' }));
+    await screen.findByRole('heading', { name: 'Acceptez les conditions d’utilisation' });
+    await user.click(screen.getByRole('button', { name: 'Changer de numéro' }));
+    expect(await screen.findByLabelText('Numéro de téléphone')).toBeInTheDocument();
+    expect(openSessionMock).not.toHaveBeenCalled();
+  });
+
   it.each([
     [new ApiError(422, { code: 'phone_code_invalid' }), 'Code incorrect ou expiré'],
     [new ApiError(423, { code: 'account_locked' }), 'Trop de tentatives'],

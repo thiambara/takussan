@@ -4,6 +4,7 @@ import { useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
 import type { UserStatus } from '@/types/user';
 import {
@@ -93,13 +94,13 @@ export function AdminUsersFilters({ hideRoleFilter = false }: AdminUsersFiltersP
             aria-hidden="true"
             className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
           />
-          <input
+          <Input
             id="admin-users-search"
             type="search"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder={t('filters.searchPlaceholder')}
-            className="w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="pl-9"
           />
         </div>
       </form>

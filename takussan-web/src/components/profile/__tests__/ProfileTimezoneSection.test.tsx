@@ -23,11 +23,11 @@ describe('ProfileTimezoneSection', () => {
 
   it('montre le fuseau du compte, et Dakar sans fuseau', () => {
     const { unmount } = render(withIntl(<ProfileTimezoneSection timezone="Europe/Paris" />));
-    expect((screen.getByLabelText('Fuseau horaire') as HTMLSelectElement).value).toBe('Europe/Paris');
+    expect(screen.getByRole('combobox', { name: 'Fuseau horaire' })).toHaveTextContent('Europe/Paris');
     unmount();
 
     render(withIntl(<ProfileTimezoneSection timezone={null} />));
-    expect((screen.getByLabelText('Fuseau horaire') as HTMLSelectElement).value).toBe('Africa/Dakar');
+    expect(screen.getByRole('combobox', { name: 'Fuseau horaire' })).toHaveTextContent('Africa/Dakar');
   });
 
   it('enregistre le fuseau choisi par PATCH /api/me', async () => {
@@ -36,7 +36,8 @@ describe('ProfileTimezoneSection', () => {
     render(withIntl(<ProfileTimezoneSection timezone="Africa/Dakar" />));
 
     expect(screen.getByRole('button', { name: 'Enregistrer' })).toBeDisabled();
-    await user.selectOptions(screen.getByLabelText('Fuseau horaire'), 'Europe/Paris');
+    await user.click(screen.getByRole('combobox', { name: 'Fuseau horaire' }));
+    await user.click(await screen.findByRole('option', { name: 'Europe/Paris' }));
     await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
@@ -52,7 +53,8 @@ describe('ProfileTimezoneSection', () => {
     const user = userEvent.setup();
     render(withIntl(<ProfileTimezoneSection timezone="Africa/Dakar" />));
 
-    await user.selectOptions(screen.getByLabelText('Fuseau horaire'), 'Europe/Paris');
+    await user.click(screen.getByRole('combobox', { name: 'Fuseau horaire' }));
+    await user.click(await screen.findByRole('option', { name: 'Europe/Paris' }));
     await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
     expect(await screen.findByText("Le fuseau horaire n'a pas pu être enregistré.")).toBeInTheDocument();

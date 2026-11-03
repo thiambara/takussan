@@ -63,6 +63,45 @@ class PlatformRoutesDefaultDenyTest extends TestCase
         'admin.moderation.index',
         // Sous-partie 8 — recherche globale (`platform.search.global`).
         'admin.search',
+        // TCK-2386 (ADR-0077) — le Radar (`platform.radar.operate`).
+        'admin.radar.dashboard',
+        'admin.radar.listings.store',
+        'admin.radar.listings.index',
+        'admin.radar.listings.show',
+        // TCK-2387 — la relecture d'une fiche.
+        'admin.radar.listings.update',
+        'admin.radar.listings.review',
+        'admin.radar.listings.matches',
+        'admin.radar.listings.duplicate',
+        'admin.radar.listings.discard',
+        'admin.radar.listings.advertiser',
+        // TCK-2388 — la fiche annonceur, ses files et la prise en charge.
+        'admin.radar.advertisers.index',
+        'admin.radar.advertisers.show',
+        'admin.radar.advertisers.claim',
+        'admin.radar.advertisers.release',
+        'admin.radar.advertisers.outreaches.store',
+        'admin.radar.outreaches.update',
+        'admin.radar.outreaches.sent',
+        'admin.radar.outreaches.reply',
+        'admin.radar.outreaches.outcome',
+        // TCK-2389 — la réserve de photos d'une annonce (relancer, déposer, retirer).
+        'admin.radar.listings.photos.fetch',
+        'admin.radar.listings.photos.store',
+        'admin.radar.listings.photos.destroy',
+        // TCK-2392 (ADR-0080) — la collecte : lire les sites et leurs passages, séparer une fusion automatique
+        // (`platform.radar.operate`). Les régler et lancer un passage reste au `super_admin` (`platform.radar.publish`).
+        'admin.radar.crawl.sources.index',
+        'admin.radar.crawl.runs.index',
+        'admin.radar.listings.unmerge',
+        // TCK-2393 (ADR-0083) — l'observatoire du marché et le classement des annonceurs (`platform.radar.operate`).
+        'admin.radar.observatory',
+        'admin.radar.observatory.advertisers',
+        // TCK-2395 (ADR-0081) — l'envoi d'un message préparé par l'API WhatsApp du Radar (`platform.radar.operate`).
+        'admin.radar.outreaches.send',
+        // TCK-2394 — la relance d'activation (lire, marquer envoyée) : du démarchage.
+        'admin.radar.advertisers.activation-reminder',
+        'admin.radar.advertisers.activation-reminder.sent',
     ];
 
     public function test_toute_route_de_la_console_passe_par_la_garde_plateforme(): void

@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
 import { nomDuBailleur, useBailleursActifs } from '@/components/property-form/ChoixDuBailleur';
 import { useAuth } from '@/context/AuthContext';
@@ -29,8 +30,8 @@ import {
 } from '@/lib/queries/titulaire-du-bien';
 import type { ApiResponse } from '@/types/api';
 
-const SELECT_CLASS =
-  'h-9 w-full rounded-md border border-border bg-transparent px-3 text-sm text-foreground';
+/** Valeur repère de « aucun bailleur choisi » : une valeur vide n'est pas une option du Select. */
+const AUCUN_BAILLEUR = '__none__';
 
 /**
  * TCK-999 (P15.06, Q5 ; ADR-0036, amendement du 2026-10-19, voie 3) — « Changer le titulaire » d'un
@@ -104,6 +105,10 @@ function DialogueDuTransfert({
   });
 
   const donnees = apercu.data?.data ?? null;
+  const optionsBailleur = [
+    { value: AUCUN_BAILLEUR, label: t('ownerPlaceholder') },
+    ...options.map((b) => ({ value: String(b.user_id), label: nomDuBailleur(b) })),
+  ];
   const libelleDuBail = (bail: BailDuTransfert) => ({
     reference: bail.reference_number ?? `#${bail.id}`,
     status: bail.status ? tStatut(bail.status) : '',
@@ -122,23 +127,27 @@ function DialogueDuTransfert({
           <label htmlFor={id} className="block text-sm font-medium text-foreground">
             {t('ownerLabel')}
           </label>
-          <select
-            id={id}
-            className={SELECT_CLASS}
-            value={ownerId === null ? '' : String(ownerId)}
+          <Select
+            value={ownerId === null ? AUCUN_BAILLEUR : String(ownerId)}
             disabled={transfert.isPending}
-            onChange={(e) => {
+            onValueChange={(next) => {
+              if (next === null) return;
               transfert.reset();
-              setOwnerId(e.target.value === '' ? null : Number(e.target.value));
+              setOwnerId(next === AUCUN_BAILLEUR ? null : Number(next));
             }}
+            items={optionsBailleur}
           >
-            <option value="">{t('ownerPlaceholder')}</option>
-            {options.map((b) => (
-              <option key={b.id} value={String(b.user_id)}>
-                {nomDuBailleur(b)}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger id={id} className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {optionsBailleur.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {bailleurs.isLoading ? <p className="text-xs text-muted-foreground">{t('loadingOwners')}</p> : null}
           {!bailleurs.isLoading && options.length === 0 ? (
             <p className="text-xs text-muted-foreground">{t('noOwners')}</p>

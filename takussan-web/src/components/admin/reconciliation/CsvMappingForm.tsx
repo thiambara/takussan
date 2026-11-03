@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { useSaveCsvMapping } from '@/lib/queries/reconciliation';
 import type {
@@ -27,8 +28,8 @@ import type {
 const DELIMITEURS = [',', ';', '\t', '|'] as const;
 const MILLIERS: readonly ThousandsSeparator[] = [null, ' ', '.', ',', "'"];
 
-const CLASSE_SELECT =
-  'h-9 w-full rounded-md border border-border bg-transparent px-3 text-sm text-foreground';
+/** Une valeur vide n'est pas une option du Select : « aucun séparateur de milliers » porte ce repère. */
+const AUCUN = '__none__';
 
 /** Une colonne se désigne par son nom (avec en-tête) ou son rang (sans) : `"3"` devient `3`. */
 function colonne(valeur: string): string | number | null {
@@ -109,23 +110,44 @@ export function CsvMappingForm({ agencyId, initial }: CsvMappingFormProps) {
     }
   }
 
+  const optionsDelimiteur = DELIMITEURS.map((d) => ({
+    value: d,
+    label: t(`delimiters.${d === '\t' ? 'tab' : d === ',' ? 'comma' : d === ';' ? 'semicolon' : 'pipe'}`),
+  }));
+  const optionsSigne = [
+    { value: 'amount_signed', label: t('signConventions.amount_signed') },
+    { value: 'direction_column', label: t('signConventions.direction_column') },
+  ];
+  const optionsMilliers = MILLIERS.map((m) => ({
+    value: m ?? AUCUN,
+    label: t(
+      `thousands.${m === null ? 'none' : m === ' ' ? 'space' : m === '.' ? 'dot' : m === ',' ? 'comma' : 'apostrophe'}`,
+    ),
+  }));
+
   return (
     <form onSubmit={soumettre} className="space-y-4" aria-label={t('title')}>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <div className="space-y-1.5">
           <Label htmlFor="csv-delimiter">{t('delimiter')}</Label>
-          <select
-            id="csv-delimiter"
-            className={CLASSE_SELECT}
+          <Select
             value={delimiter}
-            onChange={(e) => setDelimiter(e.target.value)}
+            onValueChange={(next) => {
+              if (next !== null) setDelimiter(next);
+            }}
+            items={optionsDelimiteur}
           >
-            {DELIMITEURS.map((d) => (
-              <option key={d} value={d}>
-                {t(`delimiters.${d === '\t' ? 'tab' : d === ',' ? 'comma' : d === ';' ? 'semicolon' : 'pipe'}`)}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger id="csv-delimiter" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {optionsDelimiteur.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex items-end gap-2 pb-2">
           <input
@@ -158,15 +180,24 @@ export function CsvMappingForm({ agencyId, initial }: CsvMappingFormProps) {
         ))}
         <div className="space-y-1.5">
           <Label htmlFor="csv-sign">{t('signConvention')}</Label>
-          <select
-            id="csv-sign"
-            className={CLASSE_SELECT}
+          <Select
             value={signConvention}
-            onChange={(e) => setSignConvention(e.target.value as SignConvention)}
+            onValueChange={(next) => {
+              if (next !== null) setSignConvention(next as SignConvention);
+            }}
+            items={optionsSigne}
           >
-            <option value="amount_signed">{t('signConventions.amount_signed')}</option>
-            <option value="direction_column">{t('signConventions.direction_column')}</option>
-          </select>
+            <SelectTrigger id="csv-sign" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {optionsSigne.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         {signConvention === 'direction_column' && (
           <div className="space-y-1.5">
@@ -202,22 +233,25 @@ export function CsvMappingForm({ agencyId, initial }: CsvMappingFormProps) {
 
       <div className="max-w-xs space-y-1.5">
         <Label htmlFor="csv-thousands">{t('thousandsSeparator')}</Label>
-        <select
-          id="csv-thousands"
-          className={CLASSE_SELECT}
-          value={milliers === null ? '' : milliers}
-          onChange={(e) =>
-            setMilliers(e.target.value === '' ? null : (e.target.value as ThousandsSeparator))
-          }
+        <Select
+          value={milliers === null ? AUCUN : milliers}
+          onValueChange={(next) => {
+            if (next === null) return;
+            setMilliers(next === AUCUN ? null : (next as ThousandsSeparator));
+          }}
+          items={optionsMilliers}
         >
-          {MILLIERS.map((m) => (
-            <option key={m ?? 'none'} value={m ?? ''}>
-              {t(
-                `thousands.${m === null ? 'none' : m === ' ' ? 'space' : m === '.' ? 'dot' : m === ',' ? 'comma' : 'apostrophe'}`,
-              )}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger id="csv-thousands" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {optionsMilliers.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {message && (

@@ -7,6 +7,7 @@ use App\Models\MediaFingerprint;
 use App\Models\Property;
 use App\Support\CaseInsensitive;
 use App\Support\PhotoFingerprint;
+use Illuminate\Support\Collection;
 
 /**
  * TCK-597 (ADR-0054) — soupçonner qu'une annonce en recopie une autre.
@@ -38,27 +39,7 @@ class DuplicateListingDetector
             return 0;
         }
 
-        $bands = PhotoFingerprint::bands($fingerprint->hash);
-        $candidates = MediaFingerprint::query()
-            ->where('property_id', '!=', $property->id)
-            ->where(fn ($q) => $q
-                ->where('band_0', $bands[0])
-                ->orWhere('band_1', $bands[1])
-                ->orWhere('band_2', $bands[2])
-                ->orWhere('band_3', $bands[3]))
-            // verif-597 m2 — les PLUS PROCHES d'abord, pas les plus anciens : sous la borne, un vrai
-            // doublon récent d'une empreinte courante n'était jamais comparé.
-            ->orderByRaw('bit_count((hash # ?::bigint)::bit(64))', [$fingerprint->hash])
-            ->orderBy('id')
-            ->limit(self::MAX_CANDIDATES)
-            ->get(['property_id', 'hash']);
-
-        $close = $candidates
-            ->reject(fn (MediaFingerprint $c) => PhotoFingerprint::isDegenerate((int) $c->hash))
-            ->map(fn (MediaFingerprint $c) => ['property_id' => $c->property_id, 'distance' => PhotoFingerprint::distance($fingerprint->hash, $c->hash)])
-            ->filter(fn (array $c) => $c['distance'] <= PhotoFingerprint::THRESHOLD)
-            ->sortBy('distance')
-            ->unique('property_id');
+        $close = $this->closeProperties((int) $fingerprint->hash, $property->id);
 
         $others = Property::query()->whereIn('id', $close->pluck('property_id'))->get(['id', 'agency_id', 'user_id'])->keyBy('id');
 
@@ -71,6 +52,45 @@ class DuplicateListingDetector
         }
 
         return $created;
+    }
+
+    /**
+     * Les biens dont une photo est à distance ≤ {@see PhotoFingerprint::THRESHOLD} de cette empreinte,
+     * la plus proche par bien, les plus proches d'abord. Lue aussi par `RadarMatcher` (TCK-2387), qui
+     * compare l'empreinte d'une photo SOURCE aux photos du catalogue : ce qui est cherché est une
+     * empreinte, pas un média. Une empreinte dégénérée (aplat, mur, ciel) n'est comparée à rien : elle
+     * ressemble à toutes les autres.
+     *
+     * @param  ?int  $exceptPropertyId  le bien de l'empreinte, quand elle en a un
+     * @return Collection<int, array{property_id: int, distance: int}>
+     */
+    public function closeProperties(int $hash, ?int $exceptPropertyId = null): Collection
+    {
+        if (PhotoFingerprint::isDegenerate($hash)) {
+            return collect();
+        }
+
+        $bands = PhotoFingerprint::bands($hash);
+        $candidates = MediaFingerprint::query()
+            ->when($exceptPropertyId !== null, fn ($q) => $q->where('property_id', '!=', $exceptPropertyId))
+            ->where(fn ($q) => $q
+                ->where('band_0', $bands[0])
+                ->orWhere('band_1', $bands[1])
+                ->orWhere('band_2', $bands[2])
+                ->orWhere('band_3', $bands[3]))
+            // verif-597 m2 — les PLUS PROCHES d'abord, pas les plus anciens : sous la borne, un vrai
+            // doublon récent d'une empreinte courante n'était jamais comparé.
+            ->orderByRaw('bit_count((hash # ?::bigint)::bit(64))', [$hash])
+            ->orderBy('id')
+            ->limit(self::MAX_CANDIDATES)
+            ->get(['property_id', 'hash']);
+
+        return $candidates
+            ->reject(fn (MediaFingerprint $c) => PhotoFingerprint::isDegenerate((int) $c->hash))
+            ->map(fn (MediaFingerprint $c) => ['property_id' => $c->property_id, 'distance' => PhotoFingerprint::distance($hash, $c->hash)])
+            ->filter(fn (array $c) => $c['distance'] <= PhotoFingerprint::THRESHOLD)
+            ->sortBy('distance')
+            ->unique('property_id');
     }
 
     /** @return int le nombre de suspicions neuves */

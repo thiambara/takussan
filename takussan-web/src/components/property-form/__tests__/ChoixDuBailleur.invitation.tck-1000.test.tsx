@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { withIntl } from '@/test/intl';
@@ -223,7 +223,8 @@ describe('PropertyWizard — le bien saisi pour un bailleur invité (TCK-1000)',
   it('choisir ensuite un bailleur inscrit retire le lien à l’invitation', async () => {
     const corps = await allerAuBout(async (user) => {
       await inviter(user);
-      fireEvent.change(screen.getByLabelText(LIBELLE), { target: { value: '71' } });
+      await user.click(screen.getByRole('combobox', { name: LIBELLE }));
+      await user.click(await screen.findByRole('option', { name: 'Bineta Sarr' }));
       expect(screen.queryByTestId('bailleur-invite')).not.toBeInTheDocument();
     });
 

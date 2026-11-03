@@ -134,7 +134,7 @@ Concrètement :
 
 Il en faudra peut-être un, mais pour une **autre** raison, et elle est mesurée : l'intégration n'a
 **aucun filtre de chemins**. Le commit `6f38de67` ne touche qu'un seul fichier —
-`docs/backlog/tickets/TCK-320-selection-des-tests-par-impact.md` — et a produit le déploiement
+`docs/backlog/tickets/done/TCK-320-selection-des-tests-par-impact.md` — et a produit le déploiement
 Preview `6001431629`. Chaque commit de documentation ou d'API reconstruit donc le front entier.
 C'est un gaspillage réel, pas une panne, et son correctif (`ignoreCommand`) touche `takussan-web/`,
 hors du périmètre de TCK-299. **Écrire un `vercel.json` sans ce besoin reviendrait à versionner une

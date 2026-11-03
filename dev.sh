@@ -811,7 +811,7 @@ API_PID=$!
 #
 # *Choisir un réglage plus prudent en local qu'en production, c'est cesser de tester la
 # production.*
-# DEUX workers, comme en production — `worker` et `worker-media` de `deploy/takussan/compose.api.yml`.
+# Les workers de la production — `worker`, `worker-media`, `worker-long` et `worker-ia` de `deploy/takussan/compose.api.yml`.
 # Aucun ordre de files ne convient sur un worker unique : `media` (régénération de filigranes sur
 # tous les biens d'une agence) affame `default`, et `default` (le fourre-tout) affame `media`.
 # Les deux consommateurs ne partagent aucune file, donc aucun ne peut affamer l'autre.
@@ -827,10 +827,20 @@ API_PID=$!
 QUEUE_DEFAUT_PID=$!
 (cd "$API" && exec php artisan queue:work --queue=media,reconciliation --tries=3) &
 QUEUE_FOND_PID=$!
+# TROISIÈME worker, `worker-long` du compose (TCK-2397, ADR-0078) : les jobs plus longs que le délai de
+# reprise de `database` passent par la connexion `database-long`, qu'un worker de `database` ne doit
+# jamais lire — il les relivrerait après 90 s. Sa propre variable de PID, pour la raison ci-dessus.
+(cd "$API" && exec php artisan queue:work database-long --queue=long --tries=3) &
+QUEUE_LONG_PID=$!
+# QUATRIÈME worker, `worker-ia` du compose (TCK-2402, ADR-0078 amendement) : les appels au modèle, seuls.
+# Sur le worker de `default`, derrière `notifications-urgent`, un appel de 85 s retiendrait une
+# notification urgente. Sa propre variable de PID, pour la raison ci-dessus.
+(cd "$API" && exec php artisan queue:work --queue=ai --tries=3) &
+QUEUE_IA_PID=$!
 (cd "$API" && exec php artisan schedule:work) &
 SCHEDULE_PID=$!
 
-trap 'kill "$API_PID" "$QUEUE_DEFAUT_PID" "$QUEUE_FOND_PID" "$SCHEDULE_PID" 2>/dev/null || true' EXIT INT TERM
+trap 'kill "$API_PID" "$QUEUE_DEFAUT_PID" "$QUEUE_FOND_PID" "$QUEUE_LONG_PID" "$QUEUE_IA_PID" "$SCHEDULE_PID" 2>/dev/null || true' EXIT INT TERM
 sleep 1
 
 WEB_PORT=""

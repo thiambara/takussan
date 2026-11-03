@@ -97,6 +97,13 @@ class FilterCoverageSeeder extends Seeder
 
     public function run(): void
     {
+        // TCK-2376 — l'étiquetage du catalogue appartient au jeu RÉALISTE : il tourne toujours. Seules
+        // les fixtures de couverture (biens, baux et clients fabriqués pour chaque valeur d'enum) se
+        // demandent par `SEED_FILTER_COVERAGE`.
+        foreach ($this->ctx->agencies as $agency) {
+            $this->tagExistingCatalog($agency->id);
+        }
+
         if (! $this->ctx->config->includeFilterCoverage) {
             return;
         }
@@ -105,7 +112,6 @@ class FilterCoverageSeeder extends Seeder
 
         foreach ($this->ctx->agencies as $agency) {
             $this->createFilterCoverageProperties($agency->id);
-            $this->tagExistingCatalog($agency->id);
             $this->createFilterCoverageLeases($agency->id);
             $this->createFilterCoverageCustomers($agency->id);
         }
@@ -193,7 +199,7 @@ class FilterCoverageSeeder extends Seeder
                 : $this->ctx->faker()->numberBetween(20000000, 100000000)
         );
 
-        $title = 'Property Test Filter - '.Str::random(8);
+        $title = 'Property Test Filter - '.Tirage::code(8);
         $createdAt = Timeline::randomDateBetween(Timeline::seedStart(), Timeline::seedEnd());
 
         $typeValue = $attributes['type'] ?? null;
@@ -214,9 +220,9 @@ class FilterCoverageSeeder extends Seeder
         $property = Property::withoutEvents(fn () => Property::create(array_merge([
             'user_id' => $ownerId,
             'agency_id' => $agencyId,
-            'reference_number' => 'PR-FC-'.strtoupper(Str::random(6)),
+            'reference_number' => 'PR-FC-'.strtoupper(Tirage::code(6)),
             'title' => $title,
-            'slug' => Str::slug($title).'-'.Str::random(4),
+            'slug' => Str::slug($title).'-'.Tirage::code(4),
             'description' => 'Property created for filter coverage testing.',
             'type' => PropertyType::Apartment->value,
             'contract_type' => $contractType->value,
@@ -348,7 +354,7 @@ class FilterCoverageSeeder extends Seeder
             return;
         }
 
-        $pool = $properties->shuffle()->values();
+        $pool = Tirage::melanger($properties)->values();
         $cursor = 0;
         $pick = function () use ($pool, &$cursor): Property {
             $property = $pool[$cursor % $pool->count()];
@@ -359,21 +365,21 @@ class FilterCoverageSeeder extends Seeder
 
         // Une lease par LeaseType
         foreach (LeaseType::cases() as $leaseType) {
-            $this->createLeaseWithAttributes($agencyId, $pick(), $customers->random(), [
+            $this->createLeaseWithAttributes($agencyId, $pick(), Tirage::un($customers), [
                 'type' => $leaseType->value,
             ]);
         }
 
         // Une lease par LeaseStatus
         foreach (LeaseStatus::cases() as $status) {
-            $this->createLeaseWithAttributes($agencyId, $pick(), $customers->random(), [
+            $this->createLeaseWithAttributes($agencyId, $pick(), Tirage::un($customers), [
                 'status' => $status->value,
             ]);
         }
 
         // Une lease par PaymentFrequency
         foreach (PaymentFrequency::cases() as $frequency) {
-            $this->createLeaseWithAttributes($agencyId, $pick(), $customers->random(), [
+            $this->createLeaseWithAttributes($agencyId, $pick(), Tirage::un($customers), [
                 'payment_frequency' => $frequency->value,
             ]);
         }
@@ -381,7 +387,7 @@ class FilterCoverageSeeder extends Seeder
         // Cas de loyers extrêmes
         $rentAmounts = [100000, 250000, 500000, 750000, 1000000, 1500000, 2000000, 3000000];
         foreach ($rentAmounts as $rent) {
-            $this->createLeaseWithAttributes($agencyId, $pick(), $customers->random(), [
+            $this->createLeaseWithAttributes($agencyId, $pick(), Tirage::un($customers), [
                 'monthly_rent' => $rent,
             ]);
         }
@@ -389,7 +395,7 @@ class FilterCoverageSeeder extends Seeder
         // Dates de début/fin variées
         for ($monthsAgo = 1; $monthsAgo <= 12; $monthsAgo++) {
             $startDate = now()->subMonths($monthsAgo);
-            $this->createLeaseWithAttributes($agencyId, $pick(), $customers->random(), [
+            $this->createLeaseWithAttributes($agencyId, $pick(), Tirage::un($customers), [
                 'start_date' => $startDate->toDateString(),
                 'end_date' => $startDate->copy()->addYear()->toDateString(),
             ]);
@@ -414,7 +420,7 @@ class FilterCoverageSeeder extends Seeder
             'landlord_id' => $property->user_id,
             'tenant_id' => $customer->id,
             'agency_id' => $agencyId,
-            'reference_number' => 'LS-FC-'.strtoupper(Str::random(6)),
+            'reference_number' => 'LS-FC-'.strtoupper(Tirage::code(6)),
             'type' => LeaseType::ResidentialRent->value,
             'status' => LeaseStatus::Active->value,
             'start_date' => $startDate->toDateString(),
@@ -453,12 +459,12 @@ class FilterCoverageSeeder extends Seeder
                     'added_by_id' => $addedById,
                     'first_name' => $firstName,
                     'last_name' => $lastName,
-                    'email' => Str::slug("{$firstName} {$lastName}").'-'.Str::random(4).'@example.com',
+                    'email' => Str::slug("{$firstName} {$lastName}").'-'.Tirage::code(4).'@example.com',
                     'phone' => $this->ctx->faker()->senegalesePhoneNumber(),
                     'occupation' => $this->ctx->faker()->jobTitle(),
                     'status' => CustomerStatus::Active->value,
                     'pipeline_stage' => $stage->value,
-                    'created_at' => now()->subDays(random_int(1, 90)),
+                    'created_at' => now()->subDays(mt_rand(1, 90)),
                     'updated_at' => now(),
                 ]);
 

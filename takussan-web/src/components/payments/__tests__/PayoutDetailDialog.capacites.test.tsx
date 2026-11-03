@@ -7,6 +7,7 @@
  * l'accord entre l'écran et le serveur, pas une sécurité.
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useAuth } from '@/context/AuthContext';
@@ -174,8 +175,9 @@ describe('PayoutDetailDialog — le paiement part vers une destination vérifié
     en(9, ['payouts.create']);
     rendre();
 
-    const choix = screen.getByLabelText(fr.payments.payoutDetail.payDestination);
-    expect(Array.from((choix as HTMLSelectElement).options).map((o) => o.value)).toEqual(['8']);
+    await userEvent.click(screen.getByRole('combobox', { name: fr.payments.payoutDetail.payDestination }));
+    expect((await screen.findAllByRole('option')).map((o) => o.textContent)).toEqual(['Wave · •••• 4567']);
+    await userEvent.click(screen.getByRole('option', { name: 'Wave · •••• 4567' }));
     fireEvent.change(screen.getByLabelText(fr.payments.payoutDetail.transactionId), { target: { value: 'WAVE-778' } });
     fireEvent.click(screen.getByRole('button', { name: MARQUER }));
 
@@ -233,7 +235,7 @@ describe("PayoutDetailDialog — l'approbation couvre la destination (VERIF-594 
     expect(screen.queryByText(fr.payments.payoutDetail.approveWithoutDestination)).not.toBeInTheDocument();
   });
 
-  it('approuvé, le paiement ne propose que la destination approuvée', () => {
+  it('approuvé, le paiement ne propose que la destination approuvée', async () => {
     PAYOUT.current = {
       ...PAYOUT.current, status: 'pending', approved_by_id: 11, payment_method: 'wave',
       payout_method_id: 8, approved_destination_masked: '•••• 4567',
@@ -241,8 +243,8 @@ describe("PayoutDetailDialog — l'approbation couvre la destination (VERIF-594 
     en(9, ['payouts.create']);
     rendre();
 
-    const choix = screen.getByLabelText(fr.payments.payoutDetail.payDestination);
-    expect(Array.from((choix as HTMLSelectElement).options).map((o) => o.value)).toEqual(['8']);
+    await userEvent.click(screen.getByRole('combobox', { name: fr.payments.payoutDetail.payDestination }));
+    expect((await screen.findAllByRole('option')).map((o) => o.textContent)).toEqual(['Wave · •••• 4567']);
     expect(screen.getByText(fr.payments.payoutDetail.approvedDestination)).toBeInTheDocument();
   });
 
@@ -284,9 +286,15 @@ describe("PayoutDetailDialog — l'approbateur fixe la destination (VERIF-594 N-
     en(11, ['payouts.approve']);
     rendre();
 
-    const choix = screen.getByLabelText(CHOIX) as HTMLSelectElement;
-    expect(Array.from(choix.options).map((o) => o.value)).toEqual(['', '8', '10']);
-    expect(choix.value).toBe('8');
+    const choix = screen.getByRole('combobox', { name: CHOIX });
+    expect(choix).toHaveTextContent('Wave · •••• 4567 (vérifiée)');
+    await userEvent.click(choix);
+    expect((await screen.findAllByRole('option')).map((o) => o.textContent)).toEqual([
+      'Sans destination (espèces ou chèque)',
+      'Wave · •••• 4567 (vérifiée)',
+      'Orange Money · •••• 8899 (vérifiée)',
+    ]);
+    await userEvent.keyboard('{Escape}');
     expect(screen.queryByText(fr.payments.payoutDetail.approveWithoutDestination)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: APPROUVER }));
@@ -297,7 +305,8 @@ describe("PayoutDetailDialog — l'approbateur fixe la destination (VERIF-594 N-
     en(11, ['payouts.approve']);
     rendre();
 
-    fireEvent.change(screen.getByLabelText(CHOIX), { target: { value: '' } });
+    await userEvent.click(screen.getByRole('combobox', { name: CHOIX }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Sans destination (espèces ou chèque)' }));
     expect(screen.getByText(fr.payments.payoutDetail.approveWithoutDestination)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: APPROUVER }));
     await waitFor(() => expect(mutation.mutateAsync).toHaveBeenCalledWith(undefined));
@@ -308,6 +317,6 @@ describe("PayoutDetailDialog — l'approbateur fixe la destination (VERIF-594 N-
     en(11, ['payouts.approve']);
     rendre();
 
-    expect(screen.queryByLabelText(CHOIX)).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: CHOIX })).not.toBeInTheDocument();
   });
 });

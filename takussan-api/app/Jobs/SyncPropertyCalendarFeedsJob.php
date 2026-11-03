@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Jobs\Concerns\RunsOnLongQueue;
 use App\Models\PropertyCalendarFeed;
 use App\Services\Booking\PropertyCalendarSyncService;
 use Illuminate\Bus\Queueable;
@@ -18,11 +19,16 @@ use Illuminate\Queue\SerializesModels;
  */
 class SyncPropertyCalendarFeedsJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, RunsOnLongQueue, SerializesModels;
 
     public $tries = 1;
 
     public $timeout = 540;
+
+    public function __construct()
+    {
+        $this->onLongQueue();
+    }
 
     public function handle(PropertyCalendarSyncService $sync): void
     {

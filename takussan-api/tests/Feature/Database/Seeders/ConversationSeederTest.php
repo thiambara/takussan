@@ -12,6 +12,7 @@ use App\Services\Property\PrimaryPropertyContact;
 use Database\Seeders\Operations\ConversationSeeder;
 use Database\Seeders\Support\SeedingConfig;
 use Database\Seeders\Support\SeedingContext;
+use Database\Seeders\Support\Timeline;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -30,9 +31,12 @@ class ConversationSeederTest extends TestCase
     public function test_seme_des_directes_de_prospect_et_des_groupes_comme_l_application(): void
     {
         $agency = Agency::factory()->create();
-        $agents = collect([User::factory()->create(), User::factory()->create()]);
+        // TCK-2378 — un fil d'équipe ne réunit que ceux qui étaient là à son ouverture : l'équipe est
+        // arrivée avant la fenêtre, comme dans le seed.
+        $arrivee = ['created_at' => Timeline::portfolioStart()];
+        $agents = collect([User::factory()->create($arrivee), User::factory()->create($arrivee)]);
         $agents->each(fn (User $u) => $this->materializeRoleProfile($u, 'agent', $agency));
-        $owner = User::factory()->create();
+        $owner = User::factory()->create($arrivee);
         $this->materializeRoleProfile($owner, 'owner', $agency);
         $properties = collect(range(1, 3))->map(fn () => Property::factory()->create([
             'agency_id' => $agency->id,

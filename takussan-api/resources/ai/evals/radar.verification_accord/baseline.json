@@ -1,0 +1,38 @@
+{
+    "global": 0.9917,
+    "fields": {
+        "classification": 0.9667,
+        "clauses_found": 1.0,
+        "counterpart_phone": 1.0,
+        "number_matches": 1.0
+    },
+    "model": "anthropic/claude-opus-5-5",
+    "models": [
+        "anthropic/claude-sonnet-5-5",
+        "anthropic/claude-opus-5-5"
+    ],
+    "roles": {
+        "vision": {
+            "global": 0.9844,
+            "fields": {
+                "classification": 0.9375,
+                "clauses_found": 1.0,
+                "counterpart_phone": 1.0,
+                "number_matches": 1.0
+            },
+            "model": "anthropic/claude-sonnet-5-5"
+        },
+        "raisonnement": {
+            "global": 1.0,
+            "fields": {
+                "classification": 1.0,
+                "clauses_found": 1.0,
+                "counterpart_phone": 1.0,
+                "number_matches": 1.0
+            },
+            "model": "anthropic/claude-opus-5-5"
+        }
+    },
+    "prompt_version": 2,
+    "updated_at": "2026-10-30T07:31:31+00:00"
+}

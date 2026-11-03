@@ -80,6 +80,23 @@ class WorkerHeartbeatOutsideQueueTest extends TestCase
         $this->assertSame('failed', $workers['queues']['default']['status']);
     }
 
+    public function test_un_worker_ia_arrete_est_vu_et_un_appel_de_85_s_en_cours_ne_l_est_pas(): void
+    {
+        // TCK-2402 : `worker-ia` est le seul consommateur de `ai`. Sans battement depuis 400 s : failed.
+        $this->assertSame('failed', $this->sonder()['workers']['queues']['ai']['status']);
+
+        // Un appel de 85 s en cours : le dernier battement a 90 s, la file n'est ni degraded ni failed.
+        Cache::put(RecordQueueHeartbeat::cacheKey('ai'), now()->subSeconds(90)->getTimestamp());
+        $this->assertSame('ok', $this->sonder()['workers']['queues']['ai']['status']);
+
+        // `worker-ia` lit `ai` seule : son tour de boucle ne fait battre aucune autre file.
+        Cache::put(RecordQueueHeartbeat::cacheKey('ai'), now()->subSeconds(400)->getTimestamp());
+        event(new Looping('database', 'ai'));
+        $workers = $this->sonder()['workers'];
+        $this->assertSame('ok', $workers['queues']['ai']['status']);
+        $this->assertSame('failed', $workers['queues']['default']['status']);
+    }
+
     public function test_une_file_non_surveillee_n_ecrit_rien(): void
     {
         event(new Looping('database', 'autre'));

@@ -13,6 +13,7 @@ use App\Services\Model\NotificationService;
 use App\Services\Notifications\ContactSansCompte;
 use App\Services\Notifications\NotificationRenderer;
 use App\Services\Property\PrimaryPropertyContact;
+use App\Support\AppKeyHmac;
 use App\Support\Logging\SafeExceptionContext;
 use App\Support\TelephoneSaisi;
 use Illuminate\Support\Collection;
@@ -355,7 +356,7 @@ class VisitNotifier
             return null;
         }
 
-        $empreinte = hash_hmac('sha256', $numero, (string) config('app.key'));
+        $empreinte = AppKeyHmac::of($numero);
         $property = $visit->property;
         $source = $property?->agency_id !== null
             ? 'a'.$property->agency_id

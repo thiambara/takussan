@@ -2,7 +2,7 @@
 
 - **Statut** : Accepté
 - **Date** : 2026-08-21
-- **Tickets** : TCK-338 (sorti de [TCK-335](../backlog/tickets/TCK-335-recherche-navigation-defauts-mesures.md))
+- **Tickets** : TCK-338 (sorti de [TCK-335](../backlog/tickets/done/TCK-335-recherche-navigation-defauts-mesures.md))
 - **Frère de** : [ADR-0008](0008-meilisearch-sur-tous-les-environnements.md) — il décide *quel moteur*,
   celui-ci décide *ce que le moteur promet*.
 

@@ -14,6 +14,8 @@ namespace App\Domain\Features;
  *
  * TCK-633 — deux drapeaux y entrent, chacun avec son lecteur : `media_watermark` (serveur seul, voir
  * `clientVisible()`) et `host_auto_space`.
+ *
+ * TCK-2394 — `radar_mandate` (serveur seul), lu par `App\Services\Radar\RadarMandate`.
  */
 enum Flag: string
 {
@@ -33,10 +35,18 @@ enum Flag: string
      */
     case HostAutoSpace = 'host_auto_space';
 
+    /**
+     * TCK-2394 (ADR-0079, proposé) — la publication sous mandat Takussan. ÉTEINT tant qu'aucune ligne ne l'allume, et aucune
+     * migration ne l'allume : rien ne se publie sous mandat avant l'acceptation de l'ADR. Lu SANS utilisateur par
+     * `RadarMandate::enabled()` : il s'allume globalement, jamais par segment.
+     */
+    case RadarMandate = 'radar_mandate';
+
     public function clientVisible(): bool
     {
         // TCK-633 (lot A) — `media_watermark` est une décision serveur : le front n'a rien à en lire.
-        return $this !== self::MediaWatermark;
+        // TCK-2394 — `radar_mandate` aussi : l'aperçu de publication dit au front ce qu'il en est.
+        return ! in_array($this, [self::MediaWatermark, self::RadarMandate], true);
     }
 
     /**

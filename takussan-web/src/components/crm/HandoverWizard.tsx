@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/lib/api';
 import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
@@ -27,6 +28,9 @@ import {
   removeMember,
 } from '@/lib/queries/agent-crm';
 import type { MemberPortfolio, PortfolioCategory } from '@/types/agent-crm';
+
+/** Valeur repère de « aucun successeur » : une valeur vide n'est pas une option du Select. */
+const AUCUN_SUCCESSEUR = '__none__';
 
 interface Leaver {
   readonly id: number;
@@ -135,6 +139,11 @@ export function HandoverWizard({ agencyId, member, onClose, onDone }: HandoverWi
     onClose();
   };
 
+  const optionsSuccesseur = [
+    { value: AUCUN_SUCCESSEUR, label: t('noSuccessor') },
+    ...candidates.map((a) => ({ value: String(a.id), label: a.name })),
+  ];
+
   return (
     <Dialog open={open} onOpenChange={(next) => (!next ? close() : undefined)}>
       <DialogContent data-testid="handover-wizard">
@@ -164,17 +173,25 @@ export function HandoverWizard({ agencyId, member, onClose, onDone }: HandoverWi
             </ul>
             <div className="space-y-1">
               <label htmlFor="handover-successor" className="font-medium">{t('successor')}</label>
-              <select
-                id="handover-successor"
-                value={successor}
-                onChange={(e) => setSuccessor(e.target.value)}
-                className="min-h-11 w-full rounded-md border border-input bg-background px-2"
+              <Select
+                value={successor === '' ? AUCUN_SUCCESSEUR : successor}
+                onValueChange={(next) => {
+                  if (next === null) return;
+                  setSuccessor(next === AUCUN_SUCCESSEUR ? '' : next);
+                }}
+                items={optionsSuccesseur}
               >
-                <option value="">{t('noSuccessor')}</option>
-                {candidates.map((a) => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
-                ))}
-              </select>
+                <SelectTrigger id="handover-successor" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {optionsSuccesseur.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             {needsLeave ? (
               <label className="flex items-start gap-2">

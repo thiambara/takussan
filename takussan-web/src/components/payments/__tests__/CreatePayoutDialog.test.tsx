@@ -93,6 +93,14 @@ function monter() {
   render(withIntl(<CreatePayoutDialog open onOpenChange={() => {}} />));
 }
 
+async function choisir(user: ReturnType<typeof userEvent.setup>, champ: string, option: string) {
+  await user.click(screen.getByRole('combobox', { name: champ }));
+  await user.click(await screen.findByRole('option', { name: option }));
+}
+
+const DEST_VERIFIEE = 'Wave •••• 4567 — vérifiée';
+const DEST_EN_ATTENTE = 'Orange Money •••• 8899 — en attente de vérification';
+
 describe('CreatePayoutDialog — le calcul se lit, il ne se saisit pas (TCK-594)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -101,14 +109,15 @@ describe('CreatePayoutDialog — le calcul se lit, il ne se saisit pas (TCK-594)
   });
 
   // P220.06 (TCK-2136) — un bailleur lié à un compte sans nom garde le nom de son invitation.
-  it("nomme un bailleur au compte sans nom par le nom saisi à l'invitation", () => {
+  it("nomme un bailleur au compte sans nom par le nom saisi à l'invitation", async () => {
     const avant = OWNERS.data.data;
     OWNERS.data.data = [
       { id: 6, user_id: 43, agency_id: 3, status: 'active', metadata: { first_name: 'Moussa', last_name: 'Ndiaye' } as never, created_at: null, user: { id: 43, first_name: '', last_name: '', email: null as never } },
     ];
     try {
       monter();
-      expect(screen.getByRole('option', { name: 'Moussa Ndiaye' })).toBeInTheDocument();
+      await userEvent.setup().click(screen.getByRole('combobox', { name: 'Bailleur' }));
+      expect(await screen.findByRole('option', { name: 'Moussa Ndiaye' })).toBeInTheDocument();
     } finally {
       OWNERS.data.data = avant;
     }
@@ -116,7 +125,7 @@ describe('CreatePayoutDialog — le calcul se lit, il ne se saisit pas (TCK-594)
 
   // P234.06 (TCK-2315) — un bailleur société est nommé par sa raison sociale, puis sa personne
   // (TCK-1323) ; un particulier reste nommé par son nom, même avec une raison sociale saisie.
-  it('nomme un bailleur société par sa raison sociale, puis sa personne', () => {
+  it('nomme un bailleur société par sa raison sociale, puis sa personne', async () => {
     const avant = OWNERS.data.data;
     OWNERS.data.data = [
       { id: 7, user_id: 44, agency_id: 3, status: 'active', metadata: { owner_type: 'company', company_name: 'SCI Baobab' } as never, created_at: null, user: { id: 44, first_name: 'Fatou', last_name: 'Sarr', email: 'fatou@example.test' } },
@@ -124,7 +133,8 @@ describe('CreatePayoutDialog — le calcul se lit, il ne se saisit pas (TCK-594)
     ];
     try {
       monter();
-      expect(screen.getByRole('option', { name: 'SCI Baobab — Fatou Sarr' })).toBeInTheDocument();
+      await userEvent.setup().click(screen.getByRole('combobox', { name: 'Bailleur' }));
+      expect(await screen.findByRole('option', { name: 'SCI Baobab — Fatou Sarr' })).toBeInTheDocument();
       expect(screen.getByRole('option', { name: 'Awa Diop' })).toBeInTheDocument();
     } finally {
       OWNERS.data.data = avant;
@@ -151,7 +161,7 @@ describe('CreatePayoutDialog — le calcul se lit, il ne se saisit pas (TCK-594)
     const user = userEvent.setup();
     monter();
 
-    await user.selectOptions(screen.getByLabelText('Bailleur'), '42');
+    await choisir(user, 'Bailleur', 'Awa Diop');
     await user.type(screen.getByLabelText('Début de période'), '2026-09-01');
     await user.type(screen.getByLabelText('Fin de période'), '2026-09-30');
 
@@ -171,7 +181,7 @@ describe('CreatePayoutDialog — le calcul se lit, il ne se saisit pas (TCK-594)
     // VERIF-594 passe 2, N-3 — la fenêtre du cumul vient du serveur, pas du texte.
     expect(screen.getByText(/depuis 27 jours/)).toBeInTheDocument();
 
-    await user.selectOptions(screen.getByLabelText('Destination'), '8');
+    await choisir(user, 'Destination', DEST_VERIFIEE);
     await user.click(screen.getByRole('button', { name: 'Créer le reversement' }));
 
     expect(MUTATION.mutateAsync).toHaveBeenCalledTimes(1);
@@ -227,10 +237,10 @@ describe('CreatePayoutDialog — le calcul se lit, il ne se saisit pas (TCK-594)
     const user = userEvent.setup();
     monter();
 
-    await user.selectOptions(screen.getByLabelText('Destination'), '8');
+    await choisir(user, 'Destination', DEST_VERIFIEE);
     expect(screen.queryByRole('button', { name: 'Vérifier cette destination' })).not.toBeInTheDocument();
 
-    await user.selectOptions(screen.getByLabelText('Destination'), '9');
+    await choisir(user, 'Destination', DEST_EN_ATTENTE);
     await user.click(screen.getByRole('button', { name: 'Vérifier cette destination' }));
 
     expect(VERIFY.mutateAsync).toHaveBeenCalledWith({ id: 9 });
@@ -247,7 +257,7 @@ describe('CreatePayoutDialog — la destination par défaut vérifiée est prés
     const user = userEvent.setup();
     monter();
 
-    expect((screen.getByLabelText('Destination') as HTMLSelectElement).value).toBe('8');
+    expect(screen.getByRole('combobox', { name: 'Destination' })).toHaveTextContent(DEST_VERIFIEE);
     await user.click(screen.getByRole('button', { name: 'Créer le reversement' }));
     expect(MUTATION.mutateAsync.mock.calls[0][0]).toMatchObject({ payout_method_id: 8 });
   });
@@ -270,7 +280,7 @@ describe('CreatePayoutDialog — la destination par défaut vérifiée est prés
     };
     monter();
 
-    expect((screen.getByLabelText('Destination') as HTMLSelectElement).value).toBe('');
+    expect(screen.getByRole('combobox', { name: 'Destination' })).not.toHaveTextContent(/Wave|Orange Money/);
   });
 });
 
@@ -287,7 +297,7 @@ describe('CreatePayoutDialog — le relevé du bailleur choisi, avant de reverse
 
     expect(screen.queryByRole('button', { name: 'Voir le relevé du mois' })).not.toBeInTheDocument();
 
-    await user.selectOptions(screen.getByLabelText('Bailleur'), '42');
+    await choisir(user, 'Bailleur', 'Awa Diop');
     await user.type(screen.getByLabelText('Début de période'), '2026-09-01');
     const bouton = screen.getByRole('button', { name: 'Voir le relevé du mois' });
     expect(bouton).toHaveAttribute('aria-expanded', 'false');

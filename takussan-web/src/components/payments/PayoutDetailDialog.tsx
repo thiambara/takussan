@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 import { useAuth } from '@/context/AuthContext';
 import { useCan } from '@/hooks/useCan';
@@ -37,8 +38,8 @@ interface PayoutDetailDialogProps {
   readonly onClose: () => void;
 }
 
-const SELECT_CLASS =
-  'h-9 w-full rounded-md border border-border bg-transparent px-3 text-sm text-foreground';
+/** Valeur repère de « aucune » : une valeur vide n'est pas une option du Select. */
+const AUCUN = '__none__';
 
 export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProps) {
   const locale = useLocale() as Locale;
@@ -125,6 +126,26 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
   const preselected =
     destinations.find((m) => m.id === payout?.payout_method_id) ?? destinations.find((m) => m.is_default) ?? destinations[0];
   const destination = destinations.find((m) => String(m.id) === destinationId) ?? preselected;
+  const optionsApprobation = [
+    {
+      value: AUCUN,
+      label: payout?.payout_method_masked
+        ? t('approveKeepDestination', { masked: payout.payout_method_masked })
+        : t('approveNoDestination'),
+    },
+    ...approvableDestinations.map((m) => ({
+      value: String(m.id),
+      label: t('approveDestinationOption', { kind: tKind(m.kind), masked: m.masked_identifier ?? '' }),
+    })),
+  ];
+  const optionsMoyen = [
+    { value: AUCUN, label: tMethod('none') },
+    ...PAYMENT_METHOD_VALUES.map((value) => ({ value, label: tMethod(value) })),
+  ];
+  const optionsDestination = destinations.map((m) => ({
+    value: String(m.id),
+    label: `${tKind(m.kind)} · ${m.masked_identifier ?? ''}`,
+  }));
   const canMarkProcessed =
     method !== '' &&
     (isCash ? transactionId.trim() !== '' || cashNote.trim() !== '' : transactionId.trim() !== '') &&
@@ -257,23 +278,24 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
                     <Label htmlFor="payout-approve-destination" className="mb-1.5 block text-xs font-medium">
                       {t('approveDestination')}
                     </Label>
-                    <select
-                      id="payout-approve-destination"
-                      className={SELECT_CLASS}
-                      value={approveDestinationValue}
-                      onChange={(e) => setApproveDestinationId(e.target.value)}
+                    <Select
+                      value={approveDestinationValue === '' ? AUCUN : approveDestinationValue}
+                      onValueChange={(next) => {
+                        if (next !== null) setApproveDestinationId(next === AUCUN ? '' : next);
+                      }}
+                      items={optionsApprobation}
                     >
-                      <option value="">
-                        {payout.payout_method_masked
-                          ? t('approveKeepDestination', { masked: payout.payout_method_masked })
-                          : t('approveNoDestination')}
-                      </option>
-                      {approvableDestinations.map((m) => (
-                        <option key={m.id} value={String(m.id)}>
-                          {t('approveDestinationOption', { kind: tKind(m.kind), masked: m.masked_identifier ?? '' })}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger id="payout-approve-destination" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {optionsApprobation.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>
+                            {o.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 ) : null}
                 {payout.payout_method_masked || approveDestinationValue !== '' ? null : (
@@ -304,19 +326,24 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
                   <Label htmlFor="payout-pay-method" className="mb-1.5 block text-xs font-medium">
                     {t('method')}
                   </Label>
-                  <select
-                    id="payout-pay-method"
-                    className={SELECT_CLASS}
-                    value={method}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
+                  <Select
+                    value={method === '' ? AUCUN : method}
+                    onValueChange={(next) => {
+                      if (next !== null) setPaymentMethod(next === AUCUN ? '' : next);
+                    }}
+                    items={optionsMoyen}
                   >
-                    <option value="">{tMethod('none')}</option>
-                    {PAYMENT_METHOD_VALUES.map((value) => (
-                      <option key={value} value={value}>
-                        {tMethod(value)}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger id="payout-pay-method" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {optionsMoyen.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>
+                          {o.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 {needsDestination ? (
                   <div>
@@ -324,18 +351,24 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
                       {t('payDestination')}
                     </Label>
                     {destinations.length > 0 ? (
-                      <select
-                        id="payout-pay-destination"
-                        className={SELECT_CLASS}
+                      <Select
                         value={destination ? String(destination.id) : ''}
-                        onChange={(e) => setDestinationId(e.target.value)}
+                        onValueChange={(next) => {
+                          if (next !== null) setDestinationId(next);
+                        }}
+                        items={optionsDestination}
                       >
-                        {destinations.map((m) => (
-                          <option key={m.id} value={String(m.id)}>
-                            {tKind(m.kind)} · {m.masked_identifier ?? ''}
-                          </option>
-                        ))}
-                      </select>
+                        <SelectTrigger id="payout-pay-destination" className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {optionsDestination.map((o) => (
+                            <SelectItem key={o.value} value={o.value}>
+                              {o.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     ) : beneficiaryMethods.isLoading ? null : (
                       <p className="text-sm text-muted-foreground">
                         {approved ? t('approvedDestinationOnly') : t('noVerifiedDestination')}

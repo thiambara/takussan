@@ -15,6 +15,7 @@ import {
   type ModerationDecision,
 } from '@/lib/queries/reviews-moderation';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -260,13 +261,13 @@ export function ModerationDetail({ review, onModerated, platform = false }: Mode
           <label htmlFor="moderation-reason" className="mt-3 block text-xs text-muted-foreground">
             {reasonTextRequired(reasonCode) ? t('reasonLabelRequired') : t('reasonLabel')}
           </label>
-          <textarea
+          <Textarea
             id="moderation-reason"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             rows={3}
             maxLength={1000}
-            className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="mt-1"
             placeholder={t('reasonPlaceholder')}
           />
           <div className="mt-3 flex justify-end gap-2">

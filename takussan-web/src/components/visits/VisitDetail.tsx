@@ -579,7 +579,7 @@ function VisitActionForm({
             onChange={(event) => setValue(event.target.value)}
             onBlur={() => setTouched(true)}
             required
-            className="h-10 tabular-nums sm:h-9"
+            className="tabular-nums"
             aria-invalid={showError || undefined}
             aria-describedby={showError ? errorId : undefined}
           />

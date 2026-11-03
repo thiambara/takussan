@@ -133,6 +133,9 @@ class OtpPreviewTest extends TestCase
 
     public function test_connexion_par_telephone_le_code_rendu_ouvre_la_session(): void
     {
+        // `retry_after` se lit sur l'horloge du limiteur : une seconde qui bascule entre l'envoi et la lecture rendait 59.
+        $this->freezeTime();
+
         $code = $this->postJson('/api/auth/phone/request-code', ['phone' => self::NUMERO])
             ->assertStatus(202)
             ->assertJsonPath('data.retry_after', 60)

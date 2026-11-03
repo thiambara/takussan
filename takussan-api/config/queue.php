@@ -56,6 +56,19 @@ return [
             'after_commit' => true,
         ],
 
+        // TCK-2397 (ADR-0078) — les jobs longs (`App\Jobs\Concerns\RunsOnLongQueue`) : même table,
+        // leur file, et un délai de reprise au-dessus de leur `$timeout` (1800 s au plus). Servie par
+        // le seul `worker-long` : un worker d'une autre connexion qui lirait `long` les relivrerait
+        // après 90 s. `scripts/check-queues.mjs` tient les deux règles.
+        'database-long' => [
+            'driver' => 'database',
+            'connection' => env('DB_QUEUE_CONNECTION'),
+            'table' => env('DB_QUEUE_TABLE', 'jobs'),
+            'queue' => 'long',
+            'retry_after' => (int) env('DB_LONG_QUEUE_RETRY_AFTER', 1900),
+            'after_commit' => true,
+        ],
+
         'beanstalkd' => [
             'driver' => 'beanstalkd',
             'host' => env('BEANSTALKD_QUEUE_HOST', 'localhost'),

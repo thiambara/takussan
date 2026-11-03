@@ -66,12 +66,12 @@ describe('<CreateRoleDialog>', () => {
     mockCreate();
   });
 
-  it('ne propose que les types de profil qui portent réellement un rôle', () => {
+  it('ne propose que les types de profil qui portent réellement un rôle', async () => {
+    const user = userEvent.setup();
     renderDialog();
 
-    const options = Array.from(
-      screen.getByLabelText('Type de profil ciblé').querySelectorAll('option'),
-    ).map((o) => o.textContent);
+    await user.click(screen.getByRole('combobox', { name: 'Type de profil ciblé' }));
+    const options = (await screen.findAllByRole('option')).map((o) => o.textContent);
 
     // `service_provider` en est absent : la table n'a pas d'`agency_role_id`
     // (profil user-scopé, N agences — TCK-315). Un rôle qu'on ne peut
@@ -90,19 +90,19 @@ describe('<CreateRoleDialog>', () => {
   it('verrouille le type quand on arrive par « Cloner »', () => {
     renderDialog(ROLES[2]);
 
-    const select = screen.getByLabelText('Type de profil ciblé');
+    const select = screen.getByRole('combobox', { name: 'Type de profil ciblé' });
     // Changer le type invaliderait la source de clonage : l'API refuse un
     // `clone_from` d'un autre `base_profile_type`.
     expect(select).toBeDisabled();
-    expect(select).toHaveValue('agency_admin');
+    expect(select).toHaveTextContent('Administrateurs');
   });
 
-  it('ne liste comme sources que les rôles clonables du même type', () => {
+  it('ne liste comme sources que les rôles clonables du même type', async () => {
+    const user = userEvent.setup();
     renderDialog();
 
-    const options = Array.from(
-      screen.getByLabelText('Partir des capacités de').querySelectorAll('option'),
-    ).map((o) => o.textContent);
+    await user.click(screen.getByRole('combobox', { name: 'Partir des capacités de' }));
+    const options = (await screen.findAllByRole('option')).map((o) => o.textContent);
 
     // « Administrateur » est d'un autre type ; « Agent verrouillé » porte
     // `is_clonable: false`.

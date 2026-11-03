@@ -4,6 +4,7 @@ namespace Tests\Feature\Api\Admin;
 
 use App\Models\Agency;
 use App\Models\AgencyUpgradeRequest;
+use App\Models\AiModel;
 use App\Models\AlertRule;
 use App\Models\Announcement;
 use App\Models\BoostProduct;
@@ -19,6 +20,9 @@ use App\Models\PlatformPayout;
 use App\Models\PrivacyRequest;
 use App\Models\Property;
 use App\Models\PropertyBoost;
+use App\Models\RadarAdvertiser;
+use App\Models\RadarListing;
+use App\Models\RadarOutreach;
 use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -115,6 +119,17 @@ class NamespaceAccessGuardTest extends TestCase
         $boostProduct = BoostProduct::query()->firstOrFail();
         $neighborhood = GeoNeighborhood::factory()->create();
         $tag = Tag::factory()->create();
+        // TCK-2386 — même motif, sur la fiche du Radar (`radar/listings/{listing}`).
+        $listing = RadarListing::factory()->create();
+        // TCK-2389 — idem, sur une photo de la réserve (`radar/listings/{listing}/photos/{media}`).
+        $photo = $listing->addMediaFromString('x')->usingFileName('p.jpg')->toMediaCollection('radar_photos');
+        // TCK-2388 — même motif, sur la fiche annonceur (`radar/advertisers/{advertiser}`).
+        $advertiser = RadarAdvertiser::factory()->create();
+        // Idem, sur le message d'accord (`radar/outreaches/{outreach}`).
+        $outreach = RadarOutreach::factory()->create();
+
+        // TCK-2448 — le catalogue des modèles (`ai/models/{model}`).
+        $aiModel = AiModel::factory()->create();
 
         $routes = collect(Route::getRoutes())
             ->filter(fn ($r) => str_starts_with($r->uri(), 'api/admin'));
@@ -128,6 +143,7 @@ class NamespaceAccessGuardTest extends TestCase
                 }
 
                 $resolved = '/'.strtr($route->uri(), [
+                    '{outreach}' => (string) $outreach->id,
                     '{agency}' => (string) $agency->id,
                     '{alertRule}' => (string) $alertRule->id,
                     '{integration}' => (string) $integration->id,
@@ -145,6 +161,10 @@ class NamespaceAccessGuardTest extends TestCase
                     '{boostProduct}' => (string) $boostProduct->id,
                     '{neighborhood}' => (string) $neighborhood->id,
                     '{tag}' => (string) $tag->id,
+                    '{listing}' => (string) $listing->id,
+                    '{media}' => (string) $photo->id,
+                    '{advertiser}' => (string) $advertiser->id,
+                    '{model}' => (string) $aiModel->id,
                 ]);
 
                 // Replace any remaining unresolved {param} with a dummy id so

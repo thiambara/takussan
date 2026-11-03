@@ -14,9 +14,10 @@
  *     exécutent : `deploy/**` , `takussan-api/docker/*.sh`, `scripts/*.sh`, `dev.sh` ;
  *   · hadolint, seuil `warning`, sur les trois Dockerfile — les `info` s'affichent, ne rougissent pas.
  *
- * Ce qu'elle ne vérifie PAS : qu'un script fait ce qu'il annonce. `test-release-reindex.sh` et les
- * tests de fumée en sont chargés. Et `cmd | grep -q` sous `pipefail` n'est PAS une trouvaille
- * shellcheck : c'est une règle du dépôt (bootstrap.sh), tenue en relecture.
+ * Ce qu'elle ne vérifie PAS : qu'un script fait ce qu'il annonce. `test-release-reindex.sh`,
+ * `test-sauvegarde-seau-prive.sh` et les tests de fumée en sont chargés. Et `cmd | grep -q` sous
+ * `pipefail` n'est PAS une trouvaille shellcheck : c'est une règle du dépôt (bootstrap.sh), tenue
+ * en relecture.
  *
  * Les deux outils doivent être PRÉSENTS : leur absence est une erreur, jamais un vert. En CI,
  * `repo-ci.yml` les installe à version épinglée ; en local, `brew install shellcheck hadolint`.

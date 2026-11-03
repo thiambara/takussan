@@ -22,8 +22,12 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
 import type { PaginatedResponse } from '@/types/api';
+
+/** Valeur repère de « aucun choix » : une valeur vide n'est pas une option du Select. */
+const AUCUN = '__none__';
 
 /** La grille des visites, à Dakar — la même que celle du serveur (`VisitSchedulingService`). */
 const HEURES: readonly string[] = Array.from({ length: 20 }, (_, i) => {
@@ -182,6 +186,16 @@ function PlanifierDialog({
     }
   }
 
+  const optionsBien = [
+    { value: AUCUN, label: '—' },
+    ...(biens.data?.data ?? []).map((b) => ({ value: String(b.id), label: b.title })),
+  ];
+  const optionsClient = [
+    { value: AUCUN, label: t('noCustomer') },
+    ...(clients.data?.data ?? []).map((c) => ({ value: String(c.id), label: nomAffichable(c) })),
+  ];
+  const optionsHeure = HEURES.map((h) => ({ value: h, label: h }));
+
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-lg">
@@ -205,19 +219,25 @@ function PlanifierDialog({
                   placeholder={t('propertyPlaceholder')}
                   aria-label={t('propertyPlaceholder')}
                 />
-                <select
-                  id="plan-property"
-                  value={propertyId ?? ''}
-                  onChange={(e) => setPropertyId(e.target.value ? Number(e.target.value) : null)}
-                  className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground"
+                <Select
+                  value={propertyId === null ? AUCUN : String(propertyId)}
+                  onValueChange={(next) => {
+                    if (next === null) return;
+                    setPropertyId(next === AUCUN ? null : Number(next));
+                  }}
+                  items={optionsBien}
                 >
-                  <option value="">—</option>
-                  {(biens.data?.data ?? []).map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.title}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger id="plan-property" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {optionsBien.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {o.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </>
             )}
           </div>
@@ -236,19 +256,25 @@ function PlanifierDialog({
                   placeholder={t('customerPlaceholder')}
                   aria-label={t('customerPlaceholder')}
                 />
-                <select
-                  id="plan-customer"
-                  value={customerId ?? ''}
-                  onChange={(e) => setCustomerId(e.target.value ? Number(e.target.value) : null)}
-                  className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground"
+                <Select
+                  value={customerId === null ? AUCUN : String(customerId)}
+                  onValueChange={(next) => {
+                    if (next === null) return;
+                    setCustomerId(next === AUCUN ? null : Number(next));
+                  }}
+                  items={optionsClient}
                 >
-                  <option value="">{t('noCustomer')}</option>
-                  {(clients.data?.data ?? []).map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {nomAffichable(c)}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger id="plan-customer" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {optionsClient.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {o.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </>
             )}
           </div>
@@ -281,18 +307,25 @@ function PlanifierDialog({
               <label htmlFor="plan-time" className="block text-sm font-medium text-foreground">
                 {t('time')} <span className="font-normal text-muted-foreground">({t('dakarTime')})</span>
               </label>
-              <select
-                id="plan-time"
+              <Select
                 value={heure}
-                onChange={(e) => setHeure(e.target.value)}
-                className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm tabular-nums text-foreground"
+                onValueChange={(next) => {
+                  if (next === null) return;
+                  setHeure(next);
+                }}
+                items={optionsHeure}
               >
-                {HEURES.map((h) => (
-                  <option key={h} value={h}>
-                    {h}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger id="plan-time" className="w-full tabular-nums">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {optionsHeure.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
