@@ -284,7 +284,7 @@ Restent également hors périmètre, sans ticket :
   `city`) — un cran au-delà de TCK-338.
 - La recherche sémantique par embeddings et la recherche vocale (P3, spec §2.4 et §1.2).
 - L'activation de `SCOUT_QUEUE` en production.
-- [TCK-332](../todo/TCK-332-front-public-appelle-une-api-absente.md) : tant qu'il tient, aucune mesure de ce
+- [TCK-332](../obsolete/TCK-332-front-public-appelle-une-api-absente.md) : tant qu'il tient, aucune mesure de ce
   ticket ne décrit ce que voit un vrai visiteur.
 
 ## Notes d'implémentation

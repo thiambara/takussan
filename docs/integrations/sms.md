@@ -226,7 +226,9 @@ L'interface ne porte que trois méthodes (`SupportsSms.php:16-23`) : `toSms()`, 
 
 - `smsEventType(): string` — l'événement de préférence (`PreferenceResolver::EVENTS`) d'une
   notification non critique ; ⚠ absent, le canal tient le destinataire pour inscrit
-  (`SmsChannel.php:181-191`) — une notification non critique sans lui ignore l'opt-out ;
+  (`SmsChannel.php:181-191`) — une notification non critique sans lui ignorerait l'opt-out. Défaut
+  latent : aucune des sept notifications SMS n'est touchée au 2026-11-03 (critiques, ou
+  `CodedNotification`) ; le fermer par défaut est [TCK-2464](../backlog/tickets/todo/TCK-2464-sms-opt-out-ferme-par-defaut.md) ;
 - `appNotificationIdFor($notifiable): ?int` — rattache les tentatives à la ligne
   `app_notifications`, dans la table `notification_delivery_attempts`. `CodedNotification` les
   porte toutes deux (lignes 306 et 345).

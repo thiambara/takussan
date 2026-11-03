@@ -1,12 +1,12 @@
 # CDN Integration — TCK-105
 
-> 🛑 **Intégration CDN en sursis : le retrait du code est à faire, et aucun ticket ouvert ne le
-> porte** (relevé du 2026-11-03 : aucun ticket `todo`, `doing` ou `review` ne cite Bunny ni
-> `CdnProviderContract`). Le code est toujours là et toujours câblé : `app/Services/Media/Cdn/`
+> 🛑 **Intégration CDN en sursis : le retrait du code est à faire, porté par
+> [TCK-2463](../backlog/tickets/todo/TCK-2463-retrait-integration-cdn-tck-105.md)** (écrit le 2026-11-03 ;
+> aucun ticket ne le portait avant). Le code est toujours là et toujours câblé : `app/Services/Media/Cdn/`
 > (Bunny, Cloudflare, `CdnUrlGenerator`, `CdnHealthGuard`), `AppServiceProvider.php:321-331`,
 > `SignMediaController`, `PurgeCdnCacheJob`, la sonde `cdn` de `HealthcheckService.php:160`.
 > Il reste inerte tant que `CDN_ENABLED` vaut `false` (`config/cdn.php:12`). ADR-0029 annonce ce
-> retrait comme « un ticket à part » (§ Conséquences) ; il n'est pas écrit.
+> retrait comme « un ticket à part » (§ Conséquences) : c'est TCK-2463.
 >
 > ⚠️ **HORS DU CHEMIN depuis le 2026-09-21 — [ADR-0029](../adr/0029-medias-sur-r2-servis-par-cloudflare-transformations.md).**
 > Les médias vivent dans deux seaux R2 par environnement ; les images publiques sont servies par le

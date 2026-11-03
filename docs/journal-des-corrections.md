@@ -426,7 +426,7 @@ let e = "https://api.takussan.com".replace(/\/api$/, ""), s = `${e}/api`
 ```
 
 Il y a donc un utilisateur exposé devant une API absente, ce que D-04 décrivait comme n'existant
-pas. C'est l'objet de [TCK-332](backlog/tickets/todo/TCK-332-front-public-appelle-une-api-absente.md),
+pas. C'est l'objet de [TCK-332](backlog/tickets/obsolete/TCK-332-front-public-appelle-une-api-absente.md),
 et cela relève la priorité de TCK-288.
 
 > ⚠️ **Une mesure sans sa date devient une croyance.** Chaque affirmation ci-dessus porte sa

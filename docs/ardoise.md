@@ -126,7 +126,7 @@ démarrer**. Sur une installation neuve suivie à la lettre, l'application ne bo
 **Preuve** : `docs/infra/deploy-preview.html` (ligne `apt install`) confrontée aux `require` de
 `composer.lock`.
 
-### D-04 — La production de l'API n'a jamais SERVI — et depuis le 2026-08-15 ce n'est plus faute d'avoir essayé 🔴 → [TCK-288](backlog/tickets/todo/TCK-288-chaine-de-deploiement-master-fige.md) · [TCK-332](backlog/tickets/todo/TCK-332-front-public-appelle-une-api-absente.md)
+### D-04 — La production de l'API n'a jamais SERVI — et depuis le 2026-08-15 ce n'est plus faute d'avoir essayé 🔴 → [TCK-288](backlog/tickets/todo/TCK-288-chaine-de-deploiement-master-fige.md) · [TCK-332](backlog/tickets/obsolete/TCK-332-front-public-appelle-une-api-absente.md)
 
 > ## 2026-09-13 — [ADR-0028](adr/0028-auto-hebergement-conteneurise-sur-le-vps.md) REMPLACE LA CHAÎNE QUE CETTE ENTRÉE DÉCRIT
 >
@@ -745,7 +745,7 @@ Trois environnements, trois piles différentes, aucune épinglée. `docker-compo
 la moitié dev (MySQL 8.0 aligné sur la production **mesurée**, Meilisearch v1.16 alignée sur la CI,
 Redis 8) — la production, elle, reste posée par `apt` sans version épinglée dans le dépôt.
 
-### D-10 — Le déploiement du frontend est entièrement hors dépôt ✅ *REQUALIFIÉE et partiellement soldée le 2026-08-20 — l'ignorance est levée, l'extériorité est ASSUMÉE, et deux conséquences restent ouvertes* → [TCK-299](backlog/tickets/done/TCK-299-deploiement-frontend-hors-depot.md) · [TCK-332](backlog/tickets/todo/TCK-332-front-public-appelle-une-api-absente.md) · [TCK-333](backlog/tickets/obsolete/TCK-333-vercel-sans-filtre-de-chemins.md)
+### D-10 — Le déploiement du frontend est entièrement hors dépôt ✅ *REQUALIFIÉE et partiellement soldée le 2026-08-20 — l'ignorance est levée, l'extériorité est ASSUMÉE, et deux conséquences restent ouvertes* → [TCK-299](backlog/tickets/done/TCK-299-deploiement-frontend-hors-depot.md) · [TCK-332](backlog/tickets/obsolete/TCK-332-front-public-appelle-une-api-absente.md) · [TCK-333](backlog/tickets/obsolete/TCK-333-vercel-sans-filtre-de-chemins.md)
 
 > **2026-09-13 — [ADR-0028](adr/0028-auto-hebergement-conteneurise-sur-le-vps.md) remplace
 > [ADR-0017](adr/0017-deploiement-du-front-pilote-par-vercel.md) : le déploiement du front revient
@@ -802,7 +802,7 @@ Redis 8) — la production, elle, reste posée par `apt` sans version épinglée
 > le relevé `frontend-deploiement.md` + son relevé JSON, et
 > `.github/workflows/front-deploy-map.yml` (qui vérifie et ne déploie rien) — tous trois retirés par TCK-860.
 
-**❌ Ce que cette mesure a découvert au passage, et qui n'est PAS soldé — P0 → [TCK-332](backlog/tickets/todo/TCK-332-front-public-appelle-une-api-absente.md).**
+**❌ Ce que cette mesure a découvert au passage, et qui n'est PAS soldé — P0 → [TCK-332](backlog/tickets/obsolete/TCK-332-front-public-appelle-une-api-absente.md).**
 Le front de production est en ligne, **public**, et son bundle porte
 `NEXT_PUBLIC_API_URL = https://api.takussan.com` — un hôte qui rend **404**. Re-mesuré le
 2026-08-20 :

@@ -1,13 +1,13 @@
 ---
 id: TCK-332
 title: "Le front de production est public et appelle une API qui n'existe pas"
-status: todo
+status: obsolete
 phase: P0
 family: technique
 estimate: S
 wave: 38
 created: 2026-08-20
-updated: 2026-10-18
+updated: 2026-11-03
 depends_on: []
 blocks: [TCK-288]
 spec_refs:
@@ -177,6 +177,16 @@ l'exposition doit donc être arrêtée *avant*.
 > dans TCK-288, hors du périmètre de ce ticket.
 
 ## Notes d'implémentation
+
+**Obsolète le 2026-11-03, sans implémentation, à la demande du porteur.** La note du 2026-10-18
+ci-dessous gardait le ticket ouvert pour son objectif — une application qui répond sur
+`www.takussan.com`. Cet objectif est mot pour mot l'AC2 de
+[TCK-517](../todo/TCK-517-production-auto-hebergee.md) (« `https://www.takussan.com/` sert le commit ») :
+le garder ici le portait deux fois, et l'AC4 de TCK-517 (« TCK-332 passe `done` ») ne disait rien
+qu'AC2 ne dise déjà. Le défaut que ce ticket décrivait — un front public qui appelle une API
+absente — n'existe plus depuis le 2026-10-15 : il n'y a plus de front public du tout. L'AC4 de
+TCK-517 est réécrit en conséquence ; `TCK-288.depends_on` le cite encore, un ticket clos qui ne
+bloque plus rien.
 
 **2026-10-18 — le défaut a changé de forme, il n'a pas disparu.** Vercel est supprimé : dernier déploiement de `vercel[bot]` le 2026-10-15 à 13:32 Z ; au
 2026-10-18, `www.takussan.com` et `takussan.com` n'ont aucun enregistrement DNS, et

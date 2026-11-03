@@ -245,7 +245,7 @@ sortante** en phase F du plan (TCK-517), qui se décide par une personne.
 **L'API n'a jamais servi en production.** `api.takussan.com` pointe sur le VPS sans service
 derrière et **échoue sur la poignée de main TLS** (re-mesuré le 2026-09-14, TCK-523). Le front de
 Vercel qui l'appelait quand même
-([TCK-332](docs/backlog/tickets/todo/TCK-332-front-public-appelle-une-api-absente.md)) a disparu avec
+([TCK-332](docs/backlog/tickets/obsolete/TCK-332-front-public-appelle-une-api-absente.md)) a disparu avec
 Vercel : le front et l'API de production arrivent ensemble en phase F (TCK-517). Relevé et
 commande : [`docs/infra/hebergement.md`](docs/infra/hebergement.md), « Ce qui sert quoi ».
 

@@ -7,7 +7,7 @@ family: technique
 estimate: M
 wave: 64
 created: 2026-09-13
-updated: 2026-10-30
+updated: 2026-11-03
 depends_on: [TCK-516, TCK-518, TCK-519, TCK-520, TCK-522, TCK-523, TCK-524, TCK-526]
 blocks: []
 spec_refs:
@@ -65,7 +65,7 @@ tâches F1 à F5. **Ne s'ouvre que sur la décision du porteur** — pas avant t
 - [ ] AC1 — `https://api.takussan.com/up` rend 200 et le commit dans `X-Build-Sha`, à travers Cloudflare
 - [ ] AC2 — `https://www.takussan.com/` sert le commit, sans `x-vercel-id`
 - [ ] AC3 — une adresse usurpée reste refusée à travers Cloudflare
-- [ ] AC4 — TCK-332 passe `done`
+- [ ] AC4 — ~~TCK-332 passe `done`~~ — TCK-332 est `obsolete` depuis le 2026-11-03 : son objectif est AC2 ; rien à cocher ici
 - [ ] AC5 — le sitemap servi par `www.takussan.com` compte plus de `<loc>` que de biens publiés, il
   est soumis à la Search Console, et le relevé de J+7 est reporté ici (F3, étapes 3 et 7 ; F5,
   étape 1 ; D-72 de l'ardoise)
