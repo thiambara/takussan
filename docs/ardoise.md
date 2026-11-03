@@ -1228,7 +1228,7 @@ Un agent qui le lit pour prioriser rouvre des chantiers finis.
 
 **Action** : archiver avec un bandeau de péremption, ou re-mesurer.
 
-### D-17 — `docs/plans/routing-layouts-roles.md` prescrit une stack révoquée ✅ *banni le 2026-08-12*
+### D-17 — `docs/plans/routing-layouts-roles.md` prescrit une stack révoquée ✅ *banni le 2026-08-12, supprimé le 2026-11-03* <!-- lien-mort-assumé : `git show f0304c613:docs/plans/routing-layouts-roles.md` -->
 
 > **Traité** : bandeau de révocation, avec le tableau « il prescrit / le projet est en ».
 
@@ -1579,7 +1579,7 @@ d'authentification — 193 occurrences déplacées, en `fr`, `en` ET `wo`.
 - `docs/configuration.md` **se contredit lui-même** sur Meilisearch : §1 « driver `collection` par
   défaut », §3.6 « Meilisearch sur TOUS les environnements », §5.1 « (Optionnel) ».
 - `docs/qa/admin-qa.md` fait tester une page `/admin/roles` qui n'existe pas.
-- `docs/superpowers/specs/2026-05-10-onboarding-discovery-design.md` porte `status: draft` alors que
+- `docs/plans/2026-05-10-onboarding-discovery-design.md` (ex-`docs/superpowers/specs/`, déplacé le 2026-11-03) porte `status: draft` alors que
   les 10 tickets qu'il pilote sont tous `done`.
 - `takussan-web/README.md` est resté le **template create-next-app par défaut**.
 - `docs/image.png` (2,99 Mo) et `docs/image copy.png` (1,19 Mo) sont versionnés — **53 % du poids de

@@ -159,7 +159,7 @@ if (report) {
   for (const f of NORMATIVE_FILES) console.log(`  · ${f}`);
   console.log(
     'Hors périmètre — archives et procès-verbaux gelés à dessein : docs/backlog/**, ' +
-      'docs/sync-passes/**, docs/superpowers/**, docs/plans/**, docs/qa/**, docs/smoke-tests/**.',
+      'docs/sync-passes/**, docs/plans/**, docs/qa/**, docs/smoke-tests/**.',
   );
   console.log(
     '  (les `spec_refs` des tickets sont gardés séparément par docs/backlog/check-backlog.mjs)',

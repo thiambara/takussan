@@ -146,7 +146,8 @@ node docs/gen-features-by-actor.mjs --check
 > **Pourquoi une commande et pas une liste :** une liste de gardes écrite à la main est juste le
 > jour où on l'écrit — c'est le défaut que la moitié d'entre elles existent pour attraper ailleurs.
 > Chacune porte son motif et son histoire dans son propre en-tête ; c'est là qu'il faut lire.
-> `.github/workflows/repo-ci.yml` les rejoue toutes à chaque PR.
+> `.github/workflows/repo-ci.yml` les rejoue toutes à chaque PR — et `scripts/check-gardes-branchees.mjs`
+> le garde : jusqu'au 2026-11-03, cinq d'entre elles n'étaient jouées par aucun workflow.
 > [Ce bloc a cité deux gardes sur douze](docs/journal-des-corrections.md#j-03).
 
 ## Qui lance quoi — la règle des tests quand plusieurs agents travaillent
@@ -432,9 +433,6 @@ Direction retenue : **« Ancrage Local Contemporain »** — palette Lin (`--bac
 `--primary #a85332`, `--accent #5d6e4f`), typographie Bricolage/DM Sans, quatre variantes de cartes
 (Standard / Listing / Cover / Compact). Les primitives sont **shadcn style `base-nova` sur
 `@base-ui/react`** — il n'y a **aucune** dépendance Radix dans ce projet.
-
-⚠️ `docs/plans/routing-layouts-roles.md` prescrit une palette (« Takussan Heritage ») et une stack
-(Next 14, Tailwind v3) **entièrement révoquées**. Ne pas s'en servir.
 
 ## Workflows
 

@@ -2,8 +2,8 @@
 
 - **Statut** : Accepté
 - **Date de la décision** : 2026-08-21
-- **Spec** : [`docs/superpowers/specs/2026-08-21-migration-postgresql-design.md`](../superpowers/specs/2026-08-21-migration-postgresql-design.md)
-- **Plan** : [`docs/superpowers/plans/2026-08-21-migration-postgresql.md`](../superpowers/plans/2026-08-21-migration-postgresql.md)
+- **Spec** : [`docs/plans/2026-08-21-migration-postgresql-design.md`](../plans/2026-08-21-migration-postgresql-design.md)
+- **Plan** : [`docs/plans/2026-08-21-migration-postgresql.md`](../plans/2026-08-21-migration-postgresql.md)
 - **Dettes concernées** : D-04 (la production n'a jamais été déployée), D-44 (les ressources partagées par machine)
 
 ## Contexte

@@ -80,6 +80,8 @@ on:
       # `check-notification-codes` (TCK-588) compare l'enum `NotificationCode` (`app/**`), les
       # textes de l'API (`lang/**`) et ceux du front (`src/**`) : les trois doivent la déclencher.
       - 'takussan-api/lang/**'
+      # `check-mail-button-paths` lit `CHEMINS_DU_FRONT` dans ce test, hors de `app/**`.
+      - 'takussan-api/tests/Feature/Notifications/LiensDesCourrielsTest.php'
       # ADR-0028 : `check-queues` lit `deploy/takussan/compose.api.yml`, `check-heredocs` tout le
       # shell (dont `deploy/**` et `takussan-api/docker/**`), `check-front-env-keys` le Dockerfile
       # du front, et `test-release-reindex` lit `takussan-api/docker/`. Les deux côtés de chaque
@@ -198,6 +200,8 @@ on:
       # `check-notification-codes` (TCK-588) compare l'enum `NotificationCode` (`app/**`), les
       # textes de l'API (`lang/**`) et ceux du front (`src/**`) : les trois doivent la déclencher.
       - 'takussan-api/lang/**'
+      # `check-mail-button-paths` lit `CHEMINS_DU_FRONT` dans ce test, hors de `app/**`.
+      - 'takussan-api/tests/Feature/Notifications/LiensDesCourrielsTest.php'
       # ADR-0028 : `check-queues` lit `deploy/takussan/compose.api.yml`, `check-heredocs` tout le
       # shell (dont `deploy/**` et `takussan-api/docker/**`), `check-front-env-keys` le Dockerfile
       # du front, et `test-release-reindex` lit `takussan-api/docker/`. Les deux côtés de chaque
@@ -463,6 +467,24 @@ jobs:
         # TCK-597 — `/admin/reviews` et `/app/reviews` — et ADR-0064 en déplaçait six autres.
         # Déclenchée par `takussan-api/app/**` ET `takussan-web/src/**` : les deux côtés.
         run: node scripts/check-notification-target-paths.mjs --report
+
+      # ── Cinq gardes qui existaient sans qu'aucun workflow ne les joue (relevé du 2026-11-03).
+      # CLAUDE.md affirmait que Repo CI « les rejoue toutes » : c'était faux pour elles. Chacune
+      # porte son motif dans son propre en-tête ; elles étaient vertes en local le jour du branchement.
+      - name: Chaque bouton de courriel mène à une page du front (TCK-1245)
+        run: node scripts/check-mail-button-paths.mjs
+      - name: Le front nomme une personne par nomAffichable(), jamais en collant prénom et nom (TCK-2142)
+        run: node scripts/check-nom-affichable.mjs
+      - name: Une cible de notification d'administration déclare l'exigence de sa page (TCK-1763)
+        run: node scripts/check-notification-target-audience.mjs
+      - name: Chaque statut émis par l'API et traduit par un écran a sa clé au dictionnaire (TCK-2127)
+        run: node scripts/check-status-labels.mjs
+      - name: Chaque enum *Status de l'API a au front une union qui porte exactement ses cas (TCK-1834)
+        run: node scripts/check-status-unions.mjs
+      - name: Chaque garde scripts/check-*.mjs est jouée par un workflow
+        # Sans elle, les cinq gardes ci-dessus avaient dormi : une garde neuve s'écrit, passe en local,
+        # et personne ne la branche. Prouvé par ablation sur le repo-ci.yml d'avant (6 rouges).
+        run: node scripts/check-gardes-branchees.mjs
 
       - name: Tout appel du front a sa route dans l'API, verbe compris
         # Quatre routes absentes ont vécu dans le code (`PATCH /api/users/me`, `generate-schedule`,
