@@ -1,5 +1,13 @@
 # CDN Integration — TCK-105
 
+> 🛑 **Intégration CDN en sursis : le retrait du code est à faire, et aucun ticket ouvert ne le
+> porte** (relevé du 2026-11-03 : aucun ticket `todo`, `doing` ou `review` ne cite Bunny ni
+> `CdnProviderContract`). Le code est toujours là et toujours câblé : `app/Services/Media/Cdn/`
+> (Bunny, Cloudflare, `CdnUrlGenerator`, `CdnHealthGuard`), `AppServiceProvider.php:321-331`,
+> `SignMediaController`, `PurgeCdnCacheJob`, la sonde `cdn` de `HealthcheckService.php:160`.
+> Il reste inerte tant que `CDN_ENABLED` vaut `false` (`config/cdn.php:12`). ADR-0029 annonce ce
+> retrait comme « un ticket à part » (§ Conséquences) ; il n'est pas écrit.
+>
 > ⚠️ **HORS DU CHEMIN depuis le 2026-09-21 — [ADR-0029](../adr/0029-medias-sur-r2-servis-par-cloudflare-transformations.md).**
 > Les médias vivent dans deux seaux R2 par environnement ; les images publiques sont servies par le
 > domaine du seau public (`media-preview.takussan.com`, `media.takussan.com`) et transformées par
@@ -17,6 +25,11 @@
 > **avant** le front, l'inverse de ce qui s'est fait en préproduction (relevé dans TCK-541).
 
 ## Provider choice
+
+> ⚠️ **Caduc depuis [ADR-0029](../adr/0029-medias-sur-r2-servis-par-cloudflare-transformations.md)
+> (2026-09-21)**, qui « rend caduc le choix de Bunny comme CDN par défaut ». Les images publiques
+> passent par le domaine du seau R2 et Cloudflare Transformations, pas par ce code. Ce qui suit
+> décrit le défaut de `config/cdn.php:20`, jamais activé.
 
 **Default: Bunny CDN** (`CDN_PROVIDER=bunny`).
 
@@ -62,17 +75,15 @@ Bunny Token Authentication uses a single key per pull zone. To rotate without UR
 
 ## Secure collections
 
-Collections listed in `cdn.secure_collections` (default: `lease_documents`, `contract_documents`, `property_archived_photos`) always receive a time-limited signed URL regardless of whether the caller is authenticated. To add a collection:
+**`cdn.secure_collections` est VIDE depuis TCK-538** (`config/cdn.php:82` : `'secure_collections' => []`),
+et délibérément. La liste nommait `lease_documents`, `contract_documents` et `property_archived_photos` :
+trois collections qu'aucun modèle ne déclare, elle ne protégeait donc rien. `MediaUrlResolver.php:80`
+la lit encore, sans effet.
 
-```php
-// config/cdn.php
-'secure_collections' => [
-    'lease_documents',
-    'contract_documents',
-    'property_archived_photos',
-    'your_new_sensitive_collection',
-],
-```
+**Ne rien y ajouter.** Depuis ADR-0029 § 3, un fichier privé est protégé par son **disque** : toute
+collection non déclarée publique vit sur `media-library.disk_name`, que le CDN ne sert pas, et ne
+sort que par `App\Services\Media\PrivateMediaAccess`. Une collection sensible neuve se déclare
+donc simplement sans `useDisk(config('media-library.public_disk_name'))`.
 
 ---
 
