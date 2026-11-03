@@ -2,7 +2,7 @@
 
 - **Statut** : Accepté, **amendé le 2026-10-23** (cf. § *Amendement du 2026-10-23 — qui le locataire peut noter comme agent*)
 - **Date** : 2026-10-08
-- **Tickets** : [TCK-597](../backlog/tickets/TCK-597-avis-signalements-et-moderation.md)
+- **Tickets** : [TCK-597](../backlog/tickets/done/TCK-597-avis-signalements-et-moderation.md)
 - **Précise** : le principe non négociable n° 2 (« l'agence est la frontière d'isolation ») et
   [ADR-0031](0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md) (le personnel de
   l'agence).

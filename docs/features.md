@@ -512,7 +512,7 @@ Une **identité = un User**, qui peut porter plusieurs **profils métier** chez 
 
 #### Onboarding parcours
 
-Cartographie complète des parcours d'entrée dans le système (référence : `docs/superpowers/specs/2026-05-10-onboarding-discovery-design.md`). Tous les parcours d'invitation (Owner, Agent, AgencyAdmin, ServiceProvider, super-admin coopté) reposent sur un **pattern d'invitation unifié** (modèle `Invitation`, token signé, expiry 7j, rappel J+2). Les profils n'ont pas une machine à états commune : chacun a la sienne (enums `*ProfileStatus`). L'agent et le bailleur naissent `draft` à l'invitation, passent `active` à l'acceptation, et se suspendent (`suspended` pour l'agent, `blocked` pour le bailleur) ; le prestataire naît `draft` et passe `active` ; l'admin d'agence naît `active` et se suspend (`suspended`). Aucun profil n'a d'état `pending` ni `expired` : c'est l'invitation qui attend et qui expire. `inactive` (agent, bailleur, prestataire), `archived` (admin d'agence) et `suspended` du prestataire existent dans les enums sans qu'aucun chemin ne les pose (TCK-1703).
+Cartographie complète des parcours d'entrée dans le système (référence : `docs/plans/2026-05-10-onboarding-discovery-design.md`). Tous les parcours d'invitation (Owner, Agent, AgencyAdmin, ServiceProvider, super-admin coopté) reposent sur un **pattern d'invitation unifié** (modèle `Invitation`, token signé, expiry 7j, rappel J+2). Les profils n'ont pas une machine à états commune : chacun a la sienne (enums `*ProfileStatus`). L'agent et le bailleur naissent `draft` à l'invitation, passent `active` à l'acceptation, et se suspendent (`suspended` pour l'agent, `blocked` pour le bailleur) ; le prestataire naît `draft` et passe `active` ; l'admin d'agence naît `active` et se suspend (`suspended`). Aucun profil n'a d'état `pending` ni `expired` : c'est l'invitation qui attend et qui expire. `inactive` (agent, bailleur, prestataire), `archived` (admin d'agence) et `suspended` du prestataire existent dans les enums sans qu'aucun chemin ne les pose (TCK-1703).
 
 | Prio | Acteurs | Fonctionnalité |
 |------|---------|----------------|
@@ -583,7 +583,7 @@ Canal de notification **WhatsApp sortant** qui remplace certains SMS pour les fa
 - **Garantie de livraison** : si WhatsApp est inéligible (contact opted-out, hors fenêtre sans template approuvé) ou échoue durement, bascule **automatique vers SMS** (le SMS reste le filet de sécurité).
 - **Statuts** : les accusés Meta (delivered/read/failed) mettent à jour le suivi de livraison.
 
-**Hors périmètre de cette fonctionnalité** (tickets/specs ultérieurs) : OTP/2FA sur WhatsApp (flux d'authentification distinct, SMS reste secours obligatoire) et la **mise-en-relation inbound** WhatsApp (webhook entrant, deep links `wa.me`) — voir `docs/backlog/tickets/TCK-282-whatsapp-outbound-channel.md`. Le socle contact + fenêtre 24h (`whatsapp_contacts`) est partagé entre sortant et inbound.
+**Hors périmètre de cette fonctionnalité** (tickets/specs ultérieurs) : OTP/2FA sur WhatsApp (flux d'authentification distinct, SMS reste secours obligatoire) et la **mise-en-relation inbound** WhatsApp (webhook entrant, deep links `wa.me`) — voir `docs/backlog/tickets/done/TCK-282-whatsapp-outbound-channel.md`. Le socle contact + fenêtre 24h (`whatsapp_contacts`) est partagé entre sortant et inbound.
 
 ### 2.4 Recherche & filtres
 

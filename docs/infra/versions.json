@@ -102,13 +102,13 @@
       },
       "ci": {
         "valeur": "8.4",
-        "note": "`shivammathur/setup-php` dans `api-ci.yml`, deux jobs. Volontairement moins précis que `dev` : la CI prend le dernier correctif de la branche 8.4."
+        "note": "`shivammathur/setup-php` dans `api-ci.yml` (deux jobs, lignes 187 et 766) et `repo-ci.yml` (un job, ligne 300) — relu le 2026-11-03 ; la sonde `cle-yaml` balaie tous les workflows. Volontairement moins précis que `dev` : la CI prend le dernier correctif de la branche 8.4."
       },
       "prod": {
         "etat": "non_mesure",
         "valeur": null,
         "commande": "docker exec <conteneur api de production> php -v | head -1   # et : frankenphp version",
-        "pourquoi": "Depuis ADR-0028 (2026-09-13), PHP vient de l'image FrankenPHP épinglée par `ARG FRANKENPHP_TAG` dans `takussan-api/Dockerfile` ; construite en local le 2026-09-13, elle rend PHP 8.4.25 — une mesure d'IMAGE, pas de production. Une image déclarée n'est pas une image servie : la valeur se relève DANS le conteneur en marche, et se date — plan d'ADR-0028, tâche F5. L'ancienne borne de l'ardoise D-01 (≥ 8.4.1) décrivait un serveur réinstallé depuis."
+        "pourquoi": "Depuis ADR-0028 (2026-09-13), PHP vient de l'image FrankenPHP épinglée par `ARG FRANKENPHP_TAG` dans `takussan-api/Dockerfile` (`1.13.2-php8.4-bookworm` depuis `3ef44c271`, 2026-10-22, TCK-1305 ; la première image, du 2026-09-13, rendait 8.4.25). Relevé du 2026-10-22 sur la PRÉPRODUCTION, pas sur la production : `FrankenPHP v1.13.2 PHP 8.4.27` dans `api`, `worker`, `worker-media` et `scheduler` en marche (TCK-1305, relevé de clôture). Une image déclarée n'est pas une image servie, et une mesure de préproduction n'est pas une mesure de production : la valeur se relève DANS le conteneur de production en marche, et se date — plan d'ADR-0028, tâche F5. L'ancienne borne de l'ardoise D-01 (≥ 8.4.1) décrivait un serveur réinstallé depuis."
       }
     },
     "node": {
@@ -125,13 +125,13 @@
       },
       "ci": {
         "valeur": "24",
-        "note": "`actions/setup-node` dans `web-ci.yml` et `repo-ci.yml`. Les deux doivent rester d'accord : `repo-ci.yml` exécute les gardes, `web-ci.yml` construit le front."
+        "note": "`actions/setup-node` dans `web-ci.yml` (deux jobs), `api-ci.yml` (deux jobs) et `repo-ci.yml` (un job) — relu le 2026-11-03 ; la sonde `cle-yaml` balaie tous les workflows. Tous doivent rester d'accord : `repo-ci.yml` exécute les gardes, `web-ci.yml` construit le front, `api-ci.yml` y lance l'attestation de CI et la régénération nocturne de la carte d'impact."
       },
       "prod": {
         "etat": "non_mesure",
         "valeur": null,
         "commande": "docker exec <conteneur du front de production> node --version",
-        "pourquoi": "Depuis ADR-0028 (2026-09-13), le front est servi par une image `node:24-bookworm-slim` (`takussan-web/Dockerfile`) ; jusqu'à la phase F du plan, `www.takussan.com` reste servi par Vercel, dont le runtime ne se relève pas depuis le dépôt. Une image déclarée n'est pas une image servie : la valeur se relève DANS le conteneur en marche, et se date — plan d'ADR-0028, tâche F5."
+        "pourquoi": "Depuis ADR-0028 (2026-09-13), le front est servi par une image `node:24-bookworm-slim` (`takussan-web/Dockerfile`). Il n'existe aucun front de production : Vercel, qui servait `www.takussan.com`, a été supprimé (dernier déploiement le 2026-10-15), et `www.takussan.com` n'a plus d'enregistrement DNS (relevé du 2026-10-18, docs/infra/hebergement.md, « Ce qui sert quoi »). Une image déclarée n'est pas une image servie : la valeur se relève DANS le conteneur de production en marche, à partir de la phase F, et se date — plan d'ADR-0028, tâche F5."
       }
     },
     "postgres": {

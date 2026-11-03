@@ -2,7 +2,7 @@
 
 - **Statut** : Accepté, **amendé le 2026-10-23** (cf. § *Amendement du 2026-10-23 — le remboursement déjà sorti devient un `Payout` constaté*), **le 2026-10-24** (cf. § *Amendement du 2026-10-24 — la reprise au bailleur, le relevé lu par la copie, la pénalité de retard reversée*), **le 2026-10-25** (cf. § *Amendement du 2026-10-25 — la facture d'une intervention contestée ou annulée*) le même jour (cf. § *Amendement du 2026-10-25 — le relevé envoyé est conservé*) et encore le même jour (cf. § *Amendement du 2026-10-25 — l'échéance de caution, et la restitution bornée à la caution encaissée*)
 - **Date** : 2026-10-07
-- **Tickets** : [TCK-594](../backlog/tickets/TCK-594-sorties-d-argent-calculees-et-validees.md), [TCK-2270](../backlog/tickets/TCK-2270-facture-d-intervention-contestee-ou-annulee.md) (amendement du 2026-10-25), [TCK-2375](../backlog/tickets/TCK-2375-echeance-de-caution-et-restitution-bornee.md) (amendement du 2026-10-25 sur la caution)
+- **Tickets** : [TCK-594](../backlog/tickets/done/TCK-594-sorties-d-argent-calculees-et-validees.md), [TCK-2270](../backlog/tickets/done/TCK-2270-facture-d-intervention-contestee-ou-annulee.md) (amendement du 2026-10-25), [TCK-2375](../backlog/tickets/done/TCK-2375-echeance-de-caution-et-restitution-bornee.md) (amendement du 2026-10-25 sur la caution)
 - **Précise** : le principe non négociable n° 3 (« le montant est décimal en base, entier ×100 à la
   frontière du driver »), [ADR-0007](0007-pas-d-enum-sql.md) (pas d'`enum()` SQL) et
   [ADR-0031](0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md) (le bénéficiaire ne gère
@@ -886,7 +886,7 @@ Décision du porteur du 2026-10-25, sur les pistes P224.01 à P224.04 (angle 224
 `docs/plans/2026-10-15-pistes-d-amelioration.md`). Elle complète le § 8 : elle dit qui pose
 `cancelled` sur une facture de prestataire, et ce que devient une facture validée, payée ou imputée
 quand le travail qu'elle paie n'est plus rendu. Relu sur `pre-dev` b4d905cd3. Ticket :
-[TCK-2270](../backlog/tickets/TCK-2270-facture-d-intervention-contestee-ou-annulee.md).
+[TCK-2270](../backlog/tickets/done/TCK-2270-facture-d-intervention-contestee-ou-annulee.md).
 
 ### Constat
 
@@ -977,7 +977,7 @@ avis à l'agence, sinon.**
 
 Décision du porteur du 2026-10-25 sur P177.05 (`docs/plans/2026-10-15-pistes-d-amelioration.md`),
 option b de la re-vérification de la session. Elle complète le § 3 et le point 1 de l'amendement du
-2026-10-24. Relu sur b4d905cd3. Ticket : [TCK-2321](../backlog/tickets/TCK-2321-releve-de-gerance-envoye-conserve.md).
+2026-10-24. Relu sur b4d905cd3. Ticket : [TCK-2321](../backlog/tickets/done/TCK-2321-releve-de-gerance-envoye-conserve.md).
 
 ### Constat
 
@@ -1062,7 +1062,7 @@ table. Aucune reprise de données.
 Décision du porteur du 2026-10-25 sur la piste P04.10 (angle 4 de
 `docs/plans/2026-10-15-pistes-d-amelioration.md`), prise en deux temps. Elle précise le § 4, qui
 définit le restituable (`deposit_remaining`), et le sens d'une échéance de l'échéancier. Relu sur
-`pre-dev` 0553e6c38. Ticket : [TCK-2375](../backlog/tickets/TCK-2375-echeance-de-caution-et-restitution-bornee.md).
+`pre-dev` 0553e6c38. Ticket : [TCK-2375](../backlog/tickets/done/TCK-2375-echeance-de-caution-et-restitution-bornee.md).
 
 ### Constat
 

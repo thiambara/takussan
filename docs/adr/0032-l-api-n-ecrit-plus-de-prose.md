@@ -2,7 +2,7 @@
 
 - **Statut** : Accepté, **amendé le 2026-10-25** (cf. § *Amendement du 2026-10-25 — un compte non joignable ne reçoit que les avis de son compte, par tous les chemins*)
 - **Date** : 2026-10-07
-- **Tickets** : [TCK-588](../backlog/tickets/TCK-588-api-sans-prose-notifications-multicanal.md)
+- **Tickets** : [TCK-588](../backlog/tickets/done/TCK-588-api-sans-prose-notifications-multicanal.md)
 - **Étend** : [ADR-0019](0019-l-erreur-d-api-porte-un-code-pas-un-libelle.md) (« l'erreur d'API porte un code, la
   surface de rendu porte le texte »), qui ne visait que le front, à l'API Laravel. Amende
   `docs/models-spec.md` §12 (AppNotification) ; `/sync-specs` suit.
@@ -167,8 +167,8 @@ HTTP 403  { "code": "payout.landlord_not_in_agency", "message": "<errors.payout.
 
 ## Amendement du 2026-10-25 — un compte non joignable ne reçoit que les avis de son compte, par tous les chemins
 
-- **Ticket** : [TCK-2363](../backlog/tickets/TCK-2363-compte-bloque-sans-avis-par-tous-les-chemins.md)
-  (P239.01, décision du porteur du 2026-10-25). Prolonge [TCK-1350](../backlog/tickets/TCK-1350-compte-bloque-sans-notifications-metier.md) (P88.04).
+- **Ticket** : [TCK-2363](../backlog/tickets/done/TCK-2363-compte-bloque-sans-avis-par-tous-les-chemins.md)
+  (P239.01, décision du porteur du 2026-10-25). Prolonge [TCK-1350](../backlog/tickets/done/TCK-1350-compte-bloque-sans-notifications-metier.md) (P88.04).
 
 **Constat.** TCK-1350 a posé qu'un compte bloqué ou supprimé ne reçoit que les codes de son
 compte, mais la règle ne vivait que dans `NotificationService::send()` et `CodedNotification::via()`.

@@ -7,7 +7,7 @@ Mode impeccable : **Operate**. Rôle mesuré : `super_admin` (id 1). Port Chrome
 `$S/shots/h` (`$S` = scratchpad de la session). Ids réels : agence 1, utilisateur 1, demande d'upgrade 1
 (`pending`, la seule en base).
 
-Revue antérieure lue : `.impeccable/critique/2026-08-26T12-48-11Z__takussan-web-src-app-super-admin.md`
+Revue antérieure lue : `.impeccable/critique/2026-08-26T12-48-11Z__takussan-web-src-app-super-admin.md` (retirée du dépôt le 2026-11-03 : `git show a7b8f1942:.impeccable/critique/2026-08-26T12-48-11Z__takussan-web-src-app-super-admin.md`)
 (17/40). Ses P0 (trois vocabulaires de couleur, tables faites main) ont été traités depuis par
 TCK-357/358 (primitives `components/console`, garde `check-super-admin-tokens.mjs`) ; ses P1 (accueil
 en mur de nombres, files) par TCK-360. Cette passe vérifie ce qui en reste à l'écran.

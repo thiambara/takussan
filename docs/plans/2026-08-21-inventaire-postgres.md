@@ -1,7 +1,7 @@
 # Inventaire mesuré de la bascule PostgreSQL
 
 **Date : 2026-08-21.** Livrable de la tâche 4 du
-[plan](../superpowers/plans/2026-08-21-migration-postgresql.md) — celle qui ne corrige rien et
+[plan](2026-08-21-migration-postgresql.md) — celle qui ne corrige rien et
 produit le plan de travail des suivantes.
 
 > **Pourquoi ce document existe.** La spec interdisait d'estimer le volume de rouges : *« Toute

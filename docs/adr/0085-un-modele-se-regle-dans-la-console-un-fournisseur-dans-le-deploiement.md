@@ -4,9 +4,9 @@
   modalités des points 2 à 5 sont des **décisions de la session, à revoir par le porteur**. Le point 2 est amendé le
   2026-10-31 (fin de ce document), décision de la session, à revoir par le porteur.
 - **Date** : 2026-10-30
-- **Tickets** : [TCK-2448](../backlog/tickets/TCK-2448-catalogue-des-modeles-ia-en-console.md) (catalogue des
-  modèles), [TCK-2449](../backlog/tickets/TCK-2449-socle-ia-neutre-vis-a-vis-du-fournisseur.md) (neutralité du
-  socle), [TCK-2450](../backlog/tickets/TCK-2450-fournisseurs-ia-openai-openrouter-compatibles.md) (OpenAI, OpenRouter,
+- **Tickets** : [TCK-2448](../backlog/tickets/done/TCK-2448-catalogue-des-modeles-ia-en-console.md) (catalogue des
+  modèles), [TCK-2449](../backlog/tickets/done/TCK-2449-socle-ia-neutre-vis-a-vis-du-fournisseur.md) (neutralité du
+  socle), [TCK-2450](../backlog/tickets/done/TCK-2450-fournisseurs-ia-openai-openrouter-compatibles.md) (OpenAI, OpenRouter,
   points d'accès compatibles OpenAI)
 - **Amende** : [ADR-0076](0076-le-socle-ia.md) §2 et §3, et sa conséquence « changer de modèle ou de fournisseur ne
   demande ni commit ni déploiement »
@@ -118,9 +118,9 @@ configuration du déploiement : un commit, un déploiement, la mention dans la p
   - un plafond de classe de données par fournisseur ;
   - le rôle `embedding`, qui attendait son premier fournisseur : Voyage AI depuis TCK-2423 (ADR-0076, amendement du
     2026-10-31). La console ne mélange pas les fournisseurs de texte et d'embeddings.
-- **Coût** : cet ADR et trois tickets, [TCK-2448](../backlog/tickets/TCK-2448-catalogue-des-modeles-ia-en-console.md),
-  [TCK-2449](../backlog/tickets/TCK-2449-socle-ia-neutre-vis-a-vis-du-fournisseur.md) et
-  [TCK-2450](../backlog/tickets/TCK-2450-fournisseurs-ia-openai-openrouter-compatibles.md).
+- **Coût** : cet ADR et trois tickets, [TCK-2448](../backlog/tickets/done/TCK-2448-catalogue-des-modeles-ia-en-console.md),
+  [TCK-2449](../backlog/tickets/done/TCK-2449-socle-ia-neutre-vis-a-vis-du-fournisseur.md) et
+  [TCK-2450](../backlog/tickets/done/TCK-2450-fournisseurs-ia-openai-openrouter-compatibles.md).
 
 ## Application
 

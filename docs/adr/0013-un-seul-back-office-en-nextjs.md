@@ -12,7 +12,7 @@ deux surfaces : `/admin/*` (10 pages) pour l'admin d'agence sur **son** agence, 
 (26 pages) pour l'équipe Takussan sur **la plateforme**. C'est celle que `docs/features.md` décrit.
 
 La seconde était un panel **Filament v4** monté sur `/admin` du domaine de l'API — vestige du premier
-échafaudage (`docs/superpowers/plans/2026-04-16-mvp-implementation.md`, tâche 8, MVP-004), à une
+échafaudage (`docs/plans/2026-04-16-mvp-implementation.md`, tâche 8, MVP-004), à une
 époque où le front n'existait pas et où il fallait saisir des annonces à la main. Il n'a jamais
 grandi : **une seule Resource** (`Property`), six fichiers, aucun commit depuis quatre mois.
 
@@ -92,7 +92,7 @@ n'a aucun rapport). La suppression ne retire donc aucune couverture.
 
 ## Application
 
-- `docs/backlog/tickets/TCK-287-filament-supprimer-ou-securiser.md` — le ticket, dont l'intitulé
+- `docs/backlog/tickets/done/TCK-287-filament-supprimer-ou-securiser.md` — le ticket, dont l'intitulé
   portait la prémisse fausse.
 - `docs/ardoise.md` D-41 — le diagnostic d'origine, sa correction, puis son solde.
 - `takussan-api/CLAUDE.md`, section « Il n'y a pas de back-office PHP » — qui nomme aussi les trois

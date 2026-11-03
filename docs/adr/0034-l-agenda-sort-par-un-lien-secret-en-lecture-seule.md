@@ -2,7 +2,7 @@
 
 - **Statut** : Accepté
 - **Date** : 2026-10-07
-- **Tickets** : [TCK-591](../backlog/tickets/TCK-591-crm-agenda-agent-et-passation.md)
+- **Tickets** : [TCK-591](../backlog/tickets/done/TCK-591-crm-agenda-agent-et-passation.md)
 
 ## Contexte
 

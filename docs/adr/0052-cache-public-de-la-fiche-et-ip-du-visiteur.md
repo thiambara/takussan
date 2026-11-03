@@ -2,7 +2,7 @@
 
 - **Statut** : Accepté — § 5 amendé le 2026-10-20 (piste P73.01) : l'hôte des URL rendues par l'API ne vient plus de la requête
 - **Date** : 2026-10-08
-- **Tickets** : [TCK-598](../backlog/tickets/TCK-598-site-public-fiche-cachable-et-confiance.md)
+- **Tickets** : [TCK-598](../backlog/tickets/done/TCK-598-site-public-fiche-cachable-et-confiance.md)
 - **S'appuie sur** : [ADR-0026](0026-la-langue-est-un-segment-d-url-sur-la-surface-publique.md) (la
   langue est un segment d'URL), [ADR-0028](0028-auto-hebergement-conteneurise-sur-le-vps.md) (front et
   API en conteneurs sous Dokploy, `master` encore servie par Vercel jusqu'à la phase F).

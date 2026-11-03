@@ -3,8 +3,8 @@
 - **Statut** : Accepté, **amendé le 2026-10-24** (cf. § *Amendement du 2026-10-24 — la marque tombe au
   retrait et à l'effacement*)
 - **Date** : 2026-10-08
-- **Tickets** : [TCK-504](../backlog/tickets/TCK-504-agent-principal-choisi-plutot-que-deduit.md) ; consommé par
-  [TCK-603](../backlog/tickets/TCK-603-agent-responsable-bulk-assign-et-biens-a-la-passation.md)
+- **Tickets** : [TCK-504](../backlog/tickets/done/TCK-504-agent-principal-choisi-plutot-que-deduit.md) ; consommé par
+  [TCK-603](../backlog/tickets/done/TCK-603-agent-responsable-bulk-assign-et-biens-a-la-passation.md)
 - **Applique** : [ADR-0036](0036-l-agent-responsable-est-le-collaborateur-principal.md) (l'agent responsable est le
   collaborateur `agent` principal)
 

@@ -2,7 +2,7 @@
 
 - **Statut** : Accepté
 - **Date** : 2026-10-08
-- **Tickets** : [TCK-599](../backlog/tickets/TCK-599-alertes-de-recherche-et-favoris-qui-previennent.md)
+- **Tickets** : [TCK-599](../backlog/tickets/done/TCK-599-alertes-de-recherche-et-favoris-qui-previennent.md)
 - **Amende** : [ADR-0023](0023-recherche-geographique-par-distances-sans-postgis.md), chemin 3
   (« `SearchService` haversine — conservé, non convergé ») : les alertes convergent.
 - **Applique** : [ADR-0024](0024-recherche-publique-conjonctive-avec-repli-nomme.md) (régime

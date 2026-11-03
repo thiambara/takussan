@@ -4058,7 +4058,7 @@ d'exécution (`MEDIA_URL`, F3 étape 1) et non plus une valeur de build.* Mêmes
 - la copie nocturne de `takussan-prod-private`, vers `vps-sauvegardes/takussan-prod-private/` : **le
   mécanisme n'existe pas encore** (audit du 2026-11-01, P10). `sauvegarde-seau-prive.sh` n'a qu'un
   couple `SOURCE`/`CIBLE` et `bootstrap.sh` § 8 qu'une unité. Cette étape exige
-  [TCK-2458](../backlog/tickets/TCK-2458-copie-du-seau-prive-de-production.md), qui livre la seconde
+  [TCK-2458](../backlog/tickets/todo/TCK-2458-copie-du-seau-prive-de-production.md), qui livre la seconde
   unité et son timer, puis les active une fois le seau créé.
 
 Expected : un objet sonde déposé dans `takussan-prod-media` est servi `200` par

@@ -2,7 +2,7 @@
 
 - **Statut** : Accepté
 - **Date** : 2026-10-07
-- **Tickets** : [TCK-592](../backlog/tickets/TCK-592-maintenance-intervention-de-bout-en-bout.md)
+- **Tickets** : [TCK-592](../backlog/tickets/done/TCK-592-maintenance-intervention-de-bout-en-bout.md)
 - **Précise** : [ADR-0002](0002-role-est-un-profil-polymorphe.md) (le rôle est un profil polymorphe).
   Le profil `OwnerProfile` porte désormais une donnée du **contrat** entre le bailleur et l'agence, et
   plus seulement son identité de bailleur dans cette agence.

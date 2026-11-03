@@ -1,8 +1,8 @@
 # Textes juridiques
 
 Spec : [`docs/features.md` §2.10](../../../../docs/features.md#210-pages-légales-publiques) · tickets
-[TCK-531](../../../../docs/backlog/tickets/TCK-531-consentements-vers-des-pages-legales-absentes.md)
-et [TCK-537](../../../../docs/backlog/tickets/TCK-537-ecarts-entre-la-politique-de-confidentialite-et-le-code.md).
+[TCK-531](../../../../docs/backlog/tickets/done/TCK-531-consentements-vers-des-pages-legales-absentes.md)
+et [TCK-537](../../../../docs/backlog/tickets/todo/TCK-537-ecarts-entre-la-politique-de-confidentialite-et-le-code.md).
 
 | Document | Fichier | Page |
 |---|---|---|

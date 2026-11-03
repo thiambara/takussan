@@ -2,7 +2,7 @@
 
 - **Statut** : Accepté, **amendé le 2026-10-24** (cf. § *Amendement du 2026-10-24 — la pénalité de retard réglée est encaissée, les pénalités à recouvrer se comptent à part*)
 - **Date** : 2026-10-08
-- **Tickets** : [TCK-595](../backlog/tickets/TCK-595-tableaux-de-bord-justes-et-pilotage.md)
+- **Tickets** : [TCK-595](../backlog/tickets/done/TCK-595-tableaux-de-bord-justes-et-pilotage.md)
 - **Remplace en partie** : la reconstruction du bloc `trend` de `GET /api/admin/system/metrics`
   (TCK-360), qui recalculait certaines valeurs à J-30 depuis `created_at`.
 

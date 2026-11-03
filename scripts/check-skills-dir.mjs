@@ -6,8 +6,8 @@
  * ─── Le défaut qu'elle attrape a été réel, et il a duré trois mois ───────────────────────────
  *
  * Deux répertoires de compétences étaient suivis par git : `.agent/` (646 fichiers) et `.agents/`
- * (602 fichiers). Les quatre points d'entrée du dépôt — `.claude/commands/{implement,write}-spec.md`
- * et `.windsurf/workflows/{implement,write}-spec.md`, tous quatre relayés par `.agent/workflows/` —
+ * (602 fichiers). Les points d'entrée du dépôt — `.claude/commands/{implement,write}-spec.md`
+ * (et, jusqu'au 2026-11-03, `.windsurf/workflows/`), relayés par `.agent/workflows/` —
  * désignent `.agent/`. **Aucun fichier de ce dépôt ne référençait `.agents/`.** Personne ne le
  * chargeait, et rien ne le disait.
  *
@@ -81,8 +81,8 @@ const PREFIXES_FOURNISSEUR = ['bmad-', 'wds-'];
  * raison qu'elle n'en trouvait plus du tout — et les quatre points d'entrée pointaient dans le
  * vide sans que rien ne le dise.
  *
- * Ces deux noms-là sont écrits en dur parce que ce sont ceux que `.claude/commands/` et
- * `.windsurf/workflows/` citent nommément. Ils ne peuvent pas disparaître sans casser les points
+ * Ces deux noms-là sont écrits en dur parce que ce sont ceux que `.claude/commands/`
+ * cite nommément. Ils ne peuvent pas disparaître sans casser les points
  * d'entrée, donc les exiger ici ne crée aucune dette de maintenance.
  */
 const EXIGEES = ['implementing-specs', 'writing-specs'];
@@ -156,14 +156,14 @@ for (const c of parasites) {
 // ── Propriété 2 : non-vacuité ───────────────────────────────────────────────────────────────
 if (!existsSync(join(ROOT, CANONIQUE))) {
   erreurs.push(
-    `\`${CANONIQUE}/\` est introuvable — les quatre points d'entrée du dépôt pointent dans le vide.`,
+    `\`${CANONIQUE}/\` est introuvable — les points d'entrée du dépôt pointent dans le vide.`,
   );
 } else {
   for (const nom of EXIGEES) {
     if (!canoniques.some((c) => c.nom === nom)) {
       erreurs.push(
         `\`${CANONIQUE}/${nom}/SKILL.md\` est introuvable — `
-        + `\`.claude/commands/\` et \`.windsurf/workflows/\` le citent nommément.`,
+        + `\`.claude/commands/\` le cite nommément.`,
       );
     }
   }
