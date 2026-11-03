@@ -2,7 +2,7 @@
 
 - **Statut** : Accepté le 2026-10-30 par le porteur
 - **Date** : 2026-10-30
-- **Tickets** : [TCK-2414](../backlog/tickets/TCK-2414-radar-cle-dediee-des-empreintes-de-refus.md) ; suite hors Radar : [TCK-2430](../backlog/tickets/TCK-2430-empreintes-sous-app-key-hors-radar.md)
+- **Tickets** : [TCK-2414](../backlog/tickets/done/TCK-2414-radar-cle-dediee-des-empreintes-de-refus.md) ; suite hors Radar : [TCK-2430](../backlog/tickets/done/TCK-2430-empreintes-sous-app-key-hors-radar.md)
 - **Dépend de** : [ADR-0077](0077-le-radar.md) §9 (empreinte HMAC du refus conservée), [ADR-0044](0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md) (une empreinte HMAC se pose « sous une clé **distincte** d'`APP_KEY`, par ADR »)
 
 ## Contexte

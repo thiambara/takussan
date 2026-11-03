@@ -2,7 +2,7 @@
 
 > **Audience.** Backend devs wiring a Notification, ops setting up a new
 > agency, support investigating a delivery. The architecture is in
-> [`docs/backlog/tickets/TCK-102-sms-notifications-driver.md`](../backlog/tickets/TCK-102-sms-notifications-driver.md).
+> [`docs/backlog/tickets/done/TCK-102-sms-notifications-driver.md`](../backlog/tickets/done/TCK-102-sms-notifications-driver.md).
 
 ## Quick model
 

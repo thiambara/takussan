@@ -2,7 +2,7 @@
 
 - **Statut** : Accepté
 - **Date** : 2026-10-10
-- **Tickets** : [TCK-620](../backlog/tickets/TCK-620-code-sms-affiche-en-preproduction.md)
+- **Tickets** : [TCK-620](../backlog/tickets/done/TCK-620-code-sms-affiche-en-preproduction.md)
 - **Amende** : [ADR-0033](0033-le-telephone-verifie-est-un-identifiant-de-connexion.md) §5 (*« le code
   n'apparaît dans aucune réponse, dans aucun environnement »*) et §1 (*« l'allumage suit un envoi réel
   mesuré »*), **pour `local` et `staging` seulement**. La production n'est pas touchée.

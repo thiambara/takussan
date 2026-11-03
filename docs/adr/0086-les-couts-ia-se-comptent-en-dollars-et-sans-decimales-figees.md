@@ -2,7 +2,7 @@
 
 - **Statut** : Accepté le 2026-10-31 par le porteur.
 - **Date** : 2026-10-31
-- **Ticket** : [TCK-2448](../backlog/tickets/TCK-2448-catalogue-des-modeles-ia-en-console.md), qui change déjà le chemin des tarifs
+- **Ticket** : [TCK-2448](../backlog/tickets/done/TCK-2448-catalogue-des-modeles-ia-en-console.md), qui change déjà le chemin des tarifs
 - **Amende** : [ADR-0076](0076-le-socle-ia.md) (coût d'un appel et budgets) et [ADR-0085](0085-un-modele-se-regle-dans-la-console-un-fournisseur-dans-le-deploiement.md) point 1 (tarifs du catalogue)
 
 ## Contexte

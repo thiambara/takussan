@@ -1,6 +1,6 @@
 # TCK-500 — Plan d'implémentation
 
-> Le ticket est le contrat (`docs/backlog/tickets/TCK-500-brouillon-de-contact-et-chat-en-contexte.md`).
+> Le ticket est le contrat (`docs/backlog/tickets/done/TCK-500-brouillon-de-contact-et-chat-en-contexte.md`).
 > Ce plan est **temporaire** : il nomme les fichiers, ce que le ticket s'interdit de faire côté front.
 
 ## Ordre

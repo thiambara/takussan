@@ -2,8 +2,8 @@
 
 - **Statut** : Accepté
 - **Date** : 2026-10-30
-- **Tickets** : [TCK-2393](../backlog/tickets/TCK-2393-radar-annonceurs-et-observatoire.md)
-- **Dépend de** : [ADR-0077](0077-le-radar.md) (le Radar), [TCK-2392](../backlog/tickets/TCK-2392-radar-collecte-automatique.md) (la collecte automatique, ADR-0080)
+- **Tickets** : [TCK-2393](../backlog/tickets/done/TCK-2393-radar-annonceurs-et-observatoire.md)
+- **Dépend de** : [ADR-0077](0077-le-radar.md) (le Radar), [TCK-2392](../backlog/tickets/done/TCK-2392-radar-collecte-automatique.md) (la collecte automatique, ADR-0080)
 
 ## Contexte
 
@@ -81,7 +81,7 @@ toute la liste, ne l'ont pas revue.**
 
 ## Amendement — la question au titulaire (TCK-2432, 2026-10-30)
 
-[TCK-2432](../backlog/tickets/TCK-2432-radar-source-disparue-demander-au-titulaire.md) prolonge le §4 : l'alerte prévient
+[TCK-2432](../backlog/tickets/done/TCK-2432-radar-source-disparue-demander-au-titulaire.md) prolonge le §4 : l'alerte prévient
 l'équipe, **le titulaire du bien est en plus questionné**, et **rien n'est jamais retiré automatiquement**.
 
 1. **Qui, et quand.** Quand une disparition emporte la **dernière** source en ligne (`other_sources_online` à 0) d'un bien
@@ -123,7 +123,7 @@ purgée et non doublon, et le nombre de ces annonces — la définition de la se
   qui a dit STOP : le compte de J l'incluait, celui de J+1 non, et `do_not_contact_at` (gardé) donne le jour ; de même pour
   un annonceur lié à un compte, par les dates des fiches purgées. Un seuil k ne la ferme pas ; un grain plus gros (la
   semaine), un arrondi ou un bruit le pourraient, au prix de la justesse — à trancher avec l'avis juridique de
-  [TCK-2434](../backlog/tickets/TCK-2434-radar-compteurs-anonymes-de-marche.md), qui décide aussi de toute colonne de plus
+  [TCK-2434](../backlog/tickets/todo/TCK-2434-radar-compteurs-anonymes-de-marche.md), qui décide aussi de toute colonne de plus
   (site, ville).
 - **Éteint par défaut** (`radar.nature_counts.enabled`, `RADAR_NATURE_COUNTS=false`) : ni la commande ni la purge
   n'écrivent rien, et l'observatoire le dit. Le porteur ne l'allume qu'après l'avis juridique. Une panne du compteur ne

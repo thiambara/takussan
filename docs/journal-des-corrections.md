@@ -184,7 +184,7 @@ dépôt** et ignore les 166 de fournisseur.
 Le coût n'était pas le disque : Claude Code injecte le nom et la description de chaque compétence
 dans **chaque** session, soit **~3 800 tokens** mesurés, pour **0 invocation** de `bmad-*`/`wds-*`
 sur 19 sessions (quand `code-review` en compte 29). `.claude/skills/` a été retiré ; la copie
-`.windsurf/skills/` demeure.
+`.windsurf/skills/` demeurait — retirée à son tour, avec tout `.windsurf/`, le 2026-11-03.
 
 ### <a id="j-09"></a>J-09 — Les références de temps de la suite backend
 
@@ -426,7 +426,7 @@ let e = "https://api.takussan.com".replace(/\/api$/, ""), s = `${e}/api`
 ```
 
 Il y a donc un utilisateur exposé devant une API absente, ce que D-04 décrivait comme n'existant
-pas. C'est l'objet de [TCK-332](backlog/tickets/TCK-332-front-public-appelle-une-api-absente.md),
+pas. C'est l'objet de [TCK-332](backlog/tickets/todo/TCK-332-front-public-appelle-une-api-absente.md),
 et cela relève la priorité de TCK-288.
 
 > ⚠️ **Une mesure sans sa date devient une croyance.** Chaque affirmation ci-dessus porte sa

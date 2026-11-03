@@ -382,7 +382,7 @@ Email d'invitation déclenché par un `agency_admin` depuis l'écran "Équipe".
 
 ### 4.5 Agency Admin créé par super-admin 🛡️
 
-**→ Déjà ticketé : [TCK-209](../../backlog/tickets/TCK-209-super-admin-agency-onboarding.md)**
+**→ Déjà ticketé : [TCK-209](../../backlog/tickets/done/TCK-209-super-admin-agency-onboarding.md)**
 
 #### Résumé pour cohérence du doc
 - Trigger : super-admin remplit form "Créer une agence" depuis console super-admin

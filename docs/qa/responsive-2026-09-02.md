@@ -8,7 +8,7 @@
 >
 > **Ce document est un relevé, pas une opinion.** Chaque défaut porte la page, la largeur, le
 > chiffre et l'élément qui le rend. Ce qui n'a pas été mesuré est dit non mesuré. Le ticket qui
-> décide est [TCK-505](../backlog/tickets/TCK-505-responsive-onze-defauts-mesures-sur-135-ecrans.md) ;
+> décide est [TCK-505](../backlog/tickets/done/TCK-505-responsive-onze-defauts-mesures-sur-135-ecrans.md) ;
 > le plan est [`docs/plans/2026-09-02-tck-505-responsive-tablette-et-mobile.md`](../plans/2026-09-02-tck-505-responsive-tablette-et-mobile.md).
 
 ---

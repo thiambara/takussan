@@ -1386,7 +1386,7 @@ verifier() {
     if [ "$INSTANCES_IMPLEMENTEUR" -gt 1 ]; then
       local hors
       hors="$(git -C "$arbre" diff --name-only --diff-filter=A "$depart" HEAD -- docs/backlog/tickets \
-        | sed -nE 's#^docs/backlog/tickets/TCK-0*([0-9]+)-.*#\1#p' \
+        | sed -nE 's#^docs/backlog/tickets/([a-z]+/)?TCK-0*([0-9]+)-.*#\2#p' \
         | awk -v n="$INSTANCES_IMPLEMENTEUR" -v k="$INSTANCE" '($1 + 0) % n != k - 1 { printf "TCK-%s ", $1 }')"
       if [ -n "$hors" ]; then
         printf 'tickets hors de la classe de l'"'"'instance %s sur %s (numéro modulo %s = %s) : %s\n' \

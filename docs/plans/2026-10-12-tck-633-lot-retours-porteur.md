@@ -12,7 +12,7 @@ branche, sans conflit, chacun prouvé par ses tests et une vérification adverse
 éditent, la session principale commite par lot avec des pathspecs. Les décisions structurelles sont
 dans [ADR-0061](../adr/0061-credits-d-espace-et-boost-des-annonces.md) et
 [ADR-0062](../adr/0062-referentiel-geographique-region-ville-quartier.md) ; le delta et les AC dans
-[TCK-633](../backlog/tickets/TCK-633-lot-retours-porteur-publication-recherche-boost.md).
+[TCK-633](../backlog/tickets/done/TCK-633-lot-retours-porteur-publication-recherche-boost.md).
 
 **Pile :** Laravel 13 / PHP 8.4 / PostgreSQL 17 / Meilisearch (Scout) — Next.js 16 / React 19 /
 TypeScript 5 / Tailwind 4 / next-intl / `@base-ui/react` / vitest.

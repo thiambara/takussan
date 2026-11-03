@@ -4,7 +4,7 @@
   du 2026-10-24 — l'effacement du dernier administrateur* et § *Amendement du 2026-10-25 — le titre
   d'administrateur principal ne se transmet par aucun geste*)
 - **Date** : 2026-10-08
-- **Tickets** : [TCK-600](../backlog/tickets/TCK-600-console-plateforme-gouvernance-et-exploitation.md)
+- **Tickets** : [TCK-600](../backlog/tickets/done/TCK-600-console-plateforme-gouvernance-et-exploitation.md)
 
 ## Contexte
 
@@ -309,7 +309,7 @@ Décision du porteur du 2026-10-24 sur P204.02, option b (angle 204 du fichier d
 Décision du porteur du 2026-10-25 sur P225.05 (angle 225 du fichier de pistes,
 `docs/plans/2026-10-15-pistes-d-amelioration.md`) : « aucun geste neuf de transmission du titre ;
 la limite est écrite dans ADR-0048 ». Prise avec P225.04 et P225.06, livrées par le même ticket
-([TCK-2311](../backlog/tickets/TCK-2311-titre-d-administrateur-principal.md)). Relevé sur
+([TCK-2311](../backlog/tickets/done/TCK-2311-titre-d-administrateur-principal.md)). Relevé sur
 `b4d905cd3`.
 
 **Constat.**

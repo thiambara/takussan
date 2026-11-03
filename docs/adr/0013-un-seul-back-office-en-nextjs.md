@@ -92,7 +92,7 @@ n'a aucun rapport). La suppression ne retire donc aucune couverture.
 
 ## Application
 
-- `docs/backlog/tickets/TCK-287-filament-supprimer-ou-securiser.md` — le ticket, dont l'intitulé
+- `docs/backlog/tickets/done/TCK-287-filament-supprimer-ou-securiser.md` — le ticket, dont l'intitulé
   portait la prémisse fausse.
 - `docs/ardoise.md` D-41 — le diagnostic d'origine, sa correction, puis son solde.
 - `takussan-api/CLAUDE.md`, section « Il n'y a pas de back-office PHP » — qui nomme aussi les trois

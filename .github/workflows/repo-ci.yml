@@ -1020,7 +1020,7 @@ jobs:
         # de quoi que ce soit qui la mesure. Un pointeur mort ne se signale jamais tout seul.
         #
         # ⚠ La garde est HONNÊTE SUR SON PÉRIMÈTRE et l'imprime : les documents NORMATIFS, pas tout
-        # `docs/`. Les 269 chemins morts de `_archive/INDEX-manuel-2026-08-12.md` et ceux des
+        # `docs/`. Les 269 chemins morts de `_archive/INDEX-manuel-2026-08-12.md` (retiré le 2026-11-03) et ceux des
         # `sync-passes/` sont des FAITS D'HISTOIRE dans des archives gelées à dessein — les
         # « corriger » falsifierait la pièce. Une garde qu'on ne peut pas rendre verte n'est pas
         # une garde, c'est un bandeau d'avertissement de plus.
@@ -1071,6 +1071,14 @@ jobs:
         # elle, le journal le montre. (`--report` ajoute de la sortie, il ne désarme pas la
         # garde : le script sort toujours en 1 sur une incohérence.)
         run: node docs/backlog/check-backlog.mjs --report
+
+      - name: Les tickets sont rangés par statut, et aucun lien ne vise un ancien emplacement
+        # Le dossier d'un ticket (`tickets/<status>/`) est DÉRIVÉ de son frontmatter. Un ticket passé
+        # `done` sans être déplacé ment à quiconque ouvre `todo/` ; un ticket déplacé sans réécriture
+        # laisse un pointeur mort dans les ADR, les plans et les tickets qui le citent. La garde rejoue
+        # le rangement à blanc et rougit s'il changerait quoi que ce soit — le correctif est la même
+        # commande sans `--check`.
+        run: node docs/backlog/ranger-tickets.mjs --check
 
       - name: Les versions d'infrastructure disent la vérité, y compris sur ce qu'on ignore
         # Même famille que `check-db-engine`, un cran plus haut : celle-ci garde TOUTES les versions

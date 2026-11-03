@@ -8,7 +8,7 @@
 
 **Tech Stack:** Laravel 13, PHP 8.3, Laravel Scout ^11.1, Meilisearch, `spatie/laravel-query-builder`, PHPUnit.
 
-**Ticket:** `docs/backlog/tickets/TCK-281-search-internal-entities-meilisearch.md` (status `doing`).
+**Ticket:** `docs/backlog/tickets/done/TCK-281-search-internal-entities-meilisearch.md` (status `doing`).
 
 **Reference implementation:** TCK-280 — `Property` model (`app/Models/Property.php` lines 23/31/141-236), `config/scout.php` `meilisearch.index-settings`, `tests/Concerns/InteractsWithMeilisearch.php`, `tests/Feature/Public/PropertySearchTest.php`.
 
@@ -720,7 +720,7 @@ EOF
 
 **Files:**
 - Modify: `docs/configuration.md` (§3.6 — search)
-- Modify: `docs/backlog/tickets/TCK-281-search-internal-entities-meilisearch.md` (Notes d'implémentation, status)
+- Modify: `docs/backlog/tickets/done/TCK-281-search-internal-entities-meilisearch.md` (Notes d'implémentation, status)
 - Modify: `docs/backlog/INDEX.md` (Doing → Review)
 
 **Step 1: Document the new searchable models**
@@ -768,7 +768,7 @@ In `docs/backlog/INDEX.md`, move the `TCK-281` bullet from `## 🚧 Doing` to `#
 
 ```bash
 ./vendor/bin/pint
-git add docs/configuration.md docs/backlog/tickets/TCK-281-search-internal-entities-meilisearch.md docs/backlog/INDEX.md
+git add docs/configuration.md docs/backlog/tickets/done/TCK-281-search-internal-entities-meilisearch.md docs/backlog/INDEX.md
 git commit -m "$(cat <<'EOF'
 docs(api): document internal-entity reindex + close TCK-281
 

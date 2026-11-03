@@ -2,7 +2,7 @@
 
 - **Statut** : Accepté
 - **Date** : 2026-10-30
-- **Tickets** : [TCK-2392](../backlog/tickets/TCK-2392-radar-collecte-automatique.md) (lot 2 du [plan Radar et socle IA](../plans/2026-10-26-radar-et-socle-ia.md)) ; suites : [TCK-2423](../backlog/tickets/TCK-2423-radar-pilote-d-embeddings.md), [TCK-2424](../backlog/tickets/TCK-2424-radar-adaptateurs-supplementaires.md), [TCK-2425](../backlog/tickets/TCK-2425-radar-collecteur-navigateur.md), [TCK-2434](../backlog/tickets/TCK-2434-radar-compteurs-anonymes-de-marche.md) ; amendement : [TCK-2438](../backlog/tickets/TCK-2438-radar-urls-de-depart-en-console.md)
+- **Tickets** : [TCK-2392](../backlog/tickets/done/TCK-2392-radar-collecte-automatique.md) (lot 2 du [plan Radar et socle IA](../plans/2026-10-26-radar-et-socle-ia.md)) ; suites : [TCK-2423](../backlog/tickets/done/TCK-2423-radar-pilote-d-embeddings.md), [TCK-2424](../backlog/tickets/todo/TCK-2424-radar-adaptateurs-supplementaires.md), [TCK-2425](../backlog/tickets/todo/TCK-2425-radar-collecteur-navigateur.md), [TCK-2434](../backlog/tickets/todo/TCK-2434-radar-compteurs-anonymes-de-marche.md) ; amendement : [TCK-2438](../backlog/tickets/done/TCK-2438-radar-urls-de-depart-en-console.md)
 - **Amende** : [ADR-0077](0077-le-radar.md) (§ 9 la purge, § 10 la collecte, et la conséquence « la décision reste humaine » sur les doublons)
 - **Dépend de** : [ADR-0076](0076-le-socle-ia.md) (le socle IA), [ADR-0078](0078-une-connexion-de-file-pour-les-jobs-longs.md) (la file longue)
 
@@ -51,7 +51,7 @@ réversible et éteinte par défaut. La purge supprime les instantanés de l'ann
    ou d'un annonceur qui a dit STOP n'est ni observée ni comptée par un passage (ADR-0077 § 9).
 
 4. **La purge supprime les instantanés ; un historique de marché au-delà de la rétention passera par
-   des compteurs anonymes agrégés, [TCK-2434](../backlog/tickets/TCK-2434-radar-compteurs-anonymes-de-marche.md),
+   des compteurs anonymes agrégés, [TCK-2434](../backlog/tickets/todo/TCK-2434-radar-compteurs-anonymes-de-marche.md),
    à valider juridiquement.** Quelle que soit la raison de la purge (STOP, révocation,
    `do_not_contact` ou 90 jours), les instantanés de l'annonce sont supprimés, et la fiche purgée
    oublie `discovered_by_run_id`. `radar_listing_snapshots.radar_listing_id` reste obligatoire, en
@@ -118,7 +118,7 @@ réversible et éteinte par défaut. La purge supprime les instantanés de l'ann
 
 ## Amendement — les URL de départ se règlent dans la console (TCK-2438, 2026-10-30)
 
-[TCK-2438](../backlog/tickets/TCK-2438-radar-urls-de-depart-en-console.md) applique la décision A7 du porteur (« configurable
+[TCK-2438](../backlog/tickets/done/TCK-2438-radar-urls-de-depart-en-console.md) applique la décision A7 du porteur (« configurable
 dans les paramètres »). Il prolonge le §2. Jusque-là, chaque site partait d'**une** URL figée dans
 `config('radar.crawl.sites.<site>.start_url')`.
 

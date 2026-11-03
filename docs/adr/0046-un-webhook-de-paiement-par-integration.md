@@ -2,8 +2,8 @@
 
 - **Statut** : Accepté
 - **Date** : 2026-10-08
-- **Tickets** : [TCK-293](../backlog/tickets/TCK-293-webhook-paiement-scope-agence.md) ; lu par
-  [TCK-602](../backlog/tickets/TCK-602-paiement-sans-compte-journal-webhooks.md)
+- **Tickets** : [TCK-293](../backlog/tickets/done/TCK-293-webhook-paiement-scope-agence.md) ; lu par
+  [TCK-602](../backlog/tickets/done/TCK-602-paiement-sans-compte-journal-webhooks.md)
 
 ## Contexte
 

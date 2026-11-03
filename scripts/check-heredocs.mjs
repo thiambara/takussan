@@ -52,7 +52,7 @@ const REPORT = process.argv.includes('--report');
  * Et ce balayage-là était encore une liste déguisée : `scripts/*.sh` et `dev.sh`. ADR-0028 a
  * déplacé le shell qui écrit en root sous `/etc` de `scripts/server-setup.sh` vers
  * `deploy/server/bootstrap.sh` : il lui aurait échappé. D'où TOUT le shell du dépôt, par un
- * balayage récursif. Les répertoires cachés (`.git`, `.windsurf`…) et les dépendances sont exclus.
+ * balayage récursif. Les répertoires cachés (`.git`, `.claude`…) et les dépendances sont exclus.
  */
 function shDuDepot(dir = ROOT, acc = []) {
   for (const e of readdirSync(dir, { withFileTypes: true })) {

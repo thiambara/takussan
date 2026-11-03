@@ -5,7 +5,7 @@
   l'accès suit l'appartenance*, et § *Amendement du 2026-10-25 — le contact d'un bail ou d'une
   réservation est une fiche de l'agence du bien*)
 - **Date** : 2026-10-07
-- **Tickets** : [TCK-587](../backlog/tickets/TCK-587-cloisonnement-bailleurs-capacites-jamais-lues.md)
+- **Tickets** : [TCK-587](../backlog/tickets/done/TCK-587-cloisonnement-bailleurs-capacites-jamais-lues.md)
 - **Précise** : le principe non négociable n° 2 (« l'agence est la frontière d'isolation »),
   [ADR-0002](0002-role-est-un-profil-polymorphe.md) et [ADR-0003](0003-capacites-enum-code-defined.md).
 
@@ -517,7 +517,7 @@ Un autre lot implémente D4 et cite cet amendement.
 
 ### Application de l'amendement
 
-- D1 : [TCK-2275](../backlog/tickets/TCK-2275-colonne-de-bailleur-chez-tous-ses-lecteurs.md).
+- D1 : [TCK-2275](../backlog/tickets/done/TCK-2275-colonne-de-bailleur-chez-tous-ses-lecteurs.md).
   Les sites sont `BailleurDuBien::agences()`, `PortfolioScope` et `PortfolioMetrics`,
   `DashboardOwnerService::summary`, `DashboardRoleResolver`, `ExportDataService::scopeToActor`,
   `DataExportBuilder` (`leases.json`), `AccountDeletionService::collectOpenObligations`, ainsi que
@@ -525,7 +525,7 @@ Un autre lot implémente D4 et cite cet amendement.
   `ColonneDeBailleurAgentCreateurTest` : agent créateur actif, suspendu et retiré, avec pour
   témoins le particulier, l'hôte `individual`, le bailleur bloqué, le bailleur de B agent suspendu
   de A, et le locataire.
-- D2 : [TCK-2290](../backlog/tickets/TCK-2290-demandeur-et-deposant-encore-membres.md). Le
+- D2 : [TCK-2290](../backlog/tickets/done/TCK-2290-demandeur-et-deposant-encore-membres.md). Le
   demandeur est jugé par `MaintenanceRequestPolicy::isRequester` (lu par `view`,
   `respondToResolution` et `actorsOf`) et par `MaintenanceRequest::scopeVisibleTo`, sur
   `MembershipCapabilityResolver::agencesDuPersonnelParti` : les agences où il a tenu un profil
@@ -534,7 +534,7 @@ Un autre lot implémente D4 et cite cet amendement.
   un profil. `BasePolicy::auteurEncoreMembre` est publique et statique, pour
   `AgencyUpgradeRequestPolicy::revoke`, qui n'hérite pas de `BasePolicy`. Les tests sont
   `DemandeurEncoreMembreTest` et `DeposantEncoreMembreTest`.
-- D3 : [TCK-2295](../backlog/tickets/TCK-2295-documents-et-messagerie-suivent-l-appartenance.md).
+- D3 : [TCK-2295](../backlog/tickets/done/TCK-2295-documents-et-messagerie-suivent-l-appartenance.md).
   Le relevé par sonde a précédé le code. Il a mesuré l'agent actif, suspendu et retiré sur les
   quatre colonnes, et chaque lecteur légitime : le client du tunnel, le locataire et le client qui
   ont joint une pièce, le bailleur bloqué, l'agent sur les pièces de son propre profil. Seuls quatre
@@ -559,7 +559,7 @@ Un autre lot implémente D4 et cite cet amendement.
   la règle : ce sont les propres téléversements de l'utilisateur, l'archive relevant de l'angle 247.
   `agencyOf`, nul pour un état des lieux, reste tel quel pour `landlordWrites`. Le test est
   `AuteurDuDocumentEncoreMembreTest`.
-- D4 : [TCK-2295](../backlog/tickets/TCK-2295-documents-et-messagerie-suivent-l-appartenance.md).
+- D4 : [TCK-2295](../backlog/tickets/done/TCK-2295-documents-et-messagerie-suivent-l-appartenance.md).
   `whereNull(deleted_at)` porte sur les trois jointures `customers` de la règle 2 de
   `MessagingReach`, écrit dans son docblock et dans `docs/features.md` (§ 1.7). Le test est
   `FicheClientSupprimeeLienCrmTest`.

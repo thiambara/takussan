@@ -29,7 +29,7 @@ peut les trouver : ils vivent dans l'écart entre ce que le dépôt déclare et 
 
 **D-49 à D-52, ajoutés le 2026-08-15, sont l'exact inverse** : ils étaient dans `app/`, lisibles,
 depuis des mois — et personne ne les avait vus parce qu'aucun test ne passait par là. Ils ont tous
-les quatre été trouvés **en écrivant les tests de [TCK-285](backlog/tickets/TCK-285-couverture-tests-services-policies.md)**,
+les quatre été trouvés **en écrivant les tests de [TCK-285](backlog/tickets/done/TCK-285-couverture-tests-services-policies.md)**,
 pas en les lisant. *Un chemin que rien n'exécute n'est pas du code peu testé : c'est du code dont
 personne ne sait s'il marche.*
 
@@ -126,7 +126,7 @@ démarrer**. Sur une installation neuve suivie à la lettre, l'application ne bo
 **Preuve** : `docs/infra/deploy-preview.html` (ligne `apt install`) confrontée aux `require` de
 `composer.lock`.
 
-### D-04 — La production de l'API n'a jamais SERVI — et depuis le 2026-08-15 ce n'est plus faute d'avoir essayé 🔴 → [TCK-288](backlog/tickets/TCK-288-chaine-de-deploiement-master-fige.md) · [TCK-332](backlog/tickets/TCK-332-front-public-appelle-une-api-absente.md)
+### D-04 — La production de l'API n'a jamais SERVI — et depuis le 2026-08-15 ce n'est plus faute d'avoir essayé 🔴 → [TCK-288](backlog/tickets/todo/TCK-288-chaine-de-deploiement-master-fige.md) · [TCK-332](backlog/tickets/todo/TCK-332-front-public-appelle-une-api-absente.md)
 
 > ## 2026-09-13 — [ADR-0028](adr/0028-auto-hebergement-conteneurise-sur-le-vps.md) REMPLACE LA CHAÎNE QUE CETTE ENTRÉE DÉCRIT
 >
@@ -369,7 +369,7 @@ déploiement — et la procédure de dump pré-déploiement doit exister avant q
 
 ---
 
-### D-49 — Deux webhooks entrants sur cinq ne vérifient AUCUNE signature 🟠 *question tranchée le 2026-08-16 — les opérateurs n'en proposent pas* → [TCK-294](backlog/tickets/TCK-294-mtarget-api-pulling-dlr.md) · [TCK-296](backlog/tickets/TCK-296-cles-env-gardes-webhook.md)
+### D-49 — Deux webhooks entrants sur cinq ne vérifient AUCUNE signature 🟠 *question tranchée le 2026-08-16 — les opérateurs n'en proposent pas* → [TCK-294](backlog/tickets/done/TCK-294-mtarget-api-pulling-dlr.md) · [TCK-296](backlog/tickets/done/TCK-296-cles-env-gardes-webhook.md)
 
 > **RÉPONSE DES OPÉRATEURS, obtenue le 2026-08-16. La question ouverte plus bas est CLOSE :**
 > **ni l'API SMS globale d'Orange ni celle de Mtarget n'émettent de signature.** Le constat n'était
@@ -382,7 +382,7 @@ déploiement — et la procédure de dump pré-déploiement doit exister avant q
 > - **Mtarget** — recommande de **ne pas exposer de webhook public non signé** et de basculer sur son
 >   **API Pulling DLR / MO** : c'est notre serveur qui interroge périodiquement Mtarget en
 >   s'authentifiant avec nos jetons d'API. Le sens du flux s'inverse, et la question de la signature
->   disparaît avec lui. → [TCK-294](backlog/tickets/TCK-294-mtarget-api-pulling-dlr.md)
+>   disparaît avec lui. → [TCK-294](backlog/tickets/done/TCK-294-mtarget-api-pulling-dlr.md)
 >
 > **Ce que nous faisons déjà, et qui est correct.** `RestrictIpMiddleware` applique la liste blanche,
 > **échoue fermé en production** (`abort(403)` si la liste est vide, pour qu'une variable oubliée ne
@@ -396,7 +396,7 @@ déploiement — et la procédure de dump pré-déploiement doit exister avant q
 > accusés de livraison en 403**, sans erreur bruyante côté Takussan. Les statuts d'envoi ne
 > remonteraient jamais, et le diagnostic partirait du mauvais côté — on chercherait un défaut d'envoi
 > là où c'est la réception qui est fermée. ~~À porter au runbook de
-> [TCK-288](backlog/tickets/TCK-288-chaine-de-deploiement-master-fige.md).~~ Porté le 2026-10-20 à la
+> [TCK-288](backlog/tickets/todo/TCK-288-chaine-de-deploiement-master-fige.md).~~ Porté le 2026-10-20 à la
 > table de la tâche F3 du plan d'auto-hébergement, avec la vérification après déploiement (P71.04) :
 > TCK-288 décrivait l'ancienne chaîne de déploiement.
 >
@@ -444,8 +444,8 @@ parce qu'il dispense le lecteur de vérifier.
 `.env.prod`. `check-env-parity.mjs` ne peut rien garder ici : il compare deux fichiers, et la clé
 manque **des deux côtés**. Les gardes échouant fermé (jeton vide → 404, allowlist vide → 403), les
 webhooks SMS et WhatsApp seront simplement **muets** au premier déploiement, sans erreur bruyante.
-→ [TCK-296](backlog/tickets/TCK-296-cles-env-gardes-webhook.md), qui **bloque** désormais
-[TCK-288](backlog/tickets/TCK-288-chaine-de-deploiement-master-fige.md).
+→ [TCK-296](backlog/tickets/done/TCK-296-cles-env-gardes-webhook.md), qui **bloque** désormais
+[TCK-288](backlog/tickets/todo/TCK-288-chaine-de-deploiement-master-fige.md).
 
 > **Requalifié le 2026-08-16.** Cette ligne renvoyait le sujet à la mise en production. C'était une
 > erreur de rattachement : les six clés manquent **dans le dépôt**, et rien n'oblige à toucher au
@@ -458,7 +458,7 @@ webhooks SMS et WhatsApp seront simplement **muets** au premier déploiement, sa
 
 ---
 
-### D-50 — Le webhook de paiement accepte le secret de N'IMPORTE QUELLE agence ✅ *soldé côté dépôt le 2026-10-08* → [TCK-293](backlog/tickets/TCK-293-webhook-paiement-scope-agence.md)
+### D-50 — Le webhook de paiement accepte le secret de N'IMPORTE QUELLE agence ✅ *soldé côté dépôt le 2026-10-08* → [TCK-293](backlog/tickets/done/TCK-293-webhook-paiement-scope-agence.md)
 
 > **Soldé côté dépôt le 2026-10-08 par TCK-293**, arbitrage du porteur : une URL de webhook par
 > intégration ([ADR-0046](adr/0046-un-webhook-de-paiement-par-integration.md)). Le jeton de l'URL
@@ -715,7 +715,7 @@ Corollaire : un développeur sans Meilisearch **ne peut pas lancer la suite du t
 
 **Correctif** : poser `SCOUT_PREFIX=testing_` dans `phpunit.xml`.
 
-### D-09 — Aucune version d'infrastructure n'est figée ✅ *soldé le 2026-08-16* → [TCK-298](backlog/tickets/TCK-298-versions-infra-production-non-epinglees.md)
+### D-09 — Aucune version d'infrastructure n'est figée ✅ *soldé le 2026-08-16* → [TCK-298](backlog/tickets/done/TCK-298-versions-infra-production-non-epinglees.md)
 
 > **Périmètre réduit à la production, re-mesuré le 2026-08-16.** Le développement et la CI sont
 > désormais épinglés des deux côtés (`mysql:8.0`, `getmeili/meilisearch:v1.16`, `redis:8-alpine`,
@@ -745,7 +745,7 @@ Trois environnements, trois piles différentes, aucune épinglée. `docker-compo
 la moitié dev (MySQL 8.0 aligné sur la production **mesurée**, Meilisearch v1.16 alignée sur la CI,
 Redis 8) — la production, elle, reste posée par `apt` sans version épinglée dans le dépôt.
 
-### D-10 — Le déploiement du frontend est entièrement hors dépôt ✅ *REQUALIFIÉE et partiellement soldée le 2026-08-20 — l'ignorance est levée, l'extériorité est ASSUMÉE, et deux conséquences restent ouvertes* → [TCK-299](backlog/tickets/TCK-299-deploiement-frontend-hors-depot.md) · [TCK-332](backlog/tickets/TCK-332-front-public-appelle-une-api-absente.md) · [TCK-333](backlog/tickets/TCK-333-vercel-sans-filtre-de-chemins.md)
+### D-10 — Le déploiement du frontend est entièrement hors dépôt ✅ *REQUALIFIÉE et partiellement soldée le 2026-08-20 — l'ignorance est levée, l'extériorité est ASSUMÉE, et deux conséquences restent ouvertes* → [TCK-299](backlog/tickets/done/TCK-299-deploiement-frontend-hors-depot.md) · [TCK-332](backlog/tickets/todo/TCK-332-front-public-appelle-une-api-absente.md) · [TCK-333](backlog/tickets/obsolete/TCK-333-vercel-sans-filtre-de-chemins.md)
 
 > **2026-09-13 — [ADR-0028](adr/0028-auto-hebergement-conteneurise-sur-le-vps.md) remplace
 > [ADR-0017](adr/0017-deploiement-du-front-pilote-par-vercel.md) : le déploiement du front revient
@@ -802,7 +802,7 @@ Redis 8) — la production, elle, reste posée par `apt` sans version épinglée
 > le relevé `frontend-deploiement.md` + son relevé JSON, et
 > `.github/workflows/front-deploy-map.yml` (qui vérifie et ne déploie rien) — tous trois retirés par TCK-860.
 
-**❌ Ce que cette mesure a découvert au passage, et qui n'est PAS soldé — P0 → [TCK-332](backlog/tickets/TCK-332-front-public-appelle-une-api-absente.md).**
+**❌ Ce que cette mesure a découvert au passage, et qui n'est PAS soldé — P0 → [TCK-332](backlog/tickets/todo/TCK-332-front-public-appelle-une-api-absente.md).**
 Le front de production est en ligne, **public**, et son bundle porte
 `NEXT_PUBLIC_API_URL = https://api.takussan.com` — un hôte qui rend **404**. Re-mesuré le
 2026-08-20 :
@@ -817,14 +817,14 @@ $ curl -s -o /dev/null -w '%{http_code}' https://preview.api.takussan.com/up →
 D-04 décrivait une production jamais déployée **sans utilisateur exposé**. Il y en a un. Cela ne
 change pas le périmètre de TCK-299, cela change la **priorité de TCK-288**.
 
-**❌ Reste ouvert, plus petit — P3 → [TCK-333](backlog/tickets/TCK-333-vercel-sans-filtre-de-chemins.md).**
+**❌ Reste ouvert, plus petit — P3 → [TCK-333](backlog/tickets/obsolete/TCK-333-vercel-sans-filtre-de-chemins.md).**
 L'intégration Vercel n'a aucun filtre de chemins : `6f38de67`, qui ne touche qu'un fichier de
 `docs/backlog/`, a produit le déploiement Preview `6001431629`. Chaque commit de documentation
 reconstruit donc le front entier. Correctif : un `ignoreCommand` dans `takussan-web/vercel.json`,
 hors périmètre de TCK-299 — et ADR-0017 explique pourquoi ce fichier ne doit *pas* naître pour une
 autre raison que celle-là.
 
-### D-11 — Le guide de déploiement contredit les `.env` réellement livrés ✅ *soldé le 2026-08-16* → [TCK-300](backlog/tickets/TCK-300-guides-deploiement-contredisent-env-livres.md)
+### D-11 — Le guide de déploiement contredit les `.env` réellement livrés ✅ *soldé le 2026-08-16* → [TCK-300](backlog/tickets/done/TCK-300-guides-deploiement-contredisent-env-livres.md)
 
 > **Re-mesuré, et le SENS de l'écart était l'inverse.** Cette entrée supposait « les guides
 > prescrivent, les `.env` s'en écartent ». Mesuré : ce sont les **guides** qui décrivent un état
@@ -1020,7 +1020,7 @@ même ensemble et aux mêmes lignes qu'en CI.
 `gh run list --branch dev --workflow "API CI"` → succès au 2026-08-15 (le rouge vient bien de la
 branche) · exécution de la suite avec et sans les quatre clés dans `.env`.
 
-### D-48 — Le `.env` de développement vise les services natifs, jamais les conteneurs du dépôt 🟠 *dette d'ONBOARDING, pas de dépôt — mesurée le 2026-08-15, rendue VISIBLE le 2026-08-16 (TCK-301)* → [TCK-301](backlog/tickets/TCK-301-pieges-muets-environnement-developpement.md)
+### D-48 — Le `.env` de développement vise les services natifs, jamais les conteneurs du dépôt 🟠 *dette d'ONBOARDING, pas de dépôt — mesurée le 2026-08-15, rendue VISIBLE le 2026-08-16 (TCK-301)* → [TCK-301](backlog/tickets/done/TCK-301-pieges-muets-environnement-developpement.md)
 
 `takussan-api/.env` est **ignoré par git**. Cette entrée ne décrit donc pas un fichier du dépôt à
 corriger, mais **l'écart entre ce que le dépôt provisionne et ce que la machine de développement
@@ -1082,7 +1082,7 @@ possible est de l'afficher au démarrage.
 
 ---
 
-### D-57 — Le front servi sur `127.0.0.1` ne s'hydratait pas, et rien ne le disait ✅ *mesurée le 2026-08-17 (vérification navigateur de TCK-279), soldée le 2026-08-20* → [TCK-328](backlog/tickets/TCK-328-front-servi-sur-127-0-0-1-ne-s-hydrate-pas.md)
+### D-57 — Le front servi sur `127.0.0.1` ne s'hydratait pas, et rien ne le disait ✅ *mesurée le 2026-08-17 (vérification navigateur de TCK-279), soldée le 2026-08-20* → [TCK-328](backlog/tickets/done/TCK-328-front-servi-sur-127-0-0-1-ne-s-hydrate-pas.md)
 
 Next 16 bloque par défaut ses ressources de développement (`/_next/*`, `/__nextjs*`) quand la page
 est servie depuis un hôte absent d'`allowedDevOrigins`, dont la valeur par défaut ne contient que
@@ -1139,7 +1139,7 @@ versionné. D-48 vivait dans un fichier ignoré par git et ne pouvait qu'être a
 
 ---
 
-### D-55 — Le bump TypeScript 7 reste bloqué EN AMONT par `typescript-eslint` 🟡 *mesuré le 2026-08-16, re-mesuré le 2026-08-17 (TCK-323)* → [TCK-323](backlog/tickets/TCK-323-typescript-7-casse-le-cliquet-i18n.md)
+### D-55 — Le bump TypeScript 7 reste bloqué EN AMONT par `typescript-eslint` 🟡 *mesuré le 2026-08-16, re-mesuré le 2026-08-17 (TCK-323)* → [TCK-323](backlog/tickets/done/TCK-323-typescript-7-casse-le-cliquet-i18n.md)
 
 **Ce qui est soldé, et ce qui ne l'est pas.** TCK-323 a rendu la garde i18n indépendante de
 TypeScript : `scripts/i18n-scan.mjs` n'importe plus `typescript`, ses 21 tests passent sous 5 comme
@@ -1240,7 +1240,7 @@ depuis TCK-129.
 
 Le ton impératif est ce qui rend ce document dangereux : il ne se présente pas comme une piste.
 
-### D-18 — `docs/models-spec.md` ignore 16 modèles existants ✅ *soldé le 2026-08-16* → [TCK-310](backlog/tickets/TCK-310-models-spec-16-modeles-absents.md)
+### D-18 — `docs/models-spec.md` ignore 16 modèles existants ✅ *soldé le 2026-08-16* → [TCK-310](backlog/tickets/done/TCK-310-models-spec-16-modeles-absents.md)
 
 > **Soldé le 2026-08-16 par TCK-310, et gardé.** Les 16 modèles sont documentés d'après le code et
 > les migrations, et `scripts/check-models-spec.mjs` casse désormais la Repo CI si un modèle de
@@ -1278,7 +1278,7 @@ non appliquées »). **Re-mesuré le 2026-08-16 : six l'étaient déjà** ; la s
 `ConversationType`, cas `support` manquant) a été appliquée, et R4 s'est révélée **sans objet** — elle
 demandait une contrainte sur une colonne `bank_statements.reference_number` qui n'a jamais existé.
 
-### D-19 — Cinq documents cités n'existent pas ✅ *soldé le 2026-08-16* → [TCK-311](backlog/tickets/TCK-311-documents-perimes-et-pointeur-mort.md)
+### D-19 — Cinq documents cités n'existent pas ✅ *soldé le 2026-08-16* → [TCK-311](backlog/tickets/done/TCK-311-documents-perimes-et-pointeur-mort.md)
 
 > **Soldé, et surtout MESURÉ EN CONTINU désormais.** Le dernier pointeur mort —
 > `docs/claude-code-prompt-notifications.md`, cité par `models-spec.md:673` — a été retiré. Le <!-- lien-mort-assumé -->
@@ -1292,7 +1292,7 @@ demandait une contrainte sur une colonne `bank_statements.reference_number` qui 
 > `repo-ci.yml` casse dessus. Il a trouvé son premier défaut réel dans le commit qui l'introduit :
 > le déplacement de `seeding-plan.md` cassait une citation de `configuration.md`.
 >
-> Périmètre assumé : les archives (`docs/backlog/_archive/**`, `docs/sync-passes/**`) en sont
+> Périmètre assumé : les archives (`docs/backlog/_archive/**` — retiré le 2026-11-03 —, `docs/sync-passes/**`) en sont
 > exclues — elles portent 269 chemins morts à elles seules, et ce sont des **faits d'histoire**
 > dans des pièces gelées à dessein. Une ligne qui nomme délibérément un fichier absent se déclare
 > par `<!-- lien-mort-assumé -->` ; il y en a 6, toutes dans cette ardoise.
@@ -1313,11 +1313,14 @@ un chemin cité pendant des semaines qui n'existait pas.
 
 ### D-20 — Deux backlogs concurrents, sans arbitrage ✅ *arbitré le 2026-08-12*
 
-> **Arbitré** : `docs/backlog-mvp/index.md` porte un bandeau qui dit que la stratégie n'a pas été
+> **Arbitré** : `docs/backlog-mvp/index.md` porte un bandeau qui dit que la stratégie n'a pas été <!-- lien-mort-assumé : dossier retiré le 2026-11-03 (`git show f0304c613:docs/backlog-mvp/index.md`) -->
 > suivie, et ses 12 tickets passent `obsolete`. L'agrégat des `todo` sur `docs/` rend désormais 3,
 > et non 15. Le raisonnement produit — WhatsApp d'abord, entrée sans authentification — est
 > explicitement conservé : ce sont des arbitrages de marché, ils n'ont pas vieilli comme les
 > tickets.
+>
+> **Retiré le 2026-11-03** : `docs/backlog-mvp/` quitte le dépôt (les 12 tickets étaient `obsolete`
+> depuis l'arbitrage). Il se relit dans l'historique git, au commit `f0304c613`.
 
 
 `docs/backlog/` (265 tickets) et `docs/backlog-mvp/` (12 tickets, stratégie « vertical slice / zero
@@ -1473,7 +1476,7 @@ cent fois trop peu. Classé P0 malgré son apparence documentaire.
 implémentations restent d'accord.** Une règle d'autorisation rendue à deux endroits et tenue à un
 seul est le motif le plus tenace de ce genre de duplication.
 
-### D-24 — La règle « le front possède le texte affiché » est une intention 🟢 *quasi soldée le 2026-08-22 — 0 occurrence non justifiée ; restent une décision produit et une relecture wolof* → [TCK-286](backlog/tickets/TCK-286-i18n-textes-en-dur.md) · [TCK-292](backlog/tickets/TCK-292-i18n-reste-du-parc.md) · [TCK-347](backlog/tickets/TCK-347-formatage-nombres-et-dates-suit-la-locale.md)
+### D-24 — La règle « le front possède le texte affiché » est une intention 🟢 *quasi soldée le 2026-08-22 — 0 occurrence non justifiée ; restent une décision produit et une relecture wolof* → [TCK-286](backlog/tickets/done/TCK-286-i18n-textes-en-dur.md) · [TCK-292](backlog/tickets/done/TCK-292-i18n-reste-du-parc.md) · [TCK-347](backlog/tickets/todo/TCK-347-formatage-nombres-et-dates-suit-la-locale.md)
 
 > ## État au 2026-08-22 — la règle est devenue un état, à deux réserves près
 >
@@ -1527,7 +1530,7 @@ d'authentification — 193 occurrences déplacées, en `fr`, `en` ET `wo`.
 (`` `Bonjour ${nom}` ``) et les props de composants maison hors whitelist. Son total est un
 **plancher**, jamais un inventaire.
 
-### D-25 — Divers documents périmés ✅ *soldé le 2026-08-16* → [TCK-311](backlog/tickets/TCK-311-documents-perimes-et-pointeur-mort.md)
+### D-25 — Divers documents périmés ✅ *soldé le 2026-08-16* → [TCK-311](backlog/tickets/done/TCK-311-documents-perimes-et-pointeur-mort.md)
 
 > **Soldé — et deux lignes de l'inventaire ci-dessous étaient fausses**, ce qui est le vrai
 > enseignement : *un inventaire se re-mesure avant d'être utilisé, jamais lu.*
@@ -1625,7 +1628,7 @@ les étapes 7 et 19 prescrivent `node docs/backlog/gen-index.mjs`, et le fichier
 encadré qui **date sa propre erreur** et tranche le conflit à l'avance : *« si cette section
 contredit le code, le code gagne et ce fichier est le bug ».*
 
-### D-46 — Deux répertoires de compétences concurrents, `.agent/` et `.agents/` ✅ *soldé le 2026-08-16* → [TCK-303](backlog/tickets/TCK-303-arbitrer-agent-vs-agents.md)
+### D-46 — Deux répertoires de compétences concurrents, `.agent/` et `.agents/` ✅ *soldé le 2026-08-16* → [TCK-303](backlog/tickets/done/TCK-303-arbitrer-agent-vs-agents.md)
 
 > **Cette entrée a été RE-MESURÉE le 2026-08-16 avant d'être soldée, et elle se contredisait
 > elle-même.** Son tableau ci-dessous décrivait une divergence « en croix » — chacun juste là où
@@ -1759,7 +1762,7 @@ divergents (D-14) : *un mensonge qui attend son lecteur.*
 
 ## 🟡 Couverture de tests
 
-> **Les quatre entrées de cette section sont couvertes par [TCK-285](backlog/tickets/TCK-285-couverture-tests-services-policies.md)**, qui les ordonne par coût d'un défaut plutôt que par volume : policies d'abord (isolation multi-agence), puis webhooks (surfaces non authentifiées), puis commandes destructrices, puis services.
+> **Les quatre entrées de cette section sont couvertes par [TCK-285](backlog/tickets/done/TCK-285-couverture-tests-services-policies.md)**, qui les ordonne par coût d'un défaut plutôt que par volume : policies d'abord (isolation multi-agence), puis webhooks (surfaces non authentifiées), puis commandes destructrices, puis services.
 
 > ### ⚠ D-26 à D-29 étaient FAUX — mesurés le 2026-08-15, corrigés ci-dessous
 >
@@ -1793,7 +1796,7 @@ divergents (D-14) : *un mensonge qui attend son lecteur.*
 rougissent sous charge, et « au repos » n'était écrit nulle part) — mais la couverture est très
 inégale, et les trous sont concentrés là où ça compte.
 
-### D-26 — La couche services est le trou principal ✅ ❌ *chiffre faux, corrigé le 2026-08-15 — le trou réel livré par [TCK-285](backlog/tickets/TCK-285-couverture-tests-services-policies.md), le code mort par [TCK-307](backlog/tickets/TCK-307-supprimer-dsl-scopefilter-mort.md)*
+### D-26 — La couche services est le trou principal ✅ ❌ *chiffre faux, corrigé le 2026-08-15 — le trou réel livré par [TCK-285](backlog/tickets/done/TCK-285-couverture-tests-services-policies.md), le code mort par [TCK-307](backlog/tickets/done/TCK-307-supprimer-dsl-scopefilter-mort.md)*
 
 > **Le trou annoncé n'existe pas là où il était annoncé.** La couche services est à **~83 % de
 > lignes exécutées**. Le « 81 des 148 services jamais nommés » venait d'un grep de nom de classe :
@@ -1806,7 +1809,7 @@ inégale, et les trous sont concentrés là où ça compte.
 > existe toujours, toujours sans appelant. Le constat était juste, la conclusion aussi, et rien ne
 > s'est produit — *une dette nommée dans un document n'est pas une dette prise en charge.*
 >
-> ✅ **Supprimé le 2026-08-17** par [TCK-307](backlog/tickets/TCK-307-supprimer-dsl-scopefilter-mort.md).
+> ✅ **Supprimé le 2026-08-17** par [TCK-307](backlog/tickets/done/TCK-307-supprimer-dsl-scopefilter-mort.md).
 > L'inventaire a couvert le dépôt entier — pas seulement `app/` — et les résolutions par conteneur,
 > injections par type et références en chaîne : **la classe n'était nommée nulle part sauf dans sa
 > propre déclaration.** Elle n'apparaît même pas dans `tests/impact-map.json`, ce qui confirme le
@@ -1823,14 +1826,14 @@ inégale, et les trous sont concentrés là où ça compte.
 le cœur métier : `BookingService`, `PropertyService`, `LeasePaymentService`, `InvoiceService`,
 `PayoutService`, `InventoryService`.
 
-### D-27 — L'autorisation est très peu testée directement ✅ ❌ *chiffre faux, corrigé le 2026-08-15 — chemins de refus livrés par [TCK-285](backlog/tickets/TCK-285-couverture-tests-services-policies.md), `WizardDraftPolicy` morte traitée par [TCK-307](backlog/tickets/TCK-307-supprimer-dsl-scopefilter-mort.md)*
+### D-27 — L'autorisation est très peu testée directement ✅ ❌ *chiffre faux, corrigé le 2026-08-15 — chemins de refus livrés par [TCK-285](backlog/tickets/done/TCK-285-couverture-tests-services-policies.md), `WizardDraftPolicy` morte traitée par [TCK-307](backlog/tickets/done/TCK-307-supprimer-dsl-scopefilter-mort.md)*
 
 > **Les 16 policies sont exécutées, sauf une.** Mesuré : seule `WizardDraftPolicy` est à 0 — et
 > parce que `WizardDraftController` ne l'appelle **jamais** (il filtre par
 > `where('user_id', …)`). C'est une policy morte enregistrée par auto-discovery, pas une policy non
 > testée : lui écrire un test serait écrire un test qui ne garde rien.
 >
-> ✅ **Supprimée le 2026-08-17** par [TCK-307](backlog/tickets/TCK-307-supprimer-dsl-scopefilter-mort.md).
+> ✅ **Supprimée le 2026-08-17** par [TCK-307](backlog/tickets/done/TCK-307-supprimer-dsl-scopefilter-mort.md).
 > L'inventaire a cherché les `Gate::allows()`/`Gate::authorize()`/`can()` qui l'auraient atteinte
 > **sans la nommer** — l'auto-discovery rend ce cas possible : zéro. Le choix « supprimer ou
 > câbler » a été tranché en faveur de la suppression, et le motif décisif n'est pas la redondance
@@ -1852,7 +1855,7 @@ le cœur métier : `BookingService`, `PropertyService`, `LeasePaymentService`, `
 `PropertyModerationPolicy`. Sur un produit multi-tenant où l'agence est la frontière d'isolation,
 c'est la couche dont un défaut est le plus coûteux et le moins visible.
 
-### D-28 — Les effets asynchrones et planifiés sont quasi non testés ✅ ❌ *chiffre faux, corrigé le 2026-08-15 — le vrai trou (`ProcessRoleDelegationsJob`) livré par [TCK-285](backlog/tickets/TCK-285-couverture-tests-services-policies.md)*
+### D-28 — Les effets asynchrones et planifiés sont quasi non testés ✅ ❌ *chiffre faux, corrigé le 2026-08-15 — le vrai trou (`ProcessRoleDelegationsJob`) livré par [TCK-285](backlog/tickets/done/TCK-285-couverture-tests-services-policies.md)*
 
 > **Les 12 observers sur 12 sont exécutés**, et les **trois commandes citées comme irréversibles
 > non testées le sont toutes les trois** : `MediaCleanupTest` existe depuis le 2026-04-21,
@@ -1868,7 +1871,7 @@ c'est la couche dont un défaut est le plus coûteux et le moins visible.
 les commandes non testées : des opérations **destructrices ou irréversibles**
 (`ExecuteScheduledAccountDeletions`, `PurgeOldWizardDrafts`, `MediaCleanup`).
 
-### D-29 — 78 routes sur 517 n'ont aucun littéral d'URI dans les tests ✅ ❌ *chiffre faux (~20, pas 78), corrigé le 2026-08-15 — routes coûteuses livrées par [TCK-285](backlog/tickets/TCK-285-couverture-tests-services-policies.md)*
+### D-29 — 78 routes sur 517 n'ont aucun littéral d'URI dans les tests ✅ ❌ *chiffre faux (~20, pas 78), corrigé le 2026-08-15 — routes coûteuses livrées par [TCK-285](backlog/tickets/done/TCK-285-couverture-tests-services-policies.md)*
 
 > **Le trou est de ~20 routes applicatives, pas de 78.** Recompté en croisant
 > `php artisan route:list --json` avec l'ensemble des sources de `tests/` : sur 517 routes, 36
@@ -1889,7 +1892,7 @@ Concentrées sur la console super-admin (20 routes `/api/admin`) et **les webhoo
 Un webhook est une surface d'entrée non authentifiée pilotée par un tiers : c'est le pire endroit où
 ne pas avoir de test.
 
-### D-30bis — Quatre tests front rougissent sous charge ✅ *découvert le 2026-08-12, mesuré et soldé le 2026-08-16* → [TCK-312](backlog/tickets/TCK-312-tests-front-rougissent-sous-charge.md)
+### D-30bis — Quatre tests front rougissent sous charge ✅ *découvert le 2026-08-12, mesuré et soldé le 2026-08-16* → [TCK-312](backlog/tickets/done/TCK-312-tests-front-rougissent-sous-charge.md)
 
 Mesuré en lançant les suites back et front **simultanément** : quatre tests de la console
 super-admin (`InviteSuperAdminModal`, `AgencyOnboardingDialog`, `FeatureFlags`, `TemplateEditor`)
@@ -1928,7 +1931,7 @@ mesurer leur marge réelle : un test à 12 % de son plafond n'a pas le même pro
 > même charge ; et avec lui, une vraie régression (mock rendu muet) échoue toujours en **1310 ms**
 > par le délai propre de `waitFor` — non touché — au lieu d'attendre le plafond.
 
-### D-30ter — Le délai propre de `waitFor`/`findBy` est le même défaut, un étage plus bas 🟡 *découvert le 2026-08-16* → [TCK-313](backlog/tickets/TCK-313-delai-waitfor-rtl-tendu-sous-charge.md)
+### D-30ter — Le délai propre de `waitFor`/`findBy` est le même défaut, un étage plus bas 🟡 *découvert le 2026-08-16* → [TCK-313](backlog/tickets/done/TCK-313-delai-waitfor-rtl-tendu-sous-charge.md)
 
 Trouvé **en vérifiant D-30bis**, et laissé hors de son périmètre à dessein.
 
@@ -2036,7 +2039,7 @@ charge, intersection non vide mais ensembles distincts) · `tests/Concerns/Inter
 > pour ce qui est mergé sur `dev` » est juste ; elle n'a de valeur que si l'on va **regarder** ce
 > qui est mergé sur `dev`.
 
-### D-30 — Aucune mesure de couverture, aucune parallélisation ✅ *couverture SOLDÉE le 2026-08-16 ; parallélisation MESURÉE SUR LE RUNNER le 2026-08-18 (TCK-324) — gain réel ×2,48, décision de NE PAS activer, motivée* → [TCK-302](backlog/tickets/TCK-302-couverture-non-mesuree-suite-non-parallelisee.md) · [TCK-324](backlog/tickets/TCK-324-mesurer-parallel-sur-le-runner-ci.md)
+### D-30 — Aucune mesure de couverture, aucune parallélisation ✅ *couverture SOLDÉE le 2026-08-16 ; parallélisation MESURÉE SUR LE RUNNER le 2026-08-18 (TCK-324) — gain réel ×2,48, décision de NE PAS activer, motivée* → [TCK-302](backlog/tickets/done/TCK-302-couverture-non-mesuree-suite-non-parallelisee.md) · [TCK-324](backlog/tickets/done/TCK-324-mesurer-parallel-sur-le-runner-ci.md)
 
 > **Confirmé le 2026-08-16** : `coverage: none` apparaît **deux fois** dans `api-ci.yml` (lignes 42
 > et 192), et `--parallel` n'est configuré nulle part. Le temps de référence à retenir est
@@ -2105,7 +2108,7 @@ aucun test, un pilote de couverture y coûterait son installation pour ne rien m
 occurrences n'étaient pas le même défaut.
 
 > ⚠️ **Ce que le seuil ne garde pas.** Une méthode traversée sans assertion compte pour couverte.
-> [TCK-285](backlog/tickets/TCK-285-couverture-tests-services-policies.md) a trouvé quatre défauts en
+> [TCK-285](backlog/tickets/done/TCK-285-couverture-tests-services-policies.md) a trouvé quatre défauts en
 > **écrivant** les tests, aucun en mesurant leur couverture. Le cliquet empêche la descente ; il ne
 > monte rien et ne prouve rien.
 
@@ -2147,7 +2150,7 @@ deux familles qui n'appellent pas le même travail.
    qu'il **passe** dans la suite complète séquentielle (deux exécutions indépendantes). Ce test ne
    passe donc que grâce à l'**ordre** de la suite, et ParaTest, en redistribuant les tests entre
    workers, casse cet ordre accidentel. Le trou est réel et préexiste :
-   [TCK-314](backlog/tickets/TCK-314-test-recherche-dependant-de-l-ordre.md).
+   [TCK-314](backlog/tickets/done/TCK-314-test-recherche-dependant-de-l-ordre.md).
 
 > *Le rouge n'a rien coûté : il a payé.* Éprouver `--parallel` a mis au jour un test vert qui ne
 > prouvait rien, sur une règle métier — « un bien `is_test` n'atteint jamais la surface publique » —
@@ -2289,7 +2292,7 @@ n'est pas prise, l'activation en CI reste une option ouverte, pas une décision 
 > pourrait alors paralléliser et rendre son verdict en 83 s au lieu de 206. C'est un ticket à
 > ouvrir le jour où le temps de retour de PR devient le sujet ; il ne l'est pas aujourd'hui.
 
-### D-56 — Deux exécutions `--parallel` simultanées se cassent l'une l'autre ✅ *SOLDÉE le 2026-08-22 — trois causes successives, cinq paires vertes sur la suite entière* → [TCK-322](backlog/tickets/TCK-322-paratest-deux-executions-simultanees.md) · [TCK-334](backlog/tickets/TCK-334-meilisearch-file-partagee-par-machine.md)
+### D-56 — Deux exécutions `--parallel` simultanées se cassent l'une l'autre ✅ *SOLDÉE le 2026-08-22 — trois causes successives, cinq paires vertes sur la suite entière* → [TCK-322](backlog/tickets/done/TCK-322-paratest-deux-executions-simultanees.md) · [TCK-334](backlog/tickets/done/TCK-334-meilisearch-file-partagee-par-machine.md)
 
 > ## ✅ Soldée le 2026-08-22 — et c'est l'entrée la plus instructive de cette ardoise
 >
@@ -2477,20 +2480,20 @@ pour le code neuf** ; l'existant reste à converger.
 
 | # | Dette | Mesure — **2026-08-16** | Tranché pour le neuf | Ticket |
 |---|---|---|---|---|
-| **D-31** | Enveloppe de pagination dupliquée à la main | ✅ **soldé le 2026-08-17** (TCK-304) — **57 contrôleurs + 1 service** convergés vers le point canonique unique ; gardé par `scripts/check-pagination-envelope.mjs`, **4 mutations rouges**. `takussan-web/src/types/api.ts` corrigé (`links` rendu optionnel) : suite front 888 tests, 0 échec. | les 4 clés canoniques | [TCK-304](backlog/tickets/TCK-304-enveloppe-pagination-dupliquee.md) |
-| **D-32** | Validation inline vs FormRequest | ✅ **soldé le 2026-08-17** (TCK-305) — **121 sites** convergés vers `BaseFormRequest` ; gardé par `scripts/check-inline-validation.mjs` (165 contrôleurs balayés, **0 validation en ligne**, 199 FormRequest), **5 mutations rouges**. ⚠ La convergence inversait **403 → 422 sur 67 instructions / 65 méthodes** — corrigé en portant l'autorisation dans `authorize()`, et **épinglé par 18 tests** dont l'ablation rend bien 422. | `BaseFormRequest` | [TCK-305](backlog/tickets/TCK-305-validation-inline-vers-formrequest.md) |
-| **D-33** | Policy vs helpers de contrôleur | ✅ **soldé le 2026-08-17** (TCK-306) — **25 contrôleurs / 88 appels** rattachés à leurs policies ; gardé par `scripts/check-controller-authorization.mjs`, **6 mutations rouges**. ⚠ **19 helpers restent hors périmètre**, comptés et bloqués contre toute addition — ticket de suite. | policy | [TCK-306](backlog/tickets/TCK-306-autorisation-controleurs-vers-policies.md) |
-| **D-34** | ~~Deux mécanismes de filtrage concurrents~~ → **code mort toujours branché** | ✅ **soldé le 2026-08-17** — `scopeFilter` supprimé de `BaseModelTrait`, avec `PropertyService` et `WizardDraftPolicy` (même famille). L'inventaire a couvert le dépôt entier et les invocations dynamiques : **0 appelant** hors du test qui le testait. `scripts/check-filtering-single-mechanism.mjs` (Repo CI) garde la suppression **y compris sous un autre nom**. Le jumeau `scopeWithSearch()` a suivi le 2026-08-20 (TCK-326, cf. D-34bis), et `BaseModelTrait` a disparu avec lui | `buildQuery()` pour toute API | [TCK-307](backlog/tickets/TCK-307-supprimer-dsl-scopefilter-mort.md) |
-| **D-34bis** | ~~`scopeWithSearch()` — le jumeau non traité de D-34~~ | ✅ **soldé le 2026-08-20** (TCK-326) — `scopeWithSearch` ET son helper `isSearchable` supprimés ; `BaseModelTrait`, devenu vide, supprimé avec son fichier ; `AbstractModel` = `Model` + `HasQueryBuilder`. **Ré-inventaire du dépôt entier avant suppression, invocations dynamiques comprises** (`->scopes([…])`, `call_user_func`, `->{$méthode}`, chaînes) : **0 appelant** en `app/`/`routes/`/`database/`/`bin/`/`config/`, **0** dans `takussan-web/src/`, les **5** seuls appels vivant dans `tests/Feature/Search/ScoutSearchTest.php` — le test qui le testait. `isSearchable` tranché **par sa propre mesure** et non par association : son unique appelant était le scope lui-même ; `HasQueryBuilder` ne l'emprunte pas, il refait le `in_array(Searchable::class, …)` en ligne, délibérément, parce qu'il sert aussi des modèles sans le trait (`User`). **−4 tests** dans `ScoutSearchTest` (9 → 5, 26 → 20 assertions), exactement les 4 méthodes `test_with_search_scope_*` — aucune assertion assouplie. La garde `scripts/check-filtering-single-mechanism.mjs` a gagné un **contrôle D** que le contrôle C ne pouvait pas rendre : C cherche un scope à paramètre `array` qui déroule des `where()`, or ce scope-ci prend une chaîne et ne boucle rien. D refuse un chemin de recherche hors `HasQueryBuilder` **par NOM et par FORME** (entrée Scout `::search(` + recomposition `whereIn`/`whereRaw`/`keys`), donc **il survit au renommage** — prouvé par mutation, sortie exacte dans le ticket. La non-vacuité a été étendue au nouveau contrôle : si `HasQueryBuilder` perd `AllowedFilter::callback('search', …)` ou son routage `Searchable`, la garde ROUGIT au lieu de passer au vert en ne gardant plus rien. ⚠ **Ce qui reste hors périmètre et n'a pas bougé** : le cap `SEARCH_ID_CAP` (5000) qui échoue en silence, et les consoles super-admin qui écrivent leur propre `LIKE` par choix assumé. | `filter[search]` via `buildQuery()`, pertinence restituée (TCK-281) | [TCK-326](backlog/tickets/TCK-326-supprimer-scopewithsearch-doublon-inferieur.md) |
-| **D-35** | ~~`BasePolicy` morte par construction~~ → **piège latent, et le mélange est pire** | `properties.create`/`.delete` **existent**, `.view` non ; `leases.view`/`.update`/`.delete` non ; `media.` n'est pas même un préfixe de `Capability`. Les 15 sites d'appel ont été inventoriés : **aucun n'atteint une ability cassée aujourd'hui** — mais le premier `authorize('view', $lease)` refusera tout le monde sauf super-admin, en silence | — *(à corriger + garde)* | [TCK-297](backlog/tickets/TCK-297-basepolicy-capacites-inexistantes.md) |
-| **D-36** | `BaseResource` peu adoptée | ✅ **soldé le 2026-08-17** — les **44 ressources** l'étendent, gardé par `scripts/check-resources-extend-base.mjs` (Repo CI). Elles étaient 7, 7 puis **8** aux mesures des 12, 16 et 17/08 : le ticket annonçait « 7 sur 44 », il y en avait 8 — `AgencyRoleResource` est née entre-temps, et c'est exactement le profil d'une convention que rien ne mesure. Migration = **échange de parent, rien d'autre** (72 insertions / 72 suppressions, deux lignes par fichier), donc **aucun montant n'a changé de représentation, par construction** : `BaseResource` n'offre aucun helper de montant. Les **dates**, restées ouvertes ici, sont soldées par D-36bis. Restent non gardés : `enumValue`, `enumLabel`, `mediaUrl` | `BaseResource` | [TCK-308](backlog/tickets/TCK-308-baseresource-adoptee-par-7-sur-44.md) |
-| **D-36bis** | Trois formats de date sur la même API | ✅ **soldé le 2026-08-20** (TCK-327, ADR-0018). **Re-mesuré ce jour-là par inventaire dérivé** — les casts lus dans le conteneur Laravel, pas déduits d'un grep : **138 lignes**, quatre appels pour trois chaînes — 55 `toISOString()` (`…T12:34:56.000000Z`), 37 `toIso8601String()`, 28 `$this->iso(…)` et 18 `toDateString()`. Les comptes du 2026-08-17 tenaient à l'unité. **L'inventaire a trouvé ce que le comptage ne montrait pas** : `PlatformPayout::period_start` est casté `date` — une période comptable, sans heure — et sortait en `2026-08-17T00:00:00+00:00`, quand `PayoutResource` et `BankStatementResource` émettaient le **même champ, sur le même cast**, en `2026-08-17`. Le même concept, deux contrats, invisible de tout test. **Décision** : la forme se déduit du CAST — `datetime` → `iso()` (`…T12:34:56+00:00`, désormais normalisé UTC **en code** et non par `config/app.php`), `date` → `calendarDate()` (`YYYY-MM-DD`). Les 18 dates calendaires ne sont **pas** converties, et c'est écrit : deux appelants du front les comparent littéralement (`schemas/payment.ts:71`, `LeaseRenewalDialog.tsx:97-98`). 57 champs changent de valeur sur le fil. Gardé par `scripts/check-resource-date-format.mjs` (prouvée par 6 mutations, dont deux de non-vacuité), figé par `tests/Unit/Http/Resources/DateRepresentationTest.php` (23 tests) et `takussan-web/src/lib/__tests__/api-date-forms.test.ts` (7 tests). ⚠ **Portée** : `app/Http/Resources/` seulement — les dates composées à la main dans un contrôleur (`AgencyStatsController:72`, `CalendarController:143`) restent hors garde | [ADR-0018](adr/0018-format-des-dates-sur-le-fil.md) | [TCK-327](backlog/tickets/TCK-327-trois-formats-de-date-sur-la-meme-api.md) |
-| **D-37** | Trois classes de base de test | ✅ **soldé le 2026-08-17** (TCK-309) — `BaseTestCase` **fondue dans `Tests\TestCase`** et supprimée, 49 classes migrées. **Trois** bases demeurent, et c'est délibéré : `PHPUnit\Framework\TestCase` (10 tests unitaires purs qui ne démarrent pas l'application), `Tests\TestCase` (304), `Tests\ApiTestCase` (38) — trois USAGES distincts. Règle écrite dans `takussan-api/CLAUDE.md`, gardée par `scripts/check-test-base-classes.mjs`. | `ApiTestCase` pour l'API | [TCK-309](backlog/tickets/TCK-309-conventions-mineures-dedoublees.md) |
-| **D-38** | Deux préfixes de commandes plateforme | ✅ **soldé le 2026-08-17** (TCK-309) — `platform:create-super-admin`, avec **alias déprécié conservé** parce que `docs/features.md` §2.1 prescrit encore l'ancien nom : le renommer sec aurait laissé la spec pointer une commande inexistante, le jour de l'installation d'un environnement. ⚠ **Correction du diagnostic** : les deux commandes ne font PAS le même travail — `create` provisionne l'opérateur (user + 2FA + 8 codes de secours), `grant` promeut un compte existant. Seul le **préfixe** était dédoublé. | `platform:` | [TCK-309](backlog/tickets/TCK-309-conventions-mineures-dedoublees.md) |
+| **D-31** | Enveloppe de pagination dupliquée à la main | ✅ **soldé le 2026-08-17** (TCK-304) — **57 contrôleurs + 1 service** convergés vers le point canonique unique ; gardé par `scripts/check-pagination-envelope.mjs`, **4 mutations rouges**. `takussan-web/src/types/api.ts` corrigé (`links` rendu optionnel) : suite front 888 tests, 0 échec. | les 4 clés canoniques | [TCK-304](backlog/tickets/done/TCK-304-enveloppe-pagination-dupliquee.md) |
+| **D-32** | Validation inline vs FormRequest | ✅ **soldé le 2026-08-17** (TCK-305) — **121 sites** convergés vers `BaseFormRequest` ; gardé par `scripts/check-inline-validation.mjs` (165 contrôleurs balayés, **0 validation en ligne**, 199 FormRequest), **5 mutations rouges**. ⚠ La convergence inversait **403 → 422 sur 67 instructions / 65 méthodes** — corrigé en portant l'autorisation dans `authorize()`, et **épinglé par 18 tests** dont l'ablation rend bien 422. | `BaseFormRequest` | [TCK-305](backlog/tickets/done/TCK-305-validation-inline-vers-formrequest.md) |
+| **D-33** | Policy vs helpers de contrôleur | ✅ **soldé le 2026-08-17** (TCK-306) — **25 contrôleurs / 88 appels** rattachés à leurs policies ; gardé par `scripts/check-controller-authorization.mjs`, **6 mutations rouges**. ⚠ **19 helpers restent hors périmètre**, comptés et bloqués contre toute addition — ticket de suite. | policy | [TCK-306](backlog/tickets/done/TCK-306-autorisation-controleurs-vers-policies.md) |
+| **D-34** | ~~Deux mécanismes de filtrage concurrents~~ → **code mort toujours branché** | ✅ **soldé le 2026-08-17** — `scopeFilter` supprimé de `BaseModelTrait`, avec `PropertyService` et `WizardDraftPolicy` (même famille). L'inventaire a couvert le dépôt entier et les invocations dynamiques : **0 appelant** hors du test qui le testait. `scripts/check-filtering-single-mechanism.mjs` (Repo CI) garde la suppression **y compris sous un autre nom**. Le jumeau `scopeWithSearch()` a suivi le 2026-08-20 (TCK-326, cf. D-34bis), et `BaseModelTrait` a disparu avec lui | `buildQuery()` pour toute API | [TCK-307](backlog/tickets/done/TCK-307-supprimer-dsl-scopefilter-mort.md) |
+| **D-34bis** | ~~`scopeWithSearch()` — le jumeau non traité de D-34~~ | ✅ **soldé le 2026-08-20** (TCK-326) — `scopeWithSearch` ET son helper `isSearchable` supprimés ; `BaseModelTrait`, devenu vide, supprimé avec son fichier ; `AbstractModel` = `Model` + `HasQueryBuilder`. **Ré-inventaire du dépôt entier avant suppression, invocations dynamiques comprises** (`->scopes([…])`, `call_user_func`, `->{$méthode}`, chaînes) : **0 appelant** en `app/`/`routes/`/`database/`/`bin/`/`config/`, **0** dans `takussan-web/src/`, les **5** seuls appels vivant dans `tests/Feature/Search/ScoutSearchTest.php` — le test qui le testait. `isSearchable` tranché **par sa propre mesure** et non par association : son unique appelant était le scope lui-même ; `HasQueryBuilder` ne l'emprunte pas, il refait le `in_array(Searchable::class, …)` en ligne, délibérément, parce qu'il sert aussi des modèles sans le trait (`User`). **−4 tests** dans `ScoutSearchTest` (9 → 5, 26 → 20 assertions), exactement les 4 méthodes `test_with_search_scope_*` — aucune assertion assouplie. La garde `scripts/check-filtering-single-mechanism.mjs` a gagné un **contrôle D** que le contrôle C ne pouvait pas rendre : C cherche un scope à paramètre `array` qui déroule des `where()`, or ce scope-ci prend une chaîne et ne boucle rien. D refuse un chemin de recherche hors `HasQueryBuilder` **par NOM et par FORME** (entrée Scout `::search(` + recomposition `whereIn`/`whereRaw`/`keys`), donc **il survit au renommage** — prouvé par mutation, sortie exacte dans le ticket. La non-vacuité a été étendue au nouveau contrôle : si `HasQueryBuilder` perd `AllowedFilter::callback('search', …)` ou son routage `Searchable`, la garde ROUGIT au lieu de passer au vert en ne gardant plus rien. ⚠ **Ce qui reste hors périmètre et n'a pas bougé** : le cap `SEARCH_ID_CAP` (5000) qui échoue en silence, et les consoles super-admin qui écrivent leur propre `LIKE` par choix assumé. | `filter[search]` via `buildQuery()`, pertinence restituée (TCK-281) | [TCK-326](backlog/tickets/done/TCK-326-supprimer-scopewithsearch-doublon-inferieur.md) |
+| **D-35** | ~~`BasePolicy` morte par construction~~ → **piège latent, et le mélange est pire** | `properties.create`/`.delete` **existent**, `.view` non ; `leases.view`/`.update`/`.delete` non ; `media.` n'est pas même un préfixe de `Capability`. Les 15 sites d'appel ont été inventoriés : **aucun n'atteint une ability cassée aujourd'hui** — mais le premier `authorize('view', $lease)` refusera tout le monde sauf super-admin, en silence | — *(à corriger + garde)* | [TCK-297](backlog/tickets/done/TCK-297-basepolicy-capacites-inexistantes.md) |
+| **D-36** | `BaseResource` peu adoptée | ✅ **soldé le 2026-08-17** — les **44 ressources** l'étendent, gardé par `scripts/check-resources-extend-base.mjs` (Repo CI). Elles étaient 7, 7 puis **8** aux mesures des 12, 16 et 17/08 : le ticket annonçait « 7 sur 44 », il y en avait 8 — `AgencyRoleResource` est née entre-temps, et c'est exactement le profil d'une convention que rien ne mesure. Migration = **échange de parent, rien d'autre** (72 insertions / 72 suppressions, deux lignes par fichier), donc **aucun montant n'a changé de représentation, par construction** : `BaseResource` n'offre aucun helper de montant. Les **dates**, restées ouvertes ici, sont soldées par D-36bis. Restent non gardés : `enumValue`, `enumLabel`, `mediaUrl` | `BaseResource` | [TCK-308](backlog/tickets/done/TCK-308-baseresource-adoptee-par-7-sur-44.md) |
+| **D-36bis** | Trois formats de date sur la même API | ✅ **soldé le 2026-08-20** (TCK-327, ADR-0018). **Re-mesuré ce jour-là par inventaire dérivé** — les casts lus dans le conteneur Laravel, pas déduits d'un grep : **138 lignes**, quatre appels pour trois chaînes — 55 `toISOString()` (`…T12:34:56.000000Z`), 37 `toIso8601String()`, 28 `$this->iso(…)` et 18 `toDateString()`. Les comptes du 2026-08-17 tenaient à l'unité. **L'inventaire a trouvé ce que le comptage ne montrait pas** : `PlatformPayout::period_start` est casté `date` — une période comptable, sans heure — et sortait en `2026-08-17T00:00:00+00:00`, quand `PayoutResource` et `BankStatementResource` émettaient le **même champ, sur le même cast**, en `2026-08-17`. Le même concept, deux contrats, invisible de tout test. **Décision** : la forme se déduit du CAST — `datetime` → `iso()` (`…T12:34:56+00:00`, désormais normalisé UTC **en code** et non par `config/app.php`), `date` → `calendarDate()` (`YYYY-MM-DD`). Les 18 dates calendaires ne sont **pas** converties, et c'est écrit : deux appelants du front les comparent littéralement (`schemas/payment.ts:71`, `LeaseRenewalDialog.tsx:97-98`). 57 champs changent de valeur sur le fil. Gardé par `scripts/check-resource-date-format.mjs` (prouvée par 6 mutations, dont deux de non-vacuité), figé par `tests/Unit/Http/Resources/DateRepresentationTest.php` (23 tests) et `takussan-web/src/lib/__tests__/api-date-forms.test.ts` (7 tests). ⚠ **Portée** : `app/Http/Resources/` seulement — les dates composées à la main dans un contrôleur (`AgencyStatsController:72`, `CalendarController:143`) restent hors garde | [ADR-0018](adr/0018-format-des-dates-sur-le-fil.md) | [TCK-327](backlog/tickets/done/TCK-327-trois-formats-de-date-sur-la-meme-api.md) |
+| **D-37** | Trois classes de base de test | ✅ **soldé le 2026-08-17** (TCK-309) — `BaseTestCase` **fondue dans `Tests\TestCase`** et supprimée, 49 classes migrées. **Trois** bases demeurent, et c'est délibéré : `PHPUnit\Framework\TestCase` (10 tests unitaires purs qui ne démarrent pas l'application), `Tests\TestCase` (304), `Tests\ApiTestCase` (38) — trois USAGES distincts. Règle écrite dans `takussan-api/CLAUDE.md`, gardée par `scripts/check-test-base-classes.mjs`. | `ApiTestCase` pour l'API | [TCK-309](backlog/tickets/done/TCK-309-conventions-mineures-dedoublees.md) |
+| **D-38** | Deux préfixes de commandes plateforme | ✅ **soldé le 2026-08-17** (TCK-309) — `platform:create-super-admin`, avec **alias déprécié conservé** parce que `docs/features.md` §2.1 prescrit encore l'ancien nom : le renommer sec aurait laissé la spec pointer une commande inexistante, le jour de l'installation d'un environnement. ⚠ **Correction du diagnostic** : les deux commandes ne font PAS le même travail — `create` provisionne l'opérateur (user + 2FA + 8 codes de secours), `grant` promeut un compte existant. Seul le **préfixe** était dédoublé. | `platform:` | [TCK-309](backlog/tickets/done/TCK-309-conventions-mineures-dedoublees.md) |
 | **D-39** | ~~`NotificationPreference` n'étend pas `AbstractModel`~~ | ✅ **soldé le 2026-08-12** — il l'étend désormais ; 106 tests notifications verts | ✅ | — |
-| **D-40** | Namespaces de contrôleurs dédoublés | ✅ **soldé le 2026-08-17** (TCK-309) — les 8 contrôleurs de `Controllers/Auth/` déplacés sous `Controllers/Api/Auth/` par `git mv`. **`diff route:list` VIDE** : 516 routes avant, 516 après, sur (méthode, URI, nom, middlewares) — re-comparé après les mutations de garde. Seules les 24 lignes d'*action* ont bougé. | — | [TCK-309](backlog/tickets/TCK-309-conventions-mineures-dedoublees.md) |
+| **D-40** | Namespaces de contrôleurs dédoublés | ✅ **soldé le 2026-08-17** (TCK-309) — les 8 contrôleurs de `Controllers/Auth/` déplacés sous `Controllers/Api/Auth/` par `git mv`. **`diff route:list` VIDE** : 516 routes avant, 516 après, sur (méthode, URI, nom, middlewares) — re-comparé après les mutations de garde. Seules les 24 lignes d'*action* ont bougé. | — | [TCK-309](backlog/tickets/done/TCK-309-conventions-mineures-dedoublees.md) |
 
-### D-41 — Filament v4 : scaffold oublié ou décision non assumée ✅ *soldé le 2026-08-15 — supprimé* → [TCK-287](backlog/tickets/TCK-287-filament-supprimer-ou-securiser.md)
+### D-41 — Filament v4 : scaffold oublié ou décision non assumée ✅ *soldé le 2026-08-15 — supprimé* → [TCK-287](backlog/tickets/done/TCK-287-filament-supprimer-ou-securiser.md)
 
 > **Soldé le 2026-08-15 : le panel a été SUPPRIMÉ**, sur décision explicite, après que le diagnostic
 > corrigé ci-dessous eut établi qu'il ne s'agissait pas d'un trou de sécurité mais d'un coût porté
@@ -2547,7 +2550,7 @@ pour le code neuf** ; l'existant reste à converger.
 > entrées du document.*
 >
 > **Gravité ramenée de 🟠 à 🟡** : ce n'est plus une question de sécurité, c'est une question de
-> coût porté sans contrepartie. ⚠️ **[TCK-287](backlog/tickets/TCK-287-filament-supprimer-ou-securiser.md)
+> coût porté sans contrepartie. ⚠️ **[TCK-287](backlog/tickets/done/TCK-287-filament-supprimer-ou-securiser.md)
 > porte encore la prémisse fausse dans son intitulé même (« supprimer ou sécuriser ») ; il reste à
 > recadrer — l'arbitrage réel est « supprimer ou assumer », pas « supprimer ou sécuriser ».**
 
@@ -2661,7 +2664,7 @@ Fermé par TCK-289.
 > depuis le dépôt sans jouer un parcours. *Un défaut qui n'apparaît qu'en traversant le produit ne se
 > trouve pas en le lisant.*
 
-### D-58 — `customer` et `tenant` ne sont jamais émis : quatre surfaces front sont mortes, dont un livrable P0 marqué `done` ✅ *corrigée le 2026-08-31* → [TCK-492](backlog/tickets/TCK-492-customer-et-tenant-jamais-emis-dans-roles.md)
+### D-58 — `customer` et `tenant` ne sont jamais émis : quatre surfaces front sont mortes, dont un livrable P0 marqué `done` ✅ *corrigée le 2026-08-31* → [TCK-492](backlog/tickets/done/TCK-492-customer-et-tenant-jamais-emis-dans-roles.md)
 
 > **Corrigée, non mergée.** `profileTypes()` dérive désormais `customer` (plancher) et `tenant`
 > (bail en cours), sans nouvelle table. Coût mesuré : 6 → 7 requêtes.
@@ -2686,12 +2689,12 @@ là-dessus : `isCustomer()` et `isTenant()` (`lib/roles.ts:21` et `:45`) rendent
 | Site | Ce qui ne se produit jamais |
 |---|---|
 | `AppSidebar.tsx:143` | `occupeUnLogement()` est `false` pour un acheteur pur → « Mes réservations », « Mes visites », « Mes baux » ne sont jamais rendues |
-| `(accueil)/page.tsx:59` | le widget de check-list locataire livré par [TCK-266](backlog/tickets/TCK-266-tenant-onboarding-checklist.md) ne se monte pas |
+| `(accueil)/page.tsx:59` | le widget de check-list locataire livré par [TCK-266](backlog/tickets/done/TCK-266-tenant-onboarding-checklist.md) ne se monte pas |
 | `overview/page.tsx:59` | `redirect('/app/overview/tenant')` est une branche morte |
-| `AppShell.tsx:38` | `customerOnboardingActive` est `false` → le livrable **P0** de [TCK-253](backlog/tickets/TCK-253-onboarding-wizard-customer.md) ne se déclenche pas |
+| `AppShell.tsx:38` | `customerOnboardingActive` est `false` → le livrable **P0** de [TCK-253](backlog/tickets/done/TCK-253-onboarding-wizard-customer.md) ne se déclenche pas |
 
 **L'origine est écrite, datée, et c'est ce qui rend l'entrée instructive.**
-[TCK-278](backlog/tickets/TCK-278-rbac-profile-based-phase-1.md) (`created: 2026-05-17`) a remplacé
+[TCK-278](backlog/tickets/done/TCK-278-rbac-profile-based-phase-1.md) (`created: 2026-05-17`) a remplacé
 les rôles spatie par `profileTypes()` et a renvoyé la suite à plus tard, en toutes lettres dans son
 § *Hors périmètre* : *« Profile-isation de `customer` et `tenant` (création de `CustomerProfile` /
 `TenantProfile`) → ticket séparé si besoin émerge. »* **Ce ticket séparé n'a jamais été créé** — et
@@ -2709,7 +2712,7 @@ note *« customer/tenant dérivés »*. C'est le code qui a divergé de la spec.
 **Portée** : c'est le public le plus nombreux d'une plateforme immobilière — celui qui cherche à
 louer ou à acheter — qui n'a ni rôle, ni onboarding, ni menu.
 
-### D-59 — Le courtier est un profil commutable sans aucune surface ✅ *corrigée le 2026-08-31* → [TCK-495](backlog/tickets/TCK-495-le-courtier-est-un-profil-sans-surface.md)
+### D-59 — Le courtier est un profil commutable sans aucune surface ✅ *corrigée le 2026-08-31* → [TCK-495](backlog/tickets/done/TCK-495-le-courtier-est-un-profil-sans-surface.md)
 
 `broker` est dans `ActiveProfileResolver::TYPE_MAP` — donc dans le sélecteur d'espaces et dans
 `GET /api/me/profiles` — et il est émis dans `roles`. En face, rien.
@@ -2790,7 +2793,7 @@ inviter**. Le pattern d'invitation unifié est bien la décision produit (`featu
 *Pas de ticket : la décision produit — faut-il une porte en libre-service, ou une page qui explique
 l'invitation ? — n'est pas instruite.*
 
-### D-61 — L'assistant hôte fabrique deux espaces indiscernables ✅ *corrigée le 2026-08-31* → [TCK-497](backlog/tickets/TCK-497-deux-espaces-indiscernables-pour-un-particulier.md)
+### D-61 — L'assistant hôte fabrique deux espaces indiscernables ✅ *corrigée le 2026-08-31* → [TCK-497](backlog/tickets/done/TCK-497-deux-espaces-indiscernables-pour-un-particulier.md)
 
 > **Corrigée, non mergée.** Issue retenue : fusionner. `ProfileResource` expose `agency.kind`, et le
 > sélecteur ne propose qu'une entrée pour une agence `individual` — le slug, qui portait un rang de
@@ -2816,7 +2819,7 @@ dépend. On demande donc d'arbitrer entre deux options que rien ne distingue à 
 d'agence est dérivé du nom de la personne. Deux homonymes se marchent dessus, et un identifiant
 destiné à l'URL publique finit par porter un rang qui ne signifie rien.
 
-### D-62 — Après une inscription Google, le compte atterrit sur un tableau de bord vide sans qu'on lui ait rien demandé ✅ *corrigée le 2026-08-31* → [TCK-493](backlog/tickets/TCK-493-question-d-intention-apres-inscription.md)
+### D-62 — Après une inscription Google, le compte atterrit sur un tableau de bord vide sans qu'on lui ait rien demandé ✅ *corrigée le 2026-08-31* → [TCK-493](backlog/tickets/done/TCK-493-question-d-intention-apres-inscription.md)
 
 > **Corrigée, non mergée.** Les quatre chemins d'inscription mènent à `/onboarding/intention`, qui
 > décide seule s'il y a lieu de demander quoi que ce soit.
@@ -2838,7 +2841,7 @@ logement, ou en proposer un ?* L'asymétrie est le point : le chemin e-mail pass
 `callback/page.tsx:20` — `params.get('redirect') ?? '/app'` · `auth/register/page.tsx:26-33` —
 `defaultValues` sans champ d'intention.
 
-### D-63 — L'alias `agency_admin` était refusé par la validation de la bascule de profil ✅ *mesurée et corrigée le 2026-08-30* → [TCK-498](backlog/tickets/TCK-498-alias-agency-admin-refuse-par-la-validation.md)
+### D-63 — L'alias `agency_admin` était refusé par la validation de la bascule de profil ✅ *mesurée et corrigée le 2026-08-30* → [TCK-498](backlog/tickets/done/TCK-498-alias-agency-admin-refuse-par-la-validation.md)
 
 > **Corrigé, non mergé.** `SelectActiveProfileRequest` dérive désormais son motif de
 > `ActiveProfileResolver::TYPE_MAP` au lieu de le recopier, et un test parcourt chaque alias de la
@@ -2856,12 +2859,12 @@ Le même oubli vivait dans le garde de `/onboarding/host`, qui testait `owner` e
 field format is invalid »*. `SelectActiveProfileTest` comptait six cas, tous sur `owner:` et `agent:`.
 
 > **C'est la deuxième occurrence du même motif, et c'est ce qui compte.**
-> [TCK-329](backlog/tickets/TCK-329-profiletype-front-ignore-agency-admin.md) avait déjà payé une
+> [TCK-329](backlog/tickets/done/TCK-329-profiletype-front-ignore-agency-admin.md) avait déjà payé une
 > liste d'alias écrite à la main qui avait dérivé — `PROFILE_TYPES`, où `agency_admin` manquait
 > aussi. La garde posée alors **ne couvre que le front**, et le back portait une seconde copie, dans
 > une regex, que rien ne regardait. *Une garde posée à l'endroit où le défaut a fait mal ne couvre
 > pas le défaut : elle couvre l'endroit.* La parité sur l'axe des rôles reste à poser
-> ([TCK-494](backlog/tickets/TCK-494-garde-de-parite-sur-l-axe-des-roles.md)).
+> ([TCK-494](backlog/tickets/done/TCK-494-garde-de-parite-sur-l-axe-des-roles.md)).
 
 ---
 
@@ -2969,7 +2972,7 @@ ticket de la vague porte le geste (`maintenance.*` par TCK-592, `payouts.approve
 dira désormais (« sans effet pour l'instant »). Relevé du 2026-10-06 (passe de correction de TCK-587).
 
 **Mise à jour du 2026-10-22 — il en reste quatre.** `agency.update` juge désormais la configuration
-des indicateurs et des alertes de seuil (`AgencyIndicatorPolicy`, [TCK-1701](backlog/tickets/TCK-1701-indicateurs-et-alertes-par-capacite.md),
+des indicateurs et des alertes de seuil (`AgencyIndicatorPolicy`, [TCK-1701](backlog/tickets/done/TCK-1701-indicateurs-et-alertes-par-capacite.md),
 P82.04) : sa ligne a quitté l'inventaire, cliquet 7 → 6. Restent `agency.upgrade_request`,
 `payments.refund`, `messaging.broadcast`, `messaging.archive`.
 

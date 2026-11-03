@@ -198,7 +198,7 @@ class RadarExtractionEvalSetTest extends TestCase
             glob($this->dir().'/{*,cases/*}', GLOB_BRACE) ?: [],
             fn (string $path): bool => is_file($path) && ! str_ends_with($path, '.png') && basename($path) !== 'baseline.json',
         ));
-        $ticket = glob(base_path('../docs/backlog/tickets/TCK-2403-*.md')) ?: [];
+        $ticket = glob(base_path('../docs/backlog/tickets/*/TCK-2403-*.md')) ?: [];
         $this->assertNotEmpty($ticket, 'le ticket est lu par la garde : un document ne cite aucune donnée relevée');
         $files = array_values(array_unique([...$files, ...$ticket]));
         $this->assertGreaterThan(30, count($files), 'la garde lit les cas et les documents du jeu');

@@ -2,7 +2,7 @@
 
 - **Statut** : Accepté
 - **Date** : 2026-10-08
-- **Tickets** : [TCK-597](../backlog/tickets/TCK-597-avis-signalements-et-moderation.md)
+- **Tickets** : [TCK-597](../backlog/tickets/done/TCK-597-avis-signalements-et-moderation.md)
 - **Complète** : [ADR-0043](0043-avis-cible-eligibilite-moderation-et-verrou-plateforme.md) (le
   verrou plateforme, que la décision `hide` d'un doublon réutilise).
 

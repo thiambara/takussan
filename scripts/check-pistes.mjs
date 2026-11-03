@@ -133,7 +133,6 @@ const PROTEGES_IMPLEMENTEUR = [
   /^scripts\/check-pistes\.mjs$/,
   /^\.agent\//,
   /^\.claude\//,
-  /^\.windsurf\//,
   /(^|\/)CLAUDE\.md$/,
   /^AGENTS\.md$/,
   /^docs\/adr\//,
@@ -392,7 +391,10 @@ export function verifierForme(ens, { racine = ROOT } = {}) {
   if (!doc.tableau) return erreurs;
   for (const a of ens.archives) erreurs.push(...a.doc.erreurs.map((x) => `${a.chemin} : ${x}`));
   const vues = new Map();
-  const tickets = existsSync(join(racine, TICKETS)) ? readdirSync(join(racine, TICKETS)) : [];
+  // Rangés par statut (`tickets/<status>/`) : le nom de fichier seul, à toute profondeur.
+  const tickets = existsSync(join(racine, TICKETS))
+    ? readdirSync(join(racine, TICKETS), { recursive: true }).map((p) => p.split(/[\\/]/).pop())
+    : [];
 
   for (const e of ens.entrees) {
     const ou = `${lieu(e)} (« ${e.titre} »)`;
@@ -625,7 +627,9 @@ export function verifierRole(role, baseEns, teteEns, fichiers, { racine = ROOT }
       if (vers === 'fait' && accord) {
         const tck = champ(e, 'Statut').valeur.match(/TCK-\d+/)[0];
         const dossier = join(racine, TICKETS);
-        const nom = existsSync(dossier) ? readdirSync(dossier).find((f) => f.startsWith(`${tck}-`)) : undefined;
+        const nom = existsSync(dossier)
+          ? readdirSync(dossier, { recursive: true }).find((f) => f.split(/[\\/]/).pop().startsWith(`${tck}-`))
+          : undefined;
         const plat = (t) => t.replace(/\s+/g, ' ').trim();
         if (nom && !plat(readFileSync(join(dossier, nom), 'utf8')).includes(plat(accord))) {
           erreurs.push(`${ref} : ${tck} ne recopie pas la décision du porteur (« ${accord} »)`);

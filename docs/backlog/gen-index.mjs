@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Génère `docs/backlog/INDEX.md` depuis les frontmatters de `tickets/*.md`.
+ * Génère `docs/backlog/INDEX.md` depuis les frontmatters de `tickets/<status>/*.md`.
  *
  * L'INDEX était maintenu à la main. Il était faux sur **213 de ses 266 entrées (80,1 %)** : il
  * affichait 40 tickets à faire et 177 en review là où les frontmatters en comptaient 3 et 2, et le
@@ -127,8 +127,9 @@ function frontmatter(txt, fichier) {
 
 const tickets = [];
 const vus = new Map();
-for (const fn of readdirSync(join(DIR, 'tickets')).sort()) {
-  if (!fn.endsWith('.md') || fn.startsWith('_')) continue;
+// Rangés par statut (`tickets/<status>/`, `ranger-tickets.mjs`) : lus à toute profondeur.
+for (const fn of readdirSync(join(DIR, 'tickets'), { recursive: true }).map((p) => p.split('\\').join('/')).sort()) {
+  if (!fn.endsWith('.md') || fn.split('/').pop().startsWith('_')) continue;
   const fm = frontmatter(readFileSync(join(DIR, 'tickets', fn), 'utf8'), fn);
   if (!fm) continue;
   fm._fichier = fn;
@@ -177,7 +178,7 @@ const L = [];
 L.push('# Backlog — Takussan');
 L.push('');
 L.push('> ⚠️ **FICHIER GÉNÉRÉ — ne pas éditer à la main.**');
-L.push('> Source : les frontmatters de `tickets/*.md` et `waves.json`.');
+L.push('> Source : les frontmatters de `tickets/<status>/*.md` et `waves.json`.');
 L.push('> Régénérer : `node docs/backlog/gen-index.mjs` · Vérifier : `node docs/backlog/check-backlog.mjs`');
 L.push('>');
 L.push("> Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.");

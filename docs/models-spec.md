@@ -3046,7 +3046,7 @@ agences existantes par `2026_08_16_120300`, puis à chaque création d'agence pa
 ### 54. WhatsappContact 🆕
 
 **Table :** `whatsapp_contacts`
-**Description :** Contact WhatsApp identifié par son numéro E.164. Porte le consentement (opt-in/opt-out) et la base de la **fenêtre de service 24h** de Meta (`last_inbound_at`). Conçue pour servir à la fois le **sortant** (user enregistré → `user_id` renseigné) et, plus tard, l'**inbound** mise-en-relation (locataire anonyme → `user_id` null). Voir `docs/backlog/tickets/TCK-282-whatsapp-outbound-channel.md` pour le volet inbound.
+**Description :** Contact WhatsApp identifié par son numéro E.164. Porte le consentement (opt-in/opt-out) et la base de la **fenêtre de service 24h** de Meta (`last_inbound_at`). Conçue pour servir à la fois le **sortant** (user enregistré → `user_id` renseigné) et, plus tard, l'**inbound** mise-en-relation (locataire anonyme → `user_id` null). Voir `docs/backlog/tickets/done/TCK-282-whatsapp-outbound-channel.md` pour le volet inbound.
 
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
@@ -5476,7 +5476,7 @@ la purge. `insertOrIgnore` sur (jour, nature) : une écriture rejouée garde le 
 **Éteint par défaut** (`radar.nature_counts.enabled`, `RADAR_NATURE_COUNTS=false`) : ni la commande ni la purge
 n'écrivent rien, et l'observatoire le dit (`enabled`). Une ligne seule ne nomme personne, mais **la différence entre
 deux jours** rend la nature présumée d'un annonceur qui a dit STOP (`do_not_contact_at` donne le jour) ; un seuil k ne
-la ferme pas. L'allumage attend l'avis juridique de [TCK-2434](backlog/tickets/TCK-2434-radar-compteurs-anonymes-de-marche.md)
+la ferme pas. L'allumage attend l'avis juridique de [TCK-2434](backlog/tickets/todo/TCK-2434-radar-compteurs-anonymes-de-marche.md)
 et son remède (grain plus gros, arrondi ou bruit).
 
 **Lecture :** section `nature_history` de `GET /api/admin/radar/observatory` (`fields[radar_observatory]`), bornée par

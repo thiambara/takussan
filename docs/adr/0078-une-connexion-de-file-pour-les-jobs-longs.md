@@ -3,7 +3,7 @@
 - **Statut** : Accepté
 - **Date** : 2026-10-27
 - **Tickets** : TCK-2397, TCK-2402
-- **Amendement du 2026-10-29 ([TCK-2402](../backlog/tickets/TCK-2402-file-dediee-aux-appels-ia.md))** : les jobs qui appellent le modèle hors d'une requête HTTP quittent `default` pour une file `ai`, sur la connexion `database`, servie par un `worker-ia` qui ne lit rien d'autre. Voir [§ Amendement du 2026-10-29](#amendement-du-2026-10-29--les-appels-ia-ont-leur-file-et-leur-worker-tck-2402).
+- **Amendement du 2026-10-29 ([TCK-2402](../backlog/tickets/done/TCK-2402-file-dediee-aux-appels-ia.md))** : les jobs qui appellent le modèle hors d'une requête HTTP quittent `default` pour une file `ai`, sur la connexion `database`, servie par un `worker-ia` qui ne lit rien d'autre. Voir [§ Amendement du 2026-10-29](#amendement-du-2026-10-29--les-appels-ia-ont-leur-file-et-leur-worker-tck-2402).
 - **Dépend de** : [ADR-0028](0028-auto-hebergement-conteneurise-sur-le-vps.md) (le fichier Compose est le déploiement)
 
 ## Contexte

@@ -16,7 +16,7 @@
 // PÉRIMÈTRE, ET POURQUOI IL N'EST PAS « TOUT `docs/` »
 //
 // Mesuré au 2026-08-16 : `docs/` porte 294 chemins markdown morts, dont 269 dans le seul
-// `docs/backlog/_archive/INDEX-manuel-2026-08-12.md`. Ces fichiers sont des ARCHIVES GELÉES À
+// `docs/backlog/_archive/INDEX-manuel-2026-08-12.md` (retiré du dépôt le 2026-11-03). Ces fichiers sont des ARCHIVES GELÉES À
 // DESSEIN — l'index manuel faux est conservé comme pièce à conviction, les `sync-passes/` sont des
 // procès-verbaux datés. Un pointeur mort y est un FAIT D'HISTOIRE, pas un défaut : le « corriger »
 // falsifierait l'archive.

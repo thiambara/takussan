@@ -1,6 +1,6 @@
 # Plan — TCK-585 : photos de biens servies en WebP, sans transformation
 
-Ticket : [TCK-585](../backlog/tickets/TCK-585-photos-servies-sans-transformations.md) ·
+Ticket : [TCK-585](../backlog/tickets/review/TCK-585-photos-servies-sans-transformations.md) ·
 Décision : amendement d'[ADR-0029](../adr/0029-medias-sur-r2-servis-par-cloudflare-transformations.md) §4.
 
 ## Le nœud : le format d'une conversion se décide PAR MÉDIA

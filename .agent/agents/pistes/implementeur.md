@@ -114,7 +114,7 @@ jamais deux pistes à moitié.
      ```bash
      for r in $(git for-each-ref --format='%(refname)' refs/remotes/origin); do
        git ls-tree -r --name-only "$r" docs/backlog/tickets; done | grep -o 'TCK-[0-9]*' | sort -t- -k2 -n | tail -1
-     ls docs/backlog/tickets | grep -o 'TCK-[0-9]*' | sort -t- -k2 -n | tail -1
+     find docs/backlog/tickets -name 'TCK-*.md' | grep -o 'TCK-[0-9]*' | sort -t- -k2 -n | tail -1
      ```
    - `spec_refs` pointe vers la section du fichier de pistes et vers la spec touchée ;
    - le ticket cite la Réf.
