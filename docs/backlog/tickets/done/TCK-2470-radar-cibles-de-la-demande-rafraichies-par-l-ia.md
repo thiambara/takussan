@@ -101,15 +101,18 @@ Partie API (2026-11-04) ci-dessous ; la console (encart « Demande », historiqu
   le `results_count` de CHAQUE recherche active (fréquence `off` comprise) — le total du moteur de l'alerte, sans fenêtre,
   par `SearchService::countMatchingProperties()` (`hitsPerPage: 0`) ; le total d'une première alerte (aucune borne basse)
   est repris sans requête de plus. La création et un changement de critères (`SavedSearchController::store`/`update`)
-  comptent tout de suite ; un moteur indisponible laisse le compte précédent (`saved_search.count_failed`). Les alertes
+  comptent tout de suite — après la réponse (`defer`), hors de son chemin (revue de code du 2026-11-04) ; un moteur indisponible laisse le compte précédent (`saved_search.count_failed`). Les alertes
   publiques (`RecordPublicSearchAlert`) attendent le passage suivant. `SavedSearchResultsCountTest`, ablations comprises.
 - **Le journal porte des critères libres** (`city`, `cities`, `location`, `region`, `tags`) en plus de `normalized_query`.
-  AC4 (« aucun texte saisi par un visiteur ») est tenu ainsi : `normalized_query` et `q` ne sont jamais lus ; un lieu
+  AC4 (« aucun texte saisi par un visiteur ») est tenu ainsi : `normalized_query` et `q` ne sortent jamais ; un lieu
   n'entre que **reconnu par le référentiel** (ville par nom ou ancien nom, quartier par `QuartierDuFiltre`), et sous le
   nom du référentiel ; un lieu inconnu **écarte le signal entier** (l'ignorer élargirait la demande à tout le pays). Une
-  région, un point (`lat`/`radius_km`) écartent aussi le signal (pas de critère de cible pour eux). `tags`, surface,
-  salles de bain, état, titre, période : ignorés. Conséquence : une recherche tapée sans critère structuré (« appart
-  almadies ») ne nourrit pas encore le Radar — l'analyse de la saisie (TCK-2473) pourra la convertir en critères.
+  région, un point (`lat`/`radius_km`) écartent aussi le signal (pas de critère de cible pour eux). **Un texte libre
+  résiduel et des `tags` écartent aussi le signal** (revue de code du 2026-11-04, décision du porteur) : ignorés, ils
+  l'élargissaient — {q : « villa piscine yoff », louer, villa} devenait « louer une villa n'importe où ». Le texte (`q`,
+  `normalized_query`) est lu pour en juger, par `SearchQueryParser` : un résidu écarte, un texte entièrement compris
+  n'écarte que si l'un de ses critères manque aux critères structurés. Surface, salles de bain, état, titre, période :
+  ignorés. Conséquence : une recherche tapée sans critère structuré (« appart almadies ») ne nourrit pas le Radar.
 - **`RadarTargets::update()` épinglait toute cible `demand` dont les critères changent** : un paramètre `$pinsDemand`
   (vrai par défaut) laisse la révision par l'IA réécrire une cible sans l'épingler ; il accepte aussi `demand_count`
   (pour « défaire »). Seul changement d'un fichier de TCK-2468.

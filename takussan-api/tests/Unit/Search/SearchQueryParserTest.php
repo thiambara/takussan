@@ -178,6 +178,9 @@ class SearchQueryParserTest extends TestCase
                 ['contract_type' => 'rent', 'type' => 'apartment', 'rent_period' => 'daily'], null],
             '100 000 par mois' => ['100 000 par mois', ['rent_period' => 'monthly', 'price_max' => 100_000], null],
             'surface 200 à 400 m2' => ['terrain entre 200 et 400 m2', ['type' => 'land', 'area_min' => 200, 'area_max' => 400], null],
+            // La borne basse sans unité prend celle de la haute : « 1 » se lisait 1 m² face à 20 000 m².
+            'surface 1 à 2 hectares' => ['terrain entre 1 et 2 hectares', ['type' => 'land', 'area_min' => 10_000, 'area_max' => 20_000], null],
+            'surface 1-2 ha' => ['terrain 1-2 ha', ['type' => 'land', 'area_min' => 10_000, 'area_max' => 20_000], null],
             'au moins 3 chambres' => ['au moins 3 chambres', ['bedrooms' => 3], null],
             'Médina, deux villes' => ['Médina', ['location' => 'Médina'], null],
             'Médina Saint-Louis' => ['Médina Saint-Louis', ['city' => 'Saint-Louis', 'location' => 'Médina'], null],

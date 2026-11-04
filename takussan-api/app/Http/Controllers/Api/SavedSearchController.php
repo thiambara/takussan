@@ -14,6 +14,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
+use function Illuminate\Support\defer;
+
 class SavedSearchController extends Controller
 {
     public function index(Request $request): JsonResponse
@@ -34,8 +36,10 @@ class SavedSearchController extends Controller
             'is_active' => true,
         ]));
         // TCK-2470 — compté tout de suite : à 0 jusqu'au passage des alertes, la recherche compterait comme une demande
-        // sans résultat pour le Radar. Un moteur indisponible ne fait pas échouer la création.
-        $searchService->refreshResultsCount($search);
+        // sans résultat pour le Radar. Un moteur indisponible ne fait pas échouer la création. Revue de code du 2026-11-04 :
+        // APRÈS la réponse (`defer`), hors de son chemin — la réponse porte le compte d'avant (`null` à la création : pas
+        // encore compté), que le front n'affiche pas.
+        defer(fn () => $searchService->refreshResultsCount($search));
 
         return $this->json([
             'data' => SavedSearchResource::make($search)->resolve($request),
@@ -48,9 +52,10 @@ class SavedSearchController extends Controller
         $data = $request->validated();
 
         $savedSearch->fill($data)->save();
-        // TCK-2470 — d'autres critères, un autre compte ; un nom ou une fréquence ne relancent rien.
+        // TCK-2470 — d'autres critères, un autre compte ; un nom ou une fréquence ne relancent rien. Après la réponse,
+        // comme à la création (revue de code du 2026-11-04).
         if ($savedSearch->wasChanged('criteria')) {
-            $searchService->refreshResultsCount($savedSearch);
+            defer(fn () => $searchService->refreshResultsCount($savedSearch));
         }
 
         return $this->json([

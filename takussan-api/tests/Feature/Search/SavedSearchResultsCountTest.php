@@ -149,7 +149,12 @@ class SavedSearchResultsCountTest extends TestCase
         $this->assertSame(1, $saine->fresh()->results_count);
     }
 
-    public function test_la_creation_et_la_modification_comptent_les_biens_tout_de_suite(): void
+    /**
+     * Revue de code du 2026-11-04 — le compte part APRÈS la réponse (`defer`, joué au `terminate()` du noyau, que les tests
+     * HTTP appellent) : la réponse porte le compte d'avant (`null` à la création : pas encore compté), la base le compte neuf
+     * dès la requête terminée.
+     */
+    public function test_la_creation_et_la_modification_comptent_les_biens_apres_la_reponse(): void
     {
         $user = User::factory()->create();
         $this->bien('apartment', 150_000);
@@ -158,13 +163,14 @@ class SavedSearchResultsCountTest extends TestCase
 
         $id = $this->postJson('/api/saved-searches', ['name' => 'Appartements', 'criteria' => ['type' => ['apartment']]])
             ->assertCreated()
-            ->assertJsonPath('data.results_count', 1)
+            ->assertJsonPath('data.results_count', null)
             ->json('data.id');
         $this->assertSame(1, SavedSearch::query()->findOrFail($id)->results_count);
 
         $this->patchJson("/api/saved-searches/{$id}", ['criteria' => ['type' => ['villa']]])
             ->assertOk()
-            ->assertJsonPath('data.results_count', 0);
+            ->assertJsonPath('data.results_count', 1);
+        $this->assertSame(0, SavedSearch::query()->findOrFail($id)->results_count);
 
         // Une modification qui ne touche pas aux critères ne relance aucun compte.
         SavedSearch::query()->whereKey($id)->update(['results_count' => 5]);

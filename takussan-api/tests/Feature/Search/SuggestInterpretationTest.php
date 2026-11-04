@@ -187,6 +187,21 @@ class SuggestInterpretationTest extends TestCase
     }
 
     /**
+     * Revue de code du 2026-11-04 — une `city` comprise retire aussi `cities` (les villes du profil, en OU) de la base :
+     * gardées, elles s'ajouteraient en ET à la ville comprise, et « appart almadies » sur `cities=Thiès,Mbour` compterait 0.
+     */
+    public function test_une_ville_comprise_retire_aussi_les_villes_du_profil_de_la_base(): void
+    {
+        $interpretation = $this->getJson($this->url.'?'.http_build_query(['q' => 'appart almadies', 'cities' => 'Thiès,Mbour']))
+            ->assertOk()->json('data.interpretation');
+
+        $this->assertSame('Dakar', $interpretation['criteria']['city'] ?? null);
+        $liste = $this->getJson('/api/public/properties/search?type=apartment&city=Dakar&location=Almadies&placements=false')->assertOk();
+        $this->assertSame($liste->json('meta.total'), $interpretation['count']);
+        $this->assertSame(4, $interpretation['count'], 'le compte n\'est pas celui de city=Dakar ET cities IN (Thiès, Mbour)');
+    }
+
+    /**
      * Contrat de la session (n° 9) — `widens` : la liste élargira-t-elle sous ces paramètres (ADR-0024) ? Le même prédicat
      * que `PropertySearchService::search()` : zéro au régime exact ET au moins deux termes utiles au résidu.
      */

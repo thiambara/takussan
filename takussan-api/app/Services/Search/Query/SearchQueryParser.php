@@ -702,7 +702,9 @@ final class SearchQueryParser
         }
 
         if ($high['kind'] === 'area') {
-            $a = $low['kind'] === 'area' ? $low['value'] : self::integer($low['number']);
+            // « entre 1 et 2 hectares », « 1,5 à 3 ha » : la borne basse sans unité prend celle de la haute (`mult` porte
+            // le facteur d'une surface) — sans quoi « 1 » se lisait 1 m² face à 20 000 m².
+            $a = $low['kind'] === 'area' ? $low['value'] : self::area($low['number'], (int) ($high['mult'] ?? 1));
             if ($a === null) {
                 return null;
             }
@@ -979,7 +981,7 @@ final class SearchQueryParser
         if (preg_match('/^(\d+(?:[.,]\d+)?)(m2|mc|sqm|ha|hectares?)$/', $t, $mm) === 1) {
             $area = self::area($mm[1], self::AREA_UNITS[$mm[2]]);
 
-            return $area === null ? null : self::quantityOf('area', $area, $mm[1], $j, $t);
+            return $area === null ? null : self::quantityOf('area', $area, $mm[1], $j, $t, (string) self::AREA_UNITS[$mm[2]]);
         }
 
         // « 100 000 », « 25 000 000 F » : les groupes de trois chiffres séparés par une espace.
@@ -1018,7 +1020,7 @@ final class SearchQueryParser
             if ($area !== null) {
                 $value = self::area($digits, $area['factor']);
 
-                return $value === null ? null : self::quantityOf('area', $value, $digits, $area['end'], $digits);
+                return $value === null ? null : self::quantityOf('area', $value, $digits, $area['end'], $digits, (string) $area['factor']);
             }
             if (in_array($f[$k + 1] ?? null, self::MULTIPLIERS, true)) {
                 $mult = $f[$k + 1];
@@ -1035,7 +1037,7 @@ final class SearchQueryParser
         } elseif (isset(self::AREA_UNITS[$suffix])) {
             $value = self::area($digits, self::AREA_UNITS[$suffix]);
 
-            return $value === null ? null : self::quantityOf('area', $value, $digits, $k, $digits);
+            return $value === null ? null : self::quantityOf('area', $value, $digits, $k, $digits, (string) self::AREA_UNITS[$suffix]);
         } else {
             return null;
         }

@@ -69,4 +69,17 @@ class SuggestPlacesTest extends TestCase
 
         $this->assertSame(['Almadies'], array_column($places, 'label'));
     }
+
+    /**
+     * Revue de code du 2026-11-04 — « appart almadies vue » se lit location=Almadies, résidu « vue » : les lieux se cherchent
+     * sur le lieu compris, pas sur le résidu (sous `all`, « vue » ne rend aucun lieu et Almadies manquait).
+     */
+    public function test_un_lieu_compris_suivi_d_un_residu_reste_propose(): void
+    {
+        $data = $this->getJson($this->url.'?q='.rawurlencode('appart almadies vue'))->assertOk()->json('data');
+
+        $this->assertSame('Almadies', $data['interpretation']['criteria']['location'] ?? null);
+        $this->assertSame('vue', $data['interpretation']['residue']);
+        $this->assertSame(['Almadies'], array_column($data['places'], 'label'));
+    }
 }

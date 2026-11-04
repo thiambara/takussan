@@ -23,12 +23,12 @@ use Meilisearch\Exceptions\ApiException;
  *   voulue : sous un résidu de plusieurs mots qui rend 0, la liste ÉLARGIT (ADR-0024) et son `meta.total` est celui de
  *   la recherche élargie ; la suggestion, elle, dit 0 — elle ne promet que le résultat exact.
  * - `parts` : valeurs et positions dans la saisie (`from`/`to` en caractères), **jamais de libellé** (principe n°5).
- * - `places` et `completions` : l'index des suggestions. Les lieux sont cherchés sur le texte encore incompris (le
- *   résidu : « appart 3ch alm » → Almadies), sinon sur le texte du lieu compris, sinon sur la saisie entière.
+ * - `places` et `completions` : l'index des suggestions. Les lieux sont cherchés sur le texte du lieu compris, sinon
+ *   sur le texte encore incompris (le résidu : « appart 3ch alm » → Almadies), sinon sur la saisie entière.
  * - `previews` : au plus 3 biens, ceux de la même requête que `count` (sans interprétation : la saisie en plein texte).
  * - **La base** (revue adverse n° 5, 2026-11-04) : les filtres de la liste que la navigation garde, validés comme la
  *   liste ({@see SuggestRequest::BASE_KEYS}). Un critère compris REMPLACE la même clé de la
- *   base, les autres clés de la base restent — sauf qu'une `city` comprise retire aussi `location` et `region` de la base
+ *   base, les autres clés de la base restent — sauf qu'une `city` comprise retire aussi `location`, `region` et `cities` de la base
  *   (comme la navigation, TCK-439/635) ; `count` et `previews` portent la fusion, `criteria` la seule saisie.
  * - `interpretation.widens` : vrai si la liste ÉLARGIRA sous ces paramètres ({@see PropertySearchService::wouldWiden()},
  *   le même prédicat) — le front n'annonce « des biens proches » que dans ce cas (revue adverse n° 9).
@@ -89,10 +89,11 @@ final class SearchSuggestions
 
         $parsed = $this->parser->parse($q, $locale);
         // La fusion : la saisie remplace la même clé de la base, le reste de la base demeure. Comme la navigation
-        // (TCK-439/635) : une ville comprise retire aussi le quartier et la région de la base.
+        // (TCK-439/635) : une ville comprise retire aussi le quartier, la région et les villes du profil (`cities`, en OU) de
+        // la base — gardées, elles s'ajouteraient en ET à la ville comprise (« dakar » sur `cities=Thiès` : 0 bien).
         unset($base['q'], $base['search']);
         if ($parsed->understood && array_key_exists('city', $parsed->criteria)) {
-            unset($base['location'], $base['region']);
+            unset($base['location'], $base['region'], $base['cities']);
         }
         $params = $parsed->understood
             ? [...$base, ...$parsed->criteria, 'q' => $parsed->residue ?? '']
@@ -152,22 +153,26 @@ final class SearchSuggestions
     /**
      * Le texte sur lequel chercher les lieux. La saisie entière ne convient pas : « appart 3ch almadies » ne porte
      * aucun lieu sur ses deux premiers mots, et sous `all` le moteur n'en rendrait aucun.
+     *
+     * Un lieu compris l'emporte sur le résidu (revue de code du 2026-11-04) : « appart almadies vue » se lit
+     * location=Almadies, résidu « vue », et sous `all` « vue » ne rend aucun lieu — Almadies manquait. Le quartier
+     * d'abord, plus précis que la ville (« Médina Saint-Louis »). Le résidu ne sert que sans lieu compris : c'est le
+     * lieu que l'on est en train d'écrire (« appart 3ch alm » → Almadies).
      */
     private function placeText(string $q, ParsedQuery $parsed): ?string
     {
         if (! $parsed->understood) {
             return $q;
         }
-        if ($parsed->residue !== null) {
-            return $parsed->residue;
-        }
-        foreach ($parsed->parts as $part) {
-            if ($part['key'] === 'location' || $part['key'] === 'city') {
-                return mb_substr($q, $part['from'], $part['to'] - $part['from']);
+        foreach (['location', 'city'] as $key) {
+            foreach ($parsed->parts as $part) {
+                if ($part['key'] === $key) {
+                    return mb_substr($q, $part['from'], $part['to'] - $part['from']);
+                }
             }
         }
 
-        return null;
+        return $parsed->residue;
     }
 
     /**

@@ -24,7 +24,9 @@ use App\Services\Radar\Targets\RadarDemandCurator;
 use App\Services\Radar\Targets\RadarDemandSignals;
 use App\Services\Radar\Targets\RadarTargetCriteria;
 use App\Services\Radar\Targets\RadarTargets;
+use App\Services\Search\Query\DatabasePlaceLexicon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Tests\Support\Ai\SocleIaDEssai;
 use Tests\Support\OperateursPlateforme;
@@ -337,6 +339,10 @@ class RadarDemandCuratorTest extends TestCase
         $this->saved(['location' => 'Chez Tata Awa', 'type' => ['apartment']], ['user_id' => $owner->id]);
         $this->journal(['contract_type' => 'rent', 'type' => 'apartment', 'cities' => 'Dakar'], 4, 'appart chez fatou ndiaye');
         $this->journal(['contract_type' => 'rent', 'location' => 'Keur Fatou'], 6);
+        // Revue de code du 2026-11-04 : le texte libre et les étiquettes écartent les deux premiers ; deux signaux sans texte
+        // restent, pour que l'entrée du modèle existe.
+        $this->saved(['location' => 'Almadies', 'type' => ['villa'], 'contract_type' => 'sale'], ['user_id' => $owner->id, 'name' => 'Villas']);
+        $this->journal(['contract_type' => 'rent', 'type' => 'apartment', 'cities' => 'Dakar'], 4);
         $this->model([]);
 
         $this->pass();
@@ -347,7 +353,7 @@ class RadarDemandCuratorTest extends TestCase
         }
         $input = json_decode($prompt, true, flags: JSON_THROW_ON_ERROR);
         $this->assertSame(['limits', 'signals', 'targets'], array_keys($input));
-        $this->assertCount(2, $input['signals'], 'deux signaux reconnus, deux écartés');
+        $this->assertCount(2, $input['signals'], 'deux signaux reconnus, quatre écartés');
         foreach ($input['signals'] as $signal) {
             $this->assertSame(['ref', 'count', 'sources', 'criteria'], array_keys($signal));
             $this->assertSame([], array_diff(array_keys($signal['criteria']), RadarDemandTargets::CRITERIA_KEYS));
@@ -363,6 +369,32 @@ class RadarDemandCuratorTest extends TestCase
 
         $this->assertSame([], $collected['signals'], 'la saisie normalisée n\'est jamais lue');
         $this->assertSame(1, $collected['excluded']);
+    }
+
+    /**
+     * Revue de code du 2026-11-04 (décision du porteur) — un texte libre résiduel ou des étiquettes écartent le signal, des
+     * deux sources : ignorés, ils élargissaient la demande (« villa piscine yoff » à louer devenait « louer une villa
+     * n'importe où »). Un texte entièrement compris dont les critères sont déjà portés par les filtres n'écarte rien.
+     */
+    public function test_un_texte_libre_residuel_ou_des_etiquettes_ecartent_le_signal(): void
+    {
+        Cache::forget(DatabasePlaceLexicon::CACHE_KEY);
+        // Écartés : un résidu (recherche sauvegardée, journal), des étiquettes, un texte compris que les filtres ne portent pas.
+        $this->saved(['q' => 'villa piscine yoff', 'contract_type' => 'rent', 'type' => ['villa']]);
+        $this->saved(['contract_type' => 'rent', 'type' => ['villa'], 'tags' => ['piscine']]);
+        $this->journal(['contract_type' => 'rent', 'type' => 'villa'], 3, 'villa piscine yoff');
+        $this->journal(['contract_type' => 'sale'], 2, 'appart almadies');
+        // Gardés : sans texte, et un texte entièrement compris que les filtres portent déjà (la liste ouverte depuis la barre).
+        $this->saved(['contract_type' => 'rent', 'type' => ['villa']]);
+        $this->journal(['contract_type' => 'rent', 'type' => 'apartment', 'cities' => 'Dakar'], 2, 'appart dakar');
+
+        $collected = app(RadarDemandSignals::class)->collect();
+
+        $this->assertSame(4, $collected['excluded']);
+        $this->assertEqualsCanonicalizing(
+            [['types' => ['villa'], 'cities' => []], ['types' => ['apartment'], 'cities' => ['Dakar']]],
+            array_map(static fn (array $s): array => ['types' => $s['criteria']['types'], 'cities' => $s['criteria']['cities']], $collected['signals']),
+        );
     }
 
     // ── AC3 — défaire ─────────────────────────────────────────────────────────────────────────────

@@ -374,6 +374,43 @@ class RadarSitemapCrawlTest extends TestCase
         $this->assertSame(2_500_000, $villa->refresh()->source_fields['price']);
     }
 
+    /**
+     * Revue de code du 2026-11-04 — une page refusée pour de bon (ici : pas du HTML) ou que l'adaptateur ne reconnaît plus
+     * enregistre le `lastmod` vu comme traité : elle ne revient qu'avec un `lastmod` plus récent. Sans cela, chaque passage la
+     * remettait en file, en tête (les plus récentes d'abord), sur le créneau du domaine, sans jamais réussir. Un échec
+     * passager (ici : 503) la laisse à relire.
+     */
+    public function test_une_page_refusee_pour_de_bon_n_est_plus_relue_au_meme_lastmod_mais_un_echec_passager_si(): void
+    {
+        $avant = CarbonImmutable::parse('2026-10-01T00:00:00+00:00');
+        $pages = [
+            'meconnaissable' => [200, 'text/html; charset=utf-8', '<html><body><p>Page sans annonce.</p></body></html>'],
+            'pas-du-html' => [200, 'application/pdf', '%PDF-1.4'],
+            'indisponible' => [503, 'text/html', 'indisponible'],
+        ];
+        $annonces = [];
+        foreach ($pages as $cas => $reponse) {
+            $url = self::ANNONCE.'villa-'.$cas.'-'.(8300000 + count($annonces));
+            $annonce = $this->connue($url);
+            $annonce->forceFill(['stage' => RadarListingStage::Extracted, 'source_lastmod' => $avant])->save();
+            $this->served[$url] = $reponse;
+            $this->travel(10)->seconds();
+            $this->app->call([new RefreshRadarListing($annonce->id, null, '2026-11-03T12:00:00+00:00'), 'handle']);
+            $annonces[$cas] = [$url, $annonce->refresh()];
+        }
+
+        $this->assertSame('2026-11-03 12:00:00', $annonces['meconnaissable'][1]->source_lastmod?->utc()->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-11-03 12:00:00', $annonces['pas-du-html'][1]->source_lastmod?->utc()->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-10-01 00:00:00', $annonces['indisponible'][1]->source_lastmod?->utc()->format('Y-m-d H:i:s'), 'Un échec passager se relira.');
+        $this->assertNull($annonces['meconnaissable'][1]->source_fields, 'Rien d\'autre n\'est écrit.');
+
+        // Le passage suivant, au même lastmod : seule la page en échec passager est remise en file.
+        $this->sitemaps(['maisons-a-louer' => array_fill_keys(array_column($annonces, 0), '2026-11-03T12:00:00+00:00')]);
+        $this->crawl();
+        Bus::assertDispatchedTimes(RefreshRadarListing::class, 1);
+        Bus::assertDispatched(RefreshRadarListing::class, fn (RefreshRadarListing $job) => $job->listingId === $annonces['indisponible'][1]->id);
+    }
+
     public function test_une_annonce_encore_capturee_ou_purgee_n_est_pas_relue(): void
     {
         $url = 'https://www.expat-dakar.com/annonce/villa-fictive-f5-avec-piscine-8200001';

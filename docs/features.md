@@ -1501,7 +1501,9 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   sitemap, une URL neuve passe le filtre des cibles puis est saisie, au plus `radar.crawl.max_new_per_run` (200) par
   passage, les plus récentes d'abord ; une URL connue dont le `lastmod` avance est relue après le passage, sans IA, et
   seul un prix changé ouvre un instantané, au plus `radar.crawl.max_refresh_per_run` (300) par passage, le `lastmod`
-  le plus récent d'abord ; une annonce encore à extraire n'est jamais relue. Une annonce n'a disparu
+  le plus récent d'abord ; une annonce encore à extraire n'est jamais relue. Une page refusée pour de bon (`robots.txt`,
+  adresse refusée, trop grande, pas du HTML) ou que l'adaptateur ne reconnaît plus n'est relue qu'à un `lastmod` plus
+  récent ; un échec passager (réseau, délai, 5xx, 429) l'est au passage suivant (revue de code du 2026-11-04). Une annonce n'a disparu
   qu'après deux lectures **complètes** de tous les sitemaps : un sitemap refusé, illisible (y compris une page d'erreur
   servie en `200`, ou un document qui porte `<!DOCTYPE` ou `<!ENTITY`) ou vide rend la lecture incomplète. Les URL de
   départ et le plafond de pages ne valent que pour les listes. Lecture par `UrlFetcher` : SSRF, `robots.txt` et créneau
@@ -1528,7 +1530,8 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   — et n'en garde que des
   critères structurés : **rien de ce
   qu'un visiteur a tapé** n'est envoyé ; un lieu n'entre que reconnu par le référentiel, sous son nom, et un lieu
-  inconnu, une région ou un point écartent le signal. Si ces signaux ont changé depuis la dernière révision, l'usage
+  inconnu, une région ou un point écartent le signal — comme un texte libre qui reste incompris après l'analyse de la
+  saisie, ou des étiquettes, qui borneraient la recherche plus que le signal (revue de code du 2026-11-04). Si ces signaux ont changé depuis la dernière révision, l'usage
   `radar.cibles` (rôle `extraction`, 0,50 $ par jour au plus) propose de créer, modifier, fusionner ou retirer des
   cibles d'origine « demande » ; le code valide chaque opération (critères, plafond `radar.targets.max_demand` de 20
   cibles actives de la demande, doublon) et écarte, en le consignant, ce qui ne passe pas. L'IA ne touche jamais une

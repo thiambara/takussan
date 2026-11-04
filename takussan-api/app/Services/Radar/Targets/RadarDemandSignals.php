@@ -9,6 +9,7 @@ use App\Models\GeoNeighborhood;
 use App\Models\SavedSearch;
 use App\Services\Geo\GeoNeighborhoodResolver;
 use App\Services\Search\QuartierDuFiltre;
+use App\Services\Search\Query\SearchQueryParser;
 use App\Services\Search\SearchJournal;
 use App\Support\Search\CleDeQuartier;
 
@@ -23,7 +24,15 @@ use App\Support\Search\CleDeQuartier;
  * ni identifiant. Un lieu (`city`, `cities`, `location`) n'entre que RECONNU par le référentiel, et sous le nom du
  * référentiel — jamais sous la forme saisie ; un lieu inconnu écarte le signal entier (l'ignorer élargirait la demande à tout
  * le pays). Ce qui ne s'exprime pas en critères de cible écarte aussi le signal : une région, un point et son rayon.
- * Les autres clés (surface, salles de bain, étiquettes, état, titre, période…) ne bornent pas une cible : elles sont ignorées.
+ *
+ * **Le texte libre et les étiquettes écartent aussi le signal** (revue de code du 2026-11-04, décision du porteur) : ignorés,
+ * ils élargissaient la demande — {q: « villa piscine yoff », louer, villa} devenait « louer une villa n'importe où », une
+ * cible qui collecte tout le pays. Le texte (`q` d'une recherche sauvegardée, `normalized_query` du journal) est LU pour en
+ * juger, jamais transmis : il passe par {@see SearchQueryParser}, et c'est le RÉSIDU qui compte — un texte entièrement
+ * compris dont chaque critère est déjà porté par les critères structurés (la liste ouverte depuis la barre : la saisie
+ * comprise devient des filtres, `q` le seul résidu) n'ajoute rien ; un texte qui laisse un résidu, ou dont un critère compris
+ * manque aux critères structurés, borne la recherche plus que le signal ne le dirait : écarté. `tags` non vide : écarté.
+ * Les autres clés (surface, salles de bain, état, titre, période…) ne bornent pas une cible : elles sont ignorées.
  *
  * Les signaux de mêmes critères (même empreinte `RadarTargetCriteria::signature()`) se regroupent ; leur poids `count` est la
  * somme des recherches sauvegardées et des visiteurs distincts. Au plus {@see self::MAX_SIGNALS}, les plus lourds d'abord.
@@ -45,6 +54,7 @@ final class RadarDemandSignals
     public function __construct(
         private readonly SearchJournal $journal,
         private readonly QuartierDuFiltre $quartiers,
+        private readonly SearchQueryParser $parser,
     ) {}
 
     /**
@@ -82,9 +92,10 @@ final class RadarDemandSignals
                 }
             });
 
-        // `normalized_query` n'est jamais lu : seuls les critères structurés et le compte de visiteurs.
+        // `normalized_query` n'est lu que pour écarter le signal qui porte du texte libre (revue de code du 2026-11-04) :
+        // il ne sort jamais d'ici.
         foreach ($this->journal->zeroResultDemand(self::JOURNAL_DAYS, minVisitors: self::JOURNAL_MIN_VISITORS) as $row) {
-            $add($this->targetCriteria($row['criteria']), (int) $row['distinct_visitors'], false);
+            $add($this->targetCriteria([...$row['criteria'], 'q' => $row['normalized_query']]), (int) $row['distinct_visitors'], false);
         }
 
         uksort($groups, static fn (string $a, string $b): int => [$groups[$b]['count'], $a] <=> [$groups[$a]['count'], $b]);
@@ -122,6 +133,11 @@ final class RadarDemandSignals
     public function targetCriteria(array $search): ?array
     {
         if (self::filled($search['region'] ?? null) || self::filled($search['lat'] ?? null) || self::filled($search['radius_km'] ?? null)) {
+            return null;
+        }
+        // Revue de code du 2026-11-04 — des étiquettes ou un texte libre bornent la recherche ; ignorés, ils élargiraient le
+        // signal (cf. l'en-tête).
+        if (self::list($search['tags'] ?? null) !== [] || $this->hasFreeText($search)) {
             return null;
         }
 
@@ -244,6 +260,34 @@ final class RadarDemandSignals
                 (array) ($criteria['neighborhoods'] ?? []),
             ),
         ];
+    }
+
+    /**
+     * Vrai si le texte de la recherche (`q`) la borne au-delà de ses critères structurés : un résidu après interprétation,
+     * ou un critère compris que les critères structurés ne portent pas (« appart almadies » tapé sans filtre).
+     *
+     * @param  array<string, mixed>  $search
+     */
+    private function hasFreeText(array $search): bool
+    {
+        $q = is_string($search['q'] ?? null) ? trim($search['q']) : '';
+        if ($q === '') {
+            return false;
+        }
+        $parsed = $this->parser->parse($q, 'fr');
+        if (! $parsed->understood || $parsed->residue !== null) {
+            return true;
+        }
+        foreach (array_keys($parsed->criteria) as $key) {
+            $carried = $key === 'city'
+                ? self::filled($search['city'] ?? null) || self::filled($search['cities'] ?? null)
+                : self::filled($search[$key] ?? null);
+            if (! $carried) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** Le nom actuel de la ville du référentiel que ce texte désigne (nom ou ancien nom), ou null. */
