@@ -6,6 +6,7 @@ use App\Jobs\Radar\ExtractRadarListing;
 use App\Jobs\SendAdminAlert;
 use App\Models\AlertRule;
 use App\Models\Enums\PlatformProfileLevel;
+use App\Models\Enums\RadarCrawlScope;
 use App\Models\Enums\RadarListingStage;
 use App\Models\Enums\RadarSourceSite;
 use App\Models\Property;
@@ -77,6 +78,8 @@ class RadarSourceWatchCrawlTest extends TestCase
         });
 
         $this->operator = $this->operateur(PlatformProfileLevel::SuperAdmin);
+        // TCK-2468 — ces passages éprouvent la collecte d'ADR-0080 : la source saisit tout ce qu'elle voit (`scope = all`).
+        $this->app->make(RadarCrawlSources::class)->all()->each->update(['scope' => RadarCrawlScope::All]);
         AlertRule::create([
             'event' => RadarSourceWatch::EVENT,
             'channels_json' => ['email'],

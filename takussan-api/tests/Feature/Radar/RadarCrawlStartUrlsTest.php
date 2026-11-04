@@ -4,6 +4,7 @@ namespace Tests\Feature\Radar;
 
 use App\Jobs\Radar\ExtractRadarListing;
 use App\Models\Enums\PlatformProfileLevel;
+use App\Models\Enums\RadarCrawlScope;
 use App\Models\Enums\RadarSourceSite;
 use App\Models\RadarCrawlRun;
 use App\Models\RadarCrawlSource;
@@ -82,6 +83,8 @@ class RadarCrawlStartUrlsTest extends TestCase
         });
 
         $this->operator = $this->operateur(PlatformProfileLevel::SuperAdmin);
+        // TCK-2468 — ces passages éprouvent la collecte d'ADR-0080 : la source saisit tout ce qu'elle voit (`scope = all`).
+        $this->app->make(RadarCrawlSources::class)->all()->each->update(['scope' => RadarCrawlScope::All]);
     }
 
     private function fixture(string $name): string

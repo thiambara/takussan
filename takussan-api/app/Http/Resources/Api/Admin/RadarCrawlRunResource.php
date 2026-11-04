@@ -26,6 +26,8 @@ class RadarCrawlRunResource extends BaseResource
             'listings_created' => $this->whenHas('listings_created'),
             'listings_known' => $this->whenHas('listings_known'),
             'snapshots_opened' => $this->whenHas('snapshots_opened'),
+            // TCK-2468 — les cartes nouvelles qu'une source ciblée a écartées.
+            'cards_skipped' => $this->whenHas('cards_skipped'),
             'reached_end' => $this->whenHas('reached_end'),
             'stop_reason' => $this->whenHas('stop_reason'),
             'created_at' => $this->whenHas('created_at', fn () => $this->iso($this->created_at)),

@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\Admin\RadarObservatoryController;
 use App\Http\Controllers\Api\Admin\RadarOutreachController;
 use App\Http\Controllers\Api\Admin\RadarPublicationController;
 use App\Http\Controllers\Api\Admin\RadarRevocationController;
+use App\Http\Controllers\Api\Admin\RadarTargetController;
 use App\Models\Enums\PlatformAbility;
 use Illuminate\Support\Facades\Route;
 
@@ -145,4 +146,24 @@ Route::middleware(['auth:sanctum', 'super-admin', 'platform-can:'.PlatformAbilit
     ->prefix('admin/radar')
     ->group(function () {
         Route::post('advertisers/{advertiser}/publish-mandate', [RadarPublicationController::class, 'publishUnderMandate'])->middleware('idempotent')->name('admin.radar.advertisers.publish-mandate');
+    });
+
+/*
+| TCK-2468 (ADR-0087 §5) — les cibles : ce que la collecte cherche. Les lire, avec leurs annonces : `platform.radar.operate`.
+| Les créer, modifier, retirer : `platform.radar.publish`, `super_admin` seul — même partage que les sources (ADR-0080) :
+| une cible engage ce que la collecte lit et ce que l'extraction paie.
+*/
+Route::middleware(['auth:sanctum', 'super-admin', 'platform-can:'.PlatformAbility::RadarOperate->value])
+    ->prefix('admin/radar')
+    ->group(function () {
+        Route::get('targets', [RadarTargetController::class, 'index'])->name('admin.radar.targets.index');
+        Route::get('targets/{target}', [RadarTargetController::class, 'show'])->name('admin.radar.targets.show');
+        Route::get('targets/{target}/listings', [RadarTargetController::class, 'listings'])->name('admin.radar.targets.listings');
+    });
+Route::middleware(['auth:sanctum', 'super-admin', 'platform-can:'.PlatformAbility::RadarPublish->value])
+    ->prefix('admin/radar')
+    ->group(function () {
+        Route::post('targets', [RadarTargetController::class, 'store'])->name('admin.radar.targets.store');
+        Route::patch('targets/{target}', [RadarTargetController::class, 'update'])->name('admin.radar.targets.update');
+        Route::delete('targets/{target}', [RadarTargetController::class, 'destroy'])->name('admin.radar.targets.destroy');
     });

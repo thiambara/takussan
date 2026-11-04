@@ -102,6 +102,10 @@ class PlatformRoutesDefaultDenyTest extends TestCase
         // TCK-2394 — la relance d'activation (lire, marquer envoyée) : du démarchage.
         'admin.radar.advertisers.activation-reminder',
         'admin.radar.advertisers.activation-reminder.sent',
+        // TCK-2468 (ADR-0087) — lire les cibles et leurs annonces (`platform.radar.operate`) ; les écrire reste au `super_admin`.
+        'admin.radar.targets.index',
+        'admin.radar.targets.show',
+        'admin.radar.targets.listings',
     ];
 
     public function test_toute_route_de_la_console_passe_par_la_garde_plateforme(): void

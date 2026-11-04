@@ -2,6 +2,7 @@
 
 namespace App\Services\Radar\Crawl;
 
+use App\Models\Enums\RadarCrawlScope;
 use App\Models\Enums\RadarCrawlStatus;
 use App\Models\RadarCrawlRun;
 use App\Models\RadarListing;
@@ -10,6 +11,7 @@ use App\Services\Radar\Exceptions\RadarFetchDeferred;
 use App\Services\Radar\Exceptions\RadarFetchRefused;
 use App\Services\Radar\FetchedPage;
 use App\Services\Radar\RadarListingIntake;
+use App\Services\Radar\Targets\RadarTargetMatcher;
 use App\Services\Radar\UrlFetcher;
 use Illuminate\Support\Sleep;
 
@@ -41,6 +43,13 @@ use Illuminate\Support\Sleep;
  * l'ordre des URL ; sinon l'arrêt du passage est celui de la première liste qui ne l'a pas fait (une boucle se lit dans
  * la console : `radar.crawl.loop`). Un passage que le planificateur a clos entre-temps (`radar.crawl.lost`) le
  * reste : la fin ne réécrit qu'un passage encore `running`.
+ *
+ * TCK-2468 (ADR-0087 §5) — **une source ciblée** (`scope = targeted`, le défaut) ne saisit une URL nouvelle que si sa
+ * carte PEUT correspondre à une cible active qui concerne le site ({@see RadarTargetMatcher::mayMatchCard()}, permissif :
+ * une valeur absente de la carte n'exclut rien). Une carte écartée ne crée aucune ligne et n'est comptée que dans
+ * `cards_skipped` ; une annonce déjà connue est observée comme avant. Sans aucune cible active pour le site, le passage
+ * s'arrête avant de lire (`radar.crawl.no_target`). Les cibles sont lues une fois, au départ du passage. Une source `all`
+ * garde le comportement d'ADR-0080.
  */
 final class RadarCrawler
 {
@@ -52,7 +61,11 @@ final class RadarCrawler
         private readonly RadarListingIntake $intake,
         private readonly RadarSnapshots $snapshots,
         private readonly RadarStartUrls $startUrls,
+        private readonly RadarTargetMatcher $targets,
     ) {}
+
+    /** TCK-2468 — le passage en cours lit-il pour des cibles (source `targeted`) ? */
+    private bool $targeted = false;
 
     public function run(RadarCrawlRun $run): RadarCrawlRun
     {
@@ -81,6 +94,13 @@ final class RadarCrawler
         $run->save();
         if ($starts === []) {
             return $this->finish($run, RadarCrawlRun::STOP_NO_START_URL);
+        }
+
+        // TCK-2468 — les cibles du moment, lues une fois ; une source ciblée sans cible ne lit rien.
+        $this->targets->forget();
+        $this->targeted = ($source->scope ?? RadarCrawlScope::Targeted) === RadarCrawlScope::Targeted;
+        if ($this->targeted && $this->targets->activeFor($run->site)->isEmpty()) {
+            return $this->finish($run, RadarCrawlRun::STOP_NO_TARGET);
         }
 
         $walk = new CrawlWalk($maxPages, $deadline);
@@ -192,7 +212,8 @@ final class RadarCrawler
 
     /**
      * L'annonce de cette carte : la fiche connue (rien n'est relancé), ou une fiche neuve saisie au nom de l'opérateur ;
-     * null pour une fiche réduite au silence ({@see RadarSnapshots::silenced()}), qui n'est ni observée ni comptée.
+     * null pour une fiche réduite au silence ({@see RadarSnapshots::silenced()}), qui n'est ni observée ni comptée, et
+     * pour une carte nouvelle qu'une source ciblée écarte (TCK-2468, comptée dans `cards_skipped`).
      */
     private function listingFor(ListCard $card, RadarCrawlRun $run, User $operator): ?RadarListing
     {
@@ -205,6 +226,13 @@ final class RadarCrawler
             $run->listings_known++;
 
             return $known;
+        }
+
+        // TCK-2468 — une source ciblée ne saisit pas une carte qu'aucune cible active ne peut vouloir : ni ligne, ni coût.
+        if ($this->targeted && ! $this->targets->mayMatchCard($card, $run->site)) {
+            $run->cards_skipped++;
+
+            return null;
         }
 
         $result = $this->intake->fromUrls([$card->url], $operator, $run->id)[0];

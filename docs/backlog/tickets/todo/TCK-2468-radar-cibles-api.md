@@ -113,4 +113,61 @@ created_at, updated_at` (dates par `iso()`). `RadarCrawlSourceResource` rend `sc
 
 ## Notes d'implémentation
 
-_(à remplir)_
+**Re-mesuré avant de coder (2026-11-04)** :
+
+- Les droits ne sont pas des `Capability` mais des `PlatformAbility` (`platform.radar.operate`, `platform.radar.publish`),
+  posés par `platform-can:` sur les groupes de `routes/api/admin-radar.php` — c'est bien le fichier du Radar. Les
+  FormRequests d'écriture redisent `hasPlatformAbility(RadarPublish)` dans `authorize()` (précédent :
+  `Admin\BlockUserRequest`) ; `DELETE` n'a pas de corps, donc pas de FormRequest : seule la route le garde (mesuré par
+  ablation : déplacée sous `operate`, `POST`/`PATCH` restent 403 par `authorize()`, `DELETE` passe 200, et
+  `PlatformRoutesDefaultDenyTest` rougit).
+- `ListCard` porte `price` (XOF), `rentPeriod`, `contract`, `propertyType` (valeurs de `PropertyType`), `bedrooms`,
+  `location` (texte libre « Almadies, Dakar ») — ni meublé ni date : ces deux critères ne se jugent jamais sur une carte.
+- `RadarNeighborhoodMatcher` compare par `GeoNeighborhoodResolver::cle()` (casse repliée par `CaseInsensitive::fold`,
+  séparateurs repliés, accents distincts). Le matcher des cibles réutilise cette clé, pas une seconde.
+- Le dépôt n'a aucune colonne `timestampTz` : `last_matched_at` et `matched_at` sont des `timestamp`, comme toutes les
+  dates du Radar (le ticket disait `timestamptz`).
+- Les sources existantes passent `targeted` par le défaut de la migration : **les 5 classes de test qui jouent un passage
+  ADR-0080** (`RadarCrawlTest`, `RadarCrawlStartUrlsTest`, `RadarSnapshotPrivacyTest`, `RadarSourceWatchCrawlTest`,
+  `RadarSourceWatchStartUrlsTest`) règlent désormais leur source sur `all` dans `setUp()` — 34 rouges sans cela.
+  ⚠ En préproduction, une source allumée cesse de saisir au déploiement (`radar.crawl.no_target`) tant qu'aucune cible
+  n'existe ou que le porteur ne la règle pas sur `all` : c'est la décision d'ADR-0087 §5, à dire au porteur.
+
+**Décisions non évidentes** :
+
+- Toutes les clés de critères sont des contraintes **indépendantes (ET)** : `cities` ET `neighborhoods` exigent les deux.
+- **Carte (permissif)** : un prix ne se compare que pour un loyer mensuel ou une vente (un loyer à la journée n'exclut
+  pas) ; le lieu n'exclut une carte que s'il nomme un AUTRE quartier (ou une autre ville) du référentiel approuvé sans
+  nommer aucun de ceux de la cible — un lieu inconnu, ou la ville seule, n'exclut rien.
+- **Annonce extraite (strict)** : un critère posé exige une valeur connue qui le remplit ; un loyer non mensuel ne remplit
+  pas une fourchette de prix. Exception, la fraîcheur : aucune lecture ne rend encore de date de publication ; à défaut de
+  `extracted.published_at.value`, l'âge est celui de `created_at` (borne basse). La ville d'un critère de quartier ne
+  départage que si celle de l'annonce est connue.
+- **Rattachement** : synchronisation, pas ajout — un lien vers une cible ACTIVE que l'annonce ne remplit plus (relecture
+  corrigée) est retiré ; `matches_count` est recompté depuis le pivot. Déclenché par `RadarListingTargetObserver`
+  (`ShouldHandleEventsAfterCommit`) à l'ENTRÉE de l'annonce en `extracted` ou `reviewed` — `ExtractRadarListing` n'est pas
+  touché. Une cible créée ou modifiée après coup ne rattache PAS les annonces déjà extraites (hors périmètre : un
+  rattrapage serait un ticket).
+- **Source ciblée sans cible active** : le passage s'arrête AVANT de lire (`radar.crawl.no_target`, 0 page) ; une annonce
+  déjà connue reste observée (le filtre ne borne que la saisie d'une URL nouvelle).
+- **Doublon** : 422 `radar.targets.duplicate` (`params.target_id`) sur la même empreinte parmi les cibles non retirées ;
+  l'empreinte replie la casse des lieux. Plafond et doublon jugés sous le verrou consultatif `radar_targets`
+  (`App\Services\Radar\Targets\RadarTargets`, seul chemin d'écriture — TCK-2470 doit l'emprunter).
+- `PATCH` n'accepte que `status` ∈ `active|paused` (retirer = `DELETE`) ; réactiver une cible retirée la soumet au
+  plafond et au doublon.
+- `RadarCrawlRunResource` rend `cards_skipped` ; `check-status-labels.mjs` et `check-status-unions.mjs` portent
+  `RadarTargetStatus` en exemption **à convertir par TCK-2469**.
+
+**À reporter dans les specs (la session)** :
+
+- `docs/models-spec.md` — **`RadarTarget`** (`radar_targets`) : `id`, `name` string(120), `origin` string(20)
+  (`operator`|`demand`, enum `RadarTargetOrigin`), `status` string(20) (`active`|`paused`|`retired`, enum
+  `RadarTargetStatus`), `pinned` bool défaut faux, `criteria` jsonb (forme de `RadarTargetCriteria`), `criteria_signature`
+  string(64) — index unique PARTIEL `radar_targets_live_signature_unique` `WHERE status <> 'retired'`, `demand_count`
+  uint null, `matches_count` uint défaut 0, `last_matched_at` timestamp null, `created_by_id` FK users `nullOnDelete`,
+  timestamps ; index `(status, origin)`. Relations : `creator()`, `listings()` (belongsToMany par `radar_listing_target`,
+  pivot `matched_at`). Pivot **`radar_listing_target`** : `radar_listing_id` FK cascade, `radar_target_id` FK cascade,
+  `matched_at` timestamp, PK composée, index `(radar_target_id, matched_at)`. `RadarListing::targets()`.
+  `radar_crawl_sources.scope` string(20) défaut `targeted` (enum `RadarCrawlScope` : `targeted`|`all`).
+  `radar_crawl_runs.cards_skipped` uint défaut 0.
+- `docs/features.md` §2.12 — les cibles (routes, droits, plafond 50, `radar.crawl.no_target`, portée d'une source).

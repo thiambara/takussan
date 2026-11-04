@@ -34,6 +34,8 @@ class RadarListing extends AbstractModel implements HasMedia
         'source_photo_hashes', 'duplicate_of_listing_id', 'duplicate_of_property_id', 'photo_preparation',
         // TCK-2392 — la collecte et la fusion automatique.
         'discovered_by_run_id', 'merged_at', 'merge_checked_at', 'similarity_text',
+        // TCK-2465 — ce que la page dit en clair, lu par l'adaptateur du site (ou ses seuls numéros, à défaut).
+        'source_fields',
     ];
 
     protected $casts = [
@@ -45,6 +47,7 @@ class RadarListing extends AbstractModel implements HasMedia
         'matches' => 'array',
         'source_photo_hashes' => 'array',
         'photo_preparation' => 'array',
+        'source_fields' => 'array',
         'duplicate_of_listing_id' => 'integer',
         'duplicate_of_property_id' => 'integer',
         'extraction_attempts' => 'integer',
@@ -77,6 +80,8 @@ class RadarListing extends AbstractModel implements HasMedia
         'discovered_by_run_id', 'merged_at',
         // TCK-2393 — la disparition constatée de la source.
         'source_gone_at', 'source_gone_run_id',
+        // TCK-2465 — ce que la page dit en clair (fiche de l'opérateur).
+        'source_fields',
     ];
 
     // Seul l'annonceur se charge par `include=` : la ressource ne rend que lui. Sous un sparse
@@ -144,6 +149,12 @@ class RadarListing extends AbstractModel implements HasMedia
     public function discoveredBy(): BelongsTo
     {
         return $this->belongsTo(RadarCrawlRun::class, 'discovered_by_run_id');
+    }
+
+    /** TCK-2468 (ADR-0087 §5) — les cibles dont elle remplit les critères, posées après l'extraction ou la relecture. */
+    public function targets(): BelongsToMany
+    {
+        return $this->belongsToMany(RadarTarget::class, 'radar_listing_target')->withPivot('matched_at');
     }
 
     /** TCK-2392 — les annonces marquées doublon de celle-ci : avec elle, les provenances de la fiche. */

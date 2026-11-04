@@ -243,6 +243,17 @@ return [
         'enabled' => (bool) env('RADAR_NATURE_COUNTS', false),
     ],
 
+    // TCK-2468 (ADR-0087 §5) — les cibles : ce que l'opérateur (ou la demande, TCK-2470) cherche, et qui borne ce qu'une
+    // source ciblée saisit. Au plus `max_active` cibles actives, toutes origines : au-delà, 422 `radar.targets.too_many`.
+    // Lu par `App\Services\Radar\Targets\RadarTargets` et `RadarTargetCriteria`, et nulle part ailleurs.
+    'targets' => [
+        'max_active' => 50,
+        // Bornes d'une cible : éléments par liste de critères, longueur d'un nom de ville ou de quartier, fraîcheur.
+        'max_list_items' => 30,
+        'max_place_length' => 80,
+        'max_age_days' => 365,
+    ],
+
     // TCK-2394 (ADR-0077, lot 4) — la relance d'activation d'un compte créé pour l'annonceur
     // (`App\Services\Radar\RadarActivationReminders`, et nulle part ailleurs). Elle cite les chiffres d'une période :
     // depuis la dernière relance envoyée, sinon depuis la mise en ligne ; elle ne part qu'une fois cette période longue de

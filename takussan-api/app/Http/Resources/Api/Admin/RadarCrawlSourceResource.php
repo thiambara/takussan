@@ -14,6 +14,8 @@ use Illuminate\Http\Request;
  *
  * TCK-2438 — `start_urls` : les URL de départ réglées (null : celle de la configuration). Avec `site`, deux valeurs du
  * code pour le formulaire : `default_start_url` (celle de la configuration) et `start_hosts` (les hôtes permis).
+ *
+ * TCK-2468 — `scope` : `targeted` ou `all` (ADR-0087 §5).
  */
 class RadarCrawlSourceResource extends BaseResource
 {
@@ -29,6 +31,7 @@ class RadarCrawlSourceResource extends BaseResource
             'enabled_at' => $this->whenHas('enabled_at', fn () => $this->iso($this->enabled_at)),
             'updated_at' => $this->whenHas('updated_at', fn () => $this->iso($this->updated_at)),
             'start_urls' => $this->whenHas('start_urls'),
+            'scope' => $this->whenHas('scope', fn () => $this->enumValue($this->scope)),
             'default_start_url' => $this->whenHas('site', fn () => $this->adapter()?->startUrl()),
             'start_hosts' => $this->whenHas('site', fn () => $this->adapter()?->startHosts() ?? []),
             'operator' => $this->whenLoaded('operator', fn () => $this->operator === null ? null : [

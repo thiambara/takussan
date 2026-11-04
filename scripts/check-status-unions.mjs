@@ -114,6 +114,7 @@ const SANS_UNION = {
   CollaborationStatus: 'aucune union nommée au front',
   InvitationStatus: 'unions anonymes seulement (`lib/queries/owners.ts`, `lib/queries/service-providers.ts`)',
   RelationshipStatus: 'union anonyme ouverte seulement (`types/customer.ts`, `… | string`)',
+  RadarTargetStatus: 'TCK-2468 : l\'API des cibles est livrée sans écran ; TCK-2469 (la console des cibles) pose son union et la déplace dans `CORRESPONDANCES`',
 };
 
 /**
