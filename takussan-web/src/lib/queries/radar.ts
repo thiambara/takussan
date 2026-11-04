@@ -665,8 +665,8 @@ export async function fetchRadarTargets(filters: RadarTargetFilters = {}): Promi
 }
 
 export async function fetchRadarTarget(id: number): Promise<RadarTargetResponse> {
-  const qs = buildQueryString({ fields: { radar_targets: RADAR_TARGET_FIELDS } });
-  const res = await fetch(cheminApi`/api/super-admin/radar/targets/${id}${requete(qs)}`, { credentials: 'include' });
+  // P60.03 — un `show` rend la ressource entière : aucun `fields[...]` (l'API l'ignorerait).
+  const res = await fetch(cheminApi`/api/super-admin/radar/targets/${id}`, { credentials: 'include' });
   return jsonOrThrow<RadarTargetResponse>(res);
 }
 
