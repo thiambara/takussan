@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\Admin;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Models\Enums\RadarCrawlDiscovery;
 use App\Models\Enums\RadarCrawlScope;
 use App\Models\Enums\RadarSourceSite;
 use App\Services\Radar\Crawl\RadarCrawlSources;
@@ -21,6 +22,9 @@ use Illuminate\Validation\Rule;
  * Rien n'est enregistré.
  *
  * TCK-2468 (ADR-0087 §5) — `scope` : `targeted` (ne saisir que ce qu'une cible peut vouloir) ou `all` (tout ce qui est vu).
+ *
+ * TCK-2467 (ADR-0087 §4) — `discovery` : `sitemap` ou `lists` ; null rend le défaut de l'adaptateur. `sitemap` sur un site
+ * dont l'adaptateur ne déclare aucun sitemap : 422 `radar.crawl.discovery_unavailable`, rien n'est enregistré.
  */
 class UpdateRadarCrawlSourceRequest extends BaseFormRequest
 {
@@ -43,11 +47,22 @@ class UpdateRadarCrawlSourceRequest extends BaseFormRequest
             'start_urls' => ['sometimes', 'nullable', 'array'],
             'start_urls.*' => ['nullable', 'string'],
             'scope' => ['sometimes', 'required', Rule::enum(RadarCrawlScope::class)],
+            'discovery' => ['sometimes', 'nullable', Rule::enum(RadarCrawlDiscovery::class)],
         ];
     }
 
     protected function passedValidation(): void
     {
+        if ($this->validated('discovery') === RadarCrawlDiscovery::Sitemap->value) {
+            $site = RadarSourceSite::tryFrom((string) $this->route('site'));
+            $sources = app(RadarCrawlSources::class);
+            // Un site inconnu : le contrôleur répond 404 `radar.crawl.unknown_site`.
+            abort_code_if(
+                $site !== null && $sources->has($site->value) && $sources->adapter($site)->sitemapUrls() === [],
+                422, 'radar.crawl.discovery_unavailable', ['field' => 'discovery'],
+            );
+        }
+
         if (! $this->has('start_urls')) {
             return;
         }
@@ -79,7 +94,7 @@ class UpdateRadarCrawlSourceRequest extends BaseFormRequest
         }
     }
 
-    /** @return array{enabled?: bool, frequency_minutes?: int, max_pages?: int, start_urls?: list<string>|null, scope?: string} */
+    /** @return array{enabled?: bool, frequency_minutes?: int, max_pages?: int, start_urls?: list<string>|null, scope?: string, discovery?: string|null} */
     public function changes(): array
     {
         $changes = [];
@@ -98,6 +113,10 @@ class UpdateRadarCrawlSourceRequest extends BaseFormRequest
         }
         if ($this->has('scope')) {
             $changes['scope'] = (string) $this->validated('scope');
+        }
+        if ($this->has('discovery')) {
+            $discovery = $this->validated('discovery');
+            $changes['discovery'] = $discovery === null ? null : (string) $discovery;
         }
 
         return $changes;

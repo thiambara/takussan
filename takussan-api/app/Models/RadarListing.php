@@ -36,6 +36,8 @@ class RadarListing extends AbstractModel implements HasMedia
         'discovered_by_run_id', 'merged_at', 'merge_checked_at', 'similarity_text',
         // TCK-2465 — ce que la page dit en clair, lu par l'adaptateur du site (ou ses seuls numéros, à défaut).
         'source_fields',
+        // TCK-2467 — le `<lastmod>` du sitemap à la dernière lecture de la page (`RefreshRadarListing`).
+        'source_lastmod',
     ];
 
     protected $casts = [
@@ -59,6 +61,8 @@ class RadarListing extends AbstractModel implements HasMedia
         // TCK-2393 — la disparition constatée de la source (`RadarSourceWatch`).
         'source_gone_at' => 'datetime',
         'source_gone_run_id' => 'integer',
+        // TCK-2467 — le `<lastmod>` du sitemap à la dernière lecture de la page.
+        'source_lastmod' => 'datetime',
         // TCK-2432 — la question au titulaire du bien, et la proposition de retrait (`RadarAvailabilityCheck`).
         'availability_asked_at' => 'datetime',
         'availability_answered_at' => 'datetime',
@@ -82,6 +86,8 @@ class RadarListing extends AbstractModel implements HasMedia
         'source_gone_at', 'source_gone_run_id',
         // TCK-2465 — ce que la page dit en clair (fiche de l'opérateur).
         'source_fields',
+        // TCK-2467 — la date de modification de la source, selon son sitemap.
+        'source_lastmod',
     ];
 
     // Seul l'annonceur se charge par `include=` : la ressource ne rend que lui. Sous un sparse

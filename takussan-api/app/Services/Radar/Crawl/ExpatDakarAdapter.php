@@ -31,6 +31,11 @@ use Throwable;
  *   du rendu ; `Product.offers.validFrom` est la seule date absolue de mise en ligne (heure de Dakar = UTC) ;
  * - le lieu : `listing-item__address-location` (le quartier) et `listing-item__address-region` (la région, rangée en
  *   ville) ; le vendeur : le bloc `listing-item-transparency` (nom, « Membre depuis … », « Vérifié via : … »).
+ *
+ * TCK-2467 (ADR-0087 §4) — **les sitemaps** (relevé du 2026-11-04) : `robots.txt` déclare `sitemap-listings-index-fr.xml`,
+ * qui liste un `sitemap-listings-<catégorie>-fr.xml` par catégorie (`<loc>`, `<lastmod>`, `<image:loc>` par annonce,
+ * `application/xml`). Les neuf catégories immobilières sont déclarées ici ({@see self::SITEMAP_CATEGORIES}) ;
+ * `promoteurs-immobiliers` et `services-agence-immobiliere` (des services, pas des biens) sont écartées.
  */
 final class ExpatDakarAdapter implements RadarSiteAdapter
 {
@@ -43,6 +48,27 @@ final class ExpatDakarAdapter implements RadarSiteAdapter
 
     /** TCK-2465 — le numéro du site (JSON-LD `Organization.telephone`, « Service commercial »). */
     private const SITE_PHONES = ['+221766448613'];
+
+    /**
+     * TCK-2467 — les catégories immobilières à sitemap, et ce que chacune dit de ses annonces. Le contrat d'un meublé
+     * n'est pas dit par la catégorie (comme pour une carte de liste) ; le type d'une propriété commerciale non plus
+     * (boutique, bureau ou entrepôt).
+     *
+     * @var array<string, array{type: ?string, contract: ?string}>
+     */
+    private const SITEMAP_CATEGORIES = [
+        'appartements-a-louer' => ['type' => 'apartment', 'contract' => 'rent'],
+        'appartements-a-vendre' => ['type' => 'apartment', 'contract' => 'sale'],
+        'appartements-meubles' => ['type' => 'apartment', 'contract' => null],
+        'chambres-a-louer' => ['type' => 'room', 'contract' => 'rent'],
+        'maisons-a-louer' => ['type' => 'house', 'contract' => 'rent'],
+        'maisons-a-vendre' => ['type' => 'house', 'contract' => 'sale'],
+        'terrains-a-vendre' => ['type' => 'land', 'contract' => 'sale'],
+        'proprietes-commerciales-a-louer' => ['type' => null, 'contract' => 'rent'],
+        'proprietes-commerciales-a-vendre' => ['type' => null, 'contract' => 'sale'],
+    ];
+
+    private const SITEMAP_URL = 'https://www.expat-dakar.com/sitemap-listings-%s-fr.xml';
 
     public function site(): RadarSourceSite
     {
@@ -63,6 +89,22 @@ final class ExpatDakarAdapter implements RadarSiteAdapter
     public function excludedPhones(): array
     {
         return self::SITE_PHONES;
+    }
+
+    public function sitemapUrls(): array
+    {
+        return array_map(fn (string $category) => sprintf(self::SITEMAP_URL, $category), array_keys(self::SITEMAP_CATEGORIES));
+    }
+
+    public function sitemapCategory(string $sitemapUrl): array
+    {
+        foreach (self::SITEMAP_CATEGORIES as $category => $card) {
+            if (strcasecmp($sitemapUrl, sprintf(self::SITEMAP_URL, $category)) === 0) {
+                return $card;
+            }
+        }
+
+        return ['type' => null, 'contract' => null];
     }
 
     public function parseListing(string $html, string $pageUrl): ?ListingPage

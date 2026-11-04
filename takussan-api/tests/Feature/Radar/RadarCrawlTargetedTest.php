@@ -4,6 +4,7 @@ namespace Tests\Feature\Radar;
 
 use App\Jobs\Radar\ExtractRadarListing;
 use App\Models\Enums\PlatformProfileLevel;
+use App\Models\Enums\RadarCrawlDiscovery;
 use App\Models\Enums\RadarCrawlScope;
 use App\Models\Enums\RadarCrawlStatus;
 use App\Models\Enums\RadarSourceSite;
@@ -74,6 +75,8 @@ class RadarCrawlTargetedTest extends TestCase
         });
 
         $this->operator = $this->operateur(PlatformProfileLevel::SuperAdmin);
+        // TCK-2467 — ces passages éprouvent le filtre sur une page de LISTE : la source lit ses listes, pas son sitemap.
+        $this->app->make(RadarCrawlSources::class)->all()->each->update(['discovery' => RadarCrawlDiscovery::Lists]);
     }
 
     /** Deux cartes : une villa à vendre à 300 M, un appartement à louer sans prix. */

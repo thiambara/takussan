@@ -66,6 +66,20 @@ final class CoinafriqueAdapter implements RadarSiteAdapter
         return self::SITE_PHONES;
     }
 
+    /**
+     * TCK-2467 — aucun : le sitemap de CoinAfrique est un fichier unique de 6,5 Mo sur S3, toutes catégories mêlées
+     * (relevé du 2026-11-04). La source découvre par ses listes.
+     */
+    public function sitemapUrls(): array
+    {
+        return [];
+    }
+
+    public function sitemapCategory(string $sitemapUrl): array
+    {
+        return ['type' => null, 'contract' => null];
+    }
+
     public function parseListing(string $html, string $pageUrl): ?ListingPage
     {
         $xpath = $this->xpath($html);

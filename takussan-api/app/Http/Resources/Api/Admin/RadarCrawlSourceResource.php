@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Api\Admin;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Models\Enums\RadarCrawlDiscovery;
 use App\Models\Enums\RadarSourceSite;
 use App\Services\Radar\Crawl\RadarCrawlSources;
 use App\Services\Radar\Crawl\RadarSiteAdapter;
@@ -16,6 +17,9 @@ use Illuminate\Http\Request;
  * code pour le formulaire : `default_start_url` (celle de la configuration) et `start_hosts` (les hôtes permis).
  *
  * TCK-2468 — `scope` : `targeted` ou `all` (ADR-0087 §5).
+ *
+ * TCK-2467 — `discovery` : ce que la source suit VRAIMENT (`sitemap` ou `lists`, son réglage ou à défaut celui de
+ * l'adaptateur, ADR-0087 §4) ; avec `site`, `sitemap_available` : l'adaptateur déclare-t-il des sitemaps.
  */
 class RadarCrawlSourceResource extends BaseResource
 {
@@ -32,6 +36,10 @@ class RadarCrawlSourceResource extends BaseResource
             'updated_at' => $this->whenHas('updated_at', fn () => $this->iso($this->updated_at)),
             'start_urls' => $this->whenHas('start_urls'),
             'scope' => $this->whenHas('scope', fn () => $this->enumValue($this->scope)),
+            'discovery' => $this->whenHas('discovery', fn () => ($adapter = $this->adapter()) === null
+                ? $this->enumValue($this->discovery)
+                : RadarCrawlDiscovery::effective($this->discovery, $adapter)->value),
+            'sitemap_available' => $this->whenHas('site', fn () => ($this->adapter()?->sitemapUrls() ?? []) !== []),
             'default_start_url' => $this->whenHas('site', fn () => $this->adapter()?->startUrl()),
             'start_hosts' => $this->whenHas('site', fn () => $this->adapter()?->startHosts() ?? []),
             'operator' => $this->whenLoaded('operator', fn () => $this->operator === null ? null : [

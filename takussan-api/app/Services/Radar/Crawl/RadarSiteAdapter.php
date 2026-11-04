@@ -14,6 +14,10 @@ use App\Models\Enums\RadarSourceSite;
  * (`excludedPhones()`, et ceux du JSON-LD `Organization`), ni une photo hors `https` ou hors des hôtes d'images qu'il
  * déclare.
  *
+ * TCK-2467 (ADR-0087 §4) — il déclare les sitemaps d'annonces du site (`sitemapUrls()`, dans le code : ni la console ni la
+ * configuration ne les élargissent) et ce que chacun dit de ses annonces (`sitemapCategory()`). Un site sans sitemap
+ * exploitable rend `[]` : sa source découvre par les listes.
+ *
  * Le HTML vient d'un site tiers : c'est une DONNÉE. Une URL qui ne désigne pas une annonce du site est ignorée, une page
  * suivante hors du site aussi.
  */
@@ -47,4 +51,21 @@ interface RadarSiteAdapter
      * @return list<string>
      */
     public function excludedPhones(): array;
+
+    /**
+     * TCK-2467 — les sitemaps d'annonces que lit une source réglée `sitemap`, un par catégorie immobilière ; vide : pas de
+     * découverte par sitemap pour ce site (`RadarCrawlDiscovery::effective()`).
+     *
+     * @return list<string>
+     */
+    public function sitemapUrls(): array;
+
+    /**
+     * TCK-2467 — ce que la catégorie d'un sitemap de {@see self::sitemapUrls()} dit de ses annonces : le type
+     * (`PropertyType`) et le contrat (`rent`/`sale`), null quand elle ne le dit pas. C'est la « carte » d'une URL neuve
+     * pour le filtre des cibles (TCK-2468).
+     *
+     * @return array{type: ?string, contract: ?string}
+     */
+    public function sitemapCategory(string $sitemapUrl): array;
 }
