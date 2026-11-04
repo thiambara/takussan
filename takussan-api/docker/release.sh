@@ -66,4 +66,11 @@ if [ "${SCOUT_DRIVER:-}" = "meilisearch" ]; then
     # seed.sh (TCK-1159, P89.03). Un échec n'arrête pas le déploiement.
     importer_index "$(date -u +%Y-%m-%dT%H:%M:%SZ)" || true
   fi
+
+  # TCK-2474 — l'index des suggestions n'est pas un index de modèle : ni `.search-shape` ni `search:verify-indexes` ne
+  # le voient. Construit ici s'il est ABSENT (premier déploiement, Meilisearch recréé), APRÈS l'importation dont il lit
+  # les comptes ; sinon le scheduler le reconstruit chaque heure. Un échec n'arrête pas le déploiement : la barre de
+  # recherche sert alors la saisie comprise et ses biens, sans lieux ni complétions, jusqu'à l'heure suivante.
+  php artisan search:build-suggestions --if-missing \
+    || echo "AVERTISSEMENT : search:build-suggestions a échoué — suggestions sans lieux ni complétions jusqu'au passage horaire du scheduler." >&2
 fi

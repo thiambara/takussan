@@ -467,6 +467,40 @@ class PropertySearchService
     }
 
     /**
+     * TCK-2474 (ADR-0088) — la page 1 du régime NOMINAL de {@see self::search()}, en requête de `/multi-search` :
+     * même terme, même filtre (`buildFilter()`), même tri par défaut (`buildSort()`), même `matchingStrategy`.
+     *
+     * Son appelant est la suggestion (`App\Services\Search\Suggestions\SearchSuggestions`), qui promet « 12 biens »
+     * sous des critères compris et doit donc compter EXACTEMENT ce que la liste comptera : la traduction des critères
+     * en filtre est empruntée ici, jamais recopiée (même raison que {@see self::publicFilter()}).
+     *
+     * ⚠ Ni le repli d'ADR-0024 ni les emplacements : `totalHits` est le total du régime nominal, celui que
+     * `meta.total` rend tant que ce régime trouve au moins un bien.
+     *
+     * @param  array<string,mixed>  $params  les paramètres validés de la liste publique
+     */
+    public function nominalQuery(array $params, int $hitsPerPage): SearchQuery
+    {
+        $term = trim((string) ($params['q'] ?? $params['search'] ?? ''));
+        $sort = $this->buildSort((string) ($params['sort'] ?? 'relevance'), $term, $params);
+
+        $query = (new SearchQuery)
+            ->setIndexUid((new Property)->searchableAs())
+            ->setQuery($term)
+            ->setFilter($this->buildFilter($params))
+            ->setMatchingStrategy(self::STRATEGY_STRICT)
+            ->setAttributesToRetrieve(['id'])
+            ->setPage(1)
+            ->setHitsPerPage($hitsPerPage);
+
+        if ($sort !== []) {
+            $query->setSort($sort);
+        }
+
+        return $query;
+    }
+
+    /**
      * TCK-1169 (P99.01) — les noms saisis, et le nom actuel des villes dont l'un est un ancien nom.
      *
      * @param  list<string>  $saisies

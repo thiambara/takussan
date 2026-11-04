@@ -96,4 +96,78 @@ max-age=60`, `Vary: Accept-Language`). Réponse — les clés existantes restent
 
 ## Notes d'implémentation
 
-_(à remplir)_
+### Re-mesures (2026-11-04)
+
+- **Route de la liste** : `GET /api/public/properties/search` (le ticket dit `/api/properties`, cf. TCK-2472). AC1 compare
+  à elle.
+- **`SuggestService` = 3 appels moteur, pas 2** : `facetSearch(city)` + `facetSearch(neighborhood)` + un `multiSearch`
+  (ventilation des quartiers par ville). Inchangé, il sert toujours `cities`, `neighborhoods`, `property_types`.
+- **Les clés anciennes ne peuvent pas venir du nouvel index sans casser des tests qu'on garde** : `SearchSuggestTest` et
+  `SuggestServiceTest` épinglent « `aprt` → aucun type sous 5 caractères » (TCK-507) et
+  `resolve('   ')` === exactement les trois clés vides. L'index neuf admet une faute dès 4 (AC2) : les deux seuils se
+  contredisent. Décision : `SuggestService` est **gardé tel quel** derrière la même route ; les clés neuves viennent
+  d'un service neuf, `App\Services\Search\Suggestions\SearchSuggestions`, en **un seul `/multi-search`** ; le
+  contrôleur fusionne les deux. Les anciennes clés (et leurs 3 appels) se retirent avec le front actuel (TCK-2475).
+- **`.search-shape`** ne couvre que les index de modèles (Dockerfile : `config/scout.php`, modèles `toSearchableArray`,
+  `app/Support/Search`, `lang/fr/properties.php`) ; `search:verify-indexes` et `search:sync-index-settings` ne lisent que
+  les index déclarés dans `config/scout.php`. L'index des suggestions n'y est PAS déclaré (le déclarer changerait
+  l'empreinte et réimporterait tous les modèles au déploiement suivant) : ses réglages sont posés par le constructeur
+  sur chaque index neuf (`SuggestionIndex::settings()`).
+- **Isolation des tests** : l'uid est `scout.prefix` + `search_suggestions`, donc `testing_<jeton>_search_suggestions`,
+  supprimé avec les autres en fin de processus (`TestSearchIndex` balaie tout le préfixe). ⚠ `InteractsWithMeilisearch`
+  ne le VIDE pas entre deux tests d'un même processus (il ne vide que les index de modèles) : chaque test qui le lit le
+  reconstruit d'abord (`Tests\Concerns\BuildsSearchSuggestions::buildSuggestions()`).
+- **Meilisearch 1.16** : `/swap-indexes` exige que les deux index existent ; le premier passage crée l'index servi vide
+  juste avant l'échange.
+- **Alias TCK-2476** : table absente aujourd'hui → aucun. Le constructeur lit `search_aliases` (colonnes du contrat de
+  TCK-2476 : `alias`, `target_kind`, `target_value`, `target_city`, `status`) si elle existe — éprouvé par un test qui
+  crée la table.
+
+### Décisions
+
+1. **Documents** : aux champs du ticket s'ajoute `count` (total de la liste sous `criteria` au moment de la
+   construction) ; `weight` = `count` pour un lieu ou un type, la popularité (visiteurs-jours de `popular()`) pour une
+   recherche populaire. **Tous les `count` de la réponse sont des nombres de BIENS**, jamais de visiteurs : celui d'une
+   recherche populaire est recompté à la construction par `nominalQuery(criteria + q)` ; une entrée à 0 bien n'entre pas.
+2. **Comptes = la liste, par construction** : `PropertySearchService::nominalQuery(array $params, int $hitsPerPage):
+   SearchQuery` (nouvelle méthode publique, ajout pur : `search()` n'est pas modifiée) rend la page 1 du régime nominal
+   — `buildFilter()`, `buildSort()`, `matchingStrategy: all`. Le constructeur compte chaque lieu/type/recherche avec
+   elle ; la suggestion en tire `interpretation.count` et `previews`.
+3. **Écart assumé** : sous un résidu de ≥ 2 mots qui rend 0, la liste élargit (ADR-0024, `search.strategy = widened`)
+   et son `meta.total` est celui de l'élargissement ; `interpretation.count` dit **0** (ne promet que l'exact).
+   Épinglé par `SuggestInterpretationTest::test_le_compte_ne_promet_que_le_resultat_exact`. À trancher par la
+   session si l'on préfère promettre le total élargi.
+4. **Lieux** : cherchés sur le RÉSIDU quand la saisie est comprise (« appart 3ch alm » → Almadies), sinon sur le texte de
+   la part `location`/`city` comprise (« appart almadies » → Almadies reste proposé), sinon sur la saisie entière.
+   Sous `all`, la saisie entière ne rendait aucun lieu dès qu'un critère la précédait.
+5. **Regroupement des lieux** : par `CleDeQuartier` (la clé du filtre `location`). Libellé d'un quartier = nom du
+   référentiel (`DatabasePlaceLexicon::entries()`) s'il existe, sinon l'écriture la plus fréquente ; libellé d'une ville =
+   écriture la plus fréquente des ADRESSES (le filtre `city` compare ce texte). Autres écritures → `aliases`.
+6. **`parts`** : `{key, value, from, to}` — `from`/`to` (positions en caractères) gardés pour le surlignage du front ;
+   aucun libellé.
+7. **`criteria`** toujours un objet JSON (`{}` quand vide, jamais `[]`).
+8. **Recherche populaire par critères seuls** (`text` = `''`) : proposée à saisie vide, le front la rend depuis
+   `criteria`.
+9. **Sans index** (avant le premier passage) : la requête des biens est rejouée seule — interprétation et previews
+   servies, `places`/`completions`/`popular` vides, pas de 500.
+10. **Planification** : `->hourly()->withoutOverlapping(60)` ; idempotente (index temporaire `<uid>_build_<aléa>`, puis
+    `swapIndexes`, puis suppression ; les index de construction de plus d'une heure sont balayés).
+11. **`docker/release.sh`** : `php artisan search:build-suggestions --if-missing` à la fin du bloc Meilisearch, APRÈS
+    l'importation dont il lit les comptes ; un échec n'arrête pas le déploiement (la barre sert alors l'interprétation et
+    les biens). `scripts/test-release-reindex.sh` reste vert (32 vérifications) ; il n'a pas de scénario pour cette ligne.
+
+### Temps serveur (mesuré 2026-11-04, base locale de démonstration, 8 cœurs, load 8,7 / 9,0 / 6,3 — machine CHARGÉE)
+
+50 saisies variées (`''`, préfixes de « appart 3ch almadies », `dakr`, `mrmoz`, `f3 ngor à louer`, …), requête complète
+par le noyau HTTP (`app()->handle()`, middlewares compris), après échauffement : **p50 15,5 ms · p95 33,4 ms** (2ᵉ passage :
+16,2 / 33,7). Part neuve seule (`SearchSuggestions::resolve`) : p50 9,8 ms · p95 25,0 ms ; part ancienne (`SuggestService`) :
+p50 1,7 · p95 4,8. Objectif p95 < 80 ms tenu. Construction de l'index local : 37 documents (10 villes, 17 quartiers,
+10 types), < 1 s.
+
+### À reporter dans les specs
+
+- `docs/features.md` (barre de recherche) : la réponse de `GET /api/search/suggest` (clés neuves, sémantique des
+  `count`, `popular` à saisie vide seulement, au plus 6 ; `previews` au plus 3 ; lieux sur le résidu) ; la commande
+  `search:build-suggestions` (horaire, `--if-missing` au déploiement) ; l'écart du compte sous recherche élargie.
+- `docs/models-spec.md` : aucun modèle (index Meilisearch seul) — éventuellement une ligne sur l'index
+  `search_suggestions` et ses documents.

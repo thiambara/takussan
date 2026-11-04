@@ -70,6 +70,10 @@ Schedule::command('search-alerts:purge-unconfirmed')->hourly()->withoutOverlappi
 // qu'aucune n'atteigne les 48 h que promet `privacy.ts`), lignes de plus de 13 mois. Idempotente : une suppression par
 // date ; une seconde exécution ne trouve plus rien.
 Schedule::command('search:purge-journal')->hourly()->withoutOverlapping(60);
+// TCK-2474 (ADR-0088) — l'index des suggestions de la barre de recherche. Idempotente : elle relit tout (catalogue
+// public, journal, référentiel), écrit un index temporaire neuf puis l'échange (`swapIndexes`) avec l'index servi —
+// jamais d'index à moitié rempli servi ; deux exécutions simultanées échangent chacune un index complet.
+Schedule::command('search:build-suggestions')->hourly()->withoutOverlapping(60);
 // TCK-599 §5 — favoris : baisses de prix et sorties du public, une notification groupée par
 // personne. Idempotent par la base de prix et `unavailable_notified_at`.
 Schedule::job(new SendFavoriteChangeAlerts)->dailyAt('09:15')->withoutOverlapping();
@@ -256,3 +260,9 @@ Schedule::command('radar:crawl')->everyFifteenMinutes()->withoutOverlapping(15);
 // TCK-2423 (ADR-0076, amendement du 2026-10-31) — le prochain lot d'annonces sans vecteur à jour, en file `ai`. Sans clé ni table,
 // rien ne part. Idempotente : une annonce à jour (empreinte du texte) n'est jamais reprise, et un échec suspend les balayages.
 Schedule::command('radar:embed-listings')->everyFifteenMinutes()->withoutOverlapping(15);
+
+// TCK-2470 (ADR-0087 §6) — la nuit, un passage des cibles de la demande sans résultat, en file `ai` (`RefreshRadarDemandTargets`).
+// Éteint ou sans opérateur, rien ne part. Idempotente : des signaux de même empreinte que la dernière révision n'appellent pas le
+// modèle (seul `demand_count` est recompté, sans IA, au même résultat) ; le job est unique et deux passages se sérialisent sur la
+// ligne du réglage ; une cible déjà créée en double est refusée par l'empreinte de ses critères.
+Schedule::command('radar:refresh-demand-targets')->dailyAt('03:40')->timezone('Africa/Dakar')->withoutOverlapping();
