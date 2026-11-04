@@ -115,6 +115,7 @@ const SANS_UNION = {
   CollaborationStatus: 'aucune union nommée au front',
   InvitationStatus: 'unions anonymes seulement (`lib/queries/owners.ts`, `lib/queries/service-providers.ts`)',
   RelationshipStatus: 'union anonyme ouverte seulement (`types/customer.ts`, `… | string`)',
+  SearchAliasStatus: 'TCK-2476 : aucun écran — la console des variantes d\'écriture est hors périmètre (l\'API suffit pour l\'instant)',
 };
 
 /**

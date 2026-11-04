@@ -379,8 +379,9 @@ Les cibles, la demande et leurs révisions (ADR-0087 §5, §6) sont plus bas, en
 119. [RadarTargetRevision](#119-radartargetrevision-) 🆕
 120. [RadarDemandSetting](#120-radardemandsetting-) 🆕
 
-#### Recherche publique — le journal anonyme 🆕 (TCK-2472, TCK-2474, ADR-0088)
+#### Recherche publique — le journal anonyme et les variantes 🆕 (TCK-2472, TCK-2474, TCK-2476, ADR-0088)
 121. [SearchQueryStat](#121-searchquerystat-) 🆕
+122. [SearchAlias](#122-searchalias-) 🆕
 
 ### Enums
 
@@ -5738,6 +5739,34 @@ heures que promet `privacy.ts`.
 recherche populaire — `{id, kind, label_fr, label_en, label_wo, aliases[], value, city, criteria, weight, count}`, `kind`
 ∈ `city`, `neighborhood`, `property_type`, `query`, `alias` ; `count` est un nombre de biens au moment de la construction
 (TCK-2474, `SuggestionIndex`).
+
+### 122. SearchAlias 🆕
+
+**Table :** `search_aliases` (migration `2026_11_04_247600`, TCK-2476)
+**Modèle :** `App\Models\SearchAlias` (`AbstractModel`) — `target_kind` casté en `SearchAliasTargetKind`, `origin` en
+`SearchAliasOrigin`, `status` en `SearchAliasStatus`, `evidence` en `array`. Aucune relation.
+**Description :** Les variantes d'écriture de la recherche (ADR-0088 §7) — « wakam » → Ouakam, « aprt » → appartement,
+« clime » → climatisation —, proposées chaque semaine par l'usage IA `search.variantes` (`SearchAliasCurator`, commande
+`search:refresh-aliases`) à partir des recherches sans résultat, ou tranchées par un `super_admin`
+(`PATCH /api/admin/search/aliases/{alias}` : la variante devient `manual`). Une variante `active` est comprise par
+l'analyse de la saisie (`DatabasePlaceLexicon`, `DatabaseVocabularyAliases`) et trouvée dans l'index des suggestions
+(`SuggestionIndexBuilder`) ; une variante dont la cible a quitté le référentiel n'est plus lue. Une variante `rejected`
+n'est jamais rouverte par l'IA ; une variante `manual` n'est jamais modifiée par elle.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | |
+| alias | string(80) | | | L'écriture, repliée (`CleDeQuartier::de()` : minuscules, sans accents, ponctuation → espace) |
+| target_kind | string(20) | | | `city` \| `neighborhood` \| `property_type` \| `term` |
+| target_value | string(120) | | | Le nom du lieu tel que le référentiel l'écrit, la valeur de `PropertyType`, ou le terme replié du vocabulaire de l'analyse |
+| target_city | string(120) | oui | null | La ville d'un quartier |
+| origin | string(16) | | `ai` | `ai` \| `manual` |
+| status | string(16) | | `active` | `active` \| `rejected` |
+| evidence | jsonb | oui | null | Preuves du dernier passage : `visitors` (visiteurs-jours distincts), `queries`, `period {from, to}`, `confidence`, `ai_call_id` |
+| created_at / updated_at | timestamp | | auto | |
+
+**Contraintes :** unique `search_aliases_alias_target_unique (alias, target_kind, target_value)` ; index
+`search_aliases_status_kind_idx (status, target_kind)`.
 
 ---
 

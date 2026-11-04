@@ -74,6 +74,11 @@ Schedule::command('search:purge-journal')->hourly()->withoutOverlapping(60);
 // public, journal, référentiel), écrit un index temporaire neuf puis l'échange (`swapIndexes`) avec l'index servi —
 // jamais d'index à moitié rempli servi ; deux exécutions simultanées échangent chacune un index complet.
 Schedule::command('search:build-suggestions')->hourly()->withoutOverlapping(60);
+// TCK-2476 (ADR-0088 §7) — chaque semaine, l'IA propose les variantes d'écriture (« wakam » → Ouakam) tirées des recherches
+// sans résultat, en file `ai` (`RefreshSearchAliases`, unique). Idempotente : une variante est unique par (écriture, sorte,
+// cible) — un second passage met à jour les mêmes preuves, ne rouvre jamais une variante rejetée ni ne touche une variante
+// d'opérateur — et les mêmes saisies que le dernier passage appelé ne rappellent pas le modèle.
+Schedule::command('search:refresh-aliases')->weeklyOn(1, '04:10')->timezone('Africa/Dakar')->withoutOverlapping();
 // TCK-599 §5 — favoris : baisses de prix et sorties du public, une notification groupée par
 // personne. Idempotent par la base de prix et `unavailable_notified_at`.
 Schedule::job(new SendFavoriteChangeAlerts)->dailyAt('09:15')->withoutOverlapping();

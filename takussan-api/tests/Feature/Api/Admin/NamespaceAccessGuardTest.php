@@ -23,6 +23,7 @@ use App\Models\PropertyBoost;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
 use App\Models\RadarOutreach;
+use App\Models\SearchAlias;
 use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -130,6 +131,8 @@ class NamespaceAccessGuardTest extends TestCase
 
         // TCK-2448 — le catalogue des modèles (`ai/models/{model}`).
         $aiModel = AiModel::factory()->create();
+        // TCK-2476 — une variante d'écriture (`search/aliases/{alias}`), liée avant la garde.
+        $searchAlias = SearchAlias::query()->create(['alias' => 'wakam', 'target_kind' => 'neighborhood', 'target_value' => 'Ouakam']);
 
         $routes = collect(Route::getRoutes())
             ->filter(fn ($r) => str_starts_with($r->uri(), 'api/admin'));
@@ -165,6 +168,7 @@ class NamespaceAccessGuardTest extends TestCase
                     '{media}' => (string) $photo->id,
                     '{advertiser}' => (string) $advertiser->id,
                     '{model}' => (string) $aiModel->id,
+                    '{alias}' => (string) $searchAlias->id,
                 ]);
 
                 // Replace any remaining unresolved {param} with a dummy id so

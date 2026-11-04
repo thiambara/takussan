@@ -6,14 +6,13 @@ use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyType;
 use App\Models\GeoCity;
 use App\Models\GeoNeighborhood;
+use App\Models\SearchAlias;
 use App\Services\Search\Query\DatabasePlaceLexicon;
 use App\Services\Search\Suggestions\SuggestionIndex;
 use Illuminate\Console\Scheduling\Schedule;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Schema;
 use Meilisearch\Client;
 use Meilisearch\Contracts\IndexesQuery;
 use Tests\Concerns\BuildsSearchSuggestions;
@@ -145,24 +144,18 @@ class SuggestionIndexBuilderTest extends TestCase
         $this->assertSame('weight:desc', $reglages['rankingRules'][array_search('exactness', $reglages['rankingRules'], true) + 1]);
     }
 
+    /** TCK-2476 — la table existe désormais (migration `create_search_aliases_table`) : les variantes actives s'ajoutent. */
     public function test_les_variantes_actives_de_tck_2476_s_ajoutent_quand_la_table_existe(): void
     {
         $this->publishedIn('Dakar', 'Ouakam');
         $this->indexProperties();
-        Schema::create('search_aliases', function (Blueprint $table): void {
-            $table->id();
-            $table->string('alias', 80);
-            $table->string('target_kind');
-            $table->string('target_value');
-            $table->string('target_city')->nullable();
-            $table->string('status');
-        });
-        $now = ['status' => 'active'];
-        \DB::table('search_aliases')->insert([
-            ['alias' => 'wakam', 'target_kind' => 'neighborhood', 'target_value' => 'Ouakam', 'target_city' => 'Dakar', ...$now],
-            ['alias' => 'apparts', 'target_kind' => 'property_type', 'target_value' => 'apartment', 'target_city' => null, ...$now],
+        foreach ([
+            ['alias' => 'wakam', 'target_kind' => 'neighborhood', 'target_value' => 'Ouakam', 'target_city' => 'Dakar', 'status' => 'active'],
+            ['alias' => 'apparts', 'target_kind' => 'property_type', 'target_value' => 'apartment', 'target_city' => null, 'status' => 'active'],
             ['alias' => 'oukam', 'target_kind' => 'neighborhood', 'target_value' => 'Ouakam', 'target_city' => 'Dakar', 'status' => 'rejected'],
-        ]);
+        ] as $row) {
+            SearchAlias::query()->create($row);
+        }
 
         $this->buildSuggestions();
         $docs = collect($this->suggestionDocuments())->keyBy('value');

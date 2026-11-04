@@ -134,6 +134,7 @@ const SANS_LIBELLE = {
   RadarVerificationStatus: 'TCK-2388 : `ReponseVerdict` le lit en comparaison (`pending`, `failed`) et dit chaque état par une phrase (`superAdmin.pages.radar.advertiser.reply.pending`, `.failed`) — pas par une table à un cas par clé que `LIBELLES` puisse relever',
   ReferentialStatus: 'aucun écran relevé ne le traduit sous un espace complet',
   RelationshipStatus: 'aucun écran relevé ne le traduit (`billing.subscription.status` porte ses cas par coïncidence)',
+  SearchAliasStatus: 'TCK-2476 : aucun écran — la console des variantes d\'écriture est hors périmètre (l\'API `/api/admin/search/aliases` suffit pour l\'instant)',
   TaskStatus: 'aucun espace du dictionnaire ne porte ses quatre cas (`done` manque)',
   UserStatus: 'les espaces lus (`admin.users.status`, `superAdmin.pages.users.statuses`) n\'ont pas `deleted`, et l\'écran les lit derrière `t.has()` ou une liste connue',
 };

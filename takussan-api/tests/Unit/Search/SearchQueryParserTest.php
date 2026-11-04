@@ -89,7 +89,8 @@ class SearchQueryParserTest extends TestCase
         $r = $this->parse('maison de ma tante');
 
         $this->assertSame(['type' => 'house'], $r->criteria);
-        $this->assertSame('de ma tante', $r->residue);
+        // TCK-2476 — « de » non absorbé est un mot vide : il quitte le résidu, « ma tante » reste (rien d'inventé).
+        $this->assertSame('ma tante', $r->residue);
         $this->assertTrue($r->understood);
     }
 
@@ -195,7 +196,7 @@ class SearchQueryParserTest extends TestCase
             'en : house for sale under 100 million' => ['house for sale under 100 million',
                 ['contract_type' => 'sale', 'type' => 'house', 'price_max' => 100_000_000], null],
             // Ce qui reste.
-            'villa de luxe' => ['villa de luxe', ['type' => 'villa'], 'de luxe'],
+            'villa de luxe' => ['villa de luxe', ['type' => 'villa'], 'luxe'],
             'duplex reste du texte' => ['duplex Almadies', ['city' => 'Dakar', 'location' => 'Almadies'], 'duplex'],
             'grand standing n\'est pas un lieu' => ['appartement grand standing Mermoz',
                 ['type' => 'apartment', 'city' => 'Dakar', 'location' => 'Mermoz'], 'grand standing'],
@@ -203,7 +204,7 @@ class SearchQueryParserTest extends TestCase
             'année n\'est pas un prix' => ['villa neuve 2024', ['type' => 'villa'], 'neuve 2024'],
             'moins de 3 chambres : aucun paramètre' => ['moins de 3 chambres', [], 'moins de 3 chambres'],
             '3 chambres max' => ['3 chambres max', [], '3 chambres max'],
-            'je cherche' => ['je cherche un appartement', ['type' => 'apartment'], 'je cherche'],
+            'je cherche' => ['je cherche un appartement', ['type' => 'apartment'], null],
             'un numéro n\'est pas un prix' => ['appartement à louer 77 123 45 67',
                 ['contract_type' => 'rent', 'type' => 'apartment'], '77 123 45 67'],
             'un numéro collé n\'est pas un prix' => ['villa 771234567 Ngor', ['type' => 'villa', 'city' => 'Dakar', 'location' => 'Ngor'], '771234567'],
@@ -236,7 +237,6 @@ class SearchQueryParserTest extends TestCase
     {
         return [
             'nom de personne' => ['Moussa Ndiaye'],
-            'phrase' => ['bonjour je voudrais des renseignements'],
             'petit nombre' => ['12'],
             'mot proche d\'un mot-clé sans en être un' => ['ville'],
             'comme' => ['comme neuf'],
@@ -253,6 +253,58 @@ class SearchQueryParserTest extends TestCase
         $this->assertSame([], $r->parts);
         $this->assertSame($q, $r->residue);
         $this->assertFalse($r->understood);
+    }
+
+    // ───────────────────────────────────────────────────────── TCK-2476 : les mots vides quittent le résidu
+
+    /** @return array<string, array{string, array<string, mixed>, ?string}> */
+    public static function motsVides(): array
+    {
+        return [
+            'je cherche un appartement à almadies' => ['je cherche un appartement à almadies',
+                ['type' => 'apartment', 'city' => 'Dakar', 'location' => 'Almadies'], null],
+            'je veux une villa à louer' => ['je veux une villa à louer', ['contract_type' => 'rent', 'type' => 'villa'], null],
+            'j\'ai besoin d\'un studio svp' => ['j\'ai besoin d\'un studio svp', ['type' => 'studio'], null],
+            'recherche maison pour famille' => ['recherche maison pour famille', ['type' => 'house'], 'famille'],
+            'i want a flat in ngor' => ['i want a flat in ngor', ['type' => 'apartment', 'city' => 'Dakar', 'location' => 'Ngor'], null],
+            'looking for the villa with a view' => ['looking for the villa with a view', ['type' => 'villa'], 'view'],
+            'un mot vide entre deux mots gardés' => ['villa de luxe avec vue', ['type' => 'villa'], 'luxe vue'],
+        ];
+    }
+
+    /** @param  array<string, mixed>  $criteria */
+    #[DataProvider('motsVides')]
+    public function test_les_mots_d_intention_et_de_liaison_quittent_le_residu(string $q, array $criteria, ?string $residue): void
+    {
+        $r = $this->parse($q);
+
+        $this->assertSame($criteria, $r->criteria, "« {$q} »");
+        $this->assertSame($residue, $r->residue, "« {$q} »");
+    }
+
+    public function test_une_saisie_faite_de_mots_vides_n_a_pas_de_residu(): void
+    {
+        $r = $this->parse('je cherche un');
+
+        $this->assertSame([], $r->criteria);
+        $this->assertNull($r->residue);
+        $this->assertFalse($r->understood);
+    }
+
+    public function test_une_phrase_sans_critere_perd_ses_mots_vides_et_garde_le_reste(): void
+    {
+        $r = $this->parse('bonjour je voudrais des renseignements');
+
+        $this->assertSame([], $r->criteria);
+        $this->assertSame('bonjour renseignements', $r->residue);
+        $this->assertFalse($r->understood);
+    }
+
+    /** Une phrase gardée entière à dessein (un maximum de chambres, « grand standing ») garde ses mots de liaison. */
+    public function test_une_phrase_gardee_entiere_garde_ses_mots_de_liaison(): void
+    {
+        $this->assertSame('moins de 3 chambres', $this->parse('moins de 3 chambres')->residue);
+        $this->assertSame('grand standing', $this->parse('appartement grand standing Mermoz')->residue);
     }
 
     public function test_une_saisie_vide(): void

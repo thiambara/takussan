@@ -141,7 +141,9 @@ use App\Services\Radar\Whatsapp\RadarWhatsappDriver;
 use App\Services\Reporting\PlatformReportingService;
 use App\Services\Review\ReviewModerationScope;
 use App\Services\Search\Query\DatabasePlaceLexicon;
+use App\Services\Search\Query\DatabaseVocabularyAliases;
 use App\Services\Search\Query\PlaceLexicon;
+use App\Services\Search\Query\VocabularyAliases;
 use App\Services\Webhooks\WebhookJournal;
 use App\Support\ImpersonationContext;
 use App\Support\LienFront;
@@ -214,6 +216,8 @@ class AppServiceProvider extends ServiceProvider
 
         // TCK-2473 (ADR-0088) — les lieux que l'analyse de la saisie reconnaît : le référentiel géographique, en cache.
         $this->app->bind(PlaceLexicon::class, DatabasePlaceLexicon::class);
+        // TCK-2476 (ADR-0088 §7) — les variantes d'écriture actives d'un type ou d'un terme, que l'analyse lit en vocabulaire.
+        $this->app->bind(VocabularyAliases::class, DatabaseVocabularyAliases::class);
 
         // TCK-2392 — le quatrième signal de rapprochement du Radar : un pilote par `radar.similarity.driver`, `trigram` à défaut.
         $this->app->bind(RadarTextSimilarity::class, fn ($app) => $app->make(

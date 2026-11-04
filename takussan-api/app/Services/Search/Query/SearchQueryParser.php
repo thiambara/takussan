@@ -8,6 +8,7 @@ use App\Services\Tags\TagCatalog;
 use App\Support\CaseInsensitive;
 use App\Support\PhoneMasker;
 use App\Support\RadarPhone;
+use App\Support\Search\CleDeQuartier;
 use App\Support\Search\PropertyLabels;
 use Illuminate\Support\Str;
 
@@ -15,7 +16,8 @@ use Illuminate\Support\Str;
  * TCK-2473 (ADR-0088) — la saisie libre de la recherche publique, lue comme on la dit : « appart 3ch Almadies moins
  * de 500k » devient `type=apartment`, `bedrooms=3`, `location=Almadies`, `city=Dakar`, `price_max=500000`.
  *
- * Sans base, sans réseau, déterministe : les lieux viennent du {@see PlaceLexicon} injecté.
+ * Sans base, sans réseau, déterministe : les lieux viennent du {@see PlaceLexicon} injecté, les variantes d'écriture
+ * d'un type ou d'un terme (TCK-2476) des {@see VocabularyAliases} injectées — lues comme les phrases du vocabulaire.
  *
  * **Les conventions du dépôt, pas de nouvelles** (re-mesurées le 2026-11-04, notes du ticket) :
  *   - `bedrooms` est un MINIMUM côté API (`bedrooms >= n`, TCK-633) : le parseur n'émet que des minimums, et une saisie
@@ -62,6 +64,19 @@ final class SearchQueryParser
     ];
 
     private const WITH = ['avec', 'with'];
+
+    /**
+     * TCK-2476 — mots d'intention et de liaison qui quittent le RÉSIDU : « je cherche un appartement à almadies » ne
+     * laisse rien à chercher en texte (sinon la liste cherche « je cherche un » et le compte tombe à zéro). Liste courte
+     * et FERMÉE, français et anglais. Un mot compris (« à louer ») n'est déjà plus au résidu ; une phrase gardée entière
+     * à dessein (« moins de 3 chambres », « grand standing ») garde les siens. Un résidu fait de mots vides est `null`.
+     */
+    private const STOPWORDS = [
+        'je', 'j', 'ai', 'cherche', 'recherche', 'veux', 'voudrais', 'souhaite', 'besoin', 'svp', 'stp',
+        'un', 'une', 'des', 'le', 'la', 'les', 'de', 'du', 'd', 'l', 'a', 'au', 'aux', 'en', 'pour', 'avec', 'sur', 'dans',
+        'et', 'ou',
+        'i', 'want', 'need', 'looking', 'search', 'please', 'for', 'an', 'the', 'in', 'with', 'of', 'at', 'and', 'or',
+    ];
 
     /** Type → écritures. Les alias français sont ceux de `Property::TYPE_SEARCH_ALIASES` (sauf `autre`, mot courant). */
     private const TYPES = [
@@ -210,7 +225,58 @@ final class SearchQueryParser
     /** @var list<string> les jetons repliés */
     private array $f = [];
 
-    public function __construct(private readonly PlaceLexicon $places) {}
+    /** @var array<string, list<array{words: list<string>, key: string, value: string|bool}>>|null les variantes, par premier mot */
+    private ?array $aliasVocabulary = null;
+
+    public function __construct(
+        private readonly PlaceLexicon $places,
+        private readonly ?VocabularyAliases $aliases = null,
+    ) {}
+
+    /**
+     * TCK-2476 — le critère qu'un TERME du vocabulaire émet (« climatisation » → `tags=Climatisation`, « a louer » n'en
+     * est pas un : « louer » l'est), hors types de bien (cible `property_type`) ; `null` si le terme n'en est pas un.
+     * C'est la cible d'une variante `term` : elle n'est retenue que si elle existe ici.
+     *
+     * @return array{key: string, value: string|bool}|null
+     */
+    public static function termEntry(string $term): ?array
+    {
+        $key = CleDeQuartier::de($term);
+        if ($key === null) {
+            return null;
+        }
+        $words = explode(' ', $key);
+        foreach (self::vocabulary()[$words[0]] ?? [] as $entry) {
+            if ($entry['key'] !== 'type' && $entry['words'] === $words) {
+                return ['key' => $entry['key'], 'value' => $entry['value']];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * TCK-2476 — les termes du vocabulaire (contrat, période, ameublement, équipements), repliés : ce que l'usage
+     * `search.variantes` peut viser par une variante `term`.
+     *
+     * @return list<string>
+     */
+    public static function terms(): array
+    {
+        $terms = [];
+        foreach (self::vocabulary() as $entries) {
+            foreach ($entries as $entry) {
+                $term = implode(' ', $entry['words']);
+                if ($entry['key'] !== 'type' && self::termEntry($term) !== null) {
+                    $terms[$term] = true;
+                }
+            }
+        }
+        ksort($terms);
+
+        return array_keys($terms);
+    }
 
     /** @return list<string> les noms d'équipements que le parseur peut émettre */
     public static function amenityNames(): array
@@ -264,6 +330,7 @@ final class SearchQueryParser
     private function assemble(array $matches): ParsedQuery
     {
         $understood = array_fill(0, count($this->tokens), false);
+        $kept = array_fill(0, count($this->tokens), false);
         $values = [];
         $types = [];
         $tags = [];
@@ -272,6 +339,11 @@ final class SearchQueryParser
 
         foreach ($matches as $m) {
             if ($m['residue'] || $m['items'] === []) {
+                // Une phrase gardée entière à dessein : ses mots de liaison restent avec elle.
+                for ($k = $m['start']; $k < $m['start'] + $m['len'] && $m['residue']; $k++) {
+                    $kept[$k] = true;
+                }
+
                 continue;
             }
             foreach ($m['items'] as [$key, $value]) {
@@ -315,21 +387,23 @@ final class SearchQueryParser
             }
         }
 
-        return new ParsedQuery($criteria, $parts, $this->residue($understood), $criteria !== []);
+        return new ParsedQuery($criteria, $parts, $this->residue($understood, $kept), $criteria !== []);
     }
 
     /**
      * Les mots non compris, dans l'écriture de la saisie : chaque suite de jetons non compris est recopiée telle
      * qu'écrite (« jusqu'à » garde son apostrophe), les suites jointes par une espace. Un symbole seul n'est pas un mot.
+     * Un mot vide ({@see self::STOPWORDS}) hors d'une phrase gardée (`$kept`) coupe la suite, comme un mot compris.
      *
      * @param  list<bool>  $understood
+     * @param  list<bool>  $kept
      */
-    private function residue(array $understood): ?string
+    private function residue(array $understood, array $kept): ?string
     {
         $runs = [];
         $run = null;
         foreach ($this->tokens as $k => $token) {
-            if ($understood[$k]) {
+            if ($understood[$k] || (! $kept[$k] && in_array($token['f'], self::STOPWORDS, true))) {
                 $run = null;
 
                 continue;
@@ -656,13 +730,14 @@ final class SearchQueryParser
         return self::found($i, $end, [['price_'.($direction ?? 'max'), $q['value']]]);
     }
 
-    /** Type, contrat, période, ameublement, équipement : la plus longue phrase du vocabulaire. */
+    /** Type, contrat, période, ameublement, équipement : la plus longue phrase du vocabulaire ou de ses variantes. */
     private function phrase(int $i): ?array
     {
         $vocabulary = self::vocabulary();
+        $aliases = $this->aliasVocabulary();
         $best = null;
         foreach (array_unique([$this->f[$i], self::singular($this->f[$i])]) as $first) {
-            foreach ($vocabulary[$first] ?? [] as $entry) {
+            foreach ([...($vocabulary[$first] ?? []), ...($aliases[$first] ?? [])] as $entry) {
                 $len = $this->wordsAt($i, $entry['words']);
                 if ($len === null || ($best !== null && $len <= $best['len']) || ! $this->allowed($entry, $i)) {
                     continue;
@@ -946,6 +1021,31 @@ final class SearchQueryParser
         }
 
         return self::$vocabulary = $index;
+    }
+
+    /**
+     * TCK-2476 — les variantes de {@see VocabularyAliases}, compilées comme le vocabulaire (par premier mot) ; lues une
+     * fois par instance. Jamais lues par {@see self::fuzzy()} : une faute de frappe se corrige vers un mot-clé, pas vers
+     * une variante.
+     *
+     * @return array<string, list<array{words: list<string>, key: string, value: string|bool}>>
+     */
+    private function aliasVocabulary(): array
+    {
+        if ($this->aliasVocabulary !== null) {
+            return $this->aliasVocabulary;
+        }
+
+        $index = [];
+        foreach ($this->aliases?->entries() ?? [] as $alias) {
+            $key = CleDeQuartier::de($alias['alias']);
+            if ($key !== null) {
+                $words = explode(' ', $key);
+                $index[$words[0]][] = ['words' => $words, 'key' => $alias['key'], 'value' => $alias['value']];
+            }
+        }
+
+        return $this->aliasVocabulary = $index;
     }
 
     /** @param  array{words: list<string>, key: string, value: string|bool}  $entry */

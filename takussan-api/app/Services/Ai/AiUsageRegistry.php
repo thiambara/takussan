@@ -8,6 +8,7 @@ use App\Ai\Usages\RadarConsentVerificationUsage;
 use App\Ai\Usages\RadarDemandTargetsUsage;
 use App\Ai\Usages\RadarEmbeddingUsage;
 use App\Ai\Usages\RadarExtractionUsage;
+use App\Ai\Usages\SearchAliasesUsage;
 use InvalidArgumentException;
 
 /**
@@ -27,6 +28,7 @@ final class AiUsageRegistry
         RadarConsentVerificationUsage::class,
         RadarEmbeddingUsage::class,
         RadarDemandTargetsUsage::class,
+        SearchAliasesUsage::class,
     ];
 
     /** @var array<string, AiUsage> */

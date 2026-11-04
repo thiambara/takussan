@@ -3,10 +3,14 @@
 namespace App\Services\Search\Query;
 
 use App\Models\Enums\ReferentialStatus;
+use App\Models\Enums\SearchAliasStatus;
+use App\Models\Enums\SearchAliasTargetKind;
 use App\Models\GeoCity;
 use App\Models\GeoNeighborhood;
+use App\Models\SearchAlias;
 use App\Services\Search\QuartierDuFiltre;
 use App\Services\Search\VilleDuFiltre;
+use App\Support\Search\CleDeQuartier;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
 
 /**
@@ -16,12 +20,14 @@ use Illuminate\Contracts\Cache\Repository as CacheRepository;
  *   - chaque ville (`geo_cities`), sous son nom et ses anciens noms (`former_names`) ;
  *   - chaque quartier APPROUVÉ, avec sa ville, sous son nom et ses anciens noms. Une proposition `pending` n'est visible
  *     que de son auteur, une `rejected` de personne : aucune ne se reconnaît dans une saisie publique ;
- *   - le nom d'un quartier fusionné désigne sa cible (TCK-1052), comme dans `QuartierDuFiltre`.
+ *   - le nom d'un quartier fusionné désigne sa cible (TCK-1052), comme dans `QuartierDuFiltre` ;
+ *   - TCK-2476 — chaque variante ACTIVE d'un lieu (`search_aliases`, « wakam » → Ouakam) désigne ce lieu, s'il est encore
+ *     dans le référentiel ci-dessus (sinon elle ne désigne plus rien et n'est pas lue).
  *
  * Les écritures sont repliées par {@see InMemoryPlaceLexicon} (`CleDeQuartier::de()` : minuscules, sans accents).
  *
  * En cache {@see self::TTL} secondes sous {@see self::CACHE_KEY} : un quartier approuvé, renommé ou fusionné se reconnaît
- * au plus tard après ce délai. TCK-2474 et TCK-2476 ajouteront les variantes d'écriture à {@see self::entries()}.
+ * au plus tard après ce délai — une variante écrite ou tranchée vide le cache (`SearchAlias::forgetCaches()`).
  */
 final class DatabasePlaceLexicon implements PlaceLexicon
 {
@@ -76,6 +82,39 @@ final class DatabasePlaceLexicon implements PlaceLexicon
                     'city' => isset($cityNames[$target->geo_city_id]) ? (string) $cityNames[$target->geo_city_id] : null,
                     'spelling' => $spelling,
                 ];
+            }
+        }
+
+        return [...$entries, ...self::aliasEntries($entries)];
+    }
+
+    /**
+     * TCK-2476 — les variantes actives d'un lieu, rattachées au lieu du référentiel qu'elles désignent (une ville par
+     * son nom ; un quartier par son nom et, si la variante la porte, sa ville).
+     *
+     * @param  list<array{kind: 'city'|'neighborhood', name: string, city: ?string, spelling: string}>  $places
+     * @return list<array{kind: 'city'|'neighborhood', name: string, city: ?string, spelling: string}>
+     */
+    private static function aliasEntries(array $places): array
+    {
+        $byName = [];
+        foreach ($places as $place) {
+            $byName[$place['kind'].'|'.CleDeQuartier::de($place['name'])][$place['city'] ?? ''] = $place;
+        }
+
+        $entries = [];
+        $aliases = SearchAlias::query()
+            ->where('status', SearchAliasStatus::Active->value)
+            ->whereIn('target_kind', [SearchAliasTargetKind::City->value, SearchAliasTargetKind::Neighborhood->value])
+            ->orderBy('id')
+            ->get(['alias', 'target_kind', 'target_value', 'target_city']);
+        foreach ($aliases as $alias) {
+            $known = $byName[$alias->target_kind->value.'|'.CleDeQuartier::de($alias->target_value)] ?? [];
+            foreach ($known as $place) {
+                if ($alias->target_city !== null && CleDeQuartier::de($place['city']) !== CleDeQuartier::de($alias->target_city)) {
+                    continue;
+                }
+                $entries[] = ['kind' => $place['kind'], 'name' => $place['name'], 'city' => $place['city'], 'spelling' => (string) $alias->alias];
             }
         }
 

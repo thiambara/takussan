@@ -30,7 +30,8 @@ Mesuré le 2026-11-04 sur `dev` `74506074b` :
    Seule la recherche validée est journalisée (page 1 de la liste publique), jamais une frappe. Un nom propre tapé au
    hasard ne franchit pas le seuil du §4 : il ne se montre jamais.
 4. **Une recherche n'est montrée qu'après cinq visiteurs distincts** sur un même jour, et seulement si elle rend encore
-   des résultats. La demande sans résultat ne sort que vers l'usage `radar.cibles` (ADR-0087 §6) et la console.
+   des résultats. La demande sans résultat ne sort que vers l'usage `radar.cibles` (ADR-0087 §6), l'usage `search.variantes`
+   (§7, en saisies normalisées seulement) et la console.
 5. **Rétention** : les lignes du journal vivent 13 mois.
 6. **`privacy.ts` le dit**, et `VERSION_DOCUMENTS` avance, dans la PR qui l'écrit.
 7. **L'IA ne travaille jamais à la frappe.** La suggestion se calcule par du code et un index dédié. L'IA tient hors ligne

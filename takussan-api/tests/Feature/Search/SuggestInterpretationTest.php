@@ -90,6 +90,21 @@ class SuggestInterpretationTest extends TestCase
         $this->assertGreaterThan(0, $liste->json('meta.total'));
     }
 
+    /**
+     * TCK-2476 — « je cherche un appartement à almadies » : les mots d'intention ne restent pas au résidu, donc la liste
+     * ne les cherche pas et le compte est celui des quatre appartements publiés aux Almadies.
+     */
+    public function test_les_mots_d_intention_ne_font_pas_tomber_le_compte(): void
+    {
+        $interpretation = $this->getJson($this->url.'?q='.rawurlencode('je cherche un appartement à almadies'))->assertOk()->json('data.interpretation');
+
+        $this->assertEquals(['type' => 'apartment', 'city' => 'Dakar', 'location' => 'Almadies'], $interpretation['criteria']);
+        $this->assertNull($interpretation['residue']);
+        $liste = $this->getJson('/api/public/properties/search?'.http_build_query($interpretation['criteria']))->assertOk();
+        $this->assertSame($liste->json('meta.total'), $interpretation['count']);
+        $this->assertSame(4, $interpretation['count']);
+    }
+
     /** Principe n°5 — des valeurs et des positions, jamais un libellé. */
     public function test_les_parts_ne_portent_aucun_libelle(): void
     {
