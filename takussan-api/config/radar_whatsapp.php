@@ -49,9 +49,14 @@ return [
      * `php artisan radar:whatsapp-template <langue>` l'imprime. Une version absente ne s'envoie pas par
      * l'API (`radar.whatsapp.template_missing`) : ni `accord.v1` ni `accord.v2` — leur corps s'ouvre sur `{{1}}`, ce que
      * Meta refuse ; `accord.v3` s'ouvre sur un texte fixe.
+     *
+     * TCK-2471 — `accord.v4` (`accord.v3` + la phrase de la demande) attend son gabarit approuvé par Meta (démarche du
+     * porteur) : VIDE, il ne s'envoie pas par l'API, et un message n'est préparé en `accord.v4` que si l'API n'est pas
+     * offerte (`ConsentMessageComposer::versionFor()`). Son nom se pose ici une fois le gabarit approuvé.
      */
     'templates' => [
         'accord.v3' => 'takussan_radar_accord_v3',
+        'accord.v4' => env('RADAR_WHATSAPP_ACCORD_V4_TEMPLATE', ''),
     ],
 
     /** La langue Meta du gabarit, par langue du message. */

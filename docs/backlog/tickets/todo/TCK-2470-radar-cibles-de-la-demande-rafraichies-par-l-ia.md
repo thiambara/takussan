@@ -97,6 +97,12 @@ Partie API (2026-11-04) ci-dessous ; la console (encart « Demande », historiqu
   ressource seulement ; colonne `default(0)` depuis `2026_04_17_160021`). Le filtre « actives dont `results_count = 0` »
   est appliqué tel que le ticket le dit, mais il retient aujourd'hui **toutes** les recherches sauvegardées actives.
   À ouvrir : un ticket qui fait écrire `results_count` par `SendSavedSearchAlerts` (ou un compte au passage).
+  **2026-11-04 — fermé (décision du porteur, sans ticket à part)** : `SendSavedSearchAlerts` écrit, après les alertes,
+  le `results_count` de CHAQUE recherche active (fréquence `off` comprise) — le total du moteur de l'alerte, sans fenêtre,
+  par `SearchService::countMatchingProperties()` (`hitsPerPage: 0`) ; le total d'une première alerte (aucune borne basse)
+  est repris sans requête de plus. La création et un changement de critères (`SavedSearchController::store`/`update`)
+  comptent tout de suite ; un moteur indisponible laisse le compte précédent (`saved_search.count_failed`). Les alertes
+  publiques (`RecordPublicSearchAlert`) attendent le passage suivant. `SavedSearchResultsCountTest`, ablations comprises.
 - **Le journal porte des critères libres** (`city`, `cities`, `location`, `region`, `tags`) en plus de `normalized_query`.
   AC4 (« aucun texte saisi par un visiteur ») est tenu ainsi : `normalized_query` et `q` ne sont jamais lus ; un lieu
   n'entre que **reconnu par le référentiel** (ville par nom ou ancien nom, quartier par `QuartierDuFiltre`), et sous le

@@ -9125,7 +9125,9 @@
             "apiConfirm": "Oui, l’envoyer",
             "apiSent": "Message envoyé par l’API WhatsApp : Meta l’a accepté.",
             "apiAmbiguous": "Meta n’a pas confirmé l’envoi : le message a pu partir. Il est compté comme envoyé pour ne jamais écrire deux fois à l’annonceur. Ne le renvoyez pas à la main.",
-            "replyPending": "L’annonceur a répondu par WhatsApp, et sa réponse n’est pas tranchée. Lisez-la plus bas, dans « Messages envoyés, en attente d’une issue », et posez son issue : d’ici là, rien ne se prépare ni ne part vers lui, quelle que soit l’annonce."
+            "replyPending": "L’annonceur a répondu par WhatsApp, et sa réponse n’est pas tranchée. Lisez-la plus bas, dans « Messages envoyés, en attente d’une issue », et posez son issue : d’ici là, rien ne se prépare ni ne part vers lui, quelle que soit l’annonce.",
+            "demandSentence": "Ce message dit à l’annonceur que des personnes recherchent un bien comme le sien sur Takussan.",
+            "demandReason": "Recherché : {targets}"
           },
           "history": {
             "heading": "Messages envoyés",

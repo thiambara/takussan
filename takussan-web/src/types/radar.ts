@@ -452,6 +452,11 @@ export interface RadarOutreach {
   readonly summary: string;
   readonly message: string;
   readonly segments: readonly RadarMessageSegment[];
+  /**
+   * TCK-2471 — la raison de la phrase de la demande (`accord.v4` : « Des personnes recherchent en ce moment sur Takussan un
+   * bien comme le vôtre. ») : le nom des cibles de la demande qui couvrent ses annonces. `[]` pour toute autre version.
+   */
+  readonly demand_targets: readonly string[];
   /** Absent (`null`) tant que les deux parties ne sont pas écrites, une fois envoyé, si l'annonceur a dit STOP, et si `send_blocked`. */
   readonly wa_me_url: string | null;
   /** Brouillon seulement : le code du refus qu'essuierait « J'ai envoyé » (annonce d'un autre annonceur, chaîne fermée, annonce sortie d'étape). */

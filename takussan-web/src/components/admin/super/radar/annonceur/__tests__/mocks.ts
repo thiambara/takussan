@@ -64,6 +64,7 @@ export function message(partiel: Partial<RadarOutreach> = {}): RadarOutreach {
     summary: 'F3 aux Almadies, 350 000 F CFA par mois',
     message: MESSAGE_PREPARE,
     segments: SEGMENTS,
+    demand_targets: [],
     wa_me_url: WA_ME,
     send_blocked: null,
     follow_up_of_id: null,

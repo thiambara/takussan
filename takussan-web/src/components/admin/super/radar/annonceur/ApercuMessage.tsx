@@ -49,6 +49,9 @@ const texteDe = (segments: readonly RadarMessageSegment[], kind: RadarMessageSeg
  * WhatsApp n'ouvre QUE le texte enregistré : tant qu'une retouche n'est pas enregistrée, le lien et « J'ai
  * envoyé » restent fermés — sinon l'opérateur enverrait un texte différent de celui qu'il voit.
  *
+ * TCK-2471 — un message `accord.v4` porte, dans son texte figé, la phrase de la demande ; une note dit pourquoi : le nom des
+ * cibles de la demande qui couvrent ses annonces (`demand_targets`).
+ *
  * TCK-2426 — « Envoyer par l'API » (offert si la fiche rend `whatsapp_api_available`) fait partir le message du numéro
  * du Radar, après confirmation. Il s'ouvre aux mêmes conditions que le lien `wa.me` (`wa_me_url` non nul : parties
  * écrites, numéro, ni STOP ni `send_blocked`). Tant qu'une réponse reçue par l'API de l'annonceur n'est pas tranchée,
@@ -144,6 +147,13 @@ export function ApercuMessage({
           );
         })}
       </div>
+      {message.demand_targets.length > 0 ? (
+        // TCK-2471 — la phrase de la demande est dans le texte figé ; la console dit pourquoi elle y est.
+        <div role="note" className="rounded-md border border-accent/40 bg-accent/5 px-3 py-2 text-xs text-foreground" data-testid="radar-message-demande">
+          <p>{t('demandSentence')}</p>
+          <p className="mt-1 text-muted-foreground">{t('demandReason', { targets: message.demand_targets.join(', ') })}</p>
+        </div>
+      ) : null}
       {!retouchable ? <p className="text-xs text-muted-foreground">{t('legacy')}</p> : null}
 
       {retouchable ? (

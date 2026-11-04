@@ -67,6 +67,9 @@ class RadarOutreachResource extends BaseResource
             'summary' => $this->summary,
             'message' => $this->message,
             'segments' => $this->segments(),
+            // TCK-2471 — la raison de la phrase d'`accord.v4` (« Recherché : … ») : les cibles de la demande qui couvrent ses
+            // annonces ; `[]` pour toute autre version.
+            'demand_targets' => $this->demandTargets(),
             'wa_me_url' => $this->waMeUrl(),
             'send_blocked' => $this->sendBlocked(),
             'follow_up_of_id' => $this->follow_up_of_id,
@@ -106,6 +109,16 @@ class RadarOutreachResource extends BaseResource
         }
 
         return [['kind' => 'fixed', 'text' => $this->message]];
+    }
+
+    /** @return list<string> */
+    private function demandTargets(): array
+    {
+        if ($this->clauses_version !== ConsentMessageComposer::DEMAND_VERSION) {
+            return [];
+        }
+
+        return app(ConsentMessageComposer::class)->demandTargetNames($this->listings->pluck('id')->map(fn ($id) => (int) $id)->all());
     }
 
     private function waMeUrl(): ?string

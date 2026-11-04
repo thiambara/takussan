@@ -5,9 +5,12 @@ namespace App\Services\Radar;
 use App\Ai\Agents\RadarConsentMessage;
 use App\Ai\Usages\RadarConsentMessageUsage;
 use App\Models\Enums\AiDataClass;
+use App\Models\Enums\RadarTargetOrigin;
+use App\Models\Enums\RadarTargetStatus;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
 use App\Models\RadarOutreach;
+use App\Models\RadarTarget;
 use App\Models\User;
 use App\Services\Ai\AiErrorCode;
 use App\Services\Ai\AiGateway;
@@ -15,6 +18,8 @@ use App\Services\Ai\AiRequest;
 use App\Services\Ai\AiResult;
 use App\Services\Ai\Exceptions\AiRefused;
 use App\Services\Ai\Exceptions\AiUnavailable;
+use App\Services\Radar\Whatsapp\RadarWhatsappNumber;
+use App\Services\Radar\Whatsapp\RadarWhatsappTemplate;
 use App\Support\LienFront;
 use App\Support\PhoneMasker;
 use App\Support\RadarWaMe;
@@ -51,6 +56,16 @@ final class ConsentMessageComposer
      */
     public const CLAUSES_VERSION = 'accord.v3';
 
+    /**
+     * TCK-2471 (décision du porteur, 2026-11-04) — `accord.v4` = `accord.v3` + une phrase fixe, sans nombre, en paragraphe à
+     * elle après la présentation (« Des personnes recherchent en ce moment sur Takussan un bien comme le vôtre. ») ; clauses
+     * identiques mot pour mot. Choisie par {@see self::versionFor()} quand une cible `demand` ACTIVE couvre l'une des annonces
+     * du message ET que le message pourra partir par chaque canal offert : sans gabarit Meta v4 configuré
+     * (`radar_whatsapp.templates`, `RADAR_WHATSAPP_ACCORD_V4_TEMPLATE`), seulement quand l'API n'est pas offerte — le canal
+     * manuel (`wa.me`) est alors le seul. L'API refuse un `accord.v4` sans gabarit (`radar.whatsapp.template_missing`).
+     */
+    public const DEMAND_VERSION = 'accord.v4';
+
     /** (décision 5, porteur 2026-10-28) — pas de wolof tant qu'il est en pause. */
     public const LOCALES = ['fr', 'en'];
 
@@ -63,7 +78,54 @@ final class ConsentMessageComposer
     /** Les marqueurs d'un fichier de clauses. TCK-2395 : le gabarit Meta les numérote dans cet ordre (`RadarWhatsappTemplate`). */
     public const PLACEHOLDER = '/\{(salutation|resume|lien_conditions|lien_reclamation)\}/';
 
-    public function __construct(private readonly AiGateway $gateway, private readonly ClaimLinks $claimLinks) {}
+    public function __construct(
+        private readonly AiGateway $gateway,
+        private readonly ClaimLinks $claimLinks,
+        private readonly RadarWhatsappNumber $number,
+    ) {}
+
+    /**
+     * TCK-2471 — la version des clauses d'un message NEUF pour ces annonces ; jugée à la préparation, sous le verrou des
+     * annonces. Le canal n'est choisi qu'après, sur l'aperçu : `accord.v4` n'est retenue que si chaque canal offert peut
+     * l'envoyer. Un message préparé garde la sienne (`radar_outreaches.clauses_version`) : une retouche la relit.
+     *
+     * @param  list<int>  $listingIds
+     */
+    public function versionFor(array $listingIds): string
+    {
+        if ($this->demandTargetNames($listingIds, activeOnly: true) === []) {
+            return self::CLAUSES_VERSION;
+        }
+
+        return $this->number->available() && RadarWhatsappTemplate::templateName(self::DEMAND_VERSION) === null
+            ? self::CLAUSES_VERSION
+            : self::DEMAND_VERSION;
+    }
+
+    /**
+     * TCK-2471 — les cibles de la demande qui couvrent ces annonces, par nom : la raison de la phrase d'`accord.v4`, que
+     * l'aperçu de la console affiche (« Recherché : … »). `activeOnly` : la condition de la phrase ; sans, la raison d'un
+     * message déjà composé, que la cible ait été mise en pause ou retirée depuis.
+     *
+     * @param  list<int>  $listingIds
+     * @return list<string>
+     */
+    public function demandTargetNames(array $listingIds, bool $activeOnly = false): array
+    {
+        if ($listingIds === []) {
+            return [];
+        }
+
+        return RadarTarget::query()
+            ->where('origin', RadarTargetOrigin::Demand->value)
+            ->when($activeOnly, fn ($query) => $query->where('status', RadarTargetStatus::Active->value))
+            ->whereHas('listings', fn ($query) => $query->whereIn('radar_listings.id', $listingIds))
+            ->orderBy('name')
+            ->pluck('name')
+            ->map(fn ($name): string => (string) $name)
+            ->values()
+            ->all();
+    }
 
     public function template(string $locale, string $version = self::CLAUSES_VERSION): string
     {
