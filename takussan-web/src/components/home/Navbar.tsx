@@ -25,6 +25,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
 import { referentielPublicQueryKeys, UNE_HEURE_MS } from '@/lib/queries/referentiel-public';
 import { parametreDe } from '@/types/search';
+import { retenirRecherche } from '@/lib/recherches-recentes';
 import { hrefLocalise, localeDuChemin } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/config';
 import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
@@ -378,8 +379,12 @@ export function Navbar({ className }: NavbarProps) {
 
   const handleSearch = useCallback(() => {
     setDemande(null);
-    demarrerNavigation(() => router.push(buildSearchUrl()));
-  }, [router, buildSearchUrl]);
+    const href = buildSearchUrl();
+    // TCK-2475 — la loupe est un geste de recherche comme Entrée : il entre dans les récentes de
+    // l'appareil que la barre propose au focus d'un champ vide (rien ne part au serveur).
+    retenirRecherche({ texte: location.trim(), qs: href.split('?')[1] ?? '' });
+    demarrerNavigation(() => router.push(href));
+  }, [router, buildSearchUrl, location]);
 
   const handleCategoryClick = useCallback((type: string | null) => {
     if (!type) return;

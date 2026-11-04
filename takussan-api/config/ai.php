@@ -80,9 +80,11 @@ return [
     // l'ordre de bascule. Un maillon ne porte que `max_tokens` : l'API d'Anthropic refuse
     // `temperature`, `top_p` et `top_k` depuis le 2026-10-21.
     'roles' => [
+        // TCK-2466 (ADR-0087 §2) — le petit modèle d'abord : l'IA ne lit plus que la description et ce que la page ne
+        // dit pas ; Sonnet en repli. Une ligne `ai_role_assignments` (console, ADR-0085) l'emporte sur ce repli.
         'extraction' => [
-            ['provider' => 'anthropic', 'model' => 'claude-sonnet-5-5', 'max_tokens' => 8000],
             ['provider' => 'anthropic', 'model' => 'claude-haiku-5-5', 'max_tokens' => 8000],
+            ['provider' => 'anthropic', 'model' => 'claude-sonnet-5-5', 'max_tokens' => 8000],
         ],
         'redaction' => [
             ['provider' => 'anthropic', 'model' => 'claude-sonnet-5-5', 'max_tokens' => 4000],

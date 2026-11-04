@@ -7,10 +7,14 @@ use App\Models\SavedSearch;
 use App\Models\User;
 use App\Services\Search\PropertySearchService;
 use App\Support\DistanceHaversine;
+use App\Support\Logging\SafeExceptionContext;
 use App\Support\SavedSearchCriteria;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class SearchService
 {
@@ -197,5 +201,41 @@ class SearchService
             $publieApres,
             $jusqua ?? now(),
         );
+    }
+
+    /**
+     * TCK-2470 (décision du porteur, 2026-11-04) — le nombre de biens publics que cette recherche sauvegardée trouve
+     * maintenant : le total du même moteur que l'alerte ({@see PropertySearchService::alertMatches()}), sans fenêtre de
+     * publication, et sans recharger un seul bien (`hitsPerPage: 0`, le moteur ne rend que `totalHits`). C'est ce qu'écrit
+     * `saved_searches.results_count`, que les cibles de la demande du Radar lisent (`results_count = 0` : une demande sans
+     * résultat).
+     */
+    public function countMatchingProperties(SavedSearch $search): int
+    {
+        return app(PropertySearchService::class)->alertMatches(
+            SavedSearchCriteria::toSearchParams($search->criteria ?? []),
+            null,
+            now(),
+            0,
+        )['total'];
+    }
+
+    /**
+     * Écrit `results_count` s'il a changé, sans toucher `updated_at` (un compte n'est pas une modification de la recherche).
+     * Un échec du moteur laisse le compte précédent et ne remonte pas : le passage suivant recompte.
+     */
+    public function refreshResultsCount(SavedSearch $search, ?int $known = null): void
+    {
+        try {
+            $total = $known ?? $this->countMatchingProperties($search);
+        } catch (Throwable $e) {
+            Log::warning('saved_search.count_failed', ['saved_search_id' => $search->id] + Arr::except(SafeExceptionContext::of($e), ['message']));
+
+            return;
+        }
+        if ($total !== (int) $search->results_count) {
+            SavedSearch::query()->whereKey($search->getKey())->toBase()->update(['results_count' => $total]);
+            $search->setAttribute('results_count', $total)->syncOriginalAttribute('results_count');
+        }
     }
 }

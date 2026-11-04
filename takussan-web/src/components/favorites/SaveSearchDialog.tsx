@@ -40,13 +40,25 @@ export interface SaveSearchDialogProps {
   readonly criteria: Record<string, unknown>;
   /** Change à chaque ouverture : le formulaire repart de zéro (nom suggéré, alerte décochée). */
   readonly ouverture: number;
+  /**
+   * TCK-2475 — la case « m'alerter » part COCHÉE : la barre de recherche ouvre ce dialogue depuis
+   * « Être alerté quand un bien correspond », un geste qui demande l'alerte. Décochée par défaut
+   * partout ailleurs (TCK-599, C6 : « Sauvegarder » ne promet pas d'alerte).
+   */
+  readonly alerteCochee?: boolean;
 }
 
-export function SaveSearchDialog({ open, onOpenChange, filters, criteria, ouverture }: SaveSearchDialogProps) {
+export function SaveSearchDialog({ open, onOpenChange, filters, criteria, ouverture, alerteCochee = false }: SaveSearchDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
-        <CorpsDuDialogue key={ouverture} filters={filters} criteria={criteria} onClose={() => onOpenChange(false)} />
+        <CorpsDuDialogue
+          key={ouverture}
+          filters={filters}
+          criteria={criteria}
+          alerteCochee={alerteCochee}
+          onClose={() => onOpenChange(false)}
+        />
       </DialogContent>
     </Dialog>
   );
@@ -81,10 +93,12 @@ function suggestName(
 function CorpsDuDialogue({
   filters,
   criteria,
+  alerteCochee,
   onClose,
 }: {
   readonly filters: SearchFilters;
   readonly criteria: Record<string, unknown>;
+  readonly alerteCochee: boolean;
   readonly onClose: () => void;
 }) {
   const t = useTranslations('search.saveSearch');
@@ -102,7 +116,7 @@ function CorpsDuDialogue({
 
   const [name, setName] = useState(() => suggestName(filters, t, tContract, tTypes));
   const [nameError, setNameError] = useState<string | null>(null);
-  const [alsoAlert, setAlsoAlert] = useState(false);
+  const [alsoAlert, setAlsoAlert] = useState(alerteCochee);
   const [saved, setSaved] = useState<{ id: number; channels: SavedSearchAlertChannel[] | null } | null>(
     null,
   );

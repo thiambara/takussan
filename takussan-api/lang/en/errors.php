@@ -803,6 +803,23 @@ return [
             'start_url_invalid' => 'This start URL is not accepted: an https address, without credentials, port or fragment (#).',
             'start_url_host' => 'This start URL is not on the site: it must start from :hosts.',
             'start_url_duplicate' => 'This start URL is already in the list.',
+            'discovery_unavailable' => 'This site publishes no readable sitemap: sitemap discovery is not possible there.',
+        ],
+        // TCK-2468 / TCK-2469 (ADR-0087) — Radar targets and the demand that keeps them up to date.
+        'targets' => [
+            'retired' => 'This target is retired: it can no longer be changed. Create a new one.',
+            'duplicate' => 'A target already has exactly these criteria.',
+            'too_many' => 'Reverting this revision would exceed the cap on demand targets (:max at most).',
+            'revision_reverted' => 'This revision has already been reverted.',
+            'revision_superseded' => 'A target in this revision has changed since (pinned, paused or retired): the revision can no longer be reverted.',
+        ],
+        'demand' => [
+            'too_many' => 'The cap on demand targets is reached (:max at most).',
+            'invalid_operation' => 'This operation is not recognised.',
+            'unknown_target' => 'This target does not exist or is retired.',
+            'target_protected' => 'This target is held by the operator: the demand does not touch it.',
+            'uncovered' => 'These criteria cover none of the cited searches.',
+            'invalid_name' => 'The target name is empty.',
         ],
         // TCK-2394 (ADR-0077, lot 4) — activation reminder; (ADR-0079) publication under mandate.
         'activation' => [

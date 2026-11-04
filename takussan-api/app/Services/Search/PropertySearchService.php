@@ -123,10 +123,8 @@ class PropertySearchService
 
         // Le repli ne coûte QUE sur une requête qui rend 0 : le chemin nominal
         // reste à une seule requête moteur.
-        $useful = $this->usefulTerms($term);
-
-        if ((int) ($result['totalHits'] ?? 0) === 0 && count($useful) >= 2) {
-            $widened = $this->widen($term, $useful, $filter, $sort, $page, $perPage);
+        if ($this->wouldWiden($term, (int) ($result['totalHits'] ?? 0))) {
+            $widened = $this->widen($term, $this->usefulTerms($term), $filter, $sort, $page, $perPage);
 
             if ($widened !== null) {
                 [$result, $unmatched] = $widened;
@@ -334,6 +332,17 @@ class PropertySearchService
     }
 
     /**
+     * ADR-0024 — le prédicat du repli élargi : zéro bien au régime exact, et au moins deux termes utiles dans la saisie.
+     * Public pour la suggestion (`interpretation.widens`, revue adverse n° 9) : elle dit si la liste élargira, par CE
+     * code, jamais recopié. ⚠ Il dit que la liste TENTERA d'élargir ; `widen()` peut encore renoncer (réponse incomplète
+     * du moteur), auquel cas la liste rend le résultat exact.
+     */
+    public function wouldWiden(string $term, int $totalHits): bool
+    {
+        return $totalHits === 0 && count($this->usefulTerms(trim($term))) >= 2;
+    }
+
+    /**
      * Les termes que le MOTEUR va réellement exiger — pas les mots de la saisie.
      *
      * Trois écarts entre les deux, et chacun produirait une phrase fausse s'il
@@ -442,10 +451,11 @@ class PropertySearchService
      * Les clauses moteur qui decrivent le CATALOGUE PUBLIC, et rien d'autre —
      * la transposition Meilisearch de `Property::scopePublic()`.
      *
-     * TCK-335 — extraite parce qu'elle a un SECOND appelant : `SuggestService`
-     * interroge desormais `POST /indexes/{uid}/facet-search` pour les villes et
-     * les quartiers, et une facette comptee sous un filtre INCOMPLET rend un
-     * compte faux. Mesure le 2026-08-21 sur la base locale (836 biens, 258
+     * TCK-335 — extraite pour un SECOND appelant : `SuggestService`, qui
+     * interrogeait `POST /indexes/{uid}/facet-search` pour les villes et les
+     * quartiers (retirés de la suggestion le 2026-11-04 : la suggestion lit
+     * l'index des suggestions, dont les comptes suivent `scopePublic()`). Une
+     * facette comptee sous un filtre INCOMPLET rend un compte faux. Mesure le 2026-08-21 sur la base locale (836 biens, 258
      * publics) : avec les trois premieres clauses seulement (visibility,
      * is_test, published_at) la facette rend « Mermoz 29 » et « Dakar 462 » ;
      * avec les quatre, « Mermoz 20 » et « Dakar 210 » — c'est-a-dire exactement
@@ -464,6 +474,40 @@ class PropertySearchService
             'published_at IS NOT NULL',
             'NOT status IN ['.self::quoteList(Property::NON_PUBLIC_STATUSES).']',
         ];
+    }
+
+    /**
+     * TCK-2474 (ADR-0088) — la page 1 du régime NOMINAL de {@see self::search()}, en requête de `/multi-search` :
+     * même terme, même filtre (`buildFilter()`), même tri par défaut (`buildSort()`), même `matchingStrategy`.
+     *
+     * Son appelant est la suggestion (`App\Services\Search\Suggestions\SearchSuggestions`), qui promet « 12 biens »
+     * sous des critères compris et doit donc compter EXACTEMENT ce que la liste comptera : la traduction des critères
+     * en filtre est empruntée ici, jamais recopiée (même raison que {@see self::publicFilter()}).
+     *
+     * ⚠ Ni le repli d'ADR-0024 ni les emplacements : `totalHits` est le total du régime nominal, celui que
+     * `meta.total` rend tant que ce régime trouve au moins un bien.
+     *
+     * @param  array<string,mixed>  $params  les paramètres validés de la liste publique
+     */
+    public function nominalQuery(array $params, int $hitsPerPage): SearchQuery
+    {
+        $term = trim((string) ($params['q'] ?? $params['search'] ?? ''));
+        $sort = $this->buildSort((string) ($params['sort'] ?? 'relevance'), $term, $params);
+
+        $query = (new SearchQuery)
+            ->setIndexUid((new Property)->searchableAs())
+            ->setQuery($term)
+            ->setFilter($this->buildFilter($params))
+            ->setMatchingStrategy(self::STRATEGY_STRICT)
+            ->setAttributesToRetrieve(['id'])
+            ->setPage(1)
+            ->setHitsPerPage($hitsPerPage);
+
+        if ($sort !== []) {
+            $query->setSort($sort);
+        }
+
+        return $query;
     }
 
     /**

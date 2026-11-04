@@ -109,6 +109,11 @@ const LIBELLES = {
   PrivacyRequestStatus: [{ chemin: 'superAdmin.privacyRequests.status', lu: 'components/admin/super/PrivacyRequestsConsole.tsx' }],
   PropertyStatus: [{ chemin: 'property.status', lu: 'components/admin/super/SuperAdminPropertiesTable.tsx' }],
   RadarCrawlStatus: [{ chemin: 'superAdmin.pages.radar.crawl.status', lu: 'components/admin/super/radar/collecte/RadarCollecte.tsx' }],
+  // TCK-2469 — la console des cibles : la liste et la fiche lisent l'état sous le même espace.
+  RadarTargetStatus: [
+    { chemin: 'superAdmin.pages.radar.targets.status', lu: 'components/admin/super/radar/cibles/RadarCibles.tsx' },
+    { chemin: 'superAdmin.pages.radar.targets.status', lu: 'components/admin/super/radar/cibles/RadarCibleFiche.tsx' },
+  ],
   ReviewStatus: [
     { chemin: 'profile.reviews.status', lu: 'components/profile/ProfileReviewsList.tsx' },
     { chemin: 'admin.moderation.status', lu: 'components/admin/ModerationQueueList.tsx' },
@@ -129,6 +134,7 @@ const SANS_LIBELLE = {
   RadarVerificationStatus: 'TCK-2388 : `ReponseVerdict` le lit en comparaison (`pending`, `failed`) et dit chaque état par une phrase (`superAdmin.pages.radar.advertiser.reply.pending`, `.failed`) — pas par une table à un cas par clé que `LIBELLES` puisse relever',
   ReferentialStatus: 'aucun écran relevé ne le traduit sous un espace complet',
   RelationshipStatus: 'aucun écran relevé ne le traduit (`billing.subscription.status` porte ses cas par coïncidence)',
+  SearchAliasStatus: 'TCK-2476 : aucun écran — la console des variantes d\'écriture est hors périmètre (l\'API `/api/admin/search/aliases` suffit pour l\'instant)',
   TaskStatus: 'aucun espace du dictionnaire ne porte ses quatre cas (`done` manque)',
   UserStatus: 'les espaces lus (`admin.users.status`, `superAdmin.pages.users.statuses`) n\'ont pas `deleted`, et l\'écran les lit derrière `t.has()` ou une liste connue',
 };

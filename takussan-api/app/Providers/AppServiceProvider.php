@@ -38,6 +38,7 @@ use App\Models\Property;
 use App\Models\PropertyCollaborator;
 use App\Models\PropertyContactLead;
 use App\Models\PropertyVisit;
+use App\Models\RadarListing;
 use App\Models\Review;
 use App\Models\RoleDelegation;
 use App\Models\Task;
@@ -60,6 +61,7 @@ use App\Observers\Privacy\PrivacyRegistryObserver;
 use App\Observers\PropertyObserver;
 use App\Observers\PropertyPublicCacheObserver;
 use App\Observers\PropertyVisitObserver;
+use App\Observers\RadarListingTargetObserver;
 use App\Observers\ReviewObserver;
 use App\Observers\UserObserver;
 use App\Policies\ActivityLogPolicy;
@@ -138,6 +140,11 @@ use App\Services\Radar\Whatsapp\RadarLogWhatsappDriver;
 use App\Services\Radar\Whatsapp\RadarWhatsappDriver;
 use App\Services\Reporting\PlatformReportingService;
 use App\Services\Review\ReviewModerationScope;
+use App\Services\Search\Query\DatabasePlaceLexicon;
+use App\Services\Search\Query\DatabaseVocabularyAliases;
+use App\Services\Search\Query\PlaceLexicon;
+use App\Services\Search\Query\VocabularyAliases;
+use App\Services\Search\Suggestions\SearchSuggestions;
 use App\Services\Webhooks\WebhookJournal;
 use App\Support\ImpersonationContext;
 use App\Support\LienFront;
@@ -207,6 +214,11 @@ class AppServiceProvider extends ServiceProvider
         // TCK-2386 (ADR-0077 §10) — la résolution DNS du Radar, injectée : `UrlFetcher` contrôle
         // toutes les adresses d'un nom avant de s'y connecter, et les tests la doublent.
         $this->app->bind(HostResolver::class, DnsHostResolver::class);
+
+        // TCK-2473 (ADR-0088) — les lieux que l'analyse de la saisie reconnaît : le référentiel géographique, en cache.
+        $this->app->bind(PlaceLexicon::class, DatabasePlaceLexicon::class);
+        // TCK-2476 (ADR-0088 §7) — les variantes d'écriture actives d'un type ou d'un terme, que l'analyse lit en vocabulaire.
+        $this->app->bind(VocabularyAliases::class, DatabaseVocabularyAliases::class);
 
         // TCK-2392 — le quatrième signal de rapprochement du Radar : un pilote par `radar.similarity.driver`, `trigram` à défaut.
         $this->app->bind(RadarTextSimilarity::class, fn ($app) => $app->make(
@@ -462,10 +474,11 @@ class AppServiceProvider extends ServiceProvider
 
     private function bootRateLimiters(): void
     {
-        // TCK-107 — 60 req/min PAR VISITEUR. TCK-652 : sans `->by()`, la clé est la même pour
-        // tout le site (`ThrottleRequests` ne compte que `md5(nom.$limit->key)`) — un visiteur
-        // qui tapait vite faisait répondre 429 à tous les autres.
-        RateLimiter::for('search-suggest', fn (Request $request) => Limit::perMinute(60)->by($this->visitorRateLimitKey($request)));
+        // TCK-107 — PAR VISITEUR. TCK-652 : sans `->by()`, la clé est la même pour tout le site
+        // (`ThrottleRequests` ne compte que `md5(nom.$limit->key)`) — un visiteur qui tapait vite
+        // faisait répondre 429 à tous les autres. 60/min jusqu'au 2026-11-04 : la suggestion à chaque
+        // frappe (TCK-2475) coupait un visiteur à sa deuxième saisie (revue adverse n° 6).
+        RateLimiter::for('search-suggest', fn (Request $request) => Limit::perMinute(SearchSuggestions::RATE_PER_MINUTE)->by($this->visitorRateLimitKey($request)));
 
         // Public POST endpoints — keyed by authenticated user_id when a valid
         // Bearer token is present, otherwise by the visitor IP (resolved via
@@ -774,6 +787,8 @@ class AppServiceProvider extends ServiceProvider
         MaintenanceRequest::observe(MaintenanceRequestObserver::class);
         User::observe(UserObserver::class);
         PlatformProfile::observe(PlatformProfileObserver::class);
+        // TCK-2468 (ADR-0087 §5) — une annonce extraite ou validée est rattachée aux cibles du Radar, après le commit.
+        RadarListing::observe(RadarListingTargetObserver::class);
         BookingPayment::observe(PaymentPlatformFeeObserver::class);
         LeasePayment::observe(PaymentPlatformFeeObserver::class);
 

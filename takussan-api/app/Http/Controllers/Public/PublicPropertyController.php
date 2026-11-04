@@ -54,6 +54,7 @@ use App\Services\Property\SimilarPropertiesService;
 use App\Services\Review\ReviewEligibility;
 use App\Services\Search\FiltresDeLaCarte;
 use App\Services\Search\PropertySearchService;
+use App\Services\Search\SearchJournal;
 use App\Services\Visit\VisitNotifier;
 use App\Services\Visit\VisitSchedulingService;
 use App\Support\CaseInsensitive;
@@ -386,11 +387,15 @@ class PublicPropertyController extends Controller
         ]);
     }
 
-    public function search(SearchPublicPropertyRequest $request, PropertySearchService $service): array
+    public function search(SearchPublicPropertyRequest $request, PropertySearchService $service, SearchJournal $journal): array
     {
         $validated = $request->validated();
 
-        return $service->search($validated);
+        $result = $service->search($validated);
+        // TCK-2472 (ADR-0088) — le journal anonyme des recherches : page 1 seulement, après la réponse, jamais en échec.
+        $journal->recordPublicSearch($request, $validated, $result);
+
+        return $result;
     }
 
     /**

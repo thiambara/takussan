@@ -41,10 +41,12 @@ final class RadarExtractionUsage implements AiUsage, AttachmentsUseVision
      * `v2` (TCK-2411) : le passage absent s'écrit `""`, plus `null` — le schéma ne l'admet plus.
      * `v3` (TCK-2433) : la réponse est l'objet du schéma, rendu par l'outil de sortie quand il est
      * proposé — l'agent n'est plus strict et l'outil n'est plus forcé.
+     * `v4` (TCK-2466, ADR-0087 §2) : le bloc peut commencer par la liste « Déjà lu sur la page » ; le modèle ne remplit
+     * que les champs qu'elle ne donne pas. Sans cette liste (texte, captures, page sans adaptateur), même consigne qu'en v3.
      */
     public function promptVersion(): int
     {
-        return 3;
+        return 4;
     }
 
     public function maxDataClass(): AiDataClass

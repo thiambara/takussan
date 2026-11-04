@@ -4450,10 +4450,25 @@
       "groups": {
         "cities": "Cities",
         "neighborhoods": "Neighborhoods",
-        "property_types": "Types"
+        "property_types": "Types",
+        "recent": "Recent",
+        "popular": "Popular",
+        "completions": "Frequent searches",
+        "places": "Places",
+        "previews": "Listings",
+        "shortcuts": "Shortcuts",
+        "understood": "Your search"
       },
       "searchAll": "Search “{query}” in the listings",
-      "loading": "Loading…"
+      "loading": "Loading…",
+      "clearRecent": "Clear recent searches",
+      "shortcutRent": "Rent",
+      "shortcutSale": "Buy",
+      "count": "{count, plural, one {# listing} other {# listings}}",
+      "nearby": "See close matches",
+      "alert": "Get alerted when a listing matches",
+      "enterHint": "Enter",
+      "announce": "{count, plural, =0 {No suggestions} one {# suggestion} other {# suggestions}}"
     },
     "saved": {
       "empty_title": "No saved search",
@@ -8699,6 +8714,7 @@
           "fetchHttpError": "The site answered with an error.",
           "fetchTimeout": "The site did not answer in time.",
           "fetchUnresolvable": "The site name cannot be found.",
+          "fetchNotXml": "The response is not an XML document.",
           "aiBudget": "Today’s AI spending cap is reached.",
           "aiKillSwitch": "AI is switched off for this use from the AI console.",
           "aiForbidden": "The operator may not run this AI operation.",
@@ -8863,9 +8879,12 @@
               "evidence_not_in_source": "The cited passage is not in the source",
               "out_of_bounds": "Value outside plausible bounds",
               "invalid_value": "Invalid value, discarded",
-              "unparsed_amount": "Unreadable amount"
+              "unparsed_amount": "Unreadable amount",
+              "source_conflict": "The page says something other than the AI: the page's value is kept"
             },
-            "low": "Low confidence"
+            "low": "Low confidence",
+            "readOnPage": "Read on the page",
+            "modelProposed": "The AI suggested: {value}"
           },
           "neighborhood": {
             "read": "Read in the listing: {value}",
@@ -9106,7 +9125,11 @@
             "apiConfirm": "Yes, send it",
             "apiSent": "Message sent through the WhatsApp API: Meta accepted it.",
             "apiAmbiguous": "Meta did not confirm the send: the message may have gone out. It counts as sent so the advertiser is never written to twice. Do not send it again by hand.",
-            "replyPending": "The advertiser replied on WhatsApp, and the reply has not been settled. Read it below, under “Messages sent, waiting for an outcome”, and record its outcome: until then, nothing can be prepared for or sent to them, whatever the listing."
+            "replyPending": "The advertiser replied on WhatsApp, and the reply has not been settled. Read it below, under “Messages sent, waiting for an outcome”, and record its outcome: until then, nothing can be prepared for or sent to them, whatever the listing.",
+            "demandSentence": "This message tells the advertiser that people are looking for a property like theirs on Takussan.",
+            "demandReason": "Searched for: {targets}",
+            "apiDemandManualOnly": "This message mentions the demand: it is sent manually through WhatsApp until the Meta v4 template is approved.",
+            "apiTemplateManualOnly": "This message was written with a template Meta has not approved: it is sent manually through WhatsApp."
           },
           "history": {
             "heading": "Sent messages",
@@ -9751,7 +9774,8 @@
             "created": "New",
             "known": "Known",
             "snapshots": "Snapshots",
-            "stop": "Stop"
+            "stop": "Stop",
+            "skipped": "Off target"
           },
           "tableCaption": "Latest collection passes, most recent first.",
           "status": {
@@ -9774,7 +9798,8 @@
             "error": "Pass error",
             "lost": "Lost pass (queue stopped)",
             "loop": "Pagination loops back to a page already read",
-            "noStartUrl": "No valid start URL"
+            "noStartUrl": "No valid start URL",
+            "sitemapInvalid": "The site’s sitemap is unreadable or empty: reading cut short"
           },
           "errors": {
             "active": "A pass is already running on this site: wait for it to finish.",
@@ -9784,21 +9809,326 @@
             "startUrlTooLong": "URL no. {rank} is too long: {max} characters at most.",
             "startUrlInvalid": "URL no. {rank} is not accepted: an https address, without credentials, port or fragment (#).",
             "startUrlHost": "URL no. {rank} is not on the site: it must start from {hosts}.",
-            "startUrlDuplicate": "URL no. {rank} is already in the list."
+            "startUrlDuplicate": "URL no. {rank} is already in the list.",
+            "discoveryUnavailable": "This site does not offer reading by sitemap."
           },
           "summary": "Every {frequency} min · {pages} pages at most",
           "enabledWithoutOperator": "Enabled without an operator: no run starts. Disable and re-enable it to become its operator.",
           "startUrls": "Start URLs (one per line)",
           "startUrlsHint": "The list pages each run reads, in order, on {hosts}; {max} at most. Empty: {fallback}.",
           "startUrlsDefault": "Start page: {url} (configuration)",
-          "startUrlsSummary": "Start pages:"
+          "startUrlsSummary": "Start pages:",
+          "scope": {
+            "label": "Scope",
+            "readOnly": "Scope: {value}",
+            "values": {
+              "targeted": "Targeted",
+              "all": "Everything"
+            },
+            "consequence": {
+              "targeted": "Targeted: only new listings that may match an active target are captured. Without an active target, it observes the listings already known and captures no new one.",
+              "all": "Everything: every listing seen is captured and extracted, on the AI budget."
+            }
+          },
+          "discovery": {
+            "label": "Discovery",
+            "readOnly": "Discovery: {value}",
+            "values": {
+              "lists": "Lists",
+              "sitemap": "Sitemap"
+            },
+            "consequence": {
+              "lists": "Lists: list pages are read page after page, within the configured page limit.",
+              "sitemap": "Sitemap: the site’s whole inventory is known in a few requests; at most {max} new listings captured per run, the rest on the next run."
+            },
+            "unavailable": "This site offers no sitemap: it is read through its lists."
+          }
         },
         "nav": {
           "aria": "Radar sections",
           "listings": "Listings",
           "advertisers": "Advertisers",
           "crawl": "Collection",
-          "observatory": "Observatory"
+          "observatory": "Observatory",
+          "targets": "Targets"
+        },
+        "targets": {
+          "metaTitle": "Targets — Radar",
+          "detailMetaTitle": "Target — Radar",
+          "title": "Targets",
+          "subtitle": "What collection looks for. A “targeted” source only captures listings that may match an active target.",
+          "readOnly": "What collection looks for. Only the super administrator creates, adjusts or retires a target.",
+          "create": "New target",
+          "loadError": "The targets could not be loaded.",
+          "tableCaption": "Radar targets, most recent first, with what each one found.",
+          "pinned": "Pinned",
+          "mobileMatches": "{count, plural, =0 {No listing found} one {# listing found} other {# listings found}} · latest: {last}",
+          "back": "All targets",
+          "notFound": "This target does not exist.",
+          "retiredNote": "Retired target: it no longer bounds collection and can no longer be changed. Its listings remain readable.",
+          "columns": {
+            "name": "Target",
+            "status": "Status",
+            "matches": "Found",
+            "lastMatch": "Latest find"
+          },
+          "filters": {
+            "anyStatus": "All statuses",
+            "anyOrigin": "All origins",
+            "statusAria": "Filter by status",
+            "originAria": "Filter by origin"
+          },
+          "status": {
+            "active": "Active",
+            "paused": "Paused",
+            "retired": "Retired"
+          },
+          "origin": {
+            "operator": "Operator",
+            "demand": "Demand"
+          },
+          "empty": {
+            "title": "No target yet",
+            "description": "Set what you are looking for — a type, a neighbourhood, a budget — and targeted collection will only read what can match it.",
+            "descriptionReadOnly": "The super administrator has not set any target yet."
+          },
+          "emptyFiltered": {
+            "title": "No target matches",
+            "description": "Change the status or origin, or reset the filters."
+          },
+          "fields": {
+            "cities": "Cities",
+            "neighborhoods": "Neighbourhoods",
+            "types": "Property types",
+            "contract": "Transaction",
+            "price_min": "Minimum price",
+            "price_max": "Maximum price",
+            "bedrooms_min": "Bedrooms at least",
+            "bedrooms_max": "Bedrooms at most",
+            "furnished": "Furnished",
+            "sites": "Sites",
+            "max_age_days": "Freshness (days)"
+          },
+          "summary": {
+            "contract": {
+              "rent": "rent",
+              "sale": "sale"
+            },
+            "priceRange": "{min} – {max}",
+            "priceMin": "from {min}",
+            "priceMax": "up to {max}",
+            "priceExact": "{value}",
+            "bedroomsRange": "{min}-{max} bd",
+            "bedroomsMin": "{min}+ bd",
+            "bedroomsMax": "{max} bd at most",
+            "bedroomsExact": "{value} bd",
+            "furnished": "furnished",
+            "unfurnished": "unfurnished",
+            "maxAge": "under {days} d"
+          },
+          "form": {
+            "createTitle": "New target",
+            "editTitle": "Adjust “{name}”",
+            "description": "Criteria add up: a listing must meet all of them. Leave empty what does not matter to you.",
+            "close": "Close",
+            "name": "Name",
+            "namePlaceholder": "2-bedroom in Almadies to rent",
+            "sections": {
+              "what": "The property",
+              "where": "Where",
+              "size": "Budget and size",
+              "more": "More criteria",
+              "state": "Activation"
+            },
+            "any": "Any",
+            "contract": {
+              "rent": "Rent",
+              "sale": "Buy"
+            },
+            "furnished": {
+              "yes": "Yes",
+              "no": "No"
+            },
+            "price": "Price (CFA F)",
+            "priceHint": "Monthly rent, or sale price.",
+            "bedrooms": "Bedrooms",
+            "min": "Minimum",
+            "max": "Maximum",
+            "sitesHint": "No site chosen: all sites.",
+            "initialStatus": "Status on creation",
+            "cities": "Cities",
+            "citiesPlaceholder": "Choose one or more cities",
+            "noCity": "No city by that name",
+            "neighborhoods": "Neighbourhoods",
+            "neighborhoodsCity": "City",
+            "neighborhoodsCityPlaceholder": "Choose a city",
+            "neighborhoodsPick": "Neighbourhoods of this city",
+            "neighborhoodsPlaceholder": "Add neighbourhoods",
+            "neighborhoodsNeedCity": "Choose a city first",
+            "noNeighborhood": "No neighbourhood by that name",
+            "neighborhoodIn": "{name} ({city})",
+            "remove": "Remove {name}",
+            "placesHint": "Places come from the reference list, as in the public search. Cities and neighbourhoods add up.",
+            "willPin": "This target comes from demand. Changing its criteria will pin it: demand will no longer revise it.",
+            "preview": "Preview",
+            "previewEmpty": "No criterion yet: choose at least one.",
+            "cancel": "Cancel",
+            "create": "Create target",
+            "save": "Save"
+          },
+          "actions": {
+            "edit": "Adjust",
+            "pause": "Pause",
+            "resume": "Resume",
+            "pin": "Pin",
+            "unpin": "Unpin",
+            "retire": "Retire"
+          },
+          "retire": {
+            "title": "Retire “{name}”?",
+            "body": "The target stops bounding collection and receives no more listings. Nothing is deleted: its listings remain readable, but it can no longer be changed.",
+            "cancel": "Keep the target",
+            "confirm": "Retire the target"
+          },
+          "stats": {
+            "matches": "Listings found",
+            "lastMatch": "Latest find",
+            "created": "Set on",
+            "demand": "Searches behind it"
+          },
+          "listings": {
+            "heading": "Listings found",
+            "loadError": "The target's listings could not be loaded.",
+            "noPrice": "Price not read",
+            "empty": {
+              "title": "Nothing found yet",
+              "description": "Extracted listings that meet these criteria are added here automatically.",
+              "descriptionInactive": "This target is not active: it receives no new listing."
+            }
+          },
+          "errors": {
+            "generic": "The target could not be saved.",
+            "someCriterion": "a criterion",
+            "emptyCriteria": "Choose at least one criterion: a target without criteria would keep everything.",
+            "unknownCriterion": "The criterion “{field}” is not recognised.",
+            "invalidCriteria": "The criterion “{field}” is not valid: check its value.",
+            "tooManyItems": "Too many values for “{field}”: {max} at most.",
+            "invalidRange": "“{field}” is above the maximum: the minimum must stay lower than or equal to the maximum.",
+            "duplicate": "A target already has exactly these criteria.",
+            "tooMany": "Too many active targets: {max} at most, all origins. Pause or retire one.",
+            "retired": "This target is retired: it can no longer be changed. To take it up again, create a new one.",
+            "seeDuplicate": "See the existing target"
+          },
+          "fromDemand": {
+            "active": "Drawn from searches that found nothing. As long as it is neither pinned nor paused, the AI may adjust, merge or retire it during its nightly pass.",
+            "protected": "Drawn from searches that found nothing. Pinned or paused, it is no longer touched by the AI.",
+            "seeRevisions": "See the demand revisions"
+          },
+          "demand": {
+            "heading": "Targets drawn from demand",
+            "intro": "Every night, the AI reads the searches that found nothing on Takussan and turns them into targets: it creates, adjusts, merges or retires them, {max} at most. An operator target, a pinned or a paused target is never touched. When no demand remains, it retires the targets it drew, without AI.",
+            "enabled": "On",
+            "disabled": "Off",
+            "enable": "Turn on",
+            "disable": "Turn off",
+            "takeOver": "Take over in my name",
+            "operator": "On behalf of {name}",
+            "operatorSince": "On behalf of {name}, since {date}",
+            "noOperator": "No operator",
+            "enableHint": "Turning it on makes you the operator: every pass calls the AI on your behalf, on the AI budget.",
+            "takeOverHint": "Taking it over makes you the operator: every pass will call the AI on your behalf, on the AI budget.",
+            "readOnly": "Only the super administrator turns demand on or off, or refreshes it.",
+            "refresh": "Refresh now",
+            "refreshQueued": "Pass started: its outcome shows here as soon as it ends.",
+            "lastRun": "Last pass",
+            "lastRevision": "Last revision",
+            "never": "None yet",
+            "history": "Revision history",
+            "loadError": "The demand setting could not be loaded.",
+            "saveError": "The demand setting could not be saved.",
+            "blocked": {
+              "disabled": "Off: no pass runs, neither at night nor on demand. Targets already drawn from demand stay as they are.",
+              "operatorMissing": "On, but its operator no longer has access to the Radar (account deleted or permission removed): no pass runs until a super administrator takes it over in their name."
+            },
+            "outcomes": {
+              "applied": "The targets were reviewed by the AI.",
+              "unchanged": "Demand unchanged since the last revision: the AI was not called.",
+              "noSignals": "No search without results to cover.",
+              "noSignalsRetired": "No demand over 30 days: the targets drawn from demand were retired, without calling the AI.",
+              "disabled": "Demand was off: nothing ran.",
+              "operatorMissing": "No operator: nothing ran.",
+              "invalidOutput": "The AI’s answer was unreadable: no target changed.",
+              "other": "The pass did not complete: no target changed."
+            }
+          },
+          "revisions": {
+            "metaTitle": "Demand revisions — Radar",
+            "title": "Demand revisions",
+            "subtitle": "What the AI changed in the targets, pass after pass, and why. A revision can be undone as long as no later one touches the same targets.",
+            "readOnly": "What the AI changed in the targets, pass after pass, and why. Only the super administrator undoes a revision.",
+            "back": "All targets",
+            "loadError": "The revision history could not be loaded.",
+            "listLabel": "Revisions, most recent first",
+            "empty": {
+              "title": "No revision yet",
+              "description": "A revision is written on every pass where demand changed. Demand is turned on from the targets page."
+            },
+            "number": "Revision #{id}",
+            "signals": "{count, plural, =0 {no demand read} one {# demand read} other {# demands read}}",
+            "applied": "Applied",
+            "reverted": "Undone",
+            "revertedBy": "Undone on {date} by {name}.",
+            "revertedAt": "Undone on {date}.",
+            "noChange": "The AI proposed no change.",
+            "ops": {
+              "create": "Created",
+              "update": "Adjusted",
+              "merge": "Merge",
+              "retire": "Retired",
+              "unknown": "Proposal"
+            },
+            "mergedFrom": "combines {names}",
+            "renamedFrom": "formerly “{name}”",
+            "targetFallback": "target #{id}",
+            "quoted": "“{name}”",
+            "reason": "AI’s reason: {reason}",
+            "codeReasons": {
+              "noDemand": "Retired without calling the AI: no demand over 30 days."
+            },
+            "discardedHeading": "{count, plural, one {# proposal discarded} other {# proposals discarded}}",
+            "discardReasons": {
+              "targetProtected": "operator target, pinned or paused: the AI does not touch it.",
+              "unknownTarget": "target missing or already retired.",
+              "tooManyDemand": "cap on demand targets reached ({max} at most).",
+              "invalidOperation": "malformed proposal.",
+              "invalidName": "name missing or too long.",
+              "uncovered": "its criteria cover none of the searches it cites.",
+              "invalidCriteria": "invalid criteria.",
+              "unknownCriterion": "unknown criterion.",
+              "tooManyItems": "too many values for a criterion.",
+              "invalidRange": "inverted range: the minimum is above the maximum.",
+              "emptyCriteria": "no criterion: the target would match everything.",
+              "duplicate": "a target already has these criteria.",
+              "tooMany": "cap on active targets reached.",
+              "retired": "retired target: it can no longer be changed.",
+              "other": "discarded by validation."
+            },
+            "revert": "Undo",
+            "revertDialog": {
+              "title": "Undo revision #{id}?",
+              "body": "The targets it touched return to their previous state: adjustments, merges and retirements are cancelled, and a target it created is retired. The AI will not redo these changes until demand changes.",
+              "cancel": "Keep the revision",
+              "confirm": "Undo the revision"
+            },
+            "errors": {
+              "superseded": "A later revision (#{id}) touches the same targets: undo it first.",
+              "supersededTarget": "“{name}” has changed since this revision (pinned, paused or retired): undoing it would erase that action. Adjust it by hand.",
+              "tooMany": "Undoing would bring back too many active targets ({max} at most): retire or pause one first.",
+              "alreadyReverted": "This revision is already undone.",
+              "notFound": "This revision no longer exists.",
+              "generic": "The revision could not be undone."
+            }
+          }
         }
       }
     },

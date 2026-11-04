@@ -173,6 +173,15 @@ return [
         // (`RadarSiteAdapter::startHosts()`). Le plafond de pages et le budget de temps restent ceux du passage entier.
         'max_start_urls' => 10,
         'start_url_max_length' => 500,
+        // TCK-2467 (ADR-0087 §4) — une source réglée `sitemap` connaît tout l'inventaire du site en quelques requêtes : au
+        // plus ce nombre d'URL NEUVES saisies par passage (les plus récentes d'abord), le reste attend le passage suivant.
+        // C'est la borne du coût d'extraction d'un passage ; une annonce déjà connue est observée sans compter ici.
+        'max_new_per_run' => 200,
+        // Revue adverse du 2026-11-04 (D4) — au plus ce nombre de RELECTURES (`RefreshRadarListing`, une page chacune, sur
+        // le créneau du domaine) mises en file par un passage, les `lastmod` les plus récents d'abord. Le reste attend le
+        // passage suivant : sa référence (`source_lastmod`) n'a pas avancé. Sans borne, un site qui date toutes ses annonces
+        // du jour tiendrait le domaine des heures (≈ 3 350 annonces × 5 s), et les passages suivants le trouveraient pris.
+        'max_refresh_per_run' => 300,
     ],
 
     // TCK-2392 — le quatrième signal de rapprochement, la similarité de texte (`RadarMatcher::SIGNAL_TEXT`). Un pilote
@@ -241,6 +250,20 @@ return [
     // `App\Services\Radar\Observatory\RadarNatureCounter`.
     'nature_counts' => [
         'enabled' => (bool) env('RADAR_NATURE_COUNTS', false),
+    ],
+
+    // TCK-2468 (ADR-0087 §5) — les cibles : ce que l'opérateur (ou la demande, TCK-2470) cherche, et qui borne ce qu'une
+    // source ciblée saisit. Au plus `max_active` cibles actives, toutes origines : au-delà, 422 `radar.targets.too_many`.
+    // Lu par `App\Services\Radar\Targets\RadarTargets` et `RadarTargetCriteria`, et nulle part ailleurs.
+    'targets' => [
+        'max_active' => 50,
+        // Bornes d'une cible : éléments par liste de critères, longueur d'un nom de ville ou de quartier, fraîcheur.
+        'max_list_items' => 30,
+        'max_place_length' => 80,
+        'max_age_days' => 365,
+        // TCK-2470 (ADR-0087 §6) — au plus `max_demand` cibles `demand` actives : une création proposée par l'usage
+        // `radar.cibles` au-delà est écartée (`radar.demand.too_many`). Lu par `RadarDemandCurator`, et nulle part ailleurs.
+        'max_demand' => 20,
     ],
 
     // TCK-2394 (ADR-0077, lot 4) — la relance d'activation d'un compte créé pour l'annonceur

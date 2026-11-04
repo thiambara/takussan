@@ -130,6 +130,18 @@ describe('Navbar — un champ, un sens (TCK-439)', () => {
     expect(urlPuce).toBe(`${urlLoupe}&type=villa`);
   });
 
+  /** TCK-2475 — la loupe est un geste de recherche : elle entre dans les récentes de l'appareil. */
+  it('TCK-2475 — la recherche lancée par la loupe entre dans les récentes', async () => {
+    window.localStorage.clear();
+    const user = userEvent.setup();
+    monter();
+    await user.type(champ(), SAISIE);
+    await user.click(screen.getByRole('button', { name: 'Lancer la recherche' }));
+    const { lireRecherchesRecentes } = await import('@/lib/recherches-recentes');
+    expect(lireRecherchesRecentes()).toEqual([{ texte: SAISIE, qs: derniereUrl().split('?')[1] }]);
+    window.localStorage.clear();
+  });
+
   it("AC2 — une puce de catégorie AJOUTE le type et conserve la recherche plein-texte", async () => {
     const user = userEvent.setup();
     monter();

@@ -42,8 +42,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 3. [🏢 Bailleur / Propriétaire (owner)](#bailleur-propriétaire-owner) — 87 fonctionnalités
 4. [🧑‍💼 Agent immobilier](#agent-immobilier) — 120 fonctionnalités
 5. [🔧 Prestataire de service (service provider)](#prestataire-de-service-service-provider) — 17 fonctionnalités
-6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 147 fonctionnalités
-7. [👥 Tous les utilisateurs authentifiés](#tous-les-utilisateurs-authentifiés) — 70 fonctionnalités
+6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 154 fonctionnalités
+7. [👥 Tous les utilisateurs authentifiés](#tous-les-utilisateurs-authentifiés) — 71 fonctionnalités
 
 ---
 
@@ -813,6 +813,13 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §2.3 | Les notifications de vérification KYC d'agence sont critiques : in-app et e-mail toujours, non désactivables (TCK-588) |
 | P2 | §2.3 | Annonces in-app cross-tenant (broadcast) ciblées par rôle / agence / segment, avec dismissal côté utilisateur — le bandeau s'affiche dans le flux de la page, sous la barre du haut (site public comme consoles), jamais sous une barre fixe (TCK-572) |
 
+### §2.4 Recherche & filtres
+
+| Prio | Domaine | Fonctionnalité |
+|------|---------|----------------|
+| P2 | §2.4 | Variantes d'écriture tenues par l'IA (« wakam » → Ouakam, « aprt » → appartement) : proposées chaque semaine à partir des recherches sans résultat, comprises par l'analyse de la saisie et trouvées par la suggestion ; lues et tranchées par le `super_admin` dans l'API (TCK-2476) |
+| P2 | §2.4 | Journal anonyme et agrégé des recherches publiques : une ligne par jour et par recherche, rien par personne ; il nourrit les recherches populaires de la suggestion et la demande sans résultat du Radar (TCK-2472, [ADR-0088](adr/0088-le-journal-anonyme-des-recherches.md)) |
+
 ### §2.5 Reporting & tableaux de bord
 
 | Prio | Domaine | Fonctionnalité |
@@ -899,6 +906,11 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §2.12 | Retrait de l'accord (STOP, ou révocation par la plateforme, `POST /api/admin/radar/advertisers/{id}/revoke`, `super_admin` seulement, motif obligatoire) : les biens publiés quittent la surface publique et l'index de recherche sur-le-champ, l'annonceur n'est plus jamais contacté (TCK-2391) |
 | P1 | §2.12 | Purge des annonces jamais publiées à 90 jours ou dès un STOP, en conservant l'empreinte du numéro qui a refusé ; purge quotidienne (`radar:purge`, 04:15 Dakar), doublée d'un job lancé dès la révocation (TCK-2391) |
 | P2 | §2.12 | Collecte automatique planifiée sur Expat-Dakar et CoinAfrique, **éteinte par défaut** : le `super_admin` allume chaque site, règle sa fréquence, ses pages et ses URL de départ (plusieurs par site, une page par ville ou par catégorie ; `https` sur un hôte que l'adaptateur du site déclare ; vides : l'URL de la configuration), lance un passage (`/super-admin/radar/collecte`) ; chaque passage lit chacune de ses listes dans un plafond de pages et un budget de temps communs (`robots.txt` respecté, un seul passage actif par site), saisit les annonces nouvelles et date leurs instantanés (prix, surface, quartier, présence) ; la même annonce vue sur deux sites peut être fusionnée d'office en une fiche à deux provenances, que l'opérateur peut séparer — fusion **éteinte par défaut** (`RADAR_MERGE_AUTO`) (TCK-2392, TCK-2438, [ADR-0080](adr/0080-la-collecte-automatique-du-radar.md)) |
+| P1 | §2.12 | Lecture d'une annonce par l'adaptateur de son site, sans IA (CoinAfrique, Expat-Dakar) : numéros de l'annonceur pris aux liens et attributs de la page (`tel:`, WhatsApp, `data-*`), jamais celui du site ; galerie entière ; prix, contrat, type, lieu, pièces, surface, date, vendeur et ses indices professionnels ; un site sans adaptateur passe par le lecteur générique, qui récolte aussi les numéros des attributs et retire le menu du site (TCK-2465, [ADR-0087](adr/0087-le-radar-lit-par-site-decouvre-par-sitemap-et-cible-la-demande.md)) |
+| P1 | §2.12 | Extraction économe : ce que la page dit en clair fait foi, l'IA ne cherche que ce qui manque, sur le petit modèle d'abord ; la fiche de relecture dit « Lu sur la page » et, quand l'IA proposait autre chose, sa valeur (TCK-2466, TCK-2469) |
+| P2 | §2.12 | Découverte par sitemap : une source dont l'adaptateur déclare des sitemaps (Expat-Dakar, neuf catégories) lit tout l'inventaire du site en quelques requêtes, saisit les annonces neuves et relit sans IA celles que le site a modifiées ; CoinAfrique reste aux listes ; réglage « Découverte » par source sur la collecte (TCK-2467) |
+| P2 | §2.12 | Cibles du Radar (`/super-admin/radar/targets`) : des critères (villes et quartiers, types, contrat, prix, chambres, meublé, sites, fraîcheur) qui bornent ce qu'une source **ciblée** saisit ; liste dense filtrée par état et origine, création et réglage avec résumé en direct, page d'une cible avec ses chiffres et ses annonces trouvées ; portée de chaque source (ciblée ou tout) réglée sur la collecte, colonne « Hors cible » des passages (TCK-2468, TCK-2469) |
+| P2 | §2.12 | Cibles de la demande : la demande sans résultat (recherches sauvegardées, journal anonyme des recherches) regroupée chaque nuit par l'IA en cibles d'origine « demande », sous plafond ; chaque passage garde sa révision, qui se défait ; **éteint par défaut** ; encart « Cibles tirées de la demande » sur la liste des cibles et page « Révisions de la demande » (`/super-admin/radar/targets/revisions`) (TCK-2470) |
 | P2 | §2.12 | Annonceurs et observatoire du marché (`/super-admin/radar/observatory`) : classement des annonceurs par volume d'annonces vivantes (quartiers principaux, gammes de prix, sites, nature présumée, piste commerciale jusqu'à la demande de passage en agence) ; prix au m² par quartier, type et contrat ; temps de mise sur le marché ; quartiers où Takussan manque d'annonces ; part d'intermédiaires probables ; alerte quand l'annonce source d'un bien publié disparaît (TCK-2393, [ADR-0083](adr/0083-l-observatoire-du-marche.md)) ; part par nature sur une période, en annonceurs-jours, lue sur des compteurs anonymes quotidiens qui survivent à la purge — **éteints par défaut** (`RADAR_NATURE_COUNTS`), jusqu'à l'avis juridique de TCK-2434 (TCK-2431) |
 | P2 | §2.12 | Relance d'activation d'un compte créé par « publier pour lui » et jamais activé : texte fixe versionné (`activation.v1`) avec les chiffres réels de la période — vues, demandes de contact et de visite, crédits offerts à l'activation —, ouvert dans WhatsApp puis marqué envoyé ; une relance par semaine au plus (`radar.activation.min_interval_days`) (TCK-2394) |
 | P2 | §2.12 | Publication sous mandat Takussan (`super_admin`, drapeau `radar_mandate`, [ADR-0079](adr/0079-la-publication-sous-mandat-takussan.md), accepté sur le principe ; drapeau éteint jusqu'à l'avis de l'avocat et la livraison de TCK-2422 ; la reprise de TCK-2421 est livrée) : sur un accord confirmé, l'annonceur qui ne veut pas de compte voit ses annonces publiées dans l'espace des mandats (réglage `radar.mandate_agency_id`), son numéro en contact, sans compte créé ; second message `mandat.v2`, qui porte le lien par lequel l'annonceur reprend ses biens dans son espace, ou `mandat.v1`, sans lien, quand la connexion par téléphone est éteinte ou l'aperçu des codes actif (TCK-2394, TCK-2421) |
@@ -971,7 +983,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §2.4 | Tri dynamique sur toutes les colonnes listables |
 | P1 | §2.4 | Recherches sauvegardées par utilisateur |
 | P2 | §2.4 | Recherche full-text sur messages et documents |
-| P2 | §2.4 | Suggestions d'autocomplétion |
+| P2 | §2.4 | Suggestions d'autocomplétion — `GET /api/search/suggest` : la saisie comprise et son nombre de biens, des complétions, des lieux, trois biens, et à saisie vide les recherches populaires (TCK-2474, [ADR-0088](adr/0088-le-journal-anonyme-des-recherches.md)). La barre de recherche (barre de la navigation publique, saisie mobile, barre de l'app) : champ vide, les recherches récentes de l'appareil (6 au plus, effaçables), les populaires et les raccourcis Louer / Acheter ; pendant la frappe, la saisie comprise en tête (puces, nombre de biens sous les filtres déjà posés sur la page, Entrée la valide), les recherches fréquentes, les lieux, les types et trois biens en aperçu ; sans bien exact, « Être alerté quand un bien correspond » (alerte de TCK-599 pré-remplie, case cochée), et « Voir des biens proches » seulement si la liste s'élargira — sinon « 0 bien » (TCK-2475) |
+| P2 | §2.4 | Saisie libre comprise en critères : type, contrat, période, prix, chambres, surface, meublé, ville, quartier, équipements ; le reste est cherché en texte (TCK-2473) |
 | P3 | §2.4 | Recherche sémantique par embeddings |
 
 ### §2.7 Médias & fichiers
@@ -1014,8 +1027,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 ## Provenance
 
-- Source : [`features.md`](./features.md) — **418** lignes de fonctionnalité lues,
-  réparties en **560** placements (une ligne multi-acteurs compte une fois par acteur).
+- Source : [`features.md`](./features.md) — **426** lignes de fonctionnalité lues,
+  réparties en **568** placements (une ligne multi-acteurs compte une fois par acteur).
 - Générateur : `docs/gen-features-by-actor.mjs`.
 - Fraîcheur vérifiée en CI par `node docs/gen-features-by-actor.mjs --check`, qui échoue si
   cette sortie ne correspond plus à sa source.

@@ -18,6 +18,7 @@ import { WarningBanner } from '@/components/ui/warning-banner';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { ApiError } from '@/lib/api';
 import { useFormatteurs, VALEUR_ABSENTE } from '@/lib/format/useFormatteurs';
+import { cn } from '@/lib/utils';
 import {
   fetchRadarCrawlRuns,
   fetchRadarCrawlSources,
@@ -28,11 +29,16 @@ import {
 } from '@/lib/queries/radar';
 import type { PaginatedResponse } from '@/types/api';
 import {
+  RADAR_CRAWL_DISCOVERIES,
+  RADAR_CRAWL_MAX_NEW_PER_RUN,
+  RADAR_CRAWL_SCOPES,
   RADAR_CRAWL_FREQUENCY_MAX,
   RADAR_CRAWL_FREQUENCY_MIN,
   RADAR_CRAWL_MAX_PAGES_LIMIT,
   RADAR_CRAWL_MAX_START_URLS,
+  type RadarCrawlDiscovery,
   type RadarCrawlRun,
+  type RadarCrawlScope,
   type RadarCrawlSource,
   type RadarCrawlSourceChanges,
   type RadarCrawlSourcesResponse,
@@ -86,6 +92,122 @@ const lignes = (texte: string): string[] =>
     .split('\n')
     .map((ligne) => ligne.trim())
     .filter((ligne) => ligne !== '');
+
+/**
+ * TCK-2469 — la portée d'une source (TCK-2468, ADR-0087 §5) : « ciblée » ne saisit que les annonces qui peuvent
+ * correspondre à une cible active ; « tout » saisit tout ce qui est vu. La phrase sous le choix en dit la conséquence.
+ * Une source d'avant TCK-2468 qui ne rend pas `scope` est lue `targeted`, le défaut de la migration.
+ */
+function PorteeDeLaSource({
+  source,
+  regle,
+  occupe,
+  onRegler,
+}: {
+  readonly source: RadarCrawlSource;
+  readonly regle: boolean;
+  readonly occupe: boolean;
+  readonly onRegler: (scope: RadarCrawlScope) => void;
+}) {
+  const t = useTranslations('superAdmin.pages.radar.crawl.scope');
+  const portee: RadarCrawlScope = source.scope ?? 'targeted';
+  const idLegende = `radar-collecte-portee-${source.site}`;
+
+  return (
+    <div className="space-y-1.5" data-testid={`radar-collecte-portee-${source.site}`}>
+      {regle ? (
+        <div role="group" aria-labelledby={idLegende} className="flex flex-wrap items-center gap-2">
+          <span id={idLegende} className="text-sm font-medium text-foreground">{t('label')}</span>
+          <div className="inline-flex gap-1 rounded-lg bg-muted p-1">
+            {RADAR_CRAWL_SCOPES.map((valeur) => {
+              const actif = valeur === portee;
+              return (
+                <button
+                  key={valeur}
+                  type="button"
+                  aria-pressed={actif}
+                  disabled={occupe}
+                  onClick={() => { if (!actif) onRegler(valeur); }}
+                  data-testid={`radar-collecte-portee-${source.site}-${valeur}`}
+                  className={cn(
+                    'min-h-8 rounded-md px-3 text-sm font-medium transition-[background-color,color,box-shadow] duration-150 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50',
+                    actif ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {t(`values.${valeur}`)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <p className="text-sm text-foreground">{t('readOnly', { value: t(`values.${portee}`) })}</p>
+      )}
+      <p className="text-xs text-muted-foreground">{t(`consequence.${portee}`)}</p>
+    </div>
+  );
+}
+
+/**
+ * TCK-2467 — comment une source découvre ses annonces (ADR-0087 §4) : « sitemap » lit les sitemaps des catégories (tout
+ * l'inventaire en quelques requêtes, `radar.crawl.max_new_per_run` annonces neuves au plus par passage) ; « listes » suit
+ * les pages de liste. `discovery` est la valeur EFFECTIVE que l'API rend ; sans sitemap déclaré (`sitemap_available`
+ * faux), « sitemap » est désactivé et l'écran dit pourquoi. Une réponse d'avant TCK-2467, sans `discovery`, ne montre rien.
+ */
+function DecouverteDeLaSource({
+  source,
+  regle,
+  occupe,
+  onRegler,
+}: {
+  readonly source: RadarCrawlSource;
+  readonly regle: boolean;
+  readonly occupe: boolean;
+  readonly onRegler: (discovery: RadarCrawlDiscovery) => void;
+}) {
+  const t = useTranslations('superAdmin.pages.radar.crawl.discovery');
+  if (!source.discovery) return null;
+  const decouverte = source.discovery;
+  const disponible = source.sitemap_available !== false;
+  const idLegende = `radar-collecte-decouverte-${source.site}`;
+
+  return (
+    <div className="space-y-1.5" data-testid={`radar-collecte-decouverte-${source.site}`}>
+      {regle ? (
+        <div role="group" aria-labelledby={idLegende} className="flex flex-wrap items-center gap-2">
+          <span id={idLegende} className="text-sm font-medium text-foreground">{t('label')}</span>
+          <div className="inline-flex gap-1 rounded-lg bg-muted p-1">
+            {RADAR_CRAWL_DISCOVERIES.map((valeur) => {
+              const actif = valeur === decouverte;
+              const indisponible = valeur === 'sitemap' && !disponible;
+              return (
+                <button
+                  key={valeur}
+                  type="button"
+                  aria-pressed={actif}
+                  disabled={occupe || indisponible}
+                  onClick={() => { if (!actif) onRegler(valeur); }}
+                  data-testid={`radar-collecte-decouverte-${source.site}-${valeur}`}
+                  className={cn(
+                    'min-h-8 rounded-md px-3 text-sm font-medium transition-[background-color,color,box-shadow] duration-150 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50',
+                    actif ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {t(`values.${valeur}`)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <p className="text-sm text-foreground">{t('readOnly', { value: t(`values.${decouverte}`) })}</p>
+      )}
+      <p className="text-xs text-muted-foreground">
+        {disponible ? t(`consequence.${decouverte}`, { max: source.max_new_per_run ?? RADAR_CRAWL_MAX_NEW_PER_RUN }) : t('unavailable')}
+      </p>
+    </div>
+  );
+}
 
 /**
  * Un site collecté : allumé ou non, au nom de qui, sa fréquence et ses pages. Le `super_admin` (`platform.radar.publish`)
@@ -170,6 +292,9 @@ function CarteSource({ source, regle }: { readonly source: RadarCrawlSource; rea
           {t('enabledWithoutOperator')}
         </WarningBanner>
       ) : null}
+
+      <PorteeDeLaSource source={source} regle={regle} occupe={occupe} onRegler={(scope) => regler.mutate({ scope })} />
+      <DecouverteDeLaSource source={source} regle={regle} occupe={occupe} onRegler={(discovery) => regler.mutate({ discovery })} />
 
       {regle ? (
         <form
@@ -336,6 +461,8 @@ export function RadarCollecte() {
     { id: 'cards', header: t('columns.cards'), align: 'end', cell: (r) => fmt.nombre(r.cards_seen) },
     { id: 'created', header: t('columns.created'), align: 'end', cell: (r) => fmt.nombre(r.listings_created) },
     { id: 'known', header: t('columns.known'), align: 'end', cell: (r) => fmt.nombre(r.listings_known) },
+    // TCK-2469 — les cartes qu'une source ciblée a laissées, aucune cible ne pouvant les retenir.
+    { id: 'skipped', header: t('columns.skipped'), align: 'end', cell: (r) => fmt.nombre(r.cards_skipped ?? 0) },
     { id: 'snapshots', header: t('columns.snapshots'), align: 'end', cell: (r) => fmt.nombre(r.snapshots_opened) },
     {
       id: 'stop',

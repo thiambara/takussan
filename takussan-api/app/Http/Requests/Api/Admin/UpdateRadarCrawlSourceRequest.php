@@ -3,9 +3,12 @@
 namespace App\Http\Requests\Api\Admin;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Models\Enums\RadarCrawlDiscovery;
+use App\Models\Enums\RadarCrawlScope;
 use App\Models\Enums\RadarSourceSite;
 use App\Services\Radar\Crawl\RadarCrawlSources;
 use App\Services\Radar\Crawl\RadarStartUrls;
+use Illuminate\Validation\Rule;
 
 /**
  * TCK-2392 — régler un site collecté : l'allumer ou l'éteindre, sa fréquence (bornée par `radar.crawl.min/max_frequency_minutes`),
@@ -17,6 +20,11 @@ use App\Services\Radar\Crawl\RadarStartUrls;
  * `params.field` (`start_urls.N`) : `radar.crawl.start_urls_too_many`, `radar.crawl.start_url_too_long`,
  * `radar.crawl.start_url_invalid`, `radar.crawl.start_url_host` (avec `params.hosts`), `radar.crawl.start_url_duplicate`.
  * Rien n'est enregistré.
+ *
+ * TCK-2468 (ADR-0087 §5) — `scope` : `targeted` (ne saisir que ce qu'une cible peut vouloir) ou `all` (tout ce qui est vu).
+ *
+ * TCK-2467 (ADR-0087 §4) — `discovery` : `sitemap` ou `lists` ; null rend le défaut de l'adaptateur. `sitemap` sur un site
+ * dont l'adaptateur ne déclare aucun sitemap : 422 `radar.crawl.discovery_unavailable`, rien n'est enregistré.
  */
 class UpdateRadarCrawlSourceRequest extends BaseFormRequest
 {
@@ -38,11 +46,23 @@ class UpdateRadarCrawlSourceRequest extends BaseFormRequest
             'max_pages' => ['sometimes', 'integer', 'min:1', 'max:'.(int) config('radar.crawl.max_pages_limit', 20)],
             'start_urls' => ['sometimes', 'nullable', 'array'],
             'start_urls.*' => ['nullable', 'string'],
+            'scope' => ['sometimes', 'required', Rule::enum(RadarCrawlScope::class)],
+            'discovery' => ['sometimes', 'nullable', Rule::enum(RadarCrawlDiscovery::class)],
         ];
     }
 
     protected function passedValidation(): void
     {
+        if ($this->validated('discovery') === RadarCrawlDiscovery::Sitemap->value) {
+            $site = RadarSourceSite::tryFrom((string) $this->route('site'));
+            $sources = app(RadarCrawlSources::class);
+            // Un site inconnu : le contrôleur répond 404 `radar.crawl.unknown_site`.
+            abort_code_if(
+                $site !== null && $sources->has($site->value) && $sources->adapter($site)->sitemapUrls() === [],
+                422, 'radar.crawl.discovery_unavailable', ['field' => 'discovery'],
+            );
+        }
+
         if (! $this->has('start_urls')) {
             return;
         }
@@ -74,7 +94,7 @@ class UpdateRadarCrawlSourceRequest extends BaseFormRequest
         }
     }
 
-    /** @return array{enabled?: bool, frequency_minutes?: int, max_pages?: int, start_urls?: list<string>|null} */
+    /** @return array{enabled?: bool, frequency_minutes?: int, max_pages?: int, start_urls?: list<string>|null, scope?: string, discovery?: string|null} */
     public function changes(): array
     {
         $changes = [];
@@ -90,6 +110,13 @@ class UpdateRadarCrawlSourceRequest extends BaseFormRequest
             // Chaque URL a passé `passedValidation()` : on enregistre sa forme canonique, celle que le passage lit.
             $urls = RadarStartUrls::normalize($this->validated('start_urls'));
             $changes['start_urls'] = $urls === null ? null : array_map(RadarStartUrls::canonical(...), $urls);
+        }
+        if ($this->has('scope')) {
+            $changes['scope'] = (string) $this->validated('scope');
+        }
+        if ($this->has('discovery')) {
+            $discovery = $this->validated('discovery');
+            $changes['discovery'] = $discovery === null ? null : (string) $discovery;
         }
 
         return $changes;

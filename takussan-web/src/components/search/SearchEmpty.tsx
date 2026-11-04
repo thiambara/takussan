@@ -9,7 +9,7 @@ import { EmptyState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import { SaveSearchButton } from '@/components/favorites/SaveSearchButton';
 import { PucesDeFiltres } from '@/components/search/SearchToolbar';
-import { urlDeSuggestion, type SuggestItem } from '@/components/search/SearchAutocomplete';
+import { lieuxEtTypes, urlDeSuggestion } from '@/components/search/SearchAutocomplete';
 import { useSuggest } from '@/hooks/useSuggest';
 import { definitionDe, type SearchFilters } from '@/types/search';
 import type { Locale } from '@/i18n/config';
@@ -36,12 +36,8 @@ function SuggestionsDuVide({ terme }: { readonly terme: string }) {
   const searchParams = useSearchParams();
   const titreId = useId();
   const { data } = useSuggest(terme);
-  const reponse = data?.data;
-  const items: SuggestItem[] = [
-    ...(reponse?.cities ?? []).map((d): SuggestItem => ({ kind: 'city', data: d })),
-    ...(reponse?.neighborhoods ?? []).map((d): SuggestItem => ({ kind: 'neighborhood', data: d })),
-    ...(reponse?.property_types ?? []).map((d): SuggestItem => ({ kind: 'property_type', data: d })),
-  ].slice(0, SUGGESTIONS_MAX);
+  // TCK-2475 — les lieux viennent de `places` (TCK-2474), qui remplace `cities` et `neighborhoods`.
+  const items = lieuxEtTypes(data?.data).slice(0, SUGGESTIONS_MAX);
   if (items.length === 0) return null;
 
   const base = new URLSearchParams(searchParams.toString());

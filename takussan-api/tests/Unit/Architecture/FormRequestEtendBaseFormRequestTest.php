@@ -52,7 +52,6 @@ class FormRequestEtendBaseFormRequestTest extends TestCase
         'PropertyDuplicateRequest.php',
         'RejectPropertyRequest.php',
         'Search/SearchQueryRequest.php',
-        'Search/SuggestRequest.php',
         'UploadDocumentVersionRequest.php',
     ];
 

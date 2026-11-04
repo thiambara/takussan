@@ -100,6 +100,8 @@ class ImpersonationReadSweepTest extends TestCase
         'listing',
         // TCK-2388 — la fiche annonceur du Radar : même motif.
         'advertiser',
+        // TCK-2468 — les cibles du Radar : même motif.
+        'target',
     ];
 
     private User $cible;

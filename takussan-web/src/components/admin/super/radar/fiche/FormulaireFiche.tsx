@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { RADAR_PROPERTY_TYPES, type RadarExtracted, type RadarListingDetail } from '@/types/radar';
 import { ChampFiche } from './ChampFiche';
 import type { SurPassage } from './passage';
@@ -43,11 +44,27 @@ export function FormulaireFiche({ detail, corrections, surPassage, gestes, erreu
   const tRadar = useTranslations('superAdmin.pages.radar');
   const tTypes = useTranslations('property.types');
   const messageDEchec = useMessageEchecFiche();
+  const fmt = useFormatteurs();
 
   const extracted: RadarExtracted = detail.extracted ?? {};
   const editable = detail.stage === 'extracted';
   const desactive = !editable || corrections.enCours;
   const texteSource = detail.raw_text;
+
+  /**
+   * TCK-2466 — la valeur que le modèle proposait (`model_value`), dite dans le vocabulaire du champ : un type, un contrat
+   * ou une période traduits, un prix formaté. Une valeur que le front ne connaît pas s'affiche telle quelle.
+   */
+  const valeurLisible = (cle: CleCorrigeable & keyof RadarExtracted) => (valeur: unknown): string => {
+    if (typeof valeur === 'boolean') return t(`options.furnished.${valeur ? 'yes' : 'no'}`);
+    if (typeof valeur === 'number') return cle === 'price' ? fmt.montant(valeur, 'XOF') : fmt.nombre(valeur);
+    if (Array.isArray(valeur)) return valeur.map(String).join(', ');
+    const texte = String(valeur);
+    if (cle === 'property_type' && (RADAR_PROPERTY_TYPES as readonly string[]).includes(texte)) return tTypes(texte);
+    if (cle === 'contract' && (CONTRATS as readonly string[]).includes(texte)) return t(`options.contracts.${texte}`);
+    if (cle === 'rent_period' && (PERIODES as readonly string[]).includes(texte)) return tRadar(`periods.${texte}`);
+    return texte;
+  };
 
   const champ = (
     cle: CleCorrigeable & keyof RadarExtracted,
@@ -62,6 +79,7 @@ export function FormulaireFiche({ detail, corrections, surPassage, gestes, erreu
       texteSource={texteSource}
       surPassage={surPassage}
       aide={aide}
+      valeurLisible={valeurLisible(cle)}
     >
       {contenu}
     </ChampFiche>

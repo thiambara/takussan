@@ -6,7 +6,7 @@ import { TriangleAlert } from 'lucide-react';
 
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import type { RadarExtractedField } from '@/types/radar';
+import { RADAR_SOURCE_PAGE, type RadarExtractedField } from '@/types/radar';
 import { estDrapeauConnu, etatDuChamp } from './confiance';
 import { localiserPassage, type SurPassage } from './passage';
 
@@ -26,6 +26,11 @@ export interface ChampFicheProps {
   /** Le champ porte plusieurs contrôles (le quartier) : le libellé nomme le groupe, pas un contrôle. */
   readonly groupe?: boolean;
   readonly className?: string;
+  /**
+   * TCK-2466 — la valeur proposée par le modèle (`model_value`), mise en mots pour l'opérateur (un type traduit, un
+   * montant formaté). Sans elle : une chaîne ou un nombre s'affiche tel quel.
+   */
+  readonly valeurLisible?: (valeur: unknown) => string;
   /** Le contrôle ; reçoit l'`id` que le libellé désigne et `aria-describedby`. */
   readonly children: (props: { readonly id: string; readonly decritPar: string }) => ReactNode;
 }
@@ -42,13 +47,28 @@ export interface ChampFicheProps {
  * surligner le passage que le modèle cite à l'appui. Quand la source ne peut pas le montrer (captures,
  * ou passage absent du texte), le passage s'affiche ici, sous le champ.
  */
-export function ChampFiche({ nom, libelle, champ, modifie, texteSource, surPassage, aide, groupe = false, className, children }: ChampFicheProps) {
+/** Une valeur du modèle sans mise en forme fournie : chaîne ou nombre tels quels ; le reste n'est pas affiché. */
+function valeurBrute(valeur: unknown): string | null {
+  if (typeof valeur === 'string' && valeur.trim() !== '') return valeur;
+  if (typeof valeur === 'number' && Number.isFinite(valeur)) return String(valeur);
+  return null;
+}
+
+export function ChampFiche({
+  nom, libelle, champ, modifie, texteSource, surPassage, aide, groupe = false, className, valeurLisible, children,
+}: ChampFicheProps) {
   const t = useTranslations('superAdmin.pages.radar.listing');
   const id = useId();
   const decritPar = `${id}-note`;
   const etat = etatDuChamp(champ, modifie);
   const passage = champ?.evidence ?? null;
   const passageSousChamp = passage !== null && (texteSource === null || localiserPassage(texteSource, passage) === null);
+  // TCK-2466 — une valeur lue sur la page, sans IA : elle fait foi, et l'écran le dit (sans quoi un champ `high` sans
+  // passage cité ne disait rien de son origine). Corrigée, elle n'est plus celle de la page.
+  const luSurLaPage = champ?.source === RADAR_SOURCE_PAGE && !etat.corrige;
+  const proposition = luSurLaPage && champ?.model_value !== undefined && champ.model_value !== null
+    ? (valeurLisible ? valeurLisible(champ.model_value) : valeurBrute(champ.model_value))
+    : null;
 
   return (
     <div
@@ -80,6 +100,9 @@ export function ChampFiche({ nom, libelle, champ, modifie, texteSource, surPassa
         {etat.niveau === 'discret' ? (
           <span className="text-xs text-muted-foreground">{t('confidence.medium')}</span>
         ) : null}
+        {luSurLaPage ? (
+          <span className="text-xs text-muted-foreground" data-testid={`champ-${nom}-lu-sur-la-page`}>{t('confidence.readOnPage')}</span>
+        ) : null}
       </div>
       {children({ id, decritPar })}
       <div id={decritPar} className="space-y-1 empty:hidden">
@@ -92,6 +115,11 @@ export function ChampFiche({ nom, libelle, champ, modifie, texteSource, surPassa
               </li>
             ))}
           </ul>
+        ) : null}
+        {proposition ? (
+          <p className="text-xs text-muted-foreground" data-testid={`champ-${nom}-proposition-ia`}>
+            {t('confidence.modelProposed', { value: proposition })}
+          </p>
         ) : null}
         {aide ? <p className="text-xs text-muted-foreground">{aide}</p> : null}
         {passageSousChamp ? (
