@@ -41,6 +41,9 @@ import type {
   RadarTargetOrigin,
   RadarTargetResponse,
   RadarTargetStatus,
+  RadarDemandSettingResponse,
+  RadarTargetRevision,
+  RadarTargetRevisionResponse,
 } from '@/types/radar';
 
 /**
@@ -129,6 +132,9 @@ export const radarKeys = {
   targetList: (filters: RadarTargetFilters) => [...radarKeys.targetLists(), filters] as const,
   target: (id: number) => [...radarKeys.targets(), id] as const,
   targetListings: (id: number, page: number) => [...radarKeys.target(id), 'listings', page] as const,
+  // TCK-2470 — sous `targets()` : invalider les cibles relit aussi l'historique de leurs révisions.
+  targetRevisions: (page: number) => [...radarKeys.targets(), 'revisions', page] as const,
+  demand: () => [...radarKeys.all, 'demand'] as const,
 };
 
 export async function fetchRadarDashboard(): Promise<RadarDashboardResponse> {
@@ -708,4 +714,69 @@ export async function retireRadarTarget(id: number): Promise<RadarTargetResponse
     headers: { Accept: 'application/json' },
   });
   return jsonOrThrow<RadarTargetResponse>(res);
+}
+
+// ─── Les cibles de la demande (TCK-2470, `RadarDemandController`) ────────────────────────────
+// Lire : `platform.radar.operate` ; allumer, éteindre, rafraîchir, défaire : `platform.radar.publish`.
+
+/** Le réglage : allumé, opérateur, ce qui bloque un passage, le dernier passage et la dernière révision. */
+export async function fetchRadarDemand(): Promise<RadarDemandSettingResponse> {
+  const res = await fetch('/api/super-admin/radar/demand', { credentials: 'include' });
+  return jsonOrThrow<RadarDemandSettingResponse>(res);
+}
+
+/** Allumer fait de l'appelant l'opérateur (et le reprend si l'opérateur a disparu) ; éteindre garde l'opérateur affiché. */
+export async function setRadarDemandEnabled(enabled: boolean): Promise<RadarDemandSettingResponse> {
+  const res = await fetch('/api/super-admin/radar/demand', {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: JSON_ACCEPT,
+    body: JSON.stringify({ enabled }),
+  });
+  return jsonOrThrow<RadarDemandSettingResponse>(res);
+}
+
+/** 202 : le passage part en file, la réponse le précède ; 409 `radar.demand.disabled|operator_missing`. */
+export async function refreshRadarDemand(): Promise<RadarDemandSettingResponse> {
+  const res = await fetch('/api/super-admin/radar/demand/refresh', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+  });
+  return jsonOrThrow<RadarDemandSettingResponse>(res);
+}
+
+/** Les colonnes de l'historique (`RadarTargetRevision::$queryFields`, sans `ai_call_id` ni `updated_at`). */
+export const RADAR_TARGET_REVISION_FIELDS = [
+  'id',
+  'operations',
+  'discarded',
+  'before',
+  'signals_count',
+  'reverted_at',
+  'reverted_by_id',
+  'created_at',
+] as const;
+
+/** L'historique des révisions, la plus récente en tête, avec qui en a défait une. */
+export async function fetchRadarTargetRevisions(page = 1, perPage = 20): Promise<PaginatedResponse<RadarTargetRevision>> {
+  const qs = buildQueryString({
+    fields: { radar_target_revisions: RADAR_TARGET_REVISION_FIELDS },
+    include: 'revertedBy',
+    sort: '-id',
+    page,
+    per_page: perPage,
+  });
+  const res = await fetch(cheminApi`/api/super-admin/radar/targets/revisions${requete(qs)}`, { credentials: 'include' });
+  return jsonOrThrow<PaginatedResponse<RadarTargetRevision>>(res);
+}
+
+/** Défait la révision ; 409 `radar.targets.revision_superseded` (`params.revision_id` ou `params.target_id`) ou `revision_reverted`. */
+export async function revertRadarTargetRevision(id: number): Promise<RadarTargetRevisionResponse> {
+  const res = await fetch(cheminApi`/api/super-admin/radar/targets/revisions/${id}/revert`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+  });
+  return jsonOrThrow<RadarTargetRevisionResponse>(res);
 }

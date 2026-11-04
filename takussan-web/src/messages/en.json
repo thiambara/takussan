@@ -9983,6 +9983,109 @@
             "duplicate": "A target already has exactly these criteria.",
             "tooMany": "Too many active targets: {max} at most, all origins. Pause or retire one.",
             "seeDuplicate": "See the existing target"
+          },
+          "fromDemand": {
+            "active": "Drawn from searches that found nothing. As long as it is neither pinned nor paused, the AI may adjust, merge or retire it during its nightly pass.",
+            "protected": "Drawn from searches that found nothing. Pinned or paused, it is no longer touched by the AI.",
+            "seeRevisions": "See the demand revisions"
+          },
+          "demand": {
+            "heading": "Targets drawn from demand",
+            "intro": "Every night, the AI reads the searches that found nothing on Takussan and turns them into targets: it creates, adjusts, merges or retires them, {max} at most. An operator target, a pinned or a paused target is never touched.",
+            "enabled": "On",
+            "disabled": "Off",
+            "enable": "Turn on",
+            "disable": "Turn off",
+            "takeOver": "Take over in my name",
+            "operator": "On behalf of {name}",
+            "operatorSince": "On behalf of {name}, since {date}",
+            "noOperator": "No operator",
+            "enableHint": "Turning it on makes you the operator: every pass calls the AI on your behalf, on the AI budget.",
+            "takeOverHint": "Taking it over makes you the operator: every pass will call the AI on your behalf, on the AI budget.",
+            "readOnly": "Only the super administrator turns demand on or off, or refreshes it.",
+            "refresh": "Refresh now",
+            "refreshQueued": "Pass started: its outcome shows here as soon as it ends.",
+            "lastRun": "Last pass",
+            "lastRevision": "Last revision",
+            "never": "None yet",
+            "history": "Revision history",
+            "loadError": "The demand setting could not be loaded.",
+            "saveError": "The demand setting could not be saved.",
+            "blocked": {
+              "disabled": "Off: no pass runs, neither at night nor on demand. Targets already drawn from demand stay as they are.",
+              "operatorMissing": "On, but its operator no longer has access to the Radar (account deleted or permission removed): no pass runs until a super administrator takes it over in their name."
+            },
+            "outcomes": {
+              "applied": "The targets were reviewed by the AI.",
+              "unchanged": "Demand unchanged since the last revision: the AI was not called.",
+              "noSignals": "No search without results to cover.",
+              "disabled": "Demand was off: nothing ran.",
+              "operatorMissing": "No operator: nothing ran.",
+              "invalidOutput": "The AI’s answer was unreadable: no target changed.",
+              "other": "The pass did not complete: no target changed."
+            }
+          },
+          "revisions": {
+            "metaTitle": "Demand revisions — Radar",
+            "title": "Demand revisions",
+            "subtitle": "What the AI changed in the targets, pass after pass, and why. A revision can be undone as long as no later one touches the same targets.",
+            "readOnly": "What the AI changed in the targets, pass after pass, and why. Only the super administrator undoes a revision.",
+            "back": "All targets",
+            "loadError": "The revision history could not be loaded.",
+            "listLabel": "Revisions, most recent first",
+            "empty": {
+              "title": "No revision yet",
+              "description": "A revision is written on every pass where demand changed. Demand is turned on from the targets page."
+            },
+            "number": "Revision #{id}",
+            "signals": "{count, plural, =0 {no demand read} one {# demand read} other {# demands read}}",
+            "applied": "Applied",
+            "reverted": "Undone",
+            "revertedBy": "Undone on {date} by {name}.",
+            "revertedAt": "Undone on {date}.",
+            "noChange": "The AI proposed no change.",
+            "ops": {
+              "create": "Created",
+              "update": "Adjusted",
+              "merge": "Merge",
+              "retire": "Retired",
+              "unknown": "Proposal"
+            },
+            "mergedFrom": "combines {names}",
+            "renamedFrom": "formerly “{name}”",
+            "targetFallback": "target #{id}",
+            "quoted": "“{name}”",
+            "reason": "AI’s reason: {reason}",
+            "discardedHeading": "{count, plural, one {# proposal discarded} other {# proposals discarded}}",
+            "discardReasons": {
+              "targetProtected": "operator target, pinned or paused: the AI does not touch it.",
+              "unknownTarget": "target missing or already retired.",
+              "tooManyDemand": "cap on demand targets reached ({max} at most).",
+              "invalidOperation": "malformed proposal.",
+              "invalidName": "name missing or too long.",
+              "invalidCriteria": "invalid criteria.",
+              "unknownCriterion": "unknown criterion.",
+              "tooManyItems": "too many values for a criterion.",
+              "invalidRange": "inverted range: the minimum is above the maximum.",
+              "emptyCriteria": "no criterion: the target would match everything.",
+              "duplicate": "a target already has these criteria.",
+              "tooMany": "cap on active targets reached.",
+              "other": "discarded by validation."
+            },
+            "revert": "Undo",
+            "revertDialog": {
+              "title": "Undo revision #{id}?",
+              "body": "The targets it touched return to their previous state: adjustments, merges and retirements are cancelled, and a target it created is retired. The AI will not redo these changes until demand changes.",
+              "cancel": "Keep the revision",
+              "confirm": "Undo the revision"
+            },
+            "errors": {
+              "superseded": "A later revision (#{id}) touches the same targets: undo it first.",
+              "supersededPinned": "“{name}” has been pinned since: unpin it first, or adjust it by hand.",
+              "alreadyReverted": "This revision is already undone.",
+              "notFound": "This revision no longer exists.",
+              "generic": "The revision could not be undone."
+            }
           }
         }
       }

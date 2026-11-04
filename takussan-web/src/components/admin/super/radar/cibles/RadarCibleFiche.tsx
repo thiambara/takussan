@@ -28,11 +28,32 @@ import type { RadarTarget, RadarTargetChanges, RadarTargetListingRow, RadarTarge
 import { RadarNav } from '../RadarNav';
 import { CarteAnnonceTrouvee } from './CarteAnnonceTrouvee';
 import { morceauxDuResume, SEPARATEUR_DU_RESUME } from './criteres';
+import { CHEMIN_DES_REVISIONS } from './EncartDemande';
 import { PanneauCible } from './PanneauCible';
 import { TON_DE_LA_CIBLE } from './tons';
 import { useMessageRefusCible } from './useMessageRefusCible';
 
 const PAR_PAGE = 24;
+
+/**
+ * TCK-2470 — ce que l'IA peut faire d'une cible tirée de la demande : la régler, la fusionner, la retirer, tant qu'elle
+ * n'est ni épinglée ni en pause ; et le chemin vers l'historique de ses révisions.
+ */
+function NoteDeLaDemande({ cible }: { readonly cible: RadarTarget }) {
+  const t = useTranslations('superAdmin.pages.radar.targets.fromDemand');
+  const protegee = cible.pinned || cible.status === 'paused';
+  return (
+    <p className="max-w-prose text-sm text-pretty text-muted-foreground" data-testid="radar-cible-demande">
+      {protegee ? t('protected') : t('active')}{' '}
+      <Link
+        href={CHEMIN_DES_REVISIONS}
+        className="rounded-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+      >
+        {t('seeRevisions')}
+      </Link>
+    </p>
+  );
+}
 
 function Chiffre({ libelle, valeur, testId }: { readonly libelle: string; readonly valeur: string; readonly testId?: string }) {
   return (
@@ -134,8 +155,9 @@ function GestesDeLaCible({ cible }: GestesProps) {
  * TCK-2469 (ADR-0087 §5) — la page d'une cible : ses critères en clair, ce qu'elle a rapporté, et ses annonces en cartes
  * compactes, paginées, chacune menant à sa fiche. Lecture `platform.radar.operate` ; les gestes, `platform.radar.publish`.
  *
- * TCK-2470 y ajoutera l'encart « Demande » d'une cible tirée des recherches (ses révisions) : il se pose sous l'en-tête,
- * avant les annonces.
+ * TCK-2470 — une cible tirée de la demande porte, sous ses gestes, ce que l'IA peut en faire et le chemin vers l'historique
+ * des révisions ({@link NoteDeLaDemande}). Le réglage de la demande, lui, est global : il vit sur la liste des cibles
+ * (`EncartDemande`).
  */
 export function RadarCibleFiche({ id }: { readonly id: number }) {
   const t = useTranslations('superAdmin.pages.radar.targets');
@@ -235,6 +257,7 @@ export function RadarCibleFiche({ id }: { readonly id: number }) {
       {cible.status === 'retired' ? (
         <p className="text-sm text-muted-foreground" data-testid="radar-cible-retiree">{t('retiredNote')}</p>
       ) : null}
+      {cible.origin === 'demand' && cible.status !== 'retired' ? <NoteDeLaDemande cible={cible} /> : null}
 
       <dl className="grid grid-cols-2 gap-4 rounded-xl bg-card p-4 ring-1 ring-border sm:grid-cols-3 lg:grid-cols-4">
         <Chiffre libelle={t('stats.matches')} valeur={fmt.nombre(cible.matches_count)} testId="radar-cible-trouvees" />

@@ -269,3 +269,45 @@ export const ERREURS_CIBLES_RADAR: Record<string, string> = {
   'radar.targets.duplicate': 'duplicate',
   'radar.targets.too_many': 'tooMany',
 };
+
+/**
+ * TCK-2470 — ce qui empêche un passage des cibles de la demande (`blocked_reason`, et le 409 de « rafraîchir
+ * maintenant »). Libellés sous `superAdmin.pages.radar.targets.demand.blocked`.
+ */
+export const BLOCAGES_DEMANDE_RADAR: Record<string, string> = {
+  'radar.demand.disabled': 'disabled',
+  'radar.demand.operator_missing': 'operatorMissing',
+};
+
+/**
+ * TCK-2470 — l'issue du dernier passage (`last_run_outcome`). Libellés sous
+ * `superAdmin.pages.radar.targets.demand.outcomes` ; un refus de la passerelle (`ai.*`) se lit par {@link MOTIFS_RADAR},
+ * et un code qu'aucune table ne nomme par le repli `other`, jamais brut.
+ */
+export const ISSUES_DEMANDE_RADAR: Record<string, string> = {
+  applied: 'applied',
+  unchanged: 'unchanged',
+  no_signals: 'noSignals',
+  'radar.demand.disabled': 'disabled',
+  'radar.demand.operator_missing': 'operatorMissing',
+  'radar.demand.invalid_output': 'invalidOutput',
+};
+
+/**
+ * TCK-2470 — pourquoi le code a écarté une opération proposée par l'IA (`discarded[].code`, `RadarDemandCurator`).
+ * Libellés sous `superAdmin.pages.radar.targets.revisions.discardReasons` ; repli `other`, jamais le code brut.
+ */
+export const ECARTS_DEMANDE_RADAR: Record<string, string> = {
+  'radar.demand.target_protected': 'targetProtected',
+  'radar.demand.unknown_target': 'unknownTarget',
+  'radar.demand.too_many': 'tooManyDemand',
+  'radar.demand.invalid_operation': 'invalidOperation',
+  'radar.demand.invalid_name': 'invalidName',
+  'radar.targets.invalid_criteria': 'invalidCriteria',
+  'radar.targets.unknown_criterion': 'unknownCriterion',
+  'radar.targets.too_many_items': 'tooManyItems',
+  'radar.targets.invalid_range': 'invalidRange',
+  'radar.targets.empty_criteria': 'emptyCriteria',
+  'radar.targets.duplicate': 'duplicate',
+  'radar.targets.too_many': 'tooMany',
+};

@@ -28,6 +28,7 @@ import {
 } from '@/types/radar';
 import { RadarNav } from '../RadarNav';
 import { morceauxDuResume, SEPARATEUR_DU_RESUME } from './criteres';
+import { EncartDemande } from './EncartDemande';
 import { PanneauCible } from './PanneauCible';
 import { TON_DE_LA_CIBLE } from './tons';
 
@@ -41,6 +42,9 @@ const PER_PAGE = 25;
  *
  * Lecture `platform.radar.operate` (support et au-dessus) ; créer : `platform.radar.publish` (`super_admin`). Le support
  * voit tout, sans aucun bouton d'écriture.
+ *
+ * TCK-2470 — l'encart « Demande » ({@link EncartDemande}) se pose sous l'en-tête : le réglage des cibles tirées de la
+ * demande est global, et mène à l'historique de leurs révisions.
  */
 export function RadarCibles() {
   const t = useTranslations('superAdmin.pages.radar.targets');
@@ -151,6 +155,8 @@ export function RadarCibles() {
           </Button>
         ) : undefined}
       />
+
+      <EncartDemande />
 
       <FilterBar
         controlsClassName="sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-3"

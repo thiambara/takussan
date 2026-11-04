@@ -20,6 +20,13 @@ vi.mock('@/lib/queries/radar', async (importOriginal) => ({
   fetchRadarDashboard: vi.fn(async () => ({ data: { follow_ups_due: 0 } })),
   fetchRadarTargets: vi.fn(),
   createRadarTarget: vi.fn(),
+  // TCK-2470 — l'encart « Demande » lit son réglage ; ses gestes sont éprouvés par `EncartDemande.test.tsx`.
+  fetchRadarDemand: vi.fn(async () => ({
+    data: {
+      enabled: true, operator: { id: 7, name: 'Awa N.' }, enabled_at: null, blocked_reason: null,
+      last_run_at: null, last_run_outcome: null, last_revision_at: null,
+    },
+  })),
 }));
 
 // Le référentiel public : deux villes, aucun appel réseau.
@@ -180,6 +187,15 @@ describe('Les cibles du Radar (TCK-2469)', () => {
     expect(screen.queryByTestId('radar-cibles-creer')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Nouvelle cible' })).toBeNull();
     expect(screen.getByText(/Seul le super-administrateur crée, règle ou retire une cible/)).toBeInTheDocument();
+  });
+
+  it('TCK-2470 — l\'encart « Demande » se pose sur la liste, au-dessus des cibles', async () => {
+    rendre(SUPPORT);
+
+    const encart = await screen.findByTestId('radar-demande');
+    expect(encart).toHaveTextContent('Cibles tirées de la demande');
+    expect(within(encart).getByTestId('radar-demande-historique')).toHaveAttribute('href', '/super-admin/radar/targets/revisions');
+    expect(within(encart).queryAllByRole('button')).toHaveLength(0);
   });
 
   it('un opérateur sans le geste du Radar : un refus, aucun appel', () => {

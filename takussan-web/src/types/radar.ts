@@ -780,6 +780,17 @@ export const RADAR_CRAWL_SCOPES = ['targeted', 'all'] as const;
 
 export type RadarCrawlScope = (typeof RADAR_CRAWL_SCOPES)[number];
 
+/**
+ * TCK-2467 — `App\Models\Enums\RadarCrawlDiscovery` : `sitemap` lit les sitemaps des catégories (tout l'inventaire en
+ * quelques requêtes) ; `lists` suit les pages de liste (ADR-0080), le seul chemin d'un site sans sitemap.
+ */
+export const RADAR_CRAWL_DISCOVERIES = ['lists', 'sitemap'] as const;
+
+export type RadarCrawlDiscovery = (typeof RADAR_CRAWL_DISCOVERIES)[number];
+
+/** TCK-2467 — `radar.crawl.max_new_per_run` (`config/radar.php`) : annonces neuves saisies au plus par passage. L'API l'impose. */
+export const RADAR_CRAWL_MAX_NEW_PER_RUN = 200;
+
 /** Un site collecté (`GET /api/admin/radar/crawl/sources`). */
 export interface RadarCrawlSource {
   readonly id: number;
@@ -798,6 +809,10 @@ export interface RadarCrawlSource {
   readonly start_hosts: readonly string[];
   /** TCK-2469 — la portée de la collecte (TCK-2468) ; absente d'une réponse antérieure. */
   readonly scope?: RadarCrawlScope;
+  /** TCK-2467 — ce que la source suit VRAIMENT (son réglage, sinon le défaut de l'adaptateur) ; absente d'une réponse antérieure. */
+  readonly discovery?: RadarCrawlDiscovery;
+  /** TCK-2467 — l'adaptateur déclare-t-il des sitemaps ? Faux : `lists` est le seul chemin. */
+  readonly sitemap_available?: boolean;
 }
 
 export interface RadarCrawlSourcesResponse {
@@ -816,6 +831,8 @@ export interface RadarCrawlSourceChanges {
   readonly start_urls?: readonly string[];
   /** TCK-2469 — `targeted` ou `all`. */
   readonly scope?: RadarCrawlScope;
+  /** TCK-2467 — `sitemap` sur un site sans sitemap : 422 `radar.crawl.discovery_unavailable`. */
+  readonly discovery?: RadarCrawlDiscovery;
 }
 
 /** Un passage de collecte (`GET /api/admin/radar/crawl/runs`). */
@@ -984,3 +1001,87 @@ export const RADAR_TARGET_NAME_MAX = 120;
 export const RADAR_TARGET_MAX_LIST_ITEMS = 30;
 export const RADAR_TARGET_BEDROOMS_MAX = 30;
 export const RADAR_TARGET_MAX_AGE_DAYS = 365;
+
+// ─── Les cibles de la demande (TCK-2470 — ADR-0087 §6) ──────────────────────────────────────
+
+/** `radar.targets.max_demand` (`config/radar.php`) : jamais plus de cibles `demand` actives. L'API l'impose. */
+export const RADAR_DEMAND_TARGETS_MAX = 20;
+
+/** Ce qui empêche un passage (`RadarDemandSetting::blockedReason()`) : éteint, ou opérateur disparu. */
+export type RadarDemandBlockedReason = 'radar.demand.disabled' | 'radar.demand.operator_missing';
+
+/** Le réglage des cibles de la demande (`RadarDemandSettingResource`) : toutes les clés, toujours. */
+export interface RadarDemandSetting {
+  readonly enabled: boolean;
+  /** Celui au nom duquel l'IA est jugée ; `null` si personne ne l'a allumé, ou compte supprimé. */
+  readonly operator: { readonly id: number; readonly name: string } | null;
+  readonly enabled_at: string | null;
+  readonly blocked_reason: RadarDemandBlockedReason | null;
+  readonly last_run_at: string | null;
+  /** `applied`, `unchanged`, `no_signals`, un `blocked_reason`, `radar.demand.invalid_output`, ou un code `ai.*`. */
+  readonly last_run_outcome: string | null;
+  /** La révision la plus récente, défaite ou non. */
+  readonly last_revision_at: string | null;
+}
+
+export interface RadarDemandSettingResponse {
+  readonly data: RadarDemandSetting;
+}
+
+/** Les opérations que l'IA propose (`RadarDemandCurator`). */
+export type RadarTargetRevisionOp = 'create' | 'update' | 'merge' | 'retire';
+
+/** Une opération appliquée : `criteria` est la forme complète, `null` pour un retrait. */
+export interface RadarTargetRevisionOperation {
+  readonly op: RadarTargetRevisionOp;
+  readonly target_id: number | null;
+  /** Une fusion : toutes les cibles fusionnées, la gardée (`target_id`) comprise. */
+  readonly merge_ids: readonly number[];
+  readonly name: string | null;
+  readonly criteria: RadarTargetCriteria | null;
+  /** Le motif donné par l'IA. */
+  readonly reason: string;
+  readonly signal_refs: readonly string[];
+}
+
+/** Une opération écartée par le code, avec le code du refus (`radar.demand.*`, `radar.targets.*`). `op` peut être absurde. */
+export interface RadarTargetRevisionDiscarded {
+  readonly op: string | null;
+  readonly target_id: number | null;
+  readonly merge_ids: readonly number[];
+  readonly name: string | null;
+  readonly reason: string | null;
+  readonly code: string;
+  readonly params?: Record<string, unknown>;
+}
+
+/** L'état d'avant d'une cible touchée ; `created: true` pour une cible créée par la révision. */
+export type RadarTargetRevisionBefore =
+  | { readonly id: number; readonly created: true }
+  | {
+    readonly id: number;
+    readonly created?: undefined;
+    readonly name: string;
+    readonly status: RadarTargetStatus;
+    readonly pinned: boolean;
+    readonly criteria: RadarTargetCriteria;
+    readonly demand_count: number | null;
+  };
+
+/** Une révision (`RadarTargetRevisionResource`) — chaque clé est omise si `fields[radar_target_revisions]` ne la demande pas. */
+export interface RadarTargetRevision {
+  readonly id: number;
+  readonly operations: readonly RadarTargetRevisionOperation[];
+  readonly discarded: readonly RadarTargetRevisionDiscarded[];
+  readonly before: readonly RadarTargetRevisionBefore[];
+  readonly signals_count: number;
+  readonly reverted_at: string | null;
+  readonly reverted_by_id: number | null;
+  /** Avec `include=revertedBy` seulement. */
+  readonly reverted_by?: { readonly id: number; readonly name: string } | null;
+  readonly created_at: string;
+}
+
+export interface RadarTargetRevisionResponse {
+  readonly data: RadarTargetRevision;
+}

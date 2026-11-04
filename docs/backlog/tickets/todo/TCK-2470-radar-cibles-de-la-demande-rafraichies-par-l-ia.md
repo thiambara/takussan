@@ -89,7 +89,7 @@ merge_ids?, name?, criteria?, reason, signal_refs[]}]`.
 
 ## Notes d'implémentation
 
-Partie API seulement (2026-11-04) ; la console (encart « Demande », historique) reste à faire.
+Partie API (2026-11-04) ci-dessous ; la console (encart « Demande », historique) suit, sous « Console (front) ».
 
 **Re-mesures qui différaient du ticket**
 
@@ -141,3 +141,38 @@ Partie API seulement (2026-11-04) ; la console (encart « Demande », historique
   `check-models-spec.mjs` rougit sur ces deux noms tant que ce n'est pas fait.
 - `docs/features.md` §2.12 — les cibles de la demande : sources, exclusions (AC4), passage nocturne
   (`radar:refresh-demand-targets`, 03:40 Dakar), plafond `radar.targets.max_demand` (20), révisions et « défaire ».
+
+**Console (front, 2026-11-04)**
+
+Contrat re-mesuré contre `RadarDemandController`, les deux ressources et `routes/api/admin-radar.php` : conforme au
+rapport de la partie API, aucun écart.
+
+- **L'encart « Demande » est sur la LISTE des cibles** (`RadarCibles` → `cibles/EncartDemande.tsx`), pas sur la page
+  d'une cible : le réglage est global (une ligne), et un interrupteur général sur la page de chaque cible — d'opérateur
+  comprise — y serait hors sujet. La page d'une cible `demand` non retirée porte à la place une note (« l'IA peut la
+  régler, la fusionner ou la retirer » / « épinglée ou en pause, elle n'est plus touchée ») et le lien vers l'historique.
+- **L'historique est une sous-page** `/super-admin/radar/targets/revisions` (`cibles/RevisionsDemande.tsx`) : segment
+  statique, servi avant `targets/[id]` comme l'API sert `targets/revisions` avant `targets/{target}`. Paginé (20).
+- **Le plafond 20 de l'intro est recopié** (`RADAR_DEMAND_TARGETS_MAX`, `src/types/radar.ts`) : l'API ne l'expose pas.
+  Si `radar.targets.max_demand` change, le texte ment — un ticket API peut l'ajouter à `RadarDemandSettingResource`.
+- **Nom d'une cible écartée** : une proposition écartée ne touche rien, donc sa cible n'est pas dans `before` ; l'écran
+  ne connaît que son id et affiche « cible n° N » (lien vers la cible). L'API pourrait consigner le nom dans `discarded`.
+- « Défaire » est offert sur toute révision non défaite (pas de `revertable`, comme convenu) ; le refus s'affiche dans
+  la confirmation, qui ne se relance plus : le 409 `revision_superseded` nomme la révision plus récente
+  (`params.revision_id`) ou la cible épinglée depuis (`params.target_id`, nommée par l'état d'avant de la révision).
+- « Rafraîchir maintenant » (202) : l'écran relit `GET /demand` toutes les 10 s, au plus 3 min, jusqu'à ce que
+  `last_run_at` change ; un `last_run_at` qui change invalide aussi les cibles. Un 409 relit le réglage.
+- Issues `ai.*` : libellés des motifs existants (`superAdmin.pages.radar.reasons`, `MOTIFS_RADAR`) ; tout code inconnu
+  (issue ou écart) s'affiche par un repli, jamais brut. `codes-radar.tck-2470.test.ts` relit les constantes `OUTCOME_*`,
+  `BLOCKED_*`, `DISCARD_*` et les codes `radar.targets.*` des sources PHP : un code neuf rougit avant de s'afficher par
+  le repli.
+- L'usage `radar.cibles` n'a pas de libellé dans le panneau des usages IA, mais aucun usage n'en a : le panneau affiche
+  la clé (`AiUsagesPanel`). Rien à faire ici.
+
+**À reporter dans les specs (console)**
+
+- `docs/features.md` §2.12 — sur la page des cibles, l'encart « Cibles tirées de la demande » (allumée/éteinte, opérateur
+  et date, ce qui bloque un passage, dernier passage et son issue, dernière révision, « rafraîchir maintenant », reprendre
+  un réglage sans opérateur ; le support lit sans geste) ; la page « Révisions de la demande »
+  (`/super-admin/radar/targets/revisions` : opérations appliquées avec noms, critères et motif de l'IA, propositions
+  écartées et pourquoi, « défaire » avec confirmation, réservé à `platform.radar.publish`).

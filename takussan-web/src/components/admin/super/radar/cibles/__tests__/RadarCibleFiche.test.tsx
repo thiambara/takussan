@@ -175,6 +175,28 @@ describe('La page d\'une cible (TCK-2469)', () => {
     expect(within(panneau).getByTestId('radar-cible-epinglera')).toHaveTextContent('En modifier les critères l’épinglera');
   });
 
+  // TCK-2470 — ce que l'IA peut faire d'une cible de la demande, et le chemin vers ses révisions.
+  it.each([
+    [{ pinned: false, status: 'active' as const }, 'l’IA peut la régler, la fusionner ou la retirer'],
+    [{ pinned: true, status: 'active' as const }, 'elle n’est plus touchée par l’IA'],
+    [{ pinned: false, status: 'paused' as const }, 'elle n’est plus touchée par l’IA'],
+  ])('une cible de la demande dit ce que l\'IA peut en faire (%o)', async (etat, texte) => {
+    vi.mocked(fetchRadarTarget).mockResolvedValue({ data: { ...CIBLE, origin: 'demand', demand_count: 7, ...etat } });
+    rendre(SUPPORT);
+
+    const note = await screen.findByTestId('radar-cible-demande');
+    expect(note).toHaveTextContent(texte);
+    expect(within(note).getByRole('link', { name: 'Voir les révisions de la demande' }))
+      .toHaveAttribute('href', '/super-admin/radar/targets/revisions');
+  });
+
+  it('une cible de l\'opérateur ne parle pas de la demande', async () => {
+    rendre();
+
+    await screen.findByTestId('radar-cible-statut');
+    expect(screen.queryByTestId('radar-cible-demande')).toBeNull();
+  });
+
   it('une cible introuvable le dit, sans code brut', async () => {
     vi.mocked(fetchRadarTarget).mockRejectedValue(new ApiError(404, { code: 'not_found' }));
     rendre();
