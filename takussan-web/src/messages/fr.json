@@ -8863,9 +8863,12 @@
               "evidence_not_in_source": "Le passage cité n’est pas dans la source",
               "out_of_bounds": "Valeur hors des bornes plausibles",
               "invalid_value": "Valeur invalide, écartée",
-              "unparsed_amount": "Montant illisible"
+              "unparsed_amount": "Montant illisible",
+              "source_conflict": "La page dit autre chose que l’IA : la valeur de la page est retenue"
             },
-            "low": "Confiance faible"
+            "low": "Confiance faible",
+            "readOnPage": "Lu sur la page",
+            "modelProposed": "L’IA proposait : {value}"
           },
           "neighborhood": {
             "read": "Lu dans l’annonce : {value}",
@@ -9751,7 +9754,8 @@
             "created": "Nouvelles",
             "known": "Connues",
             "snapshots": "Instantanés",
-            "stop": "Arrêt"
+            "stop": "Arrêt",
+            "skipped": "Hors cible"
           },
           "tableCaption": "Les derniers passages de collecte, du plus récent au plus ancien.",
           "status": {
@@ -9774,7 +9778,8 @@
             "error": "Erreur du passage",
             "lost": "Passage perdu (file arrêtée)",
             "loop": "La pagination renvoie vers une page déjà lue",
-            "noStartUrl": "Aucune URL de départ valable"
+            "noStartUrl": "Aucune URL de départ valable",
+            "noTarget": "Source ciblée sans cible active : rien n’a été lu"
           },
           "errors": {
             "active": "Un passage est déjà en cours sur ce site : attendez sa fin.",
@@ -9791,14 +9796,194 @@
           "startUrls": "URL de départ (une par ligne)",
           "startUrlsHint": "Les pages de liste lues par chaque passage, dans l’ordre, sur {hosts} ; {max} au plus. Vide : {fallback}.",
           "startUrlsDefault": "Page de départ : {url} (configuration)",
-          "startUrlsSummary": "Pages de départ :"
+          "startUrlsSummary": "Pages de départ :",
+          "scope": {
+            "label": "Portée",
+            "readOnly": "Portée : {value}",
+            "values": {
+              "targeted": "Ciblée",
+              "all": "Tout"
+            },
+            "consequence": {
+              "targeted": "Ciblée : seules les annonces qui peuvent correspondre à une cible active sont lues. Sans cible active, la source ne lit rien.",
+              "all": "Tout : chaque annonce vue est saisie et extraite, sur le budget d’IA."
+            }
+          }
         },
         "nav": {
           "aria": "Espaces du Radar",
           "listings": "Annonces",
           "advertisers": "Annonceurs",
           "crawl": "Collecte",
-          "observatory": "Observatoire"
+          "observatory": "Observatoire",
+          "targets": "Cibles"
+        },
+        "targets": {
+          "metaTitle": "Cibles — Radar",
+          "detailMetaTitle": "Cible — Radar",
+          "title": "Cibles",
+          "subtitle": "Ce que la collecte cherche. Une source « ciblée » ne saisit que les annonces qui peuvent correspondre à une cible active.",
+          "readOnly": "Ce que la collecte cherche. Seul le super-administrateur crée, règle ou retire une cible.",
+          "create": "Nouvelle cible",
+          "loadError": "Les cibles n’ont pas pu être lues.",
+          "tableCaption": "Les cibles du Radar, de la plus récente à la plus ancienne, avec ce que chacune a trouvé.",
+          "pinned": "Épinglée",
+          "mobileMatches": "{count, plural, =0 {Aucune annonce trouvée} one {# annonce trouvée} other {# annonces trouvées}} · dernière : {last}",
+          "back": "Toutes les cibles",
+          "notFound": "Cette cible n’existe pas.",
+          "retiredNote": "Cible retirée : elle ne borne plus la collecte et ne se modifie plus. Ses annonces restent lisibles.",
+          "columns": {
+            "name": "Cible",
+            "status": "État",
+            "matches": "Trouvées",
+            "lastMatch": "Dernière trouvaille"
+          },
+          "filters": {
+            "anyStatus": "Tous les états",
+            "anyOrigin": "Toutes les origines",
+            "statusAria": "Filtrer par état",
+            "originAria": "Filtrer par origine"
+          },
+          "status": {
+            "active": "Active",
+            "paused": "En pause",
+            "retired": "Retirée"
+          },
+          "origin": {
+            "operator": "Opérateur",
+            "demand": "Demande"
+          },
+          "empty": {
+            "title": "Aucune cible pour l’instant",
+            "description": "Posez ce que vous cherchez — un type, un quartier, un budget — et la collecte ciblée ne lira que ce qui peut y répondre.",
+            "descriptionReadOnly": "Le super-administrateur n’a encore posé aucune cible."
+          },
+          "emptyFiltered": {
+            "title": "Aucune cible ne correspond",
+            "description": "Changez l’état ou l’origine, ou réinitialisez les filtres."
+          },
+          "fields": {
+            "cities": "Villes",
+            "neighborhoods": "Quartiers",
+            "types": "Types de bien",
+            "contract": "Transaction",
+            "price_min": "Prix minimum",
+            "price_max": "Prix maximum",
+            "bedrooms_min": "Chambres au moins",
+            "bedrooms_max": "Chambres au plus",
+            "furnished": "Meublé",
+            "sites": "Sites",
+            "max_age_days": "Fraîcheur (jours)"
+          },
+          "summary": {
+            "contract": {
+              "rent": "location",
+              "sale": "vente"
+            },
+            "priceRange": "{min} – {max}",
+            "priceMin": "dès {min}",
+            "priceMax": "jusqu’à {max}",
+            "priceExact": "{value}",
+            "bedroomsRange": "{min}-{max} ch.",
+            "bedroomsMin": "{min} ch. et plus",
+            "bedroomsMax": "{max} ch. au plus",
+            "bedroomsExact": "{value} ch.",
+            "furnished": "meublé",
+            "unfurnished": "non meublé",
+            "maxAge": "moins de {days} j"
+          },
+          "form": {
+            "createTitle": "Nouvelle cible",
+            "editTitle": "Régler « {name} »",
+            "description": "Les critères se cumulent : une annonce doit les remplir tous. Laissez vide ce qui vous est égal.",
+            "close": "Fermer",
+            "name": "Nom",
+            "namePlaceholder": "F3 Almadies à louer",
+            "sections": {
+              "what": "Le bien",
+              "where": "Où",
+              "size": "Budget et taille",
+              "more": "Plus de critères",
+              "state": "Mise en service"
+            },
+            "any": "Indifférent",
+            "contract": {
+              "rent": "Louer",
+              "sale": "Acheter"
+            },
+            "furnished": {
+              "yes": "Oui",
+              "no": "Non"
+            },
+            "price": "Prix (F CFA)",
+            "priceHint": "Loyer mensuel, ou prix de vente.",
+            "bedrooms": "Chambres",
+            "min": "Minimum",
+            "max": "Maximum",
+            "sitesHint": "Aucun site choisi : tous les sites.",
+            "initialStatus": "État à la création",
+            "cities": "Villes",
+            "citiesPlaceholder": "Choisir une ou plusieurs villes",
+            "noCity": "Aucune ville de ce nom",
+            "neighborhoods": "Quartiers",
+            "neighborhoodsCity": "Ville",
+            "neighborhoodsCityPlaceholder": "Choisir une ville",
+            "neighborhoodsPick": "Quartiers de cette ville",
+            "neighborhoodsPlaceholder": "Ajouter des quartiers",
+            "neighborhoodsNeedCity": "Choisissez d’abord une ville",
+            "noNeighborhood": "Aucun quartier de ce nom",
+            "neighborhoodIn": "{name} ({city})",
+            "remove": "Retirer {name}",
+            "placesHint": "Les lieux viennent du référentiel, comme dans la recherche publique. Villes et quartiers se cumulent.",
+            "willPin": "Cette cible vient de la demande. En modifier les critères l’épinglera : la demande ne la révisera plus.",
+            "preview": "Aperçu",
+            "previewEmpty": "Aucun critère pour l’instant : choisissez-en au moins un.",
+            "cancel": "Annuler",
+            "create": "Créer la cible",
+            "save": "Enregistrer"
+          },
+          "actions": {
+            "edit": "Régler",
+            "pause": "Mettre en pause",
+            "resume": "Reprendre",
+            "pin": "Épingler",
+            "unpin": "Désépingler",
+            "retire": "Retirer"
+          },
+          "retire": {
+            "title": "Retirer « {name} » ?",
+            "body": "La cible cesse de borner la collecte et ne reçoit plus d’annonce. Rien n’est supprimé : ses annonces restent lisibles, mais elle ne se modifie plus.",
+            "cancel": "Garder la cible",
+            "confirm": "Retirer la cible"
+          },
+          "stats": {
+            "matches": "Annonces trouvées",
+            "lastMatch": "Dernière trouvaille",
+            "created": "Posée le",
+            "demand": "Recherches à l’origine"
+          },
+          "listings": {
+            "heading": "Annonces trouvées",
+            "loadError": "Les annonces de la cible n’ont pas pu être lues.",
+            "noPrice": "Prix non lu",
+            "empty": {
+              "title": "Rien de trouvé pour l’instant",
+              "description": "Les annonces extraites qui remplissent ces critères s’ajoutent ici d’elles-mêmes.",
+              "descriptionInactive": "Cette cible n’est pas active : elle ne reçoit aucune annonce nouvelle."
+            }
+          },
+          "errors": {
+            "generic": "La cible n’a pas pu être enregistrée.",
+            "someCriterion": "un critère",
+            "emptyCriteria": "Choisissez au moins un critère : une cible sans critère retiendrait tout.",
+            "unknownCriterion": "Le critère « {field} » n’est pas reconnu.",
+            "invalidCriteria": "Le critère « {field} » n’est pas valable : vérifiez sa valeur.",
+            "tooManyItems": "Trop de valeurs pour « {field} » : {max} au plus.",
+            "invalidRange": "« {field} » dépasse le maximum : le minimum doit rester inférieur ou égal au maximum.",
+            "duplicate": "Une cible porte déjà exactement ces critères.",
+            "tooMany": "Trop de cibles actives : {max} au plus, toutes origines. Mettez-en une en pause ou retirez-en une.",
+            "seeDuplicate": "Voir la cible existante"
+          }
         }
       }
     },

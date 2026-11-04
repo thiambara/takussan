@@ -109,6 +109,11 @@ const LIBELLES = {
   PrivacyRequestStatus: [{ chemin: 'superAdmin.privacyRequests.status', lu: 'components/admin/super/PrivacyRequestsConsole.tsx' }],
   PropertyStatus: [{ chemin: 'property.status', lu: 'components/admin/super/SuperAdminPropertiesTable.tsx' }],
   RadarCrawlStatus: [{ chemin: 'superAdmin.pages.radar.crawl.status', lu: 'components/admin/super/radar/collecte/RadarCollecte.tsx' }],
+  // TCK-2469 — la console des cibles : la liste et la fiche lisent l'état sous le même espace.
+  RadarTargetStatus: [
+    { chemin: 'superAdmin.pages.radar.targets.status', lu: 'components/admin/super/radar/cibles/RadarCibles.tsx' },
+    { chemin: 'superAdmin.pages.radar.targets.status', lu: 'components/admin/super/radar/cibles/RadarCibleFiche.tsx' },
+  ],
   ReviewStatus: [
     { chemin: 'profile.reviews.status', lu: 'components/profile/ProfileReviewsList.tsx' },
     { chemin: 'admin.moderation.status', lu: 'components/admin/ModerationQueueList.tsx' },
@@ -126,7 +131,6 @@ const SANS_LIBELLE = {
   AgentProfileStatus: 'aucun écran relevé ne le traduit sous un espace complet',
   ConversationStatus: 'aucun espace du dictionnaire ne porte ses cas',
   InvitationStatus: 'aucun espace du dictionnaire ne porte ses cas',
-  RadarTargetStatus: 'TCK-2468 : l\'API des cibles est livrée sans écran ; TCK-2469 (la console des cibles) le traduit et le déplace dans `LIBELLES`',
   RadarVerificationStatus: 'TCK-2388 : `ReponseVerdict` le lit en comparaison (`pending`, `failed`) et dit chaque état par une phrase (`superAdmin.pages.radar.advertiser.reply.pending`, `.failed`) — pas par une table à un cas par clé que `LIBELLES` puisse relever',
   ReferentialStatus: 'aucun écran relevé ne le traduit sous un espace complet',
   RelationshipStatus: 'aucun écran relevé ne le traduit (`billing.subscription.status` porte ses cas par coïncidence)',

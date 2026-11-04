@@ -8863,9 +8863,12 @@
               "evidence_not_in_source": "The cited passage is not in the source",
               "out_of_bounds": "Value outside plausible bounds",
               "invalid_value": "Invalid value, discarded",
-              "unparsed_amount": "Unreadable amount"
+              "unparsed_amount": "Unreadable amount",
+              "source_conflict": "The page says something other than the AI: the page's value is kept"
             },
-            "low": "Low confidence"
+            "low": "Low confidence",
+            "readOnPage": "Read on the page",
+            "modelProposed": "The AI suggested: {value}"
           },
           "neighborhood": {
             "read": "Read in the listing: {value}",
@@ -9751,7 +9754,8 @@
             "created": "New",
             "known": "Known",
             "snapshots": "Snapshots",
-            "stop": "Stop"
+            "stop": "Stop",
+            "skipped": "Off target"
           },
           "tableCaption": "Latest collection passes, most recent first.",
           "status": {
@@ -9774,7 +9778,8 @@
             "error": "Pass error",
             "lost": "Lost pass (queue stopped)",
             "loop": "Pagination loops back to a page already read",
-            "noStartUrl": "No valid start URL"
+            "noStartUrl": "No valid start URL",
+            "noTarget": "Targeted source without an active target: nothing was read"
           },
           "errors": {
             "active": "A pass is already running on this site: wait for it to finish.",
@@ -9791,14 +9796,194 @@
           "startUrls": "Start URLs (one per line)",
           "startUrlsHint": "The list pages each run reads, in order, on {hosts}; {max} at most. Empty: {fallback}.",
           "startUrlsDefault": "Start page: {url} (configuration)",
-          "startUrlsSummary": "Start pages:"
+          "startUrlsSummary": "Start pages:",
+          "scope": {
+            "label": "Scope",
+            "readOnly": "Scope: {value}",
+            "values": {
+              "targeted": "Targeted",
+              "all": "Everything"
+            },
+            "consequence": {
+              "targeted": "Targeted: only listings that may match an active target are read. Without an active target, the source reads nothing.",
+              "all": "Everything: every listing seen is captured and extracted, on the AI budget."
+            }
+          }
         },
         "nav": {
           "aria": "Radar sections",
           "listings": "Listings",
           "advertisers": "Advertisers",
           "crawl": "Collection",
-          "observatory": "Observatory"
+          "observatory": "Observatory",
+          "targets": "Targets"
+        },
+        "targets": {
+          "metaTitle": "Targets — Radar",
+          "detailMetaTitle": "Target — Radar",
+          "title": "Targets",
+          "subtitle": "What collection looks for. A “targeted” source only captures listings that may match an active target.",
+          "readOnly": "What collection looks for. Only the super administrator creates, adjusts or retires a target.",
+          "create": "New target",
+          "loadError": "The targets could not be loaded.",
+          "tableCaption": "Radar targets, most recent first, with what each one found.",
+          "pinned": "Pinned",
+          "mobileMatches": "{count, plural, =0 {No listing found} one {# listing found} other {# listings found}} · latest: {last}",
+          "back": "All targets",
+          "notFound": "This target does not exist.",
+          "retiredNote": "Retired target: it no longer bounds collection and can no longer be changed. Its listings remain readable.",
+          "columns": {
+            "name": "Target",
+            "status": "Status",
+            "matches": "Found",
+            "lastMatch": "Latest find"
+          },
+          "filters": {
+            "anyStatus": "All statuses",
+            "anyOrigin": "All origins",
+            "statusAria": "Filter by status",
+            "originAria": "Filter by origin"
+          },
+          "status": {
+            "active": "Active",
+            "paused": "Paused",
+            "retired": "Retired"
+          },
+          "origin": {
+            "operator": "Operator",
+            "demand": "Demand"
+          },
+          "empty": {
+            "title": "No target yet",
+            "description": "Set what you are looking for — a type, a neighbourhood, a budget — and targeted collection will only read what can match it.",
+            "descriptionReadOnly": "The super administrator has not set any target yet."
+          },
+          "emptyFiltered": {
+            "title": "No target matches",
+            "description": "Change the status or origin, or reset the filters."
+          },
+          "fields": {
+            "cities": "Cities",
+            "neighborhoods": "Neighbourhoods",
+            "types": "Property types",
+            "contract": "Transaction",
+            "price_min": "Minimum price",
+            "price_max": "Maximum price",
+            "bedrooms_min": "Bedrooms at least",
+            "bedrooms_max": "Bedrooms at most",
+            "furnished": "Furnished",
+            "sites": "Sites",
+            "max_age_days": "Freshness (days)"
+          },
+          "summary": {
+            "contract": {
+              "rent": "rent",
+              "sale": "sale"
+            },
+            "priceRange": "{min} – {max}",
+            "priceMin": "from {min}",
+            "priceMax": "up to {max}",
+            "priceExact": "{value}",
+            "bedroomsRange": "{min}-{max} bd",
+            "bedroomsMin": "{min}+ bd",
+            "bedroomsMax": "{max} bd at most",
+            "bedroomsExact": "{value} bd",
+            "furnished": "furnished",
+            "unfurnished": "unfurnished",
+            "maxAge": "under {days} d"
+          },
+          "form": {
+            "createTitle": "New target",
+            "editTitle": "Adjust “{name}”",
+            "description": "Criteria add up: a listing must meet all of them. Leave empty what does not matter to you.",
+            "close": "Close",
+            "name": "Name",
+            "namePlaceholder": "2-bedroom in Almadies to rent",
+            "sections": {
+              "what": "The property",
+              "where": "Where",
+              "size": "Budget and size",
+              "more": "More criteria",
+              "state": "Activation"
+            },
+            "any": "Any",
+            "contract": {
+              "rent": "Rent",
+              "sale": "Buy"
+            },
+            "furnished": {
+              "yes": "Yes",
+              "no": "No"
+            },
+            "price": "Price (CFA F)",
+            "priceHint": "Monthly rent, or sale price.",
+            "bedrooms": "Bedrooms",
+            "min": "Minimum",
+            "max": "Maximum",
+            "sitesHint": "No site chosen: all sites.",
+            "initialStatus": "Status on creation",
+            "cities": "Cities",
+            "citiesPlaceholder": "Choose one or more cities",
+            "noCity": "No city by that name",
+            "neighborhoods": "Neighbourhoods",
+            "neighborhoodsCity": "City",
+            "neighborhoodsCityPlaceholder": "Choose a city",
+            "neighborhoodsPick": "Neighbourhoods of this city",
+            "neighborhoodsPlaceholder": "Add neighbourhoods",
+            "neighborhoodsNeedCity": "Choose a city first",
+            "noNeighborhood": "No neighbourhood by that name",
+            "neighborhoodIn": "{name} ({city})",
+            "remove": "Remove {name}",
+            "placesHint": "Places come from the reference list, as in the public search. Cities and neighbourhoods add up.",
+            "willPin": "This target comes from demand. Changing its criteria will pin it: demand will no longer revise it.",
+            "preview": "Preview",
+            "previewEmpty": "No criterion yet: choose at least one.",
+            "cancel": "Cancel",
+            "create": "Create target",
+            "save": "Save"
+          },
+          "actions": {
+            "edit": "Adjust",
+            "pause": "Pause",
+            "resume": "Resume",
+            "pin": "Pin",
+            "unpin": "Unpin",
+            "retire": "Retire"
+          },
+          "retire": {
+            "title": "Retire “{name}”?",
+            "body": "The target stops bounding collection and receives no more listings. Nothing is deleted: its listings remain readable, but it can no longer be changed.",
+            "cancel": "Keep the target",
+            "confirm": "Retire the target"
+          },
+          "stats": {
+            "matches": "Listings found",
+            "lastMatch": "Latest find",
+            "created": "Set on",
+            "demand": "Searches behind it"
+          },
+          "listings": {
+            "heading": "Listings found",
+            "loadError": "The target's listings could not be loaded.",
+            "noPrice": "Price not read",
+            "empty": {
+              "title": "Nothing found yet",
+              "description": "Extracted listings that meet these criteria are added here automatically.",
+              "descriptionInactive": "This target is not active: it receives no new listing."
+            }
+          },
+          "errors": {
+            "generic": "The target could not be saved.",
+            "someCriterion": "a criterion",
+            "emptyCriteria": "Choose at least one criterion: a target without criteria would keep everything.",
+            "unknownCriterion": "The criterion “{field}” is not recognised.",
+            "invalidCriteria": "The criterion “{field}” is not valid: check its value.",
+            "tooManyItems": "Too many values for “{field}”: {max} at most.",
+            "invalidRange": "“{field}” is above the maximum: the minimum must stay lower than or equal to the maximum.",
+            "duplicate": "A target already has exactly these criteria.",
+            "tooMany": "Too many active targets: {max} at most, all origins. Pause or retire one.",
+            "seeDuplicate": "See the existing target"
+          }
         }
       }
     },

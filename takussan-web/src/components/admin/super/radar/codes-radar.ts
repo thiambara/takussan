@@ -251,4 +251,21 @@ export const ARRETS_COLLECTE_RADAR: Record<string, string> = {
   'radar.crawl.lost': 'lost',
   'radar.crawl.loop': 'loop',
   'radar.crawl.no_start_url': 'noStartUrl',
+  // TCK-2469 — une source ciblée sans cible active s'arrête avant de lire (TCK-2468).
+  'radar.crawl.no_target': 'noTarget',
+};
+
+/**
+ * TCK-2469 — les refus des cibles (TCK-2468, `RadarTargetCriteria`, `RadarTargets`). Libellés sous
+ * `superAdmin.pages.radar.targets.errors` ; `params.field` (`criteria.<clé>…`) nomme le critère, `params.max` la borne,
+ * `params.target_id` la cible qui porte déjà ces critères.
+ */
+export const ERREURS_CIBLES_RADAR: Record<string, string> = {
+  'radar.targets.empty_criteria': 'emptyCriteria',
+  'radar.targets.unknown_criterion': 'unknownCriterion',
+  'radar.targets.invalid_criteria': 'invalidCriteria',
+  'radar.targets.too_many_items': 'tooManyItems',
+  'radar.targets.invalid_range': 'invalidRange',
+  'radar.targets.duplicate': 'duplicate',
+  'radar.targets.too_many': 'tooMany',
 };

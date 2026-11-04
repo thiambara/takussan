@@ -38,7 +38,17 @@ export interface RadarExtractedField<T> {
   readonly flags?: readonly string[];
   /** `true` : l'opérateur a remplacé la valeur lue (`RadarReviewFields::apply`). */
   readonly corrected?: boolean;
+  /**
+   * TCK-2466 — `page` : la valeur a été lue sur la page par l'adaptateur du site, sans IA, et fait foi
+   * (`ExtractionNormalizer::SOURCE_PAGE`). Absent : la valeur vient du modèle.
+   */
+  readonly source?: string;
+  /** TCK-2466 — la valeur que le modèle proposait, quand elle contredit la page (`source_conflict`). */
+  readonly model_value?: unknown;
 }
+
+/** TCK-2466 — `ExtractionNormalizer::SOURCE_PAGE`. */
+export const RADAR_SOURCE_PAGE = 'page';
 
 export interface RadarNeighborhoodSuggestion {
   readonly id: number;
@@ -53,6 +63,8 @@ export const RADAR_FIELD_FLAGS = [
   'out_of_bounds',
   'invalid_value',
   'unparsed_amount',
+  // TCK-2466 — la page dit en clair une autre valeur que le modèle : la page fait foi, `model_value` garde celle du modèle.
+  'source_conflict',
 ] as const;
 
 export type RadarFieldFlag = (typeof RADAR_FIELD_FLAGS)[number];
@@ -760,6 +772,14 @@ export type RadarCrawlStatus = (typeof RADAR_CRAWL_STATUSES)[number];
 
 export type RadarCrawlTrigger = 'schedule' | 'manual';
 
+/**
+ * TCK-2468 — `App\Models\Enums\RadarCrawlScope` : `targeted` ne saisit une annonce nouvelle que si sa carte peut
+ * correspondre à une cible active ; `all` saisit tout ce qui est vu (ADR-0080).
+ */
+export const RADAR_CRAWL_SCOPES = ['targeted', 'all'] as const;
+
+export type RadarCrawlScope = (typeof RADAR_CRAWL_SCOPES)[number];
+
 /** Un site collecté (`GET /api/admin/radar/crawl/sources`). */
 export interface RadarCrawlSource {
   readonly id: number;
@@ -776,6 +796,8 @@ export interface RadarCrawlSource {
   readonly default_start_url: string | null;
   /** Les hôtes d'où une URL de départ peut partir (déclarés par l'adaptateur du site). */
   readonly start_hosts: readonly string[];
+  /** TCK-2469 — la portée de la collecte (TCK-2468) ; absente d'une réponse antérieure. */
+  readonly scope?: RadarCrawlScope;
 }
 
 export interface RadarCrawlSourcesResponse {
@@ -792,6 +814,8 @@ export interface RadarCrawlSourceChanges {
   readonly max_pages?: number;
   /** Vide : retour à l'URL de la configuration. */
   readonly start_urls?: readonly string[];
+  /** TCK-2469 — `targeted` ou `all`. */
+  readonly scope?: RadarCrawlScope;
 }
 
 /** Un passage de collecte (`GET /api/admin/radar/crawl/runs`). */
@@ -807,6 +831,8 @@ export interface RadarCrawlRun {
   readonly listings_created: number;
   readonly listings_known: number;
   readonly snapshots_opened: number;
+  /** TCK-2468 — les cartes laissées par une source ciblée : aucune cible ne pouvait les retenir. */
+  readonly cards_skipped?: number;
   readonly reached_end: boolean;
   /** Un code `radar.crawl.*` ou `radar.fetch.*`. */
   readonly stop_reason: string | null;
@@ -867,3 +893,94 @@ export interface RadarActivationReminder {
 export interface RadarActivationReminderResponse {
   readonly data: RadarActivationReminder;
 }
+
+// ─── Les cibles (TCK-2468, TCK-2469 — ADR-0087 §5) ───────────────────────────────────────────
+
+/** `App\Models\Enums\RadarTargetStatus`. Seule une cible `active` borne la collecte ; `retired` remplace la suppression. */
+export const RADAR_TARGET_STATUSES = ['active', 'paused', 'retired'] as const;
+
+export type RadarTargetStatus = (typeof RADAR_TARGET_STATUSES)[number];
+
+/** `App\Models\Enums\RadarTargetOrigin` : posée par l'opérateur, ou tirée de la demande (TCK-2470). */
+export const RADAR_TARGET_ORIGINS = ['operator', 'demand'] as const;
+
+export type RadarTargetOrigin = (typeof RADAR_TARGET_ORIGINS)[number];
+
+/** Un quartier de critère : son nom, et la ville qui le départage quand elle est connue. */
+export interface RadarTargetNeighborhood {
+  readonly name: string;
+  readonly city: string | null;
+}
+
+/**
+ * Les critères d'une cible, sous la forme normalisée que rend l'API (`RadarTargetCriteria::ordered()`) : toutes les clés,
+ * toujours. Une liste vide ou `null` : sans contrainte. Les critères sont en ET.
+ */
+export interface RadarTargetCriteria {
+  readonly cities: readonly string[];
+  readonly neighborhoods: readonly RadarTargetNeighborhood[];
+  /** Des valeurs de `PropertyType`. */
+  readonly types: readonly string[];
+  readonly contract: RadarContract | null;
+  /** XOF ; loyer mensuel ou prix de vente. */
+  readonly price_min: number | null;
+  readonly price_max: number | null;
+  readonly bedrooms_min: number | null;
+  readonly bedrooms_max: number | null;
+  readonly furnished: boolean | null;
+  readonly sites: readonly RadarSourceSite[];
+  readonly max_age_days: number | null;
+}
+
+/** Une cible (`RadarTargetResource`) — chaque clé est omise si `fields[radar_targets]` ne la demande pas. */
+export interface RadarTarget {
+  readonly id: number;
+  readonly name: string;
+  readonly origin: RadarTargetOrigin;
+  readonly status: RadarTargetStatus;
+  /** Une cible de la demande épinglée n'est plus révisée par l'IA (TCK-2470). */
+  readonly pinned: boolean;
+  readonly criteria: RadarTargetCriteria;
+  /** `null` pour une cible de l'opérateur. */
+  readonly demand_count: number | null;
+  readonly matches_count: number;
+  readonly last_matched_at: string | null;
+  readonly created_at: string;
+  readonly updated_at?: string;
+}
+
+export interface RadarTargetResponse {
+  readonly data: RadarTarget;
+}
+
+/** `POST /targets` : `origin` est interdit (l'API pose `operator`) ; `status` vaut `active` par défaut. */
+export interface RadarTargetCreation {
+  readonly name: string;
+  readonly criteria: RadarTargetCriteria;
+  readonly status?: Exclude<RadarTargetStatus, 'retired'>;
+}
+
+/** `PATCH /targets/{id}` : seuls les champs envoyés changent. `retired` passe par `DELETE`. */
+export interface RadarTargetChanges {
+  readonly name?: string;
+  readonly criteria?: RadarTargetCriteria;
+  readonly status?: Exclude<RadarTargetStatus, 'retired'>;
+  readonly pinned?: boolean;
+}
+
+/** Une annonce trouvée par une cible : les colonnes de la carte compacte (`RADAR_TARGET_LISTING_FIELDS`). */
+export interface RadarTargetListingRow {
+  readonly id: number;
+  readonly source_site: RadarSourceSite;
+  readonly source_url: string | null;
+  readonly photo_urls?: readonly string[];
+  readonly extracted: RadarExtracted | null;
+  readonly stage: RadarListingStage;
+  readonly created_at: string;
+}
+
+/** Les bornes de `config/radar.php` (`radar.targets`, `radar.bounds`) : le formulaire les respecte, l'API les impose. */
+export const RADAR_TARGET_NAME_MAX = 120;
+export const RADAR_TARGET_MAX_LIST_ITEMS = 30;
+export const RADAR_TARGET_BEDROOMS_MAX = 30;
+export const RADAR_TARGET_MAX_AGE_DAYS = 365;

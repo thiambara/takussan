@@ -93,6 +93,7 @@ const CORRESPONDANCES = {
   ],
   ReviewStatus: [{ fichier: 'src/lib/queries/reviews.ts', nom: 'ReviewStatus' }],
   RadarCrawlStatus: [{ fichier: 'src/types/radar.ts', nom: 'RadarCrawlStatus' }],
+  RadarTargetStatus: [{ fichier: 'src/types/radar.ts', nom: 'RadarTargetStatus' }],
   RadarVerificationStatus: [{ fichier: 'src/types/radar.ts', nom: 'RadarVerificationStatus' }],
   RoleDelegationStatus: [{ fichier: 'src/types/role-delegation.ts', nom: 'RoleDelegationStatus' }],
   ScheduledTaskRunStatus: [{ fichier: 'src/types/super-admin.ts', nom: 'ScheduledTaskStatus' }],
@@ -114,7 +115,6 @@ const SANS_UNION = {
   CollaborationStatus: 'aucune union nommée au front',
   InvitationStatus: 'unions anonymes seulement (`lib/queries/owners.ts`, `lib/queries/service-providers.ts`)',
   RelationshipStatus: 'union anonyme ouverte seulement (`types/customer.ts`, `… | string`)',
-  RadarTargetStatus: 'TCK-2468 : l\'API des cibles est livrée sans écran ; TCK-2469 (la console des cibles) pose son union et la déplace dans `CORRESPONDANCES`',
 };
 
 /**

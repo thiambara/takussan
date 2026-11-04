@@ -61,4 +61,55 @@ les filtres de la recherche publique (villes, quartiers, `PropertyType`) — à 
 
 ## Notes d'implémentation
 
-_(à remplir)_
+**Re-mesuré avant de coder (2026-11-04)**, contre le code de TCK-2468 (5651cac68) :
+
+- Les routes et la ressource sont celles du rapport de TCK-2468 ; le front les atteint par le relais
+  `/api/super-admin/[...path]` (aucune route BFF neuve), donc `fetch('/api/super-admin/radar/targets…')` et jamais
+  `apiRequest`. Sparse fieldsets : `RADAR_TARGET_FIELDS` et `RADAR_TARGET_LISTING_FIELDS` (`lib/queries/radar.ts`).
+- **Lieux et types** : les filtres publics lisent `/api/public/geo/cities` et `/api/public/geo/neighborhoods`
+  (`lib/queries/referentiel-public.ts`) et les seize `PropertyType`. La console les réemploie (mêmes hooks, même
+  `Combobox`), mais PAS les composants `components/search/*` : ils lisent l'espace `search`, que la frontière
+  `(super-admin)/super-admin` ne sert pas (`check-i18n-namespaces`), et ils ne portent qu'UNE ville et UN quartier,
+  quand une cible en porte plusieurs. Le vocabulaire (Louer/Acheter, Indifférent/Oui/Non, tuiles à pictogramme
+  `iconeDuType`) est repris tel quel.
+- **Une cible `retired` reste modifiable par l'API** (`PATCH` la réactive, sous plafond et doublon : notes de
+  TCK-2468). La règle « une cible retirée n'est pas modifiable » est donc tenue par l'ÉCRAN seul : la page d'une cible
+  retirée n'a aucun geste. Écart à trancher par le porteur si l'API doit la refuser aussi.
+- `RadarCrawlRun.cards_skipped` et l'arrêt `radar.crawl.no_target` n'avaient ni colonne ni libellé : ajoutés à la
+  collecte (colonne « Hors cible », libellé d'arrêt), sans quoi le premier passage d'une source ciblée sans cible
+  s'affichait en code brut.
+
+**Ce qui est livré** :
+
+- `/super-admin/radar/targets` (`components/admin/super/radar/cibles/RadarCibles.tsx`) : liste dense — nom, résumé
+  lisible, état, origine, épinglée, trouvées, dernière trouvaille —, filtres serveur `filter[status]`/`filter[origin]`,
+  cartes sous `md`. Entrée « Cibles » dans `RadarNav`, entre Annonceurs et Collecte.
+- Panneau de création et de réglage (`PanneauCible.tsx`, `ChoixDesLieux.tsx`) : aperçu du résumé en direct, avis
+  « l'épinglera » AVANT d'enregistrer une cible de la demande dont les critères changent ; seuls le nom et les
+  critères modifiés partent en `PATCH`. Le formulaire ne juge rien : chaque code `radar.targets.*` a son libellé, qui
+  nomme le critère (`params.field`) et la borne (`params.max`) ; le doublon mène à la cible existante.
+- `/super-admin/radar/targets/{id}` (`RadarCibleFiche.tsx`) : en-tête, chiffres, gestes (régler, pause/reprise,
+  épingler pour une cible de la demande, retirer après confirmation), annonces en cartes compactes paginées
+  (`CarteAnnonceTrouvee.tsx`) menant à `/super-admin/radar/{id}`. **TCK-2470 pose son encart « Demande » sous
+  l'en-tête, avant la section des annonces** (le docblock du composant le dit).
+- Collecte : la portée (`scope`) se règle par source, avec la phrase de conséquence ; le support la lit.
+- `RadarTargetStatus` : union `src/types/radar.ts`, libellés `superAdmin.pages.radar.targets.status` ; ses
+  exemptions de `check-status-labels.mjs` et `check-status-unions.mjs` sont retirées.
+
+**Ajouté à la demande de la session, pour TCK-2466** (7288262e6, API seule) — la fiche de relecture d'une annonce
+affiche ce que la lecture « page d'abord » émet :
+
+- le drapeau `source_conflict` entre dans `RADAR_FIELD_FLAGS` (`src/types/radar.ts`) avec son libellé (« La page dit
+  autre chose que l'IA : la valeur de la page est retenue ») ; `codes-radar.tck-2387.test.ts`, qui confronte la liste
+  aux `FLAG_*` de l'`ExtractionNormalizer`, redevient vert ;
+- `RadarExtractedField` porte `source` et `model_value` ; `ChampFiche` dit « Lu sur la page » pour `source: "page"`
+  (un champ `high` sans passage cité ne disait rien), et « L'IA proposait : … » quand `model_value` est rendu, mis en
+  forme par `FormulaireFiche` dans le vocabulaire du champ (type traduit, montant formaté). Corrigé par l'opérateur,
+  le champ ne dit plus ni l'un ni l'autre.
+
+**À reporter dans les specs (la session)** :
+
+- `docs/features.md` §2.12 — la console des cibles (`/super-admin/radar/targets`, page d'une cible), le réglage de
+  portée d'une source sur la collecte, la colonne « Hors cible » des passages ; le support lit tout sans geste.
+- `docs/features.md` §2.12 (fiche de relecture) — une valeur lue sur la page se signale « Lu sur la page » ; une
+  contradiction du modèle (`source_conflict`) montre la valeur qu'il proposait.
