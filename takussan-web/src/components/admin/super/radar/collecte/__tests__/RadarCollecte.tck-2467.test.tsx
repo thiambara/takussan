@@ -61,7 +61,7 @@ describe('La découverte d\'une source (TCK-2467)', () => {
 
     const decouverte = await screen.findByTestId('radar-collecte-decouverte-expat_dakar');
     expect(within(decouverte).getByTestId('radar-collecte-decouverte-expat_dakar-sitemap')).toHaveAttribute('aria-pressed', 'true');
-    expect(decouverte).toHaveTextContent('tout l’inventaire du site est connu en quelques requêtes ; au plus 200 annonces neuves saisies par passage');
+    expect(decouverte).toHaveTextContent('tout l’inventaire du site est connu en quelques requêtes ; au plus 200 annonces neuves saisies par passage, les autres au passage suivant.');
 
     await user.click(within(decouverte).getByTestId('radar-collecte-decouverte-expat_dakar-lists'));
     await waitFor(() => expect(patchRadarCrawlSource).toHaveBeenCalledWith('expat_dakar', { discovery: 'lists' }));

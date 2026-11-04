@@ -9821,7 +9821,7 @@
             },
             "consequence": {
               "lists": "Lists: list pages are read page after page, within the configured page limit.",
-              "sitemap": "Sitemap: the site’s whole inventory is known in a few requests; at most {max} new listings captured per run."
+              "sitemap": "Sitemap: the site’s whole inventory is known in a few requests; at most {max} new listings captured per run, the rest on the next run."
             },
             "unavailable": "This site offers no sitemap: it is read through its lists."
           }

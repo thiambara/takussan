@@ -9167,7 +9167,7 @@
             },
             "consequence": {
               "lists": "Listes : les pages de liste sont lues de page en page, dans la limite des pages réglées.",
-              "sitemap": "Sitemap : tout l’inventaire du site est connu en quelques requêtes ; au plus {max} annonces neuves saisies par passage."
+              "sitemap": "Sitemap : tout l’inventaire du site est connu en quelques requêtes ; au plus {max} annonces neuves saisies par passage, les autres au passage suivant."
             },
             "unavailable": "Ce site ne propose pas de sitemap : il se lit par ses listes."
           }
