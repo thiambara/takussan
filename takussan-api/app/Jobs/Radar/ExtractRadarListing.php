@@ -17,6 +17,7 @@ use App\Models\RadarListing;
 use App\Services\Ai\AiErrorCode;
 use App\Services\Ai\AiGateway;
 use App\Services\Ai\AiRequest;
+use App\Services\Ai\AiResult;
 use App\Services\Ai\Evaluation\EvalCaseAnonymizer;
 use App\Services\Ai\Exceptions\AiRefused;
 use App\Services\Ai\Exceptions\AiUnavailable;
@@ -60,7 +61,9 @@ use Throwable;
  *     appel IA (`RadarAdvertiserDirectory::refusedAmong()`, la même lecture qu'à la saisie) ;
  *  4. **l'appel** `radar.extraction` par la passerelle, le texte délimité par `ExternalContent`, les
  *     captures en pièces jointes lues par leur disque (`Image::fromStorage`, jamais `getPath()`) —
- *     la passerelle joue alors le rôle `vision` ;
+ *     la passerelle joue alors le rôle `vision` ; TCK-2466 (ADR-0087 §2) : devant le texte, la liste « déjà lu »
+ *     de `source_fields` (`ExtractionNormalizer::knownLines()`), et l'appel est SAUTÉ quand la page dit l'essentiel
+ *     (`readsEnough()` : l'extraction se compose par `fromPage()`, sans tentative, sans suggestion) ;
  *  5. **la sortie relue** par `ExtractionNormalizer`. Le refus STOP est rejugé sur TOUS les numéros
  *     (ceux du texte et ceux de la sortie, même écartés) ; sinon l'annonceur du premier numéro est
  *     rattaché — TCK-2465 : ceux que la page porte en clair (`source_fields.phones`) d'abord, puis
@@ -224,9 +227,23 @@ final class ExtractRadarListing implements ShouldQueue
             return;
         }
 
+        $sourceFields = $listing->source_kind === RadarSourceKind::Captures ? null : $listing->source_fields;
+
+        // TCK-2466 (ADR-0087 §2) — la page dit l'essentiel : l'extraction se compose sans le modèle. Ni appel, ni
+        // tentative, ni suggestion (aucune proposition du modèle à juger).
+        if ($normalizer->readsEnough($sourceFields)) {
+            $this->conclude($normalizer->fromPage((array) $sourceFields, $text), null, null, $text, $sourcePhones, $listing, $directory, $recorder, $anonymizer, $sources);
+
+            return;
+        }
+
         // 4. L'appel, hors de toute transaction. L'entrée délimitée se compose UNE fois : celle qui part au
-        // modèle est, par construction, celle dont la suggestion garde la trace.
-        $input = ExternalContent::wrap($listing->source_site->value, $text);
+        // modèle est, par construction, celle dont la suggestion garde la trace. TCK-2466 : devant le texte, la liste
+        // courte de ce que la page dit déjà (le prompt v4 demande de ne remplir que le reste), dans le même bloc.
+        $known = $normalizer->knownLines($sourceFields);
+        $input = ExternalContent::wrap($listing->source_site->value, $known === []
+            ? $text
+            : ExtractionNormalizer::KNOWN_HEADER."\n".implode("\n", $known)."\n\n".ExtractionNormalizer::TEXT_HEADER."\n".$text);
         try {
             $result = $gateway->run(new AiRequest(
                 RadarExtractionUsage::KEY,
@@ -276,7 +293,7 @@ final class ExtractRadarListing implements ShouldQueue
         $normalized = null;
         if (is_array($result->structured) && self::hasEveryKey($result->structured)) {
             try {
-                $normalized = $normalizer->normalize($result->structured, $listing->source_kind === RadarSourceKind::Captures ? null : $text);
+                $normalized = $normalizer->normalize($result->structured, $listing->source_kind === RadarSourceKind::Captures ? null : $text, $sourceFields);
             } catch (Throwable $e) {
                 report($e);
             }
@@ -286,6 +303,29 @@ final class ExtractRadarListing implements ShouldQueue
 
             return;
         }
+
+        $this->conclude($normalized, $result, $input, $text, $sourcePhones, $listing, $directory, $recorder, $anonymizer, $sources);
+    }
+
+    /**
+     * 5. et 6. — l'annonceur choisi, le refus STOP rejugé, puis l'extraction gardée (et sa suggestion, s'il y a eu un
+     * appel). TCK-2466 : sans appel (`$result` nul), ni instantané ni suggestion.
+     *
+     * @param  array<string, mixed>  $normalized
+     * @param  list<string>  $sourcePhones
+     */
+    private function conclude(
+        array $normalized,
+        ?AiResult $result,
+        ?string $input,
+        string $text,
+        array $sourcePhones,
+        RadarListing $listing,
+        RadarAdvertiserDirectory $directory,
+        SuggestionRecorder $recorder,
+        EvalCaseAnonymizer $anonymizer,
+        RadarCrawlSources $sources,
+    ): void {
 
         // L'annonceur se choisit d'abord parmi les numéros que le modèle a rendus ET que la
         // normalisation a gardés (présents dans le texte, sauf pour des captures), dans son ordre :
@@ -300,14 +340,14 @@ final class ExtractRadarListing implements ShouldQueue
         ));
         // Le refus se juge sur chaque numéro, pas sur le seul premier — y compris ceux du modèle
         // que la normalisation a écartés : prudence.
-        if ($this->refuseIfStopped($directory, self::canonicalPhones([...$phones, ...(array) ($result->structured['phones'] ?? [])]))) {
+        if ($this->refuseIfStopped($directory, self::canonicalPhones([...$phones, ...(array) ($result?->structured['phones'] ?? [])]))) {
             return;
         }
 
         // L'instantané garde l'entrée envoyée, anonymisée DÈS L'ÉCRITURE par le masqueur de l'export : le nom
         // et les numéros que la lecture a trouvés (retenus et écartés) deviennent [NOM] et [TELEPHONE].
         // L'export n'a pour aiguilles que la proposition et la valeur retenue, qui n'ont ni nom ni numéro.
-        $snapshot = $listing->source_kind === RadarSourceKind::Captures ? null : $anonymizer->anonymize($input, [
+        $snapshot = $listing->source_kind === RadarSourceKind::Captures || $input === null ? null : $anonymizer->anonymize($input, [
             'advertiser_name' => $normalized['advertiser_name']['value'] ?? null,
             'phones' => [...(array) ($normalized['phones'] ?? []), ...(array) ($normalized['phones_dropped'] ?? [])],
         ])['input'];
@@ -345,12 +385,14 @@ final class ExtractRadarListing implements ShouldQueue
                 ->where('subject_type', $l->getMorphClass())->where('subject_id', $l->getKey())
                 ->where('decision', AiSuggestionDecision::Pending->value)
                 ->delete();
-            $recorder->record(
-                $result,
-                $l,
-                inputSnapshot: $snapshot,
-                proposal: RadarReviewFields::values($normalized),
-            );
+            if ($result !== null) {
+                $recorder->record(
+                    $result,
+                    $l,
+                    inputSnapshot: $snapshot,
+                    proposal: RadarReviewFields::values($normalized),
+                );
+            }
             if ($locked !== null) {
                 $this->enrich($locked, $normalized);
             }
@@ -578,7 +620,11 @@ final class ExtractRadarListing implements ShouldQueue
     private static function unflagged(array $normalized, string $field): mixed
     {
         $entry = $normalized[$field] ?? null;
+        // TCK-2466 — une valeur lue sur la page fait foi, même contredite par le modèle (`source_conflict` accuse le modèle).
+        $flags = is_array($entry) && ($entry['source'] ?? null) === ExtractionNormalizer::SOURCE_PAGE
+            ? array_values(array_diff((array) ($entry['flags'] ?? []), [ExtractionNormalizer::FLAG_SOURCE_CONFLICT]))
+            : ($entry['flags'] ?? null);
 
-        return is_array($entry) && ($entry['flags'] ?? null) === [] ? ($entry['value'] ?? null) : null;
+        return is_array($entry) && $flags === [] ? ($entry['value'] ?? null) : null;
     }
 }
