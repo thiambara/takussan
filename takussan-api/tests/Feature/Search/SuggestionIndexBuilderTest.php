@@ -9,6 +9,7 @@ use App\Models\GeoNeighborhood;
 use App\Models\SearchAlias;
 use App\Services\Search\Query\DatabasePlaceLexicon;
 use App\Services\Search\Suggestions\SuggestionIndex;
+use App\Services\Search\Suggestions\SuggestionIndexBuilder;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
@@ -176,6 +177,86 @@ class SuggestionIndexBuilderTest extends TestCase
         $this->assertStringContainsString('documents', Artisan::output());
         $this->assertSame(0, Artisan::call('search:build-suggestions', ['--if-missing' => true]));
         $this->assertStringContainsString('déjà servi', Artisan::output());
+    }
+
+    /** Préproduction, 2026-11-04 — un index servi né vide, sans réglages, n'est pas « servi » : `--if-missing` le construit. */
+    public function test_if_missing_construit_un_index_servi_sans_reglages(): void
+    {
+        $this->publishedIn('Dakar', null);
+        $this->indexProperties();
+        $client = app(Client::class);
+        $client->waitForTask($client->deleteIndex(SuggestionIndex::uid())['taskUid']);
+        $client->waitForTask($client->createIndex(SuggestionIndex::uid(), ['primaryKey' => 'id'])['taskUid']);
+
+        $this->assertSame(0, Artisan::call('search:build-suggestions', ['--if-missing' => true]));
+        $this->assertStringContainsString('documents', Artisan::output());
+        $this->assertSame(['kind'], $client->index(SuggestionIndex::uid())->getFilterableAttributes());
+    }
+
+    /**
+     * Préproduction, 2026-11-04 — la clé restreinte n'avait pas `indexes.swap` : l'échange refusé laissait l'index servi né
+     * vide, que la route lisait en 500. L'échec retire l'index qu'il a créé, et la commande le dit.
+     */
+    public function test_un_echange_refuse_ne_laisse_pas_d_index_servi_vide(): void
+    {
+        $this->publishedIn('Dakar', null);
+        $this->indexProperties();
+        $maitre = app(Client::class);
+        $maitre->waitForTask($maitre->deleteIndex(SuggestionIndex::uid())['taskUid']);
+        $cle = $maitre->createKey([
+            'actions' => ['search', 'documents.add', 'documents.get', 'documents.delete', 'indexes.create', 'indexes.get',
+                'indexes.update', 'indexes.delete', 'tasks.get', 'settings.get', 'settings.update', 'stats.get', 'version'],
+            'indexes' => ['*'],
+            'expiresAt' => null,
+        ]);
+
+        try {
+            $this->app->instance(Client::class, new Client((string) config('scout.meilisearch.host'), $cle->getKey()));
+            $this->app->forgetInstance(SuggestionIndexBuilder::class);
+
+            $this->assertSame(1, Artisan::call('search:build-suggestions', ['--if-missing' => true]));
+            $this->assertStringContainsString('échec', Artisan::output());
+        } finally {
+            $this->app->instance(Client::class, $maitre);
+            $maitre->deleteKey($cle->getKey());
+        }
+
+        $uids = array_map(fn ($i) => $i->getUid(), $maitre->getIndexes((new IndexesQuery)->setLimit(1000))->getResults());
+        $this->assertNotContains(SuggestionIndex::uid(), $uids);
+    }
+
+    /**
+     * Préproduction, 2026-11-04 — la clé restreinte aux index de son environnement ne lit pas la tâche d'un échange
+     * (rattachée à aucun index : 404) ; l'échange réussi se constatait pourtant en échec. La construction aboutit.
+     */
+    public function test_une_cle_restreinte_aux_index_de_l_environnement_construit_et_sert_l_index(): void
+    {
+        $this->publishedIn('Dakar', 'Mermoz');
+        $this->indexProperties();
+        $maitre = app(Client::class);
+        $maitre->waitForTask($maitre->deleteIndex(SuggestionIndex::uid())['taskUid']);
+        $cle = $maitre->createKey([
+            'actions' => ['search', 'documents.add', 'documents.get', 'documents.delete', 'indexes.create', 'indexes.get',
+                'indexes.update', 'indexes.delete', 'indexes.swap', 'tasks.get', 'settings.get', 'settings.update', 'stats.get', 'version'],
+            // Comme en préproduction (`preview_*`) : les index de l'environnement, sous son préfixe — tiré par processus ici.
+            'indexes' => [config('scout.prefix').'*'],
+            'expiresAt' => null,
+        ]);
+
+        try {
+            $this->app->instance(Client::class, new Client((string) config('scout.meilisearch.host'), $cle->getKey()));
+            $this->app->forgetInstance(SuggestionIndexBuilder::class);
+
+            foreach (['première construction (index servi né vide)', 'reconstruction'] as $tour) {
+                $this->assertSame(0, Artisan::call('search:build-suggestions'), $tour.' : '.Artisan::output());
+            }
+        } finally {
+            $this->app->instance(Client::class, $maitre);
+            $maitre->deleteKey($cle->getKey());
+        }
+
+        $this->assertContains('Mermoz', array_column($this->suggestionDocuments(), 'value'));
+        $this->assertSame(['kind'], $maitre->index(SuggestionIndex::uid())->getFilterableAttributes());
     }
 
     public function test_la_construction_est_planifiee_toutes_les_heures(): void

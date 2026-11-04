@@ -69,6 +69,7 @@ final class SuggestionIndexBuilder
 
         $this->wait($this->client->createIndex($build, ['primaryKey' => 'id']));
 
+        $born = false;
         try {
             $index = $this->client->index($build);
             $this->wait($index->updateSettings(SuggestionIndex::settings()));
@@ -80,15 +81,28 @@ final class SuggestionIndexBuilder
             // temps de l'échange qui suit ; avant, la route servait déjà « aucun index » (cf. SearchSuggestions).
             if (! $this->exists($live)) {
                 $this->wait($this->client->createIndex($live, ['primaryKey' => 'id']));
+                $born = true;
             }
-            $this->wait($this->client->swapIndexes([[$live, $build]]));
-        } finally {
-            // Après l'échange, c'est l'ANCIEN contenu ; avant (échec), l'index inachevé. Dans les deux cas : à jeter.
-            try {
-                $this->client->deleteIndex($build);
-            } catch (Throwable) {
-                // balayé par la construction suivante (sweepStaleBuilds)
+
+            // L'échange ne s'attend PAS par sa tâche : rattachée à aucun index, une clé restreinte (`preview_*`) ne la lit
+            // pas — `GET /tasks/{uid}` rend 404 alors que l'échange a réussi (préproduction, 2026-11-04). Les tâches passent
+            // dans l'ordre de la file : la suppression de l'index de construction, mise en file APRÈS, ne finit qu'après
+            // l'échange. On attend donc celle-là, puis on vérifie ce que sert l'index.
+            $this->client->swapIndexes([[$live, $build]]);
+            $this->wait($this->client->deleteIndex($build));
+            $this->assertServes($live, count($documents));
+        } catch (Throwable $e) {
+            // Une clé sans `indexes.swap` (préproduction, 2026-11-04) refusait l'échange, et l'index servi né vide — sans
+            // réglages, `kind` non filtrable — restait : la route rendait 500. Celui qu'on vient de créer s'en va, la route
+            // retombe sur « aucun index » ; l'index inachevé aussi (balayé sinon par sweepStaleBuilds).
+            foreach ($born ? [$build, $live] : [$build] as $uid) {
+                try {
+                    $this->wait($this->client->deleteIndex($uid));
+                } catch (Throwable) {
+                    // isServed() refuse un index sans réglages ; sweepStaleBuilds() balaie une construction laissée.
+                }
             }
+            throw $e;
         }
 
         $this->sweepStaleBuilds($live);
@@ -448,10 +462,21 @@ final class SuggestionIndexBuilder
         return (string) array_key_first($spellings);
     }
 
-    /** L'index servi existe-t-il ? (`search:build-suggestions --if-missing`, joué par `docker/release.sh`.) */
+    /**
+     * L'index servi existe-t-il, avec ses réglages ? (`search:build-suggestions --if-missing`, joué par `docker/release.sh`.)
+     * Un index qui existe sans `kind` filtrable n'a jamais reçu d'échange (né vide, construction interrompue) : la route
+     * le lirait en 500, il n'est pas servi.
+     */
     public function isServed(): bool
     {
-        return $this->exists(SuggestionIndex::uid());
+        try {
+            return in_array('kind', $this->client->index(SuggestionIndex::uid())->getFilterableAttributes(), true);
+        } catch (ApiException $e) {
+            if ($e->errorCode === 'index_not_found') {
+                return false;
+            }
+            throw $e;
+        }
     }
 
     private function exists(string $uid): bool
@@ -491,6 +516,16 @@ final class SuggestionIndexBuilder
                     // la suivante
                 }
             }
+        }
+    }
+
+    /** Après l'échange, l'index servi porte les réglages et les documents de la construction — sinon l'échange n'a pas eu lieu. */
+    private function assertServes(string $live, int $documents): void
+    {
+        $index = $this->client->index($live);
+        $served = $index->stats()['numberOfDocuments'] ?? null;
+        if (! in_array('kind', $index->getFilterableAttributes(), true) || $served !== $documents) {
+            throw new RuntimeException(sprintf('Échange non appliqué : %s sert %s document(s) au lieu de %d.', $live, json_encode($served), $documents));
         }
     }
 
