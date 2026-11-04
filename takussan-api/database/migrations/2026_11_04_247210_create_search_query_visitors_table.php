@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 /**
  * TCK-2472 (ADR-0088 §2) — la table de travail qui compte les visiteurs distincts d'une recherche, un jour donné.
  *
- * `visitor_hash` = `HMAC-SHA256(IP — /64 en IPv6 —, APP_KEY + jour)` : l'empreinte change chaque jour, elle ne rejoint
+ * `visitor_hash` = `HMAC-SHA256(jour | IP — /64 en IPv6 —, APP_KEY)` (`AppKeyHmac`, ADR-0084) : l’empreinte change chaque jour, elle ne rejoint
  * ni un autre jour, ni un compte. Effacée au-delà de 48 heures par `search:purge-journal`. Aucune IP en clair.
  */
 return new class extends Migration

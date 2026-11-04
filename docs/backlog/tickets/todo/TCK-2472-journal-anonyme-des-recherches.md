@@ -102,7 +102,12 @@ donnée sur eux.
   autres le sont (critères réels d'une personne, faible volume). Un marqueur explicite posé par la liste serait plus
   propre, mais demande de toucher le front de la liste (`recherche-publique.ts`), hors périmètre.
 - **`VisitorFingerprint::ofIp()` n'est pas l'empreinte du ticket** : c'est `HMAC(IP, APP_KEY)` — DURABLE, celle des
-  signalements. Le journal emploie `VisitorFingerprint::network()` (le /64) et son propre HMAC, clé `APP_KEY|jour`.
+  signalements. Le journal emploie `VisitorFingerprint::network()` (le /64) et une empreinte du jour.
+- **L'empreinte du jour passe par `AppKeyHmac::of('<jour>|<IP ou /64>')`** (ADR-0084, gardé par
+  `AppKeyHmacPointUniqueTest`, qui refusait le `hash_hmac(…, config('app.key').'|'.jour)` de la première version) : le
+  jour est dans la DONNÉE, pas dans la clé — même propriété (une autre empreinte chaque jour, sans lien d'un jour à
+  l'autre), donc rien ne change dans `privacy.ts`. Écriture sous la clé courante seule (`of()`, jamais `all()`) : elle ne
+  décide d'aucun droit ; une rotation d'`APP_KEY` en cours de journée recompte au plus une fois un visiteur ce jour-là.
 - **Robots** : une recherche sous un agent reconnu par `RobotUserAgent` (TCK-792) n'est pas journalisée, comme une
   impression sponsorisée — les moteurs parcourent les pages de facettes.
 - **Recherche vide** : ni saisie ni critère retenu → rien (ce n'est pas une recherche).

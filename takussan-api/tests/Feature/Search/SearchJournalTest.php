@@ -4,6 +4,7 @@ namespace Tests\Feature\Search;
 
 use App\Models\SearchQueryStat;
 use App\Services\Search\SearchJournal;
+use App\Support\AppKeyHmac;
 use App\Support\VisitorFingerprint;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\QueryException;
@@ -84,9 +85,11 @@ class SearchJournalTest extends TestCase
         $this->journal->record($this->visiteur('198.51.100.9'), 'studio', [], 1);
 
         $empreinte = DB::table('search_query_visitors')->value('visitor_hash');
-        $attendue = hash_hmac('sha256', VisitorFingerprint::network('198.51.100.9'), config('app.key').'|'.now()->toDateString());
+        $attendue = AppKeyHmac::of(now()->toDateString().'|'.VisitorFingerprint::network('198.51.100.9'));
         $this->assertSame($attendue, $empreinte);
         $this->assertNotSame(VisitorFingerprint::ofIp('198.51.100.9'), $empreinte, 'pas l’empreinte durable des signalements');
+        $this->travel(1)->days();
+        $this->assertNotSame($empreinte, AppKeyHmac::of(now()->toDateString().'|'.VisitorFingerprint::network('198.51.100.9')), 'une autre chaque jour');
 
         $tout = json_encode([DB::table('search_query_visitors')->get(), DB::table('search_query_stats')->get()]);
         $this->assertStringNotContainsString('198.51.100.9', (string) $tout);

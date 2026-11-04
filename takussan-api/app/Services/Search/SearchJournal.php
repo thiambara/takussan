@@ -2,6 +2,7 @@
 
 namespace App\Services\Search;
 
+use App\Support\AppKeyHmac;
 use App\Support\Http\RobotUserAgent;
 use App\Support\VisitorFingerprint;
 use Illuminate\Http\Request;
@@ -16,7 +17,7 @@ use function Illuminate\Support\defer;
  *
  * **Une ligne par jour et par recherche, rien par personne** (`search_query_stats`) : la saisie normalisée, les critères
  * structurés, quatre compteurs. Le visiteur distinct se compte par une empreinte DU JOUR (`search_query_visitors`,
- * `HMAC-SHA256(IP — /64 en IPv6 —, APP_KEY + jour)`), effacée au-delà de 48 heures : elle ne rejoint ni un autre jour,
+ * `HMAC-SHA256(jour | IP — /64 en IPv6 —, APP_KEY)` par `AppKeyHmac`), effacée au-delà de 48 heures : elle ne rejoint ni un autre jour,
  * ni un compte. Ni compte, ni IP en clair, nulle part.
  *
  * **Jamais journalisé** (ADR-0088 §3) : une saisie de plus de 80 caractères, qui porte six chiffres ou plus, ou un `@` —
@@ -328,10 +329,15 @@ final class SearchJournal
         });
     }
 
-    /** ADR-0088 §2 — `HMAC-SHA256(IP — /64 en IPv6 —, APP_KEY + jour)` : une autre empreinte chaque jour. */
+    /**
+     * ADR-0088 §2 — l'empreinte du jour : `HMAC-SHA256(jour | IP — /64 en IPv6 —, APP_KEY)`, par le point unique
+     * {@see AppKeyHmac} (ADR-0084). Le jour est DANS la donnée : une autre empreinte chaque jour, sans clé dérivée.
+     * Écrite sous la clé courante seulement (`of()`, jamais `all()`) : elle ne décide d'aucun droit, et une rotation
+     * d'`APP_KEY` en cours de journée recompte au plus une fois un visiteur ce jour-là.
+     */
     private static function visitorHash(string $ip, string $day): string
     {
-        return hash_hmac('sha256', VisitorFingerprint::network($ip), config('app.key').'|'.$day);
+        return AppKeyHmac::of($day.'|'.VisitorFingerprint::network($ip));
     }
 
     /**
