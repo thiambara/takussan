@@ -803,6 +803,23 @@ return [
             'start_url_invalid' => 'Cette URL de départ n\'est pas acceptée : une adresse https, sans identifiants, port ni fragment (#).',
             'start_url_host' => 'Cette URL de départ n\'est pas sur le site : elle doit partir de :hosts.',
             'start_url_duplicate' => 'Cette URL de départ est déjà dans la liste.',
+            'discovery_unavailable' => 'Ce site ne publie aucun plan de site lisible : la découverte par sitemap n\'y est pas possible.',
+        ],
+        // TCK-2468 / TCK-2469 (ADR-0087) — les cibles du Radar et la demande qui les tient à jour.
+        'targets' => [
+            'retired' => 'Cette cible est retirée : elle ne se modifie plus. Créez-en une nouvelle.',
+            'duplicate' => 'Une cible porte déjà exactement ces critères.',
+            'too_many' => 'Défaire cette révision dépasserait le plafond des cibles de la demande (:max au plus).',
+            'revision_reverted' => 'Cette révision est déjà défaite.',
+            'revision_superseded' => 'Une cible de cette révision a changé depuis (épinglée, mise en pause ou retirée) : la révision ne se défait plus.',
+        ],
+        'demand' => [
+            'too_many' => 'Le plafond des cibles de la demande est atteint (:max au plus).',
+            'invalid_operation' => 'Cette opération n\'est pas reconnue.',
+            'unknown_target' => 'Cette cible n\'existe pas ou est retirée.',
+            'target_protected' => 'Cette cible est tenue par l\'opérateur : la demande ne la touche pas.',
+            'uncovered' => 'Ces critères ne couvrent aucune des recherches citées.',
+            'invalid_name' => 'Le nom de la cible est vide.',
         ],
         // TCK-2394 (ADR-0077, lot 4) — la relance d'activation ; (ADR-0079) la publication sous mandat.
         'activation' => [
