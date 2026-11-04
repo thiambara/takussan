@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Search;
 
+use App\Models\Enums\ContractType;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyType;
 use App\Models\GeoCity;
@@ -131,6 +132,83 @@ class SuggestInterpretationTest extends TestCase
         $this->assertEqualsCanonicalizing(array_column($liste->json('data'), 'id'), array_column($previews, 'id'));
     }
 
+    /**
+     * Revue adverse n° 5 (2026-11-04) — la barre compte comme la liste qu'elle ouvrira : les filtres que la navigation
+     * garde (l'URL courante, « Louer / Acheter ») entrent en BASE ; un critère compris dans la saisie remplace la même
+     * clé de la base, les autres clés de la base restent. `criteria` ne dit que ce que la saisie a compris.
+     */
+    public function test_la_base_de_la_liste_entre_dans_le_compte_et_la_saisie_la_remplace_cle_par_cle(): void
+    {
+        $this->publishedIn('Dakar', 'Almadies', ['type' => PropertyType::Villa, 'bedrooms' => 4, 'contract_type' => ContractType::Rent]);
+        $this->publishedIn('Dakar', 'Mermoz', ['type' => PropertyType::Villa, 'bedrooms' => 5, 'contract_type' => ContractType::Rent]);
+        $this->publishedIn('Dakar', 'Almadies', ['type' => PropertyType::Villa, 'bedrooms' => 4, 'contract_type' => ContractType::Sale]);
+        $this->publishedIn('Dakar', 'Almadies', ['type' => PropertyType::Villa, 'bedrooms' => 2, 'contract_type' => ContractType::Rent]);
+        $this->indexProperties();
+
+        $data = $this->getJson($this->url.'?'.http_build_query(['q' => 'villa 4 chambres', 'contract_type' => 'rent']))->assertOk()->json('data');
+        $this->assertEquals(['type' => 'villa', 'bedrooms' => 4], $data['interpretation']['criteria']);
+        $liste = $this->getJson('/api/public/properties/search?'.http_build_query(['type' => 'villa', 'bedrooms' => 4, 'contract_type' => 'rent', 'placements' => 'false']))->assertOk();
+        $this->assertSame($liste->json('meta.total'), $data['interpretation']['count']);
+        $this->assertSame(2, $data['interpretation']['count']);
+        $this->assertEqualsCanonicalizing(array_column($liste->json('data'), 'id'), array_column($data['previews'], 'id'), 'les aperçus sont ceux de la fusion');
+
+        // La saisie remplace la même clé de la base (`type=house` → `villa`) ; `location` de la base reste.
+        $fusion = $this->getJson($this->url.'?'.http_build_query(['q' => 'villa 4 chambres', 'type' => 'house', 'contract_type' => 'rent', 'location' => 'Mermoz']))
+            ->assertOk()->json('data.interpretation');
+        $this->assertSame(1, $fusion['count']);
+
+        // Une saisie non comprise : les aperçus portent quand même la base (contrat contraire à celui du bien « lumineux »).
+        $lumineux = $this->getJson('/api/public/properties/search?q=lumineux&placements=false')->json('data.0.contract_type');
+        $autre = $lumineux === 'rent' ? 'sale' : 'rent';
+        $this->assertSame([], $this->getJson($this->url.'?'.http_build_query(['q' => 'lumineux', 'contract_type' => $autre]))->assertOk()->json('data.previews'));
+        $this->assertCount(1, $this->getJson($this->url.'?'.http_build_query(['q' => 'lumineux', 'contract_type' => $lumineux]))->json('data.previews'));
+
+        // La base est validée comme la liste.
+        $this->getJson($this->url.'?'.http_build_query(['q' => 'villa', 'contract_type' => 'leasing']))->assertStatus(422);
+    }
+
+    /**
+     * Contrat de la session (TCK-439/635, comme la navigation du front) : une `city` comprise dans la saisie retire aussi
+     * `location` et `region` de la base — une ville neuve invalide le quartier et la région d'avant.
+     */
+    public function test_une_ville_comprise_retire_le_quartier_et_la_region_de_la_base(): void
+    {
+        $base = ['location' => 'Mermoz', 'region' => 'Thiès'];
+        $interpretation = $this->getJson($this->url.'?'.http_build_query(['q' => 'appartement dakar', ...$base]))->assertOk()->json('data.interpretation');
+
+        $this->assertEquals(['type' => 'apartment', 'city' => 'Dakar'], $interpretation['criteria']);
+        $liste = $this->getJson('/api/public/properties/search?type=apartment&city=Dakar&placements=false')->assertOk();
+        $this->assertSame($liste->json('meta.total'), $interpretation['count']);
+        $this->assertSame(5, $interpretation['count']);
+
+        // Sans ville comprise, la base reste entière.
+        $sansVille = $this->getJson($this->url.'?'.http_build_query(['q' => 'appartement 3 chambres', 'location' => 'Mermoz']))->json('data.interpretation');
+        $this->assertSame(1, $sansVille['count']);
+    }
+
+    /**
+     * Contrat de la session (n° 9) — `widens` : la liste élargira-t-elle sous ces paramètres (ADR-0024) ? Le même prédicat
+     * que `PropertySearchService::search()` : zéro au régime exact ET au moins deux termes utiles au résidu.
+     */
+    public function test_widens_dit_si_la_liste_elargira(): void
+    {
+        $deux = $this->getJson($this->url.'?q='.rawurlencode('appart almadies lumineux calme'))->json('data.interpretation');
+        $this->assertSame(0, $deux['count']);
+        $this->assertTrue($deux['widens']);
+        $this->assertSame('widened', $this->getJson('/api/public/properties/search?'.http_build_query([...$deux['criteria'], 'q' => $deux['residue']]))->json('search.strategy'));
+
+        $un = $this->getJson($this->url.'?q='.rawurlencode('appart almadies introuvable'))->json('data.interpretation');
+        $this->assertSame(0, $un['count']);
+        $this->assertFalse($un['widens'], 'un seul terme utile : la liste n’élargit pas');
+        $this->assertSame('all', $this->getJson('/api/public/properties/search?'.http_build_query([...$un['criteria'], 'q' => $un['residue']]))->json('search.strategy'));
+
+        $vide = $this->getJson($this->url.'?q='.rawurlencode('villa piscine'))->json('data.interpretation');
+        $this->assertSame(0, $vide['count']);
+        $this->assertFalse($vide['widens'], 'aucun résidu');
+
+        $this->assertFalse($this->getJson($this->url.'?q='.rawurlencode('appart almadies lumineux'))->json('data.interpretation.widens'), 'des résultats');
+    }
+
     /** Avant le premier `search:build-suggestions` : la saisie comprise et ses biens, sans lieux ni complétions — pas une 500. */
     public function test_sans_index_des_suggestions_la_saisie_comprise_reste_servie(): void
     {
@@ -145,20 +223,21 @@ class SuggestInterpretationTest extends TestCase
         $this->assertSame([], $this->getJson($this->url.'?q=')->assertOk()->json('data.popular'));
     }
 
-    /** AC4 — les clés du front actuel gardent leur forme. */
+    /**
+     * AC4 — les clés que le front lit gardent leur forme. `cities` et `neighborhoods` ont quitté la réponse (décision du
+     * porteur du 2026-11-04, 4a) : le front lit `places`. `property_types` reste.
+     */
     public function test_ac4_les_cles_du_front_actuel_gardent_leur_forme(): void
     {
         $data = $this->getJson($this->url.'?q=almadies')->assertOk()->json('data');
 
-        foreach (['interpretation', 'completions', 'popular', 'places', 'previews', 'cities', 'neighborhoods', 'property_types'] as $cle) {
+        foreach (['interpretation', 'completions', 'popular', 'places', 'previews', 'property_types'] as $cle) {
             $this->assertArrayHasKey($cle, $data);
         }
-        $this->assertSame(['label', 'city', 'slug', 'count'], array_keys($data['neighborhoods'][0]));
-        $this->assertSame('Almadies', $data['neighborhoods'][0]['label']);
+        $this->assertArrayNotHasKey('cities', $data);
+        $this->assertArrayNotHasKey('neighborhoods', $data);
 
         $types = $this->getJson($this->url.'?q=appar')->json('data.property_types');
         $this->assertSame(['label', 'value', 'count'], array_keys($types[0]));
-        $cities = $this->getJson($this->url.'?q=dak')->json('data.cities');
-        $this->assertSame(['label', 'slug', 'count'], array_keys($cities[0]));
     }
 }

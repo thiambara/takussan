@@ -6,6 +6,7 @@ use App\Models\Enums\PlatformProfileLevel;
 use App\Models\GeoCity;
 use App\Models\GeoNeighborhood;
 use App\Models\SearchAlias;
+use App\Models\SearchAliasSetting;
 use App\Services\Search\Query\SearchQueryParser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\OperateursPlateforme;
@@ -76,14 +77,75 @@ class SearchAliasApiTest extends TestCase
         $this->patchJson($this->url.'/'.$this->wakam->id, [])->assertUnprocessable();
     }
 
+    // ── Le réglage (revue adverse du 2026-11-04, 13a) ────────────────────────────────────────────
+
+    public function test_le_reglage_se_lit_eteint_et_sans_operateur(): void
+    {
+        $this->agirEnOperateur(PlatformProfileLevel::SuperAdmin);
+
+        $this->getJson($this->url.'/settings')->assertOk()
+            ->assertExactJson(['data' => [
+                'enabled' => false,
+                'operator' => null,
+                'enabled_at' => null,
+                'blocked_reason' => SearchAliasSetting::BLOCKED_DISABLED,
+                'last_run_at' => null,
+                'last_run_outcome' => null,
+            ]]);
+    }
+
+    /** Celui qui allume devient l'opérateur ; un second « allumer » ne le lui prend pas ; éteindre le garde affiché. */
+    public function test_celui_qui_allume_devient_l_operateur(): void
+    {
+        $first = $this->agirEnOperateur(PlatformProfileLevel::SuperAdmin);
+        $this->patchJson($this->url.'/settings', ['enabled' => true])->assertOk()
+            ->assertJsonPath('data.enabled', true)
+            ->assertJsonPath('data.operator.id', $first->id)
+            ->assertJsonPath('data.blocked_reason', null);
+        $this->assertDatabaseHas('activity_log', ['event' => 'search_alias_settings_updated', 'causer_id' => $first->id]);
+
+        $this->agirEnOperateur(PlatformProfileLevel::SuperAdmin);
+        $this->patchJson($this->url.'/settings', ['enabled' => true])->assertOk()->assertJsonPath('data.operator.id', $first->id);
+        $this->patchJson($this->url.'/settings', ['enabled' => false])->assertOk()
+            ->assertJsonPath('data.enabled', false)
+            ->assertJsonPath('data.operator.id', $first->id)
+            ->assertJsonPath('data.blocked_reason', SearchAliasSetting::BLOCKED_DISABLED);
+    }
+
+    /** Allumé mais son opérateur disparu : rallumer le reprend, sans l'éteindre d'abord. */
+    public function test_rallumer_reprend_un_reglage_dont_l_operateur_a_disparu(): void
+    {
+        $first = $this->agirEnOperateur(PlatformProfileLevel::SuperAdmin);
+        $this->patchJson($this->url.'/settings', ['enabled' => true])->assertOk();
+        $first->platformProfile()->update(['revoked_at' => now()]);
+
+        $second = $this->agirEnOperateur(PlatformProfileLevel::SuperAdmin);
+        $this->getJson($this->url.'/settings')->assertOk()->assertJsonPath('data.blocked_reason', SearchAliasSetting::BLOCKED_OPERATOR_MISSING);
+        $this->patchJson($this->url.'/settings', ['enabled' => true])->assertOk()
+            ->assertJsonPath('data.operator.id', $second->id)
+            ->assertJsonPath('data.blocked_reason', null);
+    }
+
+    public function test_le_reglage_refuse_une_valeur_absente_ou_invalide(): void
+    {
+        $this->agirEnOperateur(PlatformProfileLevel::SuperAdmin);
+
+        $this->patchJson($this->url.'/settings', [])->assertUnprocessable();
+        $this->patchJson($this->url.'/settings', ['enabled' => 'peut-etre'])->assertUnprocessable();
+        $this->assertFalse(SearchAliasSetting::current()->enabled);
+    }
+
     public function test_sous_le_super_admin_tout_est_refuse(): void
     {
         foreach ([PlatformProfileLevel::Viewer, PlatformProfileLevel::Support] as $level) {
             $this->agirEnOperateur($level);
             $this->getJson($this->url)->assertForbidden();
             $this->patchJson($this->url.'/'.$this->wakam->id, ['status' => 'rejected'])->assertForbidden();
+            $this->getJson($this->url.'/settings')->assertForbidden();
+            $this->patchJson($this->url.'/settings', ['enabled' => true])->assertForbidden();
         }
         $this->assertSame('active', $this->wakam->fresh()->status->value);
+        $this->assertFalse(SearchAliasSetting::current()->enabled);
     }
 
     /** La garde de l'espace `/api/admin` (TCK-144) : un admin d'agence est refusé, la variante liée existe (pas un 404). */
@@ -93,5 +155,7 @@ class SearchAliasApiTest extends TestCase
 
         $this->getJson($this->url)->assertForbidden();
         $this->patchJson($this->url.'/'.$this->wakam->id, ['status' => 'rejected'])->assertForbidden();
+        $this->getJson($this->url.'/settings')->assertForbidden();
+        $this->patchJson($this->url.'/settings', ['enabled' => true])->assertForbidden();
     }
 }

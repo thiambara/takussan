@@ -2,6 +2,7 @@
 
 namespace App\Services\Search\Suggestions;
 
+use App\Http\Requests\Search\SuggestRequest;
 use App\Models\Property;
 use App\Services\Media\PublicPhotoUrl;
 use App\Services\Search\PropertySearchService;
@@ -25,6 +26,12 @@ use Meilisearch\Exceptions\ApiException;
  * - `places` et `completions` : l'index des suggestions. Les lieux sont cherchés sur le texte encore incompris (le
  *   résidu : « appart 3ch alm » → Almadies), sinon sur le texte du lieu compris, sinon sur la saisie entière.
  * - `previews` : au plus 3 biens, ceux de la même requête que `count` (sans interprétation : la saisie en plein texte).
+ * - **La base** (revue adverse n° 5, 2026-11-04) : les filtres de la liste que la navigation garde, validés comme la
+ *   liste ({@see SuggestRequest::BASE_KEYS}). Un critère compris REMPLACE la même clé de la
+ *   base, les autres clés de la base restent — sauf qu'une `city` comprise retire aussi `location` et `region` de la base
+ *   (comme la navigation, TCK-439/635) ; `count` et `previews` portent la fusion, `criteria` la seule saisie.
+ * - `interpretation.widens` : vrai si la liste ÉLARGIRA sous ces paramètres ({@see PropertySearchService::wouldWiden()},
+ *   le même prédicat) — le front n'annonce « des biens proches » que dans ce cas (revue adverse n° 9).
  * - `popular` : à saisie vide seulement, les recherches populaires par poids.
  *
  * Tous les `count` sont des nombres de BIENS que la liste rend : en direct pour `interpretation`, au dernier passage de
@@ -38,6 +45,14 @@ final class SearchSuggestions
 
     public const COMPLETIONS_MAX = 5;
 
+    /**
+     * Revue adverse n° 6 (2026-11-04) — la borne de `throttle:search-suggest`, par visiteur et par minute. La barre
+     * suggère à chaque frappe : une saisie de 31 caractères coûte une trentaine d'appels, et 60/min coupait un visiteur
+     * à sa deuxième saisie de la minute (derrière le NAT d'un opérateur mobile, des inconnus se partagent le seau). Une
+     * réponse coûte 1 à 12 ms au p50 (mesuré le 2026-11-04) : 300 laisse une dizaine de saisies par minute.
+     */
+    public const RATE_PER_MINUTE = 300;
+
     private const RETRIEVED = ['kind', 'label_fr', 'label_en', 'label_wo', 'value', 'city', 'criteria', 'count'];
 
     public function __construct(
@@ -47,9 +62,10 @@ final class SearchSuggestions
     ) {}
 
     /**
+     * @param  array<string, mixed>  $base  les filtres validés de la liste que la saisie ouvrira
      * @return array{interpretation: array<string, mixed>|null, completions: list<array<string, mixed>>, popular: list<array<string, mixed>>, places: list<array<string, mixed>>, previews: list<array<string, mixed>>}
      */
-    public function resolve(string $q, int $limit, string $locale): array
+    public function resolve(string $q, int $limit, string $locale, array $base = []): array
     {
         $q = trim($q);
         $uid = SuggestionIndex::uid();
@@ -72,9 +88,15 @@ final class SearchSuggestions
         }
 
         $parsed = $this->parser->parse($q, $locale);
+        // La fusion : la saisie remplace la même clé de la base, le reste de la base demeure. Comme la navigation
+        // (TCK-439/635) : une ville comprise retire aussi le quartier et la région de la base.
+        unset($base['q'], $base['search']);
+        if ($parsed->understood && array_key_exists('city', $parsed->criteria)) {
+            unset($base['location'], $base['region']);
+        }
         $params = $parsed->understood
-            ? [...$parsed->criteria, 'q' => $parsed->residue ?? '']
-            : ['q' => $q];
+            ? [...$base, ...$parsed->criteria, 'q' => $parsed->residue ?? '']
+            : [...$base, 'q' => $q];
         $placeText = $this->placeText($q, $parsed);
 
         $queries = [
@@ -107,6 +129,8 @@ final class SearchSuggestions
                 ], $parsed->parts),
                 'residue' => $parsed->residue,
                 'count' => (int) ($properties['totalHits'] ?? 0),
+                // La liste élargira-t-elle sous ces paramètres (ADR-0024) ? Le prédicat même de la liste.
+                'widens' => $this->search->wouldWiden($parsed->residue ?? '', (int) ($properties['totalHits'] ?? 0)),
             ] : null,
             'completions' => $suggestionsServed
                 ? array_map(fn (array $hit): array => $this->completion($hit, $locale), $results['completions']['hits'] ?? [])

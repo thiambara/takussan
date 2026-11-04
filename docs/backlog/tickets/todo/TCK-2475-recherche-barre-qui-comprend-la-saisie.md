@@ -119,6 +119,8 @@ compte et la recherche sauvegardée existent (TCK-599) : les réutiliser.
   l'app traduit types et périodes) et quitte les 9 sous-frontières qui le déclaraient ; `(dashboard)/app` à 32,4 %
   (plafond 38 %).
 
+- **2026-11-04, revue adverse (n° 5, 6, 9)** : la barre envoie à `/api/search/suggest` les filtres de la base (`filtresDeLaBase` : URL courante + `imposer`, noms de la liste, sans `q`/page/tri) — le compte annoncé est celui de la liste ouverte, fusion de `parametresVersLaListe` (critère compris remplace sa clé, ville comprise retire quartier et région, le reste de la base demeure) ; la base entre dans la clé de cache. Anti-rebond 100 → 200 ms sur la frappe brute, saisie normalisée ensuite (espaces) : 31 caractères à 150 ms par touche = 1 appel (29 avant). « Voir des biens proches » seulement si la liste s'élargira (`laListeSElargira` : `interpretation.widens` s'il est rendu, sinon au moins deux mots distincts au résidu, ADR-0024) ; sinon « 0 bien », l'alerte reste proposée. Tests : `SearchAutocomplete.compte-et-rythme.test.tsx`, `suggestions-de-recherche.test.ts`, chacun vérifié par ablation. ⚠ La ligne de `docs/features.md` (« sans bien exact, « Voir des biens proches » ») est à reprendre par `/sync-specs`.
+
 ### À reporter dans les specs (`docs/features.md`, `/sync-specs`)
 
 - Ligne « Suggestions d'autocomplétion » : la barre de recherche (navbar publique, saisie mobile, barre de l'app) —

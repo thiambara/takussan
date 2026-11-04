@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * TCK-2476 (ADR-0088 §7) — un passage des variantes d'écriture ({@see SearchAliasCurator}), en file `ai`. Mis en file par
- * `search:refresh-aliases` (chaque semaine).
+ * `search:refresh-aliases` (chaque semaine), seulement quand le réglage `search_alias_settings` est allumé.
  *
  * Unique (un seul en file ou en cours) et idempotent : les mêmes saisies que le dernier passage n'appellent pas le
  * modèle, et une variante est unique par (écriture, sorte, cible). Une tentative : un échec attend le passage suivant.
@@ -35,7 +35,7 @@ class RefreshSearchAliases implements ShouldBeUnique, ShouldQueue
 
     public int $uniqueFor = 600;
 
-    /** @param  int|null  $operatorId  le `super_admin` au nom duquel l'usage est jugé ; `null` : le plus ancien actif */
+    /** @param  int|null  $operatorId  un lancement manuel, au nom de cet utilisateur ; `null` : l'opérateur du réglage */
     public function __construct(public readonly ?int $operatorId = null)
     {
         $this->onAiQueue();

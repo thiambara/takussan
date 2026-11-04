@@ -57,6 +57,28 @@ final class SearchQueryParser
      */
     private const MAX_PRICE = 1_000_000_000_000;
 
+    /**
+     * Le plus grand nombre de chambres que la liste accepte (`SearchPublicPropertyRequest`, `bedrooms` : `max:50`). Au-delà,
+     * « 150 chambres » n'est ni un compte (la liste rendrait 422) ni le type chambre : la phrase reste au résidu.
+     */
+    private const MAX_BEDROOMS = 50;
+
+    /**
+     * Revue adverse n° 4 (2026-11-04) — « sans piscine », « pas de clim », « without pool » : l'équipement nié n'est PAS
+     * un critère (le filtre `tags` exigerait la piscine), ni un mot à chercher (le texte « piscine » ramènerait les biens
+     * qui en ont une). La phrase est lue, et n'émet rien. `pas` n'est une négation que devant un équipement.
+     */
+    private const NEGATIONS = ['sans', 'pas', 'without', 'no'];
+
+    /** L'article qui peut suivre la négation : « sans LA piscine », « pas D'ascenseur », « without A pool ». */
+    private const NEGATED_ARTICLES = ['de', 'd', 'le', 'la', 'les', 'l', 'un', 'une', 'the', 'a', 'any'];
+
+    /**
+     * Revue adverse n° 10 — un type qui n'est pas un logement : « vide » d'un terrain veut dire nu ou libre, pas « non
+     * meublé », et l'ameublement n'en filtre rien. Seuls, ces types n'émettent pas `furnished`.
+     */
+    private const NOT_FURNISHABLE = ['land', 'parking', 'garage'];
+
     /** Mots de liaison : absorbés seulement devant ce qui a été compris (au plus deux d'affilée). */
     private const CONNECTORS = [
         'a', 'au', 'aux', 'en', 'de', 'du', 'des', 'd', 'avec', 'with', 'in', 'at', 'sur', 'pour', 'for',
@@ -278,6 +300,59 @@ final class SearchQueryParser
         return array_keys($terms);
     }
 
+    /**
+     * Revue adverse n° 3 (2026-11-04) — les écritures du vocabulaire qui émettent ce critère (« apartment » →
+     * `appartement`, `appart`, `appt`…), repliées : ce dont une variante `search.variantes` doit être PROCHE.
+     *
+     * @return list<string>
+     */
+    public static function spellingsOf(string $key, string|bool $value): array
+    {
+        $spellings = [];
+        foreach (self::vocabulary() as $entries) {
+            foreach ($entries as $entry) {
+                if ($entry['key'] === $key && $entry['value'] === $value) {
+                    $spellings[] = implode(' ', $entry['words']);
+                }
+            }
+        }
+
+        return array_values(array_unique($spellings));
+    }
+
+    /**
+     * Revue adverse n° 3 — un mot que l'analyse LIT déjà, ou qu'elle écarte comme mot vide : mot vide, mot de liaison,
+     * négation, opérateur, unité, nombre écrit, et tout mot d'une phrase du vocabulaire, toutes langues confondues. Une
+     * variante de lieu ou de type n'en est jamais faite : « proche » → Almadies détournerait toute saisie qui le porte.
+     */
+    public static function isCommonWord(string $word): bool
+    {
+        static $common = null;
+        if ($common === null) {
+            $words = [
+                ...self::STOPWORDS, ...self::CONNECTORS, ...self::NEGATIONS, ...self::NEGATED_ARTICLES,
+                ...self::BEDROOM_UNITS, ...self::PIECE_UNITS, ...self::SALON_WORDS, ...array_keys(self::NUMBER_WORDS),
+                ...self::MULTIPLIERS, ...self::CURRENCIES, ...array_keys(self::AREA_UNITS), ...self::RANGE_INTROS,
+            ];
+            foreach ([self::MAX_OPS, self::MIN_OPS, self::TRAILING_MAX, self::TRAILING_MIN, self::NOT_PLACES] as $phrases) {
+                foreach ($phrases as $phrase) {
+                    array_push($words, ...explode(' ', $phrase));
+                }
+            }
+            foreach (self::RANGES as $pair) {
+                array_push($words, ...$pair);
+            }
+            foreach (self::vocabulary() as $entries) {
+                foreach ($entries as $entry) {
+                    array_push($words, ...$entry['words']);
+                }
+            }
+            $common = array_fill_keys(array_filter($words, static fn (string $w): bool => preg_match('/^[a-z]+$/', $w) === 1), true);
+        }
+
+        return isset($common[$word]) || isset($common[self::singular($word)]);
+    }
+
     /** @return list<string> les noms d'équipements que le parseur peut émettre */
     public static function amenityNames(): array
     {
@@ -336,8 +411,17 @@ final class SearchQueryParser
         $tags = [];
         $impliedCity = null;
         $parts = [];
+        $notFurnishable = self::onlyNotFurnishable($matches);
 
         foreach ($matches as $m) {
+            // Lue et sans critère : une négation, ou l'ameublement d'un terrain. Ni critère, ni résidu.
+            if ($m['ignored'] || ($notFurnishable && $m['items'] !== [] && array_unique(array_column($m['items'], 0)) === ['furnished'])) {
+                for ($k = $m['start']; $k < $m['start'] + $m['len']; $k++) {
+                    $understood[$k] = true;
+                }
+
+                continue;
+            }
             if ($m['residue'] || $m['items'] === []) {
                 // Une phrase gardée entière à dessein : ses mots de liaison restent avec elle.
                 for ($k = $m['start']; $k < $m['start'] + $m['len'] && $m['residue']; $k++) {
@@ -388,6 +472,25 @@ final class SearchQueryParser
         }
 
         return new ParsedQuery($criteria, $parts, $this->residue($understood, $kept), $criteria !== []);
+    }
+
+    /**
+     * Vrai si la saisie ne comprend que des types qui ne se meublent pas ({@see self::NOT_FURNISHABLE}).
+     *
+     * @param  list<array{items: list<array{0: string, 1: string|int|bool}>, residue: bool}>  $matches
+     */
+    private static function onlyNotFurnishable(array $matches): bool
+    {
+        $types = [];
+        foreach ($matches as $m) {
+            foreach ($m['residue'] ? [] : $m['items'] as [$key, $value]) {
+                if ($key === 'type') {
+                    $types[] = $value;
+                }
+            }
+        }
+
+        return $types !== [] && array_diff($types, self::NOT_FURNISHABLE) === [];
     }
 
     /**
@@ -500,6 +603,7 @@ final class SearchQueryParser
         $best = null;
         foreach ([
             $this->notPlace($i),
+            $this->negation($i),
             $this->range($i),
             $this->operator($i),
             $this->bedrooms($i),
@@ -519,9 +623,9 @@ final class SearchQueryParser
      * @param  list<array{0: string, 1: string|int|bool}>  $items
      * @return array{start: int, len: int, items: list<array{0: string, 1: string|int|bool}>, residue: bool, with: bool, impliedCity: ?string}
      */
-    private static function found(int $start, int $end, array $items, bool $residue = false, ?string $impliedCity = null): array
+    private static function found(int $start, int $end, array $items, bool $residue = false, ?string $impliedCity = null, bool $ignored = false): array
     {
-        return ['start' => $start, 'len' => $end - $start + 1, 'items' => $items, 'residue' => $residue, 'with' => false, 'impliedCity' => $impliedCity];
+        return ['start' => $start, 'len' => $end - $start + 1, 'items' => $items, 'residue' => $residue, 'with' => false, 'impliedCity' => $impliedCity, 'ignored' => $ignored];
     }
 
     // ───────────────────────────────────────────────────────── les lecteurs
@@ -536,6 +640,29 @@ final class SearchQueryParser
         }
 
         return null;
+    }
+
+    /** « sans piscine », « pas de clim », « without pool » : lue, et rien n'en sort ({@see self::NEGATIONS}). */
+    private function negation(int $i): ?array
+    {
+        if (! in_array($this->f[$i], self::NEGATIONS, true)) {
+            return null;
+        }
+        $k = $i + 1;
+        if (in_array($this->f[$k] ?? null, self::NEGATED_ARTICLES, true)) {
+            $k++;
+        }
+        $m = isset($this->f[$k]) ? ($this->phrase($k) ?? $this->fuzzy($k)) : null;
+        if ($m === null || $m['items'] === []) {
+            return null;
+        }
+        foreach ($m['items'] as [$key, $value]) {
+            if ($key !== 'tags' && ! ($key === 'type' && isset(self::TYPE_OR_AMENITY[$value]))) {
+                return null;
+            }
+        }
+
+        return self::found($i, $m['start'] + $m['len'] - 1, [], ignored: true);
     }
 
     /** « entre 300k et 600k », « de 50 à 80 millions », « 300k-600k », « entre 200 et 400 m2 », « 2 à 3 chambres ». */
@@ -678,6 +805,9 @@ final class SearchQueryParser
     private function countFound(int $start, int $end, int $n, bool $pieces): ?array
     {
         $bedrooms = $pieces ? max(0, $n - 1) : $n;
+        if ($bedrooms > self::MAX_BEDROOMS) {
+            return self::found($start, $end, [], residue: true);
+        }
 
         foreach (self::TRAILING_MAX as $phrase) {
             $len = $this->phraseAt($end + 1, $phrase);
@@ -841,7 +971,9 @@ final class SearchQueryParser
         if (preg_match('/^(\d{1,2})\+?('.implode('|', [...self::BEDROOM_UNITS, ...self::PIECE_UNITS]).')$/', $t, $mm) === 1) {
             $end = in_array($mm[2], self::BEDROOM_UNITS, true) ? $this->afterSalon($j) : $j;
 
-            return self::quantityOf('count', (int) $mm[1], $mm[1], $end, $t, pieces: in_array($mm[2], self::PIECE_UNITS, true));
+            return (int) $mm[1] > self::MAX_BEDROOMS
+                ? self::quantityOf('noise', 0, $mm[1], $end, $t)
+                : self::quantityOf('count', (int) $mm[1], $mm[1], $end, $t, pieces: in_array($mm[2], self::PIECE_UNITS, true));
         }
         // « 300m2 », « 1,5ha »
         if (preg_match('/^(\d+(?:[.,]\d+)?)(m2|mc|sqm|ha|hectares?)$/', $t, $mm) === 1) {
@@ -864,6 +996,8 @@ final class SearchQueryParser
             return null;
         }
         $suffix = $senegaleseMillion ? '' : $sm[2];
+        $fraction = 0;
+        $fractionEnd = null;
         $digits = implode('', array_map(static fn (string $p): string => (string) preg_replace('/[a-z]+$/', '', $p), array_slice($f, $j, $k - $j + 1)));
         $end = $k;
         $mult = null;
@@ -873,8 +1007,12 @@ final class SearchQueryParser
             $mult = 'm';
         } elseif ($suffix === '') {
             $unit = $this->countUnit($k + 1);
-            if ($unit !== null && $k === $j && ctype_digit($t) && (int) $t <= 20) {
-                return self::quantityOf('count', (int) $t, $t, $unit['end'], $t, pieces: $unit['pieces']);
+            // « 25 chambres » est un compte (revue adverse n° 11 : au-delà de 20, « chambres » retombait sur le type) ;
+            // au-delà de ce que la liste accepte, la phrase entière reste au résidu.
+            if ($unit !== null && $k === $j && ctype_digit($t)) {
+                return (int) $t <= self::MAX_BEDROOMS
+                    ? self::quantityOf('count', (int) $t, $t, $unit['end'], $t, pieces: $unit['pieces'])
+                    : self::quantityOf('noise', 0, $t, $unit['end'], $t);
             }
             $area = $this->areaUnit($k + 1);
             if ($area !== null) {
@@ -886,10 +1024,12 @@ final class SearchQueryParser
                 $mult = $f[$k + 1];
                 $end = $k + 1;
                 $marked = true;
+                [$fraction, $fractionEnd] = $this->millionFraction($end);
             }
         } elseif (in_array($suffix, self::MULTIPLIERS, true)) {
             $mult = $suffix;
             $marked = true;
+            [$fraction, $fractionEnd] = $this->millionFraction($k);
         } elseif (in_array($suffix, self::CURRENCIES, true)) {
             $marked = true;
         } elseif (isset(self::AREA_UNITS[$suffix])) {
@@ -900,6 +1040,8 @@ final class SearchQueryParser
             return null;
         }
 
+        $amountEnd = $end;
+        $end = $fractionEnd ?? $end;
         if ($suffix === '' || $mult !== null) {
             if (in_array($f[$end + 1] ?? null, self::CURRENCIES, true)) {
                 $end++;
@@ -910,8 +1052,9 @@ final class SearchQueryParser
             }
         }
 
-        $raw = mb_substr($this->q, $this->tokens[$j]['from'], $this->tokens[$end]['to'] - $this->tokens[$j]['from']);
+        $raw = mb_substr($this->q, $this->tokens[$j]['from'], $this->tokens[$fractionEnd === null ? $end : $amountEnd]['to'] - $this->tokens[$j]['from']);
         $amount = RadarAmountParser::parse($raw)['amount'] ?? null;
+        $amount = $amount === null ? null : $amount + $fraction;
         if ($amount !== null && $amount > self::MAX_PRICE) {
             return self::quantityOf('noise', 0, $digits, $end, $raw);
         }
@@ -926,6 +1069,30 @@ final class SearchQueryParser
     private static function quantityOf(string $kind, int $value, string $number, int $end, string $raw, ?string $mult = null, bool $marked = false, bool $pieces = false): array
     {
         return compact('kind', 'value', 'number', 'end', 'raw', 'mult', 'marked', 'pieces');
+    }
+
+    /**
+     * Revue adverse n° 11 — « 2 millions 500 » : après « million(s) » en `$at`, un nombre de deux ou trois chiffres que
+     * rien ne suit (ni unité de compte ou de surface, ni autre multiplicateur que « mille », ni groupe de trois chiffres)
+     * est la part des milliers — 2 500 000, comme on le dit. Un seul chiffre ne l'est pas : « 2 millions 5 » se lit
+     * aussi 2,5 M, et « 2 millions 3 chambres » compte des chambres.
+     *
+     * @return array{0: int, 1: ?int} la part (en XOF) et le dernier jeton lu, ou `[0, null]`
+     */
+    private function millionFraction(int $at): array
+    {
+        $f = $this->f;
+        $t = $f[$at + 1] ?? null;
+        if (! in_array($f[$at], ['million', 'millions'], true) || $t === null || preg_match('/^\d{2,3}$/', $t) !== 1 || $this->tokens[$at + 1]['phone']) {
+            return [0, null];
+        }
+        $next = $f[$at + 2] ?? null;
+        if ($this->countUnit($at + 2) !== null || $this->areaUnit($at + 2) !== null || ($next !== null && preg_match('/^\d{3}$/', $next) === 1)
+            || ($next !== 'mille' && in_array($next, self::MULTIPLIERS, true))) {
+            return [0, null];
+        }
+
+        return [(int) $t * 1000, $next === 'mille' ? $at + 2 : $at + 1];
     }
 
     /** @return array{end: int, pieces: bool}|null « chambres », « + chambres », « ch salon », « pièces » en `$j` */

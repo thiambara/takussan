@@ -330,15 +330,17 @@ describe('AC2 — champ vide : récentes et populaires', () => {
 describe('AC3 — sans résultat : l’alerte, pré-remplie', () => {
   const SANS_BIEN = vide({ interpretation: { ...APPART_3CH_ALMADIES.data.interpretation!, count: 0 } });
 
-  it('compte nul : la ligne comprise reste une issue (« Voir des biens proches ») et l’alerte est proposée', async () => {
+  // Revue adverse du 2026-11-04 (n° 9) — sans résidu, la liste ne s'élargira pas : la ligne dit « 0 bien », sans promesse
+  // de « biens proches » (la promesse sous un résidu de deux mots : `SearchAutocomplete.compte-et-rythme.test.tsx`).
+  it('compte nul : la ligne comprise dit « 0 bien » (rien ne l’élargira) et l’alerte est proposée', async () => {
     api.reponses.set('', vide());
     api.reponses.set('appart 3ch almadies', SANS_BIEN);
     monter(<SearchAutocomplete imposer={{ contract_type: 'rent' }} />);
     const champ = screen.getByRole('combobox');
     await userEvent.type(champ, 'appart 3ch almadies');
 
-    const comprise = await screen.findByRole('option', { name: /Voir des biens proches/ });
-    expect(comprise).not.toHaveTextContent('0 bien');
+    const comprise = await screen.findByRole('option', { name: /0 bien/ });
+    expect(comprise).not.toHaveTextContent('Voir des biens proches');
     const alerte = screen.getByRole('option', { name: 'Être alerté quand un bien correspond' });
 
     await userEvent.click(alerte);
@@ -351,13 +353,26 @@ describe('AC3 — sans résultat : l’alerte, pré-remplie', () => {
     expect(screen.queryByRole('listbox')).toBeNull();
   });
 
-  it('compte nul : la ligne comprise mène quand même à la liste (elle peut s’élargir)', async () => {
+  it('compte nul sous un résidu de deux mots : la ligne comprise mène à la liste, qui s’élargira', async () => {
+    api.reponses.set('', vide());
+    api.reponses.set('appart 3ch almadies vue mer', vide({
+      interpretation: { ...APPART_3CH_ALMADIES.data.interpretation!, residue: 'vue mer', count: 0 },
+    }));
+    monter();
+    await userEvent.click(await (async () => {
+      await userEvent.type(screen.getByRole('combobox'), 'appart 3ch almadies vue mer');
+      return screen.findByRole('option', { name: /Voir des biens proches/ });
+    })());
+    expect(push).toHaveBeenCalledWith('/fr/properties?location=Almadies&city=Dakar&type=apartment&bedrooms=3&q=vue+mer');
+  });
+
+  it('compte nul sans résidu : la ligne comprise mène quand même à la liste', async () => {
     api.reponses.set('', vide());
     api.reponses.set('appart 3ch almadies', SANS_BIEN);
     monter();
     await userEvent.click(await (async () => {
       await userEvent.type(screen.getByRole('combobox'), 'appart 3ch almadies');
-      return screen.findByRole('option', { name: /Voir des biens proches/ });
+      return screen.findByRole('option', { name: /0 bien/ });
     })());
     expect(push).toHaveBeenCalledWith('/fr/properties?location=Almadies&city=Dakar&type=apartment&bedrooms=3');
   });

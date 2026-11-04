@@ -6,8 +6,10 @@ use App\Models\Address;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyType;
 use App\Models\Property;
+use App\Services\Search\Suggestions\SearchSuggestions;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Tests\Concerns\BuildsSearchSuggestions;
 use Tests\Concerns\InteractsWithMeilisearch;
 use Tests\TestCase;
 
@@ -26,23 +28,43 @@ use Tests\TestCase;
  */
 class SearchSuggestTest extends TestCase
 {
+    use BuildsSearchSuggestions;
     use InteractsWithMeilisearch;
     use RefreshDatabase;
 
     private string $url = '/api/search/suggest';
 
+    /**
+     * Revue du 2026-11-04, décision du porteur (4a) — `cities` et `neighborhoods` (`SuggestService`, deux à trois appels
+     * moteur par frappe) ont quitté la réponse : plus rien ne les lit côté front, qui lit `places` (l'index des
+     * suggestions, TCK-2474). Les propriétés que ces tests gardaient — préfixe, casse et accents, brouillons écartés,
+     * quartier avec sa ville, faute de frappe, compte égal à la liste — sont gardées ici sur `places`.
+     */
+    public function test_les_anciennes_cles_cities_et_neighborhoods_ont_quitte_la_reponse(): void
+    {
+        $this->seedPublishedPropertyInNeighborhood('Dakar', 'Mermoz', 1);
+        $this->indexProperties();
+        $this->buildSuggestions();
+
+        foreach (['', 'da', 'mermoz'] as $q) {
+            $data = $this->getJson($this->url.'?q='.urlencode($q))->assertOk()->json('data');
+            $this->assertArrayNotHasKey('cities', $data, "« {$q} »");
+            $this->assertArrayNotHasKey('neighborhoods', $data, "« {$q} »");
+            $this->assertArrayHasKey('property_types', $data, "« {$q} »");
+        }
+    }
+
     public function test_returns_cities_matching_prefix(): void
     {
         $this->seedPublishedPropertyInCity('Dakar', 3);
         $this->indexProperties();
+        $this->buildSuggestions();
 
-        $response = $this->getJson($this->url.'?q=da');
+        $places = $this->getJson($this->url.'?q=da')->assertOk()->json('data.places');
 
-        $response->assertOk();
-        $cities = $response->json('data.cities');
-        $this->assertNotEmpty($cities);
-        $found = collect($cities)->firstWhere('label', 'Dakar');
-        $this->assertNotNull($found);
+        $found = collect($places)->firstWhere('label', 'Dakar');
+        $this->assertNotNull($found, json_encode($places));
+        $this->assertSame('city', $found['kind']);
         $this->assertEquals(3, $found['count']);
     }
 
@@ -50,13 +72,11 @@ class SearchSuggestTest extends TestCase
     {
         $this->seedPublishedPropertyInCity('Saint-Louis', 2);
         $this->indexProperties();
+        $this->buildSuggestions();
 
         foreach (['saint-l', 'SAINT', 'Saint-Louis'] as $query) {
-            $response = $this->getJson($this->url.'?q='.urlencode($query));
-            $response->assertOk();
-            $cities = $response->json('data.cities');
-            $found = collect($cities)->firstWhere('label', 'Saint-Louis');
-            $this->assertNotNull($found, "Query '{$query}' should match Saint-Louis");
+            $places = $this->getJson($this->url.'?q='.urlencode($query))->assertOk()->json('data.places');
+            $this->assertNotNull(collect($places)->firstWhere('label', 'Saint-Louis'), "Query '{$query}' should match Saint-Louis");
         }
     }
 
@@ -79,44 +99,23 @@ class SearchSuggestTest extends TestCase
         ]);
 
         $this->indexProperties();
+        $this->buildSuggestions();
 
-        $response = $this->getJson($this->url.'?q=Thi');
-        $response->assertOk();
-
-        $cities = $response->json('data.cities');
-        $found = collect($cities)->firstWhere('label', 'Thiès');
+        $found = collect($this->getJson($this->url.'?q=Thi')->assertOk()->json('data.places'))->firstWhere('label', 'Thiès');
         $this->assertNotNull($found);
         $this->assertEquals(1, $found['count']);
     }
 
     public function test_neighborhoods_grouped_with_city_context(): void
     {
-        $property1 = Property::factory()->published()->create();
-        Address::factory()->create([
-            'addressable_type' => Property::class,
-            'addressable_id' => $property1->id,
-            'city' => 'Dakar',
-            'neighborhood' => 'Almadies',
-        ]);
-
-        $property2 = Property::factory()->published()->create();
-        Address::factory()->create([
-            'addressable_type' => Property::class,
-            'addressable_id' => $property2->id,
-            'city' => 'Dakar',
-            'neighborhood' => 'Mermoz',
-        ]);
-
+        $this->seedPublishedPropertyInNeighborhood('Dakar', 'Almadies', 1);
+        $this->seedPublishedPropertyInNeighborhood('Dakar', 'Mermoz', 1);
         $this->indexProperties();
+        $this->buildSuggestions();
 
-        $response = $this->getJson($this->url.'?q=a');
-        $response->assertOk();
-
-        $neighborhoods = $response->json('data.neighborhoods');
-        $this->assertNotEmpty($neighborhoods);
-        $almadies = collect($neighborhoods)->firstWhere('label', 'Almadies');
+        $almadies = collect($this->getJson($this->url.'?q=alm')->assertOk()->json('data.places'))->firstWhere('label', 'Almadies');
         $this->assertNotNull($almadies);
-        $this->assertArrayHasKey('city', $almadies);
+        $this->assertSame('neighborhood', $almadies['kind']);
         $this->assertEquals('Dakar', $almadies['city']);
     }
 
@@ -181,44 +180,47 @@ class SearchSuggestTest extends TestCase
 
     public function test_empty_query_returns_empty_groups(): void
     {
-        $response = $this->getJson($this->url.'?q=');
-        $response->assertOk();
-        $response->assertJson([
-            'data' => [
-                'cities' => [],
-                'neighborhoods' => [],
-                'property_types' => [],
-            ],
-        ]);
-    }
+        $data = $this->getJson($this->url.'?q=')->assertOk()->json('data');
 
-    public function test_rate_limit_returns_429_after_60_requests(): void
-    {
-        for ($i = 0; $i < 60; $i++) {
-            $this->getJson($this->url.'?q=da');
-        }
-
-        $response = $this->getJson($this->url.'?q=da');
-        $response->assertStatus(429);
+        $this->assertSame([], $data['property_types']);
+        $this->assertArrayNotHasKey('cities', $data);
+        $this->assertArrayNotHasKey('neighborhoods', $data);
     }
 
     /**
-     * TCK-652 (piste P01.03) — la limite est PAR VISITEUR (TCK-107 : « 60 req/min/IP »).
-     * Sans `->by()`, `ThrottleRequests` compte sous une clé unique pour tout le site : les
-     * 60 appels d'un visiteur faisaient répondre 429 au suivant, quel qu'il soit.
+     * Revue adverse n° 6 (2026-11-04) — la barre suggère à chaque frappe (un appel par touche passé l'anti-rebond) :
+     * une saisie de 31 caractères coûte 29 appels, et la borne de 60/min coupait le visiteur à sa deuxième saisie de la
+     * minute. Elle est de {@see SearchSuggestions::RATE_PER_MINUTE} : deux saisies et leurs ouvertures (≈ 60 appels)
+     * passent toujours, la suivante au-delà de la borne non.
+     */
+    public function test_rate_limit_returns_429_after_the_bound(): void
+    {
+        $this->assertSame(300, SearchSuggestions::RATE_PER_MINUTE);
+        $codes = [];
+        for ($i = 0; $i < SearchSuggestions::RATE_PER_MINUTE; $i++) {
+            $codes[] = $this->getJson($this->url.'?q=')->getStatusCode();
+        }
+
+        $this->assertSame([200 => SearchSuggestions::RATE_PER_MINUTE], array_count_values($codes), 'aucune frappe coupée sous la borne');
+        $this->getJson($this->url.'?q=')->assertStatus(429);
+    }
+
+    /**
+     * TCK-652 (piste P01.03) — la limite est PAR VISITEUR (TCK-107). Sans `->by()`, `ThrottleRequests` compte sous une
+     * clé unique pour tout le site : les appels d'un visiteur faisaient répondre 429 au suivant, quel qu'il soit.
      */
     public function test_rate_limit_is_counted_per_visitor_ip(): void
     {
-        for ($i = 0; $i < 60; $i++) {
-            $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.1'])->getJson($this->url.'?q=da');
+        for ($i = 0; $i < SearchSuggestions::RATE_PER_MINUTE; $i++) {
+            $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.1'])->getJson($this->url.'?q=');
         }
 
         $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.1'])
-            ->getJson($this->url.'?q=da')
+            ->getJson($this->url.'?q=')
             ->assertStatus(429);
 
         $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.2'])
-            ->getJson($this->url.'?q=da')
+            ->getJson($this->url.'?q=')
             ->assertOk();
     }
 
@@ -285,17 +287,11 @@ class SearchSuggestTest extends TestCase
     {
         $this->seedPublishedPropertyInNeighborhood('Dakar', 'Mermoz', 4);
         $this->indexProperties();
+        $this->buildSuggestions();
 
-        $response = $this->getJson($this->url.'?q=mrmoz');
+        $found = collect($this->getJson($this->url.'?q=mrmoz')->assertOk()->json('data.places'))->firstWhere('label', 'Mermoz');
 
-        $response->assertOk();
-        $neighborhoods = $response->json('data.neighborhoods');
-        $found = collect($neighborhoods)->firstWhere('label', 'Mermoz');
-
-        $this->assertNotNull(
-            $found,
-            'Une faute de frappe sur 5 caracteres doit encore rendre Mermoz : c\'est tout l\'objet de la bascule sur le moteur.',
-        );
+        $this->assertNotNull($found, 'Une faute de frappe sur 5 caracteres doit encore rendre Mermoz.');
         $this->assertSame('Dakar', $found['city']);
         $this->assertSame(4, $found['count']);
     }
@@ -319,9 +315,11 @@ class SearchSuggestTest extends TestCase
         $this->seedPublishedPropertyInNeighborhood('Dakar', 'Mermoz', 1, PropertyStatus::Sold);
         $this->indexProperties();
 
+        $this->buildSuggestions();
+
         $suggestion = $this->getJson($this->url.'?q=mermoz');
         $suggestion->assertOk();
-        $found = collect($suggestion->json('data.neighborhoods'))->firstWhere('label', 'Mermoz');
+        $found = collect($suggestion->json('data.places'))->firstWhere('label', 'Mermoz');
         $this->assertNotNull($found);
 
         $recherche = $this->getJson('/api/public/properties/search?city=Dakar&location=Mermoz');

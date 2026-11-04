@@ -151,3 +151,13 @@ géographique — re-mesurer lequel `QuartierDuFiltre`/`VilleDuFiltre` utilisent
 - `docs/features.md` (recherche publique) : la saisie libre est analysée en critères (type, contrat, période, prix,
   chambres en minimum, surface, meublé, ville, quartier, équipements) ; ce qui n'est pas compris reste cherché en texte.
   Le branchement dans la recherche et la suggestion est TCK-2474.
+
+### Revue adverse du 2026-11-04 — correctifs (n° 4, 10, 11)
+
+- 2026-11-04 — **n° 4** : une négation (`sans`, `pas (de)`, `without`, `no`) devant un équipement est lue et n'émet
+  rien — ni `tags`, ni résidu (« maison sans piscine » → `type=house`). « sans meuble » reste `furnished=false`.
+  **n° 10** : un `furnished` n'est pas émis quand les seuls types compris sont `land`/`parking`/`garage` (« terrain
+  vide », « terrain meublé »). **n° 11** : « 2 millions 500 » → 2 500 000 (deux ou trois chiffres après
+  « million(s) » ; un seul chiffre reste à part, « 2 millions 5 » étant aussi 2,5 M) ; « N chambres » est `bedrooms`
+  jusqu'à 50 (la borne de la liste), au-delà la phrase reste au résidu — plus jamais le type chambre. Tests :
+  `SearchQueryParserTest::test_revue_adverse_*`.

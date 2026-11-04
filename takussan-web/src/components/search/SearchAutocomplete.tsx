@@ -17,7 +17,7 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react';
-import { useSuggest } from '@/hooks/useSuggest';
+import { normaliserSaisie, useSuggest } from '@/hooks/useSuggest';
 import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
 import { useTraducteursDeFiltre } from '@/hooks/useTraducteursDeFiltre';
 import { highlightMatch } from '@/lib/highlightMatch';
@@ -30,8 +30,10 @@ import {
 } from '@/lib/recherches-recentes';
 import {
   filtresDeCriteres,
+  filtresDeLaBase,
   filtresDeParametres,
   hrefDeListe,
+  laListeSElargira,
   parametresVersLaListe,
 } from '@/lib/suggestions-de-recherche';
 import { filtersToCriteria } from '@/components/favorites/SaveSearchButton';
@@ -213,9 +215,12 @@ export interface SearchAutocompleteProps {
  * - **pendant la frappe** : la saisie COMPRISE en tête, en libellés de filtre, avec son nombre de
  *   biens — c'est ce que valide Entrée —, puis les recherches fréquentes, les lieux et types, et
  *   trois biens en aperçu qui ouvrent leur fiche ;
- * - **compte nul** : la ligne comprise reste cliquable (« Voir des biens proches » : sous un résidu,
- *   la liste peut s'élargir, ADR-0024) et « Être alerté quand un bien correspond » ouvre l'alerte
- *   existante (TCK-599), pré-remplie des critères compris.
+ * - **compte nul** : la ligne comprise reste cliquable — « Voir des biens proches » seulement si la
+ *   liste s'élargira (résidu d'au moins deux mots, ADR-0024), « 0 bien » sinon — et « Être alerté
+ *   quand un bien correspond » ouvre l'alerte existante (TCK-599), pré-remplie des critères compris.
+ *
+ * Le compte annoncé est celui de la liste ouverte : la saisie part au serveur avec les filtres de la
+ * base (URL courante, `imposer`), que le serveur fusionne comme `parametresVersLaListe`.
  *
  * Rien ne clignote : la réponse précédente reste affichée pendant le chargement, et Entrée ne
  * valide une compréhension que si elle répond à la saisie COURANTE (`pour`, `useSuggest`) — sinon
@@ -260,13 +265,19 @@ export function SearchAutocomplete({
 
   // Liste fermée, rien à suggérer : un champ prérempli par l'URL n'interroge pas le serveur à
   // chaque chargement de la liste des biens. Ouvert sur un champ vide : les recherches populaires.
-  const { data, isFetching, pour } = useSuggest(query, { enabled: open, vide: true });
+  // Revue adverse du 2026-11-04 (défaut n° 5) — la base de la navigation (URL courante + `imposer`) part avec la saisie :
+  // le compte annoncé est celui de la liste qu'ouvrira `activer`, qui part de la même base.
+  const { data, isFetching, pour } = useSuggest(query, {
+    enabled: open,
+    vide: true,
+    base: filtresDeLaBase(baseImposee(searchParams, imposer)),
+  });
   const reponse = data?.data;
 
   // La compréhension ne se VALIDE (Entrée) que si elle répond à la saisie courante ; elle reste
   // AFFICHÉE pendant que la suivante arrive.
   const interpretation = !vide ? (reponse?.interpretation ?? null) : null;
-  const compriseCourante = interpretation !== null && pour === saisie;
+  const compriseCourante = interpretation !== null && pour === normaliserSaisie(saisie);
 
   // ─── Les groupes du panneau ──────────────────────────────────────────────────────────────────
   const groupes: Groupe[] = [];
@@ -537,7 +548,8 @@ export function SearchAutocomplete({
               ))}
             </span>
             <span className={cn('shrink-0 text-xs tabular-nums', count > 0 ? 'text-muted-foreground' : 'font-medium')}>
-              {count > 0 ? t('count', { count }) : t('nearby')}
+              {/* Défaut n° 9 — « biens proches » seulement si la liste s'élargira (ADR-0024) ; sinon le compte dit 0. */}
+              {count === 0 && laListeSElargira(option.interpretation) ? t('nearby') : t('count', { count })}
             </span>
             {compriseCourante && activeIndex === -1 ? (
               <kbd className="hidden shrink-0 items-center gap-1 rounded border border-border px-1.5 py-0.5 font-sans text-xs text-muted-foreground sm:inline-flex">

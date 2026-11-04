@@ -171,3 +171,28 @@ p50 1,7 · p95 4,8. Objectif p95 < 80 ms tenu. Construction de l'index local : 3
   `search:build-suggestions` (horaire, `--if-missing` au déploiement) ; l'écart du compte sous recherche élargie.
 - `docs/models-spec.md` : aucun modèle (index Meilisearch seul) — éventuellement une ligne sur l'index
   `search_suggestions` et ses documents.
+
+### Revue adverse du 2026-11-04 — correctifs (n° 5, 6)
+
+- 2026-11-04 — **n° 5, la base** : `GET /api/search/suggest` accepte les filtres de la liste publique, mêmes noms et
+  même validation (`SuggestRequest` étend `SearchPublicPropertyRequest`, `BASE_KEYS` : contrat, type, période, lieux,
+  prix, chambres, salles de bain, surface, meublé, vedette, étage, titre, état, équipements, disponibilité, géo, `sort`).
+  **Règle de fusion** : un critère compris dans la saisie REMPLACE la même clé de la base ; les clés de la base absentes
+  de la saisie sont gardées. `interpretation.count` et `previews` se calculent sur la fusion ; `interpretation.criteria`
+  reste ce que la saisie a compris (le front fusionne de son côté par la même règle). **n° 6** : `throttle:search-suggest`
+  passe de 60 à 300/min (`SearchSuggestions::RATE_PER_MINUTE`). Tests : `SuggestInterpretationTest`, `SearchSuggestTest`.
+- 2026-11-04 — **exception de fusion, la ville** : une `city` comprise dans la saisie retire AUSSI `location` et
+  `region` de la base — comme la navigation de la liste (TCK-439, TCK-635) : « villa saly » depuis une liste filtrée sur
+  Almadies cherche à Saly, pas « Saly ET Almadies ». Les autres clés de la base restent. Test :
+  `SuggestInterpretationTest::test_une_ville_comprise_retire_le_quartier_et_la_region_de_la_base`.
+- 2026-11-04 — **`interpretation.widens: bool`** : vrai quand la liste publique élargira la même saisie (ADR-0024),
+  calculé par le MÊME code que `PropertySearchService::search()` — `PropertySearchService::wouldWiden($résidu,
+  $totalHits)`, soit `totalHits === 0 && count(usefulTerms(résidu)) >= 2`. Le front peut dire « aucun résultat exact,
+  la liste élargira » au lieu de « 0 ». Test : `SuggestInterpretationTest::test_widens_dit_si_la_liste_elargira`
+  (l'ablation de `wouldWiden` le rougit, celle de son seuil aussi).
+- 2026-11-04 — **4a, `cities` et `neighborhoods` quittent la réponse** : `places` (l'index des suggestions) les
+  remplace ; `SuggestService` ne garde que `property_types` et n'appelle plus le moteur (deux `facet-search` de moins par
+  frappe). Les tests qui les épinglaient vérifient leur absence (`SearchSuggestTest::test_les_anciennes_cles_cities_et_neighborhoods_ont_quitte_la_reponse`,
+  `SuggestPopularTest`, `SuggestInterpretationTest::ac4`), et les cas ville / quartier / faute de frappe se rejouent sur
+  `places`. Latence mesurée en local (machine chargée, 8 saisies × 30, alterné) : p50 −3 à −5 ms, p95 sans écart
+  lisible (29–34 ms avant comme après) — le p95 est tenu par les requêtes de `SearchSuggestions`.

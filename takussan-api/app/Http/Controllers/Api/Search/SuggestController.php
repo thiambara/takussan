@@ -20,10 +20,10 @@ class SuggestController extends Controller
         $locale = app()->getLocale();
 
         // TCK-2474 — les clés neuves (`interpretation`, `completions`, `popular`, `places`, `previews`) d'abord, puis
-        // celles que lit le front actuel (`cities`, `neighborhoods`, `property_types`), inchangées : elles se retirent
-        // avec lui (TCK-2475).
+        // `property_types`, que le front lit encore. `cities` et `neighborhoods` ont quitté la réponse le 2026-11-04
+        // (décision du porteur, 4a) : le front lit `places`.
         $payload = [
-            ...$this->suggestions->resolve($request->q(), $request->limit(), $locale),
+            ...$this->suggestions->resolve($request->q(), $request->limit(), $locale, $request->base()),
             ...$this->service->resolve($request->q(), $request->limit(), $locale),
         ];
 

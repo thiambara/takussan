@@ -3,13 +3,14 @@
 namespace App\Console\Commands;
 
 use App\Jobs\Search\RefreshSearchAliases;
-use App\Services\Search\Aliases\SearchAliasCurator;
+use App\Models\SearchAliasSetting;
 use Illuminate\Console\Command;
 
 /**
- * TCK-2476 (ADR-0088 §7) — met en file `ai` un passage des variantes d'écriture de la recherche. Au nom du `super_admin`
- * désigné par `--operator`, sinon du plus ancien actif ({@see SearchAliasCurator::defaultOperator()}) ; sans lui, rien
- * n'est lu ni appelé. Les mêmes saisies que le dernier passage ne rappellent pas le modèle.
+ * TCK-2476 (ADR-0088 §7) — met en file `ai` un passage des variantes d'écriture de la recherche, au nom de l'opérateur du
+ * réglage {@see SearchAliasSetting} (celui qui l'a allumé). **Réglage éteint : rien n'est mis en file** (revue adverse du
+ * 2026-11-04 — plus aucun `super_admin` choisi d'office). `--operator` reste pour un lancement manuel, au nom de
+ * l'utilisateur désigné, réglage éteint ou non. Les mêmes saisies que le dernier passage ne rappellent pas le modèle.
  */
 class SearchRefreshAliases extends Command
 {
@@ -24,6 +25,12 @@ class SearchRefreshAliases extends Command
             $this->error('--operator attend l\'identifiant d\'un utilisateur.');
 
             return self::INVALID;
+        }
+
+        if ($operator === null && ! SearchAliasSetting::current()->enabled) {
+            $this->line('search:refresh-aliases — réglage éteint, rien n\'est mis en file.');
+
+            return self::SUCCESS;
         }
 
         RefreshSearchAliases::dispatch($operator === null ? null : (int) $operator);

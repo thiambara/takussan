@@ -4,6 +4,7 @@ import {
   CLES_DE_RECHERCHE,
   definitionDe,
   parametreDe,
+  type CleDeRechercheNom,
   type CriteresDeSuggestion,
   type SearchFilters,
 } from '@/types/search';
@@ -38,20 +39,59 @@ function brut(criteria: CriteresDeSuggestion): URLSearchParams {
   return params;
 }
 
-/** Les critères, relus et réécrits par la table — clés filtrantes seulement, ordre de la table. */
-export function parametresDeCriteres(criteria: CriteresDeSuggestion): URLSearchParams {
-  const source = brut(criteria);
+/**
+ * Les filtres de `source`, relus et réécrits par la table — clés filtrantes seulement, dans l'ordre de la table, chacune
+ * sous son paramètre. `sauf` écarte des clés (le terme, pour la base d'une suggestion).
+ */
+function filtresRelus(source: URLSearchParams, sauf: readonly CleDeRechercheNom[] = []): URLSearchParams {
   const params = new URLSearchParams();
   for (const cle of CLES_DE_RECHERCHE) {
     const def = definitionDe(cle);
-    if (def.role !== 'filtre') continue;
+    if (def.role !== 'filtre' || sauf.includes(cle)) continue;
     const valeur = def.lire(source);
     if (valeur === undefined || valeur === '') continue;
+    // `?price_max=abc` se relit `NaN` : l'envoyer ferait rendre 422 à l'API, et la barre se tairait.
+    if (typeof valeur === 'number' && !Number.isFinite(valeur)) continue;
     const ecrit = def.ecrire(valeur);
     if (ecrit === undefined || ecrit === '') continue;
     params.set(def.params[0], ecrit);
   }
   return params;
+}
+
+/** Les critères, relus et réécrits par la table — clés filtrantes seulement, ordre de la table. */
+export function parametresDeCriteres(criteria: CriteresDeSuggestion): URLSearchParams {
+  return filtresRelus(brut(criteria));
+}
+
+/**
+ * Revue adverse du 2026-11-04 (défaut n° 5) — la BASE d'une suggestion : les filtres que la navigation gardera (l'URL
+ * courante et ce que l'appelant impose), envoyés à `GET /api/search/suggest` sous les noms de la liste publique pour que le
+ * compte annoncé soit celui de la liste où l'on arrive. Ni le terme (`q`/`search` : c'est la saisie qui le remplace), ni
+ * une clé de contrôle (page, tri), ni une clé que la table ne connaît pas. Ordre de la table : la chaîne sert aussi de clé
+ * de cache, deux URL aux mêmes filtres donnent la même.
+ *
+ * Le serveur fusionne comme `parametresVersLaListe` : chaque critère compris REMPLACE la même clé de la base, une ville
+ * comprise retire aussi le quartier et la région d'avant, et les autres clés de la base restent.
+ */
+export function filtresDeLaBase(base: URLSearchParams): URLSearchParams {
+  return filtresRelus(base, ['q']);
+}
+
+/**
+ * Revue adverse du 2026-11-04 (défaut n° 9) — la liste s'élargira-t-elle sous ce compte nul ? `PropertySearchService`
+ * n'élargit (ADR-0024) qu'un terme qui porte au moins DEUX mots utiles (`usefulTerms` : distincts une fois les accents et
+ * la casse pliés, hors mots vides de l'index). Le serveur le dit quand il le sait (`widens`) ; sinon le front compte les
+ * mots distincts du résidu — il ne recopie pas la liste des mots vides, qui ne vit que dans `config/scout.php`.
+ */
+export function laListeSElargira(interpretation: { readonly residue: string | null; readonly widens?: boolean }): boolean {
+  if (typeof interpretation.widens === 'boolean') return interpretation.widens;
+  const mots = (interpretation.residue ?? '')
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .match(/[\p{L}\p{N}]+/gu) ?? [];
+  return new Set(mots).size >= 2;
 }
 
 /**

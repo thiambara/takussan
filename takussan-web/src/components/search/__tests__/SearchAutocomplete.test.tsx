@@ -181,7 +181,8 @@ describe('SearchAutocomplete', () => {
       expect(screen.getByRole('combobox')).toHaveValue('villa piscine');
       expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
       // TCK-2475 — `vide: true` : ouvert sur un champ vide, la barre demande les recherches populaires.
-      expect(suggest).toHaveBeenLastCalledWith('villa piscine', { enabled: false, vide: true });
+      // Revue adverse du 2026-11-04 (n° 5) — et la base de la liste, pour que le compte soit celui de la liste ouverte.
+      expect(suggest).toHaveBeenLastCalledWith('villa piscine', expect.objectContaining({ enabled: false, vide: true }));
     });
 
     it('reste modifiable : la saisie remplace `q` et conserve les autres paramètres', async () => {

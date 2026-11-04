@@ -13,7 +13,7 @@ class SearchQueryStat extends AbstractModel
 {
     protected $fillable = [
         'day', 'query_key', 'normalized_query', 'criteria',
-        'searches_count', 'distinct_visitors', 'zero_results_count', 'last_results_count',
+        'searches_count', 'distinct_visitors', 'distinct_networks', 'zero_results_count', 'last_results_count',
     ];
 
     protected $casts = [
@@ -21,6 +21,7 @@ class SearchQueryStat extends AbstractModel
         'criteria' => 'array',
         'searches_count' => 'integer',
         'distinct_visitors' => 'integer',
+        'distinct_networks' => 'integer',
         'zero_results_count' => 'integer',
         'last_results_count' => 'integer',
     ];

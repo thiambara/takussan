@@ -8,6 +8,7 @@ use App\Models\Enums\SearchAliasStatus;
 use App\Models\GeoCity;
 use App\Models\GeoNeighborhood;
 use App\Models\SearchAlias;
+use App\Models\SearchAliasSetting;
 use App\Models\SearchQueryStat;
 use App\Services\Ai\AiUsageRegistry;
 use App\Services\Ai\PromptRepository;
@@ -45,7 +46,9 @@ class SearchAliasUnderstoodTest extends TestCase
 
         $dakar = GeoCity::factory()->create(['name' => 'Dakar', 'slug' => 'dakar']);
         GeoNeighborhood::factory()->create(['geo_city_id' => $dakar->id, 'name' => 'Ouakam', 'slug' => 'ouakam']);
-        $this->operateur(PlatformProfileLevel::SuperAdmin);
+        // Le passage part au nom de celui qui a allumé le réglage (revue adverse du 2026-11-04, 13a).
+        $operator = $this->operateur(PlatformProfileLevel::SuperAdmin);
+        SearchAliasSetting::current()->forceFill(['enabled' => true, 'operator_id' => $operator->id, 'enabled_at' => now()])->save();
 
         foreach (['appartement wakam', 'aprt clime'] as $q) {
             SearchQueryStat::query()->create([

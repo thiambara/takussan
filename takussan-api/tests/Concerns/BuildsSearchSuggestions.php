@@ -59,7 +59,8 @@ trait BuildsSearchSuggestions
         $journal = app(SearchJournal::class);
         foreach (range(1, $n) as $i) {
             $request = Request::create('/api/public/properties/search', 'GET', server: [
-                'REMOTE_ADDR' => sprintf('2001:db8:%s:%x::1', $serie, $i),
+                // Un /48 par visiteur : le seuil d'affichage compte les réseaux (revue adverse n° 8) ; la série change le /64.
+                'REMOTE_ADDR' => sprintf('2001:db8:%x:%s::1', $i, $serie),
                 'HTTP_USER_AGENT' => 'Mozilla/5.0 (X11; Linux x86_64) Firefox/130.0',
             ]);
             $journal->record($request, $q, $criteria, $total);

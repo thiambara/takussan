@@ -26,7 +26,13 @@ Mesuré le 2026-11-04 sur `dev` `74506074b` :
    identifiant durable.
 2. **Le visiteur distinct se compte par une empreinte du jour.** `HMAC(IP, clé + date)`, gardée dans une table de
    travail purgée au-delà de 48 heures : elle ne rejoint ni un autre jour, ni un compte.
+   *Amendement du 2026-11-04 (revue adverse, n° 7 et 8)* : l'empreinte porte aussi la recherche
+   (`HMAC(jour | recherche | IP)`), pour que les recherches d'un même visiteur ne se relient pas entre elles, et le
+   **seuil** du §4 compte les réseaux distincts — /24 en IPv4, /48 en IPv6 — et non les visiteurs, un abonné ou un
+   hébergeur disposant de tout un préfixe (sous-compter est le sens sûr ; le compte affiché reste celui des visiteurs).
 3. **Ce qui n'est jamais journalisé** : une saisie de plus de 80 caractères, qui porte six chiffres ou plus, ou un `@`.
+   *Amendement du 2026-11-04 (revue adverse, n° 1)* : ni un courriel écrit sans `@` (« awa.diop gmail.com », « at gmail
+   point com », un fournisseur de messagerie nommé, « arobase », « (at) »).
    Seule la recherche validée est journalisée (page 1 de la liste publique), jamais une frappe. Un nom propre tapé au
    hasard ne franchit pas le seuil du §4 : il ne se montre jamais.
 4. **Une recherche n'est montrée qu'après cinq visiteurs distincts** sur un même jour, et seulement si elle rend encore
@@ -37,6 +43,11 @@ Mesuré le 2026-11-04 sur `dev` `74506074b` :
 7. **L'IA ne travaille jamais à la frappe.** La suggestion se calcule par du code et un index dédié. L'IA tient hors ligne
    les variantes d'écriture (« wakam » → Ouakam, « appart », F4…), à partir des recherches sans résultat ; une variante
    n'est retenue que si elle désigne un lieu, un type ou un terme qui existe.
+   *Amendement du 2026-11-04 (revue adverse, n° 3)* : et si elle en est une écriture PROCHE (faute, phonétique simple,
+   abréviation), qui n'est ni un mot courant ni le nom d'une autre cible — une variante est créée active sans relecture.
+   *Amendement du 2026-11-04 (revue adverse, 13a)* : le passage hors ligne ne part que si un réglage explicite
+   (`search_alias_settings`, une ligne, créée éteinte) est allumé, au nom de celui qui l'a allumé — jamais d'un
+   `super_admin` choisi d'office. Opérateur disparu : aucun passage, issue `search.aliases.operator_missing`.
 
 ## Conséquences
 

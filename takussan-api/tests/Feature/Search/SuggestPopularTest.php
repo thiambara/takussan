@@ -48,9 +48,12 @@ class SuggestPopularTest extends TestCase
             ['text' => 'studio', 'criteria' => [], 'count' => 1],
         ], $data['popular']);
         $this->assertNull($data['interpretation']);
-        foreach (['completions', 'places', 'previews', 'cities', 'neighborhoods', 'property_types'] as $cle) {
+        foreach (['completions', 'places', 'previews', 'property_types'] as $cle) {
             $this->assertSame([], $data[$cle], $cle);
         }
+        // `cities` et `neighborhoods` ont quitté la réponse (revue adverse du 2026-11-04, 4a) : les lieux sont dans `places`.
+        $this->assertArrayNotHasKey('cities', $data);
+        $this->assertArrayNotHasKey('neighborhoods', $data);
     }
 
     public function test_au_plus_six_recherches_populaires(): void

@@ -44,6 +44,11 @@ export type SuggestInterpretation = {
    * présenté comme une impasse (décision de la session, TCK-2475).
    */
   count: number;
+  /**
+   * Revue adverse du 2026-11-04 (défaut n° 9) — la liste s'élargira-t-elle sous ce compte nul (ADR-0024) ? Facultatif :
+   * absent, le front compte les mots distincts du résidu (`laListeSElargira`).
+   */
+  widens?: boolean;
 };
 
 /** Une recherche fréquente (`completions`, `popular`). `text` peut être vide : critères seuls. */

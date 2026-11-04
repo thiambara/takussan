@@ -80,16 +80,19 @@ class SearchJournalTest extends TestCase
         $this->assertSame([2, 1], SearchQueryStat::query()->orderBy('day')->pluck('distinct_visitors')->all());
     }
 
-    public function test_l_empreinte_est_un_hmac_du_jour_et_aucune_ip_n_est_ecrite(): void
+    public function test_l_empreinte_est_un_hmac_du_jour_et_de_la_recherche_et_aucune_ip_n_est_ecrite(): void
     {
         $this->journal->record($this->visiteur('198.51.100.9'), 'studio', [], 1);
 
-        $empreinte = DB::table('search_query_visitors')->value('visitor_hash');
-        $attendue = AppKeyHmac::of(now()->toDateString().'|'.VisitorFingerprint::network('198.51.100.9'));
-        $this->assertSame($attendue, $empreinte);
-        $this->assertNotSame(VisitorFingerprint::ofIp('198.51.100.9'), $empreinte, 'pas l’empreinte durable des signalements');
+        $cle = SearchQueryStat::query()->sole()->query_key;
+        $empreintes = DB::table('search_query_visitors')->pluck('visitor_hash')->all();
+        $attendue = AppKeyHmac::of(now()->toDateString().'|'.$cle.'|'.VisitorFingerprint::network('198.51.100.9'));
+        // Deux lignes : l'empreinte du visiteur (le compte), et celle de son réseau /24 (le seuil, revue adverse n° 8).
+        $this->assertEqualsCanonicalizing([$attendue, AppKeyHmac::of('reseau|'.now()->toDateString().'|'.$cle.'|198.51.100.0/24')], $empreintes);
+        $this->assertSame($attendue, SearchJournal::visitorHash('198.51.100.9', now()->toDateString(), $cle));
+        $this->assertNotContains(VisitorFingerprint::ofIp('198.51.100.9'), $empreintes, 'pas l’empreinte durable des signalements');
         $this->travel(1)->days();
-        $this->assertNotSame($empreinte, AppKeyHmac::of(now()->toDateString().'|'.VisitorFingerprint::network('198.51.100.9')), 'une autre chaque jour');
+        $this->assertNotSame($attendue, SearchJournal::visitorHash('198.51.100.9', now()->toDateString(), $cle), 'une autre chaque jour');
 
         $tout = json_encode([DB::table('search_query_visitors')->get(), DB::table('search_query_stats')->get()]);
         $this->assertStringNotContainsString('198.51.100.9', (string) $tout);
@@ -127,6 +130,68 @@ class SearchJournalTest extends TestCase
         $this->journal->record($this->visiteur('198.51.100.1'), 'villa 12345', [], 3);
         $this->journal->record($this->visiteur('198.51.100.1'), str_repeat('b', 80), [], 3);
         $this->assertSame(2, SearchQueryStat::query()->count(), 'témoins');
+    }
+
+    /**
+     * Revue adverse n° 1 (2026-11-04) — une adresse électronique écrite SANS arobase (« awa.diop gmail.com », « awa diop
+     * at gmail point com ») était journalisée, puis envoyée au modèle de `search.variantes` dès deux visiteurs. Un
+     * numéro écrit avec des points ou des tirets compte ses chiffres comme un autre.
+     */
+    public function test_un_courriel_sans_arobase_ou_un_numero_ponctue_n_est_jamais_journalise(): void
+    {
+        foreach ([
+            'awa.diop gmail.com', 'awa diop at gmail point com', 'awa.diop(at)gmail.com', 'awa diop [at] yahoo fr',
+            'moussa hotmail', 'contact outlook', 'awa dot diop gmail dot com', 'moussa.ndiaye arobase orange',
+            'fatou icloud', 'agence.dakar.sn', 'ndiaye point com', 'moussa ymail',
+            '77.123.45.67', '77-123-45-67', '+221 77 12', '33 8 20 1',
+        ] as $saisie) {
+            $this->journal->record($this->visiteur('198.51.100.1'), $saisie, [], 0);
+            $this->assertFalse(SearchJournal::isJournalisable($saisie), $saisie);
+            $this->assertSame(0, SearchQueryStat::query()->count(), $saisie);
+        }
+        $this->journal->record($this->visiteur('198.51.100.1'), 'villa', ['location' => 'awa diop gmail'], 3);
+        $this->assertSame(0, SearchQueryStat::query()->count(), 'critère libre');
+
+        // Témoins : un mot de liaison anglais, un quartier qui commence par « Point », un mot qui contient un fournisseur.
+        foreach (['apartment at almadies', 'villa point e', 'studio a louer mermoz', 'maison 3 chambres', 'appartement liveable'] as $temoin) {
+            $this->assertTrue(SearchJournal::isJournalisable($temoin), $temoin);
+        }
+    }
+
+    /**
+     * Revue adverse n° 7 — l'empreinte du visiteur est propre à la RECHERCHE : trois recherches d'une même adresse le même
+     * jour ne partagent aucune empreinte, donc la table de travail ne relie pas l'historique d'un visiteur.
+     */
+    public function test_les_recherches_d_un_meme_visiteur_ne_se_relient_pas_entre_elles(): void
+    {
+        $this->journal->record($this->visiteur('198.51.100.7'), 'villa almadies', [], 3);
+        $this->journal->record($this->visiteur('198.51.100.7'), 'maison ouakam', [], 3);
+        $this->journal->record($this->visiteur('198.51.100.7'), 'terrain', ['city' => 'Dakar'], 3);
+
+        $lignes = DB::table('search_query_visitors')->get(['query_key', 'visitor_hash']);
+        $this->assertCount(3, $lignes->pluck('query_key')->unique());
+        $this->assertSame($lignes->count(), $lignes->pluck('visitor_hash')->unique()->count(), 'aucune empreinte partagée entre deux recherches');
+        $this->assertSame([1, 1, 1], SearchQueryStat::query()->pluck('distinct_visitors')->all());
+    }
+
+    /**
+     * Revue adverse n° 8 — le SEUIL d'affichage compte les réseaux (/48 en IPv6, /24 en IPv4) : cinq adresses d'un même
+     * /48 (une seule box, un seul hébergeur) ne font pas une recherche populaire, montrée à tous. Le compte des visiteurs,
+     * lui, reste au /64 et à l'adresse IPv4 (ADR-0088 §2, amendement du 2026-11-04).
+     */
+    public function test_un_seul_reseau_ne_fait_pas_cinq_visiteurs_pour_le_seuil(): void
+    {
+        foreach (range(1, 5) as $i) {
+            $this->journal->record($this->visiteur(sprintf('2001:db8:42:%x::1', $i)), 'agence xyz meilleure', [], 4);
+            $this->journal->record($this->visiteur('198.51.100.'.$i), 'villa ngor', [], 4);
+        }
+        $this->assertSame([5, 5], SearchQueryStat::query()->orderBy('normalized_query')->pluck('distinct_visitors')->all(), 'le compte, au /64 et à l’adresse');
+        $this->assertSame([], $this->journal->popular('', 10), 'un /48 et un /24 : un seul réseau chacun');
+
+        foreach (range(1, 4) as $i) {
+            $this->journal->record($this->visiteur(sprintf('2001:db8:%x::1', 0x100 + $i)), 'agence xyz meilleure', [], 4);
+        }
+        $this->assertSame([['text' => 'agence xyz meilleure', 'criteria' => [], 'count' => 9]], $this->journal->popular('', 10), 'cinq réseaux');
     }
 
     public function test_une_recherche_vide_ou_d_un_robot_n_ecrit_rien(): void
@@ -259,14 +324,14 @@ class SearchJournalTest extends TestCase
             ['studio'],
             DB::table('search_query_visitors')
                 ->join('search_query_stats', 'search_query_stats.query_key', '=', 'search_query_visitors.query_key')
-                ->pluck('normalized_query')->all(),
+                ->distinct()->pluck('normalized_query')->all(),
             '49 h : effacée ; 47 h 01 : effacée ; 46 h 59 : gardée ; 13 mois : effacée',
         );
         $this->assertEqualsCanonicalizing(['terrain', 'appart', 'studio'], SearchQueryStat::query()->pluck('normalized_query')->all(), 'la ligne de 13 mois et quelques jours part');
 
         $this->assertSame(0, Artisan::call('search:purge-journal'), 'idempotente');
         $this->assertSame(3, SearchQueryStat::query()->count());
-        $this->assertSame(1, DB::table('search_query_visitors')->count());
+        $this->assertSame(2, DB::table('search_query_visitors')->count(), 'l’empreinte du visiteur et celle de son réseau');
     }
 
     public function test_la_purge_est_planifiee_toutes_les_heures(): void
@@ -287,7 +352,8 @@ class SearchJournalTest extends TestCase
     private function visiteurs(int $n, ?string $q, array $criteria, int $total, string $serie = 'a'): void
     {
         foreach (range(1, $n) as $i) {
-            $this->journal->record($this->visiteur(sprintf('2001:db8:%s:%x::1', $serie === 'a' ? 'aa' : 'bb', $i)), $q, $criteria, $total);
+            // Un /48 par visiteur : le seuil d'affichage compte les réseaux (revue adverse n° 8) ; la série change le /64.
+            $this->journal->record($this->visiteur(sprintf('2001:db8:%x:%s::1', $i, $serie === 'a' ? 'aa' : 'bb')), $q, $criteria, $total);
         }
     }
 }

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Search;
 
 use App\Ai\Agents\SearchAliasProposals;
+use App\Jobs\Search\RefreshSearchAliases;
 use App\Models\AiCall;
 use App\Models\Enums\AiCallOutcome;
 use App\Models\Enums\PlatformProfileLevel;
@@ -11,16 +12,19 @@ use App\Models\Enums\SearchAliasStatus;
 use App\Models\GeoCity;
 use App\Models\GeoNeighborhood;
 use App\Models\SearchAlias;
+use App\Models\SearchAliasSetting;
 use App\Models\SearchQueryStat;
 use App\Models\User;
 use App\Services\Ai\AiUsageRegistry;
 use App\Services\Ai\PromptRepository;
 use App\Services\Search\Aliases\SearchAliasCurator;
 use App\Services\Search\Query\DatabasePlaceLexicon;
+use App\Services\Search\Query\SearchQueryParser;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Queue;
 use Tests\Support\Ai\SocleIaDEssai;
 use Tests\Support\OperateursPlateforme;
 use Tests\TestCase;
@@ -95,7 +99,16 @@ class SearchAliasCuratorTest extends TestCase
     /** @return array{outcome: string, created: int, updated: int, discarded: list<array{alias: string, code: string}>} */
     private function pass(?User $operator = null): array
     {
-        return app(SearchAliasCurator::class)->run($operator);
+        return app(SearchAliasCurator::class)->run($operator ?? $this->operator);
+    }
+
+    /** Le réglage allumé au nom de `$operator` (par défaut, l'opérateur du test). */
+    private function allumer(?User $operator = null): SearchAliasSetting
+    {
+        $setting = SearchAliasSetting::current();
+        $setting->forceFill(['enabled' => true, 'operator_id' => ($operator ?? $this->operator)->id, 'enabled_at' => now()])->save();
+
+        return $setting;
     }
 
     // ── AC1 — une proposition vers un quartier inexistant n'est pas enregistrée ────────────────────
@@ -245,6 +258,65 @@ class SearchAliasCuratorTest extends TestCase
         );
     }
 
+    /**
+     * Revue adverse n° 3 (2026-11-04) — une variante de l'IA est créée ACTIVE sans relecture : sur un mot courant
+     * (« proche » → Almadies), elle détournait toute saisie qui le porte (« maison proche ecole ouakam » se lisait
+     * Almadies). Le code exige désormais une écriture PROCHE de sa cible (faute, phonétique simple, abréviation), et
+     * refuse un mot courant ou le nom d'une autre cible.
+     */
+    public function test_une_variante_sur_un_mot_courant_ou_loin_de_sa_cible_est_ecartee(): void
+    {
+        $this->journal('villa proche plage', 3);
+        $this->journal('appartement proche mer', 2);
+        $this->journal('maison sicap complexe', 2);
+        $this->journal('studio wakam', 2);
+        $this->journal('aprt clime almadies', 2);
+        $this->model([
+            self::proposal('proche', 'neighborhood', 'Almadies', 'Dakar', 0.9),     // mot courant
+            self::proposal('plage', 'neighborhood', 'Almadies', 'Dakar', 0.9),      // mot courant
+            self::proposal('proche plage', 'neighborhood', 'Almadies', 'Dakar'),    // fait de mots courants
+            self::proposal('complexe', 'neighborhood', 'Ouakam', 'Dakar'),          // le libellé d'un type (« Complexe »)
+            self::proposal('sicap', 'neighborhood', 'Almadies', 'Dakar'),           // sans rapport avec la cible
+            self::proposal('sicap', 'property_type', 'villa'),                       // idem, et proposée deux fois
+            self::proposal('wakam', 'neighborhood', 'Ouakam', 'Dakar'),             // ou ↔ w : gardée
+            self::proposal('aprt', 'property_type', 'apartment'),                    // abréviation : gardée
+            self::proposal('clime', 'term', 'climatisation'),                        // proche de « clim » : gardée
+        ]);
+
+        $result = $this->pass();
+
+        $this->assertSame([
+            ['proche', SearchAliasCurator::DISCARD_COMMON_WORD],
+            ['plage', SearchAliasCurator::DISCARD_COMMON_WORD],
+            ['proche plage', SearchAliasCurator::DISCARD_COMMON_WORD],
+            ['complexe', SearchAliasCurator::DISCARD_OTHER_TARGET],
+            ['sicap', SearchAliasCurator::DISCARD_DUPLICATE],
+            ['sicap', SearchAliasCurator::DISCARD_DUPLICATE],
+        ], array_map(fn (array $d) => [$d['alias'], $d['code']], $result['discarded']));
+        $this->assertEqualsCanonicalizing(
+            [['wakam', 'Ouakam'], ['aprt', 'apartment'], ['clime', 'climatisation']],
+            SearchAlias::query()->get()->map(fn (SearchAlias $a) => [$a->alias, $a->target_value])->all(),
+        );
+        $parsed = app(SearchQueryParser::class)->parse('maison proche ecole ouakam', 'fr');
+        $this->assertSame('Ouakam', $parsed->criteria['location'] ?? null, 'le vrai lieu reste lu');
+    }
+
+    public function test_une_ecriture_sans_rapport_avec_sa_cible_est_ecartee(): void
+    {
+        $this->journal('maison sicap liberte', 3);
+        $this->journal('villa ngr', 2);
+        $this->model([
+            self::proposal('sicap', 'neighborhood', 'Almadies', 'Dakar'),   // ni faute, ni phonétique, ni abréviation
+            self::proposal('ngr', 'neighborhood', 'Ouakam', 'Dakar'),       // ne commence pas comme la cible
+            self::proposal('liberte', 'property_type', 'villa'),
+        ]);
+
+        $result = $this->pass();
+
+        $this->assertSame(array_fill(0, 3, SearchAliasCurator::DISCARD_NOT_CLOSE), array_column($result['discarded'], 'code'));
+        $this->assertSame(0, SearchAlias::query()->count());
+    }
+
     public function test_une_sortie_invalide_n_ecrit_rien(): void
     {
         $this->journal('appartement wakam', 3);
@@ -296,13 +368,52 @@ class SearchAliasCuratorTest extends TestCase
         $this->assertSame(0, AiCall::query()->count());
     }
 
-    public function test_sans_super_admin_rien_n_est_lu_ni_appele(): void
+    // ── Le réglage `search_alias_settings` (revue adverse du 2026-11-04, 13a) ─────────────────────
+
+    /** Éteint (son état à la migration), rien ne part — et plus aucun `super_admin` n'est choisi d'office. */
+    public function test_eteint_aucun_passage_meme_avec_un_super_admin(): void
     {
+        $this->journal('appartement wakam', 3);
+        $this->model([self::proposal('wakam', 'neighborhood', 'Ouakam', 'Dakar')]);
+
+        $this->assertSame(SearchAliasSetting::BLOCKED_DISABLED, app(SearchAliasCurator::class)->run()['outcome']);
+        $this->assertSame([], $this->prompts);
+        $this->assertSame(0, AiCall::query()->count());
+        $this->assertNull(SearchAliasSetting::current()->last_run_at, 'éteint : aucun passage, rien d\'inscrit');
+    }
+
+    public function test_allume_le_passage_part_au_nom_de_celui_qui_l_a_allume_et_s_inscrit(): void
+    {
+        $other = $this->operateur(PlatformProfileLevel::SuperAdmin);
+        $this->allumer($other);
+        $this->journal('appartement wakam', 3);
+        $this->model([self::proposal('wakam', 'neighborhood', 'Ouakam', 'Dakar')]);
+
+        $this->assertSame(SearchAliasCurator::OUTCOME_APPLIED, app(SearchAliasCurator::class)->run()['outcome']);
+        $this->assertSame($other->id, AiCall::query()->sole()->actor_id);
+        $setting = SearchAliasSetting::current();
+        $this->assertSame(SearchAliasCurator::OUTCOME_APPLIED, $setting->last_run_outcome);
+        $this->assertTrue($setting->last_run_at->equalTo(now()));
+    }
+
+    /** Opérateur disparu (privé du geste, ou supprimé) : aucun passage, l'issue le dit ; rien ne l'éteint d'office. */
+    public function test_operateur_disparu_aucun_passage_et_l_issue_le_dit(): void
+    {
+        $this->allumer();
         $this->operator->platformProfile()->update(['revoked_at' => now()]);
         $this->journal('appartement wakam', 3);
         $this->model([]);
 
-        $this->assertSame(SearchAliasCurator::OUTCOME_NO_OPERATOR, $this->pass()['outcome']);
+        $this->assertSame(SearchAliasSetting::BLOCKED_OPERATOR_MISSING, app(SearchAliasCurator::class)->run()['outcome']);
+        $this->assertSame([], $this->prompts);
+        $setting = SearchAliasSetting::current();
+        $this->assertSame(SearchAliasSetting::BLOCKED_OPERATOR_MISSING, $setting->last_run_outcome);
+        $this->assertTrue($setting->enabled);
+
+        // Le geste rendu mais le compte supprimé (doux) : toujours disparu.
+        $this->operator->platformProfile()->update(['revoked_at' => null]);
+        $this->operator->delete();
+        $this->assertSame(SearchAliasSetting::BLOCKED_OPERATOR_MISSING, app(SearchAliasCurator::class)->run()['outcome']);
         $this->assertSame([], $this->prompts);
     }
 
@@ -320,15 +431,42 @@ class SearchAliasCuratorTest extends TestCase
 
     // ── La commande et sa planification ─────────────────────────────────────────────────────────
 
+    /** `--operator` : un lancement manuel, au nom de l'opérateur désigné, réglage éteint ou non. */
     public function test_la_commande_joue_un_passage_au_nom_de_l_operateur_designe(): void
     {
         $this->journal('appartement wakam', 3);
         $this->model([self::proposal('wakam', 'neighborhood', 'Ouakam', 'Dakar')]);
+        $this->assertFalse(SearchAliasSetting::current()->enabled);
 
         $this->assertSame(0, Artisan::call('search:refresh-aliases', ['--operator' => (string) $this->operator->id]));
 
         $this->assertSame($this->operator->id, AiCall::query()->sole()->actor_id);
         $this->assertSame(1, SearchAlias::query()->count());
+        $this->assertSame(SearchAliasCurator::OUTCOME_APPLIED, SearchAliasSetting::current()->last_run_outcome);
+    }
+
+    public function test_la_commande_planifiee_ne_met_rien_en_file_si_le_reglage_est_eteint(): void
+    {
+        Queue::fake();
+
+        $this->assertSame(0, Artisan::call('search:refresh-aliases'));
+        Queue::assertNothingPushed();
+
+        $this->allumer();
+        $this->assertSame(0, Artisan::call('search:refresh-aliases'));
+        Queue::assertPushed(RefreshSearchAliases::class, fn (RefreshSearchAliases $job) => $job->operatorId === null);
+    }
+
+    public function test_la_commande_planifiee_passe_au_nom_de_l_operateur_du_reglage(): void
+    {
+        $other = $this->operateur(PlatformProfileLevel::SuperAdmin);
+        $this->allumer($other);
+        $this->journal('appartement wakam', 3);
+        $this->model([self::proposal('wakam', 'neighborhood', 'Ouakam', 'Dakar')]);
+
+        $this->assertSame(0, Artisan::call('search:refresh-aliases'));
+
+        $this->assertSame($other->id, AiCall::query()->sole()->actor_id);
     }
 
     public function test_le_passage_est_planifie_chaque_semaine(): void

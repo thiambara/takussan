@@ -82,11 +82,12 @@ La recherche comprend de mieux en mieux la façon dont les gens écrivent, sans 
 
 ### Décisions
 
-1. **Au nom de qui l'IA est jugée.** La passerelle exige un acteur (seuls les embeddings s'en passent) et il n'y a pas
+1. ~~**Au nom de qui l'IA est jugée.** La passerelle exige un acteur (seuls les embeddings s'en passent) et il n'y a pas
    de réglage à allumer (≠ TCK-2470). `search:refresh-aliases --operator=<id>` le désigne ; à défaut, **le plus ancien
    `super_admin` actif qui détient `platform.settings.manage`** (`SearchAliasCurator::defaultOperator()`). Aucun → issue
-   `search.aliases.no_operator`, rien de lu ni d'appelé. *À trancher par le porteur s'il préfère un réglage explicite
-   comme `radar_demand_settings`.*
+   `search.aliases.no_operator`, rien de lu ni d'appelé.~~ **Tranché le 2026-11-04 (revue adverse, 13a) : un réglage
+   explicite** `search_alias_settings`, comme `radar_demand_settings` — voir « Revue adverse — 13a » ci-dessous.
+   `defaultOperator()` et `search.aliases.no_operator` n'existent plus.
 2. **Classe de données `publique`**, comme le ticket le dit : saisies normalisées qui ont passé ADR-0088 §3 à l'écriture
    (re-vérifiées par `SearchJournal::isJournalisable()` avant envoi), portées par ≥ 2 visiteurs distincts.
 3. **« ≥ 2 visiteurs distincts sur 30 jours »** se lit par `zeroResultDemand(30, 2, 200)` : la somme des visiteurs
@@ -163,3 +164,41 @@ voudrais des renseignements » → `bonjour renseignements` (sorti du jeu « inc
   aussi, en texte normalisé, vers `search.variantes` (§7 le décide déjà ; §4 à amender pour ne pas se contredire).
 - La liste des usages IA de la console (si une spec l'énumère) : `search.variantes`, rôle `extraction`, classe
   `publique`, plafond 0,25 $/jour, `platform.settings.manage`.
+
+### Revue adverse du 2026-11-04 — correctif (n° 3)
+
+- 2026-11-04 — **n° 3** : une variante nouvelle étant créée active sans relecture, `SearchAliasCurator` écarte en plus
+  l'écriture faite de mots courants (`search.aliases.common_word` : mots de l'analyse, mots vides, mots du marché —
+  « proche », « plage »…), le nom d'une autre cible (`search.aliases.other_target`), et l'écriture qui n'est pas PROCHE
+  de sa cible (`search.aliases.not_close` : distance d'édition au plus un tiers, phonétique simple `ou`↔`w`, `c`↔`k`…,
+  abréviation en sous-séquence « aprt » ⊂ « appartement », initiales). « proche » → Almadies est écarté ; « wakam » →
+  Ouakam, « aprt » → appartement, « clime » → climatisation restent appris. Prompt inchangé. Test :
+  `SearchAliasCuratorTest`.
+
+### Revue adverse du 2026-11-04 — 13a, le réglage explicite
+
+- 2026-11-04 — **13a** : le passage hors ligne ne choisit plus de `super_admin` d'office. Table
+  `search_alias_settings` (migration `2026_11_04_247610`), UNE ligne créée éteinte, modèle `SearchAliasSetting` —
+  même forme que `RadarDemandSetting` (TCK-2470).
+  - **Routes** `GET` et `PATCH /api/admin/search/aliases/settings` (`{enabled}` booléen requis), déclarées AVANT
+    `aliases/{alias}` dans `routes/api/admin-search.php` (sinon `settings` serait lu comme une variante : l'ablation
+    de l'ordre rougit 5 tests). `super_admin` seul (`platform.settings.manage`), `SearchAliasSettingsController`,
+    `SearchAliasSettingResource` : `enabled`, `operator {id, name}`, `enabled_at`, `blocked_reason`, `last_run_at`,
+    `last_run_outcome`. Journal d'activité `search_alias_settings_updated`.
+  - **Celui qui allume devient l'opérateur** ; un second « allumer » ne le lui prend pas ; rallumer un réglage dont
+    l'opérateur a disparu le reprend ; éteindre garde l'opérateur affiché.
+  - **Éteint → aucun passage** : `search:refresh-aliases` (sans `--operator`) ne met rien en file, et
+    `SearchAliasCurator::run()` sans opérateur rend `search.aliases.disabled` sans rien inscrire. **Opérateur disparu**
+    (compte supprimé, ou privé de `platform.settings.manage`) → aucun passage, issue `search.aliases.operator_missing`
+    inscrite sur le réglage ; rien ne l'éteint d'office. `--operator=<id>` reste pour un lancement manuel, réglage éteint
+    ou non. Chaque passage inscrit `last_run_at` et `last_run_outcome`.
+  - **Pas de front pour 13a** : le réglage n'a pas encore d'écran ; tant qu'il n'en a pas, il s'allume par l'API. Tant
+    qu'il est éteint (son état à la migration), aucune variante n'est plus proposée par l'IA.
+  - Tests : `SearchAliasApiTest` (4 neufs + refus élargis), `SearchAliasCuratorTest` (5 neufs, la commande manuelle
+    réécrite), `SearchAliasUnderstoodTest` (allume le réglage en `setUp`).
+- **`docs/models-spec.md`** — fait dans la même passe, la garde `check-models-spec.mjs` rougissant sans
+  lui : § 123 `SearchAliasSetting` (table, modèle, description, colonnes `id` CHECK = 1, `enabled`, `operator_id` FK
+  `nullOnDelete` `search_alias_settings_operator_fk` + index, `enabled_at`, `last_run_at`, `last_run_outcome`
+  string(64), timestamps), et sa ligne dans la table des matières. **`docs/features.md`** (variantes) : « au nom d'un
+  `super_admin` » remplacé par le réglage, ses deux routes ajoutées — fait aussi, la phrase étant devenue fausse.
+  **ADR-0088 §7** : amendement daté écrit.

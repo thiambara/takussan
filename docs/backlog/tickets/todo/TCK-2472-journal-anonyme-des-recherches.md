@@ -144,3 +144,12 @@ donnée sur eux.
   de travail `search_query_visitors` (sans modèle : écrite par `DB::table`).
 - `docs/features.md` : le journal anonyme des recherches (page 1 de la liste publique, exclusions, seuil de cinq,
   purge horaire 48 h / 13 mois) et la ligne correspondante de la politique de confidentialité.
+
+### Revue adverse du 2026-11-04 — correctifs (n° 1, 7, 8)
+
+- 2026-11-04 — **n° 1** : `SearchJournal::isJournalisable()` exclut aussi un courriel écrit sans `@` (un domaine
+  « x.com » / « point com » / « dot sn », un fournisseur de messagerie nommé, « arobase », « (at) ») ; un numéro ponctué
+  (« 77.123.45.67 ») comptait déjà ses chiffres. **n° 7** : `visitor_hash = HMAC(jour | recherche | IP)` — deux
+  recherches d'un même visiteur ne se relient plus. **n° 8** : le seuil de `popular()` compte `distinct_networks`
+  (/24, /48 ; colonne de la migration `2026_11_04_247220`, seconde empreinte `reseau|…` dans `search_query_visitors`),
+  le `count` reste `distinct_visitors`. ADR-0088 §2/§3 amendés. Tests : `SearchJournalTest`.

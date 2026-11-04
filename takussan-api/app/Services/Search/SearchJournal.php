@@ -16,11 +16,14 @@ use function Illuminate\Support\defer;
  * TCK-2472 (ADR-0088) — le journal anonyme et agrégé des recherches publiques de biens.
  *
  * **Une ligne par jour et par recherche, rien par personne** (`search_query_stats`) : la saisie normalisée, les critères
- * structurés, quatre compteurs. Le visiteur distinct se compte par une empreinte DU JOUR (`search_query_visitors`,
- * `HMAC-SHA256(jour | IP — /64 en IPv6 —, APP_KEY)` par `AppKeyHmac`), effacée au-delà de 48 heures : elle ne rejoint ni un autre jour,
- * ni un compte. Ni compte, ni IP en clair, nulle part.
+ * structurés, cinq compteurs. Le visiteur distinct se compte par une empreinte DU JOUR ET DE LA RECHERCHE
+ * (`search_query_visitors`, `HMAC-SHA256(jour | recherche | IP — /64 en IPv6 —, APP_KEY)` par `AppKeyHmac`), effacée
+ * au-delà de 48 heures : elle ne rejoint ni un autre jour, ni une autre recherche du même visiteur (revue adverse n° 7),
+ * ni un compte. Le SEUIL d'affichage compte, lui, les réseaux (/24, /48 : `distinct_networks`, revue adverse n° 8),
+ * par une seconde empreinte de même forme. Ni compte, ni IP en clair, nulle part.
  *
- * **Jamais journalisé** (ADR-0088 §3) : une saisie de plus de 80 caractères, qui porte six chiffres ou plus, ou un `@` —
+ * **Jamais journalisé** (ADR-0088 §3) : une saisie de plus de 80 caractères, qui porte six chiffres ou plus, ou un
+ * courriel — avec son `@`, ou écrit sans lui (revue adverse n° 1 : « awa.diop gmail.com », « at gmail point com ») —,
  * ni le texte, ni la ligne. La règle s'applique aussi aux critères libres (`location`, `city`, `cities`, `region`,
  * `tags`) : un numéro tapé dans le champ du lieu est une saisie comme une autre.
  *
@@ -74,6 +77,21 @@ final class SearchJournal
     private const LIST_KEYS = ['type', 'condition', 'tags', 'cities'];
 
     private const BOOLEAN_KEYS = ['furnished', 'featured'];
+
+    /**
+     * Revue adverse n° 1 — les fournisseurs de messagerie courants : leur nom seul suffit à dire un courriel (« moussa
+     * hotmail »). Mots entiers, jamais une sous-chaîne (« liveable » n'est pas « live »).
+     */
+    private const MAIL_PROVIDERS = [
+        'gmail', 'googlemail', 'yahoo', 'ymail', 'hotmail', 'outlook', 'icloud', 'protonmail', 'proton', 'gmx', 'aol',
+        'msn', 'yandex', 'zoho', 'laposte', 'wanadoo', 'orange',
+    ];
+
+    /** Les terminaisons d'un domaine, après un point ou son mot (« point com », « dot sn »). */
+    private const TOP_LEVEL_DOMAINS = ['com', 'net', 'org', 'fr', 'sn', 'info', 'biz', 'io', 'me', 'edu', 'gov', 'ci', 'ml', 'gm', 'ma', 'be', 'ch', 'ca', 'us', 'uk', 'co'];
+
+    /** L'arobase écrite en lettres. `at` seul est un mot de liaison anglais : il ne compte qu'entre crochets ou parenthèses. */
+    private const AT_WORDS = ['arobase', 'arrobase', 'arobas', 'arrobas'];
 
     /**
      * Le point d'appel de la recherche publique : page 1 seulement, hors `placements=false`, après la réponse.
@@ -133,7 +151,8 @@ final class SearchJournal
     }
 
     /**
-     * Les recherches vues par au moins `search.journal.min_visitors` visiteurs distincts UN MÊME JOUR dans les
+     * Les recherches vues depuis au moins `search.journal.min_visitors` RÉSEAUX distincts (/24, /48 : revue adverse n° 8)
+     * UN MÊME JOUR dans les
      * {@see self::POPULAR_WINDOW_DAYS} derniers jours, dont le DERNIER nombre de résultats est positif, et dont la saisie
      * normalisée commence par le préfixe normalisé (préfixe vide : toutes, y compris les recherches par critères seuls,
      * dont `text` est alors vide).
@@ -159,7 +178,8 @@ final class SearchJournal
                 'normalized_query', 'like', addcslashes($prefix, '\\%_').'%',
             ))
             ->groupBy('query_key')
-            ->havingRaw('max(distinct_visitors) >= ?', [max(1, (int) config('search.journal.min_visitors', 5))])
+            // Le seuil compte les RÉSEAUX distincts d'un même jour (revue adverse n° 8) ; `count` reste les visiteurs.
+            ->havingRaw('max(distinct_networks) >= ?', [max(1, (int) config('search.journal.min_visitors', 5))])
             ->havingRaw('(array_agg(last_results_count order by day desc))[1] > 0')
             ->orderByDesc('visitors')
             ->orderByRaw('max(normalized_query) asc nulls last')
@@ -231,7 +251,9 @@ final class SearchJournal
 
     /**
      * ADR-0088 §3 — vrai si le texte PEUT être journalisé : au plus 80 caractères, moins de six chiffres (de toute
-     * écriture), aucun `@` (ni sa forme pleine chasse).
+     * écriture, comptés sur toute la saisie : « 77.123.45.67 » en a neuf), et rien qui dise un courriel — ni `@` (ni sa
+     * forme pleine chasse), ni sa forme écrite sans lui ({@see self::looksLikeEmail()}). Une saisie exclue n'est ni
+     * journalisée, ni donc jamais envoyée à un modèle (`search.variantes` ne lit que le journal).
      */
     public static function isJournalisable(string $text): bool
     {
@@ -241,8 +263,27 @@ final class SearchJournal
         if (preg_match_all('/\p{Nd}/u', $text) > self::MAX_DIGITS) {
             return false;
         }
+        if (str_contains($text, '@') || str_contains($text, '＠') || str_contains($text, '﹫')) {
+            return false;
+        }
 
-        return ! str_contains($text, '@') && ! str_contains($text, '＠') && ! str_contains($text, '﹫');
+        return ! self::looksLikeEmail($text);
+    }
+
+    /**
+     * Revue adverse n° 1 — un courriel écrit sans arobase : un domaine (« gmail.com », « agence.dakar.sn », « gmail point
+     * com », « dot sn »), un fournisseur de messagerie nommé (« moussa hotmail »), ou l'arobase en lettres (« arobase »,
+     * « (at) », « [at] »). Lu sur la forme repliée (minuscules, sans accents). Sous-compter n'est pas le sens sûr ici :
+     * une recherche de biens qui nomme « gmail » ne perd rien à ne pas être journalisée.
+     */
+    private static function looksLikeEmail(string $text): bool
+    {
+        $folded = Str::ascii(Str::lower($text));
+        $tld = implode('|', self::TOP_LEVEL_DOMAINS);
+
+        return preg_match('/[a-z0-9-]\s*(?:\.|\s(?:point|dot)\s)\s*(?:'.$tld.')\b/', $folded) === 1
+            || preg_match('/\b(?:'.implode('|', self::MAIL_PROVIDERS).')\b/', $folded) === 1
+            || preg_match('/\b(?:'.implode('|', self::AT_WORDS).')\b|[(\[{]\s*at\s*[)\]}]/', $folded) === 1;
     }
 
     /** Minuscules, sans accents, blancs repliés. */
@@ -295,13 +336,10 @@ final class SearchJournal
 
         DB::transaction(function () use ($ip, $normalized, $criteria, $total, $day, $key): void {
             $newVisitor = 0;
+            $newNetwork = 0;
             if ($ip !== null && $ip !== '') {
-                $newVisitor = DB::table('search_query_visitors')->insertOrIgnore([
-                    'day' => $day,
-                    'query_key' => $key,
-                    'visitor_hash' => self::visitorHash($ip, $day),
-                    'created_at' => now(),
-                ]) > 0 ? 1 : 0;
+                $newVisitor = $this->firstSeen($day, $key, self::visitorHash($ip, $day, $key));
+                $newNetwork = $this->firstSeen($day, $key, self::networkHash($ip, $day, $key));
             }
 
             DB::table('search_query_stats')->upsert(
@@ -312,6 +350,7 @@ final class SearchJournal
                     'criteria' => json_encode((object) $criteria, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
                     'searches_count' => 1,
                     'distinct_visitors' => $newVisitor,
+                    'distinct_networks' => $newNetwork,
                     'zero_results_count' => $total === 0 ? 1 : 0,
                     'last_results_count' => $total,
                     'created_at' => now(),
@@ -321,6 +360,7 @@ final class SearchJournal
                 [
                     'searches_count' => DB::raw('search_query_stats.searches_count + excluded.searches_count'),
                     'distinct_visitors' => DB::raw('search_query_stats.distinct_visitors + excluded.distinct_visitors'),
+                    'distinct_networks' => DB::raw('search_query_stats.distinct_networks + excluded.distinct_networks'),
                     'zero_results_count' => DB::raw('search_query_stats.zero_results_count + excluded.zero_results_count'),
                     'last_results_count' => DB::raw('excluded.last_results_count'),
                     'updated_at' => DB::raw('excluded.updated_at'),
@@ -329,15 +369,50 @@ final class SearchJournal
         });
     }
 
+    /** 1 si l'empreinte est nouvelle ce jour pour cette recherche (`insertOrIgnore`, sûr en concurrence), 0 sinon. */
+    private function firstSeen(string $day, string $key, string $hash): int
+    {
+        return DB::table('search_query_visitors')->insertOrIgnore([
+            'day' => $day,
+            'query_key' => $key,
+            'visitor_hash' => $hash,
+            'created_at' => now(),
+        ]) > 0 ? 1 : 0;
+    }
+
     /**
-     * ADR-0088 §2 — l'empreinte du jour : `HMAC-SHA256(jour | IP — /64 en IPv6 —, APP_KEY)`, par le point unique
-     * {@see AppKeyHmac} (ADR-0084). Le jour est DANS la donnée : une autre empreinte chaque jour, sans clé dérivée.
+     * ADR-0088 §2 — l'empreinte du visiteur : `HMAC-SHA256(jour | recherche | IP — /64 en IPv6 —, APP_KEY)`, par le
+     * point unique {@see AppKeyHmac} (ADR-0084). Le jour ET la recherche sont DANS la donnée (revue adverse n° 7) : une
+     * autre empreinte chaque jour et pour chaque recherche, si bien que la table de travail ne relie pas entre elles les
+     * recherches d'un même visiteur — compter les visiteurs distincts d'UNE recherche n'en demande pas plus.
      * Écrite sous la clé courante seulement (`of()`, jamais `all()`) : elle ne décide d'aucun droit, et une rotation
      * d'`APP_KEY` en cours de journée recompte au plus une fois un visiteur ce jour-là.
      */
-    private static function visitorHash(string $ip, string $day): string
+    public static function visitorHash(string $ip, string $day, string $key): string
     {
-        return AppKeyHmac::of($day.'|'.VisitorFingerprint::network($ip));
+        return AppKeyHmac::of($day.'|'.$key.'|'.VisitorFingerprint::network($ip));
+    }
+
+    /**
+     * Revue adverse n° 8 — l'empreinte du RÉSEAU, pour le seuil d'affichage seulement : le /24 d'une IPv4, le /48 d'une
+     * IPv6 (une box reçoit couramment un /56, un hébergeur un /48). Marquée `reseau` dans la donnée : elle ne se confond
+     * jamais avec une empreinte de visiteur.
+     */
+    public static function networkHash(string $ip, string $day, string $key): string
+    {
+        return AppKeyHmac::of('reseau|'.$day.'|'.$key.'|'.self::network($ip));
+    }
+
+    /** Le /24 d'une IPv4 (IPv4-mappée comprise), le /48 d'une IPv6 ; une adresse illisible, telle quelle. */
+    private static function network(string $ip): string
+    {
+        $host = VisitorFingerprint::network($ip);
+        if (filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false) {
+            return implode('.', array_slice(explode('.', $host), 0, 3)).'.0/24';
+        }
+        $packed = filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false ? inet_pton($ip) : false;
+
+        return $packed === false ? $host : inet_ntop(substr($packed, 0, 6).str_repeat("\0", 10)).'/48';
     }
 
     /**

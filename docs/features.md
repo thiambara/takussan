@@ -636,7 +636,8 @@ Canal de notification **WhatsApp sortant** qui remplace certains SMS pour les fa
   se relit au plus toutes les 10 minutes.
 - **Les variantes d'écriture sont proposées par l'IA, validées par le code** (TCK-2476,
   [ADR-0088 §7](adr/0088-le-journal-anonyme-des-recherches.md)). Chaque lundi (`search:refresh-aliases`, 04:10 Dakar,
-  file `ai`), au nom d'un `super_admin`, le code lit les recherches restées sans résultat des 30 derniers jours, à deux
+  file `ai`), si le réglage des variantes est allumé (il est éteint à l'installation) et au nom de celui qui l'a allumé —
+  jamais d'un `super_admin` choisi d'office ; opérateur disparu, aucun passage (`search.aliases.operator_missing`) —, le code lit les recherches restées sans résultat des 30 derniers jours, à deux
   visiteurs au moins (200 au plus), dont l'analyse laisse un texte incompris ; les mêmes saisies que le dernier passage
   n'appellent pas le modèle. L'usage `search.variantes` (rôle `extraction`, 0,25 $ par jour au plus) propose des
   variantes ; le code n'en retient une que si elle est écrite dans une saisie reçue, si sa cible existe (lieu du
@@ -646,7 +647,9 @@ Canal de notification **WhatsApp sortant** qui remplace certains SMS pour les fa
   lue. L'index des suggestions les reprend à sa reconstruction horaire. Lecture et arbitrage, `super_admin` seul
   (`platform.settings.manage`) : `GET /api/admin/search/aliases` (`filter[status]`, `filter[origin]`,
   `filter[target_kind]`, `per_page` ≤ 100) et `PATCH /api/admin/search/aliases/{alias}` (`{status}` : `active` ou
-  `rejected` ; la variante devient manuelle). Aucun écran ne les montre encore.
+  `rejected` ; la variante devient manuelle). Le réglage : `GET` et `PATCH /api/admin/search/aliases/settings`
+  (`{enabled}` ; celui qui allume devient l'opérateur ; rallumer reprend un réglage dont l'opérateur a disparu).
+  Aucun écran ne les montre encore.
 - **La barre de recherche** (TCK-2475, `SearchAutocomplete`) lit la suggestion après 100 ms sans frappe ; une réponse
   arrivée après une plus récente ne l'écrase pas, et rien ne clignote. **Entrée ne valide une compréhension que si
   elle répond à la saisie courante** (une option choisie aux flèches passe d'abord) ; sinon la saisie part en texte

@@ -395,4 +395,53 @@ class SearchQueryParserTest extends TestCase
         $this->assertSame(['bedrooms' => 1], $this->parse('F2')->criteria);
         $this->assertSame(['bedrooms' => 1], $this->parse('chambre-salon')->criteria);
     }
+
+    // ───────────────────────────────────────────────────────── revue adverse du 2026-11-04 (TCK-2473)
+
+    /**
+     * Revue adverse n° 4, 10, 11 — la négation n'émet pas l'équipement et ne le laisse pas au résidu (la liste le
+     * chercherait en texte : « sans piscine » ramènerait les biens AVEC piscine) ; « vide » ne dit pas « non meublé »
+     * d'un terrain ; « 2 millions 500 » est 2 500 000 ; un nombre de chambres au-delà de 20 n'est pas le type chambre.
+     *
+     * @return array<string, array{string, array<string, mixed>, ?string}>
+     */
+    public static function revueAdverse(): array
+    {
+        return [
+            'sans piscine' => ['maison sans piscine', ['type' => 'house'], null],
+            'pas de clim' => ['appartement pas de clim', ['type' => 'apartment'], null],
+            'sans gardien' => ['villa sans gardien', ['type' => 'villa'], null],
+            'without pool' => ['villa without pool', ['type' => 'villa'], null],
+            'no pool' => ['villa no pool', ['type' => 'villa'], null],
+            'pas d\'ascenseur' => ['appartement pas d\'ascenseur', ['type' => 'apartment'], null],
+            'sans la piscine' => ['villa sans la piscine', ['type' => 'villa'], null],
+            'avec piscine sans gardien' => ['villa avec piscine sans gardien', ['type' => 'villa', 'tags' => 'Piscine'], null],
+            'sans garage, à côté d\'un type' => ['maison sans garage', ['type' => 'house'], null],
+            'sans meuble reste non meublé' => ['appartement sans meuble', ['type' => 'apartment', 'furnished' => false], null],
+            'pas plus de reste un maximum' => ['studio pas plus de 100 000', ['type' => 'studio', 'price_max' => 100_000], null],
+            'terrain vide' => ['terrain vide', ['type' => 'land'], null],
+            'parking vide' => ['parking vide', ['type' => 'parking'], null],
+            'terrain meublé' => ['terrain meublé dakar', ['type' => 'land', 'city' => 'Dakar'], null],
+            'appartement vide reste non meublé' => ['appartement vide', ['type' => 'apartment', 'furnished' => false], null],
+            'terrain et maison : vide qualifie la maison' => ['maison terrain vide', ['type' => 'house,land', 'furnished' => false], null],
+            '2 millions 500' => ['maison 2 millions 500', ['type' => 'house', 'price_max' => 2_500_000], null],
+            '2 millions 250 f' => ['maison 2 millions 250 f', ['type' => 'house', 'price_max' => 2_250_000], null],
+            '1 million 50' => ['studio 1 million 50', ['type' => 'studio', 'price_max' => 1_050_000], null],
+            'moins de 2 millions 500' => ['moins de 2 millions 500', ['price_max' => 2_500_000], null],
+            '2 millions 3 chambres : le 3 compte des chambres' => ['2 millions 3 chambres', ['price_max' => 2_000_000, 'bedrooms' => 3], null],
+            '25 chambres' => ['appartement 25 chambres', ['type' => 'apartment', 'bedrooms' => 25], null],
+            'hotel 40 chambres' => ['hotel 40 chambres', ['type' => 'hotel', 'bedrooms' => 40], null],
+            '150 chambres : ni type ni compte' => ['hotel 150 chambres', ['type' => 'hotel'], '150 chambres'],
+        ];
+    }
+
+    /** @param  array<string, mixed>  $criteria */
+    #[DataProvider('revueAdverse')]
+    public function test_revue_adverse_negation_terrain_vide_millions_et_chambres(string $q, array $criteria, ?string $residue): void
+    {
+        $r = $this->parse($q);
+
+        $this->assertSame($criteria, $r->criteria, "« {$q} »");
+        $this->assertSame($residue, $r->residue, "« {$q} »");
+    }
 }

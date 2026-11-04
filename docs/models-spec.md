@@ -382,6 +382,7 @@ Les cibles, la demande et leurs révisions (ADR-0087 §5, §6) sont plus bas, en
 #### Recherche publique — le journal anonyme et les variantes 🆕 (TCK-2472, TCK-2474, TCK-2476, ADR-0088)
 121. [SearchQueryStat](#121-searchquerystat-) 🆕
 122. [SearchAlias](#122-searchalias-) 🆕
+123. [SearchAliasSetting](#123-searchaliassetting-) 🆕
 
 ### Enums
 
@@ -5767,6 +5768,31 @@ n'est jamais rouverte par l'IA ; une variante `manual` n'est jamais modifiée pa
 
 **Contraintes :** unique `search_aliases_alias_target_unique (alias, target_kind, target_value)` ; index
 `search_aliases_status_kind_idx (status, target_kind)`.
+
+### 123. SearchAliasSetting 🆕
+
+**Table :** `search_alias_settings` (migration `2026_11_04_247610`, TCK-2476, revue adverse du 2026-11-04)
+**Modèle :** `App\Models\SearchAliasSetting` (`AbstractModel`) — `enabled` casté en `boolean`, `operator_id` en
+`integer`, `enabled_at` et `last_run_at` en `datetime`. Relation `operator()` → `User` (`belongsTo`).
+**Description :** Le réglage des variantes d'écriture tenues par l'IA (ADR-0088 §7) : UNE ligne (`id = 1`), créée
+éteinte par sa migration — même forme que `RadarDemandSetting`. Celui qui l'allume
+(`PATCH /api/admin/search/aliases/settings`, `{enabled}`, `super_admin` seul) en devient l'opérateur, au nom duquel
+l'usage `search.variantes` est jugé ; rallumer un réglage dont l'opérateur a disparu le reprend. Éteint : la commande
+planifiée `search:refresh-aliases` ne met rien en file. Opérateur disparu (compte supprimé, ou privé de
+`platform.settings.manage`) : aucun passage, issue `search.aliases.operator_missing` ; rien ne l'éteint d'office.
+`--operator=<id>` reste pour un lancement manuel, réglage éteint ou non. Plus aucun `super_admin` n'est choisi d'office.
+`blockedReason()` : `search.aliases.disabled` | `search.aliases.operator_missing` | `null`. Lu par
+`GET /api/admin/search/aliases/settings`.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | Toujours `1` (contrainte `search_alias_settings_single_row CHECK (id = 1)`) |
+| enabled | boolean | | false | Le passage planifié part-il |
+| operator_id | FK users | oui | null | `nullOnDelete` (`search_alias_settings_operator_fk`) ; index `search_alias_settings_operator_idx` |
+| enabled_at | timestamp | oui | null | Quand l'opérateur actuel l'a allumé |
+| last_run_at | timestamp | oui | null | Le dernier passage (manuel ou planifié), qu'il ait appelé le modèle ou non |
+| last_run_outcome | string(64) | oui | null | `applied`, `unchanged`, `no_signals`, `search.aliases.operator_missing`, `search.aliases.invalid_output`, `ai.<raison>`… |
+| created_at / updated_at | timestamp | | auto | |
 
 ---
 

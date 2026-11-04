@@ -144,6 +144,7 @@ use App\Services\Search\Query\DatabasePlaceLexicon;
 use App\Services\Search\Query\DatabaseVocabularyAliases;
 use App\Services\Search\Query\PlaceLexicon;
 use App\Services\Search\Query\VocabularyAliases;
+use App\Services\Search\Suggestions\SearchSuggestions;
 use App\Services\Webhooks\WebhookJournal;
 use App\Support\ImpersonationContext;
 use App\Support\LienFront;
@@ -473,10 +474,11 @@ class AppServiceProvider extends ServiceProvider
 
     private function bootRateLimiters(): void
     {
-        // TCK-107 — 60 req/min PAR VISITEUR. TCK-652 : sans `->by()`, la clé est la même pour
-        // tout le site (`ThrottleRequests` ne compte que `md5(nom.$limit->key)`) — un visiteur
-        // qui tapait vite faisait répondre 429 à tous les autres.
-        RateLimiter::for('search-suggest', fn (Request $request) => Limit::perMinute(60)->by($this->visitorRateLimitKey($request)));
+        // TCK-107 — PAR VISITEUR. TCK-652 : sans `->by()`, la clé est la même pour tout le site
+        // (`ThrottleRequests` ne compte que `md5(nom.$limit->key)`) — un visiteur qui tapait vite
+        // faisait répondre 429 à tous les autres. 60/min jusqu'au 2026-11-04 : la suggestion à chaque
+        // frappe (TCK-2475) coupait un visiteur à sa deuxième saisie (revue adverse n° 6).
+        RateLimiter::for('search-suggest', fn (Request $request) => Limit::perMinute(SearchSuggestions::RATE_PER_MINUTE)->by($this->visitorRateLimitKey($request)));
 
         // Public POST endpoints — keyed by authenticated user_id when a valid
         // Bearer token is present, otherwise by the visitor IP (resolved via
