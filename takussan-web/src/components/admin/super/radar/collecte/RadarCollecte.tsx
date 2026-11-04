@@ -203,7 +203,7 @@ function DecouverteDeLaSource({
         <p className="text-sm text-foreground">{t('readOnly', { value: t(`values.${decouverte}`) })}</p>
       )}
       <p className="text-xs text-muted-foreground">
-        {disponible ? t(`consequence.${decouverte}`, { max: RADAR_CRAWL_MAX_NEW_PER_RUN }) : t('unavailable')}
+        {disponible ? t(`consequence.${decouverte}`, { max: source.max_new_per_run ?? RADAR_CRAWL_MAX_NEW_PER_RUN }) : t('unavailable')}
       </p>
     </div>
   );

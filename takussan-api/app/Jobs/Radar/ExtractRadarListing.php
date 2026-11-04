@@ -66,7 +66,9 @@ use Throwable;
  *     (`readsEnough()` : l'extraction se compose par `fromPage()`, sans tentative, sans suggestion) ;
  *  5. **la sortie relue** par `ExtractionNormalizer`. Le refus STOP est rejugé sur TOUS les numéros
  *     (ceux du texte et ceux de la sortie, même écartés) ; sinon l'annonceur du premier numéro est
- *     rattaché — TCK-2465 : ceux que la page porte en clair (`source_fields.phones`) d'abord, puis
+ *     rattaché — TCK-2465 : ceux que la page porte en clair (`source_fields.phones`) d'abord quand un
+ *     ADAPTATEUR l'a lue (à la fin sinon : un numéro d'attribut ramassé par `HtmlCleaner` ne passe pas
+ *     devant le choix du modèle, revue du 2026-11-04), puis
  *     ceux de la sortie que le texte porte, dans l'ordre du modèle, puis ceux du texte (pour une
  *     source texte ou URL, un numéro que le modèle est seul à donner ne désigne personne) ; jamais
  *     un numéro du site lui-même (`RadarSiteAdapter::excludedPhones()`). Il est trouvé
@@ -333,9 +335,15 @@ final class ExtractRadarListing implements ShouldQueue
         // du texte suivent, pour le cas où il n'en a gardé aucun : ceux qui peuvent être un contact (TCK-2412).
         // TCK-2465 (ADR-0087 §1) — ceux que la page porte en clair passent devant : une valeur lue fait foi. Un numéro
         // du site lui-même n'est jamais celui d'un annonceur.
+        // Revue adverse du 2026-11-04 (D2) — seulement quand un ADAPTATEUR a lu la page. Ceux que `HtmlCleaner` ramasse
+        // dans les attributs d'une page générique (un `tel:` de bandeau, le standard du site) passent en dernier : le
+        // choix du modèle et le texte d'abord (le comportement d'avant TCK-2465), eux seulement à défaut (ADR-0087 §3).
         $excluded = $sources->adapterFor($listing->source_site)?->excludedPhones() ?? [];
+        $modelAndText = [...(array) ($normalized['phones'] ?? []), ...RadarPhone::contactsFromText($text)];
         $phones = array_values(array_diff(
-            self::canonicalPhones([...$sourcePhones, ...(array) ($normalized['phones'] ?? []), ...RadarPhone::contactsFromText($text)]),
+            self::canonicalPhones(ExtractionNormalizer::readByAdapter($listing->source_fields)
+                ? [...$sourcePhones, ...$modelAndText]
+                : [...$modelAndText, ...$sourcePhones]),
             $excluded,
         ));
         // Le refus se juge sur chaque numéro, pas sur le seul premier — y compris ceux du modèle

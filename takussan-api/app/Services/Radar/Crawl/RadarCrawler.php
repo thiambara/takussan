@@ -53,8 +53,10 @@ use Illuminate\Support\Sleep;
  * carte PEUT correspondre à une cible active qui concerne le site ({@see RadarTargetMatcher::mayMatchCard()}, permissif :
  * une valeur absente de la carte n'exclut rien). Une carte écartée ne crée aucune ligne et n'est comptée que dans
  * `cards_skipped` ; une annonce déjà connue est observée comme avant. Sans aucune cible active pour le site, le passage
- * s'arrête avant de lire (`radar.crawl.no_target`). Les cibles sont lues une fois, au départ du passage. Une source `all`
- * garde le comportement d'ADR-0080.
+ * lit quand même ses listes ou ses sitemaps : il observe les annonces connues (instantanés, disparitions, alertes de
+ * l'observatoire) et ne saisit rien de neuf — revue adverse du 2026-11-04 ; il s'arrêtait avant de lire
+ * (`radar.crawl.no_target`), ce qui aveuglait l'observatoire. Les cibles sont lues une fois, au départ du passage. Une
+ * source `all` garde le comportement d'ADR-0080.
  *
  * TCK-2467 (ADR-0087 §4) — **une source réglée `sitemap`** ({@see RadarCrawlDiscovery::effective()} : le défaut d'un
  * adaptateur qui en déclare) ne lit pas de listes mais les sitemaps que son adaptateur déclare
@@ -65,7 +67,8 @@ use Illuminate\Support\Sleep;
  * Puis, pour chaque URL lue ({@see self::sitemapRun()}) :
  *  - **connue** : observée comme une PRÉSENCE (`RadarSnapshots::present()` — le sitemap ne dit pas le prix) ; si son
  *    `lastmod` est plus récent que la dernière lecture (`source_lastmod`, à défaut la saisie), la page est relue par
- *    `RefreshRadarListing`, sans IA, mis en file à la fin du passage ; sinon le `lastmod` devient sa référence ;
+ *    `RefreshRadarListing`, sans IA, mis en file à la fin du passage — au plus `radar.crawl.max_refresh_per_run`, les plus
+ *    récents d'abord, le reste au passage suivant (revue du 2026-11-04) ; sinon le `lastmod` devient sa référence ;
  *  - **neuve** : la catégorie du sitemap fait la carte (type, contrat) pour le filtre des cibles, puis la saisie,
  *    les plus récentes d'abord, au plus `radar.crawl.max_new_per_run` par passage — le reste attend le passage suivant ;
  *  - réduite au silence ({@see RadarSnapshots::silenced()}) : ni observée, ni relue, ni comptée.
@@ -124,12 +127,10 @@ final class RadarCrawler
             return $this->finish($run, RadarCrawlRun::STOP_NO_START_URL);
         }
 
-        // TCK-2468 — les cibles du moment, lues une fois ; une source ciblée sans cible ne lit rien.
+        // TCK-2468 — les cibles du moment, lues une fois. Revue adverse du 2026-11-04 : une source ciblée SANS cible lit
+        // quand même — elle observe les annonces connues et n'en saisit aucune neuve (`mayMatchCard()` rend faux).
         $this->targets->forget();
         $this->targeted = ($source->scope ?? RadarCrawlScope::Targeted) === RadarCrawlScope::Targeted;
-        if ($this->targeted && $this->targets->activeFor($run->site)->isEmpty()) {
-            return $this->finish($run, RadarCrawlRun::STOP_NO_TARGET);
-        }
 
         if ($bySitemap) {
             return $this->sitemapRun($starts, $run, $operator, $adapter, $deadline);
@@ -342,7 +343,10 @@ final class RadarCrawler
         $refresh = [];
         $stop = $this->sitemapEntries($entries, $run, $operator, $deadline, $refresh) ?? $stop;
 
-        // Les relectures partent APRÈS la lecture des sitemaps : elles prennent le créneau du même domaine.
+        // Les relectures partent APRÈS la lecture des sitemaps : elles prennent le créneau du même domaine. Revue adverse du
+        // 2026-11-04 (D4) — au plus `max_refresh_per_run`, les `lastmod` les plus récents d'abord ; le reste au passage suivant.
+        uasort($refresh, static fn (string $a, string $b): int => CarbonImmutable::parse($b)->getTimestamp() <=> CarbonImmutable::parse($a)->getTimestamp());
+        $refresh = array_slice($refresh, 0, max(0, (int) config('radar.crawl.max_refresh_per_run', 300)), true);
         foreach ($refresh as $listingId => $lastmod) {
             RefreshRadarListing::dispatch($listingId, $run->id, $lastmod);
         }

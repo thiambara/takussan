@@ -9795,7 +9795,6 @@
             "lost": "Lost pass (queue stopped)",
             "loop": "Pagination loops back to a page already read",
             "noStartUrl": "No valid start URL",
-            "noTarget": "Targeted source without an active target: nothing was read",
             "sitemapInvalid": "The site’s sitemap is unreadable or empty: reading cut short"
           },
           "errors": {
@@ -9823,7 +9822,7 @@
               "all": "Everything"
             },
             "consequence": {
-              "targeted": "Targeted: only listings that may match an active target are read. Without an active target, the source reads nothing.",
+              "targeted": "Targeted: only new listings that may match an active target are captured. Without an active target, it observes the listings already known and captures no new one.",
               "all": "Everything: every listing seen is captured and extracted, on the AI budget."
             }
           },
@@ -10013,6 +10012,7 @@
             "invalidRange": "“{field}” is above the maximum: the minimum must stay lower than or equal to the maximum.",
             "duplicate": "A target already has exactly these criteria.",
             "tooMany": "Too many active targets: {max} at most, all origins. Pause or retire one.",
+            "retired": "This target is retired: it can no longer be changed. To take it up again, create a new one.",
             "seeDuplicate": "See the existing target"
           },
           "fromDemand": {
@@ -10022,7 +10022,7 @@
           },
           "demand": {
             "heading": "Targets drawn from demand",
-            "intro": "Every night, the AI reads the searches that found nothing on Takussan and turns them into targets: it creates, adjusts, merges or retires them, {max} at most. An operator target, a pinned or a paused target is never touched.",
+            "intro": "Every night, the AI reads the searches that found nothing on Takussan and turns them into targets: it creates, adjusts, merges or retires them, {max} at most. An operator target, a pinned or a paused target is never touched. When no demand remains, it retires the targets it drew, without AI.",
             "enabled": "On",
             "disabled": "Off",
             "enable": "Turn on",
@@ -10050,6 +10050,7 @@
               "applied": "The targets were reviewed by the AI.",
               "unchanged": "Demand unchanged since the last revision: the AI was not called.",
               "noSignals": "No search without results to cover.",
+              "noSignalsRetired": "No demand over 30 days: the targets drawn from demand were retired, without calling the AI.",
               "disabled": "Demand was off: nothing ran.",
               "operatorMissing": "No operator: nothing ran.",
               "invalidOutput": "The AI’s answer was unreadable: no target changed.",
@@ -10087,6 +10088,9 @@
             "targetFallback": "target #{id}",
             "quoted": "“{name}”",
             "reason": "AI’s reason: {reason}",
+            "codeReasons": {
+              "noDemand": "Retired without calling the AI: no demand over 30 days."
+            },
             "discardedHeading": "{count, plural, one {# proposal discarded} other {# proposals discarded}}",
             "discardReasons": {
               "targetProtected": "operator target, pinned or paused: the AI does not touch it.",
@@ -10094,6 +10098,7 @@
               "tooManyDemand": "cap on demand targets reached ({max} at most).",
               "invalidOperation": "malformed proposal.",
               "invalidName": "name missing or too long.",
+              "uncovered": "its criteria cover none of the searches it cites.",
               "invalidCriteria": "invalid criteria.",
               "unknownCriterion": "unknown criterion.",
               "tooManyItems": "too many values for a criterion.",
@@ -10101,6 +10106,7 @@
               "emptyCriteria": "no criterion: the target would match everything.",
               "duplicate": "a target already has these criteria.",
               "tooMany": "cap on active targets reached.",
+              "retired": "retired target: it can no longer be changed.",
               "other": "discarded by validation."
             },
             "revert": "Undo",
@@ -10112,7 +10118,8 @@
             },
             "errors": {
               "superseded": "A later revision (#{id}) touches the same targets: undo it first.",
-              "supersededPinned": "“{name}” has been pinned since: unpin it first, or adjust it by hand.",
+              "supersededTarget": "“{name}” has changed since this revision (pinned, paused or retired): undoing it would erase that action. Adjust it by hand.",
+              "tooMany": "Undoing would bring back too many active targets ({max} at most): retire or pause one first.",
               "alreadyReverted": "This revision is already undone.",
               "notFound": "This revision no longer exists.",
               "generic": "The revision could not be undone."

@@ -9795,7 +9795,6 @@
             "lost": "Passage perdu (file arrêtée)",
             "loop": "La pagination renvoie vers une page déjà lue",
             "noStartUrl": "Aucune URL de départ valable",
-            "noTarget": "Source ciblée sans cible active : rien n’a été lu",
             "sitemapInvalid": "Le sitemap du site est illisible ou vide : lecture coupée"
           },
           "errors": {
@@ -9823,7 +9822,7 @@
               "all": "Tout"
             },
             "consequence": {
-              "targeted": "Ciblée : seules les annonces qui peuvent correspondre à une cible active sont lues. Sans cible active, la source ne lit rien.",
+              "targeted": "Ciblée : seules les annonces neuves qui peuvent correspondre à une cible active sont saisies. Sans cible active, elle observe les annonces déjà connues et n’en saisit aucune neuve.",
               "all": "Tout : chaque annonce vue est saisie et extraite, sur le budget d’IA."
             }
           },
@@ -10013,6 +10012,7 @@
             "invalidRange": "« {field} » dépasse le maximum : le minimum doit rester inférieur ou égal au maximum.",
             "duplicate": "Une cible porte déjà exactement ces critères.",
             "tooMany": "Trop de cibles actives : {max} au plus, toutes origines. Mettez-en une en pause ou retirez-en une.",
+            "retired": "Cette cible est retirée : elle ne se modifie plus. Pour la reprendre, créez-en une nouvelle.",
             "seeDuplicate": "Voir la cible existante"
           },
           "fromDemand": {
@@ -10022,7 +10022,7 @@
           },
           "demand": {
             "heading": "Cibles tirées de la demande",
-            "intro": "Chaque nuit, l’IA lit les recherches restées sans résultat sur Takussan et en tire des cibles : elle en crée, en règle, en fusionne ou en retire, {max} au plus. Une cible de l’opérateur, épinglée ou en pause n’est jamais touchée.",
+            "intro": "Chaque nuit, l’IA lit les recherches restées sans résultat sur Takussan et en tire des cibles : elle en crée, en règle, en fusionne ou en retire, {max} au plus. Une cible de l’opérateur, épinglée ou en pause n’est jamais touchée. Quand plus aucune demande ne reste, elle retire sans IA les cibles qu’elle avait tirées.",
             "enabled": "Allumée",
             "disabled": "Éteinte",
             "enable": "Allumer",
@@ -10050,6 +10050,7 @@
               "applied": "Les cibles ont été revues par l’IA.",
               "unchanged": "Demande inchangée depuis la dernière révision : l’IA n’a pas été appelée.",
               "noSignals": "Aucune recherche sans résultat à couvrir.",
+              "noSignalsRetired": "Plus aucune demande sur 30 jours : les cibles tirées de la demande ont été retirées, sans appel à l’IA.",
               "disabled": "La demande était éteinte : rien n’est parti.",
               "operatorMissing": "Sans opérateur : rien n’est parti.",
               "invalidOutput": "La réponse de l’IA était illisible : aucune cible n’a changé.",
@@ -10087,6 +10088,9 @@
             "targetFallback": "cible n° {id}",
             "quoted": "« {name} »",
             "reason": "Motif de l’IA : {reason}",
+            "codeReasons": {
+              "noDemand": "Retirée sans appel à l’IA : plus aucune demande sur 30 jours."
+            },
             "discardedHeading": "{count, plural, one {# proposition écartée} other {# propositions écartées}}",
             "discardReasons": {
               "targetProtected": "cible de l’opérateur, épinglée ou en pause : l’IA n’y touche pas.",
@@ -10094,6 +10098,7 @@
               "tooManyDemand": "plafond des cibles de la demande atteint ({max} au plus).",
               "invalidOperation": "proposition mal formée.",
               "invalidName": "nom absent ou trop long.",
+              "uncovered": "ses critères ne couvrent aucune des demandes qu’elle cite.",
               "invalidCriteria": "critères non valables.",
               "unknownCriterion": "critère inconnu.",
               "tooManyItems": "trop de valeurs pour un critère.",
@@ -10101,6 +10106,7 @@
               "emptyCriteria": "aucun critère : la cible retiendrait tout.",
               "duplicate": "une cible porte déjà ces critères.",
               "tooMany": "plafond des cibles actives atteint.",
+              "retired": "cible retirée : elle ne se modifie plus.",
               "other": "écartée par la validation."
             },
             "revert": "Défaire",
@@ -10112,7 +10118,8 @@
             },
             "errors": {
               "superseded": "Une révision plus récente (n° {id}) touche les mêmes cibles : défaites-la d’abord.",
-              "supersededPinned": "« {name} » a été épinglée depuis : désépinglez-la d’abord, ou réglez-la à la main.",
+              "supersededTarget": "« {name} » a changé depuis cette révision (épinglée, mise en pause ou retirée) : la défaire effacerait ce geste. Réglez-la à la main.",
+              "tooMany": "Défaire remettrait trop de cibles actives ({max} au plus) : retirez-en ou mettez-en une en pause d’abord.",
               "alreadyReverted": "Cette révision est déjà défaite.",
               "notFound": "Cette révision n’existe plus.",
               "generic": "La révision n’a pas pu être défaite."

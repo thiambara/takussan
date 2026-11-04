@@ -176,3 +176,15 @@ rapport de la partie API, aucun écart.
   un réglage sans opérateur ; le support lit sans geste) ; la page « Révisions de la demande »
   (`/super-admin/radar/targets/revisions` : opérations appliquées avec noms, critères et motif de l'IA, propositions
   écartées et pourquoi, « défaire » avec confirmation, réservé à `platform.radar.publish`).
+
+**Revue adverse (2026-11-04)** — (D3) une création, un réglage ou une fusion dont les critères ne couvrent
+(`RadarDemandSignals::covers()`) aucun des `signal_refs` cités est écartée, `radar.demand.uncovered`. (D5) « défaire » rend
+409 `radar.targets.revision_superseded` (`params.target_id`) si une cible touchée n'a plus le statut où la révision l'a
+laissée (retirée ou mise en pause par l'opérateur). (D6) « défaire » juge `max_demand` sous le verrou : 422
+`radar.targets.too_many` s'il le dépasserait en ajoutant. (D7) Sans aucun signal, les cibles `demand` actives non épinglées
+sont retirées SANS IA dans une révision défaisable (`ai_call_id` nul, motif `radar.demand.no_demand`, issue
+`no_signals_retired`), une seule fois tant que la demande ne revient pas. (D8) L'empreinte d'un passage porte aussi les
+places libres (`max_demand` − cibles `demand` actives, comptées APRÈS la révision) : une place libérée relance le modèle ;
+« défaire » ré-estampille la dernière révision si elle valait l'état d'avant, pour qu'une place qu'il libère ne relance
+rien. Une opération écartée consigne `target_name` ; `RadarDemandSettingResource` rend `max_demand` (fin de
+`RADAR_DEMAND_TARGETS_MAX` côté front).

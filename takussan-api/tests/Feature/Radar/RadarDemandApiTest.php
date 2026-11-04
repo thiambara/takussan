@@ -85,6 +85,15 @@ class RadarDemandApiTest extends TestCase
         $this->assertNull($revision->fresh()->reverted_at);
     }
 
+    /** Revue du 2026-11-04 — le plafond des cibles de la demande vient de la configuration : la console ne le recopie pas. */
+    public function test_le_reglage_dit_le_plafond_des_cibles_de_la_demande(): void
+    {
+        config(['radar.targets.max_demand' => 7]);
+        $this->agirEnOperateur(PlatformProfileLevel::Support);
+
+        $this->getJson('/api/admin/radar/demand')->assertOk()->assertJsonPath('data.max_demand', 7);
+    }
+
     public function test_un_viewer_ne_lit_rien(): void
     {
         $this->agirEnOperateur(PlatformProfileLevel::Viewer);
@@ -100,7 +109,7 @@ class RadarDemandApiTest extends TestCase
         $this->agirEnOperateur(PlatformProfileLevel::SuperAdmin);
         $this->getJson('/api/admin/radar/demand')->assertOk()->assertExactJson(['data' => [
             'enabled' => false, 'operator' => null, 'enabled_at' => null, 'blocked_reason' => 'radar.demand.disabled',
-            'last_run_at' => null, 'last_run_outcome' => null, 'last_revision_at' => null,
+            'last_run_at' => null, 'last_run_outcome' => null, 'last_revision_at' => null, 'max_demand' => 20,
         ]]);
 
         $porteur = $this->agirEnOperateur(PlatformProfileLevel::SuperAdmin);

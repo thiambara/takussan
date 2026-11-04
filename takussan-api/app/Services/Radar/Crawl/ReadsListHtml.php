@@ -146,6 +146,15 @@ trait ReadsListHtml
             : null;
     }
 
+    /**
+     * Revue adverse du 2026-11-04 (D1) — une catégorie dit-elle « meublé » ? Au MOT entier, sur le texte replié :
+     * « Immeubles » contient « meuble » et n'est pas un meublé. Vrai, ou null (la catégorie ne dit rien).
+     */
+    private static function furnishedFrom(?string $category): ?bool
+    {
+        return preg_match('/\bmeubles?\b/u', self::fold($category)) === 1 ? true : null;
+    }
+
     /** Minuscules sans accents ni tirets : « Appartements-à-louer » → « appartements a louer ». */
     private static function fold(?string $text): string
     {

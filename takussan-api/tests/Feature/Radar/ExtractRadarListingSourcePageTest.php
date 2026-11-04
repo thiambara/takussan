@@ -250,6 +250,63 @@ class ExtractRadarListingSourcePageTest extends TestCase
         $this->assertSame(['phones' => ['+221775550505']], $listing->refresh()->source_fields);
     }
 
+    /**
+     * Revue adverse du 2026-11-04 (D2) — sans adaptateur, `HtmlCleaner` ramasse aussi le `tel:` d'un bandeau (`<div>`, pas
+     * `<header>`) : il ne passe pas devant le contact que le modèle a choisi dans le texte. Un numéro d'attribut ne fait foi
+     * que lu par un adaptateur ; ici il ne sert qu'en dernier recours (ADR-0087 §3 : « ne perd plus un numéro »).
+     */
+    public function test_un_site_sans_adaptateur_garde_le_contact_choisi_par_le_modele_devant_le_tel_d_un_bandeau(): void
+    {
+        $this->resoudre('www.annonces-fictives.sn');
+        $page = '<!doctype html><html><head><title>Villa à louer</title></head><body>'
+            .'<div class="topbar">Une question ? <a href="tel:+221338001122">33 800 11 22</a></div>'
+            .'<main><h1>Villa à louer Almadies</h1><p>Belle villa 4 chambres, 1 500 000 FCFA/mois. Contactez le propriétaire au 77 555 01 01.</p></main></body></html>';
+        Http::fake([
+            'https://www.annonces-fictives.sn/robots.txt' => Http::response('', 404),
+            'https://www.annonces-fictives.sn/*' => Http::response($page, 200, ['Content-Type' => 'text/html; charset=utf-8']),
+        ]);
+        RadarExtraction::fake([$this->reponse(['phones' => ['+221775550101']])]);
+        $listing = $this->saisir('https://www.annonces-fictives.sn/annonce/villa-1');
+        $this->assertSame(RadarSourceSite::Other, $listing->source_site);
+
+        $this->lancer($listing);
+        $this->assertSame(['phones' => ['+221338001122']], $listing->refresh()->source_fields, 'le lecteur générique garde le numéro');
+        $this->lancer($listing);
+
+        $listing->refresh();
+        $this->assertSame(RadarListingStage::Extracted, $listing->stage);
+        $this->assertSame('+221775550101', RadarAdvertiser::query()->findOrFail($listing->radar_advertiser_id)->phone, 'le contact du modèle, pas le standard du site');
+    }
+
+    public function test_un_site_sans_adaptateur_rattache_le_numero_d_attribut_quand_ni_le_modele_ni_le_texte_n_en_donnent(): void
+    {
+        $this->resoudre('www.annonces-fictives.sn');
+        Http::fake([
+            'https://www.annonces-fictives.sn/robots.txt' => Http::response('', 404),
+            'https://www.annonces-fictives.sn/*' => Http::response('<html><body><p>Studio meublé à Ouakam.</p><button data-phone-number="+221775550505">Voir</button></body></html>', 200, ['Content-Type' => 'text/html']),
+        ]);
+        RadarExtraction::fake([$this->reponse()]);
+        $listing = $this->saisir('https://www.annonces-fictives.sn/annonce/2');
+
+        $this->lancer($listing);
+        $this->lancer($listing->refresh());
+
+        $this->assertSame('+221775550505', RadarAdvertiser::query()->findOrFail($listing->refresh()->radar_advertiser_id)->phone);
+    }
+
+    private function resoudre(string $hote): void
+    {
+        $this->app->instance(HostResolver::class, new class($hote) implements HostResolver
+        {
+            public function __construct(private readonly string $hote) {}
+
+            public function resolve(string $host): array
+            {
+                return $host === $this->hote ? ['93.184.216.34'] : [];
+            }
+        });
+    }
+
     public function test_la_fiche_rend_les_champs_lus_et_l_operateur_peut_rattacher_le_numero_des_attributs(): void
     {
         RadarExtraction::fake([$this->reponse()]);

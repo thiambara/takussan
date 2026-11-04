@@ -788,7 +788,10 @@ export const RADAR_CRAWL_DISCOVERIES = ['lists', 'sitemap'] as const;
 
 export type RadarCrawlDiscovery = (typeof RADAR_CRAWL_DISCOVERIES)[number];
 
-/** TCK-2467 — `radar.crawl.max_new_per_run` (`config/radar.php`) : annonces neuves saisies au plus par passage. L'API l'impose. */
+/**
+ * TCK-2467 — `radar.crawl.max_new_per_run` (`config/radar.php`) : annonces neuves saisies au plus par passage. L'API
+ * l'impose et le dit (`RadarCrawlSource.max_new_per_run`) ; cette valeur n'est que le repli d'une réponse qui ne le dit pas.
+ */
 export const RADAR_CRAWL_MAX_NEW_PER_RUN = 200;
 
 /** Un site collecté (`GET /api/admin/radar/crawl/sources`). */
@@ -813,6 +816,8 @@ export interface RadarCrawlSource {
   readonly discovery?: RadarCrawlDiscovery;
   /** TCK-2467 — l'adaptateur déclare-t-il des sitemaps ? Faux : `lists` est le seul chemin. */
   readonly sitemap_available?: boolean;
+  /** Le plafond d'annonces neuves d'un passage (`radar.crawl.max_new_per_run`), dit par l'API ; absent d'une réponse antérieure. */
+  readonly max_new_per_run?: number;
 }
 
 export interface RadarCrawlSourcesResponse {
@@ -1004,9 +1009,6 @@ export const RADAR_TARGET_MAX_AGE_DAYS = 365;
 
 // ─── Les cibles de la demande (TCK-2470 — ADR-0087 §6) ──────────────────────────────────────
 
-/** `radar.targets.max_demand` (`config/radar.php`) : jamais plus de cibles `demand` actives. L'API l'impose. */
-export const RADAR_DEMAND_TARGETS_MAX = 20;
-
 /** Ce qui empêche un passage (`RadarDemandSetting::blockedReason()`) : éteint, ou opérateur disparu. */
 export type RadarDemandBlockedReason = 'radar.demand.disabled' | 'radar.demand.operator_missing';
 
@@ -1018,10 +1020,15 @@ export interface RadarDemandSetting {
   readonly enabled_at: string | null;
   readonly blocked_reason: RadarDemandBlockedReason | null;
   readonly last_run_at: string | null;
-  /** `applied`, `unchanged`, `no_signals`, un `blocked_reason`, `radar.demand.invalid_output`, ou un code `ai.*`. */
+  /**
+   * `applied`, `unchanged`, `no_signals`, `no_signals_retired` (aucun signal : cibles de la demande retirées sans IA), un
+   * `blocked_reason`, `radar.demand.invalid_output`, ou un code `ai.*`.
+   */
   readonly last_run_outcome: string | null;
   /** La révision la plus récente, défaite ou non. */
   readonly last_revision_at: string | null;
+  /** `radar.targets.max_demand` (`config/radar.php`) : jamais plus de cibles `demand` actives. L'API l'impose et le dit. */
+  readonly max_demand: number;
 }
 
 export interface RadarDemandSettingResponse {
@@ -1039,7 +1046,7 @@ export interface RadarTargetRevisionOperation {
   readonly merge_ids: readonly number[];
   readonly name: string | null;
   readonly criteria: RadarTargetCriteria | null;
-  /** Le motif donné par l'IA. */
+  /** Le motif donné par l'IA ; ou un code (`radar.demand.no_demand`) quand le code a agi seul, sans IA. */
   readonly reason: string;
   readonly signal_refs: readonly string[];
 }
@@ -1050,6 +1057,8 @@ export interface RadarTargetRevisionDiscarded {
   readonly target_id: number | null;
   readonly merge_ids: readonly number[];
   readonly name: string | null;
+  /** Le nom de la cible visée (`target_id`) au moment de l'écart ; absent d'une révision antérieure. */
+  readonly target_name?: string | null;
   readonly reason: string | null;
   readonly code: string;
   readonly params?: Record<string, unknown>;

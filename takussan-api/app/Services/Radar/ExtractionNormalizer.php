@@ -50,7 +50,7 @@ use App\Support\RadarPhone;
  *     `evidence` nul (rien n'est cité, la valeur est lue), `source: page` ; ses bornes se contrôlent comme avant ;
  *   - une valeur du modèle qui la contredit (au repli près : casse, accents, blancs ; montant égal) lève
  *     `source_conflict` et reste lisible dans `model_value` ; un modèle qui rend `null` ne contredit rien ;
- *   - les numéros lus passent devant ceux du modèle dans `phones` ;
+ *   - les numéros lus par un adaptateur passent devant ceux du modèle dans `phones` (ceux du lecteur générique, après) ;
  *   - une page lue par un adaptateur (`source_fields.title` présent) donne la description : `raw_text` = titre + description ;
  *   - la nature se déduit des indices du vendeur ({@see self::natureFromSignals()}) quand le modèle n'en dit rien.
  * {@see self::fromPage()} compose une extraction sans modèle ; {@see self::knownLines()} la liste « déjà lu » envoyée au
@@ -134,9 +134,13 @@ final class ExtractionNormalizer
         $out['nature_signals'] = $this->natureSignals($raw['nature_signals'] ?? null);
 
         // TCK-2466 — les numéros lus sur la page d'abord ; la nature, des indices du vendeur si le modèle n'en dit rien.
+        // Revue adverse du 2026-11-04 (D2) — d'abord seulement si un adaptateur a lu la page ; ceux que `HtmlCleaner` a
+        // ramassés dans les attributs d'une page générique viennent APRÈS ceux du modèle.
         $pagePhones = self::pagePhones($sourceFields ?? []);
         if ($pagePhones !== []) {
-            $out['phones'] = array_values(array_unique([...$pagePhones, ...$out['phones']]));
+            $out['phones'] = array_values(array_unique(self::readByAdapter($sourceFields)
+                ? [...$pagePhones, ...$out['phones']]
+                : [...$out['phones'], ...$pagePhones]));
             $out['phones_dropped'] = array_values(array_diff($out['phones_dropped'], $pagePhones));
         }
         $signals = $this->natureSignals($sourceFields['seller_signals'] ?? null);
@@ -284,10 +288,15 @@ final class ExtractionNormalizer
         return $out;
     }
 
-    /** Une page lue par l'adaptateur de son site (et pas par `HtmlCleaner`) : `source_fields` porte la clé `title`. */
-    private static function readByAdapter(array $sourceFields): bool
+    /**
+     * Une page lue par l'adaptateur de son site (et pas par `HtmlCleaner`) : `source_fields` porte la clé `title`.
+     * Revue adverse du 2026-11-04 (D2) — c'est aussi ce qui fait foi pour les numéros (`ExtractRadarListing::conclude()`).
+     *
+     * @param  array<string, mixed>|null  $sourceFields
+     */
+    public static function readByAdapter(?array $sourceFields): bool
     {
-        return array_key_exists('title', $sourceFields);
+        return $sourceFields !== null && array_key_exists('title', $sourceFields);
     }
 
     /**

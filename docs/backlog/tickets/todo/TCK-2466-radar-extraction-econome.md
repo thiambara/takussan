@@ -170,3 +170,7 @@ sauté.
   ne reçoit que la liste « déjà lu » et le titre + la description ; rôle `extraction` : Haiku d'abord, Sonnet en repli.
 - `docs/models-spec.md`, `radar_listings.extracted` : un champ peut porter `source: "page"` et, contredit,
   `model_value` ; drapeau `source_conflict`.
+
+**Revue adverse (2026-11-04)** — dans `normalize()`, les numéros de `source_fields` ne passent devant ceux du modèle que
+pour une page lue par un adaptateur (`readByAdapter()`, devenue publique et nullable) ; ceux du lecteur générique viennent
+après (D2, détail en TCK-2465).

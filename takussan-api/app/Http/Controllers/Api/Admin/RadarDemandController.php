@@ -86,7 +86,11 @@ class RadarDemandController extends Controller
         return $this->paginated($paginator, RadarTargetRevisionResource::collection($paginator)->toArray($request));
     }
 
-    /** 409 `radar.targets.revision_superseded` (une révision postérieure touche les mêmes cibles, ou l'une est épinglée) ou `radar.targets.revision_reverted`. */
+    /**
+     * 409 `radar.targets.revision_superseded` (une révision postérieure touche les mêmes cibles, ou l'une est épinglée, ou n'a
+     * plus le statut où la révision l'a laissée : `params.target_id`) ou `radar.targets.revision_reverted` ; 422
+     * `radar.targets.too_many` si défaire dépasserait `max_demand` (revue adverse du 2026-11-04).
+     */
     public function revert(RevertRadarTargetRevisionRequest $request, RadarTargetRevision $revision, RadarDemandCurator $curator): JsonResponse
     {
         /** @var User $user */

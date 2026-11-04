@@ -135,7 +135,7 @@ final class ExpatDakarAdapter implements RadarSiteAdapter
             city: $this->firstText($xpath, '//*['.self::hasClass('listing-item__address-region').']'),
             neighborhood: $this->firstText($xpath, '//*['.self::hasClass('listing-item__address-location').']')
                 ?? self::layerValue($layer, 'listing_location_title'),
-            furnished: str_contains(self::fold($category), 'meuble') ? true : null,
+            furnished: self::furnishedFrom($category),
             postedAt: self::validFrom($product),
             sellerName: $sellerName,
             sellerSignals: $this->sellerSignals($xpath, $sellerName),

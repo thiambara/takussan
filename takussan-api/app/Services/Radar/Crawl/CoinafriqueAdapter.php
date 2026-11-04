@@ -122,7 +122,7 @@ final class CoinafriqueAdapter implements RadarSiteAdapter
             rooms: self::positiveInt($ad['re_room'] ?? null) ?? self::positiveInt($this->characteristic($xpath, 'pièces')),
             bathrooms: self::positiveInt($ad['re_bathroom'] ?? null) ?? self::positiveInt($this->characteristic($xpath, 'salles de bain')),
             surfaceM2: self::positiveFloat($ad['re_surface'] ?? null) ?? self::positiveFloat($this->characteristic($xpath, 'superficie')),
-            furnished: str_contains(self::fold($category ?? $pathCategory), 'meuble') ? true : null,
+            furnished: self::furnishedFrom($category ?? $pathCategory),
             postedAt: self::date($ad['date_creation'] ?? null),
             sellerName: $sellerName,
             sellerSignals: $this->sellerSignals($xpath, $user, $sellerName),

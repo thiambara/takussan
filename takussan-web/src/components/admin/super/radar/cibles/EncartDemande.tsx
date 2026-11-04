@@ -22,7 +22,7 @@ import {
   refreshRadarDemand,
   setRadarDemandEnabled,
 } from '@/lib/queries/radar';
-import { RADAR_DEMAND_TARGETS_MAX, type RadarDemandSetting, type RadarDemandSettingResponse } from '@/types/radar';
+import type { RadarDemandSetting, RadarDemandSettingResponse } from '@/types/radar';
 import { BLOCAGES_DEMANDE_RADAR, ISSUES_DEMANDE_RADAR, MOTIFS_RADAR } from '../codes-radar';
 import { codeDuRefus } from './useMessageRefusCible';
 
@@ -196,7 +196,7 @@ export function EncartDemande() {
       </div>
 
       <p className="max-w-prose text-sm text-pretty text-muted-foreground">
-        {t('intro', { max: RADAR_DEMAND_TARGETS_MAX })}
+        {t('intro', { max: demande.max_demand })}
       </p>
 
       {sansOperateur ? (

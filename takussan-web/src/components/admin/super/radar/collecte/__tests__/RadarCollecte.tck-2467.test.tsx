@@ -25,7 +25,7 @@ const SUPPORT: PlatformAbilities = { level: 'support', abilities: ['platform.con
 const EXPAT: RadarCrawlSource = {
   id: 1, site: 'expat_dakar', enabled: true, frequency_minutes: 720, max_pages: 3, enabled_at: '2026-10-30T08:00:00Z',
   operator: { id: 9, name: 'Awa Fictive' }, start_urls: null, default_start_url: 'https://www.expat-dakar.com/immobilier',
-  start_hosts: ['www.expat-dakar.com'], scope: 'targeted', discovery: 'sitemap', sitemap_available: true,
+  start_hosts: ['www.expat-dakar.com'], scope: 'targeted', discovery: 'sitemap', sitemap_available: true, max_new_per_run: 137,
 };
 
 const COINAFRIQUE: RadarCrawlSource = {
@@ -61,10 +61,19 @@ describe('La découverte d\'une source (TCK-2467)', () => {
 
     const decouverte = await screen.findByTestId('radar-collecte-decouverte-expat_dakar');
     expect(within(decouverte).getByTestId('radar-collecte-decouverte-expat_dakar-sitemap')).toHaveAttribute('aria-pressed', 'true');
-    expect(decouverte).toHaveTextContent('tout l’inventaire du site est connu en quelques requêtes ; au plus 200 annonces neuves saisies par passage, les autres au passage suivant.');
+    // Revue du 2026-11-04 — le plafond vient de l'API (`max_new_per_run`), pas d'une constante recopiée.
+    expect(decouverte).toHaveTextContent('tout l’inventaire du site est connu en quelques requêtes ; au plus 137 annonces neuves saisies par passage, les autres au passage suivant.');
 
     await user.click(within(decouverte).getByTestId('radar-collecte-decouverte-expat_dakar-lists'));
     await waitFor(() => expect(patchRadarCrawlSource).toHaveBeenCalledWith('expat_dakar', { discovery: 'lists' }));
+  });
+
+  it('une API qui ne dit pas son plafond : le repli de la configuration connue', async () => {
+    const { max_new_per_run: _absent, ...sansPlafond } = EXPAT;
+    vi.mocked(fetchRadarCrawlSources).mockResolvedValue({ data: [sansPlafond, COINAFRIQUE] });
+    rendre();
+
+    expect(await screen.findByTestId('radar-collecte-decouverte-expat_dakar')).toHaveTextContent('au plus 200 annonces neuves');
   });
 
   it('un site sans sitemap : « sitemap » est désactivé, et l\'écran dit pourquoi', async () => {

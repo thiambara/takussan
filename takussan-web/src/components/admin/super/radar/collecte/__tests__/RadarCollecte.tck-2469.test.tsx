@@ -30,7 +30,7 @@ const SOURCE: RadarCrawlSource = {
 const PASSAGE: RadarCrawlRun = {
   id: 51, site: 'coinafrique', trigger: 'schedule', status: 'finished', started_at: '2026-11-04T08:00:00Z',
   finished_at: '2026-11-04T08:00:01Z', pages_read: 0, cards_seen: 0, listings_created: 0, listings_known: 0,
-  snapshots_opened: 0, cards_skipped: 17, reached_end: false, stop_reason: 'radar.crawl.no_target', created_at: '2026-11-04T08:00:00Z',
+  snapshots_opened: 0, cards_skipped: 17, reached_end: true, stop_reason: 'radar.crawl.end', created_at: '2026-11-04T08:00:00Z',
 };
 
 function rendre(gestes?: PlatformAbilities) {
@@ -55,7 +55,10 @@ describe('La portée d\'une source (TCK-2469)', () => {
 
     const portee = await screen.findByTestId('radar-collecte-portee-coinafrique');
     expect(within(portee).getByTestId('radar-collecte-portee-coinafrique-targeted')).toHaveAttribute('aria-pressed', 'true');
-    expect(portee).toHaveTextContent('seules les annonces qui peuvent correspondre à une cible active sont lues');
+    expect(portee).toHaveTextContent('seules les annonces neuves qui peuvent correspondre à une cible active sont saisies');
+    // Revue du 2026-11-04 — sans cible, la source n'est plus aveugle : elle observe les annonces déjà connues.
+    expect(portee).toHaveTextContent('Sans cible active, elle observe les annonces déjà connues et n’en saisit aucune neuve.');
+    expect(portee).not.toHaveTextContent('ne lit rien');
 
     await user.click(within(portee).getByTestId('radar-collecte-portee-coinafrique-all'));
 
@@ -70,12 +73,11 @@ describe('La portée d\'une source (TCK-2469)', () => {
     expect(within(portee).queryByRole('button')).toBeNull();
   });
 
-  it('un passage arrêté faute de cible le dit en libellé, et compte les cartes laissées', async () => {
+  it('un passage d\'une source ciblée compte les cartes laissées, et va au bout de sa lecture', async () => {
     rendre();
 
     const ligne = await screen.findByTestId('radar-collecte-passage-51');
-    expect(ligne).toHaveTextContent('Source ciblée sans cible active : rien n’a été lu');
-    expect(ligne).not.toHaveTextContent('radar.crawl.no_target');
+    expect(ligne).toHaveTextContent('Fin de la liste');
     expect(ligne).toHaveTextContent('17');
   });
 });

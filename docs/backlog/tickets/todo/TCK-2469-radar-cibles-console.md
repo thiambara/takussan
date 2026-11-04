@@ -72,9 +72,10 @@ les filtres de la recherche publique (villes, quartiers, `PropertyType`) — à 
   `(super-admin)/super-admin` ne sert pas (`check-i18n-namespaces`), et ils ne portent qu'UNE ville et UN quartier,
   quand une cible en porte plusieurs. Le vocabulaire (Louer/Acheter, Indifférent/Oui/Non, tuiles à pictogramme
   `iconeDuType`) est repris tel quel.
-- **Une cible `retired` reste modifiable par l'API** (`PATCH` la réactive, sous plafond et doublon : notes de
-  TCK-2468). La règle « une cible retirée n'est pas modifiable » est donc tenue par l'ÉCRAN seul : la page d'une cible
-  retirée n'a aucun geste. Écart à trancher par le porteur si l'API doit la refuser aussi.
+- ~~**Une cible `retired` reste modifiable par l'API**~~ — **tranché le 2026-11-04 par le porteur (2a)** : l'API la
+  refuse aussi, `PATCH` → 422 `radar.targets.retired` (`params.target_id`), sans réactivation possible ; pour la
+  reprendre, on en crée une nouvelle. La page d'une cible retirée reste sans geste ; le code a son libellé
+  (`ERREURS_CIBLES_RADAR`, `superAdmin.pages.radar.targets.errors.retired`) au cas où une autre page l'émettrait.
 - `RadarCrawlRun.cards_skipped` et l'arrêt `radar.crawl.no_target` n'avaient ni colonne ni libellé : ajoutés à la
   collecte (colonne « Hors cible », libellé d'arrêt), sans quoi le premier passage d'une source ciblée sans cible
   s'affichait en code brut.

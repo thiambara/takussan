@@ -163,3 +163,7 @@ toutes catégories mêlées — **pas de découverte par sitemap pour CoinAfriqu
   refus de `<!DOCTYPE` avant l'analyse et celui d'un `doctype` après) : chacune seule reste verte, les deux retirées
   rougissent ; `LIBXML_NOENT` sans les gardes rougit aussi.
 
+**Revue adverse (2026-11-04)** — (D4) les relectures d'un passage par sitemap ont un plafond,
+`radar.crawl.max_refresh_per_run` = 300, les `lastmod` les plus récents d'abord ; le reste attend le passage suivant (sa
+référence `source_lastmod` n'a pas avancé). La console lit `max_new_per_run` sur la source (`RadarCrawlSourceResource`),
+`RADAR_CRAWL_MAX_NEW_PER_RUN` n'est plus qu'un repli.

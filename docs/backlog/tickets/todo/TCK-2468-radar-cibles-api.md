@@ -75,8 +75,8 @@ created_at, updated_at` (dates par `iso()`). `RadarCrawlSourceResource` rend `sc
 
 - **Une source ciblée ne saisit une carte que si elle PEUT correspondre** à au moins une cible `active` qui la concerne
   (`sites` vide ou contenant le site) : un critère que la carte ne montre pas ne l'exclut pas (prix absent ≠ hors
-  fourchette). Une carte écartée ne crée **aucune** ligne. Une source ciblée sans aucune cible active ne saisit rien et le
-  passage le dit (`radar.crawl.no_target`).
+  fourchette). Une carte écartée ne crée **aucune** ligne. Une source ciblée sans aucune cible active ne saisit rien de neuf
+  (amendé le 2026-11-04 : elle lit quand même et observe les annonces connues ; voir les Notes).
 - **Après l'extraction**, l'annonce est rattachée (pivot) à chaque cible active dont elle remplit **strictement** les
   critères connus ; `matches_count` et `last_matched_at` suivent. Le quartier se compare par le référentiel déjà utilisé
   par `RadarNeighborhoodMatcher` (repli de casse par `CaseInsensitive`, jamais `lower()` nu).
@@ -130,8 +130,9 @@ created_at, updated_at` (dates par `iso()`). `RadarCrawlSourceResource` rend `sc
 - Les sources existantes passent `targeted` par le défaut de la migration : **les 5 classes de test qui jouent un passage
   ADR-0080** (`RadarCrawlTest`, `RadarCrawlStartUrlsTest`, `RadarSnapshotPrivacyTest`, `RadarSourceWatchCrawlTest`,
   `RadarSourceWatchStartUrlsTest`) règlent désormais leur source sur `all` dans `setUp()` — 34 rouges sans cela.
-  ⚠ En préproduction, une source allumée cesse de saisir au déploiement (`radar.crawl.no_target`) tant qu'aucune cible
-  n'existe ou que le porteur ne la règle pas sur `all` : c'est la décision d'ADR-0087 §5, à dire au porteur.
+  ⚠ En préproduction, une source allumée cesse de saisir des annonces NEUVES au déploiement tant qu'aucune cible
+  n'existe ou que le porteur ne la règle pas sur `all` (elle continue d'observer les connues, revue du 2026-11-04) :
+  c'est la décision d'ADR-0087 §5, à dire au porteur.
 
 **Décisions non évidentes** :
 
@@ -148,13 +149,18 @@ created_at, updated_at` (dates par `iso()`). `RadarCrawlSourceResource` rend `sc
   (`ShouldHandleEventsAfterCommit`) à l'ENTRÉE de l'annonce en `extracted` ou `reviewed` — `ExtractRadarListing` n'est pas
   touché. Une cible créée ou modifiée après coup ne rattache PAS les annonces déjà extraites (hors périmètre : un
   rattrapage serait un ticket).
-- **Source ciblée sans cible active** : le passage s'arrête AVANT de lire (`radar.crawl.no_target`, 0 page) ; une annonce
-  déjà connue reste observée (le filtre ne borne que la saisie d'une URL nouvelle).
+- **Source ciblée sans cible active** (corrigé le 2026-11-04, revue adverse) : le passage LIT ses listes ou son sitemap,
+  observe les annonces déjà connues (instantanés, lecture complète pour l'observatoire) et ne saisit aucune annonce neuve
+  (comptées en `cards_skipped`). L'ancien arrêt `radar.crawl.no_target` (0 page) aveuglait l'observatoire, au contraire de
+  ce que cette note affirmait ; il est retiré (constante, libellé, table du front), aucun environnement ne l'ayant servi.
 - **Doublon** : 422 `radar.targets.duplicate` (`params.target_id`) sur la même empreinte parmi les cibles non retirées ;
   l'empreinte replie la casse des lieux. Plafond et doublon jugés sous le verrou consultatif `radar_targets`
   (`App\Services\Radar\Targets\RadarTargets`, seul chemin d'écriture — TCK-2470 doit l'emprunter).
-- `PATCH` n'accepte que `status` ∈ `active|paused` (retirer = `DELETE`) ; réactiver une cible retirée la soumet au
-  plafond et au doublon.
+- `PATCH` n'accepte que `status` ∈ `active|paused` (retirer = `DELETE`) ; ~~réactiver une cible retirée la soumet au
+  plafond et au doublon~~ — **corrigé le 2026-11-04 (décision du porteur, 2a)** : une cible `retired` ne se modifie
+  plus du tout, `PATCH` → 422 `radar.targets.retired` (`params.target_id`), aucune réactivation ; pour la reprendre, on
+  en crée une nouvelle. Tenu dans `RadarTargets::update()` sous le verrou, seul `retire()` y passe outre
+  (`editsRetired`) ; le curateur de la demande ne la touche pas non plus (`radar.demand.unknown_target`).
 - `RadarCrawlRunResource` rend `cards_skipped` ; `check-status-labels.mjs` et `check-status-unions.mjs` portent
   `RadarTargetStatus` en exemption **à convertir par TCK-2469**.
 
@@ -170,4 +176,8 @@ created_at, updated_at` (dates par `iso()`). `RadarCrawlSourceResource` rend `sc
   `matched_at` timestamp, PK composée, index `(radar_target_id, matched_at)`. `RadarListing::targets()`.
   `radar_crawl_sources.scope` string(20) défaut `targeted` (enum `RadarCrawlScope` : `targeted`|`all`).
   `radar_crawl_runs.cards_skipped` uint défaut 0.
-- `docs/features.md` §2.12 — les cibles (routes, droits, plafond 50, `radar.crawl.no_target`, portée d'une source).
+- `docs/features.md` §2.12 — les cibles (routes, droits, plafond 50, portée d'une source ; plus de `radar.crawl.no_target`
+  depuis le 2026-11-04 : `features.md:1482` et `models-spec.md` (`scope`, `stop_reason`) le citent encore).
+
+**Revue adverse (2026-11-04)** — une source ciblée sans cible active observe les connues et ne saisit rien de neuf
+(décision de la session ; `RadarCrawlTargetedTest`, `RadarSitemapCrawlTest`).

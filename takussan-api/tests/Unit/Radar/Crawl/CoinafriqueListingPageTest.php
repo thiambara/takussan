@@ -143,6 +143,26 @@ class CoinafriqueListingPageTest extends TestCase
         $this->assertSame('2026-10-20T09:15:00+00:00', $fields['posted_at']);
     }
 
+    /**
+     * Revue adverse du 2026-11-04 (D1) — « Immeubles » CONTIENT « meuble » : toute annonce de cette catégorie était lue
+     * meublée, et la valeur lue fait foi. La forme réelle, relevée sur une annonce du jour : `"category":{"name":
+     * "Immeubles", …}` dans `data-ad`, et le segment `/annonce/immeubles/` de l'URL. Le meublé se juge au MOT entier.
+     */
+    public function test_la_categorie_immeubles_n_est_pas_lue_meublee_et_les_meubles_le_sont(): void
+    {
+        $immeuble = 'https://sn.coinafrique.com/annonce/immeubles/location-immeuble-fictif-a-fann-residence-8100002';
+        $html = str_replace('&quot;name&quot;:&quot;Villas&quot;', '&quot;name&quot;:&quot;Immeubles&quot;', self::fixture());
+        $this->assertStringContainsString('Immeubles', $html, 'la fixture porte la catégorie dans le JSON de l\'annonce');
+
+        $this->assertNull((new CoinafriqueAdapter)->parseListing($html, $immeuble)?->furnished, 'catégorie « Immeubles » (JSON)');
+        $this->assertNull((new CoinafriqueAdapter)->parseListing(self::sansJson(), $immeuble)?->furnished, 'segment « immeubles » de l\'URL');
+
+        $meuble = 'https://sn.coinafrique.com/annonce/appartements-meubles/studio-fictif-meuble-almadies-8100003';
+        $html = str_replace('&quot;name&quot;:&quot;Villas&quot;', '&quot;name&quot;:&quot;Appartements meublés&quot;', self::fixture());
+        $this->assertTrue((new CoinafriqueAdapter)->parseListing($html, $meuble)?->furnished, 'catégorie « Appartements meublés » (JSON)');
+        $this->assertTrue((new CoinafriqueAdapter)->parseListing(self::sansJson(), $meuble)?->furnished, 'segment « appartements-meubles » de l\'URL');
+    }
+
     public function test_une_page_qui_n_est_pas_reconnue_rend_null(): void
     {
         $this->assertNull((new CoinafriqueAdapter)->parseListing('<html><head><title>Villa Ngor</title></head><body><p>Villa à louer. 77 123 45 67</p></body></html>', self::URL));

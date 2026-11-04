@@ -275,6 +275,34 @@ class RadarSitemapCrawlTest extends TestCase
         $this->assertSame(1, $run->listings_created);
     }
 
+    /**
+     * Revue adverse du 2026-11-04 (« à signaler ») — une source ciblée sans cible active lit quand même ses sitemaps : les
+     * annonces connues y sont observées (présence, relecture d'un `lastmod` qui avance) et la lecture complète sert
+     * l'observatoire ; aucune annonce neuve n'est saisie.
+     */
+    public function test_une_source_ciblee_sans_cible_lit_son_sitemap_pour_les_connues_et_ne_saisit_rien(): void
+    {
+        $this->app->make(RadarCrawlSources::class)->find('expat_dakar')->fill(['scope' => RadarCrawlScope::Targeted])->save();
+        $connue = $this->connue(self::ANNONCE.'appartement-connu-9300008');
+        $connue->forceFill(['stage' => RadarListingStage::Extracted, 'source_lastmod' => CarbonImmutable::parse('2026-10-01T00:00:00+00:00')])->save();
+        $this->sitemaps(['appartements-a-louer' => [
+            self::ANNONCE.'appartement-connu-9300008' => '2026-11-03T00:00:00+00:00',
+            self::ANNONCE.'appartement-neuf-9300009' => '2026-11-03T00:00:00+00:00',
+        ]]);
+
+        $run = $this->crawl();
+
+        $this->assertSame(RadarCrawlRun::STOP_END, $run->stop_reason);
+        $this->assertTrue($run->reached_end);
+        $this->assertSame(9, $run->pages_read);
+        $this->assertNull($this->annonce(self::ANNONCE.'appartement-neuf-9300009'));
+        $this->assertSame(1, $run->cards_skipped);
+        $this->assertSame(0, $run->listings_created);
+        $this->assertSame(1, $connue->snapshots()->count(), 'la connue est observée');
+        Bus::assertDispatched(RefreshRadarListing::class, fn (RefreshRadarListing $job) => $job->listingId === $connue->id);
+        Bus::assertNotDispatched(ExtractRadarListing::class);
+    }
+
     // ── AC2 ───────────────────────────────────────────────────────────────────────────────────
 
     public function test_ac2_un_lastmod_qui_avance_fait_relire_la_page_sans_le_modele_et_un_prix_change_ouvre_un_instantane(): void
@@ -384,6 +412,54 @@ class RadarSitemapCrawlTest extends TestCase
         $this->travel(1)->hours();
         $this->assertSame(1, $this->crawl()->listings_created);
         $this->assertNotNull($this->annonce(self::ANNONCE.'la-plus-ancienne-9300011'));
+    }
+
+    /**
+     * Revue adverse du 2026-11-04 (D4) — les relectures d'un passage ont un plafond (`radar.crawl.max_refresh_per_run`) :
+     * un site qui date toutes ses annonces du jour, ou un premier passage après une longue pause, ne met pas en file une
+     * relecture par annonce connue (chacune tient le créneau du domaine). Les `lastmod` les plus récents d'abord ; le reste
+     * au passage suivant, puisque sa référence n'a pas avancé.
+     */
+    public function test_au_dela_du_plafond_de_relectures_les_plus_recentes_d_abord_et_le_reste_au_passage_suivant(): void
+    {
+        config(['radar.crawl.max_refresh_per_run' => 3]);
+        $urls = [];
+        foreach (range(1, 5) as $i) {
+            $urls[self::ANNONCE.'appartement-connu-'.(9400000 + $i)] = sprintf('2026-11-0%dT00:00:00+00:00', $i);
+        }
+        $ids = [];
+        foreach (array_keys($urls) as $url) {
+            $ids[$url] = $this->connue($url)->id;
+        }
+        RadarListing::query()->whereKey(array_values($ids))->update(['stage' => RadarListingStage::Extracted->value, 'source_lastmod' => '2026-10-01 00:00:00']);
+        $this->sitemaps(['appartements-a-louer' => $urls]);
+
+        $run = $this->crawl();
+
+        $relues = [];
+        Bus::assertDispatched(RefreshRadarListing::class, function (RefreshRadarListing $job) use (&$relues): bool {
+            $relues[] = $job->lastmod;
+
+            return true;
+        });
+        sort($relues);
+        $this->assertSame(['2026-11-03T00:00:00+00:00', '2026-11-04T00:00:00+00:00', '2026-11-05T00:00:00+00:00'], $relues);
+        $this->assertTrue($run->reached_end, 'Le plafond ne coupe pas la lecture.');
+
+        // Les trois relectures faites (leur référence avance), le passage suivant relit le reste.
+        foreach (array_slice($urls, 2, 3, true) as $url => $lastmod) {
+            RadarListing::query()->whereKey($ids[$url])->update(['source_lastmod' => CarbonImmutable::parse($lastmod)]);
+        }
+        $this->travel(1)->hours();
+        $this->crawl();
+        $relues = [];
+        Bus::assertDispatched(RefreshRadarListing::class, function (RefreshRadarListing $job) use (&$relues): bool {
+            $relues[] = $job->lastmod;
+
+            return true;
+        });
+        sort($relues);
+        $this->assertSame(['2026-11-01T00:00:00+00:00', '2026-11-02T00:00:00+00:00'], $relues);
     }
 
     // ── Les sitemaps refusés ───────────────────────────────────────────────────────────────────

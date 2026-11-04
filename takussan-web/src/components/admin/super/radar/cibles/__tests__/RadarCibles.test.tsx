@@ -24,7 +24,7 @@ vi.mock('@/lib/queries/radar', async (importOriginal) => ({
   fetchRadarDemand: vi.fn(async () => ({
     data: {
       enabled: true, operator: { id: 7, name: 'Awa N.' }, enabled_at: null, blocked_reason: null,
-      last_run_at: null, last_run_outcome: null, last_revision_at: null,
+      last_run_at: null, last_run_outcome: null, last_revision_at: null, max_demand: 20,
     },
   })),
 }));
@@ -149,6 +149,8 @@ describe('Les cibles du Radar (TCK-2469)', () => {
     [{ code: 'radar.targets.too_many_items', params: { field: 'criteria.neighborhoods', max: 30 } }, 'Trop de valeurs pour « Quartiers » : 30 au plus.'],
     [{ code: 'radar.targets.too_many', params: { max: 50 } }, 'Trop de cibles actives : 50 au plus'],
     [{ code: 'radar.targets.empty_criteria' }, 'Choisissez au moins un critère'],
+    // Décision 2a (2026-11-04) — une cible retirée ne se modifie plus : l'API le refuse aussi.
+    [{ code: 'radar.targets.retired', params: { target_id: 9 } }, 'Cette cible est retirée : elle ne se modifie plus. Pour la reprendre, créez-en une nouvelle.'],
   ])('AC1 — une validation refusée affiche le libellé du code, jamais le code (%o)', async (refus, libelle) => {
     vi.mocked(createRadarTarget).mockRejectedValue(new ApiError(422, { message: 'x', ...refus }));
     const user = rendre();

@@ -23,6 +23,7 @@ use App\Services\Ai\PromptRepository;
 use App\Services\Radar\Targets\RadarDemandCurator;
 use App\Services\Radar\Targets\RadarDemandSignals;
 use App\Services\Radar\Targets\RadarTargetCriteria;
+use App\Services\Radar\Targets\RadarTargets;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Tests\Support\Ai\SocleIaDEssai;
@@ -105,8 +106,13 @@ class RadarDemandCuratorTest extends TestCase
         ]);
     }
 
-    /** @return array<string, mixed> une opération proposée, sur le schéma de l'agent */
-    private static function op(string $op, array $criteria = [], ?int $targetId = null, array $mergeIds = [], string $name = '', array $refs = []): array
+    /**
+     * Une opération proposée, sur le schéma de l'agent. Par défaut, elle cite les premiers signaux (`d1` à `d3`) : une
+     * création, un réglage ou une fusion doit couvrir au moins l'un des signaux qu'elle cite (revue adverse, D3).
+     *
+     * @return array<string, mixed>
+     */
+    private static function op(string $op, array $criteria = [], ?int $targetId = null, array $mergeIds = [], string $name = '', array $refs = ['d1', 'd2', 'd3']): array
     {
         return [
             'op' => $op, 'target_id' => $targetId, 'merge_ids' => $mergeIds, 'name' => $name,
@@ -138,7 +144,8 @@ class RadarDemandCuratorTest extends TestCase
         $this->saved(['location' => 'Almadies', 'type' => ['apartment'], 'contract_type' => 'rent', 'price_max' => 600000]);
         $this->saved(['location' => 'Ngor', 'type' => ['apartment'], 'contract_type' => 'rent', 'price_max' => 700000]);
         $this->model(
-            [self::op('create', self::ALMADIES, name: 'F Almadies', refs: ['d1']), self::op('create', self::NGOR, name: 'F Ngor', refs: ['d2'])],
+            // Deux signaux de même poids : leur rang (`d1`, `d2`) suit l'empreinte, pas l'ordre de saisie. Chacune cite les deux.
+            [self::op('create', self::ALMADIES, name: 'F Almadies', refs: ['d1', 'd2']), self::op('create', self::NGOR, name: 'F Ngor', refs: ['d1', 'd2'])],
         );
         $this->assertSame(RadarDemandCurator::OUTCOME_APPLIED, $this->pass());
         [$almadies, $ngor] = $this->activeDemand();
@@ -244,6 +251,7 @@ class RadarDemandCuratorTest extends TestCase
         $this->target('Existante', ['cities' => ['Dakar'], 'types' => ['villa']]);
         $this->target('Opérateur', ['cities' => ['Dakar'], 'types' => ['land']], RadarTargetOrigin::Operator);
         $this->saved(['location' => 'Almadies', 'type' => ['apartment'], 'contract_type' => 'rent']);
+        $this->saved(['location' => 'Ngor', 'type' => ['apartment'], 'contract_type' => 'rent']);
         $this->model([self::op('create', self::ALMADIES, name: 'Deuxième'), self::op('create', self::NGOR, name: 'Troisième')]);
 
         $this->pass();
@@ -366,6 +374,7 @@ class RadarDemandCuratorTest extends TestCase
         $c = $this->target('C', ['cities' => ['Dakar'], 'types' => ['land']]);
         $before = collect([$a, $b, $c])->mapWithKeys(fn (RadarTarget $t) => [$t->id => $t->fresh()->only(['name', 'status', 'criteria', 'criteria_signature', 'pinned'])]);
         $this->saved(['location' => 'Almadies', 'type' => ['apartment'], 'contract_type' => 'rent']);
+        $this->saved(['location' => 'Almadies', 'type' => ['villa']]);
         $merged = ['neighborhoods' => [['name' => 'Almadies', 'city' => 'Dakar'], ['name' => 'Ngor', 'city' => 'Dakar']], 'types' => ['apartment'], 'contract' => 'rent'];
         $this->model([
             self::op('merge', $merged, $a->id, [$a->id, $b->id], 'Fusion'),
@@ -451,6 +460,224 @@ class RadarDemandCuratorTest extends TestCase
         $this->assertFalse(RadarDemandSignals::covers($target, $signal(['price_min' => 800_000])));
         $this->assertFalse(RadarDemandSignals::covers($target, $signal(['neighborhoods' => [['name' => 'Ngor', 'city' => 'Dakar']]])));
         $this->assertFalse(RadarDemandSignals::covers($target, $signal(['cities' => ['Thiès']])));
+    }
+
+    // ── Revue adverse du 2026-11-04 ──────────────────────────────────────────────────────────────
+
+    /**
+     * D3 — une cible doit couvrir au moins l'un des signaux qu'elle cite. Sans cela, une cible `{furnished: true}` (aucun
+     * critère qu'une carte puisse contredire) ouvrait tout le site à une source ciblée.
+     */
+    public function test_d3_une_cible_qui_ne_couvre_aucun_des_signaux_cites_est_ecartee(): void
+    {
+        $existante = $this->target('Existante', self::ALMADIES);
+        $this->saved(['location' => 'Almadies', 'type' => ['apartment'], 'contract_type' => 'rent']);
+        $villa = ['cities' => ['Mbour'], 'types' => ['villa'], 'contract' => 'sale'];
+        $this->model([
+            self::op('create', ['furnished' => true], name: 'Fourre-tout', refs: []),
+            self::op('create', $villa, name: 'Sans lien', refs: ['d1']),
+            self::op('create', self::NGOR, name: 'Référence inconnue', refs: ['d99']),
+            self::op('update', $villa, $existante->id, name: 'Réglée sans lien', refs: ['d1']),
+            self::op('create', ['neighborhoods' => [['name' => 'Almadies', 'city' => 'Dakar']], 'types' => ['apartment'], 'contract' => 'rent'], name: 'Couverte', refs: ['d1']),
+        ]);
+
+        $this->pass();
+
+        $this->assertSame(['Existante', 'Couverte'], array_map(fn (RadarTarget $t) => $t->name, $this->activeDemand()));
+        $this->assertSame('Existante', $existante->fresh()->name);
+        $revision = RadarTargetRevision::query()->sole();
+        $this->assertSame(array_fill(0, 4, RadarDemandCurator::DISCARD_UNCOVERED), array_column($revision->discarded, 'code'));
+        $this->assertSame(['create'], array_column($revision->operations, 'op'));
+    }
+
+    /** D5 — « défaire » ne remet pas active une cible que l'opérateur a retirée depuis (retirer n'épingle pas). */
+    public function test_d5_defaire_est_refuse_si_l_operateur_a_retire_une_cible_touchee(): void
+    {
+        $this->defaireApresUnGesteDeLOperateur(RadarTargetStatus::Retired);
+    }
+
+    /** D5 — ni une cible qu'il a mise en pause : la pause est un geste de l'opérateur. */
+    public function test_d5_defaire_est_refuse_si_l_operateur_a_mis_en_pause_une_cible_touchee(): void
+    {
+        $this->defaireApresUnGesteDeLOperateur(RadarTargetStatus::Paused);
+    }
+
+    private function defaireApresUnGesteDeLOperateur(RadarTargetStatus $geste): void
+    {
+        $a = $this->target('A', self::ALMADIES);
+        $this->saved(['location' => 'Almadies', 'type' => ['apartment'], 'contract_type' => 'rent']);
+        $this->model([self::op('update', ['neighborhoods' => [['name' => 'Almadies', 'city' => 'Dakar']], 'types' => ['apartment'], 'contract' => 'rent'], $a->id, name: 'A2')]);
+        $this->pass();
+        $revision = RadarTargetRevision::query()->sole();
+        $this->assertCount(1, $revision->operations);
+
+        // Le geste de la console : `RadarTargets`, qui n'épingle pas une cible dont seul le statut change.
+        app(RadarTargets::class)->update($a->fresh(), ['status' => $geste]);
+        $this->assertFalse($a->fresh()->pinned);
+
+        $e = $this->refusal(fn () => app(RadarDemandCurator::class)->revert($revision, $this->operator));
+
+        $this->assertSame([409, 'radar.targets.revision_superseded', ['target_id' => $a->id]], [$e->getStatusCode(), $e->errorCode, $e->params]);
+        $this->assertSame($geste, $a->fresh()->status, 'défaire n\'a pas repris la cible');
+        $this->assertSame('A2', $a->fresh()->name);
+        $this->assertNull($revision->fresh()->reverted_at);
+    }
+
+    /** D6 — « défaire » juge le plafond des cibles de la demande, sous le verrou. */
+    public function test_d6_defaire_ne_depasse_pas_max_demand(): void
+    {
+        config(['radar.targets.max_demand' => 2]);
+        $a = $this->target('A', self::ALMADIES);
+        $this->saved(['location' => 'Almadies', 'type' => ['apartment'], 'contract_type' => 'rent']);
+        $this->model([self::op('retire', targetId: $a->id)]);
+        $this->pass();
+        $r1 = RadarTargetRevision::query()->sole();
+
+        // Deux demandes nouvelles : l'IA crée deux cibles, le plafond est atteint sans toucher A.
+        $this->saved(['location' => 'Ngor', 'type' => ['apartment'], 'contract_type' => 'rent']);
+        $this->saved(['location' => 'Almadies', 'type' => ['villa']]);
+        $this->model([
+            self::op('create', self::NGOR, name: 'Ngor'),
+            self::op('create', ['neighborhoods' => [['name' => 'Almadies', 'city' => 'Dakar']], 'types' => ['villa']], name: 'Villas'),
+        ]);
+        $this->pass();
+        $this->assertCount(2, $this->activeDemand());
+
+        $e = $this->refusal(fn () => app(RadarDemandCurator::class)->revert($r1, $this->operator));
+
+        $this->assertSame([422, 'radar.targets.too_many', ['max' => 2]], [$e->getStatusCode(), $e->errorCode, $e->params]);
+        $this->assertSame(RadarTargetStatus::Retired, $a->fresh()->status);
+        $this->assertCount(2, $this->activeDemand());
+        $this->assertNull($r1->fresh()->reverted_at);
+    }
+
+    /**
+     * D7 — plus aucun signal : les cibles de la demande que l'IA pouvait toucher sont retirées SANS appel, dans une révision
+     * qui se défait ; celles de l'opérateur, épinglées ou en pause ne bougent pas. Défaite, elle n'est pas refaite tant que
+     * la demande ne revient pas.
+     */
+    public function test_d7_sans_aucun_signal_les_cibles_de_la_demande_sont_retirees_sans_ia_et_cela_se_defait(): void
+    {
+        $libre = $this->target('Libre', self::ALMADIES);
+        $epinglee = $this->target('Épinglée', self::NGOR, pinned: true);
+        $operateur = $this->target('Opérateur', ['cities' => ['Dakar'], 'types' => ['villa']], RadarTargetOrigin::Operator);
+        $pause = $this->target('En pause', ['cities' => ['Dakar'], 'types' => ['land']]);
+        $pause->forceFill(['status' => RadarTargetStatus::Paused])->save();
+        $this->model();
+
+        $this->assertSame(RadarDemandCurator::OUTCOME_NO_SIGNALS_RETIRED, $this->pass());
+
+        RadarDemandTargets::assertNeverPrompted();
+        $this->assertSame(RadarTargetStatus::Retired, $libre->fresh()->status);
+        $this->assertSame(
+            [RadarTargetStatus::Active, RadarTargetStatus::Active, RadarTargetStatus::Paused],
+            [$epinglee->fresh()->status, $operateur->fresh()->status, $pause->fresh()->status],
+        );
+        $revision = RadarTargetRevision::query()->sole();
+        $this->assertNull($revision->ai_call_id);
+        $this->assertSame(0, $revision->signals_count);
+        $this->assertSame([['op' => 'retire', 'target_id' => $libre->id, 'reason' => RadarDemandCurator::REASON_NO_DEMAND]],
+            array_map(fn (array $o) => ['op' => $o['op'], 'target_id' => $o['target_id'], 'reason' => $o['reason']], $revision->operations));
+        $this->assertSame(RadarDemandCurator::OUTCOME_NO_SIGNALS_RETIRED, RadarDemandSetting::current()->last_run_outcome);
+
+        app(RadarDemandCurator::class)->revert($revision, $this->operator);
+        $this->assertSame(RadarTargetStatus::Active, $libre->fresh()->status);
+
+        $this->assertSame(RadarDemandCurator::OUTCOME_NO_SIGNALS, $this->pass(), 'une révision défaite n\'est pas refaite');
+        $this->assertSame(RadarTargetStatus::Active, $libre->fresh()->status);
+        $this->assertSame(1, RadarTargetRevision::query()->count());
+        $this->assertSame(0, AiCall::query()->count());
+    }
+
+    /** D8 — une place libérée relance le modèle ; à signaux et places égaux, aucun appel (comme avant). */
+    public function test_d8_une_place_liberee_relance_le_modele_a_signaux_egaux(): void
+    {
+        config(['radar.targets.max_demand' => 1]);
+        $ancienne = $this->target('Ancienne', ['cities' => ['Dakar'], 'types' => ['villa']]);
+        $this->saved(['location' => 'Almadies', 'type' => ['apartment'], 'contract_type' => 'rent', 'price_max' => 600000]);
+        $this->model(
+            [self::op('create', self::ALMADIES, name: 'Almadies')],
+            [self::op('create', self::ALMADIES, name: 'Almadies')],
+        );
+        $this->pass();
+        $this->assertSame([RadarDemandCurator::DISCARD_TOO_MANY], array_column(RadarTargetRevision::query()->sole()->discarded, 'code'));
+        $this->assertSame(RadarDemandCurator::OUTCOME_UNCHANGED, $this->pass(), 'rien n\'a bougé : aucun appel');
+        $this->assertCount(1, $this->prompts);
+
+        app(RadarTargets::class)->retire($ancienne->fresh()); // l'opérateur fait de la place
+
+        $this->assertSame(RadarDemandCurator::OUTCOME_APPLIED, $this->pass());
+        $this->assertCount(2, $this->prompts);
+        $this->assertSame(['Almadies'], array_map(fn (RadarTarget $t) => $t->name, $this->activeDemand()));
+        $this->assertSame(RadarDemandCurator::OUTCOME_UNCHANGED, $this->pass(), 'la place prise, l\'empreinte est stable');
+        $this->assertCount(2, $this->prompts);
+    }
+
+    /**
+     * D8 ne casse pas la promesse de « défaire » : la place qu'un « défaire » libère ne relance pas le modèle tant que la
+     * demande ne change pas — que la révision défaite soit la dernière ou une plus ancienne.
+     */
+    public function test_la_place_liberee_par_un_defaire_ne_relance_pas_le_modele(): void
+    {
+        $this->saved(['location' => 'Almadies', 'type' => ['apartment'], 'contract_type' => 'rent']);
+        $this->model([self::op('create', self::ALMADIES, name: 'Almadies')], [self::op('create', self::NGOR, name: 'Ngor')]);
+        $this->pass();
+        $this->saved(['location' => 'Ngor', 'type' => ['apartment'], 'contract_type' => 'rent']);
+        $this->pass();
+        [$first, $second] = RadarTargetRevision::query()->orderBy('id')->get()->all();
+        $this->assertSame(['Almadies', 'Ngor'], array_map(fn (RadarTarget $t) => $t->name, $this->activeDemand()));
+
+        app(RadarDemandCurator::class)->revert($first, $this->operator);
+        $this->assertSame(RadarDemandCurator::OUTCOME_UNCHANGED, $this->pass(), 'une révision plus ancienne défaite');
+
+        app(RadarDemandCurator::class)->revert($second, $this->operator);
+        $this->assertSame(RadarDemandCurator::OUTCOME_UNCHANGED, $this->pass(), 'la dernière révision défaite');
+
+        $this->assertCount(2, $this->prompts);
+        $this->assertSame([], $this->activeDemand());
+    }
+
+    /** Décision 2a (2026-11-04) — l'IA ne touche jamais une cible retirée : ni réglée, ni fusionnée, ni retirée de nouveau. */
+    public function test_une_cible_retiree_n_est_jamais_touchee_par_l_ia(): void
+    {
+        $retiree = $this->target('Retirée', self::ALMADIES);
+        $retiree->forceFill(['status' => RadarTargetStatus::Retired])->save();
+        $libre = $this->target('Libre', self::NGOR);
+        $this->saved(['location' => 'Almadies', 'type' => ['apartment'], 'contract_type' => 'rent']);
+        $this->model([
+            self::op('update', self::ALMADIES, $retiree->id, name: 'Reprise'),
+            self::op('merge', ['cities' => ['Dakar'], 'types' => ['apartment'], 'contract' => 'rent'], $libre->id, [$libre->id, $retiree->id], 'Fusion'),
+            self::op('retire', targetId: $retiree->id),
+        ]);
+
+        $this->pass();
+
+        $this->assertSame(['Retirée', RadarTargetStatus::Retired], [$retiree->fresh()->name, $retiree->fresh()->status]);
+        $this->assertSame(RadarTargetStatus::Active, $libre->fresh()->status);
+        $this->assertSame(array_fill(0, 3, RadarDemandCurator::DISCARD_UNKNOWN_TARGET), array_column(RadarTargetRevision::query()->sole()->discarded, 'code'));
+    }
+
+    /** Une opération écartée garde le nom de la cible qu'elle visait, pour la console. */
+    public function test_une_operation_ecartee_garde_le_nom_de_la_cible_visee(): void
+    {
+        $operateur = $this->target('Cible de l\'opérateur', self::ALMADIES, RadarTargetOrigin::Operator);
+        $this->saved(['location' => 'Almadies', 'type' => ['apartment'], 'contract_type' => 'rent']);
+        $this->model([self::op('retire', targetId: $operateur->id), self::op('update', self::NGOR, 999999, name: 'Absente')]);
+
+        $this->pass();
+
+        $discarded = RadarTargetRevision::query()->sole()->discarded;
+        $this->assertSame(['Cible de l\'opérateur', null], array_column($discarded, 'target_name'));
+    }
+
+    private function refusal(callable $call): HttpExceptionInterface
+    {
+        try {
+            $call();
+        } catch (HttpExceptionInterface $e) {
+            return $e;
+        }
+        $this->fail('attendu : un refus');
     }
 
     private function assertRefused(callable $call, int $status, string $code): void

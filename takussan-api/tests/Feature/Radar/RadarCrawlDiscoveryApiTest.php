@@ -29,6 +29,18 @@ class RadarCrawlDiscoveryApiTest extends TestCase
         $this->assertFalse($data['coinafrique']['sitemap_available']);
     }
 
+    /** Revue du 2026-11-04 — le plafond d'URL neuves d'un passage vient de la configuration : la console ne le recopie pas. */
+    public function test_la_console_lit_le_plafond_d_urls_neuves_de_la_configuration(): void
+    {
+        config(['radar.crawl.max_new_per_run' => 137]);
+        $this->agirEnOperateur(PlatformProfileLevel::Support);
+
+        $data = collect($this->getJson('/api/admin/radar/crawl/sources')->assertOk()->json('data'))->keyBy('site');
+
+        $this->assertSame(137, $data['expat_dakar']['max_new_per_run']);
+        $this->assertSame(137, $data['coinafrique']['max_new_per_run']);
+    }
+
     public function test_le_porteur_regle_la_decouverte_et_null_rend_le_defaut(): void
     {
         $this->agirEnOperateur(PlatformProfileLevel::SuperAdmin);

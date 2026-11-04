@@ -255,8 +255,6 @@ export const ARRETS_COLLECTE_RADAR: Record<string, string> = {
   'radar.crawl.lost': 'lost',
   'radar.crawl.loop': 'loop',
   'radar.crawl.no_start_url': 'noStartUrl',
-  // TCK-2469 — une source ciblée sans cible active s'arrête avant de lire (TCK-2468).
-  'radar.crawl.no_target': 'noTarget',
   // TCK-2467 — un sitemap illisible coupe la lecture (le passage ne déclare rien disparu).
   'radar.crawl.sitemap_invalid': 'sitemapInvalid',
 };
@@ -274,6 +272,8 @@ export const ERREURS_CIBLES_RADAR: Record<string, string> = {
   'radar.targets.invalid_range': 'invalidRange',
   'radar.targets.duplicate': 'duplicate',
   'radar.targets.too_many': 'tooMany',
+  // Décision 2a (2026-11-04) — une cible retirée ne se modifie plus (`PATCH` refusé, `params.target_id`).
+  'radar.targets.retired': 'retired',
 };
 
 /**
@@ -294,6 +294,8 @@ export const ISSUES_DEMANDE_RADAR: Record<string, string> = {
   applied: 'applied',
   unchanged: 'unchanged',
   no_signals: 'noSignals',
+  // Revue du 2026-11-04 (D7) — aucun signal : les cibles tirées de la demande ont été retirées, sans IA.
+  no_signals_retired: 'noSignalsRetired',
   'radar.demand.disabled': 'disabled',
   'radar.demand.operator_missing': 'operatorMissing',
   'radar.demand.invalid_output': 'invalidOutput',
@@ -309,6 +311,8 @@ export const ECARTS_DEMANDE_RADAR: Record<string, string> = {
   'radar.demand.too_many': 'tooManyDemand',
   'radar.demand.invalid_operation': 'invalidOperation',
   'radar.demand.invalid_name': 'invalidName',
+  // Revue du 2026-11-04 (D3) — les critères ne couvrent aucun des signaux que l'opération cite.
+  'radar.demand.uncovered': 'uncovered',
   'radar.targets.invalid_criteria': 'invalidCriteria',
   'radar.targets.unknown_criterion': 'unknownCriterion',
   'radar.targets.too_many_items': 'tooManyItems',
@@ -316,4 +320,14 @@ export const ECARTS_DEMANDE_RADAR: Record<string, string> = {
   'radar.targets.empty_criteria': 'emptyCriteria',
   'radar.targets.duplicate': 'duplicate',
   'radar.targets.too_many': 'tooMany',
+  'radar.targets.retired': 'retired',
+};
+
+/**
+ * Revue du 2026-11-04 (D7) — le motif d'une opération que le CODE a faite seul, sans IA (`operations[].reason`,
+ * `RadarDemandCurator::REASON_*`). Libellés sous `superAdmin.pages.radar.targets.revisions.codeReasons` ; tout autre motif
+ * est celui que l'IA a écrit, cité tel quel.
+ */
+export const MOTIFS_REVISION_RADAR: Record<string, string> = {
+  'radar.demand.no_demand': 'noDemand',
 };

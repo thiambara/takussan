@@ -164,6 +164,28 @@ class RadarTargetApiTest extends TestCase
         $this->assertSame(2, RadarTarget::query()->where('status', 'active')->count());
     }
 
+    /**
+     * Décision du porteur (2a, 2026-11-04) — une cible retirée ne se modifie plus : ni réactivée, ni renommée, ni réglée
+     * par `PATCH` (422 `radar.targets.retired`). Pour la reprendre, on en crée une nouvelle. La retirer de nouveau reste
+     * sans effet (`DELETE` idempotent).
+     */
+    public function test_une_cible_retiree_ne_se_modifie_plus(): void
+    {
+        $this->agirEnOperateur(PlatformProfileLevel::SuperAdmin);
+        $retired = $this->target(status: RadarTargetStatus::Retired);
+        $before = $retired->fresh()->only(['name', 'status', 'criteria', 'pinned']);
+
+        foreach ([['status' => 'active'], ['status' => 'paused'], ['name' => 'Renommée'], ['pinned' => true], ['criteria' => ['contract' => 'sale']]] as $body) {
+            $this->patchJson("/api/admin/radar/targets/{$retired->id}", $body)
+                ->assertUnprocessable()->assertJsonPath('code', 'radar.targets.retired')->assertJsonPath('params.target_id', $retired->id);
+        }
+
+        $this->assertSame($before, $retired->fresh()->only(['name', 'status', 'criteria', 'pinned']));
+        $this->deleteJson("/api/admin/radar/targets/{$retired->id}")->assertOk()->assertJsonPath('data.status', 'retired');
+        // La reprendre, c'est en créer une nouvelle (les mêmes critères : la retirée ne compte plus comme doublon).
+        $this->postJson('/api/admin/radar/targets', ['name' => 'Reprise', 'criteria' => self::CRITERIA])->assertCreated();
+    }
+
     public function test_modifier_les_criteres_d_une_cible_de_la_demande_l_epingle(): void
     {
         $this->agirEnOperateur(PlatformProfileLevel::SuperAdmin);

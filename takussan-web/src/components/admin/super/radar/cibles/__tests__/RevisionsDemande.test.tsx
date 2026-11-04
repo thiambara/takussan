@@ -53,7 +53,7 @@ const REVISION: RadarTargetRevision = {
   ],
   discarded: [
     {
-      op: 'retire', target_id: 4, merge_ids: [], name: '', reason: 'Plus demandée.',
+      op: 'retire', target_id: 4, merge_ids: [], name: '', target_name: 'Bureaux du Plateau', reason: 'Plus demandée.',
       code: 'radar.demand.target_protected', params: { target_id: 4 },
     },
     {
@@ -141,7 +141,9 @@ describe('L\'historique des révisions de la demande (TCK-2470)', () => {
     const carte = await screen.findByTestId('radar-revision-3');
     expect(carte).toHaveTextContent('3 propositions écartées');
     const [protegee, plafond, inconnue] = within(carte).getAllByTestId('radar-revision-3-ecartee');
-    expect(protegee).toHaveTextContent('Retirée « cible n° 4 » — cible de l’opérateur, épinglée ou en pause : l’IA n’y touche pas.');
+    // Revue du 2026-11-04 — la cible visée se nomme (`target_name`), plus par son numéro.
+    expect(protegee).toHaveTextContent('Retirée « Bureaux du Plateau » — cible de l’opérateur, épinglée ou en pause : l’IA n’y touche pas.');
+    expect(protegee).not.toHaveTextContent('cible n° 4');
     expect(within(protegee).getByRole('link')).toHaveAttribute('href', '/super-admin/radar/targets/4');
     expect(protegee).toHaveTextContent('Motif de l’IA : Plus demandée.');
     expect(plafond).toHaveTextContent('Créée « Tout Dakar » — plafond des cibles de la demande atteint (20 au plus).');
@@ -187,7 +189,7 @@ describe('L\'historique des révisions de la demande (TCK-2470)', () => {
     expect(within(dialogue).getByTestId('radar-revision-defaire-confirmer')).toBeDisabled();
   });
 
-  it('409 — une cible touchée a été épinglée depuis : l\'écran la nomme', async () => {
+  it('409 — une cible touchée a changé depuis (épinglée, mise en pause ou retirée) : l\'écran la nomme', async () => {
     vi.mocked(revertRadarTargetRevision).mockRejectedValue(
       new ApiError(409, { message: 'x', code: 'radar.targets.revision_superseded', params: { target_id: 9 } }),
     );
@@ -195,13 +197,15 @@ describe('L\'historique des révisions de la demande (TCK-2470)', () => {
 
     const dialogue = await ouvrirDefaire(user);
     expect(await within(dialogue).findByTestId('radar-revision-refus'))
-      .toHaveTextContent('« Terrains Diamniadio » a été épinglée depuis : désépinglez-la d’abord, ou réglez-la à la main.');
+      .toHaveTextContent('« Terrains Diamniadio » a changé depuis cette révision (épinglée, mise en pause ou retirée) : la défaire effacerait ce geste. Réglez-la à la main.');
   });
 
   it.each([
     [new ApiError(409, { message: 'x', code: 'radar.targets.revision_reverted' }), 'Cette révision est déjà défaite.'],
     [new ApiError(404, { message: 'x' }), 'Cette révision n’existe plus.'],
     [new ApiError(422, { message: 'x', code: 'radar.targets.duplicate', params: { target_id: 12 } }), 'Une cible porte déjà exactement ces critères.'],
+    // Revue du 2026-11-04 (D6) — défaire jugerait le plafond des cibles de la demande.
+    [new ApiError(422, { message: 'x', code: 'radar.targets.too_many', params: { max: 20 } }), 'Défaire remettrait trop de cibles actives (20 au plus) : retirez-en ou mettez-en une en pause d’abord.'],
   ])('les autres refus de « défaire » se lisent en clair (%#)', async (erreur, libelle) => {
     vi.mocked(revertRadarTargetRevision).mockRejectedValue(erreur);
     const user = rendre();
@@ -218,6 +222,38 @@ describe('L\'historique des révisions de la demande (TCK-2470)', () => {
     expect(screen.getByText(/Seul le super-administrateur défait une révision/u)).toBeInTheDocument();
     expect(screen.queryByTestId('radar-revision-3-defaire')).not.toBeInTheDocument();
     expect(within(carte).queryAllByRole('button')).toHaveLength(0);
+  });
+
+  it('un retrait fait sans IA, faute de demande, le dit au lieu d\'un motif de l\'IA (revue du 2026-11-04, D7)', async () => {
+    const sansIa: RadarTargetRevision = {
+      ...DEFAITE,
+      id: 4,
+      operations: [{ op: 'retire', target_id: 9, merge_ids: [], name: null, criteria: null, reason: 'radar.demand.no_demand', signal_refs: [] }],
+      before: [{ id: 9, name: 'Terrains Diamniadio', status: 'active', pinned: false, criteria: SANS_CRITERE, demand_count: 0 }],
+      signals_count: 0,
+      reverted_at: null,
+      reverted_by_id: null,
+      reverted_by: null,
+    };
+    vi.mocked(fetchRadarTargetRevisions).mockResolvedValue(page([sansIa]));
+    rendre();
+
+    const [retrait] = within(await screen.findByTestId('radar-revision-4')).getAllByTestId('radar-revision-4-op');
+    expect(retrait).toHaveTextContent('Retirée « Terrains Diamniadio »');
+    expect(retrait).toHaveTextContent('Retirée sans appel à l’IA : plus aucune demande sur 30 jours.');
+    expect(retrait).not.toHaveTextContent('Motif de l’IA');
+    expect(retrait).not.toHaveTextContent('radar.demand');
+  });
+
+  it('une proposition sans lien avec les demandes citées se lit en clair (revue du 2026-11-04, D3)', async () => {
+    vi.mocked(fetchRadarTargetRevisions).mockResolvedValue(page([{
+      ...REVISION,
+      discarded: [{ op: 'create', target_id: null, merge_ids: [], name: 'Tout meublé', reason: 'Large.', code: 'radar.demand.uncovered', params: { signal_refs: [] } }],
+    }]));
+    rendre();
+
+    const [ecartee] = within(await screen.findByTestId('radar-revision-3')).getAllByTestId('radar-revision-3-ecartee');
+    expect(ecartee).toHaveTextContent('Créée « Tout meublé » — ses critères ne couvrent aucune des demandes qu’elle cite.');
   });
 
   it('sans révision : l\'écran dit d\'où elles viennent', async () => {

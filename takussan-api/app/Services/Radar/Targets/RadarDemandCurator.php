@@ -29,11 +29,18 @@ use Throwable;
  * Un passage, dans cet ordre :
  *  1. **Rien sans opérateur** : réglage éteint, ou opérateur disparu → aucun signal lu, aucun appel ({@see RadarDemandSetting}).
  *  2. Les signaux, lus et regroupés par le code ({@see RadarDemandSignals}) — ni texte saisi, ni compte.
- *  3. **Pas de passage inutile** : aucun signal, ou la même empreinte que la dernière révision (défaite ou non : un
- *     « défaire » n'est pas refait tant que la demande n'a pas changé) → aucun appel.
+ *  3. **Pas de passage inutile** : la même empreinte que la dernière révision (défaite ou non : un « défaire » n'est pas
+ *     refait tant que la demande n'a pas changé) → aucun appel. L'empreinte porte les signaux ET le nombre de places
+ *     libres (`max_demand` moins les cibles `demand` actives, compté APRÈS la révision) : une place que l'opérateur libère
+ *     relance le modèle (revue adverse du 2026-11-04, D8), celle qu'un « défaire » libère non ({@see self::revert()}).
+ *     **Aucun signal** : aucun appel ; les cibles que l'IA peut toucher (`demand`, actives, non épinglées) sont retirées
+ *     SANS IA, dans une révision qui se défait, motif {@see self::REASON_NO_DEMAND} (D7) — une seule fois : défaite, elle
+ *     n'est pas refaite tant que des signaux ne sont pas revenus.
  *  4. L'appel à l'usage `radar.cibles`, au nom de l'opérateur, HORS de toute transaction.
  *  5. **Le modèle propose, le code valide** : chaque opération passe `RadarTargetCriteria`, le plafond des cibles `demand`
- *     (`radar.targets.max_demand`), et celui et le doublon de {@see RadarTargets}. Une opération qui vise une cible de
+ *     (`radar.targets.max_demand`), et celui et le doublon de {@see RadarTargets}. Une création, un réglage ou une fusion
+ *     doit couvrir ({@see RadarDemandSignals::covers()}) au moins l'un des signaux qu'elle cite (`signal_refs`), sinon
+ *     {@see self::DISCARD_UNCOVERED} (D3 : une cible sans lien avec la demande ouvrirait tout un site). Une opération qui vise une cible de
  *     l'opérateur, épinglée, en pause ou retirée est écartée. Une opération écartée est consignée dans la révision
  *     (`discarded`, avec son code) et au journal ; les autres s'appliquent. Chaque opération est atomique (point de
  *     sauvegarde) : une fusion refusée à mi-chemin ne laisse rien.
@@ -52,6 +59,12 @@ final class RadarDemandCurator
 
     public const OUTCOME_NO_SIGNALS = 'no_signals';
 
+    /** Revue adverse du 2026-11-04 (D7) — aucun signal, et des cibles de la demande ont été retirées sans IA. */
+    public const OUTCOME_NO_SIGNALS_RETIRED = 'no_signals_retired';
+
+    /** Le motif (un code, pas un texte : le front le libelle) d'un retrait fait sans IA, faute de demande. */
+    public const REASON_NO_DEMAND = 'radar.demand.no_demand';
+
     public const OUTCOME_INVALID_OUTPUT = 'radar.demand.invalid_output';
 
     public const DISCARD_INVALID_OPERATION = 'radar.demand.invalid_operation';
@@ -63,6 +76,9 @@ final class RadarDemandCurator
     public const DISCARD_PROTECTED_TARGET = 'radar.demand.target_protected';
 
     public const DISCARD_TOO_MANY = 'radar.demand.too_many';
+
+    /** Revue adverse du 2026-11-04 (D3) — les critères ne couvrent aucun des signaux cités. */
+    public const DISCARD_UNCOVERED = 'radar.demand.uncovered';
 
     public const NAME_MAX = 120;
 
@@ -87,10 +103,10 @@ final class RadarDemandCurator
         if ($collected['signals'] === []) {
             $this->recount([]);
 
-            return $this->finish(self::OUTCOME_NO_SIGNALS);
+            return $this->finish($this->retireWithoutDemand($collected['signature']));
         }
         $lastSignature = RadarTargetRevision::query()->orderByDesc('id')->value('signals_signature');
-        if ($lastSignature === $collected['signature']) {
+        if ($lastSignature === self::stamp($collected['signature'], self::freePlaces())) {
             $this->recount($collected['signals']);
 
             return $this->finish(self::OUTCOME_UNCHANGED);
@@ -163,7 +179,8 @@ final class RadarDemandCurator
     /**
      * Défaire une révision : chaque cible touchée revient à son état d'avant ; une cible créée est retirée (une cible ne
      * s'efface jamais). Refusé (409) si la révision est déjà défaite, si une révision postérieure non défaite touche l'une
-     * des mêmes cibles, ou si l'opérateur a depuis épinglé l'une d'elles (elle est à lui).
+     * des mêmes cibles, si l'opérateur a depuis épinglé l'une d'elles (elle est à lui) ou changé son statut (retirée, mise
+     * en pause : D5) ; refusé (422 `radar.targets.too_many`) s'il remettait plus de `max_demand` cibles actives (D6).
      */
     public function revert(RadarTargetRevision $revision, User $by): RadarTargetRevision
     {
@@ -187,7 +204,13 @@ final class RadarDemandCurator
             $current = RadarTarget::query()->whereKey($ids)->orderBy('id')->lockForUpdate()->get()->keyBy('id');
             $pinned = $current->first(fn (RadarTarget $t): bool => $t->pinned);
             abort_code_if($pinned !== null, 409, 'radar.targets.revision_superseded', ['target_id' => (int) $pinned?->id]);
+            // Revue adverse du 2026-11-04 (D5) — une cible dont le statut a changé depuis la révision (retirée ou mise en
+            // pause par l'opérateur, qui ne l'épingle pas) : la défaire effacerait ce geste en silence.
+            $left = self::statusesLeftBy($fresh);
+            $moved = $current->first(fn (RadarTarget $t): bool => isset($left[$t->id]) && $t->status->value !== $left[$t->id]);
+            abort_code_if($moved !== null, 409, 'radar.targets.revision_superseded', ['target_id' => (int) $moved?->id]);
             AdvisoryLock::acquire(RadarTargets::LOCK);
+            $freeBefore = self::freePlaces();
 
             // Les créées d'abord (retirées), puis celles qui revenaient retirées, puis les autres : une cible rendue à ses
             // critères d'avant ne bute pas sur le doublon d'une cible que la révision avait créée ou fusionnée.
@@ -211,9 +234,17 @@ final class RadarDemandCurator
                     'criteria' => (array) $state['criteria'],
                     'status' => RadarTargetStatus::from((string) $state['status']),
                     'demand_count' => (int) ($state['demand_count'] ?? 0),
-                ], pinsDemand: false);
+                    // Une cible que la révision avait retirée (retrait, fusion) revient : seul chemin qui en reprend une.
+                ], pinsDemand: false, editsRetired: true);
             }
 
+            // Revue adverse du 2026-11-04 (D6) — le plafond des cibles de la demande se juge aussi en défaisant (sous le
+            // verrou) : refusé si défaire le dépasse et y ajoute.
+            $max = self::maxDemand();
+            $activeAfter = $max - self::freePlaces();
+            abort_code_if($activeAfter > $max && $activeAfter > $max - $freeBefore, 422, 'radar.targets.too_many', ['max' => $max]);
+
+            $this->restamp($freeBefore);
             $fresh->forceFill(['reverted_at' => now(), 'reverted_by_id' => $by->id])->save();
 
             return $fresh;
@@ -226,7 +257,7 @@ final class RadarDemandCurator
      */
     private function apply(array $operations, array $collected, AiCall $call): RadarTargetRevision
     {
-        $refs = array_column($collected['signals'], 'ref');
+        $refs = array_column($collected['signals'], 'criteria', 'ref');
 
         return DB::transaction(function () use ($operations, $collected, $call, $refs): RadarTargetRevision {
             RadarDemandSetting::query()->whereKey(RadarDemandSetting::ID)->lockForUpdate()->first();
@@ -261,7 +292,8 @@ final class RadarDemandCurator
                 'operations' => $applied,
                 'discarded' => $discarded,
                 'before' => array_values($before),
-                'signals_signature' => $collected['signature'],
+                // D8 — les places libres APRÈS la révision : le passage suivant, à demande égale, ne rappelle pas le modèle.
+                'signals_signature' => self::stamp($collected['signature'], self::freePlaces()),
                 'signals_count' => count($collected['signals']),
                 'ai_call_id' => $call->id,
             ]);
@@ -273,14 +305,14 @@ final class RadarDemandCurator
      * d'avant des cibles touchées s'ajoutent à `$before` seulement si elle aboutit.
      *
      * @param  array<string, mixed>  $op
-     * @param  list<string>  $refs
+     * @param  array<string, array<string, mixed>>  $refs  référence d'un signal → ses critères
      * @param  array<int, array<string, mixed>>  $before
      * @return array<string, mixed> l'opération telle qu'appliquée
      */
     private function applyOne(array $op, array $refs, array &$before): array
     {
         $kind = $op['op'] ?? null;
-        $signalRefs = array_values(array_intersect(array_map('strval', array_filter((array) ($op['signal_refs'] ?? []), 'is_scalar')), $refs));
+        $signalRefs = array_values(array_unique(array_intersect(array_map('strval', array_filter((array) ($op['signal_refs'] ?? []), 'is_scalar')), array_map('strval', array_keys($refs)))));
         $reason = mb_substr(trim(is_string($op['reason'] ?? null) ? $op['reason'] : ''), 0, 500);
         $record = ['op' => $kind, 'target_id' => null, 'merge_ids' => [], 'name' => null, 'criteria' => null, 'reason' => $reason, 'signal_refs' => $signalRefs];
         $touched = [];
@@ -289,6 +321,7 @@ final class RadarDemandCurator
             case 'create':
                 $criteria = self::criteria($op['criteria'] ?? null);
                 $name = self::name($op['name'] ?? null);
+                self::assertCovers($criteria, $signalRefs, $refs);
                 $max = self::maxDemand();
                 $active = RadarTarget::query()
                     ->where('origin', RadarTargetOrigin::Demand->value)
@@ -306,6 +339,7 @@ final class RadarDemandCurator
                 $target = $this->editableTarget($op['target_id'] ?? null);
                 $criteria = self::criteria($op['criteria'] ?? null);
                 $name = self::name($op['name'] ?? null, $target->name);
+                self::assertCovers($criteria, $signalRefs, $refs);
                 $touched[$target->id] = self::state($target);
                 $this->targets->update($target, ['name' => $name, 'criteria' => $criteria], pinsDemand: false);
                 $record = ['target_id' => $target->id, 'name' => $name, 'criteria' => RadarTargetCriteria::ordered($criteria)] + $record;
@@ -322,6 +356,7 @@ final class RadarDemandCurator
                 $merged = array_map(fn (int $id): RadarTarget => $this->editableTarget($id), $ids);
                 $criteria = self::criteria($op['criteria'] ?? null);
                 $name = self::name($op['name'] ?? null);
+                self::assertCovers($criteria, $signalRefs, $refs);
                 foreach ($merged as $target) {
                     $touched[$target->id] = self::state($target);
                     if ($target->id !== $keptId) {
@@ -382,9 +417,12 @@ final class RadarDemandCurator
      */
     private function discard(array $op, string $code, array $params): array
     {
+        $targetId = self::ids($op['target_id'] ?? null)[0] ?? null;
         $entry = [
             'op' => is_string($op['op'] ?? null) ? $op['op'] : null,
-            'target_id' => self::ids($op['target_id'] ?? null)[0] ?? null,
+            'target_id' => $targetId,
+            // Le nom de la cible visée quand elle existe : la console le cite au lieu de son numéro.
+            'target_name' => $targetId === null ? null : RadarTarget::query()->whereKey($targetId)->value('name'),
             'merge_ids' => self::ids($op['merge_ids'] ?? null),
             'name' => is_string($op['name'] ?? null) ? mb_substr($op['name'], 0, self::NAME_MAX) : null,
             'reason' => is_string($op['reason'] ?? null) ? mb_substr($op['reason'], 0, 500) : null,
@@ -419,6 +457,123 @@ final class RadarDemandCurator
                     RadarTarget::query()->whereKey($target->id)->update(['demand_count' => $sum]);
                 }
             });
+    }
+
+    /**
+     * D7 — aucun signal : les cibles que l'IA peut toucher sont retirées, sans IA, dans une révision qui se défait (son
+     * empreinte : celle d'un jeu de signaux vide, sans les places). Rien si la dernière révision est déjà celle-là, défaite
+     * ou non : la demande n'a pas bougé depuis.
+     */
+    private function retireWithoutDemand(string $emptySignature): string
+    {
+        return DB::transaction(function () use ($emptySignature): string {
+            RadarDemandSetting::query()->whereKey(RadarDemandSetting::ID)->lockForUpdate()->first();
+            if (RadarTargetRevision::query()->orderByDesc('id')->value('signals_signature') === $emptySignature) {
+                return self::OUTCOME_NO_SIGNALS;
+            }
+            $targets = RadarTarget::query()
+                ->where('origin', RadarTargetOrigin::Demand->value)
+                ->where('status', RadarTargetStatus::Active->value)
+                ->where('pinned', false)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+            if ($targets->isEmpty()) {
+                return self::OUTCOME_NO_SIGNALS;
+            }
+            AdvisoryLock::acquire(RadarTargets::LOCK);
+
+            $operations = [];
+            $before = [];
+            foreach ($targets as $target) {
+                $before[] = self::state($target);
+                $this->targets->retire($target);
+                $operations[] = ['op' => 'retire', 'target_id' => $target->id, 'merge_ids' => [], 'name' => null, 'criteria' => null,
+                    'reason' => self::REASON_NO_DEMAND, 'signal_refs' => []];
+            }
+            RadarTargetRevision::query()->create([
+                'operations' => $operations,
+                'discarded' => [],
+                'before' => $before,
+                'signals_signature' => $emptySignature,
+                'signals_count' => 0,
+                'ai_call_id' => null,
+            ]);
+
+            return self::OUTCOME_NO_SIGNALS_RETIRED;
+        });
+    }
+
+    /**
+     * D8 — après un « défaire », la dernière révision garde son sens (« demande déjà traitée ») : si elle valait l'état
+     * d'avant (mêmes signaux, mêmes places), elle prend les places d'après. Une place que défaire libère ne relance donc
+     * pas le modèle ; une demande qui a bougé entre-temps, si.
+     */
+    private function restamp(int $freeBefore): void
+    {
+        $last = RadarTargetRevision::query()->orderByDesc('id')->lockForUpdate()->first(['id', 'signals_signature']);
+        if ($last === null) {
+            return;
+        }
+        $signature = $this->signals->collect()['signature'];
+        if ($last->signals_signature === self::stamp($signature, $freeBefore)) {
+            RadarTargetRevision::query()->whereKey($last->id)->update(['signals_signature' => self::stamp($signature, self::freePlaces())]);
+        }
+    }
+
+    /**
+     * D3 — des critères qui couvrent au moins l'un des signaux cités ; sinon l'opération est écartée.
+     *
+     * @param  array<string, mixed>  $criteria
+     * @param  list<string>  $signalRefs
+     * @param  array<string, array<string, mixed>>  $refs
+     */
+    private static function assertCovers(array $criteria, array $signalRefs, array $refs): void
+    {
+        foreach ($signalRefs as $ref) {
+            if (RadarDemandSignals::covers($criteria, (array) $refs[$ref])) {
+                return;
+            }
+        }
+        abort_code(422, self::DISCARD_UNCOVERED, ['signal_refs' => $signalRefs]);
+    }
+
+    /**
+     * D5 — le statut où la révision a laissé chaque cible qu'elle a touchée, dans l'ordre de ses opérations.
+     *
+     * @return array<int, string>
+     */
+    private static function statusesLeftBy(RadarTargetRevision $revision): array
+    {
+        $left = [];
+        foreach ((array) $revision->operations as $operation) {
+            $id = (int) ($operation['target_id'] ?? 0);
+            foreach ((array) ($operation['merge_ids'] ?? []) as $merged) {
+                if ((int) $merged !== $id) {
+                    $left[(int) $merged] = RadarTargetStatus::Retired->value;
+                }
+            }
+            if ($id > 0) {
+                $left[$id] = ($operation['op'] ?? null) === 'retire' ? RadarTargetStatus::Retired->value : RadarTargetStatus::Active->value;
+            }
+        }
+
+        return $left;
+    }
+
+    /** D8 — l'empreinte d'un passage : les signaux et les places libres. */
+    private static function stamp(string $signalsSignature, int $freePlaces): string
+    {
+        return hash('sha256', $signalsSignature.'|free:'.$freePlaces);
+    }
+
+    /** `max_demand` moins les cibles `demand` actives (négatif si la configuration a baissé sous le compte). */
+    private static function freePlaces(): int
+    {
+        return self::maxDemand() - RadarTarget::query()
+            ->where('origin', RadarTargetOrigin::Demand->value)
+            ->where('status', RadarTargetStatus::Active->value)
+            ->count();
     }
 
     private function finish(string $outcome): string

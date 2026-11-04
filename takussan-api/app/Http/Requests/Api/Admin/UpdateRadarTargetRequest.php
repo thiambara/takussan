@@ -10,8 +10,9 @@ use Illuminate\Validation\Rule;
 
 /**
  * TCK-2468 (ADR-0087 §5) — modifier une cible : `{name?, criteria?, status?, pinned?}`, seuls les champs envoyés.
- * `status` : `active` ou `paused` (retirer passe par `DELETE`) ; réactiver une cible retirée la soumet au plafond et au
- * doublon comme une création. Modifier les critères d'une cible `demand` l'épingle (`RadarTargets::update()`).
+ * `status` : `active` ou `paused` (retirer passe par `DELETE`). Une cible retirée ne se modifie plus : 422
+ * `radar.targets.retired` (décision 2a du 2026-11-04 ; la reprendre, c'est en créer une nouvelle). Modifier les critères
+ * d'une cible `demand` l'épingle (`RadarTargets::update()`).
  */
 class UpdateRadarTargetRequest extends BaseFormRequest
 {

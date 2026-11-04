@@ -177,6 +177,11 @@ return [
         // plus ce nombre d'URL NEUVES saisies par passage (les plus récentes d'abord), le reste attend le passage suivant.
         // C'est la borne du coût d'extraction d'un passage ; une annonce déjà connue est observée sans compter ici.
         'max_new_per_run' => 200,
+        // Revue adverse du 2026-11-04 (D4) — au plus ce nombre de RELECTURES (`RefreshRadarListing`, une page chacune, sur
+        // le créneau du domaine) mises en file par un passage, les `lastmod` les plus récents d'abord. Le reste attend le
+        // passage suivant : sa référence (`source_lastmod`) n'a pas avancé. Sans borne, un site qui date toutes ses annonces
+        // du jour tiendrait le domaine des heures (≈ 3 350 annonces × 5 s), et les passages suivants le trouveraient pris.
+        'max_refresh_per_run' => 300,
     ],
 
     // TCK-2392 — le quatrième signal de rapprochement, la similarité de texte (`RadarMatcher::SIGNAL_TEXT`). Un pilote

@@ -27,6 +27,7 @@ const ETEINTE: RadarDemandSetting = {
   last_run_at: null,
   last_run_outcome: null,
   last_revision_at: null,
+  max_demand: 12,
 };
 
 const ALLUMEE: RadarDemandSetting = {
@@ -37,6 +38,7 @@ const ALLUMEE: RadarDemandSetting = {
   last_run_at: '2026-11-04T03:40:02+00:00',
   last_run_outcome: 'applied',
   last_revision_at: '2026-11-04T03:40:02+00:00',
+  max_demand: 12,
 };
 
 const reponse = (data: RadarDemandSetting) => ({ data });
@@ -88,11 +90,14 @@ describe('L\'encart « Demande » (TCK-2470)', () => {
     expect(within(encart).getByTestId('radar-demande-dernier-passage')).toHaveTextContent('Les cibles ont été revues par l’IA.');
     expect(within(encart).getByTestId('radar-demande-historique')).toHaveAttribute('href', '/super-admin/radar/targets/revisions');
     expect(within(encart).queryByTestId('radar-demande-bloquee')).not.toBeInTheDocument();
+    // Revue du 2026-11-04 — le plafond vient de l'API (`max_demand`), pas d'une constante recopiée.
+    expect(encart).toHaveTextContent('12 au plus');
   });
 
   it.each([
     ['unchanged', 'l’IA n’a pas été appelée'],
     ['no_signals', 'Aucune recherche sans résultat'],
+    ['no_signals_retired', 'Plus aucune demande sur 30 jours : les cibles tirées de la demande ont été retirées, sans appel à l’IA.'],
     ['radar.demand.invalid_output', 'illisible'],
     ['ai.budget', 'Le plafond de dépense IA du jour est atteint.'],
     ['ai.kill_switch', 'L’IA est coupée pour cet usage'],

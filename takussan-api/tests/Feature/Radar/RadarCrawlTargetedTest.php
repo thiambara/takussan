@@ -154,20 +154,35 @@ class RadarCrawlTargetedTest extends TestCase
 
         $run = $this->crawl();
 
-        $this->assertSame(RadarCrawlRun::STOP_NO_TARGET, $run->stop_reason);
-        $this->assertSame(0, $run->pages_read);
+        $this->assertSame(RadarCrawlRun::STOP_END, $run->stop_reason);
+        $this->assertSame(2, $run->cards_skipped, 'aucune cible active pour le site : aucune carte nouvelle n\'est saisie');
         $this->assertSame(0, RadarListing::query()->count());
     }
 
-    public function test_une_source_ciblee_sans_cible_active_ne_lit_rien_et_le_dit(): void
+    /**
+     * Revue adverse du 2026-11-04 (« à signaler », décision de la session) — une source ciblée SANS cible active n'est plus
+     * aveugle : elle lit ses listes pour OBSERVER les annonces déjà connues (instantanés de prix, et une lecture complète
+     * qui sert l'observatoire), mais ne saisit aucune annonce neuve (comptées dans `cards_skipped`). Avant, le passage
+     * s'arrêtait avant de lire (`radar.crawl.no_target`, 0 page) : retirer la dernière cible, ou déployer, aveuglait
+     * l'observatoire.
+     */
+    public function test_une_source_ciblee_sans_cible_active_observe_les_connues_et_ne_saisit_rien_de_neuf(): void
     {
+        $known = $this->app->make(RadarListingIntake::class)->fromUrls([self::VILLA], $this->operator)[0]['listing'];
+        Bus::fake([ExtractRadarListing::class]);
+
         $run = $this->crawl();
 
         $this->assertSame(RadarCrawlStatus::Finished, $run->status);
-        $this->assertSame(RadarCrawlRun::STOP_NO_TARGET, $run->stop_reason);
-        $this->assertSame(0, $run->pages_read);
-        $this->assertSame(0, RadarListing::query()->count());
-        Http::assertNothingSent();
+        $this->assertSame(RadarCrawlRun::STOP_END, $run->stop_reason);
+        $this->assertTrue($run->reached_end, 'la lecture est complète : l\'observatoire peut conclure');
+        $this->assertSame(1, $run->pages_read);
+        $this->assertSame(1, $run->listings_known);
+        $this->assertSame(1, $known->snapshots()->count(), 'la villa connue est observée');
+        $this->assertSame(1, $run->cards_skipped, 'l\'appartement neuf n\'est pas saisi');
+        $this->assertSame(0, $run->listings_created);
+        $this->assertNull($this->listingOf(self::APPART));
+        Bus::assertNotDispatched(ExtractRadarListing::class);
     }
 
     public function test_une_source_reglee_sur_tout_saisit_chaque_carte_comme_avant(): void

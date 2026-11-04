@@ -19,7 +19,8 @@ use Illuminate\Http\Request;
  * TCK-2468 — `scope` : `targeted` ou `all` (ADR-0087 §5).
  *
  * TCK-2467 — `discovery` : ce que la source suit VRAIMENT (`sitemap` ou `lists`, son réglage ou à défaut celui de
- * l'adaptateur, ADR-0087 §4) ; avec `site`, `sitemap_available` : l'adaptateur déclare-t-il des sitemaps.
+ * l'adaptateur, ADR-0087 §4) ; avec `site`, `sitemap_available` : l'adaptateur déclare-t-il des sitemaps, et
+ * `max_new_per_run` : le plafond d'URL neuves d'un passage (`radar.crawl.max_new_per_run`), que la console cite.
  */
 class RadarCrawlSourceResource extends BaseResource
 {
@@ -42,6 +43,7 @@ class RadarCrawlSourceResource extends BaseResource
             'sitemap_available' => $this->whenHas('site', fn () => ($this->adapter()?->sitemapUrls() ?? []) !== []),
             'default_start_url' => $this->whenHas('site', fn () => $this->adapter()?->startUrl()),
             'start_hosts' => $this->whenHas('site', fn () => $this->adapter()?->startHosts() ?? []),
+            'max_new_per_run' => $this->whenHas('site', fn () => max(0, (int) config('radar.crawl.max_new_per_run', 200))),
             'operator' => $this->whenLoaded('operator', fn () => $this->operator === null ? null : [
                 'id' => $this->operator->id,
                 'name' => $this->operator->nameWithoutContact(),

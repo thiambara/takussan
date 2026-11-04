@@ -52,13 +52,19 @@ final class RadarTargets
      * touchera plus. TCK-2470 — `$pinsDemand` faux : la révision de la demande elle-même (`RadarDemandCurator`), qui
      * réécrit les critères d'une cible `demand` sans la soustraire à la révision suivante.
      *
+     * Décision du porteur (2a, 2026-11-04) — **une cible retirée ne se modifie plus** : 422 `radar.targets.retired`
+     * (`params.target_id`), jugé sous le verrou de sa ligne. Pour la reprendre, on en crée une nouvelle. `$editsRetired`
+     * vrai : les deux seuls chemins qui le peuvent — la retirer de nouveau ({@see self::retire()}, sans effet) et
+     * « défaire » une révision de la demande, qui rend une cible à l'état d'avant qu'elle avait elle-même changé.
+     *
      * @param  array{name?: string, criteria?: array<string, mixed>, status?: RadarTargetStatus, pinned?: bool, demand_count?: int}  $changes
      */
-    public function update(RadarTarget $target, array $changes, bool $pinsDemand = true): RadarTarget
+    public function update(RadarTarget $target, array $changes, bool $pinsDemand = true, bool $editsRetired = false): RadarTarget
     {
-        return DB::transaction(function () use ($target, $changes, $pinsDemand): RadarTarget {
+        return DB::transaction(function () use ($target, $changes, $pinsDemand, $editsRetired): RadarTarget {
             // ADR-0073 § 3, règle 4 : le verrou de ligne d'abord, le verrou consultatif en dernier.
             $fresh = RadarTarget::query()->whereKey($target->id)->lockForUpdate()->firstOrFail();
+            abort_code_if(! $editsRetired && $fresh->status === RadarTargetStatus::Retired, 422, 'radar.targets.retired', ['target_id' => $fresh->id]);
             AdvisoryLock::acquire(self::LOCK);
 
             $status = $changes['status'] ?? $fresh->status;
@@ -88,10 +94,10 @@ final class RadarTargets
         });
     }
 
-    /** Retirer : la cible ne borne plus rien et ne reçoit plus d'annonce ; elle ne s'efface jamais. */
+    /** Retirer : la cible ne borne plus rien et ne reçoit plus d'annonce ; elle ne s'efface jamais. Déjà retirée : rien ne change. */
     public function retire(RadarTarget $target): RadarTarget
     {
-        return $this->update($target, ['status' => RadarTargetStatus::Retired]);
+        return $this->update($target, ['status' => RadarTargetStatus::Retired], editsRetired: true);
     }
 
     /** Le plafond (pour une cible qui DEVIENT active) et le doublon (pour une cible vivante), sous le verrou. */

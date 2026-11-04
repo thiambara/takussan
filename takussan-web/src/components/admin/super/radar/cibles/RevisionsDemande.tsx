@@ -24,7 +24,7 @@ import type {
   RadarTargetRevisionOperation,
   RadarTargetRevisionResponse,
 } from '@/types/radar';
-import { ECARTS_DEMANDE_RADAR } from '../codes-radar';
+import { ECARTS_DEMANDE_RADAR, MOTIFS_REVISION_RADAR } from '../codes-radar';
 import { RadarNav } from '../RadarNav';
 import { morceauxDuResume, parametresDuRefus, SEPARATEUR_DU_RESUME } from './criteres';
 import { codeDuRefus, useMessageRefusCible } from './useMessageRefusCible';
@@ -60,8 +60,9 @@ function estOperation(op: string | null): op is RadarTargetRevisionOp {
 
 /**
  * Le libellé d'un refus de « défaire », lu par son code : le 409 `radar.targets.revision_superseded` dit QUELLE révision
- * plus récente bloque (`params.revision_id`) ou QUELLE cible a été épinglée depuis (`params.target_id`). Jamais le code
- * brut ; un 422 des cibles (doublon, plafond) se lit comme ailleurs dans les cibles.
+ * plus récente bloque (`params.revision_id`) ou QUELLE cible a changé depuis (`params.target_id` : épinglée, mise en pause
+ * ou retirée par l'opérateur). Le 422 `radar.targets.too_many` dit le plafond que défaire dépasserait ; les autres 422 des
+ * cibles (doublon) se lisent comme ailleurs dans les cibles. Jamais le code brut.
  */
 function useMessageRefusRevision() {
   const t = useTranslations('superAdmin.pages.radar.targets.revisions');
@@ -76,9 +77,10 @@ function useMessageRefusRevision() {
       if (typeof params.target_id === 'number') {
         const nom = nomDAvant(revision, params.target_id) ?? nomsDeLaRevision(revision).get(params.target_id)
           ?? t('targetFallback', { id: params.target_id });
-        return t('errors.supersededPinned', { name: nom });
+        return t('errors.supersededTarget', { name: nom });
       }
     }
+    if (code === 'radar.targets.too_many' && typeof params.max === 'number') return t('errors.tooMany', { max: params.max });
     if (erreur instanceof ApiError && erreur.status === 404) return t('errors.notFound');
     return messageRefus(erreur, t('errors.generic'));
   };
@@ -135,7 +137,9 @@ function LigneOperation({ revision, operation }: LigneProps) {
           {fusionnees.length > 0 ? <span>{' '}{t('mergedFrom', { names: fusionnees.join(', ') })}</span> : null}
         </p>
         {resume ? <p className="text-xs text-pretty text-muted-foreground">{resume}</p> : null}
-        {operation.reason ? (
+        {operation.reason && MOTIFS_REVISION_RADAR[operation.reason] ? (
+          <p className="text-xs text-pretty text-muted-foreground">{t(`codeReasons.${MOTIFS_REVISION_RADAR[operation.reason]}`)}</p>
+        ) : operation.reason ? (
           <p className="text-xs text-pretty text-muted-foreground italic">{t('reason', { reason: operation.reason })}</p>
         ) : null}
       </div>
@@ -150,7 +154,7 @@ function LigneEcartee({ revision, ecartee }: { readonly revision: RadarTargetRev
   const cle = ECARTS_DEMANDE_RADAR[ecartee.code] ?? 'other';
   const max = typeof ecartee.params?.max === 'number' ? ecartee.params.max : '';
   const cible = ecartee.target_id !== null
-    ? <LienCible id={ecartee.target_id}>{t('quoted', { name: noms.get(ecartee.target_id) ?? nomDAvant(revision, ecartee.target_id) ?? t('targetFallback', { id: ecartee.target_id }) })}</LienCible>
+    ? <LienCible id={ecartee.target_id}>{t('quoted', { name: ecartee.target_name || (noms.get(ecartee.target_id) ?? nomDAvant(revision, ecartee.target_id) ?? t('targetFallback', { id: ecartee.target_id })) })}</LienCible>
     : ecartee.name ? <span className="font-medium">{t('quoted', { name: ecartee.name })}</span> : null;
 
   return (

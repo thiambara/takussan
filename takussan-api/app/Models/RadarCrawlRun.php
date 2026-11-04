@@ -42,9 +42,6 @@ class RadarCrawlRun extends AbstractModel
     /** TCK-2438 — aucune URL de départ réglée ne passe les garde-fous de `RadarStartUrls` : le passage ne lit rien. */
     public const STOP_NO_START_URL = 'radar.crawl.no_start_url';
 
-    /** TCK-2468 — une source ciblée sans aucune cible active qui la concerne : le passage ne lit rien. */
-    public const STOP_NO_TARGET = 'radar.crawl.no_target';
-
     protected $fillable = [
         'site', 'trigger', 'status', 'operator_id', 'started_at', 'finished_at', 'pages_read', 'cards_seen',
         'listings_created', 'listings_known', 'snapshots_opened', 'reached_end', 'stop_reason', 'start_urls',

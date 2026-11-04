@@ -169,3 +169,9 @@ page affiche, sans dépendre de l'IA pour les retrouver.
   site (numéro des attributs, galerie entière, prix, lieu, vendeur) ; le numéro lu sur la page passe devant ceux du texte
   et du modèle ; le numéro du site n'est jamais celui d'un annonceur ; la fiche rend `source_fields`.
 
+**Revue adverse (2026-11-04)** — (D1) le meublé d'une catégorie se juge au MOT entier sur le texte replié
+(`ReadsListHtml::furnishedFrom()`, `/\bmeubles?\b/`) : « Immeubles » contenait « meuble » et toute annonce de cette catégorie
+CoinAfrique était lue meublée, valeur qui fait foi (Expat-Dakar avait la même comparaison). (D2) Les numéros d'attribut ne
+passent devant le choix du modèle QUE si un adaptateur a lu la page (`ExtractionNormalizer::readByAdapter()`, dans
+`conclude()` et dans `phones` de la normalisation) ; ceux que `HtmlCleaner` ramasse sur une page générique viennent en
+dernier recours — un `tel:` de bandeau ne devient plus l'annonceur.
