@@ -23,6 +23,8 @@ use App\Models\PropertyBoost;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
 use App\Models\RadarOutreach;
+use App\Models\RadarTarget;
+use App\Models\RadarTargetRevision;
 use App\Models\SearchAlias;
 use App\Models\Tag;
 use App\Models\User;
@@ -131,6 +133,10 @@ class NamespaceAccessGuardTest extends TestCase
 
         // TCK-2448 — le catalogue des modèles (`ai/models/{model}`).
         $aiModel = AiModel::factory()->create();
+        // TCK-2468 / TCK-2470 — une cible (`radar/targets/{target}`) et une révision de la demande
+        // (`radar/targets/revisions/{revision}/revert`), liées avant la garde.
+        $radarTarget = RadarTarget::query()->create(['name' => 'Cible', 'origin' => 'operator', 'status' => 'active', 'criteria' => ['type' => ['apartment']], 'criteria_signature' => str_repeat('a', 64)]);
+        $radarRevision = RadarTargetRevision::query()->create(['signals_signature' => str_repeat('b', 64)]);
         // TCK-2476 — une variante d'écriture (`search/aliases/{alias}`), liée avant la garde.
         $searchAlias = SearchAlias::query()->create(['alias' => 'wakam', 'target_kind' => 'neighborhood', 'target_value' => 'Ouakam']);
 
@@ -169,6 +175,8 @@ class NamespaceAccessGuardTest extends TestCase
                     '{advertiser}' => (string) $advertiser->id,
                     '{model}' => (string) $aiModel->id,
                     '{alias}' => (string) $searchAlias->id,
+                    '{target}' => (string) $radarTarget->id,
+                    '{revision}' => (string) $radarRevision->id,
                 ]);
 
                 // Replace any remaining unresolved {param} with a dummy id so
