@@ -595,7 +595,7 @@ Canal de notification **WhatsApp sortant** qui remplace certains SMS pour les fa
 | P1 | Tous | Tri dynamique sur toutes les colonnes listables |
 | P1 | Tous | Recherches sauvegardées par utilisateur |
 | P2 | Tous | Recherche full-text sur messages et documents |
-| P2 | Tous | Suggestions d'autocomplétion — `GET /api/search/suggest` : la saisie comprise et son nombre de biens, des complétions, des lieux, trois biens, et à saisie vide les recherches populaires (TCK-2474, [ADR-0088](adr/0088-le-journal-anonyme-des-recherches.md)). La barre de recherche (barre de la navigation publique, saisie mobile, barre de l'app) : champ vide, les recherches récentes de l'appareil (6 au plus, effaçables), les populaires et les raccourcis Louer / Acheter ; pendant la frappe, la saisie comprise en tête (puces, nombre de biens, Entrée la valide), les recherches fréquentes, les lieux, les types et trois biens en aperçu ; sans bien exact, « Voir des biens proches » et « Être alerté quand un bien correspond » (alerte de TCK-599 pré-remplie, case cochée) (TCK-2475) |
+| P2 | Tous | Suggestions d'autocomplétion — `GET /api/search/suggest` : la saisie comprise et son nombre de biens, des complétions, des lieux, trois biens, et à saisie vide les recherches populaires (TCK-2474, [ADR-0088](adr/0088-le-journal-anonyme-des-recherches.md)). La barre de recherche (barre de la navigation publique, saisie mobile, barre de l'app) : champ vide, les recherches récentes de l'appareil (6 au plus, effaçables), les populaires et les raccourcis Louer / Acheter ; pendant la frappe, la saisie comprise en tête (puces, nombre de biens sous les filtres déjà posés sur la page, Entrée la valide), les recherches fréquentes, les lieux, les types et trois biens en aperçu ; sans bien exact, « Être alerté quand un bien correspond » (alerte de TCK-599 pré-remplie, case cochée), et « Voir des biens proches » seulement si la liste s'élargira — sinon « 0 bien » (TCK-2475) |
 | P2 | 🛡️ | Variantes d'écriture tenues par l'IA (« wakam » → Ouakam, « aprt » → appartement) : proposées chaque semaine à partir des recherches sans résultat, comprises par l'analyse de la saisie et trouvées par la suggestion ; lues et tranchées par le `super_admin` dans l'API (TCK-2476) |
 | P2 | Tous | Saisie libre comprise en critères : type, contrat, période, prix, chambres, surface, meublé, ville, quartier, équipements ; le reste est cherché en texte (TCK-2473) |
 | P2 | 🛡️ | Journal anonyme et agrégé des recherches publiques : une ligne par jour et par recherche, rien par personne ; il nourrit les recherches populaires de la suggestion et la demande sans résultat du Radar (TCK-2472, [ADR-0088](adr/0088-le-journal-anonyme-des-recherches.md)) |
@@ -604,21 +604,25 @@ Canal de notification **WhatsApp sortant** qui remplace certains SMS pour les fa
 **Règles de gestion — journal et suggestions** ([ADR-0088](adr/0088-le-journal-anonyme-des-recherches.md)).
 
 - **Le journal ne garde rien par personne** (TCK-2472) : par jour et par recherche, la saisie normalisée (minuscules,
-  sans accents, blancs repliés), les critères retenus, le nombre de recherches, de visiteurs distincts, de recherches
-  sans résultat et le dernier nombre de résultats (`search_query_stats`) — ni compte, ni IP, ni position, ni
-  identifiant durable. Le visiteur distinct se compte par une empreinte du jour (HMAC de l'IP, ou de son /64, et du
-  jour), effacée d'heure en heure dès 47 heures (`search:purge-journal`) ; les lignes vivent 13 mois. La politique de
-  confidentialité le dit (§ 2.2, § 3 et § 6) et `VERSION_DOCUMENTS` a avancé au 2026-11-04.
+  sans accents, blancs repliés), les critères retenus, le nombre de recherches, de visiteurs distincts, de réseaux
+  distincts, de recherches sans résultat et le dernier nombre de résultats (`search_query_stats`) — ni compte, ni IP,
+  ni position, ni identifiant durable. Le visiteur (l'IP, ou son /64) et son réseau (/24, /48) se comptent par deux
+  empreintes propres au couple (jour, recherche) : elles ne relient ni deux jours, ni deux recherches d'un même
+  visiteur ; effacées d'heure en heure dès 47 heures (`search:purge-journal`) ; les lignes vivent 13 mois. La politique
+  de confidentialité le dit (§ 2.2, § 3, § 4.3 — l'envoi agrégé des recherches sans résultat au fournisseur d'IA — et
+  § 6) et `VERSION_DOCUMENTS` a avancé au 2026-11-04.
 - **Ce qui est journalisé** : la page 1 de la liste publique (`GET /api/public/properties/search`) avec une saisie ou
   au moins un critère, après la réponse, sans jamais faire échouer la recherche. Pas une frappe (la suggestion
   n'écrit rien), pas un robot déclaré, pas la rangée « À vendre » de l'accueil (`placements=false`), pas une recherche
   vide. Les coordonnées, la date de disponibilité et ce qui règle l'affichage ne sont pas retenus. Une recherche servie
   par l'élargissement (ADR-0024) compte sans résultat.
 - **Jamais journalisé** : une saisie, ou un critère libre (ville, villes, région, lieu, étiquettes), de plus de 80
-  caractères, qui porte six chiffres ou plus sur toute la saisie (`77 123 45 67` compte), ou un `@` (aussi en pleine
-  chasse) — ni le texte, ni la recherche qui le porte.
-- **Une recherche n'est montrée qu'après cinq visiteurs distincts un même jour** (`search.journal.min_visitors`) et
-  seulement si elle rend encore des résultats ; la demande sans résultat ne sort que vers le Radar
+  caractères, qui porte six chiffres ou plus sur toute la saisie (`77 123 45 67` compte), un `@` (aussi en pleine
+  chasse), ou qui ressemble à un courriel écrit sans lui (un domaine, « point com », un service de messagerie nommé,
+  « arobase », « (at) ») — ni le texte, ni la recherche qui le porte.
+- **Une recherche n'est montrée qu'après cinq réseaux distincts un même jour** (`search.journal.min_visitors`,
+  compté sur `distinct_networks` : /24 en IPv4, /48 en IPv6 — cinq visiteurs d'un même réseau ne suffisent pas) et
+  seulement si elle rend encore des résultats ; le compte affiché reste en visiteurs ; la demande sans résultat ne sort que vers le Radar
   ([§2.12](#212-radar--acquisition-dannonces), à deux visiteurs au moins), vers les variantes d'écriture (en texte
   normalisé, ci-dessous) et la console, jamais au public (ADR-0088 §4 amendé).
 - **La saisie libre est comprise par du code, jamais par l'IA** (TCK-2473, `SearchQueryParser`) : type (les mots de
@@ -627,7 +631,11 @@ Canal de notification **WhatsApp sortant** qui remplace certains SMS pour les fa
   « F4 » = 3 chambres, studio = F1), surface, meublé, ville et quartier du référentiel (quartiers approuvés ; un nom à
   la fois ville et quartier est la ville ; un quartier présent dans deux villes ne nomme aucune ville), équipements du
   catalogue (`parking` et `garage` sont un type seuls, un équipement après « avec » ou à côté d'un autre type). Une
-  faute de frappe n'est corrigée que sur un mot-clé, jamais sur un lieu. Un numéro de téléphone ou un étage (`R+1`) ne
+  négation devant un équipement (« sans piscine », « pas de garage », « without pool ») est lue et n'émet rien, ni
+  équipement ni texte ; « sans meuble » reste non meublé. L'ameublement (« vide », « meublé ») n'est pas retenu quand
+  les seuls types compris sont terrain, parking ou garage. « 2 millions
+  500 » vaut 2 500 000. Le nombre de chambres va jusqu'à 50 (la borne de la liste) ; au-delà, la phrase reste du texte.
+  Une faute de frappe n'est corrigée que sur un mot-clé, jamais sur un lieu. Un numéro de téléphone ou un étage (`R+1`) ne
   sont jamais un prix, ni un nombre nu de moins de 10 000 sans groupement, monnaie, multiplicateur ni opérateur
   (« villa neuve 2024 ») ; « duplex » et « grand standing » restent du texte. Ce qui n'est
   pas compris reste cherché en texte (`residue`), sauf les mots d'intention et de liaison d'une liste courte et fermée,
@@ -641,7 +649,11 @@ Canal de notification **WhatsApp sortant** qui remplace certains SMS pour les fa
   visiteurs au moins (200 au plus), dont l'analyse laisse un texte incompris ; les mêmes saisies que le dernier passage
   n'appellent pas le modèle. L'usage `search.variantes` (rôle `extraction`, 0,25 $ par jour au plus) propose des
   variantes ; le code n'en retient une que si elle est écrite dans une saisie reçue, si sa cible existe (lieu du
-  référentiel, type de bien, terme du vocabulaire de l'analyse), si l'analyse ne la comprend pas déjà, avec une
+  référentiel, type de bien, terme du vocabulaire de l'analyse), si l'analyse ne la comprend pas déjà, si elle n'est
+  pas faite que de mots courants (`search.aliases.common_word` : « proche », « plage », « centre »…) ni le nom d'une
+  autre cible (`search.aliases.other_target`), si elle est **proche de sa cible** (`search.aliases.not_close` sinon :
+  une faute d'une lettre sur trois au plus, une écriture phonétique — « wakam » pour Ouakam —, une abréviation qui garde
+  l'ordre des lettres et l'initiale — « aprt », « clime » —, ou des initiales), avec une
   confiance d'au moins 0,7 et 50 créations par passage au plus. Une variante rejetée n'est jamais rouverte par l'IA, une
   variante tranchée à la main jamais modifiée par elle ; une variante dont la cible a quitté le référentiel n'est plus
   lue. L'index des suggestions les reprend à sa reconstruction horaire. Lecture et arbitrage, `super_admin` seul
@@ -650,25 +662,31 @@ Canal de notification **WhatsApp sortant** qui remplace certains SMS pour les fa
   `rejected` ; la variante devient manuelle). Le réglage : `GET` et `PATCH /api/admin/search/aliases/settings`
   (`{enabled}` ; celui qui allume devient l'opérateur ; rallumer reprend un réglage dont l'opérateur a disparu).
   Aucun écran ne les montre encore.
-- **La barre de recherche** (TCK-2475, `SearchAutocomplete`) lit la suggestion après 100 ms sans frappe ; une réponse
-  arrivée après une plus récente ne l'écrase pas, et rien ne clignote. **Entrée ne valide une compréhension que si
+- **La barre de recherche** (TCK-2475, `SearchAutocomplete`) lit la suggestion après 200 ms sans frappe, la saisie
+  normalisée ensuite (une espace de plus ne relance rien), avec les filtres déjà posés sur la page (la « base ») ; une
+  réponse arrivée après une plus récente ne l'écrase pas, et rien ne clignote. **Entrée ne valide une compréhension que si
   elle répond à la saisie courante** (une option choisie aux flèches passe d'abord) ; sinon la saisie part en texte
   libre. Valider une compréhension remplace le terme d'avant, une ville comprise retire le quartier et la région
   d'avant, les autres filtres restent. Les puces sont traduites par le front, jamais par l'API. **Les recherches
   récentes ne quittent pas l'appareil** (stockage local) et la barre n'écrit rien au journal : seule la recherche
-  validée sur la liste l'est. L'alerte proposée sur une compréhension sans bien exact est celle de TCK-599, sur les
+  validée sur la liste l'est. Une compréhension sans bien exact dit « Voir des biens proches » seulement si la liste
+  s'élargira (`interpretation.widens`), sinon « 0 bien » ; l'alerte proposée alors est celle de TCK-599, sur les
   critères que la ligne ouvrirait ; le visiteur sans compte y trouve « Me prévenir ».
 - **Contrat de `GET /api/search/suggest`** (TCK-2474 ; `q` ≤ 50 caractères, `limit` ≤ 30, limiteur `search-suggest`
-  à 60 par minute et par visiteur ; réponse en cache public 60 s) : `interpretation` (présente quand un critère est
-  compris : `criteria`, `parts` — `{key, value, from, to}`, positions en caractères, sans libellé —, `residue`,
-  `count`), `completions` (au plus 5 : `{text, criteria, count}`), `popular` (à saisie vide seulement, au plus 6),
+  à 300 par minute et par visiteur ; réponse en cache public 60 s). **La base** : la route accepte aussi les filtres de
+  la liste publique sous leurs noms (et `sort`), validés comme sur la liste (422 sur une valeur invalide) ; un critère
+  compris dans la saisie remplace la même clé de la base, les autres restent, et une ville comprise retire aussi
+  `location` et `region` de la base ; `count` et `previews` portent sur cette fusion, `criteria` sur la saisie seule.
+  Réponse : `interpretation` (présente quand un critère est compris : `criteria`, `parts` — `{key, value, from, to}`,
+  positions en caractères, sans libellé —, `residue`, `count`, `widens` — la liste s'élargira-t-elle, par le même
+  calcul que `PropertySearchService::wouldWiden()`), `completions` (au plus 5 : `{text, criteria, count}`), `popular` (à saisie vide seulement, au plus 6),
   `places` (`{kind, label, city, count, criteria}`, cherchés sur le texte encore incompris, sinon sur le lieu compris),
   `previews` (au plus 3 biens publics : identifiant, slug, titre, prix, période, contrat, quartier, ville, vignette).
   `criteria` est toujours un objet (`{}` vide). **Tous les `count` sont des nombres de biens** que la liste publique
   rend sous ces critères, jamais de visiteurs : celui d'`interpretation` en direct, ceux de l'index au dernier passage
-  de sa construction. Écart assumé : sous une saisie de plusieurs mots incompris qui ne rend rien, la liste élargit et
-  affiche le total élargi, quand `interpretation.count` dit 0. Les anciennes clés (`cities`, `neighborhoods`,
-  `property_types`) sont encore rendues, à côté ; la barre ne lit plus que `property_types` (TCK-2475).
+  de sa construction, sans la base. Écart assumé : sous une saisie de plusieurs mots incompris qui ne rend rien, la
+  liste élargit et affiche le total élargi, quand `interpretation.count` dit 0 et `widens` vrai. Des anciennes clés,
+  seule `property_types` reste (sans appel au moteur) ; `cities` et `neighborhoods` ont quitté la réponse.
 - **L'index des suggestions** (`search_suggestions`, Meilisearch) se reconstruit en entier chaque heure
   (`search:build-suggestions`) puis s'échange d'un coup avec l'index servi ; le déploiement le construit s'il manque
   (`--if-missing`), sans arrêter le déploiement s'il échoue. Avant sa première construction, la suggestion rend la
@@ -1077,9 +1095,16 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
 - **Un accord couvre toutes les annonces que le message listait**, et se rattache à l'annonceur.
 - **Les clauses du message d'accord sont un texte fixe**, jamais une génération.
 - **Chaque message garde la version de ses clauses** (`accord.v1`, `accord.v2`, `accord.v3`…) : une
-  version nouvelle ne réécrit jamais un message déjà envoyé. `accord.v3`, la version courante, reprend
-  `accord.v2` mot pour mot derrière l'ouverture « Takussan — » : c'est le corps du gabarit que Meta
-  approuve pour le démarchage par l'API (TCK-2395).
+  version nouvelle ne réécrit jamais un message déjà envoyé. `accord.v3` reprend `accord.v2` mot pour
+  mot derrière l'ouverture « Takussan — » : c'est le corps du gabarit que Meta approuve pour le
+  démarchage par l'API (TCK-2395).
+- **Le message d'accord cite la demande quand elle existe** (TCK-2471). Quand une cible de la demande
+  active couvre une annonce du message, quel que soit le canal, il part en `accord.v4` : `accord.v3` et
+  « Des personnes recherchent en ce moment sur Takussan un bien comme le vôtre. » ; sinon en `accord.v3`.
+  L'aperçu de la fiche le dit (« Recherché : » et les cibles). Tant que le gabarit Meta de la v4 n'est pas
+  configuré (`RADAR_WHATSAPP_ACCORD_V4_TEMPLATE`), un `accord.v4` part par `wa.me` seul : l'API le refuse
+  (`radar.whatsapp.template_missing`), la fiche ne propose pas l'envoi par l'API (`api_channel_available` faux, à côté de
+  `cites_demand`) et dit pourquoi.
 - **Le lien de réclamation est signé, propre à l'annonceur et sans stockage** : il expire
   (`radar.claim.link_ttl_days`, 30 jours) et ne sert plus après un STOP, un accord révoqué ou un
   numéro purgé. `accord.v2`, `accord.v3`, `publie.v2`, `activation.v1` et, sous mandat, `mandat.v2`
@@ -1450,9 +1475,11 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   lieu, pièces (jamais lues comme des chambres), salles de bain, surface, date de mise en ligne, nom du vendeur et ses
   indices (boutique, nombre d'annonces, ancienneté, nom d'entreprise). Le texte envoyé au modèle n'est plus que le titre
   et la description. **Le numéro du site lui-même n'est jamais celui d'un annonceur**, même cité dans une description
-  (`excludedPhones()`) ; les numéros lus sur la page passent devant ceux du texte et du modèle. Une page que l'adaptateur
-  ne reconnaît pas, ou un site sans adaptateur, passe par le lecteur générique, qui récolte aussi les numéros des
-  attributs — hors en-tête, pied de page et navigation, qui sont ceux du site — et retire le menu reconnaissable.
+  (`excludedPhones()`) ; sur une page lue par l'adaptateur, les numéros lus sur la page passent devant ceux du texte
+  et du modèle. Une page que l'adaptateur ne reconnaît pas, ou un site sans adaptateur, passe par le lecteur générique,
+  qui récolte aussi les numéros des attributs — hors en-tête, pied de page et navigation, qui sont ceux du site — et
+  retire le menu reconnaissable ; là, les numéros du modèle et du texte passent devant, ceux des attributs ne viennent
+  qu'en repli.
   L'opérateur peut rattacher l'annonceur à un numéro lu sur la page.
 - **La valeur lue sur la page fait foi** (TCK-2466, ADR-0087 §2). Elle remplace celle du modèle, en confiance haute,
   et la fiche de relecture dit « Lu sur la page » ; une valeur du modèle qui la contredit est signalée
@@ -1473,7 +1500,8 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   réglage est désactivé et le dit ; le support le lit sans geste. Par
   sitemap, une URL neuve passe le filtre des cibles puis est saisie, au plus `radar.crawl.max_new_per_run` (200) par
   passage, les plus récentes d'abord ; une URL connue dont le `lastmod` avance est relue après le passage, sans IA, et
-  seul un prix changé ouvre un instantané ; une annonce encore à extraire n'est jamais relue. Une annonce n'a disparu
+  seul un prix changé ouvre un instantané, au plus `radar.crawl.max_refresh_per_run` (300) par passage, le `lastmod`
+  le plus récent d'abord ; une annonce encore à extraire n'est jamais relue. Une annonce n'a disparu
   qu'après deux lectures **complètes** de tous les sitemaps : un sitemap refusé, illisible (y compris une page d'erreur
   servie en `200`, ou un document qui porte `<!DOCTYPE` ou `<!ENTITY`) ou vide rend la lecture incomplète. Les URL de
   départ et le plafond de pages ne valent que pour les listes. Lecture par `UrlFetcher` : SSRF, `robots.txt` et créneau
@@ -1482,20 +1510,22 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   sources existantes comprises : elle ne saisit une annonce nouvelle que si sa carte (ou l'entrée de son sitemap) peut
   correspondre à au moins une cible active de son site — une valeur absente de la carte n'exclut rien, un lieu inconnu
   ou la ville seule n'excluent rien ; une carte écartée ne crée rien et n'est comptée que dans « Hors cible ». **Sans
-  aucune cible active, une source ciblée ne lit rien** (`radar.crawl.no_target`) : au déploiement, une source allumée
-  cesse de saisir tant qu'aucune cible n'existe ou qu'elle n'est pas réglée sur « tout ». Une annonce déjà connue reste
-  observée. Après l'extraction ou la relecture, l'annonce est rattachée aux cibles actives dont elle remplit
+  aucune cible active, une source ciblée observe encore les annonces connues et ne saisit rien de neuf** : chaque carte
+  nouvelle compte dans « Hors cible » ; au déploiement, une source allumée cesse de saisir tant qu'aucune cible n'existe
+  ou qu'elle n'est pas réglée sur « tout ». Une annonce déjà connue reste observée. Après l'extraction ou la relecture, l'annonce est rattachée aux cibles actives dont elle remplit
   **strictement** les critères ; une cible créée après coup ne rattache pas les annonces déjà extraites. Au plus
   `radar.targets.max_active` (50) cibles actives (`radar.targets.too_many`), aucune en double
   (`radar.targets.duplicate`, qui mène à la cible existante) ; une cible ne s'efface jamais, elle se retire. Routes :
   `GET /api/admin/radar/targets`, `/{id}`, `/{id}/listings` ; `POST`, `PATCH` (`active` ou `paused`), `DELETE`
-  (retirer). La console ne propose aucun geste sur une cible retirée ; l'API, elle, la réactive par `PATCH`, sous plafond
-  et doublon.
+  (retirer). **Une cible retirée ne se modifie plus** : `PATCH` la refuse (422 `radar.targets.retired`) ; seul le fait
+  de défaire la révision qui l'a retirée la rend, et une cible voulue de nouveau se recrée.
 - **Les cibles de la demande sont tenues par l'IA, jamais celles de l'opérateur** (TCK-2470, ADR-0087 §6). Un réglage
   unique, **éteint par défaut** (`GET`/`PATCH /api/admin/radar/demand`, `POST /api/admin/radar/demand/refresh`) ; celui
   qui l'allume en devient l'opérateur. Chaque nuit (`radar:refresh-demand-targets`, 03:40 Dakar, file `ai`), le code lit
   la demande sans résultat — recherches sauvegardées actives sans résultat, et recherches du journal anonyme qui n'ont
-  rien rendu dans les 30 derniers jours et ne rendent toujours rien, à deux visiteurs au moins — et n'en garde que des
+  rien rendu dans les 30 derniers jours et ne rendent toujours rien, à deux visiteurs au moins ; `results_count` d'une
+  recherche sauvegardée est écrit à sa création, à chaque changement de critères et après chaque passage des alertes
+  — et n'en garde que des
   critères structurés : **rien de ce
   qu'un visiteur a tapé** n'est envoyé ; un lieu n'entre que reconnu par le référentiel, sous son nom, et un lieu
   inconnu, une région ou un point écartent le signal. Si ces signaux ont changé depuis la dernière révision, l'usage
@@ -1503,19 +1533,26 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   cibles d'origine « demande » ; le code valide chaque opération (critères, plafond `radar.targets.max_demand` de 20
   cibles actives de la demande, doublon) et écarte, en le consignant, ce qui ne passe pas. L'IA ne touche jamais une
   cible de l'opérateur, épinglée, en pause ou retirée ; modifier les critères d'une cible de la demande depuis la console
-  l'épingle. Chaque passage qui appelle le modèle garde sa révision (`GET /api/admin/radar/targets/revisions`), qui se
-  défait (`POST …/revisions/{id}/revert`) : une cible créée est retirée, et c'est refusé si une révision plus récente
-  touche les mêmes cibles ou si l'opérateur en a épinglé une. Limite connue : `saved_searches.results_count` n'est écrit
-  par aucun code, si bien que toute recherche sauvegardée active compte aujourd'hui comme sans résultat.
+  l'épingle. Une opération dont les critères ne couvrent aucun signal envoyé est écartée (`radar.demand.uncovered`).
+  Sans plus aucun signal, le passage n'appelle pas le modèle : il retire les cibles de la demande que l'IA tient encore,
+  dans une révision sans IA (motif `radar.demand.no_demand`, issue `no_signals_retired`). « Les signaux ont changé »
+  compte aussi les places libres sous le plafond : une cible retirée par l'opérateur rouvre un passage, et défaire une
+  révision ne fait pas rejouer la même proposition. Chaque passage dont le modèle rend une réponse valide, et
+  celui qui retire faute de demande, garde sa révision (`GET /api/admin/radar/targets/revisions`), qui se défait (`POST …/revisions/{id}/revert`) : une cible créée est
+  retirée, les autres reprennent leurs critères et leur statut d'avant. C'est refusé si une révision plus récente non
+  défaite touche les mêmes cibles, si l'opérateur en a épinglé une ou a changé son statut depuis, cible créée comprise
+  (409 `radar.targets.revision_superseded`), si la révision est déjà défaite (409 `revision_reverted`), ou si le
+  retour dépasserait le plafond de la demande (422 `radar.targets.too_many`).
 - **La console de la demande** (TCK-2470). Sur la liste des cibles, l'encart « Cibles tirées de la demande » dit l'état
   (allumée ou éteinte, opérateur et date), ce qui bloque un passage, le dernier passage et son issue, la dernière
   révision ; il allume, éteint, « rafraîchit maintenant » (la page relit le réglage toutes les 10 s, 3 minutes au plus,
-  jusqu'au passage) et reprend en son nom un réglage dont l'opérateur a disparu. Le plafond de 20 qu'il cite est recopié
-  dans le front (`RADAR_DEMAND_TARGETS_MAX`) : l'API ne le rend pas. La page d'une cible de la demande dit si l'IA peut
+  jusqu'au passage) et reprend en son nom un réglage dont l'opérateur a disparu. Le plafond qu'il cite est celui que
+  l'API rend (`max_demand`). La page d'une cible de la demande dit si l'IA peut
   encore la régler, la fusionner ou la retirer, et mène à l'historique. La page « Révisions de la demande »
   (`/super-admin/radar/targets/revisions`, 20 par page) montre, par passage, les opérations appliquées (noms, critères,
-  motif de l'IA) et les propositions écartées avec leur raison ; « Défaire » s'offre sur toute révision non défaite,
-  après confirmation, et un refus s'y affiche en nommant la révision plus récente ou la cible épinglée depuis. Un code
+  motif de l'IA) et les propositions écartées avec leur raison et la cible qu'elles visaient ; « Défaire » s'offre sur
+  toute révision non défaite, après confirmation, et un refus s'y affiche en nommant la révision plus récente, ou la
+  cible épinglée ou dont le statut a changé depuis. Un code
   d'issue ou d'écart inconnu s'affiche par un libellé de repli, jamais brut. Le support lit sans geste ; allumer,
   rafraîchir et défaire demandent `platform.radar.publish`.
 - Droits : `support` saisit, relit, démarche (relance d'activation comprise), dépose les preuves,

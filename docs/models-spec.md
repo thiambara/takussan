@@ -1855,7 +1855,7 @@ La facture du prestataire est une ligne de [ServiceProviderBill](#77-serviceprov
 | notification_frequency | string | | 'daily' | Fréquence d'alerte (`daily`, `weekly`, `off` — `instant` retiré par TCK-599, ramené à `daily`). **NOT NULL** — la sentinelle « ne pas notifier » est `off`, jamais `null` ni `""` (TCK-330) |
 | is_active | boolean | | true | Alerte active |
 | last_notified_at | datetime | oui | null | Dernière notification envoyée |
-| results_count | integer | | 0 | Nombre de résultats actuels (cache — mettre à jour via job planifié, pas à la volée) |
+| results_count | integer | | 0 | Nombre de biens que la recherche trouve (cache). Écrit par `SearchService::refreshResultsCount()` seulement s'il change, sans toucher `updated_at` : à la création et à un changement de `criteria` (`SavedSearchController`), et par `SendSavedSearchAlerts` après les alertes, pour chaque recherche active (fréquence coupée comprise ; total de la première alerte repris sans requête). Un échec du moteur garde le compte précédent (`saved_search.count_failed`). Une alerte publique sans compte n'est comptée qu'au passage suivant. Lu par la demande du Radar (`RadarDemandSignals` : `results_count = 0`) (TCK-2470, TCK-2471) |
 | metadata | jsonb | oui | null | |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
@@ -5215,7 +5215,7 @@ remet les cinq colonnes à null, avec `source_gone_at`.
 | raw_text | text | oui | null | Texte brut ; effacé à `purge_at` (collecte + 90 jours) ou dès un STOP, tant que l'annonce n'est pas publiée (`RadarPurger`, TCK-2391) |
 | photo_urls | jsonb | | `[]` | URL source des photos ; téléchargées seulement après l'accord confirmé, dans `radar_photos` (TCK-2389) |
 | content_fingerprint | string(64) | | | Empreinte du contenu ; **unique** : une annonce n'entre qu'une fois |
-| extracted | jsonb | oui | null | Sortie normalisée de l'extraction : un champ = `{value, confidence, evidence, flags}`, plus `phones`, `phones_flags`, `nature_signals` et `phones_dropped` (les numéros écartés, gardés à part ; effacés avec `extracted` par la purge, TCK-2391). Une valeur corrigée par l'opérateur porte la marque `corrected`. TCK-2466 : une valeur lue sur la page (`ExtractionNormalizer::PAGE_FIELDS`, lue dans `source_fields`) remplace celle du modèle et porte `source: "page"`, confiance `high`, `evidence` nul ; un modèle qui la contredit ajoute le drapeau `source_conflict` et sa valeur dans `model_value` — ce drapeau-là ne rabaisse pas la confiance. Les numéros de la page passent devant ceux du modèle dans `phones` |
+| extracted | jsonb | oui | null | Sortie normalisée de l'extraction : un champ = `{value, confidence, evidence, flags}`, plus `phones`, `phones_flags`, `nature_signals` et `phones_dropped` (les numéros écartés, gardés à part ; effacés avec `extracted` par la purge, TCK-2391). Une valeur corrigée par l'opérateur porte la marque `corrected`. TCK-2466 : une valeur lue sur la page (`ExtractionNormalizer::PAGE_FIELDS`, lue dans `source_fields`) remplace celle du modèle et porte `source: "page"`, confiance `high`, `evidence` nul ; un modèle qui la contredit ajoute le drapeau `source_conflict` et sa valeur dans `model_value` — ce drapeau-là ne rabaisse pas la confiance. Pour une page lue par l'adaptateur de son site (`source_fields.title` présent, `ExtractionNormalizer::readByAdapter()`), les numéros de la page passent devant ceux du modèle dans `phones` ; pour une page lue par `HtmlCleaner`, ceux du modèle et du texte d'abord, les numéros des attributs en repli (revue adverse du 2026-11-04) |
 | matches | jsonb | | `[]` | Rapprochements avec le catalogue |
 | stage | string(30) | | | `captured`, `extracted`, `reviewed`, `contacted`, `consented`, `published`, `extraction_failed`, `duplicate`, `discarded`, `refused`, `do_not_contact`, `purged` ; indexée. `purged` : écrit par `RadarPurger` (TCK-2391) — `raw_text`, `source_url`, `extracted` et `photo_preparation` à null, `photo_urls` à `[]`, médias supprimés ; restent le site d'origine, les dates, `content_fingerprint`, `source_photo_hashes` et `matches` ; aussi, drapeau `radar.purge_published_material` allumé, une annonce publiée dont la dernière preuve est effacée et le bien hors ligne (`property_id` conservé, TCK-2406). `discarded` : écartée par l'opérateur (TCK-2387), distincte de `refused` (issue d'un démarchage) |
 | stage_reason | string(60) | oui | null | Code du motif de l'état, jamais de prose ; pour `discarded`, `radar.discard.<motif>` (`RadarDiscardReason` : `not_real_estate`, `out_of_scope`, `no_longer_available`, `unusable_source`, `other`) ; pour une fusion automatique (`duplicate`), `radar.merge.auto` (TCK-2392) ; sur une annonce `consented`, la raison laissée par la publication de la réclamation (`PublishClaimedRadarListings` : `radar.publish.no_photo`, `radar.publish.missing_field`, le code d'un refus, `radar.claim.publish_failed`…), écrite par une mise à jour conditionnelle `stage = consented` (TCK-2413) |
@@ -5288,7 +5288,7 @@ pendant l'appel attend le verrou de l'annonceur que tient `markSent`, puis relit
 | radar_advertiser_id | FK radar_advertisers | | | `restrictOnDelete` : une preuve d'accord ne disparaît pas avec son annonceur ; indexée |
 | channel | string(30) | | whatsapp_manual | `whatsapp_manual`, `whatsapp_cloud` (envoyé par l'API, TCK-2395) (`RadarOutreachChannel`) |
 | locale | string(5) | | | Langue du message : `fr` ou `en` (pas de `wo`, décision 5) |
-| clauses_version | string(30) | | | Version des clauses employée (`accord.v1`, `accord.v2` depuis TCK-2390 : la ligne du lien de réclamation ; `accord.v3`, courante depuis TCK-2395 : l'ouverture « Takussan — » du gabarit Meta) : chaque message garde la sienne |
+| clauses_version | string(30) | | | Version des clauses employée (`accord.v1`, `accord.v2` depuis TCK-2390 : la ligne du lien de réclamation ; `accord.v3`, courante depuis TCK-2395 : l'ouverture « Takussan — » du gabarit Meta ; `accord.v4` depuis TCK-2471 : `accord.v3` plus une phrase qui cite la demande, retenue par `ConsentMessageComposer::versionFor()` dès qu'une cible `demand` active couvre une annonce du message, quel que soit le canal) : chaque message garde la sienne, retouche comprise. `RadarOutreachResource` rend `cites_demand` (version `accord.v4`) et `api_channel_available` (API configurée ET gabarit Meta de la version : sans gabarit `accord.v4`, le message part par WhatsApp à la main) |
 | salutation | text | | | La partie écrite par l'IA, retouchable ; ramenée à une ligne |
 | summary | text | | | Idem pour le résumé des annonces |
 | message | text | | | Le texte EXACT du paramètre `text` du lien `wa.me` |
@@ -5381,7 +5381,8 @@ se règlent par la même route, jugées par `RadarStartUrls` à l'enregistrement
 codé) et de nouveau au passage (`RadarStartUrls::forRun()`) ; `RadarCrawlSourceResource` rend aussi
 `default_start_url` et `start_hosts`, lus dans le code (TCK-2438, [ADR-0080](adr/0080-la-collecte-automatique-du-radar.md) amendé).
 La même route règle `scope` et `discovery` ; la ressource rend la découverte **effective** (`discovery`,
-`RadarCrawlDiscovery::effective()`) et `sitemap_available` (l'adaptateur déclare-t-il des sitemaps) (TCK-2467, TCK-2468,
+`RadarCrawlDiscovery::effective()`), `sitemap_available` (l'adaptateur déclare-t-il des sitemaps) et `max_new_per_run`
+(le plafond de configuration, que la console cite) (TCK-2467, TCK-2468,
 [ADR-0087 §4, §5](adr/0087-le-radar-lit-par-site-decouvre-par-sitemap-et-cible-la-demande.md)).
 
 | Colonne | Type | Nullable | Défaut | Description |
@@ -5394,7 +5395,7 @@ La même route règle `scope` et `discovery` ; la ressource rend la découverte 
 | operator_id | FK users | oui | null | Celui qui l'a allumée (`nullOnDelete`, `radar_crawl_sources_operator_fk`) ; sans lui, aucun passage planifié ne part ; index `radar_crawl_sources_operator_idx` |
 | enabled_at | timestamp | oui | null | Dernier allumage |
 | start_urls | jsonb | oui | null | TCK-2438 : les pages de liste d'où part un passage, dans l'ordre — `https`, hôte de `RadarSiteAdapter::startHosts()`, ni identifiants, ni port explicite, ni fragment, ni espace, ni barre oblique inverse, ni caractère de contrôle ; au plus `radar.crawl.max_start_urls` (10) URL d'au plus `radar.crawl.start_url_max_length` (500) caractères, telles qu'écrites et une fois canoniques ; écrites sous leur forme canonique (celle de Guzzle : schéma et hôte en minuscules, hors ASCII encodé en pourcentage), sans doublon. La console n'écrit jamais une liste vide. Au passage, `RadarStartUrls::forRun()` rejuge chaque URL et lit celles qui passent, dans l'ordre et jusqu'au plafond (au-delà, les dernières sont ignorées) ; aucune qui passe : rien n'est lu (`radar.crawl.no_start_url`). Nulle, vide ou autre chose qu'une liste : `config('radar.crawl.sites.<site>.start_url')`, si elle passe les mêmes garde-fous. Non lue en découverte `sitemap` |
-| scope | string(20) | | targeted | TCK-2468 : `targeted` (une annonce nouvelle n'est saisie que si sa carte, ou l'entrée de son sitemap, peut correspondre à une cible active qui concerne le site ; sans aucune, le passage ne lit rien : `radar.crawl.no_target`) ou `all` (tout ce qui est vu, ADR-0080) (`RadarCrawlScope`). Les sources existantes ont pris `targeted` par le défaut de la migration |
+| scope | string(20) | | targeted | TCK-2468 : `targeted` (une annonce nouvelle n'est saisie que si sa carte, ou l'entrée de son sitemap, peut correspondre à une cible active qui concerne le site ; sans aucune, le passage observe encore les annonces connues et ne saisit rien de neuf, chaque carte neuve comptée dans `cards_skipped`) ou `all` (tout ce qui est vu, ADR-0080) (`RadarCrawlScope`). Les sources existantes ont pris `targeted` par le défaut de la migration |
 | discovery | string(20) | oui | null | TCK-2467 : `sitemap` ou `lists` (`RadarCrawlDiscovery`) ; **nulle = le défaut de l'adaptateur** (`sitemap` s'il déclare des sitemaps — Expat-Dakar —, `lists` sinon — CoinAfrique). Un réglage `sitemap` sur un adaptateur qui n'en déclare (plus) aucun se lit `lists` ; l'écrire par l'API rend 422 `radar.crawl.discovery_unavailable`. En `sitemap`, `start_urls` et `max_pages` ne sont pas lus |
 | created_at / updated_at | timestamp | | auto | |
 
@@ -5429,8 +5430,9 @@ Une source en découverte `sitemap` lit les sitemaps que son adaptateur déclare
 protections ; `RadarSitemapReader` refuse `<!DOCTYPE`, `<!ENTITY` et toute racine autre que `<urlset>`) : son
 périmètre (`start_urls`) est leur liste triée, `max_pages` ne s'y applique pas, `pages_read` compte les sitemaps et
 `cards_seen` leurs entrées. Une URL connue est observée comme une présence (`RadarSnapshots::present()`, sans prix)
-et, si son `lastmod` a avancé, relue après le passage (`RefreshRadarListing`, sans IA) ; une URL neuve est saisie, les
-plus récentes d'abord, au plus `radar.crawl.max_new_per_run` (200) par passage — le reste attend le passage suivant,
+et, si son `lastmod` a avancé, relue après le passage (`RefreshRadarListing`, sans IA), au plus
+`radar.crawl.max_refresh_per_run` (300) relectures par passage, les `lastmod` les plus récents d'abord — les autres
+gardent leur référence et attendent le passage suivant ; une URL neuve est saisie, les plus récentes d'abord, au plus `radar.crawl.max_new_per_run` (200) par passage — le reste attend le passage suivant,
 sans arrêt ni compte. Un sitemap refusé, illisible (`radar.crawl.sitemap_invalid`) ou vide (`radar.crawl.no_cards`)
 ne coupe pas le passage mais laisse `reached_end` faux.
 
@@ -5450,7 +5452,7 @@ ne coupe pas le passage mais laisse `reached_end` faux.
 | snapshots_opened | integer | | 0 | Instantanés ouverts (annonce neuve, prix ou titre changé) |
 | reached_end | boolean | | false | Chaque liste du passage a été lue jusqu'à sa dernière page (arrêt `radar.crawl.end`, statut `finished`) — sans elle, une annonce non revue n'a pas forcément disparu (TCK-2393, TCK-2438). En découverte `sitemap` : chaque sitemap lu, analysé et non vide (TCK-2467) |
 | cards_skipped | integer (non signé) | | 0 | TCK-2468 : les cartes (ou entrées de sitemap) nouvelles qu'une source ciblée a écartées, aucune cible active ne pouvant leur correspondre. Aucune ligne n'est créée pour elles : ce compteur est leur seule trace. Le plafond `max_new_per_run` n'y compte pas |
-| stop_reason | string(60) | oui | null | `radar.crawl.end`, `radar.crawl.max_pages`, `radar.crawl.no_cards`, `radar.crawl.domain_busy`, `radar.crawl.time_budget`, `radar.crawl.no_operator`, `radar.crawl.no_start_url` (TCK-2438), `radar.crawl.no_target` (source ciblée sans cible active : rien n'est lu, TCK-2468), `radar.crawl.sitemap_invalid` (TCK-2467), `radar.crawl.error`, `radar.crawl.lost`, `radar.crawl.loop`, ou un refus de lecture `radar.fetch.*` (dont `radar.fetch.not_xml`, TCK-2467). Un arrêt du passage (`radar.crawl.max_pages`, `radar.crawl.time_budget`, `radar.crawl.domain_busy`) l'emporte, même si une liste précédente s'était arrêtée avant sa fin : cet arrêt-là n'est alors écrit nulle part. Sinon, quand une liste s'arrête avant sa fin, c'est l'arrêt de la première liste concernée (TCK-2438) |
+| stop_reason | string(60) | oui | null | `radar.crawl.end`, `radar.crawl.max_pages`, `radar.crawl.no_cards`, `radar.crawl.domain_busy`, `radar.crawl.time_budget`, `radar.crawl.no_operator`, `radar.crawl.no_start_url` (TCK-2438), `radar.crawl.sitemap_invalid` (TCK-2467), `radar.crawl.error`, `radar.crawl.lost`, `radar.crawl.loop`, ou un refus de lecture `radar.fetch.*` (dont `radar.fetch.not_xml`, TCK-2467). Un arrêt du passage (`radar.crawl.max_pages`, `radar.crawl.time_budget`, `radar.crawl.domain_busy`) l'emporte, même si une liste précédente s'était arrêtée avant sa fin : cet arrêt-là n'est alors écrit nulle part. Sinon, quand une liste s'arrête avant sa fin, c'est l'arrêt de la première liste concernée (TCK-2438) |
 | start_urls | jsonb | oui | null | TCK-2438 : le périmètre du passage — l'ensemble trié, sans doublon, des URL de départ suivies, l'URL de la configuration résolue comprise (`RadarStartUrls::perimeter()`) ; nulle pour un passage antérieur à la migration `2026_10_30_394380`, et pour un passage clos avant d'avoir choisi ses listes (sans opérateur, perdu en file, tombé avant) ; une valeur nulle se lit comme l'URL actuelle de la configuration du site, en forme canonique. La veille de l'observatoire (`RadarSourceWatch`) ne compte contre une annonce que les passages complets dont le périmètre contient (jsonb `@>`) celui de chaque passage actif à sa dernière présence (`started_at` ≤ présence ≤ `finished_at`, ou pas encore fini) et celui du dernier passage commencé avant elle, même clos avant. Une annonce sortie d'un périmètre restreint n'est donc plus jugée tant qu'elle n'est pas revue, et compte encore comme une source en ligne de son bien (TCK-2438) |
 | created_at / updated_at | timestamp | | auto | `created_at` : la mise en file, d'où se compte la fréquence |
 
@@ -5600,11 +5602,14 @@ purge (`RadarPurger`) quand l'annonce est purgée ou que son annonceur a dit STO
 **Description :** Ce que la collecte cherche ([ADR-0087 §5, §6](adr/0087-le-radar-lit-par-site-decouvre-par-sitemap-et-cible-la-demande.md)).
 Une source ciblée (`radar_crawl_sources.scope = targeted`) ne saisit une annonce nouvelle que si sa carte peut
 correspondre à au moins une cible `active` qui concerne son site (`RadarTargetMatcher::mayMatchCard()`, permissif : une
-valeur absente de la carte n'exclut rien). Après l'extraction, l'annonce est rattachée aux cibles actives dont elle
+valeur absente de la carte n'exclut rien) ; sans aucune, elle observe encore les annonces connues et ne saisit rien de
+neuf. Après l'extraction, l'annonce est rattachée aux cibles actives dont elle
 remplit **strictement** les critères : `RadarListingTargetObserver` (après le commit), à l'entrée de l'annonce en
 `extracted` ou `reviewed`, synchronise ses liens (un lien vers une cible active qu'elle ne remplit plus est retiré) et
 recompte `matches_count` depuis la liaison. Une cible créée ou modifiée après coup ne rattache pas les annonces déjà
-extraites. **Une cible ne s'efface jamais** : `DELETE` la passe `retired`.
+extraites. **Une cible ne s'efface jamais** : `DELETE` la passe `retired`, et **une cible retirée ne se modifie plus**
+(`PATCH`, quel que soit le corps : 422 `radar.targets.retired`, `params.target_id`) — seul « défaire » une révision
+peut la rétablir (`RadarTargets::update(..., editsRetired: true)`) ; la même cible se recrée par `POST`.
 
 Toutes les écritures passent par `App\Services\Radar\Targets\RadarTargets` (seul chemin, console comme révision de
 la demande), sous le verrou consultatif `radar_targets` : au plus `radar.targets.max_active` (50) cibles actives,
@@ -5618,7 +5623,7 @@ toutes origines (422 `radar.targets.too_many`), et aucune cible non retirée de 
 | id | bigint PK | | auto | |
 | name | string(120) | | | |
 | origin | string(20) | | | `operator` (la console, `POST /api/admin/radar/targets`, qui refuse `origin`) ou `demand` (la révision de la demande, TCK-2470) (`RadarTargetOrigin`) |
-| status | string(20) | | | `active` (borne la collecte et reçoit des annonces), `paused` (gardée sans effet), `retired` (remplace la suppression) (`RadarTargetStatus`) ; `PATCH` n'écrit que `active` ou `paused`, et réactiver une cible retirée la soumet au plafond et au doublon |
+| status | string(20) | | | `active` (borne la collecte et reçoit des annonces), `paused` (gardée sans effet), `retired` (remplace la suppression) (`RadarTargetStatus`) ; `PATCH` n'écrit que `active` ou `paused`, et refuse une cible retirée (`radar.targets.retired`) |
 | pinned | boolean | | false | Soustrait une cible `demand` à la révision par l'IA |
 | criteria | jsonb | | | Forme normalisée, toutes les clés présentes (liste vide ou null = sans contrainte) : `cities` (noms), `neighborhoods` (`{name, city}`), `types` (`PropertyType`), `contract` (`rent`\|`sale`), `price_min`/`price_max` (XOF), `bedrooms_min`/`bedrooms_max`, `furnished`, `sites` (`RadarSourceSite`), `max_age_days` (1 à `radar.targets.max_age_days`, 365). Listes d'au plus `radar.targets.max_list_items` (30), lieux d'au plus `radar.targets.max_place_length` (80) caractères, comparés par la clé du référentiel (`GeoNeighborhoodResolver::cle()`) |
 | criteria_signature | string(64) | | | Empreinte des critères normalisés (lieux à la casse repliée) ; unique parmi les cibles non retirées ; jamais rendue par l'API |
@@ -5646,20 +5651,27 @@ toutes origines (422 `radar.targets.too_many`), et aucune cible non retirée de 
 `revertedBy` (colonne `reverted_by_id`) ; `touchedTargetIds()` (les cibles nommées par `before`). Tris `created_at`, `id` ;
 `signals_signature` hors des champs lisibles.
 **Description :** Un passage de l'usage `radar.cibles` qui a appelé le modèle ([ADR-0087 §6](adr/0087-le-radar-lit-par-site-decouvre-par-sitemap-et-cible-la-demande.md)),
-écrit par `RadarDemandCurator` — même sans opération : c'est elle qui porte l'empreinte des signaux. Des signaux de même
-empreinte que la **dernière** révision (défaite ou non) n'appellent pas le modèle. « Défaire »
-(`POST /api/admin/radar/targets/revisions/{revision}/revert`, `RadarDemandCurator::revert()`) rétablit `before` : une
-cible créée est retirée, jamais effacée ; refusé en 409 `radar.targets.revision_reverted` (déjà défaite) ou
-`radar.targets.revision_superseded` (une révision postérieure non défaite touche l'une des mêmes cibles, ou l'opérateur
-en a épinglé une depuis) ; un plafond ou un doublon rencontré en rétablissant rend le 422 de `RadarTargets`.
+écrit par `RadarDemandCurator` — même sans opération : c'est elle qui porte l'empreinte du passage. Aussi, **sans IA**
+(`ai_call_id` nul), le passage qui ne trouve plus aucun signal : il retire les cibles `demand` actives non épinglées,
+chacune avec le motif `radar.demand.no_demand`, dans une révision qui se défait (issue `no_signals_retired`) ; rien si
+la dernière révision porte déjà l'empreinte d'un jeu vide. Une empreinte égale à celle de la **dernière** révision
+(défaite ou non) n'appelle pas le modèle ; elle porte les signaux **et les places libres** sous `max_demand` : une
+place libérée relance le modèle, sauf celle qu'un « défaire » libère (la dernière révision est alors ré-empreinte).
+« Défaire » (`POST /api/admin/radar/targets/revisions/{revision}/revert`, `RadarDemandCurator::revert()`) rétablit
+`before` : une cible créée est retirée, jamais effacée. Refusé en 409 `radar.targets.revision_reverted` (déjà défaite)
+ou `radar.targets.revision_superseded` — une révision postérieure non défaite touche l'une des mêmes cibles
+(`params.revision_id`), l'opérateur en a épinglé une depuis, ou le statut d'une cible touchée a changé depuis la
+révision, cible créée comprise (`params.target_id`) ; en 422 `radar.targets.too_many` (`params.max`) si le défaire
+remettait plus de `max_demand` cibles `demand` actives en augmentant leur nombre ; un doublon rencontré en rétablissant
+rend le 422 de `RadarTargets`.
 
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | |
 | operations | jsonb | | `[]` | Les opérations appliquées, telles qu'appliquées : `{op, target_id, merge_ids, name, criteria, reason, signal_refs}`, `op` ∈ `create`, `update`, `merge`, `retire` |
-| discarded | jsonb | | `[]` | Les opérations écartées et leur code (`radar.demand.invalid_operation`, `invalid_name`, `unknown_target`, `target_protected`, `too_many`, ou un refus `radar.targets.*`) |
+| discarded | jsonb | | `[]` | Les opérations écartées, leur code (`radar.demand.invalid_operation`, `invalid_name`, `unknown_target`, `target_protected`, `too_many`, `uncovered` — des critères qui ne couvrent aucun des signaux cités —, ou un refus `radar.targets.*`) et `target_name`, le nom de la cible visée |
 | before | jsonb | | `[]` | L'état d'avant de chaque cible touchée (`created: true` pour une cible créée) : ce que « défaire » rétablit |
-| signals_signature | string(64) | | | SHA-256 des empreintes de critères des signaux retenus, sans leurs comptes ; jamais rendue par l'API |
+| signals_signature | string(64) | | | Empreinte du passage : SHA-256 des empreintes de critères des signaux retenus (sans leurs comptes) et du nombre de places libres sous `max_demand` ; pour une révision sans signal, celle d'un jeu vide ; jamais rendue par l'API |
 | signals_count | integer (non signé) | | 0 | Signaux lus |
 | ai_call_id | FK ai_calls | oui | null | L'appel au modèle (`nullOnDelete`, `radar_target_revisions_ai_call_fk`) ; index `radar_target_revisions_ai_call_idx` |
 | reverted_at | timestamp | oui | null | Défaite |
@@ -5677,6 +5689,7 @@ la ligne unique (recréée éteinte par `insertOrIgnore` si elle a disparu) ; `b
 comme une source de la collecte : **éteint à la migration** ; celui qui l'allume (`PATCH /api/admin/radar/demand`,
 `platform.radar.publish`) en devient l'opérateur, au nom duquel l'usage `radar.cibles` est jugé ; rallumer un réglage
 allumé dont l'opérateur a disparu le reprend. Éteint ou sans opérateur, aucun passage ne part ; rien ne l'éteint d'office.
+La ressource rend aussi `max_demand` (`radar.targets.max_demand`, 20), le plafond que la console cite.
 
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
@@ -5685,16 +5698,17 @@ allumé dont l'opérateur a disparu le reprend. Éteint ou sans opérateur, aucu
 | operator_id | FK users | oui | null | `nullOnDelete` (`radar_demand_settings_operator_fk`) ; index `radar_demand_settings_operator_idx` |
 | enabled_at | timestamp | oui | null | Dernier allumage |
 | last_run_at | timestamp | oui | null | Dernier passage |
-| last_run_outcome | string(64) | oui | null | Issue du dernier passage : `applied`, `unchanged` (mêmes signaux : aucun appel), `no_signals`, `radar.demand.invalid_output`, le code d'un blocage (`radar.demand.disabled`, `radar.demand.operator_missing`) ou d'un refus ou d'une panne de l'IA (`ai.*`) |
+| last_run_outcome | string(64) | oui | null | Issue du dernier passage : `applied`, `unchanged` (même empreinte : aucun appel), `no_signals`, `no_signals_retired` (sans signal : cibles de la demande retirées, sans IA), `radar.demand.invalid_output`, le code d'un blocage (`radar.demand.disabled`, `radar.demand.operator_missing`) ou d'un refus ou d'une panne de l'IA (`ai.*`) |
 | created_at / updated_at | timestamp | | auto | |
 
 **Contraintes :** `CHECK radar_demand_settings_single_row (id = 1)` ; la ligne est insérée par la migration.
 
 ### 121. SearchQueryStat 🆕
 
-**Tables :** `search_query_stats` (migration `2026_11_04_247200`, TCK-2472) et la table de travail
+**Tables :** `search_query_stats` (migrations `2026_11_04_247200`, TCK-2472 ; `2026_11_04_247220`, revue adverse du
+2026-11-04 : `distinct_networks`) et la table de travail
 `search_query_visitors` (`2026_11_04_247210`, sans modèle : écrite par `DB::table`)
-**Modèle :** `App\Models\SearchQueryStat` (`AbstractModel`) — `day` casté en `date`, `criteria` en `array`, les quatre
+**Modèle :** `App\Models\SearchQueryStat` (`AbstractModel`) — `day` casté en `date`, `criteria` en `array`, les cinq
 compteurs en `integer`. Aucune relation. Jamais écrit par le modèle : `App\Services\Search\SearchJournal` écrit par
 `upsert` aux incréments atomiques (`ON CONFLICT DO UPDATE`), dans une transaction avec l'insertion du visiteur.
 **Description :** Le journal anonyme et agrégé des recherches publiques de biens
@@ -5703,13 +5717,15 @@ personne** — ni compte, ni IP, ni identifiant durable. Une « recherche » est
 `GET /api/public/properties/search` avec une saisie ou au moins un critère retenu (`SearchJournal::CRITERIA_KEYS`),
 hors robot déclaré (`RobotUserAgent`) et hors `placements=false` ; écrite après la réponse (`defer`), elle n'échoue
 jamais la recherche. **Jamais journalisée** : une saisie — ou un critère libre (`city`, `cities`, `region`, `location`,
-`tags`) — de plus de 80 caractères, qui porte six chiffres ou plus (comptés sur toute la saisie), ou un `@` : la
-recherche entière ne l'est pas. Une recherche élargie (ADR-0024) est comptée sans résultat.
+`tags`) — de plus de 80 caractères, qui porte six chiffres ou plus (comptés sur toute la saisie), un `@`, ou qui
+ressemble à un courriel écrit sans lui (un domaine, `point com`, un service de messagerie nommé, `arobase`, `(at)`) :
+la recherche entière ne l'est pas. Une recherche élargie (ADR-0024) est comptée sans résultat.
 
 **Lectures.** `popular()` (fenêtre de 30 jours) : seulement une recherche qui a réuni `search.journal.min_visitors` (5)
-visiteurs distincts **un même jour** et dont le dernier nombre de résultats est non nul ; `count` en visiteurs-jours.
-`zeroResultDemand()` : les recherches qui ont rendu zéro dans la fenêtre et rendent encore zéro, pour l'usage
-`radar.cibles` (TCK-2470) — jamais montrées au public. **Rétention** : `search:purge-journal` (horaire) efface les lignes
+**réseaux** distincts **un même jour** (`max(distinct_networks)`) et dont le dernier nombre de résultats est non nul ;
+`count` en visiteurs-jours (`distinct_visitors`). `zeroResultDemand()` : les recherches qui ont rendu zéro dans la
+fenêtre et rendent encore zéro, en visiteurs-jours, pour les usages `radar.cibles` (TCK-2470) et `search.variantes`
+(TCK-2476) — jamais montrées au public. **Rétention** : `search:purge-journal` (horaire) efface les lignes
 de plus de `search.journal.retention_months` (13) mois.
 
 | Colonne | Type | Nullable | Défaut | Description |
@@ -5720,15 +5736,18 @@ de plus de `search.journal.retention_months` (13) mois.
 | normalized_query | string(80) | oui | null | La saisie en minuscules, sans accents, blancs repliés ; null pour une recherche par critères seuls ; index `search_query_stats_normalized_query_index` (préfixe, collation `C`) |
 | criteria | jsonb | | | Les critères retenus, forme canonique (clés triées, listes en chaîne à virgules triée — la forme de l'URL) ; jamais les coordonnées, `available_from` ni ce qui règle l'affichage |
 | searches_count | integer (non signé) | | 0 | Recherches |
-| distinct_visitors | integer (non signé) | | 0 | Visiteurs distincts du jour : n'avance que quand l'insertion du visiteur crée une ligne |
+| distinct_visitors | integer (non signé) | | 0 | Visiteurs distincts du jour (adresse IPv4, ou /64 en IPv6) : n'avance que quand l'insertion de l'empreinte du visiteur crée une ligne ; le compte affiché et l'entrée des usages IA |
+| distinct_networks | integer (non signé) | | 0 | Réseaux distincts du jour (/24 en IPv4, /48 en IPv6), par une seconde empreinte : le seul seuil d'affichage des recherches populaires (revue adverse du 2026-11-04, ADR-0088 §2 amendé) ; 0 sur les lignes antérieures à la colonne |
 | zero_results_count | integer (non signé) | | 0 | Recherches sans résultat |
 | last_results_count | integer (non signé) | | 0 | Dernier nombre de résultats (régime strict) |
 | created_at / updated_at | timestamp | | auto | |
 
-**`search_query_visitors`** (sans `id`) : `day` date, `query_key` string(64), `visitor_hash` string(64) —
-`AppKeyHmac::of('<jour>|<IP, ou son /64 en IPv6>')` (ADR-0084), une autre empreinte chaque jour, sans lien d'un jour à
-l'autre —, `created_at` timestamp `useCurrent`. Unique `search_query_visitors_unique (day, query_key, visitor_hash)`
-(`insertOrIgnore` : seule la première recherche d'un visiteur ce jour-là crée une ligne) ; index
+**`search_query_visitors`** (sans `id`) : `day` date, `query_key` string(64), `visitor_hash` string(64), `created_at`
+timestamp `useCurrent`. Deux empreintes par visiteur et par recherche : celle du visiteur,
+`AppKeyHmac::of('<jour>|<query_key>|<IP, ou son /64 en IPv6>')` (ADR-0084), et celle de son réseau,
+`AppKeyHmac::of('reseau|<jour>|<query_key>|<son /24 ou /48>')` — propres au couple (jour, recherche), elles ne relient ni
+un jour à l'autre, ni deux recherches d'un même visiteur. Unique `search_query_visitors_unique (day, query_key,
+visitor_hash)` (`insertOrIgnore` : seule la première empreinte crée une ligne et fait avancer son compteur) ; index
 `search_query_visitors_created_at_index`. Purgée d'heure en heure dès 47 heures : aucune empreinte n'atteint les 48
 heures que promet `privacy.ts`.
 
@@ -5752,7 +5771,11 @@ recherche populaire — `{id, kind, label_fr, label_en, label_wo, aliases[], val
 (`PATCH /api/admin/search/aliases/{alias}` : la variante devient `manual`). Une variante `active` est comprise par
 l'analyse de la saisie (`DatabasePlaceLexicon`, `DatabaseVocabularyAliases`) et trouvée dans l'index des suggestions
 (`SuggestionIndexBuilder`) ; une variante dont la cible a quitté le référentiel n'est plus lue. Une variante `rejected`
-n'est jamais rouverte par l'IA ; une variante `manual` n'est jamais modifiée par elle.
+n'est jamais rouverte par l'IA ; une variante `manual` n'est jamais modifiée par elle. Une proposition de l'IA est écartée
+si elle n'est faite que de mots courants (`search.aliases.common_word`), si elle nomme une autre cible
+(`search.aliases.other_target`) ou si elle n'est pas une écriture proche de sa cible (`search.aliases.not_close` :
+distance de Damerau au plus un tiers, même forme phonétique, abréviation de trois lettres au moins qui commence comme
+elle, ou initiales d'un nom de plusieurs mots).
 
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
