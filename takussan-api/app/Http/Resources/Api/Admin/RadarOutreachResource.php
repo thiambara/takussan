@@ -6,7 +6,9 @@ use App\Http\Resources\Bases\BaseResource;
 use App\Models\RadarOutreach;
 use App\Services\Radar\ConsentMessageComposer;
 use App\Services\Radar\RadarOutreachWorkflow;
+use App\Services\Radar\Whatsapp\RadarWhatsappNumber;
 use App\Services\Radar\Whatsapp\RadarWhatsappReceipts;
+use App\Services\Radar\Whatsapp\RadarWhatsappTemplate;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
 use RuntimeException;
@@ -70,6 +72,11 @@ class RadarOutreachResource extends BaseResource
             // TCK-2471 — la raison de la phrase d'`accord.v4` (« Recherché : … ») : les cibles de la demande qui couvrent ses
             // annonces ; `[]` pour toute autre version.
             'demand_targets' => $this->demandTargets(),
+            // TCK-2471 (décision 15a) — le message cite-t-il la demande (`accord.v4`), et l'API peut-elle l'envoyer : l'envoi par
+            // l'API est offert (`RadarWhatsappNumber::available()`) ET un gabarit Meta approuvé existe pour sa version. Faux
+            // pour un `accord.v4` sans gabarit v4 : il ne part que par `wa.me`, et la fiche dit pourquoi.
+            'cites_demand' => $this->clauses_version === ConsentMessageComposer::DEMAND_VERSION,
+            'api_channel_available' => app(RadarWhatsappNumber::class)->available() && RadarWhatsappTemplate::templateName($this->clauses_version) !== null,
             'wa_me_url' => $this->waMeUrl(),
             'send_blocked' => $this->sendBlocked(),
             'follow_up_of_id' => $this->follow_up_of_id,

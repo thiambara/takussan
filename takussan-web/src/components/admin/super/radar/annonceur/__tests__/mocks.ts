@@ -65,6 +65,8 @@ export function message(partiel: Partial<RadarOutreach> = {}): RadarOutreach {
     message: MESSAGE_PREPARE,
     segments: SEGMENTS,
     demand_targets: [],
+    cites_demand: false,
+    api_channel_available: true,
     wa_me_url: WA_ME,
     send_blocked: null,
     follow_up_of_id: null,

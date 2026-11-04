@@ -51,8 +51,8 @@ return [
      * Meta refuse ; `accord.v3` s'ouvre sur un texte fixe.
      *
      * TCK-2471 — `accord.v4` (`accord.v3` + la phrase de la demande) attend son gabarit approuvé par Meta (démarche du
-     * porteur) : VIDE, il ne s'envoie pas par l'API, et un message n'est préparé en `accord.v4` que si l'API n'est pas
-     * offerte (`ConsentMessageComposer::versionFor()`). Son nom se pose ici une fois le gabarit approuvé.
+     * porteur) : VIDE, un `accord.v4` ne s'envoie pas par l'API — il part par `wa.me`, et la fiche ne propose pas l'API pour
+     * lui (décision 15a). Son nom se pose ici une fois le gabarit approuvé.
      */
     'templates' => [
         'accord.v3' => 'takussan_radar_accord_v3',

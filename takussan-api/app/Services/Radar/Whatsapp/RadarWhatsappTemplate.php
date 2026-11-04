@@ -56,7 +56,8 @@ final class RadarWhatsappTemplate
 
     /**
      * Le nom du gabarit Meta approuvé d'une version de clauses, ou `null` : une version sans nom configuré ne s'envoie pas par
-     * l'API. TCK-2471 — c'est aussi ce qui décide si `accord.v4` peut être préparée quand l'API est offerte.
+     * l'API. TCK-2471 — c'est aussi ce que lit la fiche pour proposer, ou non, l'envoi par l'API d'un message
+     * (`RadarOutreachResource.api_channel_available`).
      */
     public static function templateName(string $version): ?string
     {

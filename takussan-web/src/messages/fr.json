@@ -9127,7 +9127,9 @@
             "apiAmbiguous": "Meta n’a pas confirmé l’envoi : le message a pu partir. Il est compté comme envoyé pour ne jamais écrire deux fois à l’annonceur. Ne le renvoyez pas à la main.",
             "replyPending": "L’annonceur a répondu par WhatsApp, et sa réponse n’est pas tranchée. Lisez-la plus bas, dans « Messages envoyés, en attente d’une issue », et posez son issue : d’ici là, rien ne se prépare ni ne part vers lui, quelle que soit l’annonce.",
             "demandSentence": "Ce message dit à l’annonceur que des personnes recherchent un bien comme le sien sur Takussan.",
-            "demandReason": "Recherché : {targets}"
+            "demandReason": "Recherché : {targets}",
+            "apiDemandManualOnly": "Ce message cite la demande : il part par WhatsApp à la main tant que le gabarit Meta v4 n’est pas approuvé.",
+            "apiTemplateManualOnly": "Ce message a été écrit avec un gabarit que Meta n’a pas approuvé : il part par WhatsApp à la main."
           },
           "history": {
             "heading": "Messages envoyés",

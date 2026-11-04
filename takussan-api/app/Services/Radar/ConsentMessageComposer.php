@@ -18,8 +18,6 @@ use App\Services\Ai\AiRequest;
 use App\Services\Ai\AiResult;
 use App\Services\Ai\Exceptions\AiRefused;
 use App\Services\Ai\Exceptions\AiUnavailable;
-use App\Services\Radar\Whatsapp\RadarWhatsappNumber;
-use App\Services\Radar\Whatsapp\RadarWhatsappTemplate;
 use App\Support\LienFront;
 use App\Support\PhoneMasker;
 use App\Support\RadarWaMe;
@@ -59,10 +57,11 @@ final class ConsentMessageComposer
     /**
      * TCK-2471 (décision du porteur, 2026-11-04) — `accord.v4` = `accord.v3` + une phrase fixe, sans nombre, en paragraphe à
      * elle après la présentation (« Des personnes recherchent en ce moment sur Takussan un bien comme le vôtre. ») ; clauses
-     * identiques mot pour mot. Choisie par {@see self::versionFor()} quand une cible `demand` ACTIVE couvre l'une des annonces
-     * du message ET que le message pourra partir par chaque canal offert : sans gabarit Meta v4 configuré
-     * (`radar_whatsapp.templates`, `RADAR_WHATSAPP_ACCORD_V4_TEMPLATE`), seulement quand l'API n'est pas offerte — le canal
-     * manuel (`wa.me`) est alors le seul. L'API refuse un `accord.v4` sans gabarit (`radar.whatsapp.template_missing`).
+     * identiques mot pour mot. Choisie par {@see self::versionFor()} dès qu'une cible `demand` ACTIVE couvre l'une des
+     * annonces du message, que l'API soit offerte ou non (décision 15a du porteur, 2026-11-04). Tant que son gabarit Meta
+     * n'est pas configuré (`radar_whatsapp.templates`, `RADAR_WHATSAPP_ACCORD_V4_TEMPLATE`), un `accord.v4` ne part que par
+     * `wa.me` : l'API le refuse (`radar.whatsapp.template_missing`), et la fiche ne propose pas l'envoi par l'API pour lui
+     * (`RadarOutreachResource.api_channel_available`).
      */
     public const DEMAND_VERSION = 'accord.v4';
 
@@ -81,25 +80,18 @@ final class ConsentMessageComposer
     public function __construct(
         private readonly AiGateway $gateway,
         private readonly ClaimLinks $claimLinks,
-        private readonly RadarWhatsappNumber $number,
     ) {}
 
     /**
      * TCK-2471 — la version des clauses d'un message NEUF pour ces annonces ; jugée à la préparation, sous le verrou des
-     * annonces. Le canal n'est choisi qu'après, sur l'aperçu : `accord.v4` n'est retenue que si chaque canal offert peut
-     * l'envoyer. Un message préparé garde la sienne (`radar_outreaches.clauses_version`) : une retouche la relit.
+     * annonces. Le canal se choisit après, sur l'aperçu, parmi ceux qui peuvent envoyer CETTE version. Un message préparé
+     * garde la sienne (`radar_outreaches.clauses_version`) : une retouche la relit.
      *
      * @param  list<int>  $listingIds
      */
     public function versionFor(array $listingIds): string
     {
-        if ($this->demandTargetNames($listingIds, activeOnly: true) === []) {
-            return self::CLAUSES_VERSION;
-        }
-
-        return $this->number->available() && RadarWhatsappTemplate::templateName(self::DEMAND_VERSION) === null
-            ? self::CLAUSES_VERSION
-            : self::DEMAND_VERSION;
+        return $this->demandTargetNames($listingIds, activeOnly: true) === [] ? self::CLAUSES_VERSION : self::DEMAND_VERSION;
     }
 
     /**

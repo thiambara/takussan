@@ -457,6 +457,13 @@ export interface RadarOutreach {
    * bien comme le vôtre. ») : le nom des cibles de la demande qui couvrent ses annonces. `[]` pour toute autre version.
    */
   readonly demand_targets: readonly string[];
+  /** TCK-2471 — le message cite la demande (`accord.v4`). */
+  readonly cites_demand: boolean;
+  /**
+   * TCK-2471 (décision 15a) — l'API peut envoyer CE message : offerte pour la fiche ET un gabarit Meta approuvé pour sa
+   * version. Faux pour un `accord.v4` tant que le gabarit v4 n'est pas configuré : il part par `wa.me`.
+   */
+  readonly api_channel_available: boolean;
   /** Absent (`null`) tant que les deux parties ne sont pas écrites, une fois envoyé, si l'annonceur a dit STOP, et si `send_blocked`. */
   readonly wa_me_url: string | null;
   /** Brouillon seulement : le code du refus qu'essuierait « J'ai envoyé » (annonce d'un autre annonceur, chaîne fermée, annonce sortie d'étape). */

@@ -30,9 +30,9 @@ use Tests\TestCase;
  * nombre ; elle ne part que par le canal manuel (`wa.me`) tant que le gabarit Meta v4 n'est pas configuré
  * (`radar_whatsapp.templates.accord.v4`, `RADAR_WHATSAPP_ACCORD_V4_TEMPLATE`).
  *
- * Le canal n'est connu qu'APRÈS la préparation (l'opérateur choisit `wa.me` ou l'API sur l'aperçu) : la version se décide
- * donc à la préparation, sur ce qui sera offert. L'API offerte (`whatsapp_api_available`) sans gabarit v4 → `accord.v3`,
- * pour que tout message préparé puisse partir par chacun des canaux offerts.
+ * Décision 15a du porteur (2026-11-04) : dès que la phrase s'applique, le message est TOUJOURS préparé en `accord.v4`, même
+ * quand l'API est offerte sans gabarit v4 ; pour ce message, la fiche ne propose pas l'API (`api_channel_available` faux) et
+ * le serveur la refuse (`template_missing`). Gabarit v4 configuré : les deux canaux restent offerts.
  */
 class ConsentMessageDemandSentenceTest extends TestCase
 {
@@ -139,6 +139,9 @@ class ConsentMessageDemandSentenceTest extends TestCase
         $this->assertSame('accord.v4', $reponse->json('data.clauses_version'));
         // La raison, pour l'aperçu de la console : le nom de la cible de la demande.
         $this->assertSame(['Appartement aux Almadies'], $reponse->json('data.demand_targets'));
+        $this->assertTrue($reponse->json('data.cites_demand'));
+        // Canal manuel seul : l'API n'est offerte pour aucun message.
+        $this->assertFalse($reponse->json('data.api_channel_available'));
     }
 
     public function test_ac1_en_anglais_la_phrase_est_celle_du_fichier_anglais(): void
@@ -155,7 +158,8 @@ class ConsentMessageDemandSentenceTest extends TestCase
         $this->assertStringContainsString("\n\n".self::PHRASE_EN."\n\n", $message->message);
     }
 
-    public function test_ac1_l_api_offerte_avec_un_gabarit_v4_configure_porte_aussi_la_phrase(): void
+    /** Décision 15a — gabarit v4 configuré : la phrase, et l'envoi par l'API reste proposé. */
+    public function test_ac1_l_api_offerte_avec_un_gabarit_v4_configure_porte_la_phrase_et_garde_l_api(): void
     {
         $this->apiOfferte();
         config(['radar_whatsapp.templates' => ['accord.v3' => 'takussan_radar_accord_v3', 'accord.v4' => 'takussan_radar_accord_v4']]);
@@ -163,9 +167,12 @@ class ConsentMessageDemandSentenceTest extends TestCase
         $visee = $this->annonce($annonceur);
         $this->cible('Appartement aux Almadies', RadarTargetOrigin::Demand, RadarTargetStatus::Active, $visee);
 
-        $this->preparer($annonceur, [$visee->id]);
+        $reponse = $this->preparer($annonceur, [$visee->id]);
 
         $this->assertSame('accord.v4', RadarOutreach::query()->sole()->clauses_version);
+        $this->assertTrue($reponse->json('data.api_channel_available'));
+        $carte = $this->getJson("/api/admin/radar/advertisers/{$annonceur->id}")->assertOk();
+        $this->assertTrue($carte->json('data.outreaches.0.api_channel_available'));
     }
 
     /** AC2 — sans cible `demand` active : une cible de l'opérateur, une cible de la demande en pause ou retirée, une cible d'une AUTRE annonce. */
@@ -188,10 +195,29 @@ class ConsentMessageDemandSentenceTest extends TestCase
         $this->assertStringNotContainsString(self::PHRASE_FR, $message->message);
         $this->assertSame($composeur->compose('fr', 'Bonjour Awa,', 'votre appartement aux Almadies', 'accord.v3', $composeur->claimUrlFor($message)), $message->message);
         $this->assertSame([], $reponse->json('data.demand_targets'));
+        $this->assertFalse($reponse->json('data.cites_demand'));
+        // L'API n'est pas offerte : même un `accord.v3`, qui a son gabarit, ne la propose pas.
+        $this->assertFalse($reponse->json('data.api_channel_available'));
     }
 
-    /** AC2 — l'API offerte sans gabarit v4 : `accord.v3`, pour que le message puisse partir par l'API comme à la main. */
-    public function test_ac2_l_api_offerte_sans_gabarit_v4_garde_accord_v3_meme_avec_une_cible_de_la_demande(): void
+    /** AC2 — l'API offerte : un `accord.v3` (gabarit approuvé) garde l'envoi par l'API proposé. */
+    public function test_ac2_l_api_offerte_un_accord_v3_garde_l_envoi_par_l_api(): void
+    {
+        $this->apiOfferte();
+        $annonceur = $this->annonceur();
+        $annonce = $this->annonce($annonceur);
+
+        $reponse = $this->preparer($annonceur, [$annonce->id]);
+
+        $this->assertSame('accord.v3', $reponse->json('data.clauses_version'));
+        $this->assertTrue($reponse->json('data.api_channel_available'));
+    }
+
+    /**
+     * Décision 15a — l'API offerte SANS gabarit v4 : la phrase s'applique, le message est préparé en `accord.v4` quand même ;
+     * la fiche ne propose pas l'envoi par l'API pour lui, et le serveur le refuse. Le gabarit configuré, il part par l'API.
+     */
+    public function test_l_api_offerte_sans_gabarit_v4_prepare_quand_meme_accord_v4_sans_proposer_l_api_et_la_refuse(): void
     {
         $this->apiOfferte();
         $this->assertSame('', (string) (config('radar_whatsapp.templates')['accord.v4'] ?? ''), 'aucun gabarit v4 par défaut');
@@ -202,23 +228,15 @@ class ConsentMessageDemandSentenceTest extends TestCase
         $reponse = $this->preparer($annonceur, [$visee->id]);
 
         $message = RadarOutreach::query()->sole();
-        $this->assertSame('accord.v3', $message->clauses_version);
-        $this->assertStringNotContainsString(self::PHRASE_FR, $message->message);
-        $this->assertSame([], $reponse->json('data.demand_targets'));
-    }
-
-    /** Le canal API refuse `accord.v4` tant que son gabarit n'est pas configuré — un message préparé quand l'API n'était pas offerte. */
-    public function test_l_api_refuse_un_message_accord_v4_sans_gabarit_et_l_envoie_une_fois_configure(): void
-    {
-        $this->canalManuelSeul();
-        $annonceur = $this->annonceur();
-        $visee = $this->annonce($annonceur);
-        $this->cible('Appartement aux Almadies', RadarTargetOrigin::Demand, RadarTargetStatus::Active, $visee);
-        $this->preparer($annonceur, [$visee->id]);
-        $message = RadarOutreach::query()->sole();
         $this->assertSame('accord.v4', $message->clauses_version);
+        $this->assertStringContainsString(self::PHRASE_FR, $message->message);
+        $this->assertTrue($reponse->json('data.cites_demand'));
+        $this->assertFalse($reponse->json('data.api_channel_available'));
+        $this->assertNotNull($reponse->json('data.wa_me_url'), 'le canal manuel reste ouvert');
+        $carte = $this->getJson("/api/admin/radar/advertisers/{$annonceur->id}")->assertOk();
+        $this->assertTrue($carte->json('data.whatsapp_api_available'), 'l\'API reste offerte pour la fiche');
+        $this->assertFalse($carte->json('data.outreaches.0.api_channel_available'));
 
-        $this->apiOfferte();
         Http::fake();
         $this->postJson("/api/admin/radar/outreaches/{$message->id}/send")
             ->assertStatus(422)->assertJsonPath('code', 'radar.whatsapp.template_missing');
