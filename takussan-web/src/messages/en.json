@@ -8699,6 +8699,7 @@
           "fetchHttpError": "The site answered with an error.",
           "fetchTimeout": "The site did not answer in time.",
           "fetchUnresolvable": "The site name cannot be found.",
+          "fetchNotXml": "The response is not an XML document.",
           "aiBudget": "Today’s AI spending cap is reached.",
           "aiKillSwitch": "AI is switched off for this use from the AI console.",
           "aiForbidden": "The operator may not run this AI operation.",
@@ -9779,7 +9780,8 @@
             "lost": "Lost pass (queue stopped)",
             "loop": "Pagination loops back to a page already read",
             "noStartUrl": "No valid start URL",
-            "noTarget": "Targeted source without an active target: nothing was read"
+            "noTarget": "Targeted source without an active target: nothing was read",
+            "sitemapInvalid": "The site’s sitemap is unreadable or empty: reading cut short"
           },
           "errors": {
             "active": "A pass is already running on this site: wait for it to finish.",
@@ -9789,7 +9791,8 @@
             "startUrlTooLong": "URL no. {rank} is too long: {max} characters at most.",
             "startUrlInvalid": "URL no. {rank} is not accepted: an https address, without credentials, port or fragment (#).",
             "startUrlHost": "URL no. {rank} is not on the site: it must start from {hosts}.",
-            "startUrlDuplicate": "URL no. {rank} is already in the list."
+            "startUrlDuplicate": "URL no. {rank} is already in the list.",
+            "discoveryUnavailable": "This site does not offer reading by sitemap."
           },
           "summary": "Every {frequency} min · {pages} pages at most",
           "enabledWithoutOperator": "Enabled without an operator: no run starts. Disable and re-enable it to become its operator.",
@@ -9808,6 +9811,19 @@
               "targeted": "Targeted: only listings that may match an active target are read. Without an active target, the source reads nothing.",
               "all": "Everything: every listing seen is captured and extracted, on the AI budget."
             }
+          },
+          "discovery": {
+            "label": "Discovery",
+            "readOnly": "Discovery: {value}",
+            "values": {
+              "lists": "Lists",
+              "sitemap": "Sitemap"
+            },
+            "consequence": {
+              "lists": "Lists: list pages are read page after page, within the configured page limit.",
+              "sitemap": "Sitemap: the site’s whole inventory is known in a few requests; at most {max} new listings captured per run."
+            },
+            "unavailable": "This site offers no sitemap: it is read through its lists."
           }
         },
         "nav": {

@@ -31,6 +31,8 @@ export const MOTIFS_RADAR: Record<string, string> = {
   'radar.fetch.http_error': 'fetchHttpError',
   'radar.fetch.timeout': 'fetchTimeout',
   'radar.fetch.unresolvable': 'fetchUnresolvable',
+  // TCK-2467 — un sitemap lu par `UrlFetcher::fetchXml()` qui n'est pas du XML.
+  'radar.fetch.not_xml': 'fetchNotXml',
   // Passerelle IA : refus et pauses
   'ai.budget': 'aiBudget',
   'ai.kill_switch': 'aiKillSwitch',
@@ -234,6 +236,8 @@ export const ERREURS_COLLECTE_RADAR: Record<string, string> = {
   'radar.crawl.start_url_invalid': 'startUrlInvalid',
   'radar.crawl.start_url_host': 'startUrlHost',
   'radar.crawl.start_url_duplicate': 'startUrlDuplicate',
+  // TCK-2467 — `discovery: sitemap` sur un site dont l'adaptateur ne déclare aucun sitemap.
+  'radar.crawl.discovery_unavailable': 'discoveryUnavailable',
 };
 
 /**
@@ -253,6 +257,8 @@ export const ARRETS_COLLECTE_RADAR: Record<string, string> = {
   'radar.crawl.no_start_url': 'noStartUrl',
   // TCK-2469 — une source ciblée sans cible active s'arrête avant de lire (TCK-2468).
   'radar.crawl.no_target': 'noTarget',
+  // TCK-2467 — un sitemap illisible coupe la lecture (le passage ne déclare rien disparu).
+  'radar.crawl.sitemap_invalid': 'sitemapInvalid',
 };
 
 /**

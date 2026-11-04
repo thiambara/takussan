@@ -8699,6 +8699,7 @@
           "fetchHttpError": "Le site a répondu par une erreur.",
           "fetchTimeout": "Le site n’a pas répondu à temps.",
           "fetchUnresolvable": "Le nom du site est introuvable.",
+          "fetchNotXml": "La réponse n’est pas un document XML.",
           "aiBudget": "Le plafond de dépense IA du jour est atteint.",
           "aiKillSwitch": "L’IA est coupée pour cet usage depuis la console IA.",
           "aiForbidden": "L’opérateur n’a pas le droit de lancer cette opération IA.",
@@ -9779,7 +9780,8 @@
             "lost": "Passage perdu (file arrêtée)",
             "loop": "La pagination renvoie vers une page déjà lue",
             "noStartUrl": "Aucune URL de départ valable",
-            "noTarget": "Source ciblée sans cible active : rien n’a été lu"
+            "noTarget": "Source ciblée sans cible active : rien n’a été lu",
+            "sitemapInvalid": "Le sitemap du site est illisible ou vide : lecture coupée"
           },
           "errors": {
             "active": "Un passage est déjà en cours sur ce site : attendez sa fin.",
@@ -9789,7 +9791,8 @@
             "startUrlTooLong": "L’URL n° {rank} est trop longue : {max} caractères au plus.",
             "startUrlInvalid": "L’URL n° {rank} n’est pas acceptée : une adresse https, sans identifiants, port ni fragment (#).",
             "startUrlHost": "L’URL n° {rank} n’est pas sur le site : elle doit partir de {hosts}.",
-            "startUrlDuplicate": "L’URL n° {rank} est déjà dans la liste."
+            "startUrlDuplicate": "L’URL n° {rank} est déjà dans la liste.",
+            "discoveryUnavailable": "Ce site ne propose pas de lecture par sitemap."
           },
           "summary": "Tous les {frequency} min · {pages} pages au plus",
           "enabledWithoutOperator": "Allumée sans opérateur : aucun passage ne part. Éteignez-la puis rallumez-la pour en devenir l'opérateur.",
@@ -9808,6 +9811,19 @@
               "targeted": "Ciblée : seules les annonces qui peuvent correspondre à une cible active sont lues. Sans cible active, la source ne lit rien.",
               "all": "Tout : chaque annonce vue est saisie et extraite, sur le budget d’IA."
             }
+          },
+          "discovery": {
+            "label": "Découverte",
+            "readOnly": "Découverte : {value}",
+            "values": {
+              "lists": "Listes",
+              "sitemap": "Sitemap"
+            },
+            "consequence": {
+              "lists": "Listes : les pages de liste sont lues de page en page, dans la limite des pages réglées.",
+              "sitemap": "Sitemap : tout l’inventaire du site est connu en quelques requêtes ; au plus {max} annonces neuves saisies par passage."
+            },
+            "unavailable": "Ce site ne propose pas de sitemap : il se lit par ses listes."
           }
         },
         "nav": {

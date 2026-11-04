@@ -29,11 +29,14 @@ import {
 } from '@/lib/queries/radar';
 import type { PaginatedResponse } from '@/types/api';
 import {
+  RADAR_CRAWL_DISCOVERIES,
+  RADAR_CRAWL_MAX_NEW_PER_RUN,
   RADAR_CRAWL_SCOPES,
   RADAR_CRAWL_FREQUENCY_MAX,
   RADAR_CRAWL_FREQUENCY_MIN,
   RADAR_CRAWL_MAX_PAGES_LIMIT,
   RADAR_CRAWL_MAX_START_URLS,
+  type RadarCrawlDiscovery,
   type RadarCrawlRun,
   type RadarCrawlScope,
   type RadarCrawlSource,
@@ -146,6 +149,67 @@ function PorteeDeLaSource({
 }
 
 /**
+ * TCK-2467 — comment une source découvre ses annonces (ADR-0087 §4) : « sitemap » lit les sitemaps des catégories (tout
+ * l'inventaire en quelques requêtes, `radar.crawl.max_new_per_run` annonces neuves au plus par passage) ; « listes » suit
+ * les pages de liste. `discovery` est la valeur EFFECTIVE que l'API rend ; sans sitemap déclaré (`sitemap_available`
+ * faux), « sitemap » est désactivé et l'écran dit pourquoi. Une réponse d'avant TCK-2467, sans `discovery`, ne montre rien.
+ */
+function DecouverteDeLaSource({
+  source,
+  regle,
+  occupe,
+  onRegler,
+}: {
+  readonly source: RadarCrawlSource;
+  readonly regle: boolean;
+  readonly occupe: boolean;
+  readonly onRegler: (discovery: RadarCrawlDiscovery) => void;
+}) {
+  const t = useTranslations('superAdmin.pages.radar.crawl.discovery');
+  if (!source.discovery) return null;
+  const decouverte = source.discovery;
+  const disponible = source.sitemap_available !== false;
+  const idLegende = `radar-collecte-decouverte-${source.site}`;
+
+  return (
+    <div className="space-y-1.5" data-testid={`radar-collecte-decouverte-${source.site}`}>
+      {regle ? (
+        <div role="group" aria-labelledby={idLegende} className="flex flex-wrap items-center gap-2">
+          <span id={idLegende} className="text-sm font-medium text-foreground">{t('label')}</span>
+          <div className="inline-flex gap-1 rounded-lg bg-muted p-1">
+            {RADAR_CRAWL_DISCOVERIES.map((valeur) => {
+              const actif = valeur === decouverte;
+              const indisponible = valeur === 'sitemap' && !disponible;
+              return (
+                <button
+                  key={valeur}
+                  type="button"
+                  aria-pressed={actif}
+                  disabled={occupe || indisponible}
+                  onClick={() => { if (!actif) onRegler(valeur); }}
+                  data-testid={`radar-collecte-decouverte-${source.site}-${valeur}`}
+                  className={cn(
+                    'min-h-8 rounded-md px-3 text-sm font-medium transition-[background-color,color,box-shadow] duration-150 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50',
+                    actif ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {t(`values.${valeur}`)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <p className="text-sm text-foreground">{t('readOnly', { value: t(`values.${decouverte}`) })}</p>
+      )}
+      <p className="text-xs text-muted-foreground">
+        {disponible ? t(`consequence.${decouverte}`, { max: RADAR_CRAWL_MAX_NEW_PER_RUN }) : t('unavailable')}
+      </p>
+    </div>
+  );
+}
+
+/**
  * Un site collecté : allumé ou non, au nom de qui, sa fréquence et ses pages. Le `super_admin` (`platform.radar.publish`)
  * l'allume, le règle et lance un passage ; les autres lisent.
  */
@@ -230,6 +294,7 @@ function CarteSource({ source, regle }: { readonly source: RadarCrawlSource; rea
       ) : null}
 
       <PorteeDeLaSource source={source} regle={regle} occupe={occupe} onRegler={(scope) => regler.mutate({ scope })} />
+      <DecouverteDeLaSource source={source} regle={regle} occupe={occupe} onRegler={(discovery) => regler.mutate({ discovery })} />
 
       {regle ? (
         <form

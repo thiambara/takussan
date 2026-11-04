@@ -519,6 +519,8 @@ export const RADAR_CRAWL_SOURCE_FIELDS = [
   'start_urls',
   // TCK-2469 — la portée (`targeted` | `all`, TCK-2468).
   'scope',
+  // TCK-2467 — la découverte effective (`lists` | `sitemap`) ; `sitemap_available` vient avec `site`.
+  'discovery',
 ] as const;
 
 /** Les colonnes d'un passage (`RadarCrawlRun::$queryFields`). */
