@@ -2651,10 +2651,25 @@
       "groups": {
         "cities": "Dëkk yi",
         "neighborhoods": "Quartier yi",
-        "property_types": "Wàll yi"
+        "property_types": "Wàll yi",
+        "recent": "Récentes",
+        "popular": "Populaires",
+        "completions": "Recherches fréquentes",
+        "places": "Lieux",
+        "previews": "Biens",
+        "shortcuts": "Raccourcis",
+        "understood": "Votre recherche"
       },
       "searchAll": "Seet « {query} » ci yégle yi",
-      "loading": "Yëgël…"
+      "loading": "Yëgël…",
+      "clearRecent": "Effacer les récentes",
+      "shortcutRent": "Louer",
+      "shortcutSale": "Acheter",
+      "count": "{count, plural, one {# bien} other {# biens}}",
+      "nearby": "Voir des biens proches",
+      "alert": "Être alerté quand un bien correspond",
+      "enterHint": "Entrée",
+      "announce": "{count, plural, =0 {Aucune suggestion} one {# suggestion} other {# suggestions}}"
     },
     "saved": {
       "empty_title": "Amul seet bu ñu denc",

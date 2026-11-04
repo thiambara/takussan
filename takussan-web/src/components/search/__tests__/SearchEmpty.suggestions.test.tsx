@@ -36,8 +36,13 @@ import type { SearchFilters } from '@/types/search';
 
 const REPONSE: SuggestResponse = {
   data: {
-    cities: [{ label: 'Keur Massar', count: 12 }],
-    neighborhoods: [{ label: 'Keur Gorgui', city: 'Dakar', count: 4 }],
+    // TCK-2475 — les lieux arrivent par `places` ; `cities`/`neighborhoods` ne sont plus lus.
+    places: [
+      { kind: 'city', label: 'Keur Massar', city: null, count: 12, criteria: { city: 'Keur Massar' } },
+      { kind: 'neighborhood', label: 'Keur Gorgui', city: 'Dakar', count: 4, criteria: { city: 'Dakar', location: 'Keur Gorgui' } },
+    ],
+    cities: [],
+    neighborhoods: [],
     property_types: [{ label: 'Villa', value: 'villa', count: 30 }],
   },
 };

@@ -4450,10 +4450,25 @@
       "groups": {
         "cities": "Cities",
         "neighborhoods": "Neighborhoods",
-        "property_types": "Types"
+        "property_types": "Types",
+        "recent": "Recent",
+        "popular": "Popular",
+        "completions": "Frequent searches",
+        "places": "Places",
+        "previews": "Listings",
+        "shortcuts": "Shortcuts",
+        "understood": "Your search"
       },
       "searchAll": "Search “{query}” in the listings",
-      "loading": "Loading…"
+      "loading": "Loading…",
+      "clearRecent": "Clear recent searches",
+      "shortcutRent": "Rent",
+      "shortcutSale": "Buy",
+      "count": "{count, plural, one {# listing} other {# listings}}",
+      "nearby": "See close matches",
+      "alert": "Get alerted when a listing matches",
+      "enterHint": "Enter",
+      "announce": "{count, plural, =0 {No suggestions} one {# suggestion} other {# suggestions}}"
     },
     "saved": {
       "empty_title": "No saved search",

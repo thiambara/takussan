@@ -390,8 +390,15 @@ const FICHIERS_HORS_JETONS = 5;
  * (`<p role="status">`, `text-muted-foreground`, sans fond propre, sur le fond que posent les pages
  * de profil public). C'est sa seule entrée neuve : retirer `text-muted-foreground` de cette ligne
  * ramène le compte à 263, la valeur d'`origin/pre-dev`.
+ *
+ * **264 → 270 le 2026-11-04 (TCK-2475).** La barre de recherche suggère au fil de la frappe :
+ * `search/SearchAutocomplete.tsx` passe de 12 à 18 entrées, toutes `text-muted-foreground` sur le
+ * fond du panneau (`bg-card`), que pose le conteneur de la liste et non chaque ligne — icônes des
+ * lignes (récente, populaire, raccourci, lieu, texte libre, effacer), comptes, lieu d'un aperçu.
+ * Relevé en comparant les encres inverses du fichier de `HEAD` (12) et de l'arbre (18) ; aucun
+ * autre fichier de la surface ne change.
  */
-const ENCRES_INVERSES = 264;
+const ENCRES_INVERSES = 270;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);

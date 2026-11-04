@@ -21,16 +21,71 @@ export type SuggestPropertyType = {
   count: number;
 };
 
+export type ContractType = 'sale' | 'rent';
+export type RentPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly';
+
+/**
+ * TCK-2474 / TCK-2475 — des critères de recherche tels que l'API les rend : les PARAMÈTRES D'URL de
+ * la liste (`type`, `bedrooms`, `city`, `location`…). Jamais lus tels quels : ils repassent par
+ * `SEARCH_FILTER_KEYS` (`@/lib/suggestions-de-recherche`). Aucun libellé : le front les traduit.
+ */
+export type CriteresDeSuggestion = Readonly<
+  Record<string, string | number | boolean | readonly (string | number)[] | null>
+>;
+
+/** La saisie comprise : ses critères, ses morceaux dans l'ordre tapé, le texte restant, son compte. */
+export type SuggestInterpretation = {
+  criteria: CriteresDeSuggestion;
+  parts: { key: string; value: unknown; from: number; to: number }[];
+  residue: string | null;
+  /**
+   * Le total EXACT de la liste sous ces paramètres. ⚠ Sous un résidu de plusieurs mots, la liste
+   * peut s'élargir (ADR-0024) et rendre des biens alors que ce compte vaut 0 : 0 n'est donc pas
+   * présenté comme une impasse (décision de la session, TCK-2475).
+   */
+  count: number;
+};
+
+/** Une recherche fréquente (`completions`, `popular`). `text` peut être vide : critères seuls. */
+export type SuggestRecherche = { text: string; criteria: CriteresDeSuggestion; count: number };
+
+export type SuggestPlace = {
+  kind: 'city' | 'neighborhood';
+  label: string;
+  city: string | null;
+  count: number;
+  criteria: CriteresDeSuggestion;
+};
+
+export type SuggestPreview = {
+  id: number;
+  slug: string;
+  title: string;
+  price: number | null;
+  rent_period: RentPeriod | null;
+  contract_type: ContractType | null;
+  neighborhood: string | null;
+  city: string | null;
+  photo_url: string | null;
+};
+
 export type SuggestResponse = {
   data: {
-    cities: SuggestCity[];
-    neighborhoods: SuggestNeighborhood[];
+    /**
+     * Les clés de TCK-2474 sont optionnelles : une API d'un déploiement antérieur ne les rend pas,
+     * et leur absence se lit « rien à proposer » (même raison que `BlocDeRecherche`).
+     */
+    interpretation?: SuggestInterpretation | null;
+    completions?: SuggestRecherche[];
+    popular?: SuggestRecherche[];
+    places?: SuggestPlace[];
+    previews?: SuggestPreview[];
+    /** Anciennes clés de `SuggestService` : le front ne lit plus que `property_types` (TCK-2475). */
+    cities?: SuggestCity[];
+    neighborhoods?: SuggestNeighborhood[];
     property_types: SuggestPropertyType[];
   };
 };
-
-export type ContractType = 'sale' | 'rent';
-export type RentPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly';
 /**
  * ⚠ `distance` n'est PAS un tri comme les autres : il exige une origine (`lat` + `lng`), et le
  * serveur rend **422** s'il ne l'a pas (`SearchPublicPropertyRequest::rules()`, TCK-346). Ce

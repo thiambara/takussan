@@ -4450,10 +4450,25 @@
       "groups": {
         "cities": "Villes",
         "neighborhoods": "Quartiers",
-        "property_types": "Types"
+        "property_types": "Types",
+        "recent": "Récentes",
+        "popular": "Populaires",
+        "completions": "Recherches fréquentes",
+        "places": "Lieux",
+        "previews": "Biens",
+        "shortcuts": "Raccourcis",
+        "understood": "Votre recherche"
       },
       "searchAll": "Rechercher « {query} » dans les annonces",
-      "loading": "Chargement…"
+      "loading": "Chargement…",
+      "clearRecent": "Effacer les récentes",
+      "shortcutRent": "Louer",
+      "shortcutSale": "Acheter",
+      "count": "{count, plural, one {# bien} other {# biens}}",
+      "nearby": "Voir des biens proches",
+      "alert": "Être alerté quand un bien correspond",
+      "enterHint": "Entrée",
+      "announce": "{count, plural, =0 {Aucune suggestion} one {# suggestion} other {# suggestions}}"
     },
     "saved": {
       "empty_title": "Aucune recherche sauvegardée",

@@ -25,8 +25,13 @@ vi.mock('@/hooks/useSuggest', () => ({ useSuggest: vi.fn() }));
 
 const suggestions = {
   data: {
-    cities: [{ label: 'Dakar', slug: 'dakar', count: 12 }],
-    neighborhoods: [{ label: 'Almadies', city: 'Dakar', slug: 'almadies', count: 5 }],
+    // TCK-2475 — les lieux arrivent par `places` (TCK-2474).
+    places: [
+      { kind: 'city', label: 'Dakar', city: null, count: 12, criteria: { city: 'Dakar' } },
+      { kind: 'neighborhood', label: 'Almadies', city: 'Dakar', count: 5, criteria: { city: 'Dakar', location: 'Almadies' } },
+    ],
+    cities: [],
+    neighborhoods: [],
     property_types: [],
   },
 };
