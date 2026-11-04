@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Admin\RadarAdvertiserAccountController;
 use App\Http\Controllers\Api\Admin\RadarAdvertiserController;
 use App\Http\Controllers\Api\Admin\RadarCrawlController;
 use App\Http\Controllers\Api\Admin\RadarDashboardController;
+use App\Http\Controllers\Api\Admin\RadarDemandController;
 use App\Http\Controllers\Api\Admin\RadarListingController;
 use App\Http\Controllers\Api\Admin\RadarListingMatchController;
 use App\Http\Controllers\Api\Admin\RadarListingPhotoController;
@@ -146,6 +147,26 @@ Route::middleware(['auth:sanctum', 'super-admin', 'platform-can:'.PlatformAbilit
     ->prefix('admin/radar')
     ->group(function () {
         Route::post('advertisers/{advertiser}/publish-mandate', [RadarPublicationController::class, 'publishUnderMandate'])->middleware('idempotent')->name('admin.radar.advertisers.publish-mandate');
+    });
+
+/*
+| TCK-2470 (ADR-0087 §6) — les cibles de la demande : le réglage (`/demand`) et l'historique des révisions par l'IA
+| (`/targets/revisions`). Lire : `platform.radar.operate` ; allumer, rafraîchir, défaire : `platform.radar.publish`
+| (`super_admin` seul). ⚠ DÉCLARÉES AVANT `targets/{target}` (TCK-2468, plus bas) : la route littérale d'abord, sinon
+| `GET targets/revisions` serait lu comme la cible « revisions » (`RadarDemandApiTest` le garde).
+*/
+Route::middleware(['auth:sanctum', 'super-admin', 'platform-can:'.PlatformAbility::RadarOperate->value])
+    ->prefix('admin/radar')
+    ->group(function () {
+        Route::get('demand', [RadarDemandController::class, 'show'])->name('admin.radar.demand.show');
+        Route::get('targets/revisions', [RadarDemandController::class, 'revisions'])->name('admin.radar.targets.revisions.index');
+    });
+Route::middleware(['auth:sanctum', 'super-admin', 'platform-can:'.PlatformAbility::RadarPublish->value])
+    ->prefix('admin/radar')
+    ->group(function () {
+        Route::patch('demand', [RadarDemandController::class, 'update'])->name('admin.radar.demand.update');
+        Route::post('demand/refresh', [RadarDemandController::class, 'refresh'])->name('admin.radar.demand.refresh');
+        Route::post('targets/revisions/{revision}/revert', [RadarDemandController::class, 'revert'])->name('admin.radar.targets.revisions.revert');
     });
 
 /*

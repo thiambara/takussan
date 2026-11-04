@@ -5,6 +5,7 @@ namespace App\Services\Ai;
 use App\Ai\Usages\ConnectionTestUsage;
 use App\Ai\Usages\RadarConsentMessageUsage;
 use App\Ai\Usages\RadarConsentVerificationUsage;
+use App\Ai\Usages\RadarDemandTargetsUsage;
 use App\Ai\Usages\RadarEmbeddingUsage;
 use App\Ai\Usages\RadarExtractionUsage;
 use InvalidArgumentException;
@@ -25,6 +26,7 @@ final class AiUsageRegistry
         RadarConsentMessageUsage::class,
         RadarConsentVerificationUsage::class,
         RadarEmbeddingUsage::class,
+        RadarDemandTargetsUsage::class,
     ];
 
     /** @var array<string, AiUsage> */

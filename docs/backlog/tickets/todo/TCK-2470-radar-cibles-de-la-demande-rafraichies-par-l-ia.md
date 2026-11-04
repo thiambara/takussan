@@ -89,4 +89,55 @@ merge_ids?, name?, criteria?, reason, signal_refs[]}]`.
 
 ## Notes d'implémentation
 
-_(à remplir)_
+Partie API seulement (2026-11-04) ; la console (encart « Demande », historique) reste à faire.
+
+**Re-mesures qui différaient du ticket**
+
+- **`saved_searches.results_count` n'est écrit par AUCUN code** (`grep -rn results_count app` : le modèle et sa
+  ressource seulement ; colonne `default(0)` depuis `2026_04_17_160021`). Le filtre « actives dont `results_count = 0` »
+  est appliqué tel que le ticket le dit, mais il retient aujourd'hui **toutes** les recherches sauvegardées actives.
+  À ouvrir : un ticket qui fait écrire `results_count` par `SendSavedSearchAlerts` (ou un compte au passage).
+- **Le journal porte des critères libres** (`city`, `cities`, `location`, `region`, `tags`) en plus de `normalized_query`.
+  AC4 (« aucun texte saisi par un visiteur ») est tenu ainsi : `normalized_query` et `q` ne sont jamais lus ; un lieu
+  n'entre que **reconnu par le référentiel** (ville par nom ou ancien nom, quartier par `QuartierDuFiltre`), et sous le
+  nom du référentiel ; un lieu inconnu **écarte le signal entier** (l'ignorer élargirait la demande à tout le pays). Une
+  région, un point (`lat`/`radius_km`) écartent aussi le signal (pas de critère de cible pour eux). `tags`, surface,
+  salles de bain, état, titre, période : ignorés. Conséquence : une recherche tapée sans critère structuré (« appart
+  almadies ») ne nourrit pas encore le Radar — l'analyse de la saisie (TCK-2473) pourra la convertir en critères.
+- **`RadarTargets::update()` épinglait toute cible `demand` dont les critères changent** : un paramètre `$pinsDemand`
+  (vrai par défaut) laisse la révision par l'IA réécrire une cible sans l'épingler ; il accepte aussi `demand_count`
+  (pour « défaire »). Seul changement d'un fichier de TCK-2468.
+
+**Décisions**
+
+- `signals_signature` = SHA-256 des empreintes de critères des signaux retenus, **sans les comptes** : un compte qui bouge
+  ne rappelle pas le modèle (`demand_count` est recompté sans IA à chaque passage). Comparée à la **dernière révision,
+  défaite ou non** : un « défaire » n'est pas refait tant que la demande ne change pas.
+- Un passage qui appelle le modèle écrit une révision **même sans opération** (c'est elle qui porte l'empreinte).
+- Colonne `discarded` (jsonb) en plus du contrat : les opérations écartées et leur code (`radar.demand.*`,
+  `radar.targets.*`) — « écartée et consignée » ; plus un `Log::warning('radar.demand.operation_discarded')`. Colonne
+  `signals_count`. Sur le réglage : `last_run_at`, `last_run_outcome` (ce que l'écran dit du dernier passage).
+- Couverture d'un signal (`RadarDemandSignals::covers()`) : **recouvrement** — sur chaque clé que les deux contraignent,
+  une valeur commune / la même valeur / des fourchettes qui se chevauchent ; une clé non contrainte d'un côté ne sépare
+  rien ; lieux : ville commune, quartier commun, ou quartier de l'un dans une ville de l'autre.
+- Non éditables par l'IA : cible `operator`, épinglée, **en pause** (un geste de l'opérateur), retirée. Une fusion qui en
+  atteint une est écartée entière ; chaque opération est atomique (point de sauvegarde).
+- « Défaire » : refusé (409 `radar.targets.revision_superseded`) aussi quand l'opérateur a depuis **épinglé** une cible
+  touchée ; 409 `radar.targets.revision_reverted` si déjà défaite ; une cible créée est retirée, jamais effacée. Un
+  plafond ou un doublon rencontré en rétablissant rend le 422 de `RadarTargets` (`radar.targets.too_many|duplicate`).
+- `PATCH /demand {enabled: true}` sur un réglage allumé dont l'opérateur a disparu **reprend** l'opérateur.
+- Usage `radar.cibles` : rôle `extraction`, classe `publique`, plafond 0,50 $, sans cache, non strict (aucun pilote
+  attesté), job en file `ai` (85 s, budget d'appel 75 s). Le prompt est `radar.cibles/v1.md`.
+
+**À reporter dans les specs (la session)**
+
+- `docs/models-spec.md` — `RadarTargetRevision` (`radar_target_revisions` : `id`, `operations` jsonb défaut `[]`,
+  `discarded` jsonb défaut `[]`, `before` jsonb défaut `[]`, `signals_signature` string 64, `signals_count` unsigned int
+  défaut 0, `ai_call_id` FK `ai_calls` null `nullOnDelete`, `reverted_at` timestamp null, `reverted_by_id` FK `users` null
+  `nullOnDelete`, timestamps ; index `ai_call_id`, `reverted_by_id` ; relations `aiCall`, `revertedBy`).
+- `docs/models-spec.md` — `RadarDemandSetting` (`radar_demand_settings` : UNE ligne, `CHECK (id = 1)`, insérée éteinte
+  par la migration ; `enabled` bool défaut faux, `operator_id` FK `users` null `nullOnDelete`, `enabled_at`, `last_run_at`
+  timestamps null, `last_run_outcome` string 64 null, timestamps ; index `operator_id` ; relation `operator`).
+  `check-models-spec.mjs` rougit sur ces deux noms tant que ce n'est pas fait.
+- `docs/features.md` §2.12 — les cibles de la demande : sources, exclusions (AC4), passage nocturne
+  (`radar:refresh-demand-targets`, 03:40 Dakar), plafond `radar.targets.max_demand` (20), révisions et « défaire ».

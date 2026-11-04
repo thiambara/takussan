@@ -49,13 +49,14 @@ final class RadarTargets
 
     /**
      * Les champs donnés seulement. Modifier les critères d'une cible `demand` l'épingle : la révision par l'IA ne la
-     * touchera plus.
+     * touchera plus. TCK-2470 — `$pinsDemand` faux : la révision de la demande elle-même (`RadarDemandCurator`), qui
+     * réécrit les critères d'une cible `demand` sans la soustraire à la révision suivante.
      *
-     * @param  array{name?: string, criteria?: array<string, mixed>, status?: RadarTargetStatus, pinned?: bool}  $changes
+     * @param  array{name?: string, criteria?: array<string, mixed>, status?: RadarTargetStatus, pinned?: bool, demand_count?: int}  $changes
      */
-    public function update(RadarTarget $target, array $changes): RadarTarget
+    public function update(RadarTarget $target, array $changes, bool $pinsDemand = true): RadarTarget
     {
-        return DB::transaction(function () use ($target, $changes): RadarTarget {
+        return DB::transaction(function () use ($target, $changes, $pinsDemand): RadarTarget {
             // ADR-0073 § 3, règle 4 : le verrou de ligne d'abord, le verrou consultatif en dernier.
             $fresh = RadarTarget::query()->whereKey($target->id)->lockForUpdate()->firstOrFail();
             AdvisoryLock::acquire(self::LOCK);
@@ -71,11 +72,14 @@ final class RadarTargets
                 $fresh->pinned = $changes['pinned'];
             }
             if (isset($changes['criteria'])) {
-                if ($fresh->origin === RadarTargetOrigin::Demand && $signature !== $fresh->criteria_signature) {
+                if ($pinsDemand && $fresh->origin === RadarTargetOrigin::Demand && $signature !== $fresh->criteria_signature) {
                     $fresh->pinned = true;
                 }
                 $fresh->criteria = $changes['criteria'];
                 $fresh->criteria_signature = $signature;
+            }
+            if (array_key_exists('demand_count', $changes) && $fresh->origin === RadarTargetOrigin::Demand) {
+                $fresh->demand_count = $changes['demand_count'];
             }
             $fresh->status = $status;
             $fresh->save();
