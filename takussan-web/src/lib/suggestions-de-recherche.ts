@@ -72,7 +72,7 @@ export function parametresDeCriteres(criteria: CriteresDeSuggestion): URLSearchP
  * de cache, deux URL aux mêmes filtres donnent la même.
  *
  * Le serveur fusionne comme `parametresVersLaListe` : chaque critère compris REMPLACE la même clé de la base, une ville
- * comprise retire aussi le quartier et la région d'avant, et les autres clés de la base restent.
+ * comprise retire aussi le quartier, la région et les villes du profil (`cities`) d’avant, et les autres clés de la base restent.
  */
 export function filtresDeLaBase(base: URLSearchParams): URLSearchParams {
   return filtresRelus(base, ['q']);
@@ -116,6 +116,8 @@ export function parametresVersLaListe(
   if (compris.has(parametreDe('city'))) {
     params.delete(parametreDe('location'));
     params.delete(parametreDe('region'));
+    // Les villes du profil (`cities`, en OU) s'ajouteraient en ET à la ville comprise : 0 bien.
+    params.delete(parametreDe('cities'));
   }
   for (const [cle, valeur] of compris) params.set(cle, valeur);
   const terme = (texte ?? '').trim();

@@ -60,6 +60,20 @@ describe('parametresVersLaListe', () => {
     expect(Object.fromEntries(p)).toEqual({ city: 'Dakar' });
   });
 
+  it('une ville comprise retire aussi les villes du profil (`cities`) : sinon ET entre elles, liste vide', () => {
+    // `cities=Thiès,Mbour` (les villes d'un profil, en OU) + « appart almadies » (city=Dakar) : garder `cities`
+    // demanderait un bien à Dakar ET à Thiès ou Mbour — zéro résultat.
+    const base = new URLSearchParams('cities=Thiès,Mbour&contract_type=rent');
+    const p = parametresVersLaListe({ type: 'apartment', city: 'Dakar', location: 'Almadies' }, null, base);
+    expect(p.has('cities')).toBe(false);
+    expect(Object.fromEntries(p)).toEqual({
+      contract_type: 'rent',
+      type: 'apartment',
+      city: 'Dakar',
+      location: 'Almadies',
+    });
+  });
+
   it('un quartier compris garde sa ville', () => {
     const p = parametresVersLaListe({ city: 'Dakar', location: 'Almadies' }, null, new URLSearchParams('region=X'));
     expect(Object.fromEntries(p)).toEqual({ location: 'Almadies', city: 'Dakar' });

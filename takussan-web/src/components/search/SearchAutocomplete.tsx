@@ -509,7 +509,10 @@ export function SearchAutocomplete({
     } else if (e.key === 'Enter') {
       e.preventDefault();
       const active = activeIndex >= 0 ? options[activeIndex] : undefined;
-      if (active) activer(active);
+      // Une ligne « comprise » ou « alerte » encore AFFICHÉE d'une saisie précédente (`keepPreviousData`) ne se
+      // valide pas au clavier : ses critères ne sont pas ceux de la saisie courante.
+      const comprisePerimee = (active?.genre === 'comprise' || active?.genre === 'alerte') && !compriseCourante;
+      if (active && !comprisePerimee) activer(active);
       else if (compriseCourante && interpretation) activer({ genre: 'comprise', interpretation });
       // Entrée SANS suggestion active ni compréhension courante = texte libre, donc `q` — la même
       // clé que le bouton loupe et que la puce de catégorie.

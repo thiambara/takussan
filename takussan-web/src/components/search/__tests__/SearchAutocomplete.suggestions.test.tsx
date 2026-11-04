@@ -205,6 +205,71 @@ describe('AC1 — la saisie comprise en tête, et Entrée la valide', () => {
     expect(push).toHaveBeenCalledWith('/fr/properties?q=appart+3ch');
   });
 
+  // Revue de code du 2026-11-04 — la ligne périmée choisie À LA FLÈCHE ne s'active pas non plus : ses critères sont ceux
+  // de la saisie d'avant. Entrée part en texte libre sur la saisie courante.
+  describe('ligne comprise ou alerte PÉRIMÉE, choisie à la flèche', () => {
+    const APPART_3CH = vide({
+      interpretation: {
+        criteria: { type: 'apartment', bedrooms: 3 },
+        parts: [
+          { key: 'type', value: 'apartment', from: 0, to: 6 },
+          { key: 'bedrooms', value: 3, from: 7, to: 10 },
+        ],
+        residue: null,
+        count: 7,
+      },
+    });
+
+    /** « appart 3ch » est compris et affiché, puis « appart 3ch alm » part au serveur et n'en revient pas. */
+    async function saisiePerimee(reponse: SuggestResponse, compte: string) {
+      api.reponses.set('', vide());
+      api.reponses.set('appart 3ch', reponse);
+      monter();
+      const champ = screen.getByRole('combobox');
+      await userEvent.type(champ, 'appart 3ch');
+      await screen.findByText(compte);
+      await userEvent.type(champ, ' alm');
+      await waitFor(() => expect(api.saisies).toContain('appart 3ch alm'));
+      expect(screen.getByText(compte)).toBeInTheDocument();
+      return champ;
+    }
+
+    it('Entrée sur la ligne comprise périmée : recherche en texte libre sur la saisie courante', async () => {
+      const champ = await saisiePerimee(APPART_3CH, '7 biens');
+      fireEvent.keyDown(champ, { key: 'ArrowDown' });
+      expect(optionsDuPanneau()[0]).toHaveAttribute('aria-selected', 'true');
+      expect(optionsDuPanneau()[0]).toHaveTextContent('Appartement');
+
+      fireEvent.keyDown(champ, { key: 'Enter' });
+
+      expect(push).toHaveBeenCalledTimes(1);
+      expect(push).toHaveBeenCalledWith('/fr/properties?q=appart+3ch+alm');
+    });
+
+    it('Entrée sur la ligne d’alerte périmée : pas de dialogue, recherche en texte libre sur la saisie courante', async () => {
+      const SANS_BIEN = vide({ interpretation: { ...APPART_3CH.data.interpretation!, count: 0 } });
+      const champ = await saisiePerimee(SANS_BIEN, '0 bien');
+      fireEvent.keyDown(champ, { key: 'ArrowDown' });
+      fireEvent.keyDown(champ, { key: 'ArrowDown' });
+      expect(optionsDuPanneau()[1]).toHaveAttribute('aria-selected', 'true');
+      expect(optionsDuPanneau()[1]).toHaveTextContent('Être alerté quand un bien correspond');
+
+      fireEvent.keyDown(champ, { key: 'Enter' });
+
+      expect(push).toHaveBeenCalledTimes(1);
+      expect(push).toHaveBeenCalledWith('/fr/properties?q=appart+3ch+alm');
+      expect(dialogue.props).toBeNull();
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('un clic sur la ligne comprise périmée l’ouvre toujours telle qu’affichée', async () => {
+      await saisiePerimee(APPART_3CH, '7 biens');
+      await userEvent.click(optionsDuPanneau()[0]!);
+      expect(push).toHaveBeenCalledTimes(1);
+      expect(push).toHaveBeenCalledWith('/fr/properties?type=apartment&bedrooms=3');
+    });
+  });
+
   it('une réponse arrivée APRÈS une plus récente ne l’écrase pas', async () => {
     api.reponses.set('', vide());
     api.differer.add('vil');
