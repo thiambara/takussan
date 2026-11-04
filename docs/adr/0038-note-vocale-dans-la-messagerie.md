@@ -2,7 +2,7 @@
 
 - **Statut** : Accepté, **amendé le 2026-10-23** (cf. § *Amendement du 2026-10-23 — `video/mp4` est accepté*)
 - **Date** : 2026-10-07
-- **Tickets** : [TCK-592](../backlog/tickets/TCK-592-maintenance-intervention-de-bout-en-bout.md)
+- **Tickets** : [TCK-592](../backlog/tickets/done/TCK-592-maintenance-intervention-de-bout-en-bout.md)
 - **S'appuie sur** : [ADR-0029](0029-medias-sur-r2-servis-par-cloudflare-transformations.md) (médias privés
   sur R2, servis par URL signée).
 

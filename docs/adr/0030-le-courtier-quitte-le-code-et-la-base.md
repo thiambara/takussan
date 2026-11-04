@@ -2,7 +2,7 @@
 
 - **Statut** : Accepté
 - **Date** : 2026-10-06
-- **Tickets** : [TCK-586](../backlog/tickets/TCK-586-retrait-complet-du-courtier.md)
+- **Tickets** : [TCK-586](../backlog/tickets/done/TCK-586-retrait-complet-du-courtier.md)
 - **Remplace** : [ADR-0027](0027-le-courtier-sort-de-la-surface-commutable.md) (« le courtier sort de la surface
   commutable, sans quitter la base »). Précise l'application d'[ADR-0002](0002-role-est-un-profil-polymorphe.md) :
   la liste des profils polymorphes compte désormais cinq types, pas six.

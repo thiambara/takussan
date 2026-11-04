@@ -20,6 +20,14 @@ use Throwable;
  * - les photos : `og:image` puis les `image` du JSON-LD, absolutisées contre l'URL de la page,
  *   `http(s)` seulement, dédoublonnées, au plus 20. **Aucune n'est téléchargée** : seules les URL
  *   source sont gardées.
+ * - TCK-2465 (ADR-0087 §3) — les numéros que la page ne porte que dans ses attributs (`PagePhones` : liens `tel:`,
+ *   WhatsApp, attributs `data-*phone*` / `data-mobile`), lus APRÈS le retrait du bruit (un numéro d'en-tête ou de pied
+ *   de page est celui du site), moins ceux du JSON-LD `Organization` (le site lui-même) ;
+ * - TCK-2465 — les listes de liens de navigation reconnaissables retirées du texte : un bloc (`ul`, `ol`, `div`…) d'au
+ *   moins {@see self::NAV_MIN_LINKS} liens, dont au moins {@see self::NAV_LINK_SHARE} du texte est fait de liens et
+ *   dont le texte hors liens tient en {@see self::NAV_MAX_OTHER_CHARS} caractères. Du plus profond au plus large : une
+ *   description qui cite deux liens a trop de texte à elle pour être prise. Mesuré sur une annonce de CoinAfrique : le
+ *   menu des catégories faisait l'essentiel des 6 041 caractères.
  *
  * Le HTML vient d'un site tiers : c'est une DONNÉE. Rien n'en est exécuté ni suivi ici, et le texte
  * rendu passe par `ExternalContent::wrap()` avant d'atteindre un modèle.
@@ -30,12 +38,21 @@ final class HtmlCleaner
 
     private const NOISE = ['script', 'style', 'noscript', 'svg', 'iframe', 'nav', 'footer', 'form', 'header', 'template'];
 
+    /** Les blocs candidats à une liste de navigation. */
+    private const NAV_BLOCKS = ['ul', 'ol', 'menu', 'div', 'section', 'aside', 'table'];
+
+    public const NAV_MIN_LINKS = 3;
+
+    public const NAV_LINK_SHARE = 0.7;
+
+    public const NAV_MAX_OTHER_CHARS = 80;
+
     public function clean(string $html, string $baseUrl): CleanedPage
     {
         $maxChars = (int) config('radar.fetch.max_text_chars', 20_000);
 
         if (trim($html) === '') {
-            return new CleanedPage('', null, []);
+            return new CleanedPage('', null, [], []);
         }
 
         $dom = new DOMDocument;
@@ -55,6 +72,7 @@ final class HtmlCleaner
         $title = $this->meta($xpath, 'og:title') ?? $this->firstText($xpath, '//title');
         $description = $this->meta($xpath, 'og:description');
         $photos = $this->photos($xpath, $baseUrl);
+        $sitePhones = PagePhones::organizationPhones($xpath);
 
         foreach (self::NOISE as $tag) {
             foreach (iterator_to_array($dom->getElementsByTagName($tag)) as $node) {
@@ -62,12 +80,45 @@ final class HtmlCleaner
             }
         }
 
+        $phones = array_values(array_diff(PagePhones::fromDom($xpath), $sitePhones));
+        $this->removeNavigationLists($xpath);
+
         $body = $dom->getElementsByTagName('body')->item(0);
         $bodyText = $body !== null ? $this->blockText($body) : '';
 
         $text = $this->collapse(trim(($description ?? '').' '.$bodyText));
 
-        return new CleanedPage(mb_substr($text, 0, $maxChars), $title, $photos);
+        return new CleanedPage(mb_substr($text, 0, $maxChars), $title, $photos, $phones);
+    }
+
+    /** Retire les listes de liens de navigation, des plus profondes aux plus larges (voir l'en-tête). */
+    private function removeNavigationLists(DOMXPath $xpath): void
+    {
+        $query = implode(' | ', array_map(fn (string $tag) => '//body//'.$tag, self::NAV_BLOCKS));
+        $blocks = iterator_to_array($xpath->query($query) ?: []);
+
+        // L'ordre du document met un parent avant ses enfants : à rebours, chaque enfant est jugé avant son parent.
+        foreach (array_reverse($blocks) as $block) {
+            if (! $block instanceof DOMElement || $block->parentNode === null) {
+                continue;
+            }
+
+            $total = mb_strlen(str_replace(' ', '', $this->collapse($this->blockText($block))));
+            if ($total === 0) {
+                continue;
+            }
+
+            $links = 0;
+            $linkChars = 0;
+            foreach ($block->getElementsByTagName('a') as $anchor) {
+                $links++;
+                $linkChars += mb_strlen(str_replace(' ', '', $this->collapse($this->blockText($anchor))));
+            }
+
+            if ($links >= self::NAV_MIN_LINKS && $linkChars / $total >= self::NAV_LINK_SHARE && $total - $linkChars <= self::NAV_MAX_OTHER_CHARS) {
+                $block->parentNode->removeChild($block);
+            }
+        }
     }
 
     private function meta(DOMXPath $xpath, string $property): ?string

@@ -4,7 +4,7 @@
   `commission_rate` est un terme de commission* et § *Amendement du 2026-10-25, bis — qui écrit la
   ventilation*)
 - **Date** : 2026-10-08
-- **Tickets** : [TCK-595](../backlog/tickets/TCK-595-tableaux-de-bord-justes-et-pilotage.md)
+- **Tickets** : [TCK-595](../backlog/tickets/done/TCK-595-tableaux-de-bord-justes-et-pilotage.md)
 - **Précise** : le principe non négociable n° 3 (montant décimal en base),
   [ADR-0031](0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md) (le prédicat « personnel de
   l'agence ») et [ADR-0039](0039-les-sorties-d-argent.md) (`commission_rate` du bail reste le taux de

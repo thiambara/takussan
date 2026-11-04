@@ -2,7 +2,7 @@
 
 - **Statut** : Accepté — décision de la session du 2026-10-30, validée par le porteur le 2026-11-01
 - **Date** : 2026-10-30
-- **Tickets** : [TCK-2430](../backlog/tickets/TCK-2430-empreintes-sous-app-key-hors-radar.md) ; la clé d'empreinte distincte et le ré-chiffrement restent à [TCK-614](../backlog/tickets/TCK-614-rotation-d-app-key-et-cle-d-empreinte-distincte.md)
+- **Tickets** : [TCK-2430](../backlog/tickets/done/TCK-2430-empreintes-sous-app-key-hors-radar.md) ; la clé d'empreinte distincte et le ré-chiffrement restent à [TCK-614](../backlog/tickets/todo/TCK-614-rotation-d-app-key-et-cle-d-empreinte-distincte.md)
 - **Dépend de** : [ADR-0044](0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md) §1 (rotation d'`APP_KEY`, clé distincte pour une empreinte), [ADR-0082](0082-l-empreinte-des-refus-du-radar-a-sa-propre-cle.md) (le patron : écrire sous la clé courante, lire sous toutes)
 
 ## Contexte

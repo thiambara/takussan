@@ -8,7 +8,7 @@ Refonte complète de `/properties/[slug]` en layout Airbnb-like (Navbar/Footer p
 
 ### 0.1 Stack
 - **Monorepo** : `takussan-api/` (Laravel 13, PHP 8.3, SQLite par défaut) + `takussan-web/` (Next.js 16.2.3, React 19, TypeScript 5, Tailwind 4, shadcn/ui sur `@base-ui/react`).
-- **Ticket** : `docs/backlog/tickets/TCK-040-property-detail.md`.
+- **Ticket** : `docs/backlog/tickets/done/TCK-040-property-detail.md`.
 - **Branche** : `feat/tck-040-property-detail-full`.
 - **Commits** : `[TCK-040] <phase>/<step> <résumé>` — un commit par case cochée §8.
 
@@ -51,7 +51,7 @@ npm run dev
 1. `CLAUDE.md`
 2. `docs/features.md` §1.1–1.3, §1.7, §1.10, §1.11
 3. `docs/design-guidelines.md`
-4. `docs/backlog/tickets/TCK-040-property-detail.md`
+4. `docs/backlog/tickets/done/TCK-040-property-detail.md`
 5. `takussan-web/src/app/(public)/properties/[slug]/page.tsx` (état actuel, minimaliste)
 6. `takussan-web/src/components/home/{Navbar,Hero,PropertyCard,Footer}.tsx` (patterns)
 7. `takussan-web/src/app/globals.css` (tokens)
@@ -1273,7 +1273,7 @@ php artisan test           # 100% vert
 - [ ] **G.4** Animations d'entrée (réutiliser classe `animate-fade-in-up` si présente, sinon créer via Tailwind keyframes dans `globals.css`)
 - [ ] **G.5** Responsive final (sidebar desktop / bottom sheet mobile)
 - [ ] **G.6** Corriger les usages pré-existants de `property.type_label` (maintenant typé proprement)
-- [ ] **G.7** Mise à jour du ticket `docs/backlog/tickets/TCK-040-property-detail.md` : cocher les AC
+- [ ] **G.7** Mise à jour du ticket `docs/backlog/tickets/done/TCK-040-property-detail.md` : cocher les AC
 
 ### Phase H — Vérification finale
 

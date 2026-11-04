@@ -8,7 +8,7 @@
 
 **Tech Stack:** Laravel 13 · PHP 8.3 · Laravel Scout ^11.1 · meilisearch/meilisearch-php ^1.16 · PHPUnit · GitHub Actions.
 
-**Reference:** ticket `docs/backlog/tickets/TCK-280-search-properties-meilisearch.md`; specs `docs/features.md#12`, `#24`, `docs/models-spec.md#3`.
+**Reference:** ticket `docs/backlog/tickets/done/TCK-280-search-properties-meilisearch.md`; specs `docs/features.md#12`, `#24`, `docs/models-spec.md#3`.
 
 ---
 
@@ -434,7 +434,7 @@ Non-`Searchable` models keep the `LIKE` path. `withSearch()` already caps at 100
 
 **Files:**
 - Modify: `takussan-api/config/scout.php` doc comment OR `docs/configuration.md` — note `php artisan scout:import "App\Models\Property"` for first deploy.
-- Modify: `docs/backlog/tickets/TCK-280-search-properties-meilisearch.md` (Notes d'implémentation, status).
+- Modify: `docs/backlog/tickets/done/TCK-280-search-properties-meilisearch.md` (Notes d'implémentation, status).
 - Modify: `docs/backlog/INDEX.md` (Doing → Review).
 
 **Step 7.1 — Document first-deploy import.** Add to the deploy notes / `docs/configuration.md §3.6`: after the first deploy that switches `SCOUT_DRIVER=meilisearch`, run once on the server: `php artisan scout:import "App\Models\Property"`. (`scout:sync-index-settings` is already handled per-deploy by the `deploy.sh` plan.)

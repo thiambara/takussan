@@ -3,7 +3,7 @@
 - **Statut** : Accepté
 - **Date** : 2026-10-22
 - **Tickets** : aucun ticket encore — pistes P144.01 à P144.08 (angle 144 du fichier de pistes)
-- **Généralise** : la clé d'achat des boosts de [TCK-822](../backlog/tickets/TCK-822-achat-de-boost-idempotent.md),
+- **Généralise** : la clé d'achat des boosts de [TCK-822](../backlog/tickets/done/TCK-822-achat-de-boost-idempotent.md),
   qui reste en place (§ 8)
 
 ## Contexte

@@ -13,12 +13,12 @@ Thumbs.db
 node_modules/
 .vite/
 
-# Reference deployment files from another project (CheckPrint), kept local
-docs/reference-dploiement/
-.wt/
 
 # Maquettes de brainstorming (superpowers) — locales, non versionnées
 .superpowers/
+
+# Critiques de l'outil impeccable — recréées à chaque passage, locales (retirées du dépôt le 2026-11-03)
+.impeccable/
 
 # Environnements des piles Compose (ADR-0028) : générés en local par les tests de fumée, portés
 # par Dokploy sur le serveur. Jamais versionnés — seuls les *.example le sont.

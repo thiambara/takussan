@@ -1,8 +1,8 @@
 # Textes juridiques
 
 Spec : [`docs/features.md` §2.10](../../../../docs/features.md#210-pages-légales-publiques) · tickets
-[TCK-531](../../../../docs/backlog/tickets/TCK-531-consentements-vers-des-pages-legales-absentes.md)
-et [TCK-537](../../../../docs/backlog/tickets/TCK-537-ecarts-entre-la-politique-de-confidentialite-et-le-code.md).
+[TCK-531](../../../../docs/backlog/tickets/done/TCK-531-consentements-vers-des-pages-legales-absentes.md)
+et [TCK-537](../../../../docs/backlog/tickets/todo/TCK-537-ecarts-entre-la-politique-de-confidentialite-et-le-code.md).
 
 | Document | Fichier | Page |
 |---|---|---|
@@ -29,7 +29,9 @@ la plateforme fait réellement**, relevé dans le code le même jour.
    d'accord du Radar (`takussan-api/resources/radar/clauses/accord.v3.*.md`) : leur formulation
    neutre « votre ou vos annonces » (TCK-2390, décision 6a du porteur) n'a pas été relue, ni
    l'ouverture « Takussan — » d'`accord.v3` (TCK-2395 : Meta refuse un gabarit qui commence par une
-   variable ; clauses identiques à `accord.v2` mot pour mot).
+   variable ; clauses identiques à `accord.v2` mot pour mot), ni la phrase d'`accord.v4`
+   (`accord.v4.*.md`, TCK-2471 : `accord.v3` plus « Des personnes recherchent en ce moment sur Takussan un
+   bien comme le vôtre. », une information et non une clause ; clauses identiques mot pour mot).
 5. **Fermer TCK-537** : trois engagements de la politique ne sont pas encore tenus par le code.
 8. **Retirer les `⚠` du corps des textes**, avec la relecture de l'avocat (ligne 4), sans ticket : ceux de
    l'article 6.3 des CGU et des § 3, § 4.3 et § 6 de la politique s'affichent tels quels sur la page

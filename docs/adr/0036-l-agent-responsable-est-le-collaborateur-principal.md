@@ -2,8 +2,8 @@
 
 - **Statut** : Accepté, **amendé le 2026-10-19** (cf. § *Amendement du 2026-10-19 — le bien passe au bailleur*) et **le 2026-10-25** (cf. § *Amendement du 2026-10-25 — une seule règle de bénéficiaire*)
 - **Date** : 2026-10-07
-- **Tickets** : [TCK-591](../backlog/tickets/TCK-591-crm-agenda-agent-et-passation.md) ; dépend de
-  [TCK-504](../backlog/tickets/TCK-504-agent-principal-choisi-plutot-que-deduit.md) pour son application
+- **Tickets** : [TCK-591](../backlog/tickets/done/TCK-591-crm-agenda-agent-et-passation.md) ; dépend de
+  [TCK-504](../backlog/tickets/done/TCK-504-agent-principal-choisi-plutot-que-deduit.md) pour son application
 
 ## Contexte
 

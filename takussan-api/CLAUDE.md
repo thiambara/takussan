@@ -347,7 +347,7 @@ Le namespace `/api/admin/*` est gardé par le middleware alias `super-admin`
 (`app/Http/Middleware/EnsureSuperAdmin.php`) : 401 si non authentifié, 403 si non super-admin.
 
 **Il n'y a pas de `throttle:api` global.** Le rate limiting est nommé, défini dans
-`AppServiceProvider::bootRateLimiters()` (ligne 269) : `search-suggest` 60/min, `public-read` 90/min,
+`AppServiceProvider::bootRateLimiters()` (ligne 269) : `search-suggest` 300/min, `public-read` 90/min,
 `public-report` 5/h, `public-visit-request` 10/h, `public-contact-lead` 5/10min, `auth-register`
 10/min, `auth-password` 5/min. Le helper `visitorRateLimitKey()` résout le token Sanctum
 *directement* via `PersonalAccessToken::findToken()` — parce que le throttle tourne **avant**

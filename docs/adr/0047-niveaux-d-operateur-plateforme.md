@@ -2,7 +2,7 @@
 
 - **Statut** : Accepté
 - **Date** : 2026-10-08
-- **Tickets** : [TCK-600](../backlog/tickets/TCK-600-console-plateforme-gouvernance-et-exploitation.md)
+- **Tickets** : [TCK-600](../backlog/tickets/done/TCK-600-console-plateforme-gouvernance-et-exploitation.md)
 - **Précise** : [ADR-0031](0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md) (`Capability`
   reste le vocabulaire **d'agence** et la garde de TCK-587 ; la plateforme reçoit le sien).
 

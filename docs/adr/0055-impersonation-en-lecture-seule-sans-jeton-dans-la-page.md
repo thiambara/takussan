@@ -2,7 +2,7 @@
 
 - **Statut** : Accepté
 - **Date** : 2026-10-08
-- **Tickets** : [TCK-600](../backlog/tickets/TCK-600-console-plateforme-gouvernance-et-exploitation.md)
+- **Tickets** : [TCK-600](../backlog/tickets/done/TCK-600-console-plateforme-gouvernance-et-exploitation.md)
 - **Précise** : [ADR-0010](0010-auth-token-sanctum-en-cookie.md) (le jeton porté par cookie httpOnly)
   et [ADR-0033](0033-le-telephone-verifie-est-un-identifiant-de-connexion.md) (step-up 2FA par jeton).
 
@@ -62,7 +62,7 @@ l'opérateur coupe le jeton à la requête suivante, avant même que la session 
 puis :
 
 - toute méthode autre que `GET` / `HEAD` / `OPTIONS` → **403 `impersonation.read_only`**. **Aucune
-  écriture permise** (code corrigé le 2026-10-16, [TCK-723](../backlog/tickets/TCK-723-adr-0044-etendu-et-erratum-adr-0055.md),
+  écriture permise** (code corrigé le 2026-10-16, [TCK-723](../backlog/tickets/done/TCK-723-adr-0044-etendu-et-erratum-adr-0055.md),
   P23.06 : une version antérieure de ce paragraphe écrivait `impersonation_read_only`, que le code
   n'a jamais émis — `EnforceImpersonationReadOnly` rend `abort_code(403, 'impersonation.read_only')`,
   clé `errors.impersonation.read_only`) ;

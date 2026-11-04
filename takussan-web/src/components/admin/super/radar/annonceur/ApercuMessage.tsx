@@ -49,6 +49,10 @@ const texteDe = (segments: readonly RadarMessageSegment[], kind: RadarMessageSeg
  * WhatsApp n'ouvre QUE le texte enregistré : tant qu'une retouche n'est pas enregistrée, le lien et « J'ai
  * envoyé » restent fermés — sinon l'opérateur enverrait un texte différent de celui qu'il voit.
  *
+ * TCK-2471 — un message `accord.v4` porte, dans son texte figé, la phrase de la demande ; une note dit pourquoi : le nom des
+ * cibles de la demande qui couvrent ses annonces (`demand_targets`). Décision 15a : l'API n'est proposée que si elle peut
+ * envoyer CE message (`api_channel_available` : un gabarit Meta pour sa version) ; sinon l'aperçu dit pourquoi.
+ *
  * TCK-2426 — « Envoyer par l'API » (offert si la fiche rend `whatsapp_api_available`) fait partir le message du numéro
  * du Radar, après confirmation. Il s'ouvre aux mêmes conditions que le lien `wa.me` (`wa_me_url` non nul : parties
  * écrites, numéro, ni STOP ni `send_blocked`). Tant qu'une réponse reçue par l'API de l'annonceur n'est pas tranchée,
@@ -83,6 +87,10 @@ export function ApercuMessage({
   const modifie = salutationModifiee || resumeModifie;
   const vide = (salutationModifiee && salutation.trim() === '') || (resumeModifie && resume.trim() === '');
   const partiesEcrites = message.salutation.trim() !== '' && message.summary.trim() !== '';
+  // TCK-2471 (décision 15a) — l'API offerte pour la fiche, mais pas pour CE message (pas de gabarit Meta pour sa version) :
+  // le bouton n'est pas proposé, et l'aperçu dit pourquoi.
+  const apiPourCeMessage = apiDisponible && message.api_channel_available;
+  const apiRefuseeIci = apiDisponible && !message.api_channel_available;
 
   const enregistrer = () => {
     // Seuls les champs modifiés partent : chaque clé envoyée est une retouche, et l'API refuse un corps vide.
@@ -144,6 +152,13 @@ export function ApercuMessage({
           );
         })}
       </div>
+      {message.demand_targets.length > 0 ? (
+        // TCK-2471 — la phrase de la demande est dans le texte figé ; la console dit pourquoi elle y est.
+        <div role="note" className="rounded-md border border-accent/40 bg-accent/5 px-3 py-2 text-xs text-foreground" data-testid="radar-message-demande">
+          <p>{t('demandSentence')}</p>
+          <p className="mt-1 text-muted-foreground">{t('demandReason', { targets: message.demand_targets.join(', ') })}</p>
+        </div>
+      ) : null}
       {!retouchable ? <p className="text-xs text-muted-foreground">{t('legacy')}</p> : null}
 
       {retouchable ? (
@@ -167,7 +182,7 @@ export function ApercuMessage({
             {t('whatsapp')}
           </a>
         ) : null}
-        {apiDisponible ? (
+        {apiPourCeMessage ? (
           <Button
             type="button"
             size="sm"
@@ -182,13 +197,18 @@ export function ApercuMessage({
           type="button"
           size="sm"
           // L'envoi par l'API est le geste principal quand il s'offre : « J'ai envoyé » passe en second.
-          variant={apiDisponible ? 'outline' : 'default'}
+          variant={apiPourCeMessage ? 'outline' : 'default'}
           disabled={desactive || modifie || !partiesEcrites || reponseEnAttente || enEnvoi}
           onClick={() => setConfirmation('manuel')}
         >
           {t('sent')}
         </Button>
       </div>
+      {apiRefuseeIci ? (
+        <p className="text-xs text-muted-foreground" data-testid="radar-message-api-indisponible">
+          {message.cites_demand ? t('apiDemandManualOnly') : t('apiTemplateManualOnly')}
+        </p>
+      ) : null}
       {!partiesEcrites ? <p className="text-xs text-muted-foreground">{t('partsEmpty')}</p> : null}
       {message.send_blocked !== null ? (
         <p className="text-xs text-destructive" data-testid="radar-message-bloque">{t('blocked', { reason: motifIa(message.send_blocked) })}</p>

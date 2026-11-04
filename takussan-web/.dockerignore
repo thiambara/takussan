@@ -4,7 +4,6 @@
 .next
 node_modules
 .git
-.stitch
 .DS_Store
 coverage
 *.tsbuildinfo

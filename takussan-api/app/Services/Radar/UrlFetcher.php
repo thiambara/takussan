@@ -118,6 +118,34 @@ final class UrlFetcher
     }
 
     /**
+     * TCK-2467 (ADR-0087 §4) — un sitemap, par le MÊME chemin protégé que la page (SSRF à chaque saut, `robots.txt`,
+     * créneau du domaine, délai total), corps borné à `radar.fetch.max_bytes` : un sitemap plus gros est refusé
+     * (`too_large`), jamais tronqué. Le corps n'est PAS analysé ici : c'est `RadarSitemapReader` qui le lit, sans réseau
+     * ni entité.
+     *
+     * @throws RadarFetchRefused `not_xml` en plus des codes de `fetch()`
+     * @throws RadarFetchDeferred
+     */
+    public function fetchXml(string $url): FetchedPage
+    {
+        [$final, $response] = $this->retrieve($url, (int) config('radar.fetch.max_bytes', 2_000_000));
+
+        if (! $response->successful()) {
+            throw new RadarFetchRefused(RadarFetchRefused::HTTP_ERROR);
+        }
+
+        $body = $response->body();
+        $contentType = $response->header('Content-Type');
+        $contentType = $contentType === '' ? null : $contentType;
+
+        if (! $this->isXml($contentType, $body)) {
+            throw new RadarFetchRefused(RadarFetchRefused::NOT_XML);
+        }
+
+        return new FetchedPage($final, $response->status(), $body, $contentType);
+    }
+
+    /**
      * TCK-2387 — une photo source, par le MÊME chemin protégé que la page (chaque saut contrôlé et
      * épinglé, `robots.txt`, créneau du domaine, délai total), corps borné à `radar.photos.max_bytes`
      * et gardé en mémoire (`BoundedSink`). Rien n'est écrit : l'appelant calcule l'empreinte et jette.
@@ -577,6 +605,23 @@ final class UrlFetcher
         $head = ltrim(substr(preg_replace('/^\xEF\xBB\xBF/', '', $body) ?? $body, 0, 1024));
 
         return preg_match('/^(<!--.*?-->\s*)*<(!doctype\s+html|html[\s>])/is', $head) === 1;
+    }
+
+    /**
+     * TCK-2467 — `application/xml` ou `text/xml` (relevé du 2026-11-04 : Expat-Dakar sert `application/xml`). Sans
+     * `Content-Type`, le corps doit s'ouvrir comme du XML (`<?xml`, ou directement `<urlset`).
+     */
+    private function isXml(?string $contentType, string $body): bool
+    {
+        if ($contentType !== null) {
+            $mime = strtolower(trim(explode(';', $contentType, 2)[0]));
+
+            return in_array($mime, ['application/xml', 'text/xml'], true);
+        }
+
+        $head = ltrim(substr(preg_replace('/^\xEF\xBB\xBF/', '', $body) ?? $body, 0, 1024));
+
+        return preg_match('/^<(\?xml\s|urlset[\s>])/i', $head) === 1;
     }
 
     /** L'en-tête ne contredit pas les octets : absent, `image/*`, ou un octet-stream générique. */

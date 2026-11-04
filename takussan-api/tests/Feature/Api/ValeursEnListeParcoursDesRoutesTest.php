@@ -70,6 +70,8 @@ class ValeursEnListeParcoursDesRoutesTest extends ApiTestCase
         'api/admin/ai/evaluations/{evaluation}' => '{evaluation} : sans liaison de modèle',
         'api/admin/enums/{key}' => '{key} : sans liaison de modèle',
         'api/admin/notification-templates/{event}/{channel}' => '{event} : sans liaison de modèle',
+        'api/admin/radar/targets/{target}' => '{target} : RadarTarget sans fabrique',
+        'api/admin/radar/targets/{target}/listings' => '{target} : RadarTarget sans fabrique',
         'api/admin/webhook-logs/{webhookLog}' => '{webhookLog} : IntegrationWebhookLog sans fabrique',
         'api/admin/reports/{report}/export' => '{report} : sans liaison de modèle',
         'api/report-exports/{reportExport}/download' => '{reportExport} : sans liaison de modèle',

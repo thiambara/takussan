@@ -71,7 +71,7 @@ jamais existé.
 
 Décision du porteur du 2026-10-23, validée le 2026-10-24, sur P116.07 du fichier de pistes
 (`docs/plans/2026-10-15-pistes-d-amelioration.md`). Ticket :
-[TCK-2260](../backlog/tickets/TCK-2260-gestes-d-admin-juges-par-une-capacite-du-catalogue.md).
+[TCK-2260](../backlog/tickets/done/TCK-2260-gestes-d-admin-juges-par-une-capacite-du-catalogue.md).
 
 **Constat.** Trois gestes de l'admin d'agence ne se jugeaient que par son type de profil
 (`isAgencyAdminAt`), sans capacité du catalogue : le rapprochement bancaire

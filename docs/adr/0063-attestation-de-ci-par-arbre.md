@@ -2,9 +2,9 @@
 
 - **Statut** : Accepté
 - **Date** : 2026-10-13
-- **Tickets** : [TCK-636](../backlog/tickets/TCK-636-ci-attestation-par-arbre.md) ·
-  suite : [TCK-637](../backlog/tickets/TCK-637-ci-parallele-couverture-decouplee.md) ·
-  amendement §1 : [TCK-638](../backlog/tickets/TCK-638-ci-api-ignore-markdown.md)
+- **Tickets** : [TCK-636](../backlog/tickets/done/TCK-636-ci-attestation-par-arbre.md) ·
+  suite : [TCK-637](../backlog/tickets/todo/TCK-637-ci-parallele-couverture-decouplee.md) ·
+  amendement §1 : [TCK-638](../backlog/tickets/done/TCK-638-ci-api-ignore-markdown.md)
 
 ## Contexte
 

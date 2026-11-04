@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Search;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Search\SuggestRequest;
+use App\Services\Search\Suggestions\SearchSuggestions;
 use App\Services\Search\SuggestService;
 use Illuminate\Http\JsonResponse;
 
@@ -11,12 +12,20 @@ class SuggestController extends Controller
 {
     public function __construct(
         private readonly SuggestService $service,
+        private readonly SearchSuggestions $suggestions,
     ) {}
 
     public function __invoke(SuggestRequest $request): JsonResponse
     {
         $locale = app()->getLocale();
-        $payload = $this->service->resolve($request->q(), $request->limit(), $locale);
+
+        // TCK-2474 — les clés neuves (`interpretation`, `completions`, `popular`, `places`, `previews`) d'abord, puis
+        // `property_types`, que le front lit encore. `cities` et `neighborhoods` ont quitté la réponse le 2026-11-04
+        // (décision du porteur, 4a) : le front lit `places`.
+        $payload = [
+            ...$this->suggestions->resolve($request->q(), $request->limit(), $locale, $request->base()),
+            ...$this->service->resolve($request->q(), $request->limit(), $locale),
+        ];
 
         return response()
             ->json(['data' => $payload])

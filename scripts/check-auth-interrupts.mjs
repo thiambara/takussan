@@ -161,8 +161,8 @@
  *   node scripts/check-auth-interrupts.mjs            # garde, sort en 1 au moindre écart
  *   node scripts/check-auth-interrupts.mjs --report   # + le détail de chaque contrôle
  *
- * @see docs/backlog/tickets/TCK-378-forbidden-trois-pages-et-la-garde-manquante.md
- * @see docs/backlog/tickets/TCK-167-fix-forbidden-server-pages-customer.md (l'AC rejouée)
+ * @see docs/backlog/tickets/done/TCK-378-forbidden-trois-pages-et-la-garde-manquante.md
+ * @see docs/backlog/tickets/done/TCK-167-fix-forbidden-server-pages-customer.md (l'AC rejouée)
  * @see takussan-web/src/lib/auth/guards.ts
  */
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';

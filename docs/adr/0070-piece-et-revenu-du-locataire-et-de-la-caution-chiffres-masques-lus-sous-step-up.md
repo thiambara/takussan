@@ -6,11 +6,11 @@
   le super-admin lit aussi en clair (cf. § *Amendement du 2026-10-19*). **Amendé le 2026-10-25** :
   ce que l'archive rend d'une ligne selon le lien du titulaire (cf. § *Amendement du 2026-10-25*)
 - **Date** : 2026-10-18
-- **Tickets** : [TCK-953](../backlog/tickets/TCK-953-piece-du-locataire-chiffree-et-masquee.md),
-  [TCK-954](../backlog/tickets/TCK-954-piece-et-revenu-de-la-caution-chiffres-et-masques.md),
-  [TCK-955](../backlog/tickets/TCK-955-lectures-claires-de-la-piece-sous-step-up-journalisees.md),
-  [TCK-956](../backlog/tickets/TCK-956-revenu-du-bailleur-chiffre-et-fiche-client-au-droit-d-acces.md),
-  [TCK-2366](../backlog/tickets/TCK-2366-archive-rgpd-par-lien-du-titulaire-et-export-du-locataire.md)
+- **Tickets** : [TCK-953](../backlog/tickets/done/TCK-953-piece-du-locataire-chiffree-et-masquee.md),
+  [TCK-954](../backlog/tickets/done/TCK-954-piece-et-revenu-de-la-caution-chiffres-et-masques.md),
+  [TCK-955](../backlog/tickets/done/TCK-955-lectures-claires-de-la-piece-sous-step-up-journalisees.md),
+  [TCK-956](../backlog/tickets/done/TCK-956-revenu-du-bailleur-chiffre-et-fiche-client-au-droit-d-acces.md),
+  [TCK-2366](../backlog/tickets/done/TCK-2366-archive-rgpd-par-lien-du-titulaire-et-export-du-locataire.md)
 - **Précise** : [ADR-0044](0044-donnees-personnelles-chiffrement-journal-d-agence-registre-des-droits.md)
   § 1 et son amendement A du 2026-10-16 (TCK-723), qui ont posé la règle pour ces colonnes sans en
   fixer l'application. ADR-0044 n'est pas remplacé : cet ADR dit comment la règle s'applique ici,
@@ -327,16 +327,16 @@ Les textes passent par next-intl : `fr`, `en`, et en `wo` le texte français tel
 
 Dans cet ordre. Chaque ticket est de taille M au plus et dépend du précédent :
 
-1. [TCK-953](../backlog/tickets/TCK-953-piece-du-locataire-chiffree-et-masquee.md) :
+1. [TCK-953](../backlog/tickets/done/TCK-953-piece-du-locataire-chiffree-et-masquee.md) :
    `customers.id_number` chiffré, masqué et retiré des champs demandables, avec le contrat minimal
    du front (liste des champs, types, formulaire). Les six fuites tolérées sortent de la garde.
-2. [TCK-954](../backlog/tickets/TCK-954-piece-et-revenu-de-la-caution-chiffres-et-masques.md) :
+2. [TCK-954](../backlog/tickets/done/TCK-954-piece-et-revenu-de-la-caution-chiffres-et-masques.md) :
    `guarantors.id_number` et `guarantors.monthly_income` chiffrés et masqués, avec
    `Masking::presence()`. La garde d'impersonation balaie les cautions.
-3. [TCK-955](../backlog/tickets/TCK-955-lectures-claires-de-la-piece-sous-step-up-journalisees.md) :
+3. [TCK-955](../backlog/tickets/done/TCK-955-lectures-claires-de-la-piece-sous-step-up-journalisees.md) :
    les deux lectures claires sous step-up et journalisées, et le bouton « Afficher » de la fiche
    client.
-4. [TCK-956](../backlog/tickets/TCK-956-revenu-du-bailleur-chiffre-et-fiche-client-au-droit-d-acces.md) :
+4. [TCK-956](../backlog/tickets/done/TCK-956-revenu-du-bailleur-chiffre-et-fiche-client-au-droit-d-acces.md) :
    `owner_profiles.monthly_income` chiffré, masqué et rendu par `owners/{id}/sensitive`, et
    `customers.json` dans l'export du droit d'accès.
 

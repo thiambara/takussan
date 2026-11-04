@@ -187,6 +187,8 @@ final class RadarListingReview
                 ...$this->canonicalAll((array) ($l->extracted['phones'] ?? [])),
                 ...$dropped,
                 ...RadarPhone::fromText((string) $l->raw_text),
+                // TCK-2465 — les numéros que la page porte dans ses attributs, absents du texte (CoinAfrique).
+                ...$this->canonicalAll((array) ($l->source_fields['phones'] ?? [])),
             ];
             abort_code_unless(in_array($e164, $known, true), 422, 'radar.advertiser.phone_unknown');
 

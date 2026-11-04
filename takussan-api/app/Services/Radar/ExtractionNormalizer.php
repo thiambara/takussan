@@ -43,7 +43,18 @@ use App\Support\RadarPhone;
  *     `invalid_value` ;
  *   - le quartier est rapproché du référentiel par {@see RadarNeighborhoodMatcher}, jamais par
  *     l'IA (ADR-0062).
- * Tout drapeau force la confiance à `low`.
+ * Tout drapeau force la confiance à `low` — sauf `source_conflict`, qui accuse le modèle, pas la page.
+ *
+ * TCK-2466 (ADR-0087 §2) — **ce que la page dit en clair fait foi** (`radar_listings.source_fields`, TCK-2465) :
+ *   - une valeur lue ({@see self::PAGE_FIELDS}, valide après conversion) REMPLACE celle du modèle : confiance `high`,
+ *     `evidence` nul (rien n'est cité, la valeur est lue), `source: page` ; ses bornes se contrôlent comme avant ;
+ *   - une valeur du modèle qui la contredit (au repli près : casse, accents, blancs ; montant égal) lève
+ *     `source_conflict` et reste lisible dans `model_value` ; un modèle qui rend `null` ne contredit rien ;
+ *   - les numéros lus par un adaptateur passent devant ceux du modèle dans `phones` (ceux du lecteur générique, après) ;
+ *   - une page lue par un adaptateur (`source_fields.title` présent) donne la description : `raw_text` = titre + description ;
+ *   - la nature se déduit des indices du vendeur ({@see self::natureFromSignals()}) quand le modèle n'en dit rien.
+ * {@see self::fromPage()} compose une extraction sans modèle ; {@see self::knownLines()} la liste « déjà lu » envoyée au
+ * modèle ; {@see self::readsEnough()} dit quand l'appel se saute.
  */
 final class ExtractionNormalizer
 {
@@ -57,13 +68,39 @@ final class ExtractionNormalizer
 
     public const FLAG_UNPARSED_AMOUNT = 'unparsed_amount';
 
+    /** TCK-2466 — le modèle rend, pour un champ que la page dit en clair, une autre valeur. */
+    public const FLAG_SOURCE_CONFLICT = 'source_conflict';
+
+    /** TCK-2466 — `source` d'un champ lu sur la page (sans IA) : il fait foi. */
+    public const SOURCE_PAGE = 'page';
+
+    /** TCK-2466 — l'en-tête de la liste « déjà lu » envoyée au modèle ; le prompt `v4` la nomme. */
+    public const KNOWN_HEADER = 'Déjà lu sur la page :';
+
+    /** TCK-2466 — sépare la liste « déjà lu » du texte de l'annonce, dans le même bloc délimité. */
+    public const TEXT_HEADER = 'Annonce :';
+
+    /**
+     * TCK-2466 — les clés de `source_fields` qui font foi, et le champ de l'extraction qu'elles remplissent.
+     * `seller_name` donne `advertiser_name` ; `title` est aussi un champ.
+     */
+    public const PAGE_FIELDS = [
+        'property_type' => 'property_type', 'contract' => 'contract', 'rent_period' => 'rent_period', 'price' => 'price',
+        'neighborhood' => 'neighborhood', 'city' => 'city', 'bedrooms' => 'bedrooms', 'bathrooms' => 'bathrooms',
+        'surface_m2' => 'surface_m2', 'furnished' => 'furnished', 'title' => 'title', 'seller_name' => 'advertiser_name',
+    ];
+
+    /** TCK-2466 — les types de bien qui n'ont pas de chambres : la page n'a pas à en dire le nombre pour sauter l'appel. */
+    public const TYPES_WITHOUT_BEDROOMS = ['land', 'office', 'shop', 'warehouse'];
+
     public function __construct(private readonly RadarNeighborhoodMatcher $matcher) {}
 
     /**
      * @param  array<string, mixed>  $raw  la sortie structurée de {@see RadarExtraction}
+     * @param  array<string, mixed>|null  $sourceFields  `radar_listings.source_fields` (TCK-2466 : lu d'abord)
      * @return array<string, mixed>
      */
-    public function normalize(array $raw, ?string $sourceText): array
+    public function normalize(array $raw, ?string $sourceText, ?array $sourceFields = null): array
     {
         $source = $sourceText !== null && trim($sourceText) !== '' ? self::fold($sourceText) : null;
         $source = $source === null ? null : ['folded' => $source, 'bare' => self::withoutAccents($source)];
@@ -72,6 +109,9 @@ final class ExtractionNormalizer
         foreach ([...RadarExtraction::PROPERTY_FIELDS, ...RadarExtraction::ADVERTISER_FIELDS] as $field) {
             $out[$field] = $this->field($field, $raw[$field] ?? null, $source);
         }
+        // TCK-2466 — lu d'abord : ce que la page dit en clair remplace la lecture du modèle, avant les bornes du prix,
+        // la période déduite et le rapprochement du quartier, qui se font donc sur les valeurs retenues.
+        $out = $this->readFirst($out, $sourceFields ?? [], $sourceText);
 
         $out['price'] = $this->boundPrice($out['price'], $out['contract']['value'], $out['rent_period']['value']);
         // Une vente n'a pas de période de loyer, même si le texte du prix en porte une. Les drapeaux
@@ -93,7 +133,257 @@ final class ExtractionNormalizer
         [$out['phones'], $out['phones_flags'], $out['phones_dropped']] = $this->phones($raw['phones'] ?? null, $source === null ? null : (string) $sourceText);
         $out['nature_signals'] = $this->natureSignals($raw['nature_signals'] ?? null);
 
+        // TCK-2466 — les numéros lus sur la page d'abord ; la nature, des indices du vendeur si le modèle n'en dit rien.
+        // Revue adverse du 2026-11-04 (D2) — d'abord seulement si un adaptateur a lu la page ; ceux que `HtmlCleaner` a
+        // ramassés dans les attributs d'une page générique viennent APRÈS ceux du modèle.
+        $pagePhones = self::pagePhones($sourceFields ?? []);
+        if ($pagePhones !== []) {
+            $out['phones'] = array_values(array_unique(self::readByAdapter($sourceFields)
+                ? [...$pagePhones, ...$out['phones']]
+                : [...$out['phones'], ...$pagePhones]));
+            $out['phones_dropped'] = array_values(array_diff($out['phones_dropped'], $pagePhones));
+        }
+        $signals = $this->natureSignals($sourceFields['seller_signals'] ?? null);
+        if ($signals !== []) {
+            $out['nature_signals'] = self::uniqueSignals([...$signals, ...$out['nature_signals']]);
+            $deduced = self::natureFromSignals($signals);
+            if ($deduced !== null && ($out['advertiser_nature']['value'] === RadarAdvertiserNature::Unknown->value || $out['advertiser_nature']['flags'] !== [])) {
+                $out['advertiser_nature'] = $deduced;
+            }
+        }
+
         return $out;
+    }
+
+    /**
+     * TCK-2466 (ADR-0087 §2) — l'extraction composée SANS modèle, quand la page dit l'essentiel
+     * ({@see self::readsEnough()}) : la forme est celle de {@see self::normalize()}, chaque champ que la page ne dit pas
+     * vide (confiance `low`, sans drapeau), la nature déduite des indices du vendeur.
+     *
+     * @param  array<string, mixed>  $sourceFields
+     * @return array<string, mixed>
+     */
+    public function fromPage(array $sourceFields, string $sourceText): array
+    {
+        $empty = array_fill_keys([...RadarExtraction::PROPERTY_FIELDS, ...RadarExtraction::ADVERTISER_FIELDS], null);
+
+        return $this->normalize([...$empty, 'phones' => [], 'nature_signals' => []], $sourceText, $sourceFields);
+    }
+
+    /**
+     * TCK-2466 — la page dit-elle assez pour se passer du modèle ? Type, contrat, prix, un lieu (ville ou quartier), et
+     * le nombre de chambres, sauf pour un type qui n'en a pas ({@see self::TYPES_WITHOUT_BEDROOMS}). Chaque valeur doit
+     * passer la conversion de l'extraction (une valeur hors de l'énumération ne compte pas).
+     *
+     * @param  array<string, mixed>|null  $sourceFields
+     */
+    public function readsEnough(?array $sourceFields): bool
+    {
+        $known = $this->pageValues($sourceFields ?? []);
+        if (! isset($known['property_type'], $known['contract'], $known['price'])) {
+            return false;
+        }
+        if (! isset($known['city']) && ! isset($known['neighborhood'])) {
+            return false;
+        }
+
+        return isset($known['bedrooms']) || in_array($known['property_type'], self::TYPES_WITHOUT_BEDROOMS, true);
+    }
+
+    /**
+     * TCK-2466 — la liste courte « déjà lu » que le modèle reçoit devant le texte : une ligne `champ: valeur` par champ
+     * que la page dit, dans les noms du schéma, pour qu'il ne cherche que le reste. Ni le nom du vendeur ni ses numéros
+     * (ils ne servent à aucun champ manquant) ; `pieces` (le nombre de pièces affiché, pas un champ du schéma) l'aide à
+     * situer les chambres ; `title, description` dit que le texte qui suit est le titre et la description de la page.
+     * Vide pour une annonce sans champ lu : l'entrée reste alors exactement celle d'avant (le jeu d'évaluation).
+     *
+     * @param  array<string, mixed>|null  $sourceFields
+     * @return list<string>
+     */
+    public function knownLines(?array $sourceFields): array
+    {
+        $sourceFields ??= [];
+        $known = $this->pageValues($sourceFields);
+        unset($known['advertiser_name'], $known['title']);
+
+        $lines = [];
+        foreach ($known as $field => $value) {
+            $lines[] = $field.': '.match (true) {
+                $field === 'price' => $value.' '.(is_string($sourceFields['currency'] ?? null) ? $sourceFields['currency'] : 'XOF'),
+                is_bool($value) => $value ? 'true' : 'false',
+                default => (string) $value,
+            };
+        }
+        $rooms = $sourceFields['rooms'] ?? null;
+        if (is_int($rooms) && $rooms > 0) {
+            $lines[] = 'pieces: '.$rooms;
+        }
+        if ($lines !== [] && self::readByAdapter($sourceFields)) {
+            $lines[] = 'title, description: le texte ci-dessous';
+        }
+
+        return $lines;
+    }
+
+    /**
+     * Les valeurs valides de la page, par champ de l'extraction (converties comme celles du modèle, sans drapeau
+     * d'invalidité ; une valeur hors bornes reste une valeur).
+     *
+     * @param  array<string, mixed>  $sourceFields
+     * @return array<string, mixed>
+     */
+    private function pageValues(array $sourceFields): array
+    {
+        $values = [];
+        foreach (self::PAGE_FIELDS as $key => $field) {
+            $raw = $sourceFields[$key] ?? null;
+            if ($raw === null || $raw === '' || ($field === 'price' && ! is_int($raw) && ! is_float($raw))) {
+                continue;
+            }
+            [$value, $flags] = $this->value($field, $raw);
+            if ($value !== null && array_intersect($flags, [self::FLAG_INVALID_VALUE, self::FLAG_UNPARSED_AMOUNT]) === []) {
+                $values[$field] = $value;
+            }
+        }
+
+        return $values;
+    }
+
+    /**
+     * Lu d'abord : chaque valeur de la page remplace celle du modèle ; une valeur du modèle qui la contredit lève
+     * `source_conflict`. La description d'une page lue par un adaptateur est son texte, sans le titre.
+     *
+     * @param  array<string, array<string, mixed>>  $out
+     * @param  array<string, mixed>  $sourceFields
+     * @return array<string, array<string, mixed>>
+     */
+    private function readFirst(array $out, array $sourceFields, ?string $sourceText): array
+    {
+        $values = $this->pageValues($sourceFields);
+        if (self::readByAdapter($sourceFields) && $sourceText !== null) {
+            $description = self::descriptionOf($sourceText, $values['title'] ?? null);
+            if ($description !== null) {
+                $values['description'] = $description;
+            }
+        }
+
+        foreach ($values as $field => $value) {
+            $model = $out[$field];
+            [, $flags, $extra] = $this->value($field, $value);
+            if ($field === 'price') {
+                $extra['period'] = $this->pageValues($sourceFields)['rent_period'] ?? $model['period'] ?? null;
+            }
+            $conflict = $model['value'] !== null && ! self::same($model['value'], $value);
+            if ($conflict) {
+                $flags[] = self::FLAG_SOURCE_CONFLICT;
+            }
+            $out[$field] = [
+                'value' => $value,
+                'confidence' => (array_diff($flags, [self::FLAG_SOURCE_CONFLICT]) === [] ? RadarConfidence::High : RadarConfidence::lowest())->value,
+                'evidence' => null,
+                'flags' => $flags,
+            ] + $extra + ['source' => self::SOURCE_PAGE] + ($conflict ? ['model_value' => $model['value']] : []);
+        }
+
+        return $out;
+    }
+
+    /**
+     * Une page lue par l'adaptateur de son site (et pas par `HtmlCleaner`) : `source_fields` porte la clé `title`.
+     * Revue adverse du 2026-11-04 (D2) — c'est aussi ce qui fait foi pour les numéros (`ExtractRadarListing::conclude()`).
+     *
+     * @param  array<string, mixed>|null  $sourceFields
+     */
+    public static function readByAdapter(?array $sourceFields): bool
+    {
+        return $sourceFields !== null && array_key_exists('title', $sourceFields);
+    }
+
+    /**
+     * La description d'une page lue par l'adaptateur : `raw_text` sans la ligne du titre (`ListingPage::text()`), sans
+     * numéro de téléphone (comme celle que le modèle recopie).
+     */
+    private static function descriptionOf(string $text, mixed $title): ?string
+    {
+        $text = trim($text);
+        if (is_string($title) && $title !== '' && str_starts_with($text, $title."\n")) {
+            $text = trim(substr($text, strlen($title) + 1));
+        }
+
+        return $text === '' ? null : trim(PhoneMasker::mask($text));
+    }
+
+    /** Deux valeurs égales au repli près : nombres à 0,01 près, chaînes sans casse, accents ni blancs superflus. */
+    private static function same(mixed $model, mixed $page): bool
+    {
+        if ((is_int($model) || is_float($model)) && (is_int($page) || is_float($page))) {
+            return abs($model - $page) < 0.01;
+        }
+        if (is_string($model) && is_string($page)) {
+            $fold = fn (string $s): string => trim((string) preg_replace('/[\s\-]+/u', ' ', self::withoutAccents(mb_strtolower($s))));
+
+            return $fold($model) === $fold($page);
+        }
+
+        return $model === $page;
+    }
+
+    /**
+     * @param  array<string, mixed>  $sourceFields
+     * @return list<string> les numéros lus sur la page, en E.164
+     */
+    private static function pagePhones(array $sourceFields): array
+    {
+        $phones = [];
+        foreach ((array) ($sourceFields['phones'] ?? []) as $phone) {
+            $e164 = is_string($phone) ? RadarPhone::canonical($phone) : null;
+            if ($e164 !== null) {
+                $phones[$e164] = true;
+            }
+        }
+
+        return array_keys($phones);
+    }
+
+    /**
+     * TCK-2466 — la nature que les indices du vendeur affichés par la page laissent supposer, confiance `medium` (une
+     * déduction, pas une lecture) : un nom d'entreprise (`business_name` : « Agence… », « …Immobilier », « Promoteur »,
+     * « SARL »…) → `agency` ; un badge professionnel du site (`professional_badge`, la boutique) → `probable_intermediary`.
+     * Ni l'ancienneté, ni le nombre d'annonces, ni un numéro vérifié ne disent une nature : null.
+     *
+     * @param  list<array{signal: string, evidence: ?string}>  $signals
+     * @return array<string, mixed>|null
+     */
+    private static function natureFromSignals(array $signals): ?array
+    {
+        $by = array_column($signals, 'evidence', 'signal');
+        $nature = match (true) {
+            array_key_exists('business_name', $by) => [RadarAdvertiserNature::Agency, $by['business_name']],
+            array_key_exists('professional_badge', $by) => [RadarAdvertiserNature::ProbableIntermediary, $by['professional_badge']],
+            default => null,
+        };
+
+        return $nature === null ? null : [
+            'value' => $nature[0]->value,
+            'confidence' => RadarConfidence::Medium->value,
+            'evidence' => $nature[1],
+            'flags' => [],
+            'source' => self::SOURCE_PAGE,
+        ];
+    }
+
+    /**
+     * @param  list<array{signal: string, evidence: ?string}>  $signals
+     * @return list<array{signal: string, evidence: ?string}>
+     */
+    private static function uniqueSignals(array $signals): array
+    {
+        $out = [];
+        foreach ($signals as $signal) {
+            $out[$signal['signal']."\0".$signal['evidence']] = $signal;
+        }
+
+        return array_values($out);
     }
 
     /**

@@ -1,6 +1,6 @@
 # Plan — TCK-506 · vocabulaire immobilier dérivé des colonnes dans l'index
 
-Ticket : [`TCK-506`](../backlog/tickets/TCK-506-vocabulaire-immobilier-derive-dans-lindex.md).
+Ticket : [`TCK-506`](../backlog/tickets/done/TCK-506-vocabulaire-immobilier-derive-dans-lindex.md).
 Branche : `feat/tck-506-vocabulaire-immobilier-derive`. Backend seul, aucune migration.
 
 ## Mesures préalables (2026-09-02, index local `takussan_localproperties`, 252 biens publics)

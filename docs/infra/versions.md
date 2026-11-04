@@ -53,7 +53,9 @@ tenir sans l'avoir relevée est une version fausse qui n'a pas encore coûté �
 
 **Un `non_mesure` n'est pas un échec de ce ticket, c'est son livrable.** Le dépôt ne pouvait pas dire
 ce qu'il ignorait ; il le dit maintenant, avec la commande qui y remédie. La confrontation avec la
-machine appartient à **TCK-288**.
+machine de production appartient à la **tâche F5** du plan d'ADR-0028
+([TCK-517](../backlog/tickets/todo/TCK-517-production-auto-hebergee.md), phase F). TCK-288, qui la portait
+jusque-là, décrit l'ancienne chaîne de déploiement, retirée par ADR-0028.
 
 ---
 
@@ -78,8 +80,11 @@ Pour la base, la mesure de référence reste celle que porte `scripts/check-db-e
 relève aussi la **collation**, qui compte autant que la version : c'est d'elle que dépend le sens
 de six contraintes d'unicité sur texte (ADR-0020 §4.2).
 
+Il n'y a plus de PostgreSQL sur l'hôte (ADR-0028) : chaque base est un service Database de Dokploy,
+et la commande se lance dans son conteneur — la même que `postgres.prod.commande` de `versions.json`.
+
 ```bash
-sudo -u postgres psql -Atc \
+docker exec <conteneur du service Database de production> psql -U <rôle> -d <base> -Atc \
   "SELECT version(), datcollate, datctype, pg_encoding_to_char(encoding)
      FROM pg_database WHERE datname = current_database();"
 # attendu, cible : PostgreSQL 17.x · C | C | UTF8
@@ -90,7 +95,7 @@ sudo -u postgres psql -Atc \
 > *« unrecognized configuration parameter »*. L'erreur a été payée en écrivant ADR-0020.
 >
 > **Et cette commande n'a encore jamais rendu de résultat** : aucune base de production PostgreSQL
-> n'existe (D-04). Elle décrit la mesure à prendre dans TCK-288, pas une mesure prise. La
+> n'existe (D-04). Elle décrit la mesure à prendre en tâche F5 (TCK-517), pas une mesure prise. La
 > commande MySQL qu'elle remplace, elle, avait été exécutée — le 2026-08-13, sur un moteur que
 > le dépôt n'exécute plus depuis ADR-0020.
 
@@ -108,7 +113,8 @@ La `date` est là pour qu'on puisse en juger, pas pour la décoration.
 
 ## Ce que la garde vérifie
 
-`scripts/check-infra-versions.mjs`, rejoué par **Repo CI**, tient cinq propriétés :
+`scripts/check-infra-versions.mjs`, rejoué par **Repo CI**, tient cinq propriétés, plus une
+sixième depuis TCK-526 (l'épingle du serveur égale sa mesure, sonde `epingle` ci-dessous) :
 
 1. **Le catalogue et le dépôt disent la même chose.** Chaque valeur `dev`/`ci` est une citation :
    la garde la retrouve, à l'identique, dans le fichier qui la déclare.
@@ -123,6 +129,16 @@ La `date` est là pour qu'on puisse en juger, pas pour la décoration.
 
 Le périmètre CI est obtenu en **listant `.github/workflows/`**, jamais en énumérant les fichiers :
 une garde dont le périmètre est une liste écrite cesse de couvrir le fichier qu'on ajoute.
+
+Chaque service se rattache au dépôt par ses `sondes`, de quatre types
+(`scripts/check-infra-versions.mjs:222-243`, relu le 2026-11-03) :
+
+| Type | Ce qu'elle lit | Ce qui rougit |
+|---|---|---|
+| `image` | toute ligne `image:` de `docker-compose.yml` (dev) et des workflows (CI), rattachée au service par son dépôt d'image | une valeur différente, ou une image dont le dépôt n'est réclamé par aucun service |
+| `cle-yaml` | toute clé `php-version:` / `node-version:` des mêmes fichiers | une valeur différente de `dev`/`ci` |
+| `json` | une valeur à un chemin d'un fichier JSON, pour l'environnement que la sonde nomme — aujourd'hui `config.platform.php` de `takussan-api/composer.json`, comparé à `php.dev` | le fichier absent, le chemin disparu, ou une valeur différente |
+| `epingle` | la première ligne `VARIABLE=x` (ou `VARIABLE=${VARIABLE:-x}`, `export VARIABLE=x`) hors commentaires d'un fichier — `DOCKER_VERSION` de `deploy/server/bootstrap.sh`, `DOKPLOY_VERSION` du runbook d'`hebergement.md` | l'épingle disparue, une ligne `prod` qui n'est pas `mesure` (*une épingle sans mesure est une supposition installée*), ou une épingle différente de la valeur mesurée du serveur (R6, TCK-526) |
 
 ### Prouvée par mutation
 
@@ -153,10 +169,26 @@ deux fichiers se souviennent de la même chose, pas qu'ils déclarent la même c
 
 - **Il ne mesure pas la production.** Il ne s'y connecte jamais, et n'a aucun secret pour le faire.
   Il rend le dépôt capable de *dire* ce qu'il sait et ce qu'il ignore. Confronter le catalogue à la
-  machine, c'est **TCK-288**.
-- **Il n'épingle rien sur le serveur.** Pas d'`apt-mark hold`, pas d'image. Un `apt upgrade` peut
-  changer une version demain ; la garde ne le verra pas — elle verra seulement que la ligne
-  `mesure` a vieilli, si quelqu'un lit sa `date`.
-- **Il ne couvre pas ce qui n'est ni une image, ni une clé `*-version`, ni la plateforme composer** —
-  nginx, certbot, systemd, le noyau. Ajouter une sonde est peu coûteux ; prétendre que le tableau
-  est complet le serait beaucoup plus.
+  machine, c'est la tâche F5 du plan d'ADR-0028 (TCK-517).
+- **Il n'épingle pas lui-même : il vérifie les épingles des autres.** Depuis TCK-526,
+  `deploy/server/bootstrap.sh` § 0 épingle Docker (`DOCKER_VERSION`) et tient ses paquets par
+  `apt-mark hold`, et le runbook pose `DOKPLOY_VERSION` ; les images des services sont épinglées
+  dans leurs Dockerfile et dans `deploy/server/compose.data.yml`. La sonde `epingle` confronte les
+  deux premières épingles à la mesure du serveur. Ce qu'un geste fait sur la machine sans passer par
+  le dépôt — une mise à jour de Dokploy par son interface, un `apt upgrade` d'un paquet non tenu —,
+  la garde ne le voit pas : elle voit seulement que la ligne `mesure` a vieilli, si quelqu'un lit sa
+  `date`.
+- **Il ne couvre pas ce qui n'est ni une image de `docker-compose.yml` ou d'un workflow, ni une clé
+  `*-version`, ni un chemin JSON, ni une épingle `VARIABLE=`.** Hors catalogue, relevé du
+  2026-11-03 :
+  - **Traefik** (`traefik:v3.6.7`, conteneur `dokploy-traefik`) — posé par l'installation de
+    Dokploy, aucun fichier du dépôt ne le déclare ; relevé dans `hebergement.md`, « Le relevé de
+    Dokploy » ;
+  - **WAL-G** (`ARG WALG_VERSION=v3.0.9`, `deploy/postgres/Dockerfile:19`) et **l'image de la base**
+    (`FROM pgvector/pgvector:pg17@sha256:…`, même fichier, ligne 14 ; publiée en
+    `ghcr.io/thiambara/takussan-postgres:sha-<commit>`) — la garde ne lit aucun Dockerfile ;
+  - **FrankenPHP** (`ARG FRANKENPHP_TAG`, `takussan-api/Dockerfile:20`) — seul le PHP qu'il porte
+    a une ligne, en `php.prod` ;
+  - systemd, le noyau.
+
+  Ajouter une sonde est peu coûteux ; prétendre que le tableau est complet le serait beaucoup plus.

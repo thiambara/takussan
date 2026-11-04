@@ -2,12 +2,12 @@
 
 - **Statut** : Accepté
 - **Date** : 2026-10-07
-- **Tickets** : [TCK-589](../backlog/tickets/TCK-589-entree-telephone-2fa-sessions-onboarding.md)
-- **Amendé** : §6 par [TCK-622](../backlog/tickets/TCK-622-borne-sms-compte-les-envois.md) (2026-10-10) — la
+- **Tickets** : [TCK-589](../backlog/tickets/done/TCK-589-entree-telephone-2fa-sessions-onboarding.md)
+- **Amendé** : §6 par [TCK-622](../backlog/tickets/done/TCK-622-borne-sms-compte-les-envois.md) (2026-10-10) — la
   borne par numéro compte les codes **envoyés**, plus les requêtes. §3 par
-  [TCK-2389](../backlog/tickets/TCK-2389-radar-publier-pour-l-annonceur.md) (2026-10-29) — le compte
+  [TCK-2389](../backlog/tickets/done/TCK-2389-radar-publier-pour-l-annonceur.md) (2026-10-29) — le compte
   créé par le Radar pour un numéro s'ouvre par ce numéro ([ADR-0077](0077-le-radar.md) §6) ; et par
-  [TCK-2404](../backlog/tickets/TCK-2404-radar-conditions-a-l-activation-par-la-connexion.md)
+  [TCK-2404](../backlog/tickets/done/TCK-2404-radar-conditions-a-l-activation-par-la-connexion.md)
   (2026-10-30) — ce compte se voit présenter les conditions avant d'entrer (`requires_terms`).
 - **Précise** : [ADR-0010](0010-auth-token-sanctum-en-cookie.md) (le jeton Sanctum porté par cookie
   reste le seul transport de session ; ce qui change est **comment on l'obtient** et **combien de

@@ -305,7 +305,7 @@ mesuré au navigateur.
 ## Amendement du 2026-10-30 — la copie du seau privé est un instantané par jour, gardé 14 jours (TCK-2407)
 
 Décision prise en autonomie la nuit du 2026-10-29 au 30, à revoir avec le porteur
-([TCK-2407](../backlog/tickets/TCK-2407-sauvegarde-du-seau-prive-conserve-les-fichiers-purges.md)).
+([TCK-2407](../backlog/tickets/review/TCK-2407-sauvegarde-du-seau-prive-conserve-les-fichiers-purges.md)).
 Elle remplace la copie incrémentale du point 8.
 
 ### Pourquoi

@@ -2,7 +2,7 @@
 
 - **Statut** : Accepté
 - **Date** : 2026-10-08
-- **Tickets** : [TCK-602](../backlog/tickets/TCK-602-paiement-sans-compte-journal-webhooks.md)
+- **Tickets** : [TCK-602](../backlog/tickets/done/TCK-602-paiement-sans-compte-journal-webhooks.md)
 - **Lit** : [ADR-0046](0046-un-webhook-de-paiement-par-integration.md) (l'intégration qui valide un
   webhook, et son autorité), [ADR-0032](0032-l-api-n-ecrit-plus-de-prose.md) (codes d'erreur et de
   notification, contact sans compte), [ADR-0034](0034-l-agenda-sort-par-un-lien-secret-en-lecture-seule.md)

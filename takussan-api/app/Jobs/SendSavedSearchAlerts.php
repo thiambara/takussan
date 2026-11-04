@@ -99,6 +99,9 @@ class SendSavedSearchAlerts implements ShouldQueue
 
     public function handle(SearchService $searchService): void
     {
+        /** @var array<int, int> les totaux que les alertes ont déjà rendus (première alerte : aucune borne basse) */
+        $known = [];
+
         SavedSearch::with(['user', 'alertSubscriber'])
             ->where('is_active', true)
             ->where(fn (Builder $q) => $q
@@ -108,9 +111,12 @@ class SendSavedSearchAlerts implements ShouldQueue
             ->where(fn (Builder $q) => $q
                 ->whereNull('user_id')
                 ->orWhereHas('user', fn (Builder $u) => $u->whereNotIn('status', [UserStatus::Blocked->value, UserStatus::Deleted->value])))
-            ->each(function (SavedSearch $search) use ($searchService): void {
+            ->each(function (SavedSearch $search) use ($searchService, &$known): void {
                 try {
-                    $this->traiter($search, $searchService);
+                    $total = $this->traiter($search, $searchService);
+                    if ($total !== null) {
+                        $known[$search->id] = $total;
+                    }
                 } catch (Throwable $e) {
                     Log::error('saved_search_alert.failed', [
                         'saved_search_id' => $search->id,
@@ -118,13 +124,41 @@ class SendSavedSearchAlerts implements ShouldQueue
                     ] + Arr::except(SafeExceptionContext::of($e), ['message']));
                 }
             });
+
+        $this->compterLesResultats($searchService, $known);
     }
 
-    private function traiter(SavedSearch $search, SearchService $searchService): void
+    /**
+     * TCK-2470 (décision du porteur, 2026-11-04) — `results_count` de CHAQUE recherche active, alertée ou non (fréquence
+     * `off`, abonné non confirmé, compte bloqué) : c'est la demande que lisent les cibles du Radar (`RadarDemandSignals`,
+     * `results_count = 0`). Après les alertes, pour qu'un compte ne retarde ni ne bloque aucune d'elles. Le total d'une
+     * première alerte est repris tel quel ; les autres coûtent une requête au moteur sans document (`hitsPerPage: 0`). Un
+     * échec laisse le compte précédent ({@see SearchService::refreshResultsCount()}). Idempotent : deux passages écrivent le
+     * même compte.
+     *
+     * @param  array<int, int>  $known
+     */
+    private function compterLesResultats(SearchService $searchService, array $known): void
+    {
+        SavedSearch::query()
+            ->where('is_active', true)
+            ->select(['id', 'criteria', 'results_count'])
+            ->chunkById(200, function ($searches) use ($searchService, $known): void {
+                foreach ($searches as $search) {
+                    $searchService->refreshResultsCount($search, $known[$search->id] ?? null);
+                }
+            });
+    }
+
+    /**
+     * @return int|null le nombre de biens publics que la recherche trouve, quand la requête de l'alerte l'a rendu (aucune
+     *                  borne basse : toute la publication jusqu'à la borne haute) ; `null` sinon
+     */
+    private function traiter(SavedSearch $search, SearchService $searchService): ?int
     {
         $recipient = $search->recipient();
         if ($recipient === null || ! $this->doitEnvoyer($search)) {
-            return;
+            return null;
         }
 
         // La borne haute est relevée AVANT la requête, et en retrait du délai d'indexation : un
@@ -138,15 +172,17 @@ class SendSavedSearchAlerts implements ShouldQueue
             $borne,
         );
 
+        $connu = $search->last_notified_at === null ? $total : null;
+
         // ⚠ `last_notified_at` n'avance PAS quand rien n'est envoyé : sinon la borne dériverait
         // en silence à chaque passage muet.
         if ($total === 0) {
-            return;
+            return $connu;
         }
 
         $lue = $search->getRawOriginal('last_notified_at');
         if (! $this->deplacer($search, $lue, $borne)) {
-            return;
+            return $connu;
         }
 
         try {
@@ -156,6 +192,8 @@ class SendSavedSearchAlerts implements ShouldQueue
 
             throw $e;
         }
+
+        return $connu;
     }
 
     /**

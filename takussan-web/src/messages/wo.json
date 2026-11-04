@@ -2651,10 +2651,25 @@
       "groups": {
         "cities": "Dëkk yi",
         "neighborhoods": "Quartier yi",
-        "property_types": "Wàll yi"
+        "property_types": "Wàll yi",
+        "recent": "Récentes",
+        "popular": "Populaires",
+        "completions": "Recherches fréquentes",
+        "places": "Lieux",
+        "previews": "Biens",
+        "shortcuts": "Raccourcis",
+        "understood": "Votre recherche"
       },
       "searchAll": "Seet « {query} » ci yégle yi",
-      "loading": "Yëgël…"
+      "loading": "Yëgël…",
+      "clearRecent": "Effacer les récentes",
+      "shortcutRent": "Louer",
+      "shortcutSale": "Acheter",
+      "count": "{count, plural, one {# bien} other {# biens}}",
+      "nearby": "Voir des biens proches",
+      "alert": "Être alerté quand un bien correspond",
+      "enterHint": "Entrée",
+      "announce": "{count, plural, =0 {Aucune suggestion} one {# suggestion} other {# suggestions}}"
     },
     "saved": {
       "empty_title": "Amul seet bu ñu denc",
@@ -8045,6 +8060,7 @@
           "fetchHttpError": "Le site a répondu par une erreur.",
           "fetchTimeout": "Le site n’a pas répondu à temps.",
           "fetchUnresolvable": "Le nom du site est introuvable.",
+          "fetchNotXml": "La réponse n’est pas un document XML.",
           "aiBudget": "Le plafond de dépense IA du jour est atteint.",
           "aiKillSwitch": "L’IA est coupée pour cet usage depuis la console IA.",
           "aiForbidden": "L’opérateur n’a pas le droit de lancer cette opération IA.",
@@ -8209,9 +8225,12 @@
               "evidence_not_in_source": "Le passage cité n’est pas dans la source",
               "out_of_bounds": "Valeur hors des bornes plausibles",
               "invalid_value": "Valeur invalide, écartée",
-              "unparsed_amount": "Montant illisible"
+              "unparsed_amount": "Montant illisible",
+              "source_conflict": "La page dit autre chose que l’IA : la valeur de la page est retenue"
             },
-            "low": "Confiance faible"
+            "low": "Confiance faible",
+            "readOnPage": "Lu sur la page",
+            "modelProposed": "L’IA proposait : {value}"
           },
           "neighborhood": {
             "read": "Lu dans l’annonce : {value}",
@@ -8452,7 +8471,11 @@
             "apiConfirm": "Oui, l’envoyer",
             "apiSent": "Message envoyé par l’API WhatsApp : Meta l’a accepté.",
             "apiAmbiguous": "Meta n’a pas confirmé l’envoi : le message a pu partir. Il est compté comme envoyé pour ne jamais écrire deux fois à l’annonceur. Ne le renvoyez pas à la main.",
-            "replyPending": "L’annonceur a répondu par WhatsApp, et sa réponse n’est pas tranchée. Lisez-la plus bas, dans « Messages envoyés, en attente d’une issue », et posez son issue : d’ici là, rien ne se prépare ni ne part vers lui, quelle que soit l’annonce."
+            "replyPending": "L’annonceur a répondu par WhatsApp, et sa réponse n’est pas tranchée. Lisez-la plus bas, dans « Messages envoyés, en attente d’une issue », et posez son issue : d’ici là, rien ne se prépare ni ne part vers lui, quelle que soit l’annonce.",
+            "demandSentence": "Ce message dit à l’annonceur que des personnes recherchent un bien comme le sien sur Takussan.",
+            "demandReason": "Recherché : {targets}",
+            "apiDemandManualOnly": "Ce message cite la demande : il part par WhatsApp à la main tant que le gabarit Meta v4 n’est pas approuvé.",
+            "apiTemplateManualOnly": "Ce message a été écrit avec un gabarit que Meta n’a pas approuvé : il part par WhatsApp à la main."
           },
           "history": {
             "heading": "Messages envoyés",
@@ -9097,7 +9120,8 @@
             "created": "Nouvelles",
             "known": "Connues",
             "snapshots": "Instantanés",
-            "stop": "Arrêt"
+            "stop": "Arrêt",
+            "skipped": "Hors cible"
           },
           "tableCaption": "Les derniers passages de collecte, du plus récent au plus ancien.",
           "status": {
@@ -9120,7 +9144,8 @@
             "error": "Erreur du passage",
             "lost": "Passage perdu (file arrêtée)",
             "loop": "La pagination renvoie vers une page déjà lue",
-            "noStartUrl": "Aucune URL de départ valable"
+            "noStartUrl": "Aucune URL de départ valable",
+            "sitemapInvalid": "Le sitemap du site est illisible ou vide : lecture coupée"
           },
           "errors": {
             "active": "Un passage est déjà en cours sur ce site : attendez sa fin.",
@@ -9130,21 +9155,326 @@
             "startUrlTooLong": "L’URL n° {rank} est trop longue : {max} caractères au plus.",
             "startUrlInvalid": "L’URL n° {rank} n’est pas acceptée : une adresse https, sans identifiants, port ni fragment (#).",
             "startUrlHost": "L’URL n° {rank} n’est pas sur le site : elle doit partir de {hosts}.",
-            "startUrlDuplicate": "L’URL n° {rank} est déjà dans la liste."
+            "startUrlDuplicate": "L’URL n° {rank} est déjà dans la liste.",
+            "discoveryUnavailable": "Ce site ne propose pas de lecture par sitemap."
           },
           "summary": "Tous les {frequency} min · {pages} pages au plus",
           "enabledWithoutOperator": "Allumée sans opérateur : aucun passage ne part. Éteignez-la puis rallumez-la pour en devenir l'opérateur.",
           "startUrls": "URL de départ (une par ligne)",
           "startUrlsHint": "Les pages de liste lues par chaque passage, dans l’ordre, sur {hosts} ; {max} au plus. Vide : {fallback}.",
           "startUrlsDefault": "Page de départ : {url} (configuration)",
-          "startUrlsSummary": "Pages de départ :"
+          "startUrlsSummary": "Pages de départ :",
+          "scope": {
+            "label": "Portée",
+            "readOnly": "Portée : {value}",
+            "values": {
+              "targeted": "Ciblée",
+              "all": "Tout"
+            },
+            "consequence": {
+              "targeted": "Ciblée : seules les annonces neuves qui peuvent correspondre à une cible active sont saisies. Sans cible active, elle observe les annonces déjà connues et n’en saisit aucune neuve.",
+              "all": "Tout : chaque annonce vue est saisie et extraite, sur le budget d’IA."
+            }
+          },
+          "discovery": {
+            "label": "Découverte",
+            "readOnly": "Découverte : {value}",
+            "values": {
+              "lists": "Listes",
+              "sitemap": "Sitemap"
+            },
+            "consequence": {
+              "lists": "Listes : les pages de liste sont lues de page en page, dans la limite des pages réglées.",
+              "sitemap": "Sitemap : tout l’inventaire du site est connu en quelques requêtes ; au plus {max} annonces neuves saisies par passage, les autres au passage suivant."
+            },
+            "unavailable": "Ce site ne propose pas de sitemap : il se lit par ses listes."
+          }
         },
         "nav": {
           "aria": "Espaces du Radar",
           "listings": "Annonces",
           "advertisers": "Annonceurs",
           "crawl": "Collecte",
-          "observatory": "Observatoire"
+          "observatory": "Observatoire",
+          "targets": "Cibles"
+        },
+        "targets": {
+          "metaTitle": "Cibles — Radar",
+          "detailMetaTitle": "Cible — Radar",
+          "title": "Cibles",
+          "subtitle": "Ce que la collecte cherche. Une source « ciblée » ne saisit que les annonces qui peuvent correspondre à une cible active.",
+          "readOnly": "Ce que la collecte cherche. Seul le super-administrateur crée, règle ou retire une cible.",
+          "create": "Nouvelle cible",
+          "loadError": "Les cibles n’ont pas pu être lues.",
+          "tableCaption": "Les cibles du Radar, de la plus récente à la plus ancienne, avec ce que chacune a trouvé.",
+          "pinned": "Épinglée",
+          "mobileMatches": "{count, plural, =0 {Aucune annonce trouvée} one {# annonce trouvée} other {# annonces trouvées}} · dernière : {last}",
+          "back": "Toutes les cibles",
+          "notFound": "Cette cible n’existe pas.",
+          "retiredNote": "Cible retirée : elle ne borne plus la collecte et ne se modifie plus. Ses annonces restent lisibles.",
+          "columns": {
+            "name": "Cible",
+            "status": "État",
+            "matches": "Trouvées",
+            "lastMatch": "Dernière trouvaille"
+          },
+          "filters": {
+            "anyStatus": "Tous les états",
+            "anyOrigin": "Toutes les origines",
+            "statusAria": "Filtrer par état",
+            "originAria": "Filtrer par origine"
+          },
+          "status": {
+            "active": "Active",
+            "paused": "En pause",
+            "retired": "Retirée"
+          },
+          "origin": {
+            "operator": "Opérateur",
+            "demand": "Demande"
+          },
+          "empty": {
+            "title": "Aucune cible pour l’instant",
+            "description": "Posez ce que vous cherchez — un type, un quartier, un budget — et la collecte ciblée ne lira que ce qui peut y répondre.",
+            "descriptionReadOnly": "Le super-administrateur n’a encore posé aucune cible."
+          },
+          "emptyFiltered": {
+            "title": "Aucune cible ne correspond",
+            "description": "Changez l’état ou l’origine, ou réinitialisez les filtres."
+          },
+          "fields": {
+            "cities": "Villes",
+            "neighborhoods": "Quartiers",
+            "types": "Types de bien",
+            "contract": "Transaction",
+            "price_min": "Prix minimum",
+            "price_max": "Prix maximum",
+            "bedrooms_min": "Chambres au moins",
+            "bedrooms_max": "Chambres au plus",
+            "furnished": "Meublé",
+            "sites": "Sites",
+            "max_age_days": "Fraîcheur (jours)"
+          },
+          "summary": {
+            "contract": {
+              "rent": "location",
+              "sale": "vente"
+            },
+            "priceRange": "{min} – {max}",
+            "priceMin": "dès {min}",
+            "priceMax": "jusqu’à {max}",
+            "priceExact": "{value}",
+            "bedroomsRange": "{min}-{max} ch.",
+            "bedroomsMin": "{min} ch. et plus",
+            "bedroomsMax": "{max} ch. au plus",
+            "bedroomsExact": "{value} ch.",
+            "furnished": "meublé",
+            "unfurnished": "non meublé",
+            "maxAge": "moins de {days} j"
+          },
+          "form": {
+            "createTitle": "Nouvelle cible",
+            "editTitle": "Régler « {name} »",
+            "description": "Les critères se cumulent : une annonce doit les remplir tous. Laissez vide ce qui vous est égal.",
+            "close": "Fermer",
+            "name": "Nom",
+            "namePlaceholder": "F3 Almadies à louer",
+            "sections": {
+              "what": "Le bien",
+              "where": "Où",
+              "size": "Budget et taille",
+              "more": "Plus de critères",
+              "state": "Mise en service"
+            },
+            "any": "Indifférent",
+            "contract": {
+              "rent": "Louer",
+              "sale": "Acheter"
+            },
+            "furnished": {
+              "yes": "Oui",
+              "no": "Non"
+            },
+            "price": "Prix (F CFA)",
+            "priceHint": "Loyer mensuel, ou prix de vente.",
+            "bedrooms": "Chambres",
+            "min": "Minimum",
+            "max": "Maximum",
+            "sitesHint": "Aucun site choisi : tous les sites.",
+            "initialStatus": "État à la création",
+            "cities": "Villes",
+            "citiesPlaceholder": "Choisir une ou plusieurs villes",
+            "noCity": "Aucune ville de ce nom",
+            "neighborhoods": "Quartiers",
+            "neighborhoodsCity": "Ville",
+            "neighborhoodsCityPlaceholder": "Choisir une ville",
+            "neighborhoodsPick": "Quartiers de cette ville",
+            "neighborhoodsPlaceholder": "Ajouter des quartiers",
+            "neighborhoodsNeedCity": "Choisissez d’abord une ville",
+            "noNeighborhood": "Aucun quartier de ce nom",
+            "neighborhoodIn": "{name} ({city})",
+            "remove": "Retirer {name}",
+            "placesHint": "Les lieux viennent du référentiel, comme dans la recherche publique. Villes et quartiers se cumulent.",
+            "willPin": "Cette cible vient de la demande. En modifier les critères l’épinglera : la demande ne la révisera plus.",
+            "preview": "Aperçu",
+            "previewEmpty": "Aucun critère pour l’instant : choisissez-en au moins un.",
+            "cancel": "Annuler",
+            "create": "Créer la cible",
+            "save": "Enregistrer"
+          },
+          "actions": {
+            "edit": "Régler",
+            "pause": "Mettre en pause",
+            "resume": "Reprendre",
+            "pin": "Épingler",
+            "unpin": "Désépingler",
+            "retire": "Retirer"
+          },
+          "retire": {
+            "title": "Retirer « {name} » ?",
+            "body": "La cible cesse de borner la collecte et ne reçoit plus d’annonce. Rien n’est supprimé : ses annonces restent lisibles, mais elle ne se modifie plus.",
+            "cancel": "Garder la cible",
+            "confirm": "Retirer la cible"
+          },
+          "stats": {
+            "matches": "Annonces trouvées",
+            "lastMatch": "Dernière trouvaille",
+            "created": "Posée le",
+            "demand": "Recherches à l’origine"
+          },
+          "listings": {
+            "heading": "Annonces trouvées",
+            "loadError": "Les annonces de la cible n’ont pas pu être lues.",
+            "noPrice": "Prix non lu",
+            "empty": {
+              "title": "Rien de trouvé pour l’instant",
+              "description": "Les annonces extraites qui remplissent ces critères s’ajoutent ici d’elles-mêmes.",
+              "descriptionInactive": "Cette cible n’est pas active : elle ne reçoit aucune annonce nouvelle."
+            }
+          },
+          "errors": {
+            "generic": "La cible n’a pas pu être enregistrée.",
+            "someCriterion": "un critère",
+            "emptyCriteria": "Choisissez au moins un critère : une cible sans critère retiendrait tout.",
+            "unknownCriterion": "Le critère « {field} » n’est pas reconnu.",
+            "invalidCriteria": "Le critère « {field} » n’est pas valable : vérifiez sa valeur.",
+            "tooManyItems": "Trop de valeurs pour « {field} » : {max} au plus.",
+            "invalidRange": "« {field} » dépasse le maximum : le minimum doit rester inférieur ou égal au maximum.",
+            "duplicate": "Une cible porte déjà exactement ces critères.",
+            "tooMany": "Trop de cibles actives : {max} au plus, toutes origines. Mettez-en une en pause ou retirez-en une.",
+            "retired": "Cette cible est retirée : elle ne se modifie plus. Pour la reprendre, créez-en une nouvelle.",
+            "seeDuplicate": "Voir la cible existante"
+          },
+          "fromDemand": {
+            "active": "Tirée des recherches restées sans résultat. Tant qu’elle n’est ni épinglée ni en pause, l’IA peut la régler, la fusionner ou la retirer lors de son passage de nuit.",
+            "protected": "Tirée des recherches restées sans résultat. Épinglée ou en pause, elle n’est plus touchée par l’IA.",
+            "seeRevisions": "Voir les révisions de la demande"
+          },
+          "demand": {
+            "heading": "Cibles tirées de la demande",
+            "intro": "Chaque nuit, l’IA lit les recherches restées sans résultat sur Takussan et en tire des cibles : elle en crée, en règle, en fusionne ou en retire, {max} au plus. Une cible de l’opérateur, épinglée ou en pause n’est jamais touchée. Quand plus aucune demande ne reste, elle retire sans IA les cibles qu’elle avait tirées.",
+            "enabled": "Allumée",
+            "disabled": "Éteinte",
+            "enable": "Allumer",
+            "disable": "Éteindre",
+            "takeOver": "Reprendre en mon nom",
+            "operator": "Au nom de {name}",
+            "operatorSince": "Au nom de {name}, depuis le {date}",
+            "noOperator": "Aucun opérateur",
+            "enableHint": "Allumer vous en fait l’opérateur : chaque passage appelle l’IA en votre nom, sur le budget d’IA.",
+            "takeOverHint": "La reprendre vous en fait l’opérateur : chaque passage appellera l’IA en votre nom, sur le budget d’IA.",
+            "readOnly": "Seul le super-administrateur allume, éteint ou rafraîchit la demande.",
+            "refresh": "Rafraîchir maintenant",
+            "refreshQueued": "Passage lancé : son issue s’affiche ici dès qu’il se termine.",
+            "lastRun": "Dernier passage",
+            "lastRevision": "Dernière révision",
+            "never": "Aucun pour l’instant",
+            "history": "Historique des révisions",
+            "loadError": "Le réglage de la demande n’a pas pu être lu.",
+            "saveError": "Le réglage de la demande n’a pas pu être enregistré.",
+            "blocked": {
+              "disabled": "Éteinte : aucun passage ne part, ni la nuit ni à la demande. Les cibles déjà tirées de la demande restent telles quelles.",
+              "operatorMissing": "Allumée, mais son opérateur n’a plus accès au Radar (compte supprimé ou droit retiré) : aucun passage ne part tant qu’un super-administrateur ne la reprend pas en son nom."
+            },
+            "outcomes": {
+              "applied": "Les cibles ont été revues par l’IA.",
+              "unchanged": "Demande inchangée depuis la dernière révision : l’IA n’a pas été appelée.",
+              "noSignals": "Aucune recherche sans résultat à couvrir.",
+              "noSignalsRetired": "Plus aucune demande sur 30 jours : les cibles tirées de la demande ont été retirées, sans appel à l’IA.",
+              "disabled": "La demande était éteinte : rien n’est parti.",
+              "operatorMissing": "Sans opérateur : rien n’est parti.",
+              "invalidOutput": "La réponse de l’IA était illisible : aucune cible n’a changé.",
+              "other": "Le passage n’a pas abouti : aucune cible n’a changé."
+            }
+          },
+          "revisions": {
+            "metaTitle": "Révisions de la demande — Radar",
+            "title": "Révisions de la demande",
+            "subtitle": "Ce que l’IA a changé dans les cibles, passage après passage, et pourquoi. Une révision se défait tant qu’aucune plus récente ne touche les mêmes cibles.",
+            "readOnly": "Ce que l’IA a changé dans les cibles, passage après passage, et pourquoi. Seul le super-administrateur défait une révision.",
+            "back": "Toutes les cibles",
+            "loadError": "L’historique des révisions n’a pas pu être lu.",
+            "listLabel": "Les révisions, de la plus récente à la plus ancienne",
+            "empty": {
+              "title": "Aucune révision pour l’instant",
+              "description": "Une révision s’écrit à chaque passage où la demande a changé. La demande s’allume depuis la page des cibles."
+            },
+            "number": "Révision n° {id}",
+            "signals": "{count, plural, =0 {aucune demande lue} one {# demande lue} other {# demandes lues}}",
+            "applied": "Appliquée",
+            "reverted": "Défaite",
+            "revertedBy": "Défaite le {date} par {name}.",
+            "revertedAt": "Défaite le {date}.",
+            "noChange": "L’IA n’a proposé aucun changement.",
+            "ops": {
+              "create": "Créée",
+              "update": "Réglée",
+              "merge": "Fusion",
+              "retire": "Retirée",
+              "unknown": "Proposition"
+            },
+            "mergedFrom": "réunit {names}",
+            "renamedFrom": "anciennement « {name} »",
+            "targetFallback": "cible n° {id}",
+            "quoted": "« {name} »",
+            "reason": "Motif de l’IA : {reason}",
+            "codeReasons": {
+              "noDemand": "Retirée sans appel à l’IA : plus aucune demande sur 30 jours."
+            },
+            "discardedHeading": "{count, plural, one {# proposition écartée} other {# propositions écartées}}",
+            "discardReasons": {
+              "targetProtected": "cible de l’opérateur, épinglée ou en pause : l’IA n’y touche pas.",
+              "unknownTarget": "cible absente ou déjà retirée.",
+              "tooManyDemand": "plafond des cibles de la demande atteint ({max} au plus).",
+              "invalidOperation": "proposition mal formée.",
+              "invalidName": "nom absent ou trop long.",
+              "uncovered": "ses critères ne couvrent aucune des demandes qu’elle cite.",
+              "invalidCriteria": "critères non valables.",
+              "unknownCriterion": "critère inconnu.",
+              "tooManyItems": "trop de valeurs pour un critère.",
+              "invalidRange": "fourchette inversée : le minimum dépasse le maximum.",
+              "emptyCriteria": "aucun critère : la cible retiendrait tout.",
+              "duplicate": "une cible porte déjà ces critères.",
+              "tooMany": "plafond des cibles actives atteint.",
+              "retired": "cible retirée : elle ne se modifie plus.",
+              "other": "écartée par la validation."
+            },
+            "revert": "Défaire",
+            "revertDialog": {
+              "title": "Défaire la révision n° {id} ?",
+              "body": "Les cibles qu’elle a touchées reviennent à leur état d’avant : réglages, fusions et retraits sont annulés, et une cible qu’elle a créée est retirée. L’IA ne refait pas ces changements tant que la demande ne change pas.",
+              "cancel": "Garder la révision",
+              "confirm": "Défaire la révision"
+            },
+            "errors": {
+              "superseded": "Une révision plus récente (n° {id}) touche les mêmes cibles : défaites-la d’abord.",
+              "supersededTarget": "« {name} » a changé depuis cette révision (épinglée, mise en pause ou retirée) : la défaire effacerait ce geste. Réglez-la à la main.",
+              "tooMany": "Défaire remettrait trop de cibles actives ({max} au plus) : retirez-en ou mettez-en une en pause d’abord.",
+              "alreadyReverted": "Cette révision est déjà défaite.",
+              "notFound": "Cette révision n’existe plus.",
+              "generic": "La révision n’a pas pu être défaite."
+            }
+          }
         }
       }
     },

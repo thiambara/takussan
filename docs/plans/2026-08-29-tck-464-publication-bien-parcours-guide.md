@@ -21,7 +21,7 @@ accepte déjà.
 
 ## Global Constraints
 
-- **Ticket :** `docs/backlog/tickets/TCK-464-publication-bien-parcours-guide.md`. Les AC1→AC10 y
+- **Ticket :** `docs/backlog/tickets/done/TCK-464-publication-bien-parcours-guide.md`. Les AC1→AC10 y
   sont la définition du fini. Ne pas les recopier ici — les relire avant chaque tâche.
 - **Pint avant chaque commit backend** : `./vendor/bin/pint` (pas `--test`) depuis `takussan-api/`.
   Une seule violation a bloqué la CI six semaines.

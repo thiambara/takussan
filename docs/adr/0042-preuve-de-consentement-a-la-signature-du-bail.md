@@ -2,7 +2,7 @@
 
 - **Statut** : Accepté, **amendé le 2026-10-25** (cf. § *Amendement du 2026-10-25 — un renouvellement ne reporte pas les garants*)
 - **Date** : 2026-10-08
-- **Tickets** : [TCK-596](../backlog/tickets/TCK-596-cycle-locatif-conge-annulation-signature-edl.md) (O17)
+- **Tickets** : [TCK-596](../backlog/tickets/done/TCK-596-cycle-locatif-conge-annulation-signature-edl.md) (O17)
 - **Précise** : [ADR-0031](0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md) (qui signe pour
   le bailleur, bailleur suspendu), [ADR-0032](0032-l-api-n-ecrit-plus-de-prose.md) (notifications par
   code).
@@ -179,7 +179,7 @@ signature active le bail. `activate` ne reste que pour la signature hors platefo
 
 ## Amendement du 2026-10-25 — un renouvellement ne reporte pas les garants
 
-- **Ticket** : [TCK-2316](../backlog/tickets/TCK-2316-bail-renouvele-sans-garant-et-avoir-a-lignes.md)
+- **Ticket** : [TCK-2316](../backlog/tickets/done/TCK-2316-bail-renouvele-sans-garant-et-avoir-a-lignes.md)
   (P231.01, décision du porteur du 2026-10-25).
 
 **Constat.** Le § 1 fait hériter à l'enfant d'un renouvellement les termes imprimés et signés du
