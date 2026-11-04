@@ -88,4 +88,84 @@ page affiche, sans dépendre de l'IA pour les retrouver.
 
 ## Notes d'implémentation
 
-_(à remplir — écrire chaque mesure ici au fur et à mesure)_
+### Re-mesures du 2026-11-04 (pages réelles relevées le jour même, jamais copiées dans le dépôt)
+
+- **CoinAfrique porte un JSON complet de l'annonce** dans l'attribut `data-ad` de `div#ad-details` (entités HTML) :
+  `title`, `description`, `price` (entier), `currency` (`CFA`), `address` (« Thies, Sénégal »), `date_creation` (ISO),
+  `images[].normal` (la galerie entière, 9 sur l'annonce relevée), `phone`, `re_offer_type` (`sell`/`rent`), `re_room`
+  (**pièces**, pas chambres : la page l'affiche « Nbre de pièces »), `re_bathroom`, `re_surface`, `category.name`,
+  `user.{name, is_pro, member_since, published_ads, whatsapp_phone}`. L'adaptateur le lit d'abord ; le DOM est le repli
+  (galerie `div.slider .swiper-slide.slide-clickable[style*=background-image]` — la dernière diapositive est un appel à
+  l'action qui reprend la vignette `thumb_` de la première —, `p.price`, `h1.title-ad`, `span[data-address]`,
+  `.ad__info__box-descriptions p` hors `p.title`, `p.username`, `img.icon-pro`, `p.nb-ads`).
+- **Numéros de CoinAfrique** : `tel:+221…` (×3), `data-phone-number` (×4), `data-mobile` **sans indicatif** (`77…`),
+  `wa.me/+221…` (×3), `web.whatsapp.com/send?phone=+221…` (×4), `sms:+221…`. Le numéro du **service** de CoinAfrique
+  (`tel:+221 765694843`, bandeau « Veuillez contacter ces numéros suivants ») est sur la page de **liste**, pas sur celle
+  de l'annonce ; il est déclaré exclu quand même. Aucun JSON-LD sur la page d'annonce de CoinAfrique.
+- **Expat-Dakar** : `Organization.telephone` **et** `contactPoint[].telephone` valent `+221 76 6448613` (le second
+  aussi est à écarter). Le numéro de l'annonceur : `a.listing-item-contact__contact-phone__number[href^=tel:]` (texte
+  `763623458`, sans indicatif), `whatsapp://send?abid=%2B221…&phone=%2B221…` (schéma `whatsapp:`, encodé) et
+  `data-whatsapp="https://wa.me/221…"` (une URL dans un attribut `data-*`). Les attributs `data-listing-card-show-phone-*`
+  portent des sélecteurs CSS, pas des numéros : `RadarPhone::canonical()` les écarte.
+- **Galerie d'Expat-Dakar** : `ul.gallery--main li img`, `srcset` en trois tailles ; la plus grande est
+  `listing-gallery-full-1920w`. Hôte : **`i.roamcdn.net`** (confirmé). `og:image` porte des variantes
+  `og-letterbox-…-wm` (filigranées) : jamais prises.
+- **Date d'Expat-Dakar** : le DOM dit « Aujourd'hui, 10:06 » (relatif, = `og:updated_time`, une remontée) ;
+  `ItemPage.datePublished` vaut l'heure du rendu (14:13, inutilisable). `Product.offers.validFrom`
+  (« 2026-05-18 17:00:39 ») est la seule date absolue de mise en ligne : c'est `postedAt`.
+- **Prix d'Expat-Dakar** : `listing_price` « 0.00 » sur l'annonce relevée (prix sur demande) → null. Aucune période de
+  loyer n'est affichée sur ces sites → `rentPeriod` reste nul pour Expat-Dakar.
+- **Lieu d'Expat-Dakar** : `listing-item__address-location` (« Point-e » : le quartier, ou une ville comme « Mbour ») et
+  `listing-item__address-region` (« Dakar » : la RÉGION, rangée dans `city`).
+- **Vendeur d'Expat-Dakar** : `.listing-item-transparency__title`, `__member-since` (« Membre depuis 17. janv. '23 »),
+  `__verified__list` (« Numéro de portable »).
+- **Borne de la galerie** : `radar.photos.max_per_listing` (10) est la borne du calcul des **empreintes**, qui se borne
+  déjà lui-même (`RadarListing::photoFingerprintStatus()`). La galerie gardée est bornée par `HtmlCleaner::MAX_PHOTOS`
+  (20), égal à `radar.photos.reserve_max` : « toute la galerie » (AC1) sans élargir ce que la réserve accepte.
+- **Normalisation des numéros** : `App\Support\RadarPhone::canonical()` existe et rend `+221XXXXXXXXX` ou null.
+
+### Mesures après implémentation (pages réelles du 2026-11-04, lues en local, jamais versionnées)
+
+- **CoinAfrique** : `parseListing()` rend le numéro de l'annonceur (absent du texte), **9 photos sur 9**, le prix, la
+  ville, 9 pièces, 4 salles de bain, 300 m², la date de création, le vendeur et 4 indices (badge pro, nombre
+  d'annonces, ancienneté, nom d'entreprise). `raw_text` passe de **6 041 à ≈ 375 caractères** (titre + description).
+  `HtmlCleaner` seul (repli) : 6 041 → 3 751 caractères, menu des catégories retiré, numéro récolté.
+- **Expat-Dakar** : le bon numéro, jamais `+221766448613` ; **5 photos** en 1920w ; quartier « Point-e », région
+  « Dakar » ; `postedAt` = `validFrom`. `raw_text` : **≈ 620 caractères** (contre 2 341).
+
+### Décisions et écarts au Delta
+
+- **`rooms` ajouté au DTO** (non listé) : CoinAfrique affiche des PIÈCES (`re_room`), pas des chambres ; les ranger en
+  `bedrooms` serait deviner, les jeter perdrait un fait affiché.
+- **`App\Services\Radar\PagePhones`** (fichier neuf, non listé) : la récolte des numéros d'attributs est partagée par
+  `HtmlCleaner` et les deux adaptateurs — une seule définition de « un numéro dans un attribut ».
+- **`HtmlCleaner` récolte les numéros APRÈS le retrait du bruit** (`header`, `footer`, `nav`, `form`…) : un numéro
+  d'en-tête ou de pied de page est celui du site. Le JSON-LD `Organization` est lu avant (les `script` partent avec le
+  bruit). Seuil des listes de navigation : ≥ 3 liens, ≥ 70 % du texte en liens, ≤ 80 caractères hors liens, du plus
+  profond au plus large.
+- **Page non reconnue → `HtmlCleaner`** : `parseListing()` rend null sans description ; l'extraction retombe alors sur
+  le lecteur générique, dont les numéros (moins `excludedPhones()` de l'adaptateur) vont seuls dans `source_fields`
+  (`{"phones": [...]}`). Les photos du repli ne sont pas filtrées par hôte (comportement d'avant, qu'un test existant
+  épingle).
+- **Le job écarte `excludedPhones()` de TOUS les candidats de l'annonceur** (attributs, modèle, texte) — pas seulement de
+  ceux de l'adaptateur : un numéro du site cité dans une description ne devient pas un annonceur. Le refus STOP, lui,
+  se juge sur tous les numéros (prudence).
+- **Hors du périmètre listé, mais conséquence directe de la colonne** : `RadarPurger::eraseListing()` efface
+  `source_fields` (numéros et nom du vendeur sont des données personnelles, ADR-0077 §9) ; `RadarListingReview::
+  setAdvertiser()` accepte un numéro de `source_fields.phones` (sinon l'opérateur ne pouvait pas rattacher le numéro de
+  CoinAfrique, absent du texte : `radar.advertiser.phone_unknown`).
+- **AC4, ce que l'ablation dit exactement** : retirer la lecture des attributs dans `CoinafriqueAdapter::phones()` fait
+  rougir AC1 et AC3 (8 tests). Retirer SEULEMENT la récolte générique (`PagePhones::fromDom`) rougit AC1 (variante sans
+  JSON) mais laisse AC3 vert : le JSON `data-ad` de CoinAfrique redit le numéro (`phone`), et l'adaptateur le lit aussi.
+
+### À reporter dans les specs
+
+- `docs/models-spec.md`, `radar_listings` : `source_fields jsonb null` — ce que la page dit en clair
+  (`ListingPage::sourceFields()` : `phones`, `price`, `currency`, `contract`, `property_type`, `rent_period`, `city`,
+  `neighborhood`, `bedrooms`, `rooms`, `bathrooms`, `surface_m2`, `furnished`, `posted_at`, `seller_name`,
+  `seller_signals`, `title`), ou `{"phones": [...]}` pour une page lue par `HtmlCleaner` ; nul pour un texte ou des
+  captures ; effacé par la purge.
+- `docs/features.md` §2.12 : une annonce de CoinAfrique ou d'Expat-Dakar saisie par URL est lue par l'adaptateur du
+  site (numéro des attributs, galerie entière, prix, lieu, vendeur) ; le numéro lu sur la page passe devant ceux du texte
+  et du modèle ; le numéro du site n'est jamais celui d'un annonceur ; la fiche rend `source_fields`.
+

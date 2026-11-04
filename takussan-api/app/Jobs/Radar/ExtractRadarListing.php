@@ -22,6 +22,8 @@ use App\Services\Ai\Exceptions\AiRefused;
 use App\Services\Ai\Exceptions\AiUnavailable;
 use App\Services\Ai\ExternalContent;
 use App\Services\Ai\SuggestionRecorder;
+use App\Services\Radar\Crawl\RadarCrawlSources;
+use App\Services\Radar\Crawl\RadarSiteAdapter;
 use App\Services\Radar\Exceptions\RadarFetchDeferred;
 use App\Services\Radar\Exceptions\RadarFetchRefused;
 use App\Services\Radar\ExtractionNormalizer;
@@ -50,7 +52,10 @@ use Throwable;
  *     `raw_text` et `photo_urls` sont gardés, le refus STOP et la page vide sont jugés, puis le job
  *     se relâche (`release(0)`) — l'appel au modèle a son propre passage, donc tout le `$timeout`
  *     pour lui, et la reprise ne relit pas la page. Lecture remise à plus tard → `release()` ;
- *     refusée → `extraction_failed` avec son code `radar.fetch.*` ;
+ *     refusée → `extraction_failed` avec son code `radar.fetch.*`. TCK-2465 (ADR-0087 §1) : quand le site
+ *     a un adaptateur (`RadarCrawlSources::adapterFor()`) qui reconnaît la page, `raw_text` = titre +
+ *     description de `ListingPage`, `photo_urls` = sa galerie, `source_fields` = le reste ; sinon
+ *     `HtmlCleaner` comme avant, et `source_fields` ne garde que les numéros de ses attributs ;
  *  3. **refus STOP** : un numéro du texte chez un annonceur qui a dit STOP → `do_not_contact`, sans
  *     appel IA (`RadarAdvertiserDirectory::refusedAmong()`, la même lecture qu'à la saisie) ;
  *  4. **l'appel** `radar.extraction` par la passerelle, le texte délimité par `ExternalContent`, les
@@ -58,9 +63,10 @@ use Throwable;
  *     la passerelle joue alors le rôle `vision` ;
  *  5. **la sortie relue** par `ExtractionNormalizer`. Le refus STOP est rejugé sur TOUS les numéros
  *     (ceux du texte et ceux de la sortie, même écartés) ; sinon l'annonceur du premier numéro est
- *     rattaché — ceux de la sortie que le texte porte d'abord, dans l'ordre du modèle, puis ceux du
- *     texte (pour une source texte ou URL, un numéro que le modèle est seul à donner ne désigne
- *     personne). Il est trouvé
+ *     rattaché — TCK-2465 : ceux que la page porte en clair (`source_fields.phones`) d'abord, puis
+ *     ceux de la sortie que le texte porte, dans l'ordre du modèle, puis ceux du texte (pour une
+ *     source texte ou URL, un numéro que le modèle est seul à donner ne désigne personne) ; jamais
+ *     un numéro du site lui-même (`RadarSiteAdapter::excludedPhones()`). Il est trouvé
  *     ou créé SOUS le verrou de l'annonce, puis son refus relu sous le sien (ordre : l'annonce,
  *     puis l'annonceur). Un STOP → `do_not_contact`, l'extraction n'est pas gardée et l'annonceur
  *     n'est pas enrichi ; l'enrichissement ne lit que des champs sans drapeau.
@@ -184,6 +190,7 @@ final class ExtractRadarListing implements ShouldQueue
         RadarAdvertiserDirectory $directory,
         SuggestionRecorder $recorder,
         EvalCaseAnonymizer $anonymizer,
+        RadarCrawlSources $sources,
     ): void {
         $listing = RadarListing::query()->find($this->listingId);
         if ($listing === null || $listing->stage !== RadarListingStage::Captured) {
@@ -193,15 +200,17 @@ final class ExtractRadarListing implements ShouldQueue
 
         // 2. Une URL sans texte : ce passage lit la page, et rien d'autre.
         if ($listing->source_kind === RadarSourceKind::Url && $listing->raw_text === null) {
-            $this->readPage($listing, $fetcher, $cleaner, $directory);
+            $this->readPage($listing, $fetcher, $cleaner, $directory, $sources->adapterFor($listing->source_site));
 
             return;
         }
 
         $text = trim((string) $listing->raw_text);
+        // TCK-2465 — les numéros que la page porte en clair (attributs, lus par l'adaptateur ou `HtmlCleaner`).
+        $sourcePhones = self::canonicalPhones((array) ($listing->source_fields['phones'] ?? []));
 
         // 3. Un numéro qui a dit STOP : aucun appel au modèle.
-        if ($this->refuseIfStopped($directory, RadarPhone::fromText($text))) {
+        if ($this->refuseIfStopped($directory, self::canonicalPhones([...$sourcePhones, ...RadarPhone::fromText($text)]))) {
             return;
         }
 
@@ -282,7 +291,13 @@ final class ExtractRadarListing implements ShouldQueue
         // normalisation a gardés (présents dans le texte, sauf pour des captures), dans son ordre :
         // le choix du contact principal lui revient (décision du porteur, 2026-10-27). Les numéros
         // du texte suivent, pour le cas où il n'en a gardé aucun : ceux qui peuvent être un contact (TCK-2412).
-        $phones = self::canonicalPhones([...(array) ($normalized['phones'] ?? []), ...RadarPhone::contactsFromText($text)]);
+        // TCK-2465 (ADR-0087 §1) — ceux que la page porte en clair passent devant : une valeur lue fait foi. Un numéro
+        // du site lui-même n'est jamais celui d'un annonceur.
+        $excluded = $sources->adapterFor($listing->source_site)?->excludedPhones() ?? [];
+        $phones = array_values(array_diff(
+            self::canonicalPhones([...$sourcePhones, ...(array) ($normalized['phones'] ?? []), ...RadarPhone::contactsFromText($text)]),
+            $excluded,
+        ));
         // Le refus se juge sur chaque numéro, pas sur le seul premier — y compris ceux du modèle
         // que la normalisation a écartés : prudence.
         if ($this->refuseIfStopped($directory, self::canonicalPhones([...$phones, ...(array) ($result->structured['phones'] ?? [])]))) {
@@ -369,8 +384,11 @@ final class ExtractRadarListing implements ShouldQueue
     /**
      * La page est lue, nettoyée et gardée ; le STOP et la page vide sont jugés sur son texte ; puis
      * le job se relâche pour que l'appel ait son propre passage.
+     *
+     * TCK-2465 — lue par l'adaptateur du site quand il en a un et qu'il la reconnaît ; sinon par `HtmlCleaner`. Le
+     * STOP se juge aussi sur les numéros des attributs, qui ne sont pas dans le texte.
      */
-    private function readPage(RadarListing $listing, UrlFetcher $fetcher, HtmlCleaner $cleaner, RadarAdvertiserDirectory $directory): void
+    private function readPage(RadarListing $listing, UrlFetcher $fetcher, HtmlCleaner $cleaner, RadarAdvertiserDirectory $directory, ?RadarSiteAdapter $adapter): void
     {
         try {
             $page = $fetcher->fetch((string) $listing->source_url);
@@ -384,15 +402,26 @@ final class ExtractRadarListing implements ShouldQueue
             return;
         }
 
-        $clean = $cleaner->clean($page->body, $page->url);
-        $text = $clean->title !== null && ! str_contains($clean->text, $clean->title)
-            ? trim($clean->title."\n".$clean->text)
-            : trim($clean->text);
-        if (! $this->settle(fn (RadarListing $l) => $l->fill(['raw_text' => $text, 'photo_urls' => $clean->photoUrls, 'stage_reason' => null]))) {
+        $read = $adapter?->parseListing($page->body, $page->url);
+        if ($read !== null) {
+            $text = $read->text();
+            $photos = $read->photoUrls;
+            $fields = $read->sourceFields();
+            $phones = $read->phones;
+        } else {
+            $clean = $cleaner->clean($page->body, $page->url);
+            $text = $clean->title !== null && ! str_contains($clean->text, $clean->title)
+                ? trim($clean->title."\n".$clean->text)
+                : trim($clean->text);
+            $photos = $clean->photoUrls;
+            $phones = array_values(array_diff($clean->phones, $adapter?->excludedPhones() ?? []));
+            $fields = $phones === [] ? null : ['phones' => $phones];
+        }
+        if (! $this->settle(fn (RadarListing $l) => $l->fill(['raw_text' => $text, 'photo_urls' => $photos, 'source_fields' => $fields, 'stage_reason' => null]))) {
             return;
         }
 
-        if ($this->refuseIfStopped($directory, RadarPhone::fromText($text))) {
+        if ($this->refuseIfStopped($directory, self::canonicalPhones([...$phones, ...RadarPhone::fromText($text)]))) {
             return;
         }
         if ($text === '') {

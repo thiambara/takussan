@@ -159,6 +159,8 @@ final class RadarPurger
         $listing->forceFill([
             'discovered_by_run_id' => null,
             'raw_text' => null,
+            // TCK-2465 — les numéros et le vendeur lus sur la page : la même matière que le texte.
+            'source_fields' => null,
             'source_url' => null,
             'photo_urls' => [],
             'extracted' => null,

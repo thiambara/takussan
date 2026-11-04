@@ -3,6 +3,9 @@
 namespace App\Services\Radar\Crawl;
 
 use App\Models\Enums\PropertyType;
+use App\Services\Radar\HtmlCleaner;
+use App\Services\Radar\PagePhones;
+use App\Support\RadarPhone;
 use DOMDocument;
 use DOMNode;
 use DOMXPath;
@@ -13,6 +16,9 @@ use Throwable;
 /**
  * TCK-2392 — ce que les adaptateurs partagent : charger le HTML d'une liste (UTF-8, erreurs de libxml tues, aucun accès
  * réseau), lire un texte replié, absolutiser un lien, et reconnaître un type et un contrat dans les mots d'une catégorie.
+ *
+ * TCK-2465 — et pour la page d'une annonce : les numéros des attributs moins ceux du site, la galerie filtrée sur les
+ * hôtes d'images déclarés, un texte qui garde ses paragraphes, le nom d'un vendeur qui dit une entreprise.
  */
 trait ReadsListHtml
 {
@@ -147,5 +153,108 @@ trait ReadsListHtml
         $text = strtr($text, ['à' => 'a', 'â' => 'a', 'é' => 'e', 'è' => 'e', 'ê' => 'e', 'ë' => 'e', 'î' => 'i', 'ï' => 'i', 'ô' => 'o', 'û' => 'u', 'ù' => 'u', 'ç' => 'c']);
 
         return (string) preg_replace('/[-_\/]+/', ' ', $text);
+    }
+
+    /**
+     * TCK-2465 — les numéros que la page porte dans ses attributs (`PagePhones`), plus ceux donnés à part (un JSON de la
+     * page), en E.164, sans doublon, moins ceux du site : `excludedPhones()` et le JSON-LD `Organization`.
+     *
+     * @param  list<mixed>  $extra
+     * @return list<string>
+     */
+    private function listingPhones(DOMXPath $xpath, array $extra = []): array
+    {
+        $phones = PagePhones::fromDom($xpath);
+        foreach ($extra as $raw) {
+            $phone = is_scalar($raw) ? RadarPhone::canonical((string) $raw) : null;
+            if ($phone !== null) {
+                $phones[] = $phone;
+            }
+        }
+        $excluded = [...$this->excludedPhones(), ...PagePhones::organizationPhones($xpath)];
+
+        return array_values(array_diff(array_unique($phones), $excluded));
+    }
+
+    /**
+     * TCK-2465 — la galerie gardée : absolutisée contre la page, `https` seulement, sur l'un des hôtes EXACTS déclarés,
+     * sans doublon, dans l'ordre, au plus `HtmlCleaner::MAX_PHOTOS`. Le HTML est une donnée : une URL d'ailleurs est
+     * ignorée.
+     *
+     * @param  list<mixed>  $candidates
+     * @param  list<string>  $hosts
+     * @return list<string>
+     */
+    private static function keepPhotos(array $candidates, string $pageUrl, array $hosts): array
+    {
+        $photos = [];
+        foreach ($candidates as $candidate) {
+            $url = is_string($candidate) && trim($candidate) !== '' ? self::absolute($candidate, $pageUrl) : null;
+            if ($url === null || strtolower((string) parse_url($url, PHP_URL_SCHEME)) !== 'https'
+                || ! in_array(strtolower((string) parse_url($url, PHP_URL_HOST)), $hosts, true)) {
+                continue;
+            }
+            $photos[$url] = true;
+            if (count($photos) >= HtmlCleaner::MAX_PHOTOS) {
+                break;
+            }
+        }
+
+        return array_keys($photos);
+    }
+
+    /**
+     * TCK-2465 — le texte d'un nœud, ses paragraphes gardés : un saut de ligne entre deux blocs (`p`, `div`, `li`,
+     * `br`…), les blancs repliés dans une ligne, les lignes vides retirées.
+     */
+    private static function paragraphs(?DOMNode $node): ?string
+    {
+        if ($node === null) {
+            return null;
+        }
+
+        $parts = [];
+        $walk = function (DOMNode $current) use (&$walk, &$parts): void {
+            foreach ($current->childNodes as $child) {
+                if ($child->nodeType === XML_TEXT_NODE || $child->nodeType === XML_CDATA_SECTION_NODE) {
+                    $parts[] = $child->nodeValue;
+                } elseif ($child->nodeType === XML_ELEMENT_NODE) {
+                    $block = in_array(strtolower($child->nodeName), ['p', 'div', 'li', 'br', 'ul', 'ol', 'h1', 'h2', 'h3', 'h4', 'tr'], true);
+                    $parts[] = $block ? "\n" : ' ';
+                    $walk($child);
+                    $parts[] = $block ? "\n" : ' ';
+                }
+            }
+        };
+        $walk($node);
+
+        return self::cleanParagraphs(implode('', $parts));
+    }
+
+    /** Des lignes repliées, sans ligne vide : « a\r\n\r\n  b » → « a\nb ». */
+    private static function cleanParagraphs(?string $text): ?string
+    {
+        $lines = array_filter(array_map(
+            fn (string $line) => trim((string) preg_replace('/[^\S\n]+/u', ' ', $line)),
+            preg_split('/\R/u', (string) $text) ?: [],
+        ), fn (string $line) => $line !== '');
+
+        return $lines === [] ? null : implode("\n", $lines);
+    }
+
+    /**
+     * TCK-2465 — le nom d'un vendeur qui dit une entreprise (« Agence … », « … Immobilier », « SARL », « Promoteur »…) :
+     * un indice de nature, cité tel qu'écrit. Ce n'est pas une décision : la nature se juge ailleurs, sur tous les
+     * indices.
+     *
+     * @return list<array{signal: string, evidence: ?string}>
+     */
+    private static function businessNameSignal(?string $name): array
+    {
+        $folded = self::fold($name);
+
+        return $name !== null && preg_match('/\b(agence|immobili\w*|immo|promoteur|promotion|sarl|suarl|sas|groupe|group|company|properties|real estate|realty|invest\w*|construction|btp|cabinet)\b/u', $folded) === 1
+            ? [['signal' => 'business_name', 'evidence' => $name]]
+            : [];
     }
 }

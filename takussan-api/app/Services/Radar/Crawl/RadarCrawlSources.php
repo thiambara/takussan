@@ -44,6 +44,15 @@ final class RadarCrawlSources
     }
 
     /**
+     * TCK-2465 (ADR-0087 §1) — l'adaptateur qui lit la page d'une annonce de ce site, qu'elle vienne de la collecte ou
+     * d'une URL saisie à la main (`source_site`) ; null pour un site sans adaptateur configuré (Facebook, autre…).
+     */
+    public function adapterFor(?RadarSourceSite $site): ?RadarSiteAdapter
+    {
+        return $site !== null && $this->has($site->value) ? $this->adapter($site) : null;
+    }
+
+    /**
      * Les lignes des sites configurés, créées éteintes au besoin, dans l'ordre de la configuration.
      *
      * @return Collection<int, RadarCrawlSource>
