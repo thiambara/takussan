@@ -595,8 +595,55 @@ Canal de notification **WhatsApp sortant** qui remplace certains SMS pour les fa
 | P1 | Tous | Tri dynamique sur toutes les colonnes listables |
 | P1 | Tous | Recherches sauvegardées par utilisateur |
 | P2 | Tous | Recherche full-text sur messages et documents |
-| P2 | Tous | Suggestions d'autocomplétion |
+| P2 | Tous | Suggestions d'autocomplétion — `GET /api/search/suggest` : la saisie comprise et son nombre de biens, des complétions, des lieux, trois biens, et à saisie vide les recherches populaires (TCK-2474, [ADR-0088](adr/0088-le-journal-anonyme-des-recherches.md)) |
+| P2 | Tous | Saisie libre comprise en critères : type, contrat, période, prix, chambres, surface, meublé, ville, quartier, équipements ; le reste est cherché en texte (TCK-2473) |
+| P2 | 🛡️ | Journal anonyme et agrégé des recherches publiques : une ligne par jour et par recherche, rien par personne ; il nourrit les recherches populaires de la suggestion et la demande sans résultat du Radar (TCK-2472, [ADR-0088](adr/0088-le-journal-anonyme-des-recherches.md)) |
 | P3 | Tous | Recherche sémantique par embeddings |
+
+**Règles de gestion — journal et suggestions** ([ADR-0088](adr/0088-le-journal-anonyme-des-recherches.md)).
+
+- **Le journal ne garde rien par personne** (TCK-2472) : par jour et par recherche, la saisie normalisée (minuscules,
+  sans accents, blancs repliés), les critères retenus, le nombre de recherches, de visiteurs distincts, de recherches
+  sans résultat et le dernier nombre de résultats (`search_query_stats`) — ni compte, ni IP, ni position, ni
+  identifiant durable. Le visiteur distinct se compte par une empreinte du jour (HMAC de l'IP, ou de son /64, et du
+  jour), effacée d'heure en heure dès 47 heures (`search:purge-journal`) ; les lignes vivent 13 mois. La politique de
+  confidentialité le dit (§ 2.2, § 3 et § 6) et `VERSION_DOCUMENTS` a avancé au 2026-11-04.
+- **Ce qui est journalisé** : la page 1 de la liste publique (`GET /api/public/properties/search`) avec une saisie ou
+  au moins un critère, après la réponse, sans jamais faire échouer la recherche. Pas une frappe (la suggestion
+  n'écrit rien), pas un robot déclaré, pas la rangée « À vendre » de l'accueil (`placements=false`), pas une recherche
+  vide. Les coordonnées, la date de disponibilité et ce qui règle l'affichage ne sont pas retenus. Une recherche servie
+  par l'élargissement (ADR-0024) compte sans résultat.
+- **Jamais journalisé** : une saisie, ou un critère libre (ville, villes, région, lieu, étiquettes), de plus de 80
+  caractères, qui porte six chiffres ou plus sur toute la saisie (`77 123 45 67` compte), ou un `@` (aussi en pleine
+  chasse) — ni le texte, ni la recherche qui le porte.
+- **Une recherche n'est montrée qu'après cinq visiteurs distincts un même jour** (`search.journal.min_visitors`) et
+  seulement si elle rend encore des résultats ; la demande sans résultat ne sort que vers le Radar
+  ([§2.12](#212-radar--acquisition-dannonces), à deux visiteurs au moins) et jamais au public.
+- **La saisie libre est comprise par du code, jamais par l'IA** (TCK-2473, `SearchQueryParser`) : type (les mots de
+  `lang/{fr,en}/properties.php` et les alias français ; le wolof lit le vocabulaire français), contrat et période,
+  prix (« 500k », « 2 millions », « entre 300 et 600k », « max 450 000 »), chambres en **minimum** (« 3 chambres »,
+  « F4 » = 3 chambres, studio = F1), surface, meublé, ville et quartier du référentiel (quartiers approuvés ; un nom à
+  la fois ville et quartier est la ville ; un quartier présent dans deux villes ne nomme aucune ville), équipements du
+  catalogue (`parking` et `garage` sont un type seuls, un équipement après « avec » ou à côté d'un autre type). Une
+  faute de frappe n'est corrigée que sur un mot-clé, jamais sur un lieu. Un numéro de téléphone ou un étage (`R+1`) ne
+  sont jamais un prix, ni un nombre nu de moins de 10 000 sans groupement, monnaie, multiplicateur ni opérateur
+  (« villa neuve 2024 ») ; « duplex » et « grand standing » restent du texte. Ce qui n'est
+  pas compris reste cherché en texte (`residue`). Le lexique des lieux se relit au plus toutes les 10 minutes.
+- **Contrat de `GET /api/search/suggest`** (TCK-2474 ; `q` ≤ 50 caractères, `limit` ≤ 30, limiteur `search-suggest`
+  à 60 par minute et par visiteur ; réponse en cache public 60 s) : `interpretation` (présente quand un critère est
+  compris : `criteria`, `parts` — `{key, value, from, to}`, positions en caractères, sans libellé —, `residue`,
+  `count`), `completions` (au plus 5 : `{text, criteria, count}`), `popular` (à saisie vide seulement, au plus 6),
+  `places` (`{kind, label, city, count, criteria}`, cherchés sur le texte encore incompris, sinon sur le lieu compris),
+  `previews` (au plus 3 biens publics : identifiant, slug, titre, prix, période, contrat, quartier, ville, vignette).
+  `criteria` est toujours un objet (`{}` vide). **Tous les `count` sont des nombres de biens** que la liste publique
+  rend sous ces critères, jamais de visiteurs : celui d'`interpretation` en direct, ceux de l'index au dernier passage
+  de sa construction. Écart assumé : sous une saisie de plusieurs mots incompris qui ne rend rien, la liste élargit et
+  affiche le total élargi, quand `interpretation.count` dit 0. Les anciennes clés (`cities`, `neighborhoods`,
+  `property_types`) sont encore rendues, à côté.
+- **L'index des suggestions** (`search_suggestions`, Meilisearch) se reconstruit en entier chaque heure
+  (`search:build-suggestions`) puis s'échange d'un coup avec l'index servi ; le déploiement le construit s'il manque
+  (`--if-missing`), sans arrêter le déploiement s'il échoue. Avant sa première construction, la suggestion rend la
+  saisie comprise et ses biens, sans complétions ni lieux.
 
 ### 2.5 Reporting & tableaux de bord
 
@@ -984,6 +1031,11 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
 | P1 | 🛡️ | Retrait de l'accord (STOP, ou révocation par la plateforme, `POST /api/admin/radar/advertisers/{id}/revoke`, `super_admin` seulement, motif obligatoire) : les biens publiés quittent la surface publique et l'index de recherche sur-le-champ, l'annonceur n'est plus jamais contacté (TCK-2391) |
 | P1 | 🛡️ | Purge des annonces jamais publiées à 90 jours ou dès un STOP, en conservant l'empreinte du numéro qui a refusé ; purge quotidienne (`radar:purge`, 04:15 Dakar), doublée d'un job lancé dès la révocation (TCK-2391) |
 | P2 | 🛡️ | Collecte automatique planifiée sur Expat-Dakar et CoinAfrique, **éteinte par défaut** : le `super_admin` allume chaque site, règle sa fréquence, ses pages et ses URL de départ (plusieurs par site, une page par ville ou par catégorie ; `https` sur un hôte que l'adaptateur du site déclare ; vides : l'URL de la configuration), lance un passage (`/super-admin/radar/collecte`) ; chaque passage lit chacune de ses listes dans un plafond de pages et un budget de temps communs (`robots.txt` respecté, un seul passage actif par site), saisit les annonces nouvelles et date leurs instantanés (prix, surface, quartier, présence) ; la même annonce vue sur deux sites peut être fusionnée d'office en une fiche à deux provenances, que l'opérateur peut séparer — fusion **éteinte par défaut** (`RADAR_MERGE_AUTO`) (TCK-2392, TCK-2438, [ADR-0080](adr/0080-la-collecte-automatique-du-radar.md)) |
+| P1 | 🛡️ | Lecture d'une annonce par l'adaptateur de son site, sans IA (CoinAfrique, Expat-Dakar) : numéros de l'annonceur pris aux liens et attributs de la page (`tel:`, WhatsApp, `data-*`), jamais celui du site ; galerie entière ; prix, contrat, type, lieu, pièces, surface, date, vendeur et ses indices professionnels ; un site sans adaptateur passe par le lecteur générique, qui récolte aussi les numéros des attributs et retire le menu du site (TCK-2465, [ADR-0087](adr/0087-le-radar-lit-par-site-decouvre-par-sitemap-et-cible-la-demande.md)) |
+| P1 | 🛡️ | Extraction économe : ce que la page dit en clair fait foi, l'IA ne cherche que ce qui manque, sur le petit modèle d'abord ; la fiche de relecture dit « Lu sur la page » et, quand l'IA proposait autre chose, sa valeur (TCK-2466, TCK-2469) |
+| P2 | 🛡️ | Découverte par sitemap : une source dont l'adaptateur déclare des sitemaps (Expat-Dakar, neuf catégories) lit tout l'inventaire du site en quelques requêtes, saisit les annonces neuves et relit sans IA celles que le site a modifiées ; CoinAfrique reste aux listes ; réglable par source dans l'API (`discovery`) (TCK-2467) |
+| P2 | 🛡️ | Cibles du Radar (`/super-admin/radar/targets`) : des critères (villes et quartiers, types, contrat, prix, chambres, meublé, sites, fraîcheur) qui bornent ce qu'une source **ciblée** saisit ; liste dense filtrée par état et origine, création et réglage avec résumé en direct, page d'une cible avec ses chiffres et ses annonces trouvées ; portée de chaque source (ciblée ou tout) réglée sur la collecte, colonne « Hors cible » des passages (TCK-2468, TCK-2469) |
+| P2 | 🛡️ | Cibles de la demande : la demande sans résultat (recherches sauvegardées, journal anonyme des recherches) regroupée chaque nuit par l'IA en cibles d'origine « demande », sous plafond ; chaque passage garde sa révision, qui se défait ; **éteint par défaut** (TCK-2470) |
 | P2 | 🛡️ | Annonceurs et observatoire du marché (`/super-admin/radar/observatory`) : classement des annonceurs par volume d'annonces vivantes (quartiers principaux, gammes de prix, sites, nature présumée, piste commerciale jusqu'à la demande de passage en agence) ; prix au m² par quartier, type et contrat ; temps de mise sur le marché ; quartiers où Takussan manque d'annonces ; part d'intermédiaires probables ; alerte quand l'annonce source d'un bien publié disparaît (TCK-2393, [ADR-0083](adr/0083-l-observatoire-du-marche.md)) ; part par nature sur une période, en annonceurs-jours, lue sur des compteurs anonymes quotidiens qui survivent à la purge — **éteints par défaut** (`RADAR_NATURE_COUNTS`), jusqu'à l'avis juridique de TCK-2434 (TCK-2431) |
 | P2 | 🛡️ | Relance d'activation d'un compte créé par « publier pour lui » et jamais activé : texte fixe versionné (`activation.v1`) avec les chiffres réels de la période — vues, demandes de contact et de visite, crédits offerts à l'activation —, ouvert dans WhatsApp puis marqué envoyé ; une relance par semaine au plus (`radar.activation.min_interval_days`) (TCK-2394) |
 | P2 | 🛡️ | Publication sous mandat Takussan (`super_admin`, drapeau `radar_mandate`, [ADR-0079](adr/0079-la-publication-sous-mandat-takussan.md), accepté sur le principe ; drapeau éteint jusqu'à l'avis de l'avocat et la livraison de TCK-2422 ; la reprise de TCK-2421 est livrée) : sur un accord confirmé, l'annonceur qui ne veut pas de compte voit ses annonces publiées dans l'espace des mandats (réglage `radar.mandate_agency_id`), son numéro en contact, sans compte créé ; second message `mandat.v2`, qui porte le lien par lequel l'annonceur reprend ses biens dans son espace, ou `mandat.v1`, sans lien, quand la connexion par téléphone est éteinte ou l'aperçu des codes actif (TCK-2394, TCK-2421) |
@@ -1362,10 +1414,72 @@ catalogue tant que cet accord n'existe pas. Vision et lots : [plan du 2026-10-26
   « en ligne » que si la collecte la suit encore, sur un site allumé dont un passage complet est
   récent (`radar.observe.online_horizon_days`, 3 jours, ou la fréquence du site multipliée par
   `radar.observe.confirm_runs` si elle est plus longue).
+- **La page d'une annonce est lue par l'adaptateur de son site, sans IA** (TCK-2465,
+  [ADR-0087 §1, §3](adr/0087-le-radar-lit-par-site-decouvre-par-sitemap-et-cible-la-demande.md)). Ce qu'elle dit en clair
+  est gardé à part (`source_fields`, rendu par l'API, effacé par la purge) : numéros de l'annonceur pris aux liens
+  `tel:`, `sms:`, WhatsApp et aux attributs `data-*`, galerie entière (20 photos au plus), prix et devise, contrat, type,
+  lieu, pièces (jamais lues comme des chambres), salles de bain, surface, date de mise en ligne, nom du vendeur et ses
+  indices (boutique, nombre d'annonces, ancienneté, nom d'entreprise). Le texte envoyé au modèle n'est plus que le titre
+  et la description. **Le numéro du site lui-même n'est jamais celui d'un annonceur**, même cité dans une description
+  (`excludedPhones()`) ; les numéros lus sur la page passent devant ceux du texte et du modèle. Une page que l'adaptateur
+  ne reconnaît pas, ou un site sans adaptateur, passe par le lecteur générique, qui récolte aussi les numéros des
+  attributs — hors en-tête, pied de page et navigation, qui sont ceux du site — et retire le menu reconnaissable.
+  L'opérateur peut rattacher l'annonceur à un numéro lu sur la page.
+- **La valeur lue sur la page fait foi** (TCK-2466, ADR-0087 §2). Elle remplace celle du modèle, en confiance haute,
+  et la fiche de relecture dit « Lu sur la page » ; une valeur du modèle qui la contredit est signalée
+  (`source_conflict`, avec la valeur qu'il proposait) et jamais retenue — ce signal n'abaisse pas la confiance de la
+  valeur lue. Le modèle ne reçoit que la liste de ce qui est déjà lu (ni le nom du vendeur ni ses numéros) et le titre
+  et la description, numéros masqués ; une annonce sans champ lu (texte, captures, lecteur générique) lui est envoyée
+  exactement comme avant. **L'appel est sauté** quand la page dit le type, le contrat, le prix, la ville ou le quartier,
+  et les chambres (ou un terrain, bureau, commerce, entrepôt) : ni appel, ni suggestion à juger. La nature de
+  l'annonceur se déduit des indices du vendeur (nom d'entreprise → agence, boutique → intermédiaire probable). Le rôle
+  `extraction` part sur `claude-haiku-5-5`, `claude-sonnet-5-5` en repli (une affectation de la console l'emporte) ;
+  prompt `v4`. L'évaluation payante du petit modèle n'a pas été jouée.
+- **Une source découvre par sitemap ou par listes** (TCK-2467, ADR-0087 §4). Sans réglage, le défaut de l'adaptateur :
+  sitemap pour Expat-Dakar (neuf sitemaps de catégories), listes pour CoinAfrique ; `PATCH
+  /api/admin/radar/crawl/sources/{site}` règle `discovery` (`sitemap`, `lists`, ou `null` pour le défaut ; `sitemap`
+  sur un site qui n'en déclare pas : 422 `radar.crawl.discovery_unavailable`) — la console ne l'affiche pas encore. Par
+  sitemap, une URL neuve passe le filtre des cibles puis est saisie, au plus `radar.crawl.max_new_per_run` (200) par
+  passage, les plus récentes d'abord ; une URL connue dont le `lastmod` avance est relue après le passage, sans IA, et
+  seul un prix changé ouvre un instantané ; une annonce encore à extraire n'est jamais relue. Une annonce n'a disparu
+  qu'après deux lectures **complètes** de tous les sitemaps : un sitemap refusé, illisible (y compris une page d'erreur
+  servie en `200`, ou un document qui porte `<!DOCTYPE` ou `<!ENTITY`) ou vide rend la lecture incomplète. Les URL de
+  départ et le plafond de pages ne valent que pour les listes. Lecture par `UrlFetcher` : SSRF, `robots.txt` et créneau
+  par domaine, comme une page.
+- **Une cible borne ce qu'une source ciblée saisit** (TCK-2468, ADR-0087 §5). Une source est **ciblée par défaut**,
+  sources existantes comprises : elle ne saisit une annonce nouvelle que si sa carte (ou l'entrée de son sitemap) peut
+  correspondre à au moins une cible active de son site — une valeur absente de la carte n'exclut rien, un lieu inconnu
+  ou la ville seule n'excluent rien ; une carte écartée ne crée rien et n'est comptée que dans « Hors cible ». **Sans
+  aucune cible active, une source ciblée ne lit rien** (`radar.crawl.no_target`) : au déploiement, une source allumée
+  cesse de saisir tant qu'aucune cible n'existe ou qu'elle n'est pas réglée sur « tout ». Une annonce déjà connue reste
+  observée. Après l'extraction ou la relecture, l'annonce est rattachée aux cibles actives dont elle remplit
+  **strictement** les critères ; une cible créée après coup ne rattache pas les annonces déjà extraites. Au plus
+  `radar.targets.max_active` (50) cibles actives (`radar.targets.too_many`), aucune en double
+  (`radar.targets.duplicate`, qui mène à la cible existante) ; une cible ne s'efface jamais, elle se retire. Routes :
+  `GET /api/admin/radar/targets`, `/{id}`, `/{id}/listings` ; `POST`, `PATCH` (`active` ou `paused`), `DELETE`
+  (retirer). La console ne propose aucun geste sur une cible retirée ; l'API, elle, la réactive par `PATCH`, sous plafond
+  et doublon.
+- **Les cibles de la demande sont tenues par l'IA, jamais celles de l'opérateur** (TCK-2470, ADR-0087 §6). Un réglage
+  unique, **éteint par défaut** (`GET`/`PATCH /api/admin/radar/demand`, `POST /api/admin/radar/demand/refresh`) ; celui
+  qui l'allume en devient l'opérateur. Chaque nuit (`radar:refresh-demand-targets`, 03:40 Dakar, file `ai`), le code lit
+  la demande sans résultat — recherches sauvegardées actives sans résultat, et recherches du journal anonyme qui n'ont
+  rien rendu dans les 30 derniers jours et ne rendent toujours rien, à deux visiteurs au moins — et n'en garde que des
+  critères structurés : **rien de ce
+  qu'un visiteur a tapé** n'est envoyé ; un lieu n'entre que reconnu par le référentiel, sous son nom, et un lieu
+  inconnu, une région ou un point écartent le signal. Si ces signaux ont changé depuis la dernière révision, l'usage
+  `radar.cibles` (rôle `extraction`, 0,50 $ par jour au plus) propose de créer, modifier, fusionner ou retirer des
+  cibles d'origine « demande » ; le code valide chaque opération (critères, plafond `radar.targets.max_demand` de 20
+  cibles actives de la demande, doublon) et écarte, en le consignant, ce qui ne passe pas. L'IA ne touche jamais une
+  cible de l'opérateur, épinglée, en pause ou retirée ; modifier les critères d'une cible de la demande depuis la console
+  l'épingle. Chaque passage qui appelle le modèle garde sa révision (`GET /api/admin/radar/targets/revisions`), qui se
+  défait (`POST …/revisions/{id}/revert`) : une cible créée est retirée, et c'est refusé si une révision plus récente
+  touche les mêmes cibles ou si l'opérateur en a épinglé une. Limite connue : `saved_searches.results_count` n'est écrit
+  par aucun code, si bien que toute recherche sauvegardée active compte aujourd'hui comme sans résultat.
 - Droits : `support` saisit, relit, démarche (relance d'activation comprise), dépose les preuves,
-  sépare une fusion d'office et lit la collecte et l'observatoire ; seul `super_admin` publie pour l'annonceur ou sous mandat,
-  allume, règle et lance la collecte, et délie un compte supprimé (TCK-2392, TCK-2393, TCK-2394,
-  TCK-2413).
+  sépare une fusion d'office et lit la collecte, l'observatoire, les cibles et les révisions de la demande ; seul
+  `super_admin` publie pour l'annonceur ou sous mandat, allume, règle et lance la collecte (portée et découverte
+  comprises), crée, modifie et retire les cibles, allume la demande, la rafraîchit et défait une révision, et délie un
+  compte supprimé (TCK-2392, TCK-2393, TCK-2394, TCK-2413, TCK-2468, TCK-2470).
 
 ---
 
