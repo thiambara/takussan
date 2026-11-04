@@ -24,7 +24,7 @@ import type {
   RadarTargetRevisionOperation,
   RadarTargetRevisionResponse,
 } from '@/types/radar';
-import { ECARTS_DEMANDE_RADAR, MOTIFS_REVISION_RADAR } from '../codes-radar';
+import { ECARTS_DEMANDE_RADAR, MOTIFS_REVISION_RADAR, REFUS_REVISION_RADAR } from '../codes-radar';
 import { RadarNav } from '../RadarNav';
 import { morceauxDuResume, parametresDuRefus, SEPARATEUR_DU_RESUME } from './criteres';
 import { codeDuRefus, useMessageRefusCible } from './useMessageRefusCible';
@@ -71,8 +71,9 @@ function useMessageRefusRevision() {
   return (erreur: unknown, revision: RadarTargetRevision): string => {
     const code = codeDuRefus(erreur);
     const params = parametresDuRefus(erreur);
-    if (code === 'radar.targets.revision_reverted') return t('errors.alreadyReverted');
-    if (code === 'radar.targets.revision_superseded') {
+    const refus = code === undefined ? undefined : REFUS_REVISION_RADAR[code];
+    if (refus === 'alreadyReverted') return t('errors.alreadyReverted');
+    if (refus === 'superseded') {
       if (typeof params.revision_id === 'number') return t('errors.superseded', { id: params.revision_id });
       if (typeof params.target_id === 'number') {
         const nom = nomDAvant(revision, params.target_id) ?? nomsDeLaRevision(revision).get(params.target_id)

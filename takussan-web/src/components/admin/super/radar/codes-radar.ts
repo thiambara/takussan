@@ -277,6 +277,16 @@ export const ERREURS_CIBLES_RADAR: Record<string, string> = {
 };
 
 /**
+ * TCK-2470 — les refus de « défaire » une révision (`RadarDemandCurator::revert`, 409). Libellés sous
+ * `superAdmin.pages.radar.targets.revisions.errors` ; `superseded` se décline selon `params.revision_id` ou `params.target_id`
+ * (`RevisionsDemande.tsx`).
+ */
+export const REFUS_REVISION_RADAR: Record<string, string> = {
+  'radar.targets.revision_reverted': 'alreadyReverted',
+  'radar.targets.revision_superseded': 'superseded',
+};
+
+/**
  * TCK-2470 — ce qui empêche un passage des cibles de la demande (`blocked_reason`, et le 409 de « rafraîchir
  * maintenant »). Libellés sous `superAdmin.pages.radar.targets.demand.blocked`.
  */
