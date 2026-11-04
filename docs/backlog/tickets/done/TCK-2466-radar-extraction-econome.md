@@ -1,7 +1,7 @@
 ---
 id: TCK-2466
 title: "Radar : l'IA ne reçoit que la description et ce qui manque, sur un petit modèle ; la valeur lue fait foi"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: M
@@ -39,26 +39,26 @@ usage du rôle `extraction` (`grep AiModelRole::Extraction app`). TCK-2465 pose 
 
 ## Delta à produire
 
-- [ ] `ExtractRadarListing` : l'entrée du modèle = les champs déjà lus (liste courte « déjà connu ») + le titre et la
+- [x] `ExtractRadarListing` : l'entrée du modèle = les champs déjà lus (liste courte « déjà connu ») + le titre et la
       description seuls ; le prompt demande de ne remplir que ce qui manque.
-- [ ] **Appel sauté** quand `source_fields` porte type, contrat, prix, ville ou quartier, et (chambres, ou un type sans
+- [x] **Appel sauté** quand `source_fields` porte type, contrat, prix, ville ou quartier, et (chambres, ou un type sans
       chambre : terrain, bureau, commerce, entrepôt) : l'extraction est composée sans le modèle, la nature de l'annonceur
       est déduite des `sellerSignals` (boutique / vérifié pro / promoteur → `agency` ou `intermediary` probable, sinon
       `unknown`), et l'annonce passe `extracted`. Aucune tentative n'est comptée.
-- [ ] `ExtractionNormalizer` : fusion « lu d'abord », drapeau `source_conflict`.
-- [ ] `config/ai.php`, rôle `extraction` : `claude-haiku-5-5` en premier maillon, `claude-sonnet-5-5` en repli.
-- [ ] Tests : `RadarExtractionSourceFieldsTest` (valeur lue retenue, contradiction signalée, appel sauté quand tout est
+- [x] `ExtractionNormalizer` : fusion « lu d'abord », drapeau `source_conflict`.
+- [x] `config/ai.php`, rôle `extraction` : `claude-haiku-5-5` en premier maillon, `claude-sonnet-5-5` en repli.
+- [x] Tests : `RadarExtractionSourceFieldsTest` (valeur lue retenue, contradiction signalée, appel sauté quand tout est
       lu — la passerelle simulée n'est pas appelée), et une mesure : jetons d'entrée sur les fixtures de TCK-2465 avant /
       après, écrite dans les Notes.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Une annonce dont la page donne type, contrat, prix, lieu et chambres est `extracted` sans aucun appel au modèle
+- [x] AC1 — Une annonce dont la page donne type, contrat, prix, lieu et chambres est `extracted` sans aucun appel au modèle
       (aucune ligne `ai_calls`).
-- [ ] AC2 — Quand le modèle rend un prix différent du prix lu, l'extraction garde le prix lu et porte `source_conflict`.
-- [ ] AC3 — Le texte envoyé au modèle pour la fixture CoinAfrique de TCK-2465 fait moins de 2 000 caractères (contre
+- [x] AC2 — Quand le modèle rend un prix différent du prix lu, l'extraction garde le prix lu et porte `source_conflict`.
+- [x] AC3 — Le texte envoyé au modèle pour la fixture CoinAfrique de TCK-2465 fait moins de 2 000 caractères (contre
       6 041 mesurés).
-- [ ] AC4 — Ablation : retirer la fusion « lu d'abord » fait rougir AC2.
+- [x] AC4 — Ablation : retirer la fusion « lu d'abord » fait rougir AC2.
 
 ## Hors périmètre
 

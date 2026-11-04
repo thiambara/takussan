@@ -1,7 +1,7 @@
 ---
 id: TCK-2471
 title: "Radar : le message d'accord dit à l'annonceur que son bien est recherché sur Takussan, quand une cible de la demande le vise"
-status: todo
+status: done
 phase: P2
 family: full
 estimate: M

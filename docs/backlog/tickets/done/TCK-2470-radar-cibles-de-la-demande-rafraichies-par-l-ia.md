@@ -1,7 +1,7 @@
 ---
 id: TCK-2470
 title: "Radar : la demande sans résultat devient des cibles, que l'IA regroupe et tient à jour chaque nuit, révisions réversibles"
-status: todo
+status: done
 phase: P2
 family: full
 estimate: L
@@ -65,22 +65,22 @@ merge_ids?, name?, criteria?, reason, signal_refs[]}]`.
 
 ## Delta à produire
 
-- [ ] Migrations, modèles `RadarTargetRevision`, `RadarDemandSetting` ; service `RadarDemandSignals` ; service
+- [x] Migrations, modèles `RadarTargetRevision`, `RadarDemandSetting` ; service `RadarDemandSignals` ; service
       `RadarDemandCurator` (appel, validation, application transactionnelle, révision) ; revert.
-- [ ] Contrôleur, FormRequests, ressources ; routes dans `PlatformRoutesDefaultDenyTest`.
-- [ ] Console (front, intentionnel) : sur la page des cibles de TCK-2469, un encart « Demande » (allumer / éteindre,
+- [x] Contrôleur, FormRequests, ressources ; routes dans `PlatformRoutesDefaultDenyTest`.
+- [x] Console (front, intentionnel) : sur la page des cibles de TCK-2469, un encart « Demande » (allumer / éteindre,
       opérateur, dernier passage, « rafraîchir maintenant ») et l'historique des révisions (opérations lisibles, motif
       donné par l'IA, « défaire »).
-- [ ] Tests : `RadarDemandCuratorTest` (passerelle simulée : création, fusion, retrait ; cible opérateur et épinglée
+- [x] Tests : `RadarDemandCuratorTest` (passerelle simulée : création, fusion, retrait ; cible opérateur et épinglée
       intactes ; plafond ; signature inchangée = aucun appel ; revert ; revert dépassé = 409), `RadarDemandApiTest`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Deux recherches sauvegardées sans résultat aux critères voisins + une ligne du journal donnent, après un passage
+- [x] AC1 — Deux recherches sauvegardées sans résultat aux critères voisins + une ligne du journal donnent, après un passage
       dont le modèle propose une fusion, UNE cible `demand` avec `demand_count` = la somme.
-- [ ] AC2 — Une proposition qui retire une cible épinglée ou de l'opérateur est écartée et consignée.
-- [ ] AC3 — « Défaire » rend les cibles touchées à leur état d'avant.
-- [ ] AC4 — Aucun texte saisi par un visiteur, aucun identifiant de compte n'est dans l'entrée du modèle (test sur
+- [x] AC2 — Une proposition qui retire une cible épinglée ou de l'opérateur est écartée et consignée.
+- [x] AC3 — « Défaire » rend les cibles touchées à leur état d'avant.
+- [x] AC4 — Aucun texte saisi par un visiteur, aucun identifiant de compte n'est dans l'entrée du modèle (test sur
       l'entrée envoyée).
 
 ## Hors périmètre

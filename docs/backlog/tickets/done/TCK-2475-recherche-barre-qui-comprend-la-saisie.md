@@ -1,7 +1,7 @@
 ---
 id: TCK-2475
 title: "Recherche : la barre de recherche suggère au fil de la frappe — la saisie comprise, les recherches populaires, les lieux, trois biens, et l'alerte quand rien ne correspond"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: L
@@ -55,10 +55,10 @@ compte et la recherche sauvegardée existent (TCK-599) : les réutiliser.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Taper « appart 3ch almadies » montre la saisie comprise en tête ; Entrée ouvre la liste filtrée par ces critères.
-- [ ] AC2 — Focus sur le champ vide : récentes et populaires ; une recherche faite apparaît dans les récentes.
-- [ ] AC3 — Une saisie sans résultat propose l'alerte, pré-remplie.
-- [ ] AC4 — Tests Vitest de ces trois parcours ; `npm run lint`, `npx tsc --noEmit`, `npm run check:*` verts.
+- [x] AC1 — Taper « appart 3ch almadies » montre la saisie comprise en tête ; Entrée ouvre la liste filtrée par ces critères.
+- [x] AC2 — Focus sur le champ vide : récentes et populaires ; une recherche faite apparaît dans les récentes.
+- [x] AC3 — Une saisie sans résultat propose l'alerte, pré-remplie.
+- [x] AC4 — Tests Vitest de ces trois parcours ; `npm run lint`, `npx tsc --noEmit`, `npm run check:*` verts.
 
 ## Hors périmètre
 

@@ -1,7 +1,7 @@
 ---
 id: TCK-2468
 title: "Radar : des cibles (critères de recherche) bornent ce que la collecte saisit, et chaque cible a ses annonces"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: L
@@ -85,27 +85,27 @@ created_at, updated_at` (dates par `iso()`). `RadarCrawlSourceResource` rend `sc
 
 ## Delta à produire
 
-- [ ] Migrations ci-dessus ; modèles `RadarTarget` (étend `AbstractModel`, `$queryFields`, `$requestFilterable`,
+- [x] Migrations ci-dessus ; modèles `RadarTarget` (étend `AbstractModel`, `$queryFields`, `$requestFilterable`,
       `$requestSortable`) ; relation `RadarListing::targets()`.
-- [ ] `RadarTargetCriteria` (validation, normalisation, signature) ; `RadarTargetMatcher::mayMatchCard(ListCard,
+- [x] `RadarTargetCriteria` (validation, normalisation, signature) ; `RadarTargetMatcher::mayMatchCard(ListCard,
       RadarSourceSite): bool` et `matchingTargets(RadarListing): Collection`.
-- [ ] `RadarCrawler::listingFor()` : filtre par cible quand `scope = targeted` ; compteur `cards_skipped` sur
+- [x] `RadarCrawler::listingFor()` : filtre par cible quand `scope = targeted` ; compteur `cards_skipped` sur
       `radar_crawl_runs` (migration `add_cards_skipped_to_radar_crawl_runs`).
-- [ ] Rattachement après extraction : là où `ExtractRadarListing` passe l'annonce `extracted` (après le commit — ne pas
+- [x] Rattachement après extraction : là où `ExtractRadarListing` passe l'annonce `extracted` (après le commit — ne pas
       élargir sa transaction), et à la relecture validée.
-- [ ] `RadarTargetController` + FormRequests `StoreRadarTargetRequest`, `UpdateRadarTargetRequest` (autorisation dans
+- [x] `RadarTargetController` + FormRequests `StoreRadarTargetRequest`, `UpdateRadarTargetRequest` (autorisation dans
       `authorize()`), `RadarTargetResource`.
-- [ ] Tests : `RadarTargetApiTest` (droits — `PlatformRoutesDefaultDenyTest` reçoit les routes —, validation, 422 codés,
+- [x] Tests : `RadarTargetApiTest` (droits — `PlatformRoutesDefaultDenyTest` reçoit les routes —, validation, 422 codés,
       retrait), `RadarTargetMatcherTest` (permissif sur la carte, strict après extraction, casse ICU des quartiers),
       `RadarCrawlTargetedTest` (une carte hors cible ne crée rien, source `all` inchangée, aucune cible = rien).
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Source `targeted`, une cible « appartement, location, ≤ 700 000 » : une carte « villa à vendre 300 M » ne crée
+- [x] AC1 — Source `targeted`, une cible « appartement, location, ≤ 700 000 » : une carte « villa à vendre 300 M » ne crée
       aucune `radar_listings`, une carte « appartement à louer » sans prix en crée une.
-- [ ] AC2 — Une annonce extraite qui remplit les critères est listée par `GET /targets/{id}/listings`, `matches_count = 1`.
-- [ ] AC3 — Le niveau `support` lit les cibles mais reçoit 403 sur `POST`/`PATCH`/`DELETE`.
-- [ ] AC4 — Ablation : retirer le filtre de `listingFor()` fait rougir AC1.
+- [x] AC2 — Une annonce extraite qui remplit les critères est listée par `GET /targets/{id}/listings`, `matches_count = 1`.
+- [x] AC3 — Le niveau `support` lit les cibles mais reçoit 403 sur `POST`/`PATCH`/`DELETE`.
+- [x] AC4 — Ablation : retirer le filtre de `listingFor()` fait rougir AC1.
 
 ## Hors périmètre
 

@@ -1,7 +1,7 @@
 ---
 id: TCK-2472
 title: "Recherche : le journal anonyme et agrégé des recherches, et ce que la politique de confidentialité en dit"
-status: todo
+status: done
 phase: P2
 family: full
 estimate: M
@@ -64,20 +64,20 @@ donnée sur eux.
 
 ## Delta à produire
 
-- [ ] Migrations, modèles `SearchQueryStat` (+ `models-spec`, signalé dans les Notes — un seul écrivain), service,
+- [x] Migrations, modèles `SearchQueryStat` (+ `models-spec`, signalé dans les Notes — un seul écrivain), service,
       commande planifiée (`routes/console.php`, commentaire `TCK-2472` d'idempotence), `config/search.php` (ou le fichier
       de configuration de la recherche existant) : `journal.min_visitors`, `journal.retention_months`.
-- [ ] Branchement dans la recherche publique.
-- [ ] Tests : `SearchJournalTest` (agrégation, distinct au jour, exclusions, seuil des 5 visiteurs, popularité filtrée
+- [x] Branchement dans la recherche publique.
+- [x] Tests : `SearchJournalTest` (agrégation, distinct au jour, exclusions, seuil des 5 visiteurs, popularité filtrée
       par résultats, purge), test d'intégration « une recherche publique page 1 écrit une ligne, page 2 non ».
-- [ ] Front : `privacy.ts` + `VERSION_DOCUMENTS` + tests des textes juridiques existants.
+- [x] Front : `privacy.ts` + `VERSION_DOCUMENTS` + tests des textes juridiques existants.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Une recherche `q=appart 77 123 45 67` n'écrit aucune ligne.
-- [ ] AC2 — 4 visiteurs distincts le même jour : `popular('')` ne rend pas la saisie ; 5 : il la rend.
-- [ ] AC3 — Une empreinte de visiteur de plus de 48 h est effacée par la purge.
-- [ ] AC4 — Ablation : retirer le filtre des chiffres fait rougir AC1.
+- [x] AC1 — Une recherche `q=appart 77 123 45 67` n'écrit aucune ligne.
+- [x] AC2 — 4 visiteurs distincts le même jour : `popular('')` ne rend pas la saisie ; 5 : il la rend.
+- [x] AC3 — Une empreinte de visiteur de plus de 48 h est effacée par la purge.
+- [x] AC4 — Ablation : retirer le filtre des chiffres fait rougir AC1.
 
 ## Hors périmètre
 

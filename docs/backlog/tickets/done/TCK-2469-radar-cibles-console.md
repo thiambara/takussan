@@ -1,7 +1,7 @@
 ---
 id: TCK-2469
 title: "Radar : la console des cibles — créer, régler, mettre en pause, et voir ce que chaque cible a trouvé"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: M
@@ -49,11 +49,11 @@ les filtres de la recherche publique (villes, quartiers, `PropertyType`) — à 
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Créer une cible depuis la console l'ajoute à la liste avec son résumé ; une validation refusée affiche le
+- [x] AC1 — Créer une cible depuis la console l'ajoute à la liste avec son résumé ; une validation refusée affiche le
       libellé du code.
-- [ ] AC2 — La page d'une cible liste ses annonces paginées et mène à la fiche annonce.
-- [ ] AC3 — Le niveau `support` ne voit aucun bouton d'écriture.
-- [ ] AC4 — Tests Vitest des trois points ci-dessus ; `npm run lint`, `npx tsc --noEmit`, `npm run check:*` verts.
+- [x] AC2 — La page d'une cible liste ses annonces paginées et mène à la fiche annonce.
+- [x] AC3 — Le niveau `support` ne voit aucun bouton d'écriture.
+- [x] AC4 — Tests Vitest des trois points ci-dessus ; `npm run lint`, `npx tsc --noEmit`, `npm run check:*` verts.
 
 ## Hors périmètre
 

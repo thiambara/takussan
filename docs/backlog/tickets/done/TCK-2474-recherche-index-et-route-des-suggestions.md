@@ -1,7 +1,7 @@
 ---
 id: TCK-2474
 title: "Recherche : un index dédié aux suggestions et une route qui rend, en une requête, la saisie comprise, les recherches populaires, les lieux et trois biens"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: L
@@ -77,18 +77,18 @@ max-age=60`, `Vary: Accept-Language`). Réponse — les clés existantes restent
 
 ## Delta à produire
 
-- [ ] Index, builder, commande, planification ; `SuggestService` étendu (ou remplacé derrière la même route, sans casser
+- [x] Index, builder, commande, planification ; `SuggestService` étendu (ou remplacé derrière la même route, sans casser
       `SuggestRequest` ni les tests existants qu'on garde verts).
-- [ ] Tests : `SuggestionIndexBuilderTest`, `SuggestInterpretationTest` (AC ci-dessous), `SuggestPopularTest`,
+- [x] Tests : `SuggestionIndexBuilderTest`, `SuggestInterpretationTest` (AC ci-dessous), `SuggestPopularTest`,
       `SuggestPreviewsTest`, les tests existants de la suggestion.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `q=appart 3ch almadies` rend `interpretation.criteria` attendu et `count` égal au total de `/api/properties`
+- [x] AC1 — `q=appart 3ch almadies` rend `interpretation.criteria` attendu et `count` égal au total de `/api/properties`
       sous les mêmes paramètres.
-- [ ] AC2 — `q=dakr` rend Dakar dans `places` (une faute à 4 caractères).
-- [ ] AC3 — `q=` rend `popular` (recherches du journal au-dessus du seuil seulement).
-- [ ] AC4 — Les clés `cities`, `neighborhoods`, `property_types` gardent leur forme (le front actuel continue de marcher).
+- [x] AC2 — `q=dakr` rend Dakar dans `places` (une faute à 4 caractères).
+- [x] AC3 — `q=` rend `popular` (recherches du journal au-dessus du seuil seulement).
+- [x] AC4 — Les clés `cities`, `neighborhoods`, `property_types` gardent leur forme (le front actuel continue de marcher). *Tenu jusqu\'à TCK-2475 ; `cities` et `neighborhoods` retirées ensuite sur décision du porteur (4a, 2026-11-04), `property_types` garde sa forme.*
 
 ## Hors périmètre
 

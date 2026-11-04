@@ -1,7 +1,7 @@
 ---
 id: TCK-2467
 title: "Radar : une source découvre ses annonces par le sitemap du site, ne relit que le neuf et le modifié, et voit les disparues"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: M
@@ -42,25 +42,25 @@ toutes catégories mêlées — **pas de découverte par sitemap pour CoinAfriqu
 
 ## Delta à produire
 
-- [ ] `RadarSiteAdapter::sitemapUrls(): list<string>` (vide = pas de sitemap) et `sitemapCategory(string $sitemapUrl):
+- [x] `RadarSiteAdapter::sitemapUrls(): list<string>` (vide = pas de sitemap) et `sitemapCategory(string $sitemapUrl):
       array{type:?string, contract:?string}` ; Expat-Dakar les déclare, CoinAfrique rend `[]`.
-- [ ] Migration `add_discovery_to_radar_crawl_sources` : `discovery` string (`lists` | `sitemap`), défaut `sitemap` quand
+- [x] Migration `add_discovery_to_radar_crawl_sources` : `discovery` string (`lists` | `sitemap`), défaut `sitemap` quand
       l'adaptateur en déclare, sinon `lists` ; réglable par `PATCH …/crawl/sources/{site}` (`platform.radar.publish`).
-- [ ] Migration `add_source_lastmod_to_radar_listings` : `source_lastmod timestamptz null`.
-- [ ] `RadarCrawler` : marche par sitemap (lecture XML sans réseau ni entités externes — `LIBXML_NONET`, pas
+- [x] Migration `add_source_lastmod_to_radar_listings` : `source_lastmod timestamptz null`.
+- [x] `RadarCrawler` : marche par sitemap (lecture XML sans réseau ni entités externes — `LIBXML_NONET`, pas
       d'`XXE`) ; URL neuve → cible → saisie ; `lastmod` plus récent → job `RefreshRadarListing` (lit la page par
       l'adaptateur, met à jour `source_fields`, `source_lastmod`, l'instantané) ; une lecture complète de tous les sitemaps
       = `reached_end`, périmètre = la liste triée des sitemaps (l'observatoire juge les disparues comme aujourd'hui,
       ADR-0083, `RadarSourceWatch`).
-- [ ] Tests : `RadarSitemapCrawlTest` (URL neuve saisie, `lastmod` inchangé ignoré, changé relu sans IA, plafond d'URL
+- [x] Tests : `RadarSitemapCrawlTest` (URL neuve saisie, `lastmod` inchangé ignoré, changé relu sans IA, plafond d'URL
       neuves, sitemap trop gros refusé, XML avec entité externe refusé), et la disparition après deux lectures complètes.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Un passage sur un sitemap semé de 3 URL (dont 1 connue au même `lastmod`) saisit 2 annonces et n'en relit aucune.
-- [ ] AC2 — Une URL connue dont le `lastmod` avance est relue sans appel au modèle, et un prix changé ouvre un instantané.
-- [ ] AC3 — Une URL absente de deux lectures complètes est déclarée disparue ; absente d'une lecture coupée, non.
-- [ ] AC4 — Au-delà de `max_new_per_run` URL neuves, le reste n'est pas saisi par ce passage.
+- [x] AC1 — Un passage sur un sitemap semé de 3 URL (dont 1 connue au même `lastmod`) saisit 2 annonces et n'en relit aucune.
+- [x] AC2 — Une URL connue dont le `lastmod` avance est relue sans appel au modèle, et un prix changé ouvre un instantané.
+- [x] AC3 — Une URL absente de deux lectures complètes est déclarée disparue ; absente d'une lecture coupée, non.
+- [x] AC4 — Au-delà de `max_new_per_run` URL neuves, le reste n'est pas saisi par ce passage.
 
 ## Hors périmètre
 

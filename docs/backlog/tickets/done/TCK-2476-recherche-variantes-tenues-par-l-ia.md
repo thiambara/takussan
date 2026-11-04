@@ -1,7 +1,7 @@
 ---
 id: TCK-2476
 title: "Recherche : l'IA tient chaque semaine les variantes d'écriture (Wakam → Ouakam, appart, F4) à partir des recherches sans résultat"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: M

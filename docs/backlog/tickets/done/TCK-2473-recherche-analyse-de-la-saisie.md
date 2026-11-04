@@ -1,7 +1,7 @@
 ---
 id: TCK-2473
 title: "Recherche : la saisie libre est comprise — « appart 3ch Almadies moins de 500k » devient des critères"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: M
@@ -65,19 +65,19 @@ géographique — re-mesurer lequel `QuartierDuFiltre`/`VilleDuFiltre` utilisent
 
 ## Delta à produire
 
-- [ ] `SearchQueryParser`, `ParsedQuery`, `PlaceLexicon`, `DatabasePlaceLexicon`, liaison dans `AppServiceProvider`.
-- [ ] Tests unitaires `SearchQueryParserTest` (lexique simulé) : au moins 40 saisies réelles du marché, dont
+- [x] `SearchQueryParser`, `ParsedQuery`, `PlaceLexicon`, `DatabasePlaceLexicon`, liaison dans `AppServiceProvider`.
+- [x] Tests unitaires `SearchQueryParserTest` (lexique simulé) : au moins 40 saisies réelles du marché, dont
       « appartement 3 chambres almadies », « f3 ngor », « villa a louer », « studio meublé mermoz », « terrain 300m2 à
       vendre diamniadio », « chambre salon à louer moins de 100 000 », « appart entre 300k et 600k », « 1M5 », et des
       saisies non comprises ; `DatabasePlaceLexiconTest`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — « appart 3ch Almadies moins de 500k » → `type=apartment`, `bedrooms=3`, `location=Almadies`, `city=Dakar`,
+- [x] AC1 — « appart 3ch Almadies moins de 500k » → `type=apartment`, `bedrooms=3`, `location=Almadies`, `city=Dakar`,
       `price_max=500000`, `residue=null`.
-- [ ] AC2 — « f3 ngor à louer » → `bedrooms=2`, `location=Ngor`, `contract_type=rent`.
-- [ ] AC3 — « maison de ma tante » → `type=house`, `residue="de ma tante"` (rien d'inventé).
-- [ ] AC4 — Les tests de `RadarAmountParser` restent verts.
+- [x] AC2 — « f3 ngor à louer » → `bedrooms=2`, `location=Ngor`, `contract_type=rent`.
+- [x] AC3 — « maison de ma tante » → `type=house`, `residue="de ma tante"` (rien d'inventé). *Depuis TCK-2476 (mots vides hors du résidu, décision de la session) : `residue="ma tante"` — toujours rien d'inventé.*
+- [x] AC4 — Les tests de `RadarAmountParser` restent verts.
 
 ## Hors périmètre
 
