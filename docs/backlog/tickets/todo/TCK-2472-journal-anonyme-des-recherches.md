@@ -85,4 +85,57 @@ donnée sur eux.
 
 ## Notes d'implémentation
 
-_(à remplir)_
+**Re-mesuré le 2026-11-04, ce qui différait du ticket :**
+
+- **La route n'est pas `/api/properties`** : la liste publique `/properties` appelle `GET /api/public/properties/search`
+  (`PublicPropertyController::search` → `PropertySearchService::search`), côté serveur (RSC, `rechercherBiensPublics`)
+  puis côté client (`useSearch.ts`). Le point d'appel est dans le contrôleur — une ligne, `recordPublicSearch()` — pas
+  dans `PropertySearchService` (que les alertes et `SuggestService` lisent aussi).
+- **L'IP vue par l'API est bien celle du visiteur** sur le rendu serveur : `apiFetch` transmet `X-Forwarded-For` et
+  `User-Agent` du visiteur (TCK-792, `api.ts:172-180`), et l'API les croit (`trustProxies`). Sans cela, tous les
+  visiteurs du rendu serveur auraient été UN visiteur, et aucune recherche n'aurait franchi le seuil de cinq.
+- **D'autres appelants que la liste frappent la même route** : la rangée « À vendre » de l'accueil
+  (`contract_type=sale&per_page=6&placements=false`, à chaque visite de l'accueil), l'invitation du tableau de bord
+  locataire (`city`, `contract_type`, `per_page=4`), le `playground`. Journalisés, « À vendre » serait devenue la
+  recherche la plus populaire sans qu'aucun visiteur ne l'ait tapée. **Décision de l'agent** : `placements=false` n'est
+  pas journalisé (c'est le seul appelant qui le pose, et le paramètre dit déjà « je ne suis pas la liste ») ; les deux
+  autres le sont (critères réels d'une personne, faible volume). Un marqueur explicite posé par la liste serait plus
+  propre, mais demande de toucher le front de la liste (`recherche-publique.ts`), hors périmètre.
+- **`VisitorFingerprint::ofIp()` n'est pas l'empreinte du ticket** : c'est `HMAC(IP, APP_KEY)` — DURABLE, celle des
+  signalements. Le journal emploie `VisitorFingerprint::network()` (le /64) et son propre HMAC, clé `APP_KEY|jour`.
+- **Robots** : une recherche sous un agent reconnu par `RobotUserAgent` (TCK-792) n'est pas journalisée, comme une
+  impression sponsorisée — les moteurs parcourent les pages de facettes.
+- **Recherche vide** : ni saisie ni critère retenu → rien (ce n'est pas une recherche).
+- **Critères retenus** : `SearchJournal::CRITERIA_KEYS`. Exclus délibérément : les coordonnées (`lat`, `lng`,
+  `radius_km`, le rectangle de la carte — la position d'un « autour de moi » est celle du visiteur), `available_from`
+  (une date qui change chaque jour défait l'agrégation, et `SearchPublicPropertyRequest` l'écrête au jour même),
+  `sort`/`page`/`per_page`/`placements`/`seed_hour`. Les critères multi-valués sont écrits dans la forme de l'URL
+  (`type=house,villa`), valeurs triées.
+- **Les critères libres** (`location`, `city`, `cities`, `region`, `tags`) passent par la même règle que `q` (80
+  caractères, six chiffres, `@`) : un numéro tapé dans le champ du lieu est une saisie comme une autre. Un seul
+  échec → rien n'est écrit.
+- **« Six chiffres ou plus »** se compte sur toute la saisie (`77 123 45 67` = 9 chiffres épars), toutes écritures
+  (`\p{Nd}`) ; `@` aussi en pleine chasse (`＠`, `﹫`).
+- **Recherche élargie** (ADR-0024, `search.strategy = widened`) : comptée sans résultat (`total = 0`) — telle quelle,
+  elle n'a rien trouvé ; elle ne doit être ni proposée, ni absente de la demande sans résultat.
+- **Purge horaire, pas quotidienne** : quotidienne à 48 h, une empreinte pouvait vivre jusqu'à 71 h, quand la politique
+  promet 48 h. Horaire, elle efface dès 47 h : aucune n'atteint 48 h. Même commande, `search:purge-journal`.
+- **`popular()`** : `count` = somme des visiteurs distincts de chaque jour de la fenêtre (visiteurs-jours) ; seuil jugé
+  un même jour (`max(distinct_visitors) >= min_visitors`) ; « dernier nombre de résultats » = celui du jour le plus
+  récent de la fenêtre. Une recherche par critères seuls a `text = ''`, et ne sort qu'à préfixe vide.
+- **`zeroResultDemand(int $days, int $minVisitors = 1, int $limit = 200)`** : deux paramètres optionnels de plus que le
+  ticket, pour TCK-2470 (« au moins 2 visiteurs ») et TCK-2476 (« au plus 200 »). Rend une recherche qui a rendu zéro
+  dans la fenêtre ET dont le dernier nombre de résultats est encore zéro ; `distinct_visitors` = somme des jours où elle
+  a rendu zéro.
+- **Après la réponse** : `defer()` (`Illuminate\Support\defer`), premier usage dans le dépôt ; prouvé par
+  `test_la_ligne_s_ecrit_apres_la_reponse` (rien après `handle()`, la ligne après `terminate()`).
+- **`VERSION_DOCUMENTS` est lié à `PublishReadiness::TERMS_VERSION`** par `scripts/check-terms-version.mjs` : avancer
+  l'un sans l'autre rougit Repo CI. Les deux avancent au 2026-11-04 (fichier API hors du périmètre annoncé, imposé par
+  la garde). Conséquence à connaître : la version des CGU inscrite à la première publication devient `2026-11-04`.
+
+**À reporter dans les specs** (un seul écrivain, la session) :
+
+- `docs/models-spec.md` : `SearchQueryStat` (`search_query_stats`, cf. la migration `2026_11_04_247200`), et la table
+  de travail `search_query_visitors` (sans modèle : écrite par `DB::table`).
+- `docs/features.md` : le journal anonyme des recherches (page 1 de la liste publique, exclusions, seuil de cinq,
+  purge horaire 48 h / 13 mois) et la ligne correspondante de la politique de confidentialité.

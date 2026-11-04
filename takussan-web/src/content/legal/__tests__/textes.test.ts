@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
 import { analyserTexteJuridique } from '@/components/legal/TexteJuridique';
 import { contenuLegal } from '@/lib/legal-content';
 import { DOCUMENTS_LEGAUX } from '@/lib/legal-routes';
-import { A_COMPLETER } from '@/content/legal/editeur';
+import { A_COMPLETER, VERSION_DOCUMENTS } from '@/content/legal/editeur';
 import * as notice from '@/content/legal/notice';
 import * as privacy from '@/content/legal/privacy';
 import * as terms from '@/content/legal/terms';
@@ -197,5 +197,39 @@ describe('Radar — l’article 6.3 et les ajouts de la politique de confidentia
     ]) {
       expect(privacy.en).toContain(fragment);
     }
+  });
+});
+
+/**
+ * TCK-2472 (ADR-0088 §6) — le journal anonyme et agrégé des recherches entre dans la politique avec le code qui l'écrit
+ * (`App\Services\Search\SearchJournal`) : ce qui est compté, ce qui ne l'est jamais, le seuil de cinq visiteurs, la
+ * finalité, et les deux durées que tient `search:purge-journal` (empreinte du jour avant 48 heures, compteurs 13 mois).
+ */
+describe('politique de confidentialité — le journal des recherches', () => {
+  it('dit les données, les exclusions, le seuil, la finalité et les deux durées, dans les deux langues', () => {
+    for (const fragment of [
+      '- **Recherches** : lorsque vous lancez une recherche sur la liste des biens',
+      'une empreinte chiffrée de votre adresse IP, recalculée chaque jour, effacée en moins de 48 heures',
+      'plus de 80 caractères, six chiffres ou plus, ou une arobase (@)',
+      'au moins cinq visiteurs distincts un même jour',
+      '**Améliorer la recherche et l’offre de biens**',
+      '- **Journal des recherches** : 13 mois pour les compteurs par jour ; moins de 48 heures pour l’empreinte du jour qui sert à compter les visiteurs distincts.',
+    ]) {
+      expect(privacy.fr).toContain(fragment);
+    }
+    for (const fragment of [
+      '- **Searches**: when you run a search on the property list',
+      'an encrypted fingerprint of your IP address, recomputed every day, deleted within 48 hours',
+      'more than 80 characters, six or more digits, or an at sign (@)',
+      'at least five distinct visitors on the same day',
+      '**Improving search and the range of properties**',
+      '- **Search log**: 13 months for the daily counters; less than 48 hours for the daily fingerprint used to count distinct visitors.',
+    ]) {
+      expect(privacy.en).toContain(fragment);
+    }
+  });
+
+  it('la version des documents avance avec le journal', () => {
+    expect(VERSION_DOCUMENTS).toEqual({ date: '4 novembre 2026', dateEn: 'November 4, 2026' });
   });
 });

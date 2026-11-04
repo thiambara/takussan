@@ -55,6 +55,7 @@ Les agences, propriétaires et professionnels qui utilisent la plateforme traite
 - **Localisation précise** : la position de votre appareil, **uniquement si vous l’autorisez**, pour la recherche « autour de moi » ou pour placer un bien sur la carte.
 - **Localisation approximative** : la ville et le pays déduits de votre adresse IP, pour vous proposer des biens proches.
 - **Mesure d’audience** : des statistiques de fréquentation agrégées, sans cookie de suivi publicitaire.
+- **Recherches** : lorsque vous lancez une recherche sur la liste des biens, nous l’ajoutons à un journal anonyme tenu par jour : le texte saisi, mis en minuscules et sans accents, les critères choisis (type de contrat, type de bien, ville, quartier, budget, nombre de chambres, etc.), le nombre de fois où cette recherche a été faite, le nombre de visiteurs distincts, le nombre de recherches sans résultat et le dernier nombre de résultats. Ce journal ne contient ni votre compte, ni votre adresse IP, ni votre position, ni aucun identifiant qui vous suive d’un jour à l’autre. Pour compter les visiteurs distincts, nous gardons à part une empreinte chiffrée de votre adresse IP, recalculée chaque jour, effacée en moins de 48 heures. Une saisie de plus de 80 caractères, six chiffres ou plus, ou une arobase (@) n’est jamais enregistrée, ni elle ni la recherche qui la contient, pour ne pas garder un numéro de téléphone ou une adresse électronique tapés par erreur. Seule une recherche faite par au moins cinq visiteurs distincts un même jour, et qui donne encore des résultats, peut être montrée à d’autres visiteurs, par exemple en suggestion ; les autres ne servent qu’à nos statistiques.
 
 ## 2.3 Les données que d’autres nous transmettent
 
@@ -79,6 +80,7 @@ Nous ne demandons **aucune donnée sensible** au sens de la loi (origine raciale
 - **Utiliser votre position précise** — votre consentement, donné par l’autorisation de votre navigateur.
 - **Modérer les contenus, traiter les signalements, prévenir la fraude et les abus, tenir le journal d’activité, assurer l’assistance** — la sécurité de la plateforme et de ses utilisateurs, nécessaire à l’exécution du contrat, et nos obligations légales.
 - **Mesurer l’audience et améliorer la plateforme** — sur la base de statistiques agrégées qui ne permettent pas de vous identifier.
+- **Améliorer la recherche et l’offre de biens** (proposer les recherches fréquentes, repérer celles qui ne trouvent rien pour orienter la recherche de nouvelles annonces) — à partir du journal anonyme des recherches décrit au § 2.2 ; seule l’empreinte du jour qui sert à compter les visiteurs distincts dérive de votre adresse IP, et elle est effacée en moins de 48 heures.
 - **Répondre aux réquisitions des autorités et faire valoir nos droits en justice** — obligation légale.
 
 Nous n’envoyons **aucune prospection commerciale** par courriel, SMS ou WhatsApp. Si nous le faisions un jour, ce serait uniquement avec votre consentement préalable, et vous pourriez le retirer à tout moment.
@@ -133,6 +135,7 @@ Certains de nos prestataires sont établis ou stockent des données hors du Sén
 - **Journaux de sécurité et de preuve** (consultation de vos données, exercice de vos droits, sécurité et suppression du compte, accès du support, vérification d’identité, rôles et adhésions dans une agence, intégrations, exports) : 5 ans.
 - **Journaux des paiements, factures, reversements, commissions et abonnements** : 10 ans, comme les pièces qu’ils concernent.
 - **Notifications dans l’application** : 6 mois après leur lecture.
+- **Journal des recherches** : 13 mois pour les compteurs par jour ; moins de 48 heures pour l’empreinte du jour qui sert à compter les visiteurs distincts.
 - **Journaux d’accès des serveurs** : quelques jours, par rotation automatique.
 - **Archive d’export de vos données** : 7 jours, puis suppression automatique.
 - **Brouillons d’annonce non publiés** : 90 jours sans modification.
@@ -243,6 +246,7 @@ Agencies, owners and professionals using the platform also process personal data
 - **Preferences**: favourites, saved searches, notification preferences.
 - **Location**: your device’s precise position **only if you allow it**, for “near me” search or to place a property on the map; and an approximate location (city, country) inferred from your IP address to suggest nearby properties.
 - **Audience measurement**: aggregated traffic statistics, without advertising tracking cookies.
+- **Searches**: when you run a search on the property list, we add it to an anonymous log kept per day: the text entered, lower-cased and without accents, the criteria chosen (type of contract, type of property, city, neighbourhood, budget, number of bedrooms, etc.), the number of times this search was run, the number of distinct visitors, the number of searches without results and the latest number of results. This log contains neither your account, nor your IP address, nor your location, nor any identifier that follows you from one day to the next. To count distinct visitors, we keep separately an encrypted fingerprint of your IP address, recomputed every day, deleted within 48 hours. An entry of more than 80 characters, six or more digits, or an at sign (@) is never recorded, neither the entry nor the search that contains it, so that a phone number or email address typed by mistake is not kept. Only a search run by at least five distinct visitors on the same day, and that still returns results, may be shown to other visitors, for instance as a suggestion; the others are used only for our statistics.
 
 ## 2.3 Data others give us
 
@@ -267,6 +271,7 @@ We ask for **no sensitive data** within the meaning of the law (racial or ethnic
 - **Using your precise location** — your consent, given through your browser’s permission.
 - **Moderating content, handling reports, preventing fraud and abuse, keeping the activity log, providing support** — the security of the platform and its users, necessary to perform the contract, and our legal obligations.
 - **Measuring audience and improving the platform** — using aggregated statistics that do not identify you.
+- **Improving search and the range of properties** (suggesting frequent searches, spotting those that find nothing to guide the search for new listings) — using the anonymous search log described in § 2.2; only the daily fingerprint used to count distinct visitors derives from your IP address, and it is deleted within 48 hours.
 - **Responding to lawful requests from authorities and defending our rights** — legal obligation.
 
 We send **no marketing** by email, SMS or WhatsApp. Should we ever do so, it would only be with your prior consent, which you could withdraw at any time. We make **no decision with legal effects on you based solely on automated processing**; verification, moderation and suspension decisions are made by a person.
@@ -317,6 +322,7 @@ Some providers are established or store data outside Senegal, notably in the Eur
 - **Security and evidence logs** (access to your data, exercise of your rights, account security and deletion, support access, identity verification, roles and memberships within an agency, integrations, exports): 5 years.
 - **Logs of payments, invoices, payouts, commissions and subscriptions**: 10 years, like the records they relate to.
 - **In-app notifications**: 6 months after they are read.
+- **Search log**: 13 months for the daily counters; less than 48 hours for the daily fingerprint used to count distinct visitors.
 - **Server access logs**: a few days, by automatic rotation.
 - **Data export archive**: 7 days, then automatically deleted.
 - **Unpublished listing drafts**: 90 days without changes.

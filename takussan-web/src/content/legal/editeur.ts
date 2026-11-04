@@ -59,6 +59,6 @@ export const HEBERGEURS = {
 
 /** La date de la version en vigueur des trois documents — à changer à chaque révision. */
 export const VERSION_DOCUMENTS = {
-  date: '31 octobre 2026',
-  dateEn: 'October 31, 2026',
+  date: '4 novembre 2026',
+  dateEn: 'November 4, 2026',
 } as const;

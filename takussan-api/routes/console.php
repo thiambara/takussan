@@ -66,6 +66,10 @@ Schedule::job(new SendLeasePaymentReminders)->dailyAt('08:00');
 Schedule::job(new SendSavedSearchAlerts)->dailyAt('09:00')->withoutOverlapping();
 // TCK-599 — une alerte sans compte non confirmée à 48 h est effacée. Idempotent.
 Schedule::command('search-alerts:purge-unconfirmed')->hourly()->withoutOverlapping(60);
+// TCK-2472 (ADR-0088 §2 et §5) — le journal anonyme des recherches : empreintes de visiteur dès 47 h (HORAIRE, pour
+// qu'aucune n'atteigne les 48 h que promet `privacy.ts`), lignes de plus de 13 mois. Idempotente : une suppression par
+// date ; une seconde exécution ne trouve plus rien.
+Schedule::command('search:purge-journal')->hourly()->withoutOverlapping(60);
 // TCK-599 §5 — favoris : baisses de prix et sorties du public, une notification groupée par
 // personne. Idempotent par la base de prix et `unavailable_notified_at`.
 Schedule::job(new SendFavoriteChangeAlerts)->dailyAt('09:15')->withoutOverlapping();
