@@ -26,7 +26,7 @@ d'agence existante (`AgencySetupStatus`, TCK-589) sans en réécrire aucune règ
 next-intl, TanStack Query, lucide-react (front).
 
 **Références :** [ADR-0089](../adr/0089-le-menu-de-app-se-derive-du-profil-actif.md) §1 et §5 ·
-[TCK-2479](../backlog/tickets/doing/TCK-2479-bande-a-traiter-et-demarrer.md) ·
+[TCK-2479](../backlog/tickets/done/TCK-2479-bande-a-traiter-et-demarrer.md) ·
 plan précédent : [TCK-2478](2026-11-05-tck-2478-dispositions-par-persona.md) ·
 [ADR-0064](../adr/0064-l-administration-d-agence-vit-dans-app.md) §3 (la carte « Mise en service »).
 
