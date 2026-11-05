@@ -20,6 +20,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ProUpgradeCard } from './ProUpgradeCard';
 import { CarteDeMiseEnLocation } from './CarteDeMiseEnLocation';
+import { EnTeteDEspace } from './EnTeteDEspace';
 import { useFormatter, useTranslations } from 'next-intl';
 import { Logo } from '@/components/brand/Logo';
 import { cn } from '@/lib/utils';
@@ -463,11 +464,14 @@ export function AppSidebar({
           <Logo nom={tCommon('appName')} />
         </Link>
       </div>
+      {/* TCK-2478 — l'en-tête d'espace : l'agence et le persona, et le sélecteur de profil. Il porte
+          le `md:pt-5` qu'avait le `<nav>` : c'est désormais lui qui ouvre la barre. */}
+      <EnTeteDEspace user={user} persona={persona} />
       {/* TCK-2478 — l'action principale du persona : la seule surface de couleur primaire du menu,
-          et le premier lien atteint au clavier. Absente (jamais désactivée) quand le profil ne peut
-          pas l'accomplir — dont l'espace suspendu (TCK-600). */}
+          et le premier lien atteint au clavier après l'en-tête. Absente (jamais désactivée) quand
+          le profil ne peut pas l'accomplir — dont l'espace suspendu (TCK-600). */}
       {action && IconeAction ? (
-        <div className="px-3 pb-3 md:pt-5">
+        <div className="px-3 pb-3">
           <Link
             href={lien(action)}
             onClick={onNavigate}
@@ -485,10 +489,7 @@ export function AppSidebar({
       {/* TCK-843 — `relative` : bloc conteneur des `sr-only` (absolus) de la liste. Sans lui,
           c'était la fenêtre ; aucun `overflow` ne les coupait, et posés en bas de la liste ils
           allongeaient le document — la coque entière de `/app` défilait. */}
-      <nav
-        aria-label={t('navLabel')}
-        className={cn('relative flex-1 overflow-y-auto px-3 pb-2', !action && 'md:pt-5')}
-      >
+      <nav aria-label={t('navLabel')} className="relative flex-1 overflow-y-auto px-3 pb-2">
         {groupes.map((groupe, index) => (
           <GroupeDuMenu
             key={groupe.id}
