@@ -1,7 +1,7 @@
 ---
 id: TCK-2478
 title: Un menu par persona — dispositions, action principale, en-tête d'espace, complément « Aussi … », espace suspendu
-status: todo
+status: doing
 phase: P1
 family: front
 estimate: L
