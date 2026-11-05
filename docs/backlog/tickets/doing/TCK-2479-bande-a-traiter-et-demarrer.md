@@ -156,79 +156,100 @@ mesure de bout en bout ; AC6 `a-traiter.test.ts` + `AppSidebar.test.tsx` « AC6 
 ### Écarts connus, écrits (arbitrages)
 
 - Messages : la pastille mène à la liste entière (aucun filtre « non lus » côté API).
-- Visites : une visite `scheduled` passée était comptée par la pastille mais rangée par la page dans
-  « Passées » (relevé R1). Mesuré au navigateur à HEAD `34bc5b7ad` : « 42 visites » pour l'agent.
-  La revue (I2, en cours dans l'arbre, non commitée au moment de la mesure) borne le compte au
-  périmètre de l'onglet : mesuré ensuite « 17 visites » → « Demandées 17 ».
-- Modération des avis : la liste montre aussi les avis SUR l'agence (tranchés par la plateforme, non
-  comptés) ; pour le super-admin, les avis `reported` comptés n'apparaissent pas sous le filtre `pending`.
+- Visites : avant la revue (I2), une visite `scheduled` passée était comptée par la pastille mais rangée
+  par la page dans « Passées » (relevé R1). Depuis `4be1cc983`, le compte est borné au périmètre de
+  l'onglet « Demandées » (`scheduled` ET à venir) : la pastille et l'onglet donnent le même nombre
+  (mesuré ci-dessous). Les visites `scheduled` passées restent non clôturées.
+- Modération des avis : la pastille compte le `total` de la vue « En attente » (I3, `4be1cc983`) ; pour
+  le super-admin, elle n'inclut plus les avis signalés. La liste montre aussi les avis SUR l'agence,
+  tranchés par la plateforme.
 - Masquage de « Démarrer » non persistant avant TCK-2480.
 - Constat de la mesure, non tranché : la pastille donne le compte entier (« 181 messages ») quand le
   badge du menu plafonne à « 99+ ».
 
-### Mesure au navigateur (2026-11-05, 22:25-22:54)
+### Correctifs de revue et de mesure (après `34bc5b7ad`)
+
+`5411995d6` lien KYC du bailleur (ci-dessous) · `15449c52c` la boîte « Demandes » repart de la page 1
+quand le filtre change, par l'URL aussi (I1) · `4be1cc983` chaque pastille compte exactement ce que sa
+page filtrée montre (I2, I3) · `9f428b1d7` « Démarrer » ne vise que les pages que le compte ouvre et cesse
+de se relire une fois fini (M2, M6) · `4744a2254` « Démarrer » suit l'agence du profil actif d'un admin
+de deux agences · `361ab3c90` sans profil actif lisible, le menu suit le profil que l'API retient.
+
+**Défaut réel trouvé par la mesure, corrigé en `5411995d6` : le lien KYC du bailleur perdait `?owner=`.**
+`useAuth().activeProfileId` ne vaut que le cookie `active_profile_id`, et la CONNEXION ne le pose pas
+(seuls l'onboarding et le changement d'espace le font). Pour un bailleur connecté normalement, le lien
+rendu était `/onboarding/owner`, et la page renvoie un profil actif vers `/app` : l'étape bouclait sans
+ouvrir l'assistant (mesuré à `34bc5b7ad`, bailleurs 7 et 8). `DemarrerDeLEspace` prend désormais
+`activeProfileId ?? useMyProfiles().data.meta.active_profile_id` : le profil que l'API a résolu, celui
+sur lequel elle juge les étapes (même cache que le sélecteur de profil, aucune requête de plus). Deux
+tests dans `DemarrerDeLEspace.test.tsx` : « bailleur sans cookie de profil », ROUGE sans le correctif
+(ablation : `activeProfileId` seul) ; « le profil choisi dans le client prime », ROUGE si la priorité
+s'inverse.
+
+### Mesure au navigateur (2026-11-05, lot figé `361ab3c90`, 23:08-23:22)
 
 Banc : Chrome 156 headless à profil jetable, CDP direct, front `next dev` servi sur
 `http://localhost:3000` (l'API n'autorise que cette origine), API :8002. Session par jeton Sanctum
-`mesure-2479` posé par `/api/auth/set-token`, sans `POST /api/auth/login`. Charge (`uptime`, 8 cœurs) :
-`2.94 3.46 4.03` au début, `2.39 2.99 3.66` à la fin des deux passages, `5.64 10.58 8.35` à la toute
-fin. Preuve de version : `34bc5b7ad`, `takussan-web/src` sans diff avant et après le passage A. Au
-passage B, une retouche de `ContactLeadsInbox.tsx` (revue) est arrivée pendant la mesure, dans un
-module que `/app` ne charge pas. Relevés bruts et 35 captures : `…/scratchpad/mesures-2479/`.
+`mesure-2479` posé par `/api/auth/set-token`, sans `POST /api/auth/login`, et SANS cookie
+`active_profile_id`, comme après une connexion. Preuve de version : `361ab3c90`, `takussan-web/src` sans
+diff avant ET après chacun des deux passages et du relevé des pastilles. Charge (`uptime`, 8 cœurs) :
+`1.85 8.33 11.24` au début (fin d'une charge antérieure), `2.71 4.73 8.69` à la fin des passages,
+`4.96 4.66 7.39` à la fin des clics. Relevés bruts et captures : `…/scratchpad/mesures-2479/`
+(`releve-fige-a.json`, `releve-fige-b.json`, `tableau-fige.md`, `pastilles-*.json`).
 
 Données créées pour la mesure puis supprimées (vérifié : 0 restant) : une agence NEUVE (aucune dans la
-base) — `Agency::factory()` standard, son admin, et les 80 préférences et 4 rôles posés par les
-observateurs ; deux demandes de contact non traitées (la base n'en avait aucune) ; un agent pour faire
-l'étape `equipe` ; 8 jetons ; 6 lignes `welcome_views`. Les pièces KYC du bailleur 8 et leurs fichiers,
-son `submitted_at`, son téléphone vérifié, ses 3 jobs Scout et 5 lignes d'activité ont été remis en état.
+base), `Agency::factory()` standard, son admin, et les 80 préférences et 4 rôles posés par les
+observateurs ; un compte admin ET bailleur d'une seconde agence neuve ; deux demandes de contact non
+traitées (la base n'en avait aucune) ; un agent pour faire l'étape `equipe` ; les jetons ; les lignes
+`welcome_views` écrites en passant le tour de bienvenue.
 
-| Persona (user) | 1366 · 768 · 390 (tiroir ouvert) | Bande « À traiter » (ordre → page) | « Démarrer » |
+| Persona (user) | Débordement 1366 · 768 · 390 (tiroir ouvert) | Bande « À traiter », dans l'ordre | « Démarrer » |
 |---|---|---|---|
-| agent (3) | débordement 0 · 0 · 0 (`innerWidth` 1366/768/390 ; témoin `mobile:true` iw=390) | 2 demandes → `/app/leads?filtre=todo` · 42 visites → `/app/visits?tab=requested` · 181 messages → `/app/messages` | — |
-| admin-agence (2) | 0 · 0 · 0 | 2 demandes · 42 visites · 64 messages · 1 bien → `/app/agency/moderation/properties` · « +1 » → 100 avis → `…moderation?filter[moderation_status]=pending` | 2 sur 3 : Faire vérifier l'agence → `/app/agency/kyc` |
+| agent (3) | 0 · 0 · 0 | 2 demandes · 17 visites · 181 messages | — |
+| admin-agence (2) | 0 · 0 · 0 | 2 demandes · 17 visites · 64 messages · 1 bien · « +1 » → 100 avis | 2 sur 3 : `/app/agency/kyc` |
 | admin d'agence NEUVE | 0 · 0 · 0 | **aucun nœud** (tout à zéro) | 0 sur 3 : `/app/properties/new`, `/app/agency/kyc`, `/app/agency/team` |
-| bailleur (7) | 0 · 0 · 0 | 113 messages · 2 visites | 1 sur 2 : Envoyer vos pièces d'identité → **`/onboarding/owner`** (cf. défaut ci-dessous) |
-| hôte (62) | 0 · 0 · 0 | 54 messages · 48 visites | 1 sur 2 : Faire vérifier l'agence → `/app/agency/kyc` |
+| bailleur (7) | 0 · 0 · 0 | 113 messages · 2 visites | 1 sur 2 : `/onboarding/owner?owner=1` |
+| admin ET bailleur, sans cookie | 0 · 0 · 0 | **aucun nœud** | 0 sur 2 (mode bailleur) : `/app/properties/new`, `/onboarding/owner?owner=48` |
+| hôte (62) | 0 · 0 · 0 | 54 messages · 18 visites | 1 sur 2 : `/app/agency/kyc` |
 | prestataire (17) | 0 · 0 · 0 | 114 messages (une seule pastille, AC6) | — |
 | locataire (104) | 0 · 0 · 0 | **aucun nœud** (0 non lu) | — |
 
-- Aux trois largeurs : la bande et « Démarrer » sont présents dans le TIROIR à 390 ; la bande est une
+- `innerWidth` = la largeur demandée partout ; à 390, débordement 0 tiroir fermé et ouvert, témoin
+  `mobile:true` à `innerWidth` 390. La bande et « Démarrer » sont dans le TIROIR à 390. La bande est une
   `section` « À traiter » hors du `<nav>`, après l'action principale, sans défilement interne ;
-  « Démarrer » est le premier bloc du `<nav>`. Aucune requête échouée hors des vignettes bloquées par ORB
-  (contenu du tableau de bord, préexistant).
-- **Ordre clavier** (dix Tab réels depuis l'en-tête d'espace, statique sur cette base) : action
-  principale → pastilles → « Démarrer » (ses liens, puis « Masquer ») → menu. Le prestataire n'a pas
-  d'action : en-tête → pastille → menu.
-- **Chaque pastille, cliquée dans la barre, ouvre sa page sur ce qui attend** (admin, agent, bailleur,
-  prestataire, 1366) : demandes → onglet « À traiter 2 » choisi, les 2 demandes listées ; visites →
-  onglet « Demandées » choisi ; messages → la liste ; 1 bien → la file, « 1 bien en attente » ;
-  avis (derrière « +1 », qui s'ouvre : `aria-expanded=true`) → le sélecteur sur « En attente ».
+  « Démarrer » est le premier bloc du `<nav>`. Aucune requête échouée hors des vignettes bloquées par
+  ORB (contenu du tableau de bord, préexistant).
+- **Ordre clavier** (dix Tab réels depuis l'en-tête d'espace) : action principale → pastilles →
+  « Démarrer » (ses liens, puis « Masquer ») → menu. Le prestataire n'a pas d'action : en-tête →
+  pastille → menu.
+- **Compte admin ET bailleur sans cookie** (`361ab3c90`) : l'API retient `owner:48`
+  (`/api/me/profiles` → `meta.active_profile_id`) ; le menu est celui du bailleur (groupes
+  `mon-patrimoine`, `activite`, puis le groupe replié `aussi`, celui de l'admin), l'en-tête dit « Bailleur », et
+  « Démarrer » rend les deux étapes du BAILLEUR que l'API rend (`premier_bien`, `kyc`) avec
+  `?owner=48`. Front et API jugent le même profil.
+- **Chaque pastille, cliquée dans la barre, ouvre sa page sur ce qui attend, au même compte** (1366 ;
+  admin, agent, bailleur, prestataire, hôte) : « 2 demandes » → `/app/leads?filtre=todo`, onglet
+  « À traiter 2 » choisi, les 2 demandes listées ; « 17 visites » → onglet « Demandées 17 », 17 lignes
+  (bailleur 2 → « Demandées 2 », hôte 18 → « Demandées 18 ») ; messages → la liste ; « 1 bien » → la
+  file, « 1 bien en attente » ; « 100 avis », derrière « +1 » qui s'ouvre (`aria-expanded=true`) →
+  `…moderation?filter[moderation_status]=pending`, sélecteur sur « En attente », 100 annoncés.
+- **Lien KYC du bailleur, cliqué dans « Démarrer »** : bailleur 7 → `/onboarding/owner?owner=1`, admin ET
+  bailleur → `?owner=48` ; les deux ouvrent l'assistant (« Vérifiez votre téléphone »), aucun renvoi
+  vers `/app`.
 - **AC5 de bout en bout** (agence neuve) : un agent ajouté à l'agence pendant que la page est ouverte ;
-  une navigation à moins de 30 s ne relit rien (« 0 sur 3 ») ; une navigation au-delà de 30 s relit
+  une navigation à moins de 30 s ne relit rien (« 0 sur 3 ») ; une navigation au-delà de 30 s relit,
   et l'étape sort (« 1 sur 3 », `/app/agency/team` disparu), sans rechargement.
-- **Arbitrage 3, le KYC du bailleur sur un profil DÉJÀ actif** : avec `?owner=2` (bailleur 8, téléphone
-  pré-vérifié en base pour qu'aucun SMS ne parte), l'assistant s'ouvre, puis téléphone → 3 pièces
-  (`201`) → soumission → tour → récapitulatif → `complete` réussit (activité
-  `owner_onboarding_completed`, retour sur `/app`). « Démarrer » a alors disparu EN ENTIER (2 sur 2),
-  et il reste absent après 30 s et deux navigations. L'assistant fonctionne : la consigne de repli
-  (retirer `kyc` du bailleur côté API) ne s'applique pas.
-- **DÉFAUT RÉEL TROUVÉ PAR LA MESURE, ET CORRIGÉ : le lien KYC du bailleur perdait `?owner=`.**
-  `useAuth().activeProfileId` ne vaut que le cookie `active_profile_id`, et la CONNEXION ne le pose pas
-  (seuls l'onboarding et le changement d'espace le posent). Pour un bailleur connecté normalement, le
-  lien rendu était donc `/onboarding/owner`, et la page renvoie un profil actif vers `/app` : l'étape
-  bouclait sans jamais ouvrir l'assistant (mesuré, bailleurs 7 et 8). **Correctif** :
-  `DemarrerDeLEspace` prend `activeProfileId ?? useMyProfiles().data.meta.active_profile_id`, soit le
-  profil que l'API a résolu, celui sur lequel elle juge les étapes (même cache que le sélecteur de
-  profil de la barre, aucune requête de plus). **Deux tests** dans `DemarrerDeLEspace.test.tsx` :
-  « bailleur sans cookie de profil », ROUGE sans le correctif (ablation : `activeProfileId` seul) ; et
-  « le profil choisi dans le client prime », ROUGE si la priorité s'inverse. Re-mesuré après le
-  correctif : le lien vaut `/onboarding/owner?owner=1` et son clic ouvre l'assistant. ⚠ Au moment de
-  ce commit, le correctif est dans l'arbre mais **non commité** : ces deux fichiers portent aussi le
-  travail de revue M6, en cours. Il part avec lui.
+- **Arbitrage 3, le KYC du bailleur sur un profil DÉJÀ actif** (mesuré à `34bc5b7ad` ; l'assistant et
+  l'API n'ont pas changé depuis) : avec `?owner=2` (bailleur 8, téléphone pré-vérifié en base pour
+  qu'aucun SMS ne parte), téléphone → 3 pièces (`201`) → soumission → tour → récapitulatif →
+  `complete` réussit (activité `owner_onboarding_completed`, retour sur `/app`). « Démarrer » a alors
+  disparu EN ENTIER (2 sur 2), et il reste absent après 30 s et deux navigations. La consigne de repli
+  (retirer `kyc` du bailleur côté API) ne s'applique pas. Tout ce que le parcours a écrit a été remis en
+  état (pièces et fichiers, `submitted_at`, téléphone, jobs Scout, activité).
 
 ### Tickets de suite proposés
 
 - Filtre « non lus » de la messagerie (API `ConversationController::index` + liste), pour que la
   pastille des messages ouvre ce qui attend (arbitrage 4).
-- Clôture ou affichage des visites `scheduled` passées (aucune tâche planifiée ne les clôt), si la
-  borne de la revue I2 ne suffit pas à la page.
+- Clôture des visites `scheduled` passées (aucune tâche planifiée ne les clôt) : elles ne sont plus
+  comptées depuis I2, mais elles s'accumulent sous « Passées » sans statut final.
