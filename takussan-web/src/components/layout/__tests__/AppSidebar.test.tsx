@@ -76,6 +76,13 @@ vi.mock('@/lib/queries/contact-leads', () => ({
   useUnhandledLeadsCount: (options: OptionsDeSondage = {}) => unhandledLeadsMock(options),
 }));
 
+// TCK-2479 — « Démarrer » lit `GET /api/me/espace/demarrage` : moqué, ses arguments capturés (qui le
+// lit, et si la lecture est armée). Muet par défaut : aucun groupe.
+const demarrageMock = vi.fn<(options: { enabled: boolean }) => { data?: unknown; isError?: boolean }>(() => ({}));
+vi.mock('@/lib/queries/demarrage-espace', () => ({
+  useDemarrageDeLEspace: (options: { enabled: boolean }) => demarrageMock(options),
+}));
+
 // TCK-642 — le solde de crédits, montré en bout de l'entrée « Crédits » dans le tiroir.
 const soldeMock = vi.fn<(options: { enabled: boolean }) => number | null>(() => null);
 vi.mock('@/lib/queries/credits-solde', () => ({
@@ -205,6 +212,8 @@ beforeEach(() => {
   unhandledLeadsMock.mockReturnValue({ data: undefined });
   soldeMock.mockReset();
   soldeMock.mockReturnValue(null);
+  demarrageMock.mockReset();
+  demarrageMock.mockReturnValue({});
 });
 
 /**
@@ -932,6 +941,66 @@ describe('TCK-2479 — la bande « À traiter » (ADR-0089 §5)', () => {
     chargerLesCompteurs();
     const { container } = renderSidebar('admin-agence', '/app');
     expect(bande()).not.toBeNull();
+    const resultat = await axe.run(container, {
+      runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] },
+      rules: { 'color-contrast': { enabled: false } },
+      resultTypes: ['violations'],
+    });
+    expect(resultat.violations.flatMap((v) => v.nodes.map((n) => `${v.id} ${n.target.join(' ')}`))).toEqual([]);
+  });
+});
+
+describe('TCK-2479 — « Démarrer » dans la barre (AC5)', () => {
+  const etapes = (...codes: string[]) => ({
+    data: { data: { etapes: codes.map((code) => ({ code, faite: false })) } },
+  });
+
+  it('admin d’agence : le premier bloc du menu, avant le premier groupe, sans en déplacer aucun', () => {
+    const { container, unmount } = renderSidebar('admin-agence', '/app');
+    const groupesAvant = groupesRendus(container);
+    unmount();
+
+    demarrageMock.mockReturnValue(etapes('premier_bien', 'kyc', 'equipe'));
+    const { container: avec } = renderSidebar('admin-agence', '/app');
+    const nav = avec.querySelector('nav')!;
+    expect(nav.firstElementChild).toHaveAttribute('data-slot', 'demarrer');
+    expect(within(nav).getByRole('group', { name: 'Démarrer' })).toBeInTheDocument();
+    expect(demarrageMock).toHaveBeenCalledWith({ enabled: true });
+    // Il ne réordonne rien : les groupes du menu sont les mêmes, dans le même ordre.
+    expect(groupesRendus(avec)).toEqual(groupesAvant);
+    // Hors des groupes du menu, mais après la bande et l'action (ordre clavier : action → bande → Démarrer → menu).
+    expect(nav.querySelector('[data-groupe] [data-slot="demarrer"]')).toBeNull();
+  });
+
+  it.each([
+    ['hote', 'espace', ['/app/properties/new', '/app/agency/kyc']],
+    ['bailleur', 'bailleur', ['/app/properties/new', '/onboarding/owner']],
+  ] as const)('%s : ses étapes, dans son vocabulaire (mode %s)', (persona, _mode, hrefs) => {
+    demarrageMock.mockReturnValue(etapes('premier_bien', 'kyc'));
+    renderSidebar(persona, '/app');
+    const groupe = screen.getByRole('group', { name: 'Démarrer' });
+    expect(within(groupe).getAllByRole('link').map((l) => l.getAttribute('href'))).toEqual(hrefs);
+  });
+
+  it.each(['client', 'locataire', 'agent', 'prestataire', 'plateforme'] as const)('%s : ni groupe ni lecture', (persona) => {
+    demarrageMock.mockReturnValue(etapes('premier_bien', 'kyc', 'equipe'));
+    renderSidebar(persona, '/app');
+    expect(demarrageMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole('group', { name: 'Démarrer' })).toBeNull();
+  });
+
+  it('espace suspendu : ni groupe ni lecture', () => {
+    demarrageMock.mockReturnValue(etapes('premier_bien', 'kyc', 'equipe'));
+    renderSidebar('admin-agence', '/app', { agencySuspended: true });
+    expect(demarrageMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole('group', { name: 'Démarrer' })).toBeNull();
+  });
+
+  it('a11y : la barre avec la bande et « Démarrer », sans violation', async () => {
+    unreadMock.mockReturnValue(3);
+    demarrageMock.mockReturnValue(etapes('premier_bien', 'kyc', 'equipe'));
+    const { container } = renderSidebar('admin-agence', '/app');
+    expect(screen.getByRole('group', { name: 'Démarrer' })).toBeInTheDocument();
     const resultat = await axe.run(container, {
       runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] },
       rules: { 'color-contrast': { enabled: false } },

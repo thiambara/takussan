@@ -34,6 +34,9 @@ const nonLusMock = vi.hoisted(() => vi.fn<() => number>(() => 0));
 vi.mock('@/components/chat-widget/useUnreadCount', () => ({ useUnreadCount: () => nonLusMock() }));
 vi.mock('@/lib/queries/visits', () => ({ usePendingVisitsCount: () => ({}) }));
 vi.mock('@/lib/queries/contact-leads', () => ({ useUnhandledLeadsCount: () => ({}) }));
+// TCK-2479 — « Démarrer » : réglable, muet par défaut.
+const demarrageMock = vi.hoisted(() => vi.fn<() => { data?: unknown }>(() => ({})));
+vi.mock('@/lib/queries/demarrage-espace', () => ({ useDemarrageDeLEspace: () => demarrageMock() }));
 const soldeMock = vi.hoisted(() => vi.fn<(o: { enabled: boolean }) => number | null>(() => null));
 vi.mock('@/lib/queries/credits-solde', () => ({
   useSoldeCredits: (o: { enabled: boolean }) => soldeMock(o),
@@ -85,6 +88,8 @@ const nomNormalise = (attendu: string) => (nom: string) => nom.replace(/\s/g, ' 
 beforeEach(() => {
   nonLusMock.mockReset();
   nonLusMock.mockReturnValue(0);
+  demarrageMock.mockReset();
+  demarrageMock.mockReturnValue({});
   soldeMock.mockReset();
   soldeMock.mockReturnValue(null);
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404, json: async () => ({}) }));
@@ -138,6 +143,28 @@ describe('TCK-2479 — la bande « À traiter » est aussi dans le tiroir', () =
     const tiroir = await ouvrirLeTiroir();
     expect(deLaBande(tiroir)).toEqual(auBureau);
     await userEvent.setup().click(within(tiroir).getByRole('link', { name: '3 messages non lus' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
+
+describe('TCK-2479 — « Démarrer » est aussi dans le tiroir', () => {
+  it('mêmes étapes qu’à la barre de bureau, en tête du menu ; un clic referme le tiroir', async () => {
+    demarrageMock.mockReturnValue({
+      data: { data: { etapes: [{ code: 'premier_bien', faite: true }, { code: 'kyc', faite: false }, { code: 'equipe', faite: false }] } },
+    });
+    const { container } = monter(['agency_admin', 'customer']);
+    const etapes = (racine: Element) => {
+      const groupe = within(racine as HTMLElement).getByRole('group', { name: 'Démarrer' });
+      expect(racine.querySelector('nav')!.firstElementChild).toBe(groupe);
+      return within(groupe).getAllByRole('link').map((l) => l.getAttribute('href'));
+    };
+    // Lues AVANT l'ouverture : le tiroir modal rend la barre de bureau `inert`.
+    const auBureau = etapes(container.querySelector('aside')!);
+    expect(auBureau).toEqual(['/app/agency/kyc', '/app/agency/team']);
+
+    const tiroir = await ouvrirLeTiroir();
+    expect(etapes(tiroir)).toEqual(auBureau);
+    await userEvent.setup().click(within(tiroir).getByRole('link', { name: /Inviter un premier membre/ }));
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 });

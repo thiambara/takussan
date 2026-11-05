@@ -219,6 +219,24 @@
         },
         "plusCourt": "+{count}",
         "autres": "{count, plural, other {+# more to do}}"
+      },
+      "demarrer": {
+        "titre": "Get started",
+        "progression": "{faites} of {total}",
+        "masquer": "Hide “Get started”",
+        "aFaire": "To do",
+        "etapes": {
+          "espace": {
+            "premier_bien": "Publish a first property",
+            "kyc": "Get the agency verified",
+            "equipe": "Invite a first member"
+          },
+          "bailleur": {
+            "premier_bien": "Propose a first property",
+            "kyc": "Send your ID documents",
+            "equipe": "Invite a first member"
+          }
+        }
       }
     },
     "admin": {

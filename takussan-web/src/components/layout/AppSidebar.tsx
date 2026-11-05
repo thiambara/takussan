@@ -46,6 +46,7 @@ import { usePendingVisitsCount } from '@/lib/queries/visits';
 import { useUnhandledLeadsCount } from '@/lib/queries/contact-leads';
 import { pastillesATraiter } from '@/lib/navigation/a-traiter';
 import { BandeATraiter } from './BandeATraiter';
+import { DemarrerDeLEspace } from './DemarrerDeLEspace';
 import { FOCUS_RING, STYLE_TITRE } from './styles-de-la-barre';
 
 export type { NavCounterKey };
@@ -504,6 +505,10 @@ export function AppSidebar({
           c'était la fenêtre ; aucun `overflow` ne les coupait, et posés en bas de la liste ils
           allongeaient le document — la coque entière de `/app` défilait. */}
       <nav aria-label={t('navLabel')} className="relative flex-1 overflow-y-auto px-3 pb-2">
+        {/* TCK-2479 — « Démarrer » : un espace neuf sait par où commencer. Dans le `<nav>`, il défile
+            avec le menu ; il n'en réordonne aucune entrée. `menu.demarrer` est `null` pour un persona
+            sans mise en service et dans un espace suspendu : ni groupe, ni lecture. */}
+        {menu.demarrer ? <DemarrerDeLEspace mode={menu.demarrer} onNavigate={onNavigate} /> : null}
         {groupes.map((groupe, index) => (
           <GroupeDuMenu
             key={groupe.id}

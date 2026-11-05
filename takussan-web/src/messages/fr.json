@@ -219,6 +219,24 @@
         },
         "plusCourt": "+{count}",
         "autres": "{count, plural, one {+# autre à traiter} other {+# autres à traiter}}"
+      },
+      "demarrer": {
+        "titre": "Démarrer",
+        "progression": "{faites} sur {total}",
+        "masquer": "Masquer « Démarrer »",
+        "aFaire": "À faire",
+        "etapes": {
+          "espace": {
+            "premier_bien": "Publier un premier bien",
+            "kyc": "Faire vérifier l’agence",
+            "equipe": "Inviter un premier membre"
+          },
+          "bailleur": {
+            "premier_bien": "Proposer un premier bien",
+            "kyc": "Envoyer vos pièces d’identité",
+            "equipe": "Inviter un premier membre"
+          }
+        }
       }
     },
     "admin": {

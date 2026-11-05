@@ -53,6 +53,8 @@ vi.mock('@/components/chat-widget/useUnreadCount', () => ({ useUnreadCount: () =
 vi.mock('@/lib/queries/visits', () => ({ usePendingVisitsCount: () => ({}) }));
 vi.mock('@/lib/queries/contact-leads', () => ({ useUnhandledLeadsCount: () => ({}) }));
 vi.mock('@/lib/queries/credits-solde', () => ({ useSoldeCredits: () => null }));
+// TCK-2479 — le jeton est posé : sans ce mock, « Démarrer » de l'admin partirait sur le réseau.
+vi.mock('@/lib/queries/demarrage-espace', () => ({ useDemarrageDeLEspace: () => ({}) }));
 vi.mock('@/hooks/useImpersonation', () => ({
   useImpersonationCourante: () => ({ data: null }),
   useQuitterImpersonation: () => ({ mutate: vi.fn(), isPending: false }),
