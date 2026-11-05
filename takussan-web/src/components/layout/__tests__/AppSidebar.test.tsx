@@ -503,6 +503,16 @@ describe('TCK-2478 — la carte du client et le lien « Console plateforme »', 
     expect(container.querySelector('nav a[href="/super-admin"]')).toBeNull();
   });
 
+  // Revue de TCK-2478 — la console suit le rôle `super_admin`, pas le persona : un super-admin dont le
+  // profil actif est d'agence reçoit la disposition de l'admin d'agence, et perdait le lien.
+  it('un super-admin au profil actif d’agence garde « Console plateforme »', () => {
+    pathname = '/app';
+    render(
+      barre({ roles: ['customer', 'super_admin', 'agency_admin'], typeProfilActif: 'agency_admin', agence: 'standard', agencyIsStandard: true }),
+    );
+    expect(screen.getByRole('link', { name: 'Console plateforme' })).toHaveAttribute('href', '/super-admin');
+  });
+
   it('un admin d’agence n’a pas le lien de la console', () => {
     renderSidebar('admin-agence', '/app');
     expect(screen.queryByRole('link', { name: 'Console plateforme' })).toBeNull();
@@ -550,6 +560,15 @@ describe('AC2 — jamais deux entrées allumées sur des routes imbriquées', ()
   ])('%s n’allume que « %s »', (route, label) => {
     renderSidebar('admin-agence', route);
     expect(activeLabels()).toEqual([label]);
+  });
+
+  // Revue de TCK-2478 (M1) — l'action du locataire, « Payer mon loyer », mène à `/app/payments`, que
+  // son groupe « Mon logement » porte aussi (« Paiements ») : les deux s'allumaient. L'entrée du menu
+  // l'emporte ; l'action ne s'allume que sur une page qu'aucune entrée ne porte (ci-dessus).
+  it('locataire sur /app/payments : « Paiements » seule, pas l’action', () => {
+    const { container } = renderSidebar('locataire', '/app/payments');
+    expect(activeLabels()).toEqual(['Paiements']);
+    expect(container.querySelector('[data-slot="action-principale"]')).not.toHaveAttribute('aria-current');
   });
 
   it('la racine /app ne devient le parent de rien', () => {

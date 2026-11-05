@@ -431,6 +431,11 @@ export function AppSidebar({
         : t(action.labelKey)
     : null;
   const IconeAction = action?.icon;
+  // Revue de TCK-2478 (M1) — l'action n'est la page courante que si AUCUNE entrée rendue ne porte son
+  // `href` : le locataire sur `/app/payments` allumait « Payer mon loyer » ET « Paiements ». L'entrée
+  // du menu l'emporte, l'action ne s'allume que sur une page qu'elle seule mène (`/app/properties/new`).
+  const actionCourante =
+    action !== null && action.href === activeHref && !entrees.some((e) => e.href === action.href);
 
   const showProUpgradeCard =
     user.roles.includes('agency_admin') &&
@@ -478,7 +483,7 @@ export function AppSidebar({
             href={lien(action)}
             onClick={onNavigate}
             data-slot="action-principale"
-            aria-current={action.href === activeHref ? 'page' : undefined}
+            aria-current={actionCourante ? 'page' : undefined}
             className={cn(
               'flex items-center gap-3 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 max-md:py-2.5',
               FOCUS_RING,
@@ -510,7 +515,9 @@ export function AppSidebar({
         {showProUpgradeCard ? (
           <ProUpgradeCard pending={Boolean(hasPendingUpgrade)} onNavigate={onNavigate} />
         ) : null}
-        {menu.persona === 'plateforme' ? (
+        {/* Revue de TCK-2478 — la console suit le RÔLE, pas le persona : un super-admin dont le profil
+            actif est d'agence (persona `admin-agence`) la perdait. La console garde sa propre porte. */}
+        {isSuperAdmin(user.roles) ? (
           <Link
             href={HREF_CONSOLE}
             onClick={onNavigate}
