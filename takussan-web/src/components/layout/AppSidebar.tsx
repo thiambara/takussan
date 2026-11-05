@@ -485,12 +485,17 @@ export function AppSidebar({
             data-slot="action-principale"
             aria-current={actionCourante ? 'page' : undefined}
             className={cn(
-              'flex items-center gap-3 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 max-md:py-2.5',
+              'flex items-start gap-3 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 max-md:py-2.5',
               FOCUS_RING,
             )}
           >
-            <IconeAction className="size-4 shrink-0" aria-hidden />
-            <span className="truncate">{libelleAction}</span>
+            {/* `mt-0.5` : l'icône (16 px) se centre sur la PREMIÈRE ligne (`leading-snug`, ~19 px), et
+                non sur le bloc entier quand le libellé passe à la ligne. */}
+            <IconeAction className="mt-0.5 size-4 shrink-0" aria-hidden />
+            {/* TCK-2478 — mesuré au navigateur : « Proposer un bien à mon agence » était tronqué
+                (ellipse) à 1366, 768 et 390 px. L'action dit ce qu'elle fait en entier : elle passe
+                à la ligne, jamais d'ellipse. */}
+            <span className="min-w-0 text-left leading-snug text-pretty">{libelleAction}</span>
           </Link>
         </div>
       ) : null}
