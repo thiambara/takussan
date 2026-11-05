@@ -528,10 +528,10 @@ describe('AC2 — jamais deux entrées allumées sur des routes imbriquées', ()
   // Cinq couples, pas trois : le ticket n'en nommait que trois et manquait
   // `/app/maintenance` ⊃ `/app/maintenance/providers` et `/app/overview` ⊃ ses quatre filles.
   //
-  // TCK-2478 — « Publier un bien » est désormais l'ACTION PRINCIPALE, hors du `<nav>` : elle ne
-  // s'allume pas. Sur `/app/properties/new`, c'est « Biens » qui s'allume, seul.
+  // TCK-2478 — « Publier un bien » est désormais l'ACTION PRINCIPALE, hors du `<nav>` : sur sa
+  // page, c'est elle qui est courante, et « Biens », son parent d'URL, ne s'allume pas.
   it.each([
-    ['/app/properties/new', 'Biens'],
+    ['/app/properties/new', 'Publier un bien'],
     ['/app/leases/onboarding-pending', 'Onboardings en attente'],
     ['/app/maintenance/providers', 'Carnet prestataires'],
     ['/app/overview/kpis', 'KPIs'],

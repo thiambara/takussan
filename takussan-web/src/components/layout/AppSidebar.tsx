@@ -411,9 +411,11 @@ export function AppSidebar({
     enabled: entrees.some((e) => e.href === HREF_CREDITS && !e.locked),
   });
 
+  // TCK-2478 — l'action principale concourt avec les entrées : sur sa page (`/app/properties/new`),
+  // c'est elle qui est courante, et « Biens », son parent d'URL, ne s'allume pas.
   const activeHref = resolveActiveHref(
     pathname,
-    entrees.map((e) => e.href),
+    [...entrees.map((e) => e.href), ...(menu.action && !menu.action.publique ? [menu.action.href] : [])],
     APP_EXACT_ROOTS,
   );
   const titres = avecTitres(groupes);
@@ -476,6 +478,7 @@ export function AppSidebar({
             href={lien(action)}
             onClick={onNavigate}
             data-slot="action-principale"
+            aria-current={action.href === activeHref ? 'page' : undefined}
             className={cn(
               'flex items-center gap-3 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 max-md:py-2.5',
               FOCUS_RING,
