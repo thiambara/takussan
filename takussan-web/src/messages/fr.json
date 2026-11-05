@@ -154,7 +154,8 @@
         "requests": "Demandes",
         "engagements": "Engagements",
         "manage": "Pilotage",
-        "admin": "Administration"
+        "admin": "Administration",
+        "more": "Plus"
       },
       "counters": {
         "unreadMessages": "{count, plural, one {# message non lu} other {# messages non lus}}",

@@ -144,7 +144,8 @@
         "requests": "Ñaan",
         "engagements": "Digante",
         "manage": "Yóbbal",
-        "admin": "Doxal"
+        "admin": "Doxal",
+        "more": "Plus"
       },
       "counters": {
         "unreadMessages": "{count, plural, one {# bataaxal bu ñu jàngul} other {# bataaxal yu ñu jàngul}}",
