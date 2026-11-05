@@ -1,7 +1,7 @@
 ---
 id: TCK-2477
 title: Le moteur du menu de /app — catalogue des destinations, persona du profil actif, composition pure, sans changement visible
-status: doing
+status: done
 phase: P1
 family: front
 estimate: L
@@ -53,35 +53,35 @@ Aucune : ce lot ne change pas un pixel. Le critère de succès est l'identité d
 
 ## Delta à produire
 
-- [ ] Catalogue unique des destinations de `/app`, avec prédicat d'accès reprenant les gardes
+- [x] Catalogue unique des destinations de `/app`, avec prédicat d'accès reprenant les gardes
       actuelles (TCK-379, TCK-492, TCK-587, P152.03, `isProRouteLocked`).
-- [ ] Liste `HORS_MENU` des pages de `/app` sans entrée, chacune avec sa raison.
-- [ ] Résolution du persona (huit personas) et lecture du profil actif par le layout de `/app`.
-- [ ] Table des dispositions par persona, dans une version « miroir » qui reproduit le menu actuel.
-- [ ] Composition pure (filtrage, groupes vides, règle des en-têtes de TCK-377, « Plus »,
+- [x] Liste `HORS_MENU` des pages de `/app` sans entrée, chacune avec sa raison.
+- [x] Résolution du persona (huit personas) et lecture du profil actif par le layout de `/app`.
+- [x] Table des dispositions par persona, dans une version « miroir » qui reproduit le menu actuel.
+- [x] Composition pure (filtrage, groupes vides, règle des en-têtes de TCK-377, « Plus »,
       identifiants inconnus ignorés).
-- [ ] `AppSidebar` n'affiche plus que la composition ; `buildNavItems`, `RANG_EN_TETE`,
+- [x] `AppSidebar` n'affiche plus que la composition ; `buildNavItems`, `RANG_EN_TETE`,
       `SECTION_ORDER` disparaissent (ou ne survivent que comme fixtures de test du lot).
-- [ ] Garde d'arborescence : chaque `page.tsx` sous `app/(dashboard)/app` est au catalogue ou dans
+- [x] Garde d'arborescence : chaque `page.tsx` sous `app/(dashboard)/app` est au catalogue ou dans
       `HORS_MENU` ; chaque `href` du catalogue a sa page.
-- [ ] Tests : table de résolution du persona ; composition par persona ; « aucune destination
+- [x] Tests : table de résolution du persona ; composition par persona ; « aucune destination
       accessible perdue » ; « tout identifiant cité par une disposition existe au catalogue ».
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `AppSidebar.test.tsx` passe **sans modification** de ses attentes ; ablation : remettre
+- [x] AC1 — `AppSidebar.test.tsx` passe **sans modification** de ses attentes ; ablation : remettre
       une entrée hors de sa place dans la disposition miroir fait rougir au moins un de ses tests.
-- [ ] AC2 — Un compte admin d'agence ET bailleur de la même agence, profil actif `agency_admin`, se
+- [x] AC2 — Un compte admin d'agence ET bailleur de la même agence, profil actif `agency_admin`, se
       résout en `admin-agence` ; le même compte, profil actif `owner`, en `bailleur` ; un admin d'une
       agence `individual` en `hote`. Ablation : résoudre sur l'union de `roles` fait rougir le test.
-- [ ] AC3 — Ajouter un persona sans disposition casse `tsc --noEmit`.
-- [ ] AC4 — Ajouter un `page.tsx` sous `/app` sans l'inscrire au catalogue ni à `HORS_MENU` fait
+- [x] AC3 — Ajouter un persona sans disposition casse `tsc --noEmit`.
+- [x] AC4 — Ajouter un `page.tsx` sous `/app` sans l'inscrire au catalogue ni à `HORS_MENU` fait
       rougir la garde d'arborescence ; supprimer la page d'une destination du catalogue aussi.
-- [ ] AC5 — Retirer une destination accessible de toute disposition la fait apparaître sous « Plus »
+- [x] AC5 — Retirer une destination accessible de toute disposition la fait apparaître sous « Plus »
       (et non disparaître) ; ablation : supprimer la règle de chute fait rougir le test.
-- [ ] AC6 — `/app/tasks` est inscrite (au catalogue, placée par la disposition de l'agent au
+- [x] AC6 — `/app/tasks` est inscrite (au catalogue, placée par la disposition de l'agent au
       TCK-2478, ou en `HORS_MENU` avec sa raison d'ici là).
-- [ ] AC7 — `npm run lint`, `npx tsc --noEmit`, `npm run check:i18n` et la suite front verts (CI).
+- [x] AC7 — `npm run lint`, `npx tsc --noEmit`, `npm run check:i18n` et la suite front verts (CI).
 
 ## Hors périmètre
 
@@ -133,3 +133,6 @@ verts avant et après, **aucune attente modifiée**. Trois tests du layout (`ban
 
 **Vérifié en local** : 103 fichiers / 806 tests du périmètre touché, `tsc --noEmit`, `npm run lint`,
 `npm run check:i18n`, toutes les gardes `scripts/check-*.mjs`. Suites entières : par la CI.
+
+**Livré sur `dev` par #1646**, CI verte (Web, Gardes documentaires, image du front). Le seul écart
+au delta — `buildNavItems` gardé en adaptateur — est retiré par TCK-2478.
