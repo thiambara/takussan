@@ -106,9 +106,12 @@ const COMPTES: Record<Persona, ContexteDeMenu> = {
  *  - bailleur, agent, admin, hôte, plateforme : `/app/tasks` (« Mes tâches », TCK-591), qui était
  *    hors menu, et les pages d'agence que la table ouvre (avant : ajoutées par `avecSectionAgence`) ;
  *  - prestataire : le plancher `customer` lui ouvre, sous « Plus », ses réservations, visites,
- *    favoris, recherches, baux et statistiques (`occupeUnLogement`, TCK-379, inchangé — le menu de
- *    `dev` les lui montrait déjà sous ce jeu de rôles ; l'ancienne table sondait `['service_provider']`
- *    seul, que l'API n'émet pas).
+ *    favoris, recherches et baux (`occupeUnLogement`, TCK-379, inchangé — le menu de `dev` les lui
+ *    montrait déjà sous ce jeu de rôles ; l'ancienne table sondait `['service_provider']` seul, que
+ *    l'API n'émet pas).
+ *  - Revue de TCK-2478 — prestataire encore : `/app/overview` QUITTE sa table (M2 : la garde de la
+ *    page le renvoie sur `/app` s'il n'est pas locataire, le lien menait à une redirection) et
+ *    `/app/calendar` Y ENTRE (M3 : `assertCanReachCalendar` lui ouvre la page, TCK-591).
  */
 const ATTENDU: Record<Persona, string[]> = {
   client: [
@@ -162,7 +165,7 @@ const ATTENDU: Record<Persona, string[]> = {
   // « Plus » ce que le plancher `customer` lui ouvre.
   prestataire: [
     '/app', '/app/maintenance', '/app/messages', '/app/documents',
-    '/app/bookings', '/app/visits', '/app/favorites', '/app/saved-searches', '/app/leases', '/app/overview',
+    '/app/bookings', '/app/visits', '/app/favorites', '/app/saved-searches', '/app/leases', '/app/calendar',
   ],
   plateforme: [
     '/app/properties/new',

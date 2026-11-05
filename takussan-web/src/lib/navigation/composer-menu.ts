@@ -136,7 +136,8 @@ export const GROUPES_DIVULGATION: ReadonlySet<string> = new Set(['plus', 'aussi'
  * TCK-2478 (décision de la session du 2026-11-05) — « Plus » et « Aussi … » n'entrent pas dans ce
  * calcul ({@link GROUPES_DIVULGATION}). Chez un vrai prestataire (`service_provider` + le plancher
  * `customer`), la tête sans titre est suivie d'un « Plus » de six entrées (`occupeUnLogement`,
- * TCK-379, inchangé) : compté comme une section, il faisait paraître des titres que l'AC5 refuse.
+ * TCK-379, inchangé, et le calendrier de ses interventions) : compté comme une section, il faisait
+ * paraître des titres que l'AC5 refuse.
  */
 export function avecTitres(groupes: readonly GroupeCompose[]): boolean {
   const sections = groupes.filter((g) => !GROUPES_DIVULGATION.has(g.id));

@@ -291,7 +291,18 @@ const TABLE = [
     accessible: ({ roles }) => personnel(roles),
   },
   // TCK-379 — aucun tableau de bord pour le prestataire (`docs/features.md` §2.5).
-  { id: 'statistiques', href: '/app/overview', cle: 'statistics', icone: BarChart3, accessible: ({ roles }) => occupeUnLogement(roles) },
+  // Revue de TCK-2478 (M2) — la condition EXACTE de la garde d'`app/(dashboard)/app/overview/page.tsx` :
+  // l'admin, l'agent et le bailleur y sont aiguillés vers leur vue ; sinon, seul le prestataire non
+  // locataire est renvoyé sur `/app`. `occupeUnLogement` l'ouvrait à tout prestataire (plancher
+  // `customer`) : un lien vers une redirection. Toucher l'une, c'est toucher l'autre.
+  {
+    id: 'statistiques',
+    href: '/app/overview',
+    cle: 'statistics',
+    icone: BarChart3,
+    accessible: ({ roles }) =>
+      isAdmin(roles) || isAgent(roles) || isOwner(roles) || !(isServiceProvider(roles) && !isTenant(roles)),
+  },
   {
     id: 'exports',
     href: '/app/overview/exports',
@@ -308,12 +319,15 @@ const TABLE = [
   { id: 'proprietaires', href: '/app/owners', cle: 'owners', icone: Users, accessible: ({ roles }) => isAdmin(roles) },
   { id: 'clients', href: '/app/customers', cle: 'crm', icone: Users, accessible: ({ roles }) => personnel(roles) || isOwner(roles) },
   // TCK-072 — le calendrier agrégé de qui gère un catalogue.
+  // Revue de TCK-2478 (M3) — et du prestataire, comme la garde de sa page (`assertCanReachCalendar`,
+  // `lib/auth/guards.ts`, TCK-591) : il y lit ses interventions. Sans lui, la page lui était ouverte
+  // mais absente du menu. Toucher l'une, c'est toucher l'autre.
   {
     id: 'calendrier',
     href: '/app/calendar',
     cle: 'calendar',
     icone: CalendarDays,
-    accessible: ({ roles }) => isAgent(roles) || isOwner(roles) || isAdmin(roles),
+    accessible: ({ roles }) => isAgent(roles) || isOwner(roles) || isAdmin(roles) || isServiceProvider(roles),
   },
   pageAgence('agence-equipe', '/app/agency/team'),
   pageAgence('agence-roles', '/app/agency/roles'),

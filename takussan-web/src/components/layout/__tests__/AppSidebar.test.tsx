@@ -293,13 +293,15 @@ const MENU_ATTENDU: Record<Persona, { action: string | null; groupes: GroupeLu[]
       ],
     ],
   },
-  // AC5 — ni action ni titre de section. Le plancher `customer` lui ouvre six destinations
-  // (`occupeUnLogement`, TCK-379, inchangé) : elles sont sous « Plus », replié, qui n'est pas un titre.
+  // AC5 — ni action ni titre de section. Six destinations sous « Plus », replié, qui n'est pas un
+  // titre : cinq que le plancher `customer` lui ouvre (`occupeUnLogement`, TCK-379), et le calendrier.
   prestataire: {
     action: null,
     groupes: [
       [null, false, 'Tableau de bord', 'Interventions', 'Messagerie', 'Documents'],
-      ['Plus', true, 'Réservations', 'Visites', 'Mes favoris', 'Recherches sauvegardées', 'Baux', 'Statistiques'],
+      // Revue de TCK-2478 — « Statistiques » sort (M2 : sa page le renvoie sur `/app`), « Calendrier »
+      // entre (M3 : `assertCanReachCalendar` le laisse entrer, TCK-591).
+      ['Plus', true, 'Réservations', 'Visites', 'Mes favoris', 'Recherches sauvegardées', 'Baux', 'Calendrier'],
     ],
   },
   plateforme: {
