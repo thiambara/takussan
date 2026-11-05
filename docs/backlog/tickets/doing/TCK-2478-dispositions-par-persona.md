@@ -95,8 +95,9 @@ par défaut). La charte reste `docs/design-guidelines.md` (palette Lin).
 - [x] AC5 — Le prestataire n'a ni ➊ ni titre de groupe.
 - [x] AC6 — L'en-tête d'espace nomme l'agence et le persona, et ouvre le sélecteur au clavier.
 - [x] AC7 — `npm run check:i18n` vert : chaque clé neuve en `fr`, `en`, `wo`.
-- [ ] AC8 — Mesure au navigateur à 390, 768 et 1366 px : aucun défilement horizontal du document,
-      tiroir et barre fixe (méthode : `docs/qa/responsive-2026-09-02.md`).
+- [x] AC8 — Mesure au navigateur à 390, 768 et 1366 px : aucun défilement horizontal du document,
+      tiroir et barre fixe (méthode : `docs/qa/responsive-2026-09-02.md`). Relevé : « Mesure au
+      navigateur (AC8) » ci-dessous — 0 sur 8 comptes × 3 largeurs ; plateforme non mesurable (2FA).
 
 ## Hors périmètre
 
@@ -107,7 +108,7 @@ par défaut). La charte reste `docs/design-guidelines.md` (palette Lin).
 ## Notes d'implémentation
 
 Plan : [`docs/plans/2026-11-05-tck-2478-dispositions-par-persona.md`](../../../plans/2026-11-05-tck-2478-dispositions-par-persona.md).
-AC8 (mesure au navigateur) reste à faire : tâche 7 du plan.
+AC8 (mesure au navigateur) : relevée le 2026-11-05, voir « Mesure au navigateur (AC8) » en fin de notes.
 
 ### Relevés qui ont décidé
 - **Action de l'agent** : aucun parcours de création de visite sous `/app` (`app/(dashboard)/app/visits/`
@@ -211,3 +212,66 @@ du persona : le moteur a raison. Attendu corrigé en `ouvert(persona) ∪ ouvert
 ### Divers
 - `nav.sidebar.sections.*` et `nav.sidebar.groupeReplie` (jamais lue : le bouton porte
   `aria-expanded`, un « — afficher » serait faux une fois déplié) retirées de `fr`, `en`, `wo`.
+
+### Mesure au navigateur (AC8) — 2026-11-05, 21:08–21:13
+**Version mesurée : `429e6b757`, arbre propre sous `takussan-web/src`** — HEAD et empreinte du diff
+relevés avant ET après chaque passage, identiques (`429e6b757 diff:da39a3ee5e6b`, le diff vide).
+Charge (`uptime`, 8 cœurs) : 8,03 8,19 6,27 au début, 2,23 5,01 5,42 à la fin.
+Front `next dev` sur `localhost:3000`, API sur `127.0.0.1:8002`, base de dev.
+
+**Banc.** Chrome 156 headless, profil jetable, CDP direct (WebSocket de Node 24), un contexte de
+navigateur isolé par compte. Session par jeton Sanctum posé par `fetch('/api/auth/set-token')` (jamais
+`POST /api/auth/login`). `Emulation.setDeviceMetricsOverride` en `mobile: false`, plus un témoin en
+`mobile: true` à 390, qui relève `innerWidth` (piège du viewport élargi). Sonde lancée quand la page
+est stable : plus de squelette (`animate-pulse`, `aria-busy`), quatre lectures identiques de la barre,
+au moins 5 s. À 390, le tiroir est ouvert par le bouton « Ouvrir le menu » de la barre haute, et la
+sonde lit DANS le tiroir. Tabulation : de vraies frappes Tab (`Input.dispatchKeyEvent`).
+
+| Persona (user id) | 1366 : `sw − iw` (`iw`) | 768 : `sw − iw` (`iw`) | 390, tiroir ouvert : `sw − iw` (`iw`) · fermé · témoin `mobile:true` | Après l'en-tête, Tab → |
+|---|---|---|---|---|
+| client (86) | **0** (1366) | **0** (768) | **0** (390) · 0 · `iw` 390 | « Chercher un bien » ➊ |
+| locataire (104) | **0** (1366) | **0** (768) | **0** (390) · 0 · `iw` 390 | « Payer mon loyer » ➊ |
+| agent (3, Dakar Immo) | **0** (1366) | **0** (768) | **0** (390) · 0 · `iw` 390 | « Publier un bien » ➊ |
+| admin-agence (2, Dakar Immo) | **0** (1366) | **0** (768) | **0** (390) · 0 · `iw` 390 | « Publier un bien » ➊ |
+| prestataire (17) | **0** (1366) | **0** (768) | **0** (390) · 0 · `iw` 390 | « Tableau de bord » (pas de ➊, AC5) |
+| hôte (62, Studio de Aminata) | **0** (1366) | **0** (768) | **0** (390) · 0 · `iw` 390 | « Publier un bien » ➊ |
+| bailleur (7, Dakar Immo) | **0** (1366) | **0** (768) | **0** (390) · 0 · `iw` 390 | « Proposer un bien à mon agence » ➊ |
+| hôte à deux profils (306, Espace de Awa) | **0** (1366) | **0** (768) | **0** (390) · 0 · `iw` 390 | « Publier un bien » ➊ |
+
+À chaque largeur, sur les 24 relevés :
+- **Barre ou tiroir** : barre fixe 0–230 px à 1366 (police racine à 14,4 px dès `lg`, `w-64` = 16 rem ;
+  l'ablation `flex-shrink: 0` ne change rien, la barre n'est donc pas comprimée) et 0–256 px à 768 ;
+  tiroir 0–288 px à 390. Débordement interne (`scrollWidth − clientWidth`) de la barre et de son
+  `<nav>` : 0 ; aucun élément dont `right > innerWidth` hors d'un ancêtre qui défile.
+- **Présents, dans la barre comme dans le tiroir** : l'en-tête d'espace (« Dakar Immo · Agent »,
+  « Studio de Aminata · Hôte », « Client »…), l'action principale (sauf prestataire), les groupes de la
+  disposition dans l'ordre (repliés : « Mes recherches » du locataire, « Agence » et « Pilotage » de
+  l'admin, « Plus » partout).
+- **Action ➊ jamais tronquée** (`scrollWidth ≤ clientWidth`) : « Proposer un bien à mon agence » passe
+  sur deux lignes (49 px de haut à 1366, 55 px à 768, 59 px à 390, contre 32/35/39 pour une ligne). Au
+  passage pré-correctifs, elle était tronquée à 1366, 768 et 390 : c'est ce relevé qui a mené à
+  `429e6b757`.
+- Seul texte tronqué dans la barre : la carte de profil du bas de l'hôte 62, « Admin Studio de
+  Aminata ». Elle existait avant ce lot.
+
+**Limites, dites telles quelles.**
+- **Plateforme non mesurée** : `/app` renvoie le super-admin vers `/onboarding/securite`, où il doit
+  poser sa 2FA. Limite acceptée par la session.
+- **En-tête en bouton jamais vu au navigateur** : aucun compte de la base de dev n'a deux espaces, donc
+  l'en-tête est partout la carte statique (`profile-switcher-static`), y compris pour l'hôte 306, dont
+  les deux profils forment un seul espace (TCK-497). La tabulation a été mesurée depuis une ancre posée
+  juste avant la carte. Le cas du bouton qui ouvre le sélecteur reste couvert par l'AC6, sur le
+  composant monté.
+- Seules erreurs réseau relevées : des vignettes de biens servies par `localhost:8002/storage/…`,
+  bloquées par ORB (sans rapport avec la barre).
+
+**Artefacts de mesure payés en route** (passages jetés, non retenus) :
+1. Front chargé sur `127.0.0.1:3000` : l'API n'autorise que l'origine `localhost:3000`, donc
+   `GET /api/me/capabilities` échouait en CORS (`PreflightAllowOriginMismatch`) et **l'agent n'avait
+   aucune action principale**, alors que l'API lui rend `properties.create`. Ce n'est pas un défaut :
+   sur la bonne origine, l'action paraît en environ 3 s.
+2. Le tour de bienvenue (`WelcomeModal`) recouvrait la page : il a été passé par son bouton
+   « Passer ». Les 7 lignes `welcome_views` ainsi écrites (la table n'en avait aucune pour ces comptes)
+   ont été supprimées à la fin, comme les 10 jetons `mesure-2478`.
+3. Deux passages ont vu le code changer pendant la mesure (commits de correctifs servis à chaud) : ils
+   ont été jetés, puis la mesure a été reprise sur le lot figé.
