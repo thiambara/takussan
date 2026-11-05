@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { Inbox, Mail, MessageCircle, Phone } from 'lucide-react';
 import {
@@ -16,6 +15,7 @@ import {
 } from '@/lib/queries/contact-leads';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { useCan } from '@/hooks/useCan';
+import { useVueDansLUrl } from '@/hooks/useVueDansLUrl';
 import { ApiError } from '@/lib/api';
 import type { CustomerDuplicateMatch } from '@/app/actions/dashboard-customers';
 import { useAuth } from '@/context/AuthContext';
@@ -41,11 +41,10 @@ import { cn } from '@/lib/utils';
 import type { Locale } from '@/i18n/config';
 import type { PaginatedResponse } from '@/types/api';
 import type { User } from '@/types/user';
+import { FILTRES_DES_DEMANDES, filtreDesDemandes } from './filtre-des-demandes';
 
 /** Valeur repère de « aucun membre choisi » : une valeur vide n'est pas une option du Select. */
 const AUCUN_MEMBRE = '__none__';
-
-const FILTRES: readonly FiltreDesDemandes[] = ['todo', 'handled', 'all'];
 
 /** `?lead={id}` (cible `lead`, TCK-590) : un entier positif, sinon rien n'est lu. */
 function demandeDesignee(brut: string | null | undefined): number | null {
@@ -64,14 +63,16 @@ function demandeDesignee(brut: string | null | undefined): number | null {
  */
 export function ContactLeadsInbox() {
   const t = useTranslations('contactLeads');
-  const [filtre, setFiltre] = useState<FiltreDesDemandes>('todo');
+  // TCK-2479 — le filtre vit dans `?filtre=` (« À traiter » par défaut, absent de l'URL) : la pastille
+  // « À traiter » du menu y mène, et il survit au rechargement et au lien copié.
+  const { params, remplacer } = useVueDansLUrl();
+  const filtre = filtreDesDemandes(params);
   const [page, setPage] = useState(1);
   const query = useContactLeads(filtre, page);
   // P97.04 (TCK-1120) — la cible `lead` promet « la boîte ouverte sur la demande » : la demande
   // désignée est rendue en tête, quel que soit l'onglet ou la page. Une lecture refusée ou
   // introuvable n'affiche rien de plus que la boîte.
-  const searchParams = useSearchParams();
-  const designee = useContactLead(demandeDesignee(searchParams?.get('lead')));
+  const designee = useContactLead(demandeDesignee(params.get('lead')));
   const enTete = designee.isError ? null : (designee.data?.data ?? null);
 
   return (
@@ -79,12 +80,13 @@ export function ContactLeadsInbox() {
       <Tabs
         value={filtre}
         onValueChange={(v) => {
-          setFiltre((v as FiltreDesDemandes) ?? 'todo');
+          const suivant = (v as FiltreDesDemandes) ?? 'todo';
+          remplacer({ filtre: suivant === 'todo' ? null : suivant });
           setPage(1);
         }}
       >
         <TabsList>
-          {FILTRES.map((f) => (
+          {FILTRES_DES_DEMANDES.map((f) => (
             <TabsTrigger key={f} value={f}>
               {t(`filters.${f}`)}
               {f === filtre && typeof query.data?.meta?.total === 'number' && (

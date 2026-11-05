@@ -44,8 +44,10 @@ vi.mock('@/lib/queries/contact-leads', () => ({
   useAssignLead: () => assign,
 }));
 
+const remplacer = vi.hoisted(() => vi.fn());
 vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(etat.recherche),
+  useRouter: () => ({ replace: remplacer }),
 }));
 
 const lecturesDesMembres = vi.hoisted(() => [] as unknown[][]);
@@ -123,6 +125,32 @@ describe('<ContactLeadsInbox> — TCK-590', () => {
     await user.click(screen.getByRole('button', { name: 'Attribuer' }));
     await user.click(await screen.findByRole('combobox', { name: 'Collègue' }));
     expect(await screen.findByRole('option', { name: '#21' })).toBeInTheDocument();
+  });
+
+  it('TCK-2479 — `?filtre=handled` ouvre « Traitées », et c’est la liste lue', () => {
+    etat.recherche = 'filtre=handled';
+    render(withIntl(<ContactLeadsInbox />));
+
+    expect(screen.getByRole('tab', { name: /Traitées/ })).toHaveAttribute('aria-selected', 'true');
+    expect(etat.filtres.at(-1)).toBe('handled');
+  });
+
+  it('TCK-2479 — sans paramètre « À traiter » ; un choix s’écrit dans l’URL, le défaut s’en retire', async () => {
+    const user = userEvent.setup();
+    render(withIntl(<ContactLeadsInbox />));
+    expect(etat.filtres.at(-1)).toBe('todo');
+
+    await user.click(screen.getByRole('tab', { name: /Toutes/ }));
+    expect(remplacer).toHaveBeenLastCalledWith('?filtre=all', { scroll: false });
+  });
+
+  it('TCK-2479 — revenir à « À traiter » retire `filtre` de l’URL et garde les autres clés', async () => {
+    etat.recherche = 'filtre=handled&lead=4';
+    const user = userEvent.setup();
+    render(withIntl(<ContactLeadsInbox />));
+
+    await user.click(screen.getByRole('tab', { name: /À traiter/ }));
+    expect(remplacer).toHaveBeenLastCalledWith('?lead=4', { scroll: false });
   });
 
   it('le message se lit en entier, avec le téléphone, l’e-mail, le destinataire et la source', () => {
