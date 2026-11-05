@@ -43,6 +43,7 @@ const PAR_ID: ReadonlyMap<string, DestinationDuCatalogue> = new Map(CATALOGUE.ma
  * 2. Les groupes, puis « Plus » (ses entrées citées, puis toute destination ouverte au persona que
  *    rien ne place) — jugés sur les RÔLES DU PERSONA ; une seule entrée par `href`.
  * 3. Le complément « Aussi … » : ce que l'union de l'espace ouvre et que le persona n'ouvre pas.
+ *    Une destination `surLEspace` (créer un bien) se juge sur l'union partout : jamais dans « Aussi ».
  * 4. Un groupe vide ne se rend pas ; un identifiant inconnu est ignoré.
  */
 export function composerMenu(
@@ -51,6 +52,8 @@ export function composerMenu(
   disposition: Disposition = DISPOSITIONS[persona],
 ): MenuCompose {
   const ctxPersona: ContexteDeMenu = { ...ctx, roles: rolesDuPersona(ctx.roles, persona), rolesDeLEspace: ctx.roles };
+  // Revue de TCK-2478 (I2) — le contexte qui juge une destination POUR LE PERSONA.
+  const juge = (d: Destination): ContexteDeMenu => (d.surLEspace ? ctx : ctxPersona);
   const hrefsPris = new Set<string>();
   const places = new Set<string>([...disposition.action, ...(disposition.carte ? [disposition.carte] : [])]);
 
@@ -66,24 +69,24 @@ export function composerMenu(
     ...(d.publique ? { publique: true as const } : {}),
   });
 
-  const prendre = (d: DestinationDuCatalogue | undefined, groupe: string, c: ContexteDeMenu): EntreeComposee | null => {
-    if (!d || hrefsPris.has(d.href) || !estOuverte(d, c)) return null;
+  const prendre = (d: DestinationDuCatalogue | undefined, groupe: string, c?: ContexteDeMenu): EntreeComposee | null => {
+    if (!d || hrefsPris.has(d.href) || !estOuverte(d, c ?? juge(d))) return null;
     hrefsPris.add(d.href);
     return composer(d, groupe);
   };
 
-  const actionDestination = disposition.action.map((id) => PAR_ID.get(id)).find((d) => d && estOuverte(d, ctxPersona));
+  const actionDestination = disposition.action.map((id) => PAR_ID.get(id)).find((d) => d && estOuverte(d, juge(d)));
   const action = actionDestination ? composer(actionDestination, 'action', disposition.libelleAction) : null;
 
   const carteDestination = disposition.carte ? PAR_ID.get(disposition.carte) : undefined;
-  const carte = carteDestination && estOuverte(carteDestination, ctxPersona) ? composer(carteDestination, 'carte') : null;
+  const carte = carteDestination && estOuverte(carteDestination, juge(carteDestination)) ? composer(carteDestination, 'carte') : null;
 
   const groupes: GroupeCompose[] = [];
   for (const groupe of disposition.groupes) {
     const entrees: EntreeComposee[] = [];
     for (const id of groupe.entrees) {
       places.add(id);
-      const entree = prendre(PAR_ID.get(id), groupe.id, ctxPersona);
+      const entree = prendre(PAR_ID.get(id), groupe.id);
       if (entree) entrees.push(entree);
     }
     groupes.push({ id: groupe.id, titre: groupe.titre, replie: groupe.replie === true, entrees });
@@ -92,19 +95,19 @@ export function composerMenu(
   const plus: EntreeComposee[] = [];
   for (const id of disposition.plus) {
     places.add(id);
-    const entree = prendre(PAR_ID.get(id), 'plus', ctxPersona);
+    const entree = prendre(PAR_ID.get(id), 'plus');
     if (entree) plus.push(entree);
   }
   for (const d of CATALOGUE) {
     if (places.has(d.id)) continue;
-    const entree = prendre(d, 'plus', ctxPersona);
+    const entree = prendre(d, 'plus');
     if (entree) plus.push(entree);
   }
   groupes.push({ id: 'plus', titre: 'plus', replie: true, entrees: plus });
 
   const aussi: EntreeComposee[] = [];
   for (const d of CATALOGUE) {
-    if (estOuverte(d, ctxPersona)) continue;
+    if (estOuverte(d, juge(d))) continue;
     const entree = prendre(d, 'aussi', ctx);
     if (entree) aussi.push(entree);
   }

@@ -405,6 +405,17 @@ describe('TCK-2478 — le complément « Aussi … » (AC2)', () => {
     expect(screen.getByRole('link', { name: 'Finances' })).toHaveAttribute('aria-current', 'page');
   });
 
+  // Revue de TCK-2478 (I2) — même compte, profil actif BAILLEUR. La page `/app/properties/new` choisit
+  // son mode sur l'union (`modeDeCreationDeBien`) : elle publie. L'action disait « Proposer un bien à
+  // mon agence », et « Publier un bien » reparaissait sous « Aussi administrateur » vers la même URL.
+  it('profil actif bailleur : l’action dit « Publier un bien », seul lien vers la page de création', () => {
+    pathname = '/app/properties/new';
+    const { container } = render(barre({ ...ADMIN_AUSSI_BAILLEUR, typeProfilActif: 'owner' }));
+    expect(container.querySelector('[data-slot="action-principale"]')).toHaveTextContent('Publier un bien');
+    expect(container.querySelectorAll('a[href="/app/properties/new"]')).toHaveLength(1);
+    expect(screen.queryByRole('link', { name: /Proposer un bien/, hidden: true })).toBeNull();
+  });
+
   it('un compte sans autre profil n’a pas de complément', () => {
     for (const persona of PERSONAS) {
       const { container, unmount } = renderSidebar(persona, '/app');

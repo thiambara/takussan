@@ -74,6 +74,16 @@ export interface Destination {
   readonly ecriture?: true;
   /** Une page du site public : son `href` se localise au rendu (`cheminLocalise`, ADR-0026). */
   readonly publique?: true;
+  /**
+   * Revue de TCK-2478 (I2) — une destination jugée sur l'ESPACE (l'union des rôles), jamais sur les
+   * seuls rôles du persona, parce que SA PAGE se juge ainsi. `/app/properties/new` choisit son mode
+   * sur l'union (`modeDeCreationDeBien(user.roles)`) et les capacités que l'API rend sont un OU entre
+   * les profils de l'agence : le bailleur d'un espace où il est aussi admin y PUBLIE. Jugé sur le
+   * persona, le bouton disait « Proposer un bien », la page publiait, et « Publier un bien » revenait
+   * sous « Aussi administrateur » vers la même URL. `composerMenu` la juge sur l'espace partout —
+   * action, groupes, « Plus » —, et elle ne paraît donc jamais dans « Aussi … ».
+   */
+  readonly surLEspace?: true;
 }
 
 /**
@@ -146,6 +156,7 @@ const TABLE = [
   {
     id: 'publier-bien',
     ecriture: true,
+    surLEspace: true,
     href: '/app/properties/new',
     cle: 'publishProperty',
     icone: PlusCircle,
@@ -157,6 +168,7 @@ const TABLE = [
     // capacités du personnel ne sont pas lues, aucune entrée de création (P152.03).
     id: 'proposer-bien',
     ecriture: true,
+    surLEspace: true,
     href: '/app/properties/new',
     cle: 'proposeProperty',
     icone: PlusCircle,

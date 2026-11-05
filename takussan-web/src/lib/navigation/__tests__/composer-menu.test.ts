@@ -33,16 +33,17 @@ describe('TCK-2478 — les dispositions', () => {
 
 describe('TCK-2478 — composerMenu (ADR-0089 §4)', () => {
   // ADR-0089 §2, §4 — ce que le persona ouvre (jugé sur SES rôles), plus ce que seul un autre profil
-  // de l'espace ouvre (le complément). Pas l'union seule : `isCustomerOnly` et la garde P152.03 de
-  // « Proposer » ne sont pas monotones — un bailleur d'un espace admin+bailleur, capacités non lues,
-  // propose un bien, ce que l'union (personnel sans capacités lues) fermerait.
+  // de l'espace ouvre (le complément). Pas l'union seule : `isCustomerOnly` n'est pas monotone.
+  // Revue de TCK-2478 (I2) — sauf les destinations `surLEspace` (créer un bien), jugées sur l'union
+  // des deux côtés, comme leur page : le bailleur d'un espace admin+bailleur, capacités non lues, ne
+  // « propose » plus (la page, sur l'union, publierait une fois les capacités lues).
   it.each(PERSONAS)('%s : rien n’est perdu — persona d’un côté, complément de l’autre', (persona) => {
     for (const ctx of contextes()) {
       const menu = composerMenu(ctx, persona);
-      const ctxPersona = { ...ctx, roles: rolesDuPersona(ctx.roles, persona) };
+      const ctxPersona = { ...ctx, roles: rolesDuPersona(ctx.roles, persona), rolesDeLEspace: ctx.roles };
       const rendus = new Set([...entreesDuMenu(menu).map((e) => e.href), ...(menu.carte ? [menu.carte.href] : [])]);
       const attendus = new Set(
-        CATALOGUE.filter((d) => estOuverte(d, ctx) || estOuverte(d, ctxPersona)).map((d) => d.href),
+        CATALOGUE.filter((d) => estOuverte(d, ctx) || estOuverte(d, d.surLEspace ? ctx : ctxPersona)).map((d) => d.href),
       );
       // L'action seule peut porter un href que rien d'autre ne porte (« Proposer un bien »).
       if (menu.action) rendus.add(menu.action.href);
@@ -93,6 +94,33 @@ describe('TCK-2478 — composerMenu (ADR-0089 §4)', () => {
       const menu = composerMenu({ roles: ['customer', 'agent'], capacites: ['team.invite'], cheminsAdmin: ['/app/agency/team'] }, 'agent');
       expect(groupe(menu, 'plus')).toContain('/app/agency/team');
       expect(groupe(menu, 'aussi')).toEqual([]);
+    });
+  });
+
+  /**
+   * Revue de TCK-2478 (I2) — `/app/properties/new` choisit son mode sur l'UNION (`modeDeCreationDeBien`) :
+   * jugée sur le persona, l'action disait « Proposer » à un bailleur que la page laissait publier, et
+   * « Publier un bien » revenait sous « Aussi administrateur » vers la même URL.
+   */
+  describe('créer un bien se juge sur l’espace, comme la page (revue, I2)', () => {
+    const NOUVEAU = '/app/properties/new';
+
+    it('admin + bailleur, profil actif bailleur : « Publier un bien », et aucune autre entrée vers la page', () => {
+      const menu = composerMenu({ roles: ['customer', 'agency_admin', 'owner'], capacites: ['properties.create'], cheminsAdmin: [] }, 'bailleur');
+      expect([menu.action?.id, menu.action?.labelKey]).toEqual(['publier-bien', 'publishProperty']);
+      expect(entreesDuMenu(menu).filter((e) => e.href === NOUVEAU)).toEqual([]);
+    });
+
+    it('le bailleur seul propose toujours', () => {
+      const menu = composerMenu({ roles: ['customer', 'owner'], capacites: null }, 'bailleur');
+      expect(menu.action?.id).toBe('proposer-bien');
+    });
+
+    it.each(PERSONAS)('%s : aucune destination de création dans « Aussi … »', (persona) => {
+      for (const ctx of contextes()) {
+        const aussi = composerMenu(ctx, persona).groupes.find((g) => g.id === 'aussi');
+        expect(aussi?.entrees.filter((e) => e.href === NOUVEAU) ?? [], `${persona} / ${ctx.roles.join('+')}`).toEqual([]);
+      }
     });
   });
 
