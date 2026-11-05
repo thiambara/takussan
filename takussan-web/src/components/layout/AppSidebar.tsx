@@ -1,16 +1,14 @@
 'use client';
 
-import { useId } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { Lock, UserRound } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { ChevronRight, Lock, ShieldCheck, UserRound } from 'lucide-react';
 import type { User } from '@/types/user';
 import { isAgent, isAdmin, isSuperAdmin } from '@/lib/roles';
 import { useMyCapabilities } from '@/hooks/useCan';
 import { isProRouteLocked } from '@/lib/access/pro-features';
-import { entreesDeMenu, type AccesAdmin, type CheminAdmin } from '@/lib/access/pages-admin';
 import { useAccesAdminOuRepli } from '@/lib/access/acces-admin-contexte';
 import { useAuth } from '@/context/AuthContext';
 import { fetchModerationQueue } from '@/lib/queries/reviews-moderation';
@@ -21,19 +19,24 @@ import {
 } from '@/lib/queries/agency-queues';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ProUpgradeCard } from './ProUpgradeCard';
+import { CarteDeMiseEnLocation } from './CarteDeMiseEnLocation';
 import { useFormatter, useTranslations } from 'next-intl';
 import { Logo } from '@/components/brand/Logo';
 import { cn } from '@/lib/utils';
 import { initialesDe, libelleDe } from '@/lib/identite';
+import { useCurrentLocale } from '@/i18n/hooks';
+import { cheminLocalise } from '@/i18n/routing';
 import { APP_EXACT_ROOTS, resolveActiveHref } from '@/lib/navigation/active-path';
 import { HREF_CREDITS } from '@/lib/navigation/acces-app';
+import type { NavCounterKey } from '@/lib/navigation/types';
 import {
-  SECTION_LABEL_KEYS,
-  SECTION_ORDER,
-  type NavCounterKey,
-  type NavSection,
-} from '@/lib/navigation/types';
-import { menuDuPersona } from '@/lib/navigation/composer-menu';
+  GROUPES_DIVULGATION,
+  avecTitres,
+  composerMenu,
+  type EntreeComposee,
+  type GroupeCompose,
+} from '@/lib/navigation/composer-menu';
+import { DISPOSITIONS } from '@/lib/navigation/dispositions';
 import { resoudrePersona } from '@/lib/navigation/personas';
 import type { ProfileType } from '@/types/profile';
 import { useSoldeCredits } from '@/lib/queries/credits-solde';
@@ -41,10 +44,7 @@ import { useUnreadCount } from '@/components/chat-widget/useUnreadCount';
 import { usePendingVisitsCount } from '@/lib/queries/visits';
 import { useUnhandledLeadsCount } from '@/lib/queries/contact-leads';
 
-// TCK-2477 — déplacés vers `@/lib/navigation/types` (avec leurs docblocks) ; ré-exportés pour les
-// appelants existants.
-export { SECTION_LABEL_KEYS, SECTION_ORDER };
-export type { NavCounterKey, NavSection };
+export type { NavCounterKey };
 
 /** Compteurs dont le libellé accessible vit sous `nav.admin` (`pendingBadge`), pas `nav.sidebar`. */
 const COMPTEURS_DE_MODERATION: ReadonlySet<NavCounterKey> = new Set([
@@ -52,27 +52,19 @@ const COMPTEURS_DE_MODERATION: ReadonlySet<NavCounterKey> = new Set([
   'propertyModeration',
 ]);
 
+/** TCK-2478 (ADR-0089 §6) — la console de la plateforme, au pied de la barre du persona `plateforme`. */
+const HREF_CONSOLE = '/super-admin';
+
 /**
- * Une entrée porte une CLÉ de libellé, pas un libellé.
+ * Une entrée rendue : celle du menu composé, plus le cadenas de l'agence `individual`.
  *
- * `composerMenu` (`@/lib/navigation/composer-menu`) est une fonction pure appelée hors composant :
- * `useTranslations` n'y est pas appelable, et l'y rendre appelable voudrait dire la transformer en
- * hook — donc la rendre intestable et non mémoïsable. Le patron retenu est celui que TCK-286 applique partout où le
- * texte naît loin de l'écran : **la donnée transporte la clé, le rendu la résout**.
+ * Une entrée porte une CLÉ de libellé, pas un libellé. `composerMenu` (`@/lib/navigation/composer-menu`)
+ * est une fonction pure appelée hors composant : `useTranslations` n'y est pas appelable, et l'y
+ * rendre appelable voudrait dire la transformer en hook — donc la rendre intestable. Le patron
+ * retenu est celui que TCK-286 applique partout où le texte naît loin de l'écran : **la donnée
+ * transporte la clé, le rendu la résout**.
  */
-export interface NavItem {
-  /** TCK-2477 — l'identifiant de la destination au catalogue (`@/lib/navigation/catalogue`). */
-  id?: string;
-  href: string;
-  labelKey: string;
-  icon: LucideIcon;
-  section: NavSection;
-  emphasized?: boolean;
-  locked?: boolean;
-  counterKey?: NavCounterKey;
-  /** TCK-633 — espace de la clé de libellé ; `nav.sidebar` par défaut, `nav.admin` pour la section d'agence. */
-  labelSpace?: 'nav.admin';
-}
+type EntreeRendue = EntreeComposee & { readonly locked?: boolean };
 
 interface AppSidebarProps {
   user: User;
@@ -91,26 +83,12 @@ interface AppSidebarProps {
    * `active_profile_id`. `null` ou absent : le persona se déduit des rôles.
    */
   typeProfilActif?: ProfileType | null;
+  /**
+   * TCK-2478 — l'agence du profil actif est suspendue (TCK-600) : ni action principale, ni entrée
+   * d'écriture ; la lecture reste.
+   */
+  agencySuspended?: boolean;
 }
-
-/**
- * @deprecated TCK-2477 — adaptateur du moteur (`@/lib/navigation`, ADR-0089). Il garde la
- * signature d'avant pour que les tests qui figent le menu des sept rôles passent SANS retouche ;
- * TCK-2478 les réécrit sur le moteur et retire cet adaptateur.
- *
- * L'historique des gardes de chaque entrée (TCK-379, TCK-492, TCK-587, TCK-625, TCK-646,
- * P152.03…) vit désormais sur sa destination, dans `@/lib/navigation/catalogue`.
- */
-export function buildNavItems(
-  user: User,
-  capacites: readonly string[] | null = null,
-  typeProfilActif: ProfileType | null = null,
-  agenceIndividuelle = false,
-): NavItem[] {
-  const persona = resoudrePersona({ roles: user.roles, typeProfilActif, agenceIndividuelle });
-  return menuDuPersona({ roles: user.roles, capacites }, persona);
-}
-
 
 /**
  * TCK-377 — Anneau de focus sur toutes les cibles cliquables de la barre.
@@ -124,35 +102,8 @@ export function buildNavItems(
  */
 const FOCUS_RING = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
-/** Les pages de la section d'agence qui portent le compte d'une file d'attente. */
-const COMPTEUR_DE_PAGE: Partial<Record<CheminAdmin, NavCounterKey>> = {
-  '/app/agency/moderation': 'reviewModeration',
-  '/app/agency/moderation/properties': 'propertyModeration',
-};
-
-/**
- * TCK-649 (ADR-0064 §2, AC2) — la section d'agence du menu, DÉRIVÉE de la table des pages.
- *
- * Une entrée par page à menu que le profil actif peut ouvrir (`entreesDeMenu`), dans l'ordre de la
- * table, avec son libellé et son icône ; aucune s'il n'en a aucune — la section disparaît alors
- * avec ses entrées ({@link groupBySection}). Elle remplace l'entrée unique « Administration » de
- * TCK-633, qui faisait changer de coque au clic.
- *
- * ⚠ C'est la TABLE qui dit qui voit quoi, jamais ce composant : aucune condition de rôle ici.
- */
-export function avecSectionAgence(items: NavItem[], acces: AccesAdmin): NavItem[] {
-  const section = entreesDeMenu(acces).map(
-    (entree): NavItem => ({
-      href: entree.chemin,
-      labelKey: entree.cle,
-      icon: entree.icone,
-      section: 'admin',
-      labelSpace: 'nav.admin',
-      counterKey: COMPTEUR_DE_PAGE[entree.chemin],
-    }),
-  );
-  return [...items, ...section];
-}
+/** Le titre d'un groupe, en petites capitales (section ou bouton de bascule). */
+const STYLE_TITRE = 'text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground';
 
 function SidebarCounter({ value, label }: { value: number; label: string }) {
   return (
@@ -165,27 +116,20 @@ function SidebarCounter({ value, label }: { value: number; label: string }) {
   );
 }
 
-function SidebarItem({
-  href,
-  labelKey,
-  icon: Icon,
-  active,
-  emphasized,
-  locked,
-  counterKey,
-  counter,
-  onNavigate,
-  labelSpace,
-  valeur,
-  nomAccessible,
-}: NavItem & {
-  active: boolean;
-  counter?: number;
-  onNavigate?: () => void;
+interface SidebarItemProps {
+  readonly entree: EntreeRendue;
+  /** L'`href` à servir : celui de l'entrée, localisé quand elle mène au site public. */
+  readonly href: string;
+  readonly active: boolean;
+  readonly counter?: number;
+  readonly onNavigate?: () => void;
   /** TCK-642 — une valeur en bout de ligne (le solde de crédits), déjà mise en forme. */
-  valeur?: string;
-  nomAccessible?: string;
-}) {
+  readonly valeur?: string;
+  readonly nomAccessible?: string;
+}
+
+function SidebarItem({ entree, href, active, counter, onNavigate, valeur, nomAccessible }: SidebarItemProps) {
+  const { labelKey, labelSpace, icon: Icon, emphasized, locked, counterKey } = entree;
   const t = useTranslations('nav.sidebar');
   const tAdmin = useTranslations('nav.admin');
   const label = labelSpace === 'nav.admin' ? tAdmin(labelKey) : t(labelKey);
@@ -270,54 +214,6 @@ function SidebarUserFooter({ user, onNavigate }: { user: User; onNavigate?: () =
 }
 
 /**
- * Regroupe les entrées par section, dans l'ordre de {@link SECTION_ORDER}, en préservant l'ordre
- * de poussée à l'intérieur d'une section.
- *
- * Les sections vides ne rendent RIEN — c'est ce qui fait qu'un `customer`, qui n'a pas de
- * catalogue, ne voit pas de césure « Catalogue » vide. Et si le regroupement aboutissait à une
- * seule section non vide, les en-têtes disparaissent tous : *une césure unique ne coupe rien.*
- */
-export function groupBySection(items: NavItem[]): { section: NavSection; items: NavItem[] }[] {
-  const groups = SECTION_ORDER.map((section) => ({
-    section,
-    items: items.filter((item) => item.section === section),
-  })).filter((group) => group.items.length > 0);
-  return groups;
-}
-
-/**
- * TCK-377 — « le groupement s'efface quand il n'a plus de travail à faire ».
- *
- * ⚠ Cette règle a d'abord été écrite `groups.length > 1`, **directement dans le composant**, et
- * elle y était doublement inerte :
- *
- *  1. **Aucun utilisateur ne la fait basculer.** `buildNavItems` pousse `/app` et `/app/messages`
- *     en `primary` et `/app/documents` en `engagements` SANS aucune condition de rôle : le
- *     minimum absolu est de DEUX groupes, y compris pour un compte sans aucun rôle. La branche
- *     `false` n'était donc atteignable par personne — et une règle qu'aucune entrée ne peut violer
- *     n'est pas gardable : la mutation `withHeadings = true` laissait les 88 tests verts.
- *  2. **Elle ne mesurait pas ce que la règle dit.** Ce qu'un en-tête doit gagner, c'est de la
- *     SÉPARATION ; une césure posée au-dessus d'UNE entrée n'en produit aucune. Compter les
- *     groupes ne le voit pas, compter les entrées d'un groupe le voit.
- *
- * La forme retenue garde l'ancienne clause et lui en ajoute une seconde, réellement atteignable :
- * les en-têtes ne paraissent que si **au moins une section LIBELLÉE porte deux entrées ou plus**.
- * `primary` est exclue de ce décompte parce qu'elle n'a pas de libellé ({@link SECTION_LABEL_KEYS})
- * — elle ne peut donc justifier aucune césure.
- *
- * Mesuré sur les sept rôles au 2026-08-27 : la seconde clause ne change le rendu que du
- * `service_provider`, qui recevait 2 en-têtes au-dessus d'UNE entrée chacune pour 4 entrées en
- * tout — exactement le cas que la Direction UX du ticket nomme. Les six autres rôles ont au moins
- * une section libellée à deux entrées et gardent leurs césures.
- */
-export function withSectionHeadings(groups: { section: NavSection; items: NavItem[] }[]): boolean {
-  if (groups.length <= 1) return false;
-  return groups.some(
-    (group) => SECTION_LABEL_KEYS[group.section] !== null && group.items.length > 1,
-  );
-}
-
-/**
  * TCK-377 — AC6 : quels compteurs sont réellement sondés.
  *
  * Le sondage est armé par la PRÉSENCE de l'entrée comptée, jamais par une liste de rôles recopiée
@@ -336,13 +232,98 @@ export function withSectionHeadings(groups: { section: NavSection; items: NavIte
  * Elle est désormais éprouvée **sur le composant monté**, rôle par rôle
  * (`AppSidebar.test.tsx`, AC6) : une fonction pure verte ne dit rien de ce que le composant en
  * fait.
+ *
+ * TCK-2478 — les entrées sont celles des groupes du menu composé (`entreesDuMenu`), repliés
+ * compris : une entrée repliée est au menu, son compteur est sondé.
  */
-export function countersToPoll(items: NavItem[]): Set<NavCounterKey> {
+export function countersToPoll(
+  entrees: readonly { readonly counterKey?: NavCounterKey; readonly locked?: boolean }[],
+): Set<NavCounterKey> {
   const keys = new Set<NavCounterKey>();
-  for (const item of items) {
-    if (item.counterKey && !item.locked) keys.add(item.counterKey);
+  for (const entree of entrees) {
+    if (entree.counterKey && !entree.locked) keys.add(entree.counterKey);
   }
   return keys;
+}
+
+interface GroupeDuMenuProps {
+  readonly groupe: GroupeCompose & { readonly entrees: readonly EntreeRendue[] };
+  /** TCK-377 — les titres de SECTION paraissent (`avecTitres`). Sans effet sur une bascule. */
+  readonly titres: boolean;
+  readonly premier: boolean;
+  readonly idBase: string;
+  readonly activeHref: string | null;
+  readonly rendreEntree: (entree: EntreeRendue) => ReactNode;
+}
+
+/**
+ * TCK-2478 — un groupe de la disposition.
+ *
+ * - « Plus » et « Aussi … » sont des DIVULGATIONS (`GROUPES_DIVULGATION`) : leur bouton de bascule
+ *   se rend toujours, titres de section ou non (décision de la session du 2026-11-05 : le
+ *   prestataire garde son « Plus » sans qu'aucun titre de section paraisse — AC5).
+ * - Un autre groupe replié par sa disposition (« Agence », « Pilotage », « Mes recherches » du
+ *   locataire) est titré : son titre EST le bouton de bascule.
+ * - Un groupe déplié par sa disposition ne montre son titre que si `titres` (TCK-377).
+ *
+ * AC4 — l'entrée active n'est jamais cachée : un groupe qui la contient s'ouvre de lui-même, au
+ * montage comme à la navigation (la barre survit aux navigations du layout). L'ajustement se fait
+ * pendant le rendu, sur le patron « état dérivé d'une prop » de React, sans effet.
+ */
+function GroupeDuMenu({ groupe, titres, premier, idBase, activeHref, rendreEntree }: GroupeDuMenuProps) {
+  const t = useTranslations('nav.sidebar');
+  const contientLActif = activeHref !== null && groupe.entrees.some((e) => e.href === activeHref);
+  const [ouvert, setOuvert] = useState(!groupe.replie || contientLActif);
+  const [actifVu, setActifVu] = useState(contientLActif);
+  if (contientLActif !== actifVu) {
+    setActifVu(contientLActif);
+    if (contientLActif) setOuvert(true);
+  }
+
+  const bascule = groupe.replie && groupe.titre !== null;
+  const avecTitre = groupe.titre !== null && (bascule || titres || GROUPES_DIVULGATION.has(groupe.id));
+  const libelle = groupe.titre !== null ? t(`groupes.${groupe.titre}`, groupe.titreValeurs) : null;
+  const idTitre = `${idBase}-${groupe.id}-titre`;
+  const idListe = `${idBase}-${groupe.id}-liste`;
+
+  return (
+    // Un groupe titré se lit comme un GROUPE : le lecteur d'écran annonce son nom en y entrant
+    // (« Activité, groupe »), comme l'œil lit l'en-tête.
+    <div
+      role={avecTitre ? 'group' : undefined}
+      aria-labelledby={avecTitre ? idTitre : undefined}
+      data-groupe={groupe.id}
+      className={cn('space-y-1', !premier && 'mt-4')}
+    >
+      {avecTitre && bascule ? (
+        <button
+          type="button"
+          id={idTitre}
+          aria-expanded={ouvert}
+          aria-controls={idListe}
+          onClick={() => setOuvert((v) => !v)}
+          className={cn(
+            'flex w-full items-center justify-between gap-2 rounded-md px-3 py-1 text-left hover:text-foreground max-md:py-2',
+            STYLE_TITRE,
+            FOCUS_RING,
+          )}
+        >
+          <span className="truncate">{libelle}</span>
+          <ChevronRight
+            aria-hidden
+            className={cn('size-3.5 shrink-0 transition-transform motion-reduce:transition-none', ouvert && 'rotate-90')}
+          />
+        </button>
+      ) : avecTitre ? (
+        <p id={idTitre} className={cn('px-3 pb-1', STYLE_TITRE)}>
+          {libelle}
+        </p>
+      ) : null}
+      <div id={idListe} hidden={bascule && !ouvert} className="space-y-1">
+        {groupe.entrees.map(rendreEntree)}
+      </div>
+    </div>
+  );
 }
 
 export function AppSidebar({
@@ -352,6 +333,7 @@ export function AppSidebar({
   agencyIsStandard,
   hasPendingUpgrade,
   typeProfilActif,
+  agencySuspended = false,
 }: AppSidebarProps) {
   const pathname = usePathname();
   const t = useTranslations('nav.sidebar');
@@ -359,7 +341,8 @@ export function AppSidebar({
   const tNav = useTranslations('nav');
   const tCommon = useTranslations('common');
   const format = useFormatter();
-  const idTitres = useId();
+  const locale = useCurrentLocale();
+  const idBase = useId();
   const { token } = useAuth();
   const accesAdmin = useAccesAdminOuRepli({
     roles: user.roles,
@@ -371,15 +354,28 @@ export function AppSidebar({
   const lireCapacites = (isAgent(user.roles) || isAdmin(user.roles)) && !isSuperAdmin(user.roles);
   const { data: mesCapacites } = useMyCapabilities(undefined, lireCapacites);
   const capacites = lireCapacites ? (mesCapacites?.data.capabilities ?? null) : [];
-  const navItems = avecSectionAgence(
-    buildNavItems(user, capacites, typeProfilActif ?? null, agencyIsStandard === false),
-    accesAdmin,
-  ).map((item) => ({
-    ...item,
-    locked: isProRouteLocked(user, agencyIsStandard, item.href),
-  }));
 
-  const counted = countersToPoll(navItems);
+  // TCK-2478 (ADR-0089) — LE menu : la disposition du persona du profil actif, composée par une
+  // fonction pure. Ce composant n'affiche que ce qu'elle rend, et ne porte aucune condition de rôle
+  // — hormis le cadenas de l'agence `individual` (`isProRouteLocked`), qui est un confort d'écran.
+  const persona = resoudrePersona({
+    roles: user.roles,
+    typeProfilActif: typeProfilActif ?? null,
+    agenceIndividuelle: accesAdmin.espaceIndividuel || agencyIsStandard === false,
+  });
+  const menu = composerMenu(
+    { roles: user.roles, capacites, cheminsAdmin: accesAdmin.chemins, agenceSuspendue: agencySuspended },
+    persona,
+  );
+  const verrouiller = (e: EntreeComposee): EntreeRendue => ({
+    ...e,
+    locked: isProRouteLocked(user, agencyIsStandard, e.href),
+  });
+  const groupes = menu.groupes.map((g) => ({ ...g, entrees: g.entrees.map(verrouiller) }));
+  const entrees: EntreeRendue[] = groupes.flatMap((g) => g.entrees);
+  const lien = (e: EntreeComposee) => (e.publique ? cheminLocalise(e.href, locale) : e.href);
+
+  const counted = countersToPoll(entrees);
   const unreadMessages = useUnreadCount({ enabled: counted.has('unreadMessages') });
   const pendingVisits = usePendingVisitsCount({ enabled: counted.has('pendingVisits') });
   const unhandledLeads = useUnhandledLeadsCount({ enabled: counted.has('unhandledLeads') });
@@ -411,21 +407,46 @@ export function AppSidebar({
   // TCK-642 — le solde de l'espace, lu par la PRÉSENCE de l'entrée « Crédits » (même principe que
   // les compteurs) ; `null` tant qu'il n'est pas connu, et alors l'entrée reste nue.
   const solde = useSoldeCredits({
-    enabled: navItems.some((item) => item.href === HREF_CREDITS && !item.locked),
+    enabled: entrees.some((e) => e.href === HREF_CREDITS && !e.locked),
   });
 
   const activeHref = resolveActiveHref(
     pathname,
-    navItems.map((item) => item.href),
+    entrees.map((e) => e.href),
     APP_EXACT_ROOTS,
   );
-  const groups = groupBySection(navItems);
-  const withHeadings = withSectionHeadings(groups);
+  const titres = avecTitres(groupes);
+
+  // L'action principale : sa clé vient de la disposition (`nav.sidebar.actions.*`) quand elle en
+  // porte une (« Payer mon loyer »), sinon c'est le libellé de sa destination.
+  const action = menu.action;
+  const libelleAction = action
+    ? DISPOSITIONS[menu.persona].libelleAction
+      ? t(`actions.${action.labelKey}`)
+      : action.labelSpace === 'nav.admin'
+        ? tAdmin(action.labelKey)
+        : t(action.labelKey)
+    : null;
+  const IconeAction = action?.icon;
 
   const showProUpgradeCard =
     user.roles.includes('agency_admin') &&
     typeof user.agency_id === 'number' &&
     agencyIsStandard === false;
+
+  const rendreEntree = (entree: EntreeRendue) => (
+    <SidebarItem
+      key={entree.href}
+      entree={entree}
+      href={lien(entree)}
+      active={entree.href === activeHref}
+      counter={entree.counterKey ? counters[entree.counterKey] : undefined}
+      onNavigate={onNavigate}
+      {...(entree.href === HREF_CREDITS && solde !== null
+        ? { valeur: format.number(solde), nomAccessible: tNav('creditsBalance', { count: solde }) }
+        : {})}
+    />
+  );
 
   return (
     <aside className={cn('flex h-full w-64 flex-col bg-card', className)}>
@@ -442,56 +463,61 @@ export function AppSidebar({
           <Logo nom={tCommon('appName')} />
         </Link>
       </div>
+      {/* TCK-2478 — l'action principale du persona : la seule surface de couleur primaire du menu,
+          et le premier lien atteint au clavier. Absente (jamais désactivée) quand le profil ne peut
+          pas l'accomplir — dont l'espace suspendu (TCK-600). */}
+      {action && IconeAction ? (
+        <div className="px-3 pb-3 md:pt-5">
+          <Link
+            href={lien(action)}
+            onClick={onNavigate}
+            data-slot="action-principale"
+            className={cn(
+              'flex items-center gap-3 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 max-md:py-2.5',
+              FOCUS_RING,
+            )}
+          >
+            <IconeAction className="size-4 shrink-0" aria-hidden />
+            <span className="truncate">{libelleAction}</span>
+          </Link>
+        </div>
+      ) : null}
       {/* TCK-843 — `relative` : bloc conteneur des `sr-only` (absolus) de la liste. Sans lui,
           c'était la fenêtre ; aucun `overflow` ne les coupait, et posés en bas de la liste ils
           allongeaient le document — la coque entière de `/app` défilait. */}
-      <nav aria-label={t('navLabel')} className="relative flex-1 overflow-y-auto px-3 pb-2 md:pt-5">
-        {groups.map((group, index) => {
-          const labelKey = SECTION_LABEL_KEYS[group.section];
-          // TCK-649 — la section d'agence d'un admin `individual` s'appelle « Mon espace », comme
-          // l'entrée unique qu'elle remplace (TCK-633).
-          const titre = !withHeadings || labelKey === null
-            ? null
-            : group.section === 'admin' && accesAdmin.espaceIndividuel
-              ? tAdmin('mySpace')
-              : t(`sections.${labelKey}`);
-          const idTitre = `${idTitres}-${group.section}`;
-          // Une section titrée se lit comme un GROUPE : le lecteur d'écran annonce son nom en y
-          // entrant (« Administration, groupe »), comme l'œil lit l'en-tête.
-          return (
-            <div
-              key={group.section}
-              role={titre ? 'group' : undefined}
-              aria-labelledby={titre ? idTitre : undefined}
-              className={cn('space-y-1', index > 0 && 'mt-4')}
-            >
-              {titre ? (
-                <p
-                  id={idTitre}
-                  className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
-                >
-                  {titre}
-                </p>
-              ) : null}
-              {group.items.map((item) => (
-                <SidebarItem
-                  key={item.href}
-                  {...item}
-                  active={item.href === activeHref}
-                  counter={item.counterKey ? counters[item.counterKey] : undefined}
-                  onNavigate={onNavigate}
-                  {...(item.href === HREF_CREDITS && solde !== null
-                    ? { valeur: format.number(solde), nomAccessible: tNav('creditsBalance', { count: solde }) }
-                    : {})}
-                />
-              ))}
-            </div>
-          );
-        })}
+      <nav
+        aria-label={t('navLabel')}
+        className={cn('relative flex-1 overflow-y-auto px-3 pb-2', !action && 'md:pt-5')}
+      >
+        {groupes.map((groupe, index) => (
+          <GroupeDuMenu
+            key={groupe.id}
+            groupe={groupe}
+            titres={titres}
+            premier={index === 0}
+            idBase={idBase}
+            activeHref={activeHref}
+            rendreEntree={rendreEntree}
+          />
+        ))}
       </nav>
       <div className="px-3 pb-4">
+        {menu.carte ? <CarteDeMiseEnLocation href={lien(menu.carte)} onNavigate={onNavigate} /> : null}
         {showProUpgradeCard ? (
           <ProUpgradeCard pending={Boolean(hasPendingUpgrade)} onNavigate={onNavigate} />
+        ) : null}
+        {menu.persona === 'plateforme' ? (
+          <Link
+            href={HREF_CONSOLE}
+            onClick={onNavigate}
+            className={cn(
+              'mb-1 flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted max-md:py-2.5',
+              FOCUS_RING,
+            )}
+          >
+            <ShieldCheck className="size-4 shrink-0" aria-hidden />
+            <span className="truncate">{t('console')}</span>
+          </Link>
         ) : null}
         <SidebarUserFooter user={user} onNavigate={onNavigate} />
       </div>

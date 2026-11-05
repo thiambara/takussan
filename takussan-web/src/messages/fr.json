@@ -149,14 +149,6 @@
       "onboardingPending": "Onboardings en attente",
       "proLocked": "Réservé aux comptes pro",
       "navLabel": "Navigation du tableau de bord",
-      "sections": {
-        "discover": "Découvrir",
-        "requests": "Demandes",
-        "engagements": "Engagements",
-        "manage": "Pilotage",
-        "admin": "Administration",
-        "more": "Plus"
-      },
       "counters": {
         "unreadMessages": "{count, plural, one {# message non lu} other {# messages non lus}}",
         "pendingVisits": "{count, plural, one {# demande de visite en attente} other {# demandes de visite en attente}}"

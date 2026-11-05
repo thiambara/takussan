@@ -82,10 +82,25 @@ describe('TCK-2478 — composerMenu (ADR-0089 §4)', () => {
   });
 
   it('les titres ne paraissent que si un groupe titré porte deux entrées ou plus (TCK-377)', () => {
-    const g = (titre: string | null, n: number) => ({ id: String(titre), titre, replie: false, entrees: Array.from({ length: n }) as never[] });
-    expect(avecTitres([g(null, 4)])).toBe(false);
-    expect(avecTitres([g(null, 4), g('plus', 1)])).toBe(false);
-    expect(avecTitres([g(null, 2), g('plus', 2)])).toBe(true);
+    const g = (id: string, titre: string | null, n: number) => ({ id, titre, replie: false, entrees: Array.from({ length: n }) as never[] });
+    expect(avecTitres([g('tete', null, 4)])).toBe(false);
+    expect(avecTitres([g('tete', null, 4), g('activite', 'activite', 1)])).toBe(false);
+    expect(avecTitres([g('tete', null, 2), g('activite', 'activite', 2)])).toBe(true);
+  });
+
+  it('« Plus » et « Aussi … » sont des divulgations : ils ne font paraître aucun titre (TCK-2478, AC5)', () => {
+    const g = (id: string, titre: string | null, n: number) => ({ id, titre, replie: true, entrees: Array.from({ length: n }) as never[] });
+    // Le vrai prestataire : une tête sans titre de 4 entrées, et un « Plus » de 6 (plancher `customer`).
+    expect(avecTitres([g('tete', null, 4), g('plus', 'plus', 6)])).toBe(false);
+    expect(avecTitres([g('tete', null, 4), g('plus', 'plus', 6), g('aussi', 'aussi', 3)])).toBe(false);
+    // Une vraie section titrée garde ses titres, « Plus » ou non.
+    expect(avecTitres([g('tete', null, 2), g('activite', 'activite', 2), g('plus', 'plus', 2)])).toBe(true);
+  });
+
+  it('le prestataire réel n’a aucun titre de section (AC5)', () => {
+    const menu = composerMenu({ roles: ['customer', 'service_provider'], capacites: [] }, 'prestataire');
+    expect(menu.action).toBeNull();
+    expect(avecTitres(menu.groupes)).toBe(false);
   });
 
   it('un identifiant inconnu est ignoré', () => {

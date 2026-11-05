@@ -2,7 +2,7 @@ import type { LucideIcon } from 'lucide-react';
 import { CATALOGUE, cleDe, estOuverte, iconeDe, type Destination, type IdDestination } from './catalogue';
 import { DISPOSITIONS, type Disposition } from './dispositions';
 import { autresTypes, rolesDuPersona, type Persona } from './personas';
-import type { ContexteDeMenu, NavCounterKey, NavSection } from './types';
+import type { ContexteDeMenu, NavCounterKey } from './types';
 
 export interface EntreeComposee {
   readonly id: IdDestination;
@@ -120,61 +120,28 @@ export function composerMenu(
   return { persona, action, carte, groupes: groupes.filter((g) => g.entrees.length > 0) };
 }
 
-/** TCK-377 — un titre ne paraît que s'il sépare : au moins un groupe titré de deux entrées. */
+/**
+ * Les groupes qui sont des DIVULGATIONS, pas des sections : « Plus » et le complément « Aussi … ».
+ * Ils rendent toujours leur bouton de bascule, et ne comptent pas dans {@link avecTitres}.
+ */
+export const GROUPES_DIVULGATION: ReadonlySet<string> = new Set(['plus', 'aussi']);
+
+/**
+ * TCK-377 — un titre de SECTION ne paraît que s'il sépare : au moins deux sections, dont une titrée
+ * de deux entrées ou plus.
+ *
+ * TCK-2478 (décision de la session du 2026-11-05) — « Plus » et « Aussi … » n'entrent pas dans ce
+ * calcul ({@link GROUPES_DIVULGATION}). Chez un vrai prestataire (`service_provider` + le plancher
+ * `customer`), la tête sans titre est suivie d'un « Plus » de six entrées (`occupeUnLogement`,
+ * TCK-379, inchangé) : compté comme une section, il faisait paraître des titres que l'AC5 refuse.
+ */
 export function avecTitres(groupes: readonly GroupeCompose[]): boolean {
-  if (groupes.length <= 1) return false;
-  return groupes.some((g) => g.titre !== null && g.entrees.length > 1);
+  const sections = groupes.filter((g) => !GROUPES_DIVULGATION.has(g.id));
+  if (sections.length <= 1) return false;
+  return sections.some((g) => g.titre !== null && g.entrees.length > 1);
 }
 
 /** Les entrées des groupes, à plat (l'action et la carte n'en sont pas). */
 export function entreesDuMenu(menu: MenuCompose): EntreeComposee[] {
   return menu.groupes.flatMap((g) => g.entrees);
-}
-
-/** Forme à plat de l'adaptateur {@link menuDuPersona} — celle de `NavItem` (`AppSidebar`). */
-export interface EntreeAPlat {
-  readonly id: IdDestination;
-  readonly href: string;
-  readonly labelKey: string;
-  readonly labelSpace?: 'nav.admin';
-  readonly icon: LucideIcon;
-  readonly section: NavSection;
-  readonly emphasized?: boolean;
-  readonly counterKey?: NavCounterKey;
-}
-
-const SECTION_DU_GROUPE: Readonly<Record<string, NavSection>> = { tete: 'primary', plus: 'plus', aussi: 'plus' };
-
-/**
- * @deprecated TCK-2478 (tâche 4 la retire) — adaptateur TEMPORAIRE pour le rendu d'avant
- * (`buildNavItems` d'`AppSidebar`, sections `NavSection`), le temps que la barre rende le
- * `MenuCompose`. Il aplatit le menu composé : action et carte en tête (`primary`), la tête en
- * `primary`, « Plus » et « Aussi … » en `plus`, tout autre groupe en `manage`. Aucune règle d'accès
- * ici : tout vient de {@link composerMenu}.
- */
-export function menuDuPersona(ctx: ContexteDeMenu, persona: Persona): EntreeAPlat[] {
-  const menu = composerMenu(ctx, persona);
-  const libelleAction = DISPOSITIONS[persona].libelleAction;
-  const aPlat = (e: EntreeComposee, section: NavSection, labelKey = e.labelKey): EntreeAPlat => ({
-    id: e.id,
-    href: e.href,
-    labelKey,
-    icon: e.icon,
-    section,
-    ...(e.labelSpace ? { labelSpace: e.labelSpace } : {}),
-    ...(e.emphasized ? { emphasized: true } : {}),
-    ...(e.counterKey ? { counterKey: e.counterKey } : {}),
-  });
-  const sortie: EntreeAPlat[] = [];
-  if (menu.action) {
-    sortie.push(aPlat(menu.action, 'primary', libelleAction ? `actions.${libelleAction}` : menu.action.labelKey));
-  }
-  if (menu.carte) sortie.push(aPlat(menu.carte, 'primary'));
-  for (const groupe of menu.groupes) {
-    for (const e of groupe.entrees) {
-      if (sortie.some((s) => s.href === e.href)) continue;
-      sortie.push(aPlat(e, SECTION_DU_GROUPE[groupe.id] ?? 'manage'));
-    }
-  }
-  return sortie;
 }

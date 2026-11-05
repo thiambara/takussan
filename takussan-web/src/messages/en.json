@@ -149,14 +149,6 @@
       "onboardingPending": "Pending onboardings",
       "proLocked": "Pro accounts only",
       "navLabel": "Dashboard navigation",
-      "sections": {
-        "discover": "Discover",
-        "requests": "Requests",
-        "engagements": "Commitments",
-        "manage": "Management",
-        "admin": "Administration",
-        "more": "More"
-      },
       "counters": {
         "unreadMessages": "{count, plural, one {# unread message} other {# unread messages}}",
         "pendingVisits": "{count, plural, one {# pending visit request} other {# pending visit requests}}"
