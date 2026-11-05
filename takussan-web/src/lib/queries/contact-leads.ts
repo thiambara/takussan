@@ -61,6 +61,15 @@ export const contactLeadsQueryKeys = {
   unhandledCount: () => ['contact-leads', 'unhandled-count'] as const,
 };
 
+/**
+ * Le `filter[...]` de chaque vue de la boîte. TCK-2479 (revue) — partagé par la liste et par le
+ * compteur du menu : la garde `a-traiter-lu-par-sa-page.test.ts` exige que la pastille compte
+ * EXACTEMENT ce que la vue où elle mène montre.
+ */
+export function filtreSpatieDesDemandes(filtre: FiltreDesDemandes): Record<string, string> {
+  return filtre === 'all' ? {} : { handled: filtre === 'handled' ? '1' : '0' };
+}
+
 export function useContactLeads(filtre: FiltreDesDemandes, page = 1) {
   const params: SpatieQueryParams = {
     fields: {
@@ -68,7 +77,7 @@ export function useContactLeads(filtre: FiltreDesDemandes, page = 1) {
       properties: ['id', 'title', 'slug'],
       users: ['id', 'first_name', 'last_name'],
     },
-    filter: filtre === 'all' ? {} : { handled: filtre === 'handled' ? '1' : '0' },
+    filter: filtreSpatieDesDemandes(filtre),
     include: ['property', 'recipient'],
     sort: ['-created_at'],
     page,
@@ -100,19 +109,19 @@ export function useContactLead(id: number | null) {
  * Le nombre de demandes NON TRAITÉES, pour la pastille du menu — lu dans `meta.total`, comme le
  * compteur des visites (TCK-377) : `per_page: 1` et le seul `id`.
  */
-export function useUnhandledLeadsCount(options: { enabled?: boolean } = {}) {
-  const params: SpatieQueryParams = {
-    fields: { property_contact_leads: ['id'] },
-    filter: { handled: '0' },
-    page: 1,
-    per_page: 1,
-  };
+export const PARAMETRES_DU_COMPTE_DES_DEMANDES: SpatieQueryParams = {
+  fields: { property_contact_leads: ['id'] },
+  filter: filtreSpatieDesDemandes('todo'),
+  page: 1,
+  per_page: 1,
+};
 
+export function useUnhandledLeadsCount(options: { enabled?: boolean } = {}) {
   return useApiQuery<PaginatedResponse<ContactLead>>(
     contactLeadsQueryKeys.unhandledCount(),
     '/api/contact-leads',
     {
-      params,
+      params: PARAMETRES_DU_COMPTE_DES_DEMANDES,
       enabled: options.enabled ?? true,
       refetchInterval: 60_000,
       staleTime: 30_000,

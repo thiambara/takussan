@@ -22,7 +22,7 @@
  * par rôle, est écrit dans les notes de TCK-2478.
  */
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import axe from 'axe-core';
@@ -89,12 +89,22 @@ vi.mock('@/lib/queries/credits-solde', () => ({
   useSoldeCredits: (options: { enabled: boolean }) => soldeMock(options),
 }));
 
-// Les pages d'agence sondent deux files de modération ; on ne teste ici que leur `aria-current`.
+// Les pages d'agence sondent deux files de modération (vrai react-query, lecteurs moqués). TCK-2479 —
+// réglables : l'AC2 les charge aussi (revue M5), et le compteur des avis se lit dans `total` (I3).
+// ⚠ Sans jeton, ces deux lectures ne sont jamais armées (`enabled: Boolean(token) && …`) : avant la
+// revue, ce fichier ne moquait pas `useAuth` et aucun de ses tests n'a jamais chargé une file.
+vi.mock('@/context/AuthContext', async (importOriginal) => {
+  const reel = await importOriginal<typeof import('@/context/AuthContext')>();
+  return { ...reel, useAuth: () => ({ ...reel.useAuth(), token: 'jeton' }) };
+});
+type MetaDeFile = { meta: { total?: number; pending_count?: number } };
+const fileAvisMock = vi.hoisted(() => vi.fn<(token: string, params?: unknown) => Promise<MetaDeFile>>());
+const fileBiensMock = vi.hoisted(() => vi.fn<(token: string, params?: unknown) => Promise<MetaDeFile>>());
 vi.mock('@/lib/queries/reviews-moderation', () => ({
-  fetchModerationQueue: vi.fn(async () => ({ meta: { pending_count: 0 } })),
+  fetchModerationQueue: (token: string, params?: unknown) => fileAvisMock(token, params),
 }));
 vi.mock('@/lib/queries/property-moderation', () => ({
-  fetchPropertyModerationQueue: vi.fn(async () => ({ meta: { pending_count: 0 } })),
+  fetchPropertyModerationQueue: (token: string, params?: unknown) => fileBiensMock(token, params),
 }));
 
 /**
@@ -214,6 +224,10 @@ beforeEach(() => {
   soldeMock.mockReturnValue(null);
   demarrageMock.mockReset();
   demarrageMock.mockReturnValue({});
+  fileAvisMock.mockReset();
+  fileAvisMock.mockResolvedValue({ meta: { total: 0, pending_count: 0 } });
+  fileBiensMock.mockReset();
+  fileBiensMock.mockResolvedValue({ meta: { total: 0, pending_count: 0 } });
 });
 
 /**
@@ -848,6 +862,11 @@ describe('TCK-2479 — la bande « À traiter » (ADR-0089 §5)', () => {
   const bande = () => screen.queryByRole('region', { name: 'À traiter' });
   const liensDeLaBande = () => within(bande()!).getAllByRole('link');
   const noms = () => liensDeLaBande().map((l) => l.getAttribute('aria-label'));
+  /** Toutes les pastilles, celles repliées sous « +N » comprises. */
+  const tousLesNoms = () =>
+    within(bande()!)
+      .getAllByRole('link', { hidden: true })
+      .map((l) => l.getAttribute('aria-label'));
   /** Les `href` du MENU, dans l'ordre — la bande est hors du `<nav>`. */
   const menu = (c: HTMLElement) =>
     Array.from(c.querySelectorAll('nav [data-groupe] a, nav [data-groupe] [role="link"]')).map(
@@ -857,6 +876,15 @@ describe('TCK-2479 — la bande « À traiter » (ADR-0089 §5)', () => {
     unreadMock.mockReturnValue(3);
     pendingVisitsMock.mockReturnValue({ data: { meta: { total: 2 } } });
     unhandledLeadsMock.mockReturnValue({ data: { meta: { total: 1 } } });
+    // TCK-2479 (revue M5) — les deux files de modération aussi : une entrée qui remonterait selon
+    // elles (admin d'agence, plateforme) laissait l'AC2 verte.
+    fileAvisMock.mockResolvedValue({ meta: { total: 5, pending_count: 5 } });
+    fileBiensMock.mockResolvedValue({ meta: { total: 4, pending_count: 4 } });
+  };
+  /** Les deux files de modération sont de vraies requêtes : on attend leurs pastilles. */
+  const PASTILLES_DE_MODERATION: Partial<Record<Persona, readonly string[]>> = {
+    'admin-agence': ['4 biens à valider', '5 avis à modérer'],
+    plateforme: ['4 biens à valider', '5 avis à modérer'],
   };
 
   it('AC1 — agent, 3 messages et 2 visites : deux pastilles, visites d’abord, vers la page filtrée', () => {
@@ -887,14 +915,47 @@ describe('TCK-2479 — la bande « À traiter » (ADR-0089 §5)', () => {
     expect(container.querySelector('[data-slot="a-traiter"]')).toBeNull();
   });
 
-  it.each(PERSONAS)('AC2 — %s : le menu garde les mêmes entrées, dans le même ordre, avec ou sans compteurs', (persona) => {
+  it.each(PERSONAS)('AC2 — %s : le menu garde les mêmes entrées, dans le même ordre, avec ou sans compteurs', async (persona) => {
     const { container, unmount } = renderSidebar(persona, '/app');
     const avant = menu(container);
     expect(avant.length).toBeGreaterThan(0);
     unmount();
     chargerLesCompteurs();
     const { container: apres } = renderSidebar(persona, '/app');
+    const attendues = PASTILLES_DE_MODERATION[persona];
+    if (attendues) {
+      // Les compteurs de modération sont arrivés avant qu'on relise le menu.
+      await waitFor(() => expect(tousLesNoms()).toEqual(expect.arrayContaining([...attendues])));
+    }
     expect(menu(apres)).toEqual(avant);
+  });
+
+  it('AC2 — l’épreuve n’est pas vide : les files de modération chargées, l’admin d’agence et la plateforme ont leurs pastilles', async () => {
+    chargerLesCompteurs();
+    const { unmount } = renderSidebar('plateforme', '/app');
+    await waitFor(() =>
+      expect(noms()).toEqual(['4 biens à valider', '5 avis à modérer', '1 demande non traitée', '2 visites en attente']),
+    );
+    unmount();
+    chargerLesCompteurs();
+    renderSidebar('admin-agence', '/app');
+    await waitFor(() => expect(tousLesNoms()).toEqual(expect.arrayContaining(['4 biens à valider', '5 avis à modérer'])));
+  });
+
+  it('I3 — avis : le compteur est le TOTAL de la vue « En attente » où il mène, pas `pending_count`', async () => {
+    // Super-admin : 0 en attente, 2 signalés. `pending_count` (en attente + signalés) vaut 2, la vue
+    // `?filter[moderation_status]=pending` est vide : aucune pastille.
+    fileAvisMock.mockImplementation(async (_token, params) =>
+      (params as { status?: string } | undefined)?.status === 'pending'
+        ? { meta: { total: 0, pending_count: 2 } }
+        : { meta: { total: 2, pending_count: 2 } },
+    );
+    fileBiensMock.mockResolvedValue({ meta: { total: 1, pending_count: 1 } });
+    const { container } = renderSidebar('plateforme', '/app');
+    // On attend la file des biens (même cadence) : celle des avis est alors revenue elle aussi.
+    await waitFor(() => expect(noms()).toEqual(['1 bien à valider']));
+    expect(fileAvisMock).toHaveBeenCalledWith(expect.anything(), { status: 'pending', perPage: 1 });
+    expect(within(container.querySelector('nav')!).queryByLabelText(/avis à modérer/)).toBeNull();
   });
 
   it('AC2 — l’épreuve n’est pas vide : avec les compteurs chargés, l’agent a bien une bande', () => {

@@ -1,7 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { statutDeLaFile } from '@/components/admin/statut-de-la-file';
+import { COMPTE_DES_AVIS_EN_ATTENTE, statutDeLaFile } from '@/components/admin/statut-de-la-file';
 import { filtreDesDemandes } from '@/components/leads/filtre-des-demandes';
-import { ongletDesVisites } from '@/components/visits/onglet-des-visites';
+import {
+  bornesDeLOnglet,
+  debutDeLaMinute,
+  ongletDesVisites,
+  type OngletDesVisites,
+} from '@/components/visits/onglet-des-visites';
+import {
+  type FiltreDesDemandes,
+  filtreSpatieDesDemandes,
+  PARAMETRES_DU_COMPTE_DES_DEMANDES,
+} from '@/lib/queries/contact-leads';
+import { buildQueueParams, type ModerationStatus } from '@/lib/queries/reviews-moderation';
+import { filtreSpatieDesVisites, parametresDuCompteDesVisitesEnAttente } from '@/lib/queries/visits';
 import { CATALOGUE } from '../catalogue';
 
 type Lecture = Pick<URLSearchParams, 'get' | 'toString'>;
@@ -21,6 +33,39 @@ const LECTEURS: Readonly<Record<string, { readonly lire: (p: Lecture) => string;
   '/app/visits': { lire: (p) => ongletDesVisites(p, true), vue: 'requested' },
   '/app/leads': { lire: (p) => filtreDesDemandes(p), vue: 'todo' },
   '/app/agency/moderation': { lire: (p) => statutDeLaFile((cle) => p.get(cle) ?? ''), vue: 'pending' },
+};
+
+type Filtre = Readonly<Record<string, unknown>> | undefined;
+
+/**
+ * TCK-2479 (revue, I2 et I3) — le PÉRIMÈTRE : lire le paramètre ne suffit pas, la vue rendue doit
+ * demander à l'API EXACTEMENT ce que le compteur lui demande. Deux pastilles sur cinq menaient à une
+ * vue plus étroite que leur compteur avec une garde verte : les visites comptaient les demandes
+ * passées (l'onglet « Demandées » borne à l'instant), les avis du super-admin comptaient les signalés
+ * (`pending_count`, la vue « En attente » n'en montre aucun).
+ *
+ * De chaque côté, la fonction que le code appelle lui-même : `compteur` celle du hook du menu,
+ * `vue` celle de la page pour la vue que `hrefATraiter` ouvre (le lecteur ci-dessus la donne).
+ * ⚠ La garde compare des REQUÊTES : elle ne voit pas quel champ de la réponse le menu lit (`total`
+ * contre `pending_count`) — `AppSidebar.test.tsx` le tient pour les avis.
+ */
+const PERIMETRES: Readonly<
+  Record<string, { readonly compteur: (maintenant: Date) => Filtre; readonly vue: (vue: string, maintenant: Date) => Filtre }>
+> = {
+  '/app/visits': {
+    compteur: (m) => parametresDuCompteDesVisitesEnAttente(m).filter,
+    vue: (v, m) => filtreSpatieDesVisites(bornesDeLOnglet(v as OngletDesVisites, debutDeLaMinute(m))),
+  },
+  '/app/leads': {
+    compteur: () => PARAMETRES_DU_COMPTE_DES_DEMANDES.filter,
+    vue: (v) => filtreSpatieDesDemandes(v as FiltreDesDemandes),
+  },
+  '/app/agency/moderation': {
+    compteur: () => buildQueueParams(COMPTE_DES_AVIS_EN_ATTENTE).filter,
+    // `ModerationWorkspace` : `{ status, reported, subjectType }` lus de l'URL ; `hrefATraiter` ne
+    // porte que le statut.
+    vue: (v) => buildQueueParams({ status: (v || undefined) as ModerationStatus | undefined }).filter,
+  },
 };
 
 /** Les pages comptées SANS filtre, et pourquoi — chaque écart est écrit dans TCK-2479. */
@@ -67,6 +112,27 @@ describe('TCK-2479 — chaque pastille mène à une page qui lit son filtre (AC4
       cles.filter((c) => !lus.has(c)),
       'paramètres que la page ne lit pas',
     ).toEqual([]);
+  });
+
+  it.each(FILTREES.map((d) => [d.hrefATraiter!, d] as const))(
+    '%s : la vue ouverte demande ce que le compteur compte (périmètre)',
+    (hrefATraiter, d) => {
+      const perimetre = PERIMETRES[d.href];
+      expect(perimetre, `${d.href} : aucun périmètre déclaré dans PERIMETRES`).toBeDefined();
+      const url = new URL(hrefATraiter, 'https://takussan.test');
+      const vue = LECTEURS[d.href]!.lire(url.searchParams);
+      // Deux instants, dont un hors de la minute ronde : une borne de date doit être la même des deux côtés.
+      for (const maintenant of [new Date('2026-11-05T10:17:42.123Z'), new Date('2027-01-01T00:00:00.000Z')]) {
+        expect(perimetre!.compteur(maintenant), `${d.href} à ${maintenant.toISOString()}`).toEqual(
+          perimetre!.vue(vue, maintenant),
+        );
+      }
+    },
+  );
+
+  it('aucun périmètre orphelin', () => {
+    const visees = new Set(FILTREES.map((d) => d.href));
+    expect(Object.keys(PERIMETRES).filter((h) => !visees.has(h))).toEqual([]);
   });
 
   it('aucun lecteur orphelin', () => {

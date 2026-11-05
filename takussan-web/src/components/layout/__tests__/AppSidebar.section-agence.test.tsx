@@ -34,7 +34,9 @@ import { AppSidebar } from '../AppSidebar';
 
 const { chemin, fetchAvis, fetchBiens } = vi.hoisted(() => ({
   chemin: { valeur: '/app' },
-  fetchAvis: vi.fn(async () => ({ data: [], meta: { pending_count: 3 } })),
+  // TCK-2479 (revue, I3) — le compteur lit `total` de la vue « En attente » ; `pending_count` (ici
+  // différent exprès) n'est plus lu.
+  fetchAvis: vi.fn(async () => ({ data: [], meta: { total: 3, pending_count: 9 } })),
   fetchBiens: vi.fn(async () => ({ data: [], meta: { total: 6 } })),
 }));
 

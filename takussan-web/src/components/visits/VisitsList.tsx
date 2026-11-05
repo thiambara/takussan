@@ -18,7 +18,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { PropertyVisit } from '@/types/visit';
 import type { Locale } from '@/i18n/config';
 import { VISIT_STATUS_LABEL_KEY, VISIT_STATUS_TONE, VISIT_TYPE_LABEL_KEY } from './visit-status';
-import { ongletDesVisites, type OngletDesVisites as TabKey } from './onglet-des-visites';
+import {
+  bornesDeLOnglet,
+  debutDeLaMinute,
+  ongletDesVisites,
+  type OngletDesVisites as TabKey,
+} from './onglet-des-visites';
 
 /**
  * TCK-171 — 4 tabs: Demandées / Confirmées / Passées / Annulées.
@@ -42,11 +47,7 @@ export function VisitsList() {
 
   // TCK-867 (P02.10) — arrondi à la minute (vers le bas) : l'instant entre dans la clé de cache
   // des cinq `useVisits`, et à la milliseconde chaque montage en faisait cinq clés neuves.
-  const nowIso = useMemo(() => {
-    const maintenant = new Date();
-    maintenant.setUTCSeconds(0, 0);
-    return maintenant.toISOString();
-  }, []);
+  const nowIso = useMemo(() => debutDeLaMinute(new Date()), []);
 
   // TCK-2005 (P171.03) — une page par onglet, dans l'état de la liste : une page de 30 sans page
   // suivante taisait la 31ᵉ visite, sous un compteur d'onglet qui annonçait le total.
@@ -59,40 +60,37 @@ export function VisitsList() {
   });
   const allerA = (onglet: TabKey) => (page: number) => setPages((avant) => ({ ...avant, [onglet]: page }));
 
+  // TCK-2479 (revue, I2) — le périmètre de chaque onglet est celui que le compteur du menu reprend.
   const unassigned = useVisits({
-    status: 'scheduled',
-    unassigned: true,
-    scheduled_at_min: nowIso,
+    ...bornesDeLOnglet('unassigned', nowIso),
     sort: 'scheduled_at',
     per_page: 30,
     page: pages.unassigned,
   });
 
   const requested = useVisits({
-    status: 'scheduled',
-    scheduled_at_min: nowIso,
+    ...bornesDeLOnglet('requested', nowIso),
     sort: 'scheduled_at',
     per_page: 30,
     page: pages.requested,
   });
 
   const confirmed = useVisits({
-    status: 'confirmed',
-    scheduled_at_min: nowIso,
+    ...bornesDeLOnglet('confirmed', nowIso),
     sort: 'scheduled_at',
     per_page: 30,
     page: pages.confirmed,
   });
 
   const past = useVisits({
-    scheduled_at_max: nowIso,
+    ...bornesDeLOnglet('past', nowIso),
     sort: '-scheduled_at',
     per_page: 30,
     page: pages.past,
   });
 
   const cancelled = useVisits({
-    status: 'cancelled',
+    ...bornesDeLOnglet('cancelled', nowIso),
     sort: '-scheduled_at',
     per_page: 30,
     page: pages.cancelled,

@@ -1,6 +1,11 @@
 'use client';
 
+import { useQuery } from '@tanstack/react-query';
+import { useLocale } from 'next-intl';
 import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
+import { useAuth } from '@/context/AuthContext';
+import { type ApiError, apiRequest, buildQueryString } from '@/lib/api';
+import { bornesDeLOnglet, debutDeLaMinute } from '@/components/visits/onglet-des-visites';
 import type { ApiResponse, PaginatedResponse, SpatieQueryParams } from '@/types/api';
 import type {
   PropertyVisit,
@@ -68,41 +73,55 @@ export const visitsQueryKeys = {
  *     sur les deux files de modération que la section d'agence d'`AppSidebar` sonde — c'est un champ que ces
  *     contrôleurs ajoutent, pas une propriété de l'enveloppe paginée.
  *
+ * TCK-2479 (revue, I2) — le filtre est le PÉRIMÈTRE de l'onglet « Demandées », où mène la pastille
+ * (`bornesDeLOnglet('requested', …)`) : `scheduled` ET à venir. Sans la borne de date, une demande
+ * d'hier jamais confirmée restait comptée pour toujours, rangée par la page dans « Passées ».
+ *
  * `per_page: 1` et `fields[property_visits]=id` : on ne veut que l'en-tête de pagination, jamais
  * la page. La cadence de 60 s est celle de ces deux files — un menu n'est pas un cron.
  */
-export function usePendingVisitsCount(options: { enabled?: boolean } = {}) {
-  const spatieParams: SpatieQueryParams = {
+export function parametresDuCompteDesVisitesEnAttente(maintenant: Date): SpatieQueryParams {
+  return {
     fields: { property_visits: ['id'] },
-    filter: { status: 'scheduled' },
+    filter: filtreSpatieDesVisites(bornesDeLOnglet('requested', debutDeLaMinute(maintenant))),
     page: 1,
     per_page: 1,
   };
+}
 
-  return useApiQuery<PaginatedResponse<PropertyVisit>>(
-    visitsQueryKeys.pendingCount(),
-    '/api/property-visits',
-    {
-      params: spatieParams,
-      enabled: options.enabled ?? true,
-      refetchInterval: 60_000,
-      staleTime: 30_000,
-    },
-  );
+export function usePendingVisitsCount(options: { enabled?: boolean } = {}) {
+  const locale = useLocale();
+  const { token } = useAuth();
+  return useQuery<PaginatedResponse<PropertyVisit>, ApiError>({
+    queryKey: visitsQueryKeys.pendingCount(),
+    // L'instant se prend À CHAQUE LECTURE, pas au rendu : la barre ne se re-rend pas toutes les
+    // minutes, et une borne figée au rendu recompterait les visites passées depuis.
+    queryFn: ({ signal }) =>
+      apiRequest<PaginatedResponse<PropertyVisit>>(
+        `/api/property-visits?${buildQueryString(parametresDuCompteDesVisitesEnAttente(new Date()))}`,
+        { token: token ?? undefined, locale, signal },
+      ),
+    enabled: options.enabled ?? true,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+}
+
+/** Le `filter[...]` d'une lecture de `/api/property-visits` — celui de `useVisits` et du compteur. */
+export function filtreSpatieDesVisites(params: UseVisitsParams): Record<string, string> {
+  const { status, type, property_id, scheduled_at_min, scheduled_at_max, unassigned } = params;
+  return {
+    ...(status ? { status } : {}),
+    ...(type ? { type } : {}),
+    ...(property_id ? { property_id: String(property_id) } : {}),
+    ...(scheduled_at_min ? { scheduled_at_min } : {}),
+    ...(scheduled_at_max ? { scheduled_at_max } : {}),
+    ...(unassigned ? { unassigned: '1' } : {}),
+  };
 }
 
 export function useVisits(params: UseVisitsParams = {}) {
-  const {
-    status,
-    type,
-    property_id,
-    scheduled_at_min,
-    scheduled_at_max,
-    page,
-    per_page,
-    sort,
-    unassigned,
-  } = params;
+  const { page, per_page, sort } = params;
 
   const spatieParams: SpatieQueryParams = {
     fields: {
@@ -113,14 +132,7 @@ export function useVisits(params: UseVisitsParams = {}) {
       properties: ['id', 'title', 'slug'],
       users: ['id', 'first_name', 'last_name'],
     },
-    filter: {
-      ...(status ? { status } : {}),
-      ...(type ? { type } : {}),
-      ...(property_id ? { property_id: String(property_id) } : {}),
-      ...(scheduled_at_min ? { scheduled_at_min } : {}),
-      ...(scheduled_at_max ? { scheduled_at_max } : {}),
-      ...(unassigned ? { unassigned: '1' } : {}),
-    },
+    filter: filtreSpatieDesVisites(params),
     include: ['property', 'agent', 'visitor'],
     sort: [sort ?? 'scheduled_at'],
     page: page ?? 1,

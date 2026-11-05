@@ -73,7 +73,12 @@ export interface FetchModerationQueueParams {
   readonly subjectType?: string;
 }
 
-function buildQueueParams({
+/**
+ * Les paramètres d'une lecture de la file. Exporté pour la garde `a-traiter-lu-par-sa-page.test.ts`
+ * (TCK-2479) : la pastille du menu et la page qu'elle ouvre passent par ICI, et la garde compare
+ * leurs `filter[...]`.
+ */
+export function buildQueueParams({
   page,
   perPage,
   sort,

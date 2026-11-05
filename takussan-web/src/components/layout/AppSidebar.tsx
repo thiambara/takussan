@@ -12,6 +12,7 @@ import { isProRouteLocked } from '@/lib/access/pro-features';
 import { useAccesAdminOuRepli } from '@/lib/access/acces-admin-contexte';
 import { useAuth } from '@/context/AuthContext';
 import { fetchModerationQueue } from '@/lib/queries/reviews-moderation';
+import { COMPTE_DES_AVIS_EN_ATTENTE } from '@/components/admin/statut-de-la-file';
 import {
   AGENCY_QUEUE_REFETCH_INTERVAL_MS,
   AGENCY_QUEUE_STALE_TIME_MS,
@@ -374,7 +375,9 @@ export function AppSidebar({
   // tableau de bord d'agence (TCK-375), qui vit désormais dans la MÊME coque —, même cadence.
   const { data: avisEnAttente, isError: avisEnErreur } = useQuery({
     queryKey: ['reviews-moderation', 'pending-count'],
-    queryFn: () => fetchModerationQueue(token ?? '', { perPage: 1 }).then((r) => r.meta),
+    // TCK-2479 (revue, I3) — le total de la vue où mène la pastille, pas `pending_count` : voir
+    // `COMPTE_DES_AVIS_EN_ATTENTE`.
+    queryFn: () => fetchModerationQueue(token ?? '', COMPTE_DES_AVIS_EN_ATTENTE).then((r) => r.meta),
     enabled: Boolean(token) && counted.has('reviewModeration'),
     refetchInterval: AGENCY_QUEUE_REFETCH_INTERVAL_MS,
     staleTime: AGENCY_QUEUE_STALE_TIME_MS,
@@ -397,7 +400,7 @@ export function AppSidebar({
     unreadMessages,
     pendingVisits: total(pendingVisits),
     unhandledLeads: total(unhandledLeads),
-    reviewModeration: avisEnErreur ? 0 : (avisEnAttente?.pending_count ?? 0),
+    reviewModeration: avisEnErreur ? 0 : (avisEnAttente?.total ?? 0),
     propertyModeration: biensEnErreur ? 0 : (biensEnAttente ?? 0),
   };
   // TCK-2479 — la bande : les entrées RENDUES (donc sondées, `countersToPoll`), dans l'ordre du
