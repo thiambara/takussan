@@ -98,7 +98,7 @@ Branche `feat/coque-dynamique-par-persona`, plan `docs/plans/2026-11-05-tck-2477
 d'`AppSidebar` avec leurs docblocks, plus la section `plus`), `catalogue.ts` (29 destinations ; le
 prédicat de chacune reprend la garde de `buildNavItems`), `personas.ts` (`typeDuProfilActif`,
 `resoudrePersona`), `dispositions.ts` (miroir du menu de `dev` 0b7deae44), `composer-menu.ts`,
-`hors-menu.ts` (9 pages, dont `/app/tasks` — AC6). Le layout de `/app` lit le cookie
+`__tests__/hors-menu.ts` (9 pages, dont `/app/tasks` — AC6). Le layout de `/app` lit le cookie
 `active_profile_id` (`getActiveProfileId`, vide pendant une impersonation) et en descend le type par
 `AppShell` jusqu'à `AppSidebar`. Clé `nav.sidebar.sections.more` en `fr`/`en`/`wo`.
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { MOTIFS_DE_ROUTE } from '@/test/routes-publiques';
 import { PAGES_ADMIN } from '@/lib/access/pages-admin';
 import { CATALOGUE } from '../catalogue';
-import { HORS_MENU } from '../hors-menu';
+import { HORS_MENU } from './hors-menu';
 
 /**
  * TCK-2477 (ADR-0089 §1) — chaque page de `/app` a une place, et chaque entrée a sa page.
