@@ -155,6 +155,40 @@ class EspaceDemarrageTest extends ApiTestCase
         $this->apiGet(self::URL)->assertOk()->assertExactJson(['data' => ['etapes' => []]]);
     }
 
+    /**
+     * Revue de TCK-2479 (M1, principe n° 2 : l'agence est la frontière d'isolation) — un compte admin
+     * de DEUX agences lit les étapes de l'agence de son PROFIL ACTIF, jamais d'une autre agence du
+     * compte. Les faits sont posés sur A seule : sous le profil de B, tout reste à faire ; sous A,
+     * tout est fait. Avant ce test, chaque cas créait un compte d'une seule agence, et une régression
+     * qui prendrait le premier profil d'admin du compte (ou `users.agency_id`) restait verte.
+     */
+    public function test_un_admin_de_deux_agences_lit_l_agence_de_son_profil_actif(): void
+    {
+        $agenceA = Agency::factory()->create();
+        $agenceB = Agency::factory()->create();
+        $admin = $this->apiActingAsRole('agency_admin', ['agency' => $agenceA]);
+        $this->materializeRoleProfile($admin, 'agency_admin', $agenceB);
+        foreach (self::CODES_D_AGENCE as $code) {
+            $this->poser($code, $agenceA);
+        }
+        $profilDe = fn (Agency $agence): int => (int) AgencyAdminProfile::query()
+            ->where('user_id', $admin->id)->where('agency_id', $agence->id)->value('id');
+        $this->assertNotSame($profilDe($agenceA), $profilDe($agenceB));
+
+        $this->apiGet(self::URL, $this->entete('agency_admin', $profilDe($agenceB)))
+            ->assertOk()->assertExactJson(['data' => ['etapes' => [
+                ['code' => 'premier_bien', 'faite' => false],
+                ['code' => 'kyc', 'faite' => false],
+                ['code' => 'equipe', 'faite' => false],
+            ]]]);
+        $this->apiGet(self::URL, $this->entete('agency_admin', $profilDe($agenceA)))
+            ->assertOk()->assertExactJson(['data' => ['etapes' => [
+                ['code' => 'premier_bien', 'faite' => true],
+                ['code' => 'kyc', 'faite' => true],
+                ['code' => 'equipe', 'faite' => true],
+            ]]]);
+    }
+
     /** TCK-2024 — la règle de la carte de mise en service : sans `agency.update`, pas d'étape. */
     public function test_un_admin_dont_le_role_retire_agency_update_n_a_pas_d_etape(): void
     {
