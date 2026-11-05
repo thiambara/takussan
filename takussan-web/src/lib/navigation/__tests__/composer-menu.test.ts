@@ -23,12 +23,6 @@ describe('TCK-2477 — les dispositions', () => {
       for (const id of groupe.entrees) expect(IDS.has(id), `${persona} — ${id}`).toBe(true);
     }
   });
-
-  // Propre au LOT 1 (miroir du menu de dev) : rien ne tombe sous « Plus ». TCK-2478 retire ce test.
-  it.each(PERSONAS)('%s : le miroir place chaque destination du catalogue', (persona) => {
-    const places = new Set(DISPOSITIONS[persona].groupes.flatMap((g) => g.entrees));
-    expect([...IDS].filter((id) => !places.has(id as IdDestination))).toEqual([]);
-  });
 });
 
 describe('TCK-2477 — composerMenu (ADR-0089 §4)', () => {

@@ -77,4 +77,8 @@ export type NavCounterKey =
 export interface ContexteDeMenu {
   readonly roles: UserRole[];
   readonly capacites: readonly string[] | null;
+  /** TCK-2478 — les pages d'administration que le profil actif peut ouvrir (`AccesAdmin.chemins`). */
+  readonly cheminsAdmin?: readonly string[];
+  /** TCK-2478 — l'agence du profil actif est suspendue (TCK-600) : aucune écriture au menu. */
+  readonly agenceSuspendue?: boolean;
 }
