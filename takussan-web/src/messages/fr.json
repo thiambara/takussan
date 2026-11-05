@@ -162,7 +162,53 @@
         "pendingVisits": "{count, plural, one {# demande de visite en attente} other {# demandes de visite en attente}}"
       },
       "receivedReviews": "Avis reçus",
-      "commissions": "Commissions"
+      "commissions": "Commissions",
+      "myTasks": "Mes tâches",
+      "searchProperty": "Chercher un bien",
+      "myLease": "Mon bail",
+      "allProperties": "Biens",
+      "actions": {
+        "payRent": "Payer mon loyer"
+      },
+      "groupes": {
+        "mesRecherches": "Mes recherches",
+        "mesDemarches": "Mes démarches",
+        "monLogement": "Mon logement",
+        "monPatrimoine": "Mon patrimoine",
+        "activite": "Activité",
+        "prospection": "Prospection",
+        "catalogue": "Catalogue",
+        "gestion": "Gestion",
+        "portefeuille": "Portefeuille",
+        "finances": "Finances",
+        "agence": "Agence",
+        "pilotage": "Pilotage",
+        "mesBiens": "Mes biens",
+        "mesLocations": "Mes locations",
+        "monEspace": "Mon espace",
+        "plus": "Plus",
+        "aussi": "{profil, select, agency_admin {Aussi administrateur} owner {Aussi bailleur} agent {Aussi agent} service_provider {Aussi prestataire} other {Aussi}}",
+        "aussiPlusieurs": "Vos autres profils"
+      },
+      "personas": {
+        "client": "Client",
+        "locataire": "Locataire",
+        "bailleur": "Bailleur",
+        "agent": "Agent",
+        "admin-agence": "Administrateur",
+        "hote": "Hôte",
+        "prestataire": "Prestataire",
+        "plateforme": "Plateforme"
+      },
+      "enTete": {
+        "changer": "Changer d’espace"
+      },
+      "carteLocation": {
+        "titre": "Mettre un bien en location",
+        "texte": "Publiez votre premier bien en quelques minutes."
+      },
+      "console": "Console plateforme",
+      "groupeReplie": "{titre} — afficher"
     },
     "admin": {
       "team": "Équipe",
@@ -178,7 +224,8 @@
       "roles": "Rôles",
       "integrations": "Intégrations",
       "mySpace": "Mon espace",
-      "openMySpace": "Ouvrir mon espace"
+      "openMySpace": "Ouvrir mon espace",
+      "payouts": "Reversements"
     },
     "superAdmin": {
       "eyebrow": "Console Takussan",

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { USER_ROLES, type UserRole } from '@/types/user';
-import { CATALOGUE, type IdDestination } from '../catalogue';
-import { composerMenu, menuDuPersona } from '../composer-menu';
+import { CATALOGUE, estOuverte, type IdDestination } from '../catalogue';
+import { avecTitres, composerMenu, entreesDuMenu } from '../composer-menu';
 import { DISPOSITIONS, type Disposition } from '../dispositions';
-import { PERSONAS } from '../personas';
+import { PERSONAS, rolesDuPersona } from '../personas';
 import type { ContexteDeMenu } from '../types';
 
 const IDS = new Set<string>(CATALOGUE.map((d) => d.id));
@@ -12,53 +12,84 @@ function contextes(): ContexteDeMenu[] {
   const sortie: ContexteDeMenu[] = [];
   for (let masque = 0; masque < 1 << USER_ROLES.length; masque++) {
     const roles = USER_ROLES.filter((_, i) => masque & (1 << i)) as UserRole[];
-    for (const capacites of [null, ['properties.create']]) sortie.push({ roles, capacites });
+    for (const capacites of [null, ['properties.create']]) sortie.push({ roles, capacites, cheminsAdmin: [] });
   }
   return sortie;
 }
 
-describe('TCK-2477 — les dispositions', () => {
+describe('TCK-2478 — les dispositions', () => {
   it.each(PERSONAS)('%s : tout identifiant cité existe au catalogue', (persona) => {
-    for (const groupe of DISPOSITIONS[persona].groupes) {
-      for (const id of groupe.entrees) expect(IDS.has(id), `${persona} — ${id}`).toBe(true);
-    }
+    const d = DISPOSITIONS[persona];
+    const cites = [...d.action, ...(d.carte ? [d.carte] : []), ...d.plus, ...d.groupes.flatMap((g) => g.entrees)];
+    for (const id of cites) expect(IDS.has(id), `${persona} — ${id}`).toBe(true);
+  });
+
+  it.each(PERSONAS)('%s : aucun identifiant n’est cité deux fois dans les groupes et « Plus »', (persona) => {
+    const d = DISPOSITIONS[persona];
+    const cites = [...d.plus, ...d.groupes.flatMap((g) => g.entrees)];
+    expect(new Set(cites).size).toBe(cites.length);
   });
 });
 
-describe('TCK-2477 — composerMenu (ADR-0089 §4)', () => {
-  it.each(PERSONAS)('%s : aucune destination accessible n’est perdue, aucune n’est doublée', (persona) => {
+describe('TCK-2478 — composerMenu (ADR-0089 §4)', () => {
+  // ADR-0089 §2, §4 — ce que le persona ouvre (jugé sur SES rôles), plus ce que seul un autre profil
+  // de l'espace ouvre (le complément). Pas l'union seule : `isCustomerOnly` et la garde P152.03 de
+  // « Proposer » ne sont pas monotones — un bailleur d'un espace admin+bailleur, capacités non lues,
+  // propose un bien, ce que l'union (personnel sans capacités lues) fermerait.
+  it.each(PERSONAS)('%s : rien n’est perdu — persona d’un côté, complément de l’autre', (persona) => {
     for (const ctx of contextes()) {
-      const rendus = menuDuPersona(ctx, persona).map((e) => e.href);
-      const attendus = new Set(CATALOGUE.filter((d) => d.accessible(ctx)).map((d) => d.href));
-      expect(new Set(rendus), `${persona} / ${ctx.roles.join('+')}`).toEqual(attendus);
-      expect(rendus).toHaveLength(attendus.size);
+      const menu = composerMenu(ctx, persona);
+      const ctxPersona = { ...ctx, roles: rolesDuPersona(ctx.roles, persona) };
+      const rendus = new Set([...entreesDuMenu(menu).map((e) => e.href), ...(menu.carte ? [menu.carte.href] : [])]);
+      const attendus = new Set(
+        CATALOGUE.filter((d) => estOuverte(d, ctx) || estOuverte(d, ctxPersona)).map((d) => d.href),
+      );
+      // L'action seule peut porter un href que rien d'autre ne porte (« Proposer un bien »).
+      if (menu.action) rendus.add(menu.action.href);
+      expect(rendus, `${persona} / ${ctx.roles.join('+')}`).toEqual(attendus);
     }
   });
 
-  it('une destination accessible que la disposition ne place pas tombe sous « Plus »', () => {
-    const disposition: Disposition = { groupes: [{ id: 'primary', entrees: ['tableau-de-bord'] }] };
-    const menu = composerMenu({ roles: ['customer'], capacites: null }, disposition);
-    expect(menu[0]).toMatchObject({ href: '/app', section: 'primary' });
-    expect(menu.find((e) => e.href === '/app/messages')?.section).toBe('plus');
+  it('une destination ouverte que la disposition ne place pas tombe sous « Plus », replié', () => {
+    const disposition: Disposition = { action: [], groupes: [{ id: 'tete', titre: null, entrees: ['tableau-de-bord'] }], plus: [] };
+    const menu = composerMenu({ roles: ['customer'], capacites: null }, 'client', disposition);
+    const plus = menu.groupes.find((g) => g.id === 'plus');
+    expect(plus?.replie).toBe(true);
+    expect(plus?.entrees.map((e) => e.href)).toContain('/app/messages');
+  });
+
+  it('le complément « Aussi bailleur » ne porte que ce que seul le profil bailleur ouvre', () => {
+    const ctx: ContexteDeMenu = { roles: ['customer', 'agency_admin', 'owner'], capacites: ['properties.create'], cheminsAdmin: [] };
+    const aussi = composerMenu(ctx, 'admin-agence').groupes.find((g) => g.id === 'aussi');
+    expect(aussi).toMatchObject({ titre: 'aussi', titreValeurs: { profil: 'owner' }, replie: true });
+    const attendus = CATALOGUE.filter(
+      (d) => estOuverte(d, ctx) && !estOuverte(d, { ...ctx, roles: rolesDuPersona(ctx.roles, 'admin-agence') }),
+    ).map((d) => d.id);
+    expect(aussi?.entrees.map((e) => e.id)).toEqual(attendus);
+    expect(attendus).toContain('paiements');
+  });
+
+  it('espace suspendu : ni action principale ni entrée d’écriture', () => {
+    const ctx: ContexteDeMenu = { roles: ['customer', 'agency_admin'], capacites: ['properties.create'], cheminsAdmin: [], agenceSuspendue: true };
+    const menu = composerMenu(ctx, 'admin-agence');
+    expect(menu.action).toBeNull();
+    expect(entreesDuMenu(menu).map((e) => e.id)).not.toContain('publier-bien');
+  });
+
+  it('l’action principale prend la première destination ouverte de sa liste', () => {
+    const menu = composerMenu({ roles: ['customer', 'agent'], capacites: [] }, 'agent');
+    expect(menu.action).toBeNull(); // ni « Publier » (sans properties.create) ni « Proposer » (pas bailleur)
+  });
+
+  it('les titres ne paraissent que si un groupe titré porte deux entrées ou plus (TCK-377)', () => {
+    const g = (titre: string | null, n: number) => ({ id: String(titre), titre, replie: false, entrees: Array.from({ length: n }) as never[] });
+    expect(avecTitres([g(null, 4)])).toBe(false);
+    expect(avecTitres([g(null, 4), g('plus', 1)])).toBe(false);
+    expect(avecTitres([g(null, 2), g('plus', 2)])).toBe(true);
   });
 
   it('un identifiant inconnu est ignoré', () => {
-    const disposition: Disposition = {
-      groupes: [{ id: 'primary', entrees: ['tableau-de-bord', 'disparue' as IdDestination] }],
-    };
-    expect(() => composerMenu({ roles: ['customer'], capacites: null }, disposition)).not.toThrow();
-  });
-
-  it('une destination inaccessible n’est jamais rendue', () => {
-    const menu = menuDuPersona({ roles: ['customer'], capacites: null }, 'client');
-    expect(menu.map((e) => e.href)).not.toContain('/app/commissions');
-  });
-
-  it('le libellé et la mise en avant suivent le compte (« Proposer » chez le bailleur)', () => {
-    const menu = menuDuPersona({ roles: ['customer', 'owner'], capacites: null }, 'bailleur');
-    expect(menu.find((e) => e.href === '/app/properties/new')).toMatchObject({
-      labelKey: 'proposeProperty',
-      emphasized: true,
-    });
+    const disposition: Disposition = { action: [], groupes: [{ id: 'tete', titre: null, entrees: ['disparue' as IdDestination] }], plus: [] };
+    expect(() => composerMenu({ roles: ['customer'], capacites: null }, 'client', disposition)).not.toThrow();
   });
 });
