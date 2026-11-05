@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Me\AgentProfileController as MeAgentProfileController;
 use App\Http\Controllers\Api\Me\DataExportController;
+use App\Http\Controllers\Api\Me\EspaceDemarrageController;
 use App\Http\Controllers\Api\Me\MeCapabilityController;
 use App\Http\Controllers\Api\Me\MeController;
 use App\Http\Controllers\Api\Me\MeProfilesController;
@@ -36,6 +37,8 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     // 403. ⚠️ C'est de l'AFFICHAGE, jamais une autorisation : la décision
     // reste entière dans les policies côté serveur.
     Route::get('capabilities', [MeCapabilityController::class, 'index'])->name('me.capabilities.index');
+    // TCK-2479 (ADR-0089 §5) — les étapes du groupe « Démarrer » du menu, jugées sur le profil actif.
+    Route::get('espace/demarrage', EspaceDemarrageController::class)->name('me.espace.demarrage');
     // TCK-597 — ce que l'acteur peut noter (bien, agent, agence, prestataire), avec la preuve.
     Route::get('review-opportunities', [ReviewController::class, 'opportunities'])->name('me.review-opportunities.index');
 
