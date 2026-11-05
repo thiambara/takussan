@@ -67,7 +67,15 @@ export function ContactLeadsInbox() {
   // « À traiter » du menu y mène, et il survit au rechargement et au lien copié.
   const { params, remplacer } = useVueDansLUrl();
   const filtre = filtreDesDemandes(params);
-  const [page, setPage] = useState(1);
+  // La page appartient au filtre qui l'a choisie : un filtre qui change, par l'onglet COMME par
+  // l'URL (la pastille « À traiter » change `?filtre=` sans démonter la page), ramène à la page 1.
+  // Une page gardée d'un autre filtre lisait au-delà de la dernière : liste vide, sans pagination.
+  // Remise à zéro PENDANT le rendu (patron React « état ajusté sur un changement de prop ») : un
+  // retour au filtre d'avant repart lui aussi de la page 1.
+  const [pageChoisie, setPageChoisie] = useState({ filtre, page: 1 });
+  if (pageChoisie.filtre !== filtre) setPageChoisie({ filtre, page: 1 });
+  const page = pageChoisie.filtre === filtre ? pageChoisie.page : 1;
+  const setPage = (suivante: number) => setPageChoisie({ filtre, page: suivante });
   const query = useContactLeads(filtre, page);
   // P97.04 (TCK-1120) — la cible `lead` promet « la boîte ouverte sur la demande » : la demande
   // désignée est rendue en tête, quel que soit l'onglet ou la page. Une lecture refusée ou
@@ -82,7 +90,6 @@ export function ContactLeadsInbox() {
         onValueChange={(v) => {
           const suivant = (v as FiltreDesDemandes) ?? 'todo';
           remplacer({ filtre: suivant === 'todo' ? null : suivant });
-          setPage(1);
         }}
       >
         <TabsList>
