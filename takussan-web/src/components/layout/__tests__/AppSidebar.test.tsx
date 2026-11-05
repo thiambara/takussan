@@ -1,31 +1,39 @@
 /**
- * TCK-377 — La barre latérale de `/app`, éprouvée sur les quatre défauts que le ticket nomme.
+ * TCK-377 — La barre latérale de `/app`, éprouvée sur les quatre défauts que le ticket nomme ;
+ * TCK-2478 — et sur le menu PAR PERSONA qui a remplacé le menu par rôle (ADR-0089).
  *
  * Chaque bloc ci-dessous est écrit pour ROUGIR sur la régression qu'il prétend garder, et chacun a
  * été rejoué par ablation (le détail est dans le rapport du ticket). En particulier :
  *
  *  - « surlignage sur une page fille » rougit si `pathname === item.href` revient ;
  *  - « une seule entrée active » rougit sur un préfixe NAÏF (sans départage par longueur) ;
- *  - l'ordre des sections rougit si {@link SECTION_ORDER} est réordonné ;
+ *  - « la barre montée suit la disposition du persona » rougit si deux groupes d'une disposition
+ *    sont inversés (TCK-2478, ablation 3) ;
+ *  - l'entrée active placée sous « Plus » rougit si un groupe replié ne s'ouvre plus sur elle
+ *    (TCK-2478, ablation 1) ; l'espace suspendu, si la barre ignore `agencySuspended` (ablation 2) ;
  *  - l'AC6 rougit si les compteurs sont armés en dur, **sur le composant monté** et pas seulement
  *    sur la fonction pure.
+ *
+ * TCK-2478 — ce fichier ne porte plus `HREFS_PAR_ROLE`, ni les blocs « AC4 — le regroupement ne
+ * change AUCUN droit » et « TCK-646 — six entrées en tête », ni l'ordre des en-têtes de section :
+ * ils figeaient le menu PAR RÔLE, que ce ticket change exprès. Leurs remplaçants sont
+ * `src/lib/navigation/__tests__/dispositions-validees.test.ts` (fonction pure) et le bloc
+ * « la barre montée suit la disposition du persona » ci-dessous (composant monté) ; l'écart, rôle
+ * par rôle, est écrit dans les notes de TCK-2478.
  */
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { LayoutDashboard } from 'lucide-react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import axe from 'axe-core';
 import type { User, UserRole } from '@/types/user';
+import type { ProfileType } from '@/types/profile';
 import { withIntl } from '@/test/intl';
-import {
-  AppSidebar,
-  buildNavItems,
-  countersToPoll,
-  groupBySection,
-  withSectionHeadings,
-  SECTION_ORDER,
-  type NavCounterKey,
-  type NavItem,
-} from '../AppSidebar';
+import { AccesAdminProvider } from '@/lib/access/acces-admin-contexte';
+import { accesDepuis } from '@/lib/access/pages-admin';
+import { composerMenu, entreesDuMenu } from '@/lib/navigation/composer-menu';
+import type { Persona } from '@/lib/navigation/personas';
+import { AppSidebar, countersToPoll, type NavCounterKey } from '../AppSidebar';
 import { resolveActiveHref, APP_EXACT_ROOTS } from '@/lib/navigation/active-path';
 
 let pathname = '/app';
@@ -35,12 +43,21 @@ vi.mock('@/hooks/useCan', () => ({
 }));
 vi.mock('next/navigation', () => ({
   usePathname: () => pathname,
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(''),
+}));
+// TCK-2478 — l'en-tête d'espace monte le sélecteur de profil (`useMyProfiles`,
+// `useSwitchActiveProfile` → routeur, toasts). Ce fichier éprouve le MENU : le sélecteur a ses
+// propres tests (`EnTeteDEspace.test.tsx`), on le réduit ici à sa carte statique.
+vi.mock('@/hooks/useProfiles', () => ({
+  useMyProfiles: () => ({ data: undefined, isLoading: false }),
+  useSwitchActiveProfile: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 type OptionsDeSondage = { enabled?: boolean };
 type ReponseCompteur = { data?: { meta: { total: number } } };
 
-// Les deux compteurs sont MOQUÉS : ce fichier éprouve la barre latérale, pas le réseau. Les
+// Les trois compteurs sont MOQUÉS : ce fichier éprouve la barre latérale, pas le réseau. Les
 // arguments sont capturés parce que l'AC6 porte précisément sur eux (`{ enabled }`).
 const unreadMock = vi.fn<(options: OptionsDeSondage) => number>(() => 0);
 vi.mock('@/components/chat-widget/useUnreadCount', () => ({
@@ -64,13 +81,47 @@ vi.mock('@/lib/queries/credits-solde', () => ({
   useSoldeCredits: (options: { enabled: boolean }) => soldeMock(options),
 }));
 
-// La section d'agence sonde deux files de modération ; on ne teste ici que son `aria-current`.
+// Les pages d'agence sondent deux files de modération ; on ne teste ici que leur `aria-current`.
 vi.mock('@/lib/queries/reviews-moderation', () => ({
   fetchModerationQueue: vi.fn(async () => ({ meta: { pending_count: 0 } })),
 }));
 vi.mock('@/lib/queries/property-moderation', () => ({
   fetchPropertyModerationQueue: vi.fn(async () => ({ meta: { pending_count: 0 } })),
 }));
+
+/**
+ * Les huit comptes de `dispositions-validees.test.ts`, RECOPIÉS (pas importés : les deux fichiers
+ * ne doivent pas se valider l'un l'autre), sous la forme que le layout de `/app` fournit à la barre :
+ * rôles de l'espace, type du profil actif, drapeau `standard`, et l'accès aux pages d'agence calculé
+ * par la VRAIE table (`accesDepuis`), comme le layout le calcule.
+ */
+interface Compte {
+  readonly roles: UserRole[];
+  readonly typeProfilActif?: ProfileType;
+  readonly agencyIsStandard?: boolean;
+  readonly agence: 'standard' | 'individual' | null;
+}
+
+// TCK-1412 — les capacités du rôle système d'admin qui ouvrent les pages d'agence.
+const CAPACITES_ADMIN = ['agency.update_billing', 'agency.update_kyc', 'team.assign_role', 'payments.reconcile', 'reports.view_agency'];
+
+const COMPTES: Record<Persona, Compte> = {
+  client: { roles: ['customer'], agence: null },
+  locataire: { roles: ['customer', 'tenant'], agence: null },
+  bailleur: { roles: ['customer', 'owner'], agence: null },
+  agent: { roles: ['customer', 'agent'], agence: 'standard', agencyIsStandard: true },
+  'admin-agence': { roles: ['customer', 'agency_admin'], agence: 'standard', agencyIsStandard: true },
+  hote: {
+    roles: ['customer', 'agency_admin', 'owner'],
+    typeProfilActif: 'agency_admin',
+    agence: 'individual',
+    agencyIsStandard: false,
+  },
+  prestataire: { roles: ['customer', 'service_provider'], agence: null },
+  plateforme: { roles: ['customer', 'super_admin'], agence: null },
+};
+
+const PERSONAS = Object.keys(COMPTES) as Persona[];
 
 function userWith(roles: UserRole[]): User {
   return {
@@ -85,22 +136,37 @@ function userWith(roles: UserRole[]): User {
     email_verified_at: null,
     phone_verified_at: null,
     two_factor_enabled: false,
+    agency_id: 7,
     roles,
     status: 'active',
     created_at: '2026-05-08T10:00:00.000000Z',
   };
 }
 
-function renderSidebar(roles: UserRole[], at: string) {
-  pathname = at;
+function barre(compte: Compte, options: { agencySuspended?: boolean } = {}) {
+  const acces = accesDepuis({
+    roles: compte.roles,
+    agence: compte.agence ? { kind: compte.agence } : null,
+    capacites: compte.roles.includes('agency_admin') ? CAPACITES_ADMIN : [],
+  });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    withIntl(
-      <QueryClientProvider client={client}>
-        <AppSidebar user={userWith(roles)} agencyIsStandard />
-      </QueryClientProvider>,
-    ),
+  return withIntl(
+    <QueryClientProvider client={client}>
+      <AccesAdminProvider acces={acces}>
+        <AppSidebar
+          user={userWith(compte.roles)}
+          agencyIsStandard={compte.agencyIsStandard}
+          typeProfilActif={compte.typeProfilActif ?? null}
+          agencySuspended={options.agencySuspended}
+        />
+      </AccesAdminProvider>
+    </QueryClientProvider>,
   );
+}
+
+function renderSidebar(persona: Persona, at: string, options: { agencySuspended?: boolean } = {}) {
+  pathname = at;
+  return render(barre(COMPTES[persona], options));
 }
 
 /** Les entrées portant `aria-current="page"`, par leur libellé visible. */
@@ -109,6 +175,24 @@ function activeLabels(): string[] {
     .getAllByRole('link')
     .filter((el) => el.getAttribute('aria-current') === 'page')
     .map((el) => el.textContent?.trim() ?? '');
+}
+
+/** Le libellé d'une entrée, sans le compteur ni le texte réservé au lecteur d'écran. */
+function libelle(entree: Element): string {
+  return entree.querySelector('span.truncate')?.textContent?.trim() ?? '';
+}
+
+/** Un groupe lu sur le DOM : `[titre, replié, libellés…]` (titre `null` : groupe sans titre). */
+type GroupeLu = [string | null, boolean, ...string[]];
+
+function groupesRendus(container: HTMLElement): GroupeLu[] {
+  return Array.from(container.querySelectorAll('nav [data-groupe]')).map((groupe) => {
+    const bouton = groupe.querySelector(':scope > button');
+    const titre = groupe.querySelector(':scope > button, :scope > p')?.textContent?.trim() ?? null;
+    const replie = bouton?.getAttribute('aria-expanded') === 'false';
+    const entrees = Array.from(groupe.querySelectorAll('a, [role="link"]')).map(libelle);
+    return [titre, replie, ...entrees] as GroupeLu;
+  });
 }
 
 beforeEach(() => {
@@ -123,134 +207,305 @@ beforeEach(() => {
 });
 
 /**
- * Le jeu d'`href` attendu par rôle — **et ce docblock a été faux pendant une heure**, ce qui est la
- * raison pour laquelle il commence par le dire.
+ * TCK-2478 (AC1) — le menu de chaque persona, ÉCRIT À LA MAIN d'après la table du ticket (validée
+ * par le porteur le 2026-11-05) et le catalogue, lu en français sur le composant monté.
  *
- * Il annonçait « relevé pris sur le code d'AVANT TCK-377 […] toute divergence ici est une
- * régression de droits ». C'était vrai de six lignes sur sept. **Pas de la septième :** la ligne
- * `service_provider` a été RÉGÉNÉRÉE depuis le code d'APRÈS TCK-379, qui lui retire délibérément
- * réservations, baux, visites, favoris, recherches sauvegardées et statistiques. *Une table
- * recopiée du résultat n'affirme plus rien sur ce résultat* — et une phrase qui promet le
- * contraire est pire que pas de phrase, parce qu'on ne s'en méfie pas.
+ * - `action` : le libellé du bouton principal, `null` s'il n'y en a pas.
+ * - `groupes` : `[titre, replié, libellés…]`, dans l'ordre. Le titre est celui que l'œil lit — un
+ *   groupe sans titre de la table vaut `null` ; « Plus » et « Aussi … » sont des divulgations, qui
+ *   ont toujours leur bouton (décision de la session du 2026-11-05).
+ * - Les entrées sous « Plus » sont celles que la table y cite, puis celles que le catalogue ouvre
+ *   au persona sans que la disposition les place, dans l'ordre du catalogue.
+ * - « Vue agence » et « Propriétaires » de l'hôte sont cadenassées (`isProRouteLocked`) : elles
+ *   restent au menu, lues ici par leur libellé.
  *
- * Ce que cette table est réellement, aujourd'hui :
- *
- *  - pour `customer`, `tenant`, `agent`, `agency_admin`, `owner`, `super_admin` : un relevé
- *    d'AVANT TCK-377, que ni TCK-377 (qui n'ajoute qu'un `section:`) ni TCK-379 (qui ne touche
- *    qu'au prestataire) ne devaient bouger. Une divergence y est une régression de droits.
- *  - pour `service_provider` : la SPEC, pas un relevé — `docs/features.md` §1.8 et §2.5 ne lui
- *    accordent que ses interventions, sa messagerie et ses documents. C'est
- *    `AppSidebar.audience.test.tsx` qui porte cette justification en entier, avec la même table.
- *
- * ⚠ **La table est donc dupliquée entre les deux fichiers, et il faut éditer les DEUX.** La
- * duplication n'est pas gratuite : c'est elle qui rend l'AC6 ci-dessous indépendant. Le jeu sondé
- * y est dérivé de CETTE table plus {@link COMPTEUR_PAR_HREF}, jamais du prédicat de
- * `countersToPoll` — sans quoi le test se comparerait à lui-même.
+ * ⚠ Les compteurs de l'AC6 se DÉDUISENT de cette table ({@link COMPTEUR_PAR_LIBELLE}) : éditer une
+ * ligne ici change aussi ce que la barre doit sonder pour ce persona.
  */
-const HREFS_PAR_ROLE: Record<UserRole, string[]> = {
-  customer: [
-    // TCK-625 — « Publier un bien » : un client peut devenir hôte, et rien ne le lui disait.
-    '/app', '/publish', '/app/favorites', '/app/saved-searches', '/app/visits', '/app/bookings',
-    '/app/maintenance', '/app/leases', '/app/payments', '/app/inventories',
-    '/app/profile/reviews', '/app/messages', '/app/documents', '/app/overview',
-  ],
-  // TCK-492 — le locataire reçoit désormais le parcours client COMPLET, et pas
-  // un sous-ensemble. Ce n'est pas un élargissement décidé ici : `buildNavItems`
-  // ouvre son bloc client sur `isCustomerOnly`, et quelqu'un dont le seul rôle
-  // est `tenant` n'a aucun profil professionnel. L'ancienne ligne mesurait un
-  // monde où `customer` n'était jamais émis — un locataire y arrivait sans lui,
-  // ce qui ne se produit plus : l'API émet toujours `customer` avec `tenant`.
-  tenant: [
-    // TCK-625 — « Publier un bien » : un client peut devenir hôte, et rien ne le lui disait.
-    '/app', '/publish', '/app/favorites', '/app/saved-searches', '/app/visits', '/app/bookings',
-    '/app/maintenance', '/app/leases', '/app/payments', '/app/inventories',
-    '/app/profile/reviews', '/app/messages', '/app/documents', '/app/overview',
-  ],
-  agent: [
-    '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
-    '/app/bookings', '/app/leases', '/app/maintenance', '/app/messages', '/app/documents',
-    // TCK-595 (AC17 bis) — plus de « Vue agence » : l'API la refuse à l'agent.
-    '/app/overview', '/app/overview/exports', '/app/customers',
-    '/app/inventories', '/app/visits', '/app/leads', '/app/calendar', '/app/leases/onboarding-pending',
-    '/app/profile/reviews', '/app/commissions',
-  ],
-  agency_admin: [
-    '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
-    '/app/bookings', '/app/leases', '/app/maintenance', '/app/maintenance/providers',
-    '/app/messages', '/app/documents', '/app/overview', '/app/overview/exports',
-    '/app/overview/agency', '/app/overview/kpis', '/app/overview/alerts', '/app/owners',
-    '/app/customers', '/app/inventories', '/app/visits', '/app/leads', '/app/calendar',
-    // TCK-649 — plus d'emplacement « Administration » : la section d'agence est ajoutée par
-    // `avecSectionAgence`, depuis la table des pages (`AppSidebar.section-agence.test.tsx`).
-    '/app/leases/onboarding-pending', '/app/profile/reviews', '/app/commissions',
-    '/app/credits',
-  ],
-  // TCK-587 — `/app/properties/new` sous le libellé « Proposer un bien à mon agence » : le
-  // bailleur hors personnel y PROPOSE un bien, le serveur impose brouillon + privé.
-  owner: [
-    '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
-    '/app/bookings',
-    '/app/maintenance', '/app/leases', '/app/payments', '/app/messages', '/app/documents',
-    '/app/overview', '/app/overview/exports', '/app/customers', '/app/inventories',
-    '/app/visits', '/app/leads', '/app/calendar', '/app/profile/reviews',
-  ],
-  // TCK-379 — ce relevé figeait le comportement d'AVANT : le prestataire recevait
-  // favoris, recherches sauvegardées, statistiques, réservations, visites et baux, dont
-  // `docs/features.md` §2.5 ne lui accorde rien. La liste suit le correctif, elle ne le
-  // précède pas — et `AppSidebar.audience.test.tsx` mesure la même chose autrement.
-  // TCK-494 avait ajouté ici une ligne `broker: ['/app', '/app/messages',
-  // '/app/documents']` — le socle nu, c'est-à-dire un rôle qui n'ouvre RIEN.
-  // TCK-495 a tranché ce constat : le courtier sort de la surface commutable
-  // (ADR-0027), puis quitte le code (ADR-0030) : il n'est plus un `UserRole`.
-  // La ligne n'est pas devenue fausse, elle n'a plus de sujet.
-  service_provider: ['/app', '/app/maintenance', '/app/messages', '/app/documents'],
-  super_admin: [
-    '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
-    '/app/bookings', '/app/leases', '/app/maintenance', '/app/maintenance/providers',
-    '/app/messages', '/app/documents', '/app/overview', '/app/overview/exports',
-    '/app/overview/agency', '/app/overview/kpis', '/app/overview/alerts', '/app/owners',
-    '/app/customers', '/app/inventories', '/app/visits', '/app/leads', '/app/calendar',
-    // TCK-649 — plus d'emplacement « Administration » : la section d'agence est ajoutée par
-    // `avecSectionAgence`, depuis la table des pages (`AppSidebar.section-agence.test.tsx`).
-    '/app/leases/onboarding-pending', '/app/profile/reviews', '/app/commissions',
-    '/app/credits',
-  ],
+const MENU_ATTENDU: Record<Persona, { action: string | null; groupes: GroupeLu[] }> = {
+  client: {
+    action: 'Chercher un bien',
+    groupes: [
+      [null, false, 'Tableau de bord', 'Messagerie'],
+      ['Mes recherches', false, 'Mes favoris', 'Recherches sauvegardées'],
+      ['Mes démarches', false, 'Mes visites', 'Mes réservations'],
+      // Arbitrage 1 : Baux, Paiements, Interventions (« Maintenance »), États des lieux restent au
+      // client pur — sous « Plus ».
+      ['Plus', true, 'Documents', 'Mes avis', 'Statistiques', 'Maintenance', 'Mes baux', 'Paiements', 'États des lieux'],
+    ],
+  },
+  locataire: {
+    action: 'Payer mon loyer',
+    groupes: [
+      [null, false, 'Tableau de bord', 'Messagerie'],
+      ['Mon logement', false, 'Mon bail', 'Paiements', 'Interventions', 'États des lieux', 'Documents'],
+      // Arbitrage 2 : « Chercher un bien » ouvre son groupe « Mes recherches ».
+      ['Mes recherches', true, 'Chercher un bien', 'Mes favoris', 'Recherches sauvegardées', 'Mes visites', 'Mes réservations'],
+      ['Plus', true, 'Mes avis', 'Statistiques'],
+    ],
+  },
+  bailleur: {
+    action: 'Proposer un bien à mon agence',
+    groupes: [
+      [null, false, 'Tableau de bord', 'Messagerie'],
+      ['Mon patrimoine', false, 'Mes biens', 'Baux', 'Finances', 'États des lieux'],
+      ['Activité', false, 'Demandes de contact', 'Visites', 'Réservations', 'Calendrier', 'Interventions'],
+      ['Plus', true, 'Clients (CRM)', 'Avis reçus', 'Documents', 'Statistiques', 'Exports', 'Mes favoris', 'Recherches sauvegardées', 'Mes tâches'],
+    ],
+  },
+  // Relevé de TCK-2478 : aucun parcours de création de visite sous `/app` — l'action de l'agent
+  // est le repli du ticket, « Publier un bien ».
+  agent: {
+    action: 'Publier un bien',
+    groupes: [
+      [null, false, 'Tableau de bord', 'Messagerie', 'Mes tâches'],
+      ['Prospection', false, 'Demandes de contact', 'Clients (CRM)', 'Visites', 'Calendrier'],
+      ['Catalogue', false, 'Mes biens', 'Réservations'],
+      ['Gestion', false, 'Baux', 'Onboardings en attente', 'États des lieux', 'Interventions', 'Commissions'],
+      ['Plus', true, 'Avis reçus', 'Documents', 'Statistiques', 'Exports', 'Mes favoris', 'Recherches sauvegardées'],
+    ],
+  },
+  'admin-agence': {
+    action: 'Publier un bien',
+    groupes: [
+      [null, false, 'Tableau de bord', 'Vue agence', 'Messagerie'],
+      ['Activité', false, 'Demandes de contact', 'Visites', 'Réservations', 'Calendrier'],
+      ['Portefeuille', false, 'Biens', 'Propriétaires', 'Clients (CRM)', 'Baux', 'Onboardings en attente'],
+      ['Finances', false, "Finances de l'agence", 'Commissions', 'Crédits', 'Abonnement'],
+      ['Agence', true, 'Équipe', 'Rôles', 'Agence', 'KYC agence', 'Modération avis', 'Modération biens', "Journal d'audit", 'Intégrations'],
+      ['Pilotage', true, 'Statistiques', 'KPIs', 'Alertes', 'Exports'],
+      ['Plus', true, 'Maintenance', 'Carnet prestataires', 'États des lieux', 'Documents', 'Avis reçus', 'Mes tâches', 'Mes favoris', 'Recherches sauvegardées'],
+    ],
+  },
+  hote: {
+    action: 'Publier un bien',
+    groupes: [
+      [null, false, 'Tableau de bord', 'Messagerie'],
+      ['Mes biens', false, 'Mes biens', 'Réservations', 'Visites', 'Calendrier', 'Demandes de contact'],
+      // Arbitrage 4 : « Finances » = les finances de l'agence ; les paiements du bailleur vont sous
+      // « Plus », libellés « Paiements ».
+      ['Mes locations', false, 'Baux', "Finances de l'agence", 'États des lieux', 'Interventions', 'Carnet prestataires'],
+      ['Mon espace', false, 'Agence', 'KYC agence', 'Reversements', 'Crédits', 'Intégrations'],
+      [
+        'Plus', true, 'Clients (CRM)', 'Statistiques', 'Exports', 'KPIs', 'Alertes', 'Avis reçus', 'Documents',
+        'Mes tâches', 'Mes favoris', 'Recherches sauvegardées', 'Paiements', 'Commissions', 'Onboardings en attente',
+        'Vue agence', 'Propriétaires',
+      ],
+    ],
+  },
+  // AC5 — ni action ni titre de section. Le plancher `customer` lui ouvre six destinations
+  // (`occupeUnLogement`, TCK-379, inchangé) : elles sont sous « Plus », replié, qui n'est pas un titre.
+  prestataire: {
+    action: null,
+    groupes: [
+      [null, false, 'Tableau de bord', 'Interventions', 'Messagerie', 'Documents'],
+      ['Plus', true, 'Réservations', 'Visites', 'Mes favoris', 'Recherches sauvegardées', 'Baux', 'Statistiques'],
+    ],
+  },
+  plateforme: {
+    action: 'Publier un bien',
+    groupes: [
+      [null, false, 'Tableau de bord', 'Vue agence', 'Messagerie'],
+      ['Activité', false, 'Demandes de contact', 'Visites', 'Réservations', 'Calendrier'],
+      ['Portefeuille', false, 'Biens', 'Propriétaires', 'Clients (CRM)', 'Baux', 'Onboardings en attente'],
+      ['Finances', false, "Finances de l'agence", 'Commissions', 'Crédits', 'Abonnement'],
+      ['Agence', true, 'Équipe', 'Rôles', 'Agence', 'KYC agence', 'Modération avis', 'Modération biens', "Journal d'audit", 'Intégrations'],
+      ['Pilotage', true, 'Statistiques', 'KPIs', 'Alertes', 'Exports'],
+      ['Plus', true, 'Maintenance', 'Carnet prestataires', 'États des lieux', 'Documents', 'Avis reçus', 'Mes tâches', 'Mes favoris', 'Recherches sauvegardées'],
+    ],
+  },
 };
 
-const ROLES = Object.keys(HREFS_PAR_ROLE) as UserRole[];
-
-/**
- * Les TROIS seules entrées comptées (la troisième, `/app/leads`, depuis TCK-590), et le compteur
- * que chacune porte — **écrit ici, à la main**.
- *
- * C'est la seconde moitié de l'indépendance de l'AC6. Le jeu sondé attendu se dérive de
- * {@link HREFS_PAR_ROLE} et de cette correspondance ; il ne se dérive PAS de `item.counterKey`,
- * qui est ce que le composant produit. Un test qui recalculerait l'attendu avec le prédicat de
- * `countersToPoll` ne pourrait plus rougir sur une erreur de ce prédicat — c'est exactement ce
- * qu'il faisait avant, et il a survécu à la mutation qui armait les deux compteurs en dur.
- */
-const COMPTEUR_PAR_HREF: Record<string, NavCounterKey> = {
-  '/app/messages': 'unreadMessages',
-  '/app/visits': 'pendingVisits',
-  '/app/leads': 'unhandledLeads',
-};
-
-/** Ce qu'un rôle DOIT sonder, déduit de sa ligne de la table et de rien d'autre. */
-function sondesAttendues(role: UserRole): Set<NavCounterKey> {
-  const cles = new Set<NavCounterKey>();
-  for (const href of HREFS_PAR_ROLE[role]) {
-    const cle = COMPTEUR_PAR_HREF[href];
-    if (cle) cles.add(cle);
-  }
-  return cles;
-}
-
-describe('AC1 — surlignage sur une page fille', () => {
-  it('allume « Mes biens » sur /app/properties/42', () => {
-    renderSidebar(['agency_admin'], '/app/properties/42');
-    expect(activeLabels()).toEqual(['Mes biens']);
+describe('TCK-2478 — la barre montée suit la disposition du persona (AC1)', () => {
+  it.each(PERSONAS)('%s : l’action principale, puis le premier lien du menu', (persona) => {
+    const { container } = renderSidebar(persona, '/app');
+    const action = container.querySelector('[data-slot="action-principale"]');
+    const attendue = MENU_ATTENDU[persona].action;
+    if (attendue === null) {
+      expect(action).toBeNull();
+      return;
+    }
+    expect(action?.textContent?.trim()).toBe(attendue);
+    // Au clavier : l'action vient avant le menu, et le menu s'ouvre sur le tableau de bord. Le logo
+    // du tiroir (`/`) la précède seul, et l'en-tête d'espace n'est ici qu'une carte statique.
+    const liens = Array.from(container.querySelectorAll('aside a')).filter((a) => a.getAttribute('href') !== '/');
+    expect(liens[0]).toBe(action);
+    expect(liens[1]).toBe(container.querySelector('nav a'));
+    expect(liens[1]).toHaveAttribute('href', '/app');
   });
 
+  it.each(PERSONAS)('%s : les groupes, leurs titres et leurs entrées, dans l’ordre', (persona) => {
+    const { container } = renderSidebar(persona, '/app');
+    expect(groupesRendus(container)).toEqual(MENU_ATTENDU[persona].groupes);
+  });
+
+  it.each(PERSONAS)('%s : chaque groupe replié a `aria-expanded="false"` et sa liste `hidden`', (persona) => {
+    const { container } = renderSidebar(persona, '/app');
+    const replies = MENU_ATTENDU[persona].groupes.filter((g) => g[1]).map((g) => g[0]);
+    const boutons = Array.from(container.querySelectorAll('nav [data-groupe] > button[aria-expanded]'));
+    expect(boutons.filter((b) => b.getAttribute('aria-expanded') === 'false').map((b) => b.textContent?.trim())).toEqual(replies);
+    for (const bouton of boutons) {
+      const liste = document.getElementById(bouton.getAttribute('aria-controls') ?? '');
+      expect(liste, bouton.textContent ?? '').not.toBeNull();
+      expect(liste).toHaveAttribute('hidden');
+    }
+  });
+
+  it.each(PERSONAS)('%s : aucune entrée n’apparaît deux fois (TCK-646 AC2)', (persona) => {
+    const { container } = renderSidebar(persona, '/app');
+    const rendus = Array.from(container.querySelectorAll('nav a, nav [role="link"]')).map(libelle);
+    expect(new Set(rendus).size, rendus.join(' · ')).toBe(rendus.length);
+  });
+
+  it('un groupe replié s’ouvre et se referme au clic, au clavier aussi', async () => {
+    const user = userEvent.setup();
+    renderSidebar('admin-agence', '/app');
+    const bouton = screen.getByRole('button', { name: 'Agence' });
+    expect(screen.queryByRole('link', { name: 'Équipe' })).toBeNull();
+    await user.click(bouton);
+    expect(bouton).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('link', { name: 'Équipe' })).toHaveAttribute('href', '/app/agency/team');
+    bouton.focus();
+    await user.keyboard('{Enter}');
+    expect(bouton).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('link', { name: 'Équipe' })).toBeNull();
+  });
+});
+
+describe('TCK-2478 — le complément « Aussi … » (AC2)', () => {
+  /**
+   * Un admin d'agence `standard` qui est AUSSI bailleur de la même agence, profil actif admin : la
+   * disposition est celle de l'admin (jugée sur SES rôles), et ce que seul le profil bailleur ouvre
+   * — « Finances » (`/app/payments`, ce que le bailleur paie et reçoit) — va dans « Aussi
+   * bailleur », replié. Calculé sur l'union, le complément serait vide (ablation de la tâche 2).
+   */
+  const ADMIN_AUSSI_BAILLEUR: Compte = {
+    roles: ['customer', 'agency_admin', 'owner'],
+    typeProfilActif: 'agency_admin',
+    agence: 'standard',
+    agencyIsStandard: true,
+  };
+
+  it('« Aussi bailleur », replié, en bas, avec les seules destinations du profil bailleur', () => {
+    pathname = '/app';
+    const { container } = render(barre(ADMIN_AUSSI_BAILLEUR));
+    const groupes = groupesRendus(container);
+    expect(groupes.at(-1)).toEqual(['Aussi bailleur', true, 'Finances']);
+    expect(within(container.querySelector('[data-groupe="aussi"]')!).getByRole('link', { hidden: true, name: 'Finances' }))
+      .toHaveAttribute('href', '/app/payments');
+    // Le reste est la disposition de l'admin, inchangée : l'action, et les groupes avant « Plus ».
+    expect(container.querySelector('[data-slot="action-principale"]')).toHaveTextContent('Publier un bien');
+    expect(groupes.slice(0, -1)).toEqual(MENU_ATTENDU['admin-agence'].groupes);
+  });
+
+  it('il s’ouvre sans changer de profil, et s’ouvre seul sur sa page active', () => {
+    pathname = '/app/payments';
+    render(barre(ADMIN_AUSSI_BAILLEUR));
+    expect(screen.getByRole('button', { name: 'Aussi bailleur' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('link', { name: 'Finances' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('un compte sans autre profil n’a pas de complément', () => {
+    for (const persona of PERSONAS) {
+      const { container, unmount } = renderSidebar(persona, '/app');
+      expect(container.querySelector('[data-groupe="aussi"]'), persona).toBeNull();
+      unmount();
+    }
+  });
+});
+
+describe('TCK-2478 — l’espace suspendu (AC3)', () => {
+  it('ni action principale ni entrée d’écriture ; la lecture reste', () => {
+    const { container } = renderSidebar('admin-agence', '/app', { agencySuspended: true });
+    expect(container.querySelector('[data-slot="action-principale"]')).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Publier un bien' })).toBeNull();
+    expect(container.querySelectorAll('a[href="/app/properties/new"], a[href="/publish"]')).toHaveLength(0);
+    expect(screen.getByRole('link', { name: 'Biens' })).toHaveAttribute('href', '/app/properties');
+    expect(screen.getByRole('link', { name: 'Tableau de bord' })).toHaveAttribute('href', '/app');
+  });
+
+  it('le même compte, espace actif : l’action est là (le test ci-dessus n’est pas vide)', () => {
+    const { container } = renderSidebar('admin-agence', '/app', { agencySuspended: false });
+    expect(container.querySelector('[data-slot="action-principale"]')).toHaveAttribute('href', '/app/properties/new');
+  });
+});
+
+describe('TCK-2478 — l’entrée active n’est jamais cachée (AC4)', () => {
+  it('une page placée sous « Plus » rend « Plus » déplié, l’entrée active portant aria-current', () => {
+    renderSidebar('admin-agence', '/app/maintenance/9');
+    const plus = screen.getByRole('button', { name: 'Plus' });
+    expect(plus).toHaveAttribute('aria-expanded', 'true');
+    expect(document.getElementById(plus.getAttribute('aria-controls')!)).not.toHaveAttribute('hidden');
+    expect(screen.getByRole('link', { name: 'Maintenance' })).toHaveAttribute('aria-current', 'page');
+    // Les autres groupes repliés restent repliés.
+    expect(screen.getByRole('button', { name: 'Agence' })).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('à la navigation aussi : la barre survit au changement de page, le groupe s’ouvre', () => {
+    const { rerender } = renderSidebar('admin-agence', '/app');
+    expect(screen.getByRole('button', { name: 'Pilotage' })).toHaveAttribute('aria-expanded', 'false');
+    pathname = '/app/overview/kpis';
+    rerender(barre(COMPTES['admin-agence']));
+    expect(screen.getByRole('button', { name: 'Pilotage' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('link', { name: 'KPIs' })).toHaveAttribute('aria-current', 'page');
+  });
+});
+
+describe('TCK-2478 — le prestataire (AC5)', () => {
+  it('ni action, ni titre de section : sa seule bascule est « Plus »', () => {
+    const { container } = renderSidebar('prestataire', '/app');
+    expect(container.querySelector('[data-slot="action-principale"]')).toBeNull();
+    expect(container.querySelectorAll('nav p')).toHaveLength(0);
+    expect(Array.from(container.querySelectorAll('nav button')).map((b) => b.textContent?.trim())).toEqual(['Plus']);
+    // …et sa tête porte son métier, visible sans rien ouvrir.
+    expect(screen.getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(
+      expect.arrayContaining(['/app', '/app/maintenance', '/app/messages', '/app/documents']),
+    );
+  });
+});
+
+describe('TCK-2478 — la carte du client et le lien « Console plateforme »', () => {
+  it.each(['client', 'locataire'] as const)('%s : la carte « Mettre un bien en location » mène à /publish, aucune ligne de menu', (persona) => {
+    const { container } = renderSidebar(persona, '/app');
+    const carte = screen.getByRole('link', { name: /Mettre un bien en location/ });
+    expect(carte).toHaveAttribute('href', '/publish');
+    expect(container.querySelector('nav')?.querySelector('a[href="/publish"]')).toBeNull();
+    expect(container.querySelectorAll('a[href="/publish"]')).toHaveLength(1);
+  });
+
+  it('l’action du client mène à la recherche publique, localisée (ADR-0026)', () => {
+    const { container } = renderSidebar('client', '/app');
+    expect(container.querySelector('[data-slot="action-principale"]')).toHaveAttribute('href', '/fr/properties');
+  });
+
+  it('les autres personas n’ont pas de carte', () => {
+    for (const persona of PERSONAS.filter((p) => p !== 'client' && p !== 'locataire')) {
+      const { container, unmount } = renderSidebar(persona, '/app');
+      expect(container.querySelectorAll('a[href="/publish"]'), persona).toHaveLength(0);
+      unmount();
+    }
+  });
+
+  it('plateforme : « Console plateforme » vers /super-admin, hors du menu', () => {
+    const { container } = renderSidebar('plateforme', '/app');
+    expect(screen.getByRole('link', { name: 'Console plateforme' })).toHaveAttribute('href', '/super-admin');
+    expect(container.querySelector('nav a[href="/super-admin"]')).toBeNull();
+  });
+
+  it('un admin d’agence n’a pas le lien de la console', () => {
+    renderSidebar('admin-agence', '/app');
+    expect(screen.queryByRole('link', { name: 'Console plateforme' })).toBeNull();
+  });
+});
+
+describe('AC1 — surlignage sur une page fille', () => {
+  it('allume « Biens » (libellé de l’admin d’agence, TCK-2478) sur /app/properties/42', () => {
+    renderSidebar('admin-agence', '/app/properties/42');
+    expect(activeLabels()).toEqual(['Biens']);
+  });
+
+  // « Maintenance », « Documents » et « États des lieux » sont sous « Plus » chez l'admin : la
+  // page active les y rend visibles (AC4 de TCK-2478).
   it.each([
     ['/app/leases/7', 'Baux'],
     ['/app/bookings/12', 'Réservations'],
@@ -264,7 +519,7 @@ describe('AC1 — surlignage sur une page fille', () => {
     ['/app/inventories/new', 'États des lieux'],
     ['/app/maintenance/new', 'Maintenance'],
   ])('allume la bonne entrée sur %s', (route, label) => {
-    renderSidebar(['agency_admin'], route);
+    renderSidebar('admin-agence', route);
     expect(activeLabels()).toEqual([label]);
   });
 });
@@ -272,24 +527,27 @@ describe('AC1 — surlignage sur une page fille', () => {
 describe('AC2 — jamais deux entrées allumées sur des routes imbriquées', () => {
   // Cinq couples, pas trois : le ticket n'en nommait que trois et manquait
   // `/app/maintenance` ⊃ `/app/maintenance/providers` et `/app/overview` ⊃ ses quatre filles.
+  //
+  // TCK-2478 — « Publier un bien » est désormais l'ACTION PRINCIPALE, hors du `<nav>` : elle ne
+  // s'allume pas. Sur `/app/properties/new`, c'est « Biens » qui s'allume, seul.
   it.each([
-    ['/app/properties/new', 'Publier un bien'],
+    ['/app/properties/new', 'Biens'],
     ['/app/leases/onboarding-pending', 'Onboardings en attente'],
     ['/app/maintenance/providers', 'Carnet prestataires'],
     ['/app/overview/kpis', 'KPIs'],
     ['/app/overview/exports', 'Exports'],
   ])('%s n’allume que « %s »', (route, label) => {
-    renderSidebar(['agency_admin'], route);
+    renderSidebar('admin-agence', route);
     expect(activeLabels()).toEqual([label]);
   });
 
   it('la racine /app ne devient le parent de rien', () => {
-    renderSidebar(['agency_admin'], '/app/profile');
+    renderSidebar('admin-agence', '/app/profile');
     expect(activeLabels()).toEqual([]);
   });
 
   it('/app allume « Tableau de bord », et lui seul', () => {
-    renderSidebar(['agency_admin'], '/app');
+    renderSidebar('admin-agence', '/app');
     expect(activeLabels()).toEqual(['Tableau de bord']);
   });
 
@@ -304,153 +562,55 @@ describe('AC2 — jamais deux entrées allumées sur des routes imbriquées', ()
 
 describe('AC3 — aria-current="page"', () => {
   it('AppSidebar le porte sur l’entrée active', () => {
-    renderSidebar(['agency_admin'], '/app/leases/7');
+    renderSidebar('admin-agence', '/app/leases/7');
     expect(screen.getByRole('link', { name: 'Baux' })).toHaveAttribute('aria-current', 'page');
   });
 
-  // TCK-649 — la barre de l'ancienne console est partie ; sa règle reste, sur la section d'agence :
+  // TCK-649 — la barre de l'ancienne console est partie ; sa règle reste, sur les pages d'agence :
   // sur `/app/agency/moderation/properties`, « Modération avis » et « Modération biens » sont deux
-  // préfixes valides, et une seule entrée s'allume.
-  it('la section d’agence n’allume qu’UNE modération sur /app/agency/moderation/properties', () => {
-    renderSidebar(['super_admin'], '/app/agency/moderation/properties');
+  // préfixes valides, et une seule entrée s'allume (dans « Agence », ouvert par elle).
+  it('les pages d’agence n’allument qu’UNE modération sur /app/agency/moderation/properties', () => {
+    renderSidebar('plateforme', '/app/agency/moderation/properties');
     expect(activeLabels()).toEqual(['Modération biens']);
   });
 });
 
-describe('AC4 — le regroupement ne change AUCUN droit', () => {
-  it.each(Object.keys(HREFS_PAR_ROLE) as UserRole[])(
-    'le jeu d’href de %s est inchangé, à l’ordre près',
-    (role) => {
-      const apres = buildNavItems(userWith([role]), ['properties.create']).map((item) => item.href);
-      expect([...apres].sort()).toEqual([...HREFS_PAR_ROLE[role]].sort());
-      expect(apres).toHaveLength(HREFS_PAR_ROLE[role].length);
-    },
-  );
+/**
+ * Le compteur que porte chaque entrée comptée, par son LIBELLÉ — **écrit ici, à la main**.
+ *
+ * C'est la seconde moitié de l'indépendance de l'AC6. Le jeu sondé attendu se dérive de
+ * {@link MENU_ATTENDU} et de cette correspondance ; il ne se dérive PAS de `counterKey`, qui est ce
+ * que le composant produit. Un test qui recalculerait l'attendu avec le prédicat de
+ * `countersToPoll` ne pourrait plus rougir sur une erreur de ce prédicat — c'est exactement ce
+ * qu'il faisait avant TCK-377, et il a survécu à la mutation qui armait les deux compteurs en dur.
+ *
+ * TCK-2478 — la table est désormais par PERSONA (elle était par rôle) ; une entrée repliée est au
+ * menu, son compteur est sondé.
+ */
+const COMPTEUR_PAR_LIBELLE: Record<string, NavCounterKey> = {
+  Messagerie: 'unreadMessages',
+  Visites: 'pendingVisits',
+  'Mes visites': 'pendingVisits',
+  'Demandes de contact': 'unhandledLeads',
+};
 
-  // TCK-590 — 23 → 24 : la boîte « Demandes de contact » (`/app/leads`).
-  // TCK-597 — 24 → 25 : la boîte des avis reçus (`/app/profile/reviews`).
-  // TCK-595 — 25 → 26 : le grand livre des commissions (`/app/commissions`).
-  // TCK-633 lot F — 26 → 27 : le portefeuille de crédits (`/app/credits`).
-  // TCK-649 — 27 → 26 : l'emplacement « Administration » ne vient plus de `buildNavItems` ; la
-  // section d'agence est ajoutée depuis la table (`avecSectionAgence`).
-  it('les 26 entrées d’un agency_admin sont réparties en sections, toutes connues', () => {
-    const items = buildNavItems(userWith(['agency_admin']), ['properties.create']);
-    expect(items).toHaveLength(26);
-    for (const item of items) expect(SECTION_ORDER).toContain(item.section);
-    const groupes = groupBySection(items);
-    expect(groupes.length).toBeGreaterThan(1);
-    expect(groupes.flatMap((g) => g.items)).toHaveLength(26);
-  });
-
-  it('aucun rôle ne voit de césure vide', () => {
-    for (const role of ROLES) {
-      for (const g of groupBySection(buildNavItems(userWith([role]), ['properties.create']))) {
-        expect(g.items.length, `${role} — ${g.section}`).toBeGreaterThan(0);
-      }
+/** Ce qu'un persona DOIT sonder, déduit de sa ligne de la table et de rien d'autre. */
+function sondesAttendues(persona: Persona): Set<NavCounterKey> {
+  const cles = new Set<NavCounterKey>();
+  for (const [, , ...libelles] of MENU_ATTENDU[persona].groupes) {
+    for (const l of libelles) {
+      const cle = COMPTEUR_PAR_LIBELLE[l];
+      if (cle) cles.add(cle);
     }
-  });
-
-  // TCK-646 — la section « Catalogue » a disparu : « Publier un bien » est monté en tête.
-  it('TCK-625 — un client garde « Publier un bien », désormais en tête', () => {
-    const groupes = groupBySection(buildNavItems(userWith(['customer']), ['properties.create']));
-    const tete = groupes.find((g) => g.section === 'primary');
-    expect(tete?.items.map((i) => i.href)).toContain('/publish');
-    expect(groupes.flatMap((g) => g.items)).toHaveLength(14);
-  });
-
-  it('les en-têtes de section sont peints pour un agency_admin', () => {
-    renderSidebar(['agency_admin'], '/app');
-    for (const libelle of ['DÉCOUVRIR', 'DEMANDES', 'ENGAGEMENTS', 'PILOTAGE']) {
-      // Les en-têtes sont mis en capitales par CSS (`uppercase`) : on cherche le texte SOURCE.
-      // TCK-590 — correspondance EXACTE : l'entrée « Demandes de contact » contient « Demandes »,
-      // et une recherche partielle trouvait deux éléments.
-      expect(
-        screen.getByText(libelle.charAt(0) + libelle.slice(1).toLowerCase(), { exact: true }),
-      ).toBeInTheDocument();
-    }
-  });
-
-  /**
-   * D5 — l'ORDRE des sections, qui n'était testé nulle part.
-   *
-   * Le test au-dessus vérifie la PRÉSENCE des cinq en-têtes, jamais leur séquence : mutation
-   * mesurée le 2026-08-27 — `SECTION_ORDER` intégralement inversé (« Administration » en haut de
-   * la barre, « Tableau de bord » en bas) → **88/88 verts**. Or l'ordre EST la thèse du ticket
-   * (« découvrir → demander → s'engager → piloter »), pas un détail de présentation.
-   *
-   * La séquence est lue DANS LE DOM et comparée à une liste écrite à la main : la dériver de
-   * `SECTION_ORDER` reviendrait à comparer la constante à elle-même.
-   */
-  it('les en-têtes paraissent dans l’ordre du parcours métier, pas dans un autre', () => {
-    const { container } = renderSidebar(['agency_admin'], '/app');
-    const entetes = Array.from(container.querySelectorAll('nav p')).map((p) =>
-      p.textContent?.trim(),
-    );
-    // TCK-646 — plus de « Catalogue » : ses entrées sont en tête, sans en-tête.
-    expect(entetes).toEqual([
-      'Découvrir',
-      'Demandes',
-      'Engagements',
-      'Pilotage',
-      'Administration',
-    ]);
-  });
-
-  it('le groupement s’efface quand une seule section est peuplée', () => {
-    const items = buildNavItems(userWith(['agency_admin']), ['properties.create'])
-      .filter((item) => item.section === 'manage');
-    expect(groupBySection(items)).toHaveLength(1);
-    expect(withSectionHeadings(groupBySection(items))).toBe(false);
-  });
-
-  /**
-   * D4 — l'effacement du groupement, qui n'était gardé nulle part.
-   *
-   * Mutation mesurée le 2026-08-27 : `withHeadings = true` en dur → **88/88 verts**. Le seul test
-   * proche appelait `groupBySection` sur une liste filtrée à la main et n'atteignait jamais la
-   * décision. Et il ne pouvait pas l'atteindre : dans sa forme `groups.length > 1`, la règle
-   * n'était **basculée par aucun utilisateur** — `/app`, `/app/messages` et `/app/documents` sont
-   * poussées sans condition de rôle, donc tout compte a au moins deux groupes, y compris un
-   * compte sans aucun rôle. *Une règle qu'aucune entrée ne peut violer n'est pas gardable.*
-   *
-   * Elle est désormais atteinte par un rôle réel (cf. le test suivant).
-   */
-  it.each([
-    ['une seule section, même bien remplie', ['manage', 'manage', 'manage'], false],
-    ['deux sections libellées à UNE entrée chacune', ['requests', 'engagements'], false],
-    ['deux sections dont une libellée à deux entrées', ['requests', 'requests', 'admin'], true],
-    ['la seule section à deux entrées est `primary`, qui n’a pas de libellé',
-      ['primary', 'primary', 'admin'], false],
-  ])('en-têtes — %s', (_cas, sections, attendu) => {
-    const items = (sections as NavItem['section'][]).map((section, index) => ({
-      href: `/app/x${index}`,
-      labelKey: 'dashboard',
-      icon: LayoutDashboard,
-      section,
-    }));
-    expect(withSectionHeadings(groupBySection(items))).toBe(attendu);
-  });
-
-  it('le prestataire, avec quatre entrées, ne se voit infliger AUCUNE césure', () => {
-    // Le rôle le moins loti : `/app`, `/app/maintenance`, `/app/messages`, `/app/documents`.
-    // Deux sections libellées y portaient UNE entrée chacune — trois césures pour quatre lignes,
-    // ce que la Direction UX du ticket nomme explicitement comme le défaut à ne pas produire.
-    const { container } = renderSidebar(['service_provider'], '/app');
-    expect(container.querySelectorAll('nav p')).toHaveLength(0);
-    // …et la barre n'est pas vidée pour autant : le contrat d'href du rôle est intact.
-    const rendus = Array.from(container.querySelectorAll('nav a')).map((a) =>
-      a.getAttribute('href'),
-    );
-    // À l'ordre près : le DOM suit `SECTION_ORDER`, la table suit l'ordre de poussée.
-    expect([...rendus].sort()).toEqual([...HREFS_PAR_ROLE.service_provider].sort());
-  });
-});
+  }
+  return cles;
+}
 
 describe('AC5 — un compteur ne s’affiche ni à zéro ni en échec', () => {
   it('rien à zéro', () => {
     unreadMock.mockReturnValue(0);
     pendingVisitsMock.mockReturnValue({ data: { meta: { total: 0 } } });
-    renderSidebar(['agency_admin'], '/app');
+    renderSidebar('admin-agence', '/app');
     expect(screen.queryByLabelText(/message non lu|messages non lus/)).toBeNull();
     expect(screen.queryByLabelText(/demande de visite|demandes de visite/)).toBeNull();
   });
@@ -458,7 +618,7 @@ describe('AC5 — un compteur ne s’affiche ni à zéro ni en échec', () => {
   it('rien quand la requête échoue (data undefined)', () => {
     unreadMock.mockReturnValue(0);
     pendingVisitsMock.mockReturnValue({ data: undefined });
-    renderSidebar(['agency_admin'], '/app');
+    renderSidebar('admin-agence', '/app');
     expect(screen.queryByLabelText(/demande de visite|demandes de visite/)).toBeNull();
     expect(screen.queryByText('—')).toBeNull();
     expect(screen.queryByText('0')).toBeNull();
@@ -467,62 +627,44 @@ describe('AC5 — un compteur ne s’affiche ni à zéro ni en échec', () => {
   it('la pastille paraît, avec son libellé accessible, dès qu’il y a quelque chose', () => {
     unreadMock.mockReturnValue(3);
     pendingVisitsMock.mockReturnValue({ data: { meta: { total: 7 } } });
-    renderSidebar(['agency_admin'], '/app');
+    renderSidebar('admin-agence', '/app');
     expect(screen.getByLabelText('3 messages non lus')).toHaveTextContent('3');
     expect(screen.getByLabelText('7 demandes de visite en attente')).toHaveTextContent('7');
   });
 
   it('au-delà de 99, la pastille dit 99+ sans mentir sur son libellé', () => {
     unreadMock.mockReturnValue(140);
-    renderSidebar(['agency_admin'], '/app');
+    renderSidebar('admin-agence', '/app');
     expect(screen.getByLabelText('140 messages non lus')).toHaveTextContent('99+');
   });
 });
 
-describe('AC6 — aucun sondage pour un rôle qui ne voit pas l’entrée comptée', () => {
-  it('les deux compteurs sont armés quand les deux entrées sont là', () => {
-    renderSidebar(['agency_admin'], '/app');
+describe('AC6 — aucun sondage pour un persona qui ne voit pas l’entrée comptée', () => {
+  const contexteAdmin = {
+    roles: COMPTES['admin-agence'].roles,
+    capacites: ['properties.create'],
+    cheminsAdmin: [] as string[],
+  };
+
+  it('les compteurs sont armés quand leurs entrées sont là', () => {
+    renderSidebar('admin-agence', '/app');
     expect(unreadMock).toHaveBeenCalledWith({ enabled: true });
     expect(pendingVisitsMock).toHaveBeenCalledWith({ enabled: true });
+    expect(unhandledLeadsMock).toHaveBeenCalledWith({ enabled: true });
   });
 
   it('countersToPoll n’arme que ce que la liste contient', () => {
-    const items = buildNavItems(userWith(['agency_admin']), ['properties.create']);
-    const sansVisites = items.filter((item) => item.href !== '/app/visits');
+    const entrees = entreesDuMenu(composerMenu(contexteAdmin, 'admin-agence'));
+    const sansVisites = entrees.filter((e) => e.href !== '/app/visits');
     expect(countersToPoll(sansVisites).has('pendingVisits')).toBe(false);
     expect(countersToPoll(sansVisites).has('unreadMessages')).toBe(true);
     expect(countersToPoll([]).size).toBe(0);
   });
 
   it('une entrée cadenassée n’est pas sondée', () => {
-    const cadenasse: NavItem[] = buildNavItems(userWith(['agency_admin']), ['properties.create'])
-      .map((item) => (item.counterKey ? { ...item, locked: true } : item));
+    const cadenasse = entreesDuMenu(composerMenu(contexteAdmin, 'admin-agence'))
+      .map((e) => (e.counterKey ? { ...e, locked: true } : e));
     expect(countersToPoll(cadenasse).size).toBe(0);
-  });
-
-  /**
-   * ⚠ **Ce bloc a été refait après une revue adverse, et la raison est la plus instructive du
-   * lot.** Sa version précédente écrivait :
-   *
-   * ```ts
-   * const attendus = new Set(items.filter((i) => i.counterKey && !i.locked).map((i) => i.counterKey));
-   * expect(countersToPoll(items)).toEqual(attendus);
-   * ```
-   *
-   * `item.counterKey && !item.locked` est **le corps même de `countersToPoll`**, appliqué au
-   * MÊME `items`. Le test se comparait donc à son sujet : aucune erreur de ce prédicat, et
-   * aucun changement de garde de rôle, ne pouvait le faire rougir. Sa seule clause falsifiable
-   * était `attendus.size > 0`. *Une tautologie coûte plus cher qu'un test absent : elle occupe
-   * la place de celui qui manquait.*
-   *
-   * Elle avait elle-même remplacé un `expect(…​.size).toBe(2)` devenu faux quand TCK-379 a
-   * retiré `/app/visits` au prestataire. Le nombre figé n'est donc pas la réponse non plus.
-   * L'attendu est ici DÉRIVÉ de deux sources indépendantes du composant :
-   * {@link HREFS_PAR_ROLE} (qui voit quoi) et {@link COMPTEUR_PAR_HREF} (quelle entrée porte
-   * quel compteur), toutes deux écrites à la main.
-   */
-  it.each(ROLES)('countersToPoll rend, pour %s, le jeu déduit de ses href', (role) => {
-    expect(countersToPoll(buildNavItems(userWith([role]), ['properties.create']))).toEqual(sondesAttendues(role));
   });
 
   /**
@@ -532,57 +674,66 @@ describe('AC6 — aucun sondage pour un rôle qui ne voit pas l’entrée compt�
    * `useUnreadCount({ enabled: true })` et `usePendingVisitsCount({ enabled: true })` écrits en
    * dur, `countersToPoll` jamais appelée par le rendu → **88/88 verts**. Aucun test ne montait
    * alors la barre d'un rôle pour qui la bonne réponse est `false`.
+   *
+   * L'attendu est DÉRIVÉ de deux sources indépendantes du composant : {@link MENU_ATTENDU} (qui
+   * voit quoi) et {@link COMPTEUR_PAR_LIBELLE} (quelle entrée porte quel compteur), toutes deux
+   * écrites à la main. Le troisième compteur (`unhandledLeads`, TCK-590) est désormais lu aussi.
    */
-  it.each(ROLES)('la barre montée pour %s n’arme que les compteurs de ses entrées', (role) => {
-    const sondes = sondesAttendues(role);
-    renderSidebar([role], '/app');
+  it.each(PERSONAS)('la barre montée pour %s n’arme que les compteurs de ses entrées', (persona) => {
+    const sondes = sondesAttendues(persona);
+    renderSidebar(persona, '/app');
     expect(unreadMock).toHaveBeenCalledWith({ enabled: sondes.has('unreadMessages') });
     expect(pendingVisitsMock).toHaveBeenCalledWith({ enabled: sondes.has('pendingVisits') });
+    expect(unhandledLeadsMock).toHaveBeenCalledWith({ enabled: sondes.has('unhandledLeads') });
   });
 
-  it('la branche « pas de sondage » est atteinte par un rôle RÉEL', () => {
-    // Sans cette clause, les deux `it.each` ci-dessus seraient verts dans un monde où tous les
-    // rôles sondent tout — c'est-à-dire dans le monde d'avant TCK-379, où l'AC6 était coché par
-    // une branche que personne n'exécutait. Le prestataire garde ses messages et perd ses
-    // visites : c'est CE rôle qui rend `enabled: false` observable à l'écran.
-    expect([...sondesAttendues('service_provider')]).toEqual(['unreadMessages']);
-    const jamaisSondees = ROLES.filter((role) => !sondesAttendues(role).has('pendingVisits'));
-    // TCK-494 avait ajouté `broker` à cette liste — un courtier ne sondait aucune visite parce
-    // qu'il n'avait AUCUNE entrée de menu au-delà du socle. La ligne disait le défaut au lieu de
-    // le taire ; TCK-495 l'a tranché (ADR-0027) et le rôle n'existe plus (ADR-0030). Le prestataire reste
-    // seul, et pour une raison qui, elle, est voulue : ses visites ne le concernent pas.
-    expect(jamaisSondees).toEqual(['service_provider']);
+  it('la branche « pas de sondage » est atteinte par un persona RÉEL', () => {
+    // Sans cette clause, l'`it.each` ci-dessus serait vert dans un monde où tous les personas
+    // sondent tout. Avant TCK-2478, c'était le prestataire seul (`['service_provider']`) qui
+    // perdait ses visites. Sous les jeux de rôles que l'API émet vraiment, le plancher `customer`
+    // lui rend ses visites (sous « Plus », `occupeUnLogement`, TCK-379 inchangé) : la branche
+    // `false` est désormais tenue par les demandes de contact, que ni le client, ni le locataire,
+    // ni le prestataire ne voient.
+    const sansDemandes = PERSONAS.filter((p) => !sondesAttendues(p).has('unhandledLeads'));
+    expect(sansDemandes).toEqual(['client', 'locataire', 'prestataire']);
+    expect(PERSONAS.filter((p) => !sondesAttendues(p).has('unreadMessages'))).toEqual([]);
   });
 });
 
-describe('accessibilité du <nav>', () => {
+describe('accessibilité de la barre', () => {
   it('la navigation porte un nom accessible', () => {
-    renderSidebar(['customer'], '/app');
+    renderSidebar('client', '/app');
     expect(screen.getByRole('navigation', { name: 'Navigation du tableau de bord' }))
       .toBeInTheDocument();
   });
 
-  it('chaque lien de la barre porte un anneau de focus', () => {
-    renderSidebar(['customer'], '/app');
-    for (const lien of screen.getAllByRole('link')) {
-      expect(lien.className).toContain('focus-visible:ring-2');
-      expect(lien.className).toContain('focus-visible:ring-ring');
+  it('chaque lien et chaque bascule de la barre porte un anneau de focus', () => {
+    renderSidebar('admin-agence', '/app');
+    for (const cible of [...screen.getAllByRole('link'), ...screen.getAllByRole('button')]) {
+      expect(cible.className, cible.textContent ?? '').toContain('focus-visible:ring-2');
+      expect(cible.className, cible.textContent ?? '').toContain('focus-visible:ring-ring');
     }
   });
 
+  /**
+   * TCK-2478 — axe sur la barre montée de chaque persona : groupes titrés (`role="group"` nommé
+   * par son titre), bascules (`aria-expanded`, `aria-controls`), action principale, carte.
+   * jsdom ne calcule aucune couleur : le contraste se mesure au navigateur (AC8), pas ici.
+   */
+  it.each(PERSONAS)('%s : aucune violation axe (WCAG A et AA)', async (persona) => {
+    const { container } = renderSidebar(persona, '/app');
+    const resultat = await axe.run(container, {
+      runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] },
+      rules: { 'color-contrast': { enabled: false } },
+      resultTypes: ['violations'],
+    });
+    expect(resultat.violations.flatMap((v) => v.nodes.map((n) => `${v.id} ${n.target.join(' ')}`))).toEqual([]);
+  });
+
   it('l’entrée cadenassée garde sa sémantique et perd son opacité illisible', () => {
-    pathname = '/app';
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
-      withIntl(
-        <QueryClientProvider client={client}>
-          <AppSidebar user={userWith(['agency_admin'])} agencyIsStandard={false} />
-        </QueryClientProvider>,
-      ),
-    );
-    // DEUX entrées sont cadenassées pour un agency_admin `individual` : « Vue agence » et
-    // « Bailleurs ». TCK-633 — l'entrée d'administration n'est plus un cadenas : elle devient
-    // « Mon espace », vers la première page que l'agence peut ouvrir.
+    renderSidebar('hote', '/app');
+    // DEUX entrées sont cadenassées pour l'hôte (agence `individual`) : « Vue agence » et
+    // « Propriétaires », toutes deux sous « Plus » (TCK-2478).
     const cadenasses = screen.getAllByTitle('Réservé aux comptes pro');
     expect(cadenasses).toHaveLength(2);
     for (const entree of cadenasses) {
@@ -594,15 +745,7 @@ describe('accessibilité du <nav>', () => {
   });
 
   it('l’entrée cadenassée se joint au clavier et dit pourquoi (TCK-754)', () => {
-    pathname = '/app';
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
-      withIntl(
-        <QueryClientProvider client={client}>
-          <AppSidebar user={userWith(['agency_admin'])} agencyIsStandard={false} />
-        </QueryClientProvider>,
-      ),
-    );
+    renderSidebar('hote', '/app');
     const cadenasses = screen.getAllByTitle('Réservé aux comptes pro');
     expect(cadenasses).toHaveLength(2);
     for (const entree of cadenasses) {
@@ -619,15 +762,7 @@ describe('accessibilité du <nav>', () => {
    * cause, le `<nav>` qui défile est positionné.
    */
   it('le <nav> qui défile contient les éléments absolus de la barre (TCK-843)', () => {
-    pathname = '/app';
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
-      withIntl(
-        <QueryClientProvider client={client}>
-          <AppSidebar user={userWith(['agency_admin'])} agencyIsStandard={false} />
-        </QueryClientProvider>,
-      ),
-    );
+    renderSidebar('hote', '/app');
     const nav = screen.getByRole('navigation', { name: 'Navigation du tableau de bord' });
     expect(nav.className).toContain('overflow-y-auto');
     expect(nav.className.split(/\s+/)).toContain('relative');
@@ -635,98 +770,18 @@ describe('accessibilité du <nav>', () => {
   });
 });
 
-/**
- * TCK-646 — décision du porteur du 2026-10-14 : Mes biens · Publier un bien · Messagerie ·
- * Réservations · Visites · Crédits, en tête, juste après « Tableau de bord ».
- *
- * La tête attendue est ÉCRITE À LA MAIN par rôle, à partir de la ligne de {@link HREFS_PAR_ROLE} :
- * une entrée que le rôle n'a pas n'y figure pas (AC3), et l'ordre relatif des autres est celui du
- * porteur. Elle est lue sur le DOM monté, pas sur `buildNavItems` : c'est l'ordre que l'on VOIT.
- */
-const TETE_PAR_ROLE: Record<UserRole, string[]> = {
-  customer: ['/app', '/publish', '/app/messages', '/app/bookings', '/app/visits'],
-  tenant: ['/app', '/publish', '/app/messages', '/app/bookings', '/app/visits'],
-  agent: ['/app', '/app/properties', '/app/properties/new', '/app/messages', '/app/bookings', '/app/visits'],
-  agency_admin: [
-    '/app', '/app/properties', '/app/properties/new', '/app/messages', '/app/bookings', '/app/visits',
-    '/app/credits',
-  ],
-  owner: ['/app', '/app/properties', '/app/properties/new', '/app/messages', '/app/bookings', '/app/visits'],
-  service_provider: ['/app', '/app/messages'],
-  super_admin: [
-    '/app', '/app/properties', '/app/properties/new', '/app/messages', '/app/bookings', '/app/visits',
-    '/app/credits',
-  ],
-};
-
-/** Les six entrées déplacées — toutes formes de « Publier un bien » comprises. */
-const DEPLACEES = new Set([
-  '/app/properties', '/app/properties/new', '/publish', '/app/messages', '/app/bookings',
-  '/app/visits', '/app/credits',
-]);
-
-function hrefsRendus(container: HTMLElement): string[] {
-  return Array.from(container.querySelectorAll('nav a')).map((a) => a.getAttribute('href') ?? '');
-}
-
-describe('TCK-646 — six entrées en tête du menu, dans l’ordre du porteur', () => {
-  it('AC1 — un profil qui a les six : « Tableau de bord » puis les six, dans l’ordre exact', () => {
-    const { container } = renderSidebar(['agency_admin'], '/app');
-    const libelles = Array.from(container.querySelectorAll('nav a'))
-      .slice(0, 7)
-      .map((a) => a.textContent?.trim());
-    expect(libelles).toEqual([
-      'Tableau de bord', 'Mes biens', 'Publier un bien', 'Messagerie', 'Réservations', 'Visites',
-      'Crédits',
-    ]);
-  });
-
-  it.each(ROLES)('AC3 — %s : sa tête est exactement ses entrées déplacées, dans l’ordre', (role) => {
-    const { container } = renderSidebar([role], '/app');
-    const rendus = hrefsRendus(container);
-    const tete = TETE_PAR_ROLE[role];
-    expect(rendus.slice(0, tete.length)).toEqual(tete);
-    // …et aucune entrée déplacée ne traîne plus bas.
-    expect(rendus.slice(tete.length).filter((href) => DEPLACEES.has(href))).toEqual([]);
-  });
-
-  it.each(ROLES)('AC2 — %s : aucune entrée n’apparaît deux fois', (role) => {
-    const { container } = renderSidebar([role], '/app');
-    const rendus = hrefsRendus(container);
-    expect(new Set(rendus).size).toBe(rendus.length);
-  });
-
-  it('la tête porte le libellé que le rôle avait déjà (bailleur : « Proposer », client : « Mes visites »)', () => {
-    const { container, unmount } = renderSidebar(['owner'], '/app');
-    expect(container.querySelectorAll('nav a')[2]).toHaveTextContent('Proposer un bien à mon agence');
-    unmount();
-    const client = renderSidebar(['customer'], '/app');
-    const liens = Array.from(client.container.querySelectorAll('nav a')).map((a) => a.textContent?.trim());
-    expect(liens.slice(0, 5)).toEqual([
-      'Tableau de bord', 'Publier un bien', 'Messagerie', 'Mes réservations', 'Mes visites',
-    ]);
-  });
-
-  it('la tête se lit sans en-tête de section', () => {
-    const { container } = renderSidebar(['agency_admin'], '/app');
-    const premierBloc = container.querySelector('nav > div');
-    expect(premierBloc?.querySelector('p')).toBeNull();
-    expect(premierBloc?.querySelectorAll('a')).toHaveLength(7);
-  });
-});
-
 describe('TCK-642 — le solde dans l’entrée « Crédits » du tiroir', () => {
   it('lu seulement par qui voit l’entrée', () => {
-    renderSidebar(['agent'], '/app');
+    renderSidebar('agent', '/app');
     expect(soldeMock).toHaveBeenCalledWith({ enabled: false });
     soldeMock.mockClear();
-    renderSidebar(['agency_admin'], '/app');
+    renderSidebar('admin-agence', '/app');
     expect(soldeMock).toHaveBeenCalledWith({ enabled: true });
   });
 
   it('affiché en bout de ligne, chiffres tabulaires, caché dès `md` (la barre haute le porte)', () => {
     soldeMock.mockReturnValue(1250);
-    renderSidebar(['agency_admin'], '/app');
+    renderSidebar('admin-agence', '/app');
     // `format.number` sépare les milliers d'une espace fine insécable : on la normalise.
     const lien = screen.getByRole('link', { name: (nom) => nom.replace(/\s/g, ' ') === 'Crédits : 1 250 crédits' });
     expect(lien).toHaveAttribute('href', '/app/credits');
@@ -738,7 +793,7 @@ describe('TCK-642 — le solde dans l’entrée « Crédits » du tiroir', () =>
 
   it('solde inconnu (chargement, refus, panne) : l’entrée reste nue, sans « 0 »', () => {
     soldeMock.mockReturnValue(null);
-    renderSidebar(['agency_admin'], '/app');
+    renderSidebar('admin-agence', '/app');
     const lien = screen.getByRole('link', { name: 'Crédits' });
     expect(lien.querySelector('[data-slot="valeur-entree"]')).toBeNull();
   });

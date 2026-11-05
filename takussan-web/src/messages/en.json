@@ -199,8 +199,7 @@
         "titre": "List a property",
         "texte": "Publish your first property in minutes."
       },
-      "console": "Platform console",
-      "groupeReplie": "{titre} — show"
+      "console": "Platform console"
     },
     "admin": {
       "team": "Team",

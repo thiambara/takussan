@@ -61,6 +61,13 @@ vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ user: null, token: 'jeton-de-test', isLoading: false }),
 }));
 
+// TCK-2478 — la barre monte l'en-tête d'espace, donc le sélecteur de profil (routeur, toasts) :
+// sans objet ici, on le réduit à sa carte statique.
+vi.mock('@/hooks/useProfiles', () => ({
+  useMyProfiles: () => ({ data: undefined, isLoading: false }),
+  useSwitchActiveProfile: () => ({ mutate: vi.fn(), isPending: false }),
+}));
+
 vi.mock('next/navigation', () => ({
   usePathname: () => '/app/overview/agency',
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
@@ -113,7 +120,8 @@ describe('compteur de modération — une seule source (TCK-375, AC5)', () => {
       ),
     );
 
-    // Le badge de la barre latérale.
+    // Le badge de la barre latérale — sur « Modération biens », dans « Agence », replié depuis
+    // TCK-2478 : l'entrée est au menu, sa file est sondée et son badge posé.
     expect(await screen.findByLabelText('6 en attente')).toHaveTextContent('6');
     // La tuile de l'accueil — le MÊME nombre.
     await waitFor(() =>

@@ -70,31 +70,31 @@ par défaut). La charte reste `docs/design-guidelines.md` (palette Lin).
 
 ## Delta à produire
 
-- [ ] Les huit dispositions ci-dessus remplacent les dispositions « miroir » de TCK-2477.
-- [ ] Action principale par persona, en tête de barre.
-- [ ] En-tête d'espace ouvrant le sélecteur de profil.
-- [ ] Complément « Aussi … » replié.
-- [ ] Règle de l'espace suspendu ; ouverture du groupe de l'entrée active.
-- [ ] Carte « Mettre un bien en location » du client ; lien « Console plateforme ».
-- [ ] Mise à jour d'`AppSidebar.test.tsx` : l'écart avec l'ancien menu, rôle par rôle, est écrit
+- [x] Les huit dispositions ci-dessus remplacent les dispositions « miroir » de TCK-2477.
+- [x] Action principale par persona, en tête de barre.
+- [x] En-tête d'espace ouvrant le sélecteur de profil.
+- [x] Complément « Aussi … » replié.
+- [x] Règle de l'espace suspendu ; ouverture du groupe de l'entrée active.
+- [x] Carte « Mettre un bien en location » du client ; lien « Console plateforme ».
+- [x] Mise à jour d'`AppSidebar.test.tsx` : l'écart avec l'ancien menu, rôle par rôle, est écrit
       dans les notes de ce ticket.
-- [ ] Tests : disposition rendue par persona ; complément ; suspendu ; entrée active cachée ; a11y
+- [x] Tests : disposition rendue par persona ; complément ; suspendu ; entrée active cachée ; a11y
       (axe) de la barre de chaque persona.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Pour chacun des huit personas, le menu rendu suit la table ci-dessus, aux entrées
+- [x] AC1 — Pour chacun des huit personas, le menu rendu suit la table ci-dessus, aux entrées
       inaccessibles près (test par persona sur le composant monté).
-- [ ] AC2 — Un admin d'agence `standard` qui est aussi bailleur de la même agence, profil actif
+- [x] AC2 — Un admin d'agence `standard` qui est aussi bailleur de la même agence, profil actif
       admin, voit « Aussi bailleur » replié, contenant les seules destinations que seul le profil
       bailleur ouvre ; ablation : calculer le complément sur l'union fait rougir le test (il serait
       vide).
-- [ ] AC3 — Espace suspendu : ni ➊ ni entrée d'écriture ; ablation : retirer la règle fait rougir.
-- [ ] AC4 — Ouvrir une page placée sous « Plus » rend « Plus » déplié avec l'entrée active
+- [x] AC3 — Espace suspendu : ni ➊ ni entrée d'écriture ; ablation : retirer la règle fait rougir.
+- [x] AC4 — Ouvrir une page placée sous « Plus » rend « Plus » déplié avec l'entrée active
       (`aria-current="page"`).
-- [ ] AC5 — Le prestataire n'a ni ➊ ni titre de groupe.
-- [ ] AC6 — L'en-tête d'espace nomme l'agence et le persona, et ouvre le sélecteur au clavier.
-- [ ] AC7 — `npm run check:i18n` vert : chaque clé neuve en `fr`, `en`, `wo`.
+- [x] AC5 — Le prestataire n'a ni ➊ ni titre de groupe.
+- [x] AC6 — L'en-tête d'espace nomme l'agence et le persona, et ouvre le sélecteur au clavier.
+- [x] AC7 — `npm run check:i18n` vert : chaque clé neuve en `fr`, `en`, `wo`.
 - [ ] AC8 — Mesure au navigateur à 390, 768 et 1366 px : aucun défilement horizontal du document,
       tiroir et barre fixe (méthode : `docs/qa/responsive-2026-09-02.md`).
 
@@ -106,4 +106,108 @@ par défaut). La charte reste `docs/design-guidelines.md` (palette Lin).
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Plan : [`docs/plans/2026-11-05-tck-2478-dispositions-par-persona.md`](../../../plans/2026-11-05-tck-2478-dispositions-par-persona.md).
+AC8 (mesure au navigateur) reste à faire : tâche 7 du plan.
+
+### Relevés qui ont décidé
+- **Action de l'agent** : aucun parcours de création de visite sous `/app` (`app/(dashboard)/app/visits/`
+  ne porte que `(liste)/page.tsx` et `[id]/page.tsx`, aucune occurrence de `visits/new`). L'action
+  de l'agent est le repli du ticket, « Publier un bien » (sous `properties.create`).
+- `/app/tasks` (« Mes tâches », TCK-591) entre au catalogue dès la tâche 1 (il était dans
+  `HORS_MENU`) : même garde que son layout (`peutOuvrirMesBiens`).
+
+### Arbitrages validés par le porteur (2026-11-05)
+1. **Client pur** : Baux, Paiements, Interventions et États des lieux lui restent accessibles
+   (prédicats inchangés) ; absents de sa disposition, ils tombent sous « Plus ».
+2. **Locataire** : « Chercher un bien » ouvre son groupe « Mes recherches » (replié).
+3. **Carte « Mettre un bien en location »** : client ET locataire (même prédicat, `isCustomerOnly`).
+4. **Hôte** : « Finances » de « Mes locations » = `/app/agency/finances` ; les paiements du bailleur
+   (`/app/payments`) tombent sous « Plus », libellés « Paiements ».
+
+### Décision de la session : « Plus » et « Aussi … » sont des divulgations
+Chez un vrai prestataire (`service_provider` + le plancher `customer`), `occupeUnLogement`
+(TCK-379, inchangé) ouvre six destinations que la disposition ne place pas (réservations, visites,
+favoris, recherches, baux, statistiques) : elles tombent sous « Plus ». Compté comme une section,
+ce « Plus » faisait paraître des titres que l'AC5 refuse. Décision : « Plus » et « Aussi … » sont
+des DIVULGATIONS, pas des titres de section — `avecTitres` les ignore (`GROUPES_DIVULGATION`), et ils
+rendent toujours leur bouton de bascule. Le prestataire n'a donc ni action ni titre de section ; ce
+que le plancher lui ouvre est sous « Plus », replié. Les autres groupes repliés (« Agence »,
+« Pilotage », « Mes recherches » du locataire) sont titrés : leur titre est le bouton.
+
+### Écart avec l'ancien menu par rôle (relevé de `dev` avant ce ticket → menu par persona)
+Aucun droit ne change (prédicats du catalogue de TCK-2477) : seule la PLACE change, sauf `/app/tasks`
+qui entre au menu.
+- **Client** : la ligne « Publier un bien » (`/publish`) devient la carte basse « Mettre un bien en
+  location » ; action « Chercher un bien » (`/fr/properties`, neuve) ; groupes « Mes recherches »
+  (Favoris, Recherches) et « Mes démarches » (Visites, Réservations) ; Documents, Mes avis,
+  Statistiques, Maintenance, Mes baux, Paiements, États des lieux sous « Plus » (arbitrage 1).
+- **Locataire** : action « Payer mon loyer » (`/app/payments`) ; « Mon logement » avec les libellés
+  « Mon bail » et « Interventions » ; « Mes recherches » replié, avec « Chercher un bien » ; carte
+  `/publish` ; Mes avis, Statistiques sous « Plus ».
+- **Bailleur** : « Proposer un bien à mon agence » devient l'action ; « Maintenance » devient
+  « Interventions » ; Clients, Avis reçus, Documents, Statistiques, Exports, Favoris, Recherches et
+  « Mes tâches » (neuve au menu) sous « Plus ».
+- **Agent** : « Publier un bien » devient l'action ; « Mes tâches » en tête (neuve au menu) ;
+  « Interventions » ; Avis reçus, Documents, Statistiques, Exports, Favoris, Recherches sous « Plus ».
+- **Admin d'agence `standard`** : « Mes biens » devient « Biens » ; la section « Administration »
+  (dix pages) éclate — Finances et Abonnement dans « Finances » (avec Commissions, Crédits), les
+  huit autres dans « Agence », replié ; « Pilotage » replié ; Maintenance, Carnet prestataires,
+  États des lieux, Documents, Avis reçus, Mes tâches, Favoris, Recherches sous « Plus ». Les
+  en-têtes Découvrir / Demandes / Engagements / Pilotage / Administration (TCK-377, TCK-646) sont
+  remplacés par les groupes de la disposition.
+- **Hôte** (admin `individual`, aussi bailleur) : « Mon espace » porte Agence, KYC, Reversements
+  (ex-« Abonnement », `nav.admin.payouts`), Crédits, Intégrations ; « Finances de l'agence » dans
+  « Mes locations » ; `/app/payments` sous « Plus », libellé « Paiements » (arbitrage 4) ; Vue
+  agence et Propriétaires, cadenassées, sous « Plus ».
+- **Prestataire** : tête inchangée (Tableau de bord, Interventions, Messagerie, Documents), sans
+  titre ; sous le jeu de rôles réel (`customer` en plus), six entrées sous « Plus » replié — elles
+  étaient déjà au menu de `dev` sous ce jeu, en sections. Conséquence mesurée : il sonde les visites
+  en attente (elles sont au menu) ; la branche « pas de sondage » de l'AC6 de TCK-377 est désormais
+  tenue par les demandes de contact (client, locataire, prestataire).
+- **Plateforme** : la disposition de l'admin ; + lien « Console plateforme » (`/super-admin`).
+- **Neufs** : complément « Aussi … », règle de l'espace suspendu, en-tête d'espace.
+- **Surlignage** : « Publier un bien » est l'action principale, hors du `<nav>`, sans `aria-current`.
+  Sur `/app/properties/new`, c'est « Biens » qui s'allume, seul (la règle « une seule entrée
+  allumée » tient). À rouvrir si le porteur veut l'action allumée.
+
+### Tests supprimés et leurs remplaçants (aucune garde perdue)
+| Supprimé | Remplacé par |
+|---|---|
+| `AppSidebar.proposition.test.ts` (8 cas, `buildNavItems`) | `catalogue.test.ts`, « proposer plutôt que publier (TCK-587) » : mêmes comptes, mêmes attentes, par `estOuverte` |
+| `AppSidebar.acces-admin.test.tsx` (`avecSectionAgence`) | `catalogue.test.ts`, « la section d'agence se dérive toujours de la table » (libellé/icône/`nav.admin`, page sans menu, aucune page sans `cheminsAdmin`, deux compteurs) ; l'ordre, par `dispositions-validees.test.ts` |
+| `AppSidebar.test.tsx` : `HREFS_PAR_ROLE`, « AC4 — le regroupement ne change AUCUN droit », ordre des en-têtes, `withSectionHeadings` | `dispositions-validees.test.ts` (pur), `composer-menu.test.ts` (`avecTitres`, divulgations), et « la barre montée suit la disposition du persona » (monté, × 8 : action, groupes et entrées dans l'ordre, repliés `aria-expanded="false"` + liste `hidden`) |
+| `AppSidebar.test.tsx` : « TCK-646 — six entrées en tête » | idem (la tête est celle de chaque disposition) ; « aucune entrée n'apparaît deux fois » conservé par persona |
+| `AppSidebar.test.tsx` : AC6 par rôle | AC6 par persona : `MENU_ATTENDU` × `COMPTEUR_PAR_LIBELLE`, écrits à la main, les trois compteurs |
+| `AppSidebar.audience.test.tsx` : table des href par rôle | table des href par persona (ensemble action + groupes + carte), écrite à la main |
+| `AppSidebar.section-agence.test.tsx` : « la section vient APRÈS les entrées de travail » | `dispositions-validees.test.ts` (la disposition décide de l'ordre) |
+| `composer-menu.test.ts` (lot 1) : « le miroir place chaque destination du catalogue » | « rien n'est perdu » et « une destination non placée tombe sous Plus » |
+
+Ajoutés sur le composant monté : AC2 (« Aussi bailleur »), AC3 (suspendu), AC4 (« Plus » déplié sur la
+page active, et à la navigation), AC5 (prestataire), carte du client et du locataire, action du
+client localisée, « Console plateforme », axe (WCAG A/AA, sans contraste) sur la barre des huit
+personas, bureau et tiroir identiques (action, groupes, carte) dans `AppShell.menu-et-credits`.
+
+### Écart au plan — la garde « rien n'est perdu » (tâche 2)
+L'attendu du plan (`rendus == ouvert(union)`) rougissait pour les huit personas : (1) couples
+impossibles (persona `agent` sur des rôles sans `agent` → `isCustomerOnly([])` vrai) ; (2) un couple
+RÉEL — `agency_admin + owner`, capacités non lues, persona `bailleur` : « Proposer un bien » ouvert
+sur les rôles du persona, fermé sur l'union (P152.03). ADR-0089 §2 juge la disposition sur les rôles
+du persona : le moteur a raison. Attendu corrigé en `ouvert(persona) ∪ ouvert(union)`.
+
+### Ablations (mutation, test, restauration dans un seul script ; chaque fois restauré sans diff)
+- Tâche 1 — retirer la règle suspendue d'`estOuverte` → « espace suspendu : aucune entrée d'écriture »
+  rouge (et, rejouée contre `composer-menu.test.ts`, « ni action principale ni entrée d'écriture »).
+- Tâche 2 — groupes et « Plus » jugés sur `ctx` au lieu de `ctxPersona` (l'ablation de l'AC2 : le
+  complément calculé sur l'union) → 9 rouges, dont « Aussi bailleur » et les 8 « rien n'est perdu » ;
+  boucle « non placée → Plus » retirée → 13 rouges.
+- Tâche 4 — `avecTitres` recompte les divulgations → 2 rouges (« Plus et Aussi sont des
+  divulgations », « le prestataire réel n'a aucun titre de section »).
+- Tâche 5 — la carte statique de l'en-tête reprend `hidden lg:inline-flex` → 2 rouges (AC6).
+- Tâche 6 — (1) `useState(!groupe.replie)` sans l'entrée active → 11 rouges (dont « Plus déplié »,
+  Maintenance, KPIs, Modération biens) ; (2) `AppSidebar` ignore `agencySuspended` → « espace
+  suspendu » rouge ; (3) Prospection ⇄ Catalogue chez l'agent → « agent : les groupes… dans
+  l'ordre » (monté) rouge.
+
+### Divers
+- `nav.sidebar.sections.*` et `nav.sidebar.groupeReplie` (jamais lue : le bouton porte
+  `aria-expanded`, un « — afficher » serait faux une fois déplié) retirées de `fr`, `en`, `wo`.

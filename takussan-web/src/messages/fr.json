@@ -199,8 +199,7 @@
         "titre": "Mettre un bien en location",
         "texte": "Publiez votre premier bien en quelques minutes."
       },
-      "console": "Console plateforme",
-      "groupeReplie": "{titre} — afficher"
+      "console": "Console plateforme"
     },
     "admin": {
       "team": "Équipe",
