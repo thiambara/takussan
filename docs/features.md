@@ -510,6 +510,24 @@ Une **identité = un User**, qui peut porter plusieurs **profils métier** chez 
 | P2 | Tous | Indication visuelle de "profil actif" sur toutes les vues authentifiées |
 | P2 | 🛡️ | Audit log dédié : changements de profil actif, créations/suspensions de profils |
 
+#### Navigation de la console selon le profil actif
+
+Le menu de `/app` se compose d'après le **profil actif** de l'espace, et non d'après l'union des rôles du compte ([ADR-0089](adr/0089-le-menu-de-app-se-derive-du-profil-actif.md)). Huit personas : client, locataire, bailleur, agent, admin d'agence (`standard`), hôte (admin d'une agence `individual`, admin et bailleur fusionnés), prestataire, plateforme (super-admin dans `/app`). Le menu choisit l'écran, jamais la donnée : chaque API rejuge.
+
+| Prio | Acteurs | Fonctionnalité |
+|------|---------|----------------|
+| P1 | Tous | Le menu de `/app` suit une disposition propre au persona du profil actif : ordre, groupes titrés, libellés, groupes repliés par défaut, entrées secondaires sous « Plus » ; une destination n'y paraît que si le profil peut l'ouvrir, et une destination accessible n'est jamais perdue (elle tombe sous « Plus ») (TCK-2477, TCK-2478) |
+| P1 | Tous | Une action principale par persona en tête du menu (ex. « Proposer un bien » pour le bailleur, « Payer mon loyer » pour le locataire), absente si le profil ne peut pas l'accomplir ou si l'espace est suspendu (TCK-2478) |
+| P1 | Tous | Les destinations ouvertes par les AUTRES profils du même espace paraissent dans un groupe replié « Aussi bailleur » / « Aussi agent »…, sans changer de profil (TCK-2478) |
+| P1 | Tous | En-tête d'espace en haut du menu : l'agence et le persona actifs, qui ouvre le sélecteur de profil (TCK-2478) |
+| P1 | Tous | Bande « À traiter » au-dessus du menu : une pastille par file non vide (messages non lus, visites en attente, demandes non traitées, avis et biens à modérer), chacune menant à sa page filtrée sur ce qui attend ; aucune entrée du menu ne change de place selon la charge (TCK-2479) |
+| P2 | 🏢🛡️ | Groupe « Démarrer » tant que l'espace est neuf (premier bien, KYC, équipe), chaque étape disparaissant une fois faite ; masquable (TCK-2479) |
+| P2 | Tous | Personnalisation du menu par persona, rangée sur le compte : épingler jusqu'à cinq entrées (elles montent dans « Épinglés »), replier un groupe, revenir à la disposition par défaut (TCK-2480) |
+| P2 | Tous | Barre réduite aux icônes, réglée par appareil ; par défaut entre `md` et `lg` (TCK-2480) |
+| P2 | Tous | Barre d'onglets mobile sous `md` : quatre destinations choisies par persona et « Menu », qui ouvre le tiroir (TCK-2481) |
+| P2 | Tous | Palette de commandes (⌘K / Ctrl K) : destinations accessibles, action principale, files « À traiter », bascule de profil, pages récentes, recherche par libellé et synonymes (TCK-2482) |
+| P3 | 🛡️ | L'admin d'agence active ou désactive des modules pour son équipe ; le menu de l'agence n'en montre que les modules actifs (TCK-2483) |
+
 #### Onboarding parcours
 
 Cartographie complète des parcours d'entrée dans le système (référence : `docs/plans/2026-05-10-onboarding-discovery-design.md`). Tous les parcours d'invitation (Owner, Agent, AgencyAdmin, ServiceProvider, super-admin coopté) reposent sur un **pattern d'invitation unifié** (modèle `Invitation`, token signé, expiry 7j, rappel J+2). Les profils n'ont pas une machine à états commune : chacun a la sienne (enums `*ProfileStatus`). L'agent et le bailleur naissent `draft` à l'invitation, passent `active` à l'acceptation, et se suspendent (`suspended` pour l'agent, `blocked` pour le bailleur) ; le prestataire naît `draft` et passe `active` ; l'admin d'agence naît `active` et se suspend (`suspended`). Aucun profil n'a d'état `pending` ni `expired` : c'est l'invitation qui attend et qui expire. `inactive` (agent, bailleur, prestataire), `archived` (admin d'agence) et `suspended` du prestataire existent dans les enums sans qu'aucun chemin ne les pose (TCK-1703).

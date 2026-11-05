@@ -4,38 +4,10 @@ import { useId } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import {
-  LayoutDashboard,
-  Building2,
-  CalendarCheck,
-  CalendarClock,
-  CalendarDays,
-  FileText,
-  CreditCard,
-  MessageSquare,
-  FolderOpen,
-  Wrench,
-  Users,
-  Lock,
-  PlusCircle,
-  BarChart3,
-  Download,
-  Gauge,
-  BellRing,
-  Heart,
-  BookmarkCheck,
-  ClipboardList,
-  ClipboardCheck,
-  MessageSquareQuote,
-  Inbox,
-  HandCoins,
-  UserRound,
-  Coins,
-} from 'lucide-react';
+import { Lock, UserRound } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { User } from '@/types/user';
-import type { UserRole } from '@/types/user';
-import { isAgent, isOwner, isCustomer, isCustomerOnly, isAdmin, isServiceProvider, isSuperAdmin, isTenant } from '@/lib/roles';
+import { isAgent, isAdmin, isSuperAdmin } from '@/lib/roles';
 import { useMyCapabilities } from '@/hooks/useCan';
 import { isProRouteLocked } from '@/lib/access/pro-features';
 import { entreesDeMenu, type AccesAdmin, type CheminAdmin } from '@/lib/access/pages-admin';
@@ -54,78 +26,25 @@ import { Logo } from '@/components/brand/Logo';
 import { cn } from '@/lib/utils';
 import { initialesDe, libelleDe } from '@/lib/identite';
 import { APP_EXACT_ROOTS, resolveActiveHref } from '@/lib/navigation/active-path';
-import { HREF_CREDITS, HREF_MES_BIENS, peutOuvrirMesBiens, voitLePortefeuille } from '@/lib/navigation/acces-app';
+import { HREF_CREDITS } from '@/lib/navigation/acces-app';
+import {
+  SECTION_LABEL_KEYS,
+  SECTION_ORDER,
+  type NavCounterKey,
+  type NavSection,
+} from '@/lib/navigation/types';
+import { menuDuPersona } from '@/lib/navigation/composer-menu';
+import { resoudrePersona } from '@/lib/navigation/personas';
+import type { ProfileType } from '@/types/profile';
 import { useSoldeCredits } from '@/lib/queries/credits-solde';
 import { useUnreadCount } from '@/components/chat-widget/useUnreadCount';
 import { usePendingVisitsCount } from '@/lib/queries/visits';
 import { useUnhandledLeadsCount } from '@/lib/queries/contact-leads';
 
-/**
- * Une entrée porte une CLÉ de libellé, pas un libellé.
- *
- * `buildNavItems` est une fonction pure appelée hors composant : `useTranslations` n'y est pas
- * appelable, et l'y rendre appelable voudrait dire la transformer en hook — donc la rendre
- * intestable et non mémoïsable. Le patron retenu est celui que TCK-286 applique partout où le
- * texte naît loin de l'écran : **la donnée transporte la clé, le rendu la résout**.
- */
-
-/**
- * TCK-377 — Les sections se lisent dans l'ordre où le métier arrive, pas dans celui de
- * l'inventaire technique : ce qu'on ouvre à chaque fois → ce qu'on cherche → ce qu'on demande →
- * ce à quoi on s'est engagé → ce qu'on pilote → l'administration.
- *
- * TCK-649 (ADR-0064 §2) — `admin` est la section d'agence : une entrée par page de la table des
- * pages que le profil actif peut ouvrir ({@link avecSectionAgence}), titrée « Administration », ou
- * « Mon espace » chez l'admin d'une agence `individual`.
- *
- * TCK-646 — la section `catalog` (« Mes biens », « Publier un bien ») n'existe plus : ses entrées
- * sont montées en tête, dans `primary` ({@link RANG_EN_TETE}). Gardée, elle serait restée vide
- * pour tous les rôles.
- *
- * `primary` n'a **pas** de libellé, et ce n'est pas un oubli : une césure placée avant la
- * première entrée ne coupe rien. C'est la DONNÉE qui le dit ({@link SECTION_LABEL_KEYS}), pas un
- * test sur le nom de la section dans le rendu — sinon la règle vit dans le composant et se perd
- * à la première section ajoutée.
- */
-export type NavSection =
-  | 'primary'
-  | 'discover'
-  | 'requests'
-  | 'engagements'
-  | 'manage'
-  | 'admin';
-
-export const SECTION_ORDER: readonly NavSection[] = [
-  'primary',
-  'discover',
-  'requests',
-  'engagements',
-  'manage',
-  'admin',
-];
-
-/** `null` = section rendue SANS en-tête. Clés sous `nav.sidebar.sections`. */
-export const SECTION_LABEL_KEYS: Record<NavSection, string | null> = {
-  primary: null,
-  discover: 'discover',
-  requests: 'requests',
-  engagements: 'engagements',
-  manage: 'manage',
-  admin: 'admin',
-};
-
-/**
- * Clé du compteur porté par une entrée. Le rendu la résout, la donnée ne connaît aucun nombre.
- *
- * TCK-649 — les deux files de modération de la section d'agence (`reviewModeration`,
- * `propertyModeration`) : le badge de TCK-098, que portait la barre de l'ancienne console.
- */
-export type NavCounterKey =
-  | 'unreadMessages'
-  | 'pendingVisits'
-  | 'unhandledLeads'
-  | 'reviewModeration'
-  | 'propertyModeration';
+// TCK-2477 — déplacés vers `@/lib/navigation/types` (avec leurs docblocks) ; ré-exportés pour les
+// appelants existants.
+export { SECTION_LABEL_KEYS, SECTION_ORDER };
+export type { NavCounterKey, NavSection };
 
 /** Compteurs dont le libellé accessible vit sous `nav.admin` (`pendingBadge`), pas `nav.sidebar`. */
 const COMPTEURS_DE_MODERATION: ReadonlySet<NavCounterKey> = new Set([
@@ -133,7 +52,17 @@ const COMPTEURS_DE_MODERATION: ReadonlySet<NavCounterKey> = new Set([
   'propertyModeration',
 ]);
 
+/**
+ * Une entrée porte une CLÉ de libellé, pas un libellé.
+ *
+ * `composerMenu` (`@/lib/navigation/composer-menu`) est une fonction pure appelée hors composant :
+ * `useTranslations` n'y est pas appelable, et l'y rendre appelable voudrait dire la transformer en
+ * hook — donc la rendre intestable et non mémoïsable. Le patron retenu est celui que TCK-286 applique partout où le
+ * texte naît loin de l'écran : **la donnée transporte la clé, le rendu la résout**.
+ */
 export interface NavItem {
+  /** TCK-2477 — l'identifiant de la destination au catalogue (`@/lib/navigation/catalogue`). */
+  id?: string;
   href: string;
   labelKey: string;
   icon: LucideIcon;
@@ -157,329 +86,29 @@ interface AppSidebarProps {
   agencyIsStandard?: boolean;
   /** `true` when an upgrade request is awaiting super-admin review. */
   hasPendingUpgrade?: boolean;
+  /**
+   * TCK-2477 (ADR-0089 §2) — le type du profil actif, lu par le layout sur le cookie
+   * `active_profile_id`. `null` ou absent : le persona se déduit des rôles.
+   */
+  typeProfilActif?: ProfileType | null;
 }
 
 /**
- * ⚠ **TCK-377 n'a changé AUCUN droit** : il n'a fait qu'ajouter un `section:` à chaque entrée.
- * **TCK-379, lui, en change** — et c'était son objet. Les deux vivent ensemble ci-dessous : la
- * garde de rôle vient de TCK-379, le `section:` de TCK-377. `AppSidebar.test.tsx` fige le jeu
- * d'`href` rendu pour les sept rôles, et c'est lui qui dit lequel des deux a raison.
+ * @deprecated TCK-2477 — adaptateur du moteur (`@/lib/navigation`, ADR-0089). Il garde la
+ * signature d'avant pour que les tests qui figent le menu des sept rôles passent SANS retouche ;
+ * TCK-2478 les réécrit sur le moteur et retire cet adaptateur.
  *
- * TCK-379 — audience des entrées « occupation d'un logement » et « découverte ».
- *
- * Ces entrées étaient poussées SANS AUCUNE condition de rôle : un `service_provider` recevait
- * « Réservations », « Baux », « Visites », « Favoris », « Recherches sauvegardées » et
- * « Statistiques », dont rien dans `docs/features.md` ne lui accorde le contenu.
- *
- * La forme est un prédicat POSITIF, et non `!isServiceProvider(roles)`, pour deux raisons
- * mesurées sur le code qu'elle remplace :
- *
- *  1. `roles` est un TABLEAU. Un compte à la fois prestataire et locataire garde ses baux ;
- *     une négation les lui aurait retirés — ce qui aurait été une régression, pas un correctif.
- *  2. Le rôle `tenant` n'apparaît NULLE PART ailleurs dans `buildNavItems` (aucun des blocs
- *     `isCustomer` / `isOwner` / `isAgent` ne le couvre). Ces poussées inconditionnelles sont
- *     donc la SEULE raison pour laquelle un `tenant` voit ses baux et ses visites. L'omettre
- *     ici aurait corrigé le défaut n°4 en en fabriquant un cinquième, invisible en CI puisque
- *     aucun test ne montait cette barre.
+ * L'historique des gardes de chaque entrée (TCK-379, TCK-492, TCK-587, TCK-625, TCK-646,
+ * P152.03…) vit désormais sur sa destination, dans `@/lib/navigation/catalogue`.
  */
-function occupeUnLogement(roles: UserRole[]): boolean {
-  return (
-    isCustomer(roles) || isTenant(roles) || isOwner(roles) || isAgent(roles) || isAdmin(roles)
-  );
-}
-
-/**
- * TCK-646 — décision du porteur du 2026-10-14 : six destinations sont DÉPLACÉES en tête du menu,
- * juste après « Tableau de bord » (l'accueil de l'espace), dans cet ordre exact :
- * **Mes biens · Publier un bien · Messagerie · Réservations · Visites · Crédits**. Pas de raccourci
- * sur l'accueil (écartés le même jour) : l'entrée quitte sa place d'origine, et le dédoublonnage
- * par `href` garantit qu'elle n'apparaît qu'une fois.
- *
- * ⚠ **Ce tableau ORDONNE, il n'accorde rien.** Chaque entrée reste poussée — ou non — par sa garde
- * de rôle ci-dessous (TCK-379) : un profil qui ne peut pas ouvrir une page ne voit pas son entrée,
- * et les autres gardent leur ordre relatif. Toutes sont poussées en section `primary`, la seule
- * sans en-tête : sept lignes en tête se lisent sans césure.
- *
- * « Publier un bien » a deux formes et un rôle n'en reçoit jamais qu'une : `/app/properties/new`
- * pour le personnel (« Publier un bien ») et le bailleur (« Proposer un bien à mon agence »,
- * TCK-587), `/publish` pour le client seul (TCK-625). Même rang pour les deux.
- */
-const RANG_EN_TETE: Readonly<Record<string, number>> = {
-  '/app': 0,
-  [HREF_MES_BIENS]: 1,
-  '/app/properties/new': 2,
-  '/publish': 2,
-  '/app/messages': 3,
-  '/app/bookings': 4,
-  '/app/visits': 5,
-  [HREF_CREDITS]: 6,
-};
-
-function rangEnTete(item: NavItem): number {
-  return RANG_EN_TETE[item.href] ?? Number.MAX_SAFE_INTEGER;
-}
-
-/**
- * P152.03 — les capacités du profil actif, pour juger « Publier un bien » comme l'API
- * (`PropertyPolicy::create`) : `null` tant qu'elles ne sont pas lues. Le personnel n'a alors aucune
- * entrée de création — ni « Publier » qu'il n'aurait peut-être pas, ni « Proposer » qui basculerait.
- */
-export function buildNavItems(user: User, capacites: readonly string[] | null = null): NavItem[] {
-  const items: NavItem[] = [];
-  const roles = user.roles;
-  const personnel = isAgent(roles) || isAdmin(roles);
-
-  items.push({ href: '/app', labelKey: 'dashboard', icon: LayoutDashboard, section: 'primary' });
-
-  if (peutOuvrirMesBiens(roles)) {
-    items.push({ href: HREF_MES_BIENS, labelKey: 'myProperties', icon: Building2, section: 'primary' });
-  }
-  // P152.03 — « Publier » sous `properties.create` (le super-admin passe tout) ; sans elle, le
-  // bailleur de l'agence « Propose » (`PropertyPolicy::createsProposal`) ; sans l'un ni l'autre,
-  // rien : l'API refuserait la saisie (403).
-  if (personnel && (isSuperAdmin(roles) || (capacites ?? []).includes('properties.create'))) {
-    items.push({
-      href: '/app/properties/new',
-      labelKey: 'publishProperty',
-      icon: PlusCircle,
-      section: 'primary',
-      emphasized: true,
-    });
-  } else if (isOwner(roles) && (!personnel || capacites !== null)) {
-    // TCK-587 (ADR-0031) — le bailleur hors personnel ne publie pas : il PROPOSE un bien à son
-    // agence, qui le relit et le publie (`PropertyController::store` impose brouillon + privé).
-    // L'hôte d'une agence individuelle est son administrateur : il garde « Publier un bien ».
-    items.push({
-      href: '/app/properties/new',
-      labelKey: 'proposeProperty',
-      icon: PlusCircle,
-      section: 'primary',
-      emphasized: true,
-    });
-  }
-
-  // TCK-625 — un client (ni bailleur, ni membre d'une agence) peut devenir hôte : rien, dans son
-  // espace, ne le lui disait. L'entrée mène à `/publish`, qui l'emmène à l'assistant hôte.
-  if (isCustomerOnly(roles)) {
-    items.push({ href: '/publish', labelKey: 'publishProperty', icon: PlusCircle, section: 'primary' });
-  }
-
-  // Discovery shortcuts (Wave 3 / TCK-047).
-  // TCK-379 — plus « visible for every signed-in user » : chercher un bien, le mettre en
-  // favori et enregistrer une recherche sont des gestes de qui occupe ou gère un logement.
-  if (occupeUnLogement(roles)) {
-    items.push({ href: '/app/favorites', labelKey: 'myFavorites', icon: Heart, section: 'discover' });
-    items.push({
-      href: '/app/saved-searches',
-      labelKey: 'savedSearches',
-      icon: BookmarkCheck,
-      section: 'discover',
-    });
-  }
-
-  // TCK-492 — `isCustomerOnly`, et surtout PAS `isCustomer` : `customer` est
-  // devenu le plancher de toute identité authentifiée, si bien que cette
-  // première branche d'un `if / else if` aurait toujours gagné — un agent, un
-  // bailleur et un administrateur auraient reçu le menu d'un acheteur, et leurs
-  // propres entrées ne seraient jamais poussées.
-  if (isCustomerOnly(roles)) {
-    // TCK-173 — full customer flow ordered by user journey:
-    // discovery (favorites/saved searches above) →
-    // requests (visits, bookings, maintenance) →
-    // engagements (leases, payments, inventories).
-    items.push({ href: '/app/visits', labelKey: 'myVisits', icon: CalendarClock, section: 'primary', counterKey: 'pendingVisits' });
-    items.push({ href: '/app/bookings', labelKey: 'myBookings', icon: CalendarCheck, section: 'primary' });
-    items.push({ href: '/app/maintenance', labelKey: 'maintenance', icon: Wrench, section: 'requests' });
-    items.push({ href: '/app/leases', labelKey: 'myLeases', icon: FileText, section: 'engagements' });
-    items.push({ href: '/app/payments', labelKey: 'payments', icon: CreditCard, section: 'engagements' });
-    items.push({ href: '/app/inventories', labelKey: 'inventories', icon: ClipboardList, section: 'engagements' });
-    items.push({ href: '/app/profile/reviews', labelKey: 'myReviews', icon: BookmarkCheck, section: 'engagements' });
-  } else if (isOwner(roles)) {
-    items.push({ href: '/app/bookings', labelKey: 'bookings', icon: CalendarCheck, section: 'primary' });
-    items.push({ href: '/app/maintenance', labelKey: 'maintenance', icon: Wrench, section: 'requests' });
-    items.push({ href: '/app/leases', labelKey: 'leases', icon: FileText, section: 'engagements' });
-    items.push({ href: '/app/payments', labelKey: 'finances', icon: CreditCard, section: 'engagements' });
-  } else if (isAgent(roles) || isAdmin(roles)) {
-    items.push({ href: '/app/bookings', labelKey: 'bookings', icon: CalendarCheck, section: 'primary' });
-    items.push({ href: '/app/leases', labelKey: 'leases', icon: FileText, section: 'engagements' });
-  }
-
-  if (isAgent(roles) || isAdmin(roles) || isServiceProvider(roles)) {
-    items.push({ href: '/app/maintenance', labelKey: isServiceProvider(roles) ? 'interventions' : 'maintenance', icon: Wrench, section: 'requests' });
-  }
-
-  // TCK-597 (A15) — la boîte des avis reçus : bailleur, agent, admin d'agence. Elle vit sur la
-  // page des avis du profil. Le prestataire y a aussi sa boîte, sans entrée de menu : ses quatre
-  // entrées tiennent sans césure, et une cinquième en imposerait une.
-  if (!isCustomerOnly(roles) && (isOwner(roles) || isAgent(roles) || isAdmin(roles))) {
-    items.push({ href: '/app/profile/reviews', labelKey: 'receivedReviews', icon: MessageSquareQuote, section: 'engagements' });
-  }
-
-  // TCK-595 (ADR-0049 §3) — le grand livre des commissions : l'agent y lit ses lignes, l'admin
-  // d'agence toutes celles de l'agence (avec « marquer payée » et « annuler »).
-  if (isAgent(roles) || isAdmin(roles)) {
-    items.push({ href: '/app/commissions', labelKey: 'commissions', icon: HandCoins, section: 'engagements' });
-  }
-
-  // TCK-260 — Carnet prestataires. Visible pour agency_admin (et global
-  // admin / super_admin via le gate). Ouvert aux agences `standard` ET
-  // `individual` (un host individual a aussi besoin de ses prestataires).
-  // La page elle-même filtre par rôle ; on ne connaît pas l'agency.kind
-  // ici, le contrôle ultime est côté backend (policy + permission).
-  if (
-    roles.includes('agency_admin') ||
-    isAdmin(roles) ||
-    roles.includes('super_admin')
-  ) {
-    items.push({
-      href: '/app/maintenance/providers',
-      labelKey: 'providerBook',
-      icon: Wrench,
-      section: 'requests',
-    });
-  }
-
-  items.push({
-    href: '/app/messages',
-    labelKey: 'messaging',
-    icon: MessageSquare,
-    section: 'primary',
-    counterKey: 'unreadMessages',
-  });
-  items.push({ href: '/app/documents', labelKey: 'documents', icon: FolderOpen, section: 'engagements' });
-
-  // TCK-032 overview/stats
-  // TCK-379 — `docs/features.md` §2.5 n'accorde AUCUN tableau de bord au prestataire, et
-  // `/app/overview` aiguillait le sien vers la vue LOCATAIRE, qui lui répond
-  // `has_customer_profile: false`. L'entrée n'est plus montrée, et l'aiguillage ne l'y envoie
-  // plus (`app/overview/page.tsx`) : les deux moitiés du même défaut.
-  if (occupeUnLogement(roles)) {
-    items.push({ href: '/app/overview', labelKey: 'statistics', icon: BarChart3, section: 'manage' });
-  }
-  if (isAdmin(roles) || isAgent(roles) || isOwner(roles)) {
-    // TCK-032 overview/stats — exports (P2)
-    items.push({ href: '/app/overview/exports', labelKey: 'exports', icon: Download, section: 'manage' });
-  }
-  // Vue agence cross-team — visible to agency_admin so individuals see the
-  // padlock, and to agents/admins. Standard-only : la page redirige elle-même
-  // (`overview/agency/page.tsx`, test en ligne sur `agency.kind`) et l'API
-  // rend 403 (`DashboardAgencyController`). Le cadenas couvre les DEUX rôles
-  // servis ici — `isProRouteLocked` inclut `agent` depuis TCK-284, sans quoi
-  // un agent d'agence `individual` cliquait une entrée d'apparence normale
-  // pour se faire renvoyer en silence.
-  //
-  // TCK-595 (AC17 bis) — plus pour l'agent : les chiffres consolidés s'ouvrent par
-  // `reports.view_agency` (rôle d'admin d'agence), l'API rend 403 à l'agent et le layout de la page
-  // le renvoie sur sa vue. L'agent qui détient la capacité par un rôle personnalisé lit l'agence
-  // par la bascule « Agence » de sa propre vue.
-  if (roles.includes('agency_admin') || isAdmin(roles)) {
-    items.push({ href: '/app/overview/agency', labelKey: 'agencyView', icon: BarChart3, section: 'manage' });
-  }
-
-  // TCK-633 lot F (ADR-0061 §1) — le portefeuille de crédits de l'espace. Le rôle approche
-  // `boost.spend` (accordée à l'admin d'espace) ; la page et l'API tranchent (403 sinon).
-  if (voitLePortefeuille(roles)) {
-    items.push({ href: HREF_CREDITS, labelKey: 'credits', icon: Coins, section: 'primary' });
-  }
-  if (isAdmin(roles) || roles.includes('agency_admin')) {
-    // TCK-032 overview/stats — KPIs personnalisables (P3) et alertes (P3).
-    // TCK-284 — PAS standard-only : les deux pages ne portent plus aucun test
-    // sur `agency.kind`, et ne sont plus dans `PRO_ROUTES`. La spec ne les
-    // restreint pas (`docs/features.md` §1.12, liste fermée + clause
-    // résiduelle) et l'API ne les a jamais restreintes.
-    items.push({ href: '/app/overview/kpis', labelKey: 'kpis', icon: Gauge, section: 'manage' });
-    items.push({ href: '/app/overview/alerts', labelKey: 'alerts', icon: BellRing, section: 'manage' });
-  }
-
-  // TCK-256 — owners directory. Visible to agency_admin and global admins.
-  // Standard-only : `owners/page.tsx` redirige sur `agency.kind !== 'standard'`,
-  // et l'API rend 403 des deux côtés — sur l'invitation
-  // (`OwnerProfilePolicy@invite`) comme sur la LECTURE de la liste
-  // (`OwnerProfileController::index` + `AgencyKindGuard`, TCK-284).
-  if (
-    roles.includes('agency_admin') ||
-    isAdmin(roles) ||
-    roles.includes('super_admin')
-  ) {
-    items.push({ href: '/app/owners', labelKey: 'owners', icon: Users, section: 'manage' });
-  }
-
-  // TCK-267 — "Passer en pro" CTA is rendered as a pinned card at the
-  // bottom of the sidebar (above the user footer) instead of an inline
-  // nav row. See {@see ProUpgradeCard} below for the visual, and the
-  // conditional render in {@see AppSidebar} for the gate (which now also
-  // checks `agency.kind` to hide the card once the agency is `standard`).
-
-  // TCK-041 dashboard agent — biens: the `/app/properties` and
-  // `/app/properties/new` entries above are now owned by TCK-041 (dashboard
-  // agent CRUD). The dedup filter at the bottom keeps first occurrences.
-  // TCK-042 dashboard agent — CRM
-  if (isAgent(roles) || isAdmin(roles) || isOwner(roles)) {
-    items.push({ href: '/app/customers', labelKey: 'crm', icon: Users, section: 'manage' });
-  }
-  // TCK-030 maintenance — entry already pushed above for agent/admin/service_provider.
-  // TCK-031 inventories — agency-side workflow (entrée/sortie par bail).
-  if (isAgent(roles) || isAdmin(roles) || isOwner(roles)) {
-    items.push({ href: '/app/inventories', labelKey: 'inventories', icon: ClipboardList, section: 'engagements' });
-  }
-  // --- Wave 3 Ops Frontend nav entries (dedup below preserves first occurrence) ---
-  // TCK-379 — ce bloc poussait `/app/bookings`, `/app/visits` et `/app/leases` sans aucune
-  // condition de rôle. Le dédoublonnage plus bas masquait le défaut pour cinq rôles sur six
-  // (l'entrée était déjà poussée avec sa garde au-dessus) ; il ne le masquait pas pour le
-  // prestataire, seul rôle à qui ces trois entrées n'arrivaient QUE par ici.
-  if (occupeUnLogement(roles)) {
-    // TCK-043 bookings
-    items.push({ href: '/app/bookings', labelKey: isCustomerOnly(roles) ? 'myBookings' : 'bookings', icon: CalendarCheck, section: 'primary' });
-    // TCK-075 visits — customers see their requests, agents see what to manage.
-    items.push({ href: '/app/visits', labelKey: isCustomerOnly(roles) ? 'myVisits' : 'visits', icon: CalendarClock, section: 'primary', counterKey: 'pendingVisits' });
-  }
-  // TCK-590 — la boîte « Demandes » : les messages laissés sur le site public, avec le nombre de
-  // non traitées. Même audience que l'agenda : le bailleur est destinataire des demandes de ses
-  // biens quand aucun agent n'en est le contact.
-  if (isAgent(roles) || isOwner(roles) || isAdmin(roles)) {
-    items.push({ href: '/app/leads', labelKey: 'leads', icon: Inbox, section: 'requests', counterKey: 'unhandledLeads' });
-  }
-  // TCK-072 — calendrier agrégé (visible pour agent/owner/admin qui gèrent un catalogue)
-  if (isAgent(roles) || isOwner(roles) || isAdmin(roles)) {
-    items.push({ href: '/app/calendar', labelKey: 'calendar', icon: CalendarDays, section: 'manage' });
-  }
-  // TCK-044 leases
-  if (occupeUnLogement(roles)) {
-    items.push({ href: '/app/leases', labelKey: isCustomerOnly(roles) ? 'myLeases' : 'leases', icon: FileText, section: 'engagements' });
-  }
-  // TCK-266 — sub-entry for the agency console: tenants whose move-in
-  // inventory has been pending for more than 7 days. Visible to
-  // agency_admin and agent (admin gate covers super_admin too).
-  if (isAgent(roles) || isAdmin(roles)) {
-    items.push({
-      href: '/app/leases/onboarding-pending',
-      labelKey: 'onboardingPending',
-      icon: ClipboardCheck,
-      section: 'engagements',
-    });
-  }
-  // TCK-045 messages
-  items.push({
-    href: '/app/messages',
-    labelKey: 'messaging',
-    icon: MessageSquare,
-    section: 'primary',
-    counterKey: 'unreadMessages',
-  });
-
-  // TCK-649 — la section `admin` n'est PAS poussée ici : elle dépend de ce que le profil actif peut
-  // ouvrir, que cette fonction — qui ne connaît que les rôles — ne sait pas. `avecSectionAgence`.
-
-  // Dedup by href while preserving first occurrence
-  const seen = new Set<string>();
-  const uniques = items.filter((item) => {
-    if (seen.has(item.href)) return false;
-    seen.add(item.href);
-    return true;
-  });
-  // TCK-646 — la tête du menu dans l'ordre du porteur ; le reste garde son ordre de poussée (le
-  // tri de `Array.prototype.sort` est stable).
-  return uniques.sort((a, b) => rangEnTete(a) - rangEnTete(b));
+export function buildNavItems(
+  user: User,
+  capacites: readonly string[] | null = null,
+  typeProfilActif: ProfileType | null = null,
+  agenceIndividuelle = false,
+): NavItem[] {
+  const persona = resoudrePersona({ roles: user.roles, typeProfilActif, agenceIndividuelle });
+  return menuDuPersona({ roles: user.roles, capacites }, persona);
 }
 
 
@@ -722,6 +351,7 @@ export function AppSidebar({
   onNavigate,
   agencyIsStandard,
   hasPendingUpgrade,
+  typeProfilActif,
 }: AppSidebarProps) {
   const pathname = usePathname();
   const t = useTranslations('nav.sidebar');
@@ -741,7 +371,10 @@ export function AppSidebar({
   const lireCapacites = (isAgent(user.roles) || isAdmin(user.roles)) && !isSuperAdmin(user.roles);
   const { data: mesCapacites } = useMyCapabilities(undefined, lireCapacites);
   const capacites = lireCapacites ? (mesCapacites?.data.capabilities ?? null) : [];
-  const navItems = avecSectionAgence(buildNavItems(user, capacites), accesAdmin).map((item) => ({
+  const navItems = avecSectionAgence(
+    buildNavItems(user, capacites, typeProfilActif ?? null, agencyIsStandard === false),
+    accesAdmin,
+  ).map((item) => ({
     ...item,
     locked: isProRouteLocked(user, agencyIsStandard, item.href),
   }));

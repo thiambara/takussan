@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { User } from '@/types/user';
+import type { ProfileType } from '@/types/profile';
 import { AppTopbar } from './AppTopbar';
 import { AppSidebar } from './AppSidebar';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
@@ -39,6 +40,8 @@ interface AppShellProps {
    * `undefined` quand le layout ne l'a pas lue : l'assistant ne s'ouvre pas.
    */
   agencyStandardWelcome?: MarqueurAccueilAgence;
+  /** TCK-2477 — le type du profil actif, pour le persona du menu (ADR-0089). */
+  typeProfilActif?: ProfileType | null;
 }
 
 export function AppShell({
@@ -48,6 +51,7 @@ export function AppShell({
   hasPendingUpgrade,
   agencySuspended = false,
   agencyStandardWelcome,
+  typeProfilActif,
 }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const t = useTranslations('nav.sidebar');
@@ -118,6 +122,7 @@ export function AppShell({
                   user={user}
                   agencyIsStandard={agencyIsStandard}
                   hasPendingUpgrade={hasPendingUpgrade}
+                  typeProfilActif={typeProfilActif}
                 />
               </div>
               <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
@@ -127,6 +132,7 @@ export function AppShell({
                     onNavigate={() => setSidebarOpen(false)}
                     agencyIsStandard={agencyIsStandard}
                     hasPendingUpgrade={hasPendingUpgrade}
+                    typeProfilActif={typeProfilActif}
                   />
                 </SheetContent>
               </Sheet>

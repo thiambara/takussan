@@ -1,6 +1,7 @@
 import { getMeAction } from '@/app/actions/auth';
 import { AppShell } from '@/components/layout/AppShell';
-import { getToken } from '@/lib/session';
+import { getActiveProfileId, getToken } from '@/lib/session';
+import { typeDuProfilActif } from '@/lib/navigation/personas';
 import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 import { fetchAgencyUpgradeRequests } from '@/lib/queries/agency-upgrade';
 import { IntlProvider } from '@/i18n/IntlProvider';
@@ -83,6 +84,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const acces = await accesAdmin(user);
   // TCK-1278 (P136.02) — la même lecture des capacités (promesse `cache()`ée), passée au navigateur.
   const capacites = await capacitesAmorcees(user);
+  // TCK-2477 (ADR-0089 §2) — le persona du menu se juge sur le profil ACTIF. Pendant une
+  // impersonation, `getActiveProfileId` ne rend rien (TCK-600) : le persona se déduit des rôles.
+  const typeProfilActif = typeDuProfilActif(await getActiveProfileId());
 
   return (
     <IntlProvider messages={await messagesPour('(dashboard)/app')}>
@@ -94,6 +98,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             hasPendingUpgrade={hasPendingUpgrade}
             agencySuspended={agencySuspended}
             agencyStandardWelcome={agencyStandardWelcome}
+            typeProfilActif={typeProfilActif}
           >
             {children}
           </AppShell>

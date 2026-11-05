@@ -39,11 +39,11 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 1. [👤 Visiteur anonyme (pas encore de compte)](#visiteur-anonyme-pas-encore-de-compte) — 32 fonctionnalités
 2. [🏠 Locataire / Acheteur (Customer)](#locataire-acheteur-customer) — 87 fonctionnalités
-3. [🏢 Bailleur / Propriétaire (owner)](#bailleur-propriétaire-owner) — 87 fonctionnalités
+3. [🏢 Bailleur / Propriétaire (owner)](#bailleur-propriétaire-owner) — 88 fonctionnalités
 4. [🧑‍💼 Agent immobilier](#agent-immobilier) — 120 fonctionnalités
 5. [🔧 Prestataire de service (service provider)](#prestataire-de-service-service-provider) — 17 fonctionnalités
-6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 154 fonctionnalités
-7. [👥 Tous les utilisateurs authentifiés](#tous-les-utilisateurs-authentifiés) — 71 fonctionnalités
+6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 156 fonctionnalités
+7. [👥 Tous les utilisateurs authentifiés](#tous-les-utilisateurs-authentifiés) — 80 fonctionnalités
 
 ---
 
@@ -400,6 +400,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
 | P1 | §2.1 | 2FA exigée pour le personnel de l'agence sur les opérations d'argent, d'intégrations, de rôles et d'équipe ; réglage d'agence « 2FA obligatoire pour toute l'équipe » ; statut 2FA visible dans la liste de l'équipe (TCK-589) |
+| P2 | §2.1 | Groupe « Démarrer » tant que l'espace est neuf (premier bien, KYC, équipe), chaque étape disparaissant une fois faite ; masquable (TCK-2479) |
 | P1 | §2.1 | Wizard onboarding Owner post-acceptation invitation — vérification téléphone OTP (obligatoire), KYC documentaire (CNI/passeport, RIB, NINEA, statut particulier/société) en `pending_review` non bloquant, tour produit 3 slides, vue "biens déjà associés" si pré-rattachement |
 | P1 | §2.1 | Carte « Mise en service » de l'agence sur le tableau de bord d'agence (agences `standard`, [§2.5](#25-reporting--tableaux-de-bord)) : étapes calculées par l'API (KYC vérifié, logo, taux de commission, intégration de paiement active, premier membre, premier bien publié, 2FA), chacune avec son lien ; disparaît une fois complète (TCK-589) |
 
@@ -785,6 +786,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P0 | §2.1 | Toute capacité est résolue dans le scope du profil actif — pour un couple *(utilisateur, agence)*, jamais globalement ([ADR-0003](adr/0003-capacites-enum-code-defined.md)) |
 | P1 | §2.1 | Création/désactivation d'un profil par un agency_admin (ex. nouvel agent recruté) |
 | P2 | §2.1 | Audit log dédié : changements de profil actif, créations/suspensions de profils |
+| P2 | §2.1 | Groupe « Démarrer » tant que l'espace est neuf (premier bien, KYC, équipe), chaque étape disparaissant une fois faite ; masquable (TCK-2479) |
+| P3 | §2.1 | L'admin d'agence active ou désactive des modules pour son équipe ; le menu de l'agence n'en montre que les modules actifs (TCK-2483) |
 | P0 | §2.1 | Un compte existant entre dans l'équipe d'une agence par l'invitation seule, au rôle agent ou administrateur (l'administrateur exige `team.assign_role`) ; aucun rattachement direct (`POST /api/agencies/{id}/members` retirée). Un membre retiré puis réinvité revient au rôle système, jamais à son ancien rôle personnalisé ; l'invitation ne dit pas à l'invitant si l'adresse a un compte (P242, TCK-2365, [ADR-0031](adr/0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md)) |
 | P0 | §2.1 | Bootstrap super-admin via commande artisan `takussan:create-super-admin` (1ère installation par environnement) — exige 2FA TOTP au premier login |
 | P1 | §2.1 | Cooptation super-admin (super-admin → super-admin) — invitation pair-à-pair via console super-admin avec 2FA TOTP **obligatoire** avant `active` (bloquant), audit log automatique, notification broadcast aux autres super-admins |
@@ -951,6 +954,15 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P0 | §2.1 | Switch de profil exposé en UI (header / menu compte) — change l'agence et les permissions sans nouvelle authentification |
 | P1 | §2.1 | KYC distinct par profil (pièces d'identité, RIB, license, assurance — un dossier par profil) |
 | P2 | §2.1 | Indication visuelle de "profil actif" sur toutes les vues authentifiées |
+| P1 | §2.1 | Le menu de `/app` suit une disposition propre au persona du profil actif : ordre, groupes titrés, libellés, groupes repliés par défaut, entrées secondaires sous « Plus » ; une destination n'y paraît que si le profil peut l'ouvrir, et une destination accessible n'est jamais perdue (elle tombe sous « Plus ») (TCK-2477, TCK-2478) |
+| P1 | §2.1 | Une action principale par persona en tête du menu (ex. « Proposer un bien » pour le bailleur, « Payer mon loyer » pour le locataire), absente si le profil ne peut pas l'accomplir ou si l'espace est suspendu (TCK-2478) |
+| P1 | §2.1 | Les destinations ouvertes par les AUTRES profils du même espace paraissent dans un groupe replié « Aussi bailleur » / « Aussi agent »…, sans changer de profil (TCK-2478) |
+| P1 | §2.1 | En-tête d'espace en haut du menu : l'agence et le persona actifs, qui ouvre le sélecteur de profil (TCK-2478) |
+| P1 | §2.1 | Bande « À traiter » au-dessus du menu : une pastille par file non vide (messages non lus, visites en attente, demandes non traitées, avis et biens à modérer), chacune menant à sa page filtrée sur ce qui attend ; aucune entrée du menu ne change de place selon la charge (TCK-2479) |
+| P2 | §2.1 | Personnalisation du menu par persona, rangée sur le compte : épingler jusqu'à cinq entrées (elles montent dans « Épinglés »), replier un groupe, revenir à la disposition par défaut (TCK-2480) |
+| P2 | §2.1 | Barre réduite aux icônes, réglée par appareil ; par défaut entre `md` et `lg` (TCK-2480) |
+| P2 | §2.1 | Barre d'onglets mobile sous `md` : quatre destinations choisies par persona et « Menu », qui ouvre le tiroir (TCK-2481) |
+| P2 | §2.1 | Palette de commandes (⌘K / Ctrl K) : destinations accessibles, action principale, files « À traiter », bascule de profil, pages récentes, recherche par libellé et synonymes (TCK-2482) |
 | P0 | §2.1 | Pattern d'invitation unifié — création par un inviteur autorisé, invitation par e-mail OU par SMS (lien court) quand l'invité n'a qu'un numéro (TCK-589), avec token signé (expiry 7j, rappel automatique J+2, retenté le lendemain si tous les fournisseurs SMS l'ont refusé, trois essais au plus (TCK-2155), renvoi self-service par l'inviteur, révocation possible avant acceptation) ; à l'acceptation, le profil cible passe en `active` et devient le profil actif |
 | P1 | §2.1 | Composant wizard reprenable — chaque step sauvegardé en `draft`, bandeau persistant "Reprenez votre publication / votre onboarding" sur dashboard, reprise depuis le menu compte |
 | P1 | §2.1 | Welcome modale générique réutilisable — composant 3 slides max, skippable, paramétrable par parcours (Customer, Host, Owner, Agent, AgencyAdmin, ServiceProvider, Tenant) |
@@ -1027,8 +1039,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 ## Provenance
 
-- Source : [`features.md`](./features.md) — **426** lignes de fonctionnalité lues,
-  réparties en **568** placements (une ligne multi-acteurs compte une fois par acteur).
+- Source : [`features.md`](./features.md) — **437** lignes de fonctionnalité lues,
+  réparties en **580** placements (une ligne multi-acteurs compte une fois par acteur).
 - Générateur : `docs/gen-features-by-actor.mjs`.
 - Fraîcheur vérifiée en CI par `node docs/gen-features-by-actor.mjs --check`, qui échoue si
   cette sortie ne correspond plus à sa source.
