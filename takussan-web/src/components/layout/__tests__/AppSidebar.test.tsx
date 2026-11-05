@@ -55,7 +55,8 @@ vi.mock('@/hooks/useProfiles', () => ({
 }));
 
 type OptionsDeSondage = { enabled?: boolean };
-type ReponseCompteur = { data?: { meta: { total: number } } };
+// TCK-2479 — `isError` : une relecture en échec garde l'ancien `data` dans le cache de react-query.
+type ReponseCompteur = { data?: { meta: { total: number } }; isError?: boolean };
 
 // Les trois compteurs sont MOQUÉS : ce fichier éprouve la barre latérale, pas le réseau. Les
 // arguments sont capturés parce que l'AC6 porte précisément sur eux (`{ enabled }`).
@@ -656,18 +657,21 @@ describe('AC5 — un compteur ne s’affiche ni à zéro ni en échec', () => {
     expect(screen.queryByText('0')).toBeNull();
   });
 
+  // TCK-2479 — la bande « À traiter » porte le même nom (« 3 messages non lus ») sur sa pastille :
+  // ces cas visent le badge du MENU, lu dans le `<nav>`.
   it('la pastille paraît, avec son libellé accessible, dès qu’il y a quelque chose', () => {
     unreadMock.mockReturnValue(3);
     pendingVisitsMock.mockReturnValue({ data: { meta: { total: 7 } } });
-    renderSidebar('admin-agence', '/app');
-    expect(screen.getByLabelText('3 messages non lus')).toHaveTextContent('3');
-    expect(screen.getByLabelText('7 demandes de visite en attente')).toHaveTextContent('7');
+    const { container } = renderSidebar('admin-agence', '/app');
+    const nav = within(container.querySelector('nav')!);
+    expect(nav.getByLabelText('3 messages non lus')).toHaveTextContent('3');
+    expect(nav.getByLabelText('7 demandes de visite en attente')).toHaveTextContent('7');
   });
 
   it('au-delà de 99, la pastille dit 99+ sans mentir sur son libellé', () => {
     unreadMock.mockReturnValue(140);
-    renderSidebar('admin-agence', '/app');
-    expect(screen.getByLabelText('140 messages non lus')).toHaveTextContent('99+');
+    const { container } = renderSidebar('admin-agence', '/app');
+    expect(within(container.querySelector('nav')!).getByLabelText('140 messages non lus')).toHaveTextContent('99+');
   });
 });
 
@@ -828,5 +832,111 @@ describe('TCK-642 — le solde dans l’entrée « Crédits » du tiroir', () =>
     renderSidebar('admin-agence', '/app');
     const lien = screen.getByRole('link', { name: 'Crédits' });
     expect(lien.querySelector('[data-slot="valeur-entree"]')).toBeNull();
+  });
+});
+
+describe('TCK-2479 — la bande « À traiter » (ADR-0089 §5)', () => {
+  const bande = () => screen.queryByRole('region', { name: 'À traiter' });
+  const liensDeLaBande = () => within(bande()!).getAllByRole('link');
+  const noms = () => liensDeLaBande().map((l) => l.getAttribute('aria-label'));
+  /** Les `href` du MENU, dans l'ordre — la bande est hors du `<nav>`. */
+  const menu = (c: HTMLElement) =>
+    Array.from(c.querySelectorAll('nav [data-groupe] a, nav [data-groupe] [role="link"]')).map(
+      (a) => a.getAttribute('href') ?? a.textContent,
+    );
+  const chargerLesCompteurs = () => {
+    unreadMock.mockReturnValue(3);
+    pendingVisitsMock.mockReturnValue({ data: { meta: { total: 2 } } });
+    unhandledLeadsMock.mockReturnValue({ data: { meta: { total: 1 } } });
+  };
+
+  it('AC1 — agent, 3 messages et 2 visites : deux pastilles, visites d’abord, vers la page filtrée', () => {
+    unreadMock.mockReturnValue(3);
+    pendingVisitsMock.mockReturnValue({ data: { meta: { total: 2 } } });
+    const { container } = renderSidebar('agent', '/app');
+
+    expect(noms()).toEqual(['2 visites en attente', '3 messages non lus']);
+    expect(liensDeLaBande().map((l) => l.getAttribute('href'))).toEqual(['/app/visits?tab=requested', '/app/messages']);
+    // Entre l'action principale et le menu, hors du `<nav>`.
+    const action = container.querySelector('[data-slot="action-principale"]')!;
+    const nav = container.querySelector('nav')!;
+    expect(action).not.toBeNull();
+    expect(action.compareDocumentPosition(bande()!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(bande()!.compareDocumentPosition(nav) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(nav.contains(bande())).toBe(false);
+  });
+
+  it('AC1 — l’ordre est celui du persona : le locataire ne voit que ses messages', () => {
+    chargerLesCompteurs();
+    renderSidebar('locataire', '/app');
+    expect(noms()).toEqual(['3 messages non lus']);
+  });
+
+  it('AC1 — à zéro partout (ou au chargement) : aucune bande, aucun nœud', () => {
+    const { container } = renderSidebar('agent', '/app');
+    expect(bande()).toBeNull();
+    expect(container.querySelector('[data-slot="a-traiter"]')).toBeNull();
+  });
+
+  it.each(PERSONAS)('AC2 — %s : le menu garde les mêmes entrées, dans le même ordre, avec ou sans compteurs', (persona) => {
+    const { container, unmount } = renderSidebar(persona, '/app');
+    const avant = menu(container);
+    expect(avant.length).toBeGreaterThan(0);
+    unmount();
+    chargerLesCompteurs();
+    const { container: apres } = renderSidebar(persona, '/app');
+    expect(menu(apres)).toEqual(avant);
+  });
+
+  it('AC2 — l’épreuve n’est pas vide : avec les compteurs chargés, l’agent a bien une bande', () => {
+    chargerLesCompteurs();
+    renderSidebar('agent', '/app');
+    expect(noms()).toEqual(['1 demande non traitée', '2 visites en attente', '3 messages non lus']);
+  });
+
+  it.each([
+    [
+      'pendingVisits',
+      () => pendingVisitsMock.mockReturnValue({ data: { meta: { total: 2 } }, isError: true }),
+      ['1 demande non traitée', '3 messages non lus'],
+      '2 demandes de visite en attente',
+    ],
+    [
+      'unhandledLeads',
+      () => unhandledLeadsMock.mockReturnValue({ data: { meta: { total: 1 } }, isError: true }),
+      ['2 visites en attente', '3 messages non lus'],
+      '1 demande non traitée',
+    ],
+  ] as const)('AC3 — %s en échec (relecture ratée, ancien `data` gardé) : ni pastille ni badge ; les autres restent', (_cle, enEchec, restent, badge) => {
+    chargerLesCompteurs();
+    enEchec();
+    const { container } = renderSidebar('agent', '/app');
+    expect(noms()).toEqual(restent);
+    expect(within(container.querySelector('nav')!).queryByLabelText(badge)).toBeNull();
+  });
+
+  it('R1 — le badge des demandes porte enfin son nom accessible (clé manquante depuis TCK-590)', () => {
+    unhandledLeadsMock.mockReturnValue({ data: { meta: { total: 4 } } });
+    const { container } = renderSidebar('agent', '/app');
+    const nav = container.querySelector('nav')!;
+    expect(within(nav).getByLabelText('4 demandes non traitées')).toHaveTextContent('4');
+  });
+
+  it('AC6 — prestataire : une pastille au plus, la messagerie', () => {
+    chargerLesCompteurs();
+    renderSidebar('prestataire', '/app');
+    expect(liensDeLaBande().map((l) => l.getAttribute('href'))).toEqual(['/app/messages']);
+  });
+
+  it('a11y : la barre avec sa bande, sans violation', async () => {
+    chargerLesCompteurs();
+    const { container } = renderSidebar('admin-agence', '/app');
+    expect(bande()).not.toBeNull();
+    const resultat = await axe.run(container, {
+      runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] },
+      rules: { 'color-contrast': { enabled: false } },
+      resultTypes: ['violations'],
+    });
+    expect(resultat.violations.flatMap((v) => v.nodes.map((n) => `${v.id} ${n.target.join(' ')}`))).toEqual([]);
   });
 });

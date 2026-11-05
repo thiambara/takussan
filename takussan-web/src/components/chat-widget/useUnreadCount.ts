@@ -18,7 +18,7 @@ import { useAuth } from '@/context/AuthContext';
  *   - `meta.unread_total`, counted by the API over the WHOLE list (TCK-1387),
  *     muted conversations excluded (they still ring on the page but should
  *     not pull attention from the floating badge)
- *   - return 0 while loading or for anonymous visitors
+ *   - return 0 while loading, on an error (TCK-2479) or for anonymous visitors
  *
  * TCK-377 — `enabled` : la barre latérale de `/app` lit ce compteur pour la pastille de
  * « Messagerie », et ne doit armer AUCUN sondage quand l'entrée n'est pas rendue. Le défaut
@@ -30,7 +30,7 @@ export function useUnreadCount(options: { enabled?: boolean } = {}): number {
   const enabled = options.enabled ?? true;
   const { user } = useAuth();
   const dansLaMessagerie = (usePathname() ?? '').startsWith('/app/messages');
-  const { data, isLoading } = useNonLusTotal({
+  const { data, isLoading, isError } = useNonLusTotal({
     enabled,
     refetchInterval: dansLaMessagerie ? CADENCE_NON_LUS_MESSAGERIE_MS : CADENCE_NON_LUS_HORS_MESSAGERIE_MS,
   });
@@ -38,6 +38,9 @@ export function useUnreadCount(options: { enabled?: boolean } = {}): number {
   // TCK-1387 (P135.02) — le total vient de l'API (`meta.unread_total`), compté sur toute la liste
   // hors fils en sourdine : additionner les `unread_count` de la page ignorait les fils au-delà
   // des 30 premiers.
-  if (!enabled || isLoading || !user) return 0;
+  // TCK-2479 (ADR-0089 §5) — une relecture en ÉCHEC garde l'ancien `data` dans le cache de
+  // react-query : sans `isError`, la pastille affichait un compte qu'on ne sait plus vrai. 0 vaut
+  // « rien à traiter », comme pendant le chargement ; la relecture suivante (30 s) le rétablit.
+  if (!enabled || isLoading || isError || !user) return 0;
   return data?.meta?.unread_total ?? 0;
 }

@@ -151,7 +151,8 @@
       "navLabel": "Dashboard navigation",
       "counters": {
         "unreadMessages": "{count, plural, one {# unread message} other {# unread messages}}",
-        "pendingVisits": "{count, plural, one {# pending visit request} other {# pending visit requests}}"
+        "pendingVisits": "{count, plural, one {# pending visit request} other {# pending visit requests}}",
+        "unhandledLeads": "{count, plural, one {# unhandled request} other {# unhandled requests}}"
       },
       "receivedReviews": "Reviews received",
       "commissions": "Commissions",
@@ -199,7 +200,26 @@
         "titre": "List a property",
         "texte": "Publish your first property in minutes."
       },
-      "console": "Platform console"
+      "console": "Platform console",
+      "aTraiter": {
+        "titre": "To do",
+        "pastilles": {
+          "unreadMessages": "{count, plural, one {# message} other {# messages}}",
+          "pendingVisits": "{count, plural, one {# visit} other {# visits}}",
+          "unhandledLeads": "{count, plural, one {# request} other {# requests}}",
+          "reviewModeration": "{count, plural, one {# review} other {# reviews}}",
+          "propertyModeration": "{count, plural, one {# listing} other {# listings}}"
+        },
+        "noms": {
+          "unreadMessages": "{count, plural, one {# message unread} other {# messages unread}}",
+          "pendingVisits": "{count, plural, one {# visit pending} other {# visits pending}}",
+          "unhandledLeads": "{count, plural, one {# request unhandled} other {# requests unhandled}}",
+          "reviewModeration": "{count, plural, one {# review to moderate} other {# reviews to moderate}}",
+          "propertyModeration": "{count, plural, one {# listing to review} other {# listings to review}}"
+        },
+        "plusCourt": "+{count}",
+        "autres": "{count, plural, other {+# more to do}}"
+      }
     },
     "admin": {
       "team": "Team",

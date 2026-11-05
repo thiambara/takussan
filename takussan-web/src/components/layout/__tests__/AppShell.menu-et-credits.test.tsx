@@ -29,7 +29,9 @@ vi.mock('@/hooks/useCan', () => ({
 }));
 
 // Les compteurs et le solde sondent le réseau : ce fichier éprouve leur RENDU.
-vi.mock('@/components/chat-widget/useUnreadCount', () => ({ useUnreadCount: () => 0 }));
+// TCK-2479 — le compte des non-lus est réglable : la bande « À traiter » doit paraître dans le tiroir.
+const nonLusMock = vi.hoisted(() => vi.fn<() => number>(() => 0));
+vi.mock('@/components/chat-widget/useUnreadCount', () => ({ useUnreadCount: () => nonLusMock() }));
 vi.mock('@/lib/queries/visits', () => ({ usePendingVisitsCount: () => ({}) }));
 vi.mock('@/lib/queries/contact-leads', () => ({ useUnhandledLeadsCount: () => ({}) }));
 const soldeMock = vi.hoisted(() => vi.fn<(o: { enabled: boolean }) => number | null>(() => null));
@@ -81,6 +83,8 @@ async function ouvrirLeTiroir() {
 const nomNormalise = (attendu: string) => (nom: string) => nom.replace(/\s/g, ' ') === attendu;
 
 beforeEach(() => {
+  nonLusMock.mockReset();
+  nonLusMock.mockReturnValue(0);
   soldeMock.mockReset();
   soldeMock.mockReturnValue(null);
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404, json: async () => ({}) }));
@@ -115,6 +119,26 @@ describe('TCK-646 — le menu mobile de /app présente le même ordre (AC4)', ()
     expect(tousLesLiens(tiroir).filter((h) => h !== '/')).toEqual(tousLesLiens(bureau).filter((h) => h !== '/'));
     expect(groupes(tiroir)).toEqual(groupes(bureau));
     expect(tiroir.querySelector('[data-slot="action-principale"]')).toHaveAttribute('href', action);
+  });
+});
+
+describe('TCK-2479 — la bande « À traiter » est aussi dans le tiroir', () => {
+  it('mêmes pastilles qu’à la barre de bureau ; un clic referme le tiroir', async () => {
+    nonLusMock.mockReturnValue(3);
+    const { container } = monter(['agent']);
+    const bureau = container.querySelector('aside')!;
+    const deLaBande = (racine: Element) =>
+      within(within(racine as HTMLElement).getByRole('region', { name: 'À traiter' }))
+        .getAllByRole('link')
+        .map((l) => [l.getAttribute('aria-label'), l.getAttribute('href')]);
+    // Lue AVANT l'ouverture : le tiroir modal rend la barre de bureau `inert`.
+    const auBureau = deLaBande(bureau);
+    expect(auBureau).toEqual([['3 messages non lus', '/app/messages']]);
+
+    const tiroir = await ouvrirLeTiroir();
+    expect(deLaBande(tiroir)).toEqual(auBureau);
+    await userEvent.setup().click(within(tiroir).getByRole('link', { name: '3 messages non lus' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 });
 
