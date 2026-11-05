@@ -131,6 +131,13 @@ describe('TCK-2478 — composerMenu (ADR-0089 §4)', () => {
     expect(entreesDuMenu(menu).map((e) => e.id)).not.toContain('publier-bien');
   });
 
+  // Revue de TCK-2478 (I3) — le layout lit désormais la suspension pour le bailleur aussi.
+  it('espace suspendu, bailleur : pas de « Proposer un bien »', () => {
+    const menu = composerMenu({ roles: ['customer', 'owner'], capacites: null, agenceSuspendue: true }, 'bailleur');
+    expect(menu.action).toBeNull();
+    expect(composerMenu({ roles: ['customer', 'owner'], capacites: null }, 'bailleur').action?.id).toBe('proposer-bien');
+  });
+
   it('l’action principale prend la première destination ouverte de sa liste', () => {
     const menu = composerMenu({ roles: ['customer', 'agent'], capacites: [] }, 'agent');
     expect(menu.action).toBeNull(); // ni « Publier » (sans properties.create) ni « Proposer » (pas bailleur)
