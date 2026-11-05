@@ -1,7 +1,7 @@
 ---
 id: TCK-2479
 title: La bande « À traiter » au-dessus du menu, et le groupe « Démarrer » d'un espace neuf
-status: todo
+status: doing
 phase: P1
 family: full
 estimate: M
