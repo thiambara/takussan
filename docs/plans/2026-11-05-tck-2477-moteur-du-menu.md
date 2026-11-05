@@ -17,7 +17,7 @@ le type du profil actif (cookie `active_profile_id`) et le descend jusqu'à la b
 lucide-react.
 
 **Références :** [ADR-0089](../adr/0089-le-menu-de-app-se-derive-du-profil-actif.md) ·
-[TCK-2477](../backlog/tickets/doing/TCK-2477-moteur-du-menu-par-persona.md) ·
+[TCK-2477](../backlog/tickets/done/TCK-2477-moteur-du-menu-par-persona.md) ·
 `docs/features.md` § « Navigation de la console selon le profil actif ».
 
 ## Contraintes globales
@@ -1226,7 +1226,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ### Tâche 6 : vérification finale et ticket
 
 **Fichiers :**
-- Modifier : `docs/backlog/tickets/doing/TCK-2477-moteur-du-menu-par-persona.md` (notes, statut)
+- Modifier : `docs/backlog/tickets/done/TCK-2477-moteur-du-menu-par-persona.md` (notes, statut)
 
 - [ ] **Étape 1 : rejouer tout ce que le lot touche**
 
