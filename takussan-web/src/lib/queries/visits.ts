@@ -98,7 +98,7 @@ export function usePendingVisitsCount(options: { enabled?: boolean } = {}) {
     // minutes, et une borne figée au rendu recompterait les visites passées depuis.
     queryFn: ({ signal }) =>
       apiRequest<PaginatedResponse<PropertyVisit>>(
-        `/api/property-visits?${buildQueryString(parametresDuCompteDesVisitesEnAttente(new Date()))}`,
+        cheminApi`/api/property-visits?${buildQueryString(parametresDuCompteDesVisitesEnAttente(new Date()))}`,
         { token: token ?? undefined, locale, signal },
       ),
     enabled: options.enabled ?? true,
