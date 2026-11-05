@@ -139,20 +139,57 @@
       "onboardingPending": "Dugg yi séq",
       "proLocked": "Kont pro rekk",
       "navLabel": "Joowiin bu tablo bi",
-      "sections": {
-        "discover": "Gis",
-        "requests": "Ñaan",
-        "engagements": "Digante",
-        "manage": "Yóbbal",
-        "admin": "Doxal",
-        "more": "Plus"
-      },
       "counters": {
         "unreadMessages": "{count, plural, one {# bataaxal bu ñu jàngul} other {# bataaxal yu ñu jàngul}}",
         "pendingVisits": "{count, plural, one {# ñaan gis-gis bu di xaar} other {# ñaan gis-gis yu di xaar}}"
       },
       "receivedReviews": "Avis yi ñu la bind",
-      "commissions": "Komisioŋ yi"
+      "commissions": "Komisioŋ yi",
+      "myTasks": "Mes tâches",
+      "searchProperty": "Chercher un bien",
+      "myLease": "Mon bail",
+      "allProperties": "Biens",
+      "actions": {
+        "payRent": "Payer mon loyer"
+      },
+      "groupes": {
+        "mesRecherches": "Mes recherches",
+        "mesDemarches": "Mes démarches",
+        "monLogement": "Mon logement",
+        "monPatrimoine": "Mon patrimoine",
+        "activite": "Activité",
+        "prospection": "Prospection",
+        "catalogue": "Catalogue",
+        "gestion": "Gestion",
+        "portefeuille": "Portefeuille",
+        "finances": "Finances",
+        "agence": "Agence",
+        "pilotage": "Pilotage",
+        "mesBiens": "Mes biens",
+        "mesLocations": "Mes locations",
+        "monEspace": "Mon espace",
+        "plus": "Plus",
+        "aussi": "{profil, select, agency_admin {Aussi administrateur} owner {Aussi bailleur} agent {Aussi agent} service_provider {Aussi prestataire} other {Aussi}}",
+        "aussiPlusieurs": "Vos autres profils"
+      },
+      "personas": {
+        "client": "Client",
+        "locataire": "Locataire",
+        "bailleur": "Bailleur",
+        "agent": "Agent",
+        "admin-agence": "Administrateur",
+        "hote": "Hôte",
+        "prestataire": "Prestataire",
+        "plateforme": "Plateforme"
+      },
+      "enTete": {
+        "changer": "Changer d’espace"
+      },
+      "carteLocation": {
+        "titre": "Mettre un bien en location",
+        "texte": "Publiez votre premier bien en quelques minutes."
+      },
+      "console": "Console plateforme"
     },
     "admin": {
       "team": "Ekib",
@@ -168,7 +205,8 @@
       "roles": "Wàll yi",
       "integrations": "Ay jokkoo",
       "mySpace": "Sama barab",
-      "openMySpace": "Ubbi sama barab"
+      "openMySpace": "Ubbi sama barab",
+      "payouts": "Reversements"
     },
     "superAdmin": {
       "eyebrow": "Konsol Takussan",

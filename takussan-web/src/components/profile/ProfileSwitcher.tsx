@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useMemo } from 'react';
 import {
@@ -43,8 +43,30 @@ const TYPE_RANK: Record<ProfileType, number> = {
 const TYPE_ORDER: ProfileType[] = [...PROFILE_TYPES].sort((a, b) => TYPE_RANK[a] - TYPE_RANK[b]);
 
 interface ProfileSwitcherProps {
-  user: User;
-  className?: string;
+  readonly user: User;
+  readonly className?: string;
+  /**
+   * TCK-2478 — `barre` (défaut) : le déclencheur de la barre haute, inchangé. `carte` : l'en-tête
+   * d'espace de la barre latérale (`EnTeteDEspace`), une carte pleine largeur visible à TOUTES les
+   * largeurs — elle vit aussi dans le tiroir mobile, qui recouvre la barre haute.
+   */
+  readonly variante?: 'barre' | 'carte';
+  /** `carte` — le libellé du persona (« Administrateur »), seconde ligne de la carte. */
+  readonly libelle?: string;
+  /** `carte` — le verbe du déclencheur (« Changer d’espace »), en tête de son nom accessible. */
+  readonly libelleChanger?: string;
+}
+
+const STYLE_CARTE = 'flex w-full items-center gap-2 rounded-lg border bg-muted/60 px-3 py-2 text-left text-foreground';
+
+/** Le contenu de la carte : le nom de l'agence en gras, puis le persona ; le persona seul sans agence. */
+function ContenuDeCarte({ nom, libelle }: { readonly nom: string | null; readonly libelle: string }) {
+  return (
+    <span className="min-w-0 flex-1">
+      <span className="block truncate text-sm font-semibold">{nom ?? libelle}</span>
+      {nom ? <span className="block truncate text-xs text-muted-foreground">{libelle}</span> : null}
+    </span>
+  );
 }
 
 /**
@@ -53,7 +75,13 @@ interface ProfileSwitcherProps {
  * Pure-admin users (no profile, super_admin / agency_admin without persona)
  * see "Admin Takussan".
  */
-export function ProfileSwitcher({ user, className }: ProfileSwitcherProps) {
+export function ProfileSwitcher({
+  user,
+  className,
+  variante = 'barre',
+  libelle = '',
+  libelleChanger = '',
+}: ProfileSwitcherProps) {
   const t = useTranslations('profile.switcher');
   const tTypes = useTranslations('profile.types');
   const profilesQuery = useMyProfiles();
@@ -78,13 +106,35 @@ export function ProfileSwitcher({ user, className }: ProfileSwitcherProps) {
     return map;
   }, [profiles]);
 
+  const carte = variante === 'carte';
+
   if (profilesQuery.isLoading) {
+    if (carte) {
+      return (
+        <span
+          data-testid="profile-switcher-loading"
+          className={cn('block h-12 w-full animate-pulse rounded-lg bg-muted', className)}
+          aria-hidden="true"
+        />
+      );
+    }
     return (
       <span
         data-testid="profile-switcher-loading"
         className={cn('h-8 w-32 animate-pulse rounded-md bg-card/10', className)}
         aria-hidden="true"
       />
+    );
+  }
+
+  // TCK-2478 — la carte sans choix (aucun profil, ou un seul espace) : la même carte, sans bouton ni
+  // chevron. Un client sans profil y lit son persona (« Client »).
+  if (carte && profiles.length <= 1) {
+    const seul = profiles[0] ?? null;
+    return (
+      <div data-testid="profile-switcher-static" className={cn(STYLE_CARTE, className)}>
+        <ContenuDeCarte nom={seul?.agency?.name ?? null} libelle={libelle} />
+      </div>
     );
   }
 
@@ -121,28 +171,46 @@ export function ProfileSwitcher({ user, className }: ProfileSwitcherProps) {
     );
   }
 
+  const nomCarte = active?.agency?.name ?? (active ? null : t('choose'));
+
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger
-        data-testid="profile-switcher-trigger"
-        aria-label={t('changeAria')}
-        disabled={switchMutation.isPending}
-        className={cn(
-          'inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm outline-none transition-colors text-primary-foreground hover:bg-card/10 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60',
-          className,
-        )}
-      >
-        {active ? (
-          <>
-            <ProfileBadge profile={active} variant="dot" className="ring-1 ring-primary-foreground/70" />
-            <span className="hidden lg:inline truncate max-w-[14rem]">{profileShortLabel(active, tTypes)}</span>
-          </>
-        ) : (
-          <span>{t('choose')}</span>
-        )}
-        <ChevronDown className="size-4" aria-hidden="true" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-64">
+      {carte ? (
+        <DropdownMenuTrigger
+          data-testid="profile-switcher-trigger"
+          aria-label={[libelleChanger, nomCarte, libelle].filter(Boolean).join(' — ')}
+          disabled={switchMutation.isPending}
+          className={cn(
+            STYLE_CARTE,
+            'outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60',
+            className,
+          )}
+        >
+          <ContenuDeCarte nom={nomCarte} libelle={libelle} />
+          <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+        </DropdownMenuTrigger>
+      ) : (
+        <DropdownMenuTrigger
+          data-testid="profile-switcher-trigger"
+          aria-label={t('changeAria')}
+          disabled={switchMutation.isPending}
+          className={cn(
+            'inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm outline-none transition-colors text-primary-foreground hover:bg-card/10 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60',
+            className,
+          )}
+        >
+          {active ? (
+            <>
+              <ProfileBadge profile={active} variant="dot" className="ring-1 ring-primary-foreground/70" />
+              <span className="hidden lg:inline truncate max-w-[14rem]">{profileShortLabel(active, tTypes)}</span>
+            </>
+          ) : (
+            <span>{t('choose')}</span>
+          )}
+          <ChevronDown className="size-4" aria-hidden="true" />
+        </DropdownMenuTrigger>
+      )}
+      <DropdownMenuContent align={carte ? 'start' : 'end'} className="min-w-64">
         {TYPE_ORDER.map((type) => {
           const list = grouped.get(type) ?? [];
           if (list.length === 0) return null;

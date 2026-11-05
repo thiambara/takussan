@@ -123,6 +123,7 @@ export function AppShell({
                   agencyIsStandard={agencyIsStandard}
                   hasPendingUpgrade={hasPendingUpgrade}
                   typeProfilActif={typeProfilActif}
+                  agencySuspended={agencySuspended}
                 />
               </div>
               <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
@@ -133,6 +134,7 @@ export function AppShell({
                     agencyIsStandard={agencyIsStandard}
                     hasPendingUpgrade={hasPendingUpgrade}
                     typeProfilActif={typeProfilActif}
+                    agencySuspended={agencySuspended}
                   />
                 </SheetContent>
               </Sheet>

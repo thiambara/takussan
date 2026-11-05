@@ -68,3 +68,32 @@ export function resoudrePersona({
       return isTenant(roles) ? 'locataire' : 'client';
   }
 }
+
+/** Les types de profil qu'un persona REPRÉSENTE. L'hôte en fusionne deux (TCK-497). */
+export const TYPES_DU_PERSONA: Record<Persona, readonly ProfileType[]> = {
+  client: [],
+  locataire: [],
+  bailleur: ['owner'],
+  agent: ['agent'],
+  'admin-agence': ['agency_admin'],
+  hote: ['agency_admin', 'owner'],
+  prestataire: ['service_provider'],
+  plateforme: [],
+};
+
+const ROLES_TOUJOURS_GARDES: readonly UserRole[] = ['customer', 'tenant', 'super_admin'];
+
+/**
+ * TCK-2478 (ADR-0089 §2) — les rôles sur lesquels se juge la DISPOSITION : les rôles dérivés
+ * (`customer`, `tenant`), le super-admin (global), et les seuls types que le persona représente.
+ * Le reste de l'union de l'espace nourrit le complément « Aussi … ».
+ */
+export function rolesDuPersona(roles: UserRole[], persona: Persona): UserRole[] {
+  const types: readonly UserRole[] = TYPES_DU_PERSONA[persona];
+  return roles.filter((r) => ROLES_TOUJOURS_GARDES.includes(r) || types.includes(r));
+}
+
+/** Les autres types de profil que le compte tient dans l'espace, dans l'ordre de `PROFILE_TYPES`. */
+export function autresTypes(roles: UserRole[], persona: Persona): ProfileType[] {
+  return PROFILE_TYPES.filter((t) => roles.includes(t) && !TYPES_DU_PERSONA[persona].includes(t));
+}

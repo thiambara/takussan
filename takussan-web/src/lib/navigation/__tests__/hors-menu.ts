@@ -13,6 +13,4 @@ export const HORS_MENU: Readonly<Record<string, string>> = {
   '/app/profile': 'Atteinte par la carte du compte, en pied de barre latérale.',
   '/app/profile/notifications': 'Atteinte depuis le profil (préférences de notification).',
   '/app/settings/agency/upgrade': 'Atteinte par la carte « Passer en pro » (TCK-267).',
-  '/app/tasks':
-    'Atteinte par la tuile « Tâches du jour » du tableau de bord (TCK-591) ; entre au menu de l’agent avec TCK-2478.',
 };

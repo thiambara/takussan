@@ -6,7 +6,7 @@ import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 import { fetchAgencyUpgradeRequests } from '@/lib/queries/agency-upgrade';
 import { IntlProvider } from '@/i18n/IntlProvider';
 import { messagesPour } from '@/i18n/messages';
-import { isAgent } from '@/lib/roles';
+import { isAgent, isOwner } from '@/lib/roles';
 import { accesAdmin, capacitesAmorcees } from '@/lib/access/pages-admin-server';
 import { AmorceCapacites } from '@/components/providers/AmorceCapacites';
 import { AccesAdminProvider } from '@/lib/access/acces-admin-contexte';
@@ -66,10 +66,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           }
         : undefined;
     }
-  } else if (isAgent(user.roles) && typeof user.agency_id === 'number') {
+  } else if ((isAgent(user.roles) || isOwner(user.roles)) && typeof user.agency_id === 'number') {
     // TCK-600 (ADR-0048) — l'agent d'une agence suspendue voit le même bandeau que son admin.
     // `resolveAgencyOrNull` est mis en cache pour le rendu : la page qui relit l'agence ne paie
     // pas un second appel.
+    //
+    // Revue de TCK-2478 (I3) — le BAILLEUR aussi : `EnsureAgencyWritable` refuse toute écriture
+    // (423 `agency.suspended`) sous un profil actif d'une agence suspendue, quel que soit son type.
+    // Sans cette lecture, sa barre gardait « Proposer un bien » et l'envoi échouait. `agency_id`
+    // est l'agence du profil ACTIF (`User::getAgencyIdAttribute`) : un compte sans agence ne paie
+    // aucune requête.
     const token = await getToken();
     if (token) {
       const agency = await resolveAgencyOrNull(token, user.agency_id, 'app/layout (suspension)');

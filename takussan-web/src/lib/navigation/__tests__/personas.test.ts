@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { UserRole } from '@/types/user';
 import type { ProfileType } from '@/types/profile';
-import { resoudrePersona, typeDuProfilActif, type Persona } from '../personas';
+import { autresTypes, resoudrePersona, rolesDuPersona, typeDuProfilActif, type Persona } from '../personas';
 
 describe('TCK-2477 — typeDuProfilActif', () => {
   it.each<[string | undefined, ProfileType | null]>([
@@ -37,5 +37,18 @@ describe('TCK-2477 — resoudrePersona (ADR-0089 §2)', () => {
     ['super-admin dans un espace d’agence', ['customer', 'super_admin', 'agency_admin'], 'agency_admin', false, 'admin-agence'],
   ])('%s', (_, roles, typeProfilActif, agenceIndividuelle, attendu) => {
     expect(resoudrePersona({ roles, typeProfilActif, agenceIndividuelle })).toBe(attendu);
+  });
+});
+
+describe('TCK-2478 — les rôles du persona', () => {
+  it('garde les rôles dérivés et le super-admin, et le seul type du persona', () => {
+    expect(rolesDuPersona(['customer', 'tenant', 'agency_admin', 'owner'], 'admin-agence')).toEqual(['customer', 'tenant', 'agency_admin']);
+    expect(rolesDuPersona(['customer', 'agency_admin', 'owner'], 'hote')).toEqual(['customer', 'agency_admin', 'owner']);
+    expect(rolesDuPersona(['customer', 'super_admin', 'agent'], 'agent')).toEqual(['customer', 'super_admin', 'agent']);
+  });
+
+  it('nomme les autres profils de l’espace', () => {
+    expect(autresTypes(['customer', 'agency_admin', 'owner'], 'admin-agence')).toEqual(['owner']);
+    expect(autresTypes(['customer', 'agency_admin', 'owner'], 'hote')).toEqual([]);
   });
 });

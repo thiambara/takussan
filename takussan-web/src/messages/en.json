@@ -149,20 +149,57 @@
       "onboardingPending": "Pending onboardings",
       "proLocked": "Pro accounts only",
       "navLabel": "Dashboard navigation",
-      "sections": {
-        "discover": "Discover",
-        "requests": "Requests",
-        "engagements": "Commitments",
-        "manage": "Management",
-        "admin": "Administration",
-        "more": "More"
-      },
       "counters": {
         "unreadMessages": "{count, plural, one {# unread message} other {# unread messages}}",
         "pendingVisits": "{count, plural, one {# pending visit request} other {# pending visit requests}}"
       },
       "receivedReviews": "Reviews received",
-      "commissions": "Commissions"
+      "commissions": "Commissions",
+      "myTasks": "My tasks",
+      "searchProperty": "Find a property",
+      "myLease": "My lease",
+      "allProperties": "Properties",
+      "actions": {
+        "payRent": "Pay my rent"
+      },
+      "groupes": {
+        "mesRecherches": "My searches",
+        "mesDemarches": "My requests",
+        "monLogement": "My home",
+        "monPatrimoine": "My portfolio",
+        "activite": "Activity",
+        "prospection": "Prospecting",
+        "catalogue": "Listings",
+        "gestion": "Management",
+        "portefeuille": "Portfolio",
+        "finances": "Finances",
+        "agence": "Agency",
+        "pilotage": "Insights",
+        "mesBiens": "My properties",
+        "mesLocations": "My rentals",
+        "monEspace": "My space",
+        "plus": "More",
+        "aussi": "{profil, select, agency_admin {Also administrator} owner {Also landlord} agent {Also agent} service_provider {Also service provider} other {Also}}",
+        "aussiPlusieurs": "Your other profiles"
+      },
+      "personas": {
+        "client": "Client",
+        "locataire": "Tenant",
+        "bailleur": "Landlord",
+        "agent": "Agent",
+        "admin-agence": "Administrator",
+        "hote": "Host",
+        "prestataire": "Service provider",
+        "plateforme": "Platform"
+      },
+      "enTete": {
+        "changer": "Switch space"
+      },
+      "carteLocation": {
+        "titre": "List a property",
+        "texte": "Publish your first property in minutes."
+      },
+      "console": "Platform console"
     },
     "admin": {
       "team": "Team",
@@ -178,7 +215,8 @@
       "roles": "Roles",
       "integrations": "Integrations",
       "mySpace": "My space",
-      "openMySpace": "Open my space"
+      "openMySpace": "Open my space",
+      "payouts": "Payouts"
     },
     "superAdmin": {
       "eyebrow": "Takussan console",

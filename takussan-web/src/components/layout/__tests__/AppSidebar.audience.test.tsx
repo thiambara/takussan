@@ -7,6 +7,11 @@
  * garder qu'une. Elles mesurent des choses différentes et vivent donc côte à côte :
  * `AppSidebar.test.tsx` éprouve le surlignage, le regroupement et les compteurs ;
  * celui-ci éprouve le jeu d'`href` que chaque rôle reçoit.
+ *
+ * TCK-2478 (ADR-0089) — le jeu se lit désormais PAR PERSONA, sur le menu composé
+ * (`composerMenu`) : action principale, groupes, « Plus », complément et carte. La table par rôle
+ * de `buildNavItems` (supprimé) est remplacée par la table par persona ci-dessous ; l'écart, rôle
+ * par rôle, est écrit dans les notes de TCK-2478.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -16,14 +21,26 @@ import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { withIntl } from '@/test/intl';
-import { AppSidebar, buildNavItems } from '../AppSidebar';
+import { AppSidebar } from '../AppSidebar';
+import { composerMenu, entreesDuMenu } from '@/lib/navigation/composer-menu';
+import { resoudrePersona, type Persona } from '@/lib/navigation/personas';
+import type { ContexteDeMenu } from '@/lib/navigation/types';
 import { USER_ROLES, type User, type UserRole } from '@/types/user';
 
 // P152.03 — les rôles système portent `properties.create` : « Publier un bien » se juge par elle.
 vi.mock('@/hooks/useCan', () => ({
   useMyCapabilities: () => ({ data: { data: { agency_id: 1, capabilities: ['properties.create'] } } }),
 }));
-vi.mock('next/navigation', () => ({ usePathname: () => '/app' }));
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/app',
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(''),
+}));
+// TCK-2478 — l'en-tête d'espace monte le sélecteur de profil ; ce fichier lit le menu seul.
+vi.mock('@/hooks/useProfiles', () => ({
+  useMyProfiles: () => ({ data: undefined, isLoading: false }),
+  useSwitchActiveProfile: () => ({ mutate: vi.fn(), isPending: false }),
+}));
 
 function utilisateur(roles: UserRole[]): User {
   return {
@@ -36,83 +53,133 @@ function utilisateur(roles: UserRole[]): User {
   } as unknown as User;
 }
 
-/**
- * TCK-379 — AC3 : la table des `href` par rôle.
- *
- * Six entrées de `buildNavItems` étaient poussées SANS aucune condition de rôle : `/app/bookings`,
- * `/app/visits`, `/app/leases`, `/app/favorites`, `/app/saved-searches` et `/app/overview`. Le
- * dédoublonnage final masquait le défaut pour tous les rôles SAUF le prestataire — seul rôle à
- * qui ces entrées n'arrivaient que par là. Aucun test ne montait cette barre.
- *
- * ⚠ La table est écrite EN ENTIER et comparée EN ENTIER, pas par `not.toContain`. La différence
- * n'est pas cosmétique : `expect(hrefs).not.toContain('/app/bookings')` serait coché par une
- * régression qui retire l'entrée à TOUT LE MONDE. Ici, retirer `/app/leases` au locataire fait
- * rougir la ligne `tenant` — et c'est précisément le cinquième défaut que ce ticket a failli
- * fabriquer, le rôle `tenant` n'apparaissant nulle part ailleurs dans `buildNavItems`.
- */
-const ATTENDU: Record<string, string[]> = {
-  customer: [
-    // TCK-625 — « Publier un bien » : un client peut devenir hôte, et rien ne le lui disait.
-    '/app', '/publish', '/app/favorites', '/app/saved-searches', '/app/visits', '/app/bookings',
-    '/app/maintenance', '/app/leases', '/app/payments', '/app/inventories',
-    '/app/profile/reviews', '/app/messages', '/app/documents', '/app/overview',
-  ],
-  // TCK-492 — le locataire reçoit désormais le parcours client COMPLET, et pas
-  // un sous-ensemble. Ce n'est pas un élargissement décidé ici : `buildNavItems`
-  // ouvre son bloc client sur `isCustomerOnly`, et quelqu'un dont le seul rôle
-  // est `tenant` n'a aucun profil professionnel. L'ancienne ligne mesurait un
-  // monde où `customer` n'était jamais émis — un locataire y arrivait sans lui,
-  // ce qui ne se produit plus : l'API émet toujours `customer` avec `tenant`.
-  tenant: [
-    // TCK-625 — « Publier un bien » : un client peut devenir hôte, et rien ne le lui disait.
-    '/app', '/publish', '/app/favorites', '/app/saved-searches', '/app/visits', '/app/bookings',
-    '/app/maintenance', '/app/leases', '/app/payments', '/app/inventories',
-    '/app/profile/reviews', '/app/messages', '/app/documents', '/app/overview',
-  ],
-  // TCK-587 — `/app/properties/new` sous le libellé « Proposer un bien à mon agence » : le
-  // bailleur hors personnel y PROPOSE un bien, le serveur impose brouillon + privé.
-  owner: [
-    '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
-    '/app/bookings',
-    '/app/maintenance', '/app/leases', '/app/payments', '/app/profile/reviews', '/app/messages',
-    '/app/documents',
-    '/app/overview', '/app/overview/exports', '/app/customers', '/app/inventories',
-    '/app/visits', '/app/leads', '/app/calendar',
-  ],
-  agent: [
-    '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
-    '/app/bookings', '/app/leases', '/app/maintenance', '/app/profile/reviews', '/app/commissions',
-    '/app/messages', '/app/documents',
-    // TCK-595 (AC17 bis) — plus de « Vue agence » : l'API la refuse à l'agent.
-    '/app/overview', '/app/overview/exports', '/app/customers',
-    '/app/inventories', '/app/visits', '/app/leads', '/app/calendar', '/app/leases/onboarding-pending',
-  ],
-  agency_admin: [
-    '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
-    '/app/bookings', '/app/leases', '/app/maintenance', '/app/profile/reviews', '/app/commissions',
-    '/app/maintenance/providers',
-    '/app/messages', '/app/documents', '/app/overview', '/app/overview/exports',
-    '/app/overview/agency', '/app/credits', '/app/overview/kpis', '/app/overview/alerts', '/app/owners',
-    '/app/customers', '/app/inventories', '/app/visits', '/app/leads', '/app/calendar',
-    // TCK-649 — plus d'emplacement « Administration » : la section d'agence vient de la table.
-    '/app/leases/onboarding-pending',
-  ],
-  super_admin: [
-    '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
-    '/app/bookings', '/app/leases', '/app/maintenance', '/app/profile/reviews', '/app/commissions',
-    '/app/maintenance/providers',
-    '/app/messages', '/app/documents', '/app/overview', '/app/overview/exports',
-    '/app/overview/agency', '/app/credits', '/app/overview/kpis', '/app/overview/alerts', '/app/owners',
-    '/app/customers', '/app/inventories', '/app/visits', '/app/leads', '/app/calendar',
-    // TCK-649 — plus d'emplacement « Administration » : la section d'agence vient de la table.
-    '/app/leases/onboarding-pending',
-  ],
-  // Son métier, et rien d'autre : interventions, messagerie, documents (§1.8 de features.md).
-  service_provider: ['/app', '/app/maintenance', '/app/messages', '/app/documents'],
+/** Tout ce que le menu composé rend : action principale, entrées des groupes, carte. */
+function hrefsDuMenu(ctx: ContexteDeMenu, persona: Persona): string[] {
+  const menu = composerMenu(ctx, persona);
+  return [
+    ...(menu.action ? [menu.action.href] : []),
+    ...entreesDuMenu(menu).map((e) => e.href),
+    ...(menu.carte ? [menu.carte.href] : []),
+  ];
+}
+
+/** Le menu d'un compte sans profil actif connu : le persona que ses rôles résolvent. */
+function hrefsDesRoles(roles: UserRole[]): string[] {
+  return hrefsDuMenu({ roles, capacites: ['properties.create'] }, resoudrePersona({ roles }));
+}
+
+const PAGES_D_AGENCE = [
+  '/app/agency/team', '/app/agency/roles', '/app/agency', '/app/agency/kyc', '/app/agency/billing',
+  '/app/agency/finances', '/app/agency/moderation', '/app/agency/moderation/properties',
+  '/app/agency/audit', '/app/agency/integrations',
+];
+const PAGES_DE_L_HOTE = ['/app/agency', '/app/agency/kyc', '/app/agency/billing', '/app/agency/finances', '/app/agency/integrations'];
+
+/** Les huit comptes, sous les jeux de rôles que l'API émet (le plancher `customer` compris). */
+const COMPTES: Record<Persona, ContexteDeMenu> = {
+  client: { roles: ['customer'], capacites: null },
+  locataire: { roles: ['customer', 'tenant'], capacites: null },
+  bailleur: { roles: ['customer', 'owner'], capacites: null },
+  agent: { roles: ['customer', 'agent'], capacites: ['properties.create'] },
+  'admin-agence': { roles: ['customer', 'agency_admin'], capacites: ['properties.create'], cheminsAdmin: PAGES_D_AGENCE },
+  hote: { roles: ['customer', 'agency_admin', 'owner'], capacites: ['properties.create'], cheminsAdmin: PAGES_DE_L_HOTE },
+  prestataire: { roles: ['customer', 'service_provider'], capacites: [] },
+  plateforme: { roles: ['customer', 'super_admin'], capacites: [], cheminsAdmin: PAGES_D_AGENCE },
 };
 
 /**
- * Le SOCLE — ce que `buildNavItems` donne à n'importe quel compte authentifié,
+ * TCK-379 — AC3, repris par TCK-2478 : la table des `href` PAR PERSONA.
+ *
+ * TCK-379 avait trouvé six entrées poussées SANS aucune condition de rôle (`/app/bookings`,
+ * `/app/visits`, `/app/leases`, `/app/favorites`, `/app/saved-searches`, `/app/overview`), que le
+ * dédoublonnage masquait pour tous les rôles sauf le prestataire. La leçon reste : la table est
+ * écrite EN ENTIER et comparée EN ENTIER, pas par `not.toContain`. `not.toContain('/app/bookings')`
+ * serait coché par une régression qui retire l'entrée à TOUT LE MONDE ; ici, retirer `/app/leases`
+ * au locataire fait rougir la ligne `locataire`.
+ *
+ * Ce que la table dit : l'ensemble des écrans qu'un persona atteint depuis sa barre — où que la
+ * disposition les place (groupe, « Plus », action, carte). La PLACE est gardée ailleurs
+ * (`dispositions-validees.test.ts`, `AppSidebar.test.tsx`) ; l'ensemble ici. Écart avec la table
+ * par rôle d'avant TCK-2478 :
+ *  - client et locataire : `/publish` est la carte (plus une ligne), `/properties` (« Chercher un
+ *    bien », la recherche publique) entre comme action du client et dans « Mes recherches » ;
+ *  - bailleur, agent, admin, hôte, plateforme : `/app/tasks` (« Mes tâches », TCK-591), qui était
+ *    hors menu, et les pages d'agence que la table ouvre (avant : ajoutées par `avecSectionAgence`) ;
+ *  - prestataire : le plancher `customer` lui ouvre, sous « Plus », ses réservations, visites,
+ *    favoris, recherches et baux (`occupeUnLogement`, TCK-379, inchangé — le menu de `dev` les lui
+ *    montrait déjà sous ce jeu de rôles ; l'ancienne table sondait `['service_provider']` seul, que
+ *    l'API n'émet pas).
+ *  - Revue de TCK-2478 — prestataire encore : `/app/overview` QUITTE sa table (M2 : la garde de la
+ *    page le renvoie sur `/app` s'il n'est pas locataire, le lien menait à une redirection) et
+ *    `/app/calendar` Y ENTRE (M3 : `assertCanReachCalendar` lui ouvre la page, TCK-591).
+ */
+const ATTENDU: Record<Persona, string[]> = {
+  client: [
+    '/properties', '/publish',
+    '/app', '/app/messages', '/app/favorites', '/app/saved-searches', '/app/visits', '/app/bookings',
+    '/app/documents', '/app/profile/reviews', '/app/overview',
+    '/app/maintenance', '/app/leases', '/app/payments', '/app/inventories',
+  ],
+  locataire: [
+    '/app/payments', '/publish',
+    '/app', '/app/messages', '/app/leases', '/app/maintenance', '/app/inventories', '/app/documents',
+    '/properties', '/app/favorites', '/app/saved-searches', '/app/visits', '/app/bookings',
+    '/app/profile/reviews', '/app/overview',
+  ],
+  // TCK-587 — `/app/properties/new` sous « Proposer un bien à mon agence » : le bailleur hors
+  // personnel y PROPOSE un bien, le serveur impose brouillon + privé.
+  bailleur: [
+    '/app/properties/new',
+    '/app', '/app/messages', '/app/properties', '/app/leases', '/app/payments', '/app/inventories',
+    '/app/leads', '/app/visits', '/app/bookings', '/app/calendar', '/app/maintenance',
+    '/app/customers', '/app/profile/reviews', '/app/documents', '/app/overview', '/app/overview/exports',
+    '/app/favorites', '/app/saved-searches', '/app/tasks',
+  ],
+  // TCK-595 (AC17 bis) — pas de « Vue agence » : l'API la refuse à l'agent.
+  agent: [
+    '/app/properties/new',
+    '/app', '/app/messages', '/app/tasks', '/app/leads', '/app/customers', '/app/visits', '/app/calendar',
+    '/app/properties', '/app/bookings', '/app/leases', '/app/leases/onboarding-pending', '/app/inventories',
+    '/app/maintenance', '/app/commissions', '/app/profile/reviews', '/app/documents', '/app/overview',
+    '/app/overview/exports', '/app/favorites', '/app/saved-searches',
+  ],
+  'admin-agence': [
+    '/app/properties/new',
+    '/app', '/app/overview/agency', '/app/messages', '/app/leads', '/app/visits', '/app/bookings',
+    '/app/calendar', '/app/properties', '/app/owners', '/app/customers', '/app/leases',
+    '/app/leases/onboarding-pending', '/app/commissions', '/app/credits', ...PAGES_D_AGENCE,
+    '/app/overview', '/app/overview/kpis', '/app/overview/alerts', '/app/overview/exports',
+    '/app/maintenance', '/app/maintenance/providers', '/app/inventories', '/app/documents',
+    '/app/profile/reviews', '/app/tasks', '/app/favorites', '/app/saved-searches',
+  ],
+  hote: [
+    '/app/properties/new',
+    '/app', '/app/messages', '/app/properties', '/app/bookings', '/app/visits', '/app/calendar',
+    '/app/leads', '/app/leases', '/app/inventories', '/app/maintenance', '/app/maintenance/providers',
+    '/app/credits', ...PAGES_DE_L_HOTE, '/app/customers', '/app/overview', '/app/overview/exports',
+    '/app/overview/kpis', '/app/overview/alerts', '/app/profile/reviews', '/app/documents', '/app/tasks',
+    '/app/favorites', '/app/saved-searches', '/app/payments', '/app/commissions',
+    '/app/leases/onboarding-pending', '/app/overview/agency', '/app/owners',
+  ],
+  // Son métier en tête — interventions, messagerie, documents (§1.8 de features.md) —, et sous
+  // « Plus » ce que le plancher `customer` lui ouvre.
+  prestataire: [
+    '/app', '/app/maintenance', '/app/messages', '/app/documents',
+    '/app/bookings', '/app/visits', '/app/favorites', '/app/saved-searches', '/app/leases', '/app/calendar',
+  ],
+  plateforme: [
+    '/app/properties/new',
+    '/app', '/app/overview/agency', '/app/messages', '/app/leads', '/app/visits', '/app/bookings',
+    '/app/calendar', '/app/properties', '/app/owners', '/app/customers', '/app/leases',
+    '/app/leases/onboarding-pending', '/app/commissions', '/app/credits', ...PAGES_D_AGENCE,
+    '/app/overview', '/app/overview/kpis', '/app/overview/alerts', '/app/overview/exports',
+    '/app/maintenance', '/app/maintenance/providers', '/app/inventories', '/app/documents',
+    '/app/profile/reviews', '/app/tasks', '/app/favorites', '/app/saved-searches',
+  ],
+};
+
+/**
+ * Le SOCLE — ce que le catalogue ouvre à n'importe quel compte authentifié,
  * sans considération de rôle. Trois entrées, lisibles dans les lignes ci-dessus :
  * elles sont l'intersection de toutes.
  */
@@ -181,14 +248,14 @@ describe('TCK-495 — aucun profil commutable ne mène nulle part', () => {
     expect(
       inconnus,
       `ces profils sont commutables mais absents de UserRole, donc ni reconnus `
-        + `ni servis par buildNavItems : ${inconnus.join(', ')}`,
+        + `ni servis par le menu : ${inconnus.join(', ')}`,
     ).toEqual([]);
   });
 
   it('chaque alias de TYPE_MAP ouvre au moins un écran au-delà du socle', () => {
     const nus: string[] = [];
     for (const alias of aliasCommutables()) {
-      const hrefs = buildNavItems(utilisateur([alias as UserRole]), ['properties.create']).map((i) => i.href);
+      const hrefs = hrefsDesRoles([alias as UserRole]);
       if (hrefs.every((h) => SOCLE.includes(h))) nus.push(alias);
     }
     expect(
@@ -202,24 +269,24 @@ describe('TCK-495 — aucun profil commutable ne mène nulle part', () => {
   });
 });
 
-describe('AppSidebar — table des href par rôle', () => {
-  for (const [role, attendu] of Object.entries(ATTENDU)) {
-    it(`${role} reçoit exactement ses entrées`, () => {
-      const hrefs = buildNavItems(utilisateur([role as UserRole]), ['properties.create']).map((i) => i.href);
-      // TCK-646 — à l'ordre près : six entrées sont montées en tête du menu, ce qui ne change AUCUN
-      // droit. L'ordre est gardé par `AppSidebar.test.tsx` (« six entrées en tête »), le jeu ici.
-      expect([...hrefs].sort()).toEqual([...attendu].sort());
-      expect(hrefs).toHaveLength(attendu.length);
+describe('AppSidebar — table des href par persona (TCK-2478)', () => {
+  for (const [persona, attendu] of Object.entries(ATTENDU) as [Persona, string[]][]) {
+    it(`${persona} atteint exactement ses écrans`, () => {
+      const hrefs = hrefsDuMenu(COMPTES[persona], persona);
+      expect([...new Set(hrefs)].sort()).toEqual([...attendu].sort());
+      expect(new Set(attendu).size, 'la table ne cite aucun écran deux fois').toBe(attendu.length);
     });
   }
 
-  it('ne montre au prestataire ni réservations, ni baux, ni visites, ni statistiques — à l’écran', () => {
-    // Le test de table ci-dessus porte sur le PRODUCTEUR. Celui-ci monte réellement la barre et
-    // lit les `href` du DOM : si un jour une entrée était rendue ailleurs que par `buildNavItems`,
-    // la table seule ne le verrait pas.
+  it('ne montre au prestataire seul ni réservations, ni baux, ni visites, ni statistiques — à l’écran', () => {
+    // La table ci-dessus porte sur le PRODUCTEUR. Celui-ci monte réellement la barre et lit les
+    // `href` du DOM : si un jour une entrée était rendue ailleurs que par le menu composé, la table
+    // seule ne le verrait pas.
+    // ⚠ TCK-2478 — `['service_provider']` SANS le plancher `customer` : c'est la garde du prédicat
+    // POSITIF de TCK-379 (`occupeUnLogement`), que ce rôle seul ne satisfait pas. Sous le jeu que
+    // l'API émet (`customer` en plus), ces écrans lui sont ouverts sous « Plus » (table ci-dessus).
     // TCK-377 a ajouté un compteur en `useQuery` dans cette barre : la monter hors d'un
-    // `QueryClientProvider` lève désormais. `retry: false` pour que l'échec du mock soit
-    // immédiat plutôt que réessayé trois fois.
+    // `QueryClientProvider` lève. `retry: false` pour que l'échec du mock soit immédiat.
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       withIntl(
@@ -228,8 +295,9 @@ describe('AppSidebar — table des href par rôle', () => {
         </QueryClientProvider>,
       ),
     );
+    // `hidden: true` : un lien sous « Plus », replié, est au menu — il compte.
     const rendus = screen
-      .getAllByRole('link')
+      .getAllByRole('link', { hidden: true })
       .map((a) => a.getAttribute('href'))
       .filter((h): h is string => Boolean(h));
 
@@ -244,8 +312,9 @@ describe('AppSidebar — table des href par rôle', () => {
 
   it('un compte prestataire ET locataire garde ses baux', () => {
     // `roles` est un tableau : la garde est un prédicat POSITIF, pas `!isServiceProvider`.
-    // Cette assertion est ce qui interdit de la réécrire en négation.
-    const hrefs = buildNavItems(utilisateur(['service_provider', 'tenant']), ['properties.create']).map((i) => i.href);
+    // Cette assertion est ce qui interdit de la réécrire en négation. Les baux sont sous « Plus »
+    // ou dans un groupe — peu importe : le test lit l'ensemble rendu.
+    const hrefs = hrefsDesRoles(['service_provider', 'tenant', 'customer']);
     expect(hrefs).toContain('/app/leases');
     expect(hrefs).toContain('/app/bookings');
     expect(hrefs).toContain('/app/maintenance');

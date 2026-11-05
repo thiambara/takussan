@@ -22,6 +22,12 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(''),
 }));
 
+// P152.03 — les rôles système portent `properties.create` : l'action « Publier un bien » de
+// l'admin d'agence se juge par elle (sans lecture, le personnel n'a aucune entrée de création).
+vi.mock('@/hooks/useCan', () => ({
+  useMyCapabilities: () => ({ data: { data: { agency_id: 1, capabilities: ['properties.create'] } } }),
+}));
+
 // Les compteurs et le solde sondent le réseau : ce fichier éprouve leur RENDU.
 vi.mock('@/components/chat-widget/useUnreadCount', () => ({ useUnreadCount: () => 0 }));
 vi.mock('@/lib/queries/visits', () => ({ usePendingVisitsCount: () => ({}) }));
@@ -83,13 +89,32 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/** Tous les liens de la barre, dans l'ordre : action principale, menu, carte, pied. */
+const tousLesLiens = (racine: Element) =>
+  Array.from(racine.querySelectorAll('a')).map((a) => a.getAttribute('href'));
+/** Les titres des groupes, et l'état de leur bascule. */
+const groupes = (racine: Element) =>
+  Array.from(racine.querySelectorAll('[data-groupe]')).map((g) => [
+    g.getAttribute('data-groupe'),
+    g.querySelector(':scope > button')?.getAttribute('aria-expanded') ?? null,
+  ]);
+
 describe('TCK-646 — le menu mobile de /app présente le même ordre (AC4)', () => {
-  it.each([['agency_admin'], ['owner'], ['customer']] as UserRole[][])('%s', async (role) => {
-    const { container } = monter([role]);
-    const bureau = hrefs(container.querySelector('aside')!);
+  // TCK-2478 — la barre porte aussi l'action principale (hors du `<nav>`), les groupes repliés et la
+  // carte du client : le tiroir doit les présenter à l'identique, pas seulement les liens du `<nav>`.
+  it.each([
+    [['agency_admin'], '/app/properties/new'],
+    [['owner'], '/app/properties/new'],
+    [['customer'], '/fr/properties'],
+  ] as [UserRole[], string][])('%j', async (roles, action) => {
+    const { container } = monter([...roles, 'customer']);
+    const bureau = container.querySelector('aside')!;
     const tiroir = await ouvrirLeTiroir();
-    expect(hrefs(tiroir)).toEqual(bureau);
+    expect(hrefs(tiroir)).toEqual(hrefs(bureau));
     expect(hrefs(tiroir)[0]).toBe('/app');
+    expect(tousLesLiens(tiroir).filter((h) => h !== '/')).toEqual(tousLesLiens(bureau).filter((h) => h !== '/'));
+    expect(groupes(tiroir)).toEqual(groupes(bureau));
+    expect(tiroir.querySelector('[data-slot="action-principale"]')).toHaveAttribute('href', action);
   });
 });
 

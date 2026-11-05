@@ -57,8 +57,21 @@ describe('espace applicatif — bandeau de suspension (TCK-600)', () => {
     [['agent', 'customer'], 'inactive', false],
     [['agent', 'customer'], null, false],
     [['customer'], 'suspended', false],
+    // Revue de TCK-2478 (I3) — le bailleur d'une agence suspendue : l'API refuse ses écritures (423),
+    // la barre retire donc son action « Proposer un bien » (`agencySuspended`).
+    [['owner', 'customer'], 'suspended', true],
+    [['owner', 'customer'], 'active', false],
   ])('rôles %j, agence %s → bandeau %s', async (roles, statut, attendu) => {
     expect(await bandeau(roles, statut)).toBe(attendu);
+  });
+
+  it('un bailleur sans agence (`agency_id` nul) ne paie aucune lecture d’agence', async () => {
+    resolveAgencyOrNull.mockClear();
+    getMeAction.mockResolvedValue({ id: 1, roles: ['owner', 'customer'], agency_id: null } as unknown as User);
+    resolveAgencyOrNull.mockResolvedValue({ id: 7, kind: 'standard', status: 'suspended' });
+    render(await AppLayout({ children: null }));
+    expect(coque.mock.lastCall?.[0]?.agencySuspended).toBe(false);
+    expect(resolveAgencyOrNull).not.toHaveBeenCalled();
   });
 
   it('le bandeau dit « lecture seule » et ne se masque pas', () => {
