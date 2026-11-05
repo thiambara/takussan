@@ -21,7 +21,7 @@ disparaissent ; les tests qui figeaient le menu par rôle sont réécrits par pe
 (`DropdownMenu`), lucide-react.
 
 **Références :** [ADR-0089](../adr/0089-le-menu-de-app-se-derive-du-profil-actif.md) ·
-[TCK-2478](../backlog/tickets/doing/TCK-2478-dispositions-par-persona.md) (la table des dispositions) ·
+[TCK-2478](../backlog/tickets/done/TCK-2478-dispositions-par-persona.md) (la table des dispositions) ·
 plan précédent : [TCK-2477](2026-11-05-tck-2477-moteur-du-menu.md).
 
 ## Contraintes globales
