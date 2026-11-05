@@ -213,6 +213,39 @@ du persona : le moteur a raison. Attendu corrigé en `ouvert(persona) ∪ ouvert
 - `nav.sidebar.sections.*` et `nav.sidebar.groupeReplie` (jamais lue : le bouton porte
   `aria-expanded`, un « — afficher » serait faux une fois déplié) retirées de `fr`, `en`, `wo`.
 
+### Revue adverse — correctifs (2026-11-05)
+
+Une revue adverse en lecture seule (0 bloquant, 3 importants, 3 mineurs) a mesuré chaque défaut sur
+le composant monté ; chaque correctif a son test rouge sans lui (ablation par script, restaurée).
+
+- **I1 — les pages d'agence reviennent au profil d'admin.** `AccesAdmin.chemins` se calcule sur
+  l'union de l'espace : un bailleur ou un agent qui est aussi admin voyait les dix pages sous « Plus ».
+  Règle (`ouvreLesPagesDAgence`, `catalogue.ts`) : ouverte au persona s'il est admin (super-admin
+  compris), **ou si aucun profil d'admin n'est dans l'espace** (`ContexteDeMenu.rolesDeLEspace`). La
+  seconde branche garde l'agent délégué (TCK-1412, `ouvertePar`) : sans elle, « Équipe », « Rôles »
+  et « KYC » ne paraissaient nulle part. **Écart avec `dev`** : chez lui, « Équipe » est sous « Plus »,
+  et non plus dans une section d'agence.
+- **I2 — créer un bien se juge sur l'espace** (`Destination.surLEspace`, sur `publier-bien` et
+  `proposer-bien`), comme la page (`modeDeCreationDeBien`). Admin+bailleur au profil actif `owner` :
+  « Publier un bien », sans doublon dans « Aussi ». Tant que les capacités ne sont pas lues, aucune
+  action de création dans cet espace (P152.03).
+- **I3 — suspension du bailleur.** Le layout lit la suspension de l'agence du profil actif pour le
+  bailleur aussi : il perd « Proposer un bien » et voit le bandeau « lecture seule », comme l'API
+  répond 423 (`EnsureAgencyWritable`).
+- **M1** — l'action principale est courante sur sa page (`/app/properties/new` : « Publier un bien »,
+  et non « Biens », son parent d'URL), sauf si une entrée rendue partage son `href` : le locataire
+  sur `/app/payments` n'allume que « Paiements ».
+- **M2 / M3** (hérités de `dev`) — « Statistiques » et « Calendrier » recopient la garde de leur page
+  (`overview/page.tsx`, `assertCanReachCalendar`) : le prestataire non locataire perd « Statistiques »
+  (une redirection) et reçoit « Calendrier » sous « Plus ». Garde : `gardes-des-pages.test.ts` joue
+  ces gardes sur les 128 combinaisons de rôles.
+- **Console** — « Console plateforme » suit `isSuperAdmin(user.roles)`, quel que soit le persona.
+- **Action non tronquée** — « Proposer un bien à mon agence » sortait en ellipse à toutes les
+  largeurs (mesure au navigateur) : l'action passe à la ligne, jamais d'ellipse (`429e6b757`).
+- Le prestataire réel sonde les visites en attente (« Visites » sous « Plus », ouverte par le
+  plancher `customer`) : c'était déjà le cas sur `dev`, rien ne régresse ; la garde « pas de
+  sondage » s'éprouve sur les demandes de contact.
+
 ### Mesure au navigateur (AC8) — 2026-11-05, 21:08–21:13
 **Version mesurée : `429e6b757`, arbre propre sous `takussan-web/src`** — HEAD et empreinte du diff
 relevés avant ET après chaque passage, identiques (`429e6b757 diff:da39a3ee5e6b`, le diff vide).
