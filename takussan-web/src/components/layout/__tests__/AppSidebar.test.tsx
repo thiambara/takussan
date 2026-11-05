@@ -38,8 +38,9 @@ import { resolveActiveHref, APP_EXACT_ROOTS } from '@/lib/navigation/active-path
 
 let pathname = '/app';
 // P152.03 — les rôles système portent `properties.create` : « Publier un bien » se juge par elle.
+const capacitesLues = vi.hoisted(() => ({ liste: ['properties.create'] as string[] }));
 vi.mock('@/hooks/useCan', () => ({
-  useMyCapabilities: () => ({ data: { data: { agency_id: 1, capabilities: ['properties.create'] } } }),
+  useMyCapabilities: () => ({ data: { data: { agency_id: 1, capabilities: capacitesLues.liste } } }),
 }));
 vi.mock('next/navigation', () => ({
   usePathname: () => pathname,
@@ -224,6 +225,7 @@ beforeEach(() => {
   soldeMock.mockReturnValue(null);
   demarrageMock.mockReset();
   demarrageMock.mockReturnValue({});
+  capacitesLues.liste = ['properties.create'];
   fileAvisMock.mockReset();
   fileAvisMock.mockResolvedValue({ meta: { total: 0, pending_count: 0 } });
   fileBiensMock.mockReset();
@@ -1041,6 +1043,29 @@ describe('TCK-2479 — « Démarrer » dans la barre (AC5)', () => {
     renderSidebar(persona, '/app');
     const groupe = screen.getByRole('group', { name: 'Démarrer' });
     expect(within(groupe).getAllByRole('link').map((l) => l.getAttribute('href'))).toEqual(hrefs);
+  });
+
+  it('revue M6 — un rôle d’admin personnalisé : seules les étapes dont la page s’ouvre (ni KYC ni création ici)', () => {
+    // Le rôle porte `agency.update` (l'API rend les étapes) mais ni `agency.update_kyc` (garde de
+    // `/app/agency/kyc`) ni `properties.create` (garde de `/app/properties/new`).
+    capacitesLues.liste = ['agency.update'];
+    const compte = COMPTES['admin-agence'];
+    const acces = accesDepuis({ roles: compte.roles, agence: { kind: 'standard' }, capacites: ['agency.update'] });
+    demarrageMock.mockReturnValue(etapes('premier_bien', 'kyc', 'equipe'));
+    pathname = '/app';
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      withIntl(
+        <QueryClientProvider client={client}>
+          <AccesAdminProvider acces={acces}>
+            <AppSidebar user={userWith(compte.roles)} agencyIsStandard typeProfilActif={null} />
+          </AccesAdminProvider>
+        </QueryClientProvider>,
+      ),
+    );
+    const groupe = screen.getByRole('group', { name: 'Démarrer' });
+    expect(within(groupe).getAllByRole('link').map((l) => l.getAttribute('href'))).toEqual(['/app/agency/team']);
+    expect(within(groupe).getByText('0 sur 1')).toBeInTheDocument();
   });
 
   it.each(['client', 'locataire', 'agent', 'prestataire', 'plateforme'] as const)('%s : ni groupe ni lecture', (persona) => {

@@ -52,13 +52,23 @@ function connue(e: EtapeDeDemarrage): e is EtapeDeDemarrage & { readonly code: C
   return (CODES_D_ETAPE as readonly string[]).includes(e.code);
 }
 
-/** AC5 — une étape faite SORT du groupe ; la progression dit combien l'étaient. */
+/**
+ * AC5 — une étape faite SORT du groupe ; la progression dit combien l'étaient.
+ *
+ * Revue de TCK-2479 (M6) — `ouverte` juge l'écran de chaque étape par la garde de SA page : l'API
+ * rend les étapes sous `agency.update` (`configure`), mais `/app/agency/kyc` exige
+ * `agency.update_kyc` et `/app/properties/new` `properties.create` (ou d'être bailleur) : un
+ * rôle d'admin personnalisé voyait le lien et tombait sur un refus. (`/app/agency/team` s'ouvre à tout
+ * admin : `ouvertePar` ne juge que le non-admin, `pageAccessible`.) Une étape
+ * dont l'écran est fermé n'est ni rendue ni comptée — comme `equipe` pour une agence `individual`.
+ */
 export function etapesARendre(
   etapes: readonly EtapeDeDemarrage[],
   mode: ModeDemarrer,
   idProfilActif: string | null,
+  ouverte: (href: string) => boolean = () => true,
 ): { readonly restantes: readonly EtapeARendre[]; readonly faites: number; readonly total: number } {
-  const connues = etapes.filter(connue);
+  const connues = etapes.filter(connue).filter((e) => ouverte(lienDe(e.code, mode, idProfilActif)));
   return {
     restantes: connues
       .filter((e) => !e.faite)
@@ -66,4 +76,12 @@ export function etapesARendre(
     faites: connues.filter((e) => e.faite).length,
     total: connues.length,
   };
+}
+
+/**
+ * Revue de TCK-2479 (M2) — reste-t-il une étape À RENDRE (connue, pas faite) ? `false` pour `[]` et
+ * pour un espace en service : le groupe ne s'affiche plus, sa lecture n'a plus à se refaire.
+ */
+export function resteADemarrer(etapes: readonly EtapeDeDemarrage[]): boolean {
+  return etapes.some((e) => connue(e) && !e.faite);
 }

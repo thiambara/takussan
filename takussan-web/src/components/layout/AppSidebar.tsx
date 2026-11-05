@@ -34,6 +34,7 @@ import type { NavCounterKey } from '@/lib/navigation/types';
 import {
   GROUPES_DIVULGATION,
   avecTitres,
+  cheminOuvert,
   composerMenu,
   type EntreeComposee,
   type GroupeCompose,
@@ -354,10 +355,8 @@ export function AppSidebar({
     typeProfilActif: typeProfilActif ?? null,
     agenceIndividuelle: accesAdmin.espaceIndividuel || agencyIsStandard === false,
   });
-  const menu = composerMenu(
-    { roles: user.roles, capacites, cheminsAdmin: accesAdmin.chemins, agenceSuspendue: agencySuspended },
-    persona,
-  );
+  const ctxMenu = { roles: user.roles, capacites, cheminsAdmin: accesAdmin.chemins, agenceSuspendue: agencySuspended };
+  const menu = composerMenu(ctxMenu, persona);
   const verrouiller = (e: EntreeComposee): EntreeRendue => ({
     ...e,
     locked: isProRouteLocked(user, agencyIsStandard, e.href),
@@ -511,7 +510,13 @@ export function AppSidebar({
         {/* TCK-2479 — « Démarrer » : un espace neuf sait par où commencer. Dans le `<nav>`, il défile
             avec le menu ; il n'en réordonne aucune entrée. `menu.demarrer` est `null` pour un persona
             sans mise en service et dans un espace suspendu : ni groupe, ni lecture. */}
-        {menu.demarrer ? <DemarrerDeLEspace mode={menu.demarrer} onNavigate={onNavigate} /> : null}
+        {menu.demarrer ? (
+          <DemarrerDeLEspace
+            mode={menu.demarrer}
+            ouverte={(href) => cheminOuvert(ctxMenu, href)}
+            onNavigate={onNavigate}
+          />
+        ) : null}
         {groupes.map((groupe, index) => (
           <GroupeDuMenu
             key={groupe.id}

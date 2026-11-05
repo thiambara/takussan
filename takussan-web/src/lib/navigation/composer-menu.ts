@@ -164,3 +164,17 @@ export function avecTitres(groupes: readonly GroupeCompose[]): boolean {
 export function entreesDuMenu(menu: MenuCompose): EntreeComposee[] {
   return menu.groupes.flatMap((g) => g.entrees);
 }
+
+/**
+ * Revue de TCK-2479 (M6) — le compte ouvre-t-il ce chemin ? Jugé par le catalogue, sur l'ESPACE
+ * (`ctx`, pas le persona) : les gardes des pages sont celles du compte et du profil actif — la table
+ * des pages d'administration (`cheminsAdmin`, la garde de `garderPageAdmin`) et `peutPublier` / le
+ * bailleur pour `/app/properties/new` (la règle de `modeDeCreationDeBien`). La requête est ignorée.
+ * Un chemin qu'aucune destination ne porte (`/onboarding/owner`, l'assistant du bailleur sur son
+ * propre profil) n'est pas jugé ici : `true`.
+ */
+export function cheminOuvert(ctx: ContexteDeMenu, href: string): boolean {
+  const chemin = href.split('?')[0];
+  const portees = CATALOGUE.filter((d) => d.href === chemin);
+  return portees.length === 0 || portees.some((d) => estOuverte(d, ctx));
+}

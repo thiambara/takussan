@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { composerMenu } from '../composer-menu';
-import { etapesARendre } from '../demarrer';
+import { accesDepuis } from '@/lib/access/pages-admin';
+import type { UserRole } from '@/types/user';
+import { cheminOuvert, composerMenu } from '../composer-menu';
+import { etapesARendre, type ModeDemarrer } from '../demarrer';
 import { DISPOSITIONS } from '../dispositions';
 import { PERSONAS } from '../personas';
 import type { ContexteDeMenu } from '../types';
@@ -92,5 +94,76 @@ describe('TCK-2479 — « Démarrer » dans les dispositions et le menu composé
     const entrees = composerMenu(ctx, 'agent').groupes.flatMap((g) => g.entrees);
     expect(entrees.find((e) => e.id === 'demandes')?.hrefATraiter).toBe('/app/leads?filtre=todo');
     expect(entrees.find((e) => e.id === 'messagerie')).not.toHaveProperty('hrefATraiter');
+  });
+});
+
+/**
+ * Revue de TCK-2479 (M6) — l'API rend les étapes sous `agency.update` (`configure`) ; chaque écran
+ * a SA garde : `/app/agency/kyc` exige `agency.update_kyc` (`PAGES_ADMIN`), `/app/properties/new`
+ * `properties.create` ou d'être bailleur
+ * (`modeDeCreationDeBien`). Les chemins d'administration sont calculés ici par la VRAIE table
+ * (`accesDepuis`), comme le layout de `/app` les fournit à la barre.
+ */
+describe('Revue de TCK-2479 (M6) — une étape ne vise jamais une page que le compte n’ouvre pas', () => {
+  const SYSTEME = ['agency.update', 'agency.update_kyc', 'team.invite', 'team.assign_role', 'team.suspend', 'properties.create'];
+
+  function liens(
+    roles: UserRole[],
+    agence: 'standard' | 'individual' | null,
+    capacites: string[],
+    mode: ModeDemarrer,
+    codes: string[],
+    idProfilActif: string | null = null,
+  ) {
+    const personnel = roles.includes('agency_admin') || roles.includes('agent');
+    const ctx: ContexteDeMenu = {
+      roles,
+      // Comme `AppSidebar` : les capacités ne se lisent que pour le personnel.
+      capacites: personnel ? capacites : [],
+      cheminsAdmin: accesDepuis({ roles, agence: agence ? { kind: agence } : null, capacites }).chemins,
+    };
+    const etapes = codes.map((code) => ({ code, faite: false }));
+    const rendu = etapesARendre(etapes, mode, idProfilActif, (href) => cheminOuvert(ctx, href));
+    return { hrefs: rendu.restantes.map((e) => e.href), total: rendu.total };
+  }
+
+  const ADMIN: UserRole[] = ['customer', 'agency_admin'];
+  const HOTE: UserRole[] = ['customer', 'agency_admin', 'owner'];
+  const BAILLEUR: UserRole[] = ['customer', 'owner'];
+
+  it.each([
+    ['admin, rôle système', ADMIN, 'standard', SYSTEME, ['/app/properties/new', '/app/agency/kyc', '/app/agency/team']],
+    // `/app/agency/team` s'ouvre à TOUT admin : `ouvertePar` ne juge que le non-admin (`pageAccessible`).
+    ['admin, rôle réduit à agency.update', ADMIN, 'standard', ['agency.update'], ['/app/agency/team']],
+    ['admin, sans KYC', ADMIN, 'standard', ['agency.update', 'properties.create'], ['/app/properties/new', '/app/agency/team']],
+    ['admin, sans création de bien', ADMIN, 'standard', ['agency.update', 'agency.update_kyc'], ['/app/agency/kyc', '/app/agency/team']],
+  ] as const)('%s', (_cas, roles, agence, capacites, attendus) => {
+    const { hrefs, total } = liens([...roles], agence, [...capacites], 'espace', ['premier_bien', 'kyc', 'equipe']);
+    expect(hrefs).toEqual(attendus);
+    // Une étape fermée n'est pas comptée non plus : « 0 sur 3 » d'un groupe à un seul lien mentirait.
+    expect(total).toBe(attendus.length);
+  });
+
+  it('hôte : ses deux étapes ; sans agency.update_kyc, le seul premier bien', () => {
+    expect(liens(HOTE, 'individual', SYSTEME, 'espace', ['premier_bien', 'kyc']).hrefs).toEqual([
+      '/app/properties/new',
+      '/app/agency/kyc',
+    ]);
+    expect(liens(HOTE, 'individual', ['agency.update', 'properties.create'], 'espace', ['premier_bien', 'kyc']).hrefs).toEqual([
+      '/app/properties/new',
+    ]);
+  });
+
+  it('bailleur : il PROPOSE un bien (`/app/properties/new`), et son assistant n’est pas une page du menu', () => {
+    expect(liens(BAILLEUR, null, [], 'bailleur', ['premier_bien', 'kyc'], 'owner:3').hrefs).toEqual([
+      '/app/properties/new',
+      '/onboarding/owner?owner=3',
+    ]);
+  });
+
+  it('cheminOuvert ignore la requête, et ne juge pas un chemin hors catalogue', () => {
+    const ctx: ContexteDeMenu = { roles: ADMIN, capacites: [], cheminsAdmin: [] };
+    expect(cheminOuvert(ctx, '/app/agency/kyc?x=1')).toBe(false);
+    expect(cheminOuvert(ctx, '/onboarding/owner')).toBe(true);
   });
 });

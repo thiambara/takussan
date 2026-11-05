@@ -13,6 +13,8 @@ import { FOCUS_RING, STYLE_TITRE } from './styles-de-la-barre';
 
 interface DemarrerDeLEspaceProps {
   readonly mode: ModeDemarrer;
+  /** Revue de TCK-2479 (M6) — l'écran d'une étape s'ouvre-t-il au compte ? (`cheminOuvert`) */
+  readonly ouverte: (href: string) => boolean;
   readonly onNavigate?: () => void;
 }
 
@@ -29,7 +31,7 @@ interface DemarrerDeLEspaceProps {
  * ⚠ Le masquage vit dans cet état local : il ne survit ni au rechargement ni à l'autre montage de la
  * barre (le tiroir). TCK-2480 l'enregistre sur le compte (`demarrer_masque`).
  */
-export function DemarrerDeLEspace({ mode, onNavigate }: DemarrerDeLEspaceProps) {
+export function DemarrerDeLEspace({ mode, ouverte, onNavigate }: DemarrerDeLEspaceProps) {
   const t = useTranslations('nav.sidebar.demarrer');
   const idTitre = useId();
   const { activeProfileId } = useAuth();
@@ -49,7 +51,7 @@ export function DemarrerDeLEspace({ mode, onNavigate }: DemarrerDeLEspaceProps) 
   const etapes = data?.data?.etapes;
   if (masque || isError || !Array.isArray(etapes)) return null;
 
-  const { restantes, faites, total } = etapesARendre(etapes, mode, idProfilActif);
+  const { restantes, faites, total } = etapesARendre(etapes, mode, idProfilActif, ouverte);
   if (restantes.length === 0) return null;
 
   return (

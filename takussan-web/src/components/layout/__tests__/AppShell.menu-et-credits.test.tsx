@@ -13,6 +13,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { withIntl } from '@/test/intl';
 import { ToastProvider } from '@/components/ui/toast';
+import { AccesAdminProvider } from '@/lib/access/acces-admin-contexte';
+import { accesDepuis, type AccesAdmin } from '@/lib/access/pages-admin';
 import type { User, UserRole } from '@/types/user';
 import { AppShell } from '../AppShell';
 
@@ -58,16 +60,17 @@ function utilisateur(roles: UserRole[]): User {
   return { id: 1, first_name: 'Awa', last_name: 'Diop', full_name: 'Awa Diop', email: 'awa@example.test', roles } as unknown as User;
 }
 
-function monter(roles: UserRole[]) {
+function monter(roles: UserRole[], acces?: AccesAdmin) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const coque = (
+    <AppShell user={utilisateur(roles)} agencyIsStandard>
+      <p>contenu</p>
+    </AppShell>
+  );
   return render(
     withIntl(
       <QueryClientProvider client={client}>
-        <ToastProvider>
-          <AppShell user={utilisateur(roles)} agencyIsStandard>
-            <p>contenu</p>
-          </AppShell>
-        </ToastProvider>
+        <ToastProvider>{acces ? <AccesAdminProvider acces={acces}>{coque}</AccesAdminProvider> : coque}</ToastProvider>
       </QueryClientProvider>,
     ),
   );
@@ -152,7 +155,14 @@ describe('TCK-2479 — « Démarrer » est aussi dans le tiroir', () => {
     demarrageMock.mockReturnValue({
       data: { data: { etapes: [{ code: 'premier_bien', faite: true }, { code: 'kyc', faite: false }, { code: 'equipe', faite: false }] } },
     });
-    const { container } = monter(['agency_admin', 'customer']);
+    // Revue de TCK-2479 (M6) — chaque étape est jugée par la garde de SA page : l'accès aux pages
+    // d'agence est celui que le layout de `/app` fournit (sans lui, le repli ne connaît aucune
+    // capacité et `/app/agency/kyc`, qui exige `agency.update_kyc`, est fermé).
+    const roles: UserRole[] = ['agency_admin', 'customer'];
+    const { container } = monter(
+      roles,
+      accesDepuis({ roles, agence: { kind: 'standard' }, capacites: ['agency.update', 'agency.update_kyc'] }),
+    );
     const etapes = (racine: Element) => {
       const groupe = within(racine as HTMLElement).getByRole('group', { name: 'Démarrer' });
       expect(racine.querySelector('nav')!.firstElementChild).toBe(groupe);

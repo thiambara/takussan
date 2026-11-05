@@ -36,8 +36,11 @@ const CODES = ['premier_bien', 'kyc', 'equipe'];
 const avec = (...faites: boolean[]): Reponse => ({
   data: { data: { etapes: faites.map((faite, i) => ({ code: CODES[i]!, faite })) } },
 });
-const ui = (mode: 'espace' | 'bailleur' = 'espace', onNavigate?: () => void) =>
-  withIntl(<DemarrerDeLEspace mode={mode} onNavigate={onNavigate} />);
+const ui = (
+  mode: 'espace' | 'bailleur' = 'espace',
+  onNavigate?: () => void,
+  ouverte: (href: string) => boolean = () => true,
+) => withIntl(<DemarrerDeLEspace mode={mode} ouverte={ouverte} onNavigate={onNavigate} />);
 
 describe('<DemarrerDeLEspace> — TCK-2479 (AC5)', () => {
   beforeEach(() => {

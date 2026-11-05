@@ -115,6 +115,37 @@ describe('useDemarrageDeLEspace — TCK-2479', () => {
     expect(signaux.map((s) => s.aborted)).toEqual([false, false]);
   });
 
+  it.each([
+    ['tout est fait', { data: { etapes: [{ code: 'premier_bien', faite: true }, { code: 'kyc', faite: true }] } }],
+    ['aucune étape (`[]`)', { data: { etapes: [] } }],
+    ['seule une étape inconnue reste', { data: { etapes: [{ code: 'kyc', faite: true }, { code: 'inconnue', faite: false }] } }],
+  ])('revue M2 — %s : plus de relecture, ni à la navigation ni au remontage (tiroir)', async (_cas, reponse) => {
+    apiRequest.mockResolvedValue(reponse);
+    const { result, rerender, client } = monter();
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(apiRequest).toHaveBeenCalledOnce();
+
+    vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 31_000);
+    etat.chemin = '/app/messages';
+    rerender({ enabled: true });
+    // Le tiroir monte le même hook à son ouverture.
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      withIntl(<QueryClientProvider client={client}>{children}</QueryClientProvider>);
+    renderHook(() => useDemarrageDeLEspace({ enabled: true }), { wrapper });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(apiRequest).toHaveBeenCalledOnce();
+  });
+
+  it('revue M2 — le témoin : une étape restante se relit toujours à la navigation', async () => {
+    apiRequest.mockResolvedValue({ data: { etapes: [{ code: 'premier_bien', faite: true }, { code: 'kyc', faite: false }] } });
+    const { result, rerender } = monter();
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 31_000);
+    etat.chemin = '/app/messages';
+    rerender({ enabled: true });
+    await waitFor(() => expect(apiRequest).toHaveBeenCalledTimes(2));
+  });
+
   it('sans navigation, aucune relecture : pas de sondage', async () => {
     const { result, rerender } = monter();
     await waitFor(() => expect(result.current.isSuccess).toBe(true));

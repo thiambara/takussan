@@ -45,7 +45,14 @@ export interface ContexteDePersona {
  * aussi bailleur y porte les deux.
  *
  * Un profil actif absent de `roles` (cookie périmé, profil suspendu) ne décide de rien : on retombe
- * sur le type dominant, comme l'auto-bascule de l'API retient d'abord `agency_admin`.
+ * sur le type dominant (`TYPE_DOMINANT`, l'admin d'abord).
+ *
+ * ⚠ Ce repli n'est PAS celui de l'API (revue de TCK-2479, mesuré le 2026-11-05) : sans profil
+ * explicite, `ResolveActiveProfile` (auto-bascule, une seule agence) lie le PREMIER profil actif de
+ * `HasProfiles::profiles()`, dans l'ordre bailleur, agent, admin, prestataire. Un compte admin ET
+ * bailleur d'une même agence `standard`, sans cookie `active_profile_id` (la connexion ne le pose pas),
+ * a ici le persona `admin-agence` quand l'API juge sous `owner:N`. Ce commentaire affirmait le
+ * contraire (« l'auto-bascule de l'API retient d'abord `agency_admin` »).
  */
 export function resoudrePersona({
   roles,
