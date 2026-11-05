@@ -69,6 +69,33 @@ describe('TCK-2478 — composerMenu (ADR-0089 §4)', () => {
     expect(attendus).toContain('paiements');
   });
 
+  /**
+   * Revue de TCK-2478 (I1) — `cheminsAdmin` est calculé sur l'union de l'espace : seul, il rangeait
+   * les pages d'agence sous « Plus » du persona non admin, et le reste de l'admin sous « Aussi ».
+   */
+  describe('les pages d’agence reviennent au profil d’admin (revue, I1)', () => {
+    const PAGES = CATALOGUE.filter((d) => d.href.startsWith('/app/agency')).map((d) => d.href);
+    const groupe = (menu: ReturnType<typeof composerMenu>, id: string) =>
+      menu.groupes.find((g) => g.id === id)?.entrees.map((e) => e.href) ?? [];
+
+    it.each([
+      ['bailleur', ['customer', 'agency_admin', 'owner']],
+      ['agent', ['customer', 'agency_admin', 'agent']],
+    ] as const)('persona %s d’un espace où il est aussi admin : les 10 pages sous « Aussi », aucune sous « Plus »', (persona, roles) => {
+      const menu = composerMenu({ roles: [...roles], capacites: ['properties.create'], cheminsAdmin: PAGES }, persona);
+      expect(PAGES).toHaveLength(10);
+      expect(groupe(menu, 'aussi').filter((h) => h.startsWith('/app/agency'))).toEqual(PAGES);
+      expect(entreesDuMenu(menu).filter((e) => e.groupe !== 'aussi' && e.href.startsWith('/app/agency'))).toEqual([]);
+    });
+
+    // TCK-1412 — sans profil d'admin dans l'espace, seule SA délégation ouvre la page : elle reste au persona.
+    it('l’agent délégué (aucun admin dans l’espace) garde « Équipe » au menu', () => {
+      const menu = composerMenu({ roles: ['customer', 'agent'], capacites: ['team.invite'], cheminsAdmin: ['/app/agency/team'] }, 'agent');
+      expect(groupe(menu, 'plus')).toContain('/app/agency/team');
+      expect(groupe(menu, 'aussi')).toEqual([]);
+    });
+  });
+
   it('espace suspendu : ni action principale ni entrée d’écriture', () => {
     const ctx: ContexteDeMenu = { roles: ['customer', 'agency_admin'], capacites: ['properties.create'], cheminsAdmin: [], agenceSuspendue: true };
     const menu = composerMenu(ctx, 'admin-agence');

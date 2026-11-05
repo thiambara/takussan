@@ -26,6 +26,7 @@ import { withIntl } from '@/test/intl';
 import { ToastProvider } from '@/components/ui/toast';
 import { AccesAdminProvider } from '@/lib/access/acces-admin-contexte';
 import { accesDepuis, type ContexteAdmin } from '@/lib/access/pages-admin';
+import type { ProfileType } from '@/types/profile';
 import type { User, UserRole } from '@/types/user';
 import { AppShell } from '../AppShell';
 import { AppSidebar } from '../AppSidebar';
@@ -110,7 +111,7 @@ function client() {
   return new QueryClient({ defaultOptions: { queries: { retry: false } } });
 }
 
-function monterLaBarre(p: Profil, hasPendingUpgrade?: boolean) {
+function monterLaBarre(p: Profil, hasPendingUpgrade?: boolean, typeProfilActif?: ProfileType) {
   return render(
     withIntl(
       <QueryClientProvider client={client()}>
@@ -119,6 +120,7 @@ function monterLaBarre(p: Profil, hasPendingUpgrade?: boolean) {
             user={utilisateur(p.roles)}
             agencyIsStandard={p.agencyIsStandard}
             hasPendingUpgrade={hasPendingUpgrade}
+            typeProfilActif={typeProfilActif}
           />
         </AccesAdminProvider>
       </QueryClientProvider>,
@@ -220,6 +222,33 @@ describe('AC2 — le menu montre exactement les pages d’agence que le profil p
     expect(liensVersLaSection()).toEqual([]);
     // Le reste du menu est bien rendu : l'absence de pages d'agence n'est pas une barre vide.
     expect(screen.getByRole('link', { name: 'Tableau de bord' })).toHaveAttribute('href', '/app');
+  });
+});
+
+/**
+ * Revue de TCK-2478 (I1) — un admin d'agence qui est AUSSI bailleur ou agent, profil actif non admin :
+ * `AccesAdmin.chemins` se calcule sur l'union de l'espace, et rangeait les dix pages sous « Plus »
+ * (le persona les « ouvrait ») pendant que le reste de l'admin allait sous « Aussi administrateur ».
+ */
+describe('profil actif non admin dans un espace où le compte est admin (revue, I1)', () => {
+  it.each([
+    ['owner', ['agency_admin', 'owner', 'customer']],
+    ['agent', ['agency_admin', 'agent', 'customer']],
+  ] as const)('profil actif %s : les dix pages sous « Aussi administrateur », aucune sous « Plus »', (type, roles) => {
+    monterLaBarre(profil([...roles], 'standard', true), undefined, type);
+    const aussi = screen.getByRole('group', { name: 'Aussi administrateur' });
+    expect([...liensVersLaSection(aussi)].sort()).toEqual([...TOUTES_LES_PAGES].sort());
+    expect(liensVersLaSection(screen.getByRole('group', { name: 'Plus' }))).toEqual([]);
+    expect([...liensVersLaSection()].sort()).toEqual([...TOUTES_LES_PAGES].sort());
+  });
+
+  // TCK-1412 — aucun profil d'admin dans l'espace : seule la délégation de l'agent a ouvert « Équipe ».
+  // Elle reste à son persona ; une règle « admin seulement » la faisait disparaître du menu.
+  it('l’agent délégué (team.invite, aucun admin dans l’espace) garde « Équipe »', () => {
+    const roles: UserRole[] = ['agent', 'customer'];
+    monterLaBarre({ roles, ctx: { roles, agence: { kind: 'standard' }, capacites: ['team.invite'] } }, undefined, 'agent');
+    expect(liensVersLaSection()).toEqual(['/app/agency/team']);
+    expect(screen.queryByRole('group', { name: /^Aussi/ })).toBeNull();
   });
 });
 

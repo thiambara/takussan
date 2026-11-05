@@ -33,4 +33,9 @@ export interface ContexteDeMenu {
   readonly cheminsAdmin?: readonly string[];
   /** TCK-2478 — l'agence du profil actif est suspendue (TCK-600) : aucune écriture au menu. */
   readonly agenceSuspendue?: boolean;
+  /**
+   * TCK-2478 (revue, I1) — les rôles de l'ESPACE entier, que `composerMenu` pose quand `roles` ne
+   * porte plus que ceux du persona (`rolesDuPersona`). Absent : `roles` EST l'espace.
+   */
+  readonly rolesDeLEspace?: UserRole[];
 }

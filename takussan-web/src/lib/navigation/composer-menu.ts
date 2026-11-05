@@ -50,7 +50,7 @@ export function composerMenu(
   persona: Persona,
   disposition: Disposition = DISPOSITIONS[persona],
 ): MenuCompose {
-  const ctxPersona: ContexteDeMenu = { ...ctx, roles: rolesDuPersona(ctx.roles, persona) };
+  const ctxPersona: ContexteDeMenu = { ...ctx, roles: rolesDuPersona(ctx.roles, persona), rolesDeLEspace: ctx.roles };
   const hrefsPris = new Set<string>();
   const places = new Set<string>([...disposition.action, ...(disposition.carte ? [disposition.carte] : [])]);
 

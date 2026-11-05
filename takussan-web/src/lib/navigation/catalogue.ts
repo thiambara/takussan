@@ -104,7 +104,22 @@ function client({ roles }: ContexteDeMenu): boolean {
 /**
  * TCK-2478 (ADR-0089 §1, ADR-0064 §2) — une page d'agence au catalogue. Son libellé et son icône
  * viennent de `PAGES_ADMIN`, et son accès de `AccesAdmin.chemins` : la table reste le seul juge.
+ *
+ * Revue de TCK-2478 (I1) — `AccesAdmin.chemins` est calculé sur l'UNION de l'espace (le layout lit
+ * `user.roles`), et les capacités que l'API rend sont un OU entre les profils de l'agence
+ * (`MembershipCapabilityResolver::resolveAgencyScoped`) : ni l'un ni l'autre ne dit QUEL profil ouvre
+ * la page. Seul, ce chemin rangeait donc les pages d'agence sous « Plus » d'un bailleur ou d'un agent
+ * qui est aussi admin, au lieu de « Aussi administrateur ». La page revient au profil d'admin :
+ *  · le persona admin (ou le super-admin) l'ouvre ;
+ *  · un persona sans rôle d'admin ne l'ouvre que si AUCUN profil d'admin n'est dans l'espace — alors
+ *    seule sa propre délégation a pu la mettre dans `cheminsAdmin` (TCK-1412, `ouvertePar`). Sans
+ *    cette branche, l'agent délégué perdait « Équipe » : ni lui ni l'union ne sont admins.
  */
+function ouvreLesPagesDAgence({ roles, rolesDeLEspace = roles }: ContexteDeMenu): boolean {
+  return isAdmin(roles) || !isAdmin(rolesDeLEspace);
+}
+
+/** Voir {@link ouvreLesPagesDAgence} pour le partage entre le persona et le complément. */
 function pageAgence<const I extends string>(id: I, chemin: CheminAdmin, compteur?: NavCounterKey) {
   const page = PAGES_ADMIN.find((p) => p.chemin === chemin);
   if (!page?.menu) throw new Error(`TCK-2478 — ${chemin} n'a pas de place au menu dans PAGES_ADMIN`);
@@ -114,7 +129,7 @@ function pageAgence<const I extends string>(id: I, chemin: CheminAdmin, compteur
     cle: page.menu.cle,
     icone: page.menu.icone,
     espace: 'nav.admin' as const,
-    accessible: (ctx: ContexteDeMenu) => (ctx.cheminsAdmin ?? []).includes(chemin),
+    accessible: (ctx: ContexteDeMenu) => ouvreLesPagesDAgence(ctx) && (ctx.cheminsAdmin ?? []).includes(chemin),
     ...(compteur ? { compteur } : {}),
   };
 }
