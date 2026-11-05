@@ -144,6 +144,9 @@ class ResolveActiveProfile
                 ->values();
 
             if ($agencyIds->count() === 1) {
+                // TCK-2479 — `first()` dans l'ordre de `HasProfiles::profiles()` (bailleur,
+                // agent, admin) ; le front retient le même sans profil actif lisible :
+                // `takussan-web/src/lib/navigation/personas.ts`, `TYPE_DOMINANT`.
                 $this->bind($request, $user, $profiles->first());
             }
         }

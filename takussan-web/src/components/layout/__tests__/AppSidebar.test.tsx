@@ -444,6 +444,17 @@ describe('TCK-2478 — le complément « Aussi … » (AC2)', () => {
     expect(screen.queryByRole('link', { name: /Proposer un bien/, hidden: true })).toBeNull();
   });
 
+  // TCK-2479 — même compte, SANS profil actif lisible (la connexion ne pose pas le cookie) : l'API
+  // lie `owner:N` (auto-bascule, `ProfilesEndpointTest`), le menu suit — celui du bailleur, l'admin
+  // sous « Aussi administrateur ». L'ancien repli (admin d'abord) montait le menu de l'admin.
+  it('sans profil actif lisible : le menu du profil que l’API retient, le bailleur', () => {
+    pathname = '/app';
+    const { container } = render(barre({ ...ADMIN_AUSSI_BAILLEUR, typeProfilActif: undefined }));
+    expect(screen.getByRole('button', { name: 'Aussi administrateur' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Aussi bailleur' })).toBeNull();
+    expect(groupesRendus(container).slice(0, -1)).not.toEqual(MENU_ATTENDU['admin-agence'].groupes);
+  });
+
   it('un compte sans autre profil n’a pas de complément', () => {
     for (const persona of PERSONAS) {
       const { container, unmount } = renderSidebar(persona, '/app');

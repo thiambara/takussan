@@ -34,6 +34,16 @@ describe('TCK-2477 — resoudrePersona (ADR-0089 §2)', () => {
     ['agent+bailleur, profil actif bailleur', ['customer', 'agent', 'owner'], 'owner', false, 'bailleur'],
     // Un cookie périmé (profil suspendu, absent de `roles`) ne décide de rien.
     ['cookie périmé', ['customer', 'agent'], 'owner', false, 'agent'],
+    // TCK-2479 — SANS profil actif lisible (la connexion ne pose pas le cookie), le persona suit le
+    // profil que l'auto-bascule de l'API lie : bailleur, puis agent, puis admin
+    // (`HasProfiles::profiles()`, figé par `ProfilesEndpointTest`). L'ancien ordre (admin d'abord)
+    // rendait `admin-agence` ici, et l'API jugeait chaque requête sous `owner:N`.
+    ['admin+bailleur d’une agence standard, sans profil actif', ['customer', 'agency_admin', 'owner'], null, false, 'bailleur'],
+    ['admin+agent, sans profil actif', ['customer', 'agency_admin', 'agent'], null, false, 'agent'],
+    ['agent+bailleur, sans profil actif', ['customer', 'agent', 'owner'], null, false, 'bailleur'],
+    ['admin+bailleur, cookie périmé', ['customer', 'agency_admin', 'owner'], 'agent', false, 'bailleur'],
+    // L'hôte reste l'hôte quel que soit le type retenu (admin ou bailleur de son agence individuelle).
+    ['hôte sans profil actif', ['customer', 'agency_admin', 'owner'], null, true, 'hote'],
     ['super-admin dans un espace d’agence', ['customer', 'super_admin', 'agency_admin'], 'agency_admin', false, 'admin-agence'],
   ])('%s', (_, roles, typeProfilActif, agenceIndividuelle, attendu) => {
     expect(resoudrePersona({ roles, typeProfilActif, agenceIndividuelle })).toBe(attendu);
