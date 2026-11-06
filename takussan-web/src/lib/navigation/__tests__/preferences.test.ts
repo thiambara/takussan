@@ -5,6 +5,7 @@ import {
   epinglesApresBascule,
   estParDefaut,
   lirePreferencesDeNavigation,
+  prefsApresEpingle,
   prefsApresRepli,
   prefsDe,
   versLeCorps,
@@ -62,6 +63,21 @@ describe('les gestes', () => {
     const cinq = ['a', 'b', 'c', 'd', 'e'];
     expect(epinglesApresBascule(cinq, 'f')).toEqual(cinq);
     expect(epinglesApresBascule(cinq, 'c')).toEqual(['a', 'b', 'd', 'e']);
+  });
+
+  it('revue (M2) — épingler déplie « Épinglés » s’il était replié, dans le même geste ; désépingler n’y touche pas', () => {
+    const replie = { epingles: ['messagerie'], replies: ['epingles', 'gestion'] };
+    expect(prefsApresEpingle(replie, ['messagerie'], 'commissions')).toEqual({
+      epingles: ['messagerie', 'commissions'],
+      replies: ['gestion'],
+    });
+    expect(prefsApresEpingle(replie, ['messagerie'], 'messagerie')).toEqual({
+      epingles: [],
+      replies: ['epingles', 'gestion'],
+    });
+    // À cinq, rien ne s'ajoute : rien ne se déplie non plus.
+    const cinq = { epingles: ['a', 'b', 'c', 'd', 'e'], replies: ['epingles'] };
+    expect(prefsApresEpingle(cinq, cinq.epingles, 'f')).toEqual(cinq);
   });
 
   it('un repli n’enregistre que l’ÉCART au défaut de la disposition', () => {

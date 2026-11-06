@@ -313,6 +313,21 @@ describe('TCK-2480 — personnaliser le menu depuis la barre', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('M2 — « Épinglés » replié : épingler le déplie, la ligne reste sous les yeux (une seule écriture)', async () => {
+    const user = utilisateur();
+    const navigation = { v: 1, personas: { agent: { epingles: ['messagerie'], replies: ['epingles'] } } };
+    render(element(AGENT_ET_BAILLEUR, 'agent', { typeProfilActif: 'agent', navigation }));
+    const titre = () => within(groupe('Épinglés')).getByRole('button', { name: 'Épinglés' });
+    expect(titre()).toHaveAttribute('aria-expanded', 'false');
+    await user.click(within(groupe('Gestion')).getByRole('button', { name: 'Épingler Commissions' }));
+    expect(titre()).toHaveAttribute('aria-expanded', 'true');
+    const lien = within(groupe('Épinglés')).getByRole('link', { name: 'Commissions' });
+    expect(lien.closest('[hidden]')).toBeNull();
+    await attendreLEnvoi();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(corps()).toEqual({ navigation: { v: 1, personas: { agent: { epingles: ['messagerie', 'commissions'] } } } });
+  });
+
   it('A8 — un repli enregistré se relit au montage', () => {
     render(element(['customer', 'agent'], 'agent', { navigation: { v: 1, personas: { agent: { replies: ['gestion'] } } } }));
     expect(within(groupe('Gestion')).getByRole('button', { name: 'Gestion' })).toHaveAttribute('aria-expanded', 'false');

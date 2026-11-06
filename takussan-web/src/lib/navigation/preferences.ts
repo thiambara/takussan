@@ -107,6 +107,17 @@ export function epinglesApresBascule(rendues: readonly string[], id: string): st
   return [...rendues, id];
 }
 
+/**
+ * Le geste d'épingle : `epingles` après bascule (`epinglesApresBascule`) et, quand une épingle
+ * s'AJOUTE, « Épinglés » déplié s'il était replié — revue de TCK-2480 (M2) : l'utilisateur déplace
+ * l'entrée, il doit voir où elle va. Une seule écriture porte les deux.
+ */
+export function prefsApresEpingle(p: PreferencesDuPersona, rendues: readonly string[], id: string): PreferencesDuPersona {
+  const epingles = epinglesApresBascule(rendues, id);
+  const ajoutee = epingles.length > rendues.length;
+  return ajoutee ? { ...p, epingles, replies: (p.replies ?? []).filter((g) => g !== 'epingles') } : { ...p, epingles };
+}
+
 /** Replier (`replie`) ou ouvrir un groupe : seul l'écart au défaut de la disposition s'enregistre. */
 export function prefsApresRepli(
   p: PreferencesDuPersona,

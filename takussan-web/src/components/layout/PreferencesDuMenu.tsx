@@ -10,8 +10,8 @@ import type { Persona } from '@/lib/navigation/personas';
 import {
   NAVIGATION_VIDE,
   avecPersona,
-  epinglesApresBascule,
   lirePreferencesDeNavigation,
+  prefsApresEpingle,
   prefsApresRepli,
   prefsDe,
   versLeCorps,
@@ -203,8 +203,7 @@ export function PreferencesDuMenuProvider({
     persona,
     navigation,
     modeIcones,
-    basculerEpingle: (cible, id, rendues) =>
-      modifier(cible, (p) => ({ ...p, epingles: epinglesApresBascule(rendues, id) })),
+    basculerEpingle: (cible, id, rendues) => modifier(cible, (p) => prefsApresEpingle(p, rendues, id)),
     basculerRepli: (cible, groupe, replie, replieParDefaut) =>
       modifier(cible, (p) => prefsApresRepli(p, groupe, replie, replieParDefaut)),
     masquerDemarrer: (cible) => modifier(cible, (p) => ({ ...p, demarrer_masque: true })),
