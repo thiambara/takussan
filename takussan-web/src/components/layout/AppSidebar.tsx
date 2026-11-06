@@ -73,6 +73,12 @@ interface AppSidebarProps {
    * d'écriture ; la lecture reste.
    */
   agencySuspended?: boolean;
+  /**
+   * TCK-2483 (ADR-0089, amendement « modules par agence ») — les codes de module que l'agence du
+   * profil actif masque, passés par la coque (`modulesMasquesDe`, lu par le layout). Requis : une
+   * barre qui l'oublierait rendrait ce que l'agence a retiré.
+   */
+  readonly modulesMasques: readonly string[];
   /** TCK-2480 — le montage du tiroir (`Sheet`, sous `md`) : jamais réduit aux icônes. */
   tiroir?: boolean;
 }
@@ -465,6 +471,7 @@ export function AppSidebar({
   hasPendingUpgrade,
   typeProfilActif,
   agencySuspended = false,
+  modulesMasques,
   tiroir = false,
 }: AppSidebarProps) {
   const pathname = usePathname();
@@ -482,6 +489,7 @@ export function AppSidebar({
     agencyIsStandard,
     typeProfilActif,
     agencySuspended,
+    modulesMasques,
   });
   // TCK-2480 — les préférences du compte : le RENDU (mode icônes, épingles, replis, « Démarrer ») ;
   // la composition les a déjà lues (`useMenuDeLEspace`), dans le même contexte.

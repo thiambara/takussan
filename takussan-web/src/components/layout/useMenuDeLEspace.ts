@@ -39,9 +39,10 @@ export interface ParametresDuMenu {
   /**
    * TCK-2483 (ADR-0089, amendement « modules par agence ») — les codes de module que l'agence du
    * profil actif masque (`modulesMasquesDe`, lu par le layout de `/app`). Un fait de l'agence :
-   * `composerMenu` décide à quel persona il s'applique. Absent : aucun.
+   * `composerMenu` décide à quel persona il s'applique. REQUIS (`[]` : aucun) : `tsc` garde ainsi le
+   * branchement de chaque lecteur du menu (barre, tiroir, onglets, palette et ses récents).
    */
-  readonly modulesMasques?: readonly string[];
+  readonly modulesMasques: readonly string[];
 }
 
 export interface MenuDeLEspace {
@@ -76,7 +77,7 @@ export function useMenuDeLEspace({
   agencyIsStandard,
   typeProfilActif,
   agencySuspended = false,
-  modulesMasques = [],
+  modulesMasques,
 }: ParametresDuMenu): MenuDeLEspace {
   const accesAdmin = useAccesAdminOuRepli({
     roles: user.roles,

@@ -36,7 +36,7 @@ const hrefs = (groupes: readonly { readonly entrees: readonly { readonly href: s
 describe('TCK-2481 — useMenuDeLEspace', () => {
   it('sans préférence, la disposition et le menu rendu se rangent de même', () => {
     navigation.courante = NAVIGATION_VIDE;
-    const { result } = renderHook(() => useMenuDeLEspace({ user: utilisateur(['customer']) }));
+    const { result } = renderHook(() => useMenuDeLEspace({ modulesMasques: [], user: utilisateur(['customer']) }));
     expect(result.current.persona).toBe('client');
     expect(result.current.groupesDeLaDisposition).toEqual(result.current.groupes);
     expect(result.current.entrees).toEqual(result.current.groupes.flatMap((g) => g.entrees));
@@ -44,7 +44,7 @@ describe('TCK-2481 — useMenuDeLEspace', () => {
 
   it('une épingle range le menu rendu, jamais les groupes de la disposition (arbitrage 6)', () => {
     navigation.courante = { v: 1, personas: { client: { epingles: ['documents'] } } };
-    const { result } = renderHook(() => useMenuDeLEspace({ user: utilisateur(['customer']) }));
+    const { result } = renderHook(() => useMenuDeLEspace({ modulesMasques: [], user: utilisateur(['customer']) }));
     const { groupes, groupesDeLaDisposition } = result.current;
 
     expect(groupes[0]?.id).toBe('epingles');
@@ -57,7 +57,7 @@ describe('TCK-2481 — useMenuDeLEspace', () => {
 
     // Épingler ne change RIEN aux groupes de la disposition : les onglets ne bougent pas.
     navigation.courante = NAVIGATION_VIDE;
-    const sansEpingle = renderHook(() => useMenuDeLEspace({ user: utilisateur(['customer']) }));
+    const sansEpingle = renderHook(() => useMenuDeLEspace({ modulesMasques: [], user: utilisateur(['customer']) }));
     expect(groupesDeLaDisposition).toEqual(sansEpingle.result.current.groupesDeLaDisposition);
     expect(groupes).not.toEqual(sansEpingle.result.current.groupes);
   });
@@ -65,7 +65,7 @@ describe('TCK-2481 — useMenuDeLEspace', () => {
   it('les groupes de la disposition portent le cadenas de l’agence `individual`, comme le menu rendu', () => {
     navigation.courante = NAVIGATION_VIDE;
     const { result } = renderHook(() =>
-      useMenuDeLEspace({ user: utilisateur(['customer', 'agency_admin'], 7), agencyIsStandard: false }),
+      useMenuDeLEspace({ modulesMasques: [], user: utilisateur(['customer', 'agency_admin'], 7), agencyIsStandard: false }),
     );
     const verrous = (gs: typeof result.current.groupes) =>
       gs.flatMap((g) => g.entrees.filter((e) => e.locked).map((e) => e.href)).sort();
@@ -80,7 +80,7 @@ describe('TCK-2483 — useMenuDeLEspace pose les modules masqués par l’agence
   it('l’agent les perd dans le menu rendu ET dans les groupes de la disposition (onglets)', () => {
     navigation.courante = NAVIGATION_VIDE;
     const agent = utilisateur(['customer', 'agent'], 7);
-    const temoin = renderHook(() => useMenuDeLEspace({ user: agent })).result.current;
+    const temoin = renderHook(() => useMenuDeLEspace({ modulesMasques: [], user: agent })).result.current;
     for (const href of MASQUES) expect(hrefs(temoin.groupes), `témoin : ${href}`).toContain(href);
 
     const { result } = renderHook(() => useMenuDeLEspace({ user: agent, modulesMasques: ['calendar', 'commissions'] }));

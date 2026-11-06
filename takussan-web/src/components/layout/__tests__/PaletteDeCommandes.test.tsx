@@ -6,7 +6,7 @@
  */
 import axe from 'axe-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider, useMutation } from '@tanstack/react-query';
 import { useEffect } from 'react';
@@ -66,13 +66,13 @@ const utilisateur = (roles: UserRole[]): User =>
   ({ id: 1, first_name: 'Awa', last_name: 'Diop', full_name: 'Awa Diop', email: 'awa@example.test', roles, agency_id: 3 }) as unknown as User;
 
 const fermer = vi.fn();
-function ui(roles: UserRole[], typeProfilActif: ProfileType | null = null, ouverte = true) {
+function ui(roles: UserRole[], typeProfilActif: ProfileType | null = null, ouverte = true, modulesMasques: readonly string[] = []) {
   return withIntl(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <PaletteDeCommandes
         ouverte={ouverte}
         onOuverteChange={fermer}
-        contexteDuMenu={{ user: utilisateur(roles), agencyIsStandard: true, typeProfilActif }}
+        contexteDuMenu={{ user: utilisateur(roles), agencyIsStandard: true, typeProfilActif, modulesMasques }}
       />
     </QueryClientProvider>,
   );
@@ -306,7 +306,7 @@ describe('<PaletteDeCommandes> — TCK-2482', () => {
           <PaletteDeCommandes
             ouverte
             onOuverteChange={fermer}
-            contexteDuMenu={{ user: utilisateur(['customer', 'agent', 'owner']), agencyIsStandard: true, typeProfilActif: 'agent' }}
+            contexteDuMenu={{ user: utilisateur(['customer', 'agent', 'owner']), agencyIsStandard: true, typeProfilActif: 'agent', modulesMasques: [] }}
           />
         </QueryClientProvider>,
       ),
@@ -395,5 +395,40 @@ describe('<PaletteDeCommandes> — l’option active se voit (revue I2)', () => 
     for (const t of textes) expect(contraste(encre(t, jetons), fond!)).toBeGreaterThanOrEqual(SEUIL_AA_TEXTE);
     const icone = active!.querySelector('svg');
     expect(contraste(encre(icone, jetons), fond!)).toBeGreaterThanOrEqual(SEUIL_NON_TEXTUEL);
+  });
+});
+
+/**
+ * TCK-2483 (ADR-0089, amendement « modules par agence », AC10) — la palette MONTÉE liste le menu de la
+ * coque, jugé avec les modules que l'agence masque : une destination masquée n'y est pas proposée au
+ * personnel ; le bailleur de la même agence garde ce que sa disposition ouvre.
+ */
+describe('TCK-2483 — AC10 : la palette ne propose pas une destination masquée', () => {
+  const AGENT: UserRole[] = ['customer', 'agent'];
+  const BAILLEUR: UserRole[] = ['customer', 'owner'];
+
+  async function chercher(roles: UserRole[], typeProfilActif: ProfileType | null, modulesMasques: readonly string[], texte: string) {
+    const u = userEvent.setup();
+    render(ui(roles, typeProfilActif, true, modulesMasques));
+    await u.type(await screen.findByRole('combobox'), texte);
+    const liste = screen.queryByRole('listbox');
+    return liste ? noms(liste) : [];
+  }
+
+  it('témoin : sans module masqué, l’agent trouve « Commissions » et « États des lieux »', async () => {
+    expect(await chercher(AGENT, 'agent', [], 'commissions')).toContain('Commissions');
+    cleanup();
+    expect(await chercher(AGENT, 'agent', [], 'etats')).toContain('États des lieux');
+  });
+
+  it('l’agence masque `commissions` et `inventories` : l’agent ne les trouve plus', async () => {
+    expect(await chercher(AGENT, 'agent', ['commissions', 'inventories'], 'commissions')).not.toContain('Commissions');
+    expect(screen.getByText('Aucun résultat pour « commissions »')).toBeInTheDocument();
+    cleanup();
+    expect(await chercher(AGENT, 'agent', ['commissions', 'inventories'], 'etats')).not.toContain('États des lieux');
+  });
+
+  it('le bailleur de la même agence garde « États des lieux » (AC4)', async () => {
+    expect(await chercher(BAILLEUR, 'owner', ['inventories'], 'etats')).toContain('États des lieux');
   });
 });

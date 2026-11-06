@@ -291,7 +291,7 @@ describe('AppSidebar — table des href par persona (TCK-2478)', () => {
     render(
       withIntl(
         <QueryClientProvider client={client}>
-          <AppSidebar user={utilisateur(['service_provider'])} />
+          <AppSidebar modulesMasques={[]} user={utilisateur(['service_provider'])} />
         </QueryClientProvider>,
       ),
     );
