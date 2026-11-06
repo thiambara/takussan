@@ -285,11 +285,12 @@ describe('les files de modération gardent leur badge (TCK-098, repris de la bar
         </QueryClientProvider>,
       ),
     );
+    // TCK-2490 — « Aujourd'hui » remplace la bande « À traiter » : mêmes règles, lignes libellées.
     const pastilles = () =>
-      within(screen.getByRole('region', { name: 'À traiter' }))
+      within(screen.getByRole('region', { name: 'Aujourd’hui' }))
         .getAllByRole('link')
-        .map((l) => l.getAttribute('aria-label'));
-    await waitFor(() => expect(pastilles()).toEqual(['6 biens à valider', '3 avis à modérer']));
+        .map((l) => l.textContent?.replace(/\s+/g, ' ').trim());
+    await waitFor(() => expect(pastilles()).toEqual(['Biens à valider, 6', 'Avis à modérer, 3']));
 
     fetchAvis.mockRejectedValueOnce(new Error('panne'));
     fetchBiens.mockRejectedValueOnce(new Error('panne'));
@@ -305,7 +306,7 @@ describe('les files de modération gardent leur badge (TCK-098, repris de la bar
     // ses observateurs par un minuteur (`notifyManager`), qu'une CI chargée peut servir après `act` —
     // rouge intermittent mesuré sur la PR #1650. Le défaut gardé, lui, laisse la bande pour toujours.
     await waitFor(() => {
-      expect(screen.queryByRole('region', { name: 'À traiter' })).toBeNull();
+      expect(screen.queryByRole('region', { name: 'Aujourd’hui' })).toBeNull();
       expect(screen.queryByLabelText('3 en attente')).toBeNull();
       expect(screen.queryByLabelText('6 en attente')).toBeNull();
     });
@@ -346,7 +347,8 @@ describe('la carte « Passer en agence » (TCK-267 ; décision 1 du porteur de T
 
   it('admin individual : une carte, hors du menu', () => {
     monterLaBarre(ADMIN_INDIVIDUEL);
-    expect(screen.getByRole('link', { name: 'Passer en agence' })).toHaveAttribute('href', LIEN);
+    // TCK-2490 (ADR-0090 §6) — une ligne de statut : son nom est son texte visible, titre d'abord.
+    expect(screen.getByRole('link', { name: /^Passer en agence/ })).toHaveAttribute('href', LIEN);
     expect(document.querySelector(`nav a[href="${LIEN}"]`)).toBeNull();
   });
 

@@ -334,6 +334,9 @@
   --color-foreground: var(--foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  /* TCK-2490 — `text-primary-deep` : les compteurs de la barre de `/app`, lisibles (≥ 4,5:1) sur le
+     voile de l'entrée active, où `primary` tombe à 4,10:1 (clair) et 3,74:1 (sombre). */
+  --color-primary-deep: var(--primary-deep);
   --color-surface: var(--surface);
   --color-surface-container: var(--surface-container);
 

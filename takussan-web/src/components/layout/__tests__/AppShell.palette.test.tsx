@@ -51,6 +51,13 @@ vi.mock('@/components/owner/OwnerWelcomeWizard', () => ({ OwnerWelcomeWizard: ()
 vi.mock('@/components/tenant/TenantWelcomeWizard', () => ({ TenantWelcomeWizard: () => null }));
 
 const NOM = 'Aller à une page ou changer d’espace';
+/**
+ * TCK-2490 — deux déclencheurs portent désormais ce nom : le bouton de la barre haute et la ligne
+ * « Aller à » de la colonne. Les épreuves héritées de TCK-2482 visent le premier par son slot ; la
+ * ligne a les siennes plus bas.
+ */
+const boutonDeLaBarreHaute = () => document.querySelector<HTMLElement>('header [data-slot="ouvrir-palette"]')!;
+const ligneAllerA = () => document.querySelector<HTMLElement>('aside [data-slot="aller-a"]')!;
 const UA_MAC = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36';
 function utilisateur(roles: UserRole[]): User {
   return { id: 1, first_name: 'Awa', last_name: 'Diop', full_name: 'Awa Diop', email: 'awa@example.test', roles } as unknown as User;
@@ -108,7 +115,7 @@ describe('TCK-2482 — la palette dans la coque', () => {
   it('le bouton de la barre haute l’ouvre ; à la fermeture, le focus lui revient', async () => {
     const u = userEvent.setup();
     monter();
-    const bouton = screen.getByRole('button', { name: NOM });
+    const bouton = boutonDeLaBarreHaute();
     // Revue M2 — le raccourci annoncé est celui du libellé : Ctrl K hors Apple.
     expect(bouton).toHaveAttribute('aria-keyshortcuts', 'Control+K');
     await u.click(bouton);
@@ -123,7 +130,7 @@ describe('TCK-2482 — la palette dans la coque', () => {
     monter();
     const avant = screen.getByRole('button', { name: 'avant' });
     avant.focus();
-    const bouton = screen.getByRole('button', { name: NOM });
+    const bouton = boutonDeLaBarreHaute();
     // `fireEvent.click` ne déplace pas le focus : c'est le toucher de Safari iOS. L'élément focalisé
     // reste « avant » — le retour doit pourtant viser le bouton touché.
     fireEvent.click(bouton);
@@ -222,7 +229,7 @@ describe('TCK-2482 — la palette dans la coque', () => {
   it('revue M2 — sous macOS : Ctrl K dans un champ n’est pas annulé et n’ouvre rien ; le bouton annonce ⌘K', async () => {
     vi.spyOn(window.navigator, 'userAgent', 'get').mockReturnValue(UA_MAC);
     monter();
-    const bouton = screen.getByRole('button', { name: NOM });
+    const bouton = boutonDeLaBarreHaute();
     await waitFor(() => expect(bouton).toHaveAttribute('aria-keyshortcuts', 'Meta+K'));
     expect(bouton).toHaveTextContent('⌘');
     const champ = document.createElement('input');
@@ -293,5 +300,56 @@ describe('TCK-2483 — la coque passe les modules masqués à la barre et à la 
     await u.keyboard('{Control>}k{/Control}');
     const groupe = within(await screen.findByRole('listbox')).getByRole('group', { name: 'Récents' });
     expect(within(groupe).getAllByRole('option').map((o) => o.textContent)).toEqual(['Messagerie', 'Tableau de bord']);
+  });
+});
+
+describe('TCK-2490 (AC3) — la ligne « Aller à » de la colonne ouvre la même palette', () => {
+  it('nom accessible = le libellé de la palette, texte visible « Aller à », raccourci annoncé', async () => {
+    monter();
+    const ligne = ligneAllerA();
+    expect(ligne).toHaveAccessibleName(NOM);
+    expect(ligne).toHaveTextContent(/^Aller à/);
+    await waitFor(() => expect(ligne).toHaveAttribute('aria-keyshortcuts', 'Control+K'));
+  });
+
+  it('un clic l’ouvre sur son champ ; Échap la ferme et rend le focus à la ligne', async () => {
+    const u = userEvent.setup();
+    monter();
+    const ligne = ligneAllerA();
+    await u.click(ligne);
+    const dialogue = await screen.findByRole('dialog', { name: NOM });
+    await waitFor(() => expect(within(dialogue).getByRole('combobox')).toHaveFocus());
+    await u.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: NOM })).toBeNull());
+    expect(ligne).toHaveFocus();
+  });
+
+  it('touchée au doigt (sans focus) : le focus revient quand même à la ligne', async () => {
+    const u = userEvent.setup();
+    monter();
+    const avant = screen.getByRole('button', { name: 'avant' });
+    avant.focus();
+    const ligne = ligneAllerA();
+    fireEvent.click(ligne);
+    const dialogue = await screen.findByRole('dialog', { name: NOM });
+    await waitFor(() => expect(within(dialogue).getByRole('combobox')).toHaveFocus());
+    await u.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: NOM })).toBeNull());
+    expect(ligne).toHaveFocus();
+  });
+
+  it('depuis le tiroir : la ligne referme le tiroir, ouvre la palette, et le focus revient au bouton du menu', async () => {
+    const u = userEvent.setup();
+    monter();
+    const boutonMenu = within(screen.getByRole('navigation', { name: 'Accès rapide' })).getByRole('button', { name: 'Menu' });
+    await u.click(boutonMenu);
+    const tiroir = await screen.findByRole('dialog');
+    await u.click(tiroir.querySelector<HTMLElement>('[data-slot="aller-a"]')!);
+    const palette = await screen.findByRole('dialog', { name: NOM });
+    await waitFor(() => expect(within(palette).getByRole('combobox')).toHaveFocus());
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    await u.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(boutonMenu).toHaveFocus();
   });
 });

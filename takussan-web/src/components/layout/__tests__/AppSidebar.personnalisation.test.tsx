@@ -35,7 +35,7 @@ vi.mock('@/hooks/useProfiles', () => ({
   useMyProfiles: () => ({ data: undefined, isLoading: false }),
   useSwitchActiveProfile: () => ({ mutate: vi.fn(), isPending: false }),
 }));
-// TCK-2480 (A11) — des messages non lus quand `nonLus.n` est posé : la bande « À traiter » paraît.
+// TCK-2480 (A11) — des messages non lus quand `nonLus.n` est posé : « Aujourd'hui » paraît (TCK-2490).
 const nonLus = vi.hoisted(() => ({ n: 0 }));
 vi.mock('@/components/chat-widget/useUnreadCount', () => ({ useUnreadCount: () => nonLus.n }));
 vi.mock('@/lib/queries/visits', () => ({ usePendingVisitsCount: () => ({}) }));
@@ -419,8 +419,10 @@ describe('TCK-2480 — AC5 : rendu serveur sans saut (largeur et épingles)', ()
     conteneur.innerHTML = html;
     const barre = conteneur.querySelector('aside')!;
     expect(barre.getAttribute('data-menu')).toBe(attendu);
-    expect(barre.className).toContain('w-64');
-    expect(barre.className).toContain('icones:w-16');
+    // TCK-2490 (ADR-0090 §1, §7) — 272 px, rail de 60 px : en px, comme la maquette validée (la base
+    // de 90 % du bureau, TCK-635, ne les rétrécit pas).
+    expect(barre.className).toContain('w-[272px]');
+    expect(barre.className).toContain('icones:w-[60px]');
     // Les épingles aussi sont au premier octet.
     expect(conteneur.querySelector('[data-groupe="epingles"]')?.textContent).toContain('Commissions');
   });
@@ -478,40 +480,33 @@ describe('TCK-2480 — AC5 : rendu serveur sans saut (largeur et épingles)', ()
 });
 
 describe('TCK-2480 — A11 : les variantes compactes ne sont rendues que si la barre peut se réduire', () => {
-  it('en `complet`, ni icône « À traiter », ni lien réduit de la carte : aucun doublon à lire', () => {
+  // TCK-2490 (ADR-0090 §3, §6, §7) — plus de variante compacte à doubler : « Aujourd'hui » se cache dans
+  // le rail (le point de couleur de l'entrée comptée le relaie), la ligne de mise en location est UNE
+  // ligne dans tous les modes (son texte passe en `sr-only`, son titre en infobulle).
+  it('en `complet` : « Aujourd’hui » paraît, une seule ligne de mise en location, pas de « Déplier »', () => {
     nonLus.n = 3;
     render(element(['customer'], 'client', { modeIcones: 'complet' }));
-    expect(screen.getByRole('region', { name: fr.nav.sidebar.aTraiter.titre })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'À traiter : 3 éléments' })).toBeNull();
+    expect(screen.getByRole('region', { name: fr.nav.sidebar.aujourdhui.titre })).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: /Mettre un bien en location/ })).toHaveLength(1);
     expect(screen.queryByRole('button', { name: /Déplier la barre/ })).toBeNull();
   });
 
-  it('réduite : la bande devient une icône qui porte le total et ouvre les MÊMES pastilles', async () => {
+  it('réduite : « Aujourd’hui » se cache au CSS, l’entrée comptée porte un point, la ligne de location reste UNE', () => {
     nonLus.n = 3;
-    const user = utilisateur();
     render(element(['customer'], 'client', { modeIcones: 'icones' }));
-    const icone = screen.getByRole('button', { name: 'À traiter : 3 éléments' });
-    expect(icone).toHaveTextContent('3');
-    await user.click(icone);
-    // (jsdom n'applique pas le CSS : la bande dépliée, `icones:hidden`, reste dans le DOM à côté.)
-    const panneau = await waitFor(() => {
-      const p = document.querySelector('[data-slot="popover-content"]');
-      expect(p).not.toBeNull();
-      return p as HTMLElement;
-    });
-    const pastille = within(panneau).getByRole('link', { name: '3 messages non lus' });
-    expect(pastille).toHaveAttribute('href', '/app/messages');
-    await user.click(pastille);
-    await waitFor(() => expect(document.querySelector('[data-slot="popover-content"]')).toBeNull());
-    // La carte « Mettre un bien en location » a sa variante réduite (une icône).
-    expect(screen.getAllByRole('link', { name: /Mettre un bien en location/ })).toHaveLength(2);
+    // (jsdom n'applique pas le CSS : on lit la variante qui cache.)
+    const bloc = screen.getByRole('region', { name: fr.nav.sidebar.aujourdhui.titre });
+    expect(bloc.className.split(/\s+/)).toContain('icones:hidden');
+    const compteur = within(screen.getByRole('navigation')).getByLabelText('3 messages non lus');
+    const point = compteur.querySelector('[aria-hidden]')!;
+    expect(point.className.split(/\s+/)).toEqual(expect.arrayContaining(['hidden', 'icones:block', 'bg-primary', 'rounded-full']));
+    expect(screen.getAllByRole('link', { name: /Mettre un bien en location/ })).toHaveLength(1);
   });
 
-  it('réduite : « 99+ » au-delà de 99, par la clé ICU', () => {
+  it('réduite : au-delà de 99, le nom accessible garde le vrai compte', () => {
     nonLus.n = 250;
     render(element(['customer'], 'client', { modeIcones: 'icones' }));
-    expect(screen.getByRole('button', { name: 'À traiter : 250 éléments' })).toHaveTextContent('99+');
+    expect(within(screen.getByRole('navigation')).getByLabelText('250 messages non lus')).toHaveTextContent('99+');
   });
 
   it('en `auto`, la bascule porte les DEUX libellés (le CSS en montre un) ; en `icones`, seul « Déplier »', () => {

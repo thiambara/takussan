@@ -186,7 +186,7 @@ export function AppShell({
           <div className="flex min-h-0 flex-1 overflow-hidden">
             {pleinEcran ? null : (
               <>
-                <div className="hidden md:block md:h-full">
+                <div className="hidden md:block md:h-full md:shrink-0">
                   <AppSidebar
                     user={user}
                     agencyIsStandard={agencyIsStandard}
@@ -194,13 +194,16 @@ export function AppShell({
                     typeProfilActif={typeProfilActif}
                     agencySuspended={agencySuspended}
                     modulesMasques={modulesMasques}
+                    onOuvrirPalette={(depuis) => changerPalette(true, depuis)}
                   />
                 </div>
                 <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
                   {/* TCK-2481 — `finalFocus` explicite : au doigt, Safari iOS ne focalise pas le bouton
                       touché, et le défaut de Base UI (« l'élément focalisé à l'ouverture ») rendrait
                       le focus à `body`. Sauf fermeture par un lien (revue, M1) : `focusAuRetour`. */}
-                  <SheetContent side="left" className="p-0" aria-label={t('navLabel')} finalFocus={focusAuRetour}>
+                  {/* TCK-2490 — `bg-background` : la colonne pose son lin (`--muted` à 45 %) sur le MÊME fond
+                      que sur la coque fixe, et ses contrastes mesurés valent aussi dans le tiroir. */}
+                  <SheetContent side="left" className="bg-background p-0" aria-label={t('navLabel')} finalFocus={focusAuRetour}>
                     <AppSidebar
                       user={user}
                       onNavigate={() => {
@@ -213,6 +216,13 @@ export function AppShell({
                       agencySuspended={agencySuspended}
                       modulesMasques={modulesMasques}
                       tiroir
+                      // TCK-2490 — « Aller à » depuis le tiroir : le tiroir se ferme, la palette s'ouvre, et
+                      // c'est « Menu » (qui a ouvert le tiroir) qui reprend le focus à sa fermeture.
+                      onOuvrirPalette={() => {
+                        fermeParUnLien.current = true;
+                        setSidebarOpen(false);
+                        changerPalette(true, boutonMenu.current);
+                      }}
                     />
                   </SheetContent>
                 </Sheet>

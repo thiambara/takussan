@@ -118,38 +118,43 @@ const groupes = (racine: Element) =>
 describe('TCK-646 — le menu mobile de /app présente le même ordre (AC4)', () => {
   // TCK-2478 — la barre porte aussi l'action principale (hors du `<nav>`), les groupes repliés et la
   // carte du client : le tiroir doit les présenter à l'identique, pas seulement les liens du `<nav>`.
+  // TCK-2489 (ADR-0090 §4) — le tableau de bord n'ouvre plus le menu que pour l'admin d'agence : le
+  // premier lien est celui de la disposition, au tiroir comme au bureau.
   it.each([
-    [['agency_admin'], '/app/properties/new'],
-    [['owner'], '/app/properties/new'],
-    [['customer'], '/fr/properties'],
-  ] as [UserRole[], string][])('%j', async (roles, action) => {
+    [['agency_admin'], '/app/properties/new', '/app'],
+    [['owner'], '/app/properties/new', '/app/messages'],
+    [['customer'], '/fr/properties', '/app/messages'],
+  ] as [UserRole[], string, string][])('%j', async (roles, action, premier) => {
     const { container } = monter([...roles, 'customer']);
     const bureau = container.querySelector('aside')!;
     const tiroir = await ouvrirLeTiroir();
     expect(hrefs(tiroir)).toEqual(hrefs(bureau));
-    expect(hrefs(tiroir)[0]).toBe('/app');
+    expect(hrefs(tiroir)[0]).toBe(premier);
     expect(tousLesLiens(tiroir).filter((h) => h !== '/')).toEqual(tousLesLiens(bureau).filter((h) => h !== '/'));
     expect(groupes(tiroir)).toEqual(groupes(bureau));
     expect(tiroir.querySelector('[data-slot="action-principale"]')).toHaveAttribute('href', action);
   });
 });
 
-describe('TCK-2479 — la bande « À traiter » est aussi dans le tiroir', () => {
-  it('mêmes pastilles qu’à la barre de bureau ; un clic referme le tiroir', async () => {
+// TCK-2490 (ADR-0090 §3) — la bande « À traiter » est devenue le bloc « Aujourd’hui » : des lignes
+// libellées par l'action, même contrat au tiroir.
+describe('TCK-2479 / TCK-2490 — « Aujourd’hui » est aussi dans le tiroir', () => {
+  it('mêmes lignes qu’à la barre de bureau ; un clic referme le tiroir', async () => {
     nonLusMock.mockReturnValue(3);
     const { container } = monter(['agent']);
     const bureau = container.querySelector('aside')!;
-    const deLaBande = (racine: Element) =>
-      within(within(racine as HTMLElement).getByRole('region', { name: 'À traiter' }))
+    const duBloc = (racine: Element) =>
+      within(within(racine as HTMLElement).getByRole('region', { name: 'Aujourd’hui' }))
         .getAllByRole('link')
-        .map((l) => [l.getAttribute('aria-label'), l.getAttribute('href')]);
-    // Lue AVANT l'ouverture : le tiroir modal rend la barre de bureau `inert`.
-    const auBureau = deLaBande(bureau);
-    expect(auBureau).toEqual([['3 messages non lus', '/app/messages']]);
+        .map((l) => [l.textContent, l.getAttribute('href')]);
+    // Lu AVANT l'ouverture : le tiroir modal rend la barre de bureau `inert`.
+    const auBureau = duBloc(bureau);
+    expect(auBureau).toEqual([['Messages non lus, 3', '/app/messages']]);
 
     const tiroir = await ouvrirLeTiroir();
-    expect(deLaBande(tiroir)).toEqual(auBureau);
-    await userEvent.setup().click(within(tiroir).getByRole('link', { name: '3 messages non lus' }));
+    expect(duBloc(tiroir)).toEqual(auBureau);
+    const region = within(tiroir).getByRole('region', { name: 'Aujourd’hui' });
+    await userEvent.setup().click(within(region).getByRole('link', { name: /^Messages non lus,\s?3$/ }));
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 });

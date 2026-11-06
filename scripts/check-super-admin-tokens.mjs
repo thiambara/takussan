@@ -1787,8 +1787,11 @@ const ESPACES = [
      *
      * ⚠ **17 → 14, le 2026-11-06 (TCK-2481)** : le burger d'`AppTopbar` quitte la barre haute
      * (la barre d'onglets mobile porte « Menu ») et emporte ses trois jetons blancs.
+     *
+     * ⚠ **14 → 13, le 2026-11-06 (TCK-2490)** : l'avatar du pied de la colonne « Atelier » peint ses
+     * initiales par le jeton `--background` (`text-background`), et non plus `text-white`.
      */
-    plafondReste: 14,
+    plafondReste: 13,
     resteBilateral: true,
     ticketReste: 'TCK-384',
     natureDuReste: 'primitives partagées avec le site public',
