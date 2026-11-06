@@ -38,6 +38,13 @@
 }
 
 /*
+ * TCK-2480 (A13) — un écran sans survol (tactile). Une variante NOMMÉE plutôt que l'arbitraire
+ * `[@media(hover:none)]:` : ses parenthèses faisaient rejeter la chaîne de classes entière par le
+ * relevé de `check:classes-emises` (`scripts/classes-ecrites.mjs`), qui ne voyait plus le reste.
+ */
+@custom-variant tactile (@media (hover: none));
+
+/*
  * Design system foundation — Ancrage Local Contemporain (Lin + Contemporain).
  * TCK-129 — fondation site-wide.
  * Les noms de CSS vars (--primary, --background, etc.) sont conservés pour que
