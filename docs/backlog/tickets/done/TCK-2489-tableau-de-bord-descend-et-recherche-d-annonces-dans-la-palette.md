@@ -62,7 +62,7 @@ Décisions d'[ADR-0090](../../../adr/0090-la-coque-de-app-sans-barre-du-haut.md)
   libellé d'action par clé ; vide si tout est à zéro ; une entrée verrouillée n'y paraît pas.
 - [x] AC3 — La palette propose « Chercher un bien » et transmet le texte tapé ; test.
 - [x] AC4 — Gardes d'ADR-0089 vertes (aucune destination perdue, recensements), `check:*`, tsc, lint.
-- [ ] AC5 — Suites par la CI.
+- [x] AC5 — Suites par la CI. Web CI run 42304153038 (8432e2e17) ; aucune suite API concernée (front seul) — 2026-11-06.
 
 ## Hors périmètre
 

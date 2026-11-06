@@ -60,7 +60,7 @@ sombre.
 - [x] AC2 — Chaque fonction de la liste « rien ne se perd » a un test vert (existant adapté ou neuf).
 - [x] AC3 — « Aller à » ouvre la palette au clic et ⌘K/Ctrl K ; focus rendu à la ligne à la fermeture.
 - [x] AC4 — Contrastes ≥ 4,5:1 mesurés sur les jetons (clair et sombre), test qui rougit sur un jeton trop pâle.
-- [ ] AC5 — `check:*`, gardes, tsc, lint ; suites par la CI.
+- [x] AC5 — `check:*`, gardes, tsc, lint ; suites par la CI. Web CI run 42304153038 (8432e2e17) ; aucune suite API concernée (front seul) — 2026-11-06.
 
 ## Hors périmètre
 

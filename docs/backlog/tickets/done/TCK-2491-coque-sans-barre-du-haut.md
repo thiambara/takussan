@@ -57,7 +57,7 @@ un seul menu (espace, langue, profil, réglages, déconnexion), sobre, ancré au
 - [x] AC2 — Sous 768 px, en-tête compacte + barre d'onglets ; tiroir = colonne ; mesuré à 320/390.
 - [x] AC3 — Aucun défilement horizontal de 320 à 1440 (relevé `innerWidth`/`scrollWidth`).
 - [x] AC4 — Ordre de tabulation : évitement → (bannières) → colonne → contenu ; relevé au navigateur.
-- [ ] AC5 — `check:*`, gardes, tsc, lint ; suites par la CI.
+- [x] AC5 — `check:*`, gardes, tsc, lint ; suites par la CI. Web CI run 42304153038 (8432e2e17) ; aucune suite API concernée (front seul) — 2026-11-06.
 
 ## Hors périmètre
 
