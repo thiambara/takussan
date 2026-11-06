@@ -881,7 +881,9 @@ describe('TCK-642 — le solde dans l’entrée « Crédits » du tiroir', () =>
     expect(soldeMock).toHaveBeenCalledWith({ enabled: true });
   });
 
-  it('affiché en bout de ligne, chiffres tabulaires, caché dès `md` (la barre haute le porte)', () => {
+  // TCK-2491 — la barre haute et sa pastille sont parties : la valeur se lit à toutes les largeurs ; le
+  // rail, lui, n'a pas la place (l'infobulle nomme l'entrée, le nom accessible dit le solde).
+  it('affiché en bout de ligne, chiffres tabulaires, à toutes les largeurs (caché dans le rail seul)', () => {
     soldeMock.mockReturnValue(1250);
     renderSidebar('admin-agence', '/app');
     // `format.number` sépare les milliers d'une espace fine insécable : on la normalise.
@@ -890,7 +892,9 @@ describe('TCK-642 — le solde dans l’entrée « Crédits » du tiroir', () =>
     const valeur = lien.querySelector('[data-slot="valeur-entree"]');
     expect(valeur?.textContent?.replace(/\s/g, ' ')).toBe('1 250');
     expect(valeur?.className).toContain('tabular-nums');
-    expect(valeur?.className).toContain('md:hidden');
+    const classes = valeur?.className.split(/\s+/) ?? [];
+    expect(classes).not.toContain('md:hidden');
+    expect(classes).toContain('icones:hidden');
   });
 
   it('solde inconnu (chargement, refus, panne) : l’entrée reste nue, sans « 0 »', () => {

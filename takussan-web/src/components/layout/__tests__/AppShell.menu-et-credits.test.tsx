@@ -188,32 +188,41 @@ describe('TCK-2479 — « Démarrer » est aussi dans le tiroir', () => {
   });
 });
 
-describe('TCK-642 — la pastille de la barre haute', () => {
-  it('admin d’espace : le solde, qui mène à /app/credits, montré dès `md`', () => {
+// TCK-2491 (ADR-0090 §2) — la barre haute et sa pastille sont parties : le solde se lit sur l'entrée
+// « Crédits » de la colonne (à toutes les largeurs) et dans le menu du compte.
+describe('TCK-642, repris par TCK-2491 — le solde dans la colonne et le menu du compte', () => {
+  const colonne = () => document.querySelector('aside')!;
+  async function ouvrirLeMenuDuCompte() {
+    await userEvent.setup().click(colonne().querySelector<HTMLElement>('[data-slot="pied-du-compte"]')!);
+    return screen.findByRole('menu');
+  }
+
+  it('admin d’espace : l’entrée « Crédits » porte le solde et mène à /app/credits ; le menu du compte aussi', async () => {
     soldeMock.mockReturnValue(1250);
     monter(['agency_admin']);
-    const pastille = within(screen.getByRole('banner')).getByRole('link', {
-      name: nomNormalise('Crédits : 1 250 crédits'),
-    });
-    expect(pastille).toHaveAttribute('href', '/app/credits');
-    expect(pastille.className).toContain('hidden');
-    expect(pastille.className).toContain('md:inline-flex');
+    const entree = within(colonne()).getByRole('link', { name: nomNormalise('Crédits : 1 250 crédits') });
+    expect(entree).toHaveAttribute('href', '/app/credits');
+    const menu = await ouvrirLeMenuDuCompte();
+    const ligne = menu.querySelector('[data-slot="solde-du-compte"]')!;
+    expect(ligne.textContent?.replace(/\s/g, ' ')).toBe('Crédits1 250');
   });
 
-  it('sans droit sur le portefeuille : ni pastille, ni lecture du solde par la barre (AC2)', () => {
+  it('sans droit sur le portefeuille : ni ligne de solde, ni lecture du solde (AC2)', async () => {
     soldeMock.mockReturnValue(1250);
     monter(['agent']);
-    expect(within(screen.getByRole('banner')).queryByRole('link', { name: /Crédits/ })).toBeNull();
-    // La barre latérale arme le solde par la présence de l'entrée — absente pour l'agent.
+    // Le menu du compte et la colonne n'arment le solde que pour qui voit le portefeuille.
     for (const [options] of soldeMock.mock.calls) expect(options.enabled).toBe(false);
+    const menu = await ouvrirLeMenuDuCompte();
+    expect(menu.querySelector('[data-slot="solde-du-compte"]')).toBeNull();
   });
 
-  it('solde inconnu (refus, panne, chargement) : aucune pastille, aucun « 0 » (AC5)', () => {
+  it('solde inconnu (refus, panne, chargement) : aucune ligne, aucun « 0 » (AC5)', async () => {
     soldeMock.mockReturnValue(null);
     monter(['agency_admin']);
-    const barre = screen.getByRole('banner');
-    expect(barre.querySelector('[data-slot="pastille-credits"]')).toBeNull();
-    expect(within(barre).queryByText('0')).toBeNull();
+    expect(colonne().querySelector('[data-slot="valeur-entree"]')).toBeNull();
+    const menu = await ouvrirLeMenuDuCompte();
+    expect(menu.querySelector('[data-slot="solde-du-compte"]')).toBeNull();
+    expect(within(menu).queryByText('0')).toBeNull();
   });
 
   it('dans le tiroir : l’entrée « Crédits » porte le solde et mène à /app/credits (AC3)', async () => {

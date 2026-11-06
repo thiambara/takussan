@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { User } from '@/types/user';
 import type { ProfileType } from '@/types/profile';
-import { AppTopbar } from './AppTopbar';
+import { EnTeteMobile } from './EnTeteMobile';
 import { AppSidebar } from './AppSidebar';
 import { BarreDOnglets } from './BarreDOnglets';
 import { PaletteDeCommandes, RetenirLaPageRecente } from './PaletteDeCommandes';
@@ -96,7 +96,8 @@ export function AppShell({
     }
     return boutonMenu.current; // Échap, voile : « Menu » (arbitrage 10)
   };
-  // TCK-2482 — la palette de commandes : une par coque, ouverte par ⌘K / Ctrl K ou par la barre haute.
+  // TCK-2482 — la palette de commandes : une par coque, ouverte par ⌘K / Ctrl K, par « Aller à » de la
+  // colonne ou par le bouton de l'en-tête mobile (TCK-2491).
   // A7 — l'élément focalisé à l'ouverture (le bouton touché, que Safari iOS ne focalise pas) reçoit le
   // focus à la fermeture ; la palette retombe sur le défaut de Base UI s'il a quitté le DOM.
   const [paletteOuverte, setPaletteOuverte] = useState(false);
@@ -176,13 +177,15 @@ export function AppShell({
       >
         {/* TCK-2481 — `data-barre-onglets` : la coque porte la barre d'onglets (sous `md`). */}
         <div className="flex h-dvh flex-col bg-background" data-barre-onglets={barreDOnglets ? '' : undefined}>
-          {/* TCK-905 (P31.04) — avant la bannière, la barre haute et la barre latérale. */}
+          {/* TCK-905 (P31.04) — avant la bannière, l'en-tête mobile et la colonne. */}
           <LienEvitement />
           {/* TCK-600 (ADR-0055) — la session d'impersonation, lue sur le serveur du front : rien
               ne s'affiche hors session. Au-dessus de la barre : elle ne défile pas avec la page. */}
           <ImpersonationBanner />
           {agencySuspended ? <AgencySuspendedBanner /> : null}
-          {pleinEcran ? null : <AppTopbar user={user} onOuvrirPalette={(depuis) => changerPalette(true, depuis)} />}
+          {/* TCK-2491 (ADR-0090 §2, §8) — plus de barre du haut : dès `md`, la colonne porte la marque, la
+              cloche et le compte ; sous `md`, une en-tête compacte (marque, « Aller à », cloche). */}
+          {pleinEcran ? null : <EnTeteMobile onOuvrirPalette={(depuis) => changerPalette(true, depuis)} />}
           <div className="flex min-h-0 flex-1 overflow-hidden">
             {pleinEcran ? null : (
               <>

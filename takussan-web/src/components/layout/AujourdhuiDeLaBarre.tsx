@@ -65,7 +65,7 @@ export function AujourdhuiDeLaBarre({ lignes, entrees, onNavigate }: AujourdhuiD
                   data-slot="compte-aujourdhui"
                   className={cn(
                     'inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-md px-1.5 text-[11.5px] font-semibold tabular-nums',
-                    rang === 0 ? 'bg-primary text-primary-foreground' : 'bg-foreground/7 text-foreground/75',
+                    rang === 0 ? 'bg-primary text-primary-foreground' : 'bg-foreground/7 text-foreground',
                   )}
                 >
                   {ligne.nombre}

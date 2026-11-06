@@ -4,7 +4,7 @@
  * éprouvés dans `AppSidebar.test.tsx`, les contrastes dans `AppSidebar.contraste.test.tsx`.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -17,9 +17,12 @@ import { AppSidebar } from '../AppSidebar';
 import { RECENTS_DE_LA_BARRE } from '../RecentsDeLaBarre';
 
 const chemin = vi.hoisted(() => ({ courant: '/app' }));
+const routeur = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }));
+const choisirLangue = vi.hoisted(() => vi.fn());
+const deconnecter = vi.hoisted(() => vi.fn(() => Promise.resolve()));
 vi.mock('next/navigation', () => ({
   usePathname: () => chemin.courant,
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
+  useRouter: () => routeur,
   useSearchParams: () => new URLSearchParams(''),
 }));
 vi.mock('@/hooks/useCan', () => ({
@@ -37,6 +40,16 @@ vi.mock('@/lib/queries/visits', () => ({ usePendingVisitsCount: () => ({}) }));
 vi.mock('@/lib/queries/contact-leads', () => ({ useUnhandledLeadsCount: () => ({}) }));
 vi.mock('@/lib/queries/credits-solde', () => ({ useSoldeCredits: () => null }));
 vi.mock('@/lib/queries/demarrage-espace', () => ({ useDemarrageDeLEspace: () => ({}) }));
+vi.mock('@/hooks/useChangementDeLangue', () => ({
+  useChangementDeLangue: () => ({ locale: 'fr', enCours: false, choisir: choisirLangue }),
+}));
+vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: null, token: null, logout: deconnecter }) }));
+vi.mock('@/app/actions/notifications', () => ({
+  getNotificationsAction: () => Promise.resolve({ ok: true, data: { data: [], meta: { total: 0, unread: 0, current_page: 1 } } }),
+  markNotificationReadAction: vi.fn(),
+  markNotificationUnreadAction: vi.fn(),
+  markAllNotificationsReadAction: vi.fn(),
+}));
 
 const ROLES: UserRole[] = ['customer', 'agent'];
 const USER = { id: 42, first_name: 'Awa', last_name: 'Diop', full_name: 'Awa Diop', email: 'awa@example.sn', roles: ROLES } as unknown as User;
@@ -91,12 +104,83 @@ describe('TCK-2490 (ADR-0090 §2) — l’ordre de la colonne est l’ordre de l
     expect(ouvrir).toHaveBeenCalledWith(ligne);
   });
 
-  it('le pied du compte : le nom, puis « espace · rôle », vers le profil', () => {
+  it('le pied du compte : le nom, puis « espace · rôle » ; son nom accessible est ce texte, il ouvre un menu', () => {
     const { container } = monter();
-    const pied = container.querySelector('[data-slot="pied-du-compte"]')!;
-    expect(pied).toHaveAttribute('href', '/app/profile');
-    expect(pied).toHaveTextContent('Awa Diop');
-    expect(pied).toHaveTextContent('Teranga Immo · Agent');
+    const pied = container.querySelector<HTMLElement>('[data-slot="pied-du-compte"]')!;
+    expect(pied.tagName).toBe('BUTTON');
+    expect(pied).toHaveAttribute('aria-haspopup', 'menu');
+    expect(pied).toHaveAccessibleName(/^Awa Diop,\s?Teranga Immo · Agent$/);
+  });
+});
+
+describe('TCK-2491 (ADR-0090 §2) — l’en-tête de la colonne et le menu du compte', () => {
+  it('en-tête : la marque, la cloche, puis « Replier » ; pas de cloche dans le tiroir (l’en-tête mobile a la sienne)', () => {
+    const { container, unmount } = monter();
+    const cloche = container.querySelector('aside [data-slot="cloche"]')!;
+    expect(cloche).toHaveAccessibleName('Notifications');
+    const marque = container.querySelector('aside [data-slot="marque"]')!;
+    expect(marque.compareDocumentPosition(cloche) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(cloche.compareDocumentPosition(container.querySelector('[data-slot="action-principale"]')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    unmount();
+
+    const tiroir = render(
+      withIntl(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <AccesAdminProvider acces={accesDepuis({ roles: ROLES, agence: { kind: 'standard' }, capacites: [] })}>
+            <AppSidebar modulesMasques={[]} user={USER} agencyIsStandard typeProfilActif={null} tiroir />
+          </AccesAdminProvider>
+        </QueryClientProvider>,
+      ),
+    );
+    expect(tiroir.container.querySelector('[data-slot="cloche"]')).toBeNull();
+    expect(tiroir.container.querySelector('[data-slot="pied-du-compte"]')).not.toBeNull();
+  });
+
+  it('le menu : profil, préférences, langue (cochée), déconnexion — chaque choix fait ce que faisait la barre du haut', async () => {
+    const u = userEvent.setup();
+    const onNavigate = vi.fn();
+    const { container } = render(
+      withIntl(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <AccesAdminProvider acces={accesDepuis({ roles: ROLES, agence: { kind: 'standard' }, capacites: [] })}>
+            <AppSidebar modulesMasques={[]} user={USER} agencyIsStandard typeProfilActif={null} tiroir onNavigate={onNavigate} />
+          </AccesAdminProvider>
+        </QueryClientProvider>,
+      ),
+    );
+    const pied = container.querySelector<HTMLElement>('[data-slot="pied-du-compte"]')!;
+    await u.click(pied);
+    let menu = await screen.findByRole('menu');
+    expect(within(menu).getByText('awa@example.sn')).toBeInTheDocument();
+    // La langue : trois `menuitemradio`, la courante cochée, chacune nommée dans SA langue.
+    const langues = within(menu).getAllByRole('menuitemradio');
+    expect(langues.map((l) => [l.textContent, l.getAttribute('aria-checked'), l.getAttribute('lang')])).toEqual([
+      ['FrançaisFR', 'true', 'fr'],
+      ['EnglishEN', 'false', 'en'],
+      ['WolofWO', 'false', 'wo'],
+    ]);
+    await u.click(langues[1]!);
+    expect(choisirLangue).toHaveBeenCalledWith('en');
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
+
+    // Le profil : le tiroir se referme (onNavigate), puis la navigation.
+    await u.click(pied);
+    menu = await screen.findByRole('menu');
+    await u.click(within(menu).getByRole('menuitem', { name: 'Mon profil' }));
+    expect(onNavigate).toHaveBeenCalled();
+    expect(routeur.push).toHaveBeenCalledWith('/app/profile');
+
+    await u.click(pied);
+    menu = await screen.findByRole('menu');
+    await u.click(within(menu).getByRole('menuitem', { name: 'Préférences de notification' }));
+    expect(routeur.push).toHaveBeenCalledWith('/app/profile/notifications');
+
+    // La déconnexion : la session tombe par le contexte, puis l'accueil localisé.
+    await u.click(pied);
+    menu = await screen.findByRole('menu');
+    await u.click(within(menu).getByRole('menuitem', { name: 'Déconnexion' }));
+    expect(deconnecter).toHaveBeenCalled();
+    await waitFor(() => expect(routeur.replace).toHaveBeenCalledWith('/fr'));
   });
 });
 

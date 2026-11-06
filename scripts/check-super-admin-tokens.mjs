@@ -1521,7 +1521,11 @@ const PERIMETRES_APP = [
   // TCK-358. Sans eux, ils tombaient dans le reste : gardés par personne, à zéro par chance.
   // Les répertoires PARTAGÉS avec le site public : seuls les fichiers que `/app` monte
   // réellement entrent — cf. le docblock du type `cloture`.
-  ...['bookings', 'compare', 'favorites', 'maintenance', 'search']
+  //
+  // ⚠ `search` en sort le 2026-11-06 (TCK-2491, ADR-0090) : `/app` n'a plus de barre du haut, et la
+  // recherche d'annonces qu'elle montait (`SearchAutocomplete`) vit dans la palette. Sa clôture depuis
+  // `/app` est VIDE — la garde l'a nommée « périmètre introuvable », comme elle le doit.
+  ...['bookings', 'compare', 'favorites', 'maintenance']
     .map((d) => ({ type: 'cloture', chemin: join(WEB_SRC, 'components', d) })),
   //
   // TCK-649 (ADR-0064) — LA CONSOLE D'AGENCE ENTRE DANS `/app`. Ses pages ont déménagé de
@@ -1790,8 +1794,13 @@ const ESPACES = [
      *
      * ⚠ **14 → 13, le 2026-11-06 (TCK-2490)** : l'avatar du pied de la colonne « Atelier » peint ses
      * initiales par le jeton `--background` (`text-background`), et non plus `text-white`.
+     *
+     * ⚠ **13 → 0, le 2026-11-06 (TCK-2491, ADR-0090)** : `/app` n'a plus de barre du haut. `AppTopbar`
+     * est retirée, `UserMenu` n'est plus monté que par la console, et la cloche (`NotificationBell`)
+     * passe aux jetons (surfaces claires, pastille `bg-primary`). Le reste de `/app` est vide : tout
+     * nouveau littéral de couleur monté par `/app` rougit, gardé ou non.
      */
-    plafondReste: 13,
+    plafondReste: 0,
     resteBilateral: true,
     ticketReste: 'TCK-384',
     natureDuReste: 'primitives partagées avec le site public',

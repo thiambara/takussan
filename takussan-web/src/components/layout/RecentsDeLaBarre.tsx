@@ -88,7 +88,7 @@ export function RecentsDeLaBarre({ compte, groupes, pathname, libelle, lien, onN
               href={lien(entree)}
               onClick={onNavigate}
               className={cn(
-                'flex h-8 items-center rounded-lg px-2.5 text-[13.5px] text-foreground/75 transition-colors hover:bg-foreground/5 hover:text-foreground max-md:h-10',
+                'flex h-8 items-center rounded-lg px-2.5 text-[13.5px] text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground max-md:h-10',
                 FOCUS_RING_RENTRANT,
               )}
             >

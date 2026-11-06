@@ -24,7 +24,7 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ user: auth.user, token: 'jeton', isLoading: false, logout: vi.fn() }),
 }));
-vi.mock('../AppTopbar', () => ({ AppTopbar: () => null }));
+vi.mock('../EnTeteMobile', () => ({ EnTeteMobile: () => null }));
 vi.mock('../AppSidebar', () => ({ AppSidebar: () => null }));
 // TCK-2481 — la barre d'onglets compose le menu et sonde ses compteurs, comme la barre latérale :
 // ce fichier ne compte que les lectures des assistants.

@@ -35,8 +35,12 @@ export const STYLE_TITRE = 'text-[12.5px] font-medium text-muted-foreground';
 export const STYLE_LIGNE =
   'flex h-9 min-w-0 items-center gap-3 rounded-lg px-2.5 text-[14px] max-md:h-10 icones:justify-center icones:px-0';
 
-/** TCK-2490 — la ligne au repos et au survol (voile d'encre à 5 %). */
-export const STYLE_LIGNE_REPOS = 'text-foreground/80 hover:bg-foreground/5 hover:text-foreground';
+/**
+ * TCK-2490 — la ligne au repos et au survol (voile d'encre à 5 %). L'encre est PLEINE : la maquette
+ * atténuait le repos à 80 %, mais une encre de texte ne s'atténue pas par l'opacité (TCK-658, P07.02 —
+ * `encre-sans-alpha.contraste.test.ts`). La hiérarchie vient du voile et de la graisse de l'actif.
+ */
+export const STYLE_LIGNE_REPOS = 'text-foreground hover:bg-foreground/5';
 
 /** TCK-2490 — la ligne active : voile d'encre à 8 %, libellé appuyé. */
 export const STYLE_LIGNE_ACTIVE = 'bg-foreground/8 font-medium text-foreground';

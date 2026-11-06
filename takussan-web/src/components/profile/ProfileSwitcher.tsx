@@ -1,8 +1,7 @@
 'use client';
 
-import { Check, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useMemo } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,27 +44,76 @@ const TYPE_ORDER: ProfileType[] = [...PROFILE_TYPES].sort((a, b) => TYPE_RANK[a]
 interface ProfileSwitcherProps {
   readonly user: User;
   readonly className?: string;
-  /**
-   * TCK-2478 — `barre` (défaut) : le déclencheur de la barre haute, inchangé. `carte` : l'en-tête
-   * d'espace de la barre latérale (`EnTeteDEspace`), une carte pleine largeur visible à TOUTES les
-   * largeurs — elle vit aussi dans le tiroir mobile, qui recouvre la barre haute.
-   */
-  readonly variante?: 'barre' | 'carte';
-  /** `carte` — le libellé du persona (« Administrateur »), seconde ligne de la carte. */
-  readonly libelle?: string;
-  /** `carte` — le verbe du déclencheur (« Changer d’espace »), en tête de son nom accessible. */
-  readonly libelleChanger?: string;
 }
 
-const STYLE_CARTE = 'flex w-full items-center gap-2 rounded-lg border bg-muted/60 px-3 py-2 text-left text-foreground';
+/**
+ * Les espaces du compte, regroupés par type et dans l'ordre de `TYPE_ORDER` — la lecture et la bascule
+ * de profil (`useMyProfiles`, `useSwitchActiveProfile`), partagées par le sélecteur ci-dessous et par le
+ * menu du compte de la colonne de `/app` (TCK-2491, ADR-0090 §2).
+ */
+function useEspacesDuCompte() {
+  const profilesQuery = useMyProfiles();
+  const switchMutation = useSwitchActiveProfile();
+  const activeId = profilesQuery.data?.meta.active_profile_id ?? null;
+  // TCK-497 — ce qu'on PROPOSE n'est plus exactement ce que l'API LISTE. Une
+  // agence `individual` porte deux profils pour une seule personne, dont le
+  // sélecteur tirait deux lignes identiques au caractère près. Le contrat ne
+  // change pas — `espacesAProposer` ne fusionne que l'affichage, et le résolveur
+  // de capacités fait déjà un OR entre les profils d'une même agence.
+  const profiles = espacesAProposer(profilesQuery.data?.data ?? [], activeId);
+  const grouped = new Map<ProfileType, Profile[]>();
+  for (const type of TYPE_ORDER) grouped.set(type, []);
+  for (const p of profiles) grouped.get(p.type)?.push(p);
+  return { profilesQuery, switchMutation, activeId, profiles, grouped };
+}
 
-/** Le contenu de la carte : le nom de l'agence en gras, puis le persona ; le persona seul sans agence. */
-function ContenuDeCarte({ nom, libelle }: { readonly nom: string | null; readonly libelle: string }) {
+/**
+ * TCK-2491 — les éléments de menu des espaces (un groupe par type, l'espace actif coché), à poser DANS
+ * un `DropdownMenuContent`. Rien quand il n'y a pas de choix (aucun espace, ou un seul) : il n'y a alors
+ * rien à changer, et le pied de la colonne dit déjà l'espace.
+ */
+export function EspacesDuMenu({ titre }: { readonly titre?: string }) {
+  const tTypes = useTranslations('profile.types');
+  const { switchMutation, activeId, profiles, grouped } = useEspacesDuCompte();
+  if (profiles.length <= 1) return null;
   return (
-    <span className="min-w-0 flex-1">
-      <span className="block truncate text-sm font-semibold">{nom ?? libelle}</span>
-      {nom ? <span className="block truncate text-xs text-muted-foreground">{libelle}</span> : null}
-    </span>
+    <>
+      {titre ? <DropdownMenuLabel className="pb-0 font-medium text-foreground">{titre}</DropdownMenuLabel> : null}
+      {TYPE_ORDER.map((type) => {
+        const list = grouped.get(type) ?? [];
+        if (list.length === 0) return null;
+        return (
+          <div key={type} role="group" aria-label={profileTypeLabel(type, tTypes)}>
+            <DropdownMenuLabel>{profileTypeLabel(type, tTypes)}</DropdownMenuLabel>
+            {list.map((profile) => {
+              const isActive = profile.id === activeId;
+              return (
+                <DropdownMenuItem
+                  key={profile.id}
+                  data-testid={`profile-switcher-item-${profile.id}`}
+                  aria-current={isActive ? 'true' : undefined}
+                  disabled={switchMutation.isPending}
+                  onClick={() => {
+                    if (isActive || switchMutation.isPending) return;
+                    switchMutation.mutate(profile.id);
+                  }}
+                  className="flex items-start justify-between gap-3"
+                >
+                  <span className="flex flex-col">
+                    <span className="font-medium">{profile.agency?.name ?? profileTypeLabel(type, tTypes)}</span>
+                    {slugAAfficher(profile) ? (
+                      <span className="text-xs text-muted-foreground">{slugAAfficher(profile)}</span>
+                    ) : null}
+                  </span>
+                  {isActive ? <Check className="size-4 text-success" aria-hidden="true" /> : null}
+                </DropdownMenuItem>
+              );
+            })}
+            <DropdownMenuSeparator />
+          </div>
+        );
+      })}
+    </>
   );
 }
 
@@ -75,66 +123,19 @@ function ContenuDeCarte({ nom, libelle }: { readonly nom: string | null; readonl
  * Pure-admin users (no profile, super_admin / agency_admin without persona)
  * see "Admin Takussan".
  */
-export function ProfileSwitcher({
-  user,
-  className,
-  variante = 'barre',
-  libelle = '',
-  libelleChanger = '',
-}: ProfileSwitcherProps) {
+export function ProfileSwitcher({ user, className }: ProfileSwitcherProps) {
   const t = useTranslations('profile.switcher');
   const tTypes = useTranslations('profile.types');
-  const profilesQuery = useMyProfiles();
-  const switchMutation = useSwitchActiveProfile();
-
-  const activeId = profilesQuery.data?.meta.active_profile_id ?? null;
-  // TCK-497 — ce qu'on PROPOSE n'est plus exactement ce que l'API LISTE. Une
-  // agence `individual` porte deux profils pour une seule personne, dont le
-  // sélecteur tirait deux lignes identiques au caractère près. Le contrat ne
-  // change pas — `espacesAProposer` ne fusionne que l'affichage, et le résolveur
-  // de capacités fait déjà un OR entre les profils d'une même agence.
-  const profiles = espacesAProposer(profilesQuery.data?.data ?? [], activeId);
+  const { profilesQuery, switchMutation, activeId, profiles } = useEspacesDuCompte();
   const active = profiles.find((p) => p.id === activeId) ?? null;
 
-  const grouped = useMemo(() => {
-    const map = new Map<ProfileType, Profile[]>();
-    for (const t of TYPE_ORDER) map.set(t, []);
-    for (const p of profiles) {
-      const list = map.get(p.type);
-      if (list) list.push(p);
-    }
-    return map;
-  }, [profiles]);
-
-  const carte = variante === 'carte';
-
   if (profilesQuery.isLoading) {
-    if (carte) {
-      return (
-        <span
-          data-testid="profile-switcher-loading"
-          className={cn('block h-12 w-full animate-pulse rounded-lg bg-muted', className)}
-          aria-hidden="true"
-        />
-      );
-    }
     return (
       <span
         data-testid="profile-switcher-loading"
         className={cn('h-8 w-32 animate-pulse rounded-md bg-card/10', className)}
         aria-hidden="true"
       />
-    );
-  }
-
-  // TCK-2478 — la carte sans choix (aucun profil, ou un seul espace) : la même carte, sans bouton ni
-  // chevron. Un client sans profil y lit son persona (« Client »).
-  if (carte && profiles.length <= 1) {
-    const seul = profiles[0] ?? null;
-    return (
-      <div data-testid="profile-switcher-static" className={cn(STYLE_CARTE, className)}>
-        <ContenuDeCarte nom={seul?.agency?.name ?? null} libelle={libelle} />
-      </div>
     );
   }
 
@@ -171,82 +172,29 @@ export function ProfileSwitcher({
     );
   }
 
-  const nomCarte = active?.agency?.name ?? (active ? null : t('choose'));
-
   return (
     <DropdownMenu>
-      {carte ? (
-        <DropdownMenuTrigger
-          data-testid="profile-switcher-trigger"
-          aria-label={[libelleChanger, nomCarte, libelle].filter(Boolean).join(' — ')}
-          disabled={switchMutation.isPending}
-          className={cn(
-            STYLE_CARTE,
-            'outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60',
-            className,
-          )}
-        >
-          <ContenuDeCarte nom={nomCarte} libelle={libelle} />
-          <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-        </DropdownMenuTrigger>
-      ) : (
-        <DropdownMenuTrigger
-          data-testid="profile-switcher-trigger"
-          aria-label={t('changeAria')}
-          disabled={switchMutation.isPending}
-          className={cn(
-            'inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm outline-none transition-colors text-primary-foreground hover:bg-card/10 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60',
-            className,
-          )}
-        >
-          {active ? (
-            <>
-              <ProfileBadge profile={active} variant="dot" className="ring-1 ring-primary-foreground/70" />
-              <span className="hidden lg:inline truncate max-w-[14rem]">{profileShortLabel(active, tTypes)}</span>
-            </>
-          ) : (
-            <span>{t('choose')}</span>
-          )}
-          <ChevronDown className="size-4" aria-hidden="true" />
-        </DropdownMenuTrigger>
-      )}
-      <DropdownMenuContent align={carte ? 'start' : 'end'} className="min-w-64">
-        {TYPE_ORDER.map((type) => {
-          const list = grouped.get(type) ?? [];
-          if (list.length === 0) return null;
-          return (
-            <div key={type} role="group" aria-label={profileTypeLabel(type, tTypes)}>
-              <DropdownMenuLabel>{profileTypeLabel(type, tTypes)}</DropdownMenuLabel>
-              {list.map((profile) => {
-                const isActive = profile.id === activeId;
-                return (
-                  <DropdownMenuItem
-                    key={profile.id}
-                    data-testid={`profile-switcher-item-${profile.id}`}
-                    aria-current={isActive ? 'true' : undefined}
-                    disabled={switchMutation.isPending}
-                    onClick={() => {
-                      if (isActive || switchMutation.isPending) return;
-                      switchMutation.mutate(profile.id);
-                    }}
-                    className="flex items-start justify-between gap-3"
-                  >
-                    <span className="flex flex-col">
-                      <span className="font-medium">{profile.agency?.name ?? profileTypeLabel(type, tTypes)}</span>
-                      {slugAAfficher(profile) ? (
-                        <span className="text-xs text-muted-foreground">
-                          {slugAAfficher(profile)}
-                        </span>
-                      ) : null}
-                    </span>
-                    {isActive ? <Check className="size-4 text-success" aria-hidden="true" /> : null}
-                  </DropdownMenuItem>
-                );
-              })}
-              <DropdownMenuSeparator />
-            </div>
-          );
-        })}
+      <DropdownMenuTrigger
+        data-testid="profile-switcher-trigger"
+        aria-label={t('changeAria')}
+        disabled={switchMutation.isPending}
+        className={cn(
+          'inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm outline-none transition-colors text-primary-foreground hover:bg-card/10 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60',
+          className,
+        )}
+      >
+        {active ? (
+          <>
+            <ProfileBadge profile={active} variant="dot" className="ring-1 ring-primary-foreground/70" />
+            <span className="hidden lg:inline truncate max-w-[14rem]">{profileShortLabel(active, tTypes)}</span>
+          </>
+        ) : (
+          <span>{t('choose')}</span>
+        )}
+        <ChevronDown className="size-4" aria-hidden="true" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-64">
+        <EspacesDuMenu />
       </DropdownMenuContent>
     </DropdownMenu>
   );

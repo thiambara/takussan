@@ -1,20 +1,18 @@
 'use client';
 
-import { useId, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useId, useRef, useState, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronDown, Lock, PanelLeftClose, PanelLeftOpen, Pin, Plus, PlusCircle, Search, ShieldCheck, UserRound } from 'lucide-react';
+import { ChevronDown, Lock, PanelLeftClose, PanelLeftOpen, Pin, Plus, PlusCircle, Search, ShieldCheck } from 'lucide-react';
 import type { User } from '@/types/user';
 import { isSuperAdmin } from '@/lib/roles';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ProUpgradeCard } from './ProUpgradeCard';
 import { CarteDeMiseEnLocation } from './CarteDeMiseEnLocation';
 import { useFormatter, useTranslations } from 'next-intl';
 import { Logo } from '@/components/brand/Logo';
 import { cn } from '@/lib/utils';
-import { initialesDe, libelleDe } from '@/lib/identite';
 import { useCurrentLocale } from '@/i18n/hooks';
 import { cheminLocalise } from '@/i18n/routing';
 import { APP_EXACT_ROOTS, resolveActiveHref } from '@/lib/navigation/active-path';
@@ -34,8 +32,9 @@ import { useIconesEffectives } from '@/lib/navigation/use-icones-effectives';
 import type { ProfileType } from '@/types/profile';
 import { useSoldeCredits } from '@/lib/queries/credits-solde';
 import { lignesAujourdhui } from '@/lib/navigation/a-traiter';
-import { useMyProfiles } from '@/hooks/useProfiles';
 import { AujourdhuiDeLaBarre } from './AujourdhuiDeLaBarre';
+import { MenuDuCompte } from './MenuDuCompte';
+import { NotificationBell } from './NotificationBell';
 import { DemarrerDeLEspace } from './DemarrerDeLEspace';
 import { LigneDeStatut } from './LigneDeStatut';
 import { RecentsDeLaBarre } from './RecentsDeLaBarre';
@@ -54,7 +53,7 @@ import {
   TRAIT_D_ICONE,
 } from './styles-de-la-barre';
 import { usePreferencesDuMenu } from './PreferencesDuMenu';
-import { estSurApple } from './usePaletteDeCommandes';
+import { raccourciDeLaPalette, useSurApple } from './useSurApple';
 import { useMenuDeLEspace, type EntreeRendue } from './useMenuDeLEspace';
 import { COMPTEURS_DE_MODERATION, useCompteursDuMenu } from './useCompteursDuMenu';
 
@@ -213,7 +212,7 @@ function SidebarItem({
                 ? 'font-medium text-foreground'
                 : emphasized
                   ? 'font-medium text-foreground'
-                  : 'text-foreground/80 group-hover/ligne:text-foreground',
+                  : 'text-foreground',
             )}
           />
         }
@@ -223,12 +222,12 @@ function SidebarItem({
         {counterKey && counter && counter > 0 ? (
           <SidebarCounter value={counter} label={libelleCompteur(counterKey, counter)} />
         ) : null}
-        {/* `md:hidden` : à partir de `md`, la pastille de la barre haute porte déjà le solde — la
-            valeur ne s'affiche que dans le tiroir, le « menu mobile » de `/app`. */}
+        {/* TCK-2491 — la barre du haut et sa pastille sont parties : la valeur se lit ici à toutes les
+            largeurs (et dans le menu du compte) ; dans le rail, l'infobulle nomme l'entrée. */}
         {valeur !== undefined ? (
           <span
             data-slot="valeur-entree"
-            className="ml-auto shrink-0 text-[12.5px] font-medium tabular-nums text-foreground/70 md:hidden"
+            className="ml-auto shrink-0 text-[12.5px] font-medium tabular-nums text-foreground icones:hidden"
           >
             {valeur}
           </span>
@@ -266,49 +265,6 @@ function SidebarItem({
         </button>
       ) : null}
     </div>
-  );
-}
-
-interface PiedDuCompteProps {
-  readonly user: User;
-  readonly libelleRole: string;
-  readonly onNavigate?: () => void;
-}
-
-/**
- * TCK-2490 (ADR-0090 §2) — le compte, au pied de la colonne : avatar, nom, « espace · rôle ». Le seul
- * endroit où le profil se lit (l'en-tête d'espace du haut de barre, qui le répétait, est retiré).
- */
-function PiedDuCompte({ user, libelleRole, onNavigate }: PiedDuCompteProps) {
-  const t = useTranslations('nav');
-  // TCK-623 — un compte sans nom (téléphone, OAuth) : une silhouette, et ce qui désigne le compte.
-  const initials = initialesDe(user);
-  const libelle = libelleDe(user) ?? t('accountFallback');
-  // Le nom de l'espace actif : la même lecture (et le même cache) que le sélecteur de profil.
-  const { data: profils } = useMyProfiles();
-  const actif = profils?.data.find((p) => p.id === profils.meta.active_profile_id) ?? null;
-  const espace = [actif?.agency?.name, libelleRole].filter(Boolean).join(' · ');
-  return (
-    <Link
-      href="/app/profile"
-      onClick={onNavigate}
-      data-slot="pied-du-compte"
-      className={cn(
-        'flex items-center gap-2.5 rounded-lg p-1.5 text-left transition-colors hover:bg-foreground/5 icones:justify-center',
-        FOCUS_RING_RENTRANT,
-      )}
-    >
-      <Avatar className="size-8">
-        {user.avatar_url ? <AvatarImage src={user.avatar_url} alt={libelle} /> : null}
-        <AvatarFallback className="bg-foreground text-xs font-semibold text-background">
-          {initials ?? <UserRound className="size-4" aria-hidden="true" />}
-        </AvatarFallback>
-      </Avatar>
-      <span className="min-w-0 flex-1 icones:sr-only">
-        <span className="block truncate text-sm font-medium text-foreground">{libelle}</span>
-        <span className="block truncate text-xs text-muted-foreground">{espace}</span>
-      </span>
-    </Link>
   );
 }
 
@@ -513,13 +469,6 @@ function BasculeDesIcones({ mode, infobulle, onBasculer }: BasculeDesIconesProps
   );
 }
 
-/**
- * TCK-2482 (A11) — `⌘ K` sur Apple, `Ctrl K` ailleurs ; `Ctrl K` au rendu serveur, sans écart
- * d'hydratation. La détection est celle du raccourci (`estSurApple`).
- */
-const sAbonnerARien = () => () => {};
-const jamaisSurApple = () => false;
-
 interface LigneAllerAProps {
   readonly onOuvrir: (depuis: HTMLElement) => void;
   readonly infobulle: boolean;
@@ -533,7 +482,7 @@ interface LigneAllerAProps {
  */
 function LigneAllerA({ onOuvrir, infobulle }: LigneAllerAProps) {
   const t = useTranslations('nav.palette');
-  const surApple = useSyncExternalStore(sAbonnerARien, estSurApple, jamaisSurApple);
+  const surApple = useSurApple();
   const touches = (surApple ? t('raccourciMac') : t('raccourciAutre')).split(' ');
   return (
     <Tooltip disabled={!infobulle}>
@@ -544,7 +493,7 @@ function LigneAllerA({ onOuvrir, infobulle }: LigneAllerAProps) {
             data-slot="aller-a"
             onClick={(event) => onOuvrir(event.currentTarget)}
             aria-label={t('titre')}
-            aria-keyshortcuts={surApple ? 'Meta+K' : 'Control+K'}
+            aria-keyshortcuts={raccourciDeLaPalette(surApple)}
             className={cn('w-full transition-colors', STYLE_LIGNE, STYLE_LIGNE_REPOS, FOCUS_RING_RENTRANT)}
           />
         }
@@ -555,7 +504,7 @@ function LigneAllerA({ onOuvrir, infobulle }: LigneAllerAProps) {
           {touches.map((touche) => (
             <kbd
               key={touche}
-              className="inline-flex h-5 min-w-5 items-center justify-center rounded-[5px] bg-foreground/7 px-1 font-sans text-[11px] font-medium leading-none text-foreground/70"
+              className="inline-flex h-5 min-w-5 items-center justify-center rounded-[5px] px-1 font-sans text-[11px] font-medium leading-none text-muted-foreground ring-1 ring-inset ring-border"
             >
               {touche}
             </kbd>
@@ -727,10 +676,10 @@ export function AppSidebar({
         className,
       )}
     >
-      {/* TCK-2490 (ADR-0090 §2) — l'en-tête de 56 px : la marque à gauche (vers `/`), le bouton
-          « Replier » à droite ; rail : le bouton seul. `-mx-1 px-1` : l'anneau de focus du logo ne
-          rase pas les glyphes. */}
-      <div className="flex h-14 shrink-0 items-center gap-2 px-3 icones:justify-center icones:px-0">
+      {/* TCK-2490 (ADR-0090 §2) — l'en-tête de 56 px : la marque à gauche (vers `/`), puis (TCK-2491) la
+          cloche et le bouton « Replier » à droite ; rail : la cloche et le bouton, l'un sous l'autre.
+          Le tiroir n'a pas de cloche : l'en-tête mobile, qu'il recouvre, porte la sienne. */}
+      <div className="flex h-14 shrink-0 items-center gap-2 px-3 icones:h-auto icones:flex-col icones:gap-1 icones:px-0 icones:py-3">
         <Link
           href="/"
           onClick={onNavigate}
@@ -740,15 +689,18 @@ export function AppSidebar({
           <Logo nom={tCommon('appName')} />
         </Link>
         {/* TCK-2480 (A10) — la bascule de l'appareil : jamais dans le tiroir, jamais sans fournisseur. */}
-        {!tiroir && prefs.actif ? (
-          <div className="ml-auto flex items-center gap-0.5 icones:ml-0">
-            <BasculeDesIcones
-              mode={modeIcones}
-              infobulle={infobulle}
-              onBasculer={() => prefs.choisirModeIcones(infobulle ? 'complet' : 'icones')}
-            />
+        {tiroir ? null : (
+          <div className="ml-auto flex items-center gap-0.5 icones:ml-0 icones:flex-col icones:gap-1">
+            <NotificationBell align="start" />
+            {prefs.actif ? (
+              <BasculeDesIcones
+                mode={modeIcones}
+                infobulle={infobulle}
+                onBasculer={() => prefs.choisirModeIcones(infobulle ? 'complet' : 'icones')}
+              />
+            ) : null}
           </div>
-        ) : null}
+        )}
       </div>
       {/* TCK-2478 — l'action principale du persona, puis (TCK-2490) « Aller à ». L'action est la
           seule surface de couleur primaire du menu (sa pastille) ; absente (jamais désactivée) quand
@@ -856,7 +808,9 @@ export function AppSidebar({
             onNavigate={onNavigate}
           />
         ) : null}
-        <PiedDuCompte user={user} libelleRole={t(`personas.${persona}`)} onNavigate={onNavigate} />
+        {/* TCK-2491 (ADR-0090 §2) — le compte et SON menu : espace, crédits, profil, préférences,
+            administration, langue, déconnexion — ce que portait la barre du haut. */}
+        <MenuDuCompte user={user} libelleRole={t(`personas.${persona}`)} onNavigate={onNavigate} />
       </div>
     </aside>
   );

@@ -210,6 +210,12 @@
         "demandeEnCours": "Réponse par e-mail",
         "console": "Administration de Takussan"
       },
+      "compte": {
+        "changerDEspace": "Changer d’espace",
+        "credits": "Crédits",
+        "preferences": "Préférences de notification",
+        "langue": "Langue"
+      },
       "aujourdhui": {
         "titre": "Aujourd’hui",
         "lignes": {

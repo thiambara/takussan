@@ -76,7 +76,7 @@ interface Scenario {
 }
 
 const SCENARIOS: Record<string, Scenario> = {
-  // Messagerie ACTIVE avec son compteur ; « Aujourd'hui » chargé ; « Démarrer ».
+  // Messagerie ACTIVE avec son compteur ; « Aujourd'hui » chargé ; « Démarrer » ; « Récents ».
   'agent sur la messagerie': { roles: ['customer', 'agent'], agence: 'standard', agencyIsStandard: true, chemin: '/app/messages' },
   // Crédits ACTIF avec sa valeur (tiroir) ; « Aller à » et ses touches.
   'admin d’agence sur les crédits': { roles: ['customer', 'agency_admin'], agence: 'standard', agencyIsStandard: true, chemin: '/app/credits' },
@@ -163,7 +163,14 @@ describe('TCK-2490 (AC4) — chaque texte de la colonne tient 4,5:1 sur tous ses
   });
 
   it.each(Object.keys(SCENARIOS))('%s', (nom) => {
+    // « Récents » (texte discret, `text-muted-foreground`) : des pages retenues que chaque menu résout
+    // en partie ; un chemin que le menu ne couvre pas est écarté de lui-même.
+    window.localStorage.setItem(
+      'takussan.pages-recentes.1',
+      JSON.stringify(['/app/visits', '/app/favorites', '/app/properties', '/app/leases', '/app/calendar']),
+    );
     const { container } = monter(SCENARIOS[nom]);
+    if (nom === 'agent sur la messagerie') expect(container.querySelector('[data-slot="recents"] a')).not.toBeNull();
     const mesures = textesMesures(container.querySelector('aside')!);
     // L'épreuve n'est pas vide : compteurs, puces, touches, valeurs sont bien rendus.
     expect(mesures.length).toBeGreaterThan(20);

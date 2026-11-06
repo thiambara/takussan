@@ -52,9 +52,9 @@ vi.mock('@/components/tenant/TenantWelcomeWizard', () => ({ TenantWelcomeWizard:
 
 const NOM = 'Aller à une page ou changer d’espace';
 /**
- * TCK-2490 — deux déclencheurs portent désormais ce nom : le bouton de la barre haute et la ligne
- * « Aller à » de la colonne. Les épreuves héritées de TCK-2482 visent le premier par son slot ; la
- * ligne a les siennes plus bas.
+ * TCK-2490 / TCK-2491 — deux déclencheurs portent ce nom : le bouton de l'EN-TÊTE MOBILE (qui remplace
+ * celui de la barre haute, retirée) et la ligne « Aller à » de la colonne. Les épreuves héritées de
+ * TCK-2482 visent le premier par son slot ; la ligne a les siennes plus bas.
  */
 const boutonDeLaBarreHaute = () => document.querySelector<HTMLElement>('header [data-slot="ouvrir-palette"]')!;
 const ligneAllerA = () => document.querySelector<HTMLElement>('aside [data-slot="aller-a"]')!;
@@ -112,7 +112,7 @@ describe('TCK-2482 — la palette dans la coque', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: NOM })).toBeNull());
   });
 
-  it('le bouton de la barre haute l’ouvre ; à la fermeture, le focus lui revient', async () => {
+  it('le bouton de l’en-tête mobile l’ouvre ; à la fermeture, le focus lui revient', async () => {
     const u = userEvent.setup();
     monter();
     const bouton = boutonDeLaBarreHaute();
@@ -187,14 +187,13 @@ describe('TCK-2482 — la palette dans la coque', () => {
     expect(within(groupe).getAllByRole('option').map((o) => o.textContent)).toEqual(['Mon bail', 'Messagerie', 'Paiements']);
   });
 
-  it('revue I5 — fermée par un CHOIX, la palette ne rend pas le focus : la recherche de biens ne rouvre pas son panneau', async () => {
+  // TCK-2491 — la recherche de biens de la barre haute est partie (elle vit dans la palette, TCK-2489) :
+  // l'épreuve garde son sujet, « un CHOIX ne rend pas le focus », sur l'élément focalisé d'avant.
+  it('revue I5 — fermée par un CHOIX, la palette ne rend pas le focus à l’élément d’avant', async () => {
     const u = userEvent.setup();
     monter();
-    const recherche = within(document.querySelector('header')!).getAllByRole('combobox')[0]!;
-    await u.click(recherche);
-    await u.keyboard('{Escape}');
-    expect(recherche).toHaveFocus();
-    expect(recherche).not.toHaveAttribute('aria-expanded', 'true');
+    const recherche = screen.getByRole('button', { name: 'avant' });
+    recherche.focus();
     await u.keyboard('{Control>}k{/Control}');
     const dialogue = await screen.findByRole('dialog', { name: NOM });
     const champ = within(dialogue).getByRole('combobox');
@@ -203,7 +202,6 @@ describe('TCK-2482 — la palette dans la coque', () => {
     await u.keyboard('{Enter}');
     await waitFor(() => expect(screen.queryByRole('dialog', { name: NOM })).toBeNull());
     expect(recherche).not.toHaveFocus();
-    expect(recherche).not.toHaveAttribute('aria-expanded', 'true');
   });
 
   it('revue I5 — fermée par Échap après un choix précédent, elle rend de nouveau le focus', async () => {
@@ -226,12 +224,14 @@ describe('TCK-2482 — la palette dans la coque', () => {
     expect(avant).toHaveFocus();
   });
 
-  it('revue M2 — sous macOS : Ctrl K dans un champ n’est pas annulé et n’ouvre rien ; le bouton annonce ⌘K', async () => {
+  it('revue M2 — sous macOS : Ctrl K dans un champ n’est pas annulé et n’ouvre rien ; les déclencheurs annoncent ⌘K', async () => {
     vi.spyOn(window.navigator, 'userAgent', 'get').mockReturnValue(UA_MAC);
     monter();
-    const bouton = boutonDeLaBarreHaute();
-    await waitFor(() => expect(bouton).toHaveAttribute('aria-keyshortcuts', 'Meta+K'));
-    expect(bouton).toHaveTextContent('⌘');
+    await waitFor(() => expect(boutonDeLaBarreHaute()).toHaveAttribute('aria-keyshortcuts', 'Meta+K'));
+    // TCK-2491 — les touches se MONTRENT sur la ligne « Aller à » de la colonne (l'en-tête mobile n'a que l'icône).
+    const ligne = ligneAllerA();
+    expect(ligne).toHaveAttribute('aria-keyshortcuts', 'Meta+K');
+    expect(ligne).toHaveTextContent('⌘');
     const champ = document.createElement('input');
     document.body.appendChild(champ);
     champ.focus();
