@@ -526,7 +526,7 @@ Le menu de `/app` se compose d'après le **profil actif** de l'espace, et non d'
 | P2 | Tous | Barre réduite aux icônes, réglée par appareil ; par défaut entre `md` et `lg` (TCK-2480) |
 | P2 | Tous | Barre d'onglets mobile sous `md` : quatre destinations choisies par persona et « Menu », qui ouvre le tiroir (TCK-2481) |
 | P2 | Tous | Palette de commandes (⌘K / Ctrl K) : destinations accessibles, action principale, files « À traiter », bascule de profil, pages récentes, recherche par libellé et synonymes (TCK-2482) |
-| P3 | 🛡️ | L'admin d'agence active ou désactive des modules pour son équipe ; le menu de l'agence n'en montre que les modules actifs (TCK-2483) |
+| P3 | 🛡️ | L'admin d'une agence `standard` retire du menu de son équipe, dans la fiche de l'agence (« Menu de l'équipe »), les modules que l'agence n'utilise pas : commissions, états des lieux, onboardings en attente, carnet prestataires, calendrier, crédits, statistiques (KPIs, alertes, exports). Le masque vaut pour le menu de l'agent et de l'admin, partout (barre, onglets mobiles, palette, épingles, « Aussi … ») ; le bailleur, le locataire, le client et le prestataire gardent ce qu'ils ouvrent. Affichage seulement : une page masquée reste servie par lien direct, aucun droit ne change (TCK-2483) |
 
 #### Onboarding parcours
 
