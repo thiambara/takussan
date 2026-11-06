@@ -154,6 +154,17 @@
         "pendingVisits": "{count, plural, one {# pending visit request} other {# pending visit requests}}",
         "unhandledLeads": "{count, plural, one {# unhandled request} other {# unhandled requests}}"
       },
+      "onglets": {
+        "navLabel": "Quick access",
+        "menu": "Menu",
+        "accueil": "Home",
+        "favoris": "Favourites",
+        "visites": "Viewings",
+        "demandes": "Requests",
+        "reservations": "Bookings",
+        "nomAvecCompteur": "{libelle}, {compteur}",
+        "plafond": "99+"
+      },
       "receivedReviews": "Reviews received",
       "commissions": "Commissions",
       "myTasks": "My tasks",

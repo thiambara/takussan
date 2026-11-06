@@ -14,3 +14,14 @@ const ROUTES_PLEIN_ECRAN: readonly string[] = ['/app/properties/new'];
 export function estPleinEcran(pathname: string | null | undefined): boolean {
   return pathname != null && ROUTES_PLEIN_ECRAN.includes(pathname);
 }
+
+/**
+ * TCK-2481 — les routes où la coque porte la barre d'onglets mobile : `/app` et ses pages, hors plein
+ * écran. Lue par `AppShell` (la barre) et par `CorpsDuWidget` (le bouton flottant « Messagerie »,
+ * qui ne se rend plus là où la barre porte déjà la messagerie). Une règle, deux lecteurs — comme
+ * `estPleinEcran`.
+ */
+export function porteLaBarreDOnglets(pathname: string | null | undefined): boolean {
+  if (pathname == null || estPleinEcran(pathname)) return false;
+  return pathname === '/app' || pathname.startsWith('/app/');
+}

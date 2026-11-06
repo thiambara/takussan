@@ -139,6 +139,19 @@ describe('<ChatWidget> visibility', () => {
     render(wrap(<ChatWidget />));
     expect(screen.getByTestId('chat-widget-launcher')).toBeInTheDocument();
   });
+
+  it('TCK-2481 — sur /app, pas de bouton flottant mobile : la barre d’onglets porte la messagerie', () => {
+    usePathnameMock.mockReturnValue('/app/leases');
+    render(wrap(<ChatWidget />));
+    expect(screen.queryByTestId('chat-widget-mobile-fab')).toBeNull();
+    expect(screen.getByTestId('chat-widget-launcher')).toBeInTheDocument(); // le lanceur de bureau reste
+  });
+
+  it('TCK-2481 — hors de /app, le bouton flottant mobile reste', () => {
+    usePathnameMock.mockReturnValue('/properties/villa-saly');
+    render(wrap(<ChatWidget />));
+    expect(screen.getByTestId('chat-widget-mobile-fab')).toBeInTheDocument();
+  });
 });
 
 /**

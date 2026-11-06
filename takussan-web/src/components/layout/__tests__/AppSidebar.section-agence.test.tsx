@@ -375,7 +375,10 @@ describe('le tiroir mobile porte les mêmes pages d’agence (Direction UX du ti
     );
     const bureau = within(container.querySelector('aside')!).getByRole('group', { name: titre });
 
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Ouvrir le menu' }));
+    // TCK-2481 — « Menu » de la barre d'onglets ouvre le tiroir (le burger est parti).
+    await userEvent
+      .setup()
+      .click(within(screen.getByRole('navigation', { name: 'Accès rapide' })).getByRole('button', { name: 'Menu' }));
     const tiroir = await screen.findByRole('dialog');
     expect(hrefs(within(tiroir).getByRole('group', { name: titre }))).toEqual(hrefs(bureau));
   });

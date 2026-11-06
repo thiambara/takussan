@@ -303,6 +303,12 @@
    * apply directly. Read by `useFloatingDockSlot`.
    */
   --floating-dock-base: 16px;
+
+  /* TCK-2481 — la hauteur de la barre d'onglets mobile de `/app`, zone sûre comprise. Une seule
+     définition, lue par la barre (`BarreDOnglets`), par la messagerie compacte (`MessagesPage`) et
+     par le dock flottant. `env()` vaut 0 tant que le viewport n'est pas `viewport-fit=cover`
+     (piste reportée par le porteur, 2026-10-25) : la règle est juste le jour où il le sera. */
+  --barre-onglets-hauteur: calc(3.5rem + env(safe-area-inset-bottom));
 }
 
 @media (min-width: 640px) {

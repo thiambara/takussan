@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { User } from '@/types/user';
 import type { ProfileType } from '@/types/profile';
 import { AppTopbar } from './AppTopbar';
 import { AppSidebar } from './AppSidebar';
+import { BarreDOnglets } from './BarreDOnglets';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { BandeauxDuSite } from '@/components/announcements/BandeauxDuSite';
 import { LienEvitement } from '@/components/shared/LienEvitement';
@@ -21,7 +22,7 @@ import { MinimalProfileTriggerProvider } from '@/components/customer/MinimalProf
 import { OwnerWelcomeWizard } from '@/components/owner/OwnerWelcomeWizard';
 import { TenantWelcomeWizard } from '@/components/tenant/TenantWelcomeWizard';
 import { isAgencyAdmin, isAgent, isCustomerOnly, isOwner } from '@/lib/roles';
-import { estPleinEcran } from './plein-ecran';
+import { estPleinEcran, porteLaBarreDOnglets } from './plein-ecran';
 import { PreferencesDuMenuProvider } from './PreferencesDuMenu';
 import type { ModeIcones } from '@/lib/navigation/mode-icones';
 import { personaDeLaCoque } from '@/lib/navigation/personas';
@@ -68,7 +69,11 @@ export function AppShell({
   // TCK-631 — le parcours de publication se montre sans la chrome de la console : il porte son
   // propre en-tête et sa propre sortie. Les bandeaux (impersonation, suspension, site) restent :
   // ils disent quelque chose sur la session, pas sur la navigation.
-  const pleinEcran = estPleinEcran(usePathname());
+  const pathname = usePathname();
+  const pleinEcran = estPleinEcran(pathname);
+  // TCK-2481 — sous `md`, la barre d'onglets ; « Menu » y ouvre le tiroir, qui lui rend le focus.
+  const barreDOnglets = porteLaBarreDOnglets(pathname);
+  const boutonMenu = useRef<HTMLButtonElement>(null);
   // TCK-253 — Customer-only onboarding surfaces. Gated server-side via the
   // SSR-resolved roles so we never paint the welcome modale (or arm the
   // deferred profile sheet) for agents / owners / admins.
@@ -130,16 +135,15 @@ export function AppShell({
         persona={persona}
         modeIconesInitial={modeIcones}
       >
-        <div className="flex h-dvh flex-col bg-background">
+        {/* TCK-2481 — `data-barre-onglets` : la coque porte la barre d'onglets (sous `md`). */}
+        <div className="flex h-dvh flex-col bg-background" data-barre-onglets={barreDOnglets ? '' : undefined}>
           {/* TCK-905 (P31.04) — avant la bannière, la barre haute et la barre latérale. */}
           <LienEvitement />
           {/* TCK-600 (ADR-0055) — la session d'impersonation, lue sur le serveur du front : rien
               ne s'affiche hors session. Au-dessus de la barre : elle ne défile pas avec la page. */}
           <ImpersonationBanner />
           {agencySuspended ? <AgencySuspendedBanner /> : null}
-          {pleinEcran ? null : (
-            <AppTopbar user={user} menuOpen={sidebarOpen} onMenuToggle={() => setSidebarOpen((v) => !v)} />
-          )}
+          {pleinEcran ? null : <AppTopbar user={user} />}
           <div className="flex min-h-0 flex-1 overflow-hidden">
             {pleinEcran ? null : (
               <>
@@ -153,7 +157,10 @@ export function AppShell({
                   />
                 </div>
                 <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-                  <SheetContent side="left" className="p-0" aria-label={t('navLabel')}>
+                  {/* TCK-2481 — `finalFocus` explicite : au doigt, Safari iOS ne focalise pas le bouton
+                      touché, et le défaut de Base UI (« l'élément focalisé à l'ouverture ») rendrait
+                      le focus à `body`. */}
+                  <SheetContent side="left" className="p-0" aria-label={t('navLabel')} finalFocus={boutonMenu}>
                     <AppSidebar
                       user={user}
                       onNavigate={() => setSidebarOpen(false)}
@@ -181,6 +188,21 @@ export function AppShell({
               <div className="px-4 py-6 md:px-6 md:py-8">{children}</div>
             </main>
           </div>
+          {/* TCK-2481 (ADR-0089 §3) — la barre d'onglets, sous `md`. Enfant flex de la coque `h-dvh`
+              et non `fixed` : le `<main>` rétrécit de sa hauteur exacte, et rien de la page ne passe
+              dessous (TCK-503). Après le `<main>` dans le document comme à l'écran ; le lien
+              d'évitement reste le premier focalisable. */}
+          {barreDOnglets ? (
+            <BarreDOnglets
+              user={user}
+              agencyIsStandard={agencyIsStandard}
+              typeProfilActif={typeProfilActif}
+              agencySuspended={agencySuspended}
+              menuOuvert={sidebarOpen}
+              onOuvrirMenu={() => setSidebarOpen(true)}
+              refMenu={boutonMenu}
+            />
+          ) : null}
           {customerOnboardingActive ? (
             <CustomerWelcomeWizard onSettled={() => setCustomerWelcomeSettled(true)} />
           ) : null}
