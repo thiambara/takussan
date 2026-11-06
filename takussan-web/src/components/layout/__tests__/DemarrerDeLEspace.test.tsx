@@ -2,8 +2,9 @@
  * TCK-2479 (AC5, ADR-0089 §5) — le groupe « Démarrer » d'un espace neuf, éprouvé seul : trois liens
  * vers l'écran qui fait chaque étape, une étape faite qui SORT du groupe, rien quand tout est fait
  * (ni au chargement, ni sur une erreur, ni pour un profil sans étape), et un geste qui le masque —
- * sans survivre au remontage tant que TCK-2480 ne l'enregistre pas. Son branchement dans la barre
- * (qui le voit, où) est éprouvé par `AppSidebar.test.tsx`.
+ * sans survivre au remontage quand rien ne l'enregistre ; TCK-2480 l'enregistre par `onMasquer`. Son
+ * branchement dans la barre (qui le voit, où) est éprouvé par `AppSidebar.test.tsx`, et son masquage
+ * enregistré par `AppSidebar.personnalisation.test.tsx`.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
@@ -152,7 +153,7 @@ describe('<DemarrerDeLEspace> — TCK-2479 (AC5)', () => {
     expect(onNavigate).toHaveBeenCalledOnce();
   });
 
-  it('un geste le masque, et il cesse de se lire ; il revient au remontage tant que TCK-2480 ne l’enregistre pas', async () => {
+  it('sans `onMasquer`, un geste le masque, et il cesse de se lire ; il revient au remontage', async () => {
     etat.reponse = avec(false, false, false);
     const { container, unmount } = render(ui());
     await userEvent.setup().click(screen.getByRole('button', { name: 'Masquer « Démarrer »' }));
@@ -162,6 +163,14 @@ describe('<DemarrerDeLEspace> — TCK-2479 (AC5)', () => {
     unmount();
     render(ui());
     expect(screen.getByRole('group', { name: 'Démarrer' })).toBeInTheDocument();
+  });
+
+  it('TCK-2480 — avec `onMasquer`, la croix le délègue au compte', async () => {
+    etat.reponse = avec(false, false, false);
+    const onMasquer = vi.fn();
+    render(withIntl(<DemarrerDeLEspace mode="espace" ouverte={() => true} onMasquer={onMasquer} />));
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Masquer « Démarrer »' }));
+    expect(onMasquer).toHaveBeenCalledTimes(1);
   });
 
   it('chaque cible porte l’anneau de focus de la barre, et aucune la couleur primaire', () => {

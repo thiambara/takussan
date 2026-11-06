@@ -4,7 +4,7 @@ import { useId, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronRight, Lock, ShieldCheck, UserRound } from 'lucide-react';
+import { ChevronRight, Lock, Pin, ShieldCheck, UserRound } from 'lucide-react';
 import type { User } from '@/types/user';
 import { isAgent, isAdmin, isSuperAdmin } from '@/lib/roles';
 import { useMyCapabilities } from '@/hooks/useCan';
@@ -40,7 +40,8 @@ import {
   type GroupeCompose,
 } from '@/lib/navigation/composer-menu';
 import { DISPOSITIONS } from '@/lib/navigation/dispositions';
-import { resoudrePersona } from '@/lib/navigation/personas';
+import { personaDeLaCoque } from '@/lib/navigation/personas';
+import { EPINGLES_MAX, prefsDe } from '@/lib/navigation/preferences';
 import type { ProfileType } from '@/types/profile';
 import { useSoldeCredits } from '@/lib/queries/credits-solde';
 import { useUnreadCount } from '@/components/chat-widget/useUnreadCount';
@@ -49,7 +50,8 @@ import { useUnhandledLeadsCount } from '@/lib/queries/contact-leads';
 import { pastillesATraiter } from '@/lib/navigation/a-traiter';
 import { BandeATraiter } from './BandeATraiter';
 import { DemarrerDeLEspace } from './DemarrerDeLEspace';
-import { FOCUS_RING, STYLE_TITRE } from './styles-de-la-barre';
+import { FOCUS_RING, STYLE_EPINGLE, STYLE_TITRE } from './styles-de-la-barre';
+import { usePreferencesDuMenu } from './PreferencesDuMenu';
 
 export type { NavCounterKey };
 
@@ -108,6 +110,14 @@ function SidebarCounter({ value, label }: { value: number; label: string }) {
   );
 }
 
+/** TCK-2480 — l'épingle d'une ligne : son état, la limite, le geste. */
+interface EpingleDeLigne {
+  readonly epinglee: boolean;
+  /** Cinq épingles déjà : épingler CETTE ligne est refusé, et le bouton le dit. */
+  readonly plein: boolean;
+  readonly onBasculer: () => void;
+}
+
 interface SidebarItemProps {
   readonly entree: EntreeRendue;
   /** L'`href` à servir : celui de l'entrée, localisé quand elle mène au site public. */
@@ -118,9 +128,11 @@ interface SidebarItemProps {
   /** TCK-642 — une valeur en bout de ligne (le solde de crédits), déjà mise en forme. */
   readonly valeur?: string;
   readonly nomAccessible?: string;
+  /** TCK-2480 — absente sans fournisseur, pour une ligne cadenassée, l'action ou le complément « Aussi … ». */
+  readonly epingle?: EpingleDeLigne;
 }
 
-function SidebarItem({ entree, href, active, counter, onNavigate, valeur, nomAccessible }: SidebarItemProps) {
+function SidebarItem({ entree, href, active, counter, onNavigate, valeur, nomAccessible, epingle }: SidebarItemProps) {
   const { labelKey, labelSpace, icon: Icon, emphasized, locked, counterKey } = entree;
   const t = useTranslations('nav.sidebar');
   const tAdmin = useTranslations('nav.admin');
@@ -144,7 +156,7 @@ function SidebarItem({ entree, href, active, counter, onNavigate, valeur, nomAcc
       </span>
     );
   }
-  return (
+  const lien = (
     <Link
       href={href}
       onClick={onNavigate}
@@ -152,8 +164,9 @@ function SidebarItem({ entree, href, active, counter, onNavigate, valeur, nomAcc
       aria-label={nomAccessible}
       className={cn(
         // `max-md:` = le tiroir seul (la barre fixe n'existe qu'à partir de `md`) : 40 px par
-        // entrée au doigt, 36 px inchangés au pointeur.
-        'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors max-md:py-2.5',
+        // entrée au doigt, 36 px inchangés au pointeur. TCK-2480 — `min-w-0 flex-1` : le lien
+        // partage la ligne avec son épingle.
+        'flex min-w-0 flex-1 items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors max-md:py-2.5',
         FOCUS_RING,
         active
           ? 'bg-border text-foreground font-semibold'
@@ -177,6 +190,27 @@ function SidebarItem({ entree, href, active, counter, onNavigate, valeur, nomAcc
         </span>
       ) : null}
     </Link>
+  );
+  if (!epingle) return lien;
+  const refusee = epingle.plein && !epingle.epinglee;
+  // TCK-2480 — l'épingle est une SŒUR du lien (un bouton dans un lien n'est pas valide) : bouton à
+  // bascule, nom constant, état dans `aria-pressed`. Refusée (A7, cinq épingles), elle reste
+  // atteignable et dit pourquoi (`aria-disabled` + `title`), au lieu de disparaître.
+  return (
+    <div className="group/ligne flex items-center">
+      {lien}
+      <button
+        type="button"
+        aria-pressed={epingle.epinglee}
+        aria-disabled={refusee || undefined}
+        aria-label={t('epingle.epingler', { libelle: label })}
+        title={refusee ? t('epingle.plein') : undefined}
+        onClick={refusee ? undefined : epingle.onBasculer}
+        className={cn(STYLE_EPINGLE, FOCUS_RING)}
+      >
+        <Pin className={cn('size-3.5', epingle.epinglee && 'fill-current')} aria-hidden />
+      </button>
+    </div>
   );
 }
 
@@ -240,43 +274,69 @@ export function countersToPoll(
 
 interface GroupeDuMenuProps {
   readonly groupe: GroupeCompose & { readonly entrees: readonly EntreeRendue[] };
-  /** TCK-377 — les titres de SECTION paraissent (`avecTitres`). Sans effet sur une bascule. */
+  /** TCK-377 — les titres de SECTION paraissent (`avecTitres`). */
   readonly titres: boolean;
   readonly premier: boolean;
   readonly idBase: string;
   readonly activeHref: string | null;
   readonly rendreEntree: (entree: EntreeRendue) => ReactNode;
+  /**
+   * TCK-2480 — replier ou ouvrir le groupe, ENREGISTRÉ sur le compte (A8). Absent (aucun
+   * fournisseur) : seuls les groupes repliés par défaut se basculent, pour ce montage seulement.
+   */
+  readonly onBasculer?: (groupe: string, replie: boolean, replieParDefaut: boolean) => void;
 }
 
+/** Les groupes dont le titre paraît toujours : les divulgations, et « Épinglés » (on voit où va l'entrée, A6). */
+const TOUJOURS_TITRES: ReadonlySet<string> = new Set([...GROUPES_DIVULGATION, 'epingles']);
+
 /**
- * TCK-2478 — un groupe de la disposition.
+ * TCK-2478 — un groupe de la disposition ; TCK-2480 — repliable d'un clic sur son titre, et le repli
+ * s'enregistre (A8).
  *
- * - « Plus » et « Aussi … » sont des DIVULGATIONS (`GROUPES_DIVULGATION`) : leur bouton de bascule
- *   se rend toujours, titres de section ou non (décision de la session du 2026-11-05 : le
- *   prestataire garde son « Plus » sans qu'aucun titre de section paraisse — AC5).
- * - Un autre groupe replié par sa disposition (« Agence », « Pilotage », « Mes recherches » du
- *   locataire) est titré : son titre EST le bouton de bascule.
- * - Un groupe déplié par sa disposition ne montre son titre que si `titres` (TCK-377).
+ * - « Plus » et « Aussi … » sont des DIVULGATIONS (`GROUPES_DIVULGATION`) : leur titre paraît toujours,
+ *   titres de section ou non (décision de la session du 2026-11-05 : le prestataire garde son « Plus »
+ *   sans qu'aucun titre de section paraisse — AC5 de TCK-2478). « Épinglés » aussi (A6).
+ * - Un groupe replié (par sa disposition ou par l'utilisateur) est titré.
+ * - Un groupe déplié ne montre son titre que si `titres` (TCK-377).
+ * - Avec le fournisseur, tout titre qui paraît est le bouton de bascule, et le repli vient du compte
+ *   (`groupe.replie`, composé par `composerMenu`). Sans lui, seuls les groupes repliés par défaut se
+ *   basculent, dans un état local (TCK-2478).
  *
- * AC4 — l'entrée active n'est jamais cachée : un groupe qui la contient s'ouvre de lui-même, au
- * montage comme à la navigation (la barre survit aux navigations du layout). L'ajustement se fait
- * pendant le rendu, sur le patron « état dérivé d'une prop » de React, sans effet.
+ * AC4 de TCK-2478 — l'entrée active n'est jamais cachée : un groupe qui la contient s'ouvre à l'arrivée
+ * sur elle, au montage comme à la navigation (la barre survit aux navigations du layout), SANS rien
+ * écrire (A8). Le refermer alors ne fait que le refermer : il est déjà replié pour le compte.
+ * L'ajustement se fait pendant le rendu, sur le patron « état dérivé d'une prop », sans effet.
  */
-function GroupeDuMenu({ groupe, titres, premier, idBase, activeHref, rendreEntree }: GroupeDuMenuProps) {
+function GroupeDuMenu({ groupe, titres, premier, idBase, activeHref, rendreEntree, onBasculer }: GroupeDuMenuProps) {
   const t = useTranslations('nav.sidebar');
   const contientLActif = activeHref !== null && groupe.entrees.some((e) => e.href === activeHref);
-  const [ouvert, setOuvert] = useState(!groupe.replie || contientLActif);
+  const replieParDefaut = groupe.replieParDefaut ?? groupe.replie;
+  const [replieLocal, setReplieLocal] = useState(groupe.replie);
+  const replie = onBasculer ? groupe.replie : replieLocal;
+  const [ouvertParLActif, setOuvertParLActif] = useState(contientLActif);
   const [actifVu, setActifVu] = useState(contientLActif);
   if (contientLActif !== actifVu) {
     setActifVu(contientLActif);
-    if (contientLActif) setOuvert(true);
+    // Comme TCK-2478 : on ouvre à l'arrivée, on ne referme pas au départ.
+    if (contientLActif) setOuvertParLActif(true);
   }
+  const ouvert = !replie || ouvertParLActif;
 
-  const bascule = groupe.replie && groupe.titre !== null;
-  const avecTitre = groupe.titre !== null && (bascule || titres || GROUPES_DIVULGATION.has(groupe.id));
+  const avecTitre =
+    groupe.titre !== null && (titres || replie || replieParDefaut || TOUJOURS_TITRES.has(groupe.id));
+  const bascule = avecTitre && (onBasculer !== undefined || replieParDefaut);
   const libelle = groupe.titre !== null ? t(`groupes.${groupe.titre}`, groupe.titreValeurs) : null;
   const idTitre = `${idBase}-${groupe.id}-titre`;
   const idListe = `${idBase}-${groupe.id}-liste`;
+
+  const basculer = () => {
+    setOuvertParLActif(false);
+    // Ouvert par la page active seulement : le refermer ne change rien au compte.
+    if (replie && ouvert) return;
+    if (onBasculer) onBasculer(groupe.id, ouvert, replieParDefaut);
+    else setReplieLocal(ouvert);
+  };
 
   return (
     // Un groupe titré se lit comme un GROUPE : le lecteur d'écran annonce son nom en y entrant
@@ -287,13 +347,13 @@ function GroupeDuMenu({ groupe, titres, premier, idBase, activeHref, rendreEntre
       data-groupe={groupe.id}
       className={cn('space-y-1', !premier && 'mt-4')}
     >
-      {avecTitre && bascule ? (
+      {bascule ? (
         <button
           type="button"
           id={idTitre}
           aria-expanded={ouvert}
           aria-controls={idListe}
-          onClick={() => setOuvert((v) => !v)}
+          onClick={basculer}
           className={cn(
             'flex w-full items-center justify-between gap-2 rounded-md px-3 py-1 text-left hover:text-foreground max-md:py-2',
             STYLE_TITRE,
@@ -350,13 +410,18 @@ export function AppSidebar({
   // TCK-2478 (ADR-0089) — LE menu : la disposition du persona du profil actif, composée par une
   // fonction pure. Ce composant n'affiche que ce qu'elle rend, et ne porte aucune condition de rôle
   // — hormis le cadenas de l'agence `individual` (`isProRouteLocked`), qui est un confort d'écran.
-  const persona = resoudrePersona({
+  // TCK-2480 — `personaDeLaCoque` : la MÊME formule que le fournisseur des préférences (`AppShell`).
+  const persona = personaDeLaCoque({
     roles: user.roles,
-    typeProfilActif: typeProfilActif ?? null,
-    agenceIndividuelle: accesAdmin.espaceIndividuel || agencyIsStandard === false,
+    typeProfilActif,
+    espaceIndividuel: accesAdmin.espaceIndividuel,
+    agencyIsStandard,
   });
   const ctxMenu = { roles: user.roles, capacites, cheminsAdmin: accesAdmin.chemins, agenceSuspendue: agencySuspended };
-  const menu = composerMenu(ctxMenu, persona);
+  // TCK-2480 — les préférences du compte, PAR PERSONA (un geste n'écrit que sous le persona affiché) ;
+  // sans fournisseur, aucune (repli inerte, A12).
+  const prefs = usePreferencesDuMenu();
+  const menu = composerMenu(ctxMenu, persona, undefined, prefsDe(prefs.navigation, persona));
   const verrouiller = (e: EntreeComposee): EntreeRendue => ({
     ...e,
     locked: isProRouteLocked(user, agencyIsStandard, e.href),
@@ -453,6 +518,34 @@ export function AppSidebar({
       {...(entree.href === HREF_CREDITS && solde !== null
         ? { valeur: format.number(solde), nomAccessible: tNav('creditsBalance', { count: solde }) }
         : {})}
+      epingle={
+        // TCK-2480 (A7) — ni l'action, ni la carte, ni « Aussi … » (`epinglable` absent), ni une ligne
+        // cadenassée. Le geste repart des épingles RENDUES (`menu.epingles`).
+        prefs.actif && entree.epinglable && !entree.locked
+          ? {
+              epinglee: entree.epinglee === true,
+              plein: menu.epingles.length >= EPINGLES_MAX,
+              onBasculer: () => prefs.basculerEpingle(persona, entree.id, menu.epingles),
+            }
+          : undefined
+      }
+    />
+  );
+  // TCK-2480 (A8) — avec le fournisseur, tout groupe titré se replie, et l'écart s'enregistre.
+  const basculerGroupe = prefs.actif
+    ? (id: string, replie: boolean, parDefaut: boolean) => prefs.basculerRepli(persona, id, replie, parDefaut)
+    : undefined;
+  const [epingles, autres] = groupes[0]?.id === 'epingles' ? [groupes[0], groupes.slice(1)] : [null, groupes];
+  const rendreGroupe = (groupe: (typeof groupes)[number], premier: boolean) => (
+    <GroupeDuMenu
+      key={groupe.id}
+      groupe={groupe}
+      titres={titres}
+      premier={premier}
+      idBase={idBase}
+      activeHref={activeHref}
+      rendreEntree={rendreEntree}
+      onBasculer={basculerGroupe}
     />
   );
 
@@ -507,27 +600,25 @@ export function AppSidebar({
           c'était la fenêtre ; aucun `overflow` ne les coupait, et posés en bas de la liste ils
           allongeaient le document — la coque entière de `/app` défilait. */}
       <nav aria-label={t('navLabel')} className="relative flex-1 overflow-y-auto px-3 pb-2">
+        {/* TCK-2480 (A6) — « Épinglés » d'abord : juste sous la bande « À traiter », avant « Démarrer »,
+            qui est transitoire. */}
+        {epingles ? rendreGroupe(epingles, true) : null}
         {/* TCK-2479 — « Démarrer » : un espace neuf sait par où commencer. Dans le `<nav>`, il défile
             avec le menu ; il n'en réordonne aucune entrée. `menu.demarrer` est `null` pour un persona
-            sans mise en service et dans un espace suspendu : ni groupe, ni lecture. */}
+            sans mise en service, dans un espace suspendu, et (TCK-2480, A9) masqué par l'utilisateur
+            pour ce persona : ni groupe, ni lecture. */}
         {menu.demarrer ? (
           <DemarrerDeLEspace
             mode={menu.demarrer}
             ouverte={(href) => cheminOuvert(ctxMenu, href)}
             onNavigate={onNavigate}
+            onMasquer={prefs.actif ? () => prefs.masquerDemarrer(persona) : undefined}
+            className={epingles ? 'mt-4' : undefined}
           />
         ) : null}
-        {groupes.map((groupe, index) => (
-          <GroupeDuMenu
-            key={groupe.id}
-            groupe={groupe}
-            titres={titres}
-            premier={index === 0}
-            idBase={idBase}
-            activeHref={activeHref}
-            rendreEntree={rendreEntree}
-          />
-        ))}
+        {/* `premier` : sans « Épinglés », le premier groupe ouvre le menu (la marge basse de
+            « Démarrer », qui peut ne rien rendre, ne se double pas d'une marge haute). */}
+        {autres.map((groupe, index) => rendreGroupe(groupe, index === 0 && epingles === null))}
       </nav>
       <div className="px-3 pb-4">
         {menu.carte ? <CarteDeMiseEnLocation href={lien(menu.carte)} onNavigate={onNavigate} /> : null}

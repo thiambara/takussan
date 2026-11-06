@@ -171,7 +171,8 @@
         "monEspace": "Mon espace",
         "plus": "Plus",
         "aussi": "{profil, select, agency_admin {Aussi administrateur} owner {Aussi bailleur} agent {Aussi agent} service_provider {Aussi prestataire} other {Aussi}}",
-        "aussiPlusieurs": "Vos autres profils"
+        "aussiPlusieurs": "Vos autres profils",
+        "epingles": "Épinglés"
       },
       "personas": {
         "client": "Client",
@@ -230,6 +231,10 @@
       },
       "preferences": {
         "echec": "Votre menu n’a pas pu être enregistré : il est revenu à son état précédent."
+      },
+      "epingle": {
+        "epingler": "Épingler {libelle}",
+        "plein": "Cinq épingles au plus : désépinglez-en une d’abord."
       }
     },
     "admin": {
