@@ -22,7 +22,7 @@
  * par rôle, est écrit dans les notes de TCK-2478.
  */
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import axe from 'axe-core';
@@ -38,8 +38,9 @@ import { resolveActiveHref, APP_EXACT_ROOTS } from '@/lib/navigation/active-path
 
 let pathname = '/app';
 // P152.03 — les rôles système portent `properties.create` : « Publier un bien » se juge par elle.
+const capacitesLues = vi.hoisted(() => ({ liste: ['properties.create'] as string[] }));
 vi.mock('@/hooks/useCan', () => ({
-  useMyCapabilities: () => ({ data: { data: { agency_id: 1, capabilities: ['properties.create'] } } }),
+  useMyCapabilities: () => ({ data: { data: { agency_id: 1, capabilities: capacitesLues.liste } } }),
 }));
 vi.mock('next/navigation', () => ({
   usePathname: () => pathname,
@@ -55,7 +56,8 @@ vi.mock('@/hooks/useProfiles', () => ({
 }));
 
 type OptionsDeSondage = { enabled?: boolean };
-type ReponseCompteur = { data?: { meta: { total: number } } };
+// TCK-2479 — `isError` : une relecture en échec garde l'ancien `data` dans le cache de react-query.
+type ReponseCompteur = { data?: { meta: { total: number } }; isError?: boolean };
 
 // Les trois compteurs sont MOQUÉS : ce fichier éprouve la barre latérale, pas le réseau. Les
 // arguments sont capturés parce que l'AC6 porte précisément sur eux (`{ enabled }`).
@@ -75,18 +77,35 @@ vi.mock('@/lib/queries/contact-leads', () => ({
   useUnhandledLeadsCount: (options: OptionsDeSondage = {}) => unhandledLeadsMock(options),
 }));
 
+// TCK-2479 — « Démarrer » lit `GET /api/me/espace/demarrage` : moqué, ses arguments capturés (qui le
+// lit, et si la lecture est armée). Muet par défaut : aucun groupe.
+const demarrageMock = vi.fn<(options: { enabled: boolean }) => { data?: unknown; isError?: boolean }>(() => ({}));
+vi.mock('@/lib/queries/demarrage-espace', () => ({
+  useDemarrageDeLEspace: (options: { enabled: boolean }) => demarrageMock(options),
+}));
+
 // TCK-642 — le solde de crédits, montré en bout de l'entrée « Crédits » dans le tiroir.
 const soldeMock = vi.fn<(options: { enabled: boolean }) => number | null>(() => null);
 vi.mock('@/lib/queries/credits-solde', () => ({
   useSoldeCredits: (options: { enabled: boolean }) => soldeMock(options),
 }));
 
-// Les pages d'agence sondent deux files de modération ; on ne teste ici que leur `aria-current`.
+// Les pages d'agence sondent deux files de modération (vrai react-query, lecteurs moqués). TCK-2479 —
+// réglables : l'AC2 les charge aussi (revue M5), et le compteur des avis se lit dans `total` (I3).
+// ⚠ Sans jeton, ces deux lectures ne sont jamais armées (`enabled: Boolean(token) && …`) : avant la
+// revue, ce fichier ne moquait pas `useAuth` et aucun de ses tests n'a jamais chargé une file.
+vi.mock('@/context/AuthContext', async (importOriginal) => {
+  const reel = await importOriginal<typeof import('@/context/AuthContext')>();
+  return { ...reel, useAuth: () => ({ ...reel.useAuth(), token: 'jeton' }) };
+});
+type MetaDeFile = { meta: { total?: number; pending_count?: number } };
+const fileAvisMock = vi.hoisted(() => vi.fn<(token: string, params?: unknown) => Promise<MetaDeFile>>());
+const fileBiensMock = vi.hoisted(() => vi.fn<(token: string, params?: unknown) => Promise<MetaDeFile>>());
 vi.mock('@/lib/queries/reviews-moderation', () => ({
-  fetchModerationQueue: vi.fn(async () => ({ meta: { pending_count: 0 } })),
+  fetchModerationQueue: (token: string, params?: unknown) => fileAvisMock(token, params),
 }));
 vi.mock('@/lib/queries/property-moderation', () => ({
-  fetchPropertyModerationQueue: vi.fn(async () => ({ meta: { pending_count: 0 } })),
+  fetchPropertyModerationQueue: (token: string, params?: unknown) => fileBiensMock(token, params),
 }));
 
 /**
@@ -204,6 +223,13 @@ beforeEach(() => {
   unhandledLeadsMock.mockReturnValue({ data: undefined });
   soldeMock.mockReset();
   soldeMock.mockReturnValue(null);
+  demarrageMock.mockReset();
+  demarrageMock.mockReturnValue({});
+  capacitesLues.liste = ['properties.create'];
+  fileAvisMock.mockReset();
+  fileAvisMock.mockResolvedValue({ meta: { total: 0, pending_count: 0 } });
+  fileBiensMock.mockReset();
+  fileBiensMock.mockResolvedValue({ meta: { total: 0, pending_count: 0 } });
 });
 
 /**
@@ -416,6 +442,17 @@ describe('TCK-2478 — le complément « Aussi … » (AC2)', () => {
     expect(container.querySelector('[data-slot="action-principale"]')).toHaveTextContent('Publier un bien');
     expect(container.querySelectorAll('a[href="/app/properties/new"]')).toHaveLength(1);
     expect(screen.queryByRole('link', { name: /Proposer un bien/, hidden: true })).toBeNull();
+  });
+
+  // TCK-2479 — même compte, SANS profil actif lisible (la connexion ne pose pas le cookie) : l'API
+  // lie `owner:N` (auto-bascule, `ProfilesEndpointTest`), le menu suit — celui du bailleur, l'admin
+  // sous « Aussi administrateur ». L'ancien repli (admin d'abord) montait le menu de l'admin.
+  it('sans profil actif lisible : le menu du profil que l’API retient, le bailleur', () => {
+    pathname = '/app';
+    const { container } = render(barre({ ...ADMIN_AUSSI_BAILLEUR, typeProfilActif: undefined }));
+    expect(screen.getByRole('button', { name: 'Aussi administrateur' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Aussi bailleur' })).toBeNull();
+    expect(groupesRendus(container).slice(0, -1)).not.toEqual(MENU_ATTENDU['admin-agence'].groupes);
   });
 
   it('un compte sans autre profil n’a pas de complément', () => {
@@ -656,18 +693,21 @@ describe('AC5 — un compteur ne s’affiche ni à zéro ni en échec', () => {
     expect(screen.queryByText('0')).toBeNull();
   });
 
+  // TCK-2479 — la bande « À traiter » porte le même nom (« 3 messages non lus ») sur sa pastille :
+  // ces cas visent le badge du MENU, lu dans le `<nav>`.
   it('la pastille paraît, avec son libellé accessible, dès qu’il y a quelque chose', () => {
     unreadMock.mockReturnValue(3);
     pendingVisitsMock.mockReturnValue({ data: { meta: { total: 7 } } });
-    renderSidebar('admin-agence', '/app');
-    expect(screen.getByLabelText('3 messages non lus')).toHaveTextContent('3');
-    expect(screen.getByLabelText('7 demandes de visite en attente')).toHaveTextContent('7');
+    const { container } = renderSidebar('admin-agence', '/app');
+    const nav = within(container.querySelector('nav')!);
+    expect(nav.getByLabelText('3 messages non lus')).toHaveTextContent('3');
+    expect(nav.getByLabelText('7 demandes de visite en attente')).toHaveTextContent('7');
   });
 
   it('au-delà de 99, la pastille dit 99+ sans mentir sur son libellé', () => {
     unreadMock.mockReturnValue(140);
-    renderSidebar('admin-agence', '/app');
-    expect(screen.getByLabelText('140 messages non lus')).toHaveTextContent('99+');
+    const { container } = renderSidebar('admin-agence', '/app');
+    expect(within(container.querySelector('nav')!).getByLabelText('140 messages non lus')).toHaveTextContent('99+');
   });
 });
 
@@ -828,5 +868,241 @@ describe('TCK-642 — le solde dans l’entrée « Crédits » du tiroir', () =>
     renderSidebar('admin-agence', '/app');
     const lien = screen.getByRole('link', { name: 'Crédits' });
     expect(lien.querySelector('[data-slot="valeur-entree"]')).toBeNull();
+  });
+});
+
+describe('TCK-2479 — la bande « À traiter » (ADR-0089 §5)', () => {
+  const bande = () => screen.queryByRole('region', { name: 'À traiter' });
+  const liensDeLaBande = () => within(bande()!).getAllByRole('link');
+  const noms = () => liensDeLaBande().map((l) => l.getAttribute('aria-label'));
+  /** Toutes les pastilles, celles repliées sous « +N » comprises. */
+  const tousLesNoms = () =>
+    within(bande()!)
+      .getAllByRole('link', { hidden: true })
+      .map((l) => l.getAttribute('aria-label'));
+  /** Les `href` du MENU, dans l'ordre — la bande est hors du `<nav>`. */
+  const menu = (c: HTMLElement) =>
+    Array.from(c.querySelectorAll('nav [data-groupe] a, nav [data-groupe] [role="link"]')).map(
+      (a) => a.getAttribute('href') ?? a.textContent,
+    );
+  const chargerLesCompteurs = () => {
+    unreadMock.mockReturnValue(3);
+    pendingVisitsMock.mockReturnValue({ data: { meta: { total: 2 } } });
+    unhandledLeadsMock.mockReturnValue({ data: { meta: { total: 1 } } });
+    // TCK-2479 (revue M5) — les deux files de modération aussi : une entrée qui remonterait selon
+    // elles (admin d'agence, plateforme) laissait l'AC2 verte.
+    fileAvisMock.mockResolvedValue({ meta: { total: 5, pending_count: 5 } });
+    fileBiensMock.mockResolvedValue({ meta: { total: 4, pending_count: 4 } });
+  };
+  /** Les deux files de modération sont de vraies requêtes : on attend leurs pastilles. */
+  const PASTILLES_DE_MODERATION: Partial<Record<Persona, readonly string[]>> = {
+    'admin-agence': ['4 biens à valider', '5 avis à modérer'],
+    plateforme: ['4 biens à valider', '5 avis à modérer'],
+  };
+
+  it('AC1 — agent, 3 messages et 2 visites : deux pastilles, visites d’abord, vers la page filtrée', () => {
+    unreadMock.mockReturnValue(3);
+    pendingVisitsMock.mockReturnValue({ data: { meta: { total: 2 } } });
+    const { container } = renderSidebar('agent', '/app');
+
+    expect(noms()).toEqual(['2 visites en attente', '3 messages non lus']);
+    expect(liensDeLaBande().map((l) => l.getAttribute('href'))).toEqual(['/app/visits?tab=requested', '/app/messages']);
+    // Entre l'action principale et le menu, hors du `<nav>`.
+    const action = container.querySelector('[data-slot="action-principale"]')!;
+    const nav = container.querySelector('nav')!;
+    expect(action).not.toBeNull();
+    expect(action.compareDocumentPosition(bande()!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(bande()!.compareDocumentPosition(nav) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(nav.contains(bande())).toBe(false);
+  });
+
+  it('AC1 — l’ordre est celui du persona : le locataire ne voit que ses messages', () => {
+    chargerLesCompteurs();
+    renderSidebar('locataire', '/app');
+    expect(noms()).toEqual(['3 messages non lus']);
+  });
+
+  it('AC1 — à zéro partout (ou au chargement) : aucune bande, aucun nœud', () => {
+    const { container } = renderSidebar('agent', '/app');
+    expect(bande()).toBeNull();
+    expect(container.querySelector('[data-slot="a-traiter"]')).toBeNull();
+  });
+
+  it.each(PERSONAS)('AC2 — %s : le menu garde les mêmes entrées, dans le même ordre, avec ou sans compteurs', async (persona) => {
+    const { container, unmount } = renderSidebar(persona, '/app');
+    const avant = menu(container);
+    expect(avant.length).toBeGreaterThan(0);
+    unmount();
+    chargerLesCompteurs();
+    const { container: apres } = renderSidebar(persona, '/app');
+    const attendues = PASTILLES_DE_MODERATION[persona];
+    if (attendues) {
+      // Les compteurs de modération sont arrivés avant qu'on relise le menu.
+      await waitFor(() => expect(tousLesNoms()).toEqual(expect.arrayContaining([...attendues])));
+    }
+    expect(menu(apres)).toEqual(avant);
+  });
+
+  it('AC2 — l’épreuve n’est pas vide : les files de modération chargées, l’admin d’agence et la plateforme ont leurs pastilles', async () => {
+    chargerLesCompteurs();
+    const { unmount } = renderSidebar('plateforme', '/app');
+    await waitFor(() =>
+      expect(noms()).toEqual(['4 biens à valider', '5 avis à modérer', '1 demande non traitée', '2 visites en attente']),
+    );
+    unmount();
+    chargerLesCompteurs();
+    renderSidebar('admin-agence', '/app');
+    await waitFor(() => expect(tousLesNoms()).toEqual(expect.arrayContaining(['4 biens à valider', '5 avis à modérer'])));
+  });
+
+  it('I3 — avis : le compteur est le TOTAL de la vue « En attente » où il mène, pas `pending_count`', async () => {
+    // Super-admin : 0 en attente, 2 signalés. `pending_count` (en attente + signalés) vaut 2, la vue
+    // `?filter[moderation_status]=pending` est vide : aucune pastille.
+    fileAvisMock.mockImplementation(async (_token, params) =>
+      (params as { status?: string } | undefined)?.status === 'pending'
+        ? { meta: { total: 0, pending_count: 2 } }
+        : { meta: { total: 2, pending_count: 2 } },
+    );
+    fileBiensMock.mockResolvedValue({ meta: { total: 1, pending_count: 1 } });
+    const { container } = renderSidebar('plateforme', '/app');
+    // On attend la file des biens (même cadence) : celle des avis est alors revenue elle aussi.
+    await waitFor(() => expect(noms()).toEqual(['1 bien à valider']));
+    expect(fileAvisMock).toHaveBeenCalledWith(expect.anything(), { status: 'pending', perPage: 1 });
+    expect(within(container.querySelector('nav')!).queryByLabelText(/avis à modérer/)).toBeNull();
+  });
+
+  it('AC2 — l’épreuve n’est pas vide : avec les compteurs chargés, l’agent a bien une bande', () => {
+    chargerLesCompteurs();
+    renderSidebar('agent', '/app');
+    expect(noms()).toEqual(['1 demande non traitée', '2 visites en attente', '3 messages non lus']);
+  });
+
+  it.each([
+    [
+      'pendingVisits',
+      () => pendingVisitsMock.mockReturnValue({ data: { meta: { total: 2 } }, isError: true }),
+      ['1 demande non traitée', '3 messages non lus'],
+      '2 demandes de visite en attente',
+    ],
+    [
+      'unhandledLeads',
+      () => unhandledLeadsMock.mockReturnValue({ data: { meta: { total: 1 } }, isError: true }),
+      ['2 visites en attente', '3 messages non lus'],
+      '1 demande non traitée',
+    ],
+  ] as const)('AC3 — %s en échec (relecture ratée, ancien `data` gardé) : ni pastille ni badge ; les autres restent', (_cle, enEchec, restent, badge) => {
+    chargerLesCompteurs();
+    enEchec();
+    const { container } = renderSidebar('agent', '/app');
+    expect(noms()).toEqual(restent);
+    expect(within(container.querySelector('nav')!).queryByLabelText(badge)).toBeNull();
+  });
+
+  it('R1 — le badge des demandes porte enfin son nom accessible (clé manquante depuis TCK-590)', () => {
+    unhandledLeadsMock.mockReturnValue({ data: { meta: { total: 4 } } });
+    const { container } = renderSidebar('agent', '/app');
+    const nav = container.querySelector('nav')!;
+    expect(within(nav).getByLabelText('4 demandes non traitées')).toHaveTextContent('4');
+  });
+
+  it('AC6 — prestataire : une pastille au plus, la messagerie', () => {
+    chargerLesCompteurs();
+    renderSidebar('prestataire', '/app');
+    expect(liensDeLaBande().map((l) => l.getAttribute('href'))).toEqual(['/app/messages']);
+  });
+
+  it('a11y : la barre avec sa bande, sans violation', async () => {
+    chargerLesCompteurs();
+    const { container } = renderSidebar('admin-agence', '/app');
+    expect(bande()).not.toBeNull();
+    const resultat = await axe.run(container, {
+      runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] },
+      rules: { 'color-contrast': { enabled: false } },
+      resultTypes: ['violations'],
+    });
+    expect(resultat.violations.flatMap((v) => v.nodes.map((n) => `${v.id} ${n.target.join(' ')}`))).toEqual([]);
+  });
+});
+
+describe('TCK-2479 — « Démarrer » dans la barre (AC5)', () => {
+  const etapes = (...codes: string[]) => ({
+    data: { data: { etapes: codes.map((code) => ({ code, faite: false })) } },
+  });
+
+  it('admin d’agence : le premier bloc du menu, avant le premier groupe, sans en déplacer aucun', () => {
+    const { container, unmount } = renderSidebar('admin-agence', '/app');
+    const groupesAvant = groupesRendus(container);
+    unmount();
+
+    demarrageMock.mockReturnValue(etapes('premier_bien', 'kyc', 'equipe'));
+    const { container: avec } = renderSidebar('admin-agence', '/app');
+    const nav = avec.querySelector('nav')!;
+    expect(nav.firstElementChild).toHaveAttribute('data-slot', 'demarrer');
+    expect(within(nav).getByRole('group', { name: 'Démarrer' })).toBeInTheDocument();
+    expect(demarrageMock).toHaveBeenCalledWith({ enabled: true });
+    // Il ne réordonne rien : les groupes du menu sont les mêmes, dans le même ordre.
+    expect(groupesRendus(avec)).toEqual(groupesAvant);
+    // Hors des groupes du menu, mais après la bande et l'action (ordre clavier : action → bande → Démarrer → menu).
+    expect(nav.querySelector('[data-groupe] [data-slot="demarrer"]')).toBeNull();
+  });
+
+  it.each([
+    ['hote', 'espace', ['/app/properties/new', '/app/agency/kyc']],
+    ['bailleur', 'bailleur', ['/app/properties/new', '/onboarding/owner']],
+  ] as const)('%s : ses étapes, dans son vocabulaire (mode %s)', (persona, _mode, hrefs) => {
+    demarrageMock.mockReturnValue(etapes('premier_bien', 'kyc'));
+    renderSidebar(persona, '/app');
+    const groupe = screen.getByRole('group', { name: 'Démarrer' });
+    expect(within(groupe).getAllByRole('link').map((l) => l.getAttribute('href'))).toEqual(hrefs);
+  });
+
+  it('revue M6 — un rôle d’admin personnalisé : seules les étapes dont la page s’ouvre (ni KYC ni création ici)', () => {
+    // Le rôle porte `agency.update` (l'API rend les étapes) mais ni `agency.update_kyc` (garde de
+    // `/app/agency/kyc`) ni `properties.create` (garde de `/app/properties/new`).
+    capacitesLues.liste = ['agency.update'];
+    const compte = COMPTES['admin-agence'];
+    const acces = accesDepuis({ roles: compte.roles, agence: { kind: 'standard' }, capacites: ['agency.update'] });
+    demarrageMock.mockReturnValue(etapes('premier_bien', 'kyc', 'equipe'));
+    pathname = '/app';
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      withIntl(
+        <QueryClientProvider client={client}>
+          <AccesAdminProvider acces={acces}>
+            <AppSidebar user={userWith(compte.roles)} agencyIsStandard typeProfilActif={null} />
+          </AccesAdminProvider>
+        </QueryClientProvider>,
+      ),
+    );
+    const groupe = screen.getByRole('group', { name: 'Démarrer' });
+    expect(within(groupe).getAllByRole('link').map((l) => l.getAttribute('href'))).toEqual(['/app/agency/team']);
+    expect(within(groupe).getByText('0 sur 1')).toBeInTheDocument();
+  });
+
+  it.each(['client', 'locataire', 'agent', 'prestataire', 'plateforme'] as const)('%s : ni groupe ni lecture', (persona) => {
+    demarrageMock.mockReturnValue(etapes('premier_bien', 'kyc', 'equipe'));
+    renderSidebar(persona, '/app');
+    expect(demarrageMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole('group', { name: 'Démarrer' })).toBeNull();
+  });
+
+  it('espace suspendu : ni groupe ni lecture', () => {
+    demarrageMock.mockReturnValue(etapes('premier_bien', 'kyc', 'equipe'));
+    renderSidebar('admin-agence', '/app', { agencySuspended: true });
+    expect(demarrageMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole('group', { name: 'Démarrer' })).toBeNull();
+  });
+
+  it('a11y : la barre avec la bande et « Démarrer », sans violation', async () => {
+    unreadMock.mockReturnValue(3);
+    demarrageMock.mockReturnValue(etapes('premier_bien', 'kyc', 'equipe'));
+    const { container } = renderSidebar('admin-agence', '/app');
+    expect(screen.getByRole('group', { name: 'Démarrer' })).toBeInTheDocument();
+    const resultat = await axe.run(container, {
+      runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] },
+      rules: { 'color-contrast': { enabled: false } },
+      resultTypes: ['violations'],
+    });
+    expect(resultat.violations.flatMap((v) => v.nodes.map((n) => `${v.id} ${n.target.join(' ')}`))).toEqual([]);
   });
 });

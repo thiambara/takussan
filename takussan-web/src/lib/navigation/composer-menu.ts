@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import { CATALOGUE, cleDe, estOuverte, iconeDe, type Destination, type IdDestination } from './catalogue';
+import type { ModeDemarrer } from './demarrer';
 import { DISPOSITIONS, type Disposition } from './dispositions';
 import { autresTypes, rolesDuPersona, type Persona } from './personas';
 import type { ContexteDeMenu, NavCounterKey } from './types';
@@ -13,6 +14,8 @@ export interface EntreeComposee {
   readonly groupe: string;
   readonly emphasized?: boolean;
   readonly counterKey?: NavCounterKey;
+  /** TCK-2479 — la page filtrée sur ce qui attend : la cible de la pastille « À traiter ». */
+  readonly hrefATraiter?: string;
   readonly publique?: true;
 }
 
@@ -29,6 +32,10 @@ export interface MenuCompose {
   readonly action: EntreeComposee | null;
   readonly carte: EntreeComposee | null;
   readonly groupes: readonly GroupeCompose[];
+  /** TCK-2479 — l'ordre (et la liste blanche) de la bande « À traiter ». */
+  readonly priorites: readonly NavCounterKey[];
+  /** TCK-2479 — le groupe « Démarrer », `null` sans lui ou dans un espace suspendu (TCK-600). */
+  readonly demarrer: ModeDemarrer | null;
 }
 
 type DestinationDuCatalogue = Destination & { readonly id: IdDestination };
@@ -66,6 +73,7 @@ export function composerMenu(
     ...(d.espace ? { labelSpace: d.espace } : {}),
     ...(d.misEnAvant ? { emphasized: true } : {}),
     ...(d.compteur ? { counterKey: d.compteur } : {}),
+    ...(d.hrefATraiter ? { hrefATraiter: d.hrefATraiter } : {}),
     ...(d.publique ? { publique: true as const } : {}),
   });
 
@@ -120,7 +128,14 @@ export function composerMenu(
     entrees: aussi,
   });
 
-  return { persona, action, carte, groupes: groupes.filter((g) => g.entrees.length > 0) };
+  return {
+    persona,
+    action,
+    carte,
+    groupes: groupes.filter((g) => g.entrees.length > 0),
+    priorites: disposition.priorites,
+    demarrer: ctx.agenceSuspendue ? null : (disposition.demarrer ?? null),
+  };
 }
 
 /**
@@ -148,4 +163,18 @@ export function avecTitres(groupes: readonly GroupeCompose[]): boolean {
 /** Les entrées des groupes, à plat (l'action et la carte n'en sont pas). */
 export function entreesDuMenu(menu: MenuCompose): EntreeComposee[] {
   return menu.groupes.flatMap((g) => g.entrees);
+}
+
+/**
+ * Revue de TCK-2479 (M6) — le compte ouvre-t-il ce chemin ? Jugé par le catalogue, sur l'ESPACE
+ * (`ctx`, pas le persona) : les gardes des pages sont celles du compte et du profil actif — la table
+ * des pages d'administration (`cheminsAdmin`, la garde de `garderPageAdmin`) et `peutPublier` / le
+ * bailleur pour `/app/properties/new` (la règle de `modeDeCreationDeBien`). La requête est ignorée.
+ * Un chemin qu'aucune destination ne porte (`/onboarding/owner`, l'assistant du bailleur sur son
+ * propre profil) n'est pas jugé ici : `true`.
+ */
+export function cheminOuvert(ctx: ContexteDeMenu, href: string): boolean {
+  const chemin = href.split('?')[0];
+  const portees = CATALOGUE.filter((d) => d.href === chemin);
+  return portees.length === 0 || portees.some((d) => estOuverte(d, ctx));
 }

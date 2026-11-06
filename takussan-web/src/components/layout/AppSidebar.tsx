@@ -12,6 +12,7 @@ import { isProRouteLocked } from '@/lib/access/pro-features';
 import { useAccesAdminOuRepli } from '@/lib/access/acces-admin-contexte';
 import { useAuth } from '@/context/AuthContext';
 import { fetchModerationQueue } from '@/lib/queries/reviews-moderation';
+import { COMPTE_DES_AVIS_EN_ATTENTE } from '@/components/admin/statut-de-la-file';
 import {
   AGENCY_QUEUE_REFETCH_INTERVAL_MS,
   AGENCY_QUEUE_STALE_TIME_MS,
@@ -33,6 +34,7 @@ import type { NavCounterKey } from '@/lib/navigation/types';
 import {
   GROUPES_DIVULGATION,
   avecTitres,
+  cheminOuvert,
   composerMenu,
   type EntreeComposee,
   type GroupeCompose,
@@ -44,6 +46,10 @@ import { useSoldeCredits } from '@/lib/queries/credits-solde';
 import { useUnreadCount } from '@/components/chat-widget/useUnreadCount';
 import { usePendingVisitsCount } from '@/lib/queries/visits';
 import { useUnhandledLeadsCount } from '@/lib/queries/contact-leads';
+import { pastillesATraiter } from '@/lib/navigation/a-traiter';
+import { BandeATraiter } from './BandeATraiter';
+import { DemarrerDeLEspace } from './DemarrerDeLEspace';
+import { FOCUS_RING, STYLE_TITRE } from './styles-de-la-barre';
 
 export type { NavCounterKey };
 
@@ -90,21 +96,6 @@ interface AppSidebarProps {
    */
   agencySuspended?: boolean;
 }
-
-/**
- * TCK-377 — Anneau de focus sur toutes les cibles cliquables de la barre.
- *
- * Il n'y en avait AUCUN : au clavier, seul le contour par défaut du navigateur subsistait. Le
- * jeton `--ring` (#a85332) mesure 5,32:1 sur le fond réel de l'aside (`--card` = #ffffff) et
- * 4,23:1 sur le fond de l'entrée ACTIVE (`--border` = #ebe5d5) — au-dessus du seuil non-texte de
- * 3:1 dans les deux cas, ce qui rend le `ring-offset` inutile ici. ⚠ Le jumeau super-admin
- * (TCK-359) a dû l'ajouter parce que là-bas `--ring` et `--sidebar-primary` se confondent sur
- * fond sombre ; ce n'est pas le cas sur la palette claire de `/app`, mesuré et non déduit.
- */
-const FOCUS_RING = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
-
-/** Le titre d'un groupe, en petites capitales (section ou bouton de bascule). */
-const STYLE_TITRE = 'text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground';
 
 function SidebarCounter({ value, label }: { value: number; label: string }) {
   return (
@@ -364,10 +355,8 @@ export function AppSidebar({
     typeProfilActif: typeProfilActif ?? null,
     agenceIndividuelle: accesAdmin.espaceIndividuel || agencyIsStandard === false,
   });
-  const menu = composerMenu(
-    { roles: user.roles, capacites, cheminsAdmin: accesAdmin.chemins, agenceSuspendue: agencySuspended },
-    persona,
-  );
+  const ctxMenu = { roles: user.roles, capacites, cheminsAdmin: accesAdmin.chemins, agenceSuspendue: agencySuspended };
+  const menu = composerMenu(ctxMenu, persona);
   const verrouiller = (e: EntreeComposee): EntreeRendue => ({
     ...e,
     locked: isProRouteLocked(user, agencyIsStandard, e.href),
@@ -383,28 +372,39 @@ export function AppSidebar({
   // TCK-649 — les deux files de modération, reprises à l'identique de la barre de l'ancienne
   // console (TCK-098) : mêmes clés de cache — celle des biens est partagée avec le bloc de files du
   // tableau de bord d'agence (TCK-375), qui vit désormais dans la MÊME coque —, même cadence.
-  const { data: avisEnAttente } = useQuery({
+  const { data: avisEnAttente, isError: avisEnErreur } = useQuery({
     queryKey: ['reviews-moderation', 'pending-count'],
-    queryFn: () => fetchModerationQueue(token ?? '', { perPage: 1 }).then((r) => r.meta),
+    // TCK-2479 (revue, I3) — le total de la vue où mène la pastille, pas `pending_count` : voir
+    // `COMPTE_DES_AVIS_EN_ATTENTE`.
+    queryFn: () => fetchModerationQueue(token ?? '', COMPTE_DES_AVIS_EN_ATTENTE).then((r) => r.meta),
     enabled: Boolean(token) && counted.has('reviewModeration'),
     refetchInterval: AGENCY_QUEUE_REFETCH_INTERVAL_MS,
     staleTime: AGENCY_QUEUE_STALE_TIME_MS,
   });
   const optionsBiens = propertyModerationCountQueryOptions(token ?? null, agencyIsStandard);
-  const { data: biensEnAttente } = useQuery({
+  const { data: biensEnAttente, isError: biensEnErreur } = useQuery({
     ...optionsBiens,
     enabled: optionsBiens.enabled && counted.has('propertyModeration'),
   });
-  // Une requête en échec rend `data === undefined` : le compteur vaut 0, et 0 ne s'affiche pas.
-  // C'est la même branche que « rien en attente » — délibérément : le menu n'est pas l'endroit
-  // où l'on apprend qu'un endpoint est tombé.
+  // TCK-2479 (ADR-0089 §5) — 0 pendant le chargement ET sur une erreur, premier échec ou relecture
+  // ratée (react-query garde alors l'ancien `data` : ce commentaire disait « une requête en échec
+  // rend `data === undefined` », vrai du premier échec seulement). C'est la même branche que « rien
+  // en attente » — délibérément : le menu n'est pas l'endroit où l'on apprend qu'un endpoint est
+  // tombé. Le badge du menu et la bande lisent ce MÊME objet.
+  const total = (q: {
+    readonly data?: { readonly meta?: { readonly total?: number } };
+    readonly isError?: boolean;
+  }) => (q.isError ? 0 : (q.data?.meta?.total ?? 0));
   const counters: Record<NavCounterKey, number> = {
     unreadMessages,
-    pendingVisits: pendingVisits.data?.meta.total ?? 0,
-    unhandledLeads: unhandledLeads.data?.meta?.total ?? 0,
-    reviewModeration: avisEnAttente?.pending_count ?? 0,
-    propertyModeration: biensEnAttente ?? 0,
+    pendingVisits: total(pendingVisits),
+    unhandledLeads: total(unhandledLeads),
+    reviewModeration: avisEnErreur ? 0 : (avisEnAttente?.total ?? 0),
+    propertyModeration: biensEnErreur ? 0 : (biensEnAttente ?? 0),
   };
+  // TCK-2479 — la bande : les entrées RENDUES (donc sondées, `countersToPoll`), dans l'ordre du
+  // persona. Elle ne lit aucun compteur de plus que le menu.
+  const bande = pastillesATraiter(entrees, counters, menu.priorites);
   // TCK-642 — le solde de l'espace, lu par la PRÉSENCE de l'entrée « Crédits » (même principe que
   // les compteurs) ; `null` tant qu'il n'est pas connu, et alors l'entrée reste nue.
   const solde = useSoldeCredits({
@@ -499,10 +499,24 @@ export function AppSidebar({
           </Link>
         </div>
       ) : null}
+      {/* TCK-2479 (ADR-0089 §5) — ce qui attend une réponse, HORS du `<nav>` : le menu ne bouge
+          jamais selon un compteur. Rien n'est rendu quand rien n'attend. Le tiroir monte la même
+          barre : la bande y est aussi. */}
+      <BandeATraiter visibles={bande.visibles} autres={bande.autres} onNavigate={onNavigate} />
       {/* TCK-843 — `relative` : bloc conteneur des `sr-only` (absolus) de la liste. Sans lui,
           c'était la fenêtre ; aucun `overflow` ne les coupait, et posés en bas de la liste ils
           allongeaient le document — la coque entière de `/app` défilait. */}
       <nav aria-label={t('navLabel')} className="relative flex-1 overflow-y-auto px-3 pb-2">
+        {/* TCK-2479 — « Démarrer » : un espace neuf sait par où commencer. Dans le `<nav>`, il défile
+            avec le menu ; il n'en réordonne aucune entrée. `menu.demarrer` est `null` pour un persona
+            sans mise en service et dans un espace suspendu : ni groupe, ni lecture. */}
+        {menu.demarrer ? (
+          <DemarrerDeLEspace
+            mode={menu.demarrer}
+            ouverte={(href) => cheminOuvert(ctxMenu, href)}
+            onNavigate={onNavigate}
+          />
+        ) : null}
         {groupes.map((groupe, index) => (
           <GroupeDuMenu
             key={groupe.id}

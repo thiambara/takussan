@@ -18,11 +18,12 @@
  * KYC, Reversements, Crédits et Intégrations, et « Finances » est dans « Mes locations ».
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { withIntl } from '@/test/intl';
+import { PROPERTY_MODERATION_COUNT_KEY } from '@/lib/queries/agency-queues';
 import { ToastProvider } from '@/components/ui/toast';
 import { AccesAdminProvider } from '@/lib/access/acces-admin-contexte';
 import { accesDepuis, type ContexteAdmin } from '@/lib/access/pages-admin';
@@ -33,7 +34,9 @@ import { AppSidebar } from '../AppSidebar';
 
 const { chemin, fetchAvis, fetchBiens } = vi.hoisted(() => ({
   chemin: { valeur: '/app' },
-  fetchAvis: vi.fn(async () => ({ data: [], meta: { pending_count: 3 } })),
+  // TCK-2479 (revue, I3) — le compteur lit `total` de la vue « En attente » ; `pending_count` (ici
+  // différent exprès) n'est plus lu.
+  fetchAvis: vi.fn(async () => ({ data: [], meta: { total: 3, pending_count: 9 } })),
   fetchBiens: vi.fn(async () => ({ data: [], meta: { total: 6 } })),
 }));
 
@@ -52,6 +55,8 @@ vi.mock('@/components/chat-widget/useUnreadCount', () => ({ useUnreadCount: () =
 vi.mock('@/lib/queries/visits', () => ({ usePendingVisitsCount: () => ({}) }));
 vi.mock('@/lib/queries/contact-leads', () => ({ useUnhandledLeadsCount: () => ({}) }));
 vi.mock('@/lib/queries/credits-solde', () => ({ useSoldeCredits: () => null }));
+// TCK-2479 — le jeton est posé : sans ce mock, « Démarrer » de l'admin partirait sur le réseau.
+vi.mock('@/lib/queries/demarrage-espace', () => ({ useDemarrageDeLEspace: () => ({}) }));
 vi.mock('@/hooks/useImpersonation', () => ({
   useImpersonationCourante: () => ({ data: null }),
   useQuitterImpersonation: () => ({ mutate: vi.fn(), isPending: false }),
@@ -262,6 +267,44 @@ describe('les files de modération gardent leur badge (TCK-098, repris de la bar
     expect(within(section).getByRole('link', { name: /Modération avis/, hidden: true })).toContainElement(
       screen.getByLabelText('3 en attente'),
     );
+  });
+
+  /**
+   * TCK-2479 (AC3, arbitrage 7) — sur une relecture en ÉCHEC, react-query GARDE l'ancien `data`
+   * (`isError: true`) : un compteur qui ne lisait que `data` continuait d'afficher un compte qu'on ne
+   * sait plus vrai. Éprouvé ici sur le vrai react-query, pas sur un mock de sa forme.
+   */
+  it('TCK-2479 — une relecture ratée retire badge et pastille, alors que le cache garde l’ancien compte', async () => {
+    const qc = client();
+    render(
+      withIntl(
+        <QueryClientProvider client={qc}>
+          <AccesAdminProvider acces={accesDepuis(ADMIN_STANDARD.ctx)}>
+            <AppSidebar user={utilisateur(ADMIN_STANDARD.roles)} agencyIsStandard />
+          </AccesAdminProvider>
+        </QueryClientProvider>,
+      ),
+    );
+    const pastilles = () =>
+      within(screen.getByRole('region', { name: 'À traiter' }))
+        .getAllByRole('link')
+        .map((l) => l.getAttribute('aria-label'));
+    await waitFor(() => expect(pastilles()).toEqual(['6 biens à valider', '3 avis à modérer']));
+
+    fetchAvis.mockRejectedValueOnce(new Error('panne'));
+    fetchBiens.mockRejectedValueOnce(new Error('panne'));
+    await act(() => qc.refetchQueries());
+
+    // La prémisse : les deux requêtes sont en erreur, et leur `data` est TOUJOURS là.
+    for (const cle of [['reviews-moderation', 'pending-count'], PROPERTY_MODERATION_COUNT_KEY]) {
+      const etat = qc.getQueryState(cle);
+      expect(etat?.status, String(cle)).toBe('error');
+      expect(etat?.data, String(cle)).toBeDefined();
+    }
+    // Et pourtant : ni pastille, ni badge.
+    expect(screen.queryByRole('region', { name: 'À traiter' })).toBeNull();
+    expect(screen.queryByLabelText('3 en attente')).toBeNull();
+    expect(screen.queryByLabelText('6 en attente')).toBeNull();
   });
 
   it('admin individual : aucune file sondée — ses pages ne lui sont pas ouvertes', async () => {

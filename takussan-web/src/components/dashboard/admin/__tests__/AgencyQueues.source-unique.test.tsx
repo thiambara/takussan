@@ -68,6 +68,10 @@ vi.mock('@/hooks/useProfiles', () => ({
   useSwitchActiveProfile: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
+// TCK-2479 — « Démarrer » (barre de l'admin) lit sa propre route : sans objet ici, et la réponse
+// générique de `mockApiRequest` n'est pas la sienne.
+vi.mock('@/lib/queries/demarrage-espace', () => ({ useDemarrageDeLEspace: () => ({}) }));
+
 vi.mock('next/navigation', () => ({
   usePathname: () => '/app/overview/agency',
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),

@@ -1,5 +1,7 @@
 import type { IdDestination } from './catalogue';
+import type { ModeDemarrer } from './demarrer';
 import type { Persona } from './personas';
+import type { NavCounterKey } from './types';
 
 /**
  * TCK-2478 (ADR-0089 §3) — la disposition du menu de chaque persona, validée par le porteur le
@@ -24,11 +26,23 @@ export interface Disposition {
   readonly groupes: readonly GroupeDeDisposition[];
   readonly plus: readonly IdDestination[];
   readonly libelles?: Partial<Record<IdDestination, string>>;
+  /**
+   * TCK-2479 (ADR-0089 §5) — les compteurs qui montent dans la bande « À traiter », DANS CET ORDRE.
+   * Liste blanche : un compteur absent garde son badge au menu, mais n'est pas « à traiter » pour ce
+   * persona. Obligatoire : un persona sans priorités se décide, il ne s'oublie pas.
+   */
+  readonly priorites: readonly NavCounterKey[];
+  /** TCK-2479 — le groupe « Démarrer » : les étapes d'une agence (`espace`) ou d'un bailleur. */
+  readonly demarrer?: ModeDemarrer;
 }
 
 const PUBLIER: readonly IdDestination[] = ['publier-bien', 'proposer-bien'];
 
-const ADMIN_AGENCE: Disposition = {
+/**
+ * L'admin d'agence et la plateforme partagent le menu (TCK-2478) ; TCK-2479 les sépare sur la bande
+ * « À traiter » et « Démarrer », que chacun reçoit dans `DISPOSITIONS`.
+ */
+const BASE_ADMIN: Omit<Disposition, 'priorites' | 'demarrer'> = {
   action: PUBLIER,
   groupes: [
     { id: 'tete', titre: null, entrees: ['tableau-de-bord', 'vue-agence', 'messagerie'] },
@@ -60,6 +74,7 @@ export const DISPOSITIONS: Record<Persona, Disposition> = {
       { id: 'mes-demarches', titre: 'mesDemarches', entrees: ['visites', 'reservations'] },
     ],
     plus: ['documents', 'avis', 'statistiques'],
+    priorites: ['unreadMessages'],
   },
   locataire: {
     action: ['paiements'],
@@ -77,6 +92,7 @@ export const DISPOSITIONS: Record<Persona, Disposition> = {
     ],
     plus: ['avis', 'statistiques'],
     libelles: { baux: 'myLease', maintenance: 'interventions' },
+    priorites: ['unreadMessages'],
   },
   bailleur: {
     action: PUBLIER,
@@ -87,6 +103,8 @@ export const DISPOSITIONS: Record<Persona, Disposition> = {
     ],
     plus: ['clients', 'avis', 'documents', 'statistiques', 'exports', 'favoris', 'recherches'],
     libelles: { maintenance: 'interventions' },
+    priorites: ['unreadMessages', 'unhandledLeads', 'pendingVisits'],
+    demarrer: 'bailleur',
   },
   agent: {
     action: PUBLIER,
@@ -98,8 +116,13 @@ export const DISPOSITIONS: Record<Persona, Disposition> = {
     ],
     plus: ['avis', 'documents', 'statistiques', 'exports', 'favoris', 'recherches'],
     libelles: { maintenance: 'interventions' },
+    priorites: ['unhandledLeads', 'pendingVisits', 'unreadMessages'],
   },
-  'admin-agence': ADMIN_AGENCE,
+  'admin-agence': {
+    ...BASE_ADMIN,
+    priorites: ['unhandledLeads', 'pendingVisits', 'unreadMessages', 'propertyModeration', 'reviewModeration'],
+    demarrer: 'espace',
+  },
   hote: {
     action: PUBLIER,
     groupes: [
@@ -110,11 +133,17 @@ export const DISPOSITIONS: Record<Persona, Disposition> = {
     ],
     plus: ['clients', 'statistiques', 'exports', 'kpis', 'alertes', 'avis', 'documents'],
     libelles: { maintenance: 'interventions', paiements: 'payments', 'agence-facturation': 'payouts' },
+    priorites: ['unreadMessages', 'unhandledLeads', 'pendingVisits'],
+    demarrer: 'espace',
   },
   prestataire: {
     action: [],
     groupes: [{ id: 'tete', titre: null, entrees: ['tableau-de-bord', 'maintenance', 'messagerie', 'documents'] }],
     plus: [],
+    priorites: ['unreadMessages'],
   },
-  plateforme: ADMIN_AGENCE,
+  plateforme: {
+    ...BASE_ADMIN,
+    priorites: ['propertyModeration', 'reviewModeration', 'unhandledLeads', 'pendingVisits', 'unreadMessages'],
+  },
 };

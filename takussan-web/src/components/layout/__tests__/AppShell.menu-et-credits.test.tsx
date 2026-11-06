@@ -13,6 +13,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { withIntl } from '@/test/intl';
 import { ToastProvider } from '@/components/ui/toast';
+import { AccesAdminProvider } from '@/lib/access/acces-admin-contexte';
+import { accesDepuis, type AccesAdmin } from '@/lib/access/pages-admin';
 import type { User, UserRole } from '@/types/user';
 import { AppShell } from '../AppShell';
 
@@ -29,9 +31,14 @@ vi.mock('@/hooks/useCan', () => ({
 }));
 
 // Les compteurs et le solde sondent le réseau : ce fichier éprouve leur RENDU.
-vi.mock('@/components/chat-widget/useUnreadCount', () => ({ useUnreadCount: () => 0 }));
+// TCK-2479 — le compte des non-lus est réglable : la bande « À traiter » doit paraître dans le tiroir.
+const nonLusMock = vi.hoisted(() => vi.fn<() => number>(() => 0));
+vi.mock('@/components/chat-widget/useUnreadCount', () => ({ useUnreadCount: () => nonLusMock() }));
 vi.mock('@/lib/queries/visits', () => ({ usePendingVisitsCount: () => ({}) }));
 vi.mock('@/lib/queries/contact-leads', () => ({ useUnhandledLeadsCount: () => ({}) }));
+// TCK-2479 — « Démarrer » : réglable, muet par défaut.
+const demarrageMock = vi.hoisted(() => vi.fn<() => { data?: unknown }>(() => ({})));
+vi.mock('@/lib/queries/demarrage-espace', () => ({ useDemarrageDeLEspace: () => demarrageMock() }));
 const soldeMock = vi.hoisted(() => vi.fn<(o: { enabled: boolean }) => number | null>(() => null));
 vi.mock('@/lib/queries/credits-solde', () => ({
   useSoldeCredits: (o: { enabled: boolean }) => soldeMock(o),
@@ -53,16 +60,17 @@ function utilisateur(roles: UserRole[]): User {
   return { id: 1, first_name: 'Awa', last_name: 'Diop', full_name: 'Awa Diop', email: 'awa@example.test', roles } as unknown as User;
 }
 
-function monter(roles: UserRole[]) {
+function monter(roles: UserRole[], acces?: AccesAdmin) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const coque = (
+    <AppShell user={utilisateur(roles)} agencyIsStandard>
+      <p>contenu</p>
+    </AppShell>
+  );
   return render(
     withIntl(
       <QueryClientProvider client={client}>
-        <ToastProvider>
-          <AppShell user={utilisateur(roles)} agencyIsStandard>
-            <p>contenu</p>
-          </AppShell>
-        </ToastProvider>
+        <ToastProvider>{acces ? <AccesAdminProvider acces={acces}>{coque}</AccesAdminProvider> : coque}</ToastProvider>
       </QueryClientProvider>,
     ),
   );
@@ -81,6 +89,10 @@ async function ouvrirLeTiroir() {
 const nomNormalise = (attendu: string) => (nom: string) => nom.replace(/\s/g, ' ') === attendu;
 
 beforeEach(() => {
+  nonLusMock.mockReset();
+  nonLusMock.mockReturnValue(0);
+  demarrageMock.mockReset();
+  demarrageMock.mockReturnValue({});
   soldeMock.mockReset();
   soldeMock.mockReturnValue(null);
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404, json: async () => ({}) }));
@@ -115,6 +127,55 @@ describe('TCK-646 — le menu mobile de /app présente le même ordre (AC4)', ()
     expect(tousLesLiens(tiroir).filter((h) => h !== '/')).toEqual(tousLesLiens(bureau).filter((h) => h !== '/'));
     expect(groupes(tiroir)).toEqual(groupes(bureau));
     expect(tiroir.querySelector('[data-slot="action-principale"]')).toHaveAttribute('href', action);
+  });
+});
+
+describe('TCK-2479 — la bande « À traiter » est aussi dans le tiroir', () => {
+  it('mêmes pastilles qu’à la barre de bureau ; un clic referme le tiroir', async () => {
+    nonLusMock.mockReturnValue(3);
+    const { container } = monter(['agent']);
+    const bureau = container.querySelector('aside')!;
+    const deLaBande = (racine: Element) =>
+      within(within(racine as HTMLElement).getByRole('region', { name: 'À traiter' }))
+        .getAllByRole('link')
+        .map((l) => [l.getAttribute('aria-label'), l.getAttribute('href')]);
+    // Lue AVANT l'ouverture : le tiroir modal rend la barre de bureau `inert`.
+    const auBureau = deLaBande(bureau);
+    expect(auBureau).toEqual([['3 messages non lus', '/app/messages']]);
+
+    const tiroir = await ouvrirLeTiroir();
+    expect(deLaBande(tiroir)).toEqual(auBureau);
+    await userEvent.setup().click(within(tiroir).getByRole('link', { name: '3 messages non lus' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
+
+describe('TCK-2479 — « Démarrer » est aussi dans le tiroir', () => {
+  it('mêmes étapes qu’à la barre de bureau, en tête du menu ; un clic referme le tiroir', async () => {
+    demarrageMock.mockReturnValue({
+      data: { data: { etapes: [{ code: 'premier_bien', faite: true }, { code: 'kyc', faite: false }, { code: 'equipe', faite: false }] } },
+    });
+    // Revue de TCK-2479 (M6) — chaque étape est jugée par la garde de SA page : l'accès aux pages
+    // d'agence est celui que le layout de `/app` fournit (sans lui, le repli ne connaît aucune
+    // capacité et `/app/agency/kyc`, qui exige `agency.update_kyc`, est fermé).
+    const roles: UserRole[] = ['agency_admin', 'customer'];
+    const { container } = monter(
+      roles,
+      accesDepuis({ roles, agence: { kind: 'standard' }, capacites: ['agency.update', 'agency.update_kyc'] }),
+    );
+    const etapes = (racine: Element) => {
+      const groupe = within(racine as HTMLElement).getByRole('group', { name: 'Démarrer' });
+      expect(racine.querySelector('nav')!.firstElementChild).toBe(groupe);
+      return within(groupe).getAllByRole('link').map((l) => l.getAttribute('href'));
+    };
+    // Lues AVANT l'ouverture : le tiroir modal rend la barre de bureau `inert`.
+    const auBureau = etapes(container.querySelector('aside')!);
+    expect(auBureau).toEqual(['/app/agency/kyc', '/app/agency/team']);
+
+    const tiroir = await ouvrirLeTiroir();
+    expect(etapes(tiroir)).toEqual(auBureau);
+    await userEvent.setup().click(within(tiroir).getByRole('link', { name: /Inviter un premier membre/ }));
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 });
 

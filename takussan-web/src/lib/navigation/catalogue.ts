@@ -68,6 +68,13 @@ export interface Destination {
   readonly accessible: (ctx: ContexteDeMenu) => boolean;
   readonly misEnAvant?: boolean;
   readonly compteur?: NavCounterKey;
+  /**
+   * TCK-2479 (ADR-0089 §1) — la page de la destination FILTRÉE sur ce qui attend : la cible de la
+   * pastille « À traiter » de son compteur. Même chemin que `href` ; chacun de ses paramètres est LU
+   * par la page (`a-traiter-lu-par-sa-page.test.ts`). Absente, la pastille mène à `href` — la page est
+   * alors déjà la file, ou n'a pas de filtre, et la garde exige qu'elle soit dans `SANS_FILTRE`.
+   */
+  readonly hrefATraiter?: string;
   /** Espace de la clé de libellé : `nav.sidebar` par défaut, `nav.admin` pour une page d'agence. */
   readonly espace?: 'nav.admin';
   /** Une entrée dont le seul objet est une écriture : retirée d'un espace suspendu (TCK-600). */
@@ -130,7 +137,12 @@ function ouvreLesPagesDAgence({ roles, rolesDeLEspace = roles }: ContexteDeMenu)
 }
 
 /** Voir {@link ouvreLesPagesDAgence} pour le partage entre le persona et le complément. */
-function pageAgence<const I extends string>(id: I, chemin: CheminAdmin, compteur?: NavCounterKey) {
+function pageAgence<const I extends string>(
+  id: I,
+  chemin: CheminAdmin,
+  compteur?: NavCounterKey,
+  hrefATraiter?: string,
+) {
   const page = PAGES_ADMIN.find((p) => p.chemin === chemin);
   if (!page?.menu) throw new Error(`TCK-2478 — ${chemin} n'a pas de place au menu dans PAGES_ADMIN`);
   return {
@@ -141,6 +153,7 @@ function pageAgence<const I extends string>(id: I, chemin: CheminAdmin, compteur
     espace: 'nav.admin' as const,
     accessible: (ctx: ContexteDeMenu) => ouvreLesPagesDAgence(ctx) && (ctx.cheminsAdmin ?? []).includes(chemin),
     ...(compteur ? { compteur } : {}),
+    ...(hrefATraiter ? { hrefATraiter } : {}),
   };
 }
 
@@ -206,6 +219,7 @@ const TABLE = [
     cle: (ctx) => (client(ctx) ? 'myVisits' : 'visits'),
     icone: CalendarClock,
     compteur: 'pendingVisits',
+    hrefATraiter: '/app/visits?tab=requested',
     accessible: (ctx) => client(ctx) || occupeUnLogement(ctx.roles),
   },
   // TCK-633 lot F (ADR-0061 §1) — le portefeuille de l'espace ; l'API tranche (`boost.spend`).
@@ -247,6 +261,7 @@ const TABLE = [
     cle: 'leads',
     icone: Inbox,
     compteur: 'unhandledLeads',
+    hrefATraiter: '/app/leads?filtre=todo',
     accessible: ({ roles }) => isAgent(roles) || isOwner(roles) || isAdmin(roles),
   },
   {
@@ -335,7 +350,12 @@ const TABLE = [
   pageAgence('agence-kyc', '/app/agency/kyc'),
   pageAgence('agence-facturation', '/app/agency/billing'),
   pageAgence('agence-finances', '/app/agency/finances'),
-  pageAgence('agence-moderation-avis', '/app/agency/moderation', 'reviewModeration'),
+  pageAgence(
+    'agence-moderation-avis',
+    '/app/agency/moderation',
+    'reviewModeration',
+    '/app/agency/moderation?filter[moderation_status]=pending',
+  ),
   pageAgence('agence-moderation-biens', '/app/agency/moderation/properties', 'propertyModeration'),
   pageAgence('agence-journal', '/app/agency/audit'),
   pageAgence('agence-integrations', '/app/agency/integrations'),
