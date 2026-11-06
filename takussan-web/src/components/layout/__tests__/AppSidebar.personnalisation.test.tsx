@@ -610,3 +610,29 @@ describe('TCK-2480 — M1 : barre réduite, la ligne cadenassée a son infobulle
     expect(bulles()).toEqual([]);
   });
 });
+
+/**
+ * Revue adverse de TCK-2490 (M2) — un même bord droit pour les nombres, les puces et les touches. L'épingle
+ * invisible (`opacity-0`) gardait au repos sa place (28 px + 4 px) : les compteurs du menu s'arrêtaient
+ * à 226 px, les puces d'« Aujourd'hui » et les touches de « Aller à » à 255 (mesuré, 1440). Elle ne
+ * réserve plus sa place que là où elle s'affiche : au survol de la ligne, au focus, épinglée, au doigt.
+ * (jsdom n'applique pas le CSS : on lit les classes ; le bord droit est relevé au navigateur.)
+ */
+describe('revue adverse (M2) — l’épingle ne réserve sa place que là où elle s’affiche', () => {
+  const classes = (el: Element) => (el.getAttribute('class') ?? '').split(/\s+/);
+  /** Les classes de largeur ou de marge droite SANS variante : celles qui valent au repos. */
+  const auRepos = (el: Element) => classes(el).filter((c) => /^(w-|size-|mr-|me-)/.test(c));
+
+  it('au repos : largeur nulle, aucune marge ; épinglée, au survol, au focus, au doigt : sa largeur', () => {
+    render(element(['customer', 'agent'], 'agent', { modeIcones: 'complet' }));
+    const epingle = document.querySelector('button[data-epingle][aria-pressed="false"]')!;
+    expect(epingle).not.toBeNull();
+    expect(auRepos(epingle)).toEqual(['w-0']);
+    for (const variante of ['group-hover/ligne', 'focus', 'aria-pressed', 'tactile']) {
+      expect(classes(epingle), variante).toEqual(expect.arrayContaining([`${variante}:w-(--l-epingle)`, `${variante}:mr-1`]));
+    }
+    // Toujours atteignable au clavier : ni `hidden`, ni `invisible` (une largeur nulle se focalise).
+    expect(classes(epingle)).not.toEqual(expect.arrayContaining(['hidden']));
+    expect(classes(epingle)).not.toEqual(expect.arrayContaining(['invisible']));
+  });
+});

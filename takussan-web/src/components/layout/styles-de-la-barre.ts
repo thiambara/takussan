@@ -60,9 +60,14 @@ export const STYLE_COMPTEUR = 'ml-auto shrink-0 text-[12.5px] font-medium tabula
  * TCK-2480 — l'épingle d'une ligne : discrète, visible au survol de la ligne ET au focus clavier,
  * toujours visible quand la ligne est épinglée (on reconnaît « Épinglés ») ; à 60 % sur un écran
  * tactile, qui n'a pas de survol (A13).
+ *
+ * Revue adverse de TCK-2490 (M2) — elle ne RÉSERVE sa place que là où elle s'affiche : au repos, largeur
+ * nulle (elle reste focalisable : ni `hidden` ni `invisible`) ; au survol de la ligne, au focus, épinglée
+ * ou au doigt, sa largeur (`--l-epingle` : 28 px, 36 px sous `md`) et sa marge. Invisible, elle gardait
+ * 32 px : les compteurs du menu s'arrêtaient 29 px avant les puces d'« Aujourd'hui » et les touches.
  */
 export const STYLE_EPINGLE =
-  'mr-1 inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-foreground/5 hover:text-foreground focus-visible:opacity-100 group-hover/ligne:opacity-100 aria-pressed:opacity-100 aria-disabled:cursor-not-allowed tactile:not-aria-pressed:opacity-60 max-md:size-9 motion-reduce:transition-none icones:hidden';
+  'inline-flex h-7 w-0 shrink-0 items-center justify-center overflow-hidden rounded-md text-muted-foreground opacity-0 [--l-epingle:1.75rem] transition-[opacity,width,margin] hover:bg-foreground/5 hover:text-foreground focus:mr-1 focus:w-(--l-epingle) focus-visible:opacity-100 group-hover/ligne:mr-1 group-hover/ligne:w-(--l-epingle) group-hover/ligne:opacity-100 aria-pressed:mr-1 aria-pressed:w-(--l-epingle) aria-pressed:opacity-100 aria-disabled:cursor-not-allowed tactile:mr-1 tactile:w-(--l-epingle) tactile:not-aria-pressed:opacity-60 max-md:h-9 max-md:[--l-epingle:2.25rem] motion-reduce:transition-none icones:hidden';
 
 /** TCK-2480 — le libellé d'une ligne : lu par le lecteur d'écran dans tous les modes, caché à l'œil réduite. */
 export const LIBELLE_DE_LIGNE = 'truncate icones:sr-only';
