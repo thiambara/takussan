@@ -74,9 +74,11 @@ interface PreferencesDuMenuProviderProps {
  *   juste au premier octet.
  * - Écriture (A4) : optimiste ; la navigation ENTIÈRE part en `PATCH /api/me` (le relais BFF
  *   `src/app/api/me/route.ts`, même origine) 800 ms après le dernier geste — la clé est remplacée en
- *   bloc côté API. Un échec (HTTP ≠ 2xx ou réseau) rétablit le dernier état ACCEPTÉ et le dit ; un
- *   geste plus récent en attente suspend ce rétablissement (il porte l'état entier et sera jugé à son
- *   tour). Ce qui attend part au `pagehide` et au démontage (`keepalive`).
+ *   bloc côté API. UNE requête en vol à la fois (revue, I1) : un geste fait pendant le vol attend la
+ *   réponse, puis part (après son délai). Un échec (HTTP ≠ 2xx ou réseau) rétablit le dernier état
+ *   ACCEPTÉ et le dit ; un geste plus récent en attente suspend ce rétablissement (il porte l'état
+ *   entier et sera jugé à son tour). L'état le plus récent non confirmé part au `pagehide` et au
+ *   démontage (`keepalive`), même pendant un vol.
  * - Sous impersonation (A5), rien ne part : l'API refuserait, et l'opérateur ne modifie pas le compte
  *   qu'il observe. Les gestes restent dans l'onglet.
  * - Le mode icônes est un réglage de l'APPAREIL : un cookie, aucune écriture sur le compte.
@@ -96,13 +98,23 @@ export function PreferencesDuMenuProvider({
   /** L'état qu'aucune requête n'emporte encore. */
   const enAttente = useRef<PreferencesDeNavigation | null>(null);
   const minuteur = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Revue de TCK-2480 (I1) — une écriture en vol à la fois. Chaque requête porte un numéro d'émission :
+  // `confirmee` n'avance que sur une réponse plus RÉCENTE (dans l'ordre d'émission) que la dernière
+  // acceptée, et l'échec ne se juge que lorsque plus rien ne vole ni n'attend.
+  /** Requêtes parties et pas encore réglées : 0 ou 1, sauf un `keepalive` de départ (pagehide, démontage). */
+  const enVol = useRef(0);
+  /** Numéro de la dernière requête partie, et de la plus récente acceptée. */
+  const emise = useRef(0);
+  const acceptee = useRef(0);
+  /** La dernière requête partie, tant qu'elle n'est pas réglée : `pagehide` la renvoie en `keepalive`. */
+  const derniere = useRef<{ readonly numero: number; readonly etat: PreferencesDeNavigation; readonly keepalive: boolean } | null>(null);
 
-  async function envoyer(keepalive = false) {
-    minuteur.current = null;
-    const suivante = enAttente.current;
-    enAttente.current = null;
-    if (suivante === null) return;
+  async function envoyer(etat: PreferencesDeNavigation, keepalive: boolean) {
     if (relaisImpersonationActif()) return;
+    emise.current += 1;
+    const numero = emise.current;
+    enVol.current += 1;
+    derniere.current = { numero, etat, keepalive };
     let ok = false;
     try {
       const reponse = await fetch('/api/me', {
@@ -110,17 +122,40 @@ export function PreferencesDuMenuProvider({
         credentials: 'include',
         keepalive,
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ navigation: versLeCorps(suivante) }),
+        body: JSON.stringify({ navigation: versLeCorps(etat) }),
       });
       ok = reponse.ok;
     } catch {
       ok = false;
     }
-    if (ok) {
-      confirmee.current = suivante;
+    enVol.current -= 1;
+    if (derniere.current?.numero === numero) derniere.current = null;
+    if (ok && numero > acceptee.current) {
+      acceptee.current = numero;
+      confirmee.current = etat;
+    }
+    juger();
+  }
+
+  /** L'état en attente part maintenant. */
+  function envoyerLAttente(keepalive = false) {
+    const etat = enAttente.current;
+    enAttente.current = null;
+    if (etat !== null) void envoyer(etat, keepalive);
+  }
+
+  /** À la réponse d'une requête : faire partir ce qui attend, ou juger la dernière émise. */
+  function juger() {
+    // Une requête plus récente vole encore : c'est elle qui sera jugée.
+    if (enVol.current > 0) return;
+    // Un geste attend (A4) : il porte l'état entier. Il part tout de suite si son délai est écoulé,
+    // sinon à la fin de son délai ; c'est lui qui sera jugé.
+    if (enAttente.current !== null) {
+      if (minuteur.current === null) envoyerLAttente();
       return;
     }
-    if (enAttente.current !== null) return;
+    if (acceptee.current === emise.current) return;
+    // La dernière requête émise est refusée : retour au dernier état ACCEPTÉ, et on le dit.
     setNavigation(confirmee.current);
     toast.add({ title: t('echec'), type: 'error' });
   }
@@ -132,15 +167,27 @@ export function PreferencesDuMenuProvider({
     setNavigation(suivante);
     enAttente.current = suivante;
     if (minuteur.current !== null) clearTimeout(minuteur.current);
-    minuteur.current = setTimeout(() => void envoyer(), DELAI_D_ENVOI_MS);
+    minuteur.current = setTimeout(() => {
+      minuteur.current = null;
+      // En vol : la réponse le fera partir (`juger`), jamais deux écritures à la fois.
+      if (enVol.current === 0) envoyerLAttente();
+    }, DELAI_D_ENVOI_MS);
   }
 
-  // A4 — ce qui attend part tout de suite quand la page s'en va : `keepalive` laisse la requête
-  // survivre au déchargement.
+  // A4 — quand la page s'en va, l'état le plus récent non confirmé part tout de suite, en `keepalive`
+  // (qui laisse la requête survivre au déchargement), même si une requête est en vol : une requête
+  // ordinaire meurt avec la page.
   const vider = useEffectEvent(() => {
-    if (minuteur.current === null) return;
-    clearTimeout(minuteur.current);
-    void envoyer(true);
+    if (minuteur.current !== null) {
+      clearTimeout(minuteur.current);
+      minuteur.current = null;
+    }
+    if (enAttente.current !== null) {
+      envoyerLAttente(true);
+      return;
+    }
+    const enCours = derniere.current;
+    if (enCours !== null && !enCours.keepalive) void envoyer(enCours.etat, true);
   });
   useEffect(() => {
     const surPagehide = () => vider();
