@@ -19,6 +19,7 @@ import { FOCUS_RING } from './styles-de-la-barre';
 import { useMenuDeLEspace } from './useMenuDeLEspace';
 import { COMPTEURS_DE_MODERATION, useCompteursDuMenu } from './useCompteursDuMenu';
 import { REQUETE_DE_LA_BARRE } from './plein-ecran';
+import { AnnonceDesNonLus } from './AnnonceDesNonLus';
 
 /** Une case : 72 px de large à 360 (cinq colonnes), toute la hauteur de la barre (56 px) — cibles ≥ 44 px. */
 const STYLE_CASE =
@@ -152,6 +153,9 @@ export function BarreDOnglets({
           </button>
         </li>
       </ul>
+      {/* TCK-2481 (revue, I1) — la région live des nouveaux non-lus sous `md` (WCAG 4.1.3) : la
+          pastille est muette et le bouton flottant qui l'annonçait ne se rend plus sur `/app`. */}
+      <AnnonceDesNonLus compte={counters.unreadMessages} actif={sousMd} />
     </nav>
   );
 }

@@ -8,11 +8,12 @@
  */
 import { createRef } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { withIntl } from '@/test/intl';
 import type { IdDestination } from '@/lib/navigation/catalogue';
 import type { PreferencesDeNavigation } from '@/lib/navigation/preferences';
+import { NonLusQueryKeys } from '@/lib/queries/conversations-list';
 import type { ProfileType } from '@/types/profile';
 import type { User, UserRole } from '@/types/user';
 import { ToastProvider } from '@/components/ui/toast';
@@ -115,18 +116,19 @@ function monter(persona: string, chemin = '/app', navigation?: PreferencesDeNavi
     roles: compte.roles,
   } as unknown as User;
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const barre = (
-    <BarreDOnglets
-      user={user}
-      agencyIsStandard={compte.agencyIsStandard ?? true}
-      typeProfilActif={compte.typeProfilActif ?? null}
-      menuOuvert={false}
-      onOuvrirMenu={vi.fn()}
-      refMenu={createRef<HTMLButtonElement>()}
-    />
-  );
-  return render(
-    withIntl(
+  // Un nouvel arbre à chaque appel : `relire()` re-rend la barre, qui relit alors `etat.nonLus`.
+  const arbre = () => {
+    const barre = (
+      <BarreDOnglets
+        user={user}
+        agencyIsStandard={compte.agencyIsStandard ?? true}
+        typeProfilActif={compte.typeProfilActif ?? null}
+        menuOuvert={false}
+        onOuvrirMenu={vi.fn()}
+        refMenu={createRef<HTMLButtonElement>()}
+      />
+    );
+    return withIntl(
       <QueryClientProvider client={client}>
         {navigation ? (
           // Le fournisseur des préférences signale un échec d'enregistrement par un toast.
@@ -139,8 +141,10 @@ function monter(persona: string, chemin = '/app', navigation?: PreferencesDeNavi
           barre
         )}
       </QueryClientProvider>,
-    ),
-  );
+    );
+  };
+  const rendu = render(arbre());
+  return { ...rendu, client, relire: () => rendu.rerender(arbre()) };
 }
 
 const barre = () => screen.getByRole('navigation', { name: 'Accès rapide' });
@@ -290,5 +294,92 @@ describe('TCK-2481 (revue, M5) — le seuil JS de la barre est la plage CSS, en 
     monter('agent');
     expect(etat.requetes).toContain(REQUETE_DE_LA_BARRE);
     expect(etat.requetes.some((q) => /px/.test(q))).toBe(false);
+  });
+});
+
+describe('TCK-2481 (revue, I1) — une région live annonce les nouveaux non-lus sous md (WCAG 4.1.3)', () => {
+  /**
+   * Le bouton flottant mobile portait la seule région `aria-live` du compte de non-lus visible sous
+   * `md` ; il ne se rend plus sur `/app`, et la pastille de l'onglet est muette (`aria-hidden`) — un
+   * `aria-label` qui change n'est annoncé par aucun lecteur d'écran. La barre porte donc la région,
+   * avec le texte du bouton retiré (`messaging.widget.unreadInline`).
+   *
+   * Elle n'annonce qu'un CHANGEMENT : vide au montage, et la première lecture du compte (0 pendant
+   * le chargement, puis N) est une ligne de base, pas une nouvelle.
+   */
+  const region = () => {
+    const regions = barre().querySelectorAll('[aria-live]');
+    expect(regions).toHaveLength(1);
+    return regions[0]!;
+  };
+  /** La requête partagée du compte a été lue (ce que `useUnreadCount` lit aussi). */
+  const compteLu = (client: QueryClient) =>
+    act(() => {
+      client.setQueryData(NonLusQueryKeys.total, { data: [], meta: { unread_total: etat.nonLus } });
+    });
+
+  it('sous md : une région polie et masquée à l’œil, dans la barre (`md:hidden`), vide au montage', () => {
+    largeurDeFenetre(390);
+    etat.nonLus = 4;
+    const { client, relire } = monter('agent');
+    compteLu(client);
+    relire();
+    expect(region()).toHaveAttribute('aria-live', 'polite');
+    expect(region()).toHaveClass('sr-only');
+    expect(barre()).toHaveClass('md:hidden');
+    expect(region()).toHaveTextContent(/^$/);
+  });
+
+  it('le compte monte : la région reçoit le texte du bouton retiré', () => {
+    largeurDeFenetre(390);
+    etat.nonLus = 4;
+    const { client, relire } = monter('agent');
+    compteLu(client);
+    relire();
+    etat.nonLus = 5;
+    relire();
+    expect(region()).toHaveTextContent('5 non lus');
+  });
+
+  it('le compte baisse : la région se vide — remonter au même compte s’annonce encore', () => {
+    largeurDeFenetre(390);
+    etat.nonLus = 4;
+    const { client, relire } = monter('agent');
+    compteLu(client);
+    relire();
+    etat.nonLus = 5;
+    relire();
+    etat.nonLus = 4;
+    relire();
+    expect(region()).toHaveTextContent(/^$/);
+    etat.nonLus = 5;
+    relire();
+    expect(region()).toHaveTextContent('5 non lus');
+  });
+
+  it('premier chargement (0, puis le compte lu) : rien n’est annoncé ; la hausse suivante, si', () => {
+    largeurDeFenetre(390);
+    etat.nonLus = 0; // `useUnreadCount` rend 0 tant que la requête n'a pas répondu
+    const { client, relire } = monter('agent');
+    etat.nonLus = 4;
+    relire();
+    expect(region()).toHaveTextContent(/^$/);
+    compteLu(client);
+    relire();
+    expect(region()).toHaveTextContent(/^$/);
+    etat.nonLus = 6;
+    relire();
+    expect(region()).toHaveTextContent('6 non lus');
+  });
+
+  it('dès md (barre masquée, aucun sondage) : la région n’annonce rien', () => {
+    largeurDeFenetre(1366);
+    etat.nonLus = 4;
+    const { client, relire } = monter('agent');
+    compteLu(client);
+    relire();
+    etat.nonLus = 9;
+    relire();
+    expect(region()).toHaveTextContent(/^$/);
   });
 });
