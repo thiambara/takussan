@@ -25,7 +25,7 @@ pages ; `AppTopbar` porte le bouton.
 de `cmdk`.**
 
 **Références :** [ADR-0089](../adr/0089-le-menu-de-app-se-derive-du-profil-actif.md) ·
-[TCK-2482](../backlog/tickets/doing/TCK-2482-palette-de-commandes.md) · plans précédents :
+[TCK-2482](../backlog/tickets/done/TCK-2482-palette-de-commandes.md) · plans précédents :
 [TCK-2478](2026-11-05-tck-2478-dispositions-par-persona.md),
 [TCK-2479](2026-11-05-tck-2479-bande-a-traiter-et-demarrer.md),
 [TCK-2480](2026-11-05-tck-2480-personnalisation-du-menu.md),

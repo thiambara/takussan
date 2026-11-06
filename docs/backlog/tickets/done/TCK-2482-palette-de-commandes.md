@@ -1,7 +1,7 @@
 ---
 id: TCK-2482
 title: Palette de commandes ⌘K / Ctrl K — destinations, action principale, files « À traiter », bascule de profil, pages récentes
-status: doing
+status: done
 phase: P2
 family: front
 estimate: M
@@ -348,3 +348,11 @@ panneau n'a pas `data-open`).
 - Relevé sans ticket : à 320 px, pour un compte à deux espaces, la cloche « Notifications » rétrécit à
   23,9 × 36 px. Elle reste visible, sans débord, sous la cible de 24 px de 0,1 px. À reprendre si la
   barre haute gagne un contrôle.
+  **Arbitrage de la session (2026-11-06)** : accepté. WCAG 2.5.8 admet une cible sous 24 px par son
+  exception d'espacement : avec 8 px d'écart de part et d'autre, un cercle de 24 px centré sur la
+  cloche ne touche aucune autre cible. Un `shrink-0` sur la cloche déplacerait le rétrécissement vers
+  le sélecteur ou la langue, qui portent du texte.
+- Coût à l'ouverture (relevé, étape 6) : la palette ne double aucune lecture, mais les quatre
+  compteurs de files sont relus une fois à l'ouverture et `conversations` une fois de plus par
+  cadence tant qu'elle est ouverte (minuterie propre à chaque observateur, prévu par la revue).
+  Accepté par la session : quelques secondes d'ouverture, mêmes clés de cache que la barre.
