@@ -8,7 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/lib/api';
 import type { MyProfilesResponse, Profile } from '@/types/profile';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import { CLE_PROFILS, oublierLeCacheDEspace } from '@/lib/cache-d-espace';
+import { CLE_DE_BASCULE_D_ESPACE, CLE_PROFILS, oublierLeCacheDEspace } from '@/lib/cache-d-espace';
 
 export const profilesKeys = {
   all: CLE_PROFILS,
@@ -71,6 +71,8 @@ export function useSwitchActiveProfile() {
   const messageErreur = useMessageErreurApi();
 
   return useMutation<{ data: Profile }, ApiError, string, SwitchContext>({
+    // TCK-2482 (revue M3) — partagée : la palette voit une bascule lancée par le sélecteur.
+    mutationKey: CLE_DE_BASCULE_D_ESPACE,
     mutationFn: patchActiveProfileViaProxy,
     onMutate: async (profileId) => {
       // Optimistically flip the active id so the menu's check mark moves

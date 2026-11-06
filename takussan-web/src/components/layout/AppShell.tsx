@@ -8,6 +8,8 @@ import type { ProfileType } from '@/types/profile';
 import { AppTopbar } from './AppTopbar';
 import { AppSidebar } from './AppSidebar';
 import { BarreDOnglets } from './BarreDOnglets';
+import { PaletteDeCommandes, RetenirLaPageRecente } from './PaletteDeCommandes';
+import { useRaccourciDeLaPalette } from './usePaletteDeCommandes';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { BandeauxDuSite } from '@/components/announcements/BandeauxDuSite';
 import { LienEvitement } from '@/components/shared/LienEvitement';
@@ -86,6 +88,23 @@ export function AppShell({
     }
     return boutonMenu.current; // Échap, voile : « Menu » (arbitrage 10)
   };
+  // TCK-2482 — la palette de commandes : une par coque, ouverte par ⌘K / Ctrl K ou par la barre haute.
+  // A7 — l'élément focalisé à l'ouverture (le bouton touché, que Safari iOS ne focalise pas) reçoit le
+  // focus à la fermeture ; la palette retombe sur le défaut de Base UI s'il a quitté le DOM.
+  const [paletteOuverte, setPaletteOuverte] = useState(false);
+  const retourDuFocus = useRef<HTMLElement | null>(null);
+  const changerPalette = (ouverte: boolean, depuis?: HTMLElement | null) => {
+    if (ouverte) {
+      const focalise = document.activeElement;
+      retourDuFocus.current = depuis ?? (focalise instanceof HTMLElement ? focalise : null);
+    }
+    setPaletteOuverte(ouverte);
+  };
+  // A6 — rien en plein écran : le parcours porte sa propre sortie, le navigateur garde son raccourci.
+  useRaccourciDeLaPalette({ actif: !pleinEcran, ouverte: paletteOuverte, changer: changerPalette });
+  // A17 — les mêmes arguments que ceux du menu de la barre (`AppSidebar`, `BarreDOnglets`), pour la
+  // palette ET l'écrivain de ses récents. TCK-2483 (S8) y ajoutera `modulesMasques`, ici et pour la barre.
+  const contexteDuMenu = { user, agencyIsStandard, typeProfilActif, agencySuspended };
   // TCK-253 — Customer-only onboarding surfaces. Gated server-side via the
   // SSR-resolved roles so we never paint the welcome modale (or arm the
   // deferred profile sheet) for agents / owners / admins.
@@ -155,7 +174,7 @@ export function AppShell({
               ne s'affiche hors session. Au-dessus de la barre : elle ne défile pas avec la page. */}
           <ImpersonationBanner />
           {agencySuspended ? <AgencySuspendedBanner /> : null}
-          {pleinEcran ? null : <AppTopbar user={user} />}
+          {pleinEcran ? null : <AppTopbar user={user} onOuvrirPalette={(depuis) => changerPalette(true, depuis)} />}
           <div className="flex min-h-0 flex-1 overflow-hidden">
             {pleinEcran ? null : (
               <>
@@ -203,6 +222,21 @@ export function AppShell({
               <div className="px-4 py-6 md:px-6 md:py-8">{children}</div>
             </main>
           </div>
+          {/* TCK-2482 — DANS `PreferencesDuMenuProvider` : le menu de la palette est celui de la barre
+              (épingles comprises). Son contenu n'est monté que palette ouverte (A13). */}
+          {/* A8 — les pages récentes, retenues sur l'appareil par compte ; jamais une page plein écran.
+              Revue I3 — dans le fournisseur : dédoublonnées par entrée du menu RENDU. */}
+          {pleinEcran ? null : (
+            <RetenirLaPageRecente contexteDuMenu={contexteDuMenu} chemin={pathname} />
+          )}
+          {pleinEcran ? null : (
+            <PaletteDeCommandes
+              ouverte={paletteOuverte}
+              onOuverteChange={(ouverte) => changerPalette(ouverte)}
+              contexteDuMenu={contexteDuMenu}
+              retourDuFocus={retourDuFocus}
+            />
+          )}
           {/* TCK-2481 (ADR-0089 §3) — la barre d'onglets, sous `md`. Enfant flex de la coque `h-dvh`
               et non `fixed` : le `<main>` rétrécit de sa hauteur exacte, et rien de la page ne passe
               dessous (TCK-503). Après le `<main>` dans le document comme à l'écran ; le lien

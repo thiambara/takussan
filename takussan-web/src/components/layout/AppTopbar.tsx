@@ -1,11 +1,14 @@
 'use client';
 
+import { useSyncExternalStore } from 'react';
 import Link from 'next/link';
+import { Search } from 'lucide-react';
 import type { User } from '@/types/user';
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
 import { ProfileSwitcher } from '@/components/profile/ProfileSwitcher';
 import { UserMenu } from './UserMenu';
 import { NotificationBell } from './NotificationBell';
+import { estSurApple } from './usePaletteDeCommandes';
 import { SearchAutocomplete } from '@/components/search/SearchAutocomplete';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
@@ -24,8 +27,13 @@ import { voitLePortefeuille } from '@/lib/navigation/acces-app';
  * depuis TCK-649.
  *
  * TCK-2481 — le hamburger a quitté la barre : sous `md`, « Menu » de la barre d'onglets
- * (`BarreDOnglets`) est la seule porte du tiroir. Il ne reste qu'un contrôle écrit à la main ici,
+ * (`BarreDOnglets`) est la seule porte du tiroir. Il ne restait qu'un contrôle écrit à la main ici,
  * le lien du logo.
+ *
+ * TCK-2482 — le bouton de la palette de commandes en est un second : il porte le même anneau. Son
+ * fond et son texte passent par le jeton `--background` (#fcf9f3), comme le ton clair du logo
+ * (TCK-621) : un voile de 10 % (20 % au survol) sur la barre d'encre, que l'anneau blanc plein domine
+ * encore à plus de 3:1 (`AppTopbar.a11y.test.tsx` le mesure).
  *
  * Même anneau blanc, et pour la même raison, que la barre latérale sombre de l'ancienne console
  * d'administration (TCK-371). Le logo n'a qu'un fond, `bg-foreground` étant posé sur le
@@ -39,12 +47,23 @@ import { voitLePortefeuille } from '@/lib/navigation/acces-app';
 const ANNEAU_FOCUS =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white';
 
+/**
+ * TCK-2482 (A11) — `⌘ K` sur Apple, `Ctrl K` ailleurs ; `Ctrl K` au rendu serveur, sans écart d'hydratation.
+ * La détection est celle du raccourci (`estSurApple`) : le libellé annonce la touche qui ouvre (revue M2).
+ */
+const sAbonnerARien = () => () => {};
+const jamaisSurApple = () => false;
+
 interface AppTopbarProps {
   readonly user: User;
+  /** TCK-2482 — ouvre la palette de commandes, depuis ce bouton. Absent : pas de bouton (plein écran, tests). */
+  readonly onOuvrirPalette?: (depuis: HTMLElement) => void;
 }
 
-export function AppTopbar({ user }: AppTopbarProps) {
+export function AppTopbar({ user, onOuvrirPalette }: AppTopbarProps) {
   const tCommon = useTranslations('common');
+  const tPalette = useTranslations('nav.palette');
+  const surApple = useSyncExternalStore(sAbonnerARien, estSurApple, jamaisSurApple);
 
   return (
     <header className={cn('relative flex h-14 shrink-0 items-center gap-3 bg-foreground px-4')}>
@@ -65,6 +84,28 @@ export function AppTopbar({ user }: AppTopbarProps) {
       {/* TCK-505 (#1) — le cluster rétrécit au lieu de pousser ; ses libellés (profil actif,
           prénom) se cachent sous `lg`, il ne reste que les icônes. */}
       <div className="ml-auto flex min-w-0 shrink items-center gap-2">
+        {/* TCK-2482 (A11) — la palette : premier contrôle du groupe, à toutes les largeurs (sous `md`,
+            c'est sa seule porte : pas de clavier), icône seule sous `lg`. Le nom accessible commence par
+            le texte visible (WCAG 2.5.3). Écrit à la main : il porte `ANNEAU_FOCUS`, comme le logo. */}
+        {onOuvrirPalette ? (
+          <button
+            type="button"
+            data-slot="ouvrir-palette"
+            onClick={(event) => onOuvrirPalette(event.currentTarget)}
+            aria-label={tPalette('titre')}
+            aria-keyshortcuts={surApple ? 'Meta+K' : 'Control+K'}
+            className={cn(
+              'relative inline-flex size-9 shrink-0 items-center justify-center gap-2 rounded-md bg-background/10 text-sm text-background/90 after:absolute after:-inset-1 hover:bg-background/20 lg:w-auto lg:px-2.5',
+              ANNEAU_FOCUS,
+            )}
+          >
+            <Search className="size-4" aria-hidden />
+            <span className="hidden lg:inline">{tPalette('ouvrir')}</span>
+            <kbd aria-hidden className="hidden rounded bg-background/15 px-1.5 font-mono text-background/90 text-[11px] lg:inline">
+              {surApple ? tPalette('raccourciMac') : tPalette('raccourciAutre')}
+            </kbd>
+          </button>
+        ) : null}
         <ProfileSwitcher user={user} />
         {/* TCK-642 — le solde de l'espace actif, juste après le sélecteur qui le choisit. Dès `md`
             seulement : sous ce seuil, il est dans le tiroir (entrée « Crédits »). */}

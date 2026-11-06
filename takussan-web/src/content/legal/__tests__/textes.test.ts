@@ -261,6 +261,80 @@ describe('politique de confidentialité — le journal des recherches', () => {
   });
 
   it('la version des documents avance avec le journal', () => {
-    expect(VERSION_DOCUMENTS).toEqual({ date: '4 novembre 2026', dateEn: 'November 4, 2026' });
+    // Avancée par TCK-2482 (le journal y entrait le 4 novembre 2026).
+    expect(VERSION_DOCUMENTS).toEqual({ date: '6 novembre 2026', dateEn: 'November 6, 2026' });
+  });
+});
+
+/**
+ * TCK-2482 (A15) — la palette de commandes retient sur l'appareil les pages de l'espace ouvertes
+ * récemment (`src/lib/navigation/pages-recentes.ts`) : la politique les nomme dans le stockage local.
+ * Le même changement rattrape les dernières recherches de TCK-2475 (`src/lib/recherches-recentes.ts`,
+ * clé `takussan.recherches-recentes`), gardées sur l'appareil depuis sans que la liste les nomme.
+ */
+describe('politique de confidentialité — ce que le stockage local garde de la navigation', () => {
+  it('nomme les pages récentes de la palette, dans les deux langues', () => {
+    expect(privacy.fr).toContain('pages de votre espace ouvertes récemment (palette de commandes)');
+    expect(privacy.en).toContain('recently opened pages of your space (command palette)');
+  });
+
+  it('nomme les dernières recherches de biens (TCK-2475), dans les deux langues', () => {
+    expect(privacy.fr).toContain('dernières recherches de biens (barre de recherche)');
+    expect(privacy.en).toContain('latest property searches (search bar)');
+  });
+
+  it('les range dans la ligne du stockage local du navigateur', () => {
+    expect(privacy.fr).toContain(
+      '- **stockage local du navigateur** — biens consultés récemment, dernières recherches de biens (barre de recherche), pages de votre espace ouvertes récemment (palette de commandes), favoris',
+    );
+    expect(privacy.en).toContain(
+      '- **browser local storage** — recently viewed properties, latest property searches (search bar), recently opened pages of your space (command palette), offline favourites',
+    );
+  });
+
+  it('la version des documents avance avec elles', () => {
+    expect(VERSION_DOCUMENTS).toEqual({ date: '6 novembre 2026', dateEn: 'November 6, 2026' });
+  });
+});
+
+/**
+ * TCK-2482 (revue, I1) — la même avance de version rattrape les trois éléments que le front écrit sur
+ * l'appareil sans que la § 8 les nomme : les coordonnées d'un visiteur sans compte (TCK-590,
+ * `src/lib/coordonnees-retenues.ts`), le cookie du menu réduit aux icônes (TCK-2480,
+ * `src/lib/navigation/mode-icones.ts`) et la source d'arrivée (TCK-590, `src/lib/attribution.ts`).
+ * Compléter plus tard coûterait une seconde avance de version, donc une seconde réacceptation.
+ */
+describe('politique de confidentialité — tout ce que le front garde sur l’appareil', () => {
+  it('nomme les coordonnées retenues d’un visiteur sans compte, dans les deux langues', () => {
+    expect(privacy.fr).toContain('- **takussan.coordonnees** (stockage local) — ');
+    expect(privacy.fr).toContain('vos nom et numéro de téléphone');
+    expect(privacy.en).toContain('- **takussan.coordonnees** (local storage) — ');
+    expect(privacy.en).toContain('your name and phone number');
+  });
+
+  it('nomme le cookie du menu réduit aux icônes, avec sa durée, dans les deux langues', () => {
+    expect(privacy.fr).toContain('- **menu_icones** — ');
+    expect(privacy.fr).toMatch(/\*\*menu_icones\*\* — [^\n]*\(1 an\) ;/);
+    expect(privacy.en).toContain('- **menu_icones** — ');
+    expect(privacy.en).toMatch(/\*\*menu_icones\*\* — [^\n]*\(1 year\);/);
+  });
+
+  it('nomme la source d’arrivée gardée pour la session, et dit qu’elle est transmise, dans les deux langues', () => {
+    expect(privacy.fr).toContain('- **takussan.arrivee** (stockage de session) — ');
+    expect(privacy.fr).toMatch(/\*\*takussan\.arrivee\*\*[^\n]*transmise avec/);
+    expect(privacy.en).toContain('- **takussan.arrivee** (session storage) — ');
+    expect(privacy.en).toMatch(/\*\*takussan\.arrivee\*\*[^\n]*sent with/);
+  });
+
+  it('les range dans la § 8, avant le paragraphe qui dit comment les effacer', () => {
+    for (const [texte, titre, fin] of [
+      [privacy.fr, '# 8. Cookies et stockage local', 'Vous pouvez effacer ces éléments'],
+      [privacy.en, '# 8. Cookies and local storage', 'You can clear these items'],
+    ] as const) {
+      const section = texte.slice(texte.indexOf(titre), texte.indexOf(fin));
+      for (const nom of ['**takussan.coordonnees**', '**menu_icones**', '**takussan.arrivee**']) {
+        expect(section).toContain(nom);
+      }
+    }
   });
 });
