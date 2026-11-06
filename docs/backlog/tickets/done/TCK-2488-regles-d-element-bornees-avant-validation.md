@@ -95,8 +95,8 @@ Décision (session, 2026-11-06) :
 
 ## Hors périmètre
 
-- **Les parents `.*` sans borne** (relevé du 2026-11-06, 29 clés, 22 parents) — à borner en suite, une
-  borne métier chacun : `StoreAgentHandoverRequest` `successors` (+ `exists` par élément) ;
+- ~~**Les parents `.*` sans borne**~~ — **bornés par la revue adverse** (§ Revue adverse ci-dessous,
+  décision de la session : pas de liste expirante). Relevé d'origine (29 clés, 22 parents) : `StoreAgentHandoverRequest` `successors` (+ `exists` par élément) ;
   `SyncCapabilitiesRequest` `capabilities` ; `Store/UpdateAlertRuleRequest` `channels`,
   `recipients.emails`, `recipients.webhooks` ; `Store/UpdateAnnouncementRequest` `segment.roles`,
   `segment.agency_ids` (+ `exists` par élément) ; `UpdateFeatureFlagRequest` `segments.roles`,
@@ -106,8 +106,9 @@ Décision (session, 2026-11-06) :
   `UpdateTradesServiceProviderProfileRequest` et `InviteServiceProviderRequest` `trades`,
   `intervention_zones` ; `ReorderPropertyMediaRequest` `order` ; `SyncPropertyTagRequest` `tag_ids` ;
   `AttachCustomerTagsRequest` `tags` ; `RefundDepositRequest` `attachments`.
-- Les validateurs ad hoc hors FormRequest (`JugeLaLigneDeReglageDAgence`,
-  `PlatformSettingService`) qui écrivent `value.*`.
+- Le validateur ad hoc de `PlatformSettingService` (`value.*`, hors de `app/Http/Requests`) :
+  `currency.supported` n'a toujours pas de `max:`. (`JugeLaLigneDeReglageDAgence` est traité par la
+  revue adverse.)
 - Passer les FormRequest directes sur `BaseFormRequest` (TCK-730).
 
 ## Notes d'implémentation
@@ -168,3 +169,70 @@ fonction aux deux validateurs ad hoc (`JugeLaLigneDeReglageDAgence`, `PlatformSe
 `currency.supported` n'a pas de `max:`.
 
 Commits : 5f5e385b9 (ticket), be3de102c (mécanisme), f6a85b734 (AgencySettings).
+
+## Revue adverse (2026-11-06)
+
+**I1 (important) — le recensement ne voyait pas les clés `.*` posées sous condition de l'entrée.**
+`UpdateNotificationPreferencesRequest` ne pose `preferences.*` que si le corps porte `preferences` ;
+le recensement jouait `rules()` sur un corps vide. Mesuré par la revue : `PATCH
+/api/me/notification-preferences`, tout compte connecté, 5000 éléments → 15 000 erreurs, 1,26 Mo,
+4,8 s. Correctif : le recensement relève les clés `.*` écrites en littéral dans la source (classe,
+parents jusqu'à `BaseFormRequest`, traits ; hors `messages()`/`attributes()`), joue `rules()` aussi
+sur un corps DÉCLENCHEUR qui porte le premier parent de chacune (à `[]`), et une clé littérale
+qu'aucun des deux ne rend rougit (test `…ecrite_dans_la_source_est_jouee…`). Le premier passage a
+révélé, outre `preferences.*` ×3, le validateur ad hoc `JugeLaLigneDeReglageDAgence` (`value.*`,
+`Validator::make` dans un trait de requête) : il passe désormais lui aussi par
+`ReglesDElementBornees::retirer()` (test HTTP `POST /api/settings`, 11 décalages invalides → une
+seule erreur), et le recensement accepte une clé littérale non jouée seulement dans un porteur qui
+appelle lui-même la fonction.
+
+**Bornes (décision de la session) : `NON_BORNES` disparaît, toute clé `.*` a un parent borné**
+(test `toute_cle_d_element_a_des_parents_bornes`). (a) liste fermée → borne calculée depuis la
+source ; (b) borne technique ≥ 10× le plus grand envoi légitime relevé dans `takussan-web/src` ;
+(c) aucun appelant ni limite → 1000. Chaque borne (b)/(c) porte son relevé en commentaire d'une ligne.
+
+| Requête | Parent | Borne | Fam. | Source de la borne |
+|---|---|---|---|---|
+| `UpdateNotificationPreferencesRequest` | `preferences` | `count(EVENTS) × count(CHANNELS)` | a | `PreferenceResolver` ; la matrice envoie une cellule à la fois |
+| `SyncCapabilitiesRequest` | `capabilities` | `count(Capability::cases())` | a | l'enum |
+| `StoreAgentHandoverRequest` | `successors` | `count(AgentPortfolio::TRANSFERABLE)` | a | catégories transférables (l'`after()` garde l'erreur `successors.{inconnue}`) |
+| `Store/UpdateAlertRuleRequest` | `channels` | `count(AlertRuleRequest::CHANNELS)` | a | constante neuve, lue aussi par `Rule::in` |
+| `IndexCalendarRequest` | `types` | `count(CalendarEventCollector::TYPES)` | a | le collecteur |
+| `UpdateRadarCrawlSourceRequest` | `start_urls` | `10 × RadarStartUrls::maxCount()` | b | au-delà de `maxCount()`, le refus codé `start_urls_too_many` de `passedValidation()` reste |
+| `UpdateAvailabilityServiceProviderProfileRequest` | `available_slots` | 500 | b | `AvailabilityGrid.tsx` : 7 jours × 3 périodes = 21 |
+| `UpdateTradesServiceProviderProfileRequest`, `InviteServiceProviderRequest` | `trades` | 100 | b | `TradesMultiSelect` : 7 métiers |
+| `Store/UpdateAnnouncementRequest` | `segment.roles` | 100 | b | 5 cases (`announcements.tsx`) ; `profileTypes()` ≤ 7 slugs |
+| `UpdateFeatureFlagRequest` | `segments.roles` | 100 | b | saisie libre ; `profileTypes()` ≤ 7 slugs |
+| `SyncPropertyTagRequest` | `tag_ids` | 500 | b | le formulaire coche parmi tous les équipements (35 au jeu de démo) |
+| `AttachCustomerTagsRequest` | `tags` | 100 | b | `CustomerTagPicker` envoie une étiquette |
+| `ReorderPropertyMediaRequest` | `order` | 1000 | b | aucun plafond de photos par bien (lots de 20 ; 6 au plus au jeu de démo) |
+| `Store/UpdateAnnouncementRequest` | `segment.agency_ids` | 1000 | b | sélection multiple paginée, sans limite (une requête `exists` par élément) |
+| `Store/UpdateAlertRuleRequest` | `recipients.emails`, `recipients.webhooks` | 1000 | b | saisie libre par virgules, sans limite (un envoi HTTP par webhook) |
+| `UpdateSpecializationAgentProfileRequest`, `UpdateTradesServiceProviderProfileRequest`, `InviteServiceProviderRequest` | `intervention_zones` | 1000 | b | saisie libre, sans limite d'interface |
+| `UpdateFeatureFlagRequest` | `segments.agency_ids` | 1000 | c | le front ne fait que renvoyer la liste posée |
+| `IndexCalendarRequest` | `property_ids` | 1000 | c | aucun appelant (le front envoie `property_id`) ; en GET, `max_input_vars` = 1000 coupe déjà |
+| `RefundDepositRequest` | `attachments` | 1000 | c | aucun appelant (le front envoie `uploads[]`) |
+
+Deux requêtes directes nouvellement bornées portent le trait `BorneLesReglesDElement` :
+`StoreAgentHandoverRequest`, `AttachCustomerTagsRequest`.
+
+**Tests** (`tests/Feature/Validation/ReglesDElementBorneesTest.php`) : un échantillon HTTP par
+famille — (a) préférences (borne + 1 → seul `preferences` ; la matrice entière → 200), (b) ordre des
+photos, (c) agences d'un drapeau ; bornes LUES dans les règles, jamais recopiées — et le
+recensement. Rouge avant : 5 échecs (32 clés non bornées, dont `preferences.*` ×3 ; les trois HTTP ;
+`value.*` inaperçue).
+
+**Ablations** (`abl-2488-corr.sh`, mutation → tests → restauration ; `git status` ensuite : rien de
+laissé) : témoin 11/11 · A1 borne des préférences retirée → 2 rouges (HTTP (a), parents bornés) ·
+A2 corps déclencheur neutralisé → 1 rouge (clés de la source jouées) · A3 = A1 + A2, la situation de
+la revue → 2 rouges · A4 lecture de la source neutralisée + préférences sans borne → seul le test
+HTTP (a) rougit (le croisement avec la source est ce qui rend le recensement sensible) · A5
+validateur ad hoc sans la fonction → 2 rouges · A6 borne (b) `order` retirée → 2 rouges · A7 trait
+retiré d'`AttachCustomerTagsRequest` → 1 rouge · A8 borne (a) `capabilities` retirée → 1 rouge ·
+A9 borne (c) `segments.agency_ids` retirée → 2 rouges · restauré 11/11.
+
+**Tests joués** (2026-11-06, 8 cœurs, load 2,1 à 2,5) : 113 classes qui frappent les endpoints
+touchés ou leurs requêtes, plus les 7 autres de `tests/Feature/Validation/`, en quatre lots :
+338 + 336 + 325 + 87 tests verts (123 s, 146 s, 106 s, 19 s). Pint propre, gardes du dépôt vertes.
+
+Commit : 5c0aa8106.
