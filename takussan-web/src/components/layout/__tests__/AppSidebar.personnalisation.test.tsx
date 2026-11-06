@@ -596,13 +596,40 @@ describe('TCK-2480 — A11 : les variantes compactes ne sont rendues que si la b
     expect(document.querySelectorAll('[data-slot="point-groupe"]'), 'déjà dans « Aujourd’hui »').toHaveLength(0);
   });
 
-  it('dépliée : le groupe replié ne porte ni point ni nombre dans son nom (le signal est celui du rail)', () => {
+  // Dernier point de la revue adverse — barre DÉPLIÉE, même motif que (b) : le titre d'un groupe replié
+  // montre le compte qu'« Aujourd'hui » ne porte pas, en chiffres de compteur, au bord droit des
+  // compteurs ; le nombre entre dans le nom du bouton. Déplié, le titre se tait : le compte est sur l'entrée.
+  it('dépliée : le titre d’un groupe replié montre le compte caché, et le rend à l’entrée une fois déplié', async () => {
     visites.n = 2;
+    const user = utilisateur();
+    const replie = { v: 1, personas: { client: { replies: ['mes-demarches'] } } };
+    render(element(['customer'], 'client', { modeIcones: 'complet', navigation: replie }));
+    const groupe = document.querySelector<HTMLElement>('[data-groupe="mes-demarches"]')!;
+    const bascule = groupe.querySelector<HTMLElement>(':scope > button[aria-expanded="false"]')!;
+    const compte = bascule.querySelector('[data-slot="compte-groupe"]');
+    expect(compte, 'le nombre sur le titre').not.toBeNull();
+    expect(compte).toHaveTextContent(/^2$/);
+    expect(compte).toHaveAttribute('aria-hidden', 'true');
+    const classesDuCompte = (compte!.getAttribute('class') ?? '').split(/\s+/);
+    // Les chiffres d'un compteur (`STYLE_COMPTEUR`), poussés au bord droit, cachés dans le rail (qui a son point).
+    expect(classesDuCompte).toEqual(expect.arrayContaining(['ml-auto', 'tabular-nums', 'text-primary-deep', 'icones:hidden']));
+    expect(bascule.lastElementChild, 'dernier enfant : le bord droit').toBe(compte);
+    expect(bascule).toHaveAccessibleName(/^Mes démarches,?\s?2 demandes de visite en attente$/);
+
+    await user.click(bascule);
+    const ouvert = groupe.querySelector<HTMLElement>(':scope > button[aria-expanded="true"]')!;
+    expect(ouvert.querySelector('[data-slot="compte-groupe"]'), 'déplié, le titre se tait').toBeNull();
+    expect(ouvert).toHaveAccessibleName('Mes démarches');
+    expect(groupe.querySelector('a[href="/app/visits"] [data-slot="compteur-entree"]')).toHaveTextContent('2');
+  });
+
+  it('dépliée : au-delà de 99, le titre montre « 99+ », et son nom garde le vrai compte', () => {
+    visites.n = 150;
     const replie = { v: 1, personas: { client: { replies: ['mes-demarches'] } } };
     render(element(['customer'], 'client', { modeIcones: 'complet', navigation: replie }));
     const bascule = document.querySelector<HTMLElement>('[data-groupe="mes-demarches"] > button[aria-expanded="false"]')!;
-    expect(bascule.querySelector('[data-slot="point-groupe"]')).toBeNull();
-    expect(bascule).toHaveAccessibleName('Mes démarches');
+    expect(bascule.querySelector('[data-slot="compte-groupe"]')).toHaveTextContent(/^99\+$/);
+    expect(bascule).toHaveAccessibleName(/^Mes démarches,?\s?150 demandes de visite en attente$/);
   });
 
   it('en `auto`, la bascule porte les DEUX libellés (le CSS en montre un) ; en `icones`, seul « Déplier »', () => {

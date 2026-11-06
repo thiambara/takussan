@@ -291,6 +291,12 @@ function SidebarItem({
   );
 }
 
+/** Un compte qu'un groupe replié cache, et qu'« Aujourd'hui » ne porte pas. */
+interface CompteCache {
+  readonly nombre: number;
+  readonly libelle: string;
+}
+
 interface GroupeDuMenuProps {
   readonly groupe: GroupeCompose & { readonly entrees: readonly EntreeRendue[] };
   /** TCK-377 — les titres de SECTION paraissent (`avecTitres`). */
@@ -308,10 +314,10 @@ interface GroupeDuMenuProps {
   /** TCK-2480 — la barre est réduite MAINTENANT : le titre du bouton de bascule passe en infobulle. */
   readonly infobulle: boolean;
   /**
-   * Suite de la revue adverse (b) — les comptes non nuls du groupe ABSENTS d'« Aujourd'hui », déjà
-   * libellés (« 2 demandes de visite en attente »). Réduite, un groupe replié les signale sur son chevron.
+   * Suite de la revue adverse (b) — les comptes non nuls du groupe ABSENTS d'« Aujourd'hui », avec leur
+   * libellé (« 2 demandes de visite en attente »). Un groupe replié les signale sur son titre.
    */
-  readonly comptesCaches?: readonly string[];
+  readonly comptesCaches?: readonly CompteCache[];
 }
 
 /** Les groupes dont le titre paraît toujours : les divulgations, et « Épinglés » (on voit où va l'entrée, A6). */
@@ -374,10 +380,14 @@ function GroupeDuMenu({
   const libelle = groupe.titre !== null ? t(`groupes.${groupe.titre}`, groupe.titreValeurs) : null;
   const idTitre = `${idBase}-${groupe.id}-titre`;
   const idListe = `${idBase}-${groupe.id}-liste`;
-  // Suite de la revue adverse (b) — réduite, la liste repliée n'a ni hauteur ni point (`inert`) : un
-  // compte qu'« Aujourd'hui » ne porte pas y devenait invisible. Le chevron, seule icône du groupe, le
-  // signale du même point que les lignes d'« Aujourd'hui » ; son nom et son infobulle donnent le nombre.
-  const signal = ferme && infobulle && comptesCaches.length > 0;
+  // Suite de la revue adverse (b) — la liste repliée n'a ni hauteur ni point (`inert`) : un compte
+  // qu'« Aujourd'hui » ne porte pas y devenait invisible. Le titre le signale tant que le groupe est
+  // replié : réduite, sur le chevron (seule icône du groupe), du même point que les lignes d'« Aujourd'hui »,
+  // le nombre en infobulle ; dépliée, en chiffres de compteur au même bord droit que les autres (le
+  // dernier enfant d'un bouton au même `px-2.5` que les lignes). Dans les deux cas le nom du bouton le dit.
+  // Déplié, le titre se tait : le compte est sur l'entrée.
+  const signal = ferme && comptesCaches.length > 0;
+  const libellesCaches = comptesCaches.map((c) => c.libelle).join(', ');
 
   const basculer = () => {
     setOuvertParLActif(false);
@@ -433,12 +443,15 @@ function GroupeDuMenu({
                   data-slot="point-groupe"
                   className="absolute right-3 top-1 hidden size-1.5 rounded-full bg-primary icones:block"
                 />
-                <span className="sr-only">{comptesCaches.join(', ')}</span>
+                <span className="sr-only">{libellesCaches}</span>
+                <span aria-hidden data-slot="compte-groupe" className={cn(STYLE_COMPTEUR, 'icones:hidden')}>
+                  {compteAffiche(comptesCaches.reduce((somme, c) => somme + c.nombre, 0))}
+                </span>
               </>
             ) : null}
           </TooltipTrigger>
           <TooltipContent side="right">
-            {signal ? t('aujourdhui.infobulle', { libelle: libelle ?? '', nombre: comptesCaches.join(', ') }) : libelle}
+            {signal ? t('aujourdhui.infobulle', { libelle: libelle ?? '', nombre: libellesCaches }) : libelle}
           </TooltipContent>
         </Tooltip>
       ) : avecTitre ? (
@@ -717,9 +730,12 @@ export function AppSidebar({
       const n = e.counterKey && !e.locked ? counters[e.counterKey] : undefined;
       if (!e.counterKey || !n || n <= 0 || comptesDAujourdhui.has(e.counterKey)) return [];
       return [
-        COMPTEURS_DE_MODERATION.has(e.counterKey)
-          ? tAdmin('pendingBadge', { count: n })
-          : t(`counters.${e.counterKey}`, { count: n }),
+        {
+          nombre: n,
+          libelle: COMPTEURS_DE_MODERATION.has(e.counterKey)
+            ? tAdmin('pendingBadge', { count: n })
+            : t(`counters.${e.counterKey}`, { count: n }),
+        },
       ];
     });
   const rendreGroupe = (groupe: (typeof groupes)[number], premier: boolean) => (
