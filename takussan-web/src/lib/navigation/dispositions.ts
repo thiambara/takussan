@@ -46,15 +46,38 @@ export interface Disposition {
 const PUBLIER: readonly IdDestination[] = ['publier-bien', 'proposer-bien'];
 
 /**
+ * TCK-2489 (ADR-0090 §4) — la place du « Tableau de bord » est une DONNÉE de chaque disposition,
+ * écrite en toutes lettres ci-dessous, et éprouvée par persona (`dispositions-validees.test.ts`) :
+ *
+ * - `admin-agence` : première entrée de sa tête (inchangé) ;
+ * - toute autre persona : un groupe sans titre à lui, APRÈS LE DEUXIÈME GROUPE TITRÉ — après le
+ *   dernier s'il y en a moins de deux ;
+ * - une persona sans groupe titré (prestataire) : quatrième ligne de sa tête.
+ *
+ * Un hôte, un bailleur, un agent, un client trouvent d'abord ce qui fait leur métier. La page
+ * d'arrivée `/app` et les onglets mobiles (`onglets`) ne changent pas.
+ */
+const TABLEAU_DE_BORD: GroupeDeDisposition = { id: 'tableau-de-bord', titre: null, entrees: ['tableau-de-bord'] };
+
+/**
  * L'admin d'agence et la plateforme partagent le menu (TCK-2478) ; TCK-2479 les sépare sur la bande
  * « À traiter » et « Démarrer », que chacun reçoit dans `DISPOSITIONS`.
  */
+const ACTIVITE_ADMIN: GroupeDeDisposition = {
+  id: 'activite',
+  titre: 'activite',
+  entrees: ['demandes', 'visites', 'reservations', 'calendrier'],
+};
+const PORTEFEUILLE_ADMIN: GroupeDeDisposition = {
+  id: 'portefeuille',
+  titre: 'portefeuille',
+  entrees: ['mes-biens', 'proprietaires', 'clients', 'baux', 'entrees-en-attente'],
+};
+
+/** Les groupes de l'admin APRÈS « Activité » et « Portefeuille » ; la tête et le tableau de bord diffèrent (TCK-2489). */
 const BASE_ADMIN: Omit<Disposition, 'priorites' | 'demarrer'> = {
   action: PUBLIER,
   groupes: [
-    { id: 'tete', titre: null, entrees: ['tableau-de-bord', 'vue-agence', 'messagerie'] },
-    { id: 'activite', titre: 'activite', entrees: ['demandes', 'visites', 'reservations', 'calendrier'] },
-    { id: 'portefeuille', titre: 'portefeuille', entrees: ['mes-biens', 'proprietaires', 'clients', 'baux', 'entrees-en-attente'] },
     { id: 'finances', titre: 'finances', entrees: ['agence-finances', 'commissions', 'credits', 'agence-facturation'] },
     {
       id: 'agence',
@@ -77,9 +100,10 @@ export const DISPOSITIONS: Record<Persona, Disposition> = {
     action: ['chercher-bien'],
     carte: 'publier-annonce',
     groupes: [
-      { id: 'tete', titre: null, entrees: ['tableau-de-bord', 'messagerie'] },
+      { id: 'tete', titre: null, entrees: ['messagerie'] },
       { id: 'mes-recherches', titre: 'mesRecherches', entrees: ['favoris', 'recherches'] },
       { id: 'mes-demarches', titre: 'mesDemarches', entrees: ['visites', 'reservations'] },
+      TABLEAU_DE_BORD,
     ],
     plus: ['documents', 'avis', 'statistiques'],
     onglets: ['tableau-de-bord', 'favoris', 'visites', 'messagerie'],
@@ -90,7 +114,7 @@ export const DISPOSITIONS: Record<Persona, Disposition> = {
     libelleAction: 'payRent',
     carte: 'publier-annonce',
     groupes: [
-      { id: 'tete', titre: null, entrees: ['tableau-de-bord', 'messagerie'] },
+      { id: 'tete', titre: null, entrees: ['messagerie'] },
       { id: 'mon-logement', titre: 'monLogement', entrees: ['baux', 'paiements', 'maintenance', 'etats-des-lieux', 'documents'] },
       {
         id: 'mes-recherches',
@@ -98,6 +122,7 @@ export const DISPOSITIONS: Record<Persona, Disposition> = {
         replie: true,
         entrees: ['chercher-bien', 'favoris', 'recherches', 'visites', 'reservations'],
       },
+      TABLEAU_DE_BORD,
     ],
     plus: ['avis', 'statistiques'],
     libelles: { baux: 'myLease', maintenance: 'interventions' },
@@ -107,9 +132,10 @@ export const DISPOSITIONS: Record<Persona, Disposition> = {
   bailleur: {
     action: PUBLIER,
     groupes: [
-      { id: 'tete', titre: null, entrees: ['tableau-de-bord', 'messagerie'] },
+      { id: 'tete', titre: null, entrees: ['messagerie'] },
       { id: 'mon-patrimoine', titre: 'monPatrimoine', entrees: ['mes-biens', 'baux', 'paiements', 'etats-des-lieux'] },
       { id: 'activite', titre: 'activite', entrees: ['demandes', 'visites', 'reservations', 'calendrier', 'maintenance'] },
+      TABLEAU_DE_BORD,
     ],
     plus: ['clients', 'avis', 'documents', 'statistiques', 'exports', 'favoris', 'recherches'],
     libelles: { maintenance: 'interventions' },
@@ -120,9 +146,10 @@ export const DISPOSITIONS: Record<Persona, Disposition> = {
   agent: {
     action: PUBLIER,
     groupes: [
-      { id: 'tete', titre: null, entrees: ['tableau-de-bord', 'messagerie', 'taches'] },
+      { id: 'tete', titre: null, entrees: ['messagerie', 'taches'] },
       { id: 'prospection', titre: 'prospection', entrees: ['demandes', 'clients', 'visites', 'calendrier'] },
       { id: 'catalogue', titre: 'catalogue', entrees: ['mes-biens', 'reservations'] },
+      TABLEAU_DE_BORD,
       { id: 'gestion', titre: 'gestion', entrees: ['baux', 'entrees-en-attente', 'etats-des-lieux', 'maintenance', 'commissions'] },
     ],
     plus: ['avis', 'documents', 'statistiques', 'exports', 'favoris', 'recherches'],
@@ -132,15 +159,23 @@ export const DISPOSITIONS: Record<Persona, Disposition> = {
   },
   'admin-agence': {
     ...BASE_ADMIN,
+    // TCK-2489 — la seule persona dont le tableau de bord ouvre le menu.
+    groupes: [
+      { id: 'tete', titre: null, entrees: ['tableau-de-bord', 'vue-agence', 'messagerie'] },
+      ACTIVITE_ADMIN,
+      PORTEFEUILLE_ADMIN,
+      ...BASE_ADMIN.groupes,
+    ],
     priorites: ['unhandledLeads', 'pendingVisits', 'unreadMessages', 'propertyModeration', 'reviewModeration'],
     demarrer: 'espace',
   },
   hote: {
     action: PUBLIER,
     groupes: [
-      { id: 'tete', titre: null, entrees: ['tableau-de-bord', 'messagerie'] },
+      { id: 'tete', titre: null, entrees: ['messagerie'] },
       { id: 'mes-biens', titre: 'mesBiens', entrees: ['mes-biens', 'reservations', 'visites', 'calendrier', 'demandes'] },
       { id: 'mes-locations', titre: 'mesLocations', entrees: ['baux', 'agence-finances', 'etats-des-lieux', 'maintenance', 'carnet-prestataires'] },
+      TABLEAU_DE_BORD,
       { id: 'mon-espace', titre: 'monEspace', entrees: ['agence-fiche', 'agence-kyc', 'agence-facturation', 'credits', 'agence-integrations'] },
     ],
     plus: ['clients', 'statistiques', 'exports', 'kpis', 'alertes', 'avis', 'documents'],
@@ -151,13 +186,20 @@ export const DISPOSITIONS: Record<Persona, Disposition> = {
   },
   prestataire: {
     action: [],
-    groupes: [{ id: 'tete', titre: null, entrees: ['tableau-de-bord', 'maintenance', 'messagerie', 'documents'] }],
+    groupes: [{ id: 'tete', titre: null, entrees: ['maintenance', 'messagerie', 'documents', 'tableau-de-bord'] }],
     plus: [],
     onglets: ['tableau-de-bord', 'maintenance', 'messagerie', 'documents'],
     priorites: ['unreadMessages'],
   },
   plateforme: {
     ...BASE_ADMIN,
+    groupes: [
+      { id: 'tete', titre: null, entrees: ['vue-agence', 'messagerie'] },
+      ACTIVITE_ADMIN,
+      PORTEFEUILLE_ADMIN,
+      TABLEAU_DE_BORD,
+      ...BASE_ADMIN.groupes,
+    ],
     priorites: ['propertyModeration', 'reviewModeration', 'unhandledLeads', 'pendingVisits', 'unreadMessages'],
   },
 };
