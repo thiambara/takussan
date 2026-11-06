@@ -317,6 +317,18 @@
   }
 }
 
+/* TCK-2481 — sous `md`, dans la coque qui porte la barre d'onglets (`AppShell`, `data-barre-onglets`),
+   le dock flottant se pose AU-DESSUS d'elle : la barre d'actions groupées de « Mes biens »
+   (`PropertyList`, créneau `bottom-right`) se posait dessus, à 16 px du bas. La plage est le
+   complément exact de `md:hidden` : dès `md`, ni barre ni décalage. Le bouton flottant de la
+   messagerie, monté hors de la coque, ne lit pas cette valeur — il ne se rend plus sur `/app`
+   (TCK-2481, arbitrage 3). Gardé par `CoqueHauteur.test.tsx`. */
+@media (width < 48rem) {
+  [data-barre-onglets] {
+    --floating-dock-base: calc(16px + var(--barre-onglets-hauteur));
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

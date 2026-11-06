@@ -15,6 +15,9 @@
  * bande du bas — exactement la hauteur de la barre — est hors de portée : sur `/app/properties`,
  * la pagination est à 24 px du bord bas de la coque.
  */
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -151,6 +154,50 @@ describe('TCK-503 — hauteur des coques de tableau de bord', () => {
       expect(main).toHaveClass('flex-1');
     },
   );
+});
+
+describe('TCK-2481 — la barre d’onglets réserve sa hauteur en sœur du contenu', () => {
+  /**
+   * AC1/AC2 — la barre n'est pas `fixed` : dernier enfant de la colonne `h-dvh`, elle prend sa hauteur
+   * au `<main>`, qui ne porte aucun rembourrage recopié. Dès `md`, `md:hidden` : ni barre ni réserve.
+   * La preuve au pixel est au navigateur (tâche 5) ; ceci garde la STRUCTURE qui la rend vraie.
+   */
+  it('AppShell : la barre suit la rangée du contenu, ne rétrécit pas, et le <main> ne réserve rien', () => {
+    const coque = monter(COQUES[0][1]);
+    const barre = coque.querySelector('[data-slot="barre-onglets"]');
+    const main = coque.querySelector('main')!;
+    const rangee = main.parentElement!;
+    expect(barre).not.toBeNull();
+    expect(barre!.parentElement).toBe(coque);
+    expect(rangee.parentElement).toBe(coque);
+    expect(rangee.compareDocumentPosition(barre!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(barre).toHaveClass('shrink-0', 'md:hidden');
+    expect(barre!.className).toContain('h-[var(--barre-onglets-hauteur)]');
+    expect(barre!.className).toContain('pb-[env(safe-area-inset-bottom)]');
+    expect(main.className).not.toMatch(/(^|\s)([a-z-]+:)*pb-/);
+    expect(coque).toHaveAttribute('data-barre-onglets');
+  });
+
+  /**
+   * Arbitrage 4 — le dock flottant (`--floating-dock-base`, lu par `useFloatingDockSlot`) se pose
+   * AU-DESSUS de la barre dans la coque qui la porte, et sous `md` SEULEMENT : la plage est le
+   * complément exact de `md:hidden` (`width >= 48rem`), dès `md` le dock reprend sa base de `:root`.
+   * jsdom n'applique pas `globals.css` : c'est la RÈGLE écrite qui est gardée, comme
+   * `mode-icones.test.ts` garde sa variante. Le 16 px est la base de `:root` sous `sm`.
+   */
+  it('le dock flottant monte de la hauteur de la barre sous md, dans la coque qui la porte', () => {
+    const css = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'app', 'globals.css'),
+      'utf8',
+    );
+    const regles = [...css.matchAll(/@media ([^{]+)\{\s*\[data-barre-onglets\]\s*\{([^}]*)\}\s*\}/g)];
+    expect(regles).toHaveLength(1);
+    const [, plage, corps] = regles[0];
+    expect(plage.trim()).toBe('(width < 48rem)');
+    expect(corps.trim()).toBe('--floating-dock-base: calc(16px + var(--barre-onglets-hauteur));');
+    // `md` reste le défaut de Tailwind (48rem) : aucun `--breakpoint-md` ne le déplace.
+    expect(css).not.toMatch(/--breakpoint-md\s*:/);
+  });
 });
 
 // TCK-600 — ici parce que ce fichier monte déjà `AppShell` avec tous ses voisins neutralisés.
