@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\BorneLesReglesDElement;
 use App\Models\Enums\InventoryCondition;
 use App\Models\Enums\InventoryElementState;
 use App\Models\Enums\InventoryType;
@@ -25,6 +26,10 @@ use Illuminate\Validation\Rule;
  */
 class InventoryStoreRequest extends FormRequest
 {
+    // TCK-2488 — une liste hors de sa borne ne fait pas valider ses éléments un à un (hérité de
+    // BaseFormRequest pour les autres).
+    use BorneLesReglesDElement;
+
     /**
      * P143.01 (TCK-1915) — décision du porteur (2026-10-23) : le PDF de l'état des lieux est recomposé
      * par dompdf à chaque téléchargement, et 40 × 40 éléments y épuisaient les 256M de `memory_limit`.

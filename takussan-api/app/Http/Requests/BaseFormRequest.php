@@ -2,11 +2,15 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\BorneLesReglesDElement;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Log;
 
 abstract class BaseFormRequest extends FormRequest
 {
+    // TCK-2488 — une liste hors de sa borne ne fait pas valider ses éléments un à un.
+    use BorneLesReglesDElement;
+
     /**
      * Clés du corps que la requête reçoit sans règle, et qui ne doivent pas être signalées
      * (TCK-1446). Une exception se déclare ici, dans la sous-classe, avec sa raison.

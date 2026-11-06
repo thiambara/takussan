@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\Me;
 
+use App\Http\Requests\Concerns\BorneLesReglesDElement;
 use App\Rules\TelephoneJoignable;
 use App\Services\Auth\PhoneChangeGuard;
 use Illuminate\Foundation\Http\FormRequest;
@@ -13,6 +14,10 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 class UpdateMeRequest extends FormRequest
 {
+    // TCK-2488 — une liste hors de sa borne ne fait pas valider ses éléments un à un (hérité de
+    // BaseFormRequest pour les autres).
+    use BorneLesReglesDElement;
+
     public function authorize(): bool
     {
         return $this->user() !== null;
