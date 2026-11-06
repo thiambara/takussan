@@ -24,6 +24,7 @@ import {
   AGENCY_LOGO_ACCEPT,
   AGENCY_LOGO_MAX_BYTES,
   normaliseAgencyForm,
+  reglagesDeLaFiche,
   validateAgencyLogoFile,
   type AgencyFormValues,
 } from '@/lib/schemas/agency';
@@ -40,7 +41,7 @@ import { useCan } from '@/hooks/useCan';
 import { useAuth } from '@/context/AuthContext';
 import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import { avecGardeDoubleFacteurAction } from '@/lib/double-facteur';
-import { CODES_DE_MODULE, modulesMasquesDe } from '@/lib/navigation/modules';
+import { CODES_DE_MODULE } from '@/lib/navigation/modules';
 
 /**
  * Agency admin configuration form — TCK-064.
@@ -55,7 +56,6 @@ interface AgencyConfigFormProps {
 }
 
 function toDefaults(agency: Agency): AgencyFormValues {
-  const settings = agency.settings ?? {};
   // TCK-962 — la commission et la devise se lisent sur leurs colonnes, celles que l'API applique.
   // Les miroirs `settings.default_commission_rate` et `settings.currency` d'anciennes données ne
   // sont plus ni lus ni réenregistrés.
@@ -72,11 +72,8 @@ function toDefaults(agency: Agency): AgencyFormValues {
     commission_rate: commission !== null && commission !== undefined ? String(commission) : '',
     currency: currency.toUpperCase(),
     moderation_required: agency.moderation_required ?? false,
-    require_team_two_factor: settings.require_team_two_factor === true,
-    // TCK-593 — clé absente (agence neuve) = désactivé, comme côté API.
-    late_fee_online_collection: settings.late_fee_online_collection === true,
-    // TCK-2483 — clé absente = rien de masqué ; un code inconnu est ignoré (et ne repart pas).
-    hidden_modules: modulesMasquesDe(settings),
+    // TCK-2486 — la même lecture que la référence « inchangé » de l'envoi (`initialSettings`).
+    ...reglagesDeLaFiche(agency.settings),
     default_tax_rate: agency.default_tax_rate != null ? String(agency.default_tax_rate) : '',
     payout_approval_threshold: initialThreshold(agency),
     legal_name: agency.legal_name ?? '',
@@ -154,7 +151,7 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
           initialThreshold: initialThreshold(agency),
           slugEditable,
           initialSlug: agency.slug,
-          initialHiddenModules: modulesMasquesDe(agency.settings),
+          initialSettings: agency.settings,
         });
         const result = await avecGardeDoubleFacteurAction(
           () => updateAgencyAction(agency.id, payload),

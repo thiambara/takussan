@@ -101,12 +101,24 @@ describe('AgencyConfigForm — pénalités de retard en ligne (TCK-593 Partie 5)
     const payload = await enregistrer(user);
     // TCK-962 — ni `timezone`, ni les miroirs `currency` et `default_commission_rate` : l'API les
     // jette, la commission et la devise partent sur leurs colonnes.
-    expect(payload.settings).toEqual({
-      // TCK-2483 (revue, M5) — `hidden_modules` n'y est pas : la section « Menu de l'équipe » est intacte,
-      // et une clé absente est conservée par la fusion de l'API.
-      late_fee_online_collection: false,
-      // TCK-589 — clé gérée par le même écran, toujours émise (décocher doit lever l'exigence).
-      require_team_two_factor: false,
-    });
+    // TCK-2486 — aucune case touchée : pas de `settings` du tout. Une clé absente est conservée par la
+    // fusion de l'API (`hidden_modules` depuis la revue de TCK-2483, M5 ; les deux booléens depuis TCK-2486).
+    expect(payload).not.toHaveProperty('settings');
+  });
+
+  /**
+   * TCK-2486 — l'admin B, qui avait ouvert la fiche avant que l'admin A n'active l'encaissement, enregistre
+   * son nom : la valeur qu'il a chargée (`false`) ne part pas, et ne défait donc pas celle de A.
+   */
+  it('TCK-2486 — inchangé ne part pas ; désactiver un réglage chargé actif envoie false', async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(withIntl(<AgencyConfigForm agency={{ ...AGENCE, settings: { late_fee_online_collection: true } }} />));
+    expect((await enregistrer(user)).settings ?? {}).not.toHaveProperty('late_fee_online_collection');
+    unmount();
+
+    vi.mocked(updateAgencyAction).mockClear();
+    render(withIntl(<AgencyConfigForm agency={{ ...AGENCE, settings: { late_fee_online_collection: true } }} />));
+    await user.click(screen.getByRole('switch', { name: LIBELLE }));
+    expect((await enregistrer(user)).settings).toEqual({ late_fee_online_collection: false });
   });
 });

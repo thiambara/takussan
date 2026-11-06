@@ -59,4 +59,34 @@ describe('AgencyConfigForm — 2FA obligatoire pour l’équipe', () => {
       settings: expect.objectContaining({ require_team_two_factor: true }),
     });
   });
+
+  /**
+   * TCK-2486 — relevé au navigateur par TCK-2483 (suite (b)) : l'admin B, fiche ouverte avant que l'admin A
+   * n'exige la 2FA, enregistrait son nom et renvoyait `false` — l'exigence tombait sans que personne
+   * ne l'ait décochée. Ne part que ce qui a changé ; décocher reste une modification.
+   */
+  it('TCK-2486 — enregistrer sans toucher la case ne renvoie pas le réglage chargé', async () => {
+    const user = userEvent.setup();
+    updateAgencyAction.mockReset();
+    updateAgencyAction.mockResolvedValue({ ok: true, data: agence({ require_team_two_factor: true }) });
+    render(withIntl(<AgencyConfigForm agency={agence({ require_team_two_factor: true })} />));
+
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(updateAgencyAction).toHaveBeenCalledTimes(1));
+    expect(updateAgencyAction.mock.calls[0]![1]).not.toHaveProperty('settings');
+  });
+
+  it('TCK-2486 — décocher la case chargée cochée envoie false', async () => {
+    const user = userEvent.setup();
+    updateAgencyAction.mockReset();
+    updateAgencyAction.mockResolvedValue({ ok: true, data: agence({ require_team_two_factor: false }) });
+    render(withIntl(<AgencyConfigForm agency={agence({ require_team_two_factor: true })} />));
+
+    await user.click(screen.getByRole('checkbox', { name: libelle }));
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    await waitFor(() => expect(updateAgencyAction).toHaveBeenCalledTimes(1));
+    expect(updateAgencyAction.mock.calls[0]![1]).toMatchObject({ settings: { require_team_two_factor: false } });
+  });
 });

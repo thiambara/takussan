@@ -86,7 +86,7 @@ describe('AgencyConfigForm — menu de l’équipe (TCK-2483)', () => {
     const user = userEvent.setup();
     render(withIntl(<AgencyConfigForm agency={{ ...AGENCE, settings: { hidden_modules: ['analytics'] } }} />));
     await user.type(screen.getByRole('textbox', { name: fr.admin.agencyConfig.fields.name }), ' Plateau');
-    expect((await enregistrer(user)).settings).not.toHaveProperty('hidden_modules');
+    expect((await enregistrer(user)).settings ?? {}).not.toHaveProperty('hidden_modules');
   });
 
   it('un code inconnu lu sur l’agence ne décoche rien, et ne repart pas quand une case change', async () => {
@@ -124,6 +124,6 @@ describe('AgencyConfigForm — menu de l’équipe (TCK-2483)', () => {
     );
     expect(screen.queryByRole('heading', { name: M.title })).toBeNull();
     expect(caseDe('calendar')).toBeNull();
-    expect((await enregistrer(user)).settings).not.toHaveProperty('hidden_modules');
+    expect((await enregistrer(user)).settings ?? {}).not.toHaveProperty('hidden_modules');
   });
 });

@@ -102,28 +102,55 @@ describe('agencyFormSchema', () => {
    * `default_commission_rate` partaient ainsi à chaque enregistrement, sans effet.
    */
   it('TCK-962 — n’envoie dans `settings` que des clés que l’API accepte', () => {
-    const payload = normaliseAgencyForm({ ...base, commission_rate: '8', currency: 'XOF' });
-    // TCK-2483 (revue, M5) — `hidden_modules` ne part que si la section a changé : intacte ici.
+    const payload = normaliseAgencyForm(
+      { ...base, commission_rate: '8', currency: 'XOF', require_team_two_factor: true, late_fee_online_collection: true, hidden_modules: ['calendar'] as CodeDeModule[] },
+      { individual: false, initialThreshold: '', initialSettings: { timezone: 'Africa/Dakar', watermark_enabled: false } },
+    );
     expect(Object.keys(payload.settings ?? {}).sort()).toEqual([
+      'hidden_modules',
       'late_fee_online_collection',
       'require_team_two_factor',
     ]);
   });
 
-  it.each([true, false])(
-    'TCK-589 — `settings.require_team_two_factor` part toujours, %s compris',
-    (exige) => {
-      const payload = normaliseAgencyForm({ ...base, require_team_two_factor: exige });
-      expect(payload.settings).toMatchObject({ require_team_two_factor: exige });
-    },
-  );
+  /**
+   * TCK-2486 — l'API fusionne `settings` clé par clé : une clé absente est conservée. Renvoyer la
+   * valeur lue au chargement écrasait celle qu'un autre admin avait enregistrée depuis (relevé au
+   * navigateur par TCK-2483, suite (b)). Patron de M5 (TCK-2483) étendu aux deux booléens.
+   */
+  describe('TCK-2486 — un booléen de `settings` ne part que s’il a changé', () => {
+    const contexte = (initialSettings: Record<string, unknown> | null) => ({ individual: false, initialThreshold: '', initialSettings });
+
+    it.each(['require_team_two_factor', 'late_fee_online_collection'] as const)('%s inchangé ne part pas, ni à true ni à false', (cle) => {
+      expect(normaliseAgencyForm({ ...base, [cle]: true }, contexte({ [cle]: true })).settings ?? {}).not.toHaveProperty(cle);
+      expect(normaliseAgencyForm({ ...base, [cle]: false }, contexte({ [cle]: false })).settings ?? {}).not.toHaveProperty(cle);
+    });
+
+    it.each(['require_team_two_factor', 'late_fee_online_collection'] as const)('%s modifié part, false compris (décocher lève le réglage)', (cle) => {
+      expect(normaliseAgencyForm({ ...base, [cle]: true }, contexte({ [cle]: false })).settings).toMatchObject({ [cle]: true });
+      expect(normaliseAgencyForm({ ...base, [cle]: false }, contexte({ [cle]: true })).settings).toMatchObject({ [cle]: false });
+    });
+
+    it.each(['require_team_two_factor', 'late_fee_online_collection'] as const)('%s : clé absente au chargement = false, comme l’API', (cle) => {
+      for (const lu of [null, {}, { [cle]: 'oui' }]) {
+        expect(normaliseAgencyForm(base, contexte(lu)).settings ?? {}).not.toHaveProperty(cle);
+        expect(normaliseAgencyForm({ ...base, [cle]: true }, contexte(lu)).settings).toMatchObject({ [cle]: true });
+      }
+      // Sans contexte du tout : même lecture (rien n'a été chargé = les défauts).
+      expect(normaliseAgencyForm(base).settings ?? {}).not.toHaveProperty(cle);
+    });
+
+    it('rien de modifié : `settings` ne part pas du tout', () => {
+      expect(normaliseAgencyForm(base, contexte({ require_team_two_factor: false, late_fee_online_collection: false, hidden_modules: [] }))).not.toHaveProperty('settings');
+    });
+  });
 
   it('TCK-2483 — `hidden_modules` part pour une agence standard, jamais pour une individuelle', () => {
     expect(normaliseAgencyForm({ ...base, hidden_modules: ['analytics', 'calendar'] as CodeDeModule[] }).settings).toMatchObject({
       hidden_modules: ['calendar', 'analytics'],
     });
     expect(
-      normaliseAgencyForm({ ...base, hidden_modules: ['calendar'] as CodeDeModule[] }, { individual: true, initialThreshold: '' }).settings,
+      normaliseAgencyForm({ ...base, hidden_modules: ['calendar'] as CodeDeModule[] }, { individual: true, initialThreshold: '' }).settings ?? {},
     ).not.toHaveProperty('hidden_modules');
     expect(agencyFormSchema.safeParse({ ...base, hidden_modules: ['calendar', 'analytics'] }).success).toBe(true);
     expect(agencyFormSchema.safeParse({ ...base, hidden_modules: ['payments'] }).success).toBe(false);
@@ -135,14 +162,14 @@ describe('agencyFormSchema', () => {
    * patron que le seuil (TCK-594) et le slug (TCK-1004) : ne part que ce qui a changé.
    */
   it('TCK-2483 — `hidden_modules` ne part que si la section a changé, et alors en entier', () => {
-    const contexte = (initial: readonly string[]) => ({ individual: false, initialThreshold: '', initialHiddenModules: initial });
+    const contexte = (initial: readonly string[]) => ({ individual: false, initialThreshold: '', initialSettings: { hidden_modules: initial } });
     // Intacte : rien ne part, quel que soit l'ordre lu.
     expect(
-      normaliseAgencyForm({ ...base, hidden_modules: ['analytics', 'calendar'] as CodeDeModule[] }, contexte(['calendar', 'analytics'])).settings,
+      normaliseAgencyForm({ ...base, hidden_modules: ['analytics', 'calendar'] as CodeDeModule[] }, contexte(['calendar', 'analytics'])).settings ?? {},
     ).not.toHaveProperty('hidden_modules');
-    expect(normaliseAgencyForm(base, contexte([])).settings).not.toHaveProperty('hidden_modules');
+    expect(normaliseAgencyForm(base, contexte([])).settings ?? {}).not.toHaveProperty('hidden_modules');
     // Un code que le front ne connaît pas (lu brut) ne fait pas croire à une modification.
-    expect(normaliseAgencyForm(base, contexte(['obsolete'])).settings).not.toHaveProperty('hidden_modules');
+    expect(normaliseAgencyForm(base, contexte(['obsolete'])).settings ?? {}).not.toHaveProperty('hidden_modules');
     // Une case changée : la liste complète, dans l'ordre des codes.
     expect(
       normaliseAgencyForm({ ...base, hidden_modules: ['analytics', 'credits', 'calendar'] as CodeDeModule[] }, contexte(['calendar', 'analytics'])).settings,
