@@ -112,4 +112,15 @@ describe('TCK-2483 — le masquage ne se contourne pas', () => {
     expect(lecteurs.filter((f) => !AUTORISES.includes(f))).toEqual([]);
   });
 
+  // Revue de TCK-2483, M3 — lire le masque sans écrire `hidden_modules` : par ses deux lecteurs.
+  // Relevé le 2026-11-06 : le layout de `/app` (qui le passe à la coque), la fiche de l'agence (qui
+  // l'édite), le hook du menu (qui le passe au compositeur) — et `modules.ts`, qui les définit.
+  it('le masque n’est lu (`modulesMasquesDe`, `destinationsMasquees`) que par le menu et la fiche', () => {
+    expect(appelantsDe('modulesMasquesDe')).toEqual([
+      'app/(dashboard)/app/layout.tsx',
+      'components/admin-agency/AgencyConfigForm.tsx',
+      'lib/navigation/modules.ts',
+    ]);
+    expect(appelantsDe('destinationsMasquees')).toEqual(['components/layout/useMenuDeLEspace.ts', 'lib/navigation/modules.ts']);
+  });
 });
