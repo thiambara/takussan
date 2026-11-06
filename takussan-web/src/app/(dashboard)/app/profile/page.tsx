@@ -8,6 +8,7 @@ import { ProfileLayout } from '@/components/profile/ProfileLayout';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { ProfileContactSection } from '@/components/profile/ProfileContactSection';
 import { ProfileTimezoneSection } from '@/components/profile/ProfileTimezoneSection';
+import { ProfileMenuSection } from '@/components/profile/ProfileMenuSection';
 import { ProfileCustomerSection } from '@/components/profile/ProfileCustomerSection';
 import { ProfileAgentSection } from '@/components/profile/ProfileAgentSection';
 import { ProfileOwnerSection } from '@/components/profile/ProfileOwnerSection';
@@ -34,6 +35,8 @@ export default async function ProfilePage() {
       <ProfileContactSection user={user} />
       {/* TCK-1497 (P107.03) — le fuseau des rendus de l'API (notifications, rappels, résumé). */}
       <ProfileTimezoneSection timezone={user.timezone} />
+      {/* TCK-2480 — le menu de la console : réinitialiser le persona actif, et la barre de cet appareil. */}
+      <ProfileMenuSection />
       <MyProfilesSection />
       {/* TCK-492 — `isCustomerOnly` : ces deux sections n'ont plus été rendues
           depuis le cutover TCK-278 (`customer` n'était plus émis). Les rétablir

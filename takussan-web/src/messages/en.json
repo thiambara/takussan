@@ -11466,6 +11466,20 @@
       "label": "Time zone",
       "saved": "Time zone saved.",
       "error": "The time zone could not be saved."
+    },
+    "menu": {
+      "titre": "Menu",
+      "texte": "Your pins and collapsed groups in the “{persona}” menu follow you on every device.",
+      "personnalise": "Your menu is customised.",
+      "dejaParDefaut": "Your menu follows the default layout.",
+      "reinitialiser": "Restore the default menu",
+      "appareil": {
+        "label": "Sidebar on this device",
+        "auto": "Automatic: icons only on medium screens",
+        "icones": "Always icons only",
+        "complet": "Always full",
+        "aide": "This setting only applies to this browser."
+      }
     }
   },
   "contact": {

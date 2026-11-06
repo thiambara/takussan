@@ -11466,6 +11466,20 @@
       "label": "Fuseau horaire",
       "saved": "Fuseau horaire enregistré.",
       "error": "Le fuseau horaire n'a pas pu être enregistré."
+    },
+    "menu": {
+      "titre": "Menu",
+      "texte": "Vos épingles et les groupes repliés du menu « {persona} » vous suivent sur tous vos appareils.",
+      "personnalise": "Votre menu est personnalisé.",
+      "dejaParDefaut": "Votre menu suit la disposition par défaut.",
+      "reinitialiser": "Revenir au menu par défaut",
+      "appareil": {
+        "label": "Barre latérale sur cet appareil",
+        "auto": "Automatique : réduite aux icônes sur un écran moyen",
+        "icones": "Toujours réduite aux icônes",
+        "complet": "Toujours complète",
+        "aide": "Ce réglage ne vaut que pour ce navigateur."
+      }
     }
   },
   "contact": {
