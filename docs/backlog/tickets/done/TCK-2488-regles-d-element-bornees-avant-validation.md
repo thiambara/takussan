@@ -1,7 +1,7 @@
 ---
 id: TCK-2488
 title: Règles d'élément `.*` — une liste hors de sa borne ne fait pas valider ses éléments un à un
-status: doing
+status: done
 phase: P3
 family: technique
 estimate: S
@@ -58,38 +58,38 @@ Décision (session, 2026-11-06) :
 
 ## Delta à produire
 
-- [ ] `App\Support\ReglesDElementBornees::retirer(array $rules, array $data): array` — fonction pure :
+- [x] `App\Support\ReglesDElementBornees::retirer(array $rules, array $data): array` — fonction pure :
       pour chaque préfixe générique d'une clé (`a.*.b.*.c` → `a`, `a.*.b`), lit les instances du
       parent dans `$data` ; si l'une est refusée d'office par les règles du parent, la clé est retirée.
-- [ ] `App\Http\Requests\Concerns\BorneLesReglesDElement` — trait qui surcharge `validationRules()`
+- [x] `App\Http\Requests\Concerns\BorneLesReglesDElement` — trait qui surcharge `validationRules()`
       du FormRequest et passe ses règles par la fonction, sur `validationData()`.
-- [ ] `BaseFormRequest` porte le trait ; les FormRequest qui étendent encore `FormRequest` en direct
+- [x] `BaseFormRequest` porte le trait ; les FormRequest qui étendent encore `FormRequest` en direct
       (TCK-730) et portent une règle `.*` bornée le portent aussi.
-- [ ] `AgencySettings::rules()` perd son paramètre `$input` et sa condition ;
+- [x] `AgencySettings::rules()` perd son paramètre `$input` et sa condition ;
       `AgencyUpdateRequest` cesse de lui passer les `settings` reçus.
-- [ ] Tests : `tests/Unit/Support/ReglesDElementBorneesTest.php` (la fonction) ;
+- [x] Tests : `tests/Unit/Support/ReglesDElementBorneesTest.php` (la fonction) ;
       `tests/Feature/Validation/ReglesDElementBorneesTest.php` (un échantillon par HTTP, et le
       recensement de toutes les FormRequest).
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Fonction : une clé `x.*` est retirée quand `x` porte `max:N` et reçoit N+1 éléments, et
+- [x] AC1 — Fonction : une clé `x.*` est retirée quand `x` porte `max:N` et reçoit N+1 éléments, et
       gardée à N éléments, à `null`, absente ou non tableau. Même chose pour chaque préfixe d'une clé
       à plusieurs `.*`, et pour les clés `x.*.y`. Idem pour `array:k…` reçu avec une clé hors liste,
       et `prohibited` reçu non vide. Un parent sans borne, ou qui porte un `exclude*`, ne retire rien.
-- [ ] AC2 — Échantillon HTTP, une requête par famille (base / directe ; liste de scalaires ; liste
+- [x] AC2 — Échantillon HTTP, une requête par famille (base / directe ; liste de scalaires ; liste
       d'objets `x.*.y` ; `.*` imbriqué) : N+1 éléments invalides → 422 dont `errors` n'a QUE la clé du
       parent ; N éléments dont un invalide → l'erreur d'élément est encore rendue.
-- [ ] AC3 — `settings.hidden_modules` : les deux tests de TCK-2483 (`test_une_liste_hors_borne_ne_valide_pas_ses_elements`,
+- [x] AC3 — `settings.hidden_modules` : les deux tests de TCK-2483 (`test_une_liste_hors_borne_ne_valide_pas_ses_elements`,
       standard ET `individual`, et `test_une_liste_dans_sa_borne_valide_encore_ses_elements`) restent
       verts une fois `AgencySettings::rules($input)` retiré.
-- [ ] AC4 — Recensement : un test parcourt toutes les FormRequest concrètes de `app/Http/Requests`,
+- [x] AC4 — Recensement : un test parcourt toutes les FormRequest concrètes de `app/Http/Requests`,
       joue leurs `rules()`, et pour chaque clé `.*` dont tous les préfixes sont bornés, vérifie PAR LA
       REQUÊTE ELLE-MÊME (son `validationRules()` sur un corps hors borne) que la clé tombe. Une clé
       `.*` à parent non borné qui n'est pas dans la liste figée rougit ; une entrée de la liste qui
       n'a plus la forme rougit (liste expirante). Une requête dont `rules()` ne se joue pas hors
       contexte est listée nommément, et sa source ne porte aucune clé `.*`.
-- [ ] AC5 — Ablations : retirer le trait de `BaseFormRequest`, puis d'une requête directe, puis
+- [x] AC5 — Ablations : retirer le trait de `BaseFormRequest`, puis d'une requête directe, puis
       neutraliser la fonction → les tests ci-dessus rougissent ; restauré → verts.
 - [ ] AC6 — Suites par la CI.
 
@@ -112,4 +112,59 @@ Décision (session, 2026-11-06) :
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+**Relevé (2026-11-06)**, par appel réel de `rules()` de chaque FormRequest concrète, hors contexte
+(route et compte nuls) : 322 FormRequest, **103 clés `.*`** — 74 dont tous les préfixes sont bornés
+(33 requêtes), 29 à parent sans borne (22 parents, 18 requêtes, liste en Hors périmètre). Le chiffre
+de la revue (« 56 ») venait d'un `grep` des sources ; le relevé joue les règles, clés construites et
+traits compris. 7 requêtes ne se jouent pas sans route ni compte (bien de route, agence du compte,
+nom de route) : aucune ne porte de clé `.*` (source et traits), le recensement le vérifie.
+
+**Mécanisme.** `App\Support\ReglesDElementBornees::retirer($rules, $data)` (pure) + trait
+`App\Http\Requests\Concerns\BorneLesReglesDElement`, qui surcharge `validationRules()` — le seul point
+où le FormRequest passe ses règles au validateur, après `prepareForValidation()`. Un trait et non le
+seul `BaseFormRequest` : **7 requêtes directes** (TCK-730) portent des clés bornées (UpdateMe,
+InventoryStore/Update, SubmitQuote, PropertyBulkArchive/Assign/Visibility) ; elles le portent aussi.
+
+**Écarts à la décision.**
+- Deux refus d'office du parent en plus de `array`+`max:N` (écrits au § Contraintes) : `array:clés`
+  avec une clé hors liste — sans lui, `navigation.personas` de `PATCH /api/me` (tout compte connecté)
+  reste non borné : des milliers de personas inconnues étaient jugées chacune ; et `prohibited` non
+  vide — sans lui, retirer `AgencySettings::rules($input)` faisait régresser le cas `individual` de
+  TCK-2483 (ablation A4 : il rougit).
+- `list` compte comme `array` (`navigation.personas.*.epingles` porte `list` + `max:5`, sans `array`).
+- Une clé à plusieurs `.*` est jugée sur CHAQUE préfixe ; pour un préfixe générique, une seule
+  instance refusée suffit à retirer la clé pour toutes : la requête échoue de toute façon sur elle.
+  Les erreurs d'élément des AUTRES instances ne sont alors plus rendues — seul effet observable hors
+  de la liste fautive.
+- Un parent qui porte `exclude*` n'entre pas dans le mécanisme (il peut ne pas être jugé).
+
+**Sûreté (le parent échoue vraiment).** Le recensement ne se contente pas de vérifier que la clé
+tombe : pour chacune des 74 clés et chacun de ses parents, il construit le corps hors borne et vérifie
+que `Validator::make` sur la seule règle du parent ÉCHOUE — sinon retirer la règle d'élément laisserait
+passer des éléments. Et sur un corps vide, la clé reste (le mécanisme ne retire pas trop).
+
+**AgencySettings.** `rules()` perd `$input`, sa condition et la clé `max` du catalogue ;
+`AgencyUpdateRequest` appelle `AgencySettings::rules()`. Les deux tests hors borne de TCK-2483
+(standard, individual) et celui dans la borne restent verts. Coordination avec `suites-agence`
+(TCK-2487 touchait le même fichier) : leur hunk commité d'abord (a9327a64c), puis le mien par chemin.
+
+**Ablations** (script unique mutation → tests → restauration, `git status` propre ensuite) :
+témoin 31/31 vert · A1 trait retiré de `BaseFormRequest` → 4 rouges (HTTP de base, recensement,
+hidden_modules standard + individual) · A2 trait retiré de `PropertyBulkArchiveRequest` → 2 rouges
+(HTTP directe, recensement) · A3 fonction neutralisée → 13 rouges · A4 refus `prohibited` retiré →
+2 rouges (unitaire, hidden_modules individual) · A5 refus `array:clés` retiré → 3 rouges (unitaire,
+HTTP navigation, recensement) · A6 un seul préfixe jugé → 3 rouges · restauré 31/31.
+
+**Tests joués** (2026-11-06, 8 cœurs) : `impacted-tests --connus` sélectionne ~760 classes (le trait
+est sur `BaseFormRequest` : presque toute la suite) — au-delà de 9 min, donc remplacé par 136 classes
+ciblées (toute classe qui asserte une erreur d'élément indexée, `tests/Feature/Validation/*`, et celles
+des endpoints à listes bornées), en trois lots : 553 + 438 + 839 tests verts (241 s, 226 s, 388 s ;
+load 6,70/6,24/4,49 puis 5,26/5,27/4,46 puis 4,65/4,58/4,32). Gardes du dépôt : aucune rouge. Pint
+propre.
+
+**Suites proposées** : borner les 22 parents du Hors périmètre (une borne métier chacun ; priorité aux
+deux qui font une requête SQL par élément : `successors.*` et `segment.agency_ids.*`) ; appliquer la
+fonction aux deux validateurs ad hoc (`JugeLaLigneDeReglageDAgence`, `PlatformSettingService`), où
+`currency.supported` n'a pas de `max:`.
+
+Commits : 5f5e385b9 (ticket), be3de102c (mécanisme), f6a85b734 (AgencySettings).
