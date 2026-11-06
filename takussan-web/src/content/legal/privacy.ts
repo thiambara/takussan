@@ -166,7 +166,7 @@ Nous n’utilisons **aucun cookie publicitaire ni de traceur de réseau social**
 - **takussan-session** — sécuriser votre session (2 heures) ;
 - **active_profile_id** — mémoriser le profil sous lequel vous agissez (30 jours) ;
 - **NEXT_LOCALE** — mémoriser votre langue (1 an) ;
-- **stockage local du navigateur** — biens consultés récemment, favoris et comparateur hors connexion, dernier moyen de paiement choisi, localisation approximative (24 heures).
+- **stockage local du navigateur** — biens consultés récemment, dernières recherches de biens (barre de recherche), pages de votre espace ouvertes récemment (palette de commandes), favoris et comparateur hors connexion, dernier moyen de paiement choisi, localisation approximative (24 heures).
 
 Vous pouvez effacer ces éléments à tout moment depuis les réglages de votre navigateur ; certaines fonctions, dont la connexion, ne fonctionneront alors plus.
 
@@ -343,7 +343,7 @@ We use **no advertising cookies or social-network trackers**. Items stored on yo
 - **takussan-session** — secures your session (2 hours);
 - **active_profile_id** — remembers the profile you act under (30 days);
 - **NEXT_LOCALE** — remembers your language (1 year);
-- **browser local storage** — recently viewed properties, offline favourites and comparison list, last payment method chosen, approximate location (24 hours).
+- **browser local storage** — recently viewed properties, latest property searches (search bar), recently opened pages of your space (command palette), offline favourites and comparison list, last payment method chosen, approximate location (24 hours).
 
 You can clear these items at any time in your browser settings; some features, including staying signed in, will then stop working.
 

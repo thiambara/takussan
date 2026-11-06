@@ -261,6 +261,38 @@ describe('politique de confidentialité — le journal des recherches', () => {
   });
 
   it('la version des documents avance avec le journal', () => {
-    expect(VERSION_DOCUMENTS).toEqual({ date: '4 novembre 2026', dateEn: 'November 4, 2026' });
+    // Avancée par TCK-2482 (le journal y entrait le 4 novembre 2026).
+    expect(VERSION_DOCUMENTS).toEqual({ date: '6 novembre 2026', dateEn: 'November 6, 2026' });
+  });
+});
+
+/**
+ * TCK-2482 (A15) — la palette de commandes retient sur l'appareil les pages de l'espace ouvertes
+ * récemment (`src/lib/navigation/pages-recentes.ts`) : la politique les nomme dans le stockage local.
+ * Le même changement rattrape les dernières recherches de TCK-2475 (`src/lib/recherches-recentes.ts`,
+ * clé `takussan.recherches-recentes`), gardées sur l'appareil depuis sans que la liste les nomme.
+ */
+describe('politique de confidentialité — ce que le stockage local garde de la navigation', () => {
+  it('nomme les pages récentes de la palette, dans les deux langues', () => {
+    expect(privacy.fr).toContain('pages de votre espace ouvertes récemment (palette de commandes)');
+    expect(privacy.en).toContain('recently opened pages of your space (command palette)');
+  });
+
+  it('nomme les dernières recherches de biens (TCK-2475), dans les deux langues', () => {
+    expect(privacy.fr).toContain('dernières recherches de biens (barre de recherche)');
+    expect(privacy.en).toContain('latest property searches (search bar)');
+  });
+
+  it('les range dans la ligne du stockage local du navigateur', () => {
+    expect(privacy.fr).toContain(
+      '- **stockage local du navigateur** — biens consultés récemment, dernières recherches de biens (barre de recherche), pages de votre espace ouvertes récemment (palette de commandes), favoris',
+    );
+    expect(privacy.en).toContain(
+      '- **browser local storage** — recently viewed properties, latest property searches (search bar), recently opened pages of your space (command palette), offline favourites',
+    );
+  });
+
+  it('la version des documents avance avec elles', () => {
+    expect(VERSION_DOCUMENTS).toEqual({ date: '6 novembre 2026', dateEn: 'November 6, 2026' });
   });
 });
