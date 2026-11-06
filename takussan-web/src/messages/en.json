@@ -11427,9 +11427,6 @@
       "service_provider": "Service provider"
     },
     "switcher": {
-      "adminLabel": "Takussan admin",
-      "changeAria": "Switch profile",
-      "choose": "Choose a profile",
       "switched": "Switched to {name}",
       "switchFailed": "Could not switch profile",
       "fallbackLabel": "profile"

@@ -201,7 +201,7 @@ describe('TCK-2491 (ADR-0090 §2) — l’en-tête de la colonne et le menu du c
     expect(within(menu).getByText('Changer d’espace')).toBeInTheDocument();
     const actif = within(menu).getByRole('menuitem', { name: /Teranga Immo/ });
     expect(actif).toHaveAttribute('aria-current', 'true');
-    // Re-choisir l'espace actif ne bascule rien ; l'autre bascule par la mutation de `ProfileSwitcher`.
+    // Re-choisir l'espace actif ne bascule rien ; l'autre bascule par la mutation du profil actif.
     await u.click(actif);
     expect(espaces.basculer).not.toHaveBeenCalled();
     await u.click(monte.container.querySelector<HTMLElement>('[data-slot="pied-du-compte"]')!);

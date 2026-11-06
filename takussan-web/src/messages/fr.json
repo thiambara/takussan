@@ -11427,9 +11427,6 @@
       "service_provider": "Prestataire"
     },
     "switcher": {
-      "adminLabel": "Admin Takussan",
-      "changeAria": "Changer de profil",
-      "choose": "Choisir un profil",
       "switched": "Espace basculé sur {name}",
       "switchFailed": "Impossible de basculer de profil",
       "fallbackLabel": "profil"

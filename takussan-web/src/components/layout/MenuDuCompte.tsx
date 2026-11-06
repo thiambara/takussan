@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { EspacesDuMenu } from '@/components/profile/ProfileSwitcher';
+import { EspacesDuMenu } from '@/components/profile/EspacesDuMenu';
 import { useAuth } from '@/context/AuthContext';
 import { useChangementDeLangue } from '@/hooks/useChangementDeLangue';
 import { useMyProfiles } from '@/hooks/useProfiles';
@@ -40,8 +40,8 @@ interface MenuDuCompteProps {
 
 /**
  * TCK-2491 (ADR-0090 §2) — le compte, au pied de la colonne : avatar, nom, « espace · rôle », et UN seul
- * menu qui réunit ce que portait la barre du haut — le changement d'espace (`EspacesDuMenu`, la
- * mécanique de `ProfileSwitcher`), le solde de crédits, le profil, les préférences de notification,
+ * menu qui réunit ce que portait la barre du haut — le changement d'espace (`EspacesDuMenu`, héritier du
+ * `ProfileSwitcher` retiré avec elle), le solde de crédits, le profil, les préférences de notification,
  * l'entrée d'administration, la langue (`useChangementDeLangue`, la mécanique de `LanguageSwitcher`) et
  * la déconnexion (celle d'`UserMenu`).
  *

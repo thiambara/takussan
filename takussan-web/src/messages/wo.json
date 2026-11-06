@@ -10773,9 +10773,6 @@
       "service_provider": "Ku joxe liggéey"
     },
     "switcher": {
-      "adminLabel": "Njiitu Takussan",
-      "changeAria": "Soppi profil",
-      "choose": "Tànnal benn profil",
       "switched": "Soppi nga ci {name}",
       "switchFailed": "Mënunu soppi profil bi",
       "fallbackLabel": "profil"

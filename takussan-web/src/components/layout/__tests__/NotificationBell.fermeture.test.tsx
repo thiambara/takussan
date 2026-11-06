@@ -45,7 +45,7 @@ vi.mock('@/context/AuthContext', () => ({
 
 // TCK-2491 — la cloche et le menu du compte sont voisins dans la colonne : c'est ce couple qui doit
 // rester « une fenêtre à la fois ». Le menu du compte lit les profils, le solde et la langue.
-vi.mock('@/components/profile/ProfileSwitcher', () => ({
+vi.mock('@/components/profile/EspacesDuMenu', () => ({
   EspacesDuMenu: () => null,
 }));
 vi.mock('@/hooks/useProfiles', () => ({
