@@ -74,6 +74,18 @@ export function AppShell({
   // TCK-2481 — sous `md`, la barre d'onglets ; « Menu » y ouvre le tiroir, qui lui rend le focus.
   const barreDOnglets = porteLaBarreDOnglets(pathname);
   const boutonMenu = useRef<HTMLButtonElement>(null);
+  // TCK-2481 (revue, M1) — le tiroir se referme-t-il sur une NAVIGATION ? Posé par `onNavigate`, lu
+  // par `finalFocus` : « Menu » est le dernier focalisable du document, y rendre le focus après le
+  // choix d'une page laisserait toute la nouvelle page AVANT lui. Un ref et non `closeType` : Base UI
+  // n'y passe que la modalité (souris, clavier…), jamais la raison de la fermeture.
+  const fermeParUnLien = useRef(false);
+  const focusAuRetour = () => {
+    if (fermeParUnLien.current) {
+      fermeParUnLien.current = false;
+      return false; // ne rien forcer : le focus repart du début du document, comme avec l'ancien burger
+    }
+    return boutonMenu.current; // Échap, voile : « Menu » (arbitrage 10)
+  };
   // TCK-253 — Customer-only onboarding surfaces. Gated server-side via the
   // SSR-resolved roles so we never paint the welcome modale (or arm the
   // deferred profile sheet) for agents / owners / admins.
@@ -159,11 +171,14 @@ export function AppShell({
                 <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
                   {/* TCK-2481 — `finalFocus` explicite : au doigt, Safari iOS ne focalise pas le bouton
                       touché, et le défaut de Base UI (« l'élément focalisé à l'ouverture ») rendrait
-                      le focus à `body`. */}
-                  <SheetContent side="left" className="p-0" aria-label={t('navLabel')} finalFocus={boutonMenu}>
+                      le focus à `body`. Sauf fermeture par un lien (revue, M1) : `focusAuRetour`. */}
+                  <SheetContent side="left" className="p-0" aria-label={t('navLabel')} finalFocus={focusAuRetour}>
                     <AppSidebar
                       user={user}
-                      onNavigate={() => setSidebarOpen(false)}
+                      onNavigate={() => {
+                        fermeParUnLien.current = true;
+                        setSidebarOpen(false);
+                      }}
                       agencyIsStandard={agencyIsStandard}
                       hasPendingUpgrade={hasPendingUpgrade}
                       typeProfilActif={typeProfilActif}
@@ -199,7 +214,10 @@ export function AppShell({
               typeProfilActif={typeProfilActif}
               agencySuspended={agencySuspended}
               menuOuvert={sidebarOpen}
-              onOuvrirMenu={() => setSidebarOpen(true)}
+              onOuvrirMenu={() => {
+                fermeParUnLien.current = false;
+                setSidebarOpen(true);
+              }}
               refMenu={boutonMenu}
             />
           ) : null}

@@ -120,6 +120,44 @@ describe('TCK-2481 — AC3 : aucun burger ; « Menu » ouvre le tiroir et rend l
     fireEvent.click(within(tiroir).getAllByRole('link', { name: /Demandes/ })[0]!);
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
+
+  /**
+   * Revue adverse, M1 — « Menu » est le DERNIER focalisable du document : y rendre le focus après une
+   * navigation laisse toute la nouvelle page AVANT lui, et Tab sort du document. Fermé par un lien,
+   * le tiroir ne force rien ; Échap et le voile gardent « Menu » (arbitrage 10).
+   */
+  it('au clavier, un lien du tiroir le referme SANS rendre le focus à « Menu »', async () => {
+    const user = userEvent.setup();
+    monter(['customer', 'agent']);
+    const menu = boutonMenu();
+    menu.focus();
+    await user.keyboard('{Enter}');
+    const tiroir = await screen.findByRole('dialog');
+    within(tiroir).getAllByRole('link', { name: /Demandes/ })[0]!.focus();
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    // Le rendu du focus est asynchrone (Base UI) : on lui laisse le temps d'avoir lieu à tort.
+    await new Promise((r) => setTimeout(r, 50));
+    expect(menu).not.toHaveFocus();
+  });
+
+  it('après une navigation, Échap rend de nouveau le focus à « Menu »', async () => {
+    const user = userEvent.setup();
+    monter(['customer', 'agent']);
+    const menu = boutonMenu();
+    menu.focus();
+    await user.keyboard('{Enter}');
+    const tiroir = await screen.findByRole('dialog');
+    within(tiroir).getAllByRole('link', { name: /Demandes/ })[0]!.focus();
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    menu.focus();
+    await user.keyboard('{Enter}');
+    await screen.findByRole('dialog');
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() => expect(menu).toHaveFocus());
+  });
 });
 
 describe('TCK-2481 — AC4 : pas de barre en plein écran', () => {
