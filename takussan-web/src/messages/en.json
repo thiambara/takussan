@@ -213,6 +213,13 @@
         "texte": "Publish your first property in minutes."
       },
       "console": "Platform console",
+      "recents": "Recent",
+      "statut": {
+        "miseEnLocation": "In a few minutes",
+        "passerEnAgence": "Team and pro tools",
+        "demandeEnCours": "Answer by email",
+        "console": "Takussan administration"
+      },
       "aujourdhui": {
         "titre": "Today",
         "lignes": {
@@ -385,10 +392,15 @@
         "aTraiter": "To do",
         "recents": "Recent",
         "allerA": "Go to",
-        "espaces": "Spaces"
+        "espaces": "Spaces",
+        "annonces": "Listings"
+      },
+      "annonces": {
+        "generique": "Search properties on Takussan",
+        "avecTexte": "Search “{q}” in listings"
       },
       "passerA": "Switch to: {espace}",
-      "aucun": "No results for “{q}”",
+      "aucun": "No page for “{q}”",
       "resultats": "{count, plural, =0 {No results} one {# result} other {# results}}",
       "synonymesEspace": "space, switch, change",
       "synonymes": {

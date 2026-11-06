@@ -1,6 +1,7 @@
-import { ArrowLeftRight, type LucideIcon } from 'lucide-react';
+import { ArrowLeftRight, Search, type LucideIcon } from 'lucide-react';
 import { replierPourRecherche } from '@/components/ui/combobox';
 import type { Profile } from '@/types/profile';
+import { parametreDe } from '@/types/search';
 import type { PastilleATraiter } from './a-traiter';
 import { APP_EXACT_ROOTS, resolveActiveHref } from './active-path';
 import type { IdDestination } from './catalogue';
@@ -16,8 +17,10 @@ import type { EntreeComposee, GroupeCompose } from './composer-menu';
  * - Les groupes paraissent toujours dans l'ordre de `GROUPES_DE_LA_PALETTE` ; la frappe ne réordonne
  *   qu'À L'INTÉRIEUR d'un groupe.
  * - Aucun tri par usage (ADR-0089 §5) : « Récents » est un groupe à part, montré sur un champ vide.
+ * - TCK-2489 (ADR-0090 §2) — la recherche d'annonces du site public y entre ({@link avecLaRechercheDAnnonces}) :
+ *   « Annonces » est le DERNIER groupe, pour qu'Entrée sur « mess » ouvre la messagerie, pas la liste.
  */
-export const GROUPES_DE_LA_PALETTE = ['actions', 'a-traiter', 'recents', 'aller-a', 'espaces'] as const;
+export const GROUPES_DE_LA_PALETTE = ['actions', 'a-traiter', 'recents', 'aller-a', 'espaces', 'annonces'] as const;
 export type GroupeDeLaPalette = (typeof GROUPES_DE_LA_PALETTE)[number];
 
 export type CibleDeLaPalette =
@@ -210,4 +213,62 @@ export function chercherDansLaPalette(options: readonly OptionDeLaPalette[], req
   return notees
     .sort((a, b) => rang(a.option.groupe) - rang(b.option.groupe) || b.score - a.score || a.ordre - b.ordre)
     .map((n) => n.option);
+}
+
+/** TCK-2489 — la liste publique des annonces, celle de la recherche du site (`SearchAutocomplete`). */
+export const CHEMIN_DES_ANNONCES = '/properties';
+
+export interface LibellesDesAnnonces {
+  /** « Chercher un bien sur Takussan » : champ vide. */
+  readonly generique: string;
+  /** « Chercher « {q} » parmi les annonces » : avec du texte tapé. */
+  readonly avecTexte: (requete: string) => string;
+}
+
+/**
+ * TCK-2489 (ADR-0090 §2) — la recherche d'annonces du site public, entrée dans la palette quand la
+ * barre du haut (et son `SearchAutocomplete`) quitte la coque de `/app`. Pure : elle complète les
+ * résultats de {@link chercherDansLaPalette}.
+ *
+ * - Champ vide : « Chercher un bien sur Takussan » (vers `/properties`), placée après les actions du
+ *   persona — sauf si le menu y mène déjà (l'action « Chercher un bien » du client, l'entrée du
+ *   locataire) : une destination, une ligne.
+ * - Texte tapé : « Chercher « … » parmi les annonces », vers `/properties?q=…` — le paramètre plein-texte
+ *   de la recherche publique (`parametreDe('q')`, celui qu'écrit `SearchAutocomplete`). Toujours
+ *   proposée, et toujours EN DERNIER (groupe « Annonces ») : elle ne prend jamais la place d'une page du
+ *   menu sous Entrée, et une saisie qui ne trouve aucune page n'est plus une impasse.
+ * - Cible `publique` : la coque la localise (`hrefLocalise`), comme toute page du site.
+ */
+export function avecLaRechercheDAnnonces(
+  resultats: readonly OptionDeLaPalette[],
+  requete: string,
+  l: LibellesDesAnnonces,
+): OptionDeLaPalette[] {
+  const texte = requete.trim();
+  if (texte === '') {
+    const dejaAuMenu = resultats.some((o) => o.cible.type === 'lien' && o.cible.href === CHEMIN_DES_ANNONCES);
+    if (dejaAuMenu) return [...resultats];
+    const option: OptionDeLaPalette = {
+      cle: 'actions:annonces',
+      groupe: 'actions',
+      libelle: l.generique,
+      motsCles: [],
+      icone: Search,
+      cible: { type: 'lien', href: CHEMIN_DES_ANNONCES, publique: true },
+    };
+    const apres = resultats.findLastIndex((o) => o.groupe === 'actions') + 1;
+    return [...resultats.slice(0, apres), option, ...resultats.slice(apres)];
+  }
+  const params = new URLSearchParams({ [parametreDe('q')]: texte });
+  return [
+    ...resultats,
+    {
+      cle: 'annonces:texte',
+      groupe: 'annonces',
+      libelle: l.avecTexte(texte),
+      motsCles: [],
+      icone: Search,
+      cible: { type: 'lien', href: `${CHEMIN_DES_ANNONCES}?${params.toString()}`, publique: true },
+    },
+  ];
 }

@@ -3,13 +3,18 @@ import { describe, expect, it } from 'vitest';
 import fr from '@/messages/fr.json';
 import { CATALOGUE, estOuverte, type IdDestination } from '../catalogue';
 import { composerMenu, entreesDuMenu, type EntreeComposee } from '../composer-menu';
+import { parametreDe } from '@/types/search';
 import {
+  CHEMIN_DES_ANNONCES,
+  GROUPES_DE_LA_PALETTE,
+  avecLaRechercheDAnnonces,
   chercherDansLaPalette,
   decouperLesMots,
   optionsDeLaPalette,
   resolveurDesRecents,
   type GroupeDeLaPalette,
   type LibellesDeLaPalette,
+  type LibellesDesAnnonces,
   type OptionDeLaPalette,
   type SourcesDeLaPalette,
 } from '../palette';
@@ -225,5 +230,76 @@ describe('revue I3 — resolveurDesRecents', () => {
   it('une entrée cadenassée ne résout rien', () => {
     const cadenas = groupes.map((g) => ({ ...g, entrees: g.entrees.map((e) => ({ ...e, locked: e.href === '/app/leases' })) }));
     expect(resolveurDesRecents(cadenas)('/app/leases/42')).toBeNull();
+  });
+});
+
+describe('TCK-2489 AC3 — la recherche d’annonces du site public entre dans la palette (ADR-0090 §2)', () => {
+  const ANNONCES: LibellesDesAnnonces = {
+    generique: 'Chercher un bien sur Takussan',
+    avecTexte: (q) => `Chercher « ${q} » parmi les annonces`,
+  };
+  const resultats = (persona: Persona, requete: string) =>
+    avecLaRechercheDAnnonces(chercherDansLaPalette(optionsDeLaPalette(sources(persona), LIBELLES), requete), requete, ANNONCES);
+
+  it('le paramètre est celui de la recherche publique : `q`', () => {
+    expect(parametreDe('q')).toBe('q');
+    expect(CHEMIN_DES_ANNONCES).toBe('/properties');
+  });
+
+  it.each(PERSONAS.filter((p) => p !== 'client' && p !== 'locataire'))(
+    '%s : champ vide, « Chercher un bien sur Takussan » juste après les actions, vers /properties (publique)',
+    (persona) => {
+      const liste = resultats(persona, '');
+      const i = liste.findIndex((o) => o.cle === 'actions:annonces');
+      expect(i).toBe(du('actions', liste).length - 1);
+      expect(liste[i]).toMatchObject({
+        groupe: 'actions',
+        libelle: 'Chercher un bien sur Takussan',
+        cible: { type: 'lien', href: '/properties', publique: true },
+      });
+      expect(liste.filter((o) => o.groupe === 'annonces')).toEqual([]);
+    },
+  );
+
+  it.each(['client', 'locataire'] as const)(
+    '%s : le menu mène déjà à /properties (« Chercher un bien ») — une destination, une ligne',
+    (persona) => {
+      const liste = resultats(persona, '');
+      expect(liste.filter((o) => hrefDe(o) === '/properties')).toHaveLength(1);
+      expect(liste.some((o) => o.cle === 'actions:annonces')).toBe(false);
+    },
+  );
+
+  it.each(PERSONAS)('%s : avec du texte, « Chercher « … » parmi les annonces » transmet le texte tapé, EN DERNIER', (persona) => {
+    const liste = resultats(persona, '  villa Almadies  ');
+    const derniere = liste.at(-1)!;
+    expect(derniere).toMatchObject({
+      cle: 'annonces:texte',
+      groupe: 'annonces',
+      libelle: 'Chercher « villa Almadies » parmi les annonces',
+      cible: { type: 'lien', href: '/properties?q=villa+Almadies', publique: true },
+    });
+    expect(liste.filter((o) => o.groupe === 'annonces')).toHaveLength(1);
+    expect(liste.some((o) => o.cle === 'actions:annonces')).toBe(false);
+  });
+
+  it('la page du menu passe avant sous Entrée : « mess » ouvre la messagerie, la recherche suit', () => {
+    const liste = resultats('agent', 'mess');
+    expect(hrefDe(liste[0]!)).toBe('/app/messages');
+    expect(liste.at(-1)!.cle).toBe('annonces:texte');
+  });
+
+  it('une saisie qui ne trouve aucune page n’est pas une impasse : la recherche d’annonces seule', () => {
+    expect(resultats('bailleur', 'zzqx').map((o) => o.cle)).toEqual(['annonces:texte']);
+  });
+
+  it('le texte est encodé, pas collé : « & », « # », « ? » restent dans `q`', () => {
+    const href = hrefDe(resultats('agent', 'a&b #c?d').at(-1)!)!;
+    expect(new URL(href, 'https://x.test').searchParams.get('q')).toBe('a&b #c?d');
+    expect(new URL(href, 'https://x.test').pathname).toBe('/properties');
+  });
+
+  it('« Annonces » est le dernier groupe de la palette', () => {
+    expect(GROUPES_DE_LA_PALETTE.at(-1)).toBe('annonces');
   });
 });

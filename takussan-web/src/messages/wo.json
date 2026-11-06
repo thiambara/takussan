@@ -203,6 +203,13 @@
         "texte": "Publiez votre premier bien en quelques minutes."
       },
       "console": "Console plateforme",
+      "recents": "Récents",
+      "statut": {
+        "miseEnLocation": "En quelques minutes",
+        "passerEnAgence": "Équipe et outils pro",
+        "demandeEnCours": "Réponse par e-mail",
+        "console": "Administration de Takussan"
+      },
       "aujourdhui": {
         "titre": "Aujourd’hui",
         "lignes": {
@@ -385,10 +392,15 @@
         "aTraiter": "À traiter",
         "recents": "Récents",
         "allerA": "Aller à",
-        "espaces": "Espaces"
+        "espaces": "Espaces",
+        "annonces": "Annonces"
+      },
+      "annonces": {
+        "generique": "Chercher un bien sur Takussan",
+        "avecTexte": "Chercher « {q} » parmi les annonces"
       },
       "passerA": "Passer à : {espace}",
-      "aucun": "Aucun résultat pour « {q} »",
+      "aucun": "Aucune page pour « {q} »",
       "resultats": "{count, plural, =0 {Aucun résultat} one {# résultat} other {# résultats}}",
       "synonymesEspace": "espace, changer, basculer, passer",
       "synonymes": {

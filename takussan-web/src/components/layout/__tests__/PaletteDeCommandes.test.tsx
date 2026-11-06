@@ -79,6 +79,8 @@ function ui(roles: UserRole[], typeProfilActif: ProfileType | null = null, ouver
 }
 const LOCATAIRE: UserRole[] = ['customer', 'tenant'];
 const noms = (racine: HTMLElement) => within(racine).queryAllByRole('option').map((o) => o.textContent ?? '');
+/** TCK-2489 — les options trouvées dans le menu, sans la recherche d'annonces qui suit toute saisie. */
+const pagesDe = (racine: HTMLElement) => noms(racine).filter((n) => !n.startsWith('Chercher « '));
 
 beforeEach(() => {
   etat.push.mockReset();
@@ -127,16 +129,16 @@ describe('<PaletteDeCommandes> — TCK-2482', () => {
     expect(noms(screen.getByRole('listbox'))).toContain('Mes avis');
     await u.clear(champ);
     await u.type(champ, 'equipe');
-    expect(screen.queryByRole('listbox')).toBeNull();
-    expect(screen.getByText('Aucun résultat pour « equipe »')).toBeInTheDocument();
-    expect(champ).toHaveAttribute('aria-expanded', 'false');
+    // TCK-2489 — aucune PAGE : l'état vide le dit, et seule la recherche d'annonces reste proposée.
+    expect(noms(screen.getByRole('listbox'))).toEqual(['Chercher « equipe » parmi les annonces']);
+    expect(screen.getByText('Aucune page pour « equipe »')).toBeInTheDocument();
   });
 
   it('sans les accents : « etats » trouve « États des lieux »', async () => {
     const u = userEvent.setup();
     render(ui(LOCATAIRE));
     await u.type(await screen.findByRole('combobox'), 'etats');
-    expect(noms(screen.getByRole('listbox'))).toEqual(['États des lieux']);
+    expect(noms(screen.getByRole('listbox'))).toEqual(['États des lieux', 'Chercher « etats » parmi les annonces']);
   });
 
   it('clavier : les flèches déplacent l’option active (et bouclent), Entrée ouvre celle-là', async () => {
@@ -152,7 +154,8 @@ describe('<PaletteDeCommandes> — TCK-2482', () => {
     expect(champ).toHaveAttribute('aria-activedescendant', options.at(-1)!.id);
     await u.keyboard('{ArrowDown}{ArrowDown}{Enter}');
     expect(etat.push).toHaveBeenCalledTimes(1);
-    expect(etat.push.mock.calls[0]![0]).toBe('/app');
+    // TCK-2489 — la deuxième option du locataire est la messagerie : le tableau de bord a quitté sa tête.
+    expect(etat.push.mock.calls[0]![0]).toBe('/app/messages');
   });
 
   it('clavier : Fin va à la dernière option, Début à la première', async () => {
@@ -175,16 +178,17 @@ describe('<PaletteDeCommandes> — TCK-2482', () => {
     const champ = await screen.findByRole('combobox');
     await waitFor(() => expect(champ).toHaveFocus());
     const active = () => document.getElementById(champ.getAttribute('aria-activedescendant') ?? '')?.textContent;
-    await u.keyboard('{ArrowDown}');
-    expect(active()).toBe('Tableau de bord');
+    await u.keyboard('{ArrowDown}{ArrowDown}');
+    // TCK-2489 — la troisième option du locataire : « Baux » (la tête n'a plus que la messagerie).
+    expect(active()).toBe('Mon bail');
     // Le sondage des non-lus rend 3 pendant que la palette est ouverte : « À traiter » s'insère AVANT.
     etat.nonLus = 3;
     rerender(ui(LOCATAIRE));
     expect(screen.getByRole('option', { name: '3 messages non lus' })).toBeInTheDocument();
-    expect(active()).toBe('Tableau de bord');
+    expect(active()).toBe('Mon bail');
     await u.keyboard('{Enter}');
     expect(etat.push).toHaveBeenCalledTimes(1);
-    expect(etat.push).toHaveBeenCalledWith('/app');
+    expect(etat.push).toHaveBeenCalledWith('/app/leases');
   });
 
   it('revue M1 — l’option active qui disparaît (compteur retombé à 0) rend la main à la première', async () => {
@@ -258,10 +262,10 @@ describe('<PaletteDeCommandes> — TCK-2482', () => {
 
     // Persona agent : « Commissions » est à lui, sans précision ; son propre espace n'est pas proposé.
     await u.type(champ, 'commissions');
-    expect(noms(screen.getByRole('listbox'))).toEqual(['Commissions']);
+    expect(pagesDe(screen.getByRole('listbox'))).toEqual(['Commissions']);
     await u.clear(champ);
     await u.type(champ, 'passer');
-    expect(noms(screen.getByRole('listbox'))).toEqual(['Passer à : Propriétaire · Agence Teranga']);
+    expect(pagesDe(screen.getByRole('listbox'))).toEqual(['Passer à : Propriétaire · Agence Teranga']);
 
     await u.keyboard('{Enter}');
     expect(etat.mutate).toHaveBeenCalledWith('owner:7');
@@ -272,10 +276,10 @@ describe('<PaletteDeCommandes> — TCK-2482', () => {
     rerender(ui(roles, 'owner'));
     await u.clear(champ);
     await u.type(champ, 'commissions');
-    expect(noms(screen.getByRole('listbox'))).toEqual(['CommissionsAussi agent']);
+    expect(pagesDe(screen.getByRole('listbox'))).toEqual(['CommissionsAussi agent']);
     await u.clear(champ);
     await u.type(champ, 'passer');
-    expect(noms(screen.getByRole('listbox'))).toEqual(['Passer à : Agent · Agence Teranga']);
+    expect(pagesDe(screen.getByRole('listbox'))).toEqual(['Passer à : Agent · Agence Teranga']);
   });
 
   it('revue I4 — « profil » (ce qu’on tape pour « Mon profil », hors palette par A5) ne propose aucune bascule', async () => {
@@ -344,6 +348,53 @@ describe('<PaletteDeCommandes> — TCK-2482', () => {
     expect((await axe.run(dialogue)).violations).toEqual([]);
     await u.type(screen.getByRole('combobox'), 'zzzz');
     expect((await axe.run(dialogue)).violations).toEqual([]);
+  });
+});
+
+/**
+ * TCK-2489 (ADR-0090 §2) — la recherche d'annonces du site public entre dans la palette : la barre du
+ * haut, qui portait `SearchAutocomplete`, quitte la coque de `/app`. Le modèle est éprouvé dans
+ * `lib/navigation/__tests__/palette.test.ts` ; ici, le geste et la navigation localisée.
+ */
+describe('TCK-2489 — AC3 : « Chercher un bien » dans la palette, le texte tapé transmis', () => {
+  const BAILLEUR: UserRole[] = ['customer', 'owner'];
+
+  it('champ vide : « Chercher un bien sur Takussan » parmi les actions, ouvre la liste publique dans la langue courante', async () => {
+    const u = userEvent.setup();
+    render(ui(BAILLEUR, 'owner'));
+    const actions = within(await screen.findByRole('listbox')).getByRole('group', { name: 'Actions' });
+    const option = within(actions).getByRole('option', { name: 'Chercher un bien sur Takussan' });
+    await u.pointer({ keys: '[MouseLeft>]', target: option });
+    expect(etat.push).toHaveBeenCalledWith('/fr/properties');
+    expect(fermer).toHaveBeenCalledWith(false);
+  });
+
+  it('avec du texte : « Chercher « … » parmi les annonces » en dernier (groupe « Annonces »), Entrée transmet `q`', async () => {
+    const u = userEvent.setup();
+    render(ui(BAILLEUR, 'owner'));
+    const champ = await screen.findByRole('combobox');
+    await waitFor(() => expect(champ).toHaveFocus());
+    await u.type(champ, 'villa à Ngor');
+    const liste = screen.getByRole('listbox');
+    const annonces = within(liste).getByRole('group', { name: 'Annonces' });
+    expect(noms(annonces)).toEqual(['Chercher « villa à Ngor » parmi les annonces']);
+    expect(noms(liste).at(-1)).toBe('Chercher « villa à Ngor » parmi les annonces');
+    await u.keyboard('{End}{Enter}');
+    expect(etat.push).toHaveBeenCalledTimes(1);
+    const href = etat.push.mock.calls[0]![0] as string;
+    const url = new URL(href, 'https://takussan.test');
+    expect(url.pathname).toBe('/fr/properties');
+    expect(url.searchParams.get('q')).toBe('villa à Ngor');
+  });
+
+  it('une page du menu passe avant : « mess » puis Entrée ouvre la messagerie, pas la liste', async () => {
+    const u = userEvent.setup();
+    render(ui(BAILLEUR, 'owner'));
+    const champ = await screen.findByRole('combobox');
+    await waitFor(() => expect(champ).toHaveFocus());
+    await u.type(champ, 'mess');
+    await u.keyboard('{Enter}');
+    expect(etat.push).toHaveBeenCalledWith('/app/messages');
   });
 });
 
@@ -423,7 +474,7 @@ describe('TCK-2483 — AC10 : la palette ne propose pas une destination masquée
 
   it('l’agence masque `commissions` et `inventories` : l’agent ne les trouve plus', async () => {
     expect(await chercher(AGENT, 'agent', ['commissions', 'inventories'], 'commissions')).not.toContain('Commissions');
-    expect(screen.getByText('Aucun résultat pour « commissions »')).toBeInTheDocument();
+    expect(screen.getByText('Aucune page pour « commissions »')).toBeInTheDocument();
     cleanup();
     expect(await chercher(AGENT, 'agent', ['commissions', 'inventories'], 'etats')).not.toContain('États des lieux');
   });
