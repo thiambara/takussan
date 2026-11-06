@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { msgValidation } from './messages';
+import { CODES_DE_MODULE } from '@/lib/navigation/modules';
 
 /**
  * Agency (admin config) schemas — TCK-064.
@@ -70,6 +71,8 @@ export const agencyFormSchema = z.object({
   require_team_two_factor: z.boolean(),
   /** TCK-593 — `settings.late_fee_online_collection`, désactivé par défaut. */
   late_fee_online_collection: z.boolean(),
+  /** TCK-2483 — `settings.hidden_modules` : les modules retirés du menu de l'équipe (agence `standard`). */
+  hidden_modules: z.array(z.enum(CODES_DE_MODULE)),
   // TCK-594 (ADR-0039 §7) — mêmes bornes que `AgencyUpdateRequest`.
   default_tax_rate: z
     .string()
@@ -137,6 +140,12 @@ export interface AgencyFormContext {
    */
   slugEditable?: boolean;
   initialSlug?: string;
+  /**
+   * TCK-2483 (revue, M5) — les modules masqués lus au chargement (absents = aucun). La liste ne part
+   * que si la section a changé : l'API conserve une clé absente, et renvoyer la liste du chargement
+   * écraserait celle qu'un autre admin aurait enregistrée depuis.
+   */
+  initialHiddenModules?: readonly string[];
 }
 
 function emptyToNull(v: string | undefined): string | null {
@@ -167,6 +176,14 @@ export function normaliseAgencyForm(
   // en place faute d'avoir été envoyé.
   settings.require_team_two_factor = values.require_team_two_factor;
   settings.late_fee_online_collection = values.late_fee_online_collection;
+  // TCK-2483 — pour une agence `standard`, et seulement si la section a changé (revue, M5) : alors la
+  // liste entière, dans l'ordre des codes, `[]` compris (tout réafficher doit s'enregistrer). Jamais
+  // pour une `individual` : l'API la refuse (422).
+  if (!context.individual) {
+    const masques = CODES_DE_MODULE.filter((code) => values.hidden_modules.includes(code));
+    const initiaux = CODES_DE_MODULE.filter((code) => (context.initialHiddenModules ?? []).includes(code));
+    if (masques.join() !== initiaux.join()) settings.hidden_modules = masques;
+  }
 
   const slug = (values.slug ?? '').trim();
 

@@ -6,6 +6,7 @@ import {
   validateAgencyLogoFile,
   AGENCY_LOGO_MAX_BYTES,
 } from '../schemas/agency';
+import type { CodeDeModule } from '../navigation/modules';
 import { normaliseTagForm, tagFormSchema } from '../schemas/tag';
 import {
   integrationFormSchema,
@@ -32,6 +33,8 @@ describe('agencyFormSchema', () => {
     require_team_two_factor: false,
     // TCK-593 — le réglage d'encaissement des pénalités en ligne.
     late_fee_online_collection: false,
+    // TCK-2483 — les modules retirés du menu de l'équipe.
+    hidden_modules: [] as CodeDeModule[],
     // TCK-594 — TVA par défaut, seuil des quatre yeux, mentions légales.
     default_tax_rate: '',
     payout_approval_threshold: '',
@@ -100,6 +103,7 @@ describe('agencyFormSchema', () => {
    */
   it('TCK-962 — n’envoie dans `settings` que des clés que l’API accepte', () => {
     const payload = normaliseAgencyForm({ ...base, commission_rate: '8', currency: 'XOF' });
+    // TCK-2483 (revue, M5) — `hidden_modules` ne part que si la section a changé : intacte ici.
     expect(Object.keys(payload.settings ?? {}).sort()).toEqual([
       'late_fee_online_collection',
       'require_team_two_factor',
@@ -113,6 +117,39 @@ describe('agencyFormSchema', () => {
       expect(payload.settings).toMatchObject({ require_team_two_factor: exige });
     },
   );
+
+  it('TCK-2483 — `hidden_modules` part pour une agence standard, jamais pour une individuelle', () => {
+    expect(normaliseAgencyForm({ ...base, hidden_modules: ['analytics', 'calendar'] as CodeDeModule[] }).settings).toMatchObject({
+      hidden_modules: ['calendar', 'analytics'],
+    });
+    expect(
+      normaliseAgencyForm({ ...base, hidden_modules: ['calendar'] as CodeDeModule[] }, { individual: true, initialThreshold: '' }).settings,
+    ).not.toHaveProperty('hidden_modules');
+    expect(agencyFormSchema.safeParse({ ...base, hidden_modules: ['calendar', 'analytics'] }).success).toBe(true);
+    expect(agencyFormSchema.safeParse({ ...base, hidden_modules: ['payments'] }).success).toBe(false);
+  });
+
+  /**
+   * Revue de TCK-2483, M5 — l'API fusionne `settings` clé par clé : une clé absente est conservée.
+   * Renvoyer la liste lue au chargement écraserait celle qu'un autre admin a enregistrée depuis. Même
+   * patron que le seuil (TCK-594) et le slug (TCK-1004) : ne part que ce qui a changé.
+   */
+  it('TCK-2483 — `hidden_modules` ne part que si la section a changé, et alors en entier', () => {
+    const contexte = (initial: readonly string[]) => ({ individual: false, initialThreshold: '', initialHiddenModules: initial });
+    // Intacte : rien ne part, quel que soit l'ordre lu.
+    expect(
+      normaliseAgencyForm({ ...base, hidden_modules: ['analytics', 'calendar'] as CodeDeModule[] }, contexte(['calendar', 'analytics'])).settings,
+    ).not.toHaveProperty('hidden_modules');
+    expect(normaliseAgencyForm(base, contexte([])).settings).not.toHaveProperty('hidden_modules');
+    // Un code que le front ne connaît pas (lu brut) ne fait pas croire à une modification.
+    expect(normaliseAgencyForm(base, contexte(['obsolete'])).settings).not.toHaveProperty('hidden_modules');
+    // Une case changée : la liste complète, dans l'ordre des codes.
+    expect(
+      normaliseAgencyForm({ ...base, hidden_modules: ['analytics', 'credits', 'calendar'] as CodeDeModule[] }, contexte(['calendar', 'analytics'])).settings,
+    ).toMatchObject({ hidden_modules: ['calendar', 'credits', 'analytics'] });
+    // Tout réafficher est une modification : `[]` part.
+    expect(normaliseAgencyForm(base, contexte(['credits'])).settings).toMatchObject({ hidden_modules: [] });
+  });
 });
 
 /**
@@ -135,6 +172,7 @@ describe('normaliseAgencyForm — réglages des sorties d’argent (TCK-594)', (
     moderation_required: false,
     require_team_two_factor: false,
     late_fee_online_collection: false,
+    hidden_modules: [] as CodeDeModule[],
     default_tax_rate: '18',
     payout_approval_threshold: '500000',
     legal_name: ' Sen Immo SARL ',

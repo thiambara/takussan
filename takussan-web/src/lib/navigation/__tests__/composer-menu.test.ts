@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { USER_ROLES, type UserRole } from '@/types/user';
 import { CATALOGUE, estOuverte, type IdDestination } from '../catalogue';
-import { avecTitres, composerMenu, entreesDuMenu } from '../composer-menu';
+import { avecTitres, cheminOuvert, composerMenu, entreesDuMenu } from '../composer-menu';
 import { DISPOSITIONS, type Disposition } from '../dispositions';
+import { destinationsMasquees, PERSONAS_DU_PERSONNEL } from '../modules';
 import { PERSONAS, rolesDuPersona } from '../personas';
 import type { ContexteDeMenu } from '../types';
 
@@ -168,5 +169,108 @@ describe('TCK-2478 — composerMenu (ADR-0089 §4)', () => {
   it('un identifiant inconnu est ignoré', () => {
     const disposition: Disposition = { action: [], groupes: [{ id: 'tete', titre: null, entrees: ['disparue' as IdDestination] }], plus: [], priorites: [], onglets: [] };
     expect(() => composerMenu({ roles: ['customer'], capacites: null }, 'client', disposition)).not.toThrow();
+  });
+});
+
+describe('TCK-2483 — les modules masqués par l’agence', () => {
+  const TOUS = ['commissions', 'inventories', 'move_in_follow_up', 'provider_book', 'calendar', 'credits', 'analytics'];
+  const ids = (menu: ReturnType<typeof composerMenu>) => [
+    ...entreesDuMenu(menu).map((e) => e.id),
+    ...(menu.action ? [menu.action.id] : []),
+    ...(menu.carte ? [menu.carte.id] : []),
+  ];
+  const groupe = (menu: ReturnType<typeof composerMenu>, id: string) =>
+    menu.groupes.find((g) => g.id === id)?.entrees.map((e) => e.id) ?? [];
+
+  it('AC3 — l’agent ne voit plus ce que l’agence masque — ni groupe, ni « Plus », ni « Aussi »', () => {
+    const ctx: ContexteDeMenu = {
+      roles: ['customer', 'agent', 'agency_admin'],
+      capacites: ['properties.create'],
+      cheminsAdmin: [],
+      masquees: destinationsMasquees(['commissions', 'inventories', 'analytics']),
+    };
+    const sans = ids(composerMenu({ ...ctx, masquees: undefined }, 'agent'));
+    const rendus = ids(composerMenu(ctx, 'agent'));
+    for (const id of ['commissions', 'etats-des-lieux', 'kpis', 'alertes', 'exports'] as const) {
+      expect(sans, `témoin : ${id} est rendu sans masque`).toContain(id);
+      expect(rendus, id).not.toContain(id);
+    }
+    expect(rendus).toContain('calendrier');
+  });
+
+  it('l’admin aussi : il voit le menu de son équipe', () => {
+    const ctx: ContexteDeMenu = { roles: ['customer', 'agency_admin'], capacites: ['properties.create'], cheminsAdmin: [], masquees: destinationsMasquees(['credits']) };
+    expect(ids(composerMenu({ ...ctx, masquees: undefined }, 'admin-agence'))).toContain('credits');
+    expect(ids(composerMenu(ctx, 'admin-agence'))).not.toContain('credits');
+  });
+
+  it.each([
+    ['bailleur', ['customer', 'owner'], 'mon-patrimoine'],
+    ['locataire', ['customer', 'tenant'], 'mon-logement'],
+  ] as const)('AC4 — %s garde ses états des lieux dans « %s »', (persona, roles, idGroupe) => {
+    const ctx: ContexteDeMenu = { roles: [...roles], capacites: [], cheminsAdmin: [], masquees: destinationsMasquees(['inventories']) };
+    expect(groupe(composerMenu(ctx, persona), idGroupe)).toContain('etats-des-lieux');
+  });
+
+  it('AC4 — le bailleur qui est aussi admin : « Aussi administrateur » perd les modules masqués, pas le reste', () => {
+    const ctx: ContexteDeMenu = {
+      roles: ['customer', 'agency_admin', 'owner'],
+      capacites: ['properties.create'],
+      cheminsAdmin: [],
+      masquees: destinationsMasquees(['commissions', 'analytics']),
+    };
+    expect(groupe(composerMenu({ ...ctx, masquees: undefined }, 'bailleur'), 'aussi'), 'témoin').toEqual(
+      expect.arrayContaining(['commissions', 'kpis']),
+    );
+    const aussi = groupe(composerMenu(ctx, 'bailleur'), 'aussi');
+    expect(aussi).not.toContain('commissions');
+    expect(aussi).not.toContain('kpis');
+    expect(aussi).toContain('vue-agence');
+  });
+
+  it('une épingle (TCK-2480) vers une destination masquée est ignorée au rendu', () => {
+    const ctx: ContexteDeMenu = { roles: ['customer', 'agent'], capacites: ['properties.create'], cheminsAdmin: [], masquees: destinationsMasquees(['commissions']) };
+    const menu = composerMenu(ctx, 'agent', undefined, { epingles: ['commissions', 'baux'] });
+    expect(menu.epingles).toEqual(['baux']);
+    expect(ids(menu)).not.toContain('commissions');
+  });
+
+  it('les groupes de la disposition (source des onglets, TCK-2481) perdent aussi la destination masquée', () => {
+    const ctx: ContexteDeMenu = { roles: ['customer', 'agent'], capacites: ['properties.create'], cheminsAdmin: [], masquees: destinationsMasquees(['calendar']) };
+    expect(composerMenu(ctx, 'agent').groupes.flatMap((g) => g.entrees.map((e) => e.id))).not.toContain('calendrier');
+  });
+
+  // Amendement §6 — la page masquée reste servie : « Démarrer » (`cheminOuvert`) mime les gardes des
+  // PAGES, qui ne lisent pas `hidden_modules`.
+  it('cheminOuvert ignore le masque : la page reste servie', () => {
+    const ctx: ContexteDeMenu = { roles: ['customer', 'agent'], capacites: ['properties.create'], cheminsAdmin: [], masquees: destinationsMasquees(TOUS) };
+    expect(cheminOuvert(ctx, '/app/commissions')).toBe(true);
+    expect(cheminOuvert(ctx, '/app/calendar')).toBe(true);
+  });
+
+  // AC5 — l'invariant « rien n'est perdu », tous modules masqués : ce que la règle de l'amendement
+  // ouvre, ni plus ni moins. Le persona non-personnel se juge SANS masque ; l'espace, AVEC.
+  it.each(PERSONAS)('AC5 — %s : rien n’est perdu, tous modules masqués', (persona) => {
+    const masquees = destinationsMasquees(TOUS);
+    for (const base of contextes()) {
+      const ctx: ContexteDeMenu = { ...base, masquees };
+      const menu = composerMenu(ctx, persona);
+      const ctxPersona: ContexteDeMenu = {
+        ...ctx,
+        roles: rolesDuPersona(ctx.roles, persona),
+        rolesDeLEspace: ctx.roles,
+        masquees: PERSONAS_DU_PERSONNEL.has(persona) ? masquees : new Set(),
+      };
+      const rendus = new Set([...entreesDuMenu(menu).map((e) => e.href), ...(menu.carte ? [menu.carte.href] : [])]);
+      if (menu.action) rendus.add(menu.action.href);
+      const attendus = new Set(
+        CATALOGUE.filter((d) => estOuverte(d, ctx) || estOuverte(d, d.surLEspace ? ctx : ctxPersona)).map((d) => d.href),
+      );
+      expect(rendus, `${persona} / ${ctx.roles.join('+')}`).toEqual(attendus);
+    }
+  });
+
+  it('PERSONAS_DU_PERSONNEL : l’agent et l’admin d’agence, et eux seuls', () => {
+    expect([...PERSONAS_DU_PERSONNEL].sort()).toEqual(['admin-agence', 'agent']);
   });
 });

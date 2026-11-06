@@ -2,6 +2,7 @@
 
 namespace App\Domain\Settings;
 
+use App\Models\Enums\AgencyModule;
 use App\Models\Enums\WatermarkPosition;
 use Illuminate\Validation\Rule;
 use InvalidArgumentException;
@@ -25,8 +26,10 @@ final class AgencySettings
 
     private const STRING = 'string';
 
+    private const LIST = 'list';
+
     /**
-     * @return array<string, array{type: string, default: mixed, rules: array<int, mixed>}>
+     * @return array<string, array{type: string, default: mixed, rules: array<int, mixed>, enum?: class-string<\BackedEnum>, max?: int}>
      */
     private static function catalog(): array
     {
@@ -64,6 +67,15 @@ final class AgencySettings
                 'type' => self::BOOL, 'default' => true,
                 'rules' => ['sometimes', 'nullable', 'boolean'],
             ],
+            // TCK-2483 (ADR-0089, amendement « modules par agence ») — les modules que l'agence retire
+            // du menu de son personnel. AFFICHAGE : aucun droit, aucune garde n'en dépend.
+            // `AgencyUpdateRequest` la refuse à une agence `individual` (aucune équipe). Liste remplacée
+            // en bloc par la fusion de premier niveau du contrôleur ; `null` rend le défaut.
+            'hidden_modules' => [
+                'type' => self::LIST, 'default' => [], 'enum' => AgencyModule::class,
+                'max' => count(AgencyModule::cases()),
+                'rules' => ['sometimes', 'nullable', 'array', 'list', 'max:'.count(AgencyModule::cases())],
+            ],
         ];
     }
 
@@ -78,13 +90,23 @@ final class AgencySettings
     /**
      * Les règles de `AgencyUpdateRequest`, préfixées `settings.`.
      *
+     * `$input` : les `settings` reçus, que seule la requête connaît. Une liste qui dépasse sa borne ne
+     * reçoit PAS de règle d'élément — Laravel validerait chacun même après l'échec de `max` sur le
+     * parent (revue de TCK-2483, M1 : 20 000 éléments ≈ 29 s et 2 Mo d'erreurs) ; `max` seul répond 422.
+     *
+     * @param  array<string, mixed>|null  $input
      * @return array<string, array<int, mixed>>
      */
-    public static function rules(): array
+    public static function rules(?array $input = null): array
     {
         $rules = [];
         foreach (self::catalog() as $key => $entry) {
             $rules["settings.{$key}"] = $entry['rules'];
+            // TCK-2483 — une liste valide aussi chacun de ses éléments : un cas de son enum, une fois.
+            $value = $input[$key] ?? null;
+            if ($entry['type'] === self::LIST && (! is_array($value) || count($value) <= $entry['max'])) {
+                $rules["settings.{$key}.*"] = ['string', 'distinct', Rule::enum($entry['enum'])];
+            }
         }
 
         return $rules;
@@ -107,6 +129,14 @@ final class AgencySettings
         $entry = self::entry($key);
         $value = $settings[$key] ?? null;
 
+        // TCK-2483 — une liste se lit AVANT la garde des scalaires, qui la renverrait au défaut. Un code
+        // que l'enum ne connaît plus (module retiré) est ignoré, pas une erreur.
+        if ($entry['type'] === self::LIST) {
+            return is_array($value) && array_is_list($value)
+                ? self::knownCases($value, $entry['enum'])
+                : $entry['default'];
+        }
+
         // ⚠ Avant `filter_var` : il lit `null` comme `""`, donc `false`, et un réglage absent
         // vaudrait faux au lieu de son défaut.
         if (! is_scalar($value)) {
@@ -123,7 +153,22 @@ final class AgencySettings
     }
 
     /**
-     * @return array{type: string, default: mixed, rules: array<int, mixed>}
+     * TCK-2483 — les seules valeurs d'une liste qui sont des cas de son enum, sans doublon, dans
+     * l'ordre lu.
+     *
+     * @param  list<mixed>  $values
+     * @param  class-string<\BackedEnum>  $enum
+     * @return list<string>
+     */
+    private static function knownCases(array $values, string $enum): array
+    {
+        $known = array_filter($values, static fn (mixed $v): bool => is_string($v) && $enum::tryFrom($v) !== null);
+
+        return array_values(array_unique($known));
+    }
+
+    /**
+     * @return array{type: string, default: mixed, rules: array<int, mixed>, enum?: class-string<\BackedEnum>}
      */
     private static function entry(string $key): array
     {

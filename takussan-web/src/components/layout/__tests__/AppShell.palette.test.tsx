@@ -55,13 +55,13 @@ const UA_MAC = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.
 function utilisateur(roles: UserRole[]): User {
   return { id: 1, first_name: 'Awa', last_name: 'Diop', full_name: 'Awa Diop', email: 'awa@example.test', roles } as unknown as User;
 }
-function monter(roles: UserRole[] = ['customer', 'tenant']) {
+function monter(roles: UserRole[] = ['customer', 'tenant'], modulesMasques?: readonly string[]) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     withIntl(
       <QueryClientProvider client={client}>
         <ToastProvider>
-          <AppShell user={utilisateur(roles)} agencyIsStandard>
+          <AppShell user={utilisateur(roles)} agencyIsStandard modulesMasques={modulesMasques}>
             <button type="button">avant</button>
           </AppShell>
         </ToastProvider>
@@ -231,5 +231,67 @@ describe('TCK-2482 — la palette dans la coque', () => {
     expect(fireEvent.keyDown(champ, { key: 'k', ctrlKey: true })).toBe(true);
     expect(screen.queryByRole('dialog', { name: NOM })).toBeNull();
     champ.remove();
+  });
+});
+
+/**
+ * TCK-2483 (ADR-0089, amendement « modules par agence », AC10) — la coque passe les modules masqués à
+ * TOUS les lecteurs du menu : la barre latérale ET la palette (`contexteDuMenu`). Monté en entier : une
+ * coque qui ne les passerait qu'à la barre laisserait la palette proposer ce que l'agence a retiré.
+ */
+describe('TCK-2483 — la coque passe les modules masqués à la barre et à la palette', () => {
+  const AGENT: UserRole[] = ['customer', 'agent'];
+  const liensCommissions = () => document.querySelectorAll('nav a[href="/app/commissions"]');
+
+  async function chercherDansLaPalette(texte: string) {
+    const u = userEvent.setup();
+    await u.keyboard('{Control>}k{/Control}');
+    const dialogue = await screen.findByRole('dialog', { name: NOM });
+    await u.type(within(dialogue).getByRole('combobox'), texte);
+    return within(dialogue)
+      .queryAllByRole('option')
+      .map((o) => o.textContent ?? '');
+  }
+
+  it('témoin : sans module masqué, l’agent a « Commissions » dans la barre et dans la palette', async () => {
+    monter(AGENT);
+    expect(liensCommissions()).toHaveLength(1);
+    expect(await chercherDansLaPalette('commissions')).toContain('Commissions');
+  });
+
+  it('l’agence masque `commissions` : ni la barre ni la palette ne la proposent', async () => {
+    monter(AGENT, ['commissions']);
+    expect(liensCommissions()).toHaveLength(0);
+    expect(await chercherDansLaPalette('commissions')).not.toContain('Commissions');
+  });
+
+  /**
+   * Revue de TCK-2483 (couverture) — `RetenirLaPageRecente` reçoit le masque lui aussi. Relevé du
+   * comportement réel : un chemin d'un module masqué n'est résolu sur AUCUNE entrée du menu de l'agent —
+   * il est retenu brut (deux fiches de commission gardent deux places, sans dédoublonnage par entrée),
+   * puis ignoré à l'affichage : « Récents » ne propose pas « Commissions ».
+   */
+  it('une fiche d’un module masqué n’est résolue sur aucune entrée, et « Récents » ne la propose pas', async () => {
+    chemin.valeur = '/app';
+    const { rerender } = monter(AGENT, ['commissions']);
+    const arbre = () => (
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <ToastProvider>
+          <AppShell user={utilisateur(AGENT)} agencyIsStandard modulesMasques={['commissions']}>
+            <button type="button">avant</button>
+          </AppShell>
+        </ToastProvider>
+      </QueryClientProvider>
+    );
+    for (const c of ['/app/messages', '/app/commissions/1', '/app/commissions/2', '/app/calendar']) {
+      chemin.valeur = c;
+      rerender(withIntl(arbre()));
+    }
+    // Résolues sur l'entrée « Commissions », la seconde fiche aurait remplacé la première.
+    expect(lirePagesRecentes(1)).toEqual(['/app/calendar', '/app/commissions/2', '/app/commissions/1', '/app/messages', '/app']);
+    const u = userEvent.setup();
+    await u.keyboard('{Control>}k{/Control}');
+    const groupe = within(await screen.findByRole('listbox')).getByRole('group', { name: 'Récents' });
+    expect(within(groupe).getAllByRole('option').map((o) => o.textContent)).toEqual(['Messagerie', 'Tableau de bord']);
   });
 });

@@ -29,6 +29,10 @@ const etat = vi.hoisted(() => ({
   requetes: [] as string[],
   /** Les onglets déclarés du client, remplacés le temps d'un test (`null` : ceux du dépôt). */
   ongletsDuClient: null as readonly string[] | null,
+  /** TCK-2483 — les onglets déclarés de l'agent, remplacés le temps d'un test (`null` : ceux du dépôt). */
+  ongletsDeLAgent: null as readonly string[] | null,
+  /** TCK-2483 — les modules que l'agence masque, tels que la coque les passe à la barre. */
+  modulesMasques: [] as readonly string[],
 }));
 vi.mock('next/navigation', () => ({
   usePathname: () => etat.chemin,
@@ -49,6 +53,7 @@ vi.mock('@/lib/queries/contact-leads', () => ({ useUnhandledLeadsCount: () => ({
 vi.mock('@/lib/navigation/dispositions', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/lib/navigation/dispositions')>();
   const client = original.DISPOSITIONS.client;
+  const agent = original.DISPOSITIONS.agent;
   return {
     ...original,
     DISPOSITIONS: {
@@ -57,6 +62,9 @@ vi.mock('@/lib/navigation/dispositions', async (importOriginal) => {
         return etat.ongletsDuClient
           ? { ...client, onglets: etat.ongletsDuClient as readonly IdDestination[] }
           : client;
+      },
+      get agent() {
+        return etat.ongletsDeLAgent ? { ...agent, onglets: etat.ongletsDeLAgent as readonly IdDestination[] } : agent;
       },
     },
   };
@@ -123,6 +131,7 @@ function monter(persona: string, chemin = '/app', navigation?: PreferencesDeNavi
         user={user}
         agencyIsStandard={compte.agencyIsStandard ?? true}
         typeProfilActif={compte.typeProfilActif ?? null}
+        modulesMasques={etat.modulesMasques}
         menuOuvert={false}
         onOuvrirMenu={vi.fn()}
         refMenu={createRef<HTMLButtonElement>()}
@@ -158,6 +167,8 @@ beforeEach(() => {
   etat.appels.length = 0;
   etat.requetes.length = 0;
   etat.ongletsDuClient = null;
+  etat.ongletsDeLAgent = null;
+  etat.modulesMasques = [];
   largeurDeFenetre(1366);
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404, json: async () => ({}) }));
 });
@@ -381,5 +392,65 @@ describe('TCK-2481 (revue, I1) — une région live annonce les nouveaux non-lus
     etat.nonLus = 9;
     relire();
     expect(region()).toHaveTextContent(/^$/);
+  });
+});
+
+/**
+ * TCK-2483 (ADR-0089, amendement « modules par agence », AC10) — la barre d'onglets MONTÉE lit les
+ * groupes de la disposition jugés avec les modules que l'agence masque : un onglet vers une destination
+ * masquée n'est pas rendu, il cède sa place à la destination suivante de la disposition.
+ *
+ * Aucun onglet déclaré du dépôt n'est une destination de module (`modules.test.ts` le refuse) : le test
+ * déclare donc « Calendrier » parmi les onglets de l'agent, le temps du test, pour éprouver la voie.
+ */
+describe('TCK-2483 — AC10 : un onglet vers une destination masquée n’est pas rendu', () => {
+  const ONGLETS = ['tableau-de-bord', 'demandes', 'calendrier', 'messagerie'];
+
+  it('témoin : sans module masqué, « Calendrier » est un onglet de l’agent', () => {
+    etat.ongletsDeLAgent = ONGLETS;
+    monter('agent');
+    expect(onglets()).toEqual([
+      ['Accueil', '/app'],
+      ['Demandes', '/app/leads'],
+      ['Calendrier', '/app/calendar'],
+      ['Messagerie', '/app/messages'],
+    ]);
+  });
+
+  it('l’agence masque `calendar` : l’onglet part, la destination suivante de la disposition le remplace', () => {
+    etat.ongletsDeLAgent = ONGLETS;
+    etat.modulesMasques = ['calendar'];
+    monter('agent');
+    const rendus = onglets();
+    expect(rendus.map(([, href]) => href)).not.toContain('/app/calendar');
+    // « Mes tâches » : la première entrée de la disposition de l'agent qui n'est pas un onglet déclaré.
+    expect(rendus).toEqual([
+      ['Accueil', '/app'],
+      ['Demandes', '/app/leads'],
+      ['Mes tâches', '/app/tasks'],
+      ['Messagerie', '/app/messages'],
+    ]);
+  });
+
+  // Un onglet déclaré que rien ne rend (`absent`) cède sa place à la première entrée de la disposition
+  // qui n'est PAS un onglet déclaré. Les onglets au-delà du quatrième ne sont pas rendus mais restent
+  // déclarés : ils écartent `messagerie` … `visites` de la réserve, dont la tête devient « Calendrier ».
+  const RESERVE_SUR_LE_CALENDRIER = [
+    'absent', 'tableau-de-bord', 'messagerie', 'taches', 'demandes', 'clients', 'visites',
+  ];
+
+  it('témoin : sans module masqué, le remplaçant est « Calendrier »', () => {
+    etat.ongletsDeLAgent = RESERVE_SUR_LE_CALENDRIER;
+    monter('agent');
+    expect(onglets()[0]).toEqual(['Calendrier', '/app/calendar']);
+  });
+
+  it('un remplaçant n’est jamais une destination masquée', () => {
+    etat.ongletsDeLAgent = RESERVE_SUR_LE_CALENDRIER;
+    etat.modulesMasques = ['calendar'];
+    monter('agent');
+    const hrefs = onglets().map(([, href]) => href);
+    expect(hrefs).not.toContain('/app/calendar');
+    expect(hrefs).toEqual(['/app/properties', '/app', '/app/messages', '/app/tasks']);
   });
 });

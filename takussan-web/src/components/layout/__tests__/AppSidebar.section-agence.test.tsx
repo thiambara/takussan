@@ -121,7 +121,7 @@ function monterLaBarre(p: Profil, hasPendingUpgrade?: boolean, typeProfilActif?:
     withIntl(
       <QueryClientProvider client={client()}>
         <AccesAdminProvider acces={accesDepuis(p.ctx)}>
-          <AppSidebar
+          <AppSidebar modulesMasques={[]}
             user={utilisateur(p.roles)}
             agencyIsStandard={p.agencyIsStandard}
             hasPendingUpgrade={hasPendingUpgrade}
@@ -280,7 +280,7 @@ describe('les files de modération gardent leur badge (TCK-098, repris de la bar
       withIntl(
         <QueryClientProvider client={qc}>
           <AccesAdminProvider acces={accesDepuis(ADMIN_STANDARD.ctx)}>
-            <AppSidebar user={utilisateur(ADMIN_STANDARD.roles)} agencyIsStandard />
+            <AppSidebar modulesMasques={[]} user={utilisateur(ADMIN_STANDARD.roles)} agencyIsStandard />
           </AccesAdminProvider>
         </QueryClientProvider>,
       ),

@@ -162,7 +162,13 @@ function userWith(roles: UserRole[]): User {
   };
 }
 
-function barre(compte: Compte, options: { agencySuspended?: boolean } = {}) {
+interface OptionsDeBarre {
+  readonly agencySuspended?: boolean;
+  /** TCK-2483 — les modules que l'agence masque (codes), tels que le layout les passe. */
+  readonly modulesMasques?: readonly string[];
+}
+
+function barre(compte: Compte, options: OptionsDeBarre = {}) {
   const acces = accesDepuis({
     roles: compte.roles,
     agence: compte.agence ? { kind: compte.agence } : null,
@@ -177,13 +183,14 @@ function barre(compte: Compte, options: { agencySuspended?: boolean } = {}) {
           agencyIsStandard={compte.agencyIsStandard}
           typeProfilActif={compte.typeProfilActif ?? null}
           agencySuspended={options.agencySuspended}
+          modulesMasques={options.modulesMasques ?? []}
         />
       </AccesAdminProvider>
     </QueryClientProvider>,
   );
 }
 
-function renderSidebar(persona: Persona, at: string, options: { agencySuspended?: boolean } = {}) {
+function renderSidebar(persona: Persona, at: string, options: OptionsDeBarre = {}) {
   pathname = at;
   return render(barre(COMPTES[persona], options));
 }
@@ -1069,7 +1076,7 @@ describe('TCK-2479 — « Démarrer » dans la barre (AC5)', () => {
       withIntl(
         <QueryClientProvider client={client}>
           <AccesAdminProvider acces={acces}>
-            <AppSidebar user={userWith(compte.roles)} agencyIsStandard typeProfilActif={null} />
+            <AppSidebar user={userWith(compte.roles)} agencyIsStandard typeProfilActif={null} modulesMasques={[]} />
           </AccesAdminProvider>
         </QueryClientProvider>,
       ),
@@ -1104,5 +1111,33 @@ describe('TCK-2479 — « Démarrer » dans la barre (AC5)', () => {
       resultTypes: ['violations'],
     });
     expect(resultat.violations.flatMap((v) => v.nodes.map((n) => `${v.id} ${n.target.join(' ')}`))).toEqual([]);
+  });
+});
+
+/**
+ * TCK-2483 (ADR-0089, amendement « modules par agence », AC3/AC4) — la barre MONTÉE, avec les modules
+ * que le layout lui passe : elle les transmet au menu (`useMenuDeLEspace`), qui ne les applique qu'au
+ * personnel. Lu sur le DOM, groupes, « Plus » et « Aussi … » compris (tous les liens de `nav`).
+ */
+describe('TCK-2483 — la barre montée retire les modules masqués par l’agence', () => {
+  const libellesRendus = (container: HTMLElement) => Array.from(container.querySelectorAll('nav a')).map(libelle);
+
+  it('sans module masqué, l’agent a « Commissions » et « États des lieux » (témoin)', () => {
+    const { container } = renderSidebar('agent', '/app');
+    expect(libellesRendus(container)).toEqual(expect.arrayContaining(['Commissions', 'États des lieux']));
+  });
+
+  it('l’agent les perd quand l’agence masque `commissions` et `inventories`', () => {
+    const { container } = renderSidebar('agent', '/app', { modulesMasques: ['commissions', 'inventories'] });
+    const rendus = libellesRendus(container);
+    expect(rendus).not.toContain('Commissions');
+    expect(rendus).not.toContain('États des lieux');
+    // Le reste de son groupe « Gestion » est là : seul le module part.
+    expect(rendus).toEqual(expect.arrayContaining(['Baux', 'Interventions']));
+  });
+
+  it('le bailleur garde « États des lieux » : sa disposition ne se masque pas (AC4)', () => {
+    const { container } = renderSidebar('bailleur', '/app', { modulesMasques: ['inventories'] });
+    expect(libellesRendus(container)).toContain('États des lieux');
   });
 });

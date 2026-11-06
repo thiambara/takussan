@@ -54,6 +54,13 @@ interface AppShellProps {
    * (tests) : `complet`, la barre de toujours.
    */
   modeIcones?: ModeIcones;
+  /**
+   * TCK-2483 (ADR-0089, amendement « modules par agence ») — les codes de module que l'agence du
+   * profil actif masque, lus par le layout (`modulesMasquesDe`). Un fait de l'agence, passé à TOUT
+   * lecteur du menu (barre, tiroir, onglets, palette) ; `composerMenu` décide à quel persona il
+   * s'applique. Absent (tests) : aucun.
+   */
+  modulesMasques?: readonly string[];
 }
 
 export function AppShell({
@@ -65,6 +72,7 @@ export function AppShell({
   agencyStandardWelcome,
   typeProfilActif,
   modeIcones = 'complet',
+  modulesMasques = [],
 }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const t = useTranslations('nav.sidebar');
@@ -103,8 +111,8 @@ export function AppShell({
   // A6 — rien en plein écran : le parcours porte sa propre sortie, le navigateur garde son raccourci.
   useRaccourciDeLaPalette({ actif: !pleinEcran, ouverte: paletteOuverte, changer: changerPalette });
   // A17 — les mêmes arguments que ceux du menu de la barre (`AppSidebar`, `BarreDOnglets`), pour la
-  // palette ET l'écrivain de ses récents. TCK-2483 (S8) y ajoutera `modulesMasques`, ici et pour la barre.
-  const contexteDuMenu = { user, agencyIsStandard, typeProfilActif, agencySuspended };
+  // palette ET l'écrivain de ses récents — TCK-2483 : les modules masqués compris.
+  const contexteDuMenu = { user, agencyIsStandard, typeProfilActif, agencySuspended, modulesMasques };
   // TCK-253 — Customer-only onboarding surfaces. Gated server-side via the
   // SSR-resolved roles so we never paint the welcome modale (or arm the
   // deferred profile sheet) for agents / owners / admins.
@@ -185,6 +193,7 @@ export function AppShell({
                     hasPendingUpgrade={hasPendingUpgrade}
                     typeProfilActif={typeProfilActif}
                     agencySuspended={agencySuspended}
+                    modulesMasques={modulesMasques}
                   />
                 </div>
                 <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
@@ -202,6 +211,7 @@ export function AppShell({
                       hasPendingUpgrade={hasPendingUpgrade}
                       typeProfilActif={typeProfilActif}
                       agencySuspended={agencySuspended}
+                      modulesMasques={modulesMasques}
                       tiroir
                     />
                   </SheetContent>
@@ -247,6 +257,7 @@ export function AppShell({
               agencyIsStandard={agencyIsStandard}
               typeProfilActif={typeProfilActif}
               agencySuspended={agencySuspended}
+              modulesMasques={modulesMasques}
               menuOuvert={sidebarOpen}
               onOuvrirMenu={() => {
                 fermeParUnLien.current = false;

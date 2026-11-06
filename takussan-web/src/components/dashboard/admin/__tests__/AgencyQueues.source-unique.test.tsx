@@ -118,7 +118,7 @@ describe('compteur de modération — une seule source (TCK-375, AC5)', () => {
     render(
       withIntl(
         <QueryClientProvider client={client}>
-          <AppSidebar user={ADMIN} agencyIsStandard />
+          <AppSidebar modulesMasques={[]} user={ADMIN} agencyIsStandard />
           <AgencyQueues agencyId={7} agencyIsStandard overdueCount={0} />
         </QueryClientProvider>,
       ),

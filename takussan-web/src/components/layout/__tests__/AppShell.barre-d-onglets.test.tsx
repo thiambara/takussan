@@ -16,6 +16,23 @@ import type { User, UserRole } from '@/types/user';
 import { AppShell } from '../AppShell';
 
 const nav = vi.hoisted(() => ({ chemin: '/app' }));
+// TCK-2483 — les onglets déclarés de l'agent, remplacés le temps d'un test (`null` : ceux du dépôt).
+const ongletsDeLAgent = vi.hoisted(() => ({ valeur: null as readonly string[] | null }));
+vi.mock('@/lib/navigation/dispositions', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/lib/navigation/dispositions')>();
+  const agent = original.DISPOSITIONS.agent;
+  return {
+    ...original,
+    DISPOSITIONS: {
+      ...original.DISPOSITIONS,
+      get agent() {
+        return ongletsDeLAgent.valeur
+          ? { ...agent, onglets: ongletsDeLAgent.valeur as typeof agent.onglets }
+          : agent;
+      },
+    },
+  };
+});
 vi.mock('next/navigation', () => ({
   usePathname: () => nav.chemin,
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
@@ -45,7 +62,7 @@ vi.mock('@/components/customer/MinimalProfileTriggerProvider', () => ({
 vi.mock('@/components/owner/OwnerWelcomeWizard', () => ({ OwnerWelcomeWizard: () => null }));
 vi.mock('@/components/tenant/TenantWelcomeWizard', () => ({ TenantWelcomeWizard: () => null }));
 
-function monter(roles: UserRole[], chemin = '/app') {
+function monter(roles: UserRole[], chemin = '/app', modulesMasques?: readonly string[]) {
   nav.chemin = chemin;
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const user = {
@@ -60,7 +77,7 @@ function monter(roles: UserRole[], chemin = '/app') {
     withIntl(
       <QueryClientProvider client={client}>
         <ToastProvider>
-          <AppShell user={user} agencyIsStandard>
+          <AppShell user={user} agencyIsStandard modulesMasques={modulesMasques}>
             <p>contenu</p>
           </AppShell>
         </ToastProvider>
@@ -73,6 +90,7 @@ const boutonMenu = () =>
   within(screen.getByRole('navigation', { name: 'Accès rapide' })).getByRole('button', { name: 'Menu' });
 
 beforeEach(() => {
+  ongletsDeLAgent.valeur = null;
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404, json: async () => ({}) }));
 });
 afterEach(() => {
@@ -182,5 +200,38 @@ describe('TCK-2481 — ordre du document (arbitrage 9)', () => {
     expect(main.compareDocumentPosition(barre) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(main.contains(barre)).toBe(false);
     expect(container.querySelector('a[href], button')).toHaveAttribute('href', '#contenu-principal');
+  });
+});
+
+/**
+ * TCK-2483 (ADR-0089, amendement « modules par agence », AC10) — la coque passe les modules masqués à
+ * la barre d'onglets ET au tiroir. Aucun onglet déclaré du dépôt n'est une destination de module : le
+ * test déclare « Calendrier » parmi les onglets de l'agent, le temps du test.
+ */
+describe('TCK-2483 — la coque passe les modules masqués aux onglets et au tiroir', () => {
+  const AGENT: UserRole[] = ['customer', 'agent'];
+  const hrefsDesOnglets = () =>
+    within(screen.getByRole('navigation', { name: 'Accès rapide' }))
+      .getAllByRole('link')
+      .map((a) => a.getAttribute('href'));
+
+  it('témoin : sans module masqué, « Calendrier » est un onglet, « Commissions » est dans le tiroir', async () => {
+    ongletsDeLAgent.valeur = ['tableau-de-bord', 'demandes', 'calendrier', 'messagerie'];
+    const u = userEvent.setup();
+    monter(AGENT);
+    expect(hrefsDesOnglets()).toContain('/app/calendar');
+    await u.click(boutonMenu());
+    const tiroir = await screen.findByRole('dialog');
+    expect(tiroir.querySelectorAll('a[href="/app/commissions"]')).toHaveLength(1);
+  });
+
+  it('l’agence masque `calendar` et `commissions` : ni l’onglet, ni l’entrée du tiroir', async () => {
+    ongletsDeLAgent.valeur = ['tableau-de-bord', 'demandes', 'calendrier', 'messagerie'];
+    const u = userEvent.setup();
+    monter(AGENT, '/app', ['calendar', 'commissions']);
+    expect(hrefsDesOnglets()).not.toContain('/app/calendar');
+    await u.click(boutonMenu());
+    const tiroir = await screen.findByRole('dialog');
+    expect(tiroir.querySelectorAll('a[href="/app/commissions"]')).toHaveLength(0);
   });
 });

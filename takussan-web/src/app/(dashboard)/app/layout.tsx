@@ -2,6 +2,7 @@ import { getMeAction } from '@/app/actions/auth';
 import { AppShell } from '@/components/layout/AppShell';
 import { getActiveProfileId, getModeIconesDuMenu, getToken } from '@/lib/session';
 import { typeDuProfilActif } from '@/lib/navigation/personas';
+import { modulesMasquesDe, type CodeDeModule } from '@/lib/navigation/modules';
 import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 import { fetchAgencyUpgradeRequests } from '@/lib/queries/agency-upgrade';
 import { IntlProvider } from '@/i18n/IntlProvider';
@@ -35,6 +36,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let agencySuspended = false;
   // TCK-1766 (P136.03) — le marqueur d'accueil de l'agence, pris sur la lecture déjà faite.
   let agencyStandardWelcome: { agencyId: number; unlockedAt: string | null } | undefined;
+  // TCK-2483 (ADR-0089, amendement « modules par agence ») — les modules que l'agence du profil actif
+  // retire du menu de son personnel, lus sur l'agence que ce layout lit déjà : aucune requête de plus.
+  // `composerMenu` décide à quel persona ils s'appliquent ; `[]` quand l'agence n'est pas lue.
+  let modulesMasques: CodeDeModule[] = [];
 
   if (user.roles.includes('agency_admin') && typeof user.agency_id === 'number') {
     const token = await getToken();
@@ -58,6 +63,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       hasPendingUpgrade =
         listing?.data.some((request) => request.status === 'pending') ?? false;
       agencySuspended = agency?.status === 'suspended';
+      modulesMasques = modulesMasquesDe(agency?.settings);
       agencyStandardWelcome = agency
         ? {
             agencyId: user.agency_id,
@@ -80,6 +86,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     if (token) {
       const agency = await resolveAgencyOrNull(token, user.agency_id, 'app/layout (suspension)');
       agencySuspended = agency?.status === 'suspended';
+      modulesMasques = modulesMasquesDe(agency?.settings);
     }
   }
 
@@ -109,6 +116,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             agencyStandardWelcome={agencyStandardWelcome}
             typeProfilActif={typeProfilActif}
             modeIcones={modeIcones}
+            modulesMasques={modulesMasques}
           >
             {children}
           </AppShell>

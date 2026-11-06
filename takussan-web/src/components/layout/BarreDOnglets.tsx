@@ -30,6 +30,11 @@ interface BarreDOngletsProps {
   readonly agencyIsStandard?: boolean;
   readonly typeProfilActif?: ProfileType | null;
   readonly agencySuspended?: boolean;
+  /**
+   * TCK-2483 (ADR-0089, amendement « modules par agence ») — les codes de module que l'agence masque,
+   * passés par la coque. Requis : un lecteur du menu qui l'oublierait rendrait un onglet masqué.
+   */
+  readonly modulesMasques: readonly string[];
   /** Le tiroir est ouvert : rendu en `aria-expanded` sur « Menu ». */
   readonly menuOuvert: boolean;
   readonly onOuvrirMenu: () => void;
@@ -55,6 +60,7 @@ export function BarreDOnglets({
   agencyIsStandard,
   typeProfilActif,
   agencySuspended,
+  modulesMasques,
   menuOuvert,
   onOuvrirMenu,
   refMenu,
@@ -70,6 +76,7 @@ export function BarreDOnglets({
     agencyIsStandard,
     typeProfilActif,
     agencySuspended,
+    modulesMasques,
   });
   const onglets = ongletsDuMenu(groupesDeLaDisposition, DISPOSITIONS[persona].onglets);
   const counters = useCompteursDuMenu(onglets, { agencyIsStandard, actif: sousMd });

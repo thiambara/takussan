@@ -99,7 +99,7 @@ function element(
           persona={persona}
           modeIconesInitial={options.modeIcones ?? 'complet'}
         >
-          <AppSidebar
+          <AppSidebar modulesMasques={[]}
             user={user}
             agencyIsStandard={options.agencyIsStandard ?? true}
             typeProfilActif={options.typeProfilActif ?? null}
@@ -168,8 +168,8 @@ describe('TCK-2480 — personnaliser le menu depuis la barre', () => {
         <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
           <ToastProvider>
             <PreferencesDuMenuProvider navigationInitiale={undefined} persona="agent" modeIconesInitial="complet">
-              <AppSidebar user={compte} agencyIsStandard />
-              <AppSidebar user={compte} agencyIsStandard tiroir />
+              <AppSidebar modulesMasques={[]} user={compte} agencyIsStandard />
+              <AppSidebar modulesMasques={[]} user={compte} agencyIsStandard tiroir />
             </PreferencesDuMenuProvider>
           </ToastProvider>
         </QueryClientProvider>,
@@ -384,8 +384,8 @@ describe('TCK-2480 — personnaliser le menu depuis la barre', () => {
         <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
           <ToastProvider>
             <PreferencesDuMenuProvider navigationInitiale={undefined} persona="admin-agence" modeIconesInitial="complet">
-              <AppSidebar user={compte} agencyIsStandard />
-              <AppSidebar user={compte} agencyIsStandard tiroir />
+              <AppSidebar modulesMasques={[]} user={compte} agencyIsStandard />
+              <AppSidebar modulesMasques={[]} user={compte} agencyIsStandard tiroir />
             </PreferencesDuMenuProvider>
           </ToastProvider>
         </QueryClientProvider>,
@@ -456,7 +456,7 @@ describe('TCK-2480 — AC5 : rendu serveur sans saut (largeur et épingles)', ()
         <QueryClientProvider client={new QueryClient()}>
           <ToastProvider>
             <PreferencesDuMenuProvider navigationInitiale={undefined} persona="agent" modeIconesInitial="icones">
-              <AppSidebar user={{ id: 1, roles: ['customer', 'agent'], agency_id: 7 } as unknown as User} agencyIsStandard tiroir />
+              <AppSidebar modulesMasques={[]} user={{ id: 1, roles: ['customer', 'agent'], agency_id: 7 } as unknown as User} agencyIsStandard tiroir />
             </PreferencesDuMenuProvider>
           </ToastProvider>
         </QueryClientProvider>,

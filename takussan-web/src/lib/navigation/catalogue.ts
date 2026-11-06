@@ -373,7 +373,17 @@ export function iconeDe(destination: Destination, ctx: ContexteDeMenu): LucideIc
   return destination.iconeSelon?.(ctx) ?? destination.icone;
 }
 
-/** Ouverte au compte : son prédicat d'accès, et jamais une écriture dans un espace suspendu. */
+/**
+ * Ouverte au compte : son prédicat d'accès, jamais une écriture dans un espace suspendu (TCK-600),
+ * jamais une destination que l'agence masque quand le contexte la porte (TCK-2483).
+ *
+ * ⚠ TCK-2483 — appelée dans `src/lib/navigation/` SEULEMENT (`modules.test.ts`) : la palette, les
+ * onglets et tout autre écran lisent le menu COMPOSÉ, qui sait à quel persona le masque s'applique.
+ */
 export function estOuverte(destination: Destination, ctx: ContexteDeMenu): boolean {
-  return destination.accessible(ctx) && !(destination.ecriture && ctx.agenceSuspendue);
+  return (
+    destination.accessible(ctx) &&
+    !(destination.ecriture && ctx.agenceSuspendue) &&
+    !ctx.masquees?.has(destination.id)
+  );
 }

@@ -12,6 +12,7 @@ import {
   type GroupeCompose,
   type MenuCompose,
 } from '@/lib/navigation/composer-menu';
+import { destinationsMasquees } from '@/lib/navigation/modules';
 import { personaDeLaCoque, type Persona } from '@/lib/navigation/personas';
 import { prefsDe } from '@/lib/navigation/preferences';
 import type { ContexteDeMenu } from '@/lib/navigation/types';
@@ -35,6 +36,13 @@ export interface ParametresDuMenu {
   readonly agencyIsStandard?: boolean;
   readonly typeProfilActif?: ProfileType | null;
   readonly agencySuspended?: boolean;
+  /**
+   * TCK-2483 (ADR-0089, amendement « modules par agence ») — les codes de module que l'agence du
+   * profil actif masque (`modulesMasquesDe`, lu par le layout de `/app`). Un fait de l'agence :
+   * `composerMenu` décide à quel persona il s'applique. REQUIS (`[]` : aucun) : `tsc` garde ainsi le
+   * branchement de chaque lecteur du menu (barre, tiroir, onglets, palette et ses récents).
+   */
+  readonly modulesMasques: readonly string[];
 }
 
 export interface MenuDeLEspace {
@@ -69,6 +77,7 @@ export function useMenuDeLEspace({
   agencyIsStandard,
   typeProfilActif,
   agencySuspended = false,
+  modulesMasques,
 }: ParametresDuMenu): MenuDeLEspace {
   const accesAdmin = useAccesAdminOuRepli({
     roles: user.roles,
@@ -93,6 +102,8 @@ export function useMenuDeLEspace({
     capacites,
     cheminsAdmin: accesAdmin.chemins,
     agenceSuspendue: agencySuspended,
+    // TCK-2483 — le menu rendu ET les groupes de la disposition (onglets) : une seule porte.
+    masquees: destinationsMasquees(modulesMasques),
   };
   // TCK-2480 — les préférences du compte, PAR PERSONA (un geste n'écrit que sous le persona affiché) ;
   // sans fournisseur, aucune (repli inerte, A12).
