@@ -11,7 +11,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { ProUpgradeCard } from './ProUpgradeCard';
 import { CarteDeMiseEnLocation } from './CarteDeMiseEnLocation';
 import { useFormatter, useTranslations } from 'next-intl';
-import { Logo } from '@/components/brand/Logo';
+import { Logo, SymboleTakussan } from '@/components/brand/Logo';
 import { cn } from '@/lib/utils';
 import { useCurrentLocale } from '@/i18n/hooks';
 import { cheminLocalise } from '@/i18n/routing';
@@ -716,16 +716,25 @@ export function AppSidebar({
       )}
     >
       {/* TCK-2490 (ADR-0090 §2) — l'en-tête de 56 px : la marque à gauche (vers `/`), puis (TCK-2491) la
-          cloche et le bouton « Replier » à droite ; rail : la cloche et le bouton, l'un sous l'autre.
+          cloche et le bouton « Replier » à droite ; rail : le symbole, la cloche et le bouton, l'un sous
+          l'autre.
           Le tiroir n'a pas de cloche : l'en-tête mobile, qu'il recouvre, porte la sienne. */}
       <div className="flex h-14 shrink-0 items-center gap-2 px-3 icones:h-auto icones:flex-col icones:gap-1 icones:px-0 icones:py-3">
+        {/* Revue adverse (M4) — dans le rail aussi : de 768 à 1023 px c'est le mode par défaut, et sans
+            elle la coque n'avait plus de lien vers l'accueil. Le symbole seul ; le nom reste lu. */}
         <Link
           href="/"
           onClick={onNavigate}
           data-slot="marque"
-          className={cn('inline-flex shrink-0 rounded-md px-1.5 py-1 icones:hidden', FOCUS_RING)}
+          className={cn('inline-flex shrink-0 rounded-md px-1.5 py-1 icones:px-1', FOCUS_RING)}
         >
-          <Logo nom={tCommon('appName')} />
+          <span data-slot="marque-complete" className="inline-flex icones:hidden">
+            <Logo nom={tCommon('appName')} />
+          </span>
+          <span data-slot="marque-symbole" className="hidden icones:inline-flex">
+            <SymboleTakussan className="block h-[18px] w-[26px]" />
+            <span className="sr-only">{tCommon('appName')}</span>
+          </span>
         </Link>
         {/* TCK-2480 (A10) — la bascule de l'appareil : jamais dans le tiroir, jamais sans fournisseur. */}
         {tiroir ? null : (

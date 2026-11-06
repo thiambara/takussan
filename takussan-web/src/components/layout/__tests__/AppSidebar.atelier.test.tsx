@@ -137,6 +137,27 @@ describe('TCK-2491 (ADR-0090 §2) — l’en-tête de la colonne et le menu du c
     expect(tiroir.container.querySelector('[data-slot="pied-du-compte"]')).not.toBeNull();
   });
 
+  // Revue adverse (M4) — de 768 à 1023 px, le rail est le mode par défaut : la marque y était cachée, et
+  // l'en-tête mobile (`md:hidden`) ne la porte pas — plus aucun lien vers l'accueil. Dans le rail, le
+  // symbole seul ; le nom reste lu, une seule fois dans chaque mode.
+  it('la marque mène à `/` dans tous les modes ; dans le rail, le symbole seul, le nom toujours lu', () => {
+    const { container } = monter();
+    const marque = container.querySelector<HTMLElement>('aside [data-slot="marque"]')!;
+    const classes = (el: Element | null) => (el?.getAttribute('class') ?? '').split(/\s+/);
+    expect(marque).toHaveAttribute('href', '/');
+    expect(classes(marque)).not.toContain('icones:hidden');
+    // La marque entière se cache dans le rail ; le symbole seul n'y paraît que là, avec le nom en `sr-only`.
+    // Chacune porte le nom LU ; jsdom, sans CSS, lit les deux — Chrome n'en lit qu'un par mode (relevé dans
+    // son arbre d'accessibilité : « Takussan », colonne et rail).
+    const complete = marque.querySelector('[data-slot="marque-complete"]')!;
+    const symbole = marque.querySelector('[data-slot="marque-symbole"]')!;
+    expect(classes(complete)).toContain('icones:hidden');
+    expect(classes(symbole)).toEqual(expect.arrayContaining(['hidden', 'icones:inline-flex']));
+    expect(symbole.querySelector('svg')).not.toBeNull();
+    expect(symbole.querySelector('.sr-only')).toHaveTextContent('Takussan');
+    expect(complete.querySelector('.sr-only')).toHaveTextContent('Takussan');
+  });
+
   it('le menu : profil, préférences, langue (cochée), déconnexion — chaque choix fait ce que faisait la barre du haut', async () => {
     const u = userEvent.setup();
     const onNavigate = vi.fn();
