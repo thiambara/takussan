@@ -122,3 +122,36 @@ arbre partagé avec le travail en cours de TCK-2488). Front : `admin-schemas` + 
 **Suite** : `docs/models-spec.md` (ligne de `require_team_two_factor`) dira « refusée (`prohibited`) pour une
 agence `individual` » — `/sync-specs` après fusion. Une valeur `true` déjà enregistrée sur une `individual` reste
 sans effet, et redevient visible (case cochée) au passage en `standard`.
+
+## Revue adverse (2026-11-06)
+
+**Un `1` accepté n'exigeait pas la 2FA de l'équipe** (relevé par l'agent de la fiche, TCK-2486 M2).
+`AgencyUpdateRequest` valide `settings.require_team_two_factor` en `boolean` (accepte `1`, `"1"`,
+`0`, `"0"`) et `AgencyController::update` stockait la valeur validée telle quelle ;
+`TwoFactorRequirement::requiredAtAgency()` lit `settings->require_team_two_factor` en JSON STRICT
+(`= true`). Un client autre que la fiche qui envoyait `1` voyait le réglage accepté, lu activé par
+`AgencySettings::read()`, et la 2FA de l'équipe NON exigée — défaut de sécurité silencieux.
+
+**Correctif (décision de la session)** : à l'écriture, toute clé de type `bool` au catalogue
+`AgencySettings` part en vrai booléen JSON — `AgencySettings::normalize()`, appelée par
+`AgencyController::update` sur les `settings` validés, avant la fusion. Sur le catalogue, pas clé par
+clé : `watermark_enabled`, `require_team_two_factor`, `late_fee_online_collection`,
+`tenant_onboarding_enabled`. `null` (retrait de la clé) passe tel quel. Le lecteur SQL est inchangé.
+Les valeurs déjà stockées en `1`/`"1"` ne sont pas réécrites (aucune migration : seul un client hors
+de la fiche a pu les écrire).
+
+**Test** `tests/Feature/Api/Agency/AgencySettingsBooleensStockesTest.php` : `PATCH` avec `1` → la
+colonne porte `true` et `TwoFactorRequirement` exige la 2FA d'un agent de l'agence ; `"0"` → `false`,
+plus exigée ; chaque clé `bool` du catalogue (jeu dérivé des défauts booléens) envoyée à `1`, `"1"`,
+`true`, `0`, `"0"`, `false` → `true`/`false` JSON dans la colonne brute. Rouge avant : 5 échecs
+(« Failed asserting that 1 is identical to true »).
+
+**Ablations** (`abl-2488-corr2.sh`) : témoin 19/19 · normalisation non appelée par le contrôleur →
+5 rouges · normalisation neutralisée (valeur rendue telle quelle) → 5 rouges · restauré 19/19.
+
+**Tests joués** (2026-11-06, 8 cœurs, load 2,2-2,3) : 73 classes qui écrivent l'agence, les
+réglages ou la 2FA (`/api/agencies/…`, `/api/admin/settings`, `TwoFactorRequirement`, clés
+booléennes) — 632 tests verts, 574 s. Pint propre, gardes du dépôt vertes.
+
+Commit : 2baa3fabf.
+

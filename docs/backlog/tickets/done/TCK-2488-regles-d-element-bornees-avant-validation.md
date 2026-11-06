@@ -106,9 +106,8 @@ Décision (session, 2026-11-06) :
   `UpdateTradesServiceProviderProfileRequest` et `InviteServiceProviderRequest` `trades`,
   `intervention_zones` ; `ReorderPropertyMediaRequest` `order` ; `SyncPropertyTagRequest` `tag_ids` ;
   `AttachCustomerTagsRequest` `tags` ; `RefundDepositRequest` `attachments`.
-- Le validateur ad hoc de `PlatformSettingService` (`value.*`, hors de `app/Http/Requests`) :
-  `currency.supported` n'a toujours pas de `max:`. (`JugeLaLigneDeReglageDAgence` est traité par la
-  revue adverse.)
+- ~~Le validateur ad hoc de `PlatformSettingService`~~ — traité en suite de la revue adverse
+  (§ Revue adverse, « currency.supported »).
 - Passer les FormRequest directes sur `BaseFormRequest` (TCK-730).
 
 ## Notes d'implémentation
@@ -236,3 +235,18 @@ touchés ou leurs requêtes, plus les 7 autres de `tests/Feature/Validation/`, e
 338 + 336 + 325 + 87 tests verts (123 s, 146 s, 106 s, 19 s). Pint propre, gardes du dépôt vertes.
 
 Commit : 5c0aa8106.
+
+**Suite de la revue — `currency.supported` (`PlatformSettingService`).** Dernière liste dont les
+éléments sont jugés sans borne : (a) liste fermée → `max:count(EditablePlatformSettings::CURRENCIES)`.
+`PlatformSettingService::validateKey()` passe ses règles par `ReglesDElementBornees::retirer()`, comme
+`JugeLaLigneDeReglageDAgence`. Deux tests au recensement : HTTP `PATCH /api/admin/settings` (devises
+hors borne → une seule erreur ; dans la borne, l'élément invalide est encore jugé) et
+`tout_reglage_editable_dont_les_elements_sont_juges_a_une_borne` (toute définition du catalogue qui
+porte `item_rules` a un parent borné). Rouge avant : 2 échecs. Ablations (`abl-2488-corr2.sh`) :
+borne retirée → 2 rouges ; fonction retirée du service → 1 rouge ; restauré vert. Tests joués : le
+lot de 73 classes ci-dessus (TCK-2487), 632 verts. Commit : 279e99386.
+
+⚠ Relevé en passant, non corrigé (hors de ce lot) : l'`after()` de `validateKey()` fait
+`array_map('strtoupper', $value)` sur `currency.supported` ; un élément non scalaire (`[["x"]]`)
+lèverait une `TypeError` (500) au lieu d'un 422 — à vérifier.
+
