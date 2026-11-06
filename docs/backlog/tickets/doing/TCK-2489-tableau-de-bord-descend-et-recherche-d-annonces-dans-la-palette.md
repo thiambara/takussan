@@ -1,7 +1,7 @@
 ---
 id: TCK-2489
 title: Le tableau de bord n'ouvre le menu que pour l'admin d'agence ; la recherche d'annonces entre dans la palette ; le modèle « Aujourd'hui »
-status: todo
+status: doing
 phase: P2
 family: front
 estimate: S
