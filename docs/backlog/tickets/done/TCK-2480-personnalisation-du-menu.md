@@ -1,7 +1,7 @@
 ---
 id: TCK-2480
 title: Personnaliser son menu — épingles et replis sur le compte, par persona ; barre réduite aux icônes sur l'appareil
-status: doing
+status: done
 phase: P2
 family: full
 estimate: L
@@ -73,26 +73,26 @@ Mode icônes seules : cookie non `httpOnly` (`menu_icones=1|0`), lu par le layou
 
 ## Delta à produire
 
-- [ ] API : règles de `navigation`, enregistrement, `NavigationPreferencesTest`.
-- [ ] Fixture de parité + test zod côté front.
-- [ ] Épingles, replis, réinitialisation, appliqués par la composition (TCK-2477).
-- [ ] Section « Menu » du profil.
-- [ ] Mode icônes seules, cookie, défaut `md`–`lg`.
-- [ ] Tests front : épingler/désépingler au clavier ; persona isolé ; identifiant périmé ignoré ;
+- [x] API : règles de `navigation`, enregistrement, `NavigationPreferencesTest`.
+- [x] Fixture de parité + test zod côté front.
+- [x] Épingles, replis, réinitialisation, appliqués par la composition (TCK-2477).
+- [x] Section « Menu » du profil.
+- [x] Mode icônes seules, cookie, défaut `md`–`lg`.
+- [x] Tests front : épingler/désépingler au clavier ; persona isolé ; identifiant périmé ignoré ;
       échec d'écriture rétabli ; rendu serveur sans saut (largeur et épingles).
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Épingler « Commissions » chez un agent la monte dans « Épinglés », la retire de
+- [x] AC1 — Épingler « Commissions » chez un agent la monte dans « Épinglés », la retire de
       « Gestion », et la retrouve après rechargement et sur un autre navigateur.
-- [ ] AC2 — Le même compte, profil actif bailleur, n'a pas cette épingle.
-- [ ] AC3 — `PATCH /api/me` avec six épingles → 422 ; ablation : retirer `max:5` fait rougir le test.
-- [ ] AC4 — Une épingle vers une destination devenue inaccessible n'est pas rendue.
-- [ ] AC5 — À 900 px sans réglage, la barre fait 64 px dès le HTML serveur ; avec `menu_icones=0`,
+- [x] AC2 — Le même compte, profil actif bailleur, n'a pas cette épingle.
+- [x] AC3 — `PATCH /api/me` avec six épingles → 422 ; ablation : retirer `max:5` fait rougir le test.
+- [x] AC4 — Une épingle vers une destination devenue inaccessible n'est pas rendue.
+- [x] AC5 — À 900 px sans réglage, la barre fait 64 px dès le HTML serveur ; avec `menu_icones=0`,
       256 px, sans saut à l'hydratation.
-- [ ] AC6 — La fixture de parité passe des deux côtés ; ablation : élargir une règle d'un seul côté
+- [x] AC6 — La fixture de parité passe des deux côtés ; ablation : élargir une règle d'un seul côté
       fait rougir l'autre.
-- [ ] AC7 — `vendor/bin/pint`, lint, `tsc`, `check:i18n` verts ; suites par la CI.
+- [x] AC7 — `vendor/bin/pint`, lint, `tsc`, `check:i18n` verts ; suites par la CI.
 
 ## Hors périmètre
 

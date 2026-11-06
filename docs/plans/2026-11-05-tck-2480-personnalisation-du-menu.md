@@ -37,7 +37,7 @@ entre `md` et `lg`.
 vitest 4 + Testing Library, next-intl, Base UI (`Tooltip`, `Popover`, `Select`, toasts), lucide-react.
 
 **Références :** [ADR-0089](../adr/0089-le-menu-de-app-se-derive-du-profil-actif.md) §4 et §6 ·
-[TCK-2480](../backlog/tickets/doing/TCK-2480-personnalisation-du-menu.md) (contrat backend PRESCRIPTIF) ·
+[TCK-2480](../backlog/tickets/done/TCK-2480-personnalisation-du-menu.md) (contrat backend PRESCRIPTIF) ·
 plans précédents : [TCK-2478](2026-11-05-tck-2478-dispositions-par-persona.md),
 [TCK-2479](2026-11-05-tck-2479-bande-a-traiter-et-demarrer.md).
 
