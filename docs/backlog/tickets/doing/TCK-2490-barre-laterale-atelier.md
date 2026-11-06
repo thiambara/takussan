@@ -1,7 +1,7 @@
 ---
 id: TCK-2490
 title: Barre latérale « Atelier » — une colonne pleine hauteur, une seule hiérarchie, « Aller à » et « Aujourd'hui »
-status: todo
+status: doing
 phase: P2
 family: front
 estimate: M
