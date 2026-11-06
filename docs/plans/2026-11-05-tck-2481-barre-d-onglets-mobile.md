@@ -28,7 +28,7 @@ rangée du contenu — le `<main>` rétrécit de sa hauteur exacte, sans rembour
 (`Dialog` sous `Sheet`), TanStack Query, lucide-react, Tailwind 4.
 
 **Références :** [ADR-0089](../adr/0089-le-menu-de-app-se-derive-du-profil-actif.md) §3, §5 ·
-[TCK-2481](../backlog/tickets/doing/TCK-2481-barre-d-onglets-mobile.md) ·
+[TCK-2481](../backlog/tickets/done/TCK-2481-barre-d-onglets-mobile.md) ·
 plans précédents : [TCK-2478](2026-11-05-tck-2478-dispositions-par-persona.md),
 [TCK-2479](2026-11-05-tck-2479-bande-a-traiter-et-demarrer.md) ·
 campagne : [`docs/qa/responsive-2026-09-02.md`](../qa/responsive-2026-09-02.md).

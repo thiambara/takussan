@@ -1,7 +1,7 @@
 ---
 id: TCK-2481
 title: Barre d'onglets mobile par persona — quatre destinations et « Menu », qui remplace le burger sous md
-status: doing
+status: done
 phase: P2
 family: front
 estimate: M
@@ -200,6 +200,13 @@ bureau. C'est mesuré au réseau ci-dessous, et la revue l'avait montré sous js
   - la zone sûre sur un iPhone réel ;
   - l'alerte du pipeline déclenchée pour de vrai : aucune colonne du jeu de données ne passe 50
     cartes, la mesure est faite sur un témoin aux mêmes classes.
+
+- **Arbitrages de la session après mesure** : la région live reste exposée tiroir ouvert (elle annonce un
+  non-lu qui arrive pendant qu'on navigue, ce qui est voulu) ; le repère « Accès rapide » reste listé
+  par un lecteur d'écran même tiroir ouvert (accepté). Le test TCK-2479 « une relecture ratée retire
+  badge et pastille » attend désormais par `waitFor` (573825a5e) : il rougissait par intermittence en
+  CI. Une ablation de la règle d'erreur le laisse rouge.
+- **Garde** : le cliquet des jetons de `/app` descend de 17 à 14 (45255d14d) ; le burger emportait trois jetons blancs.
 
 ### Mesure au navigateur (2026-11-06, lot figé `f5fe8b475`)
 
