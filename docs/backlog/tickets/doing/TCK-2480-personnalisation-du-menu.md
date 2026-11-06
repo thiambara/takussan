@@ -101,4 +101,208 @@ Mode icônes seules : cookie non `httpOnly` (`menu_icones=1|0`), lu par le layou
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Notes de livraison
+
+**Arbitrages.** A1-A14 du plan retenus tels que validés par la session le 2026-11-05. Trois décisions
+de session s'y ajoutent :
+- `avecTitres` compte « Épinglés » comme une section. Dès qu'un persona à section unique épingle, le titre
+  de sa section paraît. C'est voulu : sans ce titre, on ne voit pas où finissent les épingles. Le menu ne
+  change que sous un geste (ADR-0089 §5).
+- « Démarrer » est caché dans la barre réduite (`icones:hidden`). Ses étapes ne tiennent pas en 64 px, la
+  barre s'élargit d'un clic, et pour l'agence la carte « Mise en service » du tableau de bord porte les
+  mêmes étapes.
+- Échec d'écriture : quand la ligne épinglée revient à sa place, son épingle n'existe plus à l'endroit où
+  elle était. Si le focus était dessus, il retombe sur `<body>`. Ce cas n'est pas corrigé, et c'est assumé :
+  il est rare, et le toast annonce l'échec (voir la mesure ci-dessous).
+
+**Écarts au plan et aux suppositions.**
+- S1-S8 vérifiées sur l'arbre réel, TCK-2479 mergé (#1648). Seul écart, mineur : S6.
+  `DemarrerDeLEspace` reçoit aussi `ouverte` (correctif M6 de TCK-2479).
+- TCK-2481 n'est pas sur `dev`. Tout se pose donc dans `AppSidebar` (pas de `useMenuDeLEspace`).
+- T3 : le test des replis vise `pilotage`, parce que le groupe `agence` n'est pas rendu quand
+  `cheminsAdmin` est vide.
+- T4-5 : un groupe ouvert par la page active reste ouvert quand on la quitte par la navigation client. Le
+  comportement de TCK-2478 est conservé (mesuré ci-dessous). L'ablation T5-4a est sans objet, car la ligne
+  cadenassée sort avant l'épingle. Sur tactile, une épingle déjà posée reste à 100 %.
+- API : `jsonb` réordonne les clés, d'où le `ksort` dans le test des clés intactes.
+- `check:classes-emises` rejetait toute la chaîne de classes à cause de `[@media(hover:none)]`. La
+  correction passe par une variante nommée `tactile` (globals.css), sans toucher au relevé.
+- L'étape 12 de T6 (feuille servie par `dev.sh`) a été remplacée par une compilation `@tailwindcss/node`.
+  La mesure ci-dessous la complète, ablation T8 comprise.
+
+**Revue adverse** (0 bloquant, 2 importants, 2 mineurs), tout est corrigé :
+- I1 (f47670841) : une seule écriture `PATCH /api/me` en vol à la fois. Un geste fait pendant le vol
+  attend la réponse, puis part après ses 800 ms, ou tout de suite s'ils sont déjà écoulés. `confirmee`
+  n'avance que dans l'ordre d'émission. Un échec n'est jugé que lorsque rien ne vole ni n'attend.
+  `pagehide` et le démontage renvoient en `keepalive` l'état le plus récent non confirmé, y compris celui
+  d'une requête ordinaire en vol, qui meurt avec la page. D'où, au plus, un doublon idempotent.
+- I2 (278ced760) : après épingler ou désépingler, `flushSync` applique le geste, puis le focus va sur
+  `button[data-epingle=id]` dans la même barre (ref de l'`<aside>`), sans effet. Même famille :
+  - la croix de « Démarrer » (762ce4d2c) donne le focus au premier élément focalisable du menu qui suit,
+    sans `flushSync` (la cible ne remonte pas, mesuré par ablation) ;
+  - « Revenir au menu par défaut » (8eb18dbd1) passe en `aria-disabled` : le focus reste sur le bouton,
+    et l'état est annoncé en `role="status"`.
+- M1 (6a85e1e7e) : dans la barre réduite, la ligne cadenassée a une infobulle (libellé + « Réservé aux
+  comptes pro ») au survol et au focus. Le `title` ne reste que barre dépliée. Aucune clé i18n neuve.
+- M2 (76cee5464) : `prefsApresEpingle` — ajouter une épingle retire `epingles` des replis dans la même
+  écriture.
+
+**Ablations des correctifs.** 23 mutations, toutes rouges, fichiers restaurés :
+
+| Script | Mutations |
+|---|---|
+| `i1.sh` | 7 |
+| `i2.sh` | 3 |
+| `m1.sh` | 4 |
+| `m2.sh` | 3 |
+| `demarrer.sh` | 3 |
+| `reinitialiser.sh` | 3 |
+
+Deux ablations sont restées vertes et ont fait retirer du code mort : `flushSync` et le filtre `[hidden]`
+de la croix de « Démarrer ». Les ablations des tâches 1 à 7 sont dans les rapports de tâche.
+
+**Laissé à après le merge.** `docs/models-spec.md#1-user` (ligne `preferences`) sera mis à jour par
+`/sync-specs` (A14, règle 3 du backlog).
+
+### Mesure au navigateur (2026-11-06, lot figé `8eb18dbd1`, 01:45-02:20)
+
+**Banc**
+- Code : HEAD `8eb18dbd1`, sans diff sur `takussan-web/src` ni `takussan-api/app`.
+- Serveurs : `next dev` sur :3000 et l'API sur :8002, déjà lancés.
+- Navigateur : Chrome 156 headless, CDP direct (Node 24). Un contexte isolé par scénario, session par
+  jeton Sanctum. Charge entre 1,4 et 2,4 sur 8 cœurs (un pic à 6,4 pendant le relevé de la barre réduite).
+- Comptes : aucun compte seedé n'est agent ET bailleur. On a créé le compte 315 (`AgentProfile` 23 +
+  `OwnerProfile` 49, agence 1), supprimé depuis. Au départ, aucun compte n'avait de `preferences`.
+- Le détail, les scripts et les captures sont dans le rapport de la session (`rapport-2480-mesure.md`,
+  `mesures-2480/`).
+
+**AC1 — « Commissions » épinglée au clavier (agent, 1366)**
+- Focus sur le lien, puis une vraie tabulation : on arrive sur « Épingler Commissions »
+  (`aria-pressed=false`). Après Entrée, le focus reste sur `button[data-epingle=commissions]`, désormais
+  dans « Épinglés » (`aria-pressed=true`). « Gestion » ne la contient plus.
+- Une seule requête part : `PATCH /api/me` → 200, **806 ms** après l'Entrée, avec le corps
+  `{"navigation":{"v":1,"personas":{"agent":{"epingles":["commissions"]}}}}`. La base contient la même
+  chose.
+- Après rechargement, l'épingle est toujours là, et le rechargement n'envoie aucun PATCH.
+- **Second navigateur** (autre processus Chrome, autre `user-data-dir`, nouvelle connexion) : l'épingle est
+  là, et le HTML serveur porte déjà `data-groupe="epingles"` et l'épingle `aria-pressed="true"`.
+
+**AC2 — même compte, profil bailleur.** Changement par `PATCH /api/me/active-profile`, le chemin du
+sélecteur. Résultat : en-tête « Dakar Immo Bailleur » et **0** `[data-groupe="epingles"]` dans le document.
+
+**AC4 — destinations non rendues**
+- Posé en base : `["agence-finances", "commissions", "destination-inconnue"]`. `agence-finances` est une
+  page d'agence, réservée à l'admin.
+- Rendu : seule « Commissions » paraît. Ni le DOM ni le HTML serveur ne contiennent les deux autres. Console
+  vide, aucune requête en échec.
+- Le geste suivant (épingler « Interventions ») envoie `["commissions","maintenance"]` : les deux
+  inaccessibles sont oubliées (A7). Désépingler renvoie `["commissions"]`. Le focus reste sur l'épingle
+  dans les deux sens.
+
+**AC5 — largeur au premier octet**
+
+Pour chaque cas, on lit :
+- le HTML serveur brut, avec les cookies du contexte ;
+- la page avec JavaScript coupé (`Emulation.setScriptExecutionDisabled`, lecture par `DOM.getBoxModel`) ;
+- la page avec JavaScript actif : la largeur est relevée à chaque image pendant 8 s (~480 images) par un
+  script posé avant le document, et un `PerformanceObserver` relève les `layout-shift`.
+
+| Cas | `data-menu` serveur | JS coupé | JS actif (valeurs distinctes) |
+|---|---|---|---|
+| 900, sans cookie | `auto` | **64** | {64} |
+| 900, `menu_icones=0` | `complet` | **256** | {256} |
+| 1366, `menu_icones=1` | `icones` | 57,6 (4rem) | {57,59} |
+| 1366, sans cookie | `auto` | 230,4 (16rem) | {230,39} |
+| 768 / 1023, sans cookie | `auto` | 64 / 64 | {64} / — |
+| 1024, sans cookie | `auto` | 230,4 | {230,39} |
+
+- À partir de `lg`, `html { font-size: 90% }` (TCK-635) s'applique. `w-64` = 16rem = 230,4 px et
+  `icones:w-16` = 4rem = 57,6 px.
+- Diagnostic : forcer `flex-shrink: 0` dans la page ne change rien, et rien ne dépasse de la barre. Les
+  64 et 256 px du ticket sont donc 4rem et 16rem.
+- **Aucune différence entre JS coupé et JS actif. Aucune valeur intermédiaire** : la transition de largeur
+  ne joue jamais au chargement.
+- Les deux `layout-shift` attribués à la barre (≈0,003) sont verticaux. Le `<nav>` descend quand l'action
+  principale (capacités lues côté client) puis la bande « À traiter » arrivent. On les retrouve à
+  l'identique en `complet` : ils viennent de TCK-2478/2479, pas d'une largeur.
+- **Ablation T8** : retirer le bloc `@media` de `@custom-variant icones` fait passer 900 sans cookie de 64 à
+  **256** (JS coupé et actif, deux essais). Après restauration (`cmp` identique) : 64.
+  `git diff -- takussan-web/src` vide.
+- **Bascule du pied** (900, sans cookie) :
+  - premier clic : 256 px, cookie `menu_icones=0` (`path=/app`, un an, `SameSite=Lax`), HTML serveur
+    `complet`, toujours 256 après rechargement ;
+  - second clic : `icones`, `menu_icones=1` ;
+  - les bascules n'envoient **0 PATCH**.
+- **Profil → « Automatique »** : le cookie est effacé, le HTML serveur repasse en `auto`, et la barre fait
+  64 à 900.
+
+**Barre réduite** (900, `auto`, cinq personas : bailleur, agent, admin-agence, hôte, locataire)
+- Barre de 64 px, `padding-top` 20 px (`icones:pt-5`), aucun débordement. L'en-tête d'espace est caché.
+- **« Démarrer »** reste dans le DOM mais en `display: none` (bailleur, admin-agence, hôte).
+- **Action principale** : une tuile pleine de 40 × 32. Infobulle au survol et au focus clavier.
+- **Bande « À traiter »** : les pastilles sont cachées. Une icône 40 × 40 porte le total (« 17 », « 72 »,
+  « 99+ » pour 198) avec le nom « À traiter : N éléments ». Un clic ouvre un `Popover` à droite de la barre
+  avec les mêmes pastilles et leurs liens (admin-agence : visites, messages, 1 bien, 100 avis) et
+  `aria-expanded=true`. Aucun débordement.
+- **Compteurs** : sur l'icône, à l'intérieur du lien.
+- **Infobulles** : entrée ordinaire au survol et au focus (5 personas sur 5), chevron d'un groupe (son
+  libellé). **Ligne cadenassée** (hôte : « Vue agence », « Propriétaires ») : bulle « Vue agence Réservé
+  aux comptes pro » au survol et au focus clavier, sans `title`.
+- **Carte « Mettre un bien en location »** (locataire) : devient une icône `/publish`, avec infobulle.
+- La console est vide pour les cinq.
+
+**Replis**
+- Replier « Prospection » envoie un PATCH `replies:["prospection"]`. Le groupe est toujours replié après
+  rechargement.
+- Charger `/app/leads` ouvre le groupe, **sans aucun PATCH**, et la base ne change pas. Après une
+  navigation client vers le tableau de bord, le groupe reste ouvert (écart T4-5). Il est replié de nouveau
+  après rechargement.
+
+**« Démarrer » (bailleur)**
+- Croix atteinte par une vraie tabulation, puis Entrée : le focus va sur « Tableau de bord », le premier
+  élément du menu qui suit. Le PATCH envoie `{"bailleur":{"demarrer_masque":true}}`.
+- Toujours masqué après rechargement.
+
+**« Revenir au menu par défaut »** (profil, persona bailleur, au clavier)
+- Après Entrée, le focus reste sur le bouton. `role="status"` affiche « Votre menu suit la disposition par
+  défaut. » et le bouton passe en `aria-disabled="true"`. Le PATCH n'envoie plus que l'agent. Une seconde
+  Entrée n'envoie aucun PATCH.
+- Le bailleur retrouve « Démarrer », « Activité » ouvert, et perd ses épingles (épingle « Visites » posée
+  puis effacée).
+- L'agent garde « Commissions » épinglée et « Prospection » repliée : seul **ce** persona est réinitialisé.
+
+**Impersonation**
+- Vraie session `ImpersonationService::start` (super-admin 1 → compte 315), cookies posés comme le fait
+  `poserLaSession`. La bannière « Lecture seule » s'affiche.
+- Épingler et replier changent l'onglet. **0 requête non-GET** (ni `/api/me`, ni le relais), aucun toast.
+  Au rechargement, rien n'a été écrit et la base est inchangée.
+
+**Échec et `pagehide`**
+- PATCH refusé (`Fetch.failRequest`) : l'épingle s'affiche d'abord, puis revient à sa place, avec un seul
+  toast « Votre menu n'a pas pu être enregistré : il est revenu à son état précédent. ». Le focus tombe sur
+  `<body>` (cas assumé, voir plus haut).
+- Désépingler puis fermer l'onglet 165 ms après : la base reçoit la nouvelle liste, l'envoi `keepalive`
+  est bien arrivé.
+
+**Débordement horizontal**
+- `scrollWidth − innerWidth` = 0 à 390 (tiroir ouvert, et fermé), 768, 900 et 1366, pour agent, bailleur,
+  admin-agence et le compte 315 (avec épingle et repli). `innerWidth` égal à la largeur visée partout ; le
+  témoin `mobile:true` à 390 donne `innerWidth` 390.
+- **Le tiroir n'est jamais réduit** : `complet`, 256 px, sans bascule, même avec `menu_icones=1`.
+
+**Défauts**
+- Aucun bloquant.
+- Écart mineur, à trancher par la session : A11 dit « un carré plein », mais l'action principale réduite
+  mesure 40 × 32 px. Elle a la hauteur des lignes du menu (`py-2`), alors que l'icône de la bande « À
+  traiter » juste dessous fait 40 × 40. Capture `reduite-agent-900.png`.
+
+**Non mesuré**
+- Le rendu tactile (`hover: none`, épingle à 60 %, A13).
+- `keepalive` sur iOS.
+
+**Nettoyage**
+- Ont été supprimés : le compte 315 et ses lignes, les jetons, la session d'impersonation, l'activité,
+  les `welcome_views`, et 15 jobs Scout en attente sur les users 315 et 62.
+- Les préférences du 62 sont remises à `null`.
+- Vérifié : le max(id) de toutes les tables est revenu à sa valeur d'avant le banc, et `users.preferences`
+  non nul vaut 0.
