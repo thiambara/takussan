@@ -665,6 +665,18 @@ export function AppSidebar({
     flushSync(() => prefs.basculerEpingle(persona, id, menu.epingles));
     barre.current?.querySelector<HTMLButtonElement>(`button[data-epingle="${id}"]`)?.focus();
   };
+  // Même famille (décision de la session) — la croix de « Démarrer » démonte le bloc qui avait le
+  // focus : il passe au premier élément focalisable du menu qui le SUIT (le premier groupe hors
+  // « Épinglés », qui le précède), cherché dans CETTE barre, sans effet. Pas de `flushSync` ici,
+  // contrairement à l'épingle : la cible existe avant comme après le geste (masquer « Démarrer » ne
+  // remonte aucun groupe — mesuré par ablation). Un groupe replié garde son titre-bouton AVANT sa
+  // liste cachée : le premier focalisable trouvé est donc toujours visible.
+  const masquerDemarrer = () => {
+    barre.current
+      ?.querySelector<HTMLElement>('nav [data-groupe]:not([data-groupe="epingles"]) :is(a[href], button, [tabindex="0"])')
+      ?.focus();
+    prefs.masquerDemarrer(persona);
+  };
 
   const rendreEntree = (entree: EntreeRendue) => (
     <SidebarItem
@@ -788,7 +800,7 @@ export function AppSidebar({
             mode={menu.demarrer}
             ouverte={(href) => cheminOuvert(ctxMenu, href)}
             onNavigate={onNavigate}
-            onMasquer={prefs.actif ? () => prefs.masquerDemarrer(persona) : undefined}
+            onMasquer={prefs.actif ? masquerDemarrer : undefined}
             // TCK-2480 — réduite, « Démarrer » (des étapes à lire) se cache : il revient barre dépliée.
             className={cn(epingles && 'mt-4', 'icones:hidden')}
           />

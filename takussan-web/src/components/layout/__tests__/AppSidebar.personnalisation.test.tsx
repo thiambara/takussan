@@ -356,6 +356,48 @@ describe('TCK-2480 — personnaliser le menu depuis la barre', () => {
     expect(corps()).toEqual({ navigation: { v: 1, personas: { 'admin-agence': { demarrer_masque: true } } } });
   });
 
+  it.each([
+    ['sans épingle', undefined],
+    ['avec « Épinglés » au-dessus', { v: 1, personas: { 'admin-agence': { epingles: ['commissions'] } } }],
+  ])('A9 (revue, focus) — au clavier, la croix de « Démarrer » passe le focus au premier élément du menu qui SUIT (%s)', async (_cas, navigation) => {
+    demarrage.etapes = [{ code: 'premier_bien', faite: false }];
+    const user = utilisateur();
+    render(element(['customer', 'agency_admin'], 'admin-agence', { navigation }));
+    const nav = screen.getByRole('navigation', { name: fr.nav.sidebar.navLabel });
+    // L'attendu, relevé AVANT le geste : le premier focalisable visible du premier groupe après « Démarrer ».
+    const suivant = [
+      ...nav.querySelectorAll<HTMLElement>('[data-groupe]:not([data-groupe="epingles"]) :is(a[href], button, [tabindex="0"])'),
+    ].find((el) => el.closest('[hidden]') === null);
+    expect(suivant).toBeDefined();
+    screen.getByRole('button', { name: fr.nav.sidebar.demarrer.masquer }).focus();
+    await user.keyboard('{Enter}');
+    expect(document.querySelector('[data-slot="demarrer"]')).toBeNull();
+    expect(document.activeElement).toBe(suivant);
+  });
+
+  it('A9 (revue, focus) — barre et tiroir : la croix du tiroir garde le focus dans le tiroir', async () => {
+    demarrage.etapes = [{ code: 'premier_bien', faite: false }];
+    const user = utilisateur();
+    const compte = { id: 1, first_name: 'Awa', roles: ['customer', 'agency_admin'], agency_id: 7, preferences: {} } as unknown as User;
+    render(
+      withIntl(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <ToastProvider>
+            <PreferencesDuMenuProvider navigationInitiale={undefined} persona="admin-agence" modeIconesInitial="complet">
+              <AppSidebar user={compte} agencyIsStandard />
+              <AppSidebar user={compte} agencyIsStandard tiroir />
+            </PreferencesDuMenuProvider>
+          </ToastProvider>
+        </QueryClientProvider>,
+      ),
+    );
+    const tiroir = document.querySelectorAll('aside')[1] as HTMLElement;
+    within(tiroir).getByRole('button', { name: fr.nav.sidebar.demarrer.masquer }).focus();
+    await user.keyboard('{Enter}');
+    expect(document.querySelector('[data-slot="demarrer"]')).toBeNull();
+    expect(tiroir.querySelector('nav')!.contains(document.activeElement)).toBe(true);
+  });
+
   it('A9 — « Démarrer » masqué pour le persona : ni groupe, ni lecture', () => {
     demarrage.etapes = [{ code: 'premier_bien', faite: false }];
     const navigation = { v: 1, personas: { 'admin-agence': { demarrer_masque: true } } };
