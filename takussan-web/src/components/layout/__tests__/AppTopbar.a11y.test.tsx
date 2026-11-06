@@ -11,6 +11,9 @@
  * (`BarreDOnglets`) ouvre le tiroir. Il ne reste ici que le logo, et ce fichier garde aussi que le
  * burger ne revient pas (AC3).
  *
+ * TCK-2482 — le bouton de la palette de commandes est le second contrôle écrit à la main : même
+ * mesure, sur ses deux fonds (`bg-white/10`, `hover:bg-white/20`) composés sur la barre.
+ *
  * Ce fichier n'existait pas : c'est aussi ce qui a permis à l'oubli de tenir. Comme pour la barre
  * latérale, il MESURE (`@/test/contraste-wcag`) au lieu de figer une chaîne de classes — alpha
  * composé avant le calcul, sur le fond réel remonté du DOM, dans chaque état que l'élément peut
@@ -55,14 +58,17 @@ const UTILISATEUR = {
   avatar_url: null,
 } as unknown as User;
 
-function rendreBarreHaute() {
+const PALETTE = 'Aller à une page ou changer d’espace';
+
+function rendreBarreHaute({ avecPalette = true }: { avecPalette?: boolean } = {}) {
+  const onOuvrirPalette = avecPalette ? vi.fn() : undefined;
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     withIntl(
       <QueryClientProvider client={queryClient}>
         {/* `ProfileSwitcher` appelle `useToast`, qui exige le provider de base-ui. */}
         <ToastProvider>
-          <AppTopbar user={UTILISATEUR} />
+          <AppTopbar user={UTILISATEUR} onOuvrirPalette={onOuvrirPalette} />
         </ToastProvider>
       </QueryClientProvider>,
     ),
@@ -82,6 +88,7 @@ describe('AppTopbar — le contrôle écrit à la main porte un anneau MESURÉ',
 
   it.each([
     ['logo', () => screen.getByRole('link', { name: 'Takussan' })],
+    ['bouton de la palette', () => screen.getByRole('button', { name: PALETTE })],
   ])('%s : anneau plein, ≥ 3:1 sur tous ses fonds', (nom, trouver) => {
     rendreBarreHaute();
     const element = trouver();
@@ -117,6 +124,21 @@ describe('AppTopbar — le contrôle écrit à la main porte un anneau MESURÉ',
     const logo = screen.getByRole('link', { name: 'Takussan' });
     expect(anneauDeFocus(logo)!.rentrant).toBe(false);
     expect(logo.className).toMatch(/focus-visible:outline-offset-2\b/);
+  });
+
+  it('TCK-2482 — le bouton de la palette : les trois classes de l’anneau, décalage sortant', () => {
+    rendreBarreHaute();
+    const bouton = screen.getByRole('button', { name: PALETTE });
+    const classes = bouton.className.split(/\s+/);
+    expect(classes).toContain('focus-visible:outline-2');
+    expect(classes).toContain('focus-visible:outline-offset-2');
+    expect(classes).toContain('focus-visible:outline-white');
+    expect(anneauDeFocus(bouton)!.rentrant).toBe(false);
+  });
+
+  it('TCK-2482 — sans `onOuvrirPalette` (plein écran), aucun bouton de palette', () => {
+    rendreBarreHaute({ avecPalette: false });
+    expect(screen.queryByRole('button', { name: PALETTE })).toBeNull();
   });
 
   it('TCK-2481 — AC3 : plus de burger dans la barre haute', () => {
