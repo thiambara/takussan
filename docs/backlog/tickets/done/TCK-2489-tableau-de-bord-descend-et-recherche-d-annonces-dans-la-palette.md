@@ -144,3 +144,4 @@ Dans l'arbre de travail d'`atelier-coque`, plus rien ne l'importe. Elle découpe
 `lignesAujourdhui`, ce qui garde une seule règle de jugement. Elle se retire dans le commit qui
 débranche la barre (TCK-2490), avec `PASTILLES_VISIBLES`, l'alias `PastilleATraiter` et ses tests
 TCK-2479 de `a-traiter.test.ts`. Les tests de priorités restent, sur `lignesAujourdhui`.
+**Mise à jour (2026-11-06)** : retirée par 759b06fd7 (TCK-2490) ; `grep -rn pastillesATraiter takussan-web/src` → 0.
