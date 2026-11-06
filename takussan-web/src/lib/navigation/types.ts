@@ -38,4 +38,12 @@ export interface ContexteDeMenu {
    * porte plus que ceux du persona (`rolesDuPersona`). Absent : `roles` EST l'espace.
    */
   readonly rolesDeLEspace?: UserRole[];
+  /**
+   * TCK-2483 (ADR-0089, amendement « modules par agence ») — les destinations que l'agence du profil
+   * actif retire du menu de son personnel (`destinationsMasquees`). Un fait de l'AGENCE, comme
+   * `agenceSuspendue` : `estOuverte` le refuse, et `composerMenu` ne le garde, pour juger le
+   * persona, que si le persona est du personnel ; il le garde toujours pour juger l'espace.
+   * `cheminOuvert` l'ignore : la page reste servie.
+   */
+  readonly masquees?: ReadonlySet<string>;
 }

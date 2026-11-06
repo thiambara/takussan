@@ -73,3 +73,29 @@ describe('TCK-2481 — useMenuDeLEspace', () => {
     expect(verrous(result.current.groupesDeLaDisposition)).toEqual(verrous(result.current.groupes));
   });
 });
+
+describe('TCK-2483 — useMenuDeLEspace pose les modules masqués par l’agence', () => {
+  const MASQUES = ['/app/calendar', '/app/commissions'];
+
+  it('l’agent les perd dans le menu rendu ET dans les groupes de la disposition (onglets)', () => {
+    navigation.courante = NAVIGATION_VIDE;
+    const agent = utilisateur(['customer', 'agent'], 7);
+    const temoin = renderHook(() => useMenuDeLEspace({ user: agent })).result.current;
+    for (const href of MASQUES) expect(hrefs(temoin.groupes), `témoin : ${href}`).toContain(href);
+
+    const { result } = renderHook(() => useMenuDeLEspace({ user: agent, modulesMasques: ['calendar', 'commissions'] }));
+    for (const href of MASQUES) {
+      expect(hrefs(result.current.groupes), href).not.toContain(href);
+      expect(hrefs(result.current.groupesDeLaDisposition), href).not.toContain(href);
+    }
+  });
+
+  it('le bailleur garde ses états des lieux', () => {
+    navigation.courante = NAVIGATION_VIDE;
+    const { result } = renderHook(() =>
+      useMenuDeLEspace({ user: utilisateur(['customer', 'owner'], 7), modulesMasques: ['inventories'] }),
+    );
+    expect(result.current.persona).toBe('bailleur');
+    expect(hrefs(result.current.groupes)).toContain('/app/inventories');
+  });
+});

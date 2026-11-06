@@ -4,6 +4,7 @@ import type { ModeDemarrer } from './demarrer';
 import { DISPOSITIONS, type Disposition } from './dispositions';
 import { autresTypes, rolesDuPersona, type Persona } from './personas';
 import { EPINGLES_MAX, type PreferencesDuPersona } from './preferences';
+import { PERSONAS_DU_PERSONNEL } from './modules';
 import type { ContexteDeMenu, NavCounterKey } from './types';
 
 export interface EntreeComposee {
@@ -50,6 +51,8 @@ export interface MenuCompose {
 type DestinationDuCatalogue = Destination & { readonly id: IdDestination };
 
 const PAR_ID: ReadonlyMap<string, DestinationDuCatalogue> = new Map(CATALOGUE.map((d) => [d.id, d]));
+/** TCK-2483 — le persona hors personnel ne perd rien de ce qu'il ouvre lui-même. */
+const SANS_MASQUE: ReadonlySet<string> = new Set();
 
 /**
  * TCK-2478 (ADR-0089 §4) — LE menu : une fonction pure du compte, du persona et de sa disposition.
@@ -64,6 +67,10 @@ const PAR_ID: ReadonlyMap<string, DestinationDuCatalogue> = new Map(CATALOGUE.ma
  * 5. TCK-2480 — les préférences du persona : « Épinglés » d'abord (pris AVANT les groupes, donc retirés
  *    de leur groupe d'origine), les replis de l'utilisateur, « Démarrer » masqué. Elles déplacent, elles
  *    n'accordent rien : une épingle ne vise que ce que le persona ouvre.
+ * 6. TCK-2483 (amendement « modules par agence ») — une destination masquée par l'agence
+ *    (`ctx.masquees`) est fermée au persona du PERSONNEL et au complément : elle ne tombe ni sous
+ *    « Plus » ni sous « Aussi … », et une épingle qui la vise est ignorée. Le bailleur, le locataire,
+ *    le client et le prestataire gardent ce qu'ils ouvrent eux-mêmes.
  */
 export function composerMenu(
   ctx: ContexteDeMenu,
@@ -71,7 +78,14 @@ export function composerMenu(
   disposition: Disposition = DISPOSITIONS[persona],
   preferences: PreferencesDuPersona = {},
 ): MenuCompose {
-  const ctxPersona: ContexteDeMenu = { ...ctx, roles: rolesDuPersona(ctx.roles, persona), rolesDeLEspace: ctx.roles };
+  // TCK-2483 — le masque de l'agence ne retire que ce qu'un profil du PERSONNEL apporte : la disposition
+  // de l'agent et de l'admin, et le complément (jugé sur `ctx`, qui garde `masquees`).
+  const ctxPersona: ContexteDeMenu = {
+    ...ctx,
+    roles: rolesDuPersona(ctx.roles, persona),
+    rolesDeLEspace: ctx.roles,
+    masquees: PERSONAS_DU_PERSONNEL.has(persona) ? ctx.masquees : SANS_MASQUE,
+  };
   // Revue de TCK-2478 (I2) — le contexte qui juge une destination POUR LE PERSONA.
   const juge = (d: Destination): ContexteDeMenu => (d.surLEspace ? ctx : ctxPersona);
   const hrefsPris = new Set<string>();
@@ -220,9 +234,13 @@ export function entreesDuMenu(menu: MenuCompose): EntreeComposee[] {
  * bailleur pour `/app/properties/new` (la règle de `modeDeCreationDeBien`). La requête est ignorée.
  * Un chemin qu'aucune destination ne porte (`/onboarding/owner`, l'assistant du bailleur sur son
  * propre profil) n'est pas jugé ici : `true`.
+ *
+ * TCK-2483 — le masque de l'agence est ignoré : il retire une ENTRÉE du menu, jamais une page
+ * (amendement §6), et ce sont les gardes des pages que cette fonction mime.
  */
 export function cheminOuvert(ctx: ContexteDeMenu, href: string): boolean {
   const chemin = href.split('?')[0];
   const portees = CATALOGUE.filter((d) => d.href === chemin);
-  return portees.length === 0 || portees.some((d) => estOuverte(d, ctx));
+  const page: ContexteDeMenu = { ...ctx, masquees: SANS_MASQUE };
+  return portees.length === 0 || portees.some((d) => estOuverte(d, page));
 }
