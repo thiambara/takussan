@@ -28,12 +28,11 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/hooks/useCan', () => ({
   useMyCapabilities: () => ({ data: { data: { agency_id: 7, capabilities: ['properties.create'] } } }),
 }));
+const UN_ESPACE = [{ id: 'p4', type: 'agent', agency_id: 7, agency: { name: 'Teranga Immo', kind: 'standard' } }];
+const espaces = vi.hoisted(() => ({ liste: [] as unknown[], basculer: vi.fn() }));
 vi.mock('@/hooks/useProfiles', () => ({
-  useMyProfiles: () => ({
-    data: { data: [{ id: 4, agency: { name: 'Teranga Immo' } }], meta: { active_profile_id: 4 } },
-    isLoading: false,
-  }),
-  useSwitchActiveProfile: () => ({ mutate: vi.fn(), isPending: false }),
+  useMyProfiles: () => ({ data: { data: espaces.liste, meta: { active_profile_id: 'p4' } }, isLoading: false }),
+  useSwitchActiveProfile: () => ({ mutate: espaces.basculer, isPending: false }),
 }));
 vi.mock('@/components/chat-widget/useUnreadCount', () => ({ useUnreadCount: () => 0 }));
 vi.mock('@/lib/queries/visits', () => ({ usePendingVisitsCount: () => ({}) }));
@@ -73,6 +72,8 @@ const liensDuMenu = (racine: Element) =>
 beforeEach(() => {
   chemin.courant = '/app';
   window.localStorage.clear();
+  espaces.liste = UN_ESPACE;
+  espaces.basculer.mockReset();
 });
 afterEach(() => cleanup());
 
@@ -181,6 +182,31 @@ describe('TCK-2491 (ADR-0090 §2) — l’en-tête de la colonne et le menu du c
     await u.click(within(menu).getByRole('menuitem', { name: 'Déconnexion' }));
     expect(deconnecter).toHaveBeenCalled();
     await waitFor(() => expect(routeur.replace).toHaveBeenCalledWith('/fr'));
+  });
+
+  it('le changement d’espace : absent avec un seul espace ; à plusieurs, l’actif marqué, l’autre bascule le profil', async () => {
+    const u = userEvent.setup();
+    const { container, unmount } = monter();
+    await u.click(container.querySelector<HTMLElement>('[data-slot="pied-du-compte"]')!);
+    expect(within(await screen.findByRole('menu')).queryByText('Changer d’espace')).toBeNull();
+    unmount();
+
+    espaces.liste = [
+      ...UN_ESPACE,
+      { id: 'p9', type: 'owner', agency_id: 9, agency: { name: 'Keur Ndiaye', kind: 'standard' } },
+    ];
+    const monte = monter();
+    await u.click(monte.container.querySelector<HTMLElement>('[data-slot="pied-du-compte"]')!);
+    const menu = await screen.findByRole('menu');
+    expect(within(menu).getByText('Changer d’espace')).toBeInTheDocument();
+    const actif = within(menu).getByRole('menuitem', { name: /Teranga Immo/ });
+    expect(actif).toHaveAttribute('aria-current', 'true');
+    // Re-choisir l'espace actif ne bascule rien ; l'autre bascule par la mutation de `ProfileSwitcher`.
+    await u.click(actif);
+    expect(espaces.basculer).not.toHaveBeenCalled();
+    await u.click(monte.container.querySelector<HTMLElement>('[data-slot="pied-du-compte"]')!);
+    await u.click(within(await screen.findByRole('menu')).getByRole('menuitem', { name: /Keur Ndiaye/ }));
+    expect(espaces.basculer).toHaveBeenCalledWith('p9');
   });
 });
 
