@@ -404,7 +404,9 @@ function GroupeDuMenu({
       role={avecTitre ? 'group' : undefined}
       aria-labelledby={avecTitre ? idTitre : undefined}
       data-groupe={groupe.id}
-      className={cn(!premier && 'mt-5 icones:mt-2')}
+      // TCK-2490 (ADR-0090 §7) — dans le rail, un filet sépare les groupes (maquette « Atelier ») : les
+      // titres y sont lus, pas montrés ; la bascule d'un groupe replié reste son chevron, nommé en infobulle.
+      className={cn(!premier && 'mt-5 icones:mt-2 icones:border-t icones:border-border/60 icones:pt-2')}
     >
       {bascule ? (
         <Tooltip disabled={!infobulle}>
@@ -438,12 +440,9 @@ function GroupeDuMenu({
           <TooltipContent side="right">{libelle}</TooltipContent>
         </Tooltip>
       ) : avecTitre ? (
-        <>
-          <p id={idTitre} className={cn('mb-0.5 flex h-7 items-center px-2.5 icones:sr-only', STYLE_TITRE)}>
-            {libelle}
-          </p>
-          <div aria-hidden className="mx-3 my-1.5 hidden h-px bg-border icones:block" />
-        </>
+        <p id={idTitre} className={cn('mb-0.5 flex h-7 items-center px-2.5 icones:sr-only', STYLE_TITRE)}>
+          {libelle}
+        </p>
       ) : null}
       {bascule ? (
         <div

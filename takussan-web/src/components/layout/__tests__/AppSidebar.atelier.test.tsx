@@ -100,6 +100,21 @@ describe('TCK-2490 (ADR-0090 §2) — l’ordre de la colonne est l’ordre de l
   });
 });
 
+describe('TCK-2490 (ADR-0090 §7) — le rail', () => {
+  it('un filet sépare les groupes (pas le premier) ; les titres y sont lus, jamais montrés', () => {
+    const { container } = monter();
+    const groupes = Array.from(container.querySelectorAll('nav [data-groupe]'));
+    expect(groupes.length).toBeGreaterThan(2);
+    groupes.forEach((g, i) => {
+      const classes = g.className.split(/\s+/);
+      if (i === 0) expect(classes).not.toContain('icones:border-t');
+      else expect(classes).toEqual(expect.arrayContaining(['icones:border-t', 'icones:pt-2']));
+      const titre = g.querySelector('p[id], button[aria-expanded] > span');
+      if (titre) expect(titre.className.split(/\s+/)).toContain('icones:sr-only');
+    });
+  });
+});
+
 describe('TCK-2490 (ADR-0090 §5) — « Récents »', () => {
   it('rien sans page retenue : ni titre, ni liste', () => {
     const { container } = monter();
