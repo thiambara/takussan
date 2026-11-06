@@ -76,6 +76,7 @@
     "79": "Les réglages métier à repli global entrent au catalogue, la route brute des paramètres ne fait plus la portée globale — ADR-0065 (2026-10-14)",
     "80": "Le socle IA et le Radar d'acquisition d'annonces — ADR-0076, ADR-0077, plan du 2026-10-26 (TCK-2383 → TCK-2395), et les suites du lot 0 (TCK-2397 → TCK-2400, 2026-10-27)",
     "81": "Radar 2 et suggestions de recherche : lecture par site, extraction économe, sitemap, cibles et demande rafraîchie par l'IA ; journal anonyme des recherches et barre qui comprend la saisie — ADR-0087, ADR-0088 (TCK-2465 → TCK-2476, 2026-11-04)",
-    "82": "La coque de /app par persona : catalogue des destinations, dispositions par profil actif, bande « À traiter », personnalisation, barre mobile, palette ⌘K — ADR-0089 (TCK-2477 → TCK-2483, 2026-11-05)"
+    "82": "La coque de /app par persona : catalogue des destinations, dispositions par profil actif, bande « À traiter », personnalisation, barre mobile, palette ⌘K — ADR-0089 (TCK-2477 → TCK-2483, 2026-11-05)",
+    "83": "La coque de /app sans barre du haut : colonne « Atelier », « Aller à » dans la barre, bloc « Aujourd'hui », tableau de bord en tête pour l'admin d'agence seul — ADR-0090 (TCK-2489 → TCK-2491, 2026-11-06)"
   }
 }
