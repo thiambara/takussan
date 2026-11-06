@@ -20,8 +20,11 @@ const ENUM = join(ROOT, 'takussan-api', 'app', 'Models', 'Enums', 'AgencyModule.
 function codesDuBack(): string[] {
   const php = readFileSync(ENUM, 'utf8');
   expect(php, `enum AgencyModule introuvable dans ${ENUM}`).toContain('enum AgencyModule: string');
-  const codes = [...php.matchAll(/case\s+\w+\s*=\s*'([a-z_]+)';/g)].map((m) => m[1]);
+  // Revue de TCK-2483, M4 — tout code entre apostrophes, chiffres compris : `[a-z_]+` taisait `reports_v2`.
+  const codes = [...php.matchAll(/case\s+\w+\s*=\s*'([^']+)'\s*;/g)].map((m) => m[1]);
   expect(codes.length, 'aucun cas extrait d’AgencyModule — la garde n’aurait rien vérifié').toBeGreaterThan(0);
+  // Un `case` que le motif n'extrait pas (guillemets doubles, forme inattendue) se compte quand même.
+  expect(codes.length, 'un cas d’AgencyModule échappe à l’extraction').toBe([...php.matchAll(/^\s*case\s/gm)].length);
   return codes;
 }
 
