@@ -152,6 +152,43 @@ class AgencyModulesSettingsTest extends ApiTestCase
         $this->assertSame([], AgencySettings::read(null, 'hidden_modules'));
     }
 
+    /**
+     * Revue de TCK-2483, M1 — une liste au-delà de sa borne ne fait pas valider ses éléments : Laravel
+     * jugeait chacun même après l'échec de `max` sur le parent (≈ 1,45 ms par élément, 20 000
+     * éléments ≈ 29 s et 2 Mo d'erreurs). Au-delà de la borne, une seule erreur, sur la clé.
+     *
+     * @return array<string, array{bool}>
+     */
+    public static function genresDAgence(): array
+    {
+        return ['standard' => [false], 'individuelle' => [true]];
+    }
+
+    #[DataProvider('genresDAgence')]
+    public function test_une_liste_hors_borne_ne_valide_pas_ses_elements(bool $individual): void
+    {
+        [$admin, $agency] = $this->admin(individual: $individual);
+        Sanctum::actingAs($admin);
+
+        $reponse = $this->patchJson("/api/agencies/{$agency->id}", [
+            'settings' => ['hidden_modules' => array_fill(0, 1000, 'payments')],
+        ])->assertStatus(422);
+
+        $this->assertSame(['settings.hidden_modules'], array_keys($reponse->json('errors')));
+        $this->assertArrayNotHasKey('hidden_modules', $agency->refresh()->settings ?? []);
+    }
+
+    public function test_une_liste_dans_sa_borne_valide_encore_ses_elements(): void
+    {
+        [$admin, $agency] = $this->admin();
+        Sanctum::actingAs($admin);
+
+        // Sept éléments (la borne) : la règle d'élément tient toujours, l'erreur porte sur l'élément.
+        $this->patchJson("/api/agencies/{$agency->id}", [
+            'settings' => ['hidden_modules' => ['commissions', 'inventories', 'move_in_follow_up', 'provider_book', 'calendar', 'credits', 'payments']],
+        ])->assertStatus(422)->assertJsonValidationErrors('settings.hidden_modules.6');
+    }
+
     public function test_les_regles_viennent_du_catalogue(): void
     {
         $regles = (new AgencyUpdateRequest)->rules();

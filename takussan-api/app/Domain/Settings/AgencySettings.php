@@ -29,7 +29,7 @@ final class AgencySettings
     private const LIST = 'list';
 
     /**
-     * @return array<string, array{type: string, default: mixed, rules: array<int, mixed>, enum?: class-string<\BackedEnum>}>
+     * @return array<string, array{type: string, default: mixed, rules: array<int, mixed>, enum?: class-string<\BackedEnum>, max?: int}>
      */
     private static function catalog(): array
     {
@@ -73,6 +73,7 @@ final class AgencySettings
             // en bloc par la fusion de premier niveau du contrôleur ; `null` rend le défaut.
             'hidden_modules' => [
                 'type' => self::LIST, 'default' => [], 'enum' => AgencyModule::class,
+                'max' => count(AgencyModule::cases()),
                 'rules' => ['sometimes', 'nullable', 'array', 'list', 'max:'.count(AgencyModule::cases())],
             ],
         ];
@@ -89,15 +90,21 @@ final class AgencySettings
     /**
      * Les règles de `AgencyUpdateRequest`, préfixées `settings.`.
      *
+     * `$input` : les `settings` reçus, que seule la requête connaît. Une liste qui dépasse sa borne ne
+     * reçoit PAS de règle d'élément — Laravel validerait chacun même après l'échec de `max` sur le
+     * parent (revue de TCK-2483, M1 : 20 000 éléments ≈ 29 s et 2 Mo d'erreurs) ; `max` seul répond 422.
+     *
+     * @param  array<string, mixed>|null  $input
      * @return array<string, array<int, mixed>>
      */
-    public static function rules(): array
+    public static function rules(?array $input = null): array
     {
         $rules = [];
         foreach (self::catalog() as $key => $entry) {
             $rules["settings.{$key}"] = $entry['rules'];
             // TCK-2483 — une liste valide aussi chacun de ses éléments : un cas de son enum, une fois.
-            if ($entry['type'] === self::LIST) {
+            $value = $input[$key] ?? null;
+            if ($entry['type'] === self::LIST && (! is_array($value) || count($value) <= $entry['max'])) {
                 $rules["settings.{$key}.*"] = ['string', 'distinct', Rule::enum($entry['enum'])];
             }
         }

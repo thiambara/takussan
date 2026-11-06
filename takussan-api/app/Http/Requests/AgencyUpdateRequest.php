@@ -74,7 +74,9 @@ class AgencyUpdateRequest extends BaseFormRequest
             'settings' => ['sometimes', 'array'],
             // TCK-970 — les clés de `settings`, leur type et leur défaut : une seule liste, que lit
             // aussi `Agency::setting()`.
-            ...AgencySettings::rules(),
+            // Revue de TCK-2483 (M1) — les `settings` reçus : une liste hors de sa borne ne fait pas
+            // valider ses éléments un à un.
+            ...AgencySettings::rules(is_array($this->input('settings')) ? $this->input('settings') : null),
             // TCK-2483 (ADR-0089, amendement) — une agence `individual` n'a pas d'équipe dont masquer
             // le menu : la clé y serait un réglage sans effet. `null` et `[]` passent (`prohibited`).
             ...($this->isIndividual() ? ['settings.hidden_modules' => ['prohibited']] : []),
