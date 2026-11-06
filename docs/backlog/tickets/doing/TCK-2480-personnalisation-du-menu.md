@@ -239,7 +239,19 @@ Pour chaque cas, on lit :
 **Barre réduite** (900, `auto`, cinq personas : bailleur, agent, admin-agence, hôte, locataire)
 - Barre de 64 px, `padding-top` 20 px (`icones:pt-5`), aucun débordement. L'en-tête d'espace est caché.
 - **« Démarrer »** reste dans le DOM mais en `display: none` (bailleur, admin-agence, hôte).
-- **Action principale** : une tuile pleine de 40 × 32. Infobulle au survol et au focus clavier.
+- **Action principale** : sur le lot figé, une tuile pleine de 40 × 32. Infobulle au survol et au focus
+  clavier. **Corrigé par ef5a42370** (`icones:size-10 icones:items-center icones:py-0`), re-mesuré le
+  2026-11-06 (agent 3, avant = la ligne de classes remise à `8eb18dbd1` le temps du relevé) :
+
+  | Cas | Avant | Après | Icône de la bande |
+  |---|---|---|---|
+  | 900, `auto` | 40 × 32 | **40 × 40** | 40 × 40 |
+  | 1366, `menu_icones=1` | 36 × 28,77 | **36 × 36** (4rem × 0,9) | 36 × 36 |
+  | 1366, barre complète | 208,8 × 31,69 | 208,8 × 31,69, inchangée | — |
+
+  L'icône est centrée (écart 0 / 0). L'infobulle « Publier un bien » paraît toujours au focus clavier
+  (vraie tabulation) dans la barre réduite, et aucune infobulle ne paraît barre complète. Débordement 0,
+  console vide.
 - **Bande « À traiter »** : les pastilles sont cachées. Une icône 40 × 40 porte le total (« 17 », « 72 »,
   « 99+ » pour 198) avec le nom « À traiter : N éléments ». Un clic ouvre un `Popover` à droite de la barre
   avec les mêmes pastilles et leurs liens (admin-agence : visites, messages, 1 bien, 100 avis) et
@@ -292,9 +304,9 @@ Pour chaque cas, on lit :
 
 **Défauts**
 - Aucun bloquant.
-- Écart mineur, à trancher par la session : A11 dit « un carré plein », mais l'action principale réduite
-  mesure 40 × 32 px. Elle a la hauteur des lignes du menu (`py-2`), alors que l'icône de la bande « À
-  traiter » juste dessous fait 40 × 40. Capture `reduite-agent-900.png`.
+- L'écart mineur relevé sur le lot figé (A11 dit « un carré plein », mais l'action principale réduite
+  mesurait 40 × 32) est **corrigé par ef5a42370** et re-mesuré : 40 × 40 à 900, comme l'icône de la bande
+  (voir « Barre réduite »).
 
 **Non mesuré**
 - Le rendu tactile (`hover: none`, épingle à 60 %, A13).
