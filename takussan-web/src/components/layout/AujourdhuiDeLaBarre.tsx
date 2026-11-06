@@ -36,8 +36,9 @@ interface AujourdhuiDeLaBarreProps {
  *   `priorites` ; rien du tout (pas même un titre) quand tout est à zéro.
  * - La plus prioritaire porte son compte en puce PRIMAIRE ; les autres en puce neutre. C'est la seule
  *   hiérarchie du bloc : il ne crie pas.
- * - HORS du `<nav>` : le menu ne bouge jamais selon un compteur, et ces lignes n'en sont pas des
- *   entrées.
+ * - HORS du menu (`data-slot="menu"`) : le menu ne bouge jamais selon un compteur, et ces lignes n'en
+ *   sont pas des entrées. Dans le repère de navigation de la colonne, qui porte tous ses liens (suite de
+ *   la revue adverse, a).
  * - Revue adverse (I1) — dans le rail, le bloc RESTE : chaque ligne devient son icône, marquée d'un point
  *   de couleur (ADR-0090 §7), et son infobulle dit libellé et nombre (« Visites à confirmer · 17 »).
  *   Caché, il laissait sans signal ce qui attendait dans un groupe replié : le point de l'entrée comptée

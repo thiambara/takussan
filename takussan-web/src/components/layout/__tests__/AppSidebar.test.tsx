@@ -215,7 +215,7 @@ function libelle(entree: Element): string {
 type GroupeLu = [string | null, boolean, ...string[]];
 
 function groupesRendus(container: HTMLElement): GroupeLu[] {
-  return Array.from(container.querySelectorAll('nav [data-groupe]')).map((groupe) => {
+  return Array.from(container.querySelectorAll('[data-slot="menu"] [data-groupe]')).map((groupe) => {
     const bouton = groupe.querySelector(':scope > button');
     const titre = groupe.querySelector(':scope > button, :scope > p')?.textContent?.trim() ?? null;
     const replie = bouton?.getAttribute('aria-expanded') === 'false';
@@ -391,7 +391,7 @@ describe('revue adverse (3) — le tableau de bord de l’admin d’agence vient
       tableau,
       aside.querySelector('[data-slot="aujourdhui"]')!,
       aside.querySelector('[data-slot="demarrer"]')!,
-      aside.querySelector('nav [data-groupe]')!,
+      aside.querySelector('[data-slot="menu"] [data-groupe]')!,
     ];
     chaine.forEach((el, i) => expect(el, `maillon ${i}`).not.toBeNull());
     for (let i = 1; i < chaine.length; i++) expect(avant(chaine[i - 1]!, chaine[i]!), `maillon ${i}`).toBe(true);
@@ -400,12 +400,32 @@ describe('revue adverse (3) — le tableau de bord de l’admin d’agence vient
     expect(groupesRendus(container)[0]).toEqual([null, false, 'Vue agence', 'Messagerie']);
   });
 
+  // Suite de la revue adverse (a) — hissé, il reste une entrée de NAVIGATION : un seul repère pour la
+  // colonne, et le tableau de bord dedans, avec l'action et « Aller à ». Hors du repère, le lecteur
+  // d'écran qui saute au menu par les repères le manquait.
+  it('admin d’agence : un seul repère de navigation dans la colonne, le tableau de bord dedans', () => {
+    unreadMock.mockReturnValue(3);
+    const { container } = renderSidebar('admin-agence', '/app', { onOuvrirPalette: () => {} });
+    const aside = container.querySelector('aside')!;
+    const reperes = within(aside as HTMLElement).getAllByRole('navigation');
+    expect(reperes).toHaveLength(1);
+    const [repere] = reperes;
+    expect(repere).toHaveAccessibleName('Navigation du tableau de bord');
+    for (const el of [
+      aside.querySelector('a[href="/app"]')!,
+      aside.querySelector('[data-slot="action-principale"]')!,
+      aside.querySelector('[data-slot="aller-a"]')!,
+      aside.querySelector('[data-slot="aujourdhui"]')!,
+      aside.querySelector('[data-groupe]')!,
+    ]) expect(repere!.contains(el), el.outerHTML.slice(0, 80)).toBe(true);
+  });
+
   it.each(PERSONAS.filter((p) => p !== 'admin-agence'))('%s : inchangé — le tableau de bord reste dans le menu, après « Aujourd’hui »', (persona) => {
     unreadMock.mockReturnValue(3);
     const { container } = renderSidebar(persona, '/app', { onOuvrirPalette: () => {} });
     const tableau = container.querySelector('aside a[href="/app"]');
     expect(tableau, 'le tableau de bord').not.toBeNull();
-    expect(container.querySelector('nav')!.contains(tableau)).toBe(true);
+    expect(container.querySelector<HTMLElement>('[data-slot="menu"]')!.contains(tableau)).toBe(true);
   });
 });
 
@@ -429,11 +449,11 @@ describe('TCK-2478 — la barre montée suit la disposition du persona (AC1)', (
     const enTete = MENU_ATTENDU[persona].enTete;
     if (enTete) {
       expect(libelle(liens[1])).toBe(enTete);
-      expect(container.querySelector('nav')!.contains(liens[1]!)).toBe(false);
-      expect(liens[2]).toBe(container.querySelector('nav a'));
+      expect(container.querySelector<HTMLElement>('[data-slot="menu"]')!.contains(liens[1]!)).toBe(false);
+      expect(liens[2]).toBe(container.querySelector('[data-slot="menu"] a'));
       expect(libelle(liens[2])).toBe(MENU_ATTENDU[persona].groupes[0][2]);
     } else {
-      expect(liens[1]).toBe(container.querySelector('nav a'));
+      expect(liens[1]).toBe(container.querySelector('[data-slot="menu"] a'));
       expect(libelle(liens[1])).toBe(MENU_ATTENDU[persona].groupes[0][2]);
     }
   });
@@ -448,7 +468,7 @@ describe('TCK-2478 — la barre montée suit la disposition du persona (AC1)', (
   it.each(PERSONAS)('%s : chaque groupe replié a `aria-expanded="false"` et sa liste inerte et cachée', (persona) => {
     const { container } = renderSidebar(persona, '/app');
     const replies = MENU_ATTENDU[persona].groupes.filter((g) => g[1]).map((g) => g[0]);
-    const boutons = Array.from(container.querySelectorAll('nav [data-groupe] > button[aria-expanded]'));
+    const boutons = Array.from(container.querySelectorAll('[data-slot="menu"] [data-groupe] > button[aria-expanded]'));
     expect(boutons.filter((b) => b.getAttribute('aria-expanded') === 'false').map((b) => b.textContent?.trim())).toEqual(replies);
     for (const bouton of boutons) {
       const liste = document.getElementById(bouton.getAttribute('aria-controls') ?? '');
@@ -461,7 +481,7 @@ describe('TCK-2478 — la barre montée suit la disposition du persona (AC1)', (
 
   it.each(PERSONAS)('%s : aucune entrée n’apparaît deux fois (TCK-646 AC2)', (persona) => {
     const { container } = renderSidebar(persona, '/app');
-    const rendus = Array.from(container.querySelectorAll('nav a, nav [role="link"]')).map(libelle);
+    const rendus = Array.from(container.querySelectorAll('[data-slot="menu"] a, [data-slot="menu"] [role="link"]')).map(libelle);
     expect(new Set(rendus).size, rendus.join(' · ')).toBe(rendus.length);
   });
 
@@ -585,8 +605,8 @@ describe('TCK-2478 — le prestataire (AC5)', () => {
   it('ni action, ni titre de section : sa seule bascule est « Plus »', () => {
     const { container } = renderSidebar('prestataire', '/app');
     expect(container.querySelector('[data-slot="action-principale"]')).toBeNull();
-    expect(container.querySelectorAll('nav p')).toHaveLength(0);
-    expect(Array.from(container.querySelectorAll('nav button')).map((b) => b.textContent?.trim())).toEqual(['Plus']);
+    expect(container.querySelectorAll('[data-slot="menu"] p')).toHaveLength(0);
+    expect(Array.from(container.querySelectorAll('[data-slot="menu"] button')).map((b) => b.textContent?.trim())).toEqual(['Plus']);
     // …et sa tête porte son métier, visible sans rien ouvrir.
     expect(screen.getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(
       expect.arrayContaining(['/app', '/app/maintenance', '/app/messages', '/app/documents']),
@@ -599,7 +619,7 @@ describe('TCK-2478 — la carte du client et le lien « Console plateforme »', 
     const { container } = renderSidebar(persona, '/app');
     const carte = screen.getByRole('link', { name: /Mettre un bien en location/ });
     expect(carte).toHaveAttribute('href', '/publish');
-    expect(container.querySelector('nav')?.querySelector('a[href="/publish"]')).toBeNull();
+    expect(container.querySelector<HTMLElement>('[data-slot="menu"]')?.querySelector('a[href="/publish"]')).toBeNull();
     expect(container.querySelectorAll('a[href="/publish"]')).toHaveLength(1);
   });
 
@@ -620,7 +640,7 @@ describe('TCK-2478 — la carte du client et le lien « Console plateforme »', 
     const { container } = renderSidebar('plateforme', '/app');
     // TCK-2490 (ADR-0090 §6) — une ligne de statut : son nom est son texte visible, titre d'abord.
     expect(screen.getByRole('link', { name: /^Console plateforme/ })).toHaveAttribute('href', '/super-admin');
-    expect(container.querySelector('nav a[href="/super-admin"]')).toBeNull();
+    expect(container.querySelector('[data-slot="menu"] a[href="/super-admin"]')).toBeNull();
   });
 
   // Revue de TCK-2478 — la console suit le rôle `super_admin`, pas le persona : un super-admin dont le
@@ -669,7 +689,7 @@ describe('AC2 — jamais deux entrées allumées sur des routes imbriquées', ()
   // Cinq couples, pas trois : le ticket n'en nommait que trois et manquait
   // `/app/maintenance` ⊃ `/app/maintenance/providers` et `/app/overview` ⊃ ses quatre filles.
   //
-  // TCK-2478 — « Publier un bien » est désormais l'ACTION PRINCIPALE, hors du `<nav>` : sur sa
+  // TCK-2478 — « Publier un bien » est désormais l'ACTION PRINCIPALE, hors du menu : sur sa
   // page, c'est elle qui est courante, et « Biens », son parent d'URL, ne s'allume pas.
   it.each([
     ['/app/properties/new', 'Publier un bien'],
@@ -774,20 +794,20 @@ describe('AC5 — un compteur ne s’affiche ni à zéro ni en échec', () => {
     expect(screen.queryByText('0')).toBeNull();
   });
 
-  // Ces cas visent le badge du MENU, lu dans le `<nav>`. Revue adverse (M3) — un compte qu'« Aujourd'hui »
+  // Ces cas visent le badge du MENU, lu dans le menu. Revue adverse (M3) — un compte qu'« Aujourd'hui »
   // porte déjà ne paraît plus sur son entrée : l'épreuve du badge visible se fait donc sur un compte
   // HORS des priorités du persona (les visites du client, qui attendent l'agence, pas lui).
   it('la pastille paraît, avec son libellé accessible, dès qu’il y a quelque chose', () => {
     pendingVisitsMock.mockReturnValue({ data: { meta: { total: 7 } } });
     const { container } = renderSidebar('client', '/app');
-    const nav = within(container.querySelector('nav')!);
+    const nav = within(container.querySelector<HTMLElement>('[data-slot="menu"]')!);
     expect(nav.getByLabelText('7 demandes de visite en attente')).toHaveTextContent('7');
   });
 
   it('au-delà de 99, la pastille dit 99+ sans mentir sur son libellé', () => {
     pendingVisitsMock.mockReturnValue({ data: { meta: { total: 140 } } });
     const { container } = renderSidebar('client', '/app');
-    expect(within(container.querySelector('nav')!).getByLabelText('140 demandes de visite en attente')).toHaveTextContent('99+');
+    expect(within(container.querySelector<HTMLElement>('[data-slot="menu"]')!).getByLabelText('140 demandes de visite en attente')).toHaveTextContent('99+');
   });
 });
 
@@ -809,7 +829,7 @@ describe('M3 — chaque compte ne paraît qu’une fois', () => {
     expect(within(aujourdhui).getAllByRole('link').map((l) => l.getAttribute('href'))).toEqual(
       expect.arrayContaining(['/app/messages', '/app/visits?tab=requested']),
     );
-    const nav = container.querySelector('nav')!;
+    const nav = container.querySelector<HTMLElement>('[data-slot="menu"]')!;
     for (const [href, nom] of [
       ['/app/messages', /^Messagerie\s?3 messages non lus$/],
       ['/app/visits', /^Visites\s?7 demandes de visite en attente$/],
@@ -825,7 +845,7 @@ describe('M3 — chaque compte ne paraît qu’une fois', () => {
     unreadMock.mockReturnValue(3);
     pendingVisitsMock.mockReturnValue({ data: { meta: { total: 2 } } });
     const { container } = renderSidebar('client', '/app');
-    const nav = container.querySelector('nav')!;
+    const nav = container.querySelector<HTMLElement>('[data-slot="menu"]')!;
     expect(lien(nav, '/app/messages').querySelector('[data-slot="compteur-entree"]')).toBeNull();
     expect(lien(nav, '/app/messages')).toHaveAccessibleName(/^Messagerie\s?3 messages non lus$/);
     const visites = lien(nav, '/app/visits').querySelector('[data-slot="compteur-entree"]');
@@ -957,14 +977,16 @@ describe('accessibilité de la barre', () => {
    * cause, le `<nav>` qui défile est positionné.
    */
   // TCK-2490 — la zone qui défile n'est plus le `<nav>` seul : elle porte aussi « Aujourd'hui » et
-  // « Récents ». C'est ELLE qui doit être positionnée, et le `<nav>` est dedans.
+  // « Récents ». C'est ELLE qui doit être positionnée, et le menu est dedans. Suite de la revue adverse
+  // (a) — le repère `<nav>` couvre désormais la colonne entière : il contient la zone, qui contient le menu.
   it('la zone qui défile contient les éléments absolus de la barre (TCK-843)', () => {
     const { container } = renderSidebar('hote', '/app');
     const nav = screen.getByRole('navigation', { name: 'Navigation du tableau de bord' });
     const zone = container.querySelector('[data-slot="defilement"]')!;
     expect(zone.className).toContain('overflow-y-auto');
     expect(zone.className.split(/\s+/)).toContain('relative');
-    expect(zone.contains(nav)).toBe(true);
+    expect(nav.contains(zone)).toBe(true);
+    expect(zone.contains(container.querySelector<HTMLElement>('[data-slot="menu"]'))).toBe(true);
     expect(zone.querySelectorAll('.sr-only').length).toBeGreaterThan(0);
   });
 });
@@ -1013,9 +1035,9 @@ describe('TCK-2490 — « Aujourd’hui » (ADR-0090 §3, reprend la bande de TC
   /** Le nom accessible de chaque ligne : le texte visible, libellé puis nombre (WCAG 2.5.3). */
   const noms = () => liensDeLaBande().map((l) => l.textContent?.replace(/\s+/g, ' ').trim());
   const tousLesNoms = noms;
-  /** Les `href` du MENU, dans l'ordre — la bande est hors du `<nav>`. */
+  /** Les `href` du MENU, dans l'ordre — la bande est hors du menu. */
   const menu = (c: HTMLElement) =>
-    Array.from(c.querySelectorAll('nav [data-groupe] a, nav [data-groupe] [role="link"]')).map(
+    Array.from(c.querySelectorAll('[data-slot="menu"] [data-groupe] a, [data-slot="menu"] [data-groupe] [role="link"]')).map(
       (a) => a.getAttribute('href') ?? a.textContent,
     );
   const chargerLesCompteurs = () => {
@@ -1044,9 +1066,9 @@ describe('TCK-2490 — « Aujourd’hui » (ADR-0090 §3, reprend la bande de TC
     expect(puces[0]).toContain('bg-primary');
     expect(puces[1]).not.toContain('bg-primary');
     expect(liensDeLaBande().map((l) => l.getAttribute('href'))).toEqual(['/app/visits?tab=requested', '/app/messages']);
-    // Entre l'action principale et le menu, hors du `<nav>`.
+    // Entre l'action principale et le menu, hors du menu.
     const action = container.querySelector('[data-slot="action-principale"]')!;
-    const nav = container.querySelector('nav')!;
+    const nav = container.querySelector<HTMLElement>('[data-slot="menu"]')!;
     expect(action).not.toBeNull();
     expect(action.compareDocumentPosition(bande()!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(bande()!.compareDocumentPosition(nav) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -1107,7 +1129,7 @@ describe('TCK-2490 — « Aujourd’hui » (ADR-0090 §3, reprend la bande de TC
     // On attend la file des biens (même cadence) : celle des avis est alors revenue elle aussi.
     await waitFor(() => expect(noms()).toEqual(['Biens à valider, 1']));
     expect(fileAvisMock).toHaveBeenCalledWith(expect.anything(), { status: 'pending', perPage: 1 });
-    expect(within(container.querySelector('nav')!).queryByLabelText(/avis à modérer/)).toBeNull();
+    expect(within(container.querySelector<HTMLElement>('[data-slot="menu"]')!).queryByLabelText(/avis à modérer/)).toBeNull();
   });
 
   it('AC2 — l’épreuve n’est pas vide : avec les compteurs chargés, l’agent a bien ses lignes', () => {
@@ -1135,14 +1157,14 @@ describe('TCK-2490 — « Aujourd’hui » (ADR-0090 §3, reprend la bande de TC
     const { container } = renderSidebar('agent', '/app');
     expect(noms()).toEqual(restent);
     // Ni badge visible ni compte lu (M3 : le compte d'« Aujourd'hui » vit en `sr-only` sur son entrée).
-    expect(within(container.querySelector('nav')!).queryByLabelText(badge)).toBeNull();
-    expect(container.querySelector('nav')!.textContent).not.toContain(badge);
+    expect(within(container.querySelector<HTMLElement>('[data-slot="menu"]')!).queryByLabelText(badge)).toBeNull();
+    expect(container.querySelector<HTMLElement>('[data-slot="menu"]')!.textContent).not.toContain(badge);
   });
 
   it('R1 — le badge des demandes porte enfin son nom accessible (clé manquante depuis TCK-590)', () => {
     unhandledLeadsMock.mockReturnValue({ data: { meta: { total: 4 } } });
     const { container } = renderSidebar('agent', '/app');
-    const nav = container.querySelector('nav')!;
+    const nav = container.querySelector<HTMLElement>('[data-slot="menu"]')!;
     // M3 — les demandes sont une ligne d'« Aujourd'hui » : l'entrée n'affiche plus le nombre, son nom le dit.
     expect(nav.querySelector('a[href="/app/leads"]')).toHaveAccessibleName(/^Demandes de contact\s?4 demandes non traitées$/);
   });
@@ -1178,7 +1200,7 @@ describe('TCK-2479 — « Démarrer » dans la barre (AC5)', () => {
 
     demarrageMock.mockReturnValue(etapes('premier_bien', 'kyc', 'equipe'));
     const { container: avec } = renderSidebar('admin-agence', '/app');
-    const nav = avec.querySelector('nav')!;
+    const nav = avec.querySelector<HTMLElement>('[data-slot="menu"]')!;
     expect(nav.firstElementChild).toHaveAttribute('data-slot', 'demarrer');
     expect(within(nav).getByRole('group', { name: 'Démarrer' })).toBeInTheDocument();
     expect(demarrageMock).toHaveBeenCalledWith({ enabled: true });
@@ -1255,7 +1277,7 @@ describe('TCK-2479 — « Démarrer » dans la barre (AC5)', () => {
  * personnel. Lu sur le DOM, groupes, « Plus » et « Aussi … » compris (tous les liens de `nav`).
  */
 describe('TCK-2483 — la barre montée retire les modules masqués par l’agence', () => {
-  const libellesRendus = (container: HTMLElement) => Array.from(container.querySelectorAll('nav a')).map(libelle);
+  const libellesRendus = (container: HTMLElement) => Array.from(container.querySelectorAll('[data-slot="menu"] a')).map(libelle);
 
   it('sans module masqué, l’agent a « Commissions » et « États des lieux » (témoin)', () => {
     const { container } = renderSidebar('agent', '/app');

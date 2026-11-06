@@ -65,9 +65,9 @@ function monter(onOuvrirPalette?: (depuis: HTMLElement) => void) {
   );
 }
 
-/** Les liens du `<nav>`, dans l'ordre : [libellé, href]. */
+/** Les liens du menu, dans l'ordre : [libellé, href]. */
 const liensDuMenu = (racine: Element) =>
-  Array.from(racine.querySelectorAll('nav a[href]')).map((a) => [a.textContent ?? '', a.getAttribute('href')!] as const);
+  Array.from(racine.querySelectorAll('[data-slot="menu"] a[href]')).map((a) => [a.textContent ?? '', a.getAttribute('href')!] as const);
 
 beforeEach(() => {
   chemin.courant = '/app';
@@ -90,7 +90,7 @@ describe('TCK-2490 (ADR-0090 §2) — l’ordre de la colonne est l’ordre de l
       expect(ordre[i - 1].compareDocumentPosition(ordre[i]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     }
     expect(aside.querySelector('[data-slot="marque"]')).toHaveAttribute('href', '/');
-    expect(aside.querySelector('[data-slot="defilement"] nav')).not.toBeNull();
+    expect(aside.querySelector('[data-slot="defilement"] [data-slot="menu"]')).not.toBeNull();
   });
 
   it('« Aller à » n’existe que si la coque sait ouvrir la palette ; un clic la lui demande depuis la ligne', async () => {
@@ -270,7 +270,7 @@ describe('TCK-2491 (ADR-0090 §2) — l’en-tête de la colonne et le menu du c
 describe('TCK-2490 (ADR-0090 §7) — le rail', () => {
   it('un filet sépare les groupes (pas le premier) ; les titres y sont lus, jamais montrés', () => {
     const { container } = monter();
-    const groupes = Array.from(container.querySelectorAll('nav [data-groupe]'));
+    const groupes = Array.from(container.querySelectorAll('[data-slot="menu"] [data-groupe]'));
     expect(groupes.length).toBeGreaterThan(2);
     groupes.forEach((g, i) => {
       const classes = g.className.split(/\s+/);

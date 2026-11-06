@@ -642,7 +642,7 @@ export function AppSidebar({
   // liste repliée (`inert`) : le premier focalisable trouvé est donc toujours visible.
   const masquerDemarrer = () => {
     barre.current
-      ?.querySelector<HTMLElement>('nav [data-groupe]:not([data-groupe="epingles"]) :is(a[href], button, [tabindex="0"])')
+      ?.querySelector<HTMLElement>('[data-slot="menu"] [data-groupe]:not([data-groupe="epingles"]) :is(a[href], button, [tabindex="0"])')
       ?.focus();
     prefs.masquerDemarrer(persona);
   };
@@ -753,85 +753,91 @@ export function AppSidebar({
       {/* TCK-2478 — l'action principale du persona, puis (TCK-2490) « Aller à ». L'action est la
           seule surface de couleur primaire du menu (sa pastille) ; absente (jamais désactivée) quand
           le profil ne peut pas l'accomplir — dont l'espace suspendu (TCK-600). Elles ne défilent
-          pas : on les atteint toujours. */}
-      {(action && IconeAction) || onOuvrirPalette || tableauEnTete ? (
-        <div className="shrink-0 space-y-px px-2 pb-2">
-          {action && IconeAction ? (
-            <Tooltip disabled={!infobulle}>
-              <TooltipTrigger
-                render={
-                  <Link
-                    href={lien(action)}
-                    onClick={onNavigate}
-                    data-slot="action-principale"
-                    aria-current={actionCourante ? 'page' : undefined}
-                    className={cn(
-                      // TCK-2478 — mesuré au navigateur : « Proposer un bien à mon agence » était tronqué.
-                      // L'action dit ce qu'elle fait en entier : elle passe à la ligne, jamais d'ellipse.
-                      STYLE_LIGNE,
-                      'h-auto min-h-9 py-1.5 transition-colors max-md:h-auto max-md:min-h-10',
-                      actionCourante ? STYLE_LIGNE_ACTIVE : 'hover:bg-foreground/5',
-                      FOCUS_RING_RENTRANT,
-                    )}
-                  />
-                }
-              >
-                <span className="-mx-0.5 inline-flex size-[22px] shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                  <IconeAction className="size-3.5" strokeWidth={2.25} aria-hidden />
-                </span>
-                <span className="min-w-0 text-left font-medium leading-snug text-pretty text-foreground icones:sr-only">
-                  {libelleAction}
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="right">{libelleAction}</TooltipContent>
-            </Tooltip>
-          ) : null}
-          {onOuvrirPalette ? <LigneAllerA onOuvrir={onOuvrirPalette} infobulle={infobulle} /> : null}
-          {tableauEnTete ? rendreEntree(tableauEnTete) : null}
+          pas : on les atteint toujours.
+          Suite de la revue adverse (a) — UN repère de navigation pour la colonne : l'action, « Aller à »,
+          le tableau de bord hissé, « Aujourd'hui », le menu et « Récents ». Le tableau de bord hissé hors
+          du `<nav>` échappait à qui saute au menu par les repères. La marque, la cloche et le compte, qui
+          ne mènent pas dans l'espace, restent hors du repère. */}
+      <nav aria-label={t('navLabel')} className="flex min-h-0 flex-1 flex-col">
+        {(action && IconeAction) || onOuvrirPalette || tableauEnTete ? (
+          <div className="shrink-0 space-y-px px-2 pb-2">
+            {action && IconeAction ? (
+              <Tooltip disabled={!infobulle}>
+                <TooltipTrigger
+                  render={
+                    <Link
+                      href={lien(action)}
+                      onClick={onNavigate}
+                      data-slot="action-principale"
+                      aria-current={actionCourante ? 'page' : undefined}
+                      className={cn(
+                        // TCK-2478 — mesuré au navigateur : « Proposer un bien à mon agence » était tronqué.
+                        // L'action dit ce qu'elle fait en entier : elle passe à la ligne, jamais d'ellipse.
+                        STYLE_LIGNE,
+                        'h-auto min-h-9 py-1.5 transition-colors max-md:h-auto max-md:min-h-10',
+                        actionCourante ? STYLE_LIGNE_ACTIVE : 'hover:bg-foreground/5',
+                        FOCUS_RING_RENTRANT,
+                      )}
+                    />
+                  }
+                >
+                  <span className="-mx-0.5 inline-flex size-[22px] shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                    <IconeAction className="size-3.5" strokeWidth={2.25} aria-hidden />
+                  </span>
+                  <span className="min-w-0 text-left font-medium leading-snug text-pretty text-foreground icones:sr-only">
+                    {libelleAction}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="right">{libelleAction}</TooltipContent>
+              </Tooltip>
+            ) : null}
+            {onOuvrirPalette ? <LigneAllerA onOuvrir={onOuvrirPalette} infobulle={infobulle} /> : null}
+            {tableauEnTete ? rendreEntree(tableauEnTete) : null}
+          </div>
+        ) : null}
+        {/* TCK-843 — `relative` : bloc conteneur des `sr-only` (absolus) de la liste. Sans lui,
+            c'était la fenêtre ; aucun `overflow` ne les coupait, et posés en bas de la liste ils
+            allongeaient le document — la coque entière de `/app` défilait. TCK-2490 — c'est la zone qui
+            défile (« Aujourd'hui », le menu, « Récents ») ; barre de défilement fine. */}
+        <div
+          data-slot="defilement"
+          className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-3 pt-1 [scrollbar-width:thin]"
+        >
+          {/* TCK-2490 (ADR-0090 §3) — ce qui attend une réponse, HORS du menu (`data-slot="menu"`) : le
+              menu ne bouge jamais selon un compteur. Rien n'est rendu quand rien n'attend. */}
+          <AujourdhuiDeLaBarre lignes={aujourdhui} entrees={entrees} onNavigate={onNavigate} infobulle={infobulle} />
+          <div data-slot="menu" className="relative">
+            {/* TCK-2480 (A6) — « Épinglés » d'abord, avant « Démarrer », qui est transitoire. */}
+            {epingles ? rendreGroupe(epingles, true) : null}
+            {/* TCK-2479 — « Démarrer » : un espace neuf sait par où commencer. Dans le menu, il défile
+                avec le menu ; il n'en réordonne aucune entrée. `menu.demarrer` est `null` pour un persona
+                sans mise en service, dans un espace suspendu, et (TCK-2480, A9) masqué par l'utilisateur
+                pour ce persona : ni groupe, ni lecture. */}
+            {menu.demarrer ? (
+              <DemarrerDeLEspace
+                mode={menu.demarrer}
+                ouverte={(href) => cheminOuvert(ctxMenu, href)}
+                onNavigate={onNavigate}
+                onMasquer={prefs.actif ? masquerDemarrer : undefined}
+                // TCK-2480 — réduite, « Démarrer » (des étapes à lire) se cache : il revient barre dépliée.
+                className={cn(epingles && 'mt-5', 'icones:hidden')}
+              />
+            ) : null}
+            {/* `premier` : sans « Épinglés », le premier groupe ouvre le menu (la marge basse de
+                « Démarrer », qui peut ne rien rendre, ne se double pas d'une marge haute). */}
+            {autres.map((groupe, index) => rendreGroupe(groupe, index === 0 && epingles === null))}
+          </div>
+          {/* TCK-2490 (ADR-0090 §5) — les pages récentes de l'appareil, quatre au plus, sans icône. */}
+          <RecentsDeLaBarre
+            compte={user.id}
+            groupes={groupes}
+            pathname={pathname}
+            libelle={libelleDEntree}
+            lien={lien}
+            onNavigate={onNavigate}
+          />
         </div>
-      ) : null}
-      {/* TCK-843 — `relative` : bloc conteneur des `sr-only` (absolus) de la liste. Sans lui,
-          c'était la fenêtre ; aucun `overflow` ne les coupait, et posés en bas de la liste ils
-          allongeaient le document — la coque entière de `/app` défilait. TCK-2490 — c'est la zone qui
-          défile (« Aujourd'hui », le menu, « Récents ») ; barre de défilement fine. */}
-      <div
-        data-slot="defilement"
-        className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-3 pt-1 [scrollbar-width:thin]"
-      >
-        {/* TCK-2490 (ADR-0090 §3) — ce qui attend une réponse, HORS du `<nav>` : le menu ne bouge
-            jamais selon un compteur. Rien n'est rendu quand rien n'attend. */}
-        <AujourdhuiDeLaBarre lignes={aujourdhui} entrees={entrees} onNavigate={onNavigate} infobulle={infobulle} />
-        <nav aria-label={t('navLabel')} className="relative">
-          {/* TCK-2480 (A6) — « Épinglés » d'abord, avant « Démarrer », qui est transitoire. */}
-          {epingles ? rendreGroupe(epingles, true) : null}
-          {/* TCK-2479 — « Démarrer » : un espace neuf sait par où commencer. Dans le `<nav>`, il défile
-              avec le menu ; il n'en réordonne aucune entrée. `menu.demarrer` est `null` pour un persona
-              sans mise en service, dans un espace suspendu, et (TCK-2480, A9) masqué par l'utilisateur
-              pour ce persona : ni groupe, ni lecture. */}
-          {menu.demarrer ? (
-            <DemarrerDeLEspace
-              mode={menu.demarrer}
-              ouverte={(href) => cheminOuvert(ctxMenu, href)}
-              onNavigate={onNavigate}
-              onMasquer={prefs.actif ? masquerDemarrer : undefined}
-              // TCK-2480 — réduite, « Démarrer » (des étapes à lire) se cache : il revient barre dépliée.
-              className={cn(epingles && 'mt-5', 'icones:hidden')}
-            />
-          ) : null}
-          {/* `premier` : sans « Épinglés », le premier groupe ouvre le menu (la marge basse de
-              « Démarrer », qui peut ne rien rendre, ne se double pas d'une marge haute). */}
-          {autres.map((groupe, index) => rendreGroupe(groupe, index === 0 && epingles === null))}
-        </nav>
-        {/* TCK-2490 (ADR-0090 §5) — les pages récentes de l'appareil, quatre au plus, sans icône. */}
-        <RecentsDeLaBarre
-          compte={user.id}
-          groupes={groupes}
-          pathname={pathname}
-          libelle={libelleDEntree}
-          lien={lien}
-          onNavigate={onNavigate}
-        />
-      </div>
+      </nav>
       <div className="shrink-0 space-y-px border-t border-border/70 p-2">
         {/* TCK-2490 (ADR-0090 §6) — les cartes deviennent des lignes de statut, au-dessus du compte.
             Rail : la ligne de mise en location garde son icône ; « Passer en agence » se cache. */}

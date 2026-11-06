@@ -219,7 +219,7 @@ describe('TCK-2480 — personnaliser le menu depuis la barre', () => {
     ).toEqual(['Commissions']);
   });
 
-  it('A6 — « Épinglés » ouvre le `<nav>`, titré, AVANT « Démarrer »', () => {
+  it('A6 — « Épinglés » ouvre le menu, titré, AVANT « Démarrer »', () => {
     demarrage.etapes = [
       { code: 'premier_bien', faite: false },
       { code: 'kyc', faite: false },
@@ -227,8 +227,10 @@ describe('TCK-2480 — personnaliser le menu depuis la barre', () => {
     ];
     const navigation = { v: 1, personas: { 'admin-agence': { epingles: ['commissions'] } } };
     render(element(['customer', 'agency_admin'], 'admin-agence', { navigation }));
+    // Suite de la revue adverse (a) — le repère couvre toute la colonne ; le menu en est un bloc.
     const nav = screen.getByRole('navigation', { name: fr.nav.sidebar.navLabel });
-    const blocs = [...nav.children];
+    const menu = nav.querySelector<HTMLElement>('[data-slot="menu"]')!;
+    const blocs = [...menu.children];
     expect(blocs[0]).toHaveAttribute('data-groupe', 'epingles');
     expect(within(blocs[0] as HTMLElement).getByText('Épinglés')).toBeInTheDocument();
     expect(blocs[1]?.querySelector('[data-slot="demarrer"]') ?? blocs[1]).toHaveAttribute('data-slot', 'demarrer');
@@ -401,7 +403,7 @@ describe('TCK-2480 — personnaliser le menu depuis la barre', () => {
     within(tiroir).getByRole('button', { name: fr.nav.sidebar.demarrer.masquer }).focus();
     await user.keyboard('{Enter}');
     expect(document.querySelector('[data-slot="demarrer"]')).toBeNull();
-    expect(tiroir.querySelector('nav')!.contains(document.activeElement)).toBe(true);
+    expect(tiroir.querySelector<HTMLElement>('[data-slot="menu"]')!.contains(document.activeElement)).toBe(true);
   });
 
   it('A9 — « Démarrer » masqué pour le persona : ni groupe, ni lecture', () => {

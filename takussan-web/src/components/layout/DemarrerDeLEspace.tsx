@@ -36,7 +36,7 @@ interface DemarrerDeLEspaceProps {
 
 /**
  * TCK-2479 (ADR-0089 §5) — « Démarrer » : les étapes qui restent pour mettre l'espace en service,
- * chacune un lien vers l'écran qui la fait. Premier bloc du `<nav>` : il défile avec le menu et se lit
+ * chacune un lien vers l'écran qui la fait. Premier bloc du menu (`data-slot="menu"`) : il défile avec lui et se lit
  * à l'arrivée d'un espace neuf. Il ne réordonne aucune entrée du menu.
  *
  * AC5 — une étape faite SORT du groupe ; le groupe disparaît quand tout est fait. Rien pendant le

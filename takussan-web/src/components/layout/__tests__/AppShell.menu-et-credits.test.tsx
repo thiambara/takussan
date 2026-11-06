@@ -77,7 +77,7 @@ function monter(roles: UserRole[], acces?: AccesAdmin) {
 }
 
 const hrefs = (racine: Element) =>
-  Array.from(racine.querySelectorAll('nav a')).map((a) => a.getAttribute('href'));
+  Array.from(racine.querySelectorAll('[data-slot="menu"] a')).map((a) => a.getAttribute('href'));
 
 /** TCK-2481 — sous `md`, « Menu » de la barre d'onglets est la seule porte du tiroir (le burger est parti). */
 const boutonMenu = () =>
@@ -116,8 +116,8 @@ const groupes = (racine: Element) =>
   ]);
 
 describe('TCK-646 — le menu mobile de /app présente le même ordre (AC4)', () => {
-  // TCK-2478 — la barre porte aussi l'action principale (hors du `<nav>`), les groupes repliés et la
-  // carte du client : le tiroir doit les présenter à l'identique, pas seulement les liens du `<nav>`.
+  // TCK-2478 — la barre porte aussi l'action principale (hors du menu), les groupes repliés et la
+  // carte du client : le tiroir doit les présenter à l'identique, pas seulement les liens du menu.
   // TCK-2489 (ADR-0090 §4) — le tableau de bord n'ouvre plus le menu que pour l'admin d'agence : le
   // premier lien est celui de la disposition, au tiroir comme au bureau.
   it.each([
@@ -129,8 +129,8 @@ describe('TCK-646 — le menu mobile de /app présente le même ordre (AC4)', ()
     const bureau = container.querySelector('aside')!;
     const tiroir = await ouvrirLeTiroir();
     expect(hrefs(tiroir)).toEqual(hrefs(bureau));
-    // Le premier lien après l'action : le tableau de bord de l'admin d'agence est hissé EN TÊTE, hors du
-    // `<nav>` (revue adverse de TCK-2490, 3) ; les autres menus s'ouvrent sur leur première entrée.
+    // Le premier lien après l'action : le tableau de bord de l'admin d'agence est hissé EN TÊTE, hors du menu,
+    // dans le repère de la colonne (revue adverse de TCK-2490, 3 et a) ; les autres menus s'ouvrent sur leur première entrée.
     for (const barre of [bureau, tiroir]) {
       expect(tousLesLiens(barre).filter((h) => h !== '/' && h !== action)[0]).toBe(premier);
     }
@@ -178,7 +178,7 @@ describe('TCK-2479 — « Démarrer » est aussi dans le tiroir', () => {
     );
     const etapes = (racine: Element) => {
       const groupe = within(racine as HTMLElement).getByRole('group', { name: 'Démarrer' });
-      expect(racine.querySelector('nav')!.firstElementChild).toBe(groupe);
+      expect(racine.querySelector<HTMLElement>('[data-slot="menu"]')!.firstElementChild).toBe(groupe);
       return within(groupe).getAllByRole('link').map((l) => l.getAttribute('href'));
     };
     // Lues AVANT l'ouverture : le tiroir modal rend la barre de bureau `inert`.
