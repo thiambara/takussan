@@ -99,3 +99,43 @@ Commit `c9669caa7` (2026-11-06).
   formulaire ne passe pas `initialSettings` → 5 ; A5 `settings: {}` envoyé vide → 4.
 - Gardes avant commit : `tsc --noEmit`, `npm run lint`, tous les `npm run check:*`, `chemin-api.garde` (29/29),
   `scripts/check-*.mjs` — tous verts.
+
+## Revue adverse
+
+Revue des suites (2026-11-06) : 0 bloquant, deux mineurs sur ce ticket. Corrigés au commit `f3f80cfab`.
+
+- **M1 — la référence « inchangé » était périmée jusqu'à l'arrivée de `router.refresh()`.** Elle était la
+  prop `agency.settings`, que seul le refresh (non attendu) renouvelle : cocher, enregistrer, décocher,
+  enregistrer coup sur coup → le second envoi ne portait pas `false`, la base gardait `true`, l'écran disait
+  « Modifications enregistrées. » sur une case décochée (même forme, préexistante, pour `hidden_modules`).
+  Correctif : `AgencyConfigForm` tient la référence en état, recalée dans `onSuccess` sur `saved.settings`
+  (la réponse du `PATCH`), **et recale l'écran** sur la même réponse (les trois réglages, `shouldDirty: false`,
+  patron de la modération, TCK-597). Recaler la seule référence aurait rouvert le défaut du ticket : un
+  réglage posé par un autre admin entre le chargement et l'enregistrement, absent de l'écran périmé, serait
+  reparti comme une modification. Limite : une case retouchée PENDANT l'envoi est ramenée à la réponse.
+- **M2 — un booléen non JSON vrai pour l'API s'affichait faux, et n'était plus jamais réécrit.** Mesuré le
+  2026-11-06 : les deux clés n'ont **pas** la même lecture côté API.
+  - `late_fee_online_collection` : `Agency::collectsLateFeesOnline()` → `AgencySettings::read` →
+    `filter_var(FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE)` (php 8.4 : `1`, `'1'`, `'true'`, `'TRUE'`,
+    `' yes '`, `'on'` → vrai ; `0`, `'0'`, `'off'`, `'no'`, `'false'`, `''` → faux ; `2`, `-1`, `'2'`, `'oui'`
+    → défaut). La fiche lit désormais de même (`booleenCommeLApi`, `src/lib/schemas/agency.ts`).
+  - `require_team_two_factor` : son seul lecteur à effet est `TwoFactorRequirement::requiredAtAgency()`,
+    `where('settings->require_team_two_factor', true)` — SQL relevé (`toSql()`, pgsql) :
+    `("settings"->'require_team_two_factor')::jsonb = 'true'::jsonb`, STRICT. `AgencySettings::read` n'est
+    appelé pour cette clé par aucun code de `app/` (un test seulement). **Écart à l'arbitrage de la session**
+    (« la même lecture que `AgencySettings::read` ») : la fiche garde ici le strict `=== true`, sinon un `1`
+    stocké s'afficherait « exigée » pendant que `RequireTwoFactor` laisse passer le personnel.
+  - Suite proposée (API) : une seule lecture côté API — `TwoFactorRequirement` par `AgencySettings::read`, ou
+    les `settings` validés castés au type du catalogue dans `AgencyController::update` ; la fiche passerait
+    alors la 2FA sur `booleenCommeLApi`.
+- **Tests** : `.double-facteur` (+2 : deux enregistrements avant le refresh ; un réglage posé ailleurs
+  s'affiche et ne repart pas), `.modules` (+1, même chose pour la liste), `.penalites` (+10 : `1`, `'1'`,
+  `'true'`, `'on'`, `'yes'` activé et inchangé non envoyé ; `0`, `'0'`, `'off'`, `'no'`, `'false'` désactivé),
+  `admin-schemas` (+28 : table de lecture des deux clés). La sonde de la revue
+  (`revue-suites/fiche.revue.test.tsx`) passe : 2/2.
+- **Ablations** (`abl-2486-corr.sh`, 2026-11-06, toutes restaurées, md5 identiques, témoin 99/99) : A1
+  référence = prop → 2 rouges ; A2 référence non recalée → 2 ; A3 écran non recalé → 2 ; A3b `hidden_modules`
+  seul non recalé → 1 ; A4 `late_fee` en `=== true` → 11 ; A5 la 2FA par `filter_var` → 4 ; A6 sans
+  `trim`/casse → 2 ; A7 illisible → `true` au lieu du défaut → 5.
+- Gardes avant commit : `tsc --noEmit`, `npm run lint`, tous les `npm run check:*`, `chemin-api.garde` (29/29),
+  `scripts/check-*.mjs` — verts.
