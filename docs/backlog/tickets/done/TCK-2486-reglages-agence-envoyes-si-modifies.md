@@ -1,7 +1,7 @@
 ---
 id: TCK-2486
 title: Fiche de l'agence — un réglage de `settings` ne part que s'il a changé, pour ne plus écraser celui d'un autre admin
-status: doing
+status: done
 phase: P3
 family: bug
 estimate: S
@@ -53,21 +53,21 @@ Aucun changement visible : mêmes cases, mêmes libellés.
 
 ## Delta à produire
 
-- [ ] `normaliseAgencyForm` : `require_team_two_factor` et `late_fee_online_collection` comparés à
+- [x] `normaliseAgencyForm` : `require_team_two_factor` et `late_fee_online_collection` comparés à
       la valeur chargée, comme `hidden_modules`.
-- [ ] Le formulaire passe ce qu'il a chargé, lu par la même fonction que ses valeurs par défaut.
-- [ ] Tests : ceux qui figent les clés envoyées s'adaptent ; un test par clé « inchangée → absente »,
+- [x] Le formulaire passe ce qu'il a chargé, lu par la même fonction que ses valeurs par défaut.
+- [x] Tests : ceux qui figent les clés envoyées s'adaptent ; un test par clé « inchangée → absente »,
       « modifiée → présente », `false` compris.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Fiche chargée puis enregistrée sans toucher aux cases : `settings` ne porte ni
+- [x] AC1 — Fiche chargée puis enregistrée sans toucher aux cases : `settings` ne porte ni
       `require_team_two_factor`, ni `late_fee_online_collection`, ni `hidden_modules`.
-- [ ] AC2 — Cocher une case décochée au chargement envoie `true` ; décocher une case cochée au
+- [x] AC2 — Cocher une case décochée au chargement envoie `true` ; décocher une case cochée au
       chargement envoie `false` — pour chacune des deux clés booléennes.
-- [ ] AC3 — Un `settings` lu sans la clé vaut `false` à l'affichage ET à l'envoi : enregistrer sans
+- [x] AC3 — Un `settings` lu sans la clé vaut `false` à l'affichage ET à l'envoi : enregistrer sans
       toucher n'envoie rien ; cocher envoie `true`.
-- [ ] AC4 — Chaque test neuf est prouvé par ablation (retour à l'émission systématique → rouge).
+- [x] AC4 — Chaque test neuf est prouvé par ablation (retour à l'émission systématique → rouge).
 - [ ] AC5 — Suites front et API vertes par la CI.
 
 ## Hors périmètre
@@ -80,4 +80,22 @@ Aucun changement visible : mêmes cases, mêmes libellés.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Commit `c9669caa7` (2026-11-06).
+
+- **Une seule lecture** : `reglagesDeLaFiche(settings)` (`src/lib/schemas/agency.ts`) rend les trois clés gérées
+  (clé absente ou hors forme = défaut de l'API). Elle sert aux valeurs par défaut du formulaire ET à la référence
+  « inchangé » de l'envoi : une case affichée décochée ne peut pas être jugée modifiée.
+- **Écart au patron M5** : le contexte ne porte plus `initialHiddenModules` mais `initialSettings` (le `settings`
+  brut chargé, `agency.settings`) ; `hidden_modules` y est relu par la même fonction. Sans contexte, rien n'est
+  chargé : les défauts. Un appelant qui oublierait `initialSettings` sur une agence au réglage `true` enverrait
+  `false` en enregistrant : l'ablation A4 le fait rougir (5 tests).
+- **Rien de modifié : `settings` ne part pas du tout** (plutôt que `{}`), ce que l'API accepte de toute façon
+  (`sometimes`).
+- Tests adaptés : `admin-schemas.test.ts` (TCK-962, TCK-589 réécrits ; bloc TCK-2486), `AgencyConfigForm.test.tsx`,
+  `.penalites` (+ cas inchangé / désactiver), `.modules` (`settings` absent), `.double-facteur` (+ 2 cas : le
+  scénario des deux admins du relevé de TCK-2483, et décocher → `false`).
+- **Ablations** (`abl-2486.sh`, 2026-11-06, toutes restaurées, témoin 84/84 vert) : A1 les deux booléens toujours
+  émis → 9 rouges ; A2 seul `require_team_two_factor` → 7 ; A3 seul `late_fee_online_collection` → 7 ; A4 le
+  formulaire ne passe pas `initialSettings` → 5 ; A5 `settings: {}` envoyé vide → 4.
+- Gardes avant commit : `tsc --noEmit`, `npm run lint`, tous les `npm run check:*`, `chemin-api.garde` (29/29),
+  `scripts/check-*.mjs` — tous verts.
