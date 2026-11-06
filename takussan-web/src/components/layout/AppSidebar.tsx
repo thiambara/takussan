@@ -1,6 +1,7 @@
 'use client';
 
-import { useId, useState, type ReactNode } from 'react';
+import { useId, useRef, useState, type ReactNode } from 'react';
+import { flushSync } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
@@ -227,6 +228,8 @@ function SidebarItem({
       {lien}
       <button
         type="button"
+        // Revue (I2) — retrouvé par `basculerLEpingle` à la nouvelle place de la ligne.
+        data-epingle={entree.id}
         aria-pressed={epingle.epinglee}
         aria-disabled={refusee || undefined}
         aria-label={t('epingle.epingler', { libelle: label })}
@@ -638,6 +641,18 @@ export function AppSidebar({
     typeof user.agency_id === 'number' &&
     agencyIsStandard === false;
 
+  // Revue de TCK-2480 (I2) — épingler déplace la ligne d'un groupe à l'autre : le bouton qui avait le
+  // focus est démonté, et le focus tombait sur `<body>` (WCAG 2.4.3). Le geste est appliqué par
+  // `flushSync`, puis le focus passe aussitôt à l'épingle de la MÊME destination à sa nouvelle place —
+  // dans le même événement, avant la peinture : ni effet, ni état « focus à rendre » qui pourrait
+  // rester en plan. La recherche part de CETTE barre (`barre`) : la barre fixe et le tiroir, deux
+  // montages, ne se volent pas le focus.
+  const barre = useRef<HTMLElement>(null);
+  const basculerLEpingle = (id: EntreeComposee['id']) => {
+    flushSync(() => prefs.basculerEpingle(persona, id, menu.epingles));
+    barre.current?.querySelector<HTMLButtonElement>(`button[data-epingle="${id}"]`)?.focus();
+  };
+
   const rendreEntree = (entree: EntreeRendue) => (
     <SidebarItem
       key={entree.href}
@@ -657,7 +672,7 @@ export function AppSidebar({
           ? {
               epinglee: entree.epinglee === true,
               plein: menu.epingles.length >= EPINGLES_MAX,
-              onBasculer: () => prefs.basculerEpingle(persona, entree.id, menu.epingles),
+              onBasculer: () => basculerLEpingle(entree.id),
             }
           : undefined
       }
@@ -684,6 +699,7 @@ export function AppSidebar({
 
   return (
     <aside
+      ref={barre}
       data-menu={modeIcones}
       className={cn(
         'flex h-full w-64 flex-col bg-card transition-[width] duration-200 motion-reduce:transition-none icones:w-16 icones:pt-5',

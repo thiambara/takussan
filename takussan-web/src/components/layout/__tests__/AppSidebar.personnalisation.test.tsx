@@ -132,15 +132,55 @@ describe('TCK-2480 — personnaliser le menu depuis la barre', () => {
 
     expect(within(groupe('Épinglés')).getByRole('link', { name: 'Commissions' })).toBeInTheDocument();
     expect(within(groupe('Gestion')).queryByRole('link', { name: 'Commissions' })).toBeNull();
+    // Revue (I2) — le focus suit l'épingle à sa nouvelle place, il ne tombe pas sur `<body>`.
+    expect(document.activeElement).toBe(
+      within(groupe('Épinglés')).getByRole('button', { name: 'Épingler Commissions', pressed: true }),
+    );
     await attendreLEnvoi();
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(corps()).toEqual({ navigation: { v: 1, personas: { agent: { epingles: ['commissions'] } } } });
 
-    // Désépingler, toujours au clavier : elle revient dans « Gestion ».
-    within(groupe('Épinglés')).getByRole('button', { name: 'Épingler Commissions', pressed: true }).focus();
+    // Désépingler, toujours au clavier et SANS replacer le focus : elle revient dans « Gestion », et le
+    // focus avec elle.
     await user.keyboard('{Enter}');
     expect(within(groupe('Gestion')).getByRole('link', { name: 'Commissions' })).toBeInTheDocument();
     expect(screen.queryByRole('group', { name: 'Épinglés' })).toBeNull();
+    expect(document.activeElement).toBe(
+      within(groupe('Gestion')).getByRole('button', { name: 'Épingler Commissions', pressed: false }),
+    );
+    // Et Tab repart de là : la cible suivante du menu, pas le haut du document.
+    await user.tab();
+    expect(document.activeElement?.closest('nav')).toBe(screen.getByRole('navigation', { name: fr.nav.sidebar.navLabel }));
+  });
+
+  it('I2 — deux montages (barre et tiroir) : le focus reste dans celui où l’on a appuyé', async () => {
+    const user = utilisateur();
+    const compte = {
+      id: 1,
+      first_name: 'Awa',
+      last_name: 'Diop',
+      roles: ['customer', 'agent'],
+      agency_id: 7,
+      preferences: {},
+    } as unknown as User;
+    render(
+      withIntl(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <ToastProvider>
+            <PreferencesDuMenuProvider navigationInitiale={undefined} persona="agent" modeIconesInitial="complet">
+              <AppSidebar user={compte} agencyIsStandard />
+              <AppSidebar user={compte} agencyIsStandard tiroir />
+            </PreferencesDuMenuProvider>
+          </ToastProvider>
+        </QueryClientProvider>,
+      ),
+    );
+    const tiroir = document.querySelectorAll('aside')[1] as HTMLElement;
+    within(tiroir).getByRole('button', { name: 'Épingler Commissions' }).focus();
+    await user.keyboard('{Enter}');
+    expect(tiroir.contains(document.activeElement)).toBe(true);
+    expect(document.activeElement).toHaveAccessibleName('Épingler Commissions');
+    expect(document.activeElement).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('AC2 — le même compte, profil actif bailleur, n’a pas les épingles de l’agent', () => {
