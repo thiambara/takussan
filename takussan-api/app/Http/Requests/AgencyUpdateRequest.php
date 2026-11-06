@@ -80,6 +80,10 @@ class AgencyUpdateRequest extends BaseFormRequest
             // TCK-2483 (ADR-0089, amendement) — une agence `individual` n'a pas d'équipe dont masquer
             // le menu : la clé y serait un réglage sans effet. `null` et `[]` passent (`prohibited`).
             ...($this->isIndividual() ? ['settings.hidden_modules' => ['prohibited']] : []),
+            // TCK-2487 — ni d'équipe à qui exiger la 2FA : l'hôte la porte déjà en tant qu'admin
+            // d'agence (`TwoFactorRequirement::requiredAtAgency`), l'interrupteur n'y change rien.
+            // `null` passe (`prohibited`) et retire une valeur ancienne.
+            ...($this->isIndividual() ? ['settings.require_team_two_factor' => ['prohibited']] : []),
             // TCK-594 (ADR-0039 §4) — qui le modifie : `AgencyPolicy::updatePayoutThreshold`.
             'payout_approval_threshold' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:999999999999'],
             // TCK-594 (ADR-0039 §7) — TVA par défaut des factures (un taux explicite gagne).
