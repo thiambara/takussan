@@ -264,4 +264,34 @@ describe('TCK-2483 — la coque passe les modules masqués à la barre et à la 
     expect(liensCommissions()).toHaveLength(0);
     expect(await chercherDansLaPalette('commissions')).not.toContain('Commissions');
   });
+
+  /**
+   * Revue de TCK-2483 (couverture) — `RetenirLaPageRecente` reçoit le masque lui aussi. Relevé du
+   * comportement réel : un chemin d'un module masqué n'est résolu sur AUCUNE entrée du menu de l'agent —
+   * il est retenu brut (deux fiches de commission gardent deux places, sans dédoublonnage par entrée),
+   * puis ignoré à l'affichage : « Récents » ne propose pas « Commissions ».
+   */
+  it('une fiche d’un module masqué n’est résolue sur aucune entrée, et « Récents » ne la propose pas', async () => {
+    chemin.valeur = '/app';
+    const { rerender } = monter(AGENT, ['commissions']);
+    const arbre = () => (
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <ToastProvider>
+          <AppShell user={utilisateur(AGENT)} agencyIsStandard modulesMasques={['commissions']}>
+            <button type="button">avant</button>
+          </AppShell>
+        </ToastProvider>
+      </QueryClientProvider>
+    );
+    for (const c of ['/app/messages', '/app/commissions/1', '/app/commissions/2', '/app/calendar']) {
+      chemin.valeur = c;
+      rerender(withIntl(arbre()));
+    }
+    // Résolues sur l'entrée « Commissions », la seconde fiche aurait remplacé la première.
+    expect(lirePagesRecentes(1)).toEqual(['/app/calendar', '/app/commissions/2', '/app/commissions/1', '/app/messages', '/app']);
+    const u = userEvent.setup();
+    await u.keyboard('{Control>}k{/Control}');
+    const groupe = within(await screen.findByRole('listbox')).getByRole('group', { name: 'Récents' });
+    expect(within(groupe).getAllByRole('option').map((o) => o.textContent)).toEqual(['Messagerie', 'Tableau de bord']);
+  });
 });
