@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\BorneLesReglesDElement;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Property;
 use Illuminate\Foundation\Http\FormRequest;
@@ -16,6 +17,10 @@ use Illuminate\Validation\Rule;
  */
 class PropertyBulkVisibilityRequest extends FormRequest
 {
+    // TCK-2488 — une liste hors de sa borne ne fait pas valider ses éléments un à un (hérité de
+    // BaseFormRequest pour les autres).
+    use BorneLesReglesDElement;
+
     /** TCK-817 (P22.02) — la capacité de l'action unitaire à l'agence active, avant toute validation. */
     public function authorize(): bool
     {

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { msgValidation } from './messages';
-import { CODES_DE_MODULE } from '@/lib/navigation/modules';
+import { CODES_DE_MODULE, modulesMasquesDe, type CodeDeModule } from '@/lib/navigation/modules';
 
 /**
  * Agency (admin config) schemas — TCK-064.
@@ -98,6 +98,52 @@ export const agencyFormSchema = z.object({
 
 export type AgencyFormValues = z.infer<typeof agencyFormSchema>;
 
+/** Les clés de `agencies.settings` que la fiche de l'agence gère — et SEULEMENT elles (TCK-593). */
+export interface ReglagesDeLaFiche {
+  require_team_two_factor: boolean;
+  late_fee_online_collection: boolean;
+  hidden_modules: CodeDeModule[];
+}
+
+/**
+ * Revue adverse de TCK-2486, M2 — un booléen de `settings` lu comme `AgencySettings::read` côté API :
+ * booléen tel quel ; scalaire par `filter_var($v, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE)` (vrai :
+ * `1`, `"1"`, `"true"`, `"on"`, `"yes"` ; faux : `0`, `"0"`, `"false"`, `"off"`, `"no"`, `""` — casse et
+ * blancs ignorés) ; tout le reste, absent compris, = le défaut du catalogue.
+ */
+function booleenCommeLApi(valeur: unknown, defaut: boolean): boolean {
+  if (typeof valeur === 'boolean') return valeur;
+  // PHP convertit le nombre en chaîne avant de juger : seuls `1` et `0` sont lisibles.
+  const texte = typeof valeur === 'number' ? String(valeur) : typeof valeur === 'string' ? valeur.trim().toLowerCase() : null;
+  if (texte === null) return defaut;
+  if (['1', 'true', 'on', 'yes'].includes(texte)) return true;
+  if (['0', 'false', 'off', 'no', ''].includes(texte)) return false;
+  return defaut;
+}
+
+/**
+ * TCK-2486 — LA lecture de `settings` par la fiche : ses valeurs par défaut ET la référence « inchangé »
+ * de l'envoi. Une seule fonction, pour qu'une case affichée décochée ne puisse pas être jugée modifiée.
+ * Clé absente ou hors forme = le défaut de l'API (`AgencySettings`) : `false`, aucun module masqué.
+ *
+ * Revue de TCK-2486, M2 — chaque clé se lit comme le lecteur de l'API qui lui donne son EFFET : sinon une
+ * valeur que l'écran contredit reste en base, puisqu'une clé inchangée ne part plus.
+ */
+export function reglagesDeLaFiche(settings: unknown): ReglagesDeLaFiche {
+  const lu = settings !== null && typeof settings === 'object' ? (settings as Record<string, unknown>) : {};
+  return {
+    // TCK-589 — STRICT : son seul lecteur à effet, `TwoFactorRequirement::requiredAtAgency()`, filtre par
+    // `where('settings->require_team_two_factor', true)`, soit `(settings->'…')::jsonb = 'true'::jsonb`. Un `1`
+    // stocké n'exige rien du personnel : le montrer coché dirait « exigée » à tort. (Lu par `filter_var`,
+    // `AgencySettings::read` dirait vrai : l'écart est côté API, écrit au ticket.)
+    require_team_two_factor: lu.require_team_two_factor === true,
+    // TCK-593 — `Agency::collectsLateFeesOnline()` → `AgencySettings::read` ; clé absente = désactivé.
+    late_fee_online_collection: booleenCommeLApi(lu.late_fee_online_collection, false),
+    // TCK-2483 — clé absente = rien de masqué ; un code inconnu est ignoré (et ne repart pas).
+    hidden_modules: modulesMasquesDe(lu),
+  };
+}
+
 export interface AgencyFormPayload {
   name: string;
   /** TCK-1004 — n'est envoyé que s'il est éditable et modifié. */
@@ -125,7 +171,8 @@ export interface AgencyFormPayload {
  * TCK-594 — ce que le formulaire sait de l'agence AVANT la saisie, et qui décide de ce qui part.
  *
  * - `individual` : l'API refuse les mentions légales d'une agence `individual` (`prohibited`) ; les
- *   envoyer, même vides, rendrait chaque enregistrement 422.
+ *   envoyer, même vides, rendrait chaque enregistrement 422. Même chose pour `settings.hidden_modules`
+ *   (TCK-2483) et `settings.require_team_two_factor` (TCK-2487).
  *   Même chose pour `moderation_required`, refusée à `true` (`declined`, TCK-686).
  * - `initialThreshold` : le seuil a sa propre capacité (`payouts.approve`) et sa règle des deux
  *   approbateurs. Le renvoyer INCHANGÉ ferait refuser l'enregistrement du nom à un admin qui ne la
@@ -141,11 +188,11 @@ export interface AgencyFormContext {
   slugEditable?: boolean;
   initialSlug?: string;
   /**
-   * TCK-2483 (revue, M5) — les modules masqués lus au chargement (absents = aucun). La liste ne part
-   * que si la section a changé : l'API conserve une clé absente, et renvoyer la liste du chargement
-   * écraserait celle qu'un autre admin aurait enregistrée depuis.
+   * TCK-2483 (revue, M5), TCK-2486 — le `settings` de l'agence tel que chargé (absent = aucun réglage
+   * posé). Une clé gérée ne part que si sa valeur a changé : l'API conserve une clé absente, et renvoyer
+   * la valeur du chargement écraserait celle qu'un autre admin aurait enregistrée depuis.
    */
-  initialHiddenModules?: readonly string[];
+  initialSettings?: unknown;
 }
 
 function emptyToNull(v: string | undefined): string | null {
@@ -160,7 +207,8 @@ function emptyToNull(v: string | undefined): string | null {
  * `settings.default_commission_rate` et `settings.currency`, ni `settings.timezone`, et
  * `validated()` les retirait sans erreur.
  *
- * TCK-593 — `settings` ne porte QUE les clés que cet écran gère. L'API fusionne `settings` clé par
+ * TCK-593 — `settings` ne porte QUE les clés que cet écran gère (`ReglagesDeLaFiche`), et depuis
+ * TCK-2486 seulement celles qui ont changé. L'API fusionne `settings` clé par
  * clé (`AgencyController::update`) : une clé absente est conservée, une clé à `null` est effacée.
  * Renvoyer ici l'objet `settings` lu de l'agence réécrirait donc des réglages que l'écran ne montre
  * pas (filigrane, accueil…) avec leur valeur du moment du chargement.
@@ -172,17 +220,23 @@ export function normaliseAgencyForm(
   const commission = values.commission_rate.trim() === '' ? null : Number(values.commission_rate);
   const settings: Record<string, unknown> = {};
   const currency = emptyToNull(values.currency);
-  // TCK-589 — toujours émis, `false` compris : décocher doit lever l'exigence, pas la laisser
-  // en place faute d'avoir été envoyé.
-  settings.require_team_two_factor = values.require_team_two_factor;
-  settings.late_fee_online_collection = values.late_fee_online_collection;
+  // TCK-2486 — chaque clé gérée ne part que si elle a changé (patron de M5, TCK-2483) ; alors `false`
+  // compris : décocher doit lever le réglage (TCK-589), pas le laisser en place faute d'avoir été envoyé.
+  const initial = reglagesDeLaFiche(context.initialSettings);
+  // TCK-2487 — jamais pour une `individual` : sans équipe, l'interrupteur n'a aucun effet, et l'API le
+  // refuse (422, `prohibited`), `false` compris.
+  if (!context.individual && values.require_team_two_factor !== initial.require_team_two_factor) {
+    settings.require_team_two_factor = values.require_team_two_factor;
+  }
+  if (values.late_fee_online_collection !== initial.late_fee_online_collection) {
+    settings.late_fee_online_collection = values.late_fee_online_collection;
+  }
   // TCK-2483 — pour une agence `standard`, et seulement si la section a changé (revue, M5) : alors la
   // liste entière, dans l'ordre des codes, `[]` compris (tout réafficher doit s'enregistrer). Jamais
   // pour une `individual` : l'API la refuse (422).
   if (!context.individual) {
     const masques = CODES_DE_MODULE.filter((code) => values.hidden_modules.includes(code));
-    const initiaux = CODES_DE_MODULE.filter((code) => (context.initialHiddenModules ?? []).includes(code));
-    if (masques.join() !== initiaux.join()) settings.hidden_modules = masques;
+    if (masques.join() !== initial.hidden_modules.join()) settings.hidden_modules = masques;
   }
 
   const slug = (values.slug ?? '').trim();
@@ -197,7 +251,8 @@ export function normaliseAgencyForm(
     website: emptyToNull(values.website),
     commission_rate: commission,
     ...(currency !== null ? { currency: currency.toUpperCase() } : {}),
-    settings,
+    // TCK-2486 — rien de modifié : pas de `settings` du tout.
+    ...(Object.keys(settings).length > 0 ? { settings } : {}),
     // TCK-686 — l'API refuse la modération à une agence `individual` (422) : la clé ne part pas.
     ...(context.individual ? {} : { moderation_required: values.moderation_required }),
     default_tax_rate: values.default_tax_rate.trim() === '' ? null : Number(values.default_tax_rate),

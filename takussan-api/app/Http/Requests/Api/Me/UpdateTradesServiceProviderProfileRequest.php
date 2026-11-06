@@ -38,9 +38,11 @@ class UpdateTradesServiceProviderProfileRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'trades' => ['nullable', 'array'],
+            // TCK-2488 — borne technique : `TradesMultiSelect` propose 7 métiers.
+            'trades' => ['nullable', 'array', 'max:100'],
             'trades.*' => ['string', 'max:60'],
-            'intervention_zones' => ['nullable', 'array'],
+            // TCK-2488 — borne technique : les zones se saisissent librement, sans limite d'interface.
+            'intervention_zones' => ['nullable', 'array', 'max:1000'],
             'intervention_zones.*' => ['string', 'max:120'],
             'hourly_rate' => ['nullable', 'numeric', 'min:0'],
             'visit_fee' => ['nullable', 'numeric', 'min:0'],

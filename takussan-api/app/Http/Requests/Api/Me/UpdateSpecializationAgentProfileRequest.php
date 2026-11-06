@@ -48,7 +48,8 @@ class UpdateSpecializationAgentProfileRequest extends BaseFormRequest
     {
         return [
             'specialization' => ['required', 'string', Rule::in(self::ALLOWED_SPECIALIZATIONS)],
-            'intervention_zones' => ['nullable', 'array'],
+            // TCK-2488 — borne technique : les zones se saisissent librement, sans limite d'interface.
+            'intervention_zones' => ['nullable', 'array', 'max:1000'],
             'intervention_zones.*' => ['string', 'max:120'],
             'license_number' => ['nullable', 'string', 'max:60'],
         ];

@@ -193,11 +193,14 @@ export function CorpsDuWidget() {
           // bloc, il s'alignait à gauche du panneau (mesuré à 1366 : x = 991 au lieu de 1294) —
           // le bouton qui ferme le panneau n'était plus là où l'on venait de cliquer.
           'pointer-events-none fixed right-4 hidden md:flex md:flex-col md:items-end',
-          // While the panel is open we lift the whole container above other
-          // floating UI (compare pill at z-40, Leaflet's internal panes that
-          // reach z-700 on the publish location picker). When closed we stay
-          // at z-40 so real Radix modals (z-50) can still cover the launcher.
-          panelOpen ? 'z-[1000]' : 'z-40',
+          // Fermé : z-40, comme ce qui flotte sur la page ; un dialogue (z-50) le couvre.
+          // TCK-2485 — ouvert : z-50, le z des dialogues, ni plus ni moins. Il valait `z-[1000]`
+          // pour passer au-dessus des calques de Leaflet, que `.leaflet-container` enferme depuis
+          // (`globals.css`) ; il passait aussi sur la palette ⌘K et sur tout `Dialog`. À z égal,
+          // l'ordre du document tranche : un dialogue est porté au bout de `<body>` à son
+          // ouverture (dessus), la barre publique fixe (`z-50`) vit dans `{children}`, que ce
+          // widget suit dans le layout racine (dessous). Garde : `ChatWidget.test.tsx`.
+          panelOpen ? 'z-50' : 'z-40',
         )}
       >
         {panelOpen && (

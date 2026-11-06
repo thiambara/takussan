@@ -230,10 +230,8 @@ describe('AgencyConfigForm — colonnes seules, sans fuseau (TCK-962)', () => {
     const payload = vi.mocked(updateAgencyAction).mock.calls[0][1] as unknown as Record<string, unknown>;
     expect(payload.commission_rate).toBe(5);
     expect(payload).not.toHaveProperty('currency');
-    // TCK-2483 (revue, M5) — la section « Menu de l'équipe » n'a pas été touchée : sa clé ne part pas.
-    expect(Object.keys(payload.settings as object).sort()).toEqual([
-      'late_fee_online_collection',
-      'require_team_two_factor',
-    ]);
+    // TCK-2483 (revue, M5), TCK-2486 — aucun réglage touché : `settings` ne part pas, et ni `timezone`
+    // ni les miroirs n'y reviennent.
+    expect(payload).not.toHaveProperty('settings');
   });
 });

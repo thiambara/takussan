@@ -24,6 +24,7 @@ import {
   AGENCY_LOGO_ACCEPT,
   AGENCY_LOGO_MAX_BYTES,
   normaliseAgencyForm,
+  reglagesDeLaFiche,
   validateAgencyLogoFile,
   type AgencyFormValues,
 } from '@/lib/schemas/agency';
@@ -40,7 +41,7 @@ import { useCan } from '@/hooks/useCan';
 import { useAuth } from '@/context/AuthContext';
 import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import { avecGardeDoubleFacteurAction } from '@/lib/double-facteur';
-import { CODES_DE_MODULE, modulesMasquesDe } from '@/lib/navigation/modules';
+import { CODES_DE_MODULE } from '@/lib/navigation/modules';
 
 /**
  * Agency admin configuration form — TCK-064.
@@ -55,7 +56,6 @@ interface AgencyConfigFormProps {
 }
 
 function toDefaults(agency: Agency): AgencyFormValues {
-  const settings = agency.settings ?? {};
   // TCK-962 — la commission et la devise se lisent sur leurs colonnes, celles que l'API applique.
   // Les miroirs `settings.default_commission_rate` et `settings.currency` d'anciennes données ne
   // sont plus ni lus ni réenregistrés.
@@ -72,11 +72,8 @@ function toDefaults(agency: Agency): AgencyFormValues {
     commission_rate: commission !== null && commission !== undefined ? String(commission) : '',
     currency: currency.toUpperCase(),
     moderation_required: agency.moderation_required ?? false,
-    require_team_two_factor: settings.require_team_two_factor === true,
-    // TCK-593 — clé absente (agence neuve) = désactivé, comme côté API.
-    late_fee_online_collection: settings.late_fee_online_collection === true,
-    // TCK-2483 — clé absente = rien de masqué ; un code inconnu est ignoré (et ne repart pas).
-    hidden_modules: modulesMasquesDe(settings),
+    // TCK-2486 — la même lecture que la référence « inchangé » de l'envoi (`initialSettings`).
+    ...reglagesDeLaFiche(agency.settings),
     default_tax_rate: agency.default_tax_rate != null ? String(agency.default_tax_rate) : '',
     payout_approval_threshold: initialThreshold(agency),
     legal_name: agency.legal_name ?? '',
@@ -126,6 +123,11 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
   // (`AgencyController@update` et `@confirmPayoutThreshold`) : un refus ouvre la boîte de la coque,
   // puis le geste est rejoué. Hors de la coque (`null`), le refus s'affiche comme avant.
   const garde = useGardeDoubleFacteur();
+  // Revue adverse de TCK-2486, M1 — la référence « inchangé » des réglages, recalée sur la RÉPONSE de
+  // l'API à chaque enregistrement. La prop `agency` ne bouge qu'à l'arrivée de `router.refresh()`, non
+  // attendu : deux enregistrements coup sur coup jugeaient le second contre une référence périmée, et un
+  // retour à la valeur initiale ne partait pas.
+  const [reglagesEnregistres, setReglagesEnregistres] = useState<unknown>(agency.settings);
 
   function confirmThreshold() {
     setConfirmError(null);
@@ -154,7 +156,7 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
           initialThreshold: initialThreshold(agency),
           slugEditable,
           initialSlug: agency.slug,
-          initialHiddenModules: modulesMasquesDe(agency.settings),
+          initialSettings: reglagesEnregistres,
         });
         const result = await avecGardeDoubleFacteurAction(
           () => updateAgencyAction(agency.id, payload),
@@ -174,6 +176,16 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
       onSuccess: (saved, values) => {
         const persisted = saved?.moderation_required ?? false;
         form.setValue('moderation_required', persisted, { shouldDirty: false });
+        // Revue de TCK-2486, M1 — la réponse fait foi pour la référence ET pour l'écran : un réglage posé
+        // par un autre admin entre-temps s'affiche, et l'envoi suivant ne le défait pas (recaler la seule
+        // référence sur un écran périmé renverrait l'ancienne valeur comme une modification).
+        if (saved?.settings !== undefined) {
+          setReglagesEnregistres(saved.settings);
+          const lus = reglagesDeLaFiche(saved.settings);
+          form.setValue('require_team_two_factor', lus.require_team_two_factor, { shouldDirty: false });
+          form.setValue('late_fee_online_collection', lus.late_fee_online_collection, { shouldDirty: false });
+          form.setValue('hidden_modules', lus.hidden_modules, { shouldDirty: false });
+        }
         // VERIF-594 M-2 — un relâchement du seuil n'est pas appliqué : il attend un second
         // approbateur (202). Le dire, plutôt qu'un « enregistré » qui laisserait croire le contraire.
         const pending = saved?.pending_payout_threshold_change != null
@@ -539,33 +551,37 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
         )}
       </section>
 
-      {/* TCK-589 — sécurité de l'équipe. Même encadré cliquable que la modération. */}
-      <section className="rounded-xl bg-card p-6 space-y-4">
-        <div>
-          <h2 className="text-base font-semibold text-foreground">{t('security.title')}</h2>
-          <p className="mt-1 text-xs text-muted-foreground">{t('security.description')}</p>
-        </div>
-        <div className="relative flex items-start gap-4 rounded-lg border border-input bg-background px-4 py-3 transition-colors hover:bg-muted/40">
-          <input
-            id="require_team_two_factor"
-            type="checkbox"
-            aria-describedby="require_team_two_factor-hint"
-            {...form.register('require_team_two_factor')}
-            className="mt-0.5 size-4 shrink-0 cursor-pointer rounded border-input accent-primary"
-          />
+      {/* TCK-589 — sécurité de l'équipe. Même encadré cliquable que la modération. TCK-2487 — pas pour
+          une agence `individual` : sans équipe, l'interrupteur n'a aucun effet (l'hôte porte déjà la 2FA en
+          tant qu'admin d'agence), et l'API le refuse. */}
+      {individual ? null : (
+        <section className="rounded-xl bg-card p-6 space-y-4">
           <div>
-            <label
-              htmlFor="require_team_two_factor"
-              className="cursor-pointer text-sm font-medium text-foreground after:absolute after:inset-0 after:rounded-lg"
-            >
-              {t('security.teamTwoFactorLabel')}
-            </label>
-            <p id="require_team_two_factor-hint" className="mt-0.5 text-pretty text-xs text-muted-foreground">
-              {t('security.teamTwoFactorHint')}
-            </p>
+            <h2 className="text-base font-semibold text-foreground">{t('security.title')}</h2>
+            <p className="mt-1 text-xs text-muted-foreground">{t('security.description')}</p>
           </div>
-        </div>
-      </section>
+          <div className="relative flex items-start gap-4 rounded-lg border border-input bg-background px-4 py-3 transition-colors hover:bg-muted/40">
+            <input
+              id="require_team_two_factor"
+              type="checkbox"
+              aria-describedby="require_team_two_factor-hint"
+              {...form.register('require_team_two_factor')}
+              className="mt-0.5 size-4 shrink-0 cursor-pointer rounded border-input accent-primary"
+            />
+            <div>
+              <label
+                htmlFor="require_team_two_factor"
+                className="cursor-pointer text-sm font-medium text-foreground after:absolute after:inset-0 after:rounded-lg"
+              >
+                {t('security.teamTwoFactorLabel')}
+              </label>
+              <p id="require_team_two_factor-hint" className="mt-0.5 text-pretty text-xs text-muted-foreground">
+                {t('security.teamTwoFactorHint')}
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* TCK-2483 (ADR-0089, amendement « modules par agence ») — un réglage d'AFFICHAGE : le menu de
           toute l'équipe, l'admin compris. Pas pour une agence `individual` (aucune équipe ; l'API refuse

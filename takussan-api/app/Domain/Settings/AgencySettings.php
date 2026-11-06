@@ -29,7 +29,7 @@ final class AgencySettings
     private const LIST = 'list';
 
     /**
-     * @return array<string, array{type: string, default: mixed, rules: array<int, mixed>, enum?: class-string<\BackedEnum>, max?: int}>
+     * @return array<string, array{type: string, default: mixed, rules: array<int, mixed>, enum?: class-string<\BackedEnum>}>
      */
     private static function catalog(): array
     {
@@ -73,7 +73,6 @@ final class AgencySettings
             // en bloc par la fusion de premier niveau du contrôleur ; `null` rend le défaut.
             'hidden_modules' => [
                 'type' => self::LIST, 'default' => [], 'enum' => AgencyModule::class,
-                'max' => count(AgencyModule::cases()),
                 'rules' => ['sometimes', 'nullable', 'array', 'list', 'max:'.count(AgencyModule::cases())],
             ],
         ];
@@ -90,26 +89,54 @@ final class AgencySettings
     /**
      * Les règles de `AgencyUpdateRequest`, préfixées `settings.`.
      *
-     * `$input` : les `settings` reçus, que seule la requête connaît. Une liste qui dépasse sa borne ne
-     * reçoit PAS de règle d'élément — Laravel validerait chacun même après l'échec de `max` sur le
-     * parent (revue de TCK-2483, M1 : 20 000 éléments ≈ 29 s et 2 Mo d'erreurs) ; `max` seul répond 422.
+     * Une liste qui dépasse sa borne ne fait pas valider ses éléments : c'est le mécanisme commun des
+     * FormRequest (`BorneLesReglesDElement`, TCK-2488) qui retire `settings.<clé>.*`, sur le `max:` de la
+     * liste (et sur le `prohibited` que la requête pose pour une agence `individual`). Il remplace le
+     * paramètre `$input` que TCK-2483 (revue, M1) avait posé ici pour cette seule clé.
      *
-     * @param  array<string, mixed>|null  $input
      * @return array<string, array<int, mixed>>
      */
-    public static function rules(?array $input = null): array
+    public static function rules(): array
     {
         $rules = [];
         foreach (self::catalog() as $key => $entry) {
             $rules["settings.{$key}"] = $entry['rules'];
             // TCK-2483 — une liste valide aussi chacun de ses éléments : un cas de son enum, une fois.
-            $value = $input[$key] ?? null;
-            if ($entry['type'] === self::LIST && (! is_array($value) || count($value) <= $entry['max'])) {
+            if ($entry['type'] === self::LIST) {
                 $rules["settings.{$key}.*"] = ['string', 'distinct', Rule::enum($entry['enum'])];
             }
         }
 
         return $rules;
+    }
+
+    /**
+     * Revue de TCK-2487 — les `settings` VALIDÉS, tels qu'ils s'écrivent : une clé `bool` du catalogue
+     * part en vrai booléen JSON. La règle `boolean` accepte `1`, `"1"`, `0`, `"0"` ; stockés tels
+     * quels, ils étaient vrais pour {@see self::read()} mais pas pour un lecteur SQL strict
+     * (`TwoFactorRequirement` : `settings->require_team_two_factor = true`) — un `1` accepté
+     * n'exigeait pas la 2FA de l'équipe. La conversion est CELLE de {@see self::read()} : une valeur
+     * qu'elle ne reconnaît pas (et donc lue comme le défaut) reste telle quelle, de sorte que
+     * `read()` rend la même chose avant et après. `null` (retrait de la clé) et les autres types
+     * passent tels quels. Appelée à l'écriture (`AgencyController::update`) et par la migration
+     * `normalize_boolean_agency_settings`, pour l'existant.
+     *
+     * @param  array<string, mixed>  $settings
+     * @return array<string, mixed>
+     */
+    public static function normalize(array $settings): array
+    {
+        foreach ($settings as $key => $value) {
+            if (! is_scalar($value) || is_bool($value) || (self::catalog()[$key]['type'] ?? null) !== self::BOOL) {
+                continue;
+            }
+            $bool = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if ($bool !== null) {
+                $settings[$key] = $bool;
+            }
+        }
+
+        return $settings;
     }
 
     public static function default(string $key): mixed

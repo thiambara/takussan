@@ -86,7 +86,7 @@ describe('AgencyConfigForm — menu de l’équipe (TCK-2483)', () => {
     const user = userEvent.setup();
     render(withIntl(<AgencyConfigForm agency={{ ...AGENCE, settings: { hidden_modules: ['analytics'] } }} />));
     await user.type(screen.getByRole('textbox', { name: fr.admin.agencyConfig.fields.name }), ' Plateau');
-    expect((await enregistrer(user)).settings).not.toHaveProperty('hidden_modules');
+    expect((await enregistrer(user)).settings ?? {}).not.toHaveProperty('hidden_modules');
   });
 
   it('un code inconnu lu sur l’agence ne décoche rien, et ne repart pas quand une case change', async () => {
@@ -117,6 +117,26 @@ describe('AgencyConfigForm — menu de l’équipe (TCK-2483)', () => {
     expect((await enregistrer(user)).settings).toMatchObject({ hidden_modules: [] });
   });
 
+  /**
+   * Revue adverse de TCK-2486, M1 (même forme, préexistante, pour cette liste) — `refresh` ne fait rien ici :
+   * la référence suit la RÉPONSE de l'API, et l'écran aussi. Un module masqué par un autre admin entre le
+   * chargement et l'enregistrement s'affiche masqué, et l'envoi suivant ne le réaffiche pas.
+   */
+  it('revue M1 — la liste rendue par l’enregistrement fait foi pour l’écran et pour l’envoi suivant', async () => {
+    const user = userEvent.setup();
+    vi.mocked(updateAgencyAction).mockResolvedValue({ ok: true, data: { ...AGENCE, settings: { hidden_modules: ['analytics', 'calendar'] } } });
+    render(withIntl(<AgencyConfigForm agency={AGENCE} />));
+    await user.click(caseDe('calendar')!);
+    expect((await enregistrer(user)).settings).toEqual({ hidden_modules: ['calendar'] });
+    await waitFor(() => expect(caseDe('analytics')).not.toBeChecked());
+
+    // Recocher « Calendrier » : seule cette case change, la liste part sans lui ni ne réaffiche « Analyses ».
+    await user.click(caseDe('calendar')!);
+    await user.click(screen.getByRole('button', { name: fr.common.actions.save }));
+    await waitFor(() => expect(updateAgencyAction).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(updateAgencyAction).mock.calls[1][1].settings).toEqual({ hidden_modules: ['analytics'] });
+  });
+
   it('une agence individuelle n’a pas la section et n’envoie pas la clé', async () => {
     const user = userEvent.setup();
     render(
@@ -124,6 +144,6 @@ describe('AgencyConfigForm — menu de l’équipe (TCK-2483)', () => {
     );
     expect(screen.queryByRole('heading', { name: M.title })).toBeNull();
     expect(caseDe('calendar')).toBeNull();
-    expect((await enregistrer(user)).settings).not.toHaveProperty('hidden_modules');
+    expect((await enregistrer(user)).settings ?? {}).not.toHaveProperty('hidden_modules');
   });
 });
