@@ -93,7 +93,8 @@ describe('TCK-2481 — un onglet inaccessible cède sa place, jamais cadenassé'
   });
 
   it('moins de destinations que d’onglets : un onglet de moins, aucune case vide', () => {
-    const tete = composerMenu(COMPTES.client, 'client').groupes.filter((g) => g.id === 'tete');
+    // TCK-2489 — le tableau de bord du client a quitté la tête pour un groupe à lui.
+    const tete = composerMenu(COMPTES.client, 'client').groupes.filter((g) => g.id === 'tete' || g.id === 'tableau-de-bord');
     expect(ongletsDuMenu(tete, ['tableau-de-bord', 'commissions', 'visites', 'messagerie']).map((o) => o.id))
       .toEqual(['tableau-de-bord', 'messagerie']);
   });

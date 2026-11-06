@@ -35,10 +35,15 @@ vi.mock('@/hooks/useProfiles', () => ({
   useMyProfiles: () => ({ data: undefined, isLoading: false }),
   useSwitchActiveProfile: () => ({ mutate: vi.fn(), isPending: false }),
 }));
-// TCK-2480 (A11) — des messages non lus quand `nonLus.n` est posé : la bande « À traiter » paraît.
+// TCK-2480 (A11) — des messages non lus quand `nonLus.n` est posé : « Aujourd'hui » paraît (TCK-2490).
 const nonLus = vi.hoisted(() => ({ n: 0 }));
 vi.mock('@/components/chat-widget/useUnreadCount', () => ({ useUnreadCount: () => nonLus.n }));
-vi.mock('@/lib/queries/visits', () => ({ usePendingVisitsCount: () => ({}) }));
+// Revue adverse (I1) — des visites en attente quand `visites.n` est posé : le client les voit sur « Mes
+// visites » (hors de ses priorités, donc hors d'« Aujourd'hui »).
+const visites = vi.hoisted(() => ({ n: 0 }));
+vi.mock('@/lib/queries/visits', () => ({
+  usePendingVisitsCount: () => (visites.n > 0 ? { data: { meta: { total: visites.n } } } : {}),
+}));
 vi.mock('@/lib/queries/contact-leads', () => ({ useUnhandledLeadsCount: () => ({}) }));
 // « Démarrer » : trois étapes à faire quand `demarrage.etapes` est posé, muet sinon.
 const demarrage = vi.hoisted(() => ({ etapes: null as { code: string; faite: boolean }[] | null }));
@@ -59,6 +64,7 @@ beforeEach(() => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   demarrage.etapes = null;
   nonLus.n = 0;
+  visites.n = 0;
   chemin.courant = '/app';
   fetchMock.mockReset();
   fetchMock.mockResolvedValue(new Response('{}', { status: 200 }));
@@ -213,7 +219,7 @@ describe('TCK-2480 — personnaliser le menu depuis la barre', () => {
     ).toEqual(['Commissions']);
   });
 
-  it('A6 — « Épinglés » ouvre le `<nav>`, titré, AVANT « Démarrer »', () => {
+  it('A6 — « Épinglés » ouvre le menu, titré, AVANT « Démarrer »', () => {
     demarrage.etapes = [
       { code: 'premier_bien', faite: false },
       { code: 'kyc', faite: false },
@@ -221,8 +227,10 @@ describe('TCK-2480 — personnaliser le menu depuis la barre', () => {
     ];
     const navigation = { v: 1, personas: { 'admin-agence': { epingles: ['commissions'] } } };
     render(element(['customer', 'agency_admin'], 'admin-agence', { navigation }));
+    // Suite de la revue adverse (a) — le repère couvre toute la colonne ; le menu en est un bloc.
     const nav = screen.getByRole('navigation', { name: fr.nav.sidebar.navLabel });
-    const blocs = [...nav.children];
+    const menu = nav.querySelector<HTMLElement>('[data-slot="menu"]')!;
+    const blocs = [...menu.children];
     expect(blocs[0]).toHaveAttribute('data-groupe', 'epingles');
     expect(within(blocs[0] as HTMLElement).getByText('Épinglés')).toBeInTheDocument();
     expect(blocs[1]?.querySelector('[data-slot="demarrer"]') ?? blocs[1]).toHaveAttribute('data-slot', 'demarrer');
@@ -395,7 +403,7 @@ describe('TCK-2480 — personnaliser le menu depuis la barre', () => {
     within(tiroir).getByRole('button', { name: fr.nav.sidebar.demarrer.masquer }).focus();
     await user.keyboard('{Enter}');
     expect(document.querySelector('[data-slot="demarrer"]')).toBeNull();
-    expect(tiroir.querySelector('nav')!.contains(document.activeElement)).toBe(true);
+    expect(tiroir.querySelector<HTMLElement>('[data-slot="menu"]')!.contains(document.activeElement)).toBe(true);
   });
 
   it('A9 — « Démarrer » masqué pour le persona : ni groupe, ni lecture', () => {
@@ -419,8 +427,10 @@ describe('TCK-2480 — AC5 : rendu serveur sans saut (largeur et épingles)', ()
     conteneur.innerHTML = html;
     const barre = conteneur.querySelector('aside')!;
     expect(barre.getAttribute('data-menu')).toBe(attendu);
-    expect(barre.className).toContain('w-64');
-    expect(barre.className).toContain('icones:w-16');
+    // TCK-2490 (ADR-0090 §1, §7) — 272 px, rail de 60 px : en px, comme la maquette validée (la base
+    // de 90 % du bureau, TCK-635, ne les rétrécit pas).
+    expect(barre.className).toContain('w-[272px]');
+    expect(barre.className).toContain('icones:w-[60px]');
     // Les épingles aussi sont au premier octet.
     expect(conteneur.querySelector('[data-groupe="epingles"]')?.textContent).toContain('Commissions');
   });
@@ -478,40 +488,148 @@ describe('TCK-2480 — AC5 : rendu serveur sans saut (largeur et épingles)', ()
 });
 
 describe('TCK-2480 — A11 : les variantes compactes ne sont rendues que si la barre peut se réduire', () => {
-  it('en `complet`, ni icône « À traiter », ni lien réduit de la carte : aucun doublon à lire', () => {
+  // TCK-2490 (ADR-0090 §3, §6, §7) — plus de variante compacte à doubler : « Aujourd'hui » est le même
+  // bloc dans le rail (revue adverse, I1 : ses lignes y deviennent des icônes à point), la ligne de mise
+  // en location est UNE ligne dans tous les modes (son texte passe en `sr-only`, son titre en infobulle).
+  it('en `complet` : « Aujourd’hui » paraît, une seule ligne de mise en location, pas de « Déplier »', () => {
     nonLus.n = 3;
     render(element(['customer'], 'client', { modeIcones: 'complet' }));
-    expect(screen.getByRole('region', { name: fr.nav.sidebar.aTraiter.titre })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'À traiter : 3 éléments' })).toBeNull();
+    expect(screen.getByRole('region', { name: fr.nav.sidebar.aujourdhui.titre })).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: /Mettre un bien en location/ })).toHaveLength(1);
     expect(screen.queryByRole('button', { name: /Déplier la barre/ })).toBeNull();
   });
 
-  it('réduite : la bande devient une icône qui porte le total et ouvre les MÊMES pastilles', async () => {
+  // Revue adverse (I1) — « Aujourd'hui » se cachait dans le rail, et le point de l'entrée comptée qui
+  // devait le relayer vivait, dans un groupe replié, dans une liste `inert` de hauteur nulle : rien ne
+  // signalait l'attente. Il reste : chaque ligne devient son icône, marquée d'un point.
+  it('réduite : « Aujourd’hui » reste, chaque ligne en icône marquée d’un point ; l’entrée comptée ne le double pas (M3)', () => {
     nonLus.n = 3;
-    const user = utilisateur();
     render(element(['customer'], 'client', { modeIcones: 'icones' }));
-    const icone = screen.getByRole('button', { name: 'À traiter : 3 éléments' });
-    expect(icone).toHaveTextContent('3');
-    await user.click(icone);
-    // (jsdom n'applique pas le CSS : la bande dépliée, `icones:hidden`, reste dans le DOM à côté.)
-    const panneau = await waitFor(() => {
-      const p = document.querySelector('[data-slot="popover-content"]');
-      expect(p).not.toBeNull();
-      return p as HTMLElement;
-    });
-    const pastille = within(panneau).getByRole('link', { name: '3 messages non lus' });
-    expect(pastille).toHaveAttribute('href', '/app/messages');
-    await user.click(pastille);
-    await waitFor(() => expect(document.querySelector('[data-slot="popover-content"]')).toBeNull());
-    // La carte « Mettre un bien en location » a sa variante réduite (une icône).
-    expect(screen.getAllByRole('link', { name: /Mettre un bien en location/ })).toHaveLength(2);
+    const classes = (el: Element | null) => (el?.getAttribute('class') ?? '').split(/\s+/);
+    // (jsdom n'applique pas le CSS : on lit les variantes du rail.)
+    const bloc = screen.getByRole('region', { name: fr.nav.sidebar.aujourdhui.titre });
+    expect(classes(bloc)).not.toContain('icones:hidden');
+    const ligne = within(bloc).getByRole('link', { name: /^Messages non lus,\s?3$/ });
+    expect(classes(ligne.querySelector('[data-slot="point-aujourdhui"]'))).toEqual(
+      expect.arrayContaining(['hidden', 'icones:block', 'bg-primary', 'rounded-full']),
+    );
+    // Le nombre quitte l'œil, jamais la lecture : `sr-only`, pas `hidden`.
+    const compte = classes(ligne.querySelector('[data-slot="compte-aujourdhui"]'));
+    expect(compte).toContain('icones:sr-only');
+    expect(compte).not.toContain('icones:hidden');
+    // M3 — la messagerie ne porte ni nombre ni point : le compte ne paraît qu'une fois ; il reste lu.
+    const messagerie = within(screen.getByRole('navigation')).getByRole('link', { name: /^Messagerie/ });
+    expect(messagerie.querySelector('[data-slot="compteur-entree"]')).toBeNull();
+    expect(messagerie).toHaveAccessibleName(/^Messagerie\s?3 messages non lus$/);
+    expect(screen.getAllByRole('link', { name: /Mettre un bien en location/ })).toHaveLength(1);
   });
 
-  it('réduite : « 99+ » au-delà de 99, par la clé ICU', () => {
+  it('réduite : l’infobulle d’une ligne dit libellé et nombre — 99+ au-delà, le vrai compte restant lu', async () => {
     nonLus.n = 250;
+    const user = utilisateur();
     render(element(['customer'], 'client', { modeIcones: 'icones' }));
-    expect(screen.getByRole('button', { name: 'À traiter : 250 éléments' })).toHaveTextContent('99+');
+    const ligne = within(screen.getByRole('region', { name: fr.nav.sidebar.aujourdhui.titre })).getByRole('link');
+    expect(ligne).toHaveAccessibleName(/^Messages non lus,\s?250$/);
+    await user.hover(ligne);
+    await waitFor(() =>
+      expect([...document.querySelectorAll('[data-slot="tooltip-content"]')].map((b) => b.textContent)).toEqual([
+        'Messages non lus · 99+',
+      ]),
+    );
+  });
+
+  it('réduite : aucun point dans une liste repliée (`inert`, hauteur nulle) ; le témoin ouvert en porte un', () => {
+    // « Mes visites » du client : un compte hors de ses priorités, qui reste sur son entrée (M3).
+    visites.n = 2;
+    const replie = { v: 1, personas: { client: { replies: ['mes-demarches'] } } };
+    const { unmount } = render(element(['customer'], 'client', { modeIcones: 'icones', navigation: replie }));
+    const liste = document.querySelector('[data-groupe="mes-demarches"] [inert]');
+    expect(liste, 'le groupe est bien replié').not.toBeNull();
+    expect(liste!.querySelector('[data-slot="compteur-entree"]'), 'le compteur est là').not.toBeNull();
+    expect(document.querySelectorAll('[inert] [data-slot="point-entree"]')).toHaveLength(0);
+    unmount();
+
+    render(element(['customer'], 'client', { modeIcones: 'icones' }));
+    expect(document.querySelectorAll('[data-groupe="mes-demarches"] [data-slot="point-entree"]')).toHaveLength(1);
+  });
+
+  // Suite de la revue adverse (b) — le compte d'une entrée repliée, absent d'« Aujourd'hui », ne doit pas
+  // disparaître du rail : le groupe replié le signale sur son chevron, seule icône visible du groupe, du
+  // même point que les lignes d'« Aujourd'hui », et son nom comme son infobulle donnent le nombre.
+  it('réduite : un groupe replié qui cache un compte hors « Aujourd’hui » le signale sur son chevron', async () => {
+    visites.n = 2;
+    const user = utilisateur();
+    const replie = { v: 1, personas: { client: { replies: ['mes-demarches'] } } };
+    render(element(['customer'], 'client', { modeIcones: 'icones', navigation: replie }));
+    const bascule = document.querySelector<HTMLElement>('[data-groupe="mes-demarches"] > button[aria-expanded="false"]')!;
+    expect(bascule, 'le chevron du groupe replié').not.toBeNull();
+    const classes = (el: Element | null) => (el?.getAttribute('class') ?? '').split(/\s+/);
+    expect(classes(bascule.querySelector('[data-slot="point-groupe"]'))).toEqual(
+      expect.arrayContaining(['hidden', 'icones:block', 'bg-primary', 'rounded-full']),
+    );
+    expect(bascule).toHaveAccessibleName(/^Mes démarches,?\s?2 demandes de visite en attente$/);
+    await user.hover(bascule);
+    await waitFor(() =>
+      expect([...document.querySelectorAll('[data-slot="tooltip-content"]')].map((b) => b.textContent)).toEqual([
+        'Mes démarches · 2 demandes de visite en attente',
+      ]),
+    );
+  });
+
+  it('réduite : pas de signal sur un groupe ouvert, ni sans compte, ni pour un compte déjà dans « Aujourd’hui »', () => {
+    visites.n = 2;
+    const { unmount } = render(element(['customer'], 'client', { modeIcones: 'icones' }));
+    expect(document.querySelectorAll('[data-slot="point-groupe"]'), 'groupe ouvert').toHaveLength(0);
+    unmount();
+    visites.n = 0;
+    const replie = { v: 1, personas: { client: { replies: ['mes-demarches'] } } };
+    const r2 = render(element(['customer'], 'client', { modeIcones: 'icones', navigation: replie }));
+    expect(document.querySelectorAll('[data-slot="point-groupe"]'), 'sans compte').toHaveLength(0);
+    r2.unmount();
+    // Les visites de l'agent sont une de ses priorités : dans « Aujourd'hui », jamais signalées deux fois,
+    // même repliées dans « Prospection ».
+    visites.n = 2;
+    const prospection = { v: 1, personas: { agent: { replies: ['prospection'] } } };
+    render(element(['customer', 'agent'], 'agent', { modeIcones: 'icones', navigation: prospection }));
+    expect(document.querySelector('[data-groupe="prospection"] > button[aria-expanded="false"]'), 'replié').not.toBeNull();
+    expect(document.querySelectorAll('[data-slot="point-aujourdhui"]').length, 'dans « Aujourd’hui »').toBeGreaterThan(0);
+    expect(document.querySelectorAll('[data-slot="point-groupe"]'), 'déjà dans « Aujourd’hui »').toHaveLength(0);
+  });
+
+  // Dernier point de la revue adverse — barre DÉPLIÉE, même motif que (b) : le titre d'un groupe replié
+  // montre le compte qu'« Aujourd'hui » ne porte pas, en chiffres de compteur, au bord droit des
+  // compteurs ; le nombre entre dans le nom du bouton. Déplié, le titre se tait : le compte est sur l'entrée.
+  it('dépliée : le titre d’un groupe replié montre le compte caché, et le rend à l’entrée une fois déplié', async () => {
+    visites.n = 2;
+    const user = utilisateur();
+    const replie = { v: 1, personas: { client: { replies: ['mes-demarches'] } } };
+    render(element(['customer'], 'client', { modeIcones: 'complet', navigation: replie }));
+    const groupe = document.querySelector<HTMLElement>('[data-groupe="mes-demarches"]')!;
+    const bascule = groupe.querySelector<HTMLElement>(':scope > button[aria-expanded="false"]')!;
+    const compte = bascule.querySelector('[data-slot="compte-groupe"]');
+    expect(compte, 'le nombre sur le titre').not.toBeNull();
+    expect(compte).toHaveTextContent(/^2$/);
+    expect(compte).toHaveAttribute('aria-hidden', 'true');
+    const classesDuCompte = (compte!.getAttribute('class') ?? '').split(/\s+/);
+    // Les chiffres d'un compteur (`STYLE_COMPTEUR`), poussés au bord droit, cachés dans le rail (qui a son point).
+    expect(classesDuCompte).toEqual(expect.arrayContaining(['ml-auto', 'tabular-nums', 'text-primary-deep', 'icones:hidden']));
+    expect(bascule.lastElementChild, 'dernier enfant : le bord droit').toBe(compte);
+    expect(bascule).toHaveAccessibleName(/^Mes démarches,?\s?2 demandes de visite en attente$/);
+
+    await user.click(bascule);
+    const ouvert = groupe.querySelector<HTMLElement>(':scope > button[aria-expanded="true"]')!;
+    expect(ouvert.querySelector('[data-slot="compte-groupe"]'), 'déplié, le titre se tait').toBeNull();
+    expect(ouvert).toHaveAccessibleName('Mes démarches');
+    expect(groupe.querySelector('a[href="/app/visits"] [data-slot="compteur-entree"]')).toHaveTextContent('2');
+  });
+
+  it('dépliée : au-delà de 99, le titre montre « 99+ », et son nom garde le vrai compte', () => {
+    visites.n = 150;
+    const replie = { v: 1, personas: { client: { replies: ['mes-demarches'] } } };
+    render(element(['customer'], 'client', { modeIcones: 'complet', navigation: replie }));
+    const bascule = document.querySelector<HTMLElement>('[data-groupe="mes-demarches"] > button[aria-expanded="false"]')!;
+    expect(bascule.querySelector('[data-slot="compte-groupe"]')).toHaveTextContent(/^99\+$/);
+    expect(bascule).toHaveAccessibleName(/^Mes démarches,?\s?150 demandes de visite en attente$/);
   });
 
   it('en `auto`, la bascule porte les DEUX libellés (le CSS en montre un) ; en `icones`, seul « Déplier »', () => {
@@ -571,5 +689,31 @@ describe('TCK-2480 — M1 : barre réduite, la ligne cadenassée a son infobulle
       await vi.advanceTimersByTimeAsync(1500);
     });
     expect(bulles()).toEqual([]);
+  });
+});
+
+/**
+ * Revue adverse de TCK-2490 (M2) — un même bord droit pour les nombres, les puces et les touches. L'épingle
+ * invisible (`opacity-0`) gardait au repos sa place (28 px + 4 px) : les compteurs du menu s'arrêtaient
+ * à 226 px, les puces d'« Aujourd'hui » et les touches de « Aller à » à 255 (mesuré, 1440). Elle ne
+ * réserve plus sa place que là où elle s'affiche : au survol de la ligne, au focus, épinglée, au doigt.
+ * (jsdom n'applique pas le CSS : on lit les classes ; le bord droit est relevé au navigateur.)
+ */
+describe('revue adverse (M2) — l’épingle ne réserve sa place que là où elle s’affiche', () => {
+  const classes = (el: Element) => (el.getAttribute('class') ?? '').split(/\s+/);
+  /** Les classes de largeur ou de marge droite SANS variante : celles qui valent au repos. */
+  const auRepos = (el: Element) => classes(el).filter((c) => /^(w-|size-|mr-|me-)/.test(c));
+
+  it('au repos : largeur nulle, aucune marge ; épinglée, au survol, au focus, au doigt : sa largeur', () => {
+    render(element(['customer', 'agent'], 'agent', { modeIcones: 'complet' }));
+    const epingle = document.querySelector('button[data-epingle][aria-pressed="false"]')!;
+    expect(epingle).not.toBeNull();
+    expect(auRepos(epingle)).toEqual(['w-0']);
+    for (const variante of ['group-hover/ligne', 'focus', 'aria-pressed', 'tactile']) {
+      expect(classes(epingle), variante).toEqual(expect.arrayContaining([`${variante}:w-(--l-epingle)`, `${variante}:mr-1`]));
+    }
+    // Toujours atteignable au clavier : ni `hidden`, ni `invisible` (une largeur nulle se focalise).
+    expect(classes(epingle)).not.toEqual(expect.arrayContaining(['hidden']));
+    expect(classes(epingle)).not.toEqual(expect.arrayContaining(['invisible']));
   });
 });

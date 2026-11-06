@@ -10,15 +10,16 @@ import { EmptyState } from '@/components/feedback';
 import { profileShortLabel } from '@/components/profile/ProfileBadge';
 import { useMyProfiles, useSwitchActiveProfile } from '@/hooks/useProfiles';
 import { useCurrentLocale } from '@/i18n/hooks';
-import { cheminLocalise } from '@/i18n/routing';
+import { hrefLocalise } from '@/i18n/navigation';
 import { CLE_DE_BASCULE_D_ESPACE } from '@/lib/cache-d-espace';
 import { espacesAProposer } from '@/lib/espaces';
-import { pastillesATraiter } from '@/lib/navigation/a-traiter';
+import { lignesAujourdhui } from '@/lib/navigation/a-traiter';
 import type { EntreeComposee } from '@/lib/navigation/composer-menu';
 import { DISPOSITIONS } from '@/lib/navigation/dispositions';
 import { lirePagesRecentes } from '@/lib/navigation/pages-recentes';
 import {
   GROUPES_DE_LA_PALETTE,
+  avecLaRechercheDAnnonces,
   chercherDansLaPalette,
   decouperLesMots,
   optionsDeLaPalette,
@@ -38,6 +39,7 @@ const TITRES: Record<GroupeDeLaPalette, string> = {
   recents: 'recents',
   'aller-a': 'allerA',
   espaces: 'espaces',
+  annonces: 'annonces',
 };
 
 /**
@@ -148,7 +150,8 @@ function ContenuDeLaPalette({ contexteDuMenu, ouverte, champ, fermer }: ContenuD
   // ni `composerMenu` ni `estOuverte` (gardes de TCK-2483, S8), et passe le contexte INTACT (A17).
   const { menu, groupes, entrees } = useMenuDeLEspace(contexteDuMenu);
   const compteurs = useCompteursDuMenu(entrees, { agencyIsStandard: contexteDuMenu.agencyIsStandard, actif: ouverte });
-  const bande = pastillesATraiter(entrees, compteurs, menu.priorites);
+  // TCK-2489 — les lignes « Aujourd'hui » de la barre, toutes (la palette n'a jamais coupé à quatre).
+  const aTraiter = lignesAujourdhui(entrees, compteurs, menu.priorites);
   const profils = useMyProfiles();
   const bascule = useSwitchActiveProfile();
   // Revue M3 — une bascule en cours OÙ QU'ELLE AIT ÉTÉ LANCÉE (le sélecteur, avant ⌘K) : l'`isPending`
@@ -162,7 +165,7 @@ function ContenuDeLaPalette({ contexteDuMenu, ouverte, champ, fermer }: ContenuD
       action: menu.action,
       carte: menu.carte,
       groupes,
-      pastilles: [...bande.visibles, ...bande.autres],
+      pastilles: aTraiter,
       espaces: espacesAProposer(profils.data?.data ?? [], actifId).filter((p) => p.id !== actifId),
       recents,
       pathname,
@@ -180,7 +183,13 @@ function ContenuDeLaPalette({ contexteDuMenu, ouverte, champ, fermer }: ContenuD
       motsEspace: decouperLesMots(t('synonymesEspace')),
     },
   );
-  const resultats = chercherDansLaPalette(options, saisie);
+  // TCK-2489 (ADR-0090 §2) — la recherche d'annonces du site public, que la barre du haut portait. Elle
+  // suit toujours une saisie : « aucune page » n'est plus une liste vide, mais une liste qui n'a qu'elle.
+  const pages = chercherDansLaPalette(options, saisie);
+  const resultats = avecLaRechercheDAnnonces(pages, saisie, {
+    generique: t('annonces.generique'),
+    avecTexte: (q) => t('annonces.avecTexte', { q }),
+  });
   // Une clé disparue (compteur retombé à 0, saisie qui l'écarte) rend la main à la première option.
   const indexActif = resultats.length === 0 ? -1 : Math.max(0, resultats.findIndex((o) => o.cle === cleActive));
   const idOption = (index: number) => `${idListe}-option-${index}`;
@@ -198,7 +207,8 @@ function ContenuDeLaPalette({ contexteDuMenu, ouverte, champ, fermer }: ContenuD
       if (basculeEnCours) return;
       bascule.mutate(cible.profilId);
     } else {
-      router.push(cible.publique ? cheminLocalise(cible.href, locale) : cible.href);
+      // `hrefLocalise` et non `cheminLocalise` : la cible peut porter une requête (`/properties?q=…`).
+      router.push(cible.publique ? hrefLocalise(cible.href, locale) : cible.href);
     }
     fermer();
   };
@@ -257,9 +267,9 @@ function ContenuDeLaPalette({ contexteDuMenu, ouverte, champ, fermer }: ContenuD
         {t('resultats', { count: resultats.length })}
       </p>
       {/* L'état vide unique du produit (`scripts/check-feedback-states.mjs`), allégé : la palette est
-          déjà une surface, ni bordure pointillée ni grand padding. Hors de la listbox, qui n'est pas
-          rendue sans option (`aria-controls` et `aria-expanded` du champ le suivent). */}
-      {resultats.length === 0 && requete !== '' ? (
+          déjà une surface, ni bordure pointillée ni grand padding. Hors de la listbox. TCK-2489 — il dit
+          « aucune PAGE » : la recherche d'annonces, elle, est toujours proposée en dessous. */}
+      {pages.length === 0 && requete !== '' ? (
         <EmptyState title={t('aucun', { q: requete })} className="rounded-none border-0 bg-transparent px-2 py-6" />
       ) : null}
       {resultats.length > 0 ? (

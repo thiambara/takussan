@@ -203,6 +203,30 @@
         "texte": "Publiez votre premier bien en quelques minutes."
       },
       "console": "Console plateforme",
+      "recents": "Récents",
+      "statut": {
+        "miseEnLocation": "En quelques minutes",
+        "passerEnAgence": "Équipe et outils pro",
+        "demandeEnCours": "Réponse par e-mail",
+        "console": "Administration de Takussan"
+      },
+      "compte": {
+        "changerDEspace": "Changer d’espace",
+        "credits": "Crédits",
+        "preferences": "Préférences de notification",
+        "langue": "Langue"
+      },
+      "aujourdhui": {
+        "titre": "Aujourd’hui",
+        "infobulle": "{libelle} · {nombre}",
+        "lignes": {
+          "unreadMessages": "Messages non lus",
+          "pendingVisits": "Visites à confirmer",
+          "unhandledLeads": "Demandes de contact",
+          "reviewModeration": "Avis à modérer",
+          "propertyModeration": "Biens à valider"
+        }
+      },
       "aTraiter": {
         "titre": "À traiter",
         "pastilles": {
@@ -375,10 +399,15 @@
         "aTraiter": "À traiter",
         "recents": "Récents",
         "allerA": "Aller à",
-        "espaces": "Espaces"
+        "espaces": "Espaces",
+        "annonces": "Annonces"
+      },
+      "annonces": {
+        "generique": "Chercher un bien sur Takussan",
+        "avecTexte": "Chercher « {q} » parmi les annonces"
       },
       "passerA": "Passer à : {espace}",
-      "aucun": "Aucun résultat pour « {q} »",
+      "aucun": "Aucune page pour « {q} »",
       "resultats": "{count, plural, =0 {Aucun résultat} one {# résultat} other {# résultats}}",
       "synonymesEspace": "espace, changer, basculer, passer",
       "synonymes": {
@@ -10745,9 +10774,6 @@
       "service_provider": "Ku joxe liggéey"
     },
     "switcher": {
-      "adminLabel": "Njiitu Takussan",
-      "changeAria": "Soppi profil",
-      "choose": "Tànnal benn profil",
       "switched": "Soppi nga ci {name}",
       "switchFailed": "Mënunu soppi profil bi",
       "fallbackLabel": "profil"

@@ -1,75 +1,37 @@
 'use client';
 
-import Link from 'next/link';
-import { ArrowRight, Sparkles, Clock3 } from 'lucide-react';
+import { Hourglass, Sparkles } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { cn } from '@/lib/utils';
+import { LigneDeStatut } from './LigneDeStatut';
 
 interface ProUpgradeCardProps {
   readonly pending?: boolean;
   readonly onNavigate?: () => void;
+  readonly infobulle?: boolean;
 }
 
 const UPGRADE_HREF = '/app/settings/agency/upgrade';
 
 /**
- * TCK-267 — la carte « Passer en agence », épinglée au pied de la barre de `/app`.
+ * TCK-267 — « Passer en agence », au pied de la barre de `/app`, pour l'admin d'une agence
+ * `individual` ; « Demande en cours » quand une demande attend la plateforme.
  *
- * TCK-649 (ADR-0064 §2) — elle n'a plus qu'un habillage : la barre sombre de « Mon espace »
- * (`AdminSidebar`), pour laquelle TCK-633 lui en avait donné un second, a disparu avec l'ancienne
- * console d'administration.
+ * TCK-2490 (ADR-0090 §6) — une ligne de statut et non plus une carte : même lien, même sens. En
+ * attente, le sablier en `text-warning` (« quelque chose est en cours », pas une alerte).
  */
-export function ProUpgradeCard({ pending = false, onNavigate }: ProUpgradeCardProps) {
+export function ProUpgradeCard({ pending = false, onNavigate, infobulle }: ProUpgradeCardProps) {
   const t = useTranslations('nav.proUpgrade');
-  const Icon = pending ? Clock3 : Sparkles;
-  const title = pending ? t('pendingTitle') : t('title');
-  const body = pending ? t('pendingBody') : t('body');
-  const cta = pending ? t('pendingCta') : t('cta');
-
+  const tStatut = useTranslations('nav.sidebar.statut');
   return (
-    <Link
+    <LigneDeStatut
       href={UPGRADE_HREF}
-      onClick={onNavigate}
-      aria-label={title}
-      className={cn(
-        'group/upgrade mb-2 block rounded-xl border px-3.5 py-3 transition-colors',
-        pending
-          ? 'border-border bg-muted/70 hover:bg-muted'
-          : 'border-border bg-muted hover:border-primary/30 hover:bg-border',
-      )}
-    >
-      <div className="flex items-start gap-2.5">
-        <span
-          className={cn(
-            'flex size-7 shrink-0 items-center justify-center rounded-lg',
-            pending ? 'bg-card text-muted-foreground' : 'bg-primary/10 text-primary',
-          )}
-        >
-          <Icon className="size-3.5" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-[0.8rem] font-semibold leading-tight text-foreground">
-            {title}
-          </p>
-          <p className="mt-0.5 text-xs leading-snug text-pretty text-muted-foreground">
-            {body}
-          </p>
-          <p
-            className={cn(
-              'mt-2 inline-flex items-center text-[11px] font-semibold uppercase tracking-wide',
-              pending
-                ? 'text-muted-foreground group-hover/upgrade:text-foreground'
-                : 'text-primary group-hover/upgrade:text-foreground',
-            )}
-          >
-            {cta}
-            <ArrowRight
-              aria-hidden
-              className="ml-1 size-3 transition-transform group-hover/upgrade:translate-x-0.5"
-            />
-          </p>
-        </div>
-      </div>
-    </Link>
+      slot="statut-agence"
+      icone={pending ? Hourglass : Sparkles}
+      tonIcone={pending ? 'text-warning' : 'text-primary'}
+      titre={pending ? t('pendingTitle') : t('title')}
+      texte={pending ? tStatut('demandeEnCours') : tStatut('passerEnAgence')}
+      infobulle={infobulle}
+      onNavigate={onNavigate}
+    />
   );
 }

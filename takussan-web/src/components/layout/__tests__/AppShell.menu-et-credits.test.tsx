@@ -77,7 +77,7 @@ function monter(roles: UserRole[], acces?: AccesAdmin) {
 }
 
 const hrefs = (racine: Element) =>
-  Array.from(racine.querySelectorAll('nav a')).map((a) => a.getAttribute('href'));
+  Array.from(racine.querySelectorAll('[data-slot="menu"] a')).map((a) => a.getAttribute('href'));
 
 /** TCK-2481 — sous `md`, « Menu » de la barre d'onglets est la seule porte du tiroir (le burger est parti). */
 const boutonMenu = () =>
@@ -116,40 +116,49 @@ const groupes = (racine: Element) =>
   ]);
 
 describe('TCK-646 — le menu mobile de /app présente le même ordre (AC4)', () => {
-  // TCK-2478 — la barre porte aussi l'action principale (hors du `<nav>`), les groupes repliés et la
-  // carte du client : le tiroir doit les présenter à l'identique, pas seulement les liens du `<nav>`.
+  // TCK-2478 — la barre porte aussi l'action principale (hors du menu), les groupes repliés et la
+  // carte du client : le tiroir doit les présenter à l'identique, pas seulement les liens du menu.
+  // TCK-2489 (ADR-0090 §4) — le tableau de bord n'ouvre plus le menu que pour l'admin d'agence : le
+  // premier lien est celui de la disposition, au tiroir comme au bureau.
   it.each([
-    [['agency_admin'], '/app/properties/new'],
-    [['owner'], '/app/properties/new'],
-    [['customer'], '/fr/properties'],
-  ] as [UserRole[], string][])('%j', async (roles, action) => {
+    [['agency_admin'], '/app/properties/new', '/app'],
+    [['owner'], '/app/properties/new', '/app/messages'],
+    [['customer'], '/fr/properties', '/app/messages'],
+  ] as [UserRole[], string, string][])('%j', async (roles, action, premier) => {
     const { container } = monter([...roles, 'customer']);
     const bureau = container.querySelector('aside')!;
     const tiroir = await ouvrirLeTiroir();
     expect(hrefs(tiroir)).toEqual(hrefs(bureau));
-    expect(hrefs(tiroir)[0]).toBe('/app');
+    // Le premier lien après l'action : le tableau de bord de l'admin d'agence est hissé EN TÊTE, hors du menu,
+    // dans le repère de la colonne (revue adverse de TCK-2490, 3 et a) ; les autres menus s'ouvrent sur leur première entrée.
+    for (const barre of [bureau, tiroir]) {
+      expect(tousLesLiens(barre).filter((h) => h !== '/' && h !== action)[0]).toBe(premier);
+    }
     expect(tousLesLiens(tiroir).filter((h) => h !== '/')).toEqual(tousLesLiens(bureau).filter((h) => h !== '/'));
     expect(groupes(tiroir)).toEqual(groupes(bureau));
     expect(tiroir.querySelector('[data-slot="action-principale"]')).toHaveAttribute('href', action);
   });
 });
 
-describe('TCK-2479 — la bande « À traiter » est aussi dans le tiroir', () => {
-  it('mêmes pastilles qu’à la barre de bureau ; un clic referme le tiroir', async () => {
+// TCK-2490 (ADR-0090 §3) — la bande « À traiter » est devenue le bloc « Aujourd’hui » : des lignes
+// libellées par l'action, même contrat au tiroir.
+describe('TCK-2479 / TCK-2490 — « Aujourd’hui » est aussi dans le tiroir', () => {
+  it('mêmes lignes qu’à la barre de bureau ; un clic referme le tiroir', async () => {
     nonLusMock.mockReturnValue(3);
     const { container } = monter(['agent']);
     const bureau = container.querySelector('aside')!;
-    const deLaBande = (racine: Element) =>
-      within(within(racine as HTMLElement).getByRole('region', { name: 'À traiter' }))
+    const duBloc = (racine: Element) =>
+      within(within(racine as HTMLElement).getByRole('region', { name: 'Aujourd’hui' }))
         .getAllByRole('link')
-        .map((l) => [l.getAttribute('aria-label'), l.getAttribute('href')]);
-    // Lue AVANT l'ouverture : le tiroir modal rend la barre de bureau `inert`.
-    const auBureau = deLaBande(bureau);
-    expect(auBureau).toEqual([['3 messages non lus', '/app/messages']]);
+        .map((l) => [l.textContent, l.getAttribute('href')]);
+    // Lu AVANT l'ouverture : le tiroir modal rend la barre de bureau `inert`.
+    const auBureau = duBloc(bureau);
+    expect(auBureau).toEqual([['Messages non lus, 3', '/app/messages']]);
 
     const tiroir = await ouvrirLeTiroir();
-    expect(deLaBande(tiroir)).toEqual(auBureau);
-    await userEvent.setup().click(within(tiroir).getByRole('link', { name: '3 messages non lus' }));
+    expect(duBloc(tiroir)).toEqual(auBureau);
+    const region = within(tiroir).getByRole('region', { name: 'Aujourd’hui' });
+    await userEvent.setup().click(within(region).getByRole('link', { name: /^Messages non lus,\s?3$/ }));
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 });
@@ -169,7 +178,7 @@ describe('TCK-2479 — « Démarrer » est aussi dans le tiroir', () => {
     );
     const etapes = (racine: Element) => {
       const groupe = within(racine as HTMLElement).getByRole('group', { name: 'Démarrer' });
-      expect(racine.querySelector('nav')!.firstElementChild).toBe(groupe);
+      expect(racine.querySelector<HTMLElement>('[data-slot="menu"]')!.firstElementChild).toBe(groupe);
       return within(groupe).getAllByRole('link').map((l) => l.getAttribute('href'));
     };
     // Lues AVANT l'ouverture : le tiroir modal rend la barre de bureau `inert`.
@@ -183,32 +192,41 @@ describe('TCK-2479 — « Démarrer » est aussi dans le tiroir', () => {
   });
 });
 
-describe('TCK-642 — la pastille de la barre haute', () => {
-  it('admin d’espace : le solde, qui mène à /app/credits, montré dès `md`', () => {
+// TCK-2491 (ADR-0090 §2) — la barre haute et sa pastille sont parties : le solde se lit sur l'entrée
+// « Crédits » de la colonne (à toutes les largeurs) et dans le menu du compte.
+describe('TCK-642, repris par TCK-2491 — le solde dans la colonne et le menu du compte', () => {
+  const colonne = () => document.querySelector('aside')!;
+  async function ouvrirLeMenuDuCompte() {
+    await userEvent.setup().click(colonne().querySelector<HTMLElement>('[data-slot="pied-du-compte"]')!);
+    return screen.findByRole('menu');
+  }
+
+  it('admin d’espace : l’entrée « Crédits » porte le solde et mène à /app/credits ; le menu du compte aussi', async () => {
     soldeMock.mockReturnValue(1250);
     monter(['agency_admin']);
-    const pastille = within(screen.getByRole('banner')).getByRole('link', {
-      name: nomNormalise('Crédits : 1 250 crédits'),
-    });
-    expect(pastille).toHaveAttribute('href', '/app/credits');
-    expect(pastille.className).toContain('hidden');
-    expect(pastille.className).toContain('md:inline-flex');
+    const entree = within(colonne()).getByRole('link', { name: nomNormalise('Crédits : 1 250 crédits') });
+    expect(entree).toHaveAttribute('href', '/app/credits');
+    const menu = await ouvrirLeMenuDuCompte();
+    const ligne = menu.querySelector('[data-slot="solde-du-compte"]')!;
+    expect(ligne.textContent?.replace(/\s/g, ' ')).toBe('Crédits1 250');
   });
 
-  it('sans droit sur le portefeuille : ni pastille, ni lecture du solde par la barre (AC2)', () => {
+  it('sans droit sur le portefeuille : ni ligne de solde, ni lecture du solde (AC2)', async () => {
     soldeMock.mockReturnValue(1250);
     monter(['agent']);
-    expect(within(screen.getByRole('banner')).queryByRole('link', { name: /Crédits/ })).toBeNull();
-    // La barre latérale arme le solde par la présence de l'entrée — absente pour l'agent.
+    // Le menu du compte et la colonne n'arment le solde que pour qui voit le portefeuille.
     for (const [options] of soldeMock.mock.calls) expect(options.enabled).toBe(false);
+    const menu = await ouvrirLeMenuDuCompte();
+    expect(menu.querySelector('[data-slot="solde-du-compte"]')).toBeNull();
   });
 
-  it('solde inconnu (refus, panne, chargement) : aucune pastille, aucun « 0 » (AC5)', () => {
+  it('solde inconnu (refus, panne, chargement) : aucune ligne, aucun « 0 » (AC5)', async () => {
     soldeMock.mockReturnValue(null);
     monter(['agency_admin']);
-    const barre = screen.getByRole('banner');
-    expect(barre.querySelector('[data-slot="pastille-credits"]')).toBeNull();
-    expect(within(barre).queryByText('0')).toBeNull();
+    expect(colonne().querySelector('[data-slot="valeur-entree"]')).toBeNull();
+    const menu = await ouvrirLeMenuDuCompte();
+    expect(menu.querySelector('[data-slot="solde-du-compte"]')).toBeNull();
+    expect(within(menu).queryByText('0')).toBeNull();
   });
 
   it('dans le tiroir : l’entrée « Crédits » porte le solde et mène à /app/credits (AC3)', async () => {

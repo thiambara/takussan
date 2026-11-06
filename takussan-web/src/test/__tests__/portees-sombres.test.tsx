@@ -32,13 +32,9 @@ import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
-import { withIntl } from '@/test/intl';
-import { ToastProvider } from '@/components/ui/toast';
-import type { User } from '@/types/user';
 
 import { RACINE_SRC, balisesSousLaClasse, nommer, sourcesDe } from '../analyse-statique';
 import {
@@ -54,38 +50,20 @@ import {
 import { couplesDuFichier } from '../couples-de-contraste';
 import { CLASSE_SOMBRE, estSousPorteeSombre, fichiersSousPorteeSombre, porteesSombres } from '../portees-sombres';
 
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
-  usePathname: () => '/app/agency',
-  useSearchParams: () => new URLSearchParams(''),
-}));
-
-vi.mock('@/context/AuthContext', () => ({
-  useAuth: () => ({ token: null, user: null, logout: vi.fn() }),
-}));
-
-const { AppTopbar } = await import('@/components/layout/AppTopbar');
-
-const UTILISATEUR = {
-  id: 1,
-  first_name: 'Awa',
-  last_name: 'Diop',
-  full_name: 'Awa Diop',
-  email: 'awa@example.test',
-  roles: ['agency_admin'],
-  avatar_url: null,
-} as unknown as User;
-
+/**
+ * TCK-2491 (ADR-0090) — `AppTopbar`, la barre d'encre de `/app` sur laquelle TCK-371 avait toléré le
+ * couple `text-white` / `bg-foreground`, est RETIRÉE : la coque n'a plus de barre du haut. La tolérance
+ * meurt avec elle. Ce que le fichier garde reste vrai et reste éprouvé : le CONTRÔLE (« une portée
+ * `.dark` posée pour de vrai fait refuser ce couple ») est rejoué sur le même couple, reconstitué à
+ * l'identique (le fond et l'encre de l'ancienne barre), faute du composant qui le portait.
+ */
 function rendreBarreHaute(sousPorteeSombre: boolean) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const barre = (
-    <QueryClientProvider client={queryClient}>
-      <ToastProvider>
-        <AppTopbar user={UTILISATEUR} />
-      </ToastProvider>
-    </QueryClientProvider>
+    <header className="bg-foreground">
+      <span className="text-white">Takussan</span>
+    </header>
   );
-  return render(withIntl(sousPorteeSombre ? <div className="dark">{barre}</div> : barre));
+  return render(sousPorteeSombre ? <div className="dark">{barre}</div> : barre);
 }
 
 /**
@@ -186,8 +164,8 @@ describe('portées `.dark` — la tolérance de TCK-371 est conditionnelle et ga
 
     // Une garde qui n'a plus rien à comparer rend le même vert qu'une garde satisfaite.
     expect(toleres.length, 'aucun composant toléré relevé — le relevé est cassé').toBeGreaterThan(5);
-    expect(toleres.some((t) => t.startsWith('components/layout/AppTopbar.tsx')),
-      'AppTopbar, le composant de TCK-371, est sorti du relevé').toBe(true);
+    // TCK-2491 — `AppTopbar`, le composant de TCK-371, est retiré du dépôt : il n'est plus la sentinelle
+    // du relevé. Le plancher ci-dessus (plus de cinq tolérés) garde que le relevé voit encore quelque chose.
 
     const rompus = toleres.filter((t) => sousPortee.has(t.split(' ')[0]!));
     expect(
@@ -197,8 +175,8 @@ describe('portées `.dark` — la tolérance de TCK-371 est conditionnelle et ga
     ).toEqual([]);
   });
 
-  it("AC2 — le contrôle RECONNAÎT une portée posée pour de vrai autour d'AppTopbar", () => {
-    // L'ablation ne se simule pas : on place réellement la barre sous `<div className="dark">`.
+  it("AC2 — le contrôle RECONNAÎT une portée posée pour de vrai autour du couple de l'ancienne barre", () => {
+    // On place réellement le couple sous `<div className="dark">` (TCK-2491 : reconstitué, cf. plus haut).
     const normal = rendreBarreHaute(false);
     const entete = normal.container.querySelector('header')!;
     expect(estSousPorteeSombre(entete)).toBe(false);

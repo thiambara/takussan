@@ -48,7 +48,15 @@ function patchNotification(
   };
 }
 
-export function NotificationBell() {
+interface NotificationBellProps {
+  /**
+   * TCK-2491 — l'alignement du panneau sur la cloche : `start` dans l'en-tête de la colonne (la cloche
+   * est à gauche de l'écran, le panneau s'ouvre vers le contenu), `end` dans l'en-tête mobile.
+   */
+  readonly align?: 'start' | 'end';
+}
+
+export function NotificationBell({ align = 'end' }: NotificationBellProps) {
   const t = useTranslations('nav.notifications');
   const messageErreur = useMessageErreurApi();
   const [open, setOpen] = useState(false);
@@ -150,25 +158,31 @@ export function NotificationBell() {
    * chevaucher le bas de 2 px.
    *
    * Pastille : `red-500` sous du blanc rendait 3,76:1 — sous les 4,5:1 d'un texte de 10 px.
-   * `--destructive` rend 7,3:1 et suit la charte.
+   * `--destructive` rend 7,3:1 et suit la charte. TCK-2491 : la cloche quitte la barre d'encre pour
+   * des surfaces claires ; la pastille passe en primaire (cf. le déclencheur).
    */
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         aria-label={t('label')}
-        className="relative inline-flex size-9 items-center justify-center rounded-md text-white/85 after:absolute after:-inset-1 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+        data-slot="cloche"
+        // TCK-2491 (ADR-0090 §2) — la cloche vit sur la colonne et l'en-tête mobile, des surfaces CLAIRES
+        // (le lin, la page) : même bouton d'icône que « Replier », même anneau que toute la colonne.
+        // La pastille passe en primaire (la seule couleur du menu) : `bg-primary` sous
+        // `text-primary-foreground`, le couple des puces d'« Aujourd'hui », mesuré clair et sombre.
+        className="relative inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors after:absolute after:-inset-1 hover:bg-foreground/5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:size-10"
       >
-        <Bell className="size-5" aria-hidden="true" />
+        <Bell className="size-[18px]" strokeWidth={1.75} aria-hidden="true" />
         {unread > 0 ? (
-          <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-destructive px-1 text-[10px] font-bold leading-4 tabular-nums text-white">
+          <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-[10px] font-bold leading-4 tabular-nums text-primary-foreground ring-2 ring-background">
             {unread > 9 ? '9+' : unread}
           </span>
         ) : null}
       </PopoverTrigger>
 
       <PopoverContent
-        align="end"
-        sideOffset={14}
+        align={align}
+        sideOffset={8}
         collisionPadding={8}
         // TCK-572 (solde de TCK-569) — un appui à côté ferme le panneau et rien d'autre, comme le
         // menu utilisateur voisin : cloche ouverte, l'appui sur l'avatar n'ouvre plus le menu.

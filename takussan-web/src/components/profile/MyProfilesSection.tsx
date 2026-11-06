@@ -90,7 +90,7 @@ export function MyProfilesSection() {
   // profiles here.
   //
   // ⚠ Ce commentaire disait « Mirror the ProfileSwitcher's filter ». Ce n'est
-  // PLUS vrai depuis TCK-329 : le sélecteur groupe désormais `agency_admin`
+  // PLUS vrai depuis TCK-329 : le sélecteur (`EspacesDuMenu` depuis TCK-2491) groupe `agency_admin`
   // (AC3), parce qu'il sert à CHANGER de profil actif et qu'un `agency_admin`
   // en est un de plein droit. Le filtre de cette section-ci ne concerne que
   // l'affichage des cartes KYC — les deux listes ont divergé volontairement.

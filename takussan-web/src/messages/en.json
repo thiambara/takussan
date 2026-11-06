@@ -213,6 +213,30 @@
         "texte": "Publish your first property in minutes."
       },
       "console": "Platform console",
+      "recents": "Recent",
+      "statut": {
+        "miseEnLocation": "In a few minutes",
+        "passerEnAgence": "Team and pro tools",
+        "demandeEnCours": "Answer by email",
+        "console": "Takussan administration"
+      },
+      "compte": {
+        "changerDEspace": "Switch space",
+        "credits": "Credits",
+        "preferences": "Notification settings",
+        "langue": "Language"
+      },
+      "aujourdhui": {
+        "titre": "Today",
+        "infobulle": "{libelle} · {nombre}",
+        "lignes": {
+          "unreadMessages": "Unread messages",
+          "pendingVisits": "Visits to confirm",
+          "unhandledLeads": "Contact requests",
+          "reviewModeration": "Reviews to moderate",
+          "propertyModeration": "Listings to review"
+        }
+      },
       "aTraiter": {
         "titre": "To do",
         "pastilles": {
@@ -375,10 +399,15 @@
         "aTraiter": "To do",
         "recents": "Recent",
         "allerA": "Go to",
-        "espaces": "Spaces"
+        "espaces": "Spaces",
+        "annonces": "Listings"
+      },
+      "annonces": {
+        "generique": "Search properties on Takussan",
+        "avecTexte": "Search “{q}” in listings"
       },
       "passerA": "Switch to: {espace}",
-      "aucun": "No results for “{q}”",
+      "aucun": "No page for “{q}”",
       "resultats": "{count, plural, =0 {No results} one {# result} other {# results}}",
       "synonymesEspace": "space, switch, change",
       "synonymes": {
@@ -11399,9 +11428,6 @@
       "service_provider": "Service provider"
     },
     "switcher": {
-      "adminLabel": "Takussan admin",
-      "changeAria": "Switch profile",
-      "choose": "Choose a profile",
       "switched": "Switched to {name}",
       "switchFailed": "Could not switch profile",
       "fallbackLabel": "profile"

@@ -2,10 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AppTopbar } from '../AppTopbar';
+import { EnTeteMobile } from '../EnTeteMobile';
 import { NotificationBell } from '../NotificationBell';
-import type { User } from '@/types/user';
-// TCK-286 — `AppTopbar` et `NotificationBell` passent par next-intl : sans provider, le rendu
+// TCK-286 — l'en-tête et `NotificationBell` passent par next-intl : sans provider, le rendu
 // lève. Les assertions ci-dessous sont INCHANGÉES, le dictionnaire fr rend les mêmes libellés.
 import { withIntl } from '@/test/intl';
 
@@ -20,39 +19,6 @@ vi.mock('@/app/actions/notifications', () => ({
   markNotificationUnreadAction: (id: number) => markUnreadMock(id),
   markAllNotificationsReadAction: () => markAllReadMock(),
 }));
-
-vi.mock('@/components/profile/ProfileSwitcher', () => ({
-  ProfileSwitcher: () => <span>Profil actif</span>,
-}));
-
-vi.mock('@/components/shared/LanguageSwitcher', () => ({
-  LanguageSwitcher: () => <button type="button">Langue</button>,
-}));
-
-vi.mock('../UserMenu', () => ({
-  UserMenu: () => <button type="button">Menu utilisateur</button>,
-}));
-
-vi.mock('@/components/search/SearchAutocomplete', () => ({
-  SearchAutocomplete: () => <div>Recherche</div>,
-}));
-
-const user: User = {
-  id: 1,
-  first_name: 'Astou',
-  last_name: 'Dieng',
-  full_name: 'Astou Dieng',
-  email: 'astou@example.com',
-  phone: null,
-  bio: null,
-  avatar_url: null,
-  email_verified_at: null,
-  phone_verified_at: null,
-  two_factor_enabled: false,
-  roles: ['owner'],
-  status: 'active',
-  created_at: '2026-05-08T10:00:00.000000Z',
-};
 
 function response() {
   return {
@@ -96,10 +62,10 @@ describe('<NotificationBell>', () => {
     markAllReadMock.mockReset();
   });
 
-  it('is visible from the authenticated topbar with the unread badge', async () => {
+  it('TCK-2491 — visible dans l’en-tête mobile, avec la pastille des non-lues', async () => {
     getNotificationsMock.mockResolvedValue({ ok: true, data: response() });
 
-    render(wrap(<AppTopbar user={user} />));
+    render(wrap(<EnTeteMobile />));
 
     expect(
       screen.getByRole('button', { name: 'Notifications' }),
@@ -111,13 +77,13 @@ describe('<NotificationBell>', () => {
     const browserUser = userEvent.setup();
     getNotificationsMock.mockResolvedValue({ ok: true, data: response() });
 
-    render(wrap(<AppTopbar user={user} />));
+    render(wrap(<EnTeteMobile />));
     await browserUser.click(screen.getByRole('button', { name: 'Notifications' }));
 
     const feed = await screen.findByRole('dialog', { name: 'Centre de notifications' });
     expect(within(feed).getByRole('heading', { name: 'Notifications' })).toBeInTheDocument();
     expect(within(feed).queryByRole('banner')).toBeNull();
-    // Le seul `banner` qui reste est la barre haute (le panneau rend le reste `aria-hidden`).
+    // Le seul `banner` qui reste est l'en-tête (TCK-2491 : l'en-tête mobile ; la barre haute est partie) (le panneau rend le reste `aria-hidden`).
     expect(screen.getAllByRole('banner', { hidden: true })).toHaveLength(1);
   });
 

@@ -166,6 +166,8 @@ interface OptionsDeBarre {
   readonly agencySuspended?: boolean;
   /** TCK-2483 — les modules que l'agence masque (codes), tels que le layout les passe. */
   readonly modulesMasques?: readonly string[];
+  /** TCK-2490 — la coque sait ouvrir la palette : la ligne « Aller à » est rendue. */
+  readonly onOuvrirPalette?: (depuis: HTMLElement) => void;
 }
 
 function barre(compte: Compte, options: OptionsDeBarre = {}) {
@@ -184,6 +186,7 @@ function barre(compte: Compte, options: OptionsDeBarre = {}) {
           typeProfilActif={compte.typeProfilActif ?? null}
           agencySuspended={options.agencySuspended}
           modulesMasques={options.modulesMasques ?? []}
+          onOuvrirPalette={options.onOuvrirPalette}
         />
       </AccesAdminProvider>
     </QueryClientProvider>,
@@ -212,7 +215,7 @@ function libelle(entree: Element): string {
 type GroupeLu = [string | null, boolean, ...string[]];
 
 function groupesRendus(container: HTMLElement): GroupeLu[] {
-  return Array.from(container.querySelectorAll('nav [data-groupe]')).map((groupe) => {
+  return Array.from(container.querySelectorAll('[data-slot="menu"] [data-groupe]')).map((groupe) => {
     const bouton = groupe.querySelector(':scope > button');
     const titre = groupe.querySelector(':scope > button, :scope > p')?.textContent?.trim() ?? null;
     const replie = bouton?.getAttribute('aria-expanded') === 'false';
@@ -255,13 +258,15 @@ beforeEach(() => {
  * ⚠ Les compteurs de l'AC6 se DÉDUISENT de cette table ({@link COMPTEUR_PAR_LIBELLE}) : éditer une
  * ligne ici change aussi ce que la barre doit sonder pour ce persona.
  */
-const MENU_ATTENDU: Record<Persona, { action: string | null; groupes: GroupeLu[] }> = {
+const MENU_ATTENDU: Record<Persona, { action: string | null; enTete?: string; groupes: GroupeLu[] }> = {
   client: {
     action: 'Chercher un bien',
     groupes: [
-      [null, false, 'Tableau de bord', 'Messagerie'],
+      [null, false, 'Messagerie'],
       ['Mes recherches', false, 'Mes favoris', 'Recherches sauvegardées'],
       ['Mes démarches', false, 'Mes visites', 'Mes réservations'],
+      // TCK-2489 (ADR-0090 §4) — le tableau de bord, groupe sans titre après le deuxième groupe titré.
+      [null, false, 'Tableau de bord'],
       // Arbitrage 1 : Baux, Paiements, Interventions (« Maintenance »), États des lieux restent au
       // client pur — sous « Plus ».
       ['Plus', true, 'Documents', 'Mes avis', 'Statistiques', 'Maintenance', 'Mes baux', 'Paiements', 'États des lieux'],
@@ -270,19 +275,23 @@ const MENU_ATTENDU: Record<Persona, { action: string | null; groupes: GroupeLu[]
   locataire: {
     action: 'Payer mon loyer',
     groupes: [
-      [null, false, 'Tableau de bord', 'Messagerie'],
+      [null, false, 'Messagerie'],
       ['Mon logement', false, 'Mon bail', 'Paiements', 'Interventions', 'États des lieux', 'Documents'],
       // Arbitrage 2 : « Chercher un bien » ouvre son groupe « Mes recherches ».
       ['Mes recherches', true, 'Chercher un bien', 'Mes favoris', 'Recherches sauvegardées', 'Mes visites', 'Mes réservations'],
+      // TCK-2489 (ADR-0090 §4) — le tableau de bord, groupe sans titre après le deuxième groupe titré.
+      [null, false, 'Tableau de bord'],
       ['Plus', true, 'Mes avis', 'Statistiques'],
     ],
   },
   bailleur: {
     action: 'Proposer un bien à mon agence',
     groupes: [
-      [null, false, 'Tableau de bord', 'Messagerie'],
+      [null, false, 'Messagerie'],
       ['Mon patrimoine', false, 'Mes biens', 'Baux', 'Finances', 'États des lieux'],
       ['Activité', false, 'Demandes de contact', 'Visites', 'Réservations', 'Calendrier', 'Interventions'],
+      // TCK-2489 (ADR-0090 §4) — le tableau de bord, groupe sans titre après le deuxième groupe titré.
+      [null, false, 'Tableau de bord'],
       ['Plus', true, 'Clients (CRM)', 'Avis reçus', 'Documents', 'Statistiques', 'Exports', 'Mes favoris', 'Recherches sauvegardées', 'Mes tâches'],
     ],
   },
@@ -291,17 +300,22 @@ const MENU_ATTENDU: Record<Persona, { action: string | null; groupes: GroupeLu[]
   agent: {
     action: 'Publier un bien',
     groupes: [
-      [null, false, 'Tableau de bord', 'Messagerie', 'Mes tâches'],
+      [null, false, 'Messagerie', 'Mes tâches'],
       ['Prospection', false, 'Demandes de contact', 'Clients (CRM)', 'Visites', 'Calendrier'],
       ['Catalogue', false, 'Mes biens', 'Réservations'],
+      // TCK-2489 (ADR-0090 §4) — le tableau de bord, groupe sans titre après le deuxième groupe titré.
+      [null, false, 'Tableau de bord'],
       ['Gestion', false, 'Baux', 'Onboardings en attente', 'États des lieux', 'Interventions', 'Commissions'],
       ['Plus', true, 'Avis reçus', 'Documents', 'Statistiques', 'Exports', 'Mes favoris', 'Recherches sauvegardées'],
     ],
   },
   'admin-agence': {
     action: 'Publier un bien',
+    // Revue adverse de TCK-2490 (3) — le tableau de bord, qui ouvre ce menu (ADR-0090 §4), est rendu EN
+    // TÊTE, juste après l'action et « Aller à » : hors du groupe de tête.
+    enTete: 'Tableau de bord',
     groupes: [
-      [null, false, 'Tableau de bord', 'Vue agence', 'Messagerie'],
+      [null, false, 'Vue agence', 'Messagerie'],
       ['Activité', false, 'Demandes de contact', 'Visites', 'Réservations', 'Calendrier'],
       ['Portefeuille', false, 'Biens', 'Propriétaires', 'Clients (CRM)', 'Baux', 'Onboardings en attente'],
       ['Finances', false, "Finances de l'agence", 'Commissions', 'Crédits', 'Abonnement'],
@@ -313,11 +327,13 @@ const MENU_ATTENDU: Record<Persona, { action: string | null; groupes: GroupeLu[]
   hote: {
     action: 'Publier un bien',
     groupes: [
-      [null, false, 'Tableau de bord', 'Messagerie'],
+      [null, false, 'Messagerie'],
       ['Mes biens', false, 'Mes biens', 'Réservations', 'Visites', 'Calendrier', 'Demandes de contact'],
       // Arbitrage 4 : « Finances » = les finances de l'agence ; les paiements du bailleur vont sous
       // « Plus », libellés « Paiements ».
       ['Mes locations', false, 'Baux', "Finances de l'agence", 'États des lieux', 'Interventions', 'Carnet prestataires'],
+      // TCK-2489 (ADR-0090 §4) — le tableau de bord, groupe sans titre après le deuxième groupe titré.
+      [null, false, 'Tableau de bord'],
       ['Mon espace', false, 'Agence', 'KYC agence', 'Reversements', 'Crédits', 'Intégrations'],
       [
         'Plus', true, 'Clients (CRM)', 'Statistiques', 'Exports', 'KPIs', 'Alertes', 'Avis reçus', 'Documents',
@@ -331,7 +347,8 @@ const MENU_ATTENDU: Record<Persona, { action: string | null; groupes: GroupeLu[]
   prestataire: {
     action: null,
     groupes: [
-      [null, false, 'Tableau de bord', 'Interventions', 'Messagerie', 'Documents'],
+      // TCK-2489 — le tableau de bord, quatrième ligne de la tête.
+      [null, false, 'Interventions', 'Messagerie', 'Documents', 'Tableau de bord'],
       // Revue de TCK-2478 — « Statistiques » sort (M2 : sa page le renvoie sur `/app`), « Calendrier »
       // entre (M3 : `assertCanReachCalendar` le laisse entrer, TCK-591).
       ['Plus', true, 'Réservations', 'Visites', 'Mes favoris', 'Recherches sauvegardées', 'Baux', 'Calendrier'],
@@ -340,9 +357,11 @@ const MENU_ATTENDU: Record<Persona, { action: string | null; groupes: GroupeLu[]
   plateforme: {
     action: 'Publier un bien',
     groupes: [
-      [null, false, 'Tableau de bord', 'Vue agence', 'Messagerie'],
+      [null, false, 'Vue agence', 'Messagerie'],
       ['Activité', false, 'Demandes de contact', 'Visites', 'Réservations', 'Calendrier'],
       ['Portefeuille', false, 'Biens', 'Propriétaires', 'Clients (CRM)', 'Baux', 'Onboardings en attente'],
+      // TCK-2489 (ADR-0090 §4) — le tableau de bord, groupe sans titre après le deuxième groupe titré.
+      [null, false, 'Tableau de bord'],
       ['Finances', false, "Finances de l'agence", 'Commissions', 'Crédits', 'Abonnement'],
       ['Agence', true, 'Équipe', 'Rôles', 'Agence', 'KYC agence', 'Modération avis', 'Modération biens', "Journal d'audit", 'Intégrations'],
       ['Pilotage', true, 'Statistiques', 'KPIs', 'Alertes', 'Exports'],
@@ -350,6 +369,65 @@ const MENU_ATTENDU: Record<Persona, { action: string | null; groupes: GroupeLu[]
     ],
   },
 };
+
+/**
+ * Revue adverse de TCK-2490 (3, arbitrage de la session) — le porteur veut le tableau de bord de l'admin
+ * d'agence EN TÊTE : juste après « Publier » et « Aller à », donc AVANT « Aujourd'hui » et « Démarrer ».
+ * Les autres personas ne changent pas (ADR-0090 §4 : leur tableau de bord descend dans le menu).
+ */
+describe('revue adverse (3) — le tableau de bord de l’admin d’agence vient juste après « Publier » et « Aller à »', () => {
+  const avant = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+
+  it('admin d’agence : Publier → Aller à → Tableau de bord → Aujourd’hui → Démarrer → menu', () => {
+    unreadMock.mockReturnValue(3);
+    demarrageMock.mockReturnValue({ data: { data: { etapes: [{ code: 'kyc', faite: false }] } } });
+    const { container } = renderSidebar('admin-agence', '/app', { onOuvrirPalette: () => {} });
+    const aside = container.querySelector('aside')!;
+    const tableau = aside.querySelector('a[href="/app"]')!;
+    expect(tableau).toHaveAccessibleName('Tableau de bord');
+    const chaine = [
+      aside.querySelector('[data-slot="action-principale"]')!,
+      aside.querySelector('[data-slot="aller-a"]')!,
+      tableau,
+      aside.querySelector('[data-slot="aujourdhui"]')!,
+      aside.querySelector('[data-slot="demarrer"]')!,
+      aside.querySelector('[data-slot="menu"] [data-groupe]')!,
+    ];
+    chaine.forEach((el, i) => expect(el, `maillon ${i}`).not.toBeNull());
+    for (let i = 1; i < chaine.length; i++) expect(avant(chaine[i - 1]!, chaine[i]!), `maillon ${i}`).toBe(true);
+    // Une seule fois : il a quitté le groupe de tête, qui garde le reste dans son ordre.
+    expect(aside.querySelectorAll('a[href="/app"]')).toHaveLength(1);
+    expect(groupesRendus(container)[0]).toEqual([null, false, 'Vue agence', 'Messagerie']);
+  });
+
+  // Suite de la revue adverse (a) — hissé, il reste une entrée de NAVIGATION : un seul repère pour la
+  // colonne, et le tableau de bord dedans, avec l'action et « Aller à ». Hors du repère, le lecteur
+  // d'écran qui saute au menu par les repères le manquait.
+  it('admin d’agence : un seul repère de navigation dans la colonne, le tableau de bord dedans', () => {
+    unreadMock.mockReturnValue(3);
+    const { container } = renderSidebar('admin-agence', '/app', { onOuvrirPalette: () => {} });
+    const aside = container.querySelector('aside')!;
+    const reperes = within(aside as HTMLElement).getAllByRole('navigation');
+    expect(reperes).toHaveLength(1);
+    const [repere] = reperes;
+    expect(repere).toHaveAccessibleName('Navigation du tableau de bord');
+    for (const el of [
+      aside.querySelector('a[href="/app"]')!,
+      aside.querySelector('[data-slot="action-principale"]')!,
+      aside.querySelector('[data-slot="aller-a"]')!,
+      aside.querySelector('[data-slot="aujourdhui"]')!,
+      aside.querySelector('[data-groupe]')!,
+    ]) expect(repere!.contains(el), el.outerHTML.slice(0, 80)).toBe(true);
+  });
+
+  it.each(PERSONAS.filter((p) => p !== 'admin-agence'))('%s : inchangé — le tableau de bord reste dans le menu, après « Aujourd’hui »', (persona) => {
+    unreadMock.mockReturnValue(3);
+    const { container } = renderSidebar(persona, '/app', { onOuvrirPalette: () => {} });
+    const tableau = container.querySelector('aside a[href="/app"]');
+    expect(tableau, 'le tableau de bord').not.toBeNull();
+    expect(container.querySelector<HTMLElement>('[data-slot="menu"]')!.contains(tableau)).toBe(true);
+  });
+});
 
 describe('TCK-2478 — la barre montée suit la disposition du persona (AC1)', () => {
   it.each(PERSONAS)('%s : l’action principale, puis le premier lien du menu', (persona) => {
@@ -361,12 +439,23 @@ describe('TCK-2478 — la barre montée suit la disposition du persona (AC1)', (
       return;
     }
     expect(action?.textContent?.trim()).toBe(attendue);
-    // Au clavier : l'action vient avant le menu, et le menu s'ouvre sur le tableau de bord. Le logo
-    // du tiroir (`/`) la précède seul, et l'en-tête d'espace n'est ici qu'une carte statique.
+    // Au clavier : l'action vient avant le menu, et le menu s'ouvre sur sa première entrée. La marque
+    // (`/`) la précède seule (TCK-2490 : l'en-tête d'espace a quitté le haut de la barre). TCK-2489 —
+    // la première entrée est celle de la disposition (le tableau de bord n'ouvre plus tous les menus).
     const liens = Array.from(container.querySelectorAll('aside a')).filter((a) => a.getAttribute('href') !== '/');
     expect(liens[0]).toBe(action);
-    expect(liens[1]).toBe(container.querySelector('nav a'));
-    expect(liens[1]).toHaveAttribute('href', '/app');
+    // Revue adverse (3) — l'entrée hissée en tête (le tableau de bord de l'admin d'agence) vient avant le
+    // menu ; sinon, le menu s'ouvre sur sa première entrée.
+    const enTete = MENU_ATTENDU[persona].enTete;
+    if (enTete) {
+      expect(libelle(liens[1])).toBe(enTete);
+      expect(container.querySelector<HTMLElement>('[data-slot="menu"]')!.contains(liens[1]!)).toBe(false);
+      expect(liens[2]).toBe(container.querySelector('[data-slot="menu"] a'));
+      expect(libelle(liens[2])).toBe(MENU_ATTENDU[persona].groupes[0][2]);
+    } else {
+      expect(liens[1]).toBe(container.querySelector('[data-slot="menu"] a'));
+      expect(libelle(liens[1])).toBe(MENU_ATTENDU[persona].groupes[0][2]);
+    }
   });
 
   it.each(PERSONAS)('%s : les groupes, leurs titres et leurs entrées, dans l’ordre', (persona) => {
@@ -374,21 +463,25 @@ describe('TCK-2478 — la barre montée suit la disposition du persona (AC1)', (
     expect(groupesRendus(container)).toEqual(MENU_ATTENDU[persona].groupes);
   });
 
-  it.each(PERSONAS)('%s : chaque groupe replié a `aria-expanded="false"` et sa liste `hidden`', (persona) => {
+  // TCK-2490 — le repli est animé : la liste repliée reste au DOM, `inert` (ni focus ni clic) et
+  // `aria-hidden` (ni lue ni trouvée), au lieu de `hidden`.
+  it.each(PERSONAS)('%s : chaque groupe replié a `aria-expanded="false"` et sa liste inerte et cachée', (persona) => {
     const { container } = renderSidebar(persona, '/app');
     const replies = MENU_ATTENDU[persona].groupes.filter((g) => g[1]).map((g) => g[0]);
-    const boutons = Array.from(container.querySelectorAll('nav [data-groupe] > button[aria-expanded]'));
+    const boutons = Array.from(container.querySelectorAll('[data-slot="menu"] [data-groupe] > button[aria-expanded]'));
     expect(boutons.filter((b) => b.getAttribute('aria-expanded') === 'false').map((b) => b.textContent?.trim())).toEqual(replies);
     for (const bouton of boutons) {
       const liste = document.getElementById(bouton.getAttribute('aria-controls') ?? '');
       expect(liste, bouton.textContent ?? '').not.toBeNull();
-      expect(liste).toHaveAttribute('hidden');
+      const replie = bouton.getAttribute('aria-expanded') === 'false';
+      expect(liste!.hasAttribute('inert'), bouton.textContent ?? '').toBe(replie);
+      expect(liste!.getAttribute('aria-hidden') === 'true', bouton.textContent ?? '').toBe(replie);
     }
   });
 
   it.each(PERSONAS)('%s : aucune entrée n’apparaît deux fois (TCK-646 AC2)', (persona) => {
     const { container } = renderSidebar(persona, '/app');
-    const rendus = Array.from(container.querySelectorAll('nav a, nav [role="link"]')).map(libelle);
+    const rendus = Array.from(container.querySelectorAll('[data-slot="menu"] a, [data-slot="menu"] [role="link"]')).map(libelle);
     expect(new Set(rendus).size, rendus.join(' · ')).toBe(rendus.length);
   });
 
@@ -492,7 +585,7 @@ describe('TCK-2478 — l’entrée active n’est jamais cachée (AC4)', () => {
     renderSidebar('admin-agence', '/app/maintenance/9');
     const plus = screen.getByRole('button', { name: 'Plus' });
     expect(plus).toHaveAttribute('aria-expanded', 'true');
-    expect(document.getElementById(plus.getAttribute('aria-controls')!)).not.toHaveAttribute('hidden');
+    expect(document.getElementById(plus.getAttribute('aria-controls')!)).not.toHaveAttribute('inert');
     expect(screen.getByRole('link', { name: 'Maintenance' })).toHaveAttribute('aria-current', 'page');
     // Les autres groupes repliés restent repliés.
     expect(screen.getByRole('button', { name: 'Agence' })).toHaveAttribute('aria-expanded', 'false');
@@ -512,8 +605,8 @@ describe('TCK-2478 — le prestataire (AC5)', () => {
   it('ni action, ni titre de section : sa seule bascule est « Plus »', () => {
     const { container } = renderSidebar('prestataire', '/app');
     expect(container.querySelector('[data-slot="action-principale"]')).toBeNull();
-    expect(container.querySelectorAll('nav p')).toHaveLength(0);
-    expect(Array.from(container.querySelectorAll('nav button')).map((b) => b.textContent?.trim())).toEqual(['Plus']);
+    expect(container.querySelectorAll('[data-slot="menu"] p')).toHaveLength(0);
+    expect(Array.from(container.querySelectorAll('[data-slot="menu"] button')).map((b) => b.textContent?.trim())).toEqual(['Plus']);
     // …et sa tête porte son métier, visible sans rien ouvrir.
     expect(screen.getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(
       expect.arrayContaining(['/app', '/app/maintenance', '/app/messages', '/app/documents']),
@@ -526,7 +619,7 @@ describe('TCK-2478 — la carte du client et le lien « Console plateforme »', 
     const { container } = renderSidebar(persona, '/app');
     const carte = screen.getByRole('link', { name: /Mettre un bien en location/ });
     expect(carte).toHaveAttribute('href', '/publish');
-    expect(container.querySelector('nav')?.querySelector('a[href="/publish"]')).toBeNull();
+    expect(container.querySelector<HTMLElement>('[data-slot="menu"]')?.querySelector('a[href="/publish"]')).toBeNull();
     expect(container.querySelectorAll('a[href="/publish"]')).toHaveLength(1);
   });
 
@@ -545,8 +638,9 @@ describe('TCK-2478 — la carte du client et le lien « Console plateforme »', 
 
   it('plateforme : « Console plateforme » vers /super-admin, hors du menu', () => {
     const { container } = renderSidebar('plateforme', '/app');
-    expect(screen.getByRole('link', { name: 'Console plateforme' })).toHaveAttribute('href', '/super-admin');
-    expect(container.querySelector('nav a[href="/super-admin"]')).toBeNull();
+    // TCK-2490 (ADR-0090 §6) — une ligne de statut : son nom est son texte visible, titre d'abord.
+    expect(screen.getByRole('link', { name: /^Console plateforme/ })).toHaveAttribute('href', '/super-admin');
+    expect(container.querySelector('[data-slot="menu"] a[href="/super-admin"]')).toBeNull();
   });
 
   // Revue de TCK-2478 — la console suit le rôle `super_admin`, pas le persona : un super-admin dont le
@@ -556,12 +650,12 @@ describe('TCK-2478 — la carte du client et le lien « Console plateforme »', 
     render(
       barre({ roles: ['customer', 'super_admin', 'agency_admin'], typeProfilActif: 'agency_admin', agence: 'standard', agencyIsStandard: true }),
     );
-    expect(screen.getByRole('link', { name: 'Console plateforme' })).toHaveAttribute('href', '/super-admin');
+    expect(screen.getByRole('link', { name: /^Console plateforme/ })).toHaveAttribute('href', '/super-admin');
   });
 
   it('un admin d’agence n’a pas le lien de la console', () => {
     renderSidebar('admin-agence', '/app');
-    expect(screen.queryByRole('link', { name: 'Console plateforme' })).toBeNull();
+    expect(screen.queryByRole('link', { name: /^Console plateforme/ })).toBeNull();
   });
 });
 
@@ -595,7 +689,7 @@ describe('AC2 — jamais deux entrées allumées sur des routes imbriquées', ()
   // Cinq couples, pas trois : le ticket n'en nommait que trois et manquait
   // `/app/maintenance` ⊃ `/app/maintenance/providers` et `/app/overview` ⊃ ses quatre filles.
   //
-  // TCK-2478 — « Publier un bien » est désormais l'ACTION PRINCIPALE, hors du `<nav>` : sur sa
+  // TCK-2478 — « Publier un bien » est désormais l'ACTION PRINCIPALE, hors du menu : sur sa
   // page, c'est elle qui est courante, et « Biens », son parent d'URL, ne s'allume pas.
   it.each([
     ['/app/properties/new', 'Publier un bien'],
@@ -700,21 +794,63 @@ describe('AC5 — un compteur ne s’affiche ni à zéro ni en échec', () => {
     expect(screen.queryByText('0')).toBeNull();
   });
 
-  // TCK-2479 — la bande « À traiter » porte le même nom (« 3 messages non lus ») sur sa pastille :
-  // ces cas visent le badge du MENU, lu dans le `<nav>`.
+  // Ces cas visent le badge du MENU, lu dans le menu. Revue adverse (M3) — un compte qu'« Aujourd'hui »
+  // porte déjà ne paraît plus sur son entrée : l'épreuve du badge visible se fait donc sur un compte
+  // HORS des priorités du persona (les visites du client, qui attendent l'agence, pas lui).
   it('la pastille paraît, avec son libellé accessible, dès qu’il y a quelque chose', () => {
-    unreadMock.mockReturnValue(3);
     pendingVisitsMock.mockReturnValue({ data: { meta: { total: 7 } } });
-    const { container } = renderSidebar('admin-agence', '/app');
-    const nav = within(container.querySelector('nav')!);
-    expect(nav.getByLabelText('3 messages non lus')).toHaveTextContent('3');
+    const { container } = renderSidebar('client', '/app');
+    const nav = within(container.querySelector<HTMLElement>('[data-slot="menu"]')!);
     expect(nav.getByLabelText('7 demandes de visite en attente')).toHaveTextContent('7');
   });
 
   it('au-delà de 99, la pastille dit 99+ sans mentir sur son libellé', () => {
-    unreadMock.mockReturnValue(140);
+    pendingVisitsMock.mockReturnValue({ data: { meta: { total: 140 } } });
+    const { container } = renderSidebar('client', '/app');
+    expect(within(container.querySelector<HTMLElement>('[data-slot="menu"]')!).getByLabelText('140 demandes de visite en attente')).toHaveTextContent('99+');
+  });
+});
+
+/**
+ * Revue adverse de TCK-2490 (M3) — chaque compte ne paraît qu'UNE fois. « Messages non lus 47 » ET
+ * « Messagerie 47 » : le doublon que l'ADR-0090 citait parmi les griefs du porteur. Un compte qui est une
+ * ligne d'« Aujourd'hui » quitte son entrée — il reste LU dans son nom (« Messagerie 3 messages non lus »,
+ * le nom que Chrome calculait avant, relevé dans son arbre d'accessibilité) ; un compte absent
+ * d'« Aujourd'hui » reste sur son entrée.
+ */
+describe('M3 — chaque compte ne paraît qu’une fois', () => {
+  const lien = (nav: HTMLElement, href: string) => nav.querySelector<HTMLElement>(`a[href="${href}"]`)!;
+
+  it('admin d’agence : messages et visites sont dans « Aujourd’hui » — leurs entrées n’affichent plus de nombre, leur nom le garde', () => {
+    unreadMock.mockReturnValue(3);
+    pendingVisitsMock.mockReturnValue({ data: { meta: { total: 7 } } });
     const { container } = renderSidebar('admin-agence', '/app');
-    expect(within(container.querySelector('nav')!).getByLabelText('140 messages non lus')).toHaveTextContent('99+');
+    const aujourdhui = screen.getByRole('region', { name: 'Aujourd’hui' });
+    expect(within(aujourdhui).getAllByRole('link').map((l) => l.getAttribute('href'))).toEqual(
+      expect.arrayContaining(['/app/messages', '/app/visits?tab=requested']),
+    );
+    const nav = container.querySelector<HTMLElement>('[data-slot="menu"]')!;
+    for (const [href, nom] of [
+      ['/app/messages', /^Messagerie\s?3 messages non lus$/],
+      ['/app/visits', /^Visites\s?7 demandes de visite en attente$/],
+    ] as const) {
+      const entree = lien(nav, href);
+      expect(entree.querySelector('[data-slot="compteur-entree"]'), href).toBeNull();
+      expect(entree.querySelector('[data-slot="compteur-lu"]')?.className, href).toBe('sr-only');
+      expect(entree, href).toHaveAccessibleName(nom);
+    }
+  });
+
+  it('client : les messages (sa priorité) quittent l’entrée ; ses visites (hors priorité) y restent, chiffrées', () => {
+    unreadMock.mockReturnValue(3);
+    pendingVisitsMock.mockReturnValue({ data: { meta: { total: 2 } } });
+    const { container } = renderSidebar('client', '/app');
+    const nav = container.querySelector<HTMLElement>('[data-slot="menu"]')!;
+    expect(lien(nav, '/app/messages').querySelector('[data-slot="compteur-entree"]')).toBeNull();
+    expect(lien(nav, '/app/messages')).toHaveAccessibleName(/^Messagerie\s?3 messages non lus$/);
+    const visites = lien(nav, '/app/visits').querySelector('[data-slot="compteur-entree"]');
+    expect(visites).toHaveTextContent('2');
+    expect(visites).toHaveAttribute('aria-label', '2 demandes de visite en attente');
   });
 });
 
@@ -840,12 +976,18 @@ describe('accessibilité de la barre', () => {
    * la coque de `/app` défilait arrivée en bas de la page. jsdom ne mesure rien : on garde la
    * cause, le `<nav>` qui défile est positionné.
    */
-  it('le <nav> qui défile contient les éléments absolus de la barre (TCK-843)', () => {
-    renderSidebar('hote', '/app');
+  // TCK-2490 — la zone qui défile n'est plus le `<nav>` seul : elle porte aussi « Aujourd'hui » et
+  // « Récents ». C'est ELLE qui doit être positionnée, et le menu est dedans. Suite de la revue adverse
+  // (a) — le repère `<nav>` couvre désormais la colonne entière : il contient la zone, qui contient le menu.
+  it('la zone qui défile contient les éléments absolus de la barre (TCK-843)', () => {
+    const { container } = renderSidebar('hote', '/app');
     const nav = screen.getByRole('navigation', { name: 'Navigation du tableau de bord' });
-    expect(nav.className).toContain('overflow-y-auto');
-    expect(nav.className.split(/\s+/)).toContain('relative');
-    expect(nav.querySelectorAll('.sr-only').length).toBeGreaterThan(0);
+    const zone = container.querySelector('[data-slot="defilement"]')!;
+    expect(zone.className).toContain('overflow-y-auto');
+    expect(zone.className.split(/\s+/)).toContain('relative');
+    expect(nav.contains(zone)).toBe(true);
+    expect(zone.contains(container.querySelector<HTMLElement>('[data-slot="menu"]'))).toBe(true);
+    expect(zone.querySelectorAll('.sr-only').length).toBeGreaterThan(0);
   });
 });
 
@@ -858,7 +1000,9 @@ describe('TCK-642 — le solde dans l’entrée « Crédits » du tiroir', () =>
     expect(soldeMock).toHaveBeenCalledWith({ enabled: true });
   });
 
-  it('affiché en bout de ligne, chiffres tabulaires, caché dès `md` (la barre haute le porte)', () => {
+  // TCK-2491 — la barre haute et sa pastille sont parties : la valeur se lit à toutes les largeurs ; le
+  // rail, lui, n'a pas la place (l'infobulle nomme l'entrée, le nom accessible dit le solde).
+  it('affiché en bout de ligne, chiffres tabulaires, à toutes les largeurs (caché dans le rail seul)', () => {
     soldeMock.mockReturnValue(1250);
     renderSidebar('admin-agence', '/app');
     // `format.number` sépare les milliers d'une espace fine insécable : on la normalise.
@@ -867,7 +1011,9 @@ describe('TCK-642 — le solde dans l’entrée « Crédits » du tiroir', () =>
     const valeur = lien.querySelector('[data-slot="valeur-entree"]');
     expect(valeur?.textContent?.replace(/\s/g, ' ')).toBe('1 250');
     expect(valeur?.className).toContain('tabular-nums');
-    expect(valeur?.className).toContain('md:hidden');
+    const classes = valeur?.className.split(/\s+/) ?? [];
+    expect(classes).not.toContain('md:hidden');
+    expect(classes).toContain('icones:hidden');
   });
 
   it('solde inconnu (chargement, refus, panne) : l’entrée reste nue, sans « 0 »', () => {
@@ -878,18 +1024,20 @@ describe('TCK-642 — le solde dans l’entrée « Crédits » du tiroir', () =>
   });
 });
 
-describe('TCK-2479 — la bande « À traiter » (ADR-0089 §5)', () => {
-  const bande = () => screen.queryByRole('region', { name: 'À traiter' });
+/**
+ * TCK-2490 (ADR-0090 §3) — « Aujourd'hui » remplace la bande « À traiter » de TCK-2479 : les MÊMES règles
+ * (entrées rendues, ordre et liste blanche du persona, zéro et échec ramenés à rien, menu immobile), en
+ * lignes libellées par l'action (« Visites à confirmer, 2 ») au lieu de pastilles (« 2 visites »).
+ */
+describe('TCK-2490 — « Aujourd’hui » (ADR-0090 §3, reprend la bande de TCK-2479)', () => {
+  const bande = () => screen.queryByRole('region', { name: 'Aujourd’hui' });
   const liensDeLaBande = () => within(bande()!).getAllByRole('link');
-  const noms = () => liensDeLaBande().map((l) => l.getAttribute('aria-label'));
-  /** Toutes les pastilles, celles repliées sous « +N » comprises. */
-  const tousLesNoms = () =>
-    within(bande()!)
-      .getAllByRole('link', { hidden: true })
-      .map((l) => l.getAttribute('aria-label'));
-  /** Les `href` du MENU, dans l'ordre — la bande est hors du `<nav>`. */
+  /** Le nom accessible de chaque ligne : le texte visible, libellé puis nombre (WCAG 2.5.3). */
+  const noms = () => liensDeLaBande().map((l) => l.textContent?.replace(/\s+/g, ' ').trim());
+  const tousLesNoms = noms;
+  /** Les `href` du MENU, dans l'ordre — la bande est hors du menu. */
   const menu = (c: HTMLElement) =>
-    Array.from(c.querySelectorAll('nav [data-groupe] a, nav [data-groupe] [role="link"]')).map(
+    Array.from(c.querySelectorAll('[data-slot="menu"] [data-groupe] a, [data-slot="menu"] [data-groupe] [role="link"]')).map(
       (a) => a.getAttribute('href') ?? a.textContent,
     );
   const chargerLesCompteurs = () => {
@@ -903,20 +1051,24 @@ describe('TCK-2479 — la bande « À traiter » (ADR-0089 §5)', () => {
   };
   /** Les deux files de modération sont de vraies requêtes : on attend leurs pastilles. */
   const PASTILLES_DE_MODERATION: Partial<Record<Persona, readonly string[]>> = {
-    'admin-agence': ['4 biens à valider', '5 avis à modérer'],
-    plateforme: ['4 biens à valider', '5 avis à modérer'],
+    'admin-agence': ['Biens à valider, 4', 'Avis à modérer, 5'],
+    plateforme: ['Biens à valider, 4', 'Avis à modérer, 5'],
   };
 
-  it('AC1 — agent, 3 messages et 2 visites : deux pastilles, visites d’abord, vers la page filtrée', () => {
+  it('AC1 — agent, 3 messages et 2 visites : deux lignes, visites d’abord, vers la page filtrée', () => {
     unreadMock.mockReturnValue(3);
     pendingVisitsMock.mockReturnValue({ data: { meta: { total: 2 } } });
     const { container } = renderSidebar('agent', '/app');
 
-    expect(noms()).toEqual(['2 visites en attente', '3 messages non lus']);
+    expect(noms()).toEqual(['Visites à confirmer, 2', 'Messages non lus, 3']);
+    // La première (la plus prioritaire) porte son compte en puce primaire ; les autres en puce neutre.
+    const puces = liensDeLaBande().map((l) => l.querySelector('[data-slot="compte-aujourdhui"]')!.className);
+    expect(puces[0]).toContain('bg-primary');
+    expect(puces[1]).not.toContain('bg-primary');
     expect(liensDeLaBande().map((l) => l.getAttribute('href'))).toEqual(['/app/visits?tab=requested', '/app/messages']);
-    // Entre l'action principale et le menu, hors du `<nav>`.
+    // Entre l'action principale et le menu, hors du menu.
     const action = container.querySelector('[data-slot="action-principale"]')!;
-    const nav = container.querySelector('nav')!;
+    const nav = container.querySelector<HTMLElement>('[data-slot="menu"]')!;
     expect(action).not.toBeNull();
     expect(action.compareDocumentPosition(bande()!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(bande()!.compareDocumentPosition(nav) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -926,13 +1078,14 @@ describe('TCK-2479 — la bande « À traiter » (ADR-0089 §5)', () => {
   it('AC1 — l’ordre est celui du persona : le locataire ne voit que ses messages', () => {
     chargerLesCompteurs();
     renderSidebar('locataire', '/app');
-    expect(noms()).toEqual(['3 messages non lus']);
+    expect(noms()).toEqual(['Messages non lus, 3']);
   });
 
-  it('AC1 — à zéro partout (ou au chargement) : aucune bande, aucun nœud', () => {
+  it('AC1 — à zéro partout (ou au chargement) : aucun bloc, aucun nœud, pas même son titre', () => {
     const { container } = renderSidebar('agent', '/app');
     expect(bande()).toBeNull();
-    expect(container.querySelector('[data-slot="a-traiter"]')).toBeNull();
+    expect(container.querySelector('[data-slot="aujourdhui"]')).toBeNull();
+    expect(screen.queryByText('Aujourd’hui')).toBeNull();
   });
 
   it.each(PERSONAS)('AC2 — %s : le menu garde les mêmes entrées, dans le même ordre, avec ou sans compteurs', async (persona) => {
@@ -950,16 +1103,17 @@ describe('TCK-2479 — la bande « À traiter » (ADR-0089 §5)', () => {
     expect(menu(apres)).toEqual(avant);
   });
 
-  it('AC2 — l’épreuve n’est pas vide : les files de modération chargées, l’admin d’agence et la plateforme ont leurs pastilles', async () => {
+  it('AC2 — l’épreuve n’est pas vide : les files de modération chargées, l’admin d’agence et la plateforme ont leurs lignes', async () => {
     chargerLesCompteurs();
     const { unmount } = renderSidebar('plateforme', '/app');
     await waitFor(() =>
-      expect(noms()).toEqual(['4 biens à valider', '5 avis à modérer', '1 demande non traitée', '2 visites en attente']),
+      // TCK-2490 — toutes les lignes non nulles : plus de coupe à quatre derrière « +N » (TCK-2489).
+      expect(noms()).toEqual(['Biens à valider, 4', 'Avis à modérer, 5', 'Demandes de contact, 1', 'Visites à confirmer, 2', 'Messages non lus, 3']),
     );
     unmount();
     chargerLesCompteurs();
     renderSidebar('admin-agence', '/app');
-    await waitFor(() => expect(tousLesNoms()).toEqual(expect.arrayContaining(['4 biens à valider', '5 avis à modérer'])));
+    await waitFor(() => expect(tousLesNoms()).toEqual(expect.arrayContaining(['Biens à valider, 4', 'Avis à modérer, 5'])));
   });
 
   it('I3 — avis : le compteur est le TOTAL de la vue « En attente » où il mène, pas `pending_count`', async () => {
@@ -973,52 +1127,55 @@ describe('TCK-2479 — la bande « À traiter » (ADR-0089 §5)', () => {
     fileBiensMock.mockResolvedValue({ meta: { total: 1, pending_count: 1 } });
     const { container } = renderSidebar('plateforme', '/app');
     // On attend la file des biens (même cadence) : celle des avis est alors revenue elle aussi.
-    await waitFor(() => expect(noms()).toEqual(['1 bien à valider']));
+    await waitFor(() => expect(noms()).toEqual(['Biens à valider, 1']));
     expect(fileAvisMock).toHaveBeenCalledWith(expect.anything(), { status: 'pending', perPage: 1 });
-    expect(within(container.querySelector('nav')!).queryByLabelText(/avis à modérer/)).toBeNull();
+    expect(within(container.querySelector<HTMLElement>('[data-slot="menu"]')!).queryByLabelText(/avis à modérer/)).toBeNull();
   });
 
-  it('AC2 — l’épreuve n’est pas vide : avec les compteurs chargés, l’agent a bien une bande', () => {
+  it('AC2 — l’épreuve n’est pas vide : avec les compteurs chargés, l’agent a bien ses lignes', () => {
     chargerLesCompteurs();
     renderSidebar('agent', '/app');
-    expect(noms()).toEqual(['1 demande non traitée', '2 visites en attente', '3 messages non lus']);
+    expect(noms()).toEqual(['Demandes de contact, 1', 'Visites à confirmer, 2', 'Messages non lus, 3']);
   });
 
   it.each([
     [
       'pendingVisits',
       () => pendingVisitsMock.mockReturnValue({ data: { meta: { total: 2 } }, isError: true }),
-      ['1 demande non traitée', '3 messages non lus'],
+      ['Demandes de contact, 1', 'Messages non lus, 3'],
       '2 demandes de visite en attente',
     ],
     [
       'unhandledLeads',
       () => unhandledLeadsMock.mockReturnValue({ data: { meta: { total: 1 } }, isError: true }),
-      ['2 visites en attente', '3 messages non lus'],
+      ['Visites à confirmer, 2', 'Messages non lus, 3'],
       '1 demande non traitée',
     ],
-  ] as const)('AC3 — %s en échec (relecture ratée, ancien `data` gardé) : ni pastille ni badge ; les autres restent', (_cle, enEchec, restent, badge) => {
+  ] as const)('AC3 — %s en échec (relecture ratée, ancien `data` gardé) : ni ligne ni compteur ; les autres restent', (_cle, enEchec, restent, badge) => {
     chargerLesCompteurs();
     enEchec();
     const { container } = renderSidebar('agent', '/app');
     expect(noms()).toEqual(restent);
-    expect(within(container.querySelector('nav')!).queryByLabelText(badge)).toBeNull();
+    // Ni badge visible ni compte lu (M3 : le compte d'« Aujourd'hui » vit en `sr-only` sur son entrée).
+    expect(within(container.querySelector<HTMLElement>('[data-slot="menu"]')!).queryByLabelText(badge)).toBeNull();
+    expect(container.querySelector<HTMLElement>('[data-slot="menu"]')!.textContent).not.toContain(badge);
   });
 
   it('R1 — le badge des demandes porte enfin son nom accessible (clé manquante depuis TCK-590)', () => {
     unhandledLeadsMock.mockReturnValue({ data: { meta: { total: 4 } } });
     const { container } = renderSidebar('agent', '/app');
-    const nav = container.querySelector('nav')!;
-    expect(within(nav).getByLabelText('4 demandes non traitées')).toHaveTextContent('4');
+    const nav = container.querySelector<HTMLElement>('[data-slot="menu"]')!;
+    // M3 — les demandes sont une ligne d'« Aujourd'hui » : l'entrée n'affiche plus le nombre, son nom le dit.
+    expect(nav.querySelector('a[href="/app/leads"]')).toHaveAccessibleName(/^Demandes de contact\s?4 demandes non traitées$/);
   });
 
-  it('AC6 — prestataire : une pastille au plus, la messagerie', () => {
+  it('AC6 — prestataire : une ligne au plus, la messagerie', () => {
     chargerLesCompteurs();
     renderSidebar('prestataire', '/app');
     expect(liensDeLaBande().map((l) => l.getAttribute('href'))).toEqual(['/app/messages']);
   });
 
-  it('a11y : la barre avec sa bande, sans violation', async () => {
+  it('a11y : la barre avec « Aujourd’hui », sans violation', async () => {
     chargerLesCompteurs();
     const { container } = renderSidebar('admin-agence', '/app');
     expect(bande()).not.toBeNull();
@@ -1043,7 +1200,7 @@ describe('TCK-2479 — « Démarrer » dans la barre (AC5)', () => {
 
     demarrageMock.mockReturnValue(etapes('premier_bien', 'kyc', 'equipe'));
     const { container: avec } = renderSidebar('admin-agence', '/app');
-    const nav = avec.querySelector('nav')!;
+    const nav = avec.querySelector<HTMLElement>('[data-slot="menu"]')!;
     expect(nav.firstElementChild).toHaveAttribute('data-slot', 'demarrer');
     expect(within(nav).getByRole('group', { name: 'Démarrer' })).toBeInTheDocument();
     expect(demarrageMock).toHaveBeenCalledWith({ enabled: true });
@@ -1120,7 +1277,7 @@ describe('TCK-2479 — « Démarrer » dans la barre (AC5)', () => {
  * personnel. Lu sur le DOM, groupes, « Plus » et « Aussi … » compris (tous les liens de `nav`).
  */
 describe('TCK-2483 — la barre montée retire les modules masqués par l’agence', () => {
-  const libellesRendus = (container: HTMLElement) => Array.from(container.querySelectorAll('nav a')).map(libelle);
+  const libellesRendus = (container: HTMLElement) => Array.from(container.querySelectorAll('[data-slot="menu"] a')).map(libelle);
 
   it('sans module masqué, l’agent a « Commissions » et « États des lieux » (témoin)', () => {
     const { container } = renderSidebar('agent', '/app');

@@ -1,8 +1,8 @@
 import type { NavCounterKey } from './types';
 
 /**
- * TCK-2479 (ADR-0089 §5) — la bande « À traiter » au-dessus du menu : une fonction pure des entrées
- * RENDUES, des compteurs et de la priorité du persona.
+ * TCK-2479 (ADR-0089 §5), TCK-2489 (ADR-0090 §3) — ce qui attend la personne : une fonction pure des
+ * entrées RENDUES, des compteurs et de la priorité du persona.
  *
  * - Elle ne lit que les entrées que la barre rend, non cadenassées : exactement celles dont le
  *   compteur est sondé (`countersToPoll`, TCK-377). Elle ne demande aucun compteur de plus.
@@ -19,27 +19,36 @@ export interface EntreeComptee {
   readonly locked?: boolean;
 }
 
-export interface PastilleATraiter {
+/**
+ * TCK-2489 (ADR-0090 §3) — une ligne du bloc « Aujourd'hui », qui remplace la bande de pastilles :
+ * libellée par l'action (`nav.sidebar.aujourdhui.lignes.<cle>` : « Messages non lus »…), avec son
+ * nombre. Le libellé est une donnée du RENDU : le modèle ne porte que la clé.
+ */
+export interface LigneAujourdhui {
   readonly cle: NavCounterKey;
   readonly nombre: number;
   /** La page filtrée sur ce qui attend (`hrefATraiter`), sinon la page de l'entrée. */
   readonly href: string;
 }
 
-/** Quatre pastilles au plus ; le reste derrière « +N ». */
-export const PASTILLES_VISIBLES = 4;
-
-export function pastillesATraiter(
+/**
+ * Les lignes « Aujourd'hui » : pour chaque clé de `priorites`, DANS CET ORDRE, une ligne si une
+ * entrée rendue et non cadenassée la porte ET que son compte est > 0. Toutes, sans coupe : le bloc
+ * disparaît quand la liste est vide (tout à zéro). Mêmes règles que la bande « À traiter » de TCK-2479
+ * (retirée en TCK-2490), moins sa coupe à quatre pastilles.
+ */
+export function lignesAujourdhui(
   entrees: readonly EntreeComptee[],
   comptes: Readonly<Partial<Record<NavCounterKey, number>>>,
   priorites: readonly NavCounterKey[],
-): { readonly visibles: readonly PastilleATraiter[]; readonly autres: readonly PastilleATraiter[] } {
-  const pastilles: PastilleATraiter[] = [];
+): readonly LigneAujourdhui[] {
+  const lignes: LigneAujourdhui[] = [];
   for (const cle of priorites) {
     const entree = entrees.find((e) => e.counterKey === cle && !e.locked);
     const nombre = comptes[cle] ?? 0;
     if (!entree || !(nombre > 0)) continue;
-    pastilles.push({ cle, nombre, href: entree.hrefATraiter ?? entree.href });
+    lignes.push({ cle, nombre, href: entree.hrefATraiter ?? entree.href });
   }
-  return { visibles: pastilles.slice(0, PASTILLES_VISIBLES), autres: pastilles.slice(PASTILLES_VISIBLES) };
+  return lignes;
 }
+

@@ -43,7 +43,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 4. [🧑‍💼 Agent immobilier](#agent-immobilier) — 120 fonctionnalités
 5. [🔧 Prestataire de service (service provider)](#prestataire-de-service-service-provider) — 17 fonctionnalités
 6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 156 fonctionnalités
-7. [👥 Tous les utilisateurs authentifiés](#tous-les-utilisateurs-authentifiés) — 80 fonctionnalités
+7. [👥 Tous les utilisateurs authentifiés](#tous-les-utilisateurs-authentifiés) — 82 fonctionnalités
 
 ---
 
@@ -957,12 +957,14 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §2.1 | Le menu de `/app` suit une disposition propre au persona du profil actif : ordre, groupes titrés, libellés, groupes repliés par défaut, entrées secondaires sous « Plus » ; une destination n'y paraît que si le profil peut l'ouvrir, et une destination accessible n'est jamais perdue (elle tombe sous « Plus ») (TCK-2477, TCK-2478) |
 | P1 | §2.1 | Une action principale par persona en tête du menu (ex. « Proposer un bien » pour le bailleur, « Payer mon loyer » pour le locataire), absente si le profil ne peut pas l'accomplir ou si l'espace est suspendu (TCK-2478) |
 | P1 | §2.1 | Les destinations ouvertes par les AUTRES profils du même espace paraissent dans un groupe replié « Aussi bailleur » / « Aussi agent »…, sans changer de profil (TCK-2478) |
-| P1 | §2.1 | En-tête d'espace en haut du menu : l'agence et le persona actifs, qui ouvre le sélecteur de profil (TCK-2478) |
-| P1 | §2.1 | Bande « À traiter » au-dessus du menu : une pastille par file non vide (messages non lus, visites en attente, demandes non traitées, avis et biens à modérer), chacune menant à sa page filtrée sur ce qui attend ; aucune entrée du menu ne change de place selon la charge (TCK-2479) |
+| P1 | §2.1 | Le compte au pied de la colonne (avatar, nom, espace et rôle actifs) ouvre un seul menu : changement d'espace, langue, profil, préférences de notification, administration, crédits, déconnexion (TCK-2478, TCK-2491) |
+| P1 | §2.1 | Bloc « Aujourd'hui » au-dessus du menu : une ligne par file non vide, libellée par l'action (« Messages non lus », « Visites à confirmer », « Demandes de contact », avis et biens à modérer), avec son nombre (99+ au-delà), menant à sa page filtrée sur ce qui attend ; un compte affiché là ne se répète pas sur l'entrée du menu ; aucune entrée ne change de place selon la charge (TCK-2479, TCK-2489, TCK-2490) |
+| P1 | §2.1 | « Tableau de bord » ouvre le menu de l'admin d'agence seul ; pour les autres personas il vient après le deuxième groupe titré (en quatrième ligne pour le prestataire) ; `/app` reste la page d'arrivée (TCK-2489) |
+| P2 | §2.1 | « Récents » en fin de menu : les quatre dernières pages ouvertes, hors la page courante (TCK-2490) |
 | P2 | §2.1 | Personnalisation du menu par persona, rangée sur le compte : épingler jusqu'à cinq entrées (elles montent dans « Épinglés »), replier un groupe, revenir à la disposition par défaut (TCK-2480) |
-| P2 | §2.1 | Barre réduite aux icônes, réglée par appareil ; par défaut entre `md` et `lg` (TCK-2480) |
-| P2 | §2.1 | Barre d'onglets mobile sous `md` : quatre destinations choisies par persona et « Menu », qui ouvre le tiroir (TCK-2481) |
-| P2 | §2.1 | Palette de commandes (⌘K / Ctrl K) : destinations accessibles, action principale, files « À traiter », bascule de profil, pages récentes, recherche par libellé et synonymes (TCK-2482) |
+| P2 | §2.1 | Barre réduite aux icônes (rail), réglée par appareil ; par défaut entre `md` et `lg` ; un compte en attente y reste signalé par un point, et un groupe replié signale le compte qu'il cache (TCK-2480, TCK-2490) |
+| P2 | §2.1 | Sous `md` : en-tête compacte (marque, « Aller à », cloche) et barre d'onglets — quatre destinations choisies par persona et « Menu », qui ouvre le tiroir où se trouve la colonne entière (TCK-2481, TCK-2491) |
+| P2 | §2.1 | Palette de commandes « Aller à » (⌘K / Ctrl K, ou sa ligne dans la colonne) : destinations accessibles, action principale, files « À traiter », bascule de profil, pages récentes, recherche par libellé et synonymes, et recherche d'annonces du site (« Chercher un bien sur Takussan », texte tapé transmis à `/properties`) (TCK-2482, TCK-2489) |
 | P0 | §2.1 | Pattern d'invitation unifié — création par un inviteur autorisé, invitation par e-mail OU par SMS (lien court) quand l'invité n'a qu'un numéro (TCK-589), avec token signé (expiry 7j, rappel automatique J+2, retenté le lendemain si tous les fournisseurs SMS l'ont refusé, trois essais au plus (TCK-2155), renvoi self-service par l'inviteur, révocation possible avant acceptation) ; à l'acceptation, le profil cible passe en `active` et devient le profil actif |
 | P1 | §2.1 | Composant wizard reprenable — chaque step sauvegardé en `draft`, bandeau persistant "Reprenez votre publication / votre onboarding" sur dashboard, reprise depuis le menu compte |
 | P1 | §2.1 | Welcome modale générique réutilisable — composant 3 slides max, skippable, paramétrable par parcours (Customer, Host, Owner, Agent, AgencyAdmin, ServiceProvider, Tenant) |
@@ -1039,8 +1041,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 ## Provenance
 
-- Source : [`features.md`](./features.md) — **437** lignes de fonctionnalité lues,
-  réparties en **580** placements (une ligne multi-acteurs compte une fois par acteur).
+- Source : [`features.md`](./features.md) — **439** lignes de fonctionnalité lues,
+  réparties en **582** placements (une ligne multi-acteurs compte une fois par acteur).
 - Générateur : `docs/gen-features-by-actor.mjs`.
 - Fraîcheur vérifiée en CI par `node docs/gen-features-by-actor.mjs --check`, qui échoue si
   cette sortie ne correspond plus à sa source.
