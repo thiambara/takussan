@@ -228,6 +228,7 @@
       },
       "aujourdhui": {
         "titre": "Aujourd’hui",
+        "infobulle": "{libelle} · {nombre}",
         "lignes": {
           "unreadMessages": "Messages non lus",
           "pendingVisits": "Visites à confirmer",

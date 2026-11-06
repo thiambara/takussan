@@ -719,21 +719,63 @@ describe('AC5 — un compteur ne s’affiche ni à zéro ni en échec', () => {
     expect(screen.queryByText('0')).toBeNull();
   });
 
-  // TCK-2479 — la bande « À traiter » porte le même nom (« 3 messages non lus ») sur sa pastille :
-  // ces cas visent le badge du MENU, lu dans le `<nav>`.
+  // Ces cas visent le badge du MENU, lu dans le `<nav>`. Revue adverse (M3) — un compte qu'« Aujourd'hui »
+  // porte déjà ne paraît plus sur son entrée : l'épreuve du badge visible se fait donc sur un compte
+  // HORS des priorités du persona (les visites du client, qui attendent l'agence, pas lui).
   it('la pastille paraît, avec son libellé accessible, dès qu’il y a quelque chose', () => {
-    unreadMock.mockReturnValue(3);
     pendingVisitsMock.mockReturnValue({ data: { meta: { total: 7 } } });
-    const { container } = renderSidebar('admin-agence', '/app');
+    const { container } = renderSidebar('client', '/app');
     const nav = within(container.querySelector('nav')!);
-    expect(nav.getByLabelText('3 messages non lus')).toHaveTextContent('3');
     expect(nav.getByLabelText('7 demandes de visite en attente')).toHaveTextContent('7');
   });
 
   it('au-delà de 99, la pastille dit 99+ sans mentir sur son libellé', () => {
-    unreadMock.mockReturnValue(140);
+    pendingVisitsMock.mockReturnValue({ data: { meta: { total: 140 } } });
+    const { container } = renderSidebar('client', '/app');
+    expect(within(container.querySelector('nav')!).getByLabelText('140 demandes de visite en attente')).toHaveTextContent('99+');
+  });
+});
+
+/**
+ * Revue adverse de TCK-2490 (M3) — chaque compte ne paraît qu'UNE fois. « Messages non lus 47 » ET
+ * « Messagerie 47 » : le doublon que l'ADR-0090 citait parmi les griefs du porteur. Un compte qui est une
+ * ligne d'« Aujourd'hui » quitte son entrée — il reste LU dans son nom (« Messagerie 3 messages non lus »,
+ * le nom que Chrome calculait avant, relevé dans son arbre d'accessibilité) ; un compte absent
+ * d'« Aujourd'hui » reste sur son entrée.
+ */
+describe('M3 — chaque compte ne paraît qu’une fois', () => {
+  const lien = (nav: HTMLElement, href: string) => nav.querySelector<HTMLElement>(`a[href="${href}"]`)!;
+
+  it('admin d’agence : messages et visites sont dans « Aujourd’hui » — leurs entrées n’affichent plus de nombre, leur nom le garde', () => {
+    unreadMock.mockReturnValue(3);
+    pendingVisitsMock.mockReturnValue({ data: { meta: { total: 7 } } });
     const { container } = renderSidebar('admin-agence', '/app');
-    expect(within(container.querySelector('nav')!).getByLabelText('140 messages non lus')).toHaveTextContent('99+');
+    const aujourdhui = screen.getByRole('region', { name: 'Aujourd’hui' });
+    expect(within(aujourdhui).getAllByRole('link').map((l) => l.getAttribute('href'))).toEqual(
+      expect.arrayContaining(['/app/messages', '/app/visits?tab=requested']),
+    );
+    const nav = container.querySelector('nav')!;
+    for (const [href, nom] of [
+      ['/app/messages', /^Messagerie\s?3 messages non lus$/],
+      ['/app/visits', /^Visites\s?7 demandes de visite en attente$/],
+    ] as const) {
+      const entree = lien(nav, href);
+      expect(entree.querySelector('[data-slot="compteur-entree"]'), href).toBeNull();
+      expect(entree.querySelector('[data-slot="compteur-lu"]')?.className, href).toBe('sr-only');
+      expect(entree, href).toHaveAccessibleName(nom);
+    }
+  });
+
+  it('client : les messages (sa priorité) quittent l’entrée ; ses visites (hors priorité) y restent, chiffrées', () => {
+    unreadMock.mockReturnValue(3);
+    pendingVisitsMock.mockReturnValue({ data: { meta: { total: 2 } } });
+    const { container } = renderSidebar('client', '/app');
+    const nav = container.querySelector('nav')!;
+    expect(lien(nav, '/app/messages').querySelector('[data-slot="compteur-entree"]')).toBeNull();
+    expect(lien(nav, '/app/messages')).toHaveAccessibleName(/^Messagerie\s?3 messages non lus$/);
+    const visites = lien(nav, '/app/visits').querySelector('[data-slot="compteur-entree"]');
+    expect(visites).toHaveTextContent('2');
+    expect(visites).toHaveAttribute('aria-label', '2 demandes de visite en attente');
   });
 });
 
@@ -1037,14 +1079,17 @@ describe('TCK-2490 — « Aujourd’hui » (ADR-0090 §3, reprend la bande de TC
     enEchec();
     const { container } = renderSidebar('agent', '/app');
     expect(noms()).toEqual(restent);
+    // Ni badge visible ni compte lu (M3 : le compte d'« Aujourd'hui » vit en `sr-only` sur son entrée).
     expect(within(container.querySelector('nav')!).queryByLabelText(badge)).toBeNull();
+    expect(container.querySelector('nav')!.textContent).not.toContain(badge);
   });
 
   it('R1 — le badge des demandes porte enfin son nom accessible (clé manquante depuis TCK-590)', () => {
     unhandledLeadsMock.mockReturnValue({ data: { meta: { total: 4 } } });
     const { container } = renderSidebar('agent', '/app');
     const nav = container.querySelector('nav')!;
-    expect(within(nav).getByLabelText('4 demandes non traitées')).toHaveTextContent('4');
+    // M3 — les demandes sont une ligne d'« Aujourd'hui » : l'entrée n'affiche plus le nombre, son nom le dit.
+    expect(nav.querySelector('a[href="/app/leads"]')).toHaveAccessibleName(/^Demandes de contact\s?4 demandes non traitées$/);
   });
 
   it('AC6 — prestataire : une ligne au plus, la messagerie', () => {

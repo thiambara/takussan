@@ -108,11 +108,17 @@ interface AppSidebarProps {
  * contraste), pas une pastille pleine. Rail : un point de couleur sur l'icône. Le libellé accessible
  * dit ce qu'il compte (« 3 messages non lus »), dans tous les modes.
  */
-function SidebarCounter({ value, label }: { value: number; label: string }) {
+function SidebarCounter({ value, label, point }: { value: number; label: string; point: boolean }) {
   return (
-    <span aria-label={label} className="ml-auto shrink-0 icones:absolute icones:right-2.5 icones:top-2 icones:ml-0">
+    <span
+      aria-label={label}
+      data-slot="compteur-entree"
+      className="ml-auto shrink-0 icones:absolute icones:right-2.5 icones:top-2 icones:ml-0"
+    >
       <span className={cn(STYLE_COMPTEUR, 'icones:hidden')}>{compteAffiche(value)}</span>
-      <span aria-hidden className="hidden size-1.5 rounded-full bg-primary icones:block" />
+      {/* Revue adverse (I1) — pas de point dans une liste repliée (`inert`, hauteur nulle) : il n'y
+          signalait rien. « Aujourd'hui », visible dans le rail, porte ce qui attend. */}
+      {point ? <span aria-hidden data-slot="point-entree" className="hidden size-1.5 rounded-full bg-primary icones:block" /> : null}
     </span>
   );
 }
@@ -131,6 +137,14 @@ interface SidebarItemProps {
   readonly href: string;
   readonly active: boolean;
   readonly counter?: number;
+  /**
+   * Revue adverse de TCK-2490 (M3) — ce compte est déjà une ligne d'« Aujourd'hui » : il ne s'affiche pas
+   * une seconde fois sur l'entrée. Il reste LU, dans le nom de l'entrée (« Messagerie 47 messages non
+   * lus », relevé dans l'arbre d'accessibilité de Chrome avant le changement).
+   */
+  readonly compteDansAujourdhui?: boolean;
+  /** L'entrée est dans une liste repliée (`inert`, hauteur nulle) : son compteur n'y pose pas de point. */
+  readonly dansUnRepli?: boolean;
   readonly onNavigate?: () => void;
   /** TCK-642 — une valeur en bout de ligne (le solde de crédits), déjà mise en forme. */
   readonly valeur?: string;
@@ -151,6 +165,8 @@ function SidebarItem({
   href,
   active,
   counter,
+  compteDansAujourdhui = false,
+  dansUnRepli = false,
   onNavigate,
   valeur,
   nomAccessible,
@@ -221,7 +237,13 @@ function SidebarItem({
         <Icon className={cn(ICONE_DE_LIGNE, active && 'text-primary')} strokeWidth={TRAIT_D_ICONE} aria-hidden />
         <span className={LIBELLE_DE_LIGNE}>{label}</span>
         {counterKey && counter && counter > 0 ? (
-          <SidebarCounter value={counter} label={libelleCompteur(counterKey, counter)} />
+          compteDansAujourdhui ? (
+            <span data-slot="compteur-lu" className="sr-only">
+              {libelleCompteur(counterKey, counter)}
+            </span>
+          ) : (
+            <SidebarCounter value={counter} label={libelleCompteur(counterKey, counter)} point={!dansUnRepli} />
+          )
         ) : null}
         {/* TCK-2491 — la barre du haut et sa pastille sont parties : la valeur se lit ici à toutes les
             largeurs (et dans le menu du compte) ; dans le rail, l'infobulle nomme l'entrée. */}
@@ -276,7 +298,8 @@ interface GroupeDuMenuProps {
   readonly premier: boolean;
   readonly idBase: string;
   readonly activeHref: string | null;
-  readonly rendreEntree: (entree: EntreeRendue) => ReactNode;
+  /** `replie` : la liste qui la porte est repliée (`inert`, hauteur nulle). */
+  readonly rendreEntree: (entree: EntreeRendue, replie: boolean) => ReactNode;
   /**
    * TCK-2480 — replier ou ouvrir le groupe, ENREGISTRÉ sur le compte (A8). Absent (aucun
    * fournisseur) : seuls les groupes repliés par défaut se basculent, pour ce montage seulement.
@@ -409,11 +432,11 @@ function GroupeDuMenu({
           aria-hidden={ferme || undefined}
           className={cn(STYLE_REPLI, ferme ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]')}
         >
-          <div className="min-h-0 space-y-px overflow-hidden">{groupe.entrees.map(rendreEntree)}</div>
+          <div className="min-h-0 space-y-px overflow-hidden">{groupe.entrees.map((e) => rendreEntree(e, ferme))}</div>
         </div>
       ) : (
         <div id={idListe} className="space-y-px">
-          {groupe.entrees.map(rendreEntree)}
+          {groupe.entrees.map((e) => rendreEntree(e, false))}
         </div>
       )}
     </div>
@@ -561,6 +584,9 @@ export function AppSidebar({
   // TCK-2490 (ADR-0090 §3) — « Aujourd'hui » : les entrées RENDUES (donc sondées, `countersToPoll`),
   // dans l'ordre du persona (`lignesAujourdhui`, TCK-2489). Aucun compteur de plus que le menu.
   const aujourdhui = lignesAujourdhui(entrees, counters, menu.priorites);
+  // Revue adverse (M3) — chaque compte ne paraît qu'une fois : celui d'une ligne d'« Aujourd'hui » quitte
+  // son entrée (il y reste lu). Les compteurs absents d'« Aujourd'hui » restent sur leur entrée.
+  const comptesDAujourdhui = new Set(aujourdhui.map((ligne) => ligne.cle));
   // TCK-642 — le solde de l'espace, lu par la PRÉSENCE de l'entrée « Crédits » (même principe que
   // les compteurs) ; `null` tant qu'il n'est pas connu, et alors l'entrée reste nue.
   const solde = useSoldeCredits({
@@ -621,13 +647,15 @@ export function AppSidebar({
     prefs.masquerDemarrer(persona);
   };
 
-  const rendreEntree = (entree: EntreeRendue) => (
+  const rendreEntree = (entree: EntreeRendue, replie = false) => (
     <SidebarItem
       key={entree.href}
       entree={entree}
       href={lien(entree)}
       active={entree.href === activeHref}
       counter={entree.counterKey ? counters[entree.counterKey] : undefined}
+      compteDansAujourdhui={entree.counterKey !== undefined && comptesDAujourdhui.has(entree.counterKey)}
+      dansUnRepli={replie}
       onNavigate={onNavigate}
       {...(entree.href === HREF_CREDITS && solde !== null
         ? { valeur: format.number(solde), nomAccessible: tNav('creditsBalance', { count: solde }) }
@@ -752,7 +780,7 @@ export function AppSidebar({
       >
         {/* TCK-2490 (ADR-0090 §3) — ce qui attend une réponse, HORS du `<nav>` : le menu ne bouge
             jamais selon un compteur. Rien n'est rendu quand rien n'attend. */}
-        <AujourdhuiDeLaBarre lignes={aujourdhui} entrees={entrees} onNavigate={onNavigate} />
+        <AujourdhuiDeLaBarre lignes={aujourdhui} entrees={entrees} onNavigate={onNavigate} infobulle={infobulle} />
         <nav aria-label={t('navLabel')} className="relative">
           {/* TCK-2480 (A6) — « Épinglés » d'abord, avant « Démarrer », qui est transitoire. */}
           {epingles ? rendreGroupe(epingles, true) : null}

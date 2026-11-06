@@ -76,7 +76,8 @@ interface Scenario {
 }
 
 const SCENARIOS: Record<string, Scenario> = {
-  // Messagerie ACTIVE avec son compteur ; « Aujourd'hui » chargé ; « Démarrer » ; « Récents ».
+  // Messagerie ACTIVE (son compte est dans « Aujourd'hui », M3) ; « Aujourd'hui » chargé ; « Démarrer » ;
+  // « Récents ».
   'agent sur la messagerie': { roles: ['customer', 'agent'], agence: 'standard', agencyIsStandard: true, chemin: '/app/messages' },
   // Crédits ACTIF avec sa valeur (tiroir) ; « Aller à » et ses touches.
   'admin d’agence sur les crédits': { roles: ['customer', 'agency_admin'], agence: 'standard', agencyIsStandard: true, chemin: '/app/credits' },
@@ -91,6 +92,9 @@ const SCENARIOS: Record<string, Scenario> = {
   },
   // La ligne de mise en location ; la console.
   'client et console': { roles: ['customer', 'super_admin'], agence: null, chemin: '/app/favorites' },
+  // Revue adverse (M3) — « Mes visites » ACTIVE avec son compteur : un compte hors des priorités du client
+  // reste sur son entrée, et se mesure sur le voile de l'actif.
+  'client sur ses visites': { roles: ['customer'], agence: null, chemin: '/app/visits' },
 };
 
 function monter(s: Scenario) {
@@ -189,11 +193,11 @@ describe('TCK-2490 (AC4) — chaque texte de la colonne tient 4,5:1 sur tous ses
     expect(echecs).toEqual([]);
   });
 
-  it('l’épreuve voit bien l’entrée active : le compteur de la messagerie active est mesuré sur le voile de 8 %', () => {
-    const { container } = monter(SCENARIOS['agent sur la messagerie']);
+  it('l’épreuve voit bien l’entrée active : le compteur des visites actives est mesuré sur le voile de 8 %', () => {
+    const { container } = monter(SCENARIOS['client sur ses visites']);
     const actif = container.querySelector('nav a[aria-current="page"]')!;
-    expect(actif.getAttribute('href')).toBe('/app/messages');
-    const compteur = Array.from(actif.querySelectorAll('span')).find((s) => s.textContent === '3' && s.className.includes('text-'))!;
+    expect(actif.getAttribute('href')).toBe('/app/visits');
+    const compteur = Array.from(actif.querySelectorAll('span')).find((s) => s.textContent === '2' && s.className.includes('text-'))!;
     const fonds = fondsDe(compteur, JETONS_CLAIR);
     // Le lin (`--muted` à 45 % sur `--background`), puis l'encre à 8 %.
     const lin = composer(versRvb(JETONS_CLAIR.muted), versRvb(JETONS_CLAIR.background), 0.45);

@@ -258,14 +258,24 @@ describe('profil actif non admin dans un espace où le compte est admin (revue, 
 });
 
 describe('les files de modération gardent leur badge (TCK-098, repris de la barre de l’ancienne console)', () => {
-  it('admin standard : avis et biens en attente, sur leurs entrées', async () => {
+  // Revue adverse de TCK-2490 (M3) — les deux files sont des priorités de l'admin d'agence : leurs comptes
+  // sont des lignes d'« Aujourd'hui », et leurs entrées ne les affichent plus. Ils restent dans leur nom.
+  it('admin standard : avis et biens en attente — dans « Aujourd’hui », et lus sur leurs entrées', async () => {
     monterLaBarre(ADMIN_STANDARD);
-    expect(await screen.findByLabelText('3 en attente')).toHaveTextContent('3');
-    expect(await screen.findByLabelText('6 en attente')).toHaveTextContent('6');
-    // Les deux files sont dans « Agence », replié : au menu quand même, badge compris.
+    const aujourdhui = await screen.findByRole('region', { name: 'Aujourd’hui' });
+    await waitFor(() =>
+      expect(within(aujourdhui).getAllByRole('link').map((l) => l.textContent?.replace(/\s+/g, ' ').trim())).toEqual([
+        'Biens à valider, 6',
+        'Avis à modérer, 3',
+      ]),
+    );
+    // Les deux files sont dans « Agence », replié : au menu quand même, compte compris (lu).
     const section = screen.getByRole('group', { name: 'Agence' });
-    expect(within(section).getByRole('link', { name: /Modération avis/, hidden: true })).toContainElement(
-      screen.getByLabelText('3 en attente'),
+    const avis = within(section).getByRole('link', { name: /Modération avis/, hidden: true });
+    expect(avis).toHaveAccessibleName(/^Modération avis\s?3 en attente$/);
+    expect(avis.querySelector('[data-slot="compteur-entree"]')).toBeNull();
+    expect(within(section).getByRole('link', { name: /Modération biens/, hidden: true })).toHaveAccessibleName(
+      /^Modération biens\s?6 en attente$/,
     );
   });
 
@@ -309,6 +319,8 @@ describe('les files de modération gardent leur badge (TCK-098, repris de la bar
       expect(screen.queryByRole('region', { name: 'Aujourd’hui' })).toBeNull();
       expect(screen.queryByLabelText('3 en attente')).toBeNull();
       expect(screen.queryByLabelText('6 en attente')).toBeNull();
+      // M3 — ni compte lu sur les entrées (`sr-only`) : le texte du menu ne le porte plus.
+      expect(screen.getByRole('navigation').textContent).not.toMatch(/\d en attente/);
     });
   });
 

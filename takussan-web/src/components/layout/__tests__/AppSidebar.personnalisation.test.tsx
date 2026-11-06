@@ -38,7 +38,12 @@ vi.mock('@/hooks/useProfiles', () => ({
 // TCK-2480 (A11) — des messages non lus quand `nonLus.n` est posé : « Aujourd'hui » paraît (TCK-2490).
 const nonLus = vi.hoisted(() => ({ n: 0 }));
 vi.mock('@/components/chat-widget/useUnreadCount', () => ({ useUnreadCount: () => nonLus.n }));
-vi.mock('@/lib/queries/visits', () => ({ usePendingVisitsCount: () => ({}) }));
+// Revue adverse (I1) — des visites en attente quand `visites.n` est posé : le client les voit sur « Mes
+// visites » (hors de ses priorités, donc hors d'« Aujourd'hui »).
+const visites = vi.hoisted(() => ({ n: 0 }));
+vi.mock('@/lib/queries/visits', () => ({
+  usePendingVisitsCount: () => (visites.n > 0 ? { data: { meta: { total: visites.n } } } : {}),
+}));
 vi.mock('@/lib/queries/contact-leads', () => ({ useUnhandledLeadsCount: () => ({}) }));
 // « Démarrer » : trois étapes à faire quand `demarrage.etapes` est posé, muet sinon.
 const demarrage = vi.hoisted(() => ({ etapes: null as { code: string; faite: boolean }[] | null }));
@@ -59,6 +64,7 @@ beforeEach(() => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   demarrage.etapes = null;
   nonLus.n = 0;
+  visites.n = 0;
   chemin.courant = '/app';
   fetchMock.mockReset();
   fetchMock.mockResolvedValue(new Response('{}', { status: 200 }));
@@ -480,9 +486,9 @@ describe('TCK-2480 — AC5 : rendu serveur sans saut (largeur et épingles)', ()
 });
 
 describe('TCK-2480 — A11 : les variantes compactes ne sont rendues que si la barre peut se réduire', () => {
-  // TCK-2490 (ADR-0090 §3, §6, §7) — plus de variante compacte à doubler : « Aujourd'hui » se cache dans
-  // le rail (le point de couleur de l'entrée comptée le relaie), la ligne de mise en location est UNE
-  // ligne dans tous les modes (son texte passe en `sr-only`, son titre en infobulle).
+  // TCK-2490 (ADR-0090 §3, §6, §7) — plus de variante compacte à doubler : « Aujourd'hui » est le même
+  // bloc dans le rail (revue adverse, I1 : ses lignes y deviennent des icônes à point), la ligne de mise
+  // en location est UNE ligne dans tous les modes (son texte passe en `sr-only`, son titre en infobulle).
   it('en `complet` : « Aujourd’hui » paraît, une seule ligne de mise en location, pas de « Déplier »', () => {
     nonLus.n = 3;
     render(element(['customer'], 'client', { modeIcones: 'complet' }));
@@ -491,22 +497,58 @@ describe('TCK-2480 — A11 : les variantes compactes ne sont rendues que si la b
     expect(screen.queryByRole('button', { name: /Déplier la barre/ })).toBeNull();
   });
 
-  it('réduite : « Aujourd’hui » se cache au CSS, l’entrée comptée porte un point, la ligne de location reste UNE', () => {
+  // Revue adverse (I1) — « Aujourd'hui » se cachait dans le rail, et le point de l'entrée comptée qui
+  // devait le relayer vivait, dans un groupe replié, dans une liste `inert` de hauteur nulle : rien ne
+  // signalait l'attente. Il reste : chaque ligne devient son icône, marquée d'un point.
+  it('réduite : « Aujourd’hui » reste, chaque ligne en icône marquée d’un point ; l’entrée comptée ne le double pas (M3)', () => {
     nonLus.n = 3;
     render(element(['customer'], 'client', { modeIcones: 'icones' }));
-    // (jsdom n'applique pas le CSS : on lit la variante qui cache.)
+    const classes = (el: Element | null) => (el?.getAttribute('class') ?? '').split(/\s+/);
+    // (jsdom n'applique pas le CSS : on lit les variantes du rail.)
     const bloc = screen.getByRole('region', { name: fr.nav.sidebar.aujourdhui.titre });
-    expect(bloc.className.split(/\s+/)).toContain('icones:hidden');
-    const compteur = within(screen.getByRole('navigation')).getByLabelText('3 messages non lus');
-    const point = compteur.querySelector('[aria-hidden]')!;
-    expect(point.className.split(/\s+/)).toEqual(expect.arrayContaining(['hidden', 'icones:block', 'bg-primary', 'rounded-full']));
+    expect(classes(bloc)).not.toContain('icones:hidden');
+    const ligne = within(bloc).getByRole('link', { name: /^Messages non lus,\s?3$/ });
+    expect(classes(ligne.querySelector('[data-slot="point-aujourdhui"]'))).toEqual(
+      expect.arrayContaining(['hidden', 'icones:block', 'bg-primary', 'rounded-full']),
+    );
+    // Le nombre quitte l'œil, jamais la lecture : `sr-only`, pas `hidden`.
+    const compte = classes(ligne.querySelector('[data-slot="compte-aujourdhui"]'));
+    expect(compte).toContain('icones:sr-only');
+    expect(compte).not.toContain('icones:hidden');
+    // M3 — la messagerie ne porte ni nombre ni point : le compte ne paraît qu'une fois ; il reste lu.
+    const messagerie = within(screen.getByRole('navigation')).getByRole('link', { name: /^Messagerie/ });
+    expect(messagerie.querySelector('[data-slot="compteur-entree"]')).toBeNull();
+    expect(messagerie).toHaveAccessibleName(/^Messagerie\s?3 messages non lus$/);
     expect(screen.getAllByRole('link', { name: /Mettre un bien en location/ })).toHaveLength(1);
   });
 
-  it('réduite : au-delà de 99, le nom accessible garde le vrai compte', () => {
+  it('réduite : l’infobulle d’une ligne dit libellé et nombre — 99+ au-delà, le vrai compte restant lu', async () => {
     nonLus.n = 250;
+    const user = utilisateur();
     render(element(['customer'], 'client', { modeIcones: 'icones' }));
-    expect(within(screen.getByRole('navigation')).getByLabelText('250 messages non lus')).toHaveTextContent('99+');
+    const ligne = within(screen.getByRole('region', { name: fr.nav.sidebar.aujourdhui.titre })).getByRole('link');
+    expect(ligne).toHaveAccessibleName(/^Messages non lus,\s?250$/);
+    await user.hover(ligne);
+    await waitFor(() =>
+      expect([...document.querySelectorAll('[data-slot="tooltip-content"]')].map((b) => b.textContent)).toEqual([
+        'Messages non lus · 99+',
+      ]),
+    );
+  });
+
+  it('réduite : aucun point dans une liste repliée (`inert`, hauteur nulle) ; le témoin ouvert en porte un', () => {
+    // « Mes visites » du client : un compte hors de ses priorités, qui reste sur son entrée (M3).
+    visites.n = 2;
+    const replie = { v: 1, personas: { client: { replies: ['mes-demarches'] } } };
+    const { unmount } = render(element(['customer'], 'client', { modeIcones: 'icones', navigation: replie }));
+    const liste = document.querySelector('[data-groupe="mes-demarches"] [inert]');
+    expect(liste, 'le groupe est bien replié').not.toBeNull();
+    expect(liste!.querySelector('[data-slot="compteur-entree"]'), 'le compteur est là').not.toBeNull();
+    expect(document.querySelectorAll('[inert] [data-slot="point-entree"]')).toHaveLength(0);
+    unmount();
+
+    render(element(['customer'], 'client', { modeIcones: 'icones' }));
+    expect(document.querySelectorAll('[data-groupe="mes-demarches"] [data-slot="point-entree"]')).toHaveLength(1);
   });
 
   it('en `auto`, la bascule porte les DEUX libellés (le CSS en montre un) ; en `icones`, seul « Déplier »', () => {
