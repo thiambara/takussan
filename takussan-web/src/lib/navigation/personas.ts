@@ -86,6 +86,26 @@ export function resoudrePersona({
   }
 }
 
+/**
+ * TCK-2480 — le persona de la coque de `/app` : LA formule qu'appliquent la barre (`AppSidebar`) et le
+ * fournisseur des préférences du menu (`AppShell`), avec les mêmes entrées. La section « Menu » du
+ * profil réinitialise ainsi le persona que la barre affiche, jamais un voisin.
+ */
+export function personaDeLaCoque({
+  roles,
+  typeProfilActif = null,
+  espaceIndividuel,
+  agencyIsStandard,
+}: {
+  readonly roles: UserRole[];
+  readonly typeProfilActif?: ProfileType | null;
+  /** `useAccesAdminOuRepli(…).espaceIndividuel`. */
+  readonly espaceIndividuel: boolean;
+  readonly agencyIsStandard?: boolean;
+}): Persona {
+  return resoudrePersona({ roles, typeProfilActif, agenceIndividuelle: espaceIndividuel || agencyIsStandard === false });
+}
+
 /** Les types de profil qu'un persona REPRÉSENTE. L'hôte en fusionne deux (TCK-497). */
 export const TYPES_DU_PERSONA: Record<Persona, readonly ProfileType[]> = {
   client: [],

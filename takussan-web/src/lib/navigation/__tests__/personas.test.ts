@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { UserRole } from '@/types/user';
 import type { ProfileType } from '@/types/profile';
-import { autresTypes, resoudrePersona, rolesDuPersona, typeDuProfilActif, type Persona } from '../personas';
+import {
+  autresTypes,
+  personaDeLaCoque,
+  resoudrePersona,
+  rolesDuPersona,
+  typeDuProfilActif,
+  type Persona,
+} from '../personas';
 
 describe('TCK-2477 — typeDuProfilActif', () => {
   it.each<[string | undefined, ProfileType | null]>([
@@ -60,5 +67,18 @@ describe('TCK-2478 — les rôles du persona', () => {
   it('nomme les autres profils de l’espace', () => {
     expect(autresTypes(['customer', 'agency_admin', 'owner'], 'admin-agence')).toEqual(['owner']);
     expect(autresTypes(['customer', 'agency_admin', 'owner'], 'hote')).toEqual([]);
+  });
+});
+
+describe('TCK-2480 — personaDeLaCoque : la formule de la barre ET du fournisseur', () => {
+  it('l’admin d’une agence individuelle est l’hôte ; le profil actif décide', () => {
+    expect(personaDeLaCoque({ roles: ['customer', 'agency_admin'], espaceIndividuel: true })).toBe('hote');
+    expect(
+      personaDeLaCoque({ roles: ['customer', 'agency_admin'], espaceIndividuel: false, agencyIsStandard: false }),
+    ).toBe('hote');
+    expect(personaDeLaCoque({ roles: ['customer', 'agency_admin'], espaceIndividuel: false })).toBe('admin-agence');
+    expect(
+      personaDeLaCoque({ roles: ['customer', 'agent', 'owner'], typeProfilActif: 'owner', espaceIndividuel: false }),
+    ).toBe('bailleur');
   });
 });

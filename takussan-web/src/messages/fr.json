@@ -237,6 +237,9 @@
             "equipe": "Inviter un premier membre"
           }
         }
+      },
+      "preferences": {
+        "echec": "Votre menu n’a pas pu être enregistré : il est revenu à son état précédent."
       }
     },
     "admin": {

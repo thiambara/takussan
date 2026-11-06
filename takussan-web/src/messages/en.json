@@ -237,6 +237,9 @@
             "equipe": "Invite a first member"
           }
         }
+      },
+      "preferences": {
+        "echec": "Your menu could not be saved: it is back to its previous state."
       }
     },
     "admin": {
