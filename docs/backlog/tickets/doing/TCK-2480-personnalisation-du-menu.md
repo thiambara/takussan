@@ -1,14 +1,14 @@
 ---
 id: TCK-2480
 title: Personnaliser son menu — épingles et replis sur le compte, par persona ; barre réduite aux icônes sur l'appareil
-status: todo
+status: doing
 phase: P2
 family: full
 estimate: L
 wave: 82
 created: 2026-11-05
-updated: 2026-11-05
-depends_on: [TCK-2478]
+updated: 2026-11-06
+depends_on: [TCK-2478, TCK-2479]
 blocks: []
 spec_refs:
   features:
