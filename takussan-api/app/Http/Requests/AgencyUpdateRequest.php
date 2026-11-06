@@ -75,6 +75,9 @@ class AgencyUpdateRequest extends BaseFormRequest
             // TCK-970 — les clés de `settings`, leur type et leur défaut : une seule liste, que lit
             // aussi `Agency::setting()`.
             ...AgencySettings::rules(),
+            // TCK-2483 (ADR-0089, amendement) — une agence `individual` n'a pas d'équipe dont masquer
+            // le menu : la clé y serait un réglage sans effet. `null` et `[]` passent (`prohibited`).
+            ...($this->isIndividual() ? ['settings.hidden_modules' => ['prohibited']] : []),
             // TCK-594 (ADR-0039 §4) — qui le modifie : `AgencyPolicy::updatePayoutThreshold`.
             'payout_approval_threshold' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:999999999999'],
             // TCK-594 (ADR-0039 §7) — TVA par défaut des factures (un taux explicite gagne).
