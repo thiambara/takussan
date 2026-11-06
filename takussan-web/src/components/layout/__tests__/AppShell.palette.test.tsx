@@ -173,4 +173,43 @@ describe('TCK-2482 — la palette dans la coque', () => {
     const groupe = within(await screen.findByRole('listbox')).getByRole('group', { name: 'Récents' });
     expect(within(groupe).getAllByRole('option').map((o) => o.textContent)).toEqual(['Mon bail', 'Messagerie', 'Paiements']);
   });
+
+  it('revue I5 — fermée par un CHOIX, la palette ne rend pas le focus : la recherche de biens ne rouvre pas son panneau', async () => {
+    const u = userEvent.setup();
+    monter();
+    const recherche = within(document.querySelector('header')!).getAllByRole('combobox')[0]!;
+    await u.click(recherche);
+    await u.keyboard('{Escape}');
+    expect(recherche).toHaveFocus();
+    expect(recherche).not.toHaveAttribute('aria-expanded', 'true');
+    await u.keyboard('{Control>}k{/Control}');
+    const dialogue = await screen.findByRole('dialog', { name: NOM });
+    const champ = within(dialogue).getByRole('combobox');
+    await waitFor(() => expect(champ).toHaveFocus());
+    await u.type(champ, 'paiements');
+    await u.keyboard('{Enter}');
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: NOM })).toBeNull());
+    expect(recherche).not.toHaveFocus();
+    expect(recherche).not.toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('revue I5 — fermée par Échap après un choix précédent, elle rend de nouveau le focus', async () => {
+    const u = userEvent.setup();
+    monter();
+    const avant = screen.getByRole('button', { name: 'avant' });
+    avant.focus();
+    await u.keyboard('{Control>}k{/Control}');
+    let dialogue = await screen.findByRole('dialog', { name: NOM });
+    await waitFor(() => expect(within(dialogue).getByRole('combobox')).toHaveFocus());
+    await u.type(within(dialogue).getByRole('combobox'), 'paiements');
+    await u.keyboard('{Enter}');
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: NOM })).toBeNull());
+    avant.focus();
+    await u.keyboard('{Control>}k{/Control}');
+    dialogue = await screen.findByRole('dialog', { name: NOM });
+    await waitFor(() => expect(within(dialogue).getByRole('combobox')).toHaveFocus());
+    await u.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: NOM })).toBeNull());
+    expect(avant).toHaveFocus();
+  });
 });

@@ -64,12 +64,22 @@ interface PaletteDeCommandesProps {
 export function PaletteDeCommandes({ ouverte, onOuverteChange, retourDuFocus, contexteDuMenu }: PaletteDeCommandesProps) {
   const t = useTranslations('nav.palette');
   const champ = useRef<HTMLInputElement>(null);
+  // Revue I5 — fermée par un CHOIX (une page, une bascule d'espace) ? Posé par `choisir`, lu par
+  // `finalFocus` : le patron `fermeParUnLien` du tiroir (TCK-2481). `finalFocus` est évalué à la
+  // fermeture, AVANT que la navigation ne remplace la page : l'élément d'avant est encore là, et lui
+  // rendre le focus rouvrait par exemple le panneau de la recherche de biens par-dessus la page choisie.
+  // Consommé par `finalFocus`, appelé à CHAQUE fermeture : la suivante (Échap) rend de nouveau le focus.
+  const fermeeParUnChoix = useRef(false);
   return (
     <Dialog open={ouverte} onOpenChange={(o) => onOuverteChange(o)}>
       <DialogContent
         data-slot="palette-de-commandes"
         initialFocus={champ}
         finalFocus={() => {
+          if (fermeeParUnChoix.current) {
+            fermeeParUnChoix.current = false;
+            return false; // ne rien forcer : la page choisie prend la main
+          }
           const element = retourDuFocus?.current ?? null;
           return element !== null && element.isConnected ? element : true;
         }}
@@ -81,7 +91,10 @@ export function PaletteDeCommandes({ ouverte, onOuverteChange, retourDuFocus, co
           contexteDuMenu={contexteDuMenu}
           ouverte={ouverte}
           champ={champ}
-          fermer={() => onOuverteChange(false)}
+          fermer={() => {
+            fermeeParUnChoix.current = true;
+            onOuverteChange(false);
+          }}
         />
       </DialogContent>
     </Dialog>
@@ -109,6 +122,7 @@ interface ContenuDeLaPaletteProps {
   /** A13 — le contenu survit à la fermeture le temps de l'animation : il ne sonde plus rien. */
   readonly ouverte: boolean;
   readonly champ: RefObject<HTMLInputElement | null>;
+  /** Ferme APRÈS un choix : le focus n'est pas rendu (revue I5). Échap et le voile passent par Base UI. */
   readonly fermer: () => void;
 }
 
