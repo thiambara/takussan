@@ -137,3 +137,128 @@ cookie non `httpOnly`, lu par le layout pour rendre la bonne largeur au premier 
 - Tickets : TCK-2477 (moteur, sans changement visible), TCK-2478 (dispositions, action principale,
   en-tête d'espace, complément), TCK-2479 (« À traiter », « Démarrer »), TCK-2480 (personnalisation),
   TCK-2481 (barre mobile), TCK-2482 (palette), TCK-2483 (modules par agence, hors de ce projet).
+
+## Amendement — modules par agence (TCK-2483), 2026-11-05
+
+- **Statut** : Accepté par délégation du porteur à la session (le porteur a reporté la décision le
+  2026-11-05 — point 1 du Contexte — puis l'a déléguée ; la session la relit avant tout code).
+- **Amende** : le point 1 du Contexte (« l'admin d'agence ne configure rien ») et §4 (ce que
+  `composerMenu` retire). Rien d'autre ne change : ni le catalogue, ni les dispositions, ni les
+  préférences du compte.
+
+### Contexte (relevé le 2026-11-05 sur `feat/bande-a-traiter-tck-2479`, b837e053e)
+
+- `agencies.settings` a déjà un catalogue typé : `App\Domain\Settings\AgencySettings` (TCK-970),
+  sept clés, chacune avec son type (`bool`, `int`, `string`), son défaut et sa règle ;
+  `AgencyUpdateRequest` en tire ses règles `settings.*` ; `AgencyController::update` fusionne
+  `settings` **clé par clé**, sur la ligne relue sous verrou (TCK-593, P245.04) — une clé à `null`
+  est retirée, donc rendue à son défaut. L'écriture est gardée par `AgencyPolicy::configure`
+  (`update` ET `agency.update`, TCK-2024).
+- `AgencyResource` rend `settings` (moins les clés d'onboarding) à quiconque voit l'agence, et le
+  layout de `/app` lit déjà l'agence du profil actif pour l'admin, l'agent et le bailleur
+  (`resolveAgencyOrNull`, mis en cache pour le rendu) : connaître les modules d'une agence ne coûte
+  **aucune requête de plus**.
+- `estOuverte` n'est appelée, hors tests, que par `composer-menu.ts`, et `composerMenu` que par
+  `AppSidebar` : le menu, « Plus », « Aussi … » et — par leurs plans — les onglets mobiles (TCK-2481,
+  lus dans le menu composé) passent par un seul point.
+- `Agency` ne porte pas `LogsActivity` : aucun réglage de la fiche d'agence n'est journalisé
+  aujourd'hui.
+
+### Décision
+
+**Un admin d'agence `standard` peut masquer, pour le menu de son personnel, des modules pris dans
+une liste fermée. C'est un réglage d'AFFICHAGE : aucun droit ne change, aucune page ne cesse d'être
+servie, et rien de ce qu'un profil hors personnel ouvre lui-même ne disparaît.**
+
+1. **Stockage** — une clé de `agencies.settings`, `hidden_modules`, déclarée dans `AgencySettings`
+   (type liste, défaut `[]`), écrite par `PATCH /api/agencies/{id}` sous `configure`, comme toute
+   clé de la fiche. Nom anglais, comme les sept clés existantes. Ni colonne, ni ligne de la table
+   `settings` (ADR-0065).
+2. **Liste fermée, connue des deux côtés** — `App\Models\Enums\AgencyModule` côté API, qui VALIDE
+   (`Rule::enum`, `distinct`, `list`) ; côté front, `MODULES_D_AGENCE` associe chaque code aux
+   identifiants du catalogue qu'il retire. Une garde de parité lit l'enum PHP. Sept modules :
+
+   | Code | Destinations retirées |
+   |---|---|
+   | `commissions` | `commissions` |
+   | `inventories` | `etats-des-lieux` |
+   | `move_in_follow_up` | `entrees-en-attente` |
+   | `provider_book` | `carnet-prestataires` |
+   | `calendar` | `calendrier` |
+   | `credits` | `credits` |
+   | `analytics` | `kpis`, `alertes`, `exports` |
+
+3. **Jamais masquables** : le tableau de bord, la messagerie, les biens, les baux, les paiements, les
+   demandes — et, par règle et non par liste, toute destination qui porte un **compteur** (ce qui
+   attend ne disparaît pas), toute **page d'agence** (`PAGES_ADMIN` reste son seul juge, ADR-0064 :
+   la fiche où l'on démasque ne peut pas se masquer), toute destination **d'écriture** ou jugée **sur
+   l'espace**, et toute **action principale** d'une disposition. Une garde l'éprouve.
+4. **Portée** — le masquage s'applique à ce qu'un profil **du personnel** (`agent`, `agency_admin`)
+   apporte au menu :
+   - la disposition, « Plus » et l'action des personas `agent` et `admin-agence` — l'admin compris :
+     il voit le menu de son équipe ;
+   - le complément « Aussi … » de **tout** persona, puisqu'il porte ce qu'un autre profil de l'espace
+     ouvre.
+
+   Il ne touche **jamais** ce que le persona `bailleur`, `locataire`, `client` ou `prestataire` ouvre
+   lui-même : un bailleur de l'agence garde ses états des lieux, un locataire les siens (contrainte
+   « parcours en cours »). Corollaire assumé : sous son profil d'admin, un admin qui est aussi
+   bailleur ne retrouve pas une destination masquée dans « Aussi bailleur » (le complément se juge
+   sur l'union, qui ne dit pas QUEL profil ouvre) ; il la retrouve en basculant sur son profil
+   bailleur, dont la disposition n'est jamais masquée. Ni `hote` (agence `individual`, sans équipe : l'API refuse la clé,
+   `prohibited`, et l'hôte arrange son menu par TCK-2480), ni `plateforme`.
+5. **Mécanique** — `ContexteDeMenu.masquees` porte l'ensemble des destinations masquées par l'agence
+   (un fait de l'agence, comme `agenceSuspendue`) ; `estOuverte` le refuse ; `composerMenu` ne le
+   garde, pour juger le persona, que si le persona est du personnel, et le garde toujours pour juger
+   l'espace (« Aussi … »). Une destination masquée est donc traitée comme fermée : elle ne tombe ni
+   sous « Plus » ni sous « Aussi … », une épingle (TCK-2480) qui la vise est ignorée, un onglet
+   (TCK-2481) aussi, et la bande « À traiter » ne la sonde pas (`countersToPoll` ne lit que le menu).
+6. **Hors du menu, rien ne change** : la page masquée reste servie par lien direct, ses gardes et
+   l'API ne lisent pas `hidden_modules`, et les tuiles du tableau de bord, les notifications et les
+   e-mails continuent d'y mener. La palette (TCK-2482) liste le menu COMPOSÉ, jamais
+   `CATALOGUE.filter(estOuverte)` : une garde refuse tout appel à `estOuverte` hors de
+   `src/lib/navigation/`.
+7. **Écran** — une section « Menu de l'équipe » dans la fiche de l'agence (`/app/agency`), une case
+   par module, cochée = affichée ; absente pour une agence `individual`. Le texte dit qu'aucun droit
+   ne change et que bailleurs et locataires gardent leur menu.
+
+### Options écartées
+
+- **Une colonne de `agencies`** : une migration et un `down()` pour une liste que le catalogue
+  `AgencySettings` sait déjà typer, valider et fusionner clé par clé.
+- **Une ligne de la table `settings` (portée `agency`, ADR-0065)** : cette table sert des réglages à
+  repli GLOBAL ; « masquer les commissions pour toutes les agences » n'a pas de sens, et la route
+  brute n'a pas de règle par clé.
+- **Retirer les droits** (le module masqué refuse ses capacités, ou sa page rend 404) : un module
+  n'est pas une permission (principe 1) ; on casserait en silence les liens des notifications, des
+  e-mails et du tableau de bord, et des flux qui en dépendent (un état des lieux dû par un bail).
+- **Valider la seule FORME, comme `preferences.navigation`** (§6) : ici la valeur est partagée par
+  toute une équipe et écrite par un seul admin ; un code faux doit rendre 422, pas un réglage sans
+  effet (l'esprit d'ADR-0065). La liste est courte et change rarement : la parité est une garde.
+- **Choisir n'importe quelle entrée du menu** : exposerait les identifiants internes du catalogue à
+  l'API et permettrait de masquer l'indispensable ; les modules sont des lots décidés par le produit.
+- **Les réservations, les visites, la maintenance comme modules** : elles arrivent du dehors (client,
+  locataire), avec des délais (une réservation en attente expire en 48 h par défaut) — masquer
+  l'entrée, c'est rater le travail. D'où la règle « pas de compteur ».
+- **Les entrées en attente dans le module des états des lieux** : leur liste suit la checklist
+  d'onboarding du locataire (`tenant_onboarding_enabled`), pas les seuls états des lieux.
+- **Un menu par membre ou par rôle personnalisé, fixé par l'admin** : la personne arrange son menu
+  elle-même (TCK-2480) ; l'admin ne décide que de ce que l'agence n'utilise pas.
+- **Masquer aussi pour le bailleur et le locataire de l'agence** : ce ne sont pas des outils de
+  l'équipe, et leur parcours en dépend.
+
+### Conséquences
+
+- `AgencySettings` apprend un type `list` (éléments d'un enum, `.*` validé, lecture qui ignore un
+  code inconnu) ; `AgencyUpdateRequest` rend la clé `prohibited` pour une agence `individual`.
+- L'API connaît désormais les **modules**, pas les personas ni le catalogue : le persona reste un
+  concept du front. Ajouter un module touche l'enum, `MODULES_D_AGENCE` et les libellés ; la garde de
+  parité rougit si l'un manque (et `web-ci.yml` se déclenche sur l'enum).
+- `ContexteDeMenu` gagne `masquees` ; `AppShell` et `AppSidebar` gagnent `modulesMasques` ; le layout
+  le lit sur l'agence qu'il lit déjà.
+- Un agent qui suit une notification vers une page masquée l'ouvre : c'est voulu.
+- Le changement n'est pas journalisé, comme le reste de la fiche (`Agency` sans `LogsActivity`).
+- `docs/models-spec.md` §2 et `docs/features.md` (navigation, agence) reçoivent la clé par
+  `/sync-specs` après la fusion.
+- Coût : ~1 enum, ~40 lignes dans `AgencySettings`, ~60 lignes de navigation pure, une section de
+  formulaire, 16 clés de libellé × 3 langues.
