@@ -198,8 +198,7 @@ class ReglesDElementBorneesTest extends TestCase
         $admin = User::factory()->create();
         $this->materializeRoleProfile($admin, 'agency_admin', $agence);
         Sanctum::actingAs($admin);
-        $regles = self::regles(EditablePlatformSettings::get('invoice.reminder_offsets_days')['rules']);
-        $borne = min(array_map(static fn (string $r): int => (int) substr($r, 4), array_filter($regles, static fn (string $r): bool => str_starts_with($r, 'max:'))));
+        $borne = self::borneDuReglage('invoice.reminder_offsets_days');
 
         $ligne = static fn (array $offsets): array => ['key' => 'invoice.reminder_offsets_days', 'value' => ['value' => $offsets], 'scope' => SettingScope::Agency->value];
 
@@ -209,6 +208,34 @@ class ReglesDElementBorneesTest extends TestCase
 
         $reponse = $this->postJson('/api/settings', $ligne([3, 'x']))->assertUnprocessable();
         $this->assertCount(1, $reponse->json('errors.value'), 'dans sa borne, la liste juge encore ses éléments');
+    }
+
+    public function test_validateur_ad_hoc_les_devises_de_la_plateforme_hors_borne_rendent_la_seule_erreur_de_borne(): void
+    {
+        $this->actingAsRole('super_admin');
+        $borne = self::borneDuReglage('currency.supported');
+        $this->assertSame(count(EditablePlatformSettings::CURRENCIES), $borne, 'la borne vient de la liste fermée des devises');
+
+        $reponse = $this->patchJson('/api/admin/settings', ['currency.supported' => ['XOF', ...array_fill(0, $borne, 'ZZZ')]])
+            ->assertUnprocessable();
+        $this->assertSame(['currency.supported'], array_keys($reponse->json('errors')));
+        $this->assertCount(1, $reponse->json('errors')['currency.supported'], 'hors borne, seule l\'erreur de la liste est rendue');
+
+        $reponse = $this->patchJson('/api/admin/settings', ['currency.supported' => ['XOF', 'ZZZ']])->assertUnprocessable();
+        $this->assertCount(1, $reponse->json('errors')['currency.supported'], 'dans sa borne, la liste juge encore ses éléments');
+    }
+
+    /** Les deux validateurs ad hoc du catalogue jugent `value.*` : toute liste du catalogue a donc sa borne. */
+    public function test_tout_reglage_editable_dont_les_elements_sont_juges_a_une_borne(): void
+    {
+        $fautes = [];
+        foreach (EditablePlatformSettings::all() as $cle => $definition) {
+            if (isset($definition['item_rules']) && ! self::estBorne($definition['rules'])) {
+                $fautes[] = $cle;
+            }
+        }
+
+        $this->assertSame([], $fautes, 'Ces réglages jugent chaque élément d\'une liste sans borne : poser `max:` (TCK-2488).');
     }
 
     // ── 2. Recensement ────────────────────────────────────────────────────────────────────────
@@ -488,6 +515,16 @@ class ReglesDElementBorneesTest extends TestCase
         $max = array_map(
             static fn (string $r): int => (int) substr($r, 4),
             array_filter(self::regles(app()->call([$requete, 'rules'])[$parent] ?? []), static fn (string $r): bool => str_starts_with($r, 'max:')),
+        );
+
+        return $max === [] ? 0 : min($max);
+    }
+
+    private static function borneDuReglage(string $cle): int
+    {
+        $max = array_map(
+            static fn (string $r): int => (int) substr($r, 4),
+            array_filter(self::regles(EditablePlatformSettings::get($cle)['rules']), static fn (string $r): bool => str_starts_with($r, 'max:')),
         );
 
         return $max === [] ? 0 : min($max);
