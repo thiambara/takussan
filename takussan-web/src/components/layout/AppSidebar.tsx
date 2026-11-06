@@ -33,6 +33,7 @@ import type { ProfileType } from '@/types/profile';
 import { useSoldeCredits } from '@/lib/queries/credits-solde';
 import { lignesAujourdhui } from '@/lib/navigation/a-traiter';
 import { AujourdhuiDeLaBarre } from './AujourdhuiDeLaBarre';
+import { compteAffiche } from './compte-affiche';
 import { MenuDuCompte } from './MenuDuCompte';
 import { NotificationBell } from './NotificationBell';
 import { DemarrerDeLEspace } from './DemarrerDeLEspace';
@@ -110,7 +111,7 @@ interface AppSidebarProps {
 function SidebarCounter({ value, label }: { value: number; label: string }) {
   return (
     <span aria-label={label} className="ml-auto shrink-0 icones:absolute icones:right-2.5 icones:top-2 icones:ml-0">
-      <span className={cn(STYLE_COMPTEUR, 'icones:hidden')}>{value > 99 ? '99+' : value}</span>
+      <span className={cn(STYLE_COMPTEUR, 'icones:hidden')}>{compteAffiche(value)}</span>
       <span aria-hidden className="hidden size-1.5 rounded-full bg-primary icones:block" />
     </span>
   );

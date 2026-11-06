@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import type { LigneAujourdhui } from '@/lib/navigation/a-traiter';
 import { cn } from '@/lib/utils';
+import { compteAffiche } from './compte-affiche';
 import type { EntreeRendue } from './useMenuDeLEspace';
 import {
   FOCUS_RING_RENTRANT,
@@ -68,7 +69,15 @@ export function AujourdhuiDeLaBarre({ lignes, entrees, onNavigate }: AujourdhuiD
                     rang === 0 ? 'bg-primary text-primary-foreground' : 'bg-foreground/7 text-foreground',
                   )}
                 >
-                  {ligne.nombre}
+                  {/* M1 — plafonné comme le menu ; plafonné, le vrai compte reste lu. */}
+                  {compteAffiche(ligne.nombre) === String(ligne.nombre) ? (
+                    ligne.nombre
+                  ) : (
+                    <>
+                      <span aria-hidden>{compteAffiche(ligne.nombre)}</span>
+                      <span className="sr-only">{ligne.nombre}</span>
+                    </>
+                  )}
                 </span>
               </Link>
             </li>
