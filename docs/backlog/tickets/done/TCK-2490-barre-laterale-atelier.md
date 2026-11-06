@@ -119,7 +119,14 @@ et restaure, md5 vérifié.
   au survol, au focus, quand elle est épinglée, et toujours sur un écran tactile. Ablations G1 et G2
   rouges. Au navigateur, les puces, la valeur des crédits et les touches sont toutes à 255 px. Au
   survol, l'épingle prend 25 px et le nombre passe à 226 px.
-- **Suites non traitées** :
-  - Dans le rail, un groupe replié ne signale pas un compteur qui ne figure pas dans « Aujourd'hui ».
-  - Le tableau de bord remonté pour l'admin d'agence sort du repère `<nav>`.
-  - La variante `carte` de `ProfileSwitcher` est réglée par TCK-2491 : le composant a quitté le dépôt.
+- **Suite (a), un seul repère** — `d39a80ce5`. Le `<nav>` couvre l'action, « Aller à », le tableau de
+  bord hissé, « Aujourd'hui », le menu (`data-slot="menu"`) et « Récents » ; la marque, la cloche et le
+  compte restent hors du repère. Ablations N1 à N3 rouges. Arbre AX de Chrome : un seul repère
+  « Navigation du tableau de bord » pour chaque persona, et le tableau de bord dedans.
+- **Suite (b), le groupe replié du rail** — `8de739c79`. Un compte non nul absent d'« Aujourd'hui »
+  est signalé sur le chevron du groupe replié : un point, avec le nombre dans le nom et dans l'infobulle.
+  Ablations S1 à S5 rouges. Mesuré au navigateur sur le locataire (compte de visites réécrit dans la
+  réponse) : nom AX « Mes recherches 2 demandes de visite en attente », rien à 1440.
+- `be8a24417` : le test de source unique du compteur de modération était rouge depuis `ae9cf1049`
+  (M3), sans que je l'aie vu ; il vérifie maintenant le nombre là où il paraît.
+- La variante `carte` de `ProfileSwitcher` est réglée par TCK-2491 : le composant a quitté le dépôt.
