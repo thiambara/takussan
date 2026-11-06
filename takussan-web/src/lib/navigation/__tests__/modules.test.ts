@@ -83,9 +83,19 @@ function fichiers(dossier: string): string[] {
 describe('TCK-2483 — le masquage ne se contourne pas', () => {
   const SOURCES = fichiers(SRC).map((f) => ({ f: relative(SRC, f), texte: readFileSync(f, 'utf8') }));
 
-  it('aucun fichier hors de lib/navigation n’appelle `estOuverte` (la palette lit le menu composé)', () => {
-    const fautifs = SOURCES.filter(({ f, texte }) => !f.startsWith('lib/navigation/') && /\bestOuverte\(/.test(texte));
-    expect(fautifs.map(({ f }) => f)).toEqual([]);
+  /**
+   * Qui écrit `f(` dans son source (définition comprise), trié. Une liste NOMINATIVE, jamais un
+   * préfixe : revue de TCK-2483, M2 — l'exclusion de tout `lib/navigation/` laissait passer
+   * `lib/navigation/palette.ts`, précisément la logique que l'amendement §6 vise.
+   */
+  const appelantsDe = (f: string): string[] =>
+    SOURCES.filter(({ texte }) => new RegExp(`\\b${f}\\(`).test(texte))
+      .map(({ f: chemin }) => chemin)
+      .sort();
+
+  // Relevé le 2026-11-06 (`grep -rn "estOuverte(" src`) : la définition et le compositeur, seuls.
+  it('seul le compositeur appelle `estOuverte` (la palette et tout le reste lisent le menu composé)', () => {
+    expect(appelantsDe('estOuverte')).toEqual(['lib/navigation/catalogue.ts', 'lib/navigation/composer-menu.ts']);
   });
 
   // Re-mesuré le 2026-11-06 : l'appelant est `components/layout/useMenuDeLEspace.ts` (TCK-2481), le
@@ -101,4 +111,5 @@ describe('TCK-2483 — le masquage ne se contourne pas', () => {
     const lecteurs = SOURCES.filter(({ texte }) => texte.includes('hidden_modules')).map(({ f }) => f);
     expect(lecteurs.filter((f) => !AUTORISES.includes(f))).toEqual([]);
   });
+
 });
