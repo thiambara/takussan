@@ -110,6 +110,28 @@ final class AgencySettings
         return $rules;
     }
 
+    /**
+     * Revue de TCK-2487 — les `settings` VALIDÉS, tels qu'ils s'écrivent : une clé `bool` du catalogue
+     * part en vrai booléen JSON. La règle `boolean` accepte `1`, `"1"`, `0`, `"0"` ; stockés tels
+     * quels, ils étaient vrais pour {@see self::read()} mais pas pour un lecteur SQL strict
+     * (`TwoFactorRequirement` : `settings->require_team_two_factor = true`) — un `1` accepté
+     * n'exigeait pas la 2FA de l'équipe. `null` (retrait de la clé) et les autres types passent tels
+     * quels.
+     *
+     * @param  array<string, mixed>  $settings
+     * @return array<string, mixed>
+     */
+    public static function normalize(array $settings): array
+    {
+        foreach ($settings as $key => $value) {
+            if ($value !== null && (self::catalog()[$key]['type'] ?? null) === self::BOOL) {
+                $settings[$key] = filter_var($value, FILTER_VALIDATE_BOOLEAN);
+            }
+        }
+
+        return $settings;
+    }
+
     public static function default(string $key): mixed
     {
         return self::entry($key)['default'];
