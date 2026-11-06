@@ -69,6 +69,23 @@ describe('AgencyConfigForm — pénalités de retard en ligne (TCK-593 Partie 5)
     expect(screen.getByRole('switch', { name: LIBELLE })).toBeChecked();
   });
 
+  /**
+   * Revue adverse de TCK-2486, M2 — l'API lit ce réglage par `AgencySettings::read` (`filter_var`) : un `1`
+   * stocké (que `PATCH` accepte et garde tel quel) l'ACTIVE. La fiche le montrait désactivé, et depuis
+   * TCK-2486 un enregistrement ne le réécrivait plus : l'agence encaissait pendant que l'écran disait non.
+   */
+  it.each([1, '1', 'true', 'on', 'yes'])('revue M2 — une valeur %j, vraie pour l’API, s’affiche activée et ne part pas inchangée', async (valeur) => {
+    const user = userEvent.setup();
+    render(withIntl(<AgencyConfigForm agency={{ ...AGENCE, settings: { late_fee_online_collection: valeur } as unknown as Agency['settings'] }} />));
+    expect(screen.getByRole('switch', { name: LIBELLE })).toBeChecked();
+    expect(await enregistrer(user)).not.toHaveProperty('settings');
+  });
+
+  it.each([0, '0', 'off', 'no', 'false'])('revue M2 — une valeur %j, fausse pour l’API, s’affiche désactivée', (valeur) => {
+    render(withIntl(<AgencyConfigForm agency={{ ...AGENCE, settings: { late_fee_online_collection: valeur } as unknown as Agency['settings'] }} />));
+    expect(screen.getByRole('switch', { name: LIBELLE })).not.toBeChecked();
+  });
+
   it('explique les deux positions', () => {
     render(withIntl(<AgencyConfigForm agency={AGENCE} />));
     expect(screen.getByRole('switch', { name: LIBELLE })).toHaveAccessibleDescription(

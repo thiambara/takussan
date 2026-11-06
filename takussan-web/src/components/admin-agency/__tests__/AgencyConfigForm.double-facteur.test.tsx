@@ -115,4 +115,50 @@ describe('AgencyConfigForm — 2FA obligatoire pour l’équipe', () => {
     await waitFor(() => expect(updateAgencyAction).toHaveBeenCalledTimes(1));
     expect(updateAgencyAction.mock.calls[0]![1]).toMatchObject({ settings: { require_team_two_factor: false } });
   });
+
+  /**
+   * Revue adverse de TCK-2486, M1 — la référence « inchangé » était le `settings` de la prop, qui ne bouge
+   * qu'à l'ARRIVÉE de `router.refresh()` (non attendu). Ici `refresh` ne fait rien : cocher, enregistrer,
+   * décocher, enregistrer — le second envoi ne partait pas (`false` égal à la référence périmée), la base
+   * gardait `true` et l'écran disait « Modifications enregistrées. » sur une case décochée.
+   */
+  it('revue M1 — deux enregistrements avant le refresh : le retour à false part', async () => {
+    const user = userEvent.setup();
+    updateAgencyAction.mockReset();
+    updateAgencyAction.mockResolvedValue({ ok: true, data: agence({ require_team_two_factor: true }) });
+    render(withIntl(<AgencyConfigForm agency={agence(null)} />));
+
+    const caseACocher = screen.getByRole('checkbox', { name: libelle });
+    await user.click(caseACocher);
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(updateAgencyAction).toHaveBeenCalledTimes(1));
+    expect(updateAgencyAction.mock.calls[0]![1].settings).toEqual({ require_team_two_factor: true });
+
+    updateAgencyAction.mockResolvedValue({ ok: true, data: agence({ require_team_two_factor: false }) });
+    await user.click(caseACocher);
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(updateAgencyAction).toHaveBeenCalledTimes(2));
+    expect(updateAgencyAction.mock.calls[1]![1].settings).toEqual({ require_team_two_factor: false });
+    expect(caseACocher).not.toBeChecked();
+  });
+
+  /**
+   * Revue adverse de TCK-2486, M1 — la RÉPONSE de l'API fait foi, pour la référence ET pour l'écran : un
+   * réglage qu'un autre admin a posé entre le chargement et l'enregistrement s'affiche, et l'envoi suivant
+   * ne le défait pas. Recaler la seule référence, l'écran restant périmé, aurait renvoyé `false`.
+   */
+  it('revue M1 — un réglage posé ailleurs entre-temps s’affiche après l’enregistrement et n’est pas défait', async () => {
+    const user = userEvent.setup();
+    updateAgencyAction.mockReset();
+    updateAgencyAction.mockResolvedValue({ ok: true, data: agence({ require_team_two_factor: true }) });
+    render(withIntl(<AgencyConfigForm agency={agence(null)} />));
+
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(updateAgencyAction).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: libelle })).toBeChecked());
+
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(updateAgencyAction).toHaveBeenCalledTimes(2));
+    expect(updateAgencyAction.mock.calls[1]![1]).not.toHaveProperty('settings');
+  });
 });

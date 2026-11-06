@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import {
   agencyFormSchema,
   normaliseAgencyForm,
+  reglagesDeLaFiche,
   validateAgencyLogoFile,
   AGENCY_LOGO_MAX_BYTES,
 } from '../schemas/agency';
@@ -150,6 +151,38 @@ describe('agencyFormSchema', () => {
       expect(normaliseAgencyForm({ ...base, require_team_two_factor: false }, hote({ require_team_two_factor: true })).settings ?? {}).not.toHaveProperty('require_team_two_factor');
       // Le reste de ses réglages part toujours.
       expect(normaliseAgencyForm({ ...base, late_fee_online_collection: true }, hote(null)).settings).toEqual({ late_fee_online_collection: true });
+    });
+
+    /**
+     * Revue adverse de TCK-2486, M2 — la fiche lit chaque booléen comme le lecteur de l'API qui lui donne
+     * son EFFET, sinon une valeur que l'écran contredit reste en base (rien ne part plus inchangé).
+     * `late_fee_online_collection` : `Agency::collectsLateFeesOnline()` → `AgencySettings::read` →
+     * `filter_var(FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE)`, illisible = défaut du catalogue (`false`).
+     * Table relevée sur php 8.4 le 2026-11-06.
+     */
+    it.each([true, 1, '1', 'true', 'TRUE', ' yes ', 'on'])('late_fee_online_collection : %j se lit vrai, comme `filter_var`', (valeur) => {
+      expect(reglagesDeLaFiche({ late_fee_online_collection: valeur }).late_fee_online_collection).toBe(true);
+    });
+
+    it.each([false, 0, '0', 'off', 'no', 'false', ''])('late_fee_online_collection : %j se lit faux, comme `filter_var`', (valeur) => {
+      expect(reglagesDeLaFiche({ late_fee_online_collection: valeur }).late_fee_online_collection).toBe(false);
+    });
+
+    it.each([2, -1, '2', 'oui', null, undefined, [], {}, [true]])('late_fee_online_collection : %j illisible = le défaut du catalogue (false)', (valeur) => {
+      expect(reglagesDeLaFiche({ late_fee_online_collection: valeur }).late_fee_online_collection).toBe(false);
+    });
+
+    /**
+     * `require_team_two_factor` : son seul lecteur à effet est `TwoFactorRequirement::requiredAtAgency()`,
+     * `where('settings->require_team_two_factor', true)` — en SQL `(settings->'…')::jsonb = 'true'::jsonb`,
+     * STRICT. Un `1` stocké n'exige rien du personnel : l'afficher coché dirait « exigée » à tort.
+     */
+    it.each([1, '1', 'true', 'on'])('require_team_two_factor : %j n’exige rien côté API, la case reste décochée', (valeur) => {
+      expect(reglagesDeLaFiche({ require_team_two_factor: valeur }).require_team_two_factor).toBe(false);
+    });
+
+    it('require_team_two_factor : seul le booléen JSON `true` l’exige', () => {
+      expect(reglagesDeLaFiche({ require_team_two_factor: true }).require_team_two_factor).toBe(true);
     });
 
     it('rien de modifié : `settings` ne part pas du tout', () => {

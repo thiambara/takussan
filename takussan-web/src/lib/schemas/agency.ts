@@ -106,17 +106,39 @@ export interface ReglagesDeLaFiche {
 }
 
 /**
+ * Revue adverse de TCK-2486, M2 — un booléen de `settings` lu comme `AgencySettings::read` côté API :
+ * booléen tel quel ; scalaire par `filter_var($v, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE)` (vrai :
+ * `1`, `"1"`, `"true"`, `"on"`, `"yes"` ; faux : `0`, `"0"`, `"false"`, `"off"`, `"no"`, `""` — casse et
+ * blancs ignorés) ; tout le reste, absent compris, = le défaut du catalogue.
+ */
+function booleenCommeLApi(valeur: unknown, defaut: boolean): boolean {
+  if (typeof valeur === 'boolean') return valeur;
+  // PHP convertit le nombre en chaîne avant de juger : seuls `1` et `0` sont lisibles.
+  const texte = typeof valeur === 'number' ? String(valeur) : typeof valeur === 'string' ? valeur.trim().toLowerCase() : null;
+  if (texte === null) return defaut;
+  if (['1', 'true', 'on', 'yes'].includes(texte)) return true;
+  if (['0', 'false', 'off', 'no', ''].includes(texte)) return false;
+  return defaut;
+}
+
+/**
  * TCK-2486 — LA lecture de `settings` par la fiche : ses valeurs par défaut ET la référence « inchangé »
  * de l'envoi. Une seule fonction, pour qu'une case affichée décochée ne puisse pas être jugée modifiée.
  * Clé absente ou hors forme = le défaut de l'API (`AgencySettings`) : `false`, aucun module masqué.
+ *
+ * Revue de TCK-2486, M2 — chaque clé se lit comme le lecteur de l'API qui lui donne son EFFET : sinon une
+ * valeur que l'écran contredit reste en base, puisqu'une clé inchangée ne part plus.
  */
 export function reglagesDeLaFiche(settings: unknown): ReglagesDeLaFiche {
   const lu = settings !== null && typeof settings === 'object' ? (settings as Record<string, unknown>) : {};
   return {
-    // TCK-589.
+    // TCK-589 — STRICT : son seul lecteur à effet, `TwoFactorRequirement::requiredAtAgency()`, filtre par
+    // `where('settings->require_team_two_factor', true)`, soit `(settings->'…')::jsonb = 'true'::jsonb`. Un `1`
+    // stocké n'exige rien du personnel : le montrer coché dirait « exigée » à tort. (Lu par `filter_var`,
+    // `AgencySettings::read` dirait vrai : l'écart est côté API, écrit au ticket.)
     require_team_two_factor: lu.require_team_two_factor === true,
-    // TCK-593 — clé absente (agence neuve) = désactivé, comme côté API.
-    late_fee_online_collection: lu.late_fee_online_collection === true,
+    // TCK-593 — `Agency::collectsLateFeesOnline()` → `AgencySettings::read` ; clé absente = désactivé.
+    late_fee_online_collection: booleenCommeLApi(lu.late_fee_online_collection, false),
     // TCK-2483 — clé absente = rien de masqué ; un code inconnu est ignoré (et ne repart pas).
     hidden_modules: modulesMasquesDe(lu),
   };

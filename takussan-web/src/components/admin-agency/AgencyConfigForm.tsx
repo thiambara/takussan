@@ -123,6 +123,11 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
   // (`AgencyController@update` et `@confirmPayoutThreshold`) : un refus ouvre la boîte de la coque,
   // puis le geste est rejoué. Hors de la coque (`null`), le refus s'affiche comme avant.
   const garde = useGardeDoubleFacteur();
+  // Revue adverse de TCK-2486, M1 — la référence « inchangé » des réglages, recalée sur la RÉPONSE de
+  // l'API à chaque enregistrement. La prop `agency` ne bouge qu'à l'arrivée de `router.refresh()`, non
+  // attendu : deux enregistrements coup sur coup jugeaient le second contre une référence périmée, et un
+  // retour à la valeur initiale ne partait pas.
+  const [reglagesEnregistres, setReglagesEnregistres] = useState<unknown>(agency.settings);
 
   function confirmThreshold() {
     setConfirmError(null);
@@ -151,7 +156,7 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
           initialThreshold: initialThreshold(agency),
           slugEditable,
           initialSlug: agency.slug,
-          initialSettings: agency.settings,
+          initialSettings: reglagesEnregistres,
         });
         const result = await avecGardeDoubleFacteurAction(
           () => updateAgencyAction(agency.id, payload),
@@ -171,6 +176,16 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
       onSuccess: (saved, values) => {
         const persisted = saved?.moderation_required ?? false;
         form.setValue('moderation_required', persisted, { shouldDirty: false });
+        // Revue de TCK-2486, M1 — la réponse fait foi pour la référence ET pour l'écran : un réglage posé
+        // par un autre admin entre-temps s'affiche, et l'envoi suivant ne le défait pas (recaler la seule
+        // référence sur un écran périmé renverrait l'ancienne valeur comme une modification).
+        if (saved?.settings !== undefined) {
+          setReglagesEnregistres(saved.settings);
+          const lus = reglagesDeLaFiche(saved.settings);
+          form.setValue('require_team_two_factor', lus.require_team_two_factor, { shouldDirty: false });
+          form.setValue('late_fee_online_collection', lus.late_fee_online_collection, { shouldDirty: false });
+          form.setValue('hidden_modules', lus.hidden_modules, { shouldDirty: false });
+        }
         // VERIF-594 M-2 — un relâchement du seuil n'est pas appliqué : il attend un second
         // approbateur (202). Le dire, plutôt qu'un « enregistré » qui laisserait croire le contraire.
         const pending = saved?.pending_payout_threshold_change != null
