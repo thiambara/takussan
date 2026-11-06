@@ -1,0 +1,267 @@
+'use client';
+
+import { useId, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { profileShortLabel } from '@/components/profile/ProfileBadge';
+import { useMyProfiles, useSwitchActiveProfile } from '@/hooks/useProfiles';
+import { useCurrentLocale } from '@/i18n/hooks';
+import { cheminLocalise } from '@/i18n/routing';
+import { espacesAProposer } from '@/lib/espaces';
+import { pastillesATraiter } from '@/lib/navigation/a-traiter';
+import type { EntreeComposee } from '@/lib/navigation/composer-menu';
+import { DISPOSITIONS } from '@/lib/navigation/dispositions';
+import { lirePagesRecentes } from '@/lib/navigation/pages-recentes';
+import {
+  GROUPES_DE_LA_PALETTE,
+  chercherDansLaPalette,
+  decouperLesMots,
+  optionsDeLaPalette,
+  type GroupeDeLaPalette,
+  type OptionDeLaPalette,
+} from '@/lib/navigation/palette';
+import { cn } from '@/lib/utils';
+import { useCompteursDuMenu } from './useCompteursDuMenu';
+import { useMenuDeLEspace } from './useMenuDeLEspace';
+
+/** La clé de titre de chaque groupe, sous `nav.palette.groupes`. */
+const TITRES: Record<GroupeDeLaPalette, string> = {
+  actions: 'actions',
+  'a-traiter': 'aTraiter',
+  recents: 'recents',
+  'aller-a': 'allerA',
+  espaces: 'espaces',
+};
+
+/**
+ * A17 — les arguments du crochet qui compose LE menu de la barre, transmis tels quels : un champ que le
+ * crochet gagne (`modulesMasques`, TCK-2483) atteint la palette sans qu'on y touche.
+ */
+type ContexteDuMenuDeLEspace = Parameters<typeof useMenuDeLEspace>[0];
+
+interface PaletteDeCommandesProps {
+  readonly contexteDuMenu: ContexteDuMenuDeLEspace;
+  readonly ouverte: boolean;
+  readonly onOuverteChange: (ouverte: boolean) => void;
+  /** A7 — l'élément focalisé à l'ouverture ; absent ou retiré du DOM : le défaut de Base UI. */
+  readonly retourDuFocus?: RefObject<HTMLElement | null>;
+}
+
+/**
+ * TCK-2482 (ADR-0089) — la palette de commandes de `/app` : ⌘K / Ctrl K ou le bouton de la barre haute
+ * (la coque, `AppShell`, tient l'état). `Dialog` de Base UI et motif ARIA combobox/listbox écrit à la
+ * main, sur le patron de `GlobalSearch` (TCK-600) : le champ garde le focus, les flèches, Début et Fin
+ * déplacent `aria-activedescendant`, Entrée ouvre, Échap ferme (Base UI).
+ *
+ * Son contenu n'est monté que palette ouverte : la composition du menu et les compteurs ne coûtent rien
+ * palette fermée, et la saisie repart de zéro à chaque ouverture.
+ */
+export function PaletteDeCommandes({ ouverte, onOuverteChange, retourDuFocus, contexteDuMenu }: PaletteDeCommandesProps) {
+  const t = useTranslations('nav.palette');
+  const champ = useRef<HTMLInputElement>(null);
+  return (
+    <Dialog open={ouverte} onOpenChange={(o) => onOuverteChange(o)}>
+      <DialogContent
+        data-slot="palette-de-commandes"
+        initialFocus={champ}
+        finalFocus={() => {
+          const element = retourDuFocus?.current ?? null;
+          return element !== null && element.isConnected ? element : true;
+        }}
+        className="top-[10vh] translate-y-0 gap-3 sm:max-w-xl"
+      >
+        <DialogTitle className="sr-only">{t('titre')}</DialogTitle>
+        <DialogDescription className="sr-only">{t('description')}</DialogDescription>
+        <ContenuDeLaPalette
+          contexteDuMenu={contexteDuMenu}
+          ouverte={ouverte}
+          champ={champ}
+          fermer={() => onOuverteChange(false)}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+interface ContenuDeLaPaletteProps {
+  readonly contexteDuMenu: ContexteDuMenuDeLEspace;
+  /** A13 — le contenu survit à la fermeture le temps de l'animation : il ne sonde plus rien. */
+  readonly ouverte: boolean;
+  readonly champ: RefObject<HTMLInputElement | null>;
+  readonly fermer: () => void;
+}
+
+function ContenuDeLaPalette({ contexteDuMenu, ouverte, champ, fermer }: ContenuDeLaPaletteProps) {
+  const t = useTranslations('nav.palette');
+  const tMenu = useTranslations('nav.sidebar');
+  const tAdmin = useTranslations('nav.admin');
+  const tTypes = useTranslations('profile.types');
+  const router = useRouter();
+  const pathname = usePathname();
+  const locale = useCurrentLocale();
+  const idListe = useId();
+  const [saisie, setSaisie] = useState('');
+  const [actif, setActif] = useState(0);
+  // A8 — lus une fois par ouverture (le contenu est démonté à la fermeture).
+  const [recents] = useState(() => lirePagesRecentes(contexteDuMenu.user.id));
+
+  // S1, S2 — LE menu de la barre et SES compteurs : la palette ne juge aucun accès elle-même, n'appelle
+  // ni `composerMenu` ni `estOuverte` (gardes de TCK-2483, S8), et passe le contexte INTACT (A17).
+  const { menu, groupes, entrees } = useMenuDeLEspace(contexteDuMenu);
+  const compteurs = useCompteursDuMenu(entrees, { agencyIsStandard: contexteDuMenu.agencyIsStandard, actif: ouverte });
+  const bande = pastillesATraiter(entrees, compteurs, menu.priorites);
+  const profils = useMyProfiles();
+  const bascule = useSwitchActiveProfile();
+  const actifId = profils.data?.meta.active_profile_id ?? null;
+
+  const libelle = (e: EntreeComposee) => (e.labelSpace === 'nav.admin' ? tAdmin(e.labelKey) : tMenu(e.labelKey));
+  const options = optionsDeLaPalette(
+    {
+      action: menu.action,
+      carte: menu.carte,
+      groupes,
+      pastilles: [...bande.visibles, ...bande.autres],
+      espaces: espacesAProposer(profils.data?.data ?? [], actifId).filter((p) => p.id !== actifId),
+      recents,
+      pathname,
+    },
+    {
+      entree: libelle,
+      // Le libellé de la barre (`AppSidebar`) : la clé de la disposition (« Payer mon loyer »), sinon
+      // celui de l'entrée.
+      action: (e) => (DISPOSITIONS[menu.persona].libelleAction ? tMenu(`actions.${e.labelKey}`) : libelle(e)),
+      carte: () => tMenu('carteLocation.titre'),
+      precision: (g) => (g.id === 'aussi' && g.titre !== null ? tMenu(`groupes.${g.titre}`, g.titreValeurs) : null),
+      synonymes: (id) => (t.has(`synonymes.${id}`) ? decouperLesMots(t(`synonymes.${id}`)) : []),
+      pastille: (p) => tMenu(`aTraiter.noms.${p.cle}`, { count: p.nombre }),
+      espace: (p) => t('passerA', { espace: profileShortLabel(p, tTypes) }),
+      motsEspace: decouperLesMots(t('synonymesEspace')),
+    },
+  );
+  const resultats = chercherDansLaPalette(options, saisie);
+  const indexActif = resultats.length === 0 ? -1 : Math.min(actif, resultats.length - 1);
+  const idOption = (index: number) => `${idListe}-option-${index}`;
+  const requete = saisie.trim();
+  const parGroupe = GROUPES_DE_LA_PALETTE.map((g) => [g, resultats.filter((o) => o.groupe === g)] as const).filter(
+    ([, liste]) => liste.length > 0,
+  );
+
+  const choisir = (option: OptionDeLaPalette | undefined) => {
+    if (!option) return;
+    const cible = option.cible;
+    // A12 — la chaîne du sélecteur de profil, sans un geste de plus (toast, `router.refresh()`, cache).
+    if (cible.type === 'espace') {
+      if (!bascule.isPending) bascule.mutate(cible.profilId);
+    } else {
+      router.push(cible.publique ? cheminLocalise(cible.href, locale) : cible.href);
+    }
+    fermer();
+  };
+
+  const activer = (index: number) => {
+    setActif(index);
+    document.getElementById(idOption(index))?.scrollIntoView?.({ block: 'nearest' });
+  };
+  const deplacer = (pas: 1 | -1) => {
+    if (resultats.length === 0) return;
+    activer((indexActif + pas + resultats.length) % resultats.length);
+  };
+
+  const surTouche = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      deplacer(1);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      deplacer(-1);
+    } else if ((event.key === 'Home' || event.key === 'End') && resultats.length > 0) {
+      // Début / Fin : la première ou la dernière option (le curseur du champ se déplace aux flèches
+      // gauche et droite).
+      event.preventDefault();
+      activer(event.key === 'Home' ? 0 : resultats.length - 1);
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      choisir(resultats[indexActif]);
+    }
+  };
+
+  return (
+    <div className="grid min-w-0 gap-3">
+      {/* `pr-8` : la place du bouton de fermeture du `Dialog` (A14). */}
+      <div className="pr-8">
+        <Input
+          ref={champ}
+          role="combobox"
+          aria-label={t('champ')}
+          aria-expanded={resultats.length > 0}
+          aria-controls={resultats.length > 0 ? idListe : undefined}
+          aria-autocomplete="list"
+          aria-activedescendant={indexActif >= 0 ? idOption(indexActif) : undefined}
+          placeholder={t('placeholder')}
+          value={saisie}
+          maxLength={80}
+          autoComplete="off"
+          onChange={(event) => {
+            setSaisie(event.target.value);
+            setActif(0);
+          }}
+          onKeyDown={surTouche}
+        />
+      </div>
+      <p role="status" className="sr-only">
+        {t('resultats', { count: resultats.length })}
+      </p>
+      {resultats.length === 0 && requete !== '' ? (
+        <p className="px-2 py-6 text-center text-sm text-muted-foreground">{t('aucun', { q: requete })}</p>
+      ) : null}
+      {resultats.length > 0 ? (
+        <div id={idListe} role="listbox" aria-label={t('titre')} className="-mx-1 max-h-[min(60dvh,28rem)] overflow-y-auto px-1">
+          {parGroupe.map(([groupe, liste]) => (
+            <div key={groupe} role="group" aria-labelledby={`${idListe}-${groupe}`} className="pb-2">
+              <div
+                id={`${idListe}-${groupe}`}
+                role="presentation"
+                className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground"
+              >
+                {t(`groupes.${TITRES[groupe]}`)}
+              </div>
+              {liste.map((option) => {
+                const index = resultats.indexOf(option);
+                const Icone = option.icone;
+                return (
+                  <div
+                    key={option.cle}
+                    id={idOption(index)}
+                    role="option"
+                    // Focalisable par programme seulement, jamais par Tab : le focus reste au champ
+                    // (motif combobox, `aria-activedescendant` désigne l'option). Patron de
+                    // `SearchAutocomplete` : on choisit à l'appui, sans retirer le focus au champ.
+                    tabIndex={-1}
+                    aria-selected={index === indexActif}
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                      choisir(option);
+                    }}
+                    onMouseMove={() => setActif(index)}
+                    className={cn(
+                      'flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm text-foreground',
+                      index === indexActif && 'bg-muted',
+                    )}
+                  >
+                    <Icone className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                    <span className="min-w-0 flex-1 truncate">{option.libelle}</span>
+                    {option.precision ? (
+                      <span className="shrink-0 truncate text-xs text-muted-foreground">{option.precision}</span>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
