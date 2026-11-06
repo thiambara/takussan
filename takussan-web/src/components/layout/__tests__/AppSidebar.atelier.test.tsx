@@ -184,6 +184,42 @@ describe('TCK-2491 (ADR-0090 §2) — l’en-tête de la colonne et le menu du c
     await waitFor(() => expect(routeur.replace).toHaveBeenCalledWith('/fr'));
   });
 
+  // Revue adverse (I2) — dans le tiroir (menu dans un dialogue modal), le voile interne de Base UI n'est
+  // pas posé : l'appui « à côté » du menu fermait le menu ET activait la ligne dessous (« Publier un
+  // bien » lançait la publication). Le voile explicite, juste sous le positionneur, reçoit cet appui.
+  // jsdom ne fait pas de tests d'atteinte (`elementFromPoint`) : ceux-là sont relevés au navigateur.
+  it.each([
+    ['au bureau', false],
+    ['dans le tiroir', true],
+  ] as const)('%s : un voile couvre l’écran sous le menu ; l’appui ou le clic dessus ferme le menu, et rien d’autre', async (_cas, tiroir) => {
+    const u = userEvent.setup();
+    const onNavigate = vi.fn();
+    routeur.push.mockClear();
+    const { container } = render(
+      withIntl(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <AccesAdminProvider acces={accesDepuis({ roles: ROLES, agence: { kind: 'standard' }, capacites: [] })}>
+            <AppSidebar modulesMasques={[]} user={USER} agencyIsStandard typeProfilActif={null} tiroir={tiroir} onNavigate={onNavigate} />
+          </AccesAdminProvider>
+        </QueryClientProvider>,
+      ),
+    );
+    const pied = container.querySelector<HTMLElement>('[data-slot="pied-du-compte"]')!;
+    for (const geste of ['souris', 'doigt'] as const) {
+      await u.click(pied);
+      await screen.findByRole('menu');
+      const voile = document.querySelector<HTMLElement>('[data-slot="dropdown-menu-voile"]');
+      expect(voile, geste).not.toBeNull();
+      // Couvre l'écran, juste sous le positionneur du menu (`z-[1100]`) : au-dessus du tiroir (`z-50`).
+      expect(voile!.className.split(/\s+/)).toEqual(expect.arrayContaining(['fixed', 'inset-0', 'z-[1099]']));
+      if (geste === 'souris') await u.click(voile!);
+      else await u.pointer([{ keys: '[TouchA]', target: voile! }]);
+      await waitFor(() => expect(screen.queryByRole('menu'), geste).toBeNull());
+    }
+    expect(onNavigate).not.toHaveBeenCalled();
+    expect(routeur.push).not.toHaveBeenCalled();
+  });
+
   it('le changement d’espace : absent avec un seul espace ; à plusieurs, l’actif marqué, l’autre bascule le profil', async () => {
     const u = userEvent.setup();
     const { container, unmount } = monter();

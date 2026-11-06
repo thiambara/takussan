@@ -50,7 +50,8 @@ interface MenuDuCompteProps {
  * - Le menu s'ancre au déclencheur et se recale dans l'écran (`collisionPadding` de la primitive) : au
  *   pied de la colonne, il s'ouvre vers le haut, aligné sur son bord gauche — dans le rail aussi, où il
  *   déborde sur le contenu (mesuré à 1280 : 230 px de large, entièrement dans l'écran). Il est en
- *   portail, au `z-[1100]` des panneaux (au-dessus du tiroir, TCK-2485).
+ *   portail, au `z-[1100]` des panneaux (au-dessus du tiroir, TCK-2485), sur un `voile` qui reçoit
+ *   l'appui « à côté » : dans le tiroir, il activait la ligne dessous (revue adverse, I2).
  * - La langue est un groupe de `menuitemradio` (`aria-checked`) : choisir referme le menu et suit le
  *   chemin unique du changement de langue (cookie, préférence de compte, rafraîchissement).
  * - Le solde ne paraît que connu (jamais un « 0 » qui ne serait pas un solde, comme `PastilleCredits`),
@@ -106,7 +107,7 @@ export function MenuDuCompte({ user, libelleRole, onNavigate }: MenuDuCompteProp
         </span>
         <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground icones:hidden" aria-hidden />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" data-slot="menu-du-compte" className="w-64 max-w-[calc(100vw-1rem)]">
+      <DropdownMenuContent align="start" voile data-slot="menu-du-compte" className="w-64 max-w-[calc(100vw-1rem)]">
         <div className="px-3 py-2">
           <p className="truncate text-sm font-medium text-foreground">{libelle}</p>
           {user.email ? <p className="truncate text-xs text-muted-foreground">{user.email}</p> : null}
