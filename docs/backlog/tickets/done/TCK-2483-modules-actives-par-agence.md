@@ -1,7 +1,7 @@
 ---
 id: TCK-2483
 title: Modules activés par agence — l'admin d'agence retire du menu de son équipe ce que l'agence n'utilise pas
-status: doing
+status: done
 phase: P3
 family: full
 estimate: M
@@ -149,9 +149,12 @@ les raisons.
       masqué. Relevés dans les notes.
 - [x] AC10 — Si TCK-2481 ou TCK-2482 est sur `dev` à l'implémentation : un onglet ou une entrée de
       palette vers une destination masquée n'est pas rendu (test sur le composant réel).
-- [ ] AC11 — `./vendor/bin/pint`, `npx tsc --noEmit`, `npm run lint`, `npm run check:i18n` verts ;
-      suites par la CI. *(Moitié locale tenue : verts avant chaque commit, jusqu'à `570e32365`. Les
-      suites n'ont pas encore tourné : rien n'est poussé. La case se coche sur la CI de la PR.)*
+- [x] AC11 — `./vendor/bin/pint`, `npx tsc --noEmit`, `npm run lint`, `npm run check:i18n` verts ;
+      suites par la CI. *(PR #1652 : API CI verte sur `570e32365` (run 42210407482, suite entière),
+      attestée sur `775147e7e` ; Web CI verte sur `775147e7e` (run 42218672718) après un rouge sur
+      `570e32365` : `promesses-de-delai.test.ts` (TCK-575) refusait la ligne d'aide « plus de 7 jours »
+      du module `move_in_follow_up`, absente du registre — ajoutée, adossée à
+      `TenantOnboardingPendingController.php:54`, `subDays(7)`, commit `775147e7e`.)*
 
 ## Hors périmètre
 
@@ -178,7 +181,7 @@ Plan : [`docs/plans/2026-11-05-tck-2483-modules-actives-par-agence.md`](../../..
   du 2026-11-06.
 - AC4 (locataire, bailleur aussi admin) et AC5 : par les tests seuls (`composer-menu.test.ts`,
   invariant sur chaque persona et chaque combinaison de rôles).
-- AC11 : laissé ouvert. La moitié locale est tenue, la CI n'a pas tourné.
+- AC11 : tenu en CI (voir la case).
 
 **Écarts au plan.**
 - **Tâche 1** (`6890d8545`) :
