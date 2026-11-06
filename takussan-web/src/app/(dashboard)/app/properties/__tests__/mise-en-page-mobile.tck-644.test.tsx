@@ -65,6 +65,11 @@ describe('/app/properties — mise en page mobile (TCK-644)', () => {
     expect(classes).toEqual(expect.arrayContaining(RESERVE_SOUS_LANCEUR.split(' ')));
   });
 
+  it('TCK-2481 (revue, M2) — sous md, aucun rembourrage bas : la barre d’onglets remplace le bouton flottant', async () => {
+    const classes = classesRacine(await rendre());
+    expect(classes.filter((c) => /^pb-/.test(c))).toEqual([]);
+  });
+
   it('l’en-tête tient sur une rangée sous lg, et sa ligne de contexte attend sm', async () => {
     await rendre();
     const entete = recu.entete ?? {};
