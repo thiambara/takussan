@@ -5,6 +5,10 @@
  * - Par compte (`takussan.pages-recentes.<id>`) : un autre compte du même appareil ne les lit pas.
  * - Des chemins BRUTS (`/app/leases/42`) : la palette les résout sur le menu du jour
  *   (`optionsDeLaPalette`), si bien qu'un chemin que le menu ne couvre plus disparaît de lui-même.
+ * - Dédoublonnés À L'ÉCRITURE par entrée du menu (revue I3) : un chemin qui se résout sur une entrée
+ *   REMPLACE tout chemin retenu qui se résout sur la même. Sans cela, huit fiches d'une même section
+ *   occupaient les huit places, et « Récents » n'affichait plus qu'une entrée. Un chemin qu'aucune
+ *   entrée ne couvre reste brut. La résolution est celle de la palette (`resolveurDesRecents`).
  * - Rien ne quitte le navigateur. Tout accès au stockage est enveloppé : en navigation privée, sous quota
  *   ou stockage bloqué, `localStorage` lève — la palette fonctionne alors sans récents.
  * - Nommées par la politique de confidentialité (`src/content/legal/privacy.ts`, § 8).
@@ -31,9 +35,16 @@ export function lirePagesRecentes(compte: number | string): string[] {
   }
 }
 
-export function retenirPage(compte: number | string, chemin: string): void {
+/** Le chemin → le `href` de l'entrée du menu qui le couvre, ou `null` (`resolveurDesRecents`). */
+export type EntreeDuChemin = (chemin: string) => string | null;
+
+const AUCUNE_ENTREE: EntreeDuChemin = () => null;
+
+export function retenirPage(compte: number | string, chemin: string, entreeDe: EntreeDuChemin = AUCUNE_ENTREE): void {
   if (typeof window === 'undefined' || !estUnCheminDeLApp(chemin)) return;
-  const suivantes = [chemin, ...lirePagesRecentes(compte).filter((c) => c !== chemin)].slice(0, PAGES_RECENTES_MAX);
+  const entree = entreeDe(chemin);
+  const gardees = lirePagesRecentes(compte).filter((c) => c !== chemin && (entree === null || entreeDe(c) !== entree));
+  const suivantes = [chemin, ...gardees].slice(0, PAGES_RECENTES_MAX);
   try {
     window.localStorage.setItem(clePagesRecentes(compte), JSON.stringify(suivantes));
   } catch {

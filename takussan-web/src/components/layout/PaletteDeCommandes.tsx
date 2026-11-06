@@ -20,12 +20,14 @@ import {
   chercherDansLaPalette,
   decouperLesMots,
   optionsDeLaPalette,
+  resolveurDesRecents,
   type GroupeDeLaPalette,
   type OptionDeLaPalette,
 } from '@/lib/navigation/palette';
 import { cn } from '@/lib/utils';
 import { useCompteursDuMenu } from './useCompteursDuMenu';
 import { useMenuDeLEspace } from './useMenuDeLEspace';
+import { useRetenirLaPageRecente } from './usePaletteDeCommandes';
 
 /** La clé de titre de chaque groupe, sous `nav.palette.groupes`. */
 const TITRES: Record<GroupeDeLaPalette, string> = {
@@ -84,6 +86,22 @@ export function PaletteDeCommandes({ ouverte, onOuverteChange, retourDuFocus, co
       </DialogContent>
     </Dialog>
   );
+}
+
+interface RetenirLaPageRecenteProps {
+  readonly contexteDuMenu: ContexteDuMenuDeLEspace;
+  readonly chemin: string | null;
+}
+
+/**
+ * TCK-2482 (A8, revue I3) — retient la page visitée pour « Récents », dédoublonnée par entrée du MENU
+ * RENDU : monté par la coque DANS `PreferencesDuMenuProvider`, il compose le menu comme la palette
+ * (épingles comprises) et résout par la même fonction (`resolveurDesRecents`). Ne rend rien.
+ */
+export function RetenirLaPageRecente({ contexteDuMenu, chemin }: RetenirLaPageRecenteProps) {
+  const { groupes } = useMenuDeLEspace(contexteDuMenu);
+  useRetenirLaPageRecente(contexteDuMenu.user.id, chemin, resolveurDesRecents(groupes));
+  return null;
 }
 
 interface ContenuDeLaPaletteProps {

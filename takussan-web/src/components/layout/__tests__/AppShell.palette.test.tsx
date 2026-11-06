@@ -149,4 +149,28 @@ describe('TCK-2482 — la palette dans la coque', () => {
     monter(['customer', 'agent']);
     expect(lirePagesRecentes(1)).toEqual(['/app/payments']);
   });
+
+  it('revue I3 — huit fiches de bail visitées n’effacent pas les autres sections de « Récents »', async () => {
+    chemin.valeur = '/app/payments';
+    const { rerender } = monter();
+    const arbre = () => (
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <ToastProvider>
+          <AppShell user={utilisateur(['customer', 'tenant'])} agencyIsStandard>
+            <button type="button">avant</button>
+          </AppShell>
+        </ToastProvider>
+      </QueryClientProvider>
+    );
+    for (const c of ['/app/messages', ...Array.from({ length: 8 }, (_, i) => `/app/leases/${i + 1}`), '/app']) {
+      chemin.valeur = c;
+      rerender(withIntl(arbre()));
+    }
+    // Le plafond de 8 tient, et la section des baux n'en occupe qu'une place.
+    expect(lirePagesRecentes(1)).toEqual(['/app', '/app/leases/8', '/app/messages', '/app/payments']);
+    const u = userEvent.setup();
+    await u.keyboard('{Control>}k{/Control}');
+    const groupe = within(await screen.findByRole('listbox')).getByRole('group', { name: 'Récents' });
+    expect(within(groupe).getAllByRole('option').map((o) => o.textContent)).toEqual(['Mon bail', 'Messagerie', 'Paiements']);
+  });
 });

@@ -7,6 +7,7 @@ import {
   chercherDansLaPalette,
   decouperLesMots,
   optionsDeLaPalette,
+  resolveurDesRecents,
   type GroupeDeLaPalette,
   type LibellesDeLaPalette,
   type OptionDeLaPalette,
@@ -199,3 +200,30 @@ describe('TCK-2482 — chercherDansLaPalette', () => {
 
 // `EntreeComposee` reste importé pour que `tsc` refuse une forme d'entrée que la palette ne lit plus.
 export type _EntreeLue = EntreeComposee;
+
+/**
+ * Revue I3 — UNE résolution d'un chemin vers son entrée, partagée par l'écriture des récents (la coque)
+ * et leur lecture (`optionsDeLaPalette`) : le plus long préfixe parmi les entrées rendues non
+ * cadenassées, `/app` et `/app/agency` comparés à l'égal.
+ */
+describe('revue I3 — resolveurDesRecents', () => {
+  const groupes = composerMenu(COMPTES.locataire, 'locataire').groupes;
+  const entreeDe = resolveurDesRecents(groupes);
+
+  it('une fiche se résout sur son entrée ; une page de l’entrée, sur elle-même', () => {
+    expect(entreeDe('/app/leases/42')).toBe('/app/leases');
+    expect(entreeDe('/app/leases')).toBe('/app/leases');
+    expect(entreeDe('/app/payments')).toBe('/app/payments');
+  });
+
+  it('/app ne couvre pas ses sous-pages ; un chemin que le menu ne couvre pas ne se résout pas', () => {
+    expect(entreeDe('/app')).toBe('/app');
+    expect(entreeDe('/app/agency/team')).toBeNull();
+    expect(entreeDe(null)).toBeNull();
+  });
+
+  it('une entrée cadenassée ne résout rien', () => {
+    const cadenas = groupes.map((g) => ({ ...g, entrees: g.entrees.map((e) => ({ ...e, locked: e.href === '/app/leases' })) }));
+    expect(resolveurDesRecents(cadenas)('/app/leases/42')).toBeNull();
+  });
+});

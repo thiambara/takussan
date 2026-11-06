@@ -76,6 +76,18 @@ export function decouperLesMots(texte: string): string[] {
   return texte.split(',').map((m) => m.trim()).filter((m) => m !== '');
 }
 
+/**
+ * Revue I3 — LA résolution d'un chemin vers l'entrée du menu qui le couvre : le plus long préfixe parmi
+ * les entrées rendues non cadenassées (`resolveActiveHref`, `/app` et `/app/agency` comparés à l'égal).
+ * Une seule fonction pour l'écriture des récents (la coque, `RetenirLaPageRecente`, qui dédoublonne par
+ * entrée) et pour leur lecture (`optionsDeLaPalette`) : deux résolutions finiraient par diverger.
+ * Rend le `href` de l'entrée, ou `null` si aucune ne couvre le chemin.
+ */
+export function resolveurDesRecents(groupes: readonly GroupeDuMenuRendu[]): (chemin: string | null) => string | null {
+  const hrefs = [...new Set(groupes.flatMap((g) => g.entrees.filter((e) => !e.locked).map((e) => e.href)))];
+  return (chemin) => resolveActiveHref(chemin, hrefs, APP_EXACT_ROOTS);
+}
+
 function cibleDe(e: EntreeComposee): CibleDeLaPalette {
   return { type: 'lien', href: e.href, ...(e.publique ? { publique: true as const } : {}) };
 }
@@ -113,13 +125,14 @@ export function optionsDeLaPalette(s: SourcesDeLaPalette, l: LibellesDeLaPalette
     });
   }
 
-  // Récents — résolus sur le menu D'AUJOURD'HUI : un chemin qu'il ne couvre plus disparaît.
-  const hrefs = [...parHref.keys()];
-  const courant = resolveActiveHref(s.pathname, hrefs, APP_EXACT_ROOTS);
+  // Récents — résolus sur le menu D'AUJOURD'HUI : un chemin qu'il ne couvre plus disparaît. Déjà
+  // dédoublonnés par entrée à l'écriture (revue I3) ; le dédoublonnage ici couvre un menu qui a changé.
+  const entreeDe = resolveurDesRecents(s.groupes);
+  const courant = entreeDe(s.pathname);
   const vus = new Set<string>();
   for (const chemin of s.recents) {
     if (vus.size === RECENTS_AFFICHES) break;
-    const href = resolveActiveHref(chemin, hrefs, APP_EXACT_ROOTS);
+    const href = entreeDe(chemin);
     const e = href === null ? undefined : parHref.get(href);
     if (!e || href === courant || vus.has(e.href)) continue;
     vus.add(e.href);

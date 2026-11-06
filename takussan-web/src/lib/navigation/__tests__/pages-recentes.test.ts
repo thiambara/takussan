@@ -44,6 +44,24 @@ describe('pages récentes (TCK-2482)', () => {
     expect(lirePagesRecentes(1)).toEqual(['/app/visits']);
   });
 
+  it('revue I3 — dédoublonnées À L’ÉCRITURE par entrée du menu : huit fiches d’une section n’effacent pas les autres', () => {
+    const entreeDe = (c: string) =>
+      c.startsWith('/app/leases') ? '/app/leases' : ['/app/payments', '/app/messages'].includes(c) ? c : null;
+    retenirPage(1, '/app/payments', entreeDe);
+    retenirPage(1, '/app/messages', entreeDe);
+    for (let i = 1; i <= 8; i++) retenirPage(1, `/app/leases/${i}`, entreeDe);
+    expect(lirePagesRecentes(1)).toEqual(['/app/leases/8', '/app/messages', '/app/payments']);
+  });
+
+  it('revue I3 — un chemin qu’aucune entrée ne couvre reste brut, et n’écarte que lui-même', () => {
+    const entreeDe = (c: string) => (c.startsWith('/app/leases') ? '/app/leases' : null);
+    retenirPage(1, '/app/ailleurs/1', entreeDe);
+    retenirPage(1, '/app/leases/1', entreeDe);
+    retenirPage(1, '/app/ailleurs/2', entreeDe);
+    retenirPage(1, '/app/leases/2', entreeDe);
+    expect(lirePagesRecentes(1)).toEqual(['/app/leases/2', '/app/ailleurs/2', '/app/ailleurs/1']);
+  });
+
   it('un stockage qui lève ne casse rien', () => {
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('SecurityError'); });
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('QuotaExceededError'); });

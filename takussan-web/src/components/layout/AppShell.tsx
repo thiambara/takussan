@@ -8,8 +8,8 @@ import type { ProfileType } from '@/types/profile';
 import { AppTopbar } from './AppTopbar';
 import { AppSidebar } from './AppSidebar';
 import { BarreDOnglets } from './BarreDOnglets';
-import { PaletteDeCommandes } from './PaletteDeCommandes';
-import { useRaccourciDeLaPalette, useRetenirLaPageRecente } from './usePaletteDeCommandes';
+import { PaletteDeCommandes, RetenirLaPageRecente } from './PaletteDeCommandes';
+import { useRaccourciDeLaPalette } from './usePaletteDeCommandes';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { BandeauxDuSite } from '@/components/announcements/BandeauxDuSite';
 import { LienEvitement } from '@/components/shared/LienEvitement';
@@ -102,8 +102,9 @@ export function AppShell({
   };
   // A6 — rien en plein écran : le parcours porte sa propre sortie, le navigateur garde son raccourci.
   useRaccourciDeLaPalette({ actif: !pleinEcran, ouverte: paletteOuverte, changer: changerPalette });
-  // A8 — les pages récentes, retenues sur l'appareil par compte ; jamais une page plein écran.
-  useRetenirLaPageRecente(user.id, pleinEcran ? null : pathname);
+  // A17 — les mêmes arguments que ceux du menu de la barre (`AppSidebar`, `BarreDOnglets`), pour la
+  // palette ET l'écrivain de ses récents. TCK-2483 (S8) y ajoutera `modulesMasques`, ici et pour la barre.
+  const contexteDuMenu = { user, agencyIsStandard, typeProfilActif, agencySuspended };
   // TCK-253 — Customer-only onboarding surfaces. Gated server-side via the
   // SSR-resolved roles so we never paint the welcome modale (or arm the
   // deferred profile sheet) for agents / owners / admins.
@@ -223,13 +224,16 @@ export function AppShell({
           </div>
           {/* TCK-2482 — DANS `PreferencesDuMenuProvider` : le menu de la palette est celui de la barre
               (épingles comprises). Son contenu n'est monté que palette ouverte (A13). */}
+          {/* A8 — les pages récentes, retenues sur l'appareil par compte ; jamais une page plein écran.
+              Revue I3 — dans le fournisseur : dédoublonnées par entrée du menu RENDU. */}
+          {pleinEcran ? null : (
+            <RetenirLaPageRecente contexteDuMenu={contexteDuMenu} chemin={pathname} />
+          )}
           {pleinEcran ? null : (
             <PaletteDeCommandes
               ouverte={paletteOuverte}
               onOuverteChange={(ouverte) => changerPalette(ouverte)}
-              // A17 — les mêmes arguments que ceux du menu de la barre (`AppSidebar`, `BarreDOnglets`).
-              // TCK-2483 (S8) y ajoutera `modulesMasques`, ici et pour la barre, au même endroit.
-              contexteDuMenu={{ user, agencyIsStandard, typeProfilActif, agencySuspended }}
+              contexteDuMenu={contexteDuMenu}
               retourDuFocus={retourDuFocus}
             />
           )}
