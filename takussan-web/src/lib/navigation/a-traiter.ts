@@ -34,7 +34,8 @@ export interface LigneAujourdhui {
 /**
  * Les lignes « Aujourd'hui » : pour chaque clé de `priorites`, DANS CET ORDRE, une ligne si une
  * entrée rendue et non cadenassée la porte ET que son compte est > 0. Toutes, sans coupe : le bloc
- * disparaît quand la liste est vide (tout à zéro). Mêmes règles que la bande qu'il remplace.
+ * disparaît quand la liste est vide (tout à zéro). Mêmes règles que la bande « À traiter » de TCK-2479
+ * (retirée en TCK-2490), moins sa coupe à quatre pastilles.
  */
 export function lignesAujourdhui(
   entrees: readonly EntreeComptee[],
@@ -51,20 +52,3 @@ export function lignesAujourdhui(
   return lignes;
 }
 
-/**
- * TCK-2479 — la bande « À traiter », gardée tant que la barre l'importe (TCK-2490 la débranche).
- * Elle découpe désormais les lignes « Aujourd'hui » : une seule règle de jugement.
- */
-export type PastilleATraiter = LigneAujourdhui;
-
-/** Quatre pastilles au plus ; le reste derrière « +N ». */
-export const PASTILLES_VISIBLES = 4;
-
-export function pastillesATraiter(
-  entrees: readonly EntreeComptee[],
-  comptes: Readonly<Partial<Record<NavCounterKey, number>>>,
-  priorites: readonly NavCounterKey[],
-): { readonly visibles: readonly PastilleATraiter[]; readonly autres: readonly PastilleATraiter[] } {
-  const lignes = lignesAujourdhui(entrees, comptes, priorites);
-  return { visibles: lignes.slice(0, PASTILLES_VISIBLES), autres: lignes.slice(PASTILLES_VISIBLES) };
-}
