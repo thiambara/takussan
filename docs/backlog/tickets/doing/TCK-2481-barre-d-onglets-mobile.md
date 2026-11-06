@@ -1,14 +1,14 @@
 ---
 id: TCK-2481
 title: Barre d'onglets mobile par persona — quatre destinations et « Menu », qui remplace le burger sous md
-status: todo
+status: doing
 phase: P2
 family: front
 estimate: M
 wave: 82
 created: 2026-11-05
-updated: 2026-11-05
-depends_on: [TCK-2478]
+updated: 2026-11-06
+depends_on: [TCK-2478, TCK-2479, TCK-2480]
 blocks: []
 spec_refs:
   features:
