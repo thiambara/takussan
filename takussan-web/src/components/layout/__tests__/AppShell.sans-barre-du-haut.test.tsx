@@ -3,7 +3,9 @@
  *
  * - AC1 : dès `md`, aucune barre du haut. jsdom ne lit pas les media queries : ce qui est éprouvé, c'est
  *   que TOUT en-tête (`<header>`, repère `banner`) que la coque monte porte `md:hidden` — une barre qui
- *   reviendrait sans lui rougit ici. La colonne porte la cloche, « Aller à » et le menu du compte.
+ *   reviendrait sans lui rougit ici. Et, quel que soit l'élément qui la rendrait (`<div>`, `<nav>`…),
+ *   rien de visible dès `md` n'est monté entre les bannières et la rangée colonne + contenu, ni dans
+ *   cette rangée (revue adverse, M5). La colonne porte la cloche, « Aller à » et le menu du compte.
  * - AC2 : sous `md`, l'en-tête compacte — la marque (vers `/`), « Aller à » (la palette, raccourci
  *   annoncé), la cloche — et la barre d'onglets.
  * - AC4 : l'ordre du document est l'ordre de tabulation — évitement → bannières → (en-tête mobile,
@@ -87,6 +89,38 @@ describe('TCK-2491 (AC1) — dès md, aucune barre du haut ; la colonne porte ce
     expect(entetes.length).toBeGreaterThan(0);
     for (const entete of entetes) expect(classes(entete), entete.outerHTML.slice(0, 120)).toContain('md:hidden');
     expect(container.querySelector('[data-slot="en-tete-mobile"]')).not.toBeNull();
+  });
+
+  // Revue adverse (M5) : la garde ci-dessus ne voit qu'un `<header>`. Une barre rendue en `<div>`, en
+  // `<nav>` ou en `<section>` lui échapperait. Celle-ci juge la STRUCTURE, quel que soit l'élément : au
+  // dessus de la rangée colonne + contenu, la coque ne monte que l'évitement, des bannières
+  // (`role="status"`) et ce qui se cache dès `md` ; dans la rangée, que la colonne et le contenu.
+  it('rien de visible dès `md` entre les bannières et la rangée colonne + contenu, ni dans la rangée', () => {
+    const { container } = monter(['customer', 'agency_admin'], true);
+    const main = container.querySelector('main')!;
+    const rangee = main.parentElement!;
+    const coque = rangee.parentElement!;
+    const decrire = (e: Element) => e.outerHTML.slice(0, 140);
+
+    const auDessus = Array.from(coque.children).slice(0, Array.from(coque.children).indexOf(rangee));
+    expect(auDessus.length).toBeGreaterThan(0);
+    for (const e of auDessus) {
+      const permis =
+        (e.tagName === 'A' && (e.getAttribute('href') ?? '').startsWith('#')) ||
+        e.getAttribute('role') === 'status' ||
+        classes(e).includes('md:hidden');
+      expect(permis, decrire(e)).toBe(true);
+    }
+    expect(auDessus.some((e) => e.getAttribute('role') === 'status'), 'la bannière de suspension est montée').toBe(true);
+
+    for (const e of Array.from(rangee.children)) {
+      const permis =
+        e === main ||
+        (classes(e).includes('hidden') && classes(e).includes('md:block') && e.querySelector('aside') !== null) ||
+        classes(e).includes('md:hidden');
+      expect(permis, decrire(e)).toBe(true);
+    }
+    expect(Array.from(rangee.children).filter((e) => e.querySelector('aside') !== null || e.tagName === 'ASIDE')).toHaveLength(1);
   });
 
   it('la colonne de bureau porte la marque, la cloche, « Aller à » et le menu du compte', () => {
