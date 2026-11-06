@@ -143,7 +143,10 @@ class PlatformSettingService
             'value.*' => $definition['item_rules'] ?? ['nullable'],
         ], ['value' => $value]));
         $validator->after(function ($validator) use ($key, $value): void {
-            if ($key === 'currency.supported' && is_array($value) && ! in_array('XOF', array_map('strtoupper', $value), true)) {
+            // Revue de TCK-2488 — un élément non chaîne (déjà refusé par `string`) ne passe pas par
+            // `strtoupper` : la `TypeError` rendait 500 au lieu du 422.
+            if ($key === 'currency.supported' && is_array($value)
+                && ! in_array('XOF', array_map(static fn (mixed $v): mixed => is_string($v) ? strtoupper($v) : $v, $value), true)) {
                 $validator->errors()->add('value', 'xof_required');
             }
         });
