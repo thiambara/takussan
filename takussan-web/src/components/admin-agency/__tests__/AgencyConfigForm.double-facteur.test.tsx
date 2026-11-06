@@ -77,6 +77,32 @@ describe('AgencyConfigForm — 2FA obligatoire pour l’équipe', () => {
     expect(updateAgencyAction.mock.calls[0]![1]).not.toHaveProperty('settings');
   });
 
+  /**
+   * TCK-2487 — une agence `individual` n'a pas d'équipe, et l'interrupteur n'a aucun effet sur l'hôte
+   * (déjà tenu à la 2FA en tant qu'admin d'agence) : pas de section, et la clé ne part jamais (l'API la
+   * refuse, 422), même quand une valeur ancienne la porte à `true`.
+   */
+  it('TCK-2487 — une agence individuelle n’a pas la section et n’envoie jamais la clé', async () => {
+    const user = userEvent.setup();
+    updateAgencyAction.mockReset();
+    const hote: Agency = { ...agence({ require_team_two_factor: true }), kind: 'individual' };
+    updateAgencyAction.mockResolvedValue({ ok: true, data: hote });
+    render(withIntl(<AgencyConfigForm agency={hote} />));
+
+    expect(screen.queryByRole('checkbox', { name: libelle })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Sécurité de l’équipe' })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(updateAgencyAction).toHaveBeenCalledTimes(1));
+    expect(updateAgencyAction.mock.calls[0]![1].settings ?? {}).not.toHaveProperty('require_team_two_factor');
+  });
+
+  it('TCK-2487 — une agence standard garde la section', () => {
+    render(withIntl(<AgencyConfigForm agency={{ ...agence(null), kind: 'standard' }} />));
+    expect(screen.getByRole('heading', { name: 'Sécurité de l’équipe' })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: libelle })).toBeInTheDocument();
+  });
+
   it('TCK-2486 — décocher la case chargée cochée envoie false', async () => {
     const user = userEvent.setup();
     updateAgencyAction.mockReset();

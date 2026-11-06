@@ -149,7 +149,8 @@ export interface AgencyFormPayload {
  * TCK-594 — ce que le formulaire sait de l'agence AVANT la saisie, et qui décide de ce qui part.
  *
  * - `individual` : l'API refuse les mentions légales d'une agence `individual` (`prohibited`) ; les
- *   envoyer, même vides, rendrait chaque enregistrement 422.
+ *   envoyer, même vides, rendrait chaque enregistrement 422. Même chose pour `settings.hidden_modules`
+ *   (TCK-2483) et `settings.require_team_two_factor` (TCK-2487).
  *   Même chose pour `moderation_required`, refusée à `true` (`declined`, TCK-686).
  * - `initialThreshold` : le seuil a sa propre capacité (`payouts.approve`) et sa règle des deux
  *   approbateurs. Le renvoyer INCHANGÉ ferait refuser l'enregistrement du nom à un admin qui ne la
@@ -200,7 +201,9 @@ export function normaliseAgencyForm(
   // TCK-2486 — chaque clé gérée ne part que si elle a changé (patron de M5, TCK-2483) ; alors `false`
   // compris : décocher doit lever le réglage (TCK-589), pas le laisser en place faute d'avoir été envoyé.
   const initial = reglagesDeLaFiche(context.initialSettings);
-  if (values.require_team_two_factor !== initial.require_team_two_factor) {
+  // TCK-2487 — jamais pour une `individual` : sans équipe, l'interrupteur n'a aucun effet, et l'API le
+  // refuse (422, `prohibited`), `false` compris.
+  if (!context.individual && values.require_team_two_factor !== initial.require_team_two_factor) {
     settings.require_team_two_factor = values.require_team_two_factor;
   }
   if (values.late_fee_online_collection !== initial.late_fee_online_collection) {

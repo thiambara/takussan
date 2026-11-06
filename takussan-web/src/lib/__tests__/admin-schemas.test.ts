@@ -140,6 +140,18 @@ describe('agencyFormSchema', () => {
       expect(normaliseAgencyForm(base).settings ?? {}).not.toHaveProperty(cle);
     });
 
+    /**
+     * TCK-2487 — l'interrupteur n'a aucun effet sur une agence `individual` (l'hôte porte déjà la 2FA en
+     * tant qu'admin d'agence, et il n'a pas d'équipe) : l'API le refuse (422, `prohibited`), même à `false`.
+     */
+    it('TCK-2487 — `require_team_two_factor` ne part jamais pour une agence individuelle', () => {
+      const hote = (initialSettings: Record<string, unknown> | null) => ({ individual: true, initialThreshold: '', initialSettings });
+      expect(normaliseAgencyForm({ ...base, require_team_two_factor: true }, hote(null)).settings ?? {}).not.toHaveProperty('require_team_two_factor');
+      expect(normaliseAgencyForm({ ...base, require_team_two_factor: false }, hote({ require_team_two_factor: true })).settings ?? {}).not.toHaveProperty('require_team_two_factor');
+      // Le reste de ses réglages part toujours.
+      expect(normaliseAgencyForm({ ...base, late_fee_online_collection: true }, hote(null)).settings).toEqual({ late_fee_online_collection: true });
+    });
+
     it('rien de modifié : `settings` ne part pas du tout', () => {
       expect(normaliseAgencyForm(base, contexte({ require_team_two_factor: false, late_fee_online_collection: false, hidden_modules: [] }))).not.toHaveProperty('settings');
     });

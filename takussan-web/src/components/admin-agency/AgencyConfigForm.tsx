@@ -536,33 +536,37 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
         )}
       </section>
 
-      {/* TCK-589 — sécurité de l'équipe. Même encadré cliquable que la modération. */}
-      <section className="rounded-xl bg-card p-6 space-y-4">
-        <div>
-          <h2 className="text-base font-semibold text-foreground">{t('security.title')}</h2>
-          <p className="mt-1 text-xs text-muted-foreground">{t('security.description')}</p>
-        </div>
-        <div className="relative flex items-start gap-4 rounded-lg border border-input bg-background px-4 py-3 transition-colors hover:bg-muted/40">
-          <input
-            id="require_team_two_factor"
-            type="checkbox"
-            aria-describedby="require_team_two_factor-hint"
-            {...form.register('require_team_two_factor')}
-            className="mt-0.5 size-4 shrink-0 cursor-pointer rounded border-input accent-primary"
-          />
+      {/* TCK-589 — sécurité de l'équipe. Même encadré cliquable que la modération. TCK-2487 — pas pour
+          une agence `individual` : sans équipe, l'interrupteur n'a aucun effet (l'hôte porte déjà la 2FA en
+          tant qu'admin d'agence), et l'API le refuse. */}
+      {individual ? null : (
+        <section className="rounded-xl bg-card p-6 space-y-4">
           <div>
-            <label
-              htmlFor="require_team_two_factor"
-              className="cursor-pointer text-sm font-medium text-foreground after:absolute after:inset-0 after:rounded-lg"
-            >
-              {t('security.teamTwoFactorLabel')}
-            </label>
-            <p id="require_team_two_factor-hint" className="mt-0.5 text-pretty text-xs text-muted-foreground">
-              {t('security.teamTwoFactorHint')}
-            </p>
+            <h2 className="text-base font-semibold text-foreground">{t('security.title')}</h2>
+            <p className="mt-1 text-xs text-muted-foreground">{t('security.description')}</p>
           </div>
-        </div>
-      </section>
+          <div className="relative flex items-start gap-4 rounded-lg border border-input bg-background px-4 py-3 transition-colors hover:bg-muted/40">
+            <input
+              id="require_team_two_factor"
+              type="checkbox"
+              aria-describedby="require_team_two_factor-hint"
+              {...form.register('require_team_two_factor')}
+              className="mt-0.5 size-4 shrink-0 cursor-pointer rounded border-input accent-primary"
+            />
+            <div>
+              <label
+                htmlFor="require_team_two_factor"
+                className="cursor-pointer text-sm font-medium text-foreground after:absolute after:inset-0 after:rounded-lg"
+              >
+                {t('security.teamTwoFactorLabel')}
+              </label>
+              <p id="require_team_two_factor-hint" className="mt-0.5 text-pretty text-xs text-muted-foreground">
+                {t('security.teamTwoFactorHint')}
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* TCK-2483 (ADR-0089, amendement « modules par agence ») — un réglage d'AFFICHAGE : le menu de
           toute l'équipe, l'admin compris. Pas pour une agence `individual` (aucune équipe ; l'API refuse
