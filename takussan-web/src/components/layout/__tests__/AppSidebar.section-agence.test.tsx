@@ -301,10 +301,14 @@ describe('les files de modération gardent leur badge (TCK-098, repris de la bar
       expect(etat?.status, String(cle)).toBe('error');
       expect(etat?.data, String(cle)).toBeDefined();
     }
-    // Et pourtant : ni pastille, ni badge.
-    expect(screen.queryByRole('region', { name: 'À traiter' })).toBeNull();
-    expect(screen.queryByLabelText('3 en attente')).toBeNull();
-    expect(screen.queryByLabelText('6 en attente')).toBeNull();
+    // Et pourtant : ni pastille, ni badge. `waitFor` et non une lecture immédiate : TanStack notifie
+    // ses observateurs par un minuteur (`notifyManager`), qu'une CI chargée peut servir après `act` —
+    // rouge intermittent mesuré sur la PR #1650. Le défaut gardé, lui, laisse la bande pour toujours.
+    await waitFor(() => {
+      expect(screen.queryByRole('region', { name: 'À traiter' })).toBeNull();
+      expect(screen.queryByLabelText('3 en attente')).toBeNull();
+      expect(screen.queryByLabelText('6 en attente')).toBeNull();
+    });
   });
 
   it('admin individual : aucune file sondée — ses pages ne lui sont pas ouvertes', async () => {
@@ -375,7 +379,10 @@ describe('le tiroir mobile porte les mêmes pages d’agence (Direction UX du ti
     );
     const bureau = within(container.querySelector('aside')!).getByRole('group', { name: titre });
 
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Ouvrir le menu' }));
+    // TCK-2481 — « Menu » de la barre d'onglets ouvre le tiroir (le burger est parti).
+    await userEvent
+      .setup()
+      .click(within(screen.getByRole('navigation', { name: 'Accès rapide' })).getByRole('button', { name: 'Menu' }));
     const tiroir = await screen.findByRole('dialog');
     expect(hrefs(within(tiroir).getByRole('group', { name: titre }))).toEqual(hrefs(bureau));
   });

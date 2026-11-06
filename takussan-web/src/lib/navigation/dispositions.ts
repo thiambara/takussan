@@ -34,6 +34,13 @@ export interface Disposition {
   readonly priorites: readonly NavCounterKey[];
   /** TCK-2479 — le groupe « Démarrer » : les étapes d'une agence (`espace`) ou d'un bailleur. */
   readonly demarrer?: ModeDemarrer;
+  /**
+   * TCK-2481 (ADR-0089 §3) — les onglets de la barre mobile (sous `md`), DANS CET ORDRE, suivis de
+   * « Menu ». Quatre au plus ; « Messagerie » toujours (le bouton flottant quitte `/app`). Un onglet
+   * que le menu du persona ne rend pas cède sa place à la destination suivante de cette disposition
+   * (`ongletsDuMenu`). Obligatoire : les onglets d'un persona se décident, ils ne s'oublient pas.
+   */
+  readonly onglets: readonly IdDestination[];
 }
 
 const PUBLIER: readonly IdDestination[] = ['publier-bien', 'proposer-bien'];
@@ -62,6 +69,7 @@ const BASE_ADMIN: Omit<Disposition, 'priorites' | 'demarrer'> = {
   ],
   plus: ['maintenance', 'carnet-prestataires', 'etats-des-lieux', 'documents', 'avis'],
   libelles: { 'mes-biens': 'allProperties' },
+  onglets: ['tableau-de-bord', 'demandes', 'mes-biens', 'messagerie'],
 };
 
 export const DISPOSITIONS: Record<Persona, Disposition> = {
@@ -74,6 +82,7 @@ export const DISPOSITIONS: Record<Persona, Disposition> = {
       { id: 'mes-demarches', titre: 'mesDemarches', entrees: ['visites', 'reservations'] },
     ],
     plus: ['documents', 'avis', 'statistiques'],
+    onglets: ['tableau-de-bord', 'favoris', 'visites', 'messagerie'],
     priorites: ['unreadMessages'],
   },
   locataire: {
@@ -92,6 +101,7 @@ export const DISPOSITIONS: Record<Persona, Disposition> = {
     ],
     plus: ['avis', 'statistiques'],
     libelles: { baux: 'myLease', maintenance: 'interventions' },
+    onglets: ['tableau-de-bord', 'paiements', 'maintenance', 'messagerie'],
     priorites: ['unreadMessages'],
   },
   bailleur: {
@@ -103,6 +113,7 @@ export const DISPOSITIONS: Record<Persona, Disposition> = {
     ],
     plus: ['clients', 'avis', 'documents', 'statistiques', 'exports', 'favoris', 'recherches'],
     libelles: { maintenance: 'interventions' },
+    onglets: ['tableau-de-bord', 'mes-biens', 'demandes', 'messagerie'],
     priorites: ['unreadMessages', 'unhandledLeads', 'pendingVisits'],
     demarrer: 'bailleur',
   },
@@ -116,6 +127,7 @@ export const DISPOSITIONS: Record<Persona, Disposition> = {
     ],
     plus: ['avis', 'documents', 'statistiques', 'exports', 'favoris', 'recherches'],
     libelles: { maintenance: 'interventions' },
+    onglets: ['tableau-de-bord', 'demandes', 'visites', 'messagerie'],
     priorites: ['unhandledLeads', 'pendingVisits', 'unreadMessages'],
   },
   'admin-agence': {
@@ -133,6 +145,7 @@ export const DISPOSITIONS: Record<Persona, Disposition> = {
     ],
     plus: ['clients', 'statistiques', 'exports', 'kpis', 'alertes', 'avis', 'documents'],
     libelles: { maintenance: 'interventions', paiements: 'payments', 'agence-facturation': 'payouts' },
+    onglets: ['tableau-de-bord', 'mes-biens', 'reservations', 'messagerie'],
     priorites: ['unreadMessages', 'unhandledLeads', 'pendingVisits'],
     demarrer: 'espace',
   },
@@ -140,6 +153,7 @@ export const DISPOSITIONS: Record<Persona, Disposition> = {
     action: [],
     groupes: [{ id: 'tete', titre: null, entrees: ['tableau-de-bord', 'maintenance', 'messagerie', 'documents'] }],
     plus: [],
+    onglets: ['tableau-de-bord', 'maintenance', 'messagerie', 'documents'],
     priorites: ['unreadMessages'],
   },
   plateforme: {

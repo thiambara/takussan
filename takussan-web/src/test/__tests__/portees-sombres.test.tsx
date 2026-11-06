@@ -81,7 +81,7 @@ function rendreBarreHaute(sousPorteeSombre: boolean) {
   const barre = (
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
-        <AppTopbar user={UTILISATEUR} onMenuToggle={vi.fn()} />
+        <AppTopbar user={UTILISATEUR} />
       </ToastProvider>
     </QueryClientProvider>
   );

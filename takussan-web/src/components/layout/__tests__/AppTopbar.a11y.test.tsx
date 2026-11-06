@@ -2,10 +2,14 @@
  * TCK-371 (revue adverse) — anneau de focus de la BARRE HAUTE, montée sur chaque page de `/app`
  * (section d'agence `/app/agency` comprise, TCK-649).
  *
- * `AppShell` rend `AppTopbar` au-dessus de la console, sur un `bg-foreground`. Ses deux contrôles écrits à la main — le hamburger, SEUL moyen d'ouvrir le tiroir de
+ * `AppShell` rend `AppTopbar` au-dessus de la console, sur un `bg-foreground`. Ses deux contrôles écrits à la main — le hamburger, alors SEUL moyen d'ouvrir le tiroir de
  * navigation sous `md`, et le lien du logo — ne portaient AUCUN `focus-visible` : ils retombaient
  * sur la règle globale `* { outline-ring/50 }` de `globals.css`, mesurée à **1,73:1** sur ce fond,
  * là où WCAG 1.4.11 exige 3:1.
+ *
+ * TCK-2481 — le hamburger a quitté la barre haute : sous `md`, « Menu » de la barre d'onglets
+ * (`BarreDOnglets`) ouvre le tiroir. Il ne reste ici que le logo, et ce fichier garde aussi que le
+ * burger ne revient pas (AC3).
  *
  * Ce fichier n'existait pas : c'est aussi ce qui a permis à l'oubli de tenir. Comme pour la barre
  * latérale, il MESURE (`@/test/contraste-wcag`) au lieu de figer une chaîne de classes — alpha
@@ -58,7 +62,7 @@ function rendreBarreHaute() {
       <QueryClientProvider client={queryClient}>
         {/* `ProfileSwitcher` appelle `useToast`, qui exige le provider de base-ui. */}
         <ToastProvider>
-          <AppTopbar user={UTILISATEUR} onMenuToggle={vi.fn()} />
+          <AppTopbar user={UTILISATEUR} />
         </ToastProvider>
       </QueryClientProvider>,
     ),
@@ -67,7 +71,7 @@ function rendreBarreHaute() {
 
 afterEach(() => cleanup());
 
-describe('AppTopbar — les deux contrôles écrits à la main portent un anneau MESURÉ', () => {
+describe('AppTopbar — le contrôle écrit à la main porte un anneau MESURÉ', () => {
   /** Le `<header>` porte `bg-foreground` : c'est le fond de tous les éléments qui n'en ont pas. */
   it('la barre haute est bien posée sur le fond sombre — sans quoi la mesure ne dit rien', () => {
     const { container } = rendreBarreHaute();
@@ -77,7 +81,6 @@ describe('AppTopbar — les deux contrôles écrits à la main portent un anneau
   });
 
   it.each([
-    ['hamburger', () => screen.getByRole('button', { name: 'Ouvrir le menu' })],
     ['logo', () => screen.getByRole('link', { name: 'Takussan' })],
   ])('%s : anneau plein, ≥ 3:1 sur tous ses fonds', (nom, trouver) => {
     rendreBarreHaute();
@@ -111,12 +114,13 @@ describe('AppTopbar — les deux contrôles écrits à la main portent un anneau
     // le logo est un lien EN LIGNE sans padding vertical, qu'un anneau rentrant traverserait.
     expect(entete.className).not.toMatch(/\boverflow-/);
 
-    for (const nom of ['Ouvrir le menu', 'Takussan']) {
-      const element = nom === 'Takussan'
-        ? screen.getByRole('link', { name: nom })
-        : screen.getByRole('button', { name: nom });
-      expect(anneauDeFocus(element)!.rentrant).toBe(false);
-      expect(element.className).toMatch(/focus-visible:outline-offset-2\b/);
-    }
+    const logo = screen.getByRole('link', { name: 'Takussan' });
+    expect(anneauDeFocus(logo)!.rentrant).toBe(false);
+    expect(logo.className).toMatch(/focus-visible:outline-offset-2\b/);
+  });
+
+  it('TCK-2481 — AC3 : plus de burger dans la barre haute', () => {
+    rendreBarreHaute();
+    expect(screen.queryByRole('button', { name: 'Ouvrir le menu' })).toBeNull();
   });
 });

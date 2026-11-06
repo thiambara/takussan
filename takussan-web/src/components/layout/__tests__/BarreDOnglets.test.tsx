@@ -1,0 +1,385 @@
+/**
+ * TCK-2481 (ADR-0089 §3) — la barre d'onglets mobile de `/app`, montée seule, persona par persona.
+ *
+ * Ce qu'elle garde : les quatre onglets de chaque persona puis « Menu » (AC1), l'onglet actif lisible
+ * sans la couleur seule (arbitrage 12), des compteurs qui sont CEUX du menu et ne sondent que sous
+ * `md` (arbitrage 8), et des remplaçants tirés de la DISPOSITION, jamais des épingles de
+ * l'utilisateur (arbitrage 6, TCK-2480).
+ */
+import { createRef } from 'react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, render, screen, within } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { withIntl } from '@/test/intl';
+import type { IdDestination } from '@/lib/navigation/catalogue';
+import type { PreferencesDeNavigation } from '@/lib/navigation/preferences';
+import { NonLusQueryKeys } from '@/lib/queries/conversations-list';
+import type { ProfileType } from '@/types/profile';
+import type { User, UserRole } from '@/types/user';
+import { ToastProvider } from '@/components/ui/toast';
+import { BarreDOnglets } from '../BarreDOnglets';
+import { REQUETE_DE_LA_BARRE } from '../plein-ecran';
+import { PreferencesDuMenuProvider } from '../PreferencesDuMenu';
+
+const etat = vi.hoisted(() => ({
+  chemin: '/app',
+  nonLus: 0,
+  appels: [] as { enabled?: boolean }[],
+  /** Les media queries interrogées (`window.matchMedia`). */
+  requetes: [] as string[],
+  /** Les onglets déclarés du client, remplacés le temps d'un test (`null` : ceux du dépôt). */
+  ongletsDuClient: null as readonly string[] | null,
+}));
+vi.mock('next/navigation', () => ({
+  usePathname: () => etat.chemin,
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(''),
+}));
+vi.mock('@/hooks/useCan', () => ({
+  useMyCapabilities: () => ({ data: { data: { agency_id: 1, capabilities: ['properties.create'] } } }),
+}));
+vi.mock('@/components/chat-widget/useUnreadCount', () => ({
+  useUnreadCount: (o: { enabled?: boolean }) => {
+    etat.appels.push(o);
+    return o.enabled ? etat.nonLus : 0;
+  },
+}));
+vi.mock('@/lib/queries/visits', () => ({ usePendingVisitsCount: () => ({}) }));
+vi.mock('@/lib/queries/contact-leads', () => ({ useUnhandledLeadsCount: () => ({}) }));
+vi.mock('@/lib/navigation/dispositions', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/lib/navigation/dispositions')>();
+  const client = original.DISPOSITIONS.client;
+  return {
+    ...original,
+    DISPOSITIONS: {
+      ...original.DISPOSITIONS,
+      get client() {
+        return etat.ongletsDuClient
+          ? { ...client, onglets: etat.ongletsDuClient as readonly IdDestination[] }
+          : client;
+      },
+    },
+  };
+});
+
+/**
+ * Simule un viewport (patron de `MessagesPage.test.tsx`) : `(max-width: Npx)` vaut `largeur <= N`,
+ * `(width < Nrem)` vaut `largeur < N × policeRacine` — dans une media query, `rem` est la taille de
+ * police PAR DÉFAUT du navigateur, un réglage d'accessibilité (16 px d'usine). Les requêtes posées
+ * sont relevées dans `etat.requetes`.
+ */
+function largeurDeFenetre(largeurPx: number, { policeRacine = 16 } = {}): void {
+  window.matchMedia = ((query: string) => {
+    etat.requetes.push(query);
+    const max = /\(max-width:\s*(\d+)px\)/.exec(query);
+    const sous = /^\(width < ([\d.]+)rem\)$/.exec(query);
+    return {
+      matches:
+        (max !== null && largeurPx <= Number(max[1])) ||
+        (sous !== null && largeurPx < Number(sous[1]) * policeRacine),
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    } as unknown as MediaQueryList;
+  }) as typeof window.matchMedia;
+}
+
+interface Compte {
+  readonly roles: UserRole[];
+  readonly typeProfilActif?: ProfileType;
+  readonly agencyIsStandard?: boolean;
+}
+const COMPTES: Record<string, Compte> = {
+  client: { roles: ['customer'] },
+  locataire: { roles: ['customer', 'tenant'] },
+  bailleur: { roles: ['customer', 'owner'], typeProfilActif: 'owner' },
+  agent: { roles: ['customer', 'agent'] },
+  'admin-agence': { roles: ['customer', 'agency_admin'] },
+  hote: { roles: ['customer', 'agency_admin', 'owner'], agencyIsStandard: false },
+  prestataire: { roles: ['customer', 'service_provider'] },
+  plateforme: { roles: ['customer', 'super_admin'] },
+};
+
+function monter(persona: string, chemin = '/app', navigation?: PreferencesDeNavigation) {
+  etat.chemin = chemin;
+  const compte = COMPTES[persona];
+  const user = {
+    id: 1,
+    first_name: 'Awa',
+    last_name: 'Diop',
+    full_name: 'Awa Diop',
+    email: 'awa@example.test',
+    roles: compte.roles,
+  } as unknown as User;
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  // Un nouvel arbre à chaque appel : `relire()` re-rend la barre, qui relit alors `etat.nonLus`.
+  const arbre = () => {
+    const barre = (
+      <BarreDOnglets
+        user={user}
+        agencyIsStandard={compte.agencyIsStandard ?? true}
+        typeProfilActif={compte.typeProfilActif ?? null}
+        menuOuvert={false}
+        onOuvrirMenu={vi.fn()}
+        refMenu={createRef<HTMLButtonElement>()}
+      />
+    );
+    return withIntl(
+      <QueryClientProvider client={client}>
+        {navigation ? (
+          // Le fournisseur des préférences signale un échec d'enregistrement par un toast.
+          <ToastProvider>
+            <PreferencesDuMenuProvider navigationInitiale={navigation} persona="client" modeIconesInitial="complet">
+              {barre}
+            </PreferencesDuMenuProvider>
+          </ToastProvider>
+        ) : (
+          barre
+        )}
+      </QueryClientProvider>,
+    );
+  };
+  const rendu = render(arbre());
+  return { ...rendu, client, relire: () => rendu.rerender(arbre()) };
+}
+
+const barre = () => screen.getByRole('navigation', { name: 'Accès rapide' });
+const onglets = () =>
+  within(barre())
+    .getAllByRole('link')
+    .map((a) => [a.textContent, a.getAttribute('href')]);
+
+beforeEach(() => {
+  etat.nonLus = 0;
+  etat.appels.length = 0;
+  etat.requetes.length = 0;
+  etat.ongletsDuClient = null;
+  largeurDeFenetre(1366);
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404, json: async () => ({}) }));
+});
+
+describe('TCK-2481 — AC1 : quatre onglets par persona, puis « Menu »', () => {
+  const ADMIN = [
+    ['Accueil', '/app'],
+    ['Demandes', '/app/leads'],
+    ['Biens', '/app/properties'],
+    ['Messagerie', '/app/messages'],
+  ];
+  it.each([
+    ['client', [['Accueil', '/app'], ['Favoris', '/app/favorites'], ['Visites', '/app/visits'], ['Messagerie', '/app/messages']]],
+    ['locataire', [['Accueil', '/app'], ['Paiements', '/app/payments'], ['Interventions', '/app/maintenance'], ['Messagerie', '/app/messages']]],
+    ['bailleur', [['Accueil', '/app'], ['Mes biens', '/app/properties'], ['Demandes', '/app/leads'], ['Messagerie', '/app/messages']]],
+    ['agent', [['Accueil', '/app'], ['Demandes', '/app/leads'], ['Visites', '/app/visits'], ['Messagerie', '/app/messages']]],
+    ['admin-agence', ADMIN],
+    ['hote', [['Accueil', '/app'], ['Mes biens', '/app/properties'], ['Réservations', '/app/bookings'], ['Messagerie', '/app/messages']]],
+    ['prestataire', [['Accueil', '/app'], ['Interventions', '/app/maintenance'], ['Messagerie', '/app/messages'], ['Documents', '/app/documents']]],
+    ['plateforme', ADMIN],
+  ] as [string, string[][]][])('%s', (persona, attendus) => {
+    monter(persona);
+    expect(onglets()).toEqual(attendus);
+    const items = within(barre()).getAllByRole('listitem');
+    expect(items).toHaveLength(5);
+    expect(within(items.at(-1)!).getByRole('button', { name: 'Menu' })).toBeInTheDocument();
+  });
+
+  it('la barre ne vit que sous md', () => {
+    monter('agent');
+    expect(barre()).toHaveClass('md:hidden');
+  });
+});
+
+describe('TCK-2481 × TCK-2480 — un remplaçant vient de la disposition, jamais des épingles (arbitrage 6)', () => {
+  // Le client épingle « Documents » (TCK-2480 : l'entrée quitte « Plus » pour « Épinglés », EN TÊTE du
+  // menu rendu) ; un onglet déclaré n'est rendu par rien (`demandes`, les contacts reçus, n'est pas au
+  // menu du client — `paiements`, si : le catalogue l'ajoute sous « Plus »). La destination suivante
+  // de la DISPOSITION est « Favoris » — sur le menu rendu, ce serait « Documents ».
+  it('onglet absent, documents épinglé : « Favoris » prend sa place', () => {
+    etat.ongletsDuClient = ['tableau-de-bord', 'demandes', 'visites', 'messagerie'];
+    monter('client', '/app', { v: 1, personas: { client: { epingles: ['documents'] } } });
+    expect(onglets()).toEqual([
+      ['Accueil', '/app'],
+      ['Favoris', '/app/favorites'],
+      ['Visites', '/app/visits'],
+      ['Messagerie', '/app/messages'],
+    ]);
+  });
+
+  it('les onglets du dépôt ne bougent pas quand on épingle', () => {
+    monter('client', '/app', { v: 1, personas: { client: { epingles: ['documents', 'visites'] } } });
+    expect(onglets()).toEqual([
+      ['Accueil', '/app'],
+      ['Favoris', '/app/favorites'],
+      ['Visites', '/app/visits'],
+      ['Messagerie', '/app/messages'],
+    ]);
+  });
+});
+
+describe('TCK-2481 — l’onglet actif, lisible sans la couleur seule', () => {
+  it('sous-page d’un onglet : il porte aria-current et l’indicateur, les autres rien', () => {
+    monter('agent', '/app/leads/12');
+    const demandes = within(barre()).getByRole('link', { name: 'Demandes' });
+    expect(demandes).toHaveAttribute('aria-current', 'page');
+    expect(demandes).toHaveClass('font-semibold');
+    expect(demandes.querySelector('[data-slot="indicateur-onglet"]')).not.toBeNull();
+    expect(barre().querySelectorAll('[aria-current]')).toHaveLength(1);
+    expect(barre().querySelectorAll('[data-slot="indicateur-onglet"]')).toHaveLength(1);
+  });
+
+  it('page hors onglets (`/app/leases`) : aucun onglet allumé — `/app` est une racine exacte', () => {
+    monter('agent', '/app/leases');
+    expect(barre().querySelectorAll('[aria-current]')).toHaveLength(0);
+  });
+});
+
+describe('TCK-2481 — les compteurs, ceux du menu', () => {
+  it('sous md : la pastille, et un nom accessible qui CONTIENT le libellé visible', () => {
+    largeurDeFenetre(390);
+    etat.nonLus = 3;
+    monter('agent');
+    const messagerie = within(barre()).getByRole('link', { name: 'Messagerie, 3 messages non lus' });
+    const pastille = messagerie.querySelector('[data-slot="pastille-onglet"]');
+    expect(pastille).toHaveTextContent('3');
+    expect(pastille).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('au-delà de 99 : « 99+ », sans texte en dur ; le nom accessible garde le compte exact', () => {
+    largeurDeFenetre(390);
+    etat.nonLus = 120;
+    monter('agent');
+    const messagerie = within(barre()).getByRole('link', { name: 'Messagerie, 120 messages non lus' });
+    expect(messagerie.querySelector('[data-slot="pastille-onglet"]')).toHaveTextContent('99+');
+  });
+
+  it('à zéro : ni pastille ni mot de plus', () => {
+    largeurDeFenetre(390);
+    monter('agent');
+    expect(within(barre()).getByRole('link', { name: 'Messagerie' })).toBeInTheDocument();
+    expect(barre().querySelector('[data-slot="pastille-onglet"]')).toBeNull();
+  });
+
+  it('sous md : la barre sonde les compteurs de SES onglets', () => {
+    largeurDeFenetre(390);
+    monter('agent');
+    expect(etat.appels.some((o) => o.enabled === true)).toBe(true);
+  });
+
+  it('dès md (barre masquée) : aucun sondage', () => {
+    largeurDeFenetre(1366);
+    monter('agent');
+    expect(etat.appels.length).toBeGreaterThan(0);
+    for (const o of etat.appels) expect(o.enabled).toBe(false);
+  });
+});
+
+describe('TCK-2481 (revue, M5) — le seuil JS de la barre est la plage CSS, en rem', () => {
+  /**
+   * `md:hidden` est `@media (width >= 48rem)`, et la règle du dock `(width < 48rem)` : des rem, qui
+   * suivent la taille de police par défaut du navigateur. Un seuil JS en px (`max-width: 767px`)
+   * décroche dès qu'elle dépasse 16 px — à 20 px, `md` vaut 960 px : entre 768 et 959 px la barre
+   * était visible, mais ne sondait rien (« Messagerie » à 0).
+   */
+  it('police par défaut à 20 px, fenêtre de 800 px : la barre est affichée par le CSS, elle sonde', () => {
+    largeurDeFenetre(800, { policeRacine: 20 });
+    monter('agent');
+    expect(etat.appels.some((o) => o.enabled === true)).toBe(true);
+  });
+
+  it('la requête interrogée est EXACTEMENT la plage de la règle CSS (`REQUETE_DE_LA_BARRE`)', () => {
+    largeurDeFenetre(390);
+    monter('agent');
+    expect(etat.requetes).toContain(REQUETE_DE_LA_BARRE);
+    expect(etat.requetes.some((q) => /px/.test(q))).toBe(false);
+  });
+});
+
+describe('TCK-2481 (revue, I1) — une région live annonce les nouveaux non-lus sous md (WCAG 4.1.3)', () => {
+  /**
+   * Le bouton flottant mobile portait la seule région `aria-live` du compte de non-lus visible sous
+   * `md` ; il ne se rend plus sur `/app`, et la pastille de l'onglet est muette (`aria-hidden`) — un
+   * `aria-label` qui change n'est annoncé par aucun lecteur d'écran. La barre porte donc la région,
+   * avec le texte du bouton retiré (`messaging.widget.unreadInline`).
+   *
+   * Elle n'annonce qu'un CHANGEMENT : vide au montage, et la première lecture du compte (0 pendant
+   * le chargement, puis N) est une ligne de base, pas une nouvelle.
+   */
+  const region = () => {
+    const regions = barre().querySelectorAll('[aria-live]');
+    expect(regions).toHaveLength(1);
+    return regions[0]!;
+  };
+  /** La requête partagée du compte a été lue (ce que `useUnreadCount` lit aussi). */
+  const compteLu = (client: QueryClient) =>
+    act(() => {
+      client.setQueryData(NonLusQueryKeys.total, { data: [], meta: { unread_total: etat.nonLus } });
+    });
+
+  it('sous md : une région polie et masquée à l’œil, dans la barre (`md:hidden`), vide au montage', () => {
+    largeurDeFenetre(390);
+    etat.nonLus = 4;
+    const { client, relire } = monter('agent');
+    compteLu(client);
+    relire();
+    expect(region()).toHaveAttribute('aria-live', 'polite');
+    expect(region()).toHaveClass('sr-only');
+    expect(barre()).toHaveClass('md:hidden');
+    expect(region()).toHaveTextContent(/^$/);
+  });
+
+  it('le compte monte : la région reçoit le texte du bouton retiré', () => {
+    largeurDeFenetre(390);
+    etat.nonLus = 4;
+    const { client, relire } = monter('agent');
+    compteLu(client);
+    relire();
+    etat.nonLus = 5;
+    relire();
+    expect(region()).toHaveTextContent('5 non lus');
+  });
+
+  it('le compte baisse : la région se vide — remonter au même compte s’annonce encore', () => {
+    largeurDeFenetre(390);
+    etat.nonLus = 4;
+    const { client, relire } = monter('agent');
+    compteLu(client);
+    relire();
+    etat.nonLus = 5;
+    relire();
+    etat.nonLus = 4;
+    relire();
+    expect(region()).toHaveTextContent(/^$/);
+    etat.nonLus = 5;
+    relire();
+    expect(region()).toHaveTextContent('5 non lus');
+  });
+
+  it('premier chargement (0, puis le compte lu) : rien n’est annoncé ; la hausse suivante, si', () => {
+    largeurDeFenetre(390);
+    etat.nonLus = 0; // `useUnreadCount` rend 0 tant que la requête n'a pas répondu
+    const { client, relire } = monter('agent');
+    etat.nonLus = 4;
+    relire();
+    expect(region()).toHaveTextContent(/^$/);
+    compteLu(client);
+    relire();
+    expect(region()).toHaveTextContent(/^$/);
+    etat.nonLus = 6;
+    relire();
+    expect(region()).toHaveTextContent('6 non lus');
+  });
+
+  it('dès md (barre masquée, aucun sondage) : la région n’annonce rien', () => {
+    largeurDeFenetre(1366);
+    etat.nonLus = 4;
+    const { client, relire } = monter('agent');
+    compteLu(client);
+    relire();
+    etat.nonLus = 9;
+    relire();
+    expect(region()).toHaveTextContent(/^$/);
+  });
+});

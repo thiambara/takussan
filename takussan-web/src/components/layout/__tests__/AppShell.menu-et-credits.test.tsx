@@ -79,9 +79,13 @@ function monter(roles: UserRole[], acces?: AccesAdmin) {
 const hrefs = (racine: Element) =>
   Array.from(racine.querySelectorAll('nav a')).map((a) => a.getAttribute('href'));
 
+/** TCK-2481 — sous `md`, « Menu » de la barre d'onglets est la seule porte du tiroir (le burger est parti). */
+const boutonMenu = () =>
+  within(screen.getByRole('navigation', { name: 'Accès rapide' })).getByRole('button', { name: 'Menu' });
+
 async function ouvrirLeTiroir() {
   const user = userEvent.setup();
-  await user.click(screen.getByRole('button', { name: 'Ouvrir le menu' }));
+  await user.click(boutonMenu());
   return screen.findByRole('dialog');
 }
 
@@ -217,10 +221,10 @@ describe('TCK-642 — la pastille de la barre haute', () => {
   });
 });
 
-describe('TCK-1035 (P68.08) — le bouton du menu dit si le tiroir est ouvert', () => {
+describe('TCK-1035, repris par TCK-2481 — « Menu » dit si le tiroir est ouvert', () => {
   it('aria-expanded suit l’ouverture du tiroir', async () => {
     monter(['agency_admin']);
-    const bouton = screen.getByRole('button', { name: 'Ouvrir le menu' });
+    const bouton = boutonMenu();
     expect(bouton).toHaveAttribute('aria-expanded', 'false');
 
     await ouvrirLeTiroir();

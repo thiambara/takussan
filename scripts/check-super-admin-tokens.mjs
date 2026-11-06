@@ -1784,8 +1784,11 @@ const ESPACES = [
      *
      * ⚠ **18 → 17, le 2026-10-10 (TCK-621)** : le lien d'accueil d'`AppTopbar` ne porte plus
      * `text-white` — le logo en ton `clair` peint son nom par le jeton `--background`.
+     *
+     * ⚠ **17 → 14, le 2026-11-06 (TCK-2481)** : le burger d'`AppTopbar` quitte la barre haute
+     * (la barre d'onglets mobile porte « Menu ») et emporte ses trois jetons blancs.
      */
-    plafondReste: 17,
+    plafondReste: 14,
     resteBilateral: true,
     ticketReste: 'TCK-384',
     natureDuReste: 'primitives partagées avec le site public',

@@ -4,22 +4,10 @@ import { useId, useRef, useState, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
 import { ChevronRight, Home, Lock, PanelLeftClose, PanelLeftOpen, Pin, ShieldCheck, UserRound } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { User } from '@/types/user';
-import { isAgent, isAdmin, isSuperAdmin } from '@/lib/roles';
-import { useMyCapabilities } from '@/hooks/useCan';
-import { isProRouteLocked } from '@/lib/access/pro-features';
-import { useAccesAdminOuRepli } from '@/lib/access/acces-admin-contexte';
-import { useAuth } from '@/context/AuthContext';
-import { fetchModerationQueue } from '@/lib/queries/reviews-moderation';
-import { COMPTE_DES_AVIS_EN_ATTENTE } from '@/components/admin/statut-de-la-file';
-import {
-  AGENCY_QUEUE_REFETCH_INTERVAL_MS,
-  AGENCY_QUEUE_STALE_TIME_MS,
-  propertyModerationCountQueryOptions,
-} from '@/lib/queries/agency-queues';
+import { isSuperAdmin } from '@/lib/roles';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ProUpgradeCard } from './ProUpgradeCard';
@@ -38,47 +26,30 @@ import {
   GROUPES_DIVULGATION,
   avecTitres,
   cheminOuvert,
-  composerMenu,
   type EntreeComposee,
   type GroupeCompose,
 } from '@/lib/navigation/composer-menu';
 import { DISPOSITIONS } from '@/lib/navigation/dispositions';
-import { personaDeLaCoque } from '@/lib/navigation/personas';
-import { EPINGLES_MAX, prefsDe } from '@/lib/navigation/preferences';
+import { EPINGLES_MAX } from '@/lib/navigation/preferences';
 import type { ModeIcones } from '@/lib/navigation/mode-icones';
 import { useIconesEffectives } from '@/lib/navigation/use-icones-effectives';
 import type { ProfileType } from '@/types/profile';
 import { useSoldeCredits } from '@/lib/queries/credits-solde';
-import { useUnreadCount } from '@/components/chat-widget/useUnreadCount';
-import { usePendingVisitsCount } from '@/lib/queries/visits';
-import { useUnhandledLeadsCount } from '@/lib/queries/contact-leads';
 import { pastillesATraiter } from '@/lib/navigation/a-traiter';
 import { BandeATraiter } from './BandeATraiter';
 import { DemarrerDeLEspace } from './DemarrerDeLEspace';
 import { FOCUS_RING, LIBELLE_DE_LIGNE, STYLE_EPINGLE, STYLE_TITRE } from './styles-de-la-barre';
 import { usePreferencesDuMenu } from './PreferencesDuMenu';
+import { useMenuDeLEspace, type EntreeRendue } from './useMenuDeLEspace';
+import { COMPTEURS_DE_MODERATION, useCompteursDuMenu } from './useCompteursDuMenu';
 
 export type { NavCounterKey };
-
-/** Compteurs dont le libellé accessible vit sous `nav.admin` (`pendingBadge`), pas `nav.sidebar`. */
-const COMPTEURS_DE_MODERATION: ReadonlySet<NavCounterKey> = new Set([
-  'reviewModeration',
-  'propertyModeration',
-]);
+// TCK-2481 — la règle de sondage vit désormais dans `useCompteursDuMenu` ; ré-exportée pour les tests
+// qui l'importent d'ici.
+export { countersToPoll } from './useCompteursDuMenu';
 
 /** TCK-2478 (ADR-0089 §6) — la console de la plateforme, au pied de la barre du persona `plateforme`. */
 const HREF_CONSOLE = '/super-admin';
-
-/**
- * Une entrée rendue : celle du menu composé, plus le cadenas de l'agence `individual`.
- *
- * Une entrée porte une CLÉ de libellé, pas un libellé. `composerMenu` (`@/lib/navigation/composer-menu`)
- * est une fonction pure appelée hors composant : `useTranslations` n'y est pas appelable, et l'y
- * rendre appelable voudrait dire la transformer en hook — donc la rendre intestable. Le patron
- * retenu est celui que TCK-286 applique partout où le texte naît loin de l'écran : **la donnée
- * transporte la clé, le rendu la résout**.
- */
-type EntreeRendue = EntreeComposee & { readonly locked?: boolean };
 
 interface AppSidebarProps {
   user: User;
@@ -279,39 +250,6 @@ function SidebarUserFooter({ user, onNavigate }: { user: User; onNavigate?: () =
       </div>
     </Link>
   );
-}
-
-/**
- * TCK-377 — AC6 : quels compteurs sont réellement sondés.
- *
- * Le sondage est armé par la PRÉSENCE de l'entrée comptée, jamais par une liste de rôles recopiée
- * à côté de la condition qui pousse l'entrée : *deux listes de rôles finissent toujours par
- * diverger, une liste dérivée non.* Une entrée cadenassée ne compte pas non plus — le cadenas
- * signifie que la page répondra 403, et un menu ne sonde pas une porte fermée.
- *
- * ⚠ **Ce paragraphe disait l'inverse jusqu'au 2026-08-27**, et la correction est le fait le plus
- * important de cet AC. Il annonçait « aucun des sept rôles ne déclenche la branche `false` », ce
- * qui était vrai du code de TCK-377 seul : `/app/visits` y était poussée sans garde de rôle. **Le
- * même lot a fusionné TCK-379, qui la retire au `service_provider`** — la branche `false` est donc
- * ATTEINTE par un rôle réel (`service_provider` → `{unreadMessages}` seul), et c'est précisément à
- * ce moment-là que plus rien ne l'observait : la mutation « les deux compteurs armés en dur »
- * laissait les 88 tests verts.
- *
- * Elle est désormais éprouvée **sur le composant monté**, rôle par rôle
- * (`AppSidebar.test.tsx`, AC6) : une fonction pure verte ne dit rien de ce que le composant en
- * fait.
- *
- * TCK-2478 — les entrées sont celles des groupes du menu composé (`entreesDuMenu`), repliés
- * compris : une entrée repliée est au menu, son compteur est sondé.
- */
-export function countersToPoll(
-  entrees: readonly { readonly counterKey?: NavCounterKey; readonly locked?: boolean }[],
-): Set<NavCounterKey> {
-  const keys = new Set<NavCounterKey>();
-  for (const entree of entrees) {
-    if (entree.counterKey && !entree.locked) keys.add(entree.counterKey);
-  }
-  return keys;
 }
 
 interface GroupeDuMenuProps {
@@ -537,83 +475,25 @@ export function AppSidebar({
   const format = useFormatter();
   const locale = useCurrentLocale();
   const idBase = useId();
-  const { token } = useAuth();
-  const accesAdmin = useAccesAdminOuRepli({
-    roles: user.roles,
-    agencyId: user.agency_id,
+  // TCK-2481 — la composition du menu et ses compteurs, partagées avec la barre d'onglets mobile
+  // (`BarreDOnglets`) : une seule composition, une seule règle de sondage (ADR-0089 §4-5).
+  const { persona, ctx: ctxMenu, menu, groupes, entrees } = useMenuDeLEspace({
+    user,
     agencyIsStandard,
-  });
-  // P152.03 — les capacités du profil actif, lues pour le seul personnel (le cache est amorcé par le
-  // layout pour l'admin d'agence, `AmorceCapacites`). Le super-admin passe tout, sans lecture.
-  const lireCapacites = (isAgent(user.roles) || isAdmin(user.roles)) && !isSuperAdmin(user.roles);
-  const { data: mesCapacites } = useMyCapabilities(undefined, lireCapacites);
-  const capacites = lireCapacites ? (mesCapacites?.data.capabilities ?? null) : [];
-
-  // TCK-2478 (ADR-0089) — LE menu : la disposition du persona du profil actif, composée par une
-  // fonction pure. Ce composant n'affiche que ce qu'elle rend, et ne porte aucune condition de rôle
-  // — hormis le cadenas de l'agence `individual` (`isProRouteLocked`), qui est un confort d'écran.
-  // TCK-2480 — `personaDeLaCoque` : la MÊME formule que le fournisseur des préférences (`AppShell`).
-  const persona = personaDeLaCoque({
-    roles: user.roles,
     typeProfilActif,
-    espaceIndividuel: accesAdmin.espaceIndividuel,
-    agencyIsStandard,
+    agencySuspended,
   });
-  const ctxMenu = { roles: user.roles, capacites, cheminsAdmin: accesAdmin.chemins, agenceSuspendue: agencySuspended };
-  // TCK-2480 — les préférences du compte, PAR PERSONA (un geste n'écrit que sous le persona affiché) ;
-  // sans fournisseur, aucune (repli inerte, A12).
+  // TCK-2480 — les préférences du compte : le RENDU (mode icônes, épingles, replis, « Démarrer ») ;
+  // la composition les a déjà lues (`useMenuDeLEspace`), dans le même contexte.
   const prefs = usePreferencesDuMenu();
-  const menu = composerMenu(ctxMenu, persona, undefined, prefsDe(prefs.navigation, persona));
   // TCK-2480 (A10, A11) — le mode de l'appareil : `data-menu` sur la barre, la largeur en CSS
   // (variante `icones:`). Les variantes compactes ne sont RENDUES que si la barre peut se réduire.
   const modeIcones: ModeIcones = tiroir ? 'complet' : prefs.modeIcones;
   const reductible = modeIcones !== 'complet';
   const infobulle = useIconesEffectives(modeIcones);
-  const verrouiller = (e: EntreeComposee): EntreeRendue => ({
-    ...e,
-    locked: isProRouteLocked(user, agencyIsStandard, e.href),
-  });
-  const groupes = menu.groupes.map((g) => ({ ...g, entrees: g.entrees.map(verrouiller) }));
-  const entrees: EntreeRendue[] = groupes.flatMap((g) => g.entrees);
   const lien = (e: EntreeComposee) => (e.publique ? cheminLocalise(e.href, locale) : e.href);
 
-  const counted = countersToPoll(entrees);
-  const unreadMessages = useUnreadCount({ enabled: counted.has('unreadMessages') });
-  const pendingVisits = usePendingVisitsCount({ enabled: counted.has('pendingVisits') });
-  const unhandledLeads = useUnhandledLeadsCount({ enabled: counted.has('unhandledLeads') });
-  // TCK-649 — les deux files de modération, reprises à l'identique de la barre de l'ancienne
-  // console (TCK-098) : mêmes clés de cache — celle des biens est partagée avec le bloc de files du
-  // tableau de bord d'agence (TCK-375), qui vit désormais dans la MÊME coque —, même cadence.
-  const { data: avisEnAttente, isError: avisEnErreur } = useQuery({
-    queryKey: ['reviews-moderation', 'pending-count'],
-    // TCK-2479 (revue, I3) — le total de la vue où mène la pastille, pas `pending_count` : voir
-    // `COMPTE_DES_AVIS_EN_ATTENTE`.
-    queryFn: () => fetchModerationQueue(token ?? '', COMPTE_DES_AVIS_EN_ATTENTE).then((r) => r.meta),
-    enabled: Boolean(token) && counted.has('reviewModeration'),
-    refetchInterval: AGENCY_QUEUE_REFETCH_INTERVAL_MS,
-    staleTime: AGENCY_QUEUE_STALE_TIME_MS,
-  });
-  const optionsBiens = propertyModerationCountQueryOptions(token ?? null, agencyIsStandard);
-  const { data: biensEnAttente, isError: biensEnErreur } = useQuery({
-    ...optionsBiens,
-    enabled: optionsBiens.enabled && counted.has('propertyModeration'),
-  });
-  // TCK-2479 (ADR-0089 §5) — 0 pendant le chargement ET sur une erreur, premier échec ou relecture
-  // ratée (react-query garde alors l'ancien `data` : ce commentaire disait « une requête en échec
-  // rend `data === undefined` », vrai du premier échec seulement). C'est la même branche que « rien
-  // en attente » — délibérément : le menu n'est pas l'endroit où l'on apprend qu'un endpoint est
-  // tombé. Le badge du menu et la bande lisent ce MÊME objet.
-  const total = (q: {
-    readonly data?: { readonly meta?: { readonly total?: number } };
-    readonly isError?: boolean;
-  }) => (q.isError ? 0 : (q.data?.meta?.total ?? 0));
-  const counters: Record<NavCounterKey, number> = {
-    unreadMessages,
-    pendingVisits: total(pendingVisits),
-    unhandledLeads: total(unhandledLeads),
-    reviewModeration: avisEnErreur ? 0 : (avisEnAttente?.total ?? 0),
-    propertyModeration: biensEnErreur ? 0 : (biensEnAttente ?? 0),
-  };
+  const counters = useCompteursDuMenu(entrees, { agencyIsStandard });
   // TCK-2479 — la bande : les entrées RENDUES (donc sondées, `countersToPoll`), dans l'ordre du
   // persona. Elle ne lit aucun compteur de plus que le menu.
   const bande = pastillesATraiter(entrees, counters, menu.priorites);

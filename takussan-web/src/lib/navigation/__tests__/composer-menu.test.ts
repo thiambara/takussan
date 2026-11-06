@@ -52,7 +52,7 @@ describe('TCK-2478 — composerMenu (ADR-0089 §4)', () => {
   });
 
   it('une destination ouverte que la disposition ne place pas tombe sous « Plus », replié', () => {
-    const disposition: Disposition = { action: [], groupes: [{ id: 'tete', titre: null, entrees: ['tableau-de-bord'] }], plus: [], priorites: [] };
+    const disposition: Disposition = { action: [], groupes: [{ id: 'tete', titre: null, entrees: ['tableau-de-bord'] }], plus: [], priorites: [], onglets: [] };
     const menu = composerMenu({ roles: ['customer'], capacites: null }, 'client', disposition);
     const plus = menu.groupes.find((g) => g.id === 'plus');
     expect(plus?.replie).toBe(true);
@@ -166,7 +166,7 @@ describe('TCK-2478 — composerMenu (ADR-0089 §4)', () => {
   });
 
   it('un identifiant inconnu est ignoré', () => {
-    const disposition: Disposition = { action: [], groupes: [{ id: 'tete', titre: null, entrees: ['disparue' as IdDestination] }], plus: [], priorites: [] };
+    const disposition: Disposition = { action: [], groupes: [{ id: 'tete', titre: null, entrees: ['disparue' as IdDestination] }], plus: [], priorites: [], onglets: [] };
     expect(() => composerMenu({ roles: ['customer'], capacites: null }, 'client', disposition)).not.toThrow();
   });
 });

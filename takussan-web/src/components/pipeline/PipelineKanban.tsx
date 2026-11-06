@@ -323,7 +323,10 @@ export function PipelineKanban() {
       {errorMessage ? (
         <div
           role="alert"
-          className="fixed inset-x-4 bottom-24 z-50 rounded-lg border border-destructive/30 bg-card px-4 py-3 text-sm text-destructive shadow-lg sm:bottom-4 sm:left-auto sm:right-24 sm:max-w-sm"
+          // TCK-2481 (revue, M3) — sous `md`, sur la base du dock flottant, que la coque à barre
+          // d'onglets redéfinit (`[data-barre-onglets]`, `globals.css`) : en `sm:bottom-4`, l'alerte
+          // se posait sur la barre entre 640 et 767 px. Dès `md`, 16 px comme avant.
+          className="fixed inset-x-4 bottom-[var(--floating-dock-base)] z-50 rounded-lg border border-destructive/30 bg-card px-4 py-3 text-sm text-destructive shadow-lg sm:left-auto sm:right-24 sm:max-w-sm md:bottom-4"
         >
           {errorMessage}
         </div>

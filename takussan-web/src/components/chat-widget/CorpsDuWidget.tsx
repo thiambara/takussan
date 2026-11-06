@@ -11,7 +11,7 @@ import { ChatView } from '@/components/messages/ChatView';
 import { PropertyDraftChatView } from '@/components/messages/PropertyDraftChatView';
 import { useChatDraft } from '@/context/ChatDraftContext';
 import { useFloatingDockSlot } from '@/components/floating-dock';
-import { estPleinEcran } from '@/components/layout/plein-ecran';
+import { estPleinEcran, porteLaBarreDOnglets } from '@/components/layout/plein-ecran';
 import { useMatchesMaxWidth } from '@/hooks/useMatchesMedia';
 import { cn } from '@/lib/utils';
 import { CHAT_FAB_MOBILE_HEIGHT_PX, CHAT_LAUNCHER_DESKTOP_HEIGHT_PX } from './reserve';
@@ -148,6 +148,11 @@ export function CorpsDuWidget() {
     // TCK-631 — le parcours de publication est plein écran : la bulle se posait sur son pied.
     estPleinEcran(pathname);
   const isVisible = Boolean(user) && !isHiddenByRoute;
+  // TCK-2481 — sous `md`, la barre d'onglets de `/app` porte « Messagerie » chez les huit personas
+  // (garde : `lib/navigation/__tests__/onglets.test.ts`) : le bouton flottant mobile se posait sur
+  // elle. Il ne se rend plus sur `/app` et ne réclame aucun créneau du dock ; le lanceur de bureau
+  // ne change pas.
+  const sansBoutonMobile = porteLaBarreDOnglets(pathname);
 
   // Register both launchers with the FloatingDock orchestrator (TCK-275).
   // Tailwind hides one of them visually (`hidden md:block` vs `md:hidden`) —
@@ -168,7 +173,7 @@ export function CorpsDuWidget() {
     corner: 'bottom-right',
     priority: 0,
     height: CHAT_FAB_MOBILE_HEIGHT_PX,
-    enabled: isVisible && isMobile,
+    enabled: isVisible && isMobile && !sansBoutonMobile,
   });
 
   // Bail out late — after every hook has run.
@@ -310,29 +315,32 @@ export function CorpsDuWidget() {
         </button>
       </div>
 
-      {/* Mobile FAB — redirects to the full inbox page (no popup on phones). */}
-      <Link
-        href="/app/messages"
-        aria-label={launcherAria}
-        data-testid="chat-widget-mobile-fab"
-        style={{ bottom: mobileSlot.bottom }}
-        className="fixed right-4 z-40 inline-flex h-12 items-center justify-center gap-2 rounded-full bg-primary pr-5 pl-4 text-sm font-semibold text-primary-foreground shadow-lg transition-transform active:scale-[0.96] md:hidden focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring motion-reduce:active:scale-100"
-      >
-        <MessageSquare className="size-5 shrink-0" aria-hidden />
-        <span data-testid="chat-widget-mobile-fab-label">{t('launcherLabel')}</span>
-        {unread > 0 && (
-          <span
-            data-testid="chat-widget-mobile-badge"
-            aria-live="polite"
-            className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-bold leading-none text-white ring-2 ring-background"
-          >
-            <span aria-hidden>{badgeLabel}</span>
-            <span className="sr-only">
-              {t('unreadInline', { count: unread })}
+      {/* Mobile FAB — redirects to the full inbox page (no popup on phones). TCK-2481 — absent de
+          `/app`, où la barre d'onglets porte déjà « Messagerie ». */}
+      {sansBoutonMobile ? null : (
+        <Link
+          href="/app/messages"
+          aria-label={launcherAria}
+          data-testid="chat-widget-mobile-fab"
+          style={{ bottom: mobileSlot.bottom }}
+          className="fixed right-4 z-40 inline-flex h-12 items-center justify-center gap-2 rounded-full bg-primary pr-5 pl-4 text-sm font-semibold text-primary-foreground shadow-lg transition-transform active:scale-[0.96] md:hidden focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring motion-reduce:active:scale-100"
+        >
+          <MessageSquare className="size-5 shrink-0" aria-hidden />
+          <span data-testid="chat-widget-mobile-fab-label">{t('launcherLabel')}</span>
+          {unread > 0 && (
+            <span
+              data-testid="chat-widget-mobile-badge"
+              aria-live="polite"
+              className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-bold leading-none text-white ring-2 ring-background"
+            >
+              <span aria-hidden>{badgeLabel}</span>
+              <span className="sr-only">
+                {t('unreadInline', { count: unread })}
+              </span>
             </span>
-          </span>
-        )}
-      </Link>
+          )}
+        </Link>
+      )}
     </>
   );
 }

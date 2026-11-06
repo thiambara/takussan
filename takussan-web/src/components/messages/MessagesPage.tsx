@@ -138,13 +138,16 @@ export function MessagesPage({ titre, sousTitre }: MessagesPageProps) {
    * jusqu'à la barre haute (`h-14`), comme dans une application de messagerie.
    *
    * ⚠ Couplage assumé avec le `<main>` d'`AppShell` : `px-4 py-6 md:px-6 md:py-8` et la barre
-   * haute en `h-14`. Les marges négatives et les `calc` ci-dessous en sont le miroir exact ; si la
-   * coque change de gouttière, ils changent avec elle. Au-dessus de `lg`, rien de tout cela :
-   * la page garde son en-tête et sa carte d'avant.
+   * haute en `h-14` ; sous `md`, la barre d'onglets de la coque (`--barre-onglets-hauteur`,
+   * TCK-2481), sœur du `<main>` : le `<main>` rétrécit de sa hauteur, le cadre s'en retire aussi,
+   * sans quoi le composeur passe sous le pli. Dès `md`, pas de barre : rien à retirer. Les marges
+   * négatives et les `calc` ci-dessous en sont le miroir exact ; si la coque change de gouttière,
+   * ils changent avec elle. Au-dessus de `lg`, rien de tout cela : la page garde son en-tête et sa
+   * carte d'avant.
    */
   const cadre = enConversation
-    ? '-mx-4 -my-6 h-[calc(100dvh-3.5rem)] md:-mx-6 md:-my-8 md:h-[calc(100dvh-3.5rem)]'
-    : '-mx-4 -mb-6 h-[calc(100dvh-5rem)] md:-mx-6 md:-mb-8 md:h-[calc(100dvh-5.5rem)]';
+    ? '-mx-4 -my-6 h-[calc(100dvh-3.5rem-var(--barre-onglets-hauteur))] md:-mx-6 md:-my-8 md:h-[calc(100dvh-3.5rem)]'
+    : '-mx-4 -mb-6 h-[calc(100dvh-5rem-var(--barre-onglets-hauteur))] md:-mx-6 md:-mb-8 md:h-[calc(100dvh-5.5rem)]';
 
   return (
     <>

@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { Menu } from 'lucide-react';
 import type { User } from '@/types/user';
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
 import { ProfileSwitcher } from '@/components/profile/ProfileSwitcher';
@@ -22,14 +21,17 @@ import { voitLePortefeuille } from '@/lib/navigation/acces-app';
  * Ces deux-là n'en portaient AUCUN : ils retombaient sur la règle globale `* { outline-ring }`
  * de `globals.css`, mesurée à **1,73:1** sur le fond de la barre — sous les 3:1 qu'exige
  * WCAG 1.4.11. `AppShell` monte cette barre sur CHAQUE page de `/app` — section d'agence comprise
- * depuis TCK-649 —, et le hamburger est le SEUL contrôle qui ouvre le tiroir de navigation sous `md`.
+ * depuis TCK-649.
+ *
+ * TCK-2481 — le hamburger a quitté la barre : sous `md`, « Menu » de la barre d'onglets
+ * (`BarreDOnglets`) est la seule porte du tiroir. Il ne reste qu'un contrôle écrit à la main ici,
+ * le lien du logo.
  *
  * Même anneau blanc, et pour la même raison, que la barre latérale sombre de l'ancienne console
- * d'administration (TCK-371). Il n'y a ici que deux fonds, `bg-foreground` étant posé sur le
+ * d'administration (TCK-371). Le logo n'a qu'un fond, `bg-foreground` étant posé sur le
  * `<header>` :
  *
  *   barre nue                    #1f1812   →   `white` 17,53:1   (`outline-ring` : 3,30:1)
- *   hamburger survolé `bg-white/10` #352f2a →  `white` 13,17:1   (`outline-ring` : 2,48:1 ✗)
  *
  * Décalage SORTANT : le `<header>` ne coupe sur aucun axe (pas d'`overflow`), et le lien du logo
  * est un lien EN LIGNE sans padding vertical — un anneau rentrant y affleurerait les glyphes.
@@ -38,32 +40,14 @@ const ANNEAU_FOCUS =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white';
 
 interface AppTopbarProps {
-  user: User;
-  onMenuToggle?: () => void;
-  /** TCK-1035 (P68.08) — le tiroir est ouvert : rendu en `aria-expanded` sur le bouton du menu. */
-  menuOpen?: boolean;
+  readonly user: User;
 }
 
-export function AppTopbar({ user, onMenuToggle, menuOpen = false }: AppTopbarProps) {
-  const t = useTranslations('nav');
+export function AppTopbar({ user }: AppTopbarProps) {
   const tCommon = useTranslations('common');
 
   return (
     <header className={cn('relative flex h-14 shrink-0 items-center gap-3 bg-foreground px-4')}>
-      <button
-        type="button"
-        onClick={onMenuToggle}
-        aria-label={t('openMenu')}
-        aria-expanded={menuOpen}
-        className={cn(
-          // `after:-inset-1` : 36 px visibles, 44 px touchables — la seule commande du tiroir.
-          'relative inline-flex size-9 items-center justify-center rounded-md text-white/80 after:absolute after:-inset-1 hover:bg-white/10 md:hidden',
-          ANNEAU_FOCUS,
-        )}
-      >
-        <Menu className="size-5" />
-      </button>
-
       {/* TCK-621 — la marque, et non plus le nom en texte nu : ton `clair` sur la barre d'encre. Sous
           640 px, le symbole seul — la barre porte aussi la recherche (cf. `Logo`, `nomVisible`). */}
       <Link href="/" className={cn('shrink-0 rounded-sm', ANNEAU_FOCUS)}>

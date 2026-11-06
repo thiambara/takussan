@@ -28,8 +28,9 @@ vi.mock('@/context/AuthContext', () => ({
   useAuth: () => useAuthMock(),
 }));
 
+const nonLus = vi.hoisted(() => ({ compte: 0 }));
 vi.mock('../useUnreadCount', () => ({
-  useUnreadCount: () => 0,
+  useUnreadCount: () => nonLus.compte,
 }));
 
 vi.mock('@/components/messages/ConversationList', () => ({
@@ -138,6 +139,33 @@ describe('<ChatWidget> visibility', () => {
     usePathnameMock.mockReturnValue('/app/properties');
     render(wrap(<ChatWidget />));
     expect(screen.getByTestId('chat-widget-launcher')).toBeInTheDocument();
+  });
+
+  it('TCK-2481 — sur /app, pas de bouton flottant mobile : la barre d’onglets porte la messagerie', () => {
+    usePathnameMock.mockReturnValue('/app/leases');
+    render(wrap(<ChatWidget />));
+    expect(screen.queryByTestId('chat-widget-mobile-fab')).toBeNull();
+    expect(screen.getByTestId('chat-widget-launcher')).toBeInTheDocument(); // le lanceur de bureau reste
+  });
+
+  it('TCK-2481 (revue, I1) — sur /app, aucune région live du widget n’existe sous md : la barre porte la sienne, sans doublon', () => {
+    usePathnameMock.mockReturnValue('/app/leases');
+    nonLus.compte = 4;
+    try {
+      const { container } = render(wrap(<ChatWidget />));
+      const regions = [...container.querySelectorAll('[aria-live]')];
+      expect(regions.length).toBeGreaterThan(0); // le badge du lanceur de bureau, qui annonce dès md
+      // Chacune vit sous un ancêtre `hidden` (display: none sous md) : hors de l'arbre d'accessibilité.
+      for (const region of regions) expect(region.closest('.hidden')).not.toBeNull();
+    } finally {
+      nonLus.compte = 0;
+    }
+  });
+
+  it('TCK-2481 — hors de /app, le bouton flottant mobile reste', () => {
+    usePathnameMock.mockReturnValue('/properties/villa-saly');
+    render(wrap(<ChatWidget />));
+    expect(screen.getByTestId('chat-widget-mobile-fab')).toBeInTheDocument();
   });
 });
 
