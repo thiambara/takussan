@@ -678,7 +678,17 @@ export function AppSidebar({
   const basculerGroupe = prefs.actif
     ? (id: string, replie: boolean, parDefaut: boolean) => prefs.basculerRepli(persona, id, replie, parDefaut)
     : undefined;
-  const [epingles, autres] = groupes[0]?.id === 'epingles' ? [groupes[0], groupes.slice(1)] : [null, groupes];
+  const [epingles, autresComposes] = groupes[0]?.id === 'epingles' ? [groupes[0], groupes.slice(1)] : [null, groupes];
+  // Revue adverse de TCK-2490 (3) — quand le menu s'ouvre sur le tableau de bord (la disposition de l'admin
+  // d'agence, ADR-0090 §4), le porteur le veut EN TÊTE : il quitte le groupe de tête et se pose juste après
+  // l'action et « Aller à », AVANT « Aujourd'hui » et « Démarrer ». La composition ne change pas (c'est
+  // une donnée de `dispositions.ts`) : seul le rendu le hisse. Épinglé, il est dans « Épinglés » et
+  // n'ouvre plus le groupe de tête : rien n'est hissé.
+  const tete = autresComposes[0];
+  const tableauEnTete = tete?.id === 'tete' && tete.entrees[0]?.id === 'tableau-de-bord' ? tete.entrees[0] : null;
+  const autres = tableauEnTete
+    ? [{ ...tete!, entrees: tete!.entrees.slice(1) }, ...autresComposes.slice(1)].filter((g) => g.entrees.length > 0)
+    : autresComposes;
   const rendreGroupe = (groupe: (typeof groupes)[number], premier: boolean) => (
     <GroupeDuMenu
       key={groupe.id}
@@ -735,7 +745,7 @@ export function AppSidebar({
           seule surface de couleur primaire du menu (sa pastille) ; absente (jamais désactivée) quand
           le profil ne peut pas l'accomplir — dont l'espace suspendu (TCK-600). Elles ne défilent
           pas : on les atteint toujours. */}
-      {(action && IconeAction) || onOuvrirPalette ? (
+      {(action && IconeAction) || onOuvrirPalette || tableauEnTete ? (
         <div className="shrink-0 space-y-px px-2 pb-2">
           {action && IconeAction ? (
             <Tooltip disabled={!infobulle}>
@@ -768,6 +778,7 @@ export function AppSidebar({
             </Tooltip>
           ) : null}
           {onOuvrirPalette ? <LigneAllerA onOuvrir={onOuvrirPalette} infobulle={infobulle} /> : null}
+          {tableauEnTete ? rendreEntree(tableauEnTete) : null}
         </div>
       ) : null}
       {/* TCK-843 — `relative` : bloc conteneur des `sr-only` (absolus) de la liste. Sans lui,

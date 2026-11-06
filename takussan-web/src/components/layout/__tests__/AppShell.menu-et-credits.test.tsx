@@ -129,7 +129,11 @@ describe('TCK-646 — le menu mobile de /app présente le même ordre (AC4)', ()
     const bureau = container.querySelector('aside')!;
     const tiroir = await ouvrirLeTiroir();
     expect(hrefs(tiroir)).toEqual(hrefs(bureau));
-    expect(hrefs(tiroir)[0]).toBe(premier);
+    // Le premier lien après l'action : le tableau de bord de l'admin d'agence est hissé EN TÊTE, hors du
+    // `<nav>` (revue adverse de TCK-2490, 3) ; les autres menus s'ouvrent sur leur première entrée.
+    for (const barre of [bureau, tiroir]) {
+      expect(tousLesLiens(barre).filter((h) => h !== '/' && h !== action)[0]).toBe(premier);
+    }
     expect(tousLesLiens(tiroir).filter((h) => h !== '/')).toEqual(tousLesLiens(bureau).filter((h) => h !== '/'));
     expect(groupes(tiroir)).toEqual(groupes(bureau));
     expect(tiroir.querySelector('[data-slot="action-principale"]')).toHaveAttribute('href', action);

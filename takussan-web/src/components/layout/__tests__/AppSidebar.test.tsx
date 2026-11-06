@@ -166,6 +166,8 @@ interface OptionsDeBarre {
   readonly agencySuspended?: boolean;
   /** TCK-2483 — les modules que l'agence masque (codes), tels que le layout les passe. */
   readonly modulesMasques?: readonly string[];
+  /** TCK-2490 — la coque sait ouvrir la palette : la ligne « Aller à » est rendue. */
+  readonly onOuvrirPalette?: (depuis: HTMLElement) => void;
 }
 
 function barre(compte: Compte, options: OptionsDeBarre = {}) {
@@ -184,6 +186,7 @@ function barre(compte: Compte, options: OptionsDeBarre = {}) {
           typeProfilActif={compte.typeProfilActif ?? null}
           agencySuspended={options.agencySuspended}
           modulesMasques={options.modulesMasques ?? []}
+          onOuvrirPalette={options.onOuvrirPalette}
         />
       </AccesAdminProvider>
     </QueryClientProvider>,
@@ -255,7 +258,7 @@ beforeEach(() => {
  * ⚠ Les compteurs de l'AC6 se DÉDUISENT de cette table ({@link COMPTEUR_PAR_LIBELLE}) : éditer une
  * ligne ici change aussi ce que la barre doit sonder pour ce persona.
  */
-const MENU_ATTENDU: Record<Persona, { action: string | null; groupes: GroupeLu[] }> = {
+const MENU_ATTENDU: Record<Persona, { action: string | null; enTete?: string; groupes: GroupeLu[] }> = {
   client: {
     action: 'Chercher un bien',
     groupes: [
@@ -308,8 +311,11 @@ const MENU_ATTENDU: Record<Persona, { action: string | null; groupes: GroupeLu[]
   },
   'admin-agence': {
     action: 'Publier un bien',
+    // Revue adverse de TCK-2490 (3) — le tableau de bord, qui ouvre ce menu (ADR-0090 §4), est rendu EN
+    // TÊTE, juste après l'action et « Aller à » : hors du groupe de tête.
+    enTete: 'Tableau de bord',
     groupes: [
-      [null, false, 'Tableau de bord', 'Vue agence', 'Messagerie'],
+      [null, false, 'Vue agence', 'Messagerie'],
       ['Activité', false, 'Demandes de contact', 'Visites', 'Réservations', 'Calendrier'],
       ['Portefeuille', false, 'Biens', 'Propriétaires', 'Clients (CRM)', 'Baux', 'Onboardings en attente'],
       ['Finances', false, "Finances de l'agence", 'Commissions', 'Crédits', 'Abonnement'],
@@ -364,6 +370,45 @@ const MENU_ATTENDU: Record<Persona, { action: string | null; groupes: GroupeLu[]
   },
 };
 
+/**
+ * Revue adverse de TCK-2490 (3, arbitrage de la session) — le porteur veut le tableau de bord de l'admin
+ * d'agence EN TÊTE : juste après « Publier » et « Aller à », donc AVANT « Aujourd'hui » et « Démarrer ».
+ * Les autres personas ne changent pas (ADR-0090 §4 : leur tableau de bord descend dans le menu).
+ */
+describe('revue adverse (3) — le tableau de bord de l’admin d’agence vient juste après « Publier » et « Aller à »', () => {
+  const avant = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+
+  it('admin d’agence : Publier → Aller à → Tableau de bord → Aujourd’hui → Démarrer → menu', () => {
+    unreadMock.mockReturnValue(3);
+    demarrageMock.mockReturnValue({ data: { data: { etapes: [{ code: 'kyc', faite: false }] } } });
+    const { container } = renderSidebar('admin-agence', '/app', { onOuvrirPalette: () => {} });
+    const aside = container.querySelector('aside')!;
+    const tableau = aside.querySelector('a[href="/app"]')!;
+    expect(tableau).toHaveAccessibleName('Tableau de bord');
+    const chaine = [
+      aside.querySelector('[data-slot="action-principale"]')!,
+      aside.querySelector('[data-slot="aller-a"]')!,
+      tableau,
+      aside.querySelector('[data-slot="aujourdhui"]')!,
+      aside.querySelector('[data-slot="demarrer"]')!,
+      aside.querySelector('nav [data-groupe]')!,
+    ];
+    chaine.forEach((el, i) => expect(el, `maillon ${i}`).not.toBeNull());
+    for (let i = 1; i < chaine.length; i++) expect(avant(chaine[i - 1]!, chaine[i]!), `maillon ${i}`).toBe(true);
+    // Une seule fois : il a quitté le groupe de tête, qui garde le reste dans son ordre.
+    expect(aside.querySelectorAll('a[href="/app"]')).toHaveLength(1);
+    expect(groupesRendus(container)[0]).toEqual([null, false, 'Vue agence', 'Messagerie']);
+  });
+
+  it.each(PERSONAS.filter((p) => p !== 'admin-agence'))('%s : inchangé — le tableau de bord reste dans le menu, après « Aujourd’hui »', (persona) => {
+    unreadMock.mockReturnValue(3);
+    const { container } = renderSidebar(persona, '/app', { onOuvrirPalette: () => {} });
+    const tableau = container.querySelector('aside a[href="/app"]');
+    expect(tableau, 'le tableau de bord').not.toBeNull();
+    expect(container.querySelector('nav')!.contains(tableau)).toBe(true);
+  });
+});
+
 describe('TCK-2478 — la barre montée suit la disposition du persona (AC1)', () => {
   it.each(PERSONAS)('%s : l’action principale, puis le premier lien du menu', (persona) => {
     const { container } = renderSidebar(persona, '/app');
@@ -379,8 +424,18 @@ describe('TCK-2478 — la barre montée suit la disposition du persona (AC1)', (
     // la première entrée est celle de la disposition (le tableau de bord n'ouvre plus tous les menus).
     const liens = Array.from(container.querySelectorAll('aside a')).filter((a) => a.getAttribute('href') !== '/');
     expect(liens[0]).toBe(action);
-    expect(liens[1]).toBe(container.querySelector('nav a'));
-    expect(libelle(liens[1])).toBe(MENU_ATTENDU[persona].groupes[0][2]);
+    // Revue adverse (3) — l'entrée hissée en tête (le tableau de bord de l'admin d'agence) vient avant le
+    // menu ; sinon, le menu s'ouvre sur sa première entrée.
+    const enTete = MENU_ATTENDU[persona].enTete;
+    if (enTete) {
+      expect(libelle(liens[1])).toBe(enTete);
+      expect(container.querySelector('nav')!.contains(liens[1]!)).toBe(false);
+      expect(liens[2]).toBe(container.querySelector('nav a'));
+      expect(libelle(liens[2])).toBe(MENU_ATTENDU[persona].groupes[0][2]);
+    } else {
+      expect(liens[1]).toBe(container.querySelector('nav a'));
+      expect(libelle(liens[1])).toBe(MENU_ATTENDU[persona].groupes[0][2]);
+    }
   });
 
   it.each(PERSONAS)('%s : les groupes, leurs titres et leurs entrées, dans l’ordre', (persona) => {
