@@ -122,3 +122,29 @@ menu du compte compris, sans cloche (l'en-tête a la sienne). Chaque choix du me
   devtools TanStack Query couvrent le coin bas-gauche, et aucun des deux n'existe en production.
 - AC5 : `check:*`, gardes du dépôt, `tsc` et `lint` sont verts à chaque commit. Les suites entières sont
   laissées à la CI : la case reste ouverte.
+
+### Revue adverse (2026-11-06)
+
+Chaque point a d'abord eu un test rouge. Chaque ablation est un script qui mute le code, joue le test
+et restaure, md5 vérifié.
+
+- **I2, un appui à côté du menu du compte** — `283aa5899`. Un `Menu.Backdrop` explicite
+  (`DropdownMenuContent voile`, z 1099) empêche cet appui d'activer la ligne en dessous. Le test couvre
+  le toucher et la souris, dans le tiroir comme sur le bureau. Ablation V1 rouge. Au navigateur, avec
+  l'hôte (390 au toucher, 390 et 1280 à la souris), l'appui tombe sur `dropdown-menu-voile`. Ensuite,
+  le menu est fermé, le tiroir reste ouvert et la page reste `/app`. Sans le voile, l'appui ouvrait
+  `/app/properties/new`.
+- **M4, la marque mène à l'accueil dès 768** — `7e24d030a`. Le rail compris, la marque mène à `/` ;
+  dans le rail, elle ne montre que le symbole. Ablations K1 et K2 rouges. Chrome calcule le nom
+  « Takussan » à 1440, 900 et 1280 en rail.
+- **M5, la garde d'AC1** — `6f622cf94`. La garde juge la structure, plus le seul `<header>`.
+  Au-dessus de la rangée colonne + contenu ne sont permis que l'évitement, les bannières
+  `role=status` et ce qui porte `md:hidden`. Dans la rangée, seuls la colonne (`hidden md:block`) et
+  le `<main>`. Ablations rouges : B1 (un `<div>` au-dessus de la rangée), B2 (un `<nav>`), B3 (un
+  `<div>` dans la rangée).
+- **`ProfileSwitcher` retiré** — `08f8636ce`. Le composant n'avait plus d'appelant ; il part avec ses
+  tests. Ce que `MenuDuCompte` utilise vit dans `EspacesDuMenu.tsx`, avec son propre test, après un
+  grep sans appelant restant. Ablations E3 à E5 rouges.
+- **Mesure finale** (CDP, `next dev`, 2026-11-06, `load averages: 2.22 4.11 4.92`, 8 cœurs) :
+  `scrollWidth == innerWidth` à 320 (clair et sombre), 390 (clair et sombre), 900, 1280 (rail) et
+  1440 (clair et sombre). Aucun voile au repos. Captures `r-20261106-*`.

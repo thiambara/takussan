@@ -94,3 +94,32 @@ La barre du haut et l'en-tête mobile (TCK-2491) ; le contenu des pages.
 - `check-super-admin-tokens` : cliquet 14 → 13 (l'avatar ne porte plus `text-white`).
 - Reste à TCK-2491 : la variante `carte` de `ProfileSwitcher` n'a plus d'appelant ; le changement
   d'espace reste, d'ici là, au `ProfileSwitcher` de la barre haute, rendu à toutes les largeurs.
+
+### Revue adverse (2026-11-06)
+
+Chaque point a d'abord eu un test rouge. Chaque ablation est un script qui mute le code, joue le test
+et restaure, md5 vérifié.
+
+- **I1, « Aujourd'hui » dans le rail** — `ae9cf1049`. Le bloc reste dans le rail : une icône par ligne,
+  un point de couleur, et l'infobulle « Visites à confirmer · 17 ». Le point n'est plus posé sur une
+  entrée `inert` de hauteur nulle. Ablations R4 à R7 rouges. Au navigateur, 2 points visibles sur 2
+  (agent 1280 en rail, hôte 900 en rail auto) et 0 point sous `[inert]`.
+- **M3, chaque compte une seule fois** — `ae9cf1049`. Une entrée dont le compteur figure dans
+  « Aujourd'hui » n'affiche plus de nombre. Son nom accessible garde l'information
+  (`sr-only`) : les noms calculés par Chrome sont identiques avant et après. Un compteur absent
+  d'« Aujourd'hui » reste sur son entrée (les visites du client). Ablations C1 et C2 rouges.
+- **Point 3, l'admin d'agence** — `36056383c`. « Tableau de bord » vient juste après « Publier » et
+  « Aller à », avant « Aujourd'hui » et « Démarrer ». Les autres profils sont inchangés. Ablations A1
+  (le tableau remis après « Aujourd'hui ») et A2 rouges. Au navigateur à 1440 : action → « Aller à » →
+  `/app` → Aujourd'hui.
+- **M1, plafond à 99+** — `2f30d5c73`. `compteAffiche` (`compte-affiche.ts`) est la seule fonction de
+  plafond, partagée par le menu et « Aujourd'hui ». Le nom accessible garde le vrai compte. Ablation P2
+  rouge.
+- **M2, un même bord droit** — `6df13b7ea`. L'épingle ne réserve sa place que là où elle s'affiche :
+  au survol, au focus, quand elle est épinglée, et toujours sur un écran tactile. Ablations G1 et G2
+  rouges. Au navigateur, les puces, la valeur des crédits et les touches sont toutes à 255 px. Au
+  survol, l'épingle prend 25 px et le nombre passe à 226 px.
+- **Suites non traitées** :
+  - Dans le rail, un groupe replié ne signale pas un compteur qui ne figure pas dans « Aujourd'hui ».
+  - Le tableau de bord remonté pour l'admin d'agence sort du repère `<nav>`.
+  - La variante `carte` de `ProfileSwitcher` est réglée par TCK-2491 : le composant a quitté le dépôt.
