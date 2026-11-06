@@ -505,9 +505,12 @@ export function PropertyMap({
   const features = query.data?.features ?? [];
 
   return (
+    // TCK-2485 — `isolate` : la pastille du compte (`z-[400]`) est posée à côté du conteneur
+    // Leaflet, que `globals.css` isole, pas dedans ; sans ce contexte, son 400 se comparait à la
+    // page et passait sur la messagerie flottante ouverte (z-50). Garde : `carte-isolee.test.ts`.
     <div
       className={cn(
-        'relative',
+        'relative isolate',
         pleinEcranSousLg && 'takussan-carte-plein-ecran h-full lg:h-auto',
         className,
       )}

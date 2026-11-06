@@ -173,8 +173,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                           ses bandeaux SOUS sa barre (`NavbarSpacer`, `AppShell`), et celui-ci
                           s'efface. Ici, ils passaient sous la barre publique fixe. */}
                       <BandeauxDuSite emplacement="racine" />
-                      <ChatWidget />
                       {children}
+                      {/* TCK-2485 — APRÈS `{children}`, et ce n'est pas un détail : ouvert, le
+                          panneau vaut le z des dialogues et de la barre publique fixe (50), et
+                          à z égal c'est l'ordre du document qui pose le panneau sur la barre.
+                          Garde : `ChatWidget.test.tsx`. */}
+                      <ChatWidget />
                     </ChatDraftProvider>
                   </FloatingDockProvider>
                 </UserLocationProvider>
