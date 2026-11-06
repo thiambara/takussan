@@ -247,6 +247,7 @@ borne retirée → 2 rouges ; fonction retirée du service → 1 rouge ; restaur
 lot de 73 classes ci-dessus (TCK-2487), 632 verts. Commit : 279e99386.
 
 ⚠ Relevé en passant, non corrigé (hors de ce lot) : l'`after()` de `validateKey()` fait
-`array_map('strtoupper', $value)` sur `currency.supported` ; un élément non scalaire (`[["x"]]`)
-lèverait une `TypeError` (500) au lieu d'un 422 — à vérifier.
+`array_map('strtoupper', $value)` sur `currency.supported` ; un élément non scalaire lève une
+`TypeError`. Mesuré le 2026-11-06 (sonde HTTP jetable, retirée) : `PATCH /api/admin/settings`
+`{"currency.supported": [["x"]]}` → **500** au lieu d'un 422 (super-admin seul).
 
