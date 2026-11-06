@@ -213,6 +213,16 @@
         "texte": "Publiez votre premier bien en quelques minutes."
       },
       "console": "Console plateforme",
+      "aujourdhui": {
+        "titre": "Aujourd’hui",
+        "lignes": {
+          "unreadMessages": "Messages non lus",
+          "pendingVisits": "Visites à confirmer",
+          "unhandledLeads": "Demandes de contact",
+          "reviewModeration": "Avis à modérer",
+          "propertyModeration": "Biens à valider"
+        }
+      },
       "aTraiter": {
         "titre": "À traiter",
         "pastilles": {

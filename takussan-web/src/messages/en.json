@@ -213,6 +213,16 @@
         "texte": "Publish your first property in minutes."
       },
       "console": "Platform console",
+      "aujourdhui": {
+        "titre": "Today",
+        "lignes": {
+          "unreadMessages": "Unread messages",
+          "pendingVisits": "Visits to confirm",
+          "unhandledLeads": "Contact requests",
+          "reviewModeration": "Reviews to moderate",
+          "propertyModeration": "Listings to review"
+        }
+      },
       "aTraiter": {
         "titre": "To do",
         "pastilles": {
