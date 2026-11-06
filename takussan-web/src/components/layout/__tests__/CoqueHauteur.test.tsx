@@ -27,6 +27,7 @@ import { SUPER_ADMIN } from '@/test/habilitations';
 import { ToastProvider } from '@/components/ui/toast';
 import type { User } from '@/types/user';
 import { AppShell } from '../AppShell';
+import { REQUETE_DE_LA_BARRE } from '../plein-ecran';
 import { SuperAdminShell } from '../SuperAdminShell';
 
 vi.mock('next/navigation', () => ({
@@ -194,6 +195,9 @@ describe('TCK-2481 — la barre d’onglets réserve sa hauteur en sœur du cont
     expect(regles).toHaveLength(1);
     const [, plage, corps] = regles[0];
     expect(plage.trim()).toBe('(width < 48rem)');
+    // TCK-2481 (revue, M5) — la MÊME chaîne que le seuil JS de la barre (`useMatchesMedia`) : un
+    // seuil en px décroche du CSS dès que la police par défaut du navigateur dépasse 16 px.
+    expect(plage.trim()).toBe(REQUETE_DE_LA_BARRE);
     expect(corps.trim()).toBe('--floating-dock-base: calc(16px + var(--barre-onglets-hauteur));');
     // `md` reste le défaut de Tailwind (48rem) : aucun `--breakpoint-md` ne le déplace.
     expect(css).not.toMatch(/--breakpoint-md\s*:/);

@@ -17,12 +17,15 @@ import type { ProfileType } from '@/types/profile';
 import type { User, UserRole } from '@/types/user';
 import { ToastProvider } from '@/components/ui/toast';
 import { BarreDOnglets } from '../BarreDOnglets';
+import { REQUETE_DE_LA_BARRE } from '../plein-ecran';
 import { PreferencesDuMenuProvider } from '../PreferencesDuMenu';
 
 const etat = vi.hoisted(() => ({
   chemin: '/app',
   nonLus: 0,
   appels: [] as { enabled?: boolean }[],
+  /** Les media queries interrogées (`window.matchMedia`). */
+  requetes: [] as string[],
   /** Les onglets déclarés du client, remplacés le temps d'un test (`null` : ceux du dépôt). */
   ongletsDuClient: null as readonly string[] | null,
 }));
@@ -58,12 +61,21 @@ vi.mock('@/lib/navigation/dispositions', async (importOriginal) => {
   };
 });
 
-/** Simule un viewport (patron de `MessagesPage.test.tsx`) : `(max-width: Npx)` vaut `largeur <= N`. */
-function largeurDeFenetre(largeurPx: number): void {
+/**
+ * Simule un viewport (patron de `MessagesPage.test.tsx`) : `(max-width: Npx)` vaut `largeur <= N`,
+ * `(width < Nrem)` vaut `largeur < N × policeRacine` — dans une media query, `rem` est la taille de
+ * police PAR DÉFAUT du navigateur, un réglage d'accessibilité (16 px d'usine). Les requêtes posées
+ * sont relevées dans `etat.requetes`.
+ */
+function largeurDeFenetre(largeurPx: number, { policeRacine = 16 } = {}): void {
   window.matchMedia = ((query: string) => {
+    etat.requetes.push(query);
     const max = /\(max-width:\s*(\d+)px\)/.exec(query);
+    const sous = /^\(width < ([\d.]+)rem\)$/.exec(query);
     return {
-      matches: max !== null && largeurPx <= Number(max[1]),
+      matches:
+        (max !== null && largeurPx <= Number(max[1])) ||
+        (sous !== null && largeurPx < Number(sous[1]) * policeRacine),
       media: query,
       onchange: null,
       addListener: () => {},
@@ -140,6 +152,7 @@ const onglets = () =>
 beforeEach(() => {
   etat.nonLus = 0;
   etat.appels.length = 0;
+  etat.requetes.length = 0;
   etat.ongletsDuClient = null;
   largeurDeFenetre(1366);
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404, json: async () => ({}) }));
@@ -256,5 +269,26 @@ describe('TCK-2481 — les compteurs, ceux du menu', () => {
     monter('agent');
     expect(etat.appels.length).toBeGreaterThan(0);
     for (const o of etat.appels) expect(o.enabled).toBe(false);
+  });
+});
+
+describe('TCK-2481 (revue, M5) — le seuil JS de la barre est la plage CSS, en rem', () => {
+  /**
+   * `md:hidden` est `@media (width >= 48rem)`, et la règle du dock `(width < 48rem)` : des rem, qui
+   * suivent la taille de police par défaut du navigateur. Un seuil JS en px (`max-width: 767px`)
+   * décroche dès qu'elle dépasse 16 px — à 20 px, `md` vaut 960 px : entre 768 et 959 px la barre
+   * était visible, mais ne sondait rien (« Messagerie » à 0).
+   */
+  it('police par défaut à 20 px, fenêtre de 800 px : la barre est affichée par le CSS, elle sonde', () => {
+    largeurDeFenetre(800, { policeRacine: 20 });
+    monter('agent');
+    expect(etat.appels.some((o) => o.enabled === true)).toBe(true);
+  });
+
+  it('la requête interrogée est EXACTEMENT la plage de la règle CSS (`REQUETE_DE_LA_BARRE`)', () => {
+    largeurDeFenetre(390);
+    monter('agent');
+    expect(etat.requetes).toContain(REQUETE_DE_LA_BARRE);
+    expect(etat.requetes.some((q) => /px/.test(q))).toBe(false);
   });
 });

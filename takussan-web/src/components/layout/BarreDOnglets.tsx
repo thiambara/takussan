@@ -8,7 +8,7 @@ import { useTranslations } from 'next-intl';
 import type { User } from '@/types/user';
 import type { ProfileType } from '@/types/profile';
 import { cn } from '@/lib/utils';
-import { useMatchesMaxWidth } from '@/hooks/useMatchesMedia';
+import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { useCurrentLocale } from '@/i18n/hooks';
 import { cheminLocalise } from '@/i18n/routing';
 import { APP_EXACT_ROOTS, resolveActiveHref } from '@/lib/navigation/active-path';
@@ -18,9 +18,7 @@ import type { NavCounterKey } from '@/lib/navigation/types';
 import { FOCUS_RING } from './styles-de-la-barre';
 import { useMenuDeLEspace } from './useMenuDeLEspace';
 import { COMPTEURS_DE_MODERATION, useCompteursDuMenu } from './useCompteursDuMenu';
-
-/** Le dernier pixel sous `md` (768) : la barre n'existe que dessous (`md:hidden`), et n'y sonde que dessous. */
-const SOUS_MD_PX = 767;
+import { REQUETE_DE_LA_BARRE } from './plein-ecran';
 
 /** Une case : 72 px de large à 360 (cinq colonnes), toute la hauteur de la barre (56 px) — cibles ≥ 44 px. */
 const STYLE_CASE =
@@ -64,7 +62,8 @@ export function BarreDOnglets({
   const tAdmin = useTranslations('nav.admin');
   const pathname = usePathname();
   const locale = useCurrentLocale();
-  const sousMd = useMatchesMaxWidth(SOUS_MD_PX);
+  // La barre n'existe que sous `md` (`md:hidden`), et n'y sonde que dessous — par la MÊME plage que le CSS.
+  const sousMd = useMatchesMedia(REQUETE_DE_LA_BARRE);
   const { persona, entrees, groupesDeLaDisposition } = useMenuDeLEspace({
     user,
     agencyIsStandard,

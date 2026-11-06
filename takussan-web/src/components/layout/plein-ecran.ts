@@ -25,3 +25,15 @@ export function porteLaBarreDOnglets(pathname: string | null | undefined): boole
   if (pathname == null || estPleinEcran(pathname)) return false;
   return pathname === '/app' || pathname.startsWith('/app/');
 }
+
+/**
+ * TCK-2481 (revue, M5) — la plage où la barre d'onglets existe : le complément exact de `md:hidden`
+ * (`@media (width >= 48rem)`, Tailwind 4). Une seule chaîne, lue par la barre (`useMatchesMedia`, qui
+ * n'arme ses compteurs que dessous) et par la règle du dock de `globals.css` (gardée égale par
+ * `CoqueHauteur.test.tsx`).
+ *
+ * ⚠ En `rem`, jamais en px : dans une media query, `rem` vaut la taille de police PAR DÉFAUT du
+ * navigateur, un réglage d'accessibilité. À 20 px, `md` vaut 960 px ; un seuil JS à 767 px laissait
+ * la barre affichée entre 768 et 959 px sans qu'elle sonde rien.
+ */
+export const REQUETE_DE_LA_BARRE = '(width < 48rem)';
