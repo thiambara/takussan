@@ -115,8 +115,11 @@ final class AgencySettings
      * part en vrai booléen JSON. La règle `boolean` accepte `1`, `"1"`, `0`, `"0"` ; stockés tels
      * quels, ils étaient vrais pour {@see self::read()} mais pas pour un lecteur SQL strict
      * (`TwoFactorRequirement` : `settings->require_team_two_factor = true`) — un `1` accepté
-     * n'exigeait pas la 2FA de l'équipe. `null` (retrait de la clé) et les autres types passent tels
-     * quels.
+     * n'exigeait pas la 2FA de l'équipe. La conversion est CELLE de {@see self::read()} : une valeur
+     * qu'elle ne reconnaît pas (et donc lue comme le défaut) reste telle quelle, de sorte que
+     * `read()` rend la même chose avant et après. `null` (retrait de la clé) et les autres types
+     * passent tels quels. Appelée à l'écriture (`AgencyController::update`) et par la migration
+     * `normalize_boolean_agency_settings`, pour l'existant.
      *
      * @param  array<string, mixed>  $settings
      * @return array<string, mixed>
@@ -124,8 +127,12 @@ final class AgencySettings
     public static function normalize(array $settings): array
     {
         foreach ($settings as $key => $value) {
-            if ($value !== null && (self::catalog()[$key]['type'] ?? null) === self::BOOL) {
-                $settings[$key] = filter_var($value, FILTER_VALIDATE_BOOLEAN);
+            if (! is_scalar($value) || is_bool($value) || (self::catalog()[$key]['type'] ?? null) !== self::BOOL) {
+                continue;
+            }
+            $bool = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if ($bool !== null) {
+                $settings[$key] = $bool;
             }
         }
 
