@@ -167,6 +167,43 @@ describe('<PaletteDeCommandes> — TCK-2482', () => {
     expect(champ).toHaveAttribute('aria-activedescendant', options[0]!.id);
   });
 
+  it('revue M1 — l’option active est retenue par sa clé : une pastille qui arrive palette ouverte ne déplace pas la cible d’Entrée', async () => {
+    const u = userEvent.setup();
+    const { rerender } = render(ui(LOCATAIRE));
+    const champ = await screen.findByRole('combobox');
+    await waitFor(() => expect(champ).toHaveFocus());
+    const active = () => document.getElementById(champ.getAttribute('aria-activedescendant') ?? '')?.textContent;
+    await u.keyboard('{ArrowDown}');
+    expect(active()).toBe('Tableau de bord');
+    // Le sondage des non-lus rend 3 pendant que la palette est ouverte : « À traiter » s'insère AVANT.
+    etat.nonLus = 3;
+    rerender(ui(LOCATAIRE));
+    expect(screen.getByRole('option', { name: '3 messages non lus' })).toBeInTheDocument();
+    expect(active()).toBe('Tableau de bord');
+    await u.keyboard('{Enter}');
+    expect(etat.push).toHaveBeenCalledTimes(1);
+    expect(etat.push).toHaveBeenCalledWith('/app');
+  });
+
+  it('revue M1 — l’option active qui disparaît (compteur retombé à 0) rend la main à la première', async () => {
+    etat.nonLus = 3;
+    const u = userEvent.setup();
+    const { rerender } = render(ui(LOCATAIRE));
+    const champ = await screen.findByRole('combobox');
+    await waitFor(() => expect(champ).toHaveFocus());
+    const options = screen.getAllByRole('option');
+    const pastille = screen.getByRole('option', { name: '3 messages non lus' });
+    const rang = options.indexOf(pastille);
+    for (let i = 0; i < rang; i++) await u.keyboard('{ArrowDown}');
+    expect(champ).toHaveAttribute('aria-activedescendant', pastille.id);
+    etat.nonLus = 0;
+    rerender(ui(LOCATAIRE));
+    expect(screen.queryByRole('option', { name: '3 messages non lus' })).toBeNull();
+    const premiere = screen.getAllByRole('option')[0]!;
+    expect(champ).toHaveAttribute('aria-activedescendant', premiere.id);
+    expect(premiere).toHaveAttribute('aria-selected', 'true');
+  });
+
   it('Échap ferme la palette (sans rien ouvrir)', async () => {
     const u = userEvent.setup();
     render(ui(LOCATAIRE));

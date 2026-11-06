@@ -104,7 +104,9 @@ function ContenuDeLaPalette({ contexteDuMenu, ouverte, champ, fermer }: ContenuD
   const locale = useCurrentLocale();
   const idListe = useId();
   const [saisie, setSaisie] = useState('');
-  const [actif, setActif] = useState(0);
+  // Revue M1 — l'option active est retenue par sa CLÉ, pas par son rang : une pastille qui arrive (ou
+  // disparaît) palette ouverte décale les rangs, jamais la cible d'Entrée. `null` : la première.
+  const [cleActive, setCleActive] = useState<string | null>(null);
   // A8 — lus une fois par ouverture (le contenu est démonté à la fermeture).
   const [recents] = useState(() => lirePagesRecentes(contexteDuMenu.user.id));
 
@@ -142,7 +144,8 @@ function ContenuDeLaPalette({ contexteDuMenu, ouverte, champ, fermer }: ContenuD
     },
   );
   const resultats = chercherDansLaPalette(options, saisie);
-  const indexActif = resultats.length === 0 ? -1 : Math.min(actif, resultats.length - 1);
+  // Une clé disparue (compteur retombé à 0, saisie qui l'écarte) rend la main à la première option.
+  const indexActif = resultats.length === 0 ? -1 : Math.max(0, resultats.findIndex((o) => o.cle === cleActive));
   const idOption = (index: number) => `${idListe}-option-${index}`;
   const requete = saisie.trim();
   const parGroupe = GROUPES_DE_LA_PALETTE.map((g) => [g, resultats.filter((o) => o.groupe === g)] as const).filter(
@@ -162,7 +165,7 @@ function ContenuDeLaPalette({ contexteDuMenu, ouverte, champ, fermer }: ContenuD
   };
 
   const activer = (index: number) => {
-    setActif(index);
+    setCleActive(resultats[index]?.cle ?? null);
     document.getElementById(idOption(index))?.scrollIntoView?.({ block: 'nearest' });
   };
   const deplacer = (pas: 1 | -1) => {
@@ -206,7 +209,7 @@ function ContenuDeLaPalette({ contexteDuMenu, ouverte, champ, fermer }: ContenuD
           autoComplete="off"
           onChange={(event) => {
             setSaisie(event.target.value);
-            setActif(0);
+            setCleActive(null);
           }}
           onKeyDown={surTouche}
         />
@@ -249,7 +252,7 @@ function ContenuDeLaPalette({ contexteDuMenu, ouverte, champ, fermer }: ContenuD
                       event.preventDefault();
                       choisir(option);
                     }}
-                    onMouseMove={() => setActif(index)}
+                    onMouseMove={() => setCleActive(option.cle)}
                     // Revue I2 — le surlignage du `Combobox` du dépôt (`ui/combobox.tsx`, `bg-accent` et son
                     // encre appariée) : c'est le SEUL repère de ce qu'Entrée ouvre, et `bg-muted` sur
                     // `--popover` ne faisait que 1,18:1. L'icône et la précision prennent l'encre du fond.
