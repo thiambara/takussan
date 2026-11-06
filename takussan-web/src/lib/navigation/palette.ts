@@ -2,7 +2,7 @@ import { ArrowLeftRight, Search, type LucideIcon } from 'lucide-react';
 import { replierPourRecherche } from '@/components/ui/combobox';
 import type { Profile } from '@/types/profile';
 import { parametreDe } from '@/types/search';
-import type { PastilleATraiter } from './a-traiter';
+import type { LigneAujourdhui } from './a-traiter';
 import { APP_EXACT_ROOTS, resolveActiveHref } from './active-path';
 import type { IdDestination } from './catalogue';
 import type { EntreeComposee, GroupeCompose } from './composer-menu';
@@ -52,7 +52,8 @@ export interface SourcesDeLaPalette {
   readonly action: EntreeComposee | null;
   readonly carte: EntreeComposee | null;
   readonly groupes: readonly GroupeDuMenuRendu[];
-  readonly pastilles: readonly PastilleATraiter[];
+  /** TCK-2489 — les lignes « Aujourd'hui » de la barre (`lignesAujourdhui`), toutes. */
+  readonly pastilles: readonly LigneAujourdhui[];
   /** Les espaces à proposer (`espacesAProposer`), l'espace actif déjà retiré. */
   readonly espaces: readonly Profile[];
   /** Les chemins retenus sur l'appareil (`lirePagesRecentes`), le plus récent d'abord. */
@@ -67,7 +68,7 @@ export interface LibellesDeLaPalette {
   readonly carte: (e: EntreeComposee) => string;
   readonly precision: (g: GroupeCompose) => string | null;
   readonly synonymes: (id: IdDestination) => readonly string[];
-  readonly pastille: (p: PastilleATraiter) => string;
+  readonly pastille: (p: LigneAujourdhui) => string;
   readonly espace: (p: Profile) => string;
   readonly motsEspace: readonly string[];
 }
@@ -113,7 +114,7 @@ export function optionsDeLaPalette(s: SourcesDeLaPalette, l: LibellesDeLaPalette
     });
   }
 
-  // À traiter — les pastilles de la bande, déjà jugées (`pastillesATraiter`), cherchables aussi par le
+  // À traiter — les lignes « Aujourd'hui », déjà jugées (`lignesAujourdhui`), cherchables aussi par le
   // nom de leur entrée : « 3 visites en attente » se trouve par « visites ».
   for (const p of s.pastilles) {
     const e = rendues.find((r) => r.e.counterKey === p.cle)?.e;
