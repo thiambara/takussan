@@ -380,7 +380,7 @@
       "passerA": "Switch to: {espace}",
       "aucun": "No results for “{q}”",
       "resultats": "{count, plural, =0 {No results} one {# result} other {# results}}",
-      "synonymesEspace": "space, profile, switch, change",
+      "synonymesEspace": "space, switch, change",
       "synonymes": {
         "tableau-de-bord": "home, overview, summary",
         "mes-biens": "properties, listings, homes, houses, apartments",

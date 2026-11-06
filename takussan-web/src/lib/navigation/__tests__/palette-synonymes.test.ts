@@ -36,6 +36,12 @@ describe('TCK-2482 — les synonymes de la palette', () => {
     expect(porteurs(en as unknown as Messages, 'rent')).toEqual(['paiements']);
   });
 
+  it.each(LANGUES)('%s : revue I4 — « profil » / « profile » n’est pas un synonyme d’espace (« Mon profil » n’est pas une bascule)', (_langue, m) => {
+    const mots = decouperLesMots((m.nav.palette as unknown as { synonymesEspace: string }).synonymesEspace)
+      .flatMap((s) => replierPourRecherche(s).split(' '));
+    expect(mots.filter((w) => w.startsWith('profil'))).toEqual([]);
+  });
+
   it('« clients » mène au CRM', () => {
     expect(porteurs(fr as unknown as Messages, 'crm')).toContain('clients');
   });

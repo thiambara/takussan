@@ -380,7 +380,7 @@
       "passerA": "Passer à : {espace}",
       "aucun": "Aucun résultat pour « {q} »",
       "resultats": "{count, plural, =0 {Aucun résultat} one {# résultat} other {# résultats}}",
-      "synonymesEspace": "espace, profil, changer, basculer, passer",
+      "synonymesEspace": "espace, changer, basculer, passer",
       "synonymes": {
         "tableau-de-bord": "accueil, résumé, synthèse, vue d’ensemble",
         "mes-biens": "biens, annonces, logements, propriétés, maisons, appartements",

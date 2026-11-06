@@ -229,6 +229,18 @@ describe('<PaletteDeCommandes> — TCK-2482', () => {
     expect(noms(screen.getByRole('listbox'))).toEqual(['Passer à : Agent · Agence Teranga']);
   });
 
+  it('revue I4 — « profil » (ce qu’on tape pour « Mon profil », hors palette par A5) ne propose aucune bascule', async () => {
+    etat.profils = { data: [profil('agent', 5), profil('owner', 7)], meta: { active_profile_id: 'agent:5', count: 2 } };
+    const u = userEvent.setup();
+    render(ui(['customer', 'agent', 'owner'], 'agent'));
+    const champ = await screen.findByRole('combobox');
+    await u.type(champ, 'profil');
+    const liste = screen.queryByRole('listbox');
+    expect(liste ? noms(liste).filter((n) => n.startsWith('Passer à')) : []).toEqual([]);
+    await u.keyboard('{Enter}');
+    expect(etat.mutate).not.toHaveBeenCalled();
+  });
+
   it('AC5 — axe : aucune violation, champ vide (cinq groupes possibles) et sans résultat', async () => {
     etat.nonLus = 2;
     etat.profils = { data: [profil('agent', 5), profil('owner', 7)], meta: { active_profile_id: 'agent:5', count: 2 } };
