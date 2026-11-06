@@ -149,19 +149,144 @@
       "onboardingPending": "Onboardings en attente",
       "proLocked": "Réservé aux comptes pro",
       "navLabel": "Navigation du tableau de bord",
-      "sections": {
-        "discover": "Découvrir",
-        "requests": "Demandes",
-        "engagements": "Engagements",
-        "manage": "Pilotage",
-        "admin": "Administration"
-      },
       "counters": {
         "unreadMessages": "{count, plural, one {# message non lu} other {# messages non lus}}",
-        "pendingVisits": "{count, plural, one {# demande de visite en attente} other {# demandes de visite en attente}}"
+        "pendingVisits": "{count, plural, one {# demande de visite en attente} other {# demandes de visite en attente}}",
+        "unhandledLeads": "{count, plural, one {# demande non traitée} other {# demandes non traitées}}"
+      },
+      "onglets": {
+        "navLabel": "Accès rapide",
+        "menu": "Menu",
+        "accueil": "Accueil",
+        "favoris": "Favoris",
+        "visites": "Visites",
+        "demandes": "Demandes",
+        "reservations": "Réservations",
+        "nomAvecCompteur": "{libelle}, {compteur}",
+        "plafond": "99+"
       },
       "receivedReviews": "Avis reçus",
-      "commissions": "Commissions"
+      "commissions": "Commissions",
+      "myTasks": "Mes tâches",
+      "searchProperty": "Chercher un bien",
+      "myLease": "Mon bail",
+      "allProperties": "Biens",
+      "actions": {
+        "payRent": "Payer mon loyer"
+      },
+      "groupes": {
+        "mesRecherches": "Mes recherches",
+        "mesDemarches": "Mes démarches",
+        "monLogement": "Mon logement",
+        "monPatrimoine": "Mon patrimoine",
+        "activite": "Activité",
+        "prospection": "Prospection",
+        "catalogue": "Catalogue",
+        "gestion": "Gestion",
+        "portefeuille": "Portefeuille",
+        "finances": "Finances",
+        "agence": "Agence",
+        "pilotage": "Pilotage",
+        "mesBiens": "Mes biens",
+        "mesLocations": "Mes locations",
+        "monEspace": "Mon espace",
+        "plus": "Plus",
+        "aussi": "{profil, select, agency_admin {Aussi administrateur} owner {Aussi bailleur} agent {Aussi agent} service_provider {Aussi prestataire} other {Aussi}}",
+        "aussiPlusieurs": "Vos autres profils",
+        "epingles": "Épinglés"
+      },
+      "personas": {
+        "client": "Client",
+        "locataire": "Locataire",
+        "bailleur": "Bailleur",
+        "agent": "Agent",
+        "admin-agence": "Administrateur",
+        "hote": "Hôte",
+        "prestataire": "Prestataire",
+        "plateforme": "Plateforme"
+      },
+      "enTete": {
+        "changer": "Changer d’espace"
+      },
+      "carteLocation": {
+        "titre": "Mettre un bien en location",
+        "texte": "Publiez votre premier bien en quelques minutes."
+      },
+      "console": "Console plateforme",
+      "recents": "Récents",
+      "statut": {
+        "miseEnLocation": "En quelques minutes",
+        "passerEnAgence": "Équipe et outils pro",
+        "demandeEnCours": "Réponse par e-mail",
+        "console": "Administration de Takussan"
+      },
+      "compte": {
+        "changerDEspace": "Changer d’espace",
+        "credits": "Crédits",
+        "preferences": "Préférences de notification",
+        "langue": "Langue"
+      },
+      "aujourdhui": {
+        "titre": "Aujourd’hui",
+        "infobulle": "{libelle} · {nombre}",
+        "lignes": {
+          "unreadMessages": "Messages non lus",
+          "pendingVisits": "Visites à confirmer",
+          "unhandledLeads": "Demandes de contact",
+          "reviewModeration": "Avis à modérer",
+          "propertyModeration": "Biens à valider"
+        }
+      },
+      "aTraiter": {
+        "titre": "À traiter",
+        "pastilles": {
+          "unreadMessages": "{count, plural, one {# message} other {# messages}}",
+          "pendingVisits": "{count, plural, one {# visite} other {# visites}}",
+          "unhandledLeads": "{count, plural, one {# demande} other {# demandes}}",
+          "reviewModeration": "{count, plural, other {# avis}}",
+          "propertyModeration": "{count, plural, one {# bien} other {# biens}}"
+        },
+        "noms": {
+          "unreadMessages": "{count, plural, one {# message non lu} other {# messages non lus}}",
+          "pendingVisits": "{count, plural, one {# visite en attente} other {# visites en attente}}",
+          "unhandledLeads": "{count, plural, one {# demande non traitée} other {# demandes non traitées}}",
+          "reviewModeration": "{count, plural, other {# avis à modérer}}",
+          "propertyModeration": "{count, plural, one {# bien à valider} other {# biens à valider}}"
+        },
+        "plusCourt": "+{count}",
+        "autres": "{count, plural, one {+# autre à traiter} other {+# autres à traiter}}",
+        "compact": "{count, plural, one {À traiter : # élément} other {À traiter : # éléments}}",
+        "totalCourt": "{count, plural, =100 {99+} other {#}}"
+      },
+      "demarrer": {
+        "titre": "Démarrer",
+        "progression": "{faites} sur {total}",
+        "masquer": "Masquer « Démarrer »",
+        "aFaire": "À faire",
+        "etapes": {
+          "espace": {
+            "premier_bien": "Publier un premier bien",
+            "kyc": "Faire vérifier l’agence",
+            "equipe": "Inviter un premier membre"
+          },
+          "bailleur": {
+            "premier_bien": "Proposer un premier bien",
+            "kyc": "Envoyer vos pièces d’identité",
+            "equipe": "Inviter un premier membre"
+          }
+        }
+      },
+      "preferences": {
+        "echec": "Votre menu n’a pas pu être enregistré : il est revenu à son état précédent."
+      },
+      "epingle": {
+        "epingler": "Épingler {libelle}",
+        "plein": "Cinq épingles au plus : désépinglez-en une d’abord."
+      },
+      "icones": {
+        "reduire": "Réduire la barre",
+        "deplier": "Déplier la barre"
+      }
     },
     "admin": {
       "team": "Équipe",
@@ -177,7 +302,8 @@
       "roles": "Rôles",
       "integrations": "Intégrations",
       "mySpace": "Mon espace",
-      "openMySpace": "Ouvrir mon espace"
+      "openMySpace": "Ouvrir mon espace",
+      "payouts": "Reversements"
     },
     "superAdmin": {
       "eyebrow": "Console Takussan",
@@ -259,7 +385,75 @@
       "title": "Rechercher un bien",
       "back": "Retour"
     },
-    "creditsBalance": "Crédits : {count, plural, one {# crédit} other {# crédits}}"
+    "creditsBalance": "Crédits : {count, plural, one {# crédit} other {# crédits}}",
+    "palette": {
+      "titre": "Aller à une page ou changer d’espace",
+      "description": "Tapez quelques lettres. Flèches pour parcourir, Entrée pour ouvrir, Échap pour fermer.",
+      "champ": "Rechercher une page, une action ou un espace",
+      "placeholder": "Une page, une action, un espace…",
+      "ouvrir": "Aller à…",
+      "raccourciMac": "⌘ K",
+      "raccourciAutre": "Ctrl K",
+      "groupes": {
+        "actions": "Actions",
+        "aTraiter": "À traiter",
+        "recents": "Récents",
+        "allerA": "Aller à",
+        "espaces": "Espaces",
+        "annonces": "Annonces"
+      },
+      "annonces": {
+        "generique": "Chercher un bien sur Takussan",
+        "avecTexte": "Chercher « {q} » parmi les annonces"
+      },
+      "passerA": "Passer à : {espace}",
+      "aucun": "Aucune page pour « {q} »",
+      "resultats": "{count, plural, =0 {Aucun résultat} one {# résultat} other {# résultats}}",
+      "synonymesEspace": "espace, changer, basculer, passer",
+      "synonymes": {
+        "tableau-de-bord": "accueil, résumé, synthèse, vue d’ensemble",
+        "mes-biens": "biens, annonces, logements, propriétés, maisons, appartements",
+        "publier-bien": "ajouter un bien, nouvelle annonce, créer une annonce, mettre en ligne",
+        "proposer-bien": "ajouter un bien, nouvelle annonce, soumettre un bien",
+        "publier-annonce": "ajouter un bien, nouvelle annonce, mettre en location, devenir hôte",
+        "messagerie": "messages, discussions, conversations, boîte de réception",
+        "reservations": "réservation, séjour, location courte",
+        "visites": "visite, rendez-vous, rdv",
+        "credits": "solde, portefeuille, recharger, mise en avant",
+        "taches": "tâches, à faire, rappels",
+        "chercher-bien": "chercher, recherche, trouver, louer, acheter",
+        "favoris": "coups de cœur, sauvegardés, enregistrés",
+        "recherches": "alertes, recherches enregistrées",
+        "maintenance": "panne, réparation, intervention, travaux, plomberie, électricité",
+        "carnet-prestataires": "prestataires, artisans, plombier, électricien",
+        "demandes": "prospects, leads, contacts, demandes de contact",
+        "baux": "bail, contrat, contrat de location",
+        "paiements": "loyer, loyers, payer, quittance, facture, encaissement, versement",
+        "avis": "notes, commentaires, évaluations",
+        "commissions": "honoraires, rémunération",
+        "documents": "fichiers, pièces, papiers",
+        "etats-des-lieux": "état des lieux, inventaire, edl, entrée, sortie",
+        "entrees-en-attente": "emménagement, entrée dans les lieux, onboarding",
+        "statistiques": "stats, chiffres, rapports",
+        "exports": "export, csv, excel, télécharger",
+        "vue-agence": "agence, performance, activité de l’agence",
+        "kpis": "indicateurs, kpi, objectifs",
+        "alertes": "anomalies, signaux",
+        "proprietaires": "bailleurs, propriétaires, mandants",
+        "clients": "crm, contacts, acheteurs, prospects",
+        "calendrier": "agenda, planning, disponibilités",
+        "agence-equipe": "équipe, collaborateurs, agents, membres, inviter",
+        "agence-roles": "rôles, permissions, droits, accès",
+        "agence-fiche": "agence, fiche de l’agence, logo, coordonnées",
+        "agence-kyc": "kyc, vérification, identité, justificatifs",
+        "agence-facturation": "abonnement, facturation, formule, reversements",
+        "agence-finances": "finances, comptabilité, revenus, trésorerie",
+        "agence-moderation-avis": "modération, avis à valider",
+        "agence-moderation-biens": "modération, biens à valider, validation",
+        "agence-journal": "audit, historique, traces, journal",
+        "agence-integrations": "api, webhooks, connecteurs"
+      }
+    }
   },
   "footer": {
     "tagline": "Votre partenaire de confiance pour trouver le bien immobilier idéal au Sénégal.",
@@ -6520,6 +6714,40 @@
         "teamTwoFactorLabel": "Double authentification obligatoire pour toute l’équipe",
         "teamTwoFactorHint": "Chaque membre devra configurer un second facteur (application d’authentification) avant d’agir dans l’espace de l’agence. La colonne « Double authentification » de l’équipe montre qui l’a déjà fait."
       },
+      "modules": {
+        "title": "Menu de l’équipe",
+        "description": "Décochez ce que votre agence n’utilise pas : l’entrée quitte le menu de vos agents, et le vôtre. Aucun droit ne change — une page reste accessible par un lien direct — et vos bailleurs et locataires gardent leur menu.",
+        "items": {
+          "commissions": {
+            "label": "Commissions",
+            "hint": "Le grand livre des commissions de l’équipe."
+          },
+          "inventories": {
+            "label": "États des lieux",
+            "hint": "Les états des lieux d’entrée et de sortie."
+          },
+          "move_in_follow_up": {
+            "label": "Onboardings en attente",
+            "hint": "Les locataires dont l’état des lieux d’entrée attend depuis plus de 7 jours."
+          },
+          "provider_book": {
+            "label": "Carnet prestataires",
+            "hint": "Les prestataires de maintenance de l’agence."
+          },
+          "calendar": {
+            "label": "Calendrier",
+            "hint": "Le calendrier des visites, réservations et interventions."
+          },
+          "credits": {
+            "label": "Crédits",
+            "hint": "Le portefeuille de crédits de mise en avant."
+          },
+          "analytics": {
+            "label": "Pilotage avancé",
+            "hint": "KPIs, alertes et exports — les statistiques restent."
+          }
+        }
+      },
       "submit": {
         "saving": "Enregistrement…"
       },
@@ -11200,9 +11428,6 @@
       "service_provider": "Prestataire"
     },
     "switcher": {
-      "adminLabel": "Admin Takussan",
-      "changeAria": "Changer de profil",
-      "choose": "Choisir un profil",
       "switched": "Espace basculé sur {name}",
       "switchFailed": "Impossible de basculer de profil",
       "fallbackLabel": "profil"
@@ -11375,6 +11600,20 @@
       "label": "Fuseau horaire",
       "saved": "Fuseau horaire enregistré.",
       "error": "Le fuseau horaire n'a pas pu être enregistré."
+    },
+    "menu": {
+      "titre": "Menu",
+      "texte": "Vos épingles et les groupes repliés du menu « {persona} » vous suivent sur tous vos appareils.",
+      "personnalise": "Votre menu est personnalisé.",
+      "dejaParDefaut": "Votre menu suit la disposition par défaut.",
+      "reinitialiser": "Revenir au menu par défaut",
+      "appareil": {
+        "label": "Barre latérale sur cet appareil",
+        "auto": "Automatique : réduite aux icônes sur un écran moyen",
+        "icones": "Toujours réduite aux icônes",
+        "complet": "Toujours complète",
+        "aide": "Ce réglage ne vaut que pour ce navigateur."
+      }
     }
   },
   "contact": {

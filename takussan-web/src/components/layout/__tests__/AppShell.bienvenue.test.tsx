@@ -10,6 +10,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { withIntl } from '@/test/intl';
+import { ToastProvider } from '@/components/ui/toast';
 import type { User } from '@/types/user';
 import { AppShell } from '../AppShell';
 
@@ -24,8 +25,11 @@ vi.mock('@/context/AuthContext', () => ({
 }));
 
 // La chrome de la console est hors sujet : seules les deux fenêtres de bienvenue restent réelles.
-vi.mock('../AppTopbar', () => ({ AppTopbar: () => null }));
+vi.mock('../EnTeteMobile', () => ({ EnTeteMobile: () => null }));
 vi.mock('../AppSidebar', () => ({ AppSidebar: () => null }));
+// TCK-2481 — la barre d'onglets compose le menu et sonde ses compteurs, comme la barre latérale :
+// ce fichier ne compte que les lectures des assistants.
+vi.mock('../BarreDOnglets', () => ({ BarreDOnglets: () => null }));
 vi.mock('@/components/announcements/BandeauxDuSite', () => ({ BandeauxDuSite: () => null }));
 vi.mock('@/components/admin/super/ImpersonationBanner', () => ({
   ImpersonationBanner: () => null,
@@ -61,9 +65,13 @@ function rendre() {
   render(
     withIntl(
       <QueryClientProvider client={queryClient}>
-        <AppShell user={locataire}>
-          <p>contenu</p>
-        </AppShell>
+        {/* TCK-2480 — le fournisseur des préférences du menu, monté par la coque, dit ses échecs par
+            un toast : le `ToastProvider` du groupe `(dashboard)`. */}
+        <ToastProvider>
+          <AppShell user={locataire}>
+            <p>contenu</p>
+          </AppShell>
+        </ToastProvider>
       </QueryClientProvider>,
     ),
   );

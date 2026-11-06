@@ -2,10 +2,15 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\BorneLesReglesDElement;
 use Illuminate\Foundation\Http\FormRequest;
 
 class AttachCustomerTagsRequest extends FormRequest
 {
+    // TCK-2488 — une liste hors de sa borne ne fait pas valider ses éléments un à un (hérité de
+    // `BaseFormRequest` par les autres : cette requête l'étend encore en direct, TCK-730).
+    use BorneLesReglesDElement;
+
     public function authorize(): bool
     {
         return true;
@@ -14,7 +19,8 @@ class AttachCustomerTagsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'tags' => ['required', 'array', 'min:1'],
+            // TCK-2488 — borne technique : `CustomerTagPicker` envoie une étiquette à la fois.
+            'tags' => ['required', 'array', 'min:1', 'max:100'],
             'tags.*' => ['required', 'string', 'max:100'],
         ];
     }

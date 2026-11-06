@@ -30,9 +30,11 @@ class UpdateFeatureFlagRequest extends BaseFormRequest
         return [
             'enabled' => ['required', 'boolean'],
             'segments' => ['nullable', 'array'],
-            'segments.roles' => ['nullable', 'array'],
+            // TCK-2488 — borne technique : saisie libre dans `feature-flags.tsx`, et `profileTypes()` rend au plus 7 slugs.
+            'segments.roles' => ['nullable', 'array', 'max:100'],
             'segments.roles.*' => ['string'],
-            'segments.agency_ids' => ['nullable', 'array'],
+            // TCK-2488 — borne technique, aucun appelant n'en ajoute : `feature-flags.tsx` renvoie la liste déjà posée.
+            'segments.agency_ids' => ['nullable', 'array', 'max:1000'],
             'segments.agency_ids.*' => ['integer'],
             'segments.rollout_percentage' => ['nullable', 'integer', 'min:0', 'max:100'],
         ];

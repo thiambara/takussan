@@ -48,6 +48,11 @@ export interface AgencySettings {
    * une agence neuve n'encaisse que le loyer, la pénalité se règle auprès d'elle.
    */
   late_fee_online_collection?: boolean;
+  /**
+   * TCK-2483 — les modules que l'agence retire du menu de son personnel (codes d'`AgencyModule`).
+   * Lu par `modulesMasquesDe`, jamais tel quel : un code inconnu y est ignoré.
+   */
+  hidden_modules?: readonly string[];
   [key: string]: unknown;
 }
 

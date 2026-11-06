@@ -40,12 +40,13 @@ class IndexCalendarRequest extends BaseFormRequest
             // que l'appelant voit, et rend le même agenda vide aux deux.
             'property_id' => ['sometimes', 'integer'],
             // TCK-078 — admin multi-property view supports `property_ids[]`.
-            'property_ids' => ['sometimes', 'array'],
+            // TCK-2488 — borne technique, aucun appelant : le front n'envoie que `property_id`.
+            'property_ids' => ['sometimes', 'array', 'max:1000'],
             'property_ids.*' => ['integer'],
             // TCK-078 — admin-only cross-agency view. TCK-1772 (P62.07) — l'existence ne se juge que
             // pour le super-admin : tout autre compte reçoit le 403 du contrôleur, absente ou tierce.
             'agency_id' => ['sometimes', 'integer', new AgenceNommeeParLeSuperAdmin($this->user())],
-            'types' => ['sometimes', 'array'],
+            'types' => ['sometimes', 'array', 'max:'.count(CalendarEventCollector::TYPES)],
             // TCK-591 — tâches, échéances de bail et interventions s'ajoutent aux deux types d'origine.
             'types.*' => ['string', Rule::in(CalendarEventCollector::TYPES)],
             // TCK-591 — « Mes rendez-vous » : ce qui m'est assigné (visite, tâche, intervention).

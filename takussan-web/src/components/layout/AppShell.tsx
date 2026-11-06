@@ -1,11 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { User } from '@/types/user';
-import { AppTopbar } from './AppTopbar';
+import type { ProfileType } from '@/types/profile';
+import { EnTeteMobile } from './EnTeteMobile';
 import { AppSidebar } from './AppSidebar';
+import { BarreDOnglets } from './BarreDOnglets';
+import { PaletteDeCommandes, RetenirLaPageRecente } from './PaletteDeCommandes';
+import { useRaccourciDeLaPalette } from './usePaletteDeCommandes';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { BandeauxDuSite } from '@/components/announcements/BandeauxDuSite';
 import { LienEvitement } from '@/components/shared/LienEvitement';
@@ -20,7 +24,11 @@ import { MinimalProfileTriggerProvider } from '@/components/customer/MinimalProf
 import { OwnerWelcomeWizard } from '@/components/owner/OwnerWelcomeWizard';
 import { TenantWelcomeWizard } from '@/components/tenant/TenantWelcomeWizard';
 import { isAgencyAdmin, isAgent, isCustomerOnly, isOwner } from '@/lib/roles';
-import { estPleinEcran } from './plein-ecran';
+import { estPleinEcran, porteLaBarreDOnglets } from './plein-ecran';
+import { PreferencesDuMenuProvider } from './PreferencesDuMenu';
+import type { ModeIcones } from '@/lib/navigation/mode-icones';
+import { personaDeLaCoque } from '@/lib/navigation/personas';
+import { useAccesAdminOuRepli } from '@/lib/access/acces-admin-contexte';
 
 interface AppShellProps {
   user: User;
@@ -39,6 +47,20 @@ interface AppShellProps {
    * `undefined` quand le layout ne l'a pas lue : l'assistant ne s'ouvre pas.
    */
   agencyStandardWelcome?: MarqueurAccueilAgence;
+  /** TCK-2477 — le type du profil actif, pour le persona du menu (ADR-0089). */
+  typeProfilActif?: ProfileType | null;
+  /**
+   * TCK-2480 — le mode icônes de l'appareil, lu par le layout sur le cookie `menu_icones`. Absent
+   * (tests) : `complet`, la barre de toujours.
+   */
+  modeIcones?: ModeIcones;
+  /**
+   * TCK-2483 (ADR-0089, amendement « modules par agence ») — les codes de module que l'agence du
+   * profil actif masque, lus par le layout (`modulesMasquesDe`). Un fait de l'agence, passé à TOUT
+   * lecteur du menu (barre, tiroir, onglets, palette) ; `composerMenu` décide à quel persona il
+   * s'applique. Absent (tests) : aucun.
+   */
+  modulesMasques?: readonly string[];
 }
 
 export function AppShell({
@@ -48,13 +70,50 @@ export function AppShell({
   hasPendingUpgrade,
   agencySuspended = false,
   agencyStandardWelcome,
+  typeProfilActif,
+  modeIcones = 'complet',
+  modulesMasques = [],
 }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const t = useTranslations('nav.sidebar');
   // TCK-631 — le parcours de publication se montre sans la chrome de la console : il porte son
   // propre en-tête et sa propre sortie. Les bandeaux (impersonation, suspension, site) restent :
   // ils disent quelque chose sur la session, pas sur la navigation.
-  const pleinEcran = estPleinEcran(usePathname());
+  const pathname = usePathname();
+  const pleinEcran = estPleinEcran(pathname);
+  // TCK-2481 — sous `md`, la barre d'onglets ; « Menu » y ouvre le tiroir, qui lui rend le focus.
+  const barreDOnglets = porteLaBarreDOnglets(pathname);
+  const boutonMenu = useRef<HTMLButtonElement>(null);
+  // TCK-2481 (revue, M1) — le tiroir se referme-t-il sur une NAVIGATION ? Posé par `onNavigate`, lu
+  // par `finalFocus` : « Menu » est le dernier focalisable du document, y rendre le focus après le
+  // choix d'une page laisserait toute la nouvelle page AVANT lui. Un ref et non `closeType` : Base UI
+  // n'y passe que la modalité (souris, clavier…), jamais la raison de la fermeture.
+  const fermeParUnLien = useRef(false);
+  const focusAuRetour = () => {
+    if (fermeParUnLien.current) {
+      fermeParUnLien.current = false;
+      return false; // ne rien forcer : le focus repart du début du document, comme avec l'ancien burger
+    }
+    return boutonMenu.current; // Échap, voile : « Menu » (arbitrage 10)
+  };
+  // TCK-2482 — la palette de commandes : une par coque, ouverte par ⌘K / Ctrl K, par « Aller à » de la
+  // colonne ou par le bouton de l'en-tête mobile (TCK-2491).
+  // A7 — l'élément focalisé à l'ouverture (le bouton touché, que Safari iOS ne focalise pas) reçoit le
+  // focus à la fermeture ; la palette retombe sur le défaut de Base UI s'il a quitté le DOM.
+  const [paletteOuverte, setPaletteOuverte] = useState(false);
+  const retourDuFocus = useRef<HTMLElement | null>(null);
+  const changerPalette = (ouverte: boolean, depuis?: HTMLElement | null) => {
+    if (ouverte) {
+      const focalise = document.activeElement;
+      retourDuFocus.current = depuis ?? (focalise instanceof HTMLElement ? focalise : null);
+    }
+    setPaletteOuverte(ouverte);
+  };
+  // A6 — rien en plein écran : le parcours porte sa propre sortie, le navigateur garde son raccourci.
+  useRaccourciDeLaPalette({ actif: !pleinEcran, ouverte: paletteOuverte, changer: changerPalette });
+  // A17 — les mêmes arguments que ceux du menu de la barre (`AppSidebar`, `BarreDOnglets`), pour la
+  // palette ET l'écrivain de ses récents — TCK-2483 : les modules masqués compris.
+  const contexteDuMenu = { user, agencyIsStandard, typeProfilActif, agencySuspended, modulesMasques };
   // TCK-253 — Customer-only onboarding surfaces. Gated server-side via the
   // SSR-resolved roles so we never paint the welcome modale (or arm the
   // deferred profile sheet) for agents / owners / admins.
@@ -82,6 +141,15 @@ export function AppShell({
   // `agency.metadata.welcome.standard_unlocked_at` is present, so admins
   // of always-standard agencies never see it.
   const agencyStandardWelcomeActive = isAgencyAdmin(user.roles);
+  // TCK-2480 — le persona AFFICHÉ, par la même formule que la barre (`personaDeLaCoque`) : la section
+  // « Menu » du profil réinitialise celui-là, jamais un voisin.
+  const accesAdmin = useAccesAdminOuRepli({ roles: user.roles, agencyId: user.agency_id, agencyIsStandard });
+  const persona = personaDeLaCoque({
+    roles: user.roles,
+    typeProfilActif,
+    espaceIndividuel: accesAdmin.espaceIndividuel,
+    agencyIsStandard,
+  });
 
   /**
    * TCK-503 — `h-dvh`, jamais `h-screen`. Relevé au navigateur le 2026-08-31, à 390 px : le
@@ -100,62 +168,128 @@ export function AppShell({
    */
   return (
     <MinimalProfileTriggerProvider roles={user.roles}>
-      <div className="flex h-dvh flex-col bg-background">
-        {/* TCK-905 (P31.04) — avant la bannière, la barre haute et la barre latérale. */}
-        <LienEvitement />
-        {/* TCK-600 (ADR-0055) — la session d'impersonation, lue sur le serveur du front : rien
-            ne s'affiche hors session. Au-dessus de la barre : elle ne défile pas avec la page. */}
-        <ImpersonationBanner />
-        {agencySuspended ? <AgencySuspendedBanner /> : null}
-        {pleinEcran ? null : (
-          <AppTopbar user={user} menuOpen={sidebarOpen} onMenuToggle={() => setSidebarOpen((v) => !v)} />
-        )}
-        <div className="flex min-h-0 flex-1 overflow-hidden">
-          {pleinEcran ? null : (
-            <>
-              <div className="hidden md:block md:h-full">
-                <AppSidebar
-                  user={user}
-                  agencyIsStandard={agencyIsStandard}
-                  hasPendingUpgrade={hasPendingUpgrade}
-                />
-              </div>
-              <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-                <SheetContent side="left" className="p-0" aria-label={t('navLabel')}>
+      {/* TCK-2480 — les préférences du menu (épingles, replis, mode icônes), tenues pour les DEUX
+          montages de la barre (fixe et tiroir) et la section « Menu » du profil. */}
+      <PreferencesDuMenuProvider
+        navigationInitiale={user.preferences?.navigation}
+        persona={persona}
+        modeIconesInitial={modeIcones}
+      >
+        {/* TCK-2481 — `data-barre-onglets` : la coque porte la barre d'onglets (sous `md`). */}
+        <div className="flex h-dvh flex-col bg-background" data-barre-onglets={barreDOnglets ? '' : undefined}>
+          {/* TCK-905 (P31.04) — avant la bannière, l'en-tête mobile et la colonne. */}
+          <LienEvitement />
+          {/* TCK-600 (ADR-0055) — la session d'impersonation, lue sur le serveur du front : rien
+              ne s'affiche hors session. Au-dessus de la barre : elle ne défile pas avec la page. */}
+          <ImpersonationBanner />
+          {agencySuspended ? <AgencySuspendedBanner /> : null}
+          {/* TCK-2491 (ADR-0090 §2, §8) — plus de barre du haut : dès `md`, la colonne porte la marque, la
+              cloche et le compte ; sous `md`, une en-tête compacte (marque, « Aller à », cloche). */}
+          {pleinEcran ? null : <EnTeteMobile onOuvrirPalette={(depuis) => changerPalette(true, depuis)} />}
+          <div className="flex min-h-0 flex-1 overflow-hidden">
+            {pleinEcran ? null : (
+              <>
+                <div className="hidden md:block md:h-full md:shrink-0">
                   <AppSidebar
                     user={user}
-                    onNavigate={() => setSidebarOpen(false)}
                     agencyIsStandard={agencyIsStandard}
                     hasPendingUpgrade={hasPendingUpgrade}
+                    typeProfilActif={typeProfilActif}
+                    agencySuspended={agencySuspended}
+                    modulesMasques={modulesMasques}
+                    onOuvrirPalette={(depuis) => changerPalette(true, depuis)}
                   />
-                </SheetContent>
-              </Sheet>
-            </>
+                </div>
+                <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+                  {/* TCK-2481 — `finalFocus` explicite : au doigt, Safari iOS ne focalise pas le bouton
+                      touché, et le défaut de Base UI (« l'élément focalisé à l'ouverture ») rendrait
+                      le focus à `body`. Sauf fermeture par un lien (revue, M1) : `focusAuRetour`. */}
+                  {/* TCK-2490 — `bg-background` : la colonne pose son lin (`--muted` à 45 %) sur le MÊME fond
+                      que sur la coque fixe, et ses contrastes mesurés valent aussi dans le tiroir. */}
+                  <SheetContent side="left" className="bg-background p-0" aria-label={t('navLabel')} finalFocus={focusAuRetour}>
+                    <AppSidebar
+                      user={user}
+                      onNavigate={() => {
+                        fermeParUnLien.current = true;
+                        setSidebarOpen(false);
+                      }}
+                      agencyIsStandard={agencyIsStandard}
+                      hasPendingUpgrade={hasPendingUpgrade}
+                      typeProfilActif={typeProfilActif}
+                      agencySuspended={agencySuspended}
+                      modulesMasques={modulesMasques}
+                      tiroir
+                      // TCK-2490 — « Aller à » depuis le tiroir : le tiroir se ferme, la palette s'ouvre, et
+                      // c'est « Menu » (qui a ouvert le tiroir) qui reprend le focus à sa fermeture.
+                      onOuvrirPalette={() => {
+                        fermeParUnLien.current = true;
+                        setSidebarOpen(false);
+                        changerPalette(true, boutonMenu.current);
+                      }}
+                    />
+                  </SheetContent>
+                </Sheet>
+              </>
+            )}
+            <main
+              id={CONTENU_PRINCIPAL_ID}
+              // `-1` : hors du parcours de tabulation, mais cible focalisable du lien d'évitement.
+              tabIndex={-1}
+              className="relative min-h-0 flex-1 overflow-y-auto bg-background focus:outline-none"
+            >
+              {/* TCK-572 — les bandeaux du site DANS la zone qui défile. Rendus par le layout racine,
+                  ils précédaient cette coque `h-dvh` : le document débordait de leur hauteur (183 px
+                  à 320, mesuré) et la maintenance, collante, recouvrait la barre haute une fois
+                  défilé. Ici ils défilent avec la page et la coque tient l'écran. */}
+              <BandeauxDuSite emplacement="page" />
+              <div className="px-4 py-6 md:px-6 md:py-8">{children}</div>
+            </main>
+          </div>
+          {/* TCK-2482 — DANS `PreferencesDuMenuProvider` : le menu de la palette est celui de la barre
+              (épingles comprises). Son contenu n'est monté que palette ouverte (A13). */}
+          {/* A8 — les pages récentes, retenues sur l'appareil par compte ; jamais une page plein écran.
+              Revue I3 — dans le fournisseur : dédoublonnées par entrée du menu RENDU. */}
+          {pleinEcran ? null : (
+            <RetenirLaPageRecente contexteDuMenu={contexteDuMenu} chemin={pathname} />
           )}
-          <main
-            id={CONTENU_PRINCIPAL_ID}
-            // `-1` : hors du parcours de tabulation, mais cible focalisable du lien d'évitement.
-            tabIndex={-1}
-            className="relative min-h-0 flex-1 overflow-y-auto bg-background focus:outline-none"
-          >
-            {/* TCK-572 — les bandeaux du site DANS la zone qui défile. Rendus par le layout racine,
-                ils précédaient cette coque `h-dvh` : le document débordait de leur hauteur (183 px
-                à 320, mesuré) et la maintenance, collante, recouvrait la barre haute une fois
-                défilé. Ici ils défilent avec la page et la coque tient l'écran. */}
-            <BandeauxDuSite emplacement="page" />
-            <div className="px-4 py-6 md:px-6 md:py-8">{children}</div>
-          </main>
+          {pleinEcran ? null : (
+            <PaletteDeCommandes
+              ouverte={paletteOuverte}
+              onOuverteChange={(ouverte) => changerPalette(ouverte)}
+              contexteDuMenu={contexteDuMenu}
+              retourDuFocus={retourDuFocus}
+            />
+          )}
+          {/* TCK-2481 (ADR-0089 §3) — la barre d'onglets, sous `md`. Enfant flex de la coque `h-dvh`
+              et non `fixed` : le `<main>` rétrécit de sa hauteur exacte, et rien de la page ne passe
+              dessous (TCK-503). Après le `<main>` dans le document comme à l'écran ; le lien
+              d'évitement reste le premier focalisable. */}
+          {barreDOnglets ? (
+            <BarreDOnglets
+              user={user}
+              agencyIsStandard={agencyIsStandard}
+              typeProfilActif={typeProfilActif}
+              agencySuspended={agencySuspended}
+              modulesMasques={modulesMasques}
+              menuOuvert={sidebarOpen}
+              onOuvrirMenu={() => {
+                fermeParUnLien.current = false;
+                setSidebarOpen(true);
+              }}
+              refMenu={boutonMenu}
+            />
+          ) : null}
+          {customerOnboardingActive ? (
+            <CustomerWelcomeWizard onSettled={() => setCustomerWelcomeSettled(true)} />
+          ) : null}
+          {/* TCK-265 — per-lease welcome modale for tenants. TCK-1477 — montée seulement une fois
+              le parcours client réglé : jamais deux fenêtres de bienvenue ouvertes ensemble. */}
+          {customerOnboardingActive && customerWelcomeSettled ? <TenantWelcomeWizard /> : null}
+          {ownerWelcomeActive ? <OwnerWelcomeWizard /> : null}
+          {agentWelcomeActive ? <AgentWelcomeWizard /> : null}
+          {agencyStandardWelcomeActive ? <AgencyStandardWelcomeWizard marqueur={agencyStandardWelcome} /> : null}
         </div>
-        {customerOnboardingActive ? (
-          <CustomerWelcomeWizard onSettled={() => setCustomerWelcomeSettled(true)} />
-        ) : null}
-        {/* TCK-265 — per-lease welcome modale for tenants. TCK-1477 — montée seulement une fois
-            le parcours client réglé : jamais deux fenêtres de bienvenue ouvertes ensemble. */}
-        {customerOnboardingActive && customerWelcomeSettled ? <TenantWelcomeWizard /> : null}
-        {ownerWelcomeActive ? <OwnerWelcomeWizard /> : null}
-        {agentWelcomeActive ? <AgentWelcomeWizard /> : null}
-        {agencyStandardWelcomeActive ? <AgencyStandardWelcomeWizard marqueur={agencyStandardWelcome} /> : null}
-      </div>
+      </PreferencesDuMenuProvider>
     </MinimalProfileTriggerProvider>
   );
 }

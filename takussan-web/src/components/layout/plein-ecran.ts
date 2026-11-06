@@ -14,3 +14,26 @@ const ROUTES_PLEIN_ECRAN: readonly string[] = ['/app/properties/new'];
 export function estPleinEcran(pathname: string | null | undefined): boolean {
   return pathname != null && ROUTES_PLEIN_ECRAN.includes(pathname);
 }
+
+/**
+ * TCK-2481 — les routes où la coque porte la barre d'onglets mobile : `/app` et ses pages, hors plein
+ * écran. Lue par `AppShell` (la barre) et par `CorpsDuWidget` (le bouton flottant « Messagerie »,
+ * qui ne se rend plus là où la barre porte déjà la messagerie). Une règle, deux lecteurs — comme
+ * `estPleinEcran`.
+ */
+export function porteLaBarreDOnglets(pathname: string | null | undefined): boolean {
+  if (pathname == null || estPleinEcran(pathname)) return false;
+  return pathname === '/app' || pathname.startsWith('/app/');
+}
+
+/**
+ * TCK-2481 (revue, M5) — la plage où la barre d'onglets existe : le complément exact de `md:hidden`
+ * (`@media (width >= 48rem)`, Tailwind 4). Une seule chaîne, lue par la barre (`useMatchesMedia`, qui
+ * n'arme ses compteurs que dessous) et par la règle du dock de `globals.css` (gardée égale par
+ * `CoqueHauteur.test.tsx`).
+ *
+ * ⚠ En `rem`, jamais en px : dans une media query, `rem` vaut la taille de police PAR DÉFAUT du
+ * navigateur, un réglage d'accessibilité. À 20 px, `md` vaut 960 px ; un seuil JS à 767 px laissait
+ * la barre affichée entre 768 et 959 px sans qu'elle sonde rien.
+ */
+export const REQUETE_DE_LA_BARRE = '(width < 48rem)';

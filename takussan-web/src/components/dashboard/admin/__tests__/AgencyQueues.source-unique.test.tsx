@@ -61,6 +61,17 @@ vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ user: null, token: 'jeton-de-test', isLoading: false }),
 }));
 
+// TCK-2478 — la barre monte l'en-tête d'espace, donc le sélecteur de profil (routeur, toasts) :
+// sans objet ici, on le réduit à sa carte statique.
+vi.mock('@/hooks/useProfiles', () => ({
+  useMyProfiles: () => ({ data: undefined, isLoading: false }),
+  useSwitchActiveProfile: () => ({ mutate: vi.fn(), isPending: false }),
+}));
+
+// TCK-2479 — « Démarrer » (barre de l'admin) lit sa propre route : sans objet ici, et la réponse
+// générique de `mockApiRequest` n'est pas la sienne.
+vi.mock('@/lib/queries/demarrage-espace', () => ({ useDemarrageDeLEspace: () => ({}) }));
+
 vi.mock('next/navigation', () => ({
   usePathname: () => '/app/overview/agency',
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
@@ -107,14 +118,17 @@ describe('compteur de modération — une seule source (TCK-375, AC5)', () => {
     render(
       withIntl(
         <QueryClientProvider client={client}>
-          <AppSidebar user={ADMIN} agencyIsStandard />
+          <AppSidebar modulesMasques={[]} user={ADMIN} agencyIsStandard />
           <AgencyQueues agencyId={7} agencyIsStandard overdueCount={0} />
         </QueryClientProvider>,
       ),
     );
 
-    // Le badge de la barre latérale.
-    expect(await screen.findByLabelText('6 en attente')).toHaveTextContent('6');
+    // Le nombre de la barre latérale. Revue adverse de TCK-2490 (M3) — il ne paraît qu'une fois : dans
+    // « Aujourd'hui » (la modération est une priorité de l'admin d'agence) ; l'entrée « Modération
+    // biens », repliée dans « Agence », le garde dans son nom (« 6 en attente »), sans le montrer.
+    expect(await screen.findByRole('link', { name: /^Biens à valider,?\s?6$/ })).toBeInTheDocument();
+    expect(screen.getByText('6 en attente')).toHaveClass('sr-only');
     // La tuile de l'accueil — le MÊME nombre.
     await waitFor(() =>
       expect(screen.getByTestId('queue-value-moderation')).toHaveTextContent('6 biens à modérer'),

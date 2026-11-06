@@ -22,9 +22,11 @@ class UpdateAnnouncementRequest extends StoreAnnouncementRequest
             'body.wo' => ['required_with:body', 'string', 'max:4000'],
             'severity' => ['sometimes', Rule::in(['info', 'success', 'warning', 'critical'])],
             'segment' => ['nullable', 'array'],
-            'segment.roles' => ['nullable', 'array'],
+            // TCK-2488 — borne technique : 5 cases dans `announcements.tsx`, et `profileTypes()` rend au plus 7 slugs.
+            'segment.roles' => ['nullable', 'array', 'max:100'],
             'segment.roles.*' => ['string', 'max:80'],
-            'segment.agency_ids' => ['nullable', 'array'],
+            // TCK-2488 — borne technique : sélection multiple sans limite dans `announcements.tsx` (une requête SQL par élément).
+            'segment.agency_ids' => ['nullable', 'array', 'max:1000'],
             'segment.agency_ids.*' => ['integer', Rule::exists('agencies', 'id')->withoutTrashed()],
             'segment.rollout_percentage' => ['nullable', 'integer', 'min:0', 'max:100'],
             'starts_at' => ['sometimes', 'date'],

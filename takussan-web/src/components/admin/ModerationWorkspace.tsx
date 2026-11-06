@@ -21,10 +21,10 @@ import {
 import {
   fetchModerationQueue,
   type ModerationReview,
-  type ModerationStatus,
 } from '@/lib/queries/reviews-moderation';
 import { ModerationQueueList } from './ModerationQueueList';
 import { ModerationDetail } from './ModerationDetail';
+import { P_STATUT, statutDeLaFile } from './statut-de-la-file';
 
 import { useEtatUrl } from '@/hooks/useEtatUrl';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
@@ -42,14 +42,7 @@ const SUBJECT_TYPE_KEYS: ReadonlyArray<{ key: string; value: string }> = [
   { key: 'user', value: 'App\\Models\\User' },
 ];
 
-/**
- * Les clés d'URL portent le NOM DU FILTRE D'API, pas un alias.
- *
- * Les écrans de l'équipe et des utilisateurs avaient déjà tranché ainsi (`filter[role]`, `filter[status]`) :
- * une URL qu'on lit dit alors ce que la requête demande, et il n'existe pas de table de
- * correspondance à tenir entre deux vocabulaires.
- */
-const P_STATUT = 'filter[moderation_status]';
+/** TCK-376 — les clés d'URL portent le NOM DU FILTRE D'API (cf. `statut-de-la-file.ts`). */
 const P_SIGNALES = 'filter[reported]';
 const P_SUJET = 'filter[subject_type]';
 
@@ -78,7 +71,7 @@ export function ModerationWorkspace({ platform = false }: ModerationWorkspacePro
   // TCK-376 — l'état vit dans l'URL, plus dans quatre `useState`. Un rechargement le gardait
   // pour zéro écran ; un lien collé n'en transportait rien.
   const url = useEtatUrl();
-  const status = url.lire(P_STATUT) as ModerationStatus | '';
+  const status = statutDeLaFile(url.lire);
   const reported = url.lireBooleen(P_SIGNALES);
   const subjectType = url.lire(P_SUJET);
   const page = url.page;

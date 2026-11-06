@@ -53,7 +53,8 @@ class EditablePlatformSettings
                 'default' => ['XOF', 'EUR', 'USD'],
                 'public' => true,
                 'options' => self::CURRENCIES,
-                'rules' => ['required', 'array', 'min:1'],
+                // TCK-2488 — au plus chaque devise une fois : la borne vient de la liste fermée.
+                'rules' => ['required', 'array', 'min:1', 'max:'.count(self::CURRENCIES)],
                 'item_rules' => ['string', Rule::in(self::CURRENCIES)],
             ],
             'platform.session_max_minutes' => [

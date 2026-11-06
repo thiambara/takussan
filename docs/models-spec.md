@@ -455,7 +455,7 @@ polymorphes** dédiés liés au user et scopés par agence — ou par la platefo
 | email_frequency | string(16) — `EmailFrequency` | | 'instant' | Fréquence des e-mails : `instant`, `daily`, `weekly`, `off` (TCK-103 ; `2026_04_26_200001`). Les interrupteurs fins par événement et par canal vivent dans [NotificationPreference](#99-notificationpreference-) | ➕ |
 | digest_send_at | string(5) | | '08:00' | Heure locale d'envoi du récapitulatif (`HH:MM`) (TCK-103) | ➕ |
 | digest_day_of_week | string(16) | | 'monday' | Jour du récapitulatif hebdomadaire (TCK-103) | ➕ |
-| preferences | jsonb | oui | null | Indications de personnalisation **choisies par l'utilisateur** et exposées par l'API (ville, intention de recherche — fiche de profil minimal différée). Distinct de `metadata`, état interne (TCK-253 ; `2026_05_10_140000`) | ➕ |
+| preferences | jsonb | oui | null | Indications de personnalisation **choisies par l'utilisateur** et exposées par l'API (ville, intention de recherche — fiche de profil minimal différée ; `navigation` : épingles, replis et « Démarrer » masqué du menu de `/app`, **par persona** — `{ v: 1, personas: { <persona>: { epingles ≤ 5, replies ≤ 20, ouverts ≤ 20, demarrer_masque } } }`, seule la FORME est validée par l'API, le catalogue appartient au front, ADR-0089 §6, TCK-2480). Distinct de `metadata`, état interne (TCK-253 ; `2026_05_10_140000`) | ➕ |
 | metadata | jsonb | oui | null | État interne, jamais exposé tel quel — clés lues par le code ci-dessous | |
 | deleted_at | datetime | oui | null | Soft delete | |
 | created_at | datetime | | auto | Date de création | |
@@ -624,6 +624,7 @@ dans son type, défaut compris quand la clé est absente.
 | `late_fee_online_collection` | bool | `false` | `Agency::collectsLateFeesOnline()` (TCK-593) |
 | `booking_pending_expiry_hours` | int, 0-168 | 48 (0 = désactivé) | `BookingExpirationService` (TCK-963) |
 | `tenant_onboarding_enabled` | bool | `true` | `TenantOnboardingService` — `false` comme `0` coupent la checklist (TCK-963, TCK-970) |
+| `hidden_modules` | liste de `AgencyModule` (`commissions`, `inventories`, `move_in_follow_up`, `provider_book`, `calendar`, `credits`, `analytics`), sans doublon, ≤ 7 | `[]` | **Aucun lecteur dans l'API** : affichage seulement. Le front (`modulesMasquesDe`, layout de `/app`) retire ces modules du menu du seul personnel (agent, admin d'agence) ; aucune page ni aucun droit n'en dépend. Refusée (`prohibited`) pour une agence `individual` ; une liste lue hors forme rend `[]` (ADR-0089, amendement « modules par agence », TCK-2483) |
 
 Les clés que l'onboarding déposait (`primary_city`, `primary_property_type`, `onboarding_source`,
 `payment.preferred_provider`) ne sont plus enregistrées depuis TCK-966 ; celles d'une ligne ancienne

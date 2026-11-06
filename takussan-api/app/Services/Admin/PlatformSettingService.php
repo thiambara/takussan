@@ -7,6 +7,7 @@ use App\Http\Resources\Bases\BaseResource;
 use App\Models\Enums\SettingScope;
 use App\Models\Setting;
 use App\Models\User;
+use App\Support\ReglesDElementBornees;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
@@ -135,15 +136,17 @@ class PlatformSettingService
         }
 
         $definition = EditablePlatformSettings::get($key);
-        $validator = Validator::make(
-            ['value' => $value],
-            [
-                'value' => $definition['rules'],
-                'value.*' => $definition['item_rules'] ?? ['nullable'],
-            ],
-        );
+        // TCK-2488 — une liste hors de sa borne ne fait pas juger ses éléments un à un (validateur ad
+        // hoc, hors du trait des FormRequest).
+        $validator = Validator::make(['value' => $value], ReglesDElementBornees::retirer([
+            'value' => $definition['rules'],
+            'value.*' => $definition['item_rules'] ?? ['nullable'],
+        ], ['value' => $value]));
         $validator->after(function ($validator) use ($key, $value): void {
-            if ($key === 'currency.supported' && is_array($value) && ! in_array('XOF', array_map('strtoupper', $value), true)) {
+            // Revue de TCK-2488 — un élément non chaîne (déjà refusé par `string`) ne passe pas par
+            // `strtoupper` : la `TypeError` rendait 500 au lieu du 422.
+            if ($key === 'currency.supported' && is_array($value)
+                && ! in_array('XOF', array_map(static fn (mixed $v): mixed => is_string($v) ? strtoupper($v) : $v, $value), true)) {
                 $validator->errors()->add('value', 'xof_required');
             }
         });

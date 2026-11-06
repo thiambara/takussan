@@ -240,6 +240,19 @@ describe('<MessagesPage> sous le point de rupture lg (TCK-501, TCK-505)', () => 
     expect(screen.queryByTestId('conv-list')).not.toBeInTheDocument();
   });
 
+  // TCK-2481 — sous `md`, la barre d'onglets prend le bas du `<main>` : le cadre s'en retire, sans
+  // quoi le composeur passe sous le pli. Dès `md`, pas de barre : la hauteur ne bouge pas.
+  it.each([
+    ['liste', () => null],
+    ['conversation', (cle: string) => (cle === 'conversation' ? '42' : null)],
+  ] as [string, (cle: string) => string | null][])('cadre (%s) : moins la barre sous md, inchangé dès md', (_cas, lecture) => {
+    searchParamsGet.mockImplementation(lecture);
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
+    const classes = screen.getByTestId('messagerie').className.split(/\s+/);
+    expect(classes.find((c) => c.startsWith('h-[calc('))).toContain('var(--barre-onglets-hauteur)');
+    expect(classes.find((c) => c.startsWith('md:h-[calc('))).not.toContain('barre-onglets');
+  });
+
   // AC3 — un lien `?conversation=` n'est pas un cul-de-sac.
   it('ramène à la liste depuis une conversation ouverte par ?conversation=', () => {
     searchParamsGet.mockImplementation((key) => (key === 'conversation' ? '42' : null));

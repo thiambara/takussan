@@ -5,8 +5,9 @@ import {
   isCustomerOnly,
   isTenant,
 } from '@/lib/roles';
-import { buildNavItems } from '@/components/layout/AppSidebar';
-import { USER_ROLES, type User, type UserRole } from '@/types/user';
+import { composerMenu, entreesDuMenu } from '@/lib/navigation/composer-menu';
+import { resoudrePersona } from '@/lib/navigation/personas';
+import { USER_ROLES, type UserRole } from '@/types/user';
 
 /**
  * TCK-492 — ce que la dérivation de `customer` et `tenant` change côté front.
@@ -24,29 +25,24 @@ import { USER_ROLES, type User, type UserRole } from '@/types/user';
  * de `AppSidebar.test.tsx` sondent des rôles isolés (`['agent']`), jamais les
  * jeux que l'API émet réellement (`['agent', 'customer']`).
  */
-function compte(roles: UserRole[]): User {
-  return {
-    id: 1,
-    first_name: 'A',
-    last_name: 'T',
-    full_name: 'A T',
-    email: 'a@t.sn',
-    phone: null,
-    bio: null,
-    avatar_url: null,
-    email_verified_at: null,
-    phone_verified_at: null,
-    two_factor_enabled: false,
-    agency_id: null,
-    roles,
-    status: 'active',
-    created_at: '2026-08-31T00:00:00Z',
-  };
-}
-
+/**
+ * TCK-2478 (ADR-0089) — le menu lu ici est celui que la barre rend : la disposition du persona que
+ * les rôles résolvent (aucun profil actif connu → le type dominant), composée par `composerMenu`.
+ * Toutes les entrées comptent, l'action principale comprise, « Plus » et la carte aussi : la
+ * question posée par ces tests est « le compte l'a-t-il au menu ? », pas « où ? ».
+ *
+ * Le docblock ci-dessus parle de `buildNavItems` et de sa chaîne `if … else if` : c'est le
+ * mécanisme que ces tests ont gardé jusqu'à TCK-2477, supprimé par TCK-2478. Le piège qu'il décrit
+ * survit sous une autre forme — `isCustomerOnly` décide de « client » dans le catalogue — et ces
+ * mêmes assertions le gardent.
+ */
 // P152.03 — le rôle système de l'agent porte `properties.create`.
-const hrefs = (roles: UserRole[]) => buildNavItems(compte(roles), ['properties.create']).map((i) => i.href);
-const libelles = (roles: UserRole[]) => buildNavItems(compte(roles), ['properties.create']).map((i) => i.labelKey);
+function menuDe(roles: UserRole[]) {
+  const m = composerMenu({ roles, capacites: ['properties.create'] }, resoudrePersona({ roles }));
+  return [...(m.action ? [m.action] : []), ...entreesDuMenu(m), ...(m.carte ? [m.carte] : [])];
+}
+const hrefs = (roles: UserRole[]) => menuDe(roles).map((e) => e.href);
+const libelles = (roles: UserRole[]) => menuDe(roles).map((e) => e.labelKey);
 
 describe('isCustomer est devenu un plancher, isCustomerOnly le discriminant', () => {
   it('isCustomer répond oui à un agent — et c’est correct, pas un défaut', () => {
@@ -77,6 +73,7 @@ describe('le menu latéral sous les jeux de rôles que l’API émet vraiment', 
     // AC4 — c'est le compte qui sort d'une inscription Google : aucun profil,
     // donc `roles: ['customer']` et rien d'autre. Avant TCK-492 il recevait
     // `[]` et n'avait qu'un tableau de bord vide.
+    // TCK-2478 — les baux sont sous « Plus » (arbitrage 1 du porteur) : au menu quand même.
     const menu = hrefs(['customer']);
     expect(menu).toContain('/app/bookings');
     expect(menu).toContain('/app/visits');

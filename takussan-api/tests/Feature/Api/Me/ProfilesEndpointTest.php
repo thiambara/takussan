@@ -11,6 +11,7 @@ use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class ProfilesEndpointTest extends TestCase
@@ -104,6 +105,44 @@ class ProfilesEndpointTest extends TestCase
         $this->getJson('/api/me/profiles')
             ->assertOk()
             ->assertJsonPath('meta.active_profile_id', "agent:{$profile->id}");
+    }
+
+    /**
+     * TCK-2479 — l'ORDRE de l'auto-bascule (une agence, aucun signal) : le premier profil actif de
+     * `HasProfiles::profiles()`, bailleur puis agent puis admin. Le menu de `/app` retient le même
+     * type sans profil actif lisible (`takussan-web/src/lib/navigation/personas.ts`,
+     * `TYPE_DOMINANT`) : si cet ordre change, le front doit changer avec lui.
+     *
+     * @return array<string, array{0: list<string>, 1: string}>
+     */
+    public static function combinaisons(): array
+    {
+        return [
+            'admin + bailleur' => [['agency_admin', 'owner'], 'owner'],
+            'admin + agent' => [['agency_admin', 'agent'], 'agent'],
+            'agent + bailleur' => [['agent', 'owner'], 'owner'],
+            'admin + agent + bailleur' => [['agency_admin', 'agent', 'owner'], 'owner'],
+        ];
+    }
+
+    /** @param list<string> $types */
+    #[DataProvider('combinaisons')]
+    public function test_l_auto_bascule_retient_le_premier_type_dans_l_ordre_de_profiles(array $types, string $attendu): void
+    {
+        $user = User::factory()->create();
+        $agency = Agency::factory()->create();
+        $ids = [];
+        // Créés dans l'ordre INVERSE de l'attendu : l'ordre ne vient pas des identifiants.
+        foreach (array_reverse($types) as $type) {
+            $classe = ['agency_admin' => AgencyAdminProfile::class, 'agent' => AgentProfile::class, 'owner' => OwnerProfile::class][$type];
+            $ids[$type] = $classe::factory()->create(['user_id' => $user->id, 'agency_id' => $agency->id])->id;
+        }
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/me/profiles')
+            ->assertOk()
+            ->assertJsonPath('meta.active_profile_id', "{$attendu}:{$ids[$attendu]}");
     }
 
     public function test_index_filters_out_inactive_profiles(): void

@@ -149,19 +149,144 @@
       "onboardingPending": "Pending onboardings",
       "proLocked": "Pro accounts only",
       "navLabel": "Dashboard navigation",
-      "sections": {
-        "discover": "Discover",
-        "requests": "Requests",
-        "engagements": "Commitments",
-        "manage": "Management",
-        "admin": "Administration"
-      },
       "counters": {
         "unreadMessages": "{count, plural, one {# unread message} other {# unread messages}}",
-        "pendingVisits": "{count, plural, one {# pending visit request} other {# pending visit requests}}"
+        "pendingVisits": "{count, plural, one {# pending visit request} other {# pending visit requests}}",
+        "unhandledLeads": "{count, plural, one {# unhandled request} other {# unhandled requests}}"
+      },
+      "onglets": {
+        "navLabel": "Quick access",
+        "menu": "Menu",
+        "accueil": "Home",
+        "favoris": "Favourites",
+        "visites": "Viewings",
+        "demandes": "Requests",
+        "reservations": "Bookings",
+        "nomAvecCompteur": "{libelle}, {compteur}",
+        "plafond": "99+"
       },
       "receivedReviews": "Reviews received",
-      "commissions": "Commissions"
+      "commissions": "Commissions",
+      "myTasks": "My tasks",
+      "searchProperty": "Find a property",
+      "myLease": "My lease",
+      "allProperties": "Properties",
+      "actions": {
+        "payRent": "Pay my rent"
+      },
+      "groupes": {
+        "mesRecherches": "My searches",
+        "mesDemarches": "My requests",
+        "monLogement": "My home",
+        "monPatrimoine": "My portfolio",
+        "activite": "Activity",
+        "prospection": "Prospecting",
+        "catalogue": "Listings",
+        "gestion": "Management",
+        "portefeuille": "Portfolio",
+        "finances": "Finances",
+        "agence": "Agency",
+        "pilotage": "Insights",
+        "mesBiens": "My properties",
+        "mesLocations": "My rentals",
+        "monEspace": "My space",
+        "plus": "More",
+        "aussi": "{profil, select, agency_admin {Also administrator} owner {Also landlord} agent {Also agent} service_provider {Also service provider} other {Also}}",
+        "aussiPlusieurs": "Your other profiles",
+        "epingles": "Pinned"
+      },
+      "personas": {
+        "client": "Client",
+        "locataire": "Tenant",
+        "bailleur": "Landlord",
+        "agent": "Agent",
+        "admin-agence": "Administrator",
+        "hote": "Host",
+        "prestataire": "Service provider",
+        "plateforme": "Platform"
+      },
+      "enTete": {
+        "changer": "Switch space"
+      },
+      "carteLocation": {
+        "titre": "List a property",
+        "texte": "Publish your first property in minutes."
+      },
+      "console": "Platform console",
+      "recents": "Recent",
+      "statut": {
+        "miseEnLocation": "In a few minutes",
+        "passerEnAgence": "Team and pro tools",
+        "demandeEnCours": "Answer by email",
+        "console": "Takussan administration"
+      },
+      "compte": {
+        "changerDEspace": "Switch space",
+        "credits": "Credits",
+        "preferences": "Notification settings",
+        "langue": "Language"
+      },
+      "aujourdhui": {
+        "titre": "Today",
+        "infobulle": "{libelle} · {nombre}",
+        "lignes": {
+          "unreadMessages": "Unread messages",
+          "pendingVisits": "Visits to confirm",
+          "unhandledLeads": "Contact requests",
+          "reviewModeration": "Reviews to moderate",
+          "propertyModeration": "Listings to review"
+        }
+      },
+      "aTraiter": {
+        "titre": "To do",
+        "pastilles": {
+          "unreadMessages": "{count, plural, one {# message} other {# messages}}",
+          "pendingVisits": "{count, plural, one {# visit} other {# visits}}",
+          "unhandledLeads": "{count, plural, one {# request} other {# requests}}",
+          "reviewModeration": "{count, plural, one {# review} other {# reviews}}",
+          "propertyModeration": "{count, plural, one {# listing} other {# listings}}"
+        },
+        "noms": {
+          "unreadMessages": "{count, plural, one {# message unread} other {# messages unread}}",
+          "pendingVisits": "{count, plural, one {# visit pending} other {# visits pending}}",
+          "unhandledLeads": "{count, plural, one {# request unhandled} other {# requests unhandled}}",
+          "reviewModeration": "{count, plural, one {# review to moderate} other {# reviews to moderate}}",
+          "propertyModeration": "{count, plural, one {# listing to review} other {# listings to review}}"
+        },
+        "plusCourt": "+{count}",
+        "autres": "{count, plural, other {+# more to do}}",
+        "compact": "{count, plural, one {To do: # item} other {To do: # items}}",
+        "totalCourt": "{count, plural, =100 {99+} other {#}}"
+      },
+      "demarrer": {
+        "titre": "Get started",
+        "progression": "{faites} of {total}",
+        "masquer": "Hide “Get started”",
+        "aFaire": "To do",
+        "etapes": {
+          "espace": {
+            "premier_bien": "Publish a first property",
+            "kyc": "Get the agency verified",
+            "equipe": "Invite a first member"
+          },
+          "bailleur": {
+            "premier_bien": "Propose a first property",
+            "kyc": "Send your ID documents",
+            "equipe": "Invite a first member"
+          }
+        }
+      },
+      "preferences": {
+        "echec": "Your menu could not be saved: it is back to its previous state."
+      },
+      "epingle": {
+        "epingler": "Pin {libelle}",
+        "plein": "Five pins at most: unpin one first."
+      },
+      "icones": {
+        "reduire": "Collapse sidebar",
+        "deplier": "Expand sidebar"
+      }
     },
     "admin": {
       "team": "Team",
@@ -177,7 +302,8 @@
       "roles": "Roles",
       "integrations": "Integrations",
       "mySpace": "My space",
-      "openMySpace": "Open my space"
+      "openMySpace": "Open my space",
+      "payouts": "Payouts"
     },
     "superAdmin": {
       "eyebrow": "Takussan console",
@@ -259,7 +385,75 @@
       "title": "Find a property",
       "back": "Back"
     },
-    "creditsBalance": "Credits: {count, plural, one {# credit} other {# credits}}"
+    "creditsBalance": "Credits: {count, plural, one {# credit} other {# credits}}",
+    "palette": {
+      "titre": "Go to a page or switch space",
+      "description": "Type a few letters. Arrows to browse, Enter to open, Esc to close.",
+      "champ": "Search a page, an action or a space",
+      "placeholder": "A page, an action, a space…",
+      "ouvrir": "Go to…",
+      "raccourciMac": "⌘ K",
+      "raccourciAutre": "Ctrl K",
+      "groupes": {
+        "actions": "Actions",
+        "aTraiter": "To do",
+        "recents": "Recent",
+        "allerA": "Go to",
+        "espaces": "Spaces",
+        "annonces": "Listings"
+      },
+      "annonces": {
+        "generique": "Search properties on Takussan",
+        "avecTexte": "Search “{q}” in listings"
+      },
+      "passerA": "Switch to: {espace}",
+      "aucun": "No page for “{q}”",
+      "resultats": "{count, plural, =0 {No results} one {# result} other {# results}}",
+      "synonymesEspace": "space, switch, change",
+      "synonymes": {
+        "tableau-de-bord": "home, overview, summary",
+        "mes-biens": "properties, listings, homes, houses, apartments",
+        "publier-bien": "add a property, new listing, create a listing, publish",
+        "proposer-bien": "add a property, new listing, submit a property",
+        "publier-annonce": "add a property, new listing, become a host",
+        "messagerie": "messages, inbox, chat, conversations",
+        "reservations": "booking, reservation, stay, short stay",
+        "visites": "visit, viewing, appointment",
+        "credits": "balance, wallet, top up, boost",
+        "taches": "tasks, to do, reminders",
+        "chercher-bien": "search, find, buy, browse",
+        "favoris": "favourites, favorites, saved",
+        "recherches": "alerts, saved searches",
+        "maintenance": "repair, fix, work order, plumbing, electrical",
+        "carnet-prestataires": "providers, contractors, plumber, electrician",
+        "demandes": "leads, enquiries, prospects, contacts",
+        "baux": "lease, contract, tenancy agreement",
+        "paiements": "rent, pay, receipt, invoice, payment",
+        "avis": "ratings, comments, feedback",
+        "commissions": "fees, earnings",
+        "documents": "files, papers, attachments",
+        "etats-des-lieux": "inventory, check-in, check-out, condition report",
+        "entrees-en-attente": "move-in, onboarding",
+        "statistiques": "stats, figures, reports, analytics",
+        "exports": "export, csv, excel, download",
+        "vue-agence": "agency, performance",
+        "kpis": "indicators, metrics, kpi",
+        "alertes": "anomalies, warnings",
+        "proprietaires": "landlords, owners",
+        "clients": "customers, crm, contacts, buyers",
+        "calendrier": "schedule, agenda, availability",
+        "agence-equipe": "team, members, staff, invite",
+        "agence-roles": "roles, permissions, access",
+        "agence-fiche": "agency profile, logo, contact details",
+        "agence-kyc": "kyc, verification, identity, documents",
+        "agence-facturation": "subscription, billing, plan, payouts",
+        "agence-finances": "finances, accounting, revenue",
+        "agence-moderation-avis": "moderation, reviews",
+        "agence-moderation-biens": "moderation, listings to approve",
+        "agence-journal": "audit, log, history",
+        "agence-integrations": "api, webhooks, connectors"
+      }
+    }
   },
   "footer": {
     "tagline": "Your trusted partner to find the perfect property in Senegal.",
@@ -6520,6 +6714,40 @@
         "teamTwoFactorLabel": "Require two-factor authentication for the whole team",
         "teamTwoFactorHint": "Every member will have to set up a second factor (authenticator app) before acting in the agency’s workspace. The team’s “Two-factor” column shows who already has."
       },
+      "modules": {
+        "title": "Team menu",
+        "description": "Untick what your agency doesn’t use: the entry leaves your agents’ menu, and yours. No permission changes — a page stays reachable by a direct link — and your landlords and tenants keep their menu.",
+        "items": {
+          "commissions": {
+            "label": "Commissions",
+            "hint": "The team’s commission ledger."
+          },
+          "inventories": {
+            "label": "Condition reports",
+            "hint": "Move-in and move-out condition reports."
+          },
+          "move_in_follow_up": {
+            "label": "Pending onboardings",
+            "hint": "Tenants whose move-in condition report has been pending for more than 7 days."
+          },
+          "provider_book": {
+            "label": "Provider directory",
+            "hint": "The agency’s maintenance providers."
+          },
+          "calendar": {
+            "label": "Calendar",
+            "hint": "The calendar of visits, bookings and interventions."
+          },
+          "credits": {
+            "label": "Credits",
+            "hint": "The promotion credits wallet."
+          },
+          "analytics": {
+            "label": "Advanced analytics",
+            "hint": "KPIs, alerts and exports — statistics stay."
+          }
+        }
+      },
       "submit": {
         "saving": "Saving…"
       },
@@ -11200,9 +11428,6 @@
       "service_provider": "Service provider"
     },
     "switcher": {
-      "adminLabel": "Takussan admin",
-      "changeAria": "Switch profile",
-      "choose": "Choose a profile",
       "switched": "Switched to {name}",
       "switchFailed": "Could not switch profile",
       "fallbackLabel": "profile"
@@ -11375,6 +11600,20 @@
       "label": "Time zone",
       "saved": "Time zone saved.",
       "error": "The time zone could not be saved."
+    },
+    "menu": {
+      "titre": "Menu",
+      "texte": "Your pins and collapsed groups in the “{persona}” menu follow you on every device.",
+      "personnalise": "Your menu is customised.",
+      "dejaParDefaut": "Your menu follows the default layout.",
+      "reinitialiser": "Restore the default menu",
+      "appareil": {
+        "label": "Sidebar on this device",
+        "auto": "Automatic: icons only on medium screens",
+        "icones": "Always icons only",
+        "complet": "Always full",
+        "aide": "This setting only applies to this browser."
+      }
     }
   },
   "contact": {

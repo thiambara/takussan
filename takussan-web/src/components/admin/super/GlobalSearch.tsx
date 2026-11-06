@@ -153,29 +153,35 @@ function GlobalSearchDialog({ onClose }: { onClose: () => void }) {
                 </p>
                 {items.map((hit) => {
                   const index = ordre.indexOf(hit);
+                  const estActive = index === actif;
+                  // TCK-2484 — le surlignage du `Combobox` du dépôt (`ui/combobox.tsx`), comme la palette
+                  // (TCK-2482, revue I2) : le focus reste au champ, ce fond est le SEUL repère de ce
+                  // qu'Entrée ouvre. `bg-muted` sur `--popover` faisait 1,18:1 ; l'encre `muted` des
+                  // précisions suit le fond (1,04:1 sur l'accent). Garde : `GlobalSearch.test.tsx`.
+                  const encreSecondaire = estActive ? 'text-accent-foreground' : 'text-muted-foreground';
                   return (
                     <div
                       key={`${hit.type}-${hit.id}`}
                       id={optionId(index)}
                       role="option"
-                      aria-selected={index === actif}
+                      aria-selected={estActive}
                       aria-disabled={hit.url ? undefined : true}
                       onMouseEnter={() => setActif(index)}
                       onClick={() => ouvrir(hit)}
                       className={cn(
                         'flex cursor-pointer items-baseline justify-between gap-3 rounded-md px-2 py-1.5 text-sm',
-                        index === actif ? 'bg-muted text-foreground' : 'text-foreground/90',
+                        estActive ? 'bg-accent text-accent-foreground' : 'text-foreground/90',
                         !hit.url && 'cursor-default opacity-70',
                       )}
                     >
                       <span className="min-w-0">
                         <span className="block truncate font-medium">{hit.label}</span>
                         {hit.sublabel ? (
-                          <span className="block truncate text-xs text-muted-foreground">{hit.sublabel}</span>
+                          <span className={cn('block truncate text-xs', encreSecondaire)}>{hit.sublabel}</span>
                         ) : null}
                       </span>
                       {hit.agency ? (
-                        <span className="shrink-0 truncate text-xs text-muted-foreground">{hit.agency.name}</span>
+                        <span className={cn('shrink-0 truncate text-xs', encreSecondaire)}>{hit.agency.name}</span>
                       ) : null}
                     </div>
                   );

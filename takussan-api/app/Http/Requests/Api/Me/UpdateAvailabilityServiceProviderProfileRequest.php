@@ -39,7 +39,8 @@ class UpdateAvailabilityServiceProviderProfileRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'available_slots' => ['required', 'array'],
+            // TCK-2488 — borne technique : la grille d'`AvailabilityGrid.tsx` envoie au plus 7 jours × 3 périodes = 21 créneaux.
+            'available_slots' => ['required', 'array', 'max:500'],
             'available_slots.*.day' => [
                 'required',
                 'string',

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Domain\Settings\AgencySettings;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\AgencyUpdateRequest;
 use App\Http\Requests\Api\ConfirmPayoutThresholdRequest;
@@ -80,8 +81,9 @@ class AgencyController extends Controller
             $locked = Agency::query()->whereKey($agency->getKey())->lockForUpdate()->firstOrFail();
 
             if (array_key_exists('settings', $data)) {
+                // Revue de TCK-2487 — une clé `bool` du catalogue s'écrit en vrai booléen JSON.
                 $data['settings'] = array_filter(
-                    array_replace($locked->settings ?? [], $data['settings']),
+                    array_replace($locked->settings ?? [], AgencySettings::normalize($data['settings'])),
                     fn ($value) => $value !== null,
                 );
             }

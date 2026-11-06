@@ -21,7 +21,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { withIntl } from '@/test/intl';
 import type { User } from '@/types/user';
-import { AppTopbar } from '../AppTopbar';
+import { MenuDuCompte } from '../MenuDuCompte';
+import { NotificationBell } from '../NotificationBell';
 
 const getNotificationsMock = vi.fn();
 
@@ -42,16 +43,17 @@ vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ user: null, token: null, isLoading: false, logout: vi.fn() }),
 }));
 
-vi.mock('@/components/profile/ProfileSwitcher', () => ({
-  ProfileSwitcher: () => null,
+// TCK-2491 — la cloche et le menu du compte sont voisins dans la colonne : c'est ce couple qui doit
+// rester « une fenêtre à la fois ». Le menu du compte lit les profils, le solde et la langue.
+vi.mock('@/components/profile/EspacesDuMenu', () => ({
+  EspacesDuMenu: () => null,
 }));
-
-vi.mock('@/components/shared/LanguageSwitcher', () => ({
-  LanguageSwitcher: () => null,
+vi.mock('@/hooks/useProfiles', () => ({
+  useMyProfiles: () => ({ data: undefined, isLoading: false }),
 }));
-
-vi.mock('@/components/search/SearchAutocomplete', () => ({
-  SearchAutocomplete: () => null,
+vi.mock('@/lib/queries/credits-solde', () => ({ useSoldeCredits: () => null }));
+vi.mock('@/hooks/useChangementDeLangue', () => ({
+  useChangementDeLangue: () => ({ locale: 'fr', enCours: false, choisir: vi.fn() }),
 }));
 
 const UTILISATEUR: User = {
@@ -71,12 +73,13 @@ const UTILISATEUR: User = {
   created_at: '2026-05-08T10:00:00.000000Z',
 };
 
-function rendre() {
+function rendre(align: 'start' | 'end' = 'start') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     withIntl(
       <QueryClientProvider client={client}>
-        <AppTopbar user={UTILISATEUR} />
+        <NotificationBell align={align} />
+        <MenuDuCompte user={UTILISATEUR} libelleRole="Bailleur" />
         <main>Aucune conversation.</main>
       </QueryClientProvider>,
     ),
@@ -198,21 +201,24 @@ describe('Panneau des notifications — une fenêtre à la fois (TCK-569, M14)',
     await waitFor(() => expect(cloche()).toHaveFocus());
   });
 
+  // TCK-2491 — à 320 px, la cloche est celle de l'en-tête mobile, à droite (`align="end"`).
   it('à 320 px, le panneau tient dans l’écran à 8 px de chaque bord', async () => {
-    geometrie(320, 213, 384);
+    geometrie(320, 272, 384);
     const utilisateur = userEvent.setup();
-    rendre();
+    rendre('end');
 
     await utilisateur.click(cloche());
     await waitFor(() => expect(bordGauche(panneau())).toBe(8));
   });
 
-  it('en bureau, le panneau reste aligné sur le bord droit de la cloche (864 à 1366 px)', async () => {
-    geometrie(1366, 1212, 384);
+  // TCK-2491 — en bureau, la cloche est dans l'en-tête de la colonne, à gauche de l'écran : le panneau
+  // s'aligne sur son bord GAUCHE et s'ouvre vers le contenu (196 à 580 px à 1366).
+  it('en bureau, le panneau s’aligne sur le bord gauche de la cloche de la colonne (196 à 580 px)', async () => {
+    geometrie(1366, 196, 384);
     const utilisateur = userEvent.setup();
-    rendre();
+    rendre('start');
 
     await utilisateur.click(cloche());
-    await waitFor(() => expect(bordGauche(panneau())).toBe(864));
+    await waitFor(() => expect(bordGauche(panneau())).toBe(196));
   });
 });

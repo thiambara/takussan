@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { AUTH_COOKIE_NAME } from './constants';
 import { IMPERSONATION_COOKIE } from './impersonation';
 import { ACTIVE_PROFILE_COOKIE } from './profiles';
+import { COOKIE_MENU_ICONES, modeIconesDepuisCookie, type ModeIcones } from './navigation/mode-icones';
 
 /**
  * Le jeton avec lequel le serveur du front parle à l'API pour l'ESPACE APPLICATIF.
@@ -29,6 +30,15 @@ export async function getActiveProfileId(): Promise<string | undefined> {
   const cookieStore = await cookies();
   if (cookieStore.get(IMPERSONATION_COOKIE)?.value) return undefined;
   return cookieStore.get(ACTIVE_PROFILE_COOKIE)?.value;
+}
+
+/**
+ * TCK-2480 — le mode icônes de la barre de `/app` sur CET appareil (cookie `menu_icones`, non
+ * `httpOnly`, écrit par le navigateur). Lu par le layout pour rendre la bonne largeur au premier octet.
+ */
+export async function getModeIconesDuMenu(): Promise<ModeIcones> {
+  const cookieStore = await cookies();
+  return modeIconesDepuisCookie(cookieStore.get(COOKIE_MENU_ICONES)?.value);
 }
 
 /** Le profil actif de l'opérateur, pour la console. */

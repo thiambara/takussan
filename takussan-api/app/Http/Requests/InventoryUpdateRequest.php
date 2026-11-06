@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\BorneLesReglesDElement;
 use App\Models\Enums\InventoryCondition;
 use App\Models\Enums\InventoryElementState;
 use Illuminate\Foundation\Http\FormRequest;
@@ -17,6 +18,10 @@ use Illuminate\Validation\Rule;
  */
 class InventoryUpdateRequest extends FormRequest
 {
+    // TCK-2488 — une liste hors de sa borne ne fait pas valider ses éléments un à un (hérité de
+    // BaseFormRequest pour les autres).
+    use BorneLesReglesDElement;
+
     public function authorize(): bool
     {
         return $this->user() !== null;

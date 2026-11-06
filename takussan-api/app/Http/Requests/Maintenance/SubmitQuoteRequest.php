@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Maintenance;
 
+use App\Http\Requests\Concerns\BorneLesReglesDElement;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -16,6 +17,10 @@ use Illuminate\Foundation\Http\FormRequest;
  */
 class SubmitQuoteRequest extends FormRequest
 {
+    // TCK-2488 — une liste hors de sa borne ne fait pas valider ses éléments un à un (hérité de
+    // BaseFormRequest pour les autres).
+    use BorneLesReglesDElement;
+
     /** Le prestataire assigné, et lui seul — avant la validation (403 avant 422). */
     public function authorize(): bool
     {

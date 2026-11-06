@@ -132,7 +132,9 @@ class AgencySettingAccessorTest extends TestCase
     {
         $regles = array_values(array_filter(
             array_keys((new AgencyUpdateRequest)->rules()),
-            fn (string $cle): bool => str_starts_with($cle, 'settings.'),
+            // TCK-2483 — `settings.<clé>.*` valide les ÉLÉMENTS d'une liste, pas une clé de plus :
+            // `AgencyModulesSettingsTest::test_les_regles_viennent_du_catalogue` la garde.
+            fn (string $cle): bool => str_starts_with($cle, 'settings.') && ! str_ends_with($cle, '.*'),
         ));
 
         $this->assertSame(

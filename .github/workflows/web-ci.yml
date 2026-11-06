@@ -63,6 +63,14 @@ on:
       - 'takussan-api/app/Services/Tags/TagCatalog.php'
       - 'takussan-api/tests/fixtures/cout-d-entree.json'
       - 'takussan-api/tests/fixtures/liens-google-maps.json'
+      # TCK-2480 — `src/lib/navigation/__tests__/preferences.parite.test.ts` ↔ la fixture de la forme de
+      # `preferences.navigation`, jouée aussi par `NavigationPreferencesTest` ; et les règles qui lui
+      # répondent côté API : une PR qui ne touche qu'elles doit réveiller le côté front.
+      - 'takussan-api/tests/fixtures/preferences-navigation.json'
+      - 'takussan-api/app/Http/Requests/Api/Me/UpdateMeRequest.php'
+      # TCK-2483 — `src/lib/navigation/__tests__/modules.parity.test.ts` compare `CODES_DE_MODULE` aux
+      # cas d'`AgencyModule` : un module ajouté côté back seul doit réveiller la garde.
+      - 'takussan-api/app/Models/Enums/AgencyModule.php'
   push:
     # pre-dev : amendement d'ADR-0066 du 2026-10-22 (voir api-ci.yml).
     branches: [dev, master, pre-dev]
@@ -90,6 +98,11 @@ on:
       - 'takussan-api/app/Services/Tags/TagCatalog.php'
       - 'takussan-api/tests/fixtures/cout-d-entree.json'
       - 'takussan-api/tests/fixtures/liens-google-maps.json'
+      # TCK-2480 — la garde décrite au déclencheur `pull_request`.
+      - 'takussan-api/tests/fixtures/preferences-navigation.json'
+      - 'takussan-api/app/Http/Requests/Api/Me/UpdateMeRequest.php'
+      # TCK-2483 — la garde décrite au déclencheur `pull_request`.
+      - 'takussan-api/app/Models/Enums/AgencyModule.php'
 
 # Un run à la fois sur pre-dev, le plus récent en attente (voir api-ci.yml).
 concurrency:

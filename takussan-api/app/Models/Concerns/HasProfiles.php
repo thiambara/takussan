@@ -88,6 +88,13 @@ trait HasProfiles
      *
      * TCK-495 a retiré le courtier de cette liste (ADR-0027), et ADR-0030 l'a
      * retiré du code et de la base : les profils polymorphes sont cinq.
+     *
+     * ⚠ L'ORDRE est un contrat (TCK-2479) : bailleurs, agents, admins, prestataire.
+     * L'auto-bascule de `ResolveActiveProfile` lie le PREMIER profil actif, et le menu
+     * de `/app` retient le même type sans profil actif lisible —
+     * `takussan-web/src/lib/navigation/personas.ts`, `TYPE_DOMINANT`. Changer l'un
+     * sans l'autre donne au compte un menu jugé sous un autre profil que l'API.
+     * Figé par `ProfilesEndpointTest::test_l_auto_bascule_retient_le_premier_type_dans_l_ordre_de_profiles`.
      */
     public function profiles(): Collection
     {

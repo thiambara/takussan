@@ -10,23 +10,33 @@
  * La section remplace l'entrée unique « Administration » de TCK-633 et la barre de l'ancienne
  * console : ce fichier reprend ce que `AdminSidebar.*.test.tsx` y gardait — le titre « Mon espace »,
  * le badge des files de modération, le surlignage, la carte « Passer en agence ».
+ *
+ * TCK-2478 (ADR-0089) — il n'y a plus UNE section d'agence : les pages entrent au catalogue, la
+ * table `PAGES_ADMIN` reste leur seul juge, et la disposition du persona les PLACE. Chez l'admin
+ * d'une agence `standard`, « Finances » et « Abonnement » vont dans le groupe « Finances », les huit
+ * autres dans « Agence », replié ; chez l'hôte (admin `individual`), « Mon espace » porte Agence,
+ * KYC, Reversements, Crédits et Intégrations, et « Finances » est dans « Mes locations ».
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { withIntl } from '@/test/intl';
+import { PROPERTY_MODERATION_COUNT_KEY } from '@/lib/queries/agency-queues';
 import { ToastProvider } from '@/components/ui/toast';
 import { AccesAdminProvider } from '@/lib/access/acces-admin-contexte';
 import { accesDepuis, type ContexteAdmin } from '@/lib/access/pages-admin';
+import type { ProfileType } from '@/types/profile';
 import type { User, UserRole } from '@/types/user';
 import { AppShell } from '../AppShell';
 import { AppSidebar } from '../AppSidebar';
 
 const { chemin, fetchAvis, fetchBiens } = vi.hoisted(() => ({
   chemin: { valeur: '/app' },
-  fetchAvis: vi.fn(async () => ({ data: [], meta: { pending_count: 3 } })),
+  // TCK-2479 (revue, I3) — le compteur lit `total` de la vue « En attente » ; `pending_count` (ici
+  // différent exprès) n'est plus lu.
+  fetchAvis: vi.fn(async () => ({ data: [], meta: { total: 3, pending_count: 9 } })),
   fetchBiens: vi.fn(async () => ({ data: [], meta: { total: 6 } })),
 }));
 
@@ -45,6 +55,8 @@ vi.mock('@/components/chat-widget/useUnreadCount', () => ({ useUnreadCount: () =
 vi.mock('@/lib/queries/visits', () => ({ usePendingVisitsCount: () => ({}) }));
 vi.mock('@/lib/queries/contact-leads', () => ({ useUnhandledLeadsCount: () => ({}) }));
 vi.mock('@/lib/queries/credits-solde', () => ({ useSoldeCredits: () => null }));
+// TCK-2479 — le jeton est posé : sans ce mock, « Démarrer » de l'admin partirait sur le réseau.
+vi.mock('@/lib/queries/demarrage-espace', () => ({ useDemarrageDeLEspace: () => ({}) }));
 vi.mock('@/hooks/useImpersonation', () => ({
   useImpersonationCourante: () => ({ data: null }),
   useQuitterImpersonation: () => ({ mutate: vi.fn(), isPending: false }),
@@ -57,6 +69,12 @@ vi.mock('@/components/customer/MinimalProfileTriggerProvider', () => ({
 }));
 vi.mock('@/components/owner/OwnerWelcomeWizard', () => ({ OwnerWelcomeWizard: () => null }));
 vi.mock('@/components/tenant/TenantWelcomeWizard', () => ({ TenantWelcomeWizard: () => null }));
+// TCK-2478 — l'en-tête d'espace monte le sélecteur de profil (routeur, toasts) : ce fichier lit
+// le menu, le sélecteur a ses propres tests (`EnTeteDEspace.test.tsx`).
+vi.mock('@/hooks/useProfiles', () => ({
+  useMyProfiles: () => ({ data: undefined, isLoading: false }),
+  useSwitchActiveProfile: () => ({ mutate: vi.fn(), isPending: false }),
+}));
 
 interface Profil {
   readonly roles: UserRole[];
@@ -98,15 +116,16 @@ function client() {
   return new QueryClient({ defaultOptions: { queries: { retry: false } } });
 }
 
-function monterLaBarre(p: Profil, hasPendingUpgrade?: boolean) {
+function monterLaBarre(p: Profil, hasPendingUpgrade?: boolean, typeProfilActif?: ProfileType) {
   return render(
     withIntl(
       <QueryClientProvider client={client()}>
         <AccesAdminProvider acces={accesDepuis(p.ctx)}>
-          <AppSidebar
+          <AppSidebar modulesMasques={[]}
             user={utilisateur(p.roles)}
             agencyIsStandard={p.agencyIsStandard}
             hasPendingUpgrade={hasPendingUpgrade}
+            typeProfilActif={typeProfilActif}
           />
         </AccesAdminProvider>
       </QueryClientProvider>,
@@ -124,84 +143,185 @@ beforeEach(() => {
   fetchBiens.mockClear();
 });
 
-describe('AC2 — la section d’agence montre exactement les pages que le profil peut ouvrir', () => {
-  it('admin d’une agence standard : « Administration », les dix pages à menu, dans l’ordre de la table', () => {
+const TOUTES_LES_PAGES = [
+  '/app/agency/team',
+  '/app/agency/roles',
+  '/app/agency',
+  '/app/agency/kyc',
+  '/app/agency/billing',
+  '/app/agency/finances',
+  '/app/agency/moderation',
+  '/app/agency/moderation/properties',
+  '/app/agency/audit',
+  '/app/agency/integrations',
+];
+
+/** Les libellés des liens d'un groupe, repliés compris, sans le badge d'une file. */
+const libelles = (groupe: HTMLElement) =>
+  within(groupe).getAllByRole('link', { hidden: true }).map((a) => a.textContent?.replace(/\d+$/, ''));
+
+describe('AC2 — le menu montre exactement les pages d’agence que le profil peut ouvrir', () => {
+  it('admin d’une agence standard : les dix pages, réparties entre « Finances » et « Agence » (replié)', () => {
     monterLaBarre(ADMIN_STANDARD);
-    const section = screen.getByRole('group', { name: 'Administration' });
-    expect(hrefs(section)).toEqual([
+    const agence = screen.getByRole('group', { name: 'Agence' });
+    expect(within(agence).getByRole('button', { name: 'Agence' })).toHaveAttribute('aria-expanded', 'false');
+    expect(hrefs(agence)).toEqual([
       '/app/agency/team',
       '/app/agency/roles',
       '/app/agency',
       '/app/agency/kyc',
-      '/app/agency/billing',
-      '/app/agency/finances',
       '/app/agency/moderation',
       '/app/agency/moderation/properties',
       '/app/agency/audit',
       '/app/agency/integrations',
     ]);
-    // Le badge d'une file peut s'être posé en bout de ligne : on lit le libellé seul.
-    expect(within(section).getAllByRole('link').map((a) => a.textContent?.replace(/\d+$/, ''))).toEqual([
+    expect(libelles(agence)).toEqual([
       'Équipe',
       'Rôles',
       'Agence',
       'KYC agence',
-      'Abonnement',
-      "Finances de l'agence",
       'Modération avis',
       'Modération biens',
       "Journal d'audit",
       'Intégrations',
     ]);
-    // Aucune page de la section ne vit hors d'elle — ni l'ancienne entrée unique.
-    expect(liensVersLaSection()).toEqual(hrefs(section));
+    const finances = screen.getByRole('group', { name: 'Finances' });
+    expect(hrefs(finances)).toEqual(['/app/agency/finances', '/app/commissions', '/app/credits', '/app/agency/billing']);
+    expect(libelles(finances)).toEqual(["Finances de l'agence", 'Commissions', 'Crédits', 'Abonnement']);
+    // Les dix pages à menu de la table, chacune une fois — et nulle part ailleurs que dans ces deux groupes.
+    expect([...liensVersLaSection()].sort()).toEqual([...TOUTES_LES_PAGES].sort());
+    expect([...liensVersLaSection(agence), ...liensVersLaSection(finances)].sort()).toEqual([...TOUTES_LES_PAGES].sort());
+    expect(screen.queryByRole('group', { name: 'Administration' })).toBeNull();
   });
 
-  it('admin d’une agence individual : « Mon espace », et seulement ses cinq pages', () => {
+  it('admin d’une agence individual (hôte) : « Mon espace », et seulement ses cinq pages', () => {
     monterLaBarre(ADMIN_INDIVIDUEL);
+    expect(screen.queryByRole('group', { name: 'Agence' })).toBeNull();
     expect(screen.queryByRole('group', { name: 'Administration' })).toBeNull();
-    const section = screen.getByRole('group', { name: 'Mon espace' });
-    expect(hrefs(section)).toEqual([
+    const monEspace = screen.getByRole('group', { name: 'Mon espace' });
+    expect(hrefs(monEspace)).toEqual([
       '/app/agency',
       '/app/agency/kyc',
       '/app/agency/billing',
-      '/app/agency/finances',
+      '/app/credits',
       '/app/agency/integrations',
     ]);
-    expect(liensVersLaSection()).toEqual(hrefs(section));
+    expect(libelles(monEspace)).toEqual(['Agence', 'KYC agence', 'Reversements', 'Crédits', 'Intégrations']);
+    // Arbitrage 4 : « Finances » de « Mes locations » = les finances de l'agence.
+    const locations = screen.getByRole('group', { name: 'Mes locations' });
+    expect(liensVersLaSection(locations)).toEqual(['/app/agency/finances']);
+    expect([...liensVersLaSection()].sort()).toEqual(
+      ['/app/agency', '/app/agency/billing', '/app/agency/finances', '/app/agency/integrations', '/app/agency/kyc'],
+    );
   });
 
   it.each([
     ['agent', AGENT],
     ['bailleur', BAILLEUR],
     ['locataire', LOCATAIRE],
-  ] as const)('%s : aucune page, donc aucune section', (_nom, p) => {
+  ] as const)('%s : aucune page, donc ni « Agence » ni « Mon espace »', (_nom, p) => {
     monterLaBarre(p);
+    expect(screen.queryByRole('group', { name: 'Agence' })).toBeNull();
     expect(screen.queryByRole('group', { name: 'Administration' })).toBeNull();
     expect(screen.queryByRole('group', { name: 'Mon espace' })).toBeNull();
     expect(liensVersLaSection()).toEqual([]);
-    // Le reste du menu est bien rendu : l'absence de section n'est pas une barre vide.
+    // Le reste du menu est bien rendu : l'absence de pages d'agence n'est pas une barre vide.
     expect(screen.getByRole('link', { name: 'Tableau de bord' })).toHaveAttribute('href', '/app');
   });
+});
 
-  it('la section vient APRÈS les entrées de travail (TCK-646) : c’est la dernière du menu', () => {
-    const { container } = monterLaBarre(ADMIN_STANDARD);
-    const liens = hrefs(container.querySelector('nav')!);
-    const premiere = liens.findIndex((h) => h?.startsWith('/app/agency'));
-    expect(liens[0]).toBe('/app');
-    expect(liens.slice(premiere).every((h) => h?.startsWith('/app/agency'))).toBe(true);
+/**
+ * Revue de TCK-2478 (I1) — un admin d'agence qui est AUSSI bailleur ou agent, profil actif non admin :
+ * `AccesAdmin.chemins` se calcule sur l'union de l'espace, et rangeait les dix pages sous « Plus »
+ * (le persona les « ouvrait ») pendant que le reste de l'admin allait sous « Aussi administrateur ».
+ */
+describe('profil actif non admin dans un espace où le compte est admin (revue, I1)', () => {
+  it.each([
+    ['owner', ['agency_admin', 'owner', 'customer']],
+    ['agent', ['agency_admin', 'agent', 'customer']],
+  ] as const)('profil actif %s : les dix pages sous « Aussi administrateur », aucune sous « Plus »', (type, roles) => {
+    monterLaBarre(profil([...roles], 'standard', true), undefined, type);
+    const aussi = screen.getByRole('group', { name: 'Aussi administrateur' });
+    expect([...liensVersLaSection(aussi)].sort()).toEqual([...TOUTES_LES_PAGES].sort());
+    expect(liensVersLaSection(screen.getByRole('group', { name: 'Plus' }))).toEqual([]);
+    expect([...liensVersLaSection()].sort()).toEqual([...TOUTES_LES_PAGES].sort());
+  });
+
+  // TCK-1412 — aucun profil d'admin dans l'espace : seule la délégation de l'agent a ouvert « Équipe ».
+  // Elle reste à son persona ; une règle « admin seulement » la faisait disparaître du menu.
+  it('l’agent délégué (team.invite, aucun admin dans l’espace) garde « Équipe »', () => {
+    const roles: UserRole[] = ['agent', 'customer'];
+    monterLaBarre({ roles, ctx: { roles, agence: { kind: 'standard' }, capacites: ['team.invite'] } }, undefined, 'agent');
+    expect(liensVersLaSection()).toEqual(['/app/agency/team']);
+    expect(screen.queryByRole('group', { name: /^Aussi/ })).toBeNull();
   });
 });
 
 describe('les files de modération gardent leur badge (TCK-098, repris de la barre de l’ancienne console)', () => {
-  it('admin standard : avis et biens en attente, sur leurs entrées', async () => {
+  // Revue adverse de TCK-2490 (M3) — les deux files sont des priorités de l'admin d'agence : leurs comptes
+  // sont des lignes d'« Aujourd'hui », et leurs entrées ne les affichent plus. Ils restent dans leur nom.
+  it('admin standard : avis et biens en attente — dans « Aujourd’hui », et lus sur leurs entrées', async () => {
     monterLaBarre(ADMIN_STANDARD);
-    expect(await screen.findByLabelText('3 en attente')).toHaveTextContent('3');
-    expect(await screen.findByLabelText('6 en attente')).toHaveTextContent('6');
-    const section = screen.getByRole('group', { name: 'Administration' });
-    expect(within(section).getByRole('link', { name: /Modération avis/ })).toContainElement(
-      screen.getByLabelText('3 en attente'),
+    const aujourdhui = await screen.findByRole('region', { name: 'Aujourd’hui' });
+    await waitFor(() =>
+      expect(within(aujourdhui).getAllByRole('link').map((l) => l.textContent?.replace(/\s+/g, ' ').trim())).toEqual([
+        'Biens à valider, 6',
+        'Avis à modérer, 3',
+      ]),
     );
+    // Les deux files sont dans « Agence », replié : au menu quand même, compte compris (lu).
+    const section = screen.getByRole('group', { name: 'Agence' });
+    const avis = within(section).getByRole('link', { name: /Modération avis/, hidden: true });
+    expect(avis).toHaveAccessibleName(/^Modération avis\s?3 en attente$/);
+    expect(avis.querySelector('[data-slot="compteur-entree"]')).toBeNull();
+    expect(within(section).getByRole('link', { name: /Modération biens/, hidden: true })).toHaveAccessibleName(
+      /^Modération biens\s?6 en attente$/,
+    );
+  });
+
+  /**
+   * TCK-2479 (AC3, arbitrage 7) — sur une relecture en ÉCHEC, react-query GARDE l'ancien `data`
+   * (`isError: true`) : un compteur qui ne lisait que `data` continuait d'afficher un compte qu'on ne
+   * sait plus vrai. Éprouvé ici sur le vrai react-query, pas sur un mock de sa forme.
+   */
+  it('TCK-2479 — une relecture ratée retire badge et pastille, alors que le cache garde l’ancien compte', async () => {
+    const qc = client();
+    render(
+      withIntl(
+        <QueryClientProvider client={qc}>
+          <AccesAdminProvider acces={accesDepuis(ADMIN_STANDARD.ctx)}>
+            <AppSidebar modulesMasques={[]} user={utilisateur(ADMIN_STANDARD.roles)} agencyIsStandard />
+          </AccesAdminProvider>
+        </QueryClientProvider>,
+      ),
+    );
+    // TCK-2490 — « Aujourd'hui » remplace la bande « À traiter » : mêmes règles, lignes libellées.
+    const pastilles = () =>
+      within(screen.getByRole('region', { name: 'Aujourd’hui' }))
+        .getAllByRole('link')
+        .map((l) => l.textContent?.replace(/\s+/g, ' ').trim());
+    await waitFor(() => expect(pastilles()).toEqual(['Biens à valider, 6', 'Avis à modérer, 3']));
+
+    fetchAvis.mockRejectedValueOnce(new Error('panne'));
+    fetchBiens.mockRejectedValueOnce(new Error('panne'));
+    await act(() => qc.refetchQueries());
+
+    // La prémisse : les deux requêtes sont en erreur, et leur `data` est TOUJOURS là.
+    for (const cle of [['reviews-moderation', 'pending-count'], PROPERTY_MODERATION_COUNT_KEY]) {
+      const etat = qc.getQueryState(cle);
+      expect(etat?.status, String(cle)).toBe('error');
+      expect(etat?.data, String(cle)).toBeDefined();
+    }
+    // Et pourtant : ni pastille, ni badge. `waitFor` et non une lecture immédiate : TanStack notifie
+    // ses observateurs par un minuteur (`notifyManager`), qu'une CI chargée peut servir après `act` —
+    // rouge intermittent mesuré sur la PR #1650. Le défaut gardé, lui, laisse la bande pour toujours.
+    await waitFor(() => {
+      expect(screen.queryByRole('region', { name: 'Aujourd’hui' })).toBeNull();
+      expect(screen.queryByLabelText('3 en attente')).toBeNull();
+      expect(screen.queryByLabelText('6 en attente')).toBeNull();
+      // M3 — ni compte lu sur les entrées (`sr-only`) : le texte du menu ne le porte plus.
+      expect(screen.getByRole('navigation').textContent).not.toMatch(/\d en attente/);
+    });
   });
 
   it('admin individual : aucune file sondée — ses pages ne lui sont pas ouvertes', async () => {
@@ -239,7 +359,8 @@ describe('la carte « Passer en agence » (TCK-267 ; décision 1 du porteur de T
 
   it('admin individual : une carte, hors du menu', () => {
     monterLaBarre(ADMIN_INDIVIDUEL);
-    expect(screen.getByRole('link', { name: 'Passer en agence' })).toHaveAttribute('href', LIEN);
+    // TCK-2490 (ADR-0090 §6) — une ligne de statut : son nom est son texte visible, titre d'abord.
+    expect(screen.getByRole('link', { name: /^Passer en agence/ })).toHaveAttribute('href', LIEN);
     expect(document.querySelector(`nav a[href="${LIEN}"]`)).toBeNull();
   });
 
@@ -249,11 +370,11 @@ describe('la carte « Passer en agence » (TCK-267 ; décision 1 du porteur de T
   });
 });
 
-describe('le tiroir mobile porte la même section (Direction UX du ticket)', () => {
+describe('le tiroir mobile porte les mêmes pages d’agence (Direction UX du ticket)', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it.each([
-    ['admin standard', ADMIN_STANDARD, 'Administration'],
+    ['admin standard', ADMIN_STANDARD, 'Agence'],
     ['admin individual', ADMIN_INDIVIDUEL, 'Mon espace'],
   ] as const)('%s', async (_nom, p, titre) => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404, json: async () => ({}) }));
@@ -272,7 +393,10 @@ describe('le tiroir mobile porte la même section (Direction UX du ticket)', () 
     );
     const bureau = within(container.querySelector('aside')!).getByRole('group', { name: titre });
 
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Ouvrir le menu' }));
+    // TCK-2481 — « Menu » de la barre d'onglets ouvre le tiroir (le burger est parti).
+    await userEvent
+      .setup()
+      .click(within(screen.getByRole('navigation', { name: 'Accès rapide' })).getByRole('button', { name: 'Menu' }));
     const tiroir = await screen.findByRole('dialog');
     expect(hrefs(within(tiroir).getByRole('group', { name: titre }))).toEqual(hrefs(bureau));
   });
@@ -282,7 +406,9 @@ describe('deux entrées du menu ne portent jamais le même libellé', () => {
   // L'admin d'une agence individuelle est aussi bailleur : « Finances » des Engagements
   // (`/app/payments`, ce qu'il paie et reçoit) et « Finances » de « Mon espace » (`/app/agency/finances`,
   // les comptes de l'agence) se lisaient pareil. Deux pages différentes sous un même nom, c'est un
-  // choix laissé au hasard.
+  // choix laissé au hasard. TCK-2478 (arbitrage 4) — chez l'hôte, la première est « Paiements »
+  // (sous « Plus »), la seconde « Finances de l'agence » (« Mes locations »). Les entrées
+  // repliées et cadenassées comptent : elles sont au menu.
   it.each([
     ['admin standard', ADMIN_STANDARD],
     ['admin individuel, aussi bailleur', ADMIN_INDIVIDUEL],
@@ -291,7 +417,7 @@ describe('deux entrées du menu ne portent jamais le même libellé', () => {
     ['locataire', LOCATAIRE],
   ])('%s', (_nom, p) => {
     const { container } = monterLaBarre(p);
-    const libelles = Array.from(container.querySelectorAll('nav a')).map((a) =>
+    const libelles = Array.from(container.querySelectorAll('nav a, nav [role="link"]')).map((a) =>
       (a.textContent ?? '').replace(/\d+$/, '').trim(),
     );
     const doublons = libelles.filter((l, i) => l !== '' && libelles.indexOf(l) !== i);

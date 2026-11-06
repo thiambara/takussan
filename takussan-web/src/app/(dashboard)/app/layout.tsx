@@ -1,11 +1,13 @@
 import { getMeAction } from '@/app/actions/auth';
 import { AppShell } from '@/components/layout/AppShell';
-import { getToken } from '@/lib/session';
+import { getActiveProfileId, getModeIconesDuMenu, getToken } from '@/lib/session';
+import { typeDuProfilActif } from '@/lib/navigation/personas';
+import { modulesMasquesDe, type CodeDeModule } from '@/lib/navigation/modules';
 import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 import { fetchAgencyUpgradeRequests } from '@/lib/queries/agency-upgrade';
 import { IntlProvider } from '@/i18n/IntlProvider';
 import { messagesPour } from '@/i18n/messages';
-import { isAgent } from '@/lib/roles';
+import { isAgent, isOwner } from '@/lib/roles';
 import { accesAdmin, capacitesAmorcees } from '@/lib/access/pages-admin-server';
 import { AmorceCapacites } from '@/components/providers/AmorceCapacites';
 import { AccesAdminProvider } from '@/lib/access/acces-admin-contexte';
@@ -34,6 +36,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let agencySuspended = false;
   // TCK-1766 (P136.03) — le marqueur d'accueil de l'agence, pris sur la lecture déjà faite.
   let agencyStandardWelcome: { agencyId: number; unlockedAt: string | null } | undefined;
+  // TCK-2483 (ADR-0089, amendement « modules par agence ») — les modules que l'agence du profil actif
+  // retire du menu de son personnel, lus sur l'agence que ce layout lit déjà : aucune requête de plus.
+  // `composerMenu` décide à quel persona ils s'appliquent ; `[]` quand l'agence n'est pas lue.
+  let modulesMasques: CodeDeModule[] = [];
 
   if (user.roles.includes('agency_admin') && typeof user.agency_id === 'number') {
     const token = await getToken();
@@ -57,6 +63,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       hasPendingUpgrade =
         listing?.data.some((request) => request.status === 'pending') ?? false;
       agencySuspended = agency?.status === 'suspended';
+      modulesMasques = modulesMasquesDe(agency?.settings);
       agencyStandardWelcome = agency
         ? {
             agencyId: user.agency_id,
@@ -65,14 +72,21 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           }
         : undefined;
     }
-  } else if (isAgent(user.roles) && typeof user.agency_id === 'number') {
+  } else if ((isAgent(user.roles) || isOwner(user.roles)) && typeof user.agency_id === 'number') {
     // TCK-600 (ADR-0048) — l'agent d'une agence suspendue voit le même bandeau que son admin.
     // `resolveAgencyOrNull` est mis en cache pour le rendu : la page qui relit l'agence ne paie
     // pas un second appel.
+    //
+    // Revue de TCK-2478 (I3) — le BAILLEUR aussi : `EnsureAgencyWritable` refuse toute écriture
+    // (423 `agency.suspended`) sous un profil actif d'une agence suspendue, quel que soit son type.
+    // Sans cette lecture, sa barre gardait « Proposer un bien » et l'envoi échouait. `agency_id`
+    // est l'agence du profil ACTIF (`User::getAgencyIdAttribute`) : un compte sans agence ne paie
+    // aucune requête.
     const token = await getToken();
     if (token) {
       const agency = await resolveAgencyOrNull(token, user.agency_id, 'app/layout (suspension)');
       agencySuspended = agency?.status === 'suspended';
+      modulesMasques = modulesMasquesDe(agency?.settings);
     }
   }
 
@@ -83,6 +97,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const acces = await accesAdmin(user);
   // TCK-1278 (P136.02) — la même lecture des capacités (promesse `cache()`ée), passée au navigateur.
   const capacites = await capacitesAmorcees(user);
+  // TCK-2477 (ADR-0089 §2) — le persona du menu se juge sur le profil ACTIF. Pendant une
+  // impersonation, `getActiveProfileId` ne rend rien (TCK-600) : le persona se déduit des rôles.
+  const typeProfilActif = typeDuProfilActif(await getActiveProfileId());
+  // TCK-2480 (AC5) — la barre réduite aux icônes, réglage de l'appareil : lue ici pour que la largeur
+  // soit dans le HTML serveur.
+  const modeIcones = await getModeIconesDuMenu();
 
   return (
     <IntlProvider messages={await messagesPour('(dashboard)/app')}>
@@ -94,6 +114,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             hasPendingUpgrade={hasPendingUpgrade}
             agencySuspended={agencySuspended}
             agencyStandardWelcome={agencyStandardWelcome}
+            typeProfilActif={typeProfilActif}
+            modeIcones={modeIcones}
+            modulesMasques={modulesMasques}
           >
             {children}
           </AppShell>

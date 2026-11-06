@@ -19,7 +19,11 @@ const { getMe, accesAdmin, capacitesAmorcees, sonde, sondeDuCache } = vi.hoisted
 }));
 
 vi.mock('@/app/actions/auth', () => ({ getMeAction: () => getMe() }));
-vi.mock('@/lib/session', () => ({ getToken: async () => 'jeton' }));
+vi.mock('@/lib/session', () => ({
+  getToken: async () => 'jeton',
+  getActiveProfileId: async () => undefined,
+  getModeIconesDuMenu: async () => 'auto' as const,
+}));
 vi.mock('@/lib/access/server-guards', () => ({
   resolveAgencyOrNull: async () => ({ id: 7, kind: 'individual', status: 'active' }),
 }));
