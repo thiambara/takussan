@@ -154,6 +154,7 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
           initialThreshold: initialThreshold(agency),
           slugEditable,
           initialSlug: agency.slug,
+          initialHiddenModules: modulesMasquesDe(agency.settings),
         });
         const result = await avecGardeDoubleFacteurAction(
           () => updateAgencyAction(agency.id, payload),

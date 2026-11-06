@@ -102,8 +102,8 @@ describe('AgencyConfigForm — pénalités de retard en ligne (TCK-593 Partie 5)
     // TCK-962 — ni `timezone`, ni les miroirs `currency` et `default_commission_rate` : l'API les
     // jette, la commission et la devise partent sur leurs colonnes.
     expect(payload.settings).toEqual({
-      // TCK-2483 — clé gérée par la section « Menu de l'équipe », toujours émise pour une agence standard.
-      hidden_modules: [],
+      // TCK-2483 (revue, M5) — `hidden_modules` n'y est pas : la section « Menu de l'équipe » est intacte,
+      // et une clé absente est conservée par la fusion de l'API.
       late_fee_online_collection: false,
       // TCK-589 — clé gérée par le même écran, toujours émise (décocher doit lever l'exigence).
       require_team_two_factor: false,

@@ -140,6 +140,12 @@ export interface AgencyFormContext {
    */
   slugEditable?: boolean;
   initialSlug?: string;
+  /**
+   * TCK-2483 (revue, M5) — les modules masqués lus au chargement (absents = aucun). La liste ne part
+   * que si la section a changé : l'API conserve une clé absente, et renvoyer la liste du chargement
+   * écraserait celle qu'un autre admin aurait enregistrée depuis.
+   */
+  initialHiddenModules?: readonly string[];
 }
 
 function emptyToNull(v: string | undefined): string | null {
@@ -170,10 +176,13 @@ export function normaliseAgencyForm(
   // en place faute d'avoir été envoyé.
   settings.require_team_two_factor = values.require_team_two_factor;
   settings.late_fee_online_collection = values.late_fee_online_collection;
-  // TCK-2483 — toujours émis pour une agence `standard`, `[]` compris (tout réafficher doit
-  // s'enregistrer), dans l'ordre des codes. Jamais pour une `individual` : l'API la refuse (422).
+  // TCK-2483 — pour une agence `standard`, et seulement si la section a changé (revue, M5) : alors la
+  // liste entière, dans l'ordre des codes, `[]` compris (tout réafficher doit s'enregistrer). Jamais
+  // pour une `individual` : l'API la refuse (422).
   if (!context.individual) {
-    settings.hidden_modules = CODES_DE_MODULE.filter((code) => values.hidden_modules.includes(code));
+    const masques = CODES_DE_MODULE.filter((code) => values.hidden_modules.includes(code));
+    const initiaux = CODES_DE_MODULE.filter((code) => (context.initialHiddenModules ?? []).includes(code));
+    if (masques.join() !== initiaux.join()) settings.hidden_modules = masques;
   }
 
   const slug = (values.slug ?? '').trim();

@@ -23,6 +23,8 @@ import { AgencyConfigForm } from '../AgencyConfigForm';
  *
  * Cochée = affichée : une agence sans la clé a tout coché ; décocher puis enregistrer envoie
  * `settings.hidden_modules` dans l'ordre des codes, `[]` compris (tout réafficher doit s'enregistrer).
+ * Section intacte : la clé ne part pas (revue, M5) — l'API conserve une clé absente, et la liste lue
+ * au chargement écraserait celle qu'un autre admin aurait enregistrée depuis.
  * Une agence `individual` n'a pas la section et n'envoie pas la clé (l'API la refuse, 422).
  */
 
@@ -80,14 +82,22 @@ describe('AgencyConfigForm — menu de l’équipe (TCK-2483)', () => {
     expect(caseDe('analytics')).toHaveAccessibleDescription(M.items.analytics.hint);
   });
 
-  it('un code inconnu lu sur l’agence ne décoche rien et ne repart pas', async () => {
+  it('section intacte : enregistrer la fiche n’envoie pas la liste lue au chargement', async () => {
+    const user = userEvent.setup();
+    render(withIntl(<AgencyConfigForm agency={{ ...AGENCE, settings: { hidden_modules: ['analytics'] } }} />));
+    await user.type(screen.getByRole('textbox', { name: fr.admin.agencyConfig.fields.name }), ' Plateau');
+    expect((await enregistrer(user)).settings).not.toHaveProperty('hidden_modules');
+  });
+
+  it('un code inconnu lu sur l’agence ne décoche rien, et ne repart pas quand une case change', async () => {
     const user = userEvent.setup();
     render(withIntl(<AgencyConfigForm agency={{ ...AGENCE, settings: { hidden_modules: ['obsolete', 'credits'] } }} />));
     for (const code of CODES_DE_MODULE) {
       if (code === 'credits') expect(caseDe(code)).not.toBeChecked();
       else expect(caseDe(code), code).toBeChecked();
     }
-    expect((await enregistrer(user)).settings).toMatchObject({ hidden_modules: ['credits'] });
+    await user.click(caseDe('calendar')!);
+    expect((await enregistrer(user)).settings).toMatchObject({ hidden_modules: ['calendar', 'credits'] });
   });
 
   it('décocher « Calendrier » puis enregistrer envoie la liste dans l’ordre des codes', async () => {
