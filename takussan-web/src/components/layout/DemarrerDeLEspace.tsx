@@ -16,6 +16,14 @@ interface DemarrerDeLEspaceProps {
   /** Revue de TCK-2479 (M6) — l'écran d'une étape s'ouvre-t-il au compte ? (`cheminOuvert`) */
   readonly ouverte: (href: string) => boolean;
   readonly onNavigate?: () => void;
+  /**
+   * TCK-2480 (A9) — la croix enregistre le masquage sur le compte, pour le persona (`demarrer_masque`) :
+   * `composerMenu` rend alors `demarrer: null`, et ce composant n'est plus monté. Absent (aucun
+   * fournisseur) : l'état local de TCK-2479.
+   */
+  readonly onMasquer?: () => void;
+  /** TCK-2480 — la marge haute quand « Épinglés » le précède (A6). */
+  readonly className?: string;
 }
 
 /**
@@ -28,10 +36,12 @@ interface DemarrerDeLEspaceProps {
  * profil sans étape) : il accompagne, il ne bloque pas — comme la carte « Mise en service » du
  * tableau de bord (TCK-589), dont il reprend trois étapes.
  *
- * ⚠ Le masquage vit dans cet état local : il ne survit ni au rechargement ni à l'autre montage de la
- * barre (le tiroir). TCK-2480 l'enregistre sur le compte (`demarrer_masque`).
+ * TCK-2480 — avec `onMasquer` (la coque monte le fournisseur des préférences), le masquage s'enregistre
+ * sur le compte, pour le persona (`demarrer_masque`) : il survit au rechargement et vaut pour les deux
+ * montages de la barre. Sans lui, il vit dans un état local, qui ne survit ni au rechargement ni à
+ * l'autre montage (le tiroir).
  */
-export function DemarrerDeLEspace({ mode, ouverte, onNavigate }: DemarrerDeLEspaceProps) {
+export function DemarrerDeLEspace({ mode, ouverte, onNavigate, onMasquer, className }: DemarrerDeLEspaceProps) {
   const t = useTranslations('nav.sidebar.demarrer');
   const idTitre = useId();
   const { activeProfileId } = useAuth();
@@ -59,7 +69,7 @@ export function DemarrerDeLEspace({ mode, ouverte, onNavigate }: DemarrerDeLEspa
       role="group"
       aria-labelledby={idTitre}
       data-slot="demarrer"
-      className="mb-4 rounded-lg border border-border bg-muted/40 p-2"
+      className={cn('mb-4 rounded-lg border border-border bg-muted/40 p-2', className)}
     >
       <div className="flex items-center gap-2 pl-1">
         <p id={idTitre} className={cn('min-w-0 flex-1 truncate', STYLE_TITRE)}>
@@ -68,7 +78,7 @@ export function DemarrerDeLEspace({ mode, ouverte, onNavigate }: DemarrerDeLEspa
         <span className="text-xs tabular-nums text-muted-foreground">{t('progression', { faites, total })}</span>
         <button
           type="button"
-          onClick={() => setMasque(true)}
+          onClick={() => (onMasquer ? onMasquer() : setMasque(true))}
           aria-label={t('masquer')}
           className={cn(
             'inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground max-md:size-9',

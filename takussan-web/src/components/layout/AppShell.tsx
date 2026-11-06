@@ -22,6 +22,10 @@ import { OwnerWelcomeWizard } from '@/components/owner/OwnerWelcomeWizard';
 import { TenantWelcomeWizard } from '@/components/tenant/TenantWelcomeWizard';
 import { isAgencyAdmin, isAgent, isCustomerOnly, isOwner } from '@/lib/roles';
 import { estPleinEcran } from './plein-ecran';
+import { PreferencesDuMenuProvider } from './PreferencesDuMenu';
+import type { ModeIcones } from '@/lib/navigation/mode-icones';
+import { personaDeLaCoque } from '@/lib/navigation/personas';
+import { useAccesAdminOuRepli } from '@/lib/access/acces-admin-contexte';
 
 interface AppShellProps {
   user: User;
@@ -42,6 +46,11 @@ interface AppShellProps {
   agencyStandardWelcome?: MarqueurAccueilAgence;
   /** TCK-2477 — le type du profil actif, pour le persona du menu (ADR-0089). */
   typeProfilActif?: ProfileType | null;
+  /**
+   * TCK-2480 — le mode icônes de l'appareil, lu par le layout sur le cookie `menu_icones`. Absent
+   * (tests) : `complet`, la barre de toujours.
+   */
+  modeIcones?: ModeIcones;
 }
 
 export function AppShell({
@@ -52,6 +61,7 @@ export function AppShell({
   agencySuspended = false,
   agencyStandardWelcome,
   typeProfilActif,
+  modeIcones = 'complet',
 }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const t = useTranslations('nav.sidebar');
@@ -86,6 +96,15 @@ export function AppShell({
   // `agency.metadata.welcome.standard_unlocked_at` is present, so admins
   // of always-standard agencies never see it.
   const agencyStandardWelcomeActive = isAgencyAdmin(user.roles);
+  // TCK-2480 — le persona AFFICHÉ, par la même formule que la barre (`personaDeLaCoque`) : la section
+  // « Menu » du profil réinitialise celui-là, jamais un voisin.
+  const accesAdmin = useAccesAdminOuRepli({ roles: user.roles, agencyId: user.agency_id, agencyIsStandard });
+  const persona = personaDeLaCoque({
+    roles: user.roles,
+    typeProfilActif,
+    espaceIndividuel: accesAdmin.espaceIndividuel,
+    agencyIsStandard,
+  });
 
   /**
    * TCK-503 — `h-dvh`, jamais `h-screen`. Relevé au navigateur le 2026-08-31, à 390 px : le
@@ -104,66 +123,75 @@ export function AppShell({
    */
   return (
     <MinimalProfileTriggerProvider roles={user.roles}>
-      <div className="flex h-dvh flex-col bg-background">
-        {/* TCK-905 (P31.04) — avant la bannière, la barre haute et la barre latérale. */}
-        <LienEvitement />
-        {/* TCK-600 (ADR-0055) — la session d'impersonation, lue sur le serveur du front : rien
-            ne s'affiche hors session. Au-dessus de la barre : elle ne défile pas avec la page. */}
-        <ImpersonationBanner />
-        {agencySuspended ? <AgencySuspendedBanner /> : null}
-        {pleinEcran ? null : (
-          <AppTopbar user={user} menuOpen={sidebarOpen} onMenuToggle={() => setSidebarOpen((v) => !v)} />
-        )}
-        <div className="flex min-h-0 flex-1 overflow-hidden">
+      {/* TCK-2480 — les préférences du menu (épingles, replis, mode icônes), tenues pour les DEUX
+          montages de la barre (fixe et tiroir) et la section « Menu » du profil. */}
+      <PreferencesDuMenuProvider
+        navigationInitiale={user.preferences?.navigation}
+        persona={persona}
+        modeIconesInitial={modeIcones}
+      >
+        <div className="flex h-dvh flex-col bg-background">
+          {/* TCK-905 (P31.04) — avant la bannière, la barre haute et la barre latérale. */}
+          <LienEvitement />
+          {/* TCK-600 (ADR-0055) — la session d'impersonation, lue sur le serveur du front : rien
+              ne s'affiche hors session. Au-dessus de la barre : elle ne défile pas avec la page. */}
+          <ImpersonationBanner />
+          {agencySuspended ? <AgencySuspendedBanner /> : null}
           {pleinEcran ? null : (
-            <>
-              <div className="hidden md:block md:h-full">
-                <AppSidebar
-                  user={user}
-                  agencyIsStandard={agencyIsStandard}
-                  hasPendingUpgrade={hasPendingUpgrade}
-                  typeProfilActif={typeProfilActif}
-                  agencySuspended={agencySuspended}
-                />
-              </div>
-              <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-                <SheetContent side="left" className="p-0" aria-label={t('navLabel')}>
+            <AppTopbar user={user} menuOpen={sidebarOpen} onMenuToggle={() => setSidebarOpen((v) => !v)} />
+          )}
+          <div className="flex min-h-0 flex-1 overflow-hidden">
+            {pleinEcran ? null : (
+              <>
+                <div className="hidden md:block md:h-full">
                   <AppSidebar
                     user={user}
-                    onNavigate={() => setSidebarOpen(false)}
                     agencyIsStandard={agencyIsStandard}
                     hasPendingUpgrade={hasPendingUpgrade}
                     typeProfilActif={typeProfilActif}
                     agencySuspended={agencySuspended}
                   />
-                </SheetContent>
-              </Sheet>
-            </>
-          )}
-          <main
-            id={CONTENU_PRINCIPAL_ID}
-            // `-1` : hors du parcours de tabulation, mais cible focalisable du lien d'évitement.
-            tabIndex={-1}
-            className="relative min-h-0 flex-1 overflow-y-auto bg-background focus:outline-none"
-          >
-            {/* TCK-572 — les bandeaux du site DANS la zone qui défile. Rendus par le layout racine,
-                ils précédaient cette coque `h-dvh` : le document débordait de leur hauteur (183 px
-                à 320, mesuré) et la maintenance, collante, recouvrait la barre haute une fois
-                défilé. Ici ils défilent avec la page et la coque tient l'écran. */}
-            <BandeauxDuSite emplacement="page" />
-            <div className="px-4 py-6 md:px-6 md:py-8">{children}</div>
-          </main>
+                </div>
+                <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+                  <SheetContent side="left" className="p-0" aria-label={t('navLabel')}>
+                    <AppSidebar
+                      user={user}
+                      onNavigate={() => setSidebarOpen(false)}
+                      agencyIsStandard={agencyIsStandard}
+                      hasPendingUpgrade={hasPendingUpgrade}
+                      typeProfilActif={typeProfilActif}
+                      agencySuspended={agencySuspended}
+                      tiroir
+                    />
+                  </SheetContent>
+                </Sheet>
+              </>
+            )}
+            <main
+              id={CONTENU_PRINCIPAL_ID}
+              // `-1` : hors du parcours de tabulation, mais cible focalisable du lien d'évitement.
+              tabIndex={-1}
+              className="relative min-h-0 flex-1 overflow-y-auto bg-background focus:outline-none"
+            >
+              {/* TCK-572 — les bandeaux du site DANS la zone qui défile. Rendus par le layout racine,
+                  ils précédaient cette coque `h-dvh` : le document débordait de leur hauteur (183 px
+                  à 320, mesuré) et la maintenance, collante, recouvrait la barre haute une fois
+                  défilé. Ici ils défilent avec la page et la coque tient l'écran. */}
+              <BandeauxDuSite emplacement="page" />
+              <div className="px-4 py-6 md:px-6 md:py-8">{children}</div>
+            </main>
+          </div>
+          {customerOnboardingActive ? (
+            <CustomerWelcomeWizard onSettled={() => setCustomerWelcomeSettled(true)} />
+          ) : null}
+          {/* TCK-265 — per-lease welcome modale for tenants. TCK-1477 — montée seulement une fois
+              le parcours client réglé : jamais deux fenêtres de bienvenue ouvertes ensemble. */}
+          {customerOnboardingActive && customerWelcomeSettled ? <TenantWelcomeWizard /> : null}
+          {ownerWelcomeActive ? <OwnerWelcomeWizard /> : null}
+          {agentWelcomeActive ? <AgentWelcomeWizard /> : null}
+          {agencyStandardWelcomeActive ? <AgencyStandardWelcomeWizard marqueur={agencyStandardWelcome} /> : null}
         </div>
-        {customerOnboardingActive ? (
-          <CustomerWelcomeWizard onSettled={() => setCustomerWelcomeSettled(true)} />
-        ) : null}
-        {/* TCK-265 — per-lease welcome modale for tenants. TCK-1477 — montée seulement une fois
-            le parcours client réglé : jamais deux fenêtres de bienvenue ouvertes ensemble. */}
-        {customerOnboardingActive && customerWelcomeSettled ? <TenantWelcomeWizard /> : null}
-        {ownerWelcomeActive ? <OwnerWelcomeWizard /> : null}
-        {agentWelcomeActive ? <AgentWelcomeWizard /> : null}
-        {agencyStandardWelcomeActive ? <AgencyStandardWelcomeWizard marqueur={agencyStandardWelcome} /> : null}
-      </div>
+      </PreferencesDuMenuProvider>
     </MinimalProfileTriggerProvider>
   );
 }

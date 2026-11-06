@@ -65,6 +65,11 @@ export type UserPreferences = {
    * connexion », ce qui n'est pas passer.
    */
   entry_intent?: EntryIntent;
+  /**
+   * TCK-2480 (ADR-0089 §6) — épingles et replis du menu de `/app`, par persona. `unknown` à dessein :
+   * il se LIT par `lirePreferencesDeNavigation` (`@/lib/navigation/preferences`), jamais directement.
+   */
+  navigation?: unknown;
 };
 
 /** Les réponses possibles à la question d'orientation (TCK-493). */

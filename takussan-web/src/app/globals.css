@@ -19,6 +19,32 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
+ * TCK-2480 (ADR-0089 §6) — la barre de `/app` réduite aux icônes. `data-menu` est posé par le layout
+ * serveur (cookie `menu_icones`) : `icones` = choix explicite de l'appareil ; `auto` (aucun cookie) =
+ * réduite entre `md` et `lg` seulement. La largeur se décide ICI, en CSS, parce que le serveur ne
+ * connaît pas l'écran : elle est juste au premier octet et rien ne saute à l'hydratation.
+ * ⚠ La plage est, au caractère près, `PLAGE_ICONES_AUTO` (`src/lib/navigation/mode-icones.ts`), que
+ * lisent les infobulles : `mode-icones.test.ts` les confronte.
+ */
+@custom-variant icones {
+  &:where([data-menu="icones"], [data-menu="icones"] *) {
+    @slot;
+  }
+  @media (width >= 48rem) and (width < 64rem) {
+    &:where([data-menu="auto"], [data-menu="auto"] *) {
+      @slot;
+    }
+  }
+}
+
+/*
+ * TCK-2480 (A13) — un écran sans survol (tactile). Une variante NOMMÉE plutôt que l'arbitraire
+ * `[@media(hover:none)]:` : ses parenthèses faisaient rejeter la chaîne de classes entière par le
+ * relevé de `check:classes-emises` (`scripts/classes-ecrites.mjs`), qui ne voyait plus le reste.
+ */
+@custom-variant tactile (@media (hover: none));
+
+/*
  * Design system foundation — Ancrage Local Contemporain (Lin + Contemporain).
  * TCK-129 — fondation site-wide.
  * Les noms de CSS vars (--primary, --background, etc.) sont conservés pour que

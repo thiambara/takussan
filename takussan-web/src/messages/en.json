@@ -181,7 +181,8 @@
         "monEspace": "My space",
         "plus": "More",
         "aussi": "{profil, select, agency_admin {Also administrator} owner {Also landlord} agent {Also agent} service_provider {Also service provider} other {Also}}",
-        "aussiPlusieurs": "Your other profiles"
+        "aussiPlusieurs": "Your other profiles",
+        "epingles": "Pinned"
       },
       "personas": {
         "client": "Client",
@@ -218,7 +219,9 @@
           "propertyModeration": "{count, plural, one {# listing to review} other {# listings to review}}"
         },
         "plusCourt": "+{count}",
-        "autres": "{count, plural, other {+# more to do}}"
+        "autres": "{count, plural, other {+# more to do}}",
+        "compact": "{count, plural, one {To do: # item} other {To do: # items}}",
+        "totalCourt": "{count, plural, =100 {99+} other {#}}"
       },
       "demarrer": {
         "titre": "Get started",
@@ -237,6 +240,17 @@
             "equipe": "Invite a first member"
           }
         }
+      },
+      "preferences": {
+        "echec": "Your menu could not be saved: it is back to its previous state."
+      },
+      "epingle": {
+        "epingler": "Pin {libelle}",
+        "plein": "Five pins at most: unpin one first."
+      },
+      "icones": {
+        "reduire": "Collapse sidebar",
+        "deplier": "Expand sidebar"
       }
     },
     "admin": {
@@ -11452,6 +11466,20 @@
       "label": "Time zone",
       "saved": "Time zone saved.",
       "error": "The time zone could not be saved."
+    },
+    "menu": {
+      "titre": "Menu",
+      "texte": "Your pins and collapsed groups in the “{persona}” menu follow you on every device.",
+      "personnalise": "Your menu is customised.",
+      "dejaParDefaut": "Your menu follows the default layout.",
+      "reinitialiser": "Restore the default menu",
+      "appareil": {
+        "label": "Sidebar on this device",
+        "auto": "Automatic: icons only on medium screens",
+        "icones": "Always icons only",
+        "complet": "Always full",
+        "aide": "This setting only applies to this browser."
+      }
     }
   },
   "contact": {

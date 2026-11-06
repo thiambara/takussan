@@ -1,10 +1,12 @@
 'use client';
 
-import { useId, useState, type ReactNode } from 'react';
+import { useId, useRef, useState, type ReactNode } from 'react';
+import { flushSync } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronRight, Lock, ShieldCheck, UserRound } from 'lucide-react';
+import { ChevronRight, Home, Lock, PanelLeftClose, PanelLeftOpen, Pin, ShieldCheck, UserRound } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import type { User } from '@/types/user';
 import { isAgent, isAdmin, isSuperAdmin } from '@/lib/roles';
 import { useMyCapabilities } from '@/hooks/useCan';
@@ -19,6 +21,7 @@ import {
   propertyModerationCountQueryOptions,
 } from '@/lib/queries/agency-queues';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ProUpgradeCard } from './ProUpgradeCard';
 import { CarteDeMiseEnLocation } from './CarteDeMiseEnLocation';
 import { EnTeteDEspace } from './EnTeteDEspace';
@@ -40,7 +43,10 @@ import {
   type GroupeCompose,
 } from '@/lib/navigation/composer-menu';
 import { DISPOSITIONS } from '@/lib/navigation/dispositions';
-import { resoudrePersona } from '@/lib/navigation/personas';
+import { personaDeLaCoque } from '@/lib/navigation/personas';
+import { EPINGLES_MAX, prefsDe } from '@/lib/navigation/preferences';
+import type { ModeIcones } from '@/lib/navigation/mode-icones';
+import { useIconesEffectives } from '@/lib/navigation/use-icones-effectives';
 import type { ProfileType } from '@/types/profile';
 import { useSoldeCredits } from '@/lib/queries/credits-solde';
 import { useUnreadCount } from '@/components/chat-widget/useUnreadCount';
@@ -49,7 +55,8 @@ import { useUnhandledLeadsCount } from '@/lib/queries/contact-leads';
 import { pastillesATraiter } from '@/lib/navigation/a-traiter';
 import { BandeATraiter } from './BandeATraiter';
 import { DemarrerDeLEspace } from './DemarrerDeLEspace';
-import { FOCUS_RING, STYLE_TITRE } from './styles-de-la-barre';
+import { FOCUS_RING, LIBELLE_DE_LIGNE, STYLE_EPINGLE, STYLE_TITRE } from './styles-de-la-barre';
+import { usePreferencesDuMenu } from './PreferencesDuMenu';
 
 export type { NavCounterKey };
 
@@ -95,17 +102,27 @@ interface AppSidebarProps {
    * d'écriture ; la lecture reste.
    */
   agencySuspended?: boolean;
+  /** TCK-2480 — le montage du tiroir (`Sheet`, sous `md`) : jamais réduit aux icônes. */
+  tiroir?: boolean;
 }
 
 function SidebarCounter({ value, label }: { value: number; label: string }) {
   return (
     <span
       aria-label={label}
-      className="ml-auto inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-semibold text-primary-foreground"
+      className="ml-auto inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-semibold text-primary-foreground icones:absolute icones:right-0.5 icones:top-0.5 icones:ml-0 icones:min-w-4 icones:px-1 icones:text-[10px]"
     >
       {value > 99 ? '99+' : value}
     </span>
   );
+}
+
+/** TCK-2480 — l'épingle d'une ligne : son état, la limite, le geste. */
+interface EpingleDeLigne {
+  readonly epinglee: boolean;
+  /** Cinq épingles déjà : épingler CETTE ligne est refusé, et le bouton le dit. */
+  readonly plein: boolean;
+  readonly onBasculer: () => void;
 }
 
 interface SidebarItemProps {
@@ -118,9 +135,23 @@ interface SidebarItemProps {
   /** TCK-642 — une valeur en bout de ligne (le solde de crédits), déjà mise en forme. */
   readonly valeur?: string;
   readonly nomAccessible?: string;
+  /** TCK-2480 — absente sans fournisseur, pour une ligne cadenassée, l'action ou le complément « Aussi … ». */
+  readonly epingle?: EpingleDeLigne;
+  /** TCK-2480 — la barre est réduite MAINTENANT : le libellé passe en infobulle (survol et focus). */
+  readonly infobulle?: boolean;
 }
 
-function SidebarItem({ entree, href, active, counter, onNavigate, valeur, nomAccessible }: SidebarItemProps) {
+function SidebarItem({
+  entree,
+  href,
+  active,
+  counter,
+  onNavigate,
+  valeur,
+  nomAccessible,
+  epingle,
+  infobulle = false,
+}: SidebarItemProps) {
   const { labelKey, labelSpace, icon: Icon, emphasized, locked, counterKey } = entree;
   const t = useTranslations('nav.sidebar');
   const tAdmin = useTranslations('nav.admin');
@@ -129,54 +160,99 @@ function SidebarItem({ entree, href, active, counter, onNavigate, valeur, nomAcc
     COMPTEURS_DE_MODERATION.has(cle) ? tAdmin('pendingBadge', { count }) : t(`counters.${cle}`, { count });
 
   if (locked) {
+    // Revue de TCK-2480 (M1) — réduite, la ligne cadenassée a la même infobulle qu'une ligne ordinaire
+    // (son libellé), plus la raison du cadenas ; le `title` ne reste que barre dépliée (deux bulles
+    // superposées sinon). La raison est toujours lue (`sr-only`).
     return (
-      <span
-        role="link"
-        aria-disabled="true"
-        tabIndex={0}
-        title={t('proLocked')}
-        className="flex cursor-not-allowed items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground max-md:py-2.5"
-      >
-        <Icon className="size-4 shrink-0" aria-hidden />
-        <span className="truncate">{label}</span>
-        <span className="sr-only">{t('proLocked')}</span>
-        <Lock className="ml-auto size-3.5 shrink-0" aria-hidden />
-      </span>
+      <Tooltip disabled={!infobulle}>
+        <TooltipTrigger
+          render={
+            <span
+              role="link"
+              aria-disabled="true"
+              tabIndex={0}
+              title={infobulle ? undefined : t('proLocked')}
+              className="flex cursor-not-allowed items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground max-md:py-2.5 icones:justify-center icones:px-0"
+            />
+          }
+        >
+          <Icon className="size-4 shrink-0" aria-hidden />
+          <span className={LIBELLE_DE_LIGNE}>{label}</span>
+          <span className="sr-only">{t('proLocked')}</span>
+          <Lock className="ml-auto size-3.5 shrink-0 icones:hidden" aria-hidden />
+        </TooltipTrigger>
+        <TooltipContent side="right">
+          <span className="block font-semibold">{label}</span>
+          <span className="block">{t('proLocked')}</span>
+        </TooltipContent>
+      </Tooltip>
     );
   }
+  // TCK-2480 — réduite, le libellé reste lu (`LIBELLE_DE_LIGNE`) et passe en infobulle à l'œil ;
+  // l'infobulle n'existe que lorsque la barre est réduite MAINTENANT (`useIconesEffectives`).
+  const lien = (
+    <Tooltip disabled={!infobulle}>
+      <TooltipTrigger
+        render={
+          <Link
+            href={href}
+            onClick={onNavigate}
+            aria-current={active ? 'page' : undefined}
+            aria-label={nomAccessible}
+            className={cn(
+              // `max-md:` = le tiroir seul (la barre fixe n'existe qu'à partir de `md`) : 40 px par
+              // entrée au doigt, 36 px inchangés au pointeur. TCK-2480 — `min-w-0 flex-1` : le lien
+              // partage la ligne avec son épingle ; `relative` : le compteur se pose sur l'icône
+              // quand la barre est réduite.
+              'relative flex min-w-0 flex-1 items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors max-md:py-2.5 icones:justify-center icones:px-0',
+              FOCUS_RING,
+              active ? 'bg-border text-foreground font-semibold' : 'text-muted-foreground hover:bg-muted',
+              emphasized && !active && 'text-foreground font-semibold',
+            )}
+          />
+        }
+      >
+        <Icon className="size-4 shrink-0" aria-hidden />
+        <span className={LIBELLE_DE_LIGNE}>{label}</span>
+        {counterKey && counter && counter > 0 ? (
+          <SidebarCounter value={counter} label={libelleCompteur(counterKey, counter)} />
+        ) : null}
+        {/* `md:hidden` : à partir de `md`, la pastille de la barre haute porte déjà le solde — la
+            valeur ne s'affiche que dans le tiroir, le « menu mobile » de `/app`. */}
+        {valeur !== undefined ? (
+          <span
+            data-slot="valeur-entree"
+            className="ml-auto shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-semibold tabular-nums text-foreground md:hidden"
+          >
+            {valeur}
+          </span>
+        ) : null}
+      </TooltipTrigger>
+      <TooltipContent side="right">{label}</TooltipContent>
+    </Tooltip>
+  );
+  if (!epingle) return lien;
+  const refusee = epingle.plein && !epingle.epinglee;
+  // TCK-2480 — l'épingle est une SŒUR du lien (un bouton dans un lien n'est pas valide) : bouton à
+  // bascule, nom constant, état dans `aria-pressed`. Refusée (A7, cinq épingles), elle reste
+  // atteignable et dit pourquoi (`aria-disabled` + `title`), au lieu de disparaître.
   return (
-    <Link
-      href={href}
-      onClick={onNavigate}
-      aria-current={active ? 'page' : undefined}
-      aria-label={nomAccessible}
-      className={cn(
-        // `max-md:` = le tiroir seul (la barre fixe n'existe qu'à partir de `md`) : 40 px par
-        // entrée au doigt, 36 px inchangés au pointeur.
-        'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors max-md:py-2.5',
-        FOCUS_RING,
-        active
-          ? 'bg-border text-foreground font-semibold'
-          : 'text-muted-foreground hover:bg-muted',
-        emphasized && !active && 'text-foreground font-semibold',
-      )}
-    >
-      <Icon className="size-4 shrink-0" aria-hidden />
-      <span className="truncate">{label}</span>
-      {counterKey && counter && counter > 0 ? (
-        <SidebarCounter value={counter} label={libelleCompteur(counterKey, counter)} />
-      ) : null}
-      {/* `md:hidden` : à partir de `md`, la pastille de la barre haute porte déjà le solde — la
-          valeur ne s'affiche que dans le tiroir, le « menu mobile » de `/app`. */}
-      {valeur !== undefined ? (
-        <span
-          data-slot="valeur-entree"
-          className="ml-auto shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-semibold tabular-nums text-foreground md:hidden"
-        >
-          {valeur}
-        </span>
-      ) : null}
-    </Link>
+    <div className="group/ligne flex items-center">
+      {lien}
+      <button
+        type="button"
+        // Revue (I2) — retrouvé par `basculerLEpingle` à la nouvelle place de la ligne.
+        data-epingle={entree.id}
+        aria-pressed={epingle.epinglee}
+        aria-disabled={refusee || undefined}
+        aria-label={t('epingle.epingler', { libelle: label })}
+        title={refusee ? t('epingle.plein') : undefined}
+        onClick={refusee ? undefined : epingle.onBasculer}
+        className={cn(STYLE_EPINGLE, FOCUS_RING)}
+      >
+        <Pin className={cn('size-3.5', epingle.epinglee && 'fill-current')} aria-hidden />
+      </button>
+    </div>
   );
 }
 
@@ -189,7 +265,7 @@ function SidebarUserFooter({ user, onNavigate }: { user: User; onNavigate?: () =
     <Link
       href="/app/profile"
       onClick={onNavigate}
-      className={cn('flex items-center gap-3 rounded-md px-3 py-2 hover:bg-muted', FOCUS_RING)}
+      className={cn('flex items-center gap-3 rounded-md px-3 py-2 hover:bg-muted icones:justify-center icones:px-0', FOCUS_RING)}
     >
       <Avatar className="size-9">
         {user.avatar_url ? <AvatarImage src={user.avatar_url} alt={libelle} /> : null}
@@ -197,7 +273,7 @@ function SidebarUserFooter({ user, onNavigate }: { user: User; onNavigate?: () =
           {initials ?? <UserRound className="size-4" aria-hidden="true" />}
         </AvatarFallback>
       </Avatar>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 icones:sr-only">
         <p className="truncate text-sm font-semibold text-foreground">{libelle}</p>
         <p className="truncate text-xs text-muted-foreground">{t('myProfile')}</p>
       </div>
@@ -240,43 +316,83 @@ export function countersToPoll(
 
 interface GroupeDuMenuProps {
   readonly groupe: GroupeCompose & { readonly entrees: readonly EntreeRendue[] };
-  /** TCK-377 — les titres de SECTION paraissent (`avecTitres`). Sans effet sur une bascule. */
+  /** TCK-377 — les titres de SECTION paraissent (`avecTitres`). */
   readonly titres: boolean;
   readonly premier: boolean;
   readonly idBase: string;
   readonly activeHref: string | null;
   readonly rendreEntree: (entree: EntreeRendue) => ReactNode;
+  /**
+   * TCK-2480 — replier ou ouvrir le groupe, ENREGISTRÉ sur le compte (A8). Absent (aucun
+   * fournisseur) : seuls les groupes repliés par défaut se basculent, pour ce montage seulement.
+   */
+  readonly onBasculer?: (groupe: string, replie: boolean, replieParDefaut: boolean) => void;
+  /** TCK-2480 — la barre est réduite MAINTENANT : le titre du bouton de bascule passe en infobulle. */
+  readonly infobulle: boolean;
 }
 
+/** Les groupes dont le titre paraît toujours : les divulgations, et « Épinglés » (on voit où va l'entrée, A6). */
+const TOUJOURS_TITRES: ReadonlySet<string> = new Set([...GROUPES_DIVULGATION, 'epingles']);
+
 /**
- * TCK-2478 — un groupe de la disposition.
+ * TCK-2478 — un groupe de la disposition ; TCK-2480 — repliable d'un clic sur son titre, et le repli
+ * s'enregistre (A8).
  *
- * - « Plus » et « Aussi … » sont des DIVULGATIONS (`GROUPES_DIVULGATION`) : leur bouton de bascule
- *   se rend toujours, titres de section ou non (décision de la session du 2026-11-05 : le
- *   prestataire garde son « Plus » sans qu'aucun titre de section paraisse — AC5).
- * - Un autre groupe replié par sa disposition (« Agence », « Pilotage », « Mes recherches » du
- *   locataire) est titré : son titre EST le bouton de bascule.
- * - Un groupe déplié par sa disposition ne montre son titre que si `titres` (TCK-377).
+ * - « Plus » et « Aussi … » sont des DIVULGATIONS (`GROUPES_DIVULGATION`) : leur titre paraît toujours,
+ *   titres de section ou non (décision de la session du 2026-11-05 : le prestataire garde son « Plus »
+ *   sans qu'aucun titre de section paraisse — AC5 de TCK-2478). « Épinglés » aussi (A6).
+ * - Un groupe replié (par sa disposition ou par l'utilisateur) est titré.
+ * - Un groupe déplié ne montre son titre que si `titres` (TCK-377).
+ * - Avec le fournisseur, tout titre qui paraît est le bouton de bascule, et le repli vient du compte
+ *   (`groupe.replie`, composé par `composerMenu`). Sans lui, seuls les groupes repliés par défaut se
+ *   basculent, dans un état local (TCK-2478).
  *
- * AC4 — l'entrée active n'est jamais cachée : un groupe qui la contient s'ouvre de lui-même, au
- * montage comme à la navigation (la barre survit aux navigations du layout). L'ajustement se fait
- * pendant le rendu, sur le patron « état dérivé d'une prop » de React, sans effet.
+ * AC4 de TCK-2478 — l'entrée active n'est jamais cachée : un groupe qui la contient s'ouvre à l'arrivée
+ * sur elle, au montage comme à la navigation (la barre survit aux navigations du layout), SANS rien
+ * écrire (A8). Le refermer alors ne fait que le refermer : il est déjà replié pour le compte.
+ * L'ajustement se fait pendant le rendu, sur le patron « état dérivé d'une prop », sans effet.
+ *
+ * TCK-2480 (A11) — barre réduite : un titre devient un séparateur (il reste lu) ; un groupe repliable
+ * garde son chevron, qui reste le bouton.
  */
-function GroupeDuMenu({ groupe, titres, premier, idBase, activeHref, rendreEntree }: GroupeDuMenuProps) {
+function GroupeDuMenu({
+  groupe,
+  titres,
+  premier,
+  idBase,
+  activeHref,
+  rendreEntree,
+  onBasculer,
+  infobulle,
+}: GroupeDuMenuProps) {
   const t = useTranslations('nav.sidebar');
   const contientLActif = activeHref !== null && groupe.entrees.some((e) => e.href === activeHref);
-  const [ouvert, setOuvert] = useState(!groupe.replie || contientLActif);
+  const replieParDefaut = groupe.replieParDefaut ?? groupe.replie;
+  const [replieLocal, setReplieLocal] = useState(groupe.replie);
+  const replie = onBasculer ? groupe.replie : replieLocal;
+  const [ouvertParLActif, setOuvertParLActif] = useState(contientLActif);
   const [actifVu, setActifVu] = useState(contientLActif);
   if (contientLActif !== actifVu) {
     setActifVu(contientLActif);
-    if (contientLActif) setOuvert(true);
+    // Comme TCK-2478 : on ouvre à l'arrivée, on ne referme pas au départ.
+    if (contientLActif) setOuvertParLActif(true);
   }
+  const ouvert = !replie || ouvertParLActif;
 
-  const bascule = groupe.replie && groupe.titre !== null;
-  const avecTitre = groupe.titre !== null && (bascule || titres || GROUPES_DIVULGATION.has(groupe.id));
+  const avecTitre =
+    groupe.titre !== null && (titres || replie || replieParDefaut || TOUJOURS_TITRES.has(groupe.id));
+  const bascule = avecTitre && (onBasculer !== undefined || replieParDefaut);
   const libelle = groupe.titre !== null ? t(`groupes.${groupe.titre}`, groupe.titreValeurs) : null;
   const idTitre = `${idBase}-${groupe.id}-titre`;
   const idListe = `${idBase}-${groupe.id}-liste`;
+
+  const basculer = () => {
+    setOuvertParLActif(false);
+    // Ouvert par la page active seulement : le refermer ne change rien au compte.
+    if (replie && ouvert) return;
+    if (onBasculer) onBasculer(groupe.id, ouvert, replieParDefaut);
+    else setReplieLocal(ouvert);
+  };
 
   return (
     // Un groupe titré se lit comme un GROUPE : le lecteur d'écran annonce son nom en y entrant
@@ -285,36 +401,121 @@ function GroupeDuMenu({ groupe, titres, premier, idBase, activeHref, rendreEntre
       role={avecTitre ? 'group' : undefined}
       aria-labelledby={avecTitre ? idTitre : undefined}
       data-groupe={groupe.id}
-      className={cn('space-y-1', !premier && 'mt-4')}
+      className={cn('space-y-1', !premier && 'mt-4 icones:mt-2')}
     >
-      {avecTitre && bascule ? (
-        <button
-          type="button"
-          id={idTitre}
-          aria-expanded={ouvert}
-          aria-controls={idListe}
-          onClick={() => setOuvert((v) => !v)}
-          className={cn(
-            'flex w-full items-center justify-between gap-2 rounded-md px-3 py-1 text-left hover:text-foreground max-md:py-2',
-            STYLE_TITRE,
-            FOCUS_RING,
-          )}
-        >
-          <span className="truncate">{libelle}</span>
-          <ChevronRight
-            aria-hidden
-            className={cn('size-3.5 shrink-0 transition-transform motion-reduce:transition-none', ouvert && 'rotate-90')}
-          />
-        </button>
+      {bascule ? (
+        <Tooltip disabled={!infobulle}>
+          <TooltipTrigger
+            render={
+              <button
+                type="button"
+                id={idTitre}
+                aria-expanded={ouvert}
+                aria-controls={idListe}
+                onClick={basculer}
+                className={cn(
+                  'flex w-full items-center justify-between gap-2 rounded-md px-3 py-1 text-left hover:text-foreground max-md:py-2 icones:justify-center icones:px-0',
+                  STYLE_TITRE,
+                  FOCUS_RING,
+                )}
+              />
+            }
+          >
+            <span className={LIBELLE_DE_LIGNE}>{libelle}</span>
+            <ChevronRight
+              aria-hidden
+              className={cn('size-3.5 shrink-0 transition-transform motion-reduce:transition-none', ouvert && 'rotate-90')}
+            />
+          </TooltipTrigger>
+          <TooltipContent side="right">{libelle}</TooltipContent>
+        </Tooltip>
       ) : avecTitre ? (
-        <p id={idTitre} className={cn('px-3 pb-1', STYLE_TITRE)}>
-          {libelle}
-        </p>
+        <>
+          <p id={idTitre} className={cn('px-3 pb-1 icones:sr-only', STYLE_TITRE)}>
+            {libelle}
+          </p>
+          <div aria-hidden className="mx-2 my-1 hidden h-px bg-border icones:block" />
+        </>
       ) : null}
       <div id={idListe} hidden={bascule && !ouvert} className="space-y-1">
         {groupe.entrees.map(rendreEntree)}
       </div>
     </div>
+  );
+}
+
+interface LienDePiedProps {
+  readonly href: string;
+  readonly icone: LucideIcon;
+  readonly libelle: string;
+  readonly infobulle: boolean;
+  readonly onNavigate?: () => void;
+  readonly className?: string;
+}
+
+/** TCK-2480 — un lien de pied de barre (console, carte réduite) : icône et libellé ; réduite, une infobulle. */
+function LienDePied({ href, icone: Icone, libelle, infobulle, onNavigate, className }: LienDePiedProps) {
+  return (
+    <Tooltip disabled={!infobulle}>
+      <TooltipTrigger
+        render={
+          <Link
+            href={href}
+            onClick={onNavigate}
+            className={cn(
+              'mb-1 flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted max-md:py-2.5 icones:justify-center icones:px-0',
+              FOCUS_RING,
+              className,
+            )}
+          />
+        }
+      >
+        <Icone className="size-4 shrink-0" aria-hidden />
+        <span className={LIBELLE_DE_LIGNE}>{libelle}</span>
+      </TooltipTrigger>
+      <TooltipContent side="right">{libelle}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+interface BasculeDesIconesProps {
+  readonly mode: ModeIcones;
+  readonly infobulle: boolean;
+  readonly onBasculer: () => void;
+}
+
+/**
+ * TCK-2480 (A10) — le bouton du pied de barre : il choisit le mode explicite OPPOSÉ à l'état effectif.
+ * Son nom suit l'état : en `auto`, les deux libellés sont rendus et le CSS en montre un (le serveur ne
+ * sait pas lequel) ; en mode explicite, un seul.
+ */
+function BasculeDesIcones({ mode, infobulle, onBasculer }: BasculeDesIconesProps) {
+  const t = useTranslations('nav.sidebar.icones');
+  const auto = mode === 'auto';
+  return (
+    <Tooltip disabled={!infobulle}>
+      <TooltipTrigger
+        render={
+          <button
+            type="button"
+            data-slot="bascule-icones"
+            onClick={onBasculer}
+            className={cn(
+              'mb-1 flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted icones:justify-center icones:px-0',
+              FOCUS_RING,
+            )}
+          />
+        }
+      >
+        {mode !== 'icones' ? <PanelLeftClose className={cn('size-4 shrink-0', auto && 'icones:hidden')} aria-hidden /> : null}
+        {mode !== 'complet' ? (
+          <PanelLeftOpen className={cn('size-4 shrink-0', auto && 'hidden icones:block')} aria-hidden />
+        ) : null}
+        {mode !== 'icones' ? <span className={auto ? 'icones:hidden' : undefined}>{t('reduire')}</span> : null}
+        {mode !== 'complet' ? <span className={auto ? 'hidden icones:inline icones:sr-only' : 'sr-only'}>{t('deplier')}</span> : null}
+      </TooltipTrigger>
+      <TooltipContent side="right">{infobulle ? t('deplier') : t('reduire')}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -326,6 +527,7 @@ export function AppSidebar({
   hasPendingUpgrade,
   typeProfilActif,
   agencySuspended = false,
+  tiroir = false,
 }: AppSidebarProps) {
   const pathname = usePathname();
   const t = useTranslations('nav.sidebar');
@@ -350,13 +552,23 @@ export function AppSidebar({
   // TCK-2478 (ADR-0089) — LE menu : la disposition du persona du profil actif, composée par une
   // fonction pure. Ce composant n'affiche que ce qu'elle rend, et ne porte aucune condition de rôle
   // — hormis le cadenas de l'agence `individual` (`isProRouteLocked`), qui est un confort d'écran.
-  const persona = resoudrePersona({
+  // TCK-2480 — `personaDeLaCoque` : la MÊME formule que le fournisseur des préférences (`AppShell`).
+  const persona = personaDeLaCoque({
     roles: user.roles,
-    typeProfilActif: typeProfilActif ?? null,
-    agenceIndividuelle: accesAdmin.espaceIndividuel || agencyIsStandard === false,
+    typeProfilActif,
+    espaceIndividuel: accesAdmin.espaceIndividuel,
+    agencyIsStandard,
   });
   const ctxMenu = { roles: user.roles, capacites, cheminsAdmin: accesAdmin.chemins, agenceSuspendue: agencySuspended };
-  const menu = composerMenu(ctxMenu, persona);
+  // TCK-2480 — les préférences du compte, PAR PERSONA (un geste n'écrit que sous le persona affiché) ;
+  // sans fournisseur, aucune (repli inerte, A12).
+  const prefs = usePreferencesDuMenu();
+  const menu = composerMenu(ctxMenu, persona, undefined, prefsDe(prefs.navigation, persona));
+  // TCK-2480 (A10, A11) — le mode de l'appareil : `data-menu` sur la barre, la largeur en CSS
+  // (variante `icones:`). Les variantes compactes ne sont RENDUES que si la barre peut se réduire.
+  const modeIcones: ModeIcones = tiroir ? 'complet' : prefs.modeIcones;
+  const reductible = modeIcones !== 'complet';
+  const infobulle = useIconesEffectives(modeIcones);
   const verrouiller = (e: EntreeComposee): EntreeRendue => ({
     ...e,
     locked: isProRouteLocked(user, agencyIsStandard, e.href),
@@ -442,6 +654,30 @@ export function AppSidebar({
     typeof user.agency_id === 'number' &&
     agencyIsStandard === false;
 
+  // Revue de TCK-2480 (I2) — épingler déplace la ligne d'un groupe à l'autre : le bouton qui avait le
+  // focus est démonté, et le focus tombait sur `<body>` (WCAG 2.4.3). Le geste est appliqué par
+  // `flushSync`, puis le focus passe aussitôt à l'épingle de la MÊME destination à sa nouvelle place —
+  // dans le même événement, avant la peinture : ni effet, ni état « focus à rendre » qui pourrait
+  // rester en plan. La recherche part de CETTE barre (`barre`) : la barre fixe et le tiroir, deux
+  // montages, ne se volent pas le focus.
+  const barre = useRef<HTMLElement>(null);
+  const basculerLEpingle = (id: EntreeComposee['id']) => {
+    flushSync(() => prefs.basculerEpingle(persona, id, menu.epingles));
+    barre.current?.querySelector<HTMLButtonElement>(`button[data-epingle="${id}"]`)?.focus();
+  };
+  // Même famille (décision de la session) — la croix de « Démarrer » démonte le bloc qui avait le
+  // focus : il passe au premier élément focalisable du menu qui le SUIT (le premier groupe hors
+  // « Épinglés », qui le précède), cherché dans CETTE barre, sans effet. Pas de `flushSync` ici,
+  // contrairement à l'épingle : la cible existe avant comme après le geste (masquer « Démarrer » ne
+  // remonte aucun groupe — mesuré par ablation). Un groupe replié garde son titre-bouton AVANT sa
+  // liste cachée : le premier focalisable trouvé est donc toujours visible.
+  const masquerDemarrer = () => {
+    barre.current
+      ?.querySelector<HTMLElement>('nav [data-groupe]:not([data-groupe="epingles"]) :is(a[href], button, [tabindex="0"])')
+      ?.focus();
+    prefs.masquerDemarrer(persona);
+  };
+
   const rendreEntree = (entree: EntreeRendue) => (
     <SidebarItem
       key={entree.href}
@@ -453,11 +689,48 @@ export function AppSidebar({
       {...(entree.href === HREF_CREDITS && solde !== null
         ? { valeur: format.number(solde), nomAccessible: tNav('creditsBalance', { count: solde }) }
         : {})}
+      infobulle={infobulle}
+      epingle={
+        // TCK-2480 (A7) — ni l'action, ni la carte, ni « Aussi … » (`epinglable` absent), ni une ligne
+        // cadenassée. Le geste repart des épingles RENDUES (`menu.epingles`).
+        prefs.actif && entree.epinglable && !entree.locked
+          ? {
+              epinglee: entree.epinglee === true,
+              plein: menu.epingles.length >= EPINGLES_MAX,
+              onBasculer: () => basculerLEpingle(entree.id),
+            }
+          : undefined
+      }
+    />
+  );
+  // TCK-2480 (A8) — avec le fournisseur, tout groupe titré se replie, et l'écart s'enregistre.
+  const basculerGroupe = prefs.actif
+    ? (id: string, replie: boolean, parDefaut: boolean) => prefs.basculerRepli(persona, id, replie, parDefaut)
+    : undefined;
+  const [epingles, autres] = groupes[0]?.id === 'epingles' ? [groupes[0], groupes.slice(1)] : [null, groupes];
+  const rendreGroupe = (groupe: (typeof groupes)[number], premier: boolean) => (
+    <GroupeDuMenu
+      key={groupe.id}
+      groupe={groupe}
+      titres={titres}
+      premier={premier}
+      idBase={idBase}
+      activeHref={activeHref}
+      rendreEntree={rendreEntree}
+      onBasculer={basculerGroupe}
+      infobulle={infobulle}
     />
   );
 
   return (
-    <aside className={cn('flex h-full w-64 flex-col bg-card', className)}>
+    <aside
+      ref={barre}
+      data-menu={modeIcones}
+      className={cn(
+        'flex h-full w-64 flex-col bg-card transition-[width] duration-200 motion-reduce:transition-none icones:w-16 icones:pt-5',
+        className,
+      )}
+    >
       {/* Revue design 2026-09-16 — à partir de `md`, la barre haute porte déjà la marque, 60 px
           au-dessus : le second logo ne se lisait que comme un doublon. Il reste dans le tiroir,
           où la barre haute est recouverte. `-mx-1 px-1` : l'anneau de focus — posé sur ce lien
@@ -479,75 +752,100 @@ export function AppSidebar({
           le profil ne peut pas l'accomplir — dont l'espace suspendu (TCK-600). */}
       {action && IconeAction ? (
         <div className="px-3 pb-3">
-          <Link
-            href={lien(action)}
-            onClick={onNavigate}
-            data-slot="action-principale"
-            aria-current={actionCourante ? 'page' : undefined}
-            className={cn(
-              'flex items-start gap-3 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 max-md:py-2.5',
-              FOCUS_RING,
-            )}
-          >
-            {/* `mt-0.5` : l'icône (16 px) se centre sur la PREMIÈRE ligne (`leading-snug`, ~19 px), et
-                non sur le bloc entier quand le libellé passe à la ligne. */}
-            <IconeAction className="mt-0.5 size-4 shrink-0" aria-hidden />
-            {/* TCK-2478 — mesuré au navigateur : « Proposer un bien à mon agence » était tronqué
-                (ellipse) à 1366, 768 et 390 px. L'action dit ce qu'elle fait en entier : elle passe
-                à la ligne, jamais d'ellipse. */}
-            <span className="min-w-0 text-left leading-snug text-pretty">{libelleAction}</span>
-          </Link>
+          {/* TCK-2480 (A11) — réduite : un carré plein, le libellé en infobulle (et toujours lu). */}
+          <Tooltip disabled={!infobulle}>
+            <TooltipTrigger
+              render={
+                <Link
+                  href={lien(action)}
+                  onClick={onNavigate}
+                  data-slot="action-principale"
+                  aria-current={actionCourante ? 'page' : undefined}
+                  className={cn(
+                    'flex items-start gap-3 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 max-md:py-2.5 icones:size-10 icones:items-center icones:justify-center icones:px-0 icones:py-0',
+                    FOCUS_RING,
+                  )}
+                />
+              }
+            >
+              {/* `mt-0.5` : l'icône (16 px) se centre sur la PREMIÈRE ligne (`leading-snug`, ~19 px), et
+                  non sur le bloc entier quand le libellé passe à la ligne. */}
+              <IconeAction className="mt-0.5 size-4 shrink-0 icones:mt-0" aria-hidden />
+              {/* TCK-2478 — mesuré au navigateur : « Proposer un bien à mon agence » était tronqué
+                  (ellipse) à 1366, 768 et 390 px. L'action dit ce qu'elle fait en entier : elle passe
+                  à la ligne, jamais d'ellipse. */}
+              <span className="min-w-0 text-left leading-snug text-pretty icones:sr-only">{libelleAction}</span>
+            </TooltipTrigger>
+            <TooltipContent side="right">{libelleAction}</TooltipContent>
+          </Tooltip>
         </div>
       ) : null}
       {/* TCK-2479 (ADR-0089 §5) — ce qui attend une réponse, HORS du `<nav>` : le menu ne bouge
           jamais selon un compteur. Rien n'est rendu quand rien n'attend. Le tiroir monte la même
           barre : la bande y est aussi. */}
-      <BandeATraiter visibles={bande.visibles} autres={bande.autres} onNavigate={onNavigate} />
+      <BandeATraiter visibles={bande.visibles} autres={bande.autres} onNavigate={onNavigate} reductible={reductible} />
       {/* TCK-843 — `relative` : bloc conteneur des `sr-only` (absolus) de la liste. Sans lui,
           c'était la fenêtre ; aucun `overflow` ne les coupait, et posés en bas de la liste ils
           allongeaient le document — la coque entière de `/app` défilait. */}
       <nav aria-label={t('navLabel')} className="relative flex-1 overflow-y-auto px-3 pb-2">
+        {/* TCK-2480 (A6) — « Épinglés » d'abord : juste sous la bande « À traiter », avant « Démarrer »,
+            qui est transitoire. */}
+        {epingles ? rendreGroupe(epingles, true) : null}
         {/* TCK-2479 — « Démarrer » : un espace neuf sait par où commencer. Dans le `<nav>`, il défile
             avec le menu ; il n'en réordonne aucune entrée. `menu.demarrer` est `null` pour un persona
-            sans mise en service et dans un espace suspendu : ni groupe, ni lecture. */}
+            sans mise en service, dans un espace suspendu, et (TCK-2480, A9) masqué par l'utilisateur
+            pour ce persona : ni groupe, ni lecture. */}
         {menu.demarrer ? (
           <DemarrerDeLEspace
             mode={menu.demarrer}
             ouverte={(href) => cheminOuvert(ctxMenu, href)}
             onNavigate={onNavigate}
+            onMasquer={prefs.actif ? masquerDemarrer : undefined}
+            // TCK-2480 — réduite, « Démarrer » (des étapes à lire) se cache : il revient barre dépliée.
+            className={cn(epingles && 'mt-4', 'icones:hidden')}
           />
         ) : null}
-        {groupes.map((groupe, index) => (
-          <GroupeDuMenu
-            key={groupe.id}
-            groupe={groupe}
-            titres={titres}
-            premier={index === 0}
-            idBase={idBase}
-            activeHref={activeHref}
-            rendreEntree={rendreEntree}
-          />
-        ))}
+        {/* `premier` : sans « Épinglés », le premier groupe ouvre le menu (la marge basse de
+            « Démarrer », qui peut ne rien rendre, ne se double pas d'une marge haute). */}
+        {autres.map((groupe, index) => rendreGroupe(groupe, index === 0 && epingles === null))}
       </nav>
       <div className="px-3 pb-4">
-        {menu.carte ? <CarteDeMiseEnLocation href={lien(menu.carte)} onNavigate={onNavigate} /> : null}
+        {/* TCK-2480 (A11) — réduite : la carte devient une icône, la carte « Passer en pro » se cache ;
+            le pied garde la console, la bascule et l'avatar. */}
+        {menu.carte ? (
+          <>
+            <div className={reductible ? 'icones:hidden' : undefined}>
+              <CarteDeMiseEnLocation href={lien(menu.carte)} onNavigate={onNavigate} />
+            </div>
+            {reductible ? (
+              <LienDePied
+                href={lien(menu.carte)}
+                icone={Home}
+                libelle={t('carteLocation.titre')}
+                infobulle={infobulle}
+                onNavigate={onNavigate}
+                className="hidden icones:flex"
+              />
+            ) : null}
+          </>
+        ) : null}
         {showProUpgradeCard ? (
-          <ProUpgradeCard pending={Boolean(hasPendingUpgrade)} onNavigate={onNavigate} />
+          <div className="icones:hidden">
+            <ProUpgradeCard pending={Boolean(hasPendingUpgrade)} onNavigate={onNavigate} />
+          </div>
         ) : null}
         {/* Revue de TCK-2478 — la console suit le RÔLE, pas le persona : un super-admin dont le profil
             actif est d'agence (persona `admin-agence`) la perdait. La console garde sa propre porte. */}
         {isSuperAdmin(user.roles) ? (
-          <Link
-            href={HREF_CONSOLE}
-            onClick={onNavigate}
-            className={cn(
-              'mb-1 flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted max-md:py-2.5',
-              FOCUS_RING,
-            )}
-          >
-            <ShieldCheck className="size-4 shrink-0" aria-hidden />
-            <span className="truncate">{t('console')}</span>
-          </Link>
+          <LienDePied href={HREF_CONSOLE} icone={ShieldCheck} libelle={t('console')} infobulle={infobulle} onNavigate={onNavigate} />
+        ) : null}
+        {/* TCK-2480 (A10) — la bascule de l'appareil : jamais dans le tiroir, jamais sans fournisseur. */}
+        {!tiroir && prefs.actif ? (
+          <BasculeDesIcones
+            mode={modeIcones}
+            infobulle={infobulle}
+            onBasculer={() => prefs.choisirModeIcones(infobulle ? 'complet' : 'icones')}
+          />
         ) : null}
         <SidebarUserFooter user={user} onNavigate={onNavigate} />
       </div>

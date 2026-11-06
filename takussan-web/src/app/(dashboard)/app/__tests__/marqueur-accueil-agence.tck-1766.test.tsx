@@ -13,7 +13,11 @@ const resolveAgencyOrNull = vi.fn();
 const coque = vi.fn();
 
 vi.mock('@/app/actions/auth', () => ({ getMeAction: () => getMeAction() }));
-vi.mock('@/lib/session', () => ({ getToken: async () => 'jeton', getActiveProfileId: async () => undefined }));
+vi.mock('@/lib/session', () => ({
+  getToken: async () => 'jeton',
+  getActiveProfileId: async () => undefined,
+  getModeIconesDuMenu: async () => 'auto' as const,
+}));
 vi.mock('@/lib/access/server-guards', () => ({
   resolveAgencyOrNull: (...args: unknown[]) => resolveAgencyOrNull(...args),
 }));

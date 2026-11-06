@@ -15,7 +15,11 @@ const { getMe, profilActif, sonde } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/app/actions/auth', () => ({ getMeAction: () => getMe() }));
-vi.mock('@/lib/session', () => ({ getToken: async () => 'jeton', getActiveProfileId: () => profilActif() }));
+vi.mock('@/lib/session', () => ({
+  getToken: async () => 'jeton',
+  getActiveProfileId: () => profilActif(),
+  getModeIconesDuMenu: async () => 'auto' as const,
+}));
 vi.mock('@/lib/access/server-guards', () => ({
   resolveAgencyOrNull: async () => ({ id: 7, kind: 'standard', status: 'active' }),
 }));

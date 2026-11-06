@@ -18,11 +18,14 @@ interface EnTeteDEspaceProps {
  * Précieuse dans le tiroir mobile, qui recouvre la barre haute — et son sélecteur, qui ne bouge
  * pas. C'est le MÊME sélecteur (`ProfileSwitcher`, variante `carte`) : une seule source pour la
  * liste des espaces (`espacesAProposer`, TCK-497) et pour la bascule.
+ *
+ * TCK-2480 — cachée quand la barre est réduite : le sélecteur reste dans la barre haute dès 768 px
+ * (`ProfileSwitcher`, TCK-505 #1).
  */
 export function EnTeteDEspace({ user, persona }: EnTeteDEspaceProps) {
   const t = useTranslations('nav.sidebar');
   return (
-    <div className="px-3 pb-3 md:pt-5">
+    <div className="px-3 pb-3 md:pt-5 icones:hidden">
       <ProfileSwitcher
         user={user}
         variante="carte"

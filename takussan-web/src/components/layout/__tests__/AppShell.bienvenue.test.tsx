@@ -10,6 +10,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { withIntl } from '@/test/intl';
+import { ToastProvider } from '@/components/ui/toast';
 import type { User } from '@/types/user';
 import { AppShell } from '../AppShell';
 
@@ -61,9 +62,13 @@ function rendre() {
   render(
     withIntl(
       <QueryClientProvider client={queryClient}>
-        <AppShell user={locataire}>
-          <p>contenu</p>
-        </AppShell>
+        {/* TCK-2480 — le fournisseur des préférences du menu, monté par la coque, dit ses échecs par
+            un toast : le `ToastProvider` du groupe `(dashboard)`. */}
+        <ToastProvider>
+          <AppShell user={locataire}>
+            <p>contenu</p>
+          </AppShell>
+        </ToastProvider>
       </QueryClientProvider>,
     ),
   );

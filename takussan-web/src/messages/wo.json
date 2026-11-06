@@ -171,7 +171,8 @@
         "monEspace": "Mon espace",
         "plus": "Plus",
         "aussi": "{profil, select, agency_admin {Aussi administrateur} owner {Aussi bailleur} agent {Aussi agent} service_provider {Aussi prestataire} other {Aussi}}",
-        "aussiPlusieurs": "Vos autres profils"
+        "aussiPlusieurs": "Vos autres profils",
+        "epingles": "Épinglés"
       },
       "personas": {
         "client": "Client",
@@ -208,7 +209,9 @@
           "propertyModeration": "{count, plural, one {# bien à valider} other {# biens à valider}}"
         },
         "plusCourt": "+{count}",
-        "autres": "{count, plural, one {+# autre à traiter} other {+# autres à traiter}}"
+        "autres": "{count, plural, one {+# autre à traiter} other {+# autres à traiter}}",
+        "compact": "{count, plural, one {À traiter : # élément} other {À traiter : # éléments}}",
+        "totalCourt": "{count, plural, =100 {99+} other {#}}"
       },
       "demarrer": {
         "titre": "Démarrer",
@@ -227,6 +230,17 @@
             "equipe": "Inviter un premier membre"
           }
         }
+      },
+      "preferences": {
+        "echec": "Votre menu n’a pas pu être enregistré : il est revenu à son état précédent."
+      },
+      "epingle": {
+        "epingler": "Épingler {libelle}",
+        "plein": "Cinq épingles au plus : désépinglez-en une d’abord."
+      },
+      "icones": {
+        "reduire": "Réduire la barre",
+        "deplier": "Déplier la barre"
       }
     },
     "admin": {
@@ -10798,6 +10812,20 @@
       "label": "Fuseau horaire",
       "saved": "Fuseau horaire enregistré.",
       "error": "Le fuseau horaire n'a pas pu être enregistré."
+    },
+    "menu": {
+      "titre": "Menu",
+      "texte": "Vos épingles et les groupes repliés du menu « {persona} » vous suivent sur tous vos appareils.",
+      "personnalise": "Votre menu est personnalisé.",
+      "dejaParDefaut": "Votre menu suit la disposition par défaut.",
+      "reinitialiser": "Revenir au menu par défaut",
+      "appareil": {
+        "label": "Barre latérale sur cet appareil",
+        "auto": "Automatique : réduite aux icônes sur un écran moyen",
+        "icones": "Toujours réduite aux icônes",
+        "complet": "Toujours complète",
+        "aide": "Ce réglage ne vaut que pour ce navigateur."
+      }
     }
   },
   "contact": {
