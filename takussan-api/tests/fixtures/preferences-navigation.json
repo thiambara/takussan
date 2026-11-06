@@ -1,0 +1,40 @@
+{
+  "_": "TCK-2480 (ADR-0089 §6) — la FORME de preferences.navigation. Lue par tests/Feature/Api/Me/NavigationPreferencesTest.php (règles de UpdateMeRequest, par PATCH /api/me) ET par takussan-web/src/lib/navigation/__tests__/preferences.parite.test.ts (schéma zod SCHEMA_NAVIGATION). Chaque cas est accepté, ou refusé, des DEUX côtés : un cas qui ne vaut que d'un côté est un écart de contrat. Pas d'identifiant à espace en bord : Laravel le trime avant de valider (TrimStrings), zod non.",
+  "personas": ["client", "locataire", "bailleur", "agent", "admin-agence", "hote", "prestataire", "plateforme"],
+  "valides": [
+    { "nom": "null efface la clé", "navigation": null },
+    { "nom": "aucun persona (objet)", "navigation": { "v": 1, "personas": {} } },
+    { "nom": "aucun persona (tableau vide, tel que PHP le rend)", "navigation": { "v": 1, "personas": [] } },
+    { "nom": "persona vide, tel que PHP le rend", "navigation": { "v": 1, "personas": { "agent": [] } } },
+    { "nom": "agent complet", "navigation": { "v": 1, "personas": { "agent": { "epingles": ["commissions", "baux"], "replies": ["prospection"], "ouverts": ["plus"], "demarrer_masque": true } } } },
+    { "nom": "cinq épingles", "navigation": { "v": 1, "personas": { "bailleur": { "epingles": ["baux", "paiements", "visites", "demandes", "calendrier"] } } } },
+    { "nom": "vingt replis et vingt ouverts", "navigation": { "v": 1, "personas": { "admin-agence": { "replies": ["g1", "g2", "g3", "g4", "g5", "g6", "g7", "g8", "g9", "g10", "g11", "g12", "g13", "g14", "g15", "g16", "g17", "g18", "g19", "g20"], "ouverts": ["o1", "o2", "o3", "o4", "o5", "o6", "o7", "o8", "o9", "o10", "o11", "o12", "o13", "o14", "o15", "o16", "o17", "o18", "o19", "o20"] } } } },
+    { "nom": "identifiant de 64 caractères", "navigation": { "v": 1, "personas": { "client": { "epingles": ["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"] } } } },
+    { "nom": "démarrer non masqué", "navigation": { "v": 1, "personas": { "hote": { "demarrer_masque": false } } } },
+    { "nom": "les huit personas", "navigation": { "v": 1, "personas": { "client": {}, "locataire": {}, "bailleur": {}, "agent": {}, "admin-agence": {}, "hote": {}, "prestataire": {}, "plateforme": {} } } }
+  ],
+  "invalides": [
+    { "nom": "navigation en chaîne", "navigation": "menu" },
+    { "nom": "objet vide", "navigation": {} },
+    { "nom": "version absente", "navigation": { "personas": {} } },
+    { "nom": "version 2", "navigation": { "v": 2, "personas": {} } },
+    { "nom": "version en chaîne", "navigation": { "v": "1", "personas": {} } },
+    { "nom": "personas absent", "navigation": { "v": 1 } },
+    { "nom": "personas null", "navigation": { "v": 1, "personas": null } },
+    { "nom": "clé inconnue à la racine", "navigation": { "v": 1, "personas": {}, "theme": "sombre" } },
+    { "nom": "persona inconnu", "navigation": { "v": 1, "personas": { "courtier": {} } } },
+    { "nom": "persona en chaîne", "navigation": { "v": 1, "personas": { "agent": "commissions" } } },
+    { "nom": "clé inconnue dans un persona", "navigation": { "v": 1, "personas": { "agent": { "favoris": ["baux"] } } } },
+    { "nom": "six épingles", "navigation": { "v": 1, "personas": { "agent": { "epingles": ["baux", "visites", "demandes", "clients", "calendrier", "commissions"] } } } },
+    { "nom": "vingt et un replis", "navigation": { "v": 1, "personas": { "agent": { "replies": ["g1", "g2", "g3", "g4", "g5", "g6", "g7", "g8", "g9", "g10", "g11", "g12", "g13", "g14", "g15", "g16", "g17", "g18", "g19", "g20", "g21"] } } } },
+    { "nom": "vingt et un ouverts", "navigation": { "v": 1, "personas": { "agent": { "ouverts": ["o1", "o2", "o3", "o4", "o5", "o6", "o7", "o8", "o9", "o10", "o11", "o12", "o13", "o14", "o15", "o16", "o17", "o18", "o19", "o20", "o21"] } } } },
+    { "nom": "identifiant en majuscules", "navigation": { "v": 1, "personas": { "agent": { "epingles": ["Commissions"] } } } },
+    { "nom": "identifiant à espace intérieur", "navigation": { "v": 1, "personas": { "agent": { "epingles": ["mes biens"] } } } },
+    { "nom": "identifiant vide", "navigation": { "v": 1, "personas": { "agent": { "epingles": [""] } } } },
+    { "nom": "identifiant de 65 caractères", "navigation": { "v": 1, "personas": { "agent": { "epingles": ["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"] } } } },
+    { "nom": "identifiant non textuel", "navigation": { "v": 1, "personas": { "agent": { "epingles": [5] } } } },
+    { "nom": "épingles en objet", "navigation": { "v": 1, "personas": { "agent": { "epingles": { "x": "baux" } } } } },
+    { "nom": "démarrer masqué en entier", "navigation": { "v": 1, "personas": { "agent": { "demarrer_masque": 1 } } } },
+    { "nom": "démarrer masqué en chaîne", "navigation": { "v": 1, "personas": { "agent": { "demarrer_masque": "true" } } } }
+  ]
+}
