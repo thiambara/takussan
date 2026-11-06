@@ -30,8 +30,9 @@ import { voitLePortefeuille } from '@/lib/navigation/acces-app';
  * le lien du logo.
  *
  * TCK-2482 — le bouton de la palette de commandes en est un second : il porte le même anneau. Son
- * fond `bg-white/10` (`hover:bg-white/20`) compose sur la barre ; le blanc plein y reste au-dessus
- * de 3:1 (`AppTopbar.a11y.test.tsx` le mesure).
+ * fond et son texte passent par le jeton `--background` (#fcf9f3), comme le ton clair du logo
+ * (TCK-621) : un voile de 10 % (20 % au survol) sur la barre d'encre, que l'anneau blanc plein domine
+ * encore à plus de 3:1 (`AppTopbar.a11y.test.tsx` le mesure).
  *
  * Même anneau blanc, et pour la même raison, que la barre latérale sombre de l'ancienne console
  * d'administration (TCK-371). Le logo n'a qu'un fond, `bg-foreground` étant posé sur le
@@ -91,13 +92,13 @@ export function AppTopbar({ user, onOuvrirPalette }: AppTopbarProps) {
             aria-label={tPalette('titre')}
             aria-keyshortcuts="Control+K Meta+K"
             className={cn(
-              'relative inline-flex size-9 shrink-0 items-center justify-center gap-2 rounded-md bg-white/10 text-sm text-white/90 after:absolute after:-inset-1 hover:bg-white/20 lg:w-auto lg:px-2.5',
+              'relative inline-flex size-9 shrink-0 items-center justify-center gap-2 rounded-md bg-background/10 text-sm text-background/90 after:absolute after:-inset-1 hover:bg-background/20 lg:w-auto lg:px-2.5',
               ANNEAU_FOCUS,
             )}
           >
             <Search className="size-4" aria-hidden />
             <span className="hidden lg:inline">{tPalette('ouvrir')}</span>
-            <kbd aria-hidden className="hidden rounded bg-white/15 px-1.5 font-mono text-[11px] lg:inline">
+            <kbd aria-hidden className="hidden rounded bg-background/15 px-1.5 font-mono text-background/90 text-[11px] lg:inline">
               {surApple ? tPalette('raccourciMac') : tPalette('raccourciAutre')}
             </kbd>
           </button>
