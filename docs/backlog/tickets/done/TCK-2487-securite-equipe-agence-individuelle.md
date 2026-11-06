@@ -137,8 +137,7 @@ sans effet, et redevient visible (case cochée) au passage en `standard`.
 `AgencyController::update` sur les `settings` validés, avant la fusion. Sur le catalogue, pas clé par
 clé : `watermark_enabled`, `require_team_two_factor`, `late_fee_online_collection`,
 `tenant_onboarding_enabled`. `null` (retrait de la clé) passe tel quel. Le lecteur SQL est inchangé.
-Les valeurs déjà stockées en `1`/`"1"` ne sont pas réécrites (aucune migration : seul un client hors
-de la fiche a pu les écrire).
+Les valeurs déjà stockées sont normalisées par une migration de données (ci-dessous).
 
 **Test** `tests/Feature/Api/Agency/AgencySettingsBooleensStockesTest.php` : `PATCH` avec `1` → la
 colonne porte `true` et `TwoFactorRequirement` exige la 2FA d'un agent de l'agence ; `"0"` → `false`,
@@ -154,4 +153,35 @@ réglages ou la 2FA (`/api/agencies/…`, `/api/admin/settings`, `TwoFactorRequi
 booléennes) — 632 tests verts, 574 s. Pint propre, gardes du dépôt vertes.
 
 Commit : 2baa3fabf.
+
+**Suite (décision de la session) — l'existant normalisé.** Migration de données
+`2026_11_06_100000_normalize_boolean_agency_settings` : pour chaque agence, par lots de 500
+(`chunkById`), la décision clé par clé est celle d'`AgencySettings::normalize()` — la fonction de
+l'écriture, aucune logique recopiée — et SEULES les clés qu'elle change sont réécrites, par
+`jsonb_set` : les autres clés de `settings` ne sont ni relues ni réencodées (un réencodage PHP ferait
+d'un objet vide `{}` un tableau `[]` — ablation C4). Idempotente. `down()` délibérément sans effet
+(rien ne dit plus quelle clé était `1` ou `"1"`, et `read()` lit les deux comme le booléen) ; il ne
+lève pas, le job `migrations-pgsql` rejoue les `down()` au-dessus de la borne TCK-278.
+
+Écart : `normalize()` suit désormais EXACTEMENT `read()` — `FILTER_NULL_ON_FAILURE`, et une valeur non
+reconnue (`"oui"`, un tableau) reste telle quelle. La première version convertissait toute valeur non
+nulle : sans effet à l'écriture (la règle `boolean` ne laisse passer que des valeurs reconnues), mais
+sur l'existant elle aurait changé ce que lit `read()` (`"oui"` sur `tenant_onboarding_enabled`, lu
+comme le défaut `true`, devenait `false` — ablation C2).
+
+Test `tests/Feature/Database/NormalizeBooleanAgencySettingsMigrationTest.php` : avant `"1"`, `1`,
+`"0"`, `"oui"`, plus des clés hors normalisation (`primary_city`, `hidden_modules`, un objet vide,
+une clé `int` en chaîne) ; après `true`/`true`/`false`, `"oui"` intact, autres clés intactes
+(l'objet vide reste un objet, `jsonb_typeof`) ; `read()` rend la même valeur clé par clé avant et
+après ; la 2FA d'un agent n'est pas exigée avant, l'est après ; une agence sans `settings` et une
+déjà propre inchangées ; seconde passe sans effet ; `down()` sans effet. Rouge avant : la migration
+n'existait pas.
+
+Ablations (`abl-2488-corr3.sh`) : témoin 14/14 · C2 `normalize()` sans `FILTER_NULL_ON_FAILURE` →
+1 rouge · C3 `up()` vide → 1 rouge · C4 réécriture de tout `settings` par `json_encode` → 1 rouge ·
+restauré 14/14. Lot ciblé (2026-11-06, 8 cœurs, load 2,1-2,2) : `tests/Feature/Database/*` et toute
+classe qui cite `AgencySettings`, `PlatformSettingService`, `/api/admin/settings`,
+`require_team_two_factor`, `TwoFactorRequirement` ou une migration — 63 classes, 479 tests verts, 217 s.
+
+Commit : b2e6d6536.
 

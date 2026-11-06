@@ -246,8 +246,12 @@ porte `item_rules` a un parent borné). Rouge avant : 2 échecs. Ablations (`abl
 borne retirée → 2 rouges ; fonction retirée du service → 1 rouge ; restauré vert. Tests joués : le
 lot de 73 classes ci-dessus (TCK-2487), 632 verts. Commit : 279e99386.
 
-⚠ Relevé en passant, non corrigé (hors de ce lot) : l'`after()` de `validateKey()` fait
-`array_map('strtoupper', $value)` sur `currency.supported` ; un élément non scalaire lève une
+**500 sur un élément non scalaire — corrigé.** L'`after()` de `validateKey()` faisait
+`array_map('strtoupper', $value)` sur `currency.supported` : un élément non scalaire levait une
 `TypeError`. Mesuré le 2026-11-06 (sonde HTTP jetable, retirée) : `PATCH /api/admin/settings`
-`{"currency.supported": [["x"]]}` → **500** au lieu d'un 422 (super-admin seul).
+`{"currency.supported": [["x"]]}` → **500** (super-admin seul). Correctif au plus juste : seules les
+chaînes passent par `strtoupper` ; l'élément fautif est déjà refusé par sa règle `string`, d'où un 422.
+Test `PlatformSettingTest::test_a_non_scalar_supported_currency_is_a_422_not_a_500` (`[["x"]]`,
+`["XOF", ["x"]]`, `[["XOF"]]`, `[null]`), rouge avant (« Expected 422 but received 500 ») ; ablation
+C1 (garde retirée) → rouge ; restauré vert (`abl-2488-corr3.sh`). Commit : e203ba595.
 
