@@ -3,6 +3,7 @@ import { CATALOGUE, cleDe, estOuverte, iconeDe, type Destination, type IdDestina
 import type { ModeDemarrer } from './demarrer';
 import { DISPOSITIONS, type Disposition } from './dispositions';
 import { autresTypes, rolesDuPersona, type Persona } from './personas';
+import { EPINGLES_MAX, type PreferencesDuPersona } from './preferences';
 import type { ContexteDeMenu, NavCounterKey } from './types';
 
 export interface EntreeComposee {
@@ -17,6 +18,10 @@ export interface EntreeComposee {
   /** TCK-2479 — la page filtrée sur ce qui attend : la cible de la pastille « À traiter ». */
   readonly hrefATraiter?: string;
   readonly publique?: true;
+  /** TCK-2480 — l'entrée peut s'épingler : ni l'action principale, ni la carte, ni le complément « Aussi … ». */
+  readonly epinglable?: true;
+  /** TCK-2480 — l'entrée est dans « Épinglés ». */
+  readonly epinglee?: true;
 }
 
 export interface GroupeCompose {
@@ -24,6 +29,8 @@ export interface GroupeCompose {
   readonly titre: string | null;
   readonly titreValeurs?: Readonly<Record<string, string>>;
   readonly replie: boolean;
+  /** TCK-2480 — le repli de la DISPOSITION, avant les préférences (absent : `replie`). */
+  readonly replieParDefaut?: boolean;
   readonly entrees: readonly EntreeComposee[];
 }
 
@@ -36,6 +43,8 @@ export interface MenuCompose {
   readonly priorites: readonly NavCounterKey[];
   /** TCK-2479 — le groupe « Démarrer », `null` sans lui ou dans un espace suspendu (TCK-600). */
   readonly demarrer: ModeDemarrer | null;
+  /** TCK-2480 — les épingles RENDUES, dans l'ordre : celles dont repart le geste suivant (A7). */
+  readonly epingles: readonly IdDestination[];
 }
 
 type DestinationDuCatalogue = Destination & { readonly id: IdDestination };
@@ -52,11 +61,15 @@ const PAR_ID: ReadonlyMap<string, DestinationDuCatalogue> = new Map(CATALOGUE.ma
  * 3. Le complément « Aussi … » : ce que l'union de l'espace ouvre et que le persona n'ouvre pas.
  *    Une destination `surLEspace` (créer un bien) se juge sur l'union partout : jamais dans « Aussi ».
  * 4. Un groupe vide ne se rend pas ; un identifiant inconnu est ignoré.
+ * 5. TCK-2480 — les préférences du persona : « Épinglés » d'abord (pris AVANT les groupes, donc retirés
+ *    de leur groupe d'origine), les replis de l'utilisateur, « Démarrer » masqué. Elles déplacent, elles
+ *    n'accordent rien : une épingle ne vise que ce que le persona ouvre.
  */
 export function composerMenu(
   ctx: ContexteDeMenu,
   persona: Persona,
   disposition: Disposition = DISPOSITIONS[persona],
+  preferences: PreferencesDuPersona = {},
 ): MenuCompose {
   const ctxPersona: ContexteDeMenu = { ...ctx, roles: rolesDuPersona(ctx.roles, persona), rolesDeLEspace: ctx.roles };
   // Revue de TCK-2478 (I2) — le contexte qui juge une destination POUR LE PERSONA.
@@ -89,29 +102,56 @@ export function composerMenu(
   const carteDestination = disposition.carte ? PAR_ID.get(disposition.carte) : undefined;
   const carte = carteDestination && estOuverte(carteDestination, juge(carteDestination)) ? composer(carteDestination, 'carte') : null;
 
+  // TCK-2480 — « Épinglés » : pris AVANT les groupes, donc retirés de leur groupe d'origine. Une épingle
+  // ne vise que ce que le PERSONA ouvre (`prendre` juge sur `juge(d)`, jamais sur l'union : le
+  // complément ne s'épingle pas), jamais l'action principale ni la carte ; un identifiant inconnu ou
+  // fermé est ignoré, et au-delà de cinq aussi.
+  const epingles: EntreeComposee[] = [];
+  for (const id of preferences.epingles ?? []) {
+    if (epingles.length >= EPINGLES_MAX) break;
+    const d = PAR_ID.get(id);
+    if (!d || d.id === action?.id || d.id === disposition.carte) continue;
+    const entree = prendre(d, 'epingles');
+    if (entree) epingles.push({ ...entree, epinglable: true, epinglee: true });
+  }
+  const epinglable = (e: EntreeComposee): EntreeComposee => (e.id === action?.id ? e : { ...e, epinglable: true });
+  /** TCK-2480 (A8) — le repli de l'utilisateur l'emporte sur celui de la disposition ; un groupe sans titre ne se replie pas. */
+  const replieDe = (id: string, titre: string | null, parDefaut: boolean): boolean => {
+    if (titre === null) return false;
+    if (preferences.ouverts?.includes(id)) return false;
+    if (preferences.replies?.includes(id)) return true;
+    return parDefaut;
+  };
+
   const groupes: GroupeCompose[] = [];
   for (const groupe of disposition.groupes) {
     const entrees: EntreeComposee[] = [];
     for (const id of groupe.entrees) {
       places.add(id);
       const entree = prendre(PAR_ID.get(id), groupe.id);
-      if (entree) entrees.push(entree);
+      if (entree) entrees.push(epinglable(entree));
     }
-    groupes.push({ id: groupe.id, titre: groupe.titre, replie: groupe.replie === true, entrees });
+    groupes.push({
+      id: groupe.id,
+      titre: groupe.titre,
+      replie: replieDe(groupe.id, groupe.titre, groupe.replie === true),
+      replieParDefaut: groupe.replie === true,
+      entrees,
+    });
   }
 
   const plus: EntreeComposee[] = [];
   for (const id of disposition.plus) {
     places.add(id);
     const entree = prendre(PAR_ID.get(id), 'plus');
-    if (entree) plus.push(entree);
+    if (entree) plus.push(epinglable(entree));
   }
   for (const d of CATALOGUE) {
     if (places.has(d.id)) continue;
     const entree = prendre(d, 'plus');
-    if (entree) plus.push(entree);
+    if (entree) plus.push(epinglable(entree));
   }
-  groupes.push({ id: 'plus', titre: 'plus', replie: true, entrees: plus });
+  groupes.push({ id: 'plus', titre: 'plus', replie: replieDe('plus', 'plus', true), replieParDefaut: true, entrees: plus });
 
   const aussi: EntreeComposee[] = [];
   for (const d of CATALOGUE) {
@@ -124,17 +164,25 @@ export function composerMenu(
     id: 'aussi',
     titre: autres.length === 1 ? 'aussi' : 'aussiPlusieurs',
     ...(autres.length === 1 ? { titreValeurs: { profil: autres[0] } } : {}),
-    replie: true,
+    // Le titre vaut `'aussi'` ou `'aussiPlusieurs'` : l'identifiant du repli reste `'aussi'`.
+    replie: replieDe('aussi', 'aussi', true),
+    replieParDefaut: true,
     entrees: aussi,
   });
 
+  const groupeEpingles: GroupeCompose[] =
+    epingles.length > 0
+      ? [{ id: 'epingles', titre: 'epingles', replie: replieDe('epingles', 'epingles', false), replieParDefaut: false, entrees: epingles }]
+      : [];
   return {
     persona,
     action,
     carte,
-    groupes: groupes.filter((g) => g.entrees.length > 0),
+    groupes: [...groupeEpingles, ...groupes].filter((g) => g.entrees.length > 0),
     priorites: disposition.priorites,
-    demarrer: ctx.agenceSuspendue ? null : (disposition.demarrer ?? null),
+    // TCK-2480 — masqué par l'utilisateur (A9), comme dans un espace suspendu (TCK-2479).
+    demarrer: ctx.agenceSuspendue || preferences.demarrer_masque ? null : (disposition.demarrer ?? null),
+    epingles: epingles.map((e) => e.id),
   };
 }
 
