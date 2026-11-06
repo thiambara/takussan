@@ -25,4 +25,7 @@ export const STYLE_TITRE = 'text-[11px] font-semibold uppercase tracking-[0.14em
  * tactile, qui n'a pas de survol (A13).
  */
 export const STYLE_EPINGLE =
-  'ml-0.5 inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground focus-visible:opacity-100 group-hover/ligne:opacity-100 aria-pressed:opacity-100 aria-disabled:cursor-not-allowed [@media(hover:none)]:not-aria-pressed:opacity-60 max-md:size-9 motion-reduce:transition-none';
+  'ml-0.5 inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground focus-visible:opacity-100 group-hover/ligne:opacity-100 aria-pressed:opacity-100 aria-disabled:cursor-not-allowed [@media(hover:none)]:not-aria-pressed:opacity-60 max-md:size-9 motion-reduce:transition-none icones:hidden';
+
+/** TCK-2480 — le libellé d'une ligne : lu par le lecteur d'écran dans tous les modes, caché à l'œil réduite. */
+export const LIBELLE_DE_LIGNE = 'truncate icones:sr-only';

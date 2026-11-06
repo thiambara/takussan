@@ -161,6 +161,7 @@ export function AppShell({
                       hasPendingUpgrade={hasPendingUpgrade}
                       typeProfilActif={typeProfilActif}
                       agencySuspended={agencySuspended}
+                      tiroir
                     />
                   </SheetContent>
                 </Sheet>

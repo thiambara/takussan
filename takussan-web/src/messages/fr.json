@@ -219,7 +219,9 @@
           "propertyModeration": "{count, plural, one {# bien à valider} other {# biens à valider}}"
         },
         "plusCourt": "+{count}",
-        "autres": "{count, plural, one {+# autre à traiter} other {+# autres à traiter}}"
+        "autres": "{count, plural, one {+# autre à traiter} other {+# autres à traiter}}",
+        "compact": "{count, plural, one {À traiter : # élément} other {À traiter : # éléments}}",
+        "totalCourt": "{count, plural, =100 {99+} other {#}}"
       },
       "demarrer": {
         "titre": "Démarrer",
@@ -245,6 +247,10 @@
       "epingle": {
         "epingler": "Épingler {libelle}",
         "plein": "Cinq épingles au plus : désépinglez-en une d’abord."
+      },
+      "icones": {
+        "reduire": "Réduire la barre",
+        "deplier": "Déplier la barre"
       }
     },
     "admin": {

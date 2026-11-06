@@ -219,7 +219,9 @@
           "propertyModeration": "{count, plural, one {# listing to review} other {# listings to review}}"
         },
         "plusCourt": "+{count}",
-        "autres": "{count, plural, other {+# more to do}}"
+        "autres": "{count, plural, other {+# more to do}}",
+        "compact": "{count, plural, one {To do: # item} other {To do: # items}}",
+        "totalCourt": "{count, plural, =100 {99+} other {#}}"
       },
       "demarrer": {
         "titre": "Get started",
@@ -245,6 +247,10 @@
       "epingle": {
         "epingler": "Pin {libelle}",
         "plein": "Five pins at most: unpin one first."
+      },
+      "icones": {
+        "reduire": "Collapse sidebar",
+        "deplier": "Expand sidebar"
       }
     },
     "admin": {

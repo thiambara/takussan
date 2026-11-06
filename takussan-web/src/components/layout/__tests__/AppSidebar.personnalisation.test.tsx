@@ -6,7 +6,9 @@
  * pas le réseau ni le sélecteur de profil).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, render, screen, within } from '@testing-library/react';
+import { renderToString } from 'react-dom/server';
+import { hydrateRoot } from 'react-dom/client';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { User, UserRole } from '@/types/user';
@@ -14,6 +16,7 @@ import type { ProfileType } from '@/types/profile';
 import { withIntl } from '@/test/intl';
 import { ToastProvider, Toaster } from '@/components/ui/toast';
 import type { Persona } from '@/lib/navigation/personas';
+import type { ModeIcones } from '@/lib/navigation/mode-icones';
 import fr from '@/messages/fr.json';
 import { AppSidebar } from '../AppSidebar';
 import { DELAI_D_ENVOI_MS, PreferencesDuMenuProvider } from '../PreferencesDuMenu';
@@ -32,7 +35,9 @@ vi.mock('@/hooks/useProfiles', () => ({
   useMyProfiles: () => ({ data: undefined, isLoading: false }),
   useSwitchActiveProfile: () => ({ mutate: vi.fn(), isPending: false }),
 }));
-vi.mock('@/components/chat-widget/useUnreadCount', () => ({ useUnreadCount: () => 0 }));
+// TCK-2480 (A11) — des messages non lus quand `nonLus.n` est posé : la bande « À traiter » paraît.
+const nonLus = vi.hoisted(() => ({ n: 0 }));
+vi.mock('@/components/chat-widget/useUnreadCount', () => ({ useUnreadCount: () => nonLus.n }));
 vi.mock('@/lib/queries/visits', () => ({ usePendingVisitsCount: () => ({}) }));
 vi.mock('@/lib/queries/contact-leads', () => ({ useUnhandledLeadsCount: () => ({}) }));
 // « Démarrer » : trois étapes à faire quand `demarrage.etapes` est posé, muet sinon.
@@ -53,6 +58,7 @@ const fetchMock = vi.fn<typeof fetch>();
 beforeEach(() => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   demarrage.etapes = null;
+  nonLus.n = 0;
   chemin.courant = '/app';
   fetchMock.mockReset();
   fetchMock.mockResolvedValue(new Response('{}', { status: 200 }));
@@ -68,7 +74,12 @@ const AGENT_ET_BAILLEUR: UserRole[] = ['customer', 'agent', 'owner'];
 function element(
   roles: UserRole[],
   persona: Persona,
-  options: { navigation?: unknown; typeProfilActif?: ProfileType; agencyIsStandard?: boolean } = {},
+  options: {
+    navigation?: unknown;
+    typeProfilActif?: ProfileType;
+    agencyIsStandard?: boolean;
+    modeIcones?: ModeIcones;
+  } = {},
 ) {
   const user = {
     id: 1,
@@ -83,7 +94,11 @@ function element(
   return withIntl(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <ToastProvider>
-        <PreferencesDuMenuProvider navigationInitiale={options.navigation} persona={persona} modeIconesInitial="complet">
+        <PreferencesDuMenuProvider
+          navigationInitiale={options.navigation}
+          persona={persona}
+          modeIconesInitial={options.modeIcones ?? 'complet'}
+        >
           <AppSidebar
             user={user}
             agencyIsStandard={options.agencyIsStandard ?? true}
@@ -291,5 +306,125 @@ describe('TCK-2480 — personnaliser le menu depuis la barre', () => {
     const navigation = { v: 1, personas: { 'admin-agence': { demarrer_masque: true } } };
     const { container } = render(element(['customer', 'agency_admin'], 'admin-agence', { navigation }));
     expect(container.querySelector('[data-slot="demarrer"]')).toBeNull();
+  });
+});
+
+describe('TCK-2480 — AC5 : rendu serveur sans saut (largeur et épingles)', () => {
+  const navigation = { v: 1, personas: { agent: { epingles: ['commissions'] } } };
+
+  it.each([
+    ['auto', 'auto'],
+    ['complet', 'complet'],
+    ['icones', 'icones'],
+  ] as const)('mode %s : `data-menu="%s"` est DANS le HTML serveur, avec la largeur réduite en variante', (mode, attendu) => {
+    const html = renderToString(element(['customer', 'agent'], 'agent', { navigation, modeIcones: mode }));
+    const conteneur = document.createElement('div');
+    conteneur.innerHTML = html;
+    const barre = conteneur.querySelector('aside')!;
+    expect(barre.getAttribute('data-menu')).toBe(attendu);
+    expect(barre.className).toContain('w-64');
+    expect(barre.className).toContain('icones:w-16');
+    // Les épingles aussi sont au premier octet.
+    expect(conteneur.querySelector('[data-groupe="epingles"]')?.textContent).toContain('Commissions');
+  });
+
+  it('l’hydratation ne change ni la barre ni les épingles, et ne signale aucun écart', async () => {
+    const erreurs = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const avertissements = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const recuperees: unknown[] = [];
+    const jsx = element(['customer', 'agent'], 'agent', { navigation, modeIcones: 'auto' });
+    const conteneur = document.createElement('div');
+    conteneur.innerHTML = renderToString(jsx);
+    document.body.appendChild(conteneur);
+    const htmlAvant = conteneur.querySelector('aside')!.outerHTML;
+    const classeAvant = conteneur.querySelector('aside')!.className;
+    await act(async () => {
+      hydrateRoot(conteneur, jsx, { onRecoverableError: (e) => recuperees.push(e) });
+    });
+    expect(conteneur.querySelector('aside')!.className).toBe(classeAvant);
+    expect(conteneur.querySelector('aside')!.getAttribute('data-menu')).toBe('auto');
+    expect(conteneur.querySelector('[data-groupe="epingles"]')).not.toBeNull();
+    expect(recuperees).toEqual([]);
+    expect([...erreurs.mock.calls, ...avertissements.mock.calls].flat().join(' ')).not.toMatch(/hydrat/i);
+    expect(htmlAvant.length).toBeGreaterThan(0);
+    erreurs.mockRestore();
+    avertissements.mockRestore();
+    conteneur.remove();
+  });
+
+  it('le tiroir n’est jamais réduit, quel que soit le mode', () => {
+    // `tiroir` : la barre du `Sheet` (AppShell).
+    const html = renderToString(
+      withIntl(
+        <QueryClientProvider client={new QueryClient()}>
+          <ToastProvider>
+            <PreferencesDuMenuProvider navigationInitiale={undefined} persona="agent" modeIconesInitial="icones">
+              <AppSidebar user={{ id: 1, roles: ['customer', 'agent'], agency_id: 7 } as unknown as User} agencyIsStandard tiroir />
+            </PreferencesDuMenuProvider>
+          </ToastProvider>
+        </QueryClientProvider>,
+      ),
+    );
+    expect(html).toContain('data-menu="complet"');
+    // A10 — et la bascule n'y est pas : on ne réduit pas un tiroir.
+    expect(html).not.toContain(fr.nav.sidebar.icones.reduire);
+  });
+
+  it('la bascule du pied de barre choisit le mode OPPOSÉ à l’état effectif', async () => {
+    const user = utilisateur();
+    render(element(['customer', 'agent'], 'agent', { modeIcones: 'complet' }));
+    await user.click(screen.getByRole('button', { name: /Réduire la barre/ }));
+    expect(document.querySelector('aside')).toHaveAttribute('data-menu', 'icones');
+    await user.click(screen.getByRole('button', { name: /Déplier la barre/ }));
+    expect(document.querySelector('aside')).toHaveAttribute('data-menu', 'complet');
+  });
+});
+
+describe('TCK-2480 — A11 : les variantes compactes ne sont rendues que si la barre peut se réduire', () => {
+  it('en `complet`, ni icône « À traiter », ni lien réduit de la carte : aucun doublon à lire', () => {
+    nonLus.n = 3;
+    render(element(['customer'], 'client', { modeIcones: 'complet' }));
+    expect(screen.getByRole('region', { name: fr.nav.sidebar.aTraiter.titre })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'À traiter : 3 éléments' })).toBeNull();
+    expect(screen.getAllByRole('link', { name: /Mettre un bien en location/ })).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: /Déplier la barre/ })).toBeNull();
+  });
+
+  it('réduite : la bande devient une icône qui porte le total et ouvre les MÊMES pastilles', async () => {
+    nonLus.n = 3;
+    const user = utilisateur();
+    render(element(['customer'], 'client', { modeIcones: 'icones' }));
+    const icone = screen.getByRole('button', { name: 'À traiter : 3 éléments' });
+    expect(icone).toHaveTextContent('3');
+    await user.click(icone);
+    // (jsdom n'applique pas le CSS : la bande dépliée, `icones:hidden`, reste dans le DOM à côté.)
+    const panneau = await waitFor(() => {
+      const p = document.querySelector('[data-slot="popover-content"]');
+      expect(p).not.toBeNull();
+      return p as HTMLElement;
+    });
+    const pastille = within(panneau).getByRole('link', { name: '3 messages non lus' });
+    expect(pastille).toHaveAttribute('href', '/app/messages');
+    await user.click(pastille);
+    await waitFor(() => expect(document.querySelector('[data-slot="popover-content"]')).toBeNull());
+    // La carte « Mettre un bien en location » a sa variante réduite (une icône).
+    expect(screen.getAllByRole('link', { name: /Mettre un bien en location/ })).toHaveLength(2);
+  });
+
+  it('réduite : « 99+ » au-delà de 99, par la clé ICU', () => {
+    nonLus.n = 250;
+    render(element(['customer'], 'client', { modeIcones: 'icones' }));
+    expect(screen.getByRole('button', { name: 'À traiter : 250 éléments' })).toHaveTextContent('99+');
+  });
+
+  it('en `auto`, la bascule porte les DEUX libellés (le CSS en montre un) ; en `icones`, seul « Déplier »', () => {
+    const { unmount } = render(element(['customer', 'agent'], 'agent', { modeIcones: 'auto' }));
+    const bascule = document.querySelector('aside button[data-slot="bascule-icones"]') as HTMLElement;
+    expect(bascule).toHaveTextContent(fr.nav.sidebar.icones.reduire);
+    expect(bascule).toHaveTextContent(fr.nav.sidebar.icones.deplier);
+    unmount();
+    render(element(['customer', 'agent'], 'agent', { modeIcones: 'icones' }));
+    expect(screen.getByRole('button', { name: fr.nav.sidebar.icones.deplier })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: fr.nav.sidebar.icones.reduire })).toBeNull();
   });
 });

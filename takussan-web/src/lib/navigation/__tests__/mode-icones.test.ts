@@ -1,5 +1,8 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { cookieDuModeIcones, modeIconesDepuisCookie } from '../mode-icones';
+import { PLAGE_ICONES_AUTO, cookieDuModeIcones, modeIconesDepuisCookie } from '../mode-icones';
 
 describe('le mode icônes de l’appareil (TCK-2480, A10)', () => {
   it('sans cookie, `auto` ; `1` et `0` sont des choix explicites ; le reste vaut `auto`', () => {
@@ -15,7 +18,11 @@ describe('le mode icônes de l’appareil (TCK-2480, A10)', () => {
     expect(cookieDuModeIcones('auto', false)).toContain('max-age=0');
   });
 
-  // Tâche 6 de TCK-2480 : la variante CSS `icones:` n'existe pas encore dans `globals.css`. Ce cas
-  // devient actif avec elle (lecture de `globals.css`, `@media ${PLAGE_ICONES_AUTO}` au caractère près).
-  it.todo('la plage `auto` des infobulles est, au caractère près, celle de la variante CSS `icones:`');
+  it('la plage `auto` des infobulles est, au caractère près, celle de la variante CSS `icones:`', () => {
+    const css = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'app', 'globals.css'), 'utf8');
+    const variante = /@custom-variant icones \{[\s\S]*?\n\}/.exec(css)?.[0] ?? '';
+    expect(variante).toContain('[data-menu="icones"]');
+    expect(variante).toContain(`@media ${PLAGE_ICONES_AUTO}`);
+    expect(variante).toContain('[data-menu="auto"]');
+  });
 });

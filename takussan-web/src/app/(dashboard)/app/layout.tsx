@@ -1,6 +1,6 @@
 import { getMeAction } from '@/app/actions/auth';
 import { AppShell } from '@/components/layout/AppShell';
-import { getActiveProfileId, getToken } from '@/lib/session';
+import { getActiveProfileId, getModeIconesDuMenu, getToken } from '@/lib/session';
 import { typeDuProfilActif } from '@/lib/navigation/personas';
 import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 import { fetchAgencyUpgradeRequests } from '@/lib/queries/agency-upgrade';
@@ -93,6 +93,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // TCK-2477 (ADR-0089 §2) — le persona du menu se juge sur le profil ACTIF. Pendant une
   // impersonation, `getActiveProfileId` ne rend rien (TCK-600) : le persona se déduit des rôles.
   const typeProfilActif = typeDuProfilActif(await getActiveProfileId());
+  // TCK-2480 (AC5) — la barre réduite aux icônes, réglage de l'appareil : lue ici pour que la largeur
+  // soit dans le HTML serveur.
+  const modeIcones = await getModeIconesDuMenu();
 
   return (
     <IntlProvider messages={await messagesPour('(dashboard)/app')}>
@@ -105,6 +108,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             agencySuspended={agencySuspended}
             agencyStandardWelcome={agencyStandardWelcome}
             typeProfilActif={typeProfilActif}
+            modeIcones={modeIcones}
           >
             {children}
           </AppShell>
