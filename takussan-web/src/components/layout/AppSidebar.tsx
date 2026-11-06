@@ -762,7 +762,7 @@ export function AppSidebar({
                   data-slot="action-principale"
                   aria-current={actionCourante ? 'page' : undefined}
                   className={cn(
-                    'flex items-start gap-3 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 max-md:py-2.5 icones:justify-center icones:px-0',
+                    'flex items-start gap-3 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 max-md:py-2.5 icones:size-10 icones:items-center icones:justify-center icones:px-0 icones:py-0',
                     FOCUS_RING,
                   )}
                 />
