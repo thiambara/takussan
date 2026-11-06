@@ -51,6 +51,7 @@ vi.mock('@/components/owner/OwnerWelcomeWizard', () => ({ OwnerWelcomeWizard: ()
 vi.mock('@/components/tenant/TenantWelcomeWizard', () => ({ TenantWelcomeWizard: () => null }));
 
 const NOM = 'Aller à une page ou changer d’espace';
+const UA_MAC = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36';
 function utilisateur(roles: UserRole[]): User {
   return { id: 1, first_name: 'Awa', last_name: 'Diop', full_name: 'Awa Diop', email: 'awa@example.test', roles } as unknown as User;
 }
@@ -74,7 +75,10 @@ beforeEach(() => {
   window.localStorage.clear();
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404, json: async () => ({}) }));
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 describe('TCK-2482 — la palette dans la coque', () => {
   it('AC1 — Ctrl K ouvre la palette sur son champ ; Échap la ferme et rend le focus à l’élément précédent', async () => {
@@ -91,7 +95,8 @@ describe('TCK-2482 — la palette dans la coque', () => {
     expect(avant).toHaveFocus();
   });
 
-  it('⌘K l’ouvre aussi, et le referme', async () => {
+  it('sous macOS, ⌘K l’ouvre, et le referme', async () => {
+    vi.spyOn(window.navigator, 'userAgent', 'get').mockReturnValue(UA_MAC);
     const u = userEvent.setup();
     monter();
     await u.keyboard('{Meta>}k{/Meta}');
@@ -104,7 +109,8 @@ describe('TCK-2482 — la palette dans la coque', () => {
     const u = userEvent.setup();
     monter();
     const bouton = screen.getByRole('button', { name: NOM });
-    expect(bouton).toHaveAttribute('aria-keyshortcuts', 'Control+K Meta+K');
+    // Revue M2 — le raccourci annoncé est celui du libellé : Ctrl K hors Apple.
+    expect(bouton).toHaveAttribute('aria-keyshortcuts', 'Control+K');
     await u.click(bouton);
     expect(await screen.findByRole('dialog', { name: NOM })).toBeInTheDocument();
     await u.keyboard('{Escape}');
@@ -211,5 +217,19 @@ describe('TCK-2482 — la palette dans la coque', () => {
     await u.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog', { name: NOM })).toBeNull());
     expect(avant).toHaveFocus();
+  });
+
+  it('revue M2 — sous macOS : Ctrl K dans un champ n’est pas annulé et n’ouvre rien ; le bouton annonce ⌘K', async () => {
+    vi.spyOn(window.navigator, 'userAgent', 'get').mockReturnValue(UA_MAC);
+    monter();
+    const bouton = screen.getByRole('button', { name: NOM });
+    await waitFor(() => expect(bouton).toHaveAttribute('aria-keyshortcuts', 'Meta+K'));
+    expect(bouton).toHaveTextContent('⌘');
+    const champ = document.createElement('input');
+    document.body.appendChild(champ);
+    champ.focus();
+    expect(fireEvent.keyDown(champ, { key: 'k', ctrlKey: true })).toBe(true);
+    expect(screen.queryByRole('dialog', { name: NOM })).toBeNull();
+    champ.remove();
   });
 });

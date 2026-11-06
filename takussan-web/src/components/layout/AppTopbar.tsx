@@ -8,6 +8,7 @@ import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
 import { ProfileSwitcher } from '@/components/profile/ProfileSwitcher';
 import { UserMenu } from './UserMenu';
 import { NotificationBell } from './NotificationBell';
+import { estSurApple } from './usePaletteDeCommandes';
 import { SearchAutocomplete } from '@/components/search/SearchAutocomplete';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
@@ -46,9 +47,11 @@ import { voitLePortefeuille } from '@/lib/navigation/acces-app';
 const ANNEAU_FOCUS =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white';
 
-/** TCK-2482 (A11) — `⌘ K` sur Apple, `Ctrl K` ailleurs ; `Ctrl K` au rendu serveur, sans écart d'hydratation. */
+/**
+ * TCK-2482 (A11) — `⌘ K` sur Apple, `Ctrl K` ailleurs ; `Ctrl K` au rendu serveur, sans écart d'hydratation.
+ * La détection est celle du raccourci (`estSurApple`) : le libellé annonce la touche qui ouvre (revue M2).
+ */
 const sAbonnerARien = () => () => {};
-const estSurApple = () => /Mac|iPhone|iPad/.test(navigator.userAgent);
 const jamaisSurApple = () => false;
 
 interface AppTopbarProps {
@@ -90,7 +93,7 @@ export function AppTopbar({ user, onOuvrirPalette }: AppTopbarProps) {
             data-slot="ouvrir-palette"
             onClick={(event) => onOuvrirPalette(event.currentTarget)}
             aria-label={tPalette('titre')}
-            aria-keyshortcuts="Control+K Meta+K"
+            aria-keyshortcuts={surApple ? 'Meta+K' : 'Control+K'}
             className={cn(
               'relative inline-flex size-9 shrink-0 items-center justify-center gap-2 rounded-md bg-background/10 text-sm text-background/90 after:absolute after:-inset-1 hover:bg-background/20 lg:w-auto lg:px-2.5',
               ANNEAU_FOCUS,

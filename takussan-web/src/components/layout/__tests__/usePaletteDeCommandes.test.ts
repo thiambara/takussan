@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { autreDialogueOuvert, estLeRaccourciDeLaPalette, useRaccourciDeLaPalette } from '../usePaletteDeCommandes';
+import { autreDialogueOuvert, estLeRaccourciDeLaPalette, estSurApple, useRaccourciDeLaPalette } from '../usePaletteDeCommandes';
 
 /** TCK-2482 (A6) — les règles du raccourci, une par une. */
 const touche = (o: Partial<Parameters<typeof estLeRaccourciDeLaPalette>[0]> = {}) => ({
@@ -13,27 +13,48 @@ const presser = (init: KeyboardEventInit) => {
   return ev;
 };
 
+const UA_MAC = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36';
+const UA_WINDOWS = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
+const sous = (ua: string) => vi.spyOn(window.navigator, 'userAgent', 'get').mockReturnValue(ua);
+
 afterEach(() => {
   document.body.innerHTML = '';
+  vi.restoreAllMocks();
 });
 
 describe('estLeRaccourciDeLaPalette', () => {
-  it('Ctrl K et ⌘K, majuscule comprise', () => {
-    expect(estLeRaccourciDeLaPalette(touche())).toBe(true);
-    expect(estLeRaccourciDeLaPalette(touche({ ctrlKey: false, metaKey: true }))).toBe(true);
-    expect(estLeRaccourciDeLaPalette(touche({ key: 'K' }))).toBe(true);
+  it('ailleurs qu’Apple : Ctrl K, majuscule comprise ; ⌘ (la touche Windows) non', () => {
+    expect(estLeRaccourciDeLaPalette(touche(), false)).toBe(true);
+    expect(estLeRaccourciDeLaPalette(touche({ key: 'K' }), false)).toBe(true);
+    expect(estLeRaccourciDeLaPalette(touche({ ctrlKey: false, metaKey: true }), false)).toBe(false);
+  });
+
+  it('revue M2 — sur Apple : ⌘K seul ; Ctrl K reste « couper jusqu’en fin de ligne » des champs', () => {
+    expect(estLeRaccourciDeLaPalette(touche({ ctrlKey: false, metaKey: true }), true)).toBe(true);
+    expect(estLeRaccourciDeLaPalette(touche({ ctrlKey: false, metaKey: true, key: 'K' }), true)).toBe(true);
+    expect(estLeRaccourciDeLaPalette(touche(), true)).toBe(false);
+    expect(estLeRaccourciDeLaPalette(touche({ metaKey: true }), true)).toBe(false);
   });
 
   it('ni K seul, ni avec Alt ou Maj, ni répété, ni une autre touche', () => {
-    expect(estLeRaccourciDeLaPalette(touche({ ctrlKey: false }))).toBe(false);
-    expect(estLeRaccourciDeLaPalette(touche({ altKey: true }))).toBe(false);
-    expect(estLeRaccourciDeLaPalette(touche({ shiftKey: true }))).toBe(false);
-    expect(estLeRaccourciDeLaPalette(touche({ repeat: true }))).toBe(false);
-    expect(estLeRaccourciDeLaPalette(touche({ key: 'j' }))).toBe(false);
+    expect(estLeRaccourciDeLaPalette(touche({ ctrlKey: false }), false)).toBe(false);
+    expect(estLeRaccourciDeLaPalette(touche({ altKey: true }), false)).toBe(false);
+    expect(estLeRaccourciDeLaPalette(touche({ shiftKey: true }), false)).toBe(false);
+    expect(estLeRaccourciDeLaPalette(touche({ repeat: true }), false)).toBe(false);
+    expect(estLeRaccourciDeLaPalette(touche({ key: 'j' }), false)).toBe(false);
   });
 
   it('un champ qui s’en sert l’a intercepté (`defaultPrevented`) : la palette s’efface', () => {
-    expect(estLeRaccourciDeLaPalette(touche({ defaultPrevented: true }))).toBe(false);
+    expect(estLeRaccourciDeLaPalette(touche({ defaultPrevented: true }), false)).toBe(false);
+  });
+
+  it('estSurApple : macOS, iPhone, iPad ; pas Windows', () => {
+    sous(UA_MAC);
+    expect(estSurApple()).toBe(true);
+    sous('Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X)');
+    expect(estSurApple()).toBe(true);
+    sous(UA_WINDOWS);
+    expect(estSurApple()).toBe(false);
   });
 
   it('dans un `contenteditable` : non ; dans `contenteditable="false"` ou un champ de saisie : oui', () => {
@@ -45,9 +66,9 @@ describe('estLeRaccourciDeLaPalette', () => {
     fige.setAttribute('contenteditable', 'false');
     const champ = document.createElement('input');
     document.body.append(editeur, fige, champ);
-    expect(estLeRaccourciDeLaPalette(touche({ target: dedans }))).toBe(false);
-    expect(estLeRaccourciDeLaPalette(touche({ target: fige }))).toBe(true);
-    expect(estLeRaccourciDeLaPalette(touche({ target: champ }))).toBe(true);
+    expect(estLeRaccourciDeLaPalette(touche({ target: dedans }), false)).toBe(false);
+    expect(estLeRaccourciDeLaPalette(touche({ target: fige }), false)).toBe(true);
+    expect(estLeRaccourciDeLaPalette(touche({ target: champ }), false)).toBe(true);
   });
 });
 
@@ -63,8 +84,20 @@ describe('useRaccourciDeLaPalette', () => {
   it('palette ouverte, le même raccourci la referme', () => {
     const changer = vi.fn();
     renderHook(() => useRaccourciDeLaPalette({ actif: true, ouverte: true, changer }));
-    presser({ key: 'k', metaKey: true });
+    presser({ key: 'k', ctrlKey: true });
     expect(changer).toHaveBeenCalledWith(false);
+  });
+
+  it('revue M2 — sous macOS : ⌘K ouvre ; Ctrl K n’est ni pris ni annulé', () => {
+    sous(UA_MAC);
+    const changer = vi.fn();
+    renderHook(() => useRaccourciDeLaPalette({ actif: true, ouverte: false, changer }));
+    const ctrl = presser({ key: 'k', ctrlKey: true });
+    expect(changer).not.toHaveBeenCalled();
+    expect(ctrl.defaultPrevented).toBe(false);
+    const cmd = presser({ key: 'k', metaKey: true });
+    expect(changer).toHaveBeenCalledWith(true);
+    expect(cmd.defaultPrevented).toBe(true);
   });
 
   it('ne s’ouvre pas par-dessus un autre dialogue ouvert, mais se referme toujours', () => {

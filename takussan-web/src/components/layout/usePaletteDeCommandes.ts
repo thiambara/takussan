@@ -9,7 +9,19 @@ type ToucheDuRaccourci = Pick<
 >;
 
 /**
- * TCK-2482 (A6) — ⌘K (macOS) ou Ctrl K ouvre la palette.
+ * TCK-2482 (A11) — une plateforme Apple (macOS, iPhone, iPad) : ⌘ y est la touche de commande. Lue au
+ * client seulement ; la barre haute rend `Ctrl K` au serveur et corrige après l'hydratation
+ * (`useSyncExternalStore`), sans écart.
+ */
+export function estSurApple(): boolean {
+  return typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.userAgent);
+}
+
+/**
+ * TCK-2482 (A6) — ⌘K sur Apple, Ctrl K ailleurs, ouvre la palette.
+ *
+ * Revue M2 — un seul modificateur par plateforme : sous macOS, Ctrl K est le « couper jusqu'en fin de
+ * ligne » de tout champ (Cocoa) ; ailleurs, ⌘ est la touche Windows, que le système garde.
  *
  * Relevé le 2026-11-05 : aucun champ de `/app` ne se sert de ce raccourci — aucun éditeur riche, aucun
  * `contenteditable` ; la recherche globale de la console (`GlobalSearch`, TCK-600) le prend dans une AUTRE
@@ -17,8 +29,9 @@ type ToucheDuRaccourci = Pick<
  * `preventDefault()`, et la palette s'efface devant `defaultPrevented` ; un `contenteditable` garde ses
  * raccourcis. Il marche depuis un champ de saisie ordinaire.
  */
-export function estLeRaccourciDeLaPalette(e: ToucheDuRaccourci): boolean {
-  if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || e.repeat || e.defaultPrevented) return false;
+export function estLeRaccourciDeLaPalette(e: ToucheDuRaccourci, surApple: boolean): boolean {
+  const modificateur = surApple ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey;
+  if (!modificateur || e.altKey || e.shiftKey || e.repeat || e.defaultPrevented) return false;
   if (e.key.toLowerCase() !== 'k') return false;
   const cible = e.target;
   return !(cible instanceof Element && cible.closest('[contenteditable]:not([contenteditable="false"])') !== null);
@@ -41,7 +54,7 @@ interface RaccourciDeLaPalette {
 
 export function useRaccourciDeLaPalette({ actif, ouverte, changer }: RaccourciDeLaPalette): void {
   const surTouche = useEffectEvent((event: KeyboardEvent) => {
-    if (!estLeRaccourciDeLaPalette(event)) return;
+    if (!estLeRaccourciDeLaPalette(event, estSurApple())) return;
     if (!ouverte && autreDialogueOuvert()) return;
     // Firefox, et Chrome sous Windows et Linux, y mettent leur propre recherche.
     event.preventDefault();
