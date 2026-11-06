@@ -14,6 +14,16 @@ import { cheminLocalise } from '@/i18n/routing';
 import { retenirPage } from '@/lib/navigation/pages-recentes';
 import type { MyProfilesResponse, Profile, ProfileType } from '@/types/profile';
 import type { User, UserRole } from '@/types/user';
+import {
+  JETONS_CLAIR,
+  JETONS_SOMBRE,
+  SEUIL_AA_TEXTE,
+  SEUIL_NON_TEXTUEL,
+  contraste,
+  fondHerite,
+  litUtilitaireDeCouleur,
+  resoudreCouleur,
+} from '@/test/contraste-wcag';
 import { PaletteDeCommandes } from '../PaletteDeCommandes';
 
 const etat = vi.hoisted(() => ({
@@ -251,5 +261,56 @@ describe('<PaletteDeCommandes> — TCK-2482', () => {
     expect((await axe.run(dialogue)).violations).toEqual([]);
     await u.type(screen.getByRole('combobox'), 'zzzz');
     expect((await axe.run(dialogue)).violations).toEqual([]);
+  });
+});
+
+/**
+ * Revue I2 — l'option active est le SEUL repère de ce qu'Entrée va ouvrir (le focus DOM reste au champ,
+ * `aria-activedescendant` désigne l'option) : son fond se distingue de la surface du dialogue à 3:1
+ * au moins (WCAG 1.4.11), et tout ce qu'elle porte s'y lit (4,5:1 le texte, 3:1 l'icône), en clair
+ * comme en sombre. `bg-muted` sur `--popover` faisait 1,18:1. Mesuré sur les classes RENDUES, résolues
+ * par les jetons du design system (`src/test/contraste-wcag.ts`) — pas sur le nom d'une classe.
+ */
+describe('<PaletteDeCommandes> — l’option active se voit (revue I2)', () => {
+  /** Le fond propre (sans variante) d'un élément ; `null` s'il n'en pose pas. */
+  const fondPropre = (el: Element, jetons: Readonly<Record<string, string>>) => {
+    const u = Array.from(el.classList)
+      .map((c) => litUtilitaireDeCouleur(c, 'bg'))
+      .find((x) => x !== null && x.variante === '' && x.jeton !== 'transparent');
+    return u ? resoudreCouleur(u.jeton, jetons) : null;
+  };
+  /** L'encre effective : la première classe `text-<jeton>` sans variante, de l'élément vers ses ancêtres. */
+  const encre = (el: Element | null, jetons: Readonly<Record<string, string>>): string => {
+    if (!el) return resoudreCouleur('foreground', jetons);
+    const u = Array.from(el.classList)
+      .map((c) => litUtilitaireDeCouleur(c, 'text'))
+      .find((x) => x !== null && x.variante === '');
+    return u ? resoudreCouleur(u.jeton, jetons) : encre(el.parentElement, jetons);
+  };
+
+  it.each([
+    ['clair', JETONS_CLAIR],
+    ['sombre', JETONS_SOMBRE],
+  ] as const)('%s : fond ≥ 3:1 sur le dialogue, libellé et précision ≥ 4,5:1, icône ≥ 3:1', async (_theme, jetons) => {
+    etat.profils = { data: [profil('agent', 5), profil('owner', 7)], meta: { active_profile_id: 'owner:7', count: 2 } };
+    const u = userEvent.setup();
+    render(ui(['customer', 'agent', 'owner'], 'owner'));
+    const champ = await screen.findByRole('combobox');
+    await u.type(champ, 'commissions');
+    const active = document.getElementById(champ.getAttribute('aria-activedescendant') ?? '');
+    expect(active).not.toBeNull();
+    // L'option porte une précision (« Aussi agent ») : elle se mesure aussi.
+    expect(active!.textContent).toBe('CommissionsAussi agent');
+
+    const fond = fondPropre(active!, jetons);
+    expect(fond, 'l’option active ne peint aucun fond').not.toBeNull();
+    const surface = fondHerite(active!, jetons).hex;
+    expect(contraste(fond!, surface)).toBeGreaterThanOrEqual(SEUIL_NON_TEXTUEL);
+
+    const textes = Array.from(active!.querySelectorAll('span'));
+    expect(textes).toHaveLength(2);
+    for (const t of textes) expect(contraste(encre(t, jetons), fond!)).toBeGreaterThanOrEqual(SEUIL_AA_TEXTE);
+    const icone = active!.querySelector('svg');
+    expect(contraste(encre(icone, jetons), fond!)).toBeGreaterThanOrEqual(SEUIL_NON_TEXTUEL);
   });
 });

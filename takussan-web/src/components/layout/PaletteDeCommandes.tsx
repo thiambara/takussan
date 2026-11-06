@@ -234,6 +234,7 @@ function ContenuDeLaPalette({ contexteDuMenu, ouverte, champ, fermer }: ContenuD
               {liste.map((option) => {
                 const index = resultats.indexOf(option);
                 const Icone = option.icone;
+                const estActive = index === indexActif;
                 return (
                   <div
                     key={option.cle}
@@ -243,21 +244,34 @@ function ContenuDeLaPalette({ contexteDuMenu, ouverte, champ, fermer }: ContenuD
                     // (motif combobox, `aria-activedescendant` désigne l'option). Patron de
                     // `SearchAutocomplete` : on choisit à l'appui, sans retirer le focus au champ.
                     tabIndex={-1}
-                    aria-selected={index === indexActif}
+                    aria-selected={estActive}
                     onMouseDown={(event) => {
                       event.preventDefault();
                       choisir(option);
                     }}
                     onMouseMove={() => setActif(index)}
+                    // Revue I2 — le surlignage du `Combobox` du dépôt (`ui/combobox.tsx`, `bg-accent` et son
+                    // encre appariée) : c'est le SEUL repère de ce qu'Entrée ouvre, et `bg-muted` sur
+                    // `--popover` ne faisait que 1,18:1. L'icône et la précision prennent l'encre du fond.
                     className={cn(
-                      'flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm text-foreground',
-                      index === indexActif && 'bg-muted',
+                      'flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm',
+                      estActive ? 'bg-accent text-accent-foreground' : 'text-foreground',
                     )}
                   >
-                    <Icone className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                    <Icone
+                      className={cn('size-4 shrink-0', estActive ? 'text-accent-foreground' : 'text-muted-foreground')}
+                      aria-hidden
+                    />
                     <span className="min-w-0 flex-1 truncate">{option.libelle}</span>
                     {option.precision ? (
-                      <span className="shrink-0 truncate text-xs text-muted-foreground">{option.precision}</span>
+                      <span
+                        className={cn(
+                          'shrink-0 truncate text-xs',
+                          estActive ? 'text-accent-foreground' : 'text-muted-foreground',
+                        )}
+                      >
+                        {option.precision}
+                      </span>
                     ) : null}
                   </div>
                 );
