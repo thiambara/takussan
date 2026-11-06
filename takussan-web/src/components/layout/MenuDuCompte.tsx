@@ -48,8 +48,9 @@ interface MenuDuCompteProps {
  * - Le nom accessible du déclencheur EST son texte visible (nom, espace · rôle) : WCAG 2.5.3. Base UI
  *   lui ajoute `aria-haspopup` et `aria-expanded`.
  * - Le menu s'ancre au déclencheur et se recale dans l'écran (`collisionPadding` de la primitive) : au
- *   pied de la colonne il s'ouvre vers le haut ; dans le rail, vers le contenu. Il est en portail, au
- *   `z-[1100]` des panneaux (au-dessus du tiroir, TCK-2485).
+ *   pied de la colonne, il s'ouvre vers le haut, aligné sur son bord gauche — dans le rail aussi, où il
+ *   déborde sur le contenu (mesuré à 1280 : 230 px de large, entièrement dans l'écran). Il est en
+ *   portail, au `z-[1100]` des panneaux (au-dessus du tiroir, TCK-2485).
  * - La langue est un groupe de `menuitemradio` (`aria-checked`) : choisir referme le menu et suit le
  *   chemin unique du changement de langue (cookie, préférence de compte, rafraîchissement).
  * - Le solde ne paraît que connu (jamais un « 0 » qui ne serait pas un solde, comme `PastilleCredits`),
