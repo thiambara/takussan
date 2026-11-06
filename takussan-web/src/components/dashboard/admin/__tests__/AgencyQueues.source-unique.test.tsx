@@ -124,9 +124,11 @@ describe('compteur de modération — une seule source (TCK-375, AC5)', () => {
       ),
     );
 
-    // Le badge de la barre latérale — sur « Modération biens », dans « Agence », replié depuis
-    // TCK-2478 : l'entrée est au menu, sa file est sondée et son badge posé.
-    expect(await screen.findByLabelText('6 en attente')).toHaveTextContent('6');
+    // Le nombre de la barre latérale. Revue adverse de TCK-2490 (M3) — il ne paraît qu'une fois : dans
+    // « Aujourd'hui » (la modération est une priorité de l'admin d'agence) ; l'entrée « Modération
+    // biens », repliée dans « Agence », le garde dans son nom (« 6 en attente »), sans le montrer.
+    expect(await screen.findByRole('link', { name: /^Biens à valider,?\s?6$/ })).toBeInTheDocument();
+    expect(screen.getByText('6 en attente')).toHaveClass('sr-only');
     // La tuile de l'accueil — le MÊME nombre.
     await waitFor(() =>
       expect(screen.getByTestId('queue-value-moderation')).toHaveTextContent('6 biens à modérer'),
