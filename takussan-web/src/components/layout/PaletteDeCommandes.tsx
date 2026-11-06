@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { EmptyState } from '@/components/feedback';
 import { profileShortLabel } from '@/components/profile/ProfileBadge';
 import { useMyProfiles, useSwitchActiveProfile } from '@/hooks/useProfiles';
 import { useCurrentLocale } from '@/i18n/hooks';
@@ -213,8 +214,11 @@ function ContenuDeLaPalette({ contexteDuMenu, ouverte, champ, fermer }: ContenuD
       <p role="status" className="sr-only">
         {t('resultats', { count: resultats.length })}
       </p>
+      {/* L'état vide unique du produit (`scripts/check-feedback-states.mjs`), allégé : la palette est
+          déjà une surface, ni bordure pointillée ni grand padding. Hors de la listbox, qui n'est pas
+          rendue sans option (`aria-controls` et `aria-expanded` du champ le suivent). */}
       {resultats.length === 0 && requete !== '' ? (
-        <p className="px-2 py-6 text-center text-sm text-muted-foreground">{t('aucun', { q: requete })}</p>
+        <EmptyState title={t('aucun', { q: requete })} className="rounded-none border-0 bg-transparent px-2 py-6" />
       ) : null}
       {resultats.length > 0 ? (
         <div id={idListe} role="listbox" aria-label={t('titre')} className="-mx-1 max-h-[min(60dvh,28rem)] overflow-y-auto px-1">
