@@ -36,10 +36,20 @@ export function ProfileMenuSection() {
         <p className="text-sm text-muted-foreground">{t('texte', { persona: tPersonas(persona) })}</p>
       </div>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-foreground" aria-live="polite">
+        {/* Revue de TCK-2480 — l'état est annoncé (`role="status"`) quand le geste le change. */}
+        <p role="status" className="text-sm text-foreground">
           {parDefaut ? t('dejaParDefaut') : t('personnalise')}
         </p>
-        <Button type="button" variant="outline" disabled={parDefaut} onClick={() => prefs.reinitialiser(persona)}>
+        {/* `aria-disabled`, pas `disabled` : le bouton passe inactif SOUS le focus après le geste, et
+            un bouton `disabled` le perd (il tombait sur `<body>`). Il reste atteignable ; son clic est
+            ignoré tant que rien n'est à effacer. */}
+        <Button
+          type="button"
+          variant="outline"
+          aria-disabled={parDefaut || undefined}
+          onClick={parDefaut ? undefined : () => prefs.reinitialiser(persona)}
+          className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+        >
           {t('reinitialiser')}
         </Button>
       </div>

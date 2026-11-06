@@ -52,10 +52,27 @@ describe('ProfileMenuSection — TCK-2480', () => {
     expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({ navigation: null });
   });
 
-  it('un menu déjà par défaut : le bouton est inactif', () => {
+  it('un menu déjà par défaut : le bouton est inactif (`aria-disabled`), et son clic n’écrit rien', async () => {
+    const user = userEvent.setup();
     rendre();
-    expect(screen.getByRole('button', { name: 'Revenir au menu par défaut' })).toBeDisabled();
+    const bouton = screen.getByRole('button', { name: 'Revenir au menu par défaut' });
+    expect(bouton).toHaveAttribute('aria-disabled', 'true');
     expect(screen.getByText('Votre menu suit la disposition par défaut.')).toBeInTheDocument();
+    await user.click(bouton);
+    await new Promise((fini) => setTimeout(fini, DELAI_D_ENVOI_MS + 100));
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('revue (focus) — revenir au menu par défaut au clavier : le focus RESTE sur le bouton, et l’état est annoncé', async () => {
+    const user = userEvent.setup();
+    rendre({ v: 1, personas: { agent: { epingles: ['commissions'] } } });
+    const bouton = screen.getByRole('button', { name: 'Revenir au menu par défaut' });
+    expect(bouton).not.toHaveAttribute('aria-disabled');
+    bouton.focus();
+    await user.keyboard('{Enter}');
+    expect(document.activeElement).toBe(bouton);
+    expect(bouton).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('status')).toHaveTextContent('Votre menu suit la disposition par défaut.');
   });
 
   it('A10 — la barre de cet appareil : les trois choix ; « Automatique » efface le cookie', async () => {
