@@ -301,10 +301,14 @@ describe('les files de modération gardent leur badge (TCK-098, repris de la bar
       expect(etat?.status, String(cle)).toBe('error');
       expect(etat?.data, String(cle)).toBeDefined();
     }
-    // Et pourtant : ni pastille, ni badge.
-    expect(screen.queryByRole('region', { name: 'À traiter' })).toBeNull();
-    expect(screen.queryByLabelText('3 en attente')).toBeNull();
-    expect(screen.queryByLabelText('6 en attente')).toBeNull();
+    // Et pourtant : ni pastille, ni badge. `waitFor` et non une lecture immédiate : TanStack notifie
+    // ses observateurs par un minuteur (`notifyManager`), qu'une CI chargée peut servir après `act` —
+    // rouge intermittent mesuré sur la PR #1650. Le défaut gardé, lui, laisse la bande pour toujours.
+    await waitFor(() => {
+      expect(screen.queryByRole('region', { name: 'À traiter' })).toBeNull();
+      expect(screen.queryByLabelText('3 en attente')).toBeNull();
+      expect(screen.queryByLabelText('6 en attente')).toBeNull();
+    });
   });
 
   it('admin individual : aucune file sondée — ses pages ne lui sont pas ouvertes', async () => {
