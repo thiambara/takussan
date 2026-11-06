@@ -1,7 +1,7 @@
 ---
 id: TCK-2491
 title: La coque de /app sans barre du haut — cloche, compte, espace, langue et crédits dans la colonne ; en-tête mobile compacte
-status: todo
+status: doing
 phase: P2
 family: front
 estimate: M
