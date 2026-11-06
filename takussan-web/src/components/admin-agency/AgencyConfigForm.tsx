@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useRef, useState, useTransition } from 'react';
-import { useWatch } from 'react-hook-form';
+import { Controller, useWatch } from 'react-hook-form';
 import { Loader2, Upload } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -40,6 +40,7 @@ import { useCan } from '@/hooks/useCan';
 import { useAuth } from '@/context/AuthContext';
 import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import { avecGardeDoubleFacteurAction } from '@/lib/double-facteur';
+import { CODES_DE_MODULE, modulesMasquesDe } from '@/lib/navigation/modules';
 
 /**
  * Agency admin configuration form — TCK-064.
@@ -74,6 +75,8 @@ function toDefaults(agency: Agency): AgencyFormValues {
     require_team_two_factor: settings.require_team_two_factor === true,
     // TCK-593 — clé absente (agence neuve) = désactivé, comme côté API.
     late_fee_online_collection: settings.late_fee_online_collection === true,
+    // TCK-2483 — clé absente = rien de masqué ; un code inconnu est ignoré (et ne repart pas).
+    hidden_modules: modulesMasquesDe(settings),
     default_tax_rate: agency.default_tax_rate != null ? String(agency.default_tax_rate) : '',
     payout_approval_threshold: initialThreshold(agency),
     legal_name: agency.legal_name ?? '',
@@ -562,6 +565,63 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
           </div>
         </div>
       </section>
+
+      {/* TCK-2483 (ADR-0089, amendement « modules par agence ») — un réglage d'AFFICHAGE : le menu de
+          toute l'équipe, l'admin compris. Pas pour une agence `individual` (aucune équipe ; l'API refuse
+          la clé). Cochée = affichée : on décoche ce que l'agence n'utilise pas. Même encadré cliquable
+          que la sécurité. */}
+      {individual ? null : (
+        <section className="rounded-xl bg-card p-6 space-y-4" aria-labelledby="modules-titre">
+          <div>
+            <h2 id="modules-titre" className="text-base font-semibold text-foreground">
+              {t('modules.title')}
+            </h2>
+            <p className="mt-1 text-pretty text-xs text-muted-foreground">{t('modules.description')}</p>
+          </div>
+          <Controller
+            control={control}
+            name="hidden_modules"
+            render={({ field }) => (
+              <ul className="space-y-2">
+                {CODES_DE_MODULE.map((code) => {
+                  const id = `module-${code}`;
+                  return (
+                    <li
+                      key={code}
+                      className="relative flex items-start gap-4 rounded-lg border border-input bg-background px-4 py-3 transition-colors hover:bg-muted/40"
+                    >
+                      <input
+                        id={id}
+                        type="checkbox"
+                        checked={!field.value.includes(code)}
+                        aria-describedby={`${id}-hint`}
+                        onChange={(e) =>
+                          field.onChange(
+                            e.target.checked ? field.value.filter((c) => c !== code) : [...field.value, code],
+                          )
+                        }
+                        onBlur={field.onBlur}
+                        className="mt-0.5 size-4 shrink-0 cursor-pointer rounded border-input accent-primary"
+                      />
+                      <div>
+                        <label
+                          htmlFor={id}
+                          className="cursor-pointer text-sm font-medium text-foreground after:absolute after:inset-0 after:rounded-lg"
+                        >
+                          {t(`modules.items.${code}.label`)}
+                        </label>
+                        <p id={`${id}-hint`} className="mt-0.5 text-pretty text-xs text-muted-foreground">
+                          {t(`modules.items.${code}.hint`)}
+                        </p>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          />
+        </section>
+      )}
 
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" disabled={isSubmitting}>

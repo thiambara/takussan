@@ -6685,6 +6685,40 @@
         "teamTwoFactorLabel": "Require two-factor authentication for the whole team",
         "teamTwoFactorHint": "Every member will have to set up a second factor (authenticator app) before acting in the agency’s workspace. The team’s “Two-factor” column shows who already has."
       },
+      "modules": {
+        "title": "Team menu",
+        "description": "Untick what your agency doesn’t use: the entry leaves your agents’ menu, and yours. No permission changes — a page stays reachable by a direct link — and your landlords and tenants keep their menu.",
+        "items": {
+          "commissions": {
+            "label": "Commissions",
+            "hint": "The team’s commission ledger."
+          },
+          "inventories": {
+            "label": "Condition reports",
+            "hint": "Move-in and move-out condition reports."
+          },
+          "move_in_follow_up": {
+            "label": "Pending onboardings",
+            "hint": "Tenants whose move-in condition report has been pending for more than 7 days."
+          },
+          "provider_book": {
+            "label": "Provider directory",
+            "hint": "The agency’s maintenance providers."
+          },
+          "calendar": {
+            "label": "Calendar",
+            "hint": "The calendar of visits, bookings and interventions."
+          },
+          "credits": {
+            "label": "Credits",
+            "hint": "The promotion credits wallet."
+          },
+          "analytics": {
+            "label": "Advanced analytics",
+            "hint": "KPIs, alerts and exports — statistics stay."
+          }
+        }
+      },
       "submit": {
         "saving": "Saving…"
       },

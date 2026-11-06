@@ -4886,6 +4886,40 @@
         "teamTwoFactorLabel": "Ñaari yoon ngir seetlu war na ci ekip bi yépp",
         "teamTwoFactorHint": "Bépp jàng dina war a defar ñaareelu sumb (appli seetlu) balaa muy def dara ci bérabu ajaans bi. Kolonu « Ñaari yoon ngir seetlu » bu ekip bi dina wone ku ko def ba noppi."
       },
+      "modules": {
+        "title": "Menu de l’équipe",
+        "description": "Décochez ce que votre agence n’utilise pas : l’entrée quitte le menu de vos agents, et le vôtre. Aucun droit ne change — une page reste accessible par un lien direct — et vos bailleurs et locataires gardent leur menu.",
+        "items": {
+          "commissions": {
+            "label": "Commissions",
+            "hint": "Le grand livre des commissions de l’équipe."
+          },
+          "inventories": {
+            "label": "États des lieux",
+            "hint": "Les états des lieux d’entrée et de sortie."
+          },
+          "move_in_follow_up": {
+            "label": "Onboardings en attente",
+            "hint": "Les locataires dont l’état des lieux d’entrée attend depuis plus de 7 jours."
+          },
+          "provider_book": {
+            "label": "Carnet prestataires",
+            "hint": "Les prestataires de maintenance de l’agence."
+          },
+          "calendar": {
+            "label": "Calendrier",
+            "hint": "Le calendrier des visites, réservations et interventions."
+          },
+          "credits": {
+            "label": "Crédits",
+            "hint": "Le portefeuille de crédits de mise en avant."
+          },
+          "analytics": {
+            "label": "Pilotage avancé",
+            "hint": "KPIs, alertes et exports — les statistiques restent."
+          }
+        }
+      },
       "submit": {
         "saving": "Mu ngi denc…"
       },

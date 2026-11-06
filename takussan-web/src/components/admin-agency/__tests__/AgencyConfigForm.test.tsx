@@ -221,7 +221,7 @@ describe('AgencyConfigForm — colonnes seules, sans fuseau (TCK-962)', () => {
     const user = userEvent.setup();
     render(withIntl(<AgencyConfigForm agency={ANCIENNE} />));
 
-    expect(screen.getByLabelText(/Commission/)).toHaveValue('5');
+    expect(screen.getByRole('textbox', { name: /Commission/ })).toHaveValue('5');
     expect(screen.queryByLabelText('Fuseau horaire')).toBeNull();
     expect(screen.getByRole('combobox', { name: 'Devise' })).not.toHaveTextContent(/EUR/);
 
@@ -231,6 +231,7 @@ describe('AgencyConfigForm — colonnes seules, sans fuseau (TCK-962)', () => {
     expect(payload.commission_rate).toBe(5);
     expect(payload).not.toHaveProperty('currency');
     expect(Object.keys(payload.settings as object).sort()).toEqual([
+      'hidden_modules',
       'late_fee_online_collection',
       'require_team_two_factor',
     ]);
