@@ -42,7 +42,8 @@ class SyncPropertyTagRequest extends BaseFormRequest
         $bien = $this->route('property');
 
         return [
-            'tag_ids' => ['present', 'array'],
+            // TCK-2488 — borne technique : le formulaire coche parmi TOUS les équipements (35 au référentiel du jeu de démo).
+            'tag_ids' => ['present', 'array', 'max:500'],
             'tag_ids.*' => [
                 'integer',
                 // TCK-633 — même règle que les quartiers (`GeoAddressRules`) : un équipement se

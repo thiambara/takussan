@@ -44,7 +44,8 @@ class UpdateRadarCrawlSourceRequest extends BaseFormRequest
                 'max:'.(int) config('radar.crawl.max_frequency_minutes', 10080),
             ],
             'max_pages' => ['sometimes', 'integer', 'min:1', 'max:'.(int) config('radar.crawl.max_pages_limit', 20)],
-            'start_urls' => ['sometimes', 'nullable', 'array'],
+            // TCK-2488 — borne technique 10× `maxCount()` : en deçà, le refus codé `start_urls_too_many` reste celui de `passedValidation()`.
+            'start_urls' => ['sometimes', 'nullable', 'array', 'max:'.(10 * RadarStartUrls::maxCount())],
             'start_urls.*' => ['nullable', 'string'],
             'scope' => ['sometimes', 'required', Rule::enum(RadarCrawlScope::class)],
             'discovery' => ['sometimes', 'nullable', Rule::enum(RadarCrawlDiscovery::class)],

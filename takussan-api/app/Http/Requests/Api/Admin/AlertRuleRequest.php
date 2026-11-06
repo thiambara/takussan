@@ -33,6 +33,13 @@ abstract class AlertRuleRequest extends BaseFormRequest
     }
 
     /**
+     * Les canaux d'envoi d'une règle — et, par leur nombre, la borne de `channels` (TCK-2488).
+     *
+     * @var list<string>
+     */
+    public const CHANNELS = ['email', 'slack', 'discord'];
+
+    /**
      * `required` à la création, `sometimes` à la mise à jour partielle.
      */
     abstract protected function presence(): string;
@@ -44,12 +51,14 @@ abstract class AlertRuleRequest extends BaseFormRequest
 
         return [
             'event' => [$required, 'string', Rule::in(AlertableEvents::keys())],
-            'channels' => [$required, 'array', 'min:1'],
-            'channels.*' => ['string', Rule::in(['email', 'slack', 'discord'])],
+            'channels' => [$required, 'array', 'min:1', 'max:'.count(self::CHANNELS)],
+            'channels.*' => ['string', Rule::in(self::CHANNELS)],
             'recipients' => [$required, 'array'],
-            'recipients.emails' => ['nullable', 'array'],
+            // TCK-2488 — borne technique : `alerts.tsx` est une saisie libre séparée par des virgules, sans limite.
+            'recipients.emails' => ['nullable', 'array', 'max:1000'],
             'recipients.emails.*' => ['email'],
-            'recipients.webhooks' => ['nullable', 'array'],
+            // TCK-2488 — borne technique : même saisie libre, sans limite (un envoi HTTP par webhook).
+            'recipients.webhooks' => ['nullable', 'array', 'max:1000'],
             'recipients.webhooks.*' => ['url'],
             'is_active' => ['sometimes', 'boolean'],
         ];

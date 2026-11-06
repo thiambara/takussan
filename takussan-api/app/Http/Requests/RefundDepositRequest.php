@@ -31,7 +31,8 @@ class RefundDepositRequest extends BaseFormRequest
             'reason' => ['nullable', 'string', 'max:2000'],
             // Pre-existing media IDs already attached to the lease — they
             // get re-labelled to the `lease_deposit_refund` collection.
-            'attachments' => ['nullable', 'array'],
+            // TCK-2488 — borne technique, aucun appelant : le front envoie ses fichiers par `uploads[]`.
+            'attachments' => ['nullable', 'array', 'max:1000'],
             'attachments.*' => ['integer'],
             // Newly uploaded files — added directly to
             // `lease_deposit_refund`. Either or both can be provided.
