@@ -54,6 +54,12 @@ describe('TCK-2481 — useMenuDeLEspace', () => {
     expect(plus?.entrees.map((e) => e.id)).toContain('documents');
     // Les mêmes destinations, autrement rangées : rien n'est ajouté ni perdu.
     expect(hrefs(groupesDeLaDisposition)).toEqual(hrefs(groupes));
+
+    // Épingler ne change RIEN aux groupes de la disposition : les onglets ne bougent pas.
+    navigation.courante = NAVIGATION_VIDE;
+    const sansEpingle = renderHook(() => useMenuDeLEspace({ user: utilisateur(['customer']) }));
+    expect(groupesDeLaDisposition).toEqual(sansEpingle.result.current.groupesDeLaDisposition);
+    expect(groupes).not.toEqual(sansEpingle.result.current.groupes);
   });
 
   it('les groupes de la disposition portent le cadenas de l’agence `individual`, comme le menu rendu', () => {
