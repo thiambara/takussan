@@ -1,14 +1,14 @@
 ---
 id: TCK-2482
 title: Palette de commandes ⌘K / Ctrl K — destinations, action principale, files « À traiter », bascule de profil, pages récentes
-status: todo
+status: doing
 phase: P2
 family: front
 estimate: M
 wave: 82
 created: 2026-11-05
-updated: 2026-11-05
-depends_on: [TCK-2479]
+updated: 2026-11-06
+depends_on: [TCK-2479, TCK-2480, TCK-2481]
 blocks: []
 spec_refs:
   features:
