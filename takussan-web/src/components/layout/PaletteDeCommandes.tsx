@@ -3,6 +3,7 @@
 import { useId, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { useIsMutating } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/feedback';
@@ -10,6 +11,7 @@ import { profileShortLabel } from '@/components/profile/ProfileBadge';
 import { useMyProfiles, useSwitchActiveProfile } from '@/hooks/useProfiles';
 import { useCurrentLocale } from '@/i18n/hooks';
 import { cheminLocalise } from '@/i18n/routing';
+import { CLE_DE_BASCULE_D_ESPACE } from '@/lib/cache-d-espace';
 import { espacesAProposer } from '@/lib/espaces';
 import { pastillesATraiter } from '@/lib/navigation/a-traiter';
 import type { EntreeComposee } from '@/lib/navigation/composer-menu';
@@ -149,6 +151,9 @@ function ContenuDeLaPalette({ contexteDuMenu, ouverte, champ, fermer }: ContenuD
   const bande = pastillesATraiter(entrees, compteurs, menu.priorites);
   const profils = useMyProfiles();
   const bascule = useSwitchActiveProfile();
+  // Revue M3 — une bascule en cours OÙ QU'ELLE AIT ÉTÉ LANCÉE (le sélecteur, avant ⌘K) : l'`isPending`
+  // de cette instance, montée à l'ouverture, ne la voit pas. Les « Passer à » sont alors désactivés.
+  const basculeEnCours = useIsMutating({ mutationKey: CLE_DE_BASCULE_D_ESPACE }) > 0;
   const actifId = profils.data?.meta.active_profile_id ?? null;
 
   const libelle = (e: EntreeComposee) => (e.labelSpace === 'nav.admin' ? tAdmin(e.labelKey) : tMenu(e.labelKey));
@@ -189,7 +194,9 @@ function ContenuDeLaPalette({ contexteDuMenu, ouverte, champ, fermer }: ContenuD
     const cible = option.cible;
     // A12 — la chaîne du sélecteur de profil, sans un geste de plus (toast, `router.refresh()`, cache).
     if (cible.type === 'espace') {
-      if (!bascule.isPending) bascule.mutate(cible.profilId);
+      // Désactivée (revue M3) : ni seconde bascule concurrente, ni fermeture muette.
+      if (basculeEnCours) return;
+      bascule.mutate(cible.profilId);
     } else {
       router.push(cible.publique ? cheminLocalise(cible.href, locale) : cible.href);
     }
@@ -270,6 +277,7 @@ function ContenuDeLaPalette({ contexteDuMenu, ouverte, champ, fermer }: ContenuD
                 const index = resultats.indexOf(option);
                 const Icone = option.icone;
                 const estActive = index === indexActif;
+                const desactivee = option.cible.type === 'espace' && basculeEnCours;
                 return (
                   <div
                     key={option.cle}
@@ -280,6 +288,7 @@ function ContenuDeLaPalette({ contexteDuMenu, ouverte, champ, fermer }: ContenuD
                     // `SearchAutocomplete` : on choisit à l'appui, sans retirer le focus au champ.
                     tabIndex={-1}
                     aria-selected={estActive}
+                    aria-disabled={desactivee || undefined}
                     onMouseDown={(event) => {
                       event.preventDefault();
                       choisir(option);
@@ -291,6 +300,7 @@ function ContenuDeLaPalette({ contexteDuMenu, ouverte, champ, fermer }: ContenuD
                     className={cn(
                       'flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm',
                       estActive ? 'bg-accent text-accent-foreground' : 'text-foreground',
+                      desactivee && 'cursor-not-allowed opacity-50',
                     )}
                   >
                     <Icone

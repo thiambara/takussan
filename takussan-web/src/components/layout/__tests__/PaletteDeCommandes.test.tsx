@@ -8,7 +8,9 @@ import axe from 'axe-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useMutation } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { CLE_DE_BASCULE_D_ESPACE } from '@/lib/cache-d-espace';
 import { withIntl } from '@/test/intl';
 import { cheminLocalise } from '@/i18n/routing';
 import { retenirPage } from '@/lib/navigation/pages-recentes';
@@ -286,6 +288,50 @@ describe('<PaletteDeCommandes> — TCK-2482', () => {
     expect(liste ? noms(liste).filter((n) => n.startsWith('Passer à')) : []).toEqual([]);
     await u.keyboard('{Enter}');
     expect(etat.mutate).not.toHaveBeenCalled();
+  });
+
+  it('revue M3 — une bascule déjà en cours (lancée au sélecteur) : « Passer à » désactivé, Entrée ne fait rien', async () => {
+    etat.profils = { data: [profil('agent', 5), profil('owner', 7)], meta: { active_profile_id: 'agent:5', count: 2 } };
+    /** Le sélecteur d'espace, ailleurs dans la coque, dont le `PATCH` n'a pas encore répondu. */
+    function BasculeEnCours() {
+      const { mutate } = useMutation({ mutationKey: CLE_DE_BASCULE_D_ESPACE, mutationFn: () => new Promise<never>(() => {}) });
+      useEffect(() => mutate(), [mutate]);
+      return null;
+    }
+    const u = userEvent.setup();
+    render(
+      withIntl(
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <BasculeEnCours />
+          <PaletteDeCommandes
+            ouverte
+            onOuverteChange={fermer}
+            contexteDuMenu={{ user: utilisateur(['customer', 'agent', 'owner']), agencyIsStandard: true, typeProfilActif: 'agent' }}
+          />
+        </QueryClientProvider>,
+      ),
+    );
+    const champ = await screen.findByRole('combobox');
+    await u.type(champ, 'passer');
+    const option = screen.getByRole('option', { name: 'Passer à : Propriétaire · Agence Teranga' });
+    await waitFor(() => expect(option).toHaveAttribute('aria-disabled', 'true'));
+    await u.keyboard('{Enter}');
+    await u.click(option);
+    expect(etat.mutate).not.toHaveBeenCalled();
+    expect(fermer).not.toHaveBeenCalled();
+    // Une page reste ouvrable pendant la bascule.
+    await u.clear(champ);
+    await u.type(champ, 'commissions');
+    await u.keyboard('{Enter}');
+    expect(etat.push).toHaveBeenCalledWith('/app/commissions');
+  });
+
+  it('revue M3 — sans bascule en cours, « Passer à » n’est pas désactivé', async () => {
+    etat.profils = { data: [profil('agent', 5), profil('owner', 7)], meta: { active_profile_id: 'agent:5', count: 2 } };
+    const u = userEvent.setup();
+    render(ui(['customer', 'agent', 'owner'], 'agent'));
+    await u.type(await screen.findByRole('combobox'), 'passer');
+    expect(screen.getByRole('option', { name: 'Passer à : Propriétaire · Agence Teranga' })).not.toHaveAttribute('aria-disabled');
   });
 
   it('AC5 — axe : aucune violation, champ vide (cinq groupes possibles) et sans résultat', async () => {
