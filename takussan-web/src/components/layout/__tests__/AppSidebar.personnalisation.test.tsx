@@ -468,3 +468,51 @@ describe('TCK-2480 — A11 : les variantes compactes ne sont rendues que si la b
     expect(screen.queryByRole('button', { name: fr.nav.sidebar.icones.reduire })).toBeNull();
   });
 });
+
+/**
+ * Revue de TCK-2480 (M1) — barre réduite : le libellé d'une ligne passe en infobulle. Une ligne
+ * cadenassée (agence `individual`) l'avait perdue : seule restait une icône et un `title` « réservé ».
+ */
+describe('TCK-2480 — M1 : barre réduite, la ligne cadenassée a son infobulle', () => {
+  const navigation = { v: 1, personas: { hote: { ouverts: ['plus'] } } };
+  const bulles = () => [...document.querySelectorAll('[data-slot="tooltip-content"]')].map((b) => b.textContent);
+  const rendreLHote = (modeIcones: ModeIcones) =>
+    render(element(['customer', 'agency_admin', 'owner'], 'hote', { agencyIsStandard: false, modeIcones, navigation }));
+  const cadenassee = () => screen.getByRole('link', { name: new RegExp(`^Vue agence`) });
+
+  it('au survol : le libellé ET la raison du cadenas', async () => {
+    const user = utilisateur();
+    rendreLHote('icones');
+    expect(cadenassee()).toHaveAttribute('aria-disabled', 'true');
+    // Une seule bulle : pas de `title` natif par-dessus l'infobulle.
+    expect(cadenassee()).not.toHaveAttribute('title');
+    await user.hover(cadenassee());
+    await waitFor(() => expect(bulles()).toHaveLength(1));
+    expect(bulles()[0]).toContain('Vue agence');
+    expect(bulles()[0]).toContain(fr.nav.sidebar.proLocked);
+  });
+
+  it('au focus clavier aussi', async () => {
+    rendreLHote('icones');
+    act(() => cadenassee().focus());
+    await waitFor(() => expect(bulles().join(' ')).toContain('Vue agence'));
+  });
+
+  it('témoin : une ligne ordinaire a la même infobulle (son libellé)', async () => {
+    const user = utilisateur();
+    rendreLHote('icones');
+    await user.hover(screen.getByRole('link', { name: 'Messagerie' }));
+    await waitFor(() => expect(bulles()).toEqual(['Messagerie']));
+  });
+
+  it('barre dépliée : aucune infobulle, le cadenas garde son `title`', async () => {
+    const user = utilisateur();
+    rendreLHote('complet');
+    expect(cadenassee()).toHaveAttribute('title', fr.nav.sidebar.proLocked);
+    await user.hover(cadenassee());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    expect(bulles()).toEqual([]);
+  });
+});

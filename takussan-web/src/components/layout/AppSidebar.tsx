@@ -160,19 +160,32 @@ function SidebarItem({
     COMPTEURS_DE_MODERATION.has(cle) ? tAdmin('pendingBadge', { count }) : t(`counters.${cle}`, { count });
 
   if (locked) {
+    // Revue de TCK-2480 (M1) — réduite, la ligne cadenassée a la même infobulle qu'une ligne ordinaire
+    // (son libellé), plus la raison du cadenas ; le `title` ne reste que barre dépliée (deux bulles
+    // superposées sinon). La raison est toujours lue (`sr-only`).
     return (
-      <span
-        role="link"
-        aria-disabled="true"
-        tabIndex={0}
-        title={t('proLocked')}
-        className="flex cursor-not-allowed items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground max-md:py-2.5 icones:justify-center icones:px-0"
-      >
-        <Icon className="size-4 shrink-0" aria-hidden />
-        <span className={LIBELLE_DE_LIGNE}>{label}</span>
-        <span className="sr-only">{t('proLocked')}</span>
-        <Lock className="ml-auto size-3.5 shrink-0 icones:hidden" aria-hidden />
-      </span>
+      <Tooltip disabled={!infobulle}>
+        <TooltipTrigger
+          render={
+            <span
+              role="link"
+              aria-disabled="true"
+              tabIndex={0}
+              title={infobulle ? undefined : t('proLocked')}
+              className="flex cursor-not-allowed items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground max-md:py-2.5 icones:justify-center icones:px-0"
+            />
+          }
+        >
+          <Icon className="size-4 shrink-0" aria-hidden />
+          <span className={LIBELLE_DE_LIGNE}>{label}</span>
+          <span className="sr-only">{t('proLocked')}</span>
+          <Lock className="ml-auto size-3.5 shrink-0 icones:hidden" aria-hidden />
+        </TooltipTrigger>
+        <TooltipContent side="right">
+          <span className="block font-semibold">{label}</span>
+          <span className="block">{t('proLocked')}</span>
+        </TooltipContent>
+      </Tooltip>
     );
   }
   // TCK-2480 — réduite, le libellé reste lu (`LIBELLE_DE_LIGNE`) et passe en infobulle à l'œil ;
