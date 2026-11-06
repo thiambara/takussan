@@ -127,6 +127,9 @@ et restaure, md5 vérifié.
   est signalé sur le chevron du groupe replié : un point, avec le nombre dans le nom et dans l'infobulle.
   Ablations S1 à S5 rouges. Mesuré au navigateur sur le locataire (compte de visites réécrit dans la
   réponse) : nom AX « Mes recherches 2 demandes de visite en attente », rien à 1440.
+- **Dernier point, barre dépliée** — `acd82818d`. Le titre d'un groupe replié montre le compte
+  qu'« Aujourd'hui » ne porte pas : chiffres de compteur au même bord droit, à 255 px comme les
+  compteurs et les touches, nombre dans le nom du bouton. Déplié, il se tait. Ablations T1 à T6 rouges.
 - `be8a24417` : le test de source unique du compteur de modération était rouge depuis `ae9cf1049`
   (M3), sans que je l'aie vu ; il vérifie maintenant le nombre là où il paraît.
 - La variante `carte` de `ProfileSwitcher` est réglée par TCK-2491 : le composant a quitté le dépôt.
