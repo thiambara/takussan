@@ -553,6 +553,58 @@ describe('TCK-2480 — A11 : les variantes compactes ne sont rendues que si la b
     expect(document.querySelectorAll('[data-groupe="mes-demarches"] [data-slot="point-entree"]')).toHaveLength(1);
   });
 
+  // Suite de la revue adverse (b) — le compte d'une entrée repliée, absent d'« Aujourd'hui », ne doit pas
+  // disparaître du rail : le groupe replié le signale sur son chevron, seule icône visible du groupe, du
+  // même point que les lignes d'« Aujourd'hui », et son nom comme son infobulle donnent le nombre.
+  it('réduite : un groupe replié qui cache un compte hors « Aujourd’hui » le signale sur son chevron', async () => {
+    visites.n = 2;
+    const user = utilisateur();
+    const replie = { v: 1, personas: { client: { replies: ['mes-demarches'] } } };
+    render(element(['customer'], 'client', { modeIcones: 'icones', navigation: replie }));
+    const bascule = document.querySelector<HTMLElement>('[data-groupe="mes-demarches"] > button[aria-expanded="false"]')!;
+    expect(bascule, 'le chevron du groupe replié').not.toBeNull();
+    const classes = (el: Element | null) => (el?.getAttribute('class') ?? '').split(/\s+/);
+    expect(classes(bascule.querySelector('[data-slot="point-groupe"]'))).toEqual(
+      expect.arrayContaining(['hidden', 'icones:block', 'bg-primary', 'rounded-full']),
+    );
+    expect(bascule).toHaveAccessibleName(/^Mes démarches,?\s?2 demandes de visite en attente$/);
+    await user.hover(bascule);
+    await waitFor(() =>
+      expect([...document.querySelectorAll('[data-slot="tooltip-content"]')].map((b) => b.textContent)).toEqual([
+        'Mes démarches · 2 demandes de visite en attente',
+      ]),
+    );
+  });
+
+  it('réduite : pas de signal sur un groupe ouvert, ni sans compte, ni pour un compte déjà dans « Aujourd’hui »', () => {
+    visites.n = 2;
+    const { unmount } = render(element(['customer'], 'client', { modeIcones: 'icones' }));
+    expect(document.querySelectorAll('[data-slot="point-groupe"]'), 'groupe ouvert').toHaveLength(0);
+    unmount();
+    visites.n = 0;
+    const replie = { v: 1, personas: { client: { replies: ['mes-demarches'] } } };
+    const r2 = render(element(['customer'], 'client', { modeIcones: 'icones', navigation: replie }));
+    expect(document.querySelectorAll('[data-slot="point-groupe"]'), 'sans compte').toHaveLength(0);
+    r2.unmount();
+    // Les visites de l'agent sont une de ses priorités : dans « Aujourd'hui », jamais signalées deux fois,
+    // même repliées dans « Prospection ».
+    visites.n = 2;
+    const prospection = { v: 1, personas: { agent: { replies: ['prospection'] } } };
+    render(element(['customer', 'agent'], 'agent', { modeIcones: 'icones', navigation: prospection }));
+    expect(document.querySelector('[data-groupe="prospection"] > button[aria-expanded="false"]'), 'replié').not.toBeNull();
+    expect(document.querySelectorAll('[data-slot="point-aujourdhui"]').length, 'dans « Aujourd’hui »').toBeGreaterThan(0);
+    expect(document.querySelectorAll('[data-slot="point-groupe"]'), 'déjà dans « Aujourd’hui »').toHaveLength(0);
+  });
+
+  it('dépliée : le groupe replié ne porte ni point ni nombre dans son nom (le signal est celui du rail)', () => {
+    visites.n = 2;
+    const replie = { v: 1, personas: { client: { replies: ['mes-demarches'] } } };
+    render(element(['customer'], 'client', { modeIcones: 'complet', navigation: replie }));
+    const bascule = document.querySelector<HTMLElement>('[data-groupe="mes-demarches"] > button[aria-expanded="false"]')!;
+    expect(bascule.querySelector('[data-slot="point-groupe"]')).toBeNull();
+    expect(bascule).toHaveAccessibleName('Mes démarches');
+  });
+
   it('en `auto`, la bascule porte les DEUX libellés (le CSS en montre un) ; en `icones`, seul « Déplier »', () => {
     const { unmount } = render(element(['customer', 'agent'], 'agent', { modeIcones: 'auto' }));
     const bascule = document.querySelector('aside button[data-slot="bascule-icones"]') as HTMLElement;

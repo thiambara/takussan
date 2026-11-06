@@ -307,6 +307,11 @@ interface GroupeDuMenuProps {
   readonly onBasculer?: (groupe: string, replie: boolean, replieParDefaut: boolean) => void;
   /** TCK-2480 — la barre est réduite MAINTENANT : le titre du bouton de bascule passe en infobulle. */
   readonly infobulle: boolean;
+  /**
+   * Suite de la revue adverse (b) — les comptes non nuls du groupe ABSENTS d'« Aujourd'hui », déjà
+   * libellés (« 2 demandes de visite en attente »). Réduite, un groupe replié les signale sur son chevron.
+   */
+  readonly comptesCaches?: readonly string[];
 }
 
 /** Les groupes dont le titre paraît toujours : les divulgations, et « Épinglés » (on voit où va l'entrée, A6). */
@@ -346,6 +351,7 @@ function GroupeDuMenu({
   rendreEntree,
   onBasculer,
   infobulle,
+  comptesCaches = [],
 }: GroupeDuMenuProps) {
   const t = useTranslations('nav.sidebar');
   const contientLActif = activeHref !== null && groupe.entrees.some((e) => e.href === activeHref);
@@ -368,6 +374,10 @@ function GroupeDuMenu({
   const libelle = groupe.titre !== null ? t(`groupes.${groupe.titre}`, groupe.titreValeurs) : null;
   const idTitre = `${idBase}-${groupe.id}-titre`;
   const idListe = `${idBase}-${groupe.id}-liste`;
+  // Suite de la revue adverse (b) — réduite, la liste repliée n'a ni hauteur ni point (`inert`) : un
+  // compte qu'« Aujourd'hui » ne porte pas y devenait invisible. Le chevron, seule icône du groupe, le
+  // signale du même point que les lignes d'« Aujourd'hui » ; son nom et son infobulle donnent le nombre.
+  const signal = ferme && infobulle && comptesCaches.length > 0;
 
   const basculer = () => {
     setOuvertParLActif(false);
@@ -399,7 +409,7 @@ function GroupeDuMenu({
                 aria-controls={idListe}
                 onClick={basculer}
                 className={cn(
-                  'group/titre mb-0.5 flex h-7 w-full items-center gap-1 rounded-md px-2.5 text-left transition-colors hover:text-foreground max-md:h-9 icones:justify-center icones:px-0',
+                  'group/titre relative mb-0.5 flex h-7 w-full items-center gap-1 rounded-md px-2.5 text-left transition-colors hover:text-foreground max-md:h-9 icones:justify-center icones:px-0',
                   STYLE_TITRE,
                   FOCUS_RING,
                 )}
@@ -416,8 +426,20 @@ function GroupeDuMenu({
                   : '-rotate-90 opacity-100',
               )}
             />
+            {signal ? (
+              <>
+                <span
+                  aria-hidden
+                  data-slot="point-groupe"
+                  className="absolute right-3 top-1 hidden size-1.5 rounded-full bg-primary icones:block"
+                />
+                <span className="sr-only">{comptesCaches.join(', ')}</span>
+              </>
+            ) : null}
           </TooltipTrigger>
-          <TooltipContent side="right">{libelle}</TooltipContent>
+          <TooltipContent side="right">
+            {signal ? t('aujourdhui.infobulle', { libelle: libelle ?? '', nombre: comptesCaches.join(', ') }) : libelle}
+          </TooltipContent>
         </Tooltip>
       ) : avecTitre ? (
         <p id={idTitre} className={cn('mb-0.5 flex h-7 items-center px-2.5 icones:sr-only', STYLE_TITRE)}>
@@ -689,6 +711,17 @@ export function AppSidebar({
   const autres = tableauEnTete
     ? [{ ...tete!, entrees: tete!.entrees.slice(1) }, ...autresComposes.slice(1)].filter((g) => g.entrees.length > 0)
     : autresComposes;
+  // Suite de la revue adverse (b) — les comptes d'un groupe qu'« Aujourd'hui » ne porte pas, libellés.
+  const comptesCachesDu = (groupe: (typeof groupes)[number]) =>
+    groupe.entrees.flatMap((e) => {
+      const n = e.counterKey && !e.locked ? counters[e.counterKey] : undefined;
+      if (!e.counterKey || !n || n <= 0 || comptesDAujourdhui.has(e.counterKey)) return [];
+      return [
+        COMPTEURS_DE_MODERATION.has(e.counterKey)
+          ? tAdmin('pendingBadge', { count: n })
+          : t(`counters.${e.counterKey}`, { count: n }),
+      ];
+    });
   const rendreGroupe = (groupe: (typeof groupes)[number], premier: boolean) => (
     <GroupeDuMenu
       key={groupe.id}
@@ -700,6 +733,7 @@ export function AppSidebar({
       rendreEntree={rendreEntree}
       onBasculer={basculerGroupe}
       infobulle={infobulle}
+      comptesCaches={comptesCachesDu(groupe)}
     />
   );
 
