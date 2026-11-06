@@ -91,7 +91,7 @@ Décision (session, 2026-11-06) :
       contexte est listée nommément, et sa source ne porte aucune clé `.*`.
 - [x] AC5 — Ablations : retirer le trait de `BaseFormRequest`, puis d'une requête directe, puis
       neutraliser la fonction → les tests ci-dessus rougissent ; restauré → verts.
-- [ ] AC6 — Suites par la CI.
+- [x] AC6 — Suites par la CI. Web CI run 42253752157 (c40171077, 10 285 tests) ; API CI run 42238024674 (lint-and-test sur ded5da40d, attesté pour c40171077) — 2026-11-06.
 
 ## Hors périmètre
 

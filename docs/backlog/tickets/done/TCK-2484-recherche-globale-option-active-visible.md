@@ -62,7 +62,7 @@ la console.
 - [x] AC2 — Le test rougit sur l'ancien surlignage (`bg-muted`) et sur une encre `muted` gardée
       sur l'accent (ablations écrites dans les notes).
 - [x] AC3 — Gardes du dépôt et du front vertes (jetons, `check-heritage-encre`, tsc, lint).
-- [ ] AC4 — Suites entières vertes (par la CI).
+- [x] AC4 — Suites entières vertes (par la CI). Web CI run 42253752157 (c40171077, 10 285 tests) ; API CI run 42238024674 (lint-and-test sur ded5da40d, attesté pour c40171077) — 2026-11-06.
 
 ## Hors périmètre
 

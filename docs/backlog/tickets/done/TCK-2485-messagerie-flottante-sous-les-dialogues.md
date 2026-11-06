@@ -64,7 +64,7 @@ Un dialogue modal est la couche du dessus de la page, sous les seuls menus, info
       comparateur, barres flottantes, carte Leaflet (relevé + test).
 - [x] AC3 — Un test rougit sur l'ancien ordre (ablation écrite dans les notes).
 - [x] AC4 — Gardes du dépôt et du front vertes.
-- [ ] AC5 — Suites entières vertes (par la CI).
+- [x] AC5 — Suites entières vertes (par la CI). Web CI run 42253752157 (c40171077, 10 285 tests) ; API CI run 42238024674 (lint-and-test sur ded5da40d, attesté pour c40171077) — 2026-11-06.
 
 ## Hors périmètre
 

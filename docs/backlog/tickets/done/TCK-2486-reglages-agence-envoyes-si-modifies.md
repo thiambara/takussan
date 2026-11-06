@@ -68,7 +68,7 @@ Aucun changement visible : mêmes cases, mêmes libellés.
 - [x] AC3 — Un `settings` lu sans la clé vaut `false` à l'affichage ET à l'envoi : enregistrer sans
       toucher n'envoie rien ; cocher envoie `true`.
 - [x] AC4 — Chaque test neuf est prouvé par ablation (retour à l'émission systématique → rouge).
-- [ ] AC5 — Suites front et API vertes par la CI.
+- [x] AC5 — Suites front et API vertes par la CI. Web CI run 42253752157 (c40171077, 10 285 tests) ; API CI run 42238024674 (lint-and-test sur ded5da40d, attesté pour c40171077) — 2026-11-06.
 
 ## Hors périmètre
 

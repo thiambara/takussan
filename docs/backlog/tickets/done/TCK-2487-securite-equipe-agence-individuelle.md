@@ -73,7 +73,7 @@ jamais la clé pour une `individual` (sinon chaque enregistrement rendrait 422),
       « Sécurité de l'équipe » et n'envoie jamais la clé, même si `settings` la porte à `true` ;
       celle d'une `standard` la garde.
 - [x] AC4 — Chaque test neuf est prouvé par ablation.
-- [ ] AC5 — Suites front et API vertes par la CI.
+- [x] AC5 — Suites front et API vertes par la CI. Web CI run 42253752157 (c40171077, 10 285 tests) ; API CI run 42238024674 (lint-and-test sur ded5da40d, attesté pour c40171077) — 2026-11-06.
 
 ## Hors périmètre
 
