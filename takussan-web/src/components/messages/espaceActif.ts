@@ -1,5 +1,6 @@
 'use client';
 
+import { useSyncExternalStore } from 'react';
 import { useMyProfiles } from '@/hooks/useProfiles';
 import type { AgencyKind, MyProfilesResponse } from '@/types/profile';
 
@@ -51,7 +52,20 @@ export function peutProposerUnGroupe(nature: NatureDeLEspace): boolean {
   return nature === 'standard' || nature === 'sans-agence';
 }
 
+const sAbonnerARien = () => () => {};
+const auNavigateur = () => true;
+const auServeur = () => false;
+
+/**
+ * ⚠ **Faux pendant l'hydratation, quoi que dise le cache.** Le serveur ne lit jamais
+ * `GET /api/me/profiles` : il rend la page sans le bouton. Au navigateur, `/app/messages` est sous
+ * sa limite de chargement et s'hydrate APRÈS que la coque a mis les profils en cache — le premier
+ * rendu client montrait alors le bouton, et React rejetait le HTML serveur (mesuré : agent, 1280,
+ * 3 sur 3). L'instantané serveur de `useSyncExternalStore` vaut pour l'hydratation seule ; une
+ * navigation douce, qui n'hydrate rien, montre le bouton dès le premier rendu.
+ */
 export function usePeutProposerUnGroupe(): boolean {
   const { data } = useMyProfiles();
-  return peutProposerUnGroupe(natureDeLEspaceActif(data));
+  const hydrate = useSyncExternalStore(sAbonnerARien, auNavigateur, auServeur);
+  return hydrate && peutProposerUnGroupe(natureDeLEspaceActif(data));
 }

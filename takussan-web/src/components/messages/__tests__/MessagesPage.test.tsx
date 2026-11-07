@@ -5,7 +5,9 @@
  * link when the user wants the full /app/messages experience.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { renderToString } from 'react-dom/server';
+import { hydrateRoot } from 'react-dom/client';
 import { NextIntlClientProvider } from 'next-intl';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import frMessages from '@/messages/fr.json';
@@ -458,6 +460,41 @@ describe('<MessagesPage> « Nouveau groupe » selon l’agence du profil actif (
     render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
 
     expect(boutons()).toHaveLength(2);
+  });
+
+  /**
+   * Le serveur ne connaît jamais `GET /api/me/profiles` : il rend la page sans le bouton. Dans le
+   * navigateur, la page est sous la limite de chargement de `messages/` et s'hydrate APRÈS que la
+   * coque a mis les profils en cache — mesuré sur `/app/messages` (agent, 1280, 3 sur 3) : React
+   * rejetait le HTML serveur sur `new-group-button-compact`. Le premier rendu client doit
+   * reproduire le serveur ; le bouton arrive au rendu suivant.
+   */
+  it("l'hydratation ne signale aucun écart quand les profils sont déjà en cache au navigateur", async () => {
+    const erreurs = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const recuperees: unknown[] = [];
+    const page = () => wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />);
+
+    mesProfils.mockReturnValue({ data: undefined });
+    const conteneur = document.createElement('div');
+    conteneur.innerHTML = renderToString(page());
+    document.body.appendChild(conteneur);
+    expect(conteneur.querySelector('[data-testid="new-group-button-compact"]')).toBeNull();
+
+    mesProfils.mockReturnValue({ data: profilActif('standard') });
+    let racine: ReturnType<typeof hydrateRoot> | undefined;
+    await act(async () => {
+      racine = hydrateRoot(conteneur, page(), { onRecoverableError: (e) => recuperees.push(e) });
+    });
+
+    expect(recuperees).toEqual([]);
+    expect(erreurs.mock.calls.flat().join(' ')).not.toMatch(/hydrat/i);
+    // Le bouton n'est pas perdu : il arrive juste après l'hydratation.
+    expect(conteneur.querySelector('[data-testid="new-group-button-compact"]')).not.toBeNull();
+    expect(conteneur.querySelector('[data-testid="new-group-button"]')).not.toBeNull();
+
+    act(() => racine?.unmount());
+    conteneur.remove();
+    erreurs.mockRestore();
   });
 });
 
