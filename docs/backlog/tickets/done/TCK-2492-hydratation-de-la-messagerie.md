@@ -4,7 +4,7 @@ title: /app/messages s'hydrate sans écart — « Nouveau groupe » attend la fi
 status: done
 phase: P2
 family: front
-estimate: XS
+estimate: S
 wave: 83
 created: 2026-11-07
 updated: 2026-11-07
