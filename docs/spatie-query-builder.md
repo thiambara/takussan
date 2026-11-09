@@ -88,6 +88,7 @@ GET /api/properties?per_page=10&page=2
 ### Property
 | Param | Type | Description |
 |---|---|---|
+| `filter[id]` | exact | un ou plusieurs ids, séparés par des virgules (TCK-2524) — voir ci-dessous |
 | `filter[status]` | exact | `draft`, `available`, `rented`, `sold`, ... |
 | `filter[type]` | exact | `apartment`, `house`, `villa`, ... |
 | `filter[contract_type]` | exact | `sale`, `rental`, ... |
@@ -103,6 +104,25 @@ GET /api/properties?per_page=10&page=2
 | `filter[area_max]` | range | Surface maximum (m²) |
 | `filter[search]` | search | Recherche dans title, reference_number, description |
 | `sort` | `-price`, `price`, `-created_at`, `area`, `bedrooms`, `featured` | |
+
+**`filter[id]`** (TCK-2524) — lire des biens par leurs ids, avec leurs `fields` : la vitrine de
+l'agence nomme ainsi les biens de sa sélection, quel que soit leur rang dans la liste.
+
+```
+GET /api/properties?filter[id]=839,838&filter[agency_id]=1&fields[properties]=id,title,reference_number&per_page=6
+```
+
+- **Format** : une liste d'entiers séparés par des virgules, chacun de **18 chiffres au plus**. Une
+  valeur non entière ou plus longue rend **400**, pas 500 (`ExactIdentifierFilter`, comme tout filtre
+  `id` / `*_id`).
+- **Le périmètre de l'appelant est inchangé** : le filtre restreint la liste que l'appelant voit déjà,
+  il n'en ouvre aucune. Un id qu'il ne voit pas ne rend rien, sans erreur.
+- **Où il vaut** : sur toute liste qui passe par `Property::buildQuery()`, c'est-à-dire
+  `GET /api/properties` (`PropertyController::index`), `GET /api/properties/{property}/children`
+  (`PropertyChildrenController::index`), `GET /api/me/owner-profiles/{owner_profile}/properties`
+  (`Me\OwnerProfileController::properties`) et `GET /api/admin/agencies/{agency}/properties`
+  (`Admin\AgencyDetailController::properties`). La liste se relit par
+  `grep -rn "Property::buildQuery" takussan-api/app`.
 
 ### Customer
 | Param | Type | Description |
