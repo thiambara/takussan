@@ -52,6 +52,11 @@ class AgencyResource extends BaseResource
             'ninea' => $this->ninea,
             'rccm' => $this->rccm,
             'legal_address' => $this->legal_address,
+            // TCK-2518 — la vitrine de la fiche publique, relue par l'écran de saisie (TCK-2524).
+            'tagline' => $this->whenHas('tagline'),
+            'highlights' => $this->whenHas('highlights', fn ($valeur) => $valeur ?? []),
+            'showcase_property_ids' => $this->whenHas('showcase_property_ids', fn ($valeur) => $valeur ?? []),
+            'median_response_minutes' => $this->whenHas('median_response_minutes'),
             'is_verified' => (bool) $this->is_verified,
             'status' => $this->status?->value,
             'properties_count' => $this->properties_count,

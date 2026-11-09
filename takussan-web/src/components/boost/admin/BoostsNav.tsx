@@ -11,9 +11,11 @@ const ONGLETS = [
   { href: '/super-admin/boosts', cle: 'boosts' },
   { href: '/super-admin/boosts/catalogue', cle: 'catalogue' },
   { href: '/super-admin/boosts/stats', cle: 'stats' },
+  // TCK-2520 (ADR-0092) — la vitrine de l'annuaire des agences.
+  { href: '/super-admin/boosts/agences', cle: 'agencies' },
 ] as const;
 
-/** TCK-633 lot F — boosts du parc, catalogue, statistiques : une entrée de menu, trois écrans. */
+/** TCK-633 lot F — boosts du parc, catalogue, statistiques ; TCK-2520 — agences mises en avant : une entrée de menu, quatre écrans. */
 export function BoostsNav() {
   const t = useTranslations('superAdmin.boosts.tabs');
   const chemin = usePathname();

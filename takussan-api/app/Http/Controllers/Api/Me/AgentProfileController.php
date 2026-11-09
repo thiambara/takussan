@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Me;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\Me\UpdateDirectoryAgentProfileRequest;
 use App\Http\Requests\Api\Me\UpdateSpecializationAgentProfileRequest;
 use App\Http\Requests\Api\Me\UploadKycAgentProfileRequest;
 use App\Models\Customer;
@@ -182,6 +183,36 @@ class AgentProfileController extends Controller
                 'specialization' => $agent_profile->specialty,
                 'intervention_zones' => $zones,
                 'license_number' => $agent_profile->license_number,
+            ],
+        ]);
+    }
+
+    /**
+     * PATCH /api/me/agent-profiles/{agent_profile}/directory — TCK-2518.
+     *
+     * Les langues et les quartiers que l'annuaire public montre. Clé absente : inchangée ; `null`
+     * ou `[]` : vidée (rangée `null`, la fiche s'en passe sans trou).
+     */
+    public function updateDirectory(UpdateDirectoryAgentProfileRequest $request, AgentProfile $agent_profile): JsonResponse
+    {
+        $validated = $request->validated();
+
+        $patch = [];
+        foreach (['languages', 'neighborhood_ids'] as $cle) {
+            if (array_key_exists($cle, $validated)) {
+                $liste = array_values((array) ($validated[$cle] ?? []));
+                $patch[$cle] = $liste === [] ? null : ($cle === 'neighborhood_ids' ? array_map('intval', $liste) : $liste);
+            }
+        }
+        if ($patch !== []) {
+            $agent_profile->forceFill($patch)->save();
+        }
+
+        return $this->json([
+            'data' => [
+                'id' => $agent_profile->id,
+                'languages' => $agent_profile->languages ?? [],
+                'neighborhood_ids' => $agent_profile->neighborhood_ids ?? [],
             ],
         ]);
     }

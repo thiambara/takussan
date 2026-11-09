@@ -142,6 +142,10 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     Route::patch('agent-profiles/{agent_profile}/specialization', [MeAgentProfileController::class, 'updateSpecialization'])
         ->whereNumber('agent_profile')
         ->name('me.agent-profiles.specialization');
+    // TCK-2518 — langues et quartiers de l'annuaire public.
+    Route::patch('agent-profiles/{agent_profile}/directory', [MeAgentProfileController::class, 'updateDirectory'])
+        ->whereNumber('agent_profile')
+        ->name('me.agent-profiles.directory');
     Route::get('agent-profiles/{agent_profile}/first-lead', [MeAgentProfileController::class, 'firstLead'])
         ->whereNumber('agent_profile')
         ->name('me.agent-profiles.first-lead');

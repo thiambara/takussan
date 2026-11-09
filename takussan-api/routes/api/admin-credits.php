@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\AdminAgencySpotlightController;
 use App\Http\Controllers\Api\Admin\AdminBoostController;
 use App\Http\Controllers\Api\Admin\AdminBoostProductController;
 use App\Http\Controllers\Api\Admin\AdminBoostStatsController;
@@ -25,4 +26,9 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
     Route::post('properties/{property}/offered-boost', [AdminBoostController::class, 'offer'])->name('admin.boosts.offer');
 
     Route::get('boost-stats', [AdminBoostStatsController::class, 'index'])->name('admin.boost-stats.index');
+
+    // TCK-2520 (ADR-0092) — la place « Mise en avant » de l'annuaire des agences, offerte par la plateforme.
+    Route::get('agency-spotlights', [AdminAgencySpotlightController::class, 'index'])->name('admin.agency-spotlights.index');
+    Route::post('agency-spotlights', [AdminAgencySpotlightController::class, 'store'])->name('admin.agency-spotlights.store');
+    Route::delete('agency-spotlights/{spotlight}', [AdminAgencySpotlightController::class, 'destroy'])->whereNumber('spotlight')->name('admin.agency-spotlights.destroy');
 });
