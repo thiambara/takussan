@@ -22,6 +22,8 @@ class SavedSearchResource extends BaseResource
             'is_active' => (bool) $this->is_active,
             'results_count' => $this->results_count,
             'alert_channels' => $this->alertChannels($request->user()),
+            // TCK-2507 — la dernière ouverture par le titulaire ; `null` tant qu'il ne l'a jamais ouverte.
+            'last_viewed_at' => $this->iso($this->last_viewed_at),
             'created_at' => $this->iso($this->created_at),
         ];
     }
