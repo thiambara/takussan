@@ -397,8 +397,17 @@ const FICHIERS_HORS_JETONS = 5;
  * lignes (récente, populaire, raccourci, lieu, texte libre, effacer), comptes, lieu d'un aperçu.
  * Relevé en comparant les encres inverses du fichier de `HEAD` (12) et de l'arbre (18) ; aucun
  * autre fichier de la surface ne change.
+ *
+ * **270 → 276 le 2026-11-09 (TCK-2493, TCK-2494).** La navigation du site public suit le profil
+ * (ADR-0091) : quatre fichiers neufs entrent dans la surface — `navigation-publique/EcranDuCompte`
+ * (7), `MenuMonEspace` (5), `CarteDeRappel` (1), `BarreDOngletsPublique` (1), toutes
+ * `text-muted-foreground` sur le fond que pose leur conteneur (carte, menu, barre) ; et deux en
+ * sortent ou maigrissent avec le menu burger : `home/Navbar` passe de 15 à 8, `shared/LanguageSwitcher`
+ * (1) quitte la surface. Net +6. Relevé en comparant, fichier par fichier, les encres inverses de
+ * `HEAD` (270) et de l'arbre (276) — le dossier local des maquettes exclu des deux côtés ; les
+ * fichiers de la fiche (TCK-2501) changent de répartition sans changer le total.
  */
-const ENCRES_INVERSES = 270;
+const ENCRES_INVERSES = 276;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);

@@ -1,16 +1,13 @@
 'use client';
 
-import { createContext, useContext, useEffect, useEffectEvent, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { useToast } from '@/components/ui/toast';
 import { relaisImpersonationActif } from '@/lib/impersonation';
-import type { IdDestination } from '@/lib/navigation/catalogue';
 import { ecrireModeIcones, type ModeIcones } from '@/lib/navigation/mode-icones';
 import type { Persona } from '@/lib/navigation/personas';
 import {
-  NAVIGATION_VIDE,
   avecPersona,
-  lirePreferencesDeNavigation,
   prefsApresEpingle,
   prefsApresRepli,
   prefsDe,
@@ -18,44 +15,13 @@ import {
   type PreferencesDeNavigation,
   type PreferencesDuPersona,
 } from '@/lib/navigation/preferences';
+import { lirePreferencesDeNavigation } from '@/lib/navigation/preferences-schema';
+import { Contexte, type PreferencesDuMenu } from './contexte-preferences-du-menu';
 
 /** TCK-2480 (A4) — le délai avant l'envoi : plusieurs gestes rapprochés partent en UNE écriture. */
 export const DELAI_D_ENVOI_MS = 800;
 
-export interface PreferencesDuMenu {
-  /** `false` sans fournisseur (tests, coque montée ailleurs) : la barre ne propose aucun geste. */
-  readonly actif: boolean;
-  /** Le persona que la coque affiche — celui que la section « Menu » du profil réinitialise. */
-  readonly persona: Persona | null;
-  readonly navigation: PreferencesDeNavigation;
-  readonly modeIcones: ModeIcones;
-  readonly basculerEpingle: (persona: Persona, id: IdDestination, rendues: readonly string[]) => void;
-  readonly basculerRepli: (persona: Persona, groupe: string, replie: boolean, replieParDefaut: boolean) => void;
-  readonly masquerDemarrer: (persona: Persona) => void;
-  readonly reinitialiser: (persona: Persona) => void;
-  readonly choisirModeIcones: (mode: ModeIcones) => void;
-}
-
-const rien = () => {};
-
-/** Sans fournisseur : inerte, mode `complet` — la barre se rend comme avant TCK-2480 (A12). */
-const REPLI: PreferencesDuMenu = {
-  actif: false,
-  persona: null,
-  navigation: NAVIGATION_VIDE,
-  modeIcones: 'complet',
-  basculerEpingle: rien,
-  basculerRepli: rien,
-  masquerDemarrer: rien,
-  reinitialiser: rien,
-  choisirModeIcones: rien,
-};
-
-const Contexte = createContext<PreferencesDuMenu | null>(null);
-
-export function usePreferencesDuMenu(): PreferencesDuMenu {
-  return useContext(Contexte) ?? REPLI;
-}
+export { usePreferencesDuMenu, type PreferencesDuMenu } from './contexte-preferences-du-menu';
 
 interface PreferencesDuMenuProviderProps {
   /** `user.preferences?.navigation`, tel que l'API le rend : lu par le schéma, jamais cru. */

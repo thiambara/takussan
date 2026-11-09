@@ -117,8 +117,9 @@ describe('Navbar publique — déconnexion (TCK-509, AC3)', () => {
     expect(await screen.findByText('Bearer jeton-A')).toBeInTheDocument();
     await waitFor(() => expect(favorisLocaux()).toEqual([42]));
 
-    await user.click(screen.getByRole('button', { name: 'Menu utilisateur' }));
-    await user.click(screen.getByRole('button', { name: 'Déconnexion' }));
+    // TCK-2494 — la déconnexion de bureau vit dans le menu « Mon espace ».
+    await user.click(screen.getByRole('button', { name: /Mon espace/ }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Se déconnecter' }));
     await waitFor(() => expect(router.push).toHaveBeenCalled());
     const apresDeconnexion = appels.length;
     expect(appels.some((a) => a.url === '/api/auth/logout')).toBe(true);

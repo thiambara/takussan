@@ -12,6 +12,7 @@ import { PropertyDraftChatView } from '@/components/messages/PropertyDraftChatVi
 import { useChatDraft } from '@/context/ChatDraftContext';
 import { useFloatingDockSlot } from '@/components/floating-dock';
 import { estPleinEcran, porteLaBarreDOnglets } from '@/components/layout/plein-ecran';
+import { estSurLeSitePublic } from '@/lib/navigation/barre-publique';
 import { useMatchesMaxWidth } from '@/hooks/useMatchesMedia';
 import { cn } from '@/lib/utils';
 import { CHAT_FAB_MOBILE_HEIGHT_PX, CHAT_LAUNCHER_DESKTOP_HEIGHT_PX } from './reserve';
@@ -19,6 +20,7 @@ import { useUnreadCount } from './useUnreadCount';
 
 /** Tailwind `md` breakpoint — desktop launcher visible at >= 768px. */
 const MD_BREAKPOINT_PX = 768;
+const LG_BREAKPOINT_PX = 1024;
 
 /*
  * Static logical heights of the chat launchers (TCK-644 : dans `./reserve`, à côté de la place
@@ -152,7 +154,15 @@ export function CorpsDuWidget() {
   // (garde : `lib/navigation/__tests__/onglets.test.ts`) : le bouton flottant mobile se posait sur
   // elle. Il ne se rend plus sur `/app` et ne réclame aucun créneau du dock ; le lanceur de bureau
   // ne change pas.
-  const sansBoutonMobile = porteLaBarreDOnglets(pathname);
+  //
+  // TCK-2493 (ADR-0091 §4) — sur le SITE PUBLIC non plus : sous `lg`, la barre d'onglets publique
+  // porte « Messages », et là où elle s'efface (fiche, tunnels), une autre couche d'action tient le bas
+  // de l'écran — une seule à la fois. Le lanceur de bureau ne se montre sur le site public qu'à partir
+  // de `lg`, où la barre n'existe plus ; le panneau, lui, reste ouvrable par une fiche dès `md`.
+  const surLeSitePublic = estSurLeSitePublic(pathname);
+  const sansBoutonMobile = porteLaBarreDOnglets(pathname) || surLeSitePublic;
+  const sousLg = useMatchesMaxWidth(LG_BREAKPOINT_PX - 1);
+  const lanceurDeBureauMasque = surLeSitePublic && sousLg;
 
   // Register both launchers with the FloatingDock orchestrator (TCK-275).
   // Tailwind hides one of them visually (`hidden md:block` vs `md:hidden`) —
@@ -166,7 +176,7 @@ export function CorpsDuWidget() {
     corner: 'bottom-right',
     priority: 0,
     height: CHAT_LAUNCHER_DESKTOP_HEIGHT_PX,
-    enabled: isVisible && !isMobile,
+    enabled: isVisible && !isMobile && !lanceurDeBureauMasque,
   });
   const mobileSlot = useFloatingDockSlot({
     id: 'chat-widget-mobile-fab',
@@ -299,6 +309,9 @@ export function CorpsDuWidget() {
           className={cn(
             'pointer-events-auto relative inline-flex h-14 items-center justify-center gap-2 rounded-full bg-primary pr-6 pl-5 text-sm font-semibold text-primary-foreground shadow-lg transition-transform hover:scale-[1.03] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring motion-reduce:hover:scale-100 motion-reduce:active:scale-100',
             open && 'scale-95',
+            // TCK-2493 — même plage que `lanceurDeBureauMasque`, par le CSS : rien ne clignote avant
+            // que la requête média ne réponde.
+            surLeSitePublic && 'hidden lg:inline-flex',
           )}
         >
           <MessageSquare className="size-5 shrink-0" aria-hidden />

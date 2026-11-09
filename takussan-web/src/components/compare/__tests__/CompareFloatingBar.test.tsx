@@ -583,3 +583,53 @@ describe('<CompareFloatingBar> — le focus après « Annuler » ne dépend pas 
     expect(passages).toEqual([]);
   });
 });
+
+/**
+ * TCK-2493 (ADR-0091 §4) — une seule couche d'action en bas de l'écran : sous `lg`, le comparateur
+ * n'est plus un dock de 176 px mais une pastille « Comparer N » de 44 px, posée au-dessus de la barre
+ * d'onglets ; là où la barre cède la place (fiche, tunnels), la pastille s'efface avec elle.
+ */
+describe('<CompareFloatingBar> — sous `lg`, une pastille (TCK-2493)', () => {
+  const matchMediaDOrigine = window.matchMedia;
+
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+    cheminCourant = '/fr/properties';
+    window.matchMedia = ((query: string) => ({
+      matches: query === '(width < 64rem)',
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    })) as typeof window.matchMedia;
+    return () => {
+      window.matchMedia = matchMediaDOrigine;
+    };
+  });
+
+  it('une pastille « Comparer » qui mène au comparatif, sans le dock ni ses vignettes', async () => {
+    render(wrap([3, 4, 5], APERCU));
+    const pastille = await screen.findByRole('link', { name: 'Comparer les biens sélectionnés (3)' });
+    expect(pastille).toHaveAttribute('href', '/fr/compare?ids=3,4,5');
+    expect(pastille.closest('[data-pastille-comparateur]')).not.toBeNull();
+    // Le dock (sa ligne « N biens sélectionnés sur 4 », ses vignettes, « Vider ») n'est pas rendu.
+    expect(screen.queryByText(/biens sélectionnés sur 4/)).toBeNull();
+    expect(screen.queryByRole('button', { name: /Vider/ })).toBeNull();
+  });
+
+  it.each(['/fr/properties/villa-ngor', '/fr/pay/jeton', '/fr/claim/jeton'])(
+    '%s : la barre d’actions de la page tient le bas, la pastille s’efface',
+    async (chemin) => {
+      cheminCourant = chemin;
+      render(wrap([3, 4]));
+      // Le stockage est relu à l'hydratation : on laisse passer le tour qui afficherait la pastille.
+      await act(async () => {});
+      expect(screen.queryByRole('complementary')).toBeNull();
+      expect(document.querySelector('[data-pastille-comparateur]')).toBeNull();
+    },
+  );
+});

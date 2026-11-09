@@ -6,7 +6,6 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { withIntl } from '@/test/intl';
@@ -59,14 +58,6 @@ describe('le logo sur la chrome publique', () => {
   it('la barre : le lien d’accueil montre le symbole et se lit « Takussan »', () => {
     monterBarre();
     attendreLeLogo(screen.getByRole('link', { name: 'Takussan' }));
-  });
-
-  it('l’en-tête du menu mobile redessine le même logo', async () => {
-    const user = userEvent.setup();
-    monterBarre();
-    await user.click(screen.getByRole('button', { name: 'Ouvrir le menu' }));
-    const panneau = await screen.findByRole('dialog', { name: 'Menu' });
-    attendreLeLogo(within(panneau).getByRole('link', { name: 'Takussan' }));
   });
 
   it('le pied de page : la signature porte le symbole et le nom', () => {

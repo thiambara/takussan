@@ -16,7 +16,6 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { withIntl } from '@/test/intl';
@@ -56,6 +55,8 @@ function monter() {
 }
 
 const classesDe = (el: Element | null) => (el?.className ?? '').split(/\s+/);
+/** Le seul « Chercher » rendu en TEXTE : la pastille de recherche mobile au repos (TCK-549). */
+const pastille = () => screen.getByText('Chercher').closest('button')!;
 
 describe('Navbar publique — la mise en page de bureau attend `lg` (TCK-505 #2)', () => {
   it('la colonne centrale de bureau (recherche + catégories) est `hidden lg:flex`', () => {
@@ -75,34 +76,29 @@ describe('Navbar publique — la mise en page de bureau attend `lg` (TCK-505 #2)
     expect(classesDe(cluster)).not.toContain('md:flex');
   });
 
-  it('la rangée mobile (pastille + favoris + menu) reste visible jusqu’à `lg` exclu', () => {
+  it('la rangée mobile (la pastille seule) reste visible jusqu’à `lg` exclu', () => {
     monter();
-    const rangee = screen.getByRole('button', { name: 'Ouvrir le menu' }).parentElement;
+    // TCK-2493 (ADR-0091) — le menu burger a quitté la barre : la barre d'onglets du bas porte la
+    // navigation mobile. La rangée ne garde que la pastille de recherche.
+    const rangee = pastille().parentElement;
     expect(classesDe(rangee)).toContain('flex');
     expect(classesDe(rangee)).toContain('lg:hidden');
     expect(classesDe(rangee)).not.toContain('md:hidden');
   });
 
-  it('le panneau du menu mobile suit le même seuil (`lg:hidden`), son voile aussi', async () => {
-    const user = userEvent.setup();
+  it('TCK-2493 — plus de bouton menu ni de panneau : la barre d’onglets du bas les remplace', () => {
     monter();
-    await user.click(screen.getByRole('button', { name: 'Ouvrir le menu' }));
-    // TCK-551 — le panneau est la boîte de dialogue du `Sheet`, rendue en portail hors du <nav>.
-    const panneau = await screen.findByRole('dialog', { name: 'Menu' });
-    expect(classesDe(panneau)).toContain('lg:hidden');
-    expect(classesDe(panneau)).not.toContain('md:hidden');
-    const voile = document.querySelector('[data-slot="sheet-overlay"]');
-    expect(classesDe(voile)).toContain('lg:hidden');
+    expect(screen.queryByRole('button', { name: 'Ouvrir le menu' })).toBeNull();
   });
 });
 
-describe('Navbar publique — le bouton menu est entier à 390 px (TCK-505 #3)', () => {
+describe('Navbar publique — la rangée mobile tient à 390 px (TCK-505 #3)', () => {
   it('la rangée mobile peut être compressée par la barre : `flex-1` ET `min-w-0`', () => {
     monter();
     // C'est ELLE que la sonde mesurait à 400 px : un enfant flex garde `min-width: auto`, la
     // largeur de son contenu. `min-w-0` sur la pastille seule ne change rien (mesuré) — la
     // rangée doit d'abord pouvoir rétrécir pour que ses enfants aient à le faire.
-    const rangee = screen.getByRole('button', { name: 'Ouvrir le menu' }).parentElement;
+    const rangee = pastille().parentElement;
     expect(classesDe(rangee)).toContain('flex-1');
     expect(classesDe(rangee)).toContain('min-w-0');
   });

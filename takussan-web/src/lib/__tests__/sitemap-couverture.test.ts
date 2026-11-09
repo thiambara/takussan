@@ -354,7 +354,7 @@ describe('l’arborescence publique est bien celle qu’on croit', () => {
     ).toBe('jamais');
   });
 
-  it('les VINGT pages publiques déclarent leur métadonnée sur place', () => {
+  it('les VINGT ET UNE pages publiques déclarent leur métadonnée sur place', () => {
     // Le contrôle qui rend la règle positive tenable : si une page cessait de le faire, elle
     // deviendrait `'inconnu'` et le test de classement complet la nommerait. On le fige ici pour
     // que la raison soit lisible plutôt que déduite d'un rouge ailleurs.
@@ -378,7 +378,9 @@ describe('l’arborescence publique est bien celle qu’on croit', () => {
     // (`?user=…&expires=…&signature=…`) ; tenue hors du sitemap par son `noindex`.
     // 19 → 20 : TCK-2390 ajoute `/claim/[token]`, `jamais` — la réclamation de ses annonces par
     // l'annonceur du Radar, lien signé porteur (tranchée `exclue` dans ROUTES_DYNAMIQUES_PUBLIQUES).
-    expect(ROUTES.length).toBe(20);
+    // 20 → 21 : TCK-2493 ajoute `/account`, STATIQUE et `jamais` — l'écran « Compte » / « Moi » de
+    // la barre d'onglets publique (ADR-0091), personnel et sans contenu à référencer.
+    expect(ROUTES.length).toBe(21);
     for (const route of ROUTES) {
       expect(route.indexabilite, `${route.chemin} (${route.fichier})`).not.toBe('inconnu');
     }
@@ -432,10 +434,10 @@ describe('TCK-431 · AC3 — le sitemap ⇔ les pages indexables', () => {
     }
   });
 
-  it('les trois écrans personnels sont bien vus comme non indexables', () => {
+  it('les quatre écrans personnels sont bien vus comme non indexables', () => {
     // Nommés — si l'un d'eux perdait son `index: false`, l'équivalence ci-dessus resterait
     // satisfaite (il rejoindrait simplement le sitemap) et le défaut passerait inaperçu.
-    for (const chemin of ['/favorites', '/compare', '/bookings']) {
+    for (const chemin of ['/favorites', '/compare', '/bookings', '/account']) {
       const route = ROUTES.find((r) => r.chemin === chemin);
       expect(route, `route ${chemin} introuvable`).toBeDefined();
       expect(route!.indexable, `${chemin} devrait déclarer robots: { index: false }`).toBe(false);

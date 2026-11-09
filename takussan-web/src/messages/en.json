@@ -1012,7 +1012,6 @@
         "verifiedAria": "Verified agency",
         "independent": "Independent agent",
         "private": "Private owner",
-        "message": "Message",
         "callAria": "Call",
         "call": "Call",
         "calling": "Connecting…"
@@ -1047,10 +1046,7 @@
         "photoAlt": "{title} - photo {index}"
       },
       "bottomBar": {
-        "visit": "Visit",
-        "offer": "Offer",
-        "reserve": "Book",
-        "apply": "Apply"
+        "visit": "Visit"
       },
       "notFound": "Property not found.",
       "similarError": "Similar properties could not be loaded.",
@@ -1072,7 +1068,9 @@
         "agencyFee": "Agency fee",
         "monthlyCharges": "Monthly charges",
         "months": "{count, plural, one {# month} other {# months}}",
-        "total": "Total to move in"
+        "total": "Total to move in",
+        "showDetails": "See the breakdown",
+        "hideDetails": "Hide the breakdown"
       },
       "trust": {
         "phoneVerified": "Phone verified",
@@ -1085,6 +1083,14 @@
         "loadHint": "Only loads when you open it",
         "frameTitle": "Virtual tour — {title}",
         "opensNewTab": "(opens in a new tab)"
+      },
+      "actions": {
+        "whatsapp": "WhatsApp",
+        "write": "Write",
+        "alreadyVisited": "Already visited?",
+        "submitApplication": "Submit my application",
+        "numbersTitle": "Call {name}",
+        "numbersDescription": "Choose the number to dial."
       }
     },
     "reviews": {
@@ -7552,7 +7558,8 @@
         "label": "Promotion screens",
         "boosts": "Boosts",
         "catalogue": "Catalogue",
-        "stats": "Statistics"
+        "stats": "Statistics",
+        "agencies": "Featured agencies"
       },
       "statusFilter": "Filter by status",
       "statuses": {
@@ -10996,6 +11003,56 @@
       "done": "Decision saved.",
       "failed": "The decision could not be saved.",
       "noTarget": "No match among the approved entries."
+    },
+    "miseEnAvantAgences": {
+      "intro": "One agency at the top of a city’s directory for a period, offered by Takussan. Only one per city at a time; the list keeps its order and the agency stays at its rank.",
+      "whenFilter": "Filter by period",
+      "when": {
+        "all": "All",
+        "current": "Running",
+        "upcoming": "Upcoming",
+        "past": "Ended"
+      },
+      "caption": "Agencies featured in the directory",
+      "colAgency": "Agency",
+      "colCity": "City",
+      "colPeriod": "Period",
+      "colState": "Status",
+      "colNote": "Reason",
+      "colGrantedBy": "Offered by",
+      "colActions": "Actions",
+      "period": "from {from} to {to}",
+      "empty": "No featured agency for this period.",
+      "loadError": "Could not load the featured agencies.",
+      "retry": "Try again",
+      "form": {
+        "title": "Offer a featured spot",
+        "agency": "Agency",
+        "agencyPlaceholder": "Agency name",
+        "search": "Search",
+        "agencyResults": "Agencies found",
+        "searching": "Searching…",
+        "noAgency": "No active agency with that name.",
+        "pickAgency": "Search for and pick the agency to feature.",
+        "summary": "Selected agency: {agency}",
+        "city": "City",
+        "anyCity": "Whole directory (no city)",
+        "noCity": "No city with that name.",
+        "from": "From",
+        "to": "To (inclusive)",
+        "reason": "Reason (at least 5 characters)",
+        "submit": "Offer",
+        "done": "Featured spot offered.",
+        "failed": "The featured spot could not be offered."
+      },
+      "revoke": {
+        "open": "Remove",
+        "title": "Remove this featured spot?",
+        "body": "The agency leaves the directory showcase right away. It stays in the list, at its rank.",
+        "back": "Cancel",
+        "submit": "Remove",
+        "failed": "The featured spot could not be removed."
+      }
     }
   },
   "adminSettings": {
@@ -11614,6 +11671,14 @@
         "complet": "Always full",
         "aide": "This setting only applies to this browser."
       }
+    },
+    "directory": {
+      "title": "Public directory",
+      "label": "Appear in the public owners directory",
+      "hint": "Your name and your published properties become visible in the directory, and search engines can find your page. Without it, your page can only be reached from your listings.",
+      "savedOn": "You now appear in the public directory.",
+      "savedOff": "You no longer appear in the public directory.",
+      "error": "Your choice could not be saved."
     }
   },
   "contact": {
@@ -12726,6 +12791,18 @@
         "cancelled": {
           "title": "Your visit of {property} is cancelled",
           "body": "The visit planned for {scheduled_at} is cancelled."
+        },
+        "requested_window": {
+          "title": "Visit request: {property}",
+          "body": "Requested day: {date}, {window, select, morning {in the morning} afternoon {in the afternoon} other {in the evening}} — time to be set. To reach the visitor: {contact}."
+        },
+        "cancelled_by_visitor_window": {
+          "title": "Visit cancelled by the visitor: {property}",
+          "body": "The visitor has cancelled the visit requested for {date}, {window, select, morning {in the morning} afternoon {in the afternoon} other {in the evening}} (time not set)."
+        },
+        "cancelled_window": {
+          "title": "Your visit of {property} is cancelled",
+          "body": "The visit requested for {date}, {window, select, morning {in the morning} afternoon {in the afternoon} other {in the evening}} is cancelled."
         }
       },
       "message": {
@@ -13416,5 +13493,100 @@
     "doneTakeBack": "{count, plural, one {Your listing is now in your space “{space}”, still online.} other {Your # listings are now in your space “{space}”, still online.}}",
     "spaceUnavailableTitle": "Your space is not active",
     "spaceUnavailableBody": "Your listings cannot be published there for now. Write to us at {email} to reactivate it."
+  },
+  "navigationPublique": {
+    "barre": {
+      "navLabel": "Main navigation"
+    },
+    "onglets": {
+      "explorer": "Explore",
+      "favoris": "Saved",
+      "publier": "Publish",
+      "messages": "Messages",
+      "compte": "Account",
+      "moi": "Me",
+      "loyer": "Rent"
+    },
+    "comparateur": {
+      "libelle": "Compare",
+      "aria": "Compare the selected properties ({count})"
+    },
+    "compte": {
+      "metaTitre": "Account",
+      "titre": "Account",
+      "connexion": {
+        "titre": "Sign in with your phone number",
+        "texte": "A code by text message, no password. Or with an email address.",
+        "action": "Sign in"
+      },
+      "garde": {
+        "titre": "What your account keeps for you",
+        "favoris": "Your saved properties, on your phone and your computer",
+        "favorisDetail": "{count, plural, =0 {No property saved on this device yet} one {# property saved on this device only} other {# properties saved on this device only}}",
+        "visites": "Your visits and requests, in one place",
+        "visitesDetail": "Confirmed, moved, upcoming",
+        "alertes": "New properties that suit you",
+        "alertesDetail": "One alert per search, whenever you want"
+      },
+      "publier": {
+        "question": "Got a property to rent or sell?",
+        "lien": "List it for free"
+      }
+    },
+    "moi": {
+      "bonjour": "Hello {prenom}",
+      "bonjourSansNom": "Hello",
+      "espaces": {
+        "titre": "Switch space",
+        "actif": "Current space",
+        "personnel": "Personal"
+      },
+      "ouvrirEspace": "Open my full space"
+    },
+    "reglages": {
+      "titre": "Settings and information",
+      "agences": "Agencies",
+      "agents": "Agents and owners",
+      "conditions": "Terms of use",
+      "confidentialite": "Privacy",
+      "deconnexion": "Log out"
+    },
+    "entete": {
+      "louer": "Rent",
+      "acheter": "Buy",
+      "agences": "Agencies",
+      "publier": "List a property",
+      "navLabel": "Site navigation"
+    },
+    "monEspace": {
+      "bouton": "My space",
+      "enAttente": "{count, plural, one {# item waiting} other {# items waiting}}",
+      "ouvrir": "Open my space",
+      "changerDEspace": "Switch space"
+    },
+    "rappel": {
+      "region": "What’s waiting for you",
+      "loyer": {
+        "titre": "Rent to pay",
+        "detail": "{montant} · due on {date}",
+        "retardTitre": "Rent overdue",
+        "retardDetail": "{count, plural, one {# instalment} other {# instalments}} · {montant}",
+        "action": "Pay",
+        "retardLigne": "{montant} overdue"
+      },
+      "visite": {
+        "titre": "Visit on {date}",
+        "action": "View"
+      },
+      "demandes": {
+        "titre": "{count, plural, one {# request to handle} other {# requests to handle}}",
+        "action": "Handle"
+      },
+      "visitesEnAttente": {
+        "titre": "{count, plural, one {# visit to confirm} other {# visits to confirm}}",
+        "action": "View"
+      },
+      "aussiDemandes": "and {count, plural, one {# request to handle} other {# requests to handle}}"
+    }
   }
 }

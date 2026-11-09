@@ -6,6 +6,7 @@ import { IntlProvider } from '@/i18n/IntlProvider';
 import { messagesPour } from '@/i18n/messages';
 import { CompareProvider } from '@/context/CompareContext';
 import { CompareFloatingBar } from '@/components/compare/CompareFloatingBar';
+import { BarreDOngletsPublique } from '@/components/navigation-publique/BarreDOngletsPublique';
 import { ToastProvider, Toaster } from '@/components/ui/toast';
 import { RetenirArrivee } from '@/components/shared/RetenirArrivee';
 import { EnregistrerServiceWorker } from '@/components/shared/EnregistrerServiceWorker';
@@ -34,7 +35,10 @@ const LOCALE_OPEN_GRAPH: Record<Locale, string> = { fr: 'fr_SN', en: 'en_US', wo
  * - `ToastProvider` + `Toaster` — feedback surface (TCK-082 "max 4" toast).
  * - `CompareProvider` + `CompareFloatingBar` — the property comparator
  *   selection store (TCK-082). The floating bar is rendered here so it
- *   follows the user across every public page.
+ *   follows the user across every public page ; sous `lg`, une pastille
+ *   « Comparer N » au-dessus de la barre d'onglets (TCK-2493).
+ * - `BarreDOngletsPublique` — la barre d'onglets du téléphone (TCK-2493,
+ *   ADR-0091), dont les cases suivent le profil connecté.
  *
  * i18n (TCK-337) : ce layout est une FRONTIÈRE de dictionnaire. Il sert les espaces du groupe
  * `(public)` que le socle racine ne sert pas, et non les 60 espaces de noms du produit :
@@ -105,6 +109,9 @@ export default async function PublicLayout({
         <CompareProvider>
           {children}
           <CompareFloatingBar />
+          {/* TCK-2493 (ADR-0091) — la barre d'onglets du téléphone, sur toutes les pages du groupe
+              qui ne portent pas déjà une couche d'action en bas (`porteLaBarrePublique`). */}
+          <BarreDOngletsPublique />
           <Toaster />
         </CompareProvider>
       </ToastProvider>

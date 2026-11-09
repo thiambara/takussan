@@ -223,7 +223,36 @@ Interdits :
 - Utiliser les **espacements Tailwind standard** (multiples de 4px). Pas de valeurs arbitraires (`p-[13px]`) sauf cas exceptionnel documenté.
 - Grille : 12 colonnes sur desktop, 4 sur mobile. Conteneur principal `max-w-7xl` (1280px) ; surfaces playground/showcase peuvent monter à `max-w-[1440px]`.
 - Sections de page : padding vertical minimum `py-8` (desktop `py-12` à `py-20`).
-- Spacer Navbar fixe : `h-[133px]` après `<Navbar />` (≈ 65px barre principale + 68px ligne catégories).
+- Spacer Navbar fixe : **`<NavbarSpacer />`** après `<Navbar />`, jamais une hauteur écrite à la main — il suit la barre à chaque palier et selon la page (TCK-2494 : la rangée de catégories ne reste que sur les pages de découverte). ⚠ Cette ligne prescrivait `h-[133px]` : la barre n'a jamais mesuré cela sous `lg`.
+
+## Navigation du site public — une seule couche d'action en bas ([ADR-0091](adr/0091-la-navigation-mobile-du-site-public-suit-le-profil.md))
+
+> **Écart de charte, accepté par ADR-0091** : la charte ne prévoyait aucune navigation basse sur le
+> site public. Elle en a une sous `lg`, et la règle qui suit en est le prix.
+
+**Au téléphone, une seule couche d'action tient le bas de l'écran à la fois** : la barre d'onglets
+publique, **ou** la barre d'actions d'une page (la fiche d'un bien), **ou** un tunnel (visite,
+paiement, revendication, publication). Jamais deux. Relevé avant la règle : trois couches flottaient
+sans arbitrage (dock du comparateur ≈ 190 px, bouton « Messagerie », barre collante de la fiche),
+jusqu'à 45 % de l'écran recouvert.
+
+- **La barre d'onglets** (`BarreDOngletsPublique`, sous `lg`) : cinq cases égales, icône et libellé
+  toujours visibles, la case active lue par un trait, un poids et `aria-current` — jamais la seule
+  teinte. Ses cases 2 et 3 suivent le persona actif et ne s'écrivent nulle part ailleurs que dans
+  `DISPOSITIONS` (`src/lib/navigation/dispositions.ts`).
+- **Elle se retire** là où une autre couche tient le bas : fiche, tunnels, pages ouvertes par un lien
+  (`porteLaBarrePublique`, `src/lib/navigation/barre-publique.ts`), carte plein écran (par CSS). Une
+  page neuve qui pose sa propre barre d'actions en bas **s'ajoute à ce prédicat**, elle ne s'empile pas.
+- **Ce qui flotte se replie au-dessus d'elle** : le comparateur devient une pastille « Comparer N » de
+  44 px, posée par le dock flottant au-dessus de la barre (`--floating-dock-base`), et s'efface avec
+  elle. Pas de bouton flottant « Messagerie » sur le site public : c'est l'onglet Messages.
+- **Rien sous la barre** : `body` réserve sa hauteur (`--barre-publique-hauteur`, zone sûre comprise)
+  tant qu'elle est montée — un contenu neuf n'a rien à prévoir.
+- **Pas de menu hamburger public.** Langue, annuaires, légal, connexion et déconnexion vivent sur
+  l'écran « Compte » / « Moi » (`/account`), case 5 de la barre.
+- **En bureau** (`lg` et au-delà), l'en-tête tient sur une ligne — Louer · Acheter · Agences,
+  recherche, favoris, compte, « Publier un bien » ; la rangée de catégories ne reste que sur
+  l'accueil et la liste ; le connecté y trouve « Mon espace », les lignes et compteurs de son persona.
 
 ## Composants
 
