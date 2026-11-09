@@ -1,13 +1,13 @@
 ---
 id: TCK-2512
 title: Page de réclamation « La promesse, puis la liste » : bouton sous le pouce, refus toujours présent
-status: todo
+status: done
 phase: P1
 family: front
 estimate: M
 wave: 85
 created: 2026-11-08
-updated: 2026-11-08
+updated: 2026-11-09
 depends_on: [TCK-2511, TCK-2505]
 blocks: []
 spec_refs:
@@ -69,3 +69,31 @@ L'annonceur qui ouvre le lien comprend en une ligne ce qu'il y gagne, coche ses 
   `{ quarter, searches_30d }` ; `null` → rien à l'écran.
 - Contrat complet de `POST …/decline` et de `demand` : notes d'implémentation de TCK-2511. Le refus n'a pas de 503 :
   il reste ouvert quand `GET` rend 503 `radar.claim.unavailable`.
+
+### Relevé du 2026-11-09 (agent « liens », vague 2)
+
+- **Prémisses re-mesurées.** `GET /api/radar/claims/{token}` rend bien `demand` (`null` sur les quatre annonceurs du
+  jeu de dev) ; `POST …/decline` attend `{ reason: 'not_me' | 'stop_contact' }`. La barre d'onglets était déjà
+  effacée sur `/claim/*` (`porteLaBarrePublique`, TCK-2493) ; pas le dock du comparateur en bureau — corrigé par
+  TCK-2505 (`estPageDeLien`).
+- **Ce qui est fait.** `RadarClaimReception` réordonné dans `CoqueDeLien largeur="large"` : promesse (prénom en titre,
+  intro, demande en RECHERCHES seulement si `demand`, trois avantages), « À publier » (cartes `ClaimListingCard`
+  inchangées), « Déjà en ligne », publication en cours, en attente, reprise, refus en pied. Bureau : colonne de
+  400 px (formulaire ou carte de blocage). Téléphone : `BasDeLien` collant « Publier mes N annonces », qui ouvre la
+  feuille de l'espace puis celle du code (`FeuilleDeLien` : feuille au téléphone, boîte de 480 px en bureau).
+- **Refus.** Une feuille à deux choix (radio), un seul `POST decline`, puis « C'est noté » sans aucune action
+  (ni bouton, ni champ). 410/404 → l'état du lien mort ; 409 → « annonces en mouvement », feuille ouverte ; 429 →
+  le texte existant. Ouvert aussi sur l'état 503 (TCK-2511, décision n° 1).
+- **Rien de perdu.** Toute la logique précédente est conservée telle quelle (sélection, correction, prénom/espace et
+  leurs refus « numéro dans le nom », espace existant, conditions, code `one-time-code`, renvoi à rebours, code de
+  préproduction, « Ouvrir mon espace », six blocages, mandat).
+- **Écart à la maquette.** Le libellé du champ « Code reçu par SMS » est masqué (sr-only) au téléphone, où la feuille
+  porte déjà ce titre — sinon il se lisait deux fois.
+- **Hors périmètre laissé.** Partage WhatsApp et conseil de photos de l'écran « Confirmé ».
+- Preuves : `src/components/radar-claim/__tests__/RadarClaimReception.test.tsx` (43 verts, dont 18 neufs) et
+  5 ablations, chacune rouge puis restaurée par `cp`, `md5` identique. Navigateur : 390 × 844 (barre en bas,
+  `bottom` du bouton à 798 px, aucune barre d'onglets, aucune recherche, `scrollWidth` 390) et 1440 × 900
+  (deux colonnes, pas de dock).
+- **Revue du 2026-11-09.** Un double clic sur « Confirmer » (refus en vol) n'envoie qu'UN `POST decline` — test dédié,
+  ablation de la garde (`return` et `disabled`) rouge. La page elle-même est gardée par
+  `claim/[token]/__tests__/coque.test.tsx` (témoins de la `Navbar` et du `Footer` de la marketplace).

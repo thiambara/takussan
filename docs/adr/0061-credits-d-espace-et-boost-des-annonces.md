@@ -286,6 +286,17 @@ même bien **deux fois** sur la même page.
 - **Inchangé** : la rotation horaire et sa graine, `sponsored` hors pagination et hors `total`, les
   places réservées de la première page (« En vedette »), la rangée de l'accueil, et la mesure — une
   impression est comptée pour chaque emplacement **servi**, quelle que soit sa position.
+- **À l'affichage (front, revue adverse de TCK-2500)** :
+  - sur la première page, quand des places réservées « En vedette » ouvrent la liste, l'emplacement
+    de tête (`position` 0) n'est pas inséré — sinon trois cartes payées d'affilée remplissent encore
+    le premier écran, ce que l'amendement voulait empêcher ; les suivants restent à 11 et 22 ;
+  - quand « Voir N biens de plus » met des pages bout à bout, un emplacement dont le bien est déjà
+    affiché plus haut, organique, réservé ou sponsorisé, est retiré : « jamais de doublon » vaut pour
+    ce que voit l'utilisateur, pas seulement page par page.
+
+  Conséquence sur la mesure : un emplacement servi par l'API mais non inséré compte une impression
+  qui n'a pas eu lieu. L'écart est connu ; le corriger demande que le front déclare les emplacements
+  affichés, ce qui est un ticket à part.
 
 **Gardes** : `tests/Feature/Boost/SponsoredPlacementTest.php` (tête puis tous les dix, plafond,
 page courte, aucun doublon). Cinq tests Boost qui épinglaient l'ancienne inclusion

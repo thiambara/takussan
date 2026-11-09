@@ -52,3 +52,16 @@ Relevé sur `dev` (4152090b0) le 2026-11-08, au téléphone (390 × 844) — [au
 ## Application
 
 TCK-2493 (barre, règle des couches, Compte / Moi), TCK-2494 (en-tête de bureau et menu « Mon espace »). Les maquettes de référence sont sur `/fr/playground/maquettes?p=navigation` (approche A), gardées jusqu'à l'implémentation — non versionnées, dans l'arbre de travail du porteur ([README de l'audit, § Maquettes](../qa/audit-ux-2026-11/README.md#maquettes)).
+
+## Amendement du 2026-11-09 — l'en-tête de page au téléphone
+
+Demande du porteur (TCK-2568) : au téléphone, beaucoup d'écrans des maquettes retenues **n'ont pas la barre du site** ; le site doit les suivre, écran par écran. Le décompte, mesuré maquette par maquette et route par route, est dans [`docs/qa/audit-ux-2026-11/entetes-mobiles.md`](../qa/audit-ux-2026-11/entetes-mobiles.md).
+
+1. **Sous `lg`, la barre du site (marque, recherche) ne paraît que là où la maquette la montre** : l'accueil, les pages légales, et toute page qu'aucune maquette ne décrit (la sélection de favoris partagée, la page 404). Une page neuve la garde par défaut.
+2. **La liste des biens** garde la barre, mais sa marque cède la place à un **retour** : « ← [la recherche en vigueur] », l'en-tête de sa maquette.
+3. **Partout ailleurs, la page porte son propre en-tête** : une rangée collante de 56 px (retour, titre, action — comparateur, fiche d'agent, tunnel de réservation), des boutons posés sur la photo (fiche d'un bien, d'une agence), un grand titre (Favoris, Compte, l'annuaire « Professionnels »), ou la coque d'une page par lien. Le composant partagé est `EnTeteDePage`. Son retour revient à la page précédente du site, sinon à un repli sûr ; c'est un vrai lien. « Précédente du site » se juge par la Navigation API, à défaut par le référent ET un historique d'au moins deux entrées : un nouvel onglet ouvert depuis le site a le référent du site et rien derrière lui.
+4. **Une seule règle**, `enTeteAuTelephone(chemin)` (`lib/navigation/barre-publique.ts`), lue par la barre ET par sa cale. Une page dont le haut ne dépend pas du seul chemin le déclare elle-même : `auTelephone="barre-du-site"` pour un bien retiré ; `auTelephone="marque"` (le logo seul, sans recherche, la barre de marque de la maquette) pour une page inconnue, une erreur ou une panne de l'API ; un `EnTeteDePage` pour l'état d'une page qui a son écran de maquette (la réservation d'un bien au mois : « ← Retour au bien »). Le bas suit la même logique : le bien retiré déclare la barre d'onglets que le chemin d'une fiche n'a pas (`<BarreDOngletsPublique presente />`).
+5. **Le bureau ne change pas** : dès `lg`, la barre du site reste sur toutes les pages (§ 5).
+6. **Une route ne quitte la barre qu'avec son en-tête.** La faire basculer dans la règle avant que ses pages — et ses 404 — portent leur en-tête lui ôte la barre sans rien à la place (revue du 2026-11-09). L'annuaire et les fiches d'agence et d'agent basculent donc avec leurs pages (TCK-2521 → TCK-2523), pas avant.
+
+Conséquence : tout élément collant qui supposait la barre de 69 px au-dessus de lui (`sticky top-[69px]`) se cale, sur ces routes, sous l'en-tête de la page ou à `top-0`.

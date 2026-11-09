@@ -1,7 +1,7 @@
 ---
 id: TCK-2536
 title: Console d'agence : déclarer les moyens de paiement hors ligne (Wave, Orange Money, coordonnées bancaires)
-status: todo
+status: done
 phase: P1
 family: back
 estimate: S
@@ -55,3 +55,36 @@ L'administrateur d'agence déclare, dans la configuration de son agence, les moy
 
 - La page publique du lien de paiement (TCK-2505).
 - Le rapprochement d'un paiement hors ligne (existant côté console).
+
+## Notes d'implémentation
+
+**Re-mesuré le 2026-11-09 (agent console, vague 2)** : le contrat de TCK-2504 tient —
+`php artisan test tests/Feature/Api/Agency/AgencyOfflinePaymentSettingsTest.php` → 4 verts (saisie
+« 77 123 45 67 » rendue `+221771234567`, 422 sur `settings.<clé>`, `null` retire la clé, fusion clé par
+clé). **Prémisse non écrite au ticket** : `PATCH /api/agencies/{id}` exige la 2FA de l'admin (TCK-761) —
+mesuré sur la base de dev, `admin@agency1.demo.takussan.sn` (2FA non activée) → `403
+two_factor_required` avant toute validation. Le formulaire passe déjà par `avecGardeDoubleFacteurAction`
+(la boîte de la coque s'ouvre) ; l'enregistrement réel n'a donc pas été rejoué au navigateur (activer
+la 2FA d'un compte de démo partagé aurait changé l'état de la base des autres agents).
+
+- Les trois champs vivent dans une section « Paiement hors ligne » d'`AgencyConfigForm`, pour TOUTE
+  agence (l'API ne les refuse pas à une `individual`, qui envoie aussi des liens de paiement).
+- Envoi : une clé ne part que si sa valeur ROGNÉE a changé par rapport à la référence `settings`
+  recalée sur chaque réponse (même patron que TCK-2486) ; vidée (ou réduite à des blancs) → `null`.
+- Erreurs : l'API répond `settings.offline_payment_*` ; `erreursDesReglagesSurLeurChamp`
+  (`src/lib/schemas/agency.ts`) renomme ces trois clés vers le champ du formulaire, sinon `useApiForm`
+  les rangeait dans le bandeau. Les autres clés `settings.*` ne changent pas de chemin.
+- Relecture : `onSuccess` pose les trois champs depuis `saved.settings` — le numéro affiché est celui
+  que l'API a normalisé, sans reformatage local.
+- Pas de contrôle de forme des numéros côté client (l'API accepte la saisie libre) ; la zone de texte
+  porte `maxLength=500` et un compteur.
+- Tests : `AgencyConfigForm.paiement-hors-ligne.tck-2536.test.tsx` (13), sept ablations rouges
+  (envoi retiré, les trois envoyés, `''` au lieu de `null`, comparaison non rognée, renommage des
+  erreurs retiré, relecture retirée, borne retirée).
+- Écran vu au navigateur à 1440 × 900 et 390 × 844 (admin d'agence `standard`) : aucun débord
+  (`scrollWidth` = largeur), champs de 534/534/1082 px au bureau, 310 px au téléphone.
+- **Revue adverse — Orange Money relu à part** : un 14ᵉ test ne touche que le champ Orange Money
+  (`78 111 22 34` → réponse `+221781112234`). La saisie part seule, le champ relit l'E.164 rendu par
+  l'API, Wave reste intact et un second envoi ne renvoie rien. Ablation : seule la relecture
+  `setValue('offline_payment_orange_money_number', …)` retirée → ce test rougit, et lui seul (les tests
+  Wave restent verts). Fichier restauré par `cp` (md5 47683946…).

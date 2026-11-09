@@ -1,7 +1,7 @@
 ---
 id: TCK-2532
 title: "Seeders : des biens publics rattachés à des agents en exercice, pour que la démo montre un annuaire d'agents"
-status: todo
+status: done
 phase: P1
 family: back
 estimate: S
@@ -75,4 +75,45 @@ page vide.
 
 ## Notes d'implémentation
 
-*(à remplir)*
+**Re-mesuré le 2026-11-09 (agent console, vague 2)** : `GET /api/public/agents?per_page=48` sur la
+base de dev → `total 0` (confirmé). Les lignes citées (`PropertySeeder.php:40/60/70/175`) étaient
+justes. La base de dev partagée N'EST PAS celle du seeder courant (agence 4 `individual` avec 5
+agents et 214 biens : semée avant TCK-2378) — elle n'a pas été re-semée (`migrate:fresh` interdit
+sur la base partagée) : l'AC « après `migrate:fresh --seed` » est éprouvée par le test, sur une base
+de test, et `/fr/agents` sur la démo reste à voir après le prochain seed.
+
+- **Un bien sur trois** (`PropertySeeder::AGENT_TITULAIRE_UN_SUR`) a pour titulaire un agent EN
+  EXERCICE de l'agence (le parti — `ctx->departs`, profil suspendu — est écarté), arrivé AVANT la
+  création du bien. Choix par **tourniquet**, sans tirage : le tirage d'origine du bailleur est
+  conservé, pour ne pas décaler la graine de tout le pipeline (TCK-2380).
+- `PropertyCollaboratorSeeder` ne fait plus d'un agent le collaborateur du bien dont il est
+  titulaire ; ses trois tirages par ligne sont faits AVANT la garde, dans l'ordre d'origine.
+- `UserSeeder` : le premier bailleur de chaque agence a `listed_in_public_directory = true`
+  (sans tirage) ; les autres restent non listés.
+- Conséquence assumée : un bail sur un bien d'agent a cet agent pour bailleur (`landlord_id =
+  property.user_id`), avec ses reversements — le cas réel de l'agent qui loue son propre bien.
+- Garde : `tests/Feature/Database/Seeders/SeededAgentDirectoryTest.php` sème le PIPELINE entier
+  (1 agence, 40 biens, contrats non figés) puis lit l'annuaire. **Coût : 260 s sous `load average`
+  ~20** (34 s de CPU) — le prix d'un pipeline complet, comme `SeedingInvariantsTest`.
+- Ablations (2026-11-09) : rattachement retiré → « Aucun agent » (0) ; un bien sur 50 → « 3 agents
+  listés sur 12 en exercice » ; aucun propriétaire listé → rouge ; tous listés → rouge. Toutes
+  restaurées par `cp`, md5 identique.
+- Tests de seeders rejoués après la modification, tous verts : `UserSeederProfilesTest`,
+  `PropertyCollaboratorSeederTest`, `SeedingInvariantsTest` (6, dont l'intégrité du jeu par
+  `ReferentialIntegrityChecker`), `SeededAddressesAttachedTest`, `FilterCoverageTagsTest`,
+  `SeedingJourneyTest`, `SeedingFeatureTablesTest`, `SeedingGrowthTest`. ⚠
+  `SeedingTextAndDeterminismTest::test_la_meme_graine_rejoue_le_meme_jeu…` a rougi UNE fois
+  (531 s, `load average` ~30) puis est passé vert, seul, sur le même arbre (320 s) : intermittent,
+  table fautive non relevée (la sortie ne la nommait pas dans le journal tronqué).
+- **Revue adverse — les deux règles du tourniquet gardées**, dans `SeededAgentDirectoryTest`
+  (`assertTourniquetDesTitulaires()`), sur le jeu que ce test sème déjà : aucun seed de plus en CI. Un
+  premier test séparé (`PropertyHolderRotationTest`, seeders du tourniquet seuls) a été retiré à la
+  demande de la revue. Le test vérifie d'abord que chaque cas se produit : des biens tenus par un agent,
+  au moins un départ (les partis de `SeedingContext::$departs` sont exactement les profils suspendus) et
+  un agent arrivé après le premier bien. Puis : (1) aucun bien n'a pour titulaire un parti ; (2) aucun
+  bien n'est né avant l'arrivée de son agent titulaire. Vert : 34 assertions, 155 s sous `load average`
+  ~21-33. Ablations, chacune seule : `->reject(departs)` retiré → rouge « Des biens ont pour titulaire un
+  agent parti » ; filtre `created_at <= createdAt` retiré → rouge « Des biens sont nés avant l'arrivée de
+  leur agent titulaire ». `PropertySeeder.php` restauré par `cp` après chacune (md5 43bb8255…).
+  ⚠ Jouer les seeders hors `db:seed` demande `Model::unguarded()` : sans lui, `updateOrCreate()` écarte le
+  `created_at` d'arrivée et aucun bien ne va à un agent (mesuré avec le test séparé).
