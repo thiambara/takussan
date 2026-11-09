@@ -1,13 +1,13 @@
 ---
 id: TCK-2501
 title: Fiche d'un bien « Le prix d'abord » : prix, coût d'entrée et interlocuteur au premier écran, barre WhatsApp + Visiter
-status: todo
+status: done
 phase: P1
 family: front
 estimate: L
 wave: 84
 created: 2026-11-08
-updated: 2026-11-08
+updated: 2026-11-09
 depends_on: []
 blocks: [TCK-2503]
 spec_refs:

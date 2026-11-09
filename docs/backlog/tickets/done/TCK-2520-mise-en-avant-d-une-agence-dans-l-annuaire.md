@@ -1,7 +1,7 @@
 ---
 id: TCK-2520
 title: Mise en avant d'une agence dans l'annuaire, par ville et période, offerte par la plateforme
-status: todo
+status: done
 phase: P1
 family: full
 estimate: M

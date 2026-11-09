@@ -1,13 +1,13 @@
 ---
 id: TCK-2502
 title: Demande de visite publique par jour et tranche de la journée, l'heure fixée par l'agent
-status: todo
+status: done
 phase: P1
 family: back
 estimate: M
 wave: 84
 created: 2026-11-08
-updated: 2026-11-08
+updated: 2026-11-09
 depends_on: []
 blocks: [TCK-2503]
 spec_refs:

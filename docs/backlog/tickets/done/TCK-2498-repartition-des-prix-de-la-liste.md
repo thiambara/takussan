@@ -1,13 +1,13 @@
 ---
 id: TCK-2498
 title: Liste publique : répartition des prix par tranche pour l'histogramme du budget
-status: todo
+status: done
 phase: P1
 family: back
 estimate: S
 wave: 84
 created: 2026-11-08
-updated: 2026-11-08
+updated: 2026-11-09
 depends_on: []
 blocks: [TCK-2499]
 spec_refs:

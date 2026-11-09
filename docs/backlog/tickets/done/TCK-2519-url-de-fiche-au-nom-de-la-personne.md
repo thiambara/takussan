@@ -1,7 +1,7 @@
 ---
 id: TCK-2519
 title: Fiche de personne : URL au nom (`/agents/sokhna-gueye`), l'ancienne adresse redirigée
-status: todo
+status: done
 phase: P1
 family: full
 estimate: M

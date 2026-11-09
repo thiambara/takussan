@@ -1,13 +1,13 @@
 ---
 id: TCK-2494
 title: En-tête public de bureau sur une ligne, et menu « Mon espace » du profil connecté
-status: todo
+status: done
 phase: P1
 family: front
 estimate: M
 wave: 84
 created: 2026-11-08
-updated: 2026-11-08
+updated: 2026-11-09
 depends_on: [TCK-2493]
 blocks: []
 spec_refs:

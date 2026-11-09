@@ -1,7 +1,7 @@
 ---
 id: TCK-2517
 title: Recherche publique filtrée par agence et par agent, avec les comptes par option
-status: todo
+status: done
 phase: P1
 family: back
 estimate: M

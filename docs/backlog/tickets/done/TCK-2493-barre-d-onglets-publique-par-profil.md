@@ -1,13 +1,13 @@
 ---
 id: TCK-2493
 title: Barre d'onglets publique au téléphone, dont les cases suivent le profil connecté
-status: todo
+status: done
 phase: P1
 family: front
 estimate: L
 wave: 84
 created: 2026-11-08
-updated: 2026-11-08
+updated: 2026-11-09
 depends_on: []
 blocks: [TCK-2494]
 spec_refs:

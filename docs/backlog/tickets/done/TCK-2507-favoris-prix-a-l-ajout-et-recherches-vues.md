@@ -1,13 +1,13 @@
 ---
 id: TCK-2507
 title: Favoris : prix au moment de l'ajout, et recherches sauvegardées qui savent quand on les a ouvertes
-status: todo
+status: done
 phase: P1
 family: back
 estimate: S
 wave: 85
 created: 2026-11-08
-updated: 2026-11-08
+updated: 2026-11-09
 depends_on: []
 blocks: [TCK-2508]
 spec_refs:

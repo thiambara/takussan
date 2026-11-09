@@ -1,13 +1,13 @@
 ---
 id: TCK-2513
 title: Alerte sans compte : critères lisibles par le jeton du lien, et passage à un envoi par semaine
-status: todo
+status: done
 phase: P1
 family: back
 estimate: S
 wave: 85
 created: 2026-11-08
-updated: 2026-11-08
+updated: 2026-11-09
 depends_on: []
 blocks: [TCK-2514]
 spec_refs:

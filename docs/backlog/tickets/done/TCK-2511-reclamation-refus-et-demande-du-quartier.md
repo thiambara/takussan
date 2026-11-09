@@ -1,13 +1,13 @@
 ---
 id: TCK-2511
 title: Réclamation Radar : refuser depuis le lien (« Ce n'est pas moi », « Ne plus me contacter ») et chiffre de demande du quartier
-status: todo
+status: done
 phase: P1
 family: back
 estimate: M
 wave: 85
 created: 2026-11-08
-updated: 2026-11-08
+updated: 2026-11-09
 depends_on: []
 blocks: [TCK-2512]
 spec_refs:

@@ -24,7 +24,7 @@ Au téléphone, le chercheur trouve sa recherche en un toucher (récente, popula
 
 ## Contrat de données
 
-`GET /api/search/suggest` tel qu'aujourd'hui, plus les ajouts optionnels de TCK-2496 (`relaxations`, interprétation tolérante, `filter[published_after]`) : l'écran les montre quand l'API les rend, et s'en passe sinon. Recherches récentes : stockage de l'appareil (`recherches-recentes`), inchangé.
+`GET /api/search/suggest` tel qu'aujourd'hui, plus les ajouts optionnels de TCK-2496 (`relaxations`, interprétation tolérante, `published_after` — paramètre plat de `/api/public/properties/search`) : l'écran les montre quand l'API les rend, et s'en passe sinon. Recherches récentes : stockage de l'appareil (`recherches-recentes`), inchangé.
 
 ## Direction UX / Artistique
 

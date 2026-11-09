@@ -1,7 +1,7 @@
 ---
 id: TCK-2518
 title: Profil public enrichi : accroche, « Pourquoi nous », sélection et couverture de l'agence ; langues, quartiers et délai de réponse
-status: todo
+status: done
 phase: P1
 family: back
 estimate: M

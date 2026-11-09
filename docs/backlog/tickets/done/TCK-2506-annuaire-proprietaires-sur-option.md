@@ -1,13 +1,13 @@
 ---
 id: TCK-2506
 title: Annuaire public : les propriétaires particuliers n'y paraissent que s'ils l'ont choisi
-status: todo
+status: done
 phase: P1
 family: full
 estimate: M
 wave: 84
 created: 2026-11-08
-updated: 2026-11-08
+updated: 2026-11-09
 depends_on: []
 blocks: []
 spec_refs:

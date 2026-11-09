@@ -1,13 +1,13 @@
 ---
 id: TCK-2496
 title: Suggestion de recherche : lieu compris malgré une faute, compte des critères à retirer, biens nouveaux depuis une date
-status: todo
+status: done
 phase: P1
 family: back
 estimate: M
 wave: 84
 created: 2026-11-08
-updated: 2026-11-08
+updated: 2026-11-09
 depends_on: []
 blocks: []
 spec_refs:

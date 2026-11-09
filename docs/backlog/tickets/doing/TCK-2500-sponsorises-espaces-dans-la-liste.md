@@ -1,13 +1,13 @@
 ---
 id: TCK-2500
 title: Sponsorisés espacés : un en tête de page, puis un toutes les dix cartes
-status: todo
+status: doing
 phase: P1
 family: full
 estimate: S
 wave: 84
 created: 2026-11-08
-updated: 2026-11-08
+updated: 2026-11-09
 depends_on: []
 blocks: []
 spec_refs:
