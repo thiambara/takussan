@@ -1,12 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { BellOff, Check, Link2Off, Loader2 } from 'lucide-react';
+import { CircleCheck, Loader2, MailX } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
-import { EmptyState } from '@/components/feedback';
-import { LienLocalise } from '@/components/shared/LienLocalise';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { ErrorState } from '@/components/feedback';
+import { BasDeLien } from '@/components/lien-public/BasDeLien';
+import { CarteDeLien } from '@/components/lien-public/CarteDeLien';
+import { EnTeteDeLien } from '@/components/lien-public/EnTeteDeLien';
+import { LienMort } from '@/components/lien-public/LienMort';
+import { Button } from '@/components/ui/button';
 import { ApiError } from '@/lib/api';
 import { lireLienDuResume, unsubscribeDigest } from '@/lib/queries/digest-unsubscribe';
 
@@ -18,42 +21,44 @@ interface DigestUnsubscribeActionProps {
 
 /**
  * P97.06 (TCK-1243, ADR-0050) — la page où mène le lien « se désabonner » du résumé par courriel.
+ * TCK-2514 : « la carte au centre », dans la coque de lien nue.
  *
  * ⚠ Rien ne part au chargement : le désabonnement est un `POST`, déclenché par UN bouton. Un
  * analyseur de liens qui ouvre la page ne désabonne personne. Un lien qui n'a pas la forme
- * attendue rend « lien invalide » sans appeler l'API. Même parcours que les alertes de recherche
+ * attendue rend « lien mort » sans appeler l'API. Même parcours que les alertes de recherche
  * (`SearchAlertLinkAction`), dont il reprend les libellés communs.
  */
 export function DigestUnsubscribeAction(props: DigestUnsubscribeActionProps) {
   const t = useTranslations('search.alertPages');
   const lien = lireLienDuResume(props);
   const [etat, setEtat] = useState<'idle' | 'working' | 'done' | 'invalid' | 'error'>(lien ? 'idle' : 'invalid');
+  const enTete = <EnTeteDeLien />;
 
   if (etat === 'invalid' || !lien) {
     return (
-      <EmptyState
-        data-testid="digest-unsubscribe-invalid"
-        icon={<Link2Off className="size-8" aria-hidden="true" />}
-        title={t('invalidTitle')}
-        description={t('invalidBody')}
-        action={
-          <LienLocalise href="/properties" className={buttonVariants({ variant: 'outline' })}>
-            {t('backToSearch')}
-          </LienLocalise>
-        }
-      />
+      <>
+        {enTete}
+        <LienMort data-testid="digest-unsubscribe-invalid" titre={t('invalidTitle')}>
+          {t('invalidBody')}
+        </LienMort>
+      </>
     );
   }
 
   if (etat === 'done') {
     return (
-      <EmptyState
-        data-testid="digest-unsubscribe-done"
-        role="status"
-        icon={<Check className="size-8" aria-hidden="true" />}
-        title={t('digest.doneTitle')}
-        description={t('digest.doneBody')}
-      />
+      <>
+        {enTete}
+        <CarteDeLien
+          data-testid="digest-unsubscribe-done"
+          className="pb-8"
+          ton="succes"
+          icone={<CircleCheck />}
+          titre={t('digest.doneTitle')}
+        >
+          <span role="status">{t('digest.doneBody')}</span>
+        </CarteDeLien>
+      </>
     );
   }
 
@@ -71,20 +76,25 @@ export function DigestUnsubscribeAction(props: DigestUnsubscribeActionProps) {
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card p-6 text-center">
-      <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-primary/10">
-        <BellOff className="size-6 text-primary" aria-hidden="true" />
-      </div>
-      <p className="mb-6 text-sm text-pretty text-muted-foreground">{t('digest.body')}</p>
-      <Button type="button" onClick={() => void agir()} disabled={etat === 'working'} className="min-h-11 w-full sm:w-auto">
-        {etat === 'working' ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
-        {etat === 'working' ? t('digest.working') : t('digest.button')}
-      </Button>
-      {etat === 'error' ? (
-        <p className="mt-4 text-sm text-destructive" role="alert">
-          {t('error')}
-        </p>
-      ) : null}
-    </div>
+    <>
+      {enTete}
+      <CarteDeLien data-testid="digest-unsubscribe-action" icone={<MailX />} titre={t('digest.title')}>
+        {t('digest.body')}
+      </CarteDeLien>
+      <div className="h-8" aria-hidden="true" />
+      <BasDeLien>
+        {etat === 'error' ? <ErrorState message={t('error')} /> : null}
+        <Button
+          type="button"
+          size="lg"
+          className="h-12 w-full bg-foreground text-[15px] font-semibold text-background hover:bg-foreground/90"
+          disabled={etat === 'working'}
+          onClick={() => void agir()}
+        >
+          {etat === 'working' ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
+          {etat === 'working' ? t('digest.working') : t('digest.button')}
+        </Button>
+      </BasDeLien>
+    </>
   );
 }

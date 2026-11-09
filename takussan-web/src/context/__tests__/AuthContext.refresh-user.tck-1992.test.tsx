@@ -107,8 +107,8 @@ describe('AuthProvider — refreshUser (TCK-1992)', () => {
     );
     monter();
 
-    let premiere!: Promise<void>;
-    let seconde!: Promise<void>;
+    let premiere!: Promise<unknown>;
+    let seconde!: Promise<unknown>;
     act(() => {
       premiere = sonde.auth!.refreshUser();
       seconde = sonde.auth!.refreshUser();
@@ -135,7 +135,7 @@ describe('AuthProvider — refreshUser (TCK-1992)', () => {
     );
     monter();
 
-    let enVol!: Promise<void>;
+    let enVol!: Promise<unknown>;
     act(() => {
       enVol = sonde.auth!.refreshUser();
     });

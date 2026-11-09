@@ -22,7 +22,7 @@ export interface BoutonRetourProps {
  * `router.back()` ferait quitter le site. La Navigation API répond exactement (elle ne liste que
  * les entrées de la même origine) ; à défaut, le référent de la première page chargée.
  */
-function peutRevenirSurLeSite(): boolean {
+export function peutRevenirSurLeSite(): boolean {
   const navigation = (window as Window & { navigation?: { canGoBack?: unknown } }).navigation;
   if (typeof navigation?.canGoBack === 'boolean') return navigation.canGoBack;
   try {

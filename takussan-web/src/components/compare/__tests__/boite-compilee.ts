@@ -132,6 +132,10 @@ function verifierStyleEnLigne(el: Element) {
   const style = (el as HTMLElement).style;
   if (!style) return;
   for (let i = 0; i < style.length; i++) {
+    // TCK-2509 — les gabarits de colonnes de `CompareColonnes` (`--colonnes-mobile`,
+    // `--colonnes-bureau`) : des propriétés PERSONNALISÉES, sans effet sur une boîte tant
+    // qu'aucune classe ne les lit — et la seule qui les lit est un `grid-cols-(--…)`.
+    if (/^--colonnes-(mobile|bureau)$/.test(style[i])) continue;
     if (!STYLE_ADMIS.has(style[i])) {
       throw new Error(`style en ligne non modélisé : ${style[i]}: ${style.getPropertyValue(style[i])} (« ${el.getAttribute('class') ?? el.tagName} »)`);
     }

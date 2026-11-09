@@ -176,8 +176,10 @@ export default async function PropertyDetailPage({ params }: Props) {
     if (estRetire(etat)) {
       return (
         <>
-          <Navbar />
-          <NavbarSpacer />
+          {/* TCK-2568 — le bien retiré garde la barre du site au téléphone (maquette des erreurs,
+              « Bien retiré ») : son chemin est celui d'une fiche, qui ne l'a pas. */}
+          <Navbar auTelephone="barre-du-site" />
+          <NavbarSpacer auTelephone="barre-du-site" />
           <main id={CONTENU_PRINCIPAL_ID} tabIndex={-1} className="focus:outline-none">{await bienRetire(etat)}</main>
           <Footer />
         </>
@@ -232,10 +234,14 @@ export default async function PropertyDetailPage({ params }: Props) {
       </>
     );
 
+  // TCK-2568 — une fiche servie n'a pas la barre du site au téléphone (son retour est sur la photo) ;
+  // une fiche indisponible (panne de l'API) la garde : elle n'a ni photo ni retour.
+  const auTelephone = resultat.etat === 'trouve' ? undefined : 'barre-du-site';
+
   return (
     <>
-      <Navbar />
-      <NavbarSpacer />
+      <Navbar auTelephone={auTelephone} />
+      <NavbarSpacer auTelephone={auTelephone} />
       {/* TCK-895 (P31.02) — le repère du contenu, posé ici et non dans `PropertyDetailContent`. */}
       <main id={CONTENU_PRINCIPAL_ID} tabIndex={-1} className="focus:outline-none">{corps}</main>
       <Footer />

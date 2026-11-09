@@ -383,6 +383,8 @@ export const EXCEPTIONS_JUSTIFIEES = [
   // la garde* — le noter ici évite qu'on en conclue un jour que l'autre était volontairement
   // traduisible.
   { fichier: 'src/lib/queries/public-discovery.ts', litteral: '[accueil] découverte indisponible :', famille: 'TECHNIQUE', raison: R_JOURNAL_RENDU_PUBLIC },
+  { fichier: 'src/lib/queries/raccourcis-de-l-accueil.ts', litteral: '[accueil] quartiers indisponibles :', famille: 'TECHNIQUE', raison: R_JOURNAL_RENDU_PUBLIC },
+  { fichier: 'src/lib/queries/raccourcis-de-l-accueil.ts', litteral: '[accueil] offre de la ville indisponible :', famille: 'TECHNIQUE', raison: R_JOURNAL_RENDU_PUBLIC },
 
   // ── TECHNIQUE — un JETON du vocabulaire schema.org (TCK-435) ───────────────────────────────────
   { fichier: 'src/lib/jsonld-site.ts', litteral: 'required name=search_term_string', famille: 'TECHNIQUE', raison: R_JETON_SCHEMA_ORG },

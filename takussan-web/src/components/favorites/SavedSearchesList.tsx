@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { BookmarkCheck, Trash2, Loader2, Search as SearchIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import {
   SAVED_SEARCH_FREQUENCIES,
   useSavedSearchesQuery,
@@ -17,10 +16,8 @@ import { EmptyState, ErrorState } from '@/components/feedback';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import { filtersFromSearchParams } from '@/hooks/useSearch';
-import { puceDeChaqueFiltreActif, type TraducteursDeFiltre } from '@/types/search';
-import { ESPACE_DU_CATALOGUE } from '@/lib/libelle-equipement';
-import { libelleEquipementParNom } from '@/lib/libelle-equipement-par-nom';
+import { requeteDesCriteres as criteriaToQueryString } from '@/lib/favoris-suivi';
+import { useResumeDeCriteres } from '@/components/favorites/resume-de-criteres';
 
 /**
  * Dashboard "Mes recherches sauvegardées" listing — Wave 3 / TCK-047.
@@ -34,51 +31,6 @@ import { libelleEquipementParNom } from '@/lib/libelle-equipement-par-nom';
  *   hebdomadaire) through `PATCH { notification_frequency }`, with the EFFECTIVE channels the
  *   API reports (`alert_channels`) — the e-mail is named only when the preference lets it go.
  */
-/**
- * `criteria` arrive du SERVEUR : c'est du JSON libre, pas un `SearchFilters`. On le repasse donc
- * par le même aller-retour URL que la page de résultats — `criteriaToQueryString` puis
- * `filtersFromSearchParams` — plutôt que de le lire à la main. Une valeur d'une version
- * antérieure, ou d'un type inattendu, retombe alors sur les mêmes lecteurs que le reste du front
- * au lieu de casser le résumé (`criteria.type` stocké en chaîne faisait planter un `.map`).
- */
-function criteriaToQueryString(criteria: Record<string, unknown>): string {
-  const params = new URLSearchParams();
-  Object.entries(criteria).forEach(([key, value]) => {
-    if (value === undefined || value === null || value === '') return;
-    if (Array.isArray(value)) {
-      if (value.length > 0) params.set(key, value.join(','));
-    } else if (typeof value === 'object') {
-      params.set(key, JSON.stringify(value));
-    } else {
-      params.set(key, String(value));
-    }
-  });
-  return params.toString();
-}
-
-/**
- * TCK-340 — le résumé d'une recherche sauvegardée passe par `puceDeChaqueFiltreActif`, la MÊME
- * fabrique de libellés que les puces de `SearchToolbar`.
- *
- * L'ancienne version était l'une des trois listes qui avaient RÉELLEMENT dérivé, et elle mentait
- * de deux façons à la fois :
- *
- * - elle ne connaissait que six clés sur dix-sept, donc une recherche sauvegardée sur
- *   « meublé, en vedette, quartier Almadies, dispo dès le 1ᵉʳ septembre » se résumait à
- *   « Aucun critère » — le repli exact d'une recherche VIDE ;
- * - elle écrivait « Vente », « ch. », « Maximum », « surface … m² » en français dur, hors
- *   next-intl, ce que le principe 5 interdit (le front possède le texte affiché).
- */
-function humaniseCriteria(
-  criteria: Record<string, unknown>,
-  repliAucunCritere: string,
-  trads: TraducteursDeFiltre,
-): string {
-  const filtres = filtersFromSearchParams(new URLSearchParams(criteriaToQueryString(criteria)));
-  const parts = puceDeChaqueFiltreActif(filtres, trads).map((p) => p.libelle);
-  return parts.length > 0 ? parts.join(' · ') : repliAucunCritere;
-}
-
 /**
  * TCK-599 — le réglage de l'alerte d'une ligne. La valeur affichée est celle de l'API, pas un état
  * local : un `PATCH` refusé ne laisse pas l'écran dire une fréquence que le serveur n'a pas.
@@ -146,19 +98,7 @@ function SavedSearchRow({
   deleteError: string | null;
 }) {
   const t = useTranslations('search.saved');
-  const tCatalogue = useTranslations(ESPACE_DU_CATALOGUE);
-  const trads: TraducteursDeFiltre = {
-    tags: useTranslations('search'),
-    types: useTranslations('property.types'),
-    contract: useTranslations('property.contractTypes'),
-    periods: useTranslations('property.rentPeriods'),
-    titleTypes: useTranslations('property.titleTypes'),
-    conditions: useTranslations('property.conditions'),
-    // TCK-633 — mêmes libellés que les puces de la recherche : le catalogue traduit, un
-    // équipement d'annonceur tel quel. Le critère sauvegardé garde le NOM, seul l'affichage change.
-    equipement: (nom) => libelleEquipementParNom(nom, tCatalogue),
-    locale: useFormatteurs().locale,
-  };
+  const resume = useResumeDeCriteres();
   const qs = criteriaToQueryString(search.criteria);
   const href = `/properties${qs ? `?${qs}` : ''}`;
   return (
@@ -171,7 +111,7 @@ function SavedSearchRow({
           </h3>
         </div>
         <p className="mt-1 text-sm text-muted-foreground truncate">
-          {humaniseCriteria(search.criteria, t('noCriteria'), trads)}
+          {resume(search.criteria)}
         </p>
         <AlertSetting search={search} />
         {deleteError ? (

@@ -1,15 +1,14 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
-import { Navbar } from '@/components/home/Navbar';
-import { NavbarSpacer } from '@/components/home/NavbarSpacer';
-import { Footer } from '@/components/home/Footer';
+import { CoqueDeLien } from '@/components/lien-public/CoqueDeLien';
 import { SearchAlertLinkAction } from '@/components/search-alerts/SearchAlertLinkAction';
-import { CONTENU_PRINCIPAL_ID } from '@/components/shared/contenu-principal';
 
 /**
  * `/[locale]/search-alerts/confirm?token=…` — TCK-599 (ADR-0050 §4) : le lien de confirmation
  * d'une alerte sans compte. Confirmer est un clic, jamais le chargement de la page.
+ *
+ * TCK-2514 : dans la coque de lien nue ; la carte porte son titre.
  *
  * Jamais indexée, et `no-referrer` : le jeton est dans l'URL, un `Referer` le porterait vers tout
  * lien sortant de la page.
@@ -33,21 +32,10 @@ export default async function SearchAlertConfirmPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
-  const t = await getTranslations('search.alertPages.confirm');
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Navbar />
-      <NavbarSpacer />
-      <main id={CONTENU_PRINCIPAL_ID} tabIndex={-1} className="flex-1 focus:outline-none">
-        <div className="mx-auto max-w-lg px-4 py-12">
-          <h1 className="mb-6 text-center font-display text-2xl font-bold tracking-tight text-balance text-foreground">
-            {t('title')}
-          </h1>
-          <SearchAlertLinkAction mode="confirm" token={premier(params.token)} />
-        </div>
-      </main>
-      <Footer />
-    </div>
+    <CoqueDeLien>
+      <SearchAlertLinkAction mode="confirm" token={premier(params.token)} />
+    </CoqueDeLien>
   );
 }

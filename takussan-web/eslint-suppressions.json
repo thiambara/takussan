@@ -97,14 +97,6 @@
       "count": 1
     }
   },
-  "src/app/[locale]/(public)/properties/[slug]/components/PropertyVisitDialog.tsx": {
-    "@typescript-eslint/no-misused-promises": {
-      "count": 1
-    },
-    "jsx-a11y/no-autofocus": {
-      "count": 1
-    }
-  },
   "src/components/admin-agency/AgencyConfigForm.tsx": {
     "@typescript-eslint/no-misused-promises": {
       "count": 2
@@ -270,17 +262,7 @@
       "count": 1
     }
   },
-  "src/components/bookings/BookingTunnel.tsx": {
-    "@typescript-eslint/no-misused-promises": {
-      "count": 1
-    }
-  },
   "src/components/boost/EmplacementSponsorise.tsx": {
-    "jsx-a11y/no-redundant-roles": {
-      "count": 1
-    }
-  },
-  "src/components/compare/CompareCarousel.tsx": {
     "jsx-a11y/no-redundant-roles": {
       "count": 1
     }
@@ -332,7 +314,7 @@
   },
   "src/components/favorites/FavoritesList.tsx": {
     "@typescript-eslint/no-misused-promises": {
-      "count": 2
+      "count": 1
     }
   },
   "src/components/favorites/PublicSearchAlertForm.tsx": {
@@ -576,11 +558,6 @@
   },
   "src/components/wizard/WizardReprenable.tsx": {
     "@typescript-eslint/no-misused-promises": {
-      "count": 1
-    }
-  },
-  "src/hooks/useSimilairesDesVus.ts": {
-    "@typescript-eslint/no-floating-promises": {
       "count": 1
     }
   }

@@ -49,6 +49,12 @@ export type SuggestInterpretation = {
    * absent, le front compte les mots distincts du résidu (`laListeSElargira`).
    */
   widens?: boolean;
+  /**
+   * TCK-2496 — sous un compte NUL seulement : au plus trois critères de la saisie dont le retrait rend
+   * des biens, `key` étant le paramètre de la liste (`type`, `location`…) ou `q` pour le texte
+   * incompris, triés par compte décroissant. Facultatif : une API antérieure ne le rend pas (TCK-2497).
+   */
+  relaxations?: { key: string; count: number }[];
 };
 
 /** Une recherche fréquente (`completions`, `popular`). `text` peut être vide : critères seuls. */
@@ -682,6 +688,12 @@ export interface BlocDeRecherche {
   widened_total: number | null;
 }
 
+/** TCK-2517 — une option d'une facette et son compte. */
+export interface FacetteDeRecherche {
+  readonly value: string | number;
+  readonly count: number;
+}
+
 export interface SearchResult {
   data: import('./property').PropertyListItem[];
   meta: {
@@ -689,6 +701,12 @@ export interface SearchResult {
     last_page: number;
     per_page: number;
     total: number;
+    /**
+     * TCK-2517 — les comptes par option, rendus seulement pour les clés demandées par `facets=`
+     * (`contract_type`, `type`, `bedrooms`, `neighborhood`). Chaque facette est calculée sous tous
+     * les filtres SAUF le sien ; `bedrooms` est cumulé (l'option 3 compte « 3 et plus »).
+     */
+    facets?: Partial<Record<'contract_type' | 'type' | 'bedrooms' | 'neighborhood', FacetteDeRecherche[]>>;
   };
   search?: BlocDeRecherche;
   /**

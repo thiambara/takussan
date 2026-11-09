@@ -117,16 +117,24 @@ describe('surlignage des suggestions de recherche', () => {
     return lu!;
   }
 
-  // Le menu est en `bg-card` ; la ligne active y pose `bg-primary/8`, la ligne survolée
-  // `bg-muted/50`. Le `<mark>` translucide se compose sur chacune.
-  const LIGNES: ReadonlyArray<readonly [string, string, number]> = [
-    ['ligne au repos', 'card', 0],
-    ['ligne active', 'primary', 0.08],
-    ['ligne survolée', 'muted', 0.5],
-  ];
+  // Le menu est en `bg-card`. En clair, la ligne active pose `bg-secondary` et la ligne survolée
+  // `bg-muted`, opaques depuis TCK-2497 ; en sombre, `bg-primary/8` et `bg-muted/50` (`dark:`), comme
+  // avant. Le `<mark>` translucide se compose sur chacune.
+  const LIGNES: Record<(typeof THEMES)[number][0], ReadonlyArray<readonly [string, string, number]>> = {
+    clair: [
+      ['ligne au repos', 'card', 0],
+      ['ligne active', 'secondary', 1],
+      ['ligne survolée', 'muted', 1],
+    ],
+    sombre: [
+      ['ligne au repos', 'card', 0],
+      ['ligne active', 'primary', 0.08],
+      ['ligne survolée', 'muted', 0.5],
+    ],
+  };
 
   for (const [theme, jetons] of THEMES) {
-    for (const [ligne, teinte, alpha] of LIGNES) {
+    for (const [ligne, teinte, alpha] of LIGNES[theme]) {
       it(`encre sur aplat ≥ 4,5:1, ${ligne}, thème ${theme}`, () => {
         const carte = versRvb(jetons.card);
         const sousLeMark: Rvb =

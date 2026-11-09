@@ -29,7 +29,8 @@ import type { Locale } from '@/i18n/config';
 import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
 import { cn } from '@/lib/utils';
 import { voitLePortefeuille } from '@/lib/navigation/acces-app';
-import { estPageDeDecouverte } from '@/lib/navigation/barre-publique';
+import { enTeteAuTelephone, estPageDeDecouverte, type EnTeteAuTelephone } from '@/lib/navigation/barre-publique';
+import { BoutonRetourDePage } from '@/components/navigation-publique/EnTeteDePage';
 import { MenuMonEspace } from '@/components/navigation-publique/MenuMonEspace';
 import { PastilleCredits } from '@/components/credits/PastilleCredits';
 
@@ -46,6 +47,12 @@ function estListeDesBiens(pathname: string): boolean {
 
 export interface NavbarProps {
   readonly className?: string;
+  /**
+   * TCK-2568 — ce qui tient le haut de l'écran au téléphone, quand le chemin ne le dit pas : une page
+   * 404 servie sous l'URL d'une fiche, un bien retiré, une erreur (`'barre-du-site'`). Par défaut,
+   * `enTeteAuTelephone(chemin)`. À passer aussi à `NavbarSpacer`.
+   */
+  readonly auTelephone?: EnTeteAuTelephone;
 }
 
 /**
@@ -62,7 +69,7 @@ export function prochaineSelectionDeTypes(selection: readonly string[], type: st
   return selection.length === 1 && selection[0] === type ? [] : [type];
 }
 
-export function Navbar({ className }: NavbarProps) {
+export function Navbar({ className, auTelephone }: NavbarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -97,6 +104,11 @@ export function Navbar({ className }: NavbarProps) {
   // puis fermer sans valider ne touche pas à l'URL (la pastille relançait la recherche et perdait
   // `page`, audit du 2026-09-22).
   const [rechercheOuverte, setRechercheOuverte] = useState(false);
+  // TCK-2497 — « Vos filtres restent : … Retirer » de l'écran de recherche. Le retrait vaut pour
+  // l'URL où il a été demandé (une navigation l'éteint seule) : `buildSearchUrl` repart alors d'une
+  // URL vide, comme le champ.
+  const [retraitSur, setRetraitSur] = useState<string | null>(null);
+  const sansFiltres = retraitSur !== null && retraitSur === searchParams.toString();
   const zoneSaisieRef = useRef<HTMLDivElement>(null);
   const basculerRecherche = useCallback((ouverte: boolean) => {
     // `location` repart de la recherche EN VIGUEUR à l'ouverture ET à la fermeture sans
@@ -107,6 +119,7 @@ export function Navbar({ className }: NavbarProps) {
     // que le visiteur avait abandonné (refus du tour 1 de TCK-549, mesuré au navigateur :
     // `?q=Ngor+Plateau&type=apartment`).
     setLocation(qEnVigueur);
+    setRetraitSur(null);
     setRechercheOuverte(ouverte);
   }, [qEnVigueur, setLocation]);
   // Le choix « Acheter | Louer » part de la transaction EN VIGUEUR sur la liste (comme le champ et
@@ -187,6 +200,7 @@ export function Navbar({ className }: NavbarProps) {
   // TCK-2494 (ADR-0091 §5) — la rangée de catégories ne reste que sur les pages de DÉCOUVERTE
   // (l'accueil, la liste) : elle quitte la fiche et les pages d'outils, où elle ne filtrait rien.
   const surUnePageDeDecouverte = estPageDeDecouverte(pathname);
+  const enTete = auTelephone ?? enTeteAuTelephone(pathname);
   // Louer · Acheter · Agences : la transaction de la liste en vigueur allume son lien.
   const { chemin: cheminSansLangue } = decouperLocale(pathname);
   const lienActif: 'louer' | 'acheter' | 'agences' | null = cheminSansLangue.startsWith('/agencies')
@@ -224,7 +238,7 @@ export function Navbar({ className }: NavbarProps) {
    */
   const buildSearchUrl = useCallback((overrides: Record<string, string> = {}) => {
     // Preserve any sidebar filter already in the URL
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(sansFiltres ? '' : searchParams.toString());
     // La transaction choisie — `''` la retire : le sélecteur part de celle de l'URL.
     if (transaction) params.set(parametreDe('contract_type'), transaction);
     else params.delete(parametreDe('contract_type'));
@@ -233,8 +247,9 @@ export function Navbar({ className }: NavbarProps) {
     // Le champ étant prérempli par `q`, un champ VIDÉ est une demande de le retirer.
     if (location.trim()) params.set(parametreDe('q'), location.trim());
     else params.delete(parametreDe('q'));
-    // active category → type filter (only override if set)
-    if (activeCategory) params.set(parametreDe('type'), activeCategory);
+    // active category → type filter (only override if set). Filtres retirés (TCK-2497) : la
+    // catégorie allumée VIENT de l'URL (`type`), elle part avec eux.
+    if (activeCategory && !sansFiltres) params.set(parametreDe('type'), activeCategory);
     // reset pagination on new search
     params.delete(parametreDe('page'));
     // apply explicit overrides last
@@ -247,7 +262,7 @@ export function Navbar({ className }: NavbarProps) {
     // fréquent du site (ADR-0026). `useSearch` est déjà correct par construction — il repart
     // de `usePathname()`, qui porte la langue.
     return hrefLocalise(`/properties${qs ? '?' + qs : ''}`, locale);
-  }, [searchParams, transaction, location, activeCategory, locale]);
+  }, [searchParams, sansFiltres, transaction, location, activeCategory, locale]);
 
   const handleSearch = useCallback(() => {
     setDemande(null);
@@ -272,7 +287,10 @@ export function Navbar({ className }: NavbarProps) {
 
   return (
     <nav
-      className={`fixed top-0 w-full z-50 bg-background border-b border-border ${className || ''}`}
+      // TCK-2568 (amendement d'ADR-0091) — au téléphone, la barre du site n'est que là où la maquette
+      // la montre : ailleurs, la page porte son propre en-tête (`EnTeteDePage`). Le bureau ne change pas.
+      className={cn('fixed top-0 w-full z-50 bg-background border-b border-border', enTete === 'en-tete-de-page' && 'max-lg:hidden', className)}
+      data-en-tete-au-telephone={enTete}
       // Nommé : au téléphone, la barre du bas est un second repère (« Navigation principale »), et
       // deux `navigation` dont un sans nom ne se distinguent pas au lecteur d'écran (revue TCK-2493).
       // `className` reste en tête : `ChatWidget.test.tsx` (TCK-2485) y lit le z de la barre.
@@ -289,10 +307,15 @@ export function Navbar({ className }: NavbarProps) {
           TCK-628 — 1920 px au plus (1440 avant), gouttière inchangée : la barre suit le conteneur
           de l'accueil et de la liste, qui s'élargissent pour montrer plus de cartes. Restée à
           1440, son logo serait à 264 px du bord à 1920 quand la première carte est à 24. */}
-      <div className="flex items-start gap-4 px-4 sm:px-6 py-3 max-w-[1920px] mx-auto">
+      {/* TCK-2568 — `marque` (pages d'erreur) : au téléphone, la barre de marque de la maquette, 56 px,
+          le logo seul ; la cale (`NavbarSpacer`) réserve 57 px avec la bordure. Le bureau ne change pas. */}
+      <div className={cn('flex items-start gap-4 px-4 sm:px-6 py-3 max-w-[1920px] mx-auto', enTete === 'marque' && 'max-lg:h-14 max-lg:items-center max-lg:py-0')}>
         {/* Logo */}
-        <LienLocalise href="/" className="shrink-0 mt-2.5 hover:opacity-80 transition-opacity">
-          <Logo nom={tCommon('appName')} nomVisible="des-sm" />
+        {/* TCK-2568 — la liste au téléphone : « ← [la recherche en vigueur] », la marque cède sa place
+            au retour (maquette de la liste, approche A). */}
+        {enTete === 'retour-et-recherche' ? <BoutonRetourDePage repli="/" className="lg:hidden -ml-1.5" /> : null}
+        <LienLocalise href="/" className={cn('shrink-0 mt-2.5 hover:opacity-80 transition-opacity', enTete === 'retour-et-recherche' && 'max-lg:hidden', enTete === 'marque' && 'max-lg:mt-0')}>
+          <Logo nom={tCommon('appName')} nomVisible={enTete === 'marque' ? 'toujours' : 'des-sm'} />
         </LienLocalise>
 
         {/* TCK-2494 (ADR-0091 §5) — Louer · Acheter · Agences : Agences n'était atteignable que par le
@@ -337,9 +360,11 @@ export function Navbar({ className }: NavbarProps) {
           <div className="flex h-[52px] items-center gap-2 bg-card border border-border rounded-full pl-1 pr-1.5 shadow-[0_1px_2px_color-mix(in_srgb,var(--shadow-color)_6%,transparent)] hover:shadow-md transition-shadow has-[input:focus-visible]:ring-2 has-[input:focus-visible]:ring-ring">
             <SearchAutocomplete
               variant="hero"
+              surface="panneau"
               icone={MapPin}
               imposer={transactionImposee}
               placeholder={t('searchPlaceholder')}
+              onRetraitDesFiltres={() => setRetraitSur(searchParams.toString())}
               className="flex-1 min-w-0 [&>div:first-child]:border-none [&>div:first-child]:shadow-none [&>div:first-child]:ring-0 [&>div:first-child]:rounded-none [&>div:first-child]:bg-transparent [&>div:first-child>svg]:size-[18px] [&_input]:text-[15px] [&_input]:font-normal"
               value={qEnVigueur}
               onQueryChange={(v) => setLocation(v)}
@@ -497,7 +522,7 @@ export function Navbar({ className }: NavbarProps) {
               non visible, donc leur minimum flex tombe à 0 sans autre classe.
               TCK-549 — `px-3` et non `px-4` : à 360 px la pastille laisse 67 px au texte, et le
               libellé court le plus long (« Chercher ») en mesure 60. */}
-          <div className="flex lg:hidden min-w-0 flex-1 items-center gap-2">
+          <div className={cn('flex lg:hidden min-w-0 flex-1 items-center gap-2', enTete === 'marque' && 'hidden')}>
             <Sheet open={rechercheOuverte} onOpenChange={basculerRecherche}>
               {/* TCK-563 (M3, retour testeur du 2026-09-23) — la pastille est un conteneur de
                   requête (`@container`). La capture du testeur est prise à 320 px CSS (iPhone en
@@ -555,31 +580,41 @@ export function Navbar({ className }: NavbarProps) {
                   <SheetTitle className="font-display tracking-tight">{t('searchSurface.title')}</SheetTitle>
                 </div>
                 {/* Le champ est celui de la barre de bureau — même autocomplétion, mêmes URL. Il
-                    passe en 16 px : sous cette taille, Safari iOS zoome la page au focus. */}
-                <div ref={zoneSaisieRef} className="px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                    passe en 16 px : sous cette taille, Safari iOS zoome la page au focus.
+                    TCK-2497 (« Riche et complet ») — la surface `ecran` range la liste SOUS le champ
+                    et sous Louer · Acheter + « Rechercher » (`sousLeChamp`), dans le reste de la
+                    hauteur : elle ne les recouvre plus jamais (AC1). Avant, elle se posait en
+                    absolu par-dessus les deux. */}
+                <div ref={zoneSaisieRef} className="flex min-h-0 flex-1 flex-col pt-4">
                   <SearchAutocomplete
                     variant="hero"
+                    surface="ecran"
                     icone={MapPin}
                     imposer={transactionImposee}
                     placeholder={t('searchPlaceholder')}
-                    className="[&_input]:text-base"
+                    className="flex min-h-0 flex-1 flex-col [&_input]:text-base"
                     value={qEnVigueur}
                     onQueryChange={(v) => setLocation(v)}
                     onValider={() => setRechercheOuverte(false)}
+                    onRetraitDesFiltres={() => setRetraitSur(searchParams.toString())}
+                    sousLeChamp={
+                      <div className="flex items-center gap-2">
+                        <SelecteurDeTransaction
+                          valeur={transaction}
+                          onChange={setTransaction}
+                          libelles={libellesTransaction}
+                          className="min-w-0 flex-1 [&>button]:h-11"
+                        />
+                        <Button
+                          type="button"
+                          onClick={() => { setRechercheOuverte(false); handleSearch(); }}
+                          className="h-11 shrink-0 rounded-full px-5 text-sm font-semibold"
+                        >
+                          {t('search')}
+                        </Button>
+                      </div>
+                    }
                   />
-                  <SelecteurDeTransaction
-                    valeur={transaction}
-                    onChange={setTransaction}
-                    libelles={libellesTransaction}
-                    className="mt-3 w-full [&>button]:h-11"
-                  />
-                  <Button
-                    type="button"
-                    onClick={() => { setRechercheOuverte(false); handleSearch(); }}
-                    className="mt-4 w-full rounded-full h-11 text-sm font-semibold"
-                  >
-                    {t('search')}
-                  </Button>
                 </div>
               </SheetContent>
             </Sheet>

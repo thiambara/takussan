@@ -7,12 +7,18 @@ import { NavbarSpacer } from '@/components/home/NavbarSpacer';
 import { Footer } from '@/components/home/Footer';
 import { PropertyRow } from '@/components/property/cards/PropertyRow';
 import { BogolanPattern } from '@/components/property/cards/BogolanPattern';
-import { RecentlyViewedCarousel } from '@/components/property/RecentlyViewedCarousel';
 import { useHomepageDiscovery } from '@/hooks/useHomepageDiscovery';
 import type { HomepageDiscoveryData } from '@/types/property';
 import { useUserLocation } from '@/components/providers/UserLocationProvider';
-import { AUCUN_RACCOURCI, type RaccourcisDeLAccueil } from '@/lib/queries/raccourcis-de-l-accueil';
+import { AUCUN_RACCOURCI, raccourcisDeLAccueil, type RaccourcisDeLAccueil } from '@/lib/queries/raccourcis-de-l-accueil';
 import { CONTENU_PRINCIPAL_ID } from '@/components/shared/contenu-principal';
+import { rangeesSansDoublon } from '@/lib/rangees-de-l-accueil';
+import { DeuxGestes } from '@/components/home/accueil/DeuxGestes';
+import { TuilesDeQuartiers } from '@/components/home/accueil/TuilesDeQuartiers';
+import { BlocProprietaire } from '@/components/home/accueil/BlocProprietaire';
+import { ChangerDeVille } from '@/components/home/accueil/ChangerDeVille';
+import { useQuery } from '@tanstack/react-query';
+import { replie } from '@/lib/queries/domaine-des-lieux';
 
 const NO_ITEMS = [] as const;
 
@@ -42,29 +48,29 @@ function useGeoSettled(geoLoading: boolean): boolean {
 /**
  * Homepage publique — TCK-129, câblée sur l'endpoint unique de TCK-247.
  *
- * TCK-628 — densifiée sur le modèle d'Airbnb : plus de grand titre visible entre la barre et la
- * première rangée (le `<h1>` reste, pour les lecteurs d'écran et les robots), sept cartes par rangée
- * sur un écran d'ordinateur (cf. `PropertyRow`), et une rangée « À vendre » lue sur la recherche
- * publique (cf. `raccourcisDeLAccueil`).
+ * TCK-2495 (« Deux gestes », audit UX famille 1) — de haut en bas :
  *
- * Retour du porteur du 2026-10-10 : TOUTES les sections sont des rangées de cartes. Les tuiles par
- * ville, par type et par quartier sont retirées, et « À louer » quitte la carte horizontale (deux
- * par ligne au plus) pour la carte Standard, qui en range sept.
+ *  1. **Louer | Acheter, puis les catégories** (`DeuxGestes`), sous `lg` : au téléphone, deux
+ *     touchers mènent à une liste filtrée. Au bureau, l'en-tête porte déjà les deux.
+ *  2. la carte de rappel du persona connecté (TCK-2493) ;
+ *  3. **les quartiers** de la ville des rangées, en tuiles (`TuilesDeQuartiers`) ;
+ *  4. **trois rangées, de grammaire distincte et sans doublon** (`rangeesSansDoublon`) :
+ *     « À <ville> » (Standard), « Coup de cœur » (Cover, l'emplacement vedette), « Tout juste
+ *     publié » (Compact). « À louer », « À vendre » et « Récemment consultés » quittent l'accueil :
+ *     cinq rangées de même grammaire répétaient les mêmes biens (60 cartes, relevé de l'audit) ;
+ *  5. **le bloc propriétaire**, chiffré par l'offre de la ville (`BlocProprietaire`).
  *
- * Les rangées, une variante de carte par section :
- *  - Standard  → « Près de toi », « À louer », « À vendre », « Récemment consultés »
- *  - Cover 3:4 → « Coup de cœur · Sélection de la semaine » (signature)
- *  - Compact   → « Nouveau · Tout juste publié »
+ * Les cartes y sont ALLÉGÉES (`allegee`) : une pastille et le favori sur la photo, sans comparateur.
  *
- * Pas de hero marketing — l'intention de l'utilisateur est pré-formée. La
- * navbar porte search + catégories ; cette page démarre directement par la
- * découverte.
+ * Pas de hero marketing — l'intention de l'utilisateur est pré-formée, la recherche reste le premier
+ * objet de la page (dans l'en-tête).
  *
- * Les quatre rangées viennent d'UN appel, et la déduplication entre « Près de
- * toi » / « À louer » / « Nouveau » est faite par le serveur, qui pioche dans
- * un pool plus large pour recompléter les rangées au lieu de les laisser
- * maigrir. « Coup de cœur » reste exempte : une rangée curée a le droit de
- * chevaucher les autres.
+ * Les rangées viennent d'UN appel. Le serveur dédoublonne déjà « Près de toi » / « À louer » /
+ * « Nouveau » ; il laisse « Coup de cœur » chevaucher, et c'est le front qui retire de la rangée
+ * locale et des nouveautés les biens de la vedette — jamais l'inverse (cf. `rangeesSansDoublon`).
+ *
+ * « À <ville> » et jamais « près de vous » : la ville est devinée par l'IP (ipapi.co) ou vaut le
+ * marché de référence ; la position du visiteur n'est jamais demandée au chargement.
  */
 export function HomepageDiscovery({
   donneesInitiales = null,
@@ -80,8 +86,9 @@ export function HomepageDiscovery({
    */
   readonly donneesInitiales?: HomepageDiscoveryData | null;
   /**
-   * TCK-628 — la section lue par le SERVEUR seul (« À vendre »). Absente (`null`), elle n'est pas
-   * rendue ; le client ne la redemande pas.
+   * TCK-2495 — les sections lues par le SERVEUR seul : les quartiers et l'offre de la ville des
+   * rangées. Absentes (`null`), elles ne sont pas rendues (ou le bloc perd son chiffre) ; le client ne
+   * les redemande pas.
    */
   readonly raccourcis?: RaccourcisDeLAccueil;
   /**
@@ -110,9 +117,11 @@ export function HomepageDiscovery({
   // visiteur » pour « le visiteur est à Dakar ». Le backend distingue les deux
   // et ne rebaptise la rangée que dans le second cas.
   const guessed = location?.city?.trim();
+  // TCK-2495, revue adverse — « À Dakar · Changer » : la ville CHOISIE l'emporte sur celle devinée.
+  const [villeChoisie, setVilleChoisie] = useState<string | null>(null);
 
   const { rows, loading, failed } = useHomepageDiscovery({
-    nearCity: guessed || undefined,
+    nearCity: villeChoisie ?? (guessed || undefined),
     enabled: geoSettled,
     donneesInitiales,
   });
@@ -127,10 +136,30 @@ export function HomepageDiscovery({
   const near = rows?.near;
   const nearCity = near?.city ?? guessedCity;
   const replacedCity = near?.fallback ? near.requested_city : null;
-  const nearEyebrow = replacedCity ? t('near.fallbackEyebrow') : t('near.eyebrow');
+  const nearEyebrow = replacedCity ? t('near.fallbackEyebrow') : undefined;
   const nearTitle = replacedCity
     ? t('near.fallbackTitle', { city: nearCity, requestedCity: replacedCity })
-    : t('near.title', { city: nearCity });
+    : t('near.titleCity', { city: nearCity });
+
+  // Les tuiles et le bloc propriétaire parlent de la ville des rangées. Le serveur les a lus pour la
+  // sienne ; une ville choisie les fait relire ici, et rien ne s'affiche de la ville d'avant entre-temps.
+  const villeServie = near?.city ?? null;
+  const autreVille =
+    villeChoisie !== null && villeServie !== null && replie(villeServie) !== replie(raccourcis.ville ?? '');
+  const relus = useQuery({
+    queryKey: ['accueil', 'raccourcis', villeServie],
+    queryFn: () => raccourcisDeLAccueil(villeServie),
+    enabled: autreVille,
+    staleTime: 60 * 60_000,
+  });
+  const raccourcisAffiches = autreVille ? (relus.data ?? AUCUN_RACCOURCI) : raccourcis;
+
+  // TCK-2495 — aucun bien dans deux rangées ; la vedette garde les siens (impressions comptées).
+  const { near: biensProches, featured: biensVedette, latest: biensNouveaux } = rangeesSansDoublon({
+    near: near?.items ?? NO_ITEMS,
+    featured: rows?.featured.items ?? NO_ITEMS,
+    latest: rows?.latest.items ?? NO_ITEMS,
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -168,7 +197,13 @@ export function HomepageDiscovery({
           s'additionnent pas.*
         */}
         {repli ? null : <h1 className="sr-only">{tPage('h1')}</h1>}
+        {/* TCK-2495 — les deux gestes d'abord : sous l'en-tête, avant même la carte de rappel. */}
+        <DeuxGestes className="lg:hidden" />
         {repli ? null : rappel}
+
+        {raccourcisAffiches.ville && raccourcisAffiches.quartiers ? (
+          <TuilesDeQuartiers ville={raccourcisAffiches.ville} quartiers={raccourcisAffiches.quartiers} />
+        ) : null}
 
         <div
           className="animate-section-enter"
@@ -180,26 +215,12 @@ export function HomepageDiscovery({
             title={nearTitle}
             viewAllHref={`/properties?city=${encodeURIComponent(nearCity)}`}
             viewAllLabel={viewAll}
-            properties={near?.items ?? NO_ITEMS}
+            properties={biensProches}
             loading={loading}
             error={error}
             priorityCount={2}
-          />
-        </div>
-
-        <div
-          className="animate-section-enter"
-          style={{ animationDelay: '120ms' }}
-        >
-          <PropertyRow
-            variant="standard"
-            eyebrow={t('rent.eyebrow')}
-            title={t('rent.title')}
-            viewAllHref="/properties?contract_type=rent"
-            viewAllLabel={viewAll}
-            properties={rows?.rent.items ?? NO_ITEMS}
-            loading={loading}
-            error={error}
+            allegee
+            apresLeTitre={repli ? undefined : <ChangerDeVille actuelle={nearCity} onChoisir={setVilleChoisie} />}
           />
         </div>
 
@@ -216,7 +237,7 @@ export function HomepageDiscovery({
             sont plus proches (40 à 48 px), un débord de 48 aurait touché leurs titres. */}
         <section
           className="animate-section-enter relative isolate"
-          style={{ animationDelay: '200ms' }}
+          style={{ animationDelay: '120ms' }}
         >
           <div className="absolute inset-x-[-12px] inset-y-[-20px] md:inset-x-[-20px] md:inset-y-[-24px] -z-10 rounded-[28px] overflow-hidden bg-card">
             <div className="absolute inset-0 opacity-[0.045] text-foreground">
@@ -230,30 +251,18 @@ export function HomepageDiscovery({
             title={t('featured.title')}
             viewAllHref="/properties?featured=true"
             viewAllLabel={viewAll}
-            properties={rows?.featured.items ?? NO_ITEMS}
+            properties={biensVedette}
             loading={loading}
             error={error}
             robeVedette
             emplacementSponsorise
+            allegee
           />
         </section>
 
-        {raccourcis.vente && (
-          <PropertyRow
-            variant="standard"
-            eyebrow={t('sale.eyebrow')}
-            title={t('sale.title')}
-            viewAllHref="/properties?contract_type=sale"
-            viewAllLabel={viewAll}
-            properties={raccourcis.vente}
-            loading={false}
-            error={null}
-          />
-        )}
-
         <div
           className="animate-section-enter"
-          style={{ animationDelay: '280ms' }}
+          style={{ animationDelay: '200ms' }}
         >
           <PropertyRow
             variant="compact"
@@ -261,20 +270,14 @@ export function HomepageDiscovery({
             title={t('latest.title')}
             viewAllHref="/properties?sort=created_desc"
             viewAllLabel={viewAll}
-            properties={rows?.latest.items ?? NO_ITEMS}
+            properties={biensNouveaux}
             loading={loading}
             error={error}
+            allegee
           />
         </div>
 
-        {/* `empty:hidden` : sans historique, le carrousel rend `null` — l'enveloppe vide ne doit
-            pas compter pour un enfant du `gap` (cf. `<main>`). */}
-        <div
-          className="animate-section-enter empty:hidden"
-          style={{ animationDelay: '360ms' }}
-        >
-          <RecentlyViewedCarousel completerParDesSimilaires />
-        </div>
+        {repli ? null : <BlocProprietaire offre={raccourcisAffiches.offre} />}
       </main>
 
       <Footer />

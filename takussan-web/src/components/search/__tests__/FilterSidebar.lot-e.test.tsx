@@ -202,9 +202,12 @@ describe('TCK-633 — « Plus de filtres »', () => {
     expect(screen.getByRole('button', { name: 'Plus de filtres' })).toHaveAttribute('aria-expanded', 'false');
   });
 
-  it('les essentiels sont dans l’ordre transaction, type, lieu, budget, chambres', () => {
+  // TCK-2499 — l'ordre de l'usage (transaction, budget, lieu, chambres, type) remplace celui du lot E ;
+  // l'ordre complet, fréquence de loyer et « Autour de moi » compris, est gardé par
+  // `FilterSidebar.ordre-de-l-usage.test.tsx`.
+  it('les essentiels sont dans l’ordre transaction, budget, lieu, chambres, type', () => {
     monte();
-    const titres = ['Type de transaction', 'Type de bien', 'Localisation', 'Budget (FCFA)', 'Chambres']
+    const titres = ['Type de transaction', 'Budget (FCFA)', 'Localisation', 'Chambres', 'Type de bien']
       .map((nom) => screen.getByRole('heading', { name: nom }));
     for (let i = 1; i < titres.length; i += 1) {
       expect(titres[i - 1]!.compareDocumentPosition(titres[i]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

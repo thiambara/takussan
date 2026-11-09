@@ -49,6 +49,7 @@ function reclamation(
     awaiting_review?: unknown[];
     published?: unknown[];
     mandate?: { properties_count: number } | null;
+    demand?: { quarter: string; searches_30d: number } | null;
   } = {},
 ) {
   return {
@@ -69,6 +70,7 @@ function reclamation(
       published: over.published ?? [],
       terms_version: '2026-10-29',
       mandate: over.mandate ?? null,
+      demand: over.demand ?? null,
     },
   };
 }
@@ -477,5 +479,255 @@ describe('<RadarClaimReception> (TCK-2390)', () => {
     const carte = await screen.findByTestId('claim-listing');
     expect(texte(carte)).toMatch(/350 000.*\/ Mois/);
     expect(texte(carte)).toContain('Appartement · Location · 2 chambres · 1 salle de bain · 90 m²');
+  });
+});
+
+/* ────────────────────────────────────────────────────────────────────────────────────────────────
+ * TCK-2512 — « La promesse, puis la liste »
+ * ──────────────────────────────────────────────────────────────────────────────────────────────── */
+
+const L = fr.lienPublic.reclamation;
+
+/** Simule le téléphone (sous `lg`) : la barre collante et les feuilles. */
+function surTelephone(oui: boolean) {
+  window.matchMedia = ((query: string) => ({
+    matches: oui && query === '(width < 64rem)',
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => false,
+  })) as typeof window.matchMedia;
+}
+
+describe('<RadarClaimReception> — TCK-2512', () => {
+  const matchMediaDOrigine = window.matchMedia;
+  beforeEach(() => {
+    auth.token = null;
+    auth.openSession.mockReset().mockResolvedValue(undefined);
+    auth.logout.mockReset().mockResolvedValue(undefined);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    window.matchMedia = matchMediaDOrigine;
+  });
+
+  it('AC2 — demand: null : aucun chiffre ni phrase de demande', async () => {
+    bouchonner(reponse(200, reclamation({ demand: null })));
+    render(withIntl(<RadarClaimReception token={JETON} />));
+
+    await screen.findByTestId('claim-ready');
+    expect(screen.queryByTestId('claim-demand')).toBeNull();
+    expect(texte(document.body)).not.toMatch(/recherches?|ces 30 derniers jours/i);
+  });
+
+  it('la demande du quartier se dit en RECHERCHES, jamais en personnes', async () => {
+    bouchonner(reponse(200, reclamation({ demand: { quarter: 'Mermoz', searches_30d: 57 } })));
+    render(withIntl(<RadarClaimReception token={JETON} />));
+
+    const demande = await screen.findByTestId('claim-demand');
+    expect(texte(demande)).toBe('57 recherches à Mermoz ces 30 derniers jours.');
+    // « personnes » serait faux : une même personne cherche plusieurs fois (TCK-2511).
+    expect(texte(document.body)).not.toMatch(/personnes?\b/i);
+  });
+
+  it('la promesse d’abord : le prénom en titre, la gratuité, le numéro masqué', async () => {
+    bouchonner(reponse(200, reclamation()));
+    render(withIntl(<RadarClaimReception token={JETON} />));
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Bonjour Awa,' })).toBeInTheDocument();
+    expect(screen.getByText(L.avantageGratuit)).toBeInTheDocument();
+    expect(screen.getByText(L.avantageNumero)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: L.aPublierTitre })).toBeInTheDocument();
+  });
+
+  it.each([
+    ['not_me', L.opposition.pasMoi, L.refus.faitPasMoi],
+    ['stop_contact', L.opposition.neplus, L.refus.faitNeplus],
+  ] as const)('AC3 — « %s » confirmé appelle decline UNE fois et laisse un écran sans action', async (motif, lien, phrase) => {
+    bouchonner(reponse(200, reclamation()), reponse(200, { data: { status: 'declined' } }));
+    const user = userEvent.setup();
+    render(withIntl(<RadarClaimReception token={JETON} />));
+
+    await user.click(await screen.findByRole('button', { name: lien }));
+    expect(screen.getByRole('radio', { name: new RegExp(motif === 'not_me' ? L.refus.pasMoiTitre : L.refus.neplusTitre) })).toBeChecked();
+    // Rien ne part à l'ouverture de la feuille.
+    expect(appels).toHaveLength(1);
+    const confirmer = screen.getByRole('button', { name: L.refus.confirmer });
+    await user.click(confirmer);
+
+    const fait = await screen.findByTestId('claim-declined');
+    expect(fait).toHaveTextContent(L.refus.faitTitre);
+    expect(fait).toHaveTextContent(phrase);
+    const refus = appels.filter((a) => a.url.endsWith('/decline'));
+    expect(refus).toHaveLength(1);
+    expect(refus[0]).toMatchObject({ method: 'POST' });
+    expect(JSON.parse(refus[0].body ?? 'null')).toEqual({ reason: motif });
+    expect(appels).toHaveLength(2);
+    expect(screen.queryAllByRole('button')).toHaveLength(0);
+    expect(screen.queryByRole('textbox')).toBeNull();
+    expect(screen.queryByRole('checkbox')).toBeNull();
+  });
+
+  it('AC3 — un double clic sur Confirmer, refus en vol : UN seul POST decline', async () => {
+    let liberer: (r: Response) => void = () => {};
+    const declines: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (String(url).endsWith('/decline')) {
+          declines.push(init?.body as string);
+          return new Promise<Response>((r) => {
+            liberer = r;
+          });
+        }
+        return reponse(200, reclamation());
+      }),
+    );
+    const user = userEvent.setup();
+    render(withIntl(<RadarClaimReception token={JETON} />));
+
+    await user.click(await screen.findByRole('button', { name: L.opposition.pasMoi }));
+    const confirmer = screen.getByRole('button', { name: L.refus.confirmer });
+    await user.dblClick(confirmer);
+    await user.click(confirmer);
+    expect(declines).toHaveLength(1);
+
+    liberer(reponse(200, { data: { status: 'declined' } }));
+    expect(await screen.findByTestId('claim-declined')).toBeInTheDocument();
+    expect(declines).toHaveLength(1);
+  });
+
+  it('le motif se change dans la feuille avant de confirmer', async () => {
+    bouchonner(reponse(200, reclamation()), reponse(200, { data: { status: 'declined' } }));
+    const user = userEvent.setup();
+    render(withIntl(<RadarClaimReception token={JETON} />));
+
+    await user.click(await screen.findByRole('button', { name: L.opposition.pasMoi }));
+    await user.click(screen.getByRole('radio', { name: new RegExp(L.refus.neplusTitre) }));
+    await user.click(screen.getByRole('button', { name: L.refus.confirmer }));
+    await screen.findByTestId('claim-declined');
+    expect(JSON.parse(appels[1].body ?? 'null')).toEqual({ reason: 'stop_contact' });
+  });
+
+  it('des annonces déjà en ligne : la feuille dit qu’elles seront retirées', async () => {
+    bouchonner(reponse(200, reclamation({ published: [{ title: 'Villa à Ngor', public_url: 'https://takussan.test/fr/properties/v' }] })));
+    const user = userEvent.setup();
+    render(withIntl(<RadarClaimReception token={JETON} />));
+
+    await user.click(await screen.findByRole('button', { name: L.opposition.neplus }));
+    expect(screen.getByText(L.refus.effetEnLigne)).toBeInTheDocument();
+  });
+
+  it('503 : la publication est fermée, le refus reste ouvert (TCK-2511)', async () => {
+    bouchonner(reponse(503, { code: 'radar.claim.unavailable', message: 'x' }), reponse(200, { data: { status: 'declined' } }));
+    const user = userEvent.setup();
+    render(withIntl(<RadarClaimReception token={JETON} />));
+
+    expect(await screen.findByTestId('claim-unavailable')).toHaveTextContent(T.unavailableTitle);
+    await user.click(screen.getByRole('button', { name: L.opposition.pasMoi }));
+    await user.click(screen.getByRole('button', { name: L.refus.confirmer }));
+    expect(await screen.findByTestId('claim-declined')).toBeInTheDocument();
+    expect(appels[1].url).toMatch(/\/api\/radar\/claims\/.+\/decline$/);
+  });
+
+  it('un refus sur un lien mort entre-temps (410) : l’état du lien mort, avec ses deux issues', async () => {
+    bouchonner(reponse(200, reclamation()), reponse(410, { code: 'radar.claim.revoked', message: 'x' }));
+    const user = userEvent.setup();
+    render(withIntl(<RadarClaimReception token={JETON} />));
+
+    await user.click(await screen.findByRole('button', { name: L.opposition.pasMoi }));
+    await user.click(screen.getByRole('button', { name: L.refus.confirmer }));
+    const mort = await screen.findByTestId('claim-revoked');
+    expect(within(mort).getByRole('link', { name: fr.lienPublic.mort.rechercher })).toBeInTheDocument();
+    expect(within(mort).getByRole('link', { name: fr.lienPublic.mort.aide })).toBeInTheDocument();
+  });
+
+  it('annonces en mouvement (409) : la feuille le dit et reste ouverte', async () => {
+    bouchonner(reponse(200, reclamation()), reponse(409, { code: 'radar.advertiser.busy', message: 'x' }));
+    const user = userEvent.setup();
+    render(withIntl(<RadarClaimReception token={JETON} />));
+
+    await user.click(await screen.findByRole('button', { name: L.opposition.pasMoi }));
+    await user.click(screen.getByRole('button', { name: L.refus.confirmer }));
+    expect(await screen.findByText(L.refus.occupe)).toBeInTheDocument();
+    expect(screen.queryByTestId('claim-declined')).toBeNull();
+  });
+
+  // AC4 — les six blocages de la spec § 2.12, chacun avec son texte actuel, au téléphone comme en bureau.
+  it.each([
+    ['support', { state: 'support' }, 'supportTitle', 'supportBody'],
+    ['mandateSupport', { state: 'mandate_support' }, 'mandateSupportTitle', 'mandateSupportBody'],
+    ['unavailableAccount', { state: 'unavailable' }, 'unavailableAccountTitle', 'unavailableAccountBody'],
+    ['spaceUnavailable', { state: 'existing', viewer_is_owner: true, space_unavailable: true }, 'spaceUnavailableTitle', 'spaceUnavailableBody'],
+    ['otherAccount', { viewer_is_other: true }, 'otherAccountTitle', 'otherAccountBody'],
+    ['existingLogin', { state: 'existing' }, 'existingLoginTitle', 'existingLoginBody'],
+  ] as const)('AC4 — blocage %s : titre et texte actuels, ni barre ni formulaire, refus toujours là', async (cle, compte, titre, corps) => {
+    for (const telephone of [false, true]) {
+      surTelephone(telephone);
+      bouchonner(reponse(200, reclamation({ account: compte })));
+      const { unmount } = render(withIntl(<RadarClaimReception token={JETON} />));
+
+      const bloc = await screen.findByTestId(`claim-${cle}`);
+      expect(texte(bloc)).toContain(T[titre]);
+      const attendu = T[corps].replace('{phone}', '+221 •• ••• •• 67').replace('{email}', 'contact@takussan.com');
+      expect(texte(bloc)).toContain(attendu);
+      expect(screen.queryByRole('button', { name: T.sendCode })).toBeNull();
+      expect(screen.queryByTestId('claim-publish-bar')).toBeNull();
+      expect(screen.getByRole('button', { name: L.opposition.pasMoi })).toBeInTheDocument();
+      unmount();
+    }
+  });
+
+  describe('au téléphone', () => {
+    beforeEach(() => surTelephone(true));
+
+    it('AC1 — la barre « Publier mes N annonces » suit les cases cochées', async () => {
+      bouchonner(reponse(200, reclamation()));
+      const user = userEvent.setup();
+      render(withIntl(<RadarClaimReception token={JETON} />));
+
+      const barre = await screen.findByTestId('claim-publish-bar');
+      expect(within(barre).getByRole('button', { name: 'Publier mes 2 annonces' })).toBeEnabled();
+      const cartes = screen.getAllByTestId('claim-listing');
+      await user.click(within(cartes[1]).getByRole('checkbox', { name: new RegExp(T.keep) }));
+      expect(within(barre).getByRole('button', { name: 'Publier mon annonce' })).toBeEnabled();
+      await user.click(within(cartes[0]).getByRole('checkbox', { name: new RegExp(T.keep) }));
+      expect(within(barre).getByRole('button', { name: L.publierAucune })).toBeDisabled();
+      expect(barre).toHaveTextContent(T.errors.nothingSelected);
+      // Le formulaire n'est pas dans la page : il vit dans la feuille.
+      expect(screen.queryByLabelText(T.fieldSpaceName)).toBeNull();
+    });
+
+    it('deux feuilles successives : l’espace, puis le code — et la confirmation', async () => {
+      bouchonner(
+        reponse(200, reclamation({ listings: [annonce()] })),
+        reponse(202, { data: { retry_after: 60 } }),
+        reponse(200, {
+          claim: { state: 'new', agency: { id: 3, name: 'Espace de Awa' }, listing_ids: [1], declined_ids: [], moved_property_ids: [], taken_back_property_ids: [] },
+        }),
+      );
+      const user = userEvent.setup();
+      render(withIntl(<RadarClaimReception token={JETON} />));
+
+      await user.click(await screen.findByRole('button', { name: 'Publier mon annonce' }));
+      const espace = await screen.findByRole('dialog', { name: T.spaceTitle });
+      expect(within(espace).getByLabelText(T.fieldSpaceName)).toHaveValue('Espace de Awa');
+      expect(within(espace).getByText(L.codeArriveAu.replace('{phone}', '+221 •• ••• •• 67'))).toBeInTheDocument();
+      await user.click(within(espace).getByRole('checkbox', { name: /conditions d'utilisation/ }));
+      await user.click(within(espace).getByRole('button', { name: T.sendCode }));
+
+      const feuilleDuCode = await screen.findByRole('dialog', { name: T.codeLabel });
+      const champ = within(feuilleDuCode).getByRole('textbox', { name: T.codeLabel });
+      expect(champ).toHaveAttribute('autocomplete', 'one-time-code');
+      expect(screen.getByRole('button', { name: /Renvoyer dans/ })).toBeDisabled();
+      await user.type(champ, '123456');
+      await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Publier mon annonce' }));
+
+      expect(JSON.parse(appels[2].body ?? 'null')).toMatchObject({ code: '123456', listings: [{ id: 1 }], space_name: 'Espace de Awa' });
+      expect(await screen.findByTestId('claim-done')).toHaveTextContent('Espace de Awa');
+    });
   });
 });

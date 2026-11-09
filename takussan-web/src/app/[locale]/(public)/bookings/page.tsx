@@ -11,6 +11,7 @@ import { segmentDeSlug } from '@/lib/slug-de-bien';
 import { cn } from '@/lib/utils';
 import type { PropertyDetail } from '@/types/property';
 import { BookingTunnel } from '@/components/bookings/BookingTunnel';
+import { estSejourCourt, lireSejourDemande } from '@/components/bookings/tunnel-de-reservation';
 import { Navbar } from '@/components/home/Navbar';
 import { NavbarSpacer } from '@/components/home/NavbarSpacer';
 import { Footer } from '@/components/home/Footer';
@@ -20,14 +21,26 @@ import { CONTENU_PRINCIPAL_ID } from '@/components/shared/contenu-principal';
  * La coque du site public autour du tunnel. La page n'en avait aucune : ni marque, ni
  * navigation, ni pied — une impasse dont on ne sortait que par le bouton « Retour » du
  * navigateur (revue design du 2026-09-16).
+ *
+ * TCK-2510 — `plein` : sous `lg`, le tunnel tient TOUT l'écran (son en-tête avec « Fermer » ou
+ * « Retour », sa barre basse) — ni barre du site, ni pied, ni barre d'onglets (ADR-0091 § 4 : une
+ * seule couche d'action en bas). En bureau, la coque reste.
  */
-function Coque({ children }: { readonly children: ReactNode }) {
+function Coque({ children, plein = false }: { readonly children: ReactNode; readonly plein?: boolean }) {
+  const surBureau = plein ? 'hidden lg:block' : undefined;
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <Navbar />
-      <NavbarSpacer />
+      <div className={surBureau}>
+        {/* TCK-2568 — `/bookings` n'a pas la barre du site au téléphone (le tunnel porte son en-tête) ;
+            hors tunnel (aucun bien, bien introuvable, bien au mois ou à vendre), la page la garde :
+            elle n'a pas d'autre issue. */}
+        <Navbar auTelephone={plein ? undefined : 'barre-du-site'} />
+        <NavbarSpacer auTelephone={plein ? undefined : 'barre-du-site'} />
+      </div>
       <main id={CONTENU_PRINCIPAL_ID} tabIndex={-1} className="flex-1 focus:outline-none">{children}</main>
-      <Footer />
+      <div className={surBureau}>
+        <Footer />
+      </div>
     </div>
   );
 }
@@ -43,7 +56,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * Public booking tunnel entry, accessed via
- * `/bookings?property=<slug>` from the property detail page.
+ * `/bookings?property=<slug>[&debut=&fin=&personnes=]` from the property detail page (« Réserver »
+ * d'un séjour court, TCK-2510).
  *
  * The server component fetches the property once for SEO/performance, the
  * client tunnel below handles the interactive flow (TCK-043).
@@ -51,7 +65,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function BookingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ property?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
   // `?property=a&property=b` arrive en tableau : ce n'est pas un slug.
@@ -125,17 +139,12 @@ export default async function BookingPage({
     );
   }
 
+  // TCK-2510 — les dates et les personnes rapportées par l'URL (retour de connexion, rechargement).
   return (
-    <Coque>
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-        <header className="mb-6">
-          <h1 className="font-display text-2xl font-bold tracking-tight text-foreground text-balance sm:text-3xl">
-            {t('title')}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground text-pretty">{t('subtitle')}</p>
-        </header>
-        <BookingTunnel property={property} />
-      </div>
+    // Plein écran pour le seul tunnel : l'état « au mois » ou « vente » n'a ni en-tête ni barre basse
+    // à lui, et sans la barre du site il ne laisserait aucune issue que son bouton.
+    <Coque plein={estSejourCourt(property)}>
+      <BookingTunnel property={property} sejourInitial={lireSejourDemande(params)} />
     </Coque>
   );
 }

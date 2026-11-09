@@ -53,6 +53,14 @@ export interface AgencySettings {
    * Lu par `modulesMasquesDe`, jamais tel quel : un code inconnu y est ignoré.
    */
   hidden_modules?: readonly string[];
+  /**
+   * TCK-2504 — les moyens de paiement hors ligne que le lien de paiement affiche. Numéros rendus en
+   * E.164 par l'API (`+221771234567`), coordonnées bancaires en texte libre (≤ 500, sauts de ligne
+   * admis). Absente = rien de déclaré.
+   */
+  offline_payment_wave_number?: string;
+  offline_payment_orange_money_number?: string;
+  offline_payment_bank_details?: string;
   [key: string]: unknown;
 }
 
@@ -95,6 +103,13 @@ export interface Agency {
    * d'agence ne propose « Regénérer les filigranes » que s'il l'est. Absent = non.
    */
   watermark_available?: boolean;
+  /**
+   * TCK-2518 / TCK-2524 — la vitrine de la fiche publique : accroche (≤ 120), « Pourquoi nous »
+   * (trois chaînes ≤ 80, `[]` sans), sélection (six biens de l'agence au plus, dans l'ordre choisi).
+   */
+  tagline?: string | null;
+  highlights?: readonly string[];
+  showcase_property_ids?: readonly number[];
   /**
    * TCK-594 (ADR-0039 §4) — au-dessus de ce net, un reversement attend une seconde personne. `null` = désactivé.
    * VERIF-594 m-2 — ABSENT (avec `pending_payout_threshold_change`) pour qui ne détient ni `payouts.approve` ni

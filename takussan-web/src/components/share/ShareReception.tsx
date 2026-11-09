@@ -2,9 +2,13 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
-import { Download, FileText, Link2Off, Loader2, Lock, SearchX } from 'lucide-react';
+import { CalendarClock, Download, FileText, Loader2, Lock, SearchX } from 'lucide-react';
 
-import { EmptyState, ErrorState } from '@/components/feedback';
+import { ErrorState } from '@/components/feedback';
+import { BasDeLien } from '@/components/lien-public/BasDeLien';
+import { CarteDeLien } from '@/components/lien-public/CarteDeLien';
+import { EnTeteDeLien } from '@/components/lien-public/EnTeteDeLien';
+import { LienMort } from '@/components/lien-public/LienMort';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -47,9 +51,13 @@ interface ShareReceptionProps {
  * Le mot de passe ne vit qu'ici, en mémoire : il part dans le CORPS d'un `POST`, pour la lecture
  * comme pour le téléchargement, et jamais dans une URL. Le 401 du `GET` initial est ce qui dit
  * qu'il en faut un.
+ *
+ * TCK-2514 : « la carte au centre », dans la coque de lien nue ; le téléchargement (ou l'ouverture
+ * d'un document protégé) sous le pouce ; un lien mort a ses deux issues.
  */
 export function ShareReception({ token }: ShareReceptionProps) {
   const t = useTranslations('shareReception');
+  const tL = useTranslations('lienPublic.document');
   const format = useFormatter();
   const [etat, setEtat] = useState<Etat>({ kind: 'loading' });
   const [motDePasse, setMotDePasse] = useState('');
@@ -117,150 +125,177 @@ export function ShareReception({ token }: ShareReceptionProps) {
     [token, motDePasseValide],
   );
 
-  // L'encre atténuée porte son fond (celui de la page, ou du panneau `bg-card` qui l'entoure) :
-  // sans lui, la garde de contraste de la surface publique la compte comme encre inverse non
-  // mesurée (`surface-publique.contraste.test.ts`).
+  const enTete = (
+    <EnTeteDeLien
+      mention={
+        <>
+          <Lock className="size-3.5" aria-hidden="true" />
+          {tL('prive')}
+        </>
+      }
+    />
+  );
+
   if (etat.kind === 'loading') {
     return (
-      <p className="flex items-center justify-center gap-2 py-16 text-sm bg-background text-muted-foreground" role="status">
-        <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-        {t('loading')}
-      </p>
+      <>
+        {enTete}
+        <p className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground" role="status">
+          <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+          {t('loading')}
+        </p>
+      </>
     );
   }
 
   if (etat.kind === 'gone') {
     return (
-      <EmptyState
-        data-testid="share-gone"
-        icon={<Link2Off className="size-8" aria-hidden="true" />}
-        title={t('goneTitle')}
-        description={t('goneDescription')}
-      />
+      <>
+        {enTete}
+        <LienMort data-testid="share-gone" titre={t('goneTitle')}>
+          {t('goneDescription')}
+        </LienMort>
+      </>
     );
   }
 
   if (etat.kind === 'notFound') {
     return (
-      <EmptyState
-        data-testid="share-not-found"
-        icon={<SearchX className="size-8" aria-hidden="true" />}
-        title={t('notFoundTitle')}
-        description={t('notFoundDescription')}
-      />
+      <>
+        {enTete}
+        <LienMort data-testid="share-not-found" icone={<SearchX />} titre={t('notFoundTitle')}>
+          {t('notFoundDescription')}
+        </LienMort>
+      </>
     );
   }
 
   if (etat.kind === 'error') {
     return (
-      <ErrorState
-        message={t('error')}
-        onRetry={() => {
-          setEtat({ kind: 'loading' });
-          setTentative((n) => n + 1);
-        }}
-        retryLabel={t('retry')}
-      />
+      <>
+        {enTete}
+        <div className="px-5 py-10">
+          <ErrorState
+            message={t('error')}
+            onRetry={() => {
+              setEtat({ kind: 'loading' });
+              setTentative((n) => n + 1);
+            }}
+            retryLabel={t('retry')}
+          />
+        </div>
+      </>
     );
   }
 
   if (etat.kind === 'password') {
     return (
-      <form
-        onSubmit={ouvrir}
-        className="mx-auto max-w-sm space-y-4 rounded-xl border border-border bg-card p-6"
-        data-testid="share-password-form"
-      >
-        <div className="flex items-center gap-3">
-          <div className="rounded-full bg-muted p-3 text-accent">
-            <Lock className="size-5" aria-hidden="true" />
+      <>
+        {enTete}
+        <CarteDeLien data-testid="share-password-form" ton="alerte" icone={<Lock />} titre={t('passwordTitle')}>
+          {t('passwordHint')}
+        </CarteDeLien>
+        <form id="share-password-form" onSubmit={ouvrir} className="mx-auto w-full max-w-[22rem] space-y-3 px-5 pb-8 pt-6">
+          {etat.wrong ? <ErrorState id="share-password-error" message={t('wrongPassword')} /> : null}
+          <div className="space-y-1.5">
+            <Label htmlFor="share-password">{t('passwordLabel')}</Label>
+            <Input
+              id="share-password"
+              type="password"
+              autoComplete="off"
+              autoFocus
+              value={motDePasse}
+              onChange={(e) => setMotDePasse(e.target.value)}
+              aria-invalid={etat.wrong || undefined}
+              aria-describedby={etat.wrong ? 'share-password-error' : undefined}
+            />
           </div>
-          <h2 className="font-display text-base font-semibold text-foreground">{t('passwordTitle')}</h2>
-        </div>
-        <p className="bg-card text-sm text-muted-foreground">{t('passwordHint')}</p>
-        <div className="space-y-2">
-          <Label htmlFor="share-password">{t('passwordLabel')}</Label>
-          <Input
-            id="share-password"
-            type="password"
-            autoComplete="off"
-            autoFocus
-            value={motDePasse}
-            onChange={(e) => setMotDePasse(e.target.value)}
-            aria-invalid={etat.wrong || undefined}
-            aria-describedby={etat.wrong ? 'share-password-error' : undefined}
-          />
-          {etat.wrong ? (
-            <p id="share-password-error" className="text-sm text-destructive" role="alert">
-              {t('wrongPassword')}
-            </p>
-          ) : null}
-        </div>
-        <Button type="submit" className="w-full" disabled={envoi || !motDePasse}>
-          {envoi ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
-          {t('submit')}
-        </Button>
-      </form>
+        </form>
+        <BasDeLien>
+          <Button
+            type="submit"
+            form="share-password-form"
+            size="lg"
+            className="h-12 w-full text-[15px] font-semibold"
+            disabled={envoi || !motDePasse}
+          >
+            {envoi ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
+            {t('submit')}
+          </Button>
+        </BasDeLien>
+      </>
     );
   }
 
   const { doc } = etat;
   const restants =
     doc.max_downloads === null ? null : Math.max(0, doc.max_downloads - doc.downloads_count);
+  // Le format se lit au nom du fichier (« Bail.pdf » → « PDF ») : `document.type` est la catégorie
+  // du document dans l'espace de l'agence, pas son format.
+  const extension = /\.([a-z0-9]{1,5})$/i.exec(doc.document.name)?.[1]?.toUpperCase() ?? null;
+  const taille =
+    doc.document.size !== null
+      ? format.number(doc.document.size / 1024 / 1024, { style: 'unit', unit: 'megabyte', maximumFractionDigits: 1 })
+      : null;
 
   return (
-    <div
-      className="mx-auto max-w-md space-y-5 rounded-xl border border-border bg-card p-6"
-      data-testid="share-document"
-    >
-      <div className="flex items-start gap-3">
-        <div className="rounded-full bg-muted p-3 text-accent">
-          <FileText className="size-5" aria-hidden="true" />
-        </div>
-        <div className="min-w-0">
-          <p className="bg-card text-xs uppercase tracking-wide text-muted-foreground">{t('name')}</p>
-          <h2 className="font-display text-base font-semibold break-words text-foreground">
-            {doc.document.name}
-          </h2>
-        </div>
-      </div>
-      <dl className="grid grid-cols-1 gap-2 text-sm">
-        {doc.document.size !== null ? (
-          <div className="flex justify-between gap-4">
-            <dt className="bg-card text-muted-foreground">{t('size')}</dt>
-            <dd className="tabular-nums text-foreground">
-              {format.number(doc.document.size / 1024 / 1024, {
-                style: 'unit',
-                unit: 'megabyte',
-                maximumFractionDigits: 2,
-              })}
-            </dd>
+    <>
+      {enTete}
+      <section className="px-4 pb-8 pt-8 lg:px-6 lg:pt-6" data-testid="share-document">
+        <h1 className="font-display text-2xl font-semibold leading-tight tracking-[-0.02em] text-foreground">{t('title')}</h1>
+        <div className="mt-5 flex items-start gap-3.5 rounded-2xl border border-border bg-card p-4">
+          <span className="inline-flex size-12 flex-none items-center justify-center rounded-xl bg-secondary text-primary-deep" aria-hidden="true">
+            <FileText className="size-6" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="sr-only">{t('name')}</p>
+            <p className="font-semibold leading-snug text-foreground [overflow-wrap:anywhere]">{doc.document.name}</p>
+            {extension || taille ? (
+              <p className="mt-0.5 text-sm tabular-nums text-muted-foreground">
+                {extension}
+                {extension && taille ? ' · ' : null}
+                {taille ? (
+                  <>
+                    <span className="sr-only">{t('size')} </span>
+                    {taille}
+                  </>
+                ) : null}
+              </p>
+            ) : null}
           </div>
+        </div>
+        {doc.expires_at || restants !== null ? (
+          <ul className="mt-3 space-y-2 px-1 text-[15px] text-foreground">
+            {doc.expires_at ? (
+              <li className="flex items-center gap-2.5">
+                <CalendarClock className="size-4 flex-none text-muted-foreground" aria-hidden="true" />
+                {t('expiresAt', {
+                  date: format.dateTime(new Date(doc.expires_at), { dateStyle: 'medium', timeStyle: 'short' }),
+                })}
+              </li>
+            ) : null}
+            {restants !== null ? (
+              <li className="flex items-center gap-2.5 tabular-nums">
+                <Download className="size-4 flex-none text-muted-foreground" aria-hidden="true" />
+                {t('downloadsLeft', { count: restants })}
+              </li>
+            ) : null}
+          </ul>
         ) : null}
-        {doc.expires_at ? (
-          <p className="bg-card text-muted-foreground">
-            {t('expiresAt', {
-              date: format.dateTime(new Date(doc.expires_at), { dateStyle: 'medium', timeStyle: 'short' }),
-            })}
-          </p>
-        ) : null}
-        {restants !== null ? (
-          <p className="bg-card text-muted-foreground">{t('downloadsLeft', { count: restants })}</p>
-        ) : null}
-      </dl>
-      {erreurTelechargement ? (
-        <p className="text-sm text-destructive" role="alert">
-          {t('downloadError')}
-        </p>
-      ) : null}
-      <Button className="w-full" onClick={() => void telecharger(doc)} disabled={telechargement}>
-        {telechargement ? (
-          <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-        ) : (
-          <Download className="size-4" aria-hidden="true" />
-        )}
-        {telechargement ? t('downloading') : t('download')}
-      </Button>
-    </div>
+        {restants !== null ? <p className="mt-6 text-[13px] leading-relaxed text-muted-foreground">{tL('compte')}</p> : null}
+      </section>
+      <BasDeLien>
+        {erreurTelechargement ? <ErrorState message={t('downloadError')} /> : null}
+        <Button
+          size="lg"
+          className="h-12 w-full text-[15px] font-semibold"
+          onClick={() => void telecharger(doc)}
+          disabled={telechargement}
+        >
+          {telechargement ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Download aria-hidden="true" />}
+          {telechargement ? t('downloading') : t('download')}
+        </Button>
+      </BasDeLien>
+    </>
   );
 }

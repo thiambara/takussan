@@ -43,6 +43,10 @@ describe('agencyFormSchema', () => {
     ninea: '',
     rccm: '',
     legal_address: '',
+    // TCK-2536 — les moyens de paiement hors ligne (`settings.offline_payment_*`).
+    offline_payment_wave_number: '',
+    offline_payment_orange_money_number: '',
+    offline_payment_bank_details: '',
   };
 
   it('accepts minimal valid input', () => {
@@ -251,6 +255,9 @@ describe('normaliseAgencyForm — réglages des sorties d’argent (TCK-594)', (
     ninea: '',
     rccm: 'SN-DKR-2024-B-1',
     legal_address: '',
+    offline_payment_wave_number: '',
+    offline_payment_orange_money_number: '',
+    offline_payment_bank_details: '',
   };
 
   it('ne renvoie pas un seuil inchangé', () => {

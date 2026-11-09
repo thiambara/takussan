@@ -159,8 +159,9 @@ describe('TCK-946 — heading-order sur les pages publiques', () => {
     });
     render(avecFournisseurs(<PropertiesDiscoveryPage titre="Biens à louer à Dakar" />));
 
-    // La carte RÉELLE est rendue : son titre est un des deux bouts du saut mesuré.
-    expect(await screen.findByRole('heading', { name: 'Villa à Dieuppeul' })).toBeInTheDocument();
+    // La carte RÉELLE est rendue : son titre est un des deux bouts du saut mesuré. TCK-2499 — UN
+    // élément par bien, en densité « Liste » comme en « Galerie » (la carte se pose en ligne en CSS).
+    expect(await screen.findByRole('heading', { level: 3, name: 'Villa à Dieuppeul' })).toBeInTheDocument();
     expect(await titresHorsOrdre()).toEqual([]);
 
     // Le `h2` de la grille reste dans l'arbre d'accessibilité : masqué à l'œil, pas au lecteur.

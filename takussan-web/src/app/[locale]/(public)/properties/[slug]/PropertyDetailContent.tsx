@@ -8,10 +8,12 @@ import { recentlyViewedStorage } from '@/lib/recently-viewed';
 import { formatAddressShort } from '@/lib/format/address';
 import type { PropertyDetail, PropertyListItem } from '@/types/property';
 
+import { EnTeteDePage } from '@/components/navigation-publique/EnTeteDePage';
 import { PropertyBreadcrumb } from './components/PropertyBreadcrumb';
 import { PropertyHeader } from './components/PropertyHeader';
 import { PropertyGalleryMosaic } from './components/PropertyGalleryMosaic';
 import { PropertyMobileGallery } from './components/PropertyMobileGallery';
+import { GestesSurPhoto } from './components/GestesSurPhoto';
 import { PropertyLightbox } from './components/PropertyLightbox';
 import { PropertySpecsStrip } from './components/PropertySpecsStrip';
 import { PropertyDescription } from './components/PropertyDescription';
@@ -19,7 +21,7 @@ import { PropertyCharacteristics } from './components/PropertyCharacteristics';
 import { PropertyAmenities } from './components/PropertyAmenities';
 import { PropertyBookingCard } from './components/PropertyBookingCard';
 import { PropertyAgentCard } from './components/PropertyAgentCard';
-import { useIntentionDeReservation } from './components/useIntentionDeReservation';
+import { useReservationDeLaFiche } from '@/components/bookings/useReservationDeLaFiche';
 import { useAuth } from '@/context/AuthContext';
 import { useChatDraft } from '@/context/ChatDraftContext';
 import { usePropertyConversation } from '@/lib/queries/conversations';
@@ -36,6 +38,7 @@ import { PropertySimilar } from './components/PropertySimilar';
 import { PropertyRecentlyViewed } from './components/PropertyRecentlyViewed';
 import { PropertySafetyNotice } from './components/PropertySafetyNotice';
 import { PropertyVirtualTour } from './components/PropertyVirtualTour';
+import { actionsDuContrat } from './components/actions-de-la-fiche';
 
 /**
  * TCK-850 (P33.04) — les quatre dialogues se chargent à la première ouverture, pas avant le premier
@@ -113,8 +116,13 @@ export function PropertyDetailContent({
    * est massivement vue par des anonymes.
    */
   const { user, isLoading } = useAuth();
-  // TCK-589 — retour de connexion/inscription avec `?action=reserver` : la boîte se rouvre.
-  const intentionReservation = useIntentionDeReservation(!isLoading, () => setReservationOpen(true));
+  // TCK-2510 — « Réserver » ET le retour de connexion `?action=reserver` (TCK-589) : un séjour court
+  // va au tunnel plein écran, dates reprises ; le dossier au mois et l'offre d'achat, à la boîte.
+  const { ouvrir: ouvrirReservation, intention: intentionReservation } = useReservationDeLaFiche(
+    property,
+    !isLoading,
+    () => setReservationOpen(true),
+  );
   const chatDraft = useChatDraft();
   const { data: resolutionResponse } = usePropertyConversation(user ? property.slug : null);
   const resolution = resolutionResponse?.data ?? null;
@@ -184,12 +192,25 @@ export function PropertyDetailContent({
           de réservation de bureau était rendu APRÈS le contenu (audit UX 2026-11, P1). Les deux
           galeries existaient déjà (carrousel sous `md`, mosaïque au-delà) : seul l'ordre change.
         */}
-        <div className="md:hidden">
-          <PropertyMobileGallery
-            photos={photos}
-            title={property.title}
-            onOpenLightbox={handleOpenLightbox}
+        {/* TCK-2568 — au téléphone, la fiche n'a pas la barre du site : le retour est posé sur la
+            photo (maquette de la fiche, approche A) ; de `md` à `lg`, une rangée de retour.
+            TCK-2503 — partager et favori l'y rejoignent sous `md` (`GestesSurPhoto`) ; à partir de
+            `md`, ils restent sous le titre (`PropertyHeader`). */}
+        <div className="relative">
+          <EnTeteDePage
+            variante="sur-photo"
+            retour={{ repli: '/properties' }}
+            action={
+              <GestesSurPhoto propertyId={property.id} prix={property.price} onShare={() => setShareOpen(true)} />
+            }
           />
+          <div className="md:hidden">
+            <PropertyMobileGallery
+              photos={photos}
+              title={property.title}
+              onOpenLightbox={handleOpenLightbox}
+            />
+          </div>
         </div>
 
         {/* Sous `md`, le fil d'Ariane passe en fin de page (avant les biens similaires). */}
@@ -223,7 +244,7 @@ export function PropertyDetailContent({
             canMessage={peutContacter}
             onMessage={ouvrirContact}
             onRequestVisit={() => setVisitOpen(true)}
-            onRequestBooking={() => setReservationOpen(true)}
+            onRequestBooking={ouvrirReservation}
           />
         </div>
 
@@ -274,7 +295,7 @@ export function PropertyDetailContent({
               property={property}
               contact={destinataire}
               onRequestVisit={() => setVisitOpen(true)}
-              onRequestBooking={() => setReservationOpen(true)}
+              onRequestBooking={ouvrirReservation}
               onMessage={ouvrirContact}
               canMessage={peutContacter}
             />
@@ -300,7 +321,7 @@ export function PropertyDetailContent({
           canMessage={peutContacter}
           onMessage={ouvrirContact}
           onRequestVisit={() => setVisitOpen(true)}
-          onRequestBooking={() => setReservationOpen(true)}
+          onRequestBooking={ouvrirReservation}
         />
       </div>
 
@@ -311,7 +332,23 @@ export function PropertyDetailContent({
         startIndex={lightboxIndex}
         title={property.title}
       />
-      {visitMonte && <PropertyVisitDialog slug={property.slug} open={visitOpen} onOpenChange={setVisitOpen} />}
+      {visitMonte && (
+        <PropertyVisitDialog
+          property={property}
+          contactName={destinataire?.name ?? null}
+          open={visitOpen}
+          onOpenChange={setVisitOpen}
+          // TCK-2503 — location au dossier (décision 3a) : l'écran de suite mène au dossier.
+          onPrepareApplication={
+            actionsDuContrat(property).secondaire === 'apply'
+              ? () => {
+                  setVisitOpen(false);
+                  setReservationOpen(true);
+                }
+              : undefined
+          }
+        />
+      )}
       {reservationMonte && (
         <PropertyReservationDialog
           property={property}

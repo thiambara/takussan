@@ -127,7 +127,7 @@ export function SearchToolbar({
   const sortOptions = valeursDeTri.map((v) => ({ value: v, label: tSort(v) }));
 
   return (
-    <div {...fieldDensityScope()} className="mb-5 flex flex-col gap-3 lg:mb-6 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
+    <div {...fieldDensityScope()} className="mb-3 flex flex-col gap-3 lg:mb-6 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
       <div data-entete-resultats className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
         {titre}
         <p className="shrink-0 whitespace-nowrap text-sm font-medium tabular-nums text-muted-foreground" aria-live="polite">

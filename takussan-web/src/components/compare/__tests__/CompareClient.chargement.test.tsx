@@ -4,9 +4,10 @@ import { NextIntlClientProvider } from 'next-intl';
 import React from 'react';
 
 import { CompareClient } from '../CompareClient';
+import { RESERVE_BARRE_PARTAGER } from '../CompareColonnes';
 import messages from '@/messages/fr.json';
 import type { PropertyDetail } from '@/types/property';
-import { affichage, cibleTactile, decalage, nonVu } from './boite-compilee';
+import { affichage, cibleTactile, nonVu } from './boite-compilee';
 import { makeProperty } from './bien-de-test';
 
 /**
@@ -30,6 +31,13 @@ import { makeProperty } from './bien-de-test';
  * jamais montrée) laissaient 13/13 verts, la position étant calculée sous un ancêtre invisible.
  * `affichage()` lit maintenant toute la chaîne d'ancêtres, et `decalage()` LÈVE sur une cible
  * non affichée.
+ *
+ * TCK-2509 — le comparatif est devenu UNE grille en colonnes alignées pour toutes les largeurs
+ * (`CompareColonnes`), et l'attente aussi : plus de squelette mobile et de squelette de bureau.
+ * `decalage()` ne sait pas mesurer une grille de plusieurs rangées (essayé : il lève « grille de
+ * plusieurs rangées — non modélisé ») ; la position du premier critère n'est donc plus calculée.
+ * Ce qui la fixe est comparé : la hauteur DÉCLARÉE de la vignette et de la rangée de la bascule,
+ * attente contre comparatif. Les lignes de texte (prix, titre) n'ont pas de hauteur déclarée.
  */
 
 vi.mock('next/navigation', () => ({
@@ -53,33 +61,15 @@ vi.mock('next/image', () => ({
 // Le chrome du site n'est pas l'objet de ce fichier.
 vi.mock('@/components/home/Navbar', () => ({ Navbar: () => null }));
 vi.mock('@/components/home/NavbarSpacer', () => ({ NavbarSpacer: () => null }));
-vi.mock('@/components/home/Footer', () => ({ Footer: () => null }));
+vi.mock('@/components/home/Footer', () => ({ Footer: () => <footer data-testid="pied-de-page" /> }));
 // Par défaut, la requête du comparatif ne répond jamais : l'attente reste affichée. `reponse`
 // permet de rendre la même page une fois la réponse arrivée, avec les quatre biens de l'URL.
 const reponse = vi.hoisted(() => ({ properties: null as PropertyDetail[] | null, loading: true }));
 vi.mock('@/hooks/useCompare', () => ({
   useCompare: () => ({ ...reponse, error: null, requestedIds: null, returnedIds: null }),
 }));
-
-/** Le 1ᵉʳ critère sous l'en-tête de page, attente puis comparatif chargé, à une largeur. */
-async function premierCritere(largeur: number): Promise<{ attente: number; arrivee: number }> {
-  Object.assign(reponse, { properties: null, loading: true });
-  render(wrap(<CompareClient />));
-  const squelette = screen.getByTestId('compare-chargement-mobile');
-  const critereAttendu = squelette.lastElementChild!.firstElementChild!;
-  const attente = await decalage(document.querySelector('main')!, critereAttendu, largeur, document.querySelector('main > header'));
-  cleanup();
-
-  Object.assign(reponse, {
-    properties: [11, 12, 13, 14].map((id) => makeProperty({ id, slug: `bien-${id}`, title: `Bien ${id}` })),
-    loading: false,
-  });
-  render(wrap(<CompareClient />));
-  const critere = document.querySelector('section[data-divergent]')!;
-  const arrivee = await decalage(document.querySelector('main')!, critere, largeur, document.querySelector('main > header'));
-  cleanup();
-  return { attente, arrivee };
-}
+// « Partager » lève un toast : le fournisseur est celui de la coque publique.
+vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ add: vi.fn() }) }));
 
 afterEach(() => {
   Object.assign(reponse, { properties: null, loading: true });
@@ -93,50 +83,62 @@ function wrap(ui: React.ReactElement) {
   );
 }
 
-describe('<CompareClient> — l’attente a la forme du comparatif (TCK-577)', () => {
+describe('<CompareClient> — l’attente a la forme du comparatif (TCK-577, TCK-2509)', () => {
   it('aucune colonne n’exige de largeur minimale : quatre biens tiennent dans la largeur', () => {
     const { container } = render(wrap(<CompareClient />));
-    const grilles = [...container.querySelectorAll<HTMLElement>('[style]')].filter(
-      (el) => el.style.gridTemplateColumns,
+    const attente = screen.getByTestId('compare-chargement');
+    expect(attente.style.getPropertyValue('--colonnes-mobile')).toBe('repeat(4, minmax(0, 1fr))');
+    expect(attente.style.getPropertyValue('--colonnes-bureau')).toBe('minmax(8rem, 13rem) repeat(4, minmax(0, 1fr))');
+    const defilants = [...container.querySelectorAll<HTMLElement>('*')].filter((el) =>
+      /(^|\s)(overflow-x-(auto|scroll)|snap-x|min-w-\[|aspect-)/.test(el.className),
     );
-    expect(grilles.length).toBeGreaterThan(0);
-    for (const g of grilles) {
-      expect(g.style.gridTemplateColumns).toBe('repeat(4, minmax(0, 1fr))');
-    }
-  });
-
-  it('sous md, le premier critère ne saute pas à l’arrivée : même position dans l’attente et dans le comparatif', async () => {
-    render(wrap(<CompareClient />));
-    const attente = screen.getByTestId('compare-chargement-mobile');
-    // Pas de photo proportionnelle à la largeur dans l'attente mobile.
-    expect(attente.querySelectorAll('[class*="aspect-"]')).toHaveLength(0);
-    const [vignettes, titres] = [...attente.children] as HTMLElement[];
-    expect(vignettes.children).toHaveLength(4);
-    expect(titres.children).toHaveLength(4);
-    cleanup();
-
-    for (const largeur of [320, 767]) {
-      const { attente: y, arrivee } = await premierCritere(largeur);
-      expect(y, `à ${largeur} px : le premier critère de l’attente doit être là où le vrai arrive`).toBe(arrivee);
-      expect(arrivee, `à ${largeur} px : position du premier critère sous l’en-tête de page`).toBe(129);
-    }
+    expect(defilants.map((el) => el.className)).toEqual([]);
   });
 
   /**
-   * La cible de 44 px des boutons « Retirer » (`CompareCarousel.test.tsx`) se juge aussi DANS LA
-   * PAGE : un `overflow-hidden` posé par la page autour du comparateur mobile la rognerait tout
-   * autant, et le test du composant seul ne le verrait pas.
+   * Le premier critère ne doit pas sauter à l'arrivée : l'en-tête de l'attente a les MÊMES
+   * hauteurs que celui du comparatif — la vignette, la rangée de la bascule. Les deux grilles sont
+   * comparées classe à classe sur ce qui fixe une hauteur.
    */
-  it('dans la page, sous md, aucun ancêtre ne rogne la cible des boutons « Retirer »', async () => {
+  it('l’en-tête de l’attente a les hauteurs du vrai : vignette et rangée de la bascule', () => {
+    const hauteurs = (el: Element) => el.className.split(/\s+/).filter((c) => /^(md:|lg:)?(h|min-h)-/.test(c)).sort();
+
+    render(wrap(<CompareClient />));
+    const attente = screen.getByTestId('compare-chargement');
+    const vignetteAttendue = hauteurs(attente.children[1].children[1].firstElementChild!);
+    const basculeAttendue = hauteurs(attente.firstElementChild!);
+    cleanup();
+
     Object.assign(reponse, {
       properties: [11, 12, 13, 14].map((id) => makeProperty({ id, slug: `bien-${id}`, title: `Bien ${id}` })),
       loading: false,
     });
     render(wrap(<CompareClient />));
-    const boutons = within(screen.getByTestId('compare-vignettes')).getAllByRole('button');
+    const premierBien = within(screen.getByTestId('compare-en-tete')).getAllByRole('columnheader')[1];
+    expect(hauteurs(premierBien.querySelector('a')!)).toEqual(vignetteAttendue);
+    expect(vignetteAttendue).toEqual(['h-14', 'lg:h-28', 'md:h-24']);
+    expect(hauteurs(screen.getByRole('switch'))).toEqual(basculeAttendue);
+  });
+
+  /**
+   * La cible de 44 px des boutons « Retirer » (`CompareColonnes.test.tsx`) se juge aussi DANS LA
+   * PAGE : un `overflow-hidden` posé par la page autour du comparateur la rognerait tout autant,
+   * et le test du composant seul ne le verrait pas.
+   */
+  it('dans la page, aucun ancêtre ne rogne la cible des boutons « Retirer »', async () => {
+    Object.assign(reponse, {
+      properties: [11, 12, 13, 14].map((id) => makeProperty({ id, slug: `bien-${id}`, title: `Bien ${id}` })),
+      loading: false,
+    });
+    render(wrap(<CompareClient />));
+    const boutons = within(screen.getByTestId('compare-en-tete')).getAllByRole('button');
     expect(boutons).toHaveLength(4);
-    for (const largeur of [320, 767]) {
-      for (const bouton of boutons) {
+    // Le premier et le dernier au téléphone (le dernier touche le bord droit), le premier au
+    // bureau : mêmes ancêtres, même classe. Chaque mesure parcourt toutes les classes compilées
+    // de la page et coûte — cinq mesures ont dépassé 30 s sous charge (load 27 sur 8 cœurs).
+    const mesures: [number, HTMLElement[]][] = [[320, [boutons[0], boutons[3]]], [1366, [boutons[0]]]];
+    for (const [largeur, aMesurer] of mesures) {
+      for (const bouton of aMesurer) {
         const cible = await cibleTactile(bouton, largeur);
         const ou = `${bouton.getAttribute('aria-label')} à ${largeur} px`;
         expect(cible.exclusions, ou).toEqual([]);
@@ -146,19 +148,40 @@ describe('<CompareClient> — l’attente a la forme du comparatif (TCK-577)', (
     }
   });
 
-  it('le squelette de bureau n’existe pas sous md, le squelette mobile pas au-dessus', async () => {
+  it('l’attente est vue à toutes les largeurs', async () => {
     render(wrap(<CompareClient />));
-    const mobile = screen.getByTestId('compare-chargement-mobile');
-    const bureau = screen.getByTestId('compare-chargement-bureau');
-    for (const largeur of [320, 767]) {
-      expect(await affichage(bureau, largeur), `bureau à ${largeur} px`).toBe('none');
+    const attente = screen.getByTestId('compare-chargement');
+    for (const largeur of [320, 767, 768, 1366]) {
       // VU, pas seulement « display ≠ none » : un ancêtre `hidden`, un `invisible` ou un
-      // `opacity-0` laissaient ce test vert avec un écran vide pendant l'attente.
-      expect(await nonVu(mobile, largeur), `mobile à ${largeur} px`).toBeNull();
+      // `opacity-0` laisseraient un écran vide pendant l'attente.
+      expect(await nonVu(attente, largeur), `à ${largeur} px`).toBeNull();
     }
-    for (const largeur of [768, 1366]) {
-      expect(await affichage(bureau, largeur), `bureau à ${largeur} px`).toBe('grid');
-      expect(await affichage(mobile, largeur), `mobile à ${largeur} px`).toBe('none');
-    }
+    expect(await affichage(attente, 320)).toBe('block');
+  });
+});
+
+/**
+ * TCK-2509 (maquette A, BarrePartager) — la barre « Ajouter un bien · Partager » est fixée en bas au
+ * téléphone : la page réserve sa hauteur SOUS le pied de page, sinon le bas du pied de page passe
+ * dessous (relevé au navigateur : pied de page à 844 = bas de l'écran, barre de 767 à 844).
+ */
+describe('<CompareClient> — la réserve de la barre « Partager »', () => {
+  it('avec les colonnes, la page réserve la barre sous son pied de page', () => {
+    Object.assign(reponse, {
+      properties: [11, 12, 13].map((id) => makeProperty({ id, slug: `bien-${id}`, title: `Bien ${id}` })),
+      loading: false,
+    });
+    const { container } = render(wrap(<CompareClient />));
+    const page = container.firstElementChild as HTMLElement;
+    expect(page.contains(screen.getByTestId('pied-de-page'))).toBe(true);
+    for (const c of RESERVE_BARRE_PARTAGER.split(' ')) expect(page.classList, c).toContain(c);
+    expect(document.querySelector('[data-barre-partager]')).toBeTruthy();
+  });
+
+  it('pendant l’attente, ni barre ni réserve', () => {
+    const { container } = render(wrap(<CompareClient />));
+    const page = container.firstElementChild as HTMLElement;
+    expect(document.querySelector('[data-barre-partager]')).toBeNull();
+    expect(page.className).not.toContain('safe-area-inset-bottom');
   });
 });

@@ -13,6 +13,7 @@ import { useTranslations } from 'next-intl';
 import { ZONE_TACTILE_44 } from '@/lib/zone-tactile';
 import { useToast } from '@/components/ui/toast';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { retenirLePrixVuALAjout } from '@/lib/favoris-suivi';
 
 /**
  * Heart button — toggles a property's favorite state.
@@ -40,6 +41,16 @@ export interface FavoriteButtonProps {
   readonly size?: 'xs' | 'sm' | 'md' | 'lg';
   /** Route to `/auth/login` when logged out; default false (anonymous likes). */
   readonly requireAuth?: boolean;
+  /**
+   * TCK-2508 — le prix public affiché au moment du geste. L'anonyme le garde comme référence
+   * (« −50 000 F depuis l'ajout ») ; absent, il est relu par `by-ids` juste après l'ajout.
+   */
+  readonly prix?: number | null;
+  /**
+   * TCK-2503 — posé sur la photo d'ouverture de la fiche, à côté du retour et du partage : la même
+   * pastille pleine qu'eux (`bg-card`) plutôt que le voile des cartes de liste.
+   */
+  readonly surPhoto?: boolean;
 }
 
 const SIZE_CLASSES = {
@@ -61,6 +72,8 @@ export function FavoriteButton({
   className = '',
   size = 'md',
   requireAuth = false,
+  prix,
+  surPhoto = false,
 }: FavoriteButtonProps) {
   const t = useTranslations('favorites.button');
   const router = useRouter();
@@ -98,9 +111,14 @@ export function FavoriteButton({
       // Optimistic store flip — every <FavoriteButton> + popover badge
       // re-renders immediately.
       if (wasFavorite) remove(propertyId);
-      else add(propertyId);
+      else add(propertyId, prix);
 
-      if (!user) return;
+      if (!user) {
+        // TCK-2508 — l'anonyme n'a pas de `price_at_favorite` côté API : son prix de référence
+        // se garde dans l'appareil, relu au moment du geste quand la carte ne l'a pas fourni.
+        if (!wasFavorite && typeof prix !== 'number') void retenirLePrixVuALAjout(propertyId);
+        return;
+      }
 
       try {
         if (wasFavorite) {
@@ -116,7 +134,7 @@ export function FavoriteButton({
         toast.add({ title: t('refusedTitle'), description: messageErreur(error), type: 'error' });
       }
     },
-    [user, requireAuth, router, redirectHref, propertyId, has, add, remove, addMutation, removeMutation, toast, t, messageErreur],
+    [user, requireAuth, router, redirectHref, propertyId, prix, has, add, remove, addMutation, removeMutation, toast, t, messageErreur],
   );
 
   return (
@@ -133,8 +151,11 @@ export function FavoriteButton({
       // laissait l'icône à 2,01:1 ; à 50 %, le pire cas tient le seuil non textuel de 3:1.
       className={`${SIZE_CLASSES[size]} ${ZONE_TACTILE_44} rounded-full backdrop-blur-md flex items-center justify-center transition-[background-color,color,box-shadow,scale] duration-200 active:scale-[0.96] cursor-pointer disabled:cursor-wait ${
         isFavorite
-          ? 'bg-card text-destructive shadow-md'
-          : 'bg-scrim/50 text-primary-foreground hover:bg-card hover:text-primary'
+          ? // TCK-2508 — le cœur plein est terracotta (`--primary`), plus le rouge vif de l'alerte.
+            'bg-card text-primary shadow-md'
+          : surPhoto
+            ? 'bg-card text-foreground shadow-[0_2px_8px_-2px_color-mix(in_oklab,var(--shadow-color)_35%,transparent)] hover:text-primary'
+            : 'bg-scrim/50 text-primary-foreground hover:bg-card hover:text-primary'
       } ${className}`}
     >
       <Heart

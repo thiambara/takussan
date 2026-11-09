@@ -10,11 +10,10 @@ import { NavbarSpacer } from '@/components/home/NavbarSpacer';
 import { Footer } from '@/components/home/Footer';
 import { FilterSidebar } from '@/components/search/FilterSidebar';
 import { ActualisationDesResultats } from '@/components/search/ActualisationDesResultats';
-import { SearchToolbar, TailleDePage } from '@/components/search/SearchToolbar';
+import { PucesDeFiltres, SearchToolbar, TailleDePage } from '@/components/search/SearchToolbar';
 import { OutilsFlottantsDeListe } from '@/components/search/OutilsFlottantsDeListe';
 import { WidenedSearchNotice } from '@/components/search/WidenedSearchNotice';
 import { SearchEmpty } from '@/components/search/SearchEmpty';
-import { Pagination } from '@/components/search/Pagination';
 import { PropertyCard } from '@/components/property/PropertyCard';
 import { PropertyMap } from '@/components/map';
 import { SaveSearchButton } from '@/components/favorites/SaveSearchButton';
@@ -26,9 +25,16 @@ import { positionVerticale } from '@/hooks/useVerrouDeDefilement';
 import { useMatchesMaxWidth } from '@/hooks/useMatchesMedia';
 import { CLES_DE_RECHERCHE, type SearchFilters } from '@/types/search';
 import { CARD_SIZES_SEARCH_GRID } from '@/components/property/card-image-sizes';
-import { EmplacementsSponsorises } from '@/components/boost/EmplacementSponsorise';
+import { ArriveeSponsorisee } from '@/components/boost/arrivee-sponsorisee';
 import { badgeDe, lireEmplacements, placementDe } from '@/components/boost/lecture-recherche';
 import { CONTENU_PRINCIPAL_ID } from '@/components/shared/contenu-principal';
+import { LienLocalise } from '@/components/shared/LienLocalise';
+import { usePathname } from 'next/navigation';
+import { BasculeDeDensite } from '@/components/property/liste/BasculeDeDensite';
+import { VoirPlus } from '@/components/property/liste/VoirPlus';
+import { useDensite, type Densite } from '@/components/property/liste/densite';
+import { suiteDesPages, type CarteDeLaListe } from '@/components/property/liste/emplacements';
+import { useSuiteDeLaListe } from '@/components/property/liste/suite';
 
 /**
  * Canonical `/properties` discovery layout — Wave 3.
@@ -164,35 +170,11 @@ function BasculeDeVue({ view, onChange }: { view: View; onChange: (v: View) => v
 }
 
 /**
- * TCK-552 — vrai quand l'élément est sorti de l'écran PAR LE HAUT (sous la `nav` fixe).
- *
- * Par le haut seulement : un élément encore sous le pli n'a pas été « dépassé ». Sans
- * `IntersectionObserver` (rendu serveur, jsdom), rien n'est jamais « dépassé » — la pastille
- * flottante ne double alors pas une rangée d'outils déjà à l'écran.
- */
-function useDepasseParLeHaut(ref: React.RefObject<HTMLElement | null>, margeHautePx: number): boolean {
-  const [depasse, setDepasse] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || typeof IntersectionObserver === 'undefined') return;
-    const obs = new IntersectionObserver(
-      ([entree]) => {
-        setDepasse(!entree.isIntersecting && entree.boundingClientRect.top < margeHautePx);
-      },
-      { rootMargin: `-${margeHautePx}px 0px 0px 0px` },
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [ref, margeHautePx]);
-  return depasse;
-}
-
-/**
  * TCK-553 — le bas de la `nav` fixe du site public, MESURÉ, tant que `actif`.
  *
  * La vue carte mobile se cale dessous (AC3 : « toute la hauteur sous la `nav`, à 1 px près »). Une
  * constante n'y suffit pas, et c'est mesuré : la `nav` fait 71 px à 390, quand `NavbarSpacer` en
- * réserve 69 et `HAUTEUR_NAV_PX` en suppose 68. Sa hauteur suit son contenu (pastille de recherche
+ * réserve 69 et la page en supposait 68. Sa hauteur suit son contenu (pastille de recherche
  * de TCK-549) : on la lit, et on la relit quand elle change.
  *
  * `null` tant que rien n'est mesuré (rendu serveur, première image) : la page retombe alors sur la
@@ -216,11 +198,57 @@ function useBasDeLaNav(actif: boolean): number | null {
   return bas;
 }
 
-/** Hauteur de la `nav` fixe du site public (68 px, mesurée) : la rangée qui passe dessous est hors d'atteinte. */
-const HAUTEUR_NAV_PX = 68;
-
 /** Le seuil `lg` de Tailwind. */
 const LG_BREAKPOINT_PX = 1024;
+
+/**
+ * TCK-2499 / TCK-2500 — une cellule de la grille : un bien organique ou un emplacement sponsorisé,
+ * inséré à la position que l'API a rendue.
+ *
+ * UN élément par bien : en densité « Liste », la carte se pose en LIGNE sous `md`
+ * (`disposition="ligne-au-telephone"`, réglée en CSS) et reste la carte de bureau à partir de `md`,
+ * où la liste est une grille à plusieurs colonnes. La cellule rendait la ligne ET la carte, l'une
+ * masquée : ×2,35 nœuds à 390 px (revue adverse du 2026-11-09).
+ *
+ * Un emplacement porte le marqueur d'arrivée (`?src=sponsored`, TCK-794) et sa mention en TEXTE :
+ * ruban « Sponsorisé » sur la carte, mention sobre dans la ligne (ADR-0061 §7).
+ */
+function CelluleDeLaListe({
+  carte,
+  index,
+  densite,
+  transactionFiltree,
+}: {
+  readonly carte: CarteDeLaListe;
+  readonly index: number;
+  readonly densite: Densite;
+  readonly transactionFiltree?: SearchFilters['contract_type'];
+}) {
+  const sponsorise = carte.genre === 'sponsorise';
+  const place = sponsorise ? 'sponsorise' : placementDe(carte.bien) === 'reserved' ? 'vedette' : undefined;
+
+  return (
+    <div data-emplacement={sponsorise ? 'sponsorise' : undefined} data-cellule={carte.genre}>
+      <ArriveeSponsorisee value={sponsorise}>
+        <PropertyCard
+          property={carte.bien}
+          index={index}
+          priority={index < CARTES_PRIORITAIRES}
+          revelee={index < CARTES_REVELEES}
+          sizes={CARD_SIZES_SEARCH_GRID}
+          disposition={densite === 'liste' ? 'ligne-au-telephone' : 'carte'}
+          // TCK-2499 — un emplacement reçoit lui aussi la transaction filtrée : la carte ne la montre
+          // que si elle en DIFFÈRE, et la lui taire posait « En location » sur sa photo, en plus du
+          // favori et de « Sponsorisé » (deux éléments au plus sur une photo).
+          transactionFiltree={transactionFiltree}
+          // TCK-633 lot F → TCK-635 — une place payée porte sa robe, le Badge acheté passe sur la photo.
+          robe={place}
+          badge={badgeDe(carte.bien)}
+        />
+      </ArriveeSponsorisee>
+    </div>
+  );
+}
 
 /**
  * TCK-432 — la page reçoit désormais deux choses du serveur, et aucune n'est décorative.
@@ -263,15 +291,39 @@ export function PropertiesDiscoveryPage({ titre, graine = null, liensDeLieu = nu
     removeFilter,
     repli,
     retirerTerme,
+    cleDesResultats,
   } = useSearch({ graine });
+  const pathname = usePathname();
+  // TCK-2499 — la densité du téléphone (« Liste » par défaut), mémorisée sur l'appareil.
+  const densite = useDensite();
 
   const properties = data?.data ?? [];
   const meta = data?.meta;
-  // TCK-633 lot F (ADR-0061 §7) — hors pagination, hors `total`.
-  const sponsorises = lireEmplacements(data);
-  // TCK-1036 — les emplacements rendus en tête de la grille prennent les premières places
-  // prioritaires ; les biens ordinaires ont le reste. Ils ne sont pas rendus en erreur.
-  const emplacementsRendus = error ? 0 : sponsorises.length;
+  // TCK-2499 — « Voir N biens de plus » : les pages suivantes de la requête AFFICHÉE.
+  const suite = useSuiteDeLaListe(error ? null : data, cleDesResultats);
+  // TCK-2500 — la suite des cartes, page après page : chaque page insère SES emplacements à la
+  // `position` que l'API rend (jamais recalculée ici). Hors pagination, hors `total` (ADR-0061 §7).
+  // Pas d'emplacement en erreur, comme avant.
+  // La suite CONTINUE : un bien n'y est montré qu'une fois, et la première page ne s'ouvre pas sur
+  // l'emplacement de tête quand des places réservées l'ouvrent (`suiteDesPages`, revue de TCK-2499).
+  const pagesAffichees = data ? [data, ...suite.pages] : [];
+  const cartes = suiteDesPages(
+    pagesAffichees.map((page) => ({
+      numero: page.meta.current_page,
+      organiques: page.data,
+      sponsorises: error ? [] : lireEmplacements(page),
+    })),
+  );
+  const derniereAffichee = pagesAffichees[pagesAffichees.length - 1];
+  const biensAffiches = meta
+    ? (meta.current_page - 1) * meta.per_page + pagesAffichees.reduce((n, page) => n + page.data.length, 0)
+    : 0;
+  const hrefSuivante = (() => {
+    if (suite.pageSuivante === null) return null;
+    const params = filtersToParams({ ...filters, page: suite.pageSuivante });
+    if (data?.seed_hour) params.set('seed_hour', data.seed_hour);
+    return `${pathname}?${params.toString()}`;
+  })();
 
   // TCK-552 — à zéro résultat CONFIRMÉ (ni en chargement, ni en erreur), le tri et la bascule
   // n'agissent sur rien (E1) : ils ne sont pas rendus sous `lg`. Et la vue y retombe sur la
@@ -285,16 +337,29 @@ export function PropertiesDiscoveryPage({ titre, graine = null, liensDeLieu = nu
   // d'outils que là où il les rend : au bureau, la vue carte reste atteignable à zéro résultat,
   // et elle les perdait toutes les deux.
   const etatVideRendu = aucunResultat && vue === 'list';
+  // TCK-2499 — une page au-delà de la dernière rend aussi `SearchEmpty` (total non nul) : le bandeau
+  // de puces se tait là aussi — les critères ne sont pas en cause, l'issue est « Revenir au début ».
+  const listeSansBien = !loading && !error && properties.length === 0;
+  // TCK-2499 (revue) — au-delà de la dernière page, les chemins vers celles qui existent, filtres
+  // gardés : « Voir N biens de plus » a remplacé la pagination numérotée qui les donnait.
+  const hrefDeLaPage = (page: number | undefined) => {
+    const qs = filtersToParams({ ...filters, page: page !== undefined && page > 1 ? page : undefined }).toString();
+    return qs ? `/properties?${qs}` : '/properties';
+  };
+  const issuesDePage =
+    listeSansBien && meta && meta.total > 0 && meta.current_page > meta.last_page
+      ? { derniere: { numero: meta.last_page, href: hrefDeLaPage(meta.last_page) }, premiere: hrefDeLaPage(undefined) }
+      : undefined;
 
-  // TCK-552 — Filtres et Carte à portée du pouce pendant le défilement (P4, AC3).
+  // TCK-553 — la rangée d'outils, où ramène le retour à la liste quand la recherche a changé.
   const rangeeOutilsRef = useRef<HTMLDivElement>(null);
-  const rangeeDepassee = useDepasseParLeHaut(rangeeOutilsRef, HAUTEUR_NAV_PX);
 
   // TCK-553 — sous `lg`, la vue carte occupe l'écran (M2) : le titre, la rangée d'outils et le pied
   // de page s'effacent, et la carte se cale sous la `nav` mesurée. Filtres et le retour à la liste
   // passent par la pastille flottante (TCK-552), montrée d'emblée en vue carte.
-  const carteMobile = vue === 'map' && sousLg;
-  const basDeLaNav = useBasDeLaNav(carteMobile);
+  // TCK-2499 — mesuré sous `lg` dans les deux vues : la carte s'y cale, et les puces des filtres
+  // s'y collent pendant le défilement de la liste.
+  const basDeLaNav = useBasDeLaNav(sousLg);
 
   // TCK-553 (AC5) — la liste revient là où on l'a quittée. La vue carte mobile raccourcit le
   // document à la hauteur de l'écran, et le navigateur écrête alors le défilement à 0 : sans cette
@@ -340,7 +405,10 @@ export function PropertiesDiscoveryPage({ titre, graine = null, liensDeLieu = nu
   // Le signal passé au hook est donc « le commit porte les résultats », c'est-à-dire la
   // retombée de `loading` — et non le montage. `loading` couvre les trois issues (résultats,
   // liste vide, erreur) : la hauteur du document est arrêtée dans chacune.
-  useScrollRestoration(!loading);
+  //
+  // TCK-2499 — et après la reprise des pages déjà chargées par « Voir N biens de plus » (AC3) : sans
+  // elles, la position du 50ᵉ bien serait écrêtée sur un document qui n'en porte que 40.
+  useScrollRestoration(!loading && suite.decidee);
 
   // TCK-335 — un 422 nomme le filtre en cause dans `errors.<champ>`. S'il en désigne
   // UN SEUL et qu'il appartient bien à `SearchFilters`, on propose de retirer celui-là
@@ -482,8 +550,19 @@ export function PropertiesDiscoveryPage({ titre, graine = null, liensDeLieu = nu
               // TCK-552 — le tri n'agit ni sur la carte (`/map` n'en déclare aucun, cf.
               // `mapFilters`) ni sur une liste vide (M4, E1, AC8).
               afficherTri={vue === 'list' && !aucunResultat}
+              // TCK-2499 — sous `lg`, la carte passe par la pastille flottante, toujours montrée : le
+              // bout de rangée prend la densité (téléphone seulement : à partir de `md`, la liste est
+              // une grille et la densité n'y change rien). Entre `md` et `lg`, la bascule de vue
+              // reste là — la pastille la double, sans gêne.
               basculeDeVue={
-                aucunResultat ? undefined : <BasculeDeVue view={vue} onChange={changerDeVue} />
+                aucunResultat ? undefined : (
+                  <>
+                    <BasculeDeDensite densite={densite} className="md:hidden" />
+                    <span className="max-md:hidden">
+                      <BasculeDeVue view={vue} onChange={changerDeVue} />
+                    </span>
+                  </>
+                )
               }
               vueBureau={<ViewToggle view={vue} onChange={changerDeVue} />}
               // TCK-635 — « Sauvegarder » sur la ligne du titre. Son libellé est conservé, et c'est
@@ -506,7 +585,10 @@ export function PropertiesDiscoveryPage({ titre, graine = null, liensDeLieu = nu
             <OutilsFlottantsDeListe
               // TCK-553 — en vue carte, la rangée d'outils n'est plus rendue sous `lg` : la pastille
               // est alors la SEULE sortie (et le seul accès aux filtres). Elle est montrée d'emblée.
-              visible={(rangeeDepassee || vue === 'map') && !sidebarOpen}
+              // TCK-2499 — sous `lg`, Filtres et Carte flottent EN PERMANENCE au-dessus de la barre
+              // d'onglets (une pastille, jamais une deuxième barre). Pas à zéro résultat : la vue y
+              // retombe sur la liste et l'état vide porte ses propres issues (TCK-552, E1).
+              visible={!sidebarOpen && (vue === 'map' || !aucunResultat)}
               activeCount={activeCount}
               vue={vue}
               onOuvrirFiltres={() => setSidebarOpen(true)}
@@ -515,6 +597,31 @@ export function PropertiesDiscoveryPage({ titre, graine = null, liensDeLieu = nu
               // le retour à la liste restaure SA position (AC5, `changerDeVue`).
               onBasculerVue={() => changerDeVue(vue === 'list' ? 'map' : 'list')}
             />
+
+            {/*
+              TCK-2499 — les filtres actifs en puces retirables, au-dessus des résultats. Sous `lg`,
+              collées sous la `nav` (mesurée) pendant le défilement, sur UNE ligne qui défile de côté :
+              on retire un critère sans remonter. L'état vide les rend lui-même (TCK-558).
+            */}
+            {vue === 'list' && !etatVideRendu && !listeSansBien && activeCount > 0 ? (
+              <div
+                data-puces-collees
+                className="max-lg:sticky max-lg:top-[var(--bas-de-la-nav,69px)] z-30 -mx-4 mb-1 bg-surface px-4 py-1.5 md:-mx-8 md:px-8 lg:mx-0 lg:mb-5 lg:px-0 lg:py-0"
+                style={
+                  basDeLaNav === null
+                    ? undefined
+                    : ({ '--bas-de-la-nav': `${basDeLaNav}px` } as React.CSSProperties)
+                }
+              >
+                <PucesDeFiltres
+                  filters={filters}
+                  filtresDesResultats={filtresDesResultats}
+                  onRemoveFilter={retirerFiltre}
+                  aria-label={t('puces.aria')}
+                  className="max-lg:flex-nowrap max-lg:overflow-x-auto max-lg:[scrollbar-width:none] max-lg:[&>*]:shrink-0 max-lg:[&>*]:whitespace-nowrap"
+                />
+              </div>
+            ) : null}
 
             {vue === 'map' ? (
               /*
@@ -598,7 +705,11 @@ export function PropertiesDiscoveryPage({ titre, graine = null, liensDeLieu = nu
                   // TCK-628 — 1800 px s'écrit `min-[112.5rem]`, pas `min-[1800px]` : Tailwind 4
                   // range un palier en px AVANT les paliers en rem, et `2xl:grid-cols-5` l'écrasait
                   // (mesuré : 5 colonnes à 1920).
+                  // TCK-2499 — en densité « Liste », sous `md`, des lignes serrées séparées d'un filet.
+                  data-densite={densite}
                   className={`scroll-mt-[85px] lg:scroll-mt-[152px] grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 min-[112.5rem]:grid-cols-6 gap-x-4 gap-y-8 transition-[opacity,filter] duration-300 ease-out ${
+                    densite === 'liste' && cartes.length > 0 ? 'max-md:gap-y-0 max-md:divide-y max-md:divide-border' : ''
+                  } ${
                     enCours
                       ? 'opacity-45 saturate-[0.35] pointer-events-none'
                       : 'opacity-100'
@@ -620,57 +731,58 @@ export function PropertiesDiscoveryPage({ titre, graine = null, liensDeLieu = nu
                       criteresEnCause={aucunResultat}
                       onRemoveFilter={retirerFiltre}
                       onReset={resetFilters}
+                      issuesDePage={issuesDePage}
                     />
                   ) : (
-                    <>
-                      {/* TCK-635 — les emplacements entrent DANS la grille, en tête, à la taille des
-                          autres cartes ; leur robe les distingue (ADR-0061 §7). Toujours hors
-                          `total` et hors pagination. */}
-                      {!error ? (
-                        <EmplacementsSponsorises
-                          biens={sponsorises}
-                          sizes={CARD_SIZES_SEARCH_GRID}
-                          prioritaires={CARTES_PRIORITAIRES}
-                          revelees={CARTES_REVELEES}
-                        />
-                      ) : null}
-                      {properties.map((property, i) => (
-                        <PropertyCard
-                          key={property.id}
-                          property={property}
-                          index={i}
-                          priority={emplacementsRendus + i < CARTES_PRIORITAIRES}
-                          revelee={emplacementsRendus + i < CARTES_REVELEES}
-                          sizes={CARD_SIZES_SEARCH_GRID}
-                          transactionFiltree={filters.contract_type}
-                          // TCK-633 lot F → TCK-635 — une place réservée porte la robe « En vedette »
-                          // au lieu d'une étiquette au-dessus de la carte ; le badge acheté passe sur
-                          // la photo.
-                          robe={placementDe(property) === 'reserved' ? 'vedette' : undefined}
-                          badge={badgeDe(property)}
-                        />
-                      ))}
-                    </>
+                    cartes.map((carte, i) => (
+                      <CelluleDeLaListe
+                        key={`${carte.genre}-${carte.page}-${carte.bien.id}`}
+                        carte={carte}
+                        index={i}
+                        densite={densite}
+                        transactionFiltree={filters.contract_type}
+                      />
+                    ))
                   )}
                 </div>
 
-                {/* TCK-635 — la taille de page à côté de la pagination, et seulement avec elle. */}
-                {meta && meta.last_page > 1 && (
+                {/*
+                  TCK-2499 — « Voir N biens de plus » remplace la pagination numérotée : on poursuit
+                  sa lecture sans changer de page, et le retour depuis une fiche ramène les biens déjà
+                  chargés (cf. `useSuiteDeLaListe`). Une URL qui ouvre une page au-delà de la première
+                  (lien hérité, robot) garde un chemin vers le début. La taille de page reste au
+                  bureau, à côté (TCK-635).
+                */}
+                {meta && cartes.length > 0 && !error ? (
                   <div data-pied-de-liste className="lg:relative">
-                    <Pagination
-                      currentPage={meta.current_page}
-                      lastPage={meta.last_page}
-                      filters={filters}
-                      cibleDuDefilement={ID_DES_RESULTATS}
-                      heureDeGraine={data?.seed_hour}
+                    {meta.current_page > 1 ? (
+                      <p className="pt-8 text-center">
+                        <LienLocalise
+                          href={hrefDeLaPage(undefined)}
+                          className="text-sm font-medium text-foreground underline underline-offset-4 hover:text-primary"
+                        >
+                          {t('voirPlus.debut')}
+                        </LienLocalise>
+                      </p>
+                    ) : null}
+                    <VoirPlus
+                      total={derniereAffichee?.meta.total ?? meta.total}
+                      affiches={biensAffiches}
+                      parPage={meta.per_page}
+                      href={hrefSuivante}
+                      chargement={suite.chargement}
+                      erreur={suite.erreur}
+                      onVoirPlus={suite.voirPlus}
                     />
-                    <TailleDePage
-                      filters={filters}
-                      onPerPageChange={(per_page) => handleFilterChange({ per_page })}
-                      className="lg:absolute lg:right-0 lg:top-1"
-                    />
+                    {meta.last_page > 1 ? (
+                      <TailleDePage
+                        filters={filters}
+                        onPerPageChange={(per_page) => handleFilterChange({ per_page })}
+                        className="lg:absolute lg:right-0 lg:bottom-0"
+                      />
+                    ) : null}
                   </div>
-                )}
+                ) : null}
               </>
             )}
             {liensDeLieu}

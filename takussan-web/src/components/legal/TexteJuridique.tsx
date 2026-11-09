@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Link as IconeLien } from 'lucide-react';
 
 /**
  * Le rendu d'un texte juridique — un sous-ensemble de markdown, et rien de plus (TCK-531).
@@ -76,6 +77,56 @@ export function analyserTexteJuridique(source: string): Bloc[] {
   return blocs;
 }
 
+/**
+ * TCK-2516 — une entrée du sommaire : un titre de PREMIER niveau (`# `) du texte, et son ancre.
+ */
+export interface EntreeDeSommaire {
+  readonly ancre: string;
+  readonly titre: string;
+}
+
+/** Le texte d'un titre tel qu'il s'affiche : sans les marqueurs `**` du gras. */
+const texteNu = (texte: string) => texte.replace(/\*\*([^*]+)\*\*/g, '$1');
+
+/**
+ * Les ancres de chaque titre, dans l'ordre du texte — la SEULE fonction qui les calcule : le
+ * sommaire et le rendu la partagent, ils ne peuvent donc pas se contredire.
+ *
+ * L'ancre est la POSITION de la partie (`partie-6`), et ses sous-parties `partie-6-1`… — jamais un
+ * texte « slugifié » : une coquille corrigée dans un titre, ou la page lue dans une autre langue,
+ * ne doivent pas casser un lien envoyé sur WhatsApp. Les CGU françaises et anglaises ont le même
+ * plan, donc les mêmes ancres. Un sous-titre placé avant toute partie est rangé sous `partie-0`.
+ */
+function ancresDesTitres(blocs: readonly Bloc[]): Map<number, string> {
+  const ancres = new Map<number, string>();
+  let partie = 0;
+  let sousPartie = 0;
+  blocs.forEach((bloc, i) => {
+    if (bloc.type !== 'titre' || bloc.niveau === 3) return;
+    if (bloc.niveau === 1) {
+      partie += 1;
+      sousPartie = 0;
+      ancres.set(i, `partie-${partie}`);
+    } else {
+      sousPartie += 1;
+      ancres.set(i, `partie-${partie}-${sousPartie}`);
+    }
+  });
+  return ancres;
+}
+
+/**
+ * TCK-2516 · AC1 — le sommaire d'un texte juridique : ses titres de premier niveau, dans l'ordre.
+ * Ajouter un `# ` au texte l'ajoute au sommaire, sans autre écriture.
+ */
+export function sommaireJuridique(source: string): EntreeDeSommaire[] {
+  const blocs = analyserTexteJuridique(source);
+  const ancres = ancresDesTitres(blocs);
+  return blocs.flatMap((bloc, i) =>
+    bloc.type === 'titre' && bloc.niveau === 1 ? [{ ancre: ancres.get(i)!, titre: texteNu(bloc.texte) }] : [],
+  );
+}
+
 /** `**gras**` → `<strong>` ; tout le reste reste du texte. */
 function enLigne(texte: string): ReactNode[] {
   return texte.split(/(\*\*[^*]+\*\*)/g).map((morceau, i) =>
@@ -89,26 +140,66 @@ function enLigne(texte: string): ReactNode[] {
   );
 }
 
+/**
+ * TCK-2516 — `scroll-mt-*` : la `Navbar` est FIXE (69 px au téléphone, ~77 px au bureau) et, au
+ * téléphone, la barre de lecture colle sous elle. Sans marge, `#partie-17` ouvrirait la page le
+ * titre caché derrière elles.
+ */
+const MARGE_TITRE = { 1: 'mt-10', 2: 'mt-8', 3: 'mt-6' } as const;
+
 const CLASSES_TITRE = {
-  1: 'mt-10 font-display text-2xl font-semibold tracking-tight text-foreground text-balance',
-  2: 'mt-8 font-display text-xl font-semibold tracking-tight text-foreground text-balance',
-  3: 'mt-6 font-display text-lg font-semibold text-foreground',
+  1: 'min-w-0 scroll-mt-32 font-display text-[22px] font-semibold leading-tight tracking-[-0.02em] text-foreground text-balance lg:scroll-mt-28 lg:text-2xl',
+  2: 'min-w-0 scroll-mt-32 font-display text-lg font-semibold tracking-[-0.01em] text-foreground text-balance lg:scroll-mt-28 lg:text-xl',
+  3: 'font-display text-lg font-semibold text-foreground',
 } as const;
 
 export interface TexteJuridiqueProps {
   readonly source: string;
+  /**
+   * TCK-2516 — le nom accessible du lien d'ancre posé à côté de chaque titre de partie. Sans lui,
+   * le lien n'est pas rendu (ce composant ne lit aucun dictionnaire : c'est la page qui traduit).
+   *
+   * Court et FIXE (« Lien vers cette partie ») : le lien est le FRÈRE qui suit le titre, jamais son
+   * enfant (revue). Dedans, il entrait dans le nom accessible du titre — la liste des titres d'un
+   * lecteur d'écran lisait « 17. Suspension et fin du compte Lien vers la partie « 17. Suspension
+   * et fin du compte » » ; à côté, le titre se nomme de son seul texte, et le lien suit le titre
+   * qu'il désigne, ce qui suffit à le situer.
+   */
+  readonly libelleAncre?: string;
 }
 
-export function TexteJuridique({ source }: TexteJuridiqueProps) {
+export function TexteJuridique({ source, libelleAncre }: TexteJuridiqueProps) {
+  const blocs = analyserTexteJuridique(source);
+  const ancres = ancresDesTitres(blocs);
   return (
-    <div className="space-y-4 text-base leading-relaxed text-foreground/90 text-pretty">
-      {analyserTexteJuridique(source).map((bloc, i) => {
+    <div className="space-y-4 text-base leading-[1.7] text-foreground/90 text-pretty">
+      {blocs.map((bloc, i) => {
         if (bloc.type === 'titre') {
           const Balise = (['h2', 'h3', 'h4'] as const)[bloc.niveau - 1]!;
-          return (
-            <Balise key={i} className={CLASSES_TITRE[bloc.niveau]}>
+          const ancre = ancres.get(i);
+          const titre = (
+            <Balise
+              key={i}
+              id={ancre}
+              className={
+                ancre && libelleAncre ? CLASSES_TITRE[bloc.niveau] : `${MARGE_TITRE[bloc.niveau]} ${CLASSES_TITRE[bloc.niveau]}`
+              }
+            >
               {enLigne(bloc.texte)}
             </Balise>
+          );
+          if (!ancre || !libelleAncre) return titre;
+          return (
+            <div key={i} className={`group flex items-start gap-1.5 ${MARGE_TITRE[bloc.niveau]}`}>
+              {titre}
+              <a
+                href={`#${ancre}`}
+                aria-label={libelleAncre}
+                className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-60 transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring group-hover:opacity-100"
+              >
+                <IconeLien className="size-4" aria-hidden="true" />
+              </a>
+            </div>
           );
         }
         if (bloc.type === 'liste') {

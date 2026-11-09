@@ -31,7 +31,7 @@ function Coeur() {
 
 const COMPTE = { id: 7, first_name: 'Astou', last_name: 'Dieng', roles: [], agency_id: 3 } as unknown as User;
 
-const sonde = { refresh: async () => {} };
+const sonde: { refresh: () => Promise<unknown> } = { refresh: async () => {} };
 function Sonde() {
   const { refreshUser } = useAuth();
   useEffect(() => {

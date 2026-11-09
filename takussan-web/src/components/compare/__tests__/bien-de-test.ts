@@ -1,6 +1,6 @@
 import type { PropertyDetail } from '@/types/property';
 
-/** Un bien complet pour les tests du comparateur (`CompareCarousel`, `CompareClient`). */
+/** Un bien complet pour les tests du comparateur (`CompareColonnes`, `CompareClient`). */
 export function makeProperty(overrides: Partial<PropertyDetail> = {}): PropertyDetail {
   return {
     id: 1,

@@ -1,7 +1,11 @@
-import { useTranslations } from 'next-intl';
+import { House, Search } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
 
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { Logo } from '@/components/brand/Logo';
+import { Input } from '@/components/ui/input';
+import { hrefLocalise } from '@/i18n/navigation';
+import type { Locale } from '@/i18n/config';
 
 /**
  * Le 404 du site (TCK-438).
@@ -68,8 +72,29 @@ import { Logo } from '@/components/brand/Logo';
  * `not-found.tsx` ne reçoit pas de `params` : il ne peut pas lire `[locale]` dans l'URL. La langue
  * vient donc du contexte monté par la disposition racine — l'en-tête posé par `src/proxy.ts`, qui
  * tourne sur cette URL comme sur les autres, à défaut le cookie. C'est ce qui fait rendre
- * `/en/inconnu` en anglais sans que ce fichier connaisse le schéma d'URL.
+ * `/en/inconnu` en anglais sans que ce fichier connaisse le schéma d'URL. Le formulaire de
+ * recherche, qui n'est pas un `LienLocalise`, lit la même langue par `useLocale()`.
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ * UNE ISSUE UTILE (TCK-2515)
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * Plus de sur-titre « Erreur 404 » : le titre dit tout. À la place, une recherche et trois
+ * raccourcis. La recherche est un **simple formulaire GET** vers `/<langue>/properties?q=…` (`q`,
+ * clé de texte libre de la liste, `SEARCH_FILTER_KEYS.q`) — sans autocomplétion :
+ * `SearchAutocomplete` ferait entrer `search` au socle, au prix mesuré ci-dessus, et un
+ * formulaire natif marche sans JavaScript. Statut inchangé : 404, mesuré avant et après.
  */
+/**
+ * TCK-2515 — les raccourcis d'un 404 : louer, acheter, les agences. Aucune ville n'y est supposée :
+ * le visiteur arrivé d'un lien périmé peut chercher n'importe où.
+ */
+const RACCOURCIS = [
+  { cle: 'shortcutRent', href: '/properties?contract_type=rent' },
+  { cle: 'shortcutBuy', href: '/properties?contract_type=sale' },
+  { cle: 'shortcutAgencies', href: '/agencies' },
+] as const;
+
 export default function NotFound() {
   const t = useTranslations('errors.siteNotFound');
   // ⚠ Le nom de marque vient de `common.appName`, source unique du dépôt, et non d'une copie sous
@@ -78,6 +103,7 @@ export default function NotFound() {
   // Le socle paie `common` pour cela — mesuré à **+1 point** du dictionnaire gzippé (`.` 13 → 14),
   // contre les +13 qu'aurait coûtés `Navbar`/`Footer`.
   const tc = useTranslations('common');
+  const locale = useLocale() as Locale;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -93,28 +119,64 @@ export default function NotFound() {
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center px-6 py-24 text-center md:px-12">
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-          {t('eyebrow')}
-        </p>
-        <h1 className="mt-3 font-display text-3xl font-semibold tracking-tight text-balance text-foreground sm:text-4xl">
+      <main className="mx-auto w-full max-w-[640px] flex-1 px-5 pb-16 pt-14 md:px-8 md:pt-24">
+        <h1 className="font-display text-[30px] font-semibold leading-[1.1] tracking-[-0.03em] text-balance text-foreground md:text-5xl md:leading-[1.05]">
           {t('title')}
         </h1>
-        <p className="mx-auto mt-4 max-w-prose text-pretty text-muted-foreground">{t('body')}</p>
-        <div className="mt-10 flex flex-col justify-center gap-3 sm:flex-row">
-          <LienLocalise
-            href="/properties"
-            className="inline-flex items-center justify-center rounded-lg bg-primary px-6 py-3 text-sm font-medium text-primary-foreground transition-[background-color,scale] hover:bg-[var(--primary-deep)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring active:scale-[0.96] motion-reduce:active:scale-100"
+        <p className="mt-3 text-base leading-relaxed text-pretty text-muted-foreground md:mt-4 md:text-lg">
+          {t('body')}
+        </p>
+
+        {/* TCK-2515 — un formulaire GET natif : il marche sans JavaScript, et n'importe rien qui
+            ferait entrer `search` au socle (cf. le second bloc de l'en-tête). */}
+        <form
+          role="search"
+          aria-label={t('searchLabel')}
+          method="get"
+          action={hrefLocalise('/properties', locale)}
+          className="mt-7 flex h-12 items-center gap-2.5 rounded-full border border-border bg-card pl-4 pr-1.5 focus-within:ring-3 focus-within:ring-ring md:mt-8 md:h-14"
+        >
+          <Search className="size-[18px] flex-none text-muted-foreground" aria-hidden="true" />
+          {/* La primitive (TCK-2460), sans sa bordure : la coque arrondie porte le champ et son
+              anneau de focus, comme la barre de recherche du site. */}
+          <Input
+            type="search"
+            name="q"
+            aria-label={t('searchLabel')}
+            placeholder={t('searchPlaceholder')}
+            enterKeyHint="search"
+            className="min-w-0 flex-1 rounded-none border-0 bg-transparent px-0 focus-visible:ring-0 dark:bg-transparent md:text-base"
+          />
+          <button
+            type="submit"
+            className="inline-flex h-9 flex-none items-center rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground transition-[background-color,scale] hover:bg-[var(--primary-deep)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring active:scale-[0.96] motion-reduce:active:scale-100 md:h-11 md:px-5"
           >
-            {t('browseListings')}
-          </LienLocalise>
-          <LienLocalise
-            href="/"
-            className="inline-flex items-center justify-center rounded-lg border border-border px-6 py-3 text-sm font-medium text-foreground transition-[background-color,scale] hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring active:scale-[0.96] motion-reduce:active:scale-100"
-          >
-            {t('backHome')}
-          </LienLocalise>
-        </div>
+            {t('searchSubmit')}
+          </button>
+        </form>
+
+        <nav aria-label={t('shortcutsLabel')} className="mt-4 md:mt-5">
+          <ul className="flex flex-wrap gap-2">
+            {RACCOURCIS.map(({ cle, href }) => (
+              <li key={cle}>
+                <LienLocalise
+                  href={href}
+                  className="inline-flex h-10 items-center rounded-full border border-border bg-card px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring"
+                >
+                  {t(cle)}
+                </LienLocalise>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+        <LienLocalise
+          href="/"
+          className="mt-6 inline-flex min-h-11 items-center gap-2 text-[15px] font-medium text-foreground underline underline-offset-4 hover:text-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring md:mt-8"
+        >
+          <House className="size-4" aria-hidden="true" />
+          {t('backHome')}
+        </LienLocalise>
       </main>
 
       <footer className="border-t border-border">

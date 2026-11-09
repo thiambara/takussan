@@ -10,6 +10,7 @@ import {
 } from '@/lib/queries/favorites';
 import { useFavorites } from '@/lib/favoritesStore';
 import { useTriggerMinimalProfileOnce } from '@/hooks/useTriggerMinimalProfileOnce';
+import { retenirLePrixVuALAjout } from '@/lib/favoris-suivi';
 
 /**
  * Single-property favorite toggle. Always reads from the favorites store
@@ -44,7 +45,11 @@ export function useFavorite(propertyId: number, _initialFavoriteId: number | nul
     if (wasFavorite) remove(propertyId);
     else add(propertyId);
 
-    if (!user) return;
+    if (!user) {
+      // TCK-2508 — le prix vu à l'ajout, référence de l'écart pour l'anonyme (cf. `FavoriteButton`).
+      if (!wasFavorite) void retenirLePrixVuALAjout(propertyId);
+      return;
+    }
 
     // Only the "add favorite" path is a sensitive intent worth profiling on;
     // un-favoriting does not signal anything new about the user.

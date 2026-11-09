@@ -88,7 +88,7 @@ export function FavoritesPopover({ variant = 'default', className }: FavoritesPo
               : 'size-9 text-foreground hover:text-primary hover:bg-muted',
           )}
         >
-          <Heart className={cn(isCompact ? 'w-5 h-5' : 'w-[18px] h-[18px]', showBadge && 'fill-destructive text-destructive')} />
+          <Heart className={cn(isCompact ? 'w-5 h-5' : 'w-[18px] h-[18px]', showBadge && 'fill-primary text-primary')} />
           {showBadge && (
             <span
               aria-hidden="true"

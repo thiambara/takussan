@@ -5,14 +5,18 @@ import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import {
+  ArrowRight,
   BellPlus,
   Building2,
   CornerDownLeft,
   History,
   House,
   KeyRound,
+  Loader2,
+  LocateFixed,
   MapPin,
   Search,
+  SlidersHorizontal,
   TrendingUp,
   X,
   type LucideIcon,
@@ -25,9 +29,17 @@ import { formatPrice } from '@/lib/utils';
 import {
   effacerRecherchesRecentes,
   lireRecherchesRecentes,
+  lireVuesDesRecherches,
   retenirRecherche,
   type RechercheRecente,
 } from '@/lib/recherches-recentes';
+import {
+  QUARTIERS_POPULAIRES_MAX,
+  requeteDeFacette,
+  useFacette,
+  useNouveauxDepuis,
+  useVilleDesQuartiers,
+} from '@/components/search/donnees-de-l-ecran-de-recherche';
 import {
   filtresDeCriteres,
   filtresDeLaBase,
@@ -51,7 +63,7 @@ import type {
   TraducteursDeFiltre,
 } from '@/types/search';
 import { cn } from '@/lib/utils';
-import { parametreDe, puceDeChaqueFiltreActif } from '@/types/search';
+import { CLES_DE_RECHERCHE, definitionDe, parametreDe, puceDeChaqueFiltreActif } from '@/types/search';
 import { hrefLocalise } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/config';
 
@@ -146,6 +158,42 @@ function libellesCompris(
     .map(({ puce }) => puce.libelle);
 }
 
+/** Le repli de casse et d'accents sous lequel une faute se distingue d'une simple capitale. */
+function replie(texte: string): string {
+  return texte.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase('fr').trim();
+}
+
+/**
+ * TCK-2496 — les lieux que la saisie a COMPRIS malgré une faute : la part garde les positions du mot
+ * TAPÉ (`from`/`to`, dans la saisie telle que le serveur l'a lue), et sa valeur est l'orthographe de
+ * l'index. « appart 3ch mermos » → `[{ tape: 'mermos', lu: 'Mermoz' }]`. Une capitale ou un accent de
+ * différence n'est pas une correction. Exportée pour le test.
+ */
+export function lieuxCorriges(
+  parts: SuggestInterpretation['parts'],
+  saisieLue: string,
+): { readonly tape: string; readonly lu: string }[] {
+  const corriges: { tape: string; lu: string }[] = [];
+  for (const part of parts) {
+    if ((part.key !== 'location' && part.key !== 'city') || typeof part.value !== 'string') continue;
+    const tape = saisieLue.slice(part.from, part.to);
+    if (tape && replie(tape) !== replie(part.value)) corriges.push({ tape, lu: part.value });
+  }
+  return corriges;
+}
+
+/** La clé de la table qui POSSÈDE un paramètre d'URL (`bedrooms` → `bedrooms`, `search` → `q`). */
+function cleDuParametre(parametre: string): (typeof CLES_DE_RECHERCHE)[number] | undefined {
+  return CLES_DE_RECHERCHE.find((cle) => definitionDe(cle).params.includes(parametre));
+}
+
+/** Les critères compris, sans celui dont la sonde de `relaxations` a mesuré le retrait. */
+function criteresSans(criteria: SuggestInterpretation['criteria'], cle: string): SuggestInterpretation['criteria'] {
+  const reste: Record<string, unknown> = { ...criteria };
+  delete reste[cle];
+  return reste as SuggestInterpretation['criteria'];
+}
+
 function HighlightedText({ label, query }: { label: string; query: string }) {
   const { before, match, after } = highlightMatch(label, query);
   if (!match) return <span className="min-w-0 truncate">{label}</span>;
@@ -168,9 +216,27 @@ type Option =
   | { readonly genre: 'raccourci'; readonly contrat: ContractType }
   | { readonly genre: 'suggestion'; readonly item: SuggestItem }
   | { readonly genre: 'apercu'; readonly bien: SuggestPreview }
-  | { readonly genre: 'texte-libre' };
+  | { readonly genre: 'texte-libre' }
+  // TCK-2497 — l'écran « Riche et complet » (surfaces `ecran` et `panneau`).
+  | { readonly genre: 'autour' }
+  | { readonly genre: 'relaxation'; readonly interpretation: SuggestInterpretation; readonly cle: string; readonly compte: number }
+  | { readonly genre: 'retirer-filtres'; readonly libelles: readonly string[] };
 
-type Groupe = { readonly cle: string; readonly titre: string | null; readonly options: readonly Option[] };
+type Groupe = {
+  readonly cle: string;
+  readonly titre: string | null;
+  readonly options: readonly Option[];
+  /** `pastilles` : des options posées en ligne (quartiers, types, critères à retirer). */
+  readonly forme?: 'lignes' | 'pastilles';
+  /** Panneau de bureau, champ vide : la colonne où le groupe se range (l'ordre du clavier suit). */
+  readonly colonne?: 1 | 2;
+};
+
+/** Ce que l'écran sait dire de la dernière demande de position (« Autour de moi »). */
+type EtatPosition = 'repos' | 'attente' | 'refuse' | 'indisponible' | 'echec';
+
+/** Le rayon d'« Autour de moi » depuis l'écran de recherche : la promesse de la maquette, 2 km. */
+export const RAYON_AUTOUR_DE_MOI_KM = 2;
 
 /** Plafonds d'affichage : le panneau propose, il ne remplace pas la liste. */
 const MAX_COMPLETIONS = 4;
@@ -202,6 +268,27 @@ export interface SearchAutocompleteProps {
    * sans quoi Entrée partait sans lui, et seul le bouton loupe l'appliquait.
    */
   imposer?: Readonly<Record<string, string>>;
+  /**
+   * TCK-2497 — où la barre se pose :
+   *
+   * - `menu` (défaut) : la liste déroulante d'avant, inchangée — la barre de `/app` (`AppTopbar`) ;
+   * - `ecran` : l'écran plein écran du téléphone (la saisie de la `Navbar`). La liste n'est plus
+   *   POSÉE sur la page mais rangée SOUS le champ et sous `sousLeChamp` : elle ne recouvre jamais
+   *   Louer / Acheter ni le bouton principal (défaut relevé le 2026-11-08). Toujours ouverte ;
+   * - `panneau` : le panneau du champ de l'en-tête au bureau — même contenu, en deux colonnes avant
+   *   la frappe, avec les aides clavier.
+   *
+   * Hors de `menu` s'ajoutent : « Autour de moi », les quartiers populaires et les types (champ vide),
+   * « N nouveaux » sur une récente, et la ligne « Vos filtres restent ».
+   */
+  surface?: 'menu' | 'ecran' | 'panneau';
+  /** `ecran` seulement : ce qui se pose sous le champ, au-dessus de la liste (Louer / Acheter). */
+  sousLeChamp?: React.ReactNode;
+  /**
+   * TCK-2497 — « Vos filtres restent … Retirer » a été choisi : les filtres de l'URL ne font plus partie
+   * de la base. L'appelant qui construit ses propres URL (la loupe de la `Navbar`) s'y aligne.
+   */
+  onRetraitDesFiltres?: () => void;
 }
 
 /**
@@ -236,11 +323,15 @@ export function SearchAutocomplete({
   imposer,
   value,
   onValider,
+  surface = 'menu',
+  sousLeChamp,
+  onRetraitDesFiltres,
 }: SearchAutocompleteProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const locale = useLocale() as Locale;
   const t = useTranslations('search.suggest');
+  const tEcran = useTranslations('search.ecran');
   const tTypes = useTranslations('property.types');
   const tPeriodes = useTranslations('property.rentPeriodsShort');
   const trads = useTraducteursDeFiltre();
@@ -248,9 +339,20 @@ export function SearchAutocomplete({
   const listboxId = useId();
   const enVigueur = value ?? '';
   const [query, setQuery] = useStateSyncedWith(enVigueur);
+  const riche = surface !== 'menu';
+  const ecran = surface === 'ecran';
   const [open, setOpen] = useState(false);
+  // L'écran du téléphone EST le panneau : il ne se referme qu'avec lui (la `Sheet` de la `Navbar`).
+  const ouvert = ecran || open;
   const [activeIndex, setActiveIndex] = useState(-1);
-  const [recentes, setRecentes] = useState<RechercheRecente[]>([]);
+  // L'écran est monté à l'ouverture de la saisie : ses récentes se lisent tout de suite, sans focus.
+  const [recentes, setRecentes] = useState<RechercheRecente[]>(() => (ecran ? lireRecherchesRecentes() : []));
+  const [vues, setVues] = useState<Readonly<Record<string, string>>>(() => (ecran ? lireVuesDesRecherches() : {}));
+  const [etatPosition, setEtatPosition] = useState<EtatPosition>('repos');
+  // « Retirer » les filtres gardés : retenu POUR l'URL où il a été choisi — une navigation l'oublie.
+  const [retraitSur, setRetraitSur] = useState<string | null>(null);
+  const baseSansFiltres = retraitSur !== null && retraitSur === searchParams.toString();
+  const courants = baseSansFiltres ? new URLSearchParams() : searchParams;
   const [alerte, setAlerte] = useState<{ filtres: SearchFilters; ouverture: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -268,9 +370,9 @@ export function SearchAutocomplete({
   // Revue adverse du 2026-11-04 (défaut n° 5) — la base de la navigation (URL courante + `imposer`) part avec la saisie :
   // le compte annoncé est celui de la liste qu'ouvrira `activer`, qui part de la même base.
   const { data, isFetching, pour } = useSuggest(query, {
-    enabled: open,
+    enabled: ouvert,
     vide: true,
-    base: filtresDeLaBase(baseImposee(searchParams, imposer)),
+    base: filtresDeLaBase(baseImposee(courants, imposer)),
   });
   const reponse = data?.data;
 
@@ -279,13 +381,69 @@ export function SearchAutocomplete({
   const interpretation = !vide ? (reponse?.interpretation ?? null) : null;
   const compriseCourante = interpretation !== null && pour === normaliserSaisie(saisie);
 
+  // ─── TCK-2497 — ce que l'écran riche lit en plus ───────────────────────────────────────────────
+  const base = baseImposee(courants, imposer);
+  const avantLaFrappe = riche && ouvert && vide;
+  const villeDeLaBase = base.get(parametreDe('city'))?.trim() || null;
+  const villeDesQuartiers = useVilleDesQuartiers(avantLaFrappe, villeDeLaBase);
+  // Revue de TCK-2497 — le compte d'une pastille est celui de la liste qu'elle OUVRE : la requête part de
+  // l'URL même du geste (`urlDeSuggestion`, sur la même base), sa valeur seule retirée.
+  const qsDuGeste = (item: SuggestItem) => urlDeSuggestion(item, base, locale).split('?')[1] ?? '';
+  const quartiersComptes = useFacette(
+    avantLaFrappe && villeDesQuartiers !== null,
+    villeDesQuartiers
+      ? requeteDeFacette(qsDuGeste({ kind: 'neighborhood', data: { label: '', city: villeDesQuartiers, count: 0 } }), 'neighborhood')
+      : null,
+    'neighborhood',
+  );
+  const typesComptes = useFacette(
+    avantLaFrappe,
+    requeteDeFacette(qsDuGeste({ kind: 'property_type', data: { label: '', value: '', count: 0 } }), 'type'),
+    'type',
+  ) ?? [];
+  const quartiersPopulaires =
+    villeDesQuartiers && quartiersComptes
+      ? { ville: villeDesQuartiers, quartiers: quartiersComptes.slice(0, QUARTIERS_POPULAIRES_MAX) }
+      : null;
+  const nouveaux = useNouveauxDepuis(avantLaFrappe, recentes, vues);
+
+  // « Vos filtres restent » : les filtres de la base que la liste gardera ET que la saisie ne remplace
+  // pas — ni la transaction (Louer / Acheter les montre déjà), ni le terme (la saisie le remplace).
+  const libellesDeLaSaisie = new Set(
+    interpretation ? libellesCompris(interpretation.criteria, interpretation.parts, interpretation.residue, trads) : [],
+  );
+  const filtresGardes = riche
+    ? puceDeChaqueFiltreActif(
+        filtresDeParametres(
+          interpretation
+            ? parametresVersLaListe(interpretation.criteria, null, filtresDeLaBase(base))
+            : filtresDeLaBase(base),
+        ),
+        trads,
+      )
+        .filter((puce) => puce.cle !== 'contract_type' && puce.cle !== 'q' && !libellesDeLaSaisie.has(puce.libelle))
+        .map((puce) => puce.libelle)
+    : [];
+
   // ─── Les groupes du panneau ──────────────────────────────────────────────────────────────────
   const groupes: Groupe[] = [];
+  if (filtresGardes.length > 0) {
+    groupes.push({
+      cle: 'filtres-gardes',
+      titre: null,
+      colonne: 1,
+      options: [{ genre: 'retirer-filtres', libelles: filtresGardes }],
+    });
+  }
+  if (vide && riche) {
+    groupes.push({ cle: 'autour', titre: null, colonne: 1, options: [{ genre: 'autour' }] });
+  }
   if (vide) {
     if (recentes.length > 0) {
       groupes.push({
         cle: 'recentes',
-        titre: t('groups.recent'),
+        titre: riche ? tEcran('recent') : t('groups.recent'),
+        colonne: 1,
         options: [
           ...recentes.map((recente): Option => ({ genre: 'recente', recente })),
           { genre: 'effacer' },
@@ -296,18 +454,52 @@ export function SearchAutocomplete({
     if (populaires.length > 0) {
       groupes.push({
         cle: 'populaires',
-        titre: t('groups.popular'),
+        titre: riche ? tEcran('popular') : t('groups.popular'),
+        colonne: 2,
         options: populaires.map((recherche): Option => ({ genre: 'recherche', recherche })),
       });
     }
-    groupes.push({
-      cle: 'raccourcis',
-      titre: t('groups.shortcuts'),
-      options: [
-        { genre: 'raccourci', contrat: 'rent' },
-        { genre: 'raccourci', contrat: 'sale' },
-      ],
-    });
+    // Sur l'écran du téléphone, Louer / Acheter et « Rechercher » sont posés sous le champ : les
+    // raccourcis les répéteraient.
+    if (!ecran) {
+      groupes.push({
+        cle: 'raccourcis',
+        titre: t('groups.shortcuts'),
+        colonne: 1,
+        options: [
+          { genre: 'raccourci', contrat: 'rent' },
+          { genre: 'raccourci', contrat: 'sale' },
+        ],
+      });
+    }
+    if (riche && quartiersPopulaires) {
+      groupes.push({
+        cle: 'quartiers',
+        titre: tEcran('neighbourhoods', { city: quartiersPopulaires.ville }),
+        forme: 'pastilles',
+        colonne: 2,
+        options: quartiersPopulaires.quartiers.map(
+          (q): Option => ({
+            genre: 'suggestion',
+            item: { kind: 'neighborhood', data: { label: q.valeur, city: quartiersPopulaires.ville, count: q.compte } },
+          }),
+        ),
+      });
+    }
+    if (riche && typesComptes.length > 0) {
+      groupes.push({
+        cle: 'types-de-bien',
+        titre: tEcran('types'),
+        forme: 'pastilles',
+        colonne: 2,
+        options: typesComptes.map(
+          (type): Option => ({
+            genre: 'suggestion',
+            item: { kind: 'property_type', data: { label: type.valeur, value: type.valeur, count: type.compte } },
+          }),
+        ),
+      });
+    }
   } else {
     if (interpretation) {
       groupes.push({
@@ -318,6 +510,19 @@ export function SearchAutocomplete({
           ...(interpretation.count === 0 ? [{ genre: 'alerte', interpretation } as Option] : []),
         ],
       });
+      // TCK-2496 — sous un compte nul, les critères dont le retrait rend des biens, avec leur compte.
+      // Clé absente (API antérieure) ou vide : aucun groupe, jamais un bloc vide.
+      const relaxations = interpretation.count === 0 ? (interpretation.relaxations ?? []) : [];
+      if (relaxations.length > 0) {
+        groupes.push({
+          cle: 'relaxations',
+          titre: t('groups.relaxations'),
+          forme: 'pastilles',
+          options: relaxations.map(
+            (r): Option => ({ genre: 'relaxation', interpretation, cle: r.key, compte: r.count }),
+          ),
+        });
+      }
     }
     const completions = (reponse?.completions ?? []).slice(0, MAX_COMPLETIONS);
     if (completions.length > 0) {
@@ -360,6 +565,10 @@ export function SearchAutocomplete({
       groupes.push({ cle: 'texte-libre', titre: null, options: [{ genre: 'texte-libre' }] });
     }
   }
+  // Panneau de bureau, champ vide : deux colonnes. L'ordre des options (celui du clavier) suit celui de
+  // l'écran : la première colonne entière, puis la seconde.
+  const enColonnes = surface === 'panneau' && vide;
+  if (enColonnes) groupes.sort((a, b) => (a.colonne ?? 1) - (b.colonne ?? 1));
   const options = groupes.flatMap((g) => g.options);
   // Le rang de la première option de chaque groupe : les `id` d'option suivent l'ordre du clavier.
   const debuts = groupes.map((_, i) => groupes.slice(0, i).reduce((n, g) => n + g.options.length, 0));
@@ -389,6 +598,7 @@ export function SearchAutocomplete({
 
   function ouvrir() {
     setRecentes(lireRecherchesRecentes());
+    setVues(lireVuesDesRecherches());
     setOpen(true);
   }
 
@@ -405,7 +615,7 @@ export function SearchAutocomplete({
    * courante ni suggestion active, et ce que propose la ligne « Rechercher « … » » (TCK-507).
    */
   function rechercherTexteLibre() {
-    const params = baseImposee(searchParams, imposer);
+    const params = baseImposee(courants, imposer);
     // Un champ vidé RETIRE `q` : c'est dans ce champ, et nulle part ailleurs, qu'on l'efface.
     if (saisie) params.set(parametreDe('q'), saisie);
     else params.delete(parametreDe('q'));
@@ -418,6 +628,50 @@ export function SearchAutocomplete({
     return libellesCompris(r.criteria, [], null, trads).join(' · ');
   }
 
+  /** « Sans Piscine, Vue sur mer » — le libellé des puces de ce critère, ou le texte resté incompris. */
+  function libelleDeRelaxation(interpretation: SuggestInterpretation, cle: string): string {
+    if (cle === 'q') return t('relaxationText', { text: interpretation.residue ?? '' });
+    const nom = cleDuParametre(cle);
+    const valeur = interpretation.criteria[cle];
+    const libelles =
+      nom && valeur !== undefined
+        ? libellesCompris({ [cle]: valeur }, [], null, trads)
+        : [];
+    return t('relaxation', { criteria: libelles.length > 0 ? libelles.join(', ') : cle });
+  }
+
+  /**
+   * « Autour de moi » — la position n'est demandée QU'AU GESTE, jamais au chargement (contrainte du
+   * ticket). Le refus est une réponse, rendue à l'écran ; la recherche reste ouverte.
+   */
+  function autourDeMoi() {
+    const source = typeof navigator !== 'undefined' ? navigator.geolocation : undefined;
+    if (!source) {
+      setEtatPosition('indisponible');
+      return;
+    }
+    setEtatPosition('attente');
+    const depart = baseImposee(courants, imposer);
+    source.getCurrentPosition(
+      (position) => {
+        setEtatPosition('repos');
+        // Un point remplace le lieu : une ville ou un quartier d'avant s'ajouteraient en ET au rayon.
+        for (const cle of ['q', 'location', 'city', 'region', 'cities'] as const) {
+          for (const p of definitionDe(cle).params) depart.delete(p);
+        }
+        depart.delete(parametreDe('page'));
+        depart.set('lat', String(position.coords.latitude));
+        depart.set('lng', String(position.coords.longitude));
+        depart.set('radius_km', String(RAYON_AUTOUR_DE_MOI_KM));
+        setOpen(false);
+        onValider?.();
+        router.push(hrefDeListe(depart, locale));
+      },
+      (erreur: GeolocationPositionError) => setEtatPosition(erreur?.code === 1 ? 'refuse' : 'echec'),
+      { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 },
+    );
+  }
+
   function libelleDeSuggestion(item: SuggestItem): string {
     if (item.kind === 'property_type') {
       return tTypes.has(item.data.value) ? tTypes(item.data.value) : item.data.label;
@@ -426,8 +680,25 @@ export function SearchAutocomplete({
   }
 
   function activer(option: Option) {
-    const base = baseImposee(searchParams, imposer);
+    const base = baseImposee(courants, imposer);
     switch (option.genre) {
+      case 'autour':
+        autourDeMoi();
+        return;
+      case 'relaxation': {
+        const { criteria, residue } = option.interpretation;
+        const params =
+          option.cle === 'q'
+            ? parametresVersLaListe(criteria, null, base)
+            : parametresVersLaListe(criteresSans(criteria, option.cle), residue, base);
+        allerALaListe(params, saisie);
+        return;
+      }
+      case 'retirer-filtres':
+        setRetraitSur(searchParams.toString());
+        setActiveIndex(-1);
+        onRetraitDesFiltres?.();
+        return;
       case 'comprise': {
         const { criteria, residue } = option.interpretation;
         allerALaListe(parametresVersLaListe(criteria, residue, base), saisie);
@@ -488,7 +759,7 @@ export function SearchAutocomplete({
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (!open) {
+    if (!ouvert) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         ouvrir();
@@ -534,12 +805,48 @@ export function SearchAutocomplete({
 
   // TCK-731 (P31.01) — une référence ARIA ne vise que ce qui est rendu : la liste n'est montée
   // qu'ouverte, et l'option active seulement si elle existe dans le rendu courant.
-  const optionActiveRendue = open && activeIndex >= 0 && activeIndex < options.length;
+  const optionActiveRendue = ouvert && activeIndex >= 0 && activeIndex < options.length;
+  const corriges = compriseCourante && interpretation && pour ? lieuxCorriges(interpretation.parts, pour) : [];
 
   function contenu(option: Option, actif: boolean): React.ReactNode {
     switch (option.genre) {
       case 'comprise': {
         const { criteria, parts, residue, count } = option.interpretation;
+        const elargira = count === 0 && laListeSElargira(option.interpretation);
+        const note = corriges.length > 0
+          ? corriges.map((c) => t('readAs', { typed: c.tape, read: c.lu })).join(' · ')
+          : null;
+        if (ecran) {
+          // L'écran du téléphone : la saisie comprise devient le geste principal, « Voir les N biens ».
+          return (
+            <span className="flex w-full flex-col gap-2">
+              <span className="flex items-start gap-2.5">
+                <Search aria-hidden="true" className="mt-1.5 size-4 shrink-0 text-primary" />
+                <span className="flex min-w-0 flex-1 flex-wrap gap-1.5">
+                  {libellesCompris(criteria, parts, residue, trads).map((libelle) => (
+                    <span key={libelle} className="inline-flex h-7 items-center rounded-full bg-secondary px-2.5 text-[13px] font-medium text-primary-deep">
+                      {libelle}
+                    </span>
+                  ))}
+                </span>
+              </span>
+              {note ? <span className="pl-[26px] text-[13px] text-muted-foreground">{note}</span> : null}
+              {count > 0 ? (
+                <span className="mt-1 flex h-11 items-center justify-center gap-2 rounded-xl bg-primary text-[15px] font-semibold tabular-nums text-primary-foreground">
+                  {t('seeCount', { count })}
+                  <ArrowRight aria-hidden="true" className="size-4" />
+                </span>
+              ) : (
+                <>
+                  <span className="text-[15px] font-semibold text-foreground">{tEcran('noneTitle')}</span>
+                  <span className="flex h-11 items-center justify-center rounded-xl border border-border text-[15px] font-medium tabular-nums">
+                    {elargira ? t('nearby') : t('count', { count })}
+                  </span>
+                </>
+              )}
+            </span>
+          );
+        }
         return (
           <>
             <Search aria-hidden="true" className="size-4 shrink-0 text-primary" />
@@ -550,9 +857,10 @@ export function SearchAutocomplete({
                 </span>
               ))}
             </span>
+            {note ? <span className="shrink-0 text-xs text-muted-foreground">{note}</span> : null}
             <span className={cn('shrink-0 text-xs tabular-nums', count > 0 ? 'text-muted-foreground' : 'font-medium')}>
               {/* Défaut n° 9 — « biens proches » seulement si la liste s'élargira (ADR-0024) ; sinon le compte dit 0. */}
-              {count === 0 && laListeSElargira(option.interpretation) ? t('nearby') : t('count', { count })}
+              {elargira ? t('nearby') : t('count', { count })}
             </span>
             {compriseCourante && activeIndex === -1 ? (
               <kbd className="hidden shrink-0 items-center gap-1 rounded border border-border px-1.5 py-0.5 font-sans text-xs text-muted-foreground sm:inline-flex">
@@ -564,6 +872,17 @@ export function SearchAutocomplete({
         );
       }
       case 'alerte':
+        if (ecran) {
+          return (
+            <span className="flex w-full flex-col gap-2">
+              <span className="text-[13px] text-muted-foreground">{tEcran('alertHint')}</span>
+              <span className="flex h-11 items-center justify-center gap-2 rounded-xl bg-primary text-[15px] font-semibold text-primary-foreground">
+                <BellPlus aria-hidden="true" className="size-4" />
+                {tEcran('alert')}
+              </span>
+            </span>
+          );
+        }
         return (
           <>
             <BellPlus aria-hidden="true" className="size-4 shrink-0 text-primary" />
@@ -582,13 +901,20 @@ export function SearchAutocomplete({
             </span>
           </>
         );
-      case 'recente':
+      case 'recente': {
+        const arrives = riche ? nouveaux.get(option.recente.qs) : undefined;
         return (
           <>
             <History aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
-            <span className="min-w-0 flex-1 truncate">{option.recente.texte}</span>
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="truncate">{option.recente.texte}</span>
+              {arrives !== undefined && arrives > 0 ? (
+                <span className="truncate text-xs text-primary-deep">{tEcran('newSince', { count: arrives })}</span>
+              ) : null}
+            </span>
           </>
         );
+      }
       case 'effacer':
         return (
           <>
@@ -646,6 +972,46 @@ export function SearchAutocomplete({
           </>
         );
       }
+      case 'autour': {
+        const detail =
+          etatPosition === 'attente' ? tEcran('aroundMe.locating')
+          : etatPosition === 'refuse' ? tEcran('aroundMe.denied')
+          : etatPosition === 'indisponible' ? tEcran('aroundMe.unavailable')
+          : etatPosition === 'echec' ? tEcran('aroundMe.failed')
+          : tEcran('aroundMe.detail', { km: RAYON_AUTOUR_DE_MOI_KM });
+        return (
+          <>
+            <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted">
+              {etatPosition === 'attente' ? (
+                <Loader2 aria-hidden="true" className="size-5 animate-spin text-primary" />
+              ) : (
+                <LocateFixed aria-hidden="true" className="size-5 text-primary" />
+              )}
+            </span>
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="truncate font-medium text-foreground">{tEcran('aroundMe.title')}</span>
+              <span className="text-xs text-muted-foreground">{detail}</span>
+            </span>
+          </>
+        );
+      }
+      case 'relaxation':
+        return (
+          <>
+            <span className="min-w-0 truncate">{libelleDeRelaxation(option.interpretation, option.cle)}</span>
+            <span className="shrink-0 text-xs font-normal tabular-nums text-muted-foreground">{option.compte}</span>
+          </>
+        );
+      case 'retirer-filtres':
+        return (
+          <>
+            <SlidersHorizontal aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 flex-1 text-[13px] leading-snug">
+              <span className="font-medium">{tEcran('keptFilters')}</span> {option.libelles.join(', ')}
+            </span>
+            <span className="shrink-0 text-[13px] font-medium text-foreground underline underline-offset-4">{tEcran('removeFilters')}</span>
+          </>
+        );
       case 'texte-libre':
         return (
           <>
@@ -656,15 +1022,134 @@ export function SearchAutocomplete({
     }
   }
 
-  return (
-    <div ref={containerRef} className={cn('relative', className)}>
-      {/*
-        TCK-731 (P07.06) — la pilule montre le focus de son champ, qui porte `outline-none` :
-        mesuré au clavier, ni l'`input` ni ses parents ne changeaient de style. Anneau plein au
-        jeton `ring` sur fond clair ; sur la barre sombre de la console (`bg-foreground`, où
-        `ring` ne fait que 3,30:1), contour décalé à l'encre de la variante, `primary-foreground`,
-        comme `ANNEAU_FOCUS` d'`AppTopbar` — mais par jeton : le blanc est refusé sous `/app`.
-      */}
+  /** Une option, rendue en ligne ou en pastille selon son groupe. */
+  function rendreOption(option: Option, idx: number, forme: Groupe['forme']) {
+    const actif = activeIndex === idx;
+    const pastille = forme === 'pastilles';
+    const carte = ecran && (option.genre === 'comprise' || option.genre === 'alerte');
+    return (
+      <div
+        key={idx}
+        id={`${listboxId}-item-${idx}`}
+        data-rang={idx}
+        role="option"
+        // Focalisable par programme seulement, jamais par Tab : le focus reste au champ.
+        tabIndex={-1}
+        aria-selected={actif}
+        className={cn(
+          'cursor-pointer transition-colors',
+          pastille
+            ? cn(
+                'inline-flex min-h-10 max-w-full items-center gap-2 rounded-full border px-3.5 text-sm font-medium',
+                actif
+                  ? 'border-primary bg-secondary text-primary-deep dark:bg-primary/8'
+                  : 'border-border bg-card text-foreground hover:bg-muted dark:hover:bg-muted/50',
+              )
+            : carte
+              ? cn('mx-4 flex rounded-2xl border bg-card p-3.5', option.genre === 'alerte' ? 'mt-2 border-border' : 'border-primary/30 shadow-[0_6px_18px_-12px_color-mix(in_oklab,var(--shadow-color)_45%,transparent)]', actif && 'ring-2 ring-ring')
+              : cn(
+                  'flex min-h-11 items-center gap-3 px-4 py-2 text-sm',
+                  option.genre === 'retirer-filtres' && 'mx-4 my-1 rounded-xl bg-muted px-3.5',
+                  // En clair, des aplats OPAQUES : les options sont rendues par une fonction, hors de
+                  // l'arbre qui porte le fond de la liste, et un fond translucide y serait jugé sur un
+                  // sous-jacent inconnu (`couples-de-contraste.ts`, règle 4). `text-primary` ne tient que
+                  // 4,45:1 sur `--secondary` : l'encre active est `primary-deep`. En sombre, les teintes
+                  // translucides d'avant : `--secondary` et `--muted` y valent #3a2e23, où le surlignage
+                  // du `<mark>` tombe à 4,44:1 (`pastille-et-surlignage.contraste.test.ts`).
+                  actif ? 'bg-secondary text-primary-deep dark:bg-primary/8' : 'text-foreground hover:bg-muted dark:hover:bg-muted/50',
+                ),
+        )}
+        onMouseEnter={() => setActiveIndex(idx)}
+        // Le focus reste dans le champ (motif combobox : les options ne le prennent jamais,
+        // `aria-activedescendant` les désigne) ; le clavier continue de piloter la liste.
+        onMouseDown={(e) => {
+          e.preventDefault();
+          activer(option);
+        }}
+      >
+        {pastille && option.genre === 'suggestion' ? (
+          <>
+            <span className="min-w-0 truncate">{libelleDeSuggestion(option.item)}</span>
+            <span className="shrink-0 text-xs font-normal tabular-nums text-muted-foreground">{option.item.data.count}</span>
+          </>
+        ) : (
+          contenu(option, actif)
+        )}
+      </div>
+    );
+  }
+
+  function rendreGroupe(groupe: Groupe, rangDuGroupe: number) {
+    const titreId = `${listboxId}-${groupe.cle}`;
+    const pastilles = groupe.forme === 'pastilles';
+    return (
+      <div
+        key={groupe.cle}
+        role="group"
+        aria-labelledby={groupe.titre ? titreId : undefined}
+        aria-label={groupe.titre ? undefined : groupe.cle === 'comprise' ? t('groups.understood') : groupe.cle === 'filtres-gardes' ? tEcran('keptFilters') : groupe.cle === 'autour' ? tEcran('aroundMe.title') : t('groups.understood')}
+      >
+        {groupe.titre ? (
+          <div
+            id={titreId}
+            role="presentation"
+            className={
+              riche
+                ? 'px-4 pb-1.5 pt-4 text-[13px] font-semibold text-muted-foreground'
+                : 'px-4 pb-1 pt-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground'
+            }
+          >
+            {groupe.titre}
+          </div>
+        ) : null}
+        {pastilles ? (
+          <div className="flex flex-wrap gap-2 px-4 pb-1">
+            {groupe.options.map((option, i) => rendreOption(option, debuts[rangDuGroupe] + i, groupe.forme))}
+          </div>
+        ) : (
+          groupe.options.map((option, i) => rendreOption(option, debuts[rangDuGroupe] + i, groupe.forme))
+        )}
+      </div>
+    );
+  }
+
+  /** Les groupes, en deux colonnes au panneau de bureau avant la frappe (l'ordre du clavier suit). */
+  function rendreGroupes() {
+    if (!enColonnes) return groupes.map(rendreGroupe);
+    const colonne = (n: 1 | 2) =>
+      groupes.map((g, i) => ((g.colonne ?? 1) === n ? rendreGroupe(g, i) : null));
+    return (
+      <div className="grid grid-cols-2 gap-x-4">
+        <div className="min-w-0">{colonne(1)}</div>
+        <div className="min-w-0">{colonne(2)}</div>
+      </div>
+    );
+  }
+
+  const listbox = (
+    <div
+      ref={listeRef}
+      id={listboxId}
+      role="listbox"
+      aria-label={t('placeholder')}
+      className={
+        ecran
+          ? 'min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-1'
+          : surface === 'panneau'
+            ? 'max-h-[min(70dvh,36rem)] overflow-y-auto overscroll-contain py-2'
+            : 'absolute left-0 top-full z-50 mt-2 max-h-[min(70dvh,34rem)] w-full min-w-[320px] overflow-y-auto overscroll-contain rounded-xl bg-card py-1.5 shadow-lg ring-1 ring-border sm:min-w-[400px]'
+      }
+    >
+      {rendreGroupes()}
+    </div>
+  );
+
+  // TCK-731 (P07.06) — la pilule montre le focus de son champ, qui porte `outline-none` :
+  // mesuré au clavier, ni l'`input` ni ses parents ne changeaient de style. Anneau plein au
+  // jeton `ring` sur fond clair ; sur la barre sombre de la console (`bg-foreground`, où
+  // `ring` ne fait que 3,30:1), contour décalé à l'encre de la variante, `primary-foreground`,
+  // comme `ANNEAU_FOCUS` d'`AppTopbar` — mais par jeton : le blanc est refusé sous `/app`.
+  const champ = (
       <div
         className={cn(
           'flex items-center gap-2',
@@ -680,10 +1165,10 @@ export function SearchAutocomplete({
           id={inputId}
           role="combobox"
           aria-label={nom}
-          aria-expanded={open}
+          aria-expanded={ouvert}
           aria-haspopup="listbox"
           aria-autocomplete="list"
-          aria-controls={open ? listboxId : undefined}
+          aria-controls={ouvert ? listboxId : undefined}
           aria-activedescendant={optionActiveRendue ? `${listboxId}-item-${activeIndex}` : undefined}
           type="text"
           enterKeyHint="search"
@@ -692,14 +1177,14 @@ export function SearchAutocomplete({
             const v = e.target.value;
             setQuery(v);
             onQueryChange?.(v);
-            if (!open) ouvrir();
+            if (!ouvert) ouvrir();
             setActiveIndex(-1);
           }}
           onKeyDown={handleKeyDown}
           // Un clic dans le champ qui a déjà le focus (après Échap, ou une suggestion choisie) le
           // rouvre : le focus, lui, ne se redéclenche pas.
           onClick={() => {
-            if (!open) ouvrir();
+            if (!ouvert) ouvrir();
           }}
           onFocus={() => {
             if (Date.now() - fermetureDeLAlerte.current < 1000) return;
@@ -713,69 +1198,44 @@ export function SearchAutocomplete({
           autoComplete="off"
         />
       </div>
+  );
 
-      {open && (
-        <div
-          ref={listeRef}
-          id={listboxId}
-          role="listbox"
-          aria-label={t('placeholder')}
-          className="absolute left-0 top-full z-50 mt-2 max-h-[min(70dvh,34rem)] w-full min-w-[320px] overflow-y-auto overscroll-contain rounded-xl bg-card py-1.5 shadow-lg ring-1 ring-border sm:min-w-[400px]"
-        >
-          {groupes.map((groupe, rangDuGroupe) => {
-            const titreId = `${listboxId}-${groupe.cle}`;
-            return (
-              <div
-                key={groupe.cle}
-                role="group"
-                aria-labelledby={groupe.titre ? titreId : undefined}
-                aria-label={groupe.titre ? undefined : t('groups.understood')}
-              >
-                {groupe.titre ? (
-                  <div
-                    id={titreId}
-                    role="presentation"
-                    className="px-4 pb-1 pt-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
-                  >
-                    {groupe.titre}
-                  </div>
-                ) : null}
-                {groupe.options.map((option, i) => {
-                  const idx = debuts[rangDuGroupe] + i;
-                  const actif = activeIndex === idx;
-                  return (
-                    <div
-                      key={`${groupe.cle}-${idx}`}
-                      id={`${listboxId}-item-${idx}`}
-                      data-rang={idx}
-                      role="option"
-                      // Focalisable par programme seulement, jamais par Tab : le focus reste au champ.
-                      tabIndex={-1}
-                      aria-selected={actif}
-                      className={cn(
-                        'flex min-h-11 cursor-pointer items-center gap-3 px-4 py-2 text-sm transition-colors',
-                        actif ? 'bg-primary/8 text-primary' : 'text-foreground hover:bg-muted/50',
-                      )}
-                      onMouseEnter={() => setActiveIndex(idx)}
-                      // Le focus reste dans le champ (motif combobox : les options ne le prennent jamais,
-                      // `aria-activedescendant` les désigne) ; le clavier continue de piloter la liste.
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        activer(option);
-                      }}
-                    >
-                      {contenu(option, actif)}
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
+  return (
+    <div ref={containerRef} className={cn('relative', ecran && 'flex min-h-0 flex-col', className)}>
+      {ecran ? (
+        <div className="shrink-0 space-y-3 px-4 pb-3">
+          {champ}
+          {sousLeChamp}
         </div>
+      ) : (
+        // Hors de l'écran, la pilule reste le PREMIER enfant du conteneur : la barre de bureau
+        // l'aplatit par `[&>div:first-child]` (TCK-731).
+        champ
       )}
 
+      {ouvert && surface === 'panneau' ? (
+        // Le panneau de bureau : la liste, puis les aides clavier — hors de la liste, qui ne contient
+        // que des options.
+        <div className="absolute left-0 top-full z-50 mt-2 w-[min(44rem,calc(100vw-2rem))] overflow-hidden rounded-2xl bg-card shadow-[0_24px_48px_-24px_color-mix(in_oklab,var(--shadow-color)_45%,transparent)] ring-1 ring-border">
+          {listbox}
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-border px-4 py-2.5 text-xs text-muted-foreground">
+            <kbd className="inline-flex h-6 min-w-6 items-center justify-center rounded border border-border bg-background px-1.5 font-sans">↑</kbd>
+            <kbd className="inline-flex h-6 min-w-6 items-center justify-center rounded border border-border bg-background px-1.5 font-sans">↓</kbd>
+            {tEcran('keys.choose')}
+            <kbd className="inline-flex h-6 min-w-6 items-center justify-center rounded border border-border bg-background px-1.5 font-sans">
+              <CornerDownLeft aria-hidden="true" className="size-3" />
+            </kbd>
+            {tEcran('keys.open')}
+            <kbd className="inline-flex h-6 items-center justify-center rounded border border-border bg-background px-1.5 font-sans">{tEcran('keys.escape')}</kbd>
+            {tEcran('keys.close')}
+          </p>
+        </div>
+      ) : ouvert ? (
+        listbox
+      ) : null}
+
       {/* L'annonce du nombre de suggestions, une fois la réponse arrivée — jamais pendant la frappe. */}
-      {open ? (
+      {ouvert ? (
         <div role="status" aria-live="polite" className="sr-only">
           {isFetching ? '' : t('announce', { count: options.length })}
         </div>
@@ -784,8 +1244,8 @@ export function SearchAutocomplete({
       {alerte ? (
         <SaveSearchDialog
           open
-          onOpenChange={(ouvert) => {
-            if (!ouvert) {
+          onOpenChange={(ouvertDuDialogue) => {
+            if (!ouvertDuDialogue) {
               fermetureDeLAlerte.current = Date.now();
               setAlerte(null);
             }

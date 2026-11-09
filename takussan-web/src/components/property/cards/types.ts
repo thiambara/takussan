@@ -20,4 +20,9 @@ export interface PropertyCardCommonProps {
    * la carte de la recherche porte la sienne (`PropertyCard`).
    */
   readonly robe?: 'vedette';
+  /**
+   * TCK-2495 — carte d'ACCUEIL : une pastille et le favori sur la photo, sans comparateur
+   * (`PastilleEtFavoriDAccueil`). Les autres surfaces gardent leurs pastilles et le comparateur.
+   */
+  readonly allegee?: boolean;
 }

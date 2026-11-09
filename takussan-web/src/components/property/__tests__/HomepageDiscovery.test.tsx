@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { NextIntlClientProvider } from 'next-intl';
 import React from 'react';
 
@@ -50,10 +52,33 @@ vi.mock('@/components/providers/UserLocationProvider', () => ({
 }));
 
 vi.mock('@/components/home/Navbar', () => ({ Navbar: () => <nav /> }));
+
+// TCK-2495, revue — « Changer » lit le catalogue des villes, et une ville choisie fait relire tuiles et offre.
+vi.mock('@/hooks/useApiQuery', () => ({
+  useApiQuery: (_cle: unknown, chemin: string, options?: { enabled?: boolean }) => ({
+    data:
+      chemin === '/api/public/properties/cities' && options?.enabled
+        ? { data: [{ value: 'Dakar', count: 190 }, { value: 'Thiès', count: 8 }] }
+        : undefined,
+  }),
+}));
+const raccourcisRelus: (string | null)[] = [];
+vi.mock('@/lib/queries/raccourcis-de-l-accueil', async (importOriginal) => {
+  const reel = await importOriginal<typeof import('@/lib/queries/raccourcis-de-l-accueil')>();
+  return {
+    ...reel,
+    raccourcisDeLAccueil: async (ville: string | null) => {
+      raccourcisRelus.push(ville);
+      return { ville, quartiers: [{ nom: 'Randoulène', compte: 3 }], offre: { ville, location: 4, vente: 4 } };
+    },
+  };
+});
 vi.mock('@/components/home/Footer', () => ({ Footer: () => <footer /> }));
+// Les bandeaux du site ne s'affichent qu'avec un client de requêtes, que le geste « Changer » impose désormais.
+vi.mock('@/components/announcements/BandeauxDuSite', () => ({ BandeauxDuSite: () => null }));
 vi.mock('@/components/property/RecentlyViewedCarousel', () => ({
-  RecentlyViewedCarousel: ({ completerParDesSimilaires }: { completerParDesSimilaires?: boolean }) => (
-    <div data-testid="recemment-consultes" data-similaires={String(Boolean(completerParDesSimilaires))} />
+  RecentlyViewedCarousel: () => (
+    <div data-testid="recemment-consultes" />
   ),
 }));
 vi.mock('@/components/property/cards/BogolanPattern', () => ({
@@ -69,6 +94,8 @@ vi.mock('@/components/property/cards/PropertyRow', () => ({
     properties,
     error,
     emplacementSponsorise,
+    allegee,
+    apresLeTitre,
   }: {
     variant: string;
     eyebrow?: string;
@@ -77,14 +104,18 @@ vi.mock('@/components/property/cards/PropertyRow', () => ({
     properties: readonly PropertyListItem[];
     error: string | null;
     emplacementSponsorise?: boolean;
+    allegee?: boolean;
+    apresLeTitre?: React.ReactNode;
   }) => (
     <section
       data-testid={`row-${variant}`}
       data-href={viewAllHref}
+      data-allegee={allegee ? 'oui' : undefined}
       data-emplacement={emplacementSponsorise ? 'sponsorise' : undefined}
     >
       <p data-testid={`eyebrow-${variant}`}>{eyebrow}</p>
       <h2 data-testid={`title-${variant}`}>{title}</h2>
+      {apresLeTitre}
       {error ? <p data-testid={`error-${variant}`}>{error}</p> : null}
       <ul>
         {properties.map((p) => (
@@ -144,15 +175,20 @@ function makeRows(near: HomepageDiscoveryData['near']): HomepageDiscoveryData {
 const MESSAGES = { fr, en, wo } as const;
 
 function renderPage(locale: keyof typeof MESSAGES = 'fr', raccourcis?: RaccourcisDeLAccueil) {
-  return render(
-    <NextIntlClientProvider
-      locale={locale}
-      messages={MESSAGES[locale]}
-      timeZone="Africa/Dakar"
-    >
-      <HomepageDiscovery raccourcis={raccourcis} />
-    </NextIntlClientProvider>,
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const arbre = (r?: RaccourcisDeLAccueil) => (
+    <QueryClientProvider client={client}>
+      <NextIntlClientProvider
+        locale={locale}
+        messages={MESSAGES[locale]}
+        timeZone="Africa/Dakar"
+      >
+        <HomepageDiscovery raccourcis={r} />
+      </NextIntlClientProvider>
+    </QueryClientProvider>
   );
+  const rendu = render(arbre(raccourcis));
+  return { ...rendu, rerendre: () => rendu.rerender(arbre(raccourcis)) };
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -179,11 +215,10 @@ describe('<HomepageDiscovery> — TCK-247', () => {
       renderPage();
 
       expect(screen.getAllByTestId('title-standard')[0]).toHaveTextContent(
-        'À découvrir à Ziguinchor',
+        'À Ziguinchor',
       );
-      expect(screen.getAllByTestId('eyebrow-standard')[0]).toHaveTextContent(
-        'Près de toi',
-      );
+      // TCK-2495 — « À <ville> », jamais « près de toi » : la position n'a pas été demandée.
+      expect(screen.getAllByTestId('eyebrow-standard')[0]).toHaveTextContent('');
     });
 
     it('bascule sur le titre de repli, qui nomme la ville RÉELLEMENT montrée', () => {
@@ -220,7 +255,7 @@ describe('<HomepageDiscovery> — TCK-247', () => {
       renderPage();
 
       expect(screen.getAllByTestId('title-standard')[0]).not.toHaveTextContent(
-        'À découvrir à Ziguinchor',
+        /^À Ziguinchor$/,
       );
       // Et le lien « tout voir » suit la ville servie, pas la ville devinée.
       expect(screen.getAllByTestId('row-standard')[0].dataset.href).toBe(
@@ -239,12 +274,8 @@ describe('<HomepageDiscovery> — TCK-247', () => {
 
       renderPage();
 
-      expect(screen.getAllByTestId('title-standard')[0]).toHaveTextContent(
-        'À découvrir à Dakar',
-      );
-      expect(screen.getAllByTestId('eyebrow-standard')[0]).toHaveTextContent(
-        'Près de toi',
-      );
+      expect(screen.getAllByTestId('title-standard')[0]).toHaveTextContent('À Dakar');
+      expect(screen.getAllByTestId('eyebrow-standard')[0]).not.toHaveTextContent('Près de toi');
     });
 
     it('rend les deux titres en anglais et en wolof', () => {
@@ -263,9 +294,7 @@ describe('<HomepageDiscovery> — TCK-247', () => {
 
       mockRows = makeRows(nominal);
       const enNominal = renderPage('en');
-      expect(screen.getAllByTestId('title-standard')[0]).toHaveTextContent(
-        'Discover Ziguinchor',
-      );
+      expect(screen.getAllByTestId('title-standard')[0]).toHaveTextContent('In Ziguinchor');
       enNominal.unmount();
 
       mockRows = makeRows(fallen);
@@ -280,9 +309,8 @@ describe('<HomepageDiscovery> — TCK-247', () => {
 
       mockRows = makeRows(nominal);
       const woNominal = renderPage('wo');
-      expect(screen.getAllByTestId('title-standard')[0]).toHaveTextContent(
-        'Gis Ziguinchor',
-      );
+      // Wolof en pause (2026-10-16) : la clé neuve porte le français tel quel.
+      expect(screen.getAllByTestId('title-standard')[0]).toHaveTextContent('À Ziguinchor');
       woNominal.unmount();
 
       mockRows = makeRows(fallen);
@@ -297,7 +325,7 @@ describe('<HomepageDiscovery> — TCK-247', () => {
   });
 
   describe('câblage sur l’endpoint unique', () => {
-    it('alimente les quatre rangées depuis une seule réponse', () => {
+    it('alimente les trois rangées depuis une seule réponse — « À louer » quitte l’accueil (TCK-2495)', () => {
       mockRows = makeRows({
         items: [makeProperty(10)],
         city: 'Dakar',
@@ -308,11 +336,11 @@ describe('<HomepageDiscovery> — TCK-247', () => {
       renderPage();
 
       expect(screen.getByTestId('card-standard-10')).toBeInTheDocument();
-      expect(screen.getByTestId('card-standard-20')).toBeInTheDocument();
+      expect(screen.queryByTestId('card-standard-20')).toBeNull();
       expect(screen.getByTestId('card-cover-30')).toBeInTheDocument();
       expect(screen.getByTestId('card-compact-40')).toBeInTheDocument();
 
-      // Une seule source de données pour les quatre rangées.
+      // Une seule source de données pour les rangées.
       const distinctParams = new Set(discoveryCalls.map((c) => JSON.stringify(c)));
       expect(distinctParams.size).toBe(1);
     });
@@ -331,15 +359,14 @@ describe('<HomepageDiscovery> — TCK-247', () => {
       expect(discoveryCalls.at(-1)?.nearCity).toBeUndefined();
     });
 
-    it('affiche le message d’erreur traduit sur les quatre rangées', () => {
+    it('affiche le message d’erreur traduit sur les trois rangées', () => {
       mockFailed = true;
       mockRows = null;
 
       renderPage();
 
-      // « Près de toi » et « À louer » en Standard, « Coup de cœur » en Cover, « Nouveau » en Compact.
       const erreurs = ['standard', 'cover', 'compact'].flatMap((v) => screen.getAllByTestId(`error-${v}`));
-      expect(erreurs).toHaveLength(4);
+      expect(erreurs).toHaveLength(3);
       for (const e of erreurs) {
         expect(e).toHaveTextContent('Impossible de charger les annonces pour le moment.');
       }
@@ -347,7 +374,16 @@ describe('<HomepageDiscovery> — TCK-247', () => {
   });
 });
 
-describe('<HomepageDiscovery> — TCK-628', () => {
+const RACCOURCIS: RaccourcisDeLAccueil = {
+  ville: 'Dakar',
+  quartiers: [
+    { nom: 'Mermoz', compte: 12 },
+    { nom: 'Point E', compte: 9 },
+  ],
+  offre: { ville: 'Dakar', location: 127, vente: 63 },
+};
+
+describe('<HomepageDiscovery> — TCK-2495 « Deux gestes »', () => {
   beforeEach(() => {
     mockRows = makeRows({ items: [makeProperty(1)], city: 'Dakar', requested_city: null, fallback: false });
     mockLoading = false;
@@ -362,34 +398,93 @@ describe('<HomepageDiscovery> — TCK-628', () => {
     expect(h1.className.split(/\s+/)).toContain('sr-only');
   });
 
-  it('toutes les sections sont des rangées de cartes — « À louer » et « À vendre » en Standard', () => {
-    renderPage('fr', { vente: [makeProperty(50)] });
-
-    const standards = screen.getAllByTestId('row-standard').map((r) => r.dataset.href);
-    expect(standards).toContain('/properties?contract_type=rent');
-    expect(standards).toContain('/properties?contract_type=sale');
-    expect(screen.queryByTestId('row-listing')).toBeNull();
-    expect(screen.getByTestId('card-standard-50')).toBeInTheDocument();
+  it('trois rangées au plus, de grammaire distincte, toutes en cartes allégées', () => {
+    renderPage('fr', RACCOURCIS);
+    const rangees = screen.getAllByTestId(/^row-/);
+    expect(rangees.map((r) => r.dataset.testid)).toEqual(['row-standard', 'row-cover', 'row-compact']);
+    expect(rangees.every((r) => r.dataset.allegee === 'oui')).toBe(true);
+    // « Récemment consultés » quitte l’accueil : une quatrième rangée, et des biens déjà vus plus haut.
+    expect(screen.queryByTestId('recemment-consultes')).toBeNull();
   });
 
-  // Retour du porteur du 2026-10-10 : les tuiles par ville, par type et par quartier sont retirées.
-  it('ni tuiles de villes, ni de types, ni de quartiers', () => {
-    renderPage('fr', { vente: [makeProperty(50)] });
-    expect(screen.queryByRole('heading', { name: 'Explorer le Sénégal' })).toBeNull();
-    expect(screen.queryByRole('heading', { name: 'Ce que tu cherches' })).toBeNull();
-    expect(screen.queryByRole('heading', { name: /Les quartiers de/ })).toBeNull();
+  it('aucun bien n’apparaît dans deux rangées ; la vedette garde les siens', () => {
+    mockRows = {
+      near: { items: [makeProperty(1), makeProperty(2), makeProperty(3)], city: 'Dakar', requested_city: null, fallback: false },
+      rent: { items: [makeProperty(9)] },
+      featured: { items: [makeProperty(2), makeProperty(4)] },
+      latest: { items: [makeProperty(3), makeProperty(4), makeProperty(5)] },
+    };
+    renderPage('fr', RACCOURCIS);
+    const cartes = screen.getAllByTestId(/^card-/).map((c) => c.dataset.testid!.replace(/^card-\w+-/, ''));
+    expect(new Set(cartes).size).toBe(cartes.length);
+    expect(screen.getByTestId('card-cover-2')).toBeInTheDocument();
+    expect(screen.getByTestId('card-cover-4')).toBeInTheDocument();
+    expect(screen.queryByTestId('card-standard-2')).toBeNull();
+    expect(screen.queryByTestId('card-compact-3')).toBeNull();
   });
 
-  it('« Récemment consultés » se complète par des biens similaires sur l’accueil', () => {
-    renderPage();
-    expect(screen.getByTestId('recemment-consultes').dataset.similaires).toBe('true');
+  it('les quartiers en tuiles, chacune vers la liste de son quartier', () => {
+    renderPage('fr', RACCOURCIS);
+    const section = screen.getByRole('region', { name: 'Quartiers de Dakar' });
+    const liens = within(section).getAllByRole('link').map((a) => a.getAttribute('href'));
+    expect(liens).toContain('/fr/properties?city=Dakar&location=Mermoz');
+    expect(liens).toContain('/fr/properties?city=Dakar&location=Point+E');
+    expect(section).toHaveTextContent('12 annonces');
   });
 
-  it('« À vendre » absente n’est pas rendue', () => {
-    renderPage('fr', { vente: null });
-    expect(screen.getAllByTestId('row-standard').map((r) => r.dataset.href)).not.toContain(
-      '/properties?contract_type=sale',
-    );
+  it('sans quartiers servis, pas de section vide', () => {
+    renderPage('fr', { ...RACCOURCIS, quartiers: null });
+    expect(screen.queryByRole('region', { name: /Quartiers de/ })).toBeNull();
+  });
+
+  it('le bloc propriétaire est chiffré par l’offre de la ville, et mène à la publication', () => {
+    renderPage('fr', RACCOURCIS);
+    const bloc = screen.getByRole('region', { name: 'Vous avez un bien à louer ou à vendre ?' });
+    expect(bloc).toHaveTextContent('127 locations et 63 ventes sont en ligne à Dakar en ce moment.');
+    expect(within(bloc).getByRole('link', { name: 'Publier gratuitement' })).toHaveAttribute('href', '/publish');
+  });
+
+  it('sans offre connue, le bloc ne montre AUCUN chiffre plutôt qu’un chiffre faux', () => {
+    renderPage('fr', { ...RACCOURCIS, offre: null });
+    const bloc = screen.getByRole('region', { name: 'Vous avez un bien à louer ou à vendre ?' });
+    expect(bloc.textContent).not.toMatch(/\d/);
+  });
+});
+
+describe('<HomepageDiscovery> — TCK-2495, AC1 : Louer | Acheter et les catégories au téléphone', () => {
+  beforeEach(() => {
+    mockRows = makeRows({ items: [makeProperty(1)], city: 'Dakar', requested_city: null, fallback: false });
+    mockLoading = false;
+    mockFailed = false;
+    mockGeoCity = undefined;
+  });
+
+  function categories() {
+    return within(screen.getByRole('list', { name: 'Types de bien' })).getAllByRole('link');
+  }
+
+  it('rendus sous `lg` (masqués seulement au bureau), avant les rangées', () => {
+    renderPage('fr', RACCOURCIS);
+    const bloc = screen.getByRole('region', { name: 'Louer ou acheter, puis un type de bien' });
+    const classes = bloc.className.split(/\s+/);
+    expect(classes).toContain('lg:hidden');
+    expect(classes).not.toContain('hidden');
+    expect(bloc.compareDocumentPosition(screen.getAllByTestId(/^row-/)[0]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(categories().length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('« Louer » choisi par défaut : une catégorie ouvre la liste des locations de ce type', () => {
+    renderPage('fr', RACCOURCIS);
+    expect(screen.getByRole('button', { name: 'Louer' })).toHaveAttribute('aria-pressed', 'true');
+    expect(categories()[0]).toHaveAttribute('href', '/fr/properties?contract_type=rent&type=apartment');
+  });
+
+  it('« Acheter » touché : les catégories ouvrent la vente ; un second appui retire la transaction', () => {
+    renderPage('fr', RACCOURCIS);
+    fireEvent.click(screen.getByRole('button', { name: 'Acheter' }));
+    expect(categories()[1]).toHaveAttribute('href', '/fr/properties?contract_type=sale&type=studio');
+    fireEvent.click(screen.getByRole('button', { name: 'Acheter' }));
+    expect(categories()[1]).toHaveAttribute('href', '/fr/properties?type=studio');
   });
 });
 
@@ -404,10 +499,58 @@ describe('<HomepageDiscovery> — TCK-704', () => {
   });
 
   it('seule la rangée vedette est un emplacement sponsorisé', () => {
-    renderPage('fr', { vente: [makeProperty(50)] });
+    renderPage('fr', RACCOURCIS);
 
     const emplacements = document.querySelectorAll('[data-emplacement="sponsorise"]');
     expect(emplacements).toHaveLength(1);
     expect(emplacements[0]).toHaveAttribute('data-href', '/properties?featured=true');
+  });
+});
+
+describe('<HomepageDiscovery> — TCK-2495, revue : « À Dakar · Changer » change la ville', () => {
+  beforeEach(() => {
+    mockRows = makeRows({ items: [makeProperty(1)], city: 'Dakar', requested_city: null, fallback: false });
+    mockLoading = false;
+    mockFailed = false;
+    mockGeoCity = 'Dakar';
+    discoveryCalls.length = 0;
+    raccourcisRelus.length = 0;
+  });
+
+  it('« Changer » ouvre les villes du catalogue ; en choisir une redemande les rangées pour elle', async () => {
+    const user = userEvent.setup();
+    renderPage('fr', RACCOURCIS);
+    const changer = screen.getByRole('button', { name: 'Changer de ville (actuellement Dakar)' });
+    expect(changer).toHaveTextContent('Changer');
+    await user.click(changer);
+    await user.click(await screen.findByRole('menuitem', { name: 'Thiès' }));
+    // La ville choisie l'emporte sur la ville devinée (Dakar).
+    expect(discoveryCalls.at(-1)?.nearCity).toBe('Thiès');
+  });
+
+  it('les tuiles et l’offre suivent la ville des rangées, jamais celles de la ville d’avant', async () => {
+    const user = userEvent.setup();
+    const { rerendre } = renderPage('fr', RACCOURCIS);
+    await user.click(screen.getByRole('button', { name: /Changer de ville/ }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Thiès' }));
+
+    mockRows = makeRows({ items: [makeProperty(2, 'Thiès')], city: 'Thiès', requested_city: 'Thiès', fallback: false });
+    rerendre();
+    expect(screen.getByTestId('title-standard')).toHaveTextContent('À Thiès');
+    // Pendant la relecture : rien de Dakar sous un titre « À Thiès » (ni tuiles, ni chiffres).
+    expect(screen.queryByText('Mermoz')).toBeNull();
+    expect(screen.getByRole('region', { name: 'Vous avez un bien à louer ou à vendre ?' })).not.toHaveTextContent('Dakar');
+    expect(await screen.findByRole('region', { name: 'Quartiers de Thiès' })).toBeInTheDocument();
+    expect(raccourcisRelus).toEqual(['Thiès']);
+    expect(screen.queryByText('Mermoz')).toBeNull();
+    expect(screen.getByRole('region', { name: 'Vous avez un bien à louer ou à vendre ?' })).toHaveTextContent(
+      '4 locations et 4 ventes sont en ligne à Thiès en ce moment.',
+    );
+  });
+
+  it('sans choix, rien n’est relu : le serveur a déjà servi les tuiles (témoin)', () => {
+    renderPage('fr', RACCOURCIS);
+    expect(raccourcisRelus).toEqual([]);
+    expect(screen.getByRole('region', { name: 'Quartiers de Dakar' })).toBeInTheDocument();
   });
 });

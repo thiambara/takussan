@@ -97,4 +97,19 @@ describe('/bookings — rendu serveur', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(html).toContain('no_property_title');
   });
+
+  it.each([
+    [{ contract_type: 'rent', rent_period: 'daily' }, true],
+    [{ contract_type: 'rent', rent_period: 'weekly' }, true],
+    [{ contract_type: 'rent', rent_period: 'monthly' }, false],
+    [{ contract_type: 'sale', rent_period: null }, false],
+  ])('TCK-2510 — %j : barre du site cachée sous lg = %s (plein écran pour le seul séjour court)', async (bien, plein) => {
+    visiteur('203.0.113.1');
+    fetchSpy.mockResolvedValue(new Response(JSON.stringify({ data: { slug: 'bien-abc123', ...bien } }), { status: 200 }));
+
+    const html = renderToStaticMarkup(await BookingPage({ searchParams: Promise.resolve({ property: 'bien-abc123' }) }));
+
+    expect(html.includes('<div class="hidden lg:block"><nav>')).toBe(plein);
+    expect(html).toContain('<nav>');
+  });
 });

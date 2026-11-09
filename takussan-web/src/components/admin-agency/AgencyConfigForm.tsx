@@ -23,6 +23,8 @@ import {
   agencyFormSchema,
   AGENCY_LOGO_ACCEPT,
   AGENCY_LOGO_MAX_BYTES,
+  COORDONNEES_BANCAIRES_MAX,
+  erreursDesReglagesSurLeurChamp,
   normaliseAgencyForm,
   reglagesDeLaFiche,
   validateAgencyLogoFile,
@@ -165,7 +167,8 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
         if (!result.ok) {
           throw new ApiError(result.status ?? 500, {
             message: result.message,
-            errors: result.errors,
+            // TCK-2536 — `settings.offline_payment_*` → le champ qui porte la clé (sinon : bandeau).
+            errors: erreursDesReglagesSurLeurChamp(result.errors),
           });
         }
         return result.data as Agency;
@@ -185,6 +188,10 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
           form.setValue('require_team_two_factor', lus.require_team_two_factor, { shouldDirty: false });
           form.setValue('late_fee_online_collection', lus.late_fee_online_collection, { shouldDirty: false });
           form.setValue('hidden_modules', lus.hidden_modules, { shouldDirty: false });
+          // TCK-2536 (AC1) — le numéro relu est celui que l'API a normalisé (E.164), pas la saisie.
+          form.setValue('offline_payment_wave_number', lus.offline_payment_wave_number, { shouldDirty: false });
+          form.setValue('offline_payment_orange_money_number', lus.offline_payment_orange_money_number, { shouldDirty: false });
+          form.setValue('offline_payment_bank_details', lus.offline_payment_bank_details, { shouldDirty: false });
         }
         // VERIF-594 M-2 — un relâchement du seuil n'est pas appliqué : il attend un second
         // approbateur (202). Le dire, plutôt qu'un « enregistré » qui laisserait croire le contraire.
@@ -206,6 +213,7 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
   const selectedCurrency = (useWatch({ control, name: 'currency' }) || 'XOF').toUpperCase() as CurrencyCode;
   const originalCurrency = (agency.currency ?? 'XOF').toUpperCase() as CurrencyCode;
   const currencyChanged = selectedCurrency !== originalCurrency;
+  const coordonneesBancaires = useWatch({ control, name: 'offline_payment_bank_details' }) ?? '';
 
   async function handleLogoPick(ev: React.ChangeEvent<HTMLInputElement>) {
     setLogoError(null);
@@ -489,6 +497,54 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
               {t('lateFeeOnline.hint')}
             </p>
           </div>
+        </div>
+      </section>
+
+      {/* TCK-2536 — les moyens de paiement hors ligne que le lien de paiement affiche (TCK-2504, TCK-2505).
+          Pour toute agence : l'API ne les refuse pas à une `individual`, qui envoie aussi des liens. */}
+      <section className="rounded-xl bg-card p-6 space-y-4" aria-labelledby="paiement-hors-ligne-titre">
+        <div>
+          <h2 id="paiement-hors-ligne-titre" className="text-base font-semibold text-foreground">
+            {t('offlinePayment.title')}
+          </h2>
+          <p className="mt-1 text-pretty text-xs text-muted-foreground">{t('offlinePayment.description')}</p>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <FormInput
+            control={control}
+            name="offline_payment_wave_number"
+            label={t('offlinePayment.wave')}
+            type="tel"
+            inputMode="tel"
+            autoComplete="off"
+            placeholder="77 123 45 67"
+          />
+          <FormInput
+            control={control}
+            name="offline_payment_orange_money_number"
+            label={t('offlinePayment.orangeMoney')}
+            type="tel"
+            inputMode="tel"
+            autoComplete="off"
+            placeholder="77 123 45 67"
+          />
+        </div>
+        <p className="-mt-2 text-pretty text-xs text-muted-foreground">{t('offlinePayment.phoneHint')}</p>
+        <div>
+          <FormTextarea
+            control={control}
+            name="offline_payment_bank_details"
+            label={t('offlinePayment.bankDetails')}
+            rows={3}
+            maxLength={COORDONNEES_BANCAIRES_MAX}
+            placeholder={t('offlinePayment.bankDetailsPlaceholder')}
+          />
+          <p className="mt-1.5 text-right text-xs tabular-nums text-muted-foreground">
+            {t('offlinePayment.bankDetailsCount', {
+              count: coordonneesBancaires.length,
+              max: COORDONNEES_BANCAIRES_MAX,
+            })}
+          </p>
         </div>
       </section>
 
