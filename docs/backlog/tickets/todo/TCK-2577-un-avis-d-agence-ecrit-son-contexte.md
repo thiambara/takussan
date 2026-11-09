@@ -3,7 +3,7 @@ id: TCK-2577
 title: Un avis d'agence écrit son contexte d'éligibilité, comme un avis d'agent
 status: todo
 phase: P1
-family: api
+family: full
 estimate: S
 wave: 85
 created: 2026-11-09

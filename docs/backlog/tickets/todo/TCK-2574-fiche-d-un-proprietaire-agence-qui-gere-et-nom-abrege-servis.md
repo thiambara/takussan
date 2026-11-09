@@ -3,7 +3,7 @@ id: TCK-2574
 title: Fiche d'un propriétaire — l'API sert l'agence qui gère ses biens et son nom abrégé
 status: todo
 phase: P1
-family: api
+family: back
 estimate: S
 wave: 85
 created: 2026-11-09
