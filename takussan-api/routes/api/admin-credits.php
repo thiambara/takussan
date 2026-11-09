@@ -30,5 +30,5 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
     // TCK-2520 (ADR-0092) — la place « Mise en avant » de l'annuaire des agences, offerte par la plateforme.
     Route::get('agency-spotlights', [AdminAgencySpotlightController::class, 'index'])->name('admin.agency-spotlights.index');
     Route::post('agency-spotlights', [AdminAgencySpotlightController::class, 'store'])->name('admin.agency-spotlights.store');
-    Route::delete('agency-spotlights/{spotlight}', [AdminAgencySpotlightController::class, 'destroy'])->whereNumber('spotlight')->name('admin.agency-spotlights.destroy');
+    Route::delete('agency-spotlights/{spotlight}', [AdminAgencySpotlightController::class, 'destroy'])->where('spotlight', '[0-9]{1,18}')->name('admin.agency-spotlights.destroy');
 });
