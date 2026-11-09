@@ -111,9 +111,16 @@ class Property extends AbstractModel implements HasMedia
         'monthly_charges' => 'decimal:2',
     ];
 
-    /** @var array<int,string> */
+    /**
+     * TCK-2524 — `id` : la vitrine de l'agence (console) nomme les biens de SA sélection par leurs ids
+     * (`filter[id]=839,838`), et non par la page courante de la liste — un bien choisi au-delà des cent
+     * premiers serait sinon « introuvable ». Filtre d'identifiant : une valeur non entière rend 400
+     * (`ExactIdentifierFilter`), et le périmètre de la liste reste celui de l'appelant.
+     *
+     * @var array<int,string>
+     */
     protected static array $requestFilterable = [
-        'user_id', 'agency_id', 'type', 'contract_type', 'rent_period',
+        'id', 'user_id', 'agency_id', 'type', 'contract_type', 'rent_period',
         'status', 'visibility', 'title_type', 'condition', 'price', 'bedrooms', 'bathrooms',
         'area', 'currency', 'featured', 'furnished',
     ];

@@ -23,6 +23,7 @@ use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Property\BailleurDuBien;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
 
 /**
  * TCK-597 (ADR-0043 §3) — QUI peut noter QUOI, et sur quelle PREUVE. Écrit une fois, lu par les
@@ -233,6 +234,28 @@ class ReviewEligibility
             $proof instanceof Lease => 'lease',
             $proof instanceof Booking => 'booking',
             $proof instanceof MaintenanceRequest => 'maintenance_request',
+        };
+    }
+
+    /**
+     * TCK-2522 (contre-vérification du 2026-11-09) — le même vocabulaire que {@see self::contextKind()},
+     * lu depuis la colonne `reviews.context_type`, sans charger la preuve : une fiche publique dit
+     * d'où parle un avis (bail, séjour, visite, intervention) sans jamais toucher au contrat
+     * lui-même. Un type inconnu — ou une ligne sans contexte — rend `null`, jamais une erreur.
+     */
+    public static function contextKindOf(?string $morphType): ?string
+    {
+        if ($morphType === null || $morphType === '') {
+            return null;
+        }
+        $classe = Relation::getMorphedModel($morphType) ?? $morphType;
+
+        return match ($classe) {
+            PropertyVisit::class => 'visit',
+            Lease::class => 'lease',
+            Booking::class => 'booking',
+            MaintenanceRequest::class => 'maintenance_request',
+            default => null,
         };
     }
 
