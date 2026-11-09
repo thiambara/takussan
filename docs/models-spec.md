@@ -383,6 +383,7 @@ Les cibles, la demande et leurs révisions (ADR-0087 §5, §6) sont plus bas, en
 121. [SearchQueryStat](#121-searchquerystat-) 🆕
 122. [SearchAlias](#122-searchalias-) 🆕
 123. [SearchAliasSetting](#123-searchaliassetting-) 🆕
+124. [AgencySpotlight](#124-agencyspotlight-) 🆕
 
 ### Enums
 
@@ -417,6 +418,7 @@ polymorphes** dédiés liés au user et scopés par agence — ou par la platefo
 |---------|------|----------|--------|-------------|------------|
 | id | bigint PK | | auto | Identifiant unique | |
 | username | string | oui | null | Nom d'utilisateur unique. Sert aussi de **slug public** de la fiche `/agents/{slug}` (`PublicAgentController`, `PropertyResource` → `owner.slug`, TCK-177) | |
+| public_slug | string(120) | oui | null | Slug public de la fiche `/agents/{slug}`, **dérivé du nom affiché** (`sokhna-gueye`, suffixe `-2`, `-3` en cas de collision), **unique** ; posé à la première publication d'une fiche publique et à chaque changement de nom, l'ancien gardé dans `metadata.previous_public_slugs` pour une redirection 301 ; `null` tant que le compte n'a pas de fiche — la fiche se résout alors par `username` comme aujourd'hui (TCK-2519) |
 | email | string | oui | null | Adresse email, unique casse repliée (`users_email_lower_unique`, ADR-0025). **Nullable depuis TCK-589** (`2026_10_07_150200`, ADR-0033) : un compte ouvert par téléphone n'en a pas | |
 | password | string | | | Mot de passe hashé — reste NOT NULL : un compte sans mot de passe choisi porte un hash machine que personne ne connaît | |
 | password_set_at | timestamp | oui | null | Date à laquelle l'utilisateur a **choisi** son mot de passe ; `null` = `password` est une valeur machine (compte OAuth, invitation acceptée sans mot de passe). Hors `$fillable` (`forceFill`). Backfill imparfait, décrit par l'en-tête de `2026_08_15_100000_add_password_set_at_to_users_table` (TCK-272) | ➕ |
@@ -455,6 +457,7 @@ polymorphes** dédiés liés au user et scopés par agence — ou par la platefo
 | email_frequency | string(16) — `EmailFrequency` | | 'instant' | Fréquence des e-mails : `instant`, `daily`, `weekly`, `off` (TCK-103 ; `2026_04_26_200001`). Les interrupteurs fins par événement et par canal vivent dans [NotificationPreference](#99-notificationpreference-) | ➕ |
 | digest_send_at | string(5) | | '08:00' | Heure locale d'envoi du récapitulatif (`HH:MM`) (TCK-103) | ➕ |
 | digest_day_of_week | string(16) | | 'monday' | Jour du récapitulatif hebdomadaire (TCK-103) | ➕ |
+| listed_in_public_directory | boolean | | false | Le compte paraît dans l'annuaire public « Agents & propriétaires » même sans exercer comme agent : un propriétaire particulier n'y est listé que s'il l'a choisi. Sans effet sur un agent en exercice, toujours listé (TCK-2506, audit UX 2026-11, décisions 1a puis 1b) | ➕ |
 | preferences | jsonb | oui | null | Indications de personnalisation **choisies par l'utilisateur** et exposées par l'API (ville, intention de recherche — fiche de profil minimal différée ; `navigation` : épingles, replis et « Démarrer » masqué du menu de `/app`, **par persona** — `{ v: 1, personas: { <persona>: { epingles ≤ 5, replies ≤ 20, ouverts ≤ 20, demarrer_masque } } }`, seule la FORME est validée par l'API, le catalogue appartient au front, ADR-0089 §6, TCK-2480). Distinct de `metadata`, état interne (TCK-253 ; `2026_05_10_140000`) | ➕ |
 | metadata | jsonb | oui | null | État interne, jamais exposé tel quel — clés lues par le code ci-dessous | |
 | deleted_at | datetime | oui | null | Soft delete | |
@@ -566,6 +569,10 @@ d'écrire (piège PostgreSQL n°1 — une violation abandonne la transaction ent
 | website | string | oui | null | Site web | |
 | ~~logo_path~~ | — | — | — | ~~Remplacé par media collection `logo` (spatie/medialibrary)~~ | ➖ |
 | description | text | oui | null | Présentation de l'agence | |
+| tagline | string(120) | oui | null | Accroche de la fiche publique (TCK-2518) | ➕ |
+| highlights | jsonb | oui | null | « Pourquoi nous » : liste de trois chaînes de 80 caractères au plus (TCK-2518) | ➕ |
+| showcase_property_ids | jsonb | oui | null | Sélection de la fiche publique : six identifiants de biens **de l'agence** au plus, dans l'ordre choisi ; un bien devenu non public est sauté à la lecture, jamais émis (TCK-2518) | ➕ |
+| median_response_minutes | integer | oui | null | Délai de réponse habituel (médiane, 90 jours, conversations ouvertes depuis le site public) ; `null` sous cinq conversations — recalculé chaque nuit (TCK-2518) | ➕ |
 | status | AgencyStatus | | 'active' | Statut (active, inactive, suspended). La suspension et sa levée (`AgencyModerationController`, super-admin, TCK-600, ADR-0048) exigent un **motif, qui n'a pas de colonne** : il vit dans le journal (`super_admin_agency_suspended` / `super_admin_agency_reinstated`, propriétés `old_status`, `new_status`, `reason`) et dans la notification aux administrateurs de l'agence. Ni la date ni l'auteur de la suspension ne sont sur la ligne | |
 | commission_rate | decimal(5,2) | oui | null | Taux de commission par défaut (%) | ➕ |
 | currency | Currency (char(3)) | | 'XOF' | Devise par défaut de l'agence (`2026_04_24_000001`, TCK-084) ; l'espace auto-créé la pose en XOF | ➕ |
@@ -1577,6 +1584,7 @@ d'une échéance se lit côté Invoice (`invoiceable`), le lien de paiement côt
 | property_id | FK properties | | | Bien sauvegardé |
 | notes | text | oui | null | Note personnelle de l'utilisateur (500 caractères, `PATCH /api/favorites/{property}` — TCK-599) |
 | alert_baseline_price | decimal(14,2) | oui | null | Prix de référence de l'alerte de baisse : posé à la mise en favori (`FavoriteObserver`), rebasé à chaque passage de `SendFavoriteChangeAlerts` (TCK-599 §5) |
+| price_at_favorite | decimal(14,2) | oui | null | Prix du bien au moment de la mise en favori, **jamais rebasé** (au contraire d'`alert_baseline_price`) ; sert l'écart « depuis l'ajout » émis par `FavoriteResource` (`price_change`) ; `null` pour un favori antérieur à TCK-2507 (TCK-2507) |
 | unavailable_notified_at | timestamp | oui | null | Sortie du public déjà annoncée ; remise à `null` au retour au public (TCK-599 §5) |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
@@ -1612,6 +1620,7 @@ porte la carte complète ; les autres une projection `{id, slug, title}`, `remov
 | type | VisitType | | 'in_person' | Type de visite (in_person, virtual, self_guided, hybrid) |
 | status | VisitStatus | | 'scheduled' | Statut de la visite |
 | scheduled_at | timestamp | | | Date et heure prévues |
+| preferred_window | string(16) — `VisitWindow` | oui | null | Tranche demandée quand le visiteur n'a pas choisi d'heure : `morning`, `afternoon`, `evening`. Posée, `scheduled_at` porte le début de la tranche et l'heure reste **à fixer** ; l'agent la fixe en confirmant, ce qui remet la tranche à `null` (TCK-2502) |
 | duration_minutes | unsigned integer | oui | null | Durée estimée |
 | completed_at | timestamp | oui | null | Date de réalisation effective |
 | cancelled_at | timestamp | oui | null | Date d'annulation |
@@ -1856,6 +1865,7 @@ La facture du prestataire est une ligne de [ServiceProviderBill](#77-serviceprov
 | notification_frequency | string | | 'daily' | Fréquence d'alerte (`daily`, `weekly`, `off` — `instant` retiré par TCK-599, ramené à `daily`). **NOT NULL** — la sentinelle « ne pas notifier » est `off`, jamais `null` ni `""` (TCK-330) |
 | is_active | boolean | | true | Alerte active |
 | last_notified_at | datetime | oui | null | Dernière notification envoyée |
+| last_viewed_at | datetime | oui | null | Dernière ouverture de la recherche par son titulaire depuis la page des favoris ; borne le compte des « biens nouveaux » (`filter[published_after]`) ; `null` = jamais ouverte, le compte part de `created_at` (TCK-2507) |
 | results_count | integer | | 0 | Nombre de biens que la recherche trouve (cache). Écrit par `SearchService::refreshResultsCount()` seulement s'il change, sans toucher `updated_at` : à la création et à un changement de `criteria` (`SavedSearchController`), et par `SendSavedSearchAlerts` après les alertes, pour chaque recherche active (fréquence coupée comprise ; total de la première alerte repris sans requête). Un échec du moteur garde le compte précédent (`saved_search.count_failed`). Une alerte publique sans compte n'est comptée qu'au passage suivant. Lu par la demande du Radar (`RadarDemandSignals` : `results_count = 0`) (TCK-2470, TCK-2471) |
 | metadata | jsonb | oui | null | |
 | created_at | datetime | | auto | |
@@ -2380,6 +2390,9 @@ JSON libre (`{"value": …}`), sans journal, `updated_by_id` pour seule trace. U
 | license_number | string | oui | null | Numéro de licence professionnelle |
 | commission_rate | decimal(5,2) | oui | null | Taux de commission du négociateur (%) : sa part de la commission d'un bail qu'il négocie, plafonnée par les parts des collaborateurs (ADR-0049 « Ventilation » § 2) ; nul vaut 0. Écrit sur la fiche de membre sous `team.assign_role` (`PATCH /api/profiles/{agent_profile}/commission-rate`, TCK-2364) |
 | specialty | string | oui | null | Spécialité (résidentiel, commercial, luxe, etc.) |
+| languages | jsonb | oui | null | Langues parlées : codes ISO 639-1 (`fr`, `wo`, `en`, `ar`…), liste fermée en config (TCK-2518) |
+| neighborhood_ids | jsonb | oui | null | Quartiers couverts : cinq identifiants du référentiel des quartiers au plus (TCK-2518) |
+| median_response_minutes | integer | oui | null | Même calcul que l'agence, sur les conversations de cet agent (TCK-2518) |
 | hire_date | date | oui | null | Date d'embauche |
 | active_until | date | oui | null | Date de fin de contrat (si applicable) |
 | metadata | jsonb | oui | null | Données flexibles |
@@ -5816,6 +5829,28 @@ planifiée `search:refresh-aliases` ne met rien en file. Opérateur disparu (com
 | enabled_at | timestamp | oui | null | Quand l'opérateur actuel l'a allumé |
 | last_run_at | timestamp | oui | null | Le dernier passage (manuel ou planifié), qu'il ait appelé le modèle ou non |
 | last_run_outcome | string(64) | oui | null | `applied`, `unchanged`, `no_signals`, `search.aliases.operator_missing`, `search.aliases.invalid_output`, `ai.<raison>`… |
+| created_at / updated_at | timestamp | | auto | |
+
+---
+
+### 124. AgencySpotlight 🆕
+
+**Table :** `agency_spotlights` (TCK-2520)
+**Description :** La place « Mise en avant » de l'annuaire public des agences : une agence en tête de l'annuaire d'une
+ville, pendant une période. **Offerte par la plateforme** (super-admin, journalisé) ; la vente en crédits attend un
+amendement d'[ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md). Au plus une place active par ville et par
+instant (contrainte d'exclusion sur `tstzrange(starts_at, ends_at)` par `geo_city_id`). Une agence suspendue ou inactive
+perd sa place à la lecture, sans écriture.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | Identifiant unique |
+| agency_id | FK agencies | | | Agence mise en avant (`cascadeOnDelete`) ; index |
+| geo_city_id | FK geo_cities | oui | null | Ville du référentiel (ADR-0062) ; `null` = annuaire sans filtre de ville |
+| starts_at | timestamp | | | Début de la période |
+| ends_at | timestamp | | | Fin de la période (exclue) ; CHECK `ends_at > starts_at` |
+| granted_by_id | FK users | oui | null | Opérateur qui l'a offerte (`nullOnDelete`) |
+| note | string(255) | oui | null | Motif, visible du seul super-admin |
 | created_at / updated_at | timestamp | | auto | |
 
 ---
