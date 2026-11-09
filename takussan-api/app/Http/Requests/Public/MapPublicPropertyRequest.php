@@ -28,12 +28,15 @@ class MapPublicPropertyRequest extends SearchPublicPropertyRequest
      * - `page`, `per_page` : la carte est un GeoJSON plafonne, sans pagination ;
      * - `lat_min` … `lng_max` : le rectangle de la liste ; la carte a le sien, `bounds` ;
      * - `placements` : la carte ne sert aucun emplacement (TCK-687) ;
-     * - `seed_hour` : l'heure de graine de la rotation des emplacements (TCK-1008).
+     * - `seed_hour` : l'heure de graine de la rotation des emplacements (TCK-1008) ;
+     * - `published_after` : le compte des biens nouveaux d'une recherche récente (TCK-2496), un compte de liste ;
+     * - `agency`, `agent`, `facets` : la recherche dans les biens d'une fiche d'agence ou d'agent et ses comptes par
+     *   option (TCK-2517) — une liste ; la carte (SQL, `FiltresDeLaCarte`) ne les applique pas.
      *
      * ⚠ Miroir de `CLES_PROPRES_A_LA_LISTE` dans `takussan-web/src/lib/recherche-publique.ts` :
      * `search-filters.parity.test.ts` compare les deux listes.
      */
-    public const CLES_PROPRES_A_LA_LISTE = ['q', 'search', 'sort', 'page', 'per_page', 'lat_min', 'lat_max', 'lng_min', 'lng_max', 'placements', 'seed_hour'];
+    public const CLES_PROPRES_A_LA_LISTE = ['q', 'search', 'sort', 'page', 'per_page', 'lat_min', 'lat_max', 'lng_min', 'lng_max', 'placements', 'seed_hour', 'published_after', 'agency', 'agent', 'facets'];
 
     /** @return array<string, mixed> */
     public function rules(): array

@@ -137,7 +137,7 @@ export function parametresDeRecherche(brut: URLSearchParams): URLSearchParams {
  */
 export const CLES_PROPRES_A_LA_LISTE = [
   'q', 'search', 'sort', 'page', 'per_page', 'lat_min', 'lat_max', 'lng_min', 'lng_max', 'placements',
-  'seed_hour',
+  'seed_hour', 'published_after', 'agency', 'agent', 'facets',
 ] as const;
 
 /**

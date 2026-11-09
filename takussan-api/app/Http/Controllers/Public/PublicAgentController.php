@@ -8,13 +8,14 @@ use App\Http\Requests\Public\IndexPublicProfilesRequest;
 use App\Http\Requests\Public\PublicPortfolioRequest;
 use App\Http\Resources\PropertyResource;
 use App\Http\Resources\ReviewResource;
-use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\UserStatus;
 use App\Models\Property;
 use App\Models\Review;
 use App\Models\User;
 use App\Services\Lead\ContactLeadService;
+use App\Services\Public\AgentDirectoryFacts;
+use App\Services\Public\AgentPublic;
 use App\Services\Public\PublicProfileFacts;
 use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Builder;
@@ -74,9 +75,12 @@ class PublicAgentController extends Controller
      *
      * · `status = active` — le ticket nomme « un agent désactivé » parmi les non-éligibles ; c'est
      *   aussi ce que `show()` exige déjà, donc un profil listé mène toujours à une fiche servie.
-     * · `username` non nul — le slug de l'URL EST le `username`. Sans lui, l'index rendrait une
-     *   ligne dont le lien ne mène nulle part : *le défaut même que ce ticket corrige, réintroduit
-     *   par sa propre correction.*
+     * · un slug de fiche — `public_slug` OU `username` ({@see User::slugDeFiche()}), le slug que la
+     *   ligne émet. Sans lui, l'index rendrait une ligne dont le lien ne mène nulle part : *le défaut
+     *   même que ce ticket corrige, réintroduit par sa propre correction.* Jusqu'à TCK-2519, le slug
+     *   ÉTAIT le `username` et la condition était `username` non nul ; mais l'inscription
+     *   (`AuthController::register`) ne pose aucun `username`, et un compte inscrit qui choisissait
+     *   l'annuaire (TCK-2506) n'y paraissait jamais, ni au sitemap, alors que sa fiche était servie.
      * · portefeuille public non vide — {@see Property::scopePublicPortfolio()}.
      *
      * ────────────────────────────────────────────────────────────────────────────────────────────
@@ -107,9 +111,15 @@ class PublicAgentController extends Controller
      */
     public function index(IndexPublicProfilesRequest $request): JsonResponse
     {
-        $base = self::sansAgenceHorsLigne(User::query())
+        $base = AgentPublic::sansAgenceHorsLigne(User::query())
             ->where('users.status', UserStatus::Active)
-            ->whereNotNull('users.username')
+            // TCK-2519 — un slug de fiche, quel qu'il soit : le compte inscrit par le formulaire n'a
+            // pas de `username`, seulement le `public_slug` posé par `users:public-slugs`.
+            ->where(fn (Builder $q) => $q->whereNotNull('users.public_slug')->orWhereNotNull('users.username'))
+            // TCK-2506 — un agent en exercice, ou un compte qui a CHOISI d'y paraître : un
+            // propriétaire particulier n'est plus exposé ici d'office. Le sitemap lit cet index
+            // (`listerSlugsDeProfils`), il suit donc la même règle.
+            ->visibleDansLAnnuairePublic()
             ->whereHas('properties', fn (Builder $q) => $q->publicPortfolio())
             ->withCount(['properties as portfolio_count' => fn (Builder $q) => $q->publicPortfolio()]);
 
@@ -131,7 +141,7 @@ class PublicAgentController extends Controller
                     // Trois colonnes en OU, et `username` en fait partie : c'est le slug public,
                     // donc la chaîne qu'un visiteur a sous les yeux dans l'URL d'une fiche.
                     $q->where(function (Builder $inner) use ($motif) {
-                        foreach (['users.first_name', 'users.last_name', 'users.username'] as $colonne) {
+                        foreach (['users.first_name', 'users.last_name', 'users.username', 'users.public_slug'] as $colonne) {
                             $inner->orWhereRaw(CaseInsensitive::sql($colonne).' LIKE ?', [$motif]);
                         }
                     });
@@ -155,7 +165,9 @@ class PublicAgentController extends Controller
         $avis = PublicProfileFacts::avis(User::class, $ids);
         $roles = PublicProfileFacts::rolesPublics($ids);
 
-        $data = $agents->getCollection()->map(function (User $agent) use ($portefeuilles, $agences, $avis, $roles) {
+        $quartiers = AgentDirectoryFacts::quartiers($agents->getCollection()->flatMap(fn (User $u) => $u->agentProfiles));
+
+        $data = $agents->getCollection()->map(function (User $agent) use ($portefeuilles, $agences, $avis, $roles, $quartiers) {
             $id = (int) $agent->id;
             $portefeuille = $portefeuilles[$id];
             $agence = $agences[$id] ?? null;
@@ -169,7 +181,9 @@ class PublicAgentController extends Controller
 
             return [
                 'id' => $agent->id,
-                'slug' => $agent->username,
+                // TCK-2519 — le slug au nom quand il est posé : le sitemap et l'annuaire mènent
+                // directement à l'adresse canonique, sans redirection.
+                'slug' => $agent->slugDeFiche(),
                 'first_name' => $agent->first_name,
                 'last_name' => $agent->last_name,
                 'full_name' => trim($agent->first_name.' '.$agent->last_name),
@@ -193,6 +207,9 @@ class PublicAgentController extends Controller
                 'rent_count' => $portefeuille['rent_count'],
                 'sale_count' => $portefeuille['sale_count'],
                 'reviews' => $avis[$id],
+                // TCK-2518 — langues (codes), quartiers (identifiants et noms du référentiel) et délai
+                // de réponse du profil d'agent retenu ; `[]` / `null` sans profil.
+                ...AgentDirectoryFacts::pour($profil, $quartiers),
             ];
         })->values()->all();
 
@@ -203,13 +220,9 @@ class PublicAgentController extends Controller
 
     public function show(Request $request, string $slug): JsonResponse
     {
-        $agent = self::sansAgenceHorsLigne(User::query())
-            ->where('username', $slug)
-            ->where('status', 'active')
-            ->with(['agency', 'addresses', 'agentProfiles'])
-            ->first();
-
-        abort_if($agent === null, 404);
+        $agent = $this->ficheOu404($slug, ['agency', 'addresses', 'agentProfiles']);
+        $role = PublicProfileFacts::rolesPublics([(int) $agent->id])[(int) $agent->id];
+        $canonique = $agent->slugDeFiche();
 
         // TCK-598 (V15) — `publicPortfolio()`, le prédicat de l'index des profils : le prédicat
         // écrit à la main ici oubliait `is_test` et `published_at`, et la page listait des biens
@@ -265,14 +278,21 @@ class PublicAgentController extends Controller
         return $this->json([
             'data' => [
                 'id' => $agent->id,
-                'slug' => $agent->username,
+                'slug' => $canonique,
+                // TCK-2519 — présent seulement quand l'adresse demandée n'est pas la canonique
+                // (ancien slug, `username`, autre casse) : le front redirige en 301 vers elle.
+                ...($canonique !== $slug ? ['canonical_slug' => $canonique] : []),
                 'first_name' => $agent->first_name,
                 'last_name' => $agent->last_name,
                 'full_name' => trim($agent->first_name.' '.$agent->last_name),
                 // TCK-573 — un propriétaire garde sa fiche sous `/agents/…` (liens existants) mais
                 // n'y est jamais présenté comme agent immobilier : titre, libellé et données
                 // structurées en dépendent ({@see PublicProfileFacts::rolesPublics()}).
-                'public_role' => PublicProfileFacts::rolesPublics([(int) $agent->id])[(int) $agent->id],
+                'public_role' => $role,
+                // TCK-2506 — la fiche d'un propriétaire qui n'a pas choisi l'annuaire reste servie
+                // (une de ses annonces y mène) mais n'est pas indexée : `noindex`, ni sitemap ni
+                // données structurées `Person`. Le réglage lui-même ne sort pas : sa conséquence suffit.
+                'indexable' => $role === 'agent' || $agent->listed_in_public_directory,
                 // TCK-441 — `email` N'EST PAS servi ici, et c'est le coeur du ticket.
                 // `User::$email` est l'IDENTIFIANT DE CONNEXION : `fillable` a cote de
                 // `password`, normalise en minuscules pour l'index unique. Le publier sur un
@@ -303,6 +323,8 @@ class PublicAgentController extends Controller
                     fn ($zone) => is_string($zone) && $zone !== '',
                 )),
                 'years_of_experience' => $yearsOfExperience,
+                // TCK-2518 — langues, quartiers et délai de réponse du profil d'agent de la fiche.
+                ...AgentDirectoryFacts::pour($profile, AgentDirectoryFacts::quartiers($profile !== null ? [$profile] : [])),
                 'agency' => $agent->agency ? [
                     'id' => $agent->agency->id,
                     'name' => $agent->agency->name,
@@ -344,13 +366,7 @@ class PublicAgentController extends Controller
     ): JsonResponse {
         $data = $request->validated();
 
-        $agent = self::sansAgenceHorsLigne(User::query())
-            ->where('username', $slug)
-            ->where('status', 'active')
-            ->with('agency')
-            ->first();
-
-        abort_if($agent === null, 404);
+        $agent = $this->ficheOu404($slug, ['agency']);
 
         // Pot de miel : on accepte sans rien ecrire, exactement comme le contact d'un bien.
         // Repondre 422 apprendrait au robot quel champ eviter.
@@ -370,12 +386,7 @@ class PublicAgentController extends Controller
      */
     public function properties(PublicPortfolioRequest $request, string $slug)
     {
-        $agent = self::sansAgenceHorsLigne(User::query())
-            ->where('username', $slug)
-            ->where('status', 'active')
-            ->first();
-
-        abort_if($agent === null, 404);
+        $agent = $this->ficheOu404($slug);
 
         $perPage = min(max((int) $request->input('per_page', 24), 1), 48);
         $contrat = $request->contractType();
@@ -395,24 +406,18 @@ class PublicAgentController extends Controller
     }
 
     /**
-     * TCK-600 (ADR-0048 §1, verif-600 M2) — un agent rattaché, par un profil d'agent, à une
-     * agence qui n'est pas `active` (suspendue ou désactivée) n'a pas de page publique : sa fiche,
-     * son portefeuille et son contact rendent le 404 d'un agent inconnu, et l'index ne le liste pas
-     * (sinon il mènerait à ce 404). Même règle que l'annuaire des agences. Sans elle, la fiche
-     * affichait l'agence suspendue et le téléphone de l'agent, et `contactLead` déposait une
-     * demande dans une agence qui ne peut plus écrire.
+     * La personne d'une fiche `/agents/{slug}` — ou 404. Une seule résolution pour la fiche, son
+     * portefeuille et son contact : une adresse qui sert la page sert aussi ses deux actions. La
+     * résolution elle-même (trois niveaux de slug, fiche publique, agence hors ligne) est partagée
+     * avec le filtre `agent=` de la liste publique : {@see AgentPublic::parSlug()}.
      *
-     * Un agent de deux agences dont l'une est hors ligne est masqué : la page ne choisit pas entre
-     * ses enseignes, elle s'abstient.
-     *
-     * verif-600 m-A — TOUT profil, quel que soit son statut : `show` et `contactLead` lisent l'agence
-     * par `User::agency()`, qui ne filtre pas le statut. Un masque qui ne jugeait que le profil
-     * `active` laissait la page (agence suspendue affichée) et le contact d'un agent `inactive`,
-     * `suspended` ou `draft`. Le masque et la page lisent désormais la même relation.
+     * @param  list<string>  $with
      */
-    private static function sansAgenceHorsLigne(Builder $query): Builder
+    private function ficheOu404(string $slug, array $with = []): User
     {
-        return $query->whereDoesntHave('agentProfiles', fn (Builder $profil) => $profil
-            ->whereHas('agency', fn (Builder $agence) => $agence->where('agencies.status', '!=', AgencyStatus::Active)));
+        $agent = app(AgentPublic::class)->parSlug($slug, $with);
+        abort_if($agent === null, 404);
+
+        return $agent;
     }
 }

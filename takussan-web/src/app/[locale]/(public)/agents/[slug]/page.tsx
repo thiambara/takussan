@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import Image from 'next/image';
 import { LienLocalise } from '@/components/shared/LienLocalise';
@@ -60,12 +60,17 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     description,
     // Canonique + hreflang, dérivés du même chemin (TCK-433). Un profil public n'a pas de
     // variante d'URL à replier ; sans canonique explicite, Next n'en émet simplement aucune.
-    alternates: alternatesPubliques(`/agents/${slug}`, locale),
+    // TCK-2519 — le slug CANONIQUE servi par l'API, jamais celui de l'URL : une ancienne adresse
+    // redirige (cf. la page), et ses métadonnées ne doivent pas se déclarer canoniques.
+    alternates: alternatesPubliques(`/agents/${agent.slug}`, locale),
     openGraph: {
       title,
       description,
       images: agent.avatar_url ? [agent.avatar_url] : undefined,
     },
+    // TCK-2506 — un propriétaire qui n'a pas choisi l'annuaire garde sa fiche (ses annonces y
+    // mènent) mais elle n'est pas indexée. `follow` reste : ses annonces, elles, sont publiques.
+    ...(agent.indexable === false ? { robots: { index: false, follow: true } } : {}),
   };
 }
 
@@ -115,6 +120,16 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
   if (resultat.etat === 'indisponible') return agentIndisponible();
 
   const agent = resultat.agent;
+
+  // TCK-2519 — une ancienne adresse (`username`, ancien slug au nom, autre casse) mène à la fiche
+  // au nom. `canonical_slug` n'est servi que quand l'adresse demandée n'est pas la canonique, et la
+  // comparaison au segment garde de toute boucle. ⚠ **308 et non 301** : c'est le seul code permanent
+  // que Next rende depuis une page (`permanentRedirect`) ; un 301 exigerait un appel à l'API dans
+  // `src/proxy.ts` pour CHAQUE fiche servie. Les moteurs traitent les deux à l'identique.
+  if (agent.canonical_slug && agent.canonical_slug !== slug) {
+    permanentRedirect(`/${locale}/agents/${encodeURIComponent(agent.canonical_slug)}`);
+  }
+
   const stats = agent.stats;
   const reviews = agent.reviews;
   // TCK-633 (lot C, tour 3) — décision de la session sur D10 : aucun numéro principal non vérifié
@@ -145,7 +160,11 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
         qu'au-dessus de zéro avis, la ville nulle ne devient pas la chaîne « null », et le
         contact ne dépasse pas ce que `ContactSheet` publie déjà.
       */}
-      <DonneesStructurees donnees={jsonLdAgent({ ...agent, phone: telephone }, locale)} />
+      {/* TCK-2506 — les données structurées `Person` suivent la règle de l'annuaire : aucune
+          pour une fiche non indexable. */}
+      {agent.indexable !== false && (
+        <DonneesStructurees donnees={jsonLdAgent({ ...agent, phone: telephone }, locale)} />
+      )}
       <Navbar />
       <NavbarSpacer />
 

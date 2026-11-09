@@ -70,12 +70,18 @@ enum NotificationCode: string
     // ─── Visites et demandes de contact (TCK-590) ───────────────────────────────────────
     // Vers l'agence : une demande, un créneau proposé ou une annulation par le visiteur.
     case VisitRequested = 'visit.requested';
+    /** TCK-2502 — une demande par jour et tranche (« mardi après-midi ») : l'heure est à fixer. */
+    case VisitRequestedWindow = 'visit.requested_window';
     case VisitRescheduledByVisitor = 'visit.rescheduled_by_visitor';
     case VisitCancelledByVisitor = 'visit.cancelled_by_visitor';
+    /** TCK-2502 — le visiteur annule une visite demandée par tranche, heure jamais fixée. */
+    case VisitCancelledByVisitorWindow = 'visit.cancelled_by_visitor_window';
     // Vers le visiteur, compte ou contact sans compte : un geste HUMAIN de l'agence.
     case VisitConfirmed = 'visit.confirmed';
     case VisitRescheduled = 'visit.rescheduled';
     case VisitCancelled = 'visit.cancelled';
+    /** TCK-2502 — l'agence annule une visite demandée par tranche, heure jamais fixée. */
+    case VisitCancelledWindow = 'visit.cancelled_window';
     // Vers le visiteur qui a laissé un e-mail : l'accusé de réception de sa demande.
     case LeadAcknowledged = 'lead.acknowledged';
 
@@ -264,6 +270,13 @@ enum NotificationCode: string
      */
     public const PARAM_PERSON = 'person';
 
+    /**
+     * TCK-2502 — une tranche de la journée CODÉE (`morning`, `afternoon`, `evening` :
+     * `VisitWindow`), traduite au rendu sous `visits.windows.<code>`. La cloche du front ne connaît
+     * pas cette nature : elle reçoit le code brut, que son texte ICU lit par un `select`.
+     */
+    public const PARAM_VISIT_WINDOW = 'visit_window';
+
     public function type(): NotificationType
     {
         return match ($this) {
@@ -274,9 +287,9 @@ enum NotificationCode: string
             self::PlatformPayoutRefundedSincePaid => NotificationType::Payment,
             self::BookingCreated, self::BookingRequestedUndated, self::BookingConfirmed, self::BookingRejected,
             self::BookingCancelled => NotificationType::Booking,
-            self::VisitReminder, self::VisitRequested, self::VisitRescheduledByVisitor,
+            self::VisitReminder, self::VisitRequested, self::VisitRequestedWindow, self::VisitRescheduledByVisitor,
             self::VisitCancelledByVisitor, self::VisitConfirmed, self::VisitRescheduled,
-            self::VisitCancelled => NotificationType::Visit,
+            self::VisitCancelled, self::VisitCancelledWindow, self::VisitCancelledByVisitorWindow => NotificationType::Visit,
             self::MessageReceived, self::MessageGroupInvite, self::LeadReceived, self::LeadAcknowledged => NotificationType::Message,
             self::RoleDelegationActivated, self::RoleDelegationActivatedDelegator => NotificationType::RoleDelegated,
             self::RoleDelegationExpired, self::RoleDelegationExpiredDelegator => NotificationType::RoleDelegationExpired,
@@ -327,9 +340,9 @@ enum NotificationCode: string
             self::BookingCreated, self::BookingRequestedUndated => 'booking_request',
             self::BookingConfirmed, self::BookingRejected, self::BookingCancelled => 'booking_status_changed',
             // TCK-590 — tous les événements d'une visite obéissent au même interrupteur (TCK-070).
-            self::VisitReminder, self::VisitRequested, self::VisitRescheduledByVisitor,
+            self::VisitReminder, self::VisitRequested, self::VisitRequestedWindow, self::VisitRescheduledByVisitor,
             self::VisitCancelledByVisitor, self::VisitConfirmed, self::VisitRescheduled,
-            self::VisitCancelled => 'visit_reminder',
+            self::VisitCancelled, self::VisitCancelledWindow, self::VisitCancelledByVisitorWindow => 'visit_reminder',
             self::ReviewToModerate, self::ReviewReceived => 'review_received',
             self::MessageReceived, self::MessageGroupInvite, self::LeadReceived => 'message_received',
             // Un accusé de réception à un contact sans compte : ni compte, ni préférence.
@@ -415,6 +428,9 @@ enum NotificationCode: string
             // d'une visite est toujours suivie de son fuseau (TCK-590, §6). Aucun texte libre du
             // visiteur, ni son message ni le nom qu'il a saisi (contrainte 4).
             self::VisitRequested => ['property' => self::PARAM_TEXT, 'scheduled_at' => self::PARAM_DATETIME, 'timezone' => self::PARAM_TEXT, 'contact' => self::PARAM_TEXT],
+            // TCK-2502 — le JOUR (date seule, à Dakar) et la tranche ; aucune heure, elle est à fixer.
+            self::VisitRequestedWindow => ['property' => self::PARAM_TEXT, 'date' => self::PARAM_DATE, 'window' => self::PARAM_VISIT_WINDOW, 'contact' => self::PARAM_TEXT],
+            self::VisitCancelledWindow, self::VisitCancelledByVisitorWindow => ['property' => self::PARAM_TEXT, 'date' => self::PARAM_DATE, 'window' => self::PARAM_VISIT_WINDOW],
             self::VisitRescheduledByVisitor, self::VisitCancelledByVisitor,
             self::VisitConfirmed, self::VisitRescheduled, self::VisitCancelled => ['property' => self::PARAM_TEXT, 'scheduled_at' => self::PARAM_DATETIME, 'timezone' => self::PARAM_TEXT],
             self::KycSubmitted => ['agency' => self::PARAM_TEXT],
@@ -571,7 +587,7 @@ enum NotificationCode: string
             self::VisitReminder,
             // TCK-590 (contrainte 4) — un SMS ne suit qu'un geste humain de l'agence, jamais le
             // dépôt d'une demande par un tiers ; il est borné au point d'envoi (`VisitNotifier`).
-            self::VisitConfirmed, self::VisitRescheduled, self::VisitCancelled,
+            self::VisitConfirmed, self::VisitRescheduled, self::VisitCancelled, self::VisitCancelledWindow,
             // TCK-589 — le lien d'une invitation adressée à un NUMÉRO (geste humain de l'agence,
             // borné par numéro au point d'envoi) et l'avis à l'ancien numéro remplacé : leur
             // destinataire est un contact sans compte qu'on ne joint que par là. Sans préférence
@@ -611,7 +627,7 @@ enum NotificationCode: string
             self::LeasePaymentRefunded,
             self::InvitationReceived, self::InvitationReminder,
             self::AccountPhoneChanged,
-            self::VisitConfirmed, self::VisitRescheduled, self::VisitCancelled,
+            self::VisitConfirmed, self::VisitRescheduled, self::VisitCancelled, self::VisitCancelledWindow,
             self::LeadAcknowledged => true,
             default => false,
         };

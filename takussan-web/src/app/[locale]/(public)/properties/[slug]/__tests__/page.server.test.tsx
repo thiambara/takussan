@@ -73,6 +73,8 @@ vi.mock('next-intl/server', async () => {
 
 vi.mock('next/navigation', () => ({
   notFound: () => notFoundMock(),
+  // TCK-2493 — `NavbarSpacer` lit le chemin (cale des pages de découverte).
+  usePathname: () => '/fr/properties/villa',
 }));
 
 vi.mock('@/lib/queries/public-property', () => ({

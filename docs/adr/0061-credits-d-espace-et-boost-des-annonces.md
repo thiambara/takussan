@@ -262,3 +262,33 @@ ligne `property_boosts` garde le cumul, qu'affichent la ressource et la console.
 une prolongation écrit d'abord cette tranche de reprise. `tests/Feature/Boost/FeaturedExtensionRefundTest.php`
 porte les gardes.
 
+
+## Amendement du 2026-11-09 — les emplacements s'espacent et ne doublent plus un résultat (TCK-2500)
+
+**Ce qui change dans le § 7.** Les emplacements « Sponsorisé » ne forment plus une rangée en tête de
+page : l'audit UX du site public (famille 1, [01-site-public.md](../qa/audit-ux-2026-11/01-site-public.md))
+a mesuré que trois cartes payées d'affilée remplissent le premier écran mobile avant le premier
+résultat. Et la phrase « un bien sponsorisé garde sa place organique en dessous » montrait le
+même bien **deux fois** sur la même page.
+
+**La règle.**
+
+- **Un emplacement en tête de page, puis un toutes les dix cartes.** Chaque entrée de `sponsored`
+  porte sa **`position`** (base 0) dans la suite des cartes affichées une fois les emplacements
+  insérés : `0`, `11`, `22`… Le front insère à cette position, sans la recalculer.
+- **Le k-ième emplacement n'est servi que si la page porte au moins k × 10 cartes** :
+  `min(boost.sponsored_slots_per_page, 1 + floor(cartes / 10))`. Une page courte n'a qu'un
+  emplacement, en tête ; le réglage reste le plafond (0 = aucun).
+- **Jamais de doublon.** Une vedette qui figure déjà parmi les résultats organiques de la page
+  n'est pas servie en emplacement : la carte organique garde sa place, et l'emplacement passe à la
+  vedette suivante de la même rotation. Conséquence assumée : une petite recherche dont toutes les
+  vedettes tiennent dans la page n'a plus d'emplacement — la vedette y est déjà vue.
+- **Inchangé** : la rotation horaire et sa graine, `sponsored` hors pagination et hors `total`, les
+  places réservées de la première page (« En vedette »), la rangée de l'accueil, et la mesure — une
+  impression est comptée pour chaque emplacement **servi**, quelle que soit sa position.
+
+**Gardes** : `tests/Feature/Boost/SponsoredPlacementTest.php` (tête puis tous les dix, plafond,
+page courte, aucun doublon). Cinq tests Boost qui épinglaient l'ancienne inclusion
+(`sponsored ⊂ organiques`) ont vu leurs fixtures déplacées vers une page qui ne porte pas la
+vedette ; seule l'assertion « `slots = 10` sert toutes les vedettes » est abandonnée : elle exigeait
+le doublon.

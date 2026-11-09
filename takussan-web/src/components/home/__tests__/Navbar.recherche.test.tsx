@@ -173,37 +173,38 @@ describe('Navbar — un champ, un sens (TCK-439)', () => {
     expect(q!.trim().split(/\s+/).length).toBeGreaterThan(1);
   });
 
-  it('AC5 — les liens du menu mobile ne rechargent pas le document', async () => {
+  it('AC5 — les liens de la barre ne rechargent pas le document', async () => {
     const user = userEvent.setup();
     monter();
 
     const evenements: MouseEvent[] = [];
     document.addEventListener('click', (e) => evenements.push(e as MouseEvent));
 
-    await user.click(screen.getByRole('button', { name: 'Ouvrir le menu' }));
-    // TCK-641 — « Acheter » a quitté le panneau : « Connexion » est un lien du menu comme un autre.
-    const panneau = await screen.findByRole('dialog', { name: 'Menu' });
-
+    // TCK-2493 — le menu mobile a quitté la barre (la barre d'onglets du bas le remplace, et garde
+    // la même preuve dans `BarreDOngletsPublique.test.tsx`) : ce sont les liens de l'en-tête.
     push.mockReset();
     evenements.length = 0;
-    await user.click(within(panneau).getByRole('link', { name: 'Connexion' }));
+    await user.click(screen.getByRole('link', { name: 'Connexion' }));
 
     // `defaultPrevented` est la seule chose qui sépare une navigation client d'un rechargement
     // de document — un `<a href>` nu laisse le navigateur suivre le lien.
     expect(evenements.at(-1)?.defaultPrevented, "l'action par défaut du navigateur n'est pas empêchée").toBe(true);
-    // …et le routeur client a bien été sollicité, avec la langue courante.
     // `/auth/*` n'est pas localisé ; depuis l'accueil, la connexion ne porte pas de `redirect`.
     expect(push).toHaveBeenCalledWith('/auth/login');
+
+    // TCK-2494 — Agences, dans l'en-tête, avec la langue courante.
+    push.mockReset();
+    await user.click(screen.getByRole('link', { name: 'Agences' }));
+    expect(push).toHaveBeenCalledWith('/fr/agencies');
   });
 
-  it("AC5 (suite) — « Publier une annonce » mène à /publish, qui n'est PAS localisé, et « Vendre » ne la double plus (TCK-625)", async () => {
+  it("AC5 (suite) — « Publier un bien » mène à /publish, qui n'est PAS localisé, et « Vendre » ne la double plus (TCK-625)", async () => {
     const user = userEvent.setup();
     monter();
 
-    await user.click(screen.getByRole('button', { name: 'Ouvrir le menu' }));
     expect(screen.queryByRole('link', { name: 'Vendre' })).toBeNull();
     push.mockReset();
-    await user.click(screen.getByRole('link', { name: 'Publier une annonce' }));
+    await user.click(screen.getByRole('link', { name: 'Publier un bien' }));
 
     // `/publish` est dans `SEGMENTS_NON_LOCALISES` : `LienLocalise` doit le laisser intact.
     expect(push).toHaveBeenCalledWith('/publish');

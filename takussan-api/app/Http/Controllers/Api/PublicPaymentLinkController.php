@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\Payments\InitiatePublicPaymentLinkRequest;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentProvider;
 use App\Models\Enums\PaymentStatus;
 use App\Models\LeasePayment;
@@ -31,7 +32,8 @@ class PublicPaymentLinkController extends Controller
 
     public function show(string $token): JsonResponse
     {
-        $link = $this->links->resolve($token);
+        // TCK-2504 — une échéance remboursée se LIT (état et `paid_at`) ; elle ne se paie pas.
+        $link = $this->links->resolve($token, readSettled: true);
         $this->links->touch($link);
 
         return $this->json(['data' => $this->present($link->leasePayment, $this->instant($this->links->effectiveExpiry($link, $link->leasePayment)))]);
@@ -103,7 +105,53 @@ class PublicPaymentLinkController extends Controller
                 ? array_map(fn (PaymentProvider $p) => $p->value, $this->gateway->availableProviders($payment))
                 : [],
             'receipt_available' => $this->receiptAvailable($payment),
+            // TCK-2504 — l'échéance réglée (ou remboursée) le dit : sa date, au lieu d'une erreur.
+            'paid_at' => $this->instant($payment->paid_at),
+            'offline_payment' => $this->offlinePayment($payment),
             'expires_at' => $expiresAt,
         ];
+    }
+
+    /**
+     * TCK-2504 — comment payer HORS LIGNE : les moyens que l'agence déclare (`AgencySettings`) et
+     * son téléphone. Les champs nuls sont omis ; rien de déclaré → `null`. Une échéance qui ne se
+     * paie plus (réglée, remboursée) n'invite à aucun paiement : `null`.
+     *
+     * L'agence n'a aucun numéro WhatsApp déclaré (ni colonne ni réglage, relevé 2026-11-09) :
+     * `agency_whatsapp` du contrat n'a pas de source et n'est jamais rendu.
+     *
+     * @return array<string, string>|null
+     */
+    private function offlinePayment(LeasePayment $payment): ?array
+    {
+        $agency = $payment->lease?->agency;
+        if ($agency === null || ! $this->owesSomething($payment)) {
+            return null;
+        }
+
+        $fields = array_filter([
+            'wave_number' => $agency->setting('offline_payment_wave_number'),
+            'orange_money_number' => $agency->setting('offline_payment_orange_money_number'),
+            'bank_details' => $agency->setting('offline_payment_bank_details'),
+            'agency_phone' => $agency->phone,
+        ], fn ($value) => is_string($value) && $value !== '');
+
+        return $fields === [] ? null : $fields;
+    }
+
+    /**
+     * TCK-2504 (revue) — le locataire doit-il encore quelque chose à l'agence ? Le loyer
+     * (`amount_due` > 0) OU la pénalité (`late_fee_outstanding` > 0 : un loyer payé dont la pénalité
+     * reste due se règle hors ligne, à l'agence). Jamais une échéance remboursée ou annulée, ni une
+     * caution rendue : rien n'y est dû.
+     */
+    private function owesSomething(LeasePayment $payment): bool
+    {
+        if ($payment->payment_type === LeasePaymentType::DepositRefund
+            || in_array($payment->status, [PaymentStatus::Refunded, PaymentStatus::Cancelled], true)) {
+            return false;
+        }
+
+        return (float) ($this->gateway->amountDue($payment) ?? 0) > 0 || $payment->lateFeeOutstanding() > 0;
     }
 }

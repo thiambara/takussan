@@ -45,11 +45,13 @@ class RobotImpressionsTest extends TestCase
 
     public function test_une_recherche_sous_googlebot_ne_compte_aucune_impression(): void
     {
-        $this->appeler('/api/public/properties/search', '198.51.100.1', 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)')
+        // TCK-2500 — page 2 d'une carte : le bien boosté est la carte de la page 1, et une vedette déjà parmi les cartes
+        // de la page n'est plus servie en emplacement.
+        $this->appeler('/api/public/properties/search?per_page=1&page=2', '198.51.100.1', 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)')
             ->assertOk()->assertJsonPath('sponsored.0.id', $this->boost->property_id);
         $this->assertSame(0, $this->impressions(), 'le robot voit l’emplacement, mais ne le compte pas');
 
-        $this->appeler('/api/public/properties/search', '198.51.100.2', 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36');
+        $this->appeler('/api/public/properties/search?per_page=1&page=2', '198.51.100.2', 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36');
         $this->assertSame(1, $this->impressions(), 'témoin : un navigateur compte');
     }
 

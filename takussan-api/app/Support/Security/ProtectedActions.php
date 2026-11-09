@@ -2,6 +2,7 @@
 
 namespace App\Support\Security;
 
+use App\Http\Controllers\Api\Admin\AdminAgencySpotlightController;
 use App\Http\Controllers\Api\Admin\AdminBoostController;
 use App\Http\Controllers\Api\Admin\AdminBoostProductController;
 use App\Http\Controllers\Api\Admin\AdminCreditWalletController;
@@ -271,6 +272,9 @@ final class ProtectedActions
         AdminBoostController::class.'@offer',
         AdminBoostProductController::class.'@store',
         AdminBoostProductController::class.'@update',
+        // TCK-2520 (ADR-0092) — offrir ou retirer la vitrine de l'annuaire d'une ville : de la valeur qui bouge.
+        AdminAgencySpotlightController::class.'@store',
+        AdminAgencySpotlightController::class.'@destroy',
 
         // Codes de secours : une session volée ne les lit plus sans le TOTP.
         TwoFactorController::class.'@recoveryCodes',

@@ -7,6 +7,7 @@ use App\Models\Agency;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\Currency;
 use App\Services\Admin\PlatformSettingService;
+use App\Support\TelephoneSaisi;
 use Illuminate\Validation\Rule;
 
 /**
@@ -43,6 +44,26 @@ class AgencyUpdateRequest extends BaseFormRequest
     }
 
     /**
+     * TCK-2504 — les numéros de paiement hors ligne passent par la normalisation de tout téléphone
+     * saisi (`TelephoneSaisi`, E.164), puis par ses règles (`AgencySettings`).
+     */
+    protected function prepareForValidation(): void
+    {
+        parent::prepareForValidation();
+
+        $settings = $this->input('settings');
+        if (! is_array($settings)) {
+            return;
+        }
+        foreach (AgencySettings::PHONE_KEYS as $key) {
+            if (array_key_exists($key, $settings)) {
+                $settings[$key] = TelephoneSaisi::normaliser($settings[$key]);
+            }
+        }
+        $this->merge(['settings' => $settings]);
+    }
+
+    /**
      * @return array<string, array<int, mixed>>
      */
     public function rules(): array
@@ -58,6 +79,20 @@ class AgencyUpdateRequest extends BaseFormRequest
                 Rule::unique('agencies', 'license_number')->ignore($this->route('agency')),
             ],
             'description' => ['sometimes', 'nullable', 'string'],
+            // TCK-2518 — la vitrine de la fiche publique : accroche, « Pourquoi nous » (trois chaînes),
+            // sélection (six biens DE CETTE AGENCE au plus, dans l'ordre choisi). Un bien d'une autre
+            // agence rend 422 et rien n'est écrit ; un bien de l'agence devenu non public reste
+            // sélectionnable — c'est la lecture publique qui le saute.
+            'tagline' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'highlights' => ['sometimes', 'nullable', 'array', 'list', 'max:3'],
+            'highlights.*' => ['required', 'string', 'max:80'],
+            'showcase_property_ids' => ['sometimes', 'nullable', 'array', 'list', 'max:6'],
+            'showcase_property_ids.*' => [
+                'required', 'integer', 'distinct',
+                Rule::exists('properties', 'id')
+                    ->where('agency_id', $this->route('agency') instanceof Agency ? $this->route('agency')->getKey() : 0)
+                    ->whereNull('deleted_at'),
+            ],
             'email' => ['sometimes', 'nullable', 'email', 'max:255'],
             'phone' => ['sometimes', 'nullable', 'string', 'max:30'],
             'website' => ['sometimes', 'nullable', 'url'],

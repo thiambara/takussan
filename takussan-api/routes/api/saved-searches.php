@@ -9,6 +9,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('saved-searches', [SavedSearchController::class, 'store'])->name('saved-searches.store');
     // TCK-599 — littérale, déclarée AVANT les routes à paramètre.
     Route::post('saved-searches/claim', [SavedSearchController::class, 'claim'])->name('saved-searches.claim');
+    // TCK-2507 — la recherche ouverte par son titulaire : le front compte les biens publiés depuis.
+    Route::post('saved-searches/{savedSearch}/viewed', [SavedSearchController::class, 'viewed'])->name('saved-searches.viewed');
     Route::put('saved-searches/{savedSearch}', [SavedSearchController::class, 'update'])->name('saved-searches.update');
     Route::patch('saved-searches/{savedSearch}', [SavedSearchController::class, 'update']);
     Route::delete('saved-searches/{savedSearch}', [SavedSearchController::class, 'destroy'])->name('saved-searches.destroy');
@@ -27,5 +29,8 @@ Route::prefix('public/search-alerts')->name('public.search-alerts.')->group(func
         Route::post('/', [PublicSearchAlertController::class, 'store'])->name('store');
         Route::post('confirm', [PublicSearchAlertController::class, 'confirm'])->name('confirm');
         Route::post('unsubscribe', [PublicSearchAlertController::class, 'unsubscribe'])->name('unsubscribe');
+        // TCK-2513 — la page d'un lien lit son alerte (sans rien consommer), et peut l'espacer au lieu de la couper.
+        Route::get('by-token', [PublicSearchAlertController::class, 'byToken'])->name('by-token');
+        Route::post('frequency', [PublicSearchAlertController::class, 'frequency'])->name('frequency');
     });
 });

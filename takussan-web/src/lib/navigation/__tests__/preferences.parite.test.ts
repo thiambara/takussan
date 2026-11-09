@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { PERSONAS } from '../personas';
-import { SCHEMA_NAVIGATION } from '../preferences';
+import { SCHEMA_NAVIGATION } from '../preferences-schema';
 
 /**
  * TCK-2480 (ADR-0089 §6, AC6) — parité avec l'API : `takussan-api/tests/fixtures/preferences-navigation.json`

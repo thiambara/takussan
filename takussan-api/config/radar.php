@@ -139,8 +139,11 @@ return [
     // TCK-2390 (ADR-0077 §3) — le lien de réclamation des messages (`App\Services\Radar\ClaimLinks`) : il sert
     // `link_ttl_days` jours depuis son émission (le `created_at` du message d'accord, l'heure de composition du second
     // message), puis rend 410. Un STOP ou une révocation le tue avant, quelle que soit sa date.
+    // TCK-2511 — `demand_min_searches` : la page de réclamation dit combien de recherches des 30 derniers jours visent le
+    // quartier de ses annonces (`App\Services\Radar\ClaimDemand`, journal d'ADR-0088) ; sous ce seuil, rien (`null`).
     'claim' => [
         'link_ttl_days' => 30,
+        'demand_min_searches' => 50,
     ],
 
     // TCK-2392 (ADR-0077 §10) — la collecte automatique. ÉTEINTE par défaut : chaque site a sa ligne dans

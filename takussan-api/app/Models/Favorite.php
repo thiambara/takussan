@@ -30,6 +30,8 @@ class Favorite extends AbstractModel
      */
     protected $casts = [
         'alert_baseline_price' => 'decimal:2',
+        // TCK-2507 — posé par `FavoriteObserver` à la création, jamais rebasé ; pas dans `$fillable`.
+        'price_at_favorite' => 'decimal:2',
         'unavailable_notified_at' => 'datetime',
     ];
 

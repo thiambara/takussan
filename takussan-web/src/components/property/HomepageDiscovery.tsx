@@ -70,6 +70,7 @@ export function HomepageDiscovery({
   donneesInitiales = null,
   raccourcis = AUCUN_RACCOURCI,
   repli = false,
+  rappel = null,
 }: {
   /**
    * Les quatre rangées déjà rendues par le serveur — TCK-432.
@@ -91,6 +92,13 @@ export function HomepageDiscovery({
    * `<div hidden>` placé APRÈS le repli, et le lien d'évitement doit atterrir sur le `<main>` visible.
    */
   readonly repli?: boolean;
+  /**
+   * TCK-2493 (ADR-0091) — la carte de rappel du persona connecté, en tête de la page. Un nœud et non
+   * un drapeau : la page la compose (`CarteDeRappel`), ce composant ne fait que lui donner sa place.
+   * Rendue telle quelle dans le `<main>` : quand rien n'attend, elle ne rend rien, et le `gap` ne
+   * compte pas d'enfant vide.
+   */
+  readonly rappel?: React.ReactNode;
 } = {}) {
   const t = useTranslations('homepage.row');
   const tPage = useTranslations('homepage');
@@ -160,6 +168,7 @@ export function HomepageDiscovery({
           s'additionnent pas.*
         */}
         {repli ? null : <h1 className="sr-only">{tPage('h1')}</h1>}
+        {repli ? null : rappel}
 
         <div
           className="animate-section-enter"

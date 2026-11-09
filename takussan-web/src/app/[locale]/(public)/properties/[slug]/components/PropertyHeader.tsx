@@ -9,6 +9,7 @@ import { MarquesDeBoost } from '@/components/boost/MarquesDeBoost';
 import { PROPERTY_ENUM_NAMESPACES } from '@/components/property-form/options';
 import { formatAddressShort } from '@/lib/format/address';
 import type { PropertyDetail } from '@/types/property';
+import { PropertyPrice } from './PropertyContactActions';
 
 interface PropertyHeaderProps {
   property: PropertyDetail;
@@ -23,8 +24,16 @@ export function PropertyHeader({ property, onToggleFavorite, onShare, isFavorite
 
   return (
     <header className="flex flex-col gap-3">
-      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+      {/* TCK-2501 — sous `md`, les trois actions (partager, favori, comparer) se posent au bout de la
+          rangée des pastilles au lieu d'occuper leur propre ligne : 52 px rendus au premier écran. */}
+      <div className="relative flex flex-col md:flex-row md:items-start md:justify-between gap-3">
         <div className="space-y-2 min-w-0">
+          {/* TCK-2501 — le prix d'abord, sous `lg` : la carte de réservation le porte en bureau. */}
+          <PropertyPrice
+            property={property}
+            className="lg:hidden text-[28px] leading-none tracking-tight"
+            periodeClassName="text-base tracking-normal"
+          />
           <h1 className="font-display text-2xl md:text-3xl font-semibold tracking-tight text-foreground leading-tight text-balance">
             {property.title}
           </h1>
@@ -48,7 +57,12 @@ export function PropertyHeader({ property, onToggleFavorite, onShare, isFavorite
               <span className="text-muted-foreground text-xs">{t('reference', { value: property.reference_number })}</span>
             )}
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex min-h-10 flex-wrap items-center gap-2 pr-32 md:min-h-0 md:pr-0">
+            {/* TCK-2501 — « À louer » / « À vendre », que la carte de réservation porte sous le prix en
+                bureau : sous `lg`, une pastille de plus sur la rangée, qui ne coûte aucune ligne. */}
+            {property.contract_type_label && (
+              <Badge variant="outline" className="lg:hidden">{property.contract_type_label}</Badge>
+            )}
             <Badge variant="outline">{property.status_label}</Badge>
             {/* TCK-633 lot F — « En vedette » et le badge acheté (« Urgent », « Baisse de prix »). */}
             <MarquesDeBoost featured={Boolean(property.featured)} badge={(property as { badge?: unknown }).badge} className="contents" />
@@ -59,7 +73,7 @@ export function PropertyHeader({ property, onToggleFavorite, onShare, isFavorite
           </div>
         </div>
 
-        <div className="-ml-2.5 flex items-center gap-1 shrink-0 md:ml-0">
+        <div className="absolute bottom-0 -right-2.5 flex items-center gap-1 shrink-0 md:static md:right-auto">
           <Button
             variant="ghost"
             size="sm"

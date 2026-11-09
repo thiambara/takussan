@@ -97,7 +97,8 @@ class ReviewResource extends BaseResource
                 'type' => 'user',
                 'id' => $target->id,
                 'title' => $name,
-                'slug' => $target->username,
+                // TCK-2519 — le segment de `/agents/{slug}`, au nom quand il est posé.
+                'slug' => $target->slugDeFiche(),
                 'subtitle' => null,
             ];
         }

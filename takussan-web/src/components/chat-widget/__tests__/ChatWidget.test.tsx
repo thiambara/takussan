@@ -165,11 +165,25 @@ describe('<ChatWidget> visibility', () => {
     }
   });
 
-  it('TCK-2481 — hors de /app, le bouton flottant mobile reste', () => {
+  it('TCK-2481 — hors de /app et du site public, le bouton flottant mobile reste', () => {
     usePathnameMock.mockReturnValue('/properties/villa-saly');
     render(wrap(<ChatWidget />));
     expect(screen.getByTestId('chat-widget-mobile-fab')).toBeInTheDocument();
   });
+
+  it.each(['/fr', '/fr/properties', '/fr/properties/villa-saly', '/wo/agencies'])(
+    'TCK-2493 — %s : pas de bouton flottant mobile, et le lanceur de bureau attend `lg`',
+    (chemin) => {
+      // ADR-0091 §4 — une seule couche d'action en bas : la barre d'onglets publique porte « Messages »
+      // sous `lg`, et la fiche y a sa barre d'actions.
+      usePathnameMock.mockReturnValue(chemin);
+      render(wrap(<ChatWidget />));
+      expect(screen.queryByTestId('chat-widget-mobile-fab')).toBeNull();
+      const lanceur = screen.getByTestId('chat-widget-launcher');
+      const bouton = lanceur.querySelector('button') ?? lanceur;
+      expect(bouton.className.split(/\s+/)).toEqual(expect.arrayContaining(['hidden', 'lg:inline-flex']));
+    },
+  );
 });
 
 /**

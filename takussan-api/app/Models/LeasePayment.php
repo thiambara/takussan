@@ -83,7 +83,13 @@ class LeasePayment extends AbstractModel implements HasAuditAgency
     {
         // VERIF-596 passe 6 (m-h) — une échéance annulée par un renouvellement ne doit plus rien,
         // pénalité comprise : l'enfant refacture le mois.
-        if ($this->status === PaymentStatus::Cancelled) {
+        // TCK-2504 (revue) — une échéance remboursée non plus : elle n'est plus due (aucun paiement
+        // ne s'y ouvre), et le lien de paiement qui la montre n'annonce pas une pénalité à régler.
+        // TCK-2504 (contre-vérification) — ni une restitution de caution : c'est l'agence qui la
+        // doit (TCK-594). Le miroir SQL `CollectedPayments::lateFeesOutstanding()` l'excluait seul ;
+        // les deux rendent désormais la même règle (`PenalitesARecouvrerTest`, statut par statut).
+        if (in_array($this->status, [PaymentStatus::Cancelled, PaymentStatus::Refunded], true)
+            || $this->payment_type === LeasePaymentType::DepositRefund) {
             return 0.0;
         }
 

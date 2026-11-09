@@ -106,6 +106,7 @@ final class RadarClaims
         private readonly RadarPhotoReserve $reserve,
         private readonly RadarConsentCoverage $coverage,
         private readonly RadarMandateTakeBack $takeBack,
+        private readonly ClaimDemand $demand,
     ) {}
 
     /** Les deux portes de la publication pour lui (TCK-2389) : le code ouvre un compte, la réclamation en dépend autant. */
@@ -128,6 +129,7 @@ final class RadarClaims
         $isOwner = $state['state'] === self::STATE_EXISTING && $viewer !== null && $viewer->is($state['user']);
         // TCK-2413 — le job pose un code sur ce qu'il laisse à l'opérateur ; sans code, l'annonce l'attend encore.
         [$awaiting, $publishing] = $this->publishing($advertiser)->partition(fn (RadarListing $listing) => $listing->stage_reason !== null);
+        $claimable = $this->claimable($advertiser);
 
         return [
             'advertiser' => [
@@ -146,7 +148,7 @@ final class RadarClaims
                 // que ce refus, qui vient avant la connexion exigée : le porteur du lien l'apprend par lui de toute façon.
                 'space_unavailable' => ! $advertiser->underMandate() && $this->spaceInactive($state),
             ],
-            'listings' => $this->claimable($advertiser)->map(fn (RadarListing $listing) => $this->listingOf($listing))->values()->all(),
+            'listings' => $claimable->map(fn (RadarListing $listing) => $this->listingOf($listing))->values()->all(),
             // Réclamées, en attente du job : ni case ni bouton, une seconde confirmation ne les reprend pas.
             'publishing' => $publishing->map(fn (RadarListing $listing) => $this->listingOf($listing))->values()->all(),
             // TCK-2413 — réclamées, mais la publication les a laissées à l'équipe (photo, champ, refus) : la page le dit, sans
@@ -156,6 +158,9 @@ final class RadarClaims
             'terms_version' => PublishReadiness::TERMS_VERSION,
             // TCK-2421 — sous mandat : ses biens en ligne, que le code lui fera reprendre dans son espace ; `null` hors mandat.
             'mandate' => $this->takeBack->summary($advertiser),
+            // TCK-2511 — la demande du quartier de ses annonces (toutes celles que la page montre), `null` sous le seuil ou
+            // sans quartier commun : {@see ClaimDemand}.
+            'demand' => $this->demand->of($claimable->concat($publishing)->concat($awaiting)),
         ];
     }
 

@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Public\ConfirmRadarClaimRequest;
+use App\Http\Requests\Public\DeclineRadarClaimRequest;
 use App\Http\Requests\Public\RequestRadarClaimOtpRequest;
 use App\Models\User;
+use App\Services\Radar\ClaimDecline;
 use App\Services\Radar\ClaimLinks;
 use App\Services\Radar\RadarClaims;
 use Illuminate\Http\JsonResponse;
@@ -42,6 +44,18 @@ class RadarClaimController extends Controller
         RadarClaims::ensureAvailable();
 
         return $this->claims->confirm($this->links->resolve($token), $request->validated(), $this->viewer($request), app()->getLocale());
+    }
+
+    /**
+     * TCK-2511 — « Ce n'est pas moi » / « Ne plus me contacter » : l'effet d'un STOP ({@see ClaimDecline}). Délibérément
+     * HORS de {@see RadarClaims::ensureAvailable()} : le droit d'opposition ne se ferme pas avec la connexion par téléphone.
+     * Un lien mort rend ce que rendent les autres routes (404 `radar.claim.invalid`, 410 `expired` / `revoked`).
+     */
+    public function decline(DeclineRadarClaimRequest $request, string $token, ClaimDecline $decline): JsonResponse
+    {
+        $decline->decline($this->links->resolve($token), (string) $request->validated('reason'));
+
+        return $this->json(['data' => ['status' => 'declined']]);
     }
 
     private function viewer(Request $request): ?User

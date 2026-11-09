@@ -28,6 +28,9 @@ class SearchPublicPropertyRequest extends BaseFormRequest
 
     public const VILLE_LONGUEUR_MAX = 120;
 
+    /** TCK-2517 — les comptes par option que `facets` peut demander, plafonnés à ces quatre. */
+    public const FACETTES = ['contract_type', 'type', 'bedrooms', 'neighborhood'];
+
     /**
      * L'autorisation reste dans le controleur / la policy (principes 1 et 2, TCK-306).
      * `BaseFormRequest` refuse par defaut : sans cette surcharge, l'endpoint rendrait 403.
@@ -230,6 +233,28 @@ class SearchPublicPropertyRequest extends BaseFormRequest
             // la relecture d'une URL ecrite hier. `date` reste, elle garde le 422 sur
             // `available_from=not-a-date` (PublicPropertySearchFiltersTest).
             'available_from' => 'nullable|date',
+            // TCK-2496 — les biens publiés APRÈS cet instant (ISO 8601) : le front compte ainsi les biens nouveaux d'une
+            // recherche récente (`per_page=1`, `meta.total`). Jamais dans le futur : rien n'y est publié, et un 0
+            // silencieux y passerait pour une réponse.
+            'published_after' => 'nullable|date|before_or_equal:now',
+            // TCK-2517 — les biens d'une agence, d'un agent : le slug de leur fiche publique (`ProfilDuFiltre`). Un slug
+            // inconnu ou hors ligne rend une liste vide, jamais une erreur. Sous l'un d'eux, la liste suit le prédicat du
+            // portefeuille des fiches (public ET disponible).
+            'agency' => 'nullable|string|max:120',
+            'agent' => 'nullable|string|max:120',
+            // TCK-2517 — les comptes par option (`meta.facets`), liste à virgules parmi `FACETTES`.
+            'facets' => [
+                'nullable', 'string', 'max:100',
+                function (string $attribut, mixed $valeur, Closure $echec): void {
+                    foreach (explode(',', (string) $valeur) as $facette) {
+                        if (! in_array(trim($facette), self::FACETTES, true)) {
+                            $echec(__('validation.in', ['attribute' => $attribut]));
+
+                            return;
+                        }
+                    }
+                },
+            ],
             'page' => 'nullable|integer|min:1',
             'per_page' => 'nullable|integer|min:1|max:100',
             // TCK-687 (P18.01) — `false` coupe les emplacements ET les places réservées : ni

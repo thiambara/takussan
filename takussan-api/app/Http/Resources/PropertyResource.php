@@ -441,8 +441,9 @@ class PropertyResource extends BaseResource
             'id' => $user->id,
             // P235.02 (TCK-2369) — nom, puis `username`, puis « — » : jamais `''` ni `null` pour un compte sans nom.
             'name' => $user->nameWithoutContact(),
-            // TCK-177 — used to link the contact card to /agents/[slug].
-            'slug' => $user->username,
+            // TCK-177 — used to link the contact card to /agents/[slug]. TCK-2519 — le slug au nom
+            // quand il est posé, le `username` sinon (la fiche redirige alors en 301).
+            'slug' => $user->slugDeFiche(),
             'avatar_url' => $user->avatarUrl(),
             'is_agent' => $this->actsAsAgent($user),
             'member_since' => $this->iso($user->created_at),

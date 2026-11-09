@@ -125,6 +125,9 @@ class AgencySuspensionTest extends TestCase
             $agence = $this->agence();
             $agent = $this->personnel($agence, attributes: ['username' => "agent-profil-{$statutProfil->value}"]);
             AgentProfile::query()->where('user_id', $agent->id)->update(['status' => $statutProfil->value]);
+            // TCK-2506 — un profil qui n'exerce pas ne donne plus de fiche à lui seul : l'inscription
+            // à l'annuaire la rend joignable, et le masque de l'agence reste à éprouver.
+            $agent->forceFill(['listed_in_public_directory' => true])->save();
             $page = "/api/public/agents/agent-profil-{$statutProfil->value}";
 
             // Témoin : agence active, la page de l'agent s'ouvre et affiche son agence.

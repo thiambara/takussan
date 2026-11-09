@@ -443,11 +443,31 @@ return [
                 'mail_body' => "A visit has been requested for :property.\nRequested slot: :scheduled_at (time zone :timezone).\nTo reach the visitor: :contact.",
                 'sms' => 'Takussan: visit request for :property on :scheduled_at (:timezone).',
             ],
+            // TCK-2502 — a request by day and time of day: the time of day is stated, the time is to be set.
+            'requested_window' => [
+                'title' => 'Visit request: :property',
+                'body' => 'Requested day: :date, :window — time to be set. To reach the visitor: :contact.',
+                'mail_body' => "A visit has been requested for :property.\nRequested day: :date, :window — set the time when confirming the visit.\nTo reach the visitor: :contact.",
+                'sms' => 'Takussan: visit request for :property on :date, :window (time to be set).',
+            ],
             'rescheduled_by_visitor' => [
                 'title' => 'Another slot suggested: :property',
                 'body' => 'The visitor suggests :scheduled_at. The visit awaits your confirmation.',
                 'mail_body' => "The visitor has suggested another slot for :property. The visit awaits your confirmation.\nSuggested slot: :scheduled_at (time zone :timezone).",
                 'sms' => 'Takussan: the visitor suggests :scheduled_at (:timezone) for :property.',
+            ],
+            // TCK-2502 — cancellations of a visit requested by time of day, time never set.
+            'cancelled_by_visitor_window' => [
+                'title' => 'Visit cancelled by the visitor: :property',
+                'body' => 'The visitor has cancelled the visit requested for :date, :window (time not set).',
+                'mail_body' => "The visitor has cancelled their visit request for :property.\nIt was requested for :date, :window; the time had not been set.",
+                'sms' => 'Takussan: the visitor cancelled the visit of :property requested for :date, :window.',
+            ],
+            'cancelled_window' => [
+                'title' => 'Your visit of :property is cancelled',
+                'body' => 'The visit requested for :date, :window is cancelled.',
+                'mail_body' => "The agency has cancelled your visit request for :property.\nIt was requested for :date, :window.",
+                'sms' => 'Takussan: your visit of ":property" requested for :date, :window is cancelled.',
             ],
             'cancelled_by_visitor' => [
                 'title' => 'Visit cancelled by the visitor: :property',

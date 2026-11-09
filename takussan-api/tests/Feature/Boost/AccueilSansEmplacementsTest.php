@@ -51,7 +51,9 @@ class AccueilSansEmplacementsTest extends TestCase
 
     public function test_temoin_sans_le_parametre_la_requete_tire_les_emplacements_et_compte(): void
     {
-        $r = $this->getJson('/api/public/properties/search?contract_type=sale&per_page=12')->assertOk();
+        // TCK-2500 — `per_page=2` : une vedette déjà parmi les cartes de la page n'est plus servie en emplacement ; sur une
+        // page de 12, les six biens y seraient tous et le témoin ne tirerait plus rien.
+        $r = $this->getJson('/api/public/properties/search?contract_type=sale&per_page=2')->assertOk();
 
         $this->assertNotSame([], $r->json('sponsored'));
         $this->assertGreaterThan(0, $this->impressions());

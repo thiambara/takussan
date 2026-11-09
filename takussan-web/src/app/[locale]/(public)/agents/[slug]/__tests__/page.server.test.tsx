@@ -66,7 +66,14 @@ vi.mock('next-intl/server', async () => {
   };
 });
 
-vi.mock('next/navigation', () => ({ notFound: () => notFoundMock() }));
+const permanentRedirectMock = vi.fn((url: string) => {
+  // Comme `notFound()`, `permanentRedirect()` lève (`NEXT_REDIRECT`) et ne rend rien après lui.
+  throw new Error(`NEXT_REDIRECT ${url}`);
+});
+vi.mock('next/navigation', () => ({
+  notFound: () => notFoundMock(),
+  permanentRedirect: (url: string) => permanentRedirectMock(url),
+}));
 vi.mock('@/lib/queries/public-agent', () => ({ getAgent: () => getAgentMock() }));
 
 vi.mock('@/components/home/Navbar', () => ({ Navbar: () => <nav data-testid="navbar" /> }));
@@ -364,5 +371,95 @@ describe("TCK-1321 (P117.03) — les zones d'intervention de l'agent", () => {
 
     expect(screen.getByText(/Dakar · Location · /)).toBeInTheDocument();
     expect(screen.queryByText(/Plateau/)).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * TCK-2506 — la fiche d'un propriétaire qui n'a pas choisi l'annuaire reste servie (une de ses
+ * annonces y mène) mais en `noindex`, et sans données structurées `Person` : le sitemap et le
+ * balisage suivent la règle de l'annuaire. Chaque test porte son contrôle : une page qui
+ * désindexerait tout le monde rougit sur le second.
+ */
+describe("TCK-2506 — la fiche d'un propriétaire hors annuaire n'est pas indexée", () => {
+  beforeEach(() => {
+    getAgentMock.mockReset();
+    notFoundMock.mockClear();
+  });
+
+  const horsAnnuaire = () =>
+    agent({ slug: 'awa-d', full_name: 'Awa Diop', public_role: 'owner', indexable: false });
+
+  it('`indexable: false` → `noindex` (liens suivis), et la page est quand même rendue', async () => {
+    getAgentMock.mockResolvedValue({ etat: 'trouve', agent: horsAnnuaire() });
+
+    const meta = await generateMetadata({ params: params() });
+    expect(meta.robots).toEqual({ index: false, follow: true });
+
+    const { container } = render(withIntl(await Page({ params: params() })));
+    expect(screen.getByRole('heading', { level: 1, name: 'Awa Diop' })).toBeInTheDocument();
+    expect(container.querySelectorAll('script[type="application/ld+json"]')).toHaveLength(0);
+    expect(notFoundMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['indexable', true],
+    ['champ absent (API plus ancienne)', undefined],
+  ])('le contrôle : %s → indexée et balisée', async (_cas, indexable) => {
+    getAgentMock.mockResolvedValue({
+      etat: 'trouve',
+      agent: { ...horsAnnuaire(), indexable },
+    });
+
+    expect((await generateMetadata({ params: params() })).robots).toBeUndefined();
+    const { container } = render(withIntl(await Page({ params: params() })));
+    expect(container.querySelectorAll('script[type="application/ld+json"]')).toHaveLength(1);
+  });
+});
+
+/**
+ * TCK-2519 — une ancienne adresse (`/agents/dakar-immo-owner-4`, un ancien slug, une autre casse)
+ * redirige de façon permanente vers la fiche au nom. L'API ne sert `canonical_slug` que quand
+ * l'adresse demandée n'est pas la canonique ; la page compare en plus au segment, pour qu'aucune
+ * réponse ne puisse la faire boucler.
+ */
+describe('TCK-2519 — l’ancienne adresse redirige vers la fiche au nom', () => {
+  beforeEach(() => {
+    getAgentMock.mockReset();
+    notFoundMock.mockClear();
+    permanentRedirectMock.mockClear();
+  });
+
+  it('`canonical_slug` différent du segment → redirection permanente, locale comprise', async () => {
+    getAgentMock.mockResolvedValue({
+      etat: 'trouve',
+      agent: agent({ slug: 'awa-ndiaye', canonical_slug: 'awa-ndiaye' }),
+    });
+
+    await expect(Page({ params: params() })).rejects.toThrow('NEXT_REDIRECT /fr/agents/awa-ndiaye');
+    expect(permanentRedirectMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('le contrôle : sans `canonical_slug`, ou égal au segment, la fiche est rendue', async () => {
+    getAgentMock.mockResolvedValue({ etat: 'trouve', agent: agent() });
+    render(withIntl(await Page({ params: params() })));
+
+    getAgentMock.mockResolvedValue({
+      etat: 'trouve',
+      agent: agent({ canonical_slug: 'dakar-immo-agent-1' }),
+    });
+    render(withIntl(await Page({ params: params() })));
+
+    expect(permanentRedirectMock).not.toHaveBeenCalled();
+    expect(screen.getAllByRole('heading', { level: 1, name: 'Awa Ndiaye' })).toHaveLength(2);
+  });
+
+  it('les métadonnées déclarent canonique le slug servi par l’API, jamais le segment demandé', async () => {
+    getAgentMock.mockResolvedValue({ etat: 'trouve', agent: agent({ slug: 'awa-ndiaye' }) });
+
+    const meta = await generateMetadata({ params: params() });
+    const canonique = 'alternates' in meta ? String(meta.alternates.canonical) : '';
+
+    expect(canonique).toContain('/fr/agents/awa-ndiaye');
+    expect(canonique).not.toContain('dakar-immo-agent-1');
   });
 });

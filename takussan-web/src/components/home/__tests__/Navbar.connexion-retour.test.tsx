@@ -4,13 +4,16 @@
  * `/auth/login` sait renvoyer vers `?redirect=`, mais les deux liens « Connexion » de la barre
  * publique (bureau et menu mobile) n'en portaient aucun : se connecter depuis une recherche menait
  * toujours à `/app`, la recherche perdue. Le contrat du lien vit dans `hrefConnexion`
- * (`components/auth/lien-connexion.ts`, testé à part) ; ce fichier garde qu'il est BRANCHÉ, sur
- * les deux liens, avec la requête — une recherche sans ses filtres n'est plus celle qu'on quittait.
+ * (`components/auth/lien-connexion.ts`, testé à part) ; ce fichier garde qu'il est BRANCHÉ, avec la
+ * requête — une recherche sans ses filtres n'est plus celle qu'on quittait.
+ *
+ * TCK-2493 — le menu mobile a quitté la barre : sur mobile, la page quittée part par la case
+ * « Compte » de la barre d'onglets (`?depuis=`), et l'écran `/account` la rend à « Se connecter »
+ * (`EcranDuCompte.test.tsx`).
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { withIntl } from '@/test/intl';
@@ -48,21 +51,26 @@ vi.mock('@/hooks/useSuggest', () => ({
 vi.mock('@/app/actions/locale', () => ({ setLocaleAction: vi.fn(async () => {}) }));
 
 const { Navbar } = await import('@/components/home/Navbar');
+const { BarreDOngletsPublique } = await import('@/components/navigation-publique/BarreDOngletsPublique');
 
 function monter() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={client}>{withIntl(<Navbar />)}</QueryClientProvider>);
+  return render(
+    <QueryClientProvider client={client}>
+      {withIntl(
+        <>
+          <Navbar />
+          <BarreDOngletsPublique />
+        </>,
+      )}
+    </QueryClientProvider>,
+  );
 }
 
-async function liensConnexion() {
-  const user = userEvent.setup();
+function liensConnexion() {
   monter();
-  // Le lien de bureau se lit AVANT d'ouvrir le menu : le panneau modal rend le reste de la page
-  // inerte, donc absent de l'arbre d'accessibilité.
   const bureau = screen.getByRole('link', { name: 'Connexion' });
-  await user.click(screen.getByRole('button', { name: 'Ouvrir le menu' }));
-  const panneau = await screen.findByRole('dialog', { name: 'Menu' });
-  const mobile = within(panneau).getByRole('link', { name: 'Connexion' });
+  const mobile = within(screen.getByRole('navigation', { name: 'Navigation principale' })).getByRole('link', { name: 'Compte' });
   return { bureau, mobile };
 }
 
@@ -72,19 +80,18 @@ describe('Navbar publique — « Connexion » ramène à la page quittée (TCK-5
     emplacement.requete = 'contract_type=sale&type=office';
   });
 
-  it('depuis une recherche, les DEUX liens emportent le chemin et ses filtres en ?redirect=', async () => {
-    const { bureau, mobile } = await liensConnexion();
-    const attendu = `/auth/login?redirect=${encodeURIComponent('/fr/properties?contract_type=sale&type=office')}`;
-    expect(bureau).toBeDefined();
-    expect(bureau).toHaveAttribute('href', attendu);
-    expect(mobile).toHaveAttribute('href', attendu);
+  it('depuis une recherche, le lien de bureau ET la case « Compte » emportent le chemin et ses filtres', () => {
+    const { bureau, mobile } = liensConnexion();
+    const quittee = encodeURIComponent('/fr/properties?contract_type=sale&type=office');
+    expect(bureau).toHaveAttribute('href', `/auth/login?redirect=${quittee}`);
+    expect(mobile).toHaveAttribute('href', `/fr/account?depuis=${quittee}`);
   });
 
   it('depuis l\'accueil, le lien reste nu : on s\'y connecte pour aller à son espace', async () => {
     emplacement.chemin = '/fr';
     emplacement.requete = '';
-    const { bureau, mobile } = await liensConnexion();
+    const { bureau, mobile } = liensConnexion();
     expect(bureau).toHaveAttribute('href', '/auth/login');
-    expect(mobile).toHaveAttribute('href', '/auth/login');
+    expect(mobile).toHaveAttribute('href', '/fr/account');
   });
 });

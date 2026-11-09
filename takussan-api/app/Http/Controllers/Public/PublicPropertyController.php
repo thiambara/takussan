@@ -14,6 +14,7 @@ use App\Http\Requests\Public\ContactMessagePublicPropertyRequest;
 use App\Http\Requests\Public\HomepageDiscoveryRequest;
 use App\Http\Requests\Public\MapPublicPropertyRequest;
 use App\Http\Requests\Public\NeighborhoodsPublicPropertyRequest;
+use App\Http\Requests\Public\PriceDistributionRequest;
 use App\Http\Requests\Public\ReportPublicPropertyRequest;
 use App\Http\Requests\Public\SearchPublicPropertyRequest;
 use App\Http\Requests\Public\VisitRequestPublicPropertyRequest;
@@ -35,6 +36,7 @@ use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\RentPeriod;
 use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitType;
+use App\Models\Enums\VisitWindow;
 use App\Models\Property;
 use App\Models\PropertyReport;
 use App\Rules\PersonnelDeLAgence;
@@ -54,6 +56,7 @@ use App\Services\Property\SimilarPropertiesService;
 use App\Services\Review\ReviewEligibility;
 use App\Services\Search\FiltresDeLaCarte;
 use App\Services\Search\PropertySearchService;
+use App\Services\Search\RepartitionDesPrix;
 use App\Services\Search\SearchJournal;
 use App\Services\Visit\VisitNotifier;
 use App\Services\Visit\VisitSchedulingService;
@@ -387,13 +390,28 @@ class PublicPropertyController extends Controller
         ]);
     }
 
+    /**
+     * TCK-2498 — la répartition des prix des biens que la liste rendrait sous ces filtres, sans bornes de prix :
+     * `{ data: { buckets: [{from, to, count}], min, max } }`. Voir {@see RepartitionDesPrix}.
+     */
+    public function priceDistribution(PriceDistributionRequest $request, RepartitionDesPrix $repartition): JsonResponse
+    {
+        return $this->json(['data' => $repartition->calculer($request->filtres())]);
+    }
+
     public function search(SearchPublicPropertyRequest $request, PropertySearchService $service, SearchJournal $journal): array
     {
         $validated = $request->validated();
 
         $result = $service->search($validated);
         // TCK-2472 (ADR-0088) — le journal anonyme des recherches : page 1 seulement, après la réponse, jamais en échec.
-        $journal->recordPublicSearch($request, $validated, $result);
+        // TCK-2496 — pas un compte de biens nouveaux (`published_after`) : le front le demande pour chaque recherche
+        // récente qu'il affiche, sans que personne n'ait cherché. TCK-2517 — pas une recherche dans les biens d'une
+        // fiche (`agency`, `agent`) : son total est celui d'un portefeuille, et un zéro y passerait pour une demande
+        // sans offre du catalogue entier (le Radar, les variantes d'écriture).
+        if (empty($validated['published_after']) && empty($validated['agency']) && empty($validated['agent'])) {
+            $journal->recordPublicSearch($request, $validated, $result);
+        }
 
         return $result;
     }
@@ -845,12 +863,17 @@ class PublicPropertyController extends Controller
             ? Customer::query()->where('user_id', $user->id)->where('agency_id', $property->agency_id)->value('id')
             : null;
 
+        // TCK-2502 — un jour et une tranche, à la place d'une heure : la visite est rangée au début
+        // de la tranche, à Dakar, et la tranche dit que l'heure reste à fixer par l'agent.
+        $window = isset($data['preferred_window']) ? VisitWindow::from($data['preferred_window']) : null;
+
         $visit = $scheduling->createOrFail($property, $user, [
             'property_id' => $property->id,
             'visitor_id' => $user?->id,
             'customer_id' => $customerId,
             'agent_id' => $agentId,
-            'scheduled_at' => $data['scheduled_at'],
+            'scheduled_at' => $window !== null ? $window->startOn($data['date'])->utc() : $data['scheduled_at'],
+            'preferred_window' => $window,
             'type' => $data['type'] ?? VisitType::InPerson->value,
             'duration_minutes' => $data['duration_minutes'] ?? VisitSchedulingService::DEFAULT_DURATION_MINUTES,
             'status' => VisitStatus::Scheduled->value,

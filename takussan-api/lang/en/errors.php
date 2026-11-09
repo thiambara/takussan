@@ -663,6 +663,8 @@ return [
         'reschedule_inactive' => 'Only a pending or confirmed visit can change slot.',
         'slot_overlap' => 'Another confirmed visit already covers this slot on this property.',
         'staff_only' => 'Only the staff of the property\'s agency can confirm, complete, cancel or move this visit.',
+        // TCK-2502 — confirmer une visite demandée par tranche, c'est en fixer l'heure.
+        'time_required' => 'This visit was requested for a time of day: set the time to confirm it.',
     ],
     'webhook' => [
         'endpoint_gone' => 'This notification address is no longer in service: each integration now has its own.',

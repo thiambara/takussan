@@ -1,11 +1,18 @@
 'use client';
+import { useId, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { ChevronDown } from 'lucide-react';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { PropertyEntryCost as CoutDEntree } from '@/types/property';
 
 interface PropertyEntryCostProps {
   readonly entryCost: CoutDEntree | null | undefined;
   readonly currency: string | null;
+  /**
+   * TCK-2501 — le premier écran mobile : le TOTAL d'abord, sous le titre, et le détail replié
+   * derrière un bouton (`aria-expanded`). Sans lui, le bloc déplié de la carte de réservation.
+   */
+  readonly repliable?: boolean;
 }
 
 /**
@@ -17,9 +24,12 @@ interface PropertyEntryCostProps {
  *
  * Absent — pas « 0 F » — quand l'API rend `null` : hors location mensuelle, ou rien de renseigné.
  */
-export function PropertyEntryCost({ entryCost, currency }: PropertyEntryCostProps) {
+export function PropertyEntryCost({ entryCost, currency, repliable = false }: PropertyEntryCostProps) {
   const t = useTranslations('property.detail.entryCost');
   const fmt = useFormatteurs();
+  // TCK-2501 — rendu deux fois (bloc mobile, carte de bureau) : un identifiant par instance.
+  const id = useId();
+  const [deplie, setDeplie] = useState(false);
   if (!entryCost) return null;
 
   const lignes: { cle: string; libelle: string; valeur: string }[] = [];
@@ -36,9 +46,54 @@ export function PropertyEntryCost({ entryCost, currency }: PropertyEntryCostProp
     lignes.push({ cle: 'charges', libelle: t('monthlyCharges'), valeur: fmt.montant(entryCost.monthly_charges, currency) });
   }
 
+  const titreId = `${id}-titre`;
+
+  if (repliable) {
+    const detailId = `${id}-detail`;
+    return (
+      <section aria-labelledby={titreId} className="rounded-xl border border-border bg-card p-3 text-sm">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 id={titreId} className="bg-card text-muted-foreground">{t('title')}</h2>
+            <p
+              className="font-display text-xl font-semibold text-foreground tabular-nums"
+              data-testid="cout-d-entree-total"
+            >
+              {fmt.montant(entryCost.total, currency)}
+            </p>
+          </div>
+          <button
+            type="button"
+            aria-expanded={deplie}
+            aria-controls={detailId}
+            onClick={() => setDeplie((v) => !v)}
+            className="-mr-1 inline-flex min-h-10 shrink-0 items-center gap-1 rounded-lg px-2 text-sm font-medium text-foreground underline underline-offset-4"
+          >
+            {deplie ? t('hideDetails') : t('showDetails')}
+            <ChevronDown className={`size-4 transition-transform ${deplie ? 'rotate-180' : ''}`} aria-hidden />
+          </button>
+        </div>
+        {deplie ? (
+          <dl id={detailId} className="mt-2 space-y-1 border-t border-border pt-2 tabular-nums">
+            {lignes.map((ligne) => (
+              <div key={ligne.cle} className="flex items-baseline justify-between gap-3">
+                <dt className="bg-card text-muted-foreground">{ligne.libelle}</dt>
+                <dd className="text-foreground">{ligne.valeur}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <p id={detailId} className="mt-0.5 text-pretty bg-card text-muted-foreground">
+            {lignes.map((ligne) => `${ligne.libelle} ${ligne.valeur}`).join(' · ')}
+          </p>
+        )}
+      </section>
+    );
+  }
+
   return (
-    <section aria-labelledby="cout-d-entree" className="rounded-lg bg-muted p-3 text-sm">
-      <h2 id="cout-d-entree" className="font-medium text-foreground">{t('title')}</h2>
+    <section aria-labelledby={titreId} className="rounded-lg bg-muted p-3 text-sm">
+      <h2 id={titreId} className="font-medium text-foreground">{t('title')}</h2>
       <dl className="mt-2 space-y-1 tabular-nums">
         {lignes.map((ligne) => (
           <div key={ligne.cle} className="flex items-baseline justify-between gap-3">

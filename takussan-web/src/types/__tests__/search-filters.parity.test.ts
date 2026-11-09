@@ -64,11 +64,17 @@ const TYPES = join(RACINE, 'takussan-web', 'src', 'types', 'search.ts');
  * vue carte, qui ne passe pas par `SearchFilters` ; `placements` coupe les emplacements pour la
  * rangée « À vendre » de l'accueil (TCK-687), ce n'est pas un filtre du panneau ; `seed_hour`
  * est l'heure de graine que la pagination renvoie (TCK-1008), pas un filtre non plus.
+ * `published_after` compte les biens nouveaux depuis la dernière visite (TCK-2496) ; `agency` et
+ * `agent` restreignent au portefeuille d'une fiche publique, et `facets` demande ses comptes
+ * (TCK-2517) : aucun n'est un critère du panneau de la liste.
  */
-const HORS_INTERFACE = ['search', 'lat_min', 'lat_max', 'lng_min', 'lng_max', 'placements', 'seed_hour'];
+const HORS_INTERFACE = [
+  'search', 'lat_min', 'lat_max', 'lng_min', 'lng_max', 'placements', 'seed_hour',
+  'published_after', 'agency', 'agent', 'facets',
+];
 
 /** Clés de contrôle de la requête : elles ne produisent pas de clause de filtre moteur. */
-const NON_FILTRANTES = ['q', 'search', 'sort', 'page', 'per_page', 'placements', 'seed_hour'];
+const NON_FILTRANTES = ['q', 'search', 'sort', 'page', 'per_page', 'placements', 'seed_hour', 'facets'];
 
 function clesDuFront(): string[] {
   // Une garde qui ne trouve pas sa source doit le DIRE, pas passer au vert sur un

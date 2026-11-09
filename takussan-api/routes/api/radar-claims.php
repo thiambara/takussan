@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Route;
 | Radar — la réclamation par l'annonceur, TCK-2390 (ADR-0077 §3)
 |--------------------------------------------------------------------------
 | Public, SANS `auth` : le lien signé du message est l'autorisation, et il ne donne que ceci — lire SES annonces, recevoir
-| un code à SON numéro, les publier. Chaque route sous son propre compteur par IP ; l'envoi du code porte en plus la borne
+| un code à SON numéro, les publier — ou les refuser (TCK-2511). Chaque route sous son propre compteur par IP ; l'envoi du code porte en plus la borne
 | par IP de la connexion par téléphone (`auth-phone-send`) et, dans le service, celle par numéro (`PhoneSendQuota`) ; la
 | confirmation partage le seau par numéro de `auth-phone-verify` (le numéro de l'annonceur, lu dans le jeton).
 */
@@ -26,4 +26,8 @@ Route::prefix('radar/claims/{token}')
         Route::post('confirm', [RadarClaimController::class, 'confirm'])
             ->middleware(['throttle:10,1,radar_claim_confirm', 'throttle:auth-phone-verify'])
             ->name('radar.claims.confirm');
+        // TCK-2511 — le refus depuis le lien : sans code, sous son propre compteur par IP.
+        Route::post('decline', [RadarClaimController::class, 'decline'])
+            ->middleware('throttle:10,1,radar_claim_decline')
+            ->name('radar.claims.decline');
     });

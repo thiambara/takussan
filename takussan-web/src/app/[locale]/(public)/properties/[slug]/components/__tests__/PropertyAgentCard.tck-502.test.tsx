@@ -50,9 +50,6 @@ function monter(contact: PropertyOwnerLite) {
       <PropertyAgentCard
         contact={contact}
         agency={null}
-        propertySlug="terrain-guediawaye"
-        propertyTitle="Terrain viabilisé à Guédiawaye"
-        onMessage={() => {}}
       />,
     ),
   );

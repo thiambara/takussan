@@ -261,8 +261,26 @@ describe('politique de confidentialité — le journal des recherches', () => {
   });
 
   it('la version des documents avance avec le journal', () => {
-    // Avancée par TCK-2482 (le journal y entrait le 4 novembre 2026).
-    expect(VERSION_DOCUMENTS).toEqual({ date: '6 novembre 2026', dateEn: 'November 6, 2026' });
+    // Avancée par TCK-2482 (le journal y entrait le 4 novembre 2026), puis par TCK-2511.
+    expect(VERSION_DOCUMENTS).toEqual({ date: '9 novembre 2026', dateEn: 'November 9, 2026' });
+  });
+});
+
+/**
+ * TCK-2511 (ADR-0088, amendement du 2026-11-09) — la page de réclamation du Radar montre à
+ * l'annonceur le total des recherches du quartier de ses annonces : une sortie neuve du journal,
+ * que la politique doit nommer, avec son seuil et ce qu'elle ne contient pas.
+ */
+describe('politique de confidentialité — la demande du quartier montrée à l’annonceur', () => {
+  it('dit le total, la période, le seuil et l’absence de recherche particulière, dans les deux langues', () => {
+    expect(privacy.fr).toContain('le nombre total de recherches faites sur les 30 derniers jours pour le quartier de ses annonces, et seulement à partir de 50 recherches');
+    expect(privacy.fr).toContain('ce total ne contient aucun texte saisi ni aucune recherche particulière');
+    expect(privacy.en).toContain('the total number of searches run over the last 30 days for the neighbourhood of their listings, and only from 50 searches upwards');
+    expect(privacy.en).toContain('this total contains no text entered and no individual search');
+  });
+
+  it('la version des documents avance avec elle', () => {
+    expect(VERSION_DOCUMENTS).toEqual({ date: '9 novembre 2026', dateEn: 'November 9, 2026' });
   });
 });
 
@@ -293,7 +311,8 @@ describe('politique de confidentialité — ce que le stockage local garde de la
   });
 
   it('la version des documents avance avec elles', () => {
-    expect(VERSION_DOCUMENTS).toEqual({ date: '6 novembre 2026', dateEn: 'November 6, 2026' });
+    // Avancée depuis par TCK-2511.
+    expect(VERSION_DOCUMENTS).toEqual({ date: '9 novembre 2026', dateEn: 'November 9, 2026' });
   });
 });
 

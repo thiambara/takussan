@@ -443,11 +443,31 @@ return [
                 'mail_body' => "Am na ku laaj seetaan :property.\nWaxtu bi ñu laaj : :scheduled_at (waxtu :timezone).\nNgir jokkoo ak ki bëgg seetaan : :contact.",
                 'sms' => 'Takussan : laaj seetaan ngir :property ci :scheduled_at (:timezone).',
             ],
+            // TCK-2502 — une demande par jour et tranche : la tranche est dite, l'heure reste à fixer.
+            'requested_window' => [
+                'title' => 'Demande de visite : :property',
+                'body' => 'Jour demandé : :date, :window — heure à fixer. Pour joindre le visiteur : :contact.',
+                'mail_body' => "Une demande de visite pour :property.\nJour demandé : :date, :window — l'heure est à fixer en confirmant la visite.\nPour joindre le visiteur : :contact.",
+                'sms' => 'Takussan : demande de visite pour :property le :date, :window (heure à fixer).',
+            ],
             'rescheduled_by_visitor' => [
                 'title' => 'Beneen waxtu : :property',
                 'body' => 'Ki bëgg seetaan joxe na :scheduled_at. Seetaan bi dafay xaar nga dëggal ko.',
                 'mail_body' => "Ki bëgg seetaan :property joxe na beneen waxtu. Seetaan bi dafay xaar nga dëggal ko.\nWaxtu bi mu joxe : :scheduled_at (waxtu :timezone).",
                 'sms' => 'Takussan : ki bëgg seetaan joxe na :scheduled_at (:timezone) ngir :property.',
+            ],
+            // TCK-2502 — annulations d'une visite demandée par tranche, heure jamais fixée.
+            'cancelled_by_visitor_window' => [
+                'title' => 'Visite annulée par le visiteur : :property',
+                'body' => 'Le visiteur a annulé la visite demandée le :date, :window (heure non fixée).',
+                'mail_body' => "Le visiteur a annulé sa demande de visite de :property.\nElle était demandée le :date, :window ; l'heure n'avait pas été fixée.",
+                'sms' => 'Takussan : le visiteur a annulé la visite de :property demandée le :date, :window.',
+            ],
+            'cancelled_window' => [
+                'title' => 'Votre visite de :property est annulée',
+                'body' => 'La visite demandée le :date, :window est annulée.',
+                'mail_body' => "L'agence a annulé votre demande de visite de :property.\nElle était demandée le :date, :window.",
+                'sms' => 'Takussan : votre visite de « :property » demandée le :date, :window est annulée.',
             ],
             'cancelled_by_visitor' => [
                 'title' => 'Ki bëgg seetaan neenal na : :property',

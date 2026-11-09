@@ -309,6 +309,10 @@
      par le dock flottant. `env()` vaut 0 tant que le viewport n'est pas `viewport-fit=cover`
      (piste reportée par le porteur, 2026-10-25) : la règle est juste le jour où il le sera. */
   --barre-onglets-hauteur: calc(3.5rem + env(safe-area-inset-bottom));
+
+  /* TCK-2493 (ADR-0091) — la hauteur de la barre d'onglets du SITE PUBLIC (60 px), zone sûre comprise.
+     Lue par la barre (`BarreDOngletsPublique`), par la réserve de `body` et par le dock flottant. */
+  --barre-publique-hauteur: calc(3.75rem + env(safe-area-inset-bottom));
 }
 
 @media (min-width: 640px) {
@@ -326,6 +330,27 @@
 @media (width < 48rem) {
   [data-barre-onglets] {
     --floating-dock-base: calc(16px + var(--barre-onglets-hauteur));
+  }
+}
+
+/* TCK-2493 (ADR-0091 §4) — sous `lg`, quand la page porte la barre d'onglets publique
+   (`data-barre-onglets-publique`, rendue seulement là où aucune autre couche d'action ne tient le
+   bas) : `body` réserve sa hauteur — rien de la page ne passe dessous, le dernier élément focalisable
+   reste atteignable (TCK-503) — et le dock flottant (pastille du comparateur, outils de la liste) se
+   pose au-dessus d'elle. La carte plein écran de la liste (`.takussan-carte-plein-ecran`, sans URL)
+   est une couche à elle seule (ses outils « Filtres · Liste ») : la barre et la pastille du
+   comparateur s'y retirent, et avec elles la réserve. La plage est le
+   complément exact de `lg:hidden` (`REQUETE_BARRE_PUBLIQUE`). */
+@media (width < 64rem) {
+  body:has([data-barre-onglets-publique]):not(:has(.takussan-carte-plein-ecran)) {
+    padding-bottom: var(--barre-publique-hauteur);
+  }
+  :root:has([data-barre-onglets-publique]):not(:has(.takussan-carte-plein-ecran)) {
+    --floating-dock-base: calc(12px + var(--barre-publique-hauteur));
+  }
+  body:has(.takussan-carte-plein-ecran) [data-barre-onglets-publique],
+  body:has(.takussan-carte-plein-ecran) [data-pastille-comparateur] {
+    display: none;
   }
 }
 

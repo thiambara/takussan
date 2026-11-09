@@ -13,6 +13,8 @@ import { useToast } from '@/components/ui/toast';
 import { COMPARE_MAX_IDS, idsToCsv, type ComparePreview } from '@/lib/compare';
 import { cn } from '@/lib/utils';
 import { fusionnerRestauration } from '@/components/compare/restauration';
+import { useMatchesMedia } from '@/hooks/useMatchesMedia';
+import { porteLaBarrePublique, REQUETE_BARRE_PUBLIQUE } from '@/lib/navigation/barre-publique';
 
 /**
  * Logical height of the pill (px). Used by the FloatingDock to compute the
@@ -37,6 +39,12 @@ const COMPARE_PILL_HEIGHT_PX = 176;
  * de police que ci-dessus. Relevé au navigateur le 2026-09-23 : cf. le ticket.
  */
 const COMPARE_PILL_REDUITE_HEIGHT_PX = 52;
+
+/**
+ * TCK-2493 (ADR-0091 §4) — la pastille « Comparer N » du téléphone : `h-11` (44 px), plus la même
+ * marge de police que ci-dessus.
+ */
+const COMPARE_PASTILLE_HEIGHT_PX = 48;
 
 /**
  * TCK-561 — l'état « réduite » vit dans `sessionStorage`, par visiteur et par onglet : c'est une
@@ -116,6 +124,12 @@ export function CompareFloatingBar({ className }: { className?: string }) {
   // La liste publique (`/properties`, avec ou sans préfixe de langue) — PAS une fiche
   // (`/properties/<slug>`). C'est là que l'emplacement libre réduit la barre au lieu de naviguer.
   const surLaListe = /\/properties\/?$/.test(chemin);
+  // TCK-2493 (ADR-0091 §4, « une seule couche d'action en bas ») — sous `lg`, le comparateur n'est
+  // plus un dock de 170 px mais une PASTILLE repliée au-dessus de la barre d'onglets, qui mène au
+  // comparatif. Là où la barre cède la place à une autre couche (fiche, tunnels, pages par lien),
+  // la pastille s'efface avec elle. En bureau, le dock est inchangé.
+  const sousLg = useMatchesMedia(REQUETE_BARRE_PUBLIQUE);
+  const effaceeParUneAutreCouche = sousLg && !porteLaBarrePublique(chemin);
 
   const [reduite, setReduite] = useState(lireReduite);
   const idCorps = useId();
@@ -219,12 +233,12 @@ export function CompareFloatingBar({ className }: { className?: string }) {
   // Register with the FloatingDock orchestrator (TCK-275). The slot is only
   // “active” once we actually render content — otherwise the dock would
   // reserve vertical space for an invisible bar.
-  const isVisible = isHydrated && ids.length > 0 && !surLeComparatif;
+  const isVisible = isHydrated && ids.length > 0 && !surLeComparatif && !effaceeParUneAutreCouche;
   const { bottom } = useFloatingDockSlot({
     id: 'compare-floating-bar',
     corner: 'bottom-right',
     priority: 1, // sits above chat (priority 0)
-    height: reduite ? COMPARE_PILL_REDUITE_HEIGHT_PX : COMPARE_PILL_HEIGHT_PX,
+    height: sousLg ? COMPARE_PASTILLE_HEIGHT_PX : reduite ? COMPARE_PILL_REDUITE_HEIGHT_PX : COMPARE_PILL_HEIGHT_PX,
     enabled: isVisible,
   });
 
@@ -241,6 +255,17 @@ export function CompareFloatingBar({ className }: { className?: string }) {
   }, [demandeDeFocus, isVisible, reduite]);
 
   if (!isVisible) return null;
+
+  if (sousLg) {
+    return (
+      <PastilleDuComparateur
+        bottom={bottom}
+        href={ids.length >= 2 ? `/compare?ids=${idsToCsv(ids)}` : '/compare'}
+        nombre={ids.length}
+        className={className}
+      />
+    );
+  }
 
   if (reduite) {
     return (
@@ -450,6 +475,48 @@ export function CompareFloatingBar({ className }: { className?: string }) {
           </div>
         </div>
       </div>
+    </aside>
+  );
+}
+
+/**
+ * TCK-2493 — la pastille du téléphone : « Comparer » et le nombre de biens, un lien vers le comparatif
+ * (qui dit lui-même ce qui manque sous deux biens). Retirer un bien se fait sur le comparatif ou sur sa
+ * carte : la pastille ne porte qu'une action, pour ne prendre que 44 px.
+ */
+function PastilleDuComparateur({
+  bottom,
+  href,
+  nombre,
+  className,
+}: {
+  readonly bottom: string;
+  readonly href: string;
+  readonly nombre: number;
+  readonly className?: string;
+}) {
+  const t = useTranslations('navigationPublique.comparateur');
+  return (
+    <aside aria-label={t('libelle')} style={{ bottom }} data-pastille-comparateur="" className={cn('fixed right-4 z-40', className)}>
+      <LienLocalise
+        href={href}
+        aria-label={t('aria', { count: nombre })}
+        className={cn(
+          'inline-flex h-11 items-center gap-2 rounded-full bg-foreground pl-3.5 pr-4 text-sm font-semibold text-background',
+          'shadow-[0_8px_20px_-8px_color-mix(in_oklab,var(--shadow-color)_55%,transparent)]',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+          'transition-[scale] duration-150 active:scale-[0.96]',
+        )}
+      >
+        <Scale className="size-4" aria-hidden />
+        {t('libelle')}
+        <span
+          aria-hidden
+          className="inline-flex size-5 items-center justify-center rounded-full bg-background text-[11px] tabular-nums text-foreground"
+        >
+          {nombre}
+        </span>
+      </LienLocalise>
     </aside>
   );
 }

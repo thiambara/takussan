@@ -19,6 +19,7 @@ use App\Models\Task;
 use App\Models\User;
 use App\Services\Maintenance\ProviderEligibility;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Visit\VisitSchedulingService;
 use App\Support\DayRange;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -228,16 +229,46 @@ class CalendarEventCollector
             $endAt = $startAt && $v->duration_minutes
                 ? $startAt->copy()->addMinutes((int) $v->duration_minutes)
                 : $startAt;
+            $title = $v->property?->title ?? __('messages.visit');
+
+            // TCK-2502 — une visite demandée par tranche, heure pas encore fixée : un événement
+            // SUR LA JOURNÉE (son jour à Dakar), la tranche dans le titre. Jamais un rendez-vous
+            // minuté au début de tranche — le flux .ics le pousserait dans Google ou Apple Agenda,
+            // qui y poseraient leurs propres alertes. Confirmée, l'heure est fixée et la tranche
+            // tombe : elle redevient un rendez-vous minuté.
+            if ($v->preferred_window !== null && $startAt !== null) {
+                $day = $startAt->copy()->setTimezone(VisitSchedulingService::TIMEZONE)->format('Y-m-d').' 00:00:00';
+
+                return [
+                    'key' => "visit-{$v->id}",
+                    'id' => $v->id,
+                    'type' => 'visit',
+                    'kind' => 'window',
+                    'title' => __('calendar.visit_window_title', ['title' => $title, 'window' => __('visits.windows.'.$v->preferred_window->value)]),
+                    // Le titre du bien seul : le flux .ics compose son résumé dans SA langue.
+                    'property_title' => $title,
+                    'start' => $day,
+                    'end' => $day,
+                    'status' => $v->status,
+                    'all_day' => true,
+                    'preferred_window' => $v->preferred_window->value,
+                    'duration_minutes' => $v->duration_minutes,
+                    'property_id' => $v->property_id,
+                    'property_slug' => $v->property?->slug,
+                    'resource_url' => "/app/visits/{$v->id}",
+                ];
+            }
 
             return [
                 'key' => "visit-{$v->id}",
                 'id' => $v->id,
                 'type' => 'visit',
-                'title' => $v->property?->title ?? __('messages.visit'),
+                'title' => $title,
                 'start' => $startAt?->toDateTimeString(),
                 'end' => $endAt?->toDateTimeString(),
                 'status' => $v->status,
                 'all_day' => false,
+                'preferred_window' => null,
                 'duration_minutes' => $v->duration_minutes,
                 'property_id' => $v->property_id,
                 'property_slug' => $v->property?->slug,

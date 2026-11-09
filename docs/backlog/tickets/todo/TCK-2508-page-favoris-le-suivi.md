@@ -23,7 +23,7 @@ Revenir sur ses favoris et voir tout de suite ce qui a bougé (prix en baisse, b
 
 ## Contrat de données
 
-- Connecté : `GET /api/favorites` (avec `price_change`, TCK-2507) et `GET /api/saved-searches` (avec `last_viewed_at`) ; nouveautés par recherche : liste publique `filter[published_after]` + `per_page=1`, `meta.total` (TCK-2496) ; ouvrir une recherche appelle `POST /api/saved-searches/{id}/viewed`.
+- Connecté : `GET /api/favorites` (avec `price_change`, TCK-2507) et `GET /api/saved-searches` (avec `last_viewed_at`) ; nouveautés par recherche : liste publique `published_after` (paramètre plat de `/api/public/properties/search`, TCK-2496) + `per_page=1`, `meta.total` (TCK-2496) ; ouvrir une recherche appelle `POST /api/saved-searches/{id}/viewed`.
 - Anonyme : le magasin local des favoris garde, en plus de l'id, **le prix vu à l'ajout** ; l'écart se calcule contre le prix relu par `GET /api/public/properties/by-ids`.
 - **Sélection partagée sans objet neuf côté API** : un lien `/[locale]/favorites/partage?ids=1,2,3` (au plus la borne de `by-ids`), lu par `by-ids` ; un id devenu non public disparaît en silence de la vue partagée. Page en lecture seule, `noindex`. Décision de ce ticket : le lien est un instantané des biens, pas une liste vivante — écart assumé par rapport à la note de la maquette, qui évoquait un objet API.
 
@@ -68,4 +68,9 @@ Revenir sur ses favoris et voir tout de suite ce qui a bougé (prix en baisse, b
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **(Revue de TCK-2507, 2026-11-09) Les favoris de l'appareil versés au compte à la connexion prennent le prix de la
+  connexion.** `favoritesStore.ts` POSTe les identifiants locaux sur `/api/favorites` au login : `FavoriteObserver`
+  leur pose `price_at_favorite` au prix de CET instant. Pour eux, « −X F depuis l'ajout » veut donc dire « depuis
+  l'enregistrement dans le compte ». Le libellé (ou le suivi gardé côté navigateur) doit en tenir compte.
+- `price_change` est `null` pour un favori posé sur un bien qui n'était PAS public à l'ajout (brouillon, bien privé) :
+  aucun écart ne s'affiche, même une fois le bien publié (décision de la session, TCK-2507).

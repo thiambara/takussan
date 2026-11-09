@@ -1,65 +1,64 @@
 'use client';
 import { useTranslations } from 'next-intl';
-import { KeyRound, Calendar } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { WhatsAppButton } from '@/components/contact/WhatsAppButton';
+import { ListeDeNumeros } from '@/components/contact/ListeDeNumeros';
 import { useFloatingDockSlot } from '@/components/floating-dock';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useMatchesMaxWidth } from '@/hooks/useMatchesMedia';
-import { formatMontant } from '@/lib/format/currency';
-import { getPrimaryCtaForProperty } from '@/lib/property-cta';
-import type { PropertyDetail } from '@/types/property';
+import type { PropertyDetail, PropertyOwnerLite } from '@/types/property';
+import { actionsDuContrat, canalPrincipal } from './actions-de-la-fiche';
+import { PropertyActionButton, PropertyCallButton, PropertyMessageButton } from './PropertyContactActions';
+import { useAppelDuBien } from './useAppelDuBien';
 
 /**
  * Logical height of the sticky toolbar (px). Used by the FloatingDock to
  * lift bottom-right slots (chat FAB, compare pill) above us so they stay
  * reachable even when this bar is mounted on mobile property pages.
- * Calibrated against the actual rendered height (price + buttons + safe-area
- * padding).
+ * TCK-2501 — 12 px de haut + 48 px de boutons + 12 px de bas (hors zone sûre) + 1 px de bordure.
  */
-const MOBILE_BOTTOM_BAR_HEIGHT_PX = 76;
+const MOBILE_BOTTOM_BAR_HEIGHT_PX = 73;
 
 /** Tailwind `lg` breakpoint (matches the `lg:hidden` wrapper class below). */
 const LG_BREAKPOINT_PX = 1024;
 
-/** La donnée porte la CLÉ, le rendu la résout (patron TCK-286). */
-const SHORT_LABEL_KEY: Record<'offer' | 'reserve' | 'apply', string> = {
-  offer: 'bottomBar.offer',
-  reserve: 'bottomBar.reserve',
-  apply: 'bottomBar.apply',
-};
-
 interface PropertyMobileBottomBarProps {
   property: PropertyDetail;
+  /** TCK-2501 — le destinataire (TCK-502) : son canal de premier rang occupe la moitié gauche. */
+  contact: PropertyOwnerLite | null;
+  canMessage: boolean;
+  onMessage: () => void;
   onRequestVisit: () => void;
   onRequestBooking: () => void;
 }
 
-// TCK-078 — shared formatter.
-function formatPrice(price: number, currency: string | null): string {
-  return formatMontant(price, currency ?? 'XOF');
-}
-
+/**
+ * TCK-2501 — la barre basse « Le prix d'abord » : **deux boutons de même largeur, sans montant.**
+ *
+ * Elle portait le prix, tronqué à 390 px (« 2 240 000 F CF… », 172 px nécessaires pour 146 — audit
+ * UX 2026-11, P0) : le prix est désormais en tête de fiche, lu avant toute action. À gauche le canal
+ * de premier rang (4a : WhatsApp quand le contact l'a déclaré, sinon Appeler, sinon Écrire) ; à
+ * droite l'action du contrat (3a : Visiter pour une location au dossier). Les autres canaux et
+ * l'action seconde sont dans le bloc de contact, sous l'interlocuteur.
+ */
 export function PropertyMobileBottomBar({
   property,
+  contact,
+  canMessage,
+  onMessage,
   onRequestVisit,
   onRequestBooking,
 }: PropertyMobileBottomBarProps) {
   const t = useTranslations('property.detail');
-  const tPeriods = useTranslations('property.rentPeriodsShort');
-  const isRent = property.contract_type === 'rent';
-  const periodLabel = isRent ? tPeriods(property.rent_period ?? 'monthly') : null;
-  const primaryCta = getPrimaryCtaForProperty(property);
+  const canal = canalPrincipal(contact, canMessage);
+  const { primaire } = actionsDuContrat(property);
+  const appel = useAppelDuBien(property.slug);
 
   // Register with the FloatingDock orchestrator (TCK-275) so the chat FAB and
   // comparator pill float ABOVE us instead of being hidden behind the sticky
-  // bar. The slot is mobile-only via the `lg:hidden` wrapper class — on
-  // desktop the element is `display: none`, so its presence in the registry
-  // is harmless (Tailwind hides it but the hook still registers; we accept
-  // the trivial extra offset on the rare desktop user opening a comparator
-  // on a property page, since the visual delta is < 6 px).
-  // Mirror the `lg:hidden` visual gate on the dock registration: above the
+  // bar. Mirror the `lg:hidden` visual gate on the dock registration: above the
   // `lg` breakpoint (1024px) the bar is `display: none`, so we MUST NOT
   // claim a `bottom-full` slot — otherwise desktop chat/compare slots would
-  // float above an invisible 76px bar (phantom offset → AC3 regression).
+  // float above an invisible bar (phantom offset → AC3 regression).
   const isMobile = useMatchesMaxWidth(LG_BREAKPOINT_PX - 1);
   // TCK-477 — `safeAreaInset` est EXIGÉ par le type pour tout slot `bottom-full`, et
   // le hook le rend sous `paddingBottom` : la valeur déclarée ici est celle qui est
@@ -75,27 +74,52 @@ export function PropertyMobileBottomBar({
     safeAreaInset: 'calc(0.75rem + env(safe-area-inset-bottom))',
   });
 
+  // `basis-0` : deux moitiés ÉGALES, quel que soit le libellé ; aucun `truncate` — un libellé qui ne
+  // tiendrait plus passerait à la ligne, il ne serait jamais coupé (AC1).
+  const moitie = 'h-12 min-h-12 flex-1 basis-0 rounded-xl px-3 text-[15px] font-semibold whitespace-normal leading-tight';
+
   return (
     <div
       style={{ bottom, paddingBottom }}
-      className="lg:hidden fixed inset-x-0 z-40 border-t border-border bg-card/95 backdrop-blur px-4 py-3 flex items-center gap-3"
+      className="lg:hidden fixed inset-x-0 z-40 border-t border-border bg-card/95 backdrop-blur px-4 py-3"
+      data-testid="barre-d-actions-de-la-fiche"
     >
-      <div className="min-w-0">
-        <p className="text-lg font-bold text-foreground truncate tabular-nums">
-          {formatPrice(property.price, property.currency)}
-          {periodLabel && <span className="text-xs font-normal text-muted-foreground">/{periodLabel}</span>}
-        </p>
+      <div className="flex gap-2.5">
+        {canal === 'whatsapp' && (
+          <WhatsAppButton
+            slug={property.slug}
+            title={property.title}
+            hasWhatsApp
+            className={`${moitie} gap-2 py-0`}
+          >
+            {t('actions.whatsapp')}
+          </WhatsAppButton>
+        )}
+        {canal === 'call' && (
+          <PropertyCallButton onClick={appel.appeler} enCours={appel.enCours} className={moitie} />
+        )}
+        {canal === 'message' && (
+          <PropertyMessageButton onClick={onMessage} court variant="outline" className={moitie} />
+        )}
+        <PropertyActionButton
+          action={primaire}
+          court
+          onRequestVisit={onRequestVisit}
+          onRequestBooking={onRequestBooking}
+          className={moitie}
+        />
       </div>
-      <div className="ml-auto flex gap-2">
-        <Button type="button" variant="outline" size="sm" className="h-10 gap-1.5 px-3.5" onClick={onRequestVisit}>
-          <Calendar className="size-4" aria-hidden />
-          {t('bottomBar.visit')}
-        </Button>
-        <Button type="button" size="sm" className="h-10 gap-1.5 px-3.5" onClick={onRequestBooking}>
-          <KeyRound className="size-4" aria-hidden />
-          {t(SHORT_LABEL_KEY[primaryCta.action])}
-        </Button>
-      </div>
+
+      {/* Plusieurs numéros (TCK-633) : la liste monte en feuille, au-dessus de la barre. */}
+      <Sheet open={appel.numeros !== null} onOpenChange={(ouvert) => !ouvert && appel.fermerNumeros()}>
+        <SheetContent side="bottom" className="rounded-t-2xl p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+          <SheetHeader className="p-0 pb-3">
+            <SheetTitle>{t('actions.numbersTitle', { name: contact?.name ?? '' })}</SheetTitle>
+            <SheetDescription>{t('actions.numbersDescription')}</SheetDescription>
+          </SheetHeader>
+          {appel.numeros ? <ListeDeNumeros numeros={appel.numeros} /> : null}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
