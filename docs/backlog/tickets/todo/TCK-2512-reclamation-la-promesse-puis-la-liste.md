@@ -62,4 +62,10 @@ L'annonceur qui ouvre le lien comprend en une ligne ce qu'il y gagne, coche ses 
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **`data.demand` se dit en « recherches », jamais en « personnes »** (ni « visiteurs », ni « acheteurs », ni
+  « locataires ») : c'est un total agrégé de `searches_count` (TCK-2511, décision de la session du 2026-11-09 —
+  l'amendement d'ADR-0088 §4 couvre cette sortie parce qu'aucune saisie ne sort et que le seuil est de 50 recherches,
+  sans plancher de réseaux distincts : un même visiteur peut en faire plusieurs). Forme : `null` ou
+  `{ quarter, searches_30d }` ; `null` → rien à l'écran.
+- Contrat complet de `POST …/decline` et de `demand` : notes d'implémentation de TCK-2511. Le refus n'a pas de 503 :
+  il reste ouvert quand `GET` rend 503 `radar.claim.unavailable`.

@@ -38,6 +38,12 @@ Mesuré le 2026-11-04 sur `dev` `74506074b` :
 4. **Une recherche n'est montrée qu'après cinq visiteurs distincts** sur un même jour, et seulement si elle rend encore
    des résultats. La demande sans résultat ne sort que vers l'usage `radar.cibles` (ADR-0087 §6), l'usage `search.variantes`
    (§7, en saisies normalisées seulement) et la console.
+   *Amendement du 2026-11-09 (TCK-2511)* : une quatrième sortie, **un agrégat et rien d'autre** — le nombre de
+   recherches des 30 derniers jours dont le filtre de quartier est le quartier commun des annonces d'un lien de
+   réclamation du Radar, montré au seul porteur de ce lien signé, et seulement à partir de
+   `radar.claim.demand_min_searches` (50). Aucune saisie, aucune recherche, aucun compte de visiteurs ne sort ; sous le
+   seuil, rien. Le seuil de cinq réseaux ne s'applique pas : il protège une recherche *montrée*, et un total par quartier
+   n'en montre aucune. `privacy.ts` le dit (§6).
 5. **Rétention** : les lignes du journal vivent 13 mois.
 6. **`privacy.ts` le dit**, et `VERSION_DOCUMENTS` avance, dans la PR qui l'écrit.
 7. **L'IA ne travaille jamais à la frappe.** La suggestion se calcule par du code et un index dédié. L'IA tient hors ligne
