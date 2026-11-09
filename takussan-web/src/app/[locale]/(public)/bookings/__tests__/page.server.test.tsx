@@ -21,6 +21,8 @@ vi.mock('next-intl/server', () => ({
 }));
 vi.mock('@/components/home/Navbar', () => ({ Navbar: () => <nav /> }));
 vi.mock('@/components/home/NavbarSpacer', () => ({ NavbarSpacer: () => null }));
+// TCK-2568 — l'en-tête du bien au mois est un composant client (traductions) : hors de propos ici.
+vi.mock('@/components/navigation-publique/EnTeteDePage', () => ({ EnTeteDePage: () => null }));
 vi.mock('@/components/home/Footer', () => ({ Footer: () => <footer /> }));
 vi.mock('@/components/bookings/BookingTunnel', () => ({
   BookingTunnel: ({ property }: { property: { slug: string } }) => <div data-testid="tunnel">{property.slug}</div>,

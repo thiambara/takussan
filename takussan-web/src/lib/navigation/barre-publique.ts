@@ -244,9 +244,10 @@ const PREMIERS_SEGMENTS_A_EN_TETE_DE_PAGE: ReadonlySet<string> = new Set([
   'bookings',
   // Compte / Moi : le grand titre de l'écran, ou l'identité du connecté.
   'account',
-  // Annuaire : grand titre « Professionnels » et ses onglets ; fiches : retour + partager.
-  'agencies',
-  'agents',
+  // ⚠ `agencies` et `agents` (annuaire, fiches d'agence et d'agent) n'y sont PAS encore : ils y
+  // entrent avec la vague 3 (TCK-2521 → TCK-2523), en même temps que leurs pages — et leurs 404 —
+  // portent leur en-tête. Les y mettre avant leur ôte la barre sans rien à la place (revue du
+  // 2026-11-09 : 404 sans haut, onglets collants à 69 px, titre à 8 px du haut).
 ]);
 
 /**
@@ -271,11 +272,6 @@ export function enTeteAuTelephone(pathname: string | null | undefined): EnTeteAu
   if (premier === 'favorites') return second === undefined ? 'en-tete-de-page' : 'barre-du-site';
   if (PREMIERS_SEGMENTS_A_EN_TETE_DE_PAGE.has(premier)) return 'en-tete-de-page';
   return 'barre-du-site';
-}
-
-/** TCK-2568 — la barre du site (la `Navbar`) paraît-elle au téléphone sur ce chemin ? */
-export function porteLaBarreDuSiteAuTelephone(pathname: string | null | undefined): boolean {
-  return enTeteAuTelephone(pathname) !== 'en-tete-de-page';
 }
 
 /**

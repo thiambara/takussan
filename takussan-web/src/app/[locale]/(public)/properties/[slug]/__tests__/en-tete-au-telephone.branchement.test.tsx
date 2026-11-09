@@ -58,6 +58,9 @@ vi.mock('@/components/home/Footer', () => ({ Footer: () => <footer /> }));
 vi.mock('@/components/home/Navbar', () => ({
   Navbar: ({ auTelephone }: { auTelephone?: string }) => <nav data-testid="navbar" data-au-telephone={auTelephone ?? 'selon-le-chemin'} />,
 }));
+vi.mock('@/components/navigation-publique/BarreDOngletsPublique', () => ({
+  BarreDOngletsPublique: ({ presente }: { presente?: boolean }) => <div data-testid="barre-onglets" data-presente={String(presente === true)} />,
+}));
 vi.mock('@/components/home/NavbarSpacer', () => ({
   NavbarSpacer: ({ auTelephone }: { auTelephone?: string } = {}) => (
     <div data-testid="cale" data-au-telephone={auTelephone ?? 'selon-le-chemin'} />
@@ -103,12 +106,21 @@ describe('fiche — le haut de l’écran au téléphone, branché par la page (
     render(await Page({ params: params() }));
     expect(screen.getByRole('heading', { level: 1, name: 'Ce bien a été loué' })).toBeInTheDocument();
     expect(surcharges()).toEqual(['barre-du-site', 'barre-du-site']);
+    // Et la barre d'onglets, que le chemin d'une fiche n'a pas : la page la déclare.
+    expect(screen.getByTestId('barre-onglets').getAttribute('data-presente')).toBe('true');
   });
 
-  it('une fiche indisponible (panne de l’API) garde la barre du site', async () => {
+  it('la fiche servie ne monte pas de barre d’onglets (sa barre d’actions tient le bas)', async () => {
+    getPropertyMock.mockResolvedValue({ etat: 'trouve', bien });
+    render(await Page({ params: params() }));
+    expect(screen.queryByTestId('barre-onglets')).toBeNull();
+  });
+
+  it('une fiche indisponible (panne de l’API) ouvre sur la barre de marque, comme « Erreur serveur »', async () => {
     getPropertyMock.mockResolvedValue({ etat: 'indisponible' });
     render(await Page({ params: params() }));
-    expect(surcharges()).toEqual(['barre-du-site', 'barre-du-site']);
+    expect(surcharges()).toEqual(['marque', 'marque']);
+    expect(screen.queryByTestId('barre-onglets')).toBeNull();
   });
 
   it('la fiche inconnue (404) ouvre sur la barre de marque', () => {

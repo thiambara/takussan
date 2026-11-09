@@ -14,6 +14,7 @@ import { BookingTunnel } from '@/components/bookings/BookingTunnel';
 import { estSejourCourt, lireSejourDemande } from '@/components/bookings/tunnel-de-reservation';
 import { Navbar } from '@/components/home/Navbar';
 import { NavbarSpacer } from '@/components/home/NavbarSpacer';
+import { EnTeteDePage } from '@/components/navigation-publique/EnTeteDePage';
 import { Footer } from '@/components/home/Footer';
 import { CONTENU_PRINCIPAL_ID } from '@/components/shared/contenu-principal';
 
@@ -26,17 +27,29 @@ import { CONTENU_PRINCIPAL_ID } from '@/components/shared/contenu-principal';
  * « Retour », sa barre basse) — ni barre du site, ni pied, ni barre d'onglets (ADR-0091 § 4 : une
  * seule couche d'action en bas). En bureau, la coque reste.
  */
-function Coque({ children, plein = false }: { readonly children: ReactNode; readonly plein?: boolean }) {
+function Coque({
+  children,
+  plein = false,
+  retourAuBien,
+}: {
+  readonly children: ReactNode;
+  readonly plein?: boolean;
+  /** TCK-2568 — le bien au mois ou à vendre : un retour à SA fiche tient le haut, au téléphone. */
+  readonly retourAuBien?: { readonly repli: string; readonly libelle: string };
+}) {
   const surBureau = plein ? 'hidden lg:block' : undefined;
+  // TCK-2568 — `/bookings` n'a pas la barre du site au téléphone : le tunnel porte son en-tête, et le
+  // bien au mois ou à vendre l'en-tête de la maquette (réservation A, « Bien au mois » : le seul
+  // retour « Retour au bien »). Sans bien (aucun slug, slug inconnu), aucune maquette ne dessine
+  // l'écran et rien ne mène à une fiche : la page garde la barre du site, sa seule issue.
+  const auTelephone = plein || retourAuBien ? undefined : 'barre-du-site';
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <div className={surBureau}>
-        {/* TCK-2568 — `/bookings` n'a pas la barre du site au téléphone (le tunnel porte son en-tête) ;
-            hors tunnel (aucun bien, bien introuvable, bien au mois ou à vendre), la page la garde :
-            elle n'a pas d'autre issue. */}
-        <Navbar auTelephone={plein ? undefined : 'barre-du-site'} />
-        <NavbarSpacer auTelephone={plein ? undefined : 'barre-du-site'} />
+        <Navbar auTelephone={auTelephone} />
+        <NavbarSpacer auTelephone={auTelephone} />
       </div>
+      {retourAuBien ? <EnTeteDePage retour={retourAuBien} /> : null}
       <main id={CONTENU_PRINCIPAL_ID} tabIndex={-1} className="flex-1 focus:outline-none">{children}</main>
       <div className={surBureau}>
         <Footer />
@@ -143,7 +156,14 @@ export default async function BookingPage({
   return (
     // Plein écran pour le seul tunnel : l'état « au mois » ou « vente » n'a ni en-tête ni barre basse
     // à lui, et sans la barre du site il ne laisserait aucune issue que son bouton.
-    <Coque plein={estSejourCourt(property)}>
+    <Coque
+      plein={estSejourCourt(property)}
+      retourAuBien={
+        estSejourCourt(property)
+          ? undefined
+          : { repli: `/properties/${property.slug}`, libelle: (await getTranslations('bookings.tunnel'))('backToProperty') }
+      }
+    >
       <BookingTunnel property={property} sejourInitial={lireSejourDemande(params)} />
     </Coque>
   );

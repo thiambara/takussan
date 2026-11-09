@@ -68,6 +68,43 @@ describe('EnTeteDePage (TCK-2568)', () => {
     expect(clic).toBe(true);
   });
 
+  describe('sans Navigation API (Safari iOS d’avant la 26) : le référent ET l’historique décident', () => {
+    function sansNavigationApi(referent: string, longueur: number) {
+      Object.defineProperty(document, 'referrer', { value: referent, configurable: true });
+      vi.spyOn(window.history, 'length', 'get').mockReturnValue(longueur);
+    }
+    afterEach(() => {
+      Object.defineProperty(document, 'referrer', { value: '', configurable: true });
+    });
+
+    it('venu d’une page du site dans le même onglet : retour en arrière', () => {
+      sansNavigationApi(`${window.location.origin}/fr/properties`, 2);
+      const back = vi.spyOn(window.history, 'back').mockImplementation(() => undefined);
+      rendre(<EnTeteDePage retour={{ repli: '/properties' }} />);
+      const clic = fireEvent.click(screen.getByRole('link', { name: 'Retour' }));
+      expect(back).toHaveBeenCalledTimes(1);
+      expect(clic).toBe(false);
+    });
+
+    it('NOUVEL ONGLET ouvert depuis le site (référent du site, historique d’une entrée) : le repli', () => {
+      sansNavigationApi(`${window.location.origin}/fr/properties`, 1);
+      const back = vi.spyOn(window.history, 'back').mockImplementation(() => undefined);
+      rendre(<EnTeteDePage retour={{ repli: '/properties' }} />);
+      const clic = fireEvent.click(screen.getByRole('link', { name: 'Retour' }));
+      expect(back).not.toHaveBeenCalled();
+      expect(clic).toBe(true); // le lien est suivi : /fr/properties
+    });
+
+    it('venu d’un autre site (Google, WhatsApp) : le repli, jamais hors du site', () => {
+      sansNavigationApi('https://www.google.com/search?q=takussan', 3);
+      const back = vi.spyOn(window.history, 'back').mockImplementation(() => undefined);
+      rendre(<EnTeteDePage retour={{ repli: '/properties' }} />);
+      const clic = fireEvent.click(screen.getByRole('link', { name: 'Retour' }));
+      expect(back).not.toHaveBeenCalled();
+      expect(clic).toBe(true);
+    });
+  });
+
   it('un clic modifié (nouvel onglet) suit toujours le lien', () => {
     (window as Window & { navigation?: unknown }).navigation = { canGoBack: true };
     const back = vi.spyOn(window.history, 'back').mockImplementation(() => undefined);
@@ -82,6 +119,14 @@ describe('EnTeteDePage (TCK-2568)', () => {
     unmount();
     const { container: c2 } = rendre(<EnTeteDePage titre="A" aussiEnBureau />);
     expect(c2.querySelector('header')!.className).not.toContain('lg:hidden');
+  });
+
+  it('sur la photo aussi, téléphone seulement : la fiche n’a pas de seconde rangée en bureau', () => {
+    const { container } = rendre(<EnTeteDePage variante="sur-photo" retour={{ repli: '/properties' }} />);
+    const classes = container.querySelector('header')!.className.split(/\s+/);
+    expect(classes).toContain('lg:hidden');
+    // De `md` à `lg`, la rangée collante : elle ne doit pas survivre au-delà.
+    expect(classes).toContain('md:sticky');
   });
 
   it('sur la photo : le retour est une cible de 44 px au moins', () => {

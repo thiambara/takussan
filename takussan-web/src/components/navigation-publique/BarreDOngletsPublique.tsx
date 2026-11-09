@@ -48,11 +48,16 @@ interface CaseDeBarre {
  *
  * `data-barre-onglets-publique` : `globals.css` en tire la réserve de `body` (rien de la page sous la
  * barre, TCK-503) et l'assise du dock flottant (la pastille du comparateur se pose au-dessus).
+ *
+ * `presente` (TCK-2568) — la surcharge d'une PAGE dont le bas ne dépend pas que du chemin : le bien
+ * retiré vit sous `/properties/<slug>`, chemin d'une fiche (sa barre d'actions tient le bas), mais
+ * n'a pas de barre d'actions — la maquette (Erreurs A, « Bien retiré ») lui donne la barre d'onglets.
+ * La page la monte elle-même ; celle du layout, qui suit le chemin, reste absente : une seule barre.
  */
-export function BarreDOngletsPublique() {
+export function BarreDOngletsPublique({ presente = false }: { readonly presente?: boolean } = {}) {
   const pathname = usePathname();
   const { user } = useAuth();
-  if (!porteLaBarrePublique(pathname)) return null;
+  if (!presente && !porteLaBarrePublique(pathname)) return null;
   if (user) return <BarreConnectee user={user} pathname={pathname} />;
   // La requête n'entre que dans le lien « Compte » : `useSearchParams` sous sa propre frontière, la
   // barre entière est rendue au serveur (sans la requête) même sur une page statique.

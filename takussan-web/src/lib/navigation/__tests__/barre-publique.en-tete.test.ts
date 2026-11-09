@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { enTeteAuTelephone, estPageDeLien, porteLaBarreDuSiteAuTelephone, type EnTeteAuTelephone } from '../barre-publique';
+import { enTeteAuTelephone, estPageDeLien, type EnTeteAuTelephone } from '../barre-publique';
 
 /**
  * TCK-2568 (amendement d'ADR-0091 du 2026-11-09) — ce qui tient le haut de l'écran au téléphone,
@@ -26,10 +26,12 @@ const ATTENDU: ReadonlyArray<readonly [string, EnTeteAuTelephone]> = [
   ['/fr/compare', 'en-tete-de-page'],
   ['/fr/bookings', 'en-tete-de-page'],
   ['/fr/account', 'en-tete-de-page'],
-  ['/fr/agencies', 'en-tete-de-page'],
-  ['/fr/agencies/dakar-immo', 'en-tete-de-page'],
-  ['/fr/agents', 'en-tete-de-page'],
-  ['/fr/agents/sokhna-gueye', 'en-tete-de-page'],
+  // L'annuaire et les fiches d'agence et d'agent gardent la barre JUSQU'À la vague 3 (TCK-2521 →
+  // TCK-2523), qui les basculera en même temps que leurs pages porteront leur en-tête.
+  ['/fr/agencies', 'barre-du-site'],
+  ['/fr/agencies/dakar-immo', 'barre-du-site'],
+  ['/fr/agents', 'barre-du-site'],
+  ['/fr/agents/sokhna-gueye', 'barre-du-site'],
   // Les pages par lien : la coque nue.
   ['/fr/pay/jeton', 'en-tete-de-page'],
   ['/fr/claim/jeton', 'en-tete-de-page'],
@@ -55,15 +57,13 @@ describe('enTeteAuTelephone — le haut de l’écran au téléphone, route par 
     expect(enTeteAuTelephone(null)).toBe('barre-du-site');
   });
 
-  it('porteLaBarreDuSiteAuTelephone : vraie partout sauf sur les pages à en-tête propre', () => {
-    for (const [chemin, attendu] of ATTENDU) {
-      expect(porteLaBarreDuSiteAuTelephone(chemin), chemin).toBe(attendu !== 'en-tete-de-page');
+  it('une page par lien n’a jamais la barre du site — la même liste que la coque (estPageDeLien)', () => {
+    for (const [chemin] of ATTENDU) {
+      if (estPageDeLien(chemin)) expect(enTeteAuTelephone(chemin), chemin).toBe('en-tete-de-page');
     }
   });
 
-  it('une page par lien n’a jamais la barre du site — la même liste que la coque (estPageDeLien)', () => {
-    for (const [chemin] of ATTENDU) {
-      if (estPageDeLien(chemin)) expect(porteLaBarreDuSiteAuTelephone(chemin), chemin).toBe(false);
-    }
+  it('la règle ne rend jamais la barre de marque : c’est une surcharge que la page pose', () => {
+    for (const [chemin] of ATTENDU) expect(enTeteAuTelephone(chemin), chemin).not.toBe('marque');
   });
 });

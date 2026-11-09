@@ -256,7 +256,8 @@ export function CompareColonnes({ columns, onRemove, partage, className }: Compa
                   role="rowheader"
                   className={cn(
                     'col-span-full text-[13px] font-medium md:col-span-1 md:text-sm',
-                    attenuee ? 'text-muted-foreground/80' : 'text-muted-foreground',
+                    // Contraste AA : l'atténuation passe par la graisse, pas par l'alpha (3,58:1 à 80 %).
+                    attenuee ? 'text-muted-foreground font-normal' : 'text-muted-foreground',
                   )}
                 >
                   {libelle(ligne)}
