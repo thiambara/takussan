@@ -2,7 +2,8 @@
 
 import { usePathname } from 'next/navigation';
 import { BandeauxDuSite } from '@/components/announcements/BandeauxDuSite';
-import { estPageDeDecouverte } from '@/lib/navigation/barre-publique';
+import { enTeteAuTelephone, estPageDeDecouverte, type EnTeteAuTelephone } from '@/lib/navigation/barre-publique';
+import { cn } from '@/lib/utils';
 
 /**
  * La cale sous la `Navbar` fixe du site public — sa hauteur RÉELLE à chaque palier.
@@ -24,16 +25,24 @@ import { estPageDeDecouverte } from '@/lib/navigation/barre-publique';
  * cale, donc juste sous la barre, dans le flux de la page. Rendus par le layout racine, ils
  * passaient SOUS la barre fixe (invisibles, leur croix sous le bouton menu) et poussaient la page
  * de leur hauteur. Toutes les pages qui montent la `Navbar` montent cette cale.
+ *
+ * TCK-2568 — sous `lg`, là où la barre du site cède la place à l'en-tête de la page
+ * (`enTeteAuTelephone`), la cale tombe à zéro : la barre n'est pas là, rien n'est à réserver. Même
+ * prédicat, même chemin, même surcharge (`auTelephone`) que la `Navbar` : les deux ne divergent pas.
  */
-export function NavbarSpacer() {
-  const decouverte = estPageDeDecouverte(usePathname());
+export function NavbarSpacer({ auTelephone }: { readonly auTelephone?: EnTeteAuTelephone } = {}) {
+  const pathname = usePathname();
+  const decouverte = estPageDeDecouverte(pathname);
+  const enTete = auTelephone ?? enTeteAuTelephone(pathname);
+  // Sous `lg` : rien sans barre ; 57 px sous la barre de marque (56 + bordure) ; 69 sinon.
+  const auTelephoneHauteur = enTete === 'en-tete-de-page' ? 'h-0' : enTete === 'marque' ? 'h-[57px]' : 'h-[69px]';
   return (
     <>
       <div
         aria-hidden="true"
         data-cale-navbar=""
         data-decouverte={decouverte ? '' : undefined}
-        className="h-[69px] lg:h-[calc(1.5rem+53px)] lg:data-decouverte:h-[136px]"
+        className={cn(auTelephoneHauteur, 'lg:h-[calc(1.5rem+53px)] lg:data-decouverte:h-[136px]')}
       />
       <BandeauxDuSite emplacement="page" />
     </>

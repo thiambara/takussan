@@ -112,7 +112,6 @@ const DETTES: readonly (readonly [string, number, string])[] = [
   ['app/[locale]/(public)/properties/[slug]/components/PropertyLightbox.tsx · text-white sur hover:bg-white/20 sur un sous-jacent inconnu (pire pixel 255)', 1.00, 'idem, état survolé'],
   ['components/search/SearchAutocomplete.tsx · text-primary-foreground/80 sur bg-card/10 sur un sous-jacent inconnu (pire pixel 249)', 1.00, 'variante `navbar`, posée sur la barre `bg-foreground` de `AppTopbar` — un ancêtre d’un autre fichier'],
   ['components/search/SearchAutocomplete.tsx · text-primary-foreground/80 sur hover:bg-card/20 sur un sous-jacent inconnu (pire pixel 248)', 1.00, 'idem, état survolé'],
-  ['app/[locale]/(public)/properties/[slug]/components/PropertyVisitDialog.tsx · text-muted-foreground sur group-hover:bg-foreground/10 sur un sous-jacent inconnu (pire pixel 111)', 1.00, 'voile de survol à 10 % sur un fond que le fichier ne pose pas'],
   // ── 2. Boutons primaires au survol ────────────────────────────────────────────────────────────
   ['app/[locale]/(public)/properties/[slug]/components/PropertyReservationDialog.tsx · text-primary-foreground sur hover:bg-primary/80 sur un sous-jacent inconnu (pire pixel 255)', 3.45, 'idem'],
   ['app/[locale]/(public)/properties/[slug]/not-found.tsx · text-primary-foreground sur hover:bg-primary/90 sur un sous-jacent inconnu (pire pixel 255)', 4.18, 'idem, alpha 90 %'],
@@ -134,7 +133,12 @@ const DETTES: readonly (readonly [string, number, string])[] = [
   // menu `bg-card`, ses lignes active et survolée comprises, dans les deux thèmes.
   // `FilterSidebar.tsx · text-primary sur bg-primary/5` est sortie le 2026-10-12 (TCK-633, lot E) :
   // c'était la bascule « Meublé uniquement », remplacée par trois puces (indifférent, oui, non).
-  ['components/forms/FormSuccess.tsx · text-success sur bg-success/5 sur un sous-jacent inconnu (pire pixel 97)', 1.00, 'idem, avec `--success` : le motif n’est pas propre à `--primary`'],
+  // `FormSuccess.tsx · text-success sur bg-success/5` est sortie le 2026-11-09 (TCK-2510) sans que
+  // le fichier change : `bookings/BookingTunnel.tsx` importe `FormGlobalError` depuis
+  // `forms/FormError` et non plus le barrel `@/components/forms` (react-hook-form hors des pages
+  // publiques). C'était le seul chemin des pages publiques vers `FormSuccess` : le fichier quitte
+  // la clôture d'import, avec `FormInput`, `FormCheckbox`, `FormTextarea`, `FormAmountInput` et
+  // `FormDatePicker`. C'est le périmètre qui rétrécit, pas un couple corrigé.
   /*
    * ⚠ LES QUATRE SUIVANTES SONT APPARUES LE 2026-08-30 SANS QU'AUCUN DE CES FICHIERS NE CHANGE.
    *
@@ -152,7 +156,6 @@ const DETTES: readonly (readonly [string, number, string])[] = [
    * sous-jacent que le lecteur statique ne voit pas.
    */
   ['components/forms/FormError.tsx · text-destructive sur bg-destructive/5 sur un sous-jacent inconnu (pire pixel 92)', 1.00, 'aplat de sa propre couleur, sous-jacent invisible au lecteur statique — mesuré 6,05:1 sur `--background` réel'],
-  ['app/[locale]/(public)/properties/[slug]/components/PropertyVisitDialog.tsx · text-destructive sur bg-destructive/10 sur un sous-jacent inconnu (pire pixel 95)', 1.01, 'idem — 5,48:1 sur `--background` réel'],
   ['components/search/SearchToolbar.tsx · hover:text-destructive sur hover:bg-destructive/10 sur un sous-jacent inconnu (pire pixel 95)', 1.01, 'idem, état survolé'],
   ['components/favorites/FavoritesPopover.tsx · hover:text-destructive sur hover:bg-destructive/10 sur un sous-jacent inconnu (pire pixel 95)', 1.01, 'idem, état survolé de la croix « retirer » (2026-09-16, conversion `red` → `destructive`) — le fond réel est le `--card` du popover, que `check-destructive-contrast.mjs` mesure ≥ 4,55:1'],
   ['components/ui/destructive-banner.tsx · text-destructive sur bg-destructive/10 sur un sous-jacent inconnu (pire pixel 95)', 1.01, 'idem'],
@@ -161,6 +164,21 @@ const DETTES: readonly (readonly [string, number, string])[] = [
   // destructive : l'aplat de sa propre encre sur un fond que le fichier ne pose pas. Mesuré sur les fonds réels :
   // `--warning` sur 10 % de lui-même au-dessus de `--background` 5,17:1, de `--card` 5,42:1.
   ['components/ui/warning-banner.tsx · text-warning sur bg-warning/10 sur un sous-jacent inconnu (pire pixel 97)', 1.00, 'aplat de sa propre couleur, sous-jacent invisible au lecteur statique — 5,17:1 sur `--background` réel'],
+  // Vague 2 de l'audit UX (2026-11-09) — quatre pastilles du même motif, aplat de sa propre encre
+  // sur un fond que le fichier ne pose pas. Le fond réel a été relevé chez l'appelant, puis
+  // mesuré avec `composer` et `contraste` de `contraste-wcag.ts` (l'aplat composé sur le fond
+  // réel, puis l'encre sur l'aplat) :
+  //  · `PayLinkReception` (TCK-2505) : la page `/pay/[token]` le monte dans `CoqueDeLien`, dont
+  //    le panneau intérieur est `bg-background` au téléphone comme en bureau (le `lg:bg-muted` est
+  //    l'extérieur du panneau) ;
+  //  · `CarteDeLien` (TCK-2514) : même coque, pour toutes les pages par lien (alertes,
+  //    désinscriptions, réclamation, partage), sans fond ajouté par les appelants du ton `succes` ;
+  //  · `CompareColonnes` (TCK-2509) : la cellule repose sur la page du comparateur, `bg-surface`
+  //    de `CompareClient`, #fcf9f3 comme `--background`.
+  ['components/pay/PayLinkReception.tsx · text-warning sur bg-warning/10 sur un sous-jacent inconnu (pire pixel 97)', 1.00, 'pastille « en retard » — 5,17:1 sur `--background` réel, 5,42:1 sur `--card`'],
+  ['components/pay/PayLinkReception.tsx · text-success sur bg-success/12 sur un sous-jacent inconnu (pire pixel 97)', 1.01, 'pastille de la coche d’un lien réglé (non textuel, 3:1) — 4,98:1 sur `--background` réel, 5,22:1 sur `--card`'],
+  ['components/lien-public/CarteDeLien.tsx · text-success sur bg-success/12 sur un sous-jacent inconnu (pire pixel 97)', 1.01, 'pictogramme du ton `succes` — 4,98:1 sur `--background` réel, 5,22:1 sur `--card`'],
+  ['components/compare/CompareColonnes.tsx · text-success sur bg-success/10 sur un sous-jacent inconnu (pire pixel 97)', 1.01, 'valeur « meilleure » d’une ligne — 5,12:1 sur `--background` réel (`bg-surface`), 5,37:1 sur `--card`'],
 ];
 
 /**
@@ -406,8 +424,47 @@ const FICHIERS_HORS_JETONS = 5;
  * (1) quitte la surface. Net +6. Relevé en comparant, fichier par fichier, les encres inverses de
  * `HEAD` (270) et de l'arbre (276) — le dossier local des maquettes exclu des deux côtés ; les
  * fichiers de la fiche (TCK-2501) changent de répartition sans changer le total.
+ *
+ * **276 → 372 le 2026-11-09 (vague 2 de l'audit UX, TCK-2495 → TCK-2516).** Relevé en comparant,
+ * fichier par fichier, les encres inverses de la base (`5ab4362e1`, extraite par `git archive`)
+ * et de l'arbre, numéros de ligne retirés. Les deux côtés sont relevés sans le dossier local des
+ * maquettes. Bilan : 132 entrées neuves, 36 parties, net +96. Les 132 entrées neuves sont TOUTES
+ * `text-muted-foreground` (127 sans variante, 3 `disabled:`, 1 `md:`, 1 `/80`), et toutes reposent
+ * sur le fond que pose leur conteneur. Le pire fond relevé est `bg-secondary` (4,79:1), puis
+ * `bg-muted` (4,85:1). La seule exception est signalée plus bas.
+ *  · coque et pages par lien (TCK-2505, TCK-2512, TCK-2514) +47 : `pay/PayLinkReception` 0 → 15,
+ *    `radar-claim/RadarClaimReception` 0 → 19, `share/ShareReception` +5, `SearchAlertLinkAction`
+ *    +2, `DigestUnsubscribeAction` 1 → 0. La coque `lien-public/*` entre dans la surface :
+ *    `FeuilleDeLien` 2, `PiedDeLien` 2, `CarteDeLien` 1, `EnTeteDeLien` 1, et
+ *    `shared/LanguageSwitcher` (1) y revient par `PiedDeLien` ;
+ *  · favoris (TCK-2508) +24 : `favorites/suivi/*` entre (`CarteDeSuivi` 5, `OngletRecherches` 5,
+ *    `PartageDeSelection` 4, `PrevenirDeLaSelection` 3, `CarteDeCompte` 1), ainsi que
+ *    `FavoriteNote` 2 et `SelectionPartagee` 1 ; `PublicFavoritesPage` passe de 1 à 4 ;
+ *  · écran de recherche (TCK-2497) +8 : `search/SearchAutocomplete` 18 → 26 ;
+ *  · réservation (TCK-2510) +5 : `BookingTunnel` 9 → 24 et `CalendrierDesNuits` 3, qui entre.
+ *    `BookingSummary` (9) et `BookingStepper` (1) sortent, ainsi que `forms/FormInput` (1) et
+ *    `forms/FormCheckbox` (1) avec le barrel `@/components/forms` ; `bookings/page` passe de 1 à 0 ;
+ *  · accueil (TCK-2495) +3 : `home/accueil/BlocProprietaire`, `ChangerDeVille`,
+ *    `TuilesDeQuartiers`, 1 chacun ;
+ *  · erreurs (TCK-2515) +3 : `(public)/error.tsx`, qui entre ;
+ *  · légal (TCK-2516) +3 : `PageLegale` 3 → 5, `TexteJuridique` 1 → 2 ;
+ *  · liste (TCK-2499) +2 : `PropertyCard` 3 → 6, plus `liste/BasculeDeDensite`, `liste/VoirPlus` et
+ *    `search/HistogrammeDesPrix`, qui entrent avec 1 chacun. `search/Pagination` (4) sort,
+ *    remplacée par « Voir plus » ;
+ *  · comparateur (TCK-2509) +1 : `CompareColonnes` 12, qui entre ; `CompareCarousel` (6) et
+ *    `CompareTable` (5) sortent ;
+ *  · visite (TCK-2503) 0 : `PropertyVisitDialog` 15 → 8, contre les fichiers neufs de `visite/`
+ *    (`EtapeEnvoyee` 5, `EtapeQuand` 1, `RecapDuBien` 1).
+ *
+ * **372 → 371 le même jour** : une de ces encres était un DÉFAUT RÉEL, comptée parce qu'elle
+ * existait, pas parce qu'elle passait — `compare/CompareColonnes.tsx`, l'en-tête des lignes
+ * identiques en mode « tout voir » (`text-muted-foreground/80`, 13-14 px) sur la page `bg-surface` :
+ * 3,58:1, et 3,70:1 sur `--card`, sous le seuil de 4,5:1. L'atténuation passe désormais par la
+ * graisse (`font-normal`), l'encre reste `text-muted-foreground` plein, et l'entrée de
+ * `text-muted-foreground/80` sort du compte (mesuré : 372 avant, 371 après). *Une encre translucide sans fond déclaré traverse ce compteur sans y
+ * laisser de trace* : ce relevé ne mesure pas les encres inverses, il les compte.
  */
-const ENCRES_INVERSES = 276;
+const ENCRES_INVERSES = 371;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);

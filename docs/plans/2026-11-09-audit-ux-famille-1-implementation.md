@@ -62,3 +62,9 @@ lien (2505) sert la réclamation et les pages par lien.
 - **Vagues 2 et 3 réunies** : hors TCK-2512 et TCK-2514, qui attendent la coque de lien (TCK-2505)
   et sont enchaînés derrière elle par le même agent, les tickets de l'ex-vague 3 ne dépendaient que
   de la vague 1. Les réunir économise un cycle entier de revue et de PR.
+- **Vague 2** (2026-11-09) : 16 tickets livrés (TCK-2495 → TCK-2536), plus TCK-2568, ouvert en route
+  à la demande du porteur : au téléphone, l'en-tête de page suit la maquette (amendement d'ADR-0091).
+  Chaque livraison a été refusée au moins une fois par son vérificateur adverse, puis corrigée et
+  contre-vérifiée. La vague 3 travaillait dans le même arbre : ses lignes ont été retirées des
+  fichiers partagés au moment du commit (index seul), puis la vague 2 a été vérifiée seule dans un
+  arbre détaché (typage, lint, tests touchés, gardes).

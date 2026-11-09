@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -50,6 +50,13 @@ interface PropertyRowProps {
    * Réservé à la rangée vedette de l'accueil.
    */
   readonly emplacementSponsorise?: boolean;
+  /**
+   * TCK-2495 — cartes d'ACCUEIL : une pastille et le favori sur la photo, sans comparateur
+   * (`PastilleEtFavoriDAccueil`). Sans effet sur la variante `listing`.
+   */
+  readonly allegee?: boolean;
+  /** TCK-2495 — un geste posé contre le titre (cf. `EnTeteDeRangee`). */
+  readonly apresLeTitre?: ReactNode;
 }
 
 interface VariantSpec {
@@ -58,6 +65,7 @@ interface VariantSpec {
     priority?: boolean;
     index?: number;
     robe?: 'vedette';
+    allegee?: boolean;
   }>;
   skeleton: 'image-1-1' | 'image-3-4' | 'horizontal';
   /** `deux-lignes` : la carte horizontale se range sur deux rangées qui défilent ensemble. */
@@ -155,6 +163,8 @@ export function PropertyRow({
   priorityCount = 0,
   robeVedette = false,
   emplacementSponsorise = false,
+  allegee = false,
+  apresLeTitre,
 }: PropertyRowProps) {
   const t = useTranslations('property.row');
   const spec = VARIANTS[variant];
@@ -201,7 +211,7 @@ export function PropertyRow({
 
   return (
     <section className="relative @container">
-      <EnTeteDeRangee eyebrow={eyebrow} title={title}>
+      <EnTeteDeRangee eyebrow={eyebrow} title={title} apresLeTitre={apresLeTitre}>
         {action ? (
           <button
             type="button"
@@ -280,6 +290,7 @@ export function PropertyRow({
                     priority={i < priorityCount}
                     index={i}
                     robe={robeVedette && property.featured ? 'vedette' : undefined}
+                    allegee={allegee || undefined}
                   />
                 ))}
           </div>

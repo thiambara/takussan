@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   casesDuPersona,
   estPageDeDecouverte,
+  estPageDeLien,
   estSurLeSitePublic,
   hrefDuCompte,
   libellePublic,
@@ -128,11 +129,13 @@ describe('ADR-0091 §4 — une seule couche d’action en bas : où la barre vit
     ['/en/agencies', true],
     ['/fr/agents/awa-diop', true],
     ['/fr/favorites', true],
-    ['/fr/compare', true],
     ['/fr/account', true],
     // La fiche d'un bien a sa barre d'actions.
     ['/fr/properties/villa-ngor', false],
     ['/wo/properties/villa-ngor/visite', false],
+    // TCK-2509 — le comparateur a sa barre « Ajouter un bien · Partager ».
+    ['/fr/compare', false],
+    ['/en/compare', false],
     // Les tunnels et les pages par lien.
     ['/fr/pay/abc', false],
     ['/fr/claim/abc', false],
@@ -151,6 +154,24 @@ describe('ADR-0091 §4 — une seule couche d’action en bas : où la barre vit
   it('le site public, c’est un chemin préfixé de sa langue', () => {
     expect(estSurLeSitePublic('/fr/properties')).toBe(true);
     expect(estSurLeSitePublic('/app/messages')).toBe(false);
+  });
+});
+
+describe('TCK-2505 — les pages par lien (coque nue)', () => {
+  it.each([
+    ['/fr/pay/abc', true],
+    ['/fr/claim/abc', true],
+    ['/en/share/abc', true],
+    ['/fr/search-alerts/confirm', true],
+    ['/fr/search-alerts/unsubscribe', true],
+    ['/wo/notifications/unsubscribe', true],
+    ['/fr/bookings', false],
+    ['/fr/properties/villa-ngor', false],
+    ['/fr', false],
+    ['/pay/abc', false],
+    [null, false],
+  ] as const)('%s → %s', (chemin, attendu) => {
+    expect(estPageDeLien(chemin)).toBe(attendu);
   });
 });
 

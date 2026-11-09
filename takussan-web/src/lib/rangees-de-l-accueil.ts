@@ -19,3 +19,48 @@
  * pourtant aucune raison de changer.
  */
 export const HOMEPAGE_DISCOVERY_PER_ROW = 12;
+
+/** Ce que les rangées de l'accueil lisent d'un bien pour se dédoublonner : son identifiant. */
+interface AvecIdentifiant {
+  readonly id: number;
+}
+
+export interface RangeesSansDoublon<T extends AvecIdentifiant> {
+  readonly near: readonly T[];
+  readonly featured: readonly T[];
+  readonly latest: readonly T[];
+}
+
+/**
+ * TCK-2495 — les TROIS rangées de l'accueil (« À <ville> », « Coup de cœur », « Tout juste publié »),
+ * sans qu'un bien apparaisse dans deux d'entre elles.
+ *
+ * Le serveur dédoublonne déjà `near` et `latest` entre elles (TCK-247), mais **pas** `featured`, qu'il
+ * tient pour curée. La priorité n'est pas l'ordre d'affichage, et c'est voulu :
+ *
+ * 1. **`featured` reste ENTIÈRE.** C'est un emplacement payé : l'API compte une impression par bien
+ *    qu'elle y SERT (`BoostStatsRecorder::impressions`, ADR-0061 §10). En retirer une carte ferait
+ *    compter une impression pour un bien que personne n'a vu.
+ * 2. **`near`** perd les biens de `featured`.
+ * 3. **`latest`** perd ceux de `featured` et de `near`.
+ *
+ * Une rangée organique peut donc maigrir d'autant de cartes que la vedette en reprend ; elle en compte
+ * {@link HOMEPAGE_DISCOVERY_PER_ROW} au départ, ce qui laisse de quoi remplir l'écran.
+ */
+export function rangeesSansDoublon<T extends AvecIdentifiant>(rangees: {
+  readonly near: readonly T[];
+  readonly featured: readonly T[];
+  readonly latest: readonly T[];
+}): RangeesSansDoublon<T> {
+  const vus = new Set<number>();
+  const garder = (biens: readonly T[]): T[] =>
+    biens.filter((bien) => {
+      if (vus.has(bien.id)) return false;
+      vus.add(bien.id);
+      return true;
+    });
+  const featured = garder(rangees.featured);
+  const near = garder(rangees.near);
+  const latest = garder(rangees.latest);
+  return { near, featured, latest };
+}

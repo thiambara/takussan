@@ -13,9 +13,11 @@ import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
 import { AutourDeMoi } from '@/components/search/AutourDeMoi';
 import { ChoixDeQuartier, ChoixDeVille, ChoixDEquipements } from '@/components/search/ChoixDuReferentiel';
 import { AttenteDePuce } from '@/components/search/AttenteDePuce';
+import { HistogrammeDesPrix } from '@/components/search/HistogrammeDesPrix';
 import { conditionValues, titleTypeValues } from '@/lib/enums/property';
 import { filtersToParams } from '@/hooks/useSearch';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
+import { periodesAProposer, usePeriodesCourtesOffertes } from '@/components/bookings/usePeriodesCourtesOffertes';
 import { CLES_DE_RECHERCHE, type SearchFilters } from '@/types/search';
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -332,6 +334,12 @@ export interface FilterSidebarProps {
   total?: number | null;
   /** Passé tel quel à {@link AutourDeMoi} — injectable pour les tests, jamais en production. */
   geolocalisation?: Pick<Geolocation, 'getCurrentPosition'>;
+  /**
+   * TCK-2522 — la fiche d'agence (et d'agent) n'a pas la place d'un rail : sa colonne d'identité
+   * l'occupe. `true` : aucun rail, et la feuille s'ouvre à TOUTES les largeurs (au bureau, centrée,
+   * `md:max-w-2xl`). Mêmes filtres, même composant que la liste. Défaut : `false` — la liste.
+   */
+  sansRail?: boolean;
 }
 
 /**
@@ -361,6 +369,7 @@ export function FilterSidebar({
   onClose,
   total = null,
   geolocalisation,
+  sansRail = false,
 }: FilterSidebarProps) {
   const t = useTranslations('search.filters');
   const fmt = useFormatteurs();
@@ -461,7 +470,6 @@ export function FilterSidebar({
 
   const contractTypes = CONTRACT_TYPE_VALUES.map((v) => ({ label: t(`transaction.${v}`), value: v }));
   const meubleOptions = MEUBLE_VALUES.map((v) => ({ label: t(`furnished.${v}`), value: v }));
-  const rentPeriods = RENT_PERIOD_VALUES.map((v) => ({ label: tPeriods(v), value: v }));
   const floorOptions = FLOOR_KEYS.map((k, i) => ({ label: t(`floors.${k}`), value: i }));
   const titleTypeOptions = titleTypeValues.map((v) => ({ label: tTitleTypes(v), value: v }));
 
@@ -571,7 +579,7 @@ export function FilterSidebar({
         <button
           type="button"
           onClick={onClose}
-          className="lg:hidden size-10 flex items-center justify-center rounded-full hover:bg-muted transition-colors text-muted-foreground"
+          className={`${sansRail ? '' : 'lg:hidden '}size-10 flex items-center justify-center rounded-full hover:bg-muted transition-colors text-muted-foreground`}
           aria-label={t('close')}
         >
           <X className="w-4 h-4" />
@@ -597,7 +605,16 @@ export function FilterSidebar({
   // panneau est VISIBLE : le tiroir n'est monté qu'ouvert ; le rail, lui, reste monté sous `lg`
   // (`hidden lg:block`) et demandait les trois listes à l'hydratation, panneau fermé (`geo/cities`
   // pèse 55 Kio). Même seuil que sa classe. Faux au rendu serveur, comme avant : rien n'y partait.
-  const railVisible = useMatchesMedia('(min-width: 1024px)');
+  const railVisible = useMatchesMedia('(min-width: 1024px)') && !sansRail;
+
+  // TCK-2510 — « Journalier » et « Hebdo » seulement s'ils ont des biens à montrer (ou s'ils sont
+  // choisis). La sonde attend, comme le référentiel, que le panneau se voie : rail dès `lg`, tiroir
+  // monté seulement ouvert — c'est le `charger` de `rendreCorps`, lu ici une fois pour les deux.
+  const periodesCourtes = usePeriodesCourtesOffertes(filters.contract_type === 'rent' && (railVisible || open));
+  const rentPeriods = periodesAProposer(RENT_PERIOD_VALUES, periodesCourtes, filters.rent_period).map((v) => ({
+    label: tPeriods(v),
+    value: v,
+  }));
 
   const rendreCorps = (rappel?: React.ReactNode, lieu: 'rail' | 'tiroir' = 'rail') => {
     const charger = lieu === 'tiroir' || railVisible;
@@ -619,7 +636,105 @@ export function FilterSidebar({
           />
         </Section>
 
-        {/* 2. Property type — multi-select */}
+        {/*
+          TCK-2499 — L'ORDRE DE L'USAGE : la transaction, le budget (avec la répartition des prix),
+          le lieu, les chambres, puis le type de bien et le reste. Le budget et les chambres — les
+          deux filtres que tout locataire pose — sont visibles à l'ouverture du tiroir sans défiler
+          (AC2) ; ils étaient sous seize tuiles de type. Aucun filtre ne disparaît : seul l'ordre
+          change. La fréquence de loyer et « Autour de moi » suivent les chambres pour leur laisser
+          la place — « Autour de moi » toujours après la ville à laquelle son message de refus
+          renvoie.
+        */}
+        {/* 2. Budget — TCK-2499 : la répartition des prix au-dessus des bornes */}
+        <Section title={t(`sections.budget`)}>
+          <HistogrammeDesPrix
+            filters={filters}
+            min={nombreVersFiltre(priceMinDraft)}
+            max={nombreVersFiltre(priceMaxDraft)}
+            charger={charger}
+          />
+          <RangeInputs
+            placeholderMin={t('min')}
+            placeholderMax={t('max')}
+            valueMin={priceMinDraft}
+            valueMax={priceMaxDraft}
+            hint={priceHint || undefined}
+            onChangeMin={setPriceMinDraft}
+            onChangeMax={setPriceMaxDraft}
+            onCommit={commitImmediat}
+          />
+        </Section>
+
+        {/* 3. Lieu — TCK-633 : ville et quartier se CHOISISSENT dans le référentiel (ADR-0062) ;
+            la recherche filtre par le NOM canonique. Changer de ville retire un quartier qui
+            appartenait à l'autre. */}
+        <Section title={t(`sections.location`)}>
+          <div className="space-y-2">
+            <ChoixDeVille
+              charger={charger}
+              valeur={filters.city}
+              region={filters.region}
+              onChange={(city, region) =>
+                set({
+                  city,
+                  region,
+                  location: city === filters.city && region === filters.region ? filters.location : undefined,
+                })
+              }
+            />
+            <ChoixDeQuartier
+              charger={charger}
+              ville={filters.city}
+              region={filters.region}
+              valeur={filters.location}
+              onChange={(location) => set({ location })}
+            />
+          </div>
+        </Section>
+
+        {/* 4. Chambres */}
+        <Section title={t(`sections.bedrooms`)}>
+          <ChipGroup
+            options={BEDROOM_OPTIONS}
+            value={filters.bedrooms}
+            valeurConfirmee={confirmes.bedrooms}
+            onChange={(v) => set({ bedrooms: v as number })}
+            forme="segments"
+          />
+        </Section>
+
+        {/* 5. Fréquence de loyer — location seule. TCK-2499 : APRÈS les chambres ; posée entre le
+            budget et le lieu, elle repoussait les chambres sous le pied du tiroir à 390 × 844 (mesuré). */}
+        {filters.contract_type === 'rent' && (
+          <Section title={t(`sections.rentPeriod`)}>
+            <ChipGroup
+              options={rentPeriods}
+              value={filters.rent_period}
+              valeurConfirmee={confirmes.rent_period}
+              onChange={(v) => set({ rent_period: v as SearchFilters['rent_period'] })}
+            />
+          </Section>
+        )}
+
+        {/*
+          6. Autour de moi — TCK-346.
+
+          Toujours APRÈS « Localisation » : c'est la même intention (« où »), et le message de
+          refus de la géolocalisation renvoie explicitement au champ « Ville » qui la précède.
+          TCK-2499 — les chambres s'intercalent désormais entre les deux : elles doivent être
+          visibles à l'ouverture du tiroir (AC2), et la section suivante reste à un geste.
+        */}
+        <Section title={t(`sections.aroundMe`)}>
+          <AutourDeMoi
+            lat={filters.lat}
+            lng={filters.lng}
+            radiusKm={filters.radius_km}
+            onChange={set}
+            geolocalisation={geolocalisation}
+          />
+        </Section>
+
+        {/* 7. Property type — multi-select */}
         {/* TCK-635 — des tuiles à pictogramme, sur deux colonnes : seize puces de largeurs
             inégales passaient sur sept lignes en escalier. Le pictogramme est celui de la bande de
             catégories (`iconeDuType`) : un type ne porte qu'un dessin sur tout le site. */}
@@ -655,87 +770,6 @@ export function FilterSidebar({
               );
             })}
           </div>
-        </Section>
-
-        {/* 3. Rent period — conditional */}
-        {filters.contract_type === 'rent' && (
-          <Section title={t(`sections.rentPeriod`)}>
-            <ChipGroup
-              options={rentPeriods}
-              value={filters.rent_period}
-              valeurConfirmee={confirmes.rent_period}
-              onChange={(v) => set({ rent_period: v as SearchFilters['rent_period'] })}
-            />
-          </Section>
-        )}
-
-        {/* 4. Lieu — TCK-633 : ville et quartier se CHOISISSENT dans le référentiel (ADR-0062) ;
-            la recherche filtre par le NOM canonique. Changer de ville retire un quartier qui
-            appartenait à l'autre. */}
-        <Section title={t(`sections.location`)}>
-          <div className="space-y-2">
-            <ChoixDeVille
-              charger={charger}
-              valeur={filters.city}
-              region={filters.region}
-              onChange={(city, region) =>
-                set({
-                  city,
-                  region,
-                  location: city === filters.city && region === filters.region ? filters.location : undefined,
-                })
-              }
-            />
-            <ChoixDeQuartier
-              charger={charger}
-              ville={filters.city}
-              region={filters.region}
-              valeur={filters.location}
-              onChange={(location) => set({ location })}
-            />
-          </div>
-        </Section>
-
-        {/*
-          4 bis. Autour de moi — TCK-346.
-
-          Placée JUSTE APRÈS « Localisation », et pas ailleurs : c'est la même intention
-          (« où »), et le message de refus de la géolocalisation renvoie explicitement au champ
-          « Ville » qui la précède. Les mettre à distance rendrait ce renvoi incompréhensible.
-        */}
-        <Section title={t(`sections.aroundMe`)}>
-          <AutourDeMoi
-            lat={filters.lat}
-            lng={filters.lng}
-            radiusKm={filters.radius_km}
-            onChange={set}
-            geolocalisation={geolocalisation}
-          />
-        </Section>
-
-        {/* 5. Budget */}
-        <Section title={t(`sections.budget`)}>
-          <RangeInputs
-            placeholderMin={t('min')}
-            placeholderMax={t('max')}
-            valueMin={priceMinDraft}
-            valueMax={priceMaxDraft}
-            hint={priceHint || undefined}
-            onChangeMin={setPriceMinDraft}
-            onChangeMax={setPriceMaxDraft}
-            onCommit={commitImmediat}
-          />
-        </Section>
-
-        {/* 6. Chambres */}
-        <Section title={t(`sections.bedrooms`)}>
-          <ChipGroup
-            options={BEDROOM_OPTIONS}
-            value={filters.bedrooms}
-            valeurConfirmee={confirmes.bedrooms}
-            onChange={(v) => set({ bedrooms: v as number })}
-            forme="segments"
-          />
         </Section>
 
         {/*
@@ -928,16 +962,19 @@ export function FilterSidebar({
           Entre 768 et 1023, c'est le tiroir, comme sur mobile. */}
       {/* TCK-635 — le rail défile avec la page (retour du porteur du 2026-10-12) : il était
           `sticky top-[145px]`, et restait collé pendant que les résultats défilaient. */}
-      <aside data-rail-filtres className="hidden lg:block w-[280px] shrink-0 self-start rounded-2xl border border-border bg-card">
-        <div className="flex flex-col">
-          {entete}
-          {rendreCorps()}
-        </div>
-      </aside>
+      {sansRail ? null : (
+        <aside data-rail-filtres className="hidden lg:block w-[280px] shrink-0 self-start rounded-2xl border border-border bg-card">
+          <div className="flex flex-col">
+            {entete}
+            {rendreCorps()}
+          </div>
+        </aside>
+      )}
 
       {/* Mobile drawer */}
       {open && (
         <TiroirMobile
+          aToutesLargeurs={sansRail}
           label={t('title')}
           onClose={onClose}
           onOuverture={surOuvertureDuTiroir}
@@ -1016,6 +1053,7 @@ const FOCALISABLES =
  */
 function TiroirMobile({
   label,
+  aToutesLargeurs = false,
   onClose,
   onOuverture,
   onRetour,
@@ -1025,6 +1063,8 @@ function TiroirMobile({
   children,
 }: {
   readonly label: string;
+  /** TCK-2522 — la feuille s'ouvre aussi dès `lg` (fiche sans rail). */
+  readonly aToutesLargeurs?: boolean;
   readonly onClose: () => void;
   /** Appelé une fois l'entrée sentinelle posée. */
   readonly onOuverture: () => void;
@@ -1119,7 +1159,7 @@ function TiroirMobile({
   }, [onClose]);
 
   return (
-    <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end">
+    <div className={`${aToutesLargeurs ? '' : 'lg:hidden '}fixed inset-0 z-50 flex flex-col justify-end`}>
       <div className="absolute inset-0 bg-scrim/40 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
       <div
         ref={panneau}

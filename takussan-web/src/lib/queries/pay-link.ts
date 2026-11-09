@@ -28,6 +28,22 @@ export interface PayLink {
   readonly providers: readonly PayLinkProvider[];
   readonly receipt_available: boolean;
   readonly expires_at: string | null;
+  /** TCK-2504 — l'instant du règlement (payée ou remboursée), ISO-8601 ; `null` tant que rien n'est réglé. */
+  readonly paid_at: string | null;
+  /**
+   * TCK-2504 — comment payer HORS LIGNE. Émis par le serveur tant que quelque chose reste dû (loyer
+   * ou pénalité), jamais sur une échéance remboursée ou annulée : l'écran l'affiche dès qu'il n'est
+   * pas `null`, sans recalculer. Les clés nulles sont omises.
+   */
+  readonly offline_payment: PayLinkOfflinePayment | null;
+}
+
+/** TCK-2504 — les moyens hors ligne déclarés par l'agence. `agency_whatsapp` n'est jamais rendu (aucune source). */
+export interface PayLinkOfflinePayment {
+  readonly wave_number?: string;
+  readonly orange_money_number?: string;
+  readonly bank_details?: string;
+  readonly agency_phone?: string;
 }
 
 export interface PayLinkVerification {

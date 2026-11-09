@@ -68,7 +68,10 @@ export default async function Home() {
   // rangées suivent dans la MÊME réponse diffusée : leurs titres et leurs liens
   // `/properties/<slug>` restent dans le HTML servi (TCK-432, `accueil-diffuse-avant-ses-rangees`).
   // Aucune des deux ne rejette : chacune rend `null` sur panne.
-  const donnees = Promise.all([decouverteDeLAccueil(locale), raccourcisDeLAccueil(locale)]);
+  // TCK-2495 — les quartiers et l'offre parlent de la ville que les rangées servent (`near.city`) :
+  // ils partent derrière la découverte, mais sont en cache partagé d'une heure (`raccourcisDeLAccueil`).
+  const decouverte = decouverteDeLAccueil(locale);
+  const donnees = Promise.all([decouverte, decouverte.then((d) => raccourcisDeLAccueil(d?.near.city ?? null))]);
 
   // Le repli est l'accueil SANS données : son propre squelette (barre, rangées en chargement),
   // sans `<h1>` — le repli et le contenu sont tous deux dans le HTML diffusé, et la page n'en

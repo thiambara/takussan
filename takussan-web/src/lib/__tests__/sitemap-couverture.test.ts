@@ -354,7 +354,7 @@ describe('l’arborescence publique est bien celle qu’on croit', () => {
     ).toBe('jamais');
   });
 
-  it('les VINGT ET UNE pages publiques déclarent leur métadonnée sur place', () => {
+  it('les VINGT-DEUX pages publiques déclarent leur métadonnée sur place', () => {
     // Le contrôle qui rend la règle positive tenable : si une page cessait de le faire, elle
     // deviendrait `'inconnu'` et le test de classement complet la nommerait. On le fige ici pour
     // que la raison soit lisible plutôt que déduite d'un rouge ailleurs.
@@ -380,7 +380,9 @@ describe('l’arborescence publique est bien celle qu’on croit', () => {
     // l'annonceur du Radar, lien signé porteur (tranchée `exclue` dans ROUTES_DYNAMIQUES_PUBLIQUES).
     // 20 → 21 : TCK-2493 ajoute `/account`, STATIQUE et `jamais` — l'écran « Compte » / « Moi » de
     // la barre d'onglets publique (ADR-0091), personnel et sans contenu à référencer.
-    expect(ROUTES.length).toBe(21);
+    // 21 → 22 : TCK-2508 ajoute `/favorites/shared`, STATIQUE et `jamais` — la sélection partagée
+    // (`?ids=1,2,3`), un instantané sans version de référence dont l'adresse change à chaque envoi.
+    expect(ROUTES.length).toBe(22);
     for (const route of ROUTES) {
       expect(route.indexabilite, `${route.chemin} (${route.fichier})`).not.toBe('inconnu');
     }

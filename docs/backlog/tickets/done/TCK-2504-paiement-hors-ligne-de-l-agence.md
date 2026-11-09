@@ -38,7 +38,7 @@ Le locataire qui ne peut pas payer en ligne sait comment payer quand même, et c
 - [x] Trois clés au catalogue `AgencySettings` (règles et défauts).
 - [x] `PublicPaymentLinkController::show` : bloc `offline_payment`, état « déjà réglée » avec `paid_at`.
 - [x] Tests : `PayLinkOfflinePaymentTest` (bloc présent, champs nuls omis), `PayLinkAlreadyPaidTest` (état et date, aucun `initiate` possible), `AgencyOfflinePaymentSettingsTest` (normalisation, capacité).
-- Le formulaire des réglages d'agence côté console (trois champs) : **déplacé dans [TCK-2536](../todo/TCK-2536-console-moyens-de-paiement-hors-ligne.md)** (front, vague 3), qui reprend le contrat ci-dessous.
+- Le formulaire des réglages d'agence côté console (trois champs) : **déplacé dans [TCK-2536](TCK-2536-console-moyens-de-paiement-hors-ligne.md)** (front, vague 3), qui reprend le contrat ci-dessous.
 
 ## Critères d'acceptation
 

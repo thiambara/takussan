@@ -1,9 +1,16 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
+  usePathname: () => '/fr/share/jeton-abc',
+}));
+vi.mock('next-intl/server', () => ({ getTranslations: async () => (cle: string) => cle }));
+
 import fr from '@/messages/fr.json';
 import { withIntl } from '@/test/intl';
+import SharePage from '@/app/[locale]/(public)/share/[token]/page';
 import { ShareReception } from '../ShareReception';
 
 /**
@@ -142,5 +149,81 @@ describe('<ShareReception> (TCK-587, AC15)', () => {
     expect(screen.getByText(T.size)).toBeInTheDocument();
     expect(screen.getByText(/2\s?Mo/)).toBeInTheDocument();
     expect(appels).toEqual([expect.objectContaining({ method: 'GET' })]);
+  });
+
+  /* TCK-2514 — « la carte au centre » */
+
+  it('le document prêt : titre, format et taille sur une ligne, date limite, téléchargements restants', async () => {
+    bouchonner(reponse(200, { data: { ...DOCUMENT.data, expires_at: '2026-11-15T18:00:00+00:00' } }));
+    render(withIntl(<ShareReception token="jeton-abc" />));
+
+    expect(await screen.findByRole('heading', { level: 1, name: T.title })).toBeInTheDocument();
+    const fiche = screen.getByTestId('share-document');
+    expect(fiche).toHaveTextContent(/PDF · Taille 2\s?Mo/);
+    expect(fiche).toHaveTextContent('Disponible jusqu\'au 15 nov. 2026');
+    expect(fiche).toHaveTextContent('3 téléchargements restants');
+    expect(fiche).toHaveTextContent(fr.lienPublic.document.compte);
+    expect(screen.getByText(fr.lienPublic.document.prive)).toBeInTheDocument();
+  });
+
+  it('sans limite de téléchargements : ni compte ni avertissement', async () => {
+    bouchonner(reponse(200, { data: { ...DOCUMENT.data, max_downloads: null } }));
+    render(withIntl(<ShareReception token="jeton-abc" />));
+
+    await screen.findByText('Bail signé.pdf');
+    expect(screen.queryByText(/téléchargements? restants?/)).toBeNull();
+    expect(screen.queryByText(fr.lienPublic.document.compte)).toBeNull();
+  });
+
+  it('un téléchargement en panne passe par ErrorState, le bouton reste', async () => {
+    bouchonner(reponse(200, DOCUMENT), reponse(500, {}));
+    const user = userEvent.setup();
+    render(withIntl(<ShareReception token="jeton-abc" />));
+
+    await user.click(await screen.findByRole('button', { name: T.download }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(T.downloadError);
+    expect(screen.getByRole('button', { name: T.download })).toBeEnabled();
+  });
+
+  it('le mot de passe faux est relié au champ (aria-describedby → ErrorState)', async () => {
+    bouchonner(reponse(401, {}), reponse(401, {}));
+    const user = userEvent.setup();
+    render(withIntl(<ShareReception token="jeton-abc" />));
+
+    await user.type(await screen.findByLabelText(T.passwordLabel), 'faux');
+    await user.click(screen.getByRole('button', { name: T.submit }));
+
+    const alerte = await screen.findByRole('alert');
+    const champ = screen.getByLabelText(T.passwordLabel);
+    expect(champ).toHaveAttribute('aria-invalid', 'true');
+    expect(champ.getAttribute('aria-describedby')).toBe(alerte.closest('[id]')?.id);
+  });
+
+  it.each([
+    [410, 'share-gone', T.goneTitle],
+    [404, 'share-not-found', T.notFoundTitle],
+  ])('un lien mort (%i) a ses deux issues', async (statut, testid, titre) => {
+    bouchonner(reponse(statut, {}));
+    render(withIntl(<ShareReception token="jeton-abc" />));
+
+    const mort = await screen.findByTestId(testid);
+    expect(within(mort).getByRole('heading', { level: 1 })).toHaveTextContent(titre);
+    expect(within(mort).getByRole('link', { name: fr.lienPublic.mort.rechercher })).toHaveAttribute('href', '/fr/properties');
+    expect(within(mort).getByRole('link', { name: fr.lienPublic.mort.aide })).toHaveAttribute('href', 'mailto:contact@takussan.com');
+  });
+
+  it('AC4 — la page vit dans la coque de lien : ni recherche, ni favoris, ni comparateur, ni navigation', async () => {
+    bouchonner(reponse(200, DOCUMENT));
+    const page = await SharePage({ params: Promise.resolve({ token: 'jeton-abc' }) });
+    const { container } = render(withIntl(page));
+
+    await screen.findByText('Bail signé.pdf');
+    expect(container.querySelector('[data-coque-lien]')).not.toBeNull();
+    expect(screen.queryByRole('search')).toBeNull();
+    expect(screen.queryByRole('searchbox')).toBeNull();
+    expect(screen.queryByRole('navigation')).toBeNull();
+    const hrefs = screen.queryAllByRole('link').map((a) => a.getAttribute('href') ?? '');
+    expect(hrefs.filter((h) => /favorites|compare|properties/.test(h))).toEqual([]);
   });
 });

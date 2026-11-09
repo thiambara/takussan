@@ -25,6 +25,7 @@ import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { useVueDansLUrl } from '@/hooks/useVueDansLUrl';
 import { FILTRES_LISTE_AGENCES, requeteBornee } from '@/components/admin/super/retour-de-liste';
 import { PageHeader } from '@/components/console';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const ALL = '__all__';
 
@@ -241,11 +242,8 @@ export default function SuperAdminAgenciesPage() {
       {isLoading ? (
         <div className="grid gap-3 lg:grid-cols-2" data-testid="agencies-loading">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-32 animate-pulse rounded-xl bg-muted"
-              aria-hidden="true"
-            />
+            // TCK-2534 — `<Skeleton>` (contrasté sur le `main` `bg-muted` de la coque), jamais un `div` maison.
+            <Skeleton key={i} className="h-32 rounded-xl" aria-hidden="true" />
           ))}
         </div>
       ) : isError ? (

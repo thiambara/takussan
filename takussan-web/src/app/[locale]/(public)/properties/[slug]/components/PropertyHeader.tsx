@@ -24,8 +24,10 @@ export function PropertyHeader({ property, onToggleFavorite, onShare, isFavorite
 
   return (
     <header className="flex flex-col gap-3">
-      {/* TCK-2501 — sous `md`, les trois actions (partager, favori, comparer) se posent au bout de la
-          rangée des pastilles au lieu d'occuper leur propre ligne : 52 px rendus au premier écran. */}
+      {/* TCK-2501 — sous `md`, les actions se posent au bout de la rangée des pastilles au lieu
+          d'occuper leur propre ligne : 52 px rendus au premier écran.
+          TCK-2503 — sous `md`, partager et favori sont sur la photo (`GestesSurPhoto`) : il ne reste
+          ici que le comparateur. */}
       <div className="relative flex flex-col md:flex-row md:items-start md:justify-between gap-3">
         <div className="space-y-2 min-w-0">
           {/* TCK-2501 — le prix d'abord, sous `lg` : la carte de réservation le porte en bureau. */}
@@ -57,7 +59,7 @@ export function PropertyHeader({ property, onToggleFavorite, onShare, isFavorite
               <span className="text-muted-foreground text-xs">{t('reference', { value: property.reference_number })}</span>
             )}
           </div>
-          <div className="flex min-h-10 flex-wrap items-center gap-2 pr-32 md:min-h-0 md:pr-0">
+          <div className="flex min-h-10 flex-wrap items-center gap-2 pr-14 md:min-h-0 md:pr-0">
             {/* TCK-2501 — « À louer » / « À vendre », que la carte de réservation porte sous le prix en
                 bureau : sous `lg`, une pastille de plus sur la rangée, qui ne coûte aucune ligne. */}
             {property.contract_type_label && (
@@ -79,7 +81,7 @@ export function PropertyHeader({ property, onToggleFavorite, onShare, isFavorite
             size="sm"
             onClick={onShare}
             aria-label={t('shareAria')}
-            className="gap-2 min-h-10 min-w-10 md:min-h-0 md:min-w-0"
+            className="hidden gap-2 md:inline-flex"
           >
             <Share2 className="size-4" aria-hidden />
             <span className="hidden sm:inline">{t('share')}</span>
@@ -90,10 +92,11 @@ export function PropertyHeader({ property, onToggleFavorite, onShare, isFavorite
             onClick={onToggleFavorite}
             aria-label={isFavorite ? t('removeFavorite') : t('addFavorite')}
             aria-pressed={isFavorite}
-            className="gap-2 min-h-10 min-w-10 md:min-h-0 md:min-w-0"
+            className="hidden gap-2 md:inline-flex"
           >
             <Heart
-              className={`size-4 ${isFavorite ? 'fill-destructive text-destructive' : ''}`}
+              // TCK-2503 — le cœur plein est terracotta (`--primary`) partout, comme `FavoriteButton`.
+              className={`size-4 ${isFavorite ? 'fill-current text-primary' : ''}`}
               aria-hidden
             />
             <span className="hidden sm:inline">{isFavorite ? t('favoriteSavedShort') : t('favoriteAddShort')}</span>

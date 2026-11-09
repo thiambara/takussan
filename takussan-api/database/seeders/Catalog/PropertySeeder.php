@@ -9,8 +9,10 @@ use App\Models\Enums\PropertyCondition;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
+use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
+use App\Models\User;
 use App\Support\Search\PropertyLabels;
 use Database\Seeders\Support\SeedGeo;
 use Database\Seeders\Support\SeedingContext;
@@ -23,6 +25,9 @@ use Illuminate\Support\Str;
 
 class PropertySeeder extends Seeder
 {
+    /** TCK-2532 — la part des biens dont un agent en exercice est le titulaire : un sur trois. */
+    public const AGENT_TITULAIRE_UN_SUR = 3;
+
     public function __construct(
         private readonly SeedingContext $ctx,
         private readonly SeedGeo $geo,
@@ -59,6 +64,19 @@ class PropertySeeder extends Seeder
 
         $ownerIds = $owners->pluck('id')->values();
 
+        // TCK-2532 — un bien sur AGENT_TITULAIRE_UN_SUR a pour titulaire un agent EN EXERCICE de
+        // l'agence : l'agent qui met son propre bien en annonce, un cas réel (`properties.user_id` reste
+        // le bailleur, TCK-142). Sans eux, aucun bien public n'avait un agent pour titulaire, et
+        // l'annuaire public — qui lit `properties.user_id`, pas `property_collaborators` — était vide
+        // depuis TCK-2506. Le parti (profil suspendu, `departs`) est écarté : il ne publie plus.
+        // ⚠ Le choix est un TOURNIQUET, sans tirage : un tirage de plus décalerait la graine de tout
+        // ce qui suit (TCK-2380), et l'on veut chaque agent titulaire de plusieurs biens.
+        $agentsEnExercice = $this->ctx->usersWithProfile(AgentProfile::class, $agency->id)
+            ->reject(fn (User $u) => isset($this->ctx->departs[$u->id]))
+            ->sortBy('id')->values();
+        $rang = 0;
+        $tour = 0;
+
         foreach ($statusCounts as $key => $count) {
             [$contractValue, $status] = explode('|', $key);
             for ($i = 0; $i < $count; $i++) {
@@ -68,6 +86,13 @@ class PropertySeeder extends Seeder
                     Timeline::seedEnd()->subDays(7),
                 );
                 $ownerId = Tirage::un($ownerIds);
+                if ($rang++ % self::AGENT_TITULAIRE_UN_SUR === 0) {
+                    // Arrivé avant le bien : un agent n'est pas titulaire d'un bien publié avant lui.
+                    $presents = $agentsEnExercice->filter(fn (User $u) => $u->created_at->lessThanOrEqualTo($createdAt))->values();
+                    if ($presents->isNotEmpty()) {
+                        $ownerId = $presents[$tour++ % $presents->count()]->id;
+                    }
+                }
                 $contract = ContractType::from($contractValue);
 
                 // ~80% Dakar (avec pricing par quartier), ~20% autres villes du Sénégal.

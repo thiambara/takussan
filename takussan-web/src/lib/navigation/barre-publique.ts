@@ -179,7 +179,24 @@ const PREMIERS_SEGMENTS_SANS_BARRE: ReadonlySet<string> = new Set([
   'search-alerts',
   'notifications',
   'playground',
+  'compare', // TCK-2509 — la barre « Ajouter un bien · Partager » du comparateur tient le bas.
 ]);
+
+/**
+ * TCK-2505 — les pages OUVERTES PAR UN LIEN (SMS, WhatsApp, courriel), servies dans la coque de lien
+ * nue (`CoqueDeLien`) : rien de la marketplace n'y paraît, à AUCUNE taille — ni la barre d'onglets
+ * (sous `lg`), ni le dock du comparateur (en bureau), qui se monte pourtant sur tout le groupe
+ * `(public)`. La fiche et la réservation ne sont pas des pages de lien : le dock y reste en bureau.
+ */
+const PREMIERS_SEGMENTS_DE_LIEN: ReadonlySet<string> = new Set(['pay', 'claim', 'share', 'search-alerts', 'notifications']);
+
+/** TCK-2505 — le chemin est-il une page par lien (coque nue) ? */
+export function estPageDeLien(pathname: string | null | undefined): boolean {
+  const segments = segmentsPublics(pathname);
+  if (segments === null) return false;
+  const [premier] = segments;
+  return premier !== undefined && PREMIERS_SEGMENTS_DE_LIEN.has(premier);
+}
 
 /** TCK-2493 — la barre d'onglets publique (et la pastille du comparateur) se montre-t-elle ici ? */
 export function porteLaBarrePublique(pathname: string | null | undefined): boolean {
@@ -191,6 +208,70 @@ export function porteLaBarrePublique(pathname: string | null | undefined): boole
   // La fiche d'un bien et tout ce qui vit sous elle — jamais la liste (`/properties`).
   if (premier === 'properties' && second !== undefined) return false;
   return true;
+}
+
+/* ────────────────────────────────────────────────────────────────────────────────────────────────
+ * Ce qui tient le HAUT de l'écran au téléphone — TCK-2568 (amendement d'ADR-0091 du 2026-11-09)
+ * ──────────────────────────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Ce qui occupe le haut d'une page publique sous {@link REQUETE_BARRE_PUBLIQUE} :
+ *
+ * - `barre-du-site` — la `Navbar` entière (marque, recherche) : accueil, pages légales, et toute page
+ *   qu'aucune maquette ne décrit ;
+ * - `retour-et-recherche` — la `Navbar`, la marque cédant sa place à un retour : la liste des biens,
+ *   dont l'en-tête de maquette est « ← [la recherche en vigueur] » ;
+ * - `en-tete-de-page` — PAS de `Navbar` : la page porte son propre en-tête (retour, titre, action —
+ *   `EnTeteDePage`), ou un grand titre, ou rien (fiche : les boutons sont sur la photo).
+ *
+ * En bureau, rien ne change : la barre du site reste partout (ADR-0091 § 5).
+ *
+ * Et une forme que la règle ne rend jamais, posée par la page elle-même :
+ * - `marque` — la `Navbar` réduite à la marque, sans recherche : la barre de marque des pages
+ *   d'erreur de la maquette (« Page inconnue », « Erreur serveur »).
+ */
+export type EnTeteAuTelephone = 'barre-du-site' | 'retour-et-recherche' | 'en-tete-de-page' | 'marque';
+
+/**
+ * Les premiers segments dont TOUTE page porte son propre en-tête au téléphone, d'après les maquettes
+ * retenues de l'audit UX (tableau : `docs/qa/audit-ux-2026-11/entetes-mobiles.md`). Une page absente
+ * de cette liste garde la barre du site : une page neuve ne la perd jamais par défaut.
+ */
+const PREMIERS_SEGMENTS_A_EN_TETE_DE_PAGE: ReadonlySet<string> = new Set([
+  // Comparateur : « ← 3 biens · 1 place libre » au-dessus des colonnes collantes.
+  'compare',
+  // Réservation : le tunnel tient l'écran (« Fermer » / « Retour » + titre).
+  'bookings',
+  // Compte / Moi : le grand titre de l'écran, ou l'identité du connecté.
+  'account',
+  // ⚠ `agencies` et `agents` (annuaire, fiches d'agence et d'agent) n'y sont PAS encore : ils y
+  // entrent avec la vague 3 (TCK-2521 → TCK-2523), en même temps que leurs pages — et leurs 404 —
+  // portent leur en-tête. Les y mettre avant leur ôte la barre sans rien à la place (revue du
+  // 2026-11-09 : 404 sans haut, onglets collants à 69 px, titre à 8 px du haut).
+]);
+
+/**
+ * TCK-2568 — ce qui tient le haut de l'écran au téléphone, d'après le chemin seul.
+ *
+ * Une page dont le haut ne dépend pas que du chemin — la page 404 servie sous n'importe quelle URL,
+ * le bien retiré sous `/properties/<slug>`, l'erreur d'une section — le déclare elle-même :
+ * `<Navbar auTelephone="barre-du-site" />` (et la même valeur à `NavbarSpacer`).
+ */
+export function enTeteAuTelephone(pathname: string | null | undefined): EnTeteAuTelephone {
+  // `usePathname()` ne porte pas la requête ; un appelant qui passe une URL entière non plus.
+  const segments = segmentsPublics(pathname?.split(/[?#]/)[0]);
+  if (segments === null) return 'barre-du-site';
+  const [premier, second] = segments;
+  if (premier === undefined) return 'barre-du-site';
+  // Pages par lien (TCK-2505) : la coque nue porte l'en-tête de l'émetteur, à toute taille.
+  if (PREMIERS_SEGMENTS_DE_LIEN.has(premier)) return 'en-tete-de-page';
+  if (premier === 'properties') return second === undefined ? 'retour-et-recherche' : 'en-tete-de-page';
+  // Favoris : le grand titre « Favoris » et « Partager ». La sélection partagée (`/favorites/shared`),
+  // ouverte depuis WhatsApp par quelqu'un qui ne connaît pas le site, n'a pas d'écran de maquette :
+  // elle garde la marque et la recherche.
+  if (premier === 'favorites') return second === undefined ? 'en-tete-de-page' : 'barre-du-site';
+  if (PREMIERS_SEGMENTS_A_EN_TETE_DE_PAGE.has(premier)) return 'en-tete-de-page';
+  return 'barre-du-site';
 }
 
 /**

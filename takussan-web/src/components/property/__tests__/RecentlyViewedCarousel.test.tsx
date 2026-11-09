@@ -26,15 +26,6 @@ vi.mock('@/hooks/useRecentlyViewed', () => ({
   },
 }));
 
-let mockSimilaires: PropertyListItem[] = [];
-const similairesAppels: { ids: number[]; actif: boolean }[] = [];
-vi.mock('@/hooks/useSimilairesDesVus', () => ({
-  useSimilairesDesVus: (vus: readonly PropertyListItem[], actif: boolean) => {
-    similairesAppels.push({ ids: vus.map((b) => b.id), actif });
-    return actif ? mockSimilaires : [];
-  },
-}));
-
 vi.mock('@/components/property/PropertyCard', () => ({
   PropertyCard: ({ property }: { property: PropertyListItem }) => (
     <div data-testid={`card-${property.id}`}>{property.title}</div>
@@ -105,10 +96,10 @@ function makeProperty(id: number): PropertyListItem {
   };
 }
 
-function wrap(excludeId?: number, completerParDesSimilaires?: boolean) {
+function wrap(excludeId?: number) {
   return (
     <NextIntlClientProvider locale="fr" messages={messages} timeZone="UTC">
-      <RecentlyViewedCarousel excludeId={excludeId} completerParDesSimilaires={completerParDesSimilaires} />
+      <RecentlyViewedCarousel excludeId={excludeId} />
     </NextIntlClientProvider>
   );
 }
@@ -121,8 +112,6 @@ describe('<RecentlyViewedCarousel>', () => {
     mockLoading = false;
     mockExcludeId = undefined;
     mockClear.mockClear();
-    mockSimilaires = [];
-    similairesAppels.length = 0;
   });
 
   it('renders nothing when there are 0 items (AC6)', () => {
@@ -191,43 +180,5 @@ describe('<RecentlyViewedCarousel>', () => {
     expect(screen.getByText('Récemment consultés')).toBeInTheDocument();
     expect(screen.getByTestId('recently-viewed-skeleton')).toBeInTheDocument();
     expect(screen.queryByTestId('card-1')).not.toBeInTheDocument();
-  });
-
-  // Retour du porteur du 2026-10-10 : deux biens consultés ne remplissaient pas une rangée de sept.
-  describe('complétée par des biens similaires (accueil)', () => {
-    it('ajoute les similaires APRÈS les biens consultés, et le titre le dit', () => {
-      mockItems = [makeProperty(1), makeProperty(2)];
-      mockSimilaires = [makeProperty(7), makeProperty(8)];
-      render(wrap(undefined, true));
-
-      const cartes = screen.getAllByTestId(/^card-/).map((c) => c.dataset.testid);
-      expect(cartes).toEqual(['card-1', 'card-2', 'card-7', 'card-8']);
-      expect(screen.getByRole('heading', { name: 'Récemment consultés et biens similaires' })).toBeInTheDocument();
-      expect(screen.getByText('Selon vos intérêts')).toBeInTheDocument();
-    });
-
-    it('sans similaire trouvé, garde le titre d’origine', () => {
-      mockItems = [makeProperty(1)];
-      render(wrap(undefined, true));
-
-      expect(screen.getByRole('heading', { name: 'Récemment consultés' })).toBeInTheDocument();
-    });
-
-    it('la fiche d’un bien ne demande pas de similaires — elle a sa propre section', () => {
-      mockItems = [makeProperty(1)];
-      mockSimilaires = [makeProperty(7)];
-      render(wrap(42));
-
-      expect(screen.queryByTestId('card-7')).toBeNull();
-      expect(similairesAppels.every((a) => !a.actif)).toBe(true);
-    });
-
-    it('ne demande rien tant que l’historique charge', () => {
-      mockItems = [];
-      mockLoading = true;
-      render(wrap(undefined, true));
-
-      expect(similairesAppels.every((a) => !a.actif)).toBe(true);
-    });
   });
 });

@@ -21,9 +21,9 @@ import { paquetsDuGrapheClient } from '@/test/graphe-client';
  */
 const PAQUETS = ['zod', 'react-hook-form', '@hookform/resolvers'];
 
-const FORMULAIRES_ADMIS: Readonly<Record<string, string>> = {
-  'components/bookings/BookingTunnel.tsx': 'le tunnel de réservation est un formulaire',
-};
+// TCK-2510 (2026-11-09) — `components/bookings/BookingTunnel.tsx` en est sorti : le tunnel réécrit
+// n'emploie plus ni zod ni react-hook-form, et une entrée périmée laisserait zod y revenir sans un mot.
+const FORMULAIRES_ADMIS: Readonly<Record<string, string>> = {};
 
 const ENTREES = sourcesDe(join(RACINE_SRC, 'app', '[locale]', '(public)')).filter((f) =>
   /[\\/](page|layout)\.tsx$/.test(f),

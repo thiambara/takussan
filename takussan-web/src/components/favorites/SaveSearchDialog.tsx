@@ -46,9 +46,15 @@ export interface SaveSearchDialogProps {
    * partout ailleurs (TCK-599, C6 : « Sauvegarder » ne promet pas d'alerte).
    */
   readonly alerteCochee?: boolean;
+  /**
+   * TCK-2515 — le nom proposé à la place de celui que `suggestName` dérive des filtres. La page
+   * d'un bien retiré y met le quartier (« Location · Studio · Liberté 6, Dakar ») : `suggestName`
+   * ne retient que contrat, ville, type et chambres. Absent partout ailleurs : rien ne change.
+   */
+  readonly nomParDefaut?: string;
 }
 
-export function SaveSearchDialog({ open, onOpenChange, filters, criteria, ouverture, alerteCochee = false }: SaveSearchDialogProps) {
+export function SaveSearchDialog({ open, onOpenChange, filters, criteria, ouverture, alerteCochee = false, nomParDefaut }: SaveSearchDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -57,6 +63,7 @@ export function SaveSearchDialog({ open, onOpenChange, filters, criteria, ouvert
           filters={filters}
           criteria={criteria}
           alerteCochee={alerteCochee}
+          nomParDefaut={nomParDefaut}
           onClose={() => onOpenChange(false)}
         />
       </DialogContent>
@@ -94,11 +101,13 @@ function CorpsDuDialogue({
   filters,
   criteria,
   alerteCochee,
+  nomParDefaut,
   onClose,
 }: {
   readonly filters: SearchFilters;
   readonly criteria: Record<string, unknown>;
   readonly alerteCochee: boolean;
+  readonly nomParDefaut?: string;
   readonly onClose: () => void;
 }) {
   const t = useTranslations('search.saveSearch');
@@ -114,7 +123,7 @@ function CorpsDuDialogue({
   const searchParams = useSearchParams();
   const { user } = useAuth();
 
-  const [name, setName] = useState(() => suggestName(filters, t, tContract, tTypes));
+  const [name, setName] = useState(() => nomParDefaut ?? suggestName(filters, t, tContract, tTypes));
   const [nameError, setNameError] = useState<string | null>(null);
   const [alsoAlert, setAlsoAlert] = useState(alerteCochee);
   const [saved, setSaved] = useState<{ id: number; channels: SavedSearchAlertChannel[] | null } | null>(

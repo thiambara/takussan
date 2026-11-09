@@ -82,8 +82,10 @@ describe('TCK-1190 — chaque appelant de PropertyCard passe le sizes de sa gril
         if (!/\bsizes=/.test(m[0])) fautifs.push(relative(racine, fichier));
       }
     }
-    // Témoin : le balayage voit bien les appelants (six le 2026-10-22).
-    expect(appels).toBeGreaterThanOrEqual(6);
+    // Témoin : le balayage voit bien les appelants (six le 2026-10-22 ; cinq le 2026-11-09 :
+    // TCK-2500 supprime `boost/EmplacementSponsorise.tsx`, l’emplacement devenant une cellule de la
+    // grille de `PropertiesDiscoveryPage`, et `SelectionPartagee` remplace `PublicFavoritesPage`).
+    expect(appels).toBeGreaterThanOrEqual(5);
     expect(fautifs).toEqual([]);
   });
 });

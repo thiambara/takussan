@@ -11,9 +11,6 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('next-intl/server', () => ({
   getTranslations: async () => (cle: string) => cle,
 }));
-vi.mock('@/components/home/Navbar', () => ({ Navbar: () => null }));
-vi.mock('@/components/home/NavbarSpacer', () => ({ NavbarSpacer: () => null }));
-vi.mock('@/components/home/Footer', () => ({ Footer: () => null }));
 vi.mock('@/components/search-alerts/SearchAlertLinkAction', () => ({
   SearchAlertLinkAction: () => null,
 }));

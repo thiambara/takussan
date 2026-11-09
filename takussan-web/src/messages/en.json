@@ -575,14 +575,9 @@
       "viewAll": "View all",
       "error": "Listings could not be loaded right now.",
       "near": {
-        "eyebrow": "Near you",
-        "title": "Discover {city}",
         "fallbackEyebrow": "Elsewhere in Senegal",
-        "fallbackTitle": "Few listings in {requestedCity} — discover {city}"
-      },
-      "rent": {
-        "eyebrow": "For rent",
-        "title": "For your next home"
+        "fallbackTitle": "Few listings in {requestedCity} — discover {city}",
+        "titleCity": "In {city}"
       },
       "featured": {
         "eyebrow": "Editor's pick",
@@ -591,11 +586,30 @@
       "latest": {
         "eyebrow": "New",
         "title": "Just listed"
-      },
-      "sale": {
-        "eyebrow": "For sale",
-        "title": "To invest or settle down"
       }
+    },
+    "deuxGestes": {
+      "label": "Rent or buy, then a property type",
+      "transaction": "Rent or buy",
+      "rent": "Rent",
+      "sale": "Buy",
+      "categories": "Property types"
+    },
+    "quartiers": {
+      "title": "Neighbourhoods of {city}",
+      "viewAll": "All",
+      "count": "{count, plural, one {# listing} other {# listings}}"
+    },
+    "proprietaire": {
+      "title": "Do you have a property to rent out or sell?",
+      "offre": "<b>{location, plural, one {# rental} other {# rentals}}</b> and <b>{vente, plural, one {# sale} other {# sales}}</b> are listed in {ville} right now. Publish your listing: requests arrive in your space.",
+      "sansChiffre": "Publish your listing: requests arrive in your space.",
+      "cta": "Publish for free"
+    },
+    "changerDeVille": {
+      "bouton": "Change",
+      "label": "Change city (currently {city})",
+      "titre": "See properties in…"
     }
   },
   "auth": {
@@ -1171,23 +1185,76 @@
           "description": "First a video call, then an on-site visit."
         }
       },
-      "pickDate": "Pick a date",
-      "loginTitle": "Sign in to visit",
-      "loginBody": "You must be signed in to request a visit.",
-      "cancel": "Cancel",
-      "signIn": "Sign in",
       "title": "Request a visit",
-      "description": "Pick a date and a slot — the owner will confirm shortly.",
-      "dateLabel": "Date",
-      "timeLabel": "Time",
-      "noSlotsToday": "No slot left today — pick another date.",
       "typeLegend": "Visit type",
       "typeSelected": "{label} selected",
       "notesLabel": "Message",
       "notesOptional": "(optional)",
       "notesPlaceholder": "Details for the owner…",
       "sending": "Sending…",
-      "submit": "Request the visit"
+      "stepShort": "{current} / {total}",
+      "stepLabel": "Step {current} of {total}",
+      "when": {
+        "dayHeading": "Which day?",
+        "today": "Today",
+        "tomorrow": "Tomorrow",
+        "otherDate": "Another date",
+        "otherDateHint": "Calendar",
+        "otherDateChosen": "Another date: {date}",
+        "windowHeading": "What time of day?",
+        "windowHint": "The agency then suggests an exact time.",
+        "windowStarted": "Already started",
+        "summary": "{day} · {window}",
+        "pickBoth": "Choose a day and a time of day.",
+        "windowJustStarted": "This part of the day has just started: choose another one."
+      },
+      "windows": {
+        "morning": {
+          "label": "Morning",
+          "range": "from 9 am",
+          "phrase": "in the morning"
+        },
+        "afternoon": {
+          "label": "Afternoon",
+          "range": "from 2 pm",
+          "phrase": "in the afternoon"
+        },
+        "evening": {
+          "label": "Late afternoon",
+          "range": "from 5 pm",
+          "phrase": "in the late afternoon"
+        }
+      },
+      "continue": "Continue",
+      "back": "Back",
+      "send": "Send the request",
+      "who": {
+        "heading": "How can you be reached?",
+        "edit": "Change",
+        "editAria": "Change the day and time of day",
+        "noAccount": "No account needed.",
+        "moreOptions": "Another format or a message",
+        "moreOptionsHint": "(video call, key pick-up…)",
+        "optional": "(optional)"
+      },
+      "done": {
+        "subtitleSms": "You will receive the visit time by text message at {phone}.",
+        "subtitleAccount": "You will receive the visit time in your account and by email.",
+        "received": "{name} receives your request",
+        "receivedGeneric": "The advertiser receives your request",
+        "now": "Now",
+        "proposes": "You are offered an exact time",
+        "reminder": "A reminder the day before the visit",
+        "reminderHint": "Once the time is set",
+        "whenWindow": "{day}, {window} — time to be set",
+        "onBehalfOf": "In the name of {name}",
+        "meanwhile": "In the meantime",
+        "prepareFile": "Prepare my application",
+        "prepareFileHint": "Ready to submit as soon as you have visited.",
+        "alert": "Alert me to similar properties",
+        "alertHint": "See the listings in {place} and create an alert.",
+        "backToListing": "Back to the listing"
+      }
     },
     "reservation": {
       "offer": {
@@ -1962,7 +2029,11 @@
       "searchQuarter": "See properties in {quarter}, {city}",
       "searchCity": "See properties in {city}",
       "searchAll": "See all properties",
-      "metaDescription": "This Takussan listing is no longer available. Discover similar properties."
+      "metaDescription": "This Takussan listing is no longer available. Discover similar properties.",
+      "bodyNoSimilar": "The listing you are looking for is no longer available.",
+      "alertQuarter": "Alert me to new properties in {quarter}",
+      "alertCity": "Alert me to new properties in {city}",
+      "alertAll": "Alert me to similar new properties"
     },
     "availabilityCheck": {
       "title": "Is this property still available?",
@@ -2629,12 +2700,27 @@
       "unknown": "Something went wrong. Please try again."
     },
     "siteNotFound": {
-      "eyebrow": "Error 404",
       "title": "This page does not exist",
       "body": "The link you followed may be out of date, or the address has a typo. The catalogue, however, is still here.",
-      "browseListings": "Browse listings",
       "backHome": "Back to home",
-      "footer": "© Takussan — Real estate in Senegal."
+      "footer": "© Takussan — Real estate in Senegal.",
+      "searchLabel": "Search for a property",
+      "searchPlaceholder": "Neighbourhood, city, property type…",
+      "searchSubmit": "Search",
+      "shortcutsLabel": "Shortcuts",
+      "shortcutRent": "Rent",
+      "shortcutBuy": "Buy",
+      "shortcutAgencies": "Agencies"
+    },
+    "publicBoundary": {
+      "title": "This page could not be displayed",
+      "body": "The problem is on our side, not yours. Try again in a moment: most of the time, that is enough.",
+      "retry": "Try again",
+      "backHome": "Back to home",
+      "reference": "Ref. {digest}",
+      "referenceHint": "If the problem persists, give this reference to our team: they can find it in their logs.",
+      "copyReference": "Copy the reference",
+      "copied": "Reference copied"
     }
   },
   "agency": {
@@ -2817,8 +2903,6 @@
   "compare": {
     "eyebrow": "Comparator",
     "title": "Compare properties",
-    "subtitle": "{count, plural, =0 {No properties selected.} =1 {1 property selected — add another to compare.} other {# properties selected — compare to decide.}}",
-    "unavailableNotice": "{missing, plural, =1 {1 property is no longer available and has been removed.} other {# properties are no longer available and have been removed.}}",
     "actions": {
       "view": "View property",
       "remove": "Remove"
@@ -2844,18 +2928,13 @@
       "amenities": "Amenities",
       "tags": "Other tags",
       "titleDeed": "Title deed",
-      "entryCost": "Move-in cost"
+      "entryCost": "Move-in cost",
+      "pricePerM2": "Price per m²",
+      "rentPerM2": "Rent per m²"
     },
     "table": {
       "ariaLabel": "Property comparison table",
-      "header": "Criterion",
-      "unavailable": "Property unavailable",
-      "divergentTooltip": "This value differs across the selected properties",
-      "divergentShort": "Differs"
-    },
-    "carousel": {
-      "ariaLabel": "Property comparison, criterion by criterion",
-      "headerAria": "Properties being compared"
+      "header": "Criterion"
     },
     "empty": {
       "title": "Select at least 2 properties",
@@ -2884,15 +2963,42 @@
     },
     "button": {
       "full": "Remove a property to add another one.",
-      "added": "Added to the comparison",
       "remove": "Remove from the comparison",
       "add": "Add to the comparison",
       "maxTitle": "Maximum {max} properties",
-      "addedBody": "{count} / {max} properties selected.",
       "shortAdd": "Compare",
       "shortRemove": "Compared"
     },
-    "loadError": "The comparison could not be loaded."
+    "loadError": "The comparison could not be loaded.",
+    "summary": "{count, plural, =1 {1 property} other {# properties}}{free, plural, =0 {} =1 { · 1 free slot} other { · # free slots}}",
+    "onlyDifferences": "Only what differs",
+    "noDifferences": "These properties are the same on every criterion.",
+    "sameForAll": "Same for all {count}",
+    "sameShowMore": "+ {count, plural, =1 {1 more} other {# more}}",
+    "sameShowLess": "Show less",
+    "addProperty": "Add a property",
+    "best": {
+      "cheapest": "the cheapest",
+      "largest": "the largest",
+      "legend": "The best of each row: the cheapest, the largest."
+    },
+    "share": {
+      "action": "Share",
+      "title": "Property comparison",
+      "text": "{count, plural, =1 {1 property} other {# properties}} to compare on Takussan",
+      "copied": "Link copied",
+      "copiedBody": "Paste it into WhatsApp or an email: it opens the same comparison.",
+      "copyFailed": "Could not copy — here is the link to copy"
+    },
+    "unavailable": {
+      "named": "<b>{title}</b> is no longer available: it has left the comparison.",
+      "anonymous": "A property is no longer available: it has left the comparison.",
+      "nearby": "Nearby properties"
+    },
+    "header": {
+      "bedrooms": "{count, plural, one {# bd} other {# bds}}",
+      "area": "{area} m²"
+    }
   },
   "crm": {
     "pipeline": {
@@ -4586,10 +4692,6 @@
   "recentlyViewed": {
     "eyebrow": "For you",
     "title": "Recently viewed",
-    "withSimilar": {
-      "eyebrow": "Based on your interests",
-      "title": "Recently viewed and similar homes"
-    },
     "clearHistory": "Clear history",
     "confirmTitle": "Clear history?",
     "confirmBody": "Your browsing history will be removed from this browser. This action cannot be undone.",
@@ -4639,12 +4741,110 @@
         "count": "{count}/{max}",
         "error": "Could not save the note. Please try again."
       }
+    },
+    "suivi": {
+      "titre": "Favorites",
+      "sousTitreChargement": "Loading your favorites…",
+      "sousTitreAppareil": "{count, plural, =0 {No property, on this device} =1 {1 property, on this device} other {# properties, on this device}}",
+      "sousTitreCompte": "Synced to your account · price and availability are tracked",
+      "suiviAppareil": "Each property's price is tracked since you added it.",
+      "titreEtLieu": "{title} · {lieu}",
+      "visiter": "Visit",
+      "visiterAria": "Visit: {title}",
+      "biensProches": "Similar properties",
+      "onglets": {
+        "biens": "Properties",
+        "recherches": "Searches",
+        "nouveaux": "{count, plural, =1 {1 new property} other {# new properties}}"
+      },
+      "ecart": {
+        "moins": "−{montant}",
+        "plus": "+{montant}",
+        "baisse": {
+          "ajout": "Price down {montant} since you added it",
+          "compte": "Price down {montant} since it was saved to your account"
+        },
+        "hausse": {
+          "ajout": "Price up {montant} since you added it",
+          "compte": "Price up {montant} since it was saved to your account"
+        }
+      },
+      "whatsapp": {
+        "aria": "Message on WhatsApp about {title}",
+        "prefill": "Hello, I'm interested in \"{title}\": {url}",
+        "indisponibleTitre": "No WhatsApp for this property",
+        "indisponible": "Its contact has no WhatsApp number. Open the listing to call or message them.",
+        "erreurTitre": "WhatsApp did not open",
+        "erreur": "The number could not be retrieved. Try again in a moment."
+      },
+      "compte": {
+        "titre": "Keep your favorites on all your screens",
+        "texte": "Right now they only live on this device. With your phone number, they follow you everywhere.",
+        "cta": "Continue with my number"
+      },
+      "recherches": {
+        "erreur": "Unable to load your searches. Check your connection, then try again.",
+        "videTitre": "No saved search",
+        "videTexte": "From the property list, \"Save search\" keeps it here, with its new properties.",
+        "videCta": "Start a search",
+        "astuce": "Follow a search from the property list: \"Save search\".",
+        "gerer": "Manage my alerts",
+        "ouvrirAria": "Open the search \"{name}\"",
+        "nouveaux": "{count, plural, =1 {1 new} other {# new}}",
+        "nouveauxAria": "New properties for \"{name}\"",
+        "sansAlerte": "No alert",
+        "alerte": "{frequence}, {canaux}",
+        "frequence": {
+          "daily": "Every day",
+          "weekly": "Every week",
+          "off": "No alert"
+        }
+      },
+      "pagination": {
+        "aria": "Pages of your favorites",
+        "precedente": "Previous",
+        "suivante": "Next",
+        "position": "Page {page} of {derniere}"
+      },
+      "prevenir": {
+        "declencheur": "<geste>Let me know</geste> when a property like these comes up in {lieu}",
+        "titre": "New properties in {lieu}",
+        "nom": "Properties like my favorites · {lieu}",
+        "fermer": "Close"
+      },
+      "compteEnAttente": "Your account isn't responding right now. Your favorites will appear as soon as it is reachable."
+    },
+    "partage": {
+      "declencheur": "Share",
+      "declencheurBureau": "Share my selection",
+      "titre": "Share your selection",
+      "texte": "A link that shows these properties to anyone, no account needed. Neither your name nor your notes are included, and a property that is rented or withdrawn drops out.",
+      "titreDuLien": "{count, plural, =1 {1 property on Takussan} other {# properties on Takussan}}",
+      "message": "{count, plural, =1 {Have a look at this property on Takussan: {url}} other {Have a look at these # properties on Takussan: {url}}}",
+      "borne": "The link carries your {max} most recent favorites.",
+      "whatsapp": "Send on WhatsApp",
+      "copier": "Copy link",
+      "copie": "Link copied",
+      "copieEchec": "Copying failed. Here is the link:",
+      "autre": "Other…",
+      "fermer": "Close"
+    },
+    "selection": {
+      "titre": "{count, plural, =1 {1 property picked for you} other {# properties picked for you}}",
+      "titreSansCompte": "A selection of properties",
+      "sousTitre": "Picked on Takussan and shared with you. Today's prices and availability.",
+      "videTitre": "These properties are no longer available",
+      "videTexte": "The properties in this selection have been rented, sold or withdrawn.",
+      "cta": "Discover properties",
+      "erreur": "Unable to load this selection right now.",
+      "reessayer": "Try again",
+      "meta": {
+        "title": "A selection of properties",
+        "description": "Properties picked on Takussan and shared with you."
+      }
     }
   },
   "search": {
-    "sponsored": {
-      "label": "Sponsored listings"
-    },
     "suggest": {
       "placeholder": "Search a city, neighborhood, property type…",
       "groups": {
@@ -4657,7 +4857,8 @@
         "places": "Places",
         "previews": "Listings",
         "shortcuts": "Shortcuts",
-        "understood": "Your search"
+        "understood": "Your search",
+        "relaxations": "Remove a criterion"
       },
       "searchAll": "Search “{query}” in the listings",
       "loading": "Loading…",
@@ -4668,7 +4869,11 @@
       "nearby": "See close matches",
       "alert": "Get alerted when a listing matches",
       "enterHint": "Enter",
-      "announce": "{count, plural, =0 {No suggestions} one {# suggestion} other {# suggestions}}"
+      "announce": "{count, plural, =0 {No suggestions} one {# suggestion} other {# suggestions}}",
+      "readAs": "“{typed}” read as {read}",
+      "seeCount": "{count, plural, one {See the property} other {See the # properties}}",
+      "relaxation": "Without {criteria}",
+      "relaxationText": "Without “{text}”"
     },
     "saved": {
       "empty_title": "No saved search",
@@ -4702,7 +4907,26 @@
       "vide_titre_hors_pages": "Nothing on this page",
       "vide_description_hors_pages": "This search has fewer pages — go back to one of the previous ones.",
       "updating": "Updating listings…",
-      "heading": "Search results"
+      "heading": "Search results",
+      "densite": {
+        "aria": "Results layout",
+        "liste": "List",
+        "galerie": "Gallery"
+      },
+      "ligne": {
+        "nouveau": "New · {quand}",
+        "publie": "Listed {quand}"
+      },
+      "voirPlus": {
+        "compte": "{vus} of {total, plural, one {# property} other {# properties}}",
+        "bouton": "{count, plural, one {Show # more property} other {Show # more properties}}",
+        "erreur": "The next properties could not be loaded. Please try again.",
+        "debut": "Back to the first properties"
+      },
+      "puces": {
+        "aria": "Applied filters"
+      },
+      "vide_page_derniere": "Back to page {numero}"
     },
     "widened": {
       "unmatched": "{count, plural, =1 {No property matches “{terms}”.} other {No property matches these words: {terms}.}}",
@@ -4803,7 +5027,15 @@
         "showCount": "More filters ({count})",
         "hide": "Fewer filters"
       },
-      "titleDeedHint": "Only applies to properties that own their land: houses, villas, plots, warehouses. Not relevant for a flat, an office or a shop."
+      "titleDeedHint": "Only applies to properties that own their land: houses, villas, plots, warehouses. Not relevant for a flat, an office or a shop.",
+      "histogramme": {
+        "loyerMensuel": "Monthly rent",
+        "loyerPeriode": "Rent · {periode}",
+        "prixDeVente": "Sale price",
+        "moitieLoyersMensuels": "Half of the monthly rents are under {montant}",
+        "moitieLoyersPeriode": "Half of the rents ({periode}) are under {montant}",
+        "moitiePrixDeVente": "Half of the sale prices are under {montant}"
+      }
     },
     "toolbar": {
       "loading": "Loading…",
@@ -4936,6 +5168,32 @@
         "working": "Unsubscribing…",
         "doneTitle": "Done",
         "doneBody": "You will no longer receive the email digest. You can turn it back on in your notification preferences."
+      }
+    },
+    "ecran": {
+      "recent": "Your recent searches",
+      "popular": "Popular searches",
+      "neighbourhoods": "Popular neighbourhoods · {city}",
+      "types": "Property type",
+      "noneTitle": "No property matches today.",
+      "alertHint": "Your search is ready: we will let you know as soon as a listing matches.",
+      "alert": "Alert me",
+      "newSince": "{count, plural, one {# new property} other {# new properties}} since your last visit",
+      "aroundMe": {
+        "title": "Around me",
+        "detail": "Properties within {km} km",
+        "locating": "Locating…",
+        "denied": "Location declined: choose a neighbourhood instead.",
+        "unavailable": "This browser cannot share your location.",
+        "failed": "Location not found for now. Try again."
+      },
+      "keptFilters": "Your filters stay:",
+      "removeFilters": "Remove",
+      "keys": {
+        "choose": "to choose",
+        "open": "to open",
+        "escape": "Esc",
+        "close": "to close"
       }
     }
   },
@@ -6778,6 +7036,16 @@
         "thresholdConfirming": "Confirming…",
         "thresholdConfirmed": "The new threshold now applies.",
         "thresholdPendingSaved": "Saved. Relaxing the threshold requires a second approver's confirmation: they have been notified."
+      },
+      "offlinePayment": {
+        "title": "Offline payment",
+        "description": "The ways a tenant can pay you without paying online. They appear on the payment links you send; an empty field is not shown.",
+        "wave": "Wave number",
+        "orangeMoney": "Orange Money number",
+        "phoneHint": "Enter the number as you usually give it: it is saved in international format.",
+        "bankDetails": "Bank details",
+        "bankDetailsPlaceholder": "Bank, account holder, account number or IBAN",
+        "bankDetailsCount": "{count} / {max} characters"
       }
     },
     "users": {
@@ -7299,10 +7567,8 @@
       "not_found_title": "Property not found",
       "not_found_description": "The requested property no longer exists or is no longer available.",
       "browse_cta": "Browse properties",
-      "metaTitle": "Book a property — Takussan",
-      "metaDescription": "Takussan's secure booking flow.",
-      "title": "Book this property",
-      "subtitle": "A few quick steps to send your request."
+      "metaTitle": "Book a stay",
+      "metaDescription": "Choose your dates and send your booking request."
     },
     "fallbackTitle": "Booking #{id}",
     "reference": "Ref.",
@@ -7337,16 +7603,6 @@
     "stepper": {
       "aria": "Booking steps"
     },
-    "summary": {
-      "price": "Listed price",
-      "checkIn": "Check-in",
-      "checkOut": "Check-out",
-      "duration": "Length of stay",
-      "nights": "{count, plural, =1 {# night} other {# nights}}",
-      "total": "Estimated total",
-      "deposit": "Expected deposit",
-      "noChargeNotice": "You will not be charged before the owner or the agent confirms."
-    },
     "paymentDialog": {
       "title": "Record a payment",
       "description": "Deposit, advance or fees linked to this booking.",
@@ -7373,61 +7629,114 @@
     "tunnel": {
       "error": "The booking failed. Please try again.",
       "backToProperty": "Back to the property",
-      "guestsLabel": "Guests",
-      "depositLabel": "Deposit (30%)",
-      "notesLabel": "Message (optional)",
       "notesPlaceholder": "Introduce yourself, explain your plans…",
-      "steps": {
-        "dates": "Dates",
-        "review": "Summary",
-        "terms": "Terms",
-        "done": "Confirmation"
-      },
-      "auth": {
-        "title": "Log in to book",
-        "description": "You must be logged in to complete the booking request.",
-        "login": "Log in"
-      },
       "success": {
-        "title": "Request sent!",
+        "title": "Request sent",
         "body": "Your booking request for <strong>{title}</strong> has been saved.",
         "reference": "Reference",
-        "total": "Estimated total",
-        "viewBooking": "View my booking",
+        "total": "Total",
         "deadline": "The owner or the agent has until <strong>{date}</strong> to reply. Without a reply by then, the request expires automatically.",
-        "noDeadline": "You can follow the owner's or the agent's reply from your booking."
-      },
-      "step1": {
-        "title": "Your dates",
-        "description": "Pick your dates and the number of travellers."
-      },
-      "step2": {
-        "description": "Check the amounts and add a message for the owner if needed."
-      },
-      "fields": {
-        "startDate": "Check-in",
-        "startDatePlaceholder": "Check-in date",
-        "endDate": "Check-out",
-        "endDatePlaceholder": "Check-out date",
-        "guests": "Number of guests"
-      },
-      "terms": {
-        "body": "By submitting your request, you agree that the owner or the agent may contact you to confirm availability. No payment is taken until the booking is confirmed.",
-        "deposit": "A deposit of <strong>{amount}</strong> may be requested on confirmation.",
-        "accept": "I accept the Takussan booking terms and the cancellation policy."
-      },
-      "actions": {
-        "back": "Back",
-        "submitting": "Sending…",
-        "submit": "Submit the request",
-        "continue": "Continue"
+        "noDeadline": "You can follow the owner's or the agent's reply from your booking.",
+        "dates": "Dates",
+        "next": "What happens next",
+        "step1": "The owner or agent confirms your dates",
+        "step1Deadline": "before {date}",
+        "step2": "You pay the {amount} deposit",
+        "step2NoAmount": "You pay the requested deposit",
+        "step2Detail": "From your booking, once the request is confirmed",
+        "follow": "Follow my request",
+        "whatsapp": "WhatsApp"
       },
       "longTerm": {
         "title": "This property is rented by the month or year",
-        "description": "Online booking is for short stays. For a long-term rental, contact the agent, who will offer you a lease.",
-        "contact": "Contact the agent"
+        "description": "Online booking is for short stays. For a monthly rental, visit the property first: the agent will offer you a lease.",
+        "contact": "Contact the agent",
+        "visit": "Visit",
+        "whatsapp": "WhatsApp"
       },
-      "weeklyLine": "{price} / week, prorated over {nights}"
+      "weeklyLine": "{price} / week, prorated over {nights}",
+      "nights": "{count, plural, =1 {# night} other {# nights}}",
+      "dailyLine": "{price} × {nights}",
+      "noCharge": "Nothing is charged now: the deposit is paid only if the request is confirmed.",
+      "unit": {
+        "daily": "night",
+        "weekly": "week"
+      },
+      "calendar": {
+        "previous": "Previous month",
+        "next": "Next month",
+        "taken": "night already booked",
+        "arrival": "check-in",
+        "departure": "check-out"
+      },
+      "dates": {
+        "title": "Choose your dates",
+        "chooseDeparture": "Check-in {date}: choose check-out",
+        "range": "{debut} → {fin}",
+        "hint": "crossed-out days are already booked",
+        "loading": "Loading availability…",
+        "loadError": "Availability could not be loaded: choose your dates, they will be checked when you send.",
+        "noLongerFree": "These dates are no longer free: please choose others.",
+        "noDates": "Choose check-in, then check-out",
+        "clear": "Clear",
+        "continue": "Continue"
+      },
+      "guests": {
+        "label": "Guests",
+        "less": "One guest fewer",
+        "more": "One more guest",
+        "count": "{count, plural, =1 {# guest} other {# guests}}"
+      },
+      "recap": {
+        "title": "Your request",
+        "back": "Back to dates",
+        "edit": "Edit",
+        "total": "Total",
+        "deposit": "Deposit if the request is confirmed ({percent}%)",
+        "requestNotice": "This is a request: <strong>the owner or agent confirms your dates</strong>, then you pay the deposit. Without an answer before the deadline, the request expires and nothing is owed.",
+        "message": "A note for the owner or agent (optional)",
+        "accept": "I accept the <terms>terms of service</terms> and the <privacy>privacy policy</privacy>. Nothing is charged until the request is confirmed.",
+        "acceptRequired": "Accept the terms to send the request.",
+        "submit": "Send the request",
+        "submitting": "Sending…"
+      },
+      "identity": {
+        "phoneLabel": "Your phone number",
+        "phoneHelp": "To follow the answer. A code by text message, no password.",
+        "sendCode": "Get the code",
+        "sending": "Sending the code…",
+        "codeLabel": "Code received by text",
+        "codeSentTo": "If this number can receive text messages, a 6-digit code has just been sent to {phone}. It is valid for 5 minutes.",
+        "verifyAndSend": "Confirm and send the request",
+        "verifying": "Checking…",
+        "resend": "Resend the code",
+        "resendIn": "Resend the code in {seconds} s",
+        "changeNumber": "Change number",
+        "preview": {
+          "title": "Test environment",
+          "body": "Code sent by text:",
+          "use": "Use this code"
+        },
+        "errors": {
+          "tooMany": "Too many requests in a short time. Please wait a moment before trying again.",
+          "invalidPhone": "This number isn’t valid. Check the country code and the digits.",
+          "codeInvalid": "Incorrect or expired code. Check it, or request a new one.",
+          "locked": "Too many attempts: access is paused for a few minutes. Please try again a little later.",
+          "blocked": "This account is suspended. Contact support to find out more.",
+          "failed": "Something went wrong. Please try again in a moment."
+        }
+      },
+      "login": {
+        "title": "Sign in to send the request",
+        "body": "Your dates stay selected: you will find them here when you come back.",
+        "submit": "Sign in to send",
+        "register": "No account yet? Create one"
+      },
+      "sale": {
+        "title": "This property is for sale",
+        "description": "A purchase isn’t booked: make an offer from the property page.",
+        "cta": "See the property"
+      }
     }
   },
   "visits": {
@@ -12428,12 +12737,12 @@
   },
   "publicProfileIndex": {
     "card": {
-      "portfolio": "{count, plural, one {listing} other {listings}}",
       "rent": "{count, plural, one {# to rent} other {# to rent}}",
       "sale": "{count, plural, one {# for sale} other {# for sale}}",
-      "reviews": "· {count, plural, one {# review} other {# reviews}}",
       "verified": "Verified profile",
-      "ratingAria": "Average rating {rating} out of 5"
+      "ratingAria": "Average rating {rating} out of 5",
+      "portfolio": "{count, plural, one {listing} other {listings}}",
+      "reviews": "· {count, plural, one {# review} other {# reviews}}"
     },
     "filters": {
       "submit": "Search",
@@ -12456,24 +12765,23 @@
       "body": "We could not load the list. Please try again in a moment."
     },
     "agencies": {
-      "eyebrow": "Real estate agencies",
-      "heading": "The agencies working near you",
-      "intro": "Every agency listed here has at least one available listing. Browse their portfolio, the cities they cover and what their clients say.",
       "searchPlaceholder": "Agency name",
       "count": "{count, plural, one {# agency} other {# agencies}}",
-      "emptyTitle": "No agency matches"
+      "emptyTitle": "No agency matches",
+      "eyebrow": "Real estate agencies",
+      "heading": "The agencies working near you",
+      "intro": "Every agency listed here has at least one available listing. Browse their portfolio, the cities they cover and what their clients say."
     },
     "agents": {
-      "eyebrow": "Agents & owners",
-      "heading": "The people behind the listings",
-      "intro": "Real estate agent or owner, every profile listed here has at least one available listing. Discover their portfolio, the cities they cover and the agency publishing their listings.",
       "searchPlaceholder": "First or last name",
       "count": "{count, plural, one {# profile} other {# profiles}}",
-      "emptyTitle": "No profile matches"
+      "emptyTitle": "No profile matches",
+      "eyebrow": "Agents & owners",
+      "heading": "The people behind the listings",
+      "intro": "Real estate agent or owner, every profile listed here has at least one available listing. Discover their portfolio, the cities they cover and the agency publishing their listings."
     }
   },
   "legal": {
-    "eyebrow": "Legal",
     "documents": {
       "terms": {
         "title": "Terms of use",
@@ -12496,7 +12804,14 @@
       "translation": "Translation provided for information: only the French version is authoritative.",
       "frenchOnly": "This document is only available in French for now."
     },
-    "otherDocuments": "Other documents"
+    "otherDocuments": "Other documents",
+    "toc": {
+      "title": "Contents",
+      "summary": "Contents · {count, plural, one {# section} other {# sections}}",
+      "close": "Close contents",
+      "current": "Current section"
+    },
+    "anchorLink": "Link to this section"
   },
   "propertyContact": {
     "whatsapp": {
@@ -12532,17 +12847,9 @@
       "optional": "(optional)",
       "nameRequired": "Enter your name.",
       "phoneRequired": "Enter a number where the agent can reach you.",
-      "dakarTime": "Dakar time",
-      "slotTaken": "{time} — taken",
-      "slotsLoading": "Loading time slots…",
-      "slotsError": "The time slots could not be loaded.",
-      "noSlots": "No free slot left on that day. Pick another date.",
       "done": {
         "title": "Request sent",
-        "bodySms": "The agent will confirm the slot on {when}. You will get a text message at {phone} as soon as they do.",
-        "bodyAccount": "The agent will confirm the slot on {when}. You will be notified in your account and by email.",
-        "bodyEmail": "An email will also be sent to {email}.",
-        "close": "Close"
+        "bodyEmail": "An email will also be sent to {email}."
       }
     }
   },
@@ -13340,35 +13647,12 @@
   },
   "payLink": {
     "metaTitle": "Pay my rent",
-    "title": "Pay your instalment",
-    "loading": "Opening the link…",
-    "dueDate": "Due date",
-    "reference": "Reference",
-    "amountDue": "Amount to pay",
-    "rent": "Rent",
-    "lateFee": "Late fee",
-    "lateFeeAtAgency": "To be paid to the agency {agency}.",
-    "payWith": "Pay with {provider}",
     "providers": {
       "wave": "Wave",
       "orange_money": "Orange Money",
       "lemon_squeezy": "Bank card",
       "free_money": "Free Money"
-    },
-    "payError": "The payment could not be opened. Please try again in a moment.",
-    "unavailable": "Online payment is not available for this instalment. Please contact the agency {agency}.",
-    "cancelledNotice": "The payment was cancelled. You can try again.",
-    "paid": "This instalment is paid. Thank you!",
-    "receipt": "Download the receipt",
-    "receiptFile": "receipt",
-    "receiptError": "The receipt could not be downloaded. Please try again in a moment.",
-    "goneTitle": "This link is no longer valid",
-    "goneDescription": "It has expired or been replaced. Ask your agency for a new link.",
-    "goneDescriptionAgency": "It has expired or been replaced. Ask the agency {agency} for a new link.",
-    "notFoundTitle": "Link not found",
-    "notFoundDescription": "Check the address you received, or ask your agency for a new link.",
-    "error": "The instalment could not be loaded. Please try again in a moment.",
-    "retry": "Try again"
+    }
   },
   "invitationAccept": {
     "metaTitle": "Accept an invitation",
@@ -13587,6 +13871,129 @@
         "action": "View"
       },
       "aussiDemandes": "and {count, plural, one {# request to handle} other {# requests to handle}}"
+    },
+    "enTeteDePage": {
+      "retour": "Back"
+    }
+  },
+  "lienPublic": {
+    "coque": {
+      "aide": "Help",
+      "confidentialite": "Privacy",
+      "emisPar": "Link sent by {emetteur} via Takussan",
+      "chargement": "Opening the link…",
+      "reessayer": "Try again",
+      "copier": "Copy",
+      "copie": "Copied",
+      "copierQuoi": "Copy: {quoi}"
+    },
+    "mort": {
+      "rechercher": "Search properties",
+      "aide": "Need help?"
+    },
+    "paiement": {
+      "securise": "Secure payment",
+      "periodeMois": "Payment for {mois}",
+      "periodePlage": "Payment for {debut} to {fin}",
+      "periodeDate": "Payment due {date}",
+      "periodeInconnue": "Your payment",
+      "aPayer": "To pay",
+      "detailPenaliteIncluse": "{base} instalment + {penalite} late fee",
+      "enRetard": "Overdue · due {date}",
+      "penaliteAPartTitre": "Late fee: {montant}",
+      "penaliteAPartTexte": "To be paid to your agency, {agence}. It is not included in the amount payable online.",
+      "penaliteResteTexte": "To be paid to your agency, {agence}.",
+      "payerAvec": "Pay with {provider}",
+      "erreurPaiement": "The payment could not be opened. Please try again in a moment.",
+      "annule": "The payment was cancelled. You can try again.",
+      "ou": "or",
+      "payerALAgence": "Pay the agency directly",
+      "horsLigneOuvert": "Online payment is not open for this instalment. You can pay your agency, {agence}, directly:",
+      "horsLigneSansMoyen": "Online payment is not open for this instalment. Please contact your agency, {agence}, to pay.",
+      "moyens": {
+        "wave": "Wave",
+        "orangeMoney": "Orange Money",
+        "virement": "Bank transfer",
+        "telephone": "Agency phone"
+      },
+      "appeler": "Call",
+      "appelerNumero": "Call {numero}",
+      "reference": "Reference",
+      "referenceMotif": "Add the reference to your payment so the agency can match it:",
+      "valableJusquau": "This link is valid until {date}.",
+      "merci": "Thank you, it’s paid",
+      "reglee": "This instalment is paid",
+      "regleeLe": "Paid on {date}. There is nothing to pay on this link.",
+      "regleeSansDate": "There is nothing to pay on this link.",
+      "payeLe": "Paid on",
+      "quittance": "Receipt (PDF)",
+      "quittanceFichier": "receipt",
+      "quittanceErreur": "The receipt could not be downloaded. Please try again in a moment.",
+      "partager": "Share",
+      "partagerTexte": "Instalment {reference} paid on {date}. Agency: {agence}.",
+      "quittanceDelai": "The receipt can be downloaded here for 30 days after payment. After that, {agence} can send it to you again.",
+      "rembourseeTitre": "This instalment was refunded",
+      "rembourseeTexte": "There is nothing to pay on this link. For any question, please contact your agency, {agence}.",
+      "rienAPayerTitre": "Nothing to pay on this link",
+      "rienAPayerTexte": "This instalment requires no payment today. For any question, please contact your agency, {agence}.",
+      "perimeTitre": "This link is no longer valid",
+      "perimeTexte": "It has expired or been replaced. Ask your agency for a new link.",
+      "perimeTexteAgence": "It has expired or been replaced. Ask your agency, {agence}, for a new link.",
+      "introuvableTitre": "Link not found",
+      "introuvableTexte": "Check the address you received, or ask your agency for a new link.",
+      "erreur": "The instalment could not be loaded. Please try again in a moment.",
+      "aReglerALAgence": "Payable to the agency"
+    },
+    "reclamation": {
+      "lienPersonnel": "Personal link",
+      "demande": "<strong>{count, plural, one {# search} other {# searches}}</strong> in {quartier} over the last 30 days.",
+      "avantageGratuit": "Free: publishing your listings costs you nothing.",
+      "avantageNumero": "Your number is not shown: visitors reach you through Takussan.",
+      "avantageCorriger": "Fix the title, price or description before going live.",
+      "aPublierTitre": "To publish",
+      "voir": "View",
+      "barreSousTitre": "Free · confirmed by SMS code",
+      "codeArriveAu": "The code will be sent to {phone}.",
+      "avantPublierTitre": "Before publishing",
+      "opposition": {
+        "pasMoi": "This isn’t me",
+        "neplus": "Stop contacting me"
+      },
+      "refus": {
+        "titre": "Not you?",
+        "intro": "Choose what applies to you:",
+        "pasMoiTitre": "These are not my listings",
+        "pasMoiDetail": "This number is not the one for these listings.",
+        "neplusTitre": "Stop contacting me",
+        "neplusDetail": "You no longer want to receive messages from Takussan.",
+        "effet": "Either way, nothing will be published, Takussan will no longer contact this number, and this link will be disabled.",
+        "effetEnLigne": "Your listings already live on Takussan will be removed.",
+        "confidentialite": "Your data is processed under our <privacy>privacy policy</privacy>.",
+        "confirmer": "Confirm",
+        "envoi": "Sending…",
+        "occupe": "Your listings are being updated. Please try again in a moment.",
+        "echec": "Your request could not be sent. Please try again in a moment.",
+        "faitTitre": "Noted",
+        "faitPasMoi": "Thank you for letting us know. Takussan will no longer contact this number, and this link is disabled.",
+        "faitNeplus": "Takussan will no longer contact you at this number, and this link is disabled."
+      },
+      "publierAucune": "Publish my listings"
+    },
+    "document": {
+      "prive": "Private document",
+      "compte": "This link is personal. Please don't forward it: every download is counted."
+    },
+    "alerte": {
+      "criteres": "Alert criteria",
+      "dejaEnLigne": "{count, plural, one {# property already listed} other {# properties already listed}}",
+      "aucunEnLigne": "No properties listed yet",
+      "voirLesBiens": "{count, plural, one {See the property already listed} other {See the # properties already listed}}",
+      "autreRecherche": "Search for something else",
+      "desinscrireTitre": "Stop receiving alerts",
+      "desinscrireTexte": "This alert, and every alert sent to the same contact, will stop. Your contact details will be erased.",
+      "uneFoisParSemaine": "Once a week instead",
+      "hebdoFaitTitre": "Once a week it is",
+      "hebdoFaitTexte": "You will receive at most one message a week. Each one still has its unsubscribe link."
     }
   }
 }

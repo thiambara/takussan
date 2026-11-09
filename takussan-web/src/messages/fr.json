@@ -1142,23 +1142,76 @@
           "description": "Première visio puis visite physique."
         }
       },
-      "pickDate": "Choisir une date",
-      "loginTitle": "Connectez-vous pour visiter",
-      "loginBody": "Vous devez être connecté pour demander une visite.",
-      "cancel": "Annuler",
-      "signIn": "Se connecter",
       "title": "Demander une visite",
-      "description": "Choisissez une date et un créneau — le propriétaire confirmera rapidement.",
-      "dateLabel": "Date",
-      "timeLabel": "Heure",
-      "noSlotsToday": "Plus de créneau disponible aujourd'hui — choisissez une autre date.",
       "typeLegend": "Type de visite",
       "typeSelected": "{label} sélectionné",
       "notesLabel": "Message",
       "notesOptional": "(optionnel)",
       "notesPlaceholder": "Précisions pour le propriétaire…",
       "sending": "Envoi…",
-      "submit": "Demander la visite"
+      "stepShort": "{current} / {total}",
+      "stepLabel": "Étape {current} sur {total}",
+      "when": {
+        "dayHeading": "Quel jour ?",
+        "today": "Aujourd’hui",
+        "tomorrow": "Demain",
+        "otherDate": "Autre date",
+        "otherDateHint": "Calendrier",
+        "otherDateChosen": "Autre date : {date}",
+        "windowHeading": "À quel moment ?",
+        "windowHint": "L’agence vous propose ensuite une heure précise.",
+        "windowStarted": "Déjà commencé",
+        "summary": "{day} · {window}",
+        "pickBoth": "Choisissez un jour et un moment.",
+        "windowJustStarted": "Ce moment de la journée vient de commencer : choisissez-en un autre."
+      },
+      "windows": {
+        "morning": {
+          "label": "Matin",
+          "range": "à partir de 9 h",
+          "phrase": "le matin"
+        },
+        "afternoon": {
+          "label": "Après-midi",
+          "range": "à partir de 14 h",
+          "phrase": "l’après-midi"
+        },
+        "evening": {
+          "label": "Fin de journée",
+          "range": "à partir de 17 h",
+          "phrase": "en fin de journée"
+        }
+      },
+      "continue": "Continuer",
+      "back": "Retour",
+      "send": "Envoyer la demande",
+      "who": {
+        "heading": "Comment vous joindre ?",
+        "edit": "Modifier",
+        "editAria": "Modifier le jour et le moment",
+        "noAccount": "Pas de compte à créer.",
+        "moreOptions": "Autre format ou message",
+        "moreOptionsHint": "(visio, remise de clés…)",
+        "optional": "(facultatif)"
+      },
+      "done": {
+        "subtitleSms": "Vous recevrez l’heure de la visite par SMS au {phone}.",
+        "subtitleAccount": "Vous recevrez l’heure de la visite dans votre espace et par e-mail.",
+        "received": "{name} reçoit votre demande",
+        "receivedGeneric": "L’annonceur reçoit votre demande",
+        "now": "Maintenant",
+        "proposes": "Une heure précise vous est proposée",
+        "reminder": "Un rappel la veille de la visite",
+        "reminderHint": "Une fois l’heure fixée",
+        "whenWindow": "{day}, {window} — heure à fixer",
+        "onBehalfOf": "Au nom de {name}",
+        "meanwhile": "En attendant",
+        "prepareFile": "Préparer mon dossier",
+        "prepareFileHint": "Prêt à déposer dès la visite faite.",
+        "alert": "Me prévenir des biens similaires",
+        "alertHint": "Voir les annonces de {place} et créer une alerte.",
+        "backToListing": "Retour à l’annonce"
+      }
     },
     "reservation": {
       "offer": {
@@ -1933,7 +1986,11 @@
       "searchQuarter": "Voir les biens à {quarter}, {city}",
       "searchCity": "Voir les biens à {city}",
       "searchAll": "Voir tous les biens",
-      "metaDescription": "Cette annonce Takussan n'est plus disponible. Découvrez des biens similaires."
+      "metaDescription": "Cette annonce Takussan n'est plus disponible. Découvrez des biens similaires.",
+      "bodyNoSimilar": "L'annonce que vous cherchez n'est plus disponible.",
+      "alertQuarter": "M’alerter des nouveaux biens à {quarter}",
+      "alertCity": "M’alerter des nouveaux biens à {city}",
+      "alertAll": "M’alerter des nouveaux biens semblables"
     },
     "availabilityCheck": {
       "title": "Ce bien est-il toujours disponible ?",
@@ -2600,12 +2657,27 @@
       "unknown": "Une erreur est survenue. Veuillez réessayer."
     },
     "siteNotFound": {
-      "eyebrow": "Erreur 404",
       "title": "Cette page n'existe pas",
       "body": "Le lien que vous avez suivi est peut-être périmé, ou l'adresse comporte une faute de frappe. Le catalogue, lui, est toujours là.",
-      "browseListings": "Voir les annonces",
       "backHome": "Retour à l'accueil",
-      "footer": "© Takussan — Immobilier au Sénégal."
+      "footer": "© Takussan — Immobilier au Sénégal.",
+      "searchLabel": "Rechercher un bien",
+      "searchPlaceholder": "Quartier, ville, type de bien…",
+      "searchSubmit": "Chercher",
+      "shortcutsLabel": "Raccourcis",
+      "shortcutRent": "Louer",
+      "shortcutBuy": "Acheter",
+      "shortcutAgencies": "Les agences"
+    },
+    "publicBoundary": {
+      "title": "Cette page n’a pas pu s’afficher",
+      "body": "Le problème vient de chez nous, pas de vous. Réessayez dans un instant : la plupart du temps, cela suffit.",
+      "retry": "Réessayer",
+      "backHome": "Retour à l’accueil",
+      "reference": "Réf. {digest}",
+      "referenceHint": "Si le problème persiste, donnez cette référence à notre équipe : elle la retrouve dans ses journaux.",
+      "copyReference": "Copier la référence",
+      "copied": "Référence copiée"
     }
   },
   "agency": {
@@ -2788,8 +2860,6 @@
   "compare": {
     "eyebrow": "Comparateur",
     "title": "Comparer des biens",
-    "subtitle": "{count, plural, =0 {Aucun bien sélectionné.} =1 {1 bien sélectionné — ajoutez-en un autre pour comparer.} other {# biens sélectionnés — comparez pour décider.}}",
-    "unavailableNotice": "{missing, plural, =1 {1 bien n'est plus disponible et a été retiré du comparatif.} other {# biens ne sont plus disponibles et ont été retirés du comparatif.}}",
     "actions": {
       "view": "Voir le bien",
       "remove": "Retirer"
@@ -2815,18 +2885,13 @@
       "amenities": "Équipements",
       "tags": "Autres",
       "titleDeed": "Titre foncier",
-      "entryCost": "Coût d'entrée"
+      "entryCost": "Coût d'entrée",
+      "pricePerM2": "Prix au m²",
+      "rentPerM2": "Loyer au m²"
     },
     "table": {
       "ariaLabel": "Tableau comparatif des biens",
-      "header": "Critère",
-      "unavailable": "Bien indisponible",
-      "divergentTooltip": "Cette valeur diverge entre les biens",
-      "divergentShort": "Diffère"
-    },
-    "carousel": {
-      "ariaLabel": "Comparaison des biens, critère par critère",
-      "headerAria": "Biens comparés"
+      "header": "Critère"
     },
     "empty": {
       "title": "Sélectionnez au moins 2 biens",
@@ -2855,15 +2920,42 @@
     },
     "button": {
       "full": "Retirez un bien pour en ajouter un autre.",
-      "added": "Ajouté au comparateur",
       "remove": "Retirer du comparateur",
       "add": "Ajouter au comparateur",
       "maxTitle": "Maximum {max} biens",
-      "addedBody": "{count} / {max} biens sélectionnés.",
       "shortAdd": "Comparer",
       "shortRemove": "Comparé"
     },
-    "loadError": "Impossible de charger le comparatif."
+    "loadError": "Impossible de charger le comparatif.",
+    "summary": "{count, plural, =1 {1 bien} other {# biens}}{free, plural, =0 {} =1 { · 1 place libre} other { · # places libres}}",
+    "onlyDifferences": "Seulement ce qui diffère",
+    "noDifferences": "Ces biens sont pareils sur tous les critères.",
+    "sameForAll": "Pareil pour les {count}",
+    "sameShowMore": "+ {count, plural, =1 {1 autre} other {# autres}}",
+    "sameShowLess": "Voir moins",
+    "addProperty": "Ajouter un bien",
+    "best": {
+      "cheapest": "le moins cher",
+      "largest": "le plus grand",
+      "legend": "Le meilleur de chaque ligne : le moins cher, le plus grand."
+    },
+    "share": {
+      "action": "Partager",
+      "title": "Comparaison de biens",
+      "text": "{count, plural, =1 {1 bien} other {# biens}} à comparer sur Takussan",
+      "copied": "Lien copié",
+      "copiedBody": "Collez-le dans WhatsApp ou un e-mail : il ouvrira la même comparaison.",
+      "copyFailed": "Copie impossible — voici le lien à copier"
+    },
+    "unavailable": {
+      "named": "<b>{title}</b> n’est plus disponible : il a quitté la comparaison.",
+      "anonymous": "Un bien n’est plus disponible : il a quitté la comparaison.",
+      "nearby": "Biens proches"
+    },
+    "header": {
+      "bedrooms": "{count, plural, one {# ch.} other {# ch.}}",
+      "area": "{area} m²"
+    }
   },
   "crm": {
     "pipeline": {
@@ -4560,14 +4652,9 @@
       "viewAll": "Tout voir",
       "error": "Impossible de charger les annonces pour le moment.",
       "near": {
-        "eyebrow": "Près de toi",
-        "title": "À découvrir à {city}",
         "fallbackEyebrow": "Ailleurs au Sénégal",
-        "fallbackTitle": "Peu d'annonces à {requestedCity} — à découvrir à {city}"
-      },
-      "rent": {
-        "eyebrow": "À louer",
-        "title": "Pour ton prochain logement"
+        "fallbackTitle": "Peu d'annonces à {requestedCity} — à découvrir à {city}",
+        "titleCity": "À {city}"
       },
       "featured": {
         "eyebrow": "Coup de cœur",
@@ -4576,20 +4663,35 @@
       "latest": {
         "eyebrow": "Nouveau",
         "title": "Tout juste publié"
-      },
-      "sale": {
-        "eyebrow": "À vendre",
-        "title": "Pour investir ou t'installer"
       }
+    },
+    "deuxGestes": {
+      "label": "Louer ou acheter, puis un type de bien",
+      "transaction": "Louer ou acheter",
+      "rent": "Louer",
+      "sale": "Acheter",
+      "categories": "Types de bien"
+    },
+    "quartiers": {
+      "title": "Quartiers de {city}",
+      "viewAll": "Tous",
+      "count": "{count, plural, one {# annonce} other {# annonces}}"
+    },
+    "proprietaire": {
+      "title": "Vous avez un bien à louer ou à vendre ?",
+      "offre": "<b>{location, plural, one {# location} other {# locations}}</b> et <b>{vente, plural, one {# vente} other {# ventes}}</b> sont en ligne à {ville} en ce moment. Publiez votre annonce : les demandes arrivent dans votre espace.",
+      "sansChiffre": "Publiez votre annonce : les demandes arrivent dans votre espace.",
+      "cta": "Publier gratuitement"
+    },
+    "changerDeVille": {
+      "bouton": "Changer",
+      "label": "Changer de ville (actuellement {city})",
+      "titre": "Voir les biens à…"
     }
   },
   "recentlyViewed": {
     "eyebrow": "Pour vous",
     "title": "Récemment consultés",
-    "withSimilar": {
-      "eyebrow": "Selon vos intérêts",
-      "title": "Récemment consultés et biens similaires"
-    },
     "clearHistory": "Effacer l'historique",
     "confirmTitle": "Effacer l'historique ?",
     "confirmBody": "Vos biens consultés seront supprimés de votre navigateur. Cette action est irréversible.",
@@ -4639,12 +4741,110 @@
         "count": "{count}/{max}",
         "error": "Impossible d'enregistrer la note. Réessayez."
       }
+    },
+    "suivi": {
+      "titre": "Favoris",
+      "sousTitreChargement": "Chargement de vos favoris…",
+      "sousTitreAppareil": "{count, plural, =0 {Aucun bien, sur cet appareil} =1 {1 bien, sur cet appareil} other {# biens, sur cet appareil}}",
+      "sousTitreCompte": "Synchronisés sur votre compte · le prix et la disponibilité sont suivis",
+      "suiviAppareil": "Le prix de chaque bien est suivi depuis son ajout.",
+      "titreEtLieu": "{title} · {lieu}",
+      "visiter": "Visiter",
+      "visiterAria": "Visiter : {title}",
+      "biensProches": "Biens proches",
+      "onglets": {
+        "biens": "Biens",
+        "recherches": "Recherches",
+        "nouveaux": "{count, plural, =1 {1 nouveau bien} other {# nouveaux biens}}"
+      },
+      "ecart": {
+        "moins": "−{montant}",
+        "plus": "+{montant}",
+        "baisse": {
+          "ajout": "Prix en baisse de {montant} depuis l'ajout",
+          "compte": "Prix en baisse de {montant} depuis son enregistrement dans votre compte"
+        },
+        "hausse": {
+          "ajout": "Prix en hausse de {montant} depuis l'ajout",
+          "compte": "Prix en hausse de {montant} depuis son enregistrement dans votre compte"
+        }
+      },
+      "whatsapp": {
+        "aria": "Écrire sur WhatsApp à propos de {title}",
+        "prefill": "Bonjour, je suis intéressé(e) par « {title} » : {url}",
+        "indisponibleTitre": "Pas de WhatsApp pour ce bien",
+        "indisponible": "Son contact n'a pas déclaré de numéro WhatsApp. Ouvrez la fiche pour l'appeler ou lui écrire.",
+        "erreurTitre": "WhatsApp ne s'est pas ouvert",
+        "erreur": "Le numéro n'a pas pu être obtenu. Réessayez dans un instant."
+      },
+      "compte": {
+        "titre": "Gardez vos favoris sur tous vos écrans",
+        "texte": "Aujourd'hui, ils ne vivent que sur cet appareil. Avec votre numéro, ils vous suivent partout.",
+        "cta": "Continuer avec mon numéro"
+      },
+      "recherches": {
+        "erreur": "Impossible de charger vos recherches. Vérifiez votre connexion, puis réessayez.",
+        "videTitre": "Aucune recherche suivie",
+        "videTexte": "Depuis la liste des biens, « Sauvegarder la recherche » la garde ici, avec ses nouveaux biens.",
+        "videCta": "Lancer une recherche",
+        "astuce": "Une recherche se suit depuis la liste des biens : « Sauvegarder la recherche ».",
+        "gerer": "Gérer mes alertes",
+        "ouvrirAria": "Ouvrir la recherche « {name} »",
+        "nouveaux": "{count, plural, =1 {1 nouveau} other {# nouveaux}}",
+        "nouveauxAria": "Nouveaux biens de « {name} »",
+        "sansAlerte": "Sans alerte",
+        "alerte": "{frequence}, {canaux}",
+        "frequence": {
+          "daily": "Chaque jour",
+          "weekly": "Chaque semaine",
+          "off": "Sans alerte"
+        }
+      },
+      "pagination": {
+        "aria": "Pages de vos favoris",
+        "precedente": "Précédente",
+        "suivante": "Suivante",
+        "position": "Page {page} sur {derniere}"
+      },
+      "prevenir": {
+        "declencheur": "<geste>Prévenez-moi</geste> quand un bien comme ceux-ci arrive à {lieu}",
+        "titre": "Nouveaux biens à {lieu}",
+        "nom": "Biens comme mes favoris · {lieu}",
+        "fermer": "Fermer"
+      },
+      "compteEnAttente": "Votre compte ne répond pas pour l'instant. Vos favoris s'afficheront dès qu'il sera joignable."
+    },
+    "partage": {
+      "declencheur": "Partager",
+      "declencheurBureau": "Partager ma sélection",
+      "titre": "Partager votre sélection",
+      "texte": "Un lien qui montre ces biens à qui vous voulez, sans compte. Ni votre nom ni vos notes n'y figurent, et un bien loué ou retiré en disparaît.",
+      "titreDuLien": "{count, plural, =1 {1 bien sur Takussan} other {# biens sur Takussan}}",
+      "message": "{count, plural, =1 {Regardez ce bien sur Takussan : {url}} other {Regardez ces # biens sur Takussan : {url}}}",
+      "borne": "Le lien porte vos {max} favoris les plus récents.",
+      "whatsapp": "Envoyer sur WhatsApp",
+      "copier": "Copier le lien",
+      "copie": "Lien copié",
+      "copieEchec": "La copie a échoué. Voici le lien :",
+      "autre": "Autre…",
+      "fermer": "Fermer"
+    },
+    "selection": {
+      "titre": "{count, plural, =1 {1 bien choisi pour vous} other {# biens choisis pour vous}}",
+      "titreSansCompte": "Une sélection de biens",
+      "sousTitre": "Choisis sur Takussan et partagés avec vous. Prix et disponibilité du jour.",
+      "videTitre": "Ces biens ne sont plus disponibles",
+      "videTexte": "Les biens de cette sélection ont été loués, vendus ou retirés.",
+      "cta": "Découvrir des biens",
+      "erreur": "Impossible de charger cette sélection pour le moment.",
+      "reessayer": "Réessayer",
+      "meta": {
+        "title": "Une sélection de biens",
+        "description": "Des biens choisis sur Takussan et partagés avec vous."
+      }
     }
   },
   "search": {
-    "sponsored": {
-      "label": "Annonces sponsorisées"
-    },
     "suggest": {
       "placeholder": "Rechercher une ville, un quartier, un type de bien…",
       "groups": {
@@ -4657,7 +4857,8 @@
         "places": "Lieux",
         "previews": "Biens",
         "shortcuts": "Raccourcis",
-        "understood": "Votre recherche"
+        "understood": "Votre recherche",
+        "relaxations": "Retirer un critère"
       },
       "searchAll": "Rechercher « {query} » dans les annonces",
       "loading": "Chargement…",
@@ -4668,7 +4869,11 @@
       "nearby": "Voir des biens proches",
       "alert": "Être alerté quand un bien correspond",
       "enterHint": "Entrée",
-      "announce": "{count, plural, =0 {Aucune suggestion} one {# suggestion} other {# suggestions}}"
+      "announce": "{count, plural, =0 {Aucune suggestion} one {# suggestion} other {# suggestions}}",
+      "readAs": "« {typed} » lu {read}",
+      "seeCount": "{count, plural, one {Voir le bien} other {Voir les # biens}}",
+      "relaxation": "Sans {criteria}",
+      "relaxationText": "Sans « {text} »"
     },
     "saved": {
       "empty_title": "Aucune recherche sauvegardée",
@@ -4702,7 +4907,26 @@
       "vide_titre_hors_pages": "Rien sur cette page",
       "vide_description_hors_pages": "Cette recherche compte moins de pages : revenez à l'une des précédentes.",
       "updating": "Mise à jour des biens…",
-      "heading": "Résultats de la recherche"
+      "heading": "Résultats de la recherche",
+      "densite": {
+        "aria": "Affichage des résultats",
+        "liste": "Liste",
+        "galerie": "Galerie"
+      },
+      "ligne": {
+        "nouveau": "Nouveau · {quand}",
+        "publie": "Publié {quand}"
+      },
+      "voirPlus": {
+        "compte": "{vus} sur {total, plural, one {# bien} other {# biens}}",
+        "bouton": "{count, plural, one {Voir # bien de plus} other {Voir # biens de plus}}",
+        "erreur": "Les biens suivants n'ont pas pu être chargés. Réessayez.",
+        "debut": "Revenir aux premiers biens"
+      },
+      "puces": {
+        "aria": "Filtres appliqués"
+      },
+      "vide_page_derniere": "Revenir à la page {numero}"
     },
     "widened": {
       "unmatched": "{count, plural, =1 {Aucun bien ne correspond à « {terms} ».} other {Aucun bien ne correspond à ces mots : {terms}.}}",
@@ -4803,7 +5027,15 @@
         "showCount": "Plus de filtres ({count})",
         "hide": "Moins de filtres"
       },
-      "titleDeedHint": "Ne concerne que les biens qui possèdent leur sol : maisons, villas, terrains, entrepôts. Sans objet pour un appartement, un bureau ou un local."
+      "titleDeedHint": "Ne concerne que les biens qui possèdent leur sol : maisons, villas, terrains, entrepôts. Sans objet pour un appartement, un bureau ou un local.",
+      "histogramme": {
+        "loyerMensuel": "Loyer mensuel",
+        "loyerPeriode": "Loyer · {periode}",
+        "prixDeVente": "Prix de vente",
+        "moitieLoyersMensuels": "La moitié des loyers mensuels sont sous {montant}",
+        "moitieLoyersPeriode": "La moitié des loyers ({periode}) sont sous {montant}",
+        "moitiePrixDeVente": "La moitié des prix de vente sont sous {montant}"
+      }
     },
     "toolbar": {
       "loading": "Chargement…",
@@ -4936,6 +5168,32 @@
         "working": "Désabonnement…",
         "doneTitle": "C'est fait",
         "doneBody": "Vous ne recevrez plus le résumé par courriel. Vous pouvez le réactiver dans vos préférences de notification."
+      }
+    },
+    "ecran": {
+      "recent": "Vos recherches récentes",
+      "popular": "Recherches populaires",
+      "neighbourhoods": "Quartiers populaires · {city}",
+      "types": "Type de bien",
+      "noneTitle": "Aucun bien ne correspond aujourd’hui.",
+      "alertHint": "Votre recherche est prête : nous vous prévenons dès qu’une annonce correspond.",
+      "alert": "M’alerter",
+      "newSince": "{count, plural, one {# nouveau bien} other {# nouveaux biens}} depuis votre dernière visite",
+      "aroundMe": {
+        "title": "Autour de moi",
+        "detail": "Les biens à moins de {km} km",
+        "locating": "Localisation en cours…",
+        "denied": "Position refusée : choisissez plutôt un quartier.",
+        "unavailable": "Ce navigateur ne sait pas donner votre position.",
+        "failed": "Position introuvable pour l’instant. Réessayez."
+      },
+      "keptFilters": "Vos filtres restent :",
+      "removeFilters": "Retirer",
+      "keys": {
+        "choose": "pour choisir",
+        "open": "pour ouvrir",
+        "escape": "Échap",
+        "close": "pour fermer"
       }
     }
   },
@@ -6778,6 +7036,16 @@
         "thresholdConfirming": "Confirmation…",
         "thresholdConfirmed": "Le nouveau seuil s'applique.",
         "thresholdPendingSaved": "Enregistré. Assouplir le seuil demande la confirmation d'un second approbateur : il a été prévenu."
+      },
+      "offlinePayment": {
+        "title": "Paiement hors ligne",
+        "description": "Les moyens par lesquels un locataire peut vous payer sans passer par le paiement en ligne. Ils s’affichent sur les liens de paiement que vous envoyez ; un champ vide n’y paraît pas.",
+        "wave": "Numéro Wave",
+        "orangeMoney": "Numéro Orange Money",
+        "phoneHint": "Saisissez le numéro comme vous le donnez d’habitude : il est enregistré au format international.",
+        "bankDetails": "Coordonnées bancaires",
+        "bankDetailsPlaceholder": "Banque, titulaire du compte, RIB ou IBAN",
+        "bankDetailsCount": "{count} / {max} caractères"
       }
     },
     "users": {
@@ -7299,10 +7567,8 @@
       "not_found_title": "Bien introuvable",
       "not_found_description": "Le bien demandé n'existe plus ou n'est plus disponible.",
       "browse_cta": "Parcourir les biens",
-      "metaTitle": "Réserver un bien — Takussan",
-      "metaDescription": "Tunnel de réservation sécurisé Takussan.",
-      "title": "Réserver ce bien",
-      "subtitle": "Quelques étapes rapides pour envoyer votre demande."
+      "metaTitle": "Réserver un séjour",
+      "metaDescription": "Choisissez vos dates et envoyez votre demande de réservation."
     },
     "fallbackTitle": "Réservation #{id}",
     "reference": "Réf.",
@@ -7337,16 +7603,6 @@
     "stepper": {
       "aria": "Étapes de réservation"
     },
-    "summary": {
-      "price": "Prix affiché",
-      "checkIn": "Arrivée",
-      "checkOut": "Départ",
-      "duration": "Durée",
-      "nights": "{count, plural, =1 {# nuit} other {# nuits}}",
-      "total": "Total estimé",
-      "deposit": "Acompte attendu",
-      "noChargeNotice": "Vous ne serez pas débité avant confirmation par le propriétaire ou l'agent."
-    },
     "paymentDialog": {
       "title": "Enregistrer un paiement",
       "description": "Acompte, avance ou frais liés à cette réservation.",
@@ -7373,61 +7629,114 @@
     "tunnel": {
       "error": "La réservation a échoué. Réessayez.",
       "backToProperty": "Retour au bien",
-      "guestsLabel": "Personnes",
-      "depositLabel": "Acompte (30 %)",
-      "notesLabel": "Message (optionnel)",
       "notesPlaceholder": "Présentez-vous, expliquez votre projet…",
-      "steps": {
-        "dates": "Dates",
-        "review": "Récapitulatif",
-        "terms": "Conditions",
-        "done": "Confirmation"
-      },
-      "auth": {
-        "title": "Connectez-vous pour réserver",
-        "description": "Vous devez être connecté pour finaliser la demande de réservation.",
-        "login": "Se connecter"
-      },
       "success": {
-        "title": "Demande envoyée !",
+        "title": "Demande envoyée",
         "body": "Votre demande de réservation pour <strong>{title}</strong> a bien été enregistrée.",
         "reference": "Référence",
-        "total": "Total estimé",
-        "viewBooking": "Voir ma réservation",
+        "total": "Total",
         "deadline": "Le propriétaire ou l'agent a jusqu'au <strong>{date}</strong> pour y répondre. Sans réponse d'ici là, la demande expire automatiquement.",
-        "noDeadline": "Vous suivrez la réponse du propriétaire ou de l'agent depuis votre réservation."
-      },
-      "step1": {
-        "title": "Vos dates",
-        "description": "Sélectionnez votre période et le nombre de voyageurs."
-      },
-      "step2": {
-        "description": "Vérifiez les montants et ajoutez un message au propriétaire si besoin."
-      },
-      "fields": {
-        "startDate": "Arrivée",
-        "startDatePlaceholder": "Date d'arrivée",
-        "endDate": "Départ",
-        "endDatePlaceholder": "Date de départ",
-        "guests": "Nombre de personnes"
-      },
-      "terms": {
-        "body": "En soumettant votre demande, vous acceptez que le propriétaire ou l'agent vous contacte pour confirmer la disponibilité. Aucun paiement n'est prélevé tant que la réservation n'est pas confirmée.",
-        "deposit": "Un acompte de <strong>{amount}</strong> pourra être demandé à la confirmation.",
-        "accept": "J'accepte les conditions de réservation Takussan et la politique d'annulation."
-      },
-      "actions": {
-        "back": "Retour",
-        "submitting": "Envoi…",
-        "submit": "Soumettre la demande",
-        "continue": "Continuer"
+        "noDeadline": "Vous suivrez la réponse du propriétaire ou de l'agent depuis votre réservation.",
+        "dates": "Dates",
+        "next": "Et ensuite",
+        "step1": "Le propriétaire ou l’agent confirme vos dates",
+        "step1Deadline": "avant le {date}",
+        "step2": "Vous versez l’acompte de {amount}",
+        "step2NoAmount": "Vous versez l’acompte demandé",
+        "step2Detail": "Depuis votre réservation, une fois la demande confirmée",
+        "follow": "Suivre ma demande",
+        "whatsapp": "WhatsApp"
       },
       "longTerm": {
         "title": "Ce bien se loue au mois ou à l'année",
-        "description": "La réservation en ligne concerne les séjours courts. Pour une location longue durée, contactez l'agent : il vous proposera un bail.",
-        "contact": "Contacter l'agent"
+        "description": "La réservation en ligne concerne les séjours courts. Pour une location au mois, visitez d’abord le bien : l’agent vous proposera un bail.",
+        "contact": "Contacter l'agent",
+        "visit": "Visiter",
+        "whatsapp": "WhatsApp"
       },
-      "weeklyLine": "{price} / semaine, au prorata de {nights}"
+      "weeklyLine": "{price} / semaine, au prorata de {nights}",
+      "nights": "{count, plural, =1 {# nuit} other {# nuits}}",
+      "dailyLine": "{price} × {nights}",
+      "noCharge": "Rien n’est prélevé maintenant : l’acompte se verse seulement si la demande est confirmée.",
+      "unit": {
+        "daily": "nuit",
+        "weekly": "semaine"
+      },
+      "calendar": {
+        "previous": "Mois précédent",
+        "next": "Mois suivant",
+        "taken": "nuit déjà réservée",
+        "arrival": "arrivée",
+        "departure": "départ"
+      },
+      "dates": {
+        "title": "Choisissez vos dates",
+        "chooseDeparture": "Arrivée {date} : choisissez le départ",
+        "range": "{debut} → {fin}",
+        "hint": "les jours barrés sont déjà réservés",
+        "loading": "Chargement des disponibilités…",
+        "loadError": "Les disponibilités n’ont pas pu être chargées : choisissez vos dates, elles seront vérifiées à l’envoi.",
+        "noLongerFree": "Ces dates ne sont plus libres : choisissez-en d’autres.",
+        "noDates": "Choisissez l’arrivée puis le départ",
+        "clear": "Effacer",
+        "continue": "Continuer"
+      },
+      "guests": {
+        "label": "Personnes",
+        "less": "Une personne de moins",
+        "more": "Une personne de plus",
+        "count": "{count, plural, =1 {# personne} other {# personnes}}"
+      },
+      "recap": {
+        "title": "Votre demande",
+        "back": "Retour aux dates",
+        "edit": "Modifier",
+        "total": "Total",
+        "deposit": "Acompte si la demande est confirmée ({percent} %)",
+        "requestNotice": "C’est une demande : <strong>le propriétaire ou l’agent confirme vos dates</strong>, puis vous versez l’acompte. Sans réponse avant l’échéance, la demande expire et rien n’est dû.",
+        "message": "Un mot pour le propriétaire ou l’agent (facultatif)",
+        "accept": "J’accepte les <terms>conditions générales</terms> et la <privacy>politique de confidentialité</privacy>. Rien n’est prélevé tant que la demande n’est pas confirmée.",
+        "acceptRequired": "Acceptez les conditions pour envoyer la demande.",
+        "submit": "Envoyer la demande",
+        "submitting": "Envoi…"
+      },
+      "identity": {
+        "phoneLabel": "Votre numéro",
+        "phoneHelp": "Pour suivre la réponse. Un code par SMS, pas de mot de passe.",
+        "sendCode": "Recevoir le code",
+        "sending": "Envoi du code…",
+        "codeLabel": "Code reçu par SMS",
+        "codeSentTo": "Si ce numéro peut recevoir des SMS, un code à 6 chiffres vient d’être envoyé au {phone}. Il reste valable 5 minutes.",
+        "verifyAndSend": "Confirmer et envoyer la demande",
+        "verifying": "Vérification…",
+        "resend": "Renvoyer le code",
+        "resendIn": "Renvoyer le code dans {seconds} s",
+        "changeNumber": "Changer de numéro",
+        "preview": {
+          "title": "Environnement de test",
+          "body": "Code envoyé par SMS :",
+          "use": "Utiliser ce code"
+        },
+        "errors": {
+          "tooMany": "Trop de demandes en peu de temps. Patientez un instant avant de réessayer.",
+          "invalidPhone": "Ce numéro n’est pas valide. Vérifiez l’indicatif et les chiffres.",
+          "codeInvalid": "Code incorrect ou expiré. Vérifiez-le, ou demandez-en un nouveau.",
+          "locked": "Trop de tentatives : l’accès est suspendu quelques minutes. Réessayez un peu plus tard.",
+          "blocked": "Ce compte est suspendu. Contactez le support pour en savoir plus.",
+          "failed": "Une erreur est survenue. Réessayez dans un instant."
+        }
+      },
+      "login": {
+        "title": "Connectez-vous pour envoyer la demande",
+        "body": "Vos dates restent choisies : vous les retrouverez ici au retour.",
+        "submit": "Se connecter pour envoyer",
+        "register": "Pas encore de compte ? En créer un"
+      },
+      "sale": {
+        "title": "Ce bien est à vendre",
+        "description": "Un achat ne se réserve pas : faites une offre depuis la fiche du bien.",
+        "cta": "Voir le bien"
+      }
     }
   },
   "visits": {
@@ -12428,12 +12737,12 @@
   },
   "publicProfileIndex": {
     "card": {
-      "portfolio": "{count, plural, one {bien} other {biens}}",
       "rent": "{count, plural, one {# à louer} other {# à louer}}",
       "sale": "{count, plural, one {# à vendre} other {# à vendre}}",
-      "reviews": "· {count, plural, one {# avis} other {# avis}}",
       "verified": "Profil vérifié",
-      "ratingAria": "Note moyenne de {rating} sur 5"
+      "ratingAria": "Note moyenne de {rating} sur 5",
+      "portfolio": "{count, plural, one {bien} other {biens}}",
+      "reviews": "· {count, plural, one {# avis} other {# avis}}"
     },
     "filters": {
       "submit": "Rechercher",
@@ -12456,24 +12765,23 @@
       "body": "Nous n’avons pas pu charger la liste. Réessaie dans quelques instants."
     },
     "agencies": {
-      "eyebrow": "Agences immobilières",
-      "heading": "Les agences qui opèrent près de chez toi",
-      "intro": "Chaque agence présentée ici publie au moins une annonce disponible. Parcours leur portefeuille, leurs villes et les avis de leurs clients.",
       "searchPlaceholder": "Nom d’une agence",
       "count": "{count, plural, one {# agence} other {# agences}}",
-      "emptyTitle": "Aucune agence ne correspond"
+      "emptyTitle": "Aucune agence ne correspond",
+      "eyebrow": "Agences immobilières",
+      "heading": "Les agences qui opèrent près de chez toi",
+      "intro": "Chaque agence présentée ici publie au moins une annonce disponible. Parcours leur portefeuille, leurs villes et les avis de leurs clients."
     },
     "agents": {
-      "eyebrow": "Agents & propriétaires",
-      "heading": "Les personnes derrière les annonces",
-      "intro": "Agent immobilier ou propriétaire, chaque profil présenté ici publie au moins une annonce disponible. Découvre son portefeuille, ses villes et l’agence qui publie ses annonces.",
       "searchPlaceholder": "Nom ou prénom",
       "count": "{count, plural, one {# profil} other {# profils}}",
-      "emptyTitle": "Aucun profil ne correspond"
+      "emptyTitle": "Aucun profil ne correspond",
+      "eyebrow": "Agents & propriétaires",
+      "heading": "Les personnes derrière les annonces",
+      "intro": "Agent immobilier ou propriétaire, chaque profil présenté ici publie au moins une annonce disponible. Découvre son portefeuille, ses villes et l’agence qui publie ses annonces."
     }
   },
   "legal": {
-    "eyebrow": "Informations légales",
     "documents": {
       "terms": {
         "title": "Conditions générales d'utilisation",
@@ -12496,7 +12804,14 @@
       "translation": "Traduction fournie pour information : seule la version française fait foi.",
       "frenchOnly": "Ce document n'est disponible qu'en français pour le moment."
     },
-    "otherDocuments": "Autres documents"
+    "otherDocuments": "Autres documents",
+    "toc": {
+      "title": "Sommaire",
+      "summary": "Sommaire · {count, plural, one {# partie} other {# parties}}",
+      "close": "Fermer le sommaire",
+      "current": "Partie en cours"
+    },
+    "anchorLink": "Lien vers cette partie"
   },
   "propertyContact": {
     "whatsapp": {
@@ -12532,17 +12847,9 @@
       "optional": "(facultatif)",
       "nameRequired": "Indiquez votre nom.",
       "phoneRequired": "Indiquez un numéro où l’agent peut vous joindre.",
-      "dakarTime": "heure de Dakar",
-      "slotTaken": "{time} — déjà pris",
-      "slotsLoading": "Chargement des créneaux…",
-      "slotsError": "Les créneaux n’ont pas pu être chargés.",
-      "noSlots": "Plus aucun créneau libre ce jour-là. Choisissez une autre date.",
       "done": {
         "title": "Demande envoyée",
-        "bodySms": "L’agent va confirmer le créneau du {when}. Vous recevrez un SMS au {phone} dès qu’il l’aura fait.",
-        "bodyAccount": "L’agent va confirmer le créneau du {when}. Vous serez prévenu(e) dans votre espace et par e-mail.",
-        "bodyEmail": "Un e-mail vous sera aussi envoyé à {email}.",
-        "close": "Fermer"
+        "bodyEmail": "Un e-mail vous sera aussi envoyé à {email}."
       }
     }
   },
@@ -13340,35 +13647,12 @@
   },
   "payLink": {
     "metaTitle": "Payer mon loyer",
-    "title": "Régler votre échéance",
-    "loading": "Ouverture du lien…",
-    "dueDate": "Échéance",
-    "reference": "Référence",
-    "amountDue": "Montant à payer",
-    "rent": "Loyer",
-    "lateFee": "Pénalité de retard",
-    "lateFeeAtAgency": "À régler auprès de l'agence {agency}.",
-    "payWith": "Payer avec {provider}",
     "providers": {
       "wave": "Wave",
       "orange_money": "Orange Money",
       "lemon_squeezy": "Carte bancaire",
       "free_money": "Free Money"
-    },
-    "payError": "Le paiement n'a pas pu être ouvert. Réessayez dans un instant.",
-    "unavailable": "Le paiement en ligne n'est pas disponible pour cette échéance. Contactez l'agence {agency}.",
-    "cancelledNotice": "Le paiement a été annulé. Vous pouvez réessayer.",
-    "paid": "Cette échéance est réglée. Merci !",
-    "receipt": "Télécharger la quittance",
-    "receiptFile": "quittance",
-    "receiptError": "La quittance n'a pas pu être téléchargée. Réessayez dans un instant.",
-    "goneTitle": "Ce lien n'est plus valide",
-    "goneDescription": "Il a expiré ou a été remplacé. Demandez un nouveau lien à votre agence.",
-    "goneDescriptionAgency": "Il a expiré ou a été remplacé. Demandez un nouveau lien à l'agence {agency}.",
-    "notFoundTitle": "Lien introuvable",
-    "notFoundDescription": "Vérifiez l'adresse reçue, ou demandez un nouveau lien à votre agence.",
-    "error": "L'échéance n'a pas pu être chargée. Réessayez dans un instant.",
-    "retry": "Réessayer"
+    }
   },
   "invitationAccept": {
     "metaTitle": "Accepter une invitation",
@@ -13587,6 +13871,129 @@
         "action": "Voir"
       },
       "aussiDemandes": "et {count, plural, one {# demande à traiter} other {# demandes à traiter}}"
+    },
+    "enTeteDePage": {
+      "retour": "Retour"
+    }
+  },
+  "lienPublic": {
+    "coque": {
+      "aide": "Aide",
+      "confidentialite": "Confidentialité",
+      "emisPar": "Lien émis par {emetteur} via Takussan",
+      "chargement": "Ouverture du lien…",
+      "reessayer": "Réessayer",
+      "copier": "Copier",
+      "copie": "Copié",
+      "copierQuoi": "Copier : {quoi}"
+    },
+    "mort": {
+      "rechercher": "Rechercher des biens",
+      "aide": "Besoin d’aide ?"
+    },
+    "paiement": {
+      "securise": "Paiement sécurisé",
+      "periodeMois": "{elision, select, oui {Échéance d’{mois}} other {Échéance de {mois}}}",
+      "periodePlage": "Échéance du {debut} au {fin}",
+      "periodeDate": "Échéance du {date}",
+      "periodeInconnue": "Votre échéance",
+      "aPayer": "À payer",
+      "detailPenaliteIncluse": "{base} d’échéance + {penalite} de pénalité de retard",
+      "enRetard": "En retard · échéance du {date}",
+      "penaliteAPartTitre": "Pénalité de retard : {montant}",
+      "penaliteAPartTexte": "À régler auprès de votre agence, {agence}. Elle n’est pas comprise dans le montant à payer en ligne.",
+      "penaliteResteTexte": "À régler auprès de votre agence, {agence}.",
+      "payerAvec": "Payer avec {provider}",
+      "erreurPaiement": "Le paiement n’a pas pu être ouvert. Réessayez dans un instant.",
+      "annule": "Le paiement a été annulé. Vous pouvez réessayer.",
+      "ou": "ou",
+      "payerALAgence": "Payer directement à l’agence",
+      "horsLigneOuvert": "Le paiement en ligne n’est pas ouvert pour cette échéance. Vous pouvez payer directement votre agence, {agence} :",
+      "horsLigneSansMoyen": "Le paiement en ligne n’est pas ouvert pour cette échéance. Adressez-vous à votre agence, {agence}, pour régler.",
+      "moyens": {
+        "wave": "Wave",
+        "orangeMoney": "Orange Money",
+        "virement": "Virement",
+        "telephone": "Téléphone de l’agence"
+      },
+      "appeler": "Appeler",
+      "appelerNumero": "Appeler le {numero}",
+      "reference": "Référence",
+      "referenceMotif": "Indiquez la référence en motif, pour que l’agence retrouve votre paiement :",
+      "valableJusquau": "Ce lien reste valable jusqu’au {date}.",
+      "merci": "Merci, c’est payé",
+      "reglee": "Cette échéance est réglée",
+      "regleeLe": "Réglée le {date}. Vous n’avez rien à payer sur ce lien.",
+      "regleeSansDate": "Vous n’avez rien à payer sur ce lien.",
+      "payeLe": "Payé le",
+      "quittance": "La quittance (PDF)",
+      "quittanceFichier": "quittance",
+      "quittanceErreur": "La quittance n’a pas pu être téléchargée. Réessayez dans un instant.",
+      "partager": "Partager",
+      "partagerTexte": "Échéance {reference} réglée le {date}. Agence : {agence}.",
+      "quittanceDelai": "La quittance se télécharge ici pendant 30 jours après le paiement. Passé ce délai, {agence} peut vous la renvoyer.",
+      "rembourseeTitre": "Cette échéance a été remboursée",
+      "rembourseeTexte": "Vous n’avez rien à payer sur ce lien. Pour toute question, adressez-vous à votre agence, {agence}.",
+      "rienAPayerTitre": "Rien à payer sur ce lien",
+      "rienAPayerTexte": "Cette échéance ne demande aucun paiement aujourd’hui. Pour toute question, adressez-vous à votre agence, {agence}.",
+      "perimeTitre": "Ce lien n’est plus valide",
+      "perimeTexte": "Il a expiré ou a été remplacé. Demandez un nouveau lien à votre agence.",
+      "perimeTexteAgence": "Il a expiré ou a été remplacé. Demandez un nouveau lien à votre agence, {agence}.",
+      "introuvableTitre": "Lien introuvable",
+      "introuvableTexte": "Vérifiez l’adresse reçue, ou demandez un nouveau lien à votre agence.",
+      "erreur": "L’échéance n’a pas pu être chargée. Réessayez dans un instant.",
+      "aReglerALAgence": "À régler à l’agence"
+    },
+    "reclamation": {
+      "lienPersonnel": "Lien personnel",
+      "demande": "<strong>{count, plural, one {# recherche} other {# recherches}}</strong> à {quartier} ces 30 derniers jours.",
+      "avantageGratuit": "Gratuit : publier vos annonces ne vous coûte rien.",
+      "avantageNumero": "Votre numéro n’apparaît pas : les visiteurs vous joignent par Takussan.",
+      "avantageCorriger": "Corrigez le titre, le prix ou la description avant la mise en ligne.",
+      "aPublierTitre": "À publier",
+      "voir": "Voir",
+      "barreSousTitre": "Gratuit · confirmation par code SMS",
+      "codeArriveAu": "Le code arrive au {phone}.",
+      "avantPublierTitre": "Avant de publier",
+      "opposition": {
+        "pasMoi": "Ce n’est pas moi",
+        "neplus": "Ne plus me contacter"
+      },
+      "refus": {
+        "titre": "Ce n’est pas vous ?",
+        "intro": "Choisissez ce qui vous correspond :",
+        "pasMoiTitre": "Ce ne sont pas mes annonces",
+        "pasMoiDetail": "Ce numéro n’est pas celui de ces annonces.",
+        "neplusTitre": "Ne plus me contacter",
+        "neplusDetail": "Vous ne souhaitez plus recevoir de message de Takussan.",
+        "effet": "Dans les deux cas, rien ne sera publié, Takussan ne contactera plus ce numéro, et ce lien sera désactivé.",
+        "effetEnLigne": "Vos annonces déjà en ligne sur Takussan seront retirées.",
+        "confidentialite": "Vos données sont traitées selon notre <privacy>politique de confidentialité</privacy>.",
+        "confirmer": "Confirmer",
+        "envoi": "Envoi…",
+        "occupe": "Vos annonces sont en cours de mise à jour. Réessayez dans un instant.",
+        "echec": "Votre demande n’a pas pu être envoyée. Réessayez dans un instant.",
+        "faitTitre": "C’est noté",
+        "faitPasMoi": "Merci de nous l’avoir signalé. Takussan ne contactera plus ce numéro, et ce lien est désactivé.",
+        "faitNeplus": "Takussan ne vous contactera plus à ce numéro, et ce lien est désactivé."
+      },
+      "publierAucune": "Publier mes annonces"
+    },
+    "document": {
+      "prive": "Document privé",
+      "compte": "Ce lien est personnel. Ne le transférez pas : chaque téléchargement est compté."
+    },
+    "alerte": {
+      "criteres": "Critères de l’alerte",
+      "dejaEnLigne": "{count, plural, one {# bien déjà en ligne} other {# biens déjà en ligne}}",
+      "aucunEnLigne": "Aucun bien en ligne pour l’instant",
+      "voirLesBiens": "{count, plural, one {Voir le bien déjà en ligne} other {Voir les # biens déjà en ligne}}",
+      "autreRecherche": "Rechercher autre chose",
+      "desinscrireTitre": "Ne plus recevoir d’alertes",
+      "desinscrireTexte": "Cette alerte, et toutes celles envoyées au même contact, s’arrêtent. Votre contact est effacé.",
+      "uneFoisParSemaine": "Plutôt une fois par semaine",
+      "hebdoFaitTitre": "Une fois par semaine, c’est noté",
+      "hebdoFaitTexte": "Vous recevrez au plus un message par semaine. Chacun garde son lien de désinscription."
     }
   }
 }

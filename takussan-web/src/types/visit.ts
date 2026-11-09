@@ -7,8 +7,23 @@ export type VisitStatus =
   | 'cancelled'
   | 'no_show';
 
-export interface VisitRequestPayload {
-  scheduled_at: string;
+/**
+ * TCK-2502 — la tranche de la journée demandée à la place d'une heure (`VisitWindow` de l'API) :
+ * l'agent fixe l'heure en confirmant. Début à Dakar : 09:00, 14:00, 17:00 — jamais une heure promise.
+ */
+export type VisitWindow = 'morning' | 'afternoon' | 'evening';
+
+/**
+ * TCK-2503 — SOIT une heure (`scheduled_at`, sur la grille de Dakar), SOIT un jour et une tranche :
+ * l'API refuse les deux ensemble (422).
+ */
+export type VisitRequestWhen =
+  | { scheduled_at: string; date?: never; preferred_window?: never }
+  | { date: string; preferred_window: VisitWindow; scheduled_at?: never };
+
+export type VisitRequestPayload = VisitRequestWhen & VisitRequestDetails;
+
+export interface VisitRequestDetails {
   type: VisitType;
   duration_minutes?: number;
   visitor_name?: string;
@@ -37,6 +52,8 @@ export interface PropertyVisit {
   type?: VisitType | null;
   status?: VisitStatus | null;
   scheduled_at?: string | null;
+  /** TCK-2502 — non nul : `scheduled_at` n'est que le début de la tranche, l'heure reste à fixer. */
+  preferred_window?: VisitWindow | null;
   completed_at?: string | null;
   cancelled_at?: string | null;
   cancellation_reason?: string | null;

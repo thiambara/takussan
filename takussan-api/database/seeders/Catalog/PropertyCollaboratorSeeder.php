@@ -42,19 +42,31 @@ class PropertyCollaboratorSeeder extends Seeder
 
                 $pickedAgentIds = Tirage::plusieurs($agentIds, min(2, $agentIds->count()));
                 foreach ((array) $pickedAgentIds->toArray() as $agentId) {
+                    // Tirés AVANT la garde ci-dessous, dans l'ordre d'origine : sauter une ligne ne doit
+                    // pas décaler la graine de tout ce qui suit (TCK-2380).
+                    $role = $this->ctx->faker()->randomElement([
+                        CollaboratorRole::Agent->value,
+                        CollaboratorRole::Manager->value,
+                    ]);
+                    $part = $this->ctx->faker()->randomFloat(2, 10, 50);
+                    $acceptedAt = $invitedAt->addDays(mt_rand(0, 3));
+
+                    // TCK-2532 — un agent peut être le TITULAIRE du bien (PropertySeeder) : il n'en est
+                    // pas aussi collaborateur.
+                    if ((int) $agentId === (int) $property->user_id) {
+                        continue;
+                    }
+
                     PropertyCollaborator::updateOrCreate(
                         [
                             'property_id' => $property->id,
                             'user_id' => $agentId,
                         ],
                         [
-                            'role' => $this->ctx->faker()->randomElement([
-                                CollaboratorRole::Agent->value,
-                                CollaboratorRole::Manager->value,
-                            ]),
-                            'commission_share' => $this->ctx->faker()->randomFloat(2, 10, 50),
+                            'role' => $role,
+                            'commission_share' => $part,
                             'invited_at' => $invitedAt,
-                            'accepted_at' => $invitedAt->addDays(mt_rand(0, 3)),
+                            'accepted_at' => $acceptedAt,
                             'created_at' => $invitedAt,
                             'updated_at' => $invitedAt,
                         ],

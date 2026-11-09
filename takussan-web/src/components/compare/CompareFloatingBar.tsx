@@ -14,7 +14,7 @@ import { COMPARE_MAX_IDS, idsToCsv, type ComparePreview } from '@/lib/compare';
 import { cn } from '@/lib/utils';
 import { fusionnerRestauration } from '@/components/compare/restauration';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
-import { porteLaBarrePublique, REQUETE_BARRE_PUBLIQUE } from '@/lib/navigation/barre-publique';
+import { estPageDeLien, porteLaBarrePublique, REQUETE_BARRE_PUBLIQUE } from '@/lib/navigation/barre-publique';
 
 /**
  * Logical height of the pill (px). Used by the FloatingDock to compute the
@@ -233,7 +233,9 @@ export function CompareFloatingBar({ className }: { className?: string }) {
   // Register with the FloatingDock orchestrator (TCK-275). The slot is only
   // “active” once we actually render content — otherwise the dock would
   // reserve vertical space for an invisible bar.
-  const isVisible = isHydrated && ids.length > 0 && !surLeComparatif && !effaceeParUneAutreCouche;
+  // TCK-2505 — une page ouverte par un lien (paiement, réclamation, partage, alertes) est servie
+  // dans la coque NUE : le dock n'y paraît pas, même en bureau.
+  const isVisible = isHydrated && ids.length > 0 && !surLeComparatif && !effaceeParUneAutreCouche && !estPageDeLien(chemin);
   const { bottom } = useFloatingDockSlot({
     id: 'compare-floating-bar',
     corner: 'bottom-right',

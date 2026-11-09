@@ -29,8 +29,13 @@ Route::prefix('public/search-alerts')->name('public.search-alerts.')->group(func
         Route::post('/', [PublicSearchAlertController::class, 'store'])->name('store');
         Route::post('confirm', [PublicSearchAlertController::class, 'confirm'])->name('confirm');
         Route::post('unsubscribe', [PublicSearchAlertController::class, 'unsubscribe'])->name('unsubscribe');
-        // TCK-2513 — la page d'un lien lit son alerte (sans rien consommer), et peut l'espacer au lieu de la couper.
-        Route::get('by-token', [PublicSearchAlertController::class, 'byToken'])->name('by-token');
+        // TCK-2513 — la page d'un lien peut espacer l'alerte au lieu de la couper.
         Route::post('frequency', [PublicSearchAlertController::class, 'frequency'])->name('frequency');
     });
+    // TCK-2513 — la page d'un lien LIT son alerte (sans rien consommer). TCK-2514 : sous son propre compteur par IP,
+    // comme `radar.claims.show` — dans le seau des actions (10 par 10 min), quelques rechargements de la page
+    // suffisaient à faire refuser le clic qui suit (429 mesuré).
+    Route::get('by-token', [PublicSearchAlertController::class, 'byToken'])
+        ->middleware('throttle:30,1,public_search_alert_read')
+        ->name('by-token');
 });

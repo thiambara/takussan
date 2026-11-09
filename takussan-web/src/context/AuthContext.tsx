@@ -43,7 +43,14 @@ type AuthContextValue = {
   setActiveProfileId: (id: string | null) => void;
   isLoading: boolean;
   setUser: (user: User | null) => void;
-  refreshUser: () => Promise<void>;
+  /**
+   * Relit `/api/auth/me`. Rend l'issue — les appelants qui l'ignorent n'ont rien à changer :
+   * `ouverte` (utilisateur posé), `fermee` (401 : la session est morte, l'utilisateur est retiré),
+   * `injoignable` (autre erreur, relais injoignable : l'utilisateur reste), `perimee` (une relecture
+   * plus récente, ou une déconnexion, l'a remplacée). TCK-2508 : sur `fermee`, la page Favoris
+   * appelle `logout()` pour purger le jeton, et passe à la vue de l'appareil.
+   */
+  refreshUser: () => Promise<IssueDeRelecture>;
   /**
    * Authenticate with email+password, persist the auth cookie via
    * `/api/auth/set-token`, and update the in-memory user. Returns the
@@ -77,6 +84,8 @@ type AuthContextValue = {
    */
   logout: () => Promise<void>;
 };
+
+export type IssueDeRelecture = 'ouverte' | 'fermee' | 'injoignable' | 'perimee';
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -213,24 +222,30 @@ export function AuthProvider({
 
   const handleSetUser = useCallback((u: User | null) => setUser(u), []);
 
-  const refreshUser = useCallback(async () => {
+  const refreshUser = useCallback(async (): Promise<IssueDeRelecture> => {
     const rang = ++rangDemandeRef.current;
     const derniere = () => rang === rangDemandeRef.current;
     setIsLoading(true);
     try {
       const r = await fetch('/api/auth/me');
-      if (!derniere()) return;
+      if (!derniere()) return 'perimee';
       if (r.ok) {
         const u = await r.json();
-        if (derniere()) setUser(u);
-      } else if (r.status === 401) {
+        if (!derniere()) return 'perimee';
+        setUser(u);
+        return 'ouverte';
+      }
+      if (r.status === 401) {
         // TCK-1992 (P172.01) — seul un 401 dit la session morte. Toute autre erreur (API en
         // panne, lente, limitée, refus de second facteur) garde l'utilisateur en place.
         setUser(null);
         fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+        return 'fermee';
       }
+      return 'injoignable';
     } catch {
       // Relais injoignable : rien ne dit que la session est close, l'utilisateur reste.
+      return 'injoignable';
     } finally {
       if (derniere()) setIsLoading(false);
     }
@@ -348,7 +363,7 @@ export function useAuth(): AuthContextValue {
       setActiveProfileId: noop,
       isLoading: false,
       setUser: noop,
-      refreshUser: noopAsync,
+      refreshUser: async () => 'injoignable' as const,
       login: noopThrow as AuthContextValue['login'],
       register: noopThrow as AuthContextValue['register'],
       openSession: noopThrow as AuthContextValue['openSession'],

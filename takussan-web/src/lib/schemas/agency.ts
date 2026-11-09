@@ -94,7 +94,27 @@ export const agencyFormSchema = z.object({
   ninea: z.string().trim().max(30, msgValidation('agency.legalIdTooLong')),
   rccm: z.string().trim().max(30, msgValidation('agency.legalIdTooLong')),
   legal_address: z.string().trim().max(1000, msgValidation('agency.legalAddressTooLong')),
+  // TCK-2536 — les moyens de paiement hors ligne (`settings.offline_payment_*`, TCK-2504). La forme d'un
+  // numéro se juge à l'API (422 sur `settings.<clé>`, rendu sous le champ) : elle accepte la saisie
+  // libre (« 77 123 45 67 ») et la rend en E.164 — un contrôle ici refuserait ce qu'elle accepte.
+  // PAS de `.trim()` sur les coordonnées bancaires : le schéma rendrait la valeur rognée, et la
+  // comparaison « inchangé » de l'envoi se fait de toute façon sur la valeur rognée.
+  // `default('')` : une valeur absente vaut « rien de saisi » (et ne part donc pas).
+  offline_payment_wave_number: z.string().default(''),
+  offline_payment_orange_money_number: z.string().default(''),
+  offline_payment_bank_details: z.string().default(''),
 });
+
+/** TCK-2536 — les trois clés de `settings` des moyens de paiement hors ligne (TCK-2504). */
+export const CLES_PAIEMENT_HORS_LIGNE = [
+  'offline_payment_wave_number',
+  'offline_payment_orange_money_number',
+  'offline_payment_bank_details',
+] as const;
+export type ClePaiementHorsLigne = (typeof CLES_PAIEMENT_HORS_LIGNE)[number];
+
+/** La borne de `settings.offline_payment_bank_details` côté API (`AgencySettings`, `max:500`). */
+export const COORDONNEES_BANCAIRES_MAX = 500;
 
 export type AgencyFormValues = z.infer<typeof agencyFormSchema>;
 
@@ -103,6 +123,10 @@ export interface ReglagesDeLaFiche {
   require_team_two_factor: boolean;
   late_fee_online_collection: boolean;
   hidden_modules: CodeDeModule[];
+  /** TCK-2536 — tels que l'API les rend (E.164 pour les numéros), `''` quand la clé est absente. */
+  offline_payment_wave_number: string;
+  offline_payment_orange_money_number: string;
+  offline_payment_bank_details: string;
 }
 
 /**
@@ -141,7 +165,32 @@ export function reglagesDeLaFiche(settings: unknown): ReglagesDeLaFiche {
     late_fee_online_collection: booleenCommeLApi(lu.late_fee_online_collection, false),
     // TCK-2483 — clé absente = rien de masqué ; un code inconnu est ignoré (et ne repart pas).
     hidden_modules: modulesMasquesDe(lu),
+    // TCK-2536 — une chaîne telle quelle, sans reformatage : le numéro affiché est celui que l'API a rendu.
+    offline_payment_wave_number: texteDuReglage(lu.offline_payment_wave_number),
+    offline_payment_orange_money_number: texteDuReglage(lu.offline_payment_orange_money_number),
+    offline_payment_bank_details: texteDuReglage(lu.offline_payment_bank_details),
   };
+}
+
+function texteDuReglage(valeur: unknown): string {
+  return typeof valeur === 'string' ? valeur : '';
+}
+
+/**
+ * TCK-2536 — l'API rend l'erreur d'un réglage sous `settings.<clé>` ; le champ du formulaire porte la
+ * clé seule. Les trois clés du paiement hors ligne sont renommées pour que `useApiForm` pose l'erreur
+ * sous leur champ ; toute autre clé passe telle quelle (et finit, inconnue, dans le bandeau).
+ */
+export function erreursDesReglagesSurLeurChamp(
+  errors: Record<string, string[]> | undefined,
+): Record<string, string[]> | undefined {
+  if (errors === undefined) return undefined;
+  return Object.fromEntries(
+    Object.entries(errors).map(([cle, messages]) => {
+      const reglage = cle.startsWith('settings.') ? cle.slice('settings.'.length) : null;
+      return [reglage !== null && (CLES_PAIEMENT_HORS_LIGNE as readonly string[]).includes(reglage) ? reglage : cle, messages];
+    }),
+  );
 }
 
 export interface AgencyFormPayload {
@@ -237,6 +286,13 @@ export function normaliseAgencyForm(
   if (!context.individual) {
     const masques = CODES_DE_MODULE.filter((code) => values.hidden_modules.includes(code));
     if (masques.join() !== initial.hidden_modules.join()) settings.hidden_modules = masques;
+  }
+  // TCK-2536 — comme les autres réglages : une clé ne part que si sa valeur (rognée, comme l'API la
+  // range) a changé ; vidée, elle part à `null`, ce qui la retire. Les deux autres ne partent pas : un
+  // `null` envoyé par mégarde effacerait un moyen de paiement que le locataire lit sur son lien.
+  for (const cle of CLES_PAIEMENT_HORS_LIGNE) {
+    const saisi = (values[cle] ?? '').trim();
+    if (saisi !== initial[cle].trim()) settings[cle] = saisi === '' ? null : saisi;
   }
 
   const slug = (values.slug ?? '').trim();

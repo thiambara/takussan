@@ -23,6 +23,7 @@ import { staggerDelay } from '@/components/property/card-stagger';
 import { CARD_SIZES_SEARCH_GRID } from '@/components/property/card-image-sizes';
 import { PROPERTY_ENUM_NAMESPACES, enumLabel } from '@/components/property-form/options';
 import { conditionValues, propertyTypeValues } from '@/lib/enums/property';
+import { estNouveau } from '@/components/property/liste/nouveau';
 
 /**
  * Canonical PropertyCard used by the homepage, search results and any
@@ -120,6 +121,14 @@ export interface PropertyCardProps {
    * AU-DESSUS de la carte, ce qui la décalait dans la grille.
    */
   readonly badge?: 'urgent' | 'price_drop' | null;
+  /**
+   * TCK-2499 — `ligne-au-telephone` : la densité « Liste » de `/properties`. Sous `md`, la MÊME carte
+   * se pose en ligne — photo de 112 px à gauche, texte à droite, favori en bout de ligne, RIEN sur
+   * la photo, la place payée et le Badge en texte, « Nouveau » quand il l'est. À partir de `md`, la
+   * carte de bureau est inchangée (TCK-555). Un seul élément par bien, réglé en CSS : la liste
+   * rendait la ligne ET la carte, l'une masquée (×2,35 nœuds, revue de TCK-2499).
+   */
+  readonly disposition?: 'carte' | 'ligne-au-telephone';
 }
 
 /**
@@ -133,6 +142,11 @@ export interface PropertyCardProps {
  */
 const ROBE = 'rounded-xl bg-primary/8 outline outline-1 -outline-offset-1 outline-primary/35';
 const TEXTE_EN_ROBE = 'px-2.5 pb-3';
+/** TCK-2499 — en disposition « ligne », la robe ne se dessine qu'à partir de `md` (texte sous `md`). */
+const ROBE_DES_MD = 'md:rounded-xl md:bg-primary/8 md:outline md:outline-1 md:-outline-offset-1 md:outline-primary/35';
+const TEXTE_EN_ROBE_DES_MD = 'md:px-2.5 md:pb-3';
+/** TCK-2499 — la photo d'une ligne : 112 px annoncés à `next/image` sous `md`. */
+const SIZES_DE_LA_LIGNE = '(max-width: 767px) 112px';
 
 export function PropertyCard({
   property,
@@ -147,9 +161,12 @@ export function PropertyCard({
   titreSurDeuxLignes = 'des-sm',
   robe,
   badge = null,
+  disposition = 'carte',
 }: PropertyCardProps) {
   const t = useTranslations('property');
   const tCards = useTranslations('property.cards');
+  const tLigne = useTranslations('search.results.ligne');
+  const ligne = disposition === 'ligne-au-telephone';
   // TCK-466 — le vocabulaire des types de bien s'adresse par la TABLE, jamais par un chemin
   // composé à la main. Cette carte écrivait `t(`types.${property.type}`)` sur un traducteur borné
   // à `property` : la chaîne `property.types` s'y retrouvait recopiée, en deux morceaux, hors de
@@ -193,6 +210,33 @@ export function PropertyCard({
   // L'aperçu que la barre flottante du comparateur affichera. La carte l'a déjà sous la main :
   // le lui passer coûte trois champs et évite une requête par page montée.
   const apercu = { title: property.title, slug: property.slug, photo: property.main_photo_url };
+  // TCK-2499 — ce que la LIGNE dit en texte, sous `md` (cf. `disposition`).
+  const nouveau = ligne && estNouveau(property.published_at ?? property.created_at);
+  const detailsDeLaLigne = ligne
+    ? [
+        location,
+        property.bedrooms != null && property.bedrooms > 0 ? tCards('bedroomsShort', { count: property.bedrooms }) : null,
+        property.area ? `${property.area} m²` : null,
+      ].filter(Boolean)
+    : [];
+
+  // Le favori, puis le comparateur — au-dessus du lien de la carte (TCK-554). Cf. plus bas.
+  const actions = (
+    <>
+      {!hideFavorite && <FavoriteButton propertyId={property.id} size="sm" />}
+      {!hideCompare && (
+        // `contents` : au bureau, le bouton est l'enfant direct de la colonne, comme avant.
+        <span className="hidden md:contents">
+          <CompareToggleButton
+            propertyId={property.id}
+            size="sm"
+            preview={apercu}
+            className={REVELE_AU_SURVOL}
+          />
+        </span>
+      )}
+    </>
+  );
 
   // TCK-554 — la racine n'est plus un `<a>` : le lien est un enfant vide qui la couvre
   // (`LienDeCarte`), et le favori et le comparateur sont ses FRÈRES. Ils étaient ses enfants —
@@ -202,22 +246,28 @@ export function PropertyCard({
       ref={ref}
       style={{ animationDelay: staggerDelay(index) }}
       data-robe={robe}
+      data-disposition={ligne ? disposition : undefined}
       className={`group relative cursor-pointer transition-opacity duration-300 ${
         visible ? 'animate-fade-in-up' : 'opacity-0'
-      } ${robe ? ROBE : ''} ${className || ''}`}
+      } ${robe ? (ligne ? ROBE_DES_MD : ROBE) : ''} ${ligne ? 'max-md:flex max-md:gap-3 max-md:py-2.5' : ''} ${className || ''}`}
     >
       <LienDeCarte slug={property.slug} idTitre={idTitre} />
 
       {/* Image */}
       {/* `@container` : la carte se règle sur SA largeur, que la grille appelante décide —
           pas sur celle de l'écran. */}
-      <div data-photo className="@container relative aspect-4/3 rounded-xl overflow-hidden bg-muted">
+      <div
+        data-photo
+        className={`@container relative aspect-4/3 rounded-xl overflow-hidden bg-muted ${
+          ligne ? 'max-md:size-28 max-md:shrink-0 max-md:aspect-square' : ''
+        }`}
+      >
         <PropertyPhoto
           src={property.main_photo_url}
           alt={property.title}
           priority={priority}
           className="group-hover:scale-105 transition-transform duration-500"
-          sizes={sizes}
+          sizes={ligne ? `${SIZES_DE_LA_LIGNE}, ${sizes}` : sizes}
         />
         {/* TCK-561 — voile de survol et d'appui : cf. `VoileDInteraction`. */}
         <VoileDInteraction />
@@ -232,7 +282,13 @@ export function PropertyCard({
 
             TCK-555 — sous `md`, le comparateur et l'ancienneté quittent la photo : le premier
             pour la rangée du prix, la seconde pour la ligne de détails. */}
-        <div className="absolute inset-x-4 top-4 flex items-start justify-between gap-2 @max-[11rem]:inset-x-2 @max-[11rem]:top-2 @max-[11rem]:gap-1.5">
+        {/* TCK-2499 — en disposition « ligne », rien sur la photo de 112 px : la barre n'existe qu'à
+            partir de `md`, et le favori vit hors de la photo (cf. plus bas). */}
+        <div
+          className={`absolute inset-x-4 top-4 flex items-start justify-between gap-2 @max-[11rem]:inset-x-2 @max-[11rem]:top-2 @max-[11rem]:gap-1.5 ${
+            ligne ? 'max-md:hidden' : ''
+          }`}
+        >
           {/* Transaction badge — TCK-129 : aligné sur ContractTypeChip pour cohérence site-wide.
               TCK-508 — « Neuf / Sur plan » quand la place est libre (cf. `etatEnPastille`). */}
           <div className="flex min-w-0 flex-wrap items-center gap-1.5 @max-[11rem]:gap-1">
@@ -264,20 +320,7 @@ export function PropertyCard({
               TCK-628 — le cœur passe à 32 px à toutes les largeurs (il en faisait 40 au-dessus de
               11rem d'image) : deux ronds de 32, donc 14 px d'écart partout, et le comparateur ne
               se montre au pointeur qu'au survol de la carte (`REVELE_AU_SURVOL`). */}
-          <div className={`flex shrink-0 flex-col items-center gap-3.5 ${AU_DESSUS_DU_LIEN}`}>
-            {!hideFavorite && <FavoriteButton propertyId={property.id} size="sm" />}
-            {!hideCompare && (
-              // `contents` : au bureau, le bouton est l'enfant direct de la colonne, comme avant.
-              <span className="hidden md:contents">
-                <CompareToggleButton
-                  propertyId={property.id}
-                  size="sm"
-                  preview={apercu}
-                  className={REVELE_AU_SURVOL}
-                />
-              </span>
-            )}
-          </div>
+          {!ligne && <div className={`flex shrink-0 flex-col items-center gap-3.5 ${AU_DESSUS_DU_LIEN}`}>{actions}</div>}
         </div>
 
         {/* TCK-635 — le ruban de la robe : plein, au bord droit de la photo, il porte la mention.
@@ -286,7 +329,7 @@ export function PropertyCard({
         {robe ? (
           <span
             data-ruban
-            className="absolute bottom-2.5 right-0 inline-flex items-center gap-1 rounded-l-full bg-primary py-0.5 pl-2.5 pr-2 text-xs font-semibold text-primary-foreground shadow-sm"
+            className={`${ligne ? 'max-md:hidden ' : ''}absolute bottom-2.5 right-0 inline-flex items-center gap-1 rounded-l-full bg-primary py-0.5 pl-2.5 pr-2 text-xs font-semibold text-primary-foreground shadow-sm`}
           >
             <Sparkles className="size-3" aria-hidden="true" />
             {tCards(robe === 'sponsorise' ? 'robe.sponsored' : 'robe.featured')}
@@ -302,8 +345,21 @@ export function PropertyCard({
         </div>
       </div>
 
+      {/* TCK-2499 — disposition « ligne » : le favori et le comparateur HORS de la photo, à la même
+          place qu'au bureau (la photo y couvre le haut de la carte), en bout de ligne sous `md`.
+          `absolute` : dans le flux, il volerait sa largeur à la colonne de texte. */}
+      {ligne ? (
+        <div className="absolute -right-1.5 top-1 z-10 grid size-11 place-items-center md:right-4 md:top-4 md:flex md:size-auto md:flex-col md:items-center md:gap-3.5">
+          {actions}
+        </div>
+      ) : null}
+
       {/* Body */}
-      <div className={`space-y-1 mt-3.5 ${robe ? TEXTE_EN_ROBE : ''}`}>
+      <div
+        className={`space-y-1 mt-3.5 ${robe ? (ligne ? TEXTE_EN_ROBE_DES_MD : TEXTE_EN_ROBE) : ''} ${
+          ligne ? 'max-md:mt-0 max-md:min-w-0 max-md:flex-1 max-md:space-y-0 max-md:pr-9' : ''
+        }`}
+      >
         {/* TCK-555 — sous `md`, le comparateur (TCK-082) quitte la photo pour la rangée du prix :
             action secondaire, à l'opposé du favori (qui reste en haut de la photo). `-my-1` : le
             rond de 32 px n'élargit pas la rangée d'un prix de 22 px au-delà de 24.
@@ -314,12 +370,14 @@ export function PropertyCard({
               période (« /m… »), l'information qui distingue un loyer d'un prix. */}
           <p
             data-prix
-            className="flex min-w-0 flex-wrap items-baseline gap-x-0.5 text-primary font-bold text-[15px] tabular-nums"
+            className={`flex min-w-0 flex-wrap items-baseline gap-x-0.5 text-primary font-bold text-[15px] tabular-nums ${
+              ligne ? 'max-md:gap-x-1 max-md:font-display max-md:text-[17px] max-md:leading-6 max-md:font-semibold max-md:text-foreground' : ''
+            }`}
             title={formatPrice(property.price, property.currency ?? 'XOF')}
           >
             <span className="whitespace-nowrap">{formatPrice(property.price, property.currency ?? 'XOF')}</span>
             {property.contract_type === 'rent' && (
-              <span className="whitespace-nowrap text-sm font-semibold text-muted-foreground">
+              <span className={`whitespace-nowrap text-sm font-semibold text-muted-foreground ${ligne ? 'max-md:font-normal' : ''}`}>
                 {property.rent_period
                   ? `/${t(`rentPeriodsShort.${property.rent_period}`)}`
                   : // TCK-555 — sans période, « 950 000 F CFA » se lisait comme un prix de vente
@@ -330,7 +388,7 @@ export function PropertyCard({
               </span>
             )}
           </p>
-          {!hideCompare && (
+          {!hideCompare && !ligne && (
             <div className={`-my-1 shrink-0 md:hidden ${AU_DESSUS_DU_LIEN}`}>
               <CompareToggleButton propertyId={property.id} size="sm" surface="page" preview={apercu} />
             </div>
@@ -341,22 +399,52 @@ export function PropertyCard({
           // TCK-555 — deux lignes réservées pour aligner des cartes VOISINES. Sous `sm`, la liste
           // et les favoris sont à une colonne : un titre d'une ligne y laissait 20 px de vide sous
           // lui, sans rien à aligner. Le carrousel, lui, aligne toujours (`titreSurDeuxLignes`).
+          // TCK-2499 — une ligne n'aligne rien : la réserve ne vaut qu'à partir de `md`.
           className={`font-display font-semibold text-[14px] leading-snug text-foreground line-clamp-2 ${TITRE_REACTIF} ${
-            titreSurDeuxLignes === 'toujours' ? 'h-10' : 'sm:h-10'
+            ligne ? 'md:h-10 max-md:font-sans max-md:font-normal max-md:text-[15px] max-md:leading-5' : titreSurDeuxLignes === 'toujours' ? 'h-10' : 'sm:h-10'
           } text-pretty`}
           title={property.title}
         >
           {property.title}
         </h3>
+        {/* TCK-2499 — la ligne, sous `md` : lieu, chambres et surface sur une ligne ; puis le Badge,
+            la place payée en TEXTE (« un résultat payé ne se présente jamais comme organique »,
+            ADR-0061 §7), « Nouveau » ou l'ancienneté. AVANT les lignes de bureau : `space-y-1` pose
+            sa marge sous chaque enfant sauf le DERNIER, et un dernier enfant masqué allongeait la
+            carte de bureau de 4 px (mesuré à 1440). */}
+        {ligne && detailsDeLaLigne.length > 0 ? (
+          <p className="mt-0.5 truncate text-sm leading-5 text-muted-foreground md:hidden">{detailsDeLaLigne.join(' · ')}</p>
+        ) : null}
+        {ligne ? (
+          <p data-meta className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[13px] leading-5 md:hidden">
+            {badge ? (
+              <span data-badge-texte={badge} className="font-semibold text-accent">
+                {tCards(badge === 'urgent' ? 'badge.urgent' : 'badge.priceDrop')}
+                <span aria-hidden="true"> ·</span>
+              </span>
+            ) : null}
+            {robe ? (
+              <span data-mention-payee className="text-muted-foreground">
+                {tCards(robe === 'sponsorise' ? 'robe.sponsored' : 'robe.featured')}
+              </span>
+            ) : nouveau ? (
+              <span data-nouveau className="font-medium text-primary">
+                {tLigne('nouveau', { quand: timeAgo })}
+              </span>
+            ) : timeAgo ? (
+              <span className="text-muted-foreground">{tLigne('publie', { quand: timeAgo })}</span>
+            ) : null}
+          </p>
+        ) : null}
         <p
-          className="text-muted-foreground text-sm flex items-center gap-1.5 truncate"
+          className={`text-muted-foreground text-sm flex items-center gap-1.5 truncate ${ligne ? 'max-md:hidden' : ''}`}
           title={location}
         >
           <MapPin className="w-4 h-4 shrink-0" />
           <span className="truncate">{location}</span>
         </p>
         <CardMeta
-          className="pt-1 text-xs font-semibold text-muted-foreground"
+          className={`pt-1 text-xs font-semibold text-muted-foreground ${ligne ? 'max-md:hidden' : ''}`}
           items={[
             // TCK-555 — sous `md`, l'état « Neuf » en texte quand la pastille de transaction tient
             // la photo ; au bureau, il est en pastille à côté d'elle, comme avant.

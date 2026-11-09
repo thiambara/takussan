@@ -62,7 +62,6 @@
       "nav",
       "navigationPublique",
       "property",
-      "recentlyViewed",
       "search",
       "ui"
     ],
@@ -79,6 +78,7 @@
       "agentCrm"
     ],
     "[locale]/(public)/pay": [
+      "lienPublic",
       "payLink"
     ],
     "(dashboard)/app/agency": [
@@ -127,10 +127,12 @@
     ],
     "[locale]/(public)/claim": [
       "auth",
+      "lienPublic",
       "radarClaim"
     ],
     "[locale]/(public)/legal": [],
     "[locale]/(public)/share": [
+      "lienPublic",
       "shareReception"
     ],
     "(dashboard)/app/bookings": [
@@ -187,7 +189,8 @@
       "compare",
       "console",
       "favorites",
-      "property"
+      "property",
+      "search"
     ],
     "(super-admin)/super-admin": [
       "admin",
@@ -229,7 +232,9 @@
       "publicProfileIndex"
     ],
     "[locale]/(public)/bookings": [
-      "bookings"
+      "bookings",
+      "contact",
+      "propertyContact"
     ],
     "(dashboard)/app/commissions": [
       "commissions",
@@ -249,13 +254,20 @@
       "property",
       "search"
     ],
+    "[locale]/(public)/notifications": [
+      "lienPublic"
+    ],
+    "[locale]/(public)/search-alerts": [
+      "lienPublic"
+    ],
     "[locale]/(public)/properties/[slug]": [
       "boost",
       "contact",
       "map",
       "propertyContact",
       "publicContact",
-      "publicProfile"
+      "publicProfile",
+      "recentlyViewed"
     ],
     "[locale]/(public)/properties/(liste)": [
       "map"
@@ -266,44 +278,46 @@
     "(auth)": 12,
     "publish": 13,
     "onboarding": 24,
-    "(dashboard)": 13,
+    "(dashboard)": 12,
     "invitations": 10,
-    "(dashboard)/app": 28,
-    "[locale]/(public)": 25,
+    "(dashboard)/app": 27,
+    "[locale]/(public)": 27,
     "(dashboard)/app/crm": 31,
-    "(dashboard)/app/leads": 31,
-    "(dashboard)/app/tasks": 30,
-    "[locale]/(public)/pay": 26,
+    "(dashboard)/app/leads": 30,
+    "(dashboard)/app/tasks": 29,
+    "[locale]/(public)/pay": 28,
     "(dashboard)/app/agency": 54,
-    "(dashboard)/app/leases": 35,
-    "(dashboard)/app/owners": 29,
-    "(dashboard)/app/visits": 29,
-    "onboarding/super-admin": 52,
+    "(dashboard)/app/leases": 34,
+    "(dashboard)/app/owners": 28,
+    "(dashboard)/app/visits": 28,
+    "onboarding/super-admin": 51,
     "(dashboard)/app/account": 28,
     "(dashboard)/app/credits": 28,
     "(dashboard)/app/profile": 40,
-    "[locale]/(public)/claim": 29,
-    "[locale]/(public)/legal": 25,
-    "[locale]/(public)/share": 25,
+    "[locale]/(public)/claim": 31,
+    "[locale]/(public)/legal": 27,
+    "[locale]/(public)/share": 28,
     "(dashboard)/app/bookings": 33,
-    "(dashboard)/app/calendar": 31,
-    "(dashboard)/app/overview": 28,
-    "(dashboard)/app/payments": 43,
-    "[locale]/(public)/agents": 27,
+    "(dashboard)/app/calendar": 30,
+    "(dashboard)/app/overview": 27,
+    "(dashboard)/app/payments": 42,
+    "[locale]/(public)/agents": 29,
     "(dashboard)/app/(accueil)": 28,
-    "(dashboard)/app/customers": 49,
+    "(dashboard)/app/customers": 48,
     "(dashboard)/app/documents": 40,
-    "(dashboard)/app/favorites": 37,
-    "(super-admin)/super-admin": 61,
-    "[locale]/(public)/account": 28,
-    "(dashboard)/app/properties": 50,
-    "[locale]/(public)/agencies": 28,
-    "[locale]/(public)/bookings": 27,
+    "(dashboard)/app/favorites": 40,
+    "(super-admin)/super-admin": 60,
+    "[locale]/(public)/account": 29,
+    "(dashboard)/app/properties": 49,
+    "[locale]/(public)/agencies": 29,
+    "[locale]/(public)/bookings": 29,
     "(dashboard)/app/commissions": 28,
-    "(dashboard)/app/inventories": 32,
-    "(dashboard)/app/maintenance": 34,
+    "(dashboard)/app/inventories": 31,
+    "(dashboard)/app/maintenance": 33,
     "(dashboard)/app/saved-searches": 39,
-    "[locale]/(public)/properties/[slug]": 26,
-    "[locale]/(public)/properties/(liste)": 25
+    "[locale]/(public)/notifications": 28,
+    "[locale]/(public)/search-alerts": 28,
+    "[locale]/(public)/properties/[slug]": 28,
+    "[locale]/(public)/properties/(liste)": 27
   }
 }

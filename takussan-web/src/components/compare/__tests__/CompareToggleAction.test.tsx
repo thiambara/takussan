@@ -6,7 +6,7 @@ import React from 'react';
 
 import { CompareToggleAction } from '../CompareToggleAction';
 import { CompareProvider } from '@/context/CompareContext';
-import { ToastProvider } from '@/components/ui/toast';
+import { ToastProvider, Toaster } from '@/components/ui/toast';
 import { COMPARE_MAX_IDS, COMPARE_STORAGE_KEY, readCompare } from '@/lib/compare';
 import messages from '@/messages/fr.json';
 
@@ -31,6 +31,7 @@ function rendre(propertyId = 42) {
         <CompareProvider>
           <CompareToggleAction propertyId={propertyId} preview={APERCU} />
         </CompareProvider>
+        <Toaster />
       </ToastProvider>
     </NextIntlClientProvider>,
   );
@@ -87,5 +88,32 @@ describe('<CompareToggleAction> — le comparateur depuis la fiche', () => {
 
     expect(readCompare().ids).toEqual(pleins);
     expect(screen.getByRole('button')).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  /**
+   * TCK-2509 — plus de toast à chaque ajout : la pastille du comparateur (TCK-2493) dit déjà « 3 »,
+   * et les toasts s'empilaient sur l'en-tête (audit UX 2026-11, § 6). Le REFUS, lui, se dit encore.
+   */
+  it('l’ajout ne lève aucun toast', async () => {
+    const toasts = () => {
+      const zone = document.querySelector('[data-slot="toaster"]');
+      expect(zone, 'le Toaster doit être monté : sans lui, « aucun toast » ne prouverait rien').not.toBeNull();
+      return zone!.children.length;
+    };
+
+    rendre(42);
+    await cliquer(/Ajouter au comparateur/i);
+    expect(readCompare().ids).toEqual([42]);
+    expect(toasts(), 'un ajout réussi ne doit lever aucun toast').toBe(0);
+  });
+
+  it('le refus du cinquième bien se dit par un toast', async () => {
+    localStorage.setItem(
+      COMPARE_STORAGE_KEY,
+      JSON.stringify({ ids: [1, 2, 3, 4], previews: {}, updated_at: Date.now() }),
+    );
+    rendre(99);
+    await cliquer(/Ajouter au comparateur/i);
+    expect(await screen.findByText(`Maximum ${COMPARE_MAX_IDS} biens`)).toBeInTheDocument();
   });
 });

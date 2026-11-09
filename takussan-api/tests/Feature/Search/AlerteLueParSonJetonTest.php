@@ -212,4 +212,30 @@ class AlerteLueParSonJetonTest extends TestCase
         $this->postJson('/api/public/search-alerts/frequency', ['token' => 'x', 'frequency' => 'daily'])
             ->assertStatus(422)->assertJsonValidationErrors('frequency');
     }
+
+    /**
+     * TCK-2514 — la LECTURE a son propre seau (30 par minute et par IP, `public_search_alert_read`), séparé de celui des
+     * actions (`public-search-alert`, 10 par 10 min). Dans le seau commun, quelques rechargements de la page d'un lien
+     * suffisaient à faire refuser le clic qui suit : ici, onze lectures — plus que tout le seau des actions — laissent
+     * passer l'action, et la lecture reste bornée à son tour (la 31e rend 429).
+     */
+    public function test_la_lecture_a_son_propre_seau_et_n_entame_pas_celui_des_actions(): void
+    {
+        // Deux actions déjà prises dans le seau des actions : la demande, puis la confirmation.
+        $this->postJson('/api/public/search-alerts/confirm', ['token' => $this->demander()])->assertOk();
+        $jeton = $this->jetonDeDesinscription();
+
+        for ($i = 1; $i <= 11; $i++) {
+            $this->lire($jeton)->assertOk();
+        }
+        $this->postJson('/api/public/search-alerts/frequency', ['token' => $jeton, 'frequency' => 'weekly'])->assertOk();
+
+        for ($i = 12; $i <= 30; $i++) {
+            $this->lire($jeton)->assertOk();
+        }
+        $this->lire($jeton)->assertStatus(429);
+
+        // Le seau des actions n'a pas bougé pendant ce temps : l'action suivante passe toujours.
+        $this->postJson('/api/public/search-alerts/unsubscribe', ['token' => $jeton])->assertOk();
+    }
 }

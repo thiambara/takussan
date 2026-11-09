@@ -101,6 +101,8 @@ vi.mock('../components/CompteurDeVue', () => ({
 
 vi.mock('@/components/home/Navbar', () => ({ Navbar: () => <nav data-testid="navbar" /> }));
 vi.mock('@/components/home/Footer', () => ({ Footer: () => <footer data-testid="footer" /> }));
+// TCK-2568 — le bien retiré monte la barre d'onglets (composant client, session) : hors de propos ici.
+vi.mock('@/components/navigation-publique/BarreDOngletsPublique', () => ({ BarreDOngletsPublique: () => null }));
 vi.mock('../PropertyDetailContent', () => ({
   PropertyDetailContent: ({ property }: { property: PropertyDetail }) => (
     <h1 data-testid="fiche">{property.title}</h1>

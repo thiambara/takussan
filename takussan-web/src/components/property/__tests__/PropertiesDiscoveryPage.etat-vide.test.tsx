@@ -217,6 +217,31 @@ describe('TCK-558 — les issues ne disparaissent nulle part où l’état vide 
     expect(within(vide).getByRole('heading', { level: 2 }).textContent).not.toMatch(/élargissez/i);
   });
 
+  it('page au-delà de la dernière : « Revenir à la page N » et « Revenir aux premiers biens », filtres gardés', async () => {
+    // TCK-2499 (revue) — la pagination numérotée donnait ces chemins ; « Voir N biens de plus » l'a
+    // remplacée, et il ne restait que « Effacer tous les filtres », qui détruit la recherche.
+    mockApiFetch.mockResolvedValue({
+      data: [],
+      meta: { total: 180, per_page: 30, current_page: 9, last_page: 6 },
+    });
+    const vide = await monteAZero('contract_type=rent&city=Dakar&page=9');
+    const derniere = within(vide).getByRole('link', { name: 'Revenir à la page 6' });
+    const premiere = within(vide).getByRole('link', { name: 'Revenir aux premiers biens' });
+    const qs = (lien: HTMLElement) => new URLSearchParams(lien.getAttribute('href')!.split('?')[1] ?? '');
+    expect(qs(derniere).get('page')).toBe('6');
+    expect(qs(premiere).has('page')).toBe(false);
+    for (const lien of [derniere, premiere]) {
+      expect(lien.getAttribute('href')).toMatch(/\/properties\?/);
+      expect(qs(lien).get('contract_type')).toBe('rent');
+      expect(qs(lien).get('city')).toBe('Dakar');
+    }
+  });
+
+  it('à zéro résultat (critères en cause), pas de chemin vers une page : il n’y en a aucune', async () => {
+    const vide = await monteAZero('q=zzzqqq&contract_type=rent');
+    expect(vide.querySelector('[data-issues-de-page]')).toBeNull();
+  });
+
   it('un SEUL critère suffit à proposer la sauvegarde dans l’état vide', async () => {
     const vide = await monteAZero('q=zzzqqq');
     expect(within(vide).getAllByRole('button').filter((b) => b.closest('[data-rangee="puces"]'))).toHaveLength(1);

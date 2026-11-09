@@ -128,6 +128,25 @@ export function parametresDeRecherche(brut: URLSearchParams): URLSearchParams {
 }
 
 /**
+ * TCK-2522 / TCK-2523 — {@link parametresDeRecherche}, plus des paramètres FIXES ajoutés par
+ * l'appelant et jamais lus dans l'URL : le périmètre d'une fiche (`agency=<slug>` ou
+ * `agent=<slug>`), `placements=false` (une fiche ne sert pas d'emplacements, TCK-2517) et `facets`.
+ *
+ * Le rendu serveur et `useSearch` l'appellent TOUS LES DEUX, comme `parametresDeRecherche` : deux
+ * constructions séparées donneraient deux clefs, et la graine serait redemandée à l'hydratation.
+ * Un paramètre fixe l'emporte sur celui de l'URL du même nom : `?agency=autre` sur la fiche de
+ * Dakar Immo ne sort pas de son portefeuille.
+ */
+export function requeteAvecFixes(
+  url: URLSearchParams,
+  fixes: Readonly<Record<string, string>> | undefined,
+): URLSearchParams {
+  const params = parametresDeRecherche(url);
+  if (fixes) for (const [cle, valeur] of Object.entries(fixes)) params.set(cle, valeur);
+  return params;
+}
+
+/**
  * TCK-633 (lot E, AC6) — les clés que la LISTE lit et que la CARTE refuse : le plein-texte (la
  * carte est SQL, ADR-0023), le tri, la pagination, le rectangle de la liste, et la coupure des
  * emplacements (TCK-687 : la carte n'en sert aucun), et l'heure de graine de leur rotation (TCK-1008).

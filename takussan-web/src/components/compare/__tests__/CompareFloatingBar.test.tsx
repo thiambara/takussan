@@ -98,6 +98,23 @@ describe('<CompareFloatingBar>', () => {
     expect(screen.getByText(/2 biens sélectionnés sur 4/)).toBeInTheDocument();
   });
 
+  // TCK-2505 — la coque de lien est NUE à toutes les tailles : le dock de bureau (ce `describe` ne
+  // simule pas le téléphone) ne se monte ni sur le paiement, ni sur les autres pages par lien —
+  // mais il reste sur la fiche, qui n'est pas une page de lien.
+  it.each([
+    ['/fr/pay/jeton', false],
+    ['/fr/claim/jeton', false],
+    ['/en/share/jeton', false],
+    ['/fr/search-alerts/unsubscribe', false],
+    ['/fr/notifications/unsubscribe', false],
+    ['/fr/properties/villa-ngor', true],
+  ] as const)('TCK-2505 — en bureau, %s : dock affiché = %s', async (chemin, affiche) => {
+    cheminCourant = chemin;
+    render(wrap([1, 2]));
+    await act(async () => {});
+    expect(screen.queryByRole('complementary') !== null).toBe(affiche);
+  });
+
   it('links to /compare?ids=... when 2+ ids are selected', async () => {
     render(wrap([3, 4]));
     const link = (await screen.findByText(/Comparer \(2\)/)).closest('a');
