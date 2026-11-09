@@ -1,11 +1,17 @@
-/** TCK-633 (lot C, AC8 / AC12) — « Appeler » révèle tous les numéros au même geste. */
+/**
+ * TCK-633 (lot C, AC8 / AC12) — « Appeler » révèle tous les numéros au même geste.
+ *
+ * TCK-2501 — ces règles vivaient dans `PropertyAgentCard.tck-633.test.tsx` : Appeler et WhatsApp ont
+ * quitté la carte de l'agent pour la carte de réservation (bureau) et la barre basse (mobile). Les
+ * assertions sont celles d'origine, portées sur la surface qui tient désormais le geste.
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { withIntl } from '@/test/intl';
-import type { PropertyOwnerLite } from '@/types/property';
-import { PropertyAgentCard } from '../PropertyAgentCard';
+import type { PropertyDetail, PropertyOwnerLite } from '@/types/property';
+import { PropertyBookingCard } from '../PropertyBookingCard';
 
 const apiFetch = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/api', () => ({ apiFetch: (...args: unknown[]) => apiFetch(...args) }));
@@ -18,7 +24,13 @@ const AGENT: PropertyOwnerLite = {
 
 function monter(contact: PropertyOwnerLite) {
   return render(withIntl(
-    <PropertyAgentCard contact={contact} agency={null} propertySlug="villa" propertyTitle="Villa" onMessage={() => {}} />,
+    <PropertyBookingCard
+      property={{ slug: 'villa', title: 'Villa', price: 1, currency: 'XOF', contract_type: 'rent', rent_period: 'monthly', entry_cost: null } as unknown as PropertyDetail}
+      contact={contact}
+      onRequestVisit={() => {}}
+      onRequestBooking={() => {}}
+      onMessage={() => {}}
+    />,
   ));
 }
 
@@ -27,7 +39,7 @@ beforeEach(() => {
   toastAdd.mockReset();
 });
 
-describe('<PropertyAgentCard> — TCK-633', () => {
+describe('<PropertyBookingCard> — TCK-633 (règles venues de la carte de l’agent)', () => {
   it('plusieurs numéros : la liste, titrée, derrière « Appeler »', async () => {
     apiFetch.mockImplementation((path: string) =>
       path.endsWith('/contact')

@@ -64,11 +64,6 @@
       "count": 1
     }
   },
-  "src/app/[locale]/(public)/properties/[slug]/components/PropertyAgentCard.tsx": {
-    "@typescript-eslint/no-misused-promises": {
-      "count": 1
-    }
-  },
   "src/app/[locale]/(public)/properties/[slug]/components/PropertyContactMessageDialog.tsx": {
     "@typescript-eslint/no-misused-promises": {
       "count": 1

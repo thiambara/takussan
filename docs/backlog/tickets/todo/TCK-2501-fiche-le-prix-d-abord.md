@@ -42,17 +42,17 @@ Endpoints existants de la fiche publique ; clic WhatsApp / Appeler compté par `
 
 ## Delta à produire
 
-- [ ] Ordre mobile : prix, coût d'entrée et interlocuteur avant la description.
-- [ ] Barre d'actions basse WhatsApp + Visiter (ou leur repli), sans montant.
-- [ ] Une seule porte « message » ; WhatsApp sorti de la carte de l'agent.
-- [ ] Tests : actions par cas de contact (WhatsApp, téléphone seul, aucun numéro) ; location vs vente ; `contact-click` appelé.
+- [x] Ordre mobile : prix, coût d'entrée et interlocuteur avant la description.
+- [x] Barre d'actions basse WhatsApp + Visiter (ou leur repli), sans montant.
+- [x] Une seule porte « message » ; WhatsApp sorti de la carte de l'agent.
+- [x] Tests : actions par cas de contact (WhatsApp, téléphone seul, aucun numéro) ; location vs vente ; `contact-click` appelé.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — À 360 et 390 px, prix, coût d'entrée et nom de l'interlocuteur sont visibles sans défiler, et aucun texte de la barre basse n'est tronqué.
-- [ ] AC2 — Sur une location dont le contact a WhatsApp, la barre montre WhatsApp et Visiter ; sans numéro, Écrire et Visiter.
-- [ ] AC3 — Un clic WhatsApp produit un `contact-click` (vérifié au réseau) puis ouvre `wa.me` avec le message prérempli.
-- [ ] AC4 — Aucune section de la fiche actuelle n'a disparu (liste vérifiée au navigateur).
+- [x] AC1 — À 360 et 390 px, prix, coût d'entrée et nom de l'interlocuteur sont visibles sans défiler, et aucun texte de la barre basse n'est tronqué.
+- [x] AC2 — Sur une location dont le contact a WhatsApp, la barre montre WhatsApp et Visiter ; sans numéro, Écrire et Visiter.
+- [x] AC3 — Un clic WhatsApp produit un `contact-click` (vérifié au réseau) puis ouvre `wa.me` avec le message prérempli.
+- [x] AC4 — Aucune section de la fiche actuelle n'a disparu (liste vérifiée au navigateur).
 
 ## Hors périmètre
 
@@ -61,4 +61,42 @@ Endpoints existants de la fiche publique ; clic WhatsApp / Appeler compté par `
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Prémisses re-mesurées (2026-11-09)** : `POST /api/public/properties/{slug}/contact-click` existe
+  (`routes/api/public.php:182`, `throttle:public-contact-click`) ; `primary_contact.has_phone` /
+  `has_whatsapp` sont émis par `PropertyResource` (TCK-590, TCK-633) ; aucun endpoint neuf.
+- **Location courte (`daily`/`weekly`) : « Réserver » reste primaire.** La décision 3a vise le
+  dossier (« Postuler ») ; une nuitée ne se visite pas. Seule la location au dossier (`apply`) passe à
+  « Visiter » d'abord, « Déposer mon dossier » ensuite. Vente : « Faire une offre » primaire, « Demander
+  une visite » en second (contrainte du ticket : l'action primaire d'une vente ne change pas). Règle
+  unique dans `components/actions-de-la-fiche.ts`, lue par les trois surfaces.
+- **WhatsApp, Appeler et « Message » quittent la carte de l'agent** (qui ne dit plus que *qui*). Les
+  règles de TCK-590 / TCK-633 qui y étaient épinglées sont portées, mêmes assertions, sur la carte de
+  réservation : `PropertyBookingCard.tck-590.test.tsx`, `PropertyBookingCard.tck-633.test.tsx`
+  (les deux anciens fichiers `PropertyAgentCard.tck-590/633` sont retirés). Le geste d'appel est
+  extrait tel quel dans `useAppelDuBien`.
+- **Une porte « message » par palier, pas par DOM** : en mobile elle est dans la barre (contact sans
+  numéro, « Écrire ») OU dans le bloc de contact, jamais les deux ; en bureau, dans la carte de
+  réservation seule. Le bloc mobile (`lg:hidden`) et l'`<aside>` de bureau (`hidden lg:block`) coexistent
+  dans le DOM : `display:none` les retire de l'arbre d'accessibilité. D'où `useId` dans
+  `PropertyEntryCost` et `PropertySafetyNotice`, rendus deux fois.
+- **Fil d'Ariane sous `md`** : déplacé en fin de page (avant les biens similaires) — au-dessus de la
+  photo il coûtait la place du prix au premier écran. Le JSON-LD `BreadcrumbList` est inchangé (page).
+- Plusieurs numéros derrière « Appeler » dans la barre : la liste monte en feuille (`Sheet` bas).
+- **Mesures navigateur (2026-11-09, `next dev`, données de dev)** — bas du nom de l'interlocuteur /
+  haut de la barre : 734 / 771 px à 390 × 844 (villa Liberté 6, coût d'entrée présent), 700 / 707 px
+  à 360 × 780 ; aucun bouton de la barre ne déborde (`scrollWidth = clientWidth`), aucune page plus
+  large que l'écran. **À 360 × 640 le premier écran ne tient pas** (la photo 4:3 seule fait 270 px) :
+  l'AC1 est tenue aux hauteurs courantes (≥ 780), pas sur les très petits écrans.
+  **Décision de la session (2026-11-09) : AC1 tenue jusqu'à 360×780 ; en dessous, la photo 4:3
+  repousse le bloc ; réduire la photo est un choix à part.** Clic WhatsApp :
+  `POST …/contact-click` 204 puis `GET …/contact` 200, fenêtre dirigée vers `wa.me/221…?text=…`.
+- Les actions de l'en-tête (partager, favori, comparer) se posent au bout de la rangée des pastilles
+  sous `md` (52 px rendus au premier écran) ; l'avatar cassé (texte alternatif qui déborde) est le
+  constat P2 de l'audit, hors de ce ticket.
+- **Revue adverse (2026-11-09)** : sous `lg`, la carte de réservation n'est plus rendue, et avec elle
+  « Vous ne serez pas débité avant la confirmation. » avait disparu — reprise dans le bloc de contact
+  mobile, sous l'action seconde ; « À louer » / « À vendre » (`contract_type_label`) revient en
+  pastille sur la rangée du statut (même ligne, AC1 inchangée : nom 722 / barre 771 à 390×844,
+  700 / 707 à 360×780). Deux angles morts gardés : la feuille « plusieurs numéros » de la barre
+  (TCK-633) et `has_phone` absent dans le bloc mobile (TCK-590).
+- [x] Delta specs fait par la session (2026-11-09) : `docs/features.md` § 1.2 (ordre mobile, canal de premier rang, action par contrat dont « Réserver » pour la location courte, une porte « message »).

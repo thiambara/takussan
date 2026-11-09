@@ -41,9 +41,6 @@ function classesDe(nom: string): string[] {
       <PropertyAgentCard
         contact={CONTACT}
         agency={AGENCE}
-        propertySlug="villa-a-ngor"
-        propertyTitle="Villa à Ngor"
-        onMessage={() => {}}
       />,
     ),
   );

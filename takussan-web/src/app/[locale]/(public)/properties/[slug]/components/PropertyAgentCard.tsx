@@ -1,15 +1,9 @@
 'use client';
 import Image from 'next/image';
 import { LienLocalise } from '@/components/shared/LienLocalise';
-import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { BadgeCheck, MessageCircle, Phone } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/components/ui/toast';
-import { WhatsAppButton } from '@/components/contact/WhatsAppButton';
-import { ListeDeNumeros } from '@/components/contact/ListeDeNumeros';
-import { numerosDuBien, type NumeroDeContact } from '@/components/contact/numeros-du-bien';
-import { signalerClic } from '@/lib/contact-click';
+import { BadgeCheck } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import type { PropertyAgencyLite, PropertyOwnerLite } from '@/types/property';
 import { PropertyPhoneVerifiedBadge } from './PropertyPhoneVerifiedBadge';
 
@@ -24,30 +18,18 @@ interface PropertyAgentCardProps {
    */
   contact: PropertyOwnerLite;
   agency: PropertyAgencyLite | null;
-  propertySlug: string;
-  propertyTitle: string;
-  onMessage: () => void;
-  /** TCK-500 — cf. `PropertyBookingCard` : pas de bouton quand on est soi-même le destinataire. */
-  canMessage?: boolean;
+  readonly className?: string;
 }
 
-export function PropertyAgentCard({
-  contact,
-  agency,
-  propertySlug,
-  propertyTitle,
-  onMessage,
-  canMessage = true,
-}: PropertyAgentCardProps) {
+/**
+ * TCK-2501 — **la carte dit QUI, elle n'offre plus de canal.** Elle portait « Message », « Appeler »
+ * et WhatsApp : la fiche avait alors deux portes « message » (celle-ci et la carte de réservation),
+ * et WhatsApp, le canal de contact par défaut à Dakar, était relégué à ~2 700 px en mobile (audit UX
+ * 2026-11). Les canaux vivent désormais dans la barre basse (mobile) et la carte de réservation
+ * (bureau) — `actions-de-la-fiche.ts` ; le geste d'appel, inchangé, dans `useAppelDuBien`.
+ */
+export function PropertyAgentCard({ contact, agency, className }: PropertyAgentCardProps) {
   const t = useTranslations('property.detail.agent');
-  const tContact = useTranslations('propertyContact');
-  const toast = useToast();
-  const [calling, setCalling] = useState(false);
-  const [numeros, setNumeros] = useState<NumeroDeContact[] | null>(null);
-  // TCK-590 — sans numéro, ni « Appeler » ni WhatsApp : les deux menaient à une boîte d'erreur.
-  const hasPhone = contact.has_phone === true;
-  // TCK-633 (lot C) — WhatsApp seulement vers un numéro DÉCLARÉ WhatsApp.
-  const hasWhatsApp = contact.has_whatsapp === true;
   // TCK-1313 (P85.04) — un espace `individual` n'a pas de fiche d'agence (l'API la refuse en 404) :
   // son nom mène à la fiche de la personne, ou n'est qu'écrit sans slug de contact.
   const lienAgence = !agency
@@ -58,31 +40,8 @@ export function PropertyAgentCard({
         : null
       : `/agencies/${agency.slug}`;
 
-  // TCK-590 — les erreurs passaient par une boîte d'alerte native, bloquante, hors charte
-  // par le navigateur. Un toast, comme partout ailleurs.
-  async function handleCall() {
-    setCalling(true);
-    signalerClic(propertySlug, 'call');
-    try {
-      // TCK-633 (lot C) — une LISTE : un seul numéro se compose aussitôt, plusieurs s'affichent
-      // (principal, second, sur place), au même geste.
-      const liste = await numerosDuBien(propertySlug);
-      if (liste.length === 1) {
-        window.location.href = `tel:${liste[0]!.phone.replace(/\s/g, '')}`;
-      } else if (liste.length > 1) {
-        setNumeros(liste);
-      } else {
-        toast.add({ title: tContact('errors.title'), description: t('phoneUnavailable'), type: 'error' });
-      }
-    } catch {
-      toast.add({ title: tContact('errors.title'), description: t('phoneError'), type: 'error' });
-    } finally {
-      setCalling(false);
-    }
-  }
-
   return (
-    <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+    <div className={cn('rounded-xl border border-border bg-card p-4', className)}>
       <div className="flex items-center gap-3">
         <div className="relative size-12 shrink-0 rounded-full overflow-hidden bg-muted">
           {contact.avatar_url ? (
@@ -142,32 +101,6 @@ export function PropertyAgentCard({
           )}
         </div>
       </div>
-
-      <div className={canMessage && hasPhone ? 'grid grid-cols-2 gap-2' : 'grid grid-cols-1 gap-2'}>
-        {canMessage && (
-          <Button type="button" variant="outline" onClick={onMessage} className="h-10 gap-2">
-            <MessageCircle className="size-4" aria-hidden />
-            {t('message')}
-          </Button>
-        )}
-        {hasPhone && (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleCall}
-            disabled={calling}
-            className="h-10 gap-2"
-            aria-label={t('callAria')}
-          >
-            <Phone className="size-4" aria-hidden />
-            {calling ? t('calling') : t('call')}
-          </Button>
-        )}
-      </div>
-
-      {numeros ? <ListeDeNumeros numeros={numeros} /> : null}
-
-      <WhatsAppButton slug={propertySlug} title={propertyTitle} hasWhatsApp={hasWhatsApp} />
     </div>
   );
 }

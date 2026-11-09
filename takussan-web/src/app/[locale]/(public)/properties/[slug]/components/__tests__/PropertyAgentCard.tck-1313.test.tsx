@@ -37,9 +37,6 @@ function rendre(contact: PropertyOwnerLite, agency: PropertyAgencyLite) {
       <PropertyAgentCard
         contact={contact}
         agency={agency}
-        propertySlug="villa-a-ngor"
-        propertyTitle="Villa à Ngor"
-        onMessage={() => {}}
       />,
     ),
   );
