@@ -463,8 +463,27 @@ const FICHIERS_HORS_JETONS = 5;
  * graisse (`font-normal`), l'encre reste `text-muted-foreground` plein, et l'entrée de
  * `text-muted-foreground/80` sort du compte (mesuré : 372 avant, 371 après). *Une encre translucide sans fond déclaré traverse ce compteur sans y
  * laisser de trace* : ce relevé ne mesure pas les encres inverses, il les compte.
+ *
+ * **371 → 398 le 2026-11-09 (vague 3 de l'audit UX, TCK-2521 → TCK-2524).** Même relevé :
+ * fichier par fichier, la base (`15bfcfcfe`, fin de vague 2, extraite par `git archive`) contre
+ * l'arbre, numéros de ligne retirés, et le dossier local des maquettes exclu des deux côtés.
+ * Bilan : 32 entrées neuves, 5 parties, net +27. Sur les 32 neuves, 31 sont
+ * `text-muted-foreground`. Leur fond est celui de la page ou de la carte (5,44:1 et 5,72:1), le
+ * `bg-background` de la fiche ou le `bg-card` d'une carte. Aucune n'est translucide. La 32e est
+ * `text-background`, le monogramme de `LogoDeFiche` : son conteneur direct pose
+ * `bg-foreground`, et le couple tient 16,69:1. Aucun défaut réel.
+ *  · fiches d'agence et d'agent (TCK-2522, TCK-2523) +20. Les composants partagés
+ *    `public/fiche/*` entrent : `RechercheDuPortefeuille` 12, `OngletsDeFiche` 2, `ContactDeFiche`
+ *    1, `LogoDeFiche` 1. `property/liste/LigneDeResultat` (4) entre aussi, par
+ *    `RechercheDuPortefeuille`. Les pages elles-mêmes gagnent : `agencies/[slug]/page` 7 → 10,
+ *    `agents/[slug]/page` 8 → 10. À l'inverse, `public/profile/TeamStrip` (4) et `StatsBar` (1)
+ *    sortent de la surface, car les pages ne les importent plus. Les fichiers restent dans le
+ *    dépôt, et `ContactSheet` sort de même, sans encre comptée ;
+ *  · annuaire (TCK-2521) +7. `public/index/OngletsDeLAnnuaire` (2) et `CarteMiseEnAvant` (2)
+ *    entrent. `ProfileCard` passe de 5 à 7, et `ProfileFilters` de 2 à 3 ;
+ *  · console (TCK-2524) 0 : ses écrans sont sous `/app`, hors de la surface publique.
  */
-const ENCRES_INVERSES = 371;
+const ENCRES_INVERSES = 398;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);
