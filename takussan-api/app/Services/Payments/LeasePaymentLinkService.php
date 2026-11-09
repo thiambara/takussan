@@ -7,6 +7,7 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\LeasePayment;
 use App\Models\LeasePaymentLink;
 use App\Models\User;
+use App\Services\Payments\Dto\PaymentEvent;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
@@ -66,7 +67,13 @@ class LeasePaymentLinkService
      * Le lien que désigne `$token`, et son échéance chargée. 404 si inconnu ; 410
      * (`pay_link.gone`, qui nomme l'agence) s'il ne sert plus.
      */
-    public function resolve(string $token): LeasePaymentLink
+    /**
+     * TCK-2504 — `$readSettled` : la LECTURE de la page (`show`) d'une échéance remboursée. Elle
+     * rend son état et `paid_at` au lieu de 410 ; payer, vérifier et relire la quittance la
+     * refusent toujours (TCK-593). Révocation, suppression, caution rendue, annulation et
+     * expiration restent 410 pour tous.
+     */
+    public function resolve(string $token, bool $readSettled = false): LeasePaymentLink
     {
         $hash = LeasePaymentLink::hashToken($token);
         $link = LeasePaymentLink::query()->where('token_hash', $hash)->first();
@@ -75,7 +82,7 @@ class LeasePaymentLinkService
         $payment = $link->leasePayment()->with(['lease.agency', 'lease.property.address'])->first();
         $agency = (string) ($payment?->lease?->agency?->name ?? '');
 
-        abort_code_if($this->isGone($link, $payment), 410, 'pay_link.gone', ['agency' => $agency]);
+        abort_code_if($this->isGone($link, $payment, $readSettled), 410, 'pay_link.gone', ['agency' => $agency]);
 
         $link->setRelation('leasePayment', $payment);
 
@@ -110,16 +117,23 @@ class LeasePaymentLinkService
      * L'échéance effective du lien : ramenée à 30 jours après le paiement une fois l'échéance
      * payée. TCK-1342 (P132.01) — « après le paiement », c'est le plus tardif de `paid_at` (date
      * effective, que l'agence peut saisir dans le passé) et de `marked_paid_at` (l'enregistrement).
+     *
+     * TCK-2504 (revue) — une échéance REMBOURSÉE, lisible depuis TCK-2504, tombe de même 30 jours
+     * après le remboursement (la réception de l'événement `refunded` du fournisseur), ou après le
+     * paiement si le remboursement n'a pas de date : sans cela, elle restait lisible jusqu'à
+     * l'expiration d'origine du lien, plus longtemps qu'une échéance payée.
      */
     public function effectiveExpiry(LeasePaymentLink $link, ?LeasePayment $payment): CarbonImmutable
     {
         $expires = CarbonImmutable::parse($link->expires_at);
-        if ($payment?->status === PaymentStatus::Paid && $payment->paid_at !== null) {
-            $paidAt = CarbonImmutable::parse($payment->paid_at);
-            if ($payment->marked_paid_at !== null && CarbonImmutable::parse($payment->marked_paid_at)->gt($paidAt)) {
-                $paidAt = CarbonImmutable::parse($payment->marked_paid_at);
-            }
-            $receiptEnd = $paidAt->addDays((int) config('payments.pay_link.receipt_days', 30));
+        $settledAt = match (true) {
+            $payment === null => null,
+            $payment->status === PaymentStatus::Paid => $this->paidAt($payment),
+            $this->isRefundedInstalment($payment) => $this->refundedAt($payment) ?? $this->paidAt($payment),
+            default => null,
+        };
+        if ($settledAt !== null) {
+            $receiptEnd = $settledAt->addDays((int) config('payments.pay_link.receipt_days', 30));
             if ($receiptEnd->lt($expires)) {
                 return $receiptEnd;
             }
@@ -128,18 +142,54 @@ class LeasePaymentLinkService
         return $expires;
     }
 
-    private function isGone(LeasePaymentLink $link, ?LeasePayment $payment): bool
+    /** Le plus tardif de `paid_at` et de `marked_paid_at` ; `null` sans `paid_at`. */
+    private function paidAt(LeasePayment $payment): ?CarbonImmutable
+    {
+        if ($payment->paid_at === null) {
+            return null;
+        }
+        $paidAt = CarbonImmutable::parse($payment->paid_at);
+        if ($payment->marked_paid_at !== null && CarbonImmutable::parse($payment->marked_paid_at)->gt($paidAt)) {
+            $paidAt = CarbonImmutable::parse($payment->marked_paid_at);
+        }
+
+        return $paidAt;
+    }
+
+    /** La réception du dernier événement `refunded` du fournisseur (`metadata.gateway_events`). */
+    private function refundedAt(LeasePayment $payment): ?CarbonImmutable
+    {
+        $events = is_array($payment->metadata['gateway_events'] ?? null) ? $payment->metadata['gateway_events'] : [];
+        $at = null;
+        foreach ($events as $event) {
+            if (($event['type'] ?? null) === PaymentEvent::TYPE_REFUNDED && is_string($event['received_at'] ?? null)) {
+                $candidate = CarbonImmutable::parse($event['received_at']);
+                $at = $at === null || $candidate->gt($at) ? $candidate : $at;
+            }
+        }
+
+        return $at;
+    }
+
+    private function isGone(LeasePaymentLink $link, ?LeasePayment $payment, bool $readSettled = false): bool
     {
         if ($link->revoked_at !== null || $payment === null || $payment->trashed() || $payment->lease === null) {
             return true;
         }
         // TCK-594 — une caution rendue n'est pas une somme que le locataire règle ; TCK-596, une
         // échéance annulée par un renouvellement non plus — voir `isPayableByNature`.
-        if (! $this->isPayableByNature($payment)) {
+        // TCK-2504 — une échéance remboursée reste LISIBLE quand on le demande (`$readSettled`).
+        if (! $this->isPayableByNature($payment) && ! ($readSettled && $this->isRefundedInstalment($payment))) {
             return true;
         }
 
         return $this->effectiveExpiry($link, $payment)->isPast();
+    }
+
+    /** TCK-2504 — une échéance (pas une caution rendue) que le fournisseur a remboursée. */
+    private function isRefundedInstalment(LeasePayment $payment): bool
+    {
+        return $payment->status === PaymentStatus::Refunded && $payment->payment_type !== LeasePaymentType::DepositRefund;
     }
 
     /**

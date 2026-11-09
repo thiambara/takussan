@@ -663,6 +663,8 @@ return [
         'reschedule_inactive' => 'Seule une visite en attente ou confirmée peut changer de créneau.',
         'slot_overlap' => 'Une autre visite confirmée occupe déjà ce créneau sur ce bien.',
         'staff_only' => 'Seul le personnel de l\'agence du bien peut confirmer, clore, annuler ou déplacer cette visite.',
+        // TCK-2502 — confirmer une visite demandée par tranche, c'est en fixer l'heure.
+        'time_required' => 'Cette visite a été demandée pour une tranche de la journée : fixez l\'heure pour la confirmer.',
     ],
     'webhook' => [
         'endpoint_gone' => 'Cette adresse de notification n\'est plus en service : chaque intégration a désormais la sienne.',

@@ -26,6 +26,7 @@ use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\TaskStatus;
 use App\Models\Enums\VisitStatus;
+use App\Models\Enums\VisitWindow;
 use App\Models\KycDossier;
 use App\Models\Lease;
 use App\Models\LeasePayment;
@@ -79,6 +80,9 @@ class FormeDesDatesDeNotificationTest extends TestCase
         NotificationCode::VisitRescheduledByVisitor,
         NotificationCode::VisitCancelledByVisitor,
         NotificationCode::VisitRequested,
+        NotificationCode::VisitRequestedWindow,
+        NotificationCode::VisitCancelledWindow,
+        NotificationCode::VisitCancelledByVisitorWindow,
         NotificationCode::VisitConfirmed,
         NotificationCode::VisitRescheduled,
         NotificationCode::VisitCancelled,
@@ -174,6 +178,28 @@ class FormeDesDatesDeNotificationTest extends TestCase
             NotificationCode::VisitRescheduledByVisitor, NotificationCode::VisitCancelledByVisitor] as $code) {
             $this->assertFormes($code);
         }
+    }
+
+    /** TCK-2502 — la demande par tranche porte un JOUR (`date`), pas un instant. */
+    public function test_la_visite_demandee_par_tranche(): void
+    {
+        $visit = PropertyVisit::factory()->create([
+            'property_id' => $this->property->id,
+            'agent_id' => $this->agent->id,
+            'visitor_id' => $this->client->id,
+            'status' => VisitStatus::Scheduled,
+            'scheduled_at' => VisitWindow::Morning->startOn(now()->addDays(2)->format('Y-m-d'))->utc(),
+            'preferred_window' => VisitWindow::Morning,
+        ]);
+
+        $notifier = app(VisitNotifier::class);
+        $notifier->requested($visit);
+        $notifier->cancelledByAgency($visit);
+        $notifier->cancelledByVisitor($visit);
+
+        $this->assertFormes(NotificationCode::VisitRequestedWindow);
+        $this->assertFormes(NotificationCode::VisitCancelledWindow);
+        $this->assertFormes(NotificationCode::VisitCancelledByVisitorWindow);
     }
 
     public function test_l_echeance_du_dossier_kyc(): void

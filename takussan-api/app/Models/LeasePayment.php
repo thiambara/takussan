@@ -83,7 +83,9 @@ class LeasePayment extends AbstractModel implements HasAuditAgency
     {
         // VERIF-596 passe 6 (m-h) — une échéance annulée par un renouvellement ne doit plus rien,
         // pénalité comprise : l'enfant refacture le mois.
-        if ($this->status === PaymentStatus::Cancelled) {
+        // TCK-2504 (revue) — une échéance remboursée non plus : elle n'est plus due (aucun paiement
+        // ne s'y ouvre), et le lien de paiement qui la montre n'annonce pas une pénalité à régler.
+        if (in_array($this->status, [PaymentStatus::Cancelled, PaymentStatus::Refunded], true)) {
             return 0.0;
         }
 

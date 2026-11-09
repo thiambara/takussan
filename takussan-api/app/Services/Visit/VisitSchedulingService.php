@@ -3,6 +3,7 @@
 namespace App\Services\Visit;
 
 use App\Models\Enums\VisitStatus;
+use App\Models\Enums\VisitWindow;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
@@ -87,6 +88,8 @@ class VisitSchedulingService
         $busy = PropertyVisit::query()
             ->where('status', VisitStatus::Confirmed)
             ->whereNotNull('scheduled_at')
+            // TCK-2502 — une visite à tranche n'a pas d'heure : elle n'occupe aucun créneau.
+            ->whereNull('preferred_window')
             ->where(function ($q) use ($property, $agent) {
                 $q->where('property_id', $property->id);
                 if ($agent !== null) {
@@ -145,7 +148,9 @@ class VisitSchedulingService
             // `id != NULL` ne vaut jamais vrai en SQL, et aurait écarté toutes les candidates.
             ->when($visit->exists, fn ($q) => $q->where('id', '!=', $visit->id))
             ->where('status', VisitStatus::Confirmed)
-            ->whereNotNull('scheduled_at');
+            ->whereNotNull('scheduled_at')
+            // TCK-2502 — ni une visite à tranche, dont l'heure n'est pas fixée.
+            ->whereNull('preferred_window');
 
         if ($lockForUpdate) {
             $query->lockForUpdate();
@@ -180,9 +185,9 @@ class VisitSchedulingService
      * non-locking overlap check and both win; the row lock here
      * serializes them so only one can confirm.
      */
-    public function confirmOrFail(PropertyVisit $visit): PropertyVisit
+    public function confirmOrFail(PropertyVisit $visit, ?CarbonInterface $scheduledAt = null): PropertyVisit
     {
-        return DB::transaction(function () use ($visit) {
+        return DB::transaction(function () use ($visit, $scheduledAt) {
             $fresh = PropertyVisit::query()
                 ->whereKey($visit->id)
                 ->lockForUpdate()
@@ -194,9 +199,23 @@ class VisitSchedulingService
                 'visit.not_scheduled_confirm'
             );
 
-            $this->assertNoOverlap($fresh, lockForUpdate: true);
+            // TCK-2502 — une visite demandée par tranche (« mardi après-midi ») n'a pas d'heure :
+            // la confirmer, c'est la fixer. Sans heure, le début de tranche serait confirmé comme
+            // un rendez-vous réel, et les rappels partiraient pour lui.
+            abort_code_if(
+                $fresh->preferred_window !== null && $scheduledAt === null,
+                422,
+                'visit.time_required'
+            );
 
-            $fresh->update(['status' => VisitStatus::Confirmed]);
+            $start = $scheduledAt !== null ? Carbon::instance($scheduledAt) : null;
+            $this->assertNoOverlap($fresh, $start, lockForUpdate: true);
+
+            // Une heure posée lève la tranche — explicitement : l'heure fixée peut ÉGALER le début de
+            // tranche (14:00 pour « l'après-midi »), et `scheduled_at` n'est alors pas modifié.
+            $fresh->update($start !== null
+                ? ['status' => VisitStatus::Confirmed, 'scheduled_at' => $start, 'preferred_window' => null]
+                : ['status' => VisitStatus::Confirmed]);
 
             return $fresh;
         });
@@ -344,10 +363,16 @@ class VisitSchedulingService
         // L'instant tel que `create()` l'écrirait : même cast, donc même valeur stockée.
         $slot = (new PropertyVisit(['scheduled_at' => $attributes['scheduled_at']]))->getAttributes()['scheduled_at'];
 
+        // TCK-2502 — « l'après-midi, heure à fixer » n'est pas 14:00 précis, bien qu'ils partagent
+        // le même `scheduled_at` : la tranche fait partie de la demande.
+        $window = $attributes['preferred_window'] ?? null;
+        $window = $window instanceof VisitWindow ? $window->value : $window;
+
         return PropertyVisit::query()
             ->where('property_id', $property->id)
             ->whereIn('status', self::ACTIVE_STATUSES)
             ->where('scheduled_at', $slot)
+            ->when($window !== null, fn ($q) => $q->where('preferred_window', $window), fn ($q) => $q->whereNull('preferred_window'))
             ->where(function ($q) use ($visitor, $customerId) {
                 if ($visitor !== null) {
                     $q->where('visitor_id', $visitor->id);
@@ -399,6 +424,9 @@ class VisitSchedulingService
 
             $fresh->update([
                 'scheduled_at' => $scheduledAt,
+                // TCK-2502 — le visiteur propose une heure précise : plus de tranche, même si
+                // l'heure proposée égale le début de tranche.
+                'preferred_window' => null,
                 'status' => VisitStatus::Scheduled,
             ]);
 

@@ -66,7 +66,10 @@ class VisitNotifier
 
     public function requested(PropertyVisit $visit): void
     {
-        $this->toAgency($visit, NotificationCode::VisitRequested, withPrimaryAndOwner: true);
+        // TCK-2502 — une demande par tranche dit la tranche et « heure à fixer », jamais le début
+        // de tranche comme une heure demandée.
+        $code = $visit->preferred_window !== null ? NotificationCode::VisitRequestedWindow : NotificationCode::VisitRequested;
+        $this->toAgency($visit, $code, withPrimaryAndOwner: true);
     }
 
     /**
@@ -114,12 +117,16 @@ class VisitNotifier
 
     public function cancelledByAgency(PropertyVisit $visit, ?User $emetteur = null): ?bool
     {
-        return $this->toVisitor($visit, NotificationCode::VisitCancelled, $emetteur);
+        // TCK-2502 — une visite à tranche annulée avant que l'heure soit fixée : le jour et la
+        // tranche, jamais le début de tranche comme une heure.
+        $code = $visit->preferred_window !== null ? NotificationCode::VisitCancelledWindow : NotificationCode::VisitCancelled;
+
+        return $this->toVisitor($visit, $code, $emetteur);
     }
 
     public function cancelledByVisitor(PropertyVisit $visit): void
     {
-        $this->toAgency($visit, NotificationCode::VisitCancelledByVisitor);
+        $this->toAgency($visit, $visit->preferred_window !== null ? NotificationCode::VisitCancelledByVisitorWindow : NotificationCode::VisitCancelledByVisitor);
     }
 
     /**
@@ -292,8 +299,14 @@ class VisitNotifier
             'scheduled_at' => $visit->scheduled_at?->toIso8601String(),
             'timezone' => $timezone ?: NotificationRenderer::DEFAULT_TIMEZONE,
         ];
-        if ($code === NotificationCode::VisitRequested) {
+        if ($code === NotificationCode::VisitRequested || $code === NotificationCode::VisitRequestedWindow) {
             $params['contact'] = implode(' · ', array_filter([$visit->visitor_phone, $visit->visitor_email])) ?: null;
+        }
+        if (in_array($code, [NotificationCode::VisitRequestedWindow, NotificationCode::VisitCancelledWindow, NotificationCode::VisitCancelledByVisitorWindow], true)) {
+            // Le jour à Dakar, où la tranche a été demandée — pas dans le fuseau du destinataire.
+            unset($params['scheduled_at'], $params['timezone']);
+            $params['date'] = $visit->scheduled_at?->copy()->setTimezone(VisitSchedulingService::TIMEZONE)->format('Y-m-d');
+            $params['window'] = $visit->preferred_window?->value;
         }
 
         return $params;

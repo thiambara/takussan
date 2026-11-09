@@ -7,6 +7,7 @@ use App\Jobs\SendPropertyVisitReminders;
 use App\Models\Bases\AbstractModel;
 use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitType;
+use App\Models\Enums\VisitWindow;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -30,6 +31,12 @@ class PropertyVisit extends AbstractModel
             if (! $visit->isDirty('scheduled_at')) {
                 return;
             }
+            // TCK-2502 — une heure posée (confirmation, report, déplacement par l'agence) n'est
+            // plus « l'après-midi, heure à fixer » : la tranche tombe, sauf si l'écrivain la pose
+            // lui-même dans le même geste.
+            if (! $visit->isDirty('preferred_window')) {
+                $visit->preferred_window = null;
+            }
             $metadata = $visit->metadata ?? [];
             $sansMarques = array_diff_key($metadata, array_flip(self::REMINDER_MARKERS));
             if ($sansMarques !== $metadata) {
@@ -42,6 +49,8 @@ class PropertyVisit extends AbstractModel
         'property_id', 'visitor_id', 'customer_id', 'agent_id',
         'visitor_name', 'visitor_phone', 'visitor_email',
         'type', 'status', 'scheduled_at', 'duration_minutes',
+        // TCK-2502 — la tranche demandée quand l'heure reste à fixer (`VisitWindow`).
+        'preferred_window',
         'completed_at', 'cancelled_at', 'cancellation_reason',
         'feedback', 'rating', 'notes', 'metadata',
         // TCK-590 — d'où vient la demande, et dans quelle langue prévenir un visiteur sans compte.
@@ -52,6 +61,7 @@ class PropertyVisit extends AbstractModel
         'type' => VisitType::class,
         'status' => VisitStatus::class,
         'scheduled_at' => 'datetime',
+        'preferred_window' => VisitWindow::class,
         'completed_at' => 'datetime',
         'cancelled_at' => 'datetime',
         'rating' => 'decimal:1',
@@ -74,7 +84,7 @@ class PropertyVisit extends AbstractModel
     protected static array $queryFields = [
         'id', 'property_id', 'visitor_id', 'customer_id', 'agent_id',
         'visitor_name', 'visitor_phone', 'visitor_email',
-        'type', 'status', 'scheduled_at', 'completed_at', 'duration_minutes',
+        'type', 'status', 'scheduled_at', 'preferred_window', 'completed_at', 'duration_minutes',
         'cancelled_at', 'cancellation_reason', 'feedback', 'rating', 'notes', 'metadata',
         'source', 'medium', 'locale',
         'created_at', 'updated_at',

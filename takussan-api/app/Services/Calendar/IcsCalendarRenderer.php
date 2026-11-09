@@ -37,7 +37,12 @@ class IcsCalendarRenderer
         foreach ($events as $event) {
             $type = (string) $event['type'];
             $kind = isset($event['kind']) ? '_'.$event['kind'] : '';
-            $summary = __('calendar.feed.summary.'.$type.$kind, ['title' => (string) ($event['title'] ?? '')], $locale);
+            $summary = __('calendar.feed.summary.'.$type.$kind, [
+                // TCK-2502 — une visite dont l'heure n'est pas fixée : le titre du bien et la tranche,
+                // rendus dans la langue du flux (`visit_window`) ; le titre de la console est déjà composé.
+                'title' => (string) ($event['property_title'] ?? $event['title'] ?? ''),
+                'window' => isset($event['preferred_window']) ? __('visits.windows.'.$event['preferred_window'], [], $locale) : '',
+            ], $locale);
 
             $lines[] = 'BEGIN:VEVENT';
             $lines[] = 'UID:'.$this->escape((string) ($event['key'] ?? $type.'-'.$event['id'])).'@takussan';

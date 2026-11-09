@@ -663,6 +663,8 @@ return [
         'reschedule_inactive' => 'Seetaan bu ngi xaar walla bu ñu dëggal rekk moo mën a soppi waxtu.',
         'slot_overlap' => 'Beneen seeti bu ñu dëggal am na ba noppi ci waxtu wii ci kër gii.',
         'staff_only' => 'Liggéeykatu ajaans bu kër gi rekk mën a dëggal, jeexal, neenal walla toxal seetaan bii.',
+        // TCK-2502 — confirmer une visite demandée par tranche, c'est en fixer l'heure.
+        'time_required' => 'Cette visite a été demandée pour une tranche de la journée : fixez l\'heure pour la confirmer.',
     ],
     'webhook' => [
         'endpoint_gone' => 'Adrees bii dootul liggéey : intégration bu nekk am na sa adrees.',

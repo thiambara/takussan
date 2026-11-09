@@ -6,6 +6,7 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\CancelPropertyVisitRequest;
 use App\Http\Requests\Api\ClaimPropertyVisitRequest;
 use App\Http\Requests\Api\CompletePropertyVisitRequest;
+use App\Http\Requests\Api\ConfirmPropertyVisitRequest;
 use App\Http\Requests\Api\FeedbackPropertyVisitRequest;
 use App\Http\Requests\Api\ReschedulePropertyVisitRequest;
 use App\Http\Requests\Api\StorePropertyVisitRequest;
@@ -267,6 +268,10 @@ class PropertyVisitController extends Controller
         }
 
         $previous = $visit->scheduled_at;
+        // TCK-2502 — une heure envoyée par l'agence fixe l'heure, même égale au début de tranche.
+        if (array_key_exists('scheduled_at', $data)) {
+            $data['preferred_window'] = null;
+        }
         $visit->fill($data)->save();
 
         // TCK-590 (contrainte 11) — tout déplacement d'heure par l'agence prévient le visiteur,
@@ -316,7 +321,7 @@ class PropertyVisitController extends Controller
         return $this->json(['data' => PropertyVisitResource::make($visit->refresh())->resolve($request)]);
     }
 
-    public function confirm(Request $request, PropertyVisit $visit): JsonResponse
+    public function confirm(ConfirmPropertyVisitRequest $request, PropertyVisit $visit): JsonResponse
     {
         $this->authorize('update', $visit);
         // Vérification adverse, passe 3 (B2″) — confirmer, c'est le geste qui fait partir le SMS au
@@ -328,7 +333,9 @@ class PropertyVisitController extends Controller
         // flip happen inside a single DB transaction with row-level
         // locks so two concurrent confirm calls cannot both pass the
         // overlap check and both win.
-        $visit = $this->scheduling->confirmOrFail($visit);
+        // TCK-2502 — l'heure fixée en confirmant ; exigée pour une visite demandée par tranche.
+        $scheduledAt = $request->validated('scheduled_at');
+        $visit = $this->scheduling->confirmOrFail($visit, $scheduledAt !== null ? Carbon::parse($scheduledAt) : null);
         $visit->load('property', 'visitor');
 
         $sms = $this->notifier->confirmed($visit, $request->user());

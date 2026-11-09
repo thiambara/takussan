@@ -33,6 +33,8 @@ class PropertyVisitResource extends BaseResource
             'type' => $this->type?->value,
             'status' => $this->status?->value,
             'scheduled_at' => $this->iso($this->scheduled_at),
+            // TCK-2502 — posée, `scheduled_at` n'est que le début de la tranche : l'heure reste à fixer.
+            'preferred_window' => $this->enumValue($this->preferred_window),
             'completed_at' => $this->iso($this->completed_at),
             'cancelled_at' => $this->iso($this->cancelled_at),
             'cancellation_reason' => $this->cancellation_reason,
