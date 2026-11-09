@@ -21,6 +21,16 @@ export interface AgentDto {
    * `owner` pour un propriétaire. `/agents/{slug}` sert les deux (TCK-436, option b).
    */
   public_role: 'agent' | 'owner';
+  /**
+   * TCK-2506 — `false` pour un propriétaire qui n'a pas choisi l'annuaire : sa fiche reste servie
+   * (une de ses annonces y mène) mais en `noindex`, sans données structurées. Absent vaut « oui ».
+   */
+  indexable?: boolean;
+  /**
+   * TCK-2519 — présent seulement quand l'adresse demandée n'est pas la canonique (ancien slug au
+   * nom, `username`, autre casse) : la page redirige, de façon permanente, vers `/agents/<canonical_slug>`.
+   */
+  canonical_slug?: string;
   bio?: string | null;
   // TCK-441 — `email` N'EST PLUS servi par l'API : c'est l'adresse de CONNEXION de l'agent, et
   // elle a quitté la charge publique. Le contact passe par le formulaire anonyme de

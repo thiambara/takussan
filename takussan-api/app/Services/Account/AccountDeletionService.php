@@ -321,6 +321,11 @@ class AccountDeletionService
             'secondary_phone_whatsapp' => false,
             'bio' => null,
             'username' => null,
+            // TCK-2519 — le slug de fiche est tiré du NOM (`sokhna-gueye`) : il s'efface avec lui.
+            // Sinon le nom survit à l'effacement, et reste réservé à jamais par
+            // `PublicSlugService::pris()`, qui lit aussi les comptes supprimés. Ses anciennes formes
+            // (`metadata.previous_public_slugs`) partent avec `metadata`, plus bas.
+            'public_slug' => null,
             'google_id' => null,
             'facebook_id' => null,
             'apple_id' => null,

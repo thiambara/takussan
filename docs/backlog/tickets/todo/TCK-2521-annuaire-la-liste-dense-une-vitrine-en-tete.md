@@ -8,7 +8,7 @@ estimate: M
 wave: 85
 created: 2026-11-09
 updated: 2026-11-09
-depends_on: [TCK-2518, TCK-2520, TCK-2506]
+depends_on: [TCK-2518, TCK-2520, TCK-2506, TCK-2532]
 blocks: []
 spec_refs:
   features:

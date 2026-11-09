@@ -93,6 +93,9 @@ class UpdateMeRequest extends FormRequest
             // TCK-1497 (P107.03) — le fuseau du compte, que lisent les rendus de notifications, les
             // rappels de visite et l'heure du résumé. Une colonne, comme la langue.
             'timezone' => ['sometimes', 'string', 'timezone:all'],
+            // TCK-2506 — paraître dans l'annuaire public des propriétaires. Une colonne hors
+            // `$fillable` : seul le compte lui-même l'écrit, ici.
+            'listed_in_public_directory' => ['sometimes', 'boolean:strict'],
             // TCK-589 p3-1 — la preuve qu'exige le remplacement d'un numéro vérifié.
             ...PhoneChangeGuard::PROOF_RULES,
         ];

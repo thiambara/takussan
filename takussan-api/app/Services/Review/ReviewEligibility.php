@@ -197,7 +197,7 @@ class ReviewEligibility
                 : User::query()->whereIn('id', $this->agentSubjectIds($proof))->orderBy('id')->get()->all();
             foreach ($agents as $agent) {
                 if ($agent !== null && $agent->id !== $author->id && ! $done(User::class, $agent->id)) {
-                    $push('agent', $agent, ['title' => $agent->full_name, 'slug' => $agent->username], $proof);
+                    $push('agent', $agent, ['title' => $agent->full_name, 'slug' => $agent->slugDeFiche()], $proof);
                 }
             }
         }

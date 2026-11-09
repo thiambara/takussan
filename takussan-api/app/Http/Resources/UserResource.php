@@ -105,6 +105,8 @@ class UserResource extends BaseResource
                 'terms_accepted_at' => $this->iso($this->terms_accepted_at),
                 // TCK-1497 (P107.03) — le fuseau du compte, réglé au profil (`PATCH /api/me`).
                 'timezone' => $this->timezone,
+                // TCK-2506 — paraître dans l'annuaire public des propriétaires (`PATCH /api/me`).
+                'listed_in_public_directory' => (bool) $this->listed_in_public_directory,
             ] : []),
             'agency_id' => $this->agency_id,
             // TCK-2002 (P176.02, P176.03 ; ADR-0005, amendement du 2026-10-23) — les profils ACTIFS de

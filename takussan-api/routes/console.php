@@ -16,6 +16,7 @@ use App\Jobs\Notifications\SendNotificationDigestJob;
 use App\Jobs\Permissions\ProcessRoleDelegationsJob;
 use App\Jobs\Privacy\PurgeExpiredDataExports;
 use App\Jobs\RecordQueueHeartbeat;
+use App\Jobs\RefreshDirectoryResponseTimes;
 use App\Jobs\RefreshNewBuildSearchLabel;
 use App\Jobs\Reporting\PurgeExpiredReportExports;
 use App\Jobs\Reporting\SnapshotPlatformMetricsJob;
@@ -107,6 +108,10 @@ Schedule::command('ai:eval --all')->dailyAt('02:30')->withoutOverlapping(120)->w
 // TCK-506 (revue de PR 253) — « neuf » est figé à l'indexation : sans ceci, un
 // bien de 2025 indexé en 2026 répond encore à `q=neuf` en 2028.
 Schedule::job(new RefreshNewBuildSearchLabel)->dailyAt('04:00')->withoutOverlapping();
+// TCK-2518 — le délai de réponse habituel des agences et des agents de l'annuaire (médiane sur 90 jours, `null` sous cinq
+// conversations répondues). Idempotent : chaque passage recalcule l'état entier depuis les messages et le pose, `null`
+// compris ; deux passages, même concurrents, rendent le même état.
+Schedule::job(new RefreshDirectoryResponseTimes)->dailyAt('04:20')->timezone('Africa/Dakar')->withoutOverlapping();
 Schedule::command('dashboard:check-alerts')->hourly()->withoutOverlapping(60); // TCK-032 P3
 // TCK-083 — Hourly reminder for tasks whose `due_at` falls in the
 // 23–25 h window. Idempotence is guaranteed by the marker stored in
@@ -271,3 +276,8 @@ Schedule::command('radar:embed-listings')->everyFifteenMinutes()->withoutOverlap
 // modèle (seul `demand_count` est recompté, sans IA, au même résultat) ; le job est unique et deux passages se sérialisent sur la
 // ligne du réglage ; une cible déjà créée en double est refusée par l'empreinte de ses critères.
 Schedule::command('radar:refresh-demand-targets')->dailyAt('03:40')->timezone('Africa/Dakar')->withoutOverlapping();
+
+// TCK-2519 — le slug au nom des fiches `/agents/{slug}` : pose celui d'une fiche devenue publique depuis le dernier passage
+// (jusque-là résolue par `username`, puis redirigée en 301), et recalcule celui d'un compte qui a changé de rôle. Idempotente :
+// un slug déjà juste n'est pas réécrit (`PublicSlugService::appliquer`), et une collision est tranchée par suffixe sur la ligne.
+Schedule::command('users:public-slugs')->hourlyAt(25)->withoutOverlapping(60);

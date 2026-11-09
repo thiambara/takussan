@@ -8,6 +8,7 @@ import { ProfileLayout } from '@/components/profile/ProfileLayout';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { ProfileContactSection } from '@/components/profile/ProfileContactSection';
 import { ProfileTimezoneSection } from '@/components/profile/ProfileTimezoneSection';
+import { ProfileDirectorySection } from '@/components/profile/ProfileDirectorySection';
 import { ProfileMenuSection } from '@/components/profile/ProfileMenuSection';
 import { ProfileCustomerSection } from '@/components/profile/ProfileCustomerSection';
 import { ProfileAgentSection } from '@/components/profile/ProfileAgentSection';
@@ -46,6 +47,11 @@ export default async function ProfilePage() {
       {isCustomerOnly(user.roles) && <ProfileCustomerSection user={user} />}
       {isAgent(user.roles) && <ProfileAgentSection />}
       {isOwner(user.roles) && <ProfileOwnerSection user={user} />}
+      {/* TCK-2506 — un propriétaire n'est dans l'annuaire public que s'il le choisit. Un agent y est
+          toujours : l'interrupteur ne lui dirait rien de vrai. */}
+      {isOwner(user.roles) && !isAgent(user.roles) && (
+        <ProfileDirectorySection listed={user.listed_in_public_directory === true} />
+      )}
       {isAdmin(user.roles) && <ProfileAdminSection user={user} />}
       {/* TCK-594 (ADR-0039 §6) — qui est payé déclare où : le bailleur et le prestataire. */}
       {(isOwner(user.roles) || isServiceProvider(user.roles)) && <PayoutMethodsSection />}

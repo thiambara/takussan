@@ -98,11 +98,12 @@ class PublicProfileTest extends TestCase
             ->assertJsonPath('data.portfolio.0.id', $publicProperty->id);
     }
 
-    public function test_public_agency_team_includes_publishers_without_agent_profile(): void
+    public function test_public_agency_team_leaves_out_publishers_without_agent_profile(): void
     {
-        // TCK-276 — un user qui publie pour l'agence mais qui n'a pas d'AgentProfile
-        // (ex. OwnerProfile/landlord publishing through the agency) doit apparaître
-        // dans la liste équipe, sinon il y a discontinuité avec la fiche bien.
+        // TCK-276 listait dans l'équipe un user qui publie pour l'agence sans AgentProfile (un
+        // bailleur qui confie son bien) ; TCK-2506 l'en retire : un particulier n'est pas exposé
+        // dans l'équipe d'une agence dont il est client. Sa fiche reste joignable depuis son
+        // annonce (`PublicDirectoryOwnerOptInTest`).
         $agency = Agency::factory()->create(['slug' => 'cooperative-imm']);
         $agent = User::factory()->create([
             'username' => 'aida-agent',
@@ -126,12 +127,10 @@ class PublicProfileTest extends TestCase
 
         $response = $this->getJson('/api/public/agencies/cooperative-imm');
 
-        $response->assertOk()->assertJsonCount(2, 'data.agents');
+        $response->assertOk()->assertJsonCount(1, 'data.agents');
         $slugs = collect($response->json('data.agents'))->pluck('slug')->all();
-        $this->assertContains('aida-agent', $slugs);
-        $this->assertContains('cheikh-owner', $slugs);
-        // Publisher with 1 property ranks before agent with 0 (sortByDesc portfolio_count).
-        $this->assertSame('cheikh-owner', $slugs[0]);
+        $this->assertSame(['aida-agent'], $slugs);
+        $this->assertNotContains('cheikh-owner', $slugs);
     }
 
     public function test_public_agency_profile_returns_404_for_unknown_slug(): void
@@ -334,10 +333,13 @@ class PublicProfileTest extends TestCase
 
     public function test_public_agent_profile_handles_missing_profile_and_addresses(): void
     {
+        // TCK-2506 — sans annonce publique ni profil d'agent, seule l'inscription à l'annuaire
+        // donne une fiche : c'est elle qui rend ce compte vide joignable.
         $agent = User::factory()->create([
             'username' => 'no-profile',
             'status' => UserStatus::Active,
             'bio' => null,
+            'listed_in_public_directory' => true,
         ]);
 
         $response = $this->getJson('/api/public/agents/no-profile');

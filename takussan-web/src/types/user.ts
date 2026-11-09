@@ -67,7 +67,7 @@ export type UserPreferences = {
   entry_intent?: EntryIntent;
   /**
    * TCK-2480 (ADR-0089 §6) — épingles et replis du menu de `/app`, par persona. `unknown` à dessein :
-   * il se LIT par `lirePreferencesDeNavigation` (`@/lib/navigation/preferences`), jamais directement.
+   * il se LIT par `lirePreferencesDeNavigation` (`@/lib/navigation/preferences-schema`), jamais directement.
    */
   navigation?: unknown;
 };
@@ -128,5 +128,7 @@ export type User = {
   terms_accepted_at?: string | null;
   /** TCK-1497 — le fuseau du compte (IANA), réglé au profil ; pour SOI seulement. */
   timezone?: string | null;
+  /** TCK-2506 — paraître dans l'annuaire public des propriétaires ; pour SOI seulement. */
+  listed_in_public_directory?: boolean;
   created_at: string;
 };

@@ -7,6 +7,7 @@ use App\Models\Concerns\HasMediaConversions;
 use App\Models\Concerns\HasProfiles;
 use App\Models\Concerns\HasQueryBuilder;
 use App\Models\Concerns\RefusesImpossibleRouteKeys;
+use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\EmailFrequency;
 use App\Models\Enums\PlatformProfileLevel;
@@ -20,6 +21,8 @@ use App\Services\Auth\AccessTokenGate;
 use App\Services\Auth\SessionTokenIssuer;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Profiles\ActiveProfileResolver;
+use App\Services\Public\PublicProfileFacts;
+use App\Services\Public\PublicSlugService;
 use App\Sorts\CollatedNameSort;
 use App\Support\CaseInsensitive;
 use App\Support\Http\ParametreUnique;
@@ -124,6 +127,9 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
             'email_frequency' => EmailFrequency::class,
             'metadata' => 'array',
             'preferences' => 'array',
+            // TCK-2506 — HORS `$fillable` : seul le compte lui-même change sa préférence
+            // (`MeController::update`), ni l'agence ni la plateforme par un remplissage en masse.
+            'listed_in_public_directory' => 'boolean',
         ];
     }
 
@@ -239,6 +245,27 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
             ->allowedFields(...static::getAllAllowedQueryFields())
             ->allowedSorts(...static::$requestSortable, ...static::nameSorts())
             ->allowedIncludes(...$includes);
+    }
+
+    /**
+     * TCK-2506 — qui paraît dans l'annuaire public « Agents & propriétaires » : un agent EN
+     * EXERCICE, toujours, ou un compte qui l'a choisi (`listed_in_public_directory`). Un
+     * propriétaire particulier n'y est donc listé que sur option.
+     *
+     * « En exercice » est la règle de {@see PublicProfileFacts::rolesPublics()}, écrite en SQL :
+     * un `AgentProfile` actif, ou un `AgencyAdminProfile` actif d'une agence `standard` (l'admin
+     * d'un espace `individual` en est l'hôte, pas un agent — TCK-1077). Les deux doivent dire la
+     * même chose : un compte présenté `agent` par l'un est listé par l'autre.
+     *
+     * @param  Builder<static>  $query
+     */
+    public function scopeVisibleDansLAnnuairePublic(Builder $query): void
+    {
+        $query->where(fn (Builder $q) => $q
+            ->where('users.listed_in_public_directory', true)
+            ->orWhereHas('agentProfiles', fn (Builder $p) => $p->active())
+            ->orWhereHas('agencyAdminProfiles', fn (Builder $p) => $p->active()
+                ->whereHas('agency', fn (Builder $a) => $a->where('kind', AgencyKind::Standard->value))));
     }
 
     /**
@@ -368,6 +395,18 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
      * `username`, puis « — ». **Jamais l'adresse e-mail** : c'est une coordonnée, et la règle de
      * `ConversationResource` (le nom et l'avatar, jamais les coordonnées) vaut pour ces chemins.
      */
+    /**
+     * TCK-2519 — le segment de l'URL `/agents/{slug}` de cette personne : le slug au nom quand il
+     * est posé, le `username` sinon. TOUT émetteur de `owner.slug` / `agent.slug` passe par ici —
+     * aucun ne sert plus `username` quand `public_slug` existe.
+     */
+    public function slugDeFiche(): ?string
+    {
+        $slug = $this->public_slug ?? null;
+
+        return is_string($slug) && $slug !== '' ? $slug : $this->username;
+    }
+
     public function nameWithoutContact(): string
     {
         $full = trim(($this->first_name ?? '').' '.($this->last_name ?? ''));
@@ -540,6 +579,13 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
         static::updating(function (self $user): void {
             if ($user->isDirty('phone') && ! $user->isDirty('phone_whatsapp')) {
                 $user->phone_whatsapp = null;
+            }
+
+            // TCK-2519 — le slug public suit le NOM, quel que soit l'écrivain : l'ancien reste dans
+            // `metadata.previous_public_slugs` et redirige en 301. Un compte sans fiche (`null`)
+            // n'en reçoit pas ici — `users:public-slugs` le pose à sa première fiche publique.
+            if ($user->public_slug !== null && $user->isDirty(['first_name', 'last_name'])) {
+                app(PublicSlugService::class)->appliquer($user);
             }
         });
 
