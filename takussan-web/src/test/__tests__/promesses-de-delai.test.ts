@@ -51,6 +51,11 @@ const REGISTRE: Readonly<Record<string, string>> = {
   // TCK-589 — le code de connexion par téléphone : même service, sujet « numéro » (`sendCodeTo`).
   'auth.phoneLogin.codeSentTo':
     'takussan-api/app/Services/Auth/PhoneVerificationService.php:32 — CODE_TTL_SECONDS = 300, via sendCodeTo',
+  // TCK-2510 — le code du tunnel de réservation : le même point d'entrée que la connexion par
+  // téléphone (`demanderCodeTelephone` → `POST /api/auth/phone/request-code` →
+  // `PhoneLoginService::requestCode` → `sendCodeTo('login', …)`), donc le même TTL.
+  'bookings.tunnel.identity.codeSentTo':
+    'takussan-api/app/Services/Auth/PhoneVerificationService.php:39 — CODE_TTL_SECONDS = 300, via PhoneLoginService.php:85 (sendCodeTo)',
   // TCK-589 (p3-1) — le code de preuve envoyé à l'ANCIEN numéro avant de le remplacer :
   // `PhoneChangeGuard::sendCode` → `sendCodeTo('phone-change', …)` → `issue()`, même TTL, consommé
   // par `PhoneChangeGuard::authorize`.
@@ -74,6 +79,11 @@ const REGISTRE: Readonly<Record<string, string>> = {
   // envoie pas), la fenêtre est les 30 derniers jours. Période affichée, tenue par le serveur.
   'superAdmin.payments.list.empty_description':
     'takussan-api/app/Http/Controllers/Api/Admin/PaymentSupervisionController.php:24 — fenêtre par défaut `$to->subDays(30)`',
+  // TCK-2504 — la quittance d'une échéance réglée, lue par le lien porteur : `effectiveExpiry`
+  // ramène l'échéance du lien à `paid_at` + `receipt_days`. ⚠ C'est un PLAFOND : si le lien
+  // d'origine expire avant (`ttl_days_after_due` = 60 après l'échéance), il tombe plus tôt.
+  'lienPublic.paiement.quittanceDelai':
+    'takussan-api/config/payments.php:31 — `pay_link.receipt_days` = 30, appliqué par LeasePaymentLinkService::effectiveExpiry (:136)',
   'superAdmin.pages.users.impersonateDescription':
     'takussan-api/app/Models/ImpersonationSession.php — TTL_MINUTES = 15, non prolongeable (ADR-0055, TCK-600)',
   'privacy.dataExports.throttled':
@@ -126,6 +136,8 @@ const CHIFFRE_TENU: Readonly<Record<string, number | readonly number[]>> = {
   'maintenance.intervention.resolution.body': 7,
   'superAdmin.integrations.webhooks.retention': [90, 30],
   'superAdmin.pages.users.impersonateDescription': 15,
+  'bookings.tunnel.identity.codeSentTo': 5,
+  'lienPublic.paiement.quittanceDelai': 30,
   'privacy.dataExports.throttled': 24,
   'superAdmin.moderation.staleWarning': 7,
   'search.publicAlert.sentEmailBody': 48,

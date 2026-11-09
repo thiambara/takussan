@@ -109,7 +109,7 @@ export interface AlerteDuLien {
 
 export async function fetchPublicSearchAlertByToken(token: string): Promise<AlerteDuLien> {
   const qs = new URLSearchParams({ token });
-  const res = await apiFetch<{ data: AlerteDuLien }>(`/public/search-alerts/by-token?${qs}`);
+  const res = await apiFetch<{ data: AlerteDuLien }>(cheminApi`/public/search-alerts/by-token${qs}`);
   return res.data;
 }
 

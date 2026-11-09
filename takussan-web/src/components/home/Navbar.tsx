@@ -286,14 +286,15 @@ export function Navbar({ className, auTelephone }: NavbarProps) {
   }, [router, buildSearchUrl, selectedTypes]);
 
   return (
+    // TCK-2568 (amendement d'ADR-0091) — au téléphone, la barre du site n'est que là où la maquette
+    // la montre : ailleurs, la page porte son propre en-tête (`EnTeteDePage`). Le bureau ne change pas.
+    // `className` reste le PREMIER attribut, en gabarit littéral et non `cn(…)`, sans commentaire
+    // avant lui : `ChatWidget.test.tsx` (TCK-2485) y lit le z de la barre.
     <nav
-      // TCK-2568 (amendement d'ADR-0091) — au téléphone, la barre du site n'est que là où la maquette
-      // la montre : ailleurs, la page porte son propre en-tête (`EnTeteDePage`). Le bureau ne change pas.
-      className={cn('fixed top-0 w-full z-50 bg-background border-b border-border', enTete === 'en-tete-de-page' && 'max-lg:hidden', className)}
+      className={`fixed top-0 w-full z-50 bg-background border-b border-border${enTete === 'en-tete-de-page' ? ' max-lg:hidden' : ''}${className ? ` ${className}` : ''}`}
       data-en-tete-au-telephone={enTete}
       // Nommé : au téléphone, la barre du bas est un second repère (« Navigation principale »), et
       // deux `navigation` dont un sans nom ne se distinguent pas au lecteur d'écran (revue TCK-2493).
-      // `className` reste en tête : `ChatWidget.test.tsx` (TCK-2485) y lit le z de la barre.
       aria-label={tPublique('entete.navLabel')}
     >
       {/* TCK-905 (P31.04) — premier élément focalisable de la page : sans lui, 18 Tab
