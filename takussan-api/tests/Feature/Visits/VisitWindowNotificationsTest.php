@@ -200,4 +200,22 @@ class VisitWindowNotificationsTest extends ApiTestCase
         $this->assertNull($visite->fresh()->preferred_window);
         Notification::assertSentTo($this->agent, CodedNotification::class, self::deCodeSur(NotificationCode::VisitRescheduledByVisitor, $visite->id));
     }
+
+    /**
+     * Contre-vérification — le visiteur reporte sa tranche à l'heure EXACTE de son début (14:00) :
+     * `scheduled_at` ne change pas, le crochet du modèle ne voit rien ; `rescheduleOrFail` lève la
+     * tranche lui-même.
+     */
+    public function test_le_visiteur_reporte_a_l_heure_du_debut_de_tranche_la_tranche_tombe(): void
+    {
+        $visiteur = $this->client();
+        $visite = $this->visiteATranche(['visitor_id' => $visiteur->id]);
+
+        Sanctum::actingAs($visiteur);
+        $this->postJson("/api/property-visits/{$visite->id}/reschedule", [
+            'scheduled_at' => $this->jour->setTime(14, 0)->utc()->toIso8601String(),
+        ])->assertOk();
+
+        $this->assertNull($visite->fresh()->preferred_window);
+    }
 }
