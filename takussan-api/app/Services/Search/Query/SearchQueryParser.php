@@ -256,6 +256,16 @@ final class SearchQueryParser
     ) {}
 
     /**
+     * TCK-2496 — le même parseur, qui reconnaît EN PLUS les lieux de `$enPlus` (la suggestion y met un lieu mal écrit
+     * qu'elle a reconnu sans ambiguïté). Le parseur lui-même ne corrige toujours aucune faute de lieu : c'est l'appelant
+     * qui décide, et la lecture de la saisie (mots de liaison, résidu, positions) reste celle d'un lieu connu.
+     */
+    public function withPlaces(PlaceLexicon $enPlus): self
+    {
+        return new self(new PlaceLexiconAvecLieuxEnPlus($this->places, $enPlus), $this->aliases);
+    }
+
+    /**
      * TCK-2476 — le critère qu'un TERME du vocabulaire émet (« climatisation » → `tags=Climatisation`, « a louer » n'en
      * est pas un : « louer » l'est), hors types de bien (cible `property_type`) ; `null` si le terme n'en est pas un.
      * C'est la cible d'une variante `term` : elle n'est retenue que si elle existe ici.
@@ -1258,8 +1268,11 @@ final class SearchQueryParser
         return strlen($token) > 3 && preg_match('/^[a-z]+[sx]$/', $token) === 1 ? substr($token, 0, -1) : $token;
     }
 
-    /** Distance de Damerau (optimal string alignment) : « apaprtement » est à une transposition d'« appartement ». */
-    private static function distance(string $a, string $b): int
+    /**
+     * Distance de Damerau (optimal string alignment) : « apaprtement » est à une transposition d'« appartement ».
+     * Publique pour la suggestion (TCK-2496), qui juge la faute d'un lieu par la même mesure ; chaînes ASCII repliées.
+     */
+    public static function distance(string $a, string $b): int
     {
         $la = strlen($a);
         $lb = strlen($b);

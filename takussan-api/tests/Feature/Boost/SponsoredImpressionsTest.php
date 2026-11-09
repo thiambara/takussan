@@ -48,6 +48,21 @@ class SponsoredImpressionsTest extends TestCase
         app(PlatformSettingService::class)->bulkUpdate(['boost.sponsored_slots_per_page' => 1, 'boost.reserved_top_results' => 0], $this->actingAsRole('super_admin'));
     }
 
+    /**
+     * Revue de TCK-2500 — une impression par emplacement RÉELLEMENT servi : sur une page qui porte déjà la vedette parmi
+     * ses cartes, aucun emplacement ne la sert, et rien n'est compté ; sur une page qui ne la porte pas, elle l'est.
+     */
+    public function test_une_vedette_seulement_organique_ne_compte_aucune_impression(): void
+    {
+        $page = $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.9'])->getJson('/api/public/properties/search')->assertOk();
+        $this->assertContains($this->property->id, array_column($page->json('data'), 'id'));
+        $this->assertSame([], $page->json('sponsored'));
+        $this->assertSame(0, $this->impressions());
+
+        $this->rechercher('198.51.100.10')->assertOk()->assertJsonPath('sponsored.0.id', $this->property->id);
+        $this->assertSame(1, $this->impressions(), 'témoin : servie en emplacement, elle compte');
+    }
+
     public function test_la_recherche_compte_une_impression_par_visiteur_sur_30_minutes(): void
     {
         $this->rechercher('198.51.100.1')->assertOk()->assertJsonPath('sponsored.0.id', $this->property->id);
@@ -127,7 +142,9 @@ class SponsoredImpressionsTest extends TestCase
     /** @param  array<string, string>  $headers */
     private function rechercher(string $ip, array $headers = []): TestResponse
     {
-        return $this->withServerVariables(['REMOTE_ADDR' => $ip])->getJson('/api/public/properties/search', $headers);
+        // TCK-2500 — la page 2 d'une carte : le bien boosté (remonté en tête par l'achat) est la carte de la page 1, et
+        // une vedette déjà parmi les cartes de la page n'est plus servie en emplacement.
+        return $this->withServerVariables(['REMOTE_ADDR' => $ip])->getJson('/api/public/properties/search?per_page=1&page=2', $headers);
     }
 
     private function impressions(): int
