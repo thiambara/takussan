@@ -98,7 +98,13 @@ class UserSeeder extends Seeder
         }
 
         foreach (range(1, max(2, (int) round(10 * $taille))) as $i) {
-            $this->createUser($agency, $this->membre($domain, $slug, 'owner', $i));
+            $bailleur = $this->createUser($agency, $this->membre($domain, $slug, 'owner', $i));
+            // TCK-2532 — le premier bailleur de chaque agence a CHOISI l'annuaire public (TCK-2506) :
+            // la démo montre les deux cas, le propriétaire qui y paraît et ceux, non listés, qui n'y
+            // paraissent pas. Sans tirage : la graine de la suite ne bouge pas (TCK-2380).
+            if ($i === 1) {
+                $bailleur->forceFill(['listed_in_public_directory' => true])->save();
+            }
         }
 
         foreach (range(1, max(1, (int) round(5 * $taille))) as $i) {
