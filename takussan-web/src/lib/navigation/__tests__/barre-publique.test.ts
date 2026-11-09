@@ -127,7 +127,10 @@ describe('ADR-0091 §4 — une seule couche d’action en bas : où la barre vit
     ['/fr', true],
     ['/fr/properties', true],
     ['/en/agencies', true],
-    ['/fr/agents/awa-diop', true],
+    ['/fr/agents', true],
+    // TCK-2522 / TCK-2523 — les fiches d'agence et de personne ont leur barre d'actions.
+    ['/fr/agents/awa-diop', false],
+    ['/en/agencies/dakar-immo', false],
     ['/fr/favorites', true],
     ['/fr/account', true],
     // La fiche d'un bien a sa barre d'actions.

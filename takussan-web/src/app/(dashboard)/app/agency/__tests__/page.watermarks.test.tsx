@@ -38,7 +38,8 @@ vi.mock('@/app/actions/auth', () => ({
   }),
 }));
 
-vi.mock('@/lib/access/pages-admin-server', () => ({ garderPageAdmin: async () => undefined }));
+// TCK-2524 — la page lit aussi les capacités (le bloc « Fiche publique ») : aucune ici, il n'est pas monté.
+vi.mock('@/lib/access/pages-admin-server', () => ({ garderPageAdmin: async () => undefined, capacitesDuProfilActif: async () => [] }));
 vi.mock('@/app/actions/admin-agency', () => ({
   fetchAgencyAction: async () => ({
     ok: true,

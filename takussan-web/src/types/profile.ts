@@ -58,6 +58,18 @@ export type Profile = {
   /** TCK-1317 (P117.04) — rendus pour le seul profil d'agent (`ProfileResource`). */
   license_number?: string | null;
   specialty?: string | null;
+  /**
+   * TCK-2524 — ce que l'agent a dit à l'annuaire public (TCK-2518), rendu pour le seul profil d'agent :
+   * codes de langue (`config/directory.php`), quartiers du référentiel dans l'ordre choisi.
+   */
+  languages?: readonly string[];
+  neighborhood_ids?: readonly number[];
+  neighborhoods?: readonly { readonly id: number; readonly name: string }[];
+  /**
+   * Revue de TCK-2524 — le segment de SA fiche publique (`/agents/{slug}`), émis pour le profil d'agent de
+   * l'appelant seulement, et `null` quand la page publique n'existe pas.
+   */
+  public_slug?: string | null;
 };
 
 export type MyProfilesResponse = {

@@ -73,8 +73,7 @@ beforeEach(() => {
 });
 
 describe('Navbar — la barre du site au téléphone suit la maquette (TCK-2568)', () => {
-  // L'annuaire et les fiches d'agence et d'agent : jusqu'à la vague 3 (TCK-2521 → TCK-2523).
-  it.each(['/fr', '/fr/legal/terms', '/fr/favorites/shared', '/fr/une-page-inconnue', '/fr/agencies', '/fr/agencies/dakar-immo', '/fr/agents', '/fr/agents/sokhna-gueye'])(
+  it.each(['/fr', '/fr/legal/terms', '/fr/favorites/shared', '/fr/une-page-inconnue'])(
     '%s : la barre est là, la cale réserve sa hauteur',
     (chemin) => {
       const { classesNav, classesCale } = rendre(chemin);
@@ -84,7 +83,8 @@ describe('Navbar — la barre du site au téléphone suit la maquette (TCK-2568)
     },
   );
 
-  it.each(['/fr/favorites', '/fr/compare', '/fr/bookings', '/fr/account', '/fr/properties/un-bien'])(
+  // L'annuaire et les fiches d'agence et d'agent : depuis la vague 3 (TCK-2521 → TCK-2523).
+  it.each(['/fr/favorites', '/fr/compare', '/fr/bookings', '/fr/account', '/fr/properties/un-bien', '/fr/agencies', '/fr/agencies/dakar-immo', '/fr/agents', '/fr/agents/sokhna-gueye'])(
     '%s : ni barre ni cale au téléphone, la barre reste en bureau',
     (chemin) => {
       const { nav, classesNav, classesCale } = rendre(chemin);

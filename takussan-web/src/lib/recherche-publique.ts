@@ -136,13 +136,23 @@ export function parametresDeRecherche(brut: URLSearchParams): URLSearchParams {
  * constructions séparées donneraient deux clefs, et la graine serait redemandée à l'hydratation.
  * Un paramètre fixe l'emporte sur celui de l'URL du même nom : `?agency=autre` sur la fiche de
  * Dakar Immo ne sort pas de son portefeuille.
+ *
+ * …et sur TOUTE forme de ce nom, tableau compris (`agency[]`, `agency[0]`, `agency[slug]`) : PHP lit
+ * ces formes comme le même champ, en tableau, et l'API répondait 422 « The agency field must be a
+ * string » — le HTML servi de la fiche n'avait plus aucun bien (revue du 2026-11-09).
  */
 export function requeteAvecFixes(
   url: URLSearchParams,
   fixes: Readonly<Record<string, string>> | undefined,
 ): URLSearchParams {
   const params = parametresDeRecherche(url);
-  if (fixes) for (const [cle, valeur] of Object.entries(fixes)) params.set(cle, valeur);
+  if (!fixes) return params;
+  for (const [cle, valeur] of Object.entries(fixes)) {
+    for (const nom of [...params.keys()]) {
+      if (nom.startsWith(`${cle}[`)) params.delete(nom);
+    }
+    params.set(cle, valeur);
+  }
   return params;
 }
 

@@ -26,12 +26,13 @@ const ATTENDU: ReadonlyArray<readonly [string, EnTeteAuTelephone]> = [
   ['/fr/compare', 'en-tete-de-page'],
   ['/fr/bookings', 'en-tete-de-page'],
   ['/fr/account', 'en-tete-de-page'],
-  // L'annuaire et les fiches d'agence et d'agent gardent la barre JUSQU'À la vague 3 (TCK-2521 →
-  // TCK-2523), qui les basculera en même temps que leurs pages porteront leur en-tête.
-  ['/fr/agencies', 'barre-du-site'],
-  ['/fr/agencies/dakar-immo', 'barre-du-site'],
-  ['/fr/agents', 'barre-du-site'],
-  ['/fr/agents/sokhna-gueye', 'barre-du-site'],
+  // L'annuaire (grand titre « Professionnels ») et les fiches d'agence (boutons sur la couverture) et
+  // d'agent (« ← · partager ») — vague 3, TCK-2521 → TCK-2523. Leurs 404 et leurs pannes posent la
+  // barre de marque eux-mêmes (`auTelephone="marque"`).
+  ['/fr/agencies', 'en-tete-de-page'],
+  ['/fr/agencies/dakar-immo', 'en-tete-de-page'],
+  ['/en/agents', 'en-tete-de-page'],
+  ['/fr/agents/sokhna-gueye', 'en-tete-de-page'],
   // Les pages par lien : la coque nue.
   ['/fr/pay/jeton', 'en-tete-de-page'],
   ['/fr/claim/jeton', 'en-tete-de-page'],

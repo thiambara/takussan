@@ -48,6 +48,15 @@ export interface AgentDto {
   intervention_zones?: string[];
   years_of_experience?: number | null;
   avatar_url: string | null;
+  /** TCK-2518 — prénom et nom séparés : la fiche d'un propriétaire n'en montre que l'initiale (TCK-2523). */
+  first_name?: string | null;
+  last_name?: string | null;
+  /** TCK-2518 — codes de langue (`fr`, `wo`…), filtrés sur `directory.languages` par l'API. */
+  languages?: string[];
+  /** TCK-2518 — les quartiers servis, nom compris : une donnée du référentiel, pas un libellé. */
+  neighborhoods?: { id: number; name: string }[];
+  /** TCK-2518 — médiane en minutes ; `null` sous le seuil ou quand elle tombe sur l'infini. */
+  median_response_minutes?: number | null;
   agency: { id: number; name: string; slug: string } | null;
   portfolio_count: number;
   portfolio_total: number;

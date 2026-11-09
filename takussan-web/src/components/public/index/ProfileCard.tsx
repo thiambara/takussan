@@ -1,140 +1,182 @@
-import { BadgeCheck, MapPin, Star } from 'lucide-react';
+import { BadgeCheck, ChevronRight, Clock, Languages, MapPin, Star } from 'lucide-react';
 import Image from 'next/image';
+import { useLocale, useTranslations } from 'next-intl';
 
 import { LienLocalise } from '@/components/shared/LienLocalise';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { isLocale } from '@/i18n/config';
+import { formatNumber } from '@/lib/format';
 import type { ProfilPublic } from '@/lib/queries/public-profiles';
+import { cn } from '@/lib/utils';
 
-export type LibellesDeCarte = {
-  readonly portefeuille: (n: number) => string;
-  readonly aLouer: (n: number) => string;
-  readonly aVendre: (n: number) => string;
-  readonly avis: (n: number) => string;
-  readonly verifie: string;
-  readonly noteAria: (note: number) => string;
-  /** TCK-573 — la qualité d'une personne de l'index `/agents` : agent immobilier ou propriétaire. */
-  readonly roles: { readonly agent: string; readonly owner: string };
-};
+import { delaiDeReponse, estLangueConnue } from './faits-de-profil';
+import { LogoOuInitiales } from './LogoOuInitiales';
 
 type Props = {
   readonly profil: ProfilPublic;
-  /** `/agencies` ou `/agents` — la carte ne connaît que le préfixe, pas la ressource. */
+  /** `/agencies` ou `/agents` — la ligne ne connaît que le préfixe, pas la ressource. */
   readonly base: string;
-  readonly libelles: LibellesDeCarte;
-  /** Forme circulaire pour une personne, arrondie pour une enseigne. */
+  /** Monogramme carré pour une enseigne, rond pour une personne. */
   readonly forme: 'rond' | 'carre';
 };
 
-function initiales(nom: string): string {
-  return nom
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p.charAt(0).toUpperCase())
-    .join('');
-}
-
 /**
- * Une carte d'index de profil — TCK-436.
+ * Une ligne de l'annuaire « Professionnels » — TCK-2521 (refonte de la carte de TCK-436).
  *
  * ────────────────────────────────────────────────────────────────────────────────────────────────
- * ELLE HÉRITE DU VOCABULAIRE DES FICHES, ELLE N'EN INVENTE PAS UN SECOND
+ * UNE LIGNE AU TÉLÉPHONE, UNE CARTE EN BUREAU — LE MÊME ÉLÉMENT
  * ────────────────────────────────────────────────────────────────────────────────────────────────
  *
- * `rounded-2xl border border-border bg-card`, l'eyebrow en capitales espacées
- * (`uppercase tracking-[0.18em]`), `font-display` sur le nom, `tabular-nums` sur les chiffres :
- * ce sont exactement les classes de `StatsBar` et des fiches livrées par TCK-242/276. Passer de
- * l'index à la fiche ne change donc pas de monde, ce que demande le § Direction UX du ticket.
+ * Au téléphone, une ligne d'environ 80 px (monogramme 48 px, trois lignes de texte) : cinq agences
+ * sans défiler, contre une et demie avant. Dès `lg`, la même `<li>` prend bordure et fond de carte
+ * et, pour une agence, ses trois aperçus de biens (`cover`). Un seul arbre, et non deux rendus
+ * masqués tour à tour : un profil n'apparaît qu'une fois dans le HTML qu'un moteur indexe.
  *
- * ⚠ **Aucun champ de contact n'est rendu, et il n'y en a pas non plus à rendre** : l'API ne les
- * sert pas sur ces deux endpoints (cf. `PublicAgentController::index()`). La carte mène à la
- * fiche, où le contact vit. *Une carte d'annuaire qui porte un numéro de téléphone est une ligne
- * de fichier de démarchage.*
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ * CE QUI NE S'AFFICHE PAS, ET POURQUOI
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
  *
- * L'ordre d'information suit les priorités du ticket : la ville et le volume de portefeuille
- * d'abord, la note ensuite quand elle existe, l'enseigne pour un agent.
+ * · **Aucun numéro, aucune adresse électronique** : l'API ne les sert pas sur l'index, et une ligne
+ *   d'annuaire qui porte un numéro est une ligne de fichier de démarchage. Le contact vit sur la
+ *   fiche.
+ * · **Un fait absent ne laisse ni trou ni « — »** : pas de délai (sous le seuil, ou médiane infinie
+ *   — décision 12) → rien ; pas de langue ni de quartier → la ligne entière disparaît ; pas de note
+ *   → « Pas encore d'avis », qui est une information et non un trou.
+ * · **Le total n'est pas la somme** : `portfolio_count` compte un bien sans type de contrat, qui
+ *   n'entre ni dans « à louer » ni dans « à vendre » (`PublicProfileFacts::portefeuilles()`). Les
+ *   trois nombres restent donc affichés.
  */
-export function ProfileCard({ profil, base, libelles, forme }: Props) {
+export function ProfileCard({ profil, base, forme }: Props) {
+  const t = useTranslations('publicProfileIndex');
+  const tRoles = useTranslations('publicProfile.roles');
+  const brut = useLocale();
+  const locale = isLocale(brut) ? brut : 'fr';
+
   const note = profil.reviews.average;
-  // TCK-573 — l'index `/agents` liste aussi des PROPRIÉTAIRES : la carte dit ce qu'est la personne
-  // avant l'enseigne, pour qu'un propriétaire dont les biens passent par une agence ne se lise pas
-  // comme un agent de cette agence. Une agence n'a pas de qualité à afficher.
-  const qualite = profil.public_role ? libelles.roles[profil.public_role] : null;
+  // TCK-573 — l'index `/agents` peut lister des PROPRIÉTAIRES inscrits à l'annuaire (TCK-2506) : la
+  // ligne dit ce qu'est la personne avant l'enseigne. Une agence n'a pas de qualité à afficher.
+  const qualite = profil.public_role ? tRoles(profil.public_role) : null;
   const complement = profil.agency?.name ?? profil.specialty ?? null;
   const sousTitre = [qualite, complement].filter(Boolean).join(' · ');
 
+  const delai = delaiDeReponse(profil.median_response_minutes);
+  const langues = profil.languages.filter(estLangueConnue).map((code) => t(`languages.${code}`));
+  const quartiers = profil.neighborhoods.map((q) => q.name);
+  const repartition = [
+    profil.rent_count > 0 ? t('card.rent', { count: profil.rent_count }) : null,
+    profil.sale_count > 0 ? t('card.sale', { count: profil.sale_count }) : null,
+  ].filter((x): x is string => x !== null);
+  const apercus = forme === 'carre' ? profil.cover.slice(0, 3) : [];
+  const rond = forme === 'rond';
+
   return (
-    <li className="group">
+    <li className="lg:flex lg:flex-col lg:rounded-2xl lg:border lg:border-border lg:bg-card lg:p-5 lg:transition-colors lg:has-[a:hover]:border-primary/40">
       <LienLocalise
         href={`${base}/${encodeURIComponent(profil.slug)}`}
-        className="flex h-full flex-col gap-4 rounded-2xl border border-border bg-card p-5 transition-colors hover:border-primary/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        className="flex items-center gap-3.5 py-3 outline-none focus-visible:rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:items-start lg:gap-4 lg:py-0"
       >
-        <div className="flex items-start gap-4">
-          <Avatar
-            className={forme === 'rond' ? 'size-14 shrink-0' : 'size-14 shrink-0 rounded-xl'}
-          >
-            {/* TCK-1814 (P180.03) — le logo passe par le loader (ADR-0029 §4) : `logo_url` est
-                l'original, jusqu'à 10 Mo. Pas d'`AvatarImage` : il précharge sa `src` brute pour
-                savoir quand masquer le repli. Les initiales ne sont rendues que sans logo, pour
-                qu'un logo transparent ne les laisse pas voir dessous. */}
-            {profil.logo_url ? (
-              <Image src={profil.logo_url} alt="" fill sizes="56px" className="bg-muted object-cover" />
-            ) : (
-              <AvatarFallback
-                className={forme === 'rond' ? 'font-display' : 'rounded-xl font-display'}
-              >
-                {initiales(profil.nom)}
-              </AvatarFallback>
-            )}
-          </Avatar>
+        <Monogramme profil={profil} rond={rond} />
 
-          <div className="min-w-0 flex-1">
-            {/* L'eyebrow porte la VILLE — la première des priorités du ticket. */}
-            {profil.city && (
-              <p className="flex items-center gap-1 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                <MapPin className="size-3" aria-hidden />
-                <span className="truncate">{profil.cities.join(' · ')}</span>
-              </p>
+        <div className="min-w-0 flex-1">
+          <h3 className="flex items-center gap-1.5 text-base font-semibold leading-snug text-foreground lg:font-display lg:text-lg lg:tracking-[-0.01em]">
+            <span className="truncate">{profil.nom}</span>
+            {profil.is_verified && (
+              <BadgeCheck className="size-4 shrink-0 text-primary" aria-label={t('card.verified')} />
             )}
-            <h3 className="mt-1 flex items-center gap-1.5 font-display text-lg font-semibold leading-tight text-foreground">
-              <span className="truncate">{profil.nom}</span>
-              {profil.is_verified && (
-                <BadgeCheck className="size-4 shrink-0 text-primary" aria-label={libelles.verifie} />
-              )}
-            </h3>
-            {sousTitre !== '' && (
-              <p className="mt-0.5 truncate text-sm text-muted-foreground">{sousTitre}</p>
-            )}
-          </div>
-        </div>
+          </h3>
 
-        <div className="mt-auto flex flex-wrap items-baseline gap-x-4 gap-y-1">
-          <p className="font-display text-2xl font-semibold tabular-nums text-primary">
-            {profil.portfolio_count}
-            <span className="ml-1.5 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              {libelles.portefeuille(profil.portfolio_count)}
+          {sousTitre !== '' && (
+            <p className="truncate text-[13px] text-muted-foreground lg:text-sm">{sousTitre}</p>
+          )}
+
+          <p className="truncate text-[13px] text-muted-foreground lg:text-sm">
+            <span className="font-medium tabular-nums text-foreground">
+              {t('card.properties', { count: profil.portfolio_count })}
             </span>
+            {profil.cities.length > 0 && <> · {profil.cities.join(', ')}</>}
           </p>
-          {note !== null && (
-            <p className="flex items-center gap-1 text-sm text-muted-foreground">
-              <Star className="size-3.5 fill-current text-primary" aria-hidden />
-              <span className="tabular-nums text-foreground" aria-label={libelles.noteAria(note)}>
-                {note.toFixed(1)}
-              </span>
-              <span>{libelles.avis(profil.reviews.count)}</span>
+
+          {(langues.length > 0 || quartiers.length > 0) && (
+            <p className="truncate text-[13px] text-muted-foreground lg:mt-2 lg:flex lg:flex-col lg:gap-1 lg:whitespace-normal lg:text-sm lg:text-foreground">
+              {langues.length > 0 && (
+                <span className="lg:flex lg:items-center lg:gap-2">
+                  <Languages className="hidden size-4 shrink-0 text-muted-foreground lg:inline" aria-hidden />
+                  <span className="sr-only">{t('card.languages')} : </span>
+                  {langues.join(' · ')}
+                </span>
+              )}
+              {langues.length > 0 && quartiers.length > 0 && <span className="lg:hidden"> · </span>}
+              {quartiers.length > 0 && (
+                <span className="lg:flex lg:items-center lg:gap-2">
+                  <MapPin className="hidden size-4 shrink-0 text-muted-foreground lg:inline" aria-hidden />
+                  <span className="sr-only">{t('card.neighborhoods')} : </span>
+                  <span className="lg:truncate">{quartiers.join(', ')}</span>
+                </span>
+              )}
             </p>
           )}
+
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[13px] text-muted-foreground lg:mt-1 lg:text-sm">
+            {note !== null ? (
+              <span className="inline-flex items-center gap-1">
+                <Star className="size-3.5 fill-current text-primary" aria-hidden />
+                <span
+                  className="font-semibold tabular-nums text-foreground"
+                  aria-label={t('card.ratingAria', { rating: note })}
+                >
+                  {formatNumber(note, locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                </span>
+                <span>{t('card.reviewsCount', { count: profil.reviews.count })}</span>
+              </span>
+            ) : (
+              <span>{t('card.noReviews')}</span>
+            )}
+            {delai !== null && (
+              <span className="inline-flex items-center gap-1">
+                <Clock className="size-3.5" aria-hidden />
+                {t(`card.response.${delai.unite}`, { count: delai.valeur })}
+              </span>
+            )}
+            {repartition.length > 0 && <span className="tabular-nums">{repartition.join(' · ')}</span>}
+          </p>
         </div>
 
-        <p className="text-sm text-muted-foreground">
-          {[
-            profil.rent_count > 0 ? libelles.aLouer(profil.rent_count) : null,
-            profil.sale_count > 0 ? libelles.aVendre(profil.sale_count) : null,
-          ]
-            .filter(Boolean)
-            .join(' · ')}
-        </p>
+        <ChevronRight className="size-4 shrink-0 text-muted-foreground lg:hidden" aria-hidden />
       </LienLocalise>
+
+      {/* En bureau seulement : la place ne manque pas, et trois biens donnent une raison d'ouvrir
+          la fiche. Décoratifs (`alt=""`) : le lien de la ligne porte déjà le nom de l'agence. */}
+      {apercus.length > 0 && (
+        <div className="mt-4 hidden grid-cols-3 gap-1.5 lg:grid" aria-hidden>
+          {apercus.map((photo) => (
+            <span key={photo.property_id} className="relative aspect-[4/3] overflow-hidden rounded-lg bg-muted">
+              <Image src={photo.photo_url} alt="" fill sizes="160px" className="object-cover" />
+            </span>
+          ))}
+        </div>
+      )}
     </li>
+  );
+}
+
+/** Le logo, ou un monogramme — jamais une image cassée (audit § 4, cf. {@link LogoOuInitiales}). */
+export function Monogramme({
+  profil,
+  rond,
+  className,
+}: {
+  readonly profil: Pick<ProfilPublic, 'nom' | 'logo_url'>;
+  readonly rond: boolean;
+  readonly className?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        'relative inline-flex size-12 shrink-0 items-center justify-center overflow-hidden font-display text-[15px] font-semibold lg:size-14 lg:text-base',
+        rond ? 'rounded-full bg-secondary text-primary-deep' : 'rounded-xl bg-foreground text-background',
+        className,
+      )}
+    >
+      <LogoOuInitiales nom={profil.nom} logoUrl={profil.logo_url} />
+    </span>
   );
 }

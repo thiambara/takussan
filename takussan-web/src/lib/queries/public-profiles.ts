@@ -53,6 +53,27 @@ export type ProfilPublic = {
    * le dire. Absent pour une agence.
    */
   readonly public_role?: 'agent' | 'owner';
+  /**
+   * TCK-2518 — le délai de réponse habituel, en minutes. `null` sous le seuil de conversations, ET
+   * quand la médiane tombe sur un fil resté sans réponse (décision 12 : rien d'affiché plutôt
+   * qu'un chiffre flatteur). Agence et agent.
+   */
+  readonly median_response_minutes: number | null;
+  /** TCK-2518 — agences : trois photos de biens PUBLICS de l'agence, la sélection d'abord. */
+  readonly cover: readonly PhotoDeCouverture[];
+  /** TCK-2518 — agences : les baux signés depuis le 1er du mois, toute issue confondue. */
+  readonly leases_signed_this_month: number;
+  /** TCK-2518 — agents : des CODES de langue (`config/directory.php`), le libellé est au front. */
+  readonly languages: readonly string[];
+  /** TCK-2518 — agents : les quartiers d'intervention, noms du référentiel. */
+  readonly neighborhoods: readonly { readonly id: number; readonly name: string }[];
+};
+
+/** Une photo de la couverture d'une agence (`cover` de TCK-2518). */
+export type PhotoDeCouverture = {
+  readonly property_id: number;
+  readonly slug: string;
+  readonly photo_url: string;
 };
 
 export type PageDeProfils = {
@@ -62,6 +83,12 @@ export type PageDeProfils = {
   readonly total: number;
   /** La facette de ville, DÉRIVÉE du catalogue éligible par l'API — jamais composée ici. */
   readonly villes: readonly string[];
+  /**
+   * TCK-2520 — l'agence « Mise en avant » de la ville demandée, À CÔTÉ de la liste : elle garde son
+   * rang dans `profils` (décision 1a). `null` sans place active ou éligible, et toujours `null`
+   * pour l'index des agents (la place n'existe que pour une agence).
+   */
+  readonly vitrine: ProfilPublic | null;
 };
 
 /** Les deux ressources, et le seul endroit où leurs chemins sont écrits. */
@@ -94,6 +121,8 @@ type ReponseApi = {
     readonly last_page: number;
     readonly cities?: readonly string[];
   };
+  /** TCK-2520 — racine de `GET /api/public/agencies` seulement. */
+  readonly spotlight?: Record<string, unknown> | null;
 };
 
 /**
@@ -127,7 +156,35 @@ function versProfil(brut: Record<string, unknown>): ProfilPublic {
     specialty: (brut.specialty ?? null) as string | null,
     public_role:
       brut.public_role === 'agent' || brut.public_role === 'owner' ? brut.public_role : undefined,
+    median_response_minutes: minutesOuNull(brut.median_response_minutes),
+    cover: Array.isArray(brut.cover)
+      ? (brut.cover as Record<string, unknown>[])
+          .filter((photo) => typeof photo?.photo_url === 'string' && photo.photo_url !== '')
+          .map((photo) => ({
+            property_id: Number(photo.property_id),
+            slug: String(photo.slug ?? ''),
+            photo_url: String(photo.photo_url),
+          }))
+      : [],
+    leases_signed_this_month: Number(brut.leases_signed_this_month ?? 0) || 0,
+    languages: Array.isArray(brut.languages)
+      ? (brut.languages as unknown[]).filter((code): code is string => typeof code === 'string')
+      : [],
+    neighborhoods: Array.isArray(brut.neighborhoods)
+      ? (brut.neighborhoods as Record<string, unknown>[])
+          .filter((q) => typeof q?.name === 'string' && q.name !== '')
+          .map((q) => ({ id: Number(q.id), name: String(q.name) }))
+      : [],
   };
+}
+
+/**
+ * Un délai lisible, ou `null`. ⚠ Un nombre non fini ou négatif est `null`, jamais affiché : l'API
+ * range une médiane infinie en `null` (décision 12), et le front ne doit pas en réinventer une.
+ */
+function minutesOuNull(valeur: unknown): number | null {
+  if (typeof valeur !== 'number' || !Number.isFinite(valeur) || valeur < 0) return null;
+  return valeur;
 }
 
 /** Les paramètres qu'une page d'index transmet à l'API — filtrés côté SERVEUR, jamais ici. */
@@ -176,7 +233,31 @@ export async function listerProfilsPublics(
     dernierePage: reponse.meta.last_page,
     total: reponse.meta.total,
     villes: reponse.meta.cities ?? [],
+    vitrine:
+      ressource === 'agencies' && reponse.spotlight != null && typeof reponse.spotlight === 'object'
+        ? versProfil(reponse.spotlight)
+        : null,
   };
+}
+
+/**
+ * Le compte d'un onglet de l'annuaire « Professionnels » (TCK-2521) : combien de profils la ressource
+ * a pour la ville demandée, la recherche par nom ignorée (elle ne vaut que pour l'onglet où on l'a
+ * tapée). Une requête `per_page=1`.
+ *
+ * ⚠ **Une panne rend `null`, et l'onglet s'affiche sans compte** : un compte est un ornement de
+ * navigation, il ne doit ni faire tomber la page, ni s'afficher à zéro sur un catalogue intact.
+ */
+export async function compterProfils(
+  ressource: RessourceDeProfil,
+  ville: string | undefined,
+  locale: Locale,
+): Promise<number | null> {
+  try {
+    return (await listerProfilsPublics(ressource, { ville }, locale, 1)).total;
+  } catch {
+    return null;
+  }
 }
 
 /**

@@ -11,12 +11,14 @@ import {
   confirmAgencyPayoutThreshold,
   regenerateAgencyWatermarks,
   updateAgency,
+  updateAgencyVitrine,
   uploadAgencyLogo,
   type RegenerateWatermarksResult,
 } from '@/lib/queries/agencies';
 import { validateAgencyLogoFile, type AgencyFormPayload } from '@/lib/schemas/agency';
 import { traduireMessageValidation, type Traducteur } from '@/lib/schemas/messages';
 import type { Agency } from '@/types/agency';
+import type { ChargeUtileVitrine } from '@/lib/vitrine-agence';
 import { journaliserErreurInattendue } from '@/lib/journal-erreur-action';
 
 /**
@@ -98,6 +100,26 @@ export async function updateAgencyAction(
   if (!auth.ok) return auth.result;
   try {
     const data = await updateAgency(auth.token, agencyId, payload, await getActiveProfileId());
+    revalidatePath('/app/agency');
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, ...(await mapError(e)) };
+  }
+}
+
+/**
+ * TCK-2524 — la vitrine de la fiche publique (accroche, « Pourquoi nous », sélection). Même garde que
+ * `updateAgencyAction` : `AgencyController@update`, capacité de configuration et second facteur ; le
+ * refus de second facteur remonte avec son `code` pour que l'écran ouvre la boîte de la coque.
+ */
+export async function updateAgencyVitrineAction(
+  agencyId: number,
+  payload: ChargeUtileVitrine,
+): Promise<ActionResult<Agency>> {
+  const auth = await requireToken();
+  if (!auth.ok) return auth.result;
+  try {
+    const data = await updateAgencyVitrine(auth.token, agencyId, payload, await getActiveProfileId());
     revalidatePath('/app/agency');
     return { ok: true, data };
   } catch (e) {

@@ -1,9 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import type { ReactNode } from 'react';
+import { render, screen, within } from '@testing-library/react';
 
 import type { AgencyDto, ResultatFicheAgence } from '@/lib/queries/public-agency';
+import type { PortefeuilleDeFiche } from '@/lib/queries/portefeuille-de-fiche';
+import type { PropertyListItem } from '@/types/property';
+import { withIntl } from '@/test/intl';
+import frMessages from '@/messages/fr.json';
 
 import Page, { generateMetadata } from '../page';
+import NotFound from '../not-found';
 
 /**
  * La fiche d'agence — **l'introuvable n'est pas l'indisponible** (TCK-438, AC1 et AC2).
@@ -64,14 +70,51 @@ vi.mock('next-intl/server', async () => {
   };
 });
 
-vi.mock('next/navigation', () => ({ notFound: () => notFoundMock() }));
+vi.mock('next/navigation', () => ({
+  notFound: () => notFoundMock(),
+  usePathname: () => '/fr/agencies/dakar-immo',
+  useRouter: () => ({ back: vi.fn(), push: vi.fn(), replace: vi.fn() }),
+}));
 vi.mock('@/lib/queries/public-agency', () => ({ getAgency: () => getAgencyMock() }));
 
-vi.mock('@/components/home/Navbar', () => ({ Navbar: () => <nav data-testid="navbar" /> }));
+// TCK-2522 — la première page du portefeuille, filtrée par l'URL : le chargeur a ses propres tests
+// (`lib/queries/__tests__/portefeuille-de-fiche.test.ts`) ; ici, on garde ce que la page lui passe.
+const chargerMock = vi.fn<(...args: unknown[]) => Promise<PortefeuilleDeFiche>>();
+vi.mock('@/lib/queries/portefeuille-de-fiche', () => ({
+  chargerPortefeuilleDeFiche: (...args: unknown[]) => chargerMock(...args),
+}));
+const rechercheProps = vi.fn();
+vi.mock('@/components/public/fiche/RechercheDuPortefeuille', () => ({
+  RechercheDuPortefeuille: (props: Record<string, unknown>) => {
+    rechercheProps(props);
+    return <div data-testid="recherche" />;
+  },
+}));
+const contactProps = vi.fn();
+vi.mock('@/components/public/fiche/ContactDeFiche', () => ({
+  ContactDeFiche: (props: Record<string, unknown>) => {
+    contactProps(props);
+    return <div data-testid="contact" />;
+  },
+}));
+// L'en-tête de fiche (IntersectionObserver, retour, partage) a son propre test ; il rend la couverture.
+vi.mock('@/components/public/fiche/EnTeteDeFiche', () => ({
+  EnTeteDeFiche: ({ children }: { children: ReactNode }) => <div data-testid="en-tete-de-fiche">{children}</div>,
+}));
+vi.mock('@/components/property/PropertyCard', () => ({
+  PropertyCard: ({ property }: { property: { title: string } }) => <article>{property.title}</article>,
+}));
+
+// La barre et sa cale rendent la surcharge qu'elles reçoivent (TCK-2568) : c'est elle qu'on juge.
+vi.mock('@/components/home/Navbar', () => ({
+  Navbar: ({ auTelephone }: { auTelephone?: string }) => <nav data-testid="navbar" data-au-telephone={auTelephone ?? 'selon-le-chemin'} />,
+}));
 vi.mock('@/components/home/Footer', () => ({ Footer: () => <footer data-testid="footer" /> }));
 // La cale sous la barre monte aussi les bandeaux du site (TCK-572), clients et branchés sur
 // React Query : du décor de page, comme la barre et le pied, hors du sujet de ces tests.
-vi.mock('@/components/home/NavbarSpacer', () => ({ NavbarSpacer: () => null }));
+vi.mock('@/components/home/NavbarSpacer', () => ({
+  NavbarSpacer: ({ auTelephone }: { auTelephone?: string } = {}) => <div data-testid="cale" data-au-telephone={auTelephone ?? 'selon-le-chemin'} />,
+}));
 vi.mock('@/components/shared/BoutonRetour', () => ({
   BoutonRetour: ({ repli, libelle }: { repli: string; libelle: string }) => <a href={repli}>{libelle}</a>,
 }));
@@ -111,6 +154,26 @@ function agence(overrides: Partial<AgencyDto> = {}): AgencyDto {
 
 const params = () => Promise.resolve({ slug: 'dakar-immo' });
 
+// Le libellé français d'une clé, lu dans le vrai dictionnaire (le texte peut changer sans casser ce test).
+const fr = (chemin: string): string =>
+  chemin.split('.').reduce<unknown>((n, c) => (n as Record<string, unknown>)[c], frMessages) as string;
+
+function portefeuille(overrides: Partial<PortefeuilleDeFiche> = {}): PortefeuilleDeFiche {
+  return { fixes: { agency: 'dakar-immo' }, graine: null, total: 12, ...overrides };
+}
+
+async function rendre(a: AgencyDto, searchParams: Record<string, string> = {}) {
+  getAgencyMock.mockResolvedValue({ etat: 'trouve', agence: a });
+  return render(withIntl(await Page({ params: params(), searchParams: Promise.resolve(searchParams) })));
+}
+
+beforeEach(() => {
+  chargerMock.mockReset();
+  chargerMock.mockResolvedValue(portefeuille());
+  rechercheProps.mockClear();
+  contactProps.mockClear();
+});
+
 describe("fiche d'agence — l'introuvable et l'indisponible", () => {
   beforeEach(() => {
     getAgencyMock.mockReset();
@@ -135,7 +198,7 @@ describe("fiche d'agence — l'introuvable et l'indisponible", () => {
   it("AC2 — une API injoignable rend l'indisponibilité, JAMAIS « agence introuvable »", async () => {
     getAgencyMock.mockResolvedValue({ etat: 'indisponible' });
 
-    render(await Page({ params: params() }));
+    render(withIntl(await Page({ params: params() })));
 
     expect(screen.getByText('Agence momentanément indisponible')).toBeInTheDocument();
     expect(screen.queryByText('Agence introuvable')).not.toBeInTheDocument();
@@ -160,11 +223,12 @@ describe("fiche d'agence — l'introuvable et l'indisponible", () => {
   it("l'agence trouvée est rendue par le serveur, sans état d'erreur", async () => {
     getAgencyMock.mockResolvedValue({ etat: 'trouve', agence: agence() });
 
-    render(await Page({ params: params() }));
+    render(withIntl(await Page({ params: params() })));
 
     expect(screen.getByRole('heading', { level: 1, name: 'Dakar Immo' })).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     // Retour d'administration du 2026-09-16 : la fiche n'avait aucun retour.
+    // TCK-2522 : en bureau ; au téléphone, le retour est celui de l'en-tête de fiche (sur la couverture).
     expect(screen.getByRole('link', { name: 'Retour' })).toHaveAttribute('href', '/agencies');
     expect(notFoundMock).not.toHaveBeenCalled();
   });
@@ -205,7 +269,7 @@ describe('TCK-1079 — le badge vérifié de la fiche d’agence', () => {
   it('une agence vérifiée porte le badge, à côté du nom et hors du titre', async () => {
     getAgencyMock.mockResolvedValue({ etat: 'trouve', agence: agence({ is_verified: true }) });
 
-    render(await Page({ params: params() }));
+    render(withIntl(await Page({ params: params() })));
 
     expect(screen.getByRole('img', { name: 'Profil vérifié' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1, name: 'Dakar Immo' })).toBeInTheDocument();
@@ -214,9 +278,154 @@ describe('TCK-1079 — le badge vérifié de la fiche d’agence', () => {
   it('une agence non vérifiée ne le porte pas', async () => {
     getAgencyMock.mockResolvedValue({ etat: 'trouve', agence: agence({ is_verified: false }) });
 
-    render(await Page({ params: params() }));
+    render(withIntl(await Page({ params: params() })));
 
     expect(screen.queryByRole('img', { name: 'Profil vérifié' })).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1, name: 'Dakar Immo' })).toBeInTheDocument();
+  });
+});
+
+function bien(id: number, title: string): PropertyListItem {
+  return { id, slug: `bien-${id}`, title } as unknown as PropertyListItem;
+}
+
+describe('TCK-2522 — la vitrine à onglets', () => {
+  it('AC1 — les filtres de l’URL partent au chargeur, avec le périmètre de l’agence ; la recherche reçoit sa graine et le « sur M »', async () => {
+    const graine = { resultat: { data: [], meta: { total: 7 } }, clef: 'agency=dakar-immo&contract_type=rent' } as unknown as PortefeuilleDeFiche['graine'];
+    chargerMock.mockResolvedValue(portefeuille({ graine, total: 68 }));
+
+    await rendre(agence(), { contract_type: 'rent', bedrooms: '2', price_max: '1000000' });
+
+    expect(chargerMock).toHaveBeenCalledWith(
+      { agency: 'dakar-immo' },
+      { contract_type: 'rent', bedrooms: '2', price_max: '1000000' },
+      'fr',
+    );
+    const props = rechercheProps.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(props.graine).toBe(graine);
+    expect(props.total).toBe(68);
+    expect(props.fixes).toEqual({ agency: 'dakar-immo' });
+    // Revue du 2026-11-09 — la recherche colle sous les onglets (maquette D, `top-[49px]`).
+    expect(props.collerSous).toBe('onglets');
+    // L'onglet Biens compte le portefeuille cherchable, celui du « sur M ».
+    expect(screen.getByRole('tab', { name: /Biens\s*68/ })).toBeInTheDocument();
+  });
+
+  it('AC4 — sans accroche, sans « Pourquoi nous » ni sélection : couverture, identité et biens, sans bloc vide', async () => {
+    const { container } = await rendre(agence({ tagline: null, highlights: [], showcase: [], cover: [] }));
+
+    expect(container.querySelector('[data-couverture]')).not.toBeNull();
+    expect(screen.getByRole('heading', { level: 1, name: 'Dakar Immo' })).toBeInTheDocument();
+    expect(screen.getByTestId('recherche')).toBeInTheDocument();
+    expect(container.querySelector('[data-selection-de-fiche]')).toBeNull();
+    expect(screen.queryByRole('list', { name: 'Pourquoi nous' })).not.toBeInTheDocument();
+    expect(screen.queryByText(fr('agency.publicPage.selection'))).not.toBeInTheDocument();
+    // Aucun élément vide laissé dans la colonne principale (ni <ul> sans <li>, ni <p> sans texte).
+    for (const el of container.querySelectorAll('main ul, main p')) {
+      expect(el.textContent?.trim() ?? '', el.outerHTML.slice(0, 80)).not.toBe('');
+    }
+  });
+
+  it('la vitrine remplie rend accroche, « Pourquoi nous » et la sélection, dans son ordre', async () => {
+    await rendre(
+      agence({
+        tagline: 'On loue et on vend à Dakar depuis 2014.',
+        highlights: ['Visites sous 48 h', '  ', 'Équipe wolof et français'],
+        showcase: [bien(839, 'Villa Ngor'), bien(108, 'Studio Mermoz')],
+      }),
+    );
+
+    expect(screen.getByText('On loue et on vend à Dakar depuis 2014.')).toBeInTheDocument();
+    const pourquoi = screen.getByRole('list', { name: 'Pourquoi nous' });
+    // Une ligne blanche n'est pas un argument : elle ne fait pas une puce vide.
+    expect(within(pourquoi).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Visites sous 48 h', 'Équipe wolof et français']);
+    const selection = screen.getByRole('region', { name: fr('agency.publicPage.selection') });
+    expect(within(selection).getAllByRole('article').map((a) => a.textContent)).toEqual(['Villa Ngor', 'Studio Mermoz']);
+    // Avec une sélection, la liste complète s'intitule « Tous ses biens ».
+    expect((rechercheProps.mock.calls.at(-1)?.[0] as { titre: { props: { children: string } } }).titre.props.children).toBe('Tous ses biens');
+  });
+
+  it('une agence sans aucun bien garde l’état vide, sans champ de recherche', async () => {
+    chargerMock.mockResolvedValue(portefeuille({ total: 0 }));
+    await rendre(agence({ portfolio_total: 0, portfolio_count: 0 }));
+
+    expect(screen.getByText(fr('agency.publicPage.emptyTitle'))).toBeInTheDocument();
+    expect(screen.queryByTestId('recherche')).not.toBeInTheDocument();
+  });
+
+  it('une agence dont la recherche est en panne garde son champ (le client redemande), sans « sur M »', async () => {
+    chargerMock.mockResolvedValue(portefeuille({ total: null, graine: null }));
+    await rendre(agence({ portfolio_total: 12 }));
+
+    expect(screen.getByTestId('recherche')).toBeInTheDocument();
+    expect((rechercheProps.mock.calls.at(-1)?.[0] as { total: unknown }).total).toBeNull();
+  });
+
+  it('TCK-2506 — l’équipe ne montre que des agents, et l’onglet les compte', async () => {
+    await rendre(
+      agence({
+        agents: [
+          { id: 1, slug: 'awa-diop', full_name: 'Awa Diop', public_role: 'agent', avatar_url: null },
+          { id: 2, slug: 'sokhna-g', full_name: 'Sokhna Gueye', public_role: 'owner', avatar_url: null },
+        ] as unknown as AgencyDto['agents'],
+      }),
+    );
+
+    expect(screen.getByRole('tab', { name: /Équipe\s*1/ })).toBeInTheDocument();
+    // Le panneau Équipe est monté mais masqué tant que son onglet n'est pas choisi (`keepMounted`) :
+    // l'équipe reste dans le HTML servi.
+    expect(screen.getByRole('link', { name: /Awa Diop/, hidden: true })).toHaveAttribute('href', '/fr/agents/awa-diop');
+    expect(screen.queryByText('Sokhna Gueye')).not.toBeInTheDocument();
+  });
+
+  it('sans agent, pas d’onglet Équipe ; sans avis, pas d’onglet Avis', async () => {
+    await rendre(agence({ agents: [], reviews: undefined }));
+
+    expect(screen.queryByRole('tab', { name: /Équipe/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /Avis/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Infos' })).toBeInTheDocument();
+  });
+
+  it('TCK-2518 — une médiane absente n’affiche aucun délai ; une médiane servie l’affiche', async () => {
+    await rendre(agence({ median_response_minutes: null }));
+    expect(screen.queryByText(/Répond en/)).not.toBeInTheDocument();
+    expect((contactProps.mock.calls.at(-1)?.[0] as { sousTitre: unknown }).sousTitre).toBeNull();
+  });
+
+  it('TCK-2518 — 90 minutes : « Répond en ~2 h », sur la fiche et sur la carte de contact', async () => {
+    await rendre(agence({ median_response_minutes: 90 }));
+    expect(screen.getAllByText(/Répond en ~2 h/).length).toBeGreaterThan(0);
+    expect((contactProps.mock.calls.at(-1)?.[0] as { sousTitre: unknown }).sousTitre).toBe('Répond en ~2 h');
+  });
+
+  it('le contact de l’agence : son numéro et son adresse d’entreprise', async () => {
+    await rendre(agence());
+    const props = contactProps.mock.calls.at(-1)?.[0] as { telephone: unknown; message: { genre: string; adresse: string } };
+    expect(props.telephone).toBe('+221 33 000 00 00');
+    expect(props.message).toMatchObject({ genre: 'courriel', adresse: 'contact@dakar-immo.sn' });
+  });
+});
+
+describe('TCK-2568 — le haut de l’écran au téléphone, branché par la fiche d’agence', () => {
+  const surcharges = () => [
+    screen.getByTestId('navbar').getAttribute('data-au-telephone'),
+    screen.getByTestId('cale').getAttribute('data-au-telephone'),
+  ];
+
+  it('la fiche servie n’a pas de barre du site au téléphone — barre ET cale : retour et partager sont sur la couverture', async () => {
+    await rendre(agence());
+    expect(surcharges()).toEqual(['en-tete-de-page', 'en-tete-de-page']);
+    expect(screen.getByTestId('en-tete-de-fiche')).toBeInTheDocument();
+  });
+
+  it('la panne de l’API ouvre sur la barre de marque — barre ET cale', async () => {
+    getAgencyMock.mockResolvedValue({ etat: 'indisponible' });
+    render(withIntl(await Page({ params: params() })));
+    expect(surcharges()).toEqual(['marque', 'marque']);
+  });
+
+  it('l’agence inconnue (404) ouvre sur la barre de marque', () => {
+    render(withIntl(<NotFound />));
+    expect(surcharges()).toEqual(['marque', 'marque']);
   });
 });
