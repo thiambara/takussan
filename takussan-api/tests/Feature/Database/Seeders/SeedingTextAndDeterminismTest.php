@@ -103,6 +103,37 @@ class SeedingTextAndDeterminismTest extends TestCase
         $this->assertNotSame($premier, $autre, 'La graine ne gouverne pas les tirages.');
     }
 
+    /**
+     * Le test ci-dessus ne voit un tirage SQL qu'au hasard : `inRandomOrder()` dans
+     * DocumentShareLinkSeeder ne le faisait rougir qu'environ un seed sur cinq, par le tirage borné
+     * de PHP qui consomme un nombre variable de valeurs selon le document tiré. Celui-ci le voit à
+     * coup sûr : aucun seeder ne demande son aléa à la base.
+     */
+    public function test_aucun_seeder_ne_tire_au_hasard_dans_la_base(): void
+    {
+        $fautifs = [];
+        $fichiers = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(database_path('seeders'), \FilesystemIterator::SKIP_DOTS));
+        foreach ($fichiers as $fichier) {
+            if ($fichier->getExtension() !== 'php') {
+                continue;
+            }
+            // Par jetons, commentaires écartés : un commentaire qui NOMME `inRandomOrder()` n'en tire pas.
+            foreach (token_get_all((string) file_get_contents($fichier->getPathname())) as $jeton) {
+                $fautif = is_array($jeton) && match ($jeton[0]) {
+                    T_STRING => strcasecmp($jeton[1], 'inRandomOrder') === 0,
+                    T_CONSTANT_ENCAPSED_STRING, T_ENCAPSED_AND_WHITESPACE => preg_match('/\brandom\s*\(\s*\)/i', $jeton[1]) === 1,
+                    default => false,
+                };
+                if ($fautif) {
+                    $fautifs[] = str_replace(database_path().'/', '', $fichier->getPathname());
+                    break;
+                }
+            }
+        }
+
+        $this->assertSame([], $fautifs, 'Un seeder tire dans la base, hors de la graine : passer par Tirage.');
+    }
+
     public function test_les_loyers_passent_par_plusieurs_moyens_de_paiement(): void
     {
         $this->semer(2026);
