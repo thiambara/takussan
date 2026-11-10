@@ -147,9 +147,15 @@ export type OptionsDeRecherche = {
    * même requête) : sinon le client la redemande, sans rien casser. Absent : la liste, inchangée.
    */
   readonly parametresFixes?: Readonly<Record<string, string>>;
+  /**
+   * TCK-2522 / TCK-2523 (revue du 2026-11-09) — `true` : un geste de filtre n'écrit pas `page=1`
+   * dans l'URL (la première page est celle par défaut). L'URL d'une fiche est celle que « Partager »
+   * recopie. Absent : la liste, qui l'écrit, inchangée.
+   */
+  readonly sansPageUne?: boolean;
 };
 
-export function useSearch({ graine, parametresFixes }: OptionsDeRecherche = {}) {
+export function useSearch({ graine, parametresFixes, sansPageUne = false }: OptionsDeRecherche = {}) {
   const router   = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -276,10 +282,12 @@ export function useSearch({ graine, parametresFixes }: OptionsDeRecherche = {}) 
     options: OptionsNavigation = {},
   ) => {
     const merged = { ...filtresVises, ...filters, page: 1 };
-    const qs = filtersToParams(merged).toString();
+    const params = filtersToParams(merged);
+    if (sansPageUne) params.delete('page');
+    const qs = params.toString();
     // `scroll: false` : affiner une recherche ne doit pas ramener l'œil en haut de page.
     naviguer(`${pathname}${qs ? '?' + qs : ''}`, options.historique ?? 'push', merged);
-  }, [naviguer, pathname, filtresVises]);
+  }, [naviguer, pathname, filtresVises, sansPageUne]);
 
   const setPage = useCallback((page: number) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -311,9 +319,11 @@ export function useSearch({ graine, parametresFixes }: OptionsDeRecherche = {}) 
     // paie cher ailleurs. Ce qui reste load-bearing, c'est la POSSESSION des trois paramètres
     // par `radius_km` (`params`), gardée par `search-filters.parity.test.ts`.
     normaliserGeo(params);
-    params.set('page', '1');
-    naviguer(`${pathname}?${params.toString()}`, 'push', filtersFromSearchParams(params));
-  }, [naviguer, pathname, searchParams]);
+    if (sansPageUne) params.delete('page');
+    else params.set('page', '1');
+    const qs = params.toString();
+    naviguer(sansPageUne && !qs ? pathname : `${pathname}?${qs}`, 'push', filtersFromSearchParams(params));
+  }, [naviguer, pathname, searchParams, sansPageUne]);
 
   /**
    * TCK-338 — retirer UN terme de la requête texte, en gardant tout le reste.

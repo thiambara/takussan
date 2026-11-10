@@ -12,6 +12,7 @@ import { ProfileDirectorySection } from '@/components/profile/ProfileDirectorySe
 import { ProfileMenuSection } from '@/components/profile/ProfileMenuSection';
 import { ProfileCustomerSection } from '@/components/profile/ProfileCustomerSection';
 import { ProfileAgentSection } from '@/components/profile/ProfileAgentSection';
+import { ProfileAgentDirectorySection } from '@/components/profile/ProfileAgentDirectorySection';
 import { ProfileOwnerSection } from '@/components/profile/ProfileOwnerSection';
 import { ProfileAdminSection } from '@/components/profile/ProfileAdminSection';
 import { ProfileServiceProviderSection } from '@/components/profile/ProfileServiceProviderSection';
@@ -46,6 +47,8 @@ export default async function ProfilePage() {
           demandé. */}
       {isCustomerOnly(user.roles) && <ProfileCustomerSection user={user} />}
       {isAgent(user.roles) && <ProfileAgentSection />}
+      {/* TCK-2524 — ses langues et ses quartiers, que la fiche publique d'agent affiche (TCK-2518). */}
+      {isAgent(user.roles) && <ProfileAgentDirectorySection />}
       {isOwner(user.roles) && <ProfileOwnerSection user={user} />}
       {/* TCK-2506 — un propriétaire n'est dans l'annuaire public que s'il le choisit. Un agent y est
           toujours : l'interrupteur ne lui dirait rien de vrai. */}

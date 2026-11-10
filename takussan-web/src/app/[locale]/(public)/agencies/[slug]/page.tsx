@@ -1,27 +1,39 @@
+import type { ReactNode } from 'react';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import Image from 'next/image';
-import { BadgeCheck, Building2, ShieldCheck } from 'lucide-react';
+import { BadgeCheck, Building2, Check, Clock, Mail, MapPin, Phone, ShieldCheck, Star, Store } from 'lucide-react';
 import { ErrorState } from '@/components/feedback';
 import { Navbar } from '@/components/home/Navbar';
 import { NavbarSpacer } from '@/components/home/NavbarSpacer';
 import { Footer } from '@/components/home/Footer';
-import { BogolanPattern } from '@/components/property/cards/BogolanPattern';
-import { ContactSheet } from '@/components/public/profile/ContactSheet';
 import { BoutonRetour } from '@/components/shared/BoutonRetour';
-import { StatsBar } from '@/components/public/profile/StatsBar';
-import { PortfolioTabs } from '@/components/public/profile/PortfolioTabs';
+import { LienLocalise } from '@/components/shared/LienLocalise';
 import { ReviewsSection } from '@/components/public/profile/ReviewsSection';
-import { TeamStrip } from '@/components/public/profile/TeamStrip';
+import { ContactDeFiche } from '@/components/public/fiche/ContactDeFiche';
+import { CouvertureDeFiche } from '@/components/public/fiche/CouvertureDeFiche';
+import { OngletsDeFiche, type OngletDeFiche } from '@/components/public/fiche/OngletsDeFiche';
+import { RechercheDuPortefeuille } from '@/components/public/fiche/RechercheDuPortefeuille';
+import { SelectionDeFiche } from '@/components/public/fiche/SelectionDeFiche';
+import { LogoDeFiche } from '@/components/public/fiche/LogoDeFiche';
+import { EnTeteDeFiche } from '@/components/public/fiche/EnTeteDeFiche';
 import { alternatesPubliques } from '@/lib/alternates';
 import { resumePourMeta } from '@/lib/resume-pour-meta';
 import { isLocale } from '@/i18n/config';
 import { DonneesStructurees } from '@/lib/jsonld';
 import { jsonLdAgence } from '@/lib/jsonld-profil';
-import { getAgency } from '@/lib/queries/public-agency';
+import { getAgency, type AgencyDto } from '@/lib/queries/public-agency';
+import { chargerPortefeuilleDeFiche } from '@/lib/queries/portefeuille-de-fiche';
+import { delaiDeReponse, initiales } from '@/lib/fiche-publique';
+import { telephonePublie } from '@/lib/phone';
 import { CONTENU_PRINCIPAL_ID } from '@/components/shared/contenu-principal';
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+type Props = {
+  readonly params: Promise<{ slug: string }>;
+  readonly searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export async function generateMetadata({ params }: Props) {
   const { slug } = await params;
   const t = await getTranslations('agency.publicPage');
   const brut = await getLocale();
@@ -92,15 +104,6 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
-function getInitials(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join('');
-}
-
 /**
  * L'API n'a pas répondu — **et on ne dit surtout pas que l'agence n'existe pas.**
  *
@@ -114,8 +117,10 @@ async function agenceIndisponible() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
-      <NavbarSpacer />
+      {/* TCK-2568 — la panne ouvre, au téléphone, sur la barre de MARQUE (écran « Erreur serveur » de
+          la maquette des erreurs) : le chemin de fiche, lui, n'a plus de barre du site. */}
+      <Navbar auTelephone="marque" />
+      <NavbarSpacer auTelephone="marque" />
       <main id={CONTENU_PRINCIPAL_ID} tabIndex={-1} className="mx-auto max-w-3xl px-4 py-20 sm:px-6 lg:px-8 focus:outline-none">
         <h1 className="mb-6 font-display text-2xl font-semibold text-foreground sm:text-3xl">
           {t('unavailableTitle')}
@@ -127,8 +132,45 @@ async function agenceIndisponible() {
   );
 }
 
-export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
+
+/** Une rubrique de l'onglet Infos : une icône, un intitulé, une valeur. */
+function Rubrique({ icone, titre, children }: { readonly icone: ReactNode; readonly titre: string; readonly children: ReactNode }) {
+  return (
+    <li className="flex gap-3.5 py-3.5">
+      <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-primary-deep" aria-hidden>
+        {icone}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[13px] text-muted-foreground">{titre}</p>
+        <div className="text-[15px] text-foreground">{children}</div>
+      </div>
+    </li>
+  );
+}
+
+/**
+ * TCK-2522 — la fiche publique d'une agence : **la vitrine à onglets, couverture et recherche**
+ * (maquette `?p=agence&a=d`).
+ *
+ * - En haut (de C) : la couverture composée de trois de ses biens, l'identité, l'accroche,
+ *   « Pourquoi nous », puis la sélection — en tête de l'onglet Biens, visible au premier écran.
+ * - Ensuite (de A) : les onglets collants Biens · Équipe · Avis · Infos, les biens en lignes denses
+ *   (cartes en bureau) cherchables et filtrables, « Voir N biens de plus », la barre d'actions au
+ *   téléphone et la colonne d'identité collante en bureau.
+ *
+ * **Rien de l'existant ne se perd** — retour, logo (monogramme en repli), badge vérifié, licence,
+ * description, chiffres, Tous / À louer / À vendre avec les vrais totaux (facettes de l'API), avis
+ * avec note moyenne et auteur abrégé (`ReviewsSection`), données structurées, vrai 404, état
+ * « indisponible ». Sans accroche, sans « Pourquoi nous » et sans sélection, la fiche retombe sur la
+ * forme A : aucun de ces blocs n'est rendu, et aucun cadre vide ne reste (AC4).
+ *
+ * Les filtres vivent dans l'URL, dans le dialecte de `/properties` (`?contract_type=rent&bedrooms=2`),
+ * et la première page est rendue par le SERVEUR avec eux (AC1) : un lien partagé rouvre la même
+ * sélection.
+ */
+export default async function Page({ params, searchParams }: Props) {
   const t = await getTranslations('agency.publicPage');
+  const tProfil = await getTranslations('publicProfile');
   const tIndex = await getTranslations('publicProfileIndex');
   const { slug } = await params;
   const brutLocale = await getLocale();
@@ -140,170 +182,300 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
   if (resultat.etat === 'introuvable') notFound();
   if (resultat.etat === 'indisponible') return agenceIndisponible();
 
-  const agency = resultat.agence;
+  const agency: AgencyDto = resultat.agence;
   const stats = agency.stats;
   const reviews = agency.reviews;
+  const portefeuille = await chargerPortefeuilleDeFiche({ agency: agency.slug }, (await searchParams) ?? {}, brutLocale);
 
-  const eyebrowParts = [agency.city].filter(Boolean) as string[];
+  const tagline = agency.tagline?.trim() || null;
+  const highlights = (agency.highlights ?? []).map((h) => h.trim()).filter((h) => h !== '');
+  const showcase = agency.showcase ?? [];
+  const delai = delaiDeReponse(agency.median_response_minutes);
+  const texteDelai = delai ? tProfil(`delai.${delai.unite}`, { n: delai.valeur }) : null;
+  const bauxDuMois = agency.leases_signed_this_month ?? 0;
+  const noteMoyenne = reviews && reviews.count > 0 && reviews.average !== null ? reviews.average : null;
+  // Une agence sans aucun bien — ni dans sa fiche, ni dans la recherche — garde l'état vide d'avant :
+  // pas de champ de recherche sur un portefeuille vide.
+  const sansBien = agency.portfolio_total === 0 && (portefeuille.total ?? 0) === 0;
 
-  const statsItems = stats
+  const chiffres = stats
     ? [
-        { label: t('statsRent'), value: stats.rent_count },
-        { label: t('statsSale'), value: stats.sale_count },
-        { label: t('statsCities'), value: stats.cities },
-        { label: t('statsAgents'), value: stats.agents },
+        t('chiffres.louer', { count: stats.rent_count }),
+        t('chiffres.vendre', { count: stats.sale_count }),
+        t('chiffres.villes', { count: stats.cities }),
+        t('chiffres.agents', { count: stats.agents }),
       ]
     : [];
 
-  return (
-    <div className="min-h-screen bg-background">
-      {/*
-        TCK-435 — le balisage n'affirme QUE ce que la page rend : la note agrégée n'est émise
-        qu'au-dessus de zéro avis, la ville nulle ne devient pas la chaîne « null », et le
-        contact ne dépasse pas ce que `ContactSheet` publie déjà.
-      */}
-      <DonneesStructurees donnees={jsonLdAgence(agency, locale)} />
-      <Navbar />
-      <NavbarSpacer />
-
-      <main id={CONTENU_PRINCIPAL_ID} tabIndex={-1} className="max-w-[1200px] mx-auto px-4 sm:px-6 md:px-12 pt-10 pb-24 space-y-16 focus:outline-none">
-        {/* Hero asymétrique avec watermark bogolan */}
-        <section className="relative">
-          <div className="absolute inset-x-[-12px] inset-y-[-32px] md:inset-x-[-24px] md:inset-y-[-48px] -z-10 rounded-[28px] overflow-hidden bg-card">
-            <div className="absolute inset-0 opacity-[0.04] text-foreground">
-              <BogolanPattern className="w-full h-full" color="currentColor" />
-            </div>
-          </div>
-
-          <BoutonRetour repli="/agencies" libelle={t('back')} className="mb-6" />
-
-          {/* `md:items-end` : la colonne de contenu (description, contact) s'aligne sur le NOM, en
-              bas de la colonne d'identité — alignée en haut, elle flottait à hauteur du logo, et
-              sans description les boutons de contact restaient seuls en haut à droite (revue
-              design du 2026-09-16). */}
-          <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] md:gap-12 md:items-end">
-            {/* Colonne identité */}
-            <div className="flex flex-col gap-6">
-              <div className="relative size-24 md:size-32 shrink-0 overflow-hidden rounded-2xl border border-border bg-muted">
-                {agency.logo_url ? (
-                  <Image
-                    src={agency.logo_url}
-                    alt={agency.name}
-                    fill
-                    sizes="128px"
-                    className="object-cover"
-                    priority
-                  />
-                ) : (
-                  <span className="flex size-full items-center justify-center text-3xl font-display text-muted-foreground">
-                    {getInitials(agency.name)}
-                  </span>
-                )}
-              </div>
-
-              <div>
-                {eyebrowParts.length > 0 && (
-                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                    {eyebrowParts.join(' · ')}
-                  </p>
-                )}
-                {/* TCK-1079 — le badge de `ProfileCard`, hors du titre : le nom accessible du
-                    `h1` reste le nom de l'agence. */}
-                <div className="mt-2 flex items-center gap-2">
-                  <h1 className="font-display text-4xl md:text-5xl font-semibold leading-tight tracking-tight text-foreground text-balance">
-                    {agency.name}
-                  </h1>
-                  {agency.is_verified && (
-                    <BadgeCheck
-                      role="img"
-                      className="size-6 md:size-7 shrink-0 text-primary"
-                      aria-label={tIndex('card.verified')}
-                    />
-                  )}
-                </div>
-                {agency.license_number && (
-                  <address className="not-italic mt-3 inline-flex items-center gap-2 text-sm text-muted-foreground">
-                    <ShieldCheck className="size-4" aria-hidden />
-                    <span>{t('license', { number: agency.license_number })}</span>
-                  </address>
-                )}
-              </div>
-            </div>
-
-            {/* Colonne contenu */}
-            {/* Sans description, les boutons se rangent à droite (même règle que le profil d'agent). */}
-            <div className={agency.description ? 'flex flex-col gap-6' : 'flex flex-col gap-6 md:items-end'}>
-              {agency.description && (
-                <p className="text-base md:text-lg leading-relaxed text-muted-foreground max-w-prose">
-                  {agency.description}
-                </p>
-              )}
-
-              <ContactSheet
-                name={agency.name}
-                email={agency.email}
-                phone={agency.phone}
-                subject={t('contactSubject', { name: agency.name })}
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* Bandeau de stats */}
-        {stats && <StatsBar items={statsItems} />}
-
-        {/* Équipe — strip horizontal scrollable */}
-        {agency.agents.length > 0 && (
-          <section aria-labelledby="team-heading">
-            {/* TCK-505 #10 — l'en-tête (surtitre, titre, flèches) est rendu par le strip. */}
-            <TeamStrip
-              agents={agency.agents}
-              eyebrow={t('teamEyebrow')}
-              heading={t('teamHeading', { count: agency.agents.length })}
-              headingId="team-heading"
-            />
-          </section>
-        )}
-
-        {/* Portefeuille avec onglets */}
-        <section aria-labelledby="portfolio-heading">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            {t('portfolioEyebrow')}
-          </p>
-          <h2
-            id="portfolio-heading"
-            className="mt-2 mb-6 font-display text-2xl md:text-3xl font-semibold text-foreground"
-          >
-            {t('portfolioHeading')}
-          </h2>
-
-          {agency.portfolio.length === 0 ? (
+  const onglets: OngletDeFiche[] = [
+    {
+      id: 'biens',
+      libelle: t('onglets.biens'),
+      compte: portefeuille.total ?? agency.portfolio_total,
+      contenu: (
+        <div className="space-y-10">
+          <SelectionDeFiche biens={showcase} titre={t('selection')} idTitre="selection-heading" />
+          {sansBien ? (
             <div className="rounded-2xl border border-border bg-card p-10 text-center">
               <Building2 className="mx-auto size-6 text-muted-foreground" aria-hidden />
               <p className="mt-3 font-display text-xl text-foreground">{t('emptyTitle')}</p>
               <p className="mt-2 text-sm text-muted-foreground">{t('emptyBody')}</p>
             </div>
           ) : (
-            <PortfolioTabs
-              portfolio={agency.portfolio}
-              source={{ kind: 'agency', slug: agency.slug }}
-              totals={{
-                all: agency.portfolio_total,
-                rent: stats?.rent_count ?? 0,
-                sale: stats?.sale_count ?? 0,
-              }}
+            <RechercheDuPortefeuille
+              graine={portefeuille.graine}
+              fixes={portefeuille.fixes}
+              total={portefeuille.total}
+              nom={agency.name}
+              collerSous="onglets"
+              titre={
+                <h2 key="titre" id="portfolio-heading" className="font-display text-lg font-semibold tracking-tight text-foreground lg:text-2xl">
+                  {showcase.length > 0 ? t('tousSesBiens') : t('portfolioHeading')}
+                </h2>
+              }
             />
           )}
-        </section>
+        </div>
+      ),
+    },
+  ];
 
-        {/* Avis */}
-        {reviews && (
-          <ReviewsSection
-            average={reviews.average}
-            count={reviews.count}
-            reviews={reviews.recent}
+  // TCK-2506 — l'équipe ne montre que des agents : l'API filtre déjà (`public_role === 'agent'`) ;
+  // la page refiltre, pour qu'un propriétaire client ne s'y glisse jamais par une API plus ancienne.
+  const equipe = agency.agents.filter((agent) => agent.public_role !== 'owner');
+  if (equipe.length > 0) {
+    onglets.push({
+      id: 'equipe',
+      libelle: t('onglets.equipe'),
+      compte: equipe.length,
+      contenu: (
+        <section aria-labelledby="team-heading">
+          <h2 id="team-heading" className="font-display text-lg font-semibold tracking-tight text-foreground lg:text-2xl">
+            {t('equipeTitre', { count: equipe.length })}
+          </h2>
+          <ul className="mt-2 divide-y divide-border lg:grid lg:grid-cols-2 lg:gap-x-8 lg:divide-y-0">
+            {equipe.map((agent) => {
+              const ligne = (
+                <>
+                  <span className="relative inline-flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-secondary font-display text-[15px] font-semibold text-primary-deep">
+                    {agent.avatar_url ? (
+                      <Image src={agent.avatar_url} alt="" fill sizes="48px" className="object-cover" />
+                    ) : (
+                      <span aria-hidden>{initiales(agent.full_name)}</span>
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-base font-semibold text-foreground">{agent.full_name}</span>
+                    <span className="block truncate text-[13px] text-muted-foreground">
+                      {[agent.specialty, typeof agent.portfolio_count === 'number' && agent.portfolio_count > 0 ? tProfil('team.propertiesCount', { count: agent.portfolio_count }) : null]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </span>
+                  </span>
+                </>
+              );
+              return (
+                <li key={agent.id} className="lg:border-b lg:border-border">
+                  {agent.slug ? (
+                    <LienLocalise href={`/agents/${encodeURIComponent(agent.slug)}`} className="flex min-h-[72px] items-center gap-3.5 py-3 hover:text-primary">
+                      {ligne}
+                    </LienLocalise>
+                  ) : (
+                    <div className="flex min-h-[72px] items-center gap-3.5 py-3">{ligne}</div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          <p className="mt-4 text-[13px] text-muted-foreground">{t('equipeNote')}</p>
+        </section>
+      ),
+    });
+  }
+
+  if (reviews && reviews.count > 0 && reviews.recent.length > 0) {
+    onglets.push({
+      id: 'avis',
+      libelle: t('onglets.avis'),
+      compte: reviews.count,
+      contenu: <ReviewsSection average={reviews.average} count={reviews.count} reviews={reviews.recent} />,
+    });
+  }
+
+  const telephone = agency.phone ?? null;
+  onglets.push({
+    id: 'infos',
+    libelle: t('onglets.infos'),
+    contenu: (
+      <section aria-labelledby="infos-heading">
+        <h2 id="infos-heading" className="sr-only">
+          {t('onglets.infos')}
+        </h2>
+        <ul className="divide-y divide-border">
+          {agency.description ? (
+            <Rubrique icone={<Store className="size-5" />} titre={t('infos.aPropos')}>
+              <p className="leading-relaxed">{agency.description}</p>
+            </Rubrique>
+          ) : null}
+          {agency.license_number || agency.is_verified ? (
+            <Rubrique icone={<ShieldCheck className="size-5" />} titre={t('infos.licence')}>
+              {[agency.license_number ? t('license', { number: agency.license_number }) : null, agency.is_verified ? t('infos.verifiee') : null]
+                .filter(Boolean)
+                .join(' · ')}
+            </Rubrique>
+          ) : null}
+          {agency.city || (stats && stats.cities > 0) ? (
+            <Rubrique icone={<MapPin className="size-5" />} titre={t('infos.ou')}>
+              {[agency.city, stats && stats.cities > 0 ? t('chiffres.villes', { count: stats.cities }) : null].filter(Boolean).join(' · ')}
+            </Rubrique>
+          ) : null}
+          {telephone ? (
+            <Rubrique icone={<Phone className="size-5" />} titre={tProfil('contact.call')}>
+              <a href={`tel:${telephonePublie(telephone)}`} className="tabular-nums underline-offset-4 hover:underline">
+                {telephone}
+              </a>
+            </Rubrique>
+          ) : null}
+          {agency.email ? (
+            <Rubrique icone={<Mail className="size-5" />} titre={t('infos.courriel')}>
+              <a href={`mailto:${agency.email}`} className="break-all underline-offset-4 hover:underline">
+                {agency.email}
+              </a>
+            </Rubrique>
+          ) : null}
+          {texteDelai ? (
+            <Rubrique icone={<Clock className="size-5" />} titre={t('infos.delai')}>
+              {texteDelai}
+            </Rubrique>
+          ) : null}
+        </ul>
+      </section>
+    ),
+  });
+
+  return (
+    // `max-lg:pb-20` : la barre d'actions fixée en bas ne recouvre pas le pied de page.
+    <div className="min-h-screen bg-background max-lg:pb-20">
+      {/*
+        TCK-435 — le balisage n'affirme QUE ce que la page rend : la note agrégée n'est émise
+        qu'au-dessus de zéro avis, la ville nulle ne devient pas la chaîne « null », et le
+        contact ne dépasse pas ce que la page publie déjà.
+      */}
+      <DonneesStructurees donnees={jsonLdAgence(agency, locale)} />
+      {/* TCK-2568 — au téléphone, PAS de barre du site : la fiche porte son en-tête (retour et
+          partager sur la couverture, `EnTeteDeFiche` ; puis les onglets collés à `top-0`), comme la
+          maquette FicheDBiens. La règle centrale (`enTeteAuTelephone`) le dit aussi depuis la vague 3 ;
+          la surcharge reste écrite ici, à côté des `marque` de la panne et du 404. */}
+      <Navbar auTelephone="en-tete-de-page" />
+      <NavbarSpacer auTelephone="en-tete-de-page" />
+
+      <main id={CONTENU_PRINCIPAL_ID} tabIndex={-1} className="pb-32 focus:outline-none lg:pb-24">
+        <div className="relative mx-auto max-w-[1280px] lg:px-8">
+          {/* Au téléphone, retour et partager sur la couverture (maquette `CouvertureAgence`) ; la
+              couverture sortie, les onglets collent à `top-0` et la recherche sous eux (FicheDBiens). */}
+          <EnTeteDeFiche nom={agency.name} repli="/agencies">
+            <CouvertureDeFiche photos={agency.cover ?? []} />
+          </EnTeteDeFiche>
+          {/* En bureau, la barre du site reste ; le retour d'avant (2026-09-16) aussi. */}
+          <BoutonRetour
+            repli="/agencies"
+            libelle={t('back')}
+            className="absolute left-11 top-3 ml-0 hidden bg-card text-foreground shadow-sm hover:bg-card lg:inline-flex"
           />
-        )}
+        </div>
+
+        <div className="mx-auto grid max-w-[1280px] gap-x-12 px-4 sm:px-6 lg:grid-cols-[340px_minmax(0,1fr)] lg:px-8">
+          {/* Colonne d'identité — collante en bureau, avec la carte de contact. */}
+          {/* La marge négative est sur la COLONNE (comme la maquette), pas sur le logo : collée, la colonne
+              se pose à 96 px, et le logo ne passe pas sous la barre du site. */}
+          <aside className="lg:sticky lg:top-[96px] lg:-mt-12 lg:self-start lg:pb-8">
+            <LogoDeFiche
+              src={agency.logo_url}
+              nom={agency.name}
+              initiales={initiales(agency.name)}
+              className="-mt-9 size-[72px] rounded-2xl border-4 border-background lg:mt-0 lg:size-24"
+            />
+
+            <div className="mt-3 flex items-center gap-2">
+              <h1 className="font-display text-[26px] font-semibold leading-tight tracking-tight text-foreground text-balance lg:text-[32px]">
+                {agency.name}
+              </h1>
+              {/* TCK-1079 — le badge hors du titre : le nom accessible du `h1` reste le nom. */}
+              {agency.is_verified && (
+                <BadgeCheck role="img" className="size-5 shrink-0 text-primary lg:size-6" aria-label={tIndex('card.verified')} />
+              )}
+            </div>
+
+            {noteMoyenne !== null || texteDelai ? (
+              <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-muted-foreground">
+                {noteMoyenne !== null && reviews ? (
+                  <span className="inline-flex items-center gap-1 text-foreground">
+                    <Star className="size-3.5 fill-primary text-primary" aria-hidden />
+                    <span className="font-semibold tabular-nums">{noteMoyenne.toFixed(1)}</span>
+                    <span className="text-muted-foreground tabular-nums">({reviews.count})</span>
+                  </span>
+                ) : null}
+                {texteDelai ? (
+                  <span className="inline-flex items-center gap-1">
+                    <Clock className="size-3.5" aria-hidden /> {texteDelai}
+                  </span>
+                ) : null}
+              </p>
+            ) : null}
+
+            {agency.license_number || bauxDuMois > 0 ? (
+              <address className="mt-1 flex flex-wrap items-center gap-x-2 text-[13px] not-italic text-muted-foreground">
+                {bauxDuMois > 0 ? <span>{t('bauxDuMois', { count: bauxDuMois })}</span> : null}
+                {bauxDuMois > 0 && agency.license_number ? <span aria-hidden>·</span> : null}
+                {agency.license_number ? (
+                  <span className="inline-flex items-center gap-1">
+                    <ShieldCheck className="size-3.5" aria-hidden />
+                    {t('license', { number: agency.license_number })}
+                  </span>
+                ) : null}
+              </address>
+            ) : null}
+
+            {/* La description : au téléphone, elle cède la place à l'accroche (et reste dans Infos) —
+                c'est ce qui garde la sélection au premier écran (AC2). Sans accroche, elle reste. */}
+            {agency.description ? (
+              <p className={`mt-3 line-clamp-3 text-[15px] leading-relaxed text-muted-foreground lg:line-clamp-none ${tagline ? 'hidden lg:block' : ''}`}>
+                {agency.description}
+              </p>
+            ) : null}
+
+            {chiffres.length > 0 ? (
+              <p className="mt-2 text-[13px] text-muted-foreground lg:text-sm">{chiffres.join(' · ')}</p>
+            ) : null}
+
+            <div className="lg:mt-6">
+              <ContactDeFiche
+                nom={agency.name}
+                telephone={telephone}
+                message={agency.email ? { genre: 'courriel', adresse: agency.email, sujet: t('contactSubject', { name: agency.name }) } : null}
+                sousTitre={texteDelai}
+              />
+            </div>
+          </aside>
+
+          <div className="min-w-0 pt-2 lg:pt-8">
+            {tagline ? <p className="text-[17px] leading-snug text-foreground lg:max-w-[60ch] lg:text-xl">{tagline}</p> : null}
+            {highlights.length > 0 ? (
+              <ul aria-label={t('pourquoiNous')} className="mt-3 space-y-1.5 lg:mt-6 lg:grid lg:grid-cols-3 lg:gap-6 lg:space-y-0">
+                {highlights.map((h) => (
+                  <li key={h} className="flex items-start gap-2 text-sm font-medium text-foreground lg:text-[15px]">
+                    <Check className="mt-0.5 size-4 shrink-0 text-primary lg:size-5" aria-hidden />
+                    <span>{h}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+
+            <div className={tagline || highlights.length > 0 ? 'mt-5 lg:mt-10' : 'mt-2 lg:mt-0'}>
+              <OngletsDeFiche onglets={onglets} libelle={t('onglets.libelle', { name: agency.name })} />
+            </div>
+          </div>
+        </div>
       </main>
 
       <Footer />

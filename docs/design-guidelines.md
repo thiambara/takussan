@@ -376,6 +376,20 @@ Ne pas répandre le pattern sur toutes les surfaces : l'identité tient justemen
 - Pas de stock photos génériques (maison parfaite + famille souriante). Préférer des visuels minimalistes ou des illustrations vectorielles cohérentes.
 - Icônes : **Lucide React** uniquement. Tailles standard `size-4` (16px) inline, `size-5` (20px) dans les boutons, `size-6` (24px) standalone.
 
+### Couverture d'une fiche d'agence — écart de charte accepté (TCK-2522)
+
+Décision 2a du porteur, 2026-11-09 : la fiche publique d'une agence s'ouvre sur une **couverture plein
+cadre composée de trois de ses biens** (`cover` de l'API, TCK-2518 : la sélection d'abord, puis les biens
+les plus récents) — et non sur une photo que l'agence fournirait. Composant : `CouvertureDeFiche.tsx`.
+
+- Grille `2fr 1fr` sur deux rangées (une grande photo, deux petites), `h-[168px]` au téléphone, `220px`
+  dès `sm`, `260px` dès `lg`, coins bas arrondis en bureau. Deux photos : deux colonnes ; une : plein cadre.
+- Photos **décoratives** (`alt=""`) : chaque bien est présenté plus bas avec son titre.
+- **Sans photo servable**, la couverture garde sa hauteur sur le motif bogolan (5 % d'opacité, la règle
+  ci-dessus) : la fiche ne change pas de forme, et aucun cadre vide n'apparaît.
+- Au téléphone, retour et partager sont posés sur la couverture (`EnTeteDeFiche`, TCK-2568) : pas de
+  barre du site au-dessus.
+
 ## Animations standard
 
 Définies dans `globals.css` :

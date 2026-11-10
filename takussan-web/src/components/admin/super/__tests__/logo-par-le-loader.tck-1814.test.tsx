@@ -13,7 +13,7 @@ import { render } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, expect, it } from 'vitest';
 
-import { ProfileCard, type LibellesDeCarte } from '@/components/public/index/ProfileCard';
+import { ProfileCard } from '@/components/public/index/ProfileCard';
 import type { ProfilPublic } from '@/lib/queries/public-profiles';
 import { avecGestes } from '@/test/habilitations';
 import { withIntl } from '@/test/intl';
@@ -41,16 +41,6 @@ function attendLeLoader(container: HTMLElement, sizes: string) {
   expect(images[0].getAttribute('sizes')).toBe(sizes);
 }
 
-const LIBELLES: LibellesDeCarte = {
-  portefeuille: (n) => `${n} biens`,
-  aLouer: (n) => `${n} à louer`,
-  aVendre: (n) => `${n} à vendre`,
-  avis: (n) => `${n} avis`,
-  verifie: 'Vérifiée',
-  noteAria: (note) => `Note ${note}`,
-  roles: { agent: 'Agent', owner: 'Propriétaire' },
-};
-
 function profil(logo_url: string | null): ProfilPublic {
   return {
     id: 12,
@@ -64,6 +54,11 @@ function profil(logo_url: string | null): ProfilPublic {
     rent_count: 2,
     sale_count: 1,
     reviews: { average: null, count: 0 },
+    median_response_minutes: null,
+    cover: [],
+    leases_signed_this_month: 0,
+    languages: [],
+    neighborhoods: [],
   };
 }
 
@@ -88,13 +83,13 @@ const AGENCE = {
 
 describe('TCK-1814 — le logo d’agence passe par le loader de next/image', () => {
   it('annuaire public : la pastille de 56 px', () => {
-    const { container } = rendre(<ProfileCard profil={profil(LOGO)} base="/agencies" libelles={LIBELLES} forme="carre" />);
+    const { container } = rendre(<ProfileCard profil={profil(LOGO)} base="/agencies" forme="carre" />);
     attendLeLoader(container, '56px');
   });
 
   it('annuaire public : sans logo, les initiales', () => {
     const { container, getByText } = rendre(
-      <ProfileCard profil={profil(null)} base="/agencies" libelles={LIBELLES} forme="carre" />,
+      <ProfileCard profil={profil(null)} base="/agencies" forme="carre" />,
     );
     expect(container.querySelector('img')).toBeNull();
     expect(getByText('DI')).toBeInTheDocument();

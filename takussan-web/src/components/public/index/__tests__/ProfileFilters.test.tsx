@@ -38,7 +38,7 @@ beforeEach(() => {
 });
 
 describe('la recherche', () => {
-  it('est un vrai formulaire — `Entrée` soumet, et le bouton aussi', async () => {
+  it('est un vrai formulaire — `Entrée` soumet, sans bouton (soumission implicite, TCK-2521)', async () => {
     // Le motif du formulaire de newsletter INERTE que TCK-437 vient de retirer du pied de page :
     // un champ sans `<form>` laisse le visiteur croire qu'il a cherché.
     const user = userEvent.setup();
@@ -55,7 +55,7 @@ describe('la recherche', () => {
     monter('q=sahel');
 
     await user.clear(screen.getByRole('searchbox'));
-    await user.click(screen.getByRole('button', { name: 'Rechercher' }));
+    await user.type(screen.getByRole('searchbox'), '{Enter}');
 
     expect(push).toHaveBeenCalledWith('/fr/agencies');
   });
@@ -73,7 +73,7 @@ describe('la recherche', () => {
 describe('le filtre par ville', () => {
   it('rend la facette REÇUE, plus « toutes les villes » — aucune liste composée ici', async () => {
     monter();
-    for (const libelle of ['Toutes les villes', 'Dakar', 'Thiès']) {
+    for (const libelle of ['Toutes', 'Dakar', 'Thiès']) {
       expect(screen.getByRole('button', { name: libelle })).toBeInTheDocument();
     }
   });
@@ -107,7 +107,7 @@ describe('le filtre par ville', () => {
 describe('la page est TOUJOURS remise à zéro', () => {
   it.each([
     ['une ville', 'Dakar', '/fr/agencies?city=Dakar'],
-    ['toutes les villes', 'Toutes les villes', '/fr/agencies'],
+    ['toutes les villes', 'Toutes', '/fr/agencies'],
   ])('changer %s retire `page`', async (_cas, bouton, attendu) => {
     // Rester sur `?page=4` en changeant de critère donne une page vide sur un jeu de résultats
     // qui, lui, n'est pas vide — un « aucun résultat » faux.
@@ -128,7 +128,10 @@ describe('la page est TOUJOURS remise à zéro', () => {
 });
 
 describe('le retour en arrière', () => {
-  it('« effacer » n’apparaît que si un filtre est posé, et il les retire TOUS', async () => {
+  // TCK-2521 (décision du 2026-11-09) — « effacer » ne paraît que sur une recherche par nom ; une
+  // ville seule se défait par la puce « Toutes ». L'intention de TCK-436 tient : quel que soit le
+  // filtre posé, une issue ramène à la liste entière.
+  it('« effacer » n’apparaît que si une recherche par nom est posée, et il retire TOUS les critères', async () => {
     const { unmount } = monter();
     expect(screen.queryByRole('button', { name: /Effacer/ })).toBeNull();
     unmount();
@@ -137,6 +140,15 @@ describe('le retour en arrière', () => {
     monter('city=Dakar&q=awa&page=2');
     await user.click(screen.getByRole('button', { name: /Effacer/ }));
 
+    expect(push).toHaveBeenCalledWith('/fr/agencies');
+  });
+
+  it('une ville seule : pas d’« effacer », et « Toutes » ramène à la liste entière', async () => {
+    const user = userEvent.setup();
+    monter('city=Dakar&page=3');
+
+    expect(screen.queryByRole('button', { name: /Effacer/ })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Toutes' }));
     expect(push).toHaveBeenCalledWith('/fr/agencies');
   });
 });
@@ -161,7 +173,7 @@ describe('les paramètres inconnus survivent à une navigation', () => {
  */
 describe('TCK-573 — cibles tactiles et champ lisible à 320 px', () => {
   it('chaque puce de ville et « effacer » font 44 px au doigt, 36 à la souris', () => {
-    monter('city=Dakar');
+    monter('city=Dakar&q=awa');
 
     const cibles = [
       ...screen.getAllByRole('button', { pressed: true }),
@@ -177,30 +189,113 @@ describe('TCK-573 — cibles tactiles et champ lisible à 320 px', () => {
     }
   });
 
-  it('sous `sm`, le bouton de recherche ne garde que son icône — son NOM reste « Rechercher »', () => {
+  // TCK-2521 (maquette D) — le bouton loupe est retiré : le champ prend toute la largeur (le texte
+  // d'exemple coupé à 320 px venait du bouton à côté), garde son nom, et le clavier du téléphone
+  // affiche « Rechercher » sur sa touche d'envoi.
+  it('le champ seul tient la rangée : nommé, touche d’envoi « Rechercher », aucun bouton à côté', () => {
     monter();
 
-    const bouton = screen.getByRole('button', { name: 'Rechercher' });
-    expect(bouton.className).toMatch(/(^|\s)size-11(\s|$)/);
-    const texte = screen.getByText('Rechercher');
-    expect(texte.className.split(/\s+/)).toEqual(expect.arrayContaining(['sr-only', 'sm:not-sr-only']));
-    expect(bouton.querySelector('svg')?.getAttribute('class')).toContain('sm:hidden');
+    const champ = screen.getByRole('searchbox', { name: 'Nom d’une agence' });
+    expect(champ).toHaveAttribute('enterkeyhint', 'search');
+    const formulaire = screen.getByRole('search');
+    expect(formulaire.querySelector('button')).toBeNull();
+    expect(champ.parentElement!.className.split(/\s+/)).toContain('flex-1');
   });
 
   // Mesuré à 768 et 1024 px en émulation tactile : `md:h-10` seul ramenait champ et bouton à 40 px
   // sur une tablette. Les 40 px du bureau ne valent qu'à la souris.
-  it('au-delà de `md`, champ et bouton restent alignés à 44 px, sans descendre à 40 px', () => {
+  it('au-delà de `md`, le champ reste à 44 px, sans descendre à 40 px', () => {
     monter();
 
     const champ = screen.getByRole('searchbox');
-    const bouton = screen.getByRole('button', { name: 'Rechercher' });
-    // TCK-2460 — le champ tient ses 44 px de la portée de densité, le bouton s'aligne dessus, souris comprise.
+    // TCK-2460 — le champ tient ses 44 px de la portée de densité, souris comprise.
     expect(champ.closest('[data-field-density="comfortable"]')).not.toBeNull();
-    expect(bouton.className.split(/\s+/)).toContain('size-11');
-    for (const cible of [champ, bouton]) {
-      const classes = cible.className.split(/\s+/);
-      expect(classes).not.toContain('md:pointer-fine:h-10');
-      expect(classes).not.toContain('md:h-10');
+    const classes = champ.className.split(/\s+/);
+    expect(classes).not.toContain('md:pointer-fine:h-10');
+    expect(classes).not.toContain('md:h-10');
+  });
+});
+
+describe('TCK-2521 — la ville de l’URL allume sa puce, quelle que soit sa casse', () => {
+  it('`?city=dakar` (AC3) allume « Dakar », et « Toutes les villes » s’éteint', () => {
+    monter('city=dakar');
+    expect(screen.getByRole('button', { name: 'Dakar' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Toutes' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: 'Thiès' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('un second clic sur la puce allumée retire le filtre', async () => {
+    const user = userEvent.setup();
+    monter('city=dakar');
+    await user.click(screen.getByRole('button', { name: 'Dakar' }));
+    expect(push).toHaveBeenCalledWith('/fr/agencies');
+  });
+});
+
+describe('TCK-2521 (revue) — la puce de la ville active est ramenée dans la rangée qui défile', () => {
+  // jsdom ne calcule aucune mise en page : on pose les boîtes que le navigateur mesurait (390 px,
+  // « Kaolack » à 940 px), et l'on regarde ce que le composant écrit dans `scrollLeft`.
+  function boite(left: number, width: number) {
+    return { left, right: left + width, width, top: 0, bottom: 44, height: 44, x: left, y: 0, toJSON: () => ({}) } as DOMRect;
+  }
+
+  it('une ville hors de la vue : la rangée défile jusqu’à elle, centrée', () => {
+    const original = HTMLElement.prototype.getBoundingClientRect;
+    HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
+      if (this.getAttribute('role') === 'group') return boite(0, 390);
+      if (this.getAttribute('aria-pressed') === 'true') return boite(940, 80);
+      return boite(0, 0);
+    };
+    try {
+      monter('city=Thiès');
+      const rangee = screen.getByRole('group', { name: 'Filtrer par ville' });
+      // 940 − (390 − 80) / 2 = 785 : la puce au milieu de la rangée.
+      expect(rangee.scrollLeft).toBe(785);
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = original;
     }
+  });
+
+  it('une ville déjà visible : la rangée ne bouge pas', () => {
+    const original = HTMLElement.prototype.getBoundingClientRect;
+    HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
+      if (this.getAttribute('role') === 'group') return boite(0, 390);
+      // Visible (200 → 280 dans 0 → 390) — et pourtant décentrée : sans la garde, la rangée
+      // défilerait de 45 px, déplaçant sous le doigt une puce qu'on voyait déjà.
+      if (this.getAttribute('aria-pressed') === 'true') return boite(200, 80);
+      return boite(0, 0);
+    };
+    try {
+      monter('city=Dakar');
+      expect(screen.getByRole('group', { name: 'Filtrer par ville' }).scrollLeft).toBe(0);
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = original;
+    }
+  });
+});
+
+describe('TCK-2521 (revue) — les encres de la maquette D', () => {
+  it('la puce active en encre foncée, les autres en encre du texte sur la carte', () => {
+    monter('city=Dakar');
+    const active = screen.getByRole('button', { name: 'Dakar' }).className.split(/\s+/);
+    expect(active).toEqual(expect.arrayContaining(['bg-foreground', 'text-background', 'border-foreground']));
+    expect(active).not.toContain('bg-primary');
+    const autre = screen.getByRole('button', { name: 'Thiès' }).className.split(/\s+/);
+    expect(autre).toEqual(expect.arrayContaining(['bg-card', 'text-foreground']));
+    expect(autre).not.toContain('text-muted-foreground');
+  });
+});
+
+describe('TCK-2521 (contre-vérification) — en bureau, la rangée coupée se signale', () => {
+  it('fondu sur le bord droit dès `lg`, et une marge pour que la dernière puce en sorte ; rien au téléphone', () => {
+    monter();
+    const classes = screen.getByRole('group', { name: 'Filtrer par ville' }).className.split(/\s+/);
+
+    expect(classes).toContain('lg:[mask-image:linear-gradient(to_right,#000_calc(100%-6rem),transparent)]');
+    expect(classes).toContain('lg:pr-24');
+    // Le fondu n'existe qu'en bureau : aucune classe de masque sans préfixe `lg:`.
+    expect(classes.filter((c) => c.includes('mask-image') && !c.startsWith('lg:'))).toEqual([]);
+    // Le téléphone garde sa rangée qui sort du cadre.
+    expect(classes).toEqual(expect.arrayContaining(['-mx-4', 'px-4', 'overflow-x-auto']));
   });
 });

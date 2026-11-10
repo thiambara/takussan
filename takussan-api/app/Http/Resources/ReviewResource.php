@@ -7,6 +7,7 @@ use App\Models\Agency;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Review\ReviewEligibility;
 use Illuminate\Http\Request;
 
 class ReviewResource extends BaseResource
@@ -44,6 +45,10 @@ class ReviewResource extends BaseResource
             'reply_content' => $this->reply_content,
             'replied_at' => $this->iso($this->replied_at),
             'created_at' => $this->iso($this->created_at),
+            // TCK-2522 (contre-vérification du 2026-11-09) — le TYPE de la preuve d'éligibilité
+            // (`lease`, `booking`, `visit`, `maintenance_request`) et lui seul : jamais
+            // `context_id` ni `context_type`, qui désigneraient le contrat de l'auteur.
+            'context_kind' => ReviewEligibility::contextKindOf($this->resource->context_type),
             // verif-597 m1 — les gestes que l'API ACCEPTERA, jugés par la policy : le front ne les
             // devine plus (il offrait « Répondre » ou « Approuver » que l'API refusait en 403).
             'can_reply' => $viewer !== null && $viewer->can('reply', $this->resource),

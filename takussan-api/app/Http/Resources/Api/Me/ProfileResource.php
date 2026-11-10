@@ -3,11 +3,13 @@
 namespace App\Http\Resources\Api\Me;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Models\GeoNeighborhood;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Services\Profiles\ActiveProfileResolver;
+use App\Services\Public\AgentPublic;
 use Illuminate\Http\Request;
 
 /**
@@ -56,9 +58,57 @@ class ProfileResource extends BaseResource
         if ($this->resource instanceof AgentProfile) {
             $data['license_number'] = $this->resource->license_number;
             $data['specialty'] = $this->resource->specialty;
+            // TCK-2524 — ce que l'agent a dit à l'annuaire (TCK-2518), relu par l'écran de profil qui
+            // l'écrit (`PATCH …/directory`) : sans cette lecture, il s'ouvrait vide et un enregistrement
+            // effaçait ce qui était posé. Les quartiers sont nommés (donnée du référentiel) dans l'ordre
+            // choisi ; un quartier disparu n'est émis ni nommé ni en id — renvoyé, `exists` le refuserait.
+            $quartiers = $this->quartiersNommes((array) ($this->resource->neighborhood_ids ?? []));
+            $data['languages'] = array_values((array) ($this->resource->languages ?? []));
+            $data['neighborhood_ids'] = array_column($quartiers, 'id');
+            $data['neighborhoods'] = $quartiers;
+            // TCK-2524 (revue) — le segment de SA fiche publique (`/agents/{slug}`), pour la puce « Voir ma
+            // fiche publique » de son écran de profil. Émis pour le seul profil de l'appelant, et seulement si
+            // la fiche existe : jugé par la résolution même de la page (`AgentPublic::parSlug`), qui rend
+            // `null` à un compte inactif, à un agent d'agence hors ligne ou à qui n'a pas de fiche. Un lien
+            // émis ici ne mène donc jamais à un 404.
+            $data['public_slug'] = $this->slugDeSaFiche($request);
         }
 
         return $data;
+    }
+
+    private function slugDeSaFiche(Request $request): ?string
+    {
+        $appelant = $request->user();
+        if ($appelant === null || (int) $appelant->getKey() !== (int) $this->resource->user_id) {
+            return null;
+        }
+
+        $slug = $appelant->slugDeFiche();
+        if (! is_string($slug) || $slug === '') {
+            return null;
+        }
+
+        return app(AgentPublic::class)->parSlug($slug)?->is($appelant) === true ? $slug : null;
+    }
+
+    /**
+     * @param  array<int, mixed>  $ids
+     * @return list<array{id: int, name: string}>
+     */
+    private function quartiersNommes(array $ids): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        if ($ids === []) {
+            return [];
+        }
+
+        $noms = GeoNeighborhood::query()->whereKey($ids)->pluck('name', 'id');
+
+        return array_values(array_map(
+            fn (int $id) => ['id' => $id, 'name' => (string) $noms[$id]],
+            array_filter($ids, fn (int $id) => $noms->has($id)),
+        ));
     }
 
     private function statusValue(): ?string

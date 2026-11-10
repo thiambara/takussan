@@ -43,9 +43,9 @@ daté : il ne se tient pas à jour à la main.
 | — (aucun écran) | `/fr/favorites/shared` | pas de maquette : **barre du site** gardée (on y arrive de WhatsApp sans connaître le site) | nav 69 | nav 69 — inchangé |
 | Comparateur (A) · Ce qui diffère | `/fr/compare` | **← « 3 biens · 1 place libre »** au-dessus des colonnes collantes | nav 69, `h1` 115 | **pas de nav**, `EnTeteDePage` 0 + 56, retour 44 × 44, « 2 biens · 2 places libres » ; colonnes collées à 56 px |
 | Navigation (A) · Compte, Moi | `/fr/account` | **grand titre** « Compte », ou l'identité « Bonjour Awa » (`EnTeteMoi` : `pt-6`, initiales 56 px, `h1` 24 px) | nav 69, `h1` 93 | anonyme : **pas de nav**, cale 0, `h1` « Compte » à 24 px · **connecté** (`customer@agency1.demo…`, revue) : pas de nav, cale 0, initiales à 24, `h1` « Bonjour Demo » à 26, courriel à 56, barre d'onglets 784 + 60 ; 360 : `scrollWidth` 360 ; 1440 : nav 75 |
-| Annuaire (D) · Agences, Agents | `/fr/agencies`, `/fr/agents` | **grand titre** « Professionnels » + onglets + champ + villes | nav 69, `h1` 77 | **bascule avec la vague 3, TCK-2521 → 2523** : la règle les rend `barre-du-site` jusque-là (revue : sans barre, `h1` à 8 px). Relevé : nav 69, `h1` 81, barre d'onglets |
-| Fiche d'agence (D) · Biens… | `/fr/agencies/<slug>` | **couverture**, retour + partager posés dessus | non relevé | **bascule avec la vague 3, TCK-2521 → 2523** (règle : `barre-du-site`). Relevé en passant : l'agent « fiches » pose déjà sa surcharge (`en-tete-de-page`, en-tête 0 + 68 « Retour · Partager »), et ses 404 la barre de marque (nav 57) |
-| Fiche d'agent (D) · Agent… | `/fr/agents/<slug>` | **« ← · partager »** (`EnTete`) | non relevé | **bascule avec la vague 3, TCK-2521 → 2523**. Relevé : nav 69 (barre du site), `h1` 321 |
+| Annuaire (D) · Agences, Agents | `/fr/agencies`, `/fr/agents` | **grand titre** « Professionnels » + onglets + champ + villes | nav 69, `h1` 77 | **basculé avec la vague 3** (TCK-2521 → 2523, la règle les rend `en-tete-de-page`) : **pas de nav**, cale 0, `h1` « Professionnels » à 20 px (`/fr/agencies` et `/fr/agents`), `scrollWidth` 390 |
+| Fiche d'agence (D) · Biens… | `/fr/agencies/<slug>` | **couverture**, retour + partager posés dessus | non relevé | **basculé avec la vague 3** (TCK-2522) : **pas de nav**, cale 0, `EnTeteDePage` sur la photo 0 + 68 « Retour · Partager », `h1` « Dakar Immo » à 216, `scrollWidth` 390. La couverture sortie (décision de la session, revue du 2026-11-09, maquette FicheDBiens) : **aucune rangée fixée** ; onglets collés à 0 (49 px), recherche collée de 49 à 165. `/fr/agencies/inexistant-zzz` et la panne : **barre de marque** (nav 57, `h1` « Agence introuvable » à 153) |
+| Fiche d'agent (D) · Agent… | `/fr/agents/<slug>` | **« ← · partager »** (`EnTete`) | non relevé | **basculé avec la vague 3** (TCK-2523) : **pas de nav**, cale 0, `EnTeteDePage` 0 + 56 « Retour · Partager », `h1` « Moustapha Fall » à 84, `scrollWidth` 390 ; l'identité passée sous la rangée, rappel « Biens de … » et recherche collée dessous (`sokhna-g` défilé : rangée 0 → 56, recherche 56 → 172, comme `TeteFiltreeAgent`). 404 et panne : **barre de marque** |
 | Paiement (A), Revendication (A), Liens (A) | `/fr/pay/*`, `/fr/claim/*`, `/fr/share/*`, `/fr/search-alerts/*`, `/fr/notifications/unsubscribe` | **coque de lien** : émetteur ou marque, mention (« Paiement sécurisé », « Lien personnel ») | coque, pas de nav | inchangé (TCK-2505) |
 | Recherche (D) · Avant, Pendant | (écran de la barre, sans route) | champ actif plein écran | — | sans objet (`Navbar`, TCK-2497) |
 
@@ -60,7 +60,7 @@ daté : il ne se tient pas à jour à la main.
 
 - **Trois éléments collants supposaient la barre de 69 px au-dessus d'eux** (`sticky top-[69px]`) :
   l'en-tête des colonnes du comparateur (corrigé : `top-14`, sous l'`EnTeteDePage`), les onglets de la
-  fiche d'agence/agent (`OngletsDeFiche`, vague 3) et la barre de lecture des pages légales (qui
+  fiche d'agence (`OngletsDeFiche`, vague 3 : `top-0`, aucune rangée au-dessus) et la barre de lecture des pages légales (qui
   gardent la barre : rien à faire).
 - **Le haut d'une page ne dépend pas toujours de son chemin** : un bien retiré, une fiche introuvable,
   une panne, l'état « au mois » de la réservation vivent sous le chemin d'une page sans barre. Ils
@@ -68,8 +68,8 @@ daté : il ne se tient pas à jour à la main.
   et le bien retiré son bas (`<BarreDOngletsPublique presente />`).
 - **Une route ne quitte la barre qu'avec son en-tête** (revue du 2026-11-09) : passer `agencies` et
   `agents` dans la règle avant que leurs pages portent leur en-tête leur avait ôté la barre sans rien
-  à la place — 404 sans haut, onglets collants à 69 px, titre à 8 px du haut. Ils basculent avec la
-  vague 3, qui les remet dans `PREMIERS_SEGMENTS_A_EN_TETE_DE_PAGE` en même temps que ses pages.
+  à la place — 404 sans haut, onglets collants à 69 px, titre à 8 px du haut. Ils ont basculé avec la
+  vague 3 (relevé ci-dessus), une fois leurs pages, leurs 404 et leurs pannes pourvues de leur haut.
 - **La liste ne perd pas la recherche** : sa maquette ouvre sur la recherche en vigueur, que la
   pastille de la `Navbar` porte déjà ; seule la marque cède sa place au retour.
 

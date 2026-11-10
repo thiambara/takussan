@@ -2854,7 +2854,34 @@
       "unavailableTitle": "Agence momentanément indisponible",
       "unavailableBody": "Nous n'arrivons pas à joindre le catalogue pour l'instant. Cette agence existe peut-être toujours — réessayez dans quelques instants.",
       "unavailableMetaDescription": "Cette agence ne peut pas être affichée pour le moment. Réessayez dans quelques instants.",
-      "back": "Retour"
+      "back": "Retour",
+      "chiffres": {
+        "louer": "{count, plural, one {# à louer} other {# à louer}}",
+        "vendre": "{count, plural, one {# à vendre} other {# à vendre}}",
+        "villes": "{count, plural, one {# ville} other {# villes}}",
+        "agents": "{count, plural, one {# agent} other {# agents}}"
+      },
+      "onglets": {
+        "biens": "Biens",
+        "equipe": "Équipe",
+        "avis": "Avis",
+        "infos": "Infos",
+        "libelle": "Rubriques de la fiche de {name}"
+      },
+      "selection": "La sélection de l'agence",
+      "tousSesBiens": "Tous ses biens",
+      "equipeTitre": "{count, plural, one {# agent pour vous accompagner} other {# agents pour vous accompagner}}",
+      "equipeNote": "Seuls les agents de l'agence figurent ici. Les propriétaires qui lui confient leurs biens restent privés.",
+      "infos": {
+        "aPropos": "À propos",
+        "licence": "Licence et vérification",
+        "verifiee": "Agence vérifiée par Takussan",
+        "ou": "Où elle exerce",
+        "courriel": "E-mail",
+        "delai": "Délai de réponse"
+      },
+      "bauxDuMois": "{count, plural, one {# bail signé ce mois-ci} other {# baux signés ce mois-ci}}",
+      "pourquoiNous": "Pourquoi nous"
     }
   },
   "compare": {
@@ -5630,7 +5657,7 @@
       "portfolioEyebrow": "Portefeuille",
       "portfolioHeading": "Biens à l'affiche",
       "emptyTitle": "Pas encore de bien à présenter",
-      "emptyBody": "Cet agent prépare ses prochaines annonces — reviens bientôt.",
+      "emptyBody": "Cet agent prépare ses prochaines annonces — revenez bientôt.",
       "metaTitle": "{name} — Agent immobilier",
       "metaSummary": "{count, plural, one {# bien} other {# biens}}",
       "metaSummaryInCity": "{count, plural, one {# bien} other {# biens}} à {city}",
@@ -5645,7 +5672,17 @@
       "unavailableMetaDescription": "Cet agent ne peut pas être affiché pour le moment. Réessayez dans quelques instants.",
       "back": "Retour",
       "metaTitleOwner": "{name} — Propriétaire",
-      "emptyBodyOwner": "Ce propriétaire prépare ses prochaines annonces — reviens bientôt."
+      "emptyBodyOwner": "Ce propriétaire prépare ses prochaines annonces — revenez bientôt.",
+      "sesBiens": "Ses biens",
+      "biensDe": "Biens de {nom}",
+      "langues": "Langues parlées",
+      "quartiers": "Quartiers",
+      "enLigne": "{count, plural, one {# bien en ligne} other {# biens en ligne}}",
+      "proprietaire": {
+        "note": "Profil rendu public par le propriétaire. Nom abrégé, aucun numéro personnel.",
+        "gerePar": "Ses biens sont gérés par {agence}. Votre message va à l'agence.",
+        "voirAgence": "Voir l'agence"
+      }
     }
   },
   "agentWelcome": {
@@ -7277,6 +7314,41 @@
         "choose": "Rapprocher",
         "matchFailed": "Le rapprochement a échoué."
       }
+    },
+    "agencyPublicProfile": {
+      "title": "Fiche publique",
+      "description": "Ce que les visiteurs lisent en haut de la fiche de votre agence. Tout est facultatif : un champ vide n’apparaît pas.",
+      "viewPublic": "Voir ma fiche publique",
+      "tagline": "Accroche",
+      "taglineHint": "Une phrase qui dit ce que vous faites, et pour qui.",
+      "taglinePlaceholder": "Ex. : On loue et on vend à Dakar depuis 2014, avec une équipe qui parle votre langue.",
+      "highlights": "Pourquoi nous",
+      "highlightsHint": "Trois raisons au plus, une par ligne.",
+      "highlightLabel": "Raison {n}",
+      "highlightPlaceholder1": "Ex. : Une équipe qui parle wolof",
+      "highlightPlaceholder2": "Ex. : Visites le samedi",
+      "highlightPlaceholder3": "Ex. : Baux signés en ligne",
+      "counter": "{n} / {max}",
+      "showcase": "Votre sélection",
+      "showcaseCount": "{n} sur {max}",
+      "showcaseHint": "Les biens que la fiche montre en premier, dans cet ordre. Seuls vos biens publiés et disponibles se choisissent.",
+      "showcaseOrder": "Ordre de la sélection",
+      "propertyFallback": "Bien n° {id}",
+      "notPublicAnymore": "N’est plus en ligne : la fiche ne le montre pas.",
+      "moveUp": "Monter « {title} »",
+      "moveDown": "Descendre « {title} »",
+      "remove": "Retirer « {title} » de la sélection",
+      "pickLabel": "Choisir parmi vos biens publics",
+      "searchPlaceholder": "Titre ou référence",
+      "full": "{max} biens au plus : retirez-en un pour en choisir un autre.",
+      "loadError": "Vos biens n’ont pas pu être chargés. Rechargez la page.",
+      "noPublic": "Aucun bien publié et disponible pour le moment : publiez-en un pour le montrer ici.",
+      "noMatch": "Aucun de vos biens publics ne correspond.",
+      "previewTitle": "Aperçu",
+      "previewHint": "La couverture prend trois photos : votre sélection d’abord, puis vos biens les plus récents.",
+      "coverEmpty": "Pas encore de couverture : elle se compose des photos de vos biens publics.",
+      "save": "Enregistrer la fiche publique",
+      "saved": "Fiche publique enregistrée."
     }
   },
   "documents": {
@@ -11988,6 +12060,42 @@
       "savedOn": "Vous paraissez désormais dans l'annuaire public.",
       "savedOff": "Vous ne paraissez plus dans l'annuaire public.",
       "error": "Votre choix n'a pas pu être enregistré."
+    },
+    "agentDirectory": {
+      "title": "Sur votre fiche publique",
+      "subtitle": "Les langues que vous parlez et les quartiers que vous connaissez aident un visiteur à vous choisir. Tout est facultatif.",
+      "languages": "Langues parlées",
+      "languagesHint": "Cochez celles dans lesquelles vous pouvez faire une visite.",
+      "languageNames": {
+        "fr": "Français",
+        "wo": "Wolof",
+        "en": "Anglais",
+        "ar": "Arabe",
+        "ff": "Peul (pulaar)",
+        "es": "Espagnol",
+        "pt": "Portugais",
+        "it": "Italien",
+        "de": "Allemand"
+      },
+      "neighborhoods": "Quartiers couverts",
+      "neighborhoodsCount": "{n} sur {max}",
+      "neighborhoodsHint": "Choisissez une ville, puis ses quartiers ; vous pouvez en prendre dans plusieurs villes.",
+      "city": "Ville",
+      "cityPlaceholder": "Choisir une ville",
+      "noCity": "Aucune ville ne correspond.",
+      "pickNeighborhoods": "Quartiers",
+      "needCity": "Choisissez d’abord une ville",
+      "neighborhoodsPlaceholder": "Chercher un quartier",
+      "noNeighborhood": "Aucun quartier ne correspond.",
+      "remove": "Retirer {name}",
+      "full": "{max} quartiers au plus : retirez-en un pour en choisir un autre.",
+      "save": "Enregistrer",
+      "saved": "Langues et quartiers enregistrés.",
+      "viewPublic": "Voir ma fiche publique",
+      "notPublic": "Votre fiche publique n’est pas en ligne pour le moment.",
+      "loading": "Chargement de votre fiche publique…",
+      "loadError": "Vos langues et vos quartiers n’ont pas pu être chargés.",
+      "retry": "Réessayer"
     }
   },
   "contact": {
@@ -12628,7 +12736,10 @@
       "leadDescriptionAgent": "Vos coordonnées sont transmises à cet agent. Aucun compte n'est requis.",
       "leadDescriptionOwner": "Vos coordonnées sont transmises à ce propriétaire. Aucun compte n'est requis.",
       "leadSuccessAgent": "L'agent vous recontactera sous peu.",
-      "leadSuccessOwner": "Le propriétaire vous recontactera sous peu."
+      "leadSuccessOwner": "Le propriétaire vous recontactera sous peu.",
+      "message": "Message",
+      "ecrireALAgence": "Écrire à l'agence",
+      "contacterNom": "Contacter {nom}"
     },
     "portfolio": {
       "filterAria": "Filtrer le portefeuille",
@@ -12652,7 +12763,13 @@
       "heading": "Ce que disent les clients",
       "count": "· {count} avis",
       "ratingAria": "{rating} étoiles sur 5",
-      "anonymous": "Anonyme"
+      "anonymous": "Anonyme",
+      "contexte": {
+        "lease": "Locataire · bail",
+        "booking": "Voyageur · séjour",
+        "visit": "Visiteur · visite",
+        "maintenance_request": "Demandeur · intervention"
+      }
     },
     "team": {
       "propertiesCount": "{count, plural, one {# bien} other {# biens}}",
@@ -12662,6 +12779,48 @@
     "roles": {
       "agent": "Agent immobilier",
       "owner": "Propriétaire"
+    },
+    "delai": {
+      "minutes": "Répond en ~{n} min",
+      "heures": "Répond en ~{n} h",
+      "jours": "{n, plural, one {Répond en ~# jour} other {Répond en ~# jours}}"
+    },
+    "recherche": {
+      "champAria": "Chercher dans les biens de {nom}",
+      "champ": "{count, plural, =0 {Chercher dans ses biens} one {Chercher dans # bien} other {Chercher dans les # biens}}",
+      "champSansTotal": "Chercher dans ses biens",
+      "viderChamp": "Vider la recherche",
+      "filtresActifs": "{count, plural, one {Filtres, # actif} other {Filtres, # actifs}}",
+      "pastilles": {
+        "type": "Type",
+        "budget": "Budget",
+        "chambres": "Chambres",
+        "quartier": "Quartier"
+      },
+      "pucesAria": "Filtres appliqués",
+      "compte": "{count, plural, =0 {Aucun bien} one {# bien} other {# biens}}",
+      "surTotal": "sur {total}",
+      "effacer": "Effacer les filtres",
+      "erreur": "La recherche n'a pas abouti. Réessayez dans un instant.",
+      "aucuneOption": "Aucune option pour ces critères",
+      "appliquer": "Appliquer",
+      "aucun": {
+        "titre": "Aucun bien ne correspond",
+        "texte": "{nom} n'a pas de bien qui réunisse tous ces critères.",
+        "elargir": "Ou élargissez la recherche",
+        "sans": {
+          "contract_type": "À louer ou à vendre",
+          "type": "Tous les types de biens"
+        },
+        "chezLAgence": "Chez {agence}, son agence",
+        "ailleurs": "Les mêmes critères, toutes agences"
+      },
+      "compteBiens": "{count, plural, one {# bien} other {# biens}}"
+    },
+    "partager": {
+      "libelle": "Partager la fiche de {nom}",
+      "copie": "Lien copié",
+      "echec": "Partage impossible ici : copiez l’adresse de la page."
     }
   },
   "privacy": {
@@ -12741,12 +12900,19 @@
       "sale": "{count, plural, one {# à vendre} other {# à vendre}}",
       "verified": "Profil vérifié",
       "ratingAria": "Note moyenne de {rating} sur 5",
-      "portfolio": "{count, plural, one {bien} other {biens}}",
-      "reviews": "· {count, plural, one {# avis} other {# avis}}"
+      "properties": "{count, plural, one {# bien} other {# biens}}",
+      "reviewsCount": "({count, plural, one {# avis} other {# avis}})",
+      "noReviews": "Pas encore d’avis",
+      "languages": "Langues",
+      "neighborhoods": "Quartiers",
+      "response": {
+        "minutes": "Répond en ~{count, plural, one {# min} other {# min}}",
+        "heures": "Répond en ~{count, plural, one {# h} other {# h}}",
+        "jours": "Répond en ~{count, plural, one {# jour} other {# jours}}"
+      }
     },
     "filters": {
-      "submit": "Rechercher",
-      "allCities": "Toutes les villes",
+      "allCities": "Toutes",
       "cityGroupAria": "Filtrer par ville",
       "clear": "Effacer les filtres",
       "loading": "Chargement…"
@@ -12768,17 +12934,42 @@
       "searchPlaceholder": "Nom d’une agence",
       "count": "{count, plural, one {# agence} other {# agences}}",
       "emptyTitle": "Aucune agence ne correspond",
-      "eyebrow": "Agences immobilières",
-      "heading": "Les agences qui opèrent près de chez toi",
-      "intro": "Chaque agence présentée ici publie au moins une annonce disponible. Parcours leur portefeuille, leurs villes et les avis de leurs clients."
+      "sorted": "{count, plural, one {triée par nombre de biens} other {triées par nombre de biens}}"
     },
     "agents": {
       "searchPlaceholder": "Nom ou prénom",
       "count": "{count, plural, one {# profil} other {# profils}}",
       "emptyTitle": "Aucun profil ne correspond",
-      "eyebrow": "Agents & propriétaires",
-      "heading": "Les personnes derrière les annonces",
-      "intro": "Agent immobilier ou propriétaire, chaque profil présenté ici publie au moins une annonce disponible. Découvre son portefeuille, ses villes et l’agence qui publie ses annonces."
+      "sorted": "{count, plural, one {trié par nombre de biens.} other {triés par nombre de biens.}}",
+      "ownersNote": "Les propriétaires particuliers n’y figurent que s’ils l’ont choisi."
+    },
+    "heading": "Professionnels",
+    "intro": "Les agences et les agents qui publient sur Takussan, avec leurs biens en ligne, leurs avis et leur délai de réponse.",
+    "tabs": {
+      "aria": "Agences ou agents",
+      "agencies": "Agences",
+      "agents": "Agents"
+    },
+    "languages": {
+      "fr": "Français",
+      "wo": "Wolof",
+      "en": "Anglais",
+      "ar": "Arabe",
+      "ff": "Pulaar",
+      "es": "Espagnol",
+      "pt": "Portugais",
+      "it": "Italien",
+      "de": "Allemand"
+    },
+    "spotlight": {
+      "badge": "Mise en avant",
+      "leases": "{count, plural, one {# bail signé} other {# baux signés}} ce mois-ci",
+      "cta": "Voir la vitrine"
+    },
+    "join": {
+      "title": "Ton agence n’est pas encore là ?",
+      "body": "Une vitrine gratuite, tes annonces sur Takussan, et l’atelier pour les visites, les baux et les loyers.",
+      "cta": "Rejoindre Takussan"
     }
   },
   "legal": {

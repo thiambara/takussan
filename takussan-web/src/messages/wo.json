@@ -1035,7 +1035,34 @@
       "unavailableTitle": "Ajaas bi amul ba tey",
       "unavailableBody": "Mënunu jot katalog bi ci saa si. Ajaas bii mën na am ba tey — jéemaatal ci ay saa.",
       "unavailableMetaDescription": "Ajaas bi mënul a wone ci saa si. Jéemaatal ci ay saa.",
-      "back": "Dellu"
+      "back": "Dellu",
+      "chiffres": {
+        "louer": "{count, plural, one {# à louer} other {# à louer}}",
+        "vendre": "{count, plural, one {# à vendre} other {# à vendre}}",
+        "villes": "{count, plural, one {# ville} other {# villes}}",
+        "agents": "{count, plural, one {# agent} other {# agents}}"
+      },
+      "onglets": {
+        "biens": "Biens",
+        "equipe": "Équipe",
+        "avis": "Avis",
+        "infos": "Infos",
+        "libelle": "Rubriques de la fiche de {name}"
+      },
+      "selection": "La sélection de l'agence",
+      "tousSesBiens": "Tous ses biens",
+      "equipeTitre": "{count, plural, one {# agent pour vous accompagner} other {# agents pour vous accompagner}}",
+      "equipeNote": "Seuls les agents de l'agence figurent ici. Les propriétaires qui lui confient leurs biens restent privés.",
+      "infos": {
+        "aPropos": "À propos",
+        "licence": "Licence et vérification",
+        "verifiee": "Agence vérifiée par Takussan",
+        "ou": "Où elle exerce",
+        "courriel": "E-mail",
+        "delai": "Délai de réponse"
+      },
+      "bauxDuMois": "{count, plural, one {# bail signé ce mois-ci} other {# baux signés ce mois-ci}}",
+      "pourquoiNous": "Pourquoi nous"
     }
   },
   "compare": {
@@ -3768,7 +3795,7 @@
       "portfolioEyebrow": "Portfey bi",
       "portfolioHeading": "Kër yu ñu wone",
       "emptyTitle": "Amul kër bu ñu man a wone ba tey",
-      "emptyBody": "Ajaŋ bii mu ngi waajal ay yégle — ñëwaatal ci lu yàgg.",
+      "emptyBody": "Cet agent prépare ses prochaines annonces — revenez bientôt.",
       "metaTitle": "{name} — Ajaŋu kër",
       "metaSummary": "{count, plural, other {# kër}}",
       "metaSummaryInCity": "{count, plural, other {# kër}} ci {city}",
@@ -3783,7 +3810,17 @@
       "unavailableMetaDescription": "Ajaŋ bi mënul a wone ci saa si. Jéemaatal ci ay saa.",
       "back": "Dellu",
       "metaTitleOwner": "{name} — Boroom kër",
-      "emptyBodyOwner": "Boroom kër bii mu ngi waajal ay yégle — ñëwaatal ci lu yàgg."
+      "emptyBodyOwner": "Ce propriétaire prépare ses prochaines annonces — revenez bientôt.",
+      "sesBiens": "Ses biens",
+      "biensDe": "Biens de {nom}",
+      "langues": "Langues parlées",
+      "quartiers": "Quartiers",
+      "enLigne": "{count, plural, one {# bien en ligne} other {# biens en ligne}}",
+      "proprietaire": {
+        "note": "Profil rendu public par le propriétaire. Nom abrégé, aucun numéro personnel.",
+        "gerePar": "Ses biens sont gérés par {agence}. Votre message va à l'agence.",
+        "voirAgence": "Voir l'agence"
+      }
     }
   },
   "agentWelcome": {
@@ -5415,6 +5452,41 @@
         "choose": "Méngale",
         "matchFailed": "Méngale bi mënul."
       }
+    },
+    "agencyPublicProfile": {
+      "title": "Fiche publique",
+      "description": "Ce que les visiteurs lisent en haut de la fiche de votre agence. Tout est facultatif : un champ vide n’apparaît pas.",
+      "viewPublic": "Voir ma fiche publique",
+      "tagline": "Accroche",
+      "taglineHint": "Une phrase qui dit ce que vous faites, et pour qui.",
+      "taglinePlaceholder": "Ex. : On loue et on vend à Dakar depuis 2014, avec une équipe qui parle votre langue.",
+      "highlights": "Pourquoi nous",
+      "highlightsHint": "Trois raisons au plus, une par ligne.",
+      "highlightLabel": "Raison {n}",
+      "highlightPlaceholder1": "Ex. : Une équipe qui parle wolof",
+      "highlightPlaceholder2": "Ex. : Visites le samedi",
+      "highlightPlaceholder3": "Ex. : Baux signés en ligne",
+      "counter": "{n} / {max}",
+      "showcase": "Votre sélection",
+      "showcaseCount": "{n} sur {max}",
+      "showcaseHint": "Les biens que la fiche montre en premier, dans cet ordre. Seuls vos biens publiés et disponibles se choisissent.",
+      "showcaseOrder": "Ordre de la sélection",
+      "propertyFallback": "Bien n° {id}",
+      "notPublicAnymore": "N’est plus en ligne : la fiche ne le montre pas.",
+      "moveUp": "Monter « {title} »",
+      "moveDown": "Descendre « {title} »",
+      "remove": "Retirer « {title} » de la sélection",
+      "pickLabel": "Choisir parmi vos biens publics",
+      "searchPlaceholder": "Titre ou référence",
+      "full": "{max} biens au plus : retirez-en un pour en choisir un autre.",
+      "loadError": "Vos biens n’ont pas pu être chargés. Rechargez la page.",
+      "noPublic": "Aucun bien publié et disponible pour le moment : publiez-en un pour le montrer ici.",
+      "noMatch": "Aucun de vos biens publics ne correspond.",
+      "previewTitle": "Aperçu",
+      "previewHint": "La couverture prend trois photos : votre sélection d’abord, puis vos biens les plus récents.",
+      "coverEmpty": "Pas encore de couverture : elle se compose des photos de vos biens publics.",
+      "save": "Enregistrer la fiche publique",
+      "saved": "Fiche publique enregistrée."
     }
   },
   "property": {
@@ -11334,6 +11406,42 @@
       "savedOn": "Vous paraissez désormais dans l'annuaire public.",
       "savedOff": "Vous ne paraissez plus dans l'annuaire public.",
       "error": "Votre choix n'a pas pu être enregistré."
+    },
+    "agentDirectory": {
+      "title": "Sur votre fiche publique",
+      "subtitle": "Les langues que vous parlez et les quartiers que vous connaissez aident un visiteur à vous choisir. Tout est facultatif.",
+      "languages": "Langues parlées",
+      "languagesHint": "Cochez celles dans lesquelles vous pouvez faire une visite.",
+      "languageNames": {
+        "fr": "Français",
+        "wo": "Wolof",
+        "en": "Anglais",
+        "ar": "Arabe",
+        "ff": "Peul (pulaar)",
+        "es": "Espagnol",
+        "pt": "Portugais",
+        "it": "Italien",
+        "de": "Allemand"
+      },
+      "neighborhoods": "Quartiers couverts",
+      "neighborhoodsCount": "{n} sur {max}",
+      "neighborhoodsHint": "Choisissez une ville, puis ses quartiers ; vous pouvez en prendre dans plusieurs villes.",
+      "city": "Ville",
+      "cityPlaceholder": "Choisir une ville",
+      "noCity": "Aucune ville ne correspond.",
+      "pickNeighborhoods": "Quartiers",
+      "needCity": "Choisissez d’abord une ville",
+      "neighborhoodsPlaceholder": "Chercher un quartier",
+      "noNeighborhood": "Aucun quartier ne correspond.",
+      "remove": "Retirer {name}",
+      "full": "{max} quartiers au plus : retirez-en un pour en choisir un autre.",
+      "save": "Enregistrer",
+      "saved": "Langues et quartiers enregistrés.",
+      "viewPublic": "Voir ma fiche publique",
+      "notPublic": "Votre fiche publique n’est pas en ligne pour le moment.",
+      "loading": "Chargement de votre fiche publique…",
+      "loadError": "Vos langues et vos quartiers n’ont pas pu être chargés.",
+      "retry": "Réessayer"
     }
   },
   "contact": {
@@ -12628,7 +12736,10 @@
       "leadDescriptionAgent": "Sa ay xibaar ñoo leen jox ajaŋ bii. Soxlaalo kont.",
       "leadDescriptionOwner": "Sa ay xibaar ñoo leen jox boroom kër bii. Soxlaalo kont.",
       "leadSuccessAgent": "Ajaŋ bi dina la jokkoo ci lu gàtt.",
-      "leadSuccessOwner": "Boroom kër gi dina la jokkoo ci lu gàtt."
+      "leadSuccessOwner": "Boroom kër gi dina la jokkoo ci lu gàtt.",
+      "message": "Message",
+      "ecrireALAgence": "Écrire à l'agence",
+      "contacterNom": "Contacter {nom}"
     },
     "portfolio": {
       "filterAria": "Tànn ci portfey bi",
@@ -12652,7 +12763,13 @@
       "heading": "Li kiliyaan yi wax",
       "count": "· {count} xalaat",
       "ratingAria": "{rating} biddiiw ci 5",
-      "anonymous": "Ku ñu xamul"
+      "anonymous": "Ku ñu xamul",
+      "contexte": {
+        "lease": "Locataire · bail",
+        "booking": "Voyageur · séjour",
+        "visit": "Visiteur · visite",
+        "maintenance_request": "Demandeur · intervention"
+      }
     },
     "team": {
       "propertiesCount": "{count, plural, one {# kër} other {# kër}}",
@@ -12662,6 +12779,48 @@
     "roles": {
       "agent": "Ajaŋu kër",
       "owner": "Boroom kër"
+    },
+    "delai": {
+      "minutes": "Répond en ~{n} min",
+      "heures": "Répond en ~{n} h",
+      "jours": "{n, plural, one {Répond en ~# jour} other {Répond en ~# jours}}"
+    },
+    "recherche": {
+      "champAria": "Chercher dans les biens de {nom}",
+      "champ": "{count, plural, =0 {Chercher dans ses biens} one {Chercher dans # bien} other {Chercher dans les # biens}}",
+      "champSansTotal": "Chercher dans ses biens",
+      "viderChamp": "Vider la recherche",
+      "filtresActifs": "{count, plural, one {Filtres, # actif} other {Filtres, # actifs}}",
+      "pastilles": {
+        "type": "Type",
+        "budget": "Budget",
+        "chambres": "Chambres",
+        "quartier": "Quartier"
+      },
+      "pucesAria": "Filtres appliqués",
+      "compte": "{count, plural, =0 {Aucun bien} one {# bien} other {# biens}}",
+      "surTotal": "sur {total}",
+      "effacer": "Effacer les filtres",
+      "erreur": "La recherche n'a pas abouti. Réessayez dans un instant.",
+      "aucuneOption": "Aucune option pour ces critères",
+      "appliquer": "Appliquer",
+      "aucun": {
+        "titre": "Aucun bien ne correspond",
+        "texte": "{nom} n'a pas de bien qui réunisse tous ces critères.",
+        "elargir": "Ou élargissez la recherche",
+        "sans": {
+          "contract_type": "À louer ou à vendre",
+          "type": "Tous les types de biens"
+        },
+        "chezLAgence": "Chez {agence}, son agence",
+        "ailleurs": "Les mêmes critères, toutes agences"
+      },
+      "compteBiens": "{count, plural, one {# bien} other {# biens}}"
+    },
+    "partager": {
+      "libelle": "Partager la fiche de {nom}",
+      "copie": "Lien copié",
+      "echec": "Partage impossible ici : copiez l’adresse de la page."
     }
   },
   "privacy": {
@@ -12741,11 +12900,18 @@
       "sale": "{count, plural, one {# ci njaay} other {# ci njaay}}",
       "verified": "Profil bu wóor",
       "ratingAria": "Nota {rating} ci 5",
-      "portfolio": "{count, plural, one {kër} other {kër}}",
-      "reviews": "· {count, plural, one {# xalaat} other {# xalaat}}"
+      "properties": "{count, plural, one {# bien} other {# biens}}",
+      "reviewsCount": "({count, plural, one {# avis} other {# avis}})",
+      "noReviews": "Pas encore d’avis",
+      "languages": "Langues",
+      "neighborhoods": "Quartiers",
+      "response": {
+        "minutes": "Répond en ~{count, plural, one {# min} other {# min}}",
+        "heures": "Répond en ~{count, plural, one {# h} other {# h}}",
+        "jours": "Répond en ~{count, plural, one {# jour} other {# jours}}"
+      }
     },
     "filters": {
-      "submit": "Seet",
       "allCities": "Dëkk yépp",
       "cityGroupAria": "Tànn dëkk",
       "clear": "Far tànneef yi",
@@ -12768,17 +12934,42 @@
       "searchPlaceholder": "Turu ajaas",
       "count": "{count, plural, one {# ajaas} other {# ajaas}}",
       "emptyTitle": "Amul benn ajaas bu ànd",
-      "eyebrow": "Ajaas yu kër",
-      "heading": "Ajaas yi liggéey ci sa wet",
-      "intro": "Bépp ajaas bu nekk fii am na lu néew benn kër bu jot. Xoolal seen kër yi, seen dëkk yi ak xalaat yu seeni kiliyaan."
+      "sorted": "{count, plural, one {triée par nombre de biens} other {triées par nombre de biens}}"
     },
     "agents": {
       "searchPlaceholder": "Tur walla sant",
       "count": "{count, plural, one {# profil} other {# profil}}",
       "emptyTitle": "Amul benn profil bu ànd",
-      "eyebrow": "Ajaŋ ak boroom kër",
-      "heading": "Ñi nekk ci ginnaaw kër yi",
-      "intro": "Ajaŋu kër walla boroom kër, bépp profil bu nekk fii am na lu néew benn kër bu jot. Xamal seen kër yi, seen dëkk yi ak seen ajaas."
+      "sorted": "{count, plural, one {trié par nombre de biens.} other {triés par nombre de biens.}}",
+      "ownersNote": "Les propriétaires particuliers n’y figurent que s’ils l’ont choisi."
+    },
+    "heading": "Professionnels",
+    "intro": "Les agences et les agents qui publient sur Takussan, avec leurs biens en ligne, leurs avis et leur délai de réponse.",
+    "tabs": {
+      "aria": "Agences ou agents",
+      "agencies": "Agences",
+      "agents": "Agents"
+    },
+    "languages": {
+      "fr": "Français",
+      "wo": "Wolof",
+      "en": "Anglais",
+      "ar": "Arabe",
+      "ff": "Pulaar",
+      "es": "Espagnol",
+      "pt": "Portugais",
+      "it": "Italien",
+      "de": "Allemand"
+    },
+    "spotlight": {
+      "badge": "Mise en avant",
+      "leases": "{count, plural, one {# bail signé} other {# baux signés}} ce mois-ci",
+      "cta": "Voir la vitrine"
+    },
+    "join": {
+      "title": "Ton agence n’est pas encore là ?",
+      "body": "Une vitrine gratuite, tes annonces sur Takussan, et l’atelier pour les visites, les baux et les loyers.",
+      "cta": "Rejoindre Takussan"
     }
   },
   "legal": {

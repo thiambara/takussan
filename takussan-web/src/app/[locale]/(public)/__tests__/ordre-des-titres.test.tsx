@@ -183,8 +183,14 @@ describe('TCK-946 — heading-order sur les pages publiques', () => {
       rent_count: 8,
       sale_count: 4,
       reviews: { average: 4.5, count: 6 },
+      // TCK-2518/2521 — faits de l'annuaire « Professionnels ».
+      median_response_minutes: null,
+      cover: [],
+      leases_signed_this_month: 0,
+      languages: [],
+      neighborhoods: [],
     };
-    lister.mockResolvedValue({ profils: [profil], page: 1, dernierePage: 1, total: 1, villes: ['Dakar'] });
+    lister.mockResolvedValue({ profils: [profil], page: 1, dernierePage: 1, total: 1, villes: ['Dakar'], vitrine: null });
     const element = await IndexDeProfils({
       ressource: 'agencies',
       locale: 'fr',

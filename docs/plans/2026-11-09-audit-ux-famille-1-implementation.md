@@ -68,3 +68,8 @@ lien (2505) sert la réclamation et les pages par lien.
   contre-vérifiée. La vague 3 travaillait dans le même arbre : ses lignes ont été retirées des
   fichiers partagés au moment du commit (index seul), puis la vague 2 a été vérifiée seule dans un
   arbre détaché (typage, lint, tests touchés, gardes).
+- **Vague 3** (2026-11-09) : TCK-2521 → TCK-2524 livrés, chacun refusé par son vérificateur puis
+  corrigé et contre-vérifié. L'annuaire et les fiches basculent ensemble sous la règle d'en-tête
+  au téléphone. Quatre tickets de suite ouverts : TCK-2574 (agence d'un propriétaire, nom abrégé
+  servi — reçoit l'AC3 de TCK-2523), TCK-2575 (sa propre fiche), TCK-2576 (WhatsApp), TCK-2577
+  (un avis d'agence écrit son contexte).

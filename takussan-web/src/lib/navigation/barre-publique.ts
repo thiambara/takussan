@@ -207,6 +207,9 @@ export function porteLaBarrePublique(pathname: string | null | undefined): boole
   if (PREMIERS_SEGMENTS_SANS_BARRE.has(premier)) return false;
   // La fiche d'un bien et tout ce qui vit sous elle — jamais la liste (`/properties`).
   if (premier === 'properties' && second !== undefined) return false;
+  // TCK-2522 / TCK-2523 — la fiche d'une agence ou d'une personne porte sa barre d'actions
+  // (Appeler · Message) : une seule couche en bas (ADR-0091 § 4). L'annuaire garde la barre.
+  if ((premier === 'agencies' || premier === 'agents') && second !== undefined) return false;
   return true;
 }
 
@@ -244,10 +247,13 @@ const PREMIERS_SEGMENTS_A_EN_TETE_DE_PAGE: ReadonlySet<string> = new Set([
   'bookings',
   // Compte / Moi : le grand titre de l'écran, ou l'identité du connecté.
   'account',
-  // ⚠ `agencies` et `agents` (annuaire, fiches d'agence et d'agent) n'y sont PAS encore : ils y
-  // entrent avec la vague 3 (TCK-2521 → TCK-2523), en même temps que leurs pages — et leurs 404 —
-  // portent leur en-tête. Les y mettre avant leur ôte la barre sans rien à la place (revue du
-  // 2026-11-09 : 404 sans haut, onglets collants à 69 px, titre à 8 px du haut).
+  // Annuaire et fiches (vague 3, TCK-2521 → TCK-2523) : le grand titre « Professionnels » et ses
+  // onglets ; la fiche d'agence, retour et partager sur la couverture ; la fiche d'agent,
+  // « ← · partager ». Ils n'y sont entrés qu'une fois leurs pages ET leurs 404 et pannes pourvues de
+  // leur haut (ces deux-là posent `marque`) : sans quoi la règle leur ôtait la barre sans rien à la
+  // place (revue du 2026-11-09 : 404 sans haut, onglets collants à 69 px, titre à 8 px du haut).
+  'agencies',
+  'agents',
 ]);
 
 /**

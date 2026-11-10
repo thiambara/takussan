@@ -37,6 +37,18 @@ export interface AgencyDto {
   phone?: string | null;
   city?: string | null;
   logo_url: string | null;
+  /** TCK-2518 — l'accroche de la vitrine ; `null` = pas de bloc. */
+  tagline?: string | null;
+  /** TCK-2518 — « Pourquoi nous » : trois chaînes au plus, `[]` quand vide. */
+  highlights?: string[];
+  /** TCK-2518 — la sélection de l'agence, encore publique, dans l'ordre choisi. */
+  showcase?: PropertyListItem[];
+  /** TCK-2518 — trois photos au plus : la sélection d'abord, puis les biens les plus récents. */
+  cover?: { property_id: number; slug: string; photo_url: string }[];
+  /** TCK-2518 — baux signés depuis le 1er du mois, toute issue confondue. */
+  leases_signed_this_month?: number;
+  /** TCK-2518 — médiane en minutes ; `null` sous le seuil ou quand elle tombe sur l'infini. */
+  median_response_minutes?: number | null;
   agents: AgencyAgentDto[];
   portfolio_count: number;
   portfolio_total: number;

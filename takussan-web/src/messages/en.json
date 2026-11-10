@@ -2897,7 +2897,34 @@
       "unavailableTitle": "Agency temporarily unavailable",
       "unavailableBody": "We can't reach the catalogue right now. This agency may still exist — please try again in a moment.",
       "unavailableMetaDescription": "This agency cannot be displayed right now. Please try again in a moment.",
-      "back": "Back"
+      "back": "Back",
+      "chiffres": {
+        "louer": "{count, plural, one {# for rent} other {# for rent}}",
+        "vendre": "{count, plural, one {# for sale} other {# for sale}}",
+        "villes": "{count, plural, one {# city} other {# cities}}",
+        "agents": "{count, plural, one {# agent} other {# agents}}"
+      },
+      "onglets": {
+        "biens": "Listings",
+        "equipe": "Team",
+        "avis": "Reviews",
+        "infos": "Info",
+        "libelle": "Sections of {name}'s profile"
+      },
+      "selection": "The agency's picks",
+      "tousSesBiens": "All its listings",
+      "equipeTitre": "{count, plural, one {# agent to help you} other {# agents to help you}}",
+      "equipeNote": "Only the agency's agents are listed here. Owners who entrust their properties to it stay private.",
+      "infos": {
+        "aPropos": "About",
+        "licence": "Licence and verification",
+        "verifiee": "Agency verified by Takussan",
+        "ou": "Where it operates",
+        "courriel": "Email",
+        "delai": "Response time"
+      },
+      "bauxDuMois": "{count, plural, one {# lease signed this month} other {# leases signed this month}}",
+      "pourquoiNous": "Why us"
     }
   },
   "compare": {
@@ -5645,7 +5672,17 @@
       "unavailableMetaDescription": "This agent cannot be displayed right now. Please try again in a moment.",
       "back": "Back",
       "metaTitleOwner": "{name} — Property owner",
-      "emptyBodyOwner": "This owner is preparing their next listings — come back soon."
+      "emptyBodyOwner": "This owner is preparing their next listings — come back soon.",
+      "sesBiens": "Their listings",
+      "biensDe": "{nom}'s listings",
+      "langues": "Languages spoken",
+      "quartiers": "Neighbourhoods",
+      "enLigne": "{count, plural, one {# listing online} other {# listings online}}",
+      "proprietaire": {
+        "note": "Profile made public by the owner. Shortened name, no personal number.",
+        "gerePar": "Their listings are managed by {agence}. Your message goes to the agency.",
+        "voirAgence": "View the agency"
+      }
     }
   },
   "agentWelcome": {
@@ -7277,6 +7314,41 @@
         "choose": "Match",
         "matchFailed": "Matching failed."
       }
+    },
+    "agencyPublicProfile": {
+      "title": "Public profile",
+      "description": "What visitors read at the top of your agency’s page. Everything is optional: an empty field is not shown.",
+      "viewPublic": "View my public page",
+      "tagline": "Tagline",
+      "taglineHint": "One sentence that says what you do, and for whom.",
+      "taglinePlaceholder": "E.g. Renting and selling in Dakar since 2014, with a team that speaks your language.",
+      "highlights": "Why us",
+      "highlightsHint": "Up to three reasons, one per line.",
+      "highlightLabel": "Reason {n}",
+      "highlightPlaceholder1": "E.g. A team that speaks Wolof",
+      "highlightPlaceholder2": "E.g. Viewings on Saturdays",
+      "highlightPlaceholder3": "E.g. Leases signed online",
+      "counter": "{n} / {max}",
+      "showcase": "Your selection",
+      "showcaseCount": "{n} of {max}",
+      "showcaseHint": "The listings your page shows first, in this order. Only your published, available listings can be chosen.",
+      "showcaseOrder": "Selection order",
+      "propertyFallback": "Listing #{id}",
+      "notPublicAnymore": "No longer online: your page does not show it.",
+      "moveUp": "Move “{title}” up",
+      "moveDown": "Move “{title}” down",
+      "remove": "Remove “{title}” from the selection",
+      "pickLabel": "Choose from your public listings",
+      "searchPlaceholder": "Title or reference",
+      "full": "{max} listings at most: remove one to choose another.",
+      "loadError": "Your listings could not be loaded. Reload the page.",
+      "noPublic": "No published, available listing yet: publish one to show it here.",
+      "noMatch": "None of your public listings match.",
+      "previewTitle": "Preview",
+      "previewHint": "The cover uses three photos: your selection first, then your most recent listings.",
+      "coverEmpty": "No cover yet: it is made from the photos of your public listings.",
+      "save": "Save public profile",
+      "saved": "Public profile saved."
     }
   },
   "documents": {
@@ -11988,6 +12060,42 @@
       "savedOn": "You now appear in the public directory.",
       "savedOff": "You no longer appear in the public directory.",
       "error": "Your choice could not be saved."
+    },
+    "agentDirectory": {
+      "title": "On your public profile",
+      "subtitle": "The languages you speak and the neighbourhoods you know help a visitor choose you. Everything is optional.",
+      "languages": "Languages spoken",
+      "languagesHint": "Tick those you can give a viewing in.",
+      "languageNames": {
+        "fr": "French",
+        "wo": "Wolof",
+        "en": "English",
+        "ar": "Arabic",
+        "ff": "Fula (Pulaar)",
+        "es": "Spanish",
+        "pt": "Portuguese",
+        "it": "Italian",
+        "de": "German"
+      },
+      "neighborhoods": "Neighbourhoods covered",
+      "neighborhoodsCount": "{n} of {max}",
+      "neighborhoodsHint": "Choose a city, then its neighbourhoods; you can pick them in several cities.",
+      "city": "City",
+      "cityPlaceholder": "Choose a city",
+      "noCity": "No city matches.",
+      "pickNeighborhoods": "Neighbourhoods",
+      "needCity": "Choose a city first",
+      "neighborhoodsPlaceholder": "Search a neighbourhood",
+      "noNeighborhood": "No neighbourhood matches.",
+      "remove": "Remove {name}",
+      "full": "{max} neighbourhoods at most: remove one to choose another.",
+      "save": "Save",
+      "saved": "Languages and neighbourhoods saved.",
+      "viewPublic": "View my public profile",
+      "notPublic": "Your public profile is not online at the moment.",
+      "loading": "Loading your public profile…",
+      "loadError": "Your languages and neighbourhoods could not be loaded.",
+      "retry": "Try again"
     }
   },
   "contact": {
@@ -12628,7 +12736,10 @@
       "leadDescriptionAgent": "Your details are forwarded to this agent. No account required.",
       "leadDescriptionOwner": "Your details are forwarded to this owner. No account required.",
       "leadSuccessAgent": "The agent will get back to you shortly.",
-      "leadSuccessOwner": "The owner will get back to you shortly."
+      "leadSuccessOwner": "The owner will get back to you shortly.",
+      "message": "Message",
+      "ecrireALAgence": "Contact the agency",
+      "contacterNom": "Contact {nom}"
     },
     "portfolio": {
       "filterAria": "Filter the portfolio",
@@ -12652,7 +12763,13 @@
       "heading": "What clients say",
       "count": "· {count, plural, one {# review} other {# reviews}}",
       "ratingAria": "{rating} stars out of 5",
-      "anonymous": "Anonymous"
+      "anonymous": "Anonymous",
+      "contexte": {
+        "lease": "Tenant · lease",
+        "booking": "Guest · stay",
+        "visit": "Visitor · viewing",
+        "maintenance_request": "Requester · repair"
+      }
     },
     "team": {
       "propertiesCount": "{count, plural, one {# property} other {# properties}}",
@@ -12662,6 +12779,48 @@
     "roles": {
       "agent": "Real estate agent",
       "owner": "Property owner"
+    },
+    "delai": {
+      "minutes": "Replies in ~{n} min",
+      "heures": "Replies in ~{n} h",
+      "jours": "{n, plural, one {Replies in ~# day} other {Replies in ~# days}}"
+    },
+    "recherche": {
+      "champAria": "Search {nom}'s listings",
+      "champ": "{count, plural, =0 {Search listings} one {Search # listing} other {Search the # listings}}",
+      "champSansTotal": "Search listings",
+      "viderChamp": "Clear search",
+      "filtresActifs": "{count, plural, one {Filters, # active} other {Filters, # active}}",
+      "pastilles": {
+        "type": "Type",
+        "budget": "Budget",
+        "chambres": "Bedrooms",
+        "quartier": "Neighbourhood"
+      },
+      "pucesAria": "Applied filters",
+      "compte": "{count, plural, =0 {No listings} one {# listing} other {# listings}}",
+      "surTotal": "of {total}",
+      "effacer": "Clear filters",
+      "erreur": "The search did not go through. Please try again in a moment.",
+      "aucuneOption": "No option for these criteria",
+      "appliquer": "Apply",
+      "aucun": {
+        "titre": "No listing matches",
+        "texte": "{nom} has no listing that meets all these criteria.",
+        "elargir": "Or widen the search",
+        "sans": {
+          "contract_type": "For rent or for sale",
+          "type": "All property types"
+        },
+        "chezLAgence": "At {agence}, their agency",
+        "ailleurs": "The same criteria, all agencies"
+      },
+      "compteBiens": "{count, plural, one {# listing} other {# listings}}"
+    },
+    "partager": {
+      "libelle": "Share {nom}'s page",
+      "copie": "Link copied",
+      "echec": "Sharing isn't available here: copy the page address."
     }
   },
   "privacy": {
@@ -12741,12 +12900,19 @@
       "sale": "{count, plural, one {# for sale} other {# for sale}}",
       "verified": "Verified profile",
       "ratingAria": "Average rating {rating} out of 5",
-      "portfolio": "{count, plural, one {listing} other {listings}}",
-      "reviews": "· {count, plural, one {# review} other {# reviews}}"
+      "properties": "{count, plural, one {# listing} other {# listings}}",
+      "reviewsCount": "({count, plural, one {# review} other {# reviews}})",
+      "noReviews": "No reviews yet",
+      "languages": "Languages",
+      "neighborhoods": "Neighbourhoods",
+      "response": {
+        "minutes": "Replies in ~{count, plural, one {# min} other {# min}}",
+        "heures": "Replies in ~{count, plural, one {# h} other {# h}}",
+        "jours": "Replies in ~{count, plural, one {# day} other {# days}}"
+      }
     },
     "filters": {
-      "submit": "Search",
-      "allCities": "All cities",
+      "allCities": "All",
       "cityGroupAria": "Filter by city",
       "clear": "Clear filters",
       "loading": "Loading…"
@@ -12768,17 +12934,42 @@
       "searchPlaceholder": "Agency name",
       "count": "{count, plural, one {# agency} other {# agencies}}",
       "emptyTitle": "No agency matches",
-      "eyebrow": "Real estate agencies",
-      "heading": "The agencies working near you",
-      "intro": "Every agency listed here has at least one available listing. Browse their portfolio, the cities they cover and what their clients say."
+      "sorted": "{count, plural, one {sorted by number of listings} other {sorted by number of listings}}"
     },
     "agents": {
       "searchPlaceholder": "First or last name",
       "count": "{count, plural, one {# profile} other {# profiles}}",
       "emptyTitle": "No profile matches",
-      "eyebrow": "Agents & owners",
-      "heading": "The people behind the listings",
-      "intro": "Real estate agent or owner, every profile listed here has at least one available listing. Discover their portfolio, the cities they cover and the agency publishing their listings."
+      "sorted": "{count, plural, one {sorted by number of listings.} other {sorted by number of listings.}}",
+      "ownersNote": "Private owners only appear here if they chose to."
+    },
+    "heading": "Professionals",
+    "intro": "The agencies and agents who list on Takussan, with their live listings, their reviews and how fast they reply.",
+    "tabs": {
+      "aria": "Agencies or agents",
+      "agencies": "Agencies",
+      "agents": "Agents"
+    },
+    "languages": {
+      "fr": "French",
+      "wo": "Wolof",
+      "en": "English",
+      "ar": "Arabic",
+      "ff": "Pulaar",
+      "es": "Spanish",
+      "pt": "Portuguese",
+      "it": "Italian",
+      "de": "German"
+    },
+    "spotlight": {
+      "badge": "Featured",
+      "leases": "{count, plural, one {# lease} other {# leases}} signed this month",
+      "cta": "View the agency"
+    },
+    "join": {
+      "title": "Your agency isn’t here yet?",
+      "body": "A free storefront, your listings on Takussan, and the workspace for viewings, leases and rent.",
+      "cta": "Join Takussan"
     }
   },
   "legal": {
