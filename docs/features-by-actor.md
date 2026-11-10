@@ -37,17 +37,26 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 ## Sommaire
 
-1. [👤 Visiteur anonyme (pas encore de compte)](#visiteur-anonyme-pas-encore-de-compte) — 43 fonctionnalités
-2. [🏠 Locataire / Acheteur (Customer)](#locataire-acheteur-customer) — 95 fonctionnalités
-3. [🏢 Bailleur / Propriétaire (owner)](#bailleur-propriétaire-owner) — 88 fonctionnalités
-4. [🧑‍💼 Agent immobilier](#agent-immobilier) — 120 fonctionnalités
-5. [🔧 Prestataire de service (service provider)](#prestataire-de-service-service-provider) — 17 fonctionnalités
-6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 158 fonctionnalités
-7. [👥 Tous les utilisateurs authentifiés](#tous-les-utilisateurs-authentifiés) — 83 fonctionnalités
+1. [👤 Visiteur anonyme (pas encore de compte)](#visiteur-anonyme-pas-encore-de-compte) — 49 fonctionnalités
+2. [🏠 Locataire / Acheteur (Customer)](#locataire-acheteur-customer) — 106 fonctionnalités
+3. [🏢 Bailleur / Propriétaire (owner)](#bailleur-propriétaire-owner) — 106 fonctionnalités
+4. [🧑‍💼 Agent immobilier](#agent-immobilier) — 157 fonctionnalités
+5. [🔧 Prestataire de service (service provider)](#prestataire-de-service-service-provider) — 23 fonctionnalités
+6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 178 fonctionnalités
+7. [👥 Tous les utilisateurs authentifiés](#tous-les-utilisateurs-authentifiés) — 96 fonctionnalités
 
 ---
 
 ## 👤 Visiteur anonyme (pas encore de compte)
+
+### §1.1 Gestion des biens
+
+| Prio | Domaine | Fonctionnalité |
+|------|---------|----------------|
+| P1 | §1.1 | Publier sans compte : l'anonyme remplit toute l'annonce (toutes les étapes, fréquence Mois / Semaine / Jour / An), gardée dans son navigateur (valeurs et photos survivent au rechargement) ; le compte (numéro, code, prénom **et** nom) est demandé dans une feuille au moment de publier, qui remplace « Vos coordonnées pour les intéressés » sans perte de donnée ; publication directe seulement sans espace ou avec un seul espace particulier, sinon le brouillon est versé dans l'assistant connecté ; les champs propres aux agences sont masqués pour le particulier, pas retirés (décision 1 du porteur du 2026-11-10 ; TCK-2600, TCK-2601) |
+| P1 | §1.1 | Une annonce publiée ouvre l'écran « Ton annonce est en ligne » (partager, compléter, booster), pas un toast (TCK-2602) |
+| P1 | §1.1 | Coller un lien Google Maps ou une position WhatsApp sans session (`POST /api/public/geo/resolve-link`, limiteur `public-geo-link` à 10 par minute, même liste d'hôtes que la version connectée) (TCK-2599) |
+| P2 | §1.1 | Le départ de la publication affiche le nombre de recherches de la ville sur 7 jours, au-dessus d'un seuil réglable (`publish.demand_min_searches`, 200) (TCK-2603) |
 
 ### §1.2 Recherche & découverte publique
 
@@ -117,7 +126,9 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
 | P1 | §2.1 | L'inscription garde l'intention du visiteur (bien, dates, action) jusqu'au retour sur la fiche, quel que soit le chemin (connexion, inscription, téléphone, OAuth) (TCK-589) |
+| P1 | §2.1 | Une seule porte par numéro : `/auth/register` redirige vers `/auth/login` en gardant `redirect` ; l'intention (ce que le visiteur faisait) est en tête, choisie dans une liste fermée ; aucune énumération de compte (TCK-2604) |
 | P0 | §2.1 | Onboarding wizard Customer post-signup — welcome modale (3 slides skippables) + complétion différée du profil minimal (téléphone, ville, type de recherche) au moment de la première action sensible (favoris / réservation / contact) |
+| P1 | §2.1 | Orientation en trois portes (chercher, publier, professionnel) ; `entry_intent` accepte `professional` ; le chercheur repart avec une alerte, qui peut viser plusieurs quartiers (TCK-2607, TCK-2608) |
 
 ### §2.12 Radar — acquisition d'annonces
 
@@ -184,8 +195,9 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.3 | Télécharger le reçu PDF d'un acompte ou d'un solde de réservation payé (TCK-593) |
 | P1 | §1.3 | Annuler sa propre réservation : bailleur et agent du bien prévenus ; un acompte déjà payé est signalé « remboursement à traiter » à l'agence, et le client voit le remboursement en cours (TCK-596) |
 | P2 | §1.3 | Expiration automatique des demandes non traitées — au seuil de l'agence (`booking_pending_expiry_hours`, 1 à 168 h, 0 = désactivé) ou à l'échéance propre de la demande, la première échue ; l'API l'expose (`response_deadline`) et la confirmation l'affiche, sans promettre de délai quand il n'y en a pas (TCK-575) ; une demande expirée à son échéance propre est datée, journalisée et notifiée au client comme au seuil de l'agence (TCK-596) |
-| P2 | §1.3 | Planification de visites : en personne, virtuelle, en autonomie ou hybride ; agent accompagnateur, durée estimée, feedback post-visite |
+| P2 | §1.3 | Planification de visites : en personne, virtuelle, en autonomie ou hybride ; agent accompagnateur, durée estimée ; **avis post-visite du client (note 1 à 5, sous 24 h) ; compte rendu de l'agent (ligne P0 ci-dessous)** (TCK-2578) |
 | P2 | §1.3 | Rappels automatiques avant visite — y compris au visiteur sans compte (téléphone de la demande), 24 h et 1 h avant (TCK-588) |
+| P2 | §1.3 | L'adresse du bien d'une visite : toujours au personnel ; au visiteur, une fois la visite confirmée — décidé par le porteur le 2026-11-10 (TCK-2585) |
 | P2 | §1.3 | Créneaux de visite proposés hors des visites déjà confirmées, saisis et affichés en heure de Dakar (TCK-590) |
 | P2 | §1.3 | Replanification d'une visite par le client, soumise à nouvelle confirmation de l'agent (TCK-590) |
 | P3 | §1.3 | Annulation avec remboursement partiel automatisé |
@@ -196,9 +208,10 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 |------|---------|----------------|
 | P1 | §1.4 | Enregistrer un paiement mensuel |
 | P1 | §1.4 | Relances de loyer automatiques (J-3, J+1, J+7) au locataire, y compris sans compte (téléphone du client), sur WhatsApp puis SMS en secours, dans sa langue ; un retard est relancé que le bail porte une pénalité ou non, et la relance annonce le solde restant dû (TCK-588) ; chaque relance part au plus une fois : celle que tous les fournisseurs SMS refusent n'est pas renvoyée et laisse une activité d'exploitation rattachée à l'échéance, sans le numéro (P207.01) ; pour un locataire sans compte, le SMS ne prend le relais que d'un échec immédiat de WhatsApp, pas d'un échec que Meta rapporte plus tard (P207.02) |
-| P1 | §1.4 | Payer en ligne une échéance de loyer (Wave / Orange Money) pour le montant réellement dû : le restant du loyer, plus la pénalité de retard appliquée **si l'agence l'a choisi** (réglage d'agence, désactivé par défaut — sinon la pénalité reste due et s'affiche à part, « à régler auprès de l'agence ») ; le montant est figé à l'ouverture du paiement ; une échéance payée ou remboursée ne peut pas être repayée (TCK-593) ; **la page de paiement ne laisse jamais sans issue** : le total à payer est dit en un montant, une échéance déjà réglée le dit (date du paiement), et quand le paiement en ligne est fermé la page montre les moyens de paiement hors ligne que l'agence a déclarés (numéros Wave / Orange Money, virement) et comment la joindre (TCK-2504, TCK-2505) — livré (TCK-2505) : la page de paiement ne nomme pas le locataire ; elle titre l'échéance (« Échéance d'octobre 2026 », ou sa période) ; quand l'agence encaisse la pénalité hors ligne, un seul total « À régler à l'agence » (loyer et pénalité), détaillé dessous, auprès de l'agence nommée ; l'agence se joint par son téléphone déclaré (appel), sinon il ne reste que le courriel de l'éditeur ; une échéance payée montre sa date et sa quittance, plus aucun montant, une échéance remboursée dit que la quittance ne se télécharge plus ; au téléphone, la quittance se partage comme fichier, jamais comme lien ; un numéro copié l'est sans indicatif ; la page, comme toutes les pages par lien (`/pay`, `/claim`, `/share`, `/search-alerts`, `/notifications`), n'a ni barre du site, ni pied de page, ni dock du comparateur, au bureau compris |
-| P1 | §1.4 | Télécharger le contrat de bail en PDF depuis le détail du bail (TCK-593) |
-| P2 | §1.4 | Révision annuelle du loyer (indice ou accord amiable) journalisée via le journal d'activité |
+| P1 | §1.4 | Page « Paiements » du locataire : un seul total à régler, pénalités de retard restant dues comprises — y compris sur un loyer payé —, partagé entre ce qui se paie en ligne et ce qui se règle à l'agence ; la date et le montant du prochain loyer ; « à jour » seulement quand au moins une échéance est émise et que rien n'est dû, sinon « premier loyer pas encore programmé » (décision 8 du porteur du 2026-11-10 ; TCK-2649, TCK-2650) |
+| P1 | §1.4 | Payer en ligne une échéance de loyer (Wave / Orange Money) pour le montant réellement dû : le restant du loyer, plus la pénalité de retard appliquée **si l'agence l'a choisi** (réglage d'agence, désactivé par défaut — **sinon la pénalité reste due, hors du montant payé en ligne, et comptée dans le total à régler que montre la page du locataire, avec « à régler à l'agence »** (décision 8 du porteur du 2026-11-10 ; TCK-2650)) ; le montant est figé à l'ouverture du paiement ; une échéance payée ou remboursée ne peut pas être repayée (TCK-593) ; **la page de paiement ne laisse jamais sans issue** : le total à payer est dit en un montant, une échéance déjà réglée le dit (date du paiement), et quand le paiement en ligne est fermé la page montre les moyens de paiement hors ligne que l'agence a déclarés (numéros Wave / Orange Money, virement) et comment la joindre (TCK-2504, TCK-2505) — livré (TCK-2505) : la page de paiement ne nomme pas le locataire ; elle titre l'échéance (« Échéance d'octobre 2026 », ou sa période) ; quand l'agence encaisse la pénalité hors ligne, un seul total « À régler à l'agence » (loyer et pénalité), détaillé dessous, auprès de l'agence nommée ; l'agence se joint par son téléphone déclaré (appel), sinon il ne reste que le courriel de l'éditeur ; une échéance payée montre sa date et sa quittance, plus aucun montant, une échéance remboursée dit que la quittance ne se télécharge plus ; au téléphone, la quittance se partage comme fichier, jamais comme lien ; un numéro copié l'est sans indicatif ; la page, comme toutes les pages par lien (`/pay`, `/claim`, `/share`, `/search-alerts`, `/notifications`), n'a ni barre du site, ni pied de page, ni dock du comparateur, au bureau compris |
+| P1 | §1.4 | Télécharger le contrat de bail en PDF depuis le détail du bail (TCK-593) ; **offert à toute partie qui lit le bail — locataire, bailleur, personnel de l'agence** (TCK-2642, TCK-2645) |
+| P2 | §1.4 | Révision annuelle du loyer (indice ou accord amiable) journalisée via le journal d'activité ; **la révision porte une date d'effet (jamais antérieure), ne dépasse pas le plafond du bail, sinon de l'agence, sinon de la plateforme, sauf capacité de dépassement, et le bailleur en est prévenu comme le locataire** (TCK-2642, TCK-2645) |
 | P2 | §1.4 | Télécharger la quittance d'une échéance de loyer payée — jamais pour une échéance non acquittée (TCK-593) |
 | P2 | §1.4 | Donner congé depuis son espace locataire : délai de préavis et pénalité affichés avant l'envoi, retrait possible tant que la fenêtre d'annulation est ouverte ; la clôture reste au gestionnaire (TCK-596) |
 | P2 | §1.4 | Signature du bail par code à usage unique (SMS sur numéro vérifié, sinon e-mail) : empreinte du contrat figé, horodatage et IP de chaque partie ; activation à la seconde signature (TCK-596 — remplace la ligne P3 « Signature électronique du bail ») |
@@ -212,7 +225,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.5 | Reversement au bailleur calculé depuis les loyers et réservations encaissés de la période (loyer, charges, pénalités — la pénalité réglée est une ligne propre du reversement, P206.01 —, régularisations ; jamais la caution), commission du bail sinon de l'agence, frais de travaux refacturés déduits ; le brut n'est pas saisi et un paiement n'est reversé qu'une fois (TCK-594) |
 | P1 | §1.5 | Un reversement ne cite que des paiements de l'agence et du bailleur concernés ; un remboursement de caution est un versement au locataire, jamais compté comme reversé au bailleur (TCK-594) |
 | P1 | §1.5 | Remboursement d'une somme déjà reversée au bailleur : le remboursement est constaté comme une sortie d'argent, et la part du bailleur, au net de commission, est reprise sur son reversement suivant, reliquat reporté ; chaque ligne d'un reversement garde le montant, le taux et la commission appliqués à sa création (TCK-2017, TCK-2052, TCK-2151, [ADR-0039](adr/0039-les-sorties-d-argent.md)) |
-| P1 | §1.5 | Relevé de gérance mensuel (PDF / CSV) par bien et consolidé, et attestation annuelle de revenus locatifs, envoyés au bailleur en début de mois (TCK-594) ; le relevé mensuel envoyé est conservé tel qu'il a été envoyé, et ce qui a été écrit depuis se montre en rectificatif (TCK-2321) |
+| P1 | §1.5 | Relevé de gérance mensuel (PDF / CSV) par bien et consolidé, et attestation annuelle de revenus locatifs, envoyés au bailleur en début de mois (TCK-594) ; le relevé mensuel envoyé est conservé tel qu'il a été envoyé, et ce qui a été écrit depuis se montre en rectificatif (TCK-2321) ; **il dit le reste à verser au bailleur (net moins déjà versé, sur la période) et son prochain reversement programmé, et détaille chaque bien (locataire, loyer attendu, encaissé, état du mois) ; un relevé déjà envoyé garde ses totaux** (TCK-2649, TCK-2651) |
 | P2 | §1.5 | Lien de paiement en ligne (Wave / Orange Money) par échéance de loyer, utilisable sans compte : jeton expirant et révocable envoyé au locataire, quittance remise après paiement (TCK-602) ; `GET /api/pay/{jeton}` rend la date du paiement (`paid_at`) : le lien d'une échéance payée se lit encore 30 jours sans rouvrir le paiement, celui d'une échéance remboursée se lit aussi (statut et date ; ni paiement, ni vérification, ni quittance) ; tant que l'échéance est payable, il porte les moyens de paiement hors ligne que l'agence a déclarés (`offline_payment` : numéros Wave et Orange Money, coordonnées bancaires, téléphone de l'agence ; une clé vide est omise, `null` quand rien n'est déclaré ou que l'échéance ne se paie plus) — trois réglages d'agence, journalisés comme tous ses réglages (TCK-2504) ; **leur formulaire est livré** (TCK-2536) : section « Paiement hors ligne » des réglages de l'agence, pour toute agence, individuelle comprise ; un champ ne part que s'il a changé (blancs rognés), vidé il part `null` et retire la clé ; le numéro affiché après l'envoi est celui que l'API a normalisé (E.164) ; les erreurs de l'API se posent sur leur champ ; l'enregistrement exige la double authentification de l'admin, comme tout `PATCH /api/agencies/{id}` |
 | P1 | §1.5 | Le payeur (locataire, client) voit les fournisseurs de paiement en ligne que l'agence a activés — intégration plateforme comprise — et seulement ceux-là (TCK-602) |
 | P2 | §1.5 | Moyens de versement du bénéficiaire (Wave, Orange Money, Free Money, virement), vérifiés par l'agence ; décaissement tracé par une référence de transaction obligatoire ; avis de versement effectué / échoué au bénéficiaire (TCK-594) |
@@ -223,8 +236,10 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 |------|---------|----------------|
 | P1 | §1.7 | Conversation privée 1↔1 entre client et agent / bailleur |
 | P1 | §1.7 | Périmètre de messagerie — qui l'on peut faire entrer dans une conversation, directe ou de groupe ; une seule règle sert le sélecteur, la création et l'ajout de participants : un correspondant (une conversation déjà partagée), un lien CRM (une même fiche client, ou le compte du client d'une fiche ; une fiche supprimée ne relie plus personne, les fils déjà ouverts restant par la règle du correspondant — TCK-2295), l'équipe active de son agence, et ses propriétaires actifs pour l'équipe seulement ; pour compléter un groupe existant, aussi l'équipe active de l'agence de son bien ou de son bail ; un profil invité pas encore accepté, suspendu ou inactif ne compte pas (TCK-565). À ne pas confondre avec le « contact joignable » qu'exige la publication (§1.1, TCK-633) |
-| P1 | §1.7 | Envoyer un message texte avec pièces jointes |
+| P1 | §1.7 | Envoyer un message texte avec pièces jointes — **une photo (jpeg, png, webp ≤ 8 Mo, sans métadonnées EXIF) ou un PDF (≤ 10 Mo) par message, lisible par URL signée par les seuls participants actuels** (TCK-2631, TCK-2632) |
 | P1 | §1.7 | Liste des conversations avec statut non lu — messages d'un autre postérieurs à la dernière lecture, hors avis système ; ouvrir un fil le marque lu (TCK-579) |
+| P1 | §1.7 | Une conversation se nomme par la personne (ou le groupe) ; le bien est en deuxième ligne ; recherche par nom, bien ou sujet, et puces Tous · Non lus · Groupes, filtrées côté serveur (TCK-2630, TCK-2632) |
+| P1 | §1.7 | Nouvelle conversation avec une personne du périmètre (clients récents, équipe, propriétaires), en plus du groupe ; un fil existant est rouvert, jamais doublé (TCK-2632) |
 | P1 | §1.7 | Notification en temps réel (in-app + email) |
 | P2 | §1.7 | Accusés de lecture individuels (si > 5 participants) — non livré : la lecture se compte par participant (dernière lecture), aucune par message (`models-spec.md` EF5, refusé pour l'instant) ; le déclencheur d'EF5, des conversations à plus de 5 participants, est désormais atteignable — un groupe compte jusqu'à 20 participants actifs |
 | P2 | §1.7 | Recherche dans l'historique des messages |
@@ -237,22 +252,27 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
-| P1 | §1.8 | Signaler un problème avec photos et description |
+| P1 | §1.8 | Signaler un problème, **photo d'abord, avec une catégorie et une urgence ; la description est facultative pour le demandeur, le titre se déduit de la catégorie** (TCK-2652, TCK-2654) |
 | P1 | §1.8 | Consulter l'historique des interventions par bien |
 | P1 | §1.8 | Être notifié de chaque étape de sa demande (prise en charge, assignation, date prévue, fin) (TCK-592) |
 | P1 | §1.8 | Confirmer ou contester la résolution ; clôture automatique sans réponse après 7 jours — le prestataire ne clôt pas (TCK-592) |
 | P2 | §1.8 | Noter le prestataire après une intervention terminée (1 à 5 + commentaire) ; note agrégée visible des agences dans le carnet (TCK-597) |
+| P1 | §1.8 | Files par état d'attente : chaque demande est, d'après son statut, son prestataire et son créneau, dans une seule file — à dispatcher, en cours, en retard (créneau dépassé), chez le bailleur, à confirmer par le locataire, terminées — et dit qui doit agir et depuis quand (table ci-dessous) ; prestataires suggérés par métier, zone, note et interventions réalisées (TCK-2652, TCK-2653) |
+| P1 | §1.8 | Le locataire demandeur ne voit ni le coût estimé, ni le coût réel, ni le devis ; le donneur d'ordre, le bailleur du bien et le prestataire assigné les voient (TCK-2652, TCK-2654) |
 
 ### §1.9 État des lieux & inventaires
 
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
-| P2 | §1.9 | Signature des deux parties (locataire + bailleur), chacune par un tracé et pour elle-même seulement — un collaborateur du bien ne signe jamais pour le bailleur ; l'empreinte imprimée couvre les photos et est figée à la seconde signature (TCK-596) |
+| P2 | §1.9 | Contester un état des lieux en attente de signature ou signé : le locataire et le bailleur du bail seulement, jamais le personnel ni celui qui l'a conduit (TCK-2646, TCK-2648) |
+| P2 | §1.9 | Signature des deux parties (locataire + bailleur), chacune par un tracé et pour elle-même — **le locataire peut aussi signer sur place, sur le téléphone de l'agent, authentifié par un code à usage unique envoyé par SMS à son numéro** (décision 7 du porteur du 2026-11-10, [ADR-0098](adr/0098-le-locataire-signe-l-etat-des-lieux-sur-place-par-code-sms.md)) ; un collaborateur du bien ne signe jamais pour le bailleur ; l'empreinte imprimée couvre les photos et est figée à la seconde signature (TCK-596, TCK-2646, TCK-2648) |
 
 ### §1.10 Documents & contrats
 
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
+| P1 | §1.10 | Coffre de documents par dossier : chacun liste les documents qu'il peut lire — ses téléversements, ceux rattachés à ses baux, biens ou fiche — et ceux que la plateforme produit (contrat, quittances des échéances payées, états des lieux signés, relevés et attestations, factures), listés depuis leur source sans être copiés ; l'agence lit tout ce qui se rattache à un bien ou à un bail, quel qu'en soit l'auteur ; sans cible, la liste reste celle de ses téléversements (TCK-820) ([ADR-0099](adr/0099-le-coffre-de-documents-la-liste-suit-la-lecture.md) ; TCK-2655, TCK-2656) |
+| P2 | §1.10 | Expiration visible : « expire dans N jours », et filtre des documents qui expirent bientôt (TCK-2655, TCK-2656) |
 | P1 | §1.10 | Partage sécurisé par lien temporaire |
 | P1 | §1.10 | Lien de partage d'un document : jeton stocké haché, accès public limité en débit, mot de passe envoyé dans le corps de la requête et protégé contre les essais répétés (TCK-602, TCK-587) |
 
@@ -263,6 +283,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P2 | §1.11 | Laisser un avis sur un bien, un agent ou une agence |
 | P2 | §1.11 | Signaler un avis inapproprié (déclenche modération) |
 | P2 | §1.11 | Un signalement range l'avis dans la file de modération sans le masquer ; la note moyenne publiée ne compte que les avis publiés (TCK-597) |
+| P2 | §1.11 | Mes avis en trois onglets, Reçus · À laisser · Publiés, les reçus d'abord ; la note moyenne de l'agent est celle de sa fiche publique (TCK-2635) |
 
 ### §1.12 Agence & équipe
 
@@ -276,6 +297,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 |------|---------|----------------|
 | P1 | §2.1 | Données bancaires et d'identité des profils et des demandes de passage en agence (RIB, NINEA, n° de pièce, RIB professionnel, revenu déclaré), et pièce et revenu du locataire et de la caution, chiffrées au repos et masquées à l'affichage ; valeur complète réservée à l'admin de l'agence et au super-admin, sous second facteur récent, consultation journalisée (TCK-601, TCK-953 à TCK-956, [ADR-0070](adr/0070-piece-et-revenu-du-locataire-et-de-la-caution-chiffres-masques-lus-sous-step-up.md)) |
 | P0 | §2.1 | Onboarding wizard Customer post-signup — welcome modale (3 slides skippables) + complétion différée du profil minimal (téléphone, ville, type de recherche) au moment de la première action sensible (favoris / réservation / contact) |
+| P1 | §2.1 | Orientation en trois portes (chercher, publier, professionnel) ; `entry_intent` accepte `professional` ; le chercheur repart avec une alerte, qui peut viser plusieurs quartiers (TCK-2607, TCK-2608) |
 
 ### §2.3 Notifications
 
@@ -287,8 +309,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
-| P1 | §2.5 | Dashboard locataire (prochaines échéances, documents) |
-| P1 | §2.5 | Accueil client : toutes ses agences ; une restitution de caution n'est jamais présentée comme une échéance à payer ; dates et montants dans la langue de l'utilisateur (TCK-595) |
+| P1 | §2.5 | « Ma situation » est l'accueil du locataire et du client (`/app`) ; `/app/overview/tenant` y redirige (TCK-2625) — **remplace l'ancien « Dashboard locataire » (prochaines échéances, documents)** |
+| P1 | §2.5 | Accueil client (« Ma situation », TCK-2625) : toutes ses agences ; une restitution de caution n'est jamais présentée comme une échéance à payer ; dates et montants dans la langue de l'utilisateur (TCK-595) |
 | P2 | §2.5 | Accueil client sans dossier : prochaines visites, réservations, échéances, interventions ouvertes, biens de sa ville selon son intention de recherche (TCK-595) |
 
 ---
@@ -311,6 +333,10 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.1 | Gérer une hiérarchie de biens (immeuble → étages → lots) |
 | P1 | §1.1 | Renseigner le type de titre foncier (bail, titre foncier, délibération, autre) |
 | P1 | §1.1 | Renseigner l'état d'un bien bâti (sur plan, neuf, rénové, bon état, à rénover) ; « neuf » et « sur plan » sont signalés par un badge sur l'annonce publique |
+| P1 | §1.1 | Lire l'occupation de chaque bien, dans la liste et sur la fiche : occupé (locataire, bail, fin de bail), en préavis, ou vacant (depuis la fin effective du dernier bail ; « sans locataire » s'il n'a jamais été loué), et l'état du loyer du mois (payé, dû, en retard de N jours, pénalité due) ; filtres occupé / vacant / préavis / loyer en retard, recherche par locataire du bail en cours, comptes du portefeuille ; le locataire n'est nommé qu'à qui peut lire le bail (TCK-2637) |
+| P1 | §1.1 | « En ligne » est le seul mot de l'état « visible du public » — agence active, visibilité publique, publié, statut ouvert, hors test : le prédicat `Property::scopePublic` —, servi par l'API sur chaque bien (`is_online`) et partagé par la tuile, la pastille et la fiche ; « Publié » ne s'affiche plus comme état, la visibilité (Public / Privé) se lit comme un réglage (décision 6 du porteur du 2026-11-10, [ADR-0097](adr/0097-en-ligne-est-un-etat-derive.md)) ; le statut `published` se lit « Validé » ; **un bien hors ligne dit pourquoi, par des codes de motif servis par l'API depuis le même prédicat** (agence inactive, statut, non publié, privé, test) (TCK-2637, TCK-2638, TCK-2639, TCK-2678) |
+| P1 | §1.1 | Une annonce publiée ouvre l'écran « Ton annonce est en ligne » (partager, compléter, booster), pas un toast (TCK-2602) |
+| P2 | §1.1 | Le départ de la publication affiche le nombre de recherches de la ville sur 7 jours, au-dessus d'un seuil réglable (`publish.demand_min_searches`, 200) (TCK-2603) |
 | P1 | §1.1 | Saisie des montants lisible : chiffres groupés selon la langue de l'écran, décimales selon la devise (aucune en franc CFA) ; la valeur envoyée reste un nombre (TCK-564, TCK-574) |
 | P3 | §1.1 | Marquer un bien comme nécessitant un suivi administratif particulier |
 
@@ -324,6 +350,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.3 | Consultation des paiements liés à la réservation |
 | P1 | §1.3 | Être prévenu de chaque demande de réservation ou offre d'achat sur un bien (bailleur et agent du bien), qu'elle vienne du site public ou de la console (TCK-596) |
 | P1 | §1.3 | Marquer un acompte remboursé : personnel de l'agence titulaire de la capacité de remboursement, ou bailleur du bien — jamais le client ni un autre bailleur de l'agence (TCK-596) |
+| P1 | §1.3 | Une réservation porte sa nature — séjour, candidature, offre d'achat — fixée à la création d'après le bien ; la console les sépare (sélecteur de nature, vocabulaire et suite propres à chacune), compte les demandes par nature et par statut, liste les réservations terminées et se cherche par référence, client ou bien (TCK-2579, TCK-2593, TCK-2594) |
+| P2 | §1.3 | Agenda en deux vues : **Mon agenda** (visites et tâches ; le jour au téléphone, la semaine au bureau pour l'agent, le mois pour l'admin et le bailleur) et **Occupation des biens** (séjours, échéances de bail — fin, renouvellement —, interventions planifiées ; un bien par ligne, séjours en barres continues) ; pour l'agent, les séjours ne sont pas des rendez-vous ; pour l'hôte et le bailleur courte durée, ils restent repliés en fin de journée ; une visite y dit le visiteur et l'adresse (TCK-591, TCK-2585, TCK-2597) |
 | P2 | §1.3 | Bloquer des dates d'un bien en courte durée (usage personnel, travaux) : aucune demande ni confirmation possible sur ces dates, grisées dans le tunnel public (TCK-596) |
 | P2 | §1.3 | Synchroniser le calendrier d'un bien avec Airbnb / Booking.com : export iCal par bien (lien secret révocable) et import d'URL iCal externes rafraîchi périodiquement, conflits signalés (TCK-596) |
 
@@ -331,19 +359,19 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
-| P1 | §1.4 | Créer un bail (locataire, bailleur, durée, loyer, caution) |
+| P1 | §1.4 | Créer un bail (locataire, bailleur, durée, loyer, caution) ; **prérempli depuis le bien (loyer, caution en mois de loyer) et les réglages de l'agence (pénalité de retard et délai de grâce, commission, indemnité de départ anticipé, plafond de révision), chaque valeur modifiable et sa source dite ; pénalité et délai de grâce s'écrivent dès la création** ; **les charges mensuelles du bien préremplissent les charges du bail, terme imprimé au contrat** (TCK-2643, TCK-2679) |
 | P1 | §1.4 | Créer le bail depuis une candidature acceptée (« Créer le bail » sur la réservation confirmée d'un bien à louer) : bien, locataire, dates et loyer préremplis ; le locataire est le client de la réservation, et la réservation passe à « terminée », ce qui libère ses dates (P48.03, TCK-2352) |
-| P1 | §1.4 | Générer l'échéancier de loyers mensuels, et l'échéance de caution à l'activation du bail (aucune pour un bail sans caution ni pour un renouvellement) ; elle se paie en ligne ou se marque payée comme un loyer (TCK-2375) |
+| P1 | §1.4 | Générer l'échéancier de loyers mensuels, et l'échéance de caution à l'activation du bail (aucune pour un bail sans caution ni pour un renouvellement) ; elle se paie en ligne ou se marque payée comme un loyer (TCK-2375) ; **un bail qui porte des charges reçoit, à côté de chaque loyer, une échéance de charges de même période et de même date — relancée comme le loyer, jamais soumise à la pénalité de retard ni à la révision, comptée dans le total du locataire** (décision du porteur du 2026-11-10, [ADR-0042](adr/0042-preuve-de-consentement-a-la-signature-du-bail.md) amendé ; TCK-2679) |
 | P1 | §1.4 | Enregistrer un paiement mensuel |
 | P1 | §1.4 | Alerte d'impayé au bailleur (J+1, J+7) et récapitulatif quotidien unique des impayés à l'agent (TCK-588) |
 | P1 | §1.4 | Appliquer automatiquement des pénalités de retard sur les paiements en retard |
 | P1 | §1.4 | Choisir, par agence, si les pénalités de retard s'encaissent avec le paiement en ligne du loyer — désactivé par défaut (TCK-593) |
 | P1 | §1.4 | Enregistrer une pénalité de retard réglée à l'agence ; la quittance la dit acquittée ou restant due (TCK-593) |
-| P1 | §1.4 | Télécharger le contrat de bail en PDF depuis le détail du bail (TCK-593) |
+| P1 | §1.4 | Télécharger le contrat de bail en PDF depuis le détail du bail (TCK-593) ; **offert à toute partie qui lit le bail — locataire, bailleur, personnel de l'agence** (TCK-2642, TCK-2645) |
 | P1 | §1.4 | Consultation de l'historique complet d'un bail |
 | P2 | §1.4 | Renouveler un bail ou créer un avenant (loyer, durée, conditions) avec traçabilité du bail parent ; le bail renouvelé reçoit son échéancier sans geste manuel (TCK-596) ; il naît sans garant, et la réponse et le récapitulatif le disent (TCK-2316) |
 | P2 | §1.4 | Résiliation anticipée avec calcul des pénalités |
-| P2 | §1.4 | Révision annuelle du loyer (indice ou accord amiable) journalisée via le journal d'activité |
+| P2 | §1.4 | Révision annuelle du loyer (indice ou accord amiable) journalisée via le journal d'activité ; **la révision porte une date d'effet (jamais antérieure), ne dépasse pas le plafond du bail, sinon de l'agence, sinon de la plateforme, sauf capacité de dépassement, et le bailleur en est prévenu comme le locataire** (TCK-2642, TCK-2645) |
 | P2 | §1.4 | Télécharger la quittance d'une échéance de loyer payée — jamais pour une échéance non acquittée (TCK-593) |
 | P2 | §1.4 | Signature du bail par code à usage unique (SMS sur numéro vérifié, sinon e-mail) : empreinte du contrat figé, horodatage et IP de chaque partie ; activation à la seconde signature (TCK-596 — remplace la ligne P3 « Signature électronique du bail ») |
 
@@ -357,7 +385,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.5 | Reversement au bailleur calculé depuis les loyers et réservations encaissés de la période (loyer, charges, pénalités — la pénalité réglée est une ligne propre du reversement, P206.01 —, régularisations ; jamais la caution), commission du bail sinon de l'agence, frais de travaux refacturés déduits ; le brut n'est pas saisi et un paiement n'est reversé qu'une fois (TCK-594) |
 | P1 | §1.5 | Un reversement ne cite que des paiements de l'agence et du bailleur concernés ; un remboursement de caution est un versement au locataire, jamais compté comme reversé au bailleur (TCK-594) |
 | P1 | §1.5 | Remboursement d'une somme déjà reversée au bailleur : le remboursement est constaté comme une sortie d'argent, et la part du bailleur, au net de commission, est reprise sur son reversement suivant, reliquat reporté ; chaque ligne d'un reversement garde le montant, le taux et la commission appliqués à sa création (TCK-2017, TCK-2052, TCK-2151, [ADR-0039](adr/0039-les-sorties-d-argent.md)) |
-| P1 | §1.5 | Relevé de gérance mensuel (PDF / CSV) par bien et consolidé, et attestation annuelle de revenus locatifs, envoyés au bailleur en début de mois (TCK-594) ; le relevé mensuel envoyé est conservé tel qu'il a été envoyé, et ce qui a été écrit depuis se montre en rectificatif (TCK-2321) |
+| P1 | §1.5 | Relevé de gérance mensuel (PDF / CSV) par bien et consolidé, et attestation annuelle de revenus locatifs, envoyés au bailleur en début de mois (TCK-594) ; le relevé mensuel envoyé est conservé tel qu'il a été envoyé, et ce qui a été écrit depuis se montre en rectificatif (TCK-2321) ; **il dit le reste à verser au bailleur (net moins déjà versé, sur la période) et son prochain reversement programmé, et détaille chaque bien (locataire, loyer attendu, encaissé, état du mois) ; un relevé déjà envoyé garde ses totaux** (TCK-2649, TCK-2651) |
 | P1 | §1.5 | Double validation des sorties d'argent : la même personne ne tient jamais deux gestes consécutifs (préparer, approuver, marquer payé) ni n'approuve un versement dont elle est bénéficiaire. Reversements plateforme : toujours. Reversements d'agence : désactivée par défaut ; l'agence l'active par un seuil, possible seulement avec deux approbateurs (TCK-594) |
 | P2 | §1.5 | Lien de paiement en ligne (Wave / Orange Money) par échéance de loyer, utilisable sans compte : jeton expirant et révocable envoyé au locataire, quittance remise après paiement (TCK-602) ; `GET /api/pay/{jeton}` rend la date du paiement (`paid_at`) : le lien d'une échéance payée se lit encore 30 jours sans rouvrir le paiement, celui d'une échéance remboursée se lit aussi (statut et date ; ni paiement, ni vérification, ni quittance) ; tant que l'échéance est payable, il porte les moyens de paiement hors ligne que l'agence a déclarés (`offline_payment` : numéros Wave et Orange Money, coordonnées bancaires, téléphone de l'agence ; une clé vide est omise, `null` quand rien n'est déclaré ou que l'échéance ne se paie plus) — trois réglages d'agence, journalisés comme tous ses réglages (TCK-2504) ; **leur formulaire est livré** (TCK-2536) : section « Paiement hors ligne » des réglages de l'agence, pour toute agence, individuelle comprise ; un champ ne part que s'il a changé (blancs rognés), vidé il part `null` et retire la clé ; le numéro affiché après l'envoi est celui que l'API a normalisé (E.164) ; les erreurs de l'API se posent sur leur champ ; l'enregistrement exige la double authentification de l'admin, comme tout `PATCH /api/agencies/{id}` |
 | P2 | §1.5 | Un reversement programmé échu est rappelé une fois à son émetteur (TCK-594) |
@@ -369,8 +397,10 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 |------|---------|----------------|
 | P1 | §1.7 | Conversation privée 1↔1 entre client et agent / bailleur |
 | P1 | §1.7 | Périmètre de messagerie — qui l'on peut faire entrer dans une conversation, directe ou de groupe ; une seule règle sert le sélecteur, la création et l'ajout de participants : un correspondant (une conversation déjà partagée), un lien CRM (une même fiche client, ou le compte du client d'une fiche ; une fiche supprimée ne relie plus personne, les fils déjà ouverts restant par la règle du correspondant — TCK-2295), l'équipe active de son agence, et ses propriétaires actifs pour l'équipe seulement ; pour compléter un groupe existant, aussi l'équipe active de l'agence de son bien ou de son bail ; un profil invité pas encore accepté, suspendu ou inactif ne compte pas (TCK-565). À ne pas confondre avec le « contact joignable » qu'exige la publication (§1.1, TCK-633) |
-| P1 | §1.7 | Envoyer un message texte avec pièces jointes |
+| P1 | §1.7 | Envoyer un message texte avec pièces jointes — **une photo (jpeg, png, webp ≤ 8 Mo, sans métadonnées EXIF) ou un PDF (≤ 10 Mo) par message, lisible par URL signée par les seuls participants actuels** (TCK-2631, TCK-2632) |
 | P1 | §1.7 | Liste des conversations avec statut non lu — messages d'un autre postérieurs à la dernière lecture, hors avis système ; ouvrir un fil le marque lu (TCK-579) |
+| P1 | §1.7 | Une conversation se nomme par la personne (ou le groupe) ; le bien est en deuxième ligne ; recherche par nom, bien ou sujet, et puces Tous · Non lus · Groupes, filtrées côté serveur (TCK-2630, TCK-2632) |
+| P1 | §1.7 | Nouvelle conversation avec une personne du périmètre (clients récents, équipe, propriétaires), en plus du groupe ; un fil existant est rouvert, jamais doublé (TCK-2632) |
 | P1 | §1.7 | Notification en temps réel (in-app + email) |
 | P2 | §1.7 | Conversations de groupe (multi-participants) — participants choisis par leur nom ; bien et bail rattachés par recherche (titre, référence), dans le périmètre visible de l'acteur ; un bail doit concerner le bien choisi (TCK-565, TCK-576). Une demande d'intervention ne se rattache pas à un groupe créé à la main (422) : son fil naît de l'assignation (TCK-2372, P250.03) |
 | P2 | §1.7 | Groupe rattaché à un bail — il ne compte que des personnes qui lisent ce bail (`LeasePolicy::view` : parties au bail, personnel actif de l'agence) ; contrôlé à la création du groupe et à l'ajout de participants. Seule exception : le prestataire assigné à une intervention de ce bail reste dans le fil de cette intervention (TCK-592, `SyncMaintenanceConversation`), qu'il ne lise pas le bail. Un autre artisan ou un tiers se joint par un groupe sans bail rattaché (décisions du porteur du 2026-10-23, P191.04 ; TCK-2191) |
@@ -386,21 +416,25 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 |------|---------|----------------|
 | P1 | §1.8 | Consulter l'historique des interventions par bien |
 | P2 | §1.8 | Demande de devis et validation avant travaux — le donneur d'ordre demande, approuve ou refuse ; le prestataire assigné est seul à soumettre le devis |
-| P2 | §1.8 | Plafond de travaux sans accord : au-delà, le bailleur approuve ou refuse le devis ; le bailleur est averti de tout devis sur son bien (TCK-592) |
+| P2 | §1.8 | Plafond de travaux sans accord : au-delà, le bailleur approuve ou refuse le devis ; le bailleur est averti de tout devis sur son bien (TCK-592) ; **le plafond se règle par l'admin d'agence depuis la fiche du bailleur (capacité `owners.update`), l'écriture est journalisée et vaut pour les devis soumis après le changement** (TCK-2640, TCK-2641) |
 | P2 | §1.8 | Noter le prestataire après une intervention terminée (1 à 5 + commentaire) ; note agrégée visible des agences dans le carnet (TCK-597) |
 | P3 | §1.8 | Facturation directe prestataire → agence : à la fin d'une intervention, facture du prestataire générée (devis approuvé ou coût réel), validée par l'agence, payée par mobile money et imputable au reversement du bailleur (TCK-594) ; la contestation ou l'annulation de l'intervention annule la facture encore ouverte et non engagée, une facture déjà payée ou refacturée reste avec un avis à l'agence, et seule une intervention terminée ou close voit sa facture validée, payée ou refacturée (TCK-2270) |
 | P3 | §1.8 | Annuaire public des prestataires, sur consentement du prestataire, contact via la plateforme |
+| P1 | §1.8 | Files par état d'attente : chaque demande est, d'après son statut, son prestataire et son créneau, dans une seule file — à dispatcher, en cours, en retard (créneau dépassé), chez le bailleur, à confirmer par le locataire, terminées — et dit qui doit agir et depuis quand (table ci-dessous) ; prestataires suggérés par métier, zone, note et interventions réalisées (TCK-2652, TCK-2653) |
 
 ### §1.9 État des lieux & inventaires
 
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
-| P2 | §1.9 | Signature des deux parties (locataire + bailleur), chacune par un tracé et pour elle-même seulement — un collaborateur du bien ne signe jamais pour le bailleur ; l'empreinte imprimée couvre les photos et est figée à la seconde signature (TCK-596) |
+| P2 | §1.9 | Contester un état des lieux en attente de signature ou signé : le locataire et le bailleur du bail seulement, jamais le personnel ni celui qui l'a conduit (TCK-2646, TCK-2648) |
+| P2 | §1.9 | Signature des deux parties (locataire + bailleur), chacune par un tracé et pour elle-même — **le locataire peut aussi signer sur place, sur le téléphone de l'agent, authentifié par un code à usage unique envoyé par SMS à son numéro** (décision 7 du porteur du 2026-11-10, [ADR-0098](adr/0098-le-locataire-signe-l-etat-des-lieux-sur-place-par-code-sms.md)) ; un collaborateur du bien ne signe jamais pour le bailleur ; l'empreinte imprimée couvre les photos et est figée à la seconde signature (TCK-596, TCK-2646, TCK-2648) |
 
 ### §1.10 Documents & contrats
 
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
+| P1 | §1.10 | Coffre de documents par dossier : chacun liste les documents qu'il peut lire — ses téléversements, ceux rattachés à ses baux, biens ou fiche — et ceux que la plateforme produit (contrat, quittances des échéances payées, états des lieux signés, relevés et attestations, factures), listés depuis leur source sans être copiés ; l'agence lit tout ce qui se rattache à un bien ou à un bail, quel qu'en soit l'auteur ; sans cible, la liste reste celle de ses téléversements (TCK-820) ([ADR-0099](adr/0099-le-coffre-de-documents-la-liste-suit-la-lecture.md) ; TCK-2655, TCK-2656) |
+| P2 | §1.10 | Expiration visible : « expire dans N jours », et filtre des documents qui expirent bientôt (TCK-2655, TCK-2656) |
 | P1 | §1.10 | Partage sécurisé par lien temporaire |
 | P1 | §1.10 | Lien de partage d'un document : jeton stocké haché, accès public limité en débit, mot de passe envoyé dans le corps de la requête et protégé contre les essais répétés (TCK-602, TCK-587) |
 
@@ -412,6 +446,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P2 | §1.11 | Signaler un avis inapproprié (déclenche modération) |
 | P2 | §1.11 | Un signalement range l'avis dans la file de modération sans le masquer ; la note moyenne publiée ne compte que les avis publiés (TCK-597) |
 | P2 | §1.11 | Boîte des avis reçus (sur ses biens, sur soi), filtrée par bien et par réponse, et notification d'un nouvel avis (TCK-597) |
+| P2 | §1.11 | Mes avis en trois onglets, Reçus · À laisser · Publiés, les reçus d'abord ; la note moyenne de l'agent est celle de sa fiche publique (TCK-2635) |
 | P3 | §1.11 | Badges de réputation |
 
 ### §2.1 Authentification & comptes
@@ -419,8 +454,11 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
 | P1 | §2.1 | 2FA exigée pour le personnel de l'agence sur les opérations d'argent, d'intégrations, de rôles et d'équipe ; réglage d'agence « 2FA obligatoire pour toute l'équipe » ; statut 2FA visible dans la liste de l'équipe (TCK-589) |
-| P2 | §2.1 | Groupe « Démarrer » tant que l'espace est neuf (premier bien, KYC, équipe), chaque étape disparaissant une fois faite ; masquable (TCK-2479) |
-| P1 | §2.1 | Wizard onboarding Owner post-acceptation invitation — vérification téléphone OTP (obligatoire), KYC documentaire (CNI/passeport, RIB, NINEA, statut particulier/société) en `pending_review` non bloquant, tour produit 3 slides, vue "biens déjà associés" si pré-rattachement |
+| P2 | §2.1 | Groupe « Démarrer » tant que l'espace est neuf (premier bien, KYC, équipe), chaque étape disparaissant une fois faite ; masquable (TCK-2479) ; **il porte l'étape « Pièces » pour l'agent et le prestataire, avec l'état de chaque pièce — les pièces quittent les assistants d'invitation pour lui** (TCK-2612, TCK-2613, TCK-2614) |
+| P1 | §2.1 | Wizard onboarding Owner post-acceptation invitation — vérification téléphone OTP (obligatoire), KYC documentaire (CNI/passeport, RIB, NINEA, statut particulier/société) en `pending_review` non bloquant, tour produit 3 slides, vue "biens déjà associés" si pré-rattachement — **réduit à deux étapes par TCK-2613 (ligne « Assistants des invités » ci-dessous)** |
+| P1 | §2.1 | Orientation en trois portes (chercher, publier, professionnel) ; `entry_intent` accepte `professional` ; le chercheur repart avec une alerte, qui peut viser plusieurs quartiers (TCK-2607, TCK-2608) |
+| P1 | §2.1 | Invitation : aperçu public par jeton (agence, prénom de l'invitant, rôle, destinataire masqué, ce qui attend ; états expiré / annulé / accepté / inconnu discriminés) ; demande de nouveau lien ; acceptation par code SMS (compte créé ou ouvert, jamais doublé) ; la voie mot de passe reste (décision 3 du porteur du 2026-11-10 ; TCK-2609, TCK-2610, TCK-2611) |
+| P1 | §2.1 | Assistants des invités en deux étapes — le numéro, puis la raison de venir (biens du bailleur, premier prospect de l'agent, intervention du prestataire) ; l'étape « visite guidée » disparaît ; les pièces quittent l'assistant pour « Démarrer » ([Navigation de la console](#navigation-de-la-console-selon-le-profil-actif)) (TCK-2613) |
 | P1 | §2.1 | Carte « Mise en service » de l'agence sur le tableau de bord d'agence (agences `standard`, [§2.5](#25-reporting--tableaux-de-bord)) : étapes calculées par l'API (KYC vérifié, logo, taux de commission, intégration de paiement active, premier membre, premier bien publié, 2FA), chacune avec son lien ; disparaît une fois complète (TCK-589) |
 
 ### §2.2 Rôles & permissions
@@ -444,8 +482,10 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §2.5 | Dashboard bailleur (portefeuille, cashflow, occupation) — ouvert au bailleur, et à l'admin d'agence qui détient `reports.view_agency` (TCK-2260) |
 | P1 | §2.5 | « Prochains versements » et « Net reversé » du bailleur : seuls les versements dont il est bénéficiaire (TCK-595) |
 | P1 | §2.5 | Dashboard hôte : le host solo (agence `individual`) atterrit sur le dashboard bailleur, enrichi des réservations, visites et avis à traiter — jamais sur le dashboard agent ni agence (TCK-595) |
-| P2 | §2.5 | Occupation mesurée par chevauchement de dates (longue durée : jours-biens ; courte durée : nuitées) sur les biens feuilles en location ; encaissé net des cautions, net reversé (TCK-595) |
+| P1 | §2.5 | Une page « Rapports » à onglets remplace Vue agence, Statistiques, Indicateurs, Alertes et Exports : admin « Vue d'ensemble · Équipe · Impayés · Exports · Alertes » ; agent « Vue d'ensemble · Commissions · Pipeline · Exports » (portée Moi / Agence sous `reports.view_agency`) ; bailleur et hôte « Vue d'ensemble · Reversements · Exports ». Ni le locataire, ni le client, ni le prestataire n'en ont. Une série par graphique (décision 4 du porteur du 2026-11-10 ; TCK-2628) |
+| P2 | §2.5 | Occupation mesurée par chevauchement de dates (longue durée : jours-biens ; courte durée : nuitées) sur les biens feuilles en location ; encaissé net des cautions, net reversé (TCK-595) ; **l'occupation du jour ne compte que les baux en cours (`active`, `terminating`), et elle est rendue avec sa base (biens éligibles, biens occupés) ; elle n'est jamais affichée sans elle à côté d'un compte de biens** (TCK-2626, TCK-2628) |
 | P2 | §2.5 | Balance âgée des impayés (1-30 / 31-60 / 61-90 / > 90 j) par locataire ou bailleur, et cautions détenues (TCK-595) |
+| P2 | §2.5 | Exports prêts (préréglages de période) et liste des derniers exports de l'utilisateur, relancés avec les mêmes paramètres et les capacités du moment ; aucun fichier n'est conservé (TCK-2627, TCK-2629) |
 
 ### §2.12 Radar — acquisition d'annonces
 
@@ -486,6 +526,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.1 | Renseigner le type de titre foncier (bail, titre foncier, délibération, autre) |
 | P1 | §1.1 | Renseigner l'état d'un bien bâti (sur plan, neuf, rénové, bon état, à rénover) ; « neuf » et « sur plan » sont signalés par un badge sur l'annonce publique |
 | P1 | §1.1 | Compteurs de vues et de favoris |
+| P1 | §1.1 | Lire l'occupation de chaque bien, dans la liste et sur la fiche : occupé (locataire, bail, fin de bail), en préavis, ou vacant (depuis la fin effective du dernier bail ; « sans locataire » s'il n'a jamais été loué), et l'état du loyer du mois (payé, dû, en retard de N jours, pénalité due) ; filtres occupé / vacant / préavis / loyer en retard, recherche par locataire du bail en cours, comptes du portefeuille ; le locataire n'est nommé qu'à qui peut lire le bail (TCK-2637) |
+| P1 | §1.1 | « En ligne » est le seul mot de l'état « visible du public » — agence active, visibilité publique, publié, statut ouvert, hors test : le prédicat `Property::scopePublic` —, servi par l'API sur chaque bien (`is_online`) et partagé par la tuile, la pastille et la fiche ; « Publié » ne s'affiche plus comme état, la visibilité (Public / Privé) se lit comme un réglage (décision 6 du porteur du 2026-11-10, [ADR-0097](adr/0097-en-ligne-est-un-etat-derive.md)) ; le statut `published` se lit « Validé » ; **un bien hors ligne dit pourquoi, par des codes de motif servis par l'API depuis le même prédicat** (agence inactive, statut, non publié, privé, test) (TCK-2637, TCK-2638, TCK-2639, TCK-2678) |
 | P1 | §1.1 | Saisie des montants lisible : chiffres groupés selon la langue de l'écran, décimales selon la devise (aucune en franc CFA) ; la valeur envoyée reste un nombre (TCK-564, TCK-574) |
 | P2 | §1.1 | Dupliquer un bien (modèle / template) |
 | P2 | §1.1 | Archivage en lot |
@@ -501,13 +543,21 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.3 | Vue calendrier agrégée à partir des réservations confirmées et des visites planifiées (acteurs élargis par TCK-591) |
 | P1 | §1.3 | Être prévenu de chaque demande de réservation ou offre d'achat sur un bien (bailleur et agent du bien), qu'elle vienne du site public ou de la console (TCK-596) |
 | P1 | §1.3 | Marquer un acompte remboursé : personnel de l'agence titulaire de la capacité de remboursement, ou bailleur du bien — jamais le client ni un autre bailleur de l'agence (TCK-596) |
-| P2 | §1.3 | Planification de visites : en personne, virtuelle, en autonomie ou hybride ; agent accompagnateur, durée estimée, feedback post-visite |
+| P2 | §1.3 | Planification de visites : en personne, virtuelle, en autonomie ou hybride ; agent accompagnateur, durée estimée ; **avis post-visite du client (note 1 à 5, sous 24 h) ; compte rendu de l'agent (ligne P0 ci-dessous)** (TCK-2578) |
 | P2 | §1.3 | Rappels automatiques avant visite — y compris au visiteur sans compte (téléphone de la demande), 24 h et 1 h avant (TCK-588) |
 | P2 | §1.3 | Demande de visite sans compte (nom et téléphone), routée vers le contact principal du bien ; le visiteur est prévenu de la confirmation par e-mail ou SMS (TCK-590) ; **le visiteur peut demander un jour et une tranche de la journée (matin, après-midi, fin de journée) plutôt qu'une heure** : l'agent fixe l'heure en confirmant (TCK-2502) — l'API est livrée : `POST /api/public/properties/{slug}/visit-request` prend soit `scheduled_at`, soit `date` + `preferred_window` (`morning`, `afternoon`, `evening`), jamais les deux ; le jour tient dans les 30 jours, et une tranche déjà entamée est refusée ; confirmer une visite à tranche **exige l'heure** (`scheduled_at`, sinon 422 `visit.time_required`) ; tant que l'heure n'est pas fixée, la visite n'occupe aucun créneau et ne reçoit aucun rappel (ni la veille, ni une heure avant) ; l'agence est prévenue par `visit.requested_window` (« le 10 novembre, l'après-midi, heure à fixer ») ; la tranche tombe dès que l'heure change (confirmation, déplacement, report) ; **l'écran est livré** (TCK-2503), en deux temps — Quand, puis Qui, puis « Demande envoyée » : un jour dans les 30 jours (raccourcis puis calendrier « Autre date ») et trois tranches dites par leur début seul (« Matin · à partir de 9 h », 14 h, 17 h), sans promesse d'heure — l'agence en propose une ensuite ; une tranche entamée est grisée, et une tranche qui commence pendant la saisie renvoie au premier écran ; la demande ne porte jamais d'heure ; connecté, les champs sont préremplis et le téléphone est facultatif ; le succès redit le jour et la tranche (« Mercredi 11 novembre, l'après-midi — heure à fixer ») et ne propose « Préparer mon dossier » que pour une location à dossier ; ni choix WhatsApp, ni délai ou jours de l'agent (l'API n'en émet pas) |
 | P2 | §1.3 | Visites non attribuées visibles de l'équipe de l'agence, prise en charge en un geste (TCK-590) |
 | P2 | §1.3 | Planifier une visite pour un client (avec ou sans compte) depuis la console — précise QUI planifie dans la ligne « Planification de visites » (TCK-590) |
+| P0 | §1.3 | Compte rendu de visite, interne à l'agence : verdict (intéressé, à réfléchir, pas intéressé), ce qui a pesé (prix, quartier, taille, état, disponibilité, garant), une note, la suite choisie ; il rejoint la fiche du client en note épinglée et propose l'étape suivante sans la changer ; il clôt en un geste une visite confirmée dont l'heure est passée ; jamais lu par le visiteur, qui garde son propre avis (TCK-2578, TCK-2581) |
+| P0 | §1.3 | Après une visite, une suite en un choix : inviter le client à candidater ou à faire une offre (lien de la fiche publique envoyé par WhatsApp — le lien d'abord), saisir sa candidature ou son offre, planifier une 2ᵉ visite, proposer d'autres biens, le relancer dans N jours, créer le bail dès qu'une candidature est acceptée (décision 9 du porteur du 2026-11-10 ; TCK-2581) |
+| P0 | §1.3 | Le personnel de l'agence du bien enregistre une candidature (location au mois : loyer, date d'entrée) ou une offre d'achat (montant libre, validité) au nom d'un client de l'agence ; le client en est prévenu (compte : notification ; sans compte : SMS) ; une réservation saisie par le personnel a toujours un client (TCK-2579, TCK-2580) |
+| P1 | §1.3 | Une réservation porte sa nature — séjour, candidature, offre d'achat — fixée à la création d'après le bien ; la console les sépare (sélecteur de nature, vocabulaire et suite propres à chacune), compte les demandes par nature et par statut, liste les réservations terminées et se cherche par référence, client ou bien (TCK-2579, TCK-2593, TCK-2594) |
+| P2 | §1.3 | Visites : vues par le temps (aujourd'hui, à confirmer, à clore, plus tard) en plus des statuts, compteurs en une requête, confirmation et attribution en lot (ligne par ligne, non atomique), créneaux libres de l'agent et du bien pour la planification console (biens non publiés compris) (TCK-2585, TCK-2586, TCK-2587) |
+| P2 | §1.3 | « À clore » : visites confirmées dont l'heure est passée, et visites terminées sans compte rendu depuis au plus 7 jours (`visits.report_pending_days`) (TCK-2578) |
+| P2 | §1.3 | L'adresse du bien d'une visite : toujours au personnel ; au visiteur, une fois la visite confirmée — décidé par le porteur le 2026-11-10 (TCK-2585) |
+| P2 | §1.3 | Une visite planifiée depuis une demande de contact garde le lien avec elle ; la fiche client peut naître au même geste, message compris, et la demande est marquée traitée (TCK-2582) |
 | P2 | §1.3 | Une visite n'est rattachée qu'à une fiche client et à un accompagnateur de l'agence du bien (TCK-590) |
-| P2 | §1.3 | Calendrier : tâches, échéances de bail (fin, renouvellement) et interventions planifiées ; filtre « mes rendez-vous » (TCK-591) |
+| P2 | §1.3 | Agenda en deux vues : **Mon agenda** (visites et tâches ; le jour au téléphone, la semaine au bureau pour l'agent, le mois pour l'admin et le bailleur) et **Occupation des biens** (séjours, échéances de bail — fin, renouvellement —, interventions planifiées ; un bien par ligne, séjours en barres continues) ; pour l'agent, les séjours ne sont pas des rendez-vous ; pour l'hôte et le bailleur courte durée, ils restent repliés en fin de journée ; une visite y dit le visiteur et l'adresse (TCK-591, TCK-2585, TCK-2597) |
 | P2 | §1.3 | Bloquer des dates d'un bien en courte durée (usage personnel, travaux) : aucune demande ni confirmation possible sur ces dates, grisées dans le tunnel public (TCK-596) |
 | P2 | §1.3 | Synchroniser le calendrier d'un bien avec Airbnb / Booking.com : export iCal par bien (lien secret révocable) et import d'URL iCal externes rafraîchi périodiquement, conflits signalés (TCK-596) |
 | P3 | §1.3 | Abonnement personnel au calendrier (iCalendar) par lien secret révocable (TCK-591) |
@@ -516,15 +566,18 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
-| P1 | §1.4 | Créer un bail (locataire, bailleur, durée, loyer, caution) |
+| P1 | §1.4 | Créer un bail (locataire, bailleur, durée, loyer, caution) ; **prérempli depuis le bien (loyer, caution en mois de loyer) et les réglages de l'agence (pénalité de retard et délai de grâce, commission, indemnité de départ anticipé, plafond de révision), chaque valeur modifiable et sa source dite ; pénalité et délai de grâce s'écrivent dès la création** ; **les charges mensuelles du bien préremplissent les charges du bail, terme imprimé au contrat** (TCK-2643, TCK-2679) |
 | P1 | §1.4 | Créer le bail depuis une candidature acceptée (« Créer le bail » sur la réservation confirmée d'un bien à louer) : bien, locataire, dates et loyer préremplis ; le locataire est le client de la réservation, et la réservation passe à « terminée », ce qui libère ses dates (P48.03, TCK-2352) |
 | P1 | §1.4 | Ajouter un ou plusieurs garants avec documents joints |
-| P1 | §1.4 | Générer l'échéancier de loyers mensuels, et l'échéance de caution à l'activation du bail (aucune pour un bail sans caution ni pour un renouvellement) ; elle se paie en ligne ou se marque payée comme un loyer (TCK-2375) |
+| P1 | §1.4 | Générer l'échéancier de loyers mensuels, et l'échéance de caution à l'activation du bail (aucune pour un bail sans caution ni pour un renouvellement) ; elle se paie en ligne ou se marque payée comme un loyer (TCK-2375) ; **un bail qui porte des charges reçoit, à côté de chaque loyer, une échéance de charges de même période et de même date — relancée comme le loyer, jamais soumise à la pénalité de retard ni à la révision, comptée dans le total du locataire** (décision du porteur du 2026-11-10, [ADR-0042](adr/0042-preuve-de-consentement-a-la-signature-du-bail.md) amendé ; TCK-2679) |
 | P1 | §1.4 | Relances de loyer automatiques (J-3, J+1, J+7) au locataire, y compris sans compte (téléphone du client), sur WhatsApp puis SMS en secours, dans sa langue ; un retard est relancé que le bail porte une pénalité ou non, et la relance annonce le solde restant dû (TCK-588) ; chaque relance part au plus une fois : celle que tous les fournisseurs SMS refusent n'est pas renvoyée et laisse une activité d'exploitation rattachée à l'échéance, sans le numéro (P207.01) ; pour un locataire sans compte, le SMS ne prend le relais que d'un échec immédiat de WhatsApp, pas d'un échec que Meta rapporte plus tard (P207.02) |
 | P1 | §1.4 | Alerte d'impayé au bailleur (J+1, J+7) et récapitulatif quotidien unique des impayés à l'agent (TCK-588) |
+| P1 | §1.4 | File « À traiter » des baux : un bail y entre quand une signature attend depuis plus de 3 jours, qu'un préavis est reçu, qu'un loyer échu est impayé au-delà du délai de grâce, qu'une pénalité reste due sur un loyer payé, qu'une révision est ouverte (date anniversaire passée sans révision depuis 12 mois), qu'une caution encaissée reste à restituer après la fin, que le bail actif finit dans moins de 4 mois sans renouvellement, ou que la checklist d'entrée du locataire est ouverte depuis plus de 7 jours ; chaque motif dit depuis quand ; la recherche trouve un bail par son locataire, son bien ou sa référence ; les entrées en attente deviennent un filtre de la liste des baux (TCK-2642, TCK-2644) |
+| P1 | §1.4 | Relancer à la main, depuis la liste des baux, une signature ou une entrée incomplète, par WhatsApp depuis le téléphone de celui qui relance ; la relance d'un impayé depuis la même liste est celle de [§1.5](#15-transactions--paiements) (TCK-2644) |
 | P1 | §1.4 | Appliquer automatiquement des pénalités de retard sur les paiements en retard |
 | P1 | §1.4 | Choisir, par agence, si les pénalités de retard s'encaissent avec le paiement en ligne du loyer — désactivé par défaut (TCK-593) |
 | P1 | §1.4 | Enregistrer une pénalité de retard réglée à l'agence ; la quittance la dit acquittée ou restant due (TCK-593) |
+| P1 | §1.4 | Télécharger le contrat de bail en PDF depuis le détail du bail (TCK-593) ; **offert à toute partie qui lit le bail — locataire, bailleur, personnel de l'agence** (TCK-2642, TCK-2645) |
 | P1 | §1.4 | Remboursement de la caution en fin de bail, borné à la caution encaissée (échéances `deposit` payées du bail et des baux qu'il renouvelle, moins le rendu et la retenue) ; une caution jamais encaissée ne se rembourse pas (TCK-2375) |
 | P1 | §1.4 | Consultation de l'historique complet d'un bail |
 | P2 | §1.4 | Renouveler un bail ou créer un avenant (loyer, durée, conditions) avec traçabilité du bail parent ; le bail renouvelé reçoit son échéancier sans geste manuel (TCK-596) ; il naît sans garant, et la réponse et le récapitulatif le disent (TCK-2316) |
@@ -536,9 +589,10 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
+| P1 | §1.5 | Relance d'un impayé par l'agence, depuis la page « Argent » ou la liste des baux, par le WhatsApp de celui qui relance, avec un message prérempli (mois ou période, montant pénalité comprise, bien, lien de paiement de l'échéance, agence) ; sans numéro connu, le lien de paiement se copie ; Takussan n'envoie rien, il note la relance (canal WhatsApp ou appel, auteur, date) et la relit sur l'échéance avec les rappels automatiques (décision 13 du porteur du 2026-11-10 ; TCK-2644, TCK-2658, TCK-2660) ; **relance en lot** : une sélection d'impayés se relance dans une file guidée, une conversation WhatsApp après l'autre, chacune notée, les échéances sans téléphone ou plus payables en ligne sautées avec leur raison ([ADR-0105](adr/0105-la-relance-d-un-impaye-part-du-telephone-de-l-agence.md) amendé ; TCK-2682) |
 | P2 | §1.5 | Lien de paiement en ligne (Wave / Orange Money) par échéance de loyer, utilisable sans compte : jeton expirant et révocable envoyé au locataire, quittance remise après paiement (TCK-602) ; `GET /api/pay/{jeton}` rend la date du paiement (`paid_at`) : le lien d'une échéance payée se lit encore 30 jours sans rouvrir le paiement, celui d'une échéance remboursée se lit aussi (statut et date ; ni paiement, ni vérification, ni quittance) ; tant que l'échéance est payable, il porte les moyens de paiement hors ligne que l'agence a déclarés (`offline_payment` : numéros Wave et Orange Money, coordonnées bancaires, téléphone de l'agence ; une clé vide est omise, `null` quand rien n'est déclaré ou que l'échéance ne se paie plus) — trois réglages d'agence, journalisés comme tous ses réglages (TCK-2504) ; **leur formulaire est livré** (TCK-2536) : section « Paiement hors ligne » des réglages de l'agence, pour toute agence, individuelle comprise ; un champ ne part que s'il a changé (blancs rognés), vidé il part `null` et retire la clé ; le numéro affiché après l'envoi est celui que l'API a normalisé (E.164) ; les erreurs de l'API se posent sur leur champ ; l'enregistrement exige la double authentification de l'admin, comme tout `PATCH /api/agencies/{id}` |
 | P1 | §1.5 | Le payeur (locataire, client) voit les fournisseurs de paiement en ligne que l'agence a activés — intégration plateforme comprise — et seulement ceux-là (TCK-602) |
-| P1 | §1.5 | Commissions automatiques par agent / collaborateur : à l'activation d'un bail, le grand livre ventile sa commission entre les collaborateurs agents du bien (leur part) et son négociateur (son taux), puis la fige ; relevé par agent — l'agent voit les siennes, l'admin toutes, qu'il marque « payée à l'agent » ou annule (TCK-595, [ADR-0049](adr/0049-attribution-des-transactions-et-grand-livre-des-commissions.md)) |
+| P1 | §1.5 | Commissions automatiques par agent / collaborateur : à l'activation d'un bail, le grand livre ventile sa commission entre les collaborateurs agents du bien (leur part) et son négociateur (son taux), puis la fige ; relevé par agent — l'agent voit les siennes, l'admin toutes, qu'il marque « payée à l'agent » ou annule (TCK-595, [ADR-0049](adr/0049-attribution-des-transactions-et-grand-livre-des-commissions.md)) ; **le paiement porte sa date, son moyen et sa référence (obligatoire sauf espèces), l'admin solde plusieurs lignes d'un même agent en une fois, l'annulation exige un motif codé visible de l'agent, l'agent est prévenu d'un paiement et exporte son relevé** (TCK-2661, TCK-2662) |
 
 ### §1.6 CRM & relation client
 
@@ -555,14 +609,20 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.6 | Historique d'interactions (via journal d'activité) |
 | P1 | §1.6 | Désigner un contact principal parmi les agents liés à un client |
 | P1 | §1.6 | Ajouter des notes horodatées et signées par un agent sur un client |
-| P1 | §1.6 | Boîte des demandes de contact (leads) de l'agence : message complet et coordonnées, prise en charge, attribution à un agent, conversion en client (TCK-590) |
-| P2 | §1.6 | Pipeline de prospects (stades, conversion) — changement d'étape sans glisser-déposer (mobile, clavier) (TCK-591) |
-| P2 | §1.6 | Tâches et rappels attachés à un client ou à un bien, et page « Mes tâches » (en retard / aujourd'hui / à venir) ; une tâche ne s'assigne qu'à soi ou au personnel de l'agence, et seul son créateur la supprime (TCK-591) |
+| P1 | §1.6 | Boîte des demandes de contact (leads) de l'agence : message complet et coordonnées, prise en charge, attribution à un agent, conversion en client (TCK-590) ; **filtre des demandes non attribuées, recherche (nom, téléphone, e-mail, message) et plage de dates** (TCK-2583, TCK-2584) |
+| P2 | §1.6 | Pipeline de prospects : **étapes affichées Nouveau · Prospect · Qualifié · Négociation · Gagné · Perdu (valeurs `lead` → `lost` inchangées)** ; changement d'étape sans glisser-déposer (mobile, clavier) ; **au téléphone, la liste des relances triée par retard ; au bureau, quatre colonnes vivantes et les deux étapes terminales repliées ; l'agent ouvre sur ses fiches (« Moi »), l'admin sur l'agence** (TCK-591, décision 11 du porteur du 2026-11-10, TCK-2591, TCK-2592) |
+| P2 | §1.6 | Tâches et rappels attachés à un client ou à un bien, et page « Mes tâches » (en retard / aujourd'hui / à venir) ; une tâche ne s'assigne qu'à soi ou au personnel de l'agence, et seul son créateur la supprime (TCK-591) ; **le bien ou le client rattaché est nommé pour qui peut le lire ; l'admin (`crm.view_all`) voit les tâches de son équipe** (TCK-2595) |
 | P2 | §1.6 | Segmentation et tags clients |
 | P2 | §1.6 | Téléphone du client normalisé (E.164, +221 par défaut) et signalement d'un doublon (téléphone ou e-mail) dans l'agence avant création (TCK-591) |
 | P2 | §1.6 | Joindre un client en un geste depuis la console : appel, ou WhatsApp avec message prérempli (TCK-591) |
 | P2 | §1.6 | Critères de recherche structurés du prospect (contrat, budget, types, villes / quartiers, chambres) et rapprochement biens ↔ prospects de l'agence, avec récapitulatif quotidien au référent (TCK-591) |
-| P2 | §1.6 | Fiche client unique : notes, tâches, activité, visites, réservations et baux du client (TCK-591) |
+| P2 | §1.6 | Fiche client unique : notes, tâches, activité, visites, réservations et baux du client (TCK-591) — **lue comme un résumé (prochaine action, ce qu'il cherche, origine) puis un fil chronologique unique ; l'édition complète en feuille** (TCK-2589) |
+| P1 | §1.6 | Takussan propose l'étape suivante d'après les faits — visite confirmée → Prospect, compte rendu « intéressé » → Qualifié, candidature ou offre → Négociation, bail signé → Gagné — jamais vers Perdu ni en arrière ; l'agent confirme ou écarte ; une proposition écartée ne revient pas pour le même fait (décision 11 du porteur du 2026-11-10 ; TCK-2591) |
+| P1 | §1.6 | Indicateurs du pipeline datés par le journal des étapes : passages sur 30 jours, conversion sur les sorties de la période (gagnés / gagnés + perdus), durée médiane par étape ; portée « Moi » ou « Agence » (agence : `crm.view_all`) (TCK-2591) |
+| P1 | §1.6 | Convertir une demande emporte son message (note épinglée), le bien demandé (« bien d'intérêt ») et son origine ; les critères de recherche vides se déduisent du bien (contrat, type, quartier, budget jusqu'au prix × 1,2), jamais au détriment d'un critère saisi (TCK-2582) |
+| P1 | §1.6 | Une demande dit d'avance si son auteur est déjà client de l'agence (même téléphone ou même e-mail) ; la création d'une fiche signale le doublon pendant la saisie (TCK-2582, TCK-2588, TCK-2590) |
+| P1 | §1.6 | Les gestes de contact (appel, WhatsApp, e-mail, SMS) depuis la console sont journalisés : ils datent la première réponse d'une demande et le dernier contact d'un client ; ils ne marquent pas la demande traitée — au retour, la console demande « Vous avez répondu ? » (TCK-2583, TCK-2584) |
+| P1 | §1.6 | Fiche client : prochaine action (la plus proche entre visite à venir et tâche à échéance) et relance due — tâche échue, compte rendu de visite manquant, ou fiche d'une étape vivante sans contact depuis 7 jours (réglage `crm.follow_up_days`) ; liste filtrable par référent (moi, aucun, un agent) et triable par prochaine action, dernier contact ou retard (TCK-2588, TCK-2590) |
 | P3 | §1.6 | Campagnes email / SMS ciblées |
 
 ### §1.7 Communication & messagerie
@@ -571,6 +631,10 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 |------|---------|----------------|
 | P1 | §1.7 | Conversation privée 1↔1 entre client et agent / bailleur |
 | P1 | §1.7 | Périmètre de messagerie — qui l'on peut faire entrer dans une conversation, directe ou de groupe ; une seule règle sert le sélecteur, la création et l'ajout de participants : un correspondant (une conversation déjà partagée), un lien CRM (une même fiche client, ou le compte du client d'une fiche ; une fiche supprimée ne relie plus personne, les fils déjà ouverts restant par la règle du correspondant — TCK-2295), l'équipe active de son agence, et ses propriétaires actifs pour l'équipe seulement ; pour compléter un groupe existant, aussi l'équipe active de l'agence de son bien ou de son bail ; un profil invité pas encore accepté, suspendu ou inactif ne compte pas (TCK-565). À ne pas confondre avec le « contact joignable » qu'exige la publication (§1.1, TCK-633) |
+| P1 | §1.7 | Une conversation se nomme par la personne (ou le groupe) ; le bien est en deuxième ligne ; recherche par nom, bien ou sujet, et puces Tous · Non lus · Groupes, filtrées côté serveur (TCK-2630, TCK-2632) |
+| P1 | §1.7 | Nouvelle conversation avec une personne du périmètre (clients récents, équipe, propriétaires), en plus du groupe ; un fil existant est rouvert, jamais doublé (TCK-2632) |
+| P2 | §1.7 | Contexte d'un fil au bureau : le bien, la fiche client (étape, téléphone selon les droits), le bail ou l'intervention rattachés (TCK-2630, TCK-2632) |
+| P3 | §1.7 | Réponses rapides de l'agent (liste fixe), posées dans le champ sans être envoyées (TCK-2632) |
 | P2 | §1.7 | Conversations de groupe (multi-participants) — participants choisis par leur nom ; bien et bail rattachés par recherche (titre, référence), dans le périmètre visible de l'acteur ; un bail doit concerner le bien choisi (TCK-565, TCK-576). Une demande d'intervention ne se rattache pas à un groupe créé à la main (422) : son fil naît de l'assignation (TCK-2372, P250.03) |
 | P2 | §1.7 | Groupe rattaché à un bail — il ne compte que des personnes qui lisent ce bail (`LeasePolicy::view` : parties au bail, personnel actif de l'agence) ; contrôlé à la création du groupe et à l'ajout de participants. Seule exception : le prestataire assigné à une intervention de ce bail reste dans le fil de cette intervention (TCK-592, `SyncMaintenanceConversation`), qu'il ne lise pas le bail. Un autre artisan ou un tiers se joint par un groupe sans bail rattaché (décisions du porteur du 2026-10-23, P191.04 ; TCK-2191) |
 | P2 | §1.7 | Fil de discussion automatique par intervention, avec un message système à chaque étape (TCK-592) |
@@ -590,6 +654,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P2 | §1.8 | Priorisation des demandes (urgent, normal, bas) |
 | P2 | §1.8 | Noter le prestataire après une intervention terminée (1 à 5 + commentaire) ; note agrégée visible des agences dans le carnet (TCK-597) |
 | P3 | §1.8 | Contrats de maintenance récurrents |
+| P1 | §1.8 | Files par état d'attente : chaque demande est, d'après son statut, son prestataire et son créneau, dans une seule file — à dispatcher, en cours, en retard (créneau dépassé), chez le bailleur, à confirmer par le locataire, terminées — et dit qui doit agir et depuis quand (table ci-dessous) ; prestataires suggérés par métier, zone, note et interventions réalisées (TCK-2652, TCK-2653) |
 
 ### §1.9 État des lieux & inventaires
 
@@ -598,6 +663,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.9 | Créer un inventaire d'entrée ou de sortie |
 | P1 | §1.9 | Photos par pièce et état par élément — chaque pièce montre ses photos, supprimables tant que l'état des lieux est un brouillon ; aucun ajout après soumission (TCK-596) |
 | P1 | §1.9 | Consulter / éditer un inventaire |
+| P1 | §1.9 | Pièces et éléments proposés selon le type de bien — modèle Takussan : studio, F2, F3, F4 et plus, villa, local commercial, bureau ; générique sinon —, libres d'ajout et de retrait ; une photo par pièce ou par élément, prise à l'appareil ; la modification des modèles par l'agence reste à spécifier (TCK-2646, TCK-2647) |
+| P1 | §1.9 | L'état des lieux de sortie reprend l'entrée signée du même bail, élément par élément (état et photo d'entrée en lecture) ; un élément dégradé peut porter une retenue proposée, dont le total est proposé à la restitution de la caution — qui reste bornée par la caution encaissée (TCK-2375) (TCK-2646, TCK-2647) |
 | P2 | §1.9 | Export PDF de l'état des lieux |
 | P3 | §1.9 | Comparaison automatique entrée ↔ sortie |
 | P3 | §1.9 | Reconnaissance IA de dégradations sur photos |
@@ -606,7 +673,9 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
-| P0 | §1.10 | Uploader un document lié à une entité (bien, bail, client…) |
+| P0 | §1.10 | Uploader un document lié à une entité (bien, bail, client…) — **rattaché à un dossier choisi par son nom, jamais par un identifiant ; au téléphone, par l'appareil photo** (TCK-2656) |
+| P1 | §1.10 | Coffre de documents par dossier : chacun liste les documents qu'il peut lire — ses téléversements, ceux rattachés à ses baux, biens ou fiche — et ceux que la plateforme produit (contrat, quittances des échéances payées, états des lieux signés, relevés et attestations, factures), listés depuis leur source sans être copiés ; l'agence lit tout ce qui se rattache à un bien ou à un bail, quel qu'en soit l'auteur ; sans cible, la liste reste celle de ses téléversements (TCK-820) ([ADR-0099](adr/0099-le-coffre-de-documents-la-liste-suit-la-lecture.md) ; TCK-2655, TCK-2656) |
+| P2 | §1.10 | Expiration visible : « expire dans N jours », et filtre des documents qui expirent bientôt (TCK-2655, TCK-2656) |
 | P1 | §1.10 | Catégoriser par type (contrat, CNI, RIB, quittance, justificatif) |
 | P1 | §1.10 | Recherche dans la bibliothèque de documents |
 | P2 | §1.10 | Génération PDF (quittance, facture, bail) depuis templates |
@@ -620,20 +689,25 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 |------|---------|----------------|
 | P2 | §1.11 | Répondre publiquement à un avis |
 | P2 | §1.11 | Boîte des avis reçus (sur ses biens, sur soi), filtrée par bien et par réponse, et notification d'un nouvel avis (TCK-597) |
+| P2 | §1.11 | Mes avis en trois onglets, Reçus · À laisser · Publiés, les reçus d'abord ; la note moyenne de l'agent est celle de sa fiche publique (TCK-2635) |
 | P3 | §1.11 | Badges de réputation |
 
 ### §1.12 Agence & équipe
 
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
-| P1 | §1.12 | Crédits de l'espace : un solde par espace, en lots datés ; offre de bienvenue une fois par numéro vérifié, au titulaire de l'espace ; crédits offerts expirant (prévenu avant), consommés en premier ; dépense par boost (capacité `boost.spend`) ; page « Crédits » (solde, lots, historique, boosts) (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
+| P1 | §1.12 | Crédits de l'espace : un solde par espace, en lots datés ; offre de bienvenue une fois par numéro vérifié, au titulaire de l'espace ; crédits offerts expirant (prévenu avant), consommés en premier ; dépense par boost (capacité `boost.spend`) ; page « Crédits » (solde, lots, historique, **mises en avant en cours ou terminées depuis 30 jours avec leurs impressions, clics, contacts et visites pendant leur fenêtre, biens publiés sans contact depuis 30 jours à pousser, mise en avant depuis la page** — TCK-2663, TCK-2664) (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
 | P2 | §1.12 | Carnet des prestataires de l'agence filtré par statut de collaboration (actifs par défaut), métier et zone (TCK-592) |
 
 ### §2.1 Authentification & comptes
 
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
-| P1 | §2.1 | Wizard onboarding Agent post-acceptation invitation — vérification téléphone OTP, KYC (license_number, pièce d'identité, photo profil, spécialisation, zones d'intervention), affichage du périmètre de permissions choisi par l'admin inviteur, lien vers premier lead pré-assigné |
+| P2 | §2.1 | Groupe « Démarrer » tant que l'espace est neuf (premier bien, KYC, équipe), chaque étape disparaissant une fois faite ; masquable (TCK-2479) ; **il porte l'étape « Pièces » pour l'agent et le prestataire, avec l'état de chaque pièce — les pièces quittent les assistants d'invitation pour lui** (TCK-2612, TCK-2613, TCK-2614) |
+| P1 | §2.1 | Wizard onboarding Agent post-acceptation invitation — vérification téléphone OTP, KYC (license_number, pièce d'identité, photo profil, spécialisation, zones d'intervention), affichage du périmètre de permissions choisi par l'admin inviteur, lien vers premier lead pré-assigné — **réduit à deux étapes par TCK-2613 (ligne « Assistants des invités » ci-dessous)** |
+| P1 | §2.1 | Orientation en trois portes (chercher, publier, professionnel) ; `entry_intent` accepte `professional` ; le chercheur repart avec une alerte, qui peut viser plusieurs quartiers (TCK-2607, TCK-2608) |
+| P1 | §2.1 | Invitation : aperçu public par jeton (agence, prénom de l'invitant, rôle, destinataire masqué, ce qui attend ; états expiré / annulé / accepté / inconnu discriminés) ; demande de nouveau lien ; acceptation par code SMS (compte créé ou ouvert, jamais doublé) ; la voie mot de passe reste (décision 3 du porteur du 2026-11-10 ; TCK-2609, TCK-2610, TCK-2611) |
+| P1 | §2.1 | Assistants des invités en deux étapes — le numéro, puis la raison de venir (biens du bailleur, premier prospect de l'agent, intervention du prestataire) ; l'étape « visite guidée » disparaît ; les pièces quittent l'assistant pour « Démarrer » ([Navigation de la console](#navigation-de-la-console-selon-le-profil-actif)) (TCK-2613) |
 
 ### §2.3 Notifications
 
@@ -646,6 +720,9 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
 | P1 | §2.5 | Dashboard agent (pipeline, commissions, tâches) — ses biens, ses clients, ses commissions ; bascule « agence » sous capacité (TCK-595) |
+| P1 | §2.5 | L'accueil de l'agent est « Aujourd'hui » : ce qu'il y a à régler (comptes rendus manquants, demandes qui attendent depuis plus de 24 h, tâches en retard), puis la chronologie du jour choisi (visites avec adresse et visiteur, tâches à heure), puis ses chiffres (biens gérés, prospects, tâches ouvertes, commissions du mois), chacun en lien, et le rapport du mois ; la page Tâches y est rattachée (décision 4 du porteur du 2026-11-10 ; TCK-2596) |
+| P1 | §2.5 | Une page « Rapports » à onglets remplace Vue agence, Statistiques, Indicateurs, Alertes et Exports : admin « Vue d'ensemble · Équipe · Impayés · Exports · Alertes » ; agent « Vue d'ensemble · Commissions · Pipeline · Exports » (portée Moi / Agence sous `reports.view_agency`) ; bailleur et hôte « Vue d'ensemble · Reversements · Exports ». Ni le locataire, ni le client, ni le prestataire n'en ont. Une série par graphique (décision 4 du porteur du 2026-11-10 ; TCK-2628) |
+| P2 | §2.5 | Exports prêts (préréglages de période) et liste des derniers exports de l'utilisateur, relancés avec les mêmes paramètres et les capacités du moment ; aucun fichier n'est conservé (TCK-2627, TCK-2629) |
 
 ---
 
@@ -676,14 +753,22 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 |------|---------|----------------|
 | P1 | §1.8 | Suivi des statuts (nouveau, en cours, résolu, annulé) |
 | P1 | §1.8 | Ajouter photos et rapport après intervention |
-| P1 | §1.8 | Consulter ses interventions assignées : liste terrain triée par créneau, lieu et agence (delta de TCK-446, TCK-592) |
-| P1 | §1.8 | Accepter ou refuser une intervention assignée ; un refus est motivé et la demande revient au donneur d'ordre (TCK-592) |
+| P1 | §1.8 | Consulter ses interventions assignées : liste terrain triée par créneau, lieu et agence (delta de TCK-446, TCK-592) ; **sa semaine : à accepter, créneaux de la semaine (adresse après acceptation), à facturer et factures avec leur total ; ses interventions du jour sont son accueil ([§2.5](#25-reporting--tableaux-de-bord)), filtrées par plage de date planifiée (`scheduled_from`, `scheduled_to`)** (TCK-2623, TCK-2625, TCK-2652, TCK-2654) |
+| P1 | §1.8 | Accepter ou refuser une intervention assignée ; un refus est motivé et la demande revient au donneur d'ordre (TCK-592) ; **accepter en proposant son créneau, d'un seul geste : le demandeur et le donneur d'ordre reçoivent la date** (TCK-2680) |
 | P1 | §1.8 | Voir les photos du signalement, les photos avant / après et les pièces du devis (TCK-592) |
 | P2 | §1.8 | Demande de devis et validation avant travaux — le donneur d'ordre demande, approuve ou refuse ; le prestataire assigné est seul à soumettre le devis |
 | P2 | §1.8 | Devis structuré (lignes main-d'œuvre / fournitures, validité, durée), devise imposée, PDF (TCK-592) |
 | P1 | §1.8 | Pièces du devis : PDF ou images seulement (TCK-592) |
 | P2 | §1.8 | Kit d'accès au logement (adresse, itinéraire, téléphone du locataire, consignes) pendant l'intervention acceptée (TCK-592) |
 | P3 | §1.8 | Facturation directe prestataire → agence : à la fin d'une intervention, facture du prestataire générée (devis approuvé ou coût réel), validée par l'agence, payée par mobile money et imputable au reversement du bailleur (TCK-594) ; la contestation ou l'annulation de l'intervention annule la facture encore ouverte et non engagée, une facture déjà payée ou refacturée reste avec un avis à l'agence, et seule une intervention terminée ou close voit sa facture validée, payée ou refacturée (TCK-2270) |
+| P1 | §1.8 | Files par état d'attente : chaque demande est, d'après son statut, son prestataire et son créneau, dans une seule file — à dispatcher, en cours, en retard (créneau dépassé), chez le bailleur, à confirmer par le locataire, terminées — et dit qui doit agir et depuis quand (table ci-dessous) ; prestataires suggérés par métier, zone, note et interventions réalisées (TCK-2652, TCK-2653) |
+| P1 | §1.8 | Le prestataire n'accepte ni ne refuse une intervention terminée, close ou annulée (TCK-2652) |
+
+### §1.10 Documents & contrats
+
+| Prio | Domaine | Fonctionnalité |
+|------|---------|----------------|
+| P1 | §1.10 | Coffre de documents par dossier : chacun liste les documents qu'il peut lire — ses téléversements, ceux rattachés à ses baux, biens ou fiche — et ceux que la plateforme produit (contrat, quittances des échéances payées, états des lieux signés, relevés et attestations, factures), listés depuis leur source sans être copiés ; l'agence lit tout ce qui se rattache à un bien ou à un bail, quel qu'en soit l'auteur ; sans cible, la liste reste celle de ses téléversements (TCK-820) ([ADR-0099](adr/0099-le-coffre-de-documents-la-liste-suit-la-lecture.md) ; TCK-2655, TCK-2656) |
 
 ### §1.12 Agence & équipe
 
@@ -696,7 +781,10 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
-| P1 | §2.1 | Wizard onboarding Service Provider post-acceptation invitation — vérification téléphone OTP, KYC (pièce d'identité, métiers multi-select, zones, tarifs indicatifs, assurance RC pro optionnelle valorisée), disponibilités hebdomadaires, accès direct à la 1ère intervention si invitation déclenchée par une demande active. Multi-rattachement à plusieurs agences via plusieurs `ServiceProviderAgencyCollaboration` sans dupliquer le compte. |
+| P2 | §2.1 | Groupe « Démarrer » tant que l'espace est neuf (premier bien, KYC, équipe), chaque étape disparaissant une fois faite ; masquable (TCK-2479) ; **il porte l'étape « Pièces » pour l'agent et le prestataire, avec l'état de chaque pièce — les pièces quittent les assistants d'invitation pour lui** (TCK-2612, TCK-2613, TCK-2614) |
+| P1 | §2.1 | Wizard onboarding Service Provider post-acceptation invitation — vérification téléphone OTP, KYC (pièce d'identité, métiers multi-select, zones, tarifs indicatifs, assurance RC pro optionnelle valorisée), disponibilités hebdomadaires, accès direct à la 1ère intervention si invitation déclenchée par une demande active. Multi-rattachement à plusieurs agences via plusieurs `ServiceProviderAgencyCollaboration` sans dupliquer le compte — **réduit à deux étapes par TCK-2613 (ligne « Assistants des invités » ci-dessous)**. |
+| P1 | §2.1 | Invitation : aperçu public par jeton (agence, prénom de l'invitant, rôle, destinataire masqué, ce qui attend ; états expiré / annulé / accepté / inconnu discriminés) ; demande de nouveau lien ; acceptation par code SMS (compte créé ou ouvert, jamais doublé) ; la voie mot de passe reste (décision 3 du porteur du 2026-11-10 ; TCK-2609, TCK-2610, TCK-2611) |
+| P1 | §2.1 | Assistants des invités en deux étapes — le numéro, puis la raison de venir (biens du bailleur, premier prospect de l'agent, intervention du prestataire) ; l'étape « visite guidée » disparaît ; les pièces quittent l'assistant pour « Démarrer » ([Navigation de la console](#navigation-de-la-console-selon-le-profil-actif)) (TCK-2613) |
 
 ---
 
@@ -711,7 +799,9 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.1 | Inviter un bailleur depuis le formulaire de bien : le bien reste à l'agence et lui passe quand il accepte l'invitation ; une invitation révoquée ou expirée le laisse à l'agence (TCK-1000) |
 | P1 | §1.1 | Changer le titulaire d'un bien saisi au nom du personnel vers un bailleur actif de l'agence : ses baux en brouillon le suivent, les baux signés et les reversements déjà faits ne changent pas, et l'écran le dit avant de confirmer (TCK-999) |
 | P0 | §1.1 | Réattribuer un bien : la cible est un agent ou un admin **actif** de l'agence du bien, jamais un bailleur (TCK-587, réutilisé par l'action en masse de TCK-591) ; réattribuer désigne la cible comme agent principal et ne change jamais le titulaire du bien (TCK-603) |
-| P2 | §1.1 | Modération et validation avant publication, activable par l'admin d'agence : toute mise en ligne d'un bien jamais validé ou refusé (création, publication, changement de statut, modification) attend l'accord de l'admin (TCK-597) |
+| P1 | §1.1 | Lire l'occupation de chaque bien, dans la liste et sur la fiche : occupé (locataire, bail, fin de bail), en préavis, ou vacant (depuis la fin effective du dernier bail ; « sans locataire » s'il n'a jamais été loué), et l'état du loyer du mois (payé, dû, en retard de N jours, pénalité due) ; filtres occupé / vacant / préavis / loyer en retard, recherche par locataire du bail en cours, comptes du portefeuille ; le locataire n'est nommé qu'à qui peut lire le bail (TCK-2637) |
+| P1 | §1.1 | « En ligne » est le seul mot de l'état « visible du public » — agence active, visibilité publique, publié, statut ouvert, hors test : le prédicat `Property::scopePublic` —, servi par l'API sur chaque bien (`is_online`) et partagé par la tuile, la pastille et la fiche ; « Publié » ne s'affiche plus comme état, la visibilité (Public / Privé) se lit comme un réglage (décision 6 du porteur du 2026-11-10, [ADR-0097](adr/0097-en-ligne-est-un-etat-derive.md)) ; le statut `published` se lit « Validé » ; **un bien hors ligne dit pourquoi, par des codes de motif servis par l'API depuis le même prédicat** (agence inactive, statut, non publié, privé, test) (TCK-2637, TCK-2638, TCK-2639, TCK-2678) |
+| P2 | §1.1 | Modération et validation avant publication, activable par l'admin d'agence : toute mise en ligne d'un bien jamais validé ou refusé (création, publication, changement de statut, modification) attend l'accord de l'admin (TCK-597) ; **l'admin valide un bien en le voyant entier (description, photos, adresse, auteur et son profil) avec une liste de contrôle (photos, adresse, description, prix comparé à la médiane des biens publiés de même type, transaction et quartier, à partir de 5 comparables) ; le refus se dit « demander une correction » et porte un code de motif** (TCK-2672, TCK-2673) |
 | P2 | §1.1 | Une décision sur un signalement d'annonce agit sur l'annonce : masquer (dépubliée, désindexée, verrouillée jusqu'à levée par la plateforme), retirer (supprimée) ou classer sans suite (TCK-597) |
 | P2 | §1.1 | Dépublier et réattribuer en lot, avec un bilan succès / refus par bien ; réattribuer change l'agent responsable — l'agent principal —, jamais le propriétaire du bien (TCK-591, TCK-603) |
 | P3 | §1.1 | Marquer un bien comme nécessitant un suivi administratif particulier |
@@ -723,9 +813,17 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 |------|---------|----------------|
 | P1 | §1.3 | Vue calendrier agrégée à partir des réservations confirmées et des visites planifiées (acteurs élargis par TCK-591) |
 | P2 | §1.3 | Visites non attribuées visibles de l'équipe de l'agence, prise en charge en un geste (TCK-590) |
+| P2 | §1.3 | Visites : vues par le temps (aujourd'hui, à confirmer, à clore, plus tard) en plus des statuts, compteurs en une requête, confirmation et attribution en lot (ligne par ligne, non atomique), créneaux libres de l'agent et du bien pour la planification console (biens non publiés compris) (TCK-2585, TCK-2586, TCK-2587) |
 | P2 | §1.3 | Une visite n'est rattachée qu'à une fiche client et à un accompagnateur de l'agence du bien (TCK-590) |
-| P2 | §1.3 | Calendrier : tâches, échéances de bail (fin, renouvellement) et interventions planifiées ; filtre « mes rendez-vous » (TCK-591) |
+| P2 | §1.3 | Agenda en deux vues : **Mon agenda** (visites et tâches ; le jour au téléphone, la semaine au bureau pour l'agent, le mois pour l'admin et le bailleur) et **Occupation des biens** (séjours, échéances de bail — fin, renouvellement —, interventions planifiées ; un bien par ligne, séjours en barres continues) ; pour l'agent, les séjours ne sont pas des rendez-vous ; pour l'hôte et le bailleur courte durée, ils restent repliés en fin de journée ; une visite y dit le visiteur et l'adresse (TCK-591, TCK-2585, TCK-2597) |
 | P3 | §1.3 | Abonnement personnel au calendrier (iCalendar) par lien secret révocable (TCK-591) |
+
+### §1.4 Location longue durée (baux)
+
+| Prio | Domaine | Fonctionnalité |
+|------|---------|----------------|
+| P1 | §1.4 | File « À traiter » des baux : un bail y entre quand une signature attend depuis plus de 3 jours, qu'un préavis est reçu, qu'un loyer échu est impayé au-delà du délai de grâce, qu'une pénalité reste due sur un loyer payé, qu'une révision est ouverte (date anniversaire passée sans révision depuis 12 mois), qu'une caution encaissée reste à restituer après la fin, que le bail actif finit dans moins de 4 mois sans renouvellement, ou que la checklist d'entrée du locataire est ouverte depuis plus de 7 jours ; chaque motif dit depuis quand ; la recherche trouve un bail par son locataire, son bien ou sa référence ; les entrées en attente deviennent un filtre de la liste des baux (TCK-2642, TCK-2644) |
+| P1 | §1.4 | Relancer à la main, depuis la liste des baux, une signature ou une entrée incomplète, par WhatsApp depuis le téléphone de celui qui relance ; la relance d'un impayé depuis la même liste est celle de [§1.5](#15-transactions--paiements) (TCK-2644) |
 
 ### §1.5 Transactions & paiements
 
@@ -736,6 +834,9 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.5 | Facture opposable : numérotation chronologique continue par agence et par an, attribuée à l'émission ; mentions légales de l'agence (raison sociale, NINEA, RCCM, adresse) ; TVA par défaut de l'agence ; une facture émise ne s'annule que par un avoir (TCK-594), qui reprend ses lignes et sa désignation (TCK-2316) |
 | P1 | §1.5 | Double validation des sorties d'argent : la même personne ne tient jamais deux gestes consécutifs (préparer, approuver, marquer payé) ni n'approuve un versement dont elle est bénéficiaire. Reversements plateforme : toujours. Reversements d'agence : désactivée par défaut ; l'agence l'active par un seuil, possible seulement avec deux approbateurs (TCK-594) |
 | P1 | §1.5 | Historique des paiements par entité (bien, bail, client) |
+| P1 | §1.5 | Encaissements nommés : chaque paiement se lit avec son payeur, son bien, son bailleur et sa période ; filtres par payeur, bien, bailleur, moyen de paiement, retard et recherche libre ; point du mois choisi (encaissé et mois précédent, impayés par ancienneté, reversements à approuver, factures à émettre) (TCK-2657, TCK-2659) |
+| P1 | §1.5 | Relance d'un impayé par l'agence, depuis la page « Argent » ou la liste des baux, par le WhatsApp de celui qui relance, avec un message prérempli (mois ou période, montant pénalité comprise, bien, lien de paiement de l'échéance, agence) ; sans numéro connu, le lien de paiement se copie ; Takussan n'envoie rien, il note la relance (canal WhatsApp ou appel, auteur, date) et la relit sur l'échéance avec les rappels automatiques (décision 13 du porteur du 2026-11-10 ; TCK-2644, TCK-2658, TCK-2660) ; **relance en lot** : une sélection d'impayés se relance dans une file guidée, une conversation WhatsApp après l'autre, chacune notée, les échéances sans téléphone ou plus payables en ligne sautées avec leur raison ([ADR-0105](adr/0105-la-relance-d-un-impaye-part-du-telephone-de-l-agence.md) amendé ; TCK-2682) |
+| P2 | §1.5 | Rapprochement par le reste : les paiements réglés par une passerelle (Wave, Orange Money) se comptent comme confirmés sans relevé ; seuls les paiements réglés à la main et non rapprochés restent à rapprocher, chacun avec la ligne de relevé proposée ; les suggestions se confirment en lot (TCK-2674, TCK-2675) |
 | P1 | §1.5 | Suivi des statuts (en attente, payé, remboursé, annulé) |
 | P2 | §1.5 | Intégration d'une passerelle de paiement — pilotes livrés : Wave et Orange Money (XOF), Lemon Squeezy (carte, hors XOF) ; Free Money et Stripe n'ont pas de pilote (Stripe n'a qu'une fiche d'identifiants au registre des intégrations) ; une intégration de paiement n'est enregistrée qu'avec les identifiants que son pilote exige (TCK-602) |
 | P2 | §1.5 | Supervision des paiements (console plateforme) : paiements en échec, en retard et webhooks non appariés, par fournisseur et par agence (TCK-602) |
@@ -746,20 +847,24 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P2 | §1.5 | Reversement plateforme → agence (commission plateforme retenue à la source, payout périodique agrégé) |
 | P2 | §1.5 | Reversement plateforme refusé vers une agence non active ; une agence `standard` non vérifiée est bloquée à l'approbation (TCK-594) |
 | P2 | §1.5 | Les reversements plateforme d'une agence non active sont gelés, y compris s'ils ont été clôturés avant la suspension ; la clôture globale traite toutes les agences et liste les exclues avec leur motif (TCK-594) |
-| P1 | §1.5 | Commissions automatiques par agent / collaborateur : à l'activation d'un bail, le grand livre ventile sa commission entre les collaborateurs agents du bien (leur part) et son négociateur (son taux), puis la fige ; relevé par agent — l'agent voit les siennes, l'admin toutes, qu'il marque « payée à l'agent » ou annule (TCK-595, [ADR-0049](adr/0049-attribution-des-transactions-et-grand-livre-des-commissions.md)) |
+| P1 | §1.5 | Commissions automatiques par agent / collaborateur : à l'activation d'un bail, le grand livre ventile sa commission entre les collaborateurs agents du bien (leur part) et son négociateur (son taux), puis la fige ; relevé par agent — l'agent voit les siennes, l'admin toutes, qu'il marque « payée à l'agent » ou annule (TCK-595, [ADR-0049](adr/0049-attribution-des-transactions-et-grand-livre-des-commissions.md)) ; **le paiement porte sa date, son moyen et sa référence (obligatoire sauf espèces), l'admin solde plusieurs lignes d'un même agent en une fois, l'annulation exige un motif codé visible de l'agent, l'agent est prévenu d'un paiement et exporte son relevé** (TCK-2661, TCK-2662) |
 | P3 | §1.5 | Comptabilité exportable (FEC, journaux) |
 
 ### §1.6 CRM & relation client
 
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
-| P1 | §1.6 | Boîte des demandes de contact (leads) de l'agence : message complet et coordonnées, prise en charge, attribution à un agent, conversion en client (TCK-590) |
+| P1 | §1.6 | Boîte des demandes de contact (leads) de l'agence : message complet et coordonnées, prise en charge, attribution à un agent, conversion en client (TCK-590) ; **filtre des demandes non attribuées, recherche (nom, téléphone, e-mail, message) et plage de dates** (TCK-2583, TCK-2584) |
+| P2 | §1.6 | Tâches et rappels attachés à un client ou à un bien, et page « Mes tâches » (en retard / aujourd'hui / à venir) ; une tâche ne s'assigne qu'à soi ou au personnel de l'agence, et seul son créateur la supprime (TCK-591) ; **le bien ou le client rattaché est nommé pour qui peut le lire ; l'admin (`crm.view_all`) voit les tâches de son équipe** (TCK-2595) |
+| P1 | §1.6 | Indicateurs du pipeline datés par le journal des étapes : passages sur 30 jours, conversion sur les sorties de la période (gagnés / gagnés + perdus), durée médiane par étape ; portée « Moi » ou « Agence » (agence : `crm.view_all`) (TCK-2591) |
+| P1 | §1.6 | Délai médian de première réponse aux demandes, par agent, et demandes ouvertes sans réponse depuis plus de 24 h — à l'admin détenteur de `crm.view_all` (TCK-2583) |
 
 ### §1.7 Communication & messagerie
 
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
 | P1 | §1.7 | Seule la plateforme publie un avis système dans une conversation ; un participant n'écrit que du texte, des pièces jointes et des notes vocales (TCK-592) |
+| P2 | §1.7 | Contexte d'un fil au bureau : le bien, la fiche client (étape, téléphone selon les droits), le bail ou l'intervention rattachés (TCK-2630, TCK-2632) |
 
 ### §1.11 Avis & réputation
 
@@ -767,6 +872,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 |------|---------|----------------|
 | P2 | §1.11 | Modération (masquer, supprimer) |
 | P2 | §1.11 | L'admin d'agence modère les avis de ses biens et de ses agents, jamais ceux d'une autre agence ; les avis sur l'agence elle-même et sur un prestataire relèvent de la plateforme (TCK-597) |
+| P2 | §1.11 | Risque d'un avis, règle fermée : note ≤ 3, ou signalé, ou coordonnées dans le texte (téléphone, e-mail, lien) ; l'admin d'agence publie en lot (100 au plus) les avis sans risque de sa file ; l'avis se modère avec son sujet (photo et agent du bien, ou l'agent visé) (TCK-2672, TCK-2673) |
 | P3 | §1.11 | Détection automatique d'avis suspects |
 
 ### §1.12 Agence & équipe
@@ -779,19 +885,22 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P0 | §1.12 | Attribution de rôles aux membres |
 | P1 | §1.12 | Fixer le taux de commission d'un agent sur sa fiche de membre, sous `team.assign_role` : sa part de la commission de chaque bail qu'il négocie, que le grand livre lui verse à l'activation (TCK-2364, [ADR-0049](adr/0049-attribution-des-transactions-et-grand-livre-des-commissions.md) « Ventilation » § 2) |
 | P0 | §1.12 | Suspendre / réactiver l'adhésion d'un membre (agent, bailleur, co-admin) à l'agence, sans toucher au compte ; le blocage d'un compte reste un geste super-admin ; l'administrateur principal ne peut être suspendu ; acte journalisé (TCK-587) |
-| P1 | §1.12 | Crédits de l'espace : un solde par espace, en lots datés ; offre de bienvenue une fois par numéro vérifié, au titulaire de l'espace ; crédits offerts expirant (prévenu avant), consommés en premier ; dépense par boost (capacité `boost.spend`) ; page « Crédits » (solde, lots, historique, boosts) (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
+| P1 | §1.12 | Crédits de l'espace : un solde par espace, en lots datés ; offre de bienvenue une fois par numéro vérifié, au titulaire de l'espace ; crédits offerts expirant (prévenu avant), consommés en premier ; dépense par boost (capacité `boost.spend`) ; page « Crédits » (solde, lots, historique, **mises en avant en cours ou terminées depuis 30 jours avec leurs impressions, clics, contacts et visites pendant leur fenêtre, biens publiés sans contact depuis 30 jours à pousser, mise en avant depuis la page** — TCK-2663, TCK-2664) (TCK-633, [ADR-0061](adr/0061-credits-d-espace-et-boost-des-annonces.md)) |
 | P1 | §1.12 | Statistiques globales d'agence (portefeuille, revenus) |
 | P1 | §1.12 | Paramètres de commission par défaut |
-| P1 | §1.12 | Dossier KYC documentaire de l'agence (RCCM, NINEA, pièce dirigeant) avec workflow vérification (pending → submitted → verified / rejected) |
-| P1 | §1.12 | Upgrade `individual` → `standard` : l'admin de l'agence individuelle soumet une demande (`AgencyUpgradeRequest`) avec compléments légaux (RC, NINEA, RIB pro, statuts) ; un super-admin la review depuis la console ; à l'approbation, `Agency.kind` bascule vers `standard` et débloque les capacités restreintes (invitation collaborateurs internes, multi-admin, custom roles, etc.). Pas d'upgrade self-service direct, pas de rétrogradation `standard` → `individual`. |
+| P1 | §1.12 | Dossier KYC documentaire de l'agence (RCCM, NINEA, pièce dirigeant) avec workflow vérification (pending → submitted → verified / rejected) ; **les pièces RCCM et NINEA portent leur numéro, repris des mentions légales de l'agence (source unique de l'identité légale) et reprenables vers elles par un geste de l'admin ; la pièce du dirigeant expirée ou expirant sous 30 jours se remplace sur un dossier vérifié, qui repasse « soumis » sans perdre la vérification avant l'échéance** (TCK-2669, TCK-2670, TCK-2671) |
+| P1 | §1.12 | Upgrade `individual` → `standard` : l'admin de l'agence individuelle soumet une demande (`AgencyUpgradeRequest`) avec compléments légaux (RC, NINEA, RIB pro, statuts) ; un super-admin la review depuis la console ; à l'approbation, `Agency.kind` bascule vers `standard` et débloque les capacités restreintes (invitation collaborateurs internes, multi-admin, custom roles, etc.). Pas d'upgrade self-service direct, pas de rétrogradation `standard` → `individual` ; **le prix de l'offre que l'agence aura s'affiche en F CFA avant la demande ; une demande refusée se renvoie en reprenant ses réponses (seule la pièce refusée est fournie à nouveau)** (décision 14 du porteur du 2026-11-10 ; TCK-2669, TCK-2671) ; **l'approbation pose l'abonnement au plan annoncé, au prix du plan, sans prélèvement automatique** ([ADR-0104](adr/0104-l-identite-legale-de-l-agence-n-a-qu-une-source.md) § 6 ; TCK-2681) |
 | P1 | §1.12 | Passation du portefeuille d'un agent retiré (tâches, visites, interventions, collaborations, biens dont il est l'agent principal ou qu'il a saisis, clients dont il est référent) vers un ou plusieurs repreneurs, en une opération journalisée (TCK-591, TCK-603) |
 | P1 | §1.12 | Mettre en pause ou terminer une collaboration avec un prestataire (agence) ; quitter une agence (prestataire) ; une pause ou une suspension ne se lève que par celui qui l'a posée (TCK-592) |
 | P1 | §1.12 | Retirer de l'agence un agent ou un admin d'agence (capacité `team.remove`), toujours journalisé (TCK-591) |
 | P2 | §1.12 | Carnet des prestataires de l'agence filtré par statut de collaboration (actifs par défaut), métier et zone (TCK-592) |
 | P1 | §1.12 | Validité des pièces KYC d'agence : date d'expiration de la pièce du dirigeant, relances J-30 / J-7, retour du dossier en attente à l'échéance ; signalement au super-admin d'un NINEA ou d'un RIB professionnel déjà porté par une autre agence — le contrôle de forme du NINEA et du RCCM est différé (D-68) (TCK-601) |
-| P2 | §1.12 | Plans d'abonnement et quotas par agence (catalogue, période d'essai, limites) |
+| P2 | §1.12 | Plans d'abonnement et quotas par agence (catalogue, période d'essai, limites) ; **l'agence voit le prix de son offre et sa consommation face aux limites (biens actifs, agents)** (TCK-2669, TCK-2671) |
 | P3 | §1.12 | Gestion multi-branches / sous-agences |
-| P1 | §1.12 | Absence datée d'un agent avec remplaçant désigné, révocable et journalisée : pendant la période, les tâches nouvellement confiées à l'absent partent chez le remplaçant, qui voit aussi les siennes ; aucune ligne existante ne change, et le remplaçant ne reçoit aucun droit (TCK-591, [ADR-0035](adr/0035-l-absence-est-une-delegation-qui-n-accorde-rien.md) — précise « Gestion des congés / disponibilité des agents ») |
+| P1 | §1.12 | Absence datée d'un agent avec remplaçant désigné, révocable et journalisée : pendant la période, les tâches nouvellement confiées à l'absent partent chez le remplaçant, qui voit aussi les siennes ; aucune ligne existante ne change, et le remplaçant ne reçoit aucun droit (TCK-591, [ADR-0035](adr/0035-l-absence-est-une-delegation-qui-n-accorde-rien.md) — précise « Gestion des congés / disponibilité des agents ») ; **l'absence peut porter une délégation de rôle liée (le rôle de l'absent, au remplaçant, sur la même période), créée, modifiée et révoquée avec elle — l'absence elle-même n'accorde toujours rien** (amendement d'ADR-0035 ; TCK-2666, TCK-2668) |
+| P1 | §1.12 | La page Équipe ne liste que les collaborateurs (agents, administrateurs) ; les bailleurs vivent dans leur carnet ; chaque membre se lit avec ses biens suivis, ses commissions dues (pour qui tient `payouts.approve` ou `reports.view_agency`), son absence en cours et sa date d'arrivée ; les invitations expirées s'effacent en une fois ; l'invitation d'un client à créer son compte se suit sur sa fiche (TCK-2665, TCK-2667, TCK-2668) |
+| P1 | §1.12 | Fiche d'un bailleur de l'agence : coordonnées (téléphone du compte, sinon de l'invitation), biens et occupation, relevé du mois avec le reste à verser, derniers reversements, réglages du mandat (plafond de travaux sans accord, commission de l'agence) ; liste des bailleurs avec recherche et chiffres du mois ; jamais dans une agence `individual` (TCK-2640, TCK-2641) |
+| P1 | §1.12 | Fiche de l'agence en sections, avec une complétude calculée sur une liste fermée (logo, téléphone, e-mail, un moyen de paiement hors ligne, raison sociale, NINEA, RCCM, adresse du siège, accroche, une raison « pourquoi nous », un bien en vitrine, vérification à jour ; sans les mentions légales pour une agence individuelle) (TCK-2670) |
 | P3 | §1.12 | Marketplace inter-agences |
 
 ### §2.1 Authentification & comptes
@@ -806,11 +915,12 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P0 | §2.1 | Toute capacité est résolue dans le scope du profil actif — pour un couple *(utilisateur, agence)*, jamais globalement ([ADR-0003](adr/0003-capacites-enum-code-defined.md)) |
 | P1 | §2.1 | Création/désactivation d'un profil par un agency_admin (ex. nouvel agent recruté) |
 | P2 | §2.1 | Audit log dédié : changements de profil actif, créations/suspensions de profils |
-| P2 | §2.1 | Groupe « Démarrer » tant que l'espace est neuf (premier bien, KYC, équipe), chaque étape disparaissant une fois faite ; masquable (TCK-2479) |
-| P3 | §2.1 | L'admin d'une agence `standard` retire du menu de son équipe, dans la fiche de l'agence (« Menu de l'équipe »), les modules que l'agence n'utilise pas : commissions, états des lieux, onboardings en attente, carnet prestataires, calendrier, crédits, statistiques (KPIs, alertes, exports). Le masque vaut pour le menu de l'agent et de l'admin, partout (barre, onglets mobiles, palette, épingles, « Aussi … ») ; le bailleur, le locataire, le client et le prestataire gardent ce qu'ils ouvrent. Affichage seulement : une page masquée reste servie par lien direct, aucun droit ne change (TCK-2483) |
+| P2 | §2.1 | Groupe « Démarrer » tant que l'espace est neuf (premier bien, KYC, équipe), chaque étape disparaissant une fois faite ; masquable (TCK-2479) ; **il porte l'étape « Pièces » pour l'agent et le prestataire, avec l'état de chaque pièce — les pièces quittent les assistants d'invitation pour lui** (TCK-2612, TCK-2613, TCK-2614) |
+| P3 | §2.1 | L'admin d'une agence `standard` retire du menu de son équipe, dans la fiche de l'agence (« Menu de l'équipe »), les modules que l'agence n'utilise pas : commissions, états des lieux, **entrées en attente**, carnet prestataires, calendrier, crédits, statistiques (KPIs, alertes, exports) ; **les onglets « Exports » et « Alertes » de Rapports suivent le module `analytics`** (TCK-2619, TCK-2628). Le masque vaut pour le menu de l'agent et de l'admin, partout (barre, onglets mobiles, palette, épingles, « Aussi … ») ; le bailleur, le locataire, le client et le prestataire gardent ce qu'ils ouvrent. Affichage seulement : une page masquée reste servie par lien direct, aucun droit ne change (TCK-2483) |
 | P0 | §2.1 | Un compte existant entre dans l'équipe d'une agence par l'invitation seule, au rôle agent ou administrateur (l'administrateur exige `team.assign_role`) ; aucun rattachement direct (`POST /api/agencies/{id}/members` retirée). Un membre retiré puis réinvité revient au rôle système, jamais à son ancien rôle personnalisé ; l'invitation ne dit pas à l'invitant si l'adresse a un compte (P242, TCK-2365, [ADR-0031](adr/0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md)) |
 | P0 | §2.1 | Bootstrap super-admin via commande artisan `takussan:create-super-admin` (1ère installation par environnement) — exige 2FA TOTP au premier login |
 | P1 | §2.1 | Cooptation super-admin (super-admin → super-admin) — invitation pair-à-pair via console super-admin avec 2FA TOTP **obligatoire** avant `active` (bloquant), audit log automatique, notification broadcast aux autres super-admins |
+| P1 | §2.1 | Invitation : aperçu public par jeton (agence, prénom de l'invitant, rôle, destinataire masqué, ce qui attend ; états expiré / annulé / accepté / inconnu discriminés) ; demande de nouveau lien ; acceptation par code SMS (compte créé ou ouvert, jamais doublé) ; la voie mot de passe reste (décision 3 du porteur du 2026-11-10 ; TCK-2609, TCK-2610, TCK-2611) |
 
 ### §2.2 Rôles & permissions
 
@@ -819,7 +929,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P0 | §2.2 | Rôles prédéfinis : `super_admin` (porté par `PlatformProfile`, hors agence) ; `agency_admin`, `agent`, `owner`, `tenant`, `customer`, `service_provider` (portés par le profil polymorphe correspondant, scopés par son agence) |
 | P0 | §2.2 | Permissions granulaires par ressource (view, create, update, delete, update_all…) |
 | P0 | §2.2 | Distinction « mes ressources » vs « toutes les ressources » |
-| P0 | §2.2 | Résolution des permissions au runtime selon le **profil actif** de la requête (header `X-Profile-Id`, cookie ou auto-bascule) — l'auto-bascule ne retient que les profils actifs (TCK-587) |
+| P0 | §2.2 | Résolution des permissions au runtime selon le **profil actif** de la requête (header `X-Profile-Id`, cookie, **dernier espace retenu sur le compte** (TCK-2620), ou auto-bascule) — l'auto-bascule ne retient que les profils actifs (TCK-587) |
 | P0 | §2.2 | Un profil non actif (suspendu, brouillon, inactif, bloqué) ne confère aucune capacité ni aucun périmètre dans son agence ; la suspension prend effet à la requête suivante (TCK-587) |
 | P1 | §2.2 | Attribution et retrait de rôles à un profil (et non à un user global) |
 | P0 | §2.2 | La navigation d'administration n'offre que les pages que le profil actif peut ouvrir, d'après une seule table des pages ; « Administration » mène à la première d'entre elles et disparaît s'il n'y en a aucune ; une page refusée renvoie à la première accessible (TCK-633) |
@@ -849,19 +959,22 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 |------|---------|----------------|
 | P1 | §2.5 | Dashboard agence (biens, vues, revenus, impayés) — **agences `standard` uniquement** : c'est le « reporting cross-équipe » restreint en [§1.12](#112-agence--équipe), sous un autre nom (TCK-295) |
 | P1 | §2.5 | Dashboard agence réservé aux détenteurs de `reports.view_agency` (admin d'agence par défaut), jamais à un agent ; effectif « Équipe » = agents et admins actifs, jamais les bailleurs (TCK-595) |
-| P2 | §2.5 | Occupation mesurée par chevauchement de dates (longue durée : jours-biens ; courte durée : nuitées) sur les biens feuilles en location ; encaissé net des cautions, net reversé (TCK-595) |
-| P2 | §2.5 | Performance de l'équipe par agent (baux / ventes signés, visites réalisées, prospects ajoutés, commissions) — agences `standard` uniquement (TCK-595) |
+| P1 | §2.5 | L'admin voit l'équipe aujourd'hui : par agent actif, ses visites du jour, ses demandes ouvertes, son absence en cours (TCK-2623, TCK-2624) |
+| P1 | §2.5 | Une page « Rapports » à onglets remplace Vue agence, Statistiques, Indicateurs, Alertes et Exports : admin « Vue d'ensemble · Équipe · Impayés · Exports · Alertes » ; agent « Vue d'ensemble · Commissions · Pipeline · Exports » (portée Moi / Agence sous `reports.view_agency`) ; bailleur et hôte « Vue d'ensemble · Reversements · Exports ». Ni le locataire, ni le client, ni le prestataire n'en ont. Une série par graphique (décision 4 du porteur du 2026-11-10 ; TCK-2628) |
+| P2 | §2.5 | Occupation mesurée par chevauchement de dates (longue durée : jours-biens ; courte durée : nuitées) sur les biens feuilles en location ; encaissé net des cautions, net reversé (TCK-595) ; **l'occupation du jour ne compte que les baux en cours (`active`, `terminating`), et elle est rendue avec sa base (biens éligibles, biens occupés) ; elle n'est jamais affichée sans elle à côté d'un compte de biens** (TCK-2626, TCK-2628) |
+| P2 | §2.5 | Performance de l'équipe par agent (baux / ventes signés, visites réalisées, prospects ajoutés, commissions, **demandes traitées, délai de première réponse** — [§1.6](#16-crm--relation-client), TCK-2583) — agences `standard` uniquement (TCK-595, TCK-2626, TCK-2629) |
 | P2 | §2.5 | Balance âgée des impayés (1-30 / 31-60 / 61-90 / > 90 j) par locataire ou bailleur, et cautions détenues (TCK-595) |
 | P2 | §2.5 | Impayé = échéance échue non payée, qu'une pénalité s'applique ou non (TCK-595) |
 | P2 | §2.5 | Export CSV / Excel (paiements, baux, clients) — réservé aux détenteurs de `crm.export` (clients), `payments.export` (paiements), `reports.export` (baux, biens) ; chaque export est journalisé (entité, filtres, nombre de lignes) (TCK-587) |
 | P2 | §2.5 | Exports reversements, factures, commissions, balance âgée, cautions (CSV / Excel) (TCK-595) |
+| P2 | §2.5 | Exports prêts (préréglages de période) et liste des derniers exports de l'utilisateur, relancés avec les mêmes paramètres et les capacités du moment ; aucun fichier n'est conservé (TCK-2627, TCK-2629) |
 | P2 | §2.5 | Métriques plateforme historisées chaque jour (flux encaissé, GMV, take rate, MRR hors essais) — strictement super_admin ; MRR hors essais (statut et fin d'essai), comptes en retard de paiement inclus (TCK-595) |
 | P2 | §2.5 | Export PDF (quittances, factures, rapports) |
 | P2 | §2.5 | Graphiques temporels (revenus, occupation) |
 | P2 | §2.5 | Reporting plateforme cross-tenant (croissance agences/users/listings, MRR/ARR, cohortes de rétention, funnel) — strictement super_admin |
-| P3 | §2.5 | KPI personnalisables par agence — **disponibles aussi en agence `individual`** (arbitrage TCK-284, écrit en [§1.12](#112-agence--équipe)) |
+| P3 | §2.5 | KPI personnalisables par agence — **disponibles aussi en agence `individual`** (arbitrage TCK-284, écrit en [§1.12](#112-agence--équipe)) ; **réglés sur la vue d'ensemble de Rapports (ordre, masquage, ajout, aperçu)** (TCK-2629) |
 | P3 | §2.5 | Les tuiles du dashboard agence lisent les KPI personnalisés : les seuls activés, par rang, avec leur libellé et leur format, valeurs calculées par l'API (`data.kpis` de `GET /api/dashboard/agency`) ; sans configuration, les six tuiles par défaut restent (TCK-2373) |
-| P3 | §2.5 | Alertes sur seuils (taux d'impayés, vacance) — **disponibles aussi en agence `individual`** (arbitrage TCK-284, écrit en [§1.12](#112-agence--équipe)) |
+| P3 | §2.5 | Alertes sur seuils (taux d'impayés, vacance) — **disponibles aussi en agence `individual`** (arbitrage TCK-284, écrit en [§1.12](#112-agence--équipe)) ; **chaque alerte montre sa valeur actuelle, l'historique de ses déclenchements, ses destinataires (admins de l'agence) et ses canaux** (TCK-2627, TCK-2629) |
 
 ### §2.6 Audit & traçabilité
 
@@ -950,13 +1063,14 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
-| P0 | §2.1 | Inscription par email et mot de passe |
+| P0 | §2.1 | Inscription par email et mot de passe — **l'adresse et le mot de passe suffisent (prénom et nom facultatifs, plus de confirmation du mot de passe) ; la voie e-mail est en deux onglets** (TCK-2605, TCK-2606) |
 | P0 | §2.1 | Connexion (tokens Sanctum) |
 | P0 | §2.1 | Déconnexion et révocation de token ; une déconnexion volontaire ramène à l'accueil, une session expirée à la connexion (TCK-633) |
 | P1 | §2.1 | Second numéro de contact, vérifié par SMS, qui ne sert pas à se connecter ; chaque numéro déclare s'il a WhatsApp (TCK-633) |
-| P0 | §2.1 | Mot de passe oublié et réinitialisation |
+| P0 | §2.1 | Mot de passe oublié et réinitialisation — **« mot de passe oublié » propose aussi le code SMS** (TCK-2606) |
 | P0 | §2.1 | Vérification de l'adresse email ; un compte ouvert par téléphone ajoute son adresse depuis le profil et en reçoit le lien, renvoyable ; une adresse non vérifiée se corrige, une adresse vérifiée ne se remplace pas encore (TCK-632) |
 | P0 | §2.1 | Édition de profil (nom, bio, avatar) |
+| P2 | §2.1 | Le profil s'ouvre sur un sommaire de réglages (une page par section, ce qui demande une action signalé, la suppression du compte en dernier) ; un seul enregistrement par section (TCK-2635) |
 | P1 | §2.1 | Vérification du numéro de téléphone (SMS / OTP) — indicatif hors du champ ; l'API refuse partout (profil, envoi du code) un numéro qu'aucun SMS ne peut joindre : longueur sénégalaise fausse, `0` de préfixe national derrière l'indicatif (TCK-566, TCK-574) ; le code part réellement par SMS, n'est jamais accepté sous une forme fixe, et s'invalide après 5 essais ; un numéro vérifié n'appartient qu'à un compte (TCK-589) ; hors production seulement (local, préproduction), derrière un drapeau, l'API rend aussi le code et l'écran l'affiche à côté du champ — connexion, inscription, profil, onboardings, suppression de compte, signature de bail (TCK-620, ADR-0060) |
 | P1 | §2.1 | OAuth Google (Socialite) |
 | P1 | §2.1 | Authentification à deux facteurs (TOTP + codes de récupération) |
@@ -975,20 +1089,29 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P0 | §2.1 | Switch de profil exposé en UI (header / menu compte) — change l'agence et les permissions sans nouvelle authentification |
 | P1 | §2.1 | KYC distinct par profil (pièces d'identité, RIB, license, assurance — un dossier par profil) |
 | P2 | §2.1 | Indication visuelle de "profil actif" sur toutes les vues authentifiées |
+| P1 | §2.1 | Un compte qui a des profils actifs dans plusieurs agences retrouve, à la connexion, le dernier espace qu'il a choisi (s'il est encore actif) ; sans espace retenu, il choisit « Dans quel espace travaillez-vous ? » (agence, rôle, ville ; « Se souvenir de mon choix » ; « Continuer en tant que client ») ; la déconnexion n'oublie pas l'espace retenu (TCK-2620, TCK-2621) |
+| P1 | §2.1 | Les espaces sont nommés par l'agence, le rôle et la ville, jamais par un identifiant technique (slug) ; l'espace actif est coché (TCK-2621) |
+| P1 | §2.1 | `/api/auth/me` rend l'identifiant du profil lié (`active_profile_id`) ; le menu de la coque suit ce profil (TCK-2620, TCK-2621) |
 | P1 | §2.1 | Le menu de `/app` suit une disposition propre au persona du profil actif : ordre, groupes titrés, libellés, groupes repliés par défaut, entrées secondaires sous « Plus » ; une destination n'y paraît que si le profil peut l'ouvrir, et une destination accessible n'est jamais perdue (elle tombe sous « Plus ») (TCK-2477, TCK-2478) |
 | P1 | §2.1 | Une action principale par persona en tête du menu (ex. « Proposer un bien » pour le bailleur, « Payer mon loyer » pour le locataire), absente si le profil ne peut pas l'accomplir ou si l'espace est suspendu (TCK-2478) |
 | P1 | §2.1 | Les destinations ouvertes par les AUTRES profils du même espace paraissent dans un groupe replié « Aussi bailleur » / « Aussi agent »…, sans changer de profil (TCK-2478) |
 | P1 | §2.1 | Le compte au pied de la colonne (avatar, nom, espace et rôle actifs) ouvre un seul menu : changement d'espace, langue, profil, préférences de notification, administration, crédits, déconnexion (TCK-2478, TCK-2491) |
-| P1 | §2.1 | Bloc « Aujourd'hui » au-dessus du menu : une ligne par file non vide, libellée par l'action (« Messages non lus », « Visites à confirmer », « Demandes de contact », avis et biens à modérer), avec son nombre (99+ au-delà), menant à sa page filtrée sur ce qui attend ; un compte affiché là ne se répète pas sur l'entrée du menu ; aucune entrée ne change de place selon la charge (TCK-2479, TCK-2489, TCK-2490) |
-| P1 | §2.1 | « Tableau de bord » ouvre le menu de l'admin d'agence seul ; pour les autres personas il vient après le deuxième groupe titré (en quatrième ligne pour le prestataire) ; `/app` reste la page d'arrivée (TCK-2489) |
+| P1 | §2.1 | Bloc « Aujourd'hui » au-dessus du menu : une ligne par file non vide, libellée par l'action (**« Demandes à traiter », « Visites à confirmer », « Messages non lus », « Biens à valider », « Avis à modérer »** — TCK-2619), avec son nombre (99+ au-delà), menant à sa page filtrée sur ce qui attend ; un compte affiché là ne se répète pas sur l'entrée du menu ; aucune entrée ne change de place selon la charge (TCK-2479, TCK-2489, TCK-2490) |
+| P1 | §2.1 | Chez l'agent, « Aujourd'hui » (`/app`) ouvre le menu, suivi de « Messagerie » et « Tâches » ; l'entrée « Tableau de bord » n'existe plus pour lui (même destination). Chez l'admin d'agence, « Accueil » puis « Rapports ». Pour les autres personas, l'accueil reste la page d'arrivée, et « Rapports » vient après lui chez le bailleur (TCK-2489, décisions 4 et 10 du porteur du 2026-11-10 ; TCK-2618, TCK-2628) |
+| P1 | §2.1 | Une seule flèche de retour dans toute l'application (`ArrowLeft` 20 px dans une cible de 44 px, variante ronde sur photo), partagée avec le site public (TCK-2568) ; une garde refuse toute autre flèche de retour dans `/app` (TCK-2617) |
+| P1 | §2.1 | Les favoris et les recherches sauvegardées de `/app` sont la page de favoris du site public rendue dans la coque de `/app` (onglets Biens · Recherches · Nouveautés), sans perte des fonctions des deux pages d'avant (TCK-2618) |
+| P1 | §2.1 | Aucun bouton flottant dans `/app`, à aucune largeur ; la marque de la colonne et du tiroir mène à `/app` ; « Voir le site public » est dans le menu du compte (TCK-2619) |
 | P2 | §2.1 | « Récents » en fin de menu : les quatre dernières pages ouvertes, hors la page courante (TCK-2490) |
-| P2 | §2.1 | Personnalisation du menu par persona, rangée sur le compte : épingler jusqu'à cinq entrées (elles montent dans « Épinglés »), replier un groupe, revenir à la disposition par défaut (TCK-2480) |
+| P2 | §2.1 | Personnalisation du menu par persona, rangée sur le compte : épingler jusqu'à cinq entrées (elles montent dans « Épinglés »), replier un groupe, revenir à la disposition par défaut (TCK-2480) ; **les punaises et les poignées n'apparaissent qu'en mode « Modifier le menu » ; les poignées ordonnent les épingles** (TCK-2619) |
 | P2 | §2.1 | Barre réduite aux icônes (rail), réglée par appareil ; par défaut entre `md` et `lg` ; un compte en attente y reste signalé par un point, et un groupe replié signale le compte qu'il cache (TCK-2480, TCK-2490) |
-| P2 | §2.1 | Sous `md` : en-tête compacte (marque, « Aller à », cloche) et barre d'onglets — quatre destinations choisies par persona et « Menu », qui ouvre le tiroir où se trouve la colonne entière (TCK-2481, TCK-2491) |
+| P2 | §2.1 | Sous `md` : en-tête de 56 px **sans la marque**, en quatre formes — page racine (titre de la page, qui est son H1, 0 ou 1 action, « Aller à », cloche), accueil (bouton d'espace, « Aller à », cloche), détail (flèche de retour, titre court, « ⋯ »), plein écran (✕, titre, étape, sans onglets) ; une conversation ouverte, un formulaire ou un tunnel n'ont ni en-tête de coque ni barre d'onglets ; au bureau, un fil d'Ariane remplace le lien « ← Retour » des pages de détail (TCK-2481, décision 5 du porteur du 2026-11-10 ; TCK-2617) |
+| P2 | §2.1 | Sous `md`, barre d'onglets — quatre destinations par persona et « Menu », qui ouvre le tiroir où se trouve la colonne entière (TCK-2481, TCK-2491) : agent « Aujourd'hui · Demandes · Clients · Messages » ; admin d'agence « Accueil · Argent · Biens · Messages » ; bailleur « Accueil · Biens · Loyers · Messages » ; hôte, prestataire, locataire et client inchangés ; libellé « Messages » partout ; icône de l'onglet actif en couleur primaire (décisions 10 et 12 du porteur du 2026-11-10 ; TCK-2618) |
+| P2 | §2.1 | Barre d'action collante de 64 px au-dessus des onglets, offerte aux pages de détail (1 bouton pleine largeur ou 2 à 50/50) (TCK-2617) |
+| P2 | §2.1 | Page introuvable de `/app` : H1 « Page introuvable », « Aller à… » ouvert dans la page avec les récents et des entrées du menu, retour à la liste parente et à l'accueil ; `HTTP 404` rendu côté serveur (TCK-2619) |
 | P2 | §2.1 | Palette de commandes « Aller à » (⌘K / Ctrl K, ou sa ligne dans la colonne) : destinations accessibles, action principale, files « À traiter », bascule de profil, pages récentes, recherche par libellé et synonymes, et recherche d'annonces du site (« Chercher un bien sur Takussan », texte tapé transmis à `/properties`) (TCK-2482, TCK-2489) |
 | P0 | §2.1 | Pattern d'invitation unifié — création par un inviteur autorisé, invitation par e-mail OU par SMS (lien court) quand l'invité n'a qu'un numéro (TCK-589), avec token signé (expiry 7j, rappel automatique J+2, retenté le lendemain si tous les fournisseurs SMS l'ont refusé, trois essais au plus (TCK-2155), renvoi self-service par l'inviteur, révocation possible avant acceptation) ; à l'acceptation, le profil cible passe en `active` et devient le profil actif |
 | P1 | §2.1 | Composant wizard reprenable — chaque step sauvegardé en `draft`, bandeau persistant "Reprenez votre publication / votre onboarding" sur dashboard, reprise depuis le menu compte |
-| P1 | §2.1 | Welcome modale générique réutilisable — composant 3 slides max, skippable, paramétrable par parcours (Customer, Host, Owner, Agent, AgencyAdmin, ServiceProvider, Tenant) |
+| P1 | §2.1 | Welcome modale générique réutilisable — composant 3 slides max, skippable, paramétrable par parcours (Customer, Host, Owner, Agent, AgencyAdmin, ServiceProvider, Tenant) ; **jamais sur un écran plein, après un assistant ou après une publication** (TCK-2615) |
 
 ### §2.3 Notifications
 
@@ -999,8 +1122,10 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P0 | §2.3 | Notifications email transactionnelles |
 | P1 | §2.3 | Une notification est un code + des paramètres, rendue dans la langue du destinataire sur chaque canal (cloche, e-mail, SMS, WhatsApp) ; les gabarits édités par le super-admin s'appliquent (TCK-588) |
 | P1 | §2.3 | Chaque notification ouvre son objet ; historique complet paginé, filtrable par non-lues (TCK-588) |
+| P1 | §2.3 | Chaque notification appartient à une famille (demande, visite, paiement, retard, bien, avis, système) et dit si elle demande une action (« À traiter ») ; la table est en code, exhaustive, gardée par un test (TCK-2633) |
+| P1 | §2.3 | La cloche ouvre une feuille pleine hauteur au téléphone et un panneau au bureau : « À traiter · Tout », groupes par jour, icône par famille, verbe de l'action, répétitions repliées (TCK-2634) |
 | P1 | §2.3 | Notifications push web et mobile |
-| P1 | §2.3 | Préférences par événement et par canal : chaque interrupteur commande exactement les messages de son événement ; une case qu'aucun envoi ne peut honorer (canal sans transport, canal mobile d'un événement qui ne part pas sur mobile) est verrouillée et dit pourquoi (TCK-588) |
+| P1 | §2.3 | Préférences par événement et par canal : chaque interrupteur commande exactement les messages de son événement ; une case qu'aucun envoi ne peut honorer (canal sans transport, canal mobile d'un événement qui ne part pas sur mobile) est verrouillée et dit pourquoi (TCK-588) ; **au téléphone, une rangée par événement avec ses canaux en puces ; au bureau, la matrice ; tout événement que l'API envoie a son interrupteur** (TCK-2636) |
 | P1 | §2.3 | Un compte bloqué ou supprimé ne reçoit plus que les avis de son compte (blocage, réactivation, fin d'impersonation, effacement, réinitialisation du mot de passe, export de ses données prêt), par aucun canal et par aucun chemin d'envoi : les avis du bail, les rappels et les alertes ne lui parviennent plus (TCK-1350, TCK-2363) |
 | P1 | §2.3 | Une notification urgente n'attend jamais un appel au modèle : les jobs qui appellent la passerelle IA hors d'une requête HTTP (extraction d'une annonce du Radar, vérification d'une réponse de consentement) passent par une file à eux (`ai`), lue par un processus à lui (`worker-ia`) (TCK-2402, [ADR-0078](adr/0078-une-connexion-de-file-pour-les-jobs-longs.md), amendement) |
 | P1 | §2.3 | Templates localisés via fichiers lang/ Laravel |
@@ -1016,11 +1141,17 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P0 | §2.4 | Filtres dynamiques via paramètres de requête |
 | P0 | §2.4 | Pagination standardisée |
 | P1 | §2.4 | Tri dynamique sur toutes les colonnes listables |
-| P1 | §2.4 | Recherches sauvegardées par utilisateur |
+| P1 | §2.4 | Recherches sauvegardées par utilisateur ; **une alerte peut viser plusieurs quartiers (`locations`, 2 à 12, exclusif de `location`)** (TCK-2607) |
 | P2 | §2.4 | Recherche full-text sur messages et documents |
 | P2 | §2.4 | Suggestions d'autocomplétion — `GET /api/search/suggest` : la saisie comprise et son nombre de biens, des complétions, des lieux, trois biens, et à saisie vide les recherches populaires (TCK-2474, [ADR-0088](adr/0088-le-journal-anonyme-des-recherches.md)). La barre de recherche (barre de la navigation publique, saisie mobile, barre de l'app) : champ vide, les recherches récentes de l'appareil (6 au plus, effaçables), les populaires et les raccourcis Louer / Acheter ; pendant la frappe, la saisie comprise en tête (puces, nombre de biens sous les filtres déjà posés sur la page, Entrée la valide), les recherches fréquentes, les lieux, les types et trois biens en aperçu ; sans bien exact, « Être alerté quand un bien correspond » (alerte de TCK-599 pré-remplie, case cochée), et « Voir des biens proches » seulement si la liste s'élargira — sinon « 0 bien » (TCK-2475). **Au téléphone, l'écran de recherche** montre aussi « Autour de moi », les quartiers et types populaires, garde Louer / Acheter visible pendant la frappe, fait de la saisie comprise son bouton principal, dit quels filtres de la page restent, et, sans bien exact, propose des critères à retirer avec leur compte ; une recherche récente annonce les biens publiés depuis qu'elle a été faite ; l'interprétation reprend un lieu reconnu malgré une faute (« mermos » → Mermoz) (TCK-2496, TCK-2497) |
 | P2 | §2.4 | Saisie libre comprise en critères : type, contrat, période, prix, chambres, surface, meublé, ville, quartier, équipements ; le reste est cherché en texte (TCK-2473) |
 | P3 | §2.4 | Recherche sémantique par embeddings |
+
+### §2.5 Reporting & tableaux de bord
+
+| Prio | Domaine | Fonctionnalité |
+|------|---------|----------------|
+| P1 | §2.5 | L'accueil (`/app`) est la journée, par persona : ce qui attend une action, chacun avec son geste, puis les chiffres du mois, chacun un lien. Agent : la page « Aujourd'hui » (ligne suivante). Admin d'agence : biens à valider, demandes à attribuer, visites à confirmer, avis à modérer, impayés par ancienneté, équipe aujourd'hui. Bailleur et hôte : visites à confirmer, devis à valider, loyers en retard, interventions en cours, loyers du mois reçus sur attendus. Locataire : son loyer et « Payer ». Client : visites, favoris qui ont bougé, nouveautés de ses recherches. Prestataire : ses interventions du jour (sa liste de travail, pas un tableau de bord) (décision 4 du porteur du 2026-11-10 ; TCK-2622, TCK-2623, TCK-2624, TCK-2625) |
 
 ### §2.7 Médias & fichiers
 
@@ -1063,8 +1194,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 ## Provenance
 
-- Source : [`features.md`](./features.md) — **453** lignes de fonctionnalité lues,
-  réparties en **604** placements (une ligne multi-acteurs compte une fois par acteur).
+- Source : [`features.md`](./features.md) — **518** lignes de fonctionnalité lues,
+  réparties en **715** placements (une ligne multi-acteurs compte une fois par acteur).
 - Générateur : `docs/gen-features-by-actor.mjs`.
 - Fraîcheur vérifiée en CI par `node docs/gen-features-by-actor.mjs --check`, qui échoue si
   cette sortie ne correspond plus à sa source.

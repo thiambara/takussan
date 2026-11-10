@@ -1,6 +1,6 @@
 # ADR-0089 — Le menu de `/app` se dérive du profil actif : un catalogue des destinations, une disposition par persona, une composition pure
 
-- **Statut** : Accepté le 2026-11-05 par le porteur (décisions de la session, une par une)
+- **Statut** : Accepté le 2026-11-05 par le porteur (décisions de la session, une par une) ; **amendé le 2026-11-05** (§ *Amendement — modules par agence*) et **le 2026-11-10** (§ *Amendement du 2026-11-10 — l'accueil par persona, « Rapports » à onglets, les dispositions de l'audit*)
 - **Date** : 2026-11-05
 - **Tickets** : TCK-2477 → TCK-2483
 - **Précise** : [ADR-0005](0005-contrat-http-conserve-roles.md) côté front (ce que le menu fait de `roles`), [ADR-0064](0064-l-administration-d-agence-vit-dans-app.md) §2 (la section d'agence reste dérivée de `PAGES_ADMIN`)
@@ -262,3 +262,85 @@ servie, et rien de ce qu'un profil hors personnel ouvre lui-même ne disparaît.
   `/sync-specs` après la fusion.
 - Coût : ~1 enum, ~40 lignes dans `AgencySettings`, ~60 lignes de navigation pure, une section de
   formulaire, 16 clés de libellé × 3 langues.
+
+## Amendement du 2026-11-10 — l'accueil par persona, « Rapports » à onglets, les dispositions de l'audit
+
+- **Statut** : Accepté le 2026-11-10 par le porteur (décision n° 4 (b) ; décisions n° 10 (a) et n° 12 (a) ;
+  recommandation 2 c de la famille 3 ; compléments du 2026-11-10 : « Aujourd'hui », « Tâches », plus de
+  « Tableau de bord » chez l'agent) — modalités : décisions de la session, à revoir.
+- **Accompagne** : [ADR-0096](0096-l-accueil-est-la-journee-et-les-rapports-sont-une-page.md) (l'accueil est
+  la journée, « Rapports » est une page).
+- **Amende** : le § 1 (le catalogue), la table des modules de l'amendement du 2026-11-05, et son point 6
+  (« hors du menu, rien ne change ») pour les seuls onglets de « Rapports ». Les règles de composition (§ 4),
+  les préférences (§ 6) et les gardes ne changent pas.
+- **Tickets** : TCK-2618 (dispositions, onglets, favoris), TCK-2622 (aiguillage de l'accueil), TCK-2628
+  (entrée « Rapports », module `analytics`), TCK-2644 (entrée « Entrées en attente »).
+
+**Contexte.** Relevé sur `dev` (1bce3798a) le 2026-11-10. L'audit de la famille 3
+([`03-coque-et-accueil.md`](../qa/audit-ux-2026-11/03-coque-et-accueil.md)) remplace cinq destinations
+par une page à onglets, et les décisions du porteur changent les onglets mobiles de trois personas.
+Trois des destinations retirées (`kpis`, `alertes`, `exports`) sont exactement celles que masque le module
+`analytics`. Sans amendement, le module ne masquerait plus rien.
+
+**Décision.**
+
+1. **Le catalogue.**
+   - Il perd `vue-agence`, `statistiques`, `kpis`, `alertes` et `exports`, et gagne `rapports`.
+   - Leurs anciennes adresses deviennent des redirections, rangées dans `HORS_MENU` avec leur motif.
+   - L'entrée « Rapports » n'est ouverte qu'aux personas qui ont au moins un onglet : admin d'agence, agent,
+     bailleur et hôte. Le locataire, le client et le prestataire n'en ont pas
+     ([ADR-0096](0096-l-accueil-est-la-journee-et-les-rapports-sont-une-page.md) § 3).
+2. **Les onglets de « Rapports » sont des sous-destinations déclarées** à côté du catalogue, avec leur
+   prédicat d'accès. Le test « aucune destination perdue » porte aussi sur eux : une page qu'une persona
+   ouvrait avant ce lot reste ouverte, comme entrée ou comme onglet.
+3. **Le module `analytics` masque des onglets.** Dans la table des modules, sa ligne devient : onglets
+   `exports` et `alertes` de « Rapports », et « Personnaliser les chiffres », l'ancien `kpis` (TCK-2629).
+   - **L'entrée « Rapports » reste tant qu'il lui reste un onglet**, et la vue d'ensemble n'est pas
+     masquable.
+   - Une adresse ancienne qui mène à un onglet masqué mène à la vue d'ensemble, et non à une page vide.
+   - C'est la seule exception au point 6 de l'amendement du 2026-11-05 : un onglet de page de navigation
+     se masque comme une entrée. Les gardes et l'API ne lisent toujours pas `hidden_modules`.
+4. **Le module `move_in_follow_up` n'a plus de destination.** L'entrée « Entrées en attente » quitte le
+   menu, et sa route redirige vers l'onglet « En attente du locataire » de la liste des baux (TCK-2644).
+   - Le module quitte la liste fermée (`AgencyModule`, `MODULES_D_AGENCE`), dans le ticket qui retire
+     l'entrée.
+   - Une valeur déjà enregistrée dans `hidden_modules` est ignorée à la lecture : c'est la règle « lecture
+     qui ignore un code inconnu » de l'amendement du 2026-11-05.
+   - La case disparaît de la section « Menu de l'équipe ».
+5. **Les dispositions.**
+   - **Agent** :
+     - la destination de l'accueil se libelle « Aujourd'hui » (icône soleil) et ouvre la colonne : « Aujourd'hui · Messagerie · Tâches » ;
+     - l'entrée « Tableau de bord » disparaît, puisque c'est la même destination, sous un libellé propre à la persona (§ 3) ;
+     - « Mes tâches » devient « Tâches » ;
+     - onglets mobiles : « Aujourd'hui · Demandes · Clients · Messages » ;
+     - « Visites » quitte la barre et reste dans « Prospection ».
+   - **Admin d'agence** : onglets « Accueil · Argent · Biens · Messages ». « Argent » mène à
+     `/app/agency/finances`. Les demandes restent au menu.
+   - **Bailleur** : onglets « Accueil · Biens · Loyers · Messages ». L'entrée « Finances » de « Mon
+     patrimoine » prend le même mot, **« Loyers »**, décidé par le porteur le 2026-11-10
+     ([ADR-0100](0100-une-page-paiements-par-public.md) § 3).
+   - **Partout**, le libellé d'onglet est « Messages », et l'onglet actif porte son icône en couleur
+     primaire. L'hôte, le prestataire, le locataire et le client gardent leurs onglets.
+6. **Les épingles survivent.** Une épingle sur « Tableau de bord » chez l'agent vise la même destination,
+   désormais « Aujourd'hui ». Une épingle sur une entrée retirée (`kpis`, …) est ignorée, selon la règle
+   du § 4 sur l'identifiant inconnu, et l'utilisateur épingle « Rapports ».
+7. **L'accueil se choisit par persona** (TCK-2622), par la même résolution que le menu (§ 2). La persona
+   reste un concept du front.
+
+**Conséquences.**
+
+- Les tests qui figent les dispositions (`dispositions-validees.test.ts`) changent **exprès** pour
+  l'agent, l'admin et le bailleur. L'écart est écrit dans TCK-2618.
+- La table des modules perd une ligne et en change une. La garde de parité entre l'enum PHP et
+  `MODULES_D_AGENCE` rougit si un seul côté change.
+- Le catalogue gagne la notion de sous-destination pour une seule page. Si une autre page à onglets la
+  demande un jour, elle suivra la même forme.
+
+**Application.** `src/lib/navigation/` : catalogue, dispositions et sous-destinations de « Rapports ».
+`App\Models\Enums\AgencyModule` sans `move_in_follow_up`. Gardes :
+
+- « aucune destination perdue », étendu aux onglets ;
+- « module `analytics` masqué : Exports et Alertes absents, Rapports présent » ;
+- « une valeur `move_in_follow_up` enregistrée est ignorée » ;
+- dispositions par persona.
+

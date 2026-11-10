@@ -1,6 +1,6 @@
 # ADR-0004 — Le profil actif est résolu par middleware, avec cinq niveaux de repli
 
-- **Statut** : Accepté, **§ Application amendé le 2026-10-23** (cf. § *Amendement du 2026-10-23 — le front porte l'indice sur tout appel authentifié*)
+- **Statut** : Accepté, **§ Application amendé le 2026-10-23** (cf. § *Amendement du 2026-10-23 — le front porte l'indice sur tout appel authentifié*), **§ Décision amendé le 2026-11-10** (cf. § *Amendement du 2026-11-10 — le dernier espace retenu sur le compte*)
 - **Date de la décision** : 2026-05 · **Rédigé rétroactivement** : 2026-08-12
 - **Tickets** : TCK-138→142
 
@@ -167,3 +167,69 @@ compte de deux agences, l'API ne voit donc jamais l'espace choisi à l'écran.
   - un test API : un compte de deux agences lit une liste de `/app` avec l'indice.
 
   Chaque garde se vérifie par ablation.
+
+## Amendement du 2026-11-10 — le dernier espace retenu sur le compte (TCK-2620, TCK-2621)
+
+- **Statut** : Accepté le 2026-11-10 par le porteur (décision 5 de la famille 3 de l'audit UX : *(b), avec
+  (a) en repli* : le dernier espace retenu, sinon le choix) — modalités : décisions de la session, à revoir.
+- **Amende** : la liste des niveaux de la § Décision (un niveau de plus). L'asymétrie entre les
+  niveaux 1 et 2, l'amendement du 2026-10-23 et l'impersonation ne changent pas.
+
+**Contexte** (relevé sur `dev`, 1bce3798a, le 2026-11-10 ; audit
+[`03-coque-et-accueil.md`](../qa/audit-ux-2026-11/03-coque-et-accueil.md)).
+
+- L'auto-bascule (niveau 4) ne joue que si tous les profils actifs sont dans **une seule** agence. Un
+  compte de plusieurs agences qui se connecte n'a donc **aucun profil lié**. Il arrive en « Client »,
+  sans rien qui le dise (`ResolveActiveProfile.php:98-152`).
+- Le seul souvenir de l'espace choisi est le cookie `active_profile_id`. Il est `httpOnly`, posé sur
+  l'hôte du front, et **effacé à la déconnexion** (`AuthController.php:157`, TCK-509). Chaque
+  connexion repart de zéro.
+- `/api/auth/me` ne dit pas quel profil est lié. Le front le **devine** (`TYPE_DOMINANT`).
+
+**Décision.** **L'espace choisi se retient sur le compte. Il devient un niveau de résolution, après le
+cookie et avant l'auto-bascule.**
+
+1. Les niveaux deviennent six :
+   1. en-tête `X-Profile-Id` ou `?profile_id` (403 si étranger) ;
+   2. indice `X-Active-Profile-Hint` (muet s'il est invalide) ;
+   3. cookie `active_profile_id` ;
+   4. **dernier espace retenu**, `users.metadata.last_active_profile` (forme `type:id`) ;
+   5. auto-bascule mono-agence ;
+   6. aucun profil.
+2. **Il est écrit par `PATCH me/active-profile`** quand `remember` est vrai, ce qui est le défaut. Un
+   choix « pour cette fois » passe `remember=false`.
+3. **Il n'est lié que si le profil est encore actif** et appartient toujours au compte. Sinon il est
+   **ignoré sans 403**, comme un indice (niveau 2) : c'est une mémoire, pas un signal explicite.
+4. **La déconnexion ne l'efface pas.** Le cookie, lui, reste effacé (TCK-509).
+5. **`/api/auth/me` rend `active_profile_id`**, le profil réellement lié par le middleware, ou `null`.
+   Le front aligne la persona sur lui et cesse de deviner.
+6. **Sans espace retenu**, pour un compte de plusieurs agences : l'écran « Dans quel espace
+   travaillez-vous ? » (TCK-2621), au premier choix seulement.
+7. **Sous impersonation**, rien ne change. Le niveau 4 n'est pas lu pour le jeton d'impersonation, et
+   la consultation n'écrit jamais l'espace retenu de la personne consultée
+   ([ADR-0055](0055-impersonation-en-lecture-seule-sans-jeton-dans-la-page.md)).
+
+**Conséquences.**
+
+- **Une valeur d'état dans `metadata`, et non dans `preferences`.** Ce n'est pas un réglage que la
+  personne édite : c'est ce que le système a observé.
+- **L'ordre change pour un compte d'une seule agence à plusieurs profils** (agent et bailleur, par
+  exemple) : le choix retenu l'emporte sur l'auto-bascule, qui prenait le premier profil
+  (`profiles->first()`). C'est voulu.
+- Le niveau 4 lit `users.metadata`, déjà chargé avec l'utilisateur : aucune requête de plus.
+- Le docblock de `ResolveActiveProfile` passe de cinq à six niveaux. Le titre de cet ADR dit cinq :
+  il décrit la décision de 2026-05.
+
+**Application.**
+
+- `ResolveActiveProfile` : le niveau 4 neuf. `ActiveProfileController` (ou équivalent) écrit
+  `metadata.last_active_profile` sous `remember`. `AuthController::me` rend `active_profile_id`.
+- Gardes (TCK-2620) :
+  - compte de deux agences : après déconnexion et reconnexion, le profil retenu est lié ;
+  - profil retenu suspendu : ignoré, sans 403 ;
+  - `remember=false` n'écrit rien ;
+  - impersonation : le niveau 4 n'est pas lu ;
+  - compte d'une agence à deux profils : le retenu l'emporte sur l'auto-bascule.
+
+  Chaque garde se vérifie par ablation.
+

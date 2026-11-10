@@ -1,0 +1,123 @@
+---
+id: TCK-2653
+title: "Interventions de l'agence : files par état d'attente avec ancienneté, une fiche à un geste principal, « Autre action », et un carnet de prestataires qu'on peut appeler"
+status: todo
+phase: P1
+family: front
+estimate: L
+wave: 88
+created: 2026-11-10
+updated: 2026-11-10
+depends_on: [TCK-2652]
+blocks: []
+spec_refs:
+  features:
+    - "docs/features.md#18-maintenance--interventions"
+  models:
+    - "docs/models-spec.md#21-maintenancerequest-"
+    - "docs/models-spec.md#37-serviceproviderprofile-"
+tags: [front, maintenance, mobile, audit-ux, app]
+---
+
+## Objectif utilisateur
+
+L'admin ou l'agent ouvre « Interventions » et voit d'abord ce qui attend l'agence : à dispatcher, en retard, chez le bailleur, à confirmer, chaque carte disant depuis quand. Il dispatche en un geste (prestataire suggéré, créneau), relance ou réassigne, et appelle un prestataire depuis le carnet.
+
+## Contrat de données
+
+- `GET /api/maintenance-requests` avec `filter[file]`, et `file`, `waiting_on`, `waiting_since`, `slot_overdue_days` sur chaque demande (TCK-2652).
+- `GET /api/maintenance-requests/summary` pour les compteurs, en un appel (TCK-2652).
+- `GET /api/maintenance-requests/{id}/suggested-providers` (TCK-2652).
+- Fiche :
+  - `abilities` et `abilities.transitions`, servis par le serveur (TCK-592) ;
+  - assignation et créneau, devis (demander, approuver, refuser), annulation avec motif, statut : les endpoints existants.
+- Carnet : `GET /api/agencies/{agency}/service-providers`, qui rend `average_rating`, `reviews_count`, le téléphone et `completed_interventions_count` (TCK-2652). Invitation, renvoi et révocation existants.
+
+## Direction UX / Artistique
+
+- **Maquette de référence** : `/fr/playground/maquettes?p=app-interventions&a=a`.
+  - C'est une **référence de fidélité, non versionnée** : à lire et à ouvrir dans l'arbre de travail principal du porteur, cf. [README de l'audit, § Maquettes](../../../qa/audit-ux-2026-11/README.md#maquettes).
+  - Écrans « Agence — files », « Fiche — à dispatcher », « Fiche — Autre action » et « Agence — carnet des prestataires », au téléphone et au bureau.
+  - La barre latérale de la maquette (`CoqueGestion`, groupe « Gestion locative ») est une copie locale : elle relève de la coque (famille 3).
+- **Titre « Interventions »** dans la page. La fiche s'intitule « Intervention — {titre} ».
+- **Téléphone (360-390 px)** :
+  - pastilles défilantes comptées : « À dispatcher », « En retard », « Chez le bailleur », « En cours », « À confirmer », « Terminées » ;
+  - cartes : titre ; bien · quartier · demandeur ; priorité ; l'**attente** (« Ouverte depuis 57 j » en ambre, « Créneau du 27 sept. dépassé de 44 j » en rouge) ; **un** geste.
+- **Bureau (≥ 1280 px)** : colonnes par file, dès `lg`. Un clic ouvre la fiche en panneau latéral.
+- **Fiche, un geste principal selon la file** :
+
+  | File | Geste principal |
+  |---|---|
+  | À dispatcher | « Choisir un prestataire » : suggestions (nom, métier, zone, ★ note, nombre d'interventions), « Voir tout le carnet », créneau, puis « Envoyer à {prestataire} » |
+  | En retard | « Relancer » (WhatsApp au prestataire, message prérempli) et « Réassigner » |
+  | Chez le bailleur | « Relancer le bailleur » |
+  | Devis à décider | « Approuver » / « Refuser » |
+  | À confirmer | information « clôture automatique dans N j » |
+
+- **« Autre action »** (feuille au téléphone, menu au bureau) :
+  - les transitions que le serveur permet, chacune avec une phrase d'effet ;
+  - « Demander un devis », « Prendre en compte », « Changer la priorité » ;
+  - « Annuler la demande » en dernier, séparé, avec motif.
+- **Journal** de la demande dans la colonne droite au bureau (« 10:12 — Signalée par … »).
+- **Carnet** :
+  - cartes au téléphone : nom, métiers, zones, ★ note, nombre d'interventions, Appeler / WhatsApp ;
+  - tableau au bureau ;
+  - les invitations en cours sont marquées.
+
+## Contraintes strictes (métier)
+
+**Rien ne se perd** (audit famille 4, § 7, *Fonctions existantes* 1-2, 5-8, 11-12, lues dans `components/maintenance/*` et `components/service-providers/*`) :
+
+- filtres statut et priorité, gardés à côté des files ;
+- « Nouvelle demande » ;
+- carte : titre, métier, date, « Prévu … », bien · quartier · agence, priorité, statut ;
+- fiche : titre, métier, création, priorité, statut, description ; bien et adresse, demandeur, assigné à, prévu le, coût réel (personnel) ;
+- **« Prestataire et créneau »** : choix dans le carnet, créneau, « Inviter un nouveau prestataire » ;
+- frise des étapes ;
+- **devis** : demander, approuver ou refuser avec motif, PDF ;
+- « Changer le statut », limité aux transitions permises, notes de résolution ;
+- historique par bien ;
+- **carnet** : nom, téléphone, métiers, zones, statut, « Ajouter un prestataire » (invitation), renvoyer et révoquer une invitation.
+
+Autres contraintes :
+
+- **La section « Urgences prioritaires » disparaît.** La priorité se lit en pastille sur la carte. Aucune demande `completed`, `closed` ou `cancelled` ne paraît hors de « À confirmer » et de « Terminées » (P1 de l'audit).
+- **Les transitions viennent de l'API**, et l'écran n'en invente aucune. « Assignée » sans prestataire et « Terminée » sans rapport ne sont jamais proposées en bouton de premier rang.
+- **La frise** a une étape par file : « Chez le bailleur » a la sienne (P2 de l'audit, quatre étapes pour douze statuts).
+- **Téléphone du prestataire** : celui du compte, sinon celui de l'invitation. Le lien WhatsApp se construit par l'aide partagée de TCK-2644.
+- **i18n** : `fr` / `en` / `wo` (le `wo` porte le texte français tel quel), vouvoiement, dates relatives par `useFormatteurs()`.
+
+## Delta à produire
+
+- [ ] Liste de l'agence en files (pastilles au téléphone, colonnes au bureau), avec les compteurs de `summary`.
+- [ ] Fiche à un geste principal, suggestions, créneau, « Autre action », journal, et panneau latéral au bureau.
+- [ ] Frise alignée sur les files. Carnet en cartes et en tableau, avec la note et le nombre d'interventions.
+- [ ] Tests :
+  - aucune demande terminée hors de ses files ;
+  - un geste principal par file ;
+  - les transitions lues sur l'API ;
+  - les suggestions ;
+  - téléphone et WhatsApp du carnet ;
+  - colonnes à 1280 px.
+
+## Critères d'acceptation
+
+- [ ] AC1 — Sur la démo, la première file de l'admin est « À dispatcher ». Elle contient la demande #8 avec « Ouverte depuis … j ». Aucune carte « Terminée » n'apparaît avant l'onglet « Terminées ».
+- [ ] AC2 — Les compteurs des pastilles égalent la réponse de `GET /api/maintenance-requests/summary` (un appel au réseau).
+- [ ] AC3 — Sur une demande « Ouverte, non assignée » :
+  - le geste principal est « Choisir un prestataire » ;
+  - « Autre action » ne liste que `abilities.transitions` ;
+  - « Terminée » n'y figure pas.
+- [ ] AC4 — Choisir le premier prestataire suggéré et le créneau « demain 9 h » envoie l'assignation existante avec `assigned_to` et `scheduled_at`. La carte passe en « En cours ».
+- [ ] AC5 — Dans le carnet, chaque prestataire de la démo a un numéro affiché (`tel:`) et un lien `wa.me`, et sa note quand il en a une. À 390 px, statut et actions restent dans le cadre.
+- [ ] AC6 — À 1280 px, les colonnes « À dispatcher · En retard · Chez le bailleur · En cours · À confirmer » sont visibles sans défilement horizontal.
+
+## Hors périmètre
+
+- Les vues du locataire, du prestataire et du bailleur (TCK-2654).
+- Le glisser-déposer entre colonnes (maquette : « cartes déplaçables ») : le geste se fait par la fiche.
+- Le groupe de menu « Gestion locative » et le nom du menu (famille 3).
+
+## Notes d'implémentation
+
+_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
