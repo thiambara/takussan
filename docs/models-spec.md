@@ -384,6 +384,7 @@ Les cibles, la demande et leurs révisions (ADR-0087 §5, §6) sont plus bas, en
 122. [SearchAlias](#122-searchalias-) 🆕
 123. [SearchAliasSetting](#123-searchaliassetting-) 🆕
 124. [AgencySpotlight](#124-agencyspotlight-) 🆕
+125. [LeasePaymentReminder](#125-leasepaymentreminder-) 🆕
 
 ### Enums
 
@@ -458,7 +459,7 @@ polymorphes** dédiés liés au user et scopés par agence — ou par la platefo
 | digest_send_at | string(5) | | '08:00' | Heure locale d'envoi du récapitulatif (`HH:MM`) (TCK-103) | ➕ |
 | digest_day_of_week | string(16) | | 'monday' | Jour du récapitulatif hebdomadaire (TCK-103) | ➕ |
 | listed_in_public_directory | boolean | | false | Le compte paraît dans l'annuaire public « Agents & propriétaires » même sans exercer comme agent : un propriétaire particulier n'y est listé que s'il l'a choisi. Sans effet sur un agent en exercice, toujours listé (TCK-2506, audit UX 2026-11, décisions 1a puis 1b). « En exercice » = `User::scopeVisibleDansLAnnuairePublic()` (profil d'agent actif, ou admin actif d'une agence `standard`). Hors `$fillable` : seul `PATCH /api/me` l'écrit (`boolean:strict`), et seul `UserResource` pour soi l'émet ; la fiche publique en sert l'effet (`indexable`) | ➕ |
-| preferences | jsonb | oui | null | Indications de personnalisation **choisies par l'utilisateur** et exposées par l'API (ville, intention de recherche — fiche de profil minimal différée ; `navigation` : épingles, replis et « Démarrer » masqué du menu de `/app`, **par persona** — `{ v: 1, personas: { <persona>: { epingles ≤ 5, replies ≤ 20, ouverts ≤ 20, demarrer_masque } } }`, seule la FORME est validée par l'API, le catalogue appartient au front, ADR-0089 §6, TCK-2480). Distinct de `metadata`, état interne (TCK-253 ; `2026_05_10_140000`) | ➕ |
+| preferences | jsonb | oui | null | Indications de personnalisation **choisies par l'utilisateur** et exposées par l'API (ville, intention de recherche — fiche de profil minimal différée ; **`entry_intent`, la porte choisie à l'orientation : `search`, `publish`, `professional` (TCK-2607), `skipped`** ; `navigation` : épingles, replis et « Démarrer » masqué du menu de `/app`, **par persona** — `{ v: 1, personas: { <persona>: { epingles ≤ 5, replies ≤ 20, ouverts ≤ 20, demarrer_masque } } }`, seule la FORME est validée par l'API, le catalogue appartient au front, ADR-0089 §6, TCK-2480). Distinct de `metadata`, état interne (TCK-253 ; `2026_05_10_140000`) | ➕ |
 | metadata | jsonb | oui | null | État interne, jamais exposé tel quel — clés lues par le code ci-dessous | |
 | deleted_at | datetime | oui | null | Soft delete | |
 | created_at | datetime | | auto | Date de création | |
@@ -477,6 +478,9 @@ polymorphes** dédiés liés au user et scopés par agence — ou par la platefo
 - `force_2fa_reconfigure` — posé par `UserSupportService::resetTwoFactor()`, impose le réenrôlement
   du second facteur (`RequireTwoFactor`) ; retiré par `TwoFactorController` et
   `SuperAdminTwoFactorController` à l'enrôlement, exposé par `UserResource`.
+- `last_active_profile` — identifiant composite `type:id` du dernier profil choisi avec « Se souvenir de mon
+  choix » ; lu à la connexion pour rouvrir le dernier espace s'il est encore actif ; jamais exposé par `/api/me`,
+  effacé par `remember: false`, gardé à la déconnexion (TCK-2620).
 
 **Colonnes supprimées :**
 - ➖ `model_id` + `model_type` (nullableMorphs 'model') — non utilisés, redondants avec les profils et la relation `customer()`
@@ -722,6 +726,7 @@ pause, le réactiver les reprend (ADR-0061 §8).
 | rejected_at | timestamp | oui | null | Refus | ➕ |
 | rejected_by_user_id | FK users | oui | null | Qui a refusé (`nullOnDelete`) | ➕ |
 | rejection_reason | text | oui | null | Motif du refus | ➕ |
+| rejection_reason_code | string(16) | oui | null | Code du motif d'une demande de correction : `photos`, `price`, `address`, `description`, `other` ; `rejection_reason` garde le texte libre (TCK-2672) | ➕ |
 | platform_hold_at | timestamp | oui | null | **Verrou de la plateforme**, posé quand un super-admin masque ou supprime l'annonce sur signalement : tant qu'il l'est, `PropertyObserver::updating` refuse toute sauvegarde qui rendrait le bien public ; seule l'approbation d'un super-admin l'efface (`2026_10_08_100100`, TCK-597, ADR-0043 §4) | ➕ |
 | platform_hold_by_id | FK users | oui | null | Qui l'a posé (`nullOnDelete`, FK `properties_platform_hold_by_fk`) | ➕ |
 | platform_hold_reason | string | oui | null | Motif du verrou | ➕ |
@@ -875,10 +880,18 @@ vide), utilisé par les PDF.
 | expiry_reason | string | oui | null | Chemin de l'expiration : `auto` (seuil de l'agence, `ExpirePendingBookingsJob`), `deadline` (échéance `expires_at` atteinte), `manual` (`expire-now`). Constantes `BookingExpirationService::REASON_*`, pas d'enum | ➕ |
 | cancellation_by | CancellationBy | oui | null | Qui a annulé | ✏️ |
 | cancellation_reason | text | oui | null | Motif d'annulation | |
+| kind | BookingKind (string(16)) | | | Nature : `stay` (séjour : bien à la nuit ou à la semaine), `application` (candidature : autre location), `offer` (offre d'achat : bien à vendre) — fixée à la création d'après le bien, rattrapée pour l'existant (TCK-2579) | ➕ |
+| offer_expires_at | date | oui | null | Validité d'une offre (dernier jour inclus, heure de Dakar) (TCK-2579) | ➕ |
+| list_price_at_booking | decimal(14,2) | oui | null | Prix ou loyer affiché du bien à la création d'une offre ou d'une candidature (TCK-2579) | ➕ |
 | metadata | jsonb | oui | null | | |
 | deleted_at | timestamp | oui | null | Soft delete | |
 | created_at | timestamp | | auto | | |
 | updated_at | timestamp | | auto | | |
+
+**Nature d'une réservation (TCK-2579).** `metadata.kind = 'offer'` (tunnel public, TCK-176) est antérieur à `kind`
+et n'est plus lu. Pour une candidature, `start_date` est la date d'entrée et `end_date` peut être nulle. Une
+réservation saisie par le personnel a toujours un `customer_id` (règle applicative). Index ajouté :
+`(agency_id, kind, status)`.
 
 **`expires_at` et `expired_at` ne disent pas la même chose** : le premier est une échéance posée
 d'avance (et peut rester dans le passé d'une demande confirmée entre-temps), le second l'heure à
@@ -996,6 +1009,9 @@ payeur, par `customers` (`payer_id`). L'ancienne `User::bookingPayments()`, qui 
 | min_bedrooms | unsigned smallint | oui | null | Nombre minimum de chambres | ➕ |
 | added_by_id | FK users | oui | null | Agent / propriétaire ayant ajouté ce contact (`nullOnDelete`) | |
 | user_id | FK users | oui | null | Compte utilisateur lié, si le client est inscrit (`nullOnDelete`) | |
+| source_contact_lead_id | FK property_contact_leads | oui | null | Demande d'où vient la fiche (`nullOnDelete`, TCK-2582) | ➕ |
+| interested_property_id | FK properties | oui | null | Bien qui a fait venir le client (`nullOnDelete`, TCK-2582) | ➕ |
+| last_contacted_at | timestamp | oui | null | Dernier contact (geste de contact, note, visite terminée, compte rendu) — dénormalisé, indexé avec `agency_id` (TCK-2583) | ➕ |
 | metadata | jsonb | oui | null | | |
 | deleted_at | datetime | oui | null | Soft delete | |
 | created_at | datetime | | auto | | |
@@ -1282,6 +1298,11 @@ Une ligne émise par `NotificationService::send()` porte `code` + `params` + `ta
 dans la langue de la requête (`AppNotificationResource`) — ils ne servent plus que de repli pour
 les lignes sans code. Un contact sans compte (`ContactSansCompte`) ne crée **aucune** ligne.
 
+**Famille et « À traiter » (TCK-2633).** `famille` (demande, visite, paiement, retard, bien, avis, système) et
+`a_traiter` (la notification demande une action) sont **dérivés** de `code` — ou de `type` pour une ligne sans
+code —, jamais stockés : la table de correspondance est en code, exhaustive, gardée par un test ; la ressource les
+émet, et `filter[famille]`, `filter[a_traiter]` et `meta.counts` les lisent.
+
 **Note :** le lien vers l'entité est un morph manuel, sans relation Eloquent — voir [Règle 3](#règle-3--morph-referenceable-dans-appnotification).
 
 > ⚠️ **Le canal a changé de nom, et cette phrase a coûté quatre mois — corrigé le 2026-08-21.**
@@ -1425,6 +1446,7 @@ par `audit:prune-activity-log` (chaque jour, 04:10 Dakar) — **12 mois** par d�
 | end_date | date | oui | null | Date de fin (null si durée indéterminée) |
 | renewal_date | date | oui | null | Date de renouvellement prévue |
 | monthly_rent | decimal(14,2) | oui | null | Loyer mensuel (pour les locations) |
+| monthly_charges | decimal(14,2) | oui | null | ➕ Charges mensuelles — **terme imprimé** au contrat (`CONTRACT_PRINTED_TERMS`, ligne rendue seulement si non nulle) ; préremplies depuis `properties.monthly_charges` ; l'échéancier appelle une échéance `charges` à côté de chaque loyer (TCK-2679, [ADR-0042](adr/0042-preuve-de-consentement-a-la-signature-du-bail.md) amendé le 2026-11-10) |
 | sale_price | decimal(14,2) | oui | null | Prix de vente (pour les ventes) |
 | currency | Currency | | 'XOF' | Devise (XOF, XAF, EUR, USD) |
 | deposit_amount | decimal(14,2) | oui | null | Montant de la caution |
@@ -1528,7 +1550,7 @@ Aucune relation `conversations()` : `Conversation.lease_id` existe, mais le mod�
 | amount | decimal(14,2) | | | Montant dû ou payé |
 | currency | Currency | | 'XOF' | Devise (string(3)) |
 | payment_method | PaymentMethod | oui | null | Moyen de paiement — valeurs : `app/Models/Enums/PaymentMethod.php` |
-| payment_type | LeasePaymentType | | | Nature (rent, charges, deposit, deposit_refund, regularization, penalty) |
+| payment_type | LeasePaymentType | | | Nature (rent, charges, deposit, deposit_refund, regularization, penalty) — ➕ `charges` est aussi écrit par l'échéancier quand le bail porte `monthly_charges` (même période et même date que le loyer, sans pénalité de retard, TCK-2679) |
 | period_start | date | | | Début de la période couverte |
 | period_end | date | | | Fin de la période couverte |
 | due_date | date | oui | null | Date d'échéance (nullable : un paiement hors échéancier n'en a pas) |
@@ -1567,6 +1589,7 @@ Aucune relation `conversations()` : `Conversation.lease_id` existe, mais le mod�
 - `collector()` → belongsTo User
 - `payouts()` → belongsToMany Payout (pivot `payout_lease_payment`) 🆕
 - `bankStatementLine()` → belongsTo BankStatementLine 🆕
+- `reminders()` → hasMany [LeasePaymentReminder](#125-leasepaymentreminder-) — relances notées à la main (TCK-2658) 🆕
 
 Le modèle ne déclare **ni** `invoice()` **ni** `platformPayout()` (relevé 2026-10-14), **ni** de
 relation vers le reversement de la pénalité (`late_fee_payout_id`, relevé 2026-10-27) ; la facture
@@ -1634,11 +1657,25 @@ porte la carte complète ; les autres une projection `{id, slug, title}`, `remov
 | source | string(40) | oui | null | Provenance de la demande — le lien partagé qui l'a amenée (TCK-590, `2026_10_07_150100_add_attribution_to_property_visits`). Format `[a-z0-9_.-]`, `ContactLeadPublicRequest::ATTRIBUTION` |
 | medium | string(40) | oui | null | Canal de cette provenance, même format |
 | locale | string(5) | oui | null | Langue dans laquelle prévenir un visiteur **sans compte** (qui n'a pas de `preferred_language`) : la langue de la requête, ou la langue préférée du visiteur connu |
+| contact_lead_id | FK property_contact_leads | oui | null | ➕ Demande de contact d'où vient la visite (`nullOnDelete`, TCK-2582) |
+| report_outcome | string(16) — `VisitReportOutcome` | oui | null | ➕ Verdict du compte rendu de l'agent : `interested`, `thinking`, `not_interested` (TCK-2578) |
+| report_objections | jsonb | oui | null | ➕ Liste fermée `VisitObjection` : `price`, `neighborhood`, `size`, `condition`, `availability`, `guarantor` (TCK-2578) |
+| report_note | text | oui | null | ➕ Note du compte rendu (2 000 caractères) (TCK-2578) |
+| report_follow_up | string(24) — `VisitFollowUp` | oui | null | ➕ Suite choisie : `invite_apply`, `invite_offer`, `record_booking`, `second_visit`, `propose_properties`, `remind`, `create_lease` (TCK-2578, TCK-2581) |
+| reported_at | timestamp | oui | null | ➕ Date du compte rendu (TCK-2578) |
+| reported_by_id | FK users | oui | null | ➕ Auteur du compte rendu (`nullOnDelete`) (TCK-2578) |
 | metadata | jsonb | oui | null | |
 | created_at | timestamp | | auto | |
 | updated_at | timestamp | | auto | |
 
 **Index :** `(property_id, scheduled_at)`, `(scheduled_at, status)`.
+
+**Compte rendu et avis (TCK-2578).** Le compte rendu (`report_*`) est **interne à l'agence** ; il ne remplace pas
+l'avis, rangé dans `metadata.feedback_{customer|agent}` (`{user_id, rating, comment, submitted_at}`, fenêtre de
+24 h, `config('visits.feedback_window_hours')`), dont l'avis du client est aussi recopié dans `feedback` et `rating`.
+Le message d'un visiteur sans compte est rangé dans `notes`. Une visite est « à clore » quand elle est confirmée et
+son heure passée, ou terminée sans compte rendu depuis au plus `visits.report_pending_days` jours (défaut 7,
+`config/visits.php`). L'adresse du bien n'est émise au visiteur qu'une fois la visite confirmée (TCK-2585).
 
 **Identification du visiteur — règle applicative, pas une contrainte :** aucune migration ne pose de
 `CHECK` sur `property_visits` (relevé 2026-10-14 sur les trois migrations qui la touchent). Ce que
@@ -1733,7 +1770,7 @@ voies peut n'identifier personne.
 | conversation_id | FK conversations | | | Conversation parente (`cascadeOnDelete`) |
 | sender_id | FK users | oui | null | Expéditeur — **nullable** depuis `2026_04_24_120000_make_messages_sender_id_nullable_for_system` : un avis `system` n'a pas d'expéditeur ; `nullOnDelete` |
 | content | text | | | Contenu du message (NOT NULL). Pour une note vocale, un aperçu neutre traduit (`messaging.audio_preview`) qui sert à la liste des conversations |
-| type | MessageType | | 'text' | Type — les cinq valeurs de `app/Models/Enums/MessageType.php` : text, image, document, system, **audio** (note vocale, TCK-592, [ADR-0038](adr/0038-note-vocale-dans-la-messagerie.md)). Un participant n'écrit que `text` ou `audio` (`SendMessageConversationRequest::PARTICIPANT_TYPES`) ; `system` est réservé à `SystemMessageFactory` |
+| type | MessageType | | 'text' | Type — les cinq valeurs de `app/Models/Enums/MessageType.php` : text, image, document, system, **audio** (note vocale, TCK-592, [ADR-0038](adr/0038-note-vocale-dans-la-messagerie.md)). Un participant n'écrit que `text` ou `audio` (`SendMessageConversationRequest::PARTICIPANT_TYPES`) ; **TCK-2631 lui ouvre aussi `image` et `document` : une pièce par message dans la collection privée `attachments` (photo jpeg, png ou webp ≤ 8 Mo, métadonnées EXIF retirées ; PDF ≤ 10 Mo), servie par URL signée aux seuls participants actuels** ; `system` est réservé à `SystemMessageFactory` |
 | metadata | jsonb | oui | null | Métadonnées — pour `audio` : `{"duration": <secondes déclarées>}` |
 | deleted_at | timestamp | oui | null | Soft delete |
 | created_at | timestamp | | auto | |
@@ -1787,6 +1824,7 @@ voies peut n'identifier personne.
 | completed_at | timestamp | oui | null | Date de fin d'intervention |
 | resolution_notes | text | oui | null | Notes de résolution — porte aussi le rapport d'intervention : **aucune** colonne `resolution_report` n'existe (TCK-474) |
 | access_instructions | text | oui | null | Kit d'accès au logement, rédigé par le donneur d'ordre pour le prestataire (TCK-592, `2026_10_07_120000`) |
+| status_changed_at | timestamp | oui | null | ➕ Entrée dans le statut courant, posée par la machine d'état à chaque transition ; rétro-remplie à la migration (journal des transitions, sinon `updated_at`) — base de l'ancienneté des files (TCK-2652) |
 | metadata | jsonb | oui | null | |
 | deleted_at | timestamp | oui | null | Soft delete |
 | created_at | timestamp | | auto | |
@@ -1801,6 +1839,12 @@ voies peut n'identifier personne.
 **Note :** `requester_id` pointe vers un User (la personne connectée). ⚠ Le modèle ne déclare
 **aucune** relation `requesterCustomer()` (relevé 2026-10-14) : le Customer du demandeur se lit
 depuis l'utilisateur.
+
+**Files d'attente (TCK-2652).** `file` et `waiting_on` sont **calculés** par `MaintenanceQueue` (ressource et filtre),
+sans colonne, d'après `status`, `assigned_to` et `scheduled_at` — table de correspondance en
+[`features.md` §1.8](features.md#18-maintenance--interventions). `description` est facultative à la création pour le
+demandeur, le titre se déduisant alors de la catégorie (TCK-2654). Les interventions se filtrent par plage de date
+planifiée (`filter[scheduled_from]`, `filter[scheduled_to]`, TCK-2623).
 
 **Relations** (`app/Models/MaintenanceRequest.php`) :
 - `property()` → belongsTo Property
@@ -1864,7 +1908,7 @@ La facture du prestataire est une ligne de [ServiceProviderBill](#77-serviceprov
 | user_id | FK users | oui | | Utilisateur — `null` pour une alerte sans compte (TCK-599) |
 | alert_subscriber_id | FK alert_subscribers | oui | null | Abonné sans compte (`saved_searches_alert_subscriber_fk`, `cascadeOnDelete`). CHECK `saved_searches_one_owner_chk` : exactement l'un des deux propriétaires (TCK-599) |
 | name | string | | | Nom donné à la recherche (ex: "3 pièces Dakar < 200k") |
-| criteria | jsonb | | | Critères dans le vocabulaire FERMÉ de `/properties` : `App\Support\SavedSearchCriteria::KEYS` (23 clés), toute autre clé → 422 (TCK-599) |
+| criteria | jsonb | | | Critères dans le vocabulaire FERMÉ de `/properties` : `App\Support\SavedSearchCriteria::KEYS` (23 clés), toute autre clé → 422 (TCK-599) ; **➕ `locations` : liste de 2 à 12 quartiers, exclusive de `location` (TCK-2607)** |
 | notification_frequency | string | | 'daily' | Fréquence d'alerte (`daily`, `weekly`, `off` — `instant` retiré par TCK-599, ramené à `daily`). **NOT NULL** — la sentinelle « ne pas notifier » est `off`, jamais `null` ni `""` (TCK-330) |
 | is_active | boolean | | true | Alerte active |
 | last_notified_at | datetime | oui | null | Dernière notification envoyée |
@@ -1898,7 +1942,7 @@ La facture du prestataire est une ligne de [ServiceProviderBill](#77-serviceprov
 | conducted_at | timestamp | | | Date de réalisation |
 | status | InventoryStatus | | 'draft' | Statut (draft, pending_signature, signed, disputed) |
 | general_condition | InventoryCondition | | | État général (excellent, good, fair, poor) |
-| rooms | jsonb | | | Détail pièce par pièce : `name`, `condition` (`InventoryCondition`), `notes`, et `elements[]` — `label`, `state` (**`InventoryElementState`** : `bon`, `usé`, `endommagé`, `manquant`, valeurs en français comme le vocabulaire montré au locataire), `notes`. Schéma validé par `InventoryStoreRequest`, pas par la base |
+| rooms | jsonb | | | Détail pièce par pièce : `name`, `condition` (`InventoryCondition`), `notes`, et `elements[]` — `label`, `state` (**`InventoryElementState`** : `bon`, `usé`, `endommagé`, `manquant`, valeurs en français comme le vocabulaire montré au locataire), `notes`. Schéma validé par `InventoryStoreRequest`, pas par la base ; **pour une sortie, chaque élément porte aussi `entry_state` et `entry_notes` (copiés de l'entrée signée du même bail à la création, en lecture), et facultativement `retention_amount` (décimal XOF ≥ 0) et `retention_reason` ; la ressource rend `retention_total`** (TCK-2646) |
 | notes | text | oui | null | Observations générales |
 | tenant_signed | boolean | | false | Locataire a signé |
 | tenant_signed_at | timestamp | oui | null | Date de signature locataire |
@@ -1910,6 +1954,9 @@ La facture du prestataire est une ligne de [ServiceProviderBill](#77-serviceprov
 | owner_signature_hash | string(64) | oui | null | SHA-256 du tracé |
 | owner_signed_by_user_id | FK users | oui | null | **Qui** a signé pour le bailleur — FK `inventories_owner_signed_by_fk`, `nullOnDelete` (TCK-596 §5, `2026_10_07_235910`) |
 | owner_signed_on_behalf_of_user_id | FK users | oui | null | Bailleur pour le compte duquel un membre du personnel a signé au titre du mandat — FK `inventories_owner_on_behalf_fk`, `nullOnDelete` |
+| tenant_signature_method | string | oui | null | ➕ `drawn` (le locataire signe depuis son compte) ou `onsite_otp` (sur le téléphone de l'agent, code SMS) — TCK-2646, [ADR-0098](adr/0098-le-locataire-signe-l-etat-des-lieux-sur-place-par-code-sms.md) |
+| tenant_signed_via_user_id | FK users | oui | null | ➕ L'agent sur le téléphone duquel le locataire a signé (`nullOnDelete`) — TCK-2646 |
+| tenant_otp_channel | string | oui | null | ➕ Canal du code (`sms`) — TCK-2646 |
 | signed_at | timestamp | oui | null | Seconde signature : l'état des lieux est signé des deux parties |
 | traceability_hash | string(64) | oui | null | Empreinte SHA-256 complète, **figée une fois** à la seconde signature, photos par pièce comprises (`InventorySignatureService`). Nulle pour un état des lieux signé avant TCK-596 : son PDF garde l'empreinte qu'il imprimait |
 | metadata | jsonb | oui | null | |
@@ -1918,7 +1965,7 @@ La facture du prestataire est une ligne de [ServiceProviderBill](#77-serviceprov
 | updated_at | timestamp | | auto | |
 
 **Traits :**
-- `InteractsWithMedia` (spatie/laravel-medialibrary) — collections **privées** (ADR-0029 §3, TCK-538) `photos` et `room_photos` (photos par pièce)
+- `InteractsWithMedia` (spatie/laravel-medialibrary) — collections **privées** (ADR-0029 §3, TCK-538) `photos` et `room_photos` (photos par pièce) ; **➕ propriété personnalisée `element_label`, facultative, sur une photo de pièce prise pour un élément (TCK-2646)**
 
 **Relations** (`app/Models/Inventory.php`) :
 - `lease()` → belongsTo Lease
@@ -2226,7 +2273,9 @@ Il y en a deux :
   `boost.sponsored_slots_per_page`, `boost.reserved_top_results`. **Réglages métier à repli par
   agence** (TCK-651, catégorie `rentals`) : `invoice.reminder_offsets_days`,
   `lease.rent_review_max_pct`, `lease.early_termination_penalty_months`, `lease.require_signature`,
-  `late_fees.cap_percent` (vide = aucun plafond) — lus par `App\Support\ScopedSetting` : la ligne
+  `late_fees.cap_percent` (vide = aucun plafond), **➕ `lease.late_fee_percent` et `lease.late_fee_grace_days`
+  (préremplissage du bail, TCK-2643), ➕ `crm.follow_up_days` (relance due d'une fiche client, défaut 7 jours,
+  TCK-2588)** — lus par `App\Support\ScopedSetting` : la ligne
   `agency` de l'agence, sinon la valeur du catalogue, dont le défaut est la constante du service.
   Défauts dans le catalogue.
 - **Énumérations métier** — clés `enum.{key}.values`, catalogue `App\Domain\Settings\EditableBusinessEnums`,
@@ -2322,6 +2371,7 @@ JSON libre (`{"value": …}`), sans journal, `updated_by_id` pour seule trace. U
 | author_id | FK users | oui | null | Auteur de la note (`nullOnDelete`) |
 | body | text | | | Contenu de la note |
 | pinned | boolean | | false | Note épinglée en haut de la fiche |
+| kind | string(20) | oui | null | Origine d'une note écrite par le système (`2026_10_07_591300`, absente de ce tableau jusqu'au 2026-11-10) : `conversion`, `loss` (motif d'étape, existants), ➕ `lead_message` (message de la demande convertie, TCK-2582), ➕ `visit_report` (compte rendu de visite, une note par visite, réécrite à la modification, TCK-2578) ; `null` pour une note écrite par une personne |
 | deleted_at | datetime | oui | null | Soft delete |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
@@ -2348,11 +2398,11 @@ JSON libre (`{"value": …}`), sans journal, `updated_by_id` pour seule trace. U
 | agency_role_id | FK agency_roles | | | Le rôle personnalisé de ce profil — **exactement un** (`restrictOnDelete`, FK `owner_profiles_agency_role_id_fk`). À la création, un profil qui n'en déclare pas reçoit le rôle système de son type dans son agence (`HasAgencyRole`) (TCK-279, `2026_08_16_120200` → `120400`) |
 | status | OwnerProfileStatus | | 'active' | Statut du profil (draft, active, inactive, blocked). **`blocked` = adhésion suspendue par l'agence** (`TeamMemberSuspensionService`, capacité `team.suspend`, TCK-587, ADR-0031 §2 ; journal `team_member_suspended` / `team_member_reactivated`) : le bailleur garde la lecture et perd les écritures dans cette agence (`HasProfiles::isBlockedOwnerAt()`) ; la réactivation ne lève que ce statut |
 | rib | text (cast `encrypted`) | oui | null | Relevé d'identité bancaire — **chiffré** (TCK-601, ADR-0044 §1, `2026_10_08_601100`) |
-| tax_id | text (cast `encrypted`) | oui | null | Numéro fiscal / NINEA — chiffré (TCK-601) |
+| tax_id | text (cast `encrypted`) | oui | null | Numéro fiscal / NINEA — chiffré (TCK-601) ; **➕ écrit par le titulaire (`PATCH …/tax-id`, format 7 chiffres + COFI), lu masqué ; la pièce NINEA en fichier reste acceptée (TCK-2612)** |
 | id_document_type | IdType | oui | null | Type de pièce d'identité |
 | id_document_number | text (cast `encrypted`) | oui | null | Numéro de pièce — chiffré (TCK-601) |
 | monthly_income | text (cast `encrypted`) | oui | null | Revenus mensuels déclarés (XOF) — chiffré (TCK-956, ADR-0070, `2026_10_19_120000`) |
-| works_approval_threshold | decimal(14,2) | oui | null | Plafond de travaux du bailleur pour cette agence : au-delà, l'approbation d'un devis — ou un coût réel déclaré — par l'équipe attend l'accord du bailleur. `null` = pas d'accord requis (état de toutes les lignes antérieures). Lu en un seul endroit, `OwnerApprovalThreshold` (TCK-592, ADR-0037, `2026_10_07_130100`) |
+| works_approval_threshold | decimal(14,2) | oui | null | Plafond de travaux du bailleur pour cette agence : au-delà, l'approbation d'un devis — ou un coût réel déclaré — par l'équipe attend l'accord du bailleur. `null` = pas d'accord requis (état de toutes les lignes antérieures). Lu en un seul endroit, `OwnerApprovalThreshold` (TCK-592, ADR-0037, `2026_10_07_130100`) ; **➕ lu par sparse fieldset et écrit par `PATCH /api/owners/{id}` (capacité `owners.update`, admin d'agence), journalisé (`owner_works_threshold_updated`) ; vaut pour les devis soumis après le changement (TCK-2640)** |
 | employer | string | oui | null | Employeur |
 | guarantor_user_id | FK users | oui | null | Garant (autre user — `nullOnDelete`) |
 | metadata | jsonb | oui | null | Données flexibles |
@@ -2636,6 +2686,16 @@ aussi d'une ligne de crédit, mais ne passe pas par `matched_payment` : il porte
 L'échéance d'une pièce est une propriété du média (`custom_properties.expires_at`, `YYYY-MM-DD`),
 exigée pour `director_id`.
 
+**➕ Numéro des pièces légales (TCK-2669).** Les pièces `rccm` et `ninea` portent leur numéro en propriété du média
+(`custom_properties.document_number`), repris des mentions légales de l'agence — source unique de l'identité légale — et
+reprenable vers elles par un geste de l'admin. **Renouvellement sur dossier vérifié** : la pièce du dirigeant expirée ou
+expirant sous 30 jours se remplace sans rouvrir le dossier entier ; le dossier repasse `submitted` et garde la
+vérification acquise jusqu'à l'échéance de l'ancienne pièce.
+
+**➕ État par pièce (TCK-2612).** Pour un profil agent, prestataire ou bailleur, `GET /api/me/pieces` rend l'état
+lisible de chaque pièce attendue : `missing`, `sent`, `verified`, `rejected` — lu par l'étape « Pièces » du groupe
+« Démarrer » de la console.
+
 **Traits :**
 - `LogsActivity` (spatie) — chaque transition de statut est journalisée
 - `InteractsWithMedia` (spatie/medialibrary) — collection `documents` (RCCM, NINEA, pièce d'identité scannée…)
@@ -2875,6 +2935,11 @@ invitation sans e-mail existe : le retour en arrière ne supprime pas d'invitati
 - Exception `super_admin` (TCK-264) : l'acceptation n'active rien. Elle pose
   `force_2fa_at_first_login = true` ; seul `/api/auth/super-admin/2fa/confirm`, après enrôlement
   d'un facteur TOTP, ouvre les surfaces super-admin.
+- ➕ **Aperçu public par jeton** (TCK-2609) : sans session, le jeton rend l'agence, le prénom de l'invitant, le
+  rôle, le destinataire masqué et ce qui attend l'invité ; les états expiré, annulé, accepté et inconnu sont
+  discriminés. L'invité d'un lien expiré demande un renouvellement à l'invitant — **une demande par 24 h**.
+- ➕ **Acceptation par code SMS** (TCK-2610, décision 3 du porteur du 2026-11-10) : le code envoyé au numéro de
+  l'invitation crée ou ouvre le compte, jamais en double ; la voie mot de passe reste.
 
 ---
 
@@ -2899,6 +2964,7 @@ invitation sans e-mail existe : le retour en arrière ne supprime pas d'invitati
 | reviewed_by | FK users | oui | null | Super-admin reviewer |
 | reviewed_at | datetime | oui | null | |
 | review_comment | text | oui | null | Commentaire (obligatoire si rejected) |
+| resubmit_of_id | FK agency_upgrade_requests | oui | null | ➕ Demande refusée que celle-ci reprend : ses réponses sont recopiées, seule la pièce refusée est fournie à nouveau (TCK-2669) |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
@@ -3545,6 +3611,11 @@ du délai de refroidissement `cooldown_hours` depuis `last_triggered_at`.
 > **quatre** (`allowedOperators()` : `>`, `<`, `>=`, `<=`), et `shouldTrigger()` les évalue tous les
 > quatre. C'est le modèle qui fait foi ; la colonne `string(3)` a la place pour les deux formes.
 
+**➕ Historique et valeur actuelle (TCK-2627).** Chaque déclenchement écrit une entrée du journal d'activité
+(`threshold_alert` / `triggered` : valeur, seuil, nombre de destinataires) — l'historique des déclenchements se lit
+là, sans table. `current_value` est **calculée à la lecture**, jamais stockée (`last_value` reste la valeur du dernier
+passage de l'évaluation).
+
 ---
 
 ### 66. RoleDelegation ✅
@@ -3571,6 +3642,7 @@ le temps (`starts_at` → `ends_at`) et révocable. Une délégation programmée
 | expired_at | dateTime | oui | null | Date d'expiration constatée |
 | revoked_at | dateTime | oui | null | Date de révocation |
 | revoked_by | FK users | oui | null | Auteur de la révocation (`nullOnDelete`) |
+| covers_absence_id | FK role_delegations | oui | null | ➕ Pour une délégation de rôle **liée à une absence** : l'absence qu'elle couvre (le rôle de l'absent, au remplaçant, sur la même période) — créée, modifiée et révoquée avec elle ; l'absence elle-même n'accorde toujours rien (amendement d'ADR-0035, TCK-2666) |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
@@ -3656,6 +3728,9 @@ une demande est routée vers un destinataire (`recipient_user_id`, le contact pr
 | handled_at | timestamp | oui | null | Date de prise en charge — `null` = non traité |
 | handled_by_id | FK users | oui | null | Qui l'a traitée (`nullOnDelete`, FK `pcl_handled_by_fk`) |
 | customer_id | FK customers | oui | null | Fiche client issue de la conversion (`nullOnDelete`, FK `pcl_customer_fk`) |
+| first_responded_at | timestamp | oui | null | ➕ Premier geste de réponse depuis la console (appel, WhatsApp, e-mail, SMS) — distinct de `handled_at` (TCK-2583) |
+| first_responded_by_id | FK users | oui | null | ➕ Auteur de ce geste (`nullOnDelete`) (TCK-2583) |
+| first_response_channel | string(16) | oui | null | ➕ `whatsapp`, `call`, `email`, `sms` (TCK-2583) |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
@@ -4302,6 +4377,10 @@ bail ou collaborateur `agent` du bien) sur `leases.commission_amount`, figée à
 | earned_at | timestamp | | | `signed_at` du bail |
 | paid_at / paid_by_id | timestamp / FK users | oui | null | Marquage versé (`payouts.approve`) ; FK `nullOnDelete` (`commission_entries_paid_by_fk`) |
 | cancelled_at / cancelled_by_id | timestamp / FK users | oui | null | Annulation (`payouts.approve`) ; FK `nullOnDelete` (`commission_entries_cancelled_by_fk`) |
+| payment_method | string(20) | oui | null | ➕ Moyen du paiement à l'agent : `wave`, `orange_money`, `free_money`, `cash`, `bank_transfer` (TCK-2661) |
+| payment_reference | string(100) | oui | null | ➕ Référence du paiement, obligatoire sauf espèces (TCK-2661) |
+| cancel_reason_code | string(40) | oui | null | ➕ Motif codé d'annulation, visible de l'agent : `lease_terminated_before_move_in`, `wrong_beneficiary`, `wrong_rate_or_base`, `other` (TCK-2661) |
+| cancel_reason | string(500) | oui | null | ➕ Précision libre du motif (TCK-2661) |
 | metadata | jsonb | oui | null | Détail des parts du négociateur également collaborateur |
 | created_at / updated_at | timestamp | | auto | |
 
@@ -5880,6 +5959,29 @@ second facteur récent (`ProtectedActions::STEP_UP`) ; journal `super_admin_agen
 
 ---
 
+### 125. LeasePaymentReminder 🆕
+
+**Table :** `lease_payment_reminders` (TCK-2658)
+**Description :** Relance d'un impayé **notée** par l'agence : la personne relance depuis son propre WhatsApp, avec un
+message prérempli, ou par téléphone ; Takussan n'envoie rien, il garde la trace (décision 13 du porteur du
+2026-11-10, [ADR-0105](adr/0105-la-relance-d-un-impaye-part-du-telephone-de-l-agence.md)). Les rappels **automatiques** ne vivent pas
+ici : ils restent lus dans `lease_payments.metadata.reminder_{jalon}_sent_at` (`SendLeasePaymentReminders`). La
+ressource de l'échéance relit les deux ensemble.
+
+| Colonne | Type | Nullable | Défaut | Description |
+|---------|------|----------|--------|-------------|
+| id | bigint PK | | auto | Identifiant unique |
+| agency_id | FK agencies | | | Agence de l'échéance |
+| lease_payment_id | FK lease_payments | | | Échéance relancée |
+| channel | string | | | `whatsapp`, `call` |
+| created_by_id | FK users | oui | null | Qui a relancé |
+| note | text | oui | null | Note libre |
+| created_at | timestamp | | auto | Date de la relance |
+
+**Relations :** `leasePayment()` → belongsTo LeasePayment ; inverse `LeasePayment::reminders()` → hasMany.
+
+---
+
 ## Enums
 
 ### Enums existants (à renommer / ajuster)
@@ -5941,6 +6043,10 @@ second facteur récent (`ProtectedActions::STEP_UP`) ; journal `super_admin_agen
 | **VisitType** | in_person, virtual, **self_guided**, **hybrid** | PropertyVisit.type |
 | **VisitStatus** | scheduled, confirmed, completed, cancelled, no_show | PropertyVisit.status |
 | **VisitWindow** 🆕 (TCK-2502) | morning, afternoon, evening | [PropertyVisit.preferred_window](#17-propertyvisit-) — début de tranche à Dakar : 09:00, 14:00, 17:00 |
+| **VisitReportOutcome** 🆕 (TCK-2578) | interested, thinking, not_interested | [PropertyVisit.report_outcome](#17-propertyvisit-) |
+| **VisitObjection** 🆕 (TCK-2578) | price, neighborhood, size, condition, availability, guarantor | [PropertyVisit.report_objections](#17-propertyvisit-) (liste) |
+| **VisitFollowUp** 🆕 (TCK-2578, TCK-2581) | invite_apply, invite_offer, record_booking, second_visit, propose_properties, remind, create_lease | [PropertyVisit.report_follow_up](#17-propertyvisit-) |
+| **BookingKind** 🆕 (TCK-2579) | stay, application, offer | [Booking.kind](#5-booking) |
 | **ConversationType** | direct, group, booking, lease, property, **support** | Conversation.type — *aligné sur `app/Models/Enums/ConversationType.php`, mesuré le 2026-08-16 (R7 de la passe 009)* |
 | **ConversationStatus** | active, archived, closed | Conversation.status |
 | **MessageType** | text, image, document, system, **audio** | Message.type — `audio` : note vocale, fichier dans la collection privée `attachments` (TCK-592, ADR-0038) |
@@ -6035,6 +6141,7 @@ second facteur récent (`ProtectedActions::STEP_UP`) ; journal `super_admin_agen
 | `reports.*` | `reports.view_global`, `reports.view_agency` (TCK-595, ADR-0049 §4 — chiffres consolidés d'**une** agence, assignable à un rôle d'agence), `reports.export` |
 | `roles.*` | `roles.create_custom`, `roles.edit_custom`, `roles.delete_custom` |
 | `boost.*` | `boost.spend` (TCK-633, ADR-0061 §1 — dépenser les crédits de l'espace ; admin d'espace oui, agent système non) |
+| `owners.*` | ➕ `owners.update` (TCK-2640 — régler le mandat d'un bailleur de l'agence : plafond de travaux sans accord ; accordé au seul `AgencyAdminProfile`) |
 
 Chaque entrée est de la forme `<domain>.<verb>` ; les verbes sont normalisés (`create`, `update_any`, `update_own`, `delete`, `view`, `export`, `assign`, `approve`, etc.).
 

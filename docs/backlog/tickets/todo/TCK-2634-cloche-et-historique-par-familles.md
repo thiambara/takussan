@@ -1,0 +1,102 @@
+---
+id: TCK-2634
+title: "Cloche et historique : une feuille pleine hauteur au téléphone, « À traiter · Tout », une icône par famille, le verbe de l'action, les répétitions repliées, les jours"
+status: todo
+phase: P1
+family: front
+estimate: M
+wave: 87
+created: 2026-11-10
+updated: 2026-11-10
+depends_on: [TCK-2633]
+blocks: []
+spec_refs:
+  features:
+    - "docs/features.md#23-notifications"
+  models: []
+tags: [front, notifications, mobile, audit-ux, app]
+---
+
+## Objectif utilisateur
+
+En touchant la cloche, on voit d'abord ce qui attend un geste (« Visite demandée · Confirmer »), puis l'information, rangée par jour et par famille. Neuf « Mise en avant terminée » tiennent sur une ligne.
+
+## Contrat de données
+
+- `GET /api/notifications` : `filter[unread]`, `filter[a_traiter]`, `filter[famille]`, `meta.counts {a_traiter_non_lues, par_famille}`, et `famille` et `a_traiter` par ligne (TCK-2633).
+- Gestes existants :
+  - `POST notifications/{id}/read` et `/unread` ;
+  - `POST notifications/read-all`.
+- Rendu du texte : `texteNotification` (code et paramètres, TCK-588), inchangé.
+
+## Direction UX / Artistique
+
+- Maquette de référence : `/fr/playground/maquettes?p=app-notifications&a=a` — **référence de fidélité, non versionnée** : à lire et à ouvrir dans l'arbre de travail principal du porteur, cf. [README de l'audit, § Maquettes](../../../qa/audit-ux-2026-11/README.md#maquettes). Écrans « Cloche (téléphone) / panneau (bureau) », « Historique », « Tout lu », « Chargement et erreur ».
+- **Téléphone** : la cloche ouvre une **feuille pleine hauteur**, et non plus le popover de 340 px.
+  - **En-tête** : « Notifications », « Tout lire » et ✕.
+  - **Puces** : « À traiter 3 · Tout ».
+  - **Groupes par jour** : « Aujourd'hui », « Hier », « Cette semaine », « Plus ancien ».
+  - **Ligne** : icône de la famille dans un disque à son ton, titre sur deux lignes au plus, détail, date relative (« il y a 2 h »), chevron. Une ligne « à traiter » porte le **verbe** de son action en bouton (« Confirmer », « Valider ») ; toucher la ligne ouvre l'objet.
+  - **Pied** : « Tout l'historique ».
+- **Bureau (≥ 1280)** : un panneau de 400 px à droite de la colonne (pas sous la cloche, où il recouvrait « Aujourd'hui »), avec le même contenu. L'historique a des puces de familles avec leurs comptes (« Demandes 3 · Visites 5 · … »).
+- **Répétitions repliées** : sur les lignes chargées, les notifications consécutives de même code se replient en une ligne (« Mise en avant terminée · 9 biens › »). Elle se déplie au toucher, et chaque ligne dépliée garde ses gestes.
+- **« Marquer lu »** quitte la ligne visible pour un geste secondaire : balayage au téléphone, menu « ⋯ » au survol au bureau. Une ligne ouverte est marquée lue.
+- **« Tout lu »** : un état positif, sans grand vide. **« Chargement et erreur »** : squelette de la feuille, bandeau « Impossible de charger les notifications · Réessayer ».
+- **Mobile (360–390)** et **bureau** comme ci-dessus ; entre `md` et `lg`, le panneau du bureau.
+
+## Contraintes strictes (métier)
+
+**Pas de régression.** Ce qui existe et doit rester :
+
+- **Pastille** plafonnée à « 9+ », rafraîchie toutes les 30 s (sans sondage plus serré).
+- **Cloche** : « N non lues » et « Tout lire ».
+- **Historique** :
+  - filtre « Toutes · Non lues (n) » ;
+  - « Tout marquer comme lu » ;
+  - « Marquer lu » et « Marquer non lu » par ligne ;
+  - pagination de 20 (« Page 1 sur n ») ;
+  - chargement, erreur avec « Réessayer » ;
+  - vides « toutes » et « non lues ».
+- **Chaque notification ouvre son objet**, en changeant d'espace si l'objet relève d'une autre agence (`LienDansLAgence`).
+- **Préférences** atteignables depuis l'historique.
+
+**Autres règles :**
+
+- **Le verbe d'une ligne** est un libellé du front par code, jamais un texte de l'API (principe 5). Une ligne sans code n'a pas de verbe, et s'ouvre seulement.
+- **Le repli** ne change ni le compte de non-lus ni la pagination de l'API. « Tout lire » d'un groupe replié marque chacune de ses lignes.
+- **La feuille au téléphone** rend le focus à la cloche à la fermeture, se ferme par « Échap » et par le geste retour, et bloque le défilement de la page derrière elle (piège connu du verrou de défilement sur mobile, TCK-551).
+- **Familles et « à traiter »** : le front n'en garde aucune liste. Il lit `famille` et `a_traiter` de l'API, et ne porte que l'icône et le ton de chaque famille.
+- Libellés neufs en `fr`/`en`/`wo` (`wo` = le français tel quel) ; vouvoiement.
+
+## Delta à produire
+
+- [ ] Feuille pleine hauteur au téléphone, panneau de 400 px au bureau.
+- [ ] Puces « À traiter · Tout », groupes par jour, dates relatives.
+- [ ] Ligne : icône et ton de la famille, verbe de l'action par code, chevron, gestes secondaires.
+- [ ] Repli des répétitions sur les lignes chargées.
+- [ ] Historique : puces de familles avec comptes (bureau), le reste gardé.
+- [ ] États « Tout lu », chargement, erreur.
+- [ ] Tests :
+  - puce « À traiter » qui envoie `filter[a_traiter]=1` ;
+  - icône lue depuis `famille` ;
+  - 9 lignes consécutives de même code repliées en une ;
+  - « Tout lire » d'un groupe marque les 9 ;
+  - feuille qui rend le focus à la cloche ;
+  - `LienDansLAgence` gardé sur une notification d'une autre agence.
+
+## Critères d'acceptation
+
+- [ ] AC1 — À 390, toucher la cloche ouvre une feuille dont la hauteur égale celle du viewport (`innerHeight` relevé). La page derrière ne défile pas sous le doigt.
+- [ ] AC2 — Admin à 16 « Mise en avant terminée » non lues et 1 « Visite demandée » : la puce « À traiter » dit 1 et, active, ne montre que la visite, avec le bouton « Confirmer ». La puce « Tout » montre la visite et **une** ligne « Mise en avant terminée · 16 biens ».
+- [ ] AC3 — Déplier la ligne repliée montre 16 lignes, chacune ouvrant son bien.
+- [ ] AC4 — À 1280, le panneau ouvert ne recouvre pas le bloc « Aujourd'hui » de la colonne (`elementFromPoint` au centre du bloc rend un nœud du bloc).
+- [ ] AC5 — Une notification d'une autre agence ouvre son objet après bascule d'espace, comme avant le ticket (même requête de bascule vue au réseau).
+
+## Hors périmètre
+
+- Le résumé quotidien par WhatsApp ; l'entrée des « à traiter » dans « Aujourd'hui » (ambition de l'audit).
+- Les préférences de notification (TCK-2636).
+
+## Notes d'implémentation
+
+_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_

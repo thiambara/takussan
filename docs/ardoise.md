@@ -3082,6 +3082,25 @@ Console par DNS TXT et relevé de l'index en F1, étape 7 ; contrôle du sitemap
 soumission en F3, étape 7 ; relevé à J+7 en F5, étape 1. Condition de clôture : la soumission faite
 et le relevé de J+7 reporté dans le ticket F.
 
+## 🟡 Consignée en dette par un ADR — audit UX de la partie connectée (2026-11-10)
+
+### D-73 — Les pièces jointes de la messagerie ne seront analysées par aucun antivirus
+
+**Dette décidée, pas encore ouverte** : elle naît avec TCK-2631 (photos et documents dans la
+messagerie), qui n'est pas implémenté. L'amendement du 2026-11-10 d'[ADR-0038](adr/0038-note-vocale-dans-la-messagerie.md)
+ouvre les types `image` et `document` aux messages, sans analyse antivirus : **le dépôt n'en a
+aucune** (relevé du 2026-11-10 : aucune dépendance ni service d'analyse dans `takussan-api/`). Un
+PDF piégé passerait d'un participant à un autre.
+
+Pourquoi l'ADR l'accepte : seuls les participants actifs du fil lisent la pièce, par URL signée
+(`PrivateMediaAccess`), jamais par lien public — le risque est celui d'une pièce jointe de courriel
+entre deux personnes qui se connaissent. Les bornes de taille et de type sont la protection ; les
+images sont nettoyées de leurs métadonnées, un PDF ne l'est pas.
+
+*Condition de réouverture (ADR-0038, amendement du 2026-11-10)* : une pièce jointe devient lisible
+hors du fil (partage, publication, coffre de documents), ou un fil s'ouvre à des inconnus. Le
+ticket qui le ferait doit traiter cette dette avant de fusionner.
+
 ## Ce que cet inventaire ne couvre pas
 
 Il est dérivé de ce qu'on peut **mesurer depuis le dépôt** : fichiers, historique git, exécution des

@@ -1,8 +1,8 @@
 # ADR-0042 — Un bail se signe par un code à usage unique sur un PDF figé et haché ; la preuve garde le signataire, l'empreinte, l'heure, l'IP et le canal ; `activate` devient la voie « papier »
 
-- **Statut** : Accepté, **amendé le 2026-10-25** (cf. § *Amendement du 2026-10-25 — un renouvellement ne reporte pas les garants*)
+- **Statut** : Accepté, **amendé le 2026-10-25** (cf. § *Amendement du 2026-10-25 — un renouvellement ne reporte pas les garants*) et **le 2026-11-10** (cf. § *Amendement du 2026-11-10 — les charges sont un terme du bail*)
 - **Date** : 2026-10-08
-- **Tickets** : [TCK-596](../backlog/tickets/done/TCK-596-cycle-locatif-conge-annulation-signature-edl.md) (O17)
+- **Tickets** : [TCK-596](../backlog/tickets/done/TCK-596-cycle-locatif-conge-annulation-signature-edl.md) (O17), [TCK-2679](../backlog/tickets/todo/TCK-2679-charges-du-bail-terme-du-contrat.md) (charges du bail)
 - **Précise** : [ADR-0031](0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md) (qui signe pour
   le bailleur, bailleur suspendu), [ADR-0032](0032-l-api-n-ecrit-plus-de-prose.md) (notifications par
   code).
@@ -198,3 +198,21 @@ un garant à l'enfant suit la règle du § 1 : cela défige son contrat.
 **Ce qui n'est pas gardé.** Recopier les garants reste au porteur, si un avis juridique dit que le
 cautionnement suit le bail renouvelé (OHADA). Que le rattachement d'un garant à un enfant déjà né
 `active` défige bien son contrat n'a pas été re-mesuré par ce ticket.
+
+## Amendement du 2026-11-10 — les charges sont un terme du bail
+
+- **Ticket** : [TCK-2679](../backlog/tickets/todo/TCK-2679-charges-du-bail-terme-du-contrat.md).
+- **Décision du porteur** (2026-11-10, point n° 7, option b) : les charges du bail entrent dans le lot de l'audit UX de la partie connectée ([ADR-0100](0100-une-page-paiements-par-public.md) § 6).
+
+**Constat** (relevé sur `dev`, 1bce3798a). Le bien porte `monthly_charges` (§ 1.1) ; le bail n'a **aucune** colonne de charges. Le type d'échéance `charges` existe (`LeasePaymentType::Charges`), avec son reçu (`DocumentPdfController`) et sa place dans l'encaissé et les reversements (`CollectedPayments`, `PayoutCalculator`), mais seule la saisie manuelle en crée (`POST leases/{lease}/payments`) : l'échéancier (`LeaseService::generateSchedule`) n'écrit que le loyer et la caution. Le contrat (`pdf.leases.contract`) n'imprime aucune charge.
+
+**Décision.**
+
+1. **`leases.monthly_charges`** (décimal, facultatif) est un **terme imprimé** : il entre dans `Lease::CONTRACT_PRINTED_TERMS`, et le contrat l'imprime par une ligne « Charges mensuelles » sous le loyer — **seulement quand il est posé et non nul**. Le § 1 s'applique tel quel : modifié avant la signature, il défige ; après, il se refuse (`lease.terms_locked`).
+2. **Un bail en attente de signature sans charges ne défige pas** : la ligne n'est pas imprimée quand la colonne est nulle, donc le rendu et l'empreinte d'un contrat déjà figé restent les mêmes. Aucun bail signé ne change.
+3. **L'échéancier appelle les charges à part** : pour chaque échéance de loyer, une échéance `charges` de même période, de même date et de montant `monthly_charges × mois de la période`. Elle suit le loyer dans la sortie anticipée et dans le renouvellement (mêmes règles d'annulation et de recouvrement). Elle n'est **jamais** soumise à la pénalité de retard (`LateFeeCalculator` reste réservé au loyer) ni à la révision du loyer.
+4. **Le préremplissage** : à la création du bail, `monthly_charges` vient du bien (`properties.monthly_charges`), modifiable ; l'agent le voit dans le total à l'entrée.
+5. **Le renouvellement** reporte les charges du parent comme les autres termes imprimés.
+
+**Ce qui n'est pas décidé.** La régularisation annuelle des charges (le type `regularization` existe, saisi à la main) reste manuelle.
+

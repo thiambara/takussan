@@ -1,6 +1,6 @@
 # ADR-0038 — La note vocale est un message `audio` portant un fichier privé
 
-- **Statut** : Accepté, **amendé le 2026-10-23** (cf. § *Amendement du 2026-10-23 — `video/mp4` est accepté*)
+- **Statut** : Accepté, **amendé le 2026-10-23** (cf. § *Amendement du 2026-10-23 — `video/mp4` est accepté*) et **le 2026-11-10** (cf. § *Amendement du 2026-11-10 — une photo ou un PDF joints*)
 - **Date** : 2026-10-07
 - **Tickets** : [TCK-592](../backlog/tickets/done/TCK-592-maintenance-intervention-de-bout-en-bout.md)
 - **S'appuie sur** : [ADR-0029](0029-medias-sur-r2-servis-par-cloudflare-transformations.md) (médias privés
@@ -118,3 +118,75 @@ Une vidéo de 2 Mo ne pèse pas plus sur le stockage qu'une note vocale de 2 Mo.
   quand on retire `video/mp4` de la liste (ablation).
 - Le relevé de la marque d'un enregistrement Safari réel reste utile. Il ne conditionne plus la
   décision.
+
+## Amendement du 2026-11-10 — une photo ou un PDF joints (TCK-2631, TCK-2632)
+
+- **Statut** : Accepté le 2026-11-10 (approche A de la messagerie, « Les personnes d'abord », famille 3
+  de l'audit UX ; recommandations validées par le porteur) — modalités : décisions de la session, à
+  revoir.
+- **Amende** : le point 1 (ce qu'un participant écrit) et le point 2 (le champ de fichier). Les points 3
+  à 6 valent pour les nouveaux types.
+
+**Contexte** (relevé sur `dev`, 1bce3798a, le 2026-11-10 ; audit
+[`03-coque-et-accueil.md`](../qa/audit-ux-2026-11/03-coque-et-accueil.md), § 5).
+
+- Envoyer la photo d'une fuite, d'un compteur, d'une pièce d'identité ou d'un devis en PDF est un
+  besoin entier. Le trombone avait été retiré de l'écran parce que l'API ne servait pas la route
+  (TCK-683).
+- `MessageType` a déjà `image` et `document`. Seul `SendMessageConversationRequest::PARTICIPANT_TYPES`
+  les refuse au participant (`MessageTypeSpoofingTest` le garde).
+- La collection privée `attachments`, l'URL signée (`PrivateMediaAccess`) et la ressource
+  `attachments[]` existent depuis le point 5.
+
+**Décision.** **Un participant actif peut envoyer une image ou un PDF, un fichier par message, dans la
+collection privée `attachments`, lu par la même URL signée que la note vocale.**
+
+1. `PARTICIPANT_TYPES` devient `text`, `audio`, `image` et `document`. `system` reste à
+   `SystemMessageFactory`.
+2. **Formats et bornes**, appliqués par le serveur sur le type que rend `finfo` :
+   - image `jpeg`, `png` ou `webp`, **8 Mo** au plus ;
+   - PDF, **10 Mo** au plus ;
+   - un fichier par message ;
+   - le champ de fichier est requis pour ces types et interdit pour les autres.
+3. **Les métadonnées EXIF des images sont retirées avant stockage**, la position GPS en tête : une photo
+   prise chez un locataire dit où il habite. Une vignette est produite pour l'aperçu.
+4. **Lecture** : la même que la note vocale (point 5). Une URL signée par `PrivateMediaAccess`, servie
+   dans une réponse déjà autorisée (participant actif).
+5. **Aperçu neutre dans la liste des conversations** : une clé (« Photo », « Document »), jamais le nom
+   du fichier.
+6. **Suppression et portabilité** : celles du message (point 6). L'export de données de l'auteur porte
+   ses messages comme aujourd'hui.
+7. **Débit** : le limiteur `conversation-message` et l'idempotence
+   ([ADR-0072](0072-une-cle-d-idempotence-commune-pour-les-ecritures-rejouees.md)) s'appliquent tels
+   quels.
+
+**L'analyse antivirus.** Le dépôt n'en a aucune, et ce choix laisse passer un PDF piégé d'un
+participant à un autre.
+
+- **Elle n'est pas exigée par cet amendement, et c'est une dette nommée** : [D-73](../ardoise.md#d-73--les-pièces-jointes-de-la-messagerie-ne-seront-analysées-par-aucun-antivirus) de l'ardoise.
+- La raison : seuls les participants du fil lisent la pièce, par URL signée et jamais par lien public.
+  Le risque est celui d'une pièce jointe de courriel entre deux personnes qui se connaissent, pas
+  celui d'un dépôt public.
+- La dette se rouvre si une pièce jointe devient lisible hors du fil (partage, publication) ou si un
+  fil s'ouvre à des inconnus.
+
+**Conséquences.**
+
+- **Le stockage croît par pièce**, sur le seau privé (R2,
+  [ADR-0029](0029-medias-sur-r2-servis-par-cloudflare-transformations.md)). Les bornes de taille sont
+  la protection.
+- **Un PDF n'est pas réécrit** : seules les images sont nettoyées. Un PDF garde ses métadonnées
+  d'auteur, comme dans un courriel.
+- `MessageTypeSpoofingTest` change exprès : `image` et `document` passent, `system` reste refusé.
+- Une pièce ne se recherche pas (`MessageSearchService` n'indexe que `content`).
+
+**Application.** `SendMessageConversationRequest` (types, mimes, tailles). `ConversationController::sendMessage`
+(fichier, EXIF retiré, vignette, aperçu). Gardes (TCK-2631) :
+
+- une photo JPEG avec position GPS est acceptée, et le fichier relu n'a plus de balise GPS ;
+- un PDF de 10 Mo passe, un PDF de 11 Mo rend 422 ;
+- un exécutable renommé `.pdf` rend 422 (type par `finfo`) ;
+- un non-participant ne lit pas l'URL.
+
+Chaque garde se vérifie par ablation.
+
