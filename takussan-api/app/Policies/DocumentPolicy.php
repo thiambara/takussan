@@ -237,6 +237,41 @@ class DocumentPolicy extends BasePolicy
     }
 
     /**
+     * TCK-2655 (ADR-0099 §1) — la lecture d'une CIBLE (bien, bail, fiche client, profil, état des
+     * lieux) : la branche `reaches()` de {@see self::view()}, en lecture. Pour une cible donnée elle
+     * ne dépend pas du document : la liste l'évalue une fois, au lieu de la recopier en SQL.
+     */
+    public function readsTarget(User $user, Model $documentable): bool
+    {
+        return $this->reaches($user, $documentable, writing: false);
+    }
+
+    /**
+     * TCK-2655 (ADR-0099 §1) — LA forme liste de {@see self::view()} pour les documents d'une cible.
+     * `view` = super-admin ∨ téléverseur gardé ∨ `reaches(porteur)`. Sur une cible fixe, `reaches` est
+     * une constante : vraie, la liste rend tous les documents de la cible, quel qu'en soit l'auteur ;
+     * fausse, elle rend ceux que la règle d'auteur ouvre ({@see self::restreindreAuTeleverseur()}, sa
+     * forme SQL). Aucune branche n'est écrite deux fois.
+     *
+     * Le super-admin reste sur ses téléversements (TCK-820) : il n'a pas de liste de plateforme, et
+     * ouvre un document par son identifiant, journalisé. L'exclusion des pièces de profil sous
+     * impersonation (TCK-697) est posée par l'appelant, comme pour la liste sans cible.
+     *
+     * @param  Builder<Document>  $query
+     * @return Builder<Document>
+     */
+    public static function listableOn(Builder $query, User $user, Model $target): Builder
+    {
+        $query->where('documentable_type', $target::class)->where('documentable_id', $target->getKey());
+
+        if (! $user->isSuperAdmin() && app(self::class)->readsTarget($user, $target)) {
+            return $query;
+        }
+
+        return self::restreindreAuTeleverseur($query, $user);
+    }
+
+    /**
      * TCK-587 — supprimer un document : la règle d'`update()`, inchangée (le téléverseur seul).
      *
      * `DocumentController::destroy` autorisait par `update` ; il autorise désormais par `delete`,

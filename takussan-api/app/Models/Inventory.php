@@ -8,6 +8,7 @@ use App\Models\Enums\InventoryCondition;
 use App\Models\Enums\InventoryStatus;
 use App\Models\Enums\InventoryType;
 use App\Services\Media\PdfImageEmbedder;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -112,6 +113,23 @@ class Inventory extends AbstractModel implements HasMedia
     public function lease(): BelongsTo
     {
         return $this->belongsTo(Lease::class);
+    }
+
+    /**
+     * TCK-2655 — le PDF d'un état des lieux existe une fois signé : `signed_at` posé, ou les deux
+     * signatures recueillies. La condition de `InventoryController::downloadPdf`, et celle du coffre.
+     */
+    public function pdfAvailable(): bool
+    {
+        return $this->signed_at !== null || ($this->tenant_signed && $this->owner_signed);
+    }
+
+    /** TCK-2655 — {@see self::pdfAvailable()} en requête. */
+    public function scopePdfAvailable(Builder $query): Builder
+    {
+        return $query->where(fn (Builder $q) => $q
+            ->whereNotNull($q->qualifyColumn('signed_at'))
+            ->orWhere(fn (Builder $both) => $both->where($q->qualifyColumn('tenant_signed'), true)->where($q->qualifyColumn('owner_signed'), true)));
     }
 
     public function property(): BelongsTo

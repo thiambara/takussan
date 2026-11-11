@@ -210,9 +210,9 @@ class InventoryController extends Controller
     {
         $this->authorize('view', $inventory);
 
+        // TCK-2655 — la condition est celle du modèle, que le coffre lit aussi pour lister.
         abort_code_unless(
-            $inventory->signed_at !== null
-                || ($inventory->tenant_signed && $inventory->owner_signed),
+            $inventory->pdfAvailable(),
             SymfonyResponse::HTTP_CONFLICT,
             'inventory.pdf_unsigned'
         );

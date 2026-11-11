@@ -117,4 +117,57 @@ Le locataire qui cherche « mon contrat » le trouve dans son coffre, à côté 
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+Implémenté le 2026-11-11 (agent back-3).
+
+**Ce qui est livré**
+
+- `GET /api/me/document-vault` (`me.document-vault`, `DocumentVaultController::show`,
+  `App\Services\Documents\DocumentVault`) : `{folders, counts{expiring_soon, unverified}, attachable_targets}`.
+  Dossiers : `lease:{id}` (baux du locataire hors brouillon, quel que soit le profil actif),
+  `property:{id}` (profil bailleur actif, son agence ; ses baux hors brouillon y sont rangés),
+  `pieces` (toujours), `receipts:{année}` (année d'échéance), `statements` (relevés envoyés = un
+  instantané existe, plus l'attestation de chaque année close), `bills` (profil prestataire actif).
+  Une entrée : `kind` (`uploaded`|`generated`), `category`, `title`, `date`, `download_path` (chemin
+  complet, `/api` compris), `document_id`, `is_verified`, `expiry_date`, `versions_count`, `targets`.
+- `GET /api/documents/generated?target=lease:{id}|property:{id}` (`documents.generated`) : les générés
+  d'une cible pour les onglets Documents (TCK-2639) ; 422 `document.invalid_target`, 404, 403 par
+  `view` de la cible.
+- `GET /api/documents` : avec `filter[documentable_type]` (alias `property`, `lease`, `customer`,
+  `owner_profile`, `inventory`, `booking`, `user`, `agency`, ou nom de classe) ET
+  `filter[documentable_id]`, la liste rend tout ce que `view` ouvre sur la cible
+  (`DocumentPolicy::listableOn`) ; sans cible, TCK-820 intact. `filter[expiring_within_days]=N`
+  (aujourd'hui à Dakar … +N, bornes comprises ; valeur non entière → rien). `meta.expiring_soon` (60 j)
+  et `meta.unverified` de toute la liste filtrée.
+- Règles extraites pour être lues par la liste ET l'endpoint : `DocumentPdfController::mayReadReceipts()`
+  et `::receiptable()`, `Inventory::pdfAvailable()` (lu par `InventoryController::downloadPdf`),
+  `DocumentPolicy::readsTarget()`.
+
+**Prémisse qui différait**
+
+- Une facture de prestataire n'a ni PDF ni média : son `download_path` est la fiche JSON
+  (`service-provider-bills.show`).
+- `owner_profile` n'a aucune branche dans `DocumentPolicy::reaches()` et n'est pas dans les types de
+  `store` : le personnel n'y lit que ses propres téléversements. À trancher avec TCK-2641 (fiche bailleur).
+- Le super-admin reste sur ses téléversements en liste, même avec une cible (TCK-820).
+- Un bail en BROUILLON : son locataire le lit (`LeasePolicy::view`), mais il n'a pas de dossier au
+  coffre (ni contrat ni documents). Décision prise ici, à confirmer.
+- Le bailleur n'a pas de dossier « quittances » (ADR-0099 §2 : elles sont au locataire), bien qu'il
+  puisse les ouvrir ; elles lui sont servies par `documents/generated?target=lease:`.
+- Le locataire ne lit pas les documents du BIEN (`reaches` : bailleur et personnel), ni ceux d'un état
+  des lieux : ils ne sont pas au coffre.
+
+**Défaut trouvé en route** : `Document::attentionCounts()` sous `fields[documents]=…` rendait une 500
+PostgreSQL (colonnes choisies à côté d'un agrégat) ; `select([])` avant l'agrégat, épinglé.
+
+**Requêtes** : constant par échéance et par document (3 → 36 échéances, 3 → 13 documents : même
+compte). Les règles de lecture s'évaluent par cible : ~4 requêtes par état des lieux, ~7 par bien au
+coffre du bailleur (42 à 2 biens, 98 à 10). La pente vient du rechargement des profils de
+l'appelant par chaque jugement de policy, pas du coffre.
+
+**/sync-specs** : `docs/features.md` §1.10 (coffre, `documents/generated`, alias de cible,
+`expiring_within_days`, `meta.expiring_soon`/`unverified`) ; `docs/models-spec.md` §22 (règle de liste
+par cible, alias).
+
+Tests : `tests/Feature/Documents/DocumentVault{Tenant,Owner,Provider,Impersonation}Test.php`,
+`DocumentIndexByTargetTest`, `DocumentListReadParityTest` (les deux sens, par HTTP), `DocumentExpiringFilterTest` ;
+décor partagé `tests/Support/CoffreDeDocuments.php`.

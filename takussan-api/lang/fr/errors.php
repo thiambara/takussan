@@ -195,6 +195,8 @@ return [
     ],
     'document' => [
         'file_missing' => 'Aucun fichier n\'est joint à ce document.',
+        // TCK-2655
+        'invalid_target' => 'La cible attendue est « lease:{id} » ou « property:{id} ».',
         'owner_not_found' => 'L\'objet auquel rattacher le document est introuvable.',
         'profile_piece_not_versioned' => 'Une pièce de profil ne se versionne pas : renvoyez-la depuis votre profil.',
         'pdf_template_missing' => 'Le modèle de document est introuvable.',

@@ -195,6 +195,8 @@ return [
     ],
     'document' => [
         'file_missing' => 'Amul benn fichier bu ñu takk ci document bii.',
+        // TCK-2655
+        'invalid_target' => 'La cible attendue est « lease:{id} » ou « property:{id} ».',
         'owner_not_found' => 'Mbir mi ñuy takk document bi gisuñu ko.',
         'profile_piece_not_versioned' => 'Une pièce de profil ne se versionne pas : renvoyez-la depuis votre profil.',
         'pdf_template_missing' => 'Modèle document bi gisuñu ko.',

@@ -10,6 +10,8 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\PlatformProfile;
 use App\Models\Profiles\ServiceProviderProfile;
+use App\Support\Http\ParametreUnique;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -20,6 +22,7 @@ use Laravel\Scout\Searchable;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use Spatie\QueryBuilder\AllowedFilter;
 
 class Document extends AbstractModel implements HasMedia
 {
@@ -55,7 +58,100 @@ class Document extends AbstractModel implements HasMedia
         PlatformProfile::class,
     ];
 
-    protected static array $requestFilterable = ['documentable_id', 'documentable_type', 'uploaded_by', 'type', 'is_verified'];
+    // TCK-2655 — `documentable_type` et `expiring_within_days` sont des filtres sur mesure
+    // ({@see self::customQueryFilters()}).
+    protected static array $requestFilterable = ['documentable_id', 'uploaded_by', 'type', 'is_verified'];
+
+    /**
+     * TCK-2655 (ADR-0099 §5) — les cibles se nomment par un alias court, plus par le nom de classe
+     * complet (encore accepté). `owner_profile` est lisible en liste ; `store` garde sa propre liste.
+     */
+    public const TARGET_ALIASES = [
+        'property' => Property::class,
+        'lease' => Lease::class,
+        'customer' => Customer::class,
+        'owner_profile' => OwnerProfile::class,
+        'inventory' => Inventory::class,
+        'booking' => Booking::class,
+        'user' => User::class,
+        'agency' => Agency::class,
+    ];
+
+    /** TCK-2655 — « expire bientôt » : la pastille de l'agence et le compte du coffre (ambre à 42 j). */
+    public const EXPIRING_SOON_DAYS = 60;
+
+    /** TCK-2655 — le fuseau dans lequel se lit « aujourd'hui » pour l'expiration. */
+    public const EXPIRY_TIMEZONE = 'Africa/Dakar';
+
+    /** Le nom de classe d'un alias de cible, ou du nom complet ; nul s'il n'est pas une cible connue. */
+    public static function targetClass(mixed $type): ?string
+    {
+        if (! is_string($type) || $type === '') {
+            return null;
+        }
+        $lower = strtolower($type);
+
+        return self::TARGET_ALIASES[$lower]
+            ?? collect(self::TARGET_ALIASES)->first(fn (string $fqcn): bool => strtolower($fqcn) === $lower);
+    }
+
+    /**
+     * TCK-2655 — `filter[documentable_type]=lease` (alias ou nom complet, liste à virgules ; un type
+     * inconnu ne rend rien) et `filter[expiring_within_days]=N` : expire entre aujourd'hui (Dakar)
+     * et dans N jours inclus ; déjà expiré, sans date ou valeur illisible : non.
+     *
+     * @return array<int, AllowedFilter>
+     */
+    protected static function customQueryFilters(): array
+    {
+        return [
+            AllowedFilter::callback('documentable_type', function (Builder $q, mixed $value): void {
+                $raw = ParametreUnique::valeur($value);
+                $classes = array_values(array_filter(array_map(
+                    fn (string $t): ?string => self::targetClass(trim($t)),
+                    $raw === null ? [] : explode(',', $raw),
+                )));
+                $classes === [] ? $q->whereRaw('1 = 0') : $q->whereIn($q->qualifyColumn('documentable_type'), $classes);
+            })->delimiter(''),
+            AllowedFilter::callback('expiring_within_days', function (Builder $q, mixed $value): void {
+                $raw = ParametreUnique::valeur($value);
+                if ($raw === null || ! ctype_digit($raw) || strlen($raw) > 4) {
+                    $q->whereRaw('1 = 0');
+
+                    return;
+                }
+                $today = self::today();
+                $q->whereBetween($q->qualifyColumn('expiry_date'), [$today->toDateString(), $today->addDays((int) $raw)->toDateString()]);
+            })->delimiter(''),
+        ];
+    }
+
+    /** Aujourd'hui à Dakar, en date de calendrier. */
+    public static function today(): CarbonImmutable
+    {
+        return CarbonImmutable::now(self::EXPIRY_TIMEZONE)->startOfDay();
+    }
+
+    /**
+     * TCK-2655 — les comptes `expiring_soon` et `unverified` d'une requête déjà bornée, en une requête.
+     *
+     * @param  Builder<self>  $scoped
+     * @return array{expiring_soon: int, unverified: int}
+     */
+    public static function attentionCounts(Builder $scoped): array
+    {
+        $today = self::today();
+        // `select([])` d'abord : la liste porte les colonnes de `fields[documents]`, qu'un agrégat ne
+        // peut pas côtoyer sans GROUP BY (PostgreSQL refuse).
+        $row = (clone $scoped)->toBase()->reorder()->select([])
+            ->selectRaw(
+                'count(*) filter (where expiry_date between ? and ?) as expiring_soon, count(*) filter (where is_verified = false) as unverified',
+                [$today->toDateString(), $today->addDays(self::EXPIRING_SOON_DAYS)->toDateString()],
+            )
+            ->first();
+
+        return ['expiring_soon' => (int) ($row->expiring_soon ?? 0), 'unverified' => (int) ($row->unverified ?? 0)];
+    }
 
     /** TCK-1411 (P151.03) — les filtres exacts typés que leur nom ne dit pas (`TypedExactFilter`). */
     protected static array $requestFilterableTypes = ['uploaded_by' => TypedExactFilter::IDENTIFIANT, 'is_verified' => TypedExactFilter::BOOLEEN];
