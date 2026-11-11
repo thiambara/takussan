@@ -172,9 +172,10 @@ class FinanceSummaryService
 
     /**
      * Les reversements de l'agence qui attendent une approbation (ADR-0039 § 4), et ceux qui
-     * attendent d'être versés (`pending`, la tuile d'aujourd'hui), au net.
+     * attendent d'être versés (`pending`, la tuile d'aujourd'hui), au net ; et leur union
+     * (`payouts_open`, TCK-2720), avec les bailleurs distincts qui attendent.
      *
-     * @return array{payouts_awaiting_approval: array{count: int, amount: float, landlords_count: int}, payouts_pending: array{count: int, amount: float}}
+     * @return array{payouts_awaiting_approval: array{count: int, amount: float, landlords_count: int}, payouts_pending: array{count: int, amount: float}, payouts_open: array{count: int, amount: float, landlords_count: int}}
      */
     private function payouts(int $agencyId): array
     {
@@ -193,6 +194,11 @@ class FinanceSummaryService
             ->selectRaw('COUNT(DISTINCT landlord_id) FILTER (WHERE status = ? AND payee_role = ?) AS awaiting_landlords', [$awaiting, PayeeRole::Landlord->value])
             ->selectRaw('COUNT(*) FILTER (WHERE status = ?) AS pending_n', [$pending])
             ->selectRaw('COALESCE(SUM(net_amount) FILTER (WHERE status = ?), 0) AS pending_total', [$pending])
+            // TCK-2720 — les deux files ensemble (la requête ne lit qu'elles) : un bailleur qui attend
+            // un reversement à approuver ET un autre à verser n'est compté qu'une fois.
+            ->selectRaw('COUNT(*) AS open_n')
+            ->selectRaw('COALESCE(SUM(net_amount), 0) AS open_total')
+            ->selectRaw('COUNT(DISTINCT landlord_id) FILTER (WHERE payee_role = ?) AS open_landlords', [PayeeRole::Landlord->value])
             ->first();
 
         return [
@@ -204,6 +210,11 @@ class FinanceSummaryService
             'payouts_pending' => [
                 'count' => (int) $row->pending_n,
                 'amount' => round((float) $row->pending_total, 2),
+            ],
+            'payouts_open' => [
+                'count' => (int) $row->open_n,
+                'amount' => round((float) $row->open_total, 2),
+                'landlords_count' => (int) $row->open_landlords,
             ],
         ];
     }

@@ -313,6 +313,9 @@ hors restitution de caution ; `null` sinon, et toujours `null` sur une réservat
 {under_8, from_8_to_30, over_30} → {count, amount}}` (à date, `as_of`), `deposits_held`,
 `payouts_awaiting_approval {count, amount, landlords_count}`, `payouts_pending {count, amount}`,
 `invoices_draft {count, amount}`, plus `period`, `as_of` et `currency` (TCK-2657).
+`payouts_open {count, amount, landlords_count}` : l'union des deux files, au net, avec les bailleurs
+distincts qui attendent (`payee_role = landlord`, un bailleur présent dans les deux files compté une
+fois) — la tuile « Reversements en attente » (TCK-2720).
 `overdue.never_reminded_count` : les impayés sans aucune relance, notée (`lease_payment_reminders`) ni
 automatique (`metadata.reminder_*_sent_at`) (TCK-2658).
 

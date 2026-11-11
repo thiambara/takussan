@@ -6548,6 +6548,7 @@
           "variation": "{variation} vs {mois}",
           "bauxEtAnciens": "{baux, plural, one {# lease} other {# leases}} · {anciens, plural, =0 {none over 30 days} other {# over 30 days}}",
           "reversementsDetail": "{count, plural, =0 {None pending} one {# payout} other {# payouts}}{aApprouver, plural, =0 {} other { · # to approve}}",
+          "reversementsBailleurs": "{bailleurs, plural, one {# landlord} other {# landlords}}{aApprouver, plural, =0 {} other { · # to approve}}",
           "facturesDetail": "{montant} in fees"
         },
         "derniers": {

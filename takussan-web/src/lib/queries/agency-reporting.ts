@@ -105,6 +105,8 @@ export interface FinanceSummary {
   readonly deposits_held: number;
   readonly payouts_awaiting_approval: CompteEtMontant & { readonly landlords_count: number };
   readonly payouts_pending: CompteEtMontant;
+  /** TCK-2720 — l'union des deux files (`pending` + `awaiting_approval`), avec les bailleurs DISTINCTS qui attendent. */
+  readonly payouts_open: CompteEtMontant & { readonly landlords_count: number };
   readonly invoices_draft: CompteEtMontant;
 }
 

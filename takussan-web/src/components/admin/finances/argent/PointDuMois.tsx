@@ -227,7 +227,7 @@ export function PointDuMoisTelephone(ctx: ContexteDuPoint) {
           <div className={CARTE}>
             <LigneRegistre href={lienDOnglet('encaissements', periode)} icone={<Wallet />} titre={t('registres.encaissements')} droite={derniers.data?.meta.total} />
             <LigneRegistre href={lienDOnglet('factures', periode)} icone={<FileText />} titre={t('registres.factures')} />
-            <LigneRegistre href={lienDOnglet('reversements', periode)} icone={<HandCoins />} titre={t('registres.reversements')} />
+            <LigneRegistre href={lienDOnglet('reversements', periode)} icone={<HandCoins />} titre={t('registres.reversements')} droite={synthese?.payouts_open.count} />
             {gestes.peutApprouver ? (
               <LigneRegistre href={lienDOnglet('a-approuver', periode)} icone={<ShieldCheck />} titre={t('registres.aApprouver')} droite={synthese?.payouts_awaiting_approval.count} />
             ) : null}
@@ -377,6 +377,13 @@ export function TuilesDuMois(ctx: ContexteDuPoint) {
   const variation = useVariation(synthese, ctx.mois, 1);
   const montant = (n: number) => f.montantCourt(n, synthese?.currency);
   const attente = <Skeleton className="h-7 w-40" />;
+  // TCK-2720 — « N bailleurs · M à approuver » (la maquette), lus sur l'UNION des deux files : un
+  // bailleur qui attend un reversement à approuver ET un autre à verser n'y compte qu'une fois. Sans
+  // bailleur (que des prestataires ou des cautions rendues), le nombre de reversements.
+  const detailDesReversements = ({ payouts_open: ouverts, payouts_awaiting_approval: aApprouver }: FinanceSummary) =>
+    ouverts.landlords_count > 0
+      ? t('argent.tuiles.reversementsBailleurs', { bailleurs: ouverts.landlords_count, aApprouver: aApprouver.count })
+      : t('argent.tuiles.reversementsDetail', { count: ouverts.count, aApprouver: aApprouver.count });
 
   if (ctx.syntheseRefusee) {
     return <p className="rounded-xl border border-border bg-card p-4 text-ui text-muted-foreground">{t('argent.syntheseRefusee')}</p>;
@@ -404,15 +411,8 @@ export function TuilesDuMois(ctx: ContexteDuPoint) {
       <TuileBureau
         href={lienDOnglet('reversements', periode)}
         libelle={t('kpis.pendingPayouts')}
-        valeur={synthese ? montant(synthese.payouts_pending.amount + synthese.payouts_awaiting_approval.amount) : attente}
-        detail={
-          synthese
-            ? t('argent.tuiles.reversementsDetail', {
-                count: synthese.payouts_pending.count + synthese.payouts_awaiting_approval.count,
-                aApprouver: synthese.payouts_awaiting_approval.count,
-              })
-            : null
-        }
+        valeur={synthese ? montant(synthese.payouts_open.amount) : attente}
+        detail={synthese ? detailDesReversements(synthese) : null}
       />
       <TuileBureau
         href={lienDOnglet('factures', periode)}

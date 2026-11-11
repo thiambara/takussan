@@ -4681,6 +4681,7 @@
           "variation": "{variation} sur {mois}",
           "bauxEtAnciens": "{baux, plural, one {# bail} other {# baux}} · {anciens, plural, =0 {aucun de plus de 30 jours} other {# de plus de 30 jours}}",
           "reversementsDetail": "{count, plural, =0 {Aucun en attente} one {# reversement} other {# reversements}}{aApprouver, plural, =0 {} other { · # à approuver}}",
+          "reversementsBailleurs": "{bailleurs, plural, =1 {# bailleur} other {# bailleurs}}{aApprouver, plural, =0 {} other { · # à approuver}}",
           "facturesDetail": "{montant} d’honoraires"
         },
         "derniers": {

@@ -75,6 +75,7 @@ function synthese(partiel: Partial<FinanceSummary> = {}): FinanceSummary {
     deposits_held: 235_035_000,
     payouts_awaiting_approval: { amount: 0, count: 0, landlords_count: 0 },
     payouts_pending: { amount: 0, count: 0 },
+    payouts_open: { amount: 0, count: 0, landlords_count: 0 },
     invoices_draft: { amount: 0, count: 0 },
     ...partiel,
   };

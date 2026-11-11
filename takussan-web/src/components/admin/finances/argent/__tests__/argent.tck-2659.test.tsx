@@ -77,6 +77,7 @@ function synthese(partiel: Partial<FinanceSummary> = {}): FinanceSummary {
     deposits_held: 235_035_000,
     payouts_awaiting_approval: { amount: 0, count: 0, landlords_count: 0 },
     payouts_pending: { amount: 0, count: 0 },
+    payouts_open: { amount: 0, count: 0, landlords_count: 0 },
     invoices_draft: { amount: 0, count: 0 },
     ...partiel,
   };
@@ -553,5 +554,52 @@ describe('D2 — les bornes de la lecture selon le statut filtré (m1 de la cont
     const p = parametresDesEncaissements(new URLSearchParams('period=2026-11'), '2026-11');
     expect(p).toMatchObject({ paid_from: '2026-11-01', paid_to: '2026-11-30' });
     expect(p.date_from).toBeUndefined();
+  });
+});
+
+describe('TCK-2720 — la tuile « Reversements en attente » compte les bailleurs sur l’union des deux files', () => {
+  // Le décor de l'AC1 de l'API : L1 a un reversement à approuver ET un à verser, L2 un à verser, un
+  // prestataire un à verser. La file d'approbation ne compte qu'un bailleur ; l'union en compte deux,
+  // pas trois (L1 n'est compté qu'une fois). Le montant de l'union est distinct de la somme des deux
+  // files pour épingler la lecture de `payouts_open`.
+  const decor = (): Partial<FinanceSummary> => ({
+    payouts_awaiting_approval: { amount: 400_000, count: 1, landlords_count: 1 },
+    payouts_pending: { amount: 410_000, count: 3 },
+    payouts_open: { amount: 811_000, count: 4, landlords_count: 2 },
+  });
+  const tuile = async () => (await screen.findByText('Reversements en attente')).closest('a') as HTMLElement;
+
+  it('AC2 — le bureau affiche « 2 bailleurs · 1 à approuver » et le montant de l’union', async () => {
+    reponseSynthese = synthese(decor());
+    rendre();
+
+    const lien = await tuile();
+    await waitFor(() => expect(within(lien).getByText('2 bailleurs · 1 à approuver')).toBeInTheDocument());
+    expect(within(lien).getByText(/^811\s?000/)).toBeInTheDocument();
+    expect(within(lien).queryByText(/reversements/)).not.toBeInTheDocument();
+  });
+
+  it('sans bailleur dans les files (prestataires seulement), le nombre de reversements', async () => {
+    reponseSynthese = synthese({ payouts_pending: { amount: 60_000, count: 2 }, payouts_open: { amount: 60_000, count: 2, landlords_count: 0 } });
+    rendre();
+
+    const lien = await tuile();
+    await waitFor(() => expect(within(lien).getByText('2 reversements')).toBeInTheDocument());
+  });
+
+  it('sans reversement ouvert, « Aucun en attente »', async () => {
+    rendre();
+
+    const lien = await tuile();
+    await waitFor(() => expect(within(lien).getByText('Aucun en attente')).toBeInTheDocument());
+  });
+
+  it('téléphone — la ligne « Reversements » des registres dit le nombre de reversements ouverts', async () => {
+    ecran.telephone = true;
+    reponseSynthese = synthese(decor());
+    rendre();
+
+    const ligne = (await screen.findByText('Reversements', { selector: 'a *' })).closest('a') as HTMLElement;
+    await waitFor(() => expect(within(ligne).getByText('4')).toBeInTheDocument());
   });
 });

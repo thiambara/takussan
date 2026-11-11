@@ -51,7 +51,8 @@ const PAR_PAGE = 20;
  * Les colonnes du registre au bureau, celles de la maquette (`COLS_ENCAISSEMENTS`, `_ETROIT` sous
  * 1440 px) : des colonnes FIXES en pixels de maquette — donc en `rem`, que la densité ne réduit pas
  * (montant 112 px, moyen 128, date 100, statut 96, référence 92, plus l'écart de 14,4 px ; sous
- * 1440 px : montant 96, date 72, la référence passe sous le statut) — et trois colonnes en `fr`
+ * 1440 px : montant 96, date 72, la référence passe sous le statut ; la colonne Montant s'en écarte
+ * sous 1440 px pour tenir dix chiffres, TCK-2720) — et trois colonnes en `fr`
  * (payeur 1,35, bien 1,15, période 1) qui se partagent le reste. La table est en `table-fixed` :
  * sans lui, la largeur suit le contenu (« Pièce indépendante à Grand Yoff » ouvrait la colonne du
  * bien à 314 px). Le payeur, sans largeur, prend ce qui reste ; bien et période portent leur part
@@ -63,7 +64,10 @@ const COLONNES = {
   payeur: 'align-middle',
   bien: 'align-middle w-[16.84%] min-[90rem]:w-[14.69%]',
   periode: 'align-middle w-[14.84%] min-[90rem]:w-[12.95%]',
-  montant: 'align-middle whitespace-nowrap w-[6.9rem] min-[90rem]:w-[7.9rem]',
+  // TCK-2720 — dix chiffres (« 1 234 567 890 F », et « 1,234,567,890 F », plus large) tiennent dans
+  // la cellule : 102 px de texte sous `lg` (text-sm à 14 px, px-3 = 24 px), 91,8 px de `lg` à 1440
+  // (12,6 px, 21,6 px). Les 110,4 px de la maquette n'en laissaient que 86,4 et 88,8 (mesuré).
+  montant: 'align-middle whitespace-nowrap w-[8.1rem] lg:w-[7.3rem] min-[90rem]:w-[7.9rem]',
   moyen: 'align-middle whitespace-nowrap w-[8.9rem]',
   date: 'align-middle whitespace-nowrap w-[5.4rem] min-[90rem]:w-[7.15rem]',
   statut: 'align-middle w-[7.51rem] min-[90rem]:w-[6.9rem]',
