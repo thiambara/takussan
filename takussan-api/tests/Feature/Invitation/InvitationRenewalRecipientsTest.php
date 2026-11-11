@@ -13,6 +13,7 @@ use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\RoleDelegation;
 use App\Models\User;
+use App\Services\Invitation\InvitationRenewalRequests;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -344,5 +345,24 @@ class InvitationRenewalRecipientsTest extends TestCase
         $dix = $mesurer(8);
 
         $this->assertSame($deux, $dix, "équipe de 2 : {$deux} requêtes, de 10 : {$dix}");
+    }
+
+    /**
+     * Vérification adverse de TCK-2726 (m3) — la borne se juge sur la ligne VERROUILLÉE, pas sur
+     * l'instance chargée avant : une demande concurrente qui pose la borne entre le chargement et le
+     * verrou doit être vue. Lire `$invitation` au lieu de `$locked` laisse le reste de la classe vert.
+     */
+    public function test_la_borne_se_lit_sur_la_ligne_verrouillee_pas_sur_l_instance(): void
+    {
+        Notification::fake();
+        $agency = Agency::factory()->create();
+        $invitant = $this->agencyAdmin($agency);
+        $invitation = Invitation::factory()->expired()->create(['agency_id' => $agency->id, 'invited_by' => $invitant->id, 'role' => 'agent', 'email' => 'awa.diop@gmail.com']);
+
+        $perimee = Invitation::query()->findOrFail($invitation->id); // chargée avant la demande concurrente
+        $this->assertTrue(app(InvitationRenewalRequests::class)->request($invitation)); // la concurrente passe et pose la borne
+
+        $this->assertFalse(app(InvitationRenewalRequests::class)->request($perimee));
+        $this->assertSame(1, self::nombreDEnvois($invitant, NotificationCode::InvitationRenewalRequested));
     }
 }
