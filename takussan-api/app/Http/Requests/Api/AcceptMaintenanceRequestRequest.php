@@ -4,7 +4,6 @@ namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Models\MaintenanceRequest;
-use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 
 /**
@@ -35,8 +34,8 @@ class AcceptMaintenanceRequestRequest extends BaseFormRequest
     /**
      * Le créneau proposé. Une heure sans décalage se lit à l'heure de Dakar
      * (`MaintenanceRequest::SCHEDULED_TIMEZONE`, UTC+0) ; une heure qui porte son décalage est
-     * l'instant qu'elle désigne. `MaintenanceRequestService::accept()` le ramène au fuseau de
-     * l'application avant de l'écrire.
+     * l'instant qu'elle désigne — `MaintenanceRequest::scheduledInstant()`, la conversion du `PATCH`
+     * (TCK-2700).
      */
     public function scheduledAt(): ?CarbonInterface
     {
@@ -45,6 +44,6 @@ class AcceptMaintenanceRequestRequest extends BaseFormRequest
             return null;
         }
 
-        return CarbonImmutable::parse((string) $value, MaintenanceRequest::SCHEDULED_TIMEZONE);
+        return MaintenanceRequest::scheduledInstant((string) $value);
     }
 }

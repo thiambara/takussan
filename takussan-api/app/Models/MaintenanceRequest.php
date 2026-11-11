@@ -17,6 +17,8 @@ use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Property\BailleurDuBien;
 use App\Sorts\MaintenancePrioritySort;
 use App\Support\Query\DepartageQueryBuilder;
+use Carbon\CarbonImmutable;
+use DateTimeInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -133,6 +135,22 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
 
     /** TCK-2623 — le fuseau dans lequel se lisent les dates de `filter[scheduled_from|to]`. */
     public const SCHEDULED_TIMEZONE = 'Africa/Dakar';
+
+    /**
+     * TCK-2700 — l'instant d'un créneau reçu, ramené au fuseau de l'application avant l'écriture. Une
+     * heure sans décalage se lit à l'heure de Dakar ; une heure qui porte son décalage, ou un objet
+     * date, est l'instant qu'elle désigne. Sans cette conversion, le cast `datetime` écrit l'heure
+     * MURALE reçue : `11:00+01:00` était stocké `11:00` UTC, une heure trop tard. Seule conversion du
+     * créneau, partagée par le `PATCH` et l'acceptation (TCK-2680).
+     */
+    public static function scheduledInstant(string|DateTimeInterface $value): CarbonImmutable
+    {
+        $instant = $value instanceof DateTimeInterface
+            ? CarbonImmutable::instance($value)
+            : CarbonImmutable::parse($value, self::SCHEDULED_TIMEZONE);
+
+        return $instant->setTimezone(config('app.timezone'));
+    }
 
     /**
      * TCK-2623 — « mes interventions du jour » : `filter[scheduled_from]` / `filter[scheduled_to]`, des

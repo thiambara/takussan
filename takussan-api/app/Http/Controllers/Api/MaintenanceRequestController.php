@@ -209,6 +209,12 @@ class MaintenanceRequestController extends Controller
 
         $data = Arr::except($request->validated(), UpdateMaintenanceRequestRequest::STATE_FIELDS);
 
+        // TCK-2700 — un créneau envoyé avec son décalage est l'instant qu'il désigne (même conversion
+        // que l'acceptation) : écrit tel quel, le cast `datetime` en gardait l'heure murale.
+        if (($data['scheduled_at'] ?? null) !== null) {
+            $data['scheduled_at'] = MaintenanceRequest::scheduledInstant((string) $data['scheduled_at']);
+        }
+
         // TCK-2010 (P184.02) — tout ou rien : `assign()` peut encore refuser (`completed`,
         // `maintenance.reassign_after_completion`) après que l'heure, la priorité et le coût réel
         // ont été écrits. La transaction rend la ligne intacte sur ce refus.

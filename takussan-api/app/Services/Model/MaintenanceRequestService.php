@@ -11,7 +11,6 @@ use App\Services\Maintenance\CurrencyUnit;
 use App\Services\Maintenance\MaintenanceStateMachine;
 use App\Services\Maintenance\OwnerApprovalThreshold;
 use App\Services\Media\PrivateMediaAccess;
-use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -246,10 +245,10 @@ class MaintenanceRequestService
             // TCK-2680 — le créneau proposé est posé dans la MÊME écriture que l'acceptation : les
             // deux ou rien. Même règle d'annonce que le `PATCH` (TCK-2012) : la même heure renvoyée
             // n'est pas un passage déplacé.
-            // L'instant est ramené au fuseau de l'application avant l'écriture : le cast `datetime`
-            // écrit l'heure murale de l'objet reçu sans convertir son décalage.
+            // TCK-2700 — l'instant est ramené au fuseau de l'application par la conversion partagée
+            // avec le `PATCH` : le cast `datetime` écrit l'heure murale reçue sans convertir son décalage.
             if ($scheduledAt !== null) {
-                $fresh->scheduled_at = CarbonImmutable::instance($scheduledAt)->setTimezone(config('app.timezone'));
+                $fresh->scheduled_at = MaintenanceRequest::scheduledInstant($scheduledAt);
                 $scheduleChanged = $fresh->isDirty('scheduled_at');
             }
             $fresh->save();
