@@ -2,8 +2,13 @@ import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 
 import { cn } from '@/lib/utils';
 
-type WarningBannerProps = ComponentPropsWithoutRef<'div'> & {
+type WarningBannerProps = Omit<ComponentPropsWithoutRef<'div'>, 'title'> & {
   icon?: ReactNode;
+  /**
+   * TCK-2688 — le titre en gras de la maquette, au-dessus du texte (`children`). Ce n'est PAS
+   * l'attribut HTML `title` (une infobulle), retiré du type pour que les deux ne se confondent pas.
+   */
+  titre?: ReactNode;
 };
 
 /**
@@ -46,20 +51,44 @@ type WarningBannerProps = ComponentPropsWithoutRef<'div'> & {
  * chaque re-rendu, ce qui est pire que le silence. Un appelant dont l'avertissement APPARAÎT en
  * réaction à une action passe `role="alert"` explicitement.
  */
-function WarningBanner({ className, children, icon, ...props }: WarningBannerProps) {
+function WarningBanner({ className, children, icon, titre, ...props }: WarningBannerProps) {
   return (
     <div
       className={cn(
         'flex items-start gap-3 rounded-xl bg-warning/10 px-4 py-3 text-sm text-warning ring-1 ring-warning/20',
+        PORTEE_APP,
         className,
       )}
       {...props}
     >
-      {icon ? <span className="mt-0.5 shrink-0">{icon}</span> : null}
-      <div className="min-w-0 flex-1">{children}</div>
+      {icon ? (
+        <span className="mt-0.5 shrink-0 portee-app:mt-0 portee-app:text-warning portee-app:[&_svg]:size-5">
+          {icon}
+        </span>
+      ) : null}
+      <div className="min-w-0 flex-1">
+        {titre ? (
+          <>
+            <p className="font-semibold portee-app:text-corps">{titre}</p>
+            <div className="mt-1">{children}</div>
+          </>
+        ) : (
+          children
+        )}
+      </div>
     </div>
   );
 }
+
+/**
+ * TCK-2688 (ADR-0106) — LE BANDEAU DE LA MAQUETTE, sous la portée `/app` : un vrai bord de 1 px à
+ * `warning/30` (l'anneau à 20 % retiré), `p-4`, et l'encre PRINCIPALE — l'icône seule reste ocre.
+ * Mesuré (WCAG 2.1, `warning-banner.test.tsx`) : `--foreground` sur warning/10 aplati sur `--card`
+ * rend plus de 13:1 en clair, contre 5,42:1 pour l'ocre d'avant ; l'icône ocre garde ses 5,42:1
+ * (≥ 3:1, WCAG 1.4.11). Hors portée (super-admin, réservation, connexion), rien ne change.
+ */
+const PORTEE_APP =
+  'portee-app:border portee-app:border-warning/30 portee-app:p-4 portee-app:text-foreground portee-app:ring-0';
 
 export { WarningBanner };
 export type { WarningBannerProps };

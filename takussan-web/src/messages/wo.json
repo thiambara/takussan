@@ -71,7 +71,8 @@
       "unknownAgency": "Ajaas #{id}"
     },
     "search": {
-      "pending": "Mi ngi wut…"
+      "pending": "Mi ngi wut…",
+      "clear": "Effacer la recherche"
     },
     "pageHeader": {
       "breadcrumb": "Fil d'Ariane"

@@ -71,7 +71,8 @@
       "unknownAgency": "Agency #{id}"
     },
     "search": {
-      "pending": "Searching…"
+      "pending": "Searching…",
+      "clear": "Clear search"
     },
     "pageHeader": {
       "breadcrumb": "Breadcrumb"

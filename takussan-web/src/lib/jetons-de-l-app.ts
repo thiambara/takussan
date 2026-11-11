@@ -70,7 +70,7 @@ export const DENSITE_DE_L_APP = {
  * `bg-foreground` seul, la teinte de l'appelant l'emporte sur celle de la portée `/app`.
  */
 export const PRIMITIVES_DE_L_APP = {
-  spacing: ['avatar-28', 'avatar-32', 'avatar-36', 'avatar-40', 'avatar-44', 'avatar-48'],
+  spacing: ['avatar-28', 'avatar-32', 'avatar-36', 'avatar-40', 'avatar-44', 'avatar-48', 'panneau', 'toast'],
   text: ['avatar-28', 'avatar-32', 'avatar-36', 'avatar-40', 'avatar-44', 'avatar-48'],
   /** TCK-2690 — `controle-vide` : bord de la case vide, piste de l'interrupteur éteint. */
   color: ['fond-avatar', 'encre-avatar', 'controle-vide'],

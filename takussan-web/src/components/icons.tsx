@@ -37,6 +37,8 @@ export {
   Loader2,
   MoreHorizontal,
   Settings,
+  // TCK-2688 — l'action « Annuler » du toast sombre (maquette `app-demandes` a-3).
+  Undo2,
   // Property domain (used in navbar category strip)
   Building2,
 } from "lucide-react"

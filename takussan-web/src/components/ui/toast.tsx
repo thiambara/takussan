@@ -5,7 +5,7 @@ import { Toast as ToastPrimitive } from "@base-ui/react/toast"
 
 import { useTranslations } from "next-intl"
 
-import { X } from "@/components/icons"
+import { Check, CircleAlert, Info, TriangleAlert, X } from "@/components/icons"
 import { cn } from "@/lib/utils"
 
 /**
@@ -29,6 +29,26 @@ type ToastData = {
   action?: React.ReactNode
 }
 
+/**
+ * TCK-2688 — L'ACTION TEXTE du toast sombre (« Annuler » de la maquette `app-demandes` a-3) : à
+ * passer dans `data.action`. Graisse 500, encre principale à 80 % sur le fond sombre (ancêtre
+ * `.dark` du toast : ≥ 11:1), une icône facultative de 16 px avant le libellé ; 44 px d'appui au
+ * pouce par le pseudo-élément, sans grandir le toast.
+ */
+function ActionDuToast({ className, type = "button", ...props }: React.ComponentProps<"button">) {
+  return (
+    <button
+      type={type}
+      data-slot="toast-action"
+      className={cn(
+        "relative inline-flex items-center gap-1 rounded-sm font-medium text-foreground/80 outline-none transition-colors after:absolute after:-inset-x-2 after:-inset-y-3 after:content-[''] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-4 [&_svg]:flex-none",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
 function ToastProvider(props: ToastPrimitive.Provider.Props) {
   return <ToastPrimitive.Provider {...props} />
 }
@@ -38,66 +58,43 @@ function useToast() {
 }
 
 /**
- * Le ton du toast, sur les jetons du design system (TCK-384).
+ * TCK-2688 — LE TOAST SOMBRE EN BAS, sur TOUT le produit (décision D8 du porteur, 2026-11-10,
+ * ADR-0106 § 2 : un toast ne change pas de place selon la page). Maquette : `app-demandes` a-3,
+ * `app-entree-connexion`.
  *
  * ────────────────────────────────────────────────────────────────────────────────────────────
- * ⚠ POURQUOI LES VARIANTES `dark:` ONT DISPARU, ET POURQUOI CE N'EST PAS UNE PERTE
+ * LA SURFACE : `.dark` POSÉ SUR LE TOAST, PAS UNE COULEUR INVERSÉE À LA MAIN
  * ────────────────────────────────────────────────────────────────────────────────────────────
+ * La maquette écrit `bg-foreground text-background` : l'encre du thème clair en fond. Les TONS,
+ * eux, doivent alors prendre les valeurs du thème OPPOSÉ (un vert `--success` clair, #3f6b45, sur
+ * #1f1812 tomberait à 2,9:1). Plutôt que de recopier ces valeurs dans des jetons « inverses », le
+ * toast est une SURFACE sombre, comme la barre du super-admin : la classe `dark` sur sa racine fait
+ * résoudre à `--background`, `--foreground` et aux quatre tons leur valeur sombre. `bg-background
+ * text-foreground` y rend exactement `rgb(31, 24, 18)` / `rgb(252, 249, 243)` — la maquette.
  *
- * Les tons `success` et `warning` portaient SIX classes chacun : un triplet clair sur l'échelle
- * Tailwind, plus un triplet `dark:` sur la même échelle en échelon inverse. C'est la forme qu'on
- * écrit quand aucun jeton ne bascule tout seul — et `error`, dix lignes plus bas, montrait déjà
- * la forme qui n'en a pas besoin.
+ * ⚠ En thème sombre, le toast RESTE sombre (D8 : « sombre en bas partout ») : son fond égale alors
+ * celui de la page, d'où un anneau `border` (une ombre portée, sans effet sur la mise en page) sous
+ * `.dark` d'un ANCÊTRE seulement (`[.dark_&]`), absent du thème clair, que la maquette dessine.
  *
- * `--success` et `--warning` sont redéfinis dans `.dark` de `globals.css` (TCK-358 pour l'ocre,
- * TCK-381 pour le vert), donc `bg-success/10 text-success` bascule SEUL. Les douze classes
- * deviennent six, et le thème sombre cesse d'être une seconde table à tenir alignée à la main.
+ * Contrastes mesurés sur #1f1812 (WCAG 2.1, `toast-sombre-en-bas.tck-2688.test.tsx`) — une seule
+ * surface dans les deux thèmes :
+ *   texte `--foreground` #fcf9f3 ......... 16,6:1   description `--muted-foreground` ≥ 4,5:1
+ *   icône succès à l'encre du toast #fcf9f3 (la coche de la maquette `app-demandes` a-3) ;
+ *   attention #e0a458 · danger #ff7f7d · info #8fb2c8, que la maquette ne dessine pas : toutes ≥ 3:1 (1.4.11)
  *
- * Contrastes mesurés (WCAG 2.1, 2026-08-27) — l'aplat est à canal alpha, il se mesure donc
- * aplati sur `--card`, la surface sur laquelle le toast se pose :
- *
- *                 avant (échelle Tailwind)          après (jetons)
- *   succès clair  émeraude 900 sur 50 ... 9,14:1    #3f6b45 sur success/10 ... 5,36:1
- *   succès sombre émeraude 100 sur 950/40 13,98:1   #8fbf87 sur success/10 ... 6,26:1
- *   avert. clair  ambre 900 sur 50 ...... 8,73:1    #8a5410 sur warning/10 ... 5,42:1
- *   avert. sombre ambre 100 sur 950/40 .. 14,13:1   #e0a458 sur warning/10 ... 6,07:1
- *
- * ⚠ **Les quatre chiffres BAISSENT, et c'est écrit ici plutôt que tu.** Une échelle Tailwind
- * pousse le fond à l'extrême de sa rampe (`-50`, `-950`) et l'encre à l'autre : elle achète du
- * contraste en sortant de la famille chromatique du produit. Les quatre valeurs d'arrivée restent
- * au-dessus des 4,5:1 d'AA pour du texte normal, ce qui est le seuil qui s'applique — et le
- * bénéfice est ailleurs : `#ecfdf5` ne se retournait PAS sous `.dark`, il fallait le doubler.
- *
- * ⚠ **Le ton `error` n'est pas touché, délibérément.** Il ne portait aucune palette brute, et
- * l'aligner sur `/10` par symétrie ferait passer `--destructive` de 4,36:1 à 4,01:1 — sous AA.
- * *Une régression mesurée n'est pas un prix acceptable pour de la symétrie.*
- *
- * ────────────────────────────────────────────────────────────────────────────────────────────
- * ⚠ LE FOND EST OPAQUE (TCK-561) — le teint est MÉLANGÉ à `--card`, jamais laissé en alpha
- * ────────────────────────────────────────────────────────────────────────────────────────────
- *
- * Les contrastes ci-dessus se mesuraient « aplatis sur `--card` » — mais rien ne posait de
- * `--card` sous le toast : `bg-warning/10` est un aplat à 10 % d'opacité, et le viewport flotte
- * en `fixed` au-dessus de la page. Relevé du 2026-09-23 à 390 px (retour testeur, « Maximum 4
- * biens ») : fond `oklab(… / 0.1)` posé sur l'en-tête — le logo, la recherche et le bouton
- * Filtres se lisaient À TRAVERS le texte du toast.
- *
- * `color-mix(in srgb, <ton> N%, var(--card))` rend EXACTEMENT la couleur que les mesures
- * supposaient (la composition alpha du navigateur se fait en sRGB), mais opaque : les chiffres
- * du tableau deviennent vrais quel que soit ce qui défile dessous, et `--card` bascule sous
- * `.dark` comme les tons.
+ * ⚠ **Le fond reste OPAQUE (TCK-561)** : `bg-background` sans canal alpha, dans les deux thèmes
+ * (`toast-fond-opaque.test.tsx`). Les aplats teintés d'avant (`color-mix` du ton dans `--card`)
+ * sont retirés : le ton se dit par l'icône (coche à l'encre du toast, les autres en couleur) et le titre.
  */
-function kindClasses(kind: string | undefined) {
-  switch (kind) {
-    case "success":
-      return "border-success/30 bg-[color-mix(in_srgb,var(--success)_10%,var(--card))] text-success"
-    case "warning":
-      return "border-warning/30 bg-[color-mix(in_srgb,var(--warning)_10%,var(--card))] text-warning"
-    case "error":
-      return "border-destructive/30 bg-[color-mix(in_srgb,var(--destructive)_5%,var(--card))] text-destructive dark:bg-[color-mix(in_srgb,var(--destructive)_10%,var(--card))]"
-    default:
-      return "border-border bg-popover text-popover-foreground"
-  }
+const ICONE_DU_TON = {
+  success: { Icone: Check, encre: "text-foreground" },
+  warning: { Icone: TriangleAlert, encre: "text-warning" },
+  error: { Icone: CircleAlert, encre: "text-destructive" },
+  info: { Icone: Info, encre: "text-info" },
+} as const satisfies Record<ToastKind, { Icone: React.ComponentType<{ className?: string }>; encre: string }>
+
+function iconeDuTon(kind: string | undefined) {
+  return kind && kind in ICONE_DU_TON ? ICONE_DU_TON[kind as ToastKind] : null
 }
 
 /**
@@ -106,9 +103,14 @@ function kindClasses(kind: string | undefined) {
  *
  * ⚠ **`z-[1200]` : le toast est la couche du DESSUS** (TCK-561, vérification adverse). Il valait
  * `z-[100]` sous des listes, menus et popovers à 1100 et des calques Leaflet à 1000 : un avis levé
- * menu ouvert en haut à droite passait dessous. `toast-au-premier-plan.test.tsx` compare l'index
- * compilé au plus grand écrit dans `src/` et dans `leaflet.css` — une couche neuve plus haute le
- * fait rougir en nommant son fichier.
+ * menu ouvert passait dessous. `toast-au-premier-plan.test.tsx` compare l'index compilé au plus
+ * grand écrit dans `src/` et dans `leaflet.css` — une couche neuve plus haute le fait rougir en
+ * nommant son fichier.
+ *
+ * TCK-2688 — LA PLACE : en bas. Au téléphone, pleine largeur à 16 px des bords ; dès `sm`, 360 px
+ * fixes (`w-toast`) en bas à droite (`right-6` : 24 px, 21,6 dès `lg` comme la maquette à 1440).
+ * Le bas lit `--toast-bas` (`globals.css`) : 16 px au-dessus de la barre d'onglets de `/app` sous
+ * `md` et de celle du site public sous `lg`.
  */
 function Toaster({
   className,
@@ -121,45 +123,48 @@ function Toaster({
       <ToastPrimitive.Viewport
         data-slot="toaster"
         className={cn(
-          "fixed top-4 right-4 z-[1200] flex w-[calc(100vw-var(--spacing)*8)] max-w-sm flex-col gap-2 outline-none sm:top-6 sm:right-6",
+          "fixed inset-x-4 bottom-(--toast-bas) z-[1200] flex flex-col gap-2 outline-none sm:left-auto sm:right-6 sm:w-toast",
           className
         )}
         {...props}
       >
-        {toasts.map((toast) => (
-          <ToastPrimitive.Root
-            key={toast.id}
-            toast={toast}
-            className={cn(
-              "relative flex w-full flex-col gap-1 rounded-xl border p-4 pr-10 shadow-md outline-none",
-              "data-[starting-style]:translate-x-4 data-[starting-style]:opacity-0",
-              "data-[ending-style]:translate-x-4 data-[ending-style]:opacity-0",
-              "transition-[transform,opacity] duration-150",
-              kindClasses(toast.type)
-            )}
-          >
-            <ToastPrimitive.Title className="text-sm font-semibold leading-none" />
-            <ToastPrimitive.Description className="text-sm opacity-90" />
-            {toast.data?.action && (
-              <div className="mt-2 text-sm font-medium">
-                {toast.data.action}
-              </div>
-            )}
-            {/* 24 px dessinés, 44 px d'appui : le pseudo-élément déborde de 10 px de chaque côté
-                (relevé au navigateur le 2026-09-24 : la croix mesurait 24 × 24, sous le plancher
-                tactile). La racine n'a pas d'`overflow-hidden`, qui rognerait la zone. */}
-            <ToastPrimitive.Close
-              aria-label={t("close")}
-              className="absolute top-2 right-2 inline-flex size-6 items-center justify-center rounded-md opacity-60 outline-none transition-opacity after:absolute after:-inset-2.5 after:content-[''] hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring"
+        {toasts.map((toast) => {
+          const ton = iconeDuTon(toast.type)
+          return (
+            <ToastPrimitive.Root
+              key={toast.id}
+              toast={toast}
+              className={cn(
+                "dark relative flex min-h-12 w-full items-center gap-3 rounded-xl bg-background px-4 py-3 text-sm text-foreground shadow-lg outline-none [.dark_&]:ring-1 [.dark_&]:ring-border",
+                "data-[starting-style]:translate-y-2 data-[starting-style]:opacity-0",
+                "data-[ending-style]:translate-y-2 data-[ending-style]:opacity-0",
+                "transition-[transform,opacity] duration-150 motion-reduce:transition-none"
+              )}
             >
-              <X className="size-3.5" />
-            </ToastPrimitive.Close>
-          </ToastPrimitive.Root>
-        ))}
+              {ton ? <ton.Icone className={cn("size-5 flex-none", ton.encre)} aria-hidden="true" /> : null}
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <ToastPrimitive.Title className="font-medium" />
+                <ToastPrimitive.Description className="text-muted-foreground" />
+              </div>
+              {toast.data?.action ? (
+                <div className="flex-none font-medium">{toast.data.action}</div>
+              ) : null}
+              {/* 24 px dessinés, 44 px d'appui : le pseudo-élément déborde de 10 px de chaque côté
+                  (relevé au navigateur le 2026-09-24 : la croix mesurait 24 × 24, sous le plancher
+                  tactile). La racine n'a pas d'`overflow-hidden`, qui rognerait la zone. */}
+              <ToastPrimitive.Close
+                aria-label={t("close")}
+                className="relative -mr-1 inline-flex size-6 flex-none items-center justify-center rounded-md text-muted-foreground outline-none transition-colors after:absolute after:-inset-2.5 after:content-[''] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <X className="size-3.5" />
+              </ToastPrimitive.Close>
+            </ToastPrimitive.Root>
+          )
+        })}
       </ToastPrimitive.Viewport>
     </ToastPrimitive.Portal>
   )
 }
 
-export { ToastProvider, Toaster, useToast }
+export { ActionDuToast, ToastProvider, Toaster, useToast }
 export type { ToastKind }

@@ -71,7 +71,8 @@
       "unknownAgency": "Agence #{id}"
     },
     "search": {
-      "pending": "Recherche en cours…"
+      "pending": "Recherche en cours…",
+      "clear": "Effacer la recherche"
     },
     "pageHeader": {
       "breadcrumb": "Fil d'Ariane"

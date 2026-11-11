@@ -593,6 +593,21 @@ appelants la règlent (le repli de l'avatar, que `MenuDuCompte` repeint) ; un **
 « soi » de la maquette (`accent/15`) n'est pas repris : 4,31:1 sur `--background`, 3,68:1 sur `--card` en sombre, et
 l'accent reste réservé aux badges *featured*.
 
+### Les primitives existantes, lot 2 ([ADR-0106](adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), TCK-2688)
+
+Même mécanique que TCK-2687 (variante `portee-app:`, classes d'avant au caractère près hors portée,
+`src/components/ui/__tests__/primitives-existantes-tck-2688.test.tsx`), sauf le toast, qui change partout.
+
+| Primitive | Sous la portée `/app` |
+|---|---|
+| `PanneauDroit` (`ui/panneau-droit.tsx`, neuf) | **480 px fixes dès `xl`** (`w-panneau`, 30rem, hors de l'échelle ×0,9), `border-l`, ombre `panneau`, **sans voile ni modalité** (décision 2 a du porteur, 2026-11-10 : la page reste lisible et cliquable à côté ; `Échap` ferme, le focus revient au déclencheur ; un clic à côté ne ferme pas). **Sous `xl`, plein écran et modal** (ADR-0106 § 4 ; `aria-modal`, verrou TCK-551). En-tête `h-14 border-b pl-5 pr-2`, titre 17 px 600, fermer `size="icon"` ; corps `p-5` ; pied `flex justify-end gap-2 border-t px-5 py-3`. `SheetContent side="right"` est inchangé |
+| `DataTable` | en-tête `text-xs font-medium` en **casse normale**, sans interlettrage, sur `muted/40` (opaque quand il est collant) ; cellules `px-3 py-3` (densité `compact` inchangée) ; conteneur `border border-border` au lieu de l'anneau |
+| `WarningBanner` | `border border-warning/30 bg-warning/10 p-4`, **encre principale** (> 13:1), icône ocre de 20 px ; prop `titre` (600) au-dessus du texte, partout |
+| `ChoiceCard` | `min-h-16 px-3.5 py-3` centrée ; radio 20 px au bord 1 px `controle-vide` ; active : `border-primary`, anneau 3 px `primary/12`, fond de carte ; titre 15 px 600, sous-titre 13 px |
+| `RadioGroup`, `Radio` (`ui/radio-group.tsx`, neufs) | rond peint de 20 px (`size-5`), bord 1 px `controle-vide`, point `size-2.5 bg-primary` ; base-ui (flèches, arrêt de tabulation unique) ; la ligne est un `<label>` (`eslint.config.mjs` déclare `Radio`) |
+| `DebouncedSearchInput` | loupe au jeton de 18 px (`size-icone`, trait de la portée), texte à 12 + 18 + 8 px du bord, bouton « Effacer la recherche » (16 px dessinés, 44 d'appui) à la place de la croix native ; hauteur de l'échelle (44 / 36), contour `border-input` (ADR-0106 § 2 a) |
+| **Toast, partout** (décision D8) | **surface sombre** (`.dark` posé sur le toast : `#1f1812`, encre `#fcf9f3`, dans les deux thèmes), `rounded-xl min-h-12 px-4 shadow-lg`, ton dit par l'icône (succès : coche à l'encre du toast, comme la maquette ; attention, danger, info en couleur, ≥ 3:1) ; **en bas** : pleine largeur à 16 px au téléphone, 360 px (`w-toast`) à droite dès `sm` ; `--toast-bas` le pose 16 px au-dessus de la barre d'onglets de `/app` (sous `md`) et du site public (sous `lg`) — une barre d'action collante (TCK-2689) doit relever ce jeton ; action texte `ActionDuToast` |
+
 ### Les primitives neuves de la partie connectée ([ADR-0106](adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), TCK-2690)
 
 Quatre primitives que le produit n'avait pas, dessinées comme la maquette retenue. Elles n'ont aucun appelant d'avant :
@@ -601,7 +616,7 @@ leur migration relève des pages.
 
 | Primitive | Dessin | Contraste (WCAG 1.4.11, 3:1) |
 |---|---|---|
-| `FeuilleDuBas` (`ui/feuille-du-bas.tsx`) | voile `foreground/35` ; panneau `rounded-t-2xl bg-card`, 90 % de la hauteur au plus, `shadow-feuille` ; poignée 32 × 4 ; titre 17 px tronqué ; fermer 44 px ; corps `px-4 pb-4` ; pied `border-t px-4 py-3` ; zone sûre au pied, sinon au corps. **Dès `md`, dialogue centré** (`max-w-lg`, 460,8 px au bureau, sans poignée) : aucune maquette bureau ne dessine de feuille du bas | — |
+| `FeuilleDuBas` (`ui/feuille-du-bas.tsx`) | voile `foreground/35` ; panneau `rounded-t-2xl bg-card`, 90 % de la hauteur au plus, `shadow-feuille` ; poignée 32 × 4 ; titre 17 px tronqué ; fermer 44 px ; corps `px-4 pb-4` ; pied `border-t px-4 py-3` ; zone sûre au pied, sinon au corps. **Dès `md`, le panneau latéral droit** de `PanneauDroit` (480 px fixes, pleine hauteur, `border-l`, ombre `panneau`, en-tête `h-14`, corps `p-5`, pied à droite), **modal, voile compris** — décision du porteur du 2026-11-11 (TCK-2688), qui remplace le dialogue centré de TCK-2690 | — |
 | `Checkbox` (`ui/checkbox.tsx`) | **18 px**, rayon 5 px (`size-icone`, `rounded-case`, fixes) ; cochée `bg-primary` + coche 14 px au trait 2,5 ; mixte : la barre 10 × 2 de la maquette | bord vide `controle-vide` : `--input` en clair (3,59:1 sur `--card`, 3,04:1 sur `--muted`), `--muted-foreground` en sombre |
 | `Switch` (`ui/switch.tsx`) | piste **24 × 40** (`h-6 w-10 p-0.5`), pouce `size-5 bg-card shadow-sm` | allumé `--primary` (5,32:1) ; éteint `controle-vide` |
 | `Progress`, `ProgressSegments` (`ui/progress.tsx`) | rail `h-1.5 bg-muted` (`h-2` en grand), remplissage arrondi ; segments `h-1 gap-1.5` ; nom accessible exigé par le type | chaque ton contre le rail `--muted`, clair / sombre : `primary` 4,51 / 3,99, `success` 5,24 / 6,25, `warning` 5,31 / 6,03, `neutral` (`foreground/50` composé sur le rail) 3,23 / 4,37 |

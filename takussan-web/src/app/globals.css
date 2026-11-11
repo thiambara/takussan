@@ -365,6 +365,33 @@
   }
 }
 
+/* TCK-2688 (décision D8 du porteur, 2026-11-10) — LE BAS DU TOAST, sur TOUT le produit. Le toast est
+   en bas : 16 px du bord au téléphone, 24 px dès `sm` (21,6 dès `lg`, l'échelle du bureau : c'est
+   ce que la maquette rend à 1440). Une barre d'onglets le relève de sa hauteur, 16 px au-dessus
+   d'elle : celle de `/app` sous `md`, celle du site public sous `lg`.
+   ⚠ Sur `:root`, pas sur la coque : le viewport des toasts est rendu EN PORTAIL dans `body`, hors
+   de `[data-barre-onglets]` — le `--floating-dock-base` posé sur la coque ne l'atteint pas.
+   ⚠ Une barre d'action collante en bas de page (TCK-2689) doit relever CE jeton, sans quoi le toast
+   se pose dessus. Gardé par `toast-sombre-en-bas.tck-2688.test.tsx`. */
+:root {
+  --toast-bas: calc(var(--spacing) * 4);
+}
+@media (width >= 40rem) {
+  :root {
+    --toast-bas: calc(var(--spacing) * 6);
+  }
+}
+@media (width < 48rem) {
+  :root:has([data-barre-onglets]) {
+    --toast-bas: calc(var(--spacing) * 4 + var(--barre-onglets-hauteur));
+  }
+}
+@media (width < 64rem) {
+  :root:has([data-barre-onglets-publique]):not(:has(.takussan-carte-plein-ecran)) {
+    --toast-bas: calc(var(--spacing) * 4 + var(--barre-publique-hauteur));
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -1113,6 +1140,15 @@
 }
 .dark {
   --color-controle-vide: var(--muted-foreground);
+}
+
+/* TCK-2688 — DEUX LARGEURS EN `rem` FIXES, hors de l'échelle du bureau (la maquette les pose en px :
+   elles ne rétrécissent pas dès `lg`, où `w-120` rendrait 432 et `w-90` 324).
+   · `w-panneau` : le panneau latéral droit de fiche (`PanneauDroit`), 480 px dès `xl` ;
+   · `w-toast` : le toast au bureau, 360 px. */
+@theme {
+  --spacing-panneau: 30rem;
+  --spacing-toast: 22.5rem;
 }
 /* primitives-de-l-app:fin */
 

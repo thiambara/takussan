@@ -139,4 +139,96 @@ L'en-tête collant reste (comportement) ; seul son aspect suit la maquette.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Reprise du 2026-11-11 (terrain-4, après le plantage de la machine)
+
+Le premier implémenteur (terrain-3) est mort au milieu du ticket ; ses passations dans `/private/tmp`
+sont perdues. État relevé dans l'arbre à la reprise, jamais vérifié : `toast.tsx` (sombre en bas,
+`--toast-bas` dans `globals.css`), `DataTable`, `WarningBanner` (prop `titre`), `ChoiceCard`,
+`DebouncedSearchInput` (bouton « effacer », clé `console.search.clear`) sous `portee-app:` ;
+primitives neuves `ui/panneau-droit.tsx` et `ui/radio-group.tsx` ; jetons `w-panneau` (30rem) et
+`w-toast` (22,5rem). Manquaient : les tests cités par les commentaires, la vitrine, l'entrée
+design-sync, la feuille du bas en panneau latéral dès `md` (décision du porteur du 2026-11-11).
+
+### Ce qui est livré (terrain-4, 2026-11-11)
+
+- **Panneau latéral** : une primitive NEUVE, `ui/panneau-droit.tsx` (`PanneauDroit`, le nom de la maquette),
+  et non une taille de `SheetContent side="right"` comme l'écrivait le delta — écart assumé : les onze
+  appelants de `side="right"` (288 px, voile, modal) restent inchangés, les pages adoptent le panneau
+  avec leurs tickets. Dès `xl` : 480 px (`w-panneau`, 30rem fixes), sans voile, NON modal
+  (`modal={false}`, `disablePointerDismissal` : un clic dans la page ne le ferme pas), `Échap` ferme
+  et rend le focus. Sous `xl` (ADR-0106 § 4) : plein écran, `modal="trap-focus"` + verrou TCK-551.
+  ⚠ Les pages qui l'ouvrent dès `xl` doivent réserver sa largeur à droite (le panneau recouvre les
+  480 px de droite du contenu, comme dans la maquette) : à leurs tickets.
+- **`aria-modal`** (point porteur n° 1) : base-ui 1.7 ne le pose jamais sur `Dialog.Popup`. Posé ici sur
+  `PanneauDroit` (en plein écran seulement) et `FeuilleDuBas` (toujours). `Dialog`/`SheetContent` ne
+  sont pas touchés : à TCK-2689/TCK-2691 ou à un ticket à part.
+- **Feuille du bas dès `md`** (décision du porteur du 2026-11-11) : la géométrie et l'habit de
+  `PanneauDroit` (480 px à droite, en-tête `h-14`, corps `p-5`, pied à droite), **en restant modale,
+  voile compris** — la décision nomme la place, pas la modalité ; à confirmer au point porteur n° 1.
+  Le régime de verrou par le pointeur (TCK-2690) est inchangé.
+- **Toast** : sombre en bas partout ; le fond est une surface `.dark` (les tons prennent leur valeur
+  sombre, ≥ 3:1) ; le ton se dit par l'icône : la coche du succès à l'encre du toast, comme la maquette
+  (`app-demandes` a-3) ; attention, danger et info, que la maquette ne dessine pas, en couleur (≥ 3:1).
+  Une coche verte reste une option à proposer au porteur (point n° 1).
+  `ActionDuToast` (neuf, exporté de `ui/toast.tsx`) dessine l'action texte « Annuler » ; `Undo2`
+  rejoint `components/icons.tsx`. Seul appelant de `data.action` : `PropertyWizard` (bouton contour,
+  qui se relit sur la surface `.dark`).
+- **Radio** : primitive neuve `ui/radio-group.tsx` (base-ui), aucun appelant ; `ChoiceCard` garde son
+  input natif `sr-only` et prend la maquette sous la portée.
+- **Vitrine** : une frontière de dictionnaire `playground/vitrine/layout.tsx` sert `console` à la seule
+  vitrine (sinon le champ de recherche aurait fait servir `console` à tout le site public) ; la table
+  `namespaces.json` ne reçoit que cette entrée (le `--update` relevait aussi d'autres plafonds dérivés
+  des clés des autres tickets : non repris). Les déclencheurs des deux feuilles de TCK-2690 étaient des
+  boutons VIDES dans la vitrine : libellés ajoutés.
+
+### Prémisses qui diffèrent
+
+- AC6 « à 24 px du bas et de la droite » à 1440 : la référence gelée `app-demandes/a-3-bureau-1440.json`
+  rend **21,6 px** (`bottom-6 right-6` sur l'échelle ×0,9), 360 × 43,2, rayon 12,6. Le code suit la référence.
+  Au téléphone, la référence : 16 px des bords, 80 px du bas (16 + barre de 64 de la maquette).
+- Le delta dit « `Sheet` : taille large » : livré en primitive à part (ci-dessus).
+- Radio « 20 px » : `size-5`, donc 18 px dès `lg` comme la maquette le rend à 1440 (ses classes Tailwind
+  suivent l'échelle) ; la case à cocher de TCK-2690 reste 18 px fixes.
+- `DataTable` : la `className` d'une colonne s'applique aussi à son `<th>` ; sous la portée, la graisse
+  de l'en-tête (`portee-app:font-medium`) l'emporte sur un `font-semibold` de colonne (5 appelants) —
+  voulu : l'en-tête suit la maquette.
+- `sitemap-couverture.test.ts` rougit en LOCAL (24 pages au lieu de 23) : la page des maquettes, non
+  suivie par git. Vert sur un arbre sans maquettes.
+
+### Pour TCK-2689 / TCK-2691 (points du porteur n° 1 non touchés ici)
+
+Texte des boutons à 12,6 px dans 44 px au pointeur grossier en `lg` ; 4 composants qui appellent
+`buttonVariants` sans `cn()` ; avatar « soi » ; `ProfileHeader` ; `aria-modal` de `Dialog`/`SheetContent` ;
+`DocumentShareDialog` en 11 px ; l'enregistrement des couleurs dans `cn` sans test. Une barre d'action
+collante (TCK-2689) doit relever `--toast-bas`.
+
+### Tests (TCK-2688)
+
+`src/components/ui/__tests__/primitives-existantes-tck-2688.test.tsx` : 36 tests, 15 ablations faites
+une à une (toutes rouges, fichier restauré au md5 près). Deux pièges payés :
+
+- **Changement de régime** : un panneau ouvert à 1024 (plein écran, modal) puis une fenêtre élargie à
+  1440 perd `aria-modal`, l'inertie et le verrou — testé par un `matchMedia` contrôlable sous `act`.
+- **Focus initial asynchrone** : base-ui pose le focus dans le panneau une image après l'ouverture ;
+  un clic à côté fait AVANT voyait le focus repris (test intermittent). Le test attend que le focus
+  soit entré, clique, puis vérifie qu'il ne revient pas.
+
+Le toast (z 1200) passe AU-DESSUS de la pastille flottante Filtres/Liste du site public, sans la
+contourner : à trancher au point porteur n° 1 si on préfère le lever au-dessus d'elle.
+
+### Mesures au navigateur (2026-11-11, `next dev`, Chrome par le MCP, une passe sous verrou)
+
+| AC | Mesuré | Résultat |
+|---|---|---|
+| AC1 | vitrine 1440 : panneau 480 × 900 à x = 960, régime `lateral`, sans `aria-modal`, sans voile, bord gauche 1 px sable, ombre `-24px 0 48px -32px`, en-tête 50,4, titre 17 px 600, fermer 32,4, corps 18 px, focus entré, `body` non verrouillé ; 390 : 390 × 844, `plein-ecran`, `aria-modal="true"`, `body` fixé puis rendu, fermer 44 | vert |
+| AC1 bis | feuille du bas à 1440 : 480 × 900 à x = 960, rayon 0, bord gauche 1 px, ombre `panneau`, voile, `aria-modal="true"`, en-tête 50,4, poignée masquée ; 390 : feuille du bas d'avant (rayon 18, poignée) | vert |
+| AC2 | vitrine 1440 : `th` casse `none`, 500, interlettrage `normal`, 10,8 px, padding 10,8 / 9 ; `thead` muted à 0,4 ; `td` 10,8 / 10,8 ; conteneur bord 1 px, sans anneau | vert |
+| AC3 | encre `rgb(31, 24, 18)`, bord 1 px warning à 0,3, `p-4` (14,4 au bureau, 16 au téléphone), titre 15 px 600, icône 18 (bureau) / 20 (téléphone) | vert |
+| AC4 | radio 20 × 20 à 390 (18 × 18 à 1440, échelle), bord 1 px `rgb(145, 134, 114)` ; carte active fond `rgb(255, 255, 255)`, anneau 3 px primary/12, titre 15 px 600 ; focus clavier sur la carte active : l'anneau plein `--ring` de 3 px l'emporte (WCAG 2.4.7) | vert (AC4 « 20 px » vaut à 390) |
+| AC5 | 390 : 44 px, texte 16 px, loupe 18 px, trait 1,75, à 12 px du bord, texte à 38 px ; 1440 : 32,4 px, loupe 18, trait 1,5, à 10,8 ; croix 16 (14,4 au bureau), appui de 44 | vert |
+| AC6 | `/app/leases` (admin d'agence) à 390 : bas de la zone des toasts à y = 772, haut de la barre d'onglets « Accès rapide » à 788 → **16 px** ; à 1440 : 21,6 px du bas et de la droite, 360 px de large ; toast levé sur la vitrine à 1440 : 1058,4 / 835,2 / 360 × 43,2, fond `rgb(31, 24, 18)`, rayon 12,6 — identique à la référence gelée ; `/fr/properties` à 390 : zone à y = 768, barre publique à 784 → 16 px | vert (la position mesurée est celle de la zone, vide sur `/app/leases` : aucun geste de la page n'y lève un toast sans écrire) |
+| AC7 | `/super-admin/users` à 1440 : styles calculés du cadre, `thead`, `th`, `td`, ligne relevés avec le `DataTable.tsx` du ticket, puis avec celui de `HEAD` (`git show HEAD:…`, servi par `next dev`, classes `portee-app:` absentes vérifiées), restauré par `cp` (md5 e9c39ce0… identique) : **zéro écart** | vert à 1440 ; 390 non relevé (même mécanique) |
+| AC7 onboarding | `/onboarding/intention` et `/onboarding/host` redirigent les comptes de démo fournis (agent, admin) vers `/app` : non relevé au navigateur ; le test « hors portée » de `ChoiceCard` compare les classes au caractère près | non mesuré au navigateur |
+
+Débord horizontal du document : 0 à 390 et à 1440 (vitrine, `/app/leases`).
+

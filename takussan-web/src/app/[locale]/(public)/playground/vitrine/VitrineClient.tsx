@@ -1,16 +1,21 @@
 'use client';
 
-import { Bell, BellOff, Check, Home, MoreHorizontal, Plus, Search } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { Bell, BellOff, Check, Home, MoreHorizontal, Plus, Search, TriangleAlert, Undo2 } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
 
 import { PageHeader, StatCard, StatusBadge, type StatusTone } from '@/components/console';
+import { DataTable } from '@/components/console/DataTable';
+import { DebouncedSearchInput } from '@/components/console/DebouncedSearchInput';
 import { EmptyState } from '@/components/feedback';
 import { Avatar, AvatarFallback, type TailleAvatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ChoiceCard } from '@/components/ui/choice-card';
 import { FeuilleDuBas } from '@/components/ui/feuille-du-bas';
+import { PanneauDroit } from '@/components/ui/panneau-droit';
 import { Progress, ProgressSegments, type TonDeJauge } from '@/components/ui/progress';
+import { Radio, RadioGroup } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DatePicker } from '@/components/ui/date-picker';
@@ -20,6 +25,8 @@ import { fieldDensityScope } from '@/components/ui/field-density';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { ActionDuToast, useToast } from '@/components/ui/toast';
+import { WarningBanner } from '@/components/ui/warning-banner';
 import { TAILLES_DE_TEXTE, type TailleDeTexte } from '@/lib/jetons-de-l-app';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 
@@ -83,6 +90,20 @@ const TONS_DE_JAUGE: ReadonlyArray<readonly [TonDeJauge, number, string]> = [
 /** TCK-2690 — un titre de 80 caractères : la feuille le tronque sur une ligne (AC1). */
 const TITRE_LONG = 'Relance du loyer de novembre pour l’appartement F4 de Sacré-Cœur, rue 10, bloc B';
 
+/** TCK-2688 — les lignes du tableau de la vitrine (maquette `app-equipe` a). */
+interface MembreDeVitrine {
+  readonly id: number;
+  readonly nom: string;
+  readonly role: string;
+  readonly ton: StatusTone;
+  readonly statut: string;
+}
+const MEMBRES: readonly MembreDeVitrine[] = [
+  { id: 1, nom: 'Awa Ndiaye', role: 'Administratrice', ton: 'success', statut: 'Active' },
+  { id: 2, nom: 'Moussa Diop', role: 'Agent', ton: 'attention', statut: 'Absent' },
+  { id: 3, nom: 'Fatou Sarr', role: 'Agent', ton: 'neutral', statut: 'Invitée' },
+];
+
 /** TCK-2687 — les six tailles d'avatar en px, puis les trois d'avant. */
 const TAILLES_AVATAR: readonly TailleAvatar[] = ['28', '32', '36', '40', '44', '48', 'sm', 'default', 'lg'];
 
@@ -120,6 +141,157 @@ function Champs({ regime }: { readonly regime: string }) {
       <DateTimePicker data-testid={`${regime}-date-heure`} value="" onValueChange={() => {}} aria-label={`Date et heure ${regime}`} />
       <Textarea data-epreuve={`${regime}-textarea`} aria-label={`Zone de texte ${regime}`} placeholder="Note interne" className="sm:col-span-2" />
     </div>
+  );
+}
+
+/**
+ * TCK-2688 — les primitives existantes du lot 2, chacune dans l'état que le ticket fait mesurer :
+ * panneau ouvert, tableau trié, bandeau avec titre, radio et carte de choix cochés, recherche
+ * remplie, toast sombre avec son action.
+ */
+function PrimitivesDuLot2() {
+  const toast = useToast();
+  const [tri, setTri] = useState('name');
+  const [recherche, setRecherche] = useState('Sacré-Cœur');
+  const [choix, setChoix] = useState('bailleur');
+  const lignes = [...MEMBRES].sort((a, b) => (tri === '-name' ? b.nom.localeCompare(a.nom) : a.nom.localeCompare(b.nom)));
+
+  return (
+    <>
+      <Section titre="Panneau latéral droit (480 px dès xl ; plein écran dessous ; sans voile, non modal dès xl)">
+        <PanneauDroit
+          data-epreuve="panneau-droit"
+          titre="Fiche du membre"
+          declencheur={
+            <Button variant="outline" data-epreuve="ouvrir-panneau-droit">
+              Ouvrir le panneau
+            </Button>
+          }
+          pied={
+            <>
+              <Button variant="outline">Suspendre l’accès</Button>
+              <Button>Déclarer une absence</Button>
+            </>
+          }
+        >
+          <div className="space-y-3 text-ui text-encre-douce">
+            {Array.from({ length: 30 }, (_, i) => (
+              <p key={i}>Paragraphe {i + 1} : le corps défile, l’en-tête et le pied restent en place.</p>
+            ))}
+          </div>
+        </PanneauDroit>
+      </Section>
+
+      <Section titre="Tableau (en-tête en casse normale, conteneur bordé)">
+        <DataTable<MembreDeVitrine>
+          data-testid="vitrine-tableau"
+          caption="Membres de l’agence"
+          rows={lignes}
+          rowKey={(m) => m.id}
+          sort={{ value: tri, onChange: setTri }}
+          columns={[
+            { id: 'nom', header: 'Nom', sortKey: 'name', sortLabel: 'Trier par nom', className: 'font-medium text-foreground', cell: (m) => m.nom },
+            { id: 'role', header: 'Rôle', cell: (m) => m.role },
+            { id: 'statut', header: 'Statut', cell: (m) => <StatusBadge tone={m.ton} label={m.statut} /> },
+            {
+              id: 'actions',
+              header: 'Actions',
+              headerSrOnly: true,
+              align: 'end',
+              cell: (m) => (
+                <Button size="icon-sm" variant="ghost" aria-label={`Actions pour ${m.nom}`}>
+                  <MoreHorizontal aria-hidden />
+                </Button>
+              ),
+            },
+          ]}
+        />
+      </Section>
+
+      <Section titre="Bandeau d’avertissement">
+        <WarningBanner data-epreuve="bandeau-titre" icon={<TriangleAlert aria-hidden="true" />} titre="Pièce d’identité expirée">
+          Le bail ne pourra pas être signé tant que le locataire n’a pas déposé une pièce valide.
+        </WarningBanner>
+        <WarningBanner data-epreuve="bandeau-simple" icon={<TriangleAlert aria-hidden="true" />}>
+          Deux échéances restent à rapprocher ce mois-ci.
+        </WarningBanner>
+      </Section>
+
+      <Section titre="Radio et carte de choix">
+        <RadioGroup defaultValue="mois" aria-label="Périodicité du loyer" className="max-w-sm">
+          {[
+            ['mois', 'Mensuel'],
+            ['trimestre', 'Trimestriel'],
+            ['an', 'Annuel'],
+          ].map(([valeur, libelle]) => (
+            <label key={valeur} className="flex min-h-11 items-center gap-3 text-corps">
+              <Radio value={valeur} data-epreuve={`radio-${valeur}`} />
+              {libelle}
+            </label>
+          ))}
+        </RadioGroup>
+        <div role="radiogroup" aria-label="Vous êtes" className="grid max-w-md gap-3">
+          <ChoiceCard
+            name="vitrine-choix"
+            value="bailleur"
+            checked={choix === 'bailleur'}
+            onSelect={setChoix}
+            title="Bailleur"
+            description="Vous confiez un bien à une agence."
+          />
+          <ChoiceCard
+            name="vitrine-choix"
+            value="agence"
+            checked={choix === 'agence'}
+            onSelect={setChoix}
+            title="Agence"
+            description="Vous gérez les biens de vos bailleurs."
+          />
+        </div>
+      </Section>
+
+      <Section titre="Champ de recherche (rempli)">
+        <DebouncedSearchInput
+          className="max-w-sm"
+          value={recherche}
+          onCommit={setRecherche}
+          placeholder="Rechercher un bien"
+          aria-label="Rechercher un bien"
+        />
+      </Section>
+
+      <Section titre="Toast (sombre, en bas, partout)">
+        <div className="flex flex-wrap gap-3">
+          <Button
+            variant="outline"
+            data-epreuve="lever-toast"
+            onClick={() =>
+              toast.add({
+                title: 'Demande traitée.',
+                type: 'success',
+                timeout: 0,
+                data: {
+                  action: (
+                    <ActionDuToast>
+                      <Undo2 aria-hidden="true" />
+                      Annuler
+                    </ActionDuToast>
+                  ),
+                },
+              })
+            }
+          >
+            Lever un toast avec action
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => toast.add({ title: 'Échec de l’envoi', description: 'Vérifiez votre connexion.', type: 'error' })}
+          >
+            Lever un toast d’erreur
+          </Button>
+        </div>
+      </Section>
+    </>
   );
 }
 
@@ -235,14 +407,18 @@ export function VitrineClient() {
       </Section>
 
       {/* TCK-2690 — les quatre primitives neuves. La feuille du bas ne s'ouvre EN FEUILLE que sous
-          `md` : dès `md`, aucune maquette bureau n'en dessine, et le même contenu s'ouvre en
-          dialogue centré (`max-w-lg` : 460,8 px au bureau), en-tête et pied compris. */}
-      <Section titre="Feuille du bas (sous md ; dialogue centré dès md)">
+          `md` : dès `md`, aucune maquette bureau n'en dessine, et le même contenu s'ouvre en panneau
+          latéral droit de 480 px, modal (décision du porteur du 2026-11-11, TCK-2688). */}
+      <Section titre="Feuille du bas (sous md ; panneau latéral modal dès md)">
         <div className="flex flex-wrap gap-3">
           <FeuilleDuBas
             data-epreuve="feuille-compte"
             titre="Mon compte"
-            declencheur={<Button variant="outline" data-epreuve="ouvrir-feuille-compte" />}
+            declencheur={
+              <Button variant="outline" data-epreuve="ouvrir-feuille-compte">
+                Mon compte
+              </Button>
+            }
           >
             <ul className="divide-y divide-border">
               {['Mon profil', 'Préférences', 'Changer d’espace', 'Se déconnecter'].map((ligne) => (
@@ -255,7 +431,11 @@ export function VitrineClient() {
           <FeuilleDuBas
             data-epreuve="feuille-longue"
             titre={TITRE_LONG}
-            declencheur={<Button variant="outline" data-epreuve="ouvrir-feuille-longue" />}
+            declencheur={
+              <Button variant="outline" data-epreuve="ouvrir-feuille-longue">
+                Titre long et action
+              </Button>
+            }
             pied={
               <Button size="xl" className="w-full" data-epreuve="feuille-action">
                 Envoyer la relance
@@ -274,6 +454,8 @@ export function VitrineClient() {
           avec une action collante.
         </p>
       </Section>
+
+      <PrimitivesDuLot2 />
 
       <Section titre="Cases à cocher (la ligne est la cible)">
         <div className="max-w-sm divide-y divide-border rounded-xl border border-border bg-card">

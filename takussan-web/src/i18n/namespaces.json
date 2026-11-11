@@ -269,6 +269,9 @@
       "publicProfile",
       "recentlyViewed"
     ],
+    "[locale]/(public)/playground/vitrine": [
+      "console"
+    ],
     "[locale]/(public)/properties/(liste)": [
       "map"
     ]
@@ -318,6 +321,7 @@
     "[locale]/(public)/notifications": 28,
     "[locale]/(public)/search-alerts": 28,
     "[locale]/(public)/properties/[slug]": 28,
+    "[locale]/(public)/playground/vitrine": 26,
     "[locale]/(public)/properties/(liste)": 27
   }
 }

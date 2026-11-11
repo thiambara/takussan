@@ -19,6 +19,7 @@
     "../../docs/design-guidelines.md"
   ],
   "componentSrcMap": {
+    "ActionDuToast": null,
     "AvatarBadge": null,
     "AvatarFallback": null,
     "AvatarGroup": null,
@@ -54,6 +55,7 @@
     "PopoverContent": null,
     "PopoverTrigger": null,
     "ProgressSegments": null,
+    "Radio": null,
     "SelectContent": null,
     "SelectGroup": null,
     "SelectItem": null,

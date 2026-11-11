@@ -22,10 +22,14 @@ import { cn } from "@/lib/utils"
  * du bas (`env(safe-area-inset-bottom)`, absente de la maquette) s'ajoute au pied s'il existe, au
  * corps sinon — jamais aux deux.
  *
- * **Dès `md`, ce n'est plus une feuille** : aucune maquette bureau n'en dessine. Le même contenu
- * s'ouvre en dialogue centré (`max-w-lg rounded-2xl`, sans poignée : 460,8 px et coins de 16,2 px au
- * bureau, sur l'échelle ×0,9), qui garde l'en-tête et le pied. Le panneau latéral de 480 px est une
- * autre primitive (TCK-2688).
+ * **Dès `md`, ce n'est plus une feuille : c'est le panneau latéral droit** (décision du porteur du
+ * 2026-11-11, TCK-2688 — « sur grand écran, la feuille du bas en panneau latéral », au lieu du
+ * dialogue centré de TCK-2690). Il prend la géométrie et l'habit de `PanneauDroit` : 480 px fixes
+ * (`w-panneau`, bornés à la fenêtre), pleine hauteur à droite, `border-l`, ombre `panneau`, en-tête
+ * `h-14 border-b pl-5 pr-2`, corps `p-5`, pied `flex justify-end gap-2 border-t px-5 py-3`, sans
+ * poignée ni coins. Il RESTE MODAL, voile compris : la décision nomme la place, pas la modalité, et
+ * une feuille porte une tâche à finir (`aria-modal`, focus piégé, `Échap` et le voile ferment). Le
+ * panneau NON modal de fiche est `PanneauDroit`.
  *
  * ⚠ **`SheetContent side="bottom"` n'est PAS touché** : les huit feuilles du bas existantes (sept
  * sur le site public) le complètent chacune à sa façon et gardent leur rendu. Cette primitive
@@ -86,12 +90,16 @@ function FeuilleDuBas({
         <SheetOverlay className="bg-foreground/35" />
         <DialogPrimitive.Popup
           data-slot="feuille-du-bas"
+          // base-ui ne pose pas `aria-modal` : sans lui, un lecteur d'écran peut sortir du dialogue
+          // en navigation de lecture (point porteur n° 1, TCK-2688).
+          aria-modal="true"
           className={cn(
             "fixed z-50 flex flex-col bg-card text-card-foreground shadow-feuille outline-none duration-200",
             "inset-x-0 bottom-0 max-h-[90dvh] rounded-t-2xl",
             "data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 motion-reduce:data-open:animate-none motion-reduce:data-closed:animate-none",
             "max-md:data-open:slide-in-from-bottom max-md:data-closed:slide-out-to-bottom",
-            "md:inset-x-auto md:bottom-auto md:top-1/2 md:left-1/2 md:w-full md:max-w-lg md:-translate-x-1/2 md:-translate-y-1/2 md:max-h-[calc(100dvh-var(--spacing)*16)] md:rounded-2xl md:data-open:zoom-in-95 md:data-closed:zoom-out-95",
+            // TCK-2688 — dès md, le panneau latéral droit (cf. `PanneauDroit`), modal.
+            "md:inset-x-auto md:inset-y-0 md:right-0 md:max-h-none md:w-panneau md:max-w-full md:rounded-none md:border-l md:border-border md:shadow-panneau md:data-open:slide-in-from-right md:data-closed:slide-out-to-right",
             className
           )}
           {...props}
@@ -101,7 +109,10 @@ function FeuilleDuBas({
             aria-hidden="true"
             className="mx-auto mt-2 h-1 w-8 flex-none rounded-full bg-border md:hidden"
           />
-          <div data-slot="feuille-du-bas-en-tete" className="flex flex-none items-center gap-2 py-1 pr-1 pl-4 md:pt-2">
+          <div
+            data-slot="feuille-du-bas-en-tete"
+            className="flex flex-none items-center gap-2 py-1 pr-1 pl-4 md:h-14 md:border-b md:border-border md:py-0 md:pr-2 md:pl-5"
+          >
             <SheetTitle className="min-w-0 flex-1 truncate text-titre-court font-semibold">{titre}</SheetTitle>
             <SheetClose
               data-slot="feuille-du-bas-fermer"
@@ -113,7 +124,7 @@ function FeuilleDuBas({
           <div
             data-slot="feuille-du-bas-corps"
             className={cn(
-              "min-h-0 flex-1 overflow-y-auto overscroll-contain px-4",
+              "min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 md:p-5",
               pied ? "pb-4" : "pb-[calc(var(--spacing)*4+env(safe-area-inset-bottom))]"
             )}
           >
@@ -122,7 +133,7 @@ function FeuilleDuBas({
           {pied ? (
             <div
               data-slot="feuille-du-bas-pied"
-              className="flex-none border-t border-border px-4 pt-3 pb-[calc(var(--spacing)*3+env(safe-area-inset-bottom))]"
+              className="flex-none border-t border-border px-4 pt-3 pb-[calc(var(--spacing)*3+env(safe-area-inset-bottom))] md:flex md:justify-end md:gap-2 md:px-5 md:py-3"
             >
               {pied}
             </div>
