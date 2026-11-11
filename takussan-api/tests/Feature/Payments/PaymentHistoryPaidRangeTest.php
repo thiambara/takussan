@@ -109,12 +109,15 @@ class PaymentHistoryPaidRangeTest extends ApiTestCase
         $fin = $this->echeance(10_000, PaymentStatus::Paid, '2026-10-31 23:30:00', '2026-10');
         $debut = $this->echeance(20_000, PaymentStatus::Paid, '2026-11-01 00:10:00', '2026-11');
         $premier = $this->echeance(30_000, PaymentStatus::Paid, '2026-10-01 00:00:00', '2026-10');
+        // Minuit pile le 1er novembre : novembre SEUL — la borne haute est exclusive (contre-vérification de TCK-2659, P4).
+        $minuit = $this->echeance(40_000, PaymentStatus::Paid, '2026-11-01 00:00:00', '2026-11');
 
         $this->actingAsApi($this->agencyAdmin($this->agency));
 
         $octobre = $this->lignes('filter[paid_from]=2026-10-01&filter[paid_to]=2026-10-31');
         $this->assertSame(collect([$this->b->id, $fin->id, $premier->id])->sort()->values()->all(), $octobre);
         $this->assertContains($debut->id, $this->lignes('filter[paid_from]=2026-11-01&filter[paid_to]=2026-11-30'));
+        $this->assertContains($minuit->id, $this->lignes('filter[paid_from]=2026-11-01&filter[paid_to]=2026-11-30'));
         $this->assertSame([$fin->id], $this->lignes('filter[paid_from]=2026-10-31&filter[paid_to]=2026-10-31'));
     }
 
