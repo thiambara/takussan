@@ -13406,6 +13406,10 @@
         "requested_undated": {
           "title": "Laaj bu bees",
           "body": "Ñu def na laaj {reference} ngir {property}."
+        },
+        "recorded_on_behalf": {
+          "title": "Demande enregistrée en votre nom",
+          "body": "L'agence a enregistré la demande {reference} en votre nom pour {property}. Vous pouvez l'annuler depuis vos réservations."
         }
       },
       "account": {
@@ -13430,6 +13434,10 @@
         "reminder": {
           "title": "Fàttali : woote bu {agency}",
           "body": "Sa woote ngir bokk ci {agency} ngi lay xaar."
+        },
+        "renewal_requested": {
+          "title": "Nouveau lien demandé : {invitee}",
+          "body": "{invitee} demande un nouveau lien : son invitation en tant que {role} a expiré. Renvoyez-la : {url}"
         }
       },
       "visit": {
@@ -13832,6 +13840,12 @@
         "report_dismissed": {
           "title": "Signalement bi saytu nañu ko : {property}",
           "body": "Saytu nañu sa signalement ci yégle « {property} », waaye nanguñu ko."
+        }
+      },
+      "commission": {
+        "paid": {
+          "title": "{count, plural, one {Commission payée} other {# commissions payées}}",
+          "body": "{count, plural, one {Votre commission de {amount} vous a été payée.} other {# de vos commissions vous ont été payées, pour un total de {amount}.}}"
         }
       }
     },

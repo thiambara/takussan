@@ -148,6 +148,9 @@ return [
     ],
     'commission' => [
         'not_due' => 'Komisiyoŋ bu ñu war a fey rekk lañu mën a bind ne fey nañu ko walla neenal ko.',
+        // TCK-2661 — le solde groupé et la date du paiement.
+        'settle_mismatch' => 'Ces commissions ne peuvent pas être soldées ensemble : elles doivent toutes appartenir au même bénéficiaire, dans votre agence.',
+        'paid_before_earned' => 'La date de paiement précède la date à laquelle une commission a été acquise.',
     ],
     'credits' => [
         'insufficient' => 'Sa kredi doyul : des na la :missing kredi (sa kredi : :balance).',

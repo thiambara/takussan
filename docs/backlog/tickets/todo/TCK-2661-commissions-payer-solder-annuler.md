@@ -69,4 +69,86 @@ Re-mesuré sur `dev` le 2026-11-10 :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Prémisse re-mesurée (2026-11-11)** — conforme au « Contrat de données » : `mark-paid` et `cancel`
+sans corps ni `FormRequest`, `paid_at = now()`, ni moyen, ni référence, ni motif, ni agrégat, ni
+notification ; l'export des commissions exigeait `reports.export`. Le front
+(`takussan-web/src/lib/queries/commissions.ts`) poste `{}` sur les deux routes.
+
+**Transition jusqu'à TCK-2662 (décision du lead, 2026-11-11).** Le front d'aujourd'hui poste `{}` :
+un corps **vide** garde exactement le comportement d'avant ce ticket — `mark-paid` paie à l'instant,
+sans preuve ni notification ; `cancel` annule sans motif. Le trait
+`App\Http\Requests\Api\Commissions\TransitionalEmptyBody` (`getInputSource()->count() === 0`) rend
+`rules()` vide dans `MarkCommissionPaidRequest` et `CancelCommissionRequest`, et le contrôleur
+reprend l'ancien chemin ; chaque usage porte « TCK-2661 — transition, retiré par TCK-2662 ».
+L'autorisation n'est pas contournée (403 avant tout). Dès qu'un champ est posté, les règles
+complètes s'appliquent. Gardé par `CommissionTransitionalEmptyBodyTest` (4 tests) ; les tests d'AC1
+et d'AC4 postent donc un corps non vide. TCK-2662 porte dans son « Delta à produire » le retrait du
+trait, de ses usages, de la branche du contrôleur et de ce test. Ce ticket se fusionne donc seul.
+
+**Choix faits ici :**
+
+- **`paid_at`** se saisit comme un jour de Dakar (`Y-m-d`), facultatif. Aujourd'hui (ou absent) →
+  l'instant du geste ; un jour passé → le début de ce jour (comme la borne basse d'un filtre de date).
+  Le contrôle « ≥ `earned_at` » se juge **au jour** : une ligne née à 10 h se paie le jour même
+  (`after_or_equal` dans `MarkCommissionPaidRequest`, et sous verrou dans
+  `CommissionLedgerService::settle` → 422 `commission.paid_before_earned`).
+- **Moyens** : `PaymentMethod` restreint par `Rule::enum(...)->only(CommissionLedgerService::PAYMENT_METHODS)`
+  — `card`, `check`, `mobile_money` refusés.
+- **Solde groupé** : nouvelle `CommissionEntryPolicy::settle` (`payouts.approve` à l'agence du profil
+  actif, jamais pour soi) déléguée par `SettleCommissionsRequest::authorize()` : 403 avant 422.
+  Dans une transaction, lignes lues sous verrou par id croissant ; tout est jugé avant la première
+  écriture : ligne introuvable, d'une autre agence ou d'un autre bénéficiaire → une seule 422
+  `commission.settle_mismatch` (sans dire laquelle) ; une ligne non due → 422 `commission.not_due`.
+  `entry_ids` ≤ 100, `distinct`. Ajouté aux deux listes de `ProtectedActions` comme `markPaid`
+  (2FA d'agence et step-up).
+- **Point par bénéficiaire** : `GET /api/commissions/summary` (`CommissionSummaryService`, deux
+  requêtes : agrégats `FILTER` et `DISTINCT ON` pour le dernier paiement). Hors personnel, 403 avant
+  la validation (nouvelle `CommissionEntryPolicy::viewAny`). `year` exige quatre chiffres
+  (`date_format:Y` lisait « 26 »). Trié par `due_amount` décroissant. Les montants s'additionnent
+  sans conversion de devise, comme `meta.totals`.
+- **`include=lease.property`** : déclaré par `CommissionEntry::getAllowedQueryIncludes()` (et non
+  `$requestLoadable`, qui ne nomme que des relations du modèle) ; le bien est rendu **sous `lease`**,
+  `lease.property {id, title, quarter}`, `quarter` = `address.neighborhood` (chargé en une requête).
+- **Notification** : code `commission.paid` (`NotificationCode::CommissionPaid`, pas de classe
+  `Notification` : le dépôt émet par code, ADR-0032), paramètres `count` (pluriel) et `amount`
+  (total). Une par geste, émise par le **contrôleur** après la transaction
+  (`CommissionLedgerService::notifyPaid`) : `CommissionSeeder` rejoue `markPaid`/`cancel` par le
+  service, et un seeder écrit ses notifications sans les envoyer (`AppNotificationSeeder`). Cible
+  `commissions` → `/app/commissions`.
+  **Écart accepté par le lead (2026-11-11), aligné sur `payout.processed` — « selon ses
+  préférences de canal » n'est PAS tenu.** Comme
+  `payout.processed`, le code n'a pas d'interrupteur (`preferenceEvent()` null) : mesuré dans
+  `CodedNotification::via()`, cela donne la cloche + l'e-mail **toujours** (si le compte a un e-mail),
+  jamais de push ni de canal mobile, et aucune préférence ne s'applique. Tenir la phrase demande un
+  événement neuf (`commission_paid`) dans `PreferenceResolver::EVENTS` **et** dans la matrice des
+  préférences du front — hors de ce ticket.
+- **Export** : sans `reports.export`, le personnel exporte les commissions **bornées à ses propres
+  lignes** — y compris qui lit toute l'agence au relevé. Les autres exports financiers restent fermés.
+  `ExportReportingTypesTest::test_sans_reports_export_la_reponse_est_403` exclut désormais
+  `commissions`. Aucune colonne ajoutée au fichier. Mesuré : le rôle système d'administrateur
+  d'agence porte `reports.export` par défaut (`SystemRoleCapabilities::agencyAdmin()` →
+  `Capability::agencyAssignable()`, qui n'exclut que `properties.moderate` et
+  `reports.view_global`) ; seul un rôle personnalisé sans cette capacité tombe sur ses propres
+  lignes — il prenait 403 avant ce ticket : rien n'est retiré à personne (accepté par le lead).
+- Fuseau : `Africa/Dakar` est UTC+0 ; AC6 vérifie les bornes du jour, il ne peut pas éprouver un
+  décalage horaire.
+
+**Vérification par ablation** (36) : chaque règle retirée rougit son test — référence hors espèces,
+liste des moyens, date future, date antérieure (requête et service, ce dernier au jour et non à
+l'instant), début du jour, atomicité (transaction retirée et contrôle déplacé dans la boucle),
+`not_due` et `settle_mismatch` (bénéficiaire, agence), les deux notifications du contrôleur et leur
+absence par le service seul, policy `settle` (capacité, soi-même), délégation `authorize()` des
+trois `FormRequest` (`mark-paid`, `cancel`, `settle`), step-up, `distinct`, motif exigé et `other`, motif
+stocké et rendu, périmètre et tri du point, `viewAny`, bornage et ouverture de l'export, filtres
+`paid_from` et `*_to` inclusif, `include=lease.property`, et les trois branches de la transition
+(contrôleur, `mark-paid`, `cancel`). Le bornage de l'export aux lignes du
+bénéficiaire ne rougit que le test de l'admin sans `reports.export` : pour un agent, `visibleTo` le
+borne déjà (AC7 reste vert sans lui).
+
+**Seeding** : `SeedingInvariantsTest` joué seul (346 s, charge 21-32) — 5 verts, 1 rouge
+étranger à ce ticket : invariant `indisponibilite_sur_une_reservation_confirmee : 1` (réservations
+et indisponibilités, que ce ticket ne touche pas). `SeedingJourneyTest`, `SeedingGrowthTest`,
+`SeedingTextAndDeterminismTest`, `SeededAgentDirectoryTest` non joués (plus de 9 minutes sous
+charge) : la CI les joue.
+`docs/models-spec.md` n'est pas touché (compétence) : la phrase sur l'export, le point et le solde
+groupé est pour `/sync-specs`, avec `features.md` § 15.

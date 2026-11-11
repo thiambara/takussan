@@ -26,6 +26,11 @@ class CommissionEntryResource extends BaseResource
             'paid_by_id' => $this->paid_by_id,
             'cancelled_at' => $this->iso($this->cancelled_at),
             'cancelled_by_id' => $this->cancelled_by_id,
+            // TCK-2661 — la preuve du paiement et le motif de l'annulation, lus par le bénéficiaire.
+            'payment_method' => $this->payment_method?->value,
+            'payment_reference' => $this->payment_reference,
+            'cancel_reason_code' => $this->cancel_reason_code?->value,
+            'cancel_reason' => $this->cancel_reason,
             'beneficiary' => $this->whenLoaded('beneficiary', fn () => $this->beneficiary ? [
                 'id' => $this->beneficiary->id,
                 'name' => trim($this->beneficiary->first_name.' '.$this->beneficiary->last_name) ?: $this->beneficiary->username,
@@ -34,6 +39,12 @@ class CommissionEntryResource extends BaseResource
                 'id' => $this->lease->id,
                 'reference_number' => $this->lease->reference_number,
                 'type' => $this->lease->type?->value,
+                // TCK-2661 — `include=lease.property` : le bien du bail et son quartier.
+                ...($this->lease->relationLoaded('property') ? ['property' => $this->lease->property ? [
+                    'id' => $this->lease->property->id,
+                    'title' => $this->lease->property->title,
+                    'quarter' => $this->lease->property->address?->neighborhood,
+                ] : null] : []),
             ] : null),
             'created_at' => $this->iso($this->created_at),
         ];

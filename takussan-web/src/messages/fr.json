@@ -13406,6 +13406,10 @@
         "requested_undated": {
           "title": "Nouvelle demande",
           "body": "Une demande {reference} a été faite pour {property}."
+        },
+        "recorded_on_behalf": {
+          "title": "Demande enregistrée en votre nom",
+          "body": "L'agence a enregistré la demande {reference} en votre nom pour {property}. Vous pouvez l'annuler depuis vos réservations."
         }
       },
       "account": {
@@ -13430,6 +13434,10 @@
         "reminder": {
           "title": "Rappel : invitation de {agency}",
           "body": "Votre invitation à rejoindre {agency} vous attend."
+        },
+        "renewal_requested": {
+          "title": "Nouveau lien demandé : {invitee}",
+          "body": "{invitee} demande un nouveau lien : son invitation en tant que {role} a expiré. Renvoyez-la : {url}"
         }
       },
       "visit": {
@@ -13832,6 +13840,12 @@
         "report_dismissed": {
           "title": "Signalement examiné : {property}",
           "body": "Nous avons examiné votre signalement de l'annonce « {property} » et ne l'avons pas retenu."
+        }
+      },
+      "commission": {
+        "paid": {
+          "title": "{count, plural, one {Commission payée} other {# commissions payées}}",
+          "body": "{count, plural, one {Votre commission de {amount} vous a été payée.} other {# de vos commissions vous ont été payées, pour un total de {amount}.}}"
         }
       }
     },

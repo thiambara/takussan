@@ -141,6 +141,8 @@ final class ProtectedActions
         // TCK-595 (ADR-0049 §3) — les deux gestes du grand livre, par qui détient `payouts.approve`.
         CommissionEntryController::class.'@markPaid',
         CommissionEntryController::class.'@cancel',
+        // TCK-2661 — le solde groupé des lignes d'un agent, même geste que `markPaid`.
+        CommissionEntryController::class.'@settle',
 
         IntegrationController::class.'@store',
         IntegrationController::class.'@update',
@@ -253,6 +255,8 @@ final class ProtectedActions
         PayoutController::class.'@markProcessed',
         // TCK-595 (ADR-0049 §3) — le marquage « versée » d'une commission, pendant de `markProcessed`.
         CommissionEntryController::class.'@markPaid',
+        // TCK-2661 — et le solde groupé, qui en paie plusieurs d'un coup.
+        CommissionEntryController::class.'@settle',
         ServiceProviderBillController::class.'@pay',
         MePayoutMethodController::class.'@store',
         MePayoutMethodController::class.'@update',

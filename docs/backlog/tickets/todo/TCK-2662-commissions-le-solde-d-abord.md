@@ -54,6 +54,7 @@ Fonctions existantes à garder (`commissions/page.tsx`, `CommissionsLedger.tsx`)
 - [ ] Vue agent (téléphone et bureau).
 - [ ] Vue admin par agent, bascule vers le registre par ligne, menu « … ».
 - [ ] Parcours « Solder », dialogue « Marquer payée », dialogue « Annuler » avec motif.
+- [ ] API — retirer la transition de TCK-2661 (« TCK-2661 — transition, retiré par TCK-2662 ») : le corps vide de `mark-paid` et `cancel` (trait `App\Http\Requests\Api\Commissions\TransitionalEmptyBody`, ses deux usages dans les `FormRequest`, la branche de `CommissionEntryController::markPaid`) et son test `CommissionTransitionalEmptyBodyTest` ; le front n'envoie plus de corps vide.
 - [ ] Tests : vue choisie selon l'appelant ; solde envoyé avec les seules lignes cochées ; annulation impossible sans motif ; aucun geste visible sans `payouts.approve`.
 
 ## Critères d'acceptation

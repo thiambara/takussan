@@ -399,6 +399,12 @@ return [
                 'body' => 'Booking :reference for :property was cancelled.',
                 'sms' => 'Takussan: booking :reference cancelled (:property).',
             ],
+            // TCK-2579 — au client : une candidature ou une offre saisie par l'agence en son nom.
+            'recorded_on_behalf' => [
+                'title' => 'Request recorded on your behalf',
+                'body' => 'The agency recorded request :reference on your behalf for :property. You can cancel it from your bookings.',
+                'sms' => 'Takussan: request :reference recorded on your behalf (:property). To cancel it, contact the agency.',
+            ],
         ],
         // TCK-589 — invitation adressée à un numéro : le nom de l'agence seul, jamais un texte de l'invitant.
         'invitation' => [
@@ -411,6 +417,12 @@ return [
                 'title' => 'Reminder: invitation from :agency',
                 'body' => 'Your invitation to join :agency is waiting.',
                 'sms' => 'Takussan: reminder — your invitation to join :agency is waiting: :url',
+            ],
+            // TCK-2609 — to the inviter: the invitee whose link expired asks for a new one.
+            'renewal_requested' => [
+                'title' => 'New link requested: :invitee',
+                'body' => ':invitee is asking for a new link: their invitation as :role has expired. Resend it: :url',
+                'sms' => 'Takussan: :invitee is asking for a new invitation link.',
             ],
         ],
         // TCK-589 p3-1 — avis à l'ANCIEN numéro remplacé, et au compte. Aucun numéro dans le texte.
@@ -812,6 +824,14 @@ return [
                 'title' => 'Is your property still available? :property',
                 'body' => 'The original listing for “:property” is no longer online. Open the property to tell us whether it is rented, sold or still available.',
                 'sms' => 'Takussan: is “:property” still available?',
+            ],
+        ],
+        // TCK-2661 — une commission payée au bénéficiaire.
+        'commission' => [
+            'paid' => [
+                'title' => '{1} Commission paid|[0,*] :count commissions paid',
+                'body' => '{1} Your commission of :amount has been paid.|[0,*] :count of your commissions have been paid, totalling :amount.',
+                'sms' => '{1} Takussan: your commission of :amount has been paid.|[0,*] Takussan: :count commissions paid (:amount).',
             ],
         ],
         // TCK-594 (ADR-0039) — les sorties d'argent.

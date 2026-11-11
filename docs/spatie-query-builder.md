@@ -218,6 +218,23 @@ note?}` **note** une relance faite depuis le téléphone de l'agence — rien n'
 relances, de la plus récente à la plus ancienne : `{at, source: manual|automatic, channel, by {id,
 name}, note, milestone}` — sans pagination ni filtre (TCK-2658).
 
+### Grand livre des commissions — `GET /api/commissions` (TCK-595, TCK-2661)
+
+Périmètre : `CommissionEntry::visibleTo` (l'agent ses lignes, `reports.view_agency` toute l'agence).
+
+| Param | Type | Description |
+|---|---|---|
+| `filter[status]`, `filter[beneficiary_id]`, `filter[lease_id]`, `filter[origin]` | exact | |
+| `filter[earned_from]` / `filter[earned_to]` | date | `YYYY-MM-DD`, heure de Dakar, bornes incluses ; illisible ou liste → 422 (TCK-2661) |
+| `filter[paid_from]` / `filter[paid_to]` | date | idem sur `paid_at` ; une ligne non payée n'entre dans aucune plage (TCK-2661) |
+| `include` | `lease`, `beneficiary`, `lease.property` | `lease.property` ajoute `lease.property {id, title, quarter}` (TCK-2661) |
+| `sort` | `-earned_at` (défaut), `amount`, `paid_at`, `id` | |
+
+`GET /api/commissions/summary?month=YYYY-MM&year=YYYY` (défaut : le mois courant de Dakar et son
+année) rend, par bénéficiaire du même périmètre, `beneficiary {id, name}`, `due_amount`, `due_count`,
+`oldest_due_earned_at`, `paid_month`, `paid_year`, `last_paid {at, method}` — le plus dû d'abord ;
+`meta {month, year}` (TCK-2661).
+
 ---
 
 ## Architecture interne

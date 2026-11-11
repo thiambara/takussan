@@ -13406,6 +13406,10 @@
         "requested_undated": {
           "title": "New request",
           "body": "Request {reference} was made for {property}."
+        },
+        "recorded_on_behalf": {
+          "title": "Request recorded on your behalf",
+          "body": "The agency recorded request {reference} on your behalf for {property}. You can cancel it from your bookings."
         }
       },
       "account": {
@@ -13430,6 +13434,10 @@
         "reminder": {
           "title": "Reminder: invitation from {agency}",
           "body": "Your invitation to join {agency} is waiting."
+        },
+        "renewal_requested": {
+          "title": "New link requested: {invitee}",
+          "body": "{invitee} is asking for a new link: their invitation as {role} has expired. Resend it: {url}"
         }
       },
       "visit": {
@@ -13832,6 +13840,12 @@
         "report_dismissed": {
           "title": "Report reviewed: {property}",
           "body": "We reviewed your report of the listing “{property}” and did not uphold it."
+        }
+      },
+      "commission": {
+        "paid": {
+          "title": "{count, plural, one {Commission paid} other {# commissions paid}}",
+          "body": "{count, plural, one {Your commission of {amount} has been paid.} other {# of your commissions have been paid, totalling {amount}.}}"
         }
       }
     },

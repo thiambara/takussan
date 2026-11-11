@@ -148,6 +148,9 @@ return [
     ],
     'commission' => [
         'not_due' => 'Only a commission that is due can be marked paid or cancelled.',
+        // TCK-2661 — le solde groupé et la date du paiement.
+        'settle_mismatch' => 'These commissions cannot be settled together: they must all belong to the same beneficiary, in your agency.',
+        'paid_before_earned' => 'The payment date is earlier than the date a commission was earned.',
     ],
     'credits' => [
         'insufficient' => 'Insufficient balance: you are missing :missing credits (balance: :balance).',

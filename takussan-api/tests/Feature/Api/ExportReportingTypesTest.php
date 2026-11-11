@@ -70,7 +70,18 @@ class ExportReportingTypesTest extends ApiTestCase
         $this->assertStringNotContainsString("{$entity}-B", $body, 'une ligne d’une autre agence n’y figure jamais');
     }
 
-    #[DataProvider('entities')]
+    /**
+     * TCK-2661 — sauf les commissions : sans `reports.export`, le bénéficiaire exporte encore SES
+     * lignes (`CommissionExportBeneficiaryTest`).
+     *
+     * @return array<string, array{string}>
+     */
+    public static function entitiesClosedWithoutReportsExport(): array
+    {
+        return array_diff_key(self::entities(), ['commissions' => true]);
+    }
+
+    #[DataProvider('entitiesClosedWithoutReportsExport')]
     public function test_sans_reports_export_la_reponse_est_403(string $entity): void
     {
         $this->actingAsApi($this->adminWithout($this->agency, Capability::ReportsExport))

@@ -69,6 +69,12 @@ class CommissionEntryApiTest extends ApiTestCase
         ]);
     }
 
+    /** TCK-2661 — le corps d'un paiement : moyen et preuve exigés. */
+    private const PAID = ['payment_method' => 'cash'];
+
+    /** TCK-2661 — le corps d'une annulation : un motif exigé. */
+    private const CANCEL = ['reason_code' => 'wrong_beneficiary'];
+
     /** @return list<int> */
     private function ids(): array
     {
@@ -103,7 +109,7 @@ class CommissionEntryApiTest extends ApiTestCase
     {
         $this->actingWithStepUp($this->a);
 
-        $this->postJson("/api/commissions/{$this->lineA->id}/mark-paid")->assertForbidden();
+        $this->postJson("/api/commissions/{$this->lineA->id}/mark-paid", self::PAID)->assertForbidden();
         $this->assertSame(CommissionEntryStatus::Due, $this->lineA->fresh()->status);
     }
 
@@ -111,7 +117,7 @@ class CommissionEntryApiTest extends ApiTestCase
     {
         $this->actingWithStepUp($this->admin);
 
-        $this->postJson("/api/commissions/{$this->lineA->id}/mark-paid")
+        $this->postJson("/api/commissions/{$this->lineA->id}/mark-paid", self::PAID)
             ->assertOk()
             ->assertJsonPath('data.status', 'paid')
             ->assertJsonPath('data.paid_by_id', $this->admin->id);
@@ -125,15 +131,15 @@ class CommissionEntryApiTest extends ApiTestCase
             ->exists());
 
         // Une ligne versée ne change plus d'état.
-        $this->postJson("/api/commissions/{$this->lineA->id}/cancel")->assertStatus(422)->assertJsonPath('code', 'commission.not_due');
+        $this->postJson("/api/commissions/{$this->lineA->id}/cancel", self::CANCEL)->assertStatus(422)->assertJsonPath('code', 'commission.not_due');
     }
 
     public function test_ac13_the_admin_cannot_settle_a_line_of_another_agency(): void
     {
         $this->actingWithStepUp($this->admin);
 
-        $this->postJson("/api/commissions/{$this->foreign->id}/mark-paid")->assertForbidden();
-        $this->postJson("/api/commissions/{$this->foreign->id}/cancel")->assertForbidden();
+        $this->postJson("/api/commissions/{$this->foreign->id}/mark-paid", self::PAID)->assertForbidden();
+        $this->postJson("/api/commissions/{$this->foreign->id}/cancel", self::CANCEL)->assertForbidden();
         $this->assertSame(CommissionEntryStatus::Due, $this->foreign->fresh()->status);
     }
 
@@ -146,7 +152,7 @@ class CommissionEntryApiTest extends ApiTestCase
         $this->actingWithStepUp($this->admin);
 
         $this->withHeaders(['X-Profile-Id' => "agency_admin:{$hereProfile->id}"])
-            ->postJson("/api/commissions/{$this->foreign->id}/mark-paid")->assertForbidden();
+            ->postJson("/api/commissions/{$this->foreign->id}/mark-paid", self::PAID)->assertForbidden();
         $this->assertSame(CommissionEntryStatus::Due, $this->foreign->fresh()->status);
     }
 
@@ -154,7 +160,7 @@ class CommissionEntryApiTest extends ApiTestCase
     {
         $this->actingWithStepUp($this->admin);
 
-        $this->postJson("/api/commissions/{$this->lineB->id}/cancel")
+        $this->postJson("/api/commissions/{$this->lineB->id}/cancel", self::CANCEL)
             ->assertOk()
             ->assertJsonPath('data.status', 'cancelled')
             ->assertJsonPath('data.cancelled_by_id', $this->admin->id);
@@ -164,7 +170,7 @@ class CommissionEntryApiTest extends ApiTestCase
     {
         $this->actingAsApi($this->admin);
 
-        $this->postJson("/api/commissions/{$this->lineA->id}/mark-paid")->assertForbidden();
+        $this->postJson("/api/commissions/{$this->lineA->id}/mark-paid", self::PAID)->assertForbidden();
         $this->assertSame(CommissionEntryStatus::Due, $this->lineA->fresh()->status);
     }
 
@@ -183,14 +189,14 @@ class CommissionEntryApiTest extends ApiTestCase
         foreach (["agency_admin:{$adminProfile->id}", "agent:{$agentProfile->id}"] as $profile) {
             foreach (['mark-paid', 'cancel'] as $gesture) {
                 $this->withHeaders(['X-Profile-Id' => $profile])
-                    ->postJson("/api/commissions/{$own->id}/{$gesture}")->assertForbidden();
+                    ->postJson("/api/commissions/{$own->id}/{$gesture}", $gesture === 'mark-paid' ? self::PAID : self::CANCEL)->assertForbidden();
             }
         }
         $this->assertSame(CommissionEntryStatus::Due, $own->fresh()->status);
 
         // Témoin : la ligne d'un autre bénéficiaire se solde, sous le même profil.
         $this->withHeaders(['X-Profile-Id' => "agency_admin:{$adminProfile->id}"])
-            ->postJson("/api/commissions/{$this->lineA->id}/mark-paid")->assertOk();
+            ->postJson("/api/commissions/{$this->lineA->id}/mark-paid", self::PAID)->assertOk();
     }
 
     /**
@@ -210,7 +216,7 @@ class CommissionEntryApiTest extends ApiTestCase
             }
         });
 
-        $this->postJson("/api/commissions/{$this->lineA->id}/mark-paid")->assertOk();
+        $this->postJson("/api/commissions/{$this->lineA->id}/mark-paid", self::PAID)->assertOk();
 
         $this->assertNotEmpty($locks, 'aucune lecture verrouillée de la ligne');
         $this->assertGreaterThan($baseline, max($locks), 'le verrou doit être pris dans la transaction du geste');

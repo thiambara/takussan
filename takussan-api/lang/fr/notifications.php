@@ -404,6 +404,12 @@ return [
                 'body' => 'La réservation :reference pour :property a été annulée.',
                 'sms' => 'Takussan : réservation :reference annulée (:property).',
             ],
+            // TCK-2579 — au client : une candidature ou une offre saisie par l'agence en son nom.
+            'recorded_on_behalf' => [
+                'title' => 'Demande enregistrée en votre nom',
+                'body' => 'L\'agence a enregistré la demande :reference en votre nom pour :property. Vous pouvez l\'annuler depuis vos réservations.',
+                'sms' => 'Takussan : demande :reference enregistrée en votre nom (:property). Pour l\'annuler, contactez l\'agence.',
+            ],
         ],
         // TCK-589 — invitation adressée à un numéro : le nom de l'agence seul, jamais un texte de l'invitant.
         'invitation' => [
@@ -416,6 +422,12 @@ return [
                 'title' => 'Rappel : invitation de :agency',
                 'body' => 'Votre invitation à rejoindre :agency vous attend.',
                 'sms' => 'Takussan : rappel — votre invitation à rejoindre :agency vous attend : :url',
+            ],
+            // TCK-2609 — à l'invitant : l'invité au lien expiré demande un nouveau lien.
+            'renewal_requested' => [
+                'title' => 'Nouveau lien demandé : :invitee',
+                'body' => ':invitee demande un nouveau lien : son invitation en tant que :role a expiré. Renvoyez-la : :url',
+                'sms' => 'Takussan : :invitee demande un nouveau lien d\'invitation.',
             ],
         ],
         // TCK-589 p3-1 — avis à l'ANCIEN numéro remplacé, et au compte. Aucun numéro dans le texte.
@@ -817,6 +829,14 @@ return [
                 'title' => 'Votre bien est-il toujours disponible ? :property',
                 'body' => 'L\'annonce d\'origine de « :property » n\'est plus en ligne. Ouvrez le bien pour nous dire s\'il est loué, vendu ou toujours disponible.',
                 'sms' => 'Takussan : « :property » est-il toujours disponible ?',
+            ],
+        ],
+        // TCK-2661 — une commission payée au bénéficiaire.
+        'commission' => [
+            'paid' => [
+                'title' => '{1} Commission payée|[0,*] :count commissions payées',
+                'body' => '{1} Votre commission de :amount vous a été payée.|[0,*] :count de vos commissions vous ont été payées, pour un total de :amount.',
+                'sms' => '{1} Takussan : votre commission de :amount a été payée.|[0,*] Takussan : :count commissions payées (:amount).',
             ],
         ],
         // TCK-594 (ADR-0039) — les sorties d'argent.

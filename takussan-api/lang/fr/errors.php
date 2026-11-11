@@ -148,6 +148,9 @@ return [
     ],
     'commission' => [
         'not_due' => 'Seule une commission due peut être marquée versée ou annulée.',
+        // TCK-2661 — le solde groupé et la date du paiement.
+        'settle_mismatch' => 'Ces commissions ne peuvent pas être soldées ensemble : elles doivent toutes appartenir au même bénéficiaire, dans votre agence.',
+        'paid_before_earned' => 'La date de paiement précède la date à laquelle une commission a été acquise.',
     ],
     'credits' => [
         'insufficient' => 'Solde insuffisant : il vous manque :missing crédits (solde : :balance).',
