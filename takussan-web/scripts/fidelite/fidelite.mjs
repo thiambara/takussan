@@ -7,7 +7,9 @@
  *   releve   relève un écran : styles calculés de chaque nœud (texte, boîte, icône) + capture
  *            --maquette <page> --a <approche> --e <écran>          une maquette (visionneuse, `?cadre=1`)
  *            --url /app/… --persona <nom>                           ou une page du produit, connectée
- *            --device mobile|desktop  [--largeur 1440|1280]         390×844 · 1440×900 · 1280×900, DPR 2
+ *            --device mobile|desktop  [--largeur 1440|1280|1024]    390×844 · 1440×900 · 1280×900 · 1024×900, DPR 2
+ *            [--persona aucune]              une page publique, sans compte ni preuve de disposition
+ *            [--police-navigateur 20]        taille de police du navigateur (profil), pas le zoom
  *            --out <préfixe>                                        écrit <préfixe>.json et <préfixe>.png
  *            [--base http://localhost:3100]  le front qui sert le PRODUIT (un worktree) ; défaut :3000
  *            [--base-maquettes <url>]        le front qui sert les maquettes (arbre principal) ; défaut :3000
@@ -20,6 +22,9 @@
  *   geler    gèle les références des pages retenues (docs/qa/audit-ux-2026-11/fidelite/references/)
  *            --page <page> | --toutes   [--appareils telephone,bureau-1440,bureau-1280] [--force]
  *            [--budget <s>]  s'arrête proprement avant ce délai (défaut 480 : une commande < 9 min)
+ *            [--sans-attente-donnees]  relève sans attendre la fin d'un chargement (comme `releve`)
+ *            Un écran de maquette qui charge encore après 15 s est un état DESSINÉ : relevé tel quel,
+ *            `meta.chargementDessine`, et `"etat": "chargement"` dans gel.json.
  *   journal  régénère references/JOURNAL.md depuis les références présentes
  *   jetons   frappe les jetons des personas (hors du dépôt, 0600) [--renouveler]
  *   balayer  débord, coupe nette, ellipse, à plusieurs largeurs
@@ -58,12 +63,15 @@ const drapeau = (n) => args.includes(`--${n}`);
 
 /* ───────────────────────────── appareils ───────────────────────────── */
 
-/** `mobile`/`telephone` → 390×844 ; `desktop`/`bureau` → 1440×900, ou 1280×900 avec `--largeur 1280`. */
+/**
+ * `mobile`/`telephone` → 390×844 ; `desktop`/`bureau` → 1440×900, ou 1280×900 / 1024×900 avec
+ * `--largeur` (1024 : la première largeur du bureau, `lg` — TCK-2692 compare avant/après à 1024).
+ */
 export function appareilDe(device, largeur) {
   if (device === 'mobile' || device === 'telephone') return { appareil: 'telephone', W: 390, H: 844, mobile: true };
   if (device === 'desktop' || device === 'bureau' || device?.startsWith('bureau-')) {
     const W = Number(largeur ?? (device.startsWith('bureau-') ? device.slice(7) : 1440));
-    if (![1440, 1280].includes(W)) throw new Error(`largeur de bureau ${W} : 1440 ou 1280`);
+    if (![1440, 1280, 1024].includes(W)) throw new Error(`largeur de bureau ${W} : 1440, 1280 ou 1024`);
     return { appareil: `bureau-${W}`, W, H: 900, mobile: false };
   }
   throw new Error(`appareil inconnu « ${device} » : mobile | desktop`);
@@ -73,10 +81,13 @@ export function appareilDe(device, largeur) {
  * Ce que le relevé doit mesurer de lui-même, sinon il échoue (ADR-0106 § 1, ADR-0107) :
  * téléphone rem 16 et densité 1 ; bureau densité ×0,9 — rem 14,4 tant que TCK-2692 n'est pas
  * fusionné, 16 ensuite, au même rendu. `--rem 14.4` relève ce que le porteur a vu (mémoire seule).
+ * `police` : la taille de police du navigateur (16 par défaut) — tout se lit à proportion.
  */
-function attendus(app, rem144) {
+export function attendus(app, rem144, police = 16) {
   if (rem144) return { W: app.W, H: app.H, rem: [14.4], spacingPx: 3.6 };
-  return app.mobile ? { W: app.W, H: app.H, rem: [16], spacingPx: 4 } : { W: app.W, H: app.H, rem: [14.4, 16], spacingPx: 3.6 };
+  const p = Number(police);
+  const arrondi = (x) => Math.round(x * 1000) / 1000;
+  return app.mobile ? { W: app.W, H: app.H, rem: [p], spacingPx: arrondi(p / 4) } : { W: app.W, H: app.H, rem: [arrondi(p * 0.9), p], spacingPx: arrondi(p * 0.225) };
 }
 
 /* ───────────────────────────── jetons ───────────────────────────── */
@@ -132,9 +143,9 @@ function commitCourant() {
  */
 export async function relever(o) {
   const app = appareilDe(o.device, o.largeur);
-  const attendu = attendus(app, o.rem === '14.4');
+  const attendu = attendus(app, o.rem === '14.4', o.policeNavigateur ?? 16);
   const t0 = Date.now();
-  const { cdp, ecouteurs, fermer } = await ouvrirChrome();
+  const { cdp, ecouteurs, fermer } = await ouvrirChrome({ policeNavigateur: o.policeNavigateur });
   try {
     const reseau = new Set();
     const enVol = new Set();
@@ -187,7 +198,8 @@ export async function relever(o) {
       if (!o.url?.startsWith('/')) throw new Error('--url /app/… requis (chemin seul, sans /fr : la console n’est pas localisée)');
       const persona = o.persona ?? 'admin';
       await cdp('Network.setCookie', { name: 'NEXT_LOCALE', value: 'fr', url: baseProduit, path: '/' });
-      await cdp('Network.setCookie', { name: 'auth_token', value: jetonDe(persona), url: baseProduit, httpOnly: true, path: '/' });
+      // `--persona aucune` : une page publique, visitée sans compte (TCK-2692).
+      if (persona !== 'aucune') await cdp('Network.setCookie', { name: 'auth_token', value: jetonDe(persona), url: baseProduit, httpOnly: true, path: '/' });
       url = `${baseProduit}${o.url}`;
       chemin = new URL(url).pathname;
       source = { type: 'produit', url: o.url, persona };
@@ -227,14 +239,21 @@ export async function relever(o) {
     await evaluer(cdp, 'document.fonts.ready.then(() => document.fonts.status)', contexte);
     // Réseau calme (aucune requête en vol depuis 1 s), puis plus de squelette ni de « Chargement… ».
     for (const t = Date.now(); Date.now() - t < 45_000 && (enVol.size > 0 || Date.now() - dernierMouvement < 1000); ) await dormir(100);
-    if (!o.sansAttenteDonnees && !(await attendre(CHARGE, 45_000)))
-      throw new Error('relevé refusé — la page charge encore après 45 s (squelette, aria-busy ou « Chargement… » visibles) ; --sans-attente-donnees pour relever cet état');
+    // Une page du PRODUIT qui charge encore n'est pas l'écran demandé : refus. Une MAQUETTE n'a pas
+    // de données à attendre — un état de chargement qui dure y est DESSINÉ (écran « Chargement » d'une
+    // maquette) : il est relevé tel quel, et le relevé le dit (`meta.chargementDessine`). L'attente
+    // courte couvre le rendu de la visionneuse elle-même.
+    let chargementDessine = false;
+    if (!o.sansAttenteDonnees && !(await attendre(CHARGE, o.maquette ? 15_000 : 45_000))) {
+      if (!o.maquette) throw new Error('relevé refusé — la page charge encore après 45 s (squelette, aria-busy ou « Chargement… » visibles) ; --sans-attente-donnees pour relever cet état');
+      chargementDessine = true;
+    }
     await dormir(Number(o.attente ?? 1500));
 
     const etat = await evaluer(cdp, `(${ETAT})(${JSON.stringify(racine)})`, contexte);
     etat.statut = statut;
     const motifs = motifsDeRejet(etat, { ...attendu, chemin, ecran: o.maquette ? `${o.maquette}/${o.a ?? 'a'}/${o.e ?? 0}` : undefined });
-    if (!o.maquette) {
+    if (!o.maquette && source.persona !== 'aucune') {
       const nom = o.disposition ?? PERSONAS.comptes[source.persona]?.disposition;
       const liens = await evaluer(cdp, LIENS_VISIBLES);
       motifs.push(...motifsDeDisposition(liens, PERSONAS.dispositions[nom], nom));
@@ -256,8 +275,9 @@ export async function relever(o) {
     if (vide.length) throw new Error(`relevé refusé — ${vide.join(' ; ')}`);
     const shot = await cdp('Page.captureScreenshot', { format: 'png', clip: { ...clipOrigine, width: app.W, height: app.H, scale: 1 } });
     const releve = {
-      meta: { outil: 'takussan-web/scripts/fidelite', version: 1, date: new Date().toISOString(), duree_ms: Date.now() - t0, commit: commitCourant(), base: o.maquette ? baseMaquettes : baseProduit, via: visionneuse ? 'visionneuse' : 'cadre', reseau: [...reseau].sort() },
+      meta: { outil: 'takussan-web/scripts/fidelite', version: 1, date: new Date().toISOString(), duree_ms: Date.now() - t0, commit: commitCourant(), base: o.maquette ? baseMaquettes : baseProduit, via: visionneuse ? 'visionneuse' : 'cadre', reseau: [...reseau].sort(), ...(chargementDessine ? { chargementDessine: true } : {}) },
       source,
+      ...(o.policeNavigateur ? { policeNavigateur: Number(o.policeNavigateur) } : {}),
       appareil: app.appareil,
       W: app.W,
       H: app.H,
@@ -303,6 +323,7 @@ async function cmdReleve() {
     via: opt('via'),
     fenetre: opt('fenetre'),
     sansAttenteDonnees: drapeau('sans-attente-donnees'),
+    policeNavigateur: opt('police-navigateur'),
   };
   let r;
   try {
@@ -473,7 +494,7 @@ async function cmdGeler() {
         }
         let r;
         try {
-          r = await relever({ maquette: page, a: approche, e: ecran.e, nom: ecran.nom, device: appareil === 'telephone' ? 'mobile' : 'desktop', largeur: appareil === 'telephone' ? undefined : appareil.slice(7), baseMaquettes: BASE_MAQUETTES });
+          r = await relever({ maquette: page, a: approche, e: ecran.e, nom: ecran.nom, device: appareil === 'telephone' ? 'mobile' : 'desktop', largeur: appareil === 'telephone' ? undefined : appareil.slice(7), baseMaquettes: BASE_MAQUETTES, sansAttenteDonnees: drapeau('sans-attente-donnees') });
         } catch (err) {
           // Un écran refusé n'arrête pas le lot : il est nommé, et le journal le compte manquant.
           echecs.push(`${page}/${nomFichier} : ${err.message}`);
@@ -481,6 +502,11 @@ async function cmdGeler() {
           continue;
         }
         const { releve, png } = r;
+        // L'écran dessine un état de chargement (relevé sans attendre de données) : gel.json le dit.
+        if (releve.meta.chargementDessine && ecran.etat !== 'chargement') {
+          ecran.etat = 'chargement';
+          writeFileSync(fGel, `${JSON.stringify(gel, null, 1)}\n`);
+        }
         releve.meta.gel = { date: releve.meta.date.slice(0, 10), revue: `${revue.date} — ${revue.citation}` };
         delete releve.meta.reseau;
         writeFileSync(fJson, serialiser(releve));

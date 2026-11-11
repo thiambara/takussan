@@ -29,10 +29,10 @@ export function BlocProprietaire({ offre }: { readonly offre: OffreDeLaVille | n
       className="flex flex-col gap-4 rounded-2xl bg-secondary p-5 md:flex-row md:items-center md:justify-between md:gap-10 md:px-10 md:py-9"
     >
       <div className="max-w-xl">
-        <h2 id={idTitre} className="font-display text-xl font-semibold leading-tight tracking-[-0.02em] text-foreground md:text-[28px]">
+        <h2 id={idTitre} className="font-display text-xl font-semibold leading-tight tracking-[-0.02em] text-foreground md:text-[1.75rem]">
           {t('title')}
         </h2>
-        <p className="mt-1.5 text-[15px] text-muted-foreground md:mt-2 md:text-[17px]">
+        <p className="mt-1.5 text-[0.9375rem] text-muted-foreground md:mt-2 md:text-[1.0625rem]">
           {offre
             ? t.rich('offre', { location: offre.location, vente: offre.vente, ville: offre.ville, b: gras })
             : t('sansChiffre')}
@@ -40,7 +40,7 @@ export function BlocProprietaire({ offre }: { readonly offre: OffreDeLaVille | n
       </div>
       <LienLocalise
         href="/publish"
-        className="inline-flex min-h-11 w-fit shrink-0 items-center gap-2 rounded-xl bg-foreground px-5 text-[15px] font-semibold text-background transition-[background-color,scale] hover:bg-primary active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-12 md:px-6"
+        className="inline-flex min-h-11 w-fit shrink-0 items-center gap-2 rounded-xl bg-foreground px-5 text-[0.9375rem] font-semibold text-background transition-[background-color,scale] hover:bg-primary active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-12 md:px-6"
       >
         {t('cta')}
         <ChevronRight className="size-4" aria-hidden="true" />

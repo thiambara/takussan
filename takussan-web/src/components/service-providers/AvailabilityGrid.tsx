@@ -106,7 +106,7 @@ export function AvailabilityGrid({ value, onChange }: AvailabilityGridProps) {
           {PERIODS.map((period) => (
             <th key={period} className="px-2 text-center font-medium">
               <span className="block">{t(`periods.${period}.label`)}</span>
-              <span className="block text-[11px] font-normal text-muted-foreground">
+              <span className="block text-[0.6875rem] font-normal text-muted-foreground">
                 {PERIOD_TIMES[period].from}–{PERIOD_TIMES[period].to}
               </span>
             </th>

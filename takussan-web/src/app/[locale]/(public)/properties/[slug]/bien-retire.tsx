@@ -114,10 +114,10 @@ export async function bienRetire(etat: EtatRetire) {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
       <section className="max-w-2xl">
-        <h1 className="font-display text-[26px] font-semibold leading-tight tracking-[-0.02em] text-foreground text-balance sm:text-4xl">
+        <h1 className="font-display text-[1.625rem] font-semibold leading-tight tracking-[-0.02em] text-foreground text-balance sm:text-4xl">
           {t(`title.${etat.state}`)}
         </h1>
-        <p className="mt-2 bg-background text-[15px] leading-relaxed text-muted-foreground text-pretty sm:text-lg">
+        <p className="mt-2 bg-background text-[0.9375rem] leading-relaxed text-muted-foreground text-pretty sm:text-lg">
           {proches.length > 0 ? t('body') : t('bodyNoSimilar')}
         </p>
       </section>
@@ -128,7 +128,7 @@ export async function bienRetire(etat: EtatRetire) {
       <div className="mt-5 flex flex-col gap-2.5 sm:mt-6 sm:flex-row sm:flex-wrap sm:gap-3">
         <LienLocalise
           href={rechercheDuQuartier(etat)}
-          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2 text-balance text-[15px] font-semibold text-primary-foreground transition-[background-color,scale] hover:bg-[var(--primary-deep)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring active:scale-[0.96] motion-reduce:active:scale-100"
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2 text-balance text-[0.9375rem] font-semibold text-primary-foreground transition-[background-color,scale] hover:bg-[var(--primary-deep)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring active:scale-[0.96] motion-reduce:active:scale-100"
         >
           <MapPin className="size-4" aria-hidden="true" />
           {libelleRecherche}

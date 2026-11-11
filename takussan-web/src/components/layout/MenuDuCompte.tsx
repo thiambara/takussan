@@ -107,7 +107,7 @@ export function MenuDuCompte({ user, libelleRole, onNavigate }: MenuDuCompteProp
         </span>
         <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground icones:hidden" aria-hidden />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" voile data-slot="menu-du-compte" className="w-64 max-w-[calc(100vw-1rem)]">
+      <DropdownMenuContent align="start" voile data-slot="menu-du-compte" className="w-64 max-w-[calc(100vw-var(--spacing)*4)]">
         <div className="px-3 py-2">
           <p className="truncate text-sm font-medium text-foreground">{libelle}</p>
           {user.email ? <p className="truncate text-xs text-muted-foreground">{user.email}</p> : null}

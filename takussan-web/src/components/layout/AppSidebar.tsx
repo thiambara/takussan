@@ -250,7 +250,7 @@ function SidebarItem({
         {valeur !== undefined ? (
           <span
             data-slot="valeur-entree"
-            className="ml-auto shrink-0 text-[12.5px] font-medium tabular-nums text-foreground icones:hidden"
+            className="ml-auto shrink-0 text-[0.78125rem] font-medium tabular-nums text-foreground icones:hidden"
           >
             {valeur}
           </span>
@@ -563,7 +563,7 @@ function LigneAllerA({ onOuvrir, infobulle }: LigneAllerAProps) {
           {touches.map((touche) => (
             <kbd
               key={touche}
-              className="inline-flex h-5 min-w-5 items-center justify-center rounded-[5px] px-1 font-sans text-[11px] font-medium leading-none text-muted-foreground ring-1 ring-inset ring-border"
+              className="inline-flex h-5 min-w-5 items-center justify-center rounded-[5px] px-1 font-sans text-[0.6875rem] font-medium leading-none text-muted-foreground ring-1 ring-inset ring-border"
             >
               {touche}
             </kbd>

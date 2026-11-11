@@ -169,7 +169,7 @@ function ConversationRow({
           >
             <Users className="size-5" aria-hidden />
             {groupParticipants.length > 0 && (
-              <span className="absolute -bottom-1 -right-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[11px] font-semibold tabular-nums text-background ring-2 ring-card">
+              <span className="absolute -bottom-1 -right-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[0.6875rem] font-semibold tabular-nums text-background ring-2 ring-card">
                 +{groupParticipants.length}
               </span>
             )}
@@ -210,7 +210,7 @@ function ConversationRow({
           </div>
           <div className="mt-0.5 flex items-center gap-1.5">
             {isGroup && (
-              <Badge variant="secondary" className="h-4 px-1.5 text-[11px]">
+              <Badge variant="secondary" className="h-4 px-1.5 text-[0.6875rem]">
                 {t('list.groupBadge')}
               </Badge>
             )}
@@ -232,7 +232,7 @@ function ConversationRow({
           </div>
         </div>
         {unread > 0 && (
-          <span className="ml-1 inline-flex size-5 shrink-0 items-center justify-center self-center rounded-full bg-primary text-[11px] font-semibold tabular-nums text-primary-foreground">
+          <span className="ml-1 inline-flex size-5 shrink-0 items-center justify-center self-center rounded-full bg-primary text-[0.6875rem] font-semibold tabular-nums text-primary-foreground">
             {unread > 9 ? '9+' : unread}
           </span>
         )}

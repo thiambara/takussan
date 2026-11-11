@@ -38,7 +38,7 @@ export function CriteresDAlerte({ puces }: { readonly puces: readonly string[] }
   const t = useTranslations('lienPublic.alerte');
   if (puces.length === 0) return null;
   return (
-    <ul className="mx-auto flex max-w-[22rem] flex-wrap justify-center gap-1.5" aria-label={t('criteres')} data-testid="alerte-criteres">
+    <ul className="mx-auto flex max-w-88 flex-wrap justify-center gap-1.5" aria-label={t('criteres')} data-testid="alerte-criteres">
       {puces.map((p) => (
         <li key={p} className="inline-flex h-8 items-center rounded-full bg-secondary px-3 text-sm font-medium text-primary-deep">
           {p}

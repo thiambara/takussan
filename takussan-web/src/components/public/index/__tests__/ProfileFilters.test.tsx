@@ -291,7 +291,7 @@ describe('TCK-2521 (contre-vérification) — en bureau, la rangée coupée se s
     monter();
     const classes = screen.getByRole('group', { name: 'Filtrer par ville' }).className.split(/\s+/);
 
-    expect(classes).toContain('lg:[mask-image:linear-gradient(to_right,#000_calc(100%-6rem),transparent)]');
+    expect(classes).toContain('lg:[mask-image:linear-gradient(to_right,#000_calc(100%-var(--spacing)*24),transparent)]');
     expect(classes).toContain('lg:pr-24');
     // Le fondu n'existe qu'en bureau : aucune classe de masque sans préfixe `lg:`.
     expect(classes.filter((c) => c.includes('mask-image') && !c.startsWith('lg:'))).toEqual([]);

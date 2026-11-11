@@ -146,15 +146,15 @@ export function MessagesPage({ titre, sousTitre }: MessagesPageProps) {
    * carte d'avant.
    */
   const cadre = enConversation
-    ? '-mx-4 -my-6 h-[calc(100dvh-3.5rem-var(--barre-onglets-hauteur))] md:-mx-6 md:-my-8 md:h-[calc(100dvh-3.5rem)]'
-    : '-mx-4 -mb-6 h-[calc(100dvh-5rem-var(--barre-onglets-hauteur))] md:-mx-6 md:-mb-8 md:h-[calc(100dvh-5.5rem)]';
+    ? '-mx-4 -my-6 h-[calc(100dvh-var(--spacing)*14-var(--barre-onglets-hauteur))] md:-mx-6 md:-my-8 md:h-[calc(100dvh-var(--spacing)*14)]'
+    : '-mx-4 -mb-6 h-[calc(100dvh-var(--spacing)*20-var(--barre-onglets-hauteur))] md:-mx-6 md:-mb-8 md:h-[calc(100dvh-var(--spacing)*22)]';
 
   return (
     <>
       <div
         data-testid="messagerie"
         className={cn(
-          'flex min-h-[24rem] flex-col lg:mx-0 lg:my-0 lg:block lg:h-auto lg:min-h-0 lg:space-y-6',
+          'flex min-h-96 flex-col lg:mx-0 lg:my-0 lg:block lg:h-auto lg:min-h-0 lg:space-y-6',
           cadre,
         )}
       >
@@ -210,7 +210,7 @@ export function MessagesPage({ titre, sousTitre }: MessagesPageProps) {
         */}
         <div
           data-testid="messagerie-grille"
-          className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)] overflow-hidden border-t border-border bg-card lg:h-[calc(100dvh-12rem)] lg:min-h-[24rem] lg:rounded-xl lg:border lg:grid-cols-[320px_1fr]"
+          className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)] overflow-hidden border-t border-border bg-card lg:h-[calc(100dvh-var(--spacing)*48)] lg:min-h-96 lg:rounded-xl lg:border lg:grid-cols-[320px_1fr]"
         >
           {afficheListe && (
             <aside className={cn('flex min-h-0 min-w-0 flex-col lg:border-r lg:border-border', entreeListe)}>

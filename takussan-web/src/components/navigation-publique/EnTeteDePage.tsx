@@ -110,7 +110,7 @@ export function EnTeteDePage({
       >
         {retour ? <BoutonRetourDePage repli={retour.repli} libelle={retour.libelle} surPhoto className="pointer-events-auto md:bg-transparent md:shadow-none" /> : <span />}
         {titre ? (
-          <Titre className="sr-only md:not-sr-only md:min-w-0 md:flex-1 md:truncate md:text-[15px] md:font-semibold">{titre}</Titre>
+          <Titre className="sr-only md:not-sr-only md:min-w-0 md:flex-1 md:truncate md:text-[0.9375rem] md:font-semibold">{titre}</Titre>
         ) : null}
         {action ? <div className="pointer-events-auto flex shrink-0 items-center gap-2">{action}</div> : null}
       </header>
@@ -129,7 +129,7 @@ export function EnTeteDePage({
     >
       {retour ? <BoutonRetourDePage repli={retour.repli} libelle={retour.libelle} /> : null}
       {titre ? (
-        <Titre className="min-w-0 flex-1 truncate font-display text-[17px] font-semibold tracking-[-0.01em] text-foreground">
+        <Titre className="min-w-0 flex-1 truncate font-display text-[1.0625rem] font-semibold tracking-[-0.01em] text-foreground">
           {titre}
         </Titre>
       ) : (

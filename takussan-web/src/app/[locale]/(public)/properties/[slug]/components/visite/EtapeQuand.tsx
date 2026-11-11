@@ -111,8 +111,8 @@ export function EtapeQuand({
           {proposes.map((j) => (
             <CarteDeChoix key={j} name={`${id}-jour`} value={j} checked={jour === j} onSelect={() => onJour(j)}>
               <span className="leading-tight">
-                <span className="block text-[15px] font-semibold">{libelles.titreDuJour(j, maintenant)}</span>
-                <span className="block text-[13px]">{libelles.dateCourte(j)}</span>
+                <span className="block text-[0.9375rem] font-semibold">{libelles.titreDuJour(j, maintenant)}</span>
+                <span className="block text-[0.8125rem]">{libelles.dateCourte(j)}</span>
               </span>
             </CarteDeChoix>
           ))}
@@ -135,10 +135,10 @@ export function EtapeQuand({
             >
               <CalendarDays className="size-5 flex-none" aria-hidden />
               <span className="leading-tight">
-                <span className="block text-[15px] font-semibold">
+                <span className="block text-[0.9375rem] font-semibold">
                   {autreDate ? libelles.titreDuJour(autreDate, maintenant) : t('when.otherDate')}
                 </span>
-                <span className="block text-[13px]">
+                <span className="block text-[0.8125rem]">
                   {autreDate ? libelles.dateCourte(autreDate) : t('when.otherDateHint')}
                 </span>
               </span>
@@ -184,8 +184,8 @@ export function EtapeQuand({
                 className="flex-col items-center justify-center gap-1 px-2 text-center"
               >
                 <Icone className="size-5" aria-hidden />
-                <span className="text-[15px] font-semibold leading-tight">{t(`windows.${tr}.label`)}</span>
-                <span className="text-[13px] leading-tight">
+                <span className="text-[0.9375rem] font-semibold leading-tight">{t(`windows.${tr}.label`)}</span>
+                <span className="text-[0.8125rem] leading-tight">
                   {entamee ? t('when.windowStarted') : t(`windows.${tr}.range`)}
                 </span>
               </CarteDeChoix>
@@ -197,7 +197,7 @@ export function EtapeQuand({
             {erreurTranche}
           </p>
         ) : null}
-        <p id={`${id}-tranche-aide`} className="mt-2.5 flex gap-2 text-[13px] text-muted-foreground">
+        <p id={`${id}-tranche-aide`} className="mt-2.5 flex gap-2 text-[0.8125rem] text-muted-foreground">
           <Clock className="mt-px size-4 flex-none" aria-hidden />
           {t('when.windowHint')}
         </p>

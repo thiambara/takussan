@@ -100,4 +100,152 @@ grep -rhoE "[@a-z0-9:/-]*\[[^] ]*[0-9.]+rem[^] ]*\][a-z0-9/:-]*" src --include='
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Implémenté le 2026-11-11 sur `feat/audit-ux-app-lot-1` (arbre partagé), agent « terrain ».
+
+### Re-mesure de la prémisse
+
+- `text-[Npx]` : **371 lignes, 381 occurrences, 112 fichiers** — conforme au relevé.
+- Valeurs arbitraires en `rem` : **123 jetons** de classe, plus 21 valeurs hors classe (styles en
+  ligne, chaînes `calc` du champ téléphone, `minmax` de `/compare`, zones sûres).
+- **Écarts au relevé** :
+  - `rounded` sans suffixe compilait `border-radius: .25rem` **en dur** (63 emplois) : Tailwind 4 le
+    lit sur la clé de thème `--radius`, absente du thème. Corrigé par
+    `@theme inline reference { --radius: var(--spacing); }` : il suit l'échelle.
+  - Les variantes nommées de conteneur (`@md:`, `@lg:`…) compilent un seuil **littéral**
+    (`@container (width >= 28rem)`) et non `var(--container-*)` : elles sont dédoublées comme les
+    seuils arbitraires.
+  - `Navbar.tsx` (Delta 7) : ses requêtes de conteneur ne vivent que dans la rangée `lg:hidden`. Elles
+    ne s'appliquent jamais dès `lg` : **non dédoublées**. Les 7 autres fichiers du Delta 7 le sont
+    (55 seuils au total).
+  - Aucune location courte dans la base de démo : le calendrier (react-day-picker) est relevé en
+    ouvrant un `DatePicker` de `/app/payments` par perturbation.
+
+### Ce qui a été fait
+
+- `globals.css` : la règle de TCK-635 est retirée (commentaire renvoyant à ADR-0107). Le
+  `body` passe à `0.9rem` dès `lg` dans `@layer base`. Le bloc `densite-du-bureau` est placé hors couche, après `:root` :
+  `--spacing` 0,225rem, les 13 `--text-*` du thème, `--radius` 0,5625rem (et `--radius-xs`, seule
+  valeur littérale), les 13 `--container-*`, tous à ×0,9. S'y ajoutent les feuilles tierces : Leaflet
+  (`.leaflet-container` 0,675rem, sélecteur doublé) et react-day-picker (6 variables de `.rdp-root`, en
+  couche `rdp`).
+- Classes : `rem` arbitraire → `calc(var(--spacing)*K)`, ou classe nommée (`max-w-[22rem]` →
+  `max-w-88`). Seuil de conteneur → `max-lg:@max-[11rem]:x lg:@max-[9.9rem]:x`. `text-[Npx]` →
+  `text-[N/16rem]`. Les requêtes média ne bougent pas. Conversion par codemod (168 fichiers, aucun
+  sauté). Chacune des 126 classes neuves est vérifiée **émise** dans la feuille compilée
+  (`check:classes-emises`).
+- **Écart au Delta 5, accepté par la session le 2026-11-11 (option « garder »)** : le codemod a
+  aussi converti les valeurs qui ne valent que sous `lg`. Leur rendu ne bouge pas : sous `lg`,
+  `var(--spacing)` vaut exactement 0,25rem, et les relevés donnent 0 écart à 390 sur les 11 pages.
+  Une seule règle, « tout `rem` arbitraire passe par l'échelle », se garde mieux qu'un tri par
+  visibilité. `docs/design-guidelines.md` l'énonce ainsi. Valeurs concernées (recensement par
+  ligne portant `sm:`/`md:`/`lg:hidden` ou une surcharge du même utilitaire ; il peut ne pas être
+  exhaustif) :
+  - `CompareColonnes` : les deux `pb` de la barre « Partager » ;
+  - `ContactDeFiche` : le `pb` de sa barre ;
+  - `FeuilleDeLien` et `dialog` : `max-w-[calc(100%-…*8)]` ;
+  - `MessagesPage` : deux `h-[calc(100dvh-…)]` ;
+  - `WizardShell` : un `text-[calc(…*6.5)]` et le `pb` de la feuille du bas ;
+  - `WelcomeModal` : la hauteur `clamp` de l'illustration ;
+  - les chaînes `safeAreaInset` du `FloatingDock` (`PropertyForm`, `WizardShell`,
+    `PropertyMobileBottomBar`).
+- Le service worker (`src/lib/pwa/service-worker.ts`) n'est pas touché : c'est un document sans
+  `globals.css`.
+- **Test de la racine** : `src/app/__tests__/echelle-du-bureau.test.ts` est réécrit (44 tests). Il
+  vérifie qu'aucun `font-size` n'est posé sur `html`. Il vérifie que le bloc dès `lg` vaut 0,9 × chaque
+  échelle de `tailwindcss/theme.css` (lue dans `node_modules`, pour qu'une échelle oubliée échoue),
+  que `--radius` vaut ×0,9, que les interlignes restent sans unité, que le `body` vaut 0,9rem en
+  `base`, et que les utilitaires compilés lisent `var()`, `rounded` et `rounded-t` compris.
+- Les tests qui lisaient une valeur en `rem` dans une classe lisent désormais `var(--spacing)*K` :
+  `phone-input`, `Navbar` (téléphone et bureau), `MessagesPage`, `OngletsDeFiche`, `ProfileFilters`,
+  `CompareClient.chargement`, `CompareColonnes`, `palette-et-locale`, `FavoritesPopover.panneau`,
+  `WelcomeModal`, `dialog-hauteur-bornee`, plus le commentaire d'`AppSidebar.personnalisation`.
+
+### Ablations (arbre d'essai hors dépôt)
+
+- Remettre `html { font-size: 90% }` dès `lg` rend **2 rouges** au test de la racine.
+- Retirer `@theme inline reference { --radius: var(--spacing) }` rend **2 rouges** (`rounded`,
+  `rounded-t`).
+- Retirer `--text-6xl` du bloc rend **1 rouge**.
+- Le `globals.css` d'avant la bascule fait échouer tout le fichier.
+- Retirer le bloc `densite-du-bureau` entier fait échouer tout le fichier (marqueur absent). Le
+  pendant au navigateur (AC2 et AC4 au rouge) n'a pas été mesuré : la mesure inverse, la règle des
+  90 % remise, l'a été (aller-retour ci-dessous).
+- Recensement des seuils de conteneur (AC7, nouveau `describe` du test de la racine) : retirer le
+  jumeau `lg:` d'un seuil de `StatCard` rend **1 rouge** ; retirer son côté (`@min-[12.6rem]` nu)
+  en rend **2**.
+
+### Mesures (outil de TCK-2684, Chrome par CDP, racine et police par défaut)
+
+Échantillon : `/fr`, `/fr/properties`, une fiche (avec et sans sa carte Leaflet ouverte), `/app`,
+`/app/leases`, `/app/properties`, `/app/notifications`, `/app/overview/agency` (graphiques),
+`/app/overview/agent` (StatCard), `/app/payments` (calendrier ouvert). Chaque page est relevée à
+390, 1024, 1280 et 1440 : 44 relevés avant (01:42, racine 14,4) et 44 après (03:03, racine 16).
+
+- **AC1** — `html` vaut 16px à 1440 et à 390 sur `/app/leases` et `/fr/properties` ; il valait 14,4px à 1440 avant.
+- **AC2** — à 1440 : `text-sm` 12,6px, `p-4` 14,4px, `rounded-lg` 9px, `body` 14,4px. À 390 : 14, 16, 10
+  et 16. Ce sont les mêmes valeurs qu'avant.
+- **AC3** — `grep` du Delta : 0. La ligne de la barre latérale (`text-[0.875rem]`) rend 14px avant et
+  après.
+- **AC5** — police du navigateur à 20px (préférence `default_font_size` d'un profil jetable, option
+  `--police-navigateur` de l'outil) : `html` 20px (18 avant), `text-sm` 15,75px (identique), et
+  l'ex-`text-[13px]` rend **16,25px** (13 avant). Un `text-[14px]` d'hier rend 17,5px (14 avant).
+- **AC7** — seuils de conteneur à 1440, mesurés juste sous et juste au-dessus de chaque seuil par
+  perturbation, sur les pages graphes, `/app/overview/agent`, KYC, `/fr` et `/fr/properties`.
+  Avant et après, ce sont les mêmes seuils en px, avec le même `display` et la même taille de part
+  et d'autre. Seul résidu : des largeurs de texte qui bougent de ≤ 0,05px (voir AC4).
+  Fichier par fichier :
+  - mesurés avant et après : `LineChart` (518,4 / 237,6), `BarChart` (518,4 / 172,8),
+    `PropertyPhoto` (172,8), `PropertyCard` (158,4), `PropertyRow` (460,8 à 1094,4 : 5 seuils sur 7)
+    et KYC (403,2) ;
+  - `StatCard` mesuré après seulement, sur `/app/commissions` : la taille passe de 16,2 à 18px entre
+    200,8 et 202,6px de contenu, soit au seuil de 201,6px (14rem × 14,4). ⚠ La perturbation fixe la
+    largeur en `border-box` : pour un conteneur à padding, la bascule se lit en largeur de contenu ;
+    c'est la même chose avant et après ;
+  - non atteints par l'échantillon : `PropertyRow` 576 et 1512, KYC `@xl`.
+  Pour TOUS les seuils, le nouveau `describe` du test de la racine recense chaque variante de
+  conteneur en `rem` de `src`. Il exige un côté (`max-lg:` ou `lg:`, hors de la rangée `lg:hidden`
+  de `Navbar`) et un jumeau de l'autre côté à ×1/0,9, de même sens, même nom et même utilitaire.
+- **AC4** — 8 pages sur 11 rendent **0 écart, 0 absent** aux quatre largeurs : accueil `/app`, baux,
+  calendrier, graphes, notifications, StatCard, fiche et carte. Leur seul « absent » est le compteur
+  de vues de la fiche, que chaque relevé incrémente. Résidu de pixels de 0 à 0,58 % sans aucun écart
+  géométrique : l'image de différence montre un anticrénelage de glyphes aux mêmes positions. Cause :
+  0,7875rem × 16 et 0,875rem × 14,4 donnent tous deux 12,6px, mais pas au même arrondi flottant.
+  L'avance des mots varie de 1/32px au plus.
+  Les 3 autres pages (`/app/properties`, `/fr`, `/fr/properties`) avaient des écarts dus aux
+  **données**, pas à la bascule. La migration de rattrapage de TCK-2703
+  (`2026_11_11_110000_backfill_rent_period_of_rentals`, 02:16) fait apparaître « / mois » sur les
+  locations. L'ordre et la sélection des biens publics ont aussi changé entre les deux relevés. Les
+  données sont stables depuis : après contre après-bis à 03:16 donne 0 écart sur ces 3 pages.
+  **Pour ces 3 pages, la preuve vient d'un aller-retour**, fait avec l'accord de la session : l'arbre
+  repassé en arrière (156 sources de rendu, chacune vérifiée par md5) de 03:23 à 03:26, sous le
+  verrou de mesure, avec un contrôle de la feuille servie à chaque bascule. On a relevé l'avant-bis,
+  remis l'arbre (156 md5 égaux à l'instantané), puis relevé l'après-bis tout de suite derrière, sur
+  les mêmes données. Aux 4 largeurs : **0 écart** sur `/app/properties` (394 à 461 conformes),
+  `/fr` (57 à 149) et `/fr/properties` (45 à 202). Les « absents » sont les rôles de coque de `/app`,
+  sans objet sur une page publique. Le résidu de pixels (0,12 à 0,98 %) est le même anticrénelage
+  de glyphes que plus haut.
+- Après le changement du sélecteur Leaflet, la carte de la fiche relevée de nouveau à 1440 rend 0 %
+  de pixels contre le relevé d'avant.
+
+### Hors périmètre, signalé
+
+- **Les maquettes** (hors git) : leurs 14 valeurs arbitraires en `rem` perdent le ×0,9 au bureau
+  après la bascule (voir § Hors périmètre). Les références gelées de TCK-2684 font foi.
+- Les gardes `check:i18n`, `check:classes-emises`, `surface-publique.contraste`, `encre-sans-alpha`
+  et 5 gardes de la racine rougissent **en local seulement**, toutes sur `playground/maquettes/`.
+  Toutes ont été rejouées dans une copie sans les maquettes (même `src`, mêmes scripts), et toutes y sont
+  vertes, les 5 gardes de la racine comprises.
+
+### Outil de TCK-2684 étendu
+
+`--largeur 1024`, `--persona aucune` (pages publiques), `--police-navigateur N` (préférence de police
+d'un profil Chrome jetable) et le champ `policeNavigateur` du relevé. Il accepte aussi une maquette
+encore en chargement après 15 s, notée `chargementDessine` et `"etat": "chargement"` dans `gel.json` ;
+le produit reste refusé après 45 s.
+
+### Piège payé
+
+Après une écriture de `globals.css` par renommage atomique, Turbopack (`@tailwindcss/postcss`) a
+servi **l'ancienne** feuille (la règle des 90 %) avec les classes neuves. Réécrire le fichier à
+l'identique n'y change rien ; un vrai changement de contenu (une espace) la reconstruit. Toute mesure
+doit donc vérifier la feuille SERVIE (`.225rem` présent, `font-size: 90%` absent).

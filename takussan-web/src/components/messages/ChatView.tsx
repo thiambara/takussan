@@ -449,7 +449,7 @@ function MessageBubble({
         )}
         <p
           className={cn(
-            'mt-1 text-[11px] tabular-nums',
+            'mt-1 text-[0.6875rem] tabular-nums',
             isOwn ? 'text-primary-foreground/70' : 'text-muted-foreground',
           )}
         >
@@ -470,7 +470,7 @@ function VoiceNotePlayer({ message }: { message: Message }) {
     <div className="flex flex-col gap-1">
       <audio src={attachment.url} controls preload="none" className="h-9 w-56 max-w-full" aria-label={t('label')} />
       {duration ? (
-        <span className="text-[11px] tabular-nums opacity-80">{t('duration', { seconds: duration })}</span>
+        <span className="text-[0.6875rem] tabular-nums opacity-80">{t('duration', { seconds: duration })}</span>
       ) : null}
     </div>
   );

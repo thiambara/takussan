@@ -96,7 +96,7 @@ export function WizardShell({
     id: 'property-wizard-footer',
     corner: 'bottom-full',
     height: 97,
-    safeAreaInset: 'calc(1rem + env(safe-area-inset-bottom))',
+    safeAreaInset: 'calc(var(--spacing) * 4 + env(safe-area-inset-bottom))',
   });
 
   const titreRef = useRef<HTMLHeadingElement>(null);
@@ -148,7 +148,7 @@ export function WizardShell({
               )}
             >
               {parts ? (
-                <p className="mb-2 text-[0.6875rem] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+                <p className="mb-2 text-[calc(var(--spacing)*2.75)] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
                   {t('partPosition', {
                     current: partieCourante + 1,
                     total: parts.length,
@@ -170,7 +170,7 @@ export function WizardShell({
                 // TCK-631 — `h1` et non plus `h2` : la page ne porte plus de titre au-dessus du
                 // parcours (il disait « Publier un bien » une troisième fois). La question est le
                 // titre de la route.
-                className="font-display text-[1.625rem] leading-8 font-bold tracking-tight text-balance text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:text-4xl sm:leading-10"
+                className="font-display text-[calc(var(--spacing)*6.5)] leading-8 font-bold tracking-tight text-balance text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:text-4xl sm:leading-10"
               >
                 {etape.title}
               </h1>
@@ -275,11 +275,11 @@ export function WizardShell({
         {apercu ? (
           <aside
             aria-label={t('preview.label')}
-            className="hidden w-[22rem] shrink-0 overflow-y-auto border-l border-border bg-muted/40 lg:block xl:w-[25rem]"
+            className="hidden w-88 shrink-0 overflow-y-auto border-l border-border bg-muted/40 lg:block xl:w-100"
           >
             <div className="flex flex-col gap-4 p-6 xl:p-8">
               <div className="flex items-baseline justify-between gap-3">
-                <p className="text-[0.6875rem] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+                <p className="text-[calc(var(--spacing)*2.75)] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
                   {t('preview.label')}
                 </p>
                 <span className="text-xs text-muted-foreground">{t('preview.hint')}</span>

@@ -273,13 +273,13 @@ function ContenuDeLaPalette({ contexteDuMenu, ouverte, champ, fermer }: ContenuD
         <EmptyState title={t('aucun', { q: requete })} className="rounded-none border-0 bg-transparent px-2 py-6" />
       ) : null}
       {resultats.length > 0 ? (
-        <div id={idListe} role="listbox" aria-label={t('titre')} className="-mx-1 max-h-[min(60dvh,28rem)] overflow-y-auto px-1">
+        <div id={idListe} role="listbox" aria-label={t('titre')} className="-mx-1 max-h-[min(60dvh,var(--spacing)*112)] overflow-y-auto px-1">
           {parGroupe.map(([groupe, liste]) => (
             <div key={groupe} role="group" aria-labelledby={`${idListe}-${groupe}`} className="pb-2">
               <div
                 id={`${idListe}-${groupe}`}
                 role="presentation"
-                className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground"
+                className="px-2 pb-1 text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground"
               >
                 {t(`groupes.${TITRES[groupe]}`)}
               </div>

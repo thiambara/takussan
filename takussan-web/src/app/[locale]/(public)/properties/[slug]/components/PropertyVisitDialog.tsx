@@ -265,7 +265,7 @@ export function PropertyVisitDialog({
           >
             {etape !== 'envoyee' && (
               <>
-                <DialogTitle className="flex-1 font-display text-[17px] font-semibold text-foreground">
+                <DialogTitle className="flex-1 font-display text-[1.0625rem] font-semibold text-foreground">
                   {t('title')}
                 </DialogTitle>
                 <span className="bg-background text-sm tabular-nums text-muted-foreground">
@@ -302,7 +302,7 @@ export function PropertyVisitDialog({
             {etape === 'qui' && jour && tranche && (
               <div className="space-y-5 bg-background px-4 pb-6 pt-4 md:px-5">
                 <div className="flex items-center justify-between gap-3 rounded-xl bg-secondary px-3.5 py-2 text-secondary-foreground">
-                  <p className="flex items-center gap-2 text-[15px]">
+                  <p className="flex items-center gap-2 text-[0.9375rem]">
                     <CalendarCheck className="size-5 flex-none" aria-hidden />
                     <span className="font-semibold">{resume}</span>
                   </p>
@@ -408,7 +408,7 @@ export function PropertyVisitDialog({
                     aria-expanded={optionsOuvertes}
                     aria-controls={`${id}-options`}
                     onClick={() => setOptionsOuvertes((o) => !o)}
-                    className="flex min-h-12 w-full items-center justify-between gap-3 text-left text-[15px] text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring"
+                    className="flex min-h-12 w-full items-center justify-between gap-3 text-left text-[0.9375rem] text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring"
                   >
                     <span>
                       {t('who.moreOptions')}{' '}
@@ -507,7 +507,7 @@ export function PropertyVisitDialog({
 
           </div>
 
-          <div className="flex-none border-t border-border bg-card px-4 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-5 md:py-4">
+          <div className="flex-none border-t border-border bg-card px-4 pt-3 pb-[calc(var(--spacing)*4+env(safe-area-inset-bottom))] md:px-5 md:py-4">
             {/* Le refus de l'API reste sous les yeux, au-dessus du bouton, quel que soit le défilement. */}
             {bandeau && etape !== 'envoyee' && (
               <div
@@ -524,7 +524,7 @@ export function PropertyVisitDialog({
             )}
             <div className="flex gap-2.5 md:justify-end">
               {etape === 'quand' && (
-                <Button type="submit" disabled={!quandComplet} className="h-12 flex-1 text-[15px] font-semibold md:h-11 md:flex-none md:px-5">
+                <Button type="submit" disabled={!quandComplet} className="h-12 flex-1 text-[0.9375rem] font-semibold md:h-11 md:flex-none md:px-5">
                   {t('continue')}
                 </Button>
               )}
@@ -534,11 +534,11 @@ export function PropertyVisitDialog({
                     type="button"
                     variant="outline"
                     onClick={() => setEtape('quand')}
-                    className="hidden h-11 px-5 text-[15px] font-semibold md:inline-flex"
+                    className="hidden h-11 px-5 text-[0.9375rem] font-semibold md:inline-flex"
                   >
                     {t('back')}
                   </Button>
-                  <Button type="submit" disabled={submitting} className="h-12 flex-1 text-[15px] font-semibold md:h-11 md:flex-none md:px-5">
+                  <Button type="submit" disabled={submitting} className="h-12 flex-1 text-[0.9375rem] font-semibold md:h-11 md:flex-none md:px-5">
                     {submitting ? t('sending') : t('send')}
                   </Button>
                 </>
@@ -548,7 +548,7 @@ export function PropertyVisitDialog({
                   type="button"
                   variant="outline"
                   onClick={() => fermer(false)}
-                  className="h-12 flex-1 text-[15px] font-semibold md:h-11 md:flex-none md:px-5"
+                  className="h-12 flex-1 text-[0.9375rem] font-semibold md:h-11 md:flex-none md:px-5"
                 >
                   {t('done.backToListing')}
                 </Button>

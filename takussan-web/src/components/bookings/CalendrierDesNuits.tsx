@@ -131,7 +131,7 @@ function Mois({ mois, selection, contexte, onChoisir, enAttente, centre = false 
 
   return (
     <section aria-label={nom}>
-      <h3 className={cn('font-display text-[17px] font-semibold capitalize leading-11', centre ? 'text-center' : 'px-1')}>{nom}</h3>
+      <h3 className={cn('font-display text-[1.0625rem] font-semibold capitalize leading-11', centre ? 'text-center' : 'px-1')}>{nom}</h3>
       <div className="mt-1 grid grid-cols-7 text-center text-xs text-muted-foreground" aria-hidden>
         {joursDeSemaine.map((j) => (
           <span key={j.long} className="py-1">
@@ -175,7 +175,7 @@ function Mois({ mois, selection, contexte, onChoisir, enAttente, centre = false 
                 data-jour={jour}
                 data-pris={pris ? '' : undefined}
                 className={cn(
-                  'inline-flex size-11 items-center justify-center rounded-full text-[15px] tabular-nums transition-colors',
+                  'inline-flex size-11 items-center justify-center rounded-full text-[0.9375rem] tabular-nums transition-colors',
                   'focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring',
                   selectionnable && !arrivee && !depart && 'hover:ring-1 hover:ring-foreground',
                   // Barré : la nuit est prise. Un départ possible ce jour-là reste barré mais actif.

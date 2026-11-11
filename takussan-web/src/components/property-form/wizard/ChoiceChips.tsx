@@ -149,7 +149,7 @@ export function ChoiceChips({
         id={id}
         className={cn(
           variant === 'pastilles'
-            ? 'mb-2 text-[0.6875rem] font-bold uppercase tracking-[0.11em] text-muted-foreground'
+            ? 'mb-2 text-[calc(var(--spacing)*2.75)] font-bold uppercase tracking-[0.11em] text-muted-foreground'
             : 'mb-3 text-sm font-semibold text-foreground',
         )}
       >

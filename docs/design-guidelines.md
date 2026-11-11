@@ -31,6 +31,33 @@ Règles :
 
 > Les fontes alternatives (Geist, Manrope, Inter, Fraunces) restent chargées pour le `/playground` mais ne doivent **jamais** apparaître en prod.
 
+### La densité du bureau — des jetons, pas une racine ([ADR-0107](adr/0107-la-densite-du-bureau-est-un-jeu-de-jetons.md), TCK-2692)
+
+Le bureau (dès `lg`, 1024 px) est **à ×0,9** du téléphone : décision du porteur depuis TCK-635. Il
+n'est plus porté par `html { font-size: 90% }`. **La racine vaut la taille de police du navigateur à
+toute largeur** (16 px par défaut). Ce sont les échelles qui passent à ×0,9 dès `lg`, dans le bloc
+`densite-du-bureau` de `globals.css` : `--spacing` (0,225rem), chaque `--text-*`, `--radius`, les
+`--container-*` et le texte du `body` (0,9rem).
+
+- **Une classe du thème suit seule** (`p-4`, `text-sm`, `rounded-lg`, `max-w-md`). À 1440, `text-sm` rend
+  12,6 px et `p-4` 14,4 px ; sous `lg`, 14 et 16 px.
+- **Une valeur arbitraire en `rem` ne lit aucun jeton.** Elle s'écrit sur l'échelle,
+  `w-[calc(var(--spacing)*22)]` et non `w-[5.5rem]`, ou par la classe nommée quand elle existe (`max-w-88`).
+  **Toutes les valeurs suivent cette règle, y compris celles qui ne valent que sous `lg`** (barre
+  mobile `md:hidden`, valeur remplacée par `sm:`). Sous `lg`, `var(--spacing)` vaut exactement
+  0,25rem et le rendu ne change pas. Une seule règle se garde ; un tri par visibilité devient faux
+  le jour où quelqu'un retire le `md:hidden`.
+- **Une taille fixe s'écrit en `rem` calculés** (`text-[0.8125rem]` pour 13 px), jamais en px : elle
+  garde sa taille au réglage par défaut, et elle grandit quand la personne agrandit la police de son
+  navigateur. Le texte en px y restait sourd.
+- **Un seuil de requête de CONTENEUR en `rem` se lit contre la racine.** Il s'écrit donc de chaque
+  côté de `lg` pour garder son seuil en px : `max-lg:@max-[11rem]:hidden lg:@max-[9.9rem]:hidden`.
+  Une requête MÉDIA en `rem` se lit contre la taille initiale du navigateur : elle ne bouge pas.
+- **Les feuilles tierces en `rem`** (Leaflet, react-day-picker) sont ramenées dans l'échelle par
+  `globals.css`. Une feuille neuve s'y ajoute.
+- `src/app/__tests__/echelle-du-bureau.test.ts` lit le thème de Tailwind et refuse une échelle oubliée,
+  ou une racine qui reprend une taille.
+
 ## Palette de couleurs
 
 Palette officielle : **Lin** — fond clair quasi-blanc, terracotta atténué, sage discret.

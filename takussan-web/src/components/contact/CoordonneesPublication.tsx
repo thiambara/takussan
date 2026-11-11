@@ -275,7 +275,7 @@ export function CoordonneesPublication({
                       onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                       autoComplete="one-time-code"
                       aria-label={t('codeAria')}
-                      className="max-w-[8rem]"
+                      className="max-w-32"
                     />
                     <Button type="button" size="sm" onClick={verifierCode} disabled={enCours || code.length !== 6}>
                       {t('verifyCode')}

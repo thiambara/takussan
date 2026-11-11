@@ -192,13 +192,13 @@ export function CarteApercu({
         <p className="font-display text-base leading-6 font-semibold text-pretty text-foreground">
           {d.titre || t('empty')}
         </p>
-        <p className="text-[13px] leading-[18px] text-muted-foreground">
+        <p className="text-[0.8125rem] leading-[18px] text-muted-foreground">
           {d.lieu || <AVenir>{t('placeLater')}</AVenir>}
         </p>
         {d.chiffres.length > 0 ? (
-          <p className="text-[13px] leading-[18px] text-muted-foreground">{d.chiffres.join(' · ')}</p>
+          <p className="text-[0.8125rem] leading-[18px] text-muted-foreground">{d.chiffres.join(' · ')}</p>
         ) : null}
-        <p className="pt-1 text-[15px] leading-6 font-semibold text-foreground tabular-nums" data-testid="apercu-prix">
+        <p className="pt-1 text-[0.9375rem] leading-6 font-semibold text-foreground tabular-nums" data-testid="apercu-prix">
           {d.prix ? (
             <>
               {d.prix}
@@ -213,7 +213,7 @@ export function CarteApercu({
       </div>
 
       {d.coutDEntree.length > 0 ? (
-        <div className="mt-3 border-t border-border px-0.5 pt-3 text-[13px] leading-[18px]">
+        <div className="mt-3 border-t border-border px-0.5 pt-3 text-[0.8125rem] leading-[18px]">
           <p className="font-medium text-foreground">{t('entryTitle')}</p>
           <p className="text-muted-foreground">{d.coutDEntree.join(', ')}</p>
           {d.totalDEntree ? (
@@ -354,9 +354,9 @@ export function BarreApercu({
         </span>
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-sm font-semibold text-foreground">{premiereLigne}</span>
-          <span className="truncate text-[13px] text-muted-foreground tabular-nums">{secondeLigne}</span>
+          <span className="truncate text-[0.8125rem] text-muted-foreground tabular-nums">{secondeLigne}</span>
         </span>
-        <span className="flex shrink-0 items-center gap-1 text-[13px] font-medium text-primary">
+        <span className="flex shrink-0 items-center gap-1 text-[0.8125rem] font-medium text-primary">
           <Eye className="size-4" aria-hidden="true" />
           {t('open')}
         </span>
@@ -367,7 +367,7 @@ export function BarreApercu({
             <SheetTitle>{t('label')}</SheetTitle>
             <SheetDescription>{t('hint')}</SheetDescription>
           </SheetHeader>
-          <div className="mx-auto flex w-full max-w-md flex-col gap-4 overflow-y-auto px-4 pt-2 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:px-6">
+          <div className="mx-auto flex w-full max-w-md flex-col gap-4 overflow-y-auto px-4 pt-2 pb-[calc(var(--spacing)*6+env(safe-area-inset-bottom))] sm:px-6">
             <CarteApercu form={form} photos={photos} />
             {children?.(() => setOuvert(false))}
           </div>

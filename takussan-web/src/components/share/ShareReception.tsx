@@ -195,7 +195,7 @@ export function ShareReception({ token }: ShareReceptionProps) {
         <CarteDeLien data-testid="share-password-form" ton="alerte" icone={<Lock />} titre={t('passwordTitle')}>
           {t('passwordHint')}
         </CarteDeLien>
-        <form id="share-password-form" onSubmit={ouvrir} className="mx-auto w-full max-w-[22rem] space-y-3 px-5 pb-8 pt-6">
+        <form id="share-password-form" onSubmit={ouvrir} className="mx-auto w-full max-w-88 space-y-3 px-5 pb-8 pt-6">
           {etat.wrong ? <ErrorState id="share-password-error" message={t('wrongPassword')} /> : null}
           <div className="space-y-1.5">
             <Label htmlFor="share-password">{t('passwordLabel')}</Label>
@@ -216,7 +216,7 @@ export function ShareReception({ token }: ShareReceptionProps) {
             type="submit"
             form="share-password-form"
             size="lg"
-            className="h-12 w-full text-[15px] font-semibold"
+            className="h-12 w-full text-[0.9375rem] font-semibold"
             disabled={envoi || !motDePasse}
           >
             {envoi ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
@@ -265,7 +265,7 @@ export function ShareReception({ token }: ShareReceptionProps) {
           </div>
         </div>
         {doc.expires_at || restants !== null ? (
-          <ul className="mt-3 space-y-2 px-1 text-[15px] text-foreground">
+          <ul className="mt-3 space-y-2 px-1 text-[0.9375rem] text-foreground">
             {doc.expires_at ? (
               <li className="flex items-center gap-2.5">
                 <CalendarClock className="size-4 flex-none text-muted-foreground" aria-hidden="true" />
@@ -282,13 +282,13 @@ export function ShareReception({ token }: ShareReceptionProps) {
             ) : null}
           </ul>
         ) : null}
-        {restants !== null ? <p className="mt-6 text-[13px] leading-relaxed text-muted-foreground">{tL('compte')}</p> : null}
+        {restants !== null ? <p className="mt-6 text-[0.8125rem] leading-relaxed text-muted-foreground">{tL('compte')}</p> : null}
       </section>
       <BasDeLien>
         {erreurTelechargement ? <ErrorState message={t('downloadError')} /> : null}
         <Button
           size="lg"
-          className="h-12 w-full text-[15px] font-semibold"
+          className="h-12 w-full text-[0.9375rem] font-semibold"
           onClick={() => void telecharger(doc)}
           disabled={telechargement}
         >

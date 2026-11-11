@@ -142,7 +142,7 @@ export function ProfileFilters({ base, villes, placeholderRecherche }: Props) {
           // net, sans signe qu'elle défile). `lg:pr-24` laisse la dernière puce hors du fondu une fois
           // la rangée défilée jusqu'au bout. Au téléphone, la rangée sort du cadre (`-mx-4`) : le
           // bord de l'écran signale déjà la suite, rien ne change.
-          className="-mx-4 -my-1 flex gap-2 overflow-x-auto px-4 py-1 [scrollbar-width:none] sm:-mx-6 sm:px-6 lg:mx-0 lg:min-w-0 lg:flex-1 lg:pl-0 lg:pr-24 lg:[mask-image:linear-gradient(to_right,#000_calc(100%-6rem),transparent)] [&::-webkit-scrollbar]:hidden"
+          className="-mx-4 -my-1 flex gap-2 overflow-x-auto px-4 py-1 [scrollbar-width:none] sm:-mx-6 sm:px-6 lg:mx-0 lg:min-w-0 lg:flex-1 lg:pl-0 lg:pr-24 lg:[mask-image:linear-gradient(to_right,#000_calc(100%-var(--spacing)*24),transparent)] [&::-webkit-scrollbar]:hidden"
           role="group"
           aria-label={t('cityGroupAria')}
         >

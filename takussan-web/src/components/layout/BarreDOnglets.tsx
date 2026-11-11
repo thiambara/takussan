@@ -23,7 +23,7 @@ import { AnnonceDesNonLus } from './AnnonceDesNonLus';
 
 /** Une case : 72 px de large à 360 (cinq colonnes), toute la hauteur de la barre (56 px) — cibles ≥ 44 px. */
 const STYLE_CASE =
-  'relative flex h-full w-full flex-col items-center justify-center gap-0.5 px-1 text-[11px] leading-tight transition-colors';
+  'relative flex h-full w-full flex-col items-center justify-center gap-0.5 px-1 text-[0.6875rem] leading-tight transition-colors';
 
 interface BarreDOngletsProps {
   readonly user: User;
@@ -135,7 +135,7 @@ export function BarreDOnglets({
                     <span
                       aria-hidden
                       data-slot="pastille-onglet"
-                      className="absolute -top-1.5 -right-2.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] leading-none font-semibold text-primary-foreground ring-2 ring-card"
+                      className="absolute -top-1.5 -right-2.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[0.625rem] leading-none font-semibold text-primary-foreground ring-2 ring-card"
                     >
                       {compte > 99 ? t('onglets.plafond') : compte}
                     </span>

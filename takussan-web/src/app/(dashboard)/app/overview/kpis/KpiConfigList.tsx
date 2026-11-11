@@ -81,7 +81,7 @@ export function KpiConfigList({ initialConfigs, catalog }: Props) {
       <section className="space-y-4 rounded-2xl bg-card p-6">
         <h2 className="text-base font-semibold text-foreground">{t('addTitle')}</h2>
         <form
-          className="grid gap-3 lg:grid-cols-[1fr_1fr_12rem_auto] lg:items-end"
+          className="grid gap-3 lg:grid-cols-[1fr_1fr_calc(var(--spacing)*48)_auto] lg:items-end"
           onSubmit={(e) => {
             e.preventDefault();
             addKpi();

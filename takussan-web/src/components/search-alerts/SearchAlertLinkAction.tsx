@@ -266,7 +266,7 @@ export function SearchAlertLinkAction(props: SearchAlertLinkActionProps) {
             type="button"
             variant="outline"
             size="lg"
-            className="h-12 w-full text-[15px]"
+            className="h-12 w-full text-[0.9375rem]"
             disabled={enCours}
             onClick={() => void agir('semaine')}
           >
@@ -278,7 +278,7 @@ export function SearchAlertLinkAction(props: SearchAlertLinkActionProps) {
           type="button"
           size="lg"
           className={cn(
-            'h-12 w-full text-[15px] font-semibold',
+            'h-12 w-full text-[0.9375rem] font-semibold',
             action.kind !== 'confirm' && 'bg-foreground text-background hover:bg-foreground/90',
           )}
           disabled={enCours}

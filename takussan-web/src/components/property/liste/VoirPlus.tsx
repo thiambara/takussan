@@ -64,7 +64,7 @@ export function VoirPlus({
             e.preventDefault();
             if (!chargement) onVoirPlus();
           }}
-          className="mt-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-foreground bg-card text-[15px] font-semibold text-foreground transition-[background-color,scale] duration-150 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.98]"
+          className="mt-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-foreground bg-card text-[0.9375rem] font-semibold text-foreground transition-[background-color,scale] duration-150 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.98]"
         >
           {chargement ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
           {t('bouton', { count: suivants })}

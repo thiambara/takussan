@@ -87,7 +87,7 @@ export function DigestUnsubscribeAction(props: DigestUnsubscribeActionProps) {
         <Button
           type="button"
           size="lg"
-          className="h-12 w-full bg-foreground text-[15px] font-semibold text-background hover:bg-foreground/90"
+          className="h-12 w-full bg-foreground text-[0.9375rem] font-semibold text-background hover:bg-foreground/90"
           disabled={etat === 'working'}
           onClick={() => void agir()}
         >

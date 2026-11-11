@@ -330,7 +330,7 @@ export function WizardReprenable<TData extends Record<string, unknown>>({
       // une fois ici, et chaque `Input` / `SelectTrigger` d'étape en hérite (TCK-468).
       {...fieldDensityScope()}
       className={cn(
-        'mx-auto grid w-full max-w-4xl gap-8 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-14',
+        'mx-auto grid w-full max-w-4xl gap-8 lg:grid-cols-[calc(var(--spacing)*60)_minmax(0,1fr)] lg:gap-14',
         className,
       )}
     >
@@ -355,7 +355,7 @@ export function WizardReprenable<TData extends Record<string, unknown>>({
                   <span
                     aria-hidden
                     className={cn(
-                      'absolute left-[11px] top-6 h-[calc(100%-1.5rem)] w-px',
+                      'absolute left-[11px] top-6 h-[calc(100%-var(--spacing)*6)] w-px',
                       isDone ? 'bg-primary/40' : 'bg-border',
                     )}
                   />
@@ -364,7 +364,7 @@ export function WizardReprenable<TData extends Record<string, unknown>>({
                 <span
                   aria-hidden
                   className={cn(
-                    'relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full border text-[11px] font-medium tabular-nums',
+                    'relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full border text-[0.6875rem] font-medium tabular-nums',
                     'transition-colors duration-200 ease-out',
                     isActive && 'border-primary bg-primary text-primary-foreground',
                     isDone && 'border-primary/40 bg-primary/10 text-primary',
@@ -414,11 +414,11 @@ export function WizardReprenable<TData extends Record<string, unknown>>({
         </div>
 
         <header className="flex flex-col gap-2">
-          <h2 className="font-display text-2xl font-semibold tracking-tight text-balance text-foreground sm:text-[1.75rem]">
+          <h2 className="font-display text-2xl font-semibold tracking-tight text-balance text-foreground sm:text-[calc(var(--spacing)*7)]">
             {current.title}
           </h2>
           {current.subtitle ? (
-            <p className="max-w-[60ch] text-[0.9375rem] leading-relaxed text-muted-foreground">
+            <p className="max-w-[60ch] text-[calc(var(--spacing)*3.75)] leading-relaxed text-muted-foreground">
               {current.subtitle}
             </p>
           ) : null}

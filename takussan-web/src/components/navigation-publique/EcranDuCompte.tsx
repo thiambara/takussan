@@ -91,16 +91,16 @@ function Rangee({
           <Icone className="size-5" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[15px] font-medium text-foreground">{titre}</span>
+          <span className="block text-[0.9375rem] font-medium text-foreground">{titre}</span>
           {detail ? <span className="block truncate text-sm text-muted-foreground">{detail}</span> : null}
         </span>
         {valeur ? (
-          <span aria-hidden data-slot="solde-credits" className="text-[15px] font-semibold tabular-nums text-foreground">
+          <span aria-hidden data-slot="solde-credits" className="text-[0.9375rem] font-semibold tabular-nums text-foreground">
             {valeur}
           </span>
         ) : null}
         {compte ? (
-          <span aria-hidden className="text-[15px] font-semibold tabular-nums text-primary">
+          <span aria-hidden className="text-[0.9375rem] font-semibold tabular-nums text-primary">
             {compte > 99 ? '99+' : compte}
           </span>
         ) : null}
@@ -115,7 +115,7 @@ function CartePublier({ question }: { readonly question: string }) {
   return (
     <div className="mt-7 flex items-center gap-3 rounded-2xl bg-secondary/60 p-4">
       <Store className="size-5 flex-none text-primary-deep" aria-hidden />
-      <p className="flex-1 text-[15px] text-foreground">
+      <p className="flex-1 text-[0.9375rem] text-foreground">
         {question}{' '}
         <LienLocalise href="/publish" className="font-medium underline underline-offset-4 hover:text-primary">
           {t('lien')}
@@ -130,7 +130,7 @@ function Reglages({ deconnexion }: { readonly deconnexion?: ReactNode }) {
   const t = useTranslations('navigationPublique.reglages');
   return (
     <section aria-labelledby="reglages-du-compte" className="mt-8 border-t border-border pt-6">
-      <h2 id="reglages-du-compte" className="font-display text-[17px] font-semibold tracking-[-0.02em] text-foreground">
+      <h2 id="reglages-du-compte" className="font-display text-[1.0625rem] font-semibold tracking-[-0.02em] text-foreground">
         {t('titre')}
       </h2>
       <ChoixDeLangue className="mt-3 justify-between py-2" />
@@ -160,10 +160,10 @@ function EcranCompte() {
   ];
   return (
     <div className="mx-auto w-full max-w-xl px-4 pb-10 pt-6 sm:px-6">
-      <h1 className="font-display text-[28px] font-semibold tracking-[-0.03em] text-foreground">{t('titre')}</h1>
+      <h1 className="font-display text-[1.75rem] font-semibold tracking-[-0.03em] text-foreground">{t('titre')}</h1>
       <section className="mt-5 rounded-2xl border border-border bg-card p-4">
-        <h2 className="text-[17px] font-semibold text-foreground">{t('connexion.titre')}</h2>
-        <p className="mt-1 text-[15px] text-muted-foreground">{t('connexion.texte')}</p>
+        <h2 className="text-[1.0625rem] font-semibold text-foreground">{t('connexion.titre')}</h2>
+        <p className="mt-1 text-[0.9375rem] text-muted-foreground">{t('connexion.texte')}</p>
         <Suspense fallback={<LienDeConnexion href={hrefConnexion(pathname)} />}>
           <LienDeConnexionDepuis pathname={pathname} />
         </Suspense>
@@ -176,7 +176,7 @@ function EcranCompte() {
               <Icone className="size-5" />
             </span>
             <div>
-              <p className="text-[15px] font-medium leading-snug text-foreground">{titre}</p>
+              <p className="text-[0.9375rem] font-medium leading-snug text-foreground">{titre}</p>
               {detail ? <p className="text-sm text-muted-foreground">{detail}</p> : null}
             </div>
           </li>
@@ -191,7 +191,7 @@ function EcranCompte() {
 function LienDeConnexion({ href }: { readonly href: string }) {
   const t = useTranslations('navigationPublique.compte');
   return (
-    <LienLocalise href={href} className={cn(buttonVariants(), 'mt-4 h-12 w-full rounded-xl text-[15px] font-semibold')}>
+    <LienLocalise href={href} className={cn(buttonVariants(), 'mt-4 h-12 w-full rounded-xl text-[0.9375rem] font-semibold')}>
       {t('connexion.action')}
     </LienLocalise>
   );
@@ -253,11 +253,11 @@ function EcranMoi({ user }: { readonly user: User }) {
           </AvatarFallback>
         </Avatar>
         <div className="min-w-0">
-          <h1 className="font-display text-[24px] font-semibold leading-tight tracking-[-0.02em] text-foreground">
+          <h1 className="font-display text-[1.5rem] font-semibold leading-tight tracking-[-0.02em] text-foreground">
             {prenom ? t('moi.bonjour', { prenom }) : t('moi.bonjourSansNom')}
           </h1>
           {user.phone || user.email ? (
-            <p className="truncate text-[15px] text-muted-foreground">
+            <p className="truncate text-[0.9375rem] text-muted-foreground">
               {user.phone ? formaterTelephone(user.phone) : user.email}
             </p>
           ) : null}
@@ -269,7 +269,7 @@ function EcranMoi({ user }: { readonly user: User }) {
       {action ? (
         <LienLocalise
           href={action.href}
-          className={cn(buttonVariants(), 'mt-4 h-12 w-full gap-2 rounded-xl text-[15px] font-semibold')}
+          className={cn(buttonVariants(), 'mt-4 h-12 w-full gap-2 rounded-xl text-[0.9375rem] font-semibold')}
         >
           <Plus className="size-5" aria-hidden />
           {libelle(action)}
@@ -283,7 +283,7 @@ function EcranMoi({ user }: { readonly user: User }) {
       {sections.map((s) => (
         <section key={s.id} aria-labelledby={s.titre ? `moi-${s.id}` : undefined} className="mt-6">
           {s.titre ? (
-            <h2 id={`moi-${s.id}`} className="font-display text-[17px] font-semibold tracking-[-0.02em] text-foreground">
+            <h2 id={`moi-${s.id}`} className="font-display text-[1.0625rem] font-semibold tracking-[-0.02em] text-foreground">
               {tSidebar(`groupes.${s.titre}`)}
             </h2>
           ) : null}
@@ -318,7 +318,7 @@ function EcranMoi({ user }: { readonly user: User }) {
 
       <LienLocalise
         href="/app"
-        className="mt-4 inline-flex min-h-11 items-center text-[15px] font-medium text-primary underline underline-offset-4"
+        className="mt-4 inline-flex min-h-11 items-center text-[0.9375rem] font-medium text-primary underline underline-offset-4"
       >
         {t('moi.ouvrirEspace')}
       </LienLocalise>
@@ -342,7 +342,7 @@ function EcranMoi({ user }: { readonly user: User }) {
                 <span className="inline-flex size-10 flex-none items-center justify-center rounded-xl bg-muted text-primary-deep" aria-hidden>
                   <LogOut className="size-5" />
                 </span>
-                <span className="flex-1 text-[15px] font-medium text-foreground">{t('reglages.deconnexion')}</span>
+                <span className="flex-1 text-[0.9375rem] font-medium text-foreground">{t('reglages.deconnexion')}</span>
               </button>
             </li>
           </ul>
@@ -389,7 +389,7 @@ function ChangerDEspace() {
                   <Building2 className="size-[18px]" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[15px] font-semibold text-foreground">
+                  <span className="block truncate text-[0.9375rem] font-semibold text-foreground">
                     {p.agency?.name ?? t('personnel')}
                   </span>
                   <span className="block truncate text-sm text-muted-foreground">{profileTypeLabel(p.type, tTypes)}</span>

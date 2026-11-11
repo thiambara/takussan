@@ -71,20 +71,20 @@ export function PropertyCardCompact({
         <h3
           id={idTitre}
           title={property.title}
-          className={`font-display text-[15px] leading-5 font-semibold text-foreground truncate ${TITRE_REACTIF}`}
+          className={`font-display text-[0.9375rem] leading-5 font-semibold text-foreground truncate ${TITRE_REACTIF}`}
         >
           {property.title}
         </h3>
         <CardMeta
           uneLigne
-          className="text-[13px] leading-[18px] text-muted-foreground"
+          className="text-[0.8125rem] leading-[18px] text-muted-foreground"
           items={[
             quarter,
             property.bedrooms != null && property.bedrooms > 0 && t('bedroomsShort', { count: property.bedrooms }),
             property.area != null && `${property.area} m²`,
           ]}
         />
-        <p className="pt-0.5 text-[14px] leading-5 font-semibold text-foreground tabular-nums truncate">
+        <p className="pt-0.5 text-[0.875rem] leading-5 font-semibold text-foreground tabular-nums truncate">
           {formatPrice(property.price, property.currency ?? 'XOF')}
           {property.contract_type === 'rent' && property.rent_period && (
             <span className="ml-0.5 font-normal text-muted-foreground">

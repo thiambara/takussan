@@ -88,7 +88,7 @@ describe('<CompareClient> — l’attente a la forme du comparatif (TCK-577, TCK
     const { container } = render(wrap(<CompareClient />));
     const attente = screen.getByTestId('compare-chargement');
     expect(attente.style.getPropertyValue('--colonnes-mobile')).toBe('repeat(4, minmax(0, 1fr))');
-    expect(attente.style.getPropertyValue('--colonnes-bureau')).toBe('minmax(8rem, 13rem) repeat(4, minmax(0, 1fr))');
+    expect(attente.style.getPropertyValue('--colonnes-bureau')).toBe('minmax(calc(var(--spacing) * 32), calc(var(--spacing) * 52)) repeat(4, minmax(0, 1fr))');
     const defilants = [...container.querySelectorAll<HTMLElement>('*')].filter((el) =>
       /(^|\s)(overflow-x-(auto|scroll)|snap-x|min-w-\[|aspect-)/.test(el.className),
     );

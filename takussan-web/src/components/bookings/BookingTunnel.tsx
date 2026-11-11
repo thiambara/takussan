@@ -49,7 +49,7 @@ import { useDrapeauConnexionParTelephone, useIdentiteParTelephone } from './useI
 import { useNuitsPrises } from './useNuitsPrises';
 
 /** Cibles d'au moins 44 px : une page publique, lue au doigt (revue design 2026-09-16). */
-const CTA = 'h-12 px-5 text-[15px] font-semibold';
+const CTA = 'h-12 px-5 text-[0.9375rem] font-semibold';
 
 /** Les refus de l'API sur des nuits déjà prises (TCK-596, `PropertyAvailabilityService`). */
 const CODES_NUITS_PRISES = new Set(['booking.dates_overlap', 'booking.dates_unavailable']);
@@ -275,7 +275,7 @@ export function BookingTunnel({ property, sejourInitial }: BookingTunnelProps) {
   const resumeNuits = [t('nights', { count: nuits }), t('guests.count', { count: personnes })].join(' · ');
 
   const detailDuPrix = (
-    <dl className="space-y-2 text-[15px] tabular-nums">
+    <dl className="space-y-2 text-[0.9375rem] tabular-nums">
       <div className="flex items-baseline justify-between gap-3">
         <dt className="min-w-0 text-muted-foreground" data-testid="booking-price-line">
           {quote.period === 'weekly'
@@ -335,7 +335,7 @@ export function BookingTunnel({ property, sejourInitial }: BookingTunnelProps) {
             <h1 className="mt-1 text-balance font-display text-2xl font-semibold tracking-tight lg:mt-3 lg:text-4xl" aria-live="polite">
               {titreDesDates}
             </h1>
-            <p className="text-pretty text-[15px] text-muted-foreground" data-testid="booking-dates-hint">
+            <p className="text-pretty text-[0.9375rem] text-muted-foreground" data-testid="booking-dates-hint">
               {nuitsPrises.etat === 'chargement'
                 ? t('dates.loading')
                 : nuitsPrises.etat === 'erreur'
@@ -373,7 +373,7 @@ export function BookingTunnel({ property, sejourInitial }: BookingTunnelProps) {
                 <p className="font-display text-lg font-semibold tabular-nums" data-testid="booking-bar-total">
                   {complete ? money(quote.total) : '—'}
                 </p>
-                <p className="truncate text-[13px] text-muted-foreground">{complete ? resumeNuits : t('dates.noDates')}</p>
+                <p className="truncate text-[0.8125rem] text-muted-foreground">{complete ? resumeNuits : t('dates.noDates')}</p>
               </div>
             }
           >
@@ -386,7 +386,7 @@ export function BookingTunnel({ property, sejourInitial }: BookingTunnelProps) {
             <RecapDuBien property={property} />
             {complete ? (
               <>
-                <p className="border-t border-border pt-4 text-[15px] font-medium">{resumeNuits}</p>
+                <p className="border-t border-border pt-4 text-[0.9375rem] font-medium">{resumeNuits}</p>
                 {detailDuPrix}
               </>
             ) : (
@@ -410,12 +410,12 @@ export function BookingTunnel({ property, sejourInitial }: BookingTunnelProps) {
           <span className="mx-auto inline-flex size-14 items-center justify-center rounded-full bg-muted text-success">
             <CircleCheck className="size-8" aria-hidden />
           </span>
-          <h1 className="mt-4 text-balance font-display text-[26px] font-semibold leading-tight tracking-tight">{t('success.title')}</h1>
-          <p className="mx-auto mt-2 max-w-md text-pretty text-[15px] text-muted-foreground">
+          <h1 className="mt-4 text-balance font-display text-[1.625rem] font-semibold leading-tight tracking-tight">{t('success.title')}</h1>
+          <p className="mx-auto mt-2 max-w-md text-pretty text-[0.9375rem] text-muted-foreground">
             {t.rich('success.body', { title: property.title, strong: (chunks) => <strong className="text-foreground">{chunks}</strong> })}
           </p>
           {/* TCK-575 — l'échéance PROPRE à la demande (`response_deadline`), jamais un délai écrit en dur. */}
-          <p data-testid="booking-success-deadline" className="mx-auto mt-2 max-w-md text-pretty text-[15px] text-muted-foreground">
+          <p data-testid="booking-success-deadline" className="mx-auto mt-2 max-w-md text-pretty text-[0.9375rem] text-muted-foreground">
             {echeance
               ? t.rich('success.deadline', {
                   date: fmt.dateTime(echeance, { dateStyle: 'full', timeStyle: 'short' }),
@@ -426,7 +426,7 @@ export function BookingTunnel({ property, sejourInitial }: BookingTunnelProps) {
 
           <section className="mt-6 rounded-2xl bg-card p-4 text-left ring-1 ring-border">
             <RecapDuBien property={property} />
-            <dl className="mt-4 space-y-2 border-t border-border pt-3 text-[15px]">
+            <dl className="mt-4 space-y-2 border-t border-border pt-3 text-[0.9375rem]">
               {booking.start_date && booking.end_date ? (
                 <div className="flex justify-between gap-3">
                   <dt className="text-muted-foreground">{t('success.dates')}</dt>
@@ -453,7 +453,7 @@ export function BookingTunnel({ property, sejourInitial }: BookingTunnelProps) {
             </dl>
           </section>
 
-          <h2 className="mt-8 text-left text-[13px] font-semibold text-muted-foreground">{t('success.next')}</h2>
+          <h2 className="mt-8 text-left text-[0.8125rem] font-semibold text-muted-foreground">{t('success.next')}</h2>
           <ol className="mt-3 space-y-3 pb-8 text-left">
             <Etape numero={1} actif titre={t('success.step1')} detail={echeance ? t('success.step1Deadline', { date: fmt.dateTime(echeance, { dateStyle: 'medium', timeStyle: 'short' }) }) : null} />
             <Etape
@@ -517,7 +517,7 @@ export function BookingTunnel({ property, sejourInitial }: BookingTunnelProps) {
   const resumeDuSejour = (
     <div className="flex items-start justify-between gap-3">
       <div>
-        <p className="text-[15px] font-medium">{titreDesDates}</p>
+        <p className="text-[0.9375rem] font-medium">{titreDesDates}</p>
         <p className="text-sm text-muted-foreground">{resumeNuits}</p>
       </div>
       <button
@@ -582,7 +582,7 @@ export function BookingTunnel({ property, sejourInitial }: BookingTunnelProps) {
             <Identite identite={identite} />
           ) : anonyme && drapeau === false ? (
             <div className="space-y-1" data-testid="booking-login-notice">
-              <p className="text-[15px] font-medium">{t('login.title')}</p>
+              <p className="text-[0.9375rem] font-medium">{t('login.title')}</p>
               <p className="text-pretty text-sm text-muted-foreground">{t('login.body')}</p>
               <button
                 type="button"
@@ -595,7 +595,7 @@ export function BookingTunnel({ property, sejourInitial }: BookingTunnelProps) {
           ) : null}
 
           <div className="space-y-1.5 lg:max-w-xl">
-            <label htmlFor="booking-message" className="block text-[15px] font-medium">
+            <label htmlFor="booking-message" className="block text-[0.9375rem] font-medium">
               {t('recap.message')}
             </label>
             <Textarea
@@ -654,7 +654,7 @@ export function BookingTunnel({ property, sejourInitial }: BookingTunnelProps) {
           gauche={
             <div className="min-w-0">
               <p className="font-display text-lg font-semibold tabular-nums">{money(quote.total)}</p>
-              <p className="truncate text-[13px] text-muted-foreground">{resumeNuits}</p>
+              <p className="truncate text-[0.8125rem] text-muted-foreground">{resumeNuits}</p>
             </div>
           }
         >
@@ -685,7 +685,7 @@ function BarreBasse({ gauche, children, className }: { readonly gauche?: ReactNo
   return (
     <div
       className={cn(
-        'sticky bottom-0 z-10 flex items-center gap-3 border-t border-border bg-card px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3',
+        'sticky bottom-0 z-10 flex items-center gap-3 border-t border-border bg-card px-4 pb-[max(var(--spacing)*4,env(safe-area-inset-bottom))] pt-3',
         'lg:static lg:border-0 lg:bg-transparent lg:px-0 lg:pb-0',
         className,
       )}
@@ -703,7 +703,7 @@ function BoutonEffacer({ visible, onClick }: { readonly visible: boolean; readon
       type="button"
       onClick={onClick}
       disabled={!visible}
-      className="-mr-2 min-h-11 rounded-lg px-2 text-[15px] font-medium underline underline-offset-4 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring disabled:invisible"
+      className="-mr-2 min-h-11 rounded-lg px-2 text-[0.9375rem] font-medium underline underline-offset-4 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring disabled:invisible"
     >
       {t('clear')}
     </button>
@@ -715,7 +715,7 @@ function LienRetour({ href, className, children }: { readonly href: string; read
     <LienLocalise
       href={href}
       className={cn(
-        'items-center gap-2 rounded-lg text-[15px] font-medium text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring',
+        'items-center gap-2 rounded-lg text-[0.9375rem] font-medium text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring',
         className,
       )}
     >
@@ -747,7 +747,7 @@ function RecapDuBien({ property, grand = false }: { readonly property: PropertyD
   );
   const texte = (
     <div className="min-w-0">
-      <p className={cn('font-medium', grand ? 'mt-3 font-semibold' : 'truncate text-[15px]')}>{property.title}</p>
+      <p className={cn('font-medium', grand ? 'mt-3 font-semibold' : 'truncate text-[0.9375rem]')}>{property.title}</p>
       <p className="text-sm tabular-nums text-muted-foreground">
         {lieu ? `${lieu} · ` : ''}
         {fmt.montant(property.price, property.currency ?? 'XOF')} / {unite}
@@ -776,14 +776,14 @@ function Personnes({ valeur, onChange }: { readonly valeur: number; readonly onC
     'inline-flex size-11 items-center justify-center rounded-full border border-border text-foreground transition-colors hover:border-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring disabled:text-muted-foreground disabled:hover:border-border';
   return (
     <div className="flex items-center justify-between gap-4">
-      <p className="text-[15px] font-medium" id="booking-guests-label">
+      <p className="text-[0.9375rem] font-medium" id="booking-guests-label">
         {t('label')}
       </p>
       <div className="flex items-center gap-4" role="group" aria-labelledby="booking-guests-label">
         <button type="button" className={bouton} aria-label={t('less')} disabled={valeur <= PERSONNES_MIN} onClick={() => onChange(Math.max(PERSONNES_MIN, valeur - 1))}>
           <Minus className="size-4" aria-hidden />
         </button>
-        <span className="w-5 text-center text-[17px] font-semibold tabular-nums" aria-live="polite" data-testid="booking-guests">
+        <span className="w-5 text-center text-[1.0625rem] font-semibold tabular-nums" aria-live="polite" data-testid="booking-guests">
           {valeur}
         </span>
         <button type="button" className={bouton} aria-label={t('more')} disabled={valeur >= PERSONNES_MAX} onClick={() => onChange(Math.min(PERSONNES_MAX, valeur + 1))}>
@@ -799,7 +799,7 @@ function Etape({ numero, titre, detail, actif = false }: { readonly numero: numb
     <li className="flex gap-3">
       <span
         className={cn(
-          'inline-flex size-7 flex-none items-center justify-center rounded-full text-[13px] font-semibold tabular-nums',
+          'inline-flex size-7 flex-none items-center justify-center rounded-full text-[0.8125rem] font-semibold tabular-nums',
           actif ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground',
         )}
         aria-hidden
@@ -807,7 +807,7 @@ function Etape({ numero, titre, detail, actif = false }: { readonly numero: numb
         {numero}
       </span>
       <div>
-        <p className="text-[15px] font-medium">{titre}</p>
+        <p className="text-[0.9375rem] font-medium">{titre}</p>
         {detail ? <p className="text-sm text-muted-foreground">{detail}</p> : null}
       </div>
     </li>
@@ -828,7 +828,7 @@ function Identite({ identite }: { readonly identite: ReturnType<typeof useIdenti
     <div className="space-y-3 lg:max-w-md" data-testid="booking-identity" {...fieldDensityScope()}>
       {identite.etape === 'numero' ? (
         <div className="space-y-1.5">
-          <label htmlFor="booking-telephone" className="block text-[15px] font-medium">
+          <label htmlFor="booking-telephone" className="block text-[0.9375rem] font-medium">
             {t('phoneLabel')}
           </label>
           <p className="text-pretty text-sm text-muted-foreground">{t('phoneHelp')}</p>
@@ -845,7 +845,7 @@ function Identite({ identite }: { readonly identite: ReturnType<typeof useIdenti
         </div>
       ) : (
         <div className="space-y-1.5">
-          <label htmlFor="booking-code" className="block text-[15px] font-medium">
+          <label htmlFor="booking-code" className="block text-[0.9375rem] font-medium">
             {t('codeLabel')}
           </label>
           <p className="text-pretty text-sm text-muted-foreground">{t('codeSentTo', { phone: formaterTelephone(identite.telephone) })}</p>

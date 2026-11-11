@@ -140,8 +140,8 @@ export function PhoneInput({
                   // Même marge (`pl-2.5`) après le séparateur qu'avant l'indicatif.
                   paddingInlineStart:
                     largeurPrefixe !== null
-                      ? `calc(${largeurPrefixe}px + 0.625rem)`
-                      : `calc(${indicatif.length}ch + 1.625rem)`,
+                      ? `calc(${largeurPrefixe}px + var(--spacing) * 2.5)`
+                      : `calc(${indicatif.length}ch + var(--spacing) * 6.5)`,
                 }
           }
         />

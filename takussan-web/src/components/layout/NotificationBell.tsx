@@ -174,7 +174,7 @@ export function NotificationBell({ align = 'end' }: NotificationBellProps) {
       >
         <Bell className="size-[18px]" strokeWidth={1.75} aria-hidden="true" />
         {unread > 0 ? (
-          <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-[10px] font-bold leading-4 tabular-nums text-primary-foreground ring-2 ring-background">
+          <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-[0.625rem] font-bold leading-4 tabular-nums text-primary-foreground ring-2 ring-background">
             {unread > 9 ? '9+' : unread}
           </span>
         ) : null}
@@ -188,7 +188,7 @@ export function NotificationBell({ align = 'end' }: NotificationBellProps) {
         // menu utilisateur voisin : cloche ouverte, l'appui sur l'avatar n'ouvre plus le menu.
         voile
         aria-label={t('center')}
-        className="w-96 max-w-[calc(100vw-1rem)] overflow-hidden rounded-xl bg-card p-0 text-card-foreground shadow-lg ring-border"
+        className="w-96 max-w-[calc(100vw-var(--spacing)*4)] overflow-hidden rounded-xl bg-card p-0 text-card-foreground shadow-lg ring-border"
       >
         {/* TCK-1035 (P68.08) — un `div`, pas un `<header>` : rendu en portail sous `body`, il faisait
             un second repère `banner` à côté de la barre haute (axe `landmark-no-duplicate-banner`). */}

@@ -52,7 +52,7 @@ export function ChangerDeVille({
         <MapPin className="size-3.5" aria-hidden="true" />
         {t('bouton')}
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="max-h-[min(60dvh,24rem)] w-56 overflow-y-auto">
+      <DropdownMenuContent align="start" className="max-h-[min(60dvh,var(--spacing)*96)] w-56 overflow-y-auto">
         <DropdownMenuLabel>{t('titre')}</DropdownMenuLabel>
         {proposees.map((ville) => {
           const choisie = replie(ville.value) === replie(actuelle);

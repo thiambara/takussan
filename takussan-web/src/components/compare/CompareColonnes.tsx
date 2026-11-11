@@ -60,7 +60,7 @@ export interface CompareColonnesProps {
  * `CompareColonnes.test.tsx` garde les deux égalités : sinon l'en-tête collant passerait sous la
  * barre, ou flotterait sous elle.
  */
-const EN_TETE_COLLANT = 'sticky top-14 lg:top-[calc(1.5rem+53px)]';
+const EN_TETE_COLLANT = 'sticky top-14 lg:top-[calc(var(--spacing)*6+53px)]';
 
 /** Au-delà, la phrase « Pareil pour les N » se replie derrière « + N autres ». */
 const PAREIL_VISIBLES = 4;
@@ -135,7 +135,7 @@ function Cellule({
  * `CompareColonnes` : la hauteur de la barre « Partager » fixée du téléphone — filet 1 + 12 + bouton
  * 48 + au moins 16 = 77 px, plus la zone sûre. Au bureau, pas de barre, pas de réserve.
  */
-export const RESERVE_BARRE_PARTAGER = 'pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0';
+export const RESERVE_BARRE_PARTAGER = 'pb-[calc(var(--spacing)*20+env(safe-area-inset-bottom))] md:pb-0';
 
 export function CompareColonnes({ columns, onRemove, partage, className }: CompareColonnesProps) {
   const t = useTranslations('compare');
@@ -182,7 +182,7 @@ export function CompareColonnes({ columns, onRemove, partage, className }: Compa
   // libre à droite. Les colonnes se partagent la largeur : aucune n'en exige.
   const style = {
     '--colonnes-mobile': `repeat(${Math.max(n, 1)}, minmax(0, 1fr))`,
-    '--colonnes-bureau': `minmax(8rem, 13rem) repeat(${n + (placeLibre ? 1 : 0)}, minmax(0, 1fr))`,
+    '--colonnes-bureau': `minmax(calc(var(--spacing) * 32), calc(var(--spacing) * 52)) repeat(${n + (placeLibre ? 1 : 0)}, minmax(0, 1fr))`,
   } as React.CSSProperties;
   const grille = 'grid grid-cols-(--colonnes-mobile) gap-x-2 md:grid-cols-(--colonnes-bureau) md:gap-x-6';
 
@@ -255,7 +255,7 @@ export function CompareColonnes({ columns, onRemove, partage, className }: Compa
                 <div
                   role="rowheader"
                   className={cn(
-                    'col-span-full text-[13px] font-medium md:col-span-1 md:text-sm',
+                    'col-span-full text-[0.8125rem] font-medium md:col-span-1 md:text-sm',
                     // Contraste AA : l'atténuation passe par la graisse, pas par l'alpha (3,58:1 à 80 %).
                     attenuee ? 'text-muted-foreground font-normal' : 'text-muted-foreground',
                   )}
@@ -263,7 +263,7 @@ export function CompareColonnes({ columns, onRemove, partage, className }: Compa
                   {libelle(ligne)}
                 </div>
                 {columns.map((col, i) => (
-                  <div key={col.id} role="cell" className="min-w-0 text-sm tabular-nums text-foreground md:text-[15px]">
+                  <div key={col.id} role="cell" className="min-w-0 text-sm tabular-nums text-foreground md:text-[0.9375rem]">
                     <Cellule
                       def={def}
                       value={ligne.values[i]}
@@ -288,8 +288,8 @@ export function CompareColonnes({ columns, onRemove, partage, className }: Compa
 
       {seulementCeQuiDiffere && pareil.length > 0 && (
         <div className="py-4" data-testid="compare-pareil">
-          <p className="text-[13px] font-medium text-muted-foreground">{t('sameForAll', { count: n })}</p>
-          <p className="mt-1 text-pretty text-[15px] text-foreground">
+          <p className="text-[0.8125rem] font-medium text-muted-foreground">{t('sameForAll', { count: n })}</p>
+          <p className="mt-1 text-pretty text-[0.9375rem] text-foreground">
             {pareilVisible.join(' · ')}
             {pareilCache > 0 || pareilDeplie ? ' ' : null}
             {(pareilCache > 0 || (pareilDeplie && pareil.length > PAREIL_VISIBLES)) && (
@@ -307,7 +307,7 @@ export function CompareColonnes({ columns, onRemove, partage, className }: Compa
       )}
 
       {marqueQuelquePart && (
-        <p className="flex items-center gap-1.5 py-2 text-[13px] text-muted-foreground">
+        <p className="flex items-center gap-1.5 py-2 text-[0.8125rem] text-muted-foreground">
           <span className="inline-flex size-4 flex-none items-center justify-center rounded-full bg-success text-success-foreground" aria-hidden="true">
             <Check className="size-2.5" strokeWidth={3.5} />
           </span>
@@ -323,7 +323,7 @@ export function CompareColonnes({ columns, onRemove, partage, className }: Compa
           (`RESERVE_BARRE_PARTAGER`) : rien, pas même le bas du pied de page, ne passe dessous. */}
       <div
         data-barre-partager=""
-        className="fixed inset-x-0 bottom-0 z-40 grid auto-cols-fr grid-flow-col gap-2 border-t border-border bg-card px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 grid auto-cols-fr grid-flow-col gap-2 border-t border-border bg-card px-4 pb-[max(var(--spacing)*4,env(safe-area-inset-bottom))] pt-3 md:hidden"
       >
         {placeLibre && (
           <LienLocalise
@@ -399,7 +399,7 @@ function EnTeteDeBien({ column, onRemove }: { readonly column: CompareColumn; re
         title={property.title}
         aria-label={property.title}
         data-nom-court=""
-        className="mt-1.5 block truncate text-[13px] font-semibold text-foreground underline-offset-2 hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary md:mt-0 md:text-sm md:font-normal md:text-muted-foreground"
+        className="mt-1.5 block truncate text-[0.8125rem] font-semibold text-foreground underline-offset-2 hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary md:mt-0 md:text-sm md:font-normal md:text-muted-foreground"
       >
         <span className="md:hidden">{nomCourt}</span>
         <span className="hidden md:inline">{property.title}</span>

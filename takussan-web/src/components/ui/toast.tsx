@@ -121,7 +121,7 @@ function Toaster({
       <ToastPrimitive.Viewport
         data-slot="toaster"
         className={cn(
-          "fixed top-4 right-4 z-[1200] flex w-[calc(100vw-2rem)] max-w-sm flex-col gap-2 outline-none sm:top-6 sm:right-6",
+          "fixed top-4 right-4 z-[1200] flex w-[calc(100vw-var(--spacing)*8)] max-w-sm flex-col gap-2 outline-none sm:top-6 sm:right-6",
           className
         )}
         {...props}

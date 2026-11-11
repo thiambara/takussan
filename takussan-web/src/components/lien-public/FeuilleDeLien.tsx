@@ -36,11 +36,11 @@ export function FeuilleDeLien({
   if (!surTelephone) {
     return (
       <Dialog open={ouverte} onOpenChange={surChangement}>
-        <DialogContent className="max-w-[calc(100%-2rem)] gap-0 rounded-2xl bg-background p-0 sm:max-w-[480px]">
+        <DialogContent className="max-w-[calc(100%-var(--spacing)*8)] gap-0 rounded-2xl bg-background p-0 sm:max-w-[480px]">
           <div className="px-6 pb-2 pt-6">
             <DialogTitle className="font-display text-xl font-semibold tracking-[-0.02em] text-foreground">{titre}</DialogTitle>
             {description ? (
-              <DialogDescription className="mt-1.5 text-[15px] text-muted-foreground">{description}</DialogDescription>
+              <DialogDescription className="mt-1.5 text-[0.9375rem] text-muted-foreground">{description}</DialogDescription>
             ) : null}
           </div>
           <div className="px-6 pb-4">{children}</div>
@@ -52,7 +52,7 @@ export function FeuilleDeLien({
 
   return (
     <Sheet open={ouverte} onOpenChange={surChangement}>
-      <SheetContent side="bottom" className="max-h-[calc(100dvh-4rem)] rounded-t-3xl bg-background">
+      <SheetContent side="bottom" className="max-h-[calc(100dvh-var(--spacing)*16)] rounded-t-3xl bg-background">
         <span className="mx-auto mt-3 h-1 w-10 flex-none rounded-full bg-border" aria-hidden="true" />
         <div className="flex flex-none items-start justify-between gap-3 px-4 pb-1 pt-2">
           <SheetTitle className="font-display text-xl font-semibold tracking-[-0.02em] text-foreground">{titre}</SheetTitle>
@@ -64,11 +64,11 @@ export function FeuilleDeLien({
           </SheetClose>
         </div>
         {description ? (
-          <SheetDescription className="px-4 text-[15px] text-muted-foreground">{description}</SheetDescription>
+          <SheetDescription className="px-4 text-[0.9375rem] text-muted-foreground">{description}</SheetDescription>
         ) : null}
         <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-3">{children}</div>
         {bas ? (
-          <div className="flex-none space-y-2.5 border-t border-border bg-card px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
+          <div className="flex-none space-y-2.5 border-t border-border bg-card px-4 pb-[max(var(--spacing)*4,env(safe-area-inset-bottom))] pt-3">
             {bas}
           </div>
         ) : null}

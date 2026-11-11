@@ -159,7 +159,7 @@ export function AutourDeMoi({
       ) : (
         <>
           <div className="flex items-center justify-between gap-2">
-            <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-primary">
+            <span className="inline-flex items-center gap-1.5 text-[0.8125rem] font-semibold text-primary">
               <LocateFixed className="size-3.5 shrink-0" aria-hidden="true" />
               {t('active')}
             </span>
@@ -186,7 +186,7 @@ export function AutourDeMoi({
                   type="button"
                   aria-pressed={actif}
                   onClick={() => choisirRayon(km)}
-                  className={`rounded-full border px-3.5 py-1.5 text-[13px] font-semibold transition-colors duration-150 ${
+                  className={`rounded-full border px-3.5 py-1.5 text-[0.8125rem] font-semibold transition-colors duration-150 ${
                     actif
                       ? 'border-primary bg-primary text-primary-foreground'
                       : 'border-border text-muted-foreground hover:border-primary hover:text-primary'

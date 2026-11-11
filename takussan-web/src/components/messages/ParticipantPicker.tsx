@@ -48,7 +48,7 @@ function Pastille({ contact }: { contact: MessagingContact }) {
   return (
     <span
       aria-hidden
-      className="relative flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-[11px] font-semibold text-muted-foreground"
+      className="relative flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-[0.6875rem] font-semibold text-muted-foreground"
     >
       {contact.avatar_url ? (
         // Avatar distant et de taille fixe : `next/image` n'apporterait rien ici et exigerait
@@ -173,7 +173,7 @@ export function ParticipantPicker({
         <Combobox.Portal>
           {/* Au-dessus du dialogue (z-50) qui le contient. */}
           <Combobox.Positioner sideOffset={4} className="isolate z-[1100] outline-none">
-            <Combobox.Popup className="max-h-[min(var(--available-height),18rem)] w-(--anchor-width) overflow-y-auto rounded-lg bg-popover py-1 text-popover-foreground shadow-md ring-1 ring-border">
+            <Combobox.Popup className="max-h-[min(var(--available-height),var(--spacing)*72)] w-(--anchor-width) overflow-y-auto rounded-lg bg-popover py-1 text-popover-foreground shadow-md ring-1 ring-border">
               <Combobox.Status>
                 {enAttente && items.length === 0 ? (
                   <p className="px-3 py-2 text-sm text-muted-foreground">{t('searching')}</p>

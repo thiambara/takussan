@@ -102,9 +102,9 @@ interface VariantSpec {
 // source, et une classe assemblée à l'exécution n'y figure pas — elle ne serait jamais générée.
 const DISPOSITIONS: Record<VariantSpec['disposition'], string> = {
   rangee:
-    'flex [--colonnes:2.15] @lg:[--colonnes:3.2] @3xl:[--colonnes:4] @min-[60rem]:[--colonnes:5] @min-[68rem]:[--colonnes:6] @min-[76rem]:[--colonnes:7] [&>*]:w-[calc((100%_-_(var(--colonnes)_-_1)_*_var(--gap))_/_var(--colonnes))]! [&>*]:shrink-0',
+    'flex [--colonnes:2.15] max-lg:@lg:[--colonnes:3.2] lg:@min-[28.8rem]:[--colonnes:3.2] max-lg:@3xl:[--colonnes:4] lg:@min-[43.2rem]:[--colonnes:4] max-lg:@min-[60rem]:[--colonnes:5] lg:@min-[54rem]:[--colonnes:5] max-lg:@min-[68rem]:[--colonnes:6] lg:@min-[61.2rem]:[--colonnes:6] max-lg:@min-[76rem]:[--colonnes:7] lg:@min-[68.4rem]:[--colonnes:7] [&>*]:w-[calc((100%_-_(var(--colonnes)_-_1)_*_var(--gap))_/_var(--colonnes))]! [&>*]:shrink-0',
   'deux-lignes':
-    'grid grid-flow-col grid-rows-2 auto-cols-[calc((100%_-_(var(--colonnes)_-_1)_*_var(--gap))_/_var(--colonnes))] [--colonnes:1.1] @lg:[--colonnes:1.6] @min-[40rem]:[--colonnes:2.1] @4xl:[--colonnes:3] @7xl:[--colonnes:4] @min-[105rem]:[--colonnes:5] [&>*]:w-auto!',
+    'grid grid-flow-col grid-rows-2 auto-cols-[calc((100%_-_(var(--colonnes)_-_1)_*_var(--gap))_/_var(--colonnes))] [--colonnes:1.1] max-lg:@lg:[--colonnes:1.6] lg:@min-[28.8rem]:[--colonnes:1.6] max-lg:@min-[40rem]:[--colonnes:2.1] lg:@min-[36rem]:[--colonnes:2.1] max-lg:@4xl:[--colonnes:3] lg:@min-[50.4rem]:[--colonnes:3] max-lg:@7xl:[--colonnes:4] lg:@min-[72rem]:[--colonnes:4] max-lg:@min-[105rem]:[--colonnes:5] lg:@min-[94.5rem]:[--colonnes:5] [&>*]:w-auto!',
 };
 
 const VARIANTS: Record<CardVariant, VariantSpec> = {
@@ -216,7 +216,7 @@ export function PropertyRow({
           <button
             type="button"
             onClick={action.onClick}
-            className={`inline-flex min-h-11 items-center gap-1 text-[14px] font-semibold transition-colors ${
+            className={`inline-flex min-h-11 items-center gap-1 text-[0.875rem] font-semibold transition-colors ${
               action.variant === 'destructive-link'
                 ? 'text-destructive hover:opacity-80'
                 : 'text-foreground hover:text-primary'
@@ -231,7 +231,7 @@ export function PropertyRow({
               // TCK-1086 (P69.02) — « Voir tout » mène à une liste rendue à la demande : préchargé,
               // il coûtait au serveur une recherche de 40 biens par rangée de l'accueil.
               prefetch={false}
-              className="inline-flex min-h-11 items-center gap-0.5 whitespace-nowrap text-[14px] font-semibold text-foreground underline-offset-4 hover:underline hover:text-primary transition-colors"
+              className="inline-flex min-h-11 items-center gap-0.5 whitespace-nowrap text-[0.875rem] font-semibold text-foreground underline-offset-4 hover:underline hover:text-primary transition-colors"
             >
               {viewAllLabel ?? t('viewAll')}
               <ChevronRight aria-hidden="true" className="size-4 text-primary" strokeWidth={2} />
@@ -277,7 +277,7 @@ export function PropertyRow({
         <ArriveeSponsorisee value={emplacementSponsorise}>
           <div
             ref={scrollerRef}
-            className={`${DISPOSITIONS[spec.disposition]} gap-3 [--gap:0.75rem] @lg:gap-4 @lg:[--gap:1rem] overflow-x-auto pb-2 scroll-smooth motion-reduce:scroll-auto snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:snap-start`}
+            className={`${DISPOSITIONS[spec.disposition]} gap-3 [--gap:calc(var(--spacing)*3)] max-lg:@lg:gap-4 lg:@min-[28.8rem]:gap-4 max-lg:@lg:[--gap:calc(var(--spacing)*4)] lg:@min-[28.8rem]:[--gap:calc(var(--spacing)*4)] overflow-x-auto pb-2 scroll-smooth motion-reduce:scroll-auto snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:snap-start`}
           >
             {loading
               ? Array.from({ length: spec.disposition === 'deux-lignes' ? 10 : 7 }).map((_, i) => (

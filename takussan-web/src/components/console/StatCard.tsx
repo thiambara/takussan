@@ -68,7 +68,7 @@ export function StatCard({
           className={cn(
             'mt-2 font-display font-semibold tabular-nums',
             longue
-              ? 'text-lg @min-[14rem]/stat:text-xl @min-[16rem]/stat:text-2xl'
+              ? 'text-lg max-lg:@min-[14rem]/stat:text-xl lg:@min-[12.6rem]/stat:text-xl max-lg:@min-[16rem]/stat:text-2xl lg:@min-[14.4rem]/stat:text-2xl'
               : 'text-2xl',
             tone === 'danger' ? 'text-destructive' : 'text-foreground',
           )}

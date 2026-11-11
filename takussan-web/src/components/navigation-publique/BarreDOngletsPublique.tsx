@@ -23,7 +23,7 @@ import type { EntreeRendue } from '@/components/layout/useMenuDeLEspace';
  * ≥ 44 px. Icône et libellé toujours visibles (ADR-0091 §1).
  */
 const STYLE_CASE =
-  'relative flex h-full w-full flex-col items-center justify-center gap-0.5 px-0.5 text-[11px] leading-tight outline-none transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring';
+  'relative flex h-full w-full flex-col items-center justify-center gap-0.5 px-0.5 text-[0.6875rem] leading-tight outline-none transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring';
 
 interface CaseDeBarre {
   readonly id: string;
@@ -189,7 +189,7 @@ function Barre({
                     <span
                       aria-hidden
                       className={cn(
-                        'inline-flex size-6 items-center justify-center rounded-full bg-secondary text-[10px] font-semibold text-primary-deep',
+                        'inline-flex size-6 items-center justify-center rounded-full bg-secondary text-[0.625rem] font-semibold text-primary-deep',
                         estActive && 'ring-2 ring-primary ring-offset-1 ring-offset-card',
                       )}
                     >
@@ -202,7 +202,7 @@ function Barre({
                     <span
                       aria-hidden
                       data-slot="pastille-onglet"
-                      className="absolute -top-1 -right-2.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] leading-none font-semibold tabular-nums text-primary-foreground ring-2 ring-card"
+                      className="absolute -top-1 -right-2.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[0.625rem] leading-none font-semibold tabular-nums text-primary-foreground ring-2 ring-card"
                     >
                       {c.compte > 99 ? tNav('plafond') : c.compte}
                     </span>

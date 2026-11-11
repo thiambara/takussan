@@ -148,7 +148,7 @@ function enLigne(texte: string): ReactNode[] {
 const MARGE_TITRE = { 1: 'mt-10', 2: 'mt-8', 3: 'mt-6' } as const;
 
 const CLASSES_TITRE = {
-  1: 'min-w-0 scroll-mt-32 font-display text-[22px] font-semibold leading-tight tracking-[-0.02em] text-foreground text-balance lg:scroll-mt-28 lg:text-2xl',
+  1: 'min-w-0 scroll-mt-32 font-display text-[1.375rem] font-semibold leading-tight tracking-[-0.02em] text-foreground text-balance lg:scroll-mt-28 lg:text-2xl',
   2: 'min-w-0 scroll-mt-32 font-display text-lg font-semibold tracking-[-0.01em] text-foreground text-balance lg:scroll-mt-28 lg:text-xl',
   3: 'font-display text-lg font-semibold text-foreground',
 } as const;

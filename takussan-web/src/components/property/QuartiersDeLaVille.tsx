@@ -35,7 +35,7 @@ export function QuartiersDeLaVille({ ville, liens }: QuartiersDeLaVilleProps) {
               // TCK-1086 (P69.02) — une liste rendue à la demande : préchargée, elle coûtait au
               // serveur une recherche de 40 biens par quartier affiché.
               prefetch={false}
-              className="inline-flex min-h-11 items-center text-[15px] text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:min-h-9"
+              className="inline-flex min-h-11 items-center text-[0.9375rem] text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:min-h-9"
             >
               {lien.libelle}
             </LienLocalise>

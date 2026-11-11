@@ -120,7 +120,7 @@ export default function NotFound() {
       </header>
 
       <main className="mx-auto w-full max-w-[640px] flex-1 px-5 pb-16 pt-14 md:px-8 md:pt-24">
-        <h1 className="font-display text-[30px] font-semibold leading-[1.1] tracking-[-0.03em] text-balance text-foreground md:text-5xl md:leading-[1.05]">
+        <h1 className="font-display text-[1.875rem] font-semibold leading-[1.1] tracking-[-0.03em] text-balance text-foreground md:text-5xl md:leading-[1.05]">
           {t('title')}
         </h1>
         <p className="mt-3 text-base leading-relaxed text-pretty text-muted-foreground md:mt-4 md:text-lg">
@@ -172,7 +172,7 @@ export default function NotFound() {
 
         <LienLocalise
           href="/"
-          className="mt-6 inline-flex min-h-11 items-center gap-2 text-[15px] font-medium text-foreground underline underline-offset-4 hover:text-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring md:mt-8"
+          className="mt-6 inline-flex min-h-11 items-center gap-2 text-[0.9375rem] font-medium text-foreground underline underline-offset-4 hover:text-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring md:mt-8"
         >
           <House className="size-4" aria-hidden="true" />
           {t('backHome')}

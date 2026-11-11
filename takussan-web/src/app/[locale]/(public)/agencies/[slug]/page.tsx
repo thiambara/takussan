@@ -141,8 +141,8 @@ function Rubrique({ icone, titre, children }: { readonly icone: ReactNode; reado
         {icone}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-[13px] text-muted-foreground">{titre}</p>
-        <div className="text-[15px] text-foreground">{children}</div>
+        <p className="text-[0.8125rem] text-muted-foreground">{titre}</p>
+        <div className="text-[0.9375rem] text-foreground">{children}</div>
       </div>
     </li>
   );
@@ -257,7 +257,7 @@ export default async function Page({ params, searchParams }: Props) {
             {equipe.map((agent) => {
               const ligne = (
                 <>
-                  <span className="relative inline-flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-secondary font-display text-[15px] font-semibold text-primary-deep">
+                  <span className="relative inline-flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-secondary font-display text-[0.9375rem] font-semibold text-primary-deep">
                     {agent.avatar_url ? (
                       <Image src={agent.avatar_url} alt="" fill sizes="48px" className="object-cover" />
                     ) : (
@@ -266,7 +266,7 @@ export default async function Page({ params, searchParams }: Props) {
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-base font-semibold text-foreground">{agent.full_name}</span>
-                    <span className="block truncate text-[13px] text-muted-foreground">
+                    <span className="block truncate text-[0.8125rem] text-muted-foreground">
                       {[agent.specialty, typeof agent.portfolio_count === 'number' && agent.portfolio_count > 0 ? tProfil('team.propertiesCount', { count: agent.portfolio_count }) : null]
                         .filter(Boolean)
                         .join(' · ')}
@@ -287,7 +287,7 @@ export default async function Page({ params, searchParams }: Props) {
               );
             })}
           </ul>
-          <p className="mt-4 text-[13px] text-muted-foreground">{t('equipeNote')}</p>
+          <p className="mt-4 text-[0.8125rem] text-muted-foreground">{t('equipeNote')}</p>
         </section>
       ),
     });
@@ -397,7 +397,7 @@ export default async function Page({ params, searchParams }: Props) {
             />
 
             <div className="mt-3 flex items-center gap-2">
-              <h1 className="font-display text-[26px] font-semibold leading-tight tracking-tight text-foreground text-balance lg:text-[32px]">
+              <h1 className="font-display text-[1.625rem] font-semibold leading-tight tracking-tight text-foreground text-balance lg:text-[2rem]">
                 {agency.name}
               </h1>
               {/* TCK-1079 — le badge hors du titre : le nom accessible du `h1` reste le nom. */}
@@ -424,7 +424,7 @@ export default async function Page({ params, searchParams }: Props) {
             ) : null}
 
             {agency.license_number || bauxDuMois > 0 ? (
-              <address className="mt-1 flex flex-wrap items-center gap-x-2 text-[13px] not-italic text-muted-foreground">
+              <address className="mt-1 flex flex-wrap items-center gap-x-2 text-[0.8125rem] not-italic text-muted-foreground">
                 {bauxDuMois > 0 ? <span>{t('bauxDuMois', { count: bauxDuMois })}</span> : null}
                 {bauxDuMois > 0 && agency.license_number ? <span aria-hidden>·</span> : null}
                 {agency.license_number ? (
@@ -439,13 +439,13 @@ export default async function Page({ params, searchParams }: Props) {
             {/* La description : au téléphone, elle cède la place à l'accroche (et reste dans Infos) —
                 c'est ce qui garde la sélection au premier écran (AC2). Sans accroche, elle reste. */}
             {agency.description ? (
-              <p className={`mt-3 line-clamp-3 text-[15px] leading-relaxed text-muted-foreground lg:line-clamp-none ${tagline ? 'hidden lg:block' : ''}`}>
+              <p className={`mt-3 line-clamp-3 text-[0.9375rem] leading-relaxed text-muted-foreground lg:line-clamp-none ${tagline ? 'hidden lg:block' : ''}`}>
                 {agency.description}
               </p>
             ) : null}
 
             {chiffres.length > 0 ? (
-              <p className="mt-2 text-[13px] text-muted-foreground lg:text-sm">{chiffres.join(' · ')}</p>
+              <p className="mt-2 text-[0.8125rem] text-muted-foreground lg:text-sm">{chiffres.join(' · ')}</p>
             ) : null}
 
             <div className="lg:mt-6">
@@ -459,11 +459,11 @@ export default async function Page({ params, searchParams }: Props) {
           </aside>
 
           <div className="min-w-0 pt-2 lg:pt-8">
-            {tagline ? <p className="text-[17px] leading-snug text-foreground lg:max-w-[60ch] lg:text-xl">{tagline}</p> : null}
+            {tagline ? <p className="text-[1.0625rem] leading-snug text-foreground lg:max-w-[60ch] lg:text-xl">{tagline}</p> : null}
             {highlights.length > 0 ? (
               <ul aria-label={t('pourquoiNous')} className="mt-3 space-y-1.5 lg:mt-6 lg:grid lg:grid-cols-3 lg:gap-6 lg:space-y-0">
                 {highlights.map((h) => (
-                  <li key={h} className="flex items-start gap-2 text-sm font-medium text-foreground lg:text-[15px]">
+                  <li key={h} className="flex items-start gap-2 text-sm font-medium text-foreground lg:text-[0.9375rem]">
                     <Check className="mt-0.5 size-4 shrink-0 text-primary lg:size-5" aria-hidden />
                     <span>{h}</span>
                   </li>

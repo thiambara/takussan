@@ -166,7 +166,7 @@ function RoomCard({
             {elements.fields.map((element, elementIndex) => (
               <li
                 key={element.id}
-                className="grid gap-2 rounded-md bg-card p-3 md:grid-cols-[1fr_12rem_auto]"
+                className="grid gap-2 rounded-md bg-card p-3 md:grid-cols-[1fr_calc(var(--spacing)*48)_auto]"
               >
                 <FormInput
                   name={`rooms.${roomIndex}.elements.${elementIndex}.label`}

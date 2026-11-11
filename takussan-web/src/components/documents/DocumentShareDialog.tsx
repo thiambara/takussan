@@ -254,7 +254,7 @@ export function DocumentShareDialog({
                     <Input
                       readOnly
                       value={url}
-                      className="min-w-0 flex-1 font-mono text-[11px]"
+                      className="min-w-0 flex-1 font-mono text-[0.6875rem]"
                       aria-label={t('url_aria')}
                     />
                     <Button
@@ -279,7 +279,7 @@ export function DocumentShareDialog({
                     >
                       <Trash2 className="size-4" aria-hidden="true" />
                     </Button>
-                    <div className="flex basis-full gap-3 text-[11px] text-muted-foreground">
+                    <div className="flex basis-full gap-3 text-[0.6875rem] text-muted-foreground">
                       {link.expires_at ? (
                         <span>
                           {t('expires_at', {

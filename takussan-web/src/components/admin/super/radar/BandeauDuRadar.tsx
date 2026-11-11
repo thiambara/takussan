@@ -48,7 +48,7 @@ export function BandeauDuRadar({ compteurs, chargement, etape, onEtape }: Bandea
   return (
     <section
       aria-label={t('counters.aria')}
-      className="grid gap-px overflow-hidden rounded-xl bg-border ring-1 ring-border lg:grid-cols-[minmax(0,1fr)_minmax(0,auto)_minmax(14rem,auto)]"
+      className="grid gap-px overflow-hidden rounded-xl bg-border ring-1 ring-border lg:grid-cols-[minmax(0,1fr)_minmax(0,auto)_minmax(calc(var(--spacing)*56),auto)]"
       data-testid="radar-counters"
     >
       <ol className="grid grid-cols-3 bg-card">

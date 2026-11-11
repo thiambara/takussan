@@ -364,7 +364,7 @@ function OwnerDocumentsPrimer({ onUpload }: { readonly onUpload: () => void }) {
         </Button>
       </div>
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
+      <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_calc(var(--spacing)*96)]">
         <section>
           <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {t('examples_heading')}

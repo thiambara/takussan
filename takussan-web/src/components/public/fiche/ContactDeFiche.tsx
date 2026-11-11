@@ -79,9 +79,9 @@ export function ContactDeFiche({ nom, telephone, message, sousTitre = null }: Co
   };
 
   const principal =
-    'inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-[15px] font-semibold text-primary-foreground transition-[background-color,scale] hover:bg-[var(--primary-deep)] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
+    'inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-[0.9375rem] font-semibold text-primary-foreground transition-[background-color,scale] hover:bg-[var(--primary-deep)] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
   const secondaire =
-    'inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 text-[15px] font-semibold text-foreground transition-[border-color,scale] hover:border-primary active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
+    'inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 text-[0.9375rem] font-semibold text-foreground transition-[border-color,scale] hover:border-primary active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
   // L'appel est l'action principale quand il existe ; sinon le message prend sa place.
   const classeAppel = principal;
   const classeMessage = telHref ? secondaire : principal;
@@ -106,7 +106,7 @@ export function ContactDeFiche({ nom, telephone, message, sousTitre = null }: Co
       {/* Téléphone : la barre d'actions, fixée en bas — la seule couche (ADR-0091 § 4). */}
       <div
         data-contact-fiche="barre"
-        className="fixed inset-x-0 bottom-0 z-40 flex gap-2 border-t border-border bg-card px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 flex gap-2 border-t border-border bg-card px-4 pb-[max(var(--spacing)*4,env(safe-area-inset-bottom))] pt-3 lg:hidden"
       >
         {telHref ? (
           <a data-canal="appel" href={telHref} className={cn(classeAppel, 'flex-1')}>

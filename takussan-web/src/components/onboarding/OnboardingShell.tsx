@@ -90,7 +90,7 @@ export async function OnboardingShell({
               {title}
             </h1>
             {subtitle ? (
-              <p className="max-w-[62ch] text-[0.9375rem] leading-relaxed text-pretty text-muted-foreground">
+              <p className="max-w-[62ch] text-[calc(var(--spacing)*3.75)] leading-relaxed text-pretty text-muted-foreground">
                 {subtitle}
               </p>
             ) : null}

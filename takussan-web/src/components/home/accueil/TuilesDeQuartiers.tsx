@@ -45,7 +45,7 @@ export function TuilesDeQuartiers({
         <LienLocalise
           href={`/properties?${parametreDe('city')}=${encodeURIComponent(ville)}`}
           prefetch={false}
-          className="inline-flex min-h-11 items-center gap-0.5 whitespace-nowrap text-[14px] font-semibold text-foreground underline-offset-4 transition-colors hover:text-primary hover:underline"
+          className="inline-flex min-h-11 items-center gap-0.5 whitespace-nowrap text-[0.875rem] font-semibold text-foreground underline-offset-4 transition-colors hover:text-primary hover:underline"
         >
           {t('viewAll')}
           <ChevronRight aria-hidden="true" className="size-4 text-primary" strokeWidth={2} />
@@ -62,10 +62,10 @@ export function TuilesDeQuartiers({
               <span aria-hidden="true" className="absolute inset-0 -z-10 text-foreground opacity-[0.06]">
                 <BogolanPattern className="h-full w-full" color="currentColor" />
               </span>
-              <span className="font-display text-[17px] font-semibold leading-tight tracking-[-0.02em] text-foreground line-clamp-2">
+              <span className="font-display text-[1.0625rem] font-semibold leading-tight tracking-[-0.02em] text-foreground line-clamp-2">
                 {quartier.nom}
               </span>
-              <span className="text-[13px] tabular-nums text-muted-foreground">{t('count', { count: quartier.compte })}</span>
+              <span className="text-[0.8125rem] tabular-nums text-muted-foreground">{t('count', { count: quartier.compte })}</span>
             </LienLocalise>
           </li>
         ))}

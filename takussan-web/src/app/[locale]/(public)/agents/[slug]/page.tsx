@@ -233,7 +233,7 @@ export default async function Page({ params, searchParams }: Props) {
   // La ligne de confiance : note, délai, biens en ligne — chaque morceau seulement s'il existe (AC4).
   const confiance =
     noteMoyenne !== null || texteDelai || agent.portfolio_total > 0 ? (
-      <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[15px] text-muted-foreground">
+      <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.9375rem] text-muted-foreground">
         {noteMoyenne !== null && reviews ? (
           <span className="inline-flex items-center gap-1 text-foreground">
             <Star className="size-3.5 fill-primary text-primary" aria-hidden />
@@ -272,7 +272,7 @@ export default async function Page({ params, searchParams }: Props) {
       <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-foreground font-display text-xs font-semibold text-background" aria-hidden>
         {initiales(agenceDuProprietaire.name)}
       </span>
-      <p className="text-[15px] leading-snug text-foreground">
+      <p className="text-[0.9375rem] leading-snug text-foreground">
         {t('proprietaire.gerePar', { agence: agenceDuProprietaire.name })}
         <LienLocalise
           href={`/agencies/${encodeURIComponent(agenceDuProprietaire.slug)}`}
@@ -329,12 +329,12 @@ export default async function Page({ params, searchParams }: Props) {
                     <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">{eyebrowParts.join(' · ')}</p>
                     <h1
                       id="identite-heading"
-                      className="mt-1 font-display text-[26px] font-semibold leading-tight tracking-tight text-foreground text-balance lg:text-[40px] lg:leading-none"
+                      className="mt-1 font-display text-[1.625rem] font-semibold leading-tight tracking-tight text-foreground text-balance lg:text-[2.5rem] lg:leading-none"
                     >
                       {nom}
                     </h1>
                     {estAgent && agent.agency ? (
-                      <p className="mt-1.5 inline-flex items-center gap-1.5 text-[15px] text-muted-foreground lg:mt-2">
+                      <p className="mt-1.5 inline-flex items-center gap-1.5 text-[0.9375rem] text-muted-foreground lg:mt-2">
                         <Building2 className="size-4" aria-hidden />
                         <span>
                           {t('agentAt')}{' '}
@@ -355,11 +355,11 @@ export default async function Page({ params, searchParams }: Props) {
                 {langues.length > 0 || quartiers.length > 0 ? (
                   <div className="mt-4 space-y-2.5 lg:flex lg:flex-wrap lg:items-center lg:gap-x-8 lg:space-y-0">
                     {langues.length > 0 ? (
-                      <div className="flex items-start gap-2.5 text-[15px]">
+                      <div className="flex items-start gap-2.5 text-[0.9375rem]">
                         <Languages className="mt-1.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
                         <ul aria-label={t('langues')} className="flex flex-wrap gap-1.5">
                           {langues.map((langue) => (
-                            <li key={langue} className="inline-flex h-7 items-center rounded-full bg-secondary px-2.5 text-[13px] font-medium text-primary-deep">
+                            <li key={langue} className="inline-flex h-7 items-center rounded-full bg-secondary px-2.5 text-[0.8125rem] font-medium text-primary-deep">
                               {langue}
                             </li>
                           ))}
@@ -367,7 +367,7 @@ export default async function Page({ params, searchParams }: Props) {
                       </div>
                     ) : null}
                     {quartiers.length > 0 ? (
-                      <p className="flex items-start gap-2.5 text-[15px] text-foreground">
+                      <p className="flex items-start gap-2.5 text-[0.9375rem] text-foreground">
                         <MapPin className="mt-1 size-4 shrink-0 text-muted-foreground" aria-hidden />
                         <span>
                           <span className="sr-only">{t('quartiers')} : </span>
@@ -381,14 +381,14 @@ export default async function Page({ params, searchParams }: Props) {
                 {!estAgent ? (
                   <>
                     <div className="lg:hidden">{encartAgence}</div>
-                    <p className="mt-3 flex items-center gap-1.5 text-[13px] text-muted-foreground lg:text-sm">
+                    <p className="mt-3 flex items-center gap-1.5 text-[0.8125rem] text-muted-foreground lg:text-sm">
                       <ShieldCheck className="size-3.5 shrink-0" aria-hidden /> {t('proprietaire.note')}
                     </p>
                   </>
                 ) : null}
 
                 {agent.bio ? (
-                  <p className="mt-4 line-clamp-4 max-w-[65ch] text-[15px] leading-relaxed text-muted-foreground lg:mt-5 lg:line-clamp-none lg:text-[17px]">
+                  <p className="mt-4 line-clamp-4 max-w-[65ch] text-[0.9375rem] leading-relaxed text-muted-foreground lg:mt-5 lg:line-clamp-none lg:text-[1.0625rem]">
                     {agent.bio}
                   </p>
                 ) : null}

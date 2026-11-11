@@ -90,7 +90,7 @@ export function AujourdhuiDeLaBarre({ lignes, entrees, onNavigate, infobulle = f
                     data-slot="compte-aujourdhui"
                     className={cn(
                       // Rail : le nombre quitte l'œil (le point et l'infobulle le portent), il reste lu.
-                      'inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-md px-1.5 text-[11.5px] font-semibold tabular-nums icones:sr-only',
+                      'inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-md px-1.5 text-[0.71875rem] font-semibold tabular-nums icones:sr-only',
                       rang === 0 ? 'bg-primary text-primary-foreground' : 'bg-foreground/7 text-foreground',
                     )}
                   >

@@ -43,7 +43,7 @@ export function AlerteDuBienRetire({ filtres, libelle, nomParDefaut }: AlerteDuB
           setOuverture((n) => n + 1);
           setOuvert(true);
         }}
-        className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border py-2 text-balance border-border bg-card px-5 text-[15px] font-semibold text-foreground transition-[background-color,scale] hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring active:scale-[0.96] motion-reduce:active:scale-100 sm:w-auto"
+        className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border py-2 text-balance border-border bg-card px-5 text-[0.9375rem] font-semibold text-foreground transition-[background-color,scale] hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring active:scale-[0.96] motion-reduce:active:scale-100 sm:w-auto"
       >
         <BellPlus className="size-4" aria-hidden="true" />
         {libelle}

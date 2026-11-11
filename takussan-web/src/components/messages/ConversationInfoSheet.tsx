@@ -250,7 +250,7 @@ export function ConversationInfoSheet({
             {t('leave')}
           </Button>
           {isLastAdmin && (
-            <p className="text-[10px] text-muted-foreground">{t('lastAdminLeaveHint')}</p>
+            <p className="text-[0.625rem] text-muted-foreground">{t('lastAdminLeaveHint')}</p>
           )}
         </div>
       </SheetContent>

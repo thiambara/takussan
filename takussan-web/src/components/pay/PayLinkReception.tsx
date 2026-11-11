@@ -216,11 +216,11 @@ function Echeance({
       >
         {titre}
       </Titre>
-      {bien ? <p className="mt-1 text-[15px] text-muted-foreground [overflow-wrap:anywhere]">{bien}</p> : null}
+      {bien ? <p className="mt-1 text-[0.9375rem] text-muted-foreground [overflow-wrap:anywhere]">{bien}</p> : null}
     </div>
   );
   const emisPar = agence ? (
-    <p className="text-center text-[13px] text-muted-foreground">{tCoque('emisPar', { emetteur: agence })}</p>
+    <p className="text-center text-[0.8125rem] text-muted-foreground">{tCoque('emisPar', { emetteur: agence })}</p>
   ) : null;
 
   if (link.status === 'refunded') {
@@ -283,14 +283,14 @@ function Echeance({
         <p
           className={cn(
             'font-display font-semibold tabular-nums tracking-[-0.03em] text-foreground',
-            enLigne ? 'text-[44px] leading-[1.05]' : 'text-[32px] leading-tight',
+            enLigne ? 'text-[2.75rem] leading-[1.05]' : 'text-[2rem] leading-tight',
           )}
           data-testid="pay-amount"
         >
           {montant(chiffres.total)}
         </p>
         {penaliteDansLeTotal ? (
-          <p className="mt-1 text-[15px] tabular-nums text-muted-foreground" data-testid="pay-breakdown">
+          <p className="mt-1 text-[0.9375rem] tabular-nums text-muted-foreground" data-testid="pay-breakdown">
             {t('detailPenaliteIncluse', { base: montant(chiffres.base), penalite: montant(chiffres.penalite) })}
           </p>
         ) : null}
@@ -299,7 +299,7 @@ function Echeance({
 
   const retard =
     link.status === 'late' && link.due_date ? (
-      <p className="inline-flex items-center gap-1.5 rounded-full bg-warning/10 px-2.5 py-1 text-[13px] font-medium text-warning">
+      <p className="inline-flex items-center gap-1.5 rounded-full bg-warning/10 px-2.5 py-1 text-[0.8125rem] font-medium text-warning">
         <TriangleAlert className="size-3.5" aria-hidden="true" />
         {t('enRetard', { date: f.date(link.due_date) })}
       </p>
@@ -339,7 +339,7 @@ function Echeance({
         ) : null}
         {reference}
         {link.expires_at ? (
-          <p className="text-center text-[13px] text-muted-foreground">
+          <p className="text-center text-[0.8125rem] text-muted-foreground">
             {t('valableJusquau', { date: f.date(link.expires_at) })}
           </p>
         ) : null}
@@ -365,7 +365,7 @@ function Echeance({
             <MoyensHorsLigne moyens={link.offline_payment} />
             {reference ? (
               <div>
-                <p className="text-[15px] text-foreground">{t('referenceMotif')}</p>
+                <p className="text-[0.9375rem] text-foreground">{t('referenceMotif')}</p>
                 <div className="mt-2">{reference}</div>
               </div>
             ) : null}
@@ -412,17 +412,17 @@ function Succes({ titre, children }: { readonly titre: string; readonly children
       <span className="inline-flex size-14 items-center justify-center rounded-full bg-success/12 text-success" aria-hidden="true">
         <CircleCheck className="size-8" />
       </span>
-      <h1 className="mt-4 font-display text-[26px] font-semibold leading-tight tracking-[-0.02em] text-balance text-foreground">
+      <h1 className="mt-4 font-display text-[1.625rem] font-semibold leading-tight tracking-[-0.02em] text-balance text-foreground">
         {titre}
       </h1>
-      {children ? <p className="mt-1.5 text-[15px] text-muted-foreground">{children}</p> : null}
+      {children ? <p className="mt-1.5 text-[0.9375rem] text-muted-foreground">{children}</p> : null}
     </div>
   );
 }
 
 function EncartInfo({ children }: { readonly children: ReactNode }) {
   return (
-    <div className="flex gap-3 rounded-2xl bg-secondary/60 p-4 text-[15px] text-foreground">
+    <div className="flex gap-3 rounded-2xl bg-secondary/60 p-4 text-[0.9375rem] text-foreground">
       <Info className="mt-0.5 size-5 flex-none text-primary-deep" aria-hidden="true" />
       <p>{children}</p>
     </div>
@@ -442,7 +442,7 @@ function PenaliteAPart({ montant, texte }: { readonly montant: string; readonly 
   const t = useTranslations('lienPublic.paiement');
   return (
     <div className="rounded-2xl border border-warning/40 bg-warning/5 p-4" data-testid="pay-late-fee-at-agency">
-      <p className="text-[15px] font-semibold tabular-nums text-foreground">{t('penaliteAPartTitre', { montant })}</p>
+      <p className="text-[0.9375rem] font-semibold tabular-nums text-foreground">{t('penaliteAPartTitre', { montant })}</p>
       <p className="mt-1 text-sm text-muted-foreground">{texte}</p>
     </div>
   );
@@ -454,7 +454,7 @@ function Reference({ valeur }: { readonly valeur: string }) {
     <div className="flex items-center justify-between gap-3 rounded-xl bg-muted py-1 pl-3.5 pr-1.5">
       <p className="min-w-0 text-sm">
         <span className="text-muted-foreground">{t('reference')}</span>{' '}
-        <span className="font-mono text-[15px] font-medium tracking-wide text-foreground [overflow-wrap:anywhere]">{valeur}</span>
+        <span className="font-mono text-[0.9375rem] font-medium tracking-wide text-foreground [overflow-wrap:anywhere]">{valeur}</span>
       </p>
       <BoutonCopier valeur={valeur} quoi={t('reference')} avecLibelle />
     </div>
@@ -488,16 +488,16 @@ function MoyensHorsLigne({ moyens, titre }: { readonly moyens: PayLinkOfflinePay
 
   return (
     <div data-testid="pay-offline">
-      {titre ? <p className="text-[15px] font-medium text-foreground">{titre}</p> : null}
+      {titre ? <p className="text-[0.9375rem] font-medium text-foreground">{titre}</p> : null}
       <ul className={cn('divide-y divide-border rounded-2xl border border-border bg-card', titre && 'mt-2.5')}>
         {lignes.map((m) => (
           <li key={m.cle} className="flex items-center gap-3 p-3.5">
             <IconeDeMoyen>{m.icone}</IconeDeMoyen>
             <span className="min-w-0 flex-1">
-              <span className="block text-[13px] text-muted-foreground">{m.nom}</span>
+              <span className="block text-[0.8125rem] text-muted-foreground">{m.nom}</span>
               <span
                 className={cn(
-                  'block text-[15px] font-medium tabular-nums text-foreground [overflow-wrap:anywhere]',
+                  'block text-[0.9375rem] font-medium tabular-nums text-foreground [overflow-wrap:anywhere]',
                   m.bloc && 'whitespace-pre-line',
                 )}
               >
@@ -513,8 +513,8 @@ function MoyensHorsLigne({ moyens, titre }: { readonly moyens: PayLinkOfflinePay
               <Phone className="size-5" />
             </IconeDeMoyen>
             <span className="min-w-0 flex-1">
-              <span className="block text-[13px] text-muted-foreground">{t('moyens.telephone')}</span>
-              <span className="block text-[15px] font-medium tabular-nums text-foreground">{formaterTelephone(telephone)}</span>
+              <span className="block text-[0.8125rem] text-muted-foreground">{t('moyens.telephone')}</span>
+              <span className="block text-[0.9375rem] font-medium tabular-nums text-foreground">{formaterTelephone(telephone)}</span>
             </span>
             <a
               href={`tel:${telephonePublie(telephone)}`}
@@ -571,7 +571,7 @@ function Fournisseurs({
     <div className="space-y-2.5">
       {erreur ? <ErrorState message={t('erreurPaiement')} /> : null}
       {providers.map((provider) => (
-        <Button key={provider} size="lg" className="h-12 w-full text-[15px] font-semibold" onClick={() => void payer(provider)} disabled={envoi !== null}>
+        <Button key={provider} size="lg" className="h-12 w-full text-[0.9375rem] font-semibold" onClick={() => void payer(provider)} disabled={envoi !== null}>
           {envoi === provider ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
           {t('payerAvec', { provider: tFournisseurs(provider) })}
         </Button>
@@ -655,7 +655,7 @@ function Quittance({
 
   return (
     <div className="rounded-2xl border border-border bg-card p-4" data-testid="pay-receipt">
-      <dl className="space-y-2 text-[15px]">
+      <dl className="space-y-2 text-[0.9375rem]">
         {link.paid_at ? (
           <div className="flex justify-between gap-3">
             <dt className="text-muted-foreground">{t('payeLe')}</dt>
@@ -682,7 +682,7 @@ function Quittance({
           </Button>
         </div>
       ) : null}
-      <p className="mt-3 text-[13px] text-muted-foreground">{t('quittanceDelai', { agence })}</p>
+      <p className="mt-3 text-[0.8125rem] text-muted-foreground">{t('quittanceDelai', { agence })}</p>
     </div>
   );
 }

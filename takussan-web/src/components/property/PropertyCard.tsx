@@ -41,7 +41,7 @@ import { estNouveau } from '@/components/property/liste/nouveau';
 
 /** Format compact des pastilles quand l'image passe sous 11rem — cf. la barre du haut. */
 const PASTILLE_ETROITE =
-  '@max-[11rem]:px-1.5 @max-[11rem]:py-0.5 @max-[11rem]:gap-1 @max-[11rem]:text-xs';
+  'max-lg:@max-[11rem]:px-1.5 lg:@max-[9.9rem]:px-1.5 max-lg:@max-[11rem]:py-0.5 lg:@max-[9.9rem]:py-0.5 max-lg:@max-[11rem]:gap-1 lg:@max-[9.9rem]:gap-1 max-lg:@max-[11rem]:text-xs lg:@max-[9.9rem]:text-xs';
 
 function useReveal(ref: React.RefObject<HTMLDivElement | null>) {
   const [visible, setVisible] = useState(false);
@@ -285,13 +285,13 @@ export function PropertyCard({
         {/* TCK-2499 — en disposition « ligne », rien sur la photo de 112 px : la barre n'existe qu'à
             partir de `md`, et le favori vit hors de la photo (cf. plus bas). */}
         <div
-          className={`absolute inset-x-4 top-4 flex items-start justify-between gap-2 @max-[11rem]:inset-x-2 @max-[11rem]:top-2 @max-[11rem]:gap-1.5 ${
+          className={`absolute inset-x-4 top-4 flex items-start justify-between gap-2 max-lg:@max-[11rem]:inset-x-2 lg:@max-[9.9rem]:inset-x-2 max-lg:@max-[11rem]:top-2 lg:@max-[9.9rem]:top-2 max-lg:@max-[11rem]:gap-1.5 lg:@max-[9.9rem]:gap-1.5 ${
             ligne ? 'max-md:hidden' : ''
           }`}
         >
           {/* Transaction badge — TCK-129 : aligné sur ContractTypeChip pour cohérence site-wide.
               TCK-508 — « Neuf / Sur plan » quand la place est libre (cf. `etatEnPastille`). */}
-          <div className="flex min-w-0 flex-wrap items-center gap-1.5 @max-[11rem]:gap-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5 max-lg:@max-[11rem]:gap-1 lg:@max-[9.9rem]:gap-1">
             {transaction && <ContractTypeChip type={transaction} compact className={PASTILLE_ETROITE} />}
             {badge ? (
               <span
@@ -370,8 +370,8 @@ export function PropertyCard({
               période (« /m… »), l'information qui distingue un loyer d'un prix. */}
           <p
             data-prix
-            className={`flex min-w-0 flex-wrap items-baseline gap-x-0.5 text-primary font-bold text-[15px] tabular-nums ${
-              ligne ? 'max-md:gap-x-1 max-md:font-display max-md:text-[17px] max-md:leading-6 max-md:font-semibold max-md:text-foreground' : ''
+            className={`flex min-w-0 flex-wrap items-baseline gap-x-0.5 text-primary font-bold text-[0.9375rem] tabular-nums ${
+              ligne ? 'max-md:gap-x-1 max-md:font-display max-md:text-[1.0625rem] max-md:leading-6 max-md:font-semibold max-md:text-foreground' : ''
             }`}
             title={formatPrice(property.price, property.currency ?? 'XOF')}
           >
@@ -400,8 +400,8 @@ export function PropertyCard({
           // et les favoris sont à une colonne : un titre d'une ligne y laissait 20 px de vide sous
           // lui, sans rien à aligner. Le carrousel, lui, aligne toujours (`titreSurDeuxLignes`).
           // TCK-2499 — une ligne n'aligne rien : la réserve ne vaut qu'à partir de `md`.
-          className={`font-display font-semibold text-[14px] leading-snug text-foreground line-clamp-2 ${TITRE_REACTIF} ${
-            ligne ? 'md:h-10 max-md:font-sans max-md:font-normal max-md:text-[15px] max-md:leading-5' : titreSurDeuxLignes === 'toujours' ? 'h-10' : 'sm:h-10'
+          className={`font-display font-semibold text-[0.875rem] leading-snug text-foreground line-clamp-2 ${TITRE_REACTIF} ${
+            ligne ? 'md:h-10 max-md:font-sans max-md:font-normal max-md:text-[0.9375rem] max-md:leading-5' : titreSurDeuxLignes === 'toujours' ? 'h-10' : 'sm:h-10'
           } text-pretty`}
           title={property.title}
         >
@@ -416,7 +416,7 @@ export function PropertyCard({
           <p className="mt-0.5 truncate text-sm leading-5 text-muted-foreground md:hidden">{detailsDeLaLigne.join(' · ')}</p>
         ) : null}
         {ligne ? (
-          <p data-meta className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[13px] leading-5 md:hidden">
+          <p data-meta className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[0.8125rem] leading-5 md:hidden">
             {badge ? (
               <span data-badge-texte={badge} className="font-semibold text-accent">
                 {tCards(badge === 'urgent' ? 'badge.urgent' : 'badge.priceDrop')}

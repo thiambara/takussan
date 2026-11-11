@@ -9,7 +9,7 @@
  * 3 minutes est repris.
  */
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -51,11 +51,19 @@ async function prendreCreneau() {
  * Ouvre un Chrome jetable et rend `{ cdp, ecouteurs, fermer }`. `cdp(méthode, params, sessionId?)`
  * envoie une commande ; `ecouteurs` reçoit tous les événements. Le délai global (`delaiMs`) coupe
  * le processus avec un message, plutôt qu'un relevé qui pend.
+ *
+ * `policeNavigateur` (px) : la taille de police du NAVIGATEUR (préférence
+ * `webkit.webprefs.default_font_size` du profil, ce que règle « Taille de la police » des
+ * paramètres de Chrome) — pas le zoom de page (TCK-2692, AC5).
  */
-export async function ouvrirChrome({ delaiMs = 150_000 } = {}) {
+export async function ouvrirChrome({ delaiMs = 150_000, policeNavigateur } = {}) {
   brancherSortie();
   const rendreCreneau = await prendreCreneau();
   const profil = mkdtempSync(join(tmpdir(), 'fidelite-chrome-'));
+  if (policeNavigateur) {
+    mkdirSync(join(profil, 'Default'), { recursive: true });
+    writeFileSync(join(profil, 'Default', 'Preferences'), JSON.stringify({ webkit: { webprefs: { default_font_size: Number(policeNavigateur) } } }));
+  }
   const chrome = spawn(
     CHROME,
     ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--hide-scrollbars', '--font-render-hinting=none', '--remote-debugging-port=0', `--user-data-dir=${profil}`, 'about:blank'],

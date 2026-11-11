@@ -158,7 +158,7 @@ export function MonthView({
                       />
                     ))}
                     {dayEvents.length > 3 && (
-                      <span aria-hidden="true" className="text-[11px] font-medium tabular-nums text-muted-foreground">
+                      <span aria-hidden="true" className="text-[0.6875rem] font-medium tabular-nums text-muted-foreground">
                         +{dayEvents.length - 3}
                       </span>
                     )}

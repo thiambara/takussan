@@ -58,7 +58,7 @@ export function ParticipantRow({
       </div>
       <Badge
         variant={participant.role === 'admin' ? 'default' : 'secondary'}
-        className={cn('shrink-0 text-[10px] uppercase')}
+        className={cn('shrink-0 text-[0.625rem] uppercase')}
       >
         {participant.role === 'admin' ? t('roleAdmin') : t('roleMember')}
       </Badge>

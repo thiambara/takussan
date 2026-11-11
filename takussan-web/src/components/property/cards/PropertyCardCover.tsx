@@ -94,14 +94,14 @@ export function PropertyCardCover({
           <h3
             id={idTitre}
             // TCK-561 — blanc sur le dégradé : l'accent y perdrait le contraste, le soulignement seul.
-            className="font-display text-[16px] leading-5 font-semibold line-clamp-2 mb-1 text-balance decoration-white/70 underline-offset-[3px] group-hover:underline group-has-[a:active]:underline"
+            className="font-display text-[1rem] leading-5 font-semibold line-clamp-2 mb-1 text-balance decoration-white/70 underline-offset-[3px] group-hover:underline group-has-[a:active]:underline"
           >
             {property.title}
           </h3>
-          <p className="text-[14px] font-semibold tabular-nums">
+          <p className="text-[0.875rem] font-semibold tabular-nums">
             {formatPrice(property.price, property.currency ?? 'XOF')}
             {property.contract_type === 'rent' && property.rent_period && (
-              <span className="ml-1 text-[12px] font-medium opacity-80">
+              <span className="ml-1 text-[0.75rem] font-medium opacity-80">
                 /{tPeriods(property.rent_period)}
               </span>
             )}

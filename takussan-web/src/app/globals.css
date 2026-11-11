@@ -745,6 +745,89 @@
   --sidebar-ring: #c87a52;
 }
 
+/* densite-du-bureau:début
+ * ADR-0107 (TCK-2692) — LA DENSITÉ DU BUREAU EST UN JEU DE JETONS, PAS UNE TAILLE DE RACINE.
+ *
+ * Le porteur garde le bureau à 90 % (TCK-635). Jusqu'ici, `html { font-size: 90% }` dès `lg` le
+ * portait : tout ce qui était en `rem` suivait, ce qui était en px ne suivait pas — deux échelles,
+ * dont l'ordre s'inversait à 1024 px, et un texte en px sourd au réglage de police de l'utilisateur.
+ * Désormais la racine garde la taille du navigateur à toute largeur, et ce sont les échelles qui
+ * passent à ×0,9 dès `lg` : l'espacement (marges, `gap`, `w-*`, `h-*`), le texte, les rayons et
+ * les largeurs de conteneur. Au réglage par défaut, le rendu est le même au pixel.
+ *
+ * ⚠ Chaque valeur ci-dessous est 0,9 × la valeur du thème de Tailwind (ou de `--radius` plus haut) :
+ *   `echelle-du-bureau.test.ts` lit `tailwindcss/theme.css` et refuse une échelle oubliée — une
+ *   classe `text-6xl` écrite demain ne doit pas échapper au ×0,9 parce que personne ne l'emploie
+ *   aujourd'hui. Hors couche, après `:root` : ce bloc l'emporte sur `@layer theme` et sur le
+ *   `--radius` de `:root`.
+ * ⚠ Une valeur arbitraire en `rem` ne lit aucun jeton : elle s'écrit sur l'échelle
+ *   (`calc(var(--spacing)*K)`), et un seuil de requête de CONTENEUR en `rem` se lit contre la racine
+ *   — il s'écrit de chaque côté de `lg` (`max-lg:@max-[11rem]:… lg:@max-[9.9rem]:…`). Une requête
+ *   MÉDIA en `rem` se lit contre la taille initiale du navigateur : elle ne bouge pas.
+ */
+@media (width >= 64rem) {
+  :root {
+    --spacing: 0.225rem;
+    --text-xs: 0.675rem;
+    --text-sm: 0.7875rem;
+    --text-base: 0.9rem;
+    --text-lg: 1.0125rem;
+    --text-xl: 1.125rem;
+    --text-2xl: 1.35rem;
+    --text-3xl: 1.6875rem;
+    --text-4xl: 2.025rem;
+    --text-5xl: 2.7rem;
+    --text-6xl: 3.375rem;
+    --text-7xl: 4.05rem;
+    --text-8xl: 5.4rem;
+    --text-9xl: 7.2rem;
+    --radius: 0.5625rem;
+    --radius-xs: 0.1125rem;
+    --container-3xs: 14.4rem;
+    --container-2xs: 16.2rem;
+    --container-xs: 18rem;
+    --container-sm: 21.6rem;
+    --container-md: 25.2rem;
+    --container-lg: 28.8rem;
+    --container-xl: 32.4rem;
+    --container-2xl: 37.8rem;
+    --container-3xl: 43.2rem;
+    --container-4xl: 50.4rem;
+    --container-5xl: 57.6rem;
+    --container-6xl: 64.8rem;
+    --container-7xl: 72rem;
+  }
+}
+
+/* `rounded` (sans suffixe) valait 0,25rem en dur : sur l'échelle, il suit la densité comme le reste. */
+@theme inline reference {
+  --radius: var(--spacing);
+}
+
+/* Les feuilles tierces en `rem` (ADR-0107, Conséquences) : passées dans l'échelle, au même rendu.
+   Leaflet est importée hors couche, et aussi par les composants de carte : la règle porte une
+   spécificité de plus (sélecteur doublé) pour gagner quel que soit l'ordre des feuilles. Doublé et
+   non préfixé : la règle qui ISOLE la carte reste la seule `.leaflet-container {` du fichier
+   (carte-isolee.test.ts la cherche par ce motif). */
+@media (width >= 64rem) {
+  .leaflet-container.leaflet-container {
+    font-size: 0.675rem;
+  }
+}
+@layer rdp {
+  @media (width >= 64rem) {
+    .rdp-root {
+      --rdp-dropdown-gap: 0.45rem;
+      --rdp-months-gap: 1.8rem;
+      --rdp-nav_button-height: 2.025rem;
+      --rdp-nav_button-width: 2.025rem;
+      --rdp-nav-height: 2.475rem;
+      --rdp-weekday-padding: 0.45rem 0rem;
+    }
+  }
+}
+/* densite-du-bureau:fin */
+
 /* plancher-tactile:début
  * Revue design 2026-09-16 — PLANCHERS TACTILES des primitives sous `sm` (Button, Input, Select,
  * DatePicker, Tabs horizontaux). En `@layer components`, SOUS les utilitaires : un `min-h-*`
@@ -793,18 +876,14 @@
     @apply font-sans;
   }
   /*
-   * TCK-635 — l'échelle du bureau. Le porteur trouvait le site plus net à 90 % de zoom : la taille
-   * de base passe à 90 % à partir de `lg` (64rem), le seuil où la barre de navigation passe en
-   * bureau. Tout ce qui est en rem suit (texte, espacements, rayons Tailwind) ; ce qui est écrit en
-   * px (`text-[13px]`, `w-[264px]`) ne suit pas, et c'est voulu : ce sont des gabarits mesurés.
-   *
-   * ⚠ Jamais sous `lg` : sous 16 px, Safari iOS zoome dans tout champ touché. Et le seuil ne bouge
-   * pas avec la règle : une media query en rem se lit contre la taille INITIALE du navigateur,
-   * jamais contre celle de `html`.
+   * ADR-0107 (TCK-2692) — le texte sans classe de taille hérite du `body` : dès `lg`, il rend la
+   * densité du bureau (0,9rem, 14,4 px au réglage par défaut), comme quand la racine valait 90 %.
+   * En `base`, sous les utilitaires : un `text-*` posé sur `body` le remplace. `html` ne porte
+   * AUCUNE taille, à aucune largeur — `echelle-du-bureau.test.ts` le garde.
    */
-  @media (min-width: 64rem) {
-    html {
-      font-size: 90%;
+  @media (width >= 64rem) {
+    body {
+      font-size: 0.9rem;
     }
   }
 }

@@ -94,7 +94,7 @@ export function EtapeEnvoyee({ property, demande, contactName, onPrepareApplicat
             </span>
             <div>
               <p className="text-sm font-medium leading-snug text-foreground">{e.titre}</p>
-              <p className="text-[13px] leading-snug text-muted-foreground">{e.detail}</p>
+              <p className="text-[0.8125rem] leading-snug text-muted-foreground">{e.detail}</p>
             </div>
           </li>
         ))}
@@ -115,7 +115,7 @@ export function EtapeEnvoyee({ property, demande, contactName, onPrepareApplicat
 
       {onPrepareApplication || similaires ? (
         <>
-          <h2 className="mt-4 text-[15px] font-semibold text-foreground">{t('done.meanwhile')}</h2>
+          <h2 className="mt-4 text-[0.9375rem] font-semibold text-foreground">{t('done.meanwhile')}</h2>
           <ul className="mt-2 divide-y divide-border rounded-2xl border border-border bg-card">
             {onPrepareApplication ? (
               <li>
@@ -159,8 +159,8 @@ function SuiteTexte({ titre, detail }: { readonly titre: string; readonly detail
   return (
     <>
       <span className="min-w-0 flex-1">
-        <span className="block text-[15px] font-medium leading-snug text-foreground">{titre}</span>
-        <span className="block text-[13px] leading-snug text-muted-foreground">{detail}</span>
+        <span className="block text-[0.9375rem] font-medium leading-snug text-foreground">{titre}</span>
+        <span className="block text-[0.8125rem] leading-snug text-muted-foreground">{detail}</span>
       </span>
       <ChevronRight className="size-5 flex-none text-muted-foreground" aria-hidden />
     </>

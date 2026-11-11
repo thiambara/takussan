@@ -29,11 +29,11 @@ export const FOCUS_RING_RENTRANT = `${FOCUS_RING} focus-visible:ring-inset`;
  * TCK-2490 (ADR-0090 §1) — le titre d'un groupe : casse de phrase, 12,5 px, discret. L'ancien style
  * (capitales espacées) est celui que le porteur a jugé « moche » le 2026-11-06.
  */
-export const STYLE_TITRE = 'text-[12.5px] font-medium text-muted-foreground';
+export const STYLE_TITRE = 'text-[0.78125rem] font-medium text-muted-foreground';
 
 /** TCK-2490 — la boîte d'une ligne (lien, ligne cadenassée, « Aller à ») : 36 px, 40 px au doigt. */
 export const STYLE_LIGNE =
-  'flex h-9 min-w-0 items-center gap-3 rounded-lg px-2.5 text-[14px] max-md:h-10 icones:justify-center icones:px-0';
+  'flex h-9 min-w-0 items-center gap-3 rounded-lg px-2.5 text-[0.875rem] max-md:h-10 icones:justify-center icones:px-0';
 
 /**
  * TCK-2490 — la ligne au repos et au survol (voile d'encre à 5 %). L'encre est PLEINE : la maquette
@@ -54,7 +54,7 @@ export const TRAIT_D_ICONE = 1.75;
  * mesuré sur les jetons, `primary` tombe à 4,10:1 (clair) et 3,74:1 (sombre) sur le voile de l'entrée
  * active, sous les 4,5:1 d'un texte ; `primary-deep` tient 6,19:1 et 4,77:1 (`AppSidebar.contraste`).
  */
-export const STYLE_COMPTEUR = 'ml-auto shrink-0 text-[12.5px] font-medium tabular-nums text-primary-deep';
+export const STYLE_COMPTEUR = 'ml-auto shrink-0 text-[0.78125rem] font-medium tabular-nums text-primary-deep';
 
 /**
  * TCK-2480 — l'épingle d'une ligne : discrète, visible au survol de la ligne ET au focus clavier,
@@ -67,7 +67,7 @@ export const STYLE_COMPTEUR = 'ml-auto shrink-0 text-[12.5px] font-medium tabula
  * 32 px : les compteurs du menu s'arrêtaient 29 px avant les puces d'« Aujourd'hui » et les touches.
  */
 export const STYLE_EPINGLE =
-  'inline-flex h-7 w-0 shrink-0 items-center justify-center overflow-hidden rounded-md text-muted-foreground opacity-0 [--l-epingle:1.75rem] transition-[opacity,width,margin] hover:bg-foreground/5 hover:text-foreground focus:mr-1 focus:w-(--l-epingle) focus-visible:opacity-100 group-hover/ligne:mr-1 group-hover/ligne:w-(--l-epingle) group-hover/ligne:opacity-100 aria-pressed:mr-1 aria-pressed:w-(--l-epingle) aria-pressed:opacity-100 aria-disabled:cursor-not-allowed tactile:mr-1 tactile:w-(--l-epingle) tactile:not-aria-pressed:opacity-60 max-md:h-9 max-md:[--l-epingle:2.25rem] motion-reduce:transition-none icones:hidden';
+  'inline-flex h-7 w-0 shrink-0 items-center justify-center overflow-hidden rounded-md text-muted-foreground opacity-0 [--l-epingle:calc(var(--spacing)*7)] transition-[opacity,width,margin] hover:bg-foreground/5 hover:text-foreground focus:mr-1 focus:w-(--l-epingle) focus-visible:opacity-100 group-hover/ligne:mr-1 group-hover/ligne:w-(--l-epingle) group-hover/ligne:opacity-100 aria-pressed:mr-1 aria-pressed:w-(--l-epingle) aria-pressed:opacity-100 aria-disabled:cursor-not-allowed tactile:mr-1 tactile:w-(--l-epingle) tactile:not-aria-pressed:opacity-60 max-md:h-9 max-md:[--l-epingle:calc(var(--spacing)*9)] motion-reduce:transition-none icones:hidden';
 
 /** TCK-2480 — le libellé d'une ligne : lu par le lecteur d'écran dans tous les modes, caché à l'œil réduite. */
 export const LIBELLE_DE_LIGNE = 'truncate icones:sr-only';

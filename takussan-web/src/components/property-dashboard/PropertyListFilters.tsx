@@ -464,7 +464,7 @@ export function PropertyListFilters({
               </fieldset>
             </div>
 
-            <div className="shrink-0 border-t border-border bg-card px-5 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+            <div className="shrink-0 border-t border-border bg-card px-5 pt-3 pb-[calc(var(--spacing)*3+env(safe-area-inset-bottom))]">
               <Button type="submit" size="lg" className="h-12 w-full rounded-xl text-base">
                 {t('mobile.showResults')}
               </Button>

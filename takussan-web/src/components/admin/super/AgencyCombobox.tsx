@@ -203,7 +203,7 @@ export function AgencyCombobox({
 
       <Combobox.Portal>
         <Combobox.Positioner sideOffset={4} className="isolate z-[1100] outline-none">
-          <Combobox.Popup className="max-h-[min(var(--available-height),20rem)] w-(--anchor-width) min-w-56 overflow-y-auto rounded-lg bg-popover py-1 text-popover-foreground shadow-md ring-1 ring-border">
+          <Combobox.Popup className="max-h-[min(var(--available-height),var(--spacing)*80)] w-(--anchor-width) min-w-56 overflow-y-auto rounded-lg bg-popover py-1 text-popover-foreground shadow-md ring-1 ring-border">
             <Combobox.Status>
               {enAttente ? (
                 <p className="px-3 py-2 text-xs text-muted-foreground">{t('searching')}</p>

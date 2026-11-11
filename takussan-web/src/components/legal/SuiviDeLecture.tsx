@@ -95,7 +95,7 @@ export function SommaireJuridique({ entrees, compacte = false, onChoisir }: Somm
               'block text-pretty text-foreground transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring',
               compacte
                 ? 'rounded-lg px-3 py-1.5 text-sm hover:bg-muted aria-[current=location]:bg-secondary aria-[current=location]:font-medium aria-[current=location]:text-[var(--primary-deep)]'
-                : 'flex min-h-11 items-center py-2.5 text-[15px] hover:text-primary aria-[current=location]:font-semibold aria-[current=location]:text-[var(--primary-deep)]',
+                : 'flex min-h-11 items-center py-2.5 text-[0.9375rem] hover:text-primary aria-[current=location]:font-semibold aria-[current=location]:text-[var(--primary-deep)]',
             )}
           >
             {entree.titre}
@@ -142,7 +142,7 @@ export function BarreDeLecture({ entrees, libelles }: BarreDeLectureProps) {
       )}
     >
       <div className="flex h-12 items-center gap-2 px-4" role="group" aria-label={libelles.partieEnCours}>
-        <p className="min-w-0 flex-1 truncate text-[15px] font-medium text-foreground">{partie?.titre}</p>
+        <p className="min-w-0 flex-1 truncate text-[0.9375rem] font-medium text-foreground">{partie?.titre}</p>
         <Sheet
           open={ouverte}
           onOpenChange={setOuverte}
@@ -177,7 +177,7 @@ export function BarreDeLecture({ entrees, libelles }: BarreDeLectureProps) {
                 <X className="size-5" aria-hidden="true" />
               </SheetClose>
             </div>
-            <nav aria-label={libelles.sommaire} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+            <nav aria-label={libelles.sommaire} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(var(--spacing)*6,env(safe-area-inset-bottom))]">
               <SommaireJuridique
                 entrees={entrees}
                 onChoisir={(evenement, ancre) => {

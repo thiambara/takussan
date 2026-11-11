@@ -371,7 +371,7 @@ const NON_COULEURS: Readonly<Record<string, ReadonlySet<string>>> = {
  * `bg-muted/60`, `text-white/55`, `outline-ring`, `bg-primary` → `{ jeton, alpha }`.
  * Rend `null` si la classe n'est pas un utilitaire de couleur du préfixe demandé.
  *
- * Trou déclaré : les valeurs arbitraires (`bg-[#f5f5f4]`, `text-[10px]`) ne matchent pas et sont
+ * Trou déclaré : les valeurs arbitraires (`bg-[#f5f5f4]`, `text-[0.625rem]`) ne matchent pas et sont
  * donc IGNORÉES, pas mesurées. `check-super-admin-tokens.mjs` les refuse par ailleurs.
  */
 export function litUtilitaireDeCouleur(

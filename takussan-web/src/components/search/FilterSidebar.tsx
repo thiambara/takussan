@@ -32,7 +32,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   const idTitre = React.useId();
   return (
     <div className="py-4 border-b border-border/70 last:border-0">
-      <h3 id={idTitre} className="mb-2.5 text-[13px] font-semibold text-foreground">{title}</h3>
+      <h3 id={idTitre} className="mb-2.5 text-[0.8125rem] font-semibold text-foreground">{title}</h3>
       <TitreDeSection.Provider value={idTitre}>{children}</TitreDeSection.Provider>
     </div>
   );
@@ -79,7 +79,7 @@ function ChipGroup<T extends string | number>({
               aria-pressed={isActive}
               aria-busy={attente || undefined}
               onClick={() => onChange(isActive ? undefined : opt.value)}
-              className={`relative min-h-9 rounded-lg px-2 text-[13px] font-semibold transition-[background-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+              className={`relative min-h-9 rounded-lg px-2 text-[0.8125rem] font-semibold transition-[background-color,color,box-shadow] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                 isActive
                   ? 'bg-card text-primary shadow-sm ring-1 ring-primary/30'
                   : 'text-muted-foreground hover:text-foreground'
@@ -105,7 +105,7 @@ function ChipGroup<T extends string | number>({
             aria-pressed={isActive}
             aria-busy={attente || undefined}
             onClick={() => onChange(isActive ? undefined : opt.value)}
-            className={`relative min-h-9 px-3.5 py-1.5 rounded-full text-[13px] font-semibold border transition-[background-color,border-color,color,scale] duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+            className={`relative min-h-9 px-3.5 py-1.5 rounded-full text-[0.8125rem] font-semibold border transition-[background-color,border-color,color,scale] duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
               isActive
                 ? 'bg-primary border-primary text-primary-foreground'
                 : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
@@ -757,7 +757,7 @@ export function FilterSidebar({
                       : [...selected, opt];
                     set({ type: next.length > 0 ? next : undefined });
                   }}
-                  className={`relative flex min-h-9 min-w-0 items-center gap-1.5 rounded-lg border px-2 py-1.5 text-left text-[13px] font-medium transition-[background-color,border-color,color,scale] duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+                  className={`relative flex min-h-9 min-w-0 items-center gap-1.5 rounded-lg border px-2 py-1.5 text-left text-[0.8125rem] font-medium transition-[background-color,border-color,color,scale] duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
                     isActive
                       ? 'border-primary bg-primary text-primary-foreground'
                       : 'border-border bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground'
@@ -843,7 +843,7 @@ export function FilterSidebar({
                           : [...selected, opt];
                         set({ condition: next.length > 0 ? next : undefined });
                       }}
-                      className={`relative min-h-9 px-3.5 py-1.5 rounded-full text-[13px] font-semibold border transition-[background-color,border-color,color,scale] duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
+                      className={`relative min-h-9 px-3.5 py-1.5 rounded-full text-[0.8125rem] font-semibold border transition-[background-color,border-color,color,scale] duration-150 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
                         isActive
                           ? 'bg-primary border-primary text-primary-foreground'
                           : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
@@ -1173,7 +1173,7 @@ function TiroirMobile({
         <div data-defilement="tiroir" className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {children}
         </div>
-        <div className="px-5 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-border bg-popover shrink-0">
+        <div className="px-5 pt-4 pb-[max(var(--spacing)*4,env(safe-area-inset-bottom))] border-t border-border bg-popover shrink-0">
           {pied}
         </div>
       </div>

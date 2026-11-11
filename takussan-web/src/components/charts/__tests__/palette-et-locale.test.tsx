@@ -633,10 +633,13 @@ describe('étiquettes hors du SVG mis à l’échelle (TCK-532)', () => {
       />));
     const x = [...container.querySelectorAll<HTMLElement>('[data-chart-axis="x"]')];
     expect(x.map((n) => n.textContent)).toEqual(['2025-01', '2025-03', '2025-05', '2025-07', '2025-09', '2025-11']);
-    const masquees = (seuil: string) =>
-      x.filter((n) => n.classList.contains(`@max-[${seuil}]:hidden`)).map((n) => n.textContent);
-    expect(masquees('36rem')).toEqual(['2025-03', '2025-07', '2025-11']);
-    expect(masquees('16.5rem')).toEqual(['2025-05']);
+    const masquees = (classe: string) => x.filter((n) => n.classList.contains(classe)).map((n) => n.textContent);
+    // ADR-0107 (TCK-2692) — un seuil de requête de CONTENEUR en `rem` se lit contre la racine : il
+    // s'écrit de chaque côté de `lg`, au même seuil en px (×0,9 au bureau, où la racine valait 90 %).
+    expect(masquees('max-lg:@max-[36rem]:hidden')).toEqual(['2025-03', '2025-07', '2025-11']);
+    expect(masquees('lg:@max-[32.4rem]:hidden')).toEqual(['2025-03', '2025-07', '2025-11']);
+    expect(masquees('max-lg:@max-[16.5rem]:hidden')).toEqual(['2025-05']);
+    expect(masquees('lg:@max-[14.85rem]:hidden')).toEqual(['2025-05']);
   });
 });
 

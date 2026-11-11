@@ -217,7 +217,7 @@ export function CorpsDuWidget() {
           <div
             role="dialog"
             aria-label={t('panelAriaLabel')}
-            className="pointer-events-auto mb-3 flex h-[min(520px,calc(100dvh-7rem))] w-[360px] flex-col overflow-hidden rounded-2xl bg-background shadow-xl ring-1 ring-foreground/10"
+            className="pointer-events-auto mb-3 flex h-[min(520px,calc(100dvh-var(--spacing)*28))] w-[360px] flex-col overflow-hidden rounded-2xl bg-background shadow-xl ring-1 ring-foreground/10"
             data-testid="chat-widget-panel"
           >
             <header className="flex items-center justify-between border-b border-border/60 bg-background px-4 py-3">
@@ -320,7 +320,7 @@ export function CorpsDuWidget() {
             <span
               data-testid="chat-widget-badge"
               aria-live="polite"
-              className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-bold leading-none text-white ring-2 ring-background"
+              className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[0.6875rem] font-bold leading-none text-white ring-2 ring-background"
             >
               <span aria-hidden>{badgeLabel}</span>
               <span className="sr-only">
@@ -347,7 +347,7 @@ export function CorpsDuWidget() {
             <span
               data-testid="chat-widget-mobile-badge"
               aria-live="polite"
-              className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-bold leading-none text-white ring-2 ring-background"
+              className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[0.6875rem] font-bold leading-none text-white ring-2 ring-background"
             >
               <span aria-hidden>{badgeLabel}</span>
               <span className="sr-only">

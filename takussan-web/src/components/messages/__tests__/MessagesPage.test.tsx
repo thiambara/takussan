@@ -358,7 +358,7 @@ describe('<MessagesPage> sous le point de rupture lg (TCK-501, TCK-505)', () => 
     // Contrainte 2 : `100vh` vaut la hauteur barre d'adresse RÉTRACTÉE sur un téléphone.
     // TCK-645 — la hauteur de bureau reste celle d'avant ; en dessous de `lg`, c'est le cadre de la
     // page qui la porte (l'en-tête compact en fait partie), et la grille le remplit.
-    expect(grille).toHaveClass('lg:h-[calc(100dvh-12rem)]');
+    expect(grille).toHaveClass('lg:h-[calc(100dvh-var(--spacing)*48)]');
     expect(grille).toHaveClass('flex-1');
     const cadre = screen.getByTestId('messagerie');
     expect(cadre.className).toMatch(/(^|\s)h-\[calc\(100dvh-[^\]]+\)\]/);
