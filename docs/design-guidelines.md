@@ -95,7 +95,9 @@ police de 20 px). Une page de `/app` n'écrit **aucune valeur arbitraire** pour 
   couleur rendue, mesurée à 0/255 d'écart) : `shadow-barre-collante` (barre d'action du bas),
   `shadow-filet` (filet bas), `shadow-bouton-photo`, `shadow-actif` (item actif d'un contrôle
   segmenté), `shadow-panneau` (panneau latéral droit), `shadow-feuille` (feuille du bas : la valeur de
-  `shadow-2xl`, noir à 25 %, que la maquette rend ; la **classe** `shadow-2xl` reste interdite).
+  `shadow-2xl`, noir à 25 %, que la maquette rend ; la **classe** `shadow-2xl` reste interdite),
+  `shadow-carte-d-entree` (la carte centrée d'un écran d'entrée au bureau, « Choisir un espace »,
+  TCK-2621).
 - **L'encre douce** `text-encre-douce` remplace les `foreground/70` à `/85` des maquettes : une seule
   encre, **opaque** (`foreground` à 80 % composé sur `--card`, `#4c4641` : 9,3:1 sur `card`, 8,8:1 sur
   `background`, 7,9:1 sur `muted`), parce qu'une encre de texte ne s'atténue pas par l'opacité (TCK-658).

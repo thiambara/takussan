@@ -1,11 +1,12 @@
 'use client';
 
-import { Check } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useMyProfiles, useSwitchActiveProfile } from '@/hooks/useProfiles';
-import { espacesAProposer, slugAAfficher } from '@/lib/espaces';
+import { espacesAProposer, sousLigneDEspace } from '@/lib/espaces';
+import { cn } from '@/lib/utils';
 import { PROFILE_TYPES, type Profile, type ProfileType } from '@/types/profile';
+import { IndicateurDeChoix, SigleDEspace } from './ChoixDEspace';
 import { profileTypeLabel } from './ProfileBadge';
 
 /**
@@ -66,41 +67,50 @@ export function EspacesDuMenu({ titre }: { readonly titre?: string }) {
   if (profiles.length <= 1) return null;
   return (
     <>
-      {titre ? <DropdownMenuLabel className="pb-0 font-medium text-foreground">{titre}</DropdownMenuLabel> : null}
-      {TYPE_ORDER.map((type) => {
-        const list = grouped.get(type) ?? [];
-        if (list.length === 0) return null;
-        return (
-          <div key={type} role="group" aria-label={profileTypeLabel(type, tTypes)}>
-            <DropdownMenuLabel>{profileTypeLabel(type, tTypes)}</DropdownMenuLabel>
-            {list.map((profile) => {
-              const isActive = profile.id === activeId;
-              return (
-                <DropdownMenuItem
-                  key={profile.id}
-                  data-testid={`espace-du-menu-${profile.id}`}
-                  aria-current={isActive ? 'true' : undefined}
-                  disabled={switchMutation.isPending}
-                  onClick={() => {
-                    if (isActive || switchMutation.isPending) return;
-                    switchMutation.mutate(profile.id);
-                  }}
-                  className="flex items-start justify-between gap-3"
-                >
-                  <span className="flex min-w-0 flex-col">
-                    <span className="break-words font-medium">{profile.agency?.name ?? profileTypeLabel(type, tTypes)}</span>
-                    {slugAAfficher(profile) ? (
-                      <span className="break-words text-xs text-muted-foreground">{slugAAfficher(profile)}</span>
-                    ) : null}
-                  </span>
-                  {isActive ? <Check className="size-4 shrink-0 text-success" aria-hidden="true" /> : null}
-                </DropdownMenuItem>
-              );
-            })}
-            <DropdownMenuSeparator />
-          </div>
-        );
-      })}
+      {titre ? <DropdownMenuLabel className="pb-1 font-medium text-muted-foreground">{titre}</DropdownMenuLabel> : null}
+      {/* TCK-2621 — une ligne par espace : sigle, agence, « rôle · ville », coche. Le groupe par rôle reste
+          (ordre et `role="group"` nommé) ; son intitulé visible est parti, le rôle étant sur chaque ligne. */}
+      <div className="space-y-1 px-0.75 pb-1">
+        {TYPE_ORDER.map((type) => {
+          const list = grouped.get(type) ?? [];
+          if (list.length === 0) return null;
+          const role = profileTypeLabel(type, tTypes);
+          return (
+            <div key={type} role="group" aria-label={role} className="space-y-1">
+              {list.map((profile) => {
+                const isActive = profile.id === activeId;
+                const nom = profile.agency?.name ?? role;
+                return (
+                  <DropdownMenuItem
+                    key={profile.id}
+                    data-testid={`espace-du-menu-${profile.id}`}
+                    aria-current={isActive ? 'true' : undefined}
+                    disabled={switchMutation.isPending}
+                    onClick={() => {
+                      if (isActive || switchMutation.isPending) return;
+                      switchMutation.mutate(profile.id);
+                    }}
+                    className={cn(
+                      'flex items-center gap-3 rounded-xl border p-2',
+                      isActive ? 'border-primary/40 bg-primary/5' : 'border-border bg-card',
+                    )}
+                  >
+                    <SigleDEspace nom={nom} actif={isActive} className="size-9 rounded-xl text-xs" />
+                    <span className="flex min-w-0 flex-1 flex-col leading-tight">
+                      <span className="truncate text-sm font-semibold">{nom}</span>
+                      <span className="truncate text-xs text-muted-foreground">
+                        {sousLigneDEspace(role, profile.agency?.city)}
+                      </span>
+                    </span>
+                    <IndicateurDeChoix actif={isActive} />
+                  </DropdownMenuItem>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+      <DropdownMenuSeparator />
     </>
   );
 }
@@ -121,8 +131,8 @@ export function EspacesDeLaFeuille({ titre }: { readonly titre: string }) {
         {TYPE_ORDER.flatMap((type) =>
           (grouped.get(type) ?? []).map((profile) => {
             const isActive = profile.id === activeId;
-            const nom = profile.agency?.name ?? profileTypeLabel(type, tTypes);
-            const slug = slugAAfficher(profile);
+            const role = profileTypeLabel(type, tTypes);
+            const nom = profile.agency?.name ?? role;
             return (
               <li key={profile.id}>
                 <button
@@ -134,19 +144,18 @@ export function EspacesDeLaFeuille({ titre }: { readonly titre: string }) {
                     if (isActive || switchMutation.isPending) return;
                     switchMutation.mutate(profile.id);
                   }}
-                  className={
-                    isActive
-                      ? 'flex min-h-12 w-full items-center gap-3 rounded-xl border border-primary/40 bg-primary/5 p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60'
-                      : 'flex min-h-12 w-full items-center gap-3 rounded-xl border border-border bg-card p-3 text-left hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60'
-                  }
+                  className={cn(
+                    'flex min-h-12 w-full items-center gap-3 rounded-xl border p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60',
+                    isActive ? 'border-primary/40 bg-primary/5' : 'border-border bg-card hover:bg-muted/60',
+                  )}
                 >
+                  <SigleDEspace nom={nom} actif={isActive} className="size-10 rounded-xl text-sm" />
                   <span className="flex min-w-0 flex-1 flex-col leading-tight">
                     <span className="truncate text-corps font-semibold">{nom}</span>
-                    <span className="truncate text-ui text-muted-foreground">
-                      {[profileTypeLabel(type, tTypes), slug].filter(Boolean).join(' · ')}
-                    </span>
+                    {/* TCK-2621 — « rôle · ville », jamais le slug. */}
+                    <span className="truncate text-ui text-muted-foreground">{sousLigneDEspace(role, profile.agency?.city)}</span>
                   </span>
-                  {isActive ? <Check className="size-4 shrink-0 text-primary" aria-hidden="true" /> : null}
+                  <IndicateurDeChoix actif={isActive} />
                 </button>
               </li>
             );

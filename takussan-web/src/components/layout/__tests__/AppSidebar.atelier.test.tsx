@@ -175,6 +175,11 @@ describe('TCK-2491 (ADR-0090 §2) — l’en-tête de la colonne et le menu du c
     await u.click(pied);
     let menu = await screen.findByRole('menu');
     expect(within(menu).getByText('awa@example.sn')).toBeInTheDocument();
+    // Les icônes de la maquette « Compte et espaces » (bureau), celles de la feuille du téléphone.
+    const icone = (nom: string) =>
+      (within(menu).getByRole('menuitem', { name: nom }).querySelector('svg')?.getAttribute('class') ?? '').split(/\s+/);
+    expect(icone('Mon profil')).toContain('lucide-user');
+    expect(icone('Préférences de notification')).toContain('lucide-bell-ring');
     // La langue : trois `menuitemradio`, la courante cochée, chacune nommée dans SA langue.
     const langues = within(menu).getAllByRole('menuitemradio');
     expect(langues.map((l) => [l.textContent, l.getAttribute('aria-checked'), l.getAttribute('lang')])).toEqual([
@@ -246,7 +251,7 @@ describe('TCK-2491 (ADR-0090 §2) — l’en-tête de la colonne et le menu du c
     const u = userEvent.setup();
     const { container, unmount } = monter();
     await u.click(container.querySelector<HTMLElement>('[data-slot="pied-du-compte"]')!);
-    expect(within(await screen.findByRole('menu')).queryByText('Changer d’espace')).toBeNull();
+    expect(within(await screen.findByRole('menu')).queryByText('Vos espaces')).toBeNull();
     unmount();
 
     espaces.liste = [
@@ -256,7 +261,7 @@ describe('TCK-2491 (ADR-0090 §2) — l’en-tête de la colonne et le menu du c
     const monte = monter();
     await u.click(monte.container.querySelector<HTMLElement>('[data-slot="pied-du-compte"]')!);
     const menu = await screen.findByRole('menu');
-    expect(within(menu).getByText('Changer d’espace')).toBeInTheDocument();
+    expect(within(menu).getByText('Vos espaces')).toBeInTheDocument();
     const actif = within(menu).getByRole('menuitem', { name: /Teranga Immo/ });
     expect(actif).toHaveAttribute('aria-current', 'true');
     // Re-choisir l'espace actif ne bascule rien ; l'autre bascule par la mutation du profil actif.

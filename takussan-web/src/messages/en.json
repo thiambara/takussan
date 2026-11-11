@@ -234,7 +234,7 @@
         "langue": "Language",
         "sitePublic": "View the public site",
         "titre": "My account",
-        "changerDEspace": "Switch space"
+        "vosEspaces": "Your spaces"
       },
       "aujourdhui": {
         "titre": "Today",
@@ -12461,6 +12461,15 @@
       "loading": "Loading your public profile…",
       "loadError": "Your languages and neighbourhoods could not be loaded.",
       "retry": "Try again"
+    },
+    "choixDEspace": {
+      "titre": "Which space are you working in?",
+      "sousTitre": "{prenom}, your account opens {count, plural, =2 {two spaces} =3 {three spaces} other {# spaces}}. You can switch at any time from the account menu.",
+      "sousTitreSansPrenom": "Your account opens {count, plural, =2 {two spaces} =3 {three spaces} other {# spaces}}. You can switch at any time from the account menu.",
+      "legende": "Your spaces",
+      "seSouvenir": "Remember my choice",
+      "continuerDans": "Continue in {agence}",
+      "continuerClient": "Continue as a client"
     }
   },
   "contact": {

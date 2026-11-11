@@ -1,6 +1,6 @@
 import { getMeAction } from '@/app/actions/auth';
 import { accueilNommeAujourdhui } from '@/lib/navigation/accueil-nomme';
-import { typeDuProfilActif } from '@/lib/navigation/personas';
+import { profilLieDeLaCoque, typeDuProfilActif } from '@/lib/navigation/personas';
 import { getActiveProfileId } from '@/lib/session';
 import { CorpsDeLIntrouvable } from './CorpsDeLIntrouvable';
 
@@ -72,6 +72,6 @@ import { CorpsDeLIntrouvable } from './CorpsDeLIntrouvable';
  */
 export default async function AppNotFound() {
   const user = await getMeAction();
-  const typeProfilActif = typeDuProfilActif(await getActiveProfileId());
+  const typeProfilActif = typeDuProfilActif(profilLieDeLaCoque(await getActiveProfileId(), user));
   return <CorpsDeLIntrouvable aujourdhui={accueilNommeAujourdhui({ roles: user.roles, typeProfilActif })} />;
 }

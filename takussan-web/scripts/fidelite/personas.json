@@ -36,6 +36,10 @@
     "proprietaire2": {
       "email": "owner2@dakarimmo.sn",
       "disposition": "bailleur"
+    },
+    "deux_espaces": {
+      "email": "audit-ux-f3-deux-espaces@exemple.test",
+      "disposition": "bailleur"
     }
   },
   "dispositions": {

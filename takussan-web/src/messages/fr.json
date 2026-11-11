@@ -234,7 +234,7 @@
         "langue": "Langue",
         "sitePublic": "Voir le site public",
         "titre": "Mon compte",
-        "changerDEspace": "Changer d’espace"
+        "vosEspaces": "Vos espaces"
       },
       "aujourdhui": {
         "titre": "Aujourd’hui",
@@ -12461,6 +12461,15 @@
       "loading": "Chargement de votre fiche publique…",
       "loadError": "Vos langues et vos quartiers n’ont pas pu être chargés.",
       "retry": "Réessayer"
+    },
+    "choixDEspace": {
+      "titre": "Dans quel espace travaillez-vous ?",
+      "sousTitre": "{prenom}, votre compte ouvre {count, plural, =2 {deux espaces} =3 {trois espaces} other {# espaces}}. Vous pourrez en changer à tout moment depuis le menu du compte.",
+      "sousTitreSansPrenom": "Votre compte ouvre {count, plural, =2 {deux espaces} =3 {trois espaces} other {# espaces}}. Vous pourrez en changer à tout moment depuis le menu du compte.",
+      "legende": "Vos espaces",
+      "seSouvenir": "Se souvenir de mon choix",
+      "continuerDans": "Continuer dans {agence}",
+      "continuerClient": "Continuer en tant que client"
     }
   },
   "contact": {

@@ -150,6 +150,8 @@ describe('TCK-2685 — espacement des lettres, icône, ombres', () => {
     expect(ombres.get('--shadow-barre-collante')).toContain('0 -6px 16px -12px');
     expect(ombres.get('--shadow-barre-collante')).toContain(' 40%');
     expect(ombres.get('--shadow-panneau')).toContain('-24px 0 48px -32px');
+    // TCK-2621 — la carte de « Choisir un espace » au bureau : la valeur exacte de la maquette.
+    expect(ombres.get('--shadow-carte-d-entree')).toBe('0 24px 60px -28px color-mix(in srgb, var(--shadow-color) 45%, transparent)');
     for (const nom of OMBRES) expect(regle(`shadow-${nom}`)).toContain('box-shadow');
   });
 

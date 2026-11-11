@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { Menu as MenuPrimitive } from '@base-ui/react/menu';
-import { Bell, Check, ChevronDown, ChevronsUpDown, Coins, ExternalLink, LogOut, ShieldCheck, UserCircle, UserRound } from 'lucide-react';
+import { BellRing, Check, ChevronDown, ChevronsUpDown, Coins, ExternalLink, LogOut, ShieldCheck, User as IconeProfil, UserRound } from 'lucide-react';
 import { useFormatter, useLocale, useTranslations } from 'next-intl';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -174,7 +174,7 @@ export function MenuDuCompte({ user, libelleRole, onNavigate, variante = 'pied' 
         </div>
         <DropdownMenuSeparator />
         {/* Le changement d'espace : rien quand il n'y a pas de choix ; son titre ne paraît qu'avec lui. */}
-        <EspacesDuMenu titre={tCompte('changerDEspace')} />
+        <EspacesDuMenu titre={tCompte('vosEspaces')} />
         {voitLeSolde && solde !== null ? (
           <DropdownMenuItem data-slot="solde-du-compte" onClick={() => aller(HREF_CREDITS)}>
             <Coins className="size-4" aria-hidden="true" />
@@ -183,11 +183,12 @@ export function MenuDuCompte({ user, libelleRole, onNavigate, variante = 'pied' 
           </DropdownMenuItem>
         ) : null}
         <DropdownMenuItem onClick={() => aller('/app/profile')}>
-          <UserCircle className="size-4" aria-hidden="true" />
+          {/* Les icônes de la maquette « Compte et espaces » (bureau), les mêmes que la feuille du téléphone. */}
+          <IconeProfil className="size-4" aria-hidden="true" />
           <span>{t('myProfile')}</span>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => aller(HREF_PREFERENCES)}>
-          <Bell className="size-4" aria-hidden="true" />
+          <BellRing className="size-4" aria-hidden="true" />
           <span>{tCompte('preferences')}</span>
         </DropdownMenuItem>
         {entree ? (

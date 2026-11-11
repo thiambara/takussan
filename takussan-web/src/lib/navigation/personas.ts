@@ -38,6 +38,23 @@ export type Persona = (typeof PERSONAS)[number];
  */
 const TYPE_DOMINANT: readonly ProfileType[] = ['owner', 'agent', 'agency_admin', 'service_provider'];
 
+/**
+ * TCK-2621 — le profil d'après lequel la coque choisit son persona : le cookie `active_profile_id` s'il
+ * est lisible, sinon le profil que l'API a LIÉ à la requête (`/api/auth/me`, TCK-2620 — dernier espace
+ * retenu ou auto-bascule), et seulement alors l'ordre figé de `resoudrePersona`. Sans ce relais, un
+ * admin d'agence, aussi bailleur, retrouvé dans son espace d'admin par l'API avait le menu du bailleur.
+ *
+ * Pendant une impersonation, le cookie de l'opérateur n'est jamais lu (`getActiveProfileId`, TCK-600) :
+ * c'est le profil que l'API a lié pour la CIBLE qui décide — celui sous lequel l'API juge chaque
+ * requête de la session.
+ */
+export function profilLieDeLaCoque(
+  cookie: string | null | undefined,
+  user: { readonly active_profile_id?: string | null },
+): string | null {
+  return cookie || user.active_profile_id || null;
+}
+
 /** `agency_admin:12` → `agency_admin`. Tout autre jeton (dont le profil de plateforme) → `null`. */
 export function typeDuProfilActif(identifiant: string | null | undefined): ProfileType | null {
   const type = identifiant?.split(':')[0] ?? '';

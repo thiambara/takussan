@@ -23,12 +23,26 @@ async function fetchProfilesViaProxy(): Promise<MyProfilesResponse> {
   return res.json();
 }
 
-async function patchActiveProfileViaProxy(profileId: string): Promise<{ data: Profile }> {
+/**
+ * TCK-2621 — ce que reçoit la bascule : l'identifiant seul (le menu du compte : l'API retient l'espace,
+ * son défaut), ou l'identifiant et `remember` (l'écran « Choisir un espace », sa case « Se souvenir de
+ * mon choix »).
+ */
+export type BasculeDEspace = string | { readonly profileId: string; readonly remember: boolean };
+
+const profilDeLaBascule = (bascule: BasculeDEspace): string =>
+  typeof bascule === 'string' ? bascule : bascule.profileId;
+
+async function patchActiveProfileViaProxy(bascule: BasculeDEspace): Promise<{ data: Profile }> {
+  const corps =
+    typeof bascule === 'string'
+      ? { profile_id: bascule }
+      : { profile_id: bascule.profileId, remember: bascule.remember };
   const res = await fetch('/api/me/active-profile', {
     method: 'PATCH',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ profile_id: profileId }),
+    body: JSON.stringify(corps),
   });
   if (!res.ok) {
     const data = await res.json().catch(() => null);
@@ -70,11 +84,12 @@ export function useSwitchActiveProfile() {
   const t = useTranslations('profile.switcher');
   const messageErreur = useMessageErreurApi();
 
-  return useMutation<{ data: Profile }, ApiError, string, SwitchContext>({
+  return useMutation<{ data: Profile }, ApiError, BasculeDEspace, SwitchContext>({
     // TCK-2482 (revue M3) — partagée : la palette voit une bascule lancée par le sélecteur.
     mutationKey: CLE_DE_BASCULE_D_ESPACE,
     mutationFn: patchActiveProfileViaProxy,
-    onMutate: async (profileId) => {
+    onMutate: async (bascule) => {
+      const profileId = profilDeLaBascule(bascule);
       // Optimistically flip the active id so the menu's check mark moves
       // before the network round-trip resolves. Snapshot the previous value
       // for rollback in `onError`.
@@ -88,7 +103,8 @@ export function useSwitchActiveProfile() {
       }
       return { previousProfiles };
     },
-    onSuccess: (data, profileId) => {
+    onSuccess: (data, bascule) => {
+      const profileId = profilDeLaBascule(bascule);
       // TCK-2050 (P174.01) — le relais vient de poser le cookie, que le navigateur ne transmet pas
       // à l'API : les appels qui suivent (relectures ci-dessous comprises) portent le profil choisi.
       setActiveProfileId(data.data.id);

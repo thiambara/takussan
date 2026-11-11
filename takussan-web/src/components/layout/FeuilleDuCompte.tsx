@@ -85,7 +85,7 @@ export function FeuilleDuCompte({
             {user.email ? <p className="truncate text-ui text-muted-foreground">{user.email}</p> : null}
           </div>
         </div>
-        <EspacesDeLaFeuille titre={tCompte('changerDEspace')} />
+        <EspacesDeLaFeuille titre={tCompte('vosEspaces')} />
         <div className="border-t border-border pt-2">
           {solde !== null ? (
             <Ligne icone={Coins} libelle={tCompte('credits')} onClick={() => aller(HREF_CREDITS)} slot="solde-du-compte">

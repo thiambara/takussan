@@ -960,6 +960,8 @@
   --shadow-actif: 0 1px 2px color-mix(in srgb, var(--shadow-color) 18%, transparent);
   --shadow-panneau: -24px 0 48px -32px color-mix(in srgb, var(--shadow-color) 45%, transparent);
   --shadow-feuille: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  /* TCK-2621 — la carte centrée sur le fond `muted` d'un écran d'entrée au bureau (« Choisir un espace »). */
+  --shadow-carte-d-entree: 0 24px 60px -28px color-mix(in srgb, var(--shadow-color) 45%, transparent);
 
   /* ADR-0106 § 4 — la bande ≥ 1440 des maquettes « bureau 1280 » (`min-[1440px]:`), distincte de
      `2xl` (1536 px, site public). `w1440:` : « largeur ≥ 1440 ». Une requête MÉDIA : 90rem se lit

@@ -110,6 +110,12 @@ export type User = {
    */
   force_2fa_reconfigure?: boolean;
   agency_id?: number | null;
+  /**
+   * TCK-2620 / TCK-2621 — le profil que l'API a LIÉ à la requête (`type:id`), `null` sans profil lié :
+   * cookie, indice, dernier espace retenu ou auto-bascule (`ResolveActiveProfile`). Rendu pour SOI
+   * seulement. La coque y lit le persona quand le cookie manque (`profilLieDeLaCoque`).
+   */
+  active_profile_id?: string | null;
   roles: UserRole[];
   status: UserStatus;
   /** TCK-253 — empty `{}` when the user has set nothing yet. */

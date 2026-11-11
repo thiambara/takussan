@@ -96,4 +96,30 @@ Le changement d'espace passe par le chemin unique actuel (`useSwitchActiveProfil
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+- **Où l'écran se décide** : `espacesAChoisir(user)` (`src/lib/espaces-serveur.ts`) dans le layout de `/app`, qui rend
+  `ChoixDEspace` À LA PLACE de la coque (ni colonne, ni modale d'accueil dessous). Conditions dans `doitChoisirUnEspace`
+  (`src/lib/espaces.ts`) : au moins deux agences, `active_profile_id` nul, pas d'impersonation, pas de témoin
+  « client » de la session (`COOKIE_CHOIX_CLIENT`, cookie de session sans durée).
+- **Choisir** passe par `useSwitchActiveProfile` avec `{ profileId, remember }` ; le relais
+  `PATCH /api/me/active-profile` transmet `remember` à l'API (TCK-2620) et pose le cookie.
+- **Le persona de la coque** suit `active_profile_id` de `/api/auth/me` quand aucun cookie n'est lisible
+  (`profilLieDeLaCoque`, `src/lib/navigation/personas.ts`).
+- **Libellés décidés** (fiche `docs/qa/audit-ux-2026-11/fidelite/TCK-2621.json`, `_alias`) : « Se souvenir de mon
+  choix » sans « sur cet appareil » (le choix est retenu sur le COMPTE), « Continuer en tant que client » (genre non
+  connu). Une agence sans ville rend le rôle seul, sans séparateur.
+- **Jeton neuf** : `shadow-carte-d-entree` (l'ombre exacte de la carte de la maquette au bureau), dans `OMBRES`.
+- **Mesures au navigateur, 2026-11-11, compte 176** (agent chez Dakar Immo, propriétaire chez Thiès Properties, agences
+  sans adresse en base) :
+  - AC1 : deux cartes « Thiès Properties · Propriétaire » et « Dakar Immo · Agent » (sans ville : donnée), choix de
+    Thiès → `PATCH /api/me/active-profile` `{"profile_id":"owner:29","remember":true}` → 200, puis onglets
+    « Accueil Biens Loyers Messages Menu » et groupe « Mon patrimoine » (bailleur).
+  - AC2 : jeton révoqué par `POST /api/auth/logout` (401 ensuite), puis un second jeton du compte, navigateur neuf,
+    sans cookie d'espace : arrivée directe dans le menu du bailleur, à 390 et à 1440. La reconnexion est SIMULÉE par
+    un jeton frappé d'avance (aucun mot de passe, aucun envoi de code).
+  - AC3 : feuille (390) et menu (1440) sans `thies-properties` ni `dakar-immo` ; la ligne de Thiès porte
+    `aria-current="true"` et la coche.
+  - AC4 : un agent d'une seule agence arrive sur l'accueil, sans écran de choix.
+  - « Continuer en tant que client » : coque du client, aucun `PATCH`, et l'écran ne revient pas au rechargement.
+  - Sans défilement : 390 × 844 (bas des actions à 760 et 812) et 360 × 780 ; aucun débord de 360 à 1440.
+  - Après les mesures, l'espace retenu du compte a été effacé (`remember=false`) : le compte est rendu dans son état
+    de départ, l'écran de choix réapparaît à sa prochaine arrivée.
