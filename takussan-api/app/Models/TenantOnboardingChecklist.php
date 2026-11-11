@@ -54,6 +54,9 @@ class TenantOnboardingChecklist extends AbstractModel
         self::ITEM_FIRST_PAYMENT,
     ];
 
+    /** TCK-2642 — le délai après lequel une entrée ouverte est « en attente » ({@see self::scopePending()}). */
+    public const PENDING_AFTER_DAYS = 7;
+
     public const REMINDER_INVENTORY_D7 = 'inventory_d7';
 
     /** TCK-2368 (P238.01) — l'EDL d'entrée est sorti de `signed` : le rappel J+7 rejoue après cette marque. */
@@ -114,6 +117,20 @@ class TenantOnboardingChecklist extends AbstractModel
     public function scopeIncomplete(Builder $query): Builder
     {
         return $query->whereNull('completed_at');
+    }
+
+    /**
+     * TCK-2642 — une entrée EN ATTENTE : ouverte, et créée il y a plus de {@see self::PENDING_AFTER_DAYS}
+     * jours. Une seule règle, que lisent la file de l'agence (`GET /api/agencies/{agency}/tenant-onboarding-pending`,
+     * TCK-266), le filtre `filter[onboarding_pending]` de la liste des baux et le motif
+     * `onboarding_incomplete` de sa file « À traiter » (`LeaseAttention`).
+     *
+     * @param  Builder<TenantOnboardingChecklist>  $query
+     * @return Builder<TenantOnboardingChecklist>
+     */
+    public function scopePending(Builder $query): Builder
+    {
+        return $query->incomplete()->where($query->qualifyColumn('created_at'), '<', now()->subDays(self::PENDING_AFTER_DAYS));
     }
 
     /**

@@ -54,9 +54,7 @@ class IncludeNonEmisRefuseTest extends TestCase
     public static function includesNonEmis(): array
     {
         return [
-            'bail landlord' => ['/api/leases', 'landlord'],
             'bail agency' => ['/api/leases', 'agency'],
-            'bail agent' => ['/api/leases', 'agent'],
             'bail guarantor' => ['/api/leases', 'guarantor'],
             'bail onboardingChecklist' => ['/api/leases', 'onboardingChecklist'],
             'reversement lease' => ['/api/payouts', 'lease'],
@@ -80,6 +78,11 @@ class IncludeNonEmisRefuseTest extends TestCase
         $this->getJson('/api/leases?include=property,tenant')
             ->assertOk()
             ->assertJsonStructure(['data' => [['property', 'tenant']]]);
+
+        // TCK-2642 — `landlord` et `agent` sont désormais émis (parties nommées de la page « Baux »).
+        $this->getJson('/api/leases?include=landlord,agent')
+            ->assertOk()
+            ->assertJsonStructure(['data' => [['landlord', 'agent']]]);
 
         $this->getJson('/api/payouts?include=issuer')->assertOk();
 

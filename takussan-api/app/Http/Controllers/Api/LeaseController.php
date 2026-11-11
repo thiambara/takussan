@@ -13,13 +13,19 @@ use App\Models\Enums\LeaseStatus;
 use App\Models\Guarantor;
 use App\Models\Lease;
 use App\Models\Property;
+use App\Services\Lease\LeaseAttention;
+use App\Services\Lease\LeaseDueSummary;
 use App\Services\Lease\LeaseSignatureService;
 use App\Services\Model\LeaseService;
 use App\Services\Property\ContactDeLAgenceDuBien;
+use App\Sorts\LeaseStatusRankSort;
+use App\Support\Http\ParametreUnique;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Spatie\QueryBuilder\AllowedSort;
 
 class LeaseController extends Controller
 {
@@ -38,9 +44,14 @@ class LeaseController extends Controller
         // l'occupation des biens (bloc `tenant`).
         $base->visibleTo($user);
 
+        // TCK-2642 (P3 de l'audit) — par défaut, les baux en cours avant les brouillons et les baux
+        // finis (`sort=etat`, `LeaseStatusRankSort`), puis les plus récents. Le défaut se passe en
+        // `AllowedSort` : un nom nu, spatie le prend pour une COLONNE (`order by "etat"`).
         $paginator = Lease::buildQuery($base, $request)
-            ->defaultSort('-created_at')
+            ->defaultSort(AllowedSort::custom('etat', new LeaseStatusRankSort), '-created_at')
             ->paginate();
+
+        $this->attachComputed($paginator->getCollection(), $request);
 
         return $this->paginated($paginator, LeaseResource::collection($paginator)->toArray($request));
     }
@@ -64,11 +75,41 @@ class LeaseController extends Controller
     {
         $this->authorize('view', $lease);
 
+        // TCK-2642 — la fiche ne passe pas par `buildQuery()` : ses inclusions se lisent à la main.
+        $includes = $this->requestedIncludes($request);
+        $lease->load(array_values(array_intersect(['landlord', 'agent'], $includes)));
+        $this->attachComputed($lease->newCollection([$lease]), $request);
+
         return $this->json([
             'data' => LeaseResource::make($lease->load(['property.address', 'tenant', 'signatures.signer', 'signatures.onBehalfOf']))
                 ->forViewer($request->user())
                 ->resolve($request),
         ]);
+    }
+
+    /**
+     * TCK-2642 — `include=attention` (la file « À traiter », une requête pour la page) et
+     * `include=due_summary` (le résumé d'échéance, une requête) : absents sans l'inclusion.
+     *
+     * @param  Collection<int, Lease>  $leases
+     */
+    private function attachComputed(Collection $leases, Request $request): void
+    {
+        $includes = $this->requestedIncludes($request);
+        if (in_array('attention', $includes, true)) {
+            LeaseAttention::for($request->user())->attach($leases);
+        }
+        if (in_array('due_summary', $includes, true)) {
+            LeaseDueSummary::attach($leases);
+        }
+    }
+
+    /** @return list<string> */
+    private function requestedIncludes(Request $request): array
+    {
+        $raw = ParametreUnique::chaine($request, 'include');
+
+        return $raw === null ? [] : array_map('trim', explode(',', $raw));
     }
 
     /**

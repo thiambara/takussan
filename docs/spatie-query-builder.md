@@ -170,7 +170,36 @@ GET /api/properties/portfolio-summary?filter[user_id]=42
 | `filter[currency]` | exact | |
 | `filter[monthly_rent_min]` | range | |
 | `filter[monthly_rent_max]` | range | |
-| `sort` | `-created_at`, `start_date`, `end_date`, `monthly_rent` | |
+| `filter[a_traiter]` | booléen | TCK-2642 — au moins un motif de la file « À traiter » ; `1`/`0`, autre valeur → 422 |
+| `filter[motif]` | énuméré | TCK-2642 — `signature_pending`, `notice_received`, `rent_late`, `late_fee_unpaid`, `rent_review_open`, `deposit_to_refund`, `ending_soon`, `onboarding_incomplete` ; inconnu → 422 |
+| `filter[onboarding_pending]` | booléen | TCK-2642 — l'ensemble de `GET /api/agencies/{agency}/tenant-onboarding-pending` (même règle, `TenantOnboardingChecklist::scopePending()`) ; personnel seulement, vide pour le bailleur |
+| `filter[search]` | texte | TCK-2642 — référence du bail, prénom/nom et téléphone (chiffres seuls, ≥ 4) du locataire, titre et référence du bien ; chaque mot doit trouver un champ ; casse repliée (`CaseInsensitive`), accents non |
+| `sort` | `-created_at`, `start_date`, `end_date`, `monthly_rent`, `attention`, `etat` | défaut : `etat`, puis `-created_at` (TCK-2642) |
+
+<!-- TCK-2642 -->
+- **La file « À traiter »** (`App\Services\Lease\LeaseAttention`, une règle SQL par motif) :
+  `signature_pending` (en signature depuis plus de 3 jours), `notice_received` (préavis sur un bail
+  en cours), `rent_late` (loyer échu au-delà du délai de grâce du bail, reste dû > 0),
+  `late_fee_unpaid` (pénalité non réglée sur une échéance payée), `rent_review_open` (anniversaire
+  passé, aucune révision depuis 12 mois), `deposit_to_refund` (terminé ou expiré, caution restante
+  > 0), `ending_soon` (actif, fin dans moins de 4 mois, sans renouvellement), `onboarding_incomplete`
+  (checklist ouverte depuis plus de 7 jours ; personnel seulement). ⚠ Le motif `rent_late` n'est pas
+  le `filter[rent_late]` des biens, qui ne lit que l'échéance du mois.
+- **`include=attention`** → `attention[]` : `{motif, since, amount?, due_date?}`, `since` et
+  `due_date` en date calendaire, du plus grave au moins grave. Le filtre et la ligne lisent la même
+  règle. Absent sans l'inclusion ; ce n'est pas un champ de `fields[leases]` (→ 400).
+- **`include=due_summary`** → `next_due` (`{due_date, amount, status}` de la prochaine échéance à
+  venir, reste dû ; `null` sinon), `overdue_count`, `overdue_amount` (au reste dû).
+- **`include=landlord`**, **`include=agent`** → `{id, first_name, last_name, full_name}` ; le
+  téléphone du bailleur pour le personnel de l'agence du bail et pour le bailleur lui-même.
+- **`sort=attention`** : l'argent dû d'abord (`rent_late`, `late_fee_unpaid`), puis ce qui presse,
+  puis l'information ; le plus ancien `since` en tête. **`sort=etat`** : en cours, en signature,
+  brouillon, expiré, résilié, renouvelé.
+- **`GET /api/leases/summary`** → `{a_traiter, active, onboarding_pending, ended, draft, motifs{…}}`,
+  sous la portée et les paramètres de la liste ; chaque compte égale le `meta.total` de la liste
+  filtrée (`filter[status]=active,terminating`, `expired,terminated,renewed`,
+  `draft,pending_signature`).
+- La fiche (`GET /api/leases/{lease}`) accepte les mêmes inclusions et sert `rent_review_cap_pct`.
 
 ### Booking
 | Param | Type | Description |

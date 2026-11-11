@@ -13752,6 +13752,10 @@
         "signature_completed": {
           "title": "Bayle {reference} xaatimu na",
           "body": "Ñaari wàll yi xaatim nañu bayle {reference} bu {property}. Leegi mu ngi dox."
+        },
+        "rent_reviewed_landlord": {
+          "title": "Loyer révisé : {reference}",
+          "body": "Le loyer du bail {reference} pour {property} passe de {old} à {new} à partir du {effective_date}."
         }
       },
       "impersonation": {

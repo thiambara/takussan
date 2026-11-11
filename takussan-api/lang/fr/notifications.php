@@ -814,6 +814,12 @@ return [
                 'body' => 'Les deux parties ont signé le bail :reference pour :property. Il est désormais actif.',
                 'sms' => 'Takussan : le bail :reference est signé et actif.',
             ],
+            // TCK-2642 — au bailleur, quand le loyer de son bail est révisé.
+            'rent_reviewed_landlord' => [
+                'title' => 'Loyer révisé : :reference',
+                'body' => 'Le loyer du bail :reference pour :property passe de :old à :new à partir du :effective_date.',
+                'sms' => 'Takussan : loyer du bail :reference révisé (:old -> :new) au :effective_date.',
+            ],
         ],
         'prospect_match' => [
             'digest' => [

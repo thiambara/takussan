@@ -176,6 +176,9 @@ enum NotificationCode: string
     /** TCK-596 (ADR-0042 §9) — la seconde signature a activé le bail. */
     case LeaseSignatureCompleted = 'lease.signature_completed';
 
+    /** TCK-2642 — le loyer d'un bail a été révisé : le bailleur en est prévenu, comme le locataire. */
+    case LeaseRentReviewedLandlord = 'lease.rent_reviewed_landlord';
+
     // ─── Sorties d'argent (TCK-594, ADR-0039) ───────────────────────────────────────────
     case PayoutAwaitingApproval = 'payout.awaiting_approval';
     case PayoutDue = 'payout.due';
@@ -341,6 +344,7 @@ enum NotificationCode: string
             self::PropertyCalendarConflict, self::PropertyCalendarFeedFailing => NotificationType::System,
             self::LeaseSignatureRequested, self::LeaseSignedByParty,
             self::LeaseSignatureCompleted => NotificationType::Lease,
+            self::LeaseRentReviewedLandlord /* TCK-2642 */ => NotificationType::Lease,
             self::PayoutAwaitingApproval, self::PayoutDue, self::PayoutProcessed, self::PayoutFailed,
             self::PayoutMethodAdded, self::PayoutMethodUpdated, self::PayoutMethodRemoved,
             self::PayoutThresholdRelaxRequested, self::OwnerStatementAvailable,
@@ -365,6 +369,8 @@ enum NotificationCode: string
             self::LeasePaymentOverdueDigest => 'lease_payment_overdue',
             self::LeasePaymentRecorded, self::LeasePaymentReceivedLandlord,
             self::LeasePaymentSettledOnline => 'lease_payment_received',
+            // TCK-2642 — l'interrupteur de l'avis du locataire (`LeaseRentReviewedNotification`).
+            self::LeaseRentReviewedLandlord => 'lease_rent_reviewed',
             self::BookingCreated, self::BookingRequestedUndated => 'booking_request',
             self::BookingConfirmed, self::BookingRejected, self::BookingCancelled,
             self::BookingRecordedOnBehalf /* TCK-2579 : côté client, comme la suite de sa demande */ => 'booking_status_changed',
@@ -512,6 +518,8 @@ enum NotificationCode: string
             self::PropertyCalendarFeedFailing => ['property' => self::PARAM_TEXT, 'feed' => self::PARAM_TEXT],
             self::LeaseSignatureRequested, self::LeaseSignatureCompleted => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT],
             self::LeaseSignedByParty => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT, 'signer' => self::PARAM_TEXT],
+            // TCK-2642
+            self::LeaseRentReviewedLandlord => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT, 'old' => self::PARAM_MONEY, 'new' => self::PARAM_MONEY, 'effective_date' => self::PARAM_DATE],
             self::PayoutAwaitingApproval, self::PayoutDue => ['reference' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY],
             // `transaction` et `destination` (forme masquée) valent « — » pour un paiement en espèces.
             self::PayoutProcessed => ['reference' => self::PARAM_TEXT, 'amount' => self::PARAM_MONEY, 'transaction' => self::PARAM_TEXT, 'destination' => self::PARAM_TEXT],

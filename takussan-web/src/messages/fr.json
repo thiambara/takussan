@@ -13752,6 +13752,10 @@
         "signature_completed": {
           "title": "Bail {reference} signé",
           "body": "Les deux parties ont signé le bail {reference} pour {property}. Il est désormais actif."
+        },
+        "rent_reviewed_landlord": {
+          "title": "Loyer révisé : {reference}",
+          "body": "Le loyer du bail {reference} pour {property} passe de {old} à {new} à partir du {effective_date}."
         }
       },
       "impersonation": {

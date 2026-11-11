@@ -10,6 +10,7 @@ use App\Http\Resources\Api\Admin\RadarListingResource;
 use App\Http\Resources\ConversationContextResource;
 use App\Http\Resources\CustomerResource;
 use App\Http\Resources\DocumentVersionResource;
+use App\Http\Resources\LeaseResource;
 use App\Http\Resources\MediaResource;
 use App\Http\Resources\OwnerProfileDetailResource;
 use App\Http\Resources\PayoutMethodResource;
@@ -21,6 +22,7 @@ use App\Models\Document;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PayeeRole;
+use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PayoutStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
@@ -35,6 +37,8 @@ use App\Models\RadarListing;
 use App\Models\RadarListingSnapshot;
 use App\Models\User;
 use App\Services\Accounting\MatchCandidate;
+use App\Services\Lease\LeaseAttention;
+use App\Services\Lease\LeaseDueSummary;
 use App\Services\Messaging\ConversationThreadContext;
 use App\Services\Owners\OwnerDirectory;
 use App\Services\Property\PropertyOccupancy;
@@ -154,6 +158,26 @@ final class ResourceSubjects
                 'start_date' => now()->subYears(2)->toDateString(), 'end_date' => now()->subMonths(2)->toDateString(),
             ]);
             $sujets['Property (vacant, TCK-2637)'] = $vacant->fresh();
+        }
+
+        // TCK-2642 — `attention[]` (`since`, `due_date`) et le résumé d'échéance (`next_due.due_date`) portent
+        // des dates : un bail en retard de loyer avec une échéance à venir, et une fin proche, dont les blocs
+        // sont posés par les services mêmes que `LeaseController` appelle (`include=attention,due_summary`).
+        if ($resource === LeaseResource::class) {
+            $bail = Lease::factory()->create([
+                'status' => LeaseStatus::Active,
+                'start_date' => now()->subMonths(3)->toDateString(), 'end_date' => now()->addMonths(2)->toDateString(),
+            ]);
+            foreach ([now()->subMonth(), now()->addMonth()] as $echeance) {
+                LeasePayment::factory()->create([
+                    'lease_id' => $bail->id, 'payment_type' => LeasePaymentType::Rent, 'status' => PaymentStatus::Pending,
+                    'paid_at' => null, 'due_date' => $echeance->toDateString(),
+                ]);
+            }
+            $page = $bail->newCollection([$bail->fresh()]);
+            LeaseAttention::for(null)->attach($page);
+            LeaseDueSummary::attach($page);
+            $sujets['Lease (file à traiter, TCK-2642)'] = $page->first();
         }
 
         return $sujets;

@@ -13752,6 +13752,10 @@
         "signature_completed": {
           "title": "Lease {reference} signed",
           "body": "Both parties signed lease {reference} for {property}. It is now active."
+        },
+        "rent_reviewed_landlord": {
+          "title": "Rent reviewed: {reference}",
+          "body": "The rent of lease {reference} for {property} changes from {old} to {new} from {effective_date}."
         }
       },
       "impersonation": {

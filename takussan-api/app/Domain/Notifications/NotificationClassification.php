@@ -185,6 +185,8 @@ final class NotificationClassification
         'lease.signature_requested' => [self::S, true],
         'lease.signed_by_party' => [self::S, false],
         'lease.signature_completed' => [self::S, false],
+        // TCK-2642 — au bailleur : son loyer a changé, il est informé (le geste est fait).
+        'lease.rent_reviewed_landlord' => [self::P, false],
 
         // ─── Reversements, commissions, relevés du bailleur ───────────────────────────────
         'payout.awaiting_approval' => [self::P, true],

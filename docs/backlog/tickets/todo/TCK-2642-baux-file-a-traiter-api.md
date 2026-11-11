@@ -110,3 +110,47 @@ Autres contraintes :
 ## Notes d'implémentation
 
 _(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+
+**2026-11-11 — implémentation (back-patrimoine-2).**
+
+- **Une règle par motif, en SQL** : `App\Services\Lease\LeaseAttention::since($motif)` rend une
+  sous-requête scalaire corrélée — la date d'entrée dans la file, `NULL` hors motif. Le filtre
+  (`since IS NOT NULL`), la ligne (`attention[]`, une requête pour la page), le résumé et le tri lisent
+  cette seule écriture ; `LeaseAttentionQueueTest` tient la parité ligne ↔ filtre sur tout le jeu.
+  Les règles existantes sont lues, pas recopiées : préavis = `Occupation::onNotice()` (TCK-2637),
+  impayé = `CollectedPayments::leaseOwed()` + reste dû, pénalités = `lateFeesOutstanding()`, entrée
+  en attente = `TenantOnboardingChecklist::scopePending()` (que l'endpoint dédié lit aussi désormais).
+- **`deposit_to_refund`** : `DepositRemaining::sql()` est l'accesseur `deposit_remaining`
+  (TCK-2375) en SQL, chaîne de renouvellements, ancêtre supprimé et retenue vivante compris ;
+  `DepositRemainingParityTest` tient l'égalité. Sur la démo : 358 baux, 0 écart, 14 chaînes.
+- **`rent_review_open`** se lit dans `activity_log` (`lease_rent_reviewed`, écrit par
+  `RentReviewService`) : aucune colonne ne date la dernière révision. `since` = le dernier
+  anniversaire.
+- **`since` est une date calendaire** (ADR-0018 : `calendarDate()`), `due_date` aussi.
+- **`onboarding_incomplete` et `filter[onboarding_pending]` sont servis au seul personnel** (et au
+  super-admin) : la file est interne (TCK-378, le bailleur exclu de l'endpoint). Pour le bailleur, le
+  motif n'existe pas — il n'entre ni dans `a_traiter`, ni dans les comptes.
+- **Recherche** : la casse se replie par `CaseInsensitive` (au-delà de l'ASCII), **pas les accents**
+  — le ticket les demandait, la décision reconduite d'ADR-0020 §2 l'emporte (`elodie` ne trouve pas
+  `Élodie`). Le patron est celui de `BookingSearch` (TCK-2593).
+- **`attention` et le résumé d'échéance sont des inclusions** (`include=attention`,
+  `include=due_summary`, `InclusionLueParLeControleur`), jamais des champs de `fields[leases]` (voie
+  écartée d'ADR-0021). `next_due` = la prochaine échéance **à venir** (aujourd'hui ou plus tard) ;
+  ce qui est échu est dans `overdue_*`.
+- **Téléphone du bailleur** (`include=landlord`) : au personnel de l'agence du bail et au bailleur
+  lui-même ; le locataire lit son nom, pas son numéro (l'agence le sert). L'agent : nom seul.
+- **Onglets** : `summary` compte par listes de statuts (`active` = `active,terminating` ;
+  `ended` = `expired,terminated,renewed` ; `draft` = `draft,pending_signature`), sous la portée **et
+  les paramètres** de la liste — `filter[search]` compris.
+- **Tri par défaut changé** : `etat` (en cours, en signature, brouillon, expiré, résilié, renouvelé)
+  puis `-created_at`. Passé à `defaultSort()` en `AllowedSort::custom` : un nom nu, spatie le prend
+  pour une colonne (`order by "etat"` → erreur SQL, mesuré sur `ImpersonationReadSweepTest`).
+  `sort=attention` passe par une jointure latérale (les huit `since` lus une fois par ligne) :
+  11 s → 141 ms sur la démo.
+- **`give_notice` et `leave_review`** sont lus sur la policy hors de `Gate::before` : ce sont des
+  gestes de PARTIE, que le super-admin ne reçoit pas. `leave_review` reprend aussi le refus du dépôt
+  « bien déjà noté » (avis retiré compris) : sinon la fiche offrait un geste que l'API refuse.
+- **Mesure sur la démo (super-admin)** : 167 baux à traiter sur 358 (263 en cours), dont
+  `late_fee_unpaid` 126 — de vieilles pénalités de 2024, y compris sur des baux expirés ou
+  renouvelés. La règle du ticket est appliquée telle quelle ; le volume est à trancher par le porteur.
+

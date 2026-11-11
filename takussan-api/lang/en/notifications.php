@@ -809,6 +809,12 @@ return [
                 'body' => 'Both parties signed lease :reference for :property. It is now active.',
                 'sms' => 'Takussan: lease :reference is signed and active.',
             ],
+            // TCK-2642 — au bailleur, quand le loyer de son bail est révisé.
+            'rent_reviewed_landlord' => [
+                'title' => 'Rent reviewed: :reference',
+                'body' => 'The rent of lease :reference for :property changes from :old to :new from :effective_date.',
+                'sms' => 'Takussan: rent of lease :reference reviewed (:old -> :new) from :effective_date.',
+            ],
         ],
         'prospect_match' => [
             'digest' => [
