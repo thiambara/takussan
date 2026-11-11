@@ -2,21 +2,26 @@
 
 namespace Tests\Feature\Api\Me;
 
+use App\Models\Address;
 use App\Models\Agency;
 use App\Models\Enums\AgencyKind;
+use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Support\SessionsDImpersonation;
 use Tests\TestCase;
 
 class ProfilesEndpointTest extends TestCase
 {
     use RefreshDatabase;
+    use SessionsDImpersonation;
 
     public function test_get_me_profiles_lists_all_user_profiles(): void
     {
@@ -230,5 +235,259 @@ class ProfilesEndpointTest extends TestCase
             ->getJson('/api/me/profiles')
             ->assertOk()
             ->assertJsonPath('data.0.agency.kind', 'standard');
+    }
+
+    // ── TCK-2620 (ADR-0004, amendement du 2026-11-10) — le dernier espace retenu sur le compte ──
+
+    private const MOT_DE_PASSE = 'motdepasse-2620';
+
+    /** Une vraie connexion (`POST /api/auth/login`), sans cookie ni en-tête resté posé. */
+    private function seConnecter(User $user): static
+    {
+        $this->flushHeaders();
+        $this->app['auth']->forgetGuards();
+        $jeton = $this->postJson('/api/auth/login', [
+            'email' => $user->email,
+            'password' => self::MOT_DE_PASSE,
+        ])->assertOk()->json('token');
+        $this->assertIsString($jeton);
+
+        $this->flushHeaders();
+        $this->app['auth']->forgetGuards();
+
+        return $this->withToken($jeton);
+    }
+
+    private function seDeconnecter(): void
+    {
+        $this->postJson('/api/auth/logout')->assertOk();
+        $this->flushHeaders();
+        $this->app['auth']->forgetGuards();
+    }
+
+    /** @return array{0: User, 1: AgentProfile, 2: AgentProfile, 3: Agency, 4: Agency} */
+    private function agentDeDeuxAgences(): array
+    {
+        $user = User::factory()->create(['password' => bcrypt(self::MOT_DE_PASSE)]);
+        $a = Agency::factory()->create();
+        $b = Agency::factory()->create();
+        $chezA = AgentProfile::factory()->create(['user_id' => $user->id, 'agency_id' => $a->id]);
+        $chezB = AgentProfile::factory()->create(['user_id' => $user->id, 'agency_id' => $b->id]);
+
+        return [$user, $chezA, $chezB, $a, $b];
+    }
+
+    /** AC1 (et AC5 : l'ablation du niveau « dernier espace » de `ResolveActiveProfile` le rougit). */
+    public function test_un_compte_de_deux_agences_retrouve_le_dernier_espace_choisi(): void
+    {
+        [$user, , $chezB, , $b] = $this->agentDeDeuxAgences();
+
+        // Sans rien de retenu, deux agences : aucun profil lié (aucune auto-bascule).
+        $this->seConnecter($user)->getJson('/api/auth/me')
+            ->assertOk()
+            ->assertJsonPath('agency_id', null)
+            ->assertJsonPath('active_profile_id', null);
+
+        $this->patchJson('/api/me/active-profile', ['profile_id' => "agent:{$chezB->id}"])->assertOk();
+        $this->seDeconnecter();
+
+        $this->seConnecter($user)->getJson('/api/auth/me')
+            ->assertOk()
+            ->assertJsonPath('agency_id', $b->id)
+            ->assertJsonPath('active_profile_id', "agent:{$chezB->id}");
+    }
+
+    /** AC2. */
+    public function test_remember_faux_efface_le_dernier_espace(): void
+    {
+        [$user, , $chezB] = $this->agentDeDeuxAgences();
+
+        $this->seConnecter($user)->patchJson('/api/me/active-profile', ['profile_id' => "agent:{$chezB->id}"])->assertOk();
+        $this->assertSame("agent:{$chezB->id}", $user->fresh()->metadata['last_active_profile'] ?? null);
+
+        // « Pour cette fois » : le choix vaut pour la session (cookie), mais rien n'est retenu.
+        $this->patchJson('/api/me/active-profile', ['profile_id' => "agent:{$chezB->id}", 'remember' => false])
+            ->assertOk()
+            ->assertCookie('active_profile_id', "agent:{$chezB->id}", false);
+        $this->assertArrayNotHasKey('last_active_profile', (array) $user->fresh()->metadata);
+        $this->seDeconnecter();
+
+        $this->seConnecter($user)->getJson('/api/auth/me')
+            ->assertOk()
+            ->assertJsonPath('agency_id', null)
+            ->assertJsonPath('active_profile_id', null);
+    }
+
+    /** `remember` est un booléen : une autre valeur est refusée, pas lue comme vraie. */
+    public function test_remember_non_booleen_est_refuse(): void
+    {
+        [$user, , $chezB] = $this->agentDeDeuxAgences();
+
+        $this->seConnecter($user)
+            ->patchJson('/api/me/active-profile', ['profile_id' => "agent:{$chezB->id}", 'remember' => 'peut-être'])
+            ->assertUnprocessable();
+        $this->assertArrayNotHasKey('last_active_profile', (array) $user->fresh()->metadata);
+    }
+
+    /** AC3 — trois agences, pour que l'auto-bascule ne relie rien une fois B écartée. */
+    public function test_un_profil_retenu_suspendu_est_ignore_sans_403(): void
+    {
+        [$user, , $chezB] = $this->agentDeDeuxAgences();
+        AgentProfile::factory()->create(['user_id' => $user->id, 'agency_id' => Agency::factory()->create()->id]);
+
+        $this->seConnecter($user)->patchJson('/api/me/active-profile', ['profile_id' => "agent:{$chezB->id}"])->assertOk();
+        $this->seDeconnecter();
+
+        $chezB->update(['status' => AgentProfileStatus::Suspended]);
+
+        $this->seConnecter($user)->getJson('/api/auth/me')
+            ->assertOk()
+            ->assertJsonPath('agency_id', null)
+            ->assertJsonPath('active_profile_id', null);
+        $this->getJson('/api/me/profiles')->assertOk()->assertJsonPath('meta.active_profile_id', null);
+    }
+
+    public function test_le_cookie_et_l_indice_l_emportent_sur_le_dernier_espace(): void
+    {
+        [$user, $chezA, $chezB, $a] = $this->agentDeDeuxAgences();
+
+        $this->seConnecter($user)->patchJson('/api/me/active-profile', ['profile_id' => "agent:{$chezB->id}"])->assertOk();
+
+        $this->withCredentials()->withUnencryptedCookie('active_profile_id', "agent:{$chezA->id}")
+            ->getJson('/api/auth/me')
+            ->assertOk()
+            ->assertJsonPath('agency_id', $a->id)
+            ->assertJsonPath('active_profile_id', "agent:{$chezA->id}");
+
+        $this->seConnecter($user)->withHeaders(['X-Active-Profile-Hint' => "agent:{$chezA->id}"])
+            ->getJson('/api/auth/me')
+            ->assertOk()
+            ->assertJsonPath('agency_id', $a->id)
+            ->assertJsonPath('active_profile_id', "agent:{$chezA->id}");
+    }
+
+    /** ADR-0004, amendement du 2026-11-10, point 4 : le cookie s'efface, la mémoire du compte reste. */
+    public function test_la_deconnexion_garde_le_dernier_espace(): void
+    {
+        [$user, , $chezB] = $this->agentDeDeuxAgences();
+
+        $this->seConnecter($user)->patchJson('/api/me/active-profile', ['profile_id' => "agent:{$chezB->id}"])->assertOk();
+
+        $reponse = $this->postJson('/api/auth/logout')->assertOk();
+        $cookie = collect($reponse->headers->getCookies())->firstWhere(fn ($c) => $c->getName() === 'active_profile_id');
+        $this->assertNotNull($cookie);
+        $this->assertLessThanOrEqual(time(), $cookie->getExpiresTime(), 'la déconnexion efface toujours le cookie (TCK-509)');
+
+        $this->assertSame("agent:{$chezB->id}", $user->fresh()->metadata['last_active_profile'] ?? null);
+    }
+
+    /** ADR-0004, amendement du 2026-11-10 : le choix retenu l'emporte sur l'ordre de l'auto-bascule. */
+    public function test_l_espace_retenu_l_emporte_sur_l_auto_bascule_dans_une_meme_agence(): void
+    {
+        $user = User::factory()->create(['password' => bcrypt(self::MOT_DE_PASSE)]);
+        $agence = Agency::factory()->create();
+        $bailleur = OwnerProfile::factory()->create(['user_id' => $user->id, 'agency_id' => $agence->id]);
+        $agent = AgentProfile::factory()->create(['user_id' => $user->id, 'agency_id' => $agence->id]);
+
+        // L'auto-bascule prend le bailleur (TCK-2479).
+        $this->seConnecter($user)->getJson('/api/auth/me')->assertJsonPath('active_profile_id', "owner:{$bailleur->id}");
+
+        $this->patchJson('/api/me/active-profile', ['profile_id' => "agent:{$agent->id}"])->assertOk();
+        $this->seDeconnecter();
+
+        $this->seConnecter($user)->getJson('/api/auth/me')
+            ->assertOk()
+            ->assertJsonPath('agency_id', $agence->id)
+            ->assertJsonPath('active_profile_id', "agent:{$agent->id}");
+    }
+
+    /** ADR-0004, amendement du 2026-11-10, point 7 (ADR-0055) : la consultation ne lit ni n'écrit l'espace retenu. */
+    public function test_l_impersonation_ne_lit_pas_l_espace_retenu(): void
+    {
+        [$cible, $chezA, $chezB] = $this->agentDeDeuxAgences();
+        $cible->forceFill(['metadata' => ['last_active_profile' => "agent:{$chezB->id}"]])->save();
+
+        ['jeton' => $jeton] = $this->ouvrirUneSession(cible: $cible);
+
+        $this->avecLeJeton($jeton)->getJson('/api/auth/me')
+            ->assertOk()
+            ->assertJsonPath('id', $cible->id)
+            ->assertJsonPath('agency_id', null)
+            ->assertJsonPath('active_profile_id', null);
+
+        $this->avecLeJeton($jeton)->patchJson('/api/me/active-profile', ['profile_id' => "agent:{$chezA->id}"])
+            ->assertForbidden();
+        $this->assertSame("agent:{$chezB->id}", $cible->fresh()->metadata['last_active_profile'] ?? null);
+    }
+
+    /** AC4. */
+    public function test_la_ville_de_l_agence_est_rendue(): void
+    {
+        [$user, $chezA, $chezB, $a] = $this->agentDeDeuxAgences();
+        Address::factory()->create([
+            'addressable_type' => Agency::class,
+            'addressable_id' => $a->id,
+            'city' => 'Thiès',
+            'region' => 'Thiès',
+        ]);
+
+        $data = collect($this->actingAs($user)->getJson('/api/me/profiles')->assertOk()->json('data'))->keyBy('id');
+
+        $this->assertSame('Thiès', $data["agent:{$chezA->id}"]['agency']['city']);
+        $this->assertArrayHasKey('city', $data["agent:{$chezB->id}"]['agency']);
+        $this->assertNull($data["agent:{$chezB->id}"]['agency']['city']);
+
+        // La réponse du choix porte la même forme.
+        $this->patchJson('/api/me/active-profile', ['profile_id' => "agent:{$chezA->id}"])
+            ->assertOk()
+            ->assertJsonPath('data.agency.city', 'Thiès');
+    }
+
+    /** La ville ne coûte aucune lecture par profil : le compte de requêtes ne suit pas le nombre d'agences. */
+    public function test_le_compte_de_requetes_ne_suit_pas_le_nombre_d_agences(): void
+    {
+        $compter = function (int $agences): int {
+            $user = User::factory()->create();
+            for ($i = 0; $i < $agences; $i++) {
+                $agence = Agency::factory()->create();
+                Address::factory()->create(['addressable_type' => Agency::class, 'addressable_id' => $agence->id, 'city' => 'Thiès']);
+                AgentProfile::factory()->create(['user_id' => $user->id, 'agency_id' => $agence->id]);
+                OwnerProfile::factory()->create(['user_id' => $user->id, 'agency_id' => $agence->id]);
+            }
+            $this->app['auth']->forgetGuards();
+            Sanctum::actingAs($user->fresh());
+
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+            $this->getJson('/api/me/profiles')->assertOk()->assertJsonCount($agences * 2, 'data');
+            $n = count(DB::getQueryLog());
+            DB::disableQueryLog();
+
+            return $n;
+        };
+
+        $this->assertSame($compter(1), $compter(3));
+    }
+
+    /** `/api/auth/me` dit QUEL profil le middleware a lié : le front cesse de le deviner (TYPE_DOMINANT). */
+    public function test_me_rend_le_profil_lie(): void
+    {
+        [$user, $chezA, $chezB] = $this->agentDeDeuxAgences();
+
+        $this->seConnecter($user)->withHeaders(['X-Profile-Id' => "agent:{$chezB->id}"])
+            ->getJson('/api/auth/me')
+            ->assertOk()
+            ->assertJsonPath('active_profile_id', "agent:{$chezB->id}");
+
+        $seul = User::factory()->create(['password' => bcrypt(self::MOT_DE_PASSE)]);
+        $bailleur = OwnerProfile::factory()->create(['user_id' => $seul->id, 'agency_id' => $chezA->agency_id]);
+        $this->seConnecter($seul)->getJson('/api/auth/me')
+            ->assertOk()
+            ->assertJsonPath('active_profile_id', "owner:{$bailleur->id}");
+
+        $sansProfil = User::factory()->create(['password' => bcrypt(self::MOT_DE_PASSE)]);
+        $this->seConnecter($sansProfil)->getJson('/api/auth/me')
+            ->assertOk()
+            ->assertJsonPath('active_profile_id', null);
     }
 }

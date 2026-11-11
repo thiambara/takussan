@@ -91,4 +91,72 @@ Sans objet (ticket API). L'écran qui s'en sert est TCK-2621.
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+Implémenté le 2026-11-11 (agent back-coque), sur `feat/audit-ux-app-lot-1` (acfe73fb3).
+
+**Ce qui est livré.**
+
+- `App\Services\Profiles\DernierEspaceRetenu` : lit, retient et oublie `users.metadata.last_active_profile`
+  (forme `type:id`). L'écriture est **une requête SQL** qui fusionne la clé dans le `jsonb`
+  (`COALESCE(metadata, '{}') || jsonb_build_object(…)`, et `metadata - 'clé'` pour oublier), et non un
+  `$user->save()`. Deux raisons : d'autres écrivains touchent `metadata` (`previous_public_slugs`,
+  `force_2fa_reconfigure`), qu'un lire-modifier-réécrire écraserait ; et changer d'espace ne « modifie »
+  pas le compte (ni `updated_at`, ni réindexation Scout, ni événement de modèle).
+- `ResolveActiveProfile` : le niveau 4, entre le cookie et l'auto-bascule. Il est jugé par
+  `ActiveProfileResolver::resolve`, comme le cookie, et ignoré sans 403. Il n'est pas lu sous un jeton
+  d'impersonation (`ImpersonationService::isImpersonationToken`). Le docblock passe à six niveaux.
+- `PATCH /api/me/active-profile` : `remember` (`sometimes|boolean`, vrai par défaut). `false` efface la
+  valeur retenue ; le cookie garde son comportement. Sous impersonation, la route rend déjà 403
+  (`EnforceImpersonationReadOnly`), donc la consultation n'écrit rien. Un test le vérifie.
+- `UserResource` : `active_profile_id`, le profil lié par le middleware (`type:id`) ou `null`. La clé est
+  dans la branche « pour soi » : un membre listé par `AgencyController` ne la reçoit pas.
+- `ProfileResource` : `agency.city`, tirée de la première adresse de l'agence (ordonnée par `addresses.id`),
+  ou `null`. La clé est **absente** si les adresses n'ont pas été chargées, plutôt qu'un `null` qui
+  affirmerait « pas d'adresse ». `index` et `updateActive` les chargent.
+- `takussan-api/CLAUDE.md`, § Profil actif : l'ordre de résolution est mis à jour.
+
+**Ce que la re-mesure a montré de différent.**
+
+1. **Le compte de requêtes de `GET /api/me/profiles` n'était PAS constant avant ce ticket.** Mesuré :
+   17 requêtes pour 1 agence, 27 pour 3 (un agent et un bailleur par agence). La cause est TCK-2524 :
+   `ProfileResource::slugDeSaFiche()` appelait `AgentPublic::parSlug` (5 lectures) **pour chaque profil
+   d'agent**, alors que la fiche est celle de l'appelant. Ce calcul est désormais mémorisé par requête
+   (attribut de requête). Après correctif : compte identique entre 1 et 3 agences, et l'ablation du
+   mémo rougit le test.
+2. **« Agence suspendue » : le ticket et les ADR se contredisent, et le code suit les ADR.** Le ticket
+   dit qu'un profil « d'une agence suspendue est ignoré ». Mais :
+   - la même phrase le fait juger « par `ActiveProfileResolver::resolve`, comme le cookie », et ce
+     jugement ne regarde que le statut du **profil** ;
+   - l'amendement d'ADR-0004 dit « encore actif et appartient toujours au compte » ;
+   - [ADR-0048](../../../adr/0048-effet-d-une-suspension-d-agence.md) § 4 garde aux membres d'une agence suspendue la lecture et l'export
+     (`MembershipCapabilityResolver::KEPT_WHEN_SUSPENDED`). L'auto-bascule et le cookie lient déjà un
+     tel profil. Écrire 423 n'est pas 403.
+
+   Le niveau 4 lie donc un profil actif d'une agence suspendue, comme le cookie. **Le porteur tranche.**
+   Aucun test ne fige l'un ou l'autre comportement.
+3. **AC3 avec deux agences seulement ne peut pas rendre « sans profil lié ».** Une fois B suspendu, il
+   ne reste qu'une agence active, et l'auto-bascule lie A. Le test d'AC3 pose donc trois agences.
+4. **ADR-0004, § Application, garde « `remember=false` n'écrit rien »** : le ticket dit « efface la
+   valeur mémorisée », et c'est ce qui est fait (`false` → `oublier`). À harmoniser dans l'ADR.
+5. **La réponse de connexion** (`POST /api/auth/login`, `UserResource::pourSoi`) rend
+   `active_profile_id: null` : aucun middleware n'a lié de profil à cette requête-là. Le profil lié se
+   lit sur `/api/auth/me`. Son `agency_id` reste celui de l'accesseur (auto-bascule).
+6. Le super-admin ne lit pas le niveau 4, comme il ne lit ni cookie ni auto-bascule.
+
+**Tests.** `tests/Feature/Api/Me/ProfilesEndpointTest.php` compte 10 tests neufs, ceux du ticket plus
+ceux de l'ADR :
+- `remember` non booléen refusé ;
+- le retenu l'emporte sur l'auto-bascule dans une même agence ;
+- l'impersonation ne lit pas l'espace retenu ;
+- le compte de requêtes.
+
+Chacun a été vérifié par une ablation ciblée (10 sur 10 rouges, restauration prouvée par `md5`). La
+classe est verte (24 tests). Les classes voisines sont vertes (97 tests) :
+- `SelectActiveProfileTest`, `ResolveActiveProfileTest`, `AuthLoginTest` ;
+- `ImpersonationReadOnlyTest`, `MultiProfileStrictAccessTest`, `UserResourceSparseFieldsTest` ;
+- `ContactPreferencesTest`, `OAuthCallbackTest`, `AgencyMembersRolesDansLAgenceTest`.
+
+**Reste.**
+- `/sync-specs` après fusion : `models-spec.md` § 1 (clé `metadata.last_active_profile`) et
+  `features.md` (ordre de résolution).
+- Le front (TCK-2621) lit `active_profile_id` et `agency.city`.
+

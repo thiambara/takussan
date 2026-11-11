@@ -8,6 +8,7 @@ use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\ServiceProviderProfile;
+use App\Models\User;
 use App\Services\Profiles\ActiveProfileResolver;
 use App\Services\Public\AgentPublic;
 use Illuminate\Http\Request;
@@ -48,6 +49,14 @@ class ProfileResource extends BaseResource
                 // première agence professionnelle qui s'appelle comme son
                 // fondateur. La nature se lit dans le modèle.
                 'kind' => $this->resource->agency->kind?->value,
+                // TCK-2620 — la VILLE, pour reconnaître un espace à son agence, son rôle et sa ville
+                // (le slug n'est pas une information pour la personne). Celle de l'adresse principale
+                // (la première, ordonnée par le chargeur), `null` sans adresse. Émise seulement si les
+                // adresses ont été chargées : sans elles, la clé est absente — jamais un `null` qui
+                // affirmerait « pas d'adresse » sur une agence dont on n'a rien lu.
+                ...($this->resource->agency->relationLoaded('addresses') ? [
+                    'city' => $this->resource->agency->addresses->first()?->city,
+                ] : []),
             ]),
             'status' => $this->statusValue(),
             'created_at' => $this->iso($this->resource->created_at),
@@ -84,6 +93,19 @@ class ProfileResource extends BaseResource
             return null;
         }
 
+        // TCK-2620 — la fiche est celle de l'APPELANT, pas du profil : la même pour chacun de ses
+        // profils d'agent. Calculée une fois par requête (cinq lectures par `AgentPublic::parSlug`) ;
+        // sans cela `GET /api/me/profiles` en coûtait cinq par agence d'un agent de plusieurs agences.
+        $cle = 'me.profiles.public_slug.'.$appelant->getKey();
+        if (! $request->attributes->has($cle)) {
+            $request->attributes->set($cle, $this->calculerSlugDeSaFiche($appelant));
+        }
+
+        return $request->attributes->get($cle);
+    }
+
+    private function calculerSlugDeSaFiche(User $appelant): ?string
+    {
         $slug = $appelant->slugDeFiche();
         if (! is_string($slug) || $slug === '') {
             return null;

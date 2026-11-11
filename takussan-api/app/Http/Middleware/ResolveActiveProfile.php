@@ -2,11 +2,14 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\Admin\ImpersonationService;
 use App\Services\Profiles\ActiveProfileResolver;
+use App\Services\Profiles\DernierEspaceRetenu;
 use Closure;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Laravel\Sanctum\PersonalAccessToken;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -19,9 +22,14 @@ use Symfony\Component\HttpFoundation\Response;
  *      invalid. Used by SSR fetchers that forward the browser-bound
  *      `active_profile_id` cookie value as a header.
  *   3. Cookie `active_profile_id` — silently ignored if invalid.
- *   4. Auto-bascule — if the user holds profiles in exactly one agency, pick
+ *   4. Dernier espace retenu — `users.metadata.last_active_profile`, écrit par
+ *      `PATCH /api/me/active-profile` sous `remember` (TCK-2620, ADR-0004,
+ *      amendement du 2026-11-10). Silently ignored if the profile is no longer
+ *      an active profile of the account; never read under an impersonation
+ *      token (ADR-0055).
+ *   5. Auto-bascule — if the user holds profiles in exactly one agency, pick
  *      one. Multi-agence : no auto-bascule (security explicit).
- *   5. None — super_admins (PlatformProfile) work without an agency profile ;
+ *   6. None — super_admins (PlatformProfile) work without an agency profile ;
  *      agency-scoped checks simply won't resolve.
  *
  * Stored on the request so downstream code can call `$request->activeProfile()`
@@ -32,7 +40,10 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class ResolveActiveProfile
 {
-    public function __construct(private readonly ActiveProfileResolver $resolver) {}
+    public function __construct(
+        private readonly ActiveProfileResolver $resolver,
+        private readonly DernierEspaceRetenu $dernierEspace,
+    ) {}
 
     public function handle(Request $request, Closure $next): Response
     {
@@ -126,6 +137,21 @@ class ResolveActiveProfile
             }
         }
 
+        // TCK-2620 (ADR-0004, amendement du 2026-11-10) — le dernier espace retenu sur le compte. Une
+        // mémoire, pas un signal explicite : jugé par `resolve()` comme le cookie (profil du compte,
+        // encore actif), ignoré sans 403 sinon. Lu sur `users.metadata`, déjà chargé : aucune requête
+        // de plus sans valeur retenue. Jamais sous impersonation : la consultation voit l'espace que
+        // les règles d'avant lui donnent, pas celui que la personne consultée a retenu.
+        $retenu = $this->dernierEspace->lire($user);
+        if ($retenu !== null && ! $this->sousImpersonation($user)) {
+            $profile = $this->resolver->resolve($retenu, $user);
+            if ($profile !== null) {
+                $this->bind($request, $user, $profile);
+
+                return $next($request);
+            }
+        }
+
         // TCK-278 — Auto-bascule : tolère plusieurs profils dans la même
         // agence (multi-rôles agent+owner) ; multi-agences reste sans
         // auto-bascule (sécurité explicite, le user doit choisir).
@@ -152,6 +178,13 @@ class ResolveActiveProfile
         }
 
         return $next($request);
+    }
+
+    private function sousImpersonation($user): bool
+    {
+        $token = method_exists($user, 'currentAccessToken') ? $user->currentAccessToken() : null;
+
+        return $token instanceof PersonalAccessToken && ImpersonationService::isImpersonationToken($token);
     }
 
     private function bind(Request $request, $user, $profile): void
