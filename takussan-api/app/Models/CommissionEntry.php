@@ -2,14 +2,20 @@
 
 namespace App\Models;
 
+use App\Http\Filters\DateBoundaryFilter;
 use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
+use App\Models\Enums\CommissionCancelReason;
 use App\Models\Enums\CommissionEntryStatus;
 use App\Models\Enums\CommissionOrigin;
 use App\Models\Enums\Currency;
+use App\Models\Enums\PaymentMethod;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\AllowedInclude;
 
 /**
  * TCK-595 (ADR-0049 §3) — une ligne du grand livre des commissions : la part d'un bénéficiaire sur
@@ -27,7 +33,12 @@ class CommissionEntry extends AbstractModel
         'agency_id', 'lease_id', 'beneficiary_id', 'origin',
         'base_amount', 'share_percent', 'amount', 'currency', 'status',
         'earned_at', 'paid_at', 'paid_by_id', 'cancelled_at', 'cancelled_by_id', 'metadata',
+        // TCK-2661 — la preuve du paiement et le motif de l'annulation.
+        'payment_method', 'payment_reference', 'cancel_reason_code', 'cancel_reason',
     ];
+
+    /** TCK-2661 — le fuseau dans lequel se lisent les dates des filtres `earned_*` et `paid_*`. */
+    public const DATE_TIMEZONE = 'Africa/Dakar';
 
     protected $casts = [
         'origin' => CommissionOrigin::class,
@@ -40,6 +51,8 @@ class CommissionEntry extends AbstractModel
         'paid_at' => 'datetime',
         'cancelled_at' => 'datetime',
         'metadata' => 'array',
+        'payment_method' => PaymentMethod::class,
+        'cancel_reason_code' => CommissionCancelReason::class,
     ];
 
     protected static array $requestFilterable = ['status', 'beneficiary_id', 'lease_id', 'origin'];
@@ -52,8 +65,59 @@ class CommissionEntry extends AbstractModel
         'id', 'agency_id', 'lease_id', 'beneficiary_id', 'origin',
         'base_amount', 'share_percent', 'amount', 'currency', 'status',
         'earned_at', 'paid_at', 'paid_by_id', 'cancelled_at', 'cancelled_by_id',
+        'payment_method', 'payment_reference', 'cancel_reason_code', 'cancel_reason',
         'created_at', 'updated_at',
     ];
+
+    /**
+     * TCK-2661 — `filter[earned_from|earned_to|paid_from|paid_to]` : des DATES lues à l'heure de
+     * Dakar, bornes incluses, comme `MaintenanceRequest::customQueryFilters()` (TCK-2623). `from` part
+     * du début de son jour, `to` s'arrête avant le début du lendemain ; une ligne non payée n'entre
+     * dans aucune plage `paid_*`. Une valeur illisible ou une liste rend 422.
+     *
+     * @return array<int, AllowedFilter>
+     */
+    protected static function customQueryFilters(): array
+    {
+        $filters = [];
+        foreach (['earned' => 'earned_at', 'paid' => 'paid_at'] as $name => $column) {
+            $filters[] = AllowedFilter::callback("{$name}_from", function (Builder $q, mixed $value) use ($name, $column): void {
+                if ($value === null || $value === '') {
+                    return;
+                }
+                DateBoundaryFilter::exiger($value, "{$name}_from");
+                $q->where($q->qualifyColumn($column), '>=', self::startOfDakarDay($value));
+            });
+            $filters[] = AllowedFilter::callback("{$name}_to", function (Builder $q, mixed $value) use ($name, $column): void {
+                if ($value === null || $value === '') {
+                    return;
+                }
+                DateBoundaryFilter::exiger($value, "{$name}_to");
+                $q->where($q->qualifyColumn($column), '<', self::startOfDakarDay($value)->addDay());
+            });
+        }
+
+        return $filters;
+    }
+
+    /** Le début, en heure de l'application, du jour de Dakar que porte la date donnée. */
+    public static function startOfDakarDay(string $date): Carbon
+    {
+        return Carbon::createFromFormat('!Y-m-d', Carbon::parse($date)->format('Y-m-d'), self::DATE_TIMEZONE)
+            ->setTimezone(config('app.timezone'));
+    }
+
+    /**
+     * TCK-2661 — `include=lease.property` : le bien du bail, `{id, title, quarter}` sous `lease`.
+     * Déclaré ici et non dans `$requestLoadable`, qui ne nomme que des relations du modèle (et que
+     * `RequestLoadableEmittedTest` confronte à la ressource) : celle-ci est celle du bail.
+     *
+     * @return array<int, AllowedInclude>
+     */
+    protected static function getAllowedQueryIncludes(): array
+    {
+        return [...parent::getAllowedQueryIncludes(), AllowedInclude::relationship('lease.property')];
+    }
 
     /**
      * TCK-595 (ADR-0049 §3, verif-595 M2) — le périmètre de lecture du grand livre, UN SEUL pour le

@@ -8,9 +8,15 @@ use App\Models\Enums\Capability;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\CustomerStatus;
 use App\Models\Enums\IdType;
+use App\Services\Crm\CustomerCommercialAttributes;
+use App\Services\Crm\CustomerFollowUpQuery;
+use App\Services\Crm\CustomerNextActionQuery;
 use App\Services\Crm\CustomerPhoneNormalizer;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Sorts\CollatedNameSort;
+use App\Sorts\CustomerFollowUpSort;
+use App\Sorts\CustomerLastContactedSort;
+use App\Sorts\CustomerNextActionSort;
 use App\Support\Query\DepartageQueryBuilder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -20,6 +26,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 use Laravel\Scout\Searchable;
 use Spatie\Activitylog\Support\LogOptions;
 use Spatie\QueryBuilder\AllowedFilter;
@@ -92,6 +99,11 @@ class Customer extends AbstractModel
         'seeking_cities' => 'array',
         'seeking_neighborhoods' => 'array',
         'min_bedrooms' => 'integer',
+        // TCK-2583 — écrite par `ContactGestureService::touchCustomer()` seulement, jamais fillable.
+        'last_contacted_at' => 'datetime',
+        // TCK-2582 — écrites par `ContactLeadService` seul (conversion, rattachement), jamais fillable.
+        'source_contact_lead_id' => 'integer',
+        'interested_property_id' => 'integer',
     ];
 
     /**
@@ -111,11 +123,16 @@ class Customer extends AbstractModel
     protected static array $requestFilterable = ['user_id', 'agency_id', 'added_by_id', 'status', 'pipeline_stage'];
 
     /** `first_name` et `last_name` se trient à part, en `COLLATE "und-x-icu"` (TCK-1136). */
-    protected static array $requestSortable = ['id', 'created_at', 'updated_at', 'status'];
+    protected static array $requestSortable = ['id', 'created_at', 'updated_at', 'status', 'last_contacted_at'];
 
-    protected static array $requestLoadable = ['user', 'agency', 'addresses', 'tags', 'addedBy', 'notes', 'documents', 'tasks'];
+    /**
+     * TCK-2588 — `upcomingVisits` : les trois prochaines visites de la fiche.
+     * TCK-2582 — `origin` (la demande d'origine et son bien) et `interestedProperty`.
+     */
+    protected static array $requestLoadable = ['user', 'agency', 'addresses', 'tags', 'addedBy', 'notes', 'documents', 'tasks', 'upcomingVisits', 'origin', 'interestedProperty'];
 
-    protected static array $requestCountable = ['bookings', 'leases', 'notes', 'tasks'];
+    /** TCK-2588 — `visitsCount`. */
+    protected static array $requestCountable = ['bookings', 'leases', 'notes', 'tasks', 'visits'];
 
     protected static array $requestSearchFields = ['first_name', 'last_name', 'email', 'phone'];
 
@@ -123,21 +140,55 @@ class Customer extends AbstractModel
      * TCK-1136 (P87.01) — les tris déclarés, plus prénom et nom en `COLLATE "und-x-icu"` (ADR-0025,
      * amendement du 2026-10-19) : sous `--locale=C`, « diop » et « Écrivain » passaient après « Zola ».
      *
+     * TCK-2588 — et deux tris calculés : `next_action_at`, `follow_up_days`. Les attributs calculés
+     * (`next_action`, `follow_up`, `referent`) sortent de `fields[customers]` avant spatie, qui les
+     * prendrait pour des colonnes ({@see CustomerCommercialAttributes::strip()}).
+     *
      * @param  Builder<static>|null  $baseQuery
      */
     public static function buildQuery(?Builder $baseQuery = null, ?Request $request = null): QueryBuilder
     {
+        $request = CustomerCommercialAttributes::strip($request ?? request());
+
+        // Vérification adverse de TCK-2583/TCK-2588 — le dernier contact et la relance sont nourris
+        // par les visites et les comptes rendus de TOUS les biens de l'agence : hors personnel (le
+        // bailleur auteur d'une fiche), leurs deux tris retombent sur la date de création, sans
+        // rien trahir de l'heure d'un compte rendu sur le bien d'un autre bailleur. Pour le
+        // personnel, les deux se jugent fiche par fiche (`CustomerLastContactedSort`,
+        // `CustomerFollowUpQuery::sinceSql`) : une fiche d'une agence où il n'est que bailleur ne
+        // classe pas sur ces valeurs.
+        $internes = static::readsAgencyInternals($request->user());
+
         return DepartageQueryBuilder::for($baseQuery ?? static::class, $request)
             ->allowedFilters(...static::getAllowedQueryFilters())
             ->allowedFields(...static::getAllAllowedQueryFields())
             ->allowedSorts(
-                ...static::$requestSortable,
+                ...array_values(array_diff(static::$requestSortable, ['last_contacted_at'])),
                 ...[
                     AllowedSort::custom('first_name', new CollatedNameSort, 'customers.first_name'),
                     AllowedSort::custom('last_name', new CollatedNameSort, 'customers.last_name'),
+                    AllowedSort::custom('next_action_at', new CustomerNextActionSort),
+                    $internes
+                        ? AllowedSort::custom('follow_up_days', new CustomerFollowUpSort)
+                        : AllowedSort::field('follow_up_days', 'created_at'),
+                    $internes
+                        ? AllowedSort::custom('last_contacted_at', new CustomerLastContactedSort)
+                        : AllowedSort::field('last_contacted_at', 'created_at'),
                 ],
             )
             ->allowedIncludes(...static::getAllowedQueryIncludes());
+    }
+
+    /**
+     * Vérification adverse de TCK-2583/TCK-2588 — le lecteur lit-il les faits internes de l'agence
+     * (dernier contact, relance) ? Le super-admin et le personnel d'une agence ; jamais le bailleur
+     * ni le client. Les tris et le filtre de la liste se jugent sur elle ; la ressource, fiche par
+     * fiche, sur {@see self::criteriaBelongTo()}.
+     */
+    public static function readsAgencyInternals(?User $viewer): bool
+    {
+        return $viewer !== null
+            && ($viewer->isSuperAdmin() || app(MembershipCapabilityResolver::class)->staffAgencyIds($viewer) !== []);
     }
 
     /** TCK-953 — sans `id_number` : `fields[customers]=…,id_number` rend 400 (ADR-0070 § 4). */
@@ -149,7 +200,9 @@ class Customer extends AbstractModel
         'status', 'pipeline_stage', 'metadata',
         'seeking_contract_type', 'budget_min', 'budget_max',
         'seeking_property_types', 'seeking_cities', 'seeking_neighborhoods', 'min_bedrooms',
-        'locale',
+        'locale', 'last_contacted_at',
+        // TCK-2582 — l'origine de la fiche ; à demander avec `include=origin` / `interestedProperty`.
+        'source_contact_lead_id', 'interested_property_id',
         'created_at', 'updated_at',
     ];
 
@@ -173,6 +226,66 @@ class Customer extends AbstractModel
             foreach ($names as $name) {
                 $q->whereHas('tags', fn (Builder $t) => $t->where('name', $name));
             }
+        });
+
+        // TCK-2588 — `filter[referent]=me|none|{user_id}` : le référent (relation `agent_client`
+        // principale et active). `me` vaut dans l'agence active (principe n° 2).
+        $filters[] = AllowedFilter::callback('referent', function (Builder $q, mixed $value) {
+            Validator::make(['filter' => ['referent' => $value]], [
+                'filter.referent' => ['string', 'regex:/^(me|none|[1-9][0-9]{0,18})$/'],
+            ])->validate();
+
+            $viewer = request()->user();
+            $referent = fn (?int $userId) => fn (Builder $r) => CustomerCommercialAttributes::asReferent($r)
+                ->when($userId !== null, fn (Builder $w) => $w->where('user_customer_relationships.user_id', $userId));
+
+            if ($value === 'none') {
+                $q->whereDoesntHave('relationships', $referent(null));
+
+                return;
+            }
+            if ($value !== 'me') {
+                $q->whereHas('relationships', $referent((int) $value));
+
+                return;
+            }
+
+            $agencyId = $viewer?->staffAgencyId();
+            if ($viewer === null || ($agencyId === null && ! $viewer->isSuperAdmin())) {
+                $q->whereRaw('1 = 0');
+
+                return;
+            }
+            $q->whereHas('relationships', $referent((int) $viewer->id))
+                ->when($agencyId !== null, fn (Builder $w) => $w->where('customers.agency_id', $agencyId));
+        });
+
+        // TCK-2588 — `filter[follow_up]=1` : les fiches à relancer ; `=0`, les autres. La définition
+        // même de l'attribut `follow_up` (`CustomerFollowUpQuery::sinceSql()`).
+        $filters[] = AllowedFilter::callback('follow_up', function (Builder $q, mixed $value) {
+            $viewer = request()->user();
+            $due = filter_var($value, FILTER_VALIDATE_BOOLEAN);
+            // Vérification adverse de TCK-2588 — hors personnel, `follow_up` est toujours `null` (il
+            // trahirait l'heure d'un compte rendu sur le bien d'un autre bailleur) : le filtre suit
+            // ce que la page sert — `=1` ne rend rien, `=0` ne retire rien.
+            if ($viewer !== null && ! static::readsAgencyInternals($viewer)) {
+                if ($due) {
+                    $q->whereRaw('1 = 0');
+                }
+
+                return;
+            }
+            if ($viewer !== null) {
+                (new CustomerFollowUpQuery($viewer))->filter($q, $due);
+            }
+        });
+
+        // TCK-2588 — `filter[stage_group]=active` : les étapes vivantes (lead à négociation).
+        $filters[] = AllowedFilter::callback('stage_group', function (Builder $q, mixed $value) {
+            Validator::make(['filter' => ['stage_group' => $value]], [
+                'filter.stage_group' => ['string', 'in:active'],
+            ])->validate();
+            $q->whereIn('customers.pipeline_stage', CustomerFollowUpQuery::liveStageValues());
         });
 
         return $filters;
@@ -316,6 +429,37 @@ class Customer extends AbstractModel
     public function visits(): HasMany
     {
         return $this->hasMany(PropertyVisit::class);
+    }
+
+    /**
+     * TCK-2588 — les trois prochaines visites de la fiche (`include=upcomingVisits`) : le vivier de
+     * la prochaine action ({@see CustomerNextActionQuery::upcomingVisits()}), trois au plus PAR fiche
+     * (limite de chargement anticipé, par fenêtre).
+     */
+    public function upcomingVisits(): HasMany
+    {
+        return $this->hasMany(PropertyVisit::class)
+            ->whereIn('property_visits.status', CustomerNextActionQuery::VISIT_STATUSES)
+            ->where('property_visits.scheduled_at', '>=', now())
+            ->orderBy('property_visits.scheduled_at')
+            ->orderBy('property_visits.id')
+            ->limit(3);
+    }
+
+    /**
+     * TCK-2582 (ADR-0101) — la demande de contact d'où vient la fiche, avec son bien (titre, slug) :
+     * `include=origin`. Le message n'en sort que par `CustomerResource`, au seul personnel.
+     */
+    public function origin(): BelongsTo
+    {
+        return $this->belongsTo(PropertyContactLead::class, 'source_contact_lead_id')
+            ->with('property:id,title,slug');
+    }
+
+    /** TCK-2582 — le bien qui a fait venir la personne : `include=interestedProperty`. */
+    public function interestedProperty(): BelongsTo
+    {
+        return $this->belongsTo(Property::class, 'interested_property_id');
     }
 
     public function leasePayments(): HasMany

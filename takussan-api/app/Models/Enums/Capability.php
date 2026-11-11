@@ -80,6 +80,15 @@ enum Capability: string
     case PayoutsCreate = 'payouts.create';
     case PayoutsApprove = 'payouts.approve';
 
+    // owners.*
+    // TCK-2640 — modifier ce que l'agence tient sur un bailleur de son carnet : aujourd'hui le seul
+    // plafond de travaux (`works_approval_threshold`, ADR-0037). Accordée à l'admin par
+    // `agencyAssignable()` ; l'agent système ne la reçoit pas (`SystemRoleCapabilities::agent()`
+    // inchangé) — un rôle personnalisé peut la lui donner. Les rôles personnalisés de base
+    // `agency_admin` la reçoivent par la migration `2026_11_11_121000`, les rôles système par
+    // `membership:reconcile-system-roles` (docker/release.sh).
+    case OwnersUpdate = 'owners.update';
+
     // crm.*
     case CrmViewAll = 'crm.view_all';
     case CrmExport = 'crm.export';

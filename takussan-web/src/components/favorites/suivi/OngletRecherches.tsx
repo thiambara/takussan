@@ -128,9 +128,9 @@ function LigneDeRecherche({
         className="flex items-start gap-3 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       >
         <div className="min-w-0 flex-1">
-          <p className="text-[15px] font-semibold">{recherche.name}</p>
+          <p className="text-[0.9375rem] font-semibold">{recherche.name}</p>
           <p className="truncate text-sm text-muted-foreground">{resume(recherche.criteria ?? {})}</p>
-          <p className="mt-1.5 inline-flex items-center gap-1.5 text-[13px] text-muted-foreground">
+          <p className="mt-1.5 inline-flex items-center gap-1.5 text-[0.8125rem] text-muted-foreground">
             <Bell className="size-3.5" aria-hidden="true" />
             {alerte}
           </p>
@@ -138,7 +138,7 @@ function LigneDeRecherche({
         {total > 0 ? (
           <span
             data-testid="compte-nouveaux"
-            className="inline-flex h-7 flex-none items-center rounded-full bg-primary px-2.5 text-[13px] font-semibold tabular-nums text-primary-foreground"
+            className="inline-flex h-7 flex-none items-center rounded-full bg-primary px-2.5 text-[0.8125rem] font-semibold tabular-nums text-primary-foreground"
           >
             {t('nouveaux', { count: total })}
           </span>
@@ -157,7 +157,7 @@ function LigneDeRecherche({
                     <PropertyPhoto src={b.main_photo_url} alt="" compact sizes="150px" className="object-cover" />
                   </div>
                   <p className="mt-1.5 text-sm font-semibold tabular-nums">{montant(b.price, b.currency)}</p>
-                  <p className="truncate text-[13px] text-muted-foreground">{b.title}</p>
+                  <p className="truncate text-[0.8125rem] text-muted-foreground">{b.title}</p>
                 </LienLocalise>
               </li>
             );

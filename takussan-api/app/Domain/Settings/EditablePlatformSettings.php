@@ -2,6 +2,7 @@
 
 namespace App\Domain\Settings;
 
+use App\Services\Crm\CustomerFollowUpQuery;
 use App\Services\Invoice\OverdueReminderService;
 use App\Services\Lease\EarlyTerminationService;
 use App\Services\Lease\RentReviewService;
@@ -123,6 +124,13 @@ class EditablePlatformSettings
             'radar.mandate_agency_id' => [
                 'category' => 'radar', 'type' => 'integer', 'default' => 0, 'public' => false,
                 'rules' => ['required', 'integer', 'min:0'],
+            ],
+            // TCK-2588 (ADR-0103 § 4) — le seuil de la relance « sans contact » d'une fiche d'une étape
+            // vivante. Lu par `App\Services\Crm\CustomerFollowUpQuery`, ligne d'agence d'abord.
+            'crm.follow_up_days' => [
+                'category' => 'crm', 'type' => 'integer',
+                'default' => CustomerFollowUpQuery::DEFAULT_DAYS, 'public' => false,
+                'rules' => ['required', 'integer', 'min:1', 'max:90'],
             ],
         ];
     }

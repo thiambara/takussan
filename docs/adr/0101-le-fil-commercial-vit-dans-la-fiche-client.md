@@ -43,6 +43,7 @@ La maquette proposait trois maisons pour le dossier : la fiche client (A), un ob
 7. **Le sort du compte rendu.** Il suit la règle des notes de la fiche client.
    - **Hors de l'export du client**, comme les notes ([ADR-0070](0070-piece-et-revenu-du-locataire-et-de-la-caution-chiffres-masques-lus-sous-step-up.md) § 7), tant que TCK-537 n'a pas tranché.
    - À l'effacement de la fiche client, ou du compte du visiteur, la note `visit_report` part avec les notes, et `report_note`, le seul texte libre, est **vidée** sur la visite.
+     **Amendement du 2026-11-11 (décision du porteur)** : « part avec les notes » laissait le texte en base — la fiche n'est que supprimée en douceur, et celle du visiteur seulement dissociée. Le **corps** de la note `visit_report` est donc vidé en place avec `report_note`, corbeille comprise ; la note garde sa place et son lien à la visite. Le journal n'a pas de copie à suivre : il ne retient pas le corps d'une note (`CustomerNote::getActivitylogOptions`, mesuré par `VisitReportPrivacyTest`).
    - Le verdict, les objections et la suite, qui sont des codes fermés sans texte, restent pour les statistiques de l'agence.
 
 ## Conséquences

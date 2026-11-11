@@ -185,9 +185,12 @@ describe('StatementDetail — rapprocher ligne à ligne', () => {
     );
   });
 
-  it('le retour mène à la liste des relevés, sous `/app/agency` (TCK-649)', () => {
+  // TCK-2617 — le lien « ← Retour » a cédé la place au fil d'Ariane (dès `md`) et à la flèche de
+  // l'en-tête de la coque (au téléphone) : la destination ne change pas.
+  it('le fil d’Ariane mène à la liste des relevés, sous `/app/agency` (TCK-649)', () => {
     render(withIntl(<StatementDetail agencyId={3} statementId={1} />));
-    expect(screen.getByRole('link', { name: fr.admin.reconciliation.detail.back })).toHaveAttribute(
+    const fil = screen.getByRole('navigation', { name: fr.console.pageHeader.breadcrumb });
+    expect(within(fil).getByRole('link', { name: fr.admin.reconciliation.title })).toHaveAttribute(
       'href',
       '/app/agency/finances/reconciliation',
     );

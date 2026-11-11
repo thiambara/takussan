@@ -30,6 +30,15 @@ L'invité qui ouvre un lien reçu par SMS sait immédiatement qui l'invite et po
 - `POST /api/public/invitations/{token}/renewal-request` (TCK-2609).
 - Existant : `POST /api/invitations/{token}/accept` (voie mot de passe, compte connecté), `destinationDInvitation` (assistant du rôle).
 
+**Relevé après TCK-2610 (882002ea9), 2026-11-11** — ce que l'écran doit savoir du contrat livré :
+
+- **`phone` au `/verify` aussi pour une invitation par e-mail** : le numéro saisi à l'envoi du code (`/code`) est renvoyé à la vérification ; requis par e-mail, ignoré par SMS (le code part au numéro de l'invitation). Champs de `/verify` : `phone` (par e-mail), `code`, `first_name`, `last_name`, `two_factor_code` | `recovery_code`, `device_name`, `terms_version`.
+- **Refus à traiter**, sur `/verify` comme sur `POST /api/invitations/{token}/accept` :
+  - 401 `invitation.requires_login` (+ `requires_login: true`, `email`) — l'e-mail de l'invitation appartient à un autre compte que celui du numéro prouvé : se connecter à ce compte ;
+  - 403 `invitation.email_mismatch` / `invitation.phone_mismatch` — sous session, le compte connecté porte un autre e-mail, ou n'a pas vérifié le numéro de l'invitation (ADR-0094 § 7 : il n'est plus créé de compte pour l'invité sous la session d'un autre). L'écran propose de se déconnecter ou de changer de compte ;
+  - réponses de la connexion par téléphone : `requires_2fa` (même code reposé avec le TOTP), `requires_terms` (même code reposé avec `terms_version`), 422 `phone_code_invalid`, 423 `account_locked`, 429.
+- **Le code est consommé même quand l'acceptation est ensuite refusée** (401, 403, 409, 410) : l'écran redemande un code avant tout nouvel essai.
+
 ## Direction UX / Artistique
 
 - Maquette de référence : `/fr/playground/maquettes?p=app-entree-invitation&a=a` — **référence de fidélité, non versionnée** : à lire et à ouvrir dans l'arbre de travail principal du porteur, cf. [README de l'audit, § Maquettes](../../../qa/audit-ux-2026-11/README.md#maquettes) — écrans « Invitation valide », « Code », « Lien expiré », « Déjà inscrit », et les variantes dessinées sous les écrans (agent, prestataire, compte existant, code faux, compte sans nom, mauvais compte, liens qui ne s'ouvrent pas).

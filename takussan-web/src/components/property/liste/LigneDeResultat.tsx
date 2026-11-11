@@ -67,7 +67,7 @@ export function LigneDeResultat({ property, place, badge = null, priority = fals
       </div>
 
       <div className="min-w-0 flex-1 pr-9">
-        <p data-prix className="flex flex-wrap items-baseline gap-x-1 font-display text-[17px] leading-6 font-semibold tabular-nums text-foreground">
+        <p data-prix className="flex flex-wrap items-baseline gap-x-1 font-display text-[1.0625rem] leading-6 font-semibold tabular-nums text-foreground">
           <span className="whitespace-nowrap">{prix}</span>
           {property.contract_type === 'rent' ? (
             <span className="whitespace-nowrap font-sans text-sm font-normal text-muted-foreground">
@@ -78,14 +78,14 @@ export function LigneDeResultat({ property, place, badge = null, priority = fals
         <h3
           id={idTitre}
           title={property.title}
-          className={`line-clamp-2 text-[15px] leading-5 text-foreground text-pretty ${TITRE_REACTIF}`}
+          className={`line-clamp-2 text-[0.9375rem] leading-5 text-foreground text-pretty ${TITRE_REACTIF}`}
         >
           {property.title}
         </h3>
         {details.length > 0 ? (
           <p className="mt-0.5 truncate text-sm leading-5 text-muted-foreground">{details.join(' · ')}</p>
         ) : null}
-        <p data-meta className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[13px] leading-5">
+        <p data-meta className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[0.8125rem] leading-5">
           {badge ? (
             <span data-badge-boost={badge} className="font-semibold text-accent">
               {tCards(badge === 'urgent' ? 'badge.urgent' : 'badge.priceDrop')}

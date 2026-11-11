@@ -163,7 +163,7 @@ export function RechercheDuPortefeuille({ graine, fixes, total, nom, agence = nu
           >
             <SlidersHorizontal className="size-4" aria-hidden />
             {activeCount > 0 ? (
-              <span className="absolute -right-0.5 -top-0.5 grid size-5 place-items-center rounded-full bg-primary text-[11px] font-semibold tabular-nums text-primary-foreground">
+              <span className="absolute -right-0.5 -top-0.5 grid size-5 place-items-center rounded-full bg-primary text-[0.6875rem] font-semibold tabular-nums text-primary-foreground">
                 {activeCount}
               </span>
             ) : null}
@@ -340,7 +340,7 @@ function ChampDeRecherche({
         defaultValue={valeur}
         placeholder={placeholder}
         enterKeyHint="search"
-        className="min-w-0 flex-1 rounded-none border-0 bg-transparent px-0 text-foreground shadow-none focus-visible:ring-0 md:text-[15px] dark:bg-transparent [&::-webkit-search-cancel-button]:hidden"
+        className="min-w-0 flex-1 rounded-none border-0 bg-transparent px-0 text-foreground shadow-none focus-visible:ring-0 md:text-[0.9375rem] dark:bg-transparent [&::-webkit-search-cancel-button]:hidden"
       />
       {valeur ? (
         <button type="button" onClick={onVider} aria-label={libelleVider} className="-mr-2 grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:text-foreground">
@@ -588,24 +588,24 @@ function AucunBien({
   return (
     <div data-aucun-bien className="max-w-lg py-4">
       <h3 className="font-display text-xl font-semibold tracking-tight text-foreground">{t('aucun.titre')}</h3>
-      <p className="mt-1 text-[15px] text-muted-foreground">{t('aucun.texte', { nom })}</p>
+      <p className="mt-1 text-[0.9375rem] text-muted-foreground">{t('aucun.texte', { nom })}</p>
       <button
         type="button"
         onClick={onEffacer}
-        className="mt-4 inline-flex h-11 items-center rounded-xl bg-primary px-5 text-[15px] font-semibold text-primary-foreground transition-[background-color,scale] hover:bg-[var(--primary-deep)] active:scale-[0.96]"
+        className="mt-4 inline-flex h-11 items-center rounded-xl bg-primary px-5 text-[0.9375rem] font-semibold text-primary-foreground transition-[background-color,scale] hover:bg-[var(--primary-deep)] active:scale-[0.96]"
       >
         {t('effacer')}
       </button>
       {elargissements.length > 0 || chezLAgence ? (
         <>
-          <p className="mt-6 text-[15px] font-semibold text-foreground">{t('aucun.elargir')}</p>
+          <p className="mt-6 text-[0.9375rem] font-semibold text-foreground">{t('aucun.elargir')}</p>
           <ul className="mt-1 divide-y divide-border border-b border-border">
             {agence && chezLAgence ? (
               <li>
                 <LienLocalise
                   data-elargir="agence"
                   href={`/agencies/${encodeURIComponent(agence.slug)}${signature ? `?${signature}` : ''}`}
-                  className="flex min-h-12 items-center justify-between gap-3 text-[15px] text-foreground hover:text-primary"
+                  className="flex min-h-12 items-center justify-between gap-3 text-[0.9375rem] text-foreground hover:text-primary"
                 >
                   <span className="truncate">{t('aucun.chezLAgence', { agence: agence.nom })}</span>
                   <span className="shrink-0 tabular-nums text-muted-foreground">{t('compteBiens', { count: compteChezLAgence })}</span>
@@ -618,7 +618,7 @@ function AucunBien({
                   type="button"
                   data-elargir={e.cle}
                   onClick={() => onElargir(e.cle)}
-                  className="flex min-h-12 w-full items-center justify-between gap-3 text-left text-[15px] text-foreground hover:text-primary"
+                  className="flex min-h-12 w-full items-center justify-between gap-3 text-left text-[0.9375rem] text-foreground hover:text-primary"
                 >
                   <span className="truncate">{t(`aucun.sans.${e.cle}`)}</span>
                   <span className="shrink-0 tabular-nums text-muted-foreground">{t('compteBiens', { count: e.compte })}</span>
@@ -630,7 +630,7 @@ function AucunBien({
       ) : null}
       <LienLocalise
         href={`/properties${signature ? `?${signature}` : ''}`}
-        className="mt-4 inline-block text-[15px] font-medium text-foreground underline underline-offset-4 hover:text-primary"
+        className="mt-4 inline-block text-[0.9375rem] font-medium text-foreground underline underline-offset-4 hover:text-primary"
       >
         {t('aucun.ailleurs')}
       </LienLocalise>

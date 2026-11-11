@@ -76,7 +76,7 @@ export default function ErreurPublique({
         >
           <TriangleAlert className="size-6" />
         </span>
-        <h1 className="mt-5 font-display text-[26px] font-semibold leading-tight tracking-[-0.02em] text-balance text-foreground md:text-4xl">
+        <h1 className="mt-5 font-display text-[1.625rem] font-semibold leading-tight tracking-[-0.02em] text-balance text-foreground md:text-4xl">
           {t('title')}
         </h1>
         <p className="mt-2.5 text-base leading-relaxed text-pretty text-muted-foreground">{t('body')}</p>
@@ -85,14 +85,14 @@ export default function ErreurPublique({
           <button
             type="button"
             onClick={reset}
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-[15px] font-semibold text-primary-foreground transition-[background-color,scale] hover:bg-[var(--primary-deep)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring active:scale-[0.96] motion-reduce:active:scale-100"
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-[0.9375rem] font-semibold text-primary-foreground transition-[background-color,scale] hover:bg-[var(--primary-deep)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring active:scale-[0.96] motion-reduce:active:scale-100"
           >
             <RotateCw className="size-4" aria-hidden="true" />
             {t('retry')}
           </button>
           <LienLocalise
             href="/"
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-border bg-card px-5 text-[15px] font-semibold text-foreground transition-[background-color,scale] hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring active:scale-[0.96] motion-reduce:active:scale-100"
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-border bg-card px-5 text-[0.9375rem] font-semibold text-foreground transition-[background-color,scale] hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring active:scale-[0.96] motion-reduce:active:scale-100"
           >
             <House className="size-4" aria-hidden="true" />
             {t('backHome')}
@@ -102,7 +102,7 @@ export default function ErreurPublique({
         {error.digest ? (
           <div className="mt-8 border-t border-border pt-5">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex h-9 items-center rounded-lg bg-muted px-3 font-mono text-[13px] text-muted-foreground">
+              <span className="inline-flex h-9 items-center rounded-lg bg-muted px-3 font-mono text-[0.8125rem] text-muted-foreground">
                 {t('reference', { digest: error.digest })}
               </span>
               <button

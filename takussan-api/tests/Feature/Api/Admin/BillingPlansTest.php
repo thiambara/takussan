@@ -149,7 +149,7 @@ class BillingPlansTest extends TestCase
 
         $this->getJson('/api/me/quota')
             ->assertOk()
-            ->assertExactJson(['data' => ['limit' => null, 'used' => 0, 'can_create' => true]]);
+            ->assertExactJson(['data' => ['limit' => null, 'used' => 0, 'can_create' => true, 'agents' => ['limit' => null, 'used' => 0]]]);
 
         $this->abonnement($agency, 2);
         Property::factory()->count(2)->create(['agency_id' => $agency->id, 'status' => PropertyStatus::Available]);
@@ -157,7 +157,7 @@ class BillingPlansTest extends TestCase
 
         $this->getJson('/api/me/quota')
             ->assertOk()
-            ->assertExactJson(['data' => ['limit' => 2, 'used' => 2, 'can_create' => false]]);
+            ->assertExactJson(['data' => ['limit' => 2, 'used' => 2, 'can_create' => false, 'agents' => ['limit' => null, 'used' => 0]]]);
     }
 
     private function abonnement(Agency $agency, int $limite): void

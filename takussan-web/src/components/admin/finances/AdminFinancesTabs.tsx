@@ -1,174 +1,104 @@
 'use client';
 
-import { useCallback, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { FileText, Send } from 'lucide-react';
-
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { CreateInvoiceDialog } from '@/components/payments/CreateInvoiceDialog';
-import { CreatePayoutDialog } from '@/components/payments/CreatePayoutDialog';
-import { InvoiceDetailDialog } from '@/components/payments/InvoiceDetailDialog';
-import { InvoicesTable } from '@/components/payments/InvoicesTable';
-import { PaymentsHistoryFilters } from '@/components/payments/PaymentsHistoryFilters';
-import { PaymentsHistoryTable } from '@/components/payments/PaymentsHistoryTable';
-import { PayoutDetailDialog } from '@/components/payments/PayoutDetailDialog';
-import { PayoutsTable } from '@/components/payments/PayoutsTable';
-
-import { useCan } from '@/hooks/useCan';
-
-import { OverduePaymentsTable } from './OverduePaymentsTable';
+import type { ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 
-/**
- * Les valeurs acceptées par `?tab=`.
- *
- * **Exportée depuis TCK-375** : le bloc de files du tableau de bord d'agence renvoie vers
- * `/app/agency/finances?tab=impayes`, et un lien vers un onglet inexistant retomberait en silence sur
- * « encaissements » — la ligne mènerait à côté de ce qu'elle annonce, sans qu'aucun test ne le
- * voie. L'invariant se vérifie contre CETTE table, jamais contre une chaîne recopiée.
- */
-export const TAB_VALUES = ['encaissements', 'factures', 'reversements', 'a-approuver', 'impayes'] as const;
-type TabValue = (typeof TAB_VALUES)[number];
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { InvoicesTable } from '@/components/payments/InvoicesTable';
+import { PayoutsTable } from '@/components/payments/PayoutsTable';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
+import type { OngletArgent } from '@/lib/finances/vue-argent';
 
-function isTabValue(value: string | null): value is TabValue {
-  return !!value && (TAB_VALUES as readonly string[]).includes(value);
-}
+import { EncaissementsAgence } from './argent/EncaissementsAgence';
+import type { GestesDeLArgent } from './argent/gestes';
+import { OverduePaymentsTable } from './OverduePaymentsTable';
+
+/**
+ * Les valeurs acceptées par `?tab=` — déclarées dans `lib/finances/vue-argent.ts` depuis TCK-2659,
+ * réexportées ici pour les importeurs d'avant (TCK-375 : `AgencyQueues` renvoie vers
+ * `?tab=impayes`, l'invariant se vérifie contre CETTE table).
+ */
+export { TAB_VALUES } from '@/lib/finances/vue-argent';
 
 interface AdminFinancesTabsProps {
+  /** L'onglet ouvert (`?tab=`, sinon « encaissements »). */
+  readonly onglet: OngletArgent;
+  readonly onChange: (onglet: OngletArgent) => void;
+  readonly gestes: GestesDeLArgent;
+  readonly telephone: boolean;
+  /** `registre` : la page d'un registre ; `apercu` : sous le point du mois, au bureau. */
+  readonly variante: 'registre' | 'apercu';
+  readonly courant: string;
+  readonly agencyId: number | undefined;
+  /** Les comptes des onglets « À approuver » et « Impayés », lus de la synthèse. */
+  readonly comptes?: { readonly aApprouver?: number; readonly impayes?: number };
   /**
-   * `true` if the current actor can issue invoices and payouts. Falsy
-   * disables the action buttons (the views remain readable).
-   *
-   * TCK-528 — nécessaire, plus suffisant : chaque bouton suit aussi SA capacité
-   * (`invoices.create`, `payouts.create`), que l'API juge sur le profil actif.
+   * Ce qui précède les registres et porte la barre d'onglets (l'en-tête de page du registre, sous
+   * lequel elle se pose) ; sans lui, la barre ouvre le bloc. Rien au téléphone : un registre y est un
+   * écran à part, sans onglets.
    */
-  readonly canEmit?: boolean;
+  readonly entete?: (onglets: ReactNode) => ReactNode;
 }
 
 /**
- * TCK-134 — 4-tab back-office finance dashboard. Mirrors the structure
- * of the user-facing `PaymentsTabs` (TCK-063) but reuses its tables
- * verbatim and adds an "Impayés" tab driven by `OverduePaymentsTable`.
+ * TCK-134 — les cinq registres de « Argent » : encaissements, factures, reversements, « À approuver »
+ * (réservé à `payouts.approve`, TCK-594) et impayés. L'onglet vit dans l'adresse (`?tab=`), qui reste
+ * partageable et sûre au rechargement.
  *
- * Tab state is mirrored in `?tab=...` so the URL is shareable and the
- * page is reload-safe.
+ * TCK-2659 — les gestes de création ne sont plus ici : ils vivent dans l'en-tête de page (bureau) et
+ * la rubrique « Créer » (téléphone), leurs dialogues montés une fois (`useGestesDeLArgent`).
  */
-export function AdminFinancesTabs({ canEmit }: AdminFinancesTabsProps) {
+export function AdminFinancesTabs({ onglet, onChange, gestes, telephone, variante, courant, agencyId, comptes, entete }: AdminFinancesTabsProps) {
   const t = useTranslations('admin.finances');
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const tab: TabValue = isTabValue(searchParams.get('tab'))
-    ? (searchParams.get('tab') as TabValue)
-    : 'encaissements';
+  const f = useFormatteurs();
+  const ouvert: OngletArgent = onglet === 'a-approuver' && !gestes.peutApprouver ? 'encaissements' : onglet;
+  const compte = (n: number | undefined) =>
+    n !== undefined && n > 0 ? <span className="text-xs tabular-nums text-muted-foreground">{f.nombre(n)}</span> : null;
 
-  // TCK-528 — même règle que `PaymentsTabs` : un admin d'agence au rôle personnalisé peut ne porter
-  // qu'une des deux capacités, et le serveur refuserait l'autre.
-  const { can: peutFacturer, isLoading: facturationEnCours } = useCan('invoices.create');
-  const { can: peutReverser, isLoading: reversementEnCours } = useCan('payouts.create');
-  const capacitesEnCours = facturationEnCours || reversementEnCours;
-  // TCK-594 (ADR-0039 §4) — la file « À approuver » : les reversements au-dessus du seuil de
-  // l'agence attendent un second membre. Elle dit qui a préparé (dialogue de détail).
-  const { can: peutApprouver } = useCan('payouts.approve');
-  const emetFacture = !!canEmit && peutFacturer;
-  const emetReversement = !!canEmit && peutReverser;
-
-  const [invoiceOpen, setInvoiceOpen] = useState(false);
-  const [payoutOpen, setPayoutOpen] = useState(false);
-  const [invoiceId, setInvoiceId] = useState<number | null>(null);
-  const [payoutId, setPayoutId] = useState<number | null>(null);
-
-  const setTab = useCallback(
-    (next: string) => {
-      const params = new URLSearchParams(searchParams.toString());
-      if (next === 'encaissements') {
-        params.delete('tab');
-      } else {
-        params.set('tab', next);
-      }
-      params.delete('page');
-      const qs = params.toString();
-      router.replace(qs ? `?${qs}` : '?');
-    },
-    [router, searchParams],
+  const onglets = telephone ? null : (
+    // Cinq onglets mesurent plus que la colonne à `lg` : le ruban défile dans son conteneur.
+    <div className="-mx-1 max-w-full overflow-x-auto px-1">
+      <TabsList variant="line">
+        <TabsTrigger value="encaissements">{t('tabs.payments')}</TabsTrigger>
+        <TabsTrigger value="factures">{t('tabs.invoices')}</TabsTrigger>
+        <TabsTrigger value="reversements">{t('tabs.payouts')}</TabsTrigger>
+        {gestes.peutApprouver ? (
+          <TabsTrigger value="a-approuver">
+            {t('tabs.toApprove')} {compte(comptes?.aApprouver)}
+          </TabsTrigger>
+        ) : null}
+        <TabsTrigger value="impayes">
+          {t('tabs.overdue')} {compte(comptes?.impayes)}
+        </TabsTrigger>
+      </TabsList>
+    </div>
   );
 
   return (
-    <div className="space-y-5">
-      <Tabs value={tab} onValueChange={setTab}>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          {/* Quatre onglets mesurent ~340 px : à 360 ils touchaient le bord. Le ruban défile dans
-              son conteneur plutôt que de pousser la page. */}
-          <div className="-mx-1 max-w-full overflow-x-auto px-1">
-            <TabsList>
-              <TabsTrigger value="encaissements">{t('tabs.payments')}</TabsTrigger>
-              <TabsTrigger value="factures">{t('tabs.invoices')}</TabsTrigger>
-              <TabsTrigger value="reversements">{t('tabs.payouts')}</TabsTrigger>
-              {peutApprouver ? <TabsTrigger value="a-approuver">{t('tabs.toApprove')}</TabsTrigger> : null}
-              <TabsTrigger value="impayes">{t('tabs.overdue')}</TabsTrigger>
-            </TabsList>
-          </div>
-          {canEmit && capacitesEnCours ? (
-            <Skeleton className="h-8 w-72 max-w-full" aria-hidden="true" data-testid="finances-actions-loading" />
-          ) : emetFacture || emetReversement ? (
-            <div className="flex flex-wrap gap-2">
-              {emetFacture ? (
-                <Button type="button" variant="outline" size="sm" onClick={() => setInvoiceOpen(true)}>
-                  <FileText className="size-4" aria-hidden="true" />
-                  {t('tabs.newInvoice')}
-                </Button>
-              ) : null}
-              {emetReversement ? (
-                <Button type="button" size="sm" onClick={() => setPayoutOpen(true)}>
-                  <Send className="size-4" aria-hidden="true" />
-                  {t('tabs.newPayout')}
-                </Button>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
+    <Tabs value={ouvert} onValueChange={(v) => onChange(v as OngletArgent)}>
+      {entete ? entete(onglets) : onglets}
 
-        <TabsContent value="encaissements" className="space-y-4">
-          <PaymentsHistoryFilters />
-          <PaymentsHistoryTable />
+      <TabsContent value="encaissements" className={telephone ? undefined : 'pt-4'}>
+        <EncaissementsAgence courant={courant} telephone={telephone} variante={variante} agencyId={agencyId} />
+      </TabsContent>
+
+      <TabsContent value="factures" className="space-y-4 pt-4">
+        <InvoicesTable onSelect={gestes.ouvrirFacture} />
+      </TabsContent>
+
+      <TabsContent value="reversements" className="space-y-4 pt-4">
+        <PayoutsTable onSelect={gestes.ouvrirReversement} />
+      </TabsContent>
+
+      {gestes.peutApprouver ? (
+        <TabsContent value="a-approuver" className="space-y-4 pt-4">
+          <PayoutsTable onSelect={gestes.ouvrirReversement} status="awaiting_approval" />
         </TabsContent>
-
-        <TabsContent value="factures" className="space-y-4">
-          <InvoicesTable onSelect={setInvoiceId} />
-        </TabsContent>
-
-        <TabsContent value="reversements" className="space-y-4">
-          <PayoutsTable onSelect={setPayoutId} />
-        </TabsContent>
-
-        {peutApprouver ? (
-          <TabsContent value="a-approuver" className="space-y-4">
-            <PayoutsTable onSelect={setPayoutId} status="awaiting_approval" />
-          </TabsContent>
-        ) : null}
-
-        <TabsContent value="impayes" className="space-y-4">
-          <OverduePaymentsTable />
-        </TabsContent>
-      </Tabs>
-
-      {emetFacture ? (
-        <CreateInvoiceDialog
-          open={invoiceOpen}
-          onOpenChange={setInvoiceOpen}
-          onCreated={(id) => setInvoiceId(id)}
-        />
       ) : null}
-      {emetReversement ? (
-        <CreatePayoutDialog
-          open={payoutOpen}
-          onOpenChange={setPayoutOpen}
-          onCreated={(id) => setPayoutId(id)}
-        />
-      ) : null}
-      <InvoiceDetailDialog invoiceId={invoiceId} onClose={() => setInvoiceId(null)} />
-      <PayoutDetailDialog payoutId={payoutId} onClose={() => setPayoutId(null)} />
-    </div>
+
+      <TabsContent value="impayes" className="space-y-4 pt-4">
+        <OverduePaymentsTable />
+      </TabsContent>
+    </Tabs>
   );
 }

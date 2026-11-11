@@ -101,7 +101,8 @@ class Task extends AbstractModel
         return [AllowedSort::custom('priority', new TaskPrioritySort)];
     }
 
-    protected static array $requestLoadable = ['assignee', 'creator'];
+    // TCK-2595 — `assignedTo` : l'assigné sous le nom du contrat de la vue d'équipe (`{id, name}`).
+    protected static array $requestLoadable = ['assignee', 'creator', 'assignedTo'];
 
     protected static array $queryFields = [
         'id', 'title', 'taskable_id', 'taskable_type',
@@ -115,6 +116,10 @@ class Task extends AbstractModel
      * `overdue` ne retient que les tâches encore ouvertes : une tâche faite hier n'est pas en retard.
      * `today` et `upcoming` gardent les tâches closes, pour que cocher ne fasse pas disparaître la
      * ligne de la journée.
+     *
+     * TCK-2595 — une LISTE séparée par des virgules (`filter[due]=overdue,today`) : l'union des
+     * périodes, en une requête (la journée de l'agent). Une valeur inconnue dans la liste ne rend
+     * rien d'elle. Le tableau (`filter[due][]=`) reste une valeur absente : rien (TCK-1407, ADR-0075).
      */
     protected static function customQueryFilters(): array
     {
@@ -125,14 +130,26 @@ class Task extends AbstractModel
                 $endOfDay = $now->copy()->endOfDay()->utc();
 
                 // TCK-1407 (P151.06) — une liste (`filter[due][]=`) est une valeur inconnue : rien.
-                match (ParametreUnique::valeur($value)) {
-                    'overdue' => $query->overdue(),
-                    'today' => $query->whereBetween('due_at', [$startOfDay, $endOfDay]),
-                    'upcoming' => $query->where('due_at', '>', $endOfDay),
-                    'none' => $query->whereNull('due_at'),
-                    default => $query->whereRaw('1 = 0'),
-                };
-            }),
+                $raw = ParametreUnique::valeur($value);
+                $periods = $raw === null ? [] : array_values(array_unique(array_filter(array_map('trim', explode(',', $raw)), fn (string $p) => $p !== '')));
+
+                $query->where(function (Builder $any) use ($periods, $startOfDay, $endOfDay): void {
+                    $any->whereRaw('1 = 0');
+                    foreach ($periods as $period) {
+                        match ($period) {
+                            'overdue' => $any->orWhere(fn (Builder $q) => $q->overdue()),
+                            'today' => $any->orWhereBetween('due_at', [$startOfDay, $endOfDay]),
+                            'upcoming' => $any->orWhere('due_at', '>', $endOfDay),
+                            'none' => $any->orWhereNull('due_at'),
+                            default => null,
+                        };
+                    }
+                });
+            })->delimiter(''),
+            // TCK-2595 — `filter[team]=1` : la vue d'équipe. La PORTÉE est posée par
+            // `TaskController::index` (elle remplace « mes tâches » et exige `crm.view_all`) ; le filtre
+            // n'existe ici que pour être accepté par le constructeur de requête.
+            AllowedFilter::callback('team', fn (Builder $query, mixed $value) => null),
             // TCK-1733 (P167.04) — `filter[assigned_to]=me` : les tâches qui me sont assignées dans
             // l'agence active, la portée que compte « Tâches du jour » (`DashboardAgentService`). Les
             // tâches closes restent, comme sous `filter[due]=today` (TCK-591). Toute autre valeur : rien.
@@ -244,6 +261,12 @@ class Task extends AbstractModel
     }
 
     public function assignee(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_to_id');
+    }
+
+    /** TCK-2595 — la même relation qu'`assignee`, sous le nom de `include=assignedTo`. */
+    public function assignedTo(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to_id');
     }

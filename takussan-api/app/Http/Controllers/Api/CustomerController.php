@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Exceptions\ApiError;
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\DismissSuggestedStageRequest;
+use App\Http\Requests\Api\PipelineStatsRequest;
 use App\Http\Requests\Api\SetPrimaryContactCustomerRequest;
 use App\Http\Requests\Api\StoreCustomerRequest;
 use App\Http\Requests\Api\UpdateCustomerRequest;
@@ -19,12 +21,16 @@ use App\Models\Lease;
 use App\Models\User;
 use App\Models\UserCustomerRelationship;
 use App\Services\Crm\CustomerActivityFeed;
+use App\Services\Crm\CustomerCommercialAttributes;
 use App\Services\Crm\CustomerDuplicateDetector;
+use App\Services\Crm\CustomerSuggestedStageQuery;
 use App\Services\Crm\PipelineStatsService;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Privacy\PersonalDataAccessLogger;
+use App\Services\Visit\VisitReportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 
 class CustomerController extends Controller
@@ -43,6 +49,12 @@ class CustomerController extends Controller
         $paginator = $query
             ->defaultSorts(...Customer::defaultSortsWithRelevance('-created_at'))
             ->paginate();
+
+        // TCK-2588 — les attributs calculés demandés, pour la page entière.
+        CustomerCommercialAttributes::attach($request, $request->user(), $paginator->getCollection()->modelKeys());
+        // Vérification adverse de TCK-2588 — l'agence de chaque fiche, relue en UNE requête pour la
+        // page quand `fields[customers]` ne l'a pas lue (règle des visites et de l'origine).
+        CustomerResource::primeFiches($request, $paginator->getCollection());
 
         return $this->paginated($paginator, CustomerResource::collection($paginator)->toArray($request));
     }
@@ -131,6 +143,7 @@ class CustomerController extends Controller
             $query->addSelect(array_map(static fn (string $column): string => 'customers.'.$column, Customer::SENSITIVE));
         }
         $customer = $query->firstOrFail();
+        CustomerCommercialAttributes::attach($request, $request->user(), [(int) $customer->id]);
 
         return $this->json([
             'data' => CustomerResource::make($customer)->resolve($request),
@@ -201,7 +214,12 @@ class CustomerController extends Controller
             'customer.attached_to_open_lease',
         );
 
-        $customer->delete();
+        // TCK-2578 (ADR-0101 § 7) — la note libre des comptes rendus de ses visites est vidée ;
+        // verdict, objections et suite restent aux statistiques de l'agence.
+        DB::transaction(function () use ($customer): void {
+            VisitReportService::forgetNotesOfCustomer((int) $customer->id);
+            $customer->delete();
+        });
 
         return $this->json(['message' => 'deleted'], 204);
     }
@@ -311,7 +329,12 @@ class CustomerController extends Controller
     {
         $this->authorize('view', $customer);
 
-        $paginator = $feed->paginate($customer, $this->tailleDePage($request, 20));
+        // TCK-2578 — les comptes rendus de visite, au seul personnel de l'agence de la fiche.
+        $paginator = $feed->paginate(
+            $customer,
+            $this->tailleDePage($request, 20),
+            $request->user()->can('viewVisitReports', $customer),
+        );
 
         return $this->paginated(
             $paginator,
@@ -323,10 +346,26 @@ class CustomerController extends Controller
      * TCK-083 — pipeline metrics for the kanban top bar.
      * Returns 4 metrics scoped to the agent / agency.
      */
-    public function pipelineStats(Request $request, PipelineStatsService $service): JsonResponse
+    /**
+     * TCK-2591 (ADR-0103 § 5) — « Plus tard » : la proposition courante est écartée, journalisée
+     * sur la fiche avec son fait ; elle ne revient pas pour ce fait, un fait nouveau propose à
+     * nouveau. L'étape ne bouge pas. 409 si la proposition a changé depuis l'affichage.
+     */
+    public function dismissSuggestedStage(DismissSuggestedStageRequest $request, Customer $customer, CustomerSuggestedStageQuery $suggestions): Response
+    {
+        $current = $suggestions->suggestionFor($customer);
+        abort_code_if($current === null || $current['reason'] !== $request->validated('reason_event'), 409, 'customer.suggested_stage_stale');
+
+        CustomerSuggestedStageQuery::dismiss($customer, $request->user(), $current);
+
+        return response()->noContent();
+    }
+
+    /** TCK-2591 — `scope=mine|agency` et les filtres de la liste ({@see PipelineStatsRequest}). */
+    public function pipelineStats(PipelineStatsRequest $request, PipelineStatsService $service): JsonResponse
     {
         return $this->json([
-            'data' => $service->compute($request->user()),
+            'data' => $service->compute($request->user(), $request, $request->scope()),
         ]);
     }
 }

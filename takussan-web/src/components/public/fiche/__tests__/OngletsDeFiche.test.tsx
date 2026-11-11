@@ -26,13 +26,13 @@ describe('OngletsDeFiche — où la liste colle', () => {
     rendre();
     const liste = screen.getByRole('tablist', { name: 'Sections de Dakar Immo' });
     const classes = liste.className.split(/\s+/);
-    expect(classes).toEqual(expect.arrayContaining(['sticky', 'top-0', 'lg:top-[calc(1.5rem+53px)]']));
+    expect(classes).toEqual(expect.arrayContaining(['sticky', 'top-0', 'lg:top-[calc(var(--spacing)*6+53px)]']));
     expect(classes).not.toContain('top-14');
   });
 
   it('l’ancre de retour en haut du panneau suit la même hauteur', () => {
     const { container } = rendre();
     const ancre = container.querySelector('[aria-hidden]')!;
-    expect(ancre.className.split(/\s+/)).toEqual(expect.arrayContaining(['scroll-mt-0', 'lg:scroll-mt-[calc(1.5rem+53px)]']));
+    expect(ancre.className.split(/\s+/)).toEqual(expect.arrayContaining(['scroll-mt-0', 'lg:scroll-mt-[calc(var(--spacing)*6+53px)]']));
   });
 });

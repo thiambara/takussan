@@ -23,6 +23,12 @@ interface StatCardProps {
    * signaler quoi que ce soit.
    */
   readonly tone?: 'default' | 'danger';
+  /**
+   * TCK-2687 — `chiffre` : la tuile des maquettes retenues de `/app` (`Chiffre`, `chrome-app.tsx:714`)
+   * — trait sable `border`, libellé de 13 px en casse normale, valeur à −0,02 em, contexte à 4 px.
+   * `defaut` : la tuile d'avant (libellé en petites capitales, anneau), celle de `/super-admin`.
+   */
+  readonly variant?: 'defaut' | 'chiffre';
   readonly className?: string;
 }
 
@@ -46,8 +52,10 @@ export function StatCard({
   href,
   loading = false,
   tone = 'default',
+  variant = 'defaut',
   className,
 }: StatCardProps) {
+  const chiffre = variant === 'chiffre';
   // Un montant long (« 6 176 568 203 F CFA ») ne tient pas en `text-2xl` dans une tuile de
   // 226-257 px — mesuré sur `/super-admin` à 768 et 1366, où il débordait. La taille se règle
   // alors sur la largeur de la TUILE (requête de conteneur), pas du viewport : la même tuile vit
@@ -56,19 +64,26 @@ export function StatCard({
   const body = (
     <>
       <div className="flex items-start justify-between gap-3">
-        <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+        <p
+          className={
+            chiffre
+              ? 'text-ui text-muted-foreground'
+              : 'text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground'
+          }
+        >
           {label}
         </p>
         {icon ? <span className="shrink-0 text-muted-foreground">{icon}</span> : null}
       </div>
       {loading ? (
-        <Skeleton className="mt-2 h-8 w-20" />
+        <Skeleton className={cn('h-8 w-20', chiffre ? 'mt-1' : 'mt-2')} />
       ) : (
         <p
           className={cn(
-            'mt-2 font-display font-semibold tabular-nums',
+            'font-display font-semibold tabular-nums',
+            chiffre ? 'mt-1 tracking-titre' : 'mt-2',
             longue
-              ? 'text-lg @min-[14rem]/stat:text-xl @min-[16rem]/stat:text-2xl'
+              ? 'text-lg max-lg:@min-[14rem]/stat:text-xl lg:@min-[12.6rem]/stat:text-xl max-lg:@min-[16rem]/stat:text-2xl lg:@min-[14.4rem]/stat:text-2xl'
               : 'text-2xl',
             tone === 'danger' ? 'text-destructive' : 'text-foreground',
           )}
@@ -80,7 +95,9 @@ export function StatCard({
       {delta ? (
         <p
           className={cn(
-            'mt-1 text-xs font-medium',
+            // `chiffre` : le contexte de la maquette est en 400, seul son ton porte le sens.
+            'mt-1 text-xs',
+            !chiffre && 'font-medium',
             delta.direction === 'up' && 'text-success',
             delta.direction === 'down' && 'text-destructive',
             delta.direction === 'flat' && 'text-muted-foreground',
@@ -93,7 +110,8 @@ export function StatCard({
   );
 
   const shell = cn(
-    '@container/stat block rounded-xl bg-card p-4 ring-1 ring-border',
+    '@container/stat block rounded-xl bg-card p-4',
+    chiffre ? 'border border-border' : 'ring-1 ring-border',
     href && 'transition-colors hover:bg-muted/40',
     className,
   );

@@ -727,6 +727,8 @@ describe('PropertyWizard — la soumission', () => {
     await user.click(screen.getByRole('button', { name: /publier/i }));
 
     await waitFor(() => expect(routeur.push).toHaveBeenCalledWith('/app/properties/42'));
+    // TCK-2615 — l'arrivée est marquée : la coque n'ouvrira aucune fenêtre de bienvenue.
+    expect(sessionStorage.getItem('takussan:arrivee-de-parcours')).toContain('"publication"');
     const envois = vi.mocked(uploadPropertyPhotosAction).mock.calls.map(([, fd]) =>
       ((fd as FormData).getAll('photos') as File[]).map((f) => f.name),
     );

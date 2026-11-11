@@ -5,6 +5,7 @@ import { useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useActiveLeaseSummaries } from '@/lib/queries/leases-active-summaries';
 import { useAccueilsVus } from '@/hooks/useAccueilsVus';
+import { useAccueilSuspendu } from '@/lib/arrivee-de-parcours';
 
 /**
  * TCK-265 — Drives the one-shot tenant welcome modale, scoped per lease.
@@ -59,7 +60,9 @@ export function useTenantWelcomeOnce(): UseTenantWelcomeOnceResult {
           .filter((id): id is number => typeof id === 'number')
           .filter((id) => !seen.has(`${STORAGE_KEY_PREFIX}${id}`) && !dismissed.has(id))
       : [];
-  const currentLeaseId = queue[0] ?? null;
+  // TCK-2615 — la file reste intacte (rien n'est marqué vu) ; elle ne s'ouvre simplement pas.
+  const suspendue = useAccueilSuspendu();
+  const currentLeaseId = suspendue ? null : (queue[0] ?? null);
 
   const acknowledge = (leaseId: number) => {
     if (acknowledgedRef.current.has(leaseId) || !isAuthenticated) return;

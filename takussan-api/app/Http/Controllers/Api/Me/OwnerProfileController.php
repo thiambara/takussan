@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Api\Me;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\Me\UpdateOwnerTaxIdRequest;
 use App\Http\Requests\Api\Me\UploadKycOwnerProfileRequest;
 use App\Http\Resources\PropertyResource;
 use App\Models\Document;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Services\Kyc\ProfilePieces;
+use App\Support\Masking;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -136,6 +138,30 @@ class OwnerProfileController extends Controller
                 ],
             ],
         ]);
+    }
+
+    /**
+     * TCK-2612 — PATCH /api/me/owner-profiles/{owner_profile}/tax-id
+     *
+     * Le NINEA tapé (forme et titulaire jugés par {@see UpdateOwnerTaxIdRequest}), écrit dans `tax_id` — chiffré au repos,
+     * hors du journal du modèle (TCK-601). La réponse ne porte que la forme masquée : le bailleur ne relit jamais son NINEA
+     * en clair (ADR-0070 ; la valeur complète reste réservée à l'admin de l'agence et au super-admin, sous second facteur).
+     * La trace dit qu'il a été saisi, jamais sa valeur.
+     */
+    public function updateTaxId(UpdateOwnerTaxIdRequest $request, OwnerProfile $owner_profile): JsonResponse
+    {
+        $owner_profile->forceFill(['tax_id' => (string) $request->validated('tax_id')])->save();
+
+        activity('Onboarding')
+            ->performedOn($owner_profile)
+            ->causedBy($request->user())
+            ->event('owner_tax_id_set')
+            ->log('owner_tax_id_set');
+
+        return $this->json(['data' => [
+            'id' => $owner_profile->id,
+            'tax_id_masked' => Masking::tail((string) $owner_profile->tax_id),
+        ]]);
     }
 
     /**

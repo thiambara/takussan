@@ -119,8 +119,11 @@ class AuthRegistrationTest extends TestCase
     {
         $response = $this->postJson('/api/auth/register', []);
 
+        // TCK-2605 — le prénom et le nom sont facultatifs : seuls l'adresse et le mot de passe
+        // manquent.
         $response->assertStatus(422)
-            ->assertJsonValidationErrors(['first_name', 'last_name', 'email', 'password']);
+            ->assertJsonValidationErrors(['email', 'password'])
+            ->assertJsonMissingValidationErrors(['first_name', 'last_name']);
     }
 
     public function test_registration_fails_when_password_confirmation_does_not_match(): void

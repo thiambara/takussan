@@ -83,12 +83,12 @@ function FicheChargee({ detail }: { readonly detail: RadarListingDetail }) {
       <PanneauSource
         detail={detail}
         passage={passage}
-        className="lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:overflow-y-auto"
+        className="lg:sticky lg:top-4 lg:max-h-[calc(100dvh-var(--spacing)*8)] lg:overflow-y-auto"
       />
       <div className="space-y-6">
         <PanneauProvenances detail={detail} />
         {/* TCK-2461 — seize rapprochements repoussaient le formulaire et ses gestes hors de portée : ils défilent chez eux. */}
-        <div className="lg:max-h-[28rem] lg:overflow-y-auto">
+        <div className="lg:max-h-112 lg:overflow-y-auto">
           <RadarMatchesPanel
             matches={rapprochements.data?.data}
             chargement={rapprochements.isLoading}

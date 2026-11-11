@@ -20,6 +20,11 @@ use Illuminate\Support\Facades\DB;
  *  · le jour d'échéance, le dossier repasse `pending`, `metadata.expired_at` est posé, l'activité
  *    `kyc_expired` écrite, et l'agence perd `is_verified` SANS changer de statut : la suspension
  *    relève de TCK-600 et serait disproportionnée pour une pièce à renouveler.
+ *
+ * TCK-2669 (ADR-0104 § 7) — un dossier dont la pièce du dirigeant a été RENOUVELÉE n'est plus
+ * `verified` (il est `submitted`, ou `rejected` si le renouvellement a été refusé) mais garde
+ * l'échéance de l'ancienne pièce. Ce jour-là, l'agence perd `is_verified` comme ci-dessus, et le
+ * dossier garde son statut : il ne repasse pas `pending`, la nouvelle pièce attend la revue.
  */
 class KycExpiryService
 {
@@ -46,6 +51,25 @@ class KycExpiryService
                 } elseif ($this->remind($dossier)) {
                     $counts['reminded']++;
                 }
+            });
+
+        // TCK-2669 — les renouvellements en revue (ou refusés) dont l'ancienne pièce est échue, tant
+        // que l'agence se dit encore vérifiée : idempotent, le second passage ne trouve plus rien.
+        // `metadata.expired_at` absent = pas encore passé par une échéance depuis la dernière
+        // vérification (que `verify()` efface) : un dossier déjà échu puis renvoyé garde une
+        // `expires_at` révolue, et une vérification posée à la main par la modération ne doit pas
+        // lui être retirée chaque nuit.
+        KycDossier::query()
+            ->whereIn('status', [KycDossierStatus::Submitted->value, KycDossierStatus::Rejected->value])
+            ->where('subject_type', Agency::class)
+            ->whereNotNull('expires_at')
+            ->where('expires_at', '<=', now())
+            ->whereNull('metadata->expired_at')
+            ->whereIn('subject_id', Agency::query()->where('is_verified', true)->select('id'))
+            ->orderBy('id')
+            ->each(function (KycDossier $dossier) use (&$counts): void {
+                $this->expire($dossier, keepStatus: true);
+                $counts['expired']++;
             });
 
         return $counts;
@@ -87,12 +111,11 @@ class KycExpiryService
         return true;
     }
 
-    private function expire(KycDossier $dossier): void
+    private function expire(KycDossier $dossier, bool $keepStatus = false): void
     {
-        DB::transaction(function () use ($dossier): void {
+        DB::transaction(function () use ($dossier, $keepStatus): void {
             $expiresAt = $dossier->expires_at;
-            $dossier->update([
-                'status' => KycDossierStatus::Pending,
+            $dossier->update(($keepStatus ? [] : ['status' => KycDossierStatus::Pending]) + [
                 'metadata' => ['expired_at' => now()->toIso8601String()] + ($dossier->metadata ?? []),
             ]);
 

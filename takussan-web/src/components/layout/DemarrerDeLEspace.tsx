@@ -80,7 +80,7 @@ export function DemarrerDeLEspace({ mode, ouverte, onNavigate, onMasquer, classN
         <p id={idTitre} className={cn('min-w-0 flex-1 truncate', STYLE_TITRE)}>
           {t('titre')}
         </p>
-        <span className="text-[12.5px] tabular-nums text-muted-foreground">{t('progression', { faites, total })}</span>
+        <span className="text-[0.78125rem] tabular-nums text-muted-foreground">{t('progression', { faites, total })}</span>
         <button
           type="button"
           onClick={() => (onMasquer ? onMasquer() : setMasque(true))}

@@ -13,7 +13,7 @@ import { MAILTO_AIDE } from './aide';
 export function PiedDeLien() {
   const t = useTranslations('lienPublic.coque');
   return (
-    <footer className="px-4 pb-8 pt-8 text-center text-[13px] leading-relaxed text-muted-foreground lg:pb-12">
+    <footer className="px-4 pb-8 pt-8 text-center text-[0.8125rem] leading-relaxed text-muted-foreground lg:pb-12">
       <p className="inline-flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
         <a href={MAILTO_AIDE} className="inline-flex min-h-11 items-center underline underline-offset-4 hover:text-foreground">
           {t('aide')}
@@ -26,7 +26,7 @@ export function PiedDeLien() {
           {t('confidentialite')}
         </LienLocalise>
         <span aria-hidden="true">·</span>
-        <LanguageSwitcher variant="labelled" className="ring-0 text-[13px] text-muted-foreground" />
+        <LanguageSwitcher variant="labelled" className="ring-0 text-[0.8125rem] text-muted-foreground" />
       </p>
     </footer>
   );

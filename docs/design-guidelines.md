@@ -10,7 +10,7 @@ Ces directives s'appliquent à **toutes les interfaces** de Takussan. Elles prim
 - **Accueillant et chaleureux** : l'immobilier est un acte de vie fort — l'interface doit inspirer confiance et sérénité, pas anxiété. La palette Lin (sable clair + terracotta atténué) ancre l'identité dans un imaginaire local sans tomber dans le folklore.
 - **Professionnel sans être froid** : l'esthétique vise les meilleures apps PropTech (Airbnb, Houzz) — pas un back-office générique.
 - **Pas de hero marketing sur les surfaces de découverte** : l'utilisateur qui arrive a déjà une intention (louer/acheter). Modèle de référence : Airbnb. Toute proposition de hero illustratif / value prop / slogan est à rejeter sur la homepage publique.
-- **Cohérence avant tout** : un seul style de bouton principal, une seule façon d'afficher un état vide, une seule famille d'icônes.
+- **Cohérence avant tout** : un seul style de bouton principal, une seule façon d'afficher un état vide, une seule famille d'icônes. *Amendé le 2026-11-10 (décision 2 a du porteur, [ADR-0106](adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), TCK-2686) : le bouton **sombre** (`variant="sombre"`, `bg-foreground text-background`) des maquettes retenues s'y ajoute — « Faire », « Réessayer » — à côté du plein terracotta ; il reste un seul CTA principal par écran.*
 
 ## Typographie
 
@@ -27,9 +27,101 @@ Règles :
 - Taille minimale de corps : **14px** (16px préféré). Jamais de texte en dessous de 12px (sauf eyebrow uppercase 11px tracking).
 - Interligne confortable : `leading-relaxed` (1.625) pour le texte courant.
 - Poids : 400 (corps), 500 (labels), 600 (titres de section, prix), 700 (titres de page). Éviter 800/900.
-- Letter-spacing : titres display en `tracking-tight` (≈ −0.01em) ; eyebrows en `tracking-[0.12em] uppercase`.
+  *Amendé le 2026-11-11 (TCK-2687, [ADR-0106](adr/0106-la-maquette-retenue-fait-foi-au-pixel.md)) : dans `/app`, le titre de
+  page (`PageHeader`) est en **600**, à −0,02 em (`tracking-titre`), 20 px au téléphone ; 700 reste au site public et à
+  `/super-admin`.*
+- Letter-spacing : titres display en `tracking-tight` (−0,025 em en Tailwind 4 ; cette ligne disait
+  « ≈ −0.01em », corrigé par TCK-2685, A § 8.4) ; eyebrows en `tracking-[0.12em] uppercase`. Dans
+  `/app`, `tracking-titre` (−0,02 em) et `tracking-surtitre` (0,08 em) : cf. la section suivante.
 
 > Les fontes alternatives (Geist, Manrope, Inter, Fraunces) restent chargées pour le `/playground` mais ne doivent **jamais** apparaître en prod.
+
+### La densité du bureau — des jetons, pas une racine ([ADR-0107](adr/0107-la-densite-du-bureau-est-un-jeu-de-jetons.md), TCK-2692)
+
+Le bureau (dès `lg`, 1024 px) est **à ×0,9** du téléphone : décision du porteur depuis TCK-635. Il
+n'est plus porté par `html { font-size: 90% }`. **La racine vaut la taille de police du navigateur à
+toute largeur** (16 px par défaut). Ce sont les échelles qui passent à ×0,9 dès `lg`, dans le bloc
+`densite-du-bureau` de `globals.css` : `--spacing` (0,225rem), chaque `--text-*`, `--radius`, les
+`--container-*` et le texte du `body` (0,9rem).
+
+- **Une classe du thème suit seule** (`p-4`, `text-sm`, `rounded-lg`, `max-w-md`). À 1440, `text-sm` rend
+  12,6 px et `p-4` 14,4 px ; sous `lg`, 14 et 16 px.
+- **Une valeur arbitraire en `rem` ne lit aucun jeton.** Elle s'écrit sur l'échelle,
+  `w-[calc(var(--spacing)*22)]` et non `w-[5.5rem]`, ou par la classe nommée quand elle existe (`max-w-88`).
+  **Toutes les valeurs suivent cette règle, y compris celles qui ne valent que sous `lg`** (barre
+  mobile `md:hidden`, valeur remplacée par `sm:`). Sous `lg`, `var(--spacing)` vaut exactement
+  0,25rem et le rendu ne change pas. Une seule règle se garde ; un tri par visibilité devient faux
+  le jour où quelqu'un retire le `md:hidden`.
+- **Une taille fixe s'écrit en `rem` calculés** (`text-[0.8125rem]` pour 13 px), jamais en px : elle
+  garde sa taille au réglage par défaut, et elle grandit quand la personne agrandit la police de son
+  navigateur. Le texte en px y restait sourd.
+- **Un seuil de requête de CONTENEUR en `rem` se lit contre la racine.** Il s'écrit donc de chaque
+  côté de `lg` pour garder son seuil en px : `max-lg:@max-[11rem]:hidden lg:@max-[9.9rem]:hidden`.
+  Une requête MÉDIA en `rem` se lit contre la taille initiale du navigateur : elle ne bouge pas.
+- **Les feuilles tierces en `rem`** (Leaflet, react-day-picker) sont ramenées dans l'échelle par
+  `globals.css`. Une feuille neuve s'y ajoute.
+- `src/app/__tests__/echelle-du-bureau.test.ts` lit le thème de Tailwind et refuse une échelle oubliée,
+  ou une racine qui reprend une taille.
+
+### Les jetons de la partie connectée ([ADR-0106](adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), TCK-2685)
+
+La maquette retenue fait foi au pixel, et elle écrit ses tailles fixes en px (13 et 15 px surtout),
+qu'elle **ne réduit pas** au bureau. Ces valeurs sont des **jetons nommés**, déclarés dans le bloc
+`jetons-de-l-app` de `globals.css`, en **`rem` calculés et hors de l'échelle ×0,9** : ils rendent la
+valeur de la maquette à toute largeur au réglage par défaut (13 px à 390 comme à 1440, quand
+`text-sm` passe de 14 à 12,6 px), et suivent le réglage de police de l'utilisateur (16,25 px sous une
+police de 20 px). Une page de `/app` n'écrit **aucune valeur arbitraire** pour y parvenir :
+`scripts/check-valeurs-arbitraires-app.mjs` le garde (ci-dessous).
+
+| Maquette | Jeton | Rôle |
+|---|---|---|
+| `text-[10px]` | `text-pastille` | chiffre d'une pastille de compte |
+| `text-[11px]` | `text-legende` | légende, libellé d'onglet du bas |
+| `text-[13px]` | `text-ui` | méta, détail de ligne, fil d'Ariane, libellé de chiffre clé |
+| `text-[15px]` | `text-corps` | titre de ligne et de carte, bouton d'action principale |
+| `text-[16px]` | `text-action` | action principale des écrans d'entrée (`text-base` rend 14,4 px au bureau) |
+| `text-[17px]` | `text-titre-court` | titre d'en-tête de détail, de feuille, de panneau |
+| `text-[22px]` à `text-[40px]` | `text-affiche-22`, `-26`, `-28`, `-32`, `-40` | titres d'écrans d'entrée, chiffres ; 30 → 28 et 34 → 32 (valeur majoritaire) |
+| `tracking-[-0.02em]` (et −0,01, −0,03) | `tracking-titre` | titres |
+| `tracking-[0.08em]` | `tracking-surtitre` | sur-titres |
+| `size-[18px]` | `size-icone` | icône de ligne, 18 px à toute largeur |
+
+- **Pas d'interligne propre.** `text-[13px]` ne pose que la taille et hérite l'interligne du parent
+  (19,5 px sous la racine, 17,875 px sous un `leading-snug`) ; les jetons font de même. Un interligne
+  se pose par `leading-*`, comme dans la maquette.
+- **`cn()` les connaît** (`src/lib/jetons-de-l-app.ts`) : sans cette table, `tailwind-merge` prenait
+  `text-ui` pour une couleur et le jetait devant un `text-foreground`.
+- **Les ombres nommées** composent `--shadow-color` en `in_srgb` (la maquette écrit `in_oklab` : même
+  couleur rendue, mesurée à 0/255 d'écart) : `shadow-barre-collante` (barre d'action du bas),
+  `shadow-filet` (filet bas), `shadow-bouton-photo`, `shadow-actif` (item actif d'un contrôle
+  segmenté), `shadow-panneau` (panneau latéral droit), `shadow-feuille` (feuille du bas : la valeur de
+  `shadow-2xl`, noir à 25 %, que la maquette rend ; la **classe** `shadow-2xl` reste interdite).
+- **L'encre douce** `text-encre-douce` remplace les `foreground/70` à `/85` des maquettes : une seule
+  encre, **opaque** (`foreground` à 80 % composé sur `--card`, `#4c4641` : 9,3:1 sur `card`, 8,8:1 sur
+  `background`, 7,9:1 sur `muted`), parce qu'une encre de texte ne s'atténue pas par l'opacité (TCK-658).
+  `text-encre-douce-inverse` (`background` à 70 % sur `foreground`) sert au compte d'une puce active.
+- **Les formats** viennent de `useFormatteurs`, jamais écrits en dur : `montantCourt` « 1 355 000 F »
+  (groupes U+202F, symbole collé par U+00A0), `montantAbrege` « 3,9 M F », `jourMois` « 4 nov. »
+  (« 4 déc. 2025 » hors de l'année en cours), `heure` « 09:00 », `pourcentage` « 87 % » (U+00A0).
+  « F » dans `/app`, « F CFA » sur l'offre et l'abonnement (`montant()`, inchangé).
+- **Le point de rupture `w1440:`** (90rem) traduit le `min-[1440px]:` des maquettes « bureau 1280 »
+  (ADR-0106 § 4, trois bandes), distinct de `2xl` (1536 px) que le site public emploie. C'est une
+  requête média : elle se lit contre la taille initiale du navigateur (à une police de 20 px, elle
+  bascule à 1800 px).
+- **La portée `/app`.** La coque (`AppShell`) pose `data-portee-app`, lu par `:root:has(…)` : il atteint
+  tout le document, donc aussi les portails de Base UI (dialogues, feuilles, menus, toasts). Elle
+  porte le trait des icônes lucide (1,75 sous `md`, 1,5 dès `md`, à la place du 2 par défaut ; un
+  `strokeWidth` explicite garde le sien, sauf `2`, indiscernable du défaut). Les primitives de `/app`
+  s'y accrochent par la variante **`portee-app:`** — jamais par une classe posée à l'appelant.
+- **La vitrine** `/‹langue›/playground/vitrine` (versionnée, `noindex`, 404 en production) rend chaque
+  jeton puis chaque primitive sous la portée : c'est l'écran que l'outil de fidélité relève.
+
+**La garde `check-valeurs-arbitraires-app.mjs`** refuse, dans la clôture des imports de
+`src/app/(dashboard)` : `text-[<longueur>]`, `tracking-[…]`, `size-[18px]`, une opacité entre
+crochets (`/[0.07]` : écrire `/7`), `shadow-[…]`, `shadow-2xl`, `text-muted-foreground/70` (3,03:1)
+et `bg-accent/<n>` (l'accent est réservé aux badges *featured*). L'existant est consigné par fichier ;
+un compte qui monte rougit, un compte qui descend aussi tant que la consigne ne suit pas
+(`node scripts/check-valeurs-arbitraires-app.mjs --consigner`, qui refuse toute hausse).
 
 ## Palette de couleurs
 
@@ -105,8 +197,17 @@ façon — elle donnait `shadow-[0_8px_24px_rgba(27,40,69,0.08)]` en exemple, un
 palette, corrigé par TCK-460. *Une charte qui donne un hexadécimal en exemple enseigne
 l'hexadécimal.* Un jeton et un alpha, jamais une couleur.
 
+**Sous la portée `/app` (TCK-2687, maquettes retenues)**, la pastille mesure 24 px (`h-6`, 21,6 au bureau) et
+porte un sixième ton, **`primary`** — beige de chrome et encre profonde (`bg-secondary text-primary-deep`, 6,72:1) —
+pour ce qui demande l'attention sans rien signaler d'anormal (« Nouvelle », « Aujourd'hui »). Trois tons y changent,
+mesurés sur les sept surfaces dans les deux thèmes : `neutral` prend l'encre douce (opaque) ; `success` monte à **`/11`**,
+l'aplat le plus fort qui tienne (4,54:1 au pire, `/12` rend 4,49:1) ; `attention` écrit l'encre **principale** sur
+`warning/20` (11,3:1). `danger` reste à `/10` (plafond de `check-destructive-contrast.mjs`), `info` reste `--info`
+(la maquette écrit l'accent de marque). Le site public et `/super-admin` gardent la table ci-dessus.
+
 La garde de cette décision est
-`takussan-web/src/components/console/__tests__/StatusBadge.contraste-tck-450.test.tsx` : elle lit
+`takussan-web/src/components/console/__tests__/StatusBadge.contraste-tck-450.test.tsx` (et, sous la portée,
+`StatusBadge.portee-app-tck-2687.test.tsx`) : elle lit
 l'encre et l'aplat **sur le badge rendu** et recalcule les 14 ratios à chaque exécution. Le tableau
 ci-dessus est donc un relevé daté, pas une entrée de test — s'il diverge un jour, c'est lui qui est
 périmé.
@@ -413,7 +514,7 @@ sa finition.
 
 ## Ton & Micro-copy
 
-- **Accueillant** : s'adresser à l'utilisateur directement ("Vos propriétés", "Ajoutez votre premier bien"). Tutoyer sur les surfaces publiques de découverte (« Près de toi », « Pour ton prochain logement »).
+- **Accueillant** : s'adresser à l'utilisateur directement ("Vos propriétés", "Ajoutez votre premier bien"). Vouvoyer partout, site public compris, connecté ou non ([ADR-0095](adr/0095-le-ton-suit-la-session.md)). Les maquettes ne sont pas une référence de ton. La garde `npm run check:vouvoiement` (`takussan-web/scripts/check-vouvoiement.mjs`) rougit sur tout retour du tutoiement.
 - **Clair et direct** : pas de jargon technique, pas de termes métier obscurs sans définition contextuelle.
 - **Labels d'action** : verbe à l'infinitif ("Ajouter un bien", "Envoyer le quittancement") — jamais "OK", "Valider", "Submit".
 - **Messages d'erreur** : expliquer ce qui s'est passé + comment corriger. Jamais "Une erreur est survenue."
@@ -429,7 +530,7 @@ La page `src/app/(public)/playground/page.tsx` permet de switcher au runtime ent
 - Les typos Éditorial (Fraunces) et Humaniste (Manrope) idem.
 - En production, utiliser exclusivement les tokens Tailwind héritant de `--primary`, `--background`, etc. — ne pas référencer `--pg-*` (réservés au playground).
 
-## Champs de formulaire — une seule hauteur (TCK-2460)
+## Champs de formulaire — une seule hauteur (TCK-2460), deux échelles depuis TCK-2686
 
 La hauteur d'un contrôle ne s'écrit jamais chez l'appelant : `scripts/check-champs-uniformes.mjs` casse sur `h-*` posé sur
 `Input`, `SelectTrigger` ou `Textarea`, et sur `<select>`, `<textarea>` ou `<input>` de saisie natifs hors de `components/ui/`.
@@ -441,3 +542,174 @@ La hauteur d'un contrôle ne s'écrit jamais chez l'appelant : `scripts/check-ch
 | Pagination, filtre de ligne | `SelectTrigger size="sm"`, `Button size="sm"` | `h-8` |
 
 `Button` s'aligne sur la même échelle : défaut `h-10`, `sm` `h-8`, `lg` `h-11`. `min-h-*` reste permis sur `Textarea`.
+
+### L'échelle de densité de `/app` — amendement de TCK-2460 ([ADR-0106](adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), TCK-2686)
+
+Décidé par le porteur le 2026-11-10 : dans la partie connectée, boutons et champs ont la hauteur des maquettes retenues.
+Le tableau ci-dessus reste celui du **site public**, de `/super-admin` et des écrans d'entrée, qui ne bougent pas d'un pixel.
+
+| Rôle (portée `/app`) | Pouce : sous `md`, et au pointeur grossier à toute largeur | Bureau : dès `md`, pointeur fin (rendu dès `lg`) |
+|---|---|---|
+| Bouton courant, bouton icône, `Input`, `SelectTrigger`, `DatePicker` | **44 px**, texte de champ 16 px, texte de bouton **14 px** (`text-bouton`, TCK-2712 : aussi dès `lg` au pointeur grossier) | `h-9` (36 → 32,4), texte `text-sm` (12,6) |
+| Petit bouton (`size="sm"`) | 36 px (plancher tactile) | `h-8` (32 → 28,8) ; `px-3`, `rounded-lg`, texte **13 px** aux deux |
+| Action principale (`size="xl"`, neuve) | **48 px**, `px-5`, texte 15 px | `h-12` (48 → 43,2) |
+| Portée confortable sous `/app` (`fieldDensityScope()`) | 44 px | `h-11` (44 → 39,6) — elle gagne sur la portée `/app` |
+
+Aspect, au thème clair : contour (`outline`) et champs sur `bg-card` ; doux (`secondary`) à l'encre `primary-deep` en 600 ;
+discret (`ghost`) à l'encre douce ; danger bordé de `destructive/30`. Le contour de champ reste `border-input` (3,59:1)
+et le focus l'anneau plein (TCK-753) — exceptions d'accessibilité d'ADR-0106 § 2 a. Le sélecteur d'une barre de filtres
+s'écrit `<SelectTrigger variante="filtre">` (graisse 500).
+
+**Pourquoi deux échelles.** Le site public est un catalogue lu au doigt et à la souris, réglé une fois (TCK-2460) ;
+la partie connectée est un outil de travail dense dont le porteur a choisi les maquettes au pixel. **Pourquoi le
+pointeur et pas seulement la largeur** : un iPad à l'horizontale fait 1024 px, et la largeur seule lui donnerait des
+cibles de 32 px ; au pointeur grossier, la portée rend le régime du pouce en `rem` fixes (44 px même dès `lg`).
+
+**La mécanique** : chaque primitive lit sa hauteur dans un jeton (`h-controle`, `text-champ`, `bg-fond-champ`… — bloc
+`densite-de-l-app` de `globals.css`), dont la valeur par défaut est la classe d'avant ; la portée `/app`
+(`data-portee-app`, posée par la coque) le redéfinit, portails compris. Une hauteur ou une teinte écrite par un
+appelant **remplace** le jeton (`tailwind-merge` le connaît) : l'appelant garde la main — une classe
+`portee-app:h-9` l'aurait raboté. Les pages des vagues 86 à 90 adoptent l'échelle **en retirant** leurs hauteurs
+d'appelant, jamais en en écrivant.
+
+### Les primitives existantes sous la portée `/app` ([ADR-0106](adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), TCK-2687)
+
+Sous la portée, sept primitives prennent l'aspect des maquettes retenues ; hors portée (site public, `/super-admin`)
+leurs classes sont celles d'avant, au caractère près (`src/components/__tests__/primitives-de-l-app.test.tsx`).
+
+| Primitive | Sous la portée `/app` | Opt-in, partout |
+|---|---|---|
+| `StatusBadge` | 24 px, tons ci-dessus (§ L'aplat d'une pastille) | ton `primary` |
+| `Card` | **trait** sable `border border-border` (1 px, dans la boîte) au lieu de l'anneau gris ; `CardTitle` DM Sans 15 px (`text-corps`) en 600 ; `CardAction` `text-sm font-medium text-primary` | `<CardHeader filet>` : `px-4 py-3`, filet `border-b` |
+| `Avatar` | repli `bg-secondary text-primary-deep` en 600 (jetons `fond-avatar` / `encre-avatar` : la teinte d'un appelant les remplace) | `size="28"` à `"48"` : px fixes, police 0,36 × la taille |
+| `Tabs` `variant="line"` | pleine largeur sur un filet `border-b`, `gap-6`, onglet de 32 px visibles (`pb-3`), inactif `text-muted-foreground`, trait actif 2 px `--primary` sur le filet ; **cible de 44 px** par un `before:` | `<TabsCount>` |
+| `PageHeader` | H1 600, −0,02 em, 20 px / 28 au téléphone | `fil` (fil d'Ariane, 13 px, « › »), `bandeau` (`mb-5`), `dessous` (`mt-5`) |
+| `StatCard` | — | `variant="chiffre"` : trait sable, libellé 13 px en casse normale, valeur à −0,02 em |
+| `EmptyState` | — | `variant="nue"` : sans carte, `px-6 py-12`, disque de 48 px `bg-muted`, titre DM Sans |
+
+**La mécanique** : une variante `portee-app:` quand aucun appelant ne règle la propriété (couleur d'une pastille, trait
+d'une carte, police d'un titre) — la classe reste littérale, lisible par les gardes de contraste ; un **jeton** quand des
+appelants la règlent (le repli de l'avatar, que `MenuDuCompte` repeint) ; un **prop** pour ce qui est neuf. L'avatar
+« soi » de la maquette (`accent/15`) n'est pas repris : 4,31:1 sur `--background`, 3,68:1 sur `--card` en sombre, et
+l'accent reste réservé aux badges *featured*.
+
+### Les primitives existantes, lot 2 ([ADR-0106](adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), TCK-2688)
+
+Même mécanique que TCK-2687 (variante `portee-app:`, classes d'avant au caractère près hors portée,
+`src/components/ui/__tests__/primitives-existantes-tck-2688.test.tsx`), sauf le toast, qui change partout.
+
+| Primitive | Sous la portée `/app` |
+|---|---|
+| `PanneauDroit` (`ui/panneau-droit.tsx`, neuf) | **480 px fixes dès `xl`** (`w-panneau`, 30rem, hors de l'échelle ×0,9), `border-l`, ombre `panneau`, **sans voile ni modalité** (décision 2 a du porteur, 2026-11-10 : la page reste lisible et cliquable à côté ; `Échap` ferme, le focus revient au déclencheur ; un clic à côté ne ferme pas). **Sous `xl`, plein écran et modal** (ADR-0106 § 4 ; `aria-modal`, verrou TCK-551). En-tête `h-14 border-b pl-5 pr-2`, titre 17 px 600, fermer `size="icon"` ; corps `p-5` ; pied `flex justify-end gap-2 border-t px-5 py-3`. `SheetContent side="right"` est inchangé |
+| `DataTable` | en-tête `text-xs font-medium` en **casse normale**, sans interlettrage, sur `muted/40` (opaque quand il est collant) ; cellules `px-3 py-3` (densité `compact` inchangée) ; conteneur `border border-border` au lieu de l'anneau |
+| `WarningBanner` | `border border-warning/30 bg-warning/10 p-4`, **encre principale** (> 13:1), icône ocre de 20 px ; prop `titre` (600) au-dessus du texte, partout |
+| `ChoiceCard` | `min-h-16 px-3.5 py-3` centrée ; radio 20 px au bord 1 px `controle-vide` ; active : `border-primary`, anneau 3 px `primary/12`, fond de carte ; titre 15 px 600, sous-titre 13 px |
+| `RadioGroup`, `Radio` (`ui/radio-group.tsx`, neufs) | rond peint de 20 px (`size-5`), bord 1 px `controle-vide`, point `size-2.5 bg-primary` ; base-ui (flèches, arrêt de tabulation unique) ; la ligne est un `<label>` (`eslint.config.mjs` déclare `Radio`) |
+| `DebouncedSearchInput` | loupe au jeton de 18 px (`size-icone`, trait de la portée), texte à 12 + 18 + 8 px du bord, bouton « Effacer la recherche » (16 px dessinés, 44 d'appui) à la place de la croix native ; hauteur de l'échelle (44 / 36), contour `border-input` (ADR-0106 § 2 a) |
+| **Toast, partout** (décision D8) | **surface sombre** (`.dark` posé sur le toast : `#1f1812`, encre `#fcf9f3`, dans les deux thèmes), `rounded-xl min-h-12 px-4 shadow-lg`, ton dit par l'icône (succès : coche à l'encre du toast, comme la maquette ; attention, danger, info en couleur, ≥ 3:1) ; **en bas** : pleine largeur à 16 px au téléphone, 360 px (`w-toast`) à droite dès `sm` ; `--toast-bas` le pose 16 px au-dessus de la barre d'onglets de `/app` (sous `md`) et du site public (sous `lg`) — la barre d'action collante (TCK-2689) le relève de sa hauteur, par `--barre-d-action-hauteur` ; sous `lg`, la pastille « Filtres / Carte » du site public aussi (TCK-2712 : 16 px au-dessus d'elle tant qu'elle est rendue, `data-outils-flottants-de-liste`) ; action texte `ActionDuToast` |
+
+### Les primitives neuves, lot 1 ([ADR-0106](adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), TCK-2689)
+
+Puce de filtre, contrôle segmenté, barre d'action collante, ligne de liste mobile. La puce, la barre et la ligne
+sont neuves (leur défaut EST la maquette) ; le segmenté est la variante par défaut de `Tabs` sous la portée `/app`.
+Tests : `src/components/ui/__tests__/primitives-neuves-tck-2689.test.tsx` ; vitrine : `/fr/playground/vitrine`.
+
+| Primitive | Dessin |
+|---|---|
+| `PuceDeFiltre`, `RangeeDePuces` (`ui/puce-de-filtre.tsx`) | **36 px rendus** (`h-9`, 32,4 au bureau), `rounded-full border px-3.5 text-sm` 500 ; taille `sm` `h-8 px-3` 13 px. Repos `border-border bg-card` ; active (`aria-pressed`) `bg-foreground text-background` ; compte `tabular-nums`, à l'**encre douce inverse opaque** sur la puce active (TCK-658, pas de `/70`). Variante `ajouter` : tirets, `+`, « Ajouter un filtre », une action (aucun `aria-pressed`). Rangée `role="group"` nommée, `flex gap-2 overflow-x-auto px-4 py-2.5`, sans barre, bord à bord de son conteneur : elle défile dans sa boîte, jamais le document |
+| Contrôle segmenté (`Tabs` par défaut, `ui/tabs.tsx`) | sous la portée : piste `rounded-lg bg-muted p-1` (**44 px** au téléphone, 39,6 au bureau), items `h-9 px-4 rounded-md text-sm` 500 ; actif `bg-card` + ombre `actif` ; inactif `text-muted-foreground` (4,85:1 sur `--muted`). `size="sm"` : `p-0.5`, items `h-8 px-3` 13 px. Pleine largeur : `className="w-full"`. Comportement de base-ui inchangé (la flèche déplace le focus, Entrée choisit). Hors portée, rien ne change |
+| `BarreDAction` (`ui/barre-d-action.tsx`) | **69 px** = filet + `py-3` + des boutons **par défaut** (44 au pouce ; la « Page de détail » gelée, TCK-2712 — plus `size="xl"`) ; `border-t bg-card px-4 py-3`, ombre `barre-collante` ; une action pleine largeur ou deux à 50/50. **Sous `md` seulement** — `md:hidden` cache sans démonter : la page pose son action de bureau ailleurs. Dans `/app`, elle est rendue en portail dans l'emplacement de la coque (`#emplacement-barre-d-action`, entre le contenu et la barre d'onglets) : en flux, le `<main>` rétrécit, rien ne passe dessous. Zone sûre en plus quand elle est le bas de l'écran (sans barre d'onglets, ou `zoneSure` hors coque). Elle relève le toast et le dock flottant (`--barre-d-action-hauteur`, ajouté à `--toast-bas` et à `--floating-dock-base`, TCK-2712). ⚠ **Formulaire** : en portail, la barre est hors du `<form>` ; le bouton d'envoi le nomme (`<Button type="submit" form="…">`) |
+| `LigneDeListe`, `IconeDeLigne`, `MontantDeLigne` (`ui/ligne-de-liste.tsx`) | `flex min-h-14 items-center gap-3 px-4 py-2.5`, filet bas, bord à bord ; début : avatar 40 ou icône dans un disque `size-9` (encre douce opaque) ; titre 15 px 500 et détail 13 px discret, tronqués ; fin : pastille, montant tabulaire ou chevron `size-4`. La **ligne entière** est la cible : `href` → lien, `onClick` → bouton |
+
+**La zone tactile élargie par pseudo-élément** (exception (1) d'ADR-0106) : quand la maquette dessine une cible plus
+petite que 44 px (puce de 36, onglet souligné de 32), le rendu garde sa taille et un `before:` centré, `absolute
+inset-x-0 top-1/2 -translate-y-1/2 h-controle`, porte la cible : 44 px sous le pouce et au pointeur grossier, la hauteur
+d'un contrôle du bureau ailleurs. Un pseudo-élément appartient à son élément pour le pointeur. Le conteneur doit laisser
+la place au débord (le `py-2.5` de la rangée de puces) : `overflow` le rognerait.
+
+### La coque de `/app` aux cotes de la maquette ([ADR-0106](adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), TCK-2691)
+
+Ce qui entoure chaque page de `/app` — la colonne, le tiroir, la barre d'onglets, l'en-tête du téléphone, la marge du
+contenu — a les cotes de `?p=app-coque&a=a` (annexe C, `docs/qa/audit-ux-2026-11/fidelite/C-coque.md`). Les cotes
+vivent dans `src/components/layout/styles-de-la-barre.ts` (colonne et tiroir), `BarreDOnglets.tsx`, `EnTeteMobile.tsx`,
+`NotificationBell.tsx` (prop `emplacement`) et `PagePleineLargeur.tsx` (l'enveloppe du contenu).
+
+| Élément | Cote |
+|---|---|
+| Marge du contenu (`EnveloppeDuContenu`) | `px-4 py-6` au téléphone ; 24 px de `md` à `lg` ; **`px-8` (28,8 px) dès `lg`** : largeur utile **1110** à 1440, **694** à 1024, **660** à 768 (rail de 60 px) — mesurées sur `/app/leases` |
+| **Page « pleine largeur »** (`<PagePleineLargeur>`) | sous `md`, l'enveloppe perd sa marge (`:has([data-pleine-largeur])`, CSS seul) : la page porte ses marges élément par élément, une rangée va de x = 0, son texte à x = 16. Adoption **page par page** ; une page qui ne l'adopte pas garde `px-4 py-6`. Dès `md`, l'enveloppe garde sa marge. Le conteneur de la page ne porte **aucune** marge latérale (`PagePleineLargeur.garde.test.ts`) |
+| Barre d'onglets | **64 px** + zone sûre (`--barre-onglets-hauteur: calc(4rem + env(safe-area-inset-bottom))`) ; 4 px entre icône et libellé ; icône 20 px au trait 1,75 ; libellé 11 px, interligne 16,5 ; trait actif 2 px `primary`, `inset-x-4`, arrondi plein |
+| En-tête du téléphone | `pl-4 pr-1.5` ; « Aller à » et la cloche : icônes de 20 px au trait 1,75, **encre douce**, cibles de 40. Quatre formes (TCK-2617) : voir ci-dessous |
+| Colonne (dès `md`) | filet droit `border-border` plein ; tête `px-4` (logo à 14,4 px du bord) ; ligne `h-9 px-2 gap-2.5 text-sm` (**12,6 px** dès `lg`) ; titre de groupe `text-xs` 400 ; compteur `text-xs` 600 `primary-deep` ; action principale : pastille `size-6`, libellé 600 ; touches « ⌘ K » `rounded bg-muted px-1`, 11 px, police mono (TCK-2712) |
+| « Aujourd'hui » (colonne dépliée, TCK-2712) | titre `pb-1` (18 px) ; lignes `h-8` (**28,8**) en **13 px**, **sans icône**, sans interstice ; compte `rounded-full h-5 px-1.5` 11 px 600, le premier `bg-primary`, les autres `bg-muted` à l'encre douce opaque. Le rail garde l'icône et son point (TCK-2490, I1) ; le tiroir sa ligne de 40 px en 15 px à icône de 20 (aucune maquette du téléphone ne le dessine) |
+| Pastille des non-lues de la cloche (TCK-2712) | `h-4 min-w-4 px-1`, 10 px 600, interligne 10, anneau `card` ; `top-0 -right-0.5` du bouton dans la colonne, `top-0.5 right-0.5` dans l'en-tête du téléphone |
+| Tiroir (sous `md`) | lignes en **15 px** (`text-corps`), icônes de **20 px** ; la hauteur des lignes (44) est à TCK-2619 |
+| Icônes de ligne (colonne et tiroir) | 18 px (20 au tiroir), **trait 1,5** (`TRAIT_D_ICONE`, amende TCK-2490) ; **`muted-foreground` au repos, `primary` à l'actif** (≥ 3:1 sur le lin, le survol et le voile actif, clair et sombre — `AppSidebar.contraste`) |
+| Encre des lignes au repos | **encre douce opaque** (`ENCRE_AU_REPOS`) ; l'entrée active et la mise en avant gardent l'encre pleine, 500 |
+| Compte (pied) | avatar 28,8 px au bureau, 36 au tiroir, **repli par défaut** (`secondary` / `primary-deep`, 6,72:1) ; nom 600 |
+
+**Les exceptions** (ADR-0106) : le compteur reste `primary-deep` (la maquette écrit `primary`, 4,10:1 sur le voile
+actif) ; l'encre au repos est l'encre douce opaque, pas `foreground/85` (TCK-658) ; l'avatar « soi » de la maquette
+(`accent/15`, `text-accent`) tombe sous 4,5:1 sur la colonne, d'où le repli par défaut ; le titre de groupe garde
+25,2 px de haut au bureau (c'est le bouton de repli : cible ≥ 24 px, WCAG 2.5.8), compensé par une marge de groupe
+`mt-1` au lieu de `mt-3` et aucune marge dessous (3,6 + 25,2 = 28,8 px, la place de `mt-3` + 18) — la première ligne
+de chaque groupe tombe où la maquette la pose ; la zone sûre s'ajoute aux 64 px de la barre d'onglets.
+
+Au bureau, les lignes du menu se suivent **sans interstice** (pas de 32,4 px, comme la maquette) ; le tiroir garde le
+pixel qui sépare ses voiles (`max-md:space-y-px`).
+
+#### L'en-tête du téléphone, la flèche unique (TCK-2617, décision 5 (a) du porteur)
+
+Sous `md`, l'en-tête de `/app` mesure 56 px, colle en haut (enfant de la coque `h-dvh`, il ne défile pas) et **ne porte
+plus le logo** (il reste dans la colonne et le tiroir). Sa forme se dérive de la route
+(`lib/navigation/en-tete-de-la-coque.ts`, éprouvée sur chaque `page.tsx`) et la page la précise par
+`<DeclarerEnTete>` (`components/layout/en-tete-de-la-coque.tsx`) ; `PageHeader` y déclare son titre de lui-même.
+
+| Forme | Quand | Ce qu'elle porte |
+|---|---|---|
+| **Racine** | une page du menu | le titre à gauche, **c'est le H1** (Bricolage 20 px 600, −0,02 em, tronqué) ; à droite : 0 ou 1 action de page (`ActionDEnTete`, 40 px, « + » primaire plein ou discret), « Aller à », la cloche. Le H1 du contenu est masqué sous `md` (`[data-forme-en-tete="racine"] main h1`) : **un seul H1 exposé à toute largeur** |
+| **Accueil** | `/app` | l'espace en bouton (initiales 28 px, nom de l'espace 15 px 600, chevron 16) — il ouvre le menu du compte et des espaces ; puis « Aller à », la cloche. Le salut reste le H1 du contenu |
+| **Détail** | une route sous une page parente (`/app/leases/7`) | la flèche de retour, un titre court (17 px 600, `<p>`), « ⋯ » de 44 px quand la page déclare des actions secondaires (feuille du bas). Ni cloche ni « Aller à » |
+| **Plein écran** | un formulaire de création (`…/new`) | « ✕ » de 44 px vers la liste, le titre (16 px 600) et « Étape n sur total » (13 px) ; **pas de barre d'onglets** |
+
+Une **conversation ouverte** n'a ni en-tête de coque ni barre d'onglets au téléphone : c'est un ÉTAT de la page
+(`DeclarerEnTete conversation`), pas une route. La région `aria-live` des non-lus reste montée.
+
+**La flèche de retour est unique** : `ArrowLeft` de 20 px dans une cible ronde de 44 px, à l'encre principale —
+`LienFlecheDeRetour` (un lien : revient en arrière si la page précédente de l'onglet est du site, sinon mène au repli,
+la liste parente) et `BoutonFlecheDeRetour` (un bouton, quand le retour est un état), dans
+`navigation-publique/FlecheDeRetour.tsx` — un fichier qui ne lit aucun espace de traduction, pour que la messagerie et
+la coque ne transportent pas `navigationPublique` (`check:i18n-namespaces`) ; `BoutonRetourDePage` du site public
+l'enveloppe et la nomme « Retour » par défaut. Sa variante **sur photo** prend le fond de carte et l'ombre de `BoutonSurPhoto`.
+Le lien texte « ← Retour à … » (`BoutonRetour`) garde sa forme, glyphe de 16 px. **Ne sont pas des retours** : les
+chevrons de période, de pagination, de carrousel, de calendrier, et l'étape précédente d'un assistant. La garde
+`fleche-de-retour-unique.tck-2617.test.ts` tient la liste fermée des fichiers qui nomment une flèche à gauche.
+
+**Au bureau** (dès `md`), le lien « ← Retour » d'une page de détail est remplacé par le **fil d'Ariane** de 13 px
+(`FilDAriane`, « Baux › Bail … »), au-dessus du H1 ; il n'existe pas au téléphone, où la flèche de l'en-tête le remplace.
+
+### Les primitives neuves de la partie connectée ([ADR-0106](adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), TCK-2690)
+
+Quatre primitives que le produit n'avait pas, dessinées comme la maquette retenue. Elles n'ont aucun appelant d'avant :
+leur défaut EST la maquette, sans portée. Les cases, interrupteurs et jauges natifs ou locaux existants ne changent pas ;
+leur migration relève des pages.
+
+| Primitive | Dessin | Contraste (WCAG 1.4.11, 3:1) |
+|---|---|---|
+| `FeuilleDuBas` (`ui/feuille-du-bas.tsx`) | voile `foreground/35` ; panneau `rounded-t-2xl bg-card`, 90 % de la hauteur au plus, `shadow-feuille` ; poignée 32 × 4 ; titre 17 px tronqué ; fermer 44 px ; corps `px-4 pb-4` ; pied `border-t px-4 py-3` ; zone sûre au pied, sinon au corps. **Dès `md`, le panneau latéral droit** de `PanneauDroit` (480 px fixes, pleine hauteur, `border-l`, ombre `panneau`, en-tête `h-14`, corps `p-5`, pied à droite), **modal, voile compris** — décision du porteur du 2026-11-11 (TCK-2688), qui remplace le dialogue centré de TCK-2690 | — |
+| `Checkbox` (`ui/checkbox.tsx`) | **18 px**, rayon 5 px (`size-icone`, `rounded-case`, fixes) ; cochée `bg-primary` + coche 14 px au trait 2,5 ; mixte : la barre 10 × 2 de la maquette | bord vide `controle-vide` : `--input` en clair (3,59:1 sur `--card`, 3,04:1 sur `--muted`), `--muted-foreground` en sombre |
+| `Switch` (`ui/switch.tsx`) | piste **24 × 40** (`h-6 w-10 p-0.5`), pouce `size-5 bg-card shadow-sm` | allumé `--primary` (5,32:1) ; éteint `controle-vide` |
+| `Progress`, `ProgressSegments` (`ui/progress.tsx`) | rail `h-1.5 bg-muted` (`h-2` en grand), remplissage arrondi ; segments `h-1 gap-1.5` ; nom accessible exigé par le type | chaque ton contre le rail `--muted`, clair / sombre : `primary` 4,51 / 3,99, `success` 5,24 / 6,25, `warning` 5,31 / 6,03, `neutral` (`foreground/50` composé sur le rail) 3,23 / 4,37 |
+
+**Ce que la maquette écrivait et qui ne passe pas** : bord de case `foreground/30` (1,93:1), `border` (1,26:1) ou
+`input/60` (2,01:1) ; interrupteur éteint `foreground/20` (1,52:1) ou `border` (1,26:1). `--input` tient en clair mais
+rend 1,44:1 sur `--card` sombre, d'où le jeton `controle-vide`, redéclaré sur `.dark`.
+
+**La cible est la ligne, pas le contrôle** : une case de 18 px ou une piste de 24 px ne font pas une cible tactile. La
+ligne qui les porte (44 à 56 px) est un `<label>` qui les enveloppe ; son clic les bascule (`eslint.config.mjs` déclare
+`Checkbox` et `Switch` comme contrôles de `label-has-associated-control`).
+
+**Le verrou de défilement de la feuille** : hors du régime du bureau (téléphone, et tablette à pointeur grossier),
+`useVerrouDeDefilement` (TCK-551 — `overflow: hidden` seul ne tient pas sur iOS, et `scrollBy` le traverse : mesuré à
+1024 px tactile), avec `modal="trap-focus"` ; au régime du bureau (`md` et pointeur non grossier), celui de base-ui, qui
+compense une barre de défilement classique (le premier sortirait `body` du flux — saut déduit, non mesuré).

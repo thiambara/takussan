@@ -86,7 +86,7 @@ export function AdminCreditWalletDetail({ agencyId }: { readonly agencyId: numbe
           <h3 id="ajustement" className="font-medium text-foreground">{t('adjustTitle')}</h3>
           <p className="text-sm text-muted-foreground">{t('adjustHelp')}</p>
           <form
-            className="grid gap-3 sm:grid-cols-[10rem_1fr_auto] sm:items-end"
+            className="grid gap-3 sm:grid-cols-[calc(var(--spacing)*40)_1fr_auto] sm:items-end"
             onSubmit={(event) => {
               event.preventDefault();
               if (valide) ajuster.mutate({ amount: valeur, reason: motif.trim() });

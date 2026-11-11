@@ -13,6 +13,7 @@ use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class RoleDelegation extends AbstractModel
 {
@@ -40,6 +41,8 @@ class RoleDelegation extends AbstractModel
         'revoked_at',
         'revoked_by',
         'replaces_user_id',
+        // TCK-2666 (ADR-0035, amendement du 2026-11-10) — la délégation liée nomme l'absence qu'elle couvre.
+        'covers_absence_id',
     ];
 
     protected $casts = [
@@ -88,6 +91,31 @@ class RoleDelegation extends AbstractModel
     public function scopeRoleDelegations(Builder $query): Builder
     {
         return $query->whereNull('replaces_user_id');
+    }
+
+    /**
+     * TCK-2666 (ADR-0035, amendement du 2026-11-10) — l'absence qu'une délégation liée couvre ;
+     * null pour une délégation ordinaire et pour une absence.
+     */
+    public function coversAbsence(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'covers_absence_id');
+    }
+
+    /**
+     * TCK-2666 — la DERNIÈRE délégation liée d'une absence, en cours ou close : une absence porte au
+     * plus une délégation en cours, et celles qu'un changement de remplaçant a révoquées gardent
+     * leur lien.
+     */
+    public function coverDelegation(): HasOne
+    {
+        return $this->hasOne(self::class, 'covers_absence_id')->latestOfMany();
+    }
+
+    /** TCK-2666 — en cours : planifiée ou active, le cycle de vie que l'absence propage. */
+    public function isLive(): bool
+    {
+        return in_array($this->status, [RoleDelegationStatus::Scheduled, RoleDelegationStatus::Active], true);
     }
 
     public function revokedBy(): BelongsTo

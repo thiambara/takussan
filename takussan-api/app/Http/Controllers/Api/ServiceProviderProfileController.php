@@ -50,6 +50,12 @@ class ServiceProviderProfileController extends Controller
             // relance ou révoque par elle (une invitation au seul numéro ne se cherchait pas).
             ->addSelect(['pending_invitation_id' => Invitation::idEnvoyeePour(new ServiceProviderProfile)
                 ->where('invitations.agency_id', $agency->id)])
+            // TCK-2652 — le téléphone joignable (compte, sinon invitation) et les interventions
+            // réalisées pour CETTE agence, sans requête par ligne.
+            ->addSelect([
+                'account_phone' => ServiceProviderProfile::accountPhoneSubquery(),
+                'completed_interventions_count' => ServiceProviderProfile::completedInterventionsSubquery($agency->id),
+            ])
             ->paginate($this->tailleDePage($request, 20));
 
         // TCK-693 — le `User` inclus sort par sa projection fixe, jamais en ligne `users` entière.

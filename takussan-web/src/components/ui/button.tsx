@@ -28,33 +28,48 @@ import { cn } from "@/lib/utils"
  *    CLAIR que `--primary` là-bas (6,78:1), sinon 2,18:1.
  */
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[color,background-color,border-color,box-shadow,scale] outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring active:not-aria-[haspopup]:scale-[0.96] motion-reduce:active:not-aria-[haspopup]:scale-100 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  // TCK-2712 (7) — `text-bouton` (jeton de `densite-de-l-app`) : `text-sm` partout, sauf au pointeur
+  // grossier dès `lg` dans `/app`, où un bouton de 44 px reçoit le texte du téléphone (14 px).
+  "inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-bouton font-medium whitespace-nowrap transition-[color,background-color,border-color,box-shadow,scale] outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring active:not-aria-[haspopup]:scale-[0.96] motion-reduce:active:not-aria-[haspopup]:scale-100 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
         default: "bg-primary text-primary-foreground hover:bg-[var(--primary-deep)]",
+        // TCK-2686 — sous la portée `/app`, quatre variantes prennent l'aspect de la maquette par des
+        // JETONS (`globals.css`, bloc `densite-de-l-app`), qu'une classe d'appelant remplace :
+        // contour sur `bg-card`, doux à l'encre `primary-deep` en 600, discret à l'encre douce,
+        // danger bordé de `destructive/30`. Hors portée, chaque jeton vaut la classe d'avant.
         outline:
-          "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
+          "border-border bg-fond-contour hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
+          "bg-secondary text-encre-bouton-doux font-bouton-doux hover:bg-secondary/80 aria-expanded:bg-secondary aria-expanded:text-encre-bouton-doux",
         ghost:
-          "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
+          "text-encre-discrete hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
         // TCK-480 — PLAFOND DES APLATS : aucun fond qui porte `text-destructive` au-delà de
         // `/15`. Les trois valeurs corrigées ici (hover `/20`, sombre `/20`, sombre hover
         // `/30`) sont celles qui écrasaient l'encre : mesuré avant correctif, 3,17:1 en
         // clair au survol et 3,39:1 en sombre au survol, encre et fond issus du MÊME jeton.
         // L'anneau et la bordure gardent leurs poids : ils ne portent pas de texte.
         destructive:
-          "bg-destructive/10 text-destructive hover:bg-destructive/10 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/10 dark:hover:bg-destructive/10 dark:focus-visible:ring-destructive/40",
+          "border-bord-danger bg-destructive/10 text-destructive hover:bg-destructive/10 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/10 dark:hover:bg-destructive/10 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4 hover:underline",
+        // TCK-2686 — le bouton SOMBRE des maquettes (« Faire », « Réessayer » : 16 pages au bureau,
+        // 7 au téléphone), décidé par le porteur le 2026-11-10 (décision 2 a, ADR-0106 § 2) contre
+        // la ligne « un seul style de bouton principal » de la charte, amendée. 17,9:1 en clair.
+        sombre: "bg-foreground text-background hover:bg-foreground/90 aria-expanded:bg-foreground/90",
       },
       size: {
+        // TCK-2686 (amende TCK-2460) — les hauteurs viennent des jetons de l'échelle de densité :
+        // `h-controle` vaut `h-10` hors portée, 44 px sous le pouce et `h-9` au bureau dans `/app`.
         default:
-          "h-10 gap-1.5 px-3.5 plancher-tactile-10 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3",
+          "h-controle gap-1.5 px-3.5 plancher-tactile-10 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3",
         xs: "h-6 gap-1 rounded-[min(var(--radius-md),10px)] px-2 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-8 gap-1 plancher-tactile-9 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
+        sm: "h-controle-petit gap-petit-bouton-espace plancher-tactile-9 rounded-petit-bouton px-petit-bouton-x text-petit-bouton in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
         lg: "h-11 gap-1.5 px-4 plancher-tactile-10 has-data-[icon=inline-end]:pr-3.5 has-data-[icon=inline-start]:pl-3.5",
-        icon: "size-10 plancher-tactile-carre-10",
+        // TCK-2686 — l'action principale (barre collante, pied de formulaire) : 48 px, px-5, 15 px.
+        xl: "h-controle-action gap-1.5 px-5 text-corps plancher-tactile-10 has-data-[icon=inline-end]:pr-4 has-data-[icon=inline-start]:pl-4",
+        // L'ordre compte pour `scripts/i18n-scan.mjs` : « controle plancher » se lirait comme une phrase.
+        icon: "plancher-tactile-carre-10 size-controle",
         "icon-xs":
           "size-6 rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3",
         "icon-sm":

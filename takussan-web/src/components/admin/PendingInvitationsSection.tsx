@@ -255,7 +255,7 @@ export function PendingInvitationsSection({
       {/* TCK-371 vise la troncature sur mobile : la table défile DANS son cadre,
           le corps de la page ne défile jamais horizontalement. */}
       <div className="mt-3 overflow-x-auto">
-        <table className="w-full min-w-[34rem] text-sm">
+        <table className="w-full min-w-136 text-sm">
           <thead>
             <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
               <th scope="col" className="py-2 pr-3 font-semibold">{t('columns.email')}</th>

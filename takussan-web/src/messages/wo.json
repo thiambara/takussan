@@ -71,7 +71,11 @@
       "unknownAgency": "Ajaas #{id}"
     },
     "search": {
-      "pending": "Mi ngi wut…"
+      "pending": "Mi ngi wut…",
+      "clear": "Effacer la recherche"
+    },
+    "pageHeader": {
+      "breadcrumb": "Fil d'Ariane"
     }
   },
   "nav": {
@@ -453,6 +457,12 @@
         "agence-journal": "audit, historique, traces, journal",
         "agence-integrations": "api, webhooks, connecteurs"
       }
+    },
+    "coque": {
+      "retour": "Retour",
+      "fermer": "Fermer",
+      "plusDActions": "Plus d’actions",
+      "etape": "Étape {n} sur {total}"
     }
   },
   "footer": {
@@ -3389,7 +3399,7 @@
         "agent-onboarding": "Tàmbalee agent",
         "customer-onboarding": "Tàmbalee dëkkkat",
         "owner-kyc": "KYC borom",
-        "agent-kyc": "KYC agent",
+        "agent-kyc": "Vos pièces justificatives (agent)",
         "sp-onboarding": "Tàmbalee prestataire",
         "agency-upgrade": "Yokk ci pro",
         "property-create-wizard": "Teg benn kër"
@@ -3783,7 +3793,7 @@
         "title": "Dalal jamm!",
         "body": "Sa profil agent active na."
       },
-      "metaTitle": "Onboarding agent"
+      "metaTitle": "Premiers pas — espace agent"
     },
     "publicPage": {
       "notFound": "Gisuñu ajaŋ bi",
@@ -3984,6 +3994,8 @@
         "cleaning": "Setal",
         "pest_control": "Faj jëmm",
         "locksmith": "Saraab",
+        "masonry": "Maçonnerie",
+        "climate_control": "Climatisation",
         "other": "Yeneen"
       },
       "cta": {
@@ -4048,6 +4060,8 @@
           "locksmith": "Saraab",
           "painting": "Penture",
           "masonry": "Maçonneri",
+          "cleaning": "Nettoyage",
+          "pest_control": "Désinsectisation",
           "other": "Beneen"
         }
       },
@@ -4113,7 +4127,7 @@
             "zonesPlaceholder": "Dakar, Mbour…",
             "zonesHint": "Tofal ay dëkk ak ay quartiers ak virgule.",
             "hourlyRate": "Tarif waxtu (XOF)",
-            "visitFee": "Frais de visite (XOF)"
+            "visitFee": "Frais de visite (F CFA)"
           }
         },
         "availability": {
@@ -4141,7 +4155,7 @@
           }
         }
       },
-      "metaTitle": "Onboarding prestataire",
+      "metaTitle": "Premiers pas — espace prestataire",
       "pageTitle": "Dalal jamm ci sa espace prestataire",
       "pageSubtitle": "Ñeenti etap ngir wóoral sa maandu, wone say liggéey te tëral sa ayu-bés."
     },
@@ -4263,6 +4277,12 @@
               "sendFailed": "Kódu bi mënul yónni",
               "verifyFailed": "Kódu baaxul"
             }
+          },
+          "currencies": {
+            "XOF": "F CFA (Afrique de l’Ouest)",
+            "XAF": "F CFA (Afrique centrale)",
+            "EUR": "Euro",
+            "USD": "Dollar américain"
           }
         },
         "firstProperty": {
@@ -4577,11 +4597,10 @@
         "toApprove": "Ngir nangu"
       },
       "kpis": {
-        "collections30d": "Pey yi (30 fan)",
         "overdue": "Pey yu ñu feyul",
         "pendingPayouts": "Peymaan yuy xaar",
         "invoicesToIssue": "Fakteer yu ñu war a génne",
-        "overdueHint": "{count, plural, one {# luwé bu ci aju} other {# luwé yu ci aju}}"
+        "collectedIn": "Encaissé en {mois}"
       },
       "aging": {
         "groupByLabel": "Mboolewaayu yu ñu feyul",
@@ -4609,6 +4628,156 @@
         "captionLandlord": "Yu ñu feyul ci boroom kër ak ci yeex",
         "emptyTitle": "Amul lu ñu feyul",
         "emptyDescription": "Amul benn bes luwaas bu jot bu ñuy xaar fey."
+      },
+      "argent": {
+        "actions": {
+          "exporter": "Exporter",
+          "exporterAria": "Exporter les loyers dus en {mois} (CSV)",
+          "exporterAriaBornes": "Exporter les loyers dus {bornes, select, du {à partir du {du}} au {jusqu’au {au}} other {du {du} au {au}}} (CSV)"
+        },
+        "auJour": "Au {date}",
+        "filLabel": "Fil d’Ariane",
+        "syntheseRefusee": "Le point du mois n’est pas ouvert à votre profil.",
+        "payeurInconnu": "Payeur inconnu",
+        "aFaire": {
+          "titre": "À faire",
+          "impayes": "{count, plural, one {# impayé à relancer} other {# impayés à relancer}}",
+          "impayesDetail": "{montant} · {jamais, plural, =0 {tous déjà relancés} one {# jamais relancé} other {# jamais relancés}}",
+          "reversements": "{count, plural, one {# reversement à approuver} other {# reversements à approuver}}",
+          "reversementsDetail": "{montant} · {bailleurs, plural, one {# bailleur} other {# bailleurs}}",
+          "factures": "{count, plural, one {# facture à émettre} other {# factures à émettre}}",
+          "facturesDetail": "{montant} d’honoraires",
+          "plusAnciens": "À faire · impayés les plus anciens",
+          "aApprouverTitre": "À faire · reversements à approuver",
+          "voirLes": "{count, plural, =0 {Voir} one {Voir} other {Voir les #}}",
+          "relanceLe": "relancé le {date}",
+          "jamaisRelance": "jamais relancé",
+          "reversementSansReference": "Reversement sans référence",
+          "preparePar": "préparé par {nom}",
+          "examiner": "Examiner",
+          "joursDeRetardCourt": "{count} j de retard"
+        },
+        "tuiles": {
+          "encaisse": "Encaissé",
+          "impayes": "Impayés",
+          "bauxEnRetard": "{count, plural, one {# bail en retard} other {# baux en retard}}",
+          "paiements": "{count, plural, one {# paiement} other {# paiements}}",
+          "variation": "{variation} sur {mois}",
+          "bauxEtAnciens": "{baux, plural, one {# bail} other {# baux}} · {anciens, plural, =0 {aucun de plus de 30 jours} other {# de plus de 30 jours}}",
+          "reversementsDetail": "{count, plural, =0 {Aucun en attente} one {# reversement} other {# reversements}}{aApprouver, plural, =0 {} other { · # à approuver}}",
+          "facturesDetail": "{montant} d’honoraires"
+        },
+        "derniers": {
+          "titre": "Derniers encaissements",
+          "tout": "Tout",
+          "toutVoir": "Tout voir",
+          "vide": "Aucun encaissement ce mois-ci."
+        },
+        "registres": {
+          "titre": "Tout voir",
+          "encaissements": "Encaissements",
+          "factures": "Factures",
+          "reversements": "Reversements",
+          "aApprouver": "À approuver",
+          "impayes": "Impayés",
+          "impayesDetail": "Par locataire, par ancienneté",
+          "rapprochement": "Rapprochement bancaire",
+          "exporter": "Exporter les loyers dus",
+          "exporterDetail": "Les échéances du mois affiché, en CSV"
+        },
+        "creer": {
+          "titre": "Créer",
+          "reversement": "Créer un reversement",
+          "facture": "Générer une facture",
+          "factureDetail": "{count, plural, one {# brouillon} other {# brouillons}} · {montant}"
+        },
+        "jour": {
+          "aujourdhui": "Aujourd’hui",
+          "hier": "Hier",
+          "aujourdhuiMinuscule": "aujourd’hui",
+          "hierMinuscule": "hier"
+        },
+        "periode": {
+          "rentDu": "Loyer {voyelle, select, oui {d’{mois}} other {de {mois}}}",
+          "chargesDu": "Charges {voyelle, select, oui {d’{mois}} other {de {mois}}}",
+          "penaltyDu": "Pénalité {voyelle, select, oui {d’{mois}} other {de {mois}}}",
+          "rent": "Loyer",
+          "charges": "Charges",
+          "penalty": "Pénalité de retard",
+          "deposit": "Caution",
+          "deposit_refund": "Remboursement de caution",
+          "regularization": "Régularisation",
+          "autre": "Paiement",
+          "reservation": {
+            "deposit": "Réservation · arrhes",
+            "advance": "Réservation · acompte",
+            "fee": "Réservation · frais",
+            "autre": "Réservation"
+          },
+          "rentDuCourt": "Loyer {mois}",
+          "chargesDuCourt": "Charges {mois}",
+          "penaltyDuCourt": "Pénalité {mois}"
+        },
+        "encaissements": {
+          "recherche": "Chercher un locataire, un bien, une référence",
+          "rechercheCourte": "Locataire, bien, référence",
+          "filtres": "Filtres",
+          "moyen": "Moyen",
+          "tous": "Tous",
+          "tousLesMoyens": "Tous les moyens",
+          "tousLesStatuts": "Tous les statuts",
+          "payeur": "Payeur",
+          "bien": "Bien",
+          "bailleur": "Bailleur",
+          "statut": "Statut",
+          "dates": "Dates",
+          "du": "Du",
+          "au": "Au",
+          "chercherPayeur": "Chercher un payeur",
+          "chercherBien": "Chercher un bien",
+          "chercherBailleur": "Chercher un bailleur",
+          "compteDuMois": "{count, plural, one {# paiement} other {# paiements}} en {mois}",
+          "resume": "{mois} · {count, plural, one {# paiement} other {# paiements}} · <fort>{montant}</fort> encaissés",
+          "toutesDates": "Toutes dates",
+          "totaux": {
+            "total": "Total",
+            "lignes": "{count, plural, one {# ligne} other {# lignes}}",
+            "paye": "Payé",
+            "paiements": "{count, plural, one {# paiement} other {# paiements}}",
+            "restant": "Restant dû",
+            "aEncaisser": "à encaisser",
+            "echoue": "Échoué",
+            "aReprendre": "{count, plural, =0 {rien à reprendre} one {# paiement à reprendre} other {# paiements à reprendre}}"
+          },
+          "colonnes": {
+            "payeur": "Payeur",
+            "bien": "Bien",
+            "periode": "Période",
+            "montant": "Montant",
+            "moyen": "Moyen",
+            "date": "Date",
+            "statut": "Statut",
+            "reference": "Référence"
+          },
+          "legende": "Encaissements de l’agence",
+          "pied": "{debut} à {fin} sur {total}",
+          "precedents": "Afficher les jours précédents",
+          "recents": "Revenir aux jours récents",
+          "reservation": "Réservation",
+          "erreur": "Les encaissements n’ont pas pu être chargés.",
+          "videTitre": "Aucun encaissement",
+          "videDetail": "Aucun paiement ne correspond à ces critères.",
+          "sousTitre": "{count, plural, one {# paiement} other {# paiements}} en {mois} · chaque ligne dit qui a payé, pour quel bien et quelle période",
+          "sousTitreSansMois": "{count, plural, one {# paiement} other {# paiements}} · chaque ligne dit qui a payé, pour quel bien et quelle période"
+        },
+        "choix": {
+          "effacer": "Effacer",
+          "aucun": "Aucun résultat"
+        },
+        "mois": {
+          "toutes": "Toutes les dates",
+          "choisir": "Mois : {mois}"
+        }
       }
     },
     "audit": {
@@ -4628,7 +4797,34 @@
         "agentProfile": "Profilu ndaw",
         "agencyAdminProfile": "Profilu njiit",
         "ownerProfile": "Profilu borom kër",
-        "privacyRequest": "Laaj ci sañ-sañ"
+        "privacyRequest": "Laaj ci sañ-sañ",
+        "leasePayment": "Paiement de loyer",
+        "bookingPayment": "Paiement de réservation",
+        "leasePaymentLink": "Lien de paiement",
+        "leasePaymentReminder": "Relance de loyer",
+        "customerNote": "Note sur un client",
+        "invitation": "Invitation",
+        "task": "Tâche",
+        "commissionEntry": "Commission",
+        "maintenanceRequest": "Demande d'intervention",
+        "kycDossier": "Dossier de pièces",
+        "agencySubscription": "Abonnement de l'agence",
+        "propertyVisit": "Visite",
+        "serviceProviderProfile": "Profil de prestataire",
+        "serviceProviderAgencyCollaboration": "Collaboration avec un prestataire",
+        "roleDelegation": "Délégation de rôle",
+        "payout": "Reversement",
+        "payoutMethod": "Moyen de reversement",
+        "bankStatement": "Relevé bancaire",
+        "bankStatementLine": "Ligne de relevé bancaire",
+        "document": "Document",
+        "quote": "Devis",
+        "tag": "Étiquette",
+        "calendarFeed": "Agenda partagé",
+        "agentAbsence": "Absence d'un agent",
+        "dataExport": "Export de données",
+        "reportExport": "Export de rapport",
+        "alertSubscriber": "Abonné aux alertes"
       },
       "filters": {
         "anyAction": "Jëf yépp",
@@ -4676,8 +4872,139 @@
         "role_assigned": "Jox nañu rol",
         "personal_data_viewed": "Xool nañu xibaar yu sutura",
         "kyc_expired": "Kayitu KYC bi jeex na",
-        "data_exported": "Génne nañu xibaar yi"
-      }
+        "data_exported": "Génne nañu xibaar yi",
+        "booking_expired": "Réservation expirée",
+        "booking_completed": "Réservation terminée",
+        "paid": "Paiement encaissé",
+        "invitation_sent": "Invitation envoyée",
+        "invitation_resent": "Invitation renvoyée",
+        "invitation_accepted": "Invitation acceptée",
+        "invitation_revoked": "Invitation annulée",
+        "invitation_expired": "Invitation expirée",
+        "agent_invited": "Agent invité",
+        "owner_invited": "Bailleur invité",
+        "service_provider_invited": "Prestataire invité",
+        "agent_onboarding_completed": "Inscription d'un agent terminée",
+        "owner_onboarding_completed": "Inscription d'un bailleur terminée",
+        "sp_onboarding_completed": "Inscription d'un prestataire terminée",
+        "host_individual_onboarded": "Espace de l'agence ouvert",
+        "agent_phone_verified": "Téléphone d'un agent vérifié",
+        "owner_phone_verified": "Téléphone d'un bailleur vérifié",
+        "sp_phone_verified": "Téléphone d'un prestataire vérifié",
+        "kyc_submitted": "Pièces justificatives envoyées",
+        "agent_kyc_submitted": "Pièces d'un agent envoyées",
+        "owner_kyc_submitted": "Pièces d'un bailleur envoyées",
+        "sp_kyc_submitted": "Pièces d'un prestataire envoyées",
+        "kyc_verified": "Pièces justificatives validées",
+        "kyc_rejected": "Pièces justificatives refusées",
+        "sp_collaboration_added": "Prestataire ajouté à l'agence",
+        "owner_designated": "Bailleur désigné",
+        "owner_works_threshold_updated": "Plafond de travaux d'un bailleur modifié",
+        "property_approved": "Bien approuvé",
+        "property_rejected": "Bien refusé",
+        "property_resubmitted": "Bien soumis à nouveau",
+        "property_duplicated": "Bien dupliqué",
+        "property_archived_bulk": "Biens archivés en lot",
+        "property_visibility_bulk": "Visibilité de biens modifiée en lot",
+        "property_report_resolved": "Signalement d'un bien traité",
+        "property_unpublished_on_account_erasure": "Bien retiré à la suppression d'un compte",
+        "lease_created": "Bail créé",
+        "lease_renewed": "Bail renouvelé",
+        "lease_expired": "Bail arrivé à échéance",
+        "lease_rent_reviewed": "Loyer révisé",
+        "lease_renewal_schedule_cancelled": "Renouvellement programmé annulé",
+        "lease_termination_schedule_cancelled": "Fin de bail programmée annulée",
+        "lease_early_termination_requested": "Départ anticipé demandé",
+        "lease_early_termination_confirmed": "Départ anticipé confirmé",
+        "lease_early_termination_cancelled": "Départ anticipé annulé",
+        "lease_payment_link_issued": "Lien de paiement envoyé",
+        "lease_payment_link_revoked": "Lien de paiement retiré",
+        "late_fee_applied": "Pénalité de retard appliquée",
+        "late_fee_paid": "Pénalité de retard réglée",
+        "deposit_refunded": "Dépôt de garantie remboursé",
+        "deposit_refund_reversed": "Remboursement du dépôt annulé",
+        "open_checkout_overridden": "Paiement en ligne permis malgré la règle",
+        "invoice_reminder_sent": "Relance de facture envoyée",
+        "tenant_welcomed": "Message de bienvenue envoyé au locataire",
+        "tenant_checklist_created": "Liste d'entrée du locataire créée",
+        "tenant_checklist_completed": "Liste d'entrée du locataire terminée",
+        "tenant_checklist_item_completed": "Étape de la liste d'entrée cochée",
+        "tenant_checklist_item_reopened": "Étape de la liste d'entrée rouverte",
+        "maintenance_started": "Intervention commencée",
+        "maintenance_declined": "Intervention refusée",
+        "maintenance_contested": "Intervention contestée",
+        "maintenance_cancelled_property_deleted": "Intervention annulée (bien supprimé)",
+        "quote_requested": "Devis demandé",
+        "quote_submitted": "Devis reçu",
+        "quote_awaiting_owner": "Devis en attente du bailleur",
+        "quote_approved": "Devis accepté",
+        "quote_rejected": "Devis refusé",
+        "document_version_uploaded": "Nouvelle version d'un document",
+        "document_version_restored": "Version d'un document restaurée",
+        "document_version_purged": "Ancienne version d'un document effacée",
+        "document_verification_reset": "Vérification d'un document à refaire",
+        "tag_attached": "Étiquette ajoutée",
+        "tag_detached": "Étiquette retirée",
+        "absence_declared": "Absence déclarée",
+        "activated": "Activation",
+        "revoked": "Révocation",
+        "expired": "Expiration",
+        "issued": "Émission",
+        "matched": "Rapprochement fait",
+        "unmatched": "Rapprochement défait",
+        "ignored": "Ligne écartée du rapprochement",
+        "finalized": "Rapprochement clôturé",
+        "webhook_token_rotated": "Adresse de notification régénérée",
+        "two_factor_disabled": "Double vérification désactivée",
+        "agency_upgrade_requested": "Passage en agence professionnelle demandé",
+        "agency_upgrade_approved": "Passage en agence professionnelle accepté",
+        "agency_upgrade_rejected": "Passage en agence professionnelle refusé",
+        "agency_upgrade_revoked": "Demande de passage en agence professionnelle retirée",
+        "agency_kind_flipped": "Type d'agence changé",
+        "agency_payout_threshold_changed": "Seuil de reversement modifié",
+        "agency_payout_threshold_relax_requested": "Assouplissement du seuil de reversement demandé",
+        "agency_payout_threshold_relax_expired": "Assouplissement du seuil de reversement expiré",
+        "agency_admin_erased": "Compte d'un administrateur supprimé",
+        "account_deletion_requested": "Suppression de compte demandée",
+        "account_deletion_executed": "Compte supprimé",
+        "account_deletion_cancelled": "Suppression de compte annulée",
+        "user_data_export_requested": "Export des données personnelles demandé",
+        "data_export_downloaded": "Export de données téléchargé",
+        "audit_exported": "Journal exporté",
+        "privacy_register_exported": "Registre des demandes de droits exporté",
+        "super_admin_subscription_assigned": "Abonnement attribué par Takussan",
+        "super_admin_subscription_cancelled": "Abonnement résilié par Takussan",
+        "super_admin_subscription_overrides_updated": "Conditions d'abonnement ajustées par Takussan",
+        "contacted": "Client contacté",
+        "responsible_agent_changed": "Agent responsable changé",
+        "owner_transferred": "Bien confié à un autre bailleur",
+        "property_owner_restored": "Bailleur d'un bien rétabli",
+        "property_primary_agent_designated": "Agent principal désigné",
+        "triggered": "Alerte de seuil déclenchée",
+        "agency_admin_removed": "Administrateur retiré",
+        "team_member_suspended": "Membre suspendu",
+        "team_member_reactivated": "Membre réactivé",
+        "sp_collaboration_ended": "Collaboration avec un prestataire arrêtée",
+        "sp_collaboration_paused": "Collaboration avec un prestataire suspendue",
+        "sp_collaboration_resumed": "Collaboration avec un prestataire reprise",
+        "tasks": "Tâches transmises à un autre agent",
+        "visits": "Visites transmises à un autre agent",
+        "maintenance": "Interventions transmises à un autre agent",
+        "responsible_properties": "Biens suivis transmis à un autre agent",
+        "held_properties": "Biens détenus transmis à un autre agent",
+        "collaborations": "Collaborations transmises à un autre agent",
+        "customers": "Clients transmis à un autre agent",
+        "contact_leads": "Demandes de contact transmises à un autre agent",
+        "invitations_expired_purged": "Invitations expirées supprimées",
+        "owner_tax_id_set": "NINEA d'un bailleur saisi",
+        "absence_updated": "Absence modifiée",
+        "suggested_stage_dismissed": "Étape proposée écartée",
+        "agency_upgrade_subscription_assigned": "Abonnement pro attribué au passage en agence professionnelle",
+        "review_moderated": "Avis publié (lot)"
+      },
+      "subjectWithId": "{label} n° {id}",
+      "otherAction": "Autre action",
+      "otherSubject": "Autre objet"
     },
     "businessEnums": {
       "property_type": {
@@ -4749,9 +5076,10 @@
         "platform_reserved": "Plaatfoom bi rekk",
         "platform_reserved_hint": "Sañ-sañ bii ekibu Takussan moo ko moom, mënuñu koo jox wàllu ajaans.",
         "not_enforced": "Amul njeexital léegi",
-        "not_enforced_hint": "Benn jëf ci aplikaasioŋ bi saytuwul sañ-sañ bii ba léegi. Tànn ko, rol bi lay waajal ; dina dox bu jëf ji jàppee.",
         "toggle_domain": "Wone walla nëbb wàllu {domain}",
-        "domain_selected": "{count}/{total}"
+        "domain_selected": "{count}/{total}",
+        "not_enforced_reason": "Aucun geste de l'application ne vérifie encore cette capacité : elle ne change rien pour l'instant.",
+        "unknown_capability": "Autre capacité"
       },
       "create": {
         "title": "Sos wàll",
@@ -4809,7 +5137,8 @@
         "messaging": "Mesaas",
         "reports": "Rapoor yi",
         "roles": "Wàll yi",
-        "boost": "Yokk gis-gis"
+        "boost": "Yokk gis-gis",
+        "owners": "Bailleurs"
       },
       "capabilities": {
         "agency": {
@@ -4887,6 +5216,9 @@
         },
         "boost": {
           "spend": "Dépense kredi ngir yokk gis-gisu ab kër"
+        },
+        "owners": {
+          "update": "Modifier les réglages d'un bailleur (plafond de travaux)"
         }
       },
       "role_delegations": {
@@ -5166,7 +5498,7 @@
             "hint": "Les états des lieux d’entrée et de sortie."
           },
           "move_in_follow_up": {
-            "label": "Onboardings en attente",
+            "label": "Entrées en attente",
             "hint": "Les locataires dont l’état des lieux d’entrée attend depuis plus de 7 jours."
           },
           "provider_book": {
@@ -7224,7 +7556,9 @@
         "locked": "Palanteeru xalaat bi tëj na ci seetlu bii.",
         "title": "Xalaat bu ginnaaw seetlu",
         "window": "Am nga {hours} waxtu ginnaaw seetlu bi ngir bàyyi sa xalaat.",
-        "restricted": "Seetlukat bi ak ajaŋ bi rekk ñoo mën a bàyyi xalaat ci seetlu bii."
+        "avisClient": "Avis du client",
+        "avisAgent": "Retour de l’agent",
+        "note": "{note} / 5"
       },
       "forbidden": "Visite bii beneen ajaans la bokk : amoo ci benn sañ-sañ.",
       "dialogs": {
@@ -10256,7 +10590,8 @@
         "limits": "Dig yu teknik",
         "boost": "Kredi ak yokk gis-gis",
         "rentals": "Luwaas",
-        "radar": "Radar"
+        "radar": "Radar",
+        "crm": "Relation client"
       },
       "keys": {
         "currency": {
@@ -10333,6 +10668,12 @@
           "mandate_agency_id": {
             "label": "Espace des mandats du Radar",
             "description": "Identifiant de l’espace Takussan où naissent les biens publiés sous mandat. 0 : aucun. Le drapeau « radar_mandate » doit aussi être allumé."
+          }
+        },
+        "crm": {
+          "follow_up_days": {
+            "label": "Relance sans contact",
+            "description": "En jours, de 1 à 90. Une fiche client de prospect à négociation est à relancer quand son dernier contact date d’au moins ce nombre de jours. Une agence qui a son propre réglage garde le sien."
           }
         }
       },
@@ -10817,15 +11158,15 @@
         "notes": "Nott yi (ci biir)",
         "notesPlaceholder": "misaal : kont prod, ñu koy soppi 15/04",
         "isActive": "Integration bi dafa dox",
-        "clientId": "Client ID",
-        "clientSecret": "Client secret",
-        "senderAddress": "Sender address (SIM Orange SN)",
-        "senderName": "Sender name (≤ 11, whitelist Orange)",
-        "username": "Username",
-        "password": "Password",
-        "senderIdMtarget": "Sender ID (≤ 11, alphanum)",
+        "clientId": "Identifiant client",
+        "clientSecret": "Secret client",
+        "senderAddress": "Numéro d'expéditeur (SIM Orange Sénégal)",
+        "senderName": "Nom d'expéditeur (11 caractères, validé par Orange)",
+        "username": "Nom d'utilisateur",
+        "password": "Mot de passe",
+        "senderIdMtarget": "Nom d'expéditeur (11 caractères, lettres et chiffres)",
         "serviceId": "Service ID (mënul am)",
-        "accountId": "Account ID",
+        "accountId": "Identifiant de compte",
         "senderIdLam": "Sender ID (≤ 11, warul tàmbali ak limeer)",
         "hostLam": "Host LAMPUSH (mënul am — mu wuutu bu ndogal bi)",
         "webhookPlaceholder": "https://misaal.sn/webhook"
@@ -10860,7 +11201,8 @@
         "variant_id": "Identifiant variante",
         "signing_secret": "Secret xaatim",
         "secret_key": "Caabi bu kumpaywul"
-      }
+      },
+      "delete": "Supprimer"
     }
   },
   "adminTags": {
@@ -12566,6 +12908,10 @@
     "phoneInput": {
       "hintNational": "Indicatif {indicatif} bi dugg na : bindal li ci des. Ci bitim-réew nga nekk ? Tàmbaleel ak +.",
       "hintInternational": "Nimero bu mat, indicatif bi ci biir."
+    },
+    "filterChips": {
+      "rowLabel": "Filtres",
+      "add": "Ajouter un filtre"
     }
   },
   "reporting": {
@@ -12820,7 +13166,7 @@
     "partager": {
       "libelle": "Partager la fiche de {nom}",
       "copie": "Lien copié",
-      "echec": "Partage impossible ici : copiez l’adresse de la page."
+      "echec": "Impossible de partager ici : copiez l’adresse de la page."
     }
   },
   "privacy": {
@@ -12967,8 +13313,8 @@
       "cta": "Voir la vitrine"
     },
     "join": {
-      "title": "Ton agence n’est pas encore là ?",
-      "body": "Une vitrine gratuite, tes annonces sur Takussan, et l’atelier pour les visites, les baux et les loyers.",
+      "title": "Votre agence n’est pas encore là ?",
+      "body": "Une vitrine gratuite, vos annonces sur Takussan, et l’atelier pour les visites, les baux et les loyers.",
       "cta": "Rejoindre Takussan"
     }
   },
@@ -13235,6 +13581,10 @@
         "requested_undated": {
           "title": "Laaj bu bees",
           "body": "Ñu def na laaj {reference} ngir {property}."
+        },
+        "recorded_on_behalf": {
+          "title": "Demande enregistrée en votre nom",
+          "body": "L'agence a enregistré la demande {reference} en votre nom pour {property}. Vous pouvez l'annuler depuis vos réservations."
         }
       },
       "account": {
@@ -13259,6 +13609,10 @@
         "reminder": {
           "title": "Fàttali : woote bu {agency}",
           "body": "Sa woote ngir bokk ci {agency} ngi lay xaar."
+        },
+        "renewal_requested": {
+          "title": "Nouveau lien demandé : {invitee}",
+          "body": "{invitee} demande un nouveau lien : son invitation en tant que {role} a expiré. Renvoyez-la : {url}"
         }
       },
       "visit": {
@@ -13481,6 +13835,14 @@
         "schedule_changed": {
           "title": "Passage prévu : « {request} »",
           "body": "Le passage pour l'intervention « {request} » est prévu le {scheduled_at}."
+        },
+        "urgent_created": {
+          "title": "Urgent : {title}",
+          "body": "L’intervention urgente « {title} » attend votre prise en charge."
+        },
+        "urgent_escalated": {
+          "title": "Escalade urgente : {title}",
+          "body": "L’intervention urgente « {title} » n’a toujours pas été prise en charge."
         }
       },
       "maintenance_quote": {
@@ -13543,6 +13905,10 @@
         "source_listing_gone": {
           "title": "Votre bien est-il toujours disponible ? {property}",
           "body": "L’annonce d’origine de « {property} » n’est plus en ligne. Ouvrez le bien pour nous dire s’il est loué, vendu ou toujours disponible."
+        },
+        "proposed": {
+          "title": "Bien proposé par un bailleur : {property}",
+          "body": "Un bailleur propose « {property} » à votre agence. Ouvrez-le pour l’examiner."
         }
       },
       "lease": {
@@ -13557,6 +13923,10 @@
         "signature_completed": {
           "title": "Bayle {reference} xaatimu na",
           "body": "Ñaari wàll yi xaatim nañu bayle {reference} bu {property}. Leegi mu ngi dox."
+        },
+        "rent_reviewed_landlord": {
+          "title": "Loyer révisé : {reference}",
+          "body": "Le loyer du bail {reference} pour {property} passe de {old} à {new} à partir du {effective_date}."
         }
       },
       "impersonation": {
@@ -13577,6 +13947,10 @@
         "member_deletion_requested": {
           "title": "Effacement de compte demandé : {member}",
           "body": "{member} a demandé l'effacement de son compte, effectif le {scheduled_for}. Son portefeuille dans l'agence : {tasks, plural, one {# tâche} other {# tâches}}, {visits, plural, one {# visite} other {# visites}}, {maintenance, plural, one {# intervention} other {# interventions}}, {responsible_properties, plural, one {# bien dont il est l'agent principal} other {# biens dont il est l'agent principal}}, {held_properties, plural, one {# bien saisi} other {# biens saisis}}, {collaborations, plural, one {# collaboration} other {# collaborations}}, {customers, plural, one {# client suivi} other {# clients suivis}}, {contact_leads, plural, one {# demande de contact non traitée} other {# demandes de contact non traitées}}. Passez-le à un collègue avant cette date depuis l'équipe : {url}"
+        },
+        "upgrade_requested": {
+          "title": "Nouvelle demande d’upgrade d’agence : {agency}",
+          "body": "L’agence {agency} demande à passer en mode professionnel. Examinez la demande."
         }
       },
       "platform_operator": {
@@ -13661,6 +14035,18 @@
         "report_dismissed": {
           "title": "Signalement bi saytu nañu ko : {property}",
           "body": "Saytu nañu sa signalement ci yégle « {property} », waaye nanguñu ko."
+        }
+      },
+      "commission": {
+        "paid": {
+          "title": "{count, plural, one {Commission payée} other {# commissions payées}}",
+          "body": "{count, plural, one {Votre commission de {amount} vous a été payée.} other {# de vos commissions vous ont été payées, pour un total de {amount}.}}"
+        }
+      },
+      "boost": {
+        "ended": {
+          "title": "Mise en avant terminée",
+          "body": "La mise en avant de « {property} » est terminée."
         }
       }
     },
@@ -14186,5 +14572,192 @@
       "hebdoFaitTitre": "Une fois par semaine, c’est noté",
       "hebdoFaitTexte": "Vous recevrez au plus un message par semaine. Chacun garde son lien de désinscription."
     }
+  },
+  "saisieDemande": {
+    "titre": "Saisir une demande",
+    "entree": "Saisir une candidature ou une offre",
+    "entreeCourte": "Saisir une demande",
+    "entreeCandidature": "Saisir sa candidature",
+    "entreeOffre": "Saisir son offre",
+    "client": {
+      "libelle": "Client",
+      "changer": "Changer",
+      "changerLibelle": "Changer de client",
+      "rechercher": "Rechercher un client",
+      "placeholder": "Nom ou téléphone",
+      "aucun": "Aucun client ne correspond.",
+      "depuisLaVisite": "Repris de sa visite"
+    },
+    "bien": {
+      "libelle": "Bien",
+      "changerLibelle": "Changer de bien",
+      "rechercher": "Rechercher un bien",
+      "placeholder": "Titre ou quartier",
+      "aucun": "Aucun bien ne correspond.",
+      "aLouer": "À louer",
+      "aVendre": "À vendre",
+      "chargement": "Chargement du bien…",
+      "parMois": "{prix}/mois",
+      "parAn": "{prix}/an"
+    },
+    "recherche": {
+      "enCours": "Recherche…",
+      "erreur": "La recherche n’a pas abouti. Réessayez."
+    },
+    "nature": {
+      "libelle": "Nature",
+      "candidature": "Candidature",
+      "offre": "Offre d’achat",
+      "raisonLocation": "Ce bien est à louer : la demande est une candidature.",
+      "raisonVente": "Ce bien est à vendre : la demande est une offre d’achat.",
+      "raisonSejour": "Ce bien se loue à la nuit : un séjour se réserve depuis son calendrier, pas ici.",
+      "choisirLeBien": "Choisissez d’abord le bien : il décide de la nature."
+    },
+    "montant": {
+      "loyer": "Loyer proposé",
+      "offre": "Montant offert",
+      "uniteMois": "F/mois",
+      "uniteAn": "F/an",
+      "unite": "F",
+      "ecart": "{ecart} par rapport au prix affiché ({prix})",
+      "prixAffiche": "Prix affiché : {prix}"
+    },
+    "dateEntree": "Date d’entrée",
+    "validite": "Valable jusqu’au",
+    "facultatif": "Facultatif",
+    "message": "Message",
+    "messagePlaceholder": "Ce que le client vous a dit",
+    "prevenu": "Le client sera prévenu et pourra annuler.",
+    "enregistrerCandidature": "Enregistrer la candidature",
+    "enregistrerOffre": "Enregistrer l’offre",
+    "enregistrer": "Enregistrer",
+    "enregistrement": "Enregistrement…",
+    "succes": {
+      "candidature": "Candidature enregistrée",
+      "offre": "Offre enregistrée",
+      "description": "Le client en est prévenu."
+    },
+    "erreur": "La demande n’a pas pu être enregistrée. Réessayez.",
+    "requis": {
+      "client": "Choisissez le client.",
+      "bien": "Choisissez le bien.",
+      "montant": "Indiquez le montant.",
+      "dateEntree": "Indiquez la date d’entrée."
+    },
+    "codes": {
+      "booking": {
+        "customer_required": "Choisissez le client : une demande saisie par l’agence est toujours à son nom.",
+        "kind_mismatch": "Cette nature ne correspond pas au bien : une candidature vise une location, une offre un bien à vendre."
+      }
+    }
+  },
+  "compteRendu": {
+    "titre": "Compte rendu",
+    "sousTitre": "Visite de {debut} · terminée à {fin}",
+    "sousTitreSansFin": "Visite de {debut}",
+    "duree": "30 s",
+    "dureeLongue": "30 secondes",
+    "avec": "avec {nom}",
+    "rang": "{n, plural, =1 {1ʳᵉ visite} other {#ᵉ visite}}",
+    "question": "Comment s’est passée la visite ?",
+    "verdicts": {
+      "interested": "Intéressé",
+      "thinking": "À réfléchir",
+      "not_interested": "Pas intéressé"
+    },
+    "verdictRequis": "Choisissez comment s’est passée la visite.",
+    "objectionsLibelle": "Ce qui a pesé",
+    "facultatif": "facultatif",
+    "objections": {
+      "price": "Prix",
+      "neighborhood": "Quartier",
+      "size": "Taille",
+      "condition": "État",
+      "availability": "Disponibilité",
+      "guarantor": "Garant"
+    },
+    "note": "Une note",
+    "notePlaceholder": "Ce que le client a dit, ce qu’il faut retenir…",
+    "interne": "Interne à l’agence. Le compte rendu rejoint la fiche de {prenom} ; lui ne le voit pas, et garde son propre avis (1 à 5).",
+    "interneSansFiche": "Interne à l’agence. Le visiteur ne voit pas le compte rendu, et garde son propre avis (1 à 5).",
+    "interneCourt": "Interne à l’agence",
+    "enregistrer": "Enregistrer",
+    "enregistrement": "Enregistrement…",
+    "succes": "Compte rendu enregistré",
+    "faire": "Faire le compte rendu",
+    "faireDetail": "Trois touches, puis la suite avec le client",
+    "codes": {
+      "visit": {
+        "report_exists": "Un compte rendu existe déjà pour cette visite. Rouvrez-la pour le modifier.",
+        "report_not_closable": "Cette visite ne peut pas encore recevoir de compte rendu : elle n’a pas eu lieu.",
+        "report_missing": "Aucun compte rendu à modifier pour cette visite."
+      }
+    }
+  },
+  "etMaintenant": {
+    "titre": "Et maintenant ?",
+    "sousTitre": "La suite avec {prenom}",
+    "passer": "Passer",
+    "apresEnregistrement": "après l’enregistrement",
+    "visiteur": "le visiteur",
+    "conseille": "Conseillé",
+    "sansTelephone": "Aucun numéro joignable pour l’inviter",
+    "horsLigne": "Ce bien n’est pas en ligne : le lien ne s’ouvrirait pas",
+    "ficheRequise": "Créez d’abord sa fiche",
+    "envoyerWhatsApp": "Envoyer par WhatsApp",
+    "message": {
+      "candidature": "Bonjour {prenom}, voici le lien pour déposer votre candidature pour {bien} : {lien}",
+      "offre": "Bonjour {prenom}, voici le lien pour faire votre offre sur {bien} : {lien}"
+    },
+    "suites": {
+      "invite_apply": {
+        "titre": "Inviter à candidater",
+        "detail": "Il candidate depuis son téléphone"
+      },
+      "invite_offer": {
+        "titre": "Inviter à faire une offre",
+        "detail": "Il fait son offre depuis son téléphone"
+      },
+      "record_booking": {
+        "titreCandidature": "Saisir sa candidature maintenant",
+        "titreOffre": "Saisir son offre maintenant",
+        "detailCandidature": "Il est devant vous : loyer, entrée",
+        "detailOffre": "Il est devant vous : montant de l’offre"
+      },
+      "second_visit": {
+        "titre": "Planifier une 2ᵉ visite",
+        "detail": "Le bien et le client, déjà remplis"
+      },
+      "propose_properties": {
+        "titre": "Proposer d’autres biens",
+        "detail": "{n, plural, =0 {Aucun bien ne correspond à sa recherche} one {# bien correspond à sa recherche} other {# biens correspondent à sa recherche}}",
+        "chargement": "Les biens qui correspondent à sa recherche"
+      },
+      "remind": {
+        "titre": "Relancer dans {jours, plural, one {# jour} other {# jours}}",
+        "detail": "Tâche {date} · délai modifiable",
+        "prevue": "Relance prévue {date}",
+        "delai": "Dans combien de jours",
+        "jours": "{jours, plural, one {# jour} other {# jours}}",
+        "creer": "Créer la relance",
+        "tacheTitre": "Relancer {nom} après la visite",
+        "tacheDescription": "Visite de {bien}"
+      },
+      "create_lease": {
+        "titre": "Créer le bail",
+        "actif": "Sa candidature est acceptée",
+        "inactif": "Dès qu’une candidature est acceptée"
+      }
+    },
+    "enregistre": "Enregistré à {heure}",
+    "enregistreFiche": "Enregistré dans la fiche à {heure}",
+    "modifier": "Modifier",
+    "qualifier": "Passer en « Qualifié »",
+    "aujourdhui": "{etape} → Qualifié",
+    "etapeAppliquee": "{prenom} passe en « Qualifié »",
+    "terminer": "Terminer",
+    "fil": "Chaque choix s’écrit dans le fil de la fiche.",
+    "sansFiche": "{nom} n’a pas encore de fiche client.",
+    "creerFiche": "Créer sa fiche"
   }
 }

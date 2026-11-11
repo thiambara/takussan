@@ -55,17 +55,30 @@ class AgencyUpgradeRequestService
      *  5. Notify every super-admin via
      *     {@see AgencyUpgradeRequestSubmittedNotification} (database+mail).
      *
-     * @param  array{rc:string, ninea:string, rib_pro:string, company_legal_name:string, address_fiscale:string, planned_agents_count?:int|null}  $data
+     * TCK-2669 (ADR-0104 § 5) — `$resubmitOf` : la demande refusée reprise (jugée par la requête).
+     * Chaque champ absent de `$data` en est recopié, le NINEA et le RIB compris : ils ne quittent
+     * jamais le serveur en clair.
+     *
+     * @param  array{rc?:?string, ninea?:?string, rib_pro?:?string, company_legal_name?:?string, address_fiscale?:?string, planned_agents_count?:int|null}  $data
      */
     public function submit(
         Agency $agency,
         User $submitter,
         array $data,
         ?UploadedFile $statutsDoc,
+        ?AgencyUpgradeRequest $resubmitOf = null,
     ): AgencyUpgradeRequest {
+        if ($resubmitOf !== null) {
+            foreach (['rc', 'ninea', 'rib_pro', 'company_legal_name', 'address_fiscale', 'planned_agents_count'] as $field) {
+                if (($data[$field] ?? null) === null) {
+                    $data[$field] = $resubmitOf->{$field};
+                }
+            }
+        }
+
         $this->assertAgencyIsIndividual($agency);
         $this->assertSubmitterIsAgencyAdmin($submitter, $agency);
-        $request = DB::transaction(function () use ($agency, $submitter, $data, $statutsDoc): AgencyUpgradeRequest {
+        $request = DB::transaction(function () use ($agency, $submitter, $data, $statutsDoc, $resubmitOf): AgencyUpgradeRequest {
             // TCK-1492 (P92.07) — l'agence verrouillée avant de chercher une demande en cours : hors
             // de la transaction, deux envois simultanés passaient le contrôle, et le second heurtait
             // `agency_upgrade_requests_one_pending_per_agency` en 500 au lieu du 422 écrit.
@@ -85,6 +98,7 @@ class AgencyUpgradeRequestService
                     : null,
                 'status' => AgencyUpgradeRequestStatus::Pending->value,
                 'submitted_at' => now(),
+                'resubmit_of_id' => $resubmitOf?->id,
             ]);
 
             if ($statutsDoc instanceof UploadedFile) {
@@ -110,6 +124,7 @@ class AgencyUpgradeRequestService
                     'agency_id' => $agency->id,
                     'submitted_by' => $submitter->id,
                     'planned_agents_count' => $request->planned_agents_count,
+                    'resubmit_of_id' => $request->resubmit_of_id,
                 ])
                 ->event('agency_upgrade_requested')
                 ->log('agency_upgrade_requested');

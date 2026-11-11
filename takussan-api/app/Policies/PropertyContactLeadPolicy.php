@@ -89,6 +89,25 @@ class PropertyContactLeadPolicy extends BasePolicy
         return $this->view($user, $model);
     }
 
+    /**
+     * TCK-2583 — consigner un geste de contact (appel, WhatsApp, e-mail, SMS) : qui peut lire la
+     * demande peut la contacter. Une autre agence : 403.
+     */
+    public function contact(User $user, Model $model): bool
+    {
+        return $this->view($user, $model);
+    }
+
+    /**
+     * TCK-2583 (ADR-0103 § 7) — les délais de réponse par agent : le personnel qui lit toute la
+     * boîte de son agence (`crm.view_all`). Un agent sans elle ne voit jamais les délais de ses
+     * collègues. Le super-admin passe par `Gate::before` et nomme l'agence.
+     */
+    public function viewResponseStats(User $user): bool
+    {
+        return $this->agencyScopeFor($user) !== null;
+    }
+
     public function assign(User $user, Model $model): bool
     {
         if (! $model instanceof PropertyContactLead || $model->agency_id === null) {

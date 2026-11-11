@@ -49,7 +49,7 @@ export default async function OwnerOnboardingPage({
   }
 
   return (
-    <OnboardingShell title={t('pageTitle')} subtitle={t('pageSubtitle')}>
+    <OnboardingShell title={t('pageTitle')} subtitle={t('pageSubtitle')} brouillon>
       <OwnerOnboardingWizard ownerProfileId={owner.numeric_id} />
     </OnboardingShell>
   );

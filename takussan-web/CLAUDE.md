@@ -167,6 +167,13 @@ seulement **29 des 111 pages** : l'essentiel des pages est RSC et délègue à d
 `--foreground #1f1812`, `--primary #a85332`, `--accent #5d6e4f`, `--border #ebe5d5`. Échelle de rayons
 calculée depuis `--radius 0.625rem`. Dark mode par classe `.dark`.
 
+**La racine vaut 16 px à toute largeur** : la densité ×0,9 du bureau passe par les jetons dès `lg`
+(`--spacing`, `--text-*`, `--radius`, `--container-*`), plus par `html { font-size: 90% }`
+([ADR-0107](../docs/adr/0107-la-densite-du-bureau-est-un-jeu-de-jetons.md), TCK-2692). Une valeur arbitraire
+s'écrit donc sur l'échelle (`calc(var(--spacing)*K)`), une taille fixe en `rem` calculés (jamais en
+px), et un seuil de requête de conteneur en `rem` de chaque côté de `lg`. Détail :
+`docs/design-guidelines.md`, « La densité du bureau ».
+
 Les primitives sont **shadcn style `base-nova` sur `@base-ui/react`** — **aucune dépendance Radix**
 dans ce projet (`components.json`, et `grep radix package.json` → 0). 20 composants dans
 `src/components/ui/`, variantes via `class-variance-authority`, fusion par `cn()` = `twMerge(clsx())`.
@@ -179,9 +186,12 @@ dans ce projet (`components.json`, et `grep radix package.json` → 0). 20 compo
 documenté (`src/components/charts/README.md`).
 
 **Responsive — `md` n'est pas « bureau » dans une coque à barre latérale.** `md:` (768 px) est le
-seuil où `/app` et `/super-admin` montrent la barre latérale de 256 px : un composant qui
-passe « en colonnes dès `md` » dispose de 768 − 256 − 48 = **464 px**, pas de 768. Mesuré le
-2026-09-02 sur 135 écrans : 55 pages faisaient défiler le document à 768, **aucune** à 360, 390 ou
+seuil où `/app` montre sa colonne : un **rail de 60 px** de 768 à 1023 px (TCK-2480), la colonne de
+**272 px** dès `lg` (TCK-2490). Largeur utile mesurée sur `/app/leases` le 2026-11-11 (TCK-2691, marge
+de 24 px puis `px-8` dès `lg`) : **660 px à 768** (768 − 60 − 48), **694 à 1024** (1024 − 272 − 57,6),
+1110 à 1440. Le passage de `lg` est la largeur la plus défavorable : la largeur utile y tombe de près de
+900 à 694 px au moment où `lg:` pose les colonnes. La barre de `/super-admin` (`w-64`) est à re-mesurer
+avant d'être citée. Mesuré le 2026-09-02 sur 135 écrans : 55 pages faisaient défiler le document à 768, **aucune** à 360, 390 ou
 1366 (TCK-505, `docs/qa/responsive-2026-09-02.md`). La règle : dans ces coques, ce qui se pose en
 colonnes se pose **dès `lg`** (`sm:grid-cols-2 lg:grid-cols-4`), une table large défile dans son
 conteneur (`overflow-x-auto`, jamais `overflow-hidden`), et une barre du haut cache ce qui n'a pas

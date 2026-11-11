@@ -30,11 +30,18 @@ class MessageTypeSpoofingTest extends TestCase
 
         Sanctum::actingAs($member);
 
-        foreach ([MessageType::System, MessageType::Image, MessageType::Document] as $type) {
+        $this->postJson("/api/conversations/{$conversation->id}/messages", [
+            'content' => 'Avis officiel de la plateforme',
+            'type' => MessageType::System->value,
+        ])->assertUnprocessable()->assertJsonValidationErrors('type');
+
+        // TCK-2631 (ADR-0038, amendement du 2026-11-10) — `image` et `document` sont désormais des
+        // types de participant, mais jamais sans leur fichier : refusés sur `file`, pas sur `type`.
+        foreach ([MessageType::Image, MessageType::Document] as $type) {
             $this->postJson("/api/conversations/{$conversation->id}/messages", [
                 'content' => 'Avis officiel de la plateforme',
                 'type' => $type->value,
-            ])->assertUnprocessable()->assertJsonValidationErrors('type');
+            ])->assertUnprocessable()->assertJsonValidationErrors('file')->assertJsonMissingValidationErrors('type');
         }
 
         $this->assertSame(0, Message::query()->where('conversation_id', $conversation->id)->count());

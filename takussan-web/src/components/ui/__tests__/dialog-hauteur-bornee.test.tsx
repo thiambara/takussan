@@ -50,7 +50,7 @@ describe('DialogContent — hauteur bornée à l’écran', () => {
     expect(popup).not.toBeNull();
 
     const css = await cssCompile(popup!.className.split(/\s+/));
-    expect(css, 'aucune hauteur maximale compilée').toMatch(/max-height\s*:\s*calc\(100dvh - 2rem\)/);
+    expect(css, 'aucune hauteur maximale compilée').toMatch(/max-height\s*:\s*calc\(100dvh - var\(--spacing\) \* 8\)/);
     expect(css, 'aucun défilement vertical compilé').toMatch(/overflow-y\s*:\s*auto/);
   });
 });

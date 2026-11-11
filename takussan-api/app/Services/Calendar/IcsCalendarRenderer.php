@@ -7,10 +7,11 @@ use Illuminate\Support\Carbon;
 /**
  * TCK-591 (ADR-0034) — rend des événements d'agenda en iCalendar (RFC 5545).
  *
- * Ce qui sort : un `UID` stable par événement, l'horaire, un résumé « type — bien », le statut et un
- * lien vers la console. Ce qui ne sort jamais : nom, téléphone ou e-mail d'un tiers (visiteur,
- * locataire, client, prestataire) — les événements que le collecteur produit n'en portent pas, et ce
- * rendu n'en ajoute aucun.
+ * Ce qui sort : un `UID` stable par événement, l'horaire, un résumé « type — bien », le statut, un
+ * lien vers la console et, pour une visite servie au personnel, son lieu (`LOCATION`, TCK-2585). Ce
+ * qui ne sort jamais : nom, téléphone ou e-mail d'un tiers (visiteur, locataire, client,
+ * prestataire) — le collecteur sert `visitor_name` à la console du personnel (TCK-2585), ce rendu
+ * ne l'écrit pas.
  *
  * Le texte du résumé est rendu dans la langue du titulaire du lien : le flux est une surface de
  * rendu, comme un PDF ou un e-mail, pas une réponse d'API consommée par le front.
@@ -64,6 +65,15 @@ class IcsCalendarRenderer
             }
 
             $lines[] = 'SUMMARY:'.$this->escape($summary);
+            // TCK-2585 — le lieu d'une visite, quand le collecteur l'a servi (personnel de l'agence
+            // du bien) : la rue et le quartier. Le nom du visiteur, servi à côté, ne sort pas ici.
+            $location = implode(', ', array_filter([
+                isset($event['address_line']) ? trim((string) $event['address_line']) : '',
+                isset($event['neighborhood']) ? trim((string) $event['neighborhood']) : '',
+            ], fn (string $part) => $part !== ''));
+            if ($location !== '') {
+                $lines[] = 'LOCATION:'.$this->escape($location);
+            }
             if (! empty($event['resource_url'])) {
                 $lines[] = 'URL:'.$this->escape($front.$event['resource_url']);
             }

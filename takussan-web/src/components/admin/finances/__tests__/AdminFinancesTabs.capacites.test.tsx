@@ -5,32 +5,50 @@
  * La page passe `canEmit` à tout admin d'agence ; un rôle personnalisé peut pourtant ne porter
  * qu'une des deux capacités, et l'API refuserait l'autre (`InvoicePolicy::create`,
  * `PayoutPolicy::create`). Ces tests gardent l'accord entre bouton et serveur, pas une sécurité.
+ *
+ * TCK-2659 — les gestes ont quitté la barre d'onglets pour l'en-tête de page (`useGestesDeLArgent`,
+ * monté une fois par `AdminFinancesClient`) : le test rend la PAGE au bureau, ses lectures de
+ * données simulées, et garde les mêmes accords.
  */
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { withIntl } from '@/test/intl';
+import { AdminFinancesClient } from '@/app/(dashboard)/app/agency/finances/AdminFinancesClient';
 import { useCan } from '@/hooks/useCan';
 import fr from '@/messages/fr.json';
-import { AdminFinancesTabs } from '../AdminFinancesTabs';
+import { withIntl } from '@/test/intl';
 
 vi.mock('@/hooks/useCan', () => ({ useCan: vi.fn() }));
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn(), prefetch: vi.fn() }),
+  usePathname: () => '/app/agency/finances',
   useSearchParams: () => new URLSearchParams(''),
 }));
 
-// Les tables et les dialogues ont leurs propres tests ; ils tireraient ici leurs requêtes.
-vi.mock('@/components/payments/PaymentsHistoryFilters', () => ({ PaymentsHistoryFilters: () => null }));
-vi.mock('@/components/payments/PaymentsHistoryTable', () => ({ PaymentsHistoryTable: () => null }));
+// Les lectures de la page : la synthèse et les encaissements. Les tables, les dialogues et le point
+// du mois ont leurs propres tests ; ils tireraient ici leurs requêtes.
+vi.mock('@/lib/queries/agency-reporting', () => ({
+  useFinanceSummary: () => ({ data: undefined, isLoading: false, error: null }),
+}));
+vi.mock('@/lib/queries/payments', () => ({ usePaymentsHistory: () => ({ data: undefined }) }));
+vi.mock('@/components/admin/finances/argent/PointDuMois', () => ({
+  TuilesDuMois: () => null,
+  AFaireEtDerniers: () => null,
+  PointDuMoisTelephone: () => null,
+  lienDOnglet: () => '/app/agency/finances',
+}));
+vi.mock('@/components/admin/finances/argent/EncaissementsAgence', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/components/admin/finances/argent/EncaissementsAgence')>()),
+  EncaissementsAgence: () => null,
+}));
 vi.mock('@/components/payments/InvoicesTable', () => ({ InvoicesTable: () => null }));
 vi.mock('@/components/payments/PayoutsTable', () => ({ PayoutsTable: () => null }));
 vi.mock('@/components/payments/CreateInvoiceDialog', () => ({ CreateInvoiceDialog: () => null }));
 vi.mock('@/components/payments/CreatePayoutDialog', () => ({ CreatePayoutDialog: () => null }));
 vi.mock('@/components/payments/InvoiceDetailDialog', () => ({ InvoiceDetailDialog: () => null }));
 vi.mock('@/components/payments/PayoutDetailDialog', () => ({ PayoutDetailDialog: () => null }));
-vi.mock('../OverduePaymentsTable', () => ({ OverduePaymentsTable: () => null }));
+vi.mock('@/components/admin/finances/OverduePaymentsTable', () => ({ OverduePaymentsTable: () => null }));
 
 const FACTURER = fr.admin.finances.tabs.newInvoice;
 const REVERSER = fr.admin.finances.tabs.newPayout;
@@ -43,20 +61,20 @@ function accorder(accordees: readonly string[], isLoading = false) {
 }
 
 function rendre(canEmit = true) {
-  return render(withIntl(<AdminFinancesTabs canEmit={canEmit} />));
+  return render(withIntl(<AdminFinancesClient canViewFinances canEmitFinances={canEmit} agencyId={1} />));
 }
 
-describe('AdminFinancesTabs — boutons de création gardés par capacité (TCK-528)', () => {
+describe('Argent — boutons de création gardés par capacité (TCK-528)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('lit exactement invoices.create, payouts.create et payouts.approve (TCK-594)', () => {
+  it('lit exactement invoices.create, payouts.create et payouts.approve (TCK-594), plus payments.export pour l’export', () => {
     accorder([]);
     rendre();
 
     const lues = vi.mocked(useCan).mock.calls.map(([capability]) => capability);
-    expect(new Set(lues)).toEqual(new Set(['invoices.create', 'payouts.create', 'payouts.approve']));
+    expect(new Set(lues)).toEqual(new Set(['invoices.create', 'payouts.create', 'payouts.approve', 'payments.export']));
   });
 
   it('ne montre la file « À approuver » qu’à qui tient payouts.approve (TCK-594)', () => {

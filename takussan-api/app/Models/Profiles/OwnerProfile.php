@@ -10,12 +10,18 @@ use App\Models\Enums\IdType;
 use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Invitation;
 use App\Models\User;
+use App\Services\Owners\OwnerDirectory;
+use App\Sorts\OwnerNameSort;
+use App\Sorts\OwnerRemainingToPaySort;
+use App\Support\Http\ParametreUnique;
 use Database\Factories\Profiles\OwnerProfileFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\AllowedSort;
 
 class OwnerProfile extends AbstractModel
 {
@@ -75,7 +81,10 @@ class OwnerProfile extends AbstractModel
 
     // TCK-601 — une colonne chiffrée n'est plus cherchable : l'IV aléatoire interdit jusqu'à
     // l'égalité stricte (ADR-0044 §1, pas d'empreinte HMAC).
-    protected static array $requestSearchFields = ['employer'];
+    // TCK-2640 — `filter[search]` ne passe plus par le repli SQL de `HasQueryBuilder` (l'employeur
+    // seul) : il cherche aussi le nom, le téléphone et l'e-mail, sans accents
+    // ({@see self::customQueryFilters()}, {@see OwnerDirectory::search()}). L'employeur y reste.
+    protected static array $requestSearchFields = [];
 
     protected static array $queryFields = [
         'id', 'user_id', 'agency_id', 'agency_role_id', 'status',
@@ -83,7 +92,63 @@ class OwnerProfile extends AbstractModel
         'id_document_type',
         'employer', 'guarantor_user_id',
         'metadata', 'created_at', 'updated_at',
+        // TCK-2640 — le plafond de travaux se lit par `fields[owner_profiles]=…` (ADR-0037).
+        'works_approval_threshold',
     ];
+
+    /**
+     * TCK-2640 — la recherche du carnet (nom, téléphone, e-mail, sans casse ni accents) et
+     * `filter[has_remaining]=1|0` (un reste à verser du mois courant, positif ou non).
+     *
+     * @return array<int, AllowedFilter>
+     */
+    protected static function customQueryFilters(): array
+    {
+        return [
+            AllowedFilter::callback('search', function (Builder $query, mixed $value): void {
+                // P216.05 (ADR-0075) — `filter[search][]=…` vaut une recherche absente.
+                $term = trim(ParametreUnique::valeur($value) ?? '');
+                if ($term !== '') {
+                    app(OwnerDirectory::class)->search($query, $term);
+                }
+            })->delimiter(''),
+            AllowedFilter::callback('has_remaining', function (Builder $query, mixed $value): void {
+                // `filter_var(null, …)` rend `false` : une liste (valeur absente) se lit AVANT.
+                $raw = ParametreUnique::valeur($value);
+                $wanted = $raw === null ? null : filter_var($raw, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+                if ($wanted === null) {
+                    return;
+                }
+                // Vérification adverse de TCK-2640 — hors lecteur du relevé, le reste vaut `null`
+                // pour chaque ligne : `=1` ne rend rien, `=0` ne retire rien.
+                if (! OwnerDirectory::readsMoney(request()->user())) {
+                    if ($wanted) {
+                        $query->whereRaw('1 = 0');
+                    }
+
+                    return;
+                }
+                $remaining = app(OwnerDirectory::class)->remainingToPayIn($query);
+                $query->whereIn('owner_profiles.id', array_keys(array_filter(
+                    $remaining,
+                    fn (?float $amount) => $wanted ? $amount !== null && $amount > 0 : $amount === null || $amount <= 0,
+                )));
+            }),
+        ];
+    }
+
+    /**
+     * TCK-2640 — `sort=name` (le nom affiché) et `sort=-remaining_to_pay` (le reste à verser du mois).
+     *
+     * @return array<int, AllowedSort>
+     */
+    protected static function customQuerySorts(): array
+    {
+        return [
+            AllowedSort::custom('name', new OwnerNameSort),
+            AllowedSort::custom('remaining_to_pay', new OwnerRemainingToPaySort),
+        ];
+    }
 
     public function user(): BelongsTo
     {

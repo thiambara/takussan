@@ -196,7 +196,7 @@ class PropertySeeder extends Seeder
                     $agency, $ownerId, $title, $description, $type, $contract, $status, $price, $area,
                     $bedrooms, $createdAt, $condition, $yearBuilt, $coutDEntree
                 ) {
-                    return Property::create($coutDEntree + [
+                    return Property::create(Property::avecPeriodeParDefaut($coutDEntree + [
                         'user_id' => $ownerId,
                         'agency_id' => $agency->id,
                         'reference_number' => 'PR-'.strtoupper(Tirage::code(8)),
@@ -230,7 +230,7 @@ class PropertySeeder extends Seeder
                             : $createdAt,
                         'created_at' => $createdAt,
                         'updated_at' => $createdAt,
-                    ]);
+                    ]));
                 });
 
                 // TCK-789 (P17.04) — autour du centre de la ville ; le cadre ne sert que sans référentiel.

@@ -268,7 +268,7 @@ function LoadingState({ count }: { count: number }) {
   const placeLibre = count < COMPARE_MAX_IDS;
   const style = {
     '--colonnes-mobile': `repeat(${Math.max(count, 1)}, minmax(0, 1fr))`,
-    '--colonnes-bureau': `minmax(8rem, 13rem) repeat(${count + (placeLibre ? 1 : 0)}, minmax(0, 1fr))`,
+    '--colonnes-bureau': `minmax(calc(var(--spacing) * 32), calc(var(--spacing) * 52)) repeat(${count + (placeLibre ? 1 : 0)}, minmax(0, 1fr))`,
   } as React.CSSProperties;
   const grille = 'grid grid-cols-(--colonnes-mobile) gap-x-2 md:grid-cols-(--colonnes-bureau) md:gap-x-6';
   return (

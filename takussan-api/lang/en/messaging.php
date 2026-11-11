@@ -27,8 +27,19 @@ return [
     // TCK-576, reprise (2026-09-24) — le nom du champ dans un 422, jamais « filter.property id ».
     'attributes' => [
         'property_filter' => 'property',
+        // TCK-2630 — les filtres de la liste des conversations.
+        'filters' => 'filters',
+        'search_filter' => 'search',
+        'unread_filter' => 'unread',
+        'type_filter' => 'conversation type',
+        // TCK-2631 — la pièce jointe d'un message (photo ou PDF).
+        'file' => 'attachment',
     ],
 
     // TCK-592 — ADR-0038 : aperçu d'une note vocale dans la liste des conversations.
     'audio_preview' => 'Voice note',
+
+    // TCK-2631 — ADR-0038, amendement du 2026-11-10 : aperçu neutre d'une photo et d'un PDF, jamais le nom du fichier.
+    'image_preview' => 'Photo',
+    'document_preview' => 'Document',
 ];

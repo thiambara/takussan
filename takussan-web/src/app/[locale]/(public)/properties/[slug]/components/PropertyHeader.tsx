@@ -33,7 +33,7 @@ export function PropertyHeader({ property, onToggleFavorite, onShare, isFavorite
           {/* TCK-2501 — le prix d'abord, sous `lg` : la carte de réservation le porte en bureau. */}
           <PropertyPrice
             property={property}
-            className="lg:hidden text-[28px] leading-none tracking-tight"
+            className="lg:hidden text-[1.75rem] leading-none tracking-tight"
             periodeClassName="text-base tracking-normal"
           />
           <h1 className="font-display text-2xl md:text-3xl font-semibold tracking-tight text-foreground leading-tight text-balance">

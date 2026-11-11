@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\Api\ContactGestureController;
 use App\Http\Controllers\Api\CustomerController;
+use App\Http\Controllers\Api\CustomerDuplicateProbeController;
 use App\Http\Controllers\Api\CustomerInvitationController;
 use App\Http\Controllers\Api\CustomerNoteController;
 use App\Http\Controllers\Api\CustomerTagController;
@@ -9,6 +11,10 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('customers', [CustomerController::class, 'index'])->name('customers.index');
     Route::get('customers/pipeline-stats', [CustomerController::class, 'pipelineStats'])->name('customers.pipeline-stats');
+    // TCK-2588 — la sonde de doublon pendant la saisie. Littérale : avant `customers/{customer}`.
+    Route::get('customers/duplicates', CustomerDuplicateProbeController::class)
+        ->middleware('throttle:20,1,customer_duplicate_probe')
+        ->name('customers.duplicates');
     Route::post('customers', [CustomerController::class, 'store'])->name('customers.store');
     Route::get('customers/{customer}', [CustomerController::class, 'show'])->name('customers.show');
     // TCK-955 (ADR-0070 § 5) — le numéro de pièce en clair : admin de l'agence du client, sous
@@ -22,12 +28,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('customers/{customer}/relationships', [CustomerController::class, 'relationships'])->name('customers.relationships.index');
     Route::post('customers/{customer}/primary-contact', [CustomerController::class, 'setPrimaryContact'])->name('customers.primary-contact');
     Route::patch('customers/{customer}/pipeline-stage', [CustomerController::class, 'updatePipelineStage'])->name('customers.pipeline-stage');
+    // TCK-2591 — « Plus tard » sur l'étape proposée : 204, journalisé ; l'étape ne bouge pas.
+    Route::post('customers/{customer}/suggested-stage/dismiss', [CustomerController::class, 'dismissSuggestedStage'])->name('customers.suggested-stage.dismiss');
     // P15.01 (TCK-2351) — inviter le client de la fiche à créer son compte (lien à usage unique).
     Route::post('customers/{customer}/invite', CustomerInvitationController::class)
         ->middleware('throttle:invitations-send')
         ->name('customers.invite');
     // TCK-591 — le journal de la fiche (client, notes, tâches), autorisé par la lecture du client.
     Route::get('customers/{customer}/activity', [CustomerController::class, 'activity'])->name('customers.activity');
+    // TCK-2583 — un geste de contact sur la fiche (WhatsApp, appel, e-mail, SMS) : 204.
+    Route::post('customers/{customer}/contacts', [ContactGestureController::class, 'forCustomer'])->name('customers.contacts.store');
 
     // Customer notes
     Route::get('customers/{customer}/notes', [CustomerNoteController::class, 'index'])->name('customer-notes.index');

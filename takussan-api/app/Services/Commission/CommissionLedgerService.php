@@ -2,17 +2,24 @@
 
 namespace App\Services\Commission;
 
+use App\Domain\Notifications\NotificationCode;
+use App\Domain\Notifications\NotificationTarget;
 use App\Models\CommissionEntry;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\CollaboratorRole;
+use App\Models\Enums\CommissionCancelReason;
 use App\Models\Enums\CommissionEntryStatus;
 use App\Models\Enums\CommissionOrigin;
 use App\Models\Enums\Currency;
+use App\Models\Enums\PaymentMethod;
 use App\Models\Lease;
 use App\Models\Profiles\AgentProfile;
 use App\Models\PropertyCollaborator;
 use App\Models\User;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Model\NotificationService;
+use App\Services\Notifications\NotificationRenderer;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -107,29 +114,178 @@ class CommissionLedgerService
         return $rows === [] ? 0 : CommissionEntry::query()->insertOrIgnore($rows);
     }
 
-    /** Marque la ligne versée : seule une ligne `due` change d'état, sous verrou de la ligne. */
-    public function markPaid(CommissionEntry $entry, User $by): CommissionEntry
+    /**
+     * TCK-2661 — les moyens d'un paiement de commission : ceux des décaissements de l'agence
+     * (`features.md` § 1.5), sans chèque ni carte. La référence est exigée hors espèces.
+     */
+    public const PAYMENT_METHODS = [
+        PaymentMethod::Wave, PaymentMethod::OrangeMoney, PaymentMethod::FreeMoney,
+        PaymentMethod::Cash, PaymentMethod::BankTransfer,
+    ];
+
+    /** TCK-2661 — au plus tant de lignes par solde groupé. */
+    public const SETTLE_MAX = 100;
+
+    /**
+     * Marque la ligne versée : seule une ligne `due` change d'état, sous verrou de la ligne.
+     *
+     * TCK-2661 — `$details` : `paid_at` (date `Y-m-d` de Dakar, aujourd'hui à défaut), `payment_method`,
+     * `payment_reference`. Le `FormRequest` les exige ; le service les accepte absents, pour ses
+     * appelants internes (le seeder du grand livre). Le bénéficiaire est avisé par l'appelant du geste
+     * ({@see self::notifyPaid()}), pas ici : un seeder ne fait partir aucune notification.
+     *
+     * @param  array{paid_at?: ?string, payment_method?: ?string, payment_reference?: ?string}  $details
+     */
+    public function markPaid(CommissionEntry $entry, User $by, array $details = []): CommissionEntry
     {
-        return $this->settle($entry, ['status' => CommissionEntryStatus::Paid, 'paid_at' => now(), 'paid_by_id' => $by->id]);
+        // Sans détails (le seeder ; et le corps vide, transition retirée par TCK-2662) : payée maintenant,
+        // sans contrôle de date — le comportement d'avant TCK-2661.
+        return $this->transition(
+            $entry,
+            $this->paidChanges($by, $details),
+            $details === [] ? null : fn (CommissionEntry $locked) => $this->assertPaidAfterEarned($locked, $details),
+        );
     }
 
-    /** Annule la ligne (résiliation, erreur de ventilation) : même règle que {@see self::markPaid()}. */
-    public function cancel(CommissionEntry $entry, User $by): CommissionEntry
+    /**
+     * Annule la ligne (résiliation, erreur de ventilation) : même règle que {@see self::markPaid()}.
+     *
+     * TCK-2661 — `$reason` : `reason_code` ({@see CommissionCancelReason}) et `reason` (texte libre,
+     * exigé pour `other`), lisibles du bénéficiaire sur sa ligne.
+     *
+     * @param  array{reason_code?: ?string, reason?: ?string}  $reason
+     */
+    public function cancel(CommissionEntry $entry, User $by, array $reason = []): CommissionEntry
     {
-        return $this->settle($entry, ['status' => CommissionEntryStatus::Cancelled, 'cancelled_at' => now(), 'cancelled_by_id' => $by->id]);
+        return $this->transition($entry, [
+            'status' => CommissionEntryStatus::Cancelled,
+            'cancelled_at' => now(),
+            'cancelled_by_id' => $by->id,
+            'cancel_reason_code' => $reason['reason_code'] ?? null,
+            'cancel_reason' => self::blankToNull($reason['reason'] ?? null),
+        ]);
+    }
+
+    /**
+     * TCK-2661 — solde en une fois des lignes d'UN bénéficiaire, dans UNE agence : toutes ou aucune.
+     *
+     * Les lignes sont lues sous verrou, par id croissant (deux soldes concurrents se sérialisent sans
+     * s'interbloquer). Une ligne introuvable, d'une autre agence ou d'un autre bénéficiaire rend une
+     * seule 422 `commission.settle_mismatch`, sans dire laquelle ; une ligne non due, 422
+     * `commission.not_due` ; une date de paiement antérieure au jour où une ligne est née, 422
+     * `commission.paid_before_earned`. Tout est jugé AVANT la première écriture. L'appelant avise
+     * le bénéficiaire une seule fois, pour le total ({@see self::notifyPaid()}).
+     *
+     * @param  list<int>  $entryIds
+     * @param  array{paid_at?: ?string, payment_method?: ?string, payment_reference?: ?string}  $details
+     * @param  ?int  $agencyId  l'agence du profil actif ; nulle (super-admin), les lignes n'en ont qu'une
+     * @return list<CommissionEntry>
+     */
+    public function settle(?int $agencyId, int $beneficiaryId, array $entryIds, User $by, array $details): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $entryIds)));
+
+        return DB::transaction(function () use ($agencyId, $beneficiaryId, $ids, $by, $details): array {
+            $rows = CommissionEntry::query()->whereKey($ids)->orderBy('id')->lockForUpdate()->get();
+            $agency = $agencyId ?? $rows->first()?->agency_id;
+
+            abort_code_if(
+                $ids === []
+                || $rows->count() !== count($ids)
+                || $rows->contains(fn (CommissionEntry $row) => $row->agency_id !== $agency || $row->beneficiary_id !== $beneficiaryId),
+                422,
+                'commission.settle_mismatch',
+            );
+            abort_code_if($rows->contains(fn (CommissionEntry $row) => $row->status !== CommissionEntryStatus::Due), 422, 'commission.not_due');
+            $rows->each(fn (CommissionEntry $row) => $this->assertPaidAfterEarned($row, $details));
+
+            $changes = $this->paidChanges($by, $details);
+            $rows->each(fn (CommissionEntry $row) => $row->update($changes));
+
+            return $rows->all();
+        });
+    }
+
+    /** @return array<string, mixed> */
+    private function paidChanges(User $by, array $details): array
+    {
+        return [
+            'status' => CommissionEntryStatus::Paid,
+            'paid_at' => self::paidAt($details['paid_at'] ?? null),
+            'paid_by_id' => $by->id,
+            'payment_method' => $details['payment_method'] ?? null,
+            'payment_reference' => self::blankToNull($details['payment_reference'] ?? null),
+        ];
+    }
+
+    /**
+     * La date saisie est un jour de Dakar. Aujourd'hui (ou rien) → l'instant du geste ; un jour passé
+     * → le début de ce jour, comme la borne basse d'un filtre de date.
+     */
+    public static function paidAt(?string $date): Carbon
+    {
+        if ($date === null || $date === '' || $date === now(CommissionEntry::DATE_TIMEZONE)->toDateString()) {
+            return now();
+        }
+
+        return CommissionEntry::startOfDakarDay($date);
+    }
+
+    /** Payée avant d'être due ? Jugé au JOUR de Dakar : une ligne née à 10 h se paie le jour même. */
+    private function assertPaidAfterEarned(CommissionEntry $entry, array $details): void
+    {
+        $paidDay = self::paidAt($details['paid_at'] ?? null)->setTimezone(CommissionEntry::DATE_TIMEZONE)->toDateString();
+        $earnedDay = $entry->earned_at?->copy()->setTimezone(CommissionEntry::DATE_TIMEZONE)->toDateString();
+
+        abort_code_if($earnedDay !== null && $paidDay < $earnedDay, 422, 'commission.paid_before_earned');
+    }
+
+    /**
+     * TCK-2661 — UNE notification `commission.paid` au bénéficiaire par geste (une ligne ou un solde
+     * groupé), pour le total, appelée par le contrôleur APRÈS la transaction : un avis ne part jamais
+     * pour un paiement annulé par un rollback. Hors du service des gestes parce que le seeder les
+     * rejoue, et qu'un seeder écrit ses notifications sans les envoyer (`AppNotificationSeeder`).
+     *
+     * @param  list<CommissionEntry>  $entries
+     */
+    public function notifyPaid(array $entries): void
+    {
+        $first = $entries[0] ?? null;
+        $beneficiary = $first !== null ? User::query()->find($first->beneficiary_id) : null;
+        if ($beneficiary === null) {
+            return;
+        }
+
+        $total = array_sum(array_map(fn (CommissionEntry $e) => (float) $e->amount, $entries));
+        app(NotificationService::class)->send(
+            $beneficiary,
+            NotificationCode::CommissionPaid,
+            ['count' => count($entries), 'amount' => NotificationRenderer::money(round($total, 2), $first->currency)],
+            NotificationTarget::of('commissions')->forAgency($first->agency_id),
+        );
+    }
+
+    private static function blankToNull(?string $value): ?string
+    {
+        return $value === null || trim($value) === '' ? null : $value;
     }
 
     /**
      * Le changement d'état passe par le modèle : `Auditable` le journalise sous `CommissionEntry`,
-     * avec l'auteur du geste. Deux gestes simultanés se sérialisent sur la ligne.
+     * avec l'auteur du geste. Deux gestes simultanés se sérialisent sur la ligne. `$guard` juge la
+     * ligne RELUE sous le verrou, avant l'écriture.
      *
      * @param  array<string, mixed>  $changes
+     * @param  (callable(CommissionEntry): void)|null  $guard
      */
-    private function settle(CommissionEntry $entry, array $changes): CommissionEntry
+    private function transition(CommissionEntry $entry, array $changes, ?callable $guard = null): CommissionEntry
     {
-        return DB::transaction(function () use ($entry, $changes): CommissionEntry {
+        return DB::transaction(function () use ($entry, $changes, $guard): CommissionEntry {
             $locked = CommissionEntry::query()->whereKey($entry->getKey())->lockForUpdate()->firstOrFail();
             abort_code_unless($locked->status === CommissionEntryStatus::Due, 422, 'commission.not_due');
+            if ($guard !== null) {
+                $guard($locked);
+            }
             $locked->update($changes);
 
             return $locked;

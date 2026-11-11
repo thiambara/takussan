@@ -87,6 +87,22 @@ class PropertyVisitPolicy extends BasePolicy
     }
 
     /**
+     * TCK-2578 (ADR-0101 § 2) — écrire et lire le compte rendu d'une visite : le super-admin et le
+     * PERSONNEL ACTIF de l'agence du bien — la règle de `StorePropertyVisitRequest::managesProperty`.
+     * Ni le visiteur, ni le client, ni le bailleur hors personnel, ni l'agent parti ; un bien sans
+     * agence n'a pas de CRM d'agence, donc pas de compte rendu.
+     */
+    public function report(User $user, Model $model): bool
+    {
+        if (! $model instanceof PropertyVisit) {
+            return false;
+        }
+
+        return $user->isSuperAdmin()
+            || PersonnelDeLAgence::personnelActifDe($user, $model->property?->agency_id);
+    }
+
+    /**
      * P152.04 — déplacée de `PropertyVisitController` pour que `PropertyVisitResource` la lise.
      *
      * L'appelant agit-il au nom de ceux qui gèrent le bien — et peut-il donc confirmer, clore,

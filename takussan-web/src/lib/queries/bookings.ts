@@ -5,6 +5,7 @@ import type { ApiResponse, PaginatedResponse } from '@/types/api';
 import type { Booking, BookingPayment } from '@/types/booking';
 import type { SpatieQueryParams } from '@/types/api';
 import { cheminApi } from '@/lib/chemin-api';
+import type { CorpsDeLaDemande } from '@/lib/reservations/saisie-de-demande';
 
 /**
  * React Query hooks for the Booking resource.
@@ -90,6 +91,18 @@ export function useCreateBooking() {
   return useApiMutation<ApiResponse<Booking>, CreateBookingPayload>(
     { path: '/api/bookings', method: 'POST' },
     // TCK-1406 (ADR-0072) — renvoyée après une réponse perdue, la réservation n'est créée qu'une fois.
+    { idempotence: true, invalidate: [['bookings', 'list']] },
+  );
+}
+
+/**
+ * TCK-2580 (ADR-0102, TCK-2579) — le personnel saisit une candidature ou une offre au nom d'un
+ * client. Même route que le tunnel, autre corps (`corpsDeLaDemande`) : `CreateBookingPayload` reste
+ * celui du séjour, et le tunnel n'en voit rien.
+ */
+export function useRecordBookingForCustomer() {
+  return useApiMutation<ApiResponse<Booking>, CorpsDeLaDemande>(
+    { path: '/api/bookings', method: 'POST' },
     { idempotence: true, invalidate: [['bookings', 'list']] },
   );
 }

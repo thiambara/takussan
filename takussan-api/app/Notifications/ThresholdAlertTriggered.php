@@ -29,6 +29,14 @@ class ThresholdAlertTriggered extends Notification
     public const EVENT_TYPE = 'threshold_alert';
 
     /**
+     * TCK-2627 — les canaux de l'événement, ceux que {@see self::via()} peut retenir selon les
+     * préférences de chacun. La lecture d'une alerte les rend tels quels.
+     *
+     * @var list<string>
+     */
+    public const CHANNELS = [PreferenceResolver::CHANNEL_INAPP, PreferenceResolver::CHANNEL_EMAIL];
+
+    /**
      * @return list<string>
      */
     public function via(object $notifiable): array

@@ -46,7 +46,7 @@ export function SelectionPartagee() {
         className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-10 lg:pt-10 focus:outline-none"
       >
         <header className="mb-6">
-          <h1 className="font-display text-[28px] font-semibold leading-tight tracking-[-0.03em] text-balance lg:text-[40px]">
+          <h1 className="font-display text-[1.75rem] font-semibold leading-tight tracking-[-0.03em] text-balance lg:text-[2.5rem]">
             {chargement || biens.length === 0 ? t('titreSansCompte') : t('titre', { count: biens.length })}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground lg:text-base">{t('sousTitre')}</p>

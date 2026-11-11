@@ -127,7 +127,7 @@ function SignatureCard({
       >
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-sm font-semibold text-success">{title}</h3>
-          <span className="shrink-0 rounded-full border border-success/30 bg-card px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-success">
+          <span className="shrink-0 rounded-full border border-success/30 bg-card px-2 py-0.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-success">
             {t('signed')}
           </span>
         </div>
@@ -159,7 +159,7 @@ function SignatureCard({
       >
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-sm font-semibold text-muted-foreground">{title}</h3>
-          <span className="shrink-0 rounded-full border border-border bg-card px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <span className="shrink-0 rounded-full border border-border bg-card px-2 py-0.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">
             {t('notSigned')}
           </span>
         </div>
@@ -177,7 +177,7 @@ function SignatureCard({
     >
       <div className="mb-3 flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-warning">{title}</h3>
-        <span className="shrink-0 rounded-full border border-warning/30 bg-card px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-warning">
+        <span className="shrink-0 rounded-full border border-warning/30 bg-card px-2 py-0.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-warning">
           {t('toSign')}
         </span>
       </div>

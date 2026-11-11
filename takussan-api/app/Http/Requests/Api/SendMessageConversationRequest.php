@@ -5,6 +5,8 @@ namespace App\Http\Requests\Api;
 use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Concerns\AuthorizesTransitionally;
 use App\Models\Enums\MessageType;
+use App\Rules\FichierNonVide;
+use App\Rules\PixelsAuPlus;
 use App\Services\Messaging\ConversationAccess;
 use Illuminate\Validation\Rule;
 
@@ -50,8 +52,22 @@ class SendMessageConversationRequest extends BaseFormRequest
      * ne pouvait supprimer ni corriger (`ConversationPolicy`, `MessageObserver`). `image` et
      * `document` passaient de même, sans fichier. Le seul auteur légitime d'un avis système est
      * `SystemMessageFactory`, qui n'emprunte pas cette route.
+     *
+     * TCK-2631 (ADR-0038, amendement du 2026-11-10) — `image` et `document` y entrent, AVEC leur
+     * fichier (`file`) : une photo ou un PDF par message.
      */
-    public const PARTICIPANT_TYPES = [MessageType::Text, MessageType::Audio];
+    public const PARTICIPANT_TYPES = [MessageType::Text, MessageType::Audio, MessageType::Image, MessageType::Document];
+
+    /**
+     * TCK-2631 (ADR-0038, amendement du 2026-11-10) — les types qui portent une pièce jointe, avec
+     * ce que `finfo` doit lire dans le CONTENU (`mimetypes:`, jamais l'extension) et la borne en Ko.
+     *
+     * @var array<string, array{mimetypes: list<string>, max_kb: int}>
+     */
+    public const ATTACHMENT_RULES = [
+        'image' => ['mimetypes' => ['image/jpeg', 'image/png', 'image/webp'], 'max_kb' => 8192],
+        'document' => ['mimetypes' => ['application/pdf'], 'max_kb' => 10240],
+    ];
 
     /**
      * ADR-0038 — formats que produisent les navigateurs mobiles (`MediaRecorder`) et les lecteurs
@@ -72,8 +88,14 @@ class SendMessageConversationRequest extends BaseFormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
+        // TCK-2631 — la légende d'une photo ou d'un PDF est facultative, comme le texte d'une note vocale.
+        // Un `type` qui n'est pas une chaîne (tableau) est refusé par sa propre règle, jamais en 500 ici.
+        $type = is_string($this->input('type')) ? $this->input('type') : null;
+        $attachment = $type === null ? null : (self::ATTACHMENT_RULES[$type] ?? null);
+        $attachmentTypes = implode(',', array_keys(self::ATTACHMENT_RULES));
+
         return [
-            'content' => ['required_unless:type,audio', 'nullable', 'string', 'max:5000'],
+            'content' => ['required_unless:type,audio,'.$attachmentTypes, 'nullable', 'string', 'max:5000'],
             'type' => ['nullable', Rule::in(array_map(static fn (MessageType $t): string => $t->value, self::PARTICIPANT_TYPES))],
             'audio' => [
                 'required_if:type,audio', 'prohibited_unless:type,audio',
@@ -83,6 +105,24 @@ class SendMessageConversationRequest extends BaseFormRequest
                 'required_if:type,audio', 'prohibited_unless:type,audio',
                 'integer', 'min:1', 'max:'.self::AUDIO_MAX_SECONDS,
             ],
+            // TCK-2631 — un fichier, requis pour `image` et `document`, interdit ailleurs. Ses
+            // pixels sont bornés sur l'EN-TÊTE (`PixelsAuPlus`) : le réencodage qui retire l'EXIF
+            // décode l'image entière, dans la requête.
+            'file' => [
+                'required_if:type,'.$attachmentTypes, 'prohibited_unless:type,'.$attachmentTypes,
+                'file', new FichierNonVide,
+                ...($attachment === null ? [] : [
+                    'mimetypes:'.implode(',', $attachment['mimetypes']),
+                    'max:'.$attachment['max_kb'],
+                ]),
+                ...($type === MessageType::Image->value ? [new PixelsAuPlus] : []),
+            ],
         ];
+    }
+
+    /** TCK-2631 — le nom du champ dans un 422 (`messaging.attributes`). */
+    public function attributes(): array
+    {
+        return ['file' => __('messaging.attributes.file')];
     }
 }

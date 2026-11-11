@@ -6,18 +6,21 @@ use App\Models\Agency;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Profiles\AgencyAdminProfile;
+use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
+use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Agency\AgencySetupStatus;
+use App\Services\Kyc\PiecesDuProfil;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 /**
  * TCK-2479 (ADR-0089 §5) — les étapes du groupe « Démarrer » du menu de `/app`, pour le PROFIL ACTIF.
  *
- * Trois codes, que le front libelle et relie (`takussan-web/src/lib/navigation/demarrer.ts`) :
- * `premier_bien`, `kyc`, `equipe`. Aucune règle n'est réécrite ici :
+ * Quatre codes, que le front libelle et relie (`takussan-web/src/lib/navigation/demarrer.ts`, qui ignore un code qu'il ne
+ * connaît pas) : `premier_bien`, `kyc`, `equipe`, `pieces` (TCK-2612). Aucune règle n'est réécrite ici :
  *
  *  - L'espace d'une AGENCE — le profil d'admin, ou le profil bailleur de l'hôte (agence `individual`
  *    dont le compte est aussi l'admin, TCK-497) — reprend trois des sept étapes de la mise en service
@@ -27,7 +30,11 @@ use Illuminate\Database\Eloquent\Model;
  *    (TCK-777, la règle de `MiseEnService.tsx`).
  *  - Le BAILLEUR : un bien à lui dans son agence, hors brouillon (la forme de
  *    `OwnerProfileController::properties`), et ses pièces ENVOYÉES — `metadata.kyc.submitted_at` :
- *    aucune file ne les vérifie (TCK-685).
+ *    aucune file ne les vérifie (TCK-685) ; TCK-2612 : ou ses pièces requises toutes envoyées, le NINEA
+ *    tapé comptant comme la pièce NINEA ({@see PiecesDuProfil}). La soumission garde sa valeur : un
+ *    bailleur qui a soumis ne voit pas l'étape revenir.
+ *  - L'AGENT et le PRESTATAIRE (TCK-2612) : `pieces`, faite quand leurs pièces requises sont envoyées
+ *    ou vérifiées (l'assurance RC pro du prestataire est facultative).
  *  - Tout autre profil, ou aucun : `[]`. Le groupe ne s'affiche pas ; ce n'est pas une erreur.
  *
  * C'est de l'AFFICHAGE : chaque écran que vise une étape rejuge (cf. `MeCapabilityController`).
@@ -41,7 +48,10 @@ class DemarrageDeLEspace
         'equipe' => 'first_member',
     ];
 
-    public function __construct(private readonly AgencySetupStatus $miseEnService) {}
+    public function __construct(
+        private readonly AgencySetupStatus $miseEnService,
+        private readonly PiecesDuProfil $pieces,
+    ) {}
 
     /**
      * @return list<array{code: string, faite: bool}>
@@ -56,6 +66,11 @@ class DemarrageDeLEspace
 
         if ($profilActif instanceof OwnerProfile) {
             return $this->etapesDuBailleur($profilActif);
+        }
+
+        // TCK-2612 — les pièces de l'agent et du prestataire quittent leurs assistants pour « Démarrer ».
+        if ($profilActif instanceof AgentProfile || $profilActif instanceof ServiceProviderProfile) {
+            return [['code' => 'pieces', 'faite' => $this->pieces->requisesEnvoyees($profilActif)]];
         }
 
         return [];
@@ -103,7 +118,7 @@ class DemarrageDeLEspace
 
         return [
             ['code' => 'premier_bien', 'faite' => $premierBien],
-            ['code' => 'kyc', 'faite' => filled(data_get($profil->metadata, 'kyc.submitted_at'))],
+            ['code' => 'kyc', 'faite' => filled(data_get($profil->metadata, 'kyc.submitted_at')) || $this->pieces->requisesEnvoyees($profil)],
         ];
     }
 }

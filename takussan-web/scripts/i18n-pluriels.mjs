@@ -32,6 +32,8 @@ export const INVARIABLES = {
     'property.cards.bedroomsShort': 'abréviation « ch », invariable',
     'property.cards.bedroomsAbbrev': 'abréviation « Ch. », invariable',
     'property.cards.bathroomsShort': 'abréviation « sdb », invariable',
+    // TCK-2659 — « 34 j de retard » : l'abréviation de la maquette d'« Argent » (colonne étroite d'« À faire »).
+    'admin.finances.argent.aFaire.joursDeRetardCourt': 'abréviation « j », invariable',
     'search.saveSearch.bedroomsShort': 'abréviation « ch », invariable',
     'property.detail.reviewsCount': '« avis » est invariable',
     'property.reviews.countSuffix': '« avis » est invariable',
@@ -53,6 +55,7 @@ export const INVARIABLES = {
     'property.cards.bedroomsShort': 'abbreviation “bd”, invariable',
     'property.cards.bedroomsAbbrev': 'abbreviation “bd”, invariable',
     'property.cards.bathroomsShort': 'abbreviation “ba”, invariable',
+    'admin.finances.argent.aFaire.joursDeRetardCourt': 'abbreviation “d”, invariable',
     'search.saveSearch.bedroomsShort': 'abbreviation “bd”, invariable',
     'dashboard.agent.overdueHint': '“overdue” is invariable',
     'dashboard.me.overdueTasksHint': '“overdue” is invariable',

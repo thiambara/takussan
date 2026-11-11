@@ -9,11 +9,14 @@ use App\Http\Controllers\Api\LeasePaymentController;
 use App\Http\Controllers\Api\LeaseRenewalController;
 use App\Http\Controllers\Api\LeaseRentController;
 use App\Http\Controllers\Api\LeaseSignatureController;
+use App\Http\Controllers\Api\LeaseSummaryController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('leases', [LeaseController::class, 'index'])->name('leases.index');
     Route::post('leases', [LeaseController::class, 'store'])->name('leases.store');
+    // TCK-2642 — les comptes des onglets et des motifs de la file ; littérale, donc avant `leases/{lease}`.
+    Route::get('leases/summary', LeaseSummaryController::class)->name('leases.summary');
     Route::get('leases/{lease}', [LeaseController::class, 'show'])->name('leases.show');
     Route::patch('leases/{lease}', [LeaseController::class, 'update'])->name('leases.update');
     Route::post('leases/{lease}/activate', [LeaseController::class, 'activate'])->name('leases.activate');

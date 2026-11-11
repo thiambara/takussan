@@ -164,6 +164,8 @@ class InvitationAttachmentTest extends TestCase
         $invitation = Invitation::query()->where('email', 'rattache@example.com')->firstOrFail();
         $this->assertSame(AgentProfile::class, $invitation->invitable_type);
 
+        // TCK-2610 (ADR-0094 § 7) — l'invité ouvre le lien hors de la session de l'invitant : connecté, il accepterait pour ce compte.
+        $this->app['auth']->forgetGuards();
         $this->postJson("/api/invitations/{$invitation->token}/accept", [
             'first_name' => 'Awa',
             'last_name' => 'Diop',

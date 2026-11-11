@@ -52,6 +52,8 @@ use App\Http\Controllers\Api\ServiceProviderBillController;
 use App\Http\Controllers\Api\SettingController;
 use App\Http\Controllers\Api\UserRoleController;
 use App\Http\Controllers\Public\InvitationAcceptController;
+use App\Http\Controllers\Public\InvitationCodeController;
+use App\Http\Controllers\Public\InvitationRenewalRequestController;
 use App\Http\Middleware\RequireRecentTwoFactor;
 use App\Http\Middleware\RequireTwoFactor;
 
@@ -141,6 +143,8 @@ final class ProtectedActions
         // TCK-595 (ADR-0049 §3) — les deux gestes du grand livre, par qui détient `payouts.approve`.
         CommissionEntryController::class.'@markPaid',
         CommissionEntryController::class.'@cancel',
+        // TCK-2661 — le solde groupé des lignes d'un agent, même geste que `markPaid`.
+        CommissionEntryController::class.'@settle',
 
         IntegrationController::class.'@store',
         IntegrationController::class.'@update',
@@ -177,12 +181,16 @@ final class ProtectedActions
         // TCK-591 (ADR-0035) — une délégation : le suppléant couvre les tâches de l'absent.
         AgentAbsenceController::class.'@store',
         AgentAbsenceController::class.'@destroy',
+        // TCK-2666 — modifier une absence modifie aussi la délégation liée.
+        AgentAbsenceController::class.'@update',
 
         OwnerInvitationController::class.'@__invoke',
         AgentInvitationController::class.'@__invoke',
         ServiceProviderInvitationController::class.'@__invoke',
         InvitationController::class.'@revoke',
         InvitationController::class.'@resend',
+        // TCK-2665 — supprimer les invitations expirées de l'agence, comme renvoyer et révoquer.
+        InvitationController::class.'@purgeExpired',
 
         // Vérification adverse M4 — de l'argent qui sort.
         BookingPaymentController::class.'@refund',
@@ -197,6 +205,12 @@ final class ProtectedActions
     public const EXEMPT = [
         // L'invité n'a pas encore de compte : il accepte par le lien reçu.
         InvitationAcceptController::class.'@__invoke' => 'acceptation publique d\'une invitation',
+        // TCK-2609 — l'invité au lien expiré, sans compte, demande un nouveau lien : il ne fait que prévenir l'invitant.
+        InvitationRenewalRequestController::class.'@__invoke' => 'demande publique d\'un nouveau lien d\'invitation',
+        // TCK-2610 — l'invité accepte par un code SMS, comme il se connecterait : le second facteur d'un compte existant est
+        // exigé par la vérification elle-même (`requires_2fa`, ADR-0094 § 5).
+        InvitationCodeController::class.'@send' => 'envoi public du code d\'acceptation d\'une invitation',
+        InvitationCodeController::class.'@verify' => 'acceptation publique d\'une invitation par code SMS',
         // L'argent ENTRE : le client règle sa réservation, il n'est le personnel de personne.
         BookingPaymentController::class.'@store' => 'paiement d\'une réservation par le client',
     ];
@@ -253,6 +267,8 @@ final class ProtectedActions
         PayoutController::class.'@markProcessed',
         // TCK-595 (ADR-0049 §3) — le marquage « versée » d'une commission, pendant de `markProcessed`.
         CommissionEntryController::class.'@markPaid',
+        // TCK-2661 — et le solde groupé, qui en paie plusieurs d'un coup.
+        CommissionEntryController::class.'@settle',
         ServiceProviderBillController::class.'@pay',
         MePayoutMethodController::class.'@store',
         MePayoutMethodController::class.'@update',
@@ -335,6 +351,8 @@ final class ProtectedActions
         PropertyModerationController::class.'@approve',
         PropertyModerationController::class.'@reject',
         ReviewController::class.'@moderate',
+        // TCK-2672 — la publication par lot : la même décision, sous la même garde.
+        ReviewController::class.'@moderateBatch',
         ReviewController::class.'@approve',
         ReviewController::class.'@reject',
         // TCK-600 (verif-600 R1) — les réglages génériques. TCK-651 (ADR-0065) : la portée `global`

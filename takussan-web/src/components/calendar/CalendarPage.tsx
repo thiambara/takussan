@@ -375,7 +375,7 @@ export function CalendarPage({ initialFocus, audience = 'staff', defaultMine = f
       ) : (
         <>
           {view === 'month' && (
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_calc(var(--spacing)*88)]">
               <MonthView
                 focus={focus}
                 events={events}

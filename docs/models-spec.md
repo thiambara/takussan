@@ -425,7 +425,7 @@ polymorphes** dédiés liés au user et scopés par agence — ou par la platefo
 | password_set_at | timestamp | oui | null | Date à laquelle l'utilisateur a **choisi** son mot de passe ; `null` = `password` est une valeur machine (compte OAuth, invitation acceptée sans mot de passe). Hors `$fillable` (`forceFill`). Backfill imparfait, décrit par l'en-tête de `2026_08_15_100000_add_password_set_at_to_users_table` (TCK-272) | ➕ |
 | ~~type~~ | — | — | — | ~~Supprimée — la nature métier est portée par les profils polymorphes (cutover TCK-142)~~ | ➖ |
 | status | UserStatus | | 'active' | Statut du compte | |
-| first_name | string | | | Prénom. **NOT NULL sans défaut** : un compte ouvert par téléphone (`PhoneLoginService`) ou anonymisé (`AccountDeletionService`) reçoit une chaîne **vide**, jamais `null` — l'interface et `PublishReadiness` la traitent comme absente | |
+| first_name | string | | | Prénom. **NOT NULL sans défaut** : un compte ouvert par téléphone (`PhoneLoginService`), par e-mail sans prénom (`AuthController::register`, TCK-2605) ou anonymisé (`AccountDeletionService`) reçoit une chaîne **vide**, jamais `null` — l'interface et `PublishReadiness` la traitent comme absente | |
 | last_name | string | | | Nom de famille — même règle que `first_name` | |
 | phone | string(30) | oui | null | Numéro de téléphone principal. **Pas unique en soi** : seul un numéro *vérifié* l'est, sur sa forme canonique (`users_phone_verified_unique`, voir « Index » ci-dessous) | |
 | email_verified_at | datetime | oui | null | Date de vérification email | |

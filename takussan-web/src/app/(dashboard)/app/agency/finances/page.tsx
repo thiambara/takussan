@@ -1,12 +1,9 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getMeAction } from '@/app/actions/auth';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { accesAdmin, garderPageAdmin } from '@/lib/access/pages-admin-server';
 import { isSuperAdmin } from '@/lib/roles';
 import { AdminFinancesClient } from './AdminFinancesClient';
-import { PageHeader } from '@/components/console';
-import { buttonVariants } from '@/components/ui/button';
 import { getTranslations } from 'next-intl/server';
 import type { Metadata } from 'next';
 
@@ -55,26 +52,10 @@ export default async function Page() {
   const rapprochement = (await accesAdmin(user)).chemins.includes('/app/agency/finances/reconciliation');
 
   // TCK-594 (ADR-0039 §1) — le taux de commission ne pré-remplit plus aucun champ : la commission
-  // se calcule côté serveur, ligne par ligne, depuis le taux du bail ou, à défaut, de l'agence
-  // (TCK-370 transmettait ce taux au dialogue de reversement, qui n'a plus de champ à remplir).
+  // se calcule côté serveur, ligne par ligne, depuis le taux du bail ou, à défaut, de l'agence.
+  // TCK-2659 — l'en-tête de page (titre « Argent », mois, gestes, lien du rapprochement) vit dans le
+  // client : il change avec la vue (point du mois ou registre) que porte l'adresse.
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title={t('title')}
-        description={t('subtitle')}
-        actions={
-          // TCK-593 — le rapprochement bancaire vit sous les finances de l'agence.
-          rapprochement ? (
-            <Link
-              href="/app/agency/finances/reconciliation"
-              className={buttonVariants({ variant: 'outline' })}
-            >
-              {t('reconciliationLink')}
-            </Link>
-          ) : undefined
-        }
-      />
-      <AdminFinancesClient canViewFinances canEmitFinances />
-    </div>
+    <AdminFinancesClient canViewFinances canEmitFinances rapprochement={rapprochement} agencyId={agencyId} />
   );
 }

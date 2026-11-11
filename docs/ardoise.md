@@ -3086,8 +3086,8 @@ et le relevé de J+7 reporté dans le ticket F.
 
 ### D-73 — Les pièces jointes de la messagerie ne seront analysées par aucun antivirus
 
-**Dette décidée, pas encore ouverte** : elle naît avec TCK-2631 (photos et documents dans la
-messagerie), qui n'est pas implémenté. L'amendement du 2026-11-10 d'[ADR-0038](adr/0038-note-vocale-dans-la-messagerie.md)
+**Dette ouverte le 2026-11-11 par TCK-2631** (photos et documents dans la messagerie :
+`SendMessageConversationRequest::ATTACHMENT_RULES`, `ConversationController::pieceJointe()`). L'amendement du 2026-11-10 d'[ADR-0038](adr/0038-note-vocale-dans-la-messagerie.md)
 ouvre les types `image` et `document` aux messages, sans analyse antivirus : **le dépôt n'en a
 aucune** (relevé du 2026-11-10 : aucune dépendance ni service d'analyse dans `takussan-api/`). Un
 PDF piégé passerait d'un participant à un autre.

@@ -9,6 +9,8 @@ use App\Http\Requests\Api\StoreConversationRequest;
 use App\Http\Requests\Api\ToggleMuteConversationRequest;
 use App\Http\Requests\Api\UpdateConversationRequest;
 use App\Http\Requests\Conversation\CreateGroupConversationRequest;
+use App\Http\Requests\Conversation\ListConversationsRequest;
+use App\Http\Resources\ConversationContextResource;
 use App\Http\Resources\ConversationResource;
 use App\Http\Resources\MessageResource;
 use App\Jobs\NotifyNewMessageJob;
@@ -17,15 +19,26 @@ use App\Models\Enums\ConversationStatus;
 use App\Models\Enums\ConversationType;
 use App\Models\Enums\MessageType;
 use App\Models\Message;
+use App\Models\User;
+use App\Services\Media\AvatarReencode;
 use App\Services\Messaging\ConversationAccess;
+use App\Services\Messaging\ConversationThreadContext;
 use App\Services\Messaging\GroupConversationService;
+use App\Support\CaseInsensitive;
+use Closure;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Spatie\Image\Exceptions\CouldNotLoadImage;
 
 class ConversationController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    /** TCK-2630 — au-delà, la saisie est une phrase : on ne garde que les premiers mots. */
+    private const SEARCH_TERMS = 6;
+
+    public function index(ListConversationsRequest $request): JsonResponse
     {
         $user = $request->user();
         $includeArchived = (bool) $request->boolean('archived');
@@ -49,21 +62,28 @@ class ConversationController extends Controller
                         ->orWhereColumn('lecteur.last_read_at', '<', 'messages.created_at')));
         };
 
-        $liste = Conversation::query()
-            ->whereHas('participants', function ($q) use ($user, $includeArchived) {
+        // TCK-2630 — le cloisonnement est posé UNE fois, sur une base commune : la liste (archives
+        // ou non) et les compteurs des puces (`meta.counts`, toujours hors archives) en dérivent.
+        // Le rappeler pour chacune rejouerait `answeredPropertyIds()` (une requête par appel).
+        $cloisonne = Conversation::query()
+            // TCK-592 (verif-592, B2) — un fil d'intervention inaccessible n'apparaît pas.
+            ->tap(fn ($q) => app(ConversationAccess::class)->constrainListing($q, $user));
+        $ou = fn (bool $archives) => (clone $cloisonne)
+            ->whereHas('participants', function ($q) use ($user, $archives) {
                 $q->where('user_id', $user->id);
                 // TCK-085 — participants who left a group no longer see it.
                 $q->whereNull('conversation_participants.left_at');
-                if ($includeArchived) {
+                if ($archives) {
                     $q->whereNotNull('conversation_participants.archived_at');
                 } else {
                     $q->whereNull('conversation_participants.archived_at');
                 }
-            })
-            // TCK-592 (verif-592, B2) — un fil d'intervention inaccessible n'apparaît pas.
-            ->tap(fn ($q) => app(ConversationAccess::class)->constrainListing($q, $user));
+            });
+        $liste = $ou($includeArchived);
 
         $paginator = (clone $liste)
+            // TCK-2630 — les filtres ne portent que sur la page : ni `unread_total` ni `meta.counts`.
+            ->tap(fn ($q) => $this->filtrerLaListe($q, $request, $user, $nonLus))
             ->with([
                 'property.media',
                 'participants' => fn ($q) => $q->wherePivotNull('left_at')->with('media'),
@@ -88,11 +108,91 @@ class ConversationController extends Controller
             ->tap($nonLus)
             ->count();
 
+        // TCK-2630 — les compteurs des puces, sur tout le cloisonné hors archives et SANS les
+        // filtres : `all` et `group` en une requête, `unread` par la définition même du compte de
+        // la liste (`$nonLus`). `unread` compte des FILS, sourdine comprise — la puce « Non lus »
+        // filtre par `filter[unread]`, qui ne regarde pas la sourdine ; `unread_total` compte des
+        // MESSAGES hors sourdine (la pastille).
+        $actifs = $ou(false);
+        $parType = (clone $actifs)->toBase()
+            ->selectRaw('count(*) as tous, count(*) filter (where conversations.type = ?) as groupes', [ConversationType::Group->value])
+            ->first();
+        $counts = [
+            'all' => (int) $parType->tous,
+            'unread' => (clone $actifs)->whereHas('messages', $nonLus)->count(),
+            'group' => (int) $parType->groupes,
+        ];
+
         return $this->paginated(
             $paginator,
             ConversationResource::collection($paginator)->toArray($request),
-            ['unread_total' => $unreadTotal],
+            ['unread_total' => $unreadTotal, 'counts' => $counts],
         );
+    }
+
+    /**
+     * TCK-2630 — `filter[search]`, `filter[unread]`, `filter[type]`, cumulables, typés par
+     * {@see ListConversationsRequest}.
+     *
+     * La recherche : chaque mot (au plus {@see self::SEARCH_TERMS}) doit trouver le prénom ou le nom
+     * d'un membre ACTUEL autre que l'appelant, le titre ou la référence du bien, ou le sujet du fil.
+     * La casse se replie par `CaseInsensitive` (ADR-0025 : `lower()` nu ne replie que l'ASCII sous
+     * `--locale=C`) ; les accents ne se replient pas (ADR-0020 §2, pas d'`unaccent` sans ticket) —
+     * la règle de la recherche de biens de `ConversationContextController`. `%` et `_` sont pris au
+     * pied de la lettre. Moins de 2 caractères : ignorée. Une condition de plus, jamais une requête
+     * par fil.
+     *
+     * @param  Builder<Conversation>  $query
+     */
+    private function filtrerLaListe(Builder $query, ListConversationsRequest $request, User $user, Closure $nonLus): void
+    {
+        $filtres = $request->validated('filter') ?? [];
+
+        if (($filtres['type'] ?? null) !== null) {
+            $query->where('conversations.type', $filtres['type']);
+        }
+
+        if (in_array($filtres['unread'] ?? null, ['1', 'true'], true)) {
+            $query->whereHas('messages', $nonLus);
+        }
+
+        $saisie = trim((string) ($filtres['search'] ?? ''));
+        if (mb_strlen($saisie) < 2) {
+            return;
+        }
+
+        $mots = array_slice(preg_split('/\s+/u', $saisie, -1, PREG_SPLIT_NO_EMPTY) ?: [], 0, self::SEARCH_TERMS);
+        foreach ($mots as $mot) {
+            $motif = '%'.addcslashes(CaseInsensitive::fold($mot), '\\%_').'%';
+            $query->where(fn (Builder $q) => $q
+                ->whereRaw(CaseInsensitive::sql('conversations.subject').' LIKE ?', [$motif])
+                ->orWhereHas('property', fn (Builder $p) => $p
+                    ->whereRaw(CaseInsensitive::sql('properties.title').' LIKE ?', [$motif])
+                    ->orWhereRaw(CaseInsensitive::sql('properties.reference_number').' LIKE ?', [$motif]))
+                ->orWhereHas('participants', fn (Builder $m) => $m
+                    ->whereNull('conversation_participants.left_at')
+                    ->where('users.id', '!=', $user->id)
+                    ->where(fn (Builder $n) => $n
+                        ->whereRaw(CaseInsensitive::sql('users.first_name').' LIKE ?', [$motif])
+                        ->orWhereRaw(CaseInsensitive::sql('users.last_name').' LIKE ?', [$motif]))));
+        }
+    }
+
+    /**
+     * TCK-2630 — `GET /api/conversations/{conversation}/context` : le bien, le bail, l'intervention
+     * et, pour le personnel de l'agence du fil, la fiche CRM de l'autre participant d'une directe.
+     *
+     * La garde est celle de `show` (`ensureParticipant` → `ConversationAccess::allows`) : 403 pour
+     * un non-participant, un ancien membre ou un fil d'intervention devenu inaccessible. Chaque
+     * bloc se juge ensuite seul ({@see ConversationThreadContext}) et vaut `null` s'il est interdit.
+     */
+    public function context(Request $request, Conversation $conversation): JsonResponse
+    {
+        $this->ensureParticipant($request, $conversation);
+
+        return $this->json([
+            'data' => ConversationContextResource::make(ConversationThreadContext::for($request->user(), $conversation))->resolve($request),
+        ]);
     }
 
     public function store(StoreConversationRequest $request, GroupConversationService $groups): JsonResponse
@@ -333,11 +433,16 @@ class ConversationController extends Controller
         // et sa durée déclarée ; son texte est un aperçu neutre pour la liste des conversations.
         $isAudio = ($data['type'] ?? null) === MessageType::Audio->value;
         $audio = $isAudio ? $request->file('audio') : null;
+        // TCK-2631 (ADR-0038, amendement du 2026-11-10) — une photo ou un PDF, préparés AVANT la
+        // transaction : une photo illisible est refusée sans message ni fichier.
+        $piece = $this->pieceJointe($request);
 
-        $message = DB::transaction(function () use ($conversation, $sender, $data, $isAudio, $audio) {
+        $message = DB::transaction(function () use ($conversation, $sender, $data, $isAudio, $audio, $piece) {
             $message = $conversation->messages()->create([
                 'sender_id' => $sender->id,
-                'content' => $isAudio ? __('messaging.audio_preview') : $data['content'],
+                // TCK-2631 — la légende d'une pièce est facultative ; `content` n'est pas nullable, et
+                // une pièce sans légende porte une chaîne vide (son aperçu est `neutralPreview()`).
+                'content' => $isAudio ? __('messaging.audio_preview') : ($data['content'] ?? ''),
                 'type' => $data['type'] ?? MessageType::Text->value,
                 'metadata' => $isAudio ? ['duration' => (int) $data['duration']] : null,
             ]);
@@ -346,9 +451,17 @@ class ConversationController extends Controller
                 $message->addMedia($audio)->toMediaCollection('attachments');
             }
 
+            if ($piece !== null) {
+                $message->addMedia($piece['path'])
+                    ->usingName($piece['name'])
+                    ->usingFileName($piece['file_name'])
+                    ->toMediaCollection('attachments');
+            }
+
             $conversation->update([
                 'last_message_id' => $message->id,
-                'last_message_preview' => mb_substr($message->content, 0, 255),
+                // TCK-2631 — l'aperçu d'une pièce est neutre (« Photo », « Document »), légende ou non.
+                'last_message_preview' => mb_substr($message->neutralPreview() ?? $message->content, 0, 255),
                 'last_message_at' => now(),
             ]);
 
@@ -377,6 +490,40 @@ class ConversationController extends Controller
         return $this->json([
             'data' => MessageResource::make($message)->resolve($request),
         ], 201);
+    }
+
+    /**
+     * TCK-2631 (ADR-0038, amendement du 2026-11-10) — la pièce jointe à ranger, ou `null`.
+     *
+     * Une photo est RÉENCODÉE (`AvatarReencode`, le même geste que l'avatar) : GD n'écrit aucune
+     * métadonnée, la position GPS d'une photo prise chez le locataire ne survit pas, et l'orientation
+     * EXIF est appliquée aux pixels avant de disparaître. Ses pixels sont déjà bornés par la requête
+     * (`PixelsAuPlus`). Un en-tête lisible sur une image que GD ne décode pas rend 422
+     * `media.file_rejected`. Un PDF n'est pas réécrit (ses métadonnées restent, comme dans un
+     * courriel) ; aucun antivirus ne l'analyse (dette D-73).
+     *
+     * @return array{path: string|UploadedFile, name: string, file_name: string}|null
+     */
+    private function pieceJointe(SendMessageConversationRequest $request): ?array
+    {
+        $type = $request->validated('type');
+        $file = $request->file('file');
+        if (! $file instanceof UploadedFile || ! in_array($type, [MessageType::Image->value, MessageType::Document->value], true)) {
+            return null;
+        }
+
+        $name = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+        if ($type === MessageType::Document->value) {
+            return ['path' => $file, 'name' => $name, 'file_name' => $name.'.pdf'];
+        }
+
+        try {
+            $path = AvatarReencode::sansMetadonnees($file);
+        } catch (CouldNotLoadImage) {
+            abort_code(422, 'media.file_rejected');
+        }
+
+        return ['path' => $path, 'name' => $name, 'file_name' => AvatarReencode::nomDeFichier($file)];
     }
 
     public function markAsRead(Request $request, Conversation $conversation): JsonResponse

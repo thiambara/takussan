@@ -44,7 +44,27 @@ class UploadRoomPhotosInventoryRequest extends BaseFormRequest
             'photos.*' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120', new PixelsAuPlus],
             // TCK-596 — une photo appartient à une PIÈCE de cet état des lieux, pas à une chaîne libre.
             'room_name' => ['required', 'string', Rule::in($this->roomNames())],
+            // TCK-2646 — la photo d'un ÉLÉMENT de cette pièce (son libellé), gardée en propriété du média.
+            'element_label' => ['nullable', 'string', Rule::in($this->elementLabels())],
         ];
+    }
+
+    /** @return list<string> les libellés des éléments de la pièce visée */
+    private function elementLabels(): array
+    {
+        $inventory = $this->route('inventory');
+        $roomName = $this->input('room_name');
+        if (! $inventory instanceof Inventory || ! is_string($roomName)) {
+            return [];
+        }
+
+        return collect($inventory->rooms ?? [])
+            ->filter(fn ($room) => is_array($room) && ($room['name'] ?? null) === $roomName)
+            ->flatMap(fn (array $room) => is_array($room['elements'] ?? null) ? $room['elements'] : [])
+            ->map(fn ($element) => is_array($element) ? ($element['label'] ?? null) : null)
+            ->filter(fn ($label) => is_string($label) && $label !== '')
+            ->values()
+            ->all();
     }
 
     /** @return list<string> */

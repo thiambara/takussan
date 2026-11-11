@@ -138,6 +138,11 @@ const TABLES_DE_TONS_CONNUES = new Map([
     "trois ORIGINES d'une nuit prise (réservée, bloquée, importée) peintes sur les CASES d'un "
     + "calendrier `react-day-picker` par `modifiersClassNames` : ni statut ni pastille, et la case "
     + 'ne porte que son numéro de jour — la teinte y est le seul canal, doublé par la légende'],
+  // TCK-2581 — « Et maintenant ? » après une visite.
+  ['takussan-web/src/components/visits/compte-rendu/EtMaintenant.tsx',
+    "trois tons de la PASTILLE D'ICÔNE d'une suite à donner (neutre, conseillée, WhatsApp) : une "
+    + 'action proposée, jamais un statut — la pastille ne porte pas de texte, elle est doublée par '
+    + 'le titre de la ligne'],
 ]);
 
 /** Les lignes de MESSAGE qui tombent dans la forme du contrôle B sans être des statuts. */

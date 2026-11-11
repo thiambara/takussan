@@ -29,6 +29,8 @@ class OwnerMeMetrics implements DashboardMetrics
             'expected_monthly' => $s['finance']['expected_monthly'] ?? 0.0,
             'overdue_count' => $s['finance']['overdue_count'] ?? 0,
             'overdue_amount' => $s['finance']['overdue_amount'] ?? 0.0,
+            // TCK-2623 — « Loyers de novembre : 8 reçus sur 14 » (`DashboardOwnerService::loyersDuMois`).
+            'rent_month' => $s['finance']['rent_month'] ?? ['received_count' => 0, 'expected_count' => 0, 'received_amount' => 0.0],
             'occupancy_rate_percent' => $s['occupancy']['rate_percent'] ?? null,
         ];
     }

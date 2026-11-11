@@ -386,7 +386,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
                   autoComplete="one-time-code"
                   aria-label={t('changeProofCodeAria')}
                   data-testid="phone-change-code"
-                  className="max-w-[8rem]"
+                  className="max-w-32"
                 />
               ) : null}
             </div>
@@ -445,7 +445,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
                     autoComplete="one-time-code"
                     aria-label={t('otpCodeAria')}
                     data-testid="phone-otp-code"
-                    className="max-w-[8rem]"
+                    className="max-w-32"
                   />
                   <Button
                     type="button"

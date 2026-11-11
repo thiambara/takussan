@@ -27,7 +27,7 @@ Le gestionnaire voit d'un coup d'œil ce qui est occupé, vacant ou en retard. L
 
 Endpoints consommés :
 
-- `GET /api/properties`, avec `include=occupancy`, le champ `is_online`, les filtres `occupancy`, `rent_late` et `tenant`, et le tri `retard` (TCK-2637) ;
+- `GET /api/properties`, avec `include=occupancy`, `include=online` (`is_online`), les filtres `occupancy`, `rent_late` et `tenant`, et le tri `retard` (TCK-2637) ;
 - `GET /api/properties/portfolio-summary` pour les tuiles et les pastilles, en **un** appel (TCK-2637) ;
 - les filtres, tris et actions existants de la liste : publier, dupliquer, booster, statut, archiver, supprimer, actions groupées ;
 - `GET /api/me/quota` pour la jauge du mode Annonces.

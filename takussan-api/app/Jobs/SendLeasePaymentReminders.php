@@ -45,6 +45,10 @@ use Illuminate\Support\Facades\Log;
  *     bailleur (`overdue_landlord`) ; l'agent, UN récapitulatif par jour (`overdue_digest`).
  *   · **Pas de doublon.** Un marqueur par jalon dans `metadata`, posé sous verrou de ligne
  *     comme `SendPropertyVisitReminders` : un second passage le même jour n'envoie rien.
+ *
+ * TCK-2679 (ADR-0100 § 6) — les charges du bail sont appelées à côté du loyer, à la même date : les
+ * échéances d'un même bail et d'une même date partent dans UNE relance, pour leur solde cumulé. Un
+ * locataire ne reçoit pas deux messages le même jour pour un même terme.
  */
 class SendLeasePaymentReminders implements ShouldQueue
 {
@@ -66,9 +70,10 @@ class SendLeasePaymentReminders implements ShouldQueue
 
     public function handle(NotificationService $notifications): void
     {
-        foreach ($this->claim(now()->addDays(self::DUE_SOON_DAYS), 'due_soon') as $payment) {
+        foreach ($this->claim(now()->addDays(self::DUE_SOON_DAYS), 'due_soon') as $dues) {
+            $payment = $dues[0];
             $this->notifyTenant($notifications, $payment, NotificationCode::LeasePaymentDueSoon, [
-                'amount' => $this->remaining($payment),
+                'amount' => $this->remaining($dues),
                 'due_date' => $payment->due_date?->toDateString(),
                 'property' => $payment->lease?->property?->title,
             ]);
@@ -77,10 +82,11 @@ class SendLeasePaymentReminders implements ShouldQueue
         /** @var array<int, array{agent: User, count: int, total: float, currency: ?Currency}> $digests */
         $digests = [];
         foreach (self::OVERDUE_DAYS as $offset) {
-            foreach ($this->claim(now()->subDays($offset), "overdue_{$offset}") as $payment) {
+            foreach ($this->claim(now()->subDays($offset), "overdue_{$offset}") as $dues) {
+                $payment = $dues[0];
                 $days = (int) $payment->due_date->diffInDays(now(), true);
                 $lease = $payment->lease;
-                $amount = $this->remaining($payment);
+                $amount = $this->remaining($dues);
 
                 $this->notifyTenant($notifications, $payment, NotificationCode::LeasePaymentOverdue, [
                     'amount' => $amount,
@@ -103,7 +109,9 @@ class SendLeasePaymentReminders implements ShouldQueue
                 $agent = $lease?->property ? PrimaryPropertyContact::for($lease->property) : null;
                 if ($agent && $agent->id !== $landlord?->id) {
                     $digests[$agent->id] ??= ['agent' => $agent, 'count' => 0, 'total' => 0.0, 'currency' => $payment->currency];
-                    $digests[$agent->id]['count']++;
+                    // Le récapitulatif compte des ÉCHÉANCES : une relance fusionnée (TCK-2679) en porte
+                    // plusieurs.
+                    $digests[$agent->id]['count'] += count($dues);
                     $digests[$agent->id]['total'] += (float) $amount['amount'];
                 }
             }
@@ -125,7 +133,11 @@ class SendLeasePaymentReminders implements ShouldQueue
      * d'être rendue : deux passages concurrents ne relancent pas deux fois la même échéance, et
      * un envoi qui lève ne laisse pas marquées, sans envoi, celles qui le suivent.
      *
-     * @return \Generator<int, LeasePayment>
+     * TCK-2679 — rendues PAR GROUPE d'un même bail et d'une même date (le loyer et ses charges) :
+     * chaque échéance du groupe est réservée sous son verrou, puis le groupe des réservées part dans
+     * une seule relance. Le loyer passe en tête : c'est lui que porte le lien de paiement.
+     *
+     * @return \Generator<int, non-empty-list<LeasePayment>>
      */
     private function claim(CarbonInterface $dueDate, string $milestone): \Generator
     {
@@ -148,32 +160,50 @@ class SendLeasePaymentReminders implements ShouldQueue
             ->orderBy('id')
             ->get();
 
-        foreach ($candidates as $payment) {
-            $claimed = DB::transaction(function () use ($payment, $key): bool {
-                $locked = LeasePayment::query()->whereKey($payment->id)->lockForUpdate()->first();
-                if (! $locked
-                    || ! in_array($locked->status, self::OPEN_STATUSES, true)
-                    || ! empty(($locked->metadata ?? [])[$key])
-                ) {
-                    return false;
-                }
-                $locked->forceFill(['metadata' => [...($locked->metadata ?? []), $key => now()->toIso8601String()]])->saveQuietly();
-                // Le statut et le solde relus sous le verrou, les relations gardées.
-                $payment->setRawAttributes($locked->getAttributes(), true);
+        $groups = $candidates->groupBy(fn (LeasePayment $payment) => $payment->lease_id.'|'.$payment->due_date?->toDateString());
 
-                return true;
-            });
+        foreach ($groups as $group) {
+            $claimed = $group
+                ->filter(fn (LeasePayment $payment) => $this->claimOne($payment, $key))
+                ->sortBy(fn (LeasePayment $payment) => $payment->payment_type === LeasePaymentType::Rent ? 0 : 1)
+                ->values()
+                ->all();
 
-            if ($claimed) {
-                yield $payment;
+            if ($claimed !== []) {
+                yield $claimed;
             }
         }
     }
 
-    /** @return array{amount: string, currency: string} */
-    private function remaining(LeasePayment $payment): array
+    private function claimOne(LeasePayment $payment, string $key): bool
     {
-        return NotificationRenderer::money($payment->remaining_amount, $payment->currency);
+        return DB::transaction(function () use ($payment, $key): bool {
+            $locked = LeasePayment::query()->whereKey($payment->id)->lockForUpdate()->first();
+            if (! $locked
+                || ! in_array($locked->status, self::OPEN_STATUSES, true)
+                || ! empty(($locked->metadata ?? [])[$key])
+            ) {
+                return false;
+            }
+            $locked->forceFill(['metadata' => [...($locked->metadata ?? []), $key => now()->toIso8601String()]])->saveQuietly();
+            // Le statut et le solde relus sous le verrou, les relations gardées.
+            $payment->setRawAttributes($locked->getAttributes(), true);
+
+            return true;
+        });
+    }
+
+    /**
+     * Le solde cumulé des échéances relancées ensemble (TCK-2679).
+     *
+     * @param  non-empty-list<LeasePayment>  $dues
+     * @return array{amount: string, currency: string}
+     */
+    private function remaining(array $dues): array
+    {
+        $total = array_sum(array_map(fn (LeasePayment $due) => (float) $due->remaining_amount, $dues));
+
+        return NotificationRenderer::money(round($total, 2), $dues[0]->currency);
     }
 
     /**

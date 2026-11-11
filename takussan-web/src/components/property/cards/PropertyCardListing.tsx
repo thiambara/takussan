@@ -79,12 +79,12 @@ export function PropertyCardListing({
           <div className="space-y-1">
             {/* `group-hover` et non `hover` : le lien de la carte couvre désormais le titre, qui
                 ne reçoit plus le survol lui-même. */}
-            <h3 id={idTitre} className={`font-display text-[15px] leading-5 font-semibold text-foreground line-clamp-2 ${TITRE_REACTIF}`}>
+            <h3 id={idTitre} className={`font-display text-[0.9375rem] leading-5 font-semibold text-foreground line-clamp-2 ${TITRE_REACTIF}`}>
               {property.title}
             </h3>
 
             {location && (
-              <p className="text-[12px] text-muted-foreground flex items-center gap-1 truncate">
+              <p className="text-[0.75rem] text-muted-foreground flex items-center gap-1 truncate">
                 <MapPin className="size-3 shrink-0" />
                 <span className="truncate">{location}</span>
               </p>
@@ -105,7 +105,7 @@ export function PropertyCardListing({
               de TCK-555 sur la carte de la liste). `surface="page"` : il est posé sur la carte. */}
           <div className="flex items-end justify-between gap-2">
             <div className="min-w-0">
-              <p className="text-[14px] font-semibold text-foreground tabular-nums leading-tight">
+              <p className="text-[0.875rem] font-semibold text-foreground tabular-nums leading-tight">
                 {formatPrice(property.price, property.currency ?? 'XOF')}
                 {property.contract_type === 'rent' && property.rent_period && (
                   <span className="ml-0.5 font-normal text-muted-foreground">

@@ -7,11 +7,15 @@ use App\Domain\Notifications\NotificationTarget;
 use App\Exceptions\ApiError;
 use App\Models\Agency;
 use App\Models\Customer;
+use App\Models\CustomerNote;
 use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\Capability;
 use App\Models\Enums\ContactLeadChannel;
+use App\Models\Enums\ContractType;
+use App\Models\Enums\CustomerNoteKind;
 use App\Models\Enums\CustomerPipelineStage;
+use App\Models\Enums\RentPeriod;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\PropertyContactLead;
@@ -261,6 +265,8 @@ class ContactLeadService
             if ($fresh->agency_id === null) {
                 abort_code(422, 'lead.without_agency');
             }
+            // TCK-2582 — la règle de la route `convert`, tenue ici pour la visite qui naît d'une demande.
+            abort_code_unless($fresh->channel === ContactLeadChannel::Form, 422, 'lead.not_convertible');
 
             // TCK-2054 (ADR-0073) — après la ligne de la demande, le verrou consultatif de la fiche :
             // deux demandes du même visiteur converties en même temps ne passent plus toutes deux
@@ -282,14 +288,139 @@ class ContactLeadService
                 'pipeline_stage' => CustomerPipelineStage::Lead->value,
             ], $actor);
 
-            $fresh->update([
-                'customer_id' => $customer->id,
-                'handled_at' => $fresh->handled_at ?? now(),
-                'handled_by_id' => $fresh->handled_by_id ?? $actor->id,
-            ]);
-
-            return $customer;
+            return $this->linkLead($fresh, $customer, $actor);
         });
+    }
+
+    /**
+     * TCK-2582 (ADR-0101) — le rattachement : la demande rejoint une fiche EXISTANTE de son agence
+     * (le doublon que l'agent a choisi), avec les mêmes écritures qu'une conversion — note
+     * `lead_message`, origine, bien, critères vides déduits du bien. Mêmes refus : déjà rattachée
+     * (409 `lead.already_converted`, qui nomme la fiche), sans agence (422 `lead.without_agency`).
+     * La fiche d'une autre agence est refusée en amont (`ClientDeLAgence`) ; elle l'est encore ici.
+     */
+    public function attach(PropertyContactLead $lead, Customer $customer, User $actor): Customer
+    {
+        return DB::transaction(function () use ($lead, $customer, $actor) {
+            $fresh = PropertyContactLead::query()->whereKey($lead->id)->lockForUpdate()->firstOrFail();
+
+            if ($fresh->customer_id !== null) {
+                throw (new ApiError(409, 'lead.already_converted'))->with(['customer' => ['id' => $fresh->customer_id]]);
+            }
+            if ($fresh->agency_id === null) {
+                abort_code(422, 'lead.without_agency');
+            }
+            // Un clic WhatsApp / Appeler n'a ni identité ni message : il ne devient l'origine de rien.
+            abort_code_unless($fresh->channel === ContactLeadChannel::Form, 422, 'lead.not_convertible');
+
+            $target = Customer::query()->whereKey($customer->id)->lockForUpdate()->firstOrFail();
+            // La fiche de l'agence de la demande, et une fiche que l'acteur LIT (`CustomerPolicy::view`) :
+            // un agent sans `crm.view_all` n'écrit pas dans la fiche d'un collègue qu'il ne voit pas. Les
+            // deux routes passent ici (`convert {customer_id}`, `property-visits {contact_lead_id, customer_id}`).
+            abort_if((int) $target->agency_id !== (int) $fresh->agency_id || ! $actor->can('view', $target), 403);
+
+            return $this->linkLead($fresh, $target, $actor);
+        });
+    }
+
+    /**
+     * TCK-2582 — ce que la demande apporte à la fiche, sous le verrou de la demande, à l'instant où
+     * `customer_id` passe de `null` à la fiche (d'où une seule note par demande, même rejouée) :
+     *
+     *   · l'origine — la demande et son bien — si la fiche n'en a pas encore : la première demande
+     *     reste l'origine, une demande rattachée plus tard ne la réécrit pas ;
+     *   · `source`/`medium` dans `metadata.origin` (la fiche n'a pas de colonnes d'attribution), sans
+     *     écraser une origine déjà notée ;
+     *   · les critères de recherche VIDES déduits du bien ({@see self::criteriaFromProperty()}) ;
+     *   · une note épinglée `lead_message` : le message tel quel, datée de la demande ;
+     *   · la demande liée à la fiche et marquée traitée.
+     */
+    private function linkLead(PropertyContactLead $lead, Customer $customer, User $actor): Customer
+    {
+        $property = $lead->property_id !== null
+            ? Property::query()->with('address')->find($lead->property_id)
+            : null;
+
+        if ($customer->source_contact_lead_id === null) {
+            $customer->forceFill(['source_contact_lead_id' => $lead->id]);
+        }
+        if ($customer->interested_property_id === null && $property !== null) {
+            $customer->forceFill(['interested_property_id' => $property->id]);
+        }
+
+        $metadata = $customer->metadata ?? [];
+        if (! isset($metadata['origin']) && ($lead->source !== null || $lead->medium !== null)) {
+            $metadata['origin'] = ['source' => $lead->source, 'medium' => $lead->medium];
+            $customer->metadata = $metadata;
+        }
+
+        foreach ($property !== null ? self::criteriaFromProperty($property) : [] as $field => $value) {
+            $current = $customer->{$field};
+            if ($current === null || $current === []) {
+                $customer->{$field} = $value;
+            }
+        }
+
+        if ($customer->isDirty()) {
+            $customer->save();
+        }
+
+        $message = trim((string) $lead->message);
+        if ($message !== '') {
+            $note = new CustomerNote([
+                'customer_id' => $customer->id,
+                'author_id' => $actor->id,
+                'kind' => CustomerNoteKind::LeadMessage,
+                'body' => $message,
+                'pinned' => true,
+            ]);
+            // Datée de la demande : le fil la range au jour où la personne a écrit.
+            $note->created_at = $lead->created_at ?? now();
+            $note->save();
+        }
+
+        $lead->update([
+            'customer_id' => $customer->id,
+            'handled_at' => $lead->handled_at ?? now(),
+            'handled_by_id' => $lead->handled_by_id ?? $actor->id,
+        ]);
+
+        return $customer->refresh();
+    }
+
+    /**
+     * TCK-2582 — les critères qu'un bien dit de qui le demande : le contrat, le type, le quartier,
+     * et un budget plafond au prix × 1,2. Le budget n'est déduit que d'un prix de vente ou d'un
+     * loyer mensuel : un prix à la nuit ou à la semaine ne dit rien d'un budget mensuel.
+     *
+     * @return array<string, mixed>
+     */
+    public static function criteriaFromProperty(Property $property): array
+    {
+        $criteria = [];
+
+        if ($property->contract_type !== null) {
+            $criteria['seeking_contract_type'] = $property->contract_type->value;
+        }
+        if ($property->type !== null) {
+            $criteria['seeking_property_types'] = [$property->type->value];
+        }
+
+        $neighborhood = trim((string) $property->address?->neighborhood);
+        if ($neighborhood !== '') {
+            $criteria['seeking_neighborhoods'] = [$neighborhood];
+        }
+
+        $price = (float) $property->price;
+        $budgetDeductible = $property->contract_type !== ContractType::Rent
+            || $property->rent_period === null
+            || $property->rent_period === RentPeriod::Monthly;
+        if ($price > 0 && $budgetDeductible) {
+            // En entiers : 85 000 × 1,2 ne tombe pas juste en virgule flottante.
+            $criteria['budget_max'] = (string) intdiv((int) round($price * 100) * 12, 1000);
+        }
+
+        return $criteria;
     }
 
     private function refuseDuplicate(PropertyContactLead $lead, User $actor): void

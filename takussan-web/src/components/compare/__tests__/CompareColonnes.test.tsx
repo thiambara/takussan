@@ -278,7 +278,7 @@ describe('<CompareColonnes> — en-tête collant et colonnes (AC5)', () => {
     const table = screen.getByRole('table');
     expect(table.style.getPropertyValue('--colonnes-mobile')).toBe('repeat(4, minmax(0, 1fr))');
     // Quatre biens : plus de place libre, plus de colonne « Ajouter ».
-    expect(table.style.getPropertyValue('--colonnes-bureau')).toBe('minmax(8rem, 13rem) repeat(4, minmax(0, 1fr))');
+    expect(table.style.getPropertyValue('--colonnes-bureau')).toBe('minmax(calc(var(--spacing) * 32), calc(var(--spacing) * 52)) repeat(4, minmax(0, 1fr))');
     expect(within(screen.getByTestId('compare-en-tete')).getAllByRole('button')).toHaveLength(4);
     const defilants = [...container.querySelectorAll<HTMLElement>('*')].filter((el) =>
       /(^|\s)(overflow-x-(auto|scroll)|snap-x|min-w-\[)/.test(el.className),
@@ -289,7 +289,7 @@ describe('<CompareColonnes> — en-tête collant et colonnes (AC5)', () => {
   it('trois biens : la place libre est une colonne « Ajouter un bien » au bureau', () => {
     render(wrap(<CompareColonnes columns={TROIS} onRemove={() => undefined} />));
     expect(screen.getByRole('table').style.getPropertyValue('--colonnes-bureau')).toBe(
-      'minmax(8rem, 13rem) repeat(4, minmax(0, 1fr))',
+      'minmax(calc(var(--spacing) * 32), calc(var(--spacing) * 52)) repeat(4, minmax(0, 1fr))',
     );
     const ajouts = screen.getAllByRole('link', { name: 'Ajouter un bien' });
     expect(ajouts.length).toBeGreaterThan(0);
@@ -422,8 +422,9 @@ describe('<CompareColonnes> — la barre « Partager » du téléphone', () => {
     // La page réserve sous son pied de page au moins la hauteur de la barre (77 px), zone sûre comprise.
     expect(RESERVE_BARRE_PARTAGER).toContain('env(safe-area-inset-bottom)');
     expect(RESERVE_BARRE_PARTAGER).toContain('md:pb-0');
-    const rem = Number(RESERVE_BARRE_PARTAGER.match(/^pb-\[calc\((\d+(?:\.\d+)?)rem\+env/)![1]);
-    expect(rem * 16).toBeGreaterThanOrEqual(77);
+    // TCK-2692 — la réserve s'écrit en pas d'espacement (`var(--spacing)*K`), 4 px sous `lg` (ADR-0107).
+    const pas = Number(RESERVE_BARRE_PARTAGER.match(/^pb-\[calc\(var\(--spacing\)\*(\d+(?:\.\d+)?)\+env/)![1]);
+    expect(pas * 4).toBeGreaterThanOrEqual(77);
 
     // Au bureau, « Partager » reste dans la barre d'outils.
     const partages = screen.getAllByRole('button', { name: 'Partager' }).filter((b) => !barre.contains(b));

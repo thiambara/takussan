@@ -3,11 +3,14 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Models\Lease;
 use App\Models\LeaseSignature;
 use App\Models\User;
+use App\Policies\LeasePolicy;
 use App\Services\Lease\EarlyTerminationService;
 use App\Services\Lease\LandlordSignatory;
 use App\Services\Lease\LeaseSignatureService;
+use App\Services\Lease\RentReviewService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\MissingValue;
 
@@ -45,6 +48,8 @@ class LeaseResource extends BaseResource
             'end_date' => $this->calendarDate($this->end_date),
             'renewal_date' => $this->calendarDate($this->renewal_date),
             'monthly_rent' => $this->monthly_rent !== null ? (float) $this->monthly_rent : null,
+            // TCK-2679 — les charges mensuelles du bail ; nulles sur un bail antérieur.
+            'monthly_charges' => $this->monthly_charges !== null ? (float) $this->monthly_charges : null,
             'sale_price' => $this->sale_price !== null ? (float) $this->sale_price : null,
             'currency' => $this->currency?->value,
             'deposit_amount' => $this->deposit_amount !== null ? (float) $this->deposit_amount : null,
@@ -127,13 +132,30 @@ class LeaseResource extends BaseResource
                 // garde, et l'agent sans `leases.terminate` voyait le préavis.
                 'request_early_termination' => $this->viewer->can('requestEarlyTermination', $this->resource),
                 'update' => $this->viewer->can('update', $this->resource),
+                // TCK-2642 — les quatre gestes que la fiche ouvrait encore par le rôle. `leave_review` et
+                // `give_notice` sont des gestes de PARTIE (le locataire) : lus sur la policy, hors de
+                // `Gate::before`, qui les accorderait au super-admin.
+                'add_document' => $this->viewer->can('addDocument', $this->resource),
+                'download_contract' => $this->viewer->can('downloadContract', $this->resource),
+                'leave_review' => app(LeasePolicy::class)->leaveReview($this->viewer, $this->resource),
+                'give_notice' => app(LeasePolicy::class)->giveNotice($this->viewer, $this->resource),
             ]),
+            // TCK-2642 — le plafond de révision que CE bail exécute (figé au contrat, sinon le réglage de
+            // son agence, sinon le global : `RentReviewService::maxPctFor`), pour la feuille de révision.
+            // Sur le détail seul : le réglage d'agence se lit une fois par bail.
+            'rent_review_cap_pct' => $this->when($this->viewer !== null,
+                fn (): float => app(RentReviewService::class)->maxPctFor($this->resource)),
             'created_at' => $this->iso($this->created_at),
         ];
 
         if (! $this->viewerIsAgencyStaff($request)) {
             unset($data['commission_amount']);
         }
+
+        // TCK-2642 — les clés calculées pour la page par le contrôleur (`include=attention`,
+        // `include=due_summary`) et les parties nommées (`include=landlord`, `include=agent`) :
+        // absentes sans l'inclusion. Ajoutées ici et non par `when()` : la liste appelle `toArray()`.
+        $data += $this->computedAndParties($request);
 
         // P21.06 (TCK-904) — le détail appelle `toArray()` directement, qui ne filtre pas les
         // `MissingValue` : une relation de renouvellement non chargée sortait en `{}`.
@@ -144,6 +166,63 @@ class LeaseResource extends BaseResource
         }
 
         return $data;
+    }
+
+    /**
+     * TCK-2642 — `attention[]`, le résumé d'échéance, et les parties nommées par une projection fixe :
+     * le bailleur (noms ; téléphone pour le personnel de l'agence du bail et pour le bailleur
+     * lui-même, jamais pour le seul locataire, que l'agence sert), l'agent (noms).
+     *
+     * @return array<string, mixed>
+     */
+    private function computedAndParties(Request $request): array
+    {
+        $lease = $this->resource;
+        $out = [];
+        if (! $lease instanceof Lease) {
+            return $out;
+        }
+
+        if (($attention = $lease->attentionBlock()) !== null) {
+            $out['attention'] = array_map(fn (array $entry): array => array_merge($entry, [
+                'since' => $this->calendarDate($entry['since']),
+            ], isset($entry['due_date']) ? ['due_date' => $this->calendarDate($entry['due_date'])] : []), $attention);
+        }
+
+        if (($due = $lease->dueSummary()) !== null) {
+            $out['next_due'] = $due['next_due'] === null ? null
+                : ['due_date' => $this->calendarDate($due['next_due']['due_date'])] + $due['next_due'];
+            $out['overdue_count'] = $due['overdue_count'];
+            $out['overdue_amount'] = $due['overdue_amount'];
+        }
+
+        if ($lease->relationLoaded('landlord')) {
+            $viewer = $this->viewer ?? $request->user();
+            $seesPhone = $viewer instanceof User
+                && ($this->viewerIsAgencyStaff($request) || (int) $viewer->id === (int) $lease->landlord_id);
+            $out['landlord'] = $this->party($lease->landlord, $seesPhone);
+        }
+        if ($lease->relationLoaded('agent')) {
+            $out['agent'] = $this->party($lease->agent, false);
+        }
+
+        return $out;
+    }
+
+    /** @return array<string, mixed>|null */
+    private function party(?User $user, bool $withPhone): ?array
+    {
+        if ($user === null) {
+            return null;
+        }
+
+        return [
+            'id' => $user->id,
+            'first_name' => $user->first_name,
+            'last_name' => $user->last_name,
+            'full_name' => $user->nameWithoutContact(),
+            ...($withPhone ? ['phone' => $user->phone] : []),
+        ];
     }
 
     /**

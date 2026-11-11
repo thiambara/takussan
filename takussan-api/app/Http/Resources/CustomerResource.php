@@ -4,9 +4,13 @@ namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Customer;
+use App\Models\CustomerNote;
+use App\Models\Enums\CustomerNoteKind;
 use App\Policies\CustomerPolicy;
+use App\Services\Crm\CustomerCommercialAttributes;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Support\Masking;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 
 class CustomerResource extends BaseResource
@@ -61,7 +65,7 @@ class CustomerResource extends BaseResource
             'notes' => $this->when(
                 $litLaFiche
                     && (array_key_exists('notes', $this->resource->getAttributes()) || $this->resource->relationLoaded('notes')),
-                fn () => $this->resource->notes,
+                fn () => $this->notesLisibles($request),
             ),
             // TCK-591 §5 — les critères du prospect, que la fiche affiche et édite. Réservés au
             // personnel de l'agence de la fiche (verif-591 m2) : la ressource est imbriquée dans le
@@ -78,9 +82,41 @@ class CustomerResource extends BaseResource
                 'seeking_neighborhoods' => $this->seeking_neighborhoods,
                 'min_bedrooms' => $this->min_bedrooms,
             ] : []),
+            // TCK-2582 (ADR-0101) — d'où vient la fiche : la demande (date, message cité, bien) et le
+            // bien qui a fait venir la personne. Au seul lecteur des critères (personnel de l'agence
+            // de la fiche) : le message n'est jamais recopié vers un compte hors du personnel — la
+            // ressource est imbriquée dans le bail et la réservation, que le bailleur lit.
+            ...($this->readsOrigin($request) ? $this->origine() : []),
+            // TCK-2583 — le dernier contact : geste, note, visite terminée ou compte rendu.
+            // Vérification adverse de TCK-2583 — au seul personnel de l'agence de la fiche : nourri
+            // par les visites et les comptes rendus de tous les biens de l'agence, il donnait au
+            // bailleur auteur l'heure d'un compte rendu sur le bien d'un autre bailleur.
+            'last_contacted_at' => $this->resource->last_contacted_at !== null && $this->readsVisits($request)
+                ? $this->iso($this->last_contacted_at)
+                : null,
             'created_at' => $this->iso($this->created_at),
             'updated_at' => $this->iso($this->updated_at),
             'tasks_count' => $this->whenCounted('tasks'),
+            // TCK-2588 — `next_action`, `follow_up`, `referent` : calculés pour la page, rendus
+            // seulement quand `fields[customers]` les demande.
+            ...CustomerCommercialAttributes::of($request, (int) $this->id),
+            // Vérification adverse de TCK-2588 — les visites d'une fiche (compte, à venir) sont au
+            // seul personnel de son agence (et au super-admin) : le bailleur auteur de la fiche
+            // lisait sinon les visites du client sur le bien d'un AUTRE bailleur, que
+            // `PropertyVisitPolicy::view` lui refuse.
+            'visits_count' => $this->when(
+                array_key_exists('visits_count', $this->resource->getAttributes()) && $this->readsVisits($request),
+                fn () => (int) $this->visits_count,
+            ),
+            'upcoming_visits' => $this->when(
+                $this->relationLoaded('upcomingVisits') && $this->readsVisits($request),
+                fn () => $this->upcomingVisits->map(fn ($v) => [
+                    'id' => $v->id,
+                    'property_id' => $v->property_id,
+                    'status' => $v->status?->value,
+                    'scheduled_at' => $this->iso($v->scheduled_at),
+                ])->values(),
+            ),
             'added_by' => $this->when(
                 $this->relationLoaded('addedBy'),
                 fn () => $this->addedBy ? [
@@ -109,6 +145,30 @@ class CustomerResource extends BaseResource
                 ])->values(),
             ),
         ];
+    }
+
+    /**
+     * TCK-2578 (ADR-0101 § 2) — la relation `notes` chargée par `include=notes` porte aussi les
+     * comptes rendus de visite (`visit_report`) : ils ne sortent qu'au personnel de l'agence
+     * (`CustomerPolicy::viewVisitReports`). La colonne texte `notes`, quand elle est lue, passe telle
+     * quelle.
+     */
+    private function notesLisibles(Request $request): mixed
+    {
+        $notes = $this->resource->notes;
+        if (! $notes instanceof Collection) {
+            return $notes;
+        }
+
+        // Jugée sur la fiche relue (`agency_id`, `added_by_id`) : sous `fields[customers]`, le modèle
+        // rendu ne porte pas l'agence, et le personnel perdait ses comptes rendus.
+        $user = $request->user();
+        if ($user !== null && $user->can('viewVisitReports', $this->ficheJugeable($request))) {
+            return $notes;
+        }
+
+        // TCK-2582 — le message d'origine d'une demande (`lead_message`) suit la même règle.
+        return $notes->reject(fn (CustomerNote $note) => in_array($note->kind?->value, CustomerNoteKind::staffOnlyValues(), true))->values();
     }
 
     /**
@@ -146,6 +206,32 @@ class CustomerResource extends BaseResource
      * par fiche et par requête. Les lectures du front les demandent toutes deux dès qu'elles
      * demandent un champ réservé (`DASHBOARD_CUSTOMER_DETAIL_FIELDS`, `PIPELINE_CARD_FIELDS`).
      */
+    /**
+     * Vérification adverse de TCK-2588 — pose, en une requête pour la page, la fiche « jugeable »
+     * ({@see self::ficheJugeable()}) de chaque fiche dont `fields[customers]` n'a lu ni l'agence ni
+     * l'auteur : sans elle, la règle des visites relisait la fiche une fois par ligne.
+     *
+     * @param  iterable<Customer>  $customers
+     */
+    public static function primeFiches(Request $request, iterable $customers): void
+    {
+        $ids = [];
+        foreach ($customers as $customer) {
+            $attributs = $customer->getAttributes();
+            if (! (array_key_exists('agency_id', $attributs) && array_key_exists('added_by_id', $attributs))
+                && ! $request->attributes->has('tck808.fiche.'.$customer->getKey())) {
+                $ids[] = $customer->getKey();
+            }
+        }
+        if ($ids === []) {
+            return;
+        }
+
+        foreach (Customer::query()->select(['id', 'agency_id', 'added_by_id'])->whereKey($ids)->get() as $fiche) {
+            $request->attributes->set('tck808.fiche.'.$fiche->getKey(), $fiche);
+        }
+    }
+
     private function ficheJugeable(Request $request): Customer
     {
         $attributs = $this->resource->getAttributes();
@@ -160,6 +246,83 @@ class CustomerResource extends BaseResource
         }
 
         return $request->attributes->get($key);
+    }
+
+    /**
+     * TCK-2582 — la règle des critères ({@see Customer::criteriaBelongTo()}), jugée sur la fiche
+     * relue quand `fields[customers]` n'a pas lu son agence : sans elle, le personnel perdait
+     * l'origine qu'il avait demandée. Rien n'est relu si aucune des deux relations n'est chargée.
+     */
+    private function readsOrigin(Request $request): bool
+    {
+        $user = $request->user();
+        if ($user === null
+            || (! $this->resource->relationLoaded('origin') && ! $this->resource->relationLoaded('interestedProperty'))) {
+            return false;
+        }
+
+        $key = 'tck591.staff_agency_ids';
+        if (! $request->attributes->has($key)) {
+            $request->attributes->set($key, app(MembershipCapabilityResolver::class)->staffAgencyIds($user));
+        }
+
+        return $this->ficheJugeable($request)->criteriaBelongTo($user, $request->attributes->get($key));
+    }
+
+    /**
+     * Vérification adverse de TCK-2588 — les visites de la fiche, au seul personnel de son agence (et
+     * au super-admin) : la règle des critères, jugée sur la fiche relue quand `fields[customers]`
+     * n'a pas lu son agence (comme {@see self::readsOrigin()}).
+     */
+    private function readsVisits(Request $request): bool
+    {
+        $user = $request->user();
+        if ($user === null) {
+            return false;
+        }
+
+        $key = 'tck591.staff_agency_ids';
+        if (! $request->attributes->has($key)) {
+            $request->attributes->set($key, app(MembershipCapabilityResolver::class)->staffAgencyIds($user));
+        }
+
+        return $this->ficheJugeable($request)->criteriaBelongTo($user, $request->attributes->get($key));
+    }
+
+    /**
+     * TCK-2582 — `origin` et `interested_property`, rendus seulement si `include=origin` /
+     * `include=interestedProperty` les a chargés.
+     *
+     * @return array<string, mixed>
+     */
+    private function origine(): array
+    {
+        $out = [];
+
+        if ($this->resource->relationLoaded('origin')) {
+            $lead = $this->resource->origin;
+            $out['origin'] = $lead === null ? null : [
+                'contact_lead_id' => $lead->id,
+                'received_at' => $this->iso($lead->created_at),
+                'message' => $lead->message,
+                'property' => $lead->property ? [
+                    'id' => $lead->property->id,
+                    'title' => $lead->property->title,
+                    'slug' => $lead->property->slug,
+                ] : null,
+            ];
+        }
+
+        if ($this->resource->relationLoaded('interestedProperty')) {
+            $property = $this->resource->interestedProperty;
+            $out['interested_property'] = $property === null ? null : [
+                'id' => $property->id,
+                'title' => $property->title,
+                'slug' => $property->slug,
+            ];
+        }
+
+        return $out;
     }
 
     /**

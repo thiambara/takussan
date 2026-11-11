@@ -4,6 +4,7 @@ namespace App\Services\Billing;
 
 use App\Models\Agency;
 use App\Models\AgencySubscription;
+use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
@@ -101,23 +102,32 @@ class QuotaResolver
         }
     }
 
-    public function assertCanAddAgent(Agency $agency): void
+    /**
+     * TCK-2669 (AC6) — l'usage du quota d'agents, dit à côté de celui des biens. Un agent compte
+     * quand son profil est ACTIF : un brouillon (invitation en attente), un profil désactivé ou
+     * suspendu n'occupe pas de place. `assertCanAddAgent()` lit le même compte — une seule
+     * définition, pour que l'affiché et le contrôlé ne divergent pas.
+     *
+     * @return array{limit: ?int, used: int}
+     */
+    public function agentUsage(Agency|int|null $agency): array
     {
         $subscription = $this->currentSubscription($agency);
-        if (! $subscription) {
-            return;
-        }
+        $limit = $subscription ? ($this->effectiveLimits($subscription)['max_agents'] ?? null) : null;
+        $agencyId = $agency instanceof Agency ? $agency->id : $agency;
 
-        $limit = $this->effectiveLimits($subscription)['max_agents'] ?? null;
-        if ($limit === null) {
-            return;
-        }
+        $used = $agencyId
+            ? AgentProfile::query()->where('agency_id', $agencyId)->where('status', AgentProfileStatus::Active)->count()
+            : 0;
 
-        $count = AgentProfile::query()
-            ->where('agency_id', $agency->id)
-            ->count();
+        return ['limit' => $limit === null ? null : (int) $limit, 'used' => $used];
+    }
 
-        if ($count >= (int) $limit) {
+    public function assertCanAddAgent(Agency $agency): void
+    {
+        ['limit' => $limit, 'used' => $used] = $this->agentUsage($agency);
+
+        if ($limit !== null && $used >= $limit) {
             abort_code(422, 'quota.agents_exceeded');
         }
     }

@@ -100,9 +100,9 @@ export function PartageDeSelection({ biens, variante = 'telephone', className }:
               ))}
             </div>
             <div className="bg-muted/60 px-3.5 py-2.5">
-              <p className="text-[15px] font-semibold">{t('titreDuLien', { count: retenus.length })}</p>
+              <p className="text-[0.9375rem] font-semibold">{t('titreDuLien', { count: retenus.length })}</p>
               {biens.length > SELECTION_PARTAGEE_MAX ? (
-                <p className="text-[13px] text-muted-foreground">{t('borne', { max: SELECTION_PARTAGEE_MAX })}</p>
+                <p className="text-[0.8125rem] text-muted-foreground">{t('borne', { max: SELECTION_PARTAGEE_MAX })}</p>
               ) : null}
             </div>
           </div>
@@ -111,17 +111,17 @@ export function PartageDeSelection({ biens, variante = 'telephone', className }:
             href={`https://wa.me/?text=${encodeURIComponent(typeof window === 'undefined' ? '' : message())}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-4 flex h-12 items-center justify-center gap-2 rounded-xl bg-success text-[15px] font-semibold text-success-foreground transition-colors hover:bg-success/90"
+            className="mt-4 flex h-12 items-center justify-center gap-2 rounded-xl bg-success text-[0.9375rem] font-semibold text-success-foreground transition-colors hover:bg-success/90"
           >
             {t('whatsapp')}
           </a>
           <div className={cn('mt-2 grid gap-2', partageNatif ? 'grid-cols-2' : 'grid-cols-1')}>
-            <Button type="button" variant="outline" onClick={() => void copier()} className="h-11 gap-2 rounded-xl text-[15px]">
+            <Button type="button" variant="outline" onClick={() => void copier()} className="h-11 gap-2 rounded-xl text-[0.9375rem]">
               {copie === 'ok' ? <Check className="size-4" aria-hidden="true" /> : <Copy className="size-4" aria-hidden="true" />}
               {copie === 'ok' ? t('copie') : t('copier')}
             </Button>
             {partageNatif ? (
-              <Button type="button" variant="outline" onClick={() => void autre()} className="h-11 gap-2 rounded-xl text-[15px]">
+              <Button type="button" variant="outline" onClick={() => void autre()} className="h-11 gap-2 rounded-xl text-[0.9375rem]">
                 <Share2 className="size-4" aria-hidden="true" />
                 {t('autre')}
               </Button>

@@ -108,3 +108,23 @@ describe('<OutilsFlottantsDeListe>', () => {
     expect(screen.getByTestId('comparateur').dataset.bottom).toBe(BASE);
   });
 });
+
+// TCK-2712:début
+/**
+ * TCK-2712 (3) — le toast se pose au-dessus de la pastille : `globals.css` relève `--toast-bas` tant
+ * que `[data-outils-flottants-de-liste]` est dans le document (`suites-point-porteur-1.tck-2712`).
+ * Le marqueur doit donc suivre EXACTEMENT ce qui est montré : invisible, il relèverait le toast
+ * au-dessus d'un vide.
+ */
+describe('TCK-2712 — le marqueur qui relève le toast', () => {
+  it('rendue : la pastille porte `data-outils-flottants-de-liste`', () => {
+    monte();
+    expect(screen.getByRole('group')).toHaveAttribute('data-outils-flottants-de-liste', '');
+  });
+
+  it('cachée ou dès lg : aucun marqueur dans le document', () => {
+    monte({ visible: false });
+    expect(document.querySelector('[data-outils-flottants-de-liste]')).toBeNull();
+  });
+});
+// TCK-2712:fin

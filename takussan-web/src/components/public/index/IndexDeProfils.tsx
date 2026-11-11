@@ -165,10 +165,10 @@ export async function IndexDeProfils({ ressource, locale, params, page, forme }:
         >
           <header className="flex flex-col gap-1 lg:flex-row lg:items-end lg:justify-between lg:gap-8">
             <div>
-              <h1 className="font-display text-[28px] font-semibold leading-none tracking-[-0.03em] text-foreground lg:text-[44px]">
+              <h1 className="font-display text-[1.75rem] font-semibold leading-none tracking-[-0.03em] text-foreground lg:text-[2.75rem]">
                 {tCommun('heading')}
               </h1>
-              <p className="mt-3 hidden max-w-[60ch] text-[17px] text-muted-foreground text-pretty lg:block">
+              <p className="mt-3 hidden max-w-[60ch] text-[1.0625rem] text-muted-foreground text-pretty lg:block">
                 {tCommun('intro')}
               </p>
             </div>
@@ -235,7 +235,7 @@ export async function IndexDeProfils({ ressource, locale, params, page, forme }:
                     <section aria-labelledby="annuaire-compte">
                       {/* TCK-946 — le compte est le titre de la liste : sans `h2`, le `<h1>` menait
                           droit au `<h3>` de la première ligne (axe, `heading-order`). */}
-                      <div className="text-[13px] text-muted-foreground lg:text-sm">
+                      <div className="text-[0.8125rem] text-muted-foreground lg:text-sm">
                         <h2 id="annuaire-compte" className="inline font-normal">
                           {t('count', { count: resultat.total })}
                         </h2>
@@ -296,13 +296,13 @@ function AppelAuxAgences() {
     <aside className="mt-6 flex items-start gap-3.5 rounded-2xl bg-secondary/60 p-4 lg:mt-0 lg:flex-col lg:gap-0 lg:self-start lg:p-6">
       <Store className="size-6 shrink-0 text-primary-deep lg:size-7" aria-hidden />
       <div className="min-w-0">
-        <h2 className="text-[15px] font-semibold text-foreground lg:mt-3 lg:font-display lg:text-xl lg:tracking-[-0.02em]">
+        <h2 className="text-[0.9375rem] font-semibold text-foreground lg:mt-3 lg:font-display lg:text-xl lg:tracking-[-0.02em]">
           {t('title')}
         </h2>
-        <p className="mt-1 text-[15px] text-muted-foreground lg:mt-2">{t('body')}</p>
+        <p className="mt-1 text-[0.9375rem] text-muted-foreground lg:mt-2">{t('body')}</p>
         <LienLocalise
           href="/publish"
-          className="mt-3 inline-flex min-h-11 items-center rounded-full bg-foreground px-5 text-[15px] font-medium text-background outline-none transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[0.98] lg:mt-5"
+          className="mt-3 inline-flex min-h-11 items-center rounded-full bg-foreground px-5 text-[0.9375rem] font-medium text-background outline-none transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-[0.98] lg:mt-5"
         >
           {t('cta')}
         </LienLocalise>

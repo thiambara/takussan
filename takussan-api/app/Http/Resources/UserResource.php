@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\User;
+use App\Services\Profiles\ActiveProfileResolver;
 use Illuminate\Http\Request;
 
 class UserResource extends BaseResource
@@ -107,6 +108,11 @@ class UserResource extends BaseResource
                 'timezone' => $this->timezone,
                 // TCK-2506 — paraître dans l'annuaire public des propriétaires (`PATCH /api/me`).
                 'listed_in_public_directory' => (bool) $this->listed_in_public_directory,
+                // TCK-2620 (ADR-0004, amendement du 2026-11-10, point 5) — le profil que
+                // `ResolveActiveProfile` a RÉELLEMENT lié à cette requête (`type:id`), ou `null` : le
+                // front aligne la persona sur lui au lieu de la deviner (`TYPE_DOMINANT`). Hors requête
+                // authentifiée (réponse d'un ouvreur de session), rien n'est lié : `null`.
+                'active_profile_id' => $this->profilLie(),
             ] : []),
             'agency_id' => $this->agency_id,
             // TCK-2002 (P176.02, P176.03 ; ADR-0005, amendement du 2026-10-23) — les profils ACTIFS de
@@ -127,5 +133,12 @@ class UserResource extends BaseResource
             'preferences' => $this->whenHas('preferences', fn () => is_array($this->preferences) ? $this->preferences : (object) []),
             'created_at' => $this->iso($this->created_at),
         ];
+    }
+
+    private function profilLie(): ?string
+    {
+        $profil = $this->resource->activeProfile();
+
+        return $profil !== null ? app(ActiveProfileResolver::class)->compositeId($profil) : null;
     }
 }

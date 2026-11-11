@@ -536,6 +536,16 @@ jobs:
         # de ne pas être compilée. Vérifiée par ablation (TCK-372, AC3).
         run: node scripts/check-app-tokens.mjs --report
 
+      - name: La partie connectée n'écrit aucune valeur arbitraire neuve (TCK-2685)
+        # ADR-0106 § 3 : la maquette retenue fait foi au pixel, par des JETONS (`text-ui`,
+        # `shadow-feuille`, `tracking-titre`, `size-icone`…), jamais par `text-[13px]`, `shadow-[…]`,
+        # `tracking-[…]`. Périmètre : la clôture des imports de `src/app/(dashboard)`, pas un dossier.
+        # Cliquet bilatéral par fichier (`scripts/check-valeurs-arbitraires-app.consigne.json`) :
+        # un compte qui monte OU qui descend sans la consigne rougit. Elle s'éprouve à chaque
+        # invocation sur ses formes fautives (cva, constante, ternaire…) et refuse un périmètre
+        # rétréci. Lit `takussan-web/src/**` et `scripts/**`, tous deux dans les chemins ci-dessus.
+        run: node scripts/check-valeurs-arbitraires-app.mjs --report
+
       - name: Les trois espaces ne parlent qu'un vocabulaire de couleur
         # Même défaut que la garde ci-dessus, sur un autre périmètre, et découvert APRÈS elle :
         # TCK-245 avait éteint la palette Tailwind brute de la console super-admin et était

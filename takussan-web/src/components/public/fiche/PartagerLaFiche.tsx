@@ -79,7 +79,7 @@ export function PartagerLaFiche({ nom, surPhoto = false, className }: PartagerLa
         aria-live="polite"
         className={cn(
           issue === 'echec'
-            ? 'absolute right-0 top-full z-40 mt-2 w-max max-w-[min(16rem,calc(100vw-2rem))] rounded-xl bg-card px-3 py-2 text-left text-[13px] leading-snug text-foreground shadow-[0_8px_24px_-12px_color-mix(in_oklab,var(--shadow-color)_45%,transparent)] ring-1 ring-border'
+            ? 'absolute right-0 top-full z-40 mt-2 w-max max-w-[min(var(--spacing)*64,calc(100vw-var(--spacing)*8))] rounded-xl bg-card px-3 py-2 text-left text-[0.8125rem] leading-snug text-foreground shadow-[0_8px_24px_-12px_color-mix(in_oklab,var(--shadow-color)_45%,transparent)] ring-1 ring-border'
             : 'sr-only',
         )}
       >

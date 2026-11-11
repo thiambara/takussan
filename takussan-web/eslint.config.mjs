@@ -84,7 +84,15 @@ const eslintConfig = defineConfig([
   // ajouter `--pass-on-unpruned-suppressions` à un script : c'est rouvrir le cliquet.
   {
     name: "takussan/a11y-en-erreur",
-    rules: { ...jsxA11y.flatConfigs.recommended.rules, ...reglesA11yDeNext },
+    rules: {
+      ...jsxA11y.flatConfigs.recommended.rules,
+      ...reglesA11yDeNext,
+      // TCK-2690 — la case à cocher et l'interrupteur de `ui/` (base-ui, un `<span>`/`<button>` et
+      // un `<input>` caché) SONT des contrôles : un `<label>` qui les enveloppe les nomme, et son
+      // clic les bascule (mesuré au navigateur). Sans cette liste, la règle ne connaît que les
+      // balises natives et refuse la ligne-cible de la maquette. TCK-2688 : le radio de `ui/radio-group`, de même.
+      "jsx-a11y/label-has-associated-control": ["error", { controlComponents: ["Checkbox", "Switch", "Radio"] }],
+    },
   },
   // Lint TYPÉ, limité à deux règles (P210.05) : une fonction `async` passée à `onClick` rend une
   // promesse que React jette, et son rejet n'est vu par personne. `checksVoidReturn` ne vise que

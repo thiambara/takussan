@@ -427,8 +427,8 @@ describe('TCK-2480 — AC5 : rendu serveur sans saut (largeur et épingles)', ()
     conteneur.innerHTML = html;
     const barre = conteneur.querySelector('aside')!;
     expect(barre.getAttribute('data-menu')).toBe(attendu);
-    // TCK-2490 (ADR-0090 §1, §7) — 272 px, rail de 60 px : en px, comme la maquette validée (la base
-    // de 90 % du bureau, TCK-635, ne les rétrécit pas).
+    // TCK-2490 (ADR-0090 §1, §7) — 272 px, rail de 60 px : en px, comme la maquette validée (la densité
+    // ×0,9 du bureau, ADR-0107, ne touche pas les px).
     expect(barre.className).toContain('w-[272px]');
     expect(barre.className).toContain('icones:w-[60px]');
     // Les épingles aussi sont au premier octet.

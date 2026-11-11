@@ -1,10 +1,7 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
 
 import { getMeAction } from '@/app/actions/auth';
 import { MaintenanceDetail } from '@/components/maintenance/MaintenanceDetail';
-import { buttonVariants } from '@/components/ui/button';
 import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/console';
 
@@ -19,6 +16,8 @@ interface PageProps {
 
 export default async function Page({ params }: PageProps) {
   const t = await getTranslations('dashboard.maintenanceDetail');
+  const tPages = await getTranslations('dashboard.pages');
+  const tConsole = await getTranslations('console.pageHeader');
   await getMeAction();
   const { id } = await params;
   const numericId = Number(id);
@@ -34,12 +33,11 @@ export default async function Page({ params }: PageProps) {
       <PageHeader
         title={t('title', { id: numericId })}
         description={t('subtitle')}
-        actions={
-          <Link href="/app/maintenance" className={buttonVariants({ variant: 'outline' })}>
-            <ArrowLeft aria-hidden="true" />
-            {t('back')}
-          </Link>
-        }
+        // TCK-2617 — plus de bouton « ← Retour » : la flèche de l'en-tête au téléphone, le fil dès `md`.
+        fil={{
+          label: tConsole('breadcrumb'),
+          etapes: [{ label: tPages('maintenance.title'), href: '/app/maintenance' }, { label: t('title', { id: numericId }) }],
+        }}
       />
       <MaintenanceDetail id={numericId} />
     </div>

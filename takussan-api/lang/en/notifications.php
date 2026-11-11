@@ -74,6 +74,13 @@ return [
         'unsubscribe' => 'Unsubscribe from digest emails',
     ],
 
+    // TCK-2633 — le nom des filtres de `GET /api/notifications` dans un 422.
+    'attributes' => [
+        'filters' => 'filters',
+        'unread_filter' => 'unread',
+        'action_filter' => 'to do',
+        'family_filter' => 'family',
+    ],
     'types' => [
         'booking' => 'Bookings',
         'payment' => 'Payments',
@@ -127,6 +134,11 @@ return [
         'expires' => 'This code is valid for :minutes minutes and can only be used once.',
         'ignore' => 'If you did not ask for anything, ignore this message: without this code, nothing is signed.',
         'sms' => 'Takussan: your signing code for lease :reference is :code (valid :minutes min). Do not share it.',
+    ],
+    // TCK-2646 (ADR-0098) — the code authenticating the tenant who signs the inventory on the
+    // agent's phone. SMS only: no e-mail version.
+    'inventory_signature_code' => [
+        'sms' => 'Takussan: inventory signing code (lease :reference): :code, valid :minutes min. Type it yourself, in front of the agent.',
     ],
     'account_deletion_step_up' => [
         'subject' => 'Your account deletion confirmation code',
@@ -265,6 +277,15 @@ return [
 
     // TCK-588 (ADR-0032) — une notification est un CODE rendu par surface dans la langue du destinataire : `codes.<code>.<surface>` (title, body, sms ; mail_subject/mail_body retombent sur title/body ; `_link` quand le lien de paiement est fourni). LangGroupParityTest garde les trois langues.
     'codes' => [
+        // TCK-2704 — une Vedette ou un Badge a pris fin (`BoostEndedNotification`, texte venu de `credits.boost.ended`).
+        'boost' => [
+            // Au titulaire du bien.
+            'ended' => [
+                'title' => 'Promotion ended',
+                'body' => 'The promotion of “:property” has ended.',
+                'sms' => 'Takussan: the promotion of “:property” has ended.',
+            ],
+        ],
         'impersonation' => [
             'ended' => [
                 'title' => 'Your account was viewed by the Takussan team',
@@ -273,6 +294,12 @@ return [
             ],
         ],
         'agency' => [
+            // TCK-2704 — aux super-admins : demande de passage en agence professionnelle (`AgencyUpgradeRequestSubmittedNotification`).
+            'upgrade_requested' => [
+                'title' => 'New agency upgrade request: :agency',
+                'body' => 'The agency :agency is asking to upgrade to professional. Review the request.',
+                'sms' => 'Takussan: upgrade request from agency :agency.',
+            ],
             'suspended' => [
                 'title' => 'Agency suspended: :agency',
                 'body' => 'The agency :agency has been suspended by the platform. Reason: :reason. Its listings are no longer published and its workspace is read-only.',
@@ -399,6 +426,12 @@ return [
                 'body' => 'Booking :reference for :property was cancelled.',
                 'sms' => 'Takussan: booking :reference cancelled (:property).',
             ],
+            // TCK-2579 — au client : une candidature ou une offre saisie par l'agence en son nom.
+            'recorded_on_behalf' => [
+                'title' => 'Request recorded on your behalf',
+                'body' => 'The agency recorded request :reference on your behalf for :property. You can cancel it from your bookings.',
+                'sms' => 'Takussan: request :reference recorded on your behalf (:property). To cancel it, contact the agency.',
+            ],
         ],
         // TCK-589 — invitation adressée à un numéro : le nom de l'agence seul, jamais un texte de l'invitant.
         'invitation' => [
@@ -411,6 +444,12 @@ return [
                 'title' => 'Reminder: invitation from :agency',
                 'body' => 'Your invitation to join :agency is waiting.',
                 'sms' => 'Takussan: reminder — your invitation to join :agency is waiting: :url',
+            ],
+            // TCK-2609 — to the inviter: the invitee whose link expired asks for a new one.
+            'renewal_requested' => [
+                'title' => 'New link requested: :invitee',
+                'body' => ':invitee is asking for a new link: their invitation as :role has expired. Resend it: :url',
+                'sms' => 'Takussan: :invitee is asking for a new invitation link.',
             ],
         ],
         // TCK-589 p3-1 — avis à l'ANCIEN numéro remplacé, et au compte. Aucun numéro dans le texte.
@@ -617,6 +656,18 @@ return [
             ],
         ],
         'maintenance' => [
+            // TCK-2704 — à l'agence : intervention urgente créée ou passée en urgent (`UrgentMaintenanceCreatedNotification`).
+            'urgent_created' => [
+                'title' => 'Urgent: :title',
+                'body' => 'The urgent maintenance request “:title” is waiting for you to handle it.',
+                'sms' => 'Takussan: urgent maintenance request “:title”.',
+            ],
+            // TCK-2704 — à l'agence : l'intervention urgente n'a pas été prise en charge à temps.
+            'urgent_escalated' => [
+                'title' => 'Urgent escalation: :title',
+                'body' => 'The urgent maintenance request “:title” still hasn\'t been handled.',
+                'sms' => 'Takussan: urgent escalation, “:title”.',
+            ],
             'created' => [
                 'title' => 'New maintenance request',
                 'body' => 'A maintenance request (:reference) was submitted for :property.',
@@ -763,6 +814,12 @@ return [
                 'body' => 'Both parties signed lease :reference for :property. It is now active.',
                 'sms' => 'Takussan: lease :reference is signed and active.',
             ],
+            // TCK-2642 — au bailleur, quand le loyer de son bail est révisé.
+            'rent_reviewed_landlord' => [
+                'title' => 'Rent reviewed: :reference',
+                'body' => 'The rent of lease :reference for :property changes from :old to :new from :effective_date.',
+                'sms' => 'Takussan: rent of lease :reference reviewed (:old -> :new) from :effective_date.',
+            ],
         ],
         'prospect_match' => [
             'digest' => [
@@ -772,6 +829,12 @@ return [
             ],
         ],
         'property' => [
+            // TCK-2704 — aux admins de l'agence : un bailleur propose un bien (`PropertyProposedNotification`).
+            'proposed' => [
+                'title' => 'Property proposed by a landlord: :property',
+                'body' => 'A landlord is proposing “:property” to your agency. Open it to review it.',
+                'sms' => 'Takussan: a landlord is proposing “:property” to your agency.',
+            ],
             'approved' => [
                 'title' => 'Property approved: :property',
                 'body' => 'Your property ":property" was approved and is now visible on the platform.',
@@ -812,6 +875,14 @@ return [
                 'title' => 'Is your property still available? :property',
                 'body' => 'The original listing for “:property” is no longer online. Open the property to tell us whether it is rented, sold or still available.',
                 'sms' => 'Takussan: is “:property” still available?',
+            ],
+        ],
+        // TCK-2661 — une commission payée au bénéficiaire.
+        'commission' => [
+            'paid' => [
+                'title' => '{1} Commission paid|[0,*] :count commissions paid',
+                'body' => '{1} Your commission of :amount has been paid.|[0,*] :count of your commissions have been paid, totalling :amount.',
+                'sms' => '{1} Takussan: your commission of :amount has been paid.|[0,*] Takussan: :count commissions paid (:amount).',
             ],
         ],
         // TCK-594 (ADR-0039) — les sorties d'argent.

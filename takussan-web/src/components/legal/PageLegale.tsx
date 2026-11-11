@@ -89,7 +89,7 @@ export async function PageLegale({ document }: PageLegaleProps) {
         <div className="min-w-0 lg:col-start-2 lg:row-start-1">
           <header>
             {/* TCK-2516 — plus de sur-titre « Informations légales » : le titre suffit. */}
-            <h1 className="font-display text-[30px] font-semibold leading-[1.1] tracking-[-0.03em] text-foreground text-balance md:text-4xl">
+            <h1 className="font-display text-[1.875rem] font-semibold leading-[1.1] tracking-[-0.03em] text-foreground text-balance md:text-4xl">
               {t(`documents.${document}.title`)}
             </h1>
           </header>
@@ -114,7 +114,7 @@ export async function PageLegale({ document }: PageLegaleProps) {
           {/* Téléphone : le sommaire repliable. Un `<details>` natif : il s'ouvre sans JavaScript. */}
           {sommaire.length > 0 ? (
             <details className="group mt-5 rounded-2xl border border-border bg-card lg:hidden">
-              <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2.5 rounded-2xl px-4 text-[15px] font-semibold text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+              <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2.5 rounded-2xl px-4 text-[0.9375rem] font-semibold text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
                 <List className="size-4 text-muted-foreground" aria-hidden="true" />
                 <span className="flex-1">{t('toc.summary', { count: sommaire.length })}</span>
                 <ChevronDown
@@ -157,7 +157,7 @@ export async function PageLegale({ document }: PageLegaleProps) {
 
         {/* Bureau : le sommaire à gauche, qui suit la lecture, puis les autres documents. */}
         <aside className="hidden lg:col-start-1 lg:row-start-1 lg:block">
-          <div className="sticky top-28 max-h-[calc(100dvh-8rem)] overflow-y-auto overscroll-contain pb-8">
+          <div className="sticky top-28 max-h-[calc(100dvh-var(--spacing)*32)] overflow-y-auto overscroll-contain pb-8">
             {sommaire.length > 0 ? (
               <nav aria-labelledby="sommaire-du-document">
                 <h2 id="sommaire-du-document" className="px-3 text-sm font-semibold text-foreground">

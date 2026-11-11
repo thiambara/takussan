@@ -71,12 +71,12 @@ export function PropertyMobileBottomBar({
     corner: 'bottom-full',
     height: MOBILE_BOTTOM_BAR_HEIGHT_PX,
     enabled: isMobile,
-    safeAreaInset: 'calc(0.75rem + env(safe-area-inset-bottom))',
+    safeAreaInset: 'calc(var(--spacing) * 3 + env(safe-area-inset-bottom))',
   });
 
   // `basis-0` : deux moitiés ÉGALES, quel que soit le libellé ; aucun `truncate` — un libellé qui ne
   // tiendrait plus passerait à la ligne, il ne serait jamais coupé (AC1).
-  const moitie = 'h-12 min-h-12 flex-1 basis-0 rounded-xl px-3 text-[15px] font-semibold whitespace-normal leading-tight';
+  const moitie = 'h-12 min-h-12 flex-1 basis-0 rounded-xl px-3 text-[0.9375rem] font-semibold whitespace-normal leading-tight';
 
   return (
     <div
@@ -112,7 +112,7 @@ export function PropertyMobileBottomBar({
 
       {/* Plusieurs numéros (TCK-633) : la liste monte en feuille, au-dessus de la barre. */}
       <Sheet open={appel.numeros !== null} onOpenChange={(ouvert) => !ouvert && appel.fermerNumeros()}>
-        <SheetContent side="bottom" className="rounded-t-2xl p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+        <SheetContent side="bottom" className="rounded-t-2xl p-4 pb-[calc(var(--spacing)*4+env(safe-area-inset-bottom))]">
           <SheetHeader className="p-0 pb-3">
             <SheetTitle>{t('actions.numbersTitle', { name: contact?.name ?? '' })}</SheetTitle>
             <SheetDescription>{t('actions.numbersDescription')}</SheetDescription>

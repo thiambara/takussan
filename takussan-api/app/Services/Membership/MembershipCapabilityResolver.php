@@ -537,6 +537,10 @@ class MembershipCapabilityResolver
             // TCK-1867 (P189.01) — jugé à la première demande seulement : seule une liste qui sert
             // les verdicts d'écriture d'un bailleur (`landlordWrites`) le lit.
             'blocked_owner' => null,
+            // TCK-2655 (vérification adverse) — un profil propriétaire de TOUT statut, la portée de
+            // `BailleurDuBien::est()` (le bailleur suspendu garde la lecture) ; `owner` ci-dessus est
+            // `active()`, celle de `isMemberAt()`. Jugé à la première demande, comme `blocked_owner`.
+            'owner_any' => null,
         ];
         try {
             return $callback();
@@ -546,7 +550,7 @@ class MembershipCapabilityResolver
     }
 
     /**
-     * `staff`, `agent`, `owner` ou `blocked_owner` du couple, tel que {@see self::primed()} l'a jugé ; `null` hors
+     * `staff`, `agent`, `owner`, `owner_any` ou `blocked_owner` du couple, tel que {@see self::primed()} l'a jugé ; `null` hors
      * amorce — l'appelant juge alors lui-même.
      */
     public static function amorce(string $kind, int $userId, int $agencyId): ?bool
@@ -554,6 +558,17 @@ class MembershipCapabilityResolver
         $amorce = self::$amorce;
         if ($amorce === null || ! isset($amorce['users'][$userId], $amorce['agencies'][$agencyId])) {
             return null;
+        }
+
+        if ($kind === 'owner_any' && $amorce['owner_any'] === null) {
+            // Même portée que `BailleurDuBien::est()` : de tout statut, hors profil supprimé.
+            $amorce['owner_any'] = OwnerProfile::query()
+                ->whereIn('user_id', array_keys($amorce['users']))
+                ->whereIn('agency_id', array_keys($amorce['agencies']))
+                ->get(['user_id', 'agency_id'])
+                ->mapWithKeys(fn ($row) => [$row->user_id.':'.$row->agency_id => true])
+                ->all();
+            self::$amorce = $amorce;
         }
 
         if ($kind === 'blocked_owner' && $amorce['blocked_owner'] === null) {

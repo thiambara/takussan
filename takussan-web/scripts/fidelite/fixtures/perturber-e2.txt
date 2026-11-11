@@ -1,0 +1,18 @@
+// Corps de fonction (le `return` final rend le compte rendu) : `.txt`, parce que ce n'est pas un module.
+// Les six écarts de l'essai E2 (annexe D, § 4.2), injectés dans la MAQUETTE `app-notifications/a/1`
+// (« Historique ») ; chacun est vérifié (valeur calculée avant → après), pour qu'une perturbation sans
+// effet ne passe pas pour un trou de l'outil. Elle a produit `notifications-a-1-telephone-perturbe.json`.
+//   node scripts/fidelite/fidelite.mjs releve --maquette app-notifications --a a --e 1 --device mobile \
+//        --perturber scripts/fidelite/fixtures/perturber-e2.txt --out /tmp/pert
+const ecran = document.querySelector('[data-fid-ecran]');
+const txt = (t) => [...ecran.querySelectorAll('*')].find((e) => [...e.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim() === t));
+const fait = [];
+const changer = (nom, el, prop, val) => { const avant = getComputedStyle(el)[prop]; el.style[prop] = val; fait.push(`${nom} : ${prop} ${avant} → ${getComputedStyle(el)[prop]}`); };
+const boite = (el) => { let n = el; while (n && getComputedStyle(n).backgroundColor === 'rgba(0, 0, 0, 0)' && getComputedStyle(n).borderTopWidth === '0px') n = n.parentElement; return n; };
+changer('Confirmer (bouton)', boite(txt('Confirmer')), 'borderRadius', '8px');
+const c = boite(txt('Tout')); changer('Tout (puce)', c, 'paddingLeft', (parseFloat(getComputedStyle(c).paddingLeft) + 2) + 'px');
+changer('Cette semaine', txt('Cette semaine'), 'color', 'rgb(168, 83, 50)');
+changer('Bien à valider…', txt('Bien à valider · Appartement F3, Sacré-Cœur'), 'fontWeight', '500');
+changer('Répondre (bouton)', boite(txt('Répondre')), 'borderColor', 'rgb(200, 190, 175)');
+const o = txt('Accueil'); let n = o; while (n && n.getBoundingClientRect().width < 380) n = n.parentElement; changer('barre d’onglets', n, 'height', (n.getBoundingClientRect().height + 4) + 'px');
+return fait;

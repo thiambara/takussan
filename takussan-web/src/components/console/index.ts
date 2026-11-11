@@ -6,11 +6,15 @@
  * (`@/components/console/DataTable`…). Réexportés, ils entraient dans le graphe client de toute
  * entrée qui ne prenait ici que `RouteSkeleton` ou `PageHeader` (les 44 `loading.tsx` de la console
  * compris). Garde : `__tests__/index-sans-composant-client.test.ts`.
+ *
+ * TCK-2617 — `PageHeader` déclare son titre à l'en-tête du téléphone (`DeclarerEnTete`, module
+ * client) : par cet index, il entre dans le graphe de qui l'importe. Les `loading.tsx` de `/app`
+ * prennent donc `RouteSkeleton` à son fichier (`@/components/console/RouteSkeleton`), jamais ici.
  */
 export { DataState } from './DataState';
 export type { DataStateProps } from './DataState';
 export { PageHeader } from './PageHeader';
-export type { PageHeaderProps } from './PageHeader';
+export type { EtapeDuFil, PageHeaderProps } from './PageHeader';
 export { RouteSkeleton } from './RouteSkeleton';
 export type { RouteSkeletonProps, RouteSkeletonVariant } from './RouteSkeleton';
 export { StatCard } from './StatCard';

@@ -78,7 +78,7 @@ export function OngletsDeLAnnuaire({
           aria-current={onglet.actif ? 'page' : undefined}
           onClick={(e) => ouvrir(e, onglet)}
           className={
-            'relative flex h-11 flex-1 items-center justify-center gap-1.5 text-[15px] font-medium outline-none transition-colors focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-primary ' +
+            'relative flex h-11 flex-1 items-center justify-center gap-1.5 text-[0.9375rem] font-medium outline-none transition-colors focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-primary ' +
             'lg:h-auto lg:flex-none lg:rounded-full lg:px-5 lg:py-2 ' +
             (onglet.actif
               ? 'text-foreground after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full after:bg-primary lg:bg-card lg:shadow-sm lg:after:hidden'
@@ -90,7 +90,7 @@ export function OngletsDeLAnnuaire({
           )}
           {onglet.libelle}
           {onglet.compte !== null && (
-            <span className="text-[13px] font-normal tabular-nums text-muted-foreground">{onglet.compte}</span>
+            <span className="text-[0.8125rem] font-normal tabular-nums text-muted-foreground">{onglet.compte}</span>
           )}
         </LienLocalise>
       ))}

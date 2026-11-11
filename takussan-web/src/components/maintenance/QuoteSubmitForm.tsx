@@ -165,7 +165,7 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
       >
         <ol className="space-y-3">
           {lines.map((line, index) => (
-            <li key={index} className="grid grid-cols-2 gap-2 rounded-lg border border-border p-3 sm:grid-cols-[1fr_9rem_6rem_8rem_auto]">
+            <li key={index} className="grid grid-cols-2 gap-2 rounded-lg border border-border p-3 sm:grid-cols-[1fr_calc(var(--spacing)*36)_calc(var(--spacing)*24)_calc(var(--spacing)*32)_auto]">
               <div className="col-span-2 sm:col-span-1">
                 <label htmlFor={`quote-line-label-${index}`} className="mb-1 block text-xs font-medium">
                   {tQuote('line_label')}

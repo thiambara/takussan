@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Loader2, Search } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Loader2, Search, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { Input } from '@/components/ui/input';
@@ -106,14 +106,30 @@ export function DebouncedSearchInput({
   }
 
   const enAttente = brouillon.trim() !== value || busy;
+  const champ = useRef<HTMLInputElement>(null);
+
+  // TCK-2688 — « Effacer la recherche » : vide le brouillon, part TOUT DE SUITE (sans attendre la
+  // fenêtre de temporisation, qu'on annule pour qu'une frappe en attente ne relance pas l'ancienne
+  // recherche), et rend le focus au champ.
+  const effacer = () => {
+    commit.cancel();
+    setBrouillon('');
+    if (value !== '') onCommit('');
+    champ.current?.focus();
+  };
 
   return (
     <div className={cn('relative', className)}>
+      {/* TCK-2688 — sous la portée `/app`, la recherche de la maquette : icône au jeton de 18 px
+          (`size-icone`, fixe ; son trait suit la portée, 1,75 puis 1,5 dès `md`), texte à 12 px +
+          18 px + 8 px du bord (`px-3 gap-2`), bouton « effacer » à droite. Le contour reste
+          `border-input` et la hauteur suit l'échelle (`h-controle` : 44 / 36), ADR-0106 § 2. */}
       <Search
         aria-hidden
-        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground portee-app:size-icone"
       />
       <Input
+        ref={champ}
         id={id}
         type="search"
         aria-label={ariaLabel}
@@ -126,7 +142,7 @@ export function DebouncedSearchInput({
         // cliquer « réinitialiser » ferait repartir la recherche après la remise à zéro.
         onBlur={() => commit.flush()}
         placeholder={placeholder}
-        className="pl-9 pr-9"
+        className="pl-9 pr-9 portee-app:pl-[calc(var(--spacing)*5+var(--spacing-icone))] portee-app:[&::-webkit-search-cancel-button]:appearance-none"
       />
       {enAttente ? (
         <span
@@ -137,6 +153,18 @@ export function DebouncedSearchInput({
           <Loader2 aria-hidden className="size-4 animate-spin" />
           <span className="sr-only">{t('pending')}</span>
         </span>
+      ) : brouillon !== '' ? (
+        // Hors portée, rien ne change (le champ natif garde sa croix) : le bouton n'y est pas rendu
+        // visible. 16 px dessinés, 44 px d'appui au pouce par le pseudo-élément.
+        <button
+          type="button"
+          onClick={effacer}
+          aria-label={t('clear')}
+          data-testid="console-search-clear"
+          className="absolute right-3 top-1/2 hidden size-4 -translate-y-1/2 items-center justify-center rounded-sm text-muted-foreground outline-none transition-colors after:absolute after:-inset-3.5 after:content-[''] hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring portee-app:inline-flex"
+        >
+          <X aria-hidden className="size-4" />
+        </button>
       ) : null}
     </div>
   );

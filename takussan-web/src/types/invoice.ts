@@ -118,6 +118,20 @@ export type PaymentHistoryRow = {
   property_id: number | null;
   customer_id: number | null;
   created_at: string | null;
+  /**
+   * TCK-2657 / TCK-2659 — l'encaissement NOMMÉ, servi par `include=payer,property,landlord` : la
+   * fiche client qui paie (`payer.id` est celui de `filter[payer_id]`), le bien, le bailleur
+   * (`landlord.id` est celui de `filter[landlord_id]`). Absents sans l'`include`, nuls quand la
+   * relation manque.
+   */
+  payer?: { readonly id: number; readonly name: string | null; readonly phone?: string | null } | null;
+  property?: { readonly id: number; readonly title: string | null; readonly reference_number?: string | null } | null;
+  landlord?: { readonly id: number; readonly name: string | null } | null;
+  /** Jours de retard (≥ 1), nul sinon ; servi dès qu'un paramètre de TCK-2657 est passé. */
+  days_late?: number | null;
+  /** TCK-2658 — `include=reminders` : la dernière relance d'une ligne de bail (nulle sinon). */
+  last_reminder?: { readonly at: string; readonly channel?: string | null } | null;
+  reminders_count?: number;
 };
 
 export type PaymentHistoryTotals = {

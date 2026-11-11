@@ -27,7 +27,7 @@ L'admin ou l'agent qui ouvre un bien loué voit d'abord qui l'occupe, sous quel 
 
 ## Contrat de données
 
-- `GET /api/properties/{id}` avec `include=occupancy` et `is_online` (TCK-2637).
+- `GET /api/properties/{id}` avec `include=occupancy,online` (`is_online`, TCK-2637).
 - Interventions du bien : `GET /api/maintenance-requests?filter[property_id]=` (existant).
 - Documents du bien et de ses baux : la lecture par cible du coffre (TCK-2655).
 - États des lieux du bien : `GET /api/properties/{id}/inventories`. L'endpoint existe, le front ne l'appelle pas aujourd'hui.

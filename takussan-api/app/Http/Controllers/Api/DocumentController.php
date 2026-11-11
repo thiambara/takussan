@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Policies\DocumentPolicy;
 use App\Services\Privacy\PersonalDataAccessLogger;
 use App\Support\ImpersonationContext;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -46,7 +47,15 @@ class DocumentController extends Controller
         //
         // P218.06 (TCK-2295) — sous la règle d'auteur de `DocumentPolicy::view` (ADR-0031, amendement du
         // 2026-10-25, D3) : l'agent suspendu ou retiré ne liste plus ce qu'il a téléversé dans l'agence.
-        $base = DocumentPolicy::restreindreAuTeleverseur(Document::query(), $user);
+        //
+        // TCK-2655 (ADR-0099 §1) — AVEC une cible (`filter[documentable_type]` + `filter[documentable_id]`),
+        // la liste suit la lecture : tout ce que `view` ouvre sur cette cible, quel qu'en soit l'auteur
+        // ({@see DocumentPolicy::listableOn()}). Une cible illisible ou introuvable retombe sur la règle
+        // de TCK-820, jamais sur un 403 ou un 404 qui dirait qu'elle existe (TCK-732).
+        $target = $this->targetOf($request);
+        $base = $target !== null
+            ? DocumentPolicy::listableOn(Document::query(), $user, $target)
+            : DocumentPolicy::restreindreAuTeleverseur(Document::query(), $user);
 
         // TCK-697 (P23.01) — la règle de `DocumentPolicy::view()` : sous impersonation, les pièces
         // rattachées à un profil ne se listent pas.
@@ -71,6 +80,10 @@ class DocumentController extends Controller
             $counts[$type->value] = (int) ($parType[$type->value] ?? 0);
         }
 
+        // TCK-2655 — les pastilles « expire bientôt » et « à vérifier » de toute la liste filtrée, lues
+        // avant la pagination (qui borne la requête).
+        $attention = Document::attentionCounts($query->getEloquentBuilder());
+
         // P20.05 (TCK-901) — le fichier et la version active de chaque ligne se lisent sur `media`
         // chargé une fois pour la page, et non par deux requêtes par document.
         $paginator = $query
@@ -78,7 +91,7 @@ class DocumentController extends Controller
             ->with('media')
             ->paginate();
 
-        return $this->paginated($paginator, DocumentResource::page($paginator, $request), ['counts' => $counts]);
+        return $this->paginated($paginator, DocumentResource::page($paginator, $request), ['counts' => $counts, ...$attention]);
     }
 
     public function store(StoreDocumentRequest $request): JsonResponse
@@ -152,6 +165,27 @@ class DocumentController extends Controller
         $document->delete();
 
         return $this->json([], 204);
+    }
+
+    /**
+     * TCK-2655 — la cible d'une liste : un type de {@see Document::TARGET_ALIASES} et UN identifiant
+     * scalaire, qui désignent une ligne existante. Toute autre forme (liste, tableau, type inconnu,
+     * ligne absente ou supprimée) n'est pas une cible.
+     */
+    private function targetOf(Request $request): ?Model
+    {
+        $filter = $request->query('filter');
+        if (! is_array($filter)) {
+            return null;
+        }
+
+        $class = Document::targetClass($filter['documentable_type'] ?? null);
+        $id = $filter['documentable_id'] ?? null;
+        if ($class === null || ! is_string($id) || ! ctype_digit($id) || strlen($id) > 18) {
+            return null;
+        }
+
+        return $class::query()->find((int) $id);
     }
 
     protected function resolveDocumentableType(string $type): ?string

@@ -1,11 +1,9 @@
 'use client';
 
-import { ArrowLeft } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import type { MouseEvent, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
-import { LienLocalise } from '@/components/shared/LienLocalise';
-import { peutRevenirSurLeSite } from '@/components/shared/BoutonRetour';
+import { LienFlecheDeRetour } from '@/components/navigation-publique/FlecheDeRetour';
 import { cn } from '@/lib/utils';
 
 /**
@@ -52,36 +50,12 @@ export interface BoutonRetourDePageProps {
 }
 
 /**
- * Le retour d'un en-tête de page : une flèche de 44 px, nommée. Un vrai `<a href={repli}>` — clic
- * molette et « ouvrir dans un onglet » marchent —, qui revient en arrière quand la page précédente
- * de l'onglet est du site (filtres et défilement retrouvés), comme `BoutonRetour`.
+ * Le retour d'un en-tête de page : LA flèche (`FlecheDeRetour.tsx`, TCK-2617), nommée « Retour » par
+ * défaut. Un lien qui revient en arrière quand la page précédente de l'onglet est du site.
  */
 export function BoutonRetourDePage({ repli, libelle, surPhoto = false, className }: BoutonRetourDePageProps) {
   const t = useTranslations('navigationPublique.enTeteDePage');
-
-  function auClic(evenement: MouseEvent<HTMLAnchorElement>) {
-    if (evenement.metaKey || evenement.ctrlKey || evenement.shiftKey || evenement.altKey || evenement.button !== 0) return;
-    if (!peutRevenirSurLeSite()) return;
-    evenement.preventDefault();
-    // `history.back()` et non `router.back()` : le routeur de Next écoute `popstate`, et un retour
-    // sans routeur monté (rendu isolé d'une fiche, en test) ne lève pas.
-    window.history.back();
-  }
-
-  return (
-    <LienLocalise
-      href={repli}
-      onClick={auClic}
-      aria-label={libelle ?? t('retour')}
-      className={cn(
-        'inline-flex size-11 shrink-0 items-center justify-center rounded-full text-foreground transition-[background-color,scale] hover:bg-muted active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        surPhoto && 'bg-card shadow-[0_2px_8px_-2px_color-mix(in_oklab,var(--shadow-color)_35%,transparent)] hover:bg-card',
-        className,
-      )}
-    >
-      <ArrowLeft className="size-5" aria-hidden="true" />
-    </LienLocalise>
-  );
+  return <LienFlecheDeRetour repli={repli} libelle={libelle ?? t('retour')} surPhoto={surPhoto} className={className} />;
 }
 
 export function EnTeteDePage({
@@ -110,7 +84,7 @@ export function EnTeteDePage({
       >
         {retour ? <BoutonRetourDePage repli={retour.repli} libelle={retour.libelle} surPhoto className="pointer-events-auto md:bg-transparent md:shadow-none" /> : <span />}
         {titre ? (
-          <Titre className="sr-only md:not-sr-only md:min-w-0 md:flex-1 md:truncate md:text-[15px] md:font-semibold">{titre}</Titre>
+          <Titre className="sr-only md:not-sr-only md:min-w-0 md:flex-1 md:truncate md:text-corps md:font-semibold">{titre}</Titre>
         ) : null}
         {action ? <div className="pointer-events-auto flex shrink-0 items-center gap-2">{action}</div> : null}
       </header>
@@ -129,7 +103,7 @@ export function EnTeteDePage({
     >
       {retour ? <BoutonRetourDePage repli={retour.repli} libelle={retour.libelle} /> : null}
       {titre ? (
-        <Titre className="min-w-0 flex-1 truncate font-display text-[17px] font-semibold tracking-[-0.01em] text-foreground">
+        <Titre className="min-w-0 flex-1 truncate font-display text-titre-court font-semibold tracking-titre text-foreground">
           {titre}
         </Titre>
       ) : (

@@ -54,6 +54,17 @@ final class FichiersReels
         return self::fichier(pack('N', 24).'ftypheic'.pack('N', 0).'mif1heic'.str_repeat("\x00", 64), $nom);
     }
 
+    /**
+     * TCK-2631 — un exécutable Windows réduit à son en-tête `MZ` et à sa signature `PE` : `finfo` y
+     * lit `application/x-dosexec` (ou voisin), quel que soit le nom qu'on lui donne (`photo.jpg`).
+     */
+    public static function executable(string $nom = 'programme.exe'): UploadedFile
+    {
+        $entete = 'MZ'.str_repeat("\x00", 58).pack('V', 64);
+
+        return self::fichier($entete.'PE'."\x00\x00".pack('v', 0x014C).str_repeat("\x00", 250), $nom);
+    }
+
     public static function texte(string $nom = 'note.txt'): UploadedFile
     {
         return self::fichier("Note de visite : la porte du fond ferme mal.\n", $nom);

@@ -6,6 +6,8 @@ return [
             'not_individual' => 'Agence bi xam-xam la — luñu tëju ci upgrade.',
             'permission_denied' => 'Amul nga ndombo-tànk ngir yónni demaande upgrade ci agence bi.',
             'pending_exists' => 'Demaande dafa nekk ci agence bii (#:request_id). Révoque-leen balaa nga yónni beneen.',
+            // TCK-2669 (ADR-0104 § 5) — reprendre une demande refusée.
+            'resubmit_not_allowed' => 'Seule la dernière demande refusée de cette agence peut être reprise.',
         ],
     ],
     'revoke' => [

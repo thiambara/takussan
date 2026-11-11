@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Agency\AgencySetupStatusController;
 use App\Http\Controllers\Api\Agency\AgencyUpgradeRequestController;
 use App\Http\Controllers\Api\Agency\AgentInvitationController;
 use App\Http\Controllers\Api\Agency\AgingBalanceController;
+use App\Http\Controllers\Api\Agency\FinanceSummaryController;
 use App\Http\Controllers\Api\Agency\KycController;
 use App\Http\Controllers\Api\Agency\OwnerInvitationController;
 use App\Http\Controllers\Api\Agency\RegenerateWatermarksController;
@@ -64,6 +65,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // TCK-595 (§6, §7) — pilotage : performance d'équipe (agences `standard`) et balance âgée.
     Route::get('agencies/{agency}/team-performance', [TeamPerformanceController::class, 'show'])->name('agencies.team-performance');
     Route::get('agencies/{agency}/finance/aging', [AgingBalanceController::class, 'show'])->name('agencies.finance.aging');
+    // TCK-2657 (ADR-0100 § 4) — le point de l'argent d'un mois, sous la même Policy que la balance âgée.
+    Route::get('agencies/{agency}/finance/summary', [FinanceSummaryController::class, 'show'])->name('agencies.finance.summary');
 
     // TCK-589 §7 — mise en service : sept étapes lues sur l'état réel.
     Route::get('agencies/{agency}/setup-status', AgencySetupStatusController::class)->name('agencies.setup-status');

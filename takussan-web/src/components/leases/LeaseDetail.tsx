@@ -1,8 +1,6 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import {
   useGenerateSchedule,
@@ -12,6 +10,8 @@ import {
 } from '@/lib/queries/leases';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { ErrorState } from '@/components/feedback';
+import { FilDAriane } from '@/components/console/PageHeader';
+import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -56,6 +56,8 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   const tRenewal = useTranslations('lease.renewal');
   const tTermination = useTranslations('lease.early_termination');
   const tCommon = useTranslations('common');
+  const tPages = useTranslations('dashboard.pages');
+  const tConsole = useTranslations('console.pageHeader');
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [renewalOpen, setRenewalOpen] = useState(false);
   const [earlyTerminationOpen, setEarlyTerminationOpen] = useState(false);
@@ -157,102 +159,105 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
     });
   }
 
+  const reference = lease.reference_number || tLease('fallbackReference', { id: String(lease.id) });
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <Link
-            href="/app/leases"
-            className="-my-1 inline-flex min-h-8 items-center gap-1 rounded-md text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <ArrowLeft className="size-3.5" aria-hidden="true" />
-            {t('backToList')}
-          </Link>
-          <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-balance text-foreground">
-            {lease.reference_number || tLease('fallbackReference', { id: String(lease.id) })}
-          </h1>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <Badge>{tStatus(lease.status)}</Badge>
-            {lease.type && (
-              <span>{KNOWN_LEASE_TYPES.has(lease.type) ? tTypes(lease.type) : lease.type}</span>
-            )}
-            {latePaymentsCount > 0 && (
-              <Badge variant="destructive">
-                {t('latePayments', { count: String(latePaymentsCount) })}
-              </Badge>
-            )}
+      {/* TCK-2617 — plus de lien « ← Retour » : au téléphone, la flèche de l'en-tête de la coque (qui
+          revient à la liste filtrée quittée) ; dès `md`, le fil d'Ariane, AU-DESSUS de la rangée titre +
+          actions (maquette `app-coque` a-2 : les actions s'alignent sur le titre, pas sur le fil). */}
+      <DeclarerEnTete titre={reference} />
+      <div>
+        <FilDAriane
+          label={tConsole('breadcrumb')}
+          etapes={[{ label: tPages('leases.title'), href: '/app/leases' }, { label: reference }]}
+        />
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="font-display text-2xl font-bold tracking-tight text-balance text-foreground">{reference}</h1>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <Badge>{tStatus(lease.status)}</Badge>
+              {lease.type && (
+                <span>{KNOWN_LEASE_TYPES.has(lease.type) ? tTypes(lease.type) : lease.type}</span>
+              )}
+              {latePaymentsCount > 0 && (
+                <Badge variant="destructive">
+                  {t('latePayments', { count: String(latePaymentsCount) })}
+                </Badge>
+              )}
+            </div>
           </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {isAgentSurface && (
-            <AddDocumentButton
-              documentableType="lease"
-              documentableId={leaseId}
-              size="default"
-              displayLabel={lease.reference_number || tLease('fallbackReference', { id: String(lease.id) })}
-            />
-          )}
-          {/* P228.01 (TCK-2210) — la route juge `recordPayment` (P46.05) et `scheduleUnderLock`
-              refuse tout bail qui n'est pas `active` : le bouton ne se monte que là. */}
-          {canRecordPayment && lease.status === 'active' && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setErreurEcheancier(null);
-                generateSchedule.mutate(
-                  {},
-                  { onError: (erreur) => setErreurEcheancier(messageErreur(erreur)) },
-                );
-              }}
-              disabled={generateSchedule.isPending}
-            >
-              {generateSchedule.isPending ? t('generating') : t('generateSchedule')}
-            </Button>
-          )}
-          {canReviewRent && lease.status === 'active' && lease.type !== 'sale' && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => void handleRentReview()}
-              disabled={reviewRent.isPending}
-            >
-              {t('reviewRent')}
-            </Button>
-          )}
-          {canRecordPayment && (
-            <Button type="button" onClick={() => setPaymentOpen(true)}>
-              {t('recordPayment')}
-            </Button>
-          )}
-          {!isAgentSurface && (
-            <BoutonTelechargement
-              chemin={`/api/leases/${leaseId}/contract/pdf`}
-              nomFichier={`bail-${lease.reference_number ?? lease.id}.pdf`}
-            >
-              {t('downloadContract')}
-            </BoutonTelechargement>
-          )}
-          {canRenew && (lease.status === 'active' || lease.status === 'expired') && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setRenewalOpen(true)}
-            >
-              {tRenewal('cta')}
-            </Button>
-          )}
-          {canRequestTermination &&
-            (lease.status === 'active' || lease.status === 'expired') && (
+          <div className="flex flex-wrap gap-2">
+            {isAgentSurface && (
+              <AddDocumentButton
+                documentableType="lease"
+                documentableId={leaseId}
+                size="default"
+                displayLabel={lease.reference_number || tLease('fallbackReference', { id: String(lease.id) })}
+              />
+            )}
+            {/* P228.01 (TCK-2210) — la route juge `recordPayment` (P46.05) et `scheduleUnderLock`
+                refuse tout bail qui n'est pas `active` : le bouton ne se monte que là. */}
+            {canRecordPayment && lease.status === 'active' && (
               <Button
                 type="button"
                 variant="outline"
-                className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                onClick={() => setEarlyTerminationOpen(true)}
+                onClick={() => {
+                  setErreurEcheancier(null);
+                  generateSchedule.mutate(
+                    {},
+                    { onError: (erreur) => setErreurEcheancier(messageErreur(erreur)) },
+                  );
+                }}
+                disabled={generateSchedule.isPending}
               >
-                {isAgentSurface ? tTermination('cta') : tTermination('cta_tenant')}
+                {generateSchedule.isPending ? t('generating') : t('generateSchedule')}
               </Button>
             )}
+            {canReviewRent && lease.status === 'active' && lease.type !== 'sale' && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void handleRentReview()}
+                disabled={reviewRent.isPending}
+              >
+                {t('reviewRent')}
+              </Button>
+            )}
+            {canRecordPayment && (
+              <Button type="button" onClick={() => setPaymentOpen(true)}>
+                {t('recordPayment')}
+              </Button>
+            )}
+            {!isAgentSurface && (
+              <BoutonTelechargement
+                chemin={`/api/leases/${leaseId}/contract/pdf`}
+                nomFichier={`bail-${lease.reference_number ?? lease.id}.pdf`}
+              >
+                {t('downloadContract')}
+              </BoutonTelechargement>
+            )}
+            {canRenew && (lease.status === 'active' || lease.status === 'expired') && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setRenewalOpen(true)}
+              >
+                {tRenewal('cta')}
+              </Button>
+            )}
+            {canRequestTermination &&
+              (lease.status === 'active' || lease.status === 'expired') && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  onClick={() => setEarlyTerminationOpen(true)}
+                >
+                  {isAgentSurface ? tTermination('cta') : tTermination('cta_tenant')}
+                </Button>
+              )}
+          </div>
         </div>
       </div>
 

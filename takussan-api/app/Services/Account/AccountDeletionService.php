@@ -36,6 +36,7 @@ use App\Services\Payout\BeneficiaireDuReversement;
 use App\Services\Payout\PayoutCalculator;
 use App\Services\Property\BailleurDuBien;
 use App\Services\Property\TitulaireALaSaisie;
+use App\Services\Visit\VisitReportService;
 use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
@@ -278,6 +279,10 @@ class AccountDeletionService
 
         // Dissociate customers (preserve CRM history).
         Customer::query()->where('user_id', $user->id)->update(['user_id' => null]);
+
+        // TCK-2578 (ADR-0101 § 7) — AVANT de détacher `visitor_id` (ci-dessous), qui seul désigne
+        // ses visites : la note libre des comptes rendus est vidée, les codes restent à l'agence.
+        VisitReportService::forgetNotesOfVisitor((int) $user->id);
 
         // TCK-1014 (P57.02) — de même pour les visites demandées en étant connecté : le compte
         // n'étant que soft-deleted, la FK `visitor_id` en `nullOnDelete` ne joue pas. Le contact

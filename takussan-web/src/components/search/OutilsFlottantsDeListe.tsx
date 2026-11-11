@@ -78,6 +78,8 @@ export function OutilsFlottantsDeListe({
     <div
       role="group"
       aria-label={t('outilsFlottantsAria')}
+      // TCK-2712 (3) — lu par `globals.css` : tant qu'elle est rendue, le toast se pose au-dessus d'elle.
+      data-outils-flottants-de-liste=""
       style={{ bottom }}
       className={cn(
         // Centrée : ni à gauche ni à droite, là où le pouce des deux mains l'atteint.

@@ -71,7 +71,7 @@ export function SuperAdminTopbar({ user, onMenuToggle }: SuperAdminTopbarProps) 
         <Logo nom={tCommon('appName')} nomVisible="des-sm" />
         <span
           aria-hidden="true"
-          className="rounded-sm bg-primary/15 px-1.5 py-0.5 text-[11px] font-semibold uppercase leading-none tracking-[0.12em] text-primary"
+          className="rounded-sm bg-primary/15 px-1.5 py-0.5 text-[0.6875rem] font-semibold uppercase leading-none tracking-[0.12em] text-primary"
         >
           {t('superAdmin.consoleBadge')}
         </span>

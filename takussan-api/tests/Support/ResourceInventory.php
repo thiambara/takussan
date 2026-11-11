@@ -3,6 +3,7 @@
 namespace Tests\Support;
 
 use App\Http\Resources\Accounting\MatchCandidateResource;
+use App\Http\Resources\Accounting\ReconciliationPendingPaymentResource;
 use App\Http\Resources\AgentProfileResource;
 use App\Http\Resources\Api\Admin\AgencyDetailResource;
 use App\Http\Resources\Api\Admin\AgencyProvisioningResource;
@@ -11,6 +12,9 @@ use App\Http\Resources\Api\Admin\RadarAdvertiserRankingResource;
 use App\Http\Resources\Api\Admin\UserDetailResource;
 use App\Http\Resources\Api\Admin\UserListResource;
 use App\Http\Resources\Api\Me\ProfileResource;
+use App\Http\Resources\ConversationContextResource;
+use App\Http\Resources\Credits\CreditBoostResource;
+use App\Http\Resources\Credits\CreditSuggestionResource;
 use App\Http\Resources\Credits\CreditWalletResource;
 use App\Http\Resources\DocumentVersionResource;
 use App\Http\Resources\IncludedUserResource;
@@ -18,20 +22,27 @@ use App\Http\Resources\MediaResource;
 use App\Http\Resources\Messaging\GroupContextLeaseResource;
 use App\Http\Resources\Messaging\GroupContextPropertyResource;
 use App\Http\Resources\Messaging\MessagingContactResource;
+use App\Http\Resources\OwnerProfileDetailResource;
 use App\Http\Resources\OwnerProfileResource;
 use App\Http\Resources\PropertyMapGeoJsonResource;
+use App\Http\Resources\PropertyModerationDetailResource;
 use App\Http\Resources\PropertySitemapResource;
 use App\Http\Resources\PropertyTagResource;
+use App\Http\Resources\PublicInvitationPreviewResource;
 use App\Http\Resources\ServiceProviderAgencyCollaborationResource;
 use App\Http\Resources\ServiceProviderDirectoryResource;
 use App\Models\Agency;
+use App\Models\BookingPayment;
+use App\Models\Invitation;
 use App\Models\Lease;
+use App\Models\LeasePayment;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\ServiceProviderAgencyCollaboration;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
+use App\Models\PropertyBoost;
 use App\Models\Tag;
 use App\Models\User;
 use ReflectionClass;
@@ -103,6 +114,15 @@ final class ResourceInventory
             'modeles' => [Property::class],
             'raison' => 'Un bien auquel rattacher un groupe, vu par le sélecteur de la messagerie (TCK-576) — le nom dit le rôle, pas le modèle.',
         ],
+        // TCK-2674 — deux modèles derrière une même forme.
+        ReconciliationPendingPaymentResource::class => [
+            'modeles' => [LeasePayment::class, BookingPayment::class],
+            'raison' => 'TCK-2674 — un paiement à rapprocher (échéance de bail ou acompte de réservation) et sa ligne proposée — le nom dit la vue, pas le modèle.',
+        ],
+        PropertyModerationDetailResource::class => [
+            'modeles' => [Property::class],
+            'raison' => 'TCK-2672 — un bien soumis vu par la modération d\'agence, en entier avec sa liste de contrôle — le nom dit la vue, pas le modèle.',
+        ],
         GroupContextLeaseResource::class => [
             'modeles' => [Lease::class],
             'raison' => 'Un bail auquel rattacher un groupe, vu par le sélecteur de la messagerie (TCK-576) — le nom dit le rôle, pas le modèle.',
@@ -160,6 +180,21 @@ final class ResourceInventory
                 .'elle ne la précède pas (`aliasFor()` LÈVE pour une classe absente de la carte). '
                 .'Le profil courtier y a figuré, puis a quitté le code (TCK-495, ADR-0030).',
         ],
+        // TCK-2663
+        CreditBoostResource::class => [
+            'modeles' => [PropertyBoost::class],
+            'raison' => 'TCK-2663 — une mise en avant vue par la page Crédits, avec ses mesures : le préfixe `Credit` dit la vue, pas le modèle.',
+        ],
+        // TCK-2663
+        CreditSuggestionResource::class => [
+            'modeles' => [Property::class],
+            'raison' => 'TCK-2663 — un bien à pousser, vu par la page Crédits : le nom dit la vue, pas le modèle.',
+        ],
+        // TCK-2609
+        PublicInvitationPreviewResource::class => [
+            'modeles' => [Invitation::class],
+            'raison' => "TCK-2609 — l'aperçu public d'une invitation par son jeton (ADR-0094) : le nom dit la vue, pas le modèle.",
+        ],
     ];
 
     /**
@@ -179,6 +214,11 @@ final class ResourceInventory
         MediaResource::class => 'Enveloppe un `Spatie\\MediaLibrary\\…\\Media`, modèle d\'un paquet tiers sans factory : instancié à la main avec des attributs concrets (`getUrl()` exige `disk`, `id`, `file_name`).',
         DocumentVersionResource::class => 'Même sujet `Media` que ci-dessus, lu par ses `custom_properties` de version.',
         RadarAdvertiserRankingResource::class => 'TCK-2393 — un `RadarAdvertiser` vu par le classement : il exige les trois `withCount` du contrôleur (`listings_count`, `published_count`, `outreaches_count`), que la convention `<Modele>Resource` ne poserait pas.',
+        // TCK-2630
+        ConversationContextResource::class => 'TCK-2630 — enveloppe un objet `readonly` (`App\\Services\\Messaging\\ConversationThreadContext`) qui porte le bien, le bail, l\'intervention et la fiche CRM d\'un fil : construit par appel direct au constructeur.',
+
+        // TCK-2640
+        OwnerProfileDetailResource::class => 'TCK-2640 — enveloppe le TABLEAU de la fiche d\'un bailleur composé par `App\\Services\\Owners\\OwnerDirectory::detail()` (profil, relevé servi, dernier versement) : construit par ce même appel, sur un profil et un reversement versé.',
     ];
 
     /**

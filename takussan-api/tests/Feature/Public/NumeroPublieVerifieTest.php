@@ -9,6 +9,7 @@ use App\Models\Document;
 use App\Models\GeoCity;
 use App\Models\GeoNeighborhood;
 use App\Models\GeoRegion;
+use App\Models\Invitation;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\PropertyContact;
@@ -341,6 +342,9 @@ class NumeroPublieVerifieTest extends TestCase
             'api/public/search-alerts/capabilities' => ['appels' => ['api/public/search-alerts/capabilities'], 'preuve' => 'channels'],
             // TCK-2513 — l'alerte sans compte lue par son jeton : l'abonné porte le numéro NON vérifié comme contact.
             'api/public/search-alerts/by-token' => ['appels' => ['api/public/search-alerts/by-token?token='.$this->alerteParNumero()], 'preuve' => 'alerte-balayee'],
+            // TCK-2609 — l'aperçu d'une invitation par son jeton : envoyée PAR SMS au numéro non vérifié du jeu, par l'agent dont
+            // le numéro ne l'est pas non plus. Le destinataire sort masqué, l'invitant par son prénom seul.
+            'api/public/invitations/{token}' => ['appels' => ['api/public/invitations/'.$this->invitationParNumero($jeu)], 'preuve' => 'invite-balaye'],
         ];
     }
 
@@ -372,6 +376,24 @@ class NumeroPublieVerifieTest extends TestCase
         ]);
 
         return $jeton;
+    }
+
+    /**
+     * TCK-2609 — une invitation actionnable de l'agence du jeu, adressée PAR SMS au numéro non vérifié et émise par l'agent du
+     * jeu ; rend son jeton, celui que lit l'aperçu public.
+     *
+     * @param  array<string, mixed>  $jeu
+     */
+    private function invitationParNumero(array $jeu): string
+    {
+        return Invitation::factory()->create([
+            'email' => null,
+            'phone' => self::NUMERO,
+            'agency_id' => $jeu['agence']->id,
+            'invited_by' => $jeu['user']->id,
+            'role' => 'agent',
+            'metadata' => ['first_name' => 'invite-balaye', 'last_name' => 'Balayé'],
+        ])->token;
     }
 
     /** Le corps tel que le client le reçoit — un fichier servi en flux compris. */

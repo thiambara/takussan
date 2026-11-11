@@ -15,4 +15,12 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('owners/{ownerProfile}/sensitive', [OwnerProfileController::class, 'sensitive'])
         ->whereNumber('ownerProfile')
         ->name('owners.sensitive');
+    // TCK-2640 — la fiche du bailleur (admin de l'agence du profil) et le réglage de son plafond de
+    // travaux (`owners.update`).
+    Route::get('owners/{ownerProfile}', [OwnerProfileController::class, 'show'])
+        ->whereNumber('ownerProfile')
+        ->name('owners.show');
+    Route::patch('owners/{ownerProfile}', [OwnerProfileController::class, 'update'])
+        ->whereNumber('ownerProfile')
+        ->name('owners.update');
 });

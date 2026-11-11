@@ -183,7 +183,7 @@ export function AgencyPublicProfileCard({ agency }: AgencyPublicProfileCardProps
         {erreurGlobale ? <FormGlobalError>{erreurGlobale}</FormGlobalError> : null}
         {succes ? <FormSuccess>{succes}</FormSuccess> : null}
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,calc(var(--spacing)*88))]">
           <div className="min-w-0 space-y-6">
             <Compteur
               id={idAccroche}

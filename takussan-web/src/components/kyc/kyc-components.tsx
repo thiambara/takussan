@@ -71,7 +71,7 @@ export function KycDossierTimeline({ dossier }: { dossier: KycDossier }) {
             </Badge>
           ) : null}
         </div>
-        <div className="grid gap-3 @md:grid-cols-3">
+        <div className="grid gap-3 max-lg:@md:grid-cols-3 lg:@min-[25.2rem]:grid-cols-3">
           {steps.map((step) => (
             <div key={step.id} className="rounded-lg bg-muted/40 p-3">
               <p className="text-sm font-medium text-foreground">{step.label}</p>
@@ -279,7 +279,7 @@ export function KycReviewPanel({ dossier, agencyId }: { dossier: KycDossier; age
       </CardHeader>
       {/* Panneau de 360-420 px à côté du suivi : trois colonnes y cassaient « Pièce dirigeant », deux laissaient une pièce orpheline — liste empilée tant que la carte fait moins de 36rem. */}
       <CardContent className="@container space-y-4">
-        <div className="grid gap-2 @xl:grid-cols-3">
+        <div className="grid gap-2 max-lg:@xl:grid-cols-3 lg:@min-[32.4rem]:grid-cols-3">
           {DOCUMENTS.map((type) => {
             const piece = dossier.documents.find((doc) => doc.document_type === type);
             const present = piece !== undefined;

@@ -11,6 +11,13 @@ type EmptyStateProps = Omit<ComponentPropsWithoutRef<'div'>, 'title'> & {
   readonly description?: ReactNode;
   /** Le CTA — un `<Button>` ou un `<Link className={buttonVariants()}>`. */
   readonly action?: ReactNode;
+  /**
+   * TCK-2687 — `nue` : l'état vide des maquettes retenues de `/app` (`EtatVide`,
+   * `chrome-app.tsx:666`) — ni carte ni pointillé, `px-6 py-12`, disque de 48 px en encre discrète,
+   * titre DM Sans, texte `max-w-xs`, action à 20 px. `carte` : celui d'avant (site public,
+   * `/super-admin`).
+   */
+  readonly variant?: 'carte' | 'nue';
 };
 
 /**
@@ -46,9 +53,27 @@ export function EmptyState({
   title,
   description,
   action,
+  variant = 'carte',
   className,
   ...props
 }: EmptyStateProps) {
+  if (variant === 'nue') {
+    return (
+      <div className={cn('flex flex-col items-center px-6 py-12 text-center', className)} {...props}>
+        {icon ? (
+          <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            {icon}
+          </div>
+        ) : null}
+        <h2 className="text-base font-semibold text-balance text-foreground">{title}</h2>
+        {description ? (
+          <p className="mt-1 max-w-xs text-sm text-pretty text-muted-foreground">{description}</p>
+        ) : null}
+        {action ? <div className="mt-5">{action}</div> : null}
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(

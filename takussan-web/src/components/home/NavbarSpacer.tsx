@@ -42,7 +42,7 @@ export function NavbarSpacer({ auTelephone }: { readonly auTelephone?: EnTeteAuT
         aria-hidden="true"
         data-cale-navbar=""
         data-decouverte={decouverte ? '' : undefined}
-        className={cn(auTelephoneHauteur, 'lg:h-[calc(1.5rem+53px)] lg:data-decouverte:h-[136px]')}
+        className={cn(auTelephoneHauteur, 'lg:h-[calc(var(--spacing)*6+53px)] lg:data-decouverte:h-[136px]')}
       />
       <BandeauxDuSite emplacement="page" />
     </>

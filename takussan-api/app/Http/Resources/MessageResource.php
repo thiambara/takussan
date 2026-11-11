@@ -50,6 +50,9 @@ class MessageResource extends BaseResource
                 'mime_type' => $media->mime_type,
                 'size' => $media->size,
                 'url' => $access->signedUrl($media),
+                // TCK-2631 — la vignette d'une photo jointe, signée comme l'original ; `null` pour
+                // une note vocale, un PDF, ou tant que la file `media` ne l'a pas produite.
+                'thumbnail_url' => $access->signedConversionUrl($media, 'thumbnail'),
             ])
             ->values()
             ->all();

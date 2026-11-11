@@ -275,6 +275,17 @@
    */
   --shadow-color: #1f1812;
 
+  /*
+   * TCK-2685 (ADR-0106 § 2 c) — L'ENCRE DOUCE de la partie connectée. Les maquettes écrivent
+   * `foreground/70`, `/75`, `/80`, `/85` (385 occurrences) ; une seule encre est retenue, celle de
+   * la valeur majoritaire (`/80`, 137 occ.), et elle est OPAQUE : une encre de texte ne s'atténue pas
+   * par l'opacité (TCK-658, cliquet de `encre-sans-alpha.contraste.test.ts`). Valeur : `--foreground`
+   * à 80 % composé en sRGB sur `--card`. L'inverse : `--background` à 70 % sur `--foreground` (compte
+   * d'une puce active). Contrastes gardés par `jetons-de-l-app.contraste.test.ts`.
+   */
+  --encre-douce: #4c4641;
+  --encre-douce-inverse: #bab6b0;
+
   /* === Geometry === */
   --radius: 0.625rem;
 
@@ -301,14 +312,17 @@
    * Matches `bottom-4` (16px) on small screens and `bottom-6` (24px) on
    * `sm:`+, mirroring the legacy Tailwind classes the components used to
    * apply directly. Read by `useFloatingDockSlot`.
+   * TCK-2712 (5) — plus la barre d'action collante (`--barre-d-action-hauteur`, 0 sans elle) : comme le
+   * toast, tout ce qui flotte en bas se pose au-dessus d'elle, coque sans barre d'onglets comprise.
    */
-  --floating-dock-base: 16px;
+  --floating-dock-base: calc(16px + var(--barre-d-action-hauteur));
 
   /* TCK-2481 — la hauteur de la barre d'onglets mobile de `/app`, zone sûre comprise. Une seule
      définition, lue par la barre (`BarreDOnglets`), par la messagerie compacte (`MessagesPage`) et
      par le dock flottant. `env()` vaut 0 tant que le viewport n'est pas `viewport-fit=cover`
-     (piste reportée par le porteur, 2026-10-25) : la règle est juste le jour où il le sera. */
-  --barre-onglets-hauteur: calc(3.5rem + env(safe-area-inset-bottom));
+     (piste reportée par le porteur, 2026-10-25) : la règle est juste le jour où il le sera.
+     TCK-2691 (ADR-0106, C4) — 64 px, la cote de la maquette (56 avant). */
+  --barre-onglets-hauteur: calc(4rem + env(safe-area-inset-bottom));
 
   /* TCK-2493 (ADR-0091) — la hauteur de la barre d'onglets du SITE PUBLIC (60 px), zone sûre comprise.
      Lue par la barre (`BarreDOngletsPublique`), par la réserve de `body` et par le dock flottant. */
@@ -317,7 +331,7 @@
 
 @media (min-width: 640px) {
   :root {
-    --floating-dock-base: 24px;
+    --floating-dock-base: calc(24px + var(--barre-d-action-hauteur));
   }
 }
 
@@ -326,10 +340,22 @@
    (`PropertyList`, créneau `bottom-right`) se posait dessus, à 16 px du bas. La plage est le
    complément exact de `md:hidden` : dès `md`, ni barre ni décalage. Le bouton flottant de la
    messagerie, monté hors de la coque, ne lit pas cette valeur — il ne se rend plus sur `/app`
-   (TCK-2481, arbitrage 3). Gardé par `CoqueHauteur.test.tsx`. */
+   (TCK-2481, arbitrage 3). Gardé par `CoqueHauteur.test.tsx`.
+   TCK-2712 (5) — et au-dessus de la barre d'action collante quand une page en rend une (terme additif,
+   hérité de `:root`, 0 sans elle). */
 @media (width < 48rem) {
   [data-barre-onglets] {
-    --floating-dock-base: calc(16px + var(--barre-onglets-hauteur));
+    --floating-dock-base: calc(16px + var(--barre-onglets-hauteur) + var(--barre-d-action-hauteur));
+  }
+}
+
+/* TCK-2617 (décision 5 (a) du porteur) — UN SEUL H1 EXPOSÉ, à toute largeur. Sous `md`, l'en-tête
+   d'une page RACINE porte le titre en `<h1>` (`EnTeteMobile`, `md:hidden` : il n'existe pas au-delà) ;
+   celui du contenu y est masqué — dès `md`, c'est lui qui reste. Un détail, l'accueil et un formulaire
+   gardent le H1 de leur contenu (leur en-tête porte un `<p>`). Gardé par `en-tete-mobile.tck-2617`. */
+@media (width < 48rem) {
+  [data-forme-en-tete="racine"] main h1 {
+    display: none;
   }
 }
 
@@ -351,6 +377,58 @@
   body:has(.takussan-carte-plein-ecran) [data-barre-onglets-publique],
   body:has(.takussan-carte-plein-ecran) [data-pastille-comparateur] {
     display: none;
+  }
+}
+
+/* TCK-2688 (décision D8 du porteur, 2026-11-10) — LE BAS DU TOAST, sur TOUT le produit. Le toast est
+   en bas : 16 px du bord au téléphone, 24 px dès `sm` (21,6 dès `lg`, l'échelle du bureau : c'est
+   ce que la maquette rend à 1440). Une barre d'onglets le relève de sa hauteur, 16 px au-dessus
+   d'elle : celle de `/app` sous `md`, celle du site public sous `lg`.
+   ⚠ Sur `:root`, pas sur la coque : le viewport des toasts est rendu EN PORTAIL dans `body`, hors
+   de `[data-barre-onglets]` — le `--floating-dock-base` posé sur la coque ne l'atteint pas.
+   TCK-2689 — la barre d'action collante (`ui/barre-d-action.tsx`) le relève de SA hauteur, par un
+   terme ADDITIF : `--barre-d-action-hauteur` vaut 0 partout, et 69 px (filet + `py-3` + boutons de
+   44, `--spacing-controle` — TCK-2712 (4), la « Page de détail » gelée ; zone sûre en plus quand elle
+   est le bas de l'écran) sous `md` quand une barre occupe
+   l'emplacement de la coque (`#emplacement-barre-d-action`). Une barre posée en flux hors de la coque
+   (la vitrine) n'est pas le bas de l'écran : elle ne le relève pas.
+   TCK-2712 (3) — la pastille « Filtres / Carte|Liste » du site public (`OutilsFlottantsDeListe`, au sol
+   du dock, sous `lg`) le relève à son tour : tant qu'elle est rendue (`data-outils-flottants-de-liste`),
+   le toast se pose 16 px au-dessus d'elle — base du dock (là où elle se pose) + sa hauteur (`h-12`) +
+   16. Deux règles : en liste, celle de la barre publique est plus spécifique et doit être battue ; en
+   carte plein écran, la barre est retirée et la règle courte s'applique. La hauteur de la barre
+   d'action n'y est pas ajoutée une seconde fois : la base du dock la porte déjà (TCK-2712 (5)).
+   Gardé par `primitives-existantes-tck-2688.test.tsx`, `primitives-neuves-tck-2689.test.tsx` et
+   `suites-point-porteur-1.tck-2712.test.ts`. */
+:root {
+  --barre-d-action-hauteur: 0px;
+  --toast-bas: calc(var(--spacing) * 4 + var(--barre-d-action-hauteur));
+}
+@media (width >= 40rem) {
+  :root {
+    --toast-bas: calc(var(--spacing) * 6 + var(--barre-d-action-hauteur));
+  }
+}
+@media (width < 48rem) {
+  :root:has(#emplacement-barre-d-action > [data-slot="barre-d-action"]) {
+    --barre-d-action-hauteur: calc(var(--spacing-controle) + var(--spacing) * 6 + 1px);
+  }
+  :root:has(#emplacement-barre-d-action[data-bas-de-l-ecran] > [data-slot="barre-d-action"]) {
+    --barre-d-action-hauteur: calc(var(--spacing-controle) + var(--spacing) * 6 + 1px + env(safe-area-inset-bottom));
+  }
+  :root:has([data-barre-onglets]) {
+    --toast-bas: calc(var(--spacing) * 4 + var(--barre-onglets-hauteur) + var(--barre-d-action-hauteur));
+  }
+}
+@media (width < 64rem) {
+  :root:has([data-barre-onglets-publique]):not(:has(.takussan-carte-plein-ecran)) {
+    --toast-bas: calc(var(--spacing) * 4 + var(--barre-publique-hauteur) + var(--barre-d-action-hauteur));
+  }
+  :root:has([data-outils-flottants-de-liste]) {
+    --toast-bas: calc(var(--floating-dock-base) + var(--spacing) * 12 + var(--spacing) * 4);
+  }
+  :root:has([data-barre-onglets-publique]):not(:has(.takussan-carte-plein-ecran)):has([data-outils-flottants-de-liste]) {
+    --toast-bas: calc(var(--floating-dock-base) + var(--spacing) * 12 + var(--spacing) * 4);
   }
 }
 
@@ -387,6 +465,10 @@
 
   /* Voile — cf. le docblock de `--scrim` dans `:root`. */
   --color-scrim: var(--scrim);
+
+  /* TCK-2685 — l'encre douce de la partie connectée (cf. `--encre-douce` dans `:root`). */
+  --color-encre-douce: var(--encre-douce);
+  --color-encre-douce-inverse: var(--encre-douce-inverse);
 
   /* Charts */
   --color-chart-5: var(--chart-5);
@@ -701,6 +783,9 @@
   --card-foreground: #fcf9f3;
   --popover: #2a2018;
   --popover-foreground: #fcf9f3;
+  /* TCK-2685 — même composition qu'en clair, sur les jetons du thème sombre (absent de `/app`). */
+  --encre-douce: #d2cec7;
+  --encre-douce-inverse: #615c56;
   --primary: #c87a52;
   --primary-foreground: #1f1812;
   /* Survol du bouton plein. L'encre est SOMBRE ici : le survol s'éclaircit (6,78:1 avec
@@ -744,6 +829,374 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: #c87a52;
 }
+
+/* densite-du-bureau:début
+ * ADR-0107 (TCK-2692) — LA DENSITÉ DU BUREAU EST UN JEU DE JETONS, PAS UNE TAILLE DE RACINE.
+ *
+ * Le porteur garde le bureau à 90 % (TCK-635). Jusqu'ici, `html { font-size: 90% }` dès `lg` le
+ * portait : tout ce qui était en `rem` suivait, ce qui était en px ne suivait pas — deux échelles,
+ * dont l'ordre s'inversait à 1024 px, et un texte en px sourd au réglage de police de l'utilisateur.
+ * Désormais la racine garde la taille du navigateur à toute largeur, et ce sont les échelles qui
+ * passent à ×0,9 dès `lg` : l'espacement (marges, `gap`, `w-*`, `h-*`), le texte, les rayons et
+ * les largeurs de conteneur. Au réglage par défaut, le rendu est le même au pixel.
+ *
+ * ⚠ Chaque valeur ci-dessous est 0,9 × la valeur du thème de Tailwind (ou de `--radius` plus haut) :
+ *   `echelle-du-bureau.test.ts` lit `tailwindcss/theme.css` et refuse une échelle oubliée — une
+ *   classe `text-6xl` écrite demain ne doit pas échapper au ×0,9 parce que personne ne l'emploie
+ *   aujourd'hui. Hors couche, après `:root` : ce bloc l'emporte sur `@layer theme` et sur le
+ *   `--radius` de `:root`.
+ * ⚠ Une valeur arbitraire en `rem` ne lit aucun jeton : elle s'écrit sur l'échelle
+ *   (`calc(var(--spacing)*K)`), et un seuil de requête de CONTENEUR en `rem` se lit contre la racine
+ *   — il s'écrit de chaque côté de `lg` (`max-lg:@max-[11rem]:… lg:@max-[9.9rem]:…`). Une requête
+ *   MÉDIA en `rem` se lit contre la taille initiale du navigateur : elle ne bouge pas.
+ */
+@media (width >= 64rem) {
+  :root {
+    --spacing: 0.225rem;
+    --text-xs: 0.675rem;
+    --text-sm: 0.7875rem;
+    --text-base: 0.9rem;
+    --text-lg: 1.0125rem;
+    --text-xl: 1.125rem;
+    --text-2xl: 1.35rem;
+    --text-3xl: 1.6875rem;
+    --text-4xl: 2.025rem;
+    --text-5xl: 2.7rem;
+    --text-6xl: 3.375rem;
+    --text-7xl: 4.05rem;
+    --text-8xl: 5.4rem;
+    --text-9xl: 7.2rem;
+    --radius: 0.5625rem;
+    --radius-xs: 0.1125rem;
+    --container-3xs: 14.4rem;
+    --container-2xs: 16.2rem;
+    --container-xs: 18rem;
+    --container-sm: 21.6rem;
+    --container-md: 25.2rem;
+    --container-lg: 28.8rem;
+    --container-xl: 32.4rem;
+    --container-2xl: 37.8rem;
+    --container-3xl: 43.2rem;
+    --container-4xl: 50.4rem;
+    --container-5xl: 57.6rem;
+    --container-6xl: 64.8rem;
+    --container-7xl: 72rem;
+  }
+}
+
+/* `rounded` (sans suffixe) valait 0,25rem en dur : sur l'échelle, il suit la densité comme le reste. */
+@theme inline reference {
+  --radius: var(--spacing);
+}
+
+/* Les feuilles tierces en `rem` (ADR-0107, Conséquences) : passées dans l'échelle, au même rendu.
+   Leaflet est importée hors couche, et aussi par les composants de carte : la règle porte une
+   spécificité de plus (sélecteur doublé) pour gagner quel que soit l'ordre des feuilles. Doublé et
+   non préfixé : la règle qui ISOLE la carte reste la seule `.leaflet-container {` du fichier
+   (carte-isolee.test.ts la cherche par ce motif). */
+@media (width >= 64rem) {
+  .leaflet-container.leaflet-container {
+    font-size: 0.675rem;
+  }
+}
+@layer rdp {
+  @media (width >= 64rem) {
+    .rdp-root {
+      --rdp-dropdown-gap: 0.45rem;
+      --rdp-months-gap: 1.8rem;
+      --rdp-nav_button-height: 2.025rem;
+      --rdp-nav_button-width: 2.025rem;
+      --rdp-nav-height: 2.475rem;
+      --rdp-weekday-padding: 0.45rem 0rem;
+    }
+  }
+}
+/* densite-du-bureau:fin */
+
+/* jetons-de-l-app:début
+ * TCK-2685 (ADR-0106 § 3, ADR-0107 § 4) — LES JETONS DE LA PARTIE CONNECTÉE : les tailles fixes des
+ * maquettes retenues, nommées, pour qu'aucune page n'écrive de valeur arbitraire
+ * (`scripts/check-valeurs-arbitraires-app.mjs`).
+ *
+ * ⚠ HORS DE L'ÉCHELLE ×0,9 — et c'est leur raison d'être. La maquette écrit 13 px et le garde au
+ *   bureau ; `text-sm` rend 14 puis 12,6 px. Ces jetons sont en `rem` CALCULÉS (13 px = 0,8125rem) et
+ *   le bloc `densite-du-bureau` ne les redéfinit pas : ils rendent la valeur de la maquette à toute
+ *   largeur au réglage par défaut, et suivent le réglage de police de l'utilisateur.
+ *   `jetons-de-l-app.test.ts` refuse un de ces jetons dans le bloc de densité, et un jeton en px.
+ * ⚠ SANS INTERLIGNE. `text-[13px]` ne pose que `font-size` et HÉRITE l'interligne du parent : 19,5 px
+ *   sous la racine (1,5), 17,875 px sous un `leading-snug`. Un `--text-*--line-height` poserait le
+ *   sien (Tailwind l'écrit `var(--tw-leading, …)`, et `--tw-leading` n'hérite pas) et casserait ce
+ *   rendu sous un parent qui pose `leading-snug` (332 occ. dans les maquettes) ou `leading-tight`.
+ * ⚠ `tailwind-merge` doit connaître chaque nom (`src/lib/utils.ts`) : sinon `cn('text-ui',
+ *   'text-foreground')` jette `text-ui`, pris pour une couleur.
+ */
+@theme {
+  /* Échelle de texte — la valeur en px de la maquette entre parenthèses. */
+  --text-pastille: 0.625rem; /* 10 — chiffre d'une pastille de compte */
+  --text-legende: 0.6875rem; /* 11 — légende, libellé d'onglet du bas */
+  --text-ui: 0.8125rem; /* 13 — méta, détail de ligne, fil d'Ariane, libellé de chiffre clé */
+  --text-corps: 0.9375rem; /* 15 — titre de ligne et de carte, bouton d'action principale */
+  --text-action: 1rem; /* 16 — action principale des écrans d'entrée (`text-base` : 14,4 au bureau) */
+  --text-titre-court: 1.0625rem; /* 17 — titre d'en-tête de détail, de feuille, de panneau */
+  --text-affiche-22: 1.375rem; /* 22 — titres d'écrans d'entrée, chiffres */
+  --text-affiche-26: 1.625rem; /* 26 — code à six chiffres, chiffres */
+  --text-affiche-28: 1.75rem; /* 28 — titres d'écrans d'entrée (30 px rabattus) */
+  --text-affiche-32: 2rem; /* 32 — grands chiffres (34 px rabattus) */
+  --text-affiche-40: 2.5rem; /* 40 — grands chiffres */
+
+  /* Espacement des lettres. `tracking-tight` (−0,025 em) reste celui de Tailwind. */
+  --tracking-titre: -0.02em; /* −0,01 et −0,03 em rabattus ici */
+  --tracking-surtitre: 0.08em;
+
+  /* L'icône de 18 px (`size-icone`), hors de l'échelle : `size-4.5` rendrait 16,2 px au bureau. */
+  --spacing-icone: 1.125rem;
+
+  /* Ombres nommées, sur `--shadow-color` en `in_srgb` (la maquette écrit `in_oklab` : même couleur
+     composée, l'alpha porté par `color-mix` sur `transparent`). La feuille garde la valeur exacte de
+     `shadow-2xl` de Tailwind, que la maquette rend (noir à 25 %) : la CLASSE reste interdite. */
+  --shadow-barre-collante: 0 -6px 16px -12px color-mix(in srgb, var(--shadow-color) 40%, transparent);
+  --shadow-filet: 0 1px 0 color-mix(in srgb, var(--shadow-color) 22%, transparent);
+  --shadow-bouton-photo: 0 2px 8px -2px color-mix(in srgb, var(--shadow-color) 35%, transparent);
+  --shadow-actif: 0 1px 2px color-mix(in srgb, var(--shadow-color) 18%, transparent);
+  --shadow-panneau: -24px 0 48px -32px color-mix(in srgb, var(--shadow-color) 45%, transparent);
+  --shadow-feuille: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+
+  /* ADR-0106 § 4 — la bande ≥ 1440 des maquettes « bureau 1280 » (`min-[1440px]:`), distincte de
+     `2xl` (1536 px, site public). `w1440:` : « largeur ≥ 1440 ». Une requête MÉDIA : 90rem se lit
+     contre la taille initiale du navigateur, pas contre la racine. */
+  --breakpoint-w1440: 90rem;
+}
+
+/*
+ * TCK-2685 — LA PORTÉE `/app`. Un seul marqueur, `data-portee-app`, posé par la coque (`AppShell`)
+ * et par la vitrine (`/‹langue›/playground/vitrine`). Lu par `:root:has(…)`, il atteint TOUT le
+ * document, donc aussi ce que Base UI rend en portail hors de l'arbre de la coque (feuilles,
+ * dialogues, menus, toasts) ; il est juste au premier octet (rendu serveur) et disparaît avec la
+ * coque. Les tickets TCK-2686 à TCK-2691 s'y accrochent par la variante `portee-app:`.
+ */
+@custom-variant portee-app (&:where(:root:has([data-portee-app]) *));
+
+/*
+ * TCK-2685 (A § 7) — le trait par défaut des icônes lucide sous la portée : 1,75 au téléphone, 1,5
+ * dès `md` (le seuil où la coque change). Lucide écrit `stroke-width="2"` en ATTRIBUT quand
+ * l'appelant ne fixe rien : seul ce défaut est visé, un `strokeWidth={2.5}` garde le sien. ⚠ Un
+ * `strokeWidth={2}` explicite ne se distingue pas du défaut et prend aussi le trait de la portée
+ * (aucun dans `/app` au 2026-11-11). En `base`, sous les utilitaires : un `stroke-*` d'appelant gagne.
+ */
+@layer base {
+  :root:has([data-portee-app]) svg.lucide[stroke-width="2"] {
+    stroke-width: 1.75;
+  }
+  @media (width >= 48rem) {
+    :root:has([data-portee-app]) svg.lucide[stroke-width="2"] {
+      stroke-width: 1.5;
+    }
+  }
+}
+/* jetons-de-l-app:fin */
+
+/* densite-de-l-app:début
+ * TCK-2686 (ADR-0106 § 2, AMENDE TCK-2460 « une seule hauteur de contrôle ») — L'ÉCHELLE DE DENSITÉ
+ * DE `/app`. Dans la portée `/app`, boutons et champs ont la hauteur des maquettes retenues :
+ * 44 px sous le pouce (48 l'action principale, 36 le petit bouton), 36 px au bureau (`h-9`, rendu
+ * 32,4 dès `lg`, ADR-0107). Le site public, `/super-admin` et les écrans d'entrée gardent les leurs.
+ *
+ * LA MÉCANIQUE : un JETON par propriété, pas une classe `portee-app:h-9` par primitive.
+ *   - Chaque primitive (`ui/button.tsx`, `input.tsx`, `select.tsx`, `textarea.tsx`, `date-picker.tsx`,
+ *     `date-time-picker.tsx`) lit sa hauteur dans un jeton (`h-controle` → `var(--spacing-controle)`)
+ *     dont la valeur PAR DÉFAUT (ci-dessous) est exactement la classe d'avant : rien ne bouge hors portée.
+ *   - La portée redéfinit le jeton sur `:root` (`:root:has([data-portee-app])`, TCK-2685) : le
+ *     contenu en portail (dialogue, feuille, menu) suit, comme la page.
+ *   - ⚠ Pourquoi pas `portee-app:h-9` : une telle classe ne se fusionne avec rien et vient plus tard
+ *     dans la feuille — elle aurait RABOTÉ les ~115 boutons dont l'appelant écrit la hauteur
+ *     (`h-11` de la maintenance, `size-11` de la messagerie). Un jeton nommé est REMPLACÉ par la
+ *     classe de l'appelant (`tailwind-merge` le connaît : `DENSITE_DE_L_APP`) : l'appelant garde la
+ *     main, comme avec les planchers tactiles. Même raisonnement pour les teintes (`text-destructive`
+ *     d'un bouton discret, `bg-transparent` d'un bouton contour).
+ *   - La portée « confortable » (`fieldDensityScope()`, 44 px) GAGNE sous `/app` : sa classe
+ *     `in-data-[field-density=comfortable]:h-controle-confortable` est une variante, émise après la
+ *     hauteur de base nue (`densite-de-l-app.test.ts` le vérifie sur la feuille compilée).
+ *
+ * LA DENSITÉ SUIT LE POINTEUR (décision du porteur, 2026-11-10, « a ») : au pointeur GROSSIER, la
+ * portée rend le régime du pouce à TOUTE largeur — un iPad à l'horizontale (1024) ne reçoit pas des
+ * cibles de 32 px. D'où des `rem` FIXES dans ce régime (2,75rem = 44 px à 1440 aussi) : `h-11`
+ * rendrait 39,6 dès `lg`. Le bureau n'est rendu qu'à la largeur ET au pointeur non grossier.
+ */
+@theme {
+  /* Hauteurs, sur l'échelle (×0,9 dès lg) — valeurs du site public, celles d'avant le ticket. */
+  --spacing-controle: calc(var(--spacing) * 10); /* h-10 : bouton courant, champ, bouton icône */
+  --spacing-controle-petit: calc(var(--spacing) * 8); /* h-8 : `size="sm"` */
+  --spacing-controle-action: calc(var(--spacing) * 12); /* h-12 : `size="xl"`, action principale */
+  --spacing-controle-confortable: calc(var(--spacing) * 11); /* h-11 : portée confortable (TCK-468) */
+  /* Le petit bouton : px-2.5, gap-1, rayon et texte d'avant. */
+  --spacing-petit-bouton-x: calc(var(--spacing) * 2.5);
+  --spacing-petit-bouton-espace: calc(var(--spacing) * 1);
+  --radius-petit-bouton: min(var(--radius-md), 12px);
+  --text-petit-bouton: calc(var(--spacing) * 3.2);
+  /* Texte des champs : `text-base` (16 px, anti-zoom iOS), `text-sm` dès md (règle plus bas). */
+  --text-champ: var(--text-base);
+  --text-champ--line-height: var(--text-base--line-height);
+  /* Texte des déclencheurs (sélecteur, date) : `text-sm`. */
+  --text-declencheur: var(--text-sm);
+  --text-declencheur--line-height: var(--text-sm--line-height);
+  /* TCK-2712 (7) — texte d'un bouton `default`/`lg` : le `text-sm` d'avant. Au pouce, 14 px fixes : un
+     bouton de 44 px au pointeur grossier dès `lg` gardait le texte de bureau (12,6 px). */
+  --text-bouton: var(--text-sm);
+  --text-bouton--line-height: var(--text-sm--line-height);
+  /* Zone de texte : py-2 et l'interligne de son texte. */
+  --spacing-zone-texte-y: calc(var(--spacing) * 2);
+  --leading-zone-texte: var(--text-champ--line-height);
+  /* Teintes : fond des champs (transparent), du bouton contour (`bg-background`), encre et graisse
+     du bouton doux, encre du bouton discret (héritée), bord du bouton danger (aucun). */
+  --color-fond-champ: transparent;
+  --color-fond-contour: var(--background);
+  --color-encre-bouton-doux: var(--secondary-foreground);
+  --color-encre-discrete: currentColor;
+  --color-bord-danger: transparent;
+  --font-weight-bouton-doux: 500;
+}
+
+/* Le `md:text-sm` d'avant de `Input` / `Textarea`. */
+@media (width >= 48rem) {
+  :root {
+    --text-champ: var(--text-sm);
+    --text-champ--line-height: var(--text-sm--line-height);
+  }
+}
+
+/* Le régime du pouce : sous md, et au pointeur grossier à toute largeur. `rem` fixes. */
+:root:has([data-portee-app]) {
+  --spacing-controle: 2.75rem;
+  --spacing-controle-petit: 2.25rem;
+  --spacing-controle-action: 3rem;
+  --spacing-controle-confortable: 2.75rem;
+  --text-champ: 1rem;
+  --text-champ--line-height: 1.5;
+  --text-declencheur: 1rem;
+  --text-declencheur--line-height: 1.5;
+  --text-bouton: 0.875rem;
+  /* Le petit bouton de la maquette, aux deux largeurs : px-3, gap-1.5, rounded-lg, 13 px. */
+  --spacing-petit-bouton-x: calc(var(--spacing) * 3);
+  --spacing-petit-bouton-espace: calc(var(--spacing) * 1.5);
+  --radius-petit-bouton: var(--radius);
+  --text-petit-bouton: var(--text-ui);
+  /* La zone de texte de la maquette : py-2.5 leading-snug. */
+  --spacing-zone-texte-y: calc(var(--spacing) * 2.5);
+  --leading-zone-texte: 1.375;
+}
+
+/* Le régime du bureau : dès md, au pointeur qui n'est pas grossier (souris, pavé, aucun). */
+@media (width >= 48rem) and (not (pointer: coarse)) {
+  :root:has([data-portee-app]) {
+    --spacing-controle: calc(var(--spacing) * 9);
+    --spacing-controle-petit: calc(var(--spacing) * 8);
+    --spacing-controle-action: calc(var(--spacing) * 12);
+    --spacing-controle-confortable: calc(var(--spacing) * 11);
+    --text-champ: var(--text-sm);
+    --text-champ--line-height: var(--text-sm--line-height);
+    --text-declencheur: var(--text-sm);
+    --text-declencheur--line-height: var(--text-sm--line-height);
+    --text-bouton: var(--text-sm);
+  }
+}
+
+/* Les teintes de la maquette, au thème clair : le thème sombre garde celles du produit (aucune
+   maquette ne le dessine). Le contour de champ reste `border-input` et le focus l'anneau plein
+   (TCK-753, exceptions d'ADR-0106 § 2 a). */
+:root:not(.dark):has([data-portee-app]) {
+  --color-fond-champ: var(--card);
+  --color-fond-contour: var(--card);
+  --color-encre-bouton-doux: var(--primary-deep);
+  --color-encre-discrete: var(--encre-douce);
+  --color-bord-danger: color-mix(in oklab, var(--destructive) 30%, transparent);
+  --font-weight-bouton-doux: 600;
+}
+
+/* Une SURFACE sombre (`.dark` posé sur un conteneur : barre du super-admin, bandeau de modération)
+   relit les teintes à leur valeur par défaut. Un alias se résout là où il est DÉCLARÉ : déclaré sur
+   `:root` seulement, `var(--secondary-foreground)` y vaudrait l'encre du thème CLAIR, héritée telle
+   quelle dans la surface sombre : encre noire sur `bg-secondary` sombre. */
+.dark {
+  --color-fond-champ: transparent;
+  --color-fond-contour: var(--background);
+  --color-encre-bouton-doux: var(--secondary-foreground);
+  --color-encre-discrete: currentColor;
+  --color-bord-danger: transparent;
+  --font-weight-bouton-doux: 500;
+}
+/* densite-de-l-app:fin */
+
+/* primitives-de-l-app:début
+ * TCK-2687 (ADR-0106) — LES PRIMITIVES EXISTANTES SOUS LA PORTÉE `/app`, quand une variante
+ * `portee-app:` ne suffit pas. Pastille, carte, onglets soulignés et en-tête de page passent par la
+ * variante (aucun appelant n'en règle la couleur ni la police) ; le REPLI DE L'AVATAR, lui, est
+ * repeint par ses appelants (`MenuDuCompte`, `UserMenu`, `ProfileHeader` : `bg-foreground
+ * text-background`), et une variante les aurait écrasés sous `/app`. D'où des JETONS, même
+ * mécanique que `densite-de-l-app` : défaut = la classe d'avant, redéfinis par la portée, connus de
+ * `tailwind-merge` (`PRIMITIVES_DE_L_APP`) pour que la classe de l'appelant les REMPLACE.
+ *
+ * Les tailles d'avatar (`size="28"` à `"48"`) sont en `rem` FIXES : la maquette les pose en px
+ * (`style`), elles ne rétrécissent pas au bureau. La police du repli vaut 0,36 × la taille.
+ */
+@theme {
+  --spacing-avatar-28: 1.75rem;
+  --spacing-avatar-32: 2rem;
+  --spacing-avatar-36: 2.25rem;
+  --spacing-avatar-40: 2.5rem;
+  --spacing-avatar-44: 2.75rem;
+  --spacing-avatar-48: 3rem;
+  --text-avatar-28: 0.63rem; /* 10,08 px */
+  --text-avatar-32: 0.72rem; /* 11,52 px */
+  --text-avatar-36: 0.81rem; /* 12,96 px */
+  --text-avatar-40: 0.9rem; /* 14,4 px */
+  --text-avatar-44: 0.99rem; /* 15,84 px */
+  --text-avatar-48: 1.08rem; /* 17,28 px */
+  /* Le repli : hors portée, celui d'avant (`bg-muted text-muted-foreground`). Sa graisse passe par
+     `portee-app:font-semibold` : hors portée, le repli n'en pose AUCUNE et hérite (un jeton à 400
+     l'aurait fixée). */
+  --color-fond-avatar: var(--muted);
+  --color-encre-avatar: var(--muted-foreground);
+}
+
+/* Sous la portée, le repli de la maquette : beige de chrome, encre profonde — 6,72:1 en clair,
+   5,09:1 en sombre (aplats opaques). Redéclaré sur une surface `.dark` imbriquée : un alias se
+   résout là où il est DÉCLARÉ (cf. la note de `densite-de-l-app`). */
+:root:has([data-portee-app]),
+:root:has([data-portee-app]) .dark {
+  --color-fond-avatar: var(--secondary);
+  --color-encre-avatar: var(--primary-deep);
+}
+.dark {
+  --color-fond-avatar: var(--muted);
+  --color-encre-avatar: var(--muted-foreground);
+}
+
+/* TCK-2690 — LES PRIMITIVES NEUVES (case à cocher, interrupteur) : aucun appelant d'avant, donc
+   aucune portée — leur défaut EST la maquette.
+   · `rounded-case` : le rayon de 5 px de la case de 18 px (`size-icone`), en `rem` fixe comme elle.
+   · `controle-vide` : le bord de la case vide et la piste de l'interrupteur éteint. La maquette
+     écrit `foreground/30` (1,93:1), `border` (1,26:1) ou `foreground/20` (1,52:1) ; WCAG 1.4.11
+     veut 3:1 (ADR-0106 § 2 a). `--input` tient en clair (3,59:1 sur `--card`, 3,04:1 sur
+     `--muted`) mais rend 1,44:1 sur `--card` SOMBRE : le thème sombre prend `--muted-foreground`
+     (7,01:1). Redéclaré sur `.dark`, pour la même raison que le repli d'avatar (alias résolu là
+     où il est déclaré). */
+@theme {
+  --radius-case: 0.3125rem;
+  --color-controle-vide: var(--input);
+}
+.dark {
+  --color-controle-vide: var(--muted-foreground);
+}
+
+/* TCK-2688 — DEUX LARGEURS EN `rem` FIXES, hors de l'échelle du bureau (la maquette les pose en px :
+   elles ne rétrécissent pas dès `lg`, où `w-120` rendrait 432 et `w-90` 324).
+   · `w-panneau` : le panneau latéral droit de fiche (`PanneauDroit`), 480 px dès `xl` ;
+   · `w-toast` : le toast au bureau, 360 px. */
+@theme {
+  --spacing-panneau: 30rem;
+  --spacing-toast: 22.5rem;
+}
+/* primitives-de-l-app:fin */
 
 /* plancher-tactile:début
  * Revue design 2026-09-16 — PLANCHERS TACTILES des primitives sous `sm` (Button, Input, Select,
@@ -793,18 +1246,14 @@
     @apply font-sans;
   }
   /*
-   * TCK-635 — l'échelle du bureau. Le porteur trouvait le site plus net à 90 % de zoom : la taille
-   * de base passe à 90 % à partir de `lg` (64rem), le seuil où la barre de navigation passe en
-   * bureau. Tout ce qui est en rem suit (texte, espacements, rayons Tailwind) ; ce qui est écrit en
-   * px (`text-[13px]`, `w-[264px]`) ne suit pas, et c'est voulu : ce sont des gabarits mesurés.
-   *
-   * ⚠ Jamais sous `lg` : sous 16 px, Safari iOS zoome dans tout champ touché. Et le seuil ne bouge
-   * pas avec la règle : une media query en rem se lit contre la taille INITIALE du navigateur,
-   * jamais contre celle de `html`.
+   * ADR-0107 (TCK-2692) — le texte sans classe de taille hérite du `body` : dès `lg`, il rend la
+   * densité du bureau (0,9rem, 14,4 px au réglage par défaut), comme quand la racine valait 90 %.
+   * En `base`, sous les utilitaires : un `text-*` posé sur `body` le remplace. `html` ne porte
+   * AUCUNE taille, à aucune largeur — `echelle-du-bureau.test.ts` le garde.
    */
-  @media (min-width: 64rem) {
-    html {
-      font-size: 90%;
+  @media (width >= 64rem) {
+    body {
+      font-size: 0.9rem;
     }
   }
 }

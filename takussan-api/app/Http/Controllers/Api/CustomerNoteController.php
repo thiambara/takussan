@@ -6,6 +6,7 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\StoreCustomerNoteRequest;
 use App\Models\Customer;
 use App\Models\CustomerNote;
+use App\Services\Crm\ContactGestureService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -15,7 +16,10 @@ class CustomerNoteController extends Controller
     {
         $this->authorize('view', $customer);
 
+        // TCK-2578 (ADR-0101 § 2) — les comptes rendus de visite, au seul personnel de l'agence ;
+        // retirés de la requête, ils ne comptent pas dans le total.
         $notes = $customer->notes()
+            ->when(! $request->user()->can('viewVisitReports', $customer), fn ($q) => $q->withoutVisitReports())
             ->with('author')
             ->orderByDesc('pinned')
             ->latest()
@@ -27,14 +31,16 @@ class CustomerNoteController extends Controller
         return $this->paginated($notes, $notes->getCollection()->map(fn (CustomerNote $n) => $this->format($n))->values());
     }
 
-    public function store(StoreCustomerNoteRequest $request, Customer $customer): JsonResponse
+    public function store(StoreCustomerNoteRequest $request, Customer $customer, ContactGestureService $gestures): JsonResponse
     {
-
         $data = $request->validated();
 
         $note = $customer->notes()->create(array_merge($data, [
             'author_id' => $request->user()->id,
         ]));
+
+        // TCK-2583 — une note écrite sur la fiche est un contact : le dernier contact avance.
+        $gestures->touchCustomer($customer, $note->created_at);
 
         return $this->json(['data' => $this->format($note)], 201);
     }
@@ -58,8 +64,10 @@ class CustomerNoteController extends Controller
             'id' => $note->id,
             'customer_id' => $note->customer_id,
             'body' => $note->body,
-            // TCK-591 — `conversion` | `loss` | null : le préfixe se rend côté front.
+            // TCK-591 — `conversion` | `loss` | `visit_report` (TCK-2578) | null : le préfixe se rend côté front.
             'kind' => $note->kind?->value,
+            // TCK-2578 — la visite que cite une note `visit_report` ; `null` pour toute autre.
+            'property_visit_id' => $note->property_visit_id,
             'pinned' => $note->pinned,
             'author' => $note->relationLoaded('author') && $note->author
                 ? ['id' => $note->author->id, 'name' => $note->author->getFullNameAttribute()]

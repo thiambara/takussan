@@ -1,0 +1,278 @@
+{
+  "ticket": "TCK-2659",
+  "ecrans": [
+    {
+      "page": "app-argent",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "Tableau du mois",
+      "references": {
+        "telephone": "references/app-argent/a-0-telephone.json",
+        "bureau-1440": "references/app-argent/a-0-bureau-1440.json",
+        "bureau-1280": "references/app-argent/a-0-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/agency/finances",
+        "persona": "admin",
+        "etat": "agence 1 de démo, novembre 2026 (mois courant), lecture seule : 16 impayés sur 14 baux, aucun reversement en attente d'approbation ni facture en brouillon dans la base de démo"
+      }
+    },
+    {
+      "page": "app-argent",
+      "approche": "a",
+      "ecran": 3,
+      "nom": "Encaissements",
+      "references": {
+        "telephone": "references/app-argent/a-3-telephone.json",
+        "bureau-1440": "references/app-argent/a-3-bureau-1440.json",
+        "bureau-1280": "references/app-argent/a-3-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/agency/finances?tab=encaissements",
+        "persona": "admin",
+        "etat": "registre des encaissements de novembre, sans filtre ; au téléphone l'écran de détail « Encaissements », au bureau la page sous le fil « Argent › Encaissements »"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/agency/finances",
+    "persona": "admin",
+    "disposition": "admin-agence",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": null
+  },
+  "roles": [
+    {
+      "nom": "1re ligne d'encaissement (téléphone)",
+      "appareil": "mobile",
+      "maquette": {
+        "boiteDe": "Aïda Diop",
+        "min": 60
+      },
+      "produit": {
+        "boiteDe": "Modou Ba",
+        "min": 60
+      }
+    },
+    {
+      "nom": "2e ligne d'encaissement (téléphone)",
+      "appareil": "mobile",
+      "maquette": {
+        "boiteDe": "Cheikh Fall",
+        "min": 60
+      },
+      "produit": {
+        "boiteDe": "Mamadou Seck",
+        "min": 60
+      }
+    },
+    {
+      "nom": "1re ligne « Derniers encaissements » ou 1re rangée du registre (bureau)",
+      "appareil": "desktop",
+      "maquette": {
+        "boiteDe": "Aïda Diop",
+        "min": 40
+      },
+      "produit": {
+        "boiteDe": "Modou Ba",
+        "min": 40
+      }
+    },
+    {
+      "nom": "1re ligne « À faire · impayés les plus anciens » (bureau)",
+      "appareil": "desktop",
+      "maquette": {
+        "boiteDe": "Sahel Transit SARL",
+        "min": 48
+      },
+      "produit": {
+        "boiteDe": "Coumba Diop",
+        "min": 48
+      }
+    },
+    {
+      "nom": "champ de recherche du registre (téléphone)",
+      "appareil": "mobile",
+      "maquette": {
+        "boiteDe": "Locataire, bien, référence",
+        "min": 40
+      },
+      "produit": {
+        "slot": "input",
+        "tag": "input"
+      }
+    },
+    {
+      "nom": "champ de recherche du registre (bureau)",
+      "appareil": "desktop",
+      "maquette": {
+        "boiteDe": "Chercher un locataire, un bien, une référence",
+        "min": 30
+      },
+      "produit": {
+        "slot": "input",
+        "tag": "input"
+      }
+    }
+  ],
+  "zones": [],
+  "alias": {
+    "Messages": "Messagerie"
+  },
+  "ancres": [],
+  "ignorer": [
+    {
+      "element": "boutons « Relancer » des impayés (a-0 bureau) et l'écran de relance",
+      "motif": "exclus du ticket : la relance est TCK-2660"
+    },
+    {
+      "element": "« Refuser » / « Approuver » en ligne dans « À faire · reversements à approuver » (a-0 bureau)",
+      "motif": "la ligne ouvre le détail du reversement (`PayoutDetailDialog`, « Examiner »), où l'approbation existe déjà avec ses contrôles (destination vérifiée, seuil) ; approuver d'un clic depuis la liste est à trancher au point porteur n° 2"
+    },
+    {
+      "element": "« À reverser ce mois »",
+      "motif": "exclu du ticket"
+    },
+    {
+      "element": "barre d'onglets du téléphone (« Argent » à la place de « Demandes », « Messages », leurs pastilles) et barre latérale du bureau (rubriques, libellés, compteurs)",
+      "motif": "exclus du ticket : navigation de la famille 3 ; les deux barres sont les primitives de la coque, communes à tout /app"
+    }
+  ],
+  "ecarts_acceptes": [
+    {
+      "ecran": "a-0-*, a-3-*",
+      "element": "noms, biens, montants, comptes, variation, lignes de « À faire »",
+      "propriete": "texte, nombre de lignes et y de tout ce qui suit",
+      "exception": "vérité des données",
+      "motif": "la base de démo : 14 baux en retard (16 échéances), variation −6,1 %, aucun reversement à approuver ni facture en brouillon — les lignes et la carte « reversements à approuver » n'existent donc pas (une file vide n'a pas de ligne, AC du ticket) ; le registre compte 84 lignes de novembre"
+    },
+    {
+      "ecran": "a-0-bureau-*",
+      "element": "détail de la tuile « Reversements en attente »",
+      "propriete": "texte (« 5 bailleurs · 3 à approuver » → « Aucun en attente » / « N reversements · M à approuver »)",
+      "exception": "vérité des données",
+      "motif": "la synthèse (`GET /api/agencies/{id}/finance/summary`) compte les bailleurs des seuls reversements À APPROUVER (`payouts_awaiting_approval.landlords_count`), pas ceux de tous les reversements en attente : le produit compte les reversements. Ajouter `payouts_pending.landlords_count` est un delta d'API (reste)"
+    },
+    {
+      "ecran": "a-0-*, a-3-*",
+      "element": "heures (« 09:42 », « hier, 17:15 ») et sous-titre « Dakar Immo · au mardi 10 novembre, 09:42 »",
+      "propriete": "texte",
+      "exception": "vérité des données",
+      "motif": "l'API ne date les encaissements qu'au jour (minuit pile, artefact du seeder) et `as_of` de la synthèse est une date : le produit n'invente pas d'heure (« hier », « 10 nov. », « Au mercredi 11 novembre »). Le nom de l'agence n'est pas lu par la page (reste)"
+    },
+    {
+      "ecran": "a-3-bureau-*",
+      "element": "colonne « Période » du registre (« Loyer de novembre »)",
+      "propriete": "texte (maquette « Loyer nov. »)",
+      "exception": "décision produit",
+      "motif": "AC4 du ticket exige « Loyer de novembre » sur la ligne d'encaissement du registre ; le téléphone et la carte étroite « Derniers encaissements » gardent la forme courte de la maquette (« Loyer nov. »)"
+    },
+    {
+      "ecran": "a-3-bureau-*",
+      "element": "pastille « Dates » après « Statut »",
+      "propriete": "présente dans le produit seul",
+      "exception": "décision produit",
+      "motif": "le ticket demande le filtre de période ; le mois est dans l'en-tête, « Dates » pose des bornes Du / Au libres"
+    },
+    {
+      "ecran": "a-3-bureau-*",
+      "element": "bandeau des totaux, 3ᵉ case",
+      "propriete": "texte (« En attente · 1 virement annoncé » → « Restant dû · à encaisser »)",
+      "exception": "vérité des données",
+      "motif": "`meta.totals` de l'API somme le restant dû de la sélection ; aucun compte de paiements « en attente » n'est lu sans une requête de plus"
+    },
+    {
+      "ecran": "a-0-*, a-3-*",
+      "element": "pastilles de statut (« Payé », « En attente », « Échoué ») au bureau",
+      "propriete": "fond, bordure, rayon, marges",
+      "exception": "règle du design system",
+      "motif": "`StatusBadge` + `PAYMENT_STATUS_TONE`, seule pastille de statut admise (`check-status-badge-unique`)"
+    },
+    {
+      "ecran": "a-0-telephone",
+      "element": "surtitres « À faire », « Derniers encaissements », « Tout voir »",
+      "propriete": "espacement des lettres (0,06 em → 0,08 em)",
+      "exception": "règle du design system",
+      "motif": "jeton `tracking-surtitre` ; aucune valeur arbitraire dans /app (`check-valeurs-arbitraires-app`)"
+    },
+    {
+      "ecran": "a-0-*, a-3-*",
+      "element": "icônes de l'en-tête et des chevrons (lucide-chevron-down, lucide-arrow-up-right, lucide-chevron-right, lucide-search, lucide-bell)",
+      "propriete": "trait (2 → 1,75), couleur (rgba 0,8 → `encre-douce`)",
+      "exception": "règle du design system",
+      "motif": "trait uniforme des icônes de la coque (TCK-2685) et encre opaque imposée par `encre-sans-alpha.contraste.test.ts` — mêmes exceptions que TCK-2580 et TCK-2581"
+    },
+    {
+      "ecran": "a-0-bureau-*",
+      "element": "deux colonnes « À faire » / « Derniers encaissements »",
+      "propriete": "seuil (dès `xl`, le ticket dit « dès `lg` »)",
+      "exception": "technique",
+      "motif": "la maquette pose les deux colonnes dès `xl` (colonne droite 432 px, gauche 580 px au moins) : à `lg` (largeur utile 694 px) la colonne gauche tomberait sous 300 px. Le produit suit la maquette retenue ; le ticket est à reformuler"
+    },
+    {
+      "ecran": "a-0-bureau-*",
+      "element": "« À faire · impayés les plus anciens » : colonnes montant et relance",
+      "propriete": "x (montant à 688 px au lieu de 569 à 1440)",
+      "exception": "décision produit",
+      "motif": "la colonne « Relancer » est hors du ticket (TCK-2660, cf. `ignorer`) : sans elle la grille garde ses deux colonnes de droite (116 et 124 px de maquette) et le montant se range où était la relance. TCK-2660 réinsère la colonne"
+    },
+    {
+      "ecran": "a-0-bureau-*, a-3-bureau-*",
+      "element": "initiales des avatars de 32 px",
+      "propriete": "taille de police (12 → 11,5 px)",
+      "exception": "règle du design system",
+      "motif": "`Avatar` `taille=\"32\"`, jeton `text-avatar-32` : la primitive de toute la console"
+    },
+    {
+      "ecran": "a-3-bureau-*",
+      "element": "registre : première colonne et rangées",
+      "propriete": "retrait du payeur (−2,6 px), hauteur d'une rangée à deux étages (63,5 px au lieu de 56 sous 1440, quand la référence passe sous le statut)",
+      "exception": "règle du design system",
+      "motif": "`DataTable`, seule table de la console : cellule `px-3 py-3` sous la portée /app (TCK-2688) ; le padding n'est pas une option de colonne. Les colonnes elles-mêmes tombent à ±0,3 px de la maquette à 1280 et 1440 (`table-fixed`, largeurs de maquette)"
+    },
+    {
+      "ecran": "a-0-bureau-*, a-3-bureau-*",
+      "element": "onglets des registres",
+      "propriete": "y (+3 px), épaisseur du soulignement",
+      "exception": "règle du design system",
+      "motif": "`TabsList variant=\"line\"`, primitive des onglets de /app"
+    },
+    {
+      "ecran": "a-3-*",
+      "element": "champ de recherche du registre",
+      "propriete": "couleur de bordure (`border` → `input`), marges internes (icône posée en absolu dans le champ)",
+      "exception": "règle du design system",
+      "motif": "primitive `Input` : la bordure d'un champ de saisie porte le contraste 3:1 des contrôles (WCAG 1.4.11) ; la boîte et le texte du champ tombent à ±2 px"
+    },
+    {
+      "ecran": "a-0-telephone",
+      "element": "rôle « coque · barre d'onglets »",
+      "propriete": "boîte (le rôle tombe sur le lien « Factures » de la rubrique « Tout voir »)",
+      "exception": "technique",
+      "motif": "la barre est ignorée (famille 3) ; le rôle de coque de l'outil prend la dernière boîte pleine largeur en bas de l'écran du produit, que la page fait défiler sous la barre"
+    }
+  ],
+  "comparaisons": {
+    "dossier": "takussan-web/.fidelite/TCK-2659/cmp-a{0,3}-{telephone,bureau-1440,bureau-1280}/",
+    "le": "2026-11-11, avec `--roles` de cette fiche",
+    "resultats": {
+      "a0-telephone": "30 conformes · 34 écarts · 11,36 % (barre d'onglets de la coque ; décalage de −128 px = les deux lignes d'« À faire » absentes de la base)",
+      "a3-telephone": "47 conformes · 27 écarts · 12,47 %",
+      "a0-bureau-1440": "69 conformes · 296 écarts · 10,08 % (dont 476 écarts de contenu de la barre latérale, ignorée)",
+      "a3-bureau-1440": "74 conformes · 283 écarts · 10,52 %",
+      "a0-bureau-1280": "69 conformes · 285 écarts · 13,54 %",
+      "a3-bureau-1280": "69 conformes · 273 écarts · 11,85 %"
+    },
+    "corriges_pendant_la_passe": [
+      "hauteurs de rangée du bureau en rem (56 et 60 px à toute densité, au lieu de 50 et 54)",
+      "compteurs des onglets en `text-xs`",
+      "colonnes du registre : `table-fixed` et largeurs de maquette (le bien s'ouvrait à 314 px)",
+      "interligne des deux étages bas de la ligne du téléphone posé (18,6 hérité sous le registre → 19,5)",
+      "en-tête de page à 1024 : les cinq gestes ne compriment plus le titre"
+    ]
+  },
+  "_roles": "Les rôles nomment les lignes par leur payeur : la maquette par ses données fictives, le produit par la base de démo du 2026-11-11 (agence 1, novembre). Une autre base change ces deux noms, pas la structure."
+}

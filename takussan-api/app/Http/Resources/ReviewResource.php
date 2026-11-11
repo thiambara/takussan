@@ -7,7 +7,10 @@ use App\Models\Agency;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Media\PublicPhotoUrl;
+use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Review\ReviewEligibility;
+use App\Services\Review\ReviewRiskClassifier;
 use Illuminate\Http\Request;
 
 class ReviewResource extends BaseResource
@@ -53,6 +56,12 @@ class ReviewResource extends BaseResource
             // devine plus (il offrait « Répondre » ou « Approuver » que l'API refusait en 403).
             'can_reply' => $viewer !== null && $viewer->can('reply', $this->resource),
             'can_moderate' => $viewer !== null && $viewer->can('moderate', $this->resource),
+            // TCK-2672 — le risque ({@see ReviewRiskClassifier}), pour qui modère dans le périmètre
+            // de l'avis (la règle de `GET …/reports`) : absent pour l'auteur et le public.
+            'risk' => $this->when(
+                $viewer !== null && $viewer->can('viewReports', $this->resource),
+                fn () => app(ReviewRiskClassifier::class)->classify($this->resource),
+            ),
         ];
     }
 
@@ -64,12 +73,22 @@ class ReviewResource extends BaseResource
         $target = $this->resource->reviewable;
 
         if ($target instanceof Property) {
+            // TCK-2672 — le sujet se reconnaît : sa photo principale et son agent principal (le
+            // collaborateur qui répond pour le bien, {@see PrimaryPropertyContact}), `null` sans.
+            $photo = $target->getFirstMedia('photos');
+            $agent = PrimaryPropertyContact::collaborateurPrincipal($target)?->user;
+
             return [
                 'type' => 'property',
                 'id' => $target->id,
                 'title' => $target->title,
                 'slug' => $target->slug,
                 'subtitle' => $target->reference_number,
+                'photo_url' => $photo === null ? null : PublicPhotoUrl::upTo($photo, 'preview', fn () => $target->requiresWatermark()),
+                'agent' => $agent === null ? null : [
+                    'id' => $agent->id,
+                    'name' => trim(($agent->first_name ?? '').' '.($agent->last_name ?? '')) ?: ($agent->username ?: null),
+                ],
             ];
         }
 

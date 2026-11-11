@@ -10,9 +10,11 @@ use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Profiles\OwnerProfile;
+use App\Models\User;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Pdf\DocumentPdfService;
 use App\Services\Pdf\PrintedIdentity;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -195,25 +197,53 @@ class DocumentPdfController extends Controller
         $user = $request->user();
         abort_unless($user, 401);
 
+        abort_unless(self::mayReadReceipts($user, $lease), 403);
+    }
+
+    /**
+     * TCK-2655 (ADR-0099 §3) — LA règle de lecture des quittances d'un bail, extraite telle quelle
+     * de `authorizeReceipt()` : le coffre la lit pour lister, l'endpoint pour servir.
+     */
+    public static function mayReadReceipts(User $user, Lease $lease): bool
+    {
+        // TCK-2655 (vérification adverse) — la même disjonction, évaluée paresseusement : le coffre la
+        // juge pour chaque bail du locataire, et la branche collaborateur coûte une requête.
         $isTenant = $lease->tenant && $lease->tenant->user_id === $user->id;
         $isLandlord = $lease->landlord_id === $user->id;
+        if ($user->isSuperAdmin() || $isTenant || $isLandlord) {
+            return true;
+        }
         // TCK-587 — le PERSONNEL de l'agence du bail (ADR-0031) : un autre bailleur de l'agence
         // téléchargeait la quittance. La branche collaborateur, propre à ce geste, reste.
         $staffAgencyId = $user->staffAgencyId();
-        $isAgency = $staffAgencyId !== null && $staffAgencyId === (int) $lease->agency_id;
+        if ($staffAgencyId !== null && $staffAgencyId === (int) $lease->agency_id) {
+            return true;
+        }
         // TCK-1154 (P86.04) — le collaborateur `agent` ou `manager` accepté, encore personnel de
         // l'agence du bail, comme `BookingStakeholders::collaboratorsOf`. Sans condition de rôle, un
         // `viewer` accepté téléchargeait la quittance d'un bien que `PropertyPolicy` lui refuse.
         $collabAgencyId = $lease->agency_id ?? $lease->property?->agency_id;
-        $isCollab = $collabAgencyId !== null
+
+        return $collabAgencyId !== null
             && (bool) $lease->property?->collaborators()
                 ->where('user_id', $user->id)
                 ->whereNotNull('accepted_at')
                 ->whereIn('role', [CollaboratorRole::Agent->value, CollaboratorRole::Manager->value])
                 ->exists()
             && app(MembershipCapabilityResolver::class)->isStaffAt($user, (int) $collabAgencyId);
-        $isAdmin = $user->isSuperAdmin();
+    }
 
-        abort_unless($isAdmin || $isTenant || $isLandlord || $isAgency || $isCollab, 403);
+    /**
+     * TCK-2655 — les échéances qui ont une quittance (ou un reçu) : payées, hors restitution de
+     * caution. Les deux refus de {@see self::receipt()} (`receipt_unpaid`, `receipt_not_a_payment`),
+     * sous forme de requête pour le coffre. Une échéance remboursée n'est plus payée (TCK-2505).
+     *
+     * @param  Builder<LeasePayment>  $query
+     * @return Builder<LeasePayment>
+     */
+    public static function receiptable(Builder $query): Builder
+    {
+        return $query->where('status', PaymentStatus::Paid->value)
+            ->where(fn (Builder $q) => $q->whereNull('payment_type')->orWhere('payment_type', '!=', LeasePaymentType::DepositRefund->value));
     }
 }

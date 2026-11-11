@@ -63,11 +63,17 @@ class DateInventoryByValueTest extends TestCase
         'App\Http\Resources\Api\Admin\RadarAdvertiserResource::counts' => '`when()` sur des `withCount` aliasés (`reviewed_count`, '
             .'`contacted_count`, `consented_count`) que seul `RadarAdvertiserController::index` pose (TCK-2388) : trois '
             .'ENTIERS, jamais une date. Le sujet du parcours vient d\'une factory, pas de cette requête.',
+        // TCK-2593
+        'App\Http\Resources\BookingResource::visits_on_property' => '`when()` sur un compte que seul '
+            .'`BookingCustomerFacts::prime()` pose (index et présentation de `BookingController`, TCK-2593) : un ENTIER '
+            .'(`(int)`, visites terminées du client sur le bien), jamais une date. Le sujet vient d\'une factory.',
         'App\Http\Resources\ConversationResource::unread_count' => "`whenHas('unread_count')` — un compteur ENTIER "
             .'(`(int)`), jamais une date. Il vient du seul `withCount` de `ConversationController::index` '
             .'(TCK-579) ; le sujet vient d\'une factory, pas de cette requête.',
         'App\Http\Resources\CustomerResource::tasks_count' => "`whenCounted('tasks')` — un compteur ENTIER, jamais une date. "
             .'Il exige un `withCount()` sur la requête ; le sujet vient d\'une factory, pas d\'un contrôleur.',
+        'App\Http\Resources\CustomerResource::visits_count' => "`whenCounted('visits')` (TCK-2588, `include=visitsCount`) — "
+            .'un compteur ENTIER, jamais une date. Même raison que `tasks_count`.',
         'App\Http\Resources\InventoryResource::abilities' => '`when()` sur le lecteur de `forViewer()` (P189.02) : '
             .'un booléen, jamais une date.',
         'App\Http\Resources\InventoryResource::can_sign_as' => '`when()` sur un lecteur posé par `forViewer()`, '
@@ -86,6 +92,8 @@ class DateInventoryByValueTest extends TestCase
             .'(`tenant`, `landlord`), jamais une date.',
         'App\Http\Resources\LeaseResource::early_termination_penalty_months' => '`when()` sur le même lecteur posé par '
             .'`forViewer()` (P98.05, TCK-1166) : un nombre de mois ENTIER (`penaltyMonthsFor(): int`), jamais une date.',
+        'App\Http\Resources\LeaseResource::rent_review_cap_pct' => '`when()` sur le même lecteur posé par `forViewer()` '
+            .'(TCK-2642) : un pourcentage (`RentReviewService::maxPctFor(): float`), jamais une date.',
         'App\Http\Resources\PropertyCollaboratorResource::commission_share' => '`when()` sur `partsLisibles()` (P241.01, '
             .'TCK-2364) : réservée à qui peut fixer les conditions de commission, absente pour le bailleur. Le cast `decimal:2` '
             .'du modèle, une chaîne numérique, jamais une date.',
@@ -98,6 +106,8 @@ class DateInventoryByValueTest extends TestCase
             .'Un vocabulaire fermé (`designated`, `invitation_order`, `owner`, `null`), jamais une date.',
         'App\Http\Resources\PropertyVisitResource::abilities' => '`when()` sur la seule visite de la route (P152.04) : '
             .'un booléen, jamais une date.',
+        'App\Http\Resources\ReviewResource::risk' => '`when(viewReports)` (TCK-2672) : le parcours ne lit pas en '
+            .'modérateur de l\'avis. `{level, reasons}`, deux vocabulaires fermés (`high|low`, codes), jamais une date.',
     ];
 
     /** Profondeur maximale du parcours — un garde-fou contre un graphe cyclique, pas une limite métier. */

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\IndexReceivedReviewsRequest;
+use App\Http\Requests\Api\ModerateReviewBatchRequest;
 use App\Http\Requests\Api\ModerateReviewRequest;
 use App\Http\Requests\Api\ReplyReviewRequest;
 use App\Http\Requests\Api\ReportReviewRequest;
@@ -19,12 +20,14 @@ use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\Review;
 use App\Models\User;
+use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Review\ReceivedReviews;
 use App\Services\Review\ReviewEligibility;
 use App\Services\Review\ReviewModerationScope;
 use App\Services\Review\ReviewModerationService;
 use App\Services\Review\ReviewNotifier;
 use App\Services\Review\ReviewReportService;
+use App\Services\Review\ReviewRiskClassifier;
 use App\Support\Http\ParametreUnique;
 use App\Support\VisitorFingerprint;
 use Illuminate\Database\Eloquent\Model;
@@ -111,6 +114,17 @@ class ReviewController extends Controller
             $query->where('reviewable_type', $subjectType);
         }
 
+        // TCK-2672 — le risque ({@see ReviewRiskClassifier}) : les deux comptes portent sur la
+        // file telle qu'elle est filtrée, AVANT le filtre de risque — les pastilles « À risque » et
+        // « Sans risque » se lisent ensemble, quel que soit l'onglet ouvert.
+        // Vérification adverse — hors de la file de modération (`filter[author_id]=me`), l'auteur ne
+        // lit pas le risque (la ressource le lui retire) : ni compteur, ni filtre, ni tri par risque.
+        $riskCounts = $isSelfFilter ? null : ReviewRiskClassifier::counts($query);
+        $risk = $isSelfFilter ? null : ParametreUnique::valeur($request->query('filter.risk') ?? data_get($request->query('filter', []), 'risk'));
+        if (in_array($risk, ReviewRiskClassifier::LEVELS, true)) {
+            ReviewRiskClassifier::whereLevel($query, $risk);
+        }
+
         // Sorting — default surfaces the queue (most reported first, then fresh).
         // P216.04 (TCK-2126) — `sort[]=…` vaut l'ordre par défaut (TCK-1407), et n'est plus casté.
         $sort = ParametreUnique::chaine($request, 'sort') ?? '-reported_count,-created_at';
@@ -126,6 +140,9 @@ class ReviewController extends Controller
             }
             if (in_array($spec, ['created_at', 'reported_count', 'rating', 'id'], true)) {
                 $query->orderBy($spec, $direction);
+            } elseif ($spec === 'risk' && ! $isSelfFilter) {
+                // TCK-2672 — `risk` : à risque d'abord ; `-risk` : sans risque d'abord.
+                ReviewRiskClassifier::orderBy($query, $direction);
             } elseif ($spec === 'pending_first') {
                 // TCK-597 — la vue d'agence montre les avis à trancher d'abord : en attente, puis
                 // signalés, puis le reste. Trié par le serveur, sur toute la file, pas par page.
@@ -145,7 +162,7 @@ class ReviewController extends Controller
 
         return $this->json([
             'data' => ReviewResource::collection($paginator)->toArray($request),
-            'meta' => $this->paginationMeta($paginator, ['pending_count' => $pendingCount]),
+            'meta' => $this->paginationMeta($paginator, ['pending_count' => $pendingCount, 'risk_counts' => $riskCounts]),
         ]);
     }
 
@@ -174,6 +191,17 @@ class ReviewController extends Controller
         return $this->json([
             'data' => ReviewResource::make($result['review'])->resolve($request),
         ]);
+    }
+
+    /**
+     * TCK-2672 — `POST /api/reviews/moderate-batch` : publier un lot d'avis sans risque, tout ou
+     * rien ({@see ReviewModerationService::approveBatch()}).
+     */
+    public function moderateBatch(ModerateReviewBatchRequest $request): JsonResponse
+    {
+        $ids = $this->moderationService->approveBatch($request->validated('review_ids'), $request->user());
+
+        return $this->json(['data' => ['decision' => 'approve', 'review_ids' => $ids, 'count' => count($ids)]]);
     }
 
     /**
@@ -286,7 +314,11 @@ class ReviewController extends Controller
      */
     private static function reviewableWithAccount(MorphTo $reviewable): void
     {
-        $reviewable->morphWith([ServiceProviderProfile::class => ['user']]);
+        // TCK-2672 — la photo principale et l'agent principal d'un bien noté, chargés une fois.
+        $reviewable->morphWith([
+            ServiceProviderProfile::class => ['user'],
+            Property::class => ['media', ...PrimaryPropertyContact::eagerLoads()],
+        ]);
     }
 
     public function storeForProperty(StoreForPropertyReviewRequest $request, Property $property): JsonResponse

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Http\Filters\DateBoundaryFilter;
 use App\Http\Filters\TypedExactFilter;
 use App\Http\Middleware\EnsureAgencyWritable;
 use App\Models\Bases\AbstractModel;
@@ -11,11 +12,16 @@ use App\Models\Enums\ConversationType;
 use App\Models\Enums\MaintenanceCategory;
 use App\Models\Enums\MaintenancePriority;
 use App\Models\Enums\MaintenanceStatus;
+use App\Services\Maintenance\MaintenanceQueue;
 use App\Services\Maintenance\ProviderEligibility;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Property\BailleurDuBien;
 use App\Sorts\MaintenancePrioritySort;
+use App\Support\Http\ParametreUnique;
 use App\Support\Query\DepartageQueryBuilder;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
+use DateTimeInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -23,11 +29,13 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Laravel\Scout\Searchable;
 use Spatie\Image\Enums\Fit;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\AllowedSort;
 use Spatie\QueryBuilder\QueryBuilder;
 
@@ -85,6 +93,8 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
         'accepted_at' => 'datetime',
+        // TCK-2652 — l'entrée dans la file courante, posée par {@see self::booted()}.
+        'queue_entered_at' => 'datetime',
         'quote_lines' => 'array',
         'quote_valid_until' => 'date',
         'quote_estimated_duration_days' => 'integer',
@@ -108,8 +118,51 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
         'estimated_cost', 'actual_cost', 'quote_amount', 'quote_currency',
         'quote_submitted_at', 'quote_decision_at', 'quote_decision_by_id',
         'scheduled_at', 'completed_at', 'accepted_at', 'quote_valid_until',
+        // TCK-2652 — la source de `waiting_since`.
+        'queue_entered_at',
         'created_at', 'updated_at',
     ];
+
+    /**
+     * TCK-2652 — `queue_entered_at` date l'entrée dans la FILE courante ({@see MaintenanceQueue}) :
+     * elle repart à zéro quand le statut change OU quand le destinataire change (`assigned_to` :
+     * dispatch, réassignation, refus du prestataire). Décision de la session du 2026-11-11 : un
+     * prestataire ne lit pas « en attente depuis 20 jours » une demande reçue il y a une minute. Le
+     * passage d'un créneau (`en_cours` → `en_retard`) ne la touche pas : `slot_overdue_days` le dit.
+     *
+     * Posée par le modèle, quel que soit l'écrivain (machine d'état, devis, assignation, clôture
+     * automatique, seeders) ; les deux `saveQuietly()` du dépôt n'écrivent que `metadata`. Une valeur
+     * posée explicitement dans la même écriture est respectée. À la création, l'instant est celui que
+     * la ligne porte déjà ({@see self::queueEnteredAtOnInsert()}) : une demande créée datée (seeders,
+     * import) n'attend pas « depuis aujourd'hui ».
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (self $mr): void {
+            if (($mr->isDirty('status') || $mr->isDirty('assigned_to')) && ! $mr->isDirty('queue_entered_at')) {
+                $mr->queue_entered_at = $mr->exists ? now() : ($mr->queueEnteredAtOnInsert() ?? now());
+            }
+        });
+    }
+
+    /**
+     * TCK-2652 — l'entrée dans la file d'une ligne créée déjà datée : la colonne qui date le geste
+     * d'entrée, sinon sa création. Même règle que le rétro-remplissage de la migration
+     * `add_status_changed_at_to_maintenance_requests`. Nul pour une création ordinaire (ni l'une ni
+     * l'autre n'est encore posée) : l'appelant prend alors l'instant courant.
+     */
+    private function queueEnteredAtOnInsert(): ?CarbonInterface
+    {
+        $dated = match ($this->status) {
+            MaintenanceStatus::QuoteSubmitted => $this->quote_submitted_at,
+            MaintenanceStatus::Approved, MaintenanceStatus::Rejected => $this->quote_decision_at,
+            MaintenanceStatus::InProgress => $this->started_at,
+            MaintenanceStatus::Completed => $this->completed_at,
+            default => null,
+        };
+
+        return $dated ?? $this->created_at;
+    }
 
     public static function buildQuery(?Builder $baseQuery = null, ?Request $request = null): QueryBuilder
     {
@@ -126,6 +179,65 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
             )
             ->allowedFields(...static::getAllAllowedQueryFields())
             ->allowedIncludes(...static::getAllowedQueryIncludes());
+    }
+
+    /** TCK-2623 — le fuseau dans lequel se lisent les dates de `filter[scheduled_from|to]`. */
+    public const SCHEDULED_TIMEZONE = 'Africa/Dakar';
+
+    /**
+     * TCK-2700 — l'instant d'un créneau reçu, ramené au fuseau de l'application avant l'écriture. Une
+     * heure sans décalage se lit à l'heure de Dakar ; une heure qui porte son décalage, ou un objet
+     * date, est l'instant qu'elle désigne. Sans cette conversion, le cast `datetime` écrit l'heure
+     * MURALE reçue : `11:00+01:00` était stocké `11:00` UTC, une heure trop tard. Seule conversion du
+     * créneau, partagée par le `PATCH` et l'acceptation (TCK-2680).
+     */
+    public static function scheduledInstant(string|DateTimeInterface $value): CarbonImmutable
+    {
+        $instant = $value instanceof DateTimeInterface
+            ? CarbonImmutable::instance($value)
+            : CarbonImmutable::parse($value, self::SCHEDULED_TIMEZONE);
+
+        return $instant->setTimezone(config('app.timezone'));
+    }
+
+    /**
+     * TCK-2623 — « mes interventions du jour » : `filter[scheduled_from]` / `filter[scheduled_to]`, des
+     * DATES lues à l'heure de Dakar, bornes incluses. `from` part du début de son jour, `to` s'arrête
+     * avant le début du lendemain ; une intervention sans créneau n'entre dans aucune plage. Une valeur
+     * illisible ou une liste rend 422 (`DateBoundaryFilter::exiger`). Elles s'ajoutent aux filtres
+     * existants, et le cloisonnement reste celui de {@see self::scopeVisibleTo()}.
+     *
+     * @return array<int, AllowedFilter>
+     */
+    protected static function customQueryFilters(): array
+    {
+        $debutDuJour = fn (string $date): Carbon => Carbon::createFromFormat('!Y-m-d', Carbon::parse($date)->format('Y-m-d'), self::SCHEDULED_TIMEZONE)
+            ->setTimezone(config('app.timezone'));
+
+        return [
+            // TCK-2652 — `filter[file]=a_dispatcher,en_retard` : les files d'attente
+            // ({@see MaintenanceQueue}), plus `a_accepter` pour le prestataire. Une liste à virgules ;
+            // une valeur inconnue, ou une liste `filter[file][]=`, ne rend rien.
+            AllowedFilter::callback('file', function (Builder $q, mixed $value): void {
+                $raw = ParametreUnique::valeur($value);
+                $files = $raw === null ? [] : array_values(array_filter(array_map('trim', explode(',', $raw)), fn (string $f) => $f !== ''));
+                MaintenanceQueue::scopeToFiles($q, $files, request()->user());
+            })->delimiter(''),
+            AllowedFilter::callback('scheduled_from', function (Builder $q, mixed $value) use ($debutDuJour): void {
+                if ($value === null || $value === '') {
+                    return;
+                }
+                DateBoundaryFilter::exiger($value, 'scheduled_from');
+                $q->where($q->qualifyColumn('scheduled_at'), '>=', $debutDuJour($value));
+            }),
+            AllowedFilter::callback('scheduled_to', function (Builder $q, mixed $value) use ($debutDuJour): void {
+                if ($value === null || $value === '') {
+                    return;
+                }
+                DateBoundaryFilter::exiger($value, 'scheduled_to');
+                $q->where($q->qualifyColumn('scheduled_at'), '<', $debutDuJour($value)->addDay());
+            }),
+        ];
     }
 
     /**

@@ -2,12 +2,17 @@
 
 use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\DocumentShareLinkController;
+use App\Http\Controllers\Api\DocumentVaultController;
 use App\Http\Controllers\Api\DocumentVersionController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('documents', [DocumentController::class, 'index'])->name('documents.index');
     Route::post('documents', [DocumentController::class, 'store'])->name('documents.store');
+    // TCK-2655 (ADR-0099) — le coffre, et les documents générés d'une cible ; `generated` est déclarée
+    // AVANT `documents/{document}`.
+    Route::get('me/document-vault', [DocumentVaultController::class, 'show'])->name('me.document-vault');
+    Route::get('documents/generated', [DocumentVaultController::class, 'generated'])->name('documents.generated');
     Route::get('documents/{document}', [DocumentController::class, 'show'])->name('documents.show');
     Route::post('documents/{document}/verify', [DocumentController::class, 'verify'])->name('documents.verify');
     Route::delete('documents/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');

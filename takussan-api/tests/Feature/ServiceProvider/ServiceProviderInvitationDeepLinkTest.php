@@ -68,6 +68,8 @@ class ServiceProviderInvitationDeepLinkTest extends TestCase
         $this->invite($agency, $mr->id)->assertCreated();
 
         $invitation = Invitation::query()->where('email', 'plombier@example.com')->firstOrFail();
+        // TCK-2610 (ADR-0094 § 7) — l'invité ouvre le lien hors de la session de l'invitant : connecté, il accepterait pour ce compte.
+        $this->app['auth']->forgetGuards();
         $this->postJson("/api/invitations/{$invitation->token}/accept", [
             'first_name' => 'Demba',
             'last_name' => 'Sow',
@@ -278,6 +280,8 @@ class ServiceProviderInvitationDeepLinkTest extends TestCase
         Sanctum::actingAs($admin);
         $this->invite($agency, $mr->id)->assertCreated();
         $invitation = Invitation::query()->where('email', 'plombier@example.com')->firstOrFail();
+        // TCK-2610 (ADR-0094 § 7) — l'invité ouvre le lien hors de la session de l'invitant : connecté, il accepterait pour ce compte.
+        $this->app['auth']->forgetGuards();
         $this->postJson("/api/invitations/{$invitation->token}/accept", [
             'first_name' => 'Demba',
             'last_name' => 'Sow',

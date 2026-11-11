@@ -7,10 +7,12 @@ use App\Http\Requests\Api\AssignContactLeadRequest;
 use App\Http\Requests\Api\ConvertContactLeadRequest;
 use App\Http\Requests\Api\HandleContactLeadRequest;
 use App\Http\Resources\PropertyContactLeadResource;
+use App\Models\Customer;
 use App\Models\Enums\ContactLeadChannel;
 use App\Models\PropertyContactLead;
 use App\Models\User;
 use App\Policies\PropertyContactLeadPolicy;
+use App\Services\Crm\ContactLeadKnownCustomers;
 use App\Services\Lead\ContactLeadService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -49,6 +51,9 @@ class ContactLeadController extends Controller
             ->defaultSort('-created_at')
             ->paginate();
 
+        // TCK-2582 — `known_customer` pour la page entière, en requêtes groupées.
+        ContactLeadKnownCustomers::prime($request, $paginator->getCollection());
+
         return $this->paginated($paginator, PropertyContactLeadResource::collection($paginator)->toArray($request));
     }
 
@@ -81,7 +86,11 @@ class ContactLeadController extends Controller
     {
         abort_code_unless($lead->channel === ContactLeadChannel::Form, 422, 'lead.not_convertible');
 
-        $customer = $this->leads->convert($lead, $request->user(), $request->boolean('allow_duplicate'));
+        // TCK-2582 — `customer_id` : la demande rejoint la fiche choisie au lieu d'en créer une.
+        $existing = $request->validated('customer_id');
+        $customer = $existing !== null
+            ? $this->leads->attach($lead, Customer::query()->findOrFail((int) $existing), $request->user())
+            : $this->leads->convert($lead, $request->user(), $request->boolean('allow_duplicate'));
 
         return $this->json([
             'data' => PropertyContactLeadResource::make($lead->refresh())->resolve($request),

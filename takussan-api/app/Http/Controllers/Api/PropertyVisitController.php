@@ -2,39 +2,58 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exceptions\ApiError;
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\BulkAssignPropertyVisitsRequest;
+use App\Http\Requests\Api\BulkConfirmPropertyVisitsRequest;
 use App\Http\Requests\Api\CancelPropertyVisitRequest;
 use App\Http\Requests\Api\ClaimPropertyVisitRequest;
 use App\Http\Requests\Api\CompletePropertyVisitRequest;
 use App\Http\Requests\Api\ConfirmPropertyVisitRequest;
 use App\Http\Requests\Api\FeedbackPropertyVisitRequest;
 use App\Http\Requests\Api\ReschedulePropertyVisitRequest;
+use App\Http\Requests\Api\StorePropertyVisitReportRequest;
 use App\Http\Requests\Api\StorePropertyVisitRequest;
 use App\Http\Requests\Api\UpdatePropertyVisitRequest;
+use App\Http\Requests\Api\VisitSlotsRequest;
 use App\Http\Resources\PropertyVisitResource;
 use App\Models\Customer;
 use App\Models\Enums\Capability;
 use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitType;
 use App\Models\Property;
+use App\Models\PropertyContactLead;
 use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Policies\PropertyVisitPolicy;
 use App\Rules\PersonnelDeLAgence;
+use App\Services\Crm\ContactGestureService;
+use App\Services\Lead\ContactLeadService;
+use App\Services\Media\WatermarkRequirement;
 use App\Services\Notifications\ContactSansCompte;
 use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Visit\VisitNotifier;
+use App\Services\Visit\VisitReadContext;
+use App\Services\Visit\VisitReportService;
 use App\Services\Visit\VisitSchedulingService;
 use App\Support\TelephoneSaisi;
 use Carbon\Carbon;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class PropertyVisitController extends Controller
 {
     public function __construct(
         protected VisitSchedulingService $scheduling,
         protected VisitNotifier $notifier,
+        // TCK-2582 — la visite qui naît d'une demande la convertit ou la rattache.
+        protected ContactLeadService $leads,
     ) {}
 
     /**
@@ -44,6 +63,59 @@ class PropertyVisitController extends Controller
      * la liste alors que le calendrier et `show` la lui ouvraient.
      */
     public function index(Request $request): JsonResponse
+    {
+        $base = $this->indexScope($request);
+
+        $paginator = PropertyVisit::buildQuery($base, $request)
+            ->defaultSort('-scheduled_at')
+            ->paginate();
+
+        // Passe 3 (M7′) — l'agence de chaque bien de la page, en une requête : la ressource en
+        // décide si la fiche client est rendue, sans relire le bien ligne par ligne.
+        $request->attributes->set('visits.property_agencies', Property::query()
+            ->whereIn('id', $paginator->getCollection()->pluck('property_id')->filter()->unique())
+            ->pluck('agency_id', 'id')
+            ->map(fn ($id) => $id === null ? null : (int) $id)
+            ->all());
+
+        $this->primePage($request, $paginator->getCollection());
+
+        return $this->paginated($paginator, PropertyVisitResource::collection($paginator)->toArray($request));
+    }
+
+    /**
+     * TCK-2585 — ce que la ressource lit pour toute la page, en un nombre de requêtes qui ne dépend
+     * pas de sa taille : le contexte relu de chaque visite (`VisitReadContext`), et, sous
+     * `include=property`, l'adresse, les photos et le verdict de filigrane des biens.
+     *
+     * @param  iterable<PropertyVisit>  $visits
+     */
+    private function primePage(Request $request, iterable $visits): void
+    {
+        $visits = collect($visits);
+        VisitReadContext::prime($request, $visits);
+
+        $properties = new EloquentCollection($visits
+            ->filter(fn (PropertyVisit $v) => $v->relationLoaded('property') && $v->property !== null)
+            ->map(fn (PropertyVisit $v) => $v->property)
+            ->unique(fn (Property $p) => $p->getKey())
+            ->values()
+            ->all());
+        if ($properties->isEmpty()) {
+            return;
+        }
+
+        $properties->loadMissing(['address', 'media']);
+        WatermarkRequirement::attach($properties);
+    }
+
+    /**
+     * TCK-590 — la portée de l'index, partagée par `counts` (TCK-2585) : un compte d'onglet ne voit
+     * que ce que la liste rendrait.
+     *
+     * @return Builder<PropertyVisit>
+     */
+    private function indexScope(Request $request): Builder
     {
         $user = $request->user();
         $base = PropertyVisit::query();
@@ -77,28 +149,205 @@ class PropertyVisitController extends Controller
             });
         }
 
-        $paginator = PropertyVisit::buildQuery($base, $request)
-            ->defaultSort('-scheduled_at')
-            ->paginate();
-
-        // Passe 3 (M7′) — l'agence de chaque bien de la page, en une requête : la ressource en
-        // décide si la fiche client est rendue, sans relire le bien ligne par ligne.
-        $request->attributes->set('visits.property_agencies', Property::query()
-            ->whereIn('id', $paginator->getCollection()->pluck('property_id')->filter()->unique())
-            ->pluck('agency_id', 'id')
-            ->map(fn ($id) => $id === null ? null : (int) $id)
-            ->all());
-
-        return $this->paginated($paginator, PropertyVisitResource::collection($paginator)->toArray($request));
+        return $base;
     }
 
     public function show(Request $request, PropertyVisit $visit): JsonResponse
     {
         $this->authorize('view', $visit);
 
+        // TCK-2585 — l'adresse et la photo du bien (`PropertyVisitResource`).
         return $this->json([
-            'data' => PropertyVisitResource::make($visit->load(['property', 'agent', 'visitor', 'customer']))->resolve($request),
+            'data' => PropertyVisitResource::make($visit->load(['property.address', 'property.media', 'agent', 'visitor', 'customer']))->resolve($request),
         ]);
+    }
+
+    /**
+     * GET /api/property-visits/counts — TCK-2585. Les comptes des onglets de la console, en UNE
+     * requête, sous la portée de l'index (`indexScope`) et ses filtres (`filter[...]`, `mine=1` en
+     * raccourci de `filter[mine]=1`). Chaque onglet est la borne que le front pose sur la liste
+     * (`onglet-des-visites.ts`, `bornesDeLOnglet`), à l'instant de la requête :
+     *
+     *   · `unassigned` — en attente, sans agent, à venir ; `requested` — en attente, à venir ;
+     *   · `confirmed` — confirmée, à venir ; `past` — heure passée, tout statut ;
+     *   · `cancelled` — annulée ; `today` — tout statut, ce jour à Dakar (`filter[day]`) ;
+     *   · `to_close` — `PropertyVisit::scopeToClose` (`filter[to_close]`).
+     */
+    public function counts(Request $request): JsonResponse
+    {
+        $filters = $request->query('filter');
+        $filters = is_array($filters) ? $filters : [];
+        if (filter_var($request->query('mine'), FILTER_VALIDATE_BOOLEAN)) {
+            $filters['mine'] = '1';
+        }
+
+        // Les seuls filtres : ni tri, ni champs, ni inclusions — un compte ne les lit pas.
+        $scoped = PropertyVisit::buildQuery(
+            $this->indexScope($request),
+            Request::create($request->path(), 'GET', $filters === [] ? [] : ['filter' => $filters]),
+        )->getEloquentBuilder();
+
+        $now = CarbonImmutable::now();
+        $day = $now->setTimezone(VisitSchedulingService::TIMEZONE)->startOfDay();
+        $reportFrom = $now->subDays(max(0, (int) config('visits.report_pending_days', 7)));
+        $scheduled = VisitStatus::Scheduled->value;
+        $confirmed = VisitStatus::Confirmed->value;
+        $completed = VisitStatus::Completed->value;
+
+        $tabs = [
+            'unassigned' => ['status = ? and agent_id is null and scheduled_at >= ?', [$scheduled, $now]],
+            'requested' => ['status = ? and scheduled_at >= ?', [$scheduled, $now]],
+            'confirmed' => ['status = ? and scheduled_at >= ?', [$confirmed, $now]],
+            'past' => ['scheduled_at <= ?', [$now]],
+            'cancelled' => ['status = ?', [VisitStatus::Cancelled->value]],
+            'today' => ['scheduled_at >= ? and scheduled_at < ?', [$day->utc(), $day->addDay()->utc()]],
+            'to_close' => [
+                '(status = ? and scheduled_at <= ?) or (status = ? and reported_at is null and completed_at >= ?)',
+                [$confirmed, $now, $completed, $reportFrom],
+            ],
+        ];
+
+        $select = [];
+        $bindings = [];
+        foreach ($tabs as $tab => [$sql, $values]) {
+            $select[] = 'count(*) filter (where '.$sql.') as "'.$tab.'"';
+            foreach ($values as $value) {
+                $bindings[] = $value instanceof CarbonImmutable ? $value->utc()->format('Y-m-d H:i:s') : $value;
+            }
+        }
+
+        $row = (array) $scoped->toBase()->selectRaw(implode(', ', $select), $bindings)->first();
+
+        return $this->json([
+            'data' => array_map(fn (string $tab) => (int) ($row[$tab] ?? 0), array_combine(array_keys($tabs), array_keys($tabs))),
+        ]);
+    }
+
+    /**
+     * GET /api/property-visits/slots — TCK-2585. Les créneaux d'une journée pour la console : le
+     * moteur de la route publique (`VisitSchedulingService::availableSlots`), sur tout bien de
+     * l'agence de l'appelant (publié ou non), pour l'agent donné ou, à défaut, l'appelant s'il est du
+     * personnel. La grille aide ; elle ne contraint pas la planification (`StorePropertyVisitRequest`).
+     */
+    public function slots(VisitSlotsRequest $request): JsonResponse
+    {
+        $property = $request->property();
+        $date = CarbonImmutable::createFromFormat('!Y-m-d', $request->validated('date'), VisitSchedulingService::TIMEZONE);
+
+        $user = $request->user();
+        $agentId = $request->validated('agent_id');
+        $agent = $agentId !== null
+            ? User::query()->find((int) $agentId)
+            : (PersonnelDeLAgence::personnelActifDe($user, $property->agency_id) ? $user : null);
+
+        return $this->json([
+            'data' => [
+                'date' => $date->format('Y-m-d'),
+                'timezone' => VisitSchedulingService::TIMEZONE,
+                'slots' => $this->scheduling->availableSlots($property, $date, $agent),
+            ],
+        ]);
+    }
+
+    /**
+     * POST /api/property-visits/bulk-confirm — TCK-2585. Chaque ligne est le geste unitaire
+     * (`confirm`) : `update` et `agitPourLeBien`, puis `confirmOrFail` sous le verrou de la ligne, puis
+     * l'avis au visiteur. Le lot n'est PAS atomique : une ligne refusée rend son statut et son code,
+     * ceux du geste unitaire pour le même cas (décision de la session, 2026-11-11 — testée par
+     * parité), et n'arrête pas les autres. Aucune attribution implicite : l'agent reste celui de la
+     * visite.
+     */
+    public function bulkConfirm(BulkConfirmPropertyVisitsRequest $request): JsonResponse
+    {
+        $user = $request->user();
+        $rows = collect($request->validated('visits'));
+        $visits = PropertyVisit::query()->with('property')->whereKey($rows->pluck('id')->map(fn ($id) => (int) $id)->all())->get()->keyBy('id');
+
+        $results = $rows->map(function (array $row) use ($user, $visits) {
+            $id = (int) $row['id'];
+
+            return $this->bulkRow($id, function () use ($id, $row, $user, $visits) {
+                $visit = $visits->get($id);
+                // Les refus du geste unitaire, dans son ordre : liaison de route (404), puis
+                // `ConfirmPropertyVisitRequest::authorize` (`update`, 403 `http.forbidden`), puis
+                // `agitPourLeBien` (403 `visit.staff_only`) — décision de la session : même cas, même code.
+                abort_code_if($visit === null, 404, 'http.not_found');
+                abort_code_unless($user->can('update', $visit), 403, 'http.forbidden');
+                abort_code_unless($this->agitPourLeBien($user, $visit), 403, 'visit.staff_only');
+
+                $scheduledAt = $row['scheduled_at'] ?? null;
+                $confirmed = $this->scheduling->confirmOrFail($visit, $scheduledAt !== null ? Carbon::parse($scheduledAt) : null);
+                $confirmed->load('property', 'visitor');
+
+                // L'avis part après la transaction de la ligne ; son échec ne défait pas la confirmation.
+                try {
+                    $sms = $this->notifier->confirmed($confirmed, $user);
+                } catch (Throwable $e) {
+                    Log::warning('visit.bulk_confirm.notify_failed', ['visit_id' => $id, 'error' => $e->getMessage()]);
+                    $sms = false;
+                }
+
+                return $sms === null ? [] : ['sms_sent' => $sms];
+            });
+        })->values()->all();
+
+        return $this->json($this->bulkPayload($results));
+    }
+
+    /**
+     * POST /api/property-visits/bulk-assign — TCK-2585. Chaque ligne est l'attribution d'`update` :
+     * personnel de l'agence du bien et `crm.assign` dans cette agence (`visit.reassign_forbidden`),
+     * visite ni terminée ni annulée (`visit.closed`), agent du personnel de l'agence du bien
+     * (`visit.agent_not_staff`). Non atomique, comme la confirmation en lot.
+     */
+    public function bulkAssign(BulkAssignPropertyVisitsRequest $request): JsonResponse
+    {
+        $user = $request->user();
+        $agentId = (int) $request->validated('agent_id');
+        $agent = User::query()->find($agentId);
+        $ids = collect($request->validated('ids'))->map(fn ($id) => (int) $id);
+        $visits = PropertyVisit::query()->with('property.agency')->whereKey($ids->all())->get()->keyBy('id');
+
+        $results = $ids->map(fn (int $id) => $this->bulkRow($id, function () use ($id, $user, $visits, $agent) {
+            $visit = $visits->get($id);
+            abort_code_if($visit === null || ! $this->agitPourLeBien($user, $visit), 403, 'visit.staff_only');
+            abort_code_unless($this->canAssign($user, $visit), 403, 'visit.reassign_forbidden');
+            abort_code_if(in_array($visit->status, [VisitStatus::Completed, VisitStatus::Cancelled], true), 422, 'visit.closed');
+            abort_code_unless(PersonnelDeLAgence::estPersonnel($agent, $visit->property?->agency_id), 422, 'visit.agent_not_staff');
+
+            $visit->update(['agent_id' => $agent->id]);
+
+            return [];
+        }))->values()->all();
+
+        return $this->json($this->bulkPayload($results));
+    }
+
+    /**
+     * Une ligne d'un lot : `{id, ok: true, …}`, ou `{id, ok: false, code, status}` du refus qu'aurait
+     * rendu le geste unitaire. Seuls les refus codés de l'API se rendent ; toute autre erreur remonte.
+     *
+     * @param  \Closure(): array<string, mixed>  $gesture
+     * @return array<string, mixed>
+     */
+    private function bulkRow(int $id, \Closure $gesture): array
+    {
+        try {
+            return ['id' => $id, 'ok' => true] + $gesture();
+        } catch (ApiError $e) {
+            return ['id' => $id, 'ok' => false, 'code' => $e->errorCode, 'status' => $e->getStatusCode()];
+        }
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $results
+     * @return array<string, mixed>
+     */
+    private function bulkPayload(array $results): array
+    {
+        $ok = count(array_filter($results, fn (array $r) => $r['ok']));
+
+        return ['data' => $results, 'meta' => ['ok' => $ok, 'failed' => count($results) - $ok]];
     }
 
     /**
@@ -172,38 +421,86 @@ class PropertyVisitController extends Controller
     }
 
     /**
+     * TCK-2582 — la fiche de la visite qui naît d'une demande, relue sous le verrou de la demande
+     * (par `convert` / `attach`) :
+     *
+     *   · la demande est déjà rattachée → sa fiche (ou celle donnée par `customer_id`) ;
+     *   · `customer_id` donné → la demande la rejoint (rattachement, mêmes écritures qu'une
+     *     conversion) ;
+     *   · `create_customer` → la demande est convertie (`customer.duplicate` sauf
+     *     `allow_duplicate`, comme `POST /contact-leads/{lead}/convert`) ;
+     *   · sinon aucune fiche : le nom et le téléphone viennent de la demande
+     *     (`StorePropertyVisitRequest::prepareForValidation`).
+     */
+    private function customerFromLead(PropertyContactLead $lead, ?Customer $customer, User $user, StorePropertyVisitRequest $request): ?Customer
+    {
+        $linked = PropertyContactLead::query()->whereKey($lead->id)->value('customer_id');
+        if ($linked !== null) {
+            return $customer ?? Customer::query()->find((int) $linked);
+        }
+
+        if ($customer !== null) {
+            return $this->leads->attach($lead, $customer, $user);
+        }
+
+        if ($request->boolean('create_customer')) {
+            // Les refus de la route `convert` (clic, doublon, déjà convertie) sont tenus par le service.
+            return $this->leads->convert($lead, $user, $request->boolean('allow_duplicate'));
+        }
+
+        return null;
+    }
+
+    /**
      * @param  array<string,mixed>  $data
      */
     private function planForCustomer(StorePropertyVisitRequest $request, Property $property, User $user, array $data): JsonResponse
     {
-        $customer = isset($data['customer_id']) ? Customer::query()->find($data['customer_id']) : null;
-
         $agentId = array_key_exists('agent_id', $data) && $data['agent_id'] !== null
             ? (int) $data['agent_id']
             : (PersonnelDeLAgence::personnelActifDe($user, $property->agency_id) ? $user->id : null);
 
-        $visitor = $customer?->user_id !== null ? User::query()->find($customer->user_id) : null;
+        // TCK-2582 — la visite qui naît d'une demande : conversion (ou rattachement), visite et
+        // demande traitée dans UNE transaction — un chevauchement refusé (422) ne laisse pas une
+        // demande convertie sans visite. Le SMS part après, hors transaction.
+        $lead = $request->lead();
+        $visit = DB::transaction(function () use ($property, $user, $data, $agentId, $lead, $request) {
+            $customer = isset($data['customer_id']) ? Customer::query()->find($data['customer_id']) : null;
+            if ($lead !== null) {
+                $customer = $this->customerFromLead($lead, $customer, $user, $request);
+            }
 
-        $visit = $this->scheduling->createConfirmedOrFail($property, $visitor, [
-            'property_id' => $property->id,
-            'visitor_id' => $visitor?->id,
-            'customer_id' => $customer?->id,
-            'agent_id' => $agentId,
-            'visitor_name' => $data['visitor_name'] ?? ($customer !== null ? trim($customer->first_name.' '.$customer->last_name) : null),
-            // Vérification adverse (M6) — `customers.phone` est saisi librement (TCK-591) : recopié
-            // tel quel, « 77 123 45 67 » donnait un `visitor_phone` que le canal SMS jetait sans bruit.
-            'visitor_phone' => $data['visitor_phone'] ?? TelephoneSaisi::normaliser($customer?->phone),
-            'visitor_email' => $data['visitor_email'] ?? $customer?->email,
-            'scheduled_at' => $data['scheduled_at'],
-            'duration_minutes' => $data['duration_minutes'] ?? null,
-            'notes' => $data['notes'] ?? null,
-            'source' => $data['source'] ?? null,
-            'medium' => $data['medium'] ?? null,
-            // P29.02 (TCK-845) — la langue négociée ici est celle de l'AGENT : un client sans compte
-            // reçoit `fr`, comme ses relances de loyer (`ContactSansCompte::fromCustomer()`).
-            'locale' => $visitor?->preferredLocale() ?? ContactSansCompte::DEFAULT_LOCALE,
-            'type' => $data['type'] ?? VisitType::InPerson->value,
-        ]);
+            $visitor = $customer?->user_id !== null ? User::query()->find($customer->user_id) : null;
+
+            $visit = $this->scheduling->createConfirmedOrFail($property, $visitor, [
+                'property_id' => $property->id,
+                'visitor_id' => $visitor?->id,
+                'customer_id' => $customer?->id,
+                'agent_id' => $agentId,
+                'visitor_name' => $data['visitor_name'] ?? ($customer !== null ? trim($customer->first_name.' '.$customer->last_name) : null),
+                // Vérification adverse (M6) — `customers.phone` est saisi librement (TCK-591) : recopié
+                // tel quel, « 77 123 45 67 » donnait un `visitor_phone` que le canal SMS jetait sans bruit.
+                'visitor_phone' => $data['visitor_phone'] ?? TelephoneSaisi::normaliser($customer?->phone),
+                'visitor_email' => $data['visitor_email'] ?? $customer?->email,
+                'scheduled_at' => $data['scheduled_at'],
+                'duration_minutes' => $data['duration_minutes'] ?? null,
+                'notes' => $data['notes'] ?? null,
+                // TCK-2582 — l'attribution de la demande, à défaut d'une attribution donnée.
+                'source' => $data['source'] ?? $lead?->source,
+                'medium' => $data['medium'] ?? $lead?->medium,
+                'contact_lead_id' => $lead?->id,
+                // P29.02 (TCK-845) — la langue négociée ici est celle de l'AGENT : un client sans compte
+                // reçoit `fr`, comme ses relances de loyer (`ContactSansCompte::fromCustomer()`).
+                'locale' => $visitor?->preferredLocale() ?? ContactSansCompte::DEFAULT_LOCALE,
+                'type' => $data['type'] ?? VisitType::InPerson->value,
+            ]);
+
+            if ($lead !== null) {
+                $this->leads->markHandled($lead->refresh(), $user);
+            }
+
+            return $visit;
+        });
 
         $sms = $this->notifier->confirmed($visit->fresh(['property', 'visitor']), $user);
 
@@ -361,6 +658,11 @@ class PropertyVisitController extends Controller
             'completed_at' => now(),
         ]));
 
+        // TCK-2583 — une visite menée est un contact : le dernier contact de la fiche avance.
+        if ($visit->customer_id !== null) {
+            app(ContactGestureService::class)->touchCustomer((int) $visit->customer_id, $visit->completed_at);
+        }
+
         return $this->json(['data' => PropertyVisitResource::make($visit->refresh())->resolve($request)]);
     }
 
@@ -498,6 +800,33 @@ class PropertyVisitController extends Controller
         $visit->update($payload);
 
         return $this->json(['data' => PropertyVisitResource::make($visit->refresh())->resolve($request)]);
+    }
+
+    /**
+     * POST|PATCH /api/property-visits/{visit}/report — TCK-2578 (ADR-0101).
+     *
+     * Le compte rendu de l'agence : `POST` le crée (201), `PATCH` le modifie (200, champs absents
+     * gardés). Sous `PropertyVisitPolicy::report` (`StorePropertyVisitReportRequest::authorize`).
+     * La réponse porte la visite, la note recopiée sur la fiche (`customer_note`, `null` sans
+     * fiche) et l'étape proposée (`suggested_stage`, jamais écrite).
+     */
+    public function report(StorePropertyVisitReportRequest $request, PropertyVisit $visit, VisitReportService $reports): JsonResponse
+    {
+        $creating = $request->isMethod('POST');
+        $result = $reports->write($visit, $request->user(), $request->validated(), $creating);
+
+        $note = $result['note'];
+
+        return $this->json([
+            'data' => PropertyVisitResource::make($result['visit']->fresh(['reportedBy']))->resolve($request),
+            'customer_note' => $note !== null ? [
+                'id' => $note->id,
+                'customer_id' => $note->customer_id,
+                'kind' => $note->kind?->value,
+                'pinned' => $note->pinned,
+            ] : null,
+            'suggested_stage' => $result['suggested_stage'],
+        ], $creating ? 201 : 200);
     }
 
     /**

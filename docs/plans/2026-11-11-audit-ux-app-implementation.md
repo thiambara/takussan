@@ -254,3 +254,224 @@ contre-vérification est faite par un **autre** vérificateur.
 ## Journal
 
 _(tenu par la session : date, lot, tickets livrés, refus du vérificateur, PR, fusion)_
+
+### 2026-11-11 — lot 1 (branche `feat/audit-ux-app-lot-1`), en cours
+
+- Commités : TCK-2599, TCK-2605, TCK-2616, TCK-2683, TCK-2620, TCK-2578, TCK-2657, TCK-2684 (partiel : gel complet en cours), TCK-2679 (AC5 avec TCK-2649), TCK-2623, TCK-2658.
+- **Décisions prises par la session** (délégation du porteur, à relire au point d'étape) :
+  - TCK-2657 AC3 : `CaseInsensitive` ne replie que la casse (ADR-0020 § 2) ; AC3 réécrit dans le ticket.
+  - TCK-2620 : un dernier espace retenu dont l'**agence** est suspendue reste lié (comme le cookie
+    et l'auto-bascule) — ADR-0004 (amendement) et ADR-0048 § 4 l'emportent sur la phrase du ticket ;
+    aucun test ne fige l'un ou l'autre. `remember=false` **efface** la valeur retenue (le ticket),
+    là où ADR-0004 § Application dit « n'écrit rien » : formulation de l'ADR à harmoniser au
+    `/sync-specs`.
+  - TCK-2616 : deux libellés de rôle partagés avec `/app` changent aussi (« Gérer les pièces de
+    l'agence », « Confirmer ou refuser une réservation »).
+  - TCK-2658 : la relance notée est réservée au personnel de l'agence du bail (nouvelle
+    `LeasePaymentPolicy::remind`, ADR-0105), pas `update` comme l'écrivait le ticket (qui ouvrait au
+    locataire et au bailleur) ; code 409 `lease_payment.not_overdue` gardé (conflit d'état, comme
+    `visit.report_not_closable`) là où ADR-0105 dit 422 : à harmoniser au `/sync-specs`.
+  - TCK-2679 : le contrôle « échéancier déjà émis » reste sur le loyer (l'étendre aux charges
+    rouvrait TCK-957) ; suivi TCK-2706 : le lien d'une relance fusionnée ne règle que le loyer, et le
+    texte « Votre loyer de … » annonce loyer + charges.
+- Commits partiels : `commiter.mjs --partiel <fichier>=<regex>` pour les fichiers partagés
+  (`lang/*/errors.php`, `docs/spatie-query-builder.md`, modèles) ; deux commits ont dû être
+  amendés (positions de hunk, doc commitée en entier) avant la garde « autres tickets cités ».
+- **Décision à reposer au porteur — repli des accents dans les recherches** : deux tickets
+  (TCK-2657 AC3, TCK-2630 AC1 → TCK-2632 AC2) voulaient que « thies » trouve « Thiès ». Tranché (a)
+  pour le lot : la casse seule (ADR-0020 § 2). Le repli des accents changerait la règle de toutes
+  les recherches : un ADR à part, si le porteur le veut.
+- Suites relevées, à ranger en tickets avant la PR : le Radar (`RadarDemandSignals`, `ClaimDemand`)
+  ne lit pas `criteria.locations` (TCK-2607) ; ~60 biens « Property Test Filter » d'owner1 sur la
+  base de démo (résidus de tests) ; `rent_period` NULL sur 381/451 biens `rent` de la démo (TCK-2703,
+  en cours).
+- Outil de clés i18n : un `wo` déjà traduit est désormais conservé (ADR-0095 § 4), signalé par
+  l'agent des textes après qu'une ablation l'a écrasé (restauré).
+- Références de fidélité gelées : PR #1665 fusionnée sur `dev` (46c0b49f1). Les dossiers
+  `references/app-*` sont non suivis sur la branche du lot : les retirer de l'arbre avant d'y
+  fusionner `dev` (contenu identique), sinon git refuse la fusion.
+- TCK-2640 : l'agent reçoit 403 sur la fiche du bailleur (`viewDetail`, admin de l'agence), mais la
+  liste (`viewAny`) lui rend les chiffres du mandat — c'est la lettre du ticket ; l'accès de l'agent à
+  la fiche reste à trancher. Le plafond de travaux s'applique aux devis **approuvés** après lui
+  (lu à l'approbation), là où models-spec dit « soumis » : `/sync-specs`. Recherche du carnet par
+  repli PHP (`Str::ascii`) sur le carnet borné d'une agence, comme `CleDeQuartier`.
+- TCK-2579 : la fabrique de réservation pose `kind = stay` par défaut. **À trancher par le porteur** :
+  depuis « seul un séjour occupe des nuits » (ADR-0102 § 3), deux candidatures DATÉES qui se
+  chevauchent sur une même location peuvent être confirmées toutes deux (lu dans le code, non
+  éprouvé). L'export iCal, l'agenda agrégé, `PortfolioMetrics` et `CompleteEndedBookingsJob` lisent
+  encore les réservations confirmées sans leur nature (hors périmètre) : suite à ranger en ticket.
+- TCK-2663 : les « contacts » d'une mise en avant comptent tous les canaux (formulaire, clics WhatsApp
+  et Appeler de `property_contact_leads`), pour la mesure comme pour « sans contact depuis 30 jours » :
+  une seule définition. Le seul formulaire = un `channel = form` à deux endroits, si le porteur le veut.
+- TCK-2610 : sous la session d'un AUTRE compte que le destinataire, `accept()` rend désormais 403
+  `invitation.email_mismatch` / `phone_mismatch` au lieu de créer le compte de l'invité (ADR-0094
+  § 7) — visible sur la page actuelle avant TCK-2611 ; `/verify` exige `phone` même pour une
+  invitation par e-mail ; le code SMS est consommé même si l'acceptation est refusée. Les trois sont
+  reportés dans le contrat de TCK-2611. Rouge de `NumeroPublieVerifieTest` sur l'aperçu public de
+  TCK-2609 (693cb3b42) : corrigé à part.
+- TCK-2631 (sécurité) : une URL signée de pièce jointe déjà émise reste lisible 30 min par qui la
+  détient, ancien membre compris (route `media.private.show` hors `auth:sanctum`, comme la note
+  vocale d'ADR-0038) ; aucune URL neuve ne lui est émise (403 sur `GET …/messages`). Accepté pour le
+  lot ; **suivi à écrire** : durée plus courte pour `attachments`, ou route authentifiée. Antivirus
+  absent : ardoise D-73 rouverte.
+- TCK-2633 : une notification sans code prend d'abord la famille de sa cible stockée
+  (`target.kind`), puis celle de son type — sinon « Mise en avant terminée » (sans code, type
+  `system`) tombait en « système » ; une table exhaustive gardée par un test. Règle ajoutée au brief :
+  tout `NotificationCode` neuf reçoit sa famille.
+- TCK-2666 : la délégation qui couvre une absence est unique **parmi les vivantes** (index partiel
+  `scheduled`/`active`), pas unique tout court comme l'écrivait l'amendement d'ADR-0035 : changer de
+  suppléant, ou couper puis rouvrir `substitute_can_act`, crée une ligne neuve et garde l'historique.
+  L'ADR est corrigé par une ligne datée.
+- TCK-2612 : pièces requises = toutes celles que l'envoi accepte sauf l'assurance RC pro
+  (`PiecesDuProfil::FACULTATIVES`) ; l'état `rejected` est au contrat mais jamais rendu — rien ne
+  consigne le refus d'une pièce de profil (suivi à écrire si l'écran doit le montrer).
+- TCK-2637 : `is_online` se demande par `include=online`, pas par `fields[]` (une exception à
+  ADR-0021 refusée par la session : c'est la voie (b) que le porteur avait écartée) ; ADR-0097 § 1
+  amendé par une ligne datée. Suivi : les autres listes de biens (`children`, biens d'un bailleur,
+  console) acceptent filtres et includes sans rendre `occupancy`/`is_online`.
+- TCK-2704 (neuf, voie coque) : donner un code aux notifications qui n'en ont pas (au moins
+  BoostEnded, PropertyProposed, UrgentMaintenanceCreated, AgencyUpgradeRequestSubmitted) — seul un
+  code rend « à traiter » juste ; passe avant TCK-2634.
+- TCK-2700 (neuf) : l'heure d'intervention envoyée avec un décalage est convertie (PATCH et
+  acceptation). **Suivi à écrire** : le même défaut sur `PropertyVisit.scheduled_at`, `Task.due_at`
+  et les autres écritures relevées dans les Notes de TCK-2700.
+- **Question au porteur — quota d'agents** (TCK-2669) : `max_agents` n'est appliqué NULLE PART —
+  `QuotaResolver::assertCanAddAgent` n'a aucun appelant (relevé par l'agent). L'écran affiche donc
+  `agents.used` = profils d'agent ACTIFS, et la méthode morte lit le même compte. **Suivi à écrire** :
+  appliquer le quota d'agents ; la définition (actifs seuls, ou tout profil non supprimé — qu'un agent
+  suspendu libère ou non une place) est une règle tarifaire à confirmer par le porteur à ce moment-là.
+- TCK-2593 : la fiche client imbriquée dans une réservation sortait entière vers tout lecteur — le
+  client lisait son étape commerciale, le bailleur du bien le téléphone et l'étape du candidat.
+  Désormais téléphone, étape et visites passées au seul personnel actif de l'agence (règle des
+  visites, TCK-590). **À confirmer par le porteur** : si le bailleur doit pouvoir joindre le
+  candidat, c'est une décision à part (aucun écran ne lisait ces champs).
+- TCK-2704 : une intervention urgente peut compter deux fois « à traiter » pour la même personne
+  (créateur du bien → `maintenance.created`, admin principal → `maintenance.urgent_created`, puis
+  l'escalade) — accepté pour le lot, à revoir avec la maquette de TCK-2634. 21 autres classes de
+  notification restent sans code (relevé dans TCK-2704 « Hors périmètre »).
+- TCK-2681 : l'approbation d'un passage en pro abonne l'agence au plan de `UpgradeOffer` dans la
+  transaction ; sans plan pro actif → 422 et rien ne reste. **Déploiement** : la production (phase
+  F) doit semer le plan pro avant la première approbation (la préproduction l'a par `PlanSeeder`).
+  **Suivi à écrire** : la recopie « si vide » d'`AgencyKindFlipService` (ADR-0104 § Application)
+  n'est portée par aucun ticket.
+- TCK-2642 : sur la démo, la file « À traiter » des baux compte 167 baux sur 358, dont 126 pour
+  `late_fee_unpaid` (surtout des pénalités de 2024 sur des baux expirés ou renouvelés). Règle du
+  ticket appliquée telle quelle. **Au porteur** : borner ce motif aux baux en cours, ou à une
+  ancienneté ? Le tri par défaut de `GET /api/leases` devient « en cours d'abord », puis
+  `-created_at`.
+- CI de la PR #1666 (2026-11-11) : rouges sur trois gardes d'architecture (TCK-2609, TCK-2583,
+  TCK-2658), `check-locale-figee` et le recensement des pages publiques (TCK-2685) — corrigés par la
+  session ; les agents ne jouaient que leurs propres tests. Le brief commun exige désormais
+  `tests/Unit/Architecture`, `tests/Feature/Architecture` et `tests/Feature/Database` côté back,
+  et toutes les gardes `scripts/check-*.mjs` côté front.
+- TCK-2672 : `POST /api/properties/{id}/reject` exige désormais `reason_code` ; l'écran qui le
+  choisira est TCK-2673 (lointain). Pont posé par la session dans le même commit :
+  `rejectProperty()` envoie `other` par défaut — à retirer quand TCK-2673 propose le choix.
+  Hors de son ticket, noté : `filter[risk]`, `sort=risk` et `meta.risk_counts` restent ouverts sur
+  la liste de l'auteur (rien n'y est révélé qu'il ne lise déjà). /sync-specs :
+  `properties.rejection_reason_code`, règle de risque d'un avis, deux routes neuves.
+- TCK-2674 (arbitré par la session) : « à rapprocher » = payé dans la période, non réglé par une
+  passerelle, non rapproché — la règle littérale laissait les 1 479 paiements de la démo hors des
+  deux paniers. Les factures restent hors de la vue d'ensemble (aucune date de paiement en base) ;
+  **suivi possible** : une colonne `paid_at` sur les factures. **Au porteur** pour confirmation.
+- TCK-2646 (arbitré par la session) : la sortie d'un bail renouvelé s'appuie sur l'entrée signée
+  de la chaîne de renouvellement (même locataire, même bien) ; le bailleur qui a conduit l'état
+  des lieux peut le contester comme partie.
+- **Décisions du porteur du 2026-11-11 (après le redémarrage de la machine)** :
+  1. `late_fee_unpaid` borné aux baux en cours (`active`, `terminating`) — fait (127e3bde9) ;
+  2. le bailleur du bien lit le téléphone et l'étape du candidat à une réservation (les visites
+     passées restent au personnel) — fait (00e529fe2) ;
+  3. arbitrages de TCK-2674 (paiements à rapprocher, factures) et TCK-2646 (sortie d'un bail
+     renouvelé, contestation) validés ;
+  4. variante de bouton sombre gardée (TCK-2686) ; la feuille du bas s'ouvre en panneau latéral dès
+     `md` (TCK-2690 → à faire dans TCK-2688) ; `/super-admin` mesurable au navigateur : le super-admin
+     de démo local est enrôlé au second facteur (secret hors dépôt, chmod 600).
+- **Plantage de la machine (2026-11-11, ~06:50)** : quatre agents jouaient en parallèle de gros lots
+  de tests. Règle de charge désormais en tête du brief : seulement les tests écrits ou modifiés,
+  jamais de dossier entier ni de seeders, ablations une à une, deux agents qui testent au plus ; la
+  régression large est celle de la CI de la PR. Le redémarrage a vidé `/private/tmp` (rapports et
+  passations des agents) : les quatre tickets en cours (TCK-2591, TCK-2646, TCK-2674, TCK-2688) sont
+  repris depuis l'arbre et leurs Notes.
+- **Reprise (2026-11-11, matinée)** : TCK-2674, TCK-2646, TCK-2591, TCK-2688 repris depuis l'arbre
+  et commités ; puis TCK-2582, TCK-2585, TCK-2595, TCK-2652 (back-3) et TCK-2689, TCK-2691
+  (terrain-4). Tout le back de l'étape 1 bis est commité, sauf TCK-2655 (en cours).
+- **Arbitrages de la session pendant la reprise** (au porteur pour confirmation) :
+  - TCK-2591 : la visite du compte d'un client ne compte que si elle porte sur un bien de l'agence
+    de la fiche (sinon fuite entre agences) ; un fait de la même seconde que la création de la fiche
+    compte (lectures d'ADR-0103 § 5, qui ne tranche aucun des deux cas).
+  - TCK-2582 : budget déduit seulement d'un prix de vente ou d'un loyer mensuel ; `seeking_cities`
+    non déduit ; une demande déjà convertie qui crée une visite rejoint sa fiche, sans 409. La note
+    `lead_message` est une seconde copie du message : un futur effacement devra la suivre.
+  - TCK-2585 : la confirmation en lot est le geste unitaire ligne par ligne, mêmes autorisations et
+    mêmes codes (parité testée sur six cas), aucune attribution implicite ; l'onglet « Aujourd'hui »
+    = toute visite du jour à Dakar, quel que soit son statut ; la recherche par nom ignore la casse,
+    pas les accents (suivi).
+  - TCK-2595 : la vue d'équipe se juge sur `crm.view_all` (capacité, pas rôle : tout agent au rôle
+    par défaut la reçoit) ; une tâche listée s'ouvre en lecture (`TaskPolicy::view`, même portée que
+    `filter[team]`), l'écriture garde sa règle (`UpdateTaskRequest` délègue à `update`).
+  - TCK-2652 : l'ancienneté d'attente est l'entrée dans la file courante (`queue_entered_at`, remis
+    à zéro par le dispatch, le refus, la réassignation) ; `a_accepter` = `can_accept` (file et bouton
+    sur une règle) ; correspondance catégorie → métier (`structural`, `appliance`, `cleaning`,
+    `pest_control`) **au porteur** — sans elle, ces demandes n'ont pas de prestataire suggéré.
+- **Web CI rouge de TCK-2688 à TCK-2691** (deux cliquets de contraste attribués à tort aux maquettes
+  locales) : corrigé par 9a4b016d9. Le compteur des encres inverses sans fond déclaré passe de 415 à
+  430 (quinze `text-muted-foreground` opaques, tous au-dessus de 4,5:1) — **suivi** : déclarer leurs
+  fonds plutôt que d'élargir le trou.
+- **Point porteur n° 1 (2026-11-11)** — captures envoyées au porteur ; la session applique ses
+  recommandations, que le porteur peut renverser : 1 feuille du bas modale dès `md` ; 2 icône du toast
+  à l'encre du toast ; 3 toast relevé au-dessus de la pastille publique ; 4 barre d'action à boutons
+  de 44 px (barre de 69) ; 5 dock flottant relevé par la barre d'action ; 6 contrôle segmenté sur les
+  neuf listes, « Aperçu / Modifier » de la fiche bien en `line` (au ticket de la page) ; 7 texte des
+  boutons à la taille du téléphone sous pointeur grossier dès `lg` ; 8 la pleine largeur retire aussi
+  `py-6` au téléphone ; 9 titres de groupe de 25,2 px gardés ; 10 avatar sans photo au repli par
+  défaut ; 11 petits écarts de la colonne alignés sur la maquette. Les points 3, 4, 5, 7 et 11 font
+  TCK-2712 avant l'étalonnage. Dette relevée (TCK-2688) : 4 `buttonVariants` sans `cn()`,
+  `aria-modal` absent de Dialog/SheetContent, texte de 11 px de DocumentShareDialog, couleurs de `cn`
+  sans test, ProfileHeader.
+- Étape 0 : maquettes archivées hors du dépôt (`~/.takussan-demo/sauvegardes/`, 2026-11-11) ;
+  locataire de démo `locataire@agency1.demo.takussan.sn` (TCK-2684).
+- **Réponses du porteur (2026-11-11, après le point n° 1)** : les onze recommandations du point
+  n° 1 sont validées ; les arbitrages de la reprise sont confirmés ; l'effacement d'un compte de
+  visiteur efface aussi les copies du compte rendu (`customer_notes`, `activity_log`) ; `/sync-specs`
+  à la fin du lot. Correspondance catégorie → métier : laissée à la recommandation de la session
+  (`structural` → maçonnerie ; `appliance` → climatisation + électricité ; deux métiers neufs
+  `cleaning` et `pest_control` ; `other` → aucune suggestion), en ticket à part.
+- **Vérification adverse, famille commerciale** (verdicts hors dépôt) : acceptés TCK-2578, 2579,
+  2582, 2585, 2593, 2595 ; refusés puis corrigés TCK-2583 (`agency_id` interdit hors super-admin,
+  e8c5a63ae), TCK-2588 (visites de la fiche au seul personnel de son agence, cd07e9c27), TCK-2591
+  (étape proposée au seul personnel, b0f642e42). Les contre-vérifications de 2583/2588 ont trouvé
+  **le même motif par un autre canal** — le bailleur auteur d'une fiche lisait l'heure d'un compte
+  rendu sur le bien d'un autre bailleur par `last_contacted_at`, `follow_up`, leur filtre et leurs
+  tris — fermé par a598a9f4f (quatre ablations rouges). **Le motif à chercher partout** : un acteur
+  hors personnel qui lit un fait interne de l'agence, y compris par un **tri** sur une valeur tue.
+- **Étalonnage (étape 2), après-midi du 2026-11-11** — TCK-2580, TCK-2581 et TCK-2659 livrés, chacun
+  refusé puis repris jusqu'à l'acceptation par un **second** vérificateur :
+  - TCK-2581 : la metadata d'une visite (avis interne de l'agence) servie à tout lecteur → au seul
+    personnel (012106f3b) ; `abilities.feedback_customer` pour le client rattaché par la fiche
+    (627ecd6e6) ; « Créer sa fiche » ne porte plus le téléphone dans l'URL et ne pré-remplit que
+    depuis `visitor_display` (65ad322aa, 8a556c9dd : le repli copiait le prospect d'une agence dans le
+    CRM d'une autre pour un compte double).
+  - TCK-2580 : l'entrée de la saisie n'était gardée sur aucune des deux pages (l'AC « le bailleur ne
+    l'a nulle part » était coché aussi par sa suppression pour tous) → tests de page entière ;
+    recherche de biens bornée à l'agence du profil personnel actif (3b7ac7cbe).
+  - TCK-2659 : l'export annonçait des « encaissements » et sortait les échéances (R1) ; le « mois » avait
+    trois sens sur un écran (M1) → `filter[paid_from]`/`filter[paid_to]` neufs côté API (9f0c10404,
+    2acfdfdea) ; **décision de session D2** : filtré sur un statut non soldé, le registre borne par
+    l'échéance, sinon par l'encaissé (a66aea9ce) ; la contre-vérification a trouvé « Échoué » à 0 pour
+    tout mois et « Restant dû » qui ignorait les impayés du mois (2fcd7fb57, 9a0808ea1, 767a9a98a).
+    **M2 à confirmer par le porteur** : les totaux du registre restent servis à un lecteur sans
+    `reports.view_agency` — ce ne sont que les sommes des lignes qu'il lit déjà (épinglé par test).
+  - Le Web CI de b5552cdb2 a rougi sur trois gardes de dépôt que les tests de l'écran ne jouent pas
+    (promesses de délai, flèche de retour unique, pluriels) : f1bd713ae. **Leçon** : un agent front
+    joue `src/test/__tests__`, `src/i18n/__tests__` et `src/components/layout/__tests__` à chaque passe.
+  - Ablations dans l'arbre partagé : un vérificateur a restauré un fichier qu'un implémenteur éditait
+    (rien de perdu, vérifié par md5) → règle : restaurer seulement si le md5 est celui du mutant, et la
+    session ne déclare un fichier libre qu'après le commit de son éditeur.
+- **Contre-vérifications finales** des correctifs du matin jamais rejoués : TCK-2583 et TCK-2658
+  acceptés ; TCK-2623 refusé pour une borne d'agence (l'équipe elle-même) gardée par aucun test.
+- **Suites écrites en tickets** (8fa7cd6ac, 0be3711b5) : TCK-2714 (groupes de milliers U+202F →
+  U+00A0, décision n° 11 du point 2) et TCK-2715 à TCK-2733, chacun portant la recommandation de
+  session comme décision provisoire, « si refusée → obsolete ». Restent hors ticket : l'état
+  « rejected » des pièces de profil (TCK-2612 — qui refuse ? spec à écrire d'abord).
+- **Statuts** : 58 tickets à `done` sur verdict accepté (9d0725918) ; TCK-2623 suit son test.
+  `/sync-specs` (demandé par le porteur pour la fin du lot) part en PR à part après la fusion.

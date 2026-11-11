@@ -4,6 +4,7 @@ namespace Database\Seeders\Support;
 
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgentProfileStatus;
+use App\Models\Enums\BookingKind;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\BoostKind;
 use App\Models\Enums\ContractType;
@@ -102,6 +103,12 @@ class ReferentialIntegrityChecker
             'reservation_terminee_avant_son_debut' => DB::table('bookings')
                 ->where('status', BookingStatus::Completed->value)
                 ->where('start_date', '>', now()->toDateString())
+                ->count(),
+            // TCK-2703 — une location porte sa période (`Property::avecPeriodeParDefaut`) : sans elle,
+            // le bien sort de l'occupation et des filtres « au mois ».
+            'bien_en_location_sans_periode' => DB::table('properties')
+                ->where('contract_type', ContractType::Rent->value)
+                ->whereNull('rent_period')
                 ->count(),
             'bien_loue_sans_bail_actif' => DB::table('properties as p')
                 ->where('p.status', PropertyStatus::Rented->value)
@@ -254,6 +261,10 @@ class ReferentialIntegrityChecker
             'indisponibilite_sur_une_reservation_confirmee' => DB::table('property_unavailabilities as u')
                 ->join('bookings as b', 'b.property_id', '=', 'u.property_id')
                 ->where('b.status', BookingStatus::Confirmed->value)
+                // TCK-2579 (ADR-0102 §3) — seul un SÉJOUR occupe des nuits : la règle que tient
+                // `PropertyAvailabilityService` (et le blocage manuel qui la lit). Une candidature
+                // confirmée datée n'empêche plus de bloquer ces dates.
+                ->where('b.kind', BookingKind::Stay->value)
                 ->whereColumn('b.start_date', '<', 'u.ends_on')
                 ->whereColumn('b.end_date', '>', 'u.starts_on')
                 ->count(),

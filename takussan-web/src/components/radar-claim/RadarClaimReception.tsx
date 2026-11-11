@@ -234,7 +234,7 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
   const enLigne = etat.kind === 'ready' ? etat.claim.published.length : 0;
   const opposition = (
     <>
-      <p className="pt-2 text-center text-[13px] text-muted-foreground lg:text-left" data-testid="claim-opposition">
+      <p className="pt-2 text-center text-[0.8125rem] text-muted-foreground lg:text-left" data-testid="claim-opposition">
         <button
           type="button"
           className="min-h-11 px-1 underline underline-offset-4 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -262,7 +262,7 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
           <Button
             type="button"
             size="lg"
-            className="h-12 w-full bg-foreground text-[15px] font-semibold text-background hover:bg-foreground/90"
+            className="h-12 w-full bg-foreground text-[0.9375rem] font-semibold text-background hover:bg-foreground/90"
             disabled={refusEnCours}
             onClick={() => void refuser()}
           >
@@ -298,9 +298,9 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
             detail={tL('refus.neplusDetail')}
           />
         </fieldset>
-        <p className="mt-4 text-[15px] text-foreground">{tL('refus.effet')}</p>
-        {enLigne > 0 ? <p className="mt-2 text-[15px] text-foreground">{tL('refus.effetEnLigne')}</p> : null}
-        <p className="mt-3 text-[13px] text-muted-foreground">
+        <p className="mt-4 text-[0.9375rem] text-foreground">{tL('refus.effet')}</p>
+        {enLigne > 0 ? <p className="mt-2 text-[0.9375rem] text-foreground">{tL('refus.effetEnLigne')}</p> : null}
+        <p className="mt-3 text-[0.8125rem] text-muted-foreground">
           {tL.rich('refus.confidentialite', {
             privacy: (morceaux) => (
               <LienLocalise href={ROUTES_LEGALES.privacy} target="_blank" rel="noopener" className="underline underline-offset-4">
@@ -342,7 +342,7 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
           icone={<BadgeCheck />}
           titre={t('doneTitle')}
           actions={
-            <Link href="/app" className={cn(buttonVariants({ size: 'lg' }), 'h-12 w-full text-[15px] font-semibold')}>
+            <Link href="/app" className={cn(buttonVariants({ size: 'lg' }), 'h-12 w-full text-[0.9375rem] font-semibold')}>
               {t('openSpace')}
             </Link>
           }
@@ -400,7 +400,7 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
         <CarteDeLien data-testid="claim-unavailable" icone={<Clock />} titre={t('unavailableTitle')}>
           {t('unavailableDescription')}
         </CarteDeLien>
-        <div className="mx-auto w-full max-w-[22rem] px-5 pb-6 pt-6 lg:text-center">{opposition}</div>
+        <div className="mx-auto w-full max-w-88 px-5 pb-6 pt-6 lg:text-center">{opposition}</div>
       </>
     );
   }
@@ -557,7 +557,7 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
       form={idFormulaire}
       size="lg"
       disabled={codeEnvoye ? envoi || code.length !== 6 || !conditions || !confirmable : envoi || !conditions || !confirmable}
-      className="h-12 w-full text-[15px] font-semibold"
+      className="h-12 w-full text-[0.9375rem] font-semibold"
     >
       {envoi ? (
         <>
@@ -586,7 +586,7 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
       {attente > 0 ? t('resendIn', { seconds: attente }) : t('resend')}
     </button>
   ) : (
-    <p className="text-center text-[13px] text-muted-foreground">{tL('codeArriveAu', { phone: telephone })}</p>
+    <p className="text-center text-[0.8125rem] text-muted-foreground">{tL('codeArriveAu', { phone: telephone })}</p>
   );
 
   const champsDeLEspace = (
@@ -664,7 +664,7 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
               {t('existingSpace', { name: account.space.name })}
             </p>
           ) : null}
-          <label className="flex cursor-pointer items-start gap-3 text-[15px] text-foreground">
+          <label className="flex cursor-pointer items-start gap-3 text-[0.9375rem] text-foreground">
             <input
               type="checkbox"
               checked={conditions}
@@ -692,7 +692,7 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
         <div className="space-y-4">
           {/* Un nom refusé par l'API à la confirmation se corrige ici, sans renvoyer de code. */}
           {compteNeuf && nomsRefuses.length > 0 ? champsDeLEspace : null}
-          <p className="text-[15px] text-muted-foreground" role="status">
+          <p className="text-[0.9375rem] text-muted-foreground" role="status">
             {t('codeSentTo', { phone: telephone })}
           </p>
           <div className="space-y-1.5">
@@ -740,13 +740,13 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
       {blocage === 'existingLogin' ? (
         <Link
           href={hrefConnexion(`/${locale}/claim/${encodeURIComponent(jeton)}`)}
-          className={cn(buttonVariants({ size: 'lg' }), 'h-12 w-full text-[15px] font-semibold')}
+          className={cn(buttonVariants({ size: 'lg' }), 'h-12 w-full text-[0.9375rem] font-semibold')}
         >
           {t('login')}
         </Link>
       ) : null}
       {blocage === 'otherAccount' ? (
-        <Button variant="outline" size="lg" className="h-12 w-full text-[15px]" onClick={() => void logout()}>
+        <Button variant="outline" size="lg" className="h-12 w-full text-[0.9375rem]" onClick={() => void logout()}>
           {t('logout')}
         </Button>
       ) : null}
@@ -766,17 +766,17 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
             <div className="space-y-2">
               <h1
                 id={`${idFormulaire}-promesse`}
-                className="font-display text-[26px] font-semibold leading-tight tracking-[-0.02em] text-balance text-foreground"
+                className="font-display text-[1.625rem] font-semibold leading-tight tracking-[-0.02em] text-balance text-foreground"
               >
                 {nom ? t('greeting', { name: nom }) : t('greetingAnonymous')}
               </h1>
-              <p className="text-[15px] leading-relaxed text-muted-foreground text-pretty">
+              <p className="text-[0.9375rem] leading-relaxed text-muted-foreground text-pretty">
                 {reprise ? t('introMandate', { phone: telephone }) : t('intro', { phone: telephone })}
               </p>
             </div>
             {/* TCK-2511 — un compte de RECHERCHES, jamais de personnes ; rien sous le seuil (`null`). */}
             {claim.demand ? (
-              <p className="flex items-center gap-3 rounded-2xl bg-secondary/70 px-4 py-3.5 text-[15px] leading-snug text-foreground" data-testid="claim-demand">
+              <p className="flex items-center gap-3 rounded-2xl bg-secondary/70 px-4 py-3.5 text-[0.9375rem] leading-snug text-foreground" data-testid="claim-demand">
                 <TrendingUp className="size-5 flex-none text-primary-deep" aria-hidden="true" />
                 <span>
                   {tL.rich('demande', {
@@ -788,7 +788,7 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
               </p>
             ) : null}
             {!reprise ? (
-              <ul className="space-y-2.5 text-[15px] text-foreground">
+              <ul className="space-y-2.5 text-[0.9375rem] text-foreground">
                 <Avantage icone={<BadgeCheck className="size-[18px]" />}>{tL('avantageGratuit')}</Avantage>
                 <Avantage icone={<ShieldCheck className="size-[18px]" />}>{tL('avantageNumero')}</Avantage>
                 <Avantage icone={<Pencil className="size-[18px]" />}>{tL('avantageCorriger')}</Avantage>
@@ -915,13 +915,13 @@ export function RadarClaimReception({ token: jeton }: RadarClaimReceptionProps) 
             <Button
               type="button"
               size="lg"
-              className="h-12 w-full text-[15px] font-semibold"
+              className="h-12 w-full text-[0.9375rem] font-semibold"
               disabled={!confirmable}
               onClick={() => setFeuillePublier(true)}
             >
               {libelleDuGeste}
             </Button>
-            <p className="text-center text-[13px] text-muted-foreground">
+            <p className="text-center text-[0.8125rem] text-muted-foreground">
               {confirmable ? tL('barreSousTitre') : t('errors.nothingSelected')}
             </p>
           </BasDeLien>

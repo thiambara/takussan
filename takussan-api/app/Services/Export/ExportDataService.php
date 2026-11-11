@@ -282,6 +282,11 @@ class ExportDataService
 
         // verif-595 M2 — le périmètre du relevé, pas seulement l'agence : sans `viewReports`, ses lignes.
         $query->visibleTo($actor);
+        // TCK-2661 — l'export ouvert au bénéficiaire sans `reports.export` (`ExportController`) : ses
+        // seules lignes, quel que soit ce que le relevé lui montre.
+        if (! empty($filters['own_lines_only'])) {
+            $query->where('commission_entries.beneficiary_id', $actor->id);
+        }
         $this->applyRangeFilter($query, 'earned_at', $filters['from'] ?? null, $filters['to'] ?? null);
 
         $rows = $query->orderByDesc('earned_at')->orderByDesc('id')->limit($this->limit($filters) + 1)->get()->map(fn ($c) => [

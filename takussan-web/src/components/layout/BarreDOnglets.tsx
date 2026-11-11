@@ -21,9 +21,16 @@ import { COMPTEURS_DE_MODERATION, useCompteursDuMenu } from './useCompteursDuMen
 import { REQUETE_DE_LA_BARRE } from './plein-ecran';
 import { AnnonceDesNonLus } from './AnnonceDesNonLus';
 
-/** Une case : 72 px de large à 360 (cinq colonnes), toute la hauteur de la barre (56 px) — cibles ≥ 44 px. */
+/**
+ * Une case : 72 px de large à 360 (cinq colonnes), toute la hauteur de la barre — cibles ≥ 44 px.
+ * TCK-2691 (ADR-0106, C4) — les cotes de la maquette : barre de 64 px (hors zone sûre), 4 px entre
+ * l'icône et le libellé, libellé de 11 px à l'interligne 16,5 px (`leading-normal`).
+ */
 const STYLE_CASE =
-  'relative flex h-full w-full flex-col items-center justify-center gap-0.5 px-1 text-[11px] leading-tight transition-colors';
+  'relative flex h-full w-full flex-col items-center justify-center gap-1 px-1 text-[0.6875rem] leading-normal transition-colors';
+
+/** TCK-2691 (C4) — le trait des icônes de la barre, celui de la maquette. */
+const TRAIT_DES_ONGLETS = 1.75;
 
 interface BarreDOngletsProps {
   readonly user: User;
@@ -40,6 +47,11 @@ interface BarreDOngletsProps {
   readonly onOuvrirMenu: () => void;
   /** Le bouton « Menu », à qui le tiroir rend le focus à sa fermeture (`finalFocus`, AC3). */
   readonly refMenu: RefObject<HTMLButtonElement | null>;
+  /**
+   * TCK-2617 — la barre n'est pas rendue (conversation ouverte, formulaire plein écran) : seule sa
+   * région `aria-live` des non-lus reste montée, et ses compteurs continuent d'être sondés.
+   */
+  readonly masquee?: boolean;
 }
 
 /**
@@ -53,7 +65,8 @@ interface BarreDOngletsProps {
  *   menu rendu : une épingle (TCK-2480) range le menu, elle ne déplace pas un onglet.
  * - Ses compteurs sont CEUX du menu (`useCompteursDuMenu`), sondés seulement sous `md`.
  * - Enfant flex de la coque `h-dvh`, après le `<main>` : le `<main>` rétrécit de sa hauteur exacte
- *   (`--barre-onglets-hauteur`), rien de la page ne passe dessous (TCK-503).
+ *   (`--barre-onglets-hauteur` : 64 px + la zone sûre, TCK-2691), rien de la page ne passe dessous
+ *   (TCK-503).
  */
 export function BarreDOnglets({
   user,
@@ -64,6 +77,7 @@ export function BarreDOnglets({
   menuOuvert,
   onOuvrirMenu,
   refMenu,
+  masquee = false,
 }: BarreDOngletsProps) {
   const t = useTranslations('nav.sidebar');
   const tAdmin = useTranslations('nav.admin');
@@ -89,6 +103,8 @@ export function BarreDOnglets({
   );
   const libelleCompteur = (cle: NavCounterKey, count: number) =>
     COMPTEURS_DE_MODERATION.has(cle) ? tAdmin('pendingBadge', { count }) : t(`counters.${cle}`, { count });
+
+  if (masquee) return <AnnonceDesNonLus compte={counters.unreadMessages} actif={sousMd} />;
 
   return (
     <nav
@@ -126,16 +142,17 @@ export function BarreDOnglets({
                   <span
                     aria-hidden
                     data-slot="indicateur-onglet"
-                    className="absolute inset-x-4 top-0 h-0.5 rounded-b-full bg-primary"
+                    // TCK-2691 (C4) — arrondi plein, comme la maquette.
+                    className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-primary"
                   />
                 ) : null}
                 <span className="relative">
-                  <Icone className="size-5" aria-hidden />
+                  <Icone className="size-5" strokeWidth={TRAIT_DES_ONGLETS} aria-hidden />
                   {compte > 0 ? (
                     <span
                       aria-hidden
                       data-slot="pastille-onglet"
-                      className="absolute -top-1.5 -right-2.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] leading-none font-semibold text-primary-foreground ring-2 ring-card"
+                      className="absolute -top-1.5 -right-2.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[0.625rem] leading-none font-semibold text-primary-foreground ring-2 ring-card"
                     >
                       {compte > 99 ? t('onglets.plafond') : compte}
                     </span>
@@ -155,7 +172,7 @@ export function BarreDOnglets({
             aria-expanded={menuOuvert}
             className={cn(STYLE_CASE, FOCUS_RING, 'text-muted-foreground hover:text-foreground')}
           >
-            <Menu className="size-5" aria-hidden />
+            <Menu className="size-5" strokeWidth={TRAIT_DES_ONGLETS} aria-hidden />
             <span className="max-w-full truncate">{t('onglets.menu')}</span>
           </button>
         </li>

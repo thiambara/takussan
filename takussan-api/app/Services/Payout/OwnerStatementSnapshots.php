@@ -20,7 +20,14 @@ use Illuminate\Support\Facades\DB;
  * avant : aucun instantané n'est fabriqué après coup.
  *
  * L'instantané ne garde pas le nom du bailleur : l'identité se lit au jour (un compte effacé est
- * anonymisé, TCK-2015), seuls les chiffres sont figés.
+ * anonymisé, TCK-2015), seuls les chiffres sont figés. Même règle pour le titre du bien et le nom
+ * du locataire de `properties[]`, et le prochain reversement, servi au jour (TCK-2649).
+ *
+ * TCK-2649 — `totals.remaining_to_pay` : un instantané écrit depuis le porte, figé avec les autres
+ * totaux ; un instantané plus ancien le reçoit recomposé sur SES totaux (`net − paid_out`), donc la
+ * valeur de son temps. Les champs d'état de `properties[]` (`expected_rent`, `month_status`,
+ * `days_late`) sont ceux du jour de l'envoi ; un instantané plus ancien ne les a pas, et ne les sert
+ * pas — aucun état n'est fabriqué après coup.
  *
  * La table se lit par le constructeur de requêtes, comme `payout_clawbacks` (TCK-2151).
  */
@@ -41,6 +48,15 @@ final class OwnerStatementSnapshots
     {
         $payload = $this->statements->statement($agency, $landlord, $period);
         unset($payload['landlord']['name']);
+        // TCK-2649 — ni le titre du bien ni le nom du locataire : comme le nom du bailleur, ils se
+        // lisent au jour (un locataire effacé est anonymisé). Le prochain reversement non plus :
+        // c'est un fait du jour, pas du mois envoyé.
+        unset($payload['next_payout']);
+        $payload['properties'] = array_map(function (array $row): array {
+            unset($row['title'], $row['tenant_name']);
+
+            return $row;
+        }, $payload['properties']);
 
         return DB::table(self::TABLE)->insertOrIgnore([
             'agency_id' => $agency->id,
@@ -75,11 +91,50 @@ final class OwnerStatementSnapshots
         $sent = json_decode((string) $row->payload, true, flags: JSON_THROW_ON_ERROR);
         $sent['agency'] = $live['agency'];
         $sent['landlord'] = $live['landlord'];
+        // TCK-2649 — un instantané d'avant le reste à verser le recompose sur SES totaux, jamais sur
+        // ceux du jour : sinon le champ manquant se lirait 0 et ferait naître un faux rectificatif.
+        $sent['totals']['remaining_to_pay'] ??= OwnerStatementService::remainingToPay($sent['totals']);
+        $sent['next_payout'] = $live['next_payout'];
+        $names = array_column($live['properties'], null, 'property_id');
+        $sent['properties'] = array_map(fn (array $row): array => array_merge($row, [
+            'title' => $names[$row['property_id']]['title'] ?? null,
+            'tenant_name' => $names[$row['property_id']]['tenant_name'] ?? null,
+        ]), $sent['properties'] ?? []);
 
         return $sent + [
             'snapshot' => ['sent_at' => CarbonImmutable::parse($row->sent_at)->toIso8601String()],
             'rectification' => $this->rectification($sent, $live),
         ];
+    }
+
+    /**
+     * TCK-2640 — les totaux SERVIS de plusieurs bailleurs d'une agence pour une période, ceux que
+     * {@see served()} rendrait à chacun : l'instantané envoyé quand le mois en a un (son reste à
+     * verser recomposé comme dans `served()`), sinon le calcul du jour. En un nombre de requêtes qui
+     * ne dépend pas du nombre de bailleurs : la liste des bailleurs le lit pour sa page entière.
+     *
+     * @param  list<int>  $landlordIds
+     * @return array<int, array<string, float>> par bailleur
+     */
+    public function servedTotals(Agency $agency, array $landlordIds, string $period): array
+    {
+        $totals = $this->statements->totalsFor($agency, $landlordIds, $period);
+        if ($totals === []) {
+            return [];
+        }
+
+        $rows = DB::table(self::TABLE)
+            ->where('agency_id', $agency->id)
+            ->whereIn('landlord_id', array_keys($totals))
+            ->where('period', $period)
+            ->get(['landlord_id', 'payload']);
+        foreach ($rows as $row) {
+            $sent = json_decode((string) $row->payload, true, flags: JSON_THROW_ON_ERROR)['totals'] ?? [];
+            $sent['remaining_to_pay'] ??= OwnerStatementService::remainingToPay($sent);
+            $totals[(int) $row->landlord_id] = $sent;
+        }
+
+        return $totals;
     }
 
     /**

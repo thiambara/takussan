@@ -46,7 +46,7 @@ export function PrevenirDeLaSelection({ biens }: PrevenirDeLaSelectionProps) {
         >
           <Bell className="size-5" />
         </span>
-        <span className="min-w-0 flex-1 text-[15px] leading-snug text-foreground">
+        <span className="min-w-0 flex-1 text-[0.9375rem] leading-snug text-foreground">
           {t.rich('declencheur', {
             lieu: alerte.lieu,
             geste: (morceau) => <span className="font-medium">{morceau}</span>,

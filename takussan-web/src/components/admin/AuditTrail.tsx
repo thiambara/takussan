@@ -10,9 +10,9 @@ import { DataState, StatusBadge, type StatusTone } from '@/components/console';
 import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
 import { DebouncedSearchInput } from '@/components/console/DebouncedSearchInput';
 import { Pagination } from '@/components/console/Pagination';
-import { KNOWN_AUDIT_EVENTS, libelleEvenementAudit } from '@/lib/audit-events';
+import { KNOWN_AUDIT_EVENTS } from '@/lib/audit-events';
 import { auditSubjectHref, shortSubjectType } from '@/lib/audit-subject-links';
-import { formatDate as formatDateIntl } from '@/lib/format';
+import { formatDateTime } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 
 import { useAuth } from '@/context/AuthContext';
@@ -127,17 +127,46 @@ function eventTone(event: string | null): StatusTone {
 }
 
 /**
- * TCK-292 — la locale ACTIVE, plus `fr-FR` en dur. Les options sont celles de
- * l'ancienne version, à l'identique : le rendu français ne bouge pas.
+ * TCK-2676 — des mots et non des codes : ce que la ligne du journal montre de son action et de son
+ * objet. Le code d'API (`booking_expired`, `App\Models\Booking`) ne s'écrit jamais à l'écran ; il
+ * reste au survol (`title`) pour le support, et dans l'export.
+ *
+ * Un code a la forme `[a-z0-9_.-]+`, en minuscules ; une description qui l'a (l'API écrit souvent
+ * `->log('booking_expired')`) n'est pas une phrase. Les libellés vivent sous `admin.audit.events.*`
+ * (un point du code devient `_` : `property.report_resolved` → `property_report_resolved`) et
+ * `admin.audit.subjects.*` (le nom court du modèle, initiale en minuscule). Ni `KNOWN_AUDIT_EVENTS`
+ * ni `KNOWN_SUBJECT_TYPES` ne s'allongent : ce sont les FILTRES, qu'on ne change pas ici.
  */
-function formatDate(iso: string, locale: Locale): string {
-  return formatDateIntl(iso, locale, {
-    // `formatDate` pose `dateStyle: 'medium'` par défaut, et Intl REFUSE
-    // `dateStyle` mêlé à des champs explicites — on le neutralise.
-    dateStyle: undefined,
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  });
+const FORME_DE_CODE = /^[a-z0-9_.-]+$/;
+
+type Traduire = ReturnType<typeof useTranslations<'admin.audit'>>;
+
+export function libelleDActionAudit(
+  log: Pick<ActivityLogEntry, 'event' | 'description'>,
+  t: Traduire,
+): { readonly libelle: string; readonly code: string | null } | null {
+  const description = log.description?.trim() || null;
+  if (log.event) {
+    const cle = `events.${log.event.replace(/\./g, '_')}`;
+    if (t.has(cle)) return { libelle: t(cle as never), code: log.event };
+  }
+  if (description && !FORME_DE_CODE.test(description)) return { libelle: description, code: log.event };
+  const code = log.event ?? description;
+  return code ? { libelle: t('otherAction'), code } : null;
+}
+
+export function libelleDObjetAudit(
+  log: Pick<ActivityLogEntry, 'subject_type' | 'subject_id'>,
+  t: Traduire,
+): { readonly libelle: string; readonly code: string } | null {
+  const court = shortSubjectType(log.subject_type);
+  if (!court) return null;
+  const cle = `subjects.${court.charAt(0).toLowerCase()}${court.slice(1)}`;
+  const nom = t.has(cle) ? t(cle as never) : t('otherSubject');
+  return {
+    libelle: log.subject_id ? t('subjectWithId', { label: nom, id: log.subject_id }) : nom,
+    code: log.subject_id ? `${court} #${log.subject_id}` : court,
+  };
 }
 
 export function AuditTrail() {
@@ -472,7 +501,8 @@ function useAuditColumns(): readonly DataTableColumn<ActivityLogEntry>[] {
       id: 'date',
       header: t('columns.date'),
       className: 'whitespace-nowrap tabular-nums text-muted-foreground',
-      cell: (log) => formatDate(log.created_at, locale),
+      // TCK-2676 — le format commun (« 9 nov. 2026, 23:00 »), plus « 09/11/2026 23:00 ».
+      cell: (log) => formatDateTime(log.created_at, locale),
     },
     {
       id: 'user',
@@ -485,12 +515,17 @@ function useAuditColumns(): readonly DataTableColumn<ActivityLogEntry>[] {
       // P06.09 (TCK-2336) — un événement connu porte son libellé ; un inconnu se lit par sa
       // description brute, ou à défaut par sa valeur d'API. La description n'a plus de colonne :
       // elle reste dans l'export.
-      cell: (log) => (
-        <StatusBadge
-          label={libelleEvenementAudit(log, (event) => t(`events.${event}`)) ?? '—'}
-          tone={eventTone(log.event)}
-        />
-      ),
+      // TCK-2676 — un événement sans clé ne s'affiche plus brut : sa description si c'est une
+      // phrase, sinon « Autre action » ; le code reste au survol.
+      cell: (log) => {
+        const action = libelleDActionAudit(log, t);
+        if (!action) return '—';
+        return (
+          <span title={action.code ?? undefined}>
+            <StatusBadge label={action.libelle} tone={eventTone(log.event)} />
+          </span>
+        );
+      },
     },
     {
       id: 'subject',
@@ -539,29 +574,27 @@ function AuditCauserCell({ log }: { readonly log: ActivityLogEntry }) {
  * 1. pas de `subject_type` du tout → `—` ;
  * 2. un objet dont le type a un écran → un lien vers cet écran ;
  * 3. un objet dont le type n'en a pas (`Invoice`, `User`, et quatorze autres types audités) →
- *    **le même texte qu'avant**, jamais un lien mort.
+ *    **le même libellé**, en texte, jamais un lien mort.
  *
  * Le cas 3 est celui que la direction UX du ticket nomme : *le lien ne promet que ce qu'il peut
  * tenir*. C'est aussi le seul que la résolution par convention (`Property` → `/properties`)
  * aurait cassé, en envoyant sur un 404.
  */
 function AuditSubjectCell({ log }: { readonly log: ActivityLogEntry }) {
-  const court = shortSubjectType(log.subject_type);
-  if (!court) return <>—</>;
+  const t = useTranslations('admin.audit');
+  const objet = libelleDObjetAudit(log, t);
+  if (!objet) return <>—</>;
 
   const href = auditSubjectHref(log.subject_type, log.subject_id);
-  const contenu = (
-    <>
-      {court}{' '}
-      {log.subject_id ? <span className="text-muted-foreground">#{log.subject_id}</span> : null}
-    </>
-  );
+  // TCK-2676 — « Réservation n° 276 », plus « Booking #276 » ; le nom du modèle au survol.
+  const contenu = objet.libelle;
 
-  if (!href) return <span className="text-foreground">{contenu}</span>;
+  if (!href) return <span className="text-foreground" title={objet.code}>{contenu}</span>;
 
   return (
     <Link
       href={href}
+      title={objet.code}
       className="text-foreground underline decoration-dotted underline-offset-4 hover:decoration-solid focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       {contenu}

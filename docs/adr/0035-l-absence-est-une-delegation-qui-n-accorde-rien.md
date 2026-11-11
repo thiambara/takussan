@@ -116,8 +116,17 @@ cycle de vie des délégations et n'accorde aucune capacité.**
 et révoquée avec elle. Le droit vient de la délégation, jamais de l'absence.**
 
 1. **Le lien est porté par la délégation.** `role_delegations.covers_absence_id` est une FK nullable
-   vers la ligne d'absence, dans la même table, `cascadeOnDelete`, unique : une absence porte au plus
-   une délégation.
+   vers la ligne d'absence, dans la même table, `cascadeOnDelete`, unique **parmi les délégations
+   vivantes** : une absence porte au plus une délégation `scheduled` ou `active`. *Amendé le
+   2026-11-11 (TCK-2666, décision de la session) : la première rédaction disait « unique » tout court ;
+   changer de remplaçant, ou retirer puis rendre le droit d'agir, révoque la délégation liée et en crée
+   une neuve — un index plein refusait la seconde, ou obligeait à effacer le lien de l'ancienne et à
+   perdre l'historique. Index unique partiel PostgreSQL (`WHERE status IN ('scheduled','active')`).*
+   - *Corrigé le 2026-11-11 (TCK-2666, décision de la session) :* l'unicité est **partielle** —
+     `role_delegations_live_cover_unique`, index unique sur `covers_absence_id` `WHERE status IN
+     ('scheduled', 'active')`. Une absence porte au plus **une délégation vivante** ; changer de
+     remplaçant, ou retirer puis rendre le droit, révoque la délégation et en crée une autre, et les
+     délégations révoquées gardent leur lien : **l'historique reste** (« couvre l'absence de… »).
 2. **La délégation liée** donne au remplaçant de l'absence le **rôle de base de l'absent** dans
    l'agence (`agent` ou `agency_admin`), sur la **même période**. Ce n'est jamais un autre rôle. Elle
    reste une délégation ordinaire : `delegationsAllow` la borne par les capacités du délégant

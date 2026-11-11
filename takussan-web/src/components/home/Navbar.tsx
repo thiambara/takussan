@@ -335,7 +335,7 @@ export function Navbar({ className, auTelephone }: NavbarProps) {
                 href={href}
                 aria-current={lienActif === cle ? 'page' : undefined}
                 className={cn(
-                  'relative py-2 text-[15px] font-medium whitespace-nowrap transition-colors',
+                  'relative py-2 text-[0.9375rem] font-medium whitespace-nowrap transition-colors',
                   lienActif === cle
                     ? 'text-foreground after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:rounded-full after:bg-primary'
                     : 'text-muted-foreground hover:text-foreground',
@@ -366,7 +366,7 @@ export function Navbar({ className, auTelephone }: NavbarProps) {
               imposer={transactionImposee}
               placeholder={t('searchPlaceholder')}
               onRetraitDesFiltres={() => setRetraitSur(searchParams.toString())}
-              className="flex-1 min-w-0 [&>div:first-child]:border-none [&>div:first-child]:shadow-none [&>div:first-child]:ring-0 [&>div:first-child]:rounded-none [&>div:first-child]:bg-transparent [&>div:first-child>svg]:size-[18px] [&_input]:text-[15px] [&_input]:font-normal"
+              className="flex-1 min-w-0 [&>div:first-child]:border-none [&>div:first-child]:shadow-none [&>div:first-child]:ring-0 [&>div:first-child]:rounded-none [&>div:first-child]:bg-transparent [&>div:first-child>svg]:size-[18px] [&_input]:text-[0.9375rem] [&_input]:font-normal"
               value={qEnVigueur}
               onQueryChange={(v) => setLocation(v)}
             />
@@ -468,7 +468,7 @@ export function Navbar({ className, auTelephone }: NavbarProps) {
                       >
                         <Icon className="w-[18px] h-[18px] shrink-0" />
                         <div className="min-w-0">
-                          <p className="text-[12px] font-semibold leading-none truncate">{tCategories(cat.nameKey)}</p>
+                          <p className="text-[0.75rem] font-semibold leading-none truncate">{tCategories(cat.nameKey)}</p>
                           {count !== undefined && (
                             <p className="text-xs text-muted-foreground tabular-nums mt-0.5">{t('propertiesCount', { count })}</p>
                           )}

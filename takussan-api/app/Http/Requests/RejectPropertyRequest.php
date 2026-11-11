@@ -3,9 +3,13 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class RejectPropertyRequest extends FormRequest
 {
+    /** TCK-2672 — les motifs d'une demande de correction ; le texte reste exigé (20 caractères). */
+    public const REASON_CODES = ['photos', 'price', 'address', 'description', 'other'];
+
     public function authorize(): bool
     {
         return true;
@@ -15,6 +19,7 @@ class RejectPropertyRequest extends FormRequest
     {
         return [
             'rejection_reason' => ['required', 'string', 'min:20', 'max:1000'],
+            'reason_code' => ['required', 'string', Rule::in(self::REASON_CODES)],
         ];
     }
 

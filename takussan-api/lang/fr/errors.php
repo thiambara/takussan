@@ -61,9 +61,13 @@ return [
     'agency_upgrade' => [
         // TCK-1003 — l'approbation d'une demande de passage exige un dossier KYC vérifié.
         'kyc_not_verified' => 'Le dossier KYC de l\'agence doit être vérifié avant d\'approuver son passage en agence professionnelle.',
+        // TCK-2681 — le plan du passage (billing.upgrade_plan_code) est introuvable ou retiré.
+        'plan_unavailable' => 'Le plan du passage en pro est introuvable ou retiré : réactivez-le avant d\'approuver.',
     ],
     'agent_absence' => [
         'overlaps' => 'Une absence de ce membre est déjà prévue ou en cours sur cette période.',
+        // TCK-2666 — modifier une absence terminée ou révoquée.
+        'closed' => 'Cette absence est terminée ou révoquée : elle ne se modifie plus.',
     ],
     'agent_handover' => [
         'member_not_staff' => "La passation ne concerne qu'un agent ou un administrateur de l'agence ; un bailleur n'en fait pas l'objet.",
@@ -102,9 +106,13 @@ return [
     'booking' => [
         'cannot_cancel' => 'Cette réservation ne peut pas être annulée dans son état actuel.',
         'cannot_expire' => 'Cette réservation ne peut pas être expirée : elle doit être en attente.',
+        // TCK-2579
+        'customer_required' => 'Une réservation saisie par l\'agence doit désigner un client.',
         'dates_overlap' => 'Une autre réservation confirmée occupe déjà ces dates sur ce bien.',
         'dates_unavailable' => 'Ces dates ne sont pas disponibles pour ce bien.',
         'expire_race' => 'Le statut de la réservation a changé entre-temps. Rechargez la page.',
+        // TCK-2579
+        'kind_mismatch' => 'Cette nature de demande ne correspond pas au bien : une candidature vise une location au mois, une offre un bien à vendre.',
         'not_found' => 'Réservation introuvable.',
         'not_in_active_agency' => 'Cette réservation n\'appartient pas à votre agence active.',
         'not_pending_confirm' => 'Seule une réservation en attente peut être confirmée.',
@@ -148,6 +156,9 @@ return [
     ],
     'commission' => [
         'not_due' => 'Seule une commission due peut être marquée versée ou annulée.',
+        // TCK-2661 — le solde groupé et la date du paiement.
+        'settle_mismatch' => 'Ces commissions ne peuvent pas être soldées ensemble : elles doivent toutes appartenir au même bénéficiaire, dans votre agence.',
+        'paid_before_earned' => 'La date de paiement précède la date à laquelle une commission a été acquise.',
     ],
     'credits' => [
         'insufficient' => 'Solde insuffisant : il vous manque :missing crédits (solde : :balance).',
@@ -164,6 +175,8 @@ return [
         'invite_already_linked' => "Cette fiche est déjà rattachée à un compte : il n'y a personne à inviter.",
         'invite_no_contact' => "Cette fiche n'a pas de coordonnée où envoyer l'invitation : ajoutez une adresse e-mail.",
         'pipeline_stage_invalid' => 'Étape de suivi invalide.',
+        // TCK-2591 — l'écart d'une étape proposée qui a changé depuis l'affichage.
+        'suggested_stage_stale' => "Cette étape proposée n'est plus d'actualité : rechargez la fiche.",
     ],
     'dashboard' => [
         'invalid_scope' => 'Le périmètre demandé doit être « mine » ou « agency ».',
@@ -182,6 +195,8 @@ return [
     ],
     'document' => [
         'file_missing' => 'Aucun fichier n\'est joint à ce document.',
+        // TCK-2655
+        'invalid_target' => 'La cible attendue est « lease:{id} » ou « property:{id} ».',
         'owner_not_found' => 'L\'objet auquel rattacher le document est introuvable.',
         'profile_piece_not_versioned' => 'Une pièce de profil ne se versionne pas : renvoyez-la depuis votre profil.',
         'pdf_template_missing' => 'Le modèle de document est introuvable.',
@@ -270,6 +285,17 @@ return [
         'pdf_unsigned' => 'Le PDF est disponible une fois que les deux parties ont signé.',
         'signed_locked' => 'Un état des lieux signé ne peut plus être modifié.',
         'tenant_not_found' => 'Le locataire du bail est introuvable.',
+        // TCK-2646 — la sortie ne reprend qu'une entrée signée du bail ou d'un bail qu'il renouvelle.
+        'entry_inventory_invalid' => 'Seule une entrée signée de ce bail, ou d\'un bail qu\'il renouvelle, peut être reprise par la sortie.',
+    ],
+    // TCK-2646 (ADR-0098) — la signature du locataire sur le téléphone de l'agent, par code SMS.
+    'inventory_signature' => [
+        'code_required' => 'Saisissez le code reçu par le locataire.',
+        'code_locked' => 'Trop de codes faux : la signature sur place est bloquée pendant 15 minutes.',
+        'invalid_code' => 'Code invalide ou expiré.',
+        'resend_too_soon' => 'Un code vient d\'être envoyé : patientez une minute avant d\'en demander un autre.',
+        'sms_not_sent' => 'Le code n\'a pas pu partir par SMS : réessayez dans une minute, ou faites signer le locataire depuis son compte.',
+        'tenant_without_phone' => 'Le locataire n\'a pas de compte avec un numéro vérifié : il signe depuis son compte.',
     ],
     'invitation' => [
         'already_member' => 'Ce compte est déjà membre de l\'agence sous ce profil : l\'invitation n\'a rien à ajouter.',
@@ -349,6 +375,7 @@ return [
         'deposit_refund_paid_by_payout' => 'Une caution rendue se règle par son reversement, jamais à la main.',
         'late_fee_not_due' => 'Aucune pénalité de retard ne reste due sur cette échéance.',
         'lease_not_active' => 'Seul un bail actif ou en préavis reçoit une ligne de paiement.',
+        'not_overdue' => 'Seule une échéance due, non soldée et échue se relance.',
         'receipt_not_a_payment' => 'Une caution rendue n\'est pas un paiement du locataire : elle n\'a pas de quittance.',
         'receipt_unpaid' => 'La quittance n\'est délivrée que pour un loyer acquitté.',
         'type_from_schedule' => 'Un loyer ou une caution naît de l\'échéancier du bail : cette saisie ne prend que les charges, régularisations et pénalités.',
@@ -358,6 +385,8 @@ return [
         'password_reset_not_sent' => 'L\'e-mail de réinitialisation du mot de passe n\'a pas pu être envoyé.',
     ],
     'maintenance' => [
+        // TCK-2652
+        'accept_after_completion' => 'Les travaux sont terminés : l\'intervention ne s\'accepte plus.',
         'actual_cost_needs_owner' => 'Ce coût dépasse le plafond de travaux du bailleur et ce qu\'il a approuvé : seul le bailleur peut l\'inscrire.',
         'already_accepted' => 'L\'intervention est déjà acceptée.',
         'amount_too_large' => 'Ce montant, arrondi à l\'unité de la devise, dépasse le maximum enregistrable.',
@@ -367,6 +396,7 @@ return [
         'decline_after_accept' => 'L\'intervention a déjà été acceptée ou démarrée : elle ne se refuse plus.',
         'dedicated_endpoint' => 'Ce changement de statut passe par son propre geste, pas par le statut générique.',
         'in_progress' => 'Maintenance en cours. Réessayez dans quelques instants.',
+        'no_longer_assigned' => 'Cette intervention a été confiée à un autre prestataire : elle ne s\'accepte plus en votre nom.',
         'photos_closed' => 'Impossible d\'ajouter des photos à une demande clôturée ou annulée.',
         'quote_amount_too_large' => 'Le montant total du devis dépasse le maximum enregistrable.',
         'quote_expired' => 'Ce devis n\'est plus valable : sa date de validité est passée.',
@@ -415,7 +445,10 @@ return [
         'checkout_in_progress' => 'Un paiement en ligne est en cours sur cette échéance : réessayez dans quelques minutes.',
         'currency_unsupported' => 'Le prestataire :provider n\'accepte pas la devise :currency.',
         'xof_requires_local_provider' => 'Lemon Squeezy n\'accepte pas le XOF : utilisez Wave ou Orange Money pour un paiement en XOF.',
+        'filter_days_late_invalid' => 'Filtre de jours de retard invalide : un entier positif ou nul est attendu.',
         'filter_entity_invalid' => 'Filtre de type d\'objet invalide.',
+        'filter_id_invalid' => 'Filtre d\'identifiant invalide.',
+        'filter_payment_method_invalid' => 'Filtre de moyen de paiement invalide.',
         'filter_status_invalid' => 'Filtre de statut invalide.',
         'integration_agency_missing' => 'L\'intégration de paiement ne correspond à aucune agence.',
         'integration_credential_missing' => 'L\'intégration de paiement est incomplète : un identifiant manque.',
@@ -478,6 +511,7 @@ return [
     ],
     'plan' => [
         'in_use' => 'Cette offre est utilisée par des abonnements d\'agence.',
+        'upgrade_offer_missing' => 'L\'offre du passage en pro n\'est pas disponible pour le moment.',
     ],
     'platform' => [
         'ability_missing' => 'Votre niveau d\'opérateur ne permet pas ce geste.',
@@ -527,16 +561,21 @@ return [
         'listings_exceeded' => 'Le quota d\'annonces actives de votre offre est atteint.',
     ],
     'reconciliation' => [
+        // TCK-2674 — le lot de `confirm-batch`, tout ou rien.
+        'batch_not_confirmable' => 'Une des lignes du lot n\'est pas une ligne proposée d\'un relevé ouvert de l\'agence : rien n\'a été confirmé.',
         'cross_agency' => 'Le paiement ciblé n\'appartient pas à cette agence.',
         'duplicate_file' => 'Ce relevé a déjà été importé pour cette agence.',
     ],
     'reporting' => [
         'invalid_group_by' => 'Le regroupement demandé doit être « tenant » ou « landlord ».',
+        'invalid_period' => 'La période demandée doit être un mois au format AAAA-MM.',
         'range_too_wide' => 'La plage demandée dépasse le plafond de :max intervalles « :granularity ». Réduisez la plage ou élargissez la granularité.',
         'report_unknown' => 'Rapport inconnu.',
     ],
     'review' => [
         'agency_already_reviewed' => 'Vous avez déjà donné un avis sur cette agence.',
+        // TCK-2672 — un lot dont un avis est inconnu, n'est plus en attente, ou hors du périmètre de l'appelant.
+        'batch_not_moderatable' => 'Un des avis du lot ne peut pas être publié par vous : rien n\'a été publié.',
         'moderation_decision_invalid' => 'Décision de modération invalide.',
         'no_reply' => 'Cet avis n\'a pas de réponse à supprimer.',
         'property_already_reviewed' => 'Vous avez déjà donné un avis sur ce bien.',
@@ -548,6 +587,10 @@ return [
     ],
     'role' => [
         'super_admin_grant_forbidden' => 'Seul un super administrateur peut attribuer le rôle super_admin.',
+    ],
+    // TCK-2666 — une délégation liée à une absence ne se révoque que par elle.
+    'role_delegation' => [
+        'covers_absence' => 'Cette délégation couvre une absence : modifiez ou révoquez l\'absence, qui la porte.',
     ],
     // TCK-599 — l'alerte de recherche sans compte.
     'search_alert' => [
@@ -649,6 +692,8 @@ return [
     'visit' => [
         'active_limit_reached' => 'Vous avez déjà :max visites en cours sur ce bien. Annulez-en une avant d\'en demander une autre.',
         'already_assigned' => 'Cette visite est déjà prise en charge par un autre membre de l\'agence.',
+        // TCK-2585 — attribution en lot : l'agent désigné n'est pas du personnel de l'agence du bien.
+        'agent_not_staff' => 'L\'agent choisi doit faire partie du personnel de l\'agence du bien.',
         'cannot_cancel' => 'Cette visite ne peut pas être annulée dans son état actuel.',
         'cannot_complete' => 'Cette visite ne peut pas être terminée dans son état actuel.',
         'cannot_mark_no_show' => 'Seule une visite planifiée ou confirmée dont l\'heure est passée peut être marquée absente.',
@@ -660,6 +705,9 @@ return [
         'not_scheduled_confirm' => 'Seule une visite planifiée peut être confirmée.',
         'property_unavailable' => 'Ce bien n\'est pas ouvert aux visites.',
         'reassign_forbidden' => 'Changer l\'agent d\'une visite déjà attribuée demande le droit d\'attribuer.',
+        'report_exists' => 'Cette visite a déjà son compte rendu : modifiez-le.',
+        'report_missing' => 'Cette visite n\'a pas encore de compte rendu à modifier.',
+        'report_not_closable' => 'Seule une visite terminée, ou confirmée dont l\'heure est passée, reçoit un compte rendu.',
         'reschedule_inactive' => 'Seule une visite en attente ou confirmée peut changer de créneau.',
         'slot_overlap' => 'Une autre visite confirmée occupe déjà ce créneau sur ce bien.',
         'staff_only' => 'Seul le personnel de l\'agence du bien peut confirmer, clore, annuler ou déplacer cette visite.',

@@ -14,7 +14,8 @@ use Illuminate\Validation\Rule;
  * TCK-599 (ADR-0050 §2) — le vocabulaire FERMÉ de `saved_searches.criteria`, écrit une seule fois.
  *
  * Ce sont les 23 clés de rôle `filtre` de `SEARCH_FILTER_KEYS` (`takussan-web/src/types/search.ts`)
- * — celles qu'écrit `filtersToCriteria()` — plus `cities`, qu'écrit le formulaire de préférences.
+ * — celles qu'écrit `filtersToCriteria()` — plus `cities`, qu'écrit le formulaire de préférences,
+ * et `locations` (TCK-2607), qu'écrit l'orientation du chercheur.
  * `criteria` était validé `['required', 'array']` : une clé inconnue était stockée, puis ignorée
  * par le moteur, et l'alerte prévenait de biens que la personne n'avait pas demandés (11 clés sur
  * 22 l'étaient). Ici, toute autre clé rend 422 — à la création comme à la modification, par la
@@ -35,7 +36,7 @@ final class SavedSearchCriteria
         'q', 'location', 'city', 'region', 'radius_km', 'lat', 'lng', 'contract_type', 'type', 'rent_period',
         'price_min', 'price_max', 'bedrooms', 'bathrooms', 'area_min', 'area_max', 'furnished',
         'featured', 'floor_number', 'available_from', 'title_type', 'condition', 'tags',
-        'cities',
+        'cities', 'locations',
     ];
 
     /** Les clés multi-valuées : le front les écrit en tableau, l'URL en liste à virgules. */
@@ -57,6 +58,13 @@ final class SavedSearchCriteria
             $attribute.'.region' => ['sometimes', 'nullable', 'string', 'max:120'],
             $attribute.'.cities' => ['sometimes', 'array', 'max:20'],
             $attribute.'.cities.*' => ['string', 'max:120'],
+            // TCK-2607 — plusieurs quartiers en OU : 2 à 12 (un seul s'écrit `location`, qui garde
+            // son comportement), et jamais avec `location` — une alerte ne dit pas deux fois où.
+            $attribute.'.locations' => [
+                'sometimes', 'nullable', 'array', 'min:2', 'max:'.SearchPublicPropertyRequest::QUARTIERS_MAX,
+                'prohibits:'.$attribute.'.location',
+            ],
+            $attribute.'.locations.*' => ['string', 'max:'.SearchPublicPropertyRequest::QUARTIER_LONGUEUR_MAX],
             // Le contrat « point + rayon » de `/properties` (ADR-0023) : le rayon exige le point.
             $attribute.'.radius_km' => ['sometimes', 'nullable', 'numeric', 'gt:0', 'max:'.SearchPublicPropertyRequest::RADIUS_KM_MAX],
             // Sans `sometimes` : `required_with` doit pouvoir réclamer une coordonnée ABSENTE.
@@ -130,11 +138,14 @@ final class SavedSearchCriteria
                 $params[$key] = implode(',', array_map('strval', $params[$key]));
             }
         }
-        if (array_key_exists('cities', $params)) {
-            $params['cities'] = array_values(array_filter(
-                array_map(fn (mixed $c) => trim((string) $c), (array) $params['cities']),
-                fn (string $c) => $c !== '',
-            ));
+        // TCK-2607 — `locations` comme `cities` : une liste de chaînes non vides.
+        foreach (['cities', 'locations'] as $key) {
+            if (array_key_exists($key, $params)) {
+                $params[$key] = array_values(array_filter(
+                    array_map(fn (mixed $c) => trim((string) $c), (array) $params[$key]),
+                    fn (string $c) => $c !== '',
+                ));
+            }
         }
 
         return $params;

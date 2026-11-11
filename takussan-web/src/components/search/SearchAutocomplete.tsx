@@ -824,22 +824,22 @@ export function SearchAutocomplete({
                 <Search aria-hidden="true" className="mt-1.5 size-4 shrink-0 text-primary" />
                 <span className="flex min-w-0 flex-1 flex-wrap gap-1.5">
                   {libellesCompris(criteria, parts, residue, trads).map((libelle) => (
-                    <span key={libelle} className="inline-flex h-7 items-center rounded-full bg-secondary px-2.5 text-[13px] font-medium text-primary-deep">
+                    <span key={libelle} className="inline-flex h-7 items-center rounded-full bg-secondary px-2.5 text-[0.8125rem] font-medium text-primary-deep">
                       {libelle}
                     </span>
                   ))}
                 </span>
               </span>
-              {note ? <span className="pl-[26px] text-[13px] text-muted-foreground">{note}</span> : null}
+              {note ? <span className="pl-[26px] text-[0.8125rem] text-muted-foreground">{note}</span> : null}
               {count > 0 ? (
-                <span className="mt-1 flex h-11 items-center justify-center gap-2 rounded-xl bg-primary text-[15px] font-semibold tabular-nums text-primary-foreground">
+                <span className="mt-1 flex h-11 items-center justify-center gap-2 rounded-xl bg-primary text-[0.9375rem] font-semibold tabular-nums text-primary-foreground">
                   {t('seeCount', { count })}
                   <ArrowRight aria-hidden="true" className="size-4" />
                 </span>
               ) : (
                 <>
-                  <span className="text-[15px] font-semibold text-foreground">{tEcran('noneTitle')}</span>
-                  <span className="flex h-11 items-center justify-center rounded-xl border border-border text-[15px] font-medium tabular-nums">
+                  <span className="text-[0.9375rem] font-semibold text-foreground">{tEcran('noneTitle')}</span>
+                  <span className="flex h-11 items-center justify-center rounded-xl border border-border text-[0.9375rem] font-medium tabular-nums">
                     {elargira ? t('nearby') : t('count', { count })}
                   </span>
                 </>
@@ -875,8 +875,8 @@ export function SearchAutocomplete({
         if (ecran) {
           return (
             <span className="flex w-full flex-col gap-2">
-              <span className="text-[13px] text-muted-foreground">{tEcran('alertHint')}</span>
-              <span className="flex h-11 items-center justify-center gap-2 rounded-xl bg-primary text-[15px] font-semibold text-primary-foreground">
+              <span className="text-[0.8125rem] text-muted-foreground">{tEcran('alertHint')}</span>
+              <span className="flex h-11 items-center justify-center gap-2 rounded-xl bg-primary text-[0.9375rem] font-semibold text-primary-foreground">
                 <BellPlus aria-hidden="true" className="size-4" />
                 {tEcran('alert')}
               </span>
@@ -1006,10 +1006,10 @@ export function SearchAutocomplete({
         return (
           <>
             <SlidersHorizontal aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
-            <span className="min-w-0 flex-1 text-[13px] leading-snug">
+            <span className="min-w-0 flex-1 text-[0.8125rem] leading-snug">
               <span className="font-medium">{tEcran('keptFilters')}</span> {option.libelles.join(', ')}
             </span>
-            <span className="shrink-0 text-[13px] font-medium text-foreground underline underline-offset-4">{tEcran('removeFilters')}</span>
+            <span className="shrink-0 text-[0.8125rem] font-medium text-foreground underline underline-offset-4">{tEcran('removeFilters')}</span>
           </>
         );
       case 'texte-libre':
@@ -1095,7 +1095,7 @@ export function SearchAutocomplete({
             role="presentation"
             className={
               riche
-                ? 'px-4 pb-1.5 pt-4 text-[13px] font-semibold text-muted-foreground'
+                ? 'px-4 pb-1.5 pt-4 text-[0.8125rem] font-semibold text-muted-foreground'
                 : 'px-4 pb-1 pt-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground'
             }
           >
@@ -1134,10 +1134,10 @@ export function SearchAutocomplete({
       aria-label={t('placeholder')}
       className={
         ecran
-          ? 'min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-1'
+          ? 'min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[max(var(--spacing)*6,env(safe-area-inset-bottom))] pt-1'
           : surface === 'panneau'
-            ? 'max-h-[min(70dvh,36rem)] overflow-y-auto overscroll-contain py-2'
-            : 'absolute left-0 top-full z-50 mt-2 max-h-[min(70dvh,34rem)] w-full min-w-[320px] overflow-y-auto overscroll-contain rounded-xl bg-card py-1.5 shadow-lg ring-1 ring-border sm:min-w-[400px]'
+            ? 'max-h-[min(70dvh,var(--spacing)*144)] overflow-y-auto overscroll-contain py-2'
+            : 'absolute left-0 top-full z-50 mt-2 max-h-[min(70dvh,var(--spacing)*136)] w-full min-w-[320px] overflow-y-auto overscroll-contain rounded-xl bg-card py-1.5 shadow-lg ring-1 ring-border sm:min-w-[400px]'
       }
     >
       {rendreGroupes()}
@@ -1216,7 +1216,7 @@ export function SearchAutocomplete({
       {ouvert && surface === 'panneau' ? (
         // Le panneau de bureau : la liste, puis les aides clavier — hors de la liste, qui ne contient
         // que des options.
-        <div className="absolute left-0 top-full z-50 mt-2 w-[min(44rem,calc(100vw-2rem))] overflow-hidden rounded-2xl bg-card shadow-[0_24px_48px_-24px_color-mix(in_oklab,var(--shadow-color)_45%,transparent)] ring-1 ring-border">
+        <div className="absolute left-0 top-full z-50 mt-2 w-[min(var(--spacing)*176,calc(100vw-var(--spacing)*8))] overflow-hidden rounded-2xl bg-card shadow-[0_24px_48px_-24px_color-mix(in_oklab,var(--shadow-color)_45%,transparent)] ring-1 ring-border">
           {listbox}
           <p className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-border px-4 py-2.5 text-xs text-muted-foreground">
             <kbd className="inline-flex h-6 min-w-6 items-center justify-center rounded border border-border bg-background px-1.5 font-sans">↑</kbd>

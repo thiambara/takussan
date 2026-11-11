@@ -58,7 +58,7 @@ export function ModerationQueueList({
               <div className="flex items-center gap-2">
                 <StatusBadge
                   tone={lireTable(STATUS_TONES, status) ?? 'neutral'}
-                  className="text-[10px] font-semibold uppercase tracking-wide"
+                  className="text-[0.625rem] font-semibold uppercase tracking-wide"
                   label={STATUTS_CONNUS.has(status) ? t(`status.${status}`) : status}
                 />
                 {review.reported_count > 0 ? (

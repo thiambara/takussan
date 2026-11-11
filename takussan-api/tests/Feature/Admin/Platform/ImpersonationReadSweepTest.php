@@ -16,6 +16,7 @@ use App\Models\Lease;
 use App\Models\MaintenanceRequest;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
+use App\Models\ThresholdAlert;
 use App\Models\User;
 use App\Services\Lease\DepositRefundService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -318,6 +319,11 @@ class ImpersonationReadSweepTest extends TestCase
             'ownerProfile' => $owner->id,
             'conversation' => $conversation->id,
             'maintenanceRequest' => MaintenanceRequest::factory()->create(['property_id' => $property->id])->id,
+            // TCK-2627 — une alerte de seuil de l'agence de la cible : `threshold-alerts/{id}` est lue.
+            'threshold_alert' => ThresholdAlert::query()->create([
+                'agency_id' => $agence->id, 'metric' => 'overdue_count', 'operator' => '>',
+                'threshold' => 0, 'severity' => 'warning', 'is_enabled' => true, 'cooldown_hours' => 24,
+            ])->id,
         ];
     }
 

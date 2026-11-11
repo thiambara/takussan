@@ -85,10 +85,10 @@ export function ProfileCard({ profil, base, forme }: Props) {
           </h3>
 
           {sousTitre !== '' && (
-            <p className="truncate text-[13px] text-muted-foreground lg:text-sm">{sousTitre}</p>
+            <p className="truncate text-[0.8125rem] text-muted-foreground lg:text-sm">{sousTitre}</p>
           )}
 
-          <p className="truncate text-[13px] text-muted-foreground lg:text-sm">
+          <p className="truncate text-[0.8125rem] text-muted-foreground lg:text-sm">
             <span className="font-medium tabular-nums text-foreground">
               {t('card.properties', { count: profil.portfolio_count })}
             </span>
@@ -96,7 +96,7 @@ export function ProfileCard({ profil, base, forme }: Props) {
           </p>
 
           {(langues.length > 0 || quartiers.length > 0) && (
-            <p className="truncate text-[13px] text-muted-foreground lg:mt-2 lg:flex lg:flex-col lg:gap-1 lg:whitespace-normal lg:text-sm lg:text-foreground">
+            <p className="truncate text-[0.8125rem] text-muted-foreground lg:mt-2 lg:flex lg:flex-col lg:gap-1 lg:whitespace-normal lg:text-sm lg:text-foreground">
               {langues.length > 0 && (
                 <span className="lg:flex lg:items-center lg:gap-2">
                   <Languages className="hidden size-4 shrink-0 text-muted-foreground lg:inline" aria-hidden />
@@ -115,7 +115,7 @@ export function ProfileCard({ profil, base, forme }: Props) {
             </p>
           )}
 
-          <p className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[13px] text-muted-foreground lg:mt-1 lg:text-sm">
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[0.8125rem] text-muted-foreground lg:mt-1 lg:text-sm">
             {note !== null ? (
               <span className="inline-flex items-center gap-1">
                 <Star className="size-3.5 fill-current text-primary" aria-hidden />
@@ -171,7 +171,7 @@ export function Monogramme({
   return (
     <span
       className={cn(
-        'relative inline-flex size-12 shrink-0 items-center justify-center overflow-hidden font-display text-[15px] font-semibold lg:size-14 lg:text-base',
+        'relative inline-flex size-12 shrink-0 items-center justify-center overflow-hidden font-display text-[0.9375rem] font-semibold lg:size-14 lg:text-base',
         rond ? 'rounded-full bg-secondary text-primary-deep' : 'rounded-xl bg-foreground text-background',
         className,
       )}

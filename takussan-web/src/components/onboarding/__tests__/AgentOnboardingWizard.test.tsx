@@ -182,6 +182,8 @@ describe('<AgentOnboardingWizard>', () => {
     await waitFor(() => {
       expect(routerPush).toHaveBeenCalledWith('/app');
     });
+    // TCK-2615 — l'arrivée est marquée : la coque n'ouvrira aucune fenêtre de bienvenue.
+    expect(sessionStorage.getItem('takussan:arrivee-de-parcours')).toContain('"assistant"');
   });
 
   // TCK-1779 (P149.05) — un numéro de carte vidé part en `null`, que l'API lit comme « effacer » :

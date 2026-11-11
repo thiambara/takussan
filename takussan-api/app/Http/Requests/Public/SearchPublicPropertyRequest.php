@@ -28,6 +28,15 @@ class SearchPublicPropertyRequest extends BaseFormRequest
 
     public const VILLE_LONGUEUR_MAX = 120;
 
+    /**
+     * TCK-2607 — les bornes de `locations` : au plus 12 quartiers de 100 caractères (la borne de
+     * `location`). L'alerte en exige au moins 2 (`SavedSearchCriteria`) ; l'URL en accepte 1 : la
+     * puce d'un quartier se retire seule, et la liste qui reste ne doit pas rendre 422.
+     */
+    public const QUARTIERS_MAX = 12;
+
+    public const QUARTIER_LONGUEUR_MAX = 100;
+
     /** TCK-2517 — les comptes par option que `facets` peut demander, plafonnés à ces quatre. */
     public const FACETTES = ['contract_type', 'type', 'bedrooms', 'neighborhood'];
 
@@ -67,6 +76,7 @@ class SearchPublicPropertyRequest extends BaseFormRequest
         }
 
         $this->villesEnListe();
+        $this->enListe('locations');
         $this->ecreteDisponibiliteAuPresent();
     }
 
@@ -78,15 +88,25 @@ class SearchPublicPropertyRequest extends BaseFormRequest
      */
     private function villesEnListe(): void
     {
-        $valeur = $this->input('cities');
+        $this->enListe('cities');
+    }
+
+    /**
+     * Une liste à virgules (`cities=Dakar,Thiès`, `locations=Mermoz,Ngor`) devient un tableau,
+     * segments vides retirés ; un tableau passe tel quel, sa règle le juge. TCK-2607 : la forme
+     * de `cities`, reprise pour `locations`.
+     */
+    private function enListe(string $cle): void
+    {
+        $valeur = $this->input($cle);
 
         if (! is_string($valeur)) {
             return;
         }
 
-        $this->merge(['cities' => array_values(array_filter(
+        $this->merge([$cle => array_values(array_filter(
             array_map('trim', explode(',', $valeur)),
-            fn (string $ville) => $ville !== '',
+            fn (string $segment) => $segment !== '',
         ))]);
     }
 
@@ -141,6 +161,21 @@ class SearchPublicPropertyRequest extends BaseFormRequest
                 function (string $attribut, mixed $valeur, Closure $echec): void {
                     foreach ((array) $valeur as $ville) {
                         if (! is_string($ville) || mb_strlen($ville) > self::VILLE_LONGUEUR_MAX) {
+                            $echec(__('validation.in', ['attribute' => $attribut]));
+
+                            return;
+                        }
+                    }
+                },
+            ],
+            // TCK-2607 — plusieurs quartiers, en OU, chacun résolu comme `location` (référentiel
+            // puis clé repliée du texte libre) : « Voir les N biens » de l'orientation et le lien
+            // d'une alerte à `criteria.locations`.
+            'locations' => [
+                'nullable', 'array', 'max:'.self::QUARTIERS_MAX,
+                function (string $attribut, mixed $valeur, Closure $echec): void {
+                    foreach ((array) $valeur as $quartier) {
+                        if (! is_string($quartier) || mb_strlen($quartier) > self::QUARTIER_LONGUEUR_MAX) {
                             $echec(__('validation.in', ['attribute' => $attribut]));
 
                             return;

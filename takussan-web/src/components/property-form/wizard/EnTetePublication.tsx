@@ -39,7 +39,7 @@ export function EnTetePublication({
         {titre}
       </span>
       <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-4">
-        <p role="status" className="flex items-center gap-1.5 text-xs text-muted-foreground sm:text-[13px]">
+        <p role="status" className="flex items-center gap-1.5 text-xs text-muted-foreground sm:text-[0.8125rem]">
           {enregistrement === 'en-cours' ? (
             <>
               <Loader2 className="size-4 animate-spin" aria-hidden="true" />

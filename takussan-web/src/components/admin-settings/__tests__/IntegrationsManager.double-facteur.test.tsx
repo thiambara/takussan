@@ -101,10 +101,10 @@ describe('<IntegrationsManager> — second facteur', () => {
     const fournisseur = await screen.findByLabelText(/Fournisseur/);
     await user.clear(fournisseur);
     await user.type(fournisseur, 'sms_orange');
-    await user.type(screen.getByLabelText('Client ID'), 'cid-123');
-    await user.type(screen.getByLabelText('Client secret'), 'csec-456');
-    await user.type(screen.getByLabelText(/Sender address/), 'tel:+221771234567');
-    await user.type(screen.getByLabelText(/Sender name/), 'TAKUSSAN');
+    await user.type(screen.getByLabelText('Identifiant client'), 'cid-123');
+    await user.type(screen.getByLabelText('Secret client'), 'csec-456');
+    await user.type(screen.getByLabelText(/Numéro d'expéditeur/), 'tel:+221771234567');
+    await user.type(screen.getByLabelText(/Nom d'expéditeur/), 'TAKUSSAN');
     await user.click(screen.getByRole('button', { name: /Ajouter$/ }));
 
     await waitFor(() => expect(actions.createIntegrationAction).toHaveBeenCalledTimes(2));

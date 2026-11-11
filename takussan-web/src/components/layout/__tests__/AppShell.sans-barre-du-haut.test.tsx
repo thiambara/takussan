@@ -136,20 +136,22 @@ describe('TCK-2491 (AC1) — dès md, aucune barre du haut ; la colonne porte ce
 });
 
 describe('TCK-2491 (AC2) — sous md, l’en-tête compacte', () => {
-  it('la marque vers `/`, « Aller à » (palette, raccourci annoncé), la cloche — et rien d’autre', () => {
+  // TCK-2617 (décision 5 (a) du porteur) — le logo a quitté l'en-tête du téléphone : à l'accueil, sa
+  // gauche est l'ESPACE en bouton (le menu du compte) ; « Aller à » et la cloche restent.
+  it('accueil : l’espace (menu du compte), « Aller à » (palette, raccourci annoncé), la cloche — et aucun lien', () => {
     const { container } = monter();
     const entete = container.querySelector<HTMLElement>('[data-slot="en-tete-mobile"]')!;
-    const liens = within(entete).getAllByRole('link');
-    expect(liens.map((l) => l.getAttribute('href'))).toEqual(['/']);
+    expect(within(entete).queryAllByRole('link')).toEqual([]);
     const boutons = within(entete).getAllByRole('button');
-    expect(boutons.map((b) => b.getAttribute('aria-label') ?? b.textContent)).toEqual([
+    expect(boutons[0]).toHaveAttribute('data-slot', 'espace-de-l-en-tete');
+    expect(boutons.slice(1).map((b) => b.getAttribute('aria-label') ?? b.textContent)).toEqual([
       'Aller à une page ou changer d’espace',
       'Notifications',
     ]);
-    expect(boutons[0]).toHaveAttribute('aria-keyshortcuts', 'Control+K');
+    expect(boutons[1]).toHaveAttribute('aria-keyshortcuts', 'Control+K');
     // 40 px au doigt : la cible tactile des deux boutons.
-    expect(classes(boutons[0]!)).toContain('size-10');
-    expect(classes(boutons[1]!)).toContain('max-md:size-10');
+    expect(classes(boutons[1]!)).toContain('size-10');
+    expect(classes(boutons[2]!)).toContain('max-md:size-10');
   });
 
   it('plein écran (/app/properties/new) : ni en-tête, ni colonne', () => {

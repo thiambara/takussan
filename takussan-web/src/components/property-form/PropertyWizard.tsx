@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useWatch } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
+import { marquerArriveeDeParcours } from '@/lib/arrivee-de-parcours';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 
@@ -304,6 +305,8 @@ export function PropertyWizard({
   /** La sortie nominale : le brouillon n'a plus lieu d'être, le bien s'ouvre. */
   const terminer = async (id: number) => {
     await effacerBrouillon();
+    // TCK-2615 — l'arrivée qui suit la publication n'ouvre aucune fenêtre de bienvenue.
+    marquerArriveeDeParcours('publication');
     router.push(`/app/properties/${id}`);
     router.refresh();
   };

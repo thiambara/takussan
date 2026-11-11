@@ -19,6 +19,7 @@ use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\User;
 use App\Notifications\InvitationAcceptedNotification;
 use App\Notifications\InvitationExpiredNotification;
+use App\Services\Auth\PhoneLoginService;
 use App\Services\Auth\PhoneVerificationService;
 use App\Services\Auth\SuperAdminCooptationService;
 use App\Services\Membership\ProfileMaterializer;
@@ -318,8 +319,73 @@ class InvitationService
             return $this->acceptForUser($invitation, $existingUser, $payload);
         }
 
+        // TCK-2610 (ADR-0094 § 7) — un appelant CONNECTÉ n'est jamais doublé d'un nouveau compte : sans
+        // compte titulaire du destinataire, il accepte pour lui-même, aux règles d'`acceptForAuthenticatedUser`.
+        // Drapeau `auth.phone_login.enabled` éteint comme allumé.
+        if ($authenticated !== null) {
+            return $this->acceptForAccount($invitation, $authenticated, $payload);
+        }
+
         // Branch A — create the User as part of the accept transaction.
         return $this->acceptAsNewUser($invitation, $payload);
+    }
+
+    /**
+     * TCK-2610 (ADR-0094 § 5) — l'acceptation par code SMS : `$user` est le compte dont le numéro vient d'être
+     * prouvé par le code (A), ouvert ou créé par {@see PhoneLoginService::authenticate()}. Si un AUTRE compte (E)
+     * porte l'e-mail de l'invitation, 401 `invitation.requires_login`, comme l'acceptation sans session ; sinon
+     * l'invitation est acceptée pour A, aux règles d'`acceptForAuthenticatedUser`, l'e-mail posé s'il n'en a pas.
+     *
+     * @param  array<string,mixed>  $payload  `first_name`, `last_name` : écrits seulement sur un compte sans nom
+     */
+    public function acceptByVerifiedPhone(Invitation $invitation, User $user, array $payload = []): Invitation
+    {
+        if ($invitation->email !== null) {
+            $holder = $this->recipientAccount($invitation->email, null);
+            if ($holder !== null && $holder->id !== $user->id) {
+                abort_code(401, 'invitation.requires_login', [], [
+                    'X-Invitation-Email' => $invitation->email,
+                    'X-Invitation-Requires-Login' => '1',
+                ]);
+            }
+        }
+
+        return $this->acceptForAccount($invitation, $user, $payload);
+    }
+
+    /**
+     * TCK-2610 (ADR-0094 § 6-7) — les règles d'`acceptForAuthenticatedUser` pour un compte qui ne porte pas
+     * (encore) le destinataire : par SMS, il doit avoir VÉRIFIÉ ce numéro (forme canonique) ; par e-mail, il
+     * porte cette adresse, ou n'en porte aucune — elle est alors posée, VÉRIFIÉE (le lien est arrivé à cette
+     * adresse, décision du porteur du 2026-11-10). Dans la transaction de l'acceptation : un refus de
+     * `finalizeAccept` ne laisse pas l'e-mail posé.
+     *
+     * @param  array<string,mixed>  $payload
+     */
+    protected function acceptForAccount(Invitation $invitation, User $user, array $payload = []): Invitation
+    {
+        if ($invitation->email === null) {
+            $sameNumber = $user->phone !== null
+                && CanonicalPhone::fold((string) $user->phone) === CanonicalPhone::fold((string) $invitation->phone);
+            if (! $sameNumber || $user->phone_verified_at === null) {
+                abort_code(403, 'invitation.phone_mismatch');
+            }
+
+            return $this->acceptForUser($invitation, $user, $payload);
+        }
+
+        $email = trim((string) $user->email);
+        if ($email !== '' && CaseInsensitive::fold($email) !== CaseInsensitive::fold($invitation->email)) {
+            abort_code(403, 'invitation.email_mismatch');
+        }
+
+        return DB::transaction(function () use ($invitation, $user, $payload, $email): Invitation {
+            if ($email === '') {
+                $user->forceFill(['email' => $invitation->email, 'email_verified_at' => now()])->save();
+            }
+
+            return $this->acceptForUser($invitation, $user, $payload);
+        });
     }
 
     /**
@@ -677,7 +743,11 @@ class InvitationService
      * tokens, 410 for expired/revoked/accepted ones — discriminated so
      * the frontend can show a specific message.
      */
-    protected function lookupActiveInvitation(string $token): Invitation
+    /**
+     * TCK-2609 (ADR-0094 §3) — publique : l'aperçu et la demande de nouveau lien rendent le MÊME
+     * état du jeton que l'acceptation, sans seconde lecture de ses règles.
+     */
+    public function lookupActiveInvitation(string $token): Invitation
     {
         /** @var Invitation|null $invitation */
         $invitation = Invitation::query()->where('token', $token)->first();

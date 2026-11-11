@@ -137,7 +137,7 @@ export function SecondaryPhoneSection() {
                   autoComplete="one-time-code"
                   aria-label={t('codeAria')}
                   data-testid="secondary-phone-code"
-                  className="max-w-[8rem]"
+                  className="max-w-32"
                 />
                 <Button
                   type="button"

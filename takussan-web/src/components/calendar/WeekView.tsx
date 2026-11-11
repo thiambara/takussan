@@ -41,7 +41,7 @@ export function WeekView({ focus, events, onSelect }: WeekViewProps) {
       className="overflow-x-auto overscroll-x-contain rounded-xl border border-border bg-card"
     >
       {/* TCK-1187 (P101.01) — ARIA exige `grid > row > gridcell|columnheader`. */}
-      <div role="row" className="grid min-w-[45.5rem] grid-cols-7 border-b border-border bg-muted/50 lg:min-w-0">
+      <div role="row" className="grid min-w-182 grid-cols-7 border-b border-border bg-muted/50 lg:min-w-0">
         {days.map((day, idx) => {
           const isToday = isSameDay(day, today);
           return (
@@ -65,7 +65,7 @@ export function WeekView({ focus, events, onSelect }: WeekViewProps) {
           );
         })}
       </div>
-      <div role="row" className="grid min-w-[45.5rem] grid-cols-7 lg:min-w-0">
+      <div role="row" className="grid min-w-182 grid-cols-7 lg:min-w-0">
         {days.map((day) => {
           const dayEvents = parsed
             .filter((p) => eventTouchesDay({ start: p.start, end: p.end }, day))

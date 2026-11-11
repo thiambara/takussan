@@ -44,7 +44,7 @@ export function RecapDuBien({
         )}
       </div>
       <div className="min-w-0">
-        <p className="truncate text-[15px] font-medium text-foreground">{property.title}</p>
+        <p className="truncate text-[0.9375rem] font-medium text-foreground">{property.title}</p>
         <p className="truncate text-sm tabular-nums text-muted-foreground">
           {lieu ? `${lieu} · ${prix}` : prix}
         </p>

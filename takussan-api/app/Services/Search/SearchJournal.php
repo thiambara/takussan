@@ -65,16 +65,16 @@ final class SearchJournal
      * @var list<string>
      */
     public const CRITERIA_KEYS = [
-        'contract_type', 'type', 'rent_period', 'city', 'cities', 'region', 'location',
+        'contract_type', 'type', 'rent_period', 'city', 'cities', 'region', 'location', 'locations',
         'price_min', 'price_max', 'bedrooms', 'bathrooms', 'area_min', 'area_max',
         'furnished', 'featured', 'floor_number', 'title_type', 'condition', 'tags',
     ];
 
     /** Les critères libres : jugés par la même règle que la saisie. */
-    private const FREE_TEXT_KEYS = ['city', 'cities', 'region', 'location', 'tags'];
+    private const FREE_TEXT_KEYS = ['city', 'cities', 'region', 'location', 'locations', 'tags'];
 
     /** Les critères multi-valués (liste à virgules dans l'URL) : triés, pour que l'ordre ne fasse pas une autre ligne. */
-    private const LIST_KEYS = ['type', 'condition', 'tags', 'cities'];
+    private const LIST_KEYS = ['type', 'condition', 'tags', 'cities', 'locations'];
 
     private const BOOLEAN_KEYS = ['furnished', 'featured'];
 

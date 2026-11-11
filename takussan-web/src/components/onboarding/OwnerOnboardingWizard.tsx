@@ -16,6 +16,7 @@ import {
   relireTelephoneBrouillon,
 } from '@/lib/phone';
 import { useToast } from '@/components/ui/toast';
+import { marquerArriveeDeParcours } from '@/lib/arrivee-de-parcours';
 import { useAuth } from '@/context/AuthContext';
 import {
   WizardReprenable,
@@ -130,6 +131,8 @@ export function OwnerOnboardingWizard({ ownerProfileId }: OwnerOnboardingWizardP
         type: 'success',
       });
 
+      // TCK-2615 — l'arrivée qui suit l'assistant n'ouvre aucune fenêtre de bienvenue.
+      marquerArriveeDeParcours('assistant');
       router.push('/app');
     },
     [ownerProfileId, refreshUser, router, t, toast],

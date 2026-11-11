@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Me\DataExportController;
 use App\Http\Controllers\Api\Me\EspaceDemarrageController;
 use App\Http\Controllers\Api\Me\MeCapabilityController;
 use App\Http\Controllers\Api\Me\MeController;
+use App\Http\Controllers\Api\Me\MePiecesController;
 use App\Http\Controllers\Api\Me\MeProfilesController;
 use App\Http\Controllers\Api\Me\OwnerProfileController as MeOwnerProfileController;
 use App\Http\Controllers\Api\Me\PayoutMethodController as MePayoutMethodController;
@@ -13,6 +14,7 @@ use App\Http\Controllers\Api\Me\ServiceProviderAgenciesController;
 use App\Http\Controllers\Api\Me\ServiceProviderProfileController as MeServiceProviderProfileController;
 use App\Http\Controllers\Api\Me\SubscriptionController;
 use App\Http\Controllers\Api\Me\TenantOnboardingChecklistController;
+use App\Http\Controllers\Api\Me\TenantRentSummaryController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\ServiceProviderCollaborationController;
 use App\Http\Controllers\WelcomeViewController;
@@ -39,8 +41,12 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     Route::get('capabilities', [MeCapabilityController::class, 'index'])->name('me.capabilities.index');
     // TCK-2479 (ADR-0089 §5) — les étapes du groupe « Démarrer » du menu, jugées sur le profil actif.
     Route::get('espace/demarrage', EspaceDemarrageController::class)->name('me.espace.demarrage');
+    // TCK-2612 — les pièces du profil actif (bailleur, agent, prestataire) et leur état, lues par l'étape « Pièces ».
+    Route::get('pieces', MePiecesController::class)->name('me.pieces');
     // TCK-597 — ce que l'acteur peut noter (bien, agent, agence, prestataire), avec la preuve.
     Route::get('review-opportunities', [ReviewController::class, 'opportunities'])->name('me.review-opportunities.index');
+    // TCK-2649 (ADR-0100) — ce que le locataire doit, pénalités et charges comprises, en un montant.
+    Route::get('rent-summary', TenantRentSummaryController::class)->name('me.rent-summary');
 
     Route::get('profiles', [MeProfilesController::class, 'index'])->name('me.profiles.index');
     Route::patch('active-profile', [MeProfilesController::class, 'updateActive'])->name('me.active-profile.update');
@@ -48,6 +54,8 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     Route::post('data-exports', [DataExportController::class, 'store'])->name('me.data-exports.store');
     Route::get('subscription', [SubscriptionController::class, 'show'])->name('me.subscription.show');
     Route::get('quota', [SubscriptionController::class, 'quota'])->name('me.quota.show');
+    // TCK-2669 (ADR-0104 § 6) — le prix du passage en pro, lu du plan en base.
+    Route::get('upgrade-offer', [SubscriptionController::class, 'upgradeOffer'])->name('me.upgrade-offer.show');
     Route::get('payouts', [MePlatformPayoutController::class, 'index'])->name('me.payouts.index');
     // TCK-1419 (P141.03) — ce qu'un reversement de la plateforme couvre.
     Route::get('payouts/{payout}', [MePlatformPayoutController::class, 'show'])->where('payout', '[0-9]{1,18}')->name('me.payouts.show');
@@ -122,6 +130,11 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
         ->whereNumber('owner_profile')
         ->middleware('throttle:10,1')
         ->name('me.owner-profiles.kyc.submit');
+    // TCK-2612 — le NINEA tapé par le bailleur, au lieu d'une photo de la pièce (qui reste acceptée).
+    Route::patch('owner-profiles/{owner_profile}/tax-id', [MeOwnerProfileController::class, 'updateTaxId'])
+        ->whereNumber('owner_profile')
+        ->middleware('throttle:10,1')
+        ->name('me.owner-profiles.tax-id');
     Route::get('owner-profiles/{owner_profile}/properties', [MeOwnerProfileController::class, 'properties'])
         ->whereNumber('owner_profile')
         ->name('me.owner-profiles.properties');

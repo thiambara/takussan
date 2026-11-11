@@ -54,7 +54,7 @@ export function EnTeteDeLien({
             >
               {initialesDe(nom)}
             </span>
-            <p className="min-w-0 flex-1 truncate text-[15px] font-semibold text-foreground">{nom}</p>
+            <p className="min-w-0 flex-1 truncate text-[0.9375rem] font-semibold text-foreground">{nom}</p>
           </>
         ) : (
           <span className="min-w-0 flex-1">
@@ -65,7 +65,7 @@ export function EnTeteDeLien({
           </span>
         )}
         {mention ? (
-          <p className="inline-flex flex-none items-center gap-1.5 text-[13px] text-muted-foreground">{mention}</p>
+          <p className="inline-flex flex-none items-center gap-1.5 text-[0.8125rem] text-muted-foreground">{mention}</p>
         ) : null}
       </div>
     </header>

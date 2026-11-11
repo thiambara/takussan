@@ -92,7 +92,7 @@ export function FavoritesPopover({ variant = 'default', className }: FavoritesPo
           {showBadge && (
             <span
               aria-hidden="true"
-              className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center"
+              className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[0.625rem] font-bold flex items-center justify-center"
             >
               {count > 99 ? '99+' : count}
             </span>
@@ -107,7 +107,7 @@ export function FavoritesPopover({ variant = 'default', className }: FavoritesPo
           // voile, il tombait aussi sur la carte dessous et ouvrait sa fiche (mesuré à 320 px).
           voile
           aria-label={t('popover.title')}
-          className="w-80 sm:w-96 max-w-[calc(100vw-2rem)] p-0 overflow-hidden rounded-2xl shadow-xl ring-border"
+          className="w-80 sm:w-96 max-w-[calc(100vw-var(--spacing)*8)] p-0 overflow-hidden rounded-2xl shadow-xl ring-border"
         >
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <p className="text-sm font-semibold text-foreground">{t('popover.title')}</p>

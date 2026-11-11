@@ -28,13 +28,13 @@ export function EnTeteDeRangee({ eyebrow, title, idTitre, children, apresLeTitre
         )}
         {apresLeTitre ? (
           <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-            <h2 id={idTitre} className="font-display text-[20px] md:text-[22px] leading-[1.15] font-semibold tracking-tight text-foreground text-balance">
+            <h2 id={idTitre} className="font-display text-[1.25rem] md:text-[1.375rem] leading-[1.15] font-semibold tracking-tight text-foreground text-balance">
               {title}
             </h2>
             {apresLeTitre}
           </div>
         ) : (
-          <h2 id={idTitre} className="font-display text-[20px] md:text-[22px] leading-[1.15] font-semibold tracking-tight text-foreground text-balance">
+          <h2 id={idTitre} className="font-display text-[1.25rem] md:text-[1.375rem] leading-[1.15] font-semibold tracking-tight text-foreground text-balance">
             {title}
           </h2>
         )}

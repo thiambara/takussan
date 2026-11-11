@@ -4,11 +4,15 @@ namespace App\Http\Resources;
 
 use App\Http\Requests\InventorySignRequest;
 use App\Http\Resources\Bases\BaseResource;
+use App\Models\Enums\InventoryStatus;
+use App\Models\Inventory;
 use App\Models\User;
+use App\Services\Inventory\InventoryRetention;
 use App\Services\Inventory\InventorySignatureService;
 use App\Services\Lease\LandlordSignatory;
 use App\Services\Media\PrivateMediaAccess;
 use Illuminate\Http\Request;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class InventoryResource extends BaseResource
 {
@@ -40,11 +44,25 @@ class InventoryResource extends BaseResource
             'conducted_at' => $this->iso($this->conducted_at),
             'status' => $this->status?->value,
             'general_condition' => $this->general_condition?->value,
-            'rooms' => $this->rooms,
+            'rooms' => $this->viewer !== null ? $this->roomsWithEntryThumbnails() : $this->rooms,
             'notes' => $this->notes,
+            // TCK-2646 — pour une sortie, l'entrée signée qu'elle reprend ; et la somme des retenues
+            // proposées par ses éléments (nulle pour une entrée).
+            'entry_inventory_id' => $this->entry_inventory_id,
+            'retention_total' => $this->when(
+                array_key_exists('rooms', $this->resource->getAttributes()),
+                fn () => InventoryRetention::total($this->type, $this->rooms),
+            ),
             'tenant_signed' => (bool) $this->tenant_signed,
             'tenant_signed_at' => $this->iso($this->tenant_signed_at),
             'tenant_signature_hash' => $this->tenant_signature_hash,
+            // TCK-2646 (ADR-0098 §5) — la voie de la signature du locataire : `drawn` depuis son compte,
+            // `onsite_otp` sur l'appareil du personnel (qui, quel canal, quel numéro masqué). L'IP
+            // reste dans l'API.
+            'tenant_signature_method' => $this->tenant_signature_method,
+            'tenant_signed_via_user_id' => $this->tenant_signed_via_user_id,
+            'tenant_otp_channel' => $this->tenant_otp_channel,
+            'tenant_otp_destination' => $this->tenant_otp_destination,
             'owner_signed' => (bool) $this->owner_signed,
             'owner_signed_at' => $this->iso($this->owner_signed_at),
             'owner_signature_hash' => $this->owner_signature_hash,
@@ -56,10 +74,7 @@ class InventoryResource extends BaseResource
             'room_photos' => $this->whenLoaded('media', fn () => $this->roomPhotos()),
             'can_sign_as' => $this->when(
                 $this->viewer !== null && $this->signatures !== null,
-                fn () => array_values(array_filter(
-                    InventorySignRequest::ROLES,
-                    fn (string $role) => $this->signatures->canSignAs($this->resource, $this->viewer, $role),
-                )),
+                fn () => $this->canSignAs(),
             ),
             // P189.02 (TCK-1869) — le verdict d'`InventoryPolicy::update`, qui garde la soumission et
             // les photos : l'écran les jugeait sur le seul statut, et les montrait au locataire et au
@@ -86,6 +101,77 @@ class InventoryResource extends BaseResource
             ] : null),
             'created_at' => $this->iso($this->created_at),
         ];
+    }
+
+    /**
+     * Les rôles que le lecteur peut signer. TCK-2646 — `tenant_onsite` au personnel habilité à
+     * recueillir sur son appareil la signature du locataire, tant que celui-ci n'a pas signé et que
+     * l'état des lieux se signe encore. Ce n'est pas un rôle de `sign` : c'est `tenant` + `code`.
+     *
+     * @return list<string>
+     */
+    private function canSignAs(): array
+    {
+        $roles = array_values(array_filter(
+            InventorySignRequest::ROLES,
+            fn (string $role) => $this->signatures->canSignAs($this->resource, $this->viewer, $role),
+        ));
+
+        if (! $this->tenant_signed
+            && in_array($this->status, [InventoryStatus::Draft, InventoryStatus::PendingSignature], true)
+            && ! in_array(InventorySignRequest::ROLE_TENANT, $roles, true)
+            && $this->signatures->canSignOnsite($this->resource, $this->viewer)) {
+            $roles[] = InventorySignatureService::ROLE_TENANT_ONSITE;
+        }
+
+        return $roles;
+    }
+
+    /**
+     * TCK-2646 — `show` seulement : chaque élément d'une sortie qui désigne une photo de l'entrée
+     * (`entry_photo_id`) reçoit sa vignette, en URL signée résolue à la lecture (collection privée,
+     * ADR-0029) — jamais stockée. La photo doit appartenir à l'entrée reprise.
+     *
+     * @return array<int, mixed>|null
+     */
+    private function roomsWithEntryThumbnails(): ?array
+    {
+        $rooms = $this->rooms;
+        if (! is_array($rooms) || $this->entry_inventory_id === null) {
+            return $rooms;
+        }
+
+        $ids = [];
+        foreach ($rooms as $room) {
+            foreach (is_array($room) && is_array($room['elements'] ?? null) ? $room['elements'] : [] as $element) {
+                if (is_array($element) && is_int($element['entry_photo_id'] ?? null)) {
+                    $ids[] = $element['entry_photo_id'];
+                }
+            }
+        }
+        if ($ids === []) {
+            return $rooms;
+        }
+
+        $access = app(PrivateMediaAccess::class);
+        $photos = Media::query()
+            ->whereKey(array_values(array_unique($ids)))
+            ->where('model_type', (new Inventory)->getMorphClass())
+            ->where('model_id', $this->entry_inventory_id)
+            ->where('collection_name', 'room_photos')
+            ->get()
+            ->keyBy('id');
+
+        foreach ($rooms as $r => $room) {
+            foreach (is_array($room) && is_array($room['elements'] ?? null) ? $room['elements'] : [] as $e => $element) {
+                $photo = is_array($element) && is_int($element['entry_photo_id'] ?? null) ? $photos->get($element['entry_photo_id']) : null;
+                if ($photo !== null) {
+                    $rooms[$r]['elements'][$e]['entry_thumbnail_url'] = $access->signedConversionUrl($photo, 'preview') ?? $access->signedUrl($photo);
+                }
+            }
+        }
+
+        return $rooms;
     }
 
     /** @return array{id: int, full_name: string}|null */
@@ -130,6 +216,8 @@ class InventoryResource extends BaseResource
                 'url' => $url,
                 'preview_url' => $access->signedConversionUrl($media, 'preview') ?? $url,
                 'room_name' => $name,
+                // TCK-2646 — l'élément photographié, nul pour une vue de la pièce.
+                'element_label' => $media->getCustomProperty('element_label'),
             ];
         }
 

@@ -208,10 +208,11 @@ final class PayoutClawbacks
      *
      * @return Collection<int, object>
      */
-    public function datedIn(string $column, int $id, CarbonInterface $from, CarbonInterface $to, ?int $agencyId = null): Collection
+    public function datedIn(string $column, int|array $id, CarbonInterface $from, CarbonInterface $to, ?int $agencyId = null): Collection
     {
+        // TCK-2640 — plusieurs périmètres d'un coup : la liste des bailleurs d'une agence.
         return DB::table(self::TABLE)
-            ->where($column, $id)
+            ->when(is_array($id), fn ($q) => $q->whereIn($column, $id), fn ($q) => $q->where($column, $id))
             ->when($agencyId !== null, fn ($q) => $q->where('agency_id', $agencyId))
             ->whereBetween('refunded_at', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
             ->orderBy('refunded_at')

@@ -19,6 +19,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useTranslations } from 'next-intl';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { NotificationRow } from '@/components/notifications/NotificationRow';
+import { TRAIT_D_ICONE } from './styles-de-la-barre';
+import { cn } from '@/lib/utils';
 
 const QUERY_KEY = ['notifications', 'feed'] as const;
 
@@ -54,9 +56,27 @@ interface NotificationBellProps {
    * est à gauche de l'écran, le panneau s'ouvre vers le contenu), `end` dans l'en-tête mobile.
    */
   readonly align?: 'start' | 'end';
+  /**
+   * TCK-2691 (ADR-0106, C5 et C9) — les cotes de l'icône selon la surface : dans la colonne, 18 px au
+   * trait des lignes (1,5) en `muted-foreground` ; dans l'en-tête du téléphone, 20 px au trait 1,75 à
+   * l'encre douce (TCK-2685). Un attribut `stroke-width` ne varie pas selon la largeur : d'où la prop.
+   */
+  readonly emplacement?: 'colonne' | 'en-tete';
 }
 
-export function NotificationBell({ align = 'end' }: NotificationBellProps) {
+/**
+ * TCK-2691 — le bouton et l'icône de la cloche, par emplacement.
+ * TCK-2712 (11a) — et la place de la pastille des non-lues, celle de la maquette sur chaque surface :
+ * colonne `-right-2 -top-1.5` de l'icône de 18 px = `top-0 -right-0.5` du bouton de 28,8 px ; en-tête
+ * `right-0.5 top-0.5` du bouton de 40 px.
+ */
+const COTES_DE_LA_CLOCHE = {
+  colonne: { bouton: 'text-muted-foreground', icone: 'size-[18px]', trait: TRAIT_D_ICONE, pastille: 'top-0 -right-0.5' },
+  'en-tete': { bouton: 'text-encre-douce', icone: 'size-5', trait: 1.75, pastille: 'top-0.5 right-0.5' },
+} as const;
+
+export function NotificationBell({ align = 'end', emplacement = 'colonne' }: NotificationBellProps) {
+  const cotes = COTES_DE_LA_CLOCHE[emplacement];
   const t = useTranslations('nav.notifications');
   const messageErreur = useMessageErreurApi();
   const [open, setOpen] = useState(false);
@@ -170,11 +190,21 @@ export function NotificationBell({ align = 'end' }: NotificationBellProps) {
         // (le lin, la page) : même bouton d'icône que « Replier », même anneau que toute la colonne.
         // La pastille passe en primaire (la seule couleur du menu) : `bg-primary` sous
         // `text-primary-foreground`, le couple des puces d'« Aujourd'hui », mesuré clair et sombre.
-        className="relative inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors after:absolute after:-inset-1 hover:bg-foreground/5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:size-10"
+        className={cn(
+          'relative inline-flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors after:absolute after:-inset-1 hover:bg-foreground/5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:size-10',
+          cotes.bouton,
+        )}
       >
-        <Bell className="size-[18px]" strokeWidth={1.75} aria-hidden="true" />
+        <Bell className={cotes.icone} strokeWidth={cotes.trait} aria-hidden="true" />
         {unread > 0 ? (
-          <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-[10px] font-bold leading-4 tabular-nums text-primary-foreground ring-2 ring-background">
+          // TCK-2712 (11a, ADR-0106) — la `Pastille` de la maquette : 16 px (14,4 dès lg), 10 px 600,
+          // interligne 10 centré dans sa boîte, anneau `card`.
+          <span
+            className={cn(
+              'absolute inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-pastille font-semibold leading-none tabular-nums text-primary-foreground ring-2 ring-card',
+              cotes.pastille,
+            )}
+          >
             {unread > 9 ? '9+' : unread}
           </span>
         ) : null}
@@ -188,7 +218,7 @@ export function NotificationBell({ align = 'end' }: NotificationBellProps) {
         // menu utilisateur voisin : cloche ouverte, l'appui sur l'avatar n'ouvre plus le menu.
         voile
         aria-label={t('center')}
-        className="w-96 max-w-[calc(100vw-1rem)] overflow-hidden rounded-xl bg-card p-0 text-card-foreground shadow-lg ring-border"
+        className="w-96 max-w-[calc(100vw-var(--spacing)*4)] overflow-hidden rounded-xl bg-card p-0 text-card-foreground shadow-lg ring-border"
       >
         {/* TCK-1035 (P68.08) — un `div`, pas un `<header>` : rendu en portail sous `body`, il faisait
             un second repère `banner` à côté de la barre haute (axe `landmark-no-duplicate-banner`). */}

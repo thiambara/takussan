@@ -33,6 +33,7 @@
    | « TOTP » | « application d'authentification » |
    | « Valider » | le verbe de l'action |
    | « XOF », à l'affichage | « F CFA » |
+   | « onboarding » | « premiers pas », « mise en place de votre espace » |
 
    L'API continue de recevoir `XOF`.
 
@@ -40,7 +41,7 @@
 
 - La charte change : la phrase « Tutoyer sur les surfaces publiques de découverte (« Près de toi », « Pour ton prochain logement ») » est remplacée par « Vouvoyer partout, site public compris ». TCK-2683 porte ce delta de charte.
 - Les 5 clés au tutoiement du site public passent au vouvoiement (TCK-2683). Leurs `wo` qui recopient le français suivent ; ceux qui sont écrits en wolof ne changent pas.
-- **Une garde empêche le retour du tutoiement** (TCK-2683) : un script qui lit les textes `fr` et les chaînes de `src/` et rougit sur toute forme du tutoiement.
+- **Une garde empêche le retour du tutoiement** (TCK-2683) : `scripts/check-vouvoiement.mjs` lit les textes `fr`, les chaînes et le texte JSX de `src/`, et rougit sur les marques qui ne sont jamais autre chose — les pronoms et possessifs de la 2ᵉ personne (`te` compris), les impératifs sans homonyme (« reviens », « réessaie », « attends ») à toute position, et une liste FERMÉE d'impératifs ambigus (« envoie », « sélectionne », « clique ») en tête de proposition. **Elle ne voit pas toute forme du tutoiement**, et ne le prétend pas : un impératif ambigu au milieu d'une proposition (« Pour finir clique ici »), un verbe hors des listes, une négation sans `pas`/`plus`/`jamais` (« Ne touche à rien ») passent. La liste s'allonge par un cas mesuré, jamais au jugé ; une forme ne s'y ajoute que si `fr.json` et `src/` n'en tirent aucun faux positif (les noms « Demande », « Note », « Relance » en ont été retirés pour cette raison).
 - Les tickets d'entrée qui prévoyaient une double voix (TCK-2598, TCK-2601, TCK-2604, TCK-2606, TCK-2611, TCK-2616) n'ont plus de prédicat de session à écrire : ils vouvoient.
 - Le texte des courriels et des SMS, rendus par l'API dans la langue du destinataire ([ADR-0032](0032-l-api-n-ecrit-plus-de-prose.md)), vouvoie lui aussi, compte ou non.
 

@@ -34,7 +34,7 @@ export function CohortHeatmap() {
       <Card>
         <CardContent className="overflow-x-auto p-0">
           <table className="w-full text-xs">
-            <thead className="border-b border-border/60 bg-muted/30 text-[11px] uppercase tracking-wide text-muted-foreground">
+            <thead className="border-b border-border/60 bg-muted/30 text-[0.6875rem] uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="px-3 py-2 text-left font-medium">{t('cohort')}</th>
                 <th className="px-3 py-2 text-right font-medium">{t('size')}</th>
@@ -105,7 +105,7 @@ function Cell({ rate, mois }: { rate: number | null; mois: number }) {
 
   return (
     <div
-      className="flex h-7 items-center justify-center rounded text-[11px] font-medium tabular-nums text-foreground"
+      className="flex h-7 items-center justify-center rounded text-[0.6875rem] font-medium tabular-nums text-foreground"
       style={{ backgroundColor: `color-mix(in srgb, var(--chart-1) ${(intensite * 100).toFixed(0)}%, transparent)` }}
       aria-label={t('cellAria', { month: mois, rate: (rate * 100).toFixed(1) })}
     >

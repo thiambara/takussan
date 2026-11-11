@@ -106,7 +106,7 @@ export function CarteMiseEnAvant({ agence, base }: Props) {
                   <BadgeCheck className="size-4 shrink-0 text-primary lg:size-5" aria-label={t('card.verified')} />
                 )}
               </h2>
-              <p className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[13px] text-muted-foreground lg:text-sm">
+              <p className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[0.8125rem] text-muted-foreground lg:text-sm">
                 {note !== null ? (
                   <span className="inline-flex items-center gap-1">
                     <Star className="size-3.5 fill-current text-primary" aria-hidden />
@@ -131,7 +131,7 @@ export function CarteMiseEnAvant({ agence, base }: Props) {
             </div>
           </div>
 
-          <p className="mt-3 text-[15px] text-muted-foreground lg:mt-4">
+          <p className="mt-3 text-[0.9375rem] text-muted-foreground lg:mt-4">
             <span className="font-medium tabular-nums text-foreground">
               {t('card.properties', { count: agence.portfolio_count })}
             </span>
@@ -142,7 +142,7 @@ export function CarteMiseEnAvant({ agence, base }: Props) {
             )}
           </p>
 
-          <span className="mt-4 hidden w-fit items-center gap-1 text-[15px] font-medium text-foreground underline underline-offset-4 lg:inline-flex">
+          <span className="mt-4 hidden w-fit items-center gap-1 text-[0.9375rem] font-medium text-foreground underline underline-offset-4 lg:inline-flex">
             {t('spotlight.cta')}
             <ChevronRight className="size-4" aria-hidden />
           </span>

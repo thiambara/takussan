@@ -40,6 +40,7 @@ use App\Models\User;
 use App\Services\Account\AccountDeletionService;
 use App\Services\Booking\PropertyCalendarSyncService;
 use App\Services\Kyc\KycExpiryService;
+use App\Services\Lease\RentReviewService;
 use App\Services\Model\BookingService;
 use App\Services\Visit\VisitNotifier;
 use App\Support\Http\DnsResolver;
@@ -96,6 +97,8 @@ class FormeDesDatesDeNotificationTest extends TestCase
         NotificationCode::PropertyCalendarConflict,
         NotificationCode::ImpersonationEnded,
         NotificationCode::AgencyMemberDeletionRequested,
+        // TCK-2642 — l'avis de révision au bailleur.
+        NotificationCode::LeaseRentReviewedLandlord,
     ];
 
     protected function setUp(): void
@@ -327,6 +330,23 @@ class FormeDesDatesDeNotificationTest extends TestCase
         app(AccountDeletionService::class)->requestDeletion($this->agent);
 
         $this->assertFormes(NotificationCode::AgencyMemberDeletionRequested);
+    }
+
+    /** TCK-2642 — la révision de loyer, revue par l'admin d'agence : le bailleur est prévenu, `effective_date` en date. */
+    public function test_la_revision_de_loyer_au_bailleur(): void
+    {
+        $lease = Lease::factory()->active()->create([
+            'landlord_id' => User::factory()->create()->id,
+            'monthly_rent' => 200_000,
+            'start_date' => now()->subMonths(13)->toDateString(),
+            'end_date' => now()->addMonths(11)->toDateString(),
+        ]);
+
+        app(RentReviewService::class)->review($lease, User::factory()->create(), [
+            'new_rent' => 205_000, 'reason' => 'Révision annuelle', 'effective_date' => now()->addMonth()->toDateString(),
+        ]);
+
+        $this->assertFormes(NotificationCode::LeaseRentReviewedLandlord);
     }
 
     public function test_chaque_code_date_du_catalogue_est_eprouve_ici(): void

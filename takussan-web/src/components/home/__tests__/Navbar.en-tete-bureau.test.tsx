@@ -133,7 +133,7 @@ describe('TCK-2494 — la cale tire sa hauteur de `data-decouverte` (revue)', ()
     const { container } = monter();
     const classes = cale(container).className.split(/\s+/);
     expect(classes).toContain('lg:data-decouverte:h-[136px]');
-    expect(classes).toContain('lg:h-[calc(1.5rem+53px)]');
+    expect(classes).toContain('lg:h-[calc(var(--spacing)*6+53px)]');
   });
 });
 

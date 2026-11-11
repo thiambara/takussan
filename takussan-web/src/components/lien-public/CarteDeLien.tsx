@@ -37,15 +37,15 @@ export function CarteDeLien({
       >
         {icone}
       </span>
-      <h1 className="mx-auto mt-5 max-w-[22rem] font-display text-2xl font-semibold leading-tight tracking-[-0.02em] text-balance text-foreground">
+      <h1 className="mx-auto mt-5 max-w-88 font-display text-2xl font-semibold leading-tight tracking-[-0.02em] text-balance text-foreground">
         {titre}
       </h1>
       {children ? (
-        <div className="mx-auto mt-2.5 max-w-[22rem] text-[15px] leading-relaxed text-pretty text-muted-foreground">
+        <div className="mx-auto mt-2.5 max-w-88 text-[0.9375rem] leading-relaxed text-pretty text-muted-foreground">
           {children}
         </div>
       ) : null}
-      {actions ? <div className="mx-auto mt-6 flex max-w-[22rem] flex-col gap-2.5">{actions}</div> : null}
+      {actions ? <div className="mx-auto mt-6 flex max-w-88 flex-col gap-2.5">{actions}</div> : null}
     </section>
   );
 }

@@ -62,7 +62,7 @@ export function PropertyModerationQueueList({
                 </div>
                 <StatusBadge
                   tone="attention"
-                  className="flex-shrink-0 text-[10px] font-semibold uppercase tracking-wide"
+                  className="flex-shrink-0 text-[0.625rem] font-semibold uppercase tracking-wide"
                   label={t('status.pending')}
                 />
               </div>

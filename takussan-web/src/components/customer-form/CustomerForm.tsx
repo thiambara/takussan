@@ -57,6 +57,11 @@ interface CustomerFormProps {
    * de toute façon : ce drapeau n'évite que de proposer un geste voué au refus.
    */
   readonly canRevealIdNumber?: boolean;
+  /**
+   * TCK-2581 — création PRÉREMPLIE : « Créer sa fiche » depuis la suite d'une visite d'un visiteur
+   * sans fiche porte son nom et son téléphone. Ignoré en édition.
+   */
+  readonly initial?: { readonly first_name?: string; readonly last_name?: string; readonly phone?: string };
 }
 
 function toDefaults(customer?: CustomerDetail): CustomerFormValues {
@@ -113,6 +118,7 @@ export function CustomerForm({
   onSuccess,
   compact,
   canRevealIdNumber = false,
+  initial,
 }: CustomerFormProps) {
   const t = useTranslations('crm.form');
   const tCommon = useTranslations('common.actions');
@@ -158,7 +164,10 @@ export function CustomerForm({
   const { form, isSubmitting, globalError, handleSubmit, clearGlobalError } =
     useApiForm<CustomerFormValues, CustomerDetail>({
       schema: customerFormSchema,
-      defaultValues: toDefaults(customer),
+      defaultValues:
+        mode === 'create' && initial
+          ? { ...toDefaults(), ...Object.fromEntries(Object.entries(initial).filter(([, v]) => Boolean(v))) }
+          : toDefaults(customer),
       onSubmit: async (values) => {
         // TCK-1347 — en édition, un champ vidé part à `null` (les valeurs de la fiche en référence).
         const normalise = normaliseCustomerForm(

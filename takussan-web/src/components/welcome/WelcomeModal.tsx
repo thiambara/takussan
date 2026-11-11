@@ -121,9 +121,9 @@ export function WelcomeModal({ open, slides, onComplete, onSkip }: WelcomeModalP
           // Mobile fullscreen ↔ desktop centered card. Override the
           // primitive's default max-width on small screens.
           'max-w-[100vw] sm:max-w-md',
-          'h-[100dvh] sm:h-auto sm:max-h-[min(80vh,34rem)]',
+          'h-[100dvh] sm:h-auto sm:max-h-[min(80vh,var(--spacing)*136)]',
           'rounded-none sm:rounded-xl',
-          'flex flex-col gap-4 pb-[max(1rem,env(safe-area-inset-bottom))]',
+          'flex flex-col gap-4 pb-[max(var(--spacing)*4,env(safe-area-inset-bottom))]',
         )}
       >
         {/*
@@ -175,7 +175,7 @@ export function WelcomeModal({ open, slides, onComplete, onSkip }: WelcomeModalP
             <div
               data-testid="welcome-illustration"
               aria-hidden="true"
-              className="relative flex h-[clamp(9rem,calc(100dvh-24rem),20rem)] w-full shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-muted sm:h-44 [@media(max-height:30rem)]:hidden"
+              className="relative flex h-[clamp(var(--spacing)*36,calc(100dvh-var(--spacing)*96),var(--spacing)*80)] w-full shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-muted sm:h-44 [@media(max-height:30rem)]:hidden"
             >
               {illustration}
             </div>

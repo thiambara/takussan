@@ -154,6 +154,35 @@ describe('<ServiceProviderOnboardingWizard>', () => {
       // eu de `page.tsx`. Le détail d'une demande vit sous `app/maintenance/[id]`.
       expect(routerPush).toHaveBeenCalledWith('/app/maintenance/99');
     });
+    // TCK-2615 — l'arrivée est marquée : la coque n'ouvrira aucune fenêtre de bienvenue.
+    expect(sessionStorage.getItem('takussan:arrivee-de-parcours')).toContain('"assistant"');
+  });
+});
+
+describe('<ServiceProviderOnboardingWizard> — montants (TCK-2616)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    utilisateur = UTILISATEUR_VERIFIE;
+    brouillon = null;
+  });
+
+  it('les tarifs se saisissent en « F CFA » et se relisent avec leur devise, jamais « XOF »', () => {
+    const { container } = render(withIntl(<ServiceProviderOnboardingWizard spProfileId={42} />));
+    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
+
+    fireEvent.click(screen.getByTestId('trade-plumbing'));
+    fireEvent.change(screen.getByLabelText(/Zones d'intervention/i), { target: { value: 'Dakar' } });
+    fireEvent.change(screen.getByLabelText(/Tarif horaire/i), { target: { value: '15000' } });
+    expect(screen.getByLabelText('Tarif horaire (F CFA)')).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/XOF/);
+    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
+
+    fireEvent.click(screen.getByTestId('availability-monday-morning'));
+    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
+
+    // Récapitulatif : « 15 000 F CFA » (espaces insécables de `fr-SN`), et le frais vide reste « — ».
+    expect(screen.getByText(/^15\s000\sF\sCFA$/u)).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/XOF/);
   });
 });
 

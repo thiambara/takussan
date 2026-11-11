@@ -61,6 +61,44 @@ class OwnerProfilePolicy
     }
 
     /**
+     * TCK-2640 — la fiche d'un bailleur et les gestes qui la touchent se jugent dans l'agence du
+     * PERSONNEL de l'appelant (agent ou admin actif, ADR-0031) : un profil hors de cette agence
+     * n'existe pas pour lui (404, jamais 403 — le refus dirait qu'il existe). Un bailleur de la même
+     * agence est hors du personnel : il ne sonde pas le carnet des autres bailleurs. Le super-admin
+     * voit tout (`Gate::before` ne passe pas ici : c'est une résolution, pas une autorisation).
+     */
+    public static function isInActorAgency(User $user, OwnerProfile $profile): bool
+    {
+        return $user->isSuperAdmin() || $user->staffAgencyId() === (int) $profile->agency_id;
+    }
+
+    /**
+     * TCK-2640 — la fiche (`GET /api/owners/{id}`) : l'admin actif de l'agence du profil, comme
+     * {@see self::viewSensitive()}. Elle dit ce qui reste à verser au bailleur et son plafond de
+     * travaux ; l'agent lit le carnet (`viewAny`), pas la fiche — l'accès de l'agent est hors du
+     * ticket, à trancher (la maquette le cite en persona).
+     */
+    public function viewDetail(User $user, OwnerProfile $profile): bool
+    {
+        return $user->staffAgencyId() === (int) $profile->agency_id
+            && $user->isAgencyAdminAt((int) $profile->agency_id);
+    }
+
+    /**
+     * TCK-2640 — régler ce que l'agence tient sur le bailleur (le plafond de travaux) : la capacité
+     * `owners.update` dans l'agence du profil, celle du profil actif.
+     */
+    public function update(User $user, OwnerProfile $profile): bool
+    {
+        if ($user->staffAgencyId() !== (int) $profile->agency_id) {
+            return false;
+        }
+        $agency = Agency::query()->find((int) $profile->agency_id);
+
+        return $agency !== null && $user->canActAt(Capability::OwnersUpdate, $agency);
+    }
+
+    /**
      * `invite` is intentionally agency-scoped (the controller passes the
      * Agency in via `$user->can('invite', [OwnerProfile::class, $agency])`).
      *

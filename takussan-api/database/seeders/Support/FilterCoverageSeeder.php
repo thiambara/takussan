@@ -217,7 +217,7 @@ class FilterCoverageSeeder extends Seeder
             default => null,
         };
 
-        $property = Property::withoutEvents(fn () => Property::create(array_merge([
+        $property = Property::withoutEvents(fn () => Property::create(Property::avecPeriodeParDefaut(array_merge([
             'user_id' => $ownerId,
             'agency_id' => $agencyId,
             'reference_number' => 'PR-FC-'.strtoupper(Tirage::code(6)),
@@ -244,7 +244,7 @@ class FilterCoverageSeeder extends Seeder
             'published_at' => $createdAt,
             'created_at' => $createdAt,
             'updated_at' => $createdAt,
-        ], $attributes)));
+        ], $attributes))));
 
         // TCK-789 (P17.04) — un quartier de LA ville tirée (aucun si elle n'en a pas au
         // référentiel), et des coordonnées autour de son centre. Avant : un quartier de Dakar, une

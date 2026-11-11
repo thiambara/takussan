@@ -44,6 +44,8 @@ final class NotificationTarget
         'payout_approvals' => '/app/payments?tab=approvals',
         // TCK-2270 (P224.01) — l'onglet des factures d'intervention, où se trouve la facture gardée.
         'service_provider_bills' => '/app/payments?tab=bills',
+        // TCK-2661 — le relevé des commissions, où le bénéficiaire lit sa ligne payée.
+        'commissions' => '/app/commissions',
         'booking' => '/app/bookings/{id}',
         'visit' => '/app/visits/{id}',
         'maintenance' => '/app/maintenance/{id}',
@@ -53,10 +55,16 @@ final class NotificationTarget
         'lead' => '/app/leads?lead={id}',
         'agency_kyc' => '/app/agency/kyc',
         'kyc_review' => '/super-admin/kyc',
+        // TCK-2704 — la revue d'une demande de passage en agence professionnelle, par le super-admin.
+        'agency_upgrade_request' => '/super-admin/agency-upgrade-requests/{id}',
         'finances' => '/app/agency/finances',
         // TCK-2320 (P39.07) — les reversements de la plateforme à l'agence (`agency.update_billing`).
         'agency_billing' => '/app/agency/billing',
         'team' => '/app/agency/team',
+        // TCK-2609 — le carnet des bailleurs et celui des prestataires, où l'invitant renvoie une
+        // invitation de leur rôle (`OwnersList`, `ServiceProvidersList`).
+        'owners' => '/app/owners',
+        'service_providers' => '/app/maintenance/providers',
         // TCK-1471 (P161.03) — les délégations de rôle vivent sous les rôles (`RoleDelegationsSection`,
         // TCK-369) : c'est là que le délégant retrouve celle dont l'avis parle.
         'role_delegations' => '/app/agency/roles',

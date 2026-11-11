@@ -61,9 +61,13 @@ return [
     'agency_upgrade' => [
         // TCK-1003 — l'approbation d'une demande de passage exige un dossier KYC vérifié.
         'kyc_not_verified' => 'The agency KYC dossier must be verified before its upgrade to a professional agency can be approved.',
+        // TCK-2681 — the upgrade plan (billing.upgrade_plan_code) is missing or retired.
+        'plan_unavailable' => 'The pro upgrade plan is missing or retired: reactivate it before approving.',
     ],
     'agent_absence' => [
         'overlaps' => 'An absence of this member is already scheduled or ongoing over this period.',
+        // TCK-2666 — modifier une absence terminée ou révoquée.
+        'closed' => 'This absence has ended or been revoked: it can no longer be changed.',
     ],
     'agent_handover' => [
         'member_not_staff' => 'A handover only applies to an agent or an administrator of the agency; a landlord is not handed over.',
@@ -102,9 +106,13 @@ return [
     'booking' => [
         'cannot_cancel' => 'This booking cannot be cancelled in its current state.',
         'cannot_expire' => 'This booking cannot be expired: it must be pending.',
+        // TCK-2579
+        'customer_required' => 'A booking recorded by the agency must name a customer.',
         'dates_overlap' => 'Another confirmed booking already covers these dates on this property.',
         'dates_unavailable' => 'These dates are not available for this property.',
         'expire_race' => 'The booking status changed in the meantime. Reload the page.',
+        // TCK-2579
+        'kind_mismatch' => 'This kind of request does not match the property: an application is for a monthly rental, an offer for a property for sale.',
         'not_found' => 'Booking not found.',
         'not_in_active_agency' => 'This booking does not belong to your active agency.',
         'not_pending_confirm' => 'Only a pending booking can be confirmed.',
@@ -148,6 +156,9 @@ return [
     ],
     'commission' => [
         'not_due' => 'Only a commission that is due can be marked paid or cancelled.',
+        // TCK-2661 — le solde groupé et la date du paiement.
+        'settle_mismatch' => 'These commissions cannot be settled together: they must all belong to the same beneficiary, in your agency.',
+        'paid_before_earned' => 'The payment date is earlier than the date a commission was earned.',
     ],
     'credits' => [
         'insufficient' => 'Insufficient balance: you are missing :missing credits (balance: :balance).',
@@ -164,6 +175,8 @@ return [
         'invite_already_linked' => 'This record is already linked to an account: there is no one to invite.',
         'invite_no_contact' => 'This record has no contact detail to send the invitation to: add an email address.',
         'pipeline_stage_invalid' => 'Invalid pipeline stage.',
+        // TCK-2591 — l'écart d'une étape proposée qui a changé depuis l'affichage.
+        'suggested_stage_stale' => 'This suggested stage is no longer current: reload the customer.',
     ],
     'dashboard' => [
         'invalid_scope' => 'The requested scope must be “mine” or “agency”.',
@@ -182,6 +195,8 @@ return [
     ],
     'document' => [
         'file_missing' => 'No file is attached to this document.',
+        // TCK-2655
+        'invalid_target' => 'The expected target is “lease:{id}” or “property:{id}”.',
         'owner_not_found' => 'The item to attach the document to was not found.',
         'profile_piece_not_versioned' => 'A profile document cannot be versioned: upload it again from your profile.',
         'pdf_template_missing' => 'The document template was not found.',
@@ -270,6 +285,17 @@ return [
         'pdf_unsigned' => 'The PDF is available once both parties have signed.',
         'signed_locked' => 'A signed inventory can no longer be changed.',
         'tenant_not_found' => 'The lease tenant was not found.',
+        // TCK-2646 — the exit only takes over a signed entry of the lease or of a lease it renews.
+        'entry_inventory_invalid' => 'Only a signed entry inventory of this lease, or of a lease it renews, can be taken over by the exit.',
+    ],
+    // TCK-2646 (ADR-0098) — the tenant signs on the agent's phone, with an SMS code.
+    'inventory_signature' => [
+        'code_required' => 'Enter the code the tenant received.',
+        'code_locked' => 'Too many wrong codes: on-site signing is locked for 15 minutes.',
+        'invalid_code' => 'Invalid or expired code.',
+        'resend_too_soon' => 'A code was just sent: wait a minute before asking for another one.',
+        'sms_not_sent' => 'The code could not be sent by SMS: try again in a minute, or have the tenant sign from their account.',
+        'tenant_without_phone' => 'The tenant has no account with a verified phone number: they sign from their account.',
     ],
     'invitation' => [
         'already_member' => 'This account is already a member of the agency with this profile: the invitation has nothing to add.',
@@ -349,6 +375,7 @@ return [
         'deposit_refund_paid_by_payout' => 'A refunded deposit is settled by its payout, never by hand.',
         'late_fee_not_due' => 'No late fee remains due on this instalment.',
         'lease_not_active' => 'Only an active lease, or one under notice, can take a payment line.',
+        'not_overdue' => 'Only an instalment that is due, unsettled and past its due date can be chased.',
         'receipt_not_a_payment' => 'A refunded deposit is not a tenant payment: it has no receipt.',
         'receipt_unpaid' => 'A rent receipt is only issued for a paid rent.',
         'type_from_schedule' => 'Rent and deposit lines come from the lease schedule: this entry only takes charges, regularizations and penalties.',
@@ -358,6 +385,8 @@ return [
         'password_reset_not_sent' => 'The password reset email could not be sent.',
     ],
     'maintenance' => [
+        // TCK-2652
+        'accept_after_completion' => 'The work is done: the job can no longer be accepted.',
         'actual_cost_needs_owner' => 'This cost exceeds the landlord\'s works threshold and what they approved: only the landlord can record it.',
         'already_accepted' => 'The request is already accepted.',
         'amount_too_large' => 'This amount, rounded to the currency unit, exceeds the largest amount that can be recorded.',
@@ -367,6 +396,7 @@ return [
         'decline_after_accept' => 'The request has already been accepted or started: it can no longer be declined.',
         'dedicated_endpoint' => 'This status change goes through its own action, not through the generic status.',
         'in_progress' => 'Maintenance in progress. Try again in a moment.',
+        'no_longer_assigned' => 'This job has been handed to another provider: it can no longer be accepted on your behalf.',
         'photos_closed' => 'Photos cannot be added to a closed or cancelled request.',
         'quote_amount_too_large' => 'The quote total exceeds the largest amount that can be recorded.',
         'quote_expired' => 'This quote is no longer valid: its validity date has passed.',
@@ -415,7 +445,10 @@ return [
         'checkout_in_progress' => 'An online payment is in progress on this instalment: try again in a few minutes.',
         'currency_unsupported' => 'The provider :provider does not accept the :currency currency.',
         'xof_requires_local_provider' => 'Lemon Squeezy does not accept XOF: use Wave or Orange Money for a payment in XOF.',
+        'filter_days_late_invalid' => 'Invalid days-late filter: a non-negative integer is expected.',
         'filter_entity_invalid' => 'Invalid item type filter.',
+        'filter_id_invalid' => 'Invalid identifier filter.',
+        'filter_payment_method_invalid' => 'Invalid payment method filter.',
         'filter_status_invalid' => 'Invalid status filter.',
         'integration_agency_missing' => 'The payment integration does not match any agency.',
         'integration_credential_missing' => 'The payment integration is incomplete: a credential is missing.',
@@ -478,6 +511,7 @@ return [
     ],
     'plan' => [
         'in_use' => 'This plan is used by agency subscriptions.',
+        'upgrade_offer_missing' => 'The pro upgrade offer is not available right now.',
     ],
     'platform' => [
         'ability_missing' => 'Your operator level does not allow this action.',
@@ -527,16 +561,21 @@ return [
         'listings_exceeded' => 'Your plan\'s active listing quota has been reached.',
     ],
     'reconciliation' => [
+        // TCK-2674 — le lot de `confirm-batch`, tout ou rien.
+        'batch_not_confirmable' => 'One of the lines in the batch is not a suggested line of an open statement of this agency: nothing was confirmed.',
         'cross_agency' => 'The target payment does not belong to this agency.',
         'duplicate_file' => 'This statement has already been imported for this agency.',
     ],
     'reporting' => [
         'invalid_group_by' => 'The requested grouping must be “tenant” or “landlord”.',
+        'invalid_period' => 'The requested period must be a month in YYYY-MM format.',
         'range_too_wide' => 'The requested range exceeds the limit of :max “:granularity” intervals. Narrow the range or widen the granularity.',
         'report_unknown' => 'Unknown report.',
     ],
     'review' => [
         'agency_already_reviewed' => 'You have already reviewed this agency.',
+        // TCK-2672 — a batch holding a review that is unknown, no longer pending, or outside the caller's perimeter.
+        'batch_not_moderatable' => 'One of the reviews in the batch cannot be published by you: nothing was published.',
         'moderation_decision_invalid' => 'Invalid moderation decision.',
         'no_reply' => 'This review has no reply to delete.',
         'property_already_reviewed' => 'You have already reviewed this property.',
@@ -548,6 +587,10 @@ return [
     ],
     'role' => [
         'super_admin_grant_forbidden' => 'Only a super admin can grant the super_admin role.',
+    ],
+    // TCK-2666 — une délégation liée à une absence ne se révoque que par elle.
+    'role_delegation' => [
+        'covers_absence' => 'This delegation covers an absence: change or revoke the absence, which carries it.',
     ],
     // TCK-599 — l'alerte de recherche sans compte.
     'search_alert' => [
@@ -649,6 +692,8 @@ return [
     'visit' => [
         'active_limit_reached' => 'You already have :max active visits on this property. Cancel one before requesting another.',
         'already_assigned' => 'This visit is already handled by another member of the agency.',
+        // TCK-2585 — attribution en lot : l'agent désigné n'est pas du personnel de l'agence du bien.
+        'agent_not_staff' => 'The chosen agent must be on the property\'s agency staff.',
         'cannot_cancel' => 'This visit cannot be cancelled in its current state.',
         'cannot_complete' => 'This visit cannot be completed in its current state.',
         'cannot_mark_no_show' => 'Only a scheduled or confirmed visit whose time has passed can be marked as a no-show.',
@@ -660,6 +705,9 @@ return [
         'not_scheduled_confirm' => 'Only a scheduled visit can be confirmed.',
         'property_unavailable' => 'This property is not open for visits.',
         'reassign_forbidden' => 'Changing the agent of an already assigned visit requires the assign right.',
+        'report_exists' => 'This visit already has a report: edit it instead.',
+        'report_missing' => 'This visit has no report to edit yet.',
+        'report_not_closable' => 'Only a completed visit, or a confirmed visit whose time has passed, can be reported.',
         'reschedule_inactive' => 'Only a pending or confirmed visit can change slot.',
         'slot_overlap' => 'Another confirmed visit already covers this slot on this property.',
         'staff_only' => 'Only the staff of the property\'s agency can confirm, complete, cancel or move this visit.',

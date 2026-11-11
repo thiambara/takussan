@@ -7,7 +7,7 @@ import { useForm } from 'react-hook-form';
 import type { ZodType } from 'zod';
 import { useResolveurValidation } from '@/hooks/useApiForm';
 import { useLocale, useTranslations } from 'next-intl';
-import { ArrowLeft, BellOff, Building2, Info, Paperclip, Settings, Users } from 'lucide-react';
+import { BellOff, Building2, Info, Paperclip, Settings, Users } from 'lucide-react';
 import {
   useConversation,
   useMessagesInfinite,
@@ -18,6 +18,7 @@ import {
 import { useIntersectionObserver } from '@/hooks/useIntersectionObserver';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
+import { BoutonFlecheDeRetour } from '@/components/navigation-publique/FlecheDeRetour';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/feedback';
@@ -224,17 +225,13 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
     <div className="flex h-full flex-col">
       <header className="flex items-center gap-3 border-b border-border bg-card px-4 py-3">
         {onBack && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="-ml-2 size-11 shrink-0 sm:size-9"
+          // TCK-2617 — la flèche unique (`BoutonFlecheDeRetour`) : 20 px dans 44, à toute largeur.
+          <BoutonFlecheDeRetour
+            libelle={tWidget('chatBack')}
             onClick={onBack}
-            aria-label={tWidget('chatBack')}
+            className="-ml-2"
             data-testid="chat-back-button"
-          >
-            <ArrowLeft className="size-4" aria-hidden />
-          </Button>
+          />
         )}
         {isGroup ? (
           <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted">
@@ -449,7 +446,7 @@ function MessageBubble({
         )}
         <p
           className={cn(
-            'mt-1 text-[11px] tabular-nums',
+            'mt-1 text-[0.6875rem] tabular-nums',
             isOwn ? 'text-primary-foreground/70' : 'text-muted-foreground',
           )}
         >
@@ -470,7 +467,7 @@ function VoiceNotePlayer({ message }: { message: Message }) {
     <div className="flex flex-col gap-1">
       <audio src={attachment.url} controls preload="none" className="h-9 w-56 max-w-full" aria-label={t('label')} />
       {duration ? (
-        <span className="text-[11px] tabular-nums opacity-80">{t('duration', { seconds: duration })}</span>
+        <span className="text-[0.6875rem] tabular-nums opacity-80">{t('duration', { seconds: duration })}</span>
       ) : null}
     </div>
   );

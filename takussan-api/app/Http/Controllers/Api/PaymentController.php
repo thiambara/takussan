@@ -5,12 +5,19 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Filters\DateBoundaryFilter;
 use App\Models\BookingPayment;
+use App\Models\Customer;
+use App\Models\Enums\PaymentMethod;
 use App\Models\Enums\PaymentStatus;
 use App\Models\LeasePayment;
 use App\Models\Property;
+use App\Models\User;
+use App\Services\Dashboard\CollectedPayments;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Payments\LeasePaymentReminderReader;
 use App\Services\Payments\PaymentGatewayService;
 use App\Services\Property\BailleurDuBien;
+use App\Services\Reporting\OverdueInstalment;
+use App\Support\CaseInsensitive;
 use App\Support\DayRange;
 use App\Support\Http\ParametreUnique;
 use Illuminate\Database\Eloquent\Builder;
@@ -27,7 +34,10 @@ use Illuminate\Support\Collection;
  */
 class PaymentController extends Controller
 {
-    public function __construct(protected PaymentGatewayService $gateway) {}
+    public function __construct(
+        protected PaymentGatewayService $gateway,
+        protected LeasePaymentReminderReader $reminderReader,
+    ) {}
 
     /**
      * Consolidated payment history across BookingPayments and LeasePayments.
@@ -37,17 +47,39 @@ class PaymentController extends Controller
      *   - filter[entity_id]=<id>
      *   - filter[status]=<PaymentStatus>
      *   - filter[date_from]=YYYY-MM-DD
-     *   - filter[date_to]=YYYY-MM-DD
+     *   - filter[date_to]=YYYY-MM-DD — avec `date_from` : `paid_at` OU `period_start` dans la borne
+     *   - filter[paid_from]=YYYY-MM-DD, filter[paid_to]=YYYY-MM-DD — l'ENCAISSÉ : `paid_at` seul
+     *     (refus de TCK-2659, M1), le sens de la tuile « Encaissé en <mois> »
      *   - per_page=<int> (default 20, max 100)
      *   - sort=-date|date|-amount|amount (default -date)
+     *
+     * TCK-2657 — à la demande, et rien de plus sans eux (la ligne garde sa forme d'avant) :
+     *   - include=payer,property,landlord,reminders — `payer {id, name, phone}`, `property {id, title,
+     *     reference_number}`, `landlord {id, name}`
+     *   - filter[payer_id], filter[landlord_id], filter[payment_method]=wave,cash,
+     *     filter[search], filter[days_late_min], filter[days_late_max] ; sort=days_late|-days_late
+     *   - dès qu'un de ces paramètres est passé, chaque ligne porte `days_late` (entier ≥ 1 sur une
+     *     échéance due et échue, `null` sinon et sur une réservation).
      */
     public function history(Request $request): JsonResponse
     {
         $user = $request->user();
         $filters = (array) $request->input('filter', []);
 
+        // TCK-2657 — les paramètres neufs, lus et refusés AVANT toute requête. Une valeur en liste
+        // vaut une valeur absente (ADR-0075).
+        $includes = $this->requestedIncludes($request);
+        $payerId = $this->idFilter($filters['payer_id'] ?? null);
+        $landlordId = $this->idFilter($filters['landlord_id'] ?? null);
+        $methods = $this->paymentMethodFilter($filters['payment_method'] ?? null);
+        $search = $this->searchTerms($filters['search'] ?? null);
+        $daysLateMin = $this->daysLateFilter($filters['days_late_min'] ?? null);
+        $daysLateMax = $this->daysLateFilter($filters['days_late_max'] ?? null);
+
         $bookingQuery = BookingPayment::query()
             ->with('booking.property')
+            ->when(in_array('payer', $includes, true), fn ($q) => $q->with(['booking.customer' => fn ($c) => $c->withTrashed()]))
+            ->when(in_array('landlord', $includes, true), fn ($q) => $q->with(['booking.property.owner' => fn ($u) => $u->withTrashed()]))
             ->when(! $user->isSuperAdmin(), function ($q) use ($user): void {
                 // P233.01 (TCK-2241) — l'auteur encore membre de l'agence de la réservation, comme
                 // `BookingController::index` et `BookingPolicy::view` depuis TCK-2196 (ADR-0031, B.2).
@@ -69,6 +101,8 @@ class PaymentController extends Controller
 
         $leaseQuery = LeasePayment::query()
             ->with(['lease.property', 'lease.agency'])
+            ->when(in_array('payer', $includes, true), fn ($q) => $q->with(['payer' => fn ($c) => $c->withTrashed()]))
+            ->when(in_array('landlord', $includes, true), fn ($q) => $q->with(['lease.landlord' => fn ($u) => $u->withTrashed()]))
             ->when(! $user->isSuperAdmin(), function ($q) use ($user): void {
                 $q->whereHas('lease', function ($lq) use ($user): void {
                     $lq->where(function ($inner) use ($user): void {
@@ -133,12 +167,37 @@ class PaymentController extends Controller
             });
         }
 
+        // Refus de TCK-2659 (M1) — l'ENCAISSÉ d'une période : `paid_at` SEUL, borné au jour (Dakar,
+        // UTC+0 : `DayRange` lit le fuseau de l'application). C'est le sens de la tuile « Encaissé en
+        // <mois> » (`FinanceSummaryService::collected()`), là où `date_from`/`date_to` retiennent
+        // `paid_at` OU `period_start` (une échéance de la période, payée ou non) — et gardent ce sens
+        // pour les autres écrans. Une échéance jamais payée n'y entre donc jamais.
+        foreach (['paid_from' => '>=', 'paid_to' => '<'] as $cle => $operateur) {
+            if (empty($filters[$cle])) {
+                continue;
+            }
+            DateBoundaryFilter::exiger($filters[$cle], $cle);
+            $borne = $cle === 'paid_from' ? DayRange::start($filters[$cle]) : DayRange::after($filters[$cle]);
+            $bookingQuery->where('paid_at', $operateur, $borne);
+            $leaseQuery->where('paid_at', $operateur, $borne);
+        }
+
+        // TCK-2657 — les filtres métier, posés en SQL avant le comptage et le plafond : filtrer
+        // après les 5 000 lignes rendrait un compte et un `truncated` faux.
+        $today = OverdueInstalment::today();
+        $this->applyBusinessFilters($bookingQuery, $leaseQuery, $payerId, $landlordId, $methods, $search, $daysLateMin, $daysLateMax, $today);
+
         // Pagination
         $perPage = min(max((int) $request->input('per_page', 20), 1), 100);
         $page = max((int) $request->input('page', 1), 1);
         // P216.02 (TCK-2122) — un tri en liste vaut le tri par défaut, et n'est plus casté.
         $sort = $request->input('sort', '-date');
         $sort = $sort === null ? '' : ParametreUnique::valeur($sort) ?? '-date';
+
+        // TCK-2657 — `days_late` sort dès qu'un paramètre neuf est passé ; sans lui, la ligne garde sa
+        // forme d'avant, clé pour clé (AC1).
+        $extended = $includes !== [] || $payerId !== null || $landlordId !== null || $methods !== null
+            || $search !== [] || $daysLateMin !== null || $daysLateMax !== null || ltrim($sort, '-') === 'days_late';
 
         // Hard cap to keep the merge-in-PHP strategy bounded. Beyond this the
         // caller must narrow the filter (entity, date range, status). The
@@ -150,9 +209,10 @@ class PaymentController extends Controller
         $truncated = ($bookingCount + $leaseCount) > $maxRows;
 
         $bookingRows = $bookingQuery->limit($maxRows)->get()
-            ->map(fn (BookingPayment $p) => $this->bookingRow($p));
-        $leaseRows = $leaseQuery->limit($maxRows)->get()
-            ->map(fn (LeasePayment $p) => $this->leaseRow($p));
+            ->map(fn (BookingPayment $p) => $this->bookingRow($p) + ($extended ? $this->bookingExtras($p, $includes) : []));
+        $leasePayments = $leaseQuery->limit($maxRows)->get();
+        $leaseRows = $leasePayments
+            ->map(fn (LeasePayment $p) => $this->leaseRow($p) + ($extended ? $this->leaseExtras($p, $includes, $today) : []));
 
         $merged = $bookingRows->concat($leaseRows)->values();
         $merged = $this->applySort($merged, $sort);
@@ -164,6 +224,10 @@ class PaymentController extends Controller
 
         $total = $merged->count();
         $items = $merged->slice(($page - 1) * $perPage, $perPage)->values();
+        // TCK-2658 — la dernière relance et leur compte, pour la seule page rendue (une requête).
+        if (in_array('reminders', $includes, true)) {
+            $items = $this->withReminders($items, $leasePayments);
+        }
 
         // Totals across the (potentially truncated) filtered dataset.
         $totals = [
@@ -301,14 +365,268 @@ class PaymentController extends Controller
     {
         $desc = str_starts_with($sort, '-');
         $field = ltrim($sort, '-');
-        $allowed = ['date', 'amount', 'remaining_amount', 'created_at'];
+        $allowed = ['date', 'amount', 'remaining_amount', 'created_at', 'days_late'];
         if (! in_array($field, $allowed, true)) {
             $field = 'date';
             $desc = true;
         }
 
+        // TCK-2657 — une ligne sans retard (`null`) se range en dernier, dans les deux sens.
+        if ($field === 'days_late') {
+            [$late, $notLate] = $rows->partition(fn (array $row) => $row['days_late'] !== null);
+            $late = $desc ? $late->sortByDesc('days_late') : $late->sortBy('days_late');
+
+            return $late->concat($notLate)->values();
+        }
+
         return $desc
             ? $rows->sortByDesc($field)->values()
             : $rows->sortBy($field)->values();
+    }
+
+    /** TCK-2657 — les relations nommées qu'une ligne peut porter, à la demande. */
+    protected const HISTORY_INCLUDES = ['payer', 'property', 'landlord', 'reminders'];
+
+    /** TCK-2657 — au-delà, les mots saisis sont ignorés (même borne que la recherche des conversations). */
+    protected const SEARCH_MAX_TERMS = 6;
+
+    /**
+     * Les relations demandées par `include=payer,property,landlord`. Un nom inconnu est ignoré ; un
+     * `include` en liste vaut un `include` absent (ADR-0075).
+     *
+     * @return list<string>
+     */
+    protected function requestedIncludes(Request $request): array
+    {
+        $raw = ParametreUnique::chaine($request, 'include');
+        if ($raw === null) {
+            return [];
+        }
+
+        return array_values(array_intersect(self::HISTORY_INCLUDES, array_map('trim', explode(',', $raw))));
+    }
+
+    /** Un identifiant (`filter[payer_id]`, `filter[landlord_id]`) : entier positif, sinon 422. */
+    protected function idFilter(mixed $value): ?int
+    {
+        $value = ParametreUnique::valeur($value);
+        if ($value === null) {
+            return null;
+        }
+        abort_code_unless(ctype_digit($value), 422, 'payment.filter_id_invalid');
+
+        return (int) $value;
+    }
+
+    /** Un nombre de jours de retard (`filter[days_late_min]`, `filter[days_late_max]`) : entier ≥ 0, sinon 422. */
+    protected function daysLateFilter(mixed $value): ?int
+    {
+        $value = ParametreUnique::valeur($value);
+        if ($value === null) {
+            return null;
+        }
+        abort_code_unless(ctype_digit($value), 422, 'payment.filter_days_late_invalid');
+
+        return (int) $value;
+    }
+
+    /**
+     * `filter[payment_method]=wave,cash` : une liste séparée par des virgules, comme `filter[status]`.
+     *
+     * @return list<string>|null
+     */
+    protected function paymentMethodFilter(mixed $value): ?array
+    {
+        $value = ParametreUnique::valeur($value);
+        if ($value === null) {
+            return null;
+        }
+        $methods = array_map(fn (string $m) => PaymentMethod::tryFrom(trim($m)), explode(',', $value));
+        abort_code_if(in_array(null, $methods, true), 422, 'payment.filter_payment_method_invalid');
+
+        return array_map(fn (PaymentMethod $m) => $m->value, $methods);
+    }
+
+    /**
+     * Les mots de `filter[search]`, repliés et échappés pour `LIKE` (`%` et `_` cherchent un
+     * caractère, pas « tout ») ; chacun doit apparaître dans une des colonnes (ET entre les mots, OU
+     * entre les colonnes), comme `HasQueryBuilder::matchEveryTerm`.
+     *
+     * @return list<string> les motifs `%mot%`
+     */
+    protected function searchTerms(mixed $value): array
+    {
+        $value = ParametreUnique::valeur($value);
+        if ($value === null) {
+            return [];
+        }
+        $words = array_slice(preg_split('/\s+/u', trim($value), -1, PREG_SPLIT_NO_EMPTY) ?: [], 0, self::SEARCH_MAX_TERMS);
+
+        return array_map(fn (string $w) => '%'.addcslashes(CaseInsensitive::fold($w), '\\%_').'%', $words);
+    }
+
+    /**
+     * TCK-2657 — payeur, bailleur, moyen, recherche libre et jours de retard, des deux côtés.
+     *
+     * Le payeur et le bailleur se lisent aux mêmes colonnes que les lignes et leur `include` : le
+     * payeur d'une échéance est `lease_payments.payer_id`, celui d'une réservation son client
+     * (`bookings.customer_id`, comme `customer_id` de la ligne) ; le bailleur d'un bail est
+     * `leases.landlord_id` (la balance âgée groupe par lui), celui d'une réservation le titulaire du
+     * bien (`properties.user_id`).
+     *
+     * Le retard est la règle *Impayé* ({@see CollectedPayments::leaseOwed()}, échue AVANT
+     * aujourd'hui, heure de Dakar), celle de la balance âgée et du point du mois : une réservation n'a
+     * pas d'échéance, elle sort dès qu'une borne de retard est posée.
+     *
+     * @param  Builder<BookingPayment>  $bookingQuery
+     * @param  Builder<LeasePayment>  $leaseQuery
+     * @param  list<string>|null  $methods
+     * @param  list<string>  $search
+     */
+    protected function applyBusinessFilters(
+        Builder $bookingQuery,
+        Builder $leaseQuery,
+        ?int $payerId,
+        ?int $landlordId,
+        ?array $methods,
+        array $search,
+        ?int $daysLateMin,
+        ?int $daysLateMax,
+        string $today,
+    ): void {
+        if ($payerId !== null) {
+            $leaseQuery->where('lease_payments.payer_id', $payerId);
+            $bookingQuery->whereHas('booking', fn ($q) => $q->where('customer_id', $payerId));
+        }
+
+        if ($landlordId !== null) {
+            $leaseQuery->whereHas('lease', fn ($q) => $q->where('landlord_id', $landlordId));
+            $bookingQuery->whereHas('booking.property', fn ($q) => $q->where('user_id', $landlordId));
+        }
+
+        if ($methods !== null) {
+            $leaseQuery->whereIn('lease_payments.payment_method', $methods);
+            $bookingQuery->whereIn('booking_payments.payment_method', $methods);
+        }
+
+        $names = fn ($q, string $motif) => $q->withTrashed()->where(fn ($w) => $w
+            ->whereRaw(CaseInsensitive::sql('customers.first_name').' like ?', [$motif])
+            ->orWhereRaw(CaseInsensitive::sql('customers.last_name').' like ?', [$motif]));
+        $property = fn ($q, string $motif) => $q->where(fn ($w) => $w
+            ->whereRaw(CaseInsensitive::sql('properties.title').' like ?', [$motif])
+            ->orWhereRaw(CaseInsensitive::sql('properties.reference_number').' like ?', [$motif]));
+        foreach ($search as $motif) {
+            $leaseQuery->where(fn ($q) => $q
+                ->whereRaw(CaseInsensitive::sql('lease_payments.reference_number').' like ?', [$motif])
+                ->orWhereHas('payer', fn ($c) => $names($c, $motif))
+                ->orWhereHas('lease.property', fn ($p) => $property($p, $motif)));
+            $bookingQuery->where(fn ($q) => $q
+                ->whereRaw(CaseInsensitive::sql('booking_payments.reference_number').' like ?', [$motif])
+                ->orWhereHas('booking.customer', fn ($c) => $names($c, $motif))
+                ->orWhereHas('booking.property', fn ($p) => $property($p, $motif)));
+        }
+
+        if ($daysLateMin !== null || $daysLateMax !== null) {
+            CollectedPayments::leaseOwed($leaseQuery)->whereDate('lease_payments.due_date', '<', $today);
+            if ($daysLateMin !== null) {
+                $leaseQuery->whereRaw('(?::date - lease_payments.due_date) >= ?', [$today, $daysLateMin]);
+            }
+            if ($daysLateMax !== null) {
+                $leaseQuery->whereRaw('(?::date - lease_payments.due_date) <= ?', [$today, $daysLateMax]);
+            }
+            $bookingQuery->whereRaw('1 = 0');
+        }
+    }
+
+    /**
+     * @param  list<string>  $includes
+     * @return array<string, mixed>
+     */
+    protected function leaseExtras(LeasePayment $p, array $includes, string $today): array
+    {
+        $lease = $p->lease;
+
+        return ['days_late' => OverdueInstalment::daysLate($p, $today)] + $this->named(
+            $includes,
+            fn () => $p->payer,
+            fn () => $lease?->property,
+            fn () => $lease?->landlord,
+        );
+    }
+
+    /**
+     * @param  list<string>  $includes
+     * @return array<string, mixed>
+     */
+    protected function bookingExtras(BookingPayment $p, array $includes): array
+    {
+        $booking = $p->booking;
+
+        return ['days_late' => null] + $this->named(
+            $includes,
+            fn () => $booking?->customer,
+            fn () => $booking?->property,
+            fn () => $booking?->property?->owner,
+        );
+    }
+
+    /**
+     * TCK-2658 (ADR-0105 § 3) — `include=reminders` : `last_reminder {at, source, channel, by}` et
+     * `reminders_count` sur une ligne de bail, lus par la lecture unique des relances (notées et
+     * automatiques) ; une réservation n'a pas de relance (`null`, 0).
+     *
+     * @param  Collection<int, array<string, mixed>>  $items
+     * @param  \Illuminate\Database\Eloquent\Collection<int, LeasePayment>  $leasePayments
+     * @return Collection<int, array<string, mixed>>
+     */
+    protected function withReminders(Collection $items, \Illuminate\Database\Eloquent\Collection $leasePayments): Collection
+    {
+        // Vérification adverse de TCK-2658 — les relances sont lues par la règle de
+        // `LeasePaymentPolicy::remind` (super-admin, ou personnel de l'agence du bail), ligne par
+        // ligne : `/lease-payments/{id}/reminders` refuse le bailleur et le locataire, cet include
+        // ne leur rend pas davantage. L'agence de personnel se lit une fois pour la page.
+        $user = request()->user();
+        $seesAll = $user?->isSuperAdmin() === true;
+        $staffAgencyId = $seesAll ? null : $user?->staffAgencyId();
+        $leasePayments->loadMissing('lease:id,agency_id');
+        $readable = $leasePayments
+            ->filter(fn (LeasePayment $p): bool => $seesAll
+                || ($staffAgencyId !== null && (int) $p->lease?->agency_id === $staffAgencyId))
+            ->keyBy('id');
+
+        $ids = $items->where('source', 'lease')->pluck('id')->filter(fn ($id) => $readable->has($id))->all();
+        $summaries = $this->reminderReader->summaries($readable->only($ids)->values());
+
+        return $items->map(fn (array $row) => $row + ($row['source'] === 'lease' && isset($summaries[$row['id']])
+            ? $summaries[$row['id']]
+            : ['last_reminder' => null, 'reminders_count' => 0]));
+    }
+
+    /**
+     * Les relations demandées, et elles seules : un `include` absent ne charge ni n'émet rien.
+     *
+     * @param  list<string>  $includes
+     * @param  callable(): (Customer|null)  $payer
+     * @param  callable(): (Property|null)  $property
+     * @param  callable(): (User|null)  $landlord
+     * @return array<string, array<string, mixed>|null>
+     */
+    protected function named(array $includes, callable $payer, callable $property, callable $landlord): array
+    {
+        $out = [];
+        if (in_array('payer', $includes, true)) {
+            $c = $payer();
+            $out['payer'] = $c !== null ? ['id' => $c->id, 'name' => $c->full_name, 'phone' => $c->phone] : null;
+        }
+        if (in_array('property', $includes, true)) {
+            $b = $property();
+            $out['property'] = $b !== null ? ['id' => $b->id, 'title' => $b->title, 'reference_number' => $b->reference_number] : null;
+        }
+        if (in_array('landlord', $includes, true)) {
+            $u = $landlord();
+            $out['landlord'] = $u !== null ? ['id' => $u->id, 'name' => $u->full_name] : null;
+        }
+
+        return $out;
     }
 }

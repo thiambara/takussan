@@ -25,7 +25,13 @@ vi.mock('@/lib/access/pages-admin-server', () => ({
   accesAdmin: (u: unknown) => accesAdmin(u),
 }));
 vi.mock('next-intl/server', () => ({ getTranslations: async () => (cle: string) => cle }));
-vi.mock('../AdminFinancesClient', () => ({ AdminFinancesClient: () => <div data-testid="finances" /> }));
+// TCK-2659 — l'en-tête (et le lien) vit désormais dans le client, qui reçoit `rapprochement` ; que
+// le client rende le lien sur ce seul drapeau est gardé par `AdminFinancesClient.test.tsx`.
+vi.mock('../AdminFinancesClient', () => ({
+  AdminFinancesClient: ({ rapprochement }: { rapprochement?: boolean }) => (
+    <div data-testid="finances" data-rapprochement={String(Boolean(rapprochement))} />
+  ),
+}));
 
 const { default: Page } = await import('../page');
 
@@ -37,7 +43,7 @@ describe('/app/agency/finances — le lien du rapprochement (TCK-2260)', () => {
     getMe.mockResolvedValue(ADMIN);
   });
 
-  it("montre le lien à qui la table ouvre le rapprochement", async () => {
+  it("ouvre le lien à qui la table ouvre le rapprochement", async () => {
     accesAdmin.mockResolvedValue({
       chemins: ['/app/agency/finances', '/app/agency/finances/reconciliation'],
       espaceIndividuel: false,
@@ -45,19 +51,15 @@ describe('/app/agency/finances — le lien du rapprochement (TCK-2260)', () => {
 
     render(await Page());
 
-    expect(screen.getByRole('link', { name: 'reconciliationLink' })).toHaveAttribute(
-      'href',
-      '/app/agency/finances/reconciliation',
-    );
+    expect(screen.getByTestId('finances')).toHaveAttribute('data-rapprochement', 'true');
     expect(accesAdmin).toHaveBeenCalledWith(ADMIN);
   });
 
-  it('ne montre pas le lien à un admin sans payments.reconcile', async () => {
+  it('ferme le lien à un admin sans payments.reconcile', async () => {
     accesAdmin.mockResolvedValue({ chemins: ['/app/agency/finances'], espaceIndividuel: false });
 
     render(await Page());
 
-    expect(screen.queryByRole('link', { name: 'reconciliationLink' })).toBeNull();
-    expect(screen.getByTestId('finances')).toBeInTheDocument();
+    expect(screen.getByTestId('finances')).toHaveAttribute('data-rapprochement', 'false');
   });
 });

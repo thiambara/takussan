@@ -46,23 +46,23 @@ export function OngletsDeFiche({ onglets, libelle }: OngletsDeFicheProps) {
         if (haut !== undefined && haut < 0) ancre.current?.scrollIntoView({ block: 'start' });
       }}
     >
-      <div ref={ancre} className="scroll-mt-0 lg:scroll-mt-[calc(1.5rem+53px)]" aria-hidden />
+      <div ref={ancre} className="scroll-mt-0 lg:scroll-mt-[calc(var(--spacing)*6+53px)]" aria-hidden />
       <TabsPrimitive.List
         aria-label={libelle}
-        className="sticky top-0 z-20 -mx-4 flex border-b border-border bg-background px-4 sm:-mx-6 sm:px-6 lg:top-[calc(1.5rem+53px)] lg:mx-0 lg:gap-7 lg:px-0"
+        className="sticky top-0 z-20 -mx-4 flex border-b border-border bg-background px-4 sm:-mx-6 sm:px-6 lg:top-[calc(var(--spacing)*6+53px)] lg:mx-0 lg:gap-7 lg:px-0"
       >
         {onglets.map((onglet) => (
           <TabsPrimitive.Tab
             key={onglet.id}
             value={onglet.id}
             className={cn(
-              'relative flex h-12 flex-1 items-center justify-center gap-1.5 text-[15px] font-medium text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring lg:flex-none',
+              'relative flex h-12 flex-1 items-center justify-center gap-1.5 text-[0.9375rem] font-medium text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring lg:flex-none',
               'data-active:text-foreground data-active:after:absolute data-active:after:inset-x-2 data-active:after:bottom-0 data-active:after:h-0.5 data-active:after:rounded-full data-active:after:bg-primary lg:data-active:after:inset-x-0',
             )}
           >
             {onglet.libelle}
             {onglet.compte !== undefined ? (
-              <span className="text-[13px] font-normal tabular-nums text-muted-foreground">{onglet.compte}</span>
+              <span className="text-[0.8125rem] font-normal tabular-nums text-muted-foreground">{onglet.compte}</span>
             ) : null}
           </TabsPrimitive.Tab>
         ))}

@@ -9,6 +9,7 @@ use App\Models\Enums\PaymentProvider;
 use App\Models\Enums\PaymentStatus;
 use App\Models\LeasePayment;
 use App\Services\Payments\LeasePaymentLinkService;
+use App\Services\Payments\OfflinePaymentMeans;
 use App\Services\Payments\PaymentGatewayService;
 use App\Services\Pdf\DocumentPdfService;
 use Illuminate\Http\JsonResponse;
@@ -124,19 +125,8 @@ class PublicPaymentLinkController extends Controller
      */
     private function offlinePayment(LeasePayment $payment): ?array
     {
-        $agency = $payment->lease?->agency;
-        if ($agency === null || ! $this->owesSomething($payment)) {
-            return null;
-        }
-
-        $fields = array_filter([
-            'wave_number' => $agency->setting('offline_payment_wave_number'),
-            'orange_money_number' => $agency->setting('offline_payment_orange_money_number'),
-            'bank_details' => $agency->setting('offline_payment_bank_details'),
-            'agency_phone' => $agency->phone,
-        ], fn ($value) => is_string($value) && $value !== '');
-
-        return $fields === [] ? null : $fields;
+        // TCK-2649 — la lecture des moyens est partagée avec `GET /api/me/rent-summary`.
+        return $this->owesSomething($payment) ? OfflinePaymentMeans::of($payment->lease?->agency) : null;
     }
 
     /**

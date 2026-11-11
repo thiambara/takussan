@@ -114,8 +114,8 @@ function RappelDuCompte({ user }: { readonly user: User }) {
         <Icone className="size-5" />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[15px] font-semibold text-foreground">{contenu.titre}</p>
-        {contenu.detail ? <p className="truncate text-[13px] text-muted-foreground">{contenu.detail}</p> : null}
+        <p className="truncate text-[0.9375rem] font-semibold text-foreground">{contenu.titre}</p>
+        {contenu.detail ? <p className="truncate text-[0.8125rem] text-muted-foreground">{contenu.detail}</p> : null}
       </div>
       <Link href={contenu.href} className={cn(buttonVariants({ size: 'sm' }), 'h-10 flex-none rounded-full px-4 text-sm font-semibold')}>
         {contenu.action}

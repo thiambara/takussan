@@ -95,7 +95,7 @@ describe('Navbar — la barre du site au téléphone suit la maquette (TCK-2568)
       expect(classesCale).toContain('h-0');
       expect(classesCale).not.toContain('h-[69px]');
       // La cale de bureau ne change pas.
-      expect(classesCale).toContain('lg:h-[calc(1.5rem+53px)]');
+      expect(classesCale).toContain('lg:h-[calc(var(--spacing)*6+53px)]');
     },
   );
 
@@ -136,7 +136,7 @@ describe('Navbar — la barre du site au téléphone suit la maquette (TCK-2568)
     expect((nav.querySelector('nav > div') as HTMLElement).className).toContain('max-lg:h-14');
     expect(classesCale).toContain('h-[57px]');
     expect(classesCale).not.toContain('h-[69px]');
-    expect(classesCale).toContain('lg:h-[calc(1.5rem+53px)]');
+    expect(classesCale).toContain('lg:h-[calc(var(--spacing)*6+53px)]');
     expect(within(nav).queryByRole('link', { name: 'Retour' })).toBeNull();
   });
 

@@ -8,7 +8,7 @@ estimate: M
 wave: 87
 created: 2026-11-10
 updated: 2026-11-10
-depends_on: [TCK-2633, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
+depends_on: [TCK-2633, TCK-2704, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: []
 spec_refs:
   features:
@@ -24,6 +24,12 @@ En touchant la cloche, on voit d'abord ce qui attend un geste (« Visite demand�
 ## Contrat de données
 
 - `GET /api/notifications` : `filter[unread]`, `filter[a_traiter]`, `filter[famille]`, `meta.counts {a_traiter_non_lues, par_famille}`, et `famille` et `a_traiter` par ligne (TCK-2633).
+- **Relevé après TCK-2633** :
+  - `filter[famille]` est une liste (`visite,demande`) ; `filter[a_traiter]` et `filter[unread]` valent `1`, `0`, `true` ou `false` — toute autre valeur rend 422 ;
+  - une requête qui passe `fields[app_notifications]` doit y nommer `famille` et `a_traiter`, sinon elles ne sont pas rendues ;
+  - `meta.counts` ignore les filtres de la requête (il porte sur toutes les non-lues de l'appelant) : les puces se lisent sur n'importe quelle page ;
+  - une famille sans non-lue est ABSENTE de `par_famille` (objet `{}` si aucune) : lire `par_famille[f] ?? 0` ;
+  - « Mise en avant terminée » porte le code `boost.ended` depuis TCK-2704 (`bien`, pas à traiter) ; les lignes stockées AVANT n'ont pas de code (rangées `bien` par leur cible) : un repli « par code » ne les regroupe pas avec les nouvelles. Ont aussi reçu un code par TCK-2704 : `property.proposed` (`bien`, à traiter), `maintenance.urgent_created` et `maintenance.urgent_escalated` (`demande`, à traiter), `agency.upgrade_requested` (`systeme`, à traiter).
 - Gestes existants :
   - `POST notifications/{id}/read` et `/unread` ;
   - `POST notifications/read-all`.

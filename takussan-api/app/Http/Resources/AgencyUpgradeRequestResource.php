@@ -48,6 +48,8 @@ class AgencyUpgradeRequestResource extends BaseResource
             'reviewed_by' => $this->reviewed_by,
             'reviewed_at' => $this->iso($this->reviewed_at),
             'review_comment' => $this->review_comment,
+            // TCK-2669 (ADR-0104 § 5) — la demande refusée que celle-ci reprend, ou `null`.
+            'resubmit_of_id' => $this->resubmit_of_id,
             'created_at' => $this->iso($this->created_at),
             'updated_at' => $this->iso($this->updated_at),
             // TCK-601 (C) — au super-admin SEUL : un autre identifiant d'agence qui coïncide est un

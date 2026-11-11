@@ -92,8 +92,8 @@ export function MenuMonEspace({ user }: { readonly user: User }) {
       <DropdownMenuItem key={e.id} data-ligne={e.id} className={STYLE_LIGNE} onClick={() => aller(e.href)}>
         <Icone className="size-[18px] shrink-0 text-primary-deep" aria-hidden />
         <span className="min-w-0 flex-1">
-          <span className="block text-[15px] font-medium text-foreground">{libelle(e)}</span>
-          {d ? <span className="block truncate text-[13px] text-muted-foreground">{d}</span> : null}
+          <span className="block text-[0.9375rem] font-medium text-foreground">{libelle(e)}</span>
+          {d ? <span className="block truncate text-[0.8125rem] text-muted-foreground">{d}</span> : null}
         </span>
         {compte > 0 ? (
           <span aria-hidden className="text-sm font-semibold tabular-nums text-primary">
@@ -127,7 +127,7 @@ export function MenuMonEspace({ user }: { readonly user: User }) {
         {t('monEspace.bouton')}
         <ChevronDown className="size-4 text-muted-foreground" aria-hidden />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" data-slot="menu-mon-espace" className="w-[360px] max-w-[calc(100vw-1rem)] p-0">
+      <DropdownMenuContent align="end" data-slot="menu-mon-espace" className="w-[360px] max-w-[calc(100vw-var(--spacing)*4)] p-0">
         <div className="flex items-center gap-3 border-b border-border p-4">
           <Avatar className="size-10 bg-secondary" aria-hidden>
             {user.avatar_url ? <AvatarImage src={user.avatar_url} alt="" /> : null}
@@ -140,12 +140,12 @@ export function MenuMonEspace({ user }: { readonly user: User }) {
             {espace.nomDeLEspace ? <p className="truncate text-sm text-muted-foreground">{espace.nomDeLEspace}</p> : null}
           </div>
         </div>
-        <div className="max-h-[min(36rem,calc(100dvh-10rem))] overflow-y-auto p-1">
+        <div className="max-h-[min(var(--spacing)*144,calc(100dvh-var(--spacing)*40))] overflow-y-auto p-1">
           {action ? (
             <div className="px-2 pb-1 pt-2">
               <DropdownMenuItem
                 onClick={() => aller(action.href)}
-                className="h-11 justify-center gap-2 rounded-xl bg-primary text-[15px] font-semibold text-primary-foreground data-highlighted:bg-[var(--primary-deep)] data-highlighted:text-primary-foreground"
+                className="h-11 justify-center gap-2 rounded-xl bg-primary text-[0.9375rem] font-semibold text-primary-foreground data-highlighted:bg-[var(--primary-deep)] data-highlighted:text-primary-foreground"
               >
                 <Plus className="size-4" aria-hidden />
                 {libelle(action)}
@@ -167,7 +167,7 @@ export function MenuMonEspace({ user }: { readonly user: User }) {
               onClick={() => aller(HREF_CREDITS)}
             >
               <Coins className="size-[18px] shrink-0 text-primary-deep" aria-hidden />
-              <span className="min-w-0 flex-1 text-[15px] font-medium text-foreground">{tSidebar('credits')}</span>
+              <span className="min-w-0 flex-1 text-[0.9375rem] font-medium text-foreground">{tSidebar('credits')}</span>
               <span aria-hidden data-slot="solde-credits" className="text-sm font-semibold tabular-nums text-foreground">
                 {format.number(solde)}
               </span>
@@ -183,7 +183,7 @@ export function MenuMonEspace({ user }: { readonly user: User }) {
         <div className="border-t border-border p-2">
           <DropdownMenuItem
             onClick={() => router.push('/app')}
-            className="h-11 justify-center rounded-xl bg-foreground text-[15px] font-medium text-background data-highlighted:bg-foreground data-highlighted:text-background data-highlighted:ring-2 data-highlighted:ring-ring"
+            className="h-11 justify-center rounded-xl bg-foreground text-[0.9375rem] font-medium text-background data-highlighted:bg-foreground data-highlighted:text-background data-highlighted:ring-2 data-highlighted:ring-ring"
           >
             {t('monEspace.ouvrir')}
           </DropdownMenuItem>

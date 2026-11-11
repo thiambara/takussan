@@ -38,7 +38,7 @@ Relevé sur `dev` (1bce3798a) le 2026-11-10, audit UX famille 6 ([`06-agence.md`
 6. **Le prix affiché au passage en pro.**
    - Le prix se lit de l'API, en F CFA (décision n° 14 (a)), et n'est jamais écrit dans le code. C'est celui du plan que l'approbation **donnera**.
    - Tant que l'approbation n'en pose aucun, ce plan est désigné par configuration (`billing.upgrade_plan_code`, défaut `pro`).
-   - **Décidé par le porteur le 2026-11-10** : l'approbation d'un passage en pro **pose l'abonnement** à ce plan (`AgencySubscriptionService::assign`, dans la transaction de l'approbation), sous le geste du super-admin qui approuve, sans prélèvement automatique ([TCK-2681](../backlog/tickets/todo/TCK-2681-approbation-pro-pose-l-abonnement.md)).
+   - **Décidé par le porteur le 2026-11-10** : l'approbation d'un passage en pro **pose l'abonnement** à ce plan (`AgencySubscriptionService::assign`, dans la transaction de l'approbation), sous le geste du super-admin qui approuve, sans prélèvement automatique ([TCK-2681](../backlog/tickets/done/TCK-2681-approbation-pro-pose-l-abonnement.md)).
    - Le prix est celui du plan (`plans.monthly_price_xof`) : l'abonnement n'a pas de colonne de prix, et un prix de plan changé vaut pour tous ses abonnés, comme aujourd'hui. Figer le prix à l'approbation serait une autre décision.
    - Tant que TCK-2681 n'est pas livré, l'écran n'écrit aucune promesse que le produit ne tient pas : ni « sans engagement », ni « le premier mois n'est facturé qu'après l'acceptation ».
 7. **Le renouvellement d'une pièce.**

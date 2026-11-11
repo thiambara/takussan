@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
+use Spatie\QueryBuilder\AllowedFilter;
 
 /**
  * TCK-249 — Pattern d'invitation unifié partagé par tous les parcours
@@ -92,6 +93,30 @@ class Invitation extends AbstractModel
     protected static array $requestFilterableTypes = ['invited_by' => TypedExactFilter::IDENTIFIANT];
 
     protected static array $requestSortable = ['id', 'created_at', 'expires_at', 'status'];
+
+    /**
+     * TCK-2665 — `filter[customer_id]=42` (ou `42,43`) : les invitations NÉES d'une fiche client
+     * (`POST /api/customers/{customer}/invite`, cible `Customer`). Une valeur qui n'est pas un
+     * identifiant ne rend aucune ligne (ADR-0075 § 2 : un client qui a mal formé un filtre ne reçoit
+     * pas toute la liste).
+     *
+     * @return array<int, AllowedFilter>
+     */
+    protected static function customQueryFilters(): array
+    {
+        return [
+            AllowedFilter::callback('customer_id', function (Builder $query, mixed $value): void {
+                $ids = array_map(static fn ($id) => is_string($id) || is_int($id) ? trim((string) $id) : '', (array) $value);
+                if ($ids === [] || in_array(false, array_map(static fn (string $id) => ctype_digit($id), $ids), true)) {
+                    $query->whereRaw('1 = 0');
+
+                    return;
+                }
+                $query->where($query->qualifyColumn('invitable_type'), (new Customer)->getMorphClass())
+                    ->whereIn($query->qualifyColumn('invitable_id'), array_map('intval', $ids));
+            }),
+        ];
+    }
 
     protected static array $requestLoadable = ['inviter', 'invitedUser', 'agency', 'invitable'];
 

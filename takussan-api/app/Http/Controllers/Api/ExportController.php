@@ -62,13 +62,14 @@ class ExportController extends Controller
         // et le prédicat d'agence (`isAgentAt` sur `$user->agency_id`) ne distinguait pas le
         // personnel du bailleur.
         $staffAgencyId = $user->staffAgencyId();
+        $ownLinesOnly = false;
         if (! $user->isSuperAdmin()) {
             if ($staffAgencyId !== null) {
-                abort_code_unless(
-                    $user->canActAt(self::CAPABILITY[$entity], Agency::query()->find($staffAgencyId)),
-                    403,
-                    'export.forbidden',
-                );
+                $allowed = $user->canActAt(self::CAPABILITY[$entity], Agency::query()->find($staffAgencyId));
+                // TCK-2661 — sans `reports.export`, le bénéficiaire exporte encore SES commissions, et
+                // elles seules (même s'il lit celles de l'agence au relevé).
+                $ownLinesOnly = ! $allowed && $entity === 'commissions';
+                abort_code_unless($allowed || $ownLinesOnly, 403, 'export.forbidden');
             } elseif ($entity === 'customers' || in_array($entity, self::STAFF_ONLY, true)) {
                 abort_code(403, 'export.forbidden');
             } elseif ($entity === 'properties'
@@ -80,7 +81,7 @@ class ExportController extends Controller
         $validated = $request->validated();
         $format = $validated['format'] ?? 'csv';
 
-        $payload = $this->data->collect($entity, $user, $validated);
+        $payload = $this->data->collect($entity, $user, $validated + ['own_lines_only' => $ownLinesOnly]);
 
         activity('export')
             ->causedBy($user)

@@ -68,8 +68,10 @@ class AgencyUpgradeRequestController extends Controller
         $upgradeRequest = $this->service->submit(
             $agency,
             $user,
-            $request->safe()->except('statuts_doc'),
+            $request->safe()->except(['statuts_doc', 'resubmit_of']),
             $request->file('statuts_doc'),
+            // TCK-2669 — la dernière demande refusée de l'agence, jugée par la requête.
+            $request->resubmitted(),
         );
 
         return $this->json(

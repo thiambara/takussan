@@ -71,7 +71,11 @@
       "unknownAgency": "Agency #{id}"
     },
     "search": {
-      "pending": "Searching…"
+      "pending": "Searching…",
+      "clear": "Clear search"
+    },
+    "pageHeader": {
+      "breadcrumb": "Breadcrumb"
     }
   },
   "nav": {
@@ -453,6 +457,12 @@
         "agence-journal": "audit, log, history",
         "agence-integrations": "api, webhooks, connectors"
       }
+    },
+    "coque": {
+      "retour": "Back",
+      "fermer": "Close",
+      "plusDActions": "More actions",
+      "etape": "Step {n} of {total}"
     }
   },
   "footer": {
@@ -661,7 +671,7 @@
     "twoFactor": {
       "intro": {
         "title": "Strengthen your account security",
-        "description": "Enable two-factor authentication (TOTP) with an app like Google Authenticator, 1Password or Authy.",
+        "description": "Enable two-factor authentication with an authenticator app such as Google Authenticator, 1Password or Authy.",
         "cta": "Set up now",
         "starting": "Starting…",
         "skip": "Later"
@@ -717,7 +727,7 @@
       "sending": "Sending…",
       "codeSentTo": "If this number can receive text messages, a 6-digit code has just been sent to {phone}. It is valid for 5 minutes.",
       "codeLabel": "Code received by text",
-      "verify": "Confirm",
+      "verify": "Verify code",
       "verifying": "Verifying…",
       "resendIn": "Resend the code in {seconds} s",
       "resend": "Resend the code",
@@ -1447,7 +1457,7 @@
         "sendCode": "Get a code",
         "resendCode": "Resend the code",
         "codeAria": "Code received by SMS",
-        "verifyCode": "Confirm",
+        "verifyCode": "Verify code",
         "whatsapp": "This number has WhatsApp",
         "codeSent": "Code sent by SMS.",
         "phoneVerified": "Number verified.",
@@ -2745,7 +2755,7 @@
       "welcome": {
         "title": "Welcome to Takussan, {firstName}",
         "titleNoName": "Welcome to Takussan",
-        "body": "{agencyName}’s workspace is ready. One quick step before you dive into your dashboard.",
+        "body": "{agencyName}’s workspace is ready. One quick step before you head into it.",
         "cta": "Continue"
       }
     },
@@ -5458,9 +5468,9 @@
           "subtitle": "Upload your ID, bank details and NINEA. You may complete this in several sessions.",
           "draftBadge": "Draft",
           "submittedBadge": "Submitted",
-          "submitCta": "Submit my KYC dossier",
+          "submitCta": "Submit my documents",
           "submitting": "Submitting…",
-          "submittedTitle": "KYC dossier submitted",
+          "submittedTitle": "Documents submitted",
           "submittedBody": "You can continue."
         },
         "tour": {
@@ -5495,7 +5505,7 @@
         }
       },
       "errors": {
-        "kycSubmitTitle": "Could not submit KYC",
+        "kycSubmitTitle": "Could not submit your documents",
         "completeTitle": "Could not finalise your onboarding"
       },
       "success": {
@@ -5590,9 +5600,9 @@
           "subtitle": "Licence card, ID and profile picture. You may complete this in several sessions.",
           "draftBadge": "Draft",
           "submittedBadge": "Submitted",
-          "submitCta": "Submit my KYC dossier",
+          "submitCta": "Submit my documents",
           "submitting": "Submitting…",
-          "submittedTitle": "KYC dossier submitted",
+          "submittedTitle": "Documents submitted",
           "submittedBody": "You can continue.",
           "licenseNumberLabel": "Licence number",
           "licenseNumberHint": "Use the number printed on your professional card."
@@ -5632,13 +5642,13 @@
           "capabilitiesEmpty": "No permissions have been granted to you in this agency yet. Its administrator can grant them from team management.",
           "capabilitiesError": "Your permissions couldn’t be loaded. You can still review them from your workspace.",
           "firstLeadLabel": "Your first lead",
-          "noLead": "No pre-assigned lead yet.",
+          "noLead": "No lead assigned to you yet.",
           "stageLabel": "Stage: {stage}",
           "viewLead": "View profile →"
         }
       },
       "errors": {
-        "kycSubmitTitle": "Could not submit KYC",
+        "kycSubmitTitle": "Could not submit your documents",
         "completeTitle": "Could not finalise your onboarding"
       },
       "success": {
@@ -5846,6 +5856,8 @@
         "cleaning": "Cleaning",
         "pest_control": "Pest control",
         "locksmith": "Locksmith",
+        "masonry": "Masonry",
+        "climate_control": "Climate control",
         "other": "Other"
       },
       "cta": {
@@ -5910,6 +5922,8 @@
           "locksmith": "Locksmith",
           "painting": "Painting",
           "masonry": "Masonry",
+          "cleaning": "Cleaning",
+          "pest_control": "Pest control",
           "other": "Other"
         }
       },
@@ -5974,8 +5988,8 @@
             "zones": "Intervention zones",
             "zonesPlaceholder": "Dakar, Mbour…",
             "zonesHint": "Separate cities or districts with commas.",
-            "hourlyRate": "Hourly rate (XOF)",
-            "visitFee": "Visit fee (XOF)"
+            "hourlyRate": "Hourly rate (F CFA)",
+            "visitFee": "Visit fee (F CFA)"
           }
         },
         "availability": {
@@ -5999,7 +6013,7 @@
           },
           "maintenanceRequest": {
             "title": "An intervention is waiting",
-            "body": "An intervention request triggered your invitation. You'll see it as soon as the wizard ends."
+            "body": "An intervention request triggered your invitation. You’ll see it as soon as you finish this setup."
           }
         }
       },
@@ -6010,7 +6024,7 @@
     "multiAgency": {
       "welcomeAgency": "Welcome to {agency}",
       "welcomeGeneric": "A new agency awaits you",
-      "subtitle": "You now collaborate with {count, plural, one {# agency} other {# agencies}}. Your profile, KYC and trades are shared.",
+      "subtitle": "You now collaborate with {count, plural, one {# agency} other {# agencies}}. Your profile, documents and trades apply to each of them.",
       "status": {
         "active": "Active",
         "paused": "Paused",
@@ -6089,7 +6103,7 @@
               "body": "Best for publishing your own properties. Full control, no collaborators."
             },
             "professional": {
-              "title": "Professional (create a real agency)",
+              "title": "Professional (create an agency)",
               "body": "You manage several properties, teams or third-party owners: we set up a dedicated agency."
             }
           },
@@ -6125,6 +6139,12 @@
               "sendFailed": "Could not send the code",
               "verifyFailed": "Invalid code"
             }
+          },
+          "currencies": {
+            "XOF": "CFA franc (West Africa)",
+            "XAF": "CFA franc (Central Africa)",
+            "EUR": "Euro",
+            "USD": "US dollar"
           }
         },
         "firstProperty": {
@@ -6439,11 +6459,10 @@
         "toApprove": "To approve"
       },
       "kpis": {
-        "collections30d": "Collections (30 d)",
         "overdue": "Outstanding overdue",
         "pendingPayouts": "Pending payouts",
         "invoicesToIssue": "Invoices to issue",
-        "overdueHint": "{count, plural, one {# lease affected} other {# leases affected}}"
+        "collectedIn": "Collected in {mois}"
       },
       "aging": {
         "groupByLabel": "Group overdue amounts",
@@ -6471,6 +6490,156 @@
         "captionLandlord": "Overdue amounts by landlord and age bracket",
         "emptyTitle": "Nothing overdue",
         "emptyDescription": "No past-due rent instalment is awaiting payment."
+      },
+      "argent": {
+        "actions": {
+          "exporter": "Export",
+          "exporterAria": "Export rent due in {mois} (CSV)",
+          "exporterAriaBornes": "Export rent due {bornes, select, du {from {du}} au {until {au}} other {from {du} to {au}}} (CSV)"
+        },
+        "auJour": "As of {date}",
+        "filLabel": "Breadcrumb",
+        "syntheseRefusee": "The monthly summary isn’t available to your profile.",
+        "payeurInconnu": "Unknown payer",
+        "aFaire": {
+          "titre": "To do",
+          "impayes": "{count, plural, one {# overdue payment to chase} other {# overdue payments to chase}}",
+          "impayesDetail": "{montant} · {jamais, plural, =0 {all already reminded} one {# never reminded} other {# never reminded}}",
+          "reversements": "{count, plural, one {# payout to approve} other {# payouts to approve}}",
+          "reversementsDetail": "{montant} · {bailleurs, plural, one {# landlord} other {# landlords}}",
+          "factures": "{count, plural, one {# invoice to issue} other {# invoices to issue}}",
+          "facturesDetail": "{montant} in fees",
+          "plusAnciens": "To do · oldest overdue payments",
+          "aApprouverTitre": "To do · payouts to approve",
+          "voirLes": "{count, plural, =0 {View} one {View} other {View all #}}",
+          "relanceLe": "reminded on {date}",
+          "jamaisRelance": "never reminded",
+          "reversementSansReference": "Payout without reference",
+          "preparePar": "prepared by {nom}",
+          "examiner": "Review",
+          "joursDeRetardCourt": "{count} d late"
+        },
+        "tuiles": {
+          "encaisse": "Collected",
+          "impayes": "Overdue",
+          "bauxEnRetard": "{count, plural, one {# lease overdue} other {# leases overdue}}",
+          "paiements": "{count, plural, one {# payment} other {# payments}}",
+          "variation": "{variation} vs {mois}",
+          "bauxEtAnciens": "{baux, plural, one {# lease} other {# leases}} · {anciens, plural, =0 {none over 30 days} other {# over 30 days}}",
+          "reversementsDetail": "{count, plural, =0 {None pending} one {# payout} other {# payouts}}{aApprouver, plural, =0 {} other { · # to approve}}",
+          "facturesDetail": "{montant} in fees"
+        },
+        "derniers": {
+          "titre": "Latest payments",
+          "tout": "All",
+          "toutVoir": "View all",
+          "vide": "No payments this month."
+        },
+        "registres": {
+          "titre": "Everything",
+          "encaissements": "Payments",
+          "factures": "Invoices",
+          "reversements": "Payouts",
+          "aApprouver": "To approve",
+          "impayes": "Overdue",
+          "impayesDetail": "By tenant, by age",
+          "rapprochement": "Bank reconciliation",
+          "exporter": "Export rent due",
+          "exporterDetail": "Instalments due in the month shown, as CSV"
+        },
+        "creer": {
+          "titre": "Create",
+          "reversement": "Create a payout",
+          "facture": "Generate an invoice",
+          "factureDetail": "{count, plural, one {# draft} other {# drafts}} · {montant}"
+        },
+        "jour": {
+          "aujourdhui": "Today",
+          "hier": "Yesterday",
+          "aujourdhuiMinuscule": "today",
+          "hierMinuscule": "yesterday"
+        },
+        "periode": {
+          "rentDu": "{mois} rent",
+          "chargesDu": "{mois} charges",
+          "penaltyDu": "{mois} late fee",
+          "rent": "Rent",
+          "charges": "Charges",
+          "penalty": "Late fee",
+          "deposit": "Deposit",
+          "deposit_refund": "Deposit refund",
+          "regularization": "Adjustment",
+          "autre": "Payment",
+          "reservation": {
+            "deposit": "Booking · deposit",
+            "advance": "Booking · advance",
+            "fee": "Booking · fee",
+            "autre": "Booking"
+          },
+          "rentDuCourt": "{mois} rent",
+          "chargesDuCourt": "{mois} charges",
+          "penaltyDuCourt": "{mois} late fee"
+        },
+        "encaissements": {
+          "recherche": "Search a tenant, a property, a reference",
+          "rechercheCourte": "Tenant, property, reference",
+          "filtres": "Filters",
+          "moyen": "Method",
+          "tous": "All",
+          "tousLesMoyens": "All methods",
+          "tousLesStatuts": "All statuses",
+          "payeur": "Payer",
+          "bien": "Property",
+          "bailleur": "Landlord",
+          "statut": "Status",
+          "dates": "Dates",
+          "du": "From",
+          "au": "To",
+          "chercherPayeur": "Search a payer",
+          "chercherBien": "Search a property",
+          "chercherBailleur": "Search a landlord",
+          "compteDuMois": "{count, plural, one {# payment} other {# payments}} in {mois}",
+          "resume": "{mois} · {count, plural, one {# payment} other {# payments}} · <fort>{montant}</fort> collected",
+          "toutesDates": "All dates",
+          "totaux": {
+            "total": "Total",
+            "lignes": "{count, plural, one {# line} other {# lines}}",
+            "paye": "Paid",
+            "paiements": "{count, plural, one {# payment} other {# payments}}",
+            "restant": "Outstanding",
+            "aEncaisser": "to collect",
+            "echoue": "Failed",
+            "aReprendre": "{count, plural, =0 {nothing to retry} one {# payment to retry} other {# payments to retry}}"
+          },
+          "colonnes": {
+            "payeur": "Payer",
+            "bien": "Property",
+            "periode": "Period",
+            "montant": "Amount",
+            "moyen": "Method",
+            "date": "Date",
+            "statut": "Status",
+            "reference": "Reference"
+          },
+          "legende": "Agency payments",
+          "pied": "{debut}–{fin} of {total}",
+          "precedents": "Show earlier days",
+          "recents": "Back to recent days",
+          "reservation": "Booking",
+          "erreur": "Payments couldn’t be loaded.",
+          "videTitre": "No payments",
+          "videDetail": "No payment matches these filters.",
+          "sousTitre": "{count, plural, one {# payment} other {# payments}} in {mois} · each line says who paid, for which property and which period",
+          "sousTitreSansMois": "{count, plural, one {# payment} other {# payments}} · each line says who paid, for which property and which period"
+        },
+        "choix": {
+          "effacer": "Clear",
+          "aucun": "No results"
+        },
+        "mois": {
+          "toutes": "All dates",
+          "choisir": "Month: {mois}"
+        }
       }
     },
     "audit": {
@@ -6490,7 +6659,34 @@
         "agentProfile": "Agent profile",
         "agencyAdminProfile": "Admin profile",
         "ownerProfile": "Landlord profile",
-        "privacyRequest": "Rights request"
+        "privacyRequest": "Rights request",
+        "leasePayment": "Rent payment",
+        "bookingPayment": "Booking payment",
+        "leasePaymentLink": "Payment link",
+        "leasePaymentReminder": "Rent reminder",
+        "customerNote": "Customer note",
+        "invitation": "Invitation",
+        "task": "Task",
+        "commissionEntry": "Commission",
+        "maintenanceRequest": "Maintenance request",
+        "kycDossier": "Document file",
+        "agencySubscription": "Agency subscription",
+        "propertyVisit": "Visit",
+        "serviceProviderProfile": "Service provider profile",
+        "serviceProviderAgencyCollaboration": "Service provider collaboration",
+        "roleDelegation": "Role delegation",
+        "payout": "Payout",
+        "payoutMethod": "Payout method",
+        "bankStatement": "Bank statement",
+        "bankStatementLine": "Bank statement line",
+        "document": "Document",
+        "quote": "Quote",
+        "tag": "Tag",
+        "calendarFeed": "Shared calendar",
+        "agentAbsence": "Agent absence",
+        "dataExport": "Data export",
+        "reportExport": "Report export",
+        "alertSubscriber": "Alert subscriber"
       },
       "filters": {
         "anyAction": "All actions",
@@ -6537,9 +6733,140 @@
         "role_created": "Role created",
         "role_assigned": "Role assigned",
         "personal_data_viewed": "Personal data viewed",
-        "kyc_expired": "KYC document expired",
-        "data_exported": "Data exported"
-      }
+        "kyc_expired": "Supporting document expired",
+        "data_exported": "Data exported",
+        "booking_expired": "Booking expired",
+        "booking_completed": "Booking completed",
+        "paid": "Payment received",
+        "invitation_sent": "Invitation sent",
+        "invitation_resent": "Invitation resent",
+        "invitation_accepted": "Invitation accepted",
+        "invitation_revoked": "Invitation revoked",
+        "invitation_expired": "Invitation expired",
+        "agent_invited": "Agent invited",
+        "owner_invited": "Landlord invited",
+        "service_provider_invited": "Service provider invited",
+        "agent_onboarding_completed": "Agent sign-up completed",
+        "owner_onboarding_completed": "Landlord sign-up completed",
+        "sp_onboarding_completed": "Service provider sign-up completed",
+        "host_individual_onboarded": "Agency space opened",
+        "agent_phone_verified": "Agent phone verified",
+        "owner_phone_verified": "Landlord phone verified",
+        "sp_phone_verified": "Service provider phone verified",
+        "kyc_submitted": "Supporting documents submitted",
+        "agent_kyc_submitted": "Agent documents submitted",
+        "owner_kyc_submitted": "Landlord documents submitted",
+        "sp_kyc_submitted": "Service provider documents submitted",
+        "kyc_verified": "Supporting documents verified",
+        "kyc_rejected": "Supporting documents rejected",
+        "sp_collaboration_added": "Service provider added to the agency",
+        "owner_designated": "Landlord designated",
+        "owner_works_threshold_updated": "Landlord works threshold changed",
+        "property_approved": "Property approved",
+        "property_rejected": "Property rejected",
+        "property_resubmitted": "Property resubmitted",
+        "property_duplicated": "Property duplicated",
+        "property_archived_bulk": "Properties archived in bulk",
+        "property_visibility_bulk": "Property visibility changed in bulk",
+        "property_report_resolved": "Property report resolved",
+        "property_unpublished_on_account_erasure": "Property unpublished on account deletion",
+        "lease_created": "Lease created",
+        "lease_renewed": "Lease renewed",
+        "lease_expired": "Lease expired",
+        "lease_rent_reviewed": "Rent reviewed",
+        "lease_renewal_schedule_cancelled": "Scheduled renewal cancelled",
+        "lease_termination_schedule_cancelled": "Scheduled termination cancelled",
+        "lease_early_termination_requested": "Early termination requested",
+        "lease_early_termination_confirmed": "Early termination confirmed",
+        "lease_early_termination_cancelled": "Early termination cancelled",
+        "lease_payment_link_issued": "Payment link issued",
+        "lease_payment_link_revoked": "Payment link revoked",
+        "late_fee_applied": "Late fee applied",
+        "late_fee_paid": "Late fee paid",
+        "deposit_refunded": "Deposit refunded",
+        "deposit_refund_reversed": "Deposit refund reversed",
+        "open_checkout_overridden": "Online payment allowed despite the rule",
+        "invoice_reminder_sent": "Invoice reminder sent",
+        "tenant_welcomed": "Welcome message sent to the tenant",
+        "tenant_checklist_created": "Tenant checklist created",
+        "tenant_checklist_completed": "Tenant checklist completed",
+        "tenant_checklist_item_completed": "Tenant checklist step completed",
+        "tenant_checklist_item_reopened": "Tenant checklist step reopened",
+        "maintenance_started": "Work started",
+        "maintenance_declined": "Work declined",
+        "maintenance_contested": "Work contested",
+        "maintenance_cancelled_property_deleted": "Work cancelled (property deleted)",
+        "quote_requested": "Quote requested",
+        "quote_submitted": "Quote submitted",
+        "quote_awaiting_owner": "Quote awaiting the landlord",
+        "quote_approved": "Quote approved",
+        "quote_rejected": "Quote rejected",
+        "document_version_uploaded": "Document version uploaded",
+        "document_version_restored": "Document version restored",
+        "document_version_purged": "Document version purged",
+        "document_verification_reset": "Document verification reset",
+        "tag_attached": "Tag added",
+        "tag_detached": "Tag removed",
+        "absence_declared": "Absence declared",
+        "activated": "Activated",
+        "revoked": "Revoked",
+        "expired": "Expired",
+        "issued": "Issued",
+        "matched": "Matched",
+        "unmatched": "Unmatched",
+        "ignored": "Line ignored",
+        "finalized": "Reconciliation finalized",
+        "webhook_token_rotated": "Notification address regenerated",
+        "two_factor_disabled": "Two-step verification disabled",
+        "agency_upgrade_requested": "Professional agency upgrade requested",
+        "agency_upgrade_approved": "Professional agency upgrade approved",
+        "agency_upgrade_rejected": "Professional agency upgrade rejected",
+        "agency_upgrade_revoked": "Professional agency upgrade request withdrawn",
+        "agency_kind_flipped": "Agency type changed",
+        "agency_payout_threshold_changed": "Payout threshold changed",
+        "agency_payout_threshold_relax_requested": "Payout threshold relaxation requested",
+        "agency_payout_threshold_relax_expired": "Payout threshold relaxation expired",
+        "agency_admin_erased": "Administrator account deleted",
+        "account_deletion_requested": "Account deletion requested",
+        "account_deletion_executed": "Account deleted",
+        "account_deletion_cancelled": "Account deletion cancelled",
+        "user_data_export_requested": "Personal data export requested",
+        "data_export_downloaded": "Data export downloaded",
+        "audit_exported": "Audit log exported",
+        "privacy_register_exported": "Rights request register exported",
+        "super_admin_subscription_assigned": "Subscription assigned by Takussan",
+        "super_admin_subscription_cancelled": "Subscription cancelled by Takussan",
+        "super_admin_subscription_overrides_updated": "Subscription terms adjusted by Takussan",
+        "contacted": "Customer contacted",
+        "responsible_agent_changed": "Responsible agent changed",
+        "owner_transferred": "Property transferred to another landlord",
+        "property_owner_restored": "Property landlord restored",
+        "property_primary_agent_designated": "Primary agent designated",
+        "triggered": "Threshold alert triggered",
+        "agency_admin_removed": "Administrator removed",
+        "team_member_suspended": "Member suspended",
+        "team_member_reactivated": "Member reactivated",
+        "sp_collaboration_ended": "Service provider collaboration ended",
+        "sp_collaboration_paused": "Service provider collaboration paused",
+        "sp_collaboration_resumed": "Service provider collaboration resumed",
+        "tasks": "Tasks handed over to another agent",
+        "visits": "Visits handed over to another agent",
+        "maintenance": "Maintenance handed over to another agent",
+        "responsible_properties": "Followed properties handed over to another agent",
+        "held_properties": "Held properties handed over to another agent",
+        "collaborations": "Collaborations handed over to another agent",
+        "customers": "Customers handed over to another agent",
+        "contact_leads": "Contact requests handed over to another agent",
+        "invitations_expired_purged": "Expired invitations deleted",
+        "owner_tax_id_set": "Landlord's tax ID entered",
+        "absence_updated": "Absence updated",
+        "suggested_stage_dismissed": "Suggested stage dismissed",
+        "agency_upgrade_subscription_assigned": "Pro subscription assigned on professional agency upgrade",
+        "review_moderated": "Review published (batch)"
+      },
+      "subjectWithId": "{label} #{id}",
+      "otherAction": "Other action",
+      "otherSubject": "Other item"
     },
     "businessEnums": {
       "property_type": {
@@ -6611,9 +6938,10 @@
         "platform_reserved": "Platform-reserved",
         "platform_reserved_hint": "This capability belongs to the Takussan team and cannot be granted to an agency role.",
         "not_enforced": "No effect yet",
-        "not_enforced_hint": "No action in the app checks this capability yet. Ticking it prepares the role; it takes effect once the action is wired.",
         "toggle_domain": "Show or hide the {domain} domain",
-        "domain_selected": "{count}/{total}"
+        "domain_selected": "{count}/{total}",
+        "not_enforced_reason": "No action in the app checks this capability yet: it has no effect for now.",
+        "unknown_capability": "Other capability"
       },
       "create": {
         "title": "Create a role",
@@ -6671,12 +6999,13 @@
         "messaging": "Messaging",
         "reports": "Reports",
         "roles": "Roles",
-        "boost": "Promotion"
+        "boost": "Promotion",
+        "owners": "Landlords"
       },
       "capabilities": {
         "agency": {
           "update": "Edit the agency profile",
-          "update_kyc": "Manage the KYC file",
+          "update_kyc": "Manage the agency’s documents",
           "update_billing": "Manage subscription and billing",
           "upgrade_request": "Request a plan upgrade"
         },
@@ -6696,7 +7025,7 @@
           "moderate": "Moderate properties"
         },
         "bookings": {
-          "validate": "Approve a booking",
+          "validate": "Approve or decline a booking",
           "cancel": "Cancel a booking",
           "refund": "Refund a booking"
         },
@@ -6749,6 +7078,9 @@
         },
         "boost": {
           "spend": "Spend credits to promote a listing"
+        },
+        "owners": {
+          "update": "Edit a landlord's settings (works threshold)"
         }
       },
       "role_delegations": {
@@ -6834,7 +7166,7 @@
       },
       "finances": {
         "noAgency": "Finances",
-        "title": "Finances",
+        "title": "Money",
         "subtitle": "Collections, invoices and payouts — the agency's commercial view.",
         "reconciliationLink": "Bank reconciliation"
       },
@@ -6859,7 +7191,7 @@
       },
       "integrations": {
         "title": "Integrations",
-        "subtitle": "External providers (payment, SMS, email) and their webhooks. Secrets are never shown again once saved.",
+        "subtitle": "Your payment, SMS and email services, and their notification addresses. Secrets are never shown again once saved.",
         "loadError": "The integrations could not be loaded: {message}"
       }
     },
@@ -7878,7 +8210,9 @@
         "locked": "The feedback window is closed for this visit.",
         "title": "Post-visit feedback",
         "window": "You have {hours}h after the visit to leave your feedback.",
-        "restricted": "Only the visitor and the agent can leave feedback on this visit."
+        "avisClient": "Client's review",
+        "avisAgent": "Agent's feedback",
+        "note": "{note} / 5"
       },
       "forbidden": "This visit belongs to another agency: you don't have access to it.",
       "dialogs": {
@@ -10910,7 +11244,8 @@
         "limits": "Technical limits",
         "boost": "Credits and promotion",
         "rentals": "Rentals",
-        "radar": "Radar"
+        "radar": "Radar",
+        "crm": "Customer relations"
       },
       "keys": {
         "currency": {
@@ -10987,6 +11322,12 @@
           "mandate_agency_id": {
             "label": "Radar mandate space",
             "description": "ID of the Takussan space where properties published under mandate are created. 0: none. The “radar_mandate” flag must also be on."
+          }
+        },
+        "crm": {
+          "follow_up_days": {
+            "label": "Follow-up without contact",
+            "description": "In days, from 1 to 90. A customer from lead to negotiation is due for follow-up once their last contact is at least this many days old. An agency with its own setting keeps it."
           }
         }
       },
@@ -11473,15 +11814,15 @@
         "isActive": "Integration enabled",
         "clientId": "Client ID",
         "clientSecret": "Client secret",
-        "senderAddress": "Sender address (Orange SN SIM)",
-        "senderName": "Sender name (≤ 11, Orange whitelist)",
+        "senderAddress": "Sender number (Orange Senegal SIM)",
+        "senderName": "Sender name (11 characters, approved by Orange)",
         "username": "Username",
         "password": "Password",
-        "senderIdMtarget": "Sender ID (≤ 11, alphanumeric)",
+        "senderIdMtarget": "Sender name (11 characters, letters and digits)",
         "serviceId": "Service ID (optional)",
         "accountId": "Account ID",
-        "senderIdLam": "Sender ID (≤ 11, must not start with a digit)",
-        "hostLam": "LAMPUSH host (optional — overrides the default)",
+        "senderIdLam": "Sender name (11 characters, not starting with a digit)",
+        "hostLam": "LAfricaMobile server address (optional, replaces the default one)",
         "webhookPlaceholder": "https://example.sn/webhook"
       },
       "confirmDelete": "Delete the “{provider}” integration? This action cannot be undone.",
@@ -11514,7 +11855,8 @@
         "variant_id": "Variant ID",
         "signing_secret": "Signing secret",
         "secret_key": "Secret key"
-      }
+      },
+      "delete": "Delete"
     }
   },
   "adminTags": {
@@ -12290,13 +12632,13 @@
       "cancelFailed": "Could not cancel the deletion request."
     },
     "agentOnboarding": {
-      "kycFailed": "Could not submit your KYC file.",
+      "kycFailed": "Could not submit your documents.",
       "specializationFailed": "Could not save your specialization.",
       "firstLeadFailed": "Could not load your first lead.",
       "completeFailed": "Could not complete your onboarding."
     },
     "ownerOnboarding": {
-      "kycFailed": "Could not submit your KYC file.",
+      "kycFailed": "Could not submit your documents.",
       "completeFailed": "Could not complete your onboarding.",
       "propertiesFailed": "Could not load your properties."
     },
@@ -12349,7 +12691,7 @@
     },
     "superAdminCooptation": {
       "enrollFailed": "Could not set up super-admin two-factor authentication.",
-      "invalidTotp": "Invalid TOTP code."
+      "invalidTotp": "Invalid code: enter the one shown in your authenticator app."
     }
   },
   "validation": {
@@ -12519,10 +12861,10 @@
       "webhookUrlInvalid": "Invalid URL. Example: https://exemple.sn/webhook",
       "notesTooLong": "Note too long.",
       "smsSenderAddress": "Expected format: tel:+221XXXXXXXXX (Orange SN number).",
-      "smsSenderNameOrange": "Sender name ≤ 11 alphanumeric characters (Orange whitelist).",
-      "smsSenderId": "Sender ID ≤ 11 alphanumeric characters.",
-      "smsHostInvalid": "Invalid host. Example: https://lampush-tls.lafricamobile.com",
-      "lamSenderIdDigit": "LAfricaMobile: the sender ID must not start with a digit."
+      "smsSenderNameOrange": "Sender name: 11 characters at most, letters and digits (name approved by Orange).",
+      "smsSenderId": "Sender name: 11 characters at most, letters and digits.",
+      "smsHostInvalid": "Invalid server address. Example: https://lampush-tls.lafricamobile.com",
+      "lamSenderIdDigit": "LAfricaMobile: the sender name must not start with a digit."
     },
     "tag": {
       "nameRequired": "The label is required.",
@@ -12566,6 +12908,10 @@
     "phoneInput": {
       "hintNational": "The {indicatif} country code is already added: type the rest. Abroad? Start with +.",
       "hintInternational": "Full international number, country code included."
+    },
+    "filterChips": {
+      "rowLabel": "Filters",
+      "add": "Add a filter"
     }
   },
   "reporting": {
@@ -13235,6 +13581,10 @@
         "requested_undated": {
           "title": "New request",
           "body": "Request {reference} was made for {property}."
+        },
+        "recorded_on_behalf": {
+          "title": "Request recorded on your behalf",
+          "body": "The agency recorded request {reference} on your behalf for {property}. You can cancel it from your bookings."
         }
       },
       "account": {
@@ -13259,6 +13609,10 @@
         "reminder": {
           "title": "Reminder: invitation from {agency}",
           "body": "Your invitation to join {agency} is waiting."
+        },
+        "renewal_requested": {
+          "title": "New link requested: {invitee}",
+          "body": "{invitee} is asking for a new link: their invitation as {role} has expired. Resend it: {url}"
         }
       },
       "visit": {
@@ -13481,6 +13835,14 @@
         "schedule_changed": {
           "title": "Visit planned: \"{request}\"",
           "body": "The visit for the maintenance request \"{request}\" is planned on {scheduled_at}."
+        },
+        "urgent_created": {
+          "title": "Urgent: {title}",
+          "body": "The urgent maintenance request “{title}” is waiting for you to handle it."
+        },
+        "urgent_escalated": {
+          "title": "Urgent escalation: {title}",
+          "body": "The urgent maintenance request “{title}” still hasn’t been handled."
         }
       },
       "maintenance_quote": {
@@ -13543,6 +13905,10 @@
         "source_listing_gone": {
           "title": "Is your property still available? {property}",
           "body": "The original listing for “{property}” is no longer online. Open the property to tell us whether it is rented, sold or still available."
+        },
+        "proposed": {
+          "title": "Property proposed by a landlord: {property}",
+          "body": "A landlord is proposing “{property}” to your agency. Open it to review it."
         }
       },
       "lease": {
@@ -13557,6 +13923,10 @@
         "signature_completed": {
           "title": "Lease {reference} signed",
           "body": "Both parties signed lease {reference} for {property}. It is now active."
+        },
+        "rent_reviewed_landlord": {
+          "title": "Rent reviewed: {reference}",
+          "body": "The rent of lease {reference} for {property} changes from {old} to {new} from {effective_date}."
         }
       },
       "impersonation": {
@@ -13577,6 +13947,10 @@
         "member_deletion_requested": {
           "title": "Account deletion requested: {member}",
           "body": "{member} has requested the deletion of their account, effective {scheduled_for}. Their portfolio in the agency: {tasks, plural, one {# task} other {# tasks}}, {visits, plural, one {# visit} other {# visits}}, {maintenance, plural, one {# maintenance request} other {# maintenance requests}}, {responsible_properties, plural, one {# property as lead agent} other {# properties as lead agent}}, {held_properties, plural, one {# property entered} other {# properties entered}}, {collaborations, plural, one {# collaboration} other {# collaborations}}, {customers, plural, one {# client followed} other {# clients followed}}, {contact_leads, plural, one {# unhandled contact request} other {# unhandled contact requests}}. Hand it over to a colleague before that date from the team page: {url}"
+        },
+        "upgrade_requested": {
+          "title": "New agency upgrade request: {agency}",
+          "body": "The agency {agency} is asking to upgrade to professional. Review the request."
         }
       },
       "platform_operator": {
@@ -13661,6 +14035,18 @@
         "report_dismissed": {
           "title": "Report reviewed: {property}",
           "body": "We reviewed your report of the listing “{property}” and did not uphold it."
+        }
+      },
+      "commission": {
+        "paid": {
+          "title": "{count, plural, one {Commission paid} other {# commissions paid}}",
+          "body": "{count, plural, one {Your commission of {amount} has been paid.} other {# of your commissions have been paid, totalling {amount}.}}"
+        }
+      },
+      "boost": {
+        "ended": {
+          "title": "Promotion ended",
+          "body": "The promotion of “{property}” has ended."
         }
       }
     },
@@ -13847,7 +14233,7 @@
   },
   "invitationAccept": {
     "metaTitle": "Accept an invitation",
-    "title": "You are invited to Takussan",
+    "title": "An agency has invited you to Takussan",
     "subtitleSignedIn": "Accept to join the space that invited you.",
     "subtitleSignedOut": "Create your account to join the space that invited you.",
     "accept": "Accept the invitation",
@@ -14186,5 +14572,192 @@
       "hebdoFaitTitre": "Once a week it is",
       "hebdoFaitTexte": "You will receive at most one message a week. Each one still has its unsubscribe link."
     }
+  },
+  "saisieDemande": {
+    "titre": "Record a request",
+    "entree": "Record an application or an offer",
+    "entreeCourte": "Record a request",
+    "entreeCandidature": "Record their application",
+    "entreeOffre": "Record their offer",
+    "client": {
+      "libelle": "Client",
+      "changer": "Change",
+      "changerLibelle": "Change client",
+      "rechercher": "Search for a client",
+      "placeholder": "Name or phone",
+      "aucun": "No client matches.",
+      "depuisLaVisite": "Taken from their viewing"
+    },
+    "bien": {
+      "libelle": "Property",
+      "changerLibelle": "Change property",
+      "rechercher": "Search for a property",
+      "placeholder": "Title or neighbourhood",
+      "aucun": "No property matches.",
+      "aLouer": "For rent",
+      "aVendre": "For sale",
+      "chargement": "Loading the property…",
+      "parMois": "{prix}/month",
+      "parAn": "{prix}/year"
+    },
+    "recherche": {
+      "enCours": "Searching…",
+      "erreur": "The search failed. Try again."
+    },
+    "nature": {
+      "libelle": "Type",
+      "candidature": "Application",
+      "offre": "Purchase offer",
+      "raisonLocation": "This property is for rent: the request is an application.",
+      "raisonVente": "This property is for sale: the request is a purchase offer.",
+      "raisonSejour": "This property is rented by the night: a stay is booked from its calendar, not here.",
+      "choisirLeBien": "Choose the property first: it decides the type."
+    },
+    "montant": {
+      "loyer": "Proposed rent",
+      "offre": "Amount offered",
+      "uniteMois": "F/month",
+      "uniteAn": "F/year",
+      "unite": "F",
+      "ecart": "{ecart} against the listed price ({prix})",
+      "prixAffiche": "Listed price: {prix}"
+    },
+    "dateEntree": "Move-in date",
+    "validite": "Valid until",
+    "facultatif": "Optional",
+    "message": "Message",
+    "messagePlaceholder": "What the client told you",
+    "prevenu": "The client will be notified and can cancel.",
+    "enregistrerCandidature": "Save the application",
+    "enregistrerOffre": "Save the offer",
+    "enregistrer": "Save",
+    "enregistrement": "Saving…",
+    "succes": {
+      "candidature": "Application saved",
+      "offre": "Offer saved",
+      "description": "The client has been notified."
+    },
+    "erreur": "The request could not be saved. Try again.",
+    "requis": {
+      "client": "Choose the client.",
+      "bien": "Choose the property.",
+      "montant": "Enter the amount.",
+      "dateEntree": "Enter the move-in date."
+    },
+    "codes": {
+      "booking": {
+        "customer_required": "Choose the client: a request recorded by the agency is always in their name.",
+        "kind_mismatch": "This type does not match the property: an application is for a rental, an offer for a property for sale."
+      }
+    }
+  },
+  "compteRendu": {
+    "titre": "Visit report",
+    "sousTitre": "Visit at {debut} · ended at {fin}",
+    "sousTitreSansFin": "Visit at {debut}",
+    "duree": "30 s",
+    "dureeLongue": "30 seconds",
+    "avec": "with {nom}",
+    "rang": "{n, selectordinal, one {#st visit} two {#nd visit} few {#rd visit} other {#th visit}}",
+    "question": "How did the visit go?",
+    "verdicts": {
+      "interested": "Interested",
+      "thinking": "Thinking it over",
+      "not_interested": "Not interested"
+    },
+    "verdictRequis": "Choose how the visit went.",
+    "objectionsLibelle": "What weighed in",
+    "facultatif": "optional",
+    "objections": {
+      "price": "Price",
+      "neighborhood": "Neighbourhood",
+      "size": "Size",
+      "condition": "Condition",
+      "availability": "Availability",
+      "guarantor": "Guarantor"
+    },
+    "note": "A note",
+    "notePlaceholder": "What the client said, what to remember…",
+    "interne": "Internal to the agency. The report goes to {prenom}'s record; they never see it, and keep their own review (1 to 5).",
+    "interneSansFiche": "Internal to the agency. The visitor never sees the report, and keeps their own review (1 to 5).",
+    "interneCourt": "Internal to the agency",
+    "enregistrer": "Save",
+    "enregistrement": "Saving…",
+    "succes": "Visit report saved",
+    "faire": "Write the visit report",
+    "faireDetail": "Three taps, then the next step with the client",
+    "codes": {
+      "visit": {
+        "report_exists": "A report already exists for this visit. Reopen it to edit.",
+        "report_not_closable": "This visit can't take a report yet: it hasn't taken place.",
+        "report_missing": "There is no report to edit for this visit."
+      }
+    }
+  },
+  "etMaintenant": {
+    "titre": "What's next?",
+    "sousTitre": "Next steps with {prenom}",
+    "passer": "Skip",
+    "apresEnregistrement": "after saving",
+    "visiteur": "the visitor",
+    "conseille": "Suggested",
+    "sansTelephone": "No reachable number to invite them",
+    "horsLigne": "This property isn’t online: the link wouldn’t open",
+    "ficheRequise": "Create their record first",
+    "envoyerWhatsApp": "Send on WhatsApp",
+    "message": {
+      "candidature": "Hello {prenom}, here is the link to apply for {bien}: {lien}",
+      "offre": "Hello {prenom}, here is the link to make your offer on {bien}: {lien}"
+    },
+    "suites": {
+      "invite_apply": {
+        "titre": "Invite to apply",
+        "detail": "They apply from their phone"
+      },
+      "invite_offer": {
+        "titre": "Invite to make an offer",
+        "detail": "They make their offer from their phone"
+      },
+      "record_booking": {
+        "titreCandidature": "Record their application now",
+        "titreOffre": "Record their offer now",
+        "detailCandidature": "They're with you: rent, move-in date",
+        "detailOffre": "They're with you: offer amount"
+      },
+      "second_visit": {
+        "titre": "Schedule a second visit",
+        "detail": "Property and client already filled in"
+      },
+      "propose_properties": {
+        "titre": "Suggest other properties",
+        "detail": "{n, plural, =0 {No property matches their search} one {# property matches their search} other {# properties match their search}}",
+        "chargement": "Properties that match their search"
+      },
+      "remind": {
+        "titre": "Follow up in {jours, plural, one {# day} other {# days}}",
+        "detail": "Task {date} · adjustable",
+        "prevue": "Follow-up set for {date}",
+        "delai": "In how many days",
+        "jours": "{jours, plural, one {# day} other {# days}}",
+        "creer": "Create the follow-up",
+        "tacheTitre": "Follow up with {nom} after the visit",
+        "tacheDescription": "Visit of {bien}"
+      },
+      "create_lease": {
+        "titre": "Create the lease",
+        "actif": "Their application is accepted",
+        "inactif": "Once an application is accepted"
+      }
+    },
+    "enregistre": "Saved at {heure}",
+    "enregistreFiche": "Saved to the record at {heure}",
+    "modifier": "Edit",
+    "qualifier": "Move to “Qualified”",
+    "aujourdhui": "{etape} → Qualified",
+    "etapeAppliquee": "{prenom} moves to “Qualified”",
+    "terminer": "Done",
+    "fil": "Each choice is written to the record's timeline.",
+    "sansFiche": "{nom} has no client record yet.",
+    "creerFiche": "Create their record"
   }
 }

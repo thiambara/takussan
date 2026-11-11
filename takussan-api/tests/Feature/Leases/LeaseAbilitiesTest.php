@@ -7,6 +7,7 @@ use App\Models\AgencyRole;
 use App\Models\Customer;
 use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\Capability;
+use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Lease;
 use App\Models\Profiles\AgentProfile;
@@ -16,6 +17,7 @@ use App\Models\User;
 use App\Services\Membership\AgencyRoleService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\ApiTestCase;
+use Tests\Concerns\CreatesAgencyMembers;
 
 /**
  * P152.02 — le détail d'un bail dit, par `abilities`, ce que le lecteur peut y faire parmi les quatre
@@ -24,6 +26,7 @@ use Tests\ApiTestCase;
  */
 class LeaseAbilitiesTest extends ApiTestCase
 {
+    use CreatesAgencyMembers;
     use RefreshDatabase;
 
     /** @param  list<Capability>  $capabilities */
@@ -66,6 +69,11 @@ class LeaseAbilitiesTest extends ApiTestCase
             'refund_deposit' => false,
             'request_early_termination' => false,
             'update' => true,
+            // TCK-2642 — joindre une pièce et le contrat suivent l'envoi de document et la lecture.
+            'add_document' => true,
+            'download_contract' => true,
+            'leave_review' => false,
+            'give_notice' => false,
         ], $this->abilitiesOfAgent([Capability::CrmViewAll]));
     }
 
@@ -78,6 +86,11 @@ class LeaseAbilitiesTest extends ApiTestCase
             'refund_deposit' => false,
             'request_early_termination' => false,
             'update' => true,
+            // TCK-2642 — joindre une pièce et le contrat suivent l'envoi de document et la lecture.
+            'add_document' => true,
+            'download_contract' => true,
+            'leave_review' => false,
+            'give_notice' => false,
         ], $this->abilitiesOfAgent([Capability::LeasesRenew, Capability::PaymentsRecord]));
     }
 
@@ -97,6 +110,11 @@ class LeaseAbilitiesTest extends ApiTestCase
                 'refund_deposit' => true,
                 'request_early_termination' => true,
                 'update' => true,
+                // TCK-2642 — les gestes que la fiche ouvrait encore par le rôle.
+                'add_document' => true,
+                'download_contract' => true,
+                'leave_review' => false,
+                'give_notice' => false,
             ]);
     }
 
@@ -140,5 +158,83 @@ class LeaseAbilitiesTest extends ApiTestCase
             ->assertOk()
             ->assertJsonPath('data.abilities.request_early_termination', true)
             ->assertJsonPath('data.abilities.update', false);
+    }
+
+    /**
+     * TCK-2642, AC6 — le contrat se télécharge par toute partie qui lit le bail : la fiche le refusait
+     * à la gestion, l'API l'autorisait déjà (`view`). La clé et l'endpoint disent la même chose.
+     */
+    public function test_le_bailleur_telecharge_le_contrat(): void
+    {
+        $landlord = User::factory()->create();
+        $lease = Lease::factory()->active()->create(['landlord_id' => $landlord->id]);
+
+        $this->actingAs($landlord, 'sanctum');
+
+        $this->apiGet("/api/leases/{$lease->id}")->assertOk()->assertJsonPath('data.abilities.download_contract', true);
+        $this->apiGet("/api/leases/{$lease->id}/contract/pdf")->assertOk();
+    }
+
+    public function test_l_admin_d_agence_telecharge_le_contrat_et_ne_donne_ni_conge_ni_avis(): void
+    {
+        $agency = Agency::factory()->create();
+        $lease = Lease::factory()->active()->create(['agency_id' => $agency->id]);
+        $admin = $this->agencyAdmin($agency);
+
+        $this->actingAs($admin, 'sanctum');
+
+        $abilities = $this->apiGet("/api/leases/{$lease->id}")->assertOk()->json('data.abilities');
+        $this->assertTrue($abilities['download_contract']);
+        $this->assertTrue($abilities['add_document']);
+        $this->assertFalse($abilities['give_notice'], 'le congé est un geste du locataire');
+        $this->assertFalse($abilities['leave_review'], 'l\'avis est un geste du locataire');
+    }
+
+    /** TCK-2642 — congé et avis sont des gestes de PARTIE : le super-admin, que `Gate::before` laisse tout faire, ne les reçoit pas. */
+    public function test_le_super_admin_ne_donne_ni_conge_ni_avis(): void
+    {
+        $lease = Lease::factory()->active()->create();
+        $operator = User::factory()->create();
+        $this->materializeRoleProfile($operator, 'super_admin');
+        $this->actingAs($operator, 'sanctum');
+
+        $abilities = $this->apiGet("/api/leases/{$lease->id}")->assertOk()->json('data.abilities');
+        $this->assertTrue($abilities['download_contract']);
+        $this->assertFalse($abilities['give_notice']);
+        $this->assertFalse($abilities['leave_review']);
+    }
+
+    /** TCK-2642 — le locataire donne congé, joint un document, télécharge son contrat ; l'avis suit le statut que juge le dépôt. */
+    public function test_les_gestes_du_locataire(): void
+    {
+        $tenantUser = User::factory()->create();
+        $tenant = Customer::factory()->create(['user_id' => $tenantUser->id]);
+        $active = Lease::factory()->active()->create(['tenant_id' => $tenant->id]);
+        $draft = Lease::factory()->create(['tenant_id' => $tenant->id, 'status' => LeaseStatus::Draft]);
+
+        $this->actingAs($tenantUser, 'sanctum');
+
+        $this->apiGet("/api/leases/{$active->id}")->assertOk()
+            ->assertJsonPath('data.abilities.give_notice', true)
+            ->assertJsonPath('data.abilities.leave_review', true)
+            ->assertJsonPath('data.abilities.download_contract', true)
+            ->assertJsonPath('data.abilities.add_document', true);
+        $this->apiGet("/api/leases/{$draft->id}")->assertOk()
+            ->assertJsonPath('data.abilities.leave_review', false);
+    }
+
+    /** TCK-2642 — le bien déjà noté (avis retiré compris) : le dépôt refuserait, la clé le dit. */
+    public function test_le_locataire_qui_a_deja_note_le_bien_ne_se_voit_plus_offrir_l_avis(): void
+    {
+        $tenantUser = User::factory()->create();
+        $lease = Lease::factory()->active()->create(['tenant_id' => Customer::factory()->create(['user_id' => $tenantUser->id])->id]);
+        $this->actingAs($tenantUser, 'sanctum');
+        $this->apiGet("/api/leases/{$lease->id}")->assertOk()->assertJsonPath('data.abilities.leave_review', true);
+
+        $lease->property->reviews()->create(['author_id' => $tenantUser->id, 'rating' => 4, 'content' => 'Bien tenu, quartier calme.', 'is_approved' => false])->delete();
+
+        $this->apiGet("/api/leases/{$lease->id}")->assertOk()->assertJsonPath('data.abilities.leave_review', false);
+        $this->apiPost("/api/properties/{$lease->property_id}/reviews", ['rating' => 5, 'content' => 'Un second avis sur le même bien.'])
+            ->assertStatus(422);
     }
 }

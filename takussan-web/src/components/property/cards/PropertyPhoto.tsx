@@ -51,7 +51,7 @@ export function PropertyPhoto({ src, alt, className, compact = false, ton = 'cla
             le libellé était coupé (« Photo coming soo… ») et heurtait la pastille de date :
             l'icône seule y suffit. Sans conteneur ancêtre, la requête ne s'applique pas. */}
         {!compact && (
-          <span className="px-2 text-center text-xs font-medium @max-[12rem]:hidden">
+          <span className="px-2 text-center text-xs font-medium max-lg:@max-[12rem]:hidden lg:@max-[10.8rem]:hidden">
             {t('photoPending')}
           </span>
         )}

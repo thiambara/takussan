@@ -6,6 +6,7 @@ import { BookingsList } from '@/components/bookings/BookingsList';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/console';
+import { EntreeSaisieDemande } from '@/components/bookings/EntreeSaisieDemande';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.pages.bookings');
@@ -23,7 +24,13 @@ export default async function Page() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t('title')} description={t('subtitle')} />
+      <PageHeader
+        title={t('title')}
+        description={t('subtitle')}
+        // TCK-2580 — « Saisir une candidature ou une offre » : le « + » de l'en-tête au téléphone, le
+        // bouton dès `md` ; pour le personnel de l'agence seulement.
+        actions={<EntreeSaisieDemande variante="reservations" />}
+      />
       <BookingsList />
     </div>
   );

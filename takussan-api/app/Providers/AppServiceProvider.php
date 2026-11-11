@@ -537,6 +537,16 @@ class AppServiceProvider extends ServiceProvider
         // TCK-598 — `POST /public/properties/{slug}/view`. Le service de comptage déduplique déjà
         // par (bien, IP) ; ce limiteur borne le nombre d'appels, pas le compte.
         RateLimiter::for('public-view', fn (Request $request) => Limit::perMinute(30)->by($this->visitorRateLimitKey($request)));
+        // TCK-2599 (ADR-0093) — `POST /public/geo/resolve-link` : un lien collé SANS compte déclenche
+        // une requête SORTANTE. Par IP (réseau /64 en IPv6), et plus serré que la route connectée
+        // (20/min par compte) ; préfixe propre, pour ne partager aucun compteur avec elle.
+        RateLimiter::for('public-geo-link', fn (Request $request) => Limit::perMinute(10)->by('geo-link-ip:'.$this->clientNetwork($request)));
+
+        // TCK-2609 (ADR-0094 §3) — l'aperçu d'une invitation par son jeton, sans compte : par IP, assez
+        // large pour un invité qui recharge, assez serré pour qu'on n'y énumère pas de jetons. La
+        // demande d'un nouveau lien écrit à l'invitant : 5 par heure.
+        RateLimiter::for('public-invitation-preview', fn (Request $request) => Limit::perMinute(30)->by('invitation-preview-ip:'.$this->clientNetwork($request)));
+        RateLimiter::for('public-invitation-renewal', fn (Request $request) => Limit::perHour(5)->by('invitation-renewal-ip:'.$this->clientNetwork($request)));
 
         // TCK-596 (ADR-0042 §2) — l'envoi d'un code de signature de bail : par utilisateur, 3/min et
         // 10/h, EN PLUS de la borne du canal SMS (5/h) et du délai de renvoi de 60 s du service.
@@ -689,6 +699,20 @@ class AppServiceProvider extends ServiceProvider
             $token = (string) $request->route('token');
 
             return ClaimLinks::phoneOf($token) ?? 'radar-claim:'.hash('sha256', $token);
+        }
+
+        // TCK-2610 (ADR-0094 § 5) — l'invitation par SMS ne porte pas le numéro dans le corps : le seau est celui du numéro
+        // de l'invitation, que le jeton désigne (le même que la connexion par téléphone pour ce numéro). Par e-mail, le
+        // numéro saisi, comme `auth/phone/verify-code`. Un jeton inconnu a son propre seau, sans numéro.
+        if ($request->routeIs('public.invitations.verify-code')) {
+            $token = (string) $request->route('token');
+            $invitation = Invitation::query()->where('token', $token)->first(['email', 'phone']);
+            if ($invitation === null) {
+                return 'invitation-code:'.hash('sha256', $token);
+            }
+            if ($invitation->email === null) {
+                return preg_replace('/\s+/', '', (string) $invitation->phone) ?? '';
+            }
         }
 
         // TCK-589 p3-1 — le code de preuve part TOUJOURS au numéro du compte : la clé aussi. Un

@@ -31,6 +31,16 @@ class CommissionEntryPolicy
             || $this->actsAtAgencyWith($user, $entry, Capability::ReportsViewAgency);
     }
 
+    /**
+     * TCK-2661 — lire le grand livre (relevé, point par bénéficiaire) : le personnel d'une agence. Le
+     * PÉRIMÈTRE des lignes est celui de `CommissionEntry::scopeVisibleTo`. Même règle que l'en-tête
+     * de `CommissionEntryController::index`.
+     */
+    public function viewAny(User $user): bool
+    {
+        return $user->staffAgencyId() !== null;
+    }
+
     public function markPaid(User $user, CommissionEntry $entry): bool
     {
         return $entry->beneficiary_id !== $user->id
@@ -40,6 +50,20 @@ class CommissionEntryPolicy
     public function cancel(User $user, CommissionEntry $entry): bool
     {
         return $this->markPaid($user, $entry);
+    }
+
+    /**
+     * TCK-2661 — solder en une fois les lignes dues d'un bénéficiaire : le même pouvoir que
+     * {@see self::markPaid()}, jugé à l'agence du PROFIL ACTIF (les lignes, elles, doivent toutes en
+     * être : le service le vérifie sous verrou). Le bénéficiaire ne solde pas ses propres lignes.
+     */
+    public function settle(User $user, int $beneficiaryId): bool
+    {
+        $agency = $user->activeProfile()?->agency;
+
+        return $beneficiaryId !== $user->id
+            && $agency !== null
+            && $user->canActAt(Capability::PayoutsApprove, $agency);
     }
 
     private function actsAtAgencyWith(User $user, CommissionEntry $entry, Capability $capability): bool

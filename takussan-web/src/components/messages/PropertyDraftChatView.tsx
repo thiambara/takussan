@@ -5,9 +5,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { ArrowLeft, Home } from 'lucide-react';
+import { BoutonFlecheDeRetour } from '@/components/navigation-publique/FlecheDeRetour';
+import { Home } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { submitContactMessage } from '@/app/actions/property';
 import { construireBrouillonBien } from '@/lib/messages/brouillonBien';
@@ -116,17 +116,13 @@ export function PropertyDraftChatView({
     <div className="flex h-full flex-col">
       <header className="flex items-center gap-3 border-b border-border bg-card px-4 py-3">
         {onBack && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="-ml-2 size-11 shrink-0 sm:size-9"
+          // TCK-2617 — la flèche unique (`BoutonFlecheDeRetour`) : 20 px dans 44, à toute largeur.
+          <BoutonFlecheDeRetour
+            libelle={tWidget('chatBack')}
             onClick={onBack}
-            aria-label={tWidget('chatBack')}
+            className="-ml-2"
             data-testid="chat-back-button"
-          >
-            <ArrowLeft className="size-4" aria-hidden />
-          </Button>
+          />
         )}
         <div className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
           {property.main_photo_url ? (

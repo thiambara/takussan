@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Activitylog\Models\Activity;
 use Tests\ApiTestCase;
+use Tests\Support\PlanDuPassage;
 
 /**
  * TCK-601 (ADR-0044 §1) — AC4b / AC4c : le NINEA et le RIB professionnel d'une demande de passage
@@ -26,6 +27,7 @@ use Tests\ApiTestCase;
  */
 class AgencyUpgradeRequestEncryptionTest extends ApiTestCase
 {
+    use PlanDuPassage;
     use RefreshDatabase;
 
     private const NINEA = 'NINEA-TEMOIN-0042';

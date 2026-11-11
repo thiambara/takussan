@@ -11,6 +11,10 @@ use Illuminate\Validation\Rule;
  * TCK-591 (ADR-0035) — déclarer l'absence d'un membre du personnel (`user_id`) et son remplaçant
  * (`substitute_id`). L'autorisation précède la validation : un tiers reçoit 403, pas la liste des
  * champs manquants.
+ *
+ * TCK-2666 (ADR-0035, amendement du 2026-11-10) — `substitute_can_act` demande en plus une
+ * délégation liée : il faut alors pouvoir déléguer (`create` de la page Rôles), sinon 403 avant
+ * toute écriture.
  */
 class StoreAgentAbsenceRequest extends FormRequest
 {
@@ -19,7 +23,8 @@ class StoreAgentAbsenceRequest extends FormRequest
         /** @var Agency $agency */
         $agency = $this->route('agency');
 
-        return $this->user()->can('declareAbsence', [RoleDelegation::class, $agency, (int) $this->input('user_id')]);
+        return $this->user()->can('declareAbsence', [RoleDelegation::class, $agency, (int) $this->input('user_id')])
+            && (! $this->boolean('substitute_can_act') || $this->user()->can('create', [RoleDelegation::class, $agency]));
     }
 
     public function rules(): array
@@ -32,6 +37,7 @@ class StoreAgentAbsenceRequest extends FormRequest
             'starts_at' => ['nullable', 'date'],
             'ends_at' => ['required', 'date', 'after:now', 'after:starts_at', "before_or_equal:$maxEndDate"],
             'reason' => ['nullable', 'string', 'max:500'],
+            'substitute_can_act' => ['sometimes', 'boolean'],
         ];
     }
 }

@@ -54,8 +54,9 @@ export interface CapabilityCatalogue {
   /**
    * TCK-587 (ADR-0031 §4) — capacités qu'aucun geste ne juge encore, avec le
    * ticket ou la dette qui les branchera. La matrice les signale « sans effet
-   * pour l'instant » et les laisse **cochables** : on prépare un rôle. Absent
-   * d'une réponse antérieure à TCK-587.
+   * pour l'instant ». TCK-2676 : elles ne sont plus **cochables**, passent en bas de
+   * leur domaine et sortent du compte ; une capacité déjà accordée est conservée.
+   * Absent d'une réponse antérieure à TCK-587.
    */
   readonly not_enforced?: readonly NotEnforcedCapability[];
 }

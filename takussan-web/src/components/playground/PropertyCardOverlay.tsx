@@ -83,13 +83,13 @@ export function PropertyCardOverlay({ property, priority, index = 0 }: PropertyC
             {quarter && (
               <p className="pg-eyebrow text-white/85 mb-1.5">{quarter}</p>
             )}
-            <h3 className="pg-display text-[17px] leading-[22px] font-semibold line-clamp-2 mb-1.5">
+            <h3 className="pg-display text-[1.0625rem] leading-[22px] font-semibold line-clamp-2 mb-1.5">
               {property.title}
             </h3>
-            <p className="text-[15px] font-bold pg-tabular">
+            <p className="text-[0.9375rem] font-bold pg-tabular">
               {formatPrice(property.price, property.currency ?? 'XOF')}
               {property.contract_type === 'rent' && property.rent_period && (
-                <span className="text-[12px] font-medium opacity-80 ml-0.5">
+                <span className="text-[0.75rem] font-medium opacity-80 ml-0.5">
                   /{RENT_PERIOD_SHORT[property.rent_period]}
                 </span>
               )}
