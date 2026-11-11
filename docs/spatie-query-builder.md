@@ -276,6 +276,27 @@ du demandeur ; `contacts` compte tous les canaux (TCK-2663). `GET /api/credits/s
 (1 à 10, défaut 10) : les biens publics de l'espace sans contact depuis 30 jours ni boost en cours,
 du moins vu au plus vu, `{…property, views_count, last_contact_at}` et `meta.total` (TCK-2663).
 
+### Équipe de l'agence — `GET /api/users`, chemin d'agence (TCK-2665)
+
+| Param | Type | Description |
+|---|---|---|
+| `filter[role]` | liste | `agent,agency_admin` — un membre qui tient l'un des rôles ; une seule valeur garde son sens d'avant ; la console super-admin reste à une valeur (TCK-2665) |
+| `include` | `team_summary` | ajoute à chaque membre `properties_followed_count`, `current_absence {starts_at, ends_at, substitute {id, name}}` ou `null`, `joined_at` (premier profil du membre dans l'agence, supprimés compris) et, pour un lecteur qui tient `payouts.approve` ou `reports.view_agency`, `commissions_due_amount` — clé absente pour les autres (TCK-2665) |
+
+`meta.counts {agent, agency_admin, owner, absent}` est toujours rendu sur le chemin d'agence : les
+comptes de la liste et de ses autres filtres, **hors** `filter[role]` — ce sont les pastilles (TCK-2665).
+
+### Invitations — `GET /api/invitations`, `DELETE /api/invitations/expired` (TCK-2665)
+
+| Param | Type | Description |
+|---|---|---|
+| `filter[customer_id]` | liste d'entiers | les invitations de locataire de ces fiches client ; valeur non numérique → liste vide (TCK-2665) |
+
+`DELETE /api/invitations/expired?filter[role]=agent,agency_admin` supprime les invitations expirées
+(`expired`, ou `sent` dont `expires_at` est passé) de l'agence active, des rôles nommés — exigés et
+connus, sinon 422. `team.invite` (403 avant 422) et second facteur de l'admin (`ProtectedActions`).
+Rend `{deleted: n}`, journalise le nombre et les rôles, jamais une adresse (TCK-2665).
+
 ---
 
 ## Architecture interne

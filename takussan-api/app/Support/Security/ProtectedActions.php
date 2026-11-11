@@ -187,6 +187,8 @@ final class ProtectedActions
         ServiceProviderInvitationController::class.'@__invoke',
         InvitationController::class.'@revoke',
         InvitationController::class.'@resend',
+        // TCK-2665 — supprimer les invitations expirées de l'agence, comme renvoyer et révoquer.
+        InvitationController::class.'@purgeExpired',
 
         // Vérification adverse M4 — de l'argent qui sort.
         BookingPaymentController::class.'@refund',

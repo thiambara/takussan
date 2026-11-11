@@ -27,6 +27,7 @@ use App\Sorts\CollatedNameSort;
 use App\Support\CaseInsensitive;
 use App\Support\Http\ParametreUnique;
 use App\Support\Query\DepartageQueryBuilder;
+use App\Support\Query\InclusionLueParLeControleur;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Contracts\Translation\HasLocalePreference;
@@ -239,9 +240,12 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
             fn (string $rel) => AllowedInclude::custom($rel, new AgencyScopedRelationship($agencyId)),
             ['agentProfiles', 'ownerProfiles', 'agencyAdminProfiles'],
         );
+        // TCK-2665 — `include=team_summary` : ce que chaque membre porte dans l'agence, lu par
+        // `UserAdminController` (`TeamMemberSummary`), en une requête par indicateur pour la page.
+        $includes[] = AllowedInclude::custom('team_summary', new InclusionLueParLeControleur);
 
         return DepartageQueryBuilder::for($base, $request)
-            ->allowedFilters(...[...array_values($filters), self::roleFilter($agencyId)])
+            ->allowedFilters(...[...array_values($filters), self::teamRoleFilter($agencyId)])
             ->allowedFields(...static::getAllAllowedQueryFields())
             ->allowedSorts(...static::$requestSortable, ...static::nameSorts())
             ->allowedIncludes(...$includes);
@@ -353,27 +357,51 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
      */
     private static function roleFilter(?int $agencyId): AllowedFilter
     {
-        $inAgency = fn (Builder $p) => $agencyId === null ? $p : $p->where('agency_id', $agencyId);
-
         return AllowedFilter::callback(
             'role',
             // P216.05 (TCK-2244, ADR-0075 § 2) — un rôle inconnu rend déjà aucune ligne : une liste,
             // lue absente, tombe dans le même `default`, au lieu d'un TypeError.
-            fn (Builder $q, mixed $value) => match (ParametreUnique::valeur($value)) {
-                'agent' => $q->whereHas('agentProfiles', $inAgency),
-                'agency_admin' => $q->whereHas('agencyAdminProfiles', $inAgency),
-                'owner' => $q->whereHas('ownerProfiles', $inAgency),
-                'service_provider' => $agencyId === null
-                    ? $q->whereHas('serviceProviderProfile')
-                    : $q->whereHas('serviceProviderProfile.agencyCollaborations', $inAgency),
-                'super_admin' => $agencyId === null
-                    ? $q->whereHas('platformProfile', fn (Builder $pp) => $pp
-                        ->whereNull('revoked_at')
-                        ->where('level', PlatformProfileLevel::SuperAdmin->value))
-                    : $q->whereRaw('1 = 0'),
-                default => $q->whereRaw('1 = 0'),
-            },
+            fn (Builder $q, mixed $value) => self::appliquerRole($q, ParametreUnique::valeur($value), $agencyId),
         );
+    }
+
+    /**
+     * TCK-2665 — `filter[role]` de l'équipe d'une agence : plusieurs rôles séparés par une virgule
+     * se lisent en OU (`agent,agency_admin` : les collaborateurs, sans les bailleurs), comme
+     * `filter[role]` des membres ({@see self::buildAgencyMembersQuery()}). Chaque rôle est jugé par
+     * {@see self::appliquerRole()} ; un rôle inconnu n'ajoute aucune ligne.
+     */
+    private static function teamRoleFilter(int $agencyId): AllowedFilter
+    {
+        return AllowedFilter::callback(
+            'role',
+            fn (Builder $q, mixed $value) => $q->where(function (Builder $w) use ($value, $agencyId) {
+                foreach ((array) $value as $role) {
+                    $w->orWhere(fn (Builder $un) => self::appliquerRole($un, is_string($role) ? $role : null, $agencyId));
+                }
+            }),
+        );
+    }
+
+    /** Un rôle lu sur les profils polymorphes (TCK-2665 : la règle de `roleFilter()`, extraite). */
+    private static function appliquerRole(Builder $q, ?string $role, ?int $agencyId): Builder
+    {
+        $inAgency = fn (Builder $p) => $agencyId === null ? $p : $p->where('agency_id', $agencyId);
+
+        return match ($role) {
+            'agent' => $q->whereHas('agentProfiles', $inAgency),
+            'agency_admin' => $q->whereHas('agencyAdminProfiles', $inAgency),
+            'owner' => $q->whereHas('ownerProfiles', $inAgency),
+            'service_provider' => $agencyId === null
+                ? $q->whereHas('serviceProviderProfile')
+                : $q->whereHas('serviceProviderProfile.agencyCollaborations', $inAgency),
+            'super_admin' => $agencyId === null
+                ? $q->whereHas('platformProfile', fn (Builder $pp) => $pp
+                    ->whereNull('revoked_at')
+                    ->where('level', PlatformProfileLevel::SuperAdmin->value))
+                : $q->whereRaw('1 = 0'),
+            default => $q->whereRaw('1 = 0'),
+        };
     }
 
     protected static array $requestSearchFields = ['first_name', 'last_name', 'email', 'username', 'phone'];

@@ -34,6 +34,9 @@ Route::prefix('public/invitations')->group(function (): void {
 
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('invitations', [InvitationController::class, 'index'])->name('invitations.index');
+    // TCK-2665 — l'admin supprime les invitations expirées de son agence, des rôles nommés. Littérale,
+    // avant les routes à `{invitation}`.
+    Route::delete('invitations/expired', [InvitationController::class, 'purgeExpired'])->name('invitations.purge-expired');
     // P208.01 (TCK-2190) — plus de création générique : les routes par rôle
     // (`routes/api/agencies.php`) et la cooptation (`routes/api/admin.php`) émettent.
     Route::get('invitations/{invitation}', [InvitationController::class, 'show'])->name('invitations.show');

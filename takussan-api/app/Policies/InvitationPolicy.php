@@ -120,4 +120,13 @@ class InvitationPolicy
     {
         return $this->revoke($user, $invitation);
     }
+
+    /**
+     * TCK-2665 — supprimer les invitations expirées de l'agence : qui invite dans cette agence, la
+     * règle de {@see self::revoke()} (`team.invite`, ou l'admin principal).
+     */
+    public function purgeExpired(User $user, Agency $agency): bool
+    {
+        return $this->invitesAt($user, (int) $agency->getKey());
+    }
 }
