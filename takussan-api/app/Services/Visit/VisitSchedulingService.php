@@ -177,6 +177,54 @@ class VisitSchedulingService
     }
 
     /**
+     * TCK-2744 — un agent n'a qu'une visite à la fois : 422 `visit.agent_overlap` si l'agent a déjà une
+     * visite qui OCCUPE (confirmée, à heure fixée — la définition de {@see self::assertNoOverlap()} et
+     * de la grille {@see self::availableSlots()}) sur l'intervalle semi-ouvert `[début, début + durée)`,
+     * quelle que soit l'agence du bien : la personne compte, pas l'agence. Une durée absente vaut
+     * {@see self::DEFAULT_DURATION_MINUTES}, des deux côtés. Rien n'est jugé sans agent ni heure.
+     *
+     * Le refus ne dit rien de la visite qui occupe l'agent (ni id, ni bien, ni agence). Point de
+     * sérialisation : la ligne `users` de l'agent, verrouillée AVANT la lecture de ses visites —
+     * deux confirmations simultanées sur deux biens verrouillent chacune leur bien, jamais l'autre
+     * (`takussan-api/CLAUDE.md`, piège n° 2 : la ligne parent). À appeler dans la transaction qui
+     * écrit, après {@see self::assertNoOverlap()} : quand le bien et l'agent sont pris, c'est
+     * `visit.slot_overlap` qui sort.
+     */
+    public function assertAgentFree(
+        PropertyVisit $visit,
+        ?int $agentId,
+        ?CarbonInterface $start,
+        ?int $durationMinutes,
+        bool $lockForUpdate = false,
+    ): void {
+        if ($agentId === null || $start === null) {
+            return;
+        }
+        $start = CarbonImmutable::instance($start);
+        $end = $start->addMinutes($durationMinutes ?? self::DEFAULT_DURATION_MINUTES);
+
+        if ($lockForUpdate) {
+            User::query()->whereKey($agentId)->lockForUpdate()->first(['id']);
+        }
+
+        $occupee = PropertyVisit::query()
+            ->where('agent_id', $agentId)
+            ->when($visit->exists, fn ($q) => $q->where('id', '!=', $visit->id))
+            ->where('status', VisitStatus::Confirmed)
+            ->whereNotNull('scheduled_at')
+            ->whereNull('preferred_window')
+            ->get(['id', 'scheduled_at', 'duration_minutes'])
+            ->contains(function (PropertyVisit $other) use ($start, $end): bool {
+                $otherStart = CarbonImmutable::instance($other->scheduled_at);
+                $otherEnd = $otherStart->addMinutes($other->duration_minutes ?? self::DEFAULT_DURATION_MINUTES);
+
+                return $start->lt($otherEnd) && $end->gt($otherStart);
+            });
+
+        abort_code_if($occupee, 422, 'visit.agent_overlap');
+    }
+
+    /**
      * Transactional confirm: re-read the visit with a row lock, run the
      * overlap guard against freshly-locked candidate rows, then flip the
      * status to `confirmed` inside the same transaction.
@@ -210,6 +258,8 @@ class VisitSchedulingService
 
             $start = $scheduledAt !== null ? Carbon::instance($scheduledAt) : null;
             $this->assertNoOverlap($fresh, $start, lockForUpdate: true);
+            // TCK-2744 — et l'agent de la visite n'est pas déjà ailleurs à cette heure.
+            $this->assertAgentFree($fresh, $fresh->agent_id, $start ?? $fresh->scheduled_at, $fresh->duration_minutes, lockForUpdate: true);
 
             // Une heure posée lève la tranche — explicitement : l'heure fixée peut ÉGALER le début de
             // tranche (14:00 pour « l'après-midi »), et `scheduled_at` n'est alors pas modifié.
@@ -399,6 +449,8 @@ class VisitSchedulingService
             $candidate = new PropertyVisit($attributes);
             $candidate->property_id = $property->id;
             $this->assertNoOverlap($candidate, lockForUpdate: true);
+            // TCK-2744 — la visite naît confirmée : son agent ne doit pas être déjà ailleurs.
+            $this->assertAgentFree($candidate, $candidate->agent_id, $candidate->scheduled_at, $candidate->duration_minutes, lockForUpdate: true);
 
             return PropertyVisit::create(array_merge($attributes, ['status' => VisitStatus::Confirmed]));
         });

@@ -701,6 +701,8 @@ return [
         // TCK-2716 — « Créer sa fiche » depuis une visite.
         'agency_mismatch' => 'Le client naîtrait dans une autre agence que celle du bien de la visite : passez sur l\'espace de cette agence.',
         'agent_not_staff' => 'L\'agent choisi doit faire partie du personnel de l\'agence du bien.',
+        // TCK-2744 — l'agent a déjà une visite confirmée qui chevauche cette heure (sur un autre bien).
+        'agent_overlap' => 'L\'agent est déjà pris à cette heure par une autre visite confirmée.',
         'cannot_cancel' => 'Cette visite ne peut pas être annulée dans son état actuel.',
         'cannot_complete' => 'Cette visite ne peut pas être terminée dans son état actuel.',
         'cannot_mark_no_show' => 'Seule une visite planifiée ou confirmée dont l\'heure est passée peut être marquée absente.',

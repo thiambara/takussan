@@ -158,4 +158,42 @@ agence. Les écritures visent le bien A de la même agence, sauf mention contrai
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+**Le garde.** `VisitSchedulingService::assertAgentFree()` : verrou de la ligne `users` de l'agent, puis lecture de ses
+visites qui occupent (confirmées, à heure fixée, la définition de `assertNoOverlap` et de `availableSlots`), toutes
+agences confondues, intervalle semi-ouvert, durée absente = `DEFAULT_DURATION_MINUTES` des deux côtés (« durée nulle »
+est lue comme `NULL`, la seule valeur que la grille et le garde du bien replient ; `duration_minutes` est validé ≥ 5).
+Appelé après `assertNoOverlap` (le bien parle d'abord, AC10) dans `confirmOrFail` (donc `confirm` et `bulk-confirm`)
+et `createConfirmedOrFail` ; dans `update` (valeurs résultantes) et dans `attribuer()` (`bulk-assign`, `claim`).
+
+**L'ordre des verrous.** `update` et `attribuer()` verrouillent et relisent d'abord la ligne de la VISITE
+(`relireSousVerrou`), puis l'agent : l'ordre de `confirmOrFail` (la visite, les visites confirmées du bien, l'agent).
+Verrouiller l'agent d'abord pouvait croiser une confirmation concurrente qui tient déjà la visite (interblocage
+PostgreSQL), et le statut se jugeait sur le modèle lu avant la transaction. Hors AC ; épinglé par
+`test_prendre_en_charge_et_modifier_verrouillent_la_visite_avant_l_agent`. Le garde du bien d'`update` court
+désormais sous verrou, dans la même transaction que l'écriture.
+
+**Écart au delta, à trancher.** `update` juge l'agent dès que l'écriture PORTE `agent_id`, `scheduled_at` ou
+`duration_minutes`, même inchangé (le delta dit « quand … change »). C'est ce qui donne un sens à l'AC4 « une durée
+repassée telle quelle → 200 » (elle ne se chevauche pas elle-même : l'ablation de l'exclusion de soi rougit).
+Conséquence : un `PATCH` qui repasse la même valeur sur une visite déjà en double (hors périmètre) est refusé.
+Recommandation : garder, une écriture d'agenda qui porte l'heure se juge à l'heure.
+
+**Visite confirmée à tranche.** Elle n'occupe personne (`preferred_window` non nul) : l'attribuer passe ; lui fixer
+une heure par `PATCH scheduled_at` la juge (test dédié).
+
+**Le front — non fait ici, en attente d'accord.** `CODES_ERREUR_BFF` ne s'applique pas : il ne liste que les codes
+émis par le BFF lui-même ; `visit.agent_overlap` est un code de l'API, sa prose localisée (`lang/*/errors.php`,
+`LangGroupParity` vert) est ce qu'affichent les gestes unitaires (`messageErreurApi` préfère la prose du serveur).
+Restent deux retouches, dans des fichiers d'autres travaux en cours : la clé `visits.parLeTemps.refus.visit_agent_overlap`
+(fr/en/wo, wo = fr) pour le lot, et `PlanifierUneVisite.tsx`, qui doit traiter `visit.agent_overlap` comme
+`visit.slot_overlap` (erreur sous « Quelle heure ? », créneaux relus).
+
+**Tests.** `tests/Feature/Api/VisitAgentOverlapTest.php` (15 tests, un par AC, plus la tranche et l'ordre des
+verrous). 23 ablations, toutes rouges, chacune nommée par le test qui la voit : garde retiré ; appel retiré de
+`confirmOrFail`, de `createConfirmedOrFail`, d'`update`, d'`attribuer()` ; sans exclusion de soi ; tranche ou tout
+statut occupant ; durée absente nulle (occupation, demande) ; bornes fermées ; sans verrou ; agent avant bien ; agence
+du bien seule ; ancienne heure, durée ou agent dans `update` ; attribution de tout statut ; sans relecture sous verrou
+(`attribuer`, `update`) ; tranche occupante, heure fixée ignorée. Les 49 fichiers de test des visites et
+`LangGroupParityTest`, joués un à un : verts.
+
+**Spec.** La règle de `docs/features.md` § 1.3 suit par `/sync-specs`.

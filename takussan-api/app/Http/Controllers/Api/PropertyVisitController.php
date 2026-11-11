@@ -346,12 +346,42 @@ class PropertyVisitController extends Controller
             abort_code_if(in_array($visit->status, [VisitStatus::Completed, VisitStatus::Cancelled], true), 422, 'visit.closed');
             abort_code_unless(PersonnelDeLAgence::estPersonnel($agent, $visit->property?->agency_id), 422, 'visit.agent_not_staff');
 
-            $visit->update(['agent_id' => $agent->id]);
+            // TCK-2744 — l'attribution d'une visite confirmée ne met pas l'agent à deux endroits.
+            $this->attribuer($visit, $agent->id);
 
             return [];
         }))->values()->all();
 
         return $this->json($this->bulkPayload($results));
+    }
+
+    /**
+     * TCK-2744 — pose l'agent d'une visite (`bulk-assign`, `claim`). Sur une visite confirmée à heure
+     * fixée, l'agent ne doit pas être déjà pris à cette heure ({@see VisitSchedulingService::assertAgentFree()}),
+     * garde et écriture dans une transaction, sous le verrou de l'agent. Une visite en attente
+     * n'occupe personne : le refus viendra à sa confirmation.
+     */
+    private function attribuer(PropertyVisit $visit, int $agentId): void
+    {
+        DB::transaction(function () use ($visit, $agentId): void {
+            $this->relireSousVerrou($visit);
+            if ($visit->status === VisitStatus::Confirmed && $visit->preferred_window === null) {
+                $this->scheduling->assertAgentFree($visit, $agentId, $visit->scheduled_at, $visit->duration_minutes, lockForUpdate: true);
+            }
+            $visit->update(['agent_id' => $agentId]);
+        });
+    }
+
+    /**
+     * TCK-2744 — la ligne de la visite, verrouillée puis relue, PREMIER verrou de la transaction :
+     * l'ordre des verrous est alors celui de `confirmOrFail` (la visite, les visites confirmées du
+     * bien, puis l'agent). Verrouiller l'agent d'abord croisait une confirmation concurrente qui tient
+     * déjà la visite (interblocage), et le statut se jugeait sur le modèle lu avant la transaction.
+     */
+    private function relireSousVerrou(PropertyVisit $visit): void
+    {
+        PropertyVisit::query()->whereKey($visit->getKey())->lockForUpdate()->first(['id']);
+        $visit->refresh();
     }
 
     /**
@@ -582,25 +612,43 @@ class PropertyVisitController extends Controller
             abort_code_unless($this->canAssign($request->user(), $visit), 403, 'visit.reassign_forbidden');
         }
 
-        // Reschedule of a confirmed visit must re-check overlap on the
-        // new slot before persisting.
-        if ($visit->status === VisitStatus::Confirmed
-            && (array_key_exists('scheduled_at', $data) || array_key_exists('duration_minutes', $data))) {
-            $newStart = array_key_exists('scheduled_at', $data)
-                ? Carbon::parse($data['scheduled_at'])
-                : $visit->scheduled_at;
-            $newDuration = array_key_exists('duration_minutes', $data)
-                ? $data['duration_minutes']
-                : $visit->duration_minutes;
-            $this->scheduling->assertNoOverlap($visit, $newStart, $newDuration);
-        }
-
         $previous = $visit->scheduled_at;
         // TCK-2502 — une heure envoyée par l'agence fixe l'heure, même égale au début de tranche.
         if (array_key_exists('scheduled_at', $data)) {
             $data['preferred_window'] = null;
         }
-        $visit->fill($data)->save();
+
+        // TCK-2744 — les deux gardes d'une visite confirmée (le bien, puis l'agent) et l'écriture, dans
+        // UNE transaction et sous verrou : la garde du bien courait ici sans verrou. Jugées sur les
+        // valeurs RÉSULTANTES (nouvelle heure, nouvelle durée, nouvel agent) dès que l'écriture en
+        // porte une : la visite elle-même est écartée, une durée repassée telle quelle passe.
+        DB::transaction(function () use ($visit, $data): void {
+            $this->relireSousVerrou($visit);
+            $temps = array_key_exists('scheduled_at', $data) || array_key_exists('duration_minutes', $data);
+            if ($visit->status === VisitStatus::Confirmed && ($temps || array_key_exists('agent_id', $data))) {
+                $newStart = array_key_exists('scheduled_at', $data)
+                    ? Carbon::parse($data['scheduled_at'])
+                    : $visit->scheduled_at;
+                $newDuration = array_key_exists('duration_minutes', $data)
+                    ? $data['duration_minutes']
+                    : $visit->duration_minutes;
+                if ($temps) {
+                    $this->scheduling->assertNoOverlap($visit, $newStart, $newDuration, lockForUpdate: true);
+                }
+                $newAgent = array_key_exists('agent_id', $data) ? $data['agent_id'] : $visit->agent_id;
+                // Une visite confirmée à tranche (sans heure fixée) n'occupe personne, sauf si l'écriture fixe l'heure.
+                $fixee = array_key_exists('scheduled_at', $data) || $visit->preferred_window === null;
+                $this->scheduling->assertAgentFree(
+                    $visit,
+                    $newAgent !== null ? (int) $newAgent : null,
+                    $fixee ? $newStart : null,
+                    $newDuration !== null ? (int) $newDuration : null,
+                    lockForUpdate: true,
+                );
+            }
+
+            $visit->fill($data)->save();
+        });
 
         // TCK-590 (contrainte 11) — tout déplacement d'heure par l'agence prévient le visiteur,
         // une fois. `update` déplaçait l'heure sans prévenir personne.
@@ -631,7 +679,8 @@ class PropertyVisitController extends Controller
             abort_code(409, 'visit.already_assigned');
         }
 
-        $visit->update(['agent_id' => $user->id]);
+        // TCK-2744 — prendre en charge une visite confirmée, c'est s'y engager à son heure.
+        $this->attribuer($visit, $user->id);
 
         return $this->json(['data' => PropertyVisitResource::make($visit->refresh())->resolve($request)]);
     }

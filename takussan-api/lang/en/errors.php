@@ -701,6 +701,8 @@ return [
         // TCK-2716 — « Créer sa fiche » depuis une visite.
         'agency_mismatch' => 'The customer would be created in another agency than the one of the visit\'s property: switch to that agency\'s workspace.',
         'agent_not_staff' => 'The chosen agent must be on the property\'s agency staff.',
+        // TCK-2744 — l'agent a déjà une visite confirmée qui chevauche cette heure (sur un autre bien).
+        'agent_overlap' => 'The agent is already booked at this time by another confirmed visit.',
         'cannot_cancel' => 'This visit cannot be cancelled in its current state.',
         'cannot_complete' => 'This visit cannot be completed in its current state.',
         'cannot_mark_no_show' => 'Only a scheduled or confirmed visit whose time has passed can be marked as a no-show.',
