@@ -1,7 +1,7 @@
 ---
 id: TCK-2722
 title: "Le nombre de signalements d'un avis ne se lit que par qui le modère"
-status: todo
+status: done
 phase: P1
 family: back
 estimate: S
