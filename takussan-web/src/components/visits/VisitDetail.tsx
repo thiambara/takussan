@@ -1,10 +1,10 @@
 'use client';
 
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
-import { useLocale, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import {
+  useAttribuerEnLot,
   useCancelVisit,
   useClaimVisit,
   useCompleteVisit,
@@ -14,17 +14,14 @@ import {
   useUpdateVisit,
   useVisit,
 } from '@/lib/queries/visits';
-import { nomAffichable } from '@/lib/identite';
 import { heureMuraleADakar, instantADakar } from '@/lib/visites/heure-de-dakar';
 import { smsRetenu } from '@/lib/visites/sort-du-sms';
 import { JOURS_DE_VISITE_OUVERTS, useCreneaux } from '@/lib/visites/useCreneaux';
 import { decalerJour, jourDeLApi } from '@/lib/jour-de-l-api';
 import { useAuth } from '@/context/AuthContext';
-import { formatDateTime } from '@/lib/format';
 import { ErrorState } from '@/components/feedback';
 import { ApiError } from '@/lib/api';
-import { StatusBadge } from '@/components/console';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -38,29 +35,37 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { useCan } from '@/hooks/useCan';
+import { useMinuteCourante } from '@/hooks/useMinuteCourante';
+import { useAgenceDuPersonnelActif } from '@/hooks/usePersonnelActif';
+import { useMyProfiles } from '@/hooks/useProfiles';
 import { isAdmin, isAgent as hasAgentRole, isOwner } from '@/lib/roles';
 import { VisitFeedbackForm } from './VisitFeedbackForm';
 import { REQUETE_TELEPHONE, SuiteDeLaVisite } from './compte-rendu/SuiteDeLaVisite';
+import { EnTeteDeLaFiche, FicheDeLaVisite, type FicheDeLaVisiteProps, type GestesDeLaFiche } from './fiche/FicheDeLaVisite';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
-import { compteRenduLisible } from '@/lib/visites/compte-rendu';
+import { closableParCompteRendu, compteRenduLisible } from '@/lib/visites/compte-rendu';
+import { commenceeDeLUrl, commenceeRetenue, etatDeLaFiche } from '@/lib/visites/etat-de-la-fiche';
 import type { PropertyVisit } from '@/types/visit';
-import type { Locale } from '@/i18n/config';
-import { cn } from '@/lib/utils';
-import { VISIT_STATUS_LABEL_KEY, VISIT_STATUS_TONE, VISIT_TYPE_LABEL_KEY } from './visit-status';
 
 const FEEDBACK_WINDOW_HOURS = 24;
 
 export function VisitDetail({ id }: { id: number }) {
   const visitQuery = useVisit(id);
   const { data, isLoading, isError } = visitQuery;
-  const locale = useLocale() as Locale;
   const t = useTranslations('visits.detail');
   const tVisits = useTranslations('visits');
   const tCommon = useTranslations('common');
   const { user } = useAuth();
   const router = useRouter();
-  const [renderedAt] = useState(() => Date.now());
+  const chemin = usePathname();
+  const recherche = useSearchParams();
+  // TCK-2587 — UNE horloge pour l'état de la fiche, sa pastille et les gestes permis (Absent dès
+  // l'heure) : relue chaque minute, une fiche ouverte à 10:12 passe d'elle-même au jour J « en cours ».
+  const maintenant = useMinuteCourante();
   const [dialog, setDialog] = useState<VisitDialogKind | null>(null);
+  // `?heure=autre` (la carte d'une demande, TCK-2587 lot A) ouvre « Autre heure » d'emblée.
+  const [autreHeure, setAutreHeure] = useState(() => recherche?.get('heure') === 'autre');
 
   const confirm = useConfirmVisit(id);
   const complete = useCompleteVisit(id);
@@ -68,6 +73,7 @@ export function VisitDetail({ id }: { id: number }) {
   const cancel = useCancelVisit(id);
   const updateVisit = useUpdateVisit(id);
   const claim = useClaimVisit(id);
+  const attribuerEnLot = useAttribuerEnLot();
   const tPlanning = useTranslations('visitPlanning');
   const [proposer, setProposer] = useState(false);
   const toast = useToast();
@@ -76,6 +82,14 @@ export function VisitDetail({ id }: { id: number }) {
   // actions (ADR-0019) : sans `catch`, la promesse rejetée n'était rattrapée par rien.
   const [erreurGeste, setErreurGeste] = useState<string | null>(null);
   const telephone = useMatchesMedia(REQUETE_TELEPHONE);
+  // « Attribuer à un collègue » : le personnel actif de l'agence qui porte `crm.assign`.
+  const agence = useAgenceDuPersonnelActif();
+  const { can: peutAttribuer } = useCan('crm.assign', agence ?? undefined, agence !== null);
+  // TCK-2587 — la signature des messages au visiteur, « Sokhna, Dakar Immo » (maquette) : l'agence du
+  // profil actif, lue comme la coque (le sélecteur d'espace) ; l'espace personnel n'est pas une agence.
+  const { data: profils } = useMyProfiles();
+  const profilActif = profils?.data.find((x) => x.id === profils.meta.active_profile_id) ?? null;
+  const nomDeLAgence = agence !== null && profilActif?.agency?.kind !== 'individual' ? profilActif?.agency?.name?.trim() || null : null;
 
   if (isLoading) {
     return <Skeleton className="h-48 rounded-xl" />;
@@ -104,7 +118,6 @@ export function VisitDetail({ id }: { id: number }) {
 
   const visit = data.data;
   const status = visit.status ?? 'scheduled';
-  const type = visit.type ?? 'in_person';
   // TCK-2581 (AC6) — le client d'une visite ne reçoit plus sa fiche (`customer` masqué, TCK-2585) :
   // l'API dit si le lecteur est le demandeur (`abilities.feedback_customer`, au détail) ; les deux
   // comparaisons restent pour le visiteur à compte et une réponse de liste, sans `abilities`.
@@ -120,7 +133,7 @@ export function VisitDetail({ id }: { id: number }) {
   const peutGerer = visit.abilities?.manage === true;
   const feedbackLocked = !isFeedbackOpen(visit);
   const scheduledAtMs = visit.scheduled_at ? new Date(visit.scheduled_at).getTime() : Number.NaN;
-  const isPastSlot = Number.isFinite(scheduledAtMs) && scheduledAtMs <= renderedAt;
+  const isPastSlot = Number.isFinite(scheduledAtMs) && scheduledAtMs <= maintenant.getTime();
   const canConfirm = peutGerer && status === 'scheduled';
   const canCancel = (isVisitor || peutGerer) && (status === 'scheduled' || status === 'confirmed');
   const canComplete =
@@ -128,8 +141,9 @@ export function VisitDetail({ id }: { id: number }) {
     (status === 'confirmed' || status === 'scheduled') &&
     (isPastSlot || status === 'confirmed');
   // TCK-1375 (P115.05) — l'absence ne se déclare qu'une fois l'heure passée ; le serveur le
-  // rejuge (`visit.cannot_mark_no_show`).
-  const canMarkNoShow = peutGerer && (status === 'confirmed' || status === 'scheduled') && isPastSlot;
+  // rejuge (`visit.cannot_mark_no_show`). TCK-2587 — commencée avant l'heure, la fiche montre
+  // « Absent » grisé, avec l'heure à partir de laquelle il le devient.
+  const canMarkNoShow = peutGerer && (status === 'confirmed' || status === 'scheduled');
   const canReschedule = peutGerer && (status === 'scheduled' || status === 'confirmed');
   const isActive = status === 'scheduled' || status === 'confirmed';
   // TCK-590 — la visite déposée sur le site n'a pas d'agent : le personnel de l'agence la prend
@@ -140,6 +154,11 @@ export function VisitDetail({ id }: { id: number }) {
   const canPropose = isVisitor && !isManager && isActive && !!visit.property?.slug;
   // TCK-2581 — le compte rendu (et « Et maintenant ? ») : la clé n'existe que pour le personnel.
   const lisible = compteRenduLisible(visit);
+  // TCK-2587 — `?commencee=HH:MM` : « Commencer » pose l'heure du clic dans l'URL, rien en base.
+  const commenceeA = commenceeRetenue(visit, maintenant, commenceeDeLUrl(recherche?.get('commencee') ?? null, maintenant));
+  const etat = etatDeLaFiche(visit, maintenant, commenceeA);
+  const enCours =
+    confirm.isPending || complete.isPending || markNoShow.isPending || claim.isPending || attribuerEnLot.isPending;
 
   async function handleClaim() {
     try {
@@ -163,17 +182,20 @@ export function VisitDetail({ id }: { id: number }) {
     }
   }
 
-  async function geste(fn: () => Promise<void>) {
+  /** Rend `true` si le geste a abouti ; l'erreur de l'API se dit sous les gestes (ADR-0019). */
+  async function geste(fn: () => Promise<void>): Promise<boolean> {
     setErreurGeste(null);
     try {
       await fn();
+      return true;
     } catch (e) {
       setErreurGeste(messageErreur(e));
+      return false;
     }
   }
 
-  async function handleConfirm() {
-    const reponse = await confirm.mutateAsync();
+  async function handleConfirm(scheduledAt: string | null) {
+    const reponse = await confirm.mutateAsync(scheduledAt ? { scheduled_at: scheduledAt } : undefined);
     toast.add({
       title: t('toasts.confirmed.title'),
       description: t('toasts.confirmed.description'),
@@ -201,6 +223,13 @@ export function VisitDetail({ id }: { id: number }) {
       description: t('toasts.noShow.description'),
       type: 'success',
     });
+  }
+
+  async function handleAttribuer(agentId: number) {
+    const reponse = await attribuerEnLot.mutateAsync({ ids: [visit.id], agent_id: agentId });
+    const ligne = reponse.data.find((l) => l.id === visit.id);
+    if (ligne && !ligne.ok) throw new Error(tPlanning('actionError'));
+    toast.add({ title: tVisits('fiche.attribuee'), type: 'success' });
   }
 
   // Revue design 2026-09-16 — l'annulation et la replanification passaient par
@@ -233,131 +262,51 @@ export function VisitDetail({ id }: { id: number }) {
     setDialog(null);
   }
 
-  const principal = (
-    <>
-      <div>
-        <Link
-          href="/app/visits"
-          className="-ml-1 inline-flex min-h-10 items-center rounded-md px-1 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-8"
-        >
-          {t('back')}
-        </Link>
-      </div>
+  const gestes: GestesDeLaFiche = {
+    confirmer: canConfirm ? (scheduledAt) => geste(() => handleConfirm(scheduledAt)) : null,
+    terminer: canComplete ? () => void geste(handleComplete) : null,
+    absent: canMarkNoShow ? () => void geste(handleNoShow) : null,
+    replanifier: canReschedule ? () => setDialog('reschedule') : null,
+    annuler: canCancel ? () => setDialog('cancel') : null,
+    prendreEnCharge: canClaim ? () => void handleClaim() : null,
+    proposer: canPropose ? () => setProposer(true) : null,
+    attribuer:
+      peutGerer && peutAttribuer && agence !== null && isActive
+        ? { agence, onChoisir: (agentId) => void geste(() => handleAttribuer(agentId)) }
+        : null,
+    enCours,
+  };
 
-      <div className="space-y-4 rounded-xl border border-border bg-card p-4 sm:p-6">
-        <div className="space-y-2">
-          <h1 className="text-balance font-display text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-            {visit.property?.title ?? tVisits('fallbackTitle', { id: String(visit.id) })}
-          </h1>
-          <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge
-              tone={VISIT_STATUS_TONE[status]}
-              label={tVisits(VISIT_STATUS_LABEL_KEY[status])}
-              data-testid="visit-status"
-            />
-            <StatusBadge label={tVisits(VISIT_TYPE_LABEL_KEY[type])} />
-          </div>
-        </div>
+  // La droite du bureau est au compte rendu (TCK-2581) quand il se fait ou se lit depuis la fiche ;
+  // sinon, au visiteur (« Ses visites »).
+  // TCK-2587 (réponse 3) — pendant « en cours », le compte rendu attend la fin prévue : « Terminer » y
+  // mène, et il revient après la fin prévue ou une fois la visite terminée.
+  const suiteMasquee = etat === 'en-cours';
+  const suiteAPanneau = lisible && (!!visit.report || (closableParCompteRendu(visit, maintenant.getTime()) && !suiteMasquee));
+  const fiche: FicheDeLaVisiteProps = {
+    visite: visit,
+    etat,
+    maintenant,
+    commenceeA,
+    gestes,
+    personnel: peutGerer,
+    visiteur: isVisitor,
+    compteRendu: lisible,
+    signature: peutGerer && user?.first_name?.trim() ? [user.first_name.trim(), nomDeLAgence].filter(Boolean).join(', ') : null,
+    colonne: !suiteAPanneau,
+    // Cherche, Étape, biens correspondants : le personnel ACTIF de l'agence, jamais le bailleur.
+    ficheClient: peutGerer && agence !== null,
+    erreur: erreurGeste,
+    onCommencer: () => router.replace(`${chemin}?commencee=${heureMuraleADakar(new Date()).slice(11, 16)}`),
+    autreHeure,
+    onAutreHeure: (ouverte) => {
+      setErreurGeste(null);
+      setAutreHeure(ouverte);
+      if (!ouverte && recherche?.get('heure') === 'autre') router.replace(chemin);
+    },
+  };
 
-        <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-          <div>
-            <dt className="text-muted-foreground">{t('slot')}</dt>
-            <dd className="font-medium tabular-nums text-foreground">
-              {formatDateTime(visit.scheduled_at, locale)}
-              {typeof visit.duration_minutes === 'number' && visit.duration_minutes > 0 && (
-                <> · {visit.duration_minutes} {tVisits('minutesUnit')}</>
-              )}
-            </dd>
-          </div>
-          {visit.notes && (
-            <div className="sm:col-span-2">
-              <dt className="text-muted-foreground">{t('notes')}</dt>
-              <dd className="whitespace-pre-line text-pretty text-foreground">{visit.notes}</dd>
-            </div>
-          )}
-          {visit.cancellation_reason && (
-            <div className="sm:col-span-2">
-              <dt className="text-muted-foreground">{t('cancellationReason')}</dt>
-              <dd className="text-pretty text-foreground">{visit.cancellation_reason}</dd>
-            </div>
-          )}
-          <div>
-            <dt className="text-muted-foreground">{t('requester.label')}</dt>
-            <dd className="text-foreground">
-              <RequesterSummary visit={visit} />
-            </dd>
-          </div>
-          {visit.agent ? (
-            <div>
-              <dt className="text-muted-foreground">{t('support')}</dt>
-              <dd className="font-medium text-foreground">
-                {nomAffichable(visit.agent, t('assignedAgent'))}
-              </dd>
-            </div>
-          ) : null}
-        </dl>
-
-        {erreurGeste ? (
-          <p role="alert" className="text-sm text-destructive">
-            {erreurGeste}
-          </p>
-        ) : null}
-
-        {/* Sous `sm`, les actions s'empilent en pleine largeur : cibles de 40 px, aucune coupée. */}
-        <div className="flex flex-col gap-2 border-t border-border pt-4 sm:flex-row sm:flex-wrap">
-          {canClaim && (
-            <Button onClick={() => void handleClaim()} disabled={claim.isPending} className="h-10 sm:h-8">
-              {tPlanning('claim')}
-            </Button>
-          )}
-          {canPropose && (
-            <Button onClick={() => setProposer(true)} variant="outline" className="h-10 sm:h-8">
-              {tPlanning('propose.cta')}
-            </Button>
-          )}
-          {canConfirm && (
-            <Button onClick={() => void geste(handleConfirm)} disabled={confirm.isPending} className="h-10 sm:h-8">
-              {t('actions.confirm')}
-            </Button>
-          )}
-          {canComplete && (
-            <Button onClick={() => void geste(handleComplete)} disabled={complete.isPending} variant="outline" className="h-10 sm:h-8">
-              {t('actions.complete')}
-            </Button>
-          )}
-          {canMarkNoShow && (
-            <Button onClick={() => void geste(handleNoShow)} disabled={markNoShow.isPending} variant="outline" className="h-10 sm:h-8">
-              {t('actions.noShow')}
-            </Button>
-          )}
-          {canReschedule && (
-            <Button onClick={() => setDialog('reschedule')} disabled={updateVisit.isPending} variant="outline" className="h-10 sm:h-8">
-              {t('actions.reschedule')}
-            </Button>
-          )}
-          {canCancel && (
-            <Button
-              onClick={() => setDialog('cancel')}
-              disabled={cancel.isPending}
-              variant="ghost"
-              className="h-10 text-destructive hover:text-destructive sm:h-8"
-            >
-              {tCommon('actions.cancel')}
-            </Button>
-          )}
-          {visit.property?.slug && (
-            <Link
-              href={`/properties/${visit.property.slug}`}
-              className={cn(buttonVariants({ variant: 'outline' }), 'h-10 sm:h-8')}
-            >
-              {t('actions.viewProperty')}
-            </Link>
-          )}
-        </div>
-      </div>
-
-    </>
-  );
+  const principal = <FicheDeLaVisite {...fiche} telephone={telephone} />;
 
   // TCK-2581 — la candidature ou l'offre (TCK-2580) se saisit désormais depuis « Et maintenant ? ».
   // Le retour d'agent noté (1 à 5) laisse la place au compte rendu : il ne s'écrit plus, il se lit.
@@ -391,9 +340,19 @@ export function VisitDetail({ id }: { id: number }) {
     </>
   );
 
-  if (lisible) return <SuiteDeLaVisite visite={visit} principal={principal} reste={reste} />;
+  // Au bureau, l'en-tête de la fiche couvre toute la largeur, au-dessus de la grille du compte rendu.
+  const enTete = telephone ? null : <EnTeteDeLaFiche {...fiche} />;
+  if (lisible) {
+    return (
+      <>
+        {enTete}
+        <SuiteDeLaVisite visite={visit} principal={principal} reste={reste} masquee={suiteMasquee} />
+      </>
+    );
+  }
   return (
     <div className="space-y-6">
+      {enTete}
       {principal}
       {reste}
     </div>
@@ -637,85 +596,6 @@ function VisitActionForm({
       </DialogFooter>
     </form>
   );
-}
-
-function RequesterSummary({ visit }: { visit: PropertyVisit }) {
-  const t = useTranslations('visits.detail');
-  const requester = resolveRequester(visit, t);
-
-  return (
-    <div className="space-y-1">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="font-medium">{requester.name}</span>
-        {requester.customerId ? (
-          <Link
-            href={`/app/customers/${requester.customerId}`}
-            className="text-xs font-semibold text-primary hover:underline"
-          >
-            {t('requester.crmLink')}
-          </Link>
-        ) : null}
-      </div>
-      {requester.email || requester.phone ? (
-        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-          {requester.phone ? (
-            <a href={`tel:${requester.phone}`} className="tabular-nums hover:text-foreground hover:underline">
-              {requester.phone}
-            </a>
-          ) : null}
-          {requester.email ? (
-            <a href={`mailto:${requester.email}`} className="break-all hover:text-foreground hover:underline">
-              {requester.email}
-            </a>
-          ) : null}
-        </div>
-      ) : (
-        <p className="text-xs text-muted-foreground">{requester.fallback}</p>
-      )}
-    </div>
-  );
-}
-
-/**
- * `t` est passé en paramètre : cette fonction vit hors composant, elle ne peut pas appeler
- * `useTranslations` elle-même (TCK-292).
- */
-function resolveRequester(visit: PropertyVisit, t: ReturnType<typeof useTranslations>): {
-  name: string;
-  email: string | null;
-  phone: string | null;
-  customerId: number | null;
-  fallback: string;
-} {
-  if (visit.customer) {
-    return {
-      name: nomAffichable(visit.customer, t('requester.crmFallbackName', { id: String(visit.customer.id) })),
-      email: visit.customer.email ?? null,
-      phone: visit.customer.phone ?? null,
-      customerId: visit.customer.id,
-      fallback: t('requester.crmNoContact'),
-    };
-  }
-
-  if (visit.visitor) {
-    return {
-      name: nomAffichable(visit.visitor, t('requester.userFallbackName')),
-      email: visit.visitor.email ?? null,
-      phone: visit.visitor.phone ?? null,
-      customerId: null,
-      fallback: t('requester.userNoContact'),
-    };
-  }
-
-  const anonymousName = visit.visitor_name?.trim() || t('requester.anonymousName');
-
-  return {
-    name: anonymousName,
-    email: visit.visitor_email ?? null,
-    phone: visit.visitor_phone ?? null,
-    customerId: null,
-    fallback: t('requester.anonymousNoContact'),
-  };
 }
 
 /** Un avis tel que `PropertyVisitController::feedback` l'écrit dans `metadata.feedback_<rôle>`. */

@@ -170,8 +170,14 @@ export function useVisit(id: number | null | undefined) {
 export type VisitActionResponse = ApiResponse<PropertyVisit> & SortDuSms;
 
 export function useConfirmVisit(id: number) {
-  return useApiMutation<VisitActionResponse, void>(
-    { path: cheminApi`/api/property-visits/${id}/confirm`, method: 'POST' },
+  // TCK-2587 — la fiche confirme à une heure choisie (« 15:00 », « Autre… ») : `scheduled_at`
+  // facultatif, exigé par l'API pour une demande par tranche (`visit.time_required`).
+  return useApiMutation<VisitActionResponse, { readonly scheduled_at?: string } | void>(
+    {
+      path: cheminApi`/api/property-visits/${id}/confirm`,
+      method: 'POST',
+      body: (v) => (v && v.scheduled_at ? { scheduled_at: v.scheduled_at } : undefined),
+    },
     {
       relireSurErreur: true,
       invalidate: [

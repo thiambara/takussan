@@ -82,6 +82,7 @@ police de 20 px). Une page de `/app` n'écrit **aucune valeur arbitraire** pour 
 | `text-[16px]` | `text-action` | action principale des écrans d'entrée (`text-base` rend 14,4 px au bureau) |
 | `text-[17px]` | `text-titre-court` | titre d'en-tête de détail, de feuille, de panneau |
 | `text-[22px]` à `text-[40px]` | `text-affiche-22`, `-26`, `-28`, `-32`, `-40` | titres d'écrans d'entrée, chiffres ; 30 → 28 et 34 → 32 (valeur majoritaire) |
+| `text-[44px]` | `text-affiche-44` | l'heure en tête de la fiche d'une visite (TCK-2587) |
 | `tracking-[-0.02em]` (et −0,01, −0,03) | `tracking-titre` | titres |
 | `tracking-[0.08em]` | `tracking-surtitre` | sur-titres |
 | `size-[18px]` | `size-icone` | icône de ligne, 18 px à toute largeur |

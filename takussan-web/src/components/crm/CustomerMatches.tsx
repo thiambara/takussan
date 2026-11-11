@@ -16,6 +16,14 @@ import { cn } from '@/lib/utils';
 
 import { isReachable, whatsappHref } from './contact';
 
+/**
+ * Le message WhatsApp d'une sélection de biens : l'introduction, puis une ligne par bien et son lien
+ * public. Partagé avec la fiche d'une visite (TCK-2587, « Biens correspondants ») : un seul flux.
+ */
+export function messageDeSelection(intro: string, biens: readonly { readonly title: string; readonly slug: string | null }[], origine: string): string {
+  return [intro, ...biens.map((b) => `• ${b.title} — ${origine}/properties/${b.slug}`)].join('\n');
+}
+
 interface CustomerMatchesProps {
   readonly customerId: number;
   readonly firstName: string;
@@ -64,10 +72,7 @@ export function CustomerMatches({ customerId, firstName, phone }: CustomerMatche
   const shareable = rows.filter((p) => p.visibility === 'public' && p.slug);
   const picked = shareable.filter((p) => selected.includes(p.id));
   const origin = typeof window === 'undefined' ? '' : window.location.origin;
-  const message = [
-    t('shareIntro', { firstName }),
-    ...picked.map((p) => `• ${p.title} — ${origin}/properties/${p.slug}`),
-  ].join('\n');
+  const message = messageDeSelection(t('shareIntro', { firstName }), picked, origin);
 
   return (
     <div className="space-y-3">

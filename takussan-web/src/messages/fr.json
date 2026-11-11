@@ -8404,6 +8404,194 @@
         "afternoon": "après-midi",
         "evening": "soir"
       }
+    },
+    "fiche": {
+      "titre": "Visite",
+      "statut": {
+        "aConfirmer": "À confirmer",
+        "confirmee": "Confirmée",
+        "enCours": "En cours",
+        "terminee": "Terminée",
+        "annulee": "Annulée",
+        "absent": "Absent",
+        "apres": "Heure passée"
+      },
+      "age": {
+        "justNow": "à l’instant",
+        "minutes": "il y a {n} min",
+        "hours": "il y a {n} h",
+        "days": "il y a {n} j"
+      },
+      "surtitre": {
+        "demandeRecue": "Demande reçue {age}",
+        "aujourdhui": "Aujourd’hui · {jour}"
+      },
+      "sous": {
+        "dureeType": "{duree} · {type}",
+        "finPrevue": "{duree} · {type} · fin prévue à {heure}",
+        "commencee": "Commencée à {debut} · fin prévue à {fin}",
+        "prevue": "Prévue à {debut} · fin prévue à {fin}"
+      },
+      "etapes": {
+        "label": "Où en est la visite",
+        "demandee": "Demandée",
+        "confirmee": "Confirmée",
+        "visite": "Visite",
+        "compteRendu": "Compte rendu"
+      },
+      "lieu": {
+        "voirLeBien": "Voir le bien",
+        "ville": "{quartier}, {ville}"
+      },
+      "visiteur": {
+        "voirSaFiche": "Voir sa fiche"
+      },
+      "demande": {
+        "titre": "Sa demande",
+        "quand": "{jour}, {tranche}",
+        "heuresLibres": "Vos heures libres ce jour-là",
+        "autre": "Autre…",
+        "aucune": "Aucune heure libre dans la tranche ce jour-là : « Autre… » ouvre le choix.",
+        "chargement": "Lecture de vos heures libres…"
+      },
+      "enRoute": {
+        "titre": "Message prêt à partir",
+        "aide": "Il s’ouvre dans WhatsApp : vous pouvez le modifier avant l’envoi."
+      },
+      "enCours": {
+        "titre": "Visite en cours",
+        "progression": "{n} min sur {total}",
+        "terminer": "« Terminer la visite » ouvre le compte rendu : trois touches, trente secondes.",
+        "absent": "« Absent » enregistre que {prenom} n’est pas venu.",
+        "apres": "L’heure de fin prévue est passée",
+        "apresDetail": "Terminez la visite pour faire le compte rendu, ou déclarez {prenom} absent.",
+        "absentDes": "« Absent » est possible à partir de {heure}, l’heure de la visite."
+      },
+      "creneau": {
+        "titre": "Le créneau",
+        "titreCourt": "Créneau",
+        "date": "Date",
+        "heure": "Heure (Dakar)",
+        "duree": "Durée",
+        "type": "Type",
+        "accompagnement": "Accompagnement",
+        "nonAttribuee": "Non attribuée",
+        "reference": "Référence",
+        "aFixer": "{tranche}, à fixer",
+        "aFixerBureau": "{tranche} — à fixer"
+      },
+      "autres": {
+        "titre": "Autres gestes",
+        "replanifier": "Replanifier",
+        "replanifierPrevenu": "Changer le jour : {prenom} est prévenu",
+        "replanifierDetail": "Date et heure de Dakar",
+        "attribuer": "Attribuer à un collègue",
+        "retard": "Prévenir d’un retard",
+        "retardDetail": "« J’aurai 10 minutes de retard »",
+        "annuler": "Annuler la visite",
+        "annulerDetail": "Un motif est demandé",
+        "confirmer": "Confirmer la visite",
+        "prendreEnCharge": "Prendre en charge",
+        "prendreEnChargeDetail": "Aucun agent n’accompagne cette visite",
+        "terminer": "Terminer la visite",
+        "proposer": "Proposer un autre créneau",
+        "proposerDetail": "L’agence reçoit votre proposition"
+      },
+      "barre": {
+        "confirmerPour": "Confirmer pour {jour} à {heure}",
+        "confirmerChoisir": "Confirmer…",
+        "enRoute": "Je suis en route",
+        "commencer": "Commencer",
+        "absent": "Absent",
+        "terminer": "Terminer la visite"
+      },
+      "autreHeure": {
+        "titre": "Choisir une autre heure",
+        "description": "Le jour et l’heure de la visite, à Dakar. Le visiteur est prévenu à la confirmation.",
+        "jour": "Jour",
+        "heure": "Heure (Dakar)",
+        "aucune": "Aucune heure libre ce jour-là.",
+        "confirmer": "Confirmer à {heure}",
+        "fermer": "Revenir"
+      },
+      "messages": {
+        "bonjour": "Bonjour {prenom},",
+        "bonjourSansNom": "Bonjour,",
+        "enRoute": "je suis en route, j’arrive vers {heure}.",
+        "retard": "j’aurai {minutes} minutes de retard pour notre visite de {heure}. Merci de votre patience.",
+        "signature": "— {signature}",
+        "heure": "{h} h {mm}"
+      },
+      "leVisiteur": "le visiteur",
+      "bureau": {
+        "titre": {
+          "aConfirmer": "Visite à confirmer",
+          "aLHeure": "Visite de {heure}",
+          "terminee": "Visite terminée",
+          "annulee": "Visite annulée",
+          "absent": "Visiteur absent"
+        },
+        "sous": {
+          "demande": "Demandée {age} par {nom} pour {quand}",
+          "demandeSansNom": "Demandée {age} pour {quand}"
+        },
+        "aujourdhui": "Aujourd’hui, {jour}",
+        "dans": "Dans {duree}",
+        "enCours": "En cours",
+        "apres": "Heure passée",
+        "plage": "Aujourd’hui {debut} – {fin}",
+        "proposerAutreHeure": "Proposer une autre heure",
+        "plusDActions": "Plus d’actions",
+        "bien": "Bien",
+        "visiteur": "Visiteur",
+        "ouvrirLaFiche": "Ouvrir la fiche",
+        "appeler": "Appeler",
+        "whatsapp": "WhatsApp",
+        "fiche": "Fiche",
+        "sesVisites": "Ses visites",
+        "cetteVisite": "Cette visite",
+        "demandeDe": "Demande de {nom} · {age} · {quand}",
+        "heuresLibres": "Vos créneaux libres {quand} : {heures}",
+        "quandTranche": "{jour} {tranche}, heure à fixer",
+        "cherche": "Cherche",
+        "etape": "Étape",
+        "jusqua": "jusqu’à {montant}",
+        "jusquaParMois": "jusqu’à {montant}/mois",
+        "biensCorrespondants": "Biens correspondants",
+        "partager": "Partager ({n})",
+        "proposer": "Proposer",
+        "proposerA": "Proposer « {titre} » sur WhatsApp",
+        "absentPossibleA": "Possible à partir de {heure}",
+        "types": {
+          "land": "terrain",
+          "house": "maison",
+          "apartment": "appartement",
+          "villa": "villa",
+          "studio": "studio",
+          "room": "chambre",
+          "office": "bureau",
+          "shop": "local commercial",
+          "warehouse": "entrepôt",
+          "factory": "usine",
+          "farm": "ferme",
+          "hotel": "hôtel",
+          "resort": "complexe",
+          "garage": "garage",
+          "parking": "parking",
+          "other": "autre"
+        },
+        "contrats": {
+          "rent": "Location",
+          "sale": "Achat"
+        }
+      },
+      "fil": "Visites",
+      "attribuee": "Visite attribuée",
+      "tranches": {
+        "morning": "matin",
+        "afternoon": "après-midi",
+        "evening": "soir"
+      }
     }
   },
   "superAdmin": {

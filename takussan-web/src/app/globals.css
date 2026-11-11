@@ -943,6 +943,7 @@
   --text-affiche-28: 1.75rem; /* 28 — titres d'écrans d'entrée (30 px rabattus) */
   --text-affiche-32: 2rem; /* 32 — grands chiffres (34 px rabattus) */
   --text-affiche-40: 2.5rem; /* 40 — grands chiffres */
+  --text-affiche-44: 2.75rem; /* 44 — l'heure en tête de la fiche d'une visite (TCK-2587) */
 
   /* Espacement des lettres. `tracking-tight` (−0,025 em) reste celui de Tailwind. */
   --tracking-titre: -0.02em; /* −0,01 et −0,03 em rabattus ici */

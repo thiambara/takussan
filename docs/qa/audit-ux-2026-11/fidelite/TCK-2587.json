@@ -17,6 +17,57 @@
         "persona": "agent (téléphone : ses visites) · admin (bureau : celles de l'agence, comme la maquette)",
         "etat": "les visites du 10 nov. de la maquette (Abdoulaye Cissé 10:57, Rokhaya Mbaye 16:55, Yacine Diouf à clore, neuf demandes, trois « plus tard ») servies par un BOUCHON des GET `/api/property-visits`, `/counts` et `/slots` dans la page, horloge figée au mardi 10 nov. 2026, 10:12 à Dakar (`FID_AVANT=fid2587/bouchon.js`, scratchpad du lot 2) ; au bureau, `--perturber fid2587/cocher.js` coche les lignes 1, 2 et 4 comme la maquette — rien n'est écrit en base"
       }
+    },
+    {
+      "page": "app-visites",
+      "approche": "a",
+      "ecran": 1,
+      "nom": "Fiche — à confirmer",
+      "references": {
+        "telephone": "references/app-visites/a-1-telephone.json",
+        "bureau-1440": "references/app-visites/a-1-bureau-1440.json",
+        "bureau-1280": "references/app-visites/a-1-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/visits/429?fid=avant",
+        "persona": "agent",
+        "etat": "la visite 429 servie par un BOUCHON des GET dans la page (`FID_AVANT=fid2587/bouchon-b.js`, scratchpad du lot 2) : demande par tranche (mercredi 11, après-midi, message « Je suis dispo après 15 h… »), bien « Local commercial » TK-2291 à 450 000 F/mois, Abdoulaye Cissé (+221 77 123 45 67), créneaux du 11 nov., deux visites du client ; horloge figée le mardi 10 nov. 2026 à 10:12 (Dakar) — rien n'est écrit en base"
+      }
+    },
+    {
+      "page": "app-visites",
+      "approche": "a",
+      "ecran": 2,
+      "nom": "Fiche — jour J",
+      "references": {
+        "telephone": "references/app-visites/a-2-telephone.json",
+        "bureau-1440": "references/app-visites/a-2-bureau-1440.json",
+        "bureau-1280": "references/app-visites/a-2-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/visits/429?fid=jourj",
+        "persona": "agent",
+        "etat": "la visite 429 servie par un BOUCHON des GET dans la page (`FID_AVANT=fid2587/bouchon-b.js`, scratchpad du lot 2) : visite confirmée de 10:57 au 12, rue Carnot, bien « Local commercial » TK-2291 à 450 000 F/mois, Abdoulaye Cissé (+221 77 123 45 67), créneaux du 11 nov., deux visites du client ; horloge figée le mardi 10 nov. 2026 à 10:12 (Dakar) — rien n'est écrit en base"
+      }
+    },
+    {
+      "page": "app-visites",
+      "approche": "a",
+      "ecran": 3,
+      "nom": "Fiche — en cours",
+      "references": {
+        "telephone": "references/app-visites/a-3-telephone.json",
+        "bureau-1440": "references/app-visites/a-3-bureau-1440.json",
+        "bureau-1280": "references/app-visites/a-3-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/visits/429?fid=encours&horloge=11:10&commencee=10:58",
+        "persona": "agent",
+        "etat": "la visite 429 servie par un BOUCHON des GET dans la page (`FID_AVANT=fid2587/bouchon-b.js`, scratchpad du lot 2) : visite confirmée de 10:57, « Commencer » à 10:58, bien « Local commercial » TK-2291 à 450 000 F/mois, Abdoulaye Cissé (+221 77 123 45 67), créneaux du 11 nov., deux visites du client ; horloge figée le mardi 10 nov. 2026 à 11:10 (Dakar) — rien n'est écrit en base"
+      }
     }
   ],
   "produit": {
@@ -274,6 +325,83 @@
       "propriete": "fond et encre (aplat d'accent à 15 % et encre d'accent → `bg-fond-avatar` et `text-encre-avatar`)",
       "exception": "règle du design system",
       "motif": "l'accent est réservé aux badges mis en avant (`scripts/check-valeurs-arbitraires-app.mjs`, aplat-accent) ; l'avatar prend les jetons d'avatar de l'app, ceux des autres avatars de /app"
+    },
+    {
+      "ecran": "app-visites a-{1,2,3}-*",
+      "element": "barre latérale, en-tête et barre d’onglets de la coque (onglet « Menu » actif dans la maquette)",
+      "propriete": "boîtes, libellés, état actif",
+      "exception": "hors périmètre",
+      "motif": "la coque est TCK-2617/TCK-2618/TCK-2619 (terrain-5) ; au bureau, l’essentiel des écarts en vient, avec le rem 14,4 / 16 de part et d’autre de TCK-2692"
+    },
+    {
+      "ecran": "app-visites a-{1,2,3}-telephone",
+      "element": "vignette de carte au-dessus de l’adresse",
+      "propriete": "absente",
+      "exception": "technique",
+      "motif": "aucune tuile ni image de carte dans le produit ; l’adresse et « Itinéraire » restent"
+    },
+    {
+      "ecran": "app-visites a-{2,3}-telephone",
+      "element": "boutons de la barre collante",
+      "propriete": "hauteur 44 px contre « grand »",
+      "exception": "règle du design system",
+      "motif": "BarreDAction (TCK-2689, point porteur n° 1 de TCK-2712) fixe des boutons de taille par défaut"
+    },
+    {
+      "ecran": "app-visites a-1-*",
+      "element": "heure libre 17:00 de l’après-midi",
+      "propriete": "absente",
+      "exception": "donnée",
+      "motif": "VisitWindow::Evening commence à 17:00 (API) : 17:00 est le soir, la tranche de l’après-midi s’arrête avant ; réponse 7 du team-lead : l’API reste telle quelle, VisitWindow n’est pas touché"
+    },
+    {
+      "ecran": "app-visites a-1-bureau-*",
+      "element": "« Vos créneaux libres mercredi après 15 h »",
+      "propriete": "libellé « mercredi après-midi »",
+      "exception": "donnée",
+      "motif": "« après 15 h » vient du message libre du visiteur, que rien ne lit"
+    },
+    {
+      "ecran": "app-visites a-1-bureau-*",
+      "element": "pastille du visiteur « 2e bien visité »",
+      "propriete": "libellé « revient · 2e visite »",
+      "exception": "donnée",
+      "motif": "l’API donne `visits_on_property` (visites sur CE bien), pas le nombre de biens visités"
+    },
+    {
+      "ecran": "app-visites a-{1,2,3}-bureau-*",
+      "element": "Référence « V-2301 »",
+      "propriete": "valeur « #429 »",
+      "exception": "donnée",
+      "motif": "aucune référence de visite dans l’API : l’identifiant"
+    },
+    {
+      "ecran": "app-visites a-1-bureau-*",
+      "element": "« Confirmer à 15:00 ▾ »",
+      "propriete": "chevron absent : bouton unique « Confirmer à 15:00 »",
+      "exception": "décision produit",
+      "motif": "réponse 5 du team-lead : un seul bouton de confirmation, puisque « Proposer une autre heure » est un autre chemin visible vers le choix de l’heure"
+    },
+    {
+      "ecran": "app-visites a-{1,2,3}-bureau-*",
+      "element": "vignettes des « Biens correspondants »",
+      "propriete": "absentes",
+      "exception": "donnée",
+      "motif": "GET /api/customers/{id}/matching-properties (le flux de la fiche client, réutilisé — réponse 1) ne rend aucune photo : MatchingProperty = id, titre, type, contrat, prix, chambres, visibilité, statut, ville, quartier"
+    },
+    {
+      "ecran": "app-visites a-{1,2,3}-bureau-*",
+      "element": "« référente Sokhna Sène » sous l’étape",
+      "propriete": "absente",
+      "exception": "donnée",
+      "motif": "la référente vient des relations du client, une autre lecture que GET /api/customers/{id} ; « N’inventez pas de flux » (réponse 1)"
+    },
+    {
+      "ecran": "app-visites a-3-bureau-*",
+      "element": "bulle « Bonjour…, je suis en route » dans la barre « En cours »",
+      "propriete": "absente",
+      "exception": "vérité des données",
+      "motif": "rien n’atteste que le message est parti ; la bulle reste en jour J, où elle est un aperçu"
     }
   ],
   "hors_perimetre": [

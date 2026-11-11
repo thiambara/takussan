@@ -502,7 +502,8 @@ describe('TCK-2581 — au téléphone, deux étapes plein écran', () => {
     etat.visite = visiteDe(LOCATION, { status: 'confirmed', completed_at: null, scheduled_at: '2026-11-11T08:00:00+00:00' });
     const user = userEvent.setup();
     monter();
-    await user.click(await screen.findByRole('button', { name: 'Marquer effectuée' }));
+    // TCK-2587 (lot B) — le geste de la barre collante de la fiche porte le nom de la maquette.
+    await user.click(await screen.findByRole('button', { name: 'Terminer la visite' }));
     await waitFor(() => expect(nav.push).toHaveBeenCalledWith('/app/visits/228?etape=compte-rendu'));
   });
 });

@@ -23,6 +23,7 @@ export const TAILLES_DE_TEXTE = {
   'affiche-28': 28,
   'affiche-32': 32,
   'affiche-40': 40,
+  'affiche-44': 44,
 } as const satisfies Record<string, number>;
 
 export type TailleDeTexte = keyof typeof TAILLES_DE_TEXTE;

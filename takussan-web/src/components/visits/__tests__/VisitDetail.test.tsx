@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { withIntl } from '@/test/intl';
@@ -30,7 +30,9 @@ vi.mock('@/context/AuthContext', () => ({
 }));
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push }),
+  useRouter: () => ({ push, replace: vi.fn() }),
+  usePathname: () => '/app/visits/1',
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 vi.mock('@/components/ui/toast', () => ({
@@ -52,6 +54,8 @@ vi.mock('@/lib/queries/visits', () => ({
   useClaimVisit: () => claimMutation,
   useProposeVisitSlot: () => proposeMutation,
   useMarkVisitNoShow: () => mutation,
+  useCreneauxDeVisite: () => ({ data: undefined, isError: false, dataUpdatedAt: 0 }),
+  useAttribuerEnLot: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 function renderDetail() {
@@ -68,6 +72,15 @@ function renderDetail() {
       </QueryClientProvider>,
     ),
   );
+}
+
+/**
+ * TCK-2587 (lot B) — au bureau, la fiche range « Confirmer la visite » et « Annuler la visite » d'une
+ * visite passée sous « ⋯ » (« Plus d’actions ») ; « Replanifier » reste dans l'en-tête.
+ */
+async function ouvrirLeMenu(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole('button', { name: 'Plus d’actions' }));
+  await screen.findByRole('button', { name: /^annuler la visite/i });
 }
 
 function makeVisit(overrides: Partial<PropertyVisit> = {}): PropertyVisit {
@@ -130,13 +143,14 @@ describe('<VisitDetail>', () => {
     renderDetail();
 
     expect(screen.getByText('Awa Diop')).toBeInTheDocument();
-    expect(screen.getByText('+221770000000')).toBeInTheDocument();
+    // TCK-2587 : le numéro affiché se lit groupé (maquette « +221 78 942 93 52 ») ; les liens gardent l'E.164.
+    expect(screen.getByText('+221 77 000 00 00')).toBeInTheDocument();
     expect(screen.getByText('awa.diop@example.test')).toBeInTheDocument();
     expect(screen.queryByText(/Customer #45/)).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /fiche crm/i })).toHaveAttribute(
-      'href',
-      '/app/customers/45',
-    );
+    // TCK-2587 (lot B) — la carte du visiteur ouvre sa fiche par « Ouvrir la fiche » et « Fiche ».
+    const liens = screen.getAllByRole('link', { name: /fiche/i });
+    expect(liens).toHaveLength(2);
+    for (const lien of liens) expect(lien).toHaveAttribute('href', '/app/customers/45');
   });
 
   it('shows a registered visitor name and email without a CRM link', () => {
@@ -155,7 +169,7 @@ describe('<VisitDetail>', () => {
 
     expect(screen.getByText('Moussa Ndiaye')).toBeInTheDocument();
     expect(screen.getByText('moussa@example.test')).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /fiche crm/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /fiche/i })).not.toBeInTheDocument();
   });
 
   it('shows anonymous visitor fallback with available contact details', () => {
@@ -168,32 +182,35 @@ describe('<VisitDetail>', () => {
     renderDetail();
 
     expect(screen.getByText('Visiteur anonyme')).toBeInTheDocument();
-    expect(screen.getByText('+221781111111')).toBeInTheDocument();
+    expect(screen.getByText('+221 78 111 11 11')).toBeInTheDocument();
     expect(screen.getByText('visiteur@example.test')).toBeInTheDocument();
   });
 
-  it('keeps visit actions visible for a scheduled manageable visit', () => {
+  it('keeps visit actions visible for a scheduled manageable visit', async () => {
+    const user = userEvent.setup();
     renderDetail();
 
-    expect(screen.getByRole('button', { name: /confirmer la visite/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /replanifier/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /annuler/i })).toBeInTheDocument();
+    await ouvrirLeMenu(user);
+    expect(screen.getByRole('button', { name: /confirmer la visite/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^annuler la visite/i })).toBeInTheDocument();
   });
   it("annule par un dialogue : motif exigé, puis le même payload qu'avant", async () => {
     const user = userEvent.setup();
     const prompt = vi.spyOn(window, 'prompt');
     renderDetail();
 
-    await user.click(screen.getByRole('button', { name: /^annuler$/i }));
+    await ouvrirLeMenu(user);
+    await user.click(screen.getByRole('button', { name: /^annuler la visite/i }));
     const dialog = await screen.findByRole('dialog');
     expect(dialog).toHaveTextContent(/annuler la visite/i);
 
-    await user.click(screen.getByRole('button', { name: /annuler la visite/i }));
+    await user.click(within(dialog).getByRole('button', { name: /annuler la visite/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/indiquez le motif/i);
     expect(cancelMutation.mutateAsync).not.toHaveBeenCalled();
 
     await user.type(screen.getByLabelText(/motif d.annulation/i), '  Visiteur indisponible  ');
-    await user.click(screen.getByRole('button', { name: /annuler la visite/i }));
+    await user.click(within(dialog).getByRole('button', { name: /annuler la visite/i }));
 
     expect(cancelMutation.mutateAsync).toHaveBeenCalledWith({ reason: 'Visiteur indisponible' });
     expect(push).toHaveBeenCalledWith('/app/visits');

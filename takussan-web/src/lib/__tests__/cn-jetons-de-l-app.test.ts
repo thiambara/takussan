@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 const t = (n: string) => `text-${n}`;
 
 describe('TCK-2685 — cn() et les jetons de l’app', () => {
-  it.each(['pastille', 'legende', 'ui', 'corps', 'action', 'titre-court', 'affiche-22', 'affiche-40'])(
+  it.each(['pastille', 'legende', 'ui', 'corps', 'action', 'titre-court', 'affiche-22', 'affiche-40', 'affiche-44'])(
     'une taille %s survit à une couleur, et une couleur à elle',
     (n) => {
       expect(cn(t(n), t('foreground'))).toBe(`${t(n)} ${t('foreground')}`);

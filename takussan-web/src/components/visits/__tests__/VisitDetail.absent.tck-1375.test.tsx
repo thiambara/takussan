@@ -1,10 +1,14 @@
 /**
  * TCK-1375 (P115.05) — le geste « absent » : le personnel marque absente une visite planifiée ou
  * confirmée dont l'heure est passée (`POST property-visits/{id}/no-show`).
+ *
+ * TCK-2587 (lot B) — le geste s'appelle « Absent » sur la fiche ; commencée avant l'heure, la
+ * visite le montre grisé (`?commencee=`), jamais actif.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { withIntl } from '@/test/intl';
 import { VisitDetail } from '../VisitDetail';
 import type { PropertyVisit } from '@/types/visit';
@@ -18,7 +22,11 @@ const noShow = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false };
 const toastAdd = vi.fn();
 
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: etat.user }) }));
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  usePathname: () => '/app/visits/1',
+  useSearchParams: () => new URLSearchParams(),
+}));
 vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ add: toastAdd }) }));
 vi.mock('@/lib/queries/visits', () => ({
   useVisit: () => ({ data: { data: etat.visit }, isLoading: false, isError: false }),
@@ -29,6 +37,8 @@ vi.mock('@/lib/queries/visits', () => ({
   useClaimVisit: () => mutation,
   useProposeVisitSlot: () => mutation,
   useMarkVisitNoShow: () => noShow,
+  useCreneauxDeVisite: () => ({ data: undefined, isError: false, dataUpdatedAt: 0 }),
+  useAttribuerEnLot: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 const PASSEE = new Date(Date.now() - 2 * 3600_000).toISOString();
@@ -52,17 +62,23 @@ function visite(overrides: Partial<PropertyVisit> = {}): PropertyVisit {
   };
 }
 
+/** TCK-2587 (lot B) — la fiche lit le prix du bien et le profil actif : un client de requêtes. */
+function rendreLeDetail() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(withIntl(<QueryClientProvider client={client}><VisitDetail id={1} /></QueryClientProvider>));
+}
+
 describe('<VisitDetail> — absent (TCK-1375)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     etat.user = { id: 7, roles: ['agent'] };
   });
 
-  it('propose « Marquer absent » au personnel sur une visite confirmée passée, et l’envoie', async () => {
+  it('propose « Absent » au personnel sur une visite confirmée passée, et l’envoie', async () => {
     etat.visit = visite();
-    render(withIntl(<VisitDetail id={1} />));
+    rendreLeDetail();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Marquer absent' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Absent' }));
 
     expect(noShow.mutateAsync).toHaveBeenCalledTimes(1);
     expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({ title: 'Visite marquée absente', type: 'success' }));
@@ -70,26 +86,26 @@ describe('<VisitDetail> — absent (TCK-1375)', () => {
 
   it('le propose aussi sur une visite planifiée passée', () => {
     etat.visit = visite({ status: 'scheduled' });
-    render(withIntl(<VisitDetail id={1} />));
-    expect(screen.getByRole('button', { name: 'Marquer absent' })).toBeInTheDocument();
+    rendreLeDetail();
+    expect(screen.getByRole('button', { name: 'Absent' })).toBeInTheDocument();
   });
 
   it('ne le propose pas avant l’heure de la visite', () => {
     etat.visit = visite({ scheduled_at: A_VENIR });
-    render(withIntl(<VisitDetail id={1} />));
-    expect(screen.queryByRole('button', { name: 'Marquer absent' })).toBeNull();
+    rendreLeDetail();
+    expect(screen.queryByRole('button', { name: 'Absent' })).toBeNull();
   });
 
   it('ne le propose pas sur une visite terminée', () => {
     etat.visit = visite({ status: 'completed' });
-    render(withIntl(<VisitDetail id={1} />));
-    expect(screen.queryByRole('button', { name: 'Marquer absent' })).toBeNull();
+    rendreLeDetail();
+    expect(screen.queryByRole('button', { name: 'Absent' })).toBeNull();
   });
 
   it('ne le propose pas au visiteur', () => {
     etat.user = { id: 99, roles: ['customer'] };
     etat.visit = visite({ visitor_id: 99, abilities: { manage: false } });
-    render(withIntl(<VisitDetail id={1} />));
-    expect(screen.queryByRole('button', { name: 'Marquer absent' })).toBeNull();
+    rendreLeDetail();
+    expect(screen.queryByRole('button', { name: 'Absent' })).toBeNull();
   });
 });

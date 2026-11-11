@@ -3,11 +3,14 @@
  * (`UpdatePropertyVisitRequest` : `scheduled_at` `after:now`). Le champ se lit à l'heure de Dakar
  * (`instantADakar`) : son `min` est l'instant présent à Dakar, et non dans le fuseau du navigateur.
  * Navigateur à New York, 01:00 Z le 25 octobre : 21:00 le 24 au navigateur, 01:00 le 25 à Dakar.
+ *
+ * TCK-2587 (lot B) — sur une demande à confirmer, « Replanifier » vit sous « ⋯ » au bureau.
  */
 process.env.TZ = 'America/New_York';
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { withIntl } from '@/test/intl';
 import { VisitDetail } from '../VisitDetail';
 import type { PropertyVisit } from '@/types/visit';
@@ -30,7 +33,11 @@ const visite: PropertyVisit = {
 };
 
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: { id: 7, roles: ['agent'] } }) }));
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  usePathname: () => '/app/visits/1',
+  useSearchParams: () => new URLSearchParams(),
+}));
 vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ add: vi.fn() }) }));
 vi.mock('@/lib/api', async (orig) => ({
   ...(await orig<typeof import('@/lib/api')>()),
@@ -45,7 +52,15 @@ vi.mock('@/lib/queries/visits', () => ({
   useClaimVisit: () => mutation,
   useProposeVisitSlot: () => mutation,
   useMarkVisitNoShow: () => mutation,
+  useCreneauxDeVisite: () => ({ data: undefined, isError: false, dataUpdatedAt: 0 }),
+  useAttribuerEnLot: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
+
+/** TCK-2587 (lot B) — la fiche lit le prix du bien et le profil actif : un client de requêtes. */
+function rendreLeDetail() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(withIntl(<QueryClientProvider client={client}><VisitDetail id={1} /></QueryClientProvider>));
+}
 
 describe('<VisitDetail> — replanifier à partir de maintenant (P230.05)', () => {
   beforeEach(() => {
@@ -57,8 +72,9 @@ describe('<VisitDetail> — replanifier à partir de maintenant (P230.05)', () =
   });
 
   it('le nouveau créneau commence à l’instant présent, à Dakar', async () => {
-    render(withIntl(<VisitDetail id={1} />));
-    fireEvent.click(screen.getByRole('button', { name: /replanifier/i }));
+    rendreLeDetail();
+    fireEvent.click(screen.getByRole('button', { name: 'Plus d’actions' }));
+    fireEvent.click(await screen.findByRole('button', { name: /^replanifier/i }));
     await screen.findByRole('dialog');
 
     expect(screen.getByLabelText(/nouveau créneau/i)).toHaveAttribute('min', '2026-10-25T01:00');

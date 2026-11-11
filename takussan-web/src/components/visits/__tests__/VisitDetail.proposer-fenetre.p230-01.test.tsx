@@ -11,6 +11,7 @@ process.env.TZ = 'America/New_York';
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { withIntl } from '@/test/intl';
 import { VisitDetail } from '../VisitDetail';
 import type { PropertyVisit } from '@/types/visit';
@@ -33,7 +34,11 @@ const visite: PropertyVisit = {
 };
 
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: { id: 30, roles: ['customer'] } }) }));
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  usePathname: () => '/app/visits/1',
+  useSearchParams: () => new URLSearchParams(),
+}));
 vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ add: vi.fn() }) }));
 vi.mock('@/lib/api', async (orig) => ({
   ...(await orig<typeof import('@/lib/api')>()),
@@ -48,7 +53,15 @@ vi.mock('@/lib/queries/visits', () => ({
   useClaimVisit: () => mutation,
   useProposeVisitSlot: () => mutation,
   useMarkVisitNoShow: () => mutation,
+  useCreneauxDeVisite: () => ({ data: undefined, isError: false, dataUpdatedAt: 0 }),
+  useAttribuerEnLot: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
+
+/** TCK-2587 (lot B) — la fiche lit le prix du bien et le profil actif : un client de requêtes. */
+function rendreLeDetail() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(withIntl(<QueryClientProvider client={client}><VisitDetail id={1} /></QueryClientProvider>));
+}
 
 describe('<VisitDetail> — proposer un créneau dans la fenêtre de l’API (P230.01)', () => {
   beforeEach(() => {
@@ -60,7 +73,7 @@ describe('<VisitDetail> — proposer un créneau dans la fenêtre de l’API (P2
   });
 
   it('le champ du jour va du jour UTC à J+60, et non du jour local sans borne', () => {
-    render(withIntl(<VisitDetail id={1} />));
+    rendreLeDetail();
     fireEvent.click(screen.getByRole('button', { name: 'Proposer un autre créneau' }));
 
     const champ = screen.getByLabelText('Date');

@@ -8404,6 +8404,194 @@
         "afternoon": "afternoon",
         "evening": "evening"
       }
+    },
+    "fiche": {
+      "titre": "Visit",
+      "statut": {
+        "aConfirmer": "To confirm",
+        "confirmee": "Confirmed",
+        "enCours": "In progress",
+        "terminee": "Completed",
+        "annulee": "Cancelled",
+        "absent": "No-show",
+        "apres": "Time passed"
+      },
+      "age": {
+        "justNow": "just now",
+        "minutes": "{n} min ago",
+        "hours": "{n} h ago",
+        "days": "{n} d ago"
+      },
+      "surtitre": {
+        "demandeRecue": "Request received {age}",
+        "aujourdhui": "Today · {jour}"
+      },
+      "sous": {
+        "dureeType": "{duree} · {type}",
+        "finPrevue": "{duree} · {type} · ends at {heure}",
+        "commencee": "Started at {debut} · ends at {fin}",
+        "prevue": "Planned at {debut} · ends at {fin}"
+      },
+      "etapes": {
+        "label": "Where the visit stands",
+        "demandee": "Requested",
+        "confirmee": "Confirmed",
+        "visite": "Visit",
+        "compteRendu": "Report"
+      },
+      "lieu": {
+        "voirLeBien": "View the property",
+        "ville": "{quartier}, {ville}"
+      },
+      "visiteur": {
+        "voirSaFiche": "View their record"
+      },
+      "demande": {
+        "titre": "Their request",
+        "quand": "{jour}, {tranche}",
+        "heuresLibres": "Your free times that day",
+        "autre": "Other…",
+        "aucune": "No free time in that part of the day: “Other…” opens the choice.",
+        "chargement": "Reading your free times…"
+      },
+      "enRoute": {
+        "titre": "Message ready to send",
+        "aide": "It opens in WhatsApp: you can edit it before sending."
+      },
+      "enCours": {
+        "titre": "Visit in progress",
+        "progression": "{n} min of {total}",
+        "terminer": "“End the visit” opens the report: three taps, thirty seconds.",
+        "absent": "“No-show” records that {prenom} did not come.",
+        "apres": "The planned end time has passed",
+        "apresDetail": "End the visit to write the report, or record {prenom} as a no-show.",
+        "absentDes": "“No-show” is possible from {heure}, the visit time."
+      },
+      "creneau": {
+        "titre": "The slot",
+        "titreCourt": "Slot",
+        "date": "Date",
+        "heure": "Time (Dakar)",
+        "duree": "Duration",
+        "type": "Type",
+        "accompagnement": "Accompanied by",
+        "nonAttribuee": "Unassigned",
+        "reference": "Reference",
+        "aFixer": "{tranche}, to be set",
+        "aFixerBureau": "{tranche} — to be set"
+      },
+      "autres": {
+        "titre": "Other actions",
+        "replanifier": "Reschedule",
+        "replanifierPrevenu": "Change the day: {prenom} is notified",
+        "replanifierDetail": "Dakar date and time",
+        "attribuer": "Assign to a colleague",
+        "retard": "Warn of a delay",
+        "retardDetail": "“I will be 10 minutes late”",
+        "annuler": "Cancel the visit",
+        "annulerDetail": "A reason is required",
+        "confirmer": "Confirm the visit",
+        "prendreEnCharge": "Take it on",
+        "prendreEnChargeDetail": "No agent is accompanying this visit",
+        "terminer": "End the visit",
+        "proposer": "Suggest another slot",
+        "proposerDetail": "The agency receives your suggestion"
+      },
+      "barre": {
+        "confirmerPour": "Confirm for {jour} at {heure}",
+        "confirmerChoisir": "Confirm…",
+        "enRoute": "I’m on my way",
+        "commencer": "Start",
+        "absent": "No-show",
+        "terminer": "End the visit"
+      },
+      "autreHeure": {
+        "titre": "Choose another time",
+        "description": "The day and time of the visit, in Dakar. The visitor is notified on confirmation.",
+        "jour": "Day",
+        "heure": "Time (Dakar)",
+        "aucune": "No free time that day.",
+        "confirmer": "Confirm at {heure}",
+        "fermer": "Go back"
+      },
+      "messages": {
+        "bonjour": "Hello {prenom},",
+        "bonjourSansNom": "Hello,",
+        "enRoute": "I am on my way and will arrive around {heure}.",
+        "retard": "I will be {minutes} minutes late for our {heure} visit. Thank you for your patience.",
+        "signature": "— {signature}",
+        "heure": "{h}:{mm}"
+      },
+      "leVisiteur": "the visitor",
+      "bureau": {
+        "titre": {
+          "aConfirmer": "Visit to confirm",
+          "aLHeure": "{heure} visit",
+          "terminee": "Visit completed",
+          "annulee": "Visit cancelled",
+          "absent": "Visitor did not come"
+        },
+        "sous": {
+          "demande": "Requested {age} by {nom} for {quand}",
+          "demandeSansNom": "Requested {age} for {quand}"
+        },
+        "aujourdhui": "Today, {jour}",
+        "dans": "In {duree}",
+        "enCours": "In progress",
+        "apres": "Time passed",
+        "plage": "Today {debut} – {fin}",
+        "proposerAutreHeure": "Suggest another time",
+        "plusDActions": "More actions",
+        "bien": "Property",
+        "visiteur": "Visitor",
+        "ouvrirLaFiche": "Open the record",
+        "appeler": "Call",
+        "whatsapp": "WhatsApp",
+        "fiche": "Record",
+        "sesVisites": "Their visits",
+        "cetteVisite": "This visit",
+        "demandeDe": "Request from {nom} · {age} · {quand}",
+        "heuresLibres": "Your free slots {quand}: {heures}",
+        "quandTranche": "{jour} {tranche}, time to be set",
+        "cherche": "Looking for",
+        "etape": "Stage",
+        "jusqua": "up to {montant}",
+        "jusquaParMois": "up to {montant}/month",
+        "biensCorrespondants": "Matching properties",
+        "partager": "Share ({n})",
+        "proposer": "Suggest",
+        "proposerA": "Suggest “{titre}” on WhatsApp",
+        "absentPossibleA": "Possible from {heure}",
+        "types": {
+          "land": "land",
+          "house": "house",
+          "apartment": "apartment",
+          "villa": "villa",
+          "studio": "studio",
+          "room": "room",
+          "office": "office",
+          "shop": "commercial unit",
+          "warehouse": "warehouse",
+          "factory": "factory",
+          "farm": "farm",
+          "hotel": "hotel",
+          "resort": "resort",
+          "garage": "garage",
+          "parking": "parking",
+          "other": "other"
+        },
+        "contrats": {
+          "rent": "Rent",
+          "sale": "Purchase"
+        }
+      },
+      "fil": "Visits",
+      "attribuee": "Visit assigned",
+      "tranches": {
+        "morning": "morning",
+        "afternoon": "afternoon",
+        "evening": "evening"
+      }
     }
   },
   "superAdmin": {
