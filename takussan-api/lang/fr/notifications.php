@@ -301,9 +301,9 @@ return [
         'agency' => [
             // TCK-2704 — aux super-admins : demande de passage en agence professionnelle (`AgencyUpgradeRequestSubmittedNotification`).
             'upgrade_requested' => [
-                'title' => 'Nouvelle demande d\'upgrade d\'agence : :agency',
+                'title' => 'Nouvelle demande de passage en agence professionnelle : :agency',
                 'body' => 'L\'agence :agency demande à passer en mode professionnel. Examinez la demande.',
-                'sms' => 'Takussan : demande d\'upgrade de l\'agence :agency.',
+                'sms' => 'Takussan : l\'agence :agency demande à passer en agence professionnelle.',
             ],
             'suspended' => [
                 'title' => 'Agence suspendue : :agency',

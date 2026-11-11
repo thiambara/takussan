@@ -147,6 +147,22 @@ class CodesDesAvisSansCodeTest extends TestCase
     // `via()` et le choix des destinataires sont exercés, et la ligne est lue par la cloche.
 
     /**
+     * Vérification adverse de TCK-2704 (m1) — le texte STOCKÉ (titre et corps : repli, diffusions)
+     * est écrit dans la langue du destinataire, et non dans celle de la requête qui l'émet : ce
+     * qu'AC4 épinglait pour `boost.ended` seul. Comparé à la cloche re-rendue en anglais, et distinct
+     * du français, pour qu'un rendu en langue fixe rougisse.
+     */
+    private function assertStockeeDansSaLangue(User $destinataire, string $code): void
+    {
+        $stockee = AppNotification::query()->where('user_id', $destinataire->id)->where('code', $code)->sole();
+        $en = $this->laClocheDe($destinataire, 'en')->get($code);
+        $fr = $this->laClocheDe($destinataire, 'fr')->get($code);
+
+        $this->assertSame([$en['title'], $en['body']], [$stockee->title, $stockee->body], "{$code} : stocké en anglais");
+        $this->assertNotSame($fr['title'], $stockee->title, "{$code} : le titre anglais diffère du français");
+    }
+
+    /**
      * Les lignes de la cloche de ce lecteur, rangées par code.
      *
      * @return Collection<string, array<string, mixed>>
@@ -163,6 +179,7 @@ class CodesDesAvisSansCodeTest extends TestCase
     {
         $agency = Agency::factory()->create();
         $admins = [$this->agencyAdmin($agency), $this->agencyAdmin($agency)];
+        $admins[1]->forceFill(['preferred_language' => 'en'])->save();
 
         Sanctum::actingAs(User::factory()->withOwnerProfile($agency)->create());
         $id = $this->postJson('/api/properties', [
@@ -176,6 +193,7 @@ class CodesDesAvisSansCodeTest extends TestCase
             $this->assertSame(['bien', true], [$ligne['famille'], $ligne['a_traiter']]);
             $this->assertSame("/app/properties/{$id}", $ligne['target']['path']);
         }
+        $this->assertStockeeDansSaLangue($admins[1], 'property.proposed');
     }
 
     /** AC2 — l'agence (son administrateur principal) reçoit l'intervention urgente, à traiter. */
@@ -183,6 +201,7 @@ class CodesDesAvisSansCodeTest extends TestCase
     {
         $agency = Agency::factory()->create();
         $principal = $this->agencyAdmin($agency);
+        $principal->forceFill(['preferred_language' => 'en'])->save();
         $agency->update(['primary_admin_id' => $principal->id]);
         $bailleur = User::factory()->withOwnerProfile($agency)->create();
         $property = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $bailleur->id]);
@@ -197,6 +216,7 @@ class CodesDesAvisSansCodeTest extends TestCase
         $this->assertNotNull($ligne);
         $this->assertSame(['demande', true], [$ligne['famille'], $ligne['a_traiter']]);
         $this->assertSame("/app/maintenance/{$id}", $ligne['target']['path']);
+        $this->assertStockeeDansSaLangue($principal, 'maintenance.urgent_created');
     }
 
     /** AC2 — l'escalade du balayage porte son propre code, à traiter. */
@@ -204,6 +224,7 @@ class CodesDesAvisSansCodeTest extends TestCase
     {
         $agency = Agency::factory()->create();
         $principal = $this->agencyAdmin($agency);
+        $principal->forceFill(['preferred_language' => 'en'])->save();
         $agency->update(['primary_admin_id' => $principal->id]);
         $demande = MaintenanceRequest::factory()->create([
             'property_id' => Property::factory()->create(['agency_id' => $agency->id])->id,
@@ -219,6 +240,7 @@ class CodesDesAvisSansCodeTest extends TestCase
         $this->assertNotNull($ligne);
         $this->assertSame(['demande', true], [$ligne['famille'], $ligne['a_traiter']]);
         $this->assertSame("/app/maintenance/{$demande->id}", $ligne['target']['path']);
+        $this->assertStockeeDansSaLangue($principal, 'maintenance.urgent_escalated');
     }
 
     /** AC3 — chaque super-admin reçoit la demande de passage en agence, à traiter. */
@@ -229,6 +251,7 @@ class CodesDesAvisSansCodeTest extends TestCase
         foreach ($superAdmins as $superAdmin) {
             $this->materializeRoleProfile($superAdmin, 'super_admin');
         }
+        $superAdmins[1]->forceFill(['preferred_language' => 'en'])->save();
 
         $this->actingAsRole('agency_admin', ['agency_id' => $agency->id]);
         $this->postJson("/api/agencies/{$agency->id}/upgrade-requests", [
@@ -245,6 +268,7 @@ class CodesDesAvisSansCodeTest extends TestCase
             $this->assertSame(['systeme', true], [$ligne['famille'], $ligne['a_traiter']]);
             $this->assertSame("/super-admin/agency-upgrade-requests/{$demande->id}", $ligne['target']['path']);
         }
+        $this->assertStockeeDansSaLangue($superAdmins[1], 'agency.upgrade_requested');
     }
 
     /** AC4 — une mise en avant close par la modération : un bien à lire, écrit dans la langue du titulaire. */
