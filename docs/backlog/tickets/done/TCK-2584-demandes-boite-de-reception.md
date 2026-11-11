@@ -1,13 +1,13 @@
 ---
 id: TCK-2584
 title: "Demandes : une boîte de réception — lignes compactes, âge, doublon annoncé, « Visite » préremplie et « Vous avez répondu ? » au retour"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: L
 wave: 89
 created: 2026-11-10
-updated: 2026-11-10
+updated: 2026-11-11
 depends_on: [TCK-2582, TCK-2583, TCK-2586, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: []
 spec_refs:
