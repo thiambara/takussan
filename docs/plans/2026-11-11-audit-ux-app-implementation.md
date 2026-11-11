@@ -364,3 +364,9 @@ _(tenu par la session : date, lot, tickets livrés, refus du vérificateur, PR, 
   session ; les agents ne jouaient que leurs propres tests. Le brief commun exige désormais
   `tests/Unit/Architecture`, `tests/Feature/Architecture` et `tests/Feature/Database` côté back,
   et toutes les gardes `scripts/check-*.mjs` côté front.
+- TCK-2672 : `POST /api/properties/{id}/reject` exige désormais `reason_code` ; l'écran qui le
+  choisira est TCK-2673 (lointain). Pont posé par la session dans le même commit :
+  `rejectProperty()` envoie `other` par défaut — à retirer quand TCK-2673 propose le choix.
+  Hors de son ticket, noté : `filter[risk]`, `sort=risk` et `meta.risk_counts` restent ouverts sur
+  la liste de l'auteur (rien n'y est révélé qu'il ne lise déjà). /sync-specs :
+  `properties.rejection_reason_code`, règle de risque d'un avis, deux routes neuves.
