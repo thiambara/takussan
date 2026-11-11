@@ -150,4 +150,9 @@ période par `FinInclusive::de()`, la tranche de visite publique (`->utc()`).
 
 ## Notes d'implémentation
 
+- **Relevé à la vérification adverse de TCK-2715 (2026-11-11), préexistant, même famille** : la règle `date` de
+  Laravel relit « 99999-01-01 » en 2009-01-01, et le `PATCH` d'une intervention (sans `after:now`) l'écrit en 200 ;
+  même chose pour « 0099-01-01 » et une chaîne terminée par un octet nul. La conversion partagée de la voie (a) est
+  l'endroit où refuser ces formes (un format ISO 8601 strict à la frontière), plutôt qu'une règle de plus par champ.
+
 _(à remplir par implementing-specs)_
