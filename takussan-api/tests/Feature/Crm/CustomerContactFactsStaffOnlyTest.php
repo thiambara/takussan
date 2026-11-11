@@ -4,9 +4,14 @@ namespace Tests\Feature\Crm;
 
 use App\Models\Customer;
 use App\Models\Enums\CustomerPipelineStage;
+use App\Models\Enums\VisitStatus;
+use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
+use App\Models\PropertyVisit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 use Tests\ApiTestCase;
 use Tests\Support\FabriqueDemandesEtVisites;
@@ -121,5 +126,56 @@ class CustomerContactFactsStaffOnlyTest extends ApiTestCase
         $this->assertSame([$this->jamaisContactee->id], $this->ids('&filter[follow_up]=1'));
         // Trié par dernier contact : la fiche contactée d'abord, la jamais contactée en dernier.
         $this->assertSame([$this->contactee->id, $this->jamaisContactee->id], $this->ids('&sort=last_contacted_at'));
+    }
+
+    /**
+     * Contre-vérification n° 2 — un compte PERSONNEL d'une agence A et bailleur auteur dans une agence
+     * B : la ressource tenait fiche par fiche, mais la liste le jugeait en bloc. Ni le tri du dernier
+     * contact, ni le filtre, ni le tri de la relance ne bougent quand l'agence B dépose un compte
+     * rendu sur le bien d'un AUTRE bailleur de B.
+     */
+    public function test_le_compte_personnel_ailleurs_et_bailleur_auteur_ici_ne_lit_rien_de_plus(): void
+    {
+        Notification::fake();
+        $agenceA = $this->agence();
+        $agenceB = $this->agence();
+        $double = User::factory()->create();
+        AgentProfile::factory()->create(['user_id' => $double->id, 'agency_id' => $agenceA->id]);
+        OwnerProfile::factory()->create(['user_id' => $double->id, 'agency_id' => $agenceB->id]);
+        $double = $double->fresh();
+        $agentB = $this->personnel($agenceB);
+
+        $f2 = $this->ficheClient($agenceB, null, ['added_by_id' => $double->id, 'pipeline_stage' => CustomerPipelineStage::Prospect]);
+        $f2->forceFill(['created_at' => Carbon::parse('2026-10-30 09:00:00')])->saveQuietly();
+        $f1 = $this->ficheClient($agenceB, null, ['added_by_id' => $double->id, 'pipeline_stage' => CustomerPipelineStage::Prospect]);
+        $f1->forceFill(['created_at' => Carbon::parse('2026-10-31 09:00:00')])->saveQuietly();
+        $visite = PropertyVisit::factory()->create([
+            'property_id' => $this->bienDe($agenceB, $this->bailleur($agenceB))->id, 'customer_id' => $f1->id,
+            'agent_id' => $agentB->id, 'status' => VisitStatus::Confirmed, 'scheduled_at' => now()->subHours(3),
+        ]);
+
+        $lire = function () use ($double, $f1): array {
+            Sanctum::actingAs($double);
+
+            return [
+                'tri' => $this->ids('&sort=last_contacted_at'),
+                '-tri' => $this->ids('&sort=-last_contacted_at'),
+                'relance' => $this->ids('&filter[follow_up]=1'),
+                'tri_relance' => $this->ids('&sort=-follow_up_days'),
+                'champ' => $this->getJson("/api/customers/{$f1->id}?fields[customers]=id,last_contacted_at,follow_up")->assertOk()->json('data'),
+            ];
+        };
+
+        Sanctum::actingAs($double);
+        $this->getJson("/api/property-visits/{$visite->id}")->assertForbidden();
+        $avant = $lire();
+
+        Sanctum::actingAs($agentB);
+        $this->postJson("/api/property-visits/{$visite->id}/report", ['outcome' => 'interested', 'note' => 'secret'])->assertCreated();
+        $this->assertNotNull($f1->fresh()->last_contacted_at, 'le compte rendu a bien avancé le dernier contact');
+
+        $this->assertSame($avant, $lire());
+        $this->assertSame([], $avant['relance']);
+        $this->assertNull($avant['champ']['last_contacted_at']);
     }
 }

@@ -71,8 +71,14 @@ class CustomerActivityFeed
 
         $paginator = Activity::query()
             ->with('causer')
-            ->where(function (Builder $q) use ($customer, $noteIds, $taskIds, $leadIds) {
-                $q->where(fn (Builder $c) => $c->where('subject_type', Customer::class)->where('subject_id', $customer->id))
+            ->where(function (Builder $q) use ($customer, $noteIds, $taskIds, $leadIds, $withVisitReports) {
+                $q->where(fn (Builder $c) => $c->where('subject_type', Customer::class)->where('subject_id', $customer->id)
+                    // Contre-vérification adverse de TCK-2591 — « Plus tard » sur l'étape proposée dit
+                    // qu'il y en avait une, donc un fait interne de l'agence (compte rendu, visite,
+                    // candidature, bail, peut-être sur le bien d'un autre bailleur) : au seul personnel.
+                    ->when(! $withVisitReports, fn (Builder $w) => $w->where(fn (Builder $e) => $e
+                        ->whereNull('event')
+                        ->orWhere('event', '!=', CustomerSuggestedStageQuery::DISMISSED_EVENT))))
                     ->orWhere(fn (Builder $n) => $n->where('subject_type', CustomerNote::class)->whereIn('subject_id', $noteIds))
                     ->orWhere(fn (Builder $t) => $t->where('subject_type', Task::class)->whereIn('subject_id', $taskIds))
                     ->orWhere(fn (Builder $l) => $l->where('subject_type', PropertyContactLead::class)

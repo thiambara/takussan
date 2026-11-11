@@ -15,6 +15,7 @@ use App\Services\Crm\CustomerPhoneNormalizer;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Sorts\CollatedNameSort;
 use App\Sorts\CustomerFollowUpSort;
+use App\Sorts\CustomerLastContactedSort;
 use App\Sorts\CustomerNextActionSort;
 use App\Support\Query\DepartageQueryBuilder;
 use Illuminate\Database\Eloquent\Builder;
@@ -152,7 +153,10 @@ class Customer extends AbstractModel
         // Vérification adverse de TCK-2583/TCK-2588 — le dernier contact et la relance sont nourris
         // par les visites et les comptes rendus de TOUS les biens de l'agence : hors personnel (le
         // bailleur auteur d'une fiche), leurs deux tris retombent sur la date de création, sans
-        // rien trahir de l'heure d'un compte rendu sur le bien d'un autre bailleur.
+        // rien trahir de l'heure d'un compte rendu sur le bien d'un autre bailleur. Pour le
+        // personnel, les deux se jugent fiche par fiche (`CustomerLastContactedSort`,
+        // `CustomerFollowUpQuery::sinceSql`) : une fiche d'une agence où il n'est que bailleur ne
+        // classe pas sur ces valeurs.
         $internes = static::readsAgencyInternals($request->user());
 
         return DepartageQueryBuilder::for($baseQuery ?? static::class, $request)
@@ -168,7 +172,7 @@ class Customer extends AbstractModel
                         ? AllowedSort::custom('follow_up_days', new CustomerFollowUpSort)
                         : AllowedSort::field('follow_up_days', 'created_at'),
                     $internes
-                        ? AllowedSort::field('last_contacted_at')
+                        ? AllowedSort::custom('last_contacted_at', new CustomerLastContactedSort)
                         : AllowedSort::field('last_contacted_at', 'created_at'),
                 ],
             )

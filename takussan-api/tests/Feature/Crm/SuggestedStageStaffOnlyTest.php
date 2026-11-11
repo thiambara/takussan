@@ -77,4 +77,26 @@ class SuggestedStageStaffOnlyTest extends ApiTestCase
         $this->postJson("/api/customers/{$this->fiche->id}/suggested-stage/dismiss", ['reason_event' => 'visit_interested'])
             ->assertForbidden();
     }
+
+    /**
+     * Contre-vérification adverse — « Plus tard » est journalisé sur la fiche : le flux d'activité,
+     * ouvert au bailleur auteur, lui apprenait qu'il y avait une étape proposée (son auteur, son
+     * heure). Au seul personnel.
+     */
+    public function test_le_plus_tard_ne_se_lit_qu_au_flux_du_personnel(): void
+    {
+        $evenements = fn (): array => collect($this->getJson("/api/customers/{$this->fiche->id}/activity")->assertOk()->json('data'))
+            ->pluck('event')->all();
+
+        Sanctum::actingAs($this->bailleurAuteur);
+        $avant = $this->getJson("/api/customers/{$this->fiche->id}/activity")->assertOk()->json();
+
+        Sanctum::actingAs($this->agent);
+        $this->postJson("/api/customers/{$this->fiche->id}/suggested-stage/dismiss", ['reason_event' => 'visit_interested'])
+            ->assertNoContent();
+        $this->assertContains('suggested_stage_dismissed', $evenements());
+
+        Sanctum::actingAs($this->bailleurAuteur);
+        $this->assertSame($avant, $this->getJson("/api/customers/{$this->fiche->id}/activity")->assertOk()->json());
+    }
 }

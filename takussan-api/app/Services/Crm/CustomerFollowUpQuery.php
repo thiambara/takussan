@@ -89,13 +89,33 @@ final class CustomerFollowUpQuery
     public function sinceSql(): array
     {
         [$parts, $bindings] = $this->partsSql();
+        [$staffSql, $staffBindings] = $this->staffSql();
         $live = self::liveStageValues();
 
+        // Contre-vérification adverse de TCK-2583/TCK-2588 — la relance ne vaut que pour le personnel
+        // de l'agence de la fiche (et le super-admin), FICHE PAR FICHE : nourrie par le dernier
+        // contact, donc par les comptes rendus de tous les biens de l'agence, elle trahissait sinon
+        // l'heure d'un compte rendu sur le bien d'un autre bailleur au compte personnel d'une agence
+        // et bailleur auteur dans une autre (par `filter[follow_up]` et `sort=follow_up_days`).
         return [
-            'CASE WHEN customers.pipeline_stage IN ('.implode(', ', array_fill(0, count($live), '?')).') '
+            "CASE WHEN {$staffSql} AND customers.pipeline_stage IN (".implode(', ', array_fill(0, count($live), '?')).') '
                 .'THEN LEAST('.implode(', ', $parts).') END',
-            [...$live, ...$bindings],
+            [...$staffBindings, ...$live, ...$bindings],
         ];
+    }
+
+    /**
+     * La fiche courante (`customers.*`) est-elle de l'agence de personnel du lecteur ?
+     *
+     * @return array{0: string, 1: list<mixed>}
+     */
+    private function staffSql(): array
+    {
+        return match (true) {
+            $this->seesAll => ['TRUE', []],
+            $this->staffAgencyId !== null => ['customers.agency_id = ?', [$this->staffAgencyId]],
+            default => ['FALSE', []],
+        };
     }
 
     /**
@@ -119,11 +139,7 @@ final class CustomerFollowUpQuery
             ->selectRaw('MIN(COALESCE(property_visits.completed_at, property_visits.scheduled_at))')
             ->toBase();
 
-        [$staffSql, $staffBindings] = match (true) {
-            $this->seesAll => ['TRUE', []],
-            $this->staffAgencyId !== null => ['customers.agency_id = ?', [$this->staffAgencyId]],
-            default => ['FALSE', []],
-        };
+        [$staffSql, $staffBindings] = $this->staffSql();
 
         $lastContact = 'COALESCE(customers.last_contacted_at, customers.created_at)';
 
