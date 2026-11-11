@@ -91,6 +91,23 @@ class AgencyUpgradeApprovalOverridesTest extends ApiTestCase
         Notification::assertNothingSent();
     }
 
+    /**
+     * Vérification adverse de TCK-2730 — une commission dérogée à 0 % (une exemption) est une
+     * dérogation : 409, `overrides.platform_fee_pct = 0`, rien d'écrit.
+     */
+    public function test_une_commission_derogee_a_zero_bloque_aussi_l_approbation(): void
+    {
+        $this->deroger(['platform_fee_pct' => 0]);
+        $this->assertNotNull($this->courant->fresh()->platform_fee_pct_override, 'prémisse : 0 est posé, pas retiré');
+
+        $reponse = $this->approuver()->assertStatus(409)
+            ->assertJsonPath('code', 'agency_upgrade.subscription_has_overrides');
+        $this->assertEquals(0, $reponse->json('overrides.platform_fee_pct'));
+        $this->assertNotNull($reponse->json('overrides.platform_fee_pct'));
+
+        $this->assertRienNEstEcrit();
+    }
+
     /** AC1 — une commission négociée : 409, la dérogation dans le corps, rien d'écrit. */
     public function test_ac1_une_commission_negociee_bloque_l_approbation(): void
     {
