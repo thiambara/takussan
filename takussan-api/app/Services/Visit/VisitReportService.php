@@ -11,6 +11,7 @@ use App\Models\Enums\VisitStatus;
 use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Services\Crm\ContactGestureService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -145,21 +146,38 @@ class VisitReportService
      * ADR-0101 § 7 — à l'effacement d'une fiche client ou du compte d'un visiteur, le seul texte
      * libre du compte rendu (`report_note`) est vidé ; le verdict, les objections et la suite —
      * des codes sans texte — restent pour les statistiques de l'agence.
+     *
+     * Décision du porteur du 2026-11-11 — et sa COPIE aussi : le corps de la note `visit_report` de
+     * la fiche (gardée, corbeille comprise : la fiche du visiteur n'est que dissociée), vidé en place.
+     * La note garde sa place et son lien à la visite ; le journal ne porte pas le corps d'une note
+     * (`CustomerNote::getActivitylogOptions`). Par requête, sans événement : rien n'entre au journal.
      */
     public static function forgetNotesOfCustomer(int $customerId): void
     {
-        PropertyVisit::query()
-            ->where('customer_id', $customerId)
-            ->whereNotNull('report_note')
-            ->update(['report_note' => null]);
+        self::forget(PropertyVisit::query()->where('customer_id', $customerId));
     }
 
     /** @see self::forgetNotesOfCustomer() */
     public static function forgetNotesOfVisitor(int $userId): void
     {
-        PropertyVisit::query()
-            ->where('visitor_id', $userId)
-            ->whereNotNull('report_note')
-            ->update(['report_note' => null]);
+        self::forget(PropertyVisit::query()->where('visitor_id', $userId));
+    }
+
+    /** @param  Builder<PropertyVisit>  $visits */
+    private static function forget(Builder $visits): void
+    {
+        $ids = (clone $visits)->pluck('id');
+        if ($ids->isEmpty()) {
+            return;
+        }
+
+        PropertyVisit::query()->whereKey($ids)->whereNotNull('report_note')->update(['report_note' => null]);
+
+        CustomerNote::withTrashed()
+            ->whereIn('property_visit_id', $ids)
+            ->where('kind', CustomerNoteKind::VisitReport->value)
+            ->where('body', '!=', '')
+            ->toBase()
+            ->update(['body' => '']);
     }
 }

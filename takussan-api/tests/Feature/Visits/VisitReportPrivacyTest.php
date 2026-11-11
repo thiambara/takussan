@@ -11,6 +11,7 @@ use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Services\Account\AccountDeletionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 use Tests\ApiTestCase;
@@ -181,5 +182,32 @@ class VisitReportPrivacyTest extends ApiTestCase
         $this->assertNull($visite->report_note);
         $this->assertSame('interested', $visite->report_outcome->value);
         $this->assertSame(['price'], $visite->report_objections);
+    }
+
+    /**
+     * Décision du porteur du 2026-11-11 — le texte libre du compte rendu a deux copies : le corps de
+     * la note `visit_report` de la fiche (gardée : la fiche n'est que dissociée) et ce que le journal
+     * d'audit en aurait retenu. Effacer le compte du visiteur les vide aussi ; la note garde sa place
+     * (le verdict reste à l'agence).
+     */
+    public function test_effacer_le_compte_du_visiteur_vide_aussi_les_copies_du_compte_rendu(): void
+    {
+        $request = AccountDeletionRequest::factory()->for($this->visiteur)->due()->create();
+        app(AccountDeletionService::class)->executeDeletion($request);
+
+        $this->assertSame(0, DB::table('customer_notes')->where('body', 'like', '%Confidentiel : budget serr%')->count());
+        $this->assertSame(0, DB::table('activity_log')->where('properties', 'like', '%Confidentiel : budget serr%')->count());
+        $this->assertSame(1, DB::table('customer_notes')
+            ->where('property_visit_id', $this->visite->id)->where('kind', 'visit_report')->whereNull('deleted_at')->count());
+    }
+
+    /** Effacer la fiche emporte ses notes ; aucune copie du texte libre ne survit non plus. */
+    public function test_effacer_la_fiche_ne_laisse_aucune_copie_du_compte_rendu(): void
+    {
+        Sanctum::actingAs($this->personnel($this->agence, 'agency_admin'));
+        $this->deleteJson("/api/customers/{$this->fiche->id}")->assertNoContent();
+
+        $this->assertSame(0, DB::table('customer_notes')->where('body', 'like', '%Confidentiel : budget serr%')->count());
+        $this->assertSame(0, DB::table('activity_log')->where('properties', 'like', '%Confidentiel : budget serr%')->count());
     }
 }
