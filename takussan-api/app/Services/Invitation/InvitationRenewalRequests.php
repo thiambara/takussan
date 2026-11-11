@@ -14,6 +14,7 @@ use App\Policies\InvitationPolicy;
 use App\Rules\PersonnelDeLAgence;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Model\NotificationService;
+use App\Services\Property\PrimaryPropertyContact;
 use App\Support\LienFront;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -96,7 +97,9 @@ class InvitationRenewalRequests
      * L'admin principal se juge par identifiant dans la policy : c'est ce contrôle qui écarte celui
      * dont le profil est suspendu.
      *
-     * L'invitant s'il passe ; sinon le personnel actif de l'agence qui passe.
+     * L'invitant s'il passe ; sinon le personnel actif de l'agence qui passe. Dans les deux branches,
+     * un compte bloqué ou supprimé ne passe pas (`PrimaryPropertyContact::joignable`) : il ne
+     * recevrait rien, et la borne serait consommée pour rien.
      *
      * @return Collection<int, User>
      */
@@ -104,7 +107,11 @@ class InvitationRenewalRequests
     {
         $inviter = $invitation->inviter;
         $agencyId = $invitation->agency_id === null ? null : (int) $invitation->agency_id;
-        $peutRenvoyer = fn (User $user): bool => ($agencyId === null || PersonnelDeLAgence::estPersonnel($user, $agencyId))
+        // Joignable dans les deux branches : `NotificationService` n'écrit rien vers un compte
+        // bloqué ou supprimé, et la borne serait posée sans que personne soit prévenu. Pour une
+        // invitation d'agence, `estPersonnel` le juge déjà ; sans agence, rien d'autre ne le jugerait.
+        $peutRenvoyer = fn (User $user): bool => PrimaryPropertyContact::joignable($user)
+            && ($agencyId === null || PersonnelDeLAgence::estPersonnel($user, $agencyId))
             && Gate::forUser($user)->allows('resend', $invitation);
 
         if ($inviter !== null && $peutRenvoyer($inviter)) {

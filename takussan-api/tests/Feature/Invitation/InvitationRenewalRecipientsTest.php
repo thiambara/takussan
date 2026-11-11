@@ -7,8 +7,11 @@ use App\Models\Agency;
 use App\Models\AppNotification;
 use App\Models\Enums\AgencyAdminProfileStatus;
 use App\Models\Enums\Capability;
+use App\Models\Enums\UserStatus;
 use App\Models\Invitation;
 use App\Models\Profiles\AgencyAdminProfile;
+use App\Models\Profiles\OwnerProfile;
+use App\Models\RoleDelegation;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -168,6 +171,109 @@ class InvitationRenewalRecipientsTest extends TestCase
         $this->assertSame(0, AppNotification::query()->where('code', 'invitation.renewal_requested')->count());
         Notification::assertNothingSent();
         $this->assertNull(data_get($invitation->fresh()->metadata, 'renewal_requested_at'));
+    }
+
+    /**
+     * Reprise (verif-commercial, M1) — sans agence, l'invitant existe encore mais n'est plus
+     * joignable (bloqué, ou `deleted` sans suppression douce) : `NotificationService` ne lui
+     * écrirait rien, donc la borne ne se pose pas. Débloqué, la demande suivante le prévient.
+     */
+    public function test_sans_agence_l_invitant_injoignable_ne_consomme_pas_la_borne(): void
+    {
+        foreach ([UserStatus::Blocked, UserStatus::Deleted] as $statut) {
+            $invitant = User::factory()->create();
+            $invitation = $this->invitation($invitant, null, 'service_provider');
+            $invitant->forceFill(['status' => $statut])->save();
+
+            $this->demander($invitation);
+
+            $this->assertSame(0, $this->cloches($invitant), $statut->value);
+            $this->assertNull(data_get($invitation->fresh()->metadata, 'renewal_requested_at'), "{$statut->value} : borne consommée sans destinataire");
+
+            $invitant->forceFill(['status' => UserStatus::Active])->save();
+            $this->demander($invitation);
+
+            $this->assertSame(1, $this->avis($invitant), "{$statut->value} puis réactivé");
+            $this->assertNotNull(data_get($invitation->fresh()->metadata, 'renewal_requested_at'));
+        }
+    }
+
+    /**
+     * Reprise (m2) — le repli écarte un membre au profil actif dont le COMPTE est bloqué. Seul
+     * candidat (l'admin principal), il ne recevrait rien : la borne reste libre. Débloqué, la
+     * demande suivante le prévient. (Compter ses cloches ne suffirait pas : `NotificationService`
+     * n'écrit déjà rien vers un compte bloqué. C'est la borne qui dit s'il a été retenu.)
+     */
+    public function test_le_repli_ecarte_un_membre_injoignable(): void
+    {
+        $invitant = $this->agencyAdmin($this->agency);
+        $principal = $this->agencyAdmin($this->agency);
+        $this->principal($principal);
+        $principal->forceFill(['status' => UserStatus::Blocked])->save();
+        $this->agencyAgent($this->agency);
+        $invitation = $this->invitation($invitant, $this->agency);
+        AgencyAdminProfile::query()->where('user_id', $invitant->id)->delete();
+
+        $this->demander($invitation);
+
+        $this->assertNull(data_get($invitation->fresh()->metadata, 'renewal_requested_at'), 'un compte bloqué retenu par le repli');
+
+        $principal->forceFill(['status' => UserStatus::Active])->save();
+        $this->demander($invitation);
+
+        $this->assertSame(1, $this->avis($principal));
+    }
+
+    /**
+     * Reprise (m1) — le repli passe aussi par les délégations en vigueur. Une délégation n'est en
+     * vigueur que si le délégué a un profil actif dans l'agence : le seul membre que les profils
+     * d'agent et d'admin ne ramènent pas, c'est un BAILLEUR de l'agence à qui le principal a délégué
+     * le rôle d'admin. Il renvoie l'invitation (team.invite par délégation), il est prévenu.
+     */
+    public function test_le_repli_previent_un_delegue_en_vigueur(): void
+    {
+        $invitant = $this->agencyAdmin($this->agency);
+        $principal = $this->agencyAdmin($this->agency);
+        $this->principal($principal);
+        $delegue = User::factory()->create();
+        OwnerProfile::factory()->create(['user_id' => $delegue->id, 'agency_id' => $this->agency->id]);
+        RoleDelegation::factory()->create([
+            'user_id' => $delegue->id,
+            'delegator_id' => $principal->id,
+            'agency_id' => $this->agency->id,
+            'role' => 'agency_admin',
+        ]);
+        $invitation = $this->invitation($invitant, $this->agency);
+        AgencyAdminProfile::query()->where('user_id', $invitant->id)->delete();
+
+        $this->demander($invitation);
+
+        $this->assertSame(1, $this->avis($principal));
+        $this->assertSame(1, $this->avis($delegue), 'le délégué en vigueur du rôle d\'admin renvoie, il est prévenu');
+    }
+
+    /**
+     * Reprise (m3) — la borne se lit et s'écrit sous le verrou de la ligne de l'invitation : deux
+     * demandes simultanées n'écrivent qu'un avis. La sérialisation elle-même est celle de
+     * PostgreSQL (`SELECT … FOR UPDATE`) ; deux connexions concurrentes ne se montent pas sous
+     * `RefreshDatabase`, qui enferme le test dans une transaction. Ce test garde que le verrou
+     * est PRIS, sur la ligne de l'invitation, avant la lecture de la borne.
+     */
+    public function test_la_borne_se_lit_sous_le_verrou_de_la_ligne(): void
+    {
+        $invitant = $this->agencyAdmin($this->agency);
+        $invitation = $this->invitation($invitant, $this->agency);
+        $verrous = [];
+        DB::listen(function ($requete) use (&$verrous): void {
+            if (preg_match('/^select .* from "invitations" .* for update$/i', $requete->sql) === 1) {
+                $verrous[] = $requete->bindings;
+            }
+        });
+
+        $this->demander($invitation);
+
+        $this->assertSame([[$invitation->id]], $verrous);
+        $this->assertSame(1, $this->avis($invitant));
     }
 
     /** AC3 bis — le seul admin suspendu : rien d'écrit ; réactivé, la demande suivante le prévient. */
