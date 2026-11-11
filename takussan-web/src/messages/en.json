@@ -5850,6 +5850,8 @@
         "cleaning": "Cleaning",
         "pest_control": "Pest control",
         "locksmith": "Locksmith",
+        "masonry": "Masonry",
+        "climate_control": "Climate control",
         "other": "Other"
       },
       "cta": {
@@ -5914,6 +5916,8 @@
           "locksmith": "Locksmith",
           "painting": "Painting",
           "masonry": "Masonry",
+          "cleaning": "Cleaning",
+          "pest_control": "Pest control",
           "other": "Other"
         }
       },

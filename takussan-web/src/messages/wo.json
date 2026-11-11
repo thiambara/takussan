@@ -3988,6 +3988,8 @@
         "cleaning": "Setal",
         "pest_control": "Faj jëmm",
         "locksmith": "Saraab",
+        "masonry": "Maçonnerie",
+        "climate_control": "Climatisation",
         "other": "Yeneen"
       },
       "cta": {
@@ -4052,6 +4054,8 @@
           "locksmith": "Saraab",
           "painting": "Penture",
           "masonry": "Maçonneri",
+          "cleaning": "Nettoyage",
+          "pest_control": "Désinsectisation",
           "other": "Beneen"
         }
       },

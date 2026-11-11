@@ -140,4 +140,50 @@ class SuggestedProvidersTest extends TestCase
         Sanctum::actingAs($stranger);
         $this->getJson("/api/maintenance-requests/{$this->mr->id}/suggested-providers")->assertForbidden();
     }
+
+    /** TCK-2713 — `structural` est servie par le maçon : ni le plombier ni l'électricien. */
+    public function test_structural_suggests_the_mason(): void
+    {
+        $this->mr->update(['category' => MaintenanceCategory::Structural]);
+        $mason = $this->provider(['masonry'], ['Médina'], rating: 4);
+        // Invité par l'agence, avec le vocabulaire des catégories : il correspond toujours.
+        $invited = $this->provider(['structural'], ['Médina'], rating: 3);
+        $this->provider(['plumbing', 'electrical'], ['Médina'], rating: 5);
+
+        Sanctum::actingAs($this->admin);
+        $data = $this->getJson("/api/maintenance-requests/{$this->mr->id}/suggested-providers")->assertOk()->json('data');
+
+        $this->assertSame([$mason->id, $invited->id], array_column($data, 'id'));
+        $this->assertSame('masonry', $data[0]['matching_trade']);
+        $this->assertSame('structural', $data[1]['matching_trade']);
+    }
+
+    /** TCK-2713 — `appliance` est servie par la climatisation puis l'électricité ; chacun porte son métier. */
+    public function test_appliance_suggests_climate_control_and_electrical_each_with_its_trade(): void
+    {
+        $this->mr->update(['category' => MaintenanceCategory::Appliance]);
+        $clim = $this->provider(['climate_control'], ['Médina'], rating: 5);
+        $elec = $this->provider(['electrical'], ['Médina'], rating: 4);
+        $both = $this->provider(['electrical', 'climate_control'], ['Médina'], rating: 3);
+        $this->provider(['plumbing'], ['Médina'], rating: 5);
+
+        Sanctum::actingAs($this->admin);
+        $data = collect($this->getJson("/api/maintenance-requests/{$this->mr->id}/suggested-providers")->assertOk()->json('data'))
+            ->keyBy('id');
+
+        $this->assertEqualsCanonicalizing([$clim->id, $elec->id, $both->id], $data->keys()->all());
+        $this->assertSame('climate_control', $data[$clim->id]['matching_trade']);
+        $this->assertSame('electrical', $data[$elec->id]['matching_trade']);
+        $this->assertSame('climate_control', $data[$both->id]['matching_trade']);
+    }
+
+    /** TCK-2713 — `other` ne suggère personne, pas même qui a coché « Autre ». */
+    public function test_other_suggests_nobody(): void
+    {
+        $this->mr->update(['category' => MaintenanceCategory::Other]);
+        $this->provider(['other'], ['Médina'], rating: 5);
+
+        Sanctum::actingAs($this->admin);
+        $this->assertSame([], $this->getJson("/api/maintenance-requests/{$this->mr->id}/suggested-providers")->assertOk()->json('data'));
+    }
 }

@@ -5850,6 +5850,8 @@
         "cleaning": "Nettoyage",
         "pest_control": "Désinsectisation",
         "locksmith": "Serrurerie",
+        "masonry": "Maçonnerie",
+        "climate_control": "Climatisation",
         "other": "Autre"
       },
       "cta": {
@@ -5914,6 +5916,8 @@
           "locksmith": "Serrurerie",
           "painting": "Peinture",
           "masonry": "Maçonnerie",
+          "cleaning": "Nettoyage",
+          "pest_control": "Désinsectisation",
           "other": "Autre"
         }
       },

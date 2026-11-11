@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Models\Enums\CollaborationStatus;
+use App\Models\Enums\MaintenanceCategory;
 use App\Models\MaintenanceRequest;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Support\CaseInsensitive;
@@ -18,8 +19,10 @@ use Illuminate\Support\Str;
  *
  * **La règle, déterministe, sans IA :**
  *
- *  1. **métier = catégorie** — filtre : seuls les prestataires dont les métiers (`specialties`)
- *     contiennent la catégorie de la demande, à la lettre. Chaque suggestion porte ce métier ;
+ *  1. **métier ↔ catégorie** — filtre : seuls les prestataires dont les métiers (`specialties`)
+ *     contiennent l'un des métiers qui servent la catégorie de la demande, ou la catégorie elle-même
+ *     ({@see MaintenanceCategory::matchingSpecialties()}, TCK-2713). Chaque suggestion porte la
+ *     première de ces valeurs qu'il exerce ; `other` ne suggère personne ;
  *  2. **zone** — d'abord ceux dont une zone d'intervention (`service_areas`) nomme le quartier ou la
  *     ville du bien (casse, accents et espaces de bord ignorés) ;
  *  3. puis `average_rating` décroissante (avis approuvés ; sans avis, après) ;
@@ -43,8 +46,8 @@ class SuggestedProvidersController extends Controller
         $agency = $property?->agency;
         abort_if($agency === null || ! $user->can('viewAny', [ServiceProviderProfile::class, $agency]), 403);
 
-        $category = $maintenanceRequest->category?->value;
-        if ($category === null) {
+        $trades = $maintenanceRequest->category?->matchingSpecialties() ?? [];
+        if ($trades === []) {
             return $this->json(['data' => []]);
         }
 
@@ -58,7 +61,11 @@ class SuggestedProvidersController extends Controller
             ->whereHas('agencyCollaborations', fn (Builder $q) => $q
                 ->where('agency_id', $agency->id)
                 ->where('status', CollaborationStatus::Active->value))
-            ->whereJsonContains('specialties', $category)
+            ->where(function (Builder $q) use ($trades): void {
+                foreach ($trades as $trade) {
+                    $q->orWhereJsonContains('specialties', $trade);
+                }
+            })
             ->with('user:id,first_name,last_name,phone')
             ->withAvg(['reviews as average_rating' => fn (Builder $q) => $q->where('is_approved', true)], 'rating')
             ->withCount(['reviews as reviews_count' => fn (Builder $q) => $q->where('is_approved', true)])
@@ -82,7 +89,11 @@ class SuggestedProvidersController extends Controller
             ->take(self::LIMIT)
             ->values();
 
-        return $this->json(['data' => $ranked->map(fn (array $row): array => $this->present($row[0], $row[1], $category))->all()]);
+        return $this->json(['data' => $ranked->map(fn (array $row): array => $this->present(
+            $row[0],
+            $row[1],
+            collect($trades)->first(fn (string $trade): bool => in_array($trade, $row[0]->specialties ?? [], true)) ?? $trades[0],
+        ))->all()]);
     }
 
     /** @return array<string, mixed> */
