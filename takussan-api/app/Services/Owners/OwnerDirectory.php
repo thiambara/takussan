@@ -3,6 +3,7 @@
 namespace App\Services\Owners;
 
 use App\Models\Agency;
+use App\Models\Enums\Capability;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PayeeRole;
 use App\Models\Enums\PayoutStatus;
@@ -11,6 +12,7 @@ use App\Models\Lease;
 use App\Models\Payout;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
+use App\Policies\OwnerStatementPolicy;
 use App\Services\Payout\OwnerStatementSnapshots;
 use App\Services\Property\Occupation;
 use App\Services\Reporting\OverdueInstalment;
@@ -36,6 +38,25 @@ use Illuminate\Support\Str;
 final class OwnerDirectory
 {
     public function __construct(private readonly OwnerStatementSnapshots $statements) {}
+
+    /**
+     * Vérification adverse de TCK-2640 — les chiffres d'argent du carnet (reste à verser, dernier
+     * versement, et leurs filtre et tri) suivent la règle du relevé ({@see OwnerStatementPolicy::view()}) :
+     * le super-admin, ou le personnel de l'agence active qui tient `payouts.create`. Un agent qui
+     * lit le carnet sans cette capacité — que le relevé refuse en 403 — ne les lit pas par la liste.
+     */
+    public static function readsMoney(?User $viewer): bool
+    {
+        if ($viewer === null) {
+            return false;
+        }
+        if ($viewer->isSuperAdmin()) {
+            return true;
+        }
+        $agencyId = $viewer->staffAgencyId();
+
+        return $agencyId !== null && $viewer->canActAt(Capability::PayoutsCreate, Agency::query()->find($agencyId));
+    }
 
     /** Le mois des chiffres de la liste : le mois courant, à Dakar. */
     public static function currentPeriod(): string

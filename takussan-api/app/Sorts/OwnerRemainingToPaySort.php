@@ -17,6 +17,14 @@ class OwnerRemainingToPaySort implements Sort
 {
     public function __invoke(Builder $query, bool $descending, string $property): void
     {
+        // Vérification adverse de TCK-2640 — hors lecteur du relevé, le tri ne range que par id, dans
+        // les deux sens : il ne dit rien des montants (et reste déterministe).
+        if (! OwnerDirectory::readsMoney(request()->user())) {
+            $query->orderBy('owner_profiles.id');
+
+            return;
+        }
+
         $remaining = array_filter(app(OwnerDirectory::class)->remainingToPayIn($query), fn ($value) => $value !== null);
         if ($remaining === []) {
             return;

@@ -119,6 +119,15 @@ class OwnerProfile extends AbstractModel
                 if ($wanted === null) {
                     return;
                 }
+                // Vérification adverse de TCK-2640 — hors lecteur du relevé, le reste vaut `null`
+                // pour chaque ligne : `=1` ne rend rien, `=0` ne retire rien.
+                if (! OwnerDirectory::readsMoney(request()->user())) {
+                    if ($wanted) {
+                        $query->whereRaw('1 = 0');
+                    }
+
+                    return;
+                }
                 $remaining = app(OwnerDirectory::class)->remainingToPayIn($query);
                 $query->whereIn('owner_profiles.id', array_keys(array_filter(
                     $remaining,

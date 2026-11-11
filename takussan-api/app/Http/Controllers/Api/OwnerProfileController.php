@@ -93,9 +93,14 @@ class OwnerProfileController extends Controller
 
         $profiles = collect($paginator->items());
         $this->directory->fillContactFallbacks($profiles);
-        $remaining = $this->directory->remainingToPay($profiles);
+        // Vérification adverse de TCK-2640 — les chiffres d'argent au seul lecteur du relevé.
+        $readsMoney = OwnerDirectory::readsMoney($user);
+        $remaining = $readsMoney ? $this->directory->remainingToPay($profiles) : [];
         foreach ($profiles as $profile) {
             $profile->setAttribute('remaining_to_pay', $remaining[(int) $profile->id] ?? null);
+            if (! $readsMoney) {
+                $profile->setAttribute('last_payout_at', null);
+            }
         }
 
         IncludedUserResource::preload($paginator->items());

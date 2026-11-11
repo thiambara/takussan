@@ -3,6 +3,9 @@
 namespace Tests\Feature\Owners;
 
 use App\Models\Agency;
+use App\Models\AgencyRole;
+use App\Models\Enums\AgencyRoleBaseType;
+use App\Models\Enums\Capability;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PayeeRole;
@@ -10,6 +13,7 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PayoutStatus;
 use App\Models\Lease;
 use App\Models\Payout;
+use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
@@ -217,6 +221,7 @@ class OwnerProfileListFiguresTest extends ApiTestCase
         };
 
         $seed(5);
+        $count(); // échauffement : les capacités du rôle se lisent une fois par processus
         $five = $count();
         $seed(25);
         $thirty = $count();
@@ -243,6 +248,7 @@ class OwnerProfileListFiguresTest extends ApiTestCase
             return $n;
         };
 
+        $count(); // échauffement : les capacités du rôle se lisent une fois par processus
         $alone = $count();
         $other = $this->moneyAgency();
         for ($i = 0; $i < 3; $i++) {
@@ -251,5 +257,55 @@ class OwnerProfileListFiguresTest extends ApiTestCase
         $this->moneyAgency(); // une troisième, vide
 
         $this->assertSame($alone, $count());
+    }
+
+    /**
+     * Vérification adverse de TCK-2640 — les chiffres d'argent de la liste suivent la règle du
+     * relevé : un agent qui lit le carnet sans `payouts.create` (relevé : 403) ne lit ni le reste à
+     * verser, ni le dernier versement, et ni le filtre ni le tri par reste ne les trahissent.
+     */
+    public function test_l_agent_sans_payouts_create_ne_lit_pas_les_chiffres_d_argent(): void
+    {
+        $agency = $this->moneyAgency();
+        $small = $this->landlordOf($agency);
+        $big = $this->landlordOf($agency);
+        $this->leasePayment($this->leaseOf($agency, $small, 10), 100_000);
+        $this->leasePayment($this->leaseOf($agency, $big, 10), 500_000);
+        Payout::factory()->create([
+            'agency_id' => $agency->id, 'landlord_id' => $big->id, 'payee_role' => PayeeRole::Landlord,
+            'status' => PayoutStatus::Completed, 'processed_at' => '2026-09-10 09:00:00',
+        ]);
+
+        $role = AgencyRole::factory()->ofType(AgencyRoleBaseType::Agent)
+            ->withCapabilities([Capability::PaymentsRecord, Capability::CrmViewAll])
+            ->create(['agency_id' => $agency->id]);
+        $agent = User::factory()->withTwoFactor()->create();
+        AgentProfile::factory()->create(['user_id' => $agent->id, 'agency_id' => $agency->id, 'agency_role_id' => $role->id]);
+        $agent = $agent->fresh();
+        $this->assertFalse($agent->canActAt(Capability::PayoutsCreate, $agency));
+
+        Sanctum::actingAs($agent);
+        $this->getJson("/api/owner-statements?period=2026-09&landlord_id={$big->id}")->assertForbidden();
+
+        $rows = $this->rows();
+        $this->assertCount(2, $rows);
+        foreach ($rows as $row) {
+            $this->assertNull($row['remaining_to_pay']);
+            $this->assertNull($row['last_payout_at']);
+        }
+        $this->assertSame([], $this->rows('&filter[has_remaining]=1'));
+        $this->assertCount(2, $this->rows('&filter[has_remaining]=0'));
+        // Le tri par reste ne range plus que par id, dans les deux sens : il ne dit rien des montants.
+        $parId = [$this->profileOf($small, $agency)->id, $this->profileOf($big, $agency)->id];
+        sort($parId);
+        foreach (['remaining_to_pay', '-remaining_to_pay'] as $tri) {
+            $this->assertSame($parId, collect($this->getJson("/api/owners?per_page=100&sort={$tri}")->assertOk()->json('data'))->pluck('id')->all(), $tri);
+        }
+
+        // L'admin de l'agence, qui tient le relevé, lit les deux chiffres.
+        $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+        $row = $this->rows()[$this->profileOf($big, $agency)->id];
+        $this->assertNotNull($row['remaining_to_pay']);
+        $this->assertSame('2026-09-10T09:00:00+00:00', $row['last_payout_at']);
     }
 }
