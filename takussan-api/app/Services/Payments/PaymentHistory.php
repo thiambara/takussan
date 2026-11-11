@@ -366,13 +366,14 @@ class PaymentHistory
      * de `metadata.paid_amount` si elle est posée, sinon le montant, moins le remboursé), `refunded`
      * (le montant moins le remboursé), sinon `metadata.paid_amount` ; jamais négatif, arrondi à 2.
      * ⚠ Ce n'est PAS `CollectedPayments::OWED_REMAINING_SQL`, qui ignore les deux premières branches
-     * (il ne lit que des échéances dues). La parité est épinglée par `PaymentHistoryExportTest`.
+     * (il ne lit que des échéances dues), mais il lit `metadata.paid_amount` par le même fragment
+     * tolérant. La parité est épinglée par `PaymentHistoryExportTest` et `PaidAmountTolerantReadTest`.
      */
     private static function remainingAmountSql(string $table): string
     {
         $paye = PaymentStatus::Paid->value;
         $rembourse = PaymentStatus::Refunded->value;
-        $meta = "COALESCE(({$table}.metadata->>'paid_amount')::numeric, 0)";
+        $meta = CollectedPayments::paidAmountMetaSql($table);
         $rendu = "COALESCE({$table}.refund_amount, 0)";
         $verse = "CASE WHEN {$table}.status = '{$paye}' THEN GREATEST(0, (CASE WHEN {$meta} > 0 THEN {$meta} ELSE COALESCE({$table}.amount, 0) END) - {$rendu})"
             ." WHEN {$table}.status = '{$rembourse}' THEN GREATEST(0, COALESCE({$table}.amount, 0) - {$rendu})"
