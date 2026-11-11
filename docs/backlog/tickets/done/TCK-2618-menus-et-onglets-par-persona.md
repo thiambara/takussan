@@ -157,3 +157,12 @@ Mineurs :
 - m2 : les libellés publics « Loyers » et « Tâches » ne sont épinglés par aucun test, et le docblock de `libellePublic` est périmé. À corriger par la coque au lot 2.
 - m3 : la pagination et la note d'un favori ne sont testées que par `FavoritesList.test`. Ces tests sont à porter avant la suppression (TCK-2738).
 - m4 : « Comparer » ne mène nulle part sous /app au téléphone. Le défaut existait avant ce ticket (TCK-2738).
+
+Correctif de garde des valeurs arbitraires (`3918ebeb7`, vérification acceptée) :
+- m1 : le H1 « Favoris » passe de `tracking-[-0.03em]` à `tracking-titre` (−0,02 em : la règle des jetons de
+  `docs/design-guidelines.md`, aucune maquette ne fixe ce titre). `SuiviDesFavoris` est partagé : l'écart atteint
+  aussi le **site public**, `/‹langue›/favorites` (`PublicFavoritesPage`), −1,2 → −0,8 px à 40 px au bureau et
+  −0,84 → −0,56 px à 28 px au téléphone. Le relevé de `3918ebeb7` ne mesurait que `/app/favorites`. Même jugement :
+  acceptable.
+- m2 : les six ombres de `CompareFloatingBar` sont consignées dans
+  `scripts/check-valeurs-arbitraires-app.consigne.json` ; leur motif renvoie à TCK-2741, qui leur donne des jetons.
