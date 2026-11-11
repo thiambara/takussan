@@ -1,7 +1,7 @@
 ---
 id: TCK-2706
 title: "La relance fusionnée dit ce qu'elle annonce et son lien le règle : loyer et charges du même jour, nommés et payables"
-status: todo
+status: done
 phase: P1
 family: back
 estimate: M
@@ -162,3 +162,16 @@ détail des deux montants.
   `one` ; variante hors des codes de relance).
 - **`/sync-specs`** : `docs/features.md` § 1.4 / § 1.5 (relances fusionnées : textes et liens), `docs/models-spec.md`
   § 15 si les paramètres de notification y sont décrits.
+- **Vérification adverse (verif-patrimoine, 2026-11-11) : acceptée avec réserves**, 14 ablations rouges sur 15.
+  - **d1, corrigé** : au demi-franc, le SMS annonçait « 500 001 + 150 001 = 650 001 » pour des liens qui encaissent
+    650 002. `remaining()` et `detail()` arrondissent désormais chaque solde à l'unité de sa devise
+    (`Currency::roundAmount`, la règle d'`amountDue()`) **avant** de sommer — y compris pour un loyer seul, dont le
+    montant annoncé est maintenant celui que son lien encaisse. Test
+    `test_ac1_au_demi_franc_le_total_annonce_est_ce_que_les_liens_encaissent`, rouge sur le code d'avant.
+  - **d2, corrigé** : le rappel J-3 fusionné n'était testé par aucun passage du job ; retirer le détail de l'appel
+    `due_soon` laissait vert tout fichier qui cite le job. Test
+    `test_le_rappel_j_moins_3_fusionne_nomme_ses_montants_et_donne_deux_liens`, rouge sous cette ablation.
+  - **Suivis, non traités ici** : (d3, préexistant) une agence qui encaisse les pénalités en ligne fait payer au
+    lien du loyer 525 000 quand le SMS annonce 500 000 ; (d4) en longueur réelle de lien, la variante « charges
+    seules » avec lien fait 3 segments pour un plafond déclaré de 2 (le ticket ne le disait que pour la variante à
+    deux liens).

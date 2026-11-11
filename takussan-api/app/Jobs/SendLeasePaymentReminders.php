@@ -202,9 +202,9 @@ class SendLeasePaymentReminders implements ShouldQueue
      */
     private function remaining(array $dues): array
     {
-        $total = array_sum(array_map(fn (LeasePayment $due) => (float) $due->remaining_amount, $dues));
+        $total = array_sum(array_map(fn (LeasePayment $due) => $this->dueAmount($due), $dues));
 
-        return NotificationRenderer::money(round($total, 2), $dues[0]->currency);
+        return NotificationRenderer::money(Currency::roundAmount($total, $dues[0]->currency), $dues[0]->currency);
     }
 
     /**
@@ -234,10 +234,21 @@ class SendLeasePaymentReminders implements ShouldQueue
 
         $detail = [];
         foreach ($byType as $type => $due) {
-            $detail[$type] = NotificationRenderer::money(round((float) $due->remaining_amount, 2), $due->currency);
+            $detail[$type] = NotificationRenderer::money($this->dueAmount($due), $due->currency);
         }
 
         return $detail;
+    }
+
+    /**
+     * Le solde d'une échéance arrondi à l'unité de sa devise, AVANT toute somme — la règle de
+     * `PaymentGatewayService::amountDue()` (TCK-593), donc ce que son lien encaissera. Sommer les
+     * soldes bruts puis arrondir annonçait 650 001 pour deux liens qui encaissent 500 001 + 150 001
+     * (vérification adverse de TCK-2706, d1).
+     */
+    private function dueAmount(LeasePayment $due): float
+    {
+        return Currency::roundAmount((float) $due->remaining_amount, $due->currency);
     }
 
     /**

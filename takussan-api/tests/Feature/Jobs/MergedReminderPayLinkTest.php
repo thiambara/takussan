@@ -66,7 +66,7 @@ class MergedReminderPayLinkTest extends TestCase
     }
 
     /** Un bail d'agence à 500 000 + 150 000 de charges, dus le même jour, rien payé ; Wave sert l'agence. */
-    private function bail(bool $avecCompte = false): void
+    private function bail(bool $avecCompte = false, float $loyer = 500_000, float $charges = 150_000): void
     {
         $agency = Agency::factory()->create(['currency' => Currency::XOF]);
         $tenant = Customer::factory()->create([
@@ -81,7 +81,7 @@ class MergedReminderPayLinkTest extends TestCase
             'status' => LeaseStatus::Active,
             'currency' => Currency::XOF,
         ]);
-        foreach ([LeasePaymentType::Rent->value => 500_000, LeasePaymentType::Charges->value => 150_000] as $type => $montant) {
+        foreach ([LeasePaymentType::Rent->value => $loyer, LeasePaymentType::Charges->value => $charges] as $type => $montant) {
             $due = LeasePayment::factory()->create([
                 'lease_id' => $this->lease->id,
                 'payer_id' => $tenant->id,
@@ -102,13 +102,13 @@ class MergedReminderPayLinkTest extends TestCase
         ]);
     }
 
-    /** La relance de retard partie ce jour-là vers le contact sans compte. */
-    private function relancer(string $jour): CodedNotification
+    /** La relance (de retard, par défaut) partie ce jour-là vers le contact sans compte. */
+    private function relancer(string $jour, NotificationCode $code = NotificationCode::LeasePaymentOverdue): CodedNotification
     {
         Carbon::setTestNow("{$jour} 08:00:00");
         app()->call([new SendLeasePaymentReminders, 'handle']);
 
-        return self::envoisALaDemande(NotificationCode::LeasePaymentOverdue)->last()[0];
+        return self::envoisALaDemande($code)->last()[0];
     }
 
     private function jeton(string $url): string
@@ -289,5 +289,39 @@ class MergedReminderPayLinkTest extends TestCase
         $this->assertArrayNotHasKey('charges_url', $ligne->params);
         $this->assertStringNotContainsString('/pay/', (string) $ligne->body);
         Notification::assertSentTo($user, CodedNotification::class, fn (CodedNotification $n): bool => ! array_key_exists('charges_url', $n->params));
+    }
+
+    /**
+     * AC1 au franc près — des soldes à demi-franc : chaque montant annoncé est arrondi à l'unité
+     * comme son lien l'encaissera, et le total est leur somme. Sommer les soldes bruts annonçait
+     * « 500 001 + 150 001 = 650 001 » pour des liens qui encaissent 650 002 (vérification adverse, d1).
+     */
+    public function test_ac1_au_demi_franc_le_total_annonce_est_ce_que_les_liens_encaissent(): void
+    {
+        $this->bail(loyer: 500_000.50, charges: 150_000.50);
+        $avis = $this->relancer('2026-11-06');
+        $sms = app(NotificationRenderer::class)->render($avis->code, $avis->params, 'fr', null, 'sms');
+
+        $loyer = $this->payable($avis->params['payment_url']);
+        $charges = $this->payable($avis->params['charges_url']);
+
+        $this->assertSame([500001.0, 150001.0], [$loyer, $charges], 'ce que chaque lien encaisse');
+        $this->assertSame([$loyer, $charges, $loyer + $charges], $this->montantsDuSms($sms), $sms);
+    }
+
+    /**
+     * Le rappel J-3 passe par le même job : deux montants, leur total, et deux liens qui les
+     * paient. Sans ce test, retirer le détail de l'appel `due_soon` laissait vert tout fichier qui
+     * cite le job (vérification adverse, d2).
+     */
+    public function test_le_rappel_j_moins_3_fusionne_nomme_ses_montants_et_donne_deux_liens(): void
+    {
+        $this->bail();
+        $avis = $this->relancer('2026-11-02', NotificationCode::LeasePaymentDueSoon);
+        $sms = app(NotificationRenderer::class)->render($avis->code, $avis->params, 'fr', null, 'sms');
+
+        $this->assertSame([500000.0, 150000.0, 650000.0], $this->montantsDuSms($sms), $sms);
+        $this->assertSame(500000.0, $this->payable($avis->params['payment_url']));
+        $this->assertSame(150000.0, $this->payable($avis->params['charges_url']));
     }
 }
