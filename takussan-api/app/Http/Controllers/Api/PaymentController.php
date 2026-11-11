@@ -564,10 +564,23 @@ class PaymentController extends Controller
      */
     protected function withReminders(Collection $items, \Illuminate\Database\Eloquent\Collection $leasePayments): Collection
     {
-        $ids = $items->where('source', 'lease')->pluck('id')->all();
-        $summaries = $this->reminderReader->summaries($leasePayments->whereIn('id', $ids)->values());
+        // Vérification adverse de TCK-2658 — les relances sont lues par la règle de
+        // `LeasePaymentPolicy::remind` (super-admin, ou personnel de l'agence du bail), ligne par
+        // ligne : `/lease-payments/{id}/reminders` refuse le bailleur et le locataire, cet include
+        // ne leur rend pas davantage. L'agence de personnel se lit une fois pour la page.
+        $user = request()->user();
+        $seesAll = $user?->isSuperAdmin() === true;
+        $staffAgencyId = $seesAll ? null : $user?->staffAgencyId();
+        $leasePayments->loadMissing('lease:id,agency_id');
+        $readable = $leasePayments
+            ->filter(fn (LeasePayment $p): bool => $seesAll
+                || ($staffAgencyId !== null && (int) $p->lease?->agency_id === $staffAgencyId))
+            ->keyBy('id');
 
-        return $items->map(fn (array $row) => $row + ($row['source'] === 'lease'
+        $ids = $items->where('source', 'lease')->pluck('id')->filter(fn ($id) => $readable->has($id))->all();
+        $summaries = $this->reminderReader->summaries($readable->only($ids)->values());
+
+        return $items->map(fn (array $row) => $row + ($row['source'] === 'lease' && isset($summaries[$row['id']])
             ? $summaries[$row['id']]
             : ['last_reminder' => null, 'reminders_count' => 0]));
     }

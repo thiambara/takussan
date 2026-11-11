@@ -10,6 +10,8 @@ use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\LeasePaymentReminder;
+use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Notifications\Sms\SmsDriverInterface;
@@ -198,6 +200,59 @@ class LeasePaymentReminderTest extends ApiTestCase
         $plain = collect($this->getJson('/api/payments/history?per_page=100')->assertOk()->json('data'))->keyBy('id');
         $this->assertArrayNotHasKey('last_reminder', $plain[$payment->id]);
         $this->assertArrayNotHasKey('reminders_count', $plain[$payment->id]);
+    }
+
+    /**
+     * Vérification adverse de TCK-2658 — `/lease-payments/{id}/reminders` refuse le bailleur et le
+     * locataire ; l'include de l'historique ne leur rendait pas moins : l'auteur de la relance
+     * (`by.name`), son canal et le compte. Il suit la règle de `LeasePaymentPolicy::remind`, ligne
+     * par ligne — y compris pour un compte PERSONNEL d'une autre agence, bailleur d'un bail d'ici.
+     */
+    public function test_history_include_reminders_follows_the_reminders_rule(): void
+    {
+        $this->remind($this->overdue)->assertCreated();
+        $tenant = User::factory()->create();
+        Customer::query()->whereKey($this->lease->tenant_id)->update(['user_id' => $tenant->id]);
+        OwnerProfile::factory()->create(['user_id' => $this->lease->landlord_id, 'agency_id' => $this->agency->id]);
+
+        $double = $this->agencyAgent(Agency::factory()->create());
+        OwnerProfile::factory()->create(['user_id' => $double->id, 'agency_id' => $this->agency->id]);
+        $double = $double->fresh();
+        $leaseOfDouble = Lease::factory()->create([
+            'property_id' => Property::factory()->create(['user_id' => $double->id, 'agency_id' => $this->agency->id])->id,
+            'landlord_id' => $double->id,
+            'agency_id' => $this->agency->id,
+            'tenant_id' => Customer::factory()->create(['agency_id' => $this->agency->id])->id,
+            'status' => LeaseStatus::Active,
+            'late_fee_percent' => null,
+        ]);
+        $dueOfDouble = LeasePayment::factory()->create([
+            'lease_id' => $leaseOfDouble->id, 'payer_id' => $leaseOfDouble->tenant_id, 'status' => PaymentStatus::Pending,
+            'amount' => 100_000, 'due_date' => now('Africa/Dakar')->subDays(10)->toDateString(),
+        ]);
+        $this->remind($dueOfDouble)->assertCreated();
+
+        $read = function (User $as, LeasePayment $payment): array {
+            $this->actingAsApi($as);
+            $this->getJson("/api/lease-payments/{$payment->id}/reminders")->assertForbidden();
+            $row = collect($this->getJson('/api/payments/history?per_page=100&include=reminders')->assertOk()->json('data'))
+                ->firstWhere('id', $payment->id);
+            $this->assertNotNull($row, 'la ligne est pourtant lue');
+
+            return [$row['last_reminder'], $row['reminders_count']];
+        };
+
+        $this->assertSame([null, 0], $read($this->lease->landlord->fresh(), $this->overdue), 'bailleur');
+        $this->assertSame([null, 0], $read($tenant, $this->overdue), 'locataire');
+        // Son profil ACTIF est celui d'agent de l'autre agence : `staffAgencyId()` y est non nul.
+        $this->withHeader('X-Profile-Id', 'agent:'.AgentProfile::query()->where('user_id', $double->id)->value('id'));
+        $this->assertSame([null, 0], $read($double, $dueOfDouble), 'personnel ailleurs, bailleur ici');
+        $this->flushHeaders();
+
+        $this->actingAsApi($this->agencyAgent($this->agency));
+        $row = collect($this->getJson('/api/payments/history?per_page=100&include=reminders')->assertOk()->json('data'))
+            ->firstWhere('id', $dueOfDouble->id);
+        $this->assertSame(1, $row['reminders_count'], 'le personnel de l\'agence du bail la lit');
     }
 
     public function test_ac5_recording_a_reminder_sends_nothing(): void
