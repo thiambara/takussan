@@ -4,7 +4,7 @@ title: "Une heure d'intervention envoyée avec un décalage est convertie, au PA
 status: todo
 phase: P1
 family: back
-estimate: XS
+estimate: S
 wave: 86
 created: 2026-11-11
 updated: 2026-11-11
