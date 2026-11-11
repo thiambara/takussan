@@ -28,7 +28,15 @@ class Inventory extends AbstractModel implements HasMedia
         'signed_at', 'metadata',
         // TCK-596 — qui a signé pour le bailleur, pour le compte de qui, et l'empreinte figée.
         'owner_signed_by_user_id', 'owner_signed_on_behalf_of_user_id', 'traceability_hash',
+        // TCK-2646 (ADR-0098 §5) — la trace de la signature du locataire, et l'entrée reprise par une sortie.
+        'tenant_signature_method', 'tenant_signed_via_user_id', 'tenant_otp_channel', 'tenant_otp_destination',
+        'tenant_signed_ip', 'entry_inventory_id',
     ];
+
+    /** TCK-2646 — la signature recueillie depuis le compte du locataire, et celle recueillie sur place. */
+    public const TENANT_METHOD_DRAWN = 'drawn';
+
+    public const TENANT_METHOD_ONSITE_OTP = 'onsite_otp';
 
     /**
      * Raw signature payloads stay on the model for template rendering but are
@@ -39,6 +47,8 @@ class Inventory extends AbstractModel implements HasMedia
     protected $hidden = [
         'tenant_signature_data',
         'owner_signature_data',
+        // TCK-2646 (ADR-0042 §3, ADR-0098 §5) — l'IP de la signature sur place ne sort jamais de l'API.
+        'tenant_signed_ip',
     ];
 
     protected $casts = [
@@ -70,6 +80,9 @@ class Inventory extends AbstractModel implements HasMedia
         'tenant_signed', 'tenant_signed_at', 'tenant_signature_hash',
         'owner_signed', 'owner_signed_at', 'owner_signature_hash',
         'owner_signed_by_user_id', 'owner_signed_on_behalf_of_user_id', 'traceability_hash',
+        // TCK-2646 — jamais `tenant_signed_ip`.
+        'tenant_signature_method', 'tenant_signed_via_user_id', 'tenant_otp_channel', 'tenant_otp_destination',
+        'entry_inventory_id',
         'signed_at', 'created_at', 'updated_at',
     ];
 
@@ -114,5 +127,11 @@ class Inventory extends AbstractModel implements HasMedia
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Customer::class, 'tenant_id');
+    }
+
+    /** TCK-2646 — pour une sortie : l'entrée signée dont elle reprend les pièces et les états d'entrée. */
+    public function entryInventory(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'entry_inventory_id');
     }
 }

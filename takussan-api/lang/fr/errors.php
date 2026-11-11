@@ -281,6 +281,17 @@ return [
         'pdf_unsigned' => 'Le PDF est disponible une fois que les deux parties ont signé.',
         'signed_locked' => 'Un état des lieux signé ne peut plus être modifié.',
         'tenant_not_found' => 'Le locataire du bail est introuvable.',
+        // TCK-2646 — la sortie ne reprend qu'une entrée signée du bail ou d'un bail qu'il renouvelle.
+        'entry_inventory_invalid' => 'Seule une entrée signée de ce bail, ou d\'un bail qu\'il renouvelle, peut être reprise par la sortie.',
+    ],
+    // TCK-2646 (ADR-0098) — la signature du locataire sur le téléphone de l'agent, par code SMS.
+    'inventory_signature' => [
+        'code_required' => 'Saisissez le code reçu par le locataire.',
+        'code_locked' => 'Trop de codes faux : la signature sur place est bloquée pendant 15 minutes.',
+        'invalid_code' => 'Code invalide ou expiré.',
+        'resend_too_soon' => 'Un code vient d\'être envoyé : patientez une minute avant d\'en demander un autre.',
+        'sms_not_sent' => 'Le code n\'a pas pu partir par SMS : réessayez dans une minute, ou faites signer le locataire depuis son compte.',
+        'tenant_without_phone' => 'Le locataire n\'a pas de compte avec un numéro vérifié : il signe depuis son compte.',
     ],
     'invitation' => [
         'already_member' => 'Ce compte est déjà membre de l\'agence sous ce profil : l\'invitation n\'a rien à ajouter.',

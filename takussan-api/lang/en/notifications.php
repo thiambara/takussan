@@ -135,6 +135,11 @@ return [
         'ignore' => 'If you did not ask for anything, ignore this message: without this code, nothing is signed.',
         'sms' => 'Takussan: your signing code for lease :reference is :code (valid :minutes min). Do not share it.',
     ],
+    // TCK-2646 (ADR-0098) — the code authenticating the tenant who signs the inventory on the
+    // agent's phone. SMS only: no e-mail version.
+    'inventory_signature_code' => [
+        'sms' => 'Takussan: inventory signing code (lease :reference): :code, valid :minutes min. Type it yourself, in front of the agent.',
+    ],
     'account_deletion_step_up' => [
         'subject' => 'Your account deletion confirmation code',
         'greeting' => 'Hello,',

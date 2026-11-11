@@ -5,6 +5,8 @@ namespace App\Http\Requests;
 use App\Http\Requests\Concerns\BorneLesReglesDElement;
 use App\Models\Enums\InventoryCondition;
 use App\Models\Enums\InventoryElementState;
+use App\Models\Enums\InventoryType;
+use App\Models\Inventory;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -39,7 +41,18 @@ class InventoryUpdateRequest extends FormRequest
             'rooms.*.elements.*.label' => ['required_with:rooms.*.elements', 'string', 'max:255'],
             'rooms.*.elements.*.state' => ['required_with:rooms.*.elements', Rule::enum(InventoryElementState::class)],
             'rooms.*.elements.*.notes' => ['nullable', 'string', 'max:'.InventoryStoreRequest::MAX_ELEMENT_NOTES],
+            // TCK-2646 — la retenue proposée, sur une sortie seulement ; `entry_state` n'a pas de
+            // règle : retiré par la validation, reposé par le serveur.
+            'rooms.*.elements.*.retention_amount' => ['nullable', Rule::prohibitedIf(fn (): bool => ! $this->isExit()), 'numeric', 'min:0', 'max:'.InventoryStoreRequest::MAX_RETENTION],
+            'rooms.*.elements.*.retention_reason' => ['nullable', Rule::prohibitedIf(fn (): bool => ! $this->isExit()), 'string', 'max:'.InventoryStoreRequest::MAX_ELEMENT_NOTES],
             'notes' => ['nullable', 'string', 'max:'.InventoryStoreRequest::MAX_NOTES],
         ];
+    }
+
+    private function isExit(): bool
+    {
+        $inventory = $this->route('inventory');
+
+        return $inventory instanceof Inventory && $inventory->type === InventoryType::MoveOut;
     }
 }

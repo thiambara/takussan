@@ -131,3 +131,118 @@ L'agent fait l'état des lieux debout dans le logement : il part d'une liste de 
 ## Notes d'implémentation
 
 _(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+
+**2026-11-11 — implémentation (back-patrimoine-2).**
+
+- **Code commun** : `App\Services\Signature\SignatureOtpService` (portée `Lease|Inventory`), extrait de
+  `LeaseSignatureOtpService`, qui en hérite sans rien redéfinir. Les clés du bail restent octet pour octet
+  `lease-signature-{kind}:{bail}:{user}:{role}` (`LeaseSignatureTest` et `OtpLateFailureResendTest` verts sans
+  modification) ; l'état des lieux a les siennes, `inventory-signature-…`. L'empreinte que le code atteste : le
+  contrat figé pour le bail ; pour l'état des lieux, état général, pièces, notes et identifiants des photos de pièces
+  (un brouillon modifié entre l'envoi et la saisie invalide le code).
+- **Le code, son verrou et son délai de renvoi sont ceux du LOCATAIRE** (son compte) sur cet état des lieux, jamais
+  du membre du personnel : un second agent ne rouvre pas cinq essais.
+- **Qui lance la voie** : `InventorySignatureService::canSignOnsite` — personnel de l'agence DU BAIL
+  (`MembershipCapabilityResolver::isStaffAt`) ET `InventoryPolicy::update` appelée en direct (hors `Gate::before`).
+  Le locataire lui-même, le bailleur, un collaborateur, le personnel d'une autre agence, le super-admin : 403. Ordre
+  sur `…/sign` : 409 (non signable) → 403 → 409 (déjà signé) → code ; un appel refusé ne consomme aucun essai.
+- **Le personnel qui poste `role=tenant` sans code reçoit 422 sur `code`** (`inventory_signature.code_required`) ;
+  un code faux ou expiré, 422 sur `code` (`inventory_signature.invalid_code`, en erreur de validation) ; le
+  verrou 423 `inventory_signature.code_locked` ; le renvoi précoce 429 `inventory_signature.resend_too_soon` ; le
+  SMS qui n'est pas parti 503 `inventory_signature.sms_not_sent`.
+- **La notification** est `LeaseSignatureCodeNotification` avec un texte d'état des lieux
+  (`TEXTS_INVENTORY`, SMS seulement) : une seconde classe aurait dû entrer dans les trois listes fermées qui gardent
+  celle-ci (hors préférences, synchrone, compte non joignable).
+- **`OtpPreview`** enregistre aussi ce code (hors production, drapeau allumé, comme tout code SMS) : en préproduction,
+  le code revient donc à l'appareil de l'agent — c'est l'outil de recette, jamais la production (P71.02).
+- **Colonnes** : en plus des trois du ticket, `tenant_otp_destination` (numéro masqué, imprimé par le PDF),
+  `tenant_signed_ip` (caché) et `entry_inventory_id` (l'entrée reprise par une sortie). Les états des lieux déjà
+  signés par le locataire reçoivent `tenant_signature_method = drawn`.
+- **Route de signature** : `throttle:lease-signature` posé sur `POST inventories/{id}/sign` (limiteur partagé avec la
+  saisie du code du bail, ADR-0098 §4) ; `throttle:lease-signature-code` sur `…/sign/onsite-code`.
+- **Modèles** : `App\Domain\Inventory\InventoryTemplates` (clés en code, noms dans
+  `lang/*/inventory_templates.php`, wolof = français) ; complété pour le F4 et plus et le générique — le contenu
+  est à reporter dans `docs/features.md` §1.9 par `/sync-specs` (cf. « Pour /sync-specs » ci-dessous). `GET /api/inventory-templates` rend `key`, `property_type` et `rooms[]` (`key`, `name`,
+  `elements[]` : `key`, `label`) dans la langue de la requête. `property_id` lisible (`view`) sinon 403, ou
+  `property_type` (+ `bedrooms`) ; les deux, ou une liste, 422.
+- **Sortie** : `entry_state`, `entry_notes` et `entry_photo_id` sont reposés par le serveur à chaque écriture des
+  pièces (création et `PATCH`), par correspondance nom de pièce + libellé d'élément avec l'entrée reprise
+  (`entry_inventory_id`) ; la
+  validation les retire de ce que le client envoie. `show` rend `entry_thumbnail_url` (URL signée de la `preview`,
+  à défaut l'original), résolue à la lecture. Une sortie sans pièces reprend celles de l'entrée (état d'entrée comme
+  état de départ, sans notes) et son état général ; sans entrée signée, 422 sur `rooms` et `general_condition`.
+- **Retenues** : `retention_total` (nul pour une entrée) ; `GET /api/leases/{id}/deposit-refund` rend
+  `proposed_retention` et `proposed_retention_inventory_id`, lus sur la dernière sortie au statut `signed` (une sortie
+  contestée ne propose rien). Le PDF n'imprime pas encore les retenues ni les états d'entrée.
+- **Arbitrages de la session (team-lead, 2026-11-11), pour le porteur** :
+  1. modèles : clés stables en code, noms rendus dans la langue de la requête (wo = fr) ;
+  2. **la sortie reprend une entrée signée du bail OU d'un bail qu'il renouvelle** (`renewed_from_lease_id`, au même
+     locataire et au même bien — au-delà, c'est une autre occupation) : un renouvellement ne refait pas d'entrée,
+     et exclure la chaîne rendait impossible la sortie d'un bail renouvelé. Défaut : la plus récente entrée signée
+     de la chaîne ; hors chaîne, 422 sur `from_inventory_id` ;
+  3. **contestation** : le locataire et le bailleur du bail seulement ; le bailleur qui a conduit l'état des lieux
+     lui-même le conteste comme partie ; le personnel (admin compris), le conducteur du personnel et le
+     super-admin reçoivent 403.
+- **Contestation** : `InventoryPolicy::dispute`, jugée en direct par `DisputeInventoryRequest::authorize` — le
+  locataire de l'état des lieux (`tenant_id`, recopié du bail) et `leases.landlord_id` ; le bailleur qui l'a conduit
+  lui-même reste partie.
+
+
+**2026-11-11 — reprise après le plantage de la machine (reprise-2646).** Le code de back-patrimoine-2 était dans
+l'arbre, non commité ; son rapport et ses sauvegardes d'ablation étaient perdus.
+
+- **Aucune ablation restée en place** : les 8 classes (7 neuves + `InventorySignatureTest`) jouées d'un coup au
+  premier plan, **100 verts (617 assertions)** avant toute modification.
+- **Arbitrage 2 vérifié** : `InventoryExitPrefill::entryFor()` / `tenancyChain()` — même bail, ancêtres par
+  `renewed_from_lease_id` au même locataire ET au même bien, défaut = la plus récente entrée signée de la chaîne,
+  hors chaîne 422 sur `from_inventory_id`. Testés : même bail, ancêtre (deux renouvellements), autre locataire, bail
+  étranger. **Ajouté** : `test_un_ancetre_d_un_autre_bien_n_est_pas_repris` — sans lui, retirer la condition « même
+  bien » restait vert.
+- **Ablations rejouées** (une à une, premier plan, `--filter`, restauration par `cp` + `md5`) — toutes rouges :
+  marche de la chaîne (`$parentId = null`), condition « même bien », condition « même locataire », filtre de chaîne
+  sur `from_inventory_id` (bail étranger), contestation jugée par `view` (admin d'agence 200), contestation par
+  `can('dispute')` (super-admin 200 par `Gate::before`), `isStaffAt` retiré (le bailleur lance la voie : 202),
+  garde entière de `canSignOnsite` (AC3, 4 collaborateurs : 202), verrou des 5 essais (AC2 : 422 au lieu de 423),
+  `phone_verified_at` (compte non vérifié : 202), `attach()` au `PATCH` (AC6).
+  ⚠ Retirer seulement `isStaffAt` laisse AC3 vert : un collaborateur n'a pas `update` (double garde) ; c'est le
+  test « ni le bailleur ni le super-admin… » qui tient `isStaffAt`.
+- **AC4** : le test du locataire qui signe depuis son compte est inchangé ; **une** assertion de
+  `InventorySignatureTest` change (`test_show_exposes_can_sign_as_for_the_viewer` : le personnel reçoit
+  `['landlord', 'tenant_onsite']`) — c'est le nouveau contrat, pas le chemin du locataire.
+- **Specs** : le Delta ne demande aucune édition de spec ; les hunks posés dans `docs/features.md` et
+  `docs/models-spec.md` sont retirés (fichiers revenus à `HEAD`) et reportés ci-dessous. ⚠ `HEAD` dit encore
+  « F4 et plus : contenu à fixer par TCK-2646 » et « générique : à fixer par TCK-2646 ».
+- **Migration** `2026_11_11_170100` jouée vers le haut sur la base de démo (`php artisan migrate`, seule en
+  attente) : sans elle, `POST /api/inventories` de l'API locale échouait sur `entry_inventory_id`. `down()` relu
+  (index, deux FK nommées, six colonnes), pas d'aller-retour.
+- Gardes : `pint --test` vert ; `RessourceUniqueResolueTest`, `ExistsSurTableASuppressionDouceTest`,
+  `AgencyIdIsIndexedTest` verts ; gardes racine : rouges seulement les 5 des maquettes et `check-design-sync-entry`
+  (primitives `panneau-droit`/`radio-group` de TCK-2690, front). Aucun `->event()` neuf, aucun `NotificationCode`
+  neuf. **Non joués (CI)** : `ImpersonationReadSweepTest`, `ValeursEnListeParcoursDesRoutesTest`,
+  `DateInventoryByValueTest`, `LangGroupParity` — route GET neuve `inventory-templates` (sans paramètre d'URL,
+  422 sans `property_id`) et clés de ressource neuves.
+- **Reste** : le PDF n'imprime ni les retenues ni les états d'entrée d'une sortie ; les libellés front des codes
+  `inventory_signature.*` relèvent de TCK-2648.
+
+**Pour /sync-specs** (contenu retiré des specs, à y reporter après fusion) :
+
+- `docs/features.md` §1.9, « Modèles de pièces (TCK-2646) » : défini en code (`App\Domain\Inventory\InventoryTemplates`,
+  servi par `GET /api/inventory-templates`), noms dans `lang/*/inventory_templates.php` ; **studio** (et chambre,
+  appartement sans chambre) : pièce principale, coin cuisine, salle d'eau ; **F2** (1 chambre) : séjour, chambre 1,
+  cuisine, salle d'eau, WC ; **F3** (2 chambres) : séjour, chambre 1, chambre 2, cuisine, salle d'eau, WC ; **F4 et
+  plus** (3 chambres et plus) : séjour, chambres 1 à N (N = chambres du bien, 3 au moins, 8 au plus), cuisine, salle
+  de bain, salle d'eau, WC ; **villa** : séjour, salle à manger, chambres 1 à N (4 au moins, 8 au plus), cuisine,
+  salles d'eau 1 et 2, terrasse, cour ; **local commercial, bureau** : espace principal, réserve, sanitaires —
+  l'espace principal d'un local propose vitrine et rideau métallique, celui d'un bureau prises réseau et
+  climatisation ; **générique** (tout autre type, ou appartement au nombre de chambres inconnu) : pièce principale,
+  cuisine, salle d'eau, WC. Éléments par défaut : murs, sol, plafond, porte, fenêtres, prises, interrupteurs,
+  éclairage ; la chambre ajoute un placard ; la cuisine évier, plan de travail, robinetterie, plaques de cuisson et
+  placards ; la salle d'eau (et la salle de bain) douche ou baignoire, lavabo, robinetterie et joints ; WC, réserve,
+  sanitaires, terrasse et cour ne proposent que ce qui s'y trouve. Chaque modèle tient dans 20 pièces × 20 éléments.
+- `docs/models-spec.md` §2.4 `inventories` : `rooms` — pour une sortie, chaque élément porte `entry_state`,
+  `entry_notes` et `entry_photo_id` (photo de l'entrée : celle de l'élément, sinon de sa pièce — rendue en
+  `entry_thumbnail_url` signée par `show`), **reposés par le serveur depuis l'entrée à chaque écriture** (pas
+  seulement à la création) ; colonnes neuves `tenant_otp_destination` string(120) (numéro masqué, imprimé par le
+  PDF), `tenant_signed_ip` string(45) (cachée, `$hidden`), `entry_inventory_id` FK inventories
+  (`inventories_entry_inventory_fk`, `nullOnDelete`, indexée) — l'entrée reprise, d'un bail de la chaîne de
+  renouvellement ; relation `entryInventory()` → belongsTo Inventory.

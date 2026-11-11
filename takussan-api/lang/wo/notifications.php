@@ -134,6 +134,11 @@ return [
         'ignore' => 'Soo laajul dara, bul ko faale : bu amul kood bii, dara du xaatimu.',
         'sms' => 'Takussan : sa koodu xaatim bu bayle :reference mooy :code (:minutes simili). Bul ko wax kenn.',
     ],
+    // TCK-2646 (ADR-0098) — le code qui authentifie le locataire signant l'état des lieux sur le
+    // téléphone de l'agent. SMS seulement : pas de version e-mail.
+    'inventory_signature_code' => [
+        'sms' => 'Takussan : code de signature de l\'état des lieux (bail :reference) : :code, valable :minutes min. Saisissez-le vous-même, devant l\'agent.',
+    ],
     'account_deletion_step_up' => [
         'subject' => 'Sa kod bu dëggal suufeelu kont bi',
         'greeting' => 'Salaam,',

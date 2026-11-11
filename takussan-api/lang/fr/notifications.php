@@ -136,6 +136,11 @@ return [
         'ignore' => 'Si vous n\'avez rien demandé, ignorez ce message : sans ce code, rien n\'est signé.',
         'sms' => 'Takussan : votre code de signature du bail :reference est :code (valable :minutes min). Ne le communiquez à personne.',
     ],
+    // TCK-2646 (ADR-0098) — le code qui authentifie le locataire signant l'état des lieux sur le
+    // téléphone de l'agent. SMS seulement : pas de version e-mail.
+    'inventory_signature_code' => [
+        'sms' => 'Takussan : code de signature de l\'état des lieux (bail :reference) : :code, valable :minutes min. Saisissez-le vous-même, devant l\'agent.',
+    ],
     'account_deletion_step_up' => [
         'subject' => 'Votre code de confirmation de suppression de compte',
         'greeting' => 'Bonjour,',

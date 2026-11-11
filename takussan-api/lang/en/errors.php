@@ -281,6 +281,17 @@ return [
         'pdf_unsigned' => 'The PDF is available once both parties have signed.',
         'signed_locked' => 'A signed inventory can no longer be changed.',
         'tenant_not_found' => 'The lease tenant was not found.',
+        // TCK-2646 — the exit only takes over a signed entry of the lease or of a lease it renews.
+        'entry_inventory_invalid' => 'Only a signed entry inventory of this lease, or of a lease it renews, can be taken over by the exit.',
+    ],
+    // TCK-2646 (ADR-0098) — the tenant signs on the agent's phone, with an SMS code.
+    'inventory_signature' => [
+        'code_required' => 'Enter the code the tenant received.',
+        'code_locked' => 'Too many wrong codes: on-site signing is locked for 15 minutes.',
+        'invalid_code' => 'Invalid or expired code.',
+        'resend_too_soon' => 'A code was just sent: wait a minute before asking for another one.',
+        'sms_not_sent' => 'The code could not be sent by SMS: try again in a minute, or have the tenant sign from their account.',
+        'tenant_without_phone' => 'The tenant has no account with a verified phone number: they sign from their account.',
     ],
     'invitation' => [
         'already_member' => 'This account is already a member of the agency with this profile: the invitation has nothing to add.',

@@ -8,11 +8,20 @@ use App\Models\Inventory;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
+use App\Notifications\LeaseSignatureCodeNotification;
+use App\Policies\InventoryPolicy;
+use App\Services\Auth\OtpPreview;
 use App\Services\Lease\LandlordSignatory;
+use App\Services\Lease\LeaseSignatureService;
+use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Pdf\PrintedIdentity;
+use App\Services\Signature\SignatureOtpService;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
+use Throwable;
 
 /**
  * TCK-076 — captures an immutable signature payload for a given role
@@ -34,22 +43,41 @@ use Illuminate\Support\Facades\Storage;
  *   - At the second signature the traceability hash is FROZEN, and it covers the room photos
  *     (TCK-596): the PDF is recomposed at download time, so an unfrozen hash would follow the
  *     document instead of attesting it.
+ *   - TCK-2646 (ADR-0098) — the tenant may also sign ON SITE, on the device of a member of the lease
+ *     agency's staff who can `update` the inventory: the tenant draws, then types the code sent by
+ *     SMS to the VERIFIED phone of their account ({@see sendOnsiteCode()}). Never to the `Customer`
+ *     phone, which the agency types itself. The proof keeps `onsite_otp`, the staff member, the
+ *     channel, the masked number, the IP and the time.
  */
 class InventorySignatureService
 {
-    public function sign(Inventory $inventory, User $user, string $role, string $signature): Inventory
+    /** TCK-2646 — le rôle de `can_sign_as` qui ouvre la voie sur place ; jamais un rôle de `sign`. */
+    public const ROLE_TENANT_ONSITE = 'tenant_onsite';
+
+    public function __construct(private readonly SignatureOtpService $otp) {}
+
+    public function sign(Inventory $inventory, User $user, string $role, string $signature, ?string $code = null, ?Request $request = null): Inventory
     {
         // VERIF-596 M3 — sous le verrou de la ligne, et TOUT est relu dessus : deux signatures
         // simultanées (un état des lieux fait ensemble, deux téléphones) voyaient chacune l'autre
         // « non signée », aucune ne passait `signed` ni ne figeait l'empreinte, et l'état restait
         // bloqué (chaque rôle déjà signé → 409). Patron de `LeaseSignatureService::sign`.
-        return DB::transaction(function () use ($inventory, $user, $role, $signature): Inventory {
+        return DB::transaction(function () use ($inventory, $user, $role, $signature, $code, $request): Inventory {
             /** @var Inventory $locked */
             $locked = Inventory::query()->whereKey($inventory->getKey())->lockForUpdate()->firstOrFail();
 
             $this->assertSignable($locked);
-            $this->authorizeRole($locked, $user, $role);
+            // TCK-2646 — la voie sur place : le rôle `tenant` demandé par un membre du personnel
+            // habilité, qui n'est pas lui-même le locataire. Refusée (403), puis déjà signée (409),
+            // AVANT de regarder le code : un appel refusé ne consomme aucun essai.
+            $onsite = $role === InventorySignRequest::ROLE_TENANT
+                && ! $this->canSignAs($locked, $user, $role)
+                && $this->canSignOnsite($locked, $user);
+            if (! $onsite) {
+                $this->authorizeRole($locked, $user, $role);
+            }
             $this->assertRoleNotAlreadySigned($locked, $role);
+            $proof = $onsite ? $this->checkOnsiteCode($locked, $code) : null;
 
             $hash = hash('sha256', $signature);
             $now = now();
@@ -59,6 +87,14 @@ class InventorySignatureService
                 $locked->tenant_signed_at = $now;
                 $locked->tenant_signature_data = $signature;
                 $locked->tenant_signature_hash = $hash;
+                // TCK-2646 (ADR-0098 §5) — la trace de la voie, en colonnes.
+                $locked->tenant_signature_method = $proof === null ? Inventory::TENANT_METHOD_DRAWN : Inventory::TENANT_METHOD_ONSITE_OTP;
+                if ($proof !== null) {
+                    $locked->tenant_signed_via_user_id = $user->id;
+                    $locked->tenant_otp_channel = $proof['channel'];
+                    $locked->tenant_otp_destination = $proof['destination'];
+                    $locked->tenant_signed_ip = $request?->ip();
+                }
             } else {
                 $locked->owner_signed = true;
                 $locked->owner_signed_at = $now;
@@ -164,6 +200,124 @@ class InventorySignatureService
         ], JSON_UNESCAPED_UNICODE);
 
         return hash('sha256', (string) $material);
+    }
+
+    /**
+     * TCK-2646 (ADR-0098 §1-§4) — envoie au locataire du bail le code qui l'authentifie sur l'appareil
+     * de `$staff`. SMS au numéro VÉRIFIÉ de son compte, et à lui seul ; sans repli par e-mail.
+     *
+     * Le code, son délai de renvoi, son compteur d'essais et son verrou sont ceux du LOCATAIRE sur cet
+     * état des lieux (`inventory-signature-…:{état}:{compte du locataire}:tenant`) : un second membre
+     * du personnel ne rouvre pas cinq essais.
+     *
+     * @return array{channel: string, destination: string}
+     */
+    public function sendOnsiteCode(Inventory $inventory, User $staff): array
+    {
+        abort_unless($this->canSignOnsite($inventory, $staff), Response::HTTP_FORBIDDEN);
+        $this->assertSignable($inventory);
+        $this->assertRoleNotAlreadySigned($inventory, InventorySignRequest::ROLE_TENANT);
+
+        $tenant = $this->tenantAccount($inventory);
+        abort_code_if(
+            $tenant === null || ! is_string($tenant->phone) || $tenant->phone === '' || $tenant->phone_verified_at === null,
+            422,
+            'inventory_signature.tenant_without_phone'
+        );
+
+        $role = InventorySignRequest::ROLE_TENANT;
+        abort_code_if($this->otp->isLocked($inventory, $tenant, $role), 423, 'inventory_signature.code_locked');
+        abort_code_unless($this->otp->canResend($inventory, $tenant, $role), 429, 'inventory_signature.resend_too_soon');
+
+        $channel = LeaseSignatureCodeNotification::CHANNEL_SMS;
+        $destination = LeaseSignatureService::maskPhone((string) $tenant->phone);
+        $code = $this->otp->issue($inventory, $tenant, $role, $channel, $destination);
+        // TCK-620 (ADR-0060) — hors production et drapeau allumé seulement, comme tout code SMS.
+        app(OtpPreview::class)->record($code);
+
+        $lease = $inventory->lease;
+        $notification = new LeaseSignatureCodeNotification(
+            $code,
+            (string) ($lease?->reference_number ?? $inventory->lease_id),
+            (int) (SignatureOtpService::CODE_TTL_SECONDS / 60),
+            $channel,
+            $this->otp->resendKey($inventory, $tenant, $role),
+            LeaseSignatureCodeNotification::TEXTS_INVENTORY,
+        );
+        // TCK-1337 (P123.06) — la fenêtre de renvoi ne compte qu'après un envoi réussi.
+        try {
+            $tenant->notify($notification);
+        } catch (Throwable $e) {
+            $this->otp->releaseResend($inventory, $tenant, $role);
+
+            throw $e;
+        }
+        // TCK-799 (P11.05) — un code qui n'est pas parti ne se dit pas envoyé.
+        if ($notification->smsLeft() === false) {
+            $this->otp->releaseResend($inventory, $tenant, $role);
+            abort_code(503, 'inventory_signature.sms_not_sent');
+        }
+
+        return ['channel' => $channel, 'destination' => $destination];
+    }
+
+    /**
+     * TCK-2646 (ADR-0098 §1) — `$user` peut-il recueillir sur son appareil la signature du locataire ?
+     * Le personnel de l'agence DU BAIL qui peut `update` l'état des lieux — la policy appelée en direct :
+     * `Gate::before` accorderait tout au super-admin, qui n'a pas de voie propre. Jamais un
+     * collaborateur du bien qui n'est pas du personnel, jamais le locataire lui-même (il signe depuis
+     * son compte).
+     */
+    public function canSignOnsite(Inventory $inventory, User $user): bool
+    {
+        $lease = $inventory->lease;
+        if ($lease === null || $lease->agency_id === null) {
+            return false;
+        }
+
+        $tenant = $lease->tenant;
+        if ($tenant !== null && $tenant->user_id !== null && (int) $tenant->user_id === (int) $user->id) {
+            return false;
+        }
+
+        return app(MembershipCapabilityResolver::class)->isStaffAt($user, (int) $lease->agency_id)
+            && app(InventoryPolicy::class)->update($user, $inventory);
+    }
+
+    /**
+     * Le compte du locataire du bail — celui que désigne `canSignAs` pour le rôle `tenant`.
+     */
+    private function tenantAccount(Inventory $inventory): ?User
+    {
+        $userId = $inventory->lease?->tenant?->user_id;
+
+        return $userId === null ? null : User::query()->find($userId);
+    }
+
+    /**
+     * Vérifie ET consomme le code du locataire. 422 sur `code` (absent, faux ou expiré), 423 sous
+     * verrou — y compris pour le faux qui le pose.
+     *
+     * @return array{channel: string, destination: string}
+     */
+    private function checkOnsiteCode(Inventory $inventory, ?string $code): array
+    {
+        $tenant = $this->tenantAccount($inventory);
+        abort_code_if($tenant === null, 422, 'inventory_signature.tenant_without_phone');
+        if (! is_string($code) || trim($code) === '') {
+            throw ValidationException::withMessages(['code' => __('errors.inventory_signature.code_required')]);
+        }
+
+        $role = InventorySignRequest::ROLE_TENANT;
+        abort_code_if($this->otp->isLocked($inventory, $tenant, $role), 423, 'inventory_signature.code_locked');
+
+        $proof = $this->otp->attempt($inventory, $tenant, $role, $code);
+        abort_code_if($proof === null && $this->otp->isLocked($inventory, $tenant, $role), 423, 'inventory_signature.code_locked');
+        if ($proof === null) {
+            throw ValidationException::withMessages(['code' => __('errors.inventory_signature.invalid_code')]);
+        }
+
+        return $proof;
     }
 
     protected function assertSignable(Inventory $inventory): void

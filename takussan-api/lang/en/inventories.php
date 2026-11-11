@@ -4,6 +4,8 @@
 return [
     'pdf' => [
         'signed_on_behalf_of' => 'Signed by :signer on behalf of :landlord',
+        // TCK-2646 (ADR-0098 §5) — le locataire a signé sur l'appareil du personnel, avec le code reçu.
+        'signed_onsite' => 'Signed on site, code sent to :destination',
         // P192.04 — libellés des enums imprimés par l'acte, repris mot pour mot du front
         // (`inventory.conditions.*`, `inventory.status.*`).
         'conditions' => [

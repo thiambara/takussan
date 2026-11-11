@@ -12,6 +12,7 @@
      *   - $tenant_signature (?string) — data URL
      *   - $owner_signature (?string)  — data URL
      *   - $traceability_hash (string) — short fingerprint, rendered in the footer area
+     *   - $tenant_signed_onsite (?string) — « Signé sur place, code envoyé au … » (TCK-2646)
      */
     $type = $inventory->type?->value ?? 'move_in';
     $typeLabel = $type === 'move_out' ? 'État des lieux de sortie' : 'État des lieux d\'entrée';
@@ -172,6 +173,10 @@
                     <img src="{{ $tenantSignature }}" alt="Signature locataire"
                          style="max-height: 70px; max-width: 260px;">
                     <div class="muted" style="margin-top: 4px;">Signé le {{ $tenantSignedAt ?? '—' }}</div>
+                    {{-- TCK-2646 (ADR-0098 §5) — la voie sur place, avec le numéro masqué. --}}
+                    @if (! empty($tenant_signed_onsite))
+                        <div class="muted" style="margin-top: 2px;">{{ $tenant_signed_onsite }}</div>
+                    @endif
                 @else
                     <em class="muted">En attente</em>
                 @endif

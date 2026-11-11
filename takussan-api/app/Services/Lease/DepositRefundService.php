@@ -16,6 +16,7 @@ use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Payout;
 use App\Models\User;
+use App\Services\Inventory\InventoryRetention;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Model\PayoutService;
 use App\Services\Model\ReferenceNumberGenerator;
@@ -267,6 +268,6 @@ class DepositRefundService
             'deposit_refund_reason' => $lease->deposit_refund_reason,
             'state' => $state,
             'attachments' => $attachments,
-        ];
+        ] + InventoryRetention::proposedFor($lease); // TCK-2646 — la retenue proposée par la dernière sortie signée.
     }
 }

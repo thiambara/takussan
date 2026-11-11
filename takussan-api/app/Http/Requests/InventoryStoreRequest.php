@@ -45,6 +45,9 @@ class InventoryStoreRequest extends FormRequest
 
     public const MAX_NOTES = 1000;
 
+    /** TCK-2646 — la borne d'une retenue proposée, en XOF : au-delà de toute caution réelle. */
+    public const MAX_RETENTION = 1_000_000_000;
+
     public function authorize(): bool
     {
         return $this->user() !== null;
@@ -58,8 +61,10 @@ class InventoryStoreRequest extends FormRequest
             'lease_id' => ['required', 'integer'],
             'type' => ['required', Rule::enum(InventoryType::class)],
             'conducted_at' => ['nullable', 'date'],
-            'general_condition' => ['required', Rule::enum(InventoryCondition::class)],
-            'rooms' => ['required', 'array', 'min:1', 'max:'.self::MAX_ROOMS],
+            // TCK-2646 — une sortie sans pièces reprend celles de l'entrée signée du bail (son état
+            // général aussi) ; sans entrée signée, le service rend 422 sur le champ manquant.
+            'general_condition' => ['required_unless:type,move_out', Rule::enum(InventoryCondition::class)],
+            'rooms' => ['required_unless:type,move_out', 'array', 'min:1', 'max:'.self::MAX_ROOMS],
             'rooms.*.name' => ['required', 'string', 'max:255'],
             'rooms.*.condition' => ['required', Rule::enum(InventoryCondition::class)],
             'rooms.*.notes' => ['nullable', 'string', 'max:'.self::MAX_NOTES],
@@ -67,7 +72,14 @@ class InventoryStoreRequest extends FormRequest
             'rooms.*.elements.*.label' => ['required_with:rooms.*.elements', 'string', 'max:255'],
             'rooms.*.elements.*.state' => ['required_with:rooms.*.elements', Rule::enum(InventoryElementState::class)],
             'rooms.*.elements.*.notes' => ['nullable', 'string', 'max:'.self::MAX_ELEMENT_NOTES],
+            // TCK-2646 — la retenue proposée, sur une sortie seulement. `entry_state` n'est pas une
+            // règle : la validation le retire, le serveur le pose (`InventoryExitPrefill`).
+            'rooms.*.elements.*.retention_amount' => ['nullable', 'prohibited_unless:type,move_out', 'numeric', 'min:0', 'max:'.self::MAX_RETENTION],
+            'rooms.*.elements.*.retention_reason' => ['nullable', 'prohibited_unless:type,move_out', 'string', 'max:'.self::MAX_ELEMENT_NOTES],
             'notes' => ['nullable', 'string', 'max:'.self::MAX_NOTES],
+            // TCK-2646 — l'entrée reprise par la sortie : une entrée signée de ce bail ou d'un bail qu'il
+            // renouvelle, même locataire et même bien (vérifié par le service), à défaut la plus récente.
+            'from_inventory_id' => ['nullable', 'prohibited_unless:type,move_out', 'integer', 'min:1'],
         ];
     }
 }

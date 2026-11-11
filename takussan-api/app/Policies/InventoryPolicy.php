@@ -64,4 +64,26 @@ class InventoryPolicy extends BasePolicy
             || ($property && $this->bailleurEcrit($user, $property->user_id, $property->agency_id))
             || ($property && $this->isStaffOf($user, $property->agency_id));
     }
+
+    /**
+     * TCK-2646 (ADR-0098 §7, amendement de §1.9) — contester un état des lieux : ses DEUX PARTIES
+     * seulement, le locataire (le compte du `Customer` de l'état des lieux, `tenant_id`, recopié du
+     * bail à la création — celui que `view` reconnaît) et le bailleur du bail (`leases.landlord_id`). Ni le personnel ni celui qui l'a conduit ne contestent l'état des lieux
+     * qu'ils ont dressé — sauf le bailleur qui l'a conduit lui-même : il reste partie.
+     *
+     * ⚠ Le super-admin n'est pas une partie : l'appelant juge cette règle en direct, hors de
+     * `Gate::before` (`DisputeInventoryRequest::authorize`).
+     */
+    public function dispute(User $user, Model $model): bool
+    {
+        if (! $model instanceof Inventory) {
+            return false;
+        }
+
+        $tenantUserId = $model->tenant?->user_id;
+        $landlordId = $model->lease?->landlord_id;
+
+        return ($tenantUserId !== null && (int) $tenantUserId === (int) $user->id)
+            || ($landlordId !== null && (int) $landlordId === (int) $user->id);
+    }
 }
