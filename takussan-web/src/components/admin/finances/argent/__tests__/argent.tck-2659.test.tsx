@@ -119,6 +119,12 @@ let reversements: unknown[] = [];
 let serveurBorneParEncaissement = false;
 const appels: URL[] = [];
 
+/** Les `meta.totals` de l'API : les sommes des seules lignes servies. */
+function sommes(rows: readonly PaymentHistoryRow[]) {
+  const somme = (f: (r: PaymentHistoryRow) => number) => rows.reduce((s, r) => s + f(r), 0);
+  return { count: rows.length, amount: somme((r) => Number(r.amount)), paid_amount: somme((r) => Number(r.paid_amount ?? 0)), remaining_amount: somme((r) => Number(r.remaining_amount ?? 0)) };
+}
+
 function repondre(corps: unknown) {
   return { ok: true, status: 200, json: async () => corps, text: async () => JSON.stringify(corps), headers: new Headers() };
 }
@@ -143,7 +149,7 @@ function brancherLeReseau() {
           : lignes;
         return repondre({
           data: servies,
-          meta: { current_page: 1, last_page: 1, per_page: 20, total: servies.length, totals: { count: servies.length, amount: 0, paid_amount: 0, remaining_amount: 0 } },
+          meta: { current_page: 1, last_page: 1, per_page: 20, total: servies.length, totals: serveurBorneParEncaissement ? sommes(servies) : { count: servies.length, amount: 0, paid_amount: 0, remaining_amount: 0 } },
         });
       }
       if (url.pathname === '/api/payouts') return repondre({ data: reversements, meta: { current_page: 1, last_page: 1, per_page: 3, total: reversements.length } });
@@ -399,6 +405,46 @@ describe('vérification adverse de TCK-2659', () => {
       expect(u.searchParams.get('filter[paid_from]')).toBe('2026-11-01');
       expect(u.searchParams.has('filter[date_from]')).toBe(false);
     }
+  });
+
+  /** La cellule de la bande des totaux qui porte ce libellé (libellé, valeur, détail). */
+  const celluleDeTotal = (libelle: string) => screen.getByText(libelle, { selector: 'p' }).parentElement as HTMLElement;
+  const lecturesDeLaBande = (statut: string | null) =>
+    appels.filter((u) => u.pathname === '/api/payments/history' && u.searchParams.get('per_page') === '1' && u.searchParams.get('filter[status]') === statut);
+
+  it('N1 — « Échoué » lit les paiements échoués par l’échéance du mois (date_*), jamais par l’encaissement', async () => {
+    serveurBorneParEncaissement = true;
+    lignes = [
+      ligne({ id: 300, status: 'paid' }),
+      ligne({ id: 301, status: 'failed', paid_at: null, paid_amount: 0, remaining_amount: 250_000, period_start: '2026-11-01', due_date: '2026-11-05' }),
+    ];
+    rendre('tab=encaissements&period=2026-11');
+
+    await waitFor(() => expect(lecturesDeLaBande('failed').length).toBeGreaterThan(0));
+    for (const u of lecturesDeLaBande('failed')) {
+      expect(u.searchParams.get('filter[date_from]')).toBe('2026-11-01');
+      expect(u.searchParams.get('filter[date_to]')).toBe('2026-11-30');
+      expect(u.searchParams.has('filter[paid_from]')).toBe(false);
+    }
+    await waitFor(() => expect(within(celluleDeTotal('Échoué')).getByText('1 paiement à reprendre')).toBeInTheDocument());
+  });
+
+  it('N1 — « Restant dû » de novembre compte l’échéance en retard de novembre, pas celle d’octobre', async () => {
+    serveurBorneParEncaissement = true;
+    lignes = [
+      ligne({ id: 400, status: 'paid' }),
+      ligne({ id: 401, status: 'late', paid_at: null, paid_amount: 0, amount: 250_000, remaining_amount: 250_000, period_start: '2026-11-01', due_date: '2026-11-05' }),
+      ligne({ id: 402, status: 'late', paid_at: null, paid_amount: 0, amount: 300_000, remaining_amount: 300_000, period_start: '2026-10-01', due_date: '2026-10-05' }),
+    ];
+    rendre('tab=encaissements&period=2026-11');
+
+    await waitFor(() => expect(lecturesDeLaBande(null).length).toBeGreaterThan(0));
+    for (const u of lecturesDeLaBande(null)) {
+      expect(u.searchParams.get('filter[date_from]')).toBe('2026-11-01');
+      expect(u.searchParams.has('filter[paid_from]')).toBe(false);
+    }
+    await waitFor(() => expect(within(celluleDeTotal('Restant dû')).getByText(/^250\s?000/)).toBeInTheDocument());
+    expect(within(celluleDeTotal('Restant dû')).queryByText(/550\s?000|300\s?000/)).not.toBeInTheDocument();
   });
 
   const reversementAApprouver = { id: 77, reference_number: 'PO-2026-0077', net_amount: 1_400_000, currency: 'XOF', status: 'awaiting_approval', period_start: '2026-10-01', issuer: { id: 3, name: 'Ibou Fall' } };

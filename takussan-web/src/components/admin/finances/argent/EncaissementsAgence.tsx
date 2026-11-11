@@ -103,13 +103,17 @@ function useAdresse() {
  */
 const STATUTS_NON_PAYES: ReadonlySet<string> = new Set(['late', 'pending', 'failed', 'partially_paid', 'cancelled']);
 
+/** Les bornes d'une lecture selon son statut (la règle de D2) : l'échéance sous un statut non payé, l'encaissement sinon. */
+function bornesSelonLeStatut(du: string | undefined, au: string | undefined, statut: string | undefined): Pick<UsePaymentsHistoryParams, 'date_from' | 'date_to' | 'paid_from' | 'paid_to'> {
+  return statut !== undefined && STATUTS_NON_PAYES.has(statut) ? { date_from: du, date_to: au } : { paid_from: du, paid_to: au };
+}
+
 /** Les paramètres de la lecture, tirés de l'adresse — la même pour la liste et pour ses totaux. */
 export function parametresDesEncaissements(recherche: { get(nom: string): string | null }, courant: string): UsePaymentsHistoryParams {
   const { du, au } = bornesDesEncaissements(recherche, courant);
   const entityType = recherche.get('entity_type') as PaymentHistoryEntity | null;
   const moyen = recherche.get('moyen');
   const statut = recherche.get('status') || undefined;
-  const parEcheance = statut !== undefined && STATUTS_NON_PAYES.has(statut);
   return {
     page: entier(recherche.get('page')) ?? 1,
     per_page: PAR_PAGE,
@@ -119,7 +123,7 @@ export function parametresDesEncaissements(recherche: { get(nom: string): string
     // TCK-2659 (M1) — un registre d'ENCAISSEMENTS se borne par la date d'encaissement (`paid_at`), comme
     // la tuile « Encaissé en <mois> » : le loyer d'octobre réglé le 3 novembre est un encaissement de
     // novembre. Les dates posées (Du / Au) aussi. Sauf sous un statut non payé ({@link STATUTS_NON_PAYES}).
-    ...(parEcheance ? { date_from: du, date_to: au } : { paid_from: du, paid_to: au }),
+    ...bornesSelonLeStatut(du, au, statut),
     payer_id: entier(recherche.get('payer_id')),
     landlord_id: entier(recherche.get('landlord_id')),
     payment_method: moyen ? [moyen] : undefined,
@@ -147,9 +151,18 @@ export function EncaissementsAgence({
   const { mois } = bornesDesEncaissements(recherche, courant);
   const query = usePaymentsHistory(params);
   const avecTotaux = !telephone && variante === 'registre' && !params.status;
-  const { page: _page, ...sansPage } = params;
-  const payes = usePaymentsHistory({ ...sansPage, status: 'paid', per_page: 1, include: undefined, enabled: avecTotaux });
-  const echoues = usePaymentsHistory({ ...sansPage, status: 'failed', per_page: 1, include: undefined, enabled: avecTotaux });
+  // TCK-2659 (contre-vérification, N1) — chaque lecture de la bande suit la règle de D2 pour SON statut :
+  // « Échoué » borne par l'échéance (un paiement échoué n'a jamais de `paid_at` : en `paid_*`, la cellule
+  // valait 0 pour tout mois). « Restant dû » vient d'une lecture SANS statut bornée par l'échéance : le reste
+  // des échéances de la période (celles payées dans le mois ont un reste nul) ; en `paid_*`, il ne comptait
+  // jamais les impayés du mois. Total et Payé restent ceux du registre (`paid_*`).
+  const { page: _page, paid_from: duPaye, paid_to: auPaye, date_from: duEcheance, date_to: auEcheance, ...sansPage } = params;
+  const du = duPaye ?? duEcheance;
+  const au = auPaye ?? auEcheance;
+  const bande = { ...sansPage, per_page: 1, include: undefined, enabled: avecTotaux };
+  const payes = usePaymentsHistory({ ...bande, ...bornesSelonLeStatut(du, au, 'paid'), status: 'paid' });
+  const echoues = usePaymentsHistory({ ...bande, ...bornesSelonLeStatut(du, au, 'failed'), status: 'failed' });
+  const echeances = usePaymentsHistory({ ...bande, date_from: du, date_to: au, status: undefined });
 
   const rows = query.data?.data ?? [];
   const meta = query.data?.meta;
@@ -201,7 +214,11 @@ export function EncaissementsAgence({
             valeur={f.montantCourt(totals.paid_amount)}
             detail={payes.data ? t('totaux.paiements', { count: payes.data.meta.total }) : null}
           />
-          <CelluleDeTotal libelle={t('totaux.restant')} valeur={f.montantCourt(totals.remaining_amount)} detail={t('totaux.aEncaisser')} />
+          <CelluleDeTotal
+            libelle={t('totaux.restant')}
+            valeur={echeances.data?.meta.totals ? f.montantCourt(echeances.data.meta.totals.remaining_amount) : '—'}
+            detail={t('totaux.aEncaisser')}
+          />
           <CelluleDeTotal
             libelle={t('totaux.echoue')}
             valeur={echoues.data?.meta.totals ? f.montantCourt(echoues.data.meta.totals.amount) : '—'}
