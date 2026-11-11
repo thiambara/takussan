@@ -11,6 +11,7 @@ use App\Models\LeasePayment;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\ThresholdAlert;
 use App\Services\Dashboard\KpiResolver;
+use App\Services\Dashboard\ThresholdAlertReading;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -138,6 +139,42 @@ class ThresholdAlertCurrentValueTest extends ApiTestCase
 
         $this->actingAsApi($this->agencyAdmin(Agency::factory()->create()))
             ->getJson("/api/threshold-alerts/{$alert->id}")->assertForbidden();
+    }
+
+    /**
+     * Vérification adverse de TCK-2627 — un agent sans `reports.view_agency` (refusé par
+     * `/dashboard/agency`) ne lit le montant ni le taux d'impayés de l'agence par la liste des
+     * alertes : ni la valeur actuelle, ni la dernière, ni celles de l'historique. Une métrique non
+     * consolidée (biens en maintenance) reste lue ; l'admin lit tout.
+     */
+    public function test_l_agent_sans_rapports_ne_lit_pas_les_chiffres_consolides_par_les_alertes(): void
+    {
+        $this->unpaidRateOf391();
+        $rate = $this->alert('unpaid_rate_percent');
+        $rate->forceFill(['last_value' => 3.5, 'last_triggered_at' => now()->subDay()])->save();
+        activity(ThresholdAlertReading::LOG_NAME)->performedOn($rate)->event(ThresholdAlertReading::EVENT)
+            ->withProperties(['value' => 3.5])->log(ThresholdAlertReading::EVENT);
+        $amount = $this->alert('overdue_amount');
+        $open = $this->alert('maintenance_open');
+
+        $agent = $this->agencyAgent($this->agency);
+        $this->assertFalse($agent->can('viewReports', $this->agency), 'prémisse : l\'agent n\'a pas reports.view_agency');
+        $this->actingAsApi($agent)->getJson('/api/dashboard/agency')->assertForbidden();
+
+        $rows = collect($this->actingAsApi($agent)->getJson('/api/threshold-alerts?include=triggers')->assertOk()->json('data'))->keyBy('id');
+        $this->assertNull($rows[$rate->id]['current_value']);
+        $this->assertNull($rows[$rate->id]['last_value']);
+        $this->assertSame([null], array_column($rows[$rate->id]['triggers'], 'value'));
+        $this->assertNotNull($rows[$rate->id]['triggers'][0]['at'], 'la date du déclenchement reste lue');
+        $this->assertNull($rows[$amount->id]['current_value']);
+        $this->assertNotNull($rows[$open->id]['current_value'], 'une métrique non consolidée reste lue');
+        $this->assertNull($this->actingAsApi($agent)->getJson("/api/threshold-alerts/{$rate->id}")->assertOk()->json('data.current_value'));
+
+        $admin = collect($this->actingAsApi($this->agencyAdmin($this->agency))->getJson('/api/threshold-alerts?include=triggers')->assertOk()->json('data'))->keyBy('id');
+        $this->assertEquals(3.91, $admin[$rate->id]['current_value']);
+        $this->assertEquals(3.5, $admin[$rate->id]['last_value']);
+        $this->assertEquals([3.5], array_column($admin[$rate->id]['triggers'], 'value'));
+        $this->assertEquals(39100, $admin[$amount->id]['current_value']);
     }
 
     private function alert(string $metric): ThresholdAlert

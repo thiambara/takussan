@@ -8,6 +8,7 @@ use App\Models\Agency;
 use App\Models\ThresholdAlert;
 use App\Models\User;
 use App\Notifications\ThresholdAlertTriggered;
+use App\Services\Dashboard\Adapters\AgencyMeMetrics;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -38,18 +39,27 @@ final class ThresholdAlertReading
     public function __construct(private readonly KpiResolver $resolver) {}
 
     /**
+     * Vérification adverse de TCK-2627 — un chiffre CONSOLIDÉ ({@see AgencyMeMetrics::CONSOLIDATED_KEYS} :
+     * impayés, taux d'impayés, chiffre d'affaires, commissions) ne sort qu'à qui lit les rapports de
+     * l'agence de l'alerte (`AgencyPolicy::viewReports`, la garde de `/dashboard/agency`) : pour les
+     * autres, `current_value`, `last_value` et `triggers[].value` valent `null` — la configuration
+     * (métrique, seuil, sévérité) reste lisible.
+     *
      * @param  Collection<int, ThresholdAlert>  $alerts
      * @return array<int, array<string, mixed>> par identifiant d'alerte
      */
-    public function forAlerts(Collection $alerts, bool $withTriggers): array
+    public function forAlerts(Collection $alerts, bool $withTriggers, ?User $reader = null): array
     {
         $agencyIds = $alerts->pluck('agency_id')->filter()->map(fn ($id): int => (int) $id)->unique()->values();
 
         $metrics = [];
         $recipients = [];
+        $readsMoney = [];
         foreach ($agencyIds as $agencyId) {
             $agency = Agency::query()->find($agencyId);
             $metrics[$agencyId] = $agency !== null ? $this->resolver->forAgency($agency) : [];
+            $readsMoney[$agencyId] = $reader === null
+                || ($agency !== null && $reader->can('viewReports', $agency));
             $users = ThresholdAlertRecipients::query($agencyId)
                 ->orderBy('id')
                 ->get(['id', 'first_name', 'last_name', 'username'])
@@ -66,13 +76,20 @@ final class ThresholdAlertReading
             $agencyId = (int) $alert->agency_id;
             $values = $metrics[$agencyId] ?? [];
             $value = $values[$alert->metric] ?? null;
+            $hidden = ! ($readsMoney[$agencyId] ?? false)
+                && in_array($alert->metric, AgencyMeMetrics::CONSOLIDATED_KEYS, true);
             $row = [
-                'current_value' => $value === null ? null : (float) $value,
+                'current_value' => $value === null || $hidden ? null : (float) $value,
                 'recipients' => $recipients[$agencyId] ?? ['count' => 0, 'users' => []],
                 'channels' => ThresholdAlertTriggered::CHANNELS,
             ];
+            if ($hidden) {
+                $row['last_value'] = null;
+            }
             if ($withTriggers) {
-                $row['triggers'] = $triggers[(int) $alert->id] ?? [];
+                $row['triggers'] = $hidden
+                    ? array_map(fn (array $t): array => ['at' => $t['at'], 'value' => null], $triggers[(int) $alert->id] ?? [])
+                    : ($triggers[(int) $alert->id] ?? []);
             }
             $out[(int) $alert->id] = $row;
         }

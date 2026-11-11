@@ -56,10 +56,13 @@ class ThresholdAlertController extends Controller
     private function withReading(Collection $alerts, Request $request): array
     {
         $includes = array_filter(explode(',', (string) $request->query('include', '')));
-        $reading = $this->reading->forAlerts($alerts, in_array('triggers', $includes, true));
+        $reading = $this->reading->forAlerts($alerts, in_array('triggers', $includes, true), $request->user());
 
-        return $alerts->map(fn (ThresholdAlert $alert): array => (new ThresholdAlertResource($alert))->resolve($request)
-            + ($reading[(int) $alert->id] ?? []))->values()->all();
+        // La lecture prime sur la ressource : elle peut taire `last_value` (chiffre consolidé).
+        return $alerts->map(fn (ThresholdAlert $alert): array => array_merge(
+            (new ThresholdAlertResource($alert))->resolve($request),
+            $reading[(int) $alert->id] ?? [],
+        ))->values()->all();
     }
 
     public function store(StoreThresholdAlertRequest $request): JsonResponse
