@@ -491,6 +491,7 @@ return [
     ],
     'plan' => [
         'in_use' => 'This plan is used by agency subscriptions.',
+        'upgrade_offer_missing' => 'The pro upgrade offer is not available right now.',
     ],
     'platform' => [
         'ability_missing' => 'Your operator level does not allow this action.',

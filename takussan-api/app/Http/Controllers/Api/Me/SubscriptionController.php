@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Api\Me;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Resources\Api\Admin\AgencySubscriptionResource;
+use App\Models\Agency;
+use App\Models\AgencyUpgradeRequest;
 use App\Services\Billing\QuotaResolver;
+use App\Services\Billing\UpgradeOffer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -34,9 +37,36 @@ class SubscriptionController extends Controller
         $agencyId = $request->activeProfile()?->agency_id ?? $request->user()->agency_id;
 
         return $this->json([
-            'data' => $agencyId
+            'data' => ($agencyId
                 ? $this->quota->listingUsage((int) $agencyId)
-                : ['limit' => null, 'used' => 0, 'can_create' => true],
+                : ['limit' => null, 'used' => 0, 'can_create' => true])
+                // TCK-2669 (AC6) — les agents, à côté des biens : les clés plates restent celles
+                // des annonces, que le formulaire du bien lit déjà.
+                + ['agents' => $this->quota->agentUsage($agencyId ? (int) $agencyId : null)],
         ]);
+    }
+
+    /**
+     * TCK-2669 (ADR-0104 § 6) — `GET /api/me/upgrade-offer` : le plan que le passage en pro
+     * donnera, lu en base (`billing.upgrade_plan_code`). Réservé à qui peut demander le passage :
+     * l'administrateur d'une agence individuelle (`AgencyUpgradeRequestPolicy::create`).
+     */
+    public function upgradeOffer(Request $request, UpgradeOffer $offer): JsonResponse
+    {
+        $agencyId = $request->activeProfile()?->agency_id ?? $request->user()->agency_id;
+        abort_code_unless($agencyId, 404, 'agency.active_profile_missing');
+
+        $this->authorize('create', [AgencyUpgradeRequest::class, Agency::query()->findOrFail($agencyId)]);
+
+        $plan = $offer->plan();
+        abort_code_unless($plan, 404, 'plan.upgrade_offer_missing');
+
+        return $this->json(['data' => [
+            'code' => $plan->code,
+            'label' => $plan->label,
+            'monthly_price_xof' => (float) $plan->monthly_price_xof,
+            'platform_fee_pct' => (float) $plan->platform_fee_pct,
+            'limits' => $plan->limits ?? [],
+        ]]);
     }
 }

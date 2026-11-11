@@ -491,6 +491,7 @@ return [
     ],
     'plan' => [
         'in_use' => 'Cette offre est utilisée par des abonnements d\'agence.',
+        'upgrade_offer_missing' => 'L\'offre du passage en pro n\'est pas disponible pour le moment.',
     ],
     'platform' => [
         'ability_missing' => 'Votre niveau d\'opérateur ne permet pas ce geste.',

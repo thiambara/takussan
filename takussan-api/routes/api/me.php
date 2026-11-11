@@ -54,6 +54,8 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     Route::post('data-exports', [DataExportController::class, 'store'])->name('me.data-exports.store');
     Route::get('subscription', [SubscriptionController::class, 'show'])->name('me.subscription.show');
     Route::get('quota', [SubscriptionController::class, 'quota'])->name('me.quota.show');
+    // TCK-2669 (ADR-0104 § 6) — le prix du passage en pro, lu du plan en base.
+    Route::get('upgrade-offer', [SubscriptionController::class, 'upgradeOffer'])->name('me.upgrade-offer.show');
     Route::get('payouts', [MePlatformPayoutController::class, 'index'])->name('me.payouts.index');
     // TCK-1419 (P141.03) — ce qu'un reversement de la plateforme couvre.
     Route::get('payouts/{payout}', [MePlatformPayoutController::class, 'show'])->where('payout', '[0-9]{1,18}')->name('me.payouts.show');

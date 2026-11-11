@@ -6,6 +6,8 @@ return [
             'not_individual' => "Cette agence est déjà professionnelle — aucune demande d'upgrade nécessaire.",
             'permission_denied' => "Vous n'avez pas la permission de soumettre une demande d'upgrade pour cette agence.",
             'pending_exists' => 'Une demande est déjà en cours pour cette agence (#:request_id). Révoquez-la avant d\'en soumettre une nouvelle.',
+            // TCK-2669 (ADR-0104 § 5) — reprendre une demande refusée.
+            'resubmit_not_allowed' => 'Seule la dernière demande refusée de cette agence peut être reprise.',
         ],
     ],
     'revoke' => [

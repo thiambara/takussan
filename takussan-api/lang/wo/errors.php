@@ -491,6 +491,7 @@ return [
     ],
     'plan' => [
         'in_use' => 'Offre bii, ay abonnement agence ñoo ko jëfandikoo.',
+        'upgrade_offer_missing' => 'L\'offre du passage en pro n\'est pas disponible pour le moment.',
     ],
     'platform' => [
         'ability_missing' => 'Sa daraja operatëer mayu la nga def lii.',

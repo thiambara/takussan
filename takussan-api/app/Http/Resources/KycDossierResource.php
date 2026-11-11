@@ -76,6 +76,8 @@ class KycDossierResource extends BaseResource
                 'mime_type' => $media->mime_type,
                 'size' => (int) $media->size,
                 'document_type' => $media->getCustomProperty('document_type'),
+                // TCK-2669 (ADR-0104 § 2) — le numéro saisi avec la pièce, à comparer à celui de l'agence.
+                'document_number' => $media->getCustomProperty('document_number'),
                 // TCK-601 (C) — l'échéance de la PIÈCE (`Y-m-d`) ; `expires_at` ci-dessous est celle
                 // du lien signé, depuis TCK-285.
                 'document_expires_at' => $this->calendarDate(

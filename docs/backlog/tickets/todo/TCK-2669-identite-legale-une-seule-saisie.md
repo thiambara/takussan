@@ -45,21 +45,21 @@ Re-mesuré sur `dev` le 2026-11-10 :
 
 ## Delta à produire
 
-- [ ] `UploadKycDocumentRequest` : `document_number` (≤ 50) pour `rccm` et `ninea`, gardé sur la pièce ; la ressource du dossier le rend par pièce.
-- [ ] `KycWorkflowService::upload` : exception au verrou pour la pièce du dirigeant expirée ou expirant sous 30 jours ; `KycExpiryService` adapté (dossier `submitted` avec pièce valide).
-- [ ] `AgencyUpgradeRequestController::store` : `resubmit_of` (id d'une demande `rejected` de l'agence) ; `StoreAgencyUpgradeRequest` rend les champs facultatifs dans ce cas ; la ressource ajoute `resubmit_of_id`.
-- [ ] `GET /api/me/upgrade-offer` → `{code, label, monthly_price_xof, platform_fee_pct, limits}` du plan désigné, pour l'admin d'une agence `individual`.
-- [ ] `GET /api/me/quota` : `agents {limit, used}` à côté des biens.
-- [ ] Tests : `KycDocumentNumberTest`, `KycRenewalWhileVerifiedTest`, `UpgradeRequestResubmitTest`, `UpgradeOfferTest`, `QuotaAgentsUsageTest`.
+- [x] `UploadKycDocumentRequest` : `document_number` (≤ 50) pour `rccm` et `ninea`, gardé sur la pièce ; la ressource du dossier le rend par pièce.
+- [x] `KycWorkflowService::upload` : exception au verrou pour la pièce du dirigeant expirée ou expirant sous 30 jours ; `KycExpiryService` adapté (dossier `submitted` avec pièce valide).
+- [x] `AgencyUpgradeRequestController::store` : `resubmit_of` (id d'une demande `rejected` de l'agence) ; `StoreAgencyUpgradeRequest` rend les champs facultatifs dans ce cas ; la ressource ajoute `resubmit_of_id`.
+- [x] `GET /api/me/upgrade-offer` → `{code, label, monthly_price_xof, platform_fee_pct, limits}` du plan désigné, pour l'admin d'une agence `individual`.
+- [x] `GET /api/me/quota` : `agents {limit, used}` à côté des biens.
+- [x] Tests : `KycDocumentNumberTest`, `KycRenewalWhileVerifiedTest`, `UpgradeRequestResubmitTest`, `UpgradeOfferTest`, `QuotaAgentsUsageTest`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Envoyer la pièce RCCM avec `document_number=SN-DKR-2017-B-8841` puis relire le dossier rend ce numéro sur la pièce ; `agencies.rccm` est inchangé.
-- [ ] AC2 — Dossier `verified`, pièce du dirigeant expirant dans 20 jours : l'envoi d'une nouvelle pièce rend 200, le dossier passe `submitted`, `agencies.is_verified` reste vrai. Pièce expirant dans 90 jours : 422 `kyc.locked`.
-- [ ] AC3 — Le jour de l'échéance de l'ancienne pièce, le dossier `submitted` reste `submitted` et `is_verified` passe à faux.
-- [ ] AC4 — `POST upgrade-requests {resubmit_of: 12, statuts_doc}` sans `ninea` ni `rib_pro` crée une demande dont ces valeurs, déchiffrées en base, égalent celles de la demande 12 ; `resubmit_of` d'une autre agence → 422.
-- [ ] AC5 — `GET /api/me/upgrade-offer` rend `monthly_price_xof: 50000` sur la base de démo ; changer le prix du plan en base change la réponse.
-- [ ] AC6 — `GET /api/me/quota` rend `agents.used` égal au nombre de profils agents actifs de l'agence.
+- [x] AC1 — Envoyer la pièce RCCM avec `document_number=SN-DKR-2017-B-8841` puis relire le dossier rend ce numéro sur la pièce ; `agencies.rccm` est inchangé.
+- [x] AC2 — Dossier `verified`, pièce du dirigeant expirant dans 20 jours : l'envoi d'une nouvelle pièce rend 200, le dossier passe `submitted`, `agencies.is_verified` reste vrai. Pièce expirant dans 90 jours : 422 `kyc.locked`.
+- [x] AC3 — Le jour de l'échéance de l'ancienne pièce, le dossier `submitted` reste `submitted` et `is_verified` passe à faux.
+- [x] AC4 — `POST upgrade-requests {resubmit_of: 12, statuts_doc}` sans `ninea` ni `rib_pro` crée une demande dont ces valeurs, déchiffrées en base, égalent celles de la demande 12 ; `resubmit_of` d'une autre agence → 422.
+- [x] AC5 — `GET /api/me/upgrade-offer` rend `monthly_price_xof: 50000` sur la base de démo ; changer le prix du plan en base change la réponse.
+- [x] AC6 — `GET /api/me/quota` rend `agents.used` égal au nombre de profils agents actifs de l'agence.
 
 ## Hors périmètre
 
@@ -70,4 +70,28 @@ Re-mesuré sur `dev` le 2026-11-10 :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Implémenté le 2026-11-11 (agent back-agence, lot audit UX /app).
+
+**KYC (ADR-0104 § 2 et § 7)**
+- `document_number` (≤ 50, `prohibited_if:document_type,director_id`) est une propriété personnalisée du média de la pièce, rendue par pièce par `KycDossierResource` (`null` si absente). Rien n'écrit `agencies.*`.
+- `KycWorkflowService::upload` aiguille un dossier `verified` vers `renew()` : sous verrou de ligne, seule la pièce `director_id` dont `expires_at <= début du jour + 30 j` passe (`RENEWAL_WINDOW_DAYS`, `RENEWABLE_DOCUMENT`) ; le dossier passe `submitted` (`submitted_at` = maintenant, `rejection_reason` vidé), `expires_at` reste celui de l'ancienne pièce jusqu'à la vérification, l'activité `kyc_submitted` porte `{renewal: true, previous_expires_at}` et l'acteur, les super-admins sont prévenus comme à une soumission. Un dossier verified sans échéance reste verrouillé.
+- `KycExpiryService` : second passage sur les dossiers d'agence `submitted` **ou `rejected`** échus dont l'agence est encore `is_verified` → `is_verified` faux, `metadata.expired_at`, activité `kyc_expired`, **statut conservé**. Idempotent (le filtre `is_verified` ferme le second passage). Restreint aux dossiers sans `metadata.expired_at` (que `verify()` efface) : un dossier déjà passé par une échéance puis renvoyé garde une `expires_at` révolue, et la vérification posée à la main par la modération (`AgencyModerationController`) ne doit pas être retirée chaque nuit. Le cas `rejected` est un ajout : un renouvellement refusé ne doit pas laisser l'agence vérifiée au-delà de l'échéance de l'ancienne pièce.
+- Un envoi qui croise une révocation de la vérification (verrou pris, dossier plus `verified`) attache la pièce avec son numéro, sans transition.
+- ⚠ AC2 dit « 200 » : l'envoi d'une pièce rend **201**, comme tout envoi de pièce sur cette route ; le test asserte 201.
+
+**Reprise d'une demande refusée (ADR-0104 § 5)**
+- Colonne `agency_upgrade_requests.resubmit_of_id` (FK `nullOnDelete`, index nommé), `down()` éprouvé sur une base jetable (migrate → rollback → migrate).
+- `SubmitAgencyUpgradeRequestRequest::resubmitted()` n'accepte que la DERNIÈRE demande `rejected` de l'agence de la route (tri `submitted_at` desc, puis `id` desc) — sinon 422 sur `resubmit_of` (`agency_upgrade.submit.errors.resubmit_not_allowed`). Les champs deviennent facultatifs ; `statuts_doc` reste exigé.
+- Les champs absents (`rc`, `ninea`, `rib_pro`, `company_legal_name`, `address_fiscale`, `planned_agents_count`) sont repris côté serveur ; ninea et RIB ne transitent jamais en clair vers le navigateur. L'activité `agency_upgrade_requested` porte `resubmit_of_id`, aucun numéro.
+
+**Offre (ADR-0104 § 6)**
+- `GET /api/me/upgrade-offer` (`me.upgrade-offer.show`) → `{code, label, monthly_price_xof, platform_fee_pct, limits}` (flottants, comme `PlanResource`). Plan résolu par `App\Services\Billing\UpgradeOffer::plan()` — plan **actif** de code `config('billing.upgrade_plan_code')` (nouveau `config/billing.php`, défaut `pro`, sans variable d'environnement). À réutiliser par TCK-2681 pour que l'offre affichée et l'abonnement posé ne divergent pas.
+- Autorisé par `AgencyUpgradeRequestPolicy::create` (admin d'une agence `individual`) → 403 sinon ; sans espace actif 404 `agency.active_profile_missing` ; plan absent ou retiré 404 `plan.upgrade_offer_missing`. Base de démo : `pro`, 50 000, 3 %, limites 15/3/100 (relevé par le service).
+
+**Quota d'agents (AC6)**
+- `GET /api/me/quota` ajoute `agents {limit, used}` à côté des clés plates des annonces (inchangées) ; `used` = profils agents `active` de l'agence. `QuotaResolver::agentUsage()` porte ce compte, et `assertCanAddAgent()` le lit désormais (il comptait tous les profils non supprimés, brouillons d'invitation compris).
+- ⚠ **Prémisse qui différait** : le ticket dit « le nombre d'agents est contrôlé (`assertCanAddAgent`) ». Mesuré le 2026-11-11 : `assertCanAddAgent` n'a **aucun appelant** dans `app/` — et `max_agents` n'apparaît ailleurs que dans la validation des plans et des surcharges : le plafond n'est appliqué nulle part. Brancher le contrôle (invitation, activation) est hors de ce ticket ; à écrire en ticket à part.
+
+**Hors de ce ticket, relevé pour la suite**
+- ADR-0104 § Application cite « `AgencyKindFlipService` sans recopie implicite » : laissé à TCK-2681 (l'approbation), question posée à la session qui délègue le lot.
+- `/sync-specs` : `docs/models-spec.md` ne dit ni le numéro des pièces KYC, ni `resubmit_of_id`, ni la conservation du statut à l'échéance ; `docs/features.md` ne dit ni l'offre lue de l'API ni `agents` dans le quota.
