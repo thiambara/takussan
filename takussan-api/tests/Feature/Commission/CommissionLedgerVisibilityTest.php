@@ -165,6 +165,36 @@ class CommissionLedgerVisibilityTest extends ApiTestCase
         $this->assertStringNotContainsString('LEASE-AILLEURS', $corps);
     }
 
+    /**
+     * Vérification de TCK-2725 (m1) — l'autre voie d'ouverture, seule : R = {reports.view_agency} sans
+     * payouts.approve lit les lignes de B1 et de B2 au relevé, au point et par la policy, mais ne
+     * solde pas. Les décors des autres tests lisent par un admin qui tient les deux capacités : sans
+     * ce cas, la branche `viewReports` de `readsWholeLedger` pouvait tomber sans un rouge.
+     */
+    public function test_reports_view_agency_sans_payouts_approve_lit_tout_sans_solder(): void
+    {
+        $lecteur = $this->agentWith($this->agency, Capability::ReportsViewAgency);
+        $this->assertFalse($lecteur->canActAt(Capability::PayoutsApprove, $this->agency), 'prémisse : sans payouts.approve');
+
+        $this->assertSame($this->deuxBeneficiaires(), $this->releve($lecteur));
+        $this->assertSame($this->deuxBeneficiaires(), $this->point($lecteur));
+
+        $ligneB2 = CommissionEntry::query()->where('beneficiary_id', $this->b2->id)->firstOrFail();
+        request()->attributes->set('active_profile', AgentProfile::query()->where('user_id', $lecteur->id)->firstOrFail());
+        $this->assertTrue($lecteur->can('view', $ligneB2), 'policy : il lit la ligne de B2');
+        request()->attributes->remove('active_profile');
+
+        $this->actingWithStepUp($lecteur);
+        $this->postJson('/api/commissions/settle', [
+            'beneficiary_id' => $this->b2->id,
+            'entry_ids' => [$ligneB2->id],
+            'paid_at' => now()->toDateString(),
+            'payment_method' => 'wave',
+            'payment_reference' => 'WAVE-2725-M1',
+        ])->assertForbidden();
+        $this->assertSame(CommissionEntryStatus::Due, $ligneB2->fresh()->status);
+    }
+
     /** `CommissionEntryPolicy::view` dit ce que dit le périmètre, pour les trois rôles. */
     public function test_la_policy_suit_le_perimetre(): void
     {
