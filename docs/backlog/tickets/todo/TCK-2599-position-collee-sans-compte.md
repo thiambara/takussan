@@ -58,4 +58,36 @@ Sans objet : ticket back. L'écran qui consomme ce contrat est dit dans « Hors 
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+**Re-mesure (2026-11-11, branche `feat/audit-ux-app-lot-1`)** — la prémisse tient : la route
+connectée était sous `auth:sanctum` + `throttle:20,1` (`routes/api/geo.php`, ligne 30 au relevé),
+et `docs/features.md` § 1.1 annonçait déjà la route publique. **Un écart non dit par le ticket** :
+`GeoResolveLinkRequest::authorize()` rendait `$this->user() !== null`. Réutiliser la FormRequest
+telle quelle aurait rendu **403** à l'anonyme ; elle rend désormais `true` — la route connectée
+reste gardée par `auth:sanctum`, qui court avant elle (le test `sans_compte_le_point_d_acces_est_ferme`
+de `GeoLinkResolverTest` reste vert : 401). Aucune ressource n'est en jeu, la garde est la liste
+d'hôtes de `GeoLinkResolver`, inchangée.
+
+**Décisions** :
+
+- La route est déclarée **hors** du groupe `Route::prefix('public/geo')` (même préfixe d'URL, même
+  nom `public.geo.resolve-link`) : dans le groupe, elle aurait cumulé `public-read` (90/min) avec
+  son propre limiteur, et chaque collage aurait consommé le seau de lecture du visiteur.
+- Limiteur `public-geo-link` : 10/min, clé `geo-link-ip:<réseau>` par `clientNetwork()` (l'IP, ou
+  son /64 en IPv6, comme `auth-register`), et **non** `visitorRateLimitKey()` : le ticket dit « par
+  IP », et un jeton ne doit pas ouvrir un second seau sur la porte publique. Préfixe propre : aucun
+  compteur partagé avec la route connectée.
+- Ajouté à l'inventaire `IpRateLimitKeyTest::limiteurs()` (TCK-851) : la clé par /64 est gardée.
+
+**Tests** : `tests/Feature/Geo/PublicGeoResolveLinkTest.php` (6 tests) — AC1 compare la réponse
+publique à la réponse connectée pour le même lien court, et vérifie qu'aucune requête
+`insert|update|delete` ne part ; position WhatsApp (`maps.google.com/maps?q=lat,lng`) ; AC2 trois
+hôtes refusés et `Http::assertNothingSent()` ; AC3 10 verts, 11ᵉ en 429, une autre IP passe ;
+épuiser la porte publique ne ferme pas la route connectée ; validation du corps identique.
+
+**Ablations** (chacune rouge, restaurée par `cp`, md5 prouvé) : route retirée (4 rouges, 404) ;
+`authorize()` remis sur le compte (3 rouges, 403) ; limite à 20 (AC3 rouge) ; clé sans IP (l'autre
+IP rougit en 429) ; route connectée sur `public-geo-link` (le test d'indépendance rougit en 429).
+
+**Non fait ici** : AC2 « sans requête sortante » ne doit rien à ce ticket — c'est
+`GeoLinkResolver`, déjà éprouvé par `GeoLinkResolverTest`. Le front (TCK-2600) appellera la route
+publique ; `takussan-web/src/types/geo.ts` et `useReferentielGeo.ts` ne sont pas touchés.

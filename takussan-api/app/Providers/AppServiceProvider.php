@@ -537,6 +537,10 @@ class AppServiceProvider extends ServiceProvider
         // TCK-598 — `POST /public/properties/{slug}/view`. Le service de comptage déduplique déjà
         // par (bien, IP) ; ce limiteur borne le nombre d'appels, pas le compte.
         RateLimiter::for('public-view', fn (Request $request) => Limit::perMinute(30)->by($this->visitorRateLimitKey($request)));
+        // TCK-2599 (ADR-0093) — `POST /public/geo/resolve-link` : un lien collé SANS compte déclenche
+        // une requête SORTANTE. Par IP (réseau /64 en IPv6), et plus serré que la route connectée
+        // (20/min par compte) ; préfixe propre, pour ne partager aucun compteur avec elle.
+        RateLimiter::for('public-geo-link', fn (Request $request) => Limit::perMinute(10)->by('geo-link-ip:'.$this->clientNetwork($request)));
 
         // TCK-596 (ADR-0042 §2) — l'envoi d'un code de signature de bail : par utilisateur, 3/min et
         // 10/h, EN PLUS de la borne du canal SMS (5/h) et du délai de renvoi de 60 s du service.
