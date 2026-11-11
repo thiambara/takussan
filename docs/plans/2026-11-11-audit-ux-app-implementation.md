@@ -309,3 +309,29 @@ _(tenu par la session : date, lot, tickets livrés, refus du vérificateur, PR, 
   invitation par e-mail ; le code SMS est consommé même si l'acceptation est refusée. Les trois sont
   reportés dans le contrat de TCK-2611. Rouge de `NumeroPublieVerifieTest` sur l'aperçu public de
   TCK-2609 (693cb3b42) : corrigé à part.
+- TCK-2631 (sécurité) : une URL signée de pièce jointe déjà émise reste lisible 30 min par qui la
+  détient, ancien membre compris (route `media.private.show` hors `auth:sanctum`, comme la note
+  vocale d'ADR-0038) ; aucune URL neuve ne lui est émise (403 sur `GET …/messages`). Accepté pour le
+  lot ; **suivi à écrire** : durée plus courte pour `attachments`, ou route authentifiée. Antivirus
+  absent : ardoise D-73 rouverte.
+- TCK-2633 : une notification sans code prend d'abord la famille de sa cible stockée
+  (`target.kind`), puis celle de son type — sinon « Mise en avant terminée » (sans code, type
+  `system`) tombait en « système » ; une table exhaustive gardée par un test. Règle ajoutée au brief :
+  tout `NotificationCode` neuf reçoit sa famille.
+- TCK-2666 : la délégation qui couvre une absence est unique **parmi les vivantes** (index partiel
+  `scheduled`/`active`), pas unique tout court comme l'écrivait l'amendement d'ADR-0035 : changer de
+  suppléant, ou couper puis rouvrir `substitute_can_act`, crée une ligne neuve et garde l'historique.
+  L'ADR est corrigé par une ligne datée.
+- TCK-2612 : pièces requises = toutes celles que l'envoi accepte sauf l'assurance RC pro
+  (`PiecesDuProfil::FACULTATIVES`) ; l'état `rejected` est au contrat mais jamais rendu — rien ne
+  consigne le refus d'une pièce de profil (suivi à écrire si l'écran doit le montrer).
+- TCK-2637 : `is_online` se demande par `include=online`, pas par `fields[]` (une exception à
+  ADR-0021 refusée par la session : c'est la voie (b) que le porteur avait écartée) ; ADR-0097 § 1
+  amendé par une ligne datée. Suivi : les autres listes de biens (`children`, biens d'un bailleur,
+  console) acceptent filtres et includes sans rendre `occupancy`/`is_online`.
+- TCK-2704 (neuf, voie coque) : donner un code aux notifications qui n'en ont pas (au moins
+  BoostEnded, PropertyProposed, UrgentMaintenanceCreated, AgencyUpgradeRequestSubmitted) — seul un
+  code rend « à traiter » juste ; passe avant TCK-2634.
+- TCK-2700 (neuf) : l'heure d'intervention envoyée avec un décalage est convertie (PATCH et
+  acceptation). **Suivi à écrire** : le même défaut sur `PropertyVisit.scheduled_at`, `Task.due_at`
+  et les autres écritures relevées dans les Notes de TCK-2700.
