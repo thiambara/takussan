@@ -105,3 +105,9 @@ Aucun.
 ## Notes d'implémentation
 
 _(à remplir par implementing-specs)_
+
+## Ajouts de la vérification de TCK-2618 (2026-11-11)
+
+- [ ] Avant de supprimer `FavoritesList` : porter sur la page vivante (`SuiviDesFavoris`) les tests de la pagination (`page=2`) et de l'édition de la note d'un favori. Aujourd'hui, ces deux comportements ne sont testés que par `FavoritesList.test`.
+- [ ] Outil de fidélité : la zone « barre latérale » couvre tout le cadre 1280×900. Les écarts de bureau ne mesurent donc pas la colonne. Il faut borner la zone à la colonne.
+- [ ] Sous /app au téléphone, « Comparer » sur une carte de favori ne mène nulle part : ni barre, ni toast. Ce défaut existait avant TCK-2618. Il faut soit monter la pastille, soit retirer le bouton sous `lg`, conformément à l'ADR-0091 § 4.
