@@ -52,6 +52,7 @@ use App\Http\Controllers\Api\ServiceProviderBillController;
 use App\Http\Controllers\Api\SettingController;
 use App\Http\Controllers\Api\UserRoleController;
 use App\Http\Controllers\Public\InvitationAcceptController;
+use App\Http\Controllers\Public\InvitationCodeController;
 use App\Http\Controllers\Public\InvitationRenewalRequestController;
 use App\Http\Middleware\RequireRecentTwoFactor;
 use App\Http\Middleware\RequireTwoFactor;
@@ -202,6 +203,10 @@ final class ProtectedActions
         InvitationAcceptController::class.'@__invoke' => 'acceptation publique d\'une invitation',
         // TCK-2609 — l'invité au lien expiré, sans compte, demande un nouveau lien : il ne fait que prévenir l'invitant.
         InvitationRenewalRequestController::class.'@__invoke' => 'demande publique d\'un nouveau lien d\'invitation',
+        // TCK-2610 — l'invité accepte par un code SMS, comme il se connecterait : le second facteur d'un compte existant est
+        // exigé par la vérification elle-même (`requires_2fa`, ADR-0094 § 5).
+        InvitationCodeController::class.'@send' => 'envoi public du code d\'acceptation d\'une invitation',
+        InvitationCodeController::class.'@verify' => 'acceptation publique d\'une invitation par code SMS',
         // L'argent ENTRE : le client règle sa réservation, il n'est le personnel de personne.
         BookingPaymentController::class.'@store' => 'paiement d\'une réservation par le client',
     ];

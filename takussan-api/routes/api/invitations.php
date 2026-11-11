@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\InvitationPrefillController;
 use App\Http\Controllers\Public\InvitationAcceptController;
+use App\Http\Controllers\Public\InvitationCodeController;
 use App\Http\Controllers\Public\InvitationRenewalRequestController;
 use App\Http\Controllers\Public\PublicInvitationPreviewController;
 use Illuminate\Support\Facades\Route;
@@ -23,6 +24,12 @@ Route::prefix('public/invitations')->group(function (): void {
         ->middleware('throttle:public-invitation-preview')->name('public.invitations.preview');
     Route::post('{token}/renewal-request', InvitationRenewalRequestController::class)
         ->middleware('throttle:public-invitation-renewal')->name('public.invitations.renewal-request');
+    // TCK-2610 (ADR-0094 § 5) — accepter par code SMS, comme on se connecte : les limiteurs de `auth/phone/*` (par IP à
+    // l'envoi, par numéro à la vérification — celui de l'invitation par SMS, lu dans le jeton), 404 drapeau éteint.
+    Route::post('{token}/code', [InvitationCodeController::class, 'send'])
+        ->middleware('throttle:auth-phone-send')->name('public.invitations.code');
+    Route::post('{token}/verify', [InvitationCodeController::class, 'verify'])
+        ->middleware('throttle:auth-phone-verify')->name('public.invitations.verify-code');
 });
 
 Route::middleware('auth:sanctum')->group(function (): void {

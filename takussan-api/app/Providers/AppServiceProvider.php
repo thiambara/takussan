@@ -701,6 +701,20 @@ class AppServiceProvider extends ServiceProvider
             return ClaimLinks::phoneOf($token) ?? 'radar-claim:'.hash('sha256', $token);
         }
 
+        // TCK-2610 (ADR-0094 § 5) — l'invitation par SMS ne porte pas le numéro dans le corps : le seau est celui du numéro
+        // de l'invitation, que le jeton désigne (le même que la connexion par téléphone pour ce numéro). Par e-mail, le
+        // numéro saisi, comme `auth/phone/verify-code`. Un jeton inconnu a son propre seau, sans numéro.
+        if ($request->routeIs('public.invitations.verify-code')) {
+            $token = (string) $request->route('token');
+            $invitation = Invitation::query()->where('token', $token)->first(['email', 'phone']);
+            if ($invitation === null) {
+                return 'invitation-code:'.hash('sha256', $token);
+            }
+            if ($invitation->email === null) {
+                return preg_replace('/\s+/', '', (string) $invitation->phone) ?? '';
+            }
+        }
+
         // TCK-589 p3-1 — le code de preuve part TOUJOURS au numéro du compte : la clé aussi. Un
         // `phone` glissé dans le corps aurait ouvert un seau neuf à chaque appel.
         $phone = $request->routeIs('auth.phone.change-code') ? '' : (string) $request->input('phone');

@@ -78,4 +78,16 @@ Sans objet : ticket back. L'écran qui consomme ce contrat est dit dans « Hors 
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+Re-mesure du 2026-11-11 sur `693cb3b42` (branche `feat/audit-ux-app-lot-1`) :
+
+- **Prémisse confirmée** : un compte connecté sans e-mail qui accepte une invitation par e-mail crée un second compte (`InvitationAcceptConnectedNoDuplicateTest`, rouge avant le correctif : 3 comptes au lieu de 2).
+- **`verify` porte aussi `phone`** pour une invitation par e-mail (le numéro saisi à l'envoi) : la liste des champs du ticket l'omettait. Requis par e-mail, ignoré par SMS, comme à `code`. TCK-2611 l'envoie.
+- **`terms_version` est relayé** comme à `auth/phone/verify-code` : sans lui, un compte désigné par le Radar (TCK-2404) restait sur `requires_terms` sans pouvoir accepter.
+- **« Verrou après 5 codes faux »** ne décrit pas le code : 5 codes faux **invalident le code** (`MAX_ATTEMPTS_PER_CODE`, 422 même avec le bon) ; le **verrou** (423) vient à `LoginLock::MAX_FAILURES` = 10 ; le limiteur `auth-phone-verify` rend 429 à la 5ᵉ requête de 15 min. Le test épingle ces trois comportements tels qu'ils sont.
+- **Limiteur** : `phoneRateLimitKey()` lisait le seul `phone` du corps ; une vérification d'invitation par SMS n'en porte pas, et toutes seraient tombées dans **un seau commun** de 4 par 15 min. Branche ajoutée (comme `radar.claims.confirm`) : numéro de l'invitation lu par le jeton, numéro saisi par e-mail, seau haché pour un jeton inconnu.
+- **L'état du jeton prime la validation** : `SendInvitationCodeRequest` résout l'invitation dans `prepareForValidation` (404/410 avant un 422 de corps incomplet), après le drapeau (404).
+- **Transaction** : `authenticate()` puis l'acceptation dans une seule transaction (`InvitationCodeAcceptance`) ; un refus (401/403/409/410) défait le compte créé et la session émise. Le compte E ne se juge qu'**après** le code (avant, la réponse dirait si un numéro saisi est celui de E). Le code, lui, est consommé (cache) : après un 401, l'invité redemande un code.
+- **Le 401 `requires_login`** porte `requires_login` et `email` en clair, comme `POST …/accept` aujourd'hui : il ne sort qu'après un code juste.
+- **Correctif de la branche connectée d'`accept()`** (`acceptForAccount`) : par SMS, la comparaison du numéro passe par `CanonicalPhone::fold` (et non l'égalité stricte d'`acceptForAuthenticatedUser`). Effet de bord voulu par ADR-0094 § 7 : un appelant connecté à un **autre** compte que le destinataire, sans compte E, reçoit 403 `email_mismatch` / `phone_mismatch` au lieu de voir naître un compte pour l'invité. Cinq classes de test acceptaient sous la session de l'invitant (ou d'un tiers) et ont reçu un `forgetGuards()` ; `InvitationAcceptTest::test_authenticated_user_with_mismatched_email_is_rejected` assertait le défaut (200) sous un titre « rejected » : il asserte désormais 403.
+- **Langue d'un compte né par code** : `metadata.locale` de l'invitation, comme TCK-1344 pour la voie mot de passe.
+- `ProtectedActions::EXEMPT` : les deux routes, comme `InvitationAcceptController` (le second facteur d'un compte existant est exigé par la vérification elle-même).

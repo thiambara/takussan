@@ -533,6 +533,8 @@ class SuperAdminInvitationLifecycleTest extends TestCase
 
         // Le destinataire accepte avec le token RELANCÉ.
         $token = $invitation->fresh()->getRawOriginal('token');
+        // TCK-2610 (ADR-0094 § 7) — l'invité ouvre le lien hors de la session de l'invitant : connecté, il accepterait pour ce compte.
+        $this->app['auth']->forgetGuards();
         $this->postJson("/api/invitations/{$token}/accept", [
             'first_name' => 'Awa',
             'last_name' => 'Diop',
