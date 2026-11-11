@@ -15,7 +15,7 @@ spec_refs:
     - "docs/features.md#navigation-de-la-console-selon-le-profil-actif"
   models: []
   tickets:
-    - docs/backlog/tickets/todo/TCK-2619-coque-sans-flottant-introuvable.md
+    - docs/backlog/tickets/done/TCK-2619-coque-sans-flottant-introuvable.md
     - docs/backlog/tickets/done/TCK-2618-menus-et-onglets-par-persona.md
     - docs/backlog/tickets/done/TCK-2477-moteur-du-menu-par-persona.md
   qa:
@@ -115,4 +115,53 @@ autre décision n'est attendue.
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail.)_
+**Delta** (2026-11-11, `feat/audit-ux-app-lot-2`) :
+
+- `src/lib/navigation/catalogue.ts` : `commissions` → `Receipt`, `credits` → `CreditCard`, `etats-des-lieux` →
+  `ClipboardCheck`, `recherches` → `Search`. Les imports `ClipboardList`, `Coins` et `HandCoins` sont retirés.
+  `BookmarkCheck` reste, pour l'icône de l'entrée « Avis » vue par le client (`iconeSelon`).
+- `src/lib/navigation/__tests__/catalogue.icones.tck-2742.test.tsx` (4 tests) : il rend `iconeDe()` pour la persona
+  qui voit l'entrée et épingle la classe lucide **rendue**, l'ancienne refusée. C'est la classe que compare l'outil
+  de fidélité, et deux noms d'export peuvent désigner la même icône.
+- AC3 est épinglé dans les tests existants de la coque. `AppShell.menu-et-credits.test.tsx` : l'entrée de colonne
+  rend `lucide-credit-card`, la ligne « Crédits » du menu du compte `lucide-coins`, l'entrée du tiroir
+  `lucide-credit-card`. `FeuilleDuCompte.tck-2619.test.tsx` : la ligne de solde de la feuille rend `lucide-coins`.
+
+**AC1, au navigateur.** Le relevé DOM a été fait sur `/app`, par la persona qui voit l'entrée. Agent : Commissions et
+États des lieux. Admin : Crédits. Locataire : Recherches sauvegardées. Il a couvert la colonne à 1440 et 1280, le
+rail à 768, le tiroir « Menu » à 390 et la palette « Aller à… » au téléphone et au bureau. Partout, l'entrée rend
+`lucide-receipt`, `lucide-clipboard-check`, `lucide-credit-card` ou `lucide-search`. Aucune de ces entrées n'est
+dans une barre d'onglets de persona.
+
+**AC2, les relevés de TCK-2619 rejoués** (`.fidelite/TCK-2742/`, non versionné) :
+
+| Relevé | Avant (`.fidelite/TCK-2619`) | Après |
+|---|---|---|
+| a-0 1280 et 1440, admin | hand-coins ×1, receipt ×2, credit-card ×4 | credit-card ×4 |
+| a-3 1440, admin, édition | hand-coins, coins, clipboard-list, receipt ×1, credit-card ×2 | aucun |
+| a-5 1440, agent, compte | hand-coins, coins, clipboard-list, receipt ×2 | coins ×1 |
+| a-5 1280, agent, compte (à la place d'a-8) | — | coins ×1 ; receipt et clipboard-check appariés |
+
+Les absents qui restent ne viennent pas des icônes :
+
+- **a-0, `lucide-credit-card` ×4** : ce sont les entrées « Crédits » et « Abonnement » de la maquette. Dans le
+  produit, elles sont **hors du cadre** relevé, comme leurs libellés (classés « hors cadre » par TCK-2619). La
+  colonne de l'admin descend plus bas, et sa dernière entrée relevée est « Commissions ». Les deux absents de la
+  ligne « Crédits » étaient mal classés en TCK-2742. Ils restent identiques après le changement d'icône, ce qui
+  prouve que l'icône n'en était pas la cause. Ils sont requalifiés « hors cadre ».
+- **a-5, `lucide-coins` ×1** : c'est la ligne « Crédits 60 » du **menu du compte**, pas de la colonne. L'agent ne
+  la voit pas depuis la décision du porteur du 2026-11-10 (« Argent » fermé à l'agent), et ce motif était déjà
+  classé.
+- **a-8 n'a pas pu être rejoué.** `/app/page-introuvable-tck-2619` répond désormais **404**, et le relevé refuse
+  tout statut ≥ 400 (`motifsDeRejet`). À 19 h 30 Z, la même page se relevait encore. Le changement de statut est
+  l'objet de TCK-2740, en cours dans l'arbre. La colonne de l'agent y est la même qu'en a-5, aux mêmes
+  coordonnées : 698 pour « États des lieux », 723/763 pour « Commissions ». a-5 a donc été relevé à 1280 en plus de
+  1440.
+
+`TCK-2619.absents.json` : les 19 éléments d'icône renvoyés à TCK-2742 passent à « corrigé (TCK-2742) ». Les 4
+éléments `credit-card` d'a-0 deviennent « hors cadre ». `par_renvoi` est recompté et une ligne est ajoutée à
+`ecarts_reels_trouves` (script : `requalifier.py`, dans le brouillon de session).
+
+**AC4, ablation.** Chacune des quatre icônes a été remise à l'ancienne, une à la fois. Chaque fois, 1 test rouge sur
+4. Ramener l'entrée `credits` à l'ancienne fait aussi rougir 2 tests de `AppShell.menu-et-credits`. Le passage de
+`Coins` à `ShieldCheck` dans `FeuilleDuCompte` fait rougir 1 test sur 5. Tout a été restauré.

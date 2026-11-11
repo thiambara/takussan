@@ -209,9 +209,12 @@ describe('TCK-642, repris par TCK-2491 — le solde dans la colonne et le menu d
     monter(['agency_admin']);
     const entree = within(colonne()).getByRole('link', { name: nomNormalise('Crédits : 1 250 crédits') });
     expect(entree).toHaveAttribute('href', '/app/credits');
+    // TCK-2742 — l'entrée du menu prend la carte des maquettes ; la ligne du compte garde ses pièces (AC3).
+    expect(entree.querySelector('svg.lucide-credit-card')).not.toBeNull();
     const menu = await ouvrirLeMenuDuCompte();
     const ligne = menu.querySelector('[data-slot="solde-du-compte"]')!;
     expect(ligne.textContent?.replace(/\s/g, ' ')).toBe('Crédits1 250');
+    expect(ligne.querySelector('svg.lucide-coins')).not.toBeNull();
   });
 
   it('sans droit sur le portefeuille : ni ligne de solde, ni lecture du solde (AC2)', async () => {
@@ -239,6 +242,7 @@ describe('TCK-642, repris par TCK-2491 — le solde dans la colonne et le menu d
     const entree = within(tiroir).getByRole('link', { name: 'Crédits : 12 crédits' });
     expect(entree).toHaveAttribute('href', '/app/credits');
     expect(entree).toHaveTextContent('12');
+    expect(entree.querySelector('svg.lucide-credit-card')).not.toBeNull(); // TCK-2742
   });
 });
 

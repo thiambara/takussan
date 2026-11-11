@@ -62,9 +62,9 @@
   "replié": 33,
   "alias": 32,
   "accepté": 29,
+  "hors cadre": 27,
   "appariement": 24,
-  "TCK-2742": 23,
-  "hors cadre": 23,
+  "corrigé (TCK-2742)": 19,
   "a11y": 18,
   "TCK-2618": 18,
   "TCK-2480": 14,
@@ -84,7 +84,8 @@
  },
  "ecarts_reels_trouves": [
   "a-3 bureau (édition) — la tête de colonne gardait la cloche et la bascule « Réduire » : la maquette n'y garde que la marque. Corrigé (`AppSidebar.tsx`), re-relevé : ni `lucide-bell` ni `lucide-panel-left-close` en tête de colonne.",
-  "a-5 bureau — « Mon profil » et « Préférences de notification » du menu du compte portaient circle-user et bell ; la maquette (et la feuille du téléphone) user et bell-ring. Corrigé (`MenuDuCompte.tsx`, lot de TCK-2621), re-relevé : `lucide-user`, `lucide-bell-ring`."
+  "a-5 bureau — « Mon profil » et « Préférences de notification » du menu du compte portaient circle-user et bell ; la maquette (et la feuille du téléphone) user et bell-ring. Corrigé (`MenuDuCompte.tsx`, lot de TCK-2621), re-relevé : `lucide-user`, `lucide-bell-ring`.",
+  "Colonne, rail, tiroir, « Aller à… » et onglets — quatre entrées du catalogue (Commissions, Crédits, États des lieux, Recherches sauvegardées) portaient hand-coins, coins, clipboard-list et bookmark-check ; toutes les maquettes dessinent receipt, credit-card, clipboard-check et search. Corrigé (`catalogue.ts`, TCK-2742), re-relevé : aucun de ces quatre absents dans les cinq rapports rejoués. Deux absents « credit-card » d'a-0 étaient mal classés (la ligne « Crédits » est hors du cadre relevé) : requalifiés « hors cadre »."
  ],
  "groupes": [
   {
@@ -244,8 +245,8 @@
   {
    "ecran": "a-0 bureau-1280-masquer-accueil",
    "conteneur": "colonne",
-   "motif": "icône de l'entrée « Commissions » : receipt dans la maquette, hand-coins dans le catalogue du produit (TCK-2477) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
-   "renvoi": "TCK-2742",
+   "motif": "icône de l'entrée « Commissions » : receipt dans la maquette, hand-coins dans le catalogue du produit (TCK-2477) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742 — CORRIGÉ par TCK-2742 : le catalogue prend l'icône des maquettes ; re-relevé le 2026-11-11 (.fidelite/TCK-2742, a-0 1280/1440, a-3 1440, a-5 1280/1440), plus aucun absent sur cette ligne",
+   "renvoi": "corrigé (TCK-2742)",
    "elements": [
     "M icone « lucide-receipt » (14, 784) [rôle]",
     "M icone « lucide-receipt » (14, 784)"
@@ -254,8 +255,8 @@
   {
    "ecran": "a-0 bureau-1280-masquer-accueil",
    "conteneur": "colonne",
-   "motif": "icône de l'entrée « Crédits » : credit-card dans la maquette, coins dans le catalogue du produit (TCK-2477) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
-   "renvoi": "TCK-2742",
+   "motif": "icône de l'entrée « Crédits » : la ligne n'est pas dans le cadre relevé — son libellé « Crédits » est classé « hors cadre » (groupe « Finances », après « Commissions », dernière entrée relevée du produit). Requalifié à la vérification de TCK-2742 : le re-relevé du 2026-11-11 garde cet absent APRÈS le changement d'icône, ce qui prouve qu'il ne venait pas de l'icône ; l'entrée « Crédits » de la colonne rend bien lucide-credit-card (relevé DOM de TCK-2742, AC1, admin 1280 et 1440)",
+   "renvoi": "hors cadre",
    "elements": [
     "M icone « lucide-credit-card » (14, 817) [rôle]",
     "M icone « lucide-credit-card » (14, 817)"
@@ -402,8 +403,8 @@
   {
    "ecran": "a-0 bureau-1280-masquer-accueil",
    "conteneur": "colonne",
-   "motif": "icône du catalogue (TCK-2477) pour « Commissions » (hand-coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
-   "renvoi": "TCK-2742",
+   "motif": "icône du catalogue (TCK-2477) pour « Commissions » (hand-coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742 — CORRIGÉ par TCK-2742 : le catalogue prend l'icône des maquettes ; re-relevé le 2026-11-11 (.fidelite/TCK-2742, a-0 1280/1440, a-3 1440, a-5 1280/1440), plus aucun absent sur cette ligne",
+   "renvoi": "corrigé (TCK-2742)",
    "elements": [
     "P icone « lucide-hand-coins » (14, 869)"
    ]
@@ -565,8 +566,8 @@
   {
    "ecran": "a-0 bureau-1440-masquer-accueil",
    "conteneur": "colonne",
-   "motif": "icône de l'entrée « Commissions » : receipt dans la maquette, hand-coins dans le catalogue du produit (TCK-2477) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
-   "renvoi": "TCK-2742",
+   "motif": "icône de l'entrée « Commissions » : receipt dans la maquette, hand-coins dans le catalogue du produit (TCK-2477) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742 — CORRIGÉ par TCK-2742 : le catalogue prend l'icône des maquettes ; re-relevé le 2026-11-11 (.fidelite/TCK-2742, a-0 1280/1440, a-3 1440, a-5 1280/1440), plus aucun absent sur cette ligne",
+   "renvoi": "corrigé (TCK-2742)",
    "elements": [
     "M icone « lucide-receipt » (14, 784) [rôle]",
     "M icone « lucide-receipt » (14, 784)"
@@ -575,8 +576,8 @@
   {
    "ecran": "a-0 bureau-1440-masquer-accueil",
    "conteneur": "colonne",
-   "motif": "icône de l'entrée « Crédits » : credit-card dans la maquette, coins dans le catalogue du produit (TCK-2477) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
-   "renvoi": "TCK-2742",
+   "motif": "icône de l'entrée « Crédits » : la ligne n'est pas dans le cadre relevé — son libellé « Crédits » est classé « hors cadre » (groupe « Finances », après « Commissions », dernière entrée relevée du produit). Requalifié à la vérification de TCK-2742 : le re-relevé du 2026-11-11 garde cet absent APRÈS le changement d'icône, ce qui prouve qu'il ne venait pas de l'icône ; l'entrée « Crédits » de la colonne rend bien lucide-credit-card (relevé DOM de TCK-2742, AC1, admin 1280 et 1440)",
+   "renvoi": "hors cadre",
    "elements": [
     "M icone « lucide-credit-card » (14, 817) [rôle]",
     "M icone « lucide-credit-card » (14, 817)"
@@ -723,8 +724,8 @@
   {
    "ecran": "a-0 bureau-1440-masquer-accueil",
    "conteneur": "colonne",
-   "motif": "icône du catalogue (TCK-2477) pour « Commissions » (hand-coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
-   "renvoi": "TCK-2742",
+   "motif": "icône du catalogue (TCK-2477) pour « Commissions » (hand-coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742 — CORRIGÉ par TCK-2742 : le catalogue prend l'icône des maquettes ; re-relevé le 2026-11-11 (.fidelite/TCK-2742, a-0 1280/1440, a-3 1440, a-5 1280/1440), plus aucun absent sur cette ligne",
+   "renvoi": "corrigé (TCK-2742)",
    "elements": [
     "P icone « lucide-hand-coins » (14, 869)"
    ]
@@ -1061,8 +1062,8 @@
   {
    "ecran": "a-3 bureau-1440-edition-bureau",
    "conteneur": "colonne",
-   "motif": "icône de l'entrée « Commissions » : receipt dans la maquette, hand-coins dans le catalogue du produit (TCK-2477) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
-   "renvoi": "TCK-2742",
+   "motif": "icône de l'entrée « Commissions » : receipt dans la maquette, hand-coins dans le catalogue du produit (TCK-2477) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742 — CORRIGÉ par TCK-2742 : le catalogue prend l'icône des maquettes ; re-relevé le 2026-11-11 (.fidelite/TCK-2742, a-0 1280/1440, a-3 1440, a-5 1280/1440), plus aucun absent sur cette ligne",
+   "renvoi": "corrigé (TCK-2742)",
    "elements": [
     "M icone « lucide-receipt » (32, 734)"
    ]
@@ -1070,8 +1071,8 @@
   {
    "ecran": "a-3 bureau-1440-edition-bureau",
    "conteneur": "colonne",
-   "motif": "icône du catalogue (TCK-2477) pour « Commissions » (hand-coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
-   "renvoi": "TCK-2742",
+   "motif": "icône du catalogue (TCK-2477) pour « Commissions » (hand-coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742 — CORRIGÉ par TCK-2742 : le catalogue prend l'icône des maquettes ; re-relevé le 2026-11-11 (.fidelite/TCK-2742, a-0 1280/1440, a-3 1440, a-5 1280/1440), plus aucun absent sur cette ligne",
+   "renvoi": "corrigé (TCK-2742)",
    "elements": [
     "P icone « lucide-hand-coins » (14, 644)"
    ]
@@ -1097,8 +1098,8 @@
   {
    "ecran": "a-3 bureau-1440-edition-bureau",
    "conteneur": "colonne",
-   "motif": "icône du catalogue (TCK-2477) pour « Crédits » (coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
-   "renvoi": "TCK-2742",
+   "motif": "icône du catalogue (TCK-2477) pour « Crédits » (coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742 — CORRIGÉ par TCK-2742 : le catalogue prend l'icône des maquettes ; re-relevé le 2026-11-11 (.fidelite/TCK-2742, a-0 1280/1440, a-3 1440, a-5 1280/1440), plus aucun absent sur cette ligne",
+   "renvoi": "corrigé (TCK-2742)",
    "elements": [
     "P icone « lucide-coins » (14, 676)"
    ]
@@ -1477,8 +1478,8 @@
   {
    "ecran": "a-5 bureau-1440-compte-bureau",
    "conteneur": "colonne",
-   "motif": "icône de l'entrée « Commissions » : receipt dans la maquette, hand-coins dans le catalogue du produit (TCK-2477) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
-   "renvoi": "TCK-2742",
+   "motif": "icône de l'entrée « Commissions » : receipt dans la maquette, hand-coins dans le catalogue du produit (TCK-2477) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742 — CORRIGÉ par TCK-2742 : le catalogue prend l'icône des maquettes ; re-relevé le 2026-11-11 (.fidelite/TCK-2742, a-0 1280/1440, a-3 1440, a-5 1280/1440), plus aucun absent sur cette ligne",
+   "renvoi": "corrigé (TCK-2742)",
    "elements": [
     "M icone « lucide-receipt » (14, 723) [rôle]",
     "M icone « lucide-receipt » (14, 723)"
@@ -1652,8 +1653,8 @@
   {
    "ecran": "a-5 bureau-1440-compte-bureau",
    "conteneur": "colonne",
-   "motif": "icône du catalogue (TCK-2477) pour « États des lieux » (clipboard-list) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
-   "renvoi": "TCK-2742",
+   "motif": "icône du catalogue (TCK-2477) pour « États des lieux » (clipboard-list) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742 — CORRIGÉ par TCK-2742 : le catalogue prend l'icône des maquettes ; re-relevé le 2026-11-11 (.fidelite/TCK-2742, a-0 1280/1440, a-3 1440, a-5 1280/1440), plus aucun absent sur cette ligne",
+   "renvoi": "corrigé (TCK-2742)",
    "elements": [
     "P icone « lucide-clipboard-list » (14, 698)"
    ]
@@ -1661,8 +1662,8 @@
   {
    "ecran": "a-5 bureau-1440-compte-bureau",
    "conteneur": "colonne",
-   "motif": "icône du catalogue (TCK-2477) pour « Commissions » (hand-coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
-   "renvoi": "TCK-2742",
+   "motif": "icône du catalogue (TCK-2477) pour « Commissions » (hand-coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742 — CORRIGÉ par TCK-2742 : le catalogue prend l'icône des maquettes ; re-relevé le 2026-11-11 (.fidelite/TCK-2742, a-0 1280/1440, a-3 1440, a-5 1280/1440), plus aucun absent sur cette ligne",
+   "renvoi": "corrigé (TCK-2742)",
    "elements": [
     "P icone « lucide-hand-coins » (14, 763)"
    ]
@@ -2051,8 +2052,8 @@
   {
    "ecran": "a-8 bureau-1280-introuvable-masque",
    "conteneur": "colonne",
-   "motif": "icône de l'entrée « Commissions » : receipt dans la maquette, hand-coins dans le catalogue du produit (TCK-2477) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
-   "renvoi": "TCK-2742",
+   "motif": "icône de l'entrée « Commissions » : receipt dans la maquette, hand-coins dans le catalogue du produit (TCK-2477) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742 — CORRIGÉ par TCK-2742 : le catalogue prend l'icône des maquettes ; re-relevé le 2026-11-11 (.fidelite/TCK-2742, a-0 1280/1440, a-3 1440, a-5 1280/1440), plus aucun absent sur cette ligne (a-8 n'a pas pu être re-relevé : la page introuvable répond désormais 404, statut que le relevé refuse — TCK-2740 ; la colonne de l'agent est la même qu'en a-5, re-relevée à 1280 et 1440 : lucide-receipt et lucide-clipboard-check y sont appariés)",
+   "renvoi": "corrigé (TCK-2742)",
    "elements": [
     "M icone « lucide-receipt » (14, 723)"
    ]
@@ -2060,8 +2061,8 @@
   {
    "ecran": "a-8 bureau-1280-introuvable-masque",
    "conteneur": "colonne",
-   "motif": "icône du catalogue (TCK-2477) pour « États des lieux » (clipboard-list) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
-   "renvoi": "TCK-2742",
+   "motif": "icône du catalogue (TCK-2477) pour « États des lieux » (clipboard-list) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742 — CORRIGÉ par TCK-2742 : le catalogue prend l'icône des maquettes ; re-relevé le 2026-11-11 (.fidelite/TCK-2742, a-0 1280/1440, a-3 1440, a-5 1280/1440), plus aucun absent sur cette ligne (a-8 n'a pas pu être re-relevé : la page introuvable répond désormais 404, statut que le relevé refuse — TCK-2740 ; la colonne de l'agent est la même qu'en a-5, re-relevée à 1280 et 1440 : lucide-receipt et lucide-clipboard-check y sont appariés)",
+   "renvoi": "corrigé (TCK-2742)",
    "elements": [
     "P icone « lucide-clipboard-list » (14, 698)"
    ]
@@ -2069,8 +2070,8 @@
   {
    "ecran": "a-8 bureau-1280-introuvable-masque",
    "conteneur": "colonne",
-   "motif": "icône du catalogue (TCK-2477) pour « Commissions » (hand-coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
-   "renvoi": "TCK-2742",
+   "motif": "icône du catalogue (TCK-2477) pour « Commissions » (hand-coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742 — CORRIGÉ par TCK-2742 : le catalogue prend l'icône des maquettes ; re-relevé le 2026-11-11 (.fidelite/TCK-2742, a-0 1280/1440, a-3 1440, a-5 1280/1440), plus aucun absent sur cette ligne (a-8 n'a pas pu être re-relevé : la page introuvable répond désormais 404, statut que le relevé refuse — TCK-2740 ; la colonne de l'agent est la même qu'en a-5, re-relevée à 1280 et 1440 : lucide-receipt et lucide-clipboard-check y sont appariés)",
+   "renvoi": "corrigé (TCK-2742)",
    "elements": [
     "P icone « lucide-hand-coins » (14, 763)"
    ]
@@ -2339,8 +2340,8 @@
   {
    "ecran": "a-8 bureau-1440-introuvable-masque",
    "conteneur": "colonne",
-   "motif": "icône de l'entrée « Commissions » : receipt dans la maquette, hand-coins dans le catalogue du produit (TCK-2477) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
-   "renvoi": "TCK-2742",
+   "motif": "icône de l'entrée « Commissions » : receipt dans la maquette, hand-coins dans le catalogue du produit (TCK-2477) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742 — CORRIGÉ par TCK-2742 : le catalogue prend l'icône des maquettes ; re-relevé le 2026-11-11 (.fidelite/TCK-2742, a-0 1280/1440, a-3 1440, a-5 1280/1440), plus aucun absent sur cette ligne (a-8 n'a pas pu être re-relevé : la page introuvable répond désormais 404, statut que le relevé refuse — TCK-2740 ; la colonne de l'agent est la même qu'en a-5, re-relevée à 1280 et 1440 : lucide-receipt et lucide-clipboard-check y sont appariés)",
+   "renvoi": "corrigé (TCK-2742)",
    "elements": [
     "M icone « lucide-receipt » (14, 723)"
    ]
@@ -2348,8 +2349,8 @@
   {
    "ecran": "a-8 bureau-1440-introuvable-masque",
    "conteneur": "colonne",
-   "motif": "icône du catalogue (TCK-2477) pour « États des lieux » (clipboard-list) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
-   "renvoi": "TCK-2742",
+   "motif": "icône du catalogue (TCK-2477) pour « États des lieux » (clipboard-list) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742 — CORRIGÉ par TCK-2742 : le catalogue prend l'icône des maquettes ; re-relevé le 2026-11-11 (.fidelite/TCK-2742, a-0 1280/1440, a-3 1440, a-5 1280/1440), plus aucun absent sur cette ligne (a-8 n'a pas pu être re-relevé : la page introuvable répond désormais 404, statut que le relevé refuse — TCK-2740 ; la colonne de l'agent est la même qu'en a-5, re-relevée à 1280 et 1440 : lucide-receipt et lucide-clipboard-check y sont appariés)",
+   "renvoi": "corrigé (TCK-2742)",
    "elements": [
     "P icone « lucide-clipboard-list » (14, 698)"
    ]
@@ -2357,8 +2358,8 @@
   {
    "ecran": "a-8 bureau-1440-introuvable-masque",
    "conteneur": "colonne",
-   "motif": "icône du catalogue (TCK-2477) pour « Commissions » (hand-coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
-   "renvoi": "TCK-2742",
+   "motif": "icône du catalogue (TCK-2477) pour « Commissions » (hand-coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742 — CORRIGÉ par TCK-2742 : le catalogue prend l'icône des maquettes ; re-relevé le 2026-11-11 (.fidelite/TCK-2742, a-0 1280/1440, a-3 1440, a-5 1280/1440), plus aucun absent sur cette ligne (a-8 n'a pas pu être re-relevé : la page introuvable répond désormais 404, statut que le relevé refuse — TCK-2740 ; la colonne de l'agent est la même qu'en a-5, re-relevée à 1280 et 1440 : lucide-receipt et lucide-clipboard-check y sont appariés)",
+   "renvoi": "corrigé (TCK-2742)",
    "elements": [
     "P icone « lucide-hand-coins » (14, 763)"
    ]

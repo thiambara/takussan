@@ -126,6 +126,9 @@ describe('TCK-2619 — le menu du compte en feuille du bas, au téléphone', () 
     expect(contenu.getByText('Awa Diop')).toBeInTheDocument();
     expect(contenu.getByText('awa@example.test')).toBeInTheDocument();
     expect(feuille.querySelector('[data-slot="solde-du-compte"]')?.textContent?.replace(/\s/g, ' ')).toBe('Crédits1 250');
+    // TCK-2742 (AC3) — la ligne « Crédits » du compte garde `Coins` (app-coque a-5), quand l'entrée du menu
+    // prend `CreditCard`.
+    expect(feuille.querySelector('[data-slot="solde-du-compte"] svg.lucide-coins')).not.toBeNull();
     for (const nom of ['Mon profil', 'Préférences de notification', 'Voir le site public', 'Déconnexion']) {
       expect(contenu.getByRole('button', { name: nom })).toHaveClass('h-12');
     }

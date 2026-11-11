@@ -7,14 +7,11 @@ import {
   CalendarClock,
   CalendarDays,
   ClipboardCheck,
-  ClipboardList,
-  Coins,
   CreditCard,
   Download,
   FileText,
   FolderOpen,
   Gauge,
-  HandCoins,
   Heart,
   Inbox,
   LayoutDashboard,
@@ -22,6 +19,7 @@ import {
   MessageSquare,
   MessageSquareQuote,
   PlusCircle,
+  Receipt,
   Search,
   Users,
   Wrench,
@@ -223,7 +221,9 @@ const TABLE = [
     accessible: (ctx) => client(ctx) || occupeUnLogement(ctx.roles),
   },
   // TCK-633 lot F (ADR-0061 §1) — le portefeuille de l'espace ; l'API tranche (`boost.spend`).
-  { id: 'credits', href: HREF_CREDITS, cle: 'credits', icone: Coins, accessible: ({ roles }) => voitLePortefeuille(roles) },
+  // TCK-2742 — `CreditCard`, l'icône de toutes les maquettes (118 lignes, 18 pages). La ligne « Crédits »
+  // du menu et de la feuille du compte garde `Coins` (app-coque a-5) : elle ne lit pas cette entrée.
+  { id: 'credits', href: HREF_CREDITS, cle: 'credits', icone: CreditCard, accessible: ({ roles }) => voitLePortefeuille(roles) },
   // TCK-591 §3 — « Mes tâches » : même garde que son layout (`assertCanReachAgentArea`).
   { id: 'taches', href: '/app/tasks', cle: 'myTasks', icone: ListChecks, accessible: ({ roles }) => peutOuvrirMesBiens(roles) },
   // ADR-0089 — l'action principale du client : la recherche du site public.
@@ -233,7 +233,8 @@ const TABLE = [
     id: 'recherches',
     href: '/app/saved-searches',
     cle: 'savedSearches',
-    icone: BookmarkCheck,
+    // TCK-2742 — `Search`, comme les maquettes (app-reservations, app-accueil, app-visites).
+    icone: Search,
     accessible: ({ roles }) => occupeUnLogement(roles),
   },
   {
@@ -288,13 +289,16 @@ const TABLE = [
     accessible: (ctx) => client(ctx) || isOwner(ctx.roles) || personnel(ctx.roles),
   },
   // TCK-595 (ADR-0049 §3) — le grand livre des commissions.
-  { id: 'commissions', href: '/app/commissions', cle: 'commissions', icone: HandCoins, accessible: ({ roles }) => personnel(roles) },
+  // TCK-2742 — `Receipt`, l'icône de toutes les maquettes (248 lignes, 25 pages).
+  { id: 'commissions', href: '/app/commissions', cle: 'commissions', icone: Receipt, accessible: ({ roles }) => personnel(roles) },
   { id: 'documents', href: '/app/documents', cle: 'documents', icone: FolderOpen, accessible: () => true },
   {
     id: 'etats-des-lieux',
     href: '/app/inventories',
     cle: 'inventories',
-    icone: ClipboardList,
+    // TCK-2742 — `ClipboardCheck`, comme les maquettes (201 lignes, 18 pages), qui le partagent avec
+    // « Entrées en attente » : le dessin retenu (décision du lead du 2026-11-11).
+    icone: ClipboardCheck,
     accessible: (ctx) => client(ctx) || personnel(ctx.roles) || isOwner(ctx.roles),
   },
   // TCK-266 — les locataires dont l'état des lieux d'entrée attend depuis plus de 7 jours.
