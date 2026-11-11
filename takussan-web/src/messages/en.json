@@ -8393,6 +8393,7 @@
         "visit_not_scheduled_confirm": "It is no longer awaiting confirmation.",
         "visit_time_required": "Time to set: no free time suggested.",
         "visit_slot_overlap": "The time overlaps another visit.",
+        "visit_agent_overlap": "The agent is already booked at this time.",
         "visit_reassign_forbidden": "You cannot assign it.",
         "visit_closed": "The visit is closed.",
         "visit_agent_not_staff": "This agent is not on the property agency’s staff.",

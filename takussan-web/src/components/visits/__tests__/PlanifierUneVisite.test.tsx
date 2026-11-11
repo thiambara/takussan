@@ -266,6 +266,22 @@ describe('<PlanifierUneVisite> — TCK-590 / TCK-2586', () => {
     expect(creneaux.refetch).toHaveBeenCalled();
   });
 
+  it('l’agent est déjà pris à cette heure (422 `visit.agent_overlap`, TCK-2744) : l’erreur va sous l’heure, avec le texte de l’API, et les créneaux sont relus', async () => {
+    plan.mutateAsync.mockRejectedValueOnce(
+      new ApiError(422, { code: 'visit.agent_overlap', message: 'L’agent est déjà pris à cette heure.' }),
+    );
+    const user = await ouvrir(<PlanifierUneVisite property={{ id: 10, libelle: 'Villa à Almadies' }} />);
+    await user.click(pastille('Aujourd’hui'));
+    await user.click(pastille('10:00'));
+    await prospect(user);
+    await user.click(screen.getByRole('button', { name: /^Confirmer la visite/ }));
+
+    const groupe = screen.getByRole('group', { name: 'Quelle heure ?' });
+    expect(await within(groupe).findByRole('alert')).toHaveTextContent('L’agent est déjà pris à cette heure.');
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+    expect(creneaux.refetch).toHaveBeenCalled();
+  });
+
   it('un autre 422 sans champ (`lead.not_convertible`) va au bas de la feuille, sans relire les créneaux', async () => {
     plan.mutateAsync.mockRejectedValueOnce(new ApiError(422, { code: 'lead.not_convertible', message: 'Demande non convertible.' }));
     const user = await ouvrir(<PlanifierUneVisite property={{ id: 10, libelle: 'Villa à Almadies' }} />);

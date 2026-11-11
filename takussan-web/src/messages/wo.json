@@ -7734,6 +7734,7 @@
         "visit_not_scheduled_confirm": "Elle n’est plus à confirmer.",
         "visit_time_required": "Heure à fixer : aucune heure libre proposée.",
         "visit_slot_overlap": "L’heure chevauche une autre visite.",
+        "visit_agent_overlap": "L’agent est déjà pris à cette heure.",
         "visit_reassign_forbidden": "Vous ne pouvez pas l’attribuer.",
         "visit_closed": "La visite est close.",
         "visit_agent_not_staff": "Cet agent n’est pas de l’agence du bien.",

@@ -269,9 +269,12 @@ export function PlanifierDialog({
         return;
       }
       // `visit.slot_overlap` (422 sans champ) : le créneau vient d'être pris — l'erreur va sous
-      // « Quelle heure ? », et les créneaux sont relus. Les autres 422 sans champ
-      // (`lead.not_convertible`, `lead.without_agency`) vont au bas de la feuille.
-      if (err instanceof ApiError && err.status === 422 && codeDe(err) === 'visit.slot_overlap') {
+      // « Quelle heure ? », et les créneaux sont relus. `visit.agent_overlap` (TCK-2744) : l'agent
+      // a déjà une visite confirmée à cette heure, dans quelque agence que ce soit — même place,
+      // même relecture. Les autres 422 sans champ (`lead.not_convertible`,
+      // `lead.without_agency`) vont au bas de la feuille.
+      const code = err instanceof ApiError && err.status === 422 ? codeDe(err) : null;
+      if (code === 'visit.slot_overlap' || code === 'visit.agent_overlap') {
         setErreurs({ heure: messageErreur(err, t('requiredTime')) });
         void creneaux.refetch();
         return;
