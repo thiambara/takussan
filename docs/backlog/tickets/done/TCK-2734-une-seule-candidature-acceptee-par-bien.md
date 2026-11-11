@@ -1,7 +1,7 @@
 ---
 id: TCK-2734
 title: "Deux candidatures acceptées sur la même location : une seule à la fois, ou plusieurs (décision du porteur)"
-status: todo
+status: done
 phase: P1
 family: back
 estimate: S
@@ -92,3 +92,21 @@ bail.
 ## Notes d'implémentation
 
 _(À remplir pendant l'implémentation.)_
+
+## Vérification (2026-11-11)
+
+Vérification adverse acceptée pour le delta.
+- **Concurrence** : mesurée avec deux connexions. La seconde confirmation attend le verrou du bien, puis rend 409. Sans le verrou, les deux passent.
+- **Libération** : l'annulation par l'agent ou par le client libère le bien, et la création du bail depuis la candidature aussi.
+- **« Refusée »** : inatteignable, car le refus d'une candidature acceptée rend 422.
+- **Message au client** : le dialogue de BookingDetail affiche la prose de l'API, en fr et en en.
+
+Reste une seconde porte, hors delta : la création d'un bail ne lit pas la règle. Deux cas laissent A « acceptée » :
+- un bail créé depuis une AUTRE candidature encore en attente ;
+- un bail créé pour le client de A sans `booking_id`.
+
+Toute candidature suivante rend alors 409 jusqu'à l'annulation de A. En démo, 10 candidatures acceptées sont déjà dans ce cas. La décision est remontée au porteur ; un ticket de suite la porte.
+
+Mineurs, au lot 2 :
+- un témoin « offre sur un bien à candidature acceptée » ;
+- un test du verrou, porté du jetable de concurrence.
