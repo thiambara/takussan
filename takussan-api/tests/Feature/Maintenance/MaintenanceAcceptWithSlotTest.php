@@ -213,6 +213,38 @@ class MaintenanceAcceptWithSlotTest extends TestCase
         Event::assertDispatchedTimes(MaintenanceScheduleChanged::class, 1);
     }
 
+    /**
+     * Vérification adverse de TCK-2680 — réassignée entre l'autorisation et le verrou : l'ancien
+     * prestataire tient un modèle chargé avant la réassignation (rejeu sans concurrence). Refus 403,
+     * ni acceptation ni créneau posés, aucun événement ; le nouveau prestataire accepte ensuite.
+     */
+    public function test_une_reassignation_avant_le_verrou_refuse_l_ancien_prestataire(): void
+    {
+        ['mr' => $mr, 'provider' => $ancien, 'agency' => $agency] = $this->maintenanceScenario(MaintenanceStatus::Assigned, ['scheduled_at' => null]);
+        $perime = MaintenanceRequest::query()->findOrFail($mr->id);
+        $nouveau = $this->providerFor($agency);
+        $mr->forceFill(['assigned_to' => $nouveau->id])->saveQuietly();
+        Event::fake([MaintenanceStatusChanged::class, MaintenanceScheduleChanged::class]);
+        $service = app(MaintenanceRequestService::class);
+
+        try {
+            $service->accept($perime, $ancien, Carbon::parse('2026-11-12 10:00:00'));
+            $this->fail('L\'ancien prestataire n\'aurait pas dû pouvoir accepter.');
+        } catch (ApiError $e) {
+            $this->assertSame('maintenance.no_longer_assigned', $e->errorCode);
+            $this->assertSame(403, $e->getStatusCode());
+        }
+
+        $mr->refresh();
+        $this->assertNull($mr->accepted_at);
+        $this->assertNull($mr->scheduled_at);
+        Event::assertNotDispatched(MaintenanceStatusChanged::class);
+        Event::assertNotDispatched(MaintenanceScheduleChanged::class);
+
+        $service->accept($mr, $nouveau, Carbon::parse('2026-11-13 09:00:00'));
+        $this->assertNotNull($mr->refresh()->accepted_at);
+    }
+
     private function avis(User $user, string $code): int
     {
         return AppNotification::query()->where('user_id', $user->id)->where('code', $code)->count();

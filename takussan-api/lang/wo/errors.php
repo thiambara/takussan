@@ -396,6 +396,7 @@ return [
         'decline_after_accept' => 'Liggéey bi nangu nañu ko walla tàmbali nañu ko ba noppi : mënatul a bañ.',
         'dedicated_endpoint' => 'Soppi statut bii am na yoonam bu ko moom, du jaar ci statut bu ñépp.',
         'in_progress' => 'Maintenance mi ngi dox. Jéemaatal ci kanam.',
+        'no_longer_assigned' => 'Cette intervention a été confiée à un autre prestataire : elle ne s\'accepte plus en votre nom.',
         'photos_closed' => 'Mënuñu yokk nataal ci laaj bu ñu tëj walla neenal.',
         'quote_amount_too_large' => 'Limu devis bi yépp ëpp na li ñu mëna bind.',
         'quote_expired' => 'Devis bii amatul solo : bisu jeexitalam wees na.',

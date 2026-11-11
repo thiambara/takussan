@@ -396,6 +396,7 @@ return [
         'decline_after_accept' => 'L\'intervention a déjà été acceptée ou démarrée : elle ne se refuse plus.',
         'dedicated_endpoint' => 'Ce changement de statut passe par son propre geste, pas par le statut générique.',
         'in_progress' => 'Maintenance en cours. Réessayez dans quelques instants.',
+        'no_longer_assigned' => 'Cette intervention a été confiée à un autre prestataire : elle ne s\'accepte plus en votre nom.',
         'photos_closed' => 'Impossible d\'ajouter des photos à une demande clôturée ou annulée.',
         'quote_amount_too_large' => 'Le montant total du devis dépasse le maximum enregistrable.',
         'quote_expired' => 'Ce devis n\'est plus valable : sa date de validité est passée.',

@@ -396,6 +396,7 @@ return [
         'decline_after_accept' => 'The request has already been accepted or started: it can no longer be declined.',
         'dedicated_endpoint' => 'This status change goes through its own action, not through the generic status.',
         'in_progress' => 'Maintenance in progress. Try again in a moment.',
+        'no_longer_assigned' => 'This job has been handed to another provider: it can no longer be accepted on your behalf.',
         'photos_closed' => 'Photos cannot be added to a closed or cancelled request.',
         'quote_amount_too_large' => 'The quote total exceeds the largest amount that can be recorded.',
         'quote_expired' => 'This quote is no longer valid: its validity date has passed.',

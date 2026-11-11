@@ -232,12 +232,16 @@ class MaintenanceRequestService
         // jugées sur le modèle reçu, deux acceptations simultanées passaient toutes deux et
         // émettaient deux événements. L'événement part après la transaction.
         $scheduleChanged = false;
-        $mr = DB::transaction(function () use ($mr, $scheduledAt, &$scheduleChanged): MaintenanceRequest {
+        $mr = DB::transaction(function () use ($mr, $provider, $scheduledAt, &$scheduleChanged): MaintenanceRequest {
             $fresh = MaintenanceRequest::query()
                 ->whereKey($mr->id)
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            // Vérification adverse de TCK-2680 — l'autorisation (`respondToAssignment`) se juge sur
+            // le modèle chargé AVANT le verrou : réassignée entre-temps, la demande s'acceptait au
+            // nom de l'ancien prestataire, avec son créneau. L'assignation se relit sous verrou.
+            abort_code_if($fresh->assigned_to !== $provider->id, 403, 'maintenance.no_longer_assigned');
             abort_code_if($this->machine->isTerminal($fresh->status), 422, 'maintenance.terminal_request');
             // TCK-2652 — le travail rendu ne s'accepte plus : `completed` n'est pas terminal (le
             // demandeur peut encore contester), et « J'accepte » y passait. Conflit avec l'état de la
