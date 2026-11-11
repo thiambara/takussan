@@ -152,9 +152,10 @@ Les absents qui restent ne viennent pas des icônes :
 - **a-5, `lucide-coins` ×1** : c'est la ligne « Crédits 60 » du **menu du compte**, pas de la colonne. L'agent ne
   la voit pas depuis la décision du porteur du 2026-11-10 (« Argent » fermé à l'agent), et ce motif était déjà
   classé.
-- **a-8 n'a pas pu être rejoué.** `/app/page-introuvable-tck-2619` répond désormais **404**, et le relevé refuse
-  tout statut ≥ 400 (`motifsDeRejet`). À 19 h 30 Z, la même page se relevait encore. Le changement de statut est
-  l'objet de TCK-2740, en cours dans l'arbre. La colonne de l'agent y est la même qu'en a-5, aux mêmes
+- **a-8 n'a pas pu être rejoué.** À 21 h 35 Z, `/app/page-introuvable-tck-2619` répond **404**, et le relevé
+  refuse tout statut ≥ 400 (`motifsDeRejet`). La règle date de TCK-2684 (87b89ee1e) et n'a pas changé depuis. À
+  19 h 30 Z, la même page se relevait encore, donc avec un statut < 400. La cause du changement n'est pas établie.
+  Le statut et le rendu serveur de la 404 de `/app` sont l'objet de TCK-2740. La colonne de l'agent y est la même qu'en a-5, aux mêmes
   coordonnées : 698 pour « États des lieux », 723/763 pour « Commissions ». a-5 a donc été relevé à 1280 en plus de
   1440.
 

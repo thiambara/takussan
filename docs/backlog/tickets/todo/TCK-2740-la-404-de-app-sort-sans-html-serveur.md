@@ -15,7 +15,7 @@ spec_refs:
     - "docs/features.md#navigation-de-la-console-selon-le-profil-actif"
   models: []
   tickets:
-    - docs/backlog/tickets/todo/TCK-2619-coque-sans-flottant-introuvable.md
+    - docs/backlog/tickets/done/TCK-2619-coque-sans-flottant-introuvable.md
 tags: [front, coque, introuvable, rendu-serveur, suivi-lot-2]
 ---
 
@@ -27,7 +27,7 @@ différence entre une page qui dit tout de suite « Page introuvable » et une p
 
 ## Contexte
 
-Relevé par terrain-5 pendant [TCK-2619](TCK-2619-coque-sans-flottant-introuvable.md), dont l'AC5 exigeait le
+Relevé par terrain-5 pendant [TCK-2619](../done/TCK-2619-coque-sans-flottant-introuvable.md), dont l'AC5 exigeait le
 `h1` « Page introuvable » et le champ « Aller à… » dans le HTML du serveur. L'AC5 a été amendé le 2026-11-11
 (option (a) de la session) : la page répond 404 et l'écran se rend dans la coque **après hydratation**. Ce ticket
 porte la moitié retirée.
