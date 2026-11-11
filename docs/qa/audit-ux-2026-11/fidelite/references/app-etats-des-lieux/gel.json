@@ -1,0 +1,31 @@
+{
+ "page": "app-etats-des-lieux",
+ "approche": "a",
+ "revue": {
+  "date": "2026-11-11",
+  "citation": "« je valide tout »",
+  "source": "porteur, revue des maquettes téléphone (390, rem 16), bureau 1440 et bureau 1280"
+ },
+ "ecrans": [
+  {
+   "e": 0,
+   "nom": "Démarrer",
+   "sansBureau": null
+  },
+  {
+   "e": 1,
+   "nom": "Une pièce",
+   "sansBureau": null
+  },
+  {
+   "e": 2,
+   "nom": "Récapitulatif et signatures",
+   "sansBureau": null
+  },
+  {
+   "e": 3,
+   "nom": "Sortie — comparaison",
+   "sansBureau": null
+  }
+ ]
+}

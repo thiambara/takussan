@@ -1,0 +1,51 @@
+{
+ "meta": {
+  "outil": "takussan-web/scripts/fidelite",
+  "version": 1,
+  "date": "2026-11-11T02:51:08.160Z",
+  "duree_ms": 5575,
+  "commit": "693cb3b42a25",
+  "base": "http://localhost:3000",
+  "via": "cadre",
+  "gel": {
+   "date": "2026-11-11",
+   "revue": "2026-11-11 — « je valide tout »"
+  }
+ },
+ "source": {
+  "type": "maquette",
+  "page": "app-visites",
+  "approche": "a",
+  "ecran": 6,
+  "nom": "Planifier — confirmée"
+ },
+ "appareil": "telephone",
+ "W": 390,
+ "H": 844,
+ "DPR": 2,
+ "rem": 16,
+ "spacingPx": 4,
+ "densite": 1,
+ "noeuds": [
+  {"id":0,"type":"boite","dans":[],"cle":"Planifier une visite Visite confirmée Mariama est prévenue par SMS et par e‑mail","tag":"div","r":{"x":0,"y":0,"w":390,"h":844},"slot":null,"fid":null,"fond":[252,249,243,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[0,0,0,0],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"id":1,"type":"boite","dans":[0],"cle":"Planifier une visite","tag":"header","r":{"x":0,"y":0,"w":390,"h":56},"slot":null,"fid":null,"fond":[252,249,243,1],"bords":[0,0,1,0],"couleurBord":[235,229,214,0.7],"rayon":[0,0,0,0],"ombre":null,"marges":[0,4,0,4],"ecart":4},
+  {"type":"icone","cle":"lucide-x","r":{"x":16,"y":17.5,"w":20,"h":20},"dans":[1,0],"couleur":[31,24,18,1],"trait":"2","texteParent":""},
+  {"type":"texte","cle":"Planifier une visite","tag":"p","r":{"x":52,"y":17.5,"w":334,"h":20},"dans":[1,0],"police":"dmSansExt","taille":16,"graisse":600,"interligne":20,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"id":4,"type":"boite","dans":[0],"cle":"","tag":"span","r":{"x":167,"y":104,"w":56,"h":56},"slot":null,"fid":null,"fond":[60,107,67,0.15],"bords":[0,0,0,0],"couleurBord":null,"rayon":[33554400,33554400,33554400,33554400],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"type":"icone","cle":"lucide-check","r":{"x":181,"y":118,"w":28,"h":28},"dans":[4,0],"couleur":[63,107,69,1],"trait":"2","texteParent":""},
+  {"type":"texte","cle":"Visite confirmée","tag":"p","r":{"x":104.1,"y":176,"w":181.8,"h":32},"dans":[0],"police":"bricolageExt","taille":24,"graisse":600,"interligne":32,"espacement":-0.5,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"Mariama est prévenue par SMS et par e‑mail. La visite est dans votre agenda.","tag":"p","r":{"x":45,"y":214,"w":300,"h":45},"dans":[0],"police":"dmSansExt","taille":15,"graisse":400,"interligne":22.5,"espacement":0,"couleur":[110,101,90,1],"casse":"none","chiffres":"normal"},
+  {"id":8,"type":"boite","dans":[0],"cle":"Jeu. 12 nov. · 10:00 Studio meublé · Mermoz Mariama Fall · Rue MZ-12, près de la","tag":"div","r":{"x":16,"y":283,"w":358,"h":91.5},"slot":null,"fid":null,"fond":[255,255,255,1],"bords":[1,1,1,1],"couleurBord":[235,229,213,1],"rayon":[14,14,14,14],"ombre":null,"marges":[12,12,12,12],"ecart":12},
+  {"id":9,"type":"boite","dans":[8,0],"cle":"","tag":"span","r":{"x":29,"y":296.8,"w":64,"h":64},"slot":null,"fid":null,"fond":[241,236,224,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[14,14,14,14],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"id":10,"type":"boite","dans":[9,8,0],"cle":"","tag":"img","r":{"x":29,"y":296.8,"w":64,"h":64},"slot":null,"fid":null,"fond":null,"bords":[0,0,0,0],"couleurBord":null,"rayon":[0,0,0,0],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"type":"texte","cle":"Jeu. 12 nov. · 10:00","tag":"p","r":{"x":105,"y":296,"w":256,"h":25.5},"dans":[8,0],"police":"bricolageExt","taille":17,"graisse":600,"interligne":25.5,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"tabular-nums"},
+  {"type":"texte","cle":"Studio meublé · Mermoz","tag":"p","r":{"x":105,"y":321.5,"w":256,"h":20},"dans":[8,0],"police":"dmSansExt","taille":14,"graisse":400,"interligne":20,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"Mariama Fall · Rue MZ-12, près de la VDN","tag":"p","r":{"x":105,"y":341.5,"w":256,"h":20},"dans":[8,0],"police":"dmSansExt","taille":14,"graisse":400,"interligne":20,"espacement":0,"couleur":[110,101,90,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"Voir la visite","tag":"span","r":{"x":16,"y":398.5,"w":358,"h":48},"dans":[0,15],"police":"dmSansExt","taille":15,"graisse":500,"interligne":22.5,"espacement":0,"couleur":[252,249,243,1],"casse":"none","chiffres":"normal"},
+  {"id":15,"type":"boite","dans":[0],"cle":"Voir la visite","tag":"span","r":{"x":16,"y":398.5,"w":358,"h":48},"slot":null,"fid":null,"fond":[168,83,50,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[10,10,10,10],"ombre":null,"marges":[0,20,0,20],"ecart":6},
+  {"type":"texte","cle":"Envoyer aussi sur WhatsApp","tag":"span","r":{"x":16,"y":454.5,"w":358,"h":48},"dans":[0,17],"police":"dmSansExt","taille":15,"graisse":500,"interligne":22.5,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"id":17,"type":"boite","dans":[0],"cle":"Envoyer aussi sur WhatsApp","tag":"span","r":{"x":16,"y":454.5,"w":358,"h":48},"slot":null,"fid":null,"fond":[255,255,255,1],"bords":[1,1,1,1],"couleurBord":[235,229,213,1],"rayon":[10,10,10,10],"ombre":null,"marges":[0,20,0,20],"ecart":6},
+  {"type":"icone","cle":"svg","r":{"x":82.8,"y":469.5,"w":18,"h":18},"dans":[17,0],"couleur":[63,107,69,1],"trait":"1px","texteParent":"Envoyer aussi sur WhatsApp"},
+  {"type":"texte","cle":"Planifier une autre visite","tag":"span","r":{"x":16,"y":510.5,"w":358,"h":48},"dans":[0],"police":"dmSansExt","taille":15,"graisse":500,"interligne":22.5,"espacement":0,"couleur":[31,24,17,0.8],"casse":"none","chiffres":"normal"}
+ ]
+}

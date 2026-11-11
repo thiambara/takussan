@@ -1,0 +1,36 @@
+{
+ "page": "app-baux",
+ "approche": "a",
+ "revue": {
+  "date": "2026-11-11",
+  "citation": "« je valide tout »",
+  "source": "porteur, revue des maquettes téléphone (390, rem 16), bureau 1440 et bureau 1280"
+ },
+ "ecrans": [
+  {
+   "e": 0,
+   "nom": "Liste — À traiter",
+   "sansBureau": null
+  },
+  {
+   "e": 1,
+   "nom": "Fiche — dossier du bail",
+   "sansBureau": null
+  },
+  {
+   "e": 2,
+   "nom": "Création — étape 3, les conditions",
+   "sansBureau": null
+  },
+  {
+   "e": 3,
+   "nom": "Création — étape 4, vérifier",
+   "sansBureau": "En bureau, la création tient en une page : le total à l’entrée, l’aperçu du contrat et les deux boutons sont dans la colonne de droite de l’écran précédent."
+  },
+  {
+   "e": 4,
+   "nom": "Feuille « Réviser le loyer »",
+   "sansBureau": null
+  }
+ ]
+}

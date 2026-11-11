@@ -1,0 +1,58 @@
+{
+ "meta": {
+  "outil": "takussan-web/scripts/fidelite",
+  "version": 1,
+  "date": "2026-11-11T02:01:00.685Z",
+  "duree_ms": 5239,
+  "commit": "925795e2974a",
+  "base": "http://localhost:3000",
+  "via": "cadre",
+  "gel": {
+   "date": "2026-11-11",
+   "revue": "2026-11-11 — « je valide tout »"
+  }
+ },
+ "source": {
+  "type": "maquette",
+  "page": "app-entree-connexion",
+  "approche": "a",
+  "ecran": 7,
+  "nom": "Vérifier l’adresse"
+ },
+ "appareil": "bureau-1440",
+ "W": 1440,
+ "H": 900,
+ "DPR": 2,
+ "rem": 14.4,
+ "spacingPx": 3.6,
+ "densite": 0.9,
+ "noeuds": [
+  {"id":0,"type":"boite","dans":[],"cle":"TAKUSSAN Takussan Vérifie ton adresse Un lien est parti à awa.diop@gmail.com. Tu","tag":"div","r":{"x":0,"y":0,"w":1440,"h":900},"slot":null,"fid":null,"fond":[252,249,243,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[0,0,0,0],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"id":1,"type":"boite","dans":[0],"cle":"TAKUSSAN Takussan","tag":"header","r":{"x":0,"y":0,"w":1440,"h":57.6},"slot":null,"fid":null,"fond":[252,249,243,1],"bords":[0,0,1,0],"couleurBord":[235,229,213,1],"rayon":[0,0,0,0],"ombre":null,"marges":[0,28.8,0,28.8],"ecart":0},
+  {"type":"icone","cle":"svg","r":{"x":28.8,"y":13.9,"w":34,"h":21.6},"dans":[1,0],"couleur":[31,24,18,1],"trait":"1px","texteParent":"TAKUSSAN Takussan"},
+  {"type":"texte","cle":"Takussan","tag":"span","r":{"x":70,"y":17.5,"w":104.3,"h":25.2},"dans":[1,0],"police":"bricolageExt","taille":16.2,"graisse":600,"interligne":25.2,"espacement":2.3,"couleur":[31,24,18,1],"casse":"uppercase","chiffres":"normal"},
+  {"type":"texte","cle":"Takussan","tag":"span","r":{"x":27.8,"y":12.9,"w":1,"h":1},"dans":[1,0],"police":"dmSansExt","taille":14.4,"graisse":400,"interligne":21.6,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"id":5,"type":"boite","dans":[0],"cle":"","tag":"span","r":{"x":480,"y":115.2,"w":43.2,"h":43.2},"slot":null,"fid":null,"fond":[243,234,216,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[33554400,33554400,33554400,33554400],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"type":"icone","cle":"lucide-mail","r":{"x":490.8,"y":126,"w":21.6,"h":21.6},"dans":[5,0],"couleur":[130,60,32,1],"trait":"1.5","texteParent":""},
+  {"type":"texte","cle":"Vérifie ton adresse","tag":"h1","r":{"x":480,"y":172.8,"w":480,"h":38.9},"dans":[0],"police":"bricolageExt","taille":36,"graisse":600,"interligne":38.9,"espacement":-0.9,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"Un lien est parti à . Tu peux continuer : on te le rappellera.","tag":"p","r":{"x":480,"y":222.4,"w":480,"h":51},"dans":[0],"police":"dmSansExt","taille":17,"graisse":400,"interligne":25.5,"espacement":0,"couleur":[110,101,90,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"awa.diop@gmail.com","tag":"span","r":{"x":621.5,"y":223.4,"w":175.4,"h":22},"dans":[0],"police":"dmSansExt","taille":17,"graisse":600,"interligne":25.5,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"id":10,"type":"boite","dans":[0],"cle":"Renvoyer le lien Possible dans 48 s Corriger l’adresse Une faute de frappe ? Cha","tag":"div","r":{"x":480,"y":295,"w":480,"h":112.6},"slot":null,"fid":null,"fond":[255,255,255,1],"bords":[1,1,1,1],"couleurBord":[235,229,213,1],"rayon":[12.6,12.6,12.6,12.6],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"id":11,"type":"boite","dans":[10,0],"cle":"Renvoyer le lien Possible dans 48 s","tag":"div","r":{"x":481,"y":296,"w":478,"h":55.8},"slot":null,"fid":null,"fond":null,"bords":[0,0,1,0],"couleurBord":[235,229,213,1],"rayon":[0,0,0,0],"ombre":null,"marges":[9,14.4,9,14.4],"ecart":10.8},
+  {"type":"icone","cle":"lucide-rotate-cw","r":{"x":495.4,"y":314.4,"w":18,"h":18},"dans":[11,10,0],"couleur":[31,24,19,0.7],"trait":"1.5","texteParent":"Renvoyer le lien Possible dans 48 s"},
+  {"type":"texte","cle":"Renvoyer le lien","tag":"p","r":{"x":524.2,"y":305,"w":395.2,"h":18.8},"dans":[11,10,0],"police":"dmSansExt","taille":15,"graisse":500,"interligne":18.8,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"Possible dans 48 s","tag":"p","r":{"x":524.2,"y":325.6,"w":395.2,"h":16.3},"dans":[11,10,0],"police":"dmSansExt","taille":13,"graisse":400,"interligne":16.3,"espacement":0,"couleur":[110,101,90,1],"casse":"none","chiffres":"tabular-nums"},
+  {"type":"icone","cle":"lucide-chevron-right","r":{"x":930.2,"y":316.2,"w":14.4,"h":14.4},"dans":[11,10,0],"couleur":[110,101,90,1],"trait":"2","texteParent":"Renvoyer le lien Possible dans 48 s"},
+  {"type":"icone","cle":"lucide-pencil","r":{"x":495.4,"y":370.2,"w":18,"h":18},"dans":[10,0],"couleur":[31,24,19,0.7],"trait":"1.5","texteParent":"Corriger l’adresse Une faute de frappe ?"},
+  {"type":"texte","cle":"Corriger l’adresse","tag":"p","r":{"x":524.2,"y":360.8,"w":395.2,"h":18.8},"dans":[10,0],"police":"dmSansExt","taille":15,"graisse":500,"interligne":18.8,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"Une faute de frappe ? Change-la ici.","tag":"p","r":{"x":524.2,"y":381.4,"w":395.2,"h":16.3},"dans":[10,0],"police":"dmSansExt","taille":13,"graisse":400,"interligne":16.3,"espacement":0,"couleur":[110,101,90,1],"casse":"none","chiffres":"tabular-nums"},
+  {"type":"icone","cle":"lucide-chevron-right","r":{"x":930.2,"y":372,"w":14.4,"h":14.4},"dans":[10,0],"couleur":[110,101,90,1],"trait":"2","texteParent":"Corriger l’adresse Une faute de frappe ?"},
+  {"type":"texte","cle":"Continuer","tag":"span","r":{"x":480,"y":436.4,"w":200,"h":43.2},"dans":[0,21],"police":"dmSansExt","taille":16,"graisse":600,"interligne":24,"espacement":0,"couleur":[252,249,243,1],"casse":"none","chiffres":"normal"},
+  {"id":21,"type":"boite","dans":[0],"cle":"Continuer","tag":"span","r":{"x":480,"y":436.4,"w":200,"h":43.2},"slot":null,"fid":null,"fond":[168,83,50,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[33554400,33554400,33554400,33554400],"ombre":null,"marges":[0,21.6,0,21.6],"ecart":7.2},
+  {"id":22,"type":"boite","dans":[0],"cle":"Tu reprends · Studio meublé, Mermoz","tag":"div","r":{"x":694.4,"y":439,"w":281.9,"h":38},"slot":null,"fid":null,"fond":[255,255,255,1],"bords":[1,1,1,1],"couleurBord":[235,229,213,1],"rayon":[33554400,33554400,33554400,33554400],"ombre":null,"marges":[3.6,12.6,3.6,3.6],"ecart":9},
+  {"id":23,"type":"boite","dans":[22,0],"cle":"","tag":"span","r":{"x":699,"y":443.6,"w":28.8,"h":28.8},"slot":null,"fid":null,"fond":[241,236,224,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[33554400,33554400,33554400,33554400],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"id":24,"type":"boite","dans":[23,22,0],"cle":"","tag":"img","r":{"x":699,"y":443.6,"w":28.8,"h":28.8},"slot":null,"fid":null,"fond":null,"bords":[0,0,0,0],"couleurBord":null,"rayon":[0,0,0,0],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"type":"texte","cle":"· Studio meublé, Mermoz","tag":"p","r":{"x":736.8,"y":448.3,"w":226,"h":19.5},"dans":[22,0],"police":"dmSansExt","taille":13,"graisse":400,"interligne":19.5,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"Tu reprends","tag":"span","r":{"x":736.8,"y":449.3,"w":74.9,"h":17},"dans":[22,0],"police":"dmSansExt","taille":13,"graisse":600,"interligne":19.5,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"}
+ ]
+}
