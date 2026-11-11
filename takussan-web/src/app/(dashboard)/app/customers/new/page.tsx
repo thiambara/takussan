@@ -30,22 +30,25 @@ export const dynamic = 'force-dynamic';
  * le lecteur voit (`visitor_display`, au seul personnel de l'agence du bien) ; une visite illisible
  * ne préremplit rien, sans erreur — le formulaire reste celui d'une fiche vierge.
  */
-async function preremplissage(brut: string | string[] | undefined): Promise<FicheDuVisiteur | undefined> {
+async function preremplissage(
+  brut: string | string[] | undefined,
+): Promise<{ readonly initial?: FicheDuVisiteur; readonly visiteDOrigine?: number }> {
   const id = idDeDetail((Array.isArray(brut) ? brut[0] : brut) ?? '');
-  if (id === null) return undefined;
+  if (id === null) return {};
   const token = await getToken();
-  if (!token) return undefined;
+  if (!token) return {};
   try {
     const { data } = await apiRequest<ApiResponse<PropertyVisit>>(cheminApi`/api/property-visits/${id}`, { token });
-    return ficheDuVisiteur(data);
+    // TCK-2716 — la fiche naît rattachée à sa visite, seulement quand l'API dit que ce lecteur le peut.
+    return data.abilities?.create_customer === true ? { initial: ficheDuVisiteur(data), visiteDOrigine: data.id } : {};
   } catch {
-    return undefined;
+    return {};
   }
 }
 
 export default async function Page({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> } = {}) {
   const q = (await searchParams) ?? {};
-  const initial = await preremplissage(q.visite);
+  const { initial, visiteDOrigine } = await preremplissage(q.visite);
   const t = await getTranslations('dashboard.pages.customerNew');
   // TCK-426 — la garde de rôle est REMONTÉE dans le `layout.tsx` de ce segment : ici, sous le
   // `loading.tsx`, son `redirect()` rendait 200 + le squelette de la route interdite.
@@ -55,7 +58,7 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
     // la largeur de l'écran.
     <div className="max-w-3xl space-y-6">
       <PageHeader title={t('title')} description={t('subtitle')} />
-      <CustomerForm mode="create" initial={initial} />
+      <CustomerForm mode="create" initial={initial} visiteDOrigine={visiteDOrigine} />
     </div>
   );
 }

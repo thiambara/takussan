@@ -392,6 +392,7 @@ describe('TCK-2581 — le compte rendu', () => {
       visitor_phone: '+221770001122',
       visitor_display: { name: 'Mouhamed Fall', phone: '+221770001122', kind: 'anonymous', visits_on_property: 1 },
       report: COMPTE_RENDU_FAIT as PropertyVisit['report'],
+      abilities: { manage: true, create_customer: true },
     });
     monter();
     const lien = await screen.findByRole('link', { name: /Créer sa fiche/ });
@@ -402,6 +403,18 @@ describe('TCK-2581 — le compte rendu', () => {
     expect(lien.getAttribute('href')).not.toMatch(/770001122|Mouhamed|Fall/);
     const saisie = (await screen.findByText('Saisir sa candidature maintenant')).closest('[aria-disabled]');
     expect(saisie).toBeTruthy();
+  });
+
+  it('TCK-2716 — sans `abilities.create_customer`, « Créer sa fiche » ne s’offre pas, même avec la carte du visiteur', async () => {
+    etat.visite = visiteDe(LOCATION, {
+      customer: null,
+      visitor_display: { name: 'Mouhamed Fall', phone: '+221770001122', kind: 'anonymous', visits_on_property: 1 },
+      report: COMPTE_RENDU_FAIT as PropertyVisit['report'],
+      abilities: { manage: true, create_customer: false },
+    });
+    monter();
+    expect(await screen.findByText('Saisir sa candidature maintenant')).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /Créer sa fiche/ })).toBeNull();
   });
 
   it('AC6 — le client voit son avis (1 à 5) et aucun compte rendu', async () => {

@@ -14,11 +14,13 @@ function propre(v: string | null | undefined): string | undefined {
 
 /**
  * TCK-2581 — la fiche d'un visiteur qui n'en a pas, tirée de SA visite : le nom et le numéro de la
- * carte du visiteur (`visitor_display`), et d'elle SEULE. L'API ne la sert qu'au personnel de
- * l'agence du bien, au propriétaire d'un bien sans agence et au super-admin
- * (`PropertyVisitResource::outilDeLaConsole()`) — exactement ceux qui peuvent en faire une fiche.
- * `undefined` quand la visite a déjà une fiche, que la carte n'est pas servie à ce lecteur, ou
- * qu'elle ne porte ni nom ni numéro.
+ * carte du visiteur (`visitor_display`), et d'elle SEULE.
+ *
+ * TCK-2716 — le DROIT n'est plus lu dans la carte, champ d'affichage que TCK-2717 servira au
+ * bailleur : il est lu dans `abilities.create_customer`, que l'API calcule par le prédicat même
+ * qui juge `POST /api/customers` avec `property_visit_id`. `undefined` quand ce booléen n'est pas
+ * vrai (visite déjà rattachée, lecteur hors du personnel de l'agence du bien, ou sous l'espace
+ * d'une autre agence), que la carte n'est pas servie, ou qu'elle ne porte ni nom ni numéro.
  *
  * ⚠ Aucun repli sur `visitor_name` / `visitor_phone` : quand la carte est nulle, le lecteur n'est
  * pas de la console de ce bien (contre-vérification du 2026-11-11). Le seul à atteindre ce
@@ -29,10 +31,10 @@ function propre(v: string | null | undefined): string | undefined {
  * serveur. Un numéro dans l'URL part dans l'historique, les journaux et l'en-tête `Referer`.
  */
 export function ficheDuVisiteur(
-  visite: Pick<PropertyVisit, 'customer' | 'visitor_display'>,
+  visite: Pick<PropertyVisit, 'customer' | 'visitor_display' | 'abilities'>,
 ): FicheDuVisiteur | undefined {
   const carte = visite.visitor_display;
-  if (visite.customer || !carte) return undefined;
+  if (visite.abilities?.create_customer !== true || visite.customer || !carte) return undefined;
   const nom = propre(carte.name);
   const [prenom, ...reste] = nom?.split(/\s+/) ?? [];
   const fiche = {

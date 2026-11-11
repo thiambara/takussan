@@ -93,7 +93,16 @@ export interface PropertyVisit {
    * Il ne reçoit ni `customer` ni `visitor` (fiche masquée, TCK-2585) : sans ce drapeau, le front ne
    * peut pas le reconnaître. Détail seulement, comme `manage`.
    */
-  abilities?: { readonly manage: boolean; readonly feedback_customer?: boolean };
+  abilities?: {
+    readonly manage: boolean;
+    readonly feedback_customer?: boolean;
+    /**
+     * TCK-2716 — « Créer sa fiche » : vrai exactement quand `POST /api/customers` avec
+     * `property_visit_id` réussirait pour ce lecteur (personnel actif de l'agence du bien, sous son
+     * espace, visite sans fiche). Le préremplissage et le geste ne s'allument que sur lui.
+     */
+    readonly create_customer?: boolean;
+  };
   /**
    * TCK-2578 / TCK-2581 (ADR-0101) — le compte rendu de l'agence. Clé ABSENTE hors du personnel de
    * l'agence du bien (visiteur, client, bailleur) : sa présence est la garde (`compteRenduLisible`).

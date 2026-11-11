@@ -698,11 +698,15 @@ return [
         'active_limit_reached' => 'Am nga ba noppi :max seeti yuy dox ci kër gii. Neenalal benn balaa ngay laaj beneen.',
         'already_assigned' => 'Seetaan bii, keneen ci ajaans bi moo ko jël.',
         // TCK-2585 — attribution en lot : l'agent désigné n'est pas du personnel de l'agence du bien.
+        // TCK-2716 — « Créer sa fiche » depuis une visite.
+        'agency_mismatch' => 'Le client naîtrait dans une autre agence que celle du bien de la visite : passez sur l\'espace de cette agence.',
         'agent_not_staff' => 'L\'agent choisi doit faire partie du personnel de l\'agence du bien.',
         'cannot_cancel' => 'Seeti bii mënuñu ko neenal ni mu nekke léegi.',
         'cannot_complete' => 'Seeti bii mënuñu ko jeexal ni mu nekke léegi.',
         'cannot_mark_no_show' => 'Seule une visite planifiée ou confirmée dont l\'heure est passée peut être marquée absente.',
         'closed' => 'Seeti bu jeex walla bu ñu neenal, mënatuñu ko soppi.',
+        // TCK-2716 — une visite rattachée n'est jamais rattachée à une autre fiche.
+        'customer_already_linked' => 'Cette visite a déjà sa fiche client.',
         'feedback_agent_only' => 'Agent bi ko yor rekk moo mën a joxe xalaatu agent bi.',
         'feedback_not_completed' => 'Xalaat bi, su seeti bi jeexee rekk lañu ko mën a joxe.',
         'feedback_visitor_only' => 'Ki seeti rekk moo mën a joxe xalaatu kiliyaan bi.',

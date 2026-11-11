@@ -698,11 +698,15 @@ return [
         'active_limit_reached' => 'You already have :max active visits on this property. Cancel one before requesting another.',
         'already_assigned' => 'This visit is already handled by another member of the agency.',
         // TCK-2585 — attribution en lot : l'agent désigné n'est pas du personnel de l'agence du bien.
+        // TCK-2716 — « Créer sa fiche » depuis une visite.
+        'agency_mismatch' => 'The customer would be created in another agency than the one of the visit\'s property: switch to that agency\'s workspace.',
         'agent_not_staff' => 'The chosen agent must be on the property\'s agency staff.',
         'cannot_cancel' => 'This visit cannot be cancelled in its current state.',
         'cannot_complete' => 'This visit cannot be completed in its current state.',
         'cannot_mark_no_show' => 'Only a scheduled or confirmed visit whose time has passed can be marked as a no-show.',
         'closed' => 'A completed or cancelled visit can no longer be changed.',
+        // TCK-2716 — une visite rattachée n'est jamais rattachée à une autre fiche.
+        'customer_already_linked' => 'This visit already has a customer record.',
         'feedback_agent_only' => 'Only the agent in charge can give the agent feedback.',
         'feedback_not_completed' => 'Feedback is only possible once the visit is completed.',
         'feedback_visitor_only' => 'Only the visitor can give the customer feedback.',

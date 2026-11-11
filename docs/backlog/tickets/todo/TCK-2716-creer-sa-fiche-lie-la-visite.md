@@ -114,4 +114,29 @@ et « Créer sa fiche » ne s'offre plus sur cette visite.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Le prédicat unique** : `PropertyVisitPolicy::refusDeLaFicheDepuisLaVisite(User, PropertyVisit): ?array{statut, code}`,
+  lu par `CustomerController::store` (`refuseVisitLink`) et par `PropertyVisitResource::abilities.create_customer`
+  (`=== null`). Volontairement **hors de la Gate** : `Gate::before` ouvrirait tout au super-admin, dont la fiche
+  n'aurait pas d'agence. Ordre : (1) personnel actif (joignable + `isStaffAt`) de l'agence **du bien**, sinon
+  `403 visit.staff_only` — la double casquette, le bailleur, le visiteur, le super-admin hors agence, une visite
+  sans bien ou sur un bien sans agence ; (2) `staffAgencyId()` = agence du bien, sinon `422 visit.agency_mismatch`
+  (personnel de A sous l'espace de B) ; (3) visite sans fiche, sinon `422 visit.customer_already_linked`.
+  `PersonnelDeLAgence::personnelActifDe` n'a pas été pris tel quel : il compare déjà à l'espace actif, ce qui aurait
+  rendu (2) inatteignable.
+- **La transaction** : refus jugé avant toute écriture, puis la visite **verrouillée (`FOR UPDATE`) et rejugée en tête
+  de la transaction, AVANT** le verrou consultatif et le détecteur de doublons — sans cet ordre, la seconde de deux
+  créations simultanées (même téléphone) rendait le `409 customer.duplicate` au lieu de
+  `visit.customer_already_linked`. Le `409` reste rendu avant tout rattachement (le rattachement suit la création).
+  Seul `customer_id` est écrit (`forceFill`/`save`) ; `visitor_*` ne bougent pas.
+- **`property_visit_id`** : `sometimes|nullable|integer|exists:property_visits,id` (la table n'a pas de suppression
+  douce).
+- **Lecture de la visite refusée** : le bailleur d'un bien d'agence et le personnel d'une autre agence prennent 403 sur
+  `GET /api/property-visits/{id}` ; ils n'ont donc pas de `create_customer` à lire — le test le compte comme `false`.
+- **Front** : le préremplissage (`ficheDuVisiteur`) et le geste « Créer sa fiche » (`EtMaintenant`) ne s'allument que sur
+  `abilities.create_customer === true` ; la page `/app/customers/new?visite=<id>` passe `visiteDOrigine` à
+  `CustomerForm`, qui l'envoie en `property_visit_id`. Le texte « sans fiche » reste affiché sans le geste.
+- Tests : `tests/Feature/Crm/CreateCustomerFromVisitTest.php` (7) ; front : `CustomerForm.prerempli.tck-2581` étendu
+  (AC5, envoi de la visite, réponse sans `abilities`), `compte-rendu.tck-2581` (geste absent sans le droit),
+  `src/lib/visites/__tests__/fiche-du-visiteur.tck-2716.test.ts`. Ablations : 5 API et 5 front, toutes rouges.
+- **/sync-specs** : `docs/models-spec.md` § 17 (PropertyVisit) et la section CRM de `docs/features.md` ne décrivent ni
+  `property_visit_id` de `POST /api/customers` ni `abilities.create_customer`.

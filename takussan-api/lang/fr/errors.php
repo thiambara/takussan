@@ -698,11 +698,15 @@ return [
         'active_limit_reached' => 'Vous avez déjà :max visites en cours sur ce bien. Annulez-en une avant d\'en demander une autre.',
         'already_assigned' => 'Cette visite est déjà prise en charge par un autre membre de l\'agence.',
         // TCK-2585 — attribution en lot : l'agent désigné n'est pas du personnel de l'agence du bien.
+        // TCK-2716 — « Créer sa fiche » depuis une visite.
+        'agency_mismatch' => 'Le client naîtrait dans une autre agence que celle du bien de la visite : passez sur l\'espace de cette agence.',
         'agent_not_staff' => 'L\'agent choisi doit faire partie du personnel de l\'agence du bien.',
         'cannot_cancel' => 'Cette visite ne peut pas être annulée dans son état actuel.',
         'cannot_complete' => 'Cette visite ne peut pas être terminée dans son état actuel.',
         'cannot_mark_no_show' => 'Seule une visite planifiée ou confirmée dont l\'heure est passée peut être marquée absente.',
         'closed' => 'Une visite terminée ou annulée ne peut plus être modifiée.',
+        // TCK-2716 — une visite rattachée n'est jamais rattachée à une autre fiche.
+        'customer_already_linked' => 'Cette visite a déjà sa fiche client.',
         'feedback_agent_only' => 'Seul l\'agent en charge peut donner l\'avis de l\'agent.',
         'feedback_not_completed' => 'L\'avis n\'est possible qu\'une fois la visite terminée.',
         'feedback_visitor_only' => 'Seul le visiteur peut donner l\'avis du client.',

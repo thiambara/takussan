@@ -18,8 +18,10 @@ use App\Models\Enums\CustomerNoteKind;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\CustomerStatus;
 use App\Models\Lease;
+use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Models\UserCustomerRelationship;
+use App\Policies\PropertyVisitPolicy;
 use App\Services\Crm\CustomerActivityFeed;
 use App\Services\Crm\CustomerCommercialAttributes;
 use App\Services\Crm\CustomerDuplicateDetector;
@@ -63,35 +65,67 @@ class CustomerController extends Controller
     {
         $data = $request->validated();
         $allowDuplicate = (bool) ($data['allow_duplicate'] ?? false);
-        unset($data['allow_duplicate']);
+        $visitId = isset($data['property_visit_id']) ? (int) $data['property_visit_id'] : null;
+        unset($data['allow_duplicate'], $data['property_visit_id']);
 
         $user = $request->user();
         // TCK-591 — la fiche entre dans le CRM de l'agence où l'appelant est PERSONNEL
         // (`CustomerPolicy::create` l'a établi ; `null` pour le super-admin hors agence).
         $agencyId = $user->staffAgencyId();
 
+        // TCK-2716 — la visite d'origine : refusée AVANT toute écriture (403/422), puis rejugée sous
+        // son verrou dans la transaction.
+        $visit = $visitId !== null ? PropertyVisit::query()->with('property')->findOrFail($visitId) : null;
+        if ($visit !== null) {
+            $this->refuseVisitLink($user, $visit);
+        }
+
         // TCK-2054 (ADR-0073) — la détection et la création dans une même transaction, sous le
         // verrou consultatif de la fiche : deux créations simultanées du même client ne passent
         // plus toutes deux le détecteur. `allow_duplicate` saute la sonde, pas le verrou.
-        $customer = DB::transaction(function () use ($duplicates, $agencyId, $data, $user, $allowDuplicate): Customer {
+        $customer = DB::transaction(function () use ($duplicates, $agencyId, $data, $user, $allowDuplicate, $visit): Customer {
+            // TCK-2716 — la visite verrouillée et rejugée AVANT le détecteur : de deux créations
+            // simultanées depuis la même visite, la seconde lit la fiche de la première et rend
+            // `visit.customer_already_linked` (et non le doublon qu'elle aurait trouvé ensuite).
+            $locked = null;
+            if ($visit !== null) {
+                $locked = PropertyVisit::query()->whereKey($visit->getKey())->lockForUpdate()->firstOrFail();
+                $locked->setRelation('property', $visit->property);
+                $this->refuseVisitLink($user, $locked);
+            }
+
             CustomerDuplicateDetector::lockCreation($agencyId, $data['phone'] ?? null, $data['email'] ?? null);
 
             if (! $allowDuplicate) {
                 $this->refuseDuplicate($duplicates, $agencyId, $data, $user);
             }
 
-            return Customer::create(array_merge($data, [
+            $customer = Customer::create(array_merge($data, [
                 'added_by_id' => $user->id,
                 'agency_id' => $agencyId,
                 'status' => CustomerStatus::Active->value,
                 'pipeline_stage' => $data['pipeline_stage'] ?? CustomerPipelineStage::Lead->value,
             ]));
+
+            // Le seul `customer_id` : ni le nom, ni le téléphone, ni l'e-mail du visiteur ne sont réécrits.
+            $locked?->forceFill(['customer_id' => $customer->id])->save();
+
+            return $customer;
         });
 
         // TCK-953 — relue en entier : le masque de la pièce se calcule même si elle n'a pas été saisie.
         return $this->json([
             'data' => CustomerResource::make($customer->refresh())->resolve($request),
         ], 201);
+    }
+
+    /** TCK-2716 — le refus de `PropertyVisitPolicy::refusDeLaFicheDepuisLaVisite`, levé tel quel. */
+    private function refuseVisitLink(User $user, PropertyVisit $visit): void
+    {
+        $refus = PropertyVisitPolicy::refusDeLaFicheDepuisLaVisite($user, $visit);
+        if ($refus !== null) {
+            abort_code($refus[0], $refus[1]);
+        }
     }
 
     /**

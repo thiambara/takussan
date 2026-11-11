@@ -142,6 +142,8 @@ export interface CustomerFormPayload {
   locale?: (typeof customerLocaleValues)[number] | null;
   /** TCK-591 — `true` après un 409 `customer.duplicate` assumé (« Créer quand même »). */
   allow_duplicate?: boolean;
+  /** TCK-2716 — la visite d'où naît la fiche : l'API la rattache dans la transaction de création. */
+  property_visit_id?: number;
   seeking_contract_type?: (typeof seekingContractTypeValues)[number] | null;
   budget_min?: number | null;
   budget_max?: number | null;

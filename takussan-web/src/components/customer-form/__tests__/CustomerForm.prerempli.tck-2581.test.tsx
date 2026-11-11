@@ -50,6 +50,8 @@ const VISITE_SANS_FICHE = {
   visitor_name: 'Saisi PARLEVISITEUR',
   visitor_phone: '+221779999999',
   visitor_display: { name: 'Mouhamed Fall', phone: '+221770001122', kind: 'anonymous', visits_on_property: 1 },
+  // TCK-2716 — le droit, que l'API calcule par le prédicat de `POST /api/customers`.
+  abilities: { manage: true, create_customer: true },
 };
 
 async function page(recherche: Record<string, string>) {
@@ -93,6 +95,34 @@ describe('CustomerForm — prérempli depuis la visite (TCK-2581)', () => {
     await userEvent.setup().click(screen.getByRole('button', { name: 'Créer le client' }));
     await waitFor(() => expect(createCustomerAction).toHaveBeenCalledTimes(1));
     expect(String((createCustomerAction.mock.calls[0][0] as { phone?: string }).phone).replace(/\D/g, '')).toBe('221770001122');
+    // TCK-2716 — la fiche part avec sa visite d'origine : l'API l'y rattache.
+    expect(createCustomerAction.mock.calls[0][0]).toMatchObject({ property_visit_id: 228 });
+  });
+
+  it('TCK-2716 (AC5) — `abilities.create_customer` faux, la carte du visiteur servie : formulaire vierge, et la fiche part sans visite', async () => {
+    // Le cas que TCK-2717 rendra réel pour le bailleur : la carte lui sera servie, le droit non.
+    serveur.lire.mockResolvedValueOnce({ data: { ...VISITE_SANS_FICHE, abilities: { manage: false, create_customer: false } } });
+    createCustomerAction.mockResolvedValueOnce({ ok: true, data: { id: 9 } });
+    await page({ visite: '228' });
+
+    expect(screen.getByLabelText(/Prénom/)).toHaveValue('');
+    expect(screen.getByLabelText(/^Nom/)).toHaveValue('');
+    expect(document.body.innerHTML).not.toMatch(/770001122|Mouhamed/);
+
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText(/Prénom/), 'Awa');
+    await user.type(screen.getByLabelText(/^Nom/), 'Ba');
+    await user.type(screen.getByLabelText('Téléphone'), '77 123 45 67');
+    await user.click(screen.getByRole('button', { name: 'Créer le client' }));
+    await waitFor(() => expect(createCustomerAction).toHaveBeenCalledTimes(1));
+    expect(createCustomerAction.mock.calls[0][0]).not.toHaveProperty('property_visit_id');
+  });
+
+  it('TCK-2716 — une réponse sans `abilities` (lecture de liste, API d’avant) ne préremplit rien', async () => {
+    const { abilities: _droit, ...sansDroit } = VISITE_SANS_FICHE;
+    serveur.lire.mockResolvedValueOnce({ data: sansDroit });
+    await page({ visite: '228' });
+    expect(screen.getByLabelText(/Prénom/)).toHaveValue('');
   });
 
   it('un nom et un numéro posés dans l’URL ne préremplissent RIEN', async () => {

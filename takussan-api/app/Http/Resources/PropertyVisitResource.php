@@ -117,6 +117,10 @@ class PropertyVisitResource extends BaseResource
                 // un booléen, plutôt que la fiche. Ni la fenêtre ni le statut n'y entrent : le front
                 // les juge à part (`isFeedbackOpen`), l'API les refuse en 422.
                 'feedback_customer' => $this->lecteurEstLeDemandeur($request),
+                // TCK-2716 — « Créer sa fiche » : vrai exactement quand `POST /api/customers` avec
+                // `property_visit_id` réussirait pour ce lecteur (le même prédicat). Le front ne
+                // préremplit et n'offre le geste que sur lui, jamais sur `visitor_display`.
+                'create_customer' => PropertyVisitPolicy::refusDeLaFicheDepuisLaVisite($request->user(), $this->resource) === null,
             ]),
         ];
     }

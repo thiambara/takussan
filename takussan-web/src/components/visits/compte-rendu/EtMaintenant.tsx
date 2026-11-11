@@ -470,15 +470,18 @@ export function EtMaintenant({ visite, compteRendu, verdictEnCours = null, bien,
       {client === null ? (
         <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/50 p-3 text-sm">
           <p className="min-w-0 flex-1 text-pretty text-foreground">{t('sansFiche', { nom: nomClient })}</p>
-          <Link
-            // L'identifiant de la visite, et lui seul : la page la relit au serveur (`ficheDuVisiteur`).
-            // Un numéro dans l'URL part dans l'historique, les journaux et l'en-tête `Referer`.
-            href={`/app/customers/new?visite=${visite.id}`}
-            className="inline-flex h-10 flex-none items-center gap-1.5 rounded-lg border border-border bg-card px-3 font-medium text-foreground outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring"
-          >
-            <UserPlus className="size-4" strokeWidth={1.75} aria-hidden />
-            {t('creerFiche')}
-          </Link>
+          {/* TCK-2716 — le geste, sous le seul booléen de l'API : le prédicat de `POST /api/customers`. */}
+          {visite.abilities?.create_customer === true ? (
+            <Link
+              // L'identifiant de la visite, et lui seul : la page la relit au serveur (`ficheDuVisiteur`).
+              // Un numéro dans l'URL part dans l'historique, les journaux et l'en-tête `Referer`.
+              href={`/app/customers/new?visite=${visite.id}`}
+              className="inline-flex h-10 flex-none items-center gap-1.5 rounded-lg border border-border bg-card px-3 font-medium text-foreground outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring"
+            >
+              <UserPlus className="size-4" strokeWidth={1.75} aria-hidden />
+              {t('creerFiche')}
+            </Link>
+          ) : null}
         </div>
       ) : null}
 

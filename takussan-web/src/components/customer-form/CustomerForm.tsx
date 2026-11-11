@@ -62,6 +62,11 @@ interface CustomerFormProps {
    * sans fiche porte son nom et son téléphone. Ignoré en édition.
    */
   readonly initial?: { readonly first_name?: string; readonly last_name?: string; readonly phone?: string };
+  /**
+   * TCK-2716 — la visite d'où naît la fiche (`/app/customers/new?visite=<id>`, quand l'API rend
+   * `abilities.create_customer`) : envoyée en `property_visit_id`, l'API l'y rattache. Ignorée en édition.
+   */
+  readonly visiteDOrigine?: number;
 }
 
 function toDefaults(customer?: CustomerDetail): CustomerFormValues {
@@ -119,6 +124,7 @@ export function CustomerForm({
   compact,
   canRevealIdNumber = false,
   initial,
+  visiteDOrigine,
 }: CustomerFormProps) {
   const t = useTranslations('crm.form');
   const tCommon = useTranslations('common.actions');
@@ -183,7 +189,10 @@ export function CustomerForm({
         const result =
           mode === 'edit' && customer
             ? await updateCustomerAction(customer.id, payload)
-            : await createCustomerAction(sansStatut(payload));
+            : await createCustomerAction({
+                ...sansStatut(payload),
+                ...(visiteDOrigine !== undefined ? { property_visit_id: visiteDOrigine } : {}),
+              });
         if (!result.ok) {
           if (result.duplicates) setDuplicates(result.duplicates);
           throw new ApiError(result.status ?? 500, {
