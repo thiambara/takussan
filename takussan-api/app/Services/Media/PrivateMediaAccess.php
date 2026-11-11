@@ -85,9 +85,9 @@ class PrivateMediaAccess
      * L'URL signée de la conversion si la route peut la servir, sinon `null` : l'appelant retombe
      * alors sur l'original, le temps que la file la produise.
      */
-    public function signedConversionUrl(Media $media, string $conversion): ?string
+    public function signedConversionUrl(Media $media, string $conversion, ?DateTimeInterface $expiresAt = null): ?string
     {
-        return $this->servesConversion($media, $conversion) ? $this->signedUrl($media, conversion: $conversion) : null;
+        return $this->servesConversion($media, $conversion) ? $this->signedUrl($media, $expiresAt, $conversion) : null;
     }
 
     /** La conversion figure dans la liste de la collection, et elle est produite. */

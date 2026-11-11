@@ -9,6 +9,16 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class MessageResource extends BaseResource
 {
+    /**
+     * TCK-2736 (décision du porteur du 2026-11-11) — l'échéance des URL signées d'une pièce jointe
+     * (photo, PDF, note vocale) et de sa vignette : 5 minutes, comme la présignature de
+     * {@see PrivateMediaAccess::redirect()}. `media.private.show` est hors `auth:sanctum`, la
+     * signature y tient lieu d'autorisation : un participant retiré lisait un lien déjà reçu pendant
+     * les 30 minutes par défaut. La fenêtre est réduite, pas fermée ; le front relit le fil quand une
+     * pièce rend 403 à l'ouverture.
+     */
+    public const ATTACHMENT_URL_TTL_MINUTES = 5;
+
     public function toArray(Request $request): array
     {
         return [
@@ -42,6 +52,7 @@ class MessageResource extends BaseResource
     private function attachments(): array
     {
         $access = app(PrivateMediaAccess::class);
+        $expiresAt = now()->addMinutes(self::ATTACHMENT_URL_TTL_MINUTES);
 
         return $this->resource->getMedia('attachments')
             ->map(fn (Media $media): array => [
@@ -49,10 +60,10 @@ class MessageResource extends BaseResource
                 'name' => $media->file_name,
                 'mime_type' => $media->mime_type,
                 'size' => $media->size,
-                'url' => $access->signedUrl($media),
+                'url' => $access->signedUrl($media, $expiresAt),
                 // TCK-2631 — la vignette d'une photo jointe, signée comme l'original ; `null` pour
                 // une note vocale, un PDF, ou tant que la file `media` ne l'a pas produite.
-                'thumbnail_url' => $access->signedConversionUrl($media, 'thumbnail'),
+                'thumbnail_url' => $access->signedConversionUrl($media, 'thumbnail', $expiresAt),
             ])
             ->values()
             ->all();
