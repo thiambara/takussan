@@ -13,6 +13,9 @@
 # testing
 /coverage
 
+# fidélité au pixel (TCK-2684) : rapports, rideaux et images gelées des maquettes — jamais versionnés
+/.fidelite/
+
 # next.js
 /.next/
 /out/

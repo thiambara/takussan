@@ -118,4 +118,116 @@ Jamais une capture de la visionneuse vue au bureau : elle réduit le bureau à 7
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Relevés du 2026-11-11, machine **sous charge** (load average 50 à 190 sur 8 cœurs : d'autres agents
+mesuraient) — les durées ci-dessous décrivent la machine, pas l'outil. Toutes les passes au
+navigateur sous le verrou `.verrou-mesure`.
+
+**Ce qui est livré.**
+
+- `takussan-web/scripts/fidelite/` : `fidelite.mjs` (CLI : `releve`, `compare`, `geler`, `journal`,
+  `jetons`, `balayer`), `comparer.mjs` (logique PURE : ni fs, ni navigateur, ni `sharp`),
+  `inventaire.mjs` (expressions évaluées dans la page), `navigateur.mjs` (Chrome jetable, créneaux à
+  deux sous le dossier temporaire du système — partagés par les worktrees), `images.mjs` (`sharp`),
+  `jetons.php`, `personas.json` (adresse + disposition attendue, aucun jeton), `roles-coque.json`,
+  `fixtures/` (deux relevés réels + la perturbation E2).
+- Références gelées : `docs/qa/audit-ux-2026-11/fidelite/references/` — `retenues.json` (33 pages,
+  approche, `bureau1280`, revue du porteur), `<page>/gel.json` (le recensement de la visionneuse),
+  `<page>/<a>-<e>-<appareil>.json` (`telephone`, `bureau-1440`, `bureau-1280`), `JOURNAL.md` (généré).
+- `README.md`, modèle `TCK-NNNN.json`, exemple `exemple-notifications.json` (fiche de TCK-2634).
+- `src/__tests__/fidelite-comparer.test.ts` (29 tests) ; `sharp` 0.35.3 en devDependency exacte
+  (`npm install --package-lock-only` : diff du verrou de 7 lignes, `optional` → `devOptional`) ;
+  `/.fidelite/` ignoré.
+- `DemoTenantSeeder` (+ 4 tests, + une ligne dans `DatabaseSeeder`) : `locataire@agency1.demo.takussan.sn`.
+
+**Prémisses re-mesurées, et ce qui différait.**
+
+1. **La visionneuse n'est plus celle du prototype.** Les cadres sont des iframes (`?cadre=1`,
+   `CadreSeul`) : la voie du prototype (`rounded-[40px]`, `html{font-size:100%}` injecté) trouverait
+   le cadre et ne mesurerait rien (la maquette vit dans un autre document). La voie principale ouvre
+   `?…&cadre=1` dans une fenêtre de 390 × 844 (ou W × 900) : `rem` 16 sans rien injecter. `--rem 14.4`
+   injecte donc maintenant `html{font-size:90%}` (l'inverse du prototype). `--via visionneuse` relève
+   dans l'iframe (monde isolé CDP) : c'est le contrôle d'AC3.
+2. **La visionneuse retombe en silence** sur la première page/approche et borne l'écran
+   (`resoudre()`) : le relevé lit l'écran réellement rendu (`location.search` réécrit par `CadreMonte`)
+   et refuse un écart (mesuré : `app-inexistante` → « la visionneuse rend accueil/a/0 »).
+3. **AC1 n'était pas vrai avec l'attente fixe du prototype (2,5 s)** : sous charge, `/app/notifications`
+   rendait « Chargement… » (34 nœuds au lieu de 66) et deux relevés du bureau différaient par un
+   compteur de la barre latérale. Le relevé attend désormais un réseau calme (aucune requête en vol
+   depuis 1 s) puis l'absence de squelette, d'`aria-busy` et de « Chargement… » visibles ; il échoue
+   après 45 s (`--sans-attente-donnees` pour relever un état de chargement).
+4. **AC8 : l'onglet s'appelle « Interventions », pas « Maintenance ».** `dispositions.ts` donne au
+   locataire `libelles: { maintenance: 'interventions' }`. Mesuré : onglets du locataire
+   « Accueil · Paiements · Interventions · Messagerie · Menu », du client « Accueil · Favoris · Visites ·
+   Messagerie · Menu ». La disposition se prouve donc par les **liens** de la navigation
+   (`/app/payments`, `/app/maintenance`), pas par les libellés. Premier essai : la preuve lisait tous
+   les liens de la page et refusait le vrai locataire (son tableau de bord lie vers ses favoris, et sa
+   barre latérale garde « Mes recherches » repliée) — elle ne lit plus que `nav a[href]`.
+5. **Le locataire de démo n'existait pas** : `customer@agency1.demo.takussan.sn` porte `["customer"]`,
+   et les 66 comptes à bail actif ont des adresses tirées au hasard. `DemoTenantSeeder` rattache un
+   compte stable au locataire d'un bail ACTIF de la première agence standard dont le dossier client
+   n'a pas de compte (le plus fourni en paiements et interventions) — rien n'est inventé. Joué deux
+   fois sur la base de démo : « Locataire de démo : … (bail LS-7OTZZUAM) », puis « déjà en place » ;
+   `profileTypes()` = `["customer","tenant"]`.
+6. **Recensement** : par la liste « Écrans » que la visionneuse rend (ou le titre de l'iframe pour un
+   écran unique), et l'écran « sans bureau » par le panneau de repli qu'elle rend — jamais par un
+   motif dans les fichiers. Les pages dessinées à 1280 viennent des rapports des lots 1280 (f3 à f6) :
+   31 pages sur 33 (ni `app-notifications` ni `app-entree-connexion`) ; toutes leurs écrans bureau se
+   gèlent à 1280.
+7. **ADR-0107** : un relevé porte `rem`, `spacingPx` (mesuré par une sonde : `--spacing` se lit
+   « 0.25rem ») et `densite`. Téléphone : rem 16, densité ×1 exigés. Bureau : densité ×0,9 exigée,
+   rem **14,4 ou 16** acceptés — aujourd'hui 14,4 × 0,25rem = 3,6 px ; après TCK-2692, 16 × 0,225rem =
+   3,6 px. Les références sont des styles **calculés en px** : elles restent le contrat des deux côtés
+   de la bascule, et `compare` signale un `rem` différent en avertissement, jamais en écart. Ce qui
+   n'est **pas** mesuré ici : que TCK-2692 rende le même pixel — c'est son propre critère (ADR-0107 § 5),
+   et cet outil est l'instrument de cette mesure.
+8. **Délai global** : celui du prototype (150 s par processus) tuait `geler` au 8ᵉ relevé ; il vaut
+   désormais par navigateur.
+
+**Critères, mesurés.**
+
+- **AC1** — `/app/notifications` (admin) ×2 téléphone et ×2 bureau, maquette « Historique » ×2
+  téléphone et ×2 bureau : JSON identiques hors `meta`, PNG identiques à l'octet ; `compare` d'un
+  relevé contre son jumeau : 0 écart, 0 absent, 0 % de pixels (téléphone produit 50 conformes,
+  bureau produit 194, bureau maquette 253). La référence gelée `a-1-telephone` contre un relevé pris
+  1 h plus tôt : 0 écart, 0 %.
+- **AC2** — les six perturbations (`fixtures/perturber-e2.txt`, chacune vérifiée avant → après par le
+  script) contre la **référence gelée** : rapportées toutes les six, élément et propriété ; les seules
+  autres lignes sont leurs conséquences sur les mêmes éléments (la barre d'onglets plus haute remonte
+  de 4 px ; la puce « Tout » élargie de 2 px). Deux des six (graisse, couleur d'intertitre) ne se
+  voient que par les rôles de la fiche (`fixtures/roles-sensibilite.json`), comme dans l'essai D.
+  Test du dépôt : ablation de chacune des six comparaisons (hauteur, graisse, couleur de texte,
+  marges, rayon, couleur de bordure) → 1 ou 2 tests rouges chaque fois ; restauré, md5 identique.
+- **AC3** — `app-coque` téléphone : rem 16, en-tête 56 px, barre d'onglets 64 px ; `--rem 14.4` :
+  50,4 et 57,6 px. Relevé dans l'iframe de la visionneuse contre cadre seul : **0 écart** (54
+  conformes) ; pixels 0,44 % (composition de l'iframe dans la page, sous le seuil d'une zone).
+- **AC4** — **non mesuré par cet agent** : le gel complet (~600 relevés) revient à la session
+  principale, en lots (cf. ci-dessous). `app-notifications` est gelée (4 écrans × téléphone et 1440,
+  journal « complet : oui »).
+- **AC5** — arbre reconstitué SANS `src/app` (donc sans maquettes), avec l'outil, `fr.json` et les
+  références : `compare` de la référence gelée contre un relevé produit fonctionne, structurel seul
+  et dit (« image de la maquette absente »), mêmes comptes que dans l'arbre principal (27 écarts,
+  42 absents). `--base http://localhost:3100` **non mesuré** : aucun front de worktree n'était servi.
+- **AC6** — `--via visionneuse --fenetre 1000x700` : « cadre de la visionneuse à l'échelle 0.62
+  (attendu 1) » ; `/app/nexiste-pas` : « la page a répondu 404 » ; aucun fichier écrit. Les autres
+  motifs (largeur, rem, densité, polices, relevé vide, redirection) sont éprouvés par le test.
+- **AC7** — `git grep --untracked` de chacun des 9 jetons : 0 ; 76 fichiers de sortie (relevés,
+  rapports, sorties de `releve`, `geler`, `jetons`) : 0 jeton ; `~/.takussan-fidelite/` en `drwx------`,
+  `jetons.json` en `-rw-------` (umask posé avant l'écriture, `chmod` ensuite). Les jetons précédents
+  de l'outil sont révoqués à chaque frappe (pas d'accumulation en base), expiration 30 jours.
+- **AC8** — `--persona locataire` : téléphone et bureau acceptés, onglets « Paiements ·
+  Interventions » ; `--persona client --disposition locataire` : refusé (« aucun lien visible vers
+  /app/payments ; … /app/maintenance »), aucun fichier écrit.
+
+**Le gel, pour la session.** `node scripts/fidelite/fidelite.mjs geler --toutes` (depuis
+`takussan-web/`), à relancer tant qu'il sort en 6 (budget de 480 s atteint ; il reprend où il s'est
+arrêté). Coût mesuré sous charge : ~20 s par relevé (8 relevés de `app-notifications` en ~3 min) ;
+au repos, ~6-8 s. Ordre de grandeur : ~200 écrans × 2 + ~170 × 1280 ≈ 570 relevés. ⚠ Le gel ajoute
+~600 fichiers JSON : une PR de plus de 300 fichiers ne déclenche pas les filtres de chemins des CI
+API/Web — commit à part, ou CI déclenchée à la main.
+
+**Ce qui reste fragile** (annexe D, § 4.3, toujours vrai) : l'appariement du contenu d'un rôle par
+ordre de lecture se décale quand la structure diffère ; les sélecteurs `zone` sont approximatifs ; un
+relevé couvre un écran de haut (tranches par `--defiler`). Les gardes du dépôt qui rougissent en local
+(`check-champs-uniformes`, `check-destructive-contrast`, `check-feedback-states`,
+`check-heritage-encre`, `check-status-badge-unique`, `check-i18n`, `check-classes-emises`) lisent les
+maquettes locales ou d'autres chantiers en cours : aucune ne cite un fichier de ce ticket.

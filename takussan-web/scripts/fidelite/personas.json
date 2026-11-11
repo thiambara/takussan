@@ -1,0 +1,59 @@
+{
+  "_lisez-moi": "Personas de l'outil de fidélité (TCK-2684). Ni jeton ni mot de passe ici : les jetons sont frappés par `fidelite.mjs jetons`, hors du dépôt. `disposition` est la persona de la coque que le compte doit rendre (src/lib/navigation/dispositions.ts) ; le relevé la vérifie par les liens visibles (`dispositions` ci-dessous) avant de comparer. Les preuves ne lisent que les liens de la navigation (`nav`) : un locataire garde « Mes recherches » (favoris, visites) dans sa barre latérale, repliée ; ce qui le distingue d'un client, ce sont ses paiements et sa maintenance.",
+  "comptes": {
+    "admin": {
+      "email": "admin@dakarimmo.sn",
+      "disposition": "admin-agence"
+    },
+    "agent": {
+      "email": "agent1@dakarimmo.sn",
+      "disposition": "agent"
+    },
+    "proprietaire": {
+      "email": "owner1@dakarimmo.sn",
+      "disposition": "bailleur"
+    },
+    "prestataire": {
+      "email": "provider1@dakarimmo.sn",
+      "disposition": "prestataire"
+    },
+    "client": {
+      "email": "customer@agency1.demo.takussan.sn",
+      "disposition": "client"
+    },
+    "locataire": {
+      "email": "locataire@agency1.demo.takussan.sn",
+      "disposition": "locataire"
+    },
+    "admin2": {
+      "email": "admin@thies-properties.sn",
+      "disposition": "admin-agence"
+    },
+    "agent2": {
+      "email": "agent2@dakarimmo.sn",
+      "disposition": "agent"
+    },
+    "proprietaire2": {
+      "email": "owner2@dakarimmo.sn",
+      "disposition": "bailleur"
+    }
+  },
+  "dispositions": {
+    "locataire": {
+      "visibles": [
+        "/app/payments",
+        "/app/maintenance"
+      ],
+      "absents": []
+    },
+    "client": {
+      "visibles": [
+        "/app/favorites"
+      ],
+      "absents": [
+        "/app/payments",
+        "/app/maintenance"
+      ]
+    }
+  }
+}
