@@ -149,10 +149,11 @@ class BookingCustomerFieldsTest extends TestCase
     }
 
     /**
-     * Le bailleur du bien lit la réservation (TCK-1930), pas la fiche CRM : comme pour la visite
-     * (TCK-590), ni téléphone ni étape ni visites — ce sont des champs du personnel.
+     * Le bailleur du bien lit la réservation (TCK-1930) avec le téléphone et l'étape du candidat
+     * (décision du porteur, 2026-11-11 : il doit pouvoir le joindre) ; les visites passées restent
+     * un champ du personnel.
      */
-    public function test_the_landlord_reads_the_booking_without_the_staff_fields(): void
+    public function test_the_landlord_reads_the_phone_and_the_stage_but_not_the_visits(): void
     {
         $landlord = User::factory()->create();
         OwnerProfile::factory()->create(['user_id' => $landlord->id, 'agency_id' => $this->agency->id]);
@@ -162,9 +163,37 @@ class BookingCustomerFieldsTest extends TestCase
         $row = $this->getJson('/api/bookings?include=customer')->assertOk()->json('data.0');
 
         $this->assertSame($this->booking->id, $row['id']);
-        $this->assertArrayNotHasKey('phone', $row['customer']);
-        $this->assertArrayNotHasKey('pipeline_stage', $row['customer']);
+        $this->assertSame('+221771234567', $row['customer']['phone']);
+        $this->assertSame(CustomerPipelineStage::cases()[1]->value, $row['customer']['pipeline_stage']);
         $this->assertArrayNotHasKey('visits_on_property', $row);
+
+        $fiche = $this->getJson("/api/bookings/{$this->booking->id}?include=customer")->assertOk()->json('data.customer');
+        $this->assertSame('+221771234567', $fiche['phone']);
+    }
+
+    /** Le verdict « bailleur » coûte une requête pour la page, pas une par réservation. */
+    public function test_the_landlord_verdict_costs_one_query_for_the_page(): void
+    {
+        $count = function (): int {
+            Sanctum::actingAs($this->client->fresh());
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+            $this->getJson('/api/bookings?include=customer&per_page=50')->assertOk();
+            $n = collect(DB::getQueryLog())->filter(fn (array $q) => str_contains($q['query'], 'from "properties" where "id"'))->count();
+            DB::disableQueryLog();
+
+            return $n;
+        };
+        foreach (range(1, 2) as $_) {
+            Booking::factory()->create(['agency_id' => $this->agency->id, 'property_id' => Property::factory()->create(['agency_id' => $this->agency->id])->id, 'customer_id' => $this->booking->customer_id]);
+        }
+        $peu = $count();
+        foreach (range(1, 5) as $_) {
+            Booking::factory()->create(['agency_id' => $this->agency->id, 'property_id' => Property::factory()->create(['agency_id' => $this->agency->id])->id, 'customer_id' => $this->booking->customer_id]);
+        }
+
+        $this->assertSame(1, $peu);
+        $this->assertSame($peu, $count());
     }
 
     public function test_another_agency_staff_never_reads_the_booking(): void

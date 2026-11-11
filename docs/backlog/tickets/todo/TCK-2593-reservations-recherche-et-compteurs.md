@@ -100,3 +100,8 @@ sous `managed_by=me`, `search` et `property_id`, et pour le client. Lot lié (62
 et balayages) : vert hors `DateInventoryByValueTest`, qui demandait l'inscription de
 `BookingResource::visits_on_property` à `CLES_JAMAIS_ATTEINTES` (un entier, posée par `prime()`
 seul) — faite. Ablations : voir le rapport de l'agent.
+
+**Décision du porteur du 2026-11-11** (après livraison) : le bailleur du bien doit pouvoir joindre le
+candidat — il lit `customer.phone` et `customer.pipeline_stage` (bailleur au sens de
+`BailleurDuBien::est`, verdict préparé pour la page en une requête) ; `visits_on_property` reste au
+seul personnel. Épinglé par `BookingCustomerFieldsTest` (deux ablations rouges).

@@ -213,7 +213,7 @@ GET /api/properties/portfolio-summary?filter[user_id]=42
 | `filter[search]` | callback | TCK-2593 — référence, prénom et nom du client (casse repliée, accents non), titre du bien ; une saisie de chiffres et séparateurs (≥ 4 chiffres) cherche le téléphone de la fiche. SQL sous la portée de l'index, jamais Meilisearch |
 | `sort` | `-created_at`, `start_date`, `end_date` | |
 
-`GET /api/bookings/counts` (TCK-2593) rend `{data: {stay|application|offer: {pending, confirmed, rejected, cancelled, completed, expired}}}` sous la portée et les MÊMES filtres que l'index (`filter[managed_by]=me`, `filter[search]`…) : chaque case égale le `meta.total` de l'index filtré sur cette nature et ce statut. `include=customer` porte, pour le seul personnel de l'agence, `customer.phone`, `customer.pipeline_stage` et `visits_on_property` (visites terminées du client sur le bien).
+`GET /api/bookings/counts` (TCK-2593) rend `{data: {stay|application|offer: {pending, confirmed, rejected, cancelled, completed, expired}}}` sous la portée et les MÊMES filtres que l'index (`filter[managed_by]=me`, `filter[search]`…) : chaque case égale le `meta.total` de l'index filtré sur cette nature et ce statut. `include=customer` porte, pour le personnel de l'agence, `customer.phone`, `customer.pipeline_stage` et `visits_on_property` (visites terminées du client sur le bien) ; le bailleur du bien lit `customer.phone` et `customer.pipeline_stage`, pas `visits_on_property` (décision du porteur, 2026-11-11).
 
 ### Agency
 | Param | Type | Description |

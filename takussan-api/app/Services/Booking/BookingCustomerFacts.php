@@ -5,6 +5,7 @@ namespace App\Services\Booking;
 use App\Models\Booking;
 use App\Models\Enums\VisitStatus;
 use App\Rules\PersonnelDeLAgence;
+use App\Services\Property\BailleurDuBien;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,8 +17,9 @@ use Illuminate\Support\Facades\DB;
  *
  * **Le personnel** est jugé comme pour la fiche client d'une visite (TCK-590, passes 3 à 5) :
  * {@see PersonnelDeLAgence::personnelActifDe()} sur l'agence de la réservation, ou le super-admin.
- * Le client, le bailleur et l'agent d'une autre agence ne lisent ni l'un ni l'autre — la fiche est
- * du CRM de l'agence. Une réservation sans agence n'a pas de CRM d'agence : sa fiche n'est pas
+ * Le client et l'agent d'une autre agence ne lisent ni l'un ni l'autre — la fiche est du CRM de
+ * l'agence. Le BAILLEUR du bien lit le téléphone et l'étape, pas les visites (décision du porteur,
+ * 2026-11-11 : il doit pouvoir joindre le candidat). Une réservation sans agence n'a pas de CRM d'agence : sa fiche n'est pas
  * masquée, mais `visits_on_property`, servi au personnel, n'y a aucun lecteur.
  *
  * **Une visite du client** : celle de sa fiche (`customer_id`), ou celle de son compte
@@ -31,17 +33,23 @@ final class BookingCustomerFacts
 
     private const PERSONNEL = 'bookings.staff_of';
 
+    private const BAILLEUR = 'bookings.landlord_of';
+
     /**
      * @param  iterable<Booking>  $bookings
      */
     public static function prime(Request $request, iterable $bookings): void
     {
         $ids = [];
+        $biens = [];
         foreach ($bookings as $booking) {
             if ($booking->customer_id !== null && self::servesStaff($request, $booking)) {
                 $ids[] = (int) $booking->id;
+            } elseif ($booking->property_id !== null) {
+                $biens[(int) $booking->property_id] = true;
             }
         }
+        self::primeLandlord($request, array_keys($biens));
 
         $counts = $ids === [] ? [] : DB::table('bookings as b')
             ->join('customers as c', 'c.id', '=', 'b.customer_id')
@@ -81,7 +89,59 @@ final class BookingCustomerFacts
             return false;
         }
 
-        return ! self::servesStaff($request, $booking);
+        return ! self::servesStaff($request, $booking) && ! self::servesLandlord($request, $booking);
+    }
+
+    /**
+     * Décision du porteur (2026-11-11) : le bailleur du bien lit le téléphone et l'étape du
+     * candidat — il doit pouvoir le joindre. `visits_on_property` reste au seul personnel.
+     * Bailleur au sens de {@see BailleurDuBien::est()} (le créateur du bien, s'il est bailleur).
+     * Préparé pour la page par {@see self::primeLandlord()} ; hors `prime()`, une requête par bien.
+     */
+    /**
+     * Le verdict « bailleur » de chaque bien de la page, en UNE requête : jamais une par ligne.
+     *
+     * @param  list<int>  $propertyIds
+     */
+    private static function primeLandlord(Request $request, array $propertyIds): void
+    {
+        $user = $request->user();
+        if ($user === null || $propertyIds === []) {
+            return;
+        }
+        $biens = $request->attributes->get(self::BAILLEUR, []);
+        $manquants = array_values(array_diff($propertyIds, array_keys($biens)));
+        if ($manquants === []) {
+            return;
+        }
+        $lignes = DB::table('properties')->whereIn('id', $manquants)->get(['id', 'user_id', 'agency_id'])->keyBy('id');
+        foreach ($manquants as $id) {
+            $bien = $lignes->get($id);
+            $biens[$id] = $bien !== null && BailleurDuBien::est($user, $bien->user_id, $bien->agency_id);
+        }
+        $request->attributes->set(self::BAILLEUR, $biens);
+    }
+
+    private static function servesLandlord(Request $request, Booking $booking): bool
+    {
+        $user = $request->user();
+        if ($user === null || $booking->property_id === null) {
+            return false;
+        }
+
+        $biens = $request->attributes->get(self::BAILLEUR, []);
+        $id = (int) $booking->property_id;
+        if (! array_key_exists($id, $biens)) {
+            $bien = $booking->relationLoaded('property') && $booking->property !== null
+                && array_key_exists('user_id', $booking->property->getAttributes())
+                && array_key_exists('agency_id', $booking->property->getAttributes())
+                ? $booking->property
+                : DB::table('properties')->where('id', $id)->first(['user_id', 'agency_id']);
+            $biens[$id] = $bien !== null && BailleurDuBien::est($user, $bien->user_id, $bien->agency_id);
+            $request->attributes->set(self::BAILLEUR, $biens);
+        }
+
+        return $biens[$id];
     }
 
     private static function servesStaff(Request $request, Booking $booking): bool
