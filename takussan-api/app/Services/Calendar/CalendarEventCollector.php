@@ -142,7 +142,7 @@ class CalendarEventCollector
             $events = $events->merge($this->bookings($start, $end, $restrict));
         }
         if (in_array('visit', $types, true)) {
-            $events = $events->merge($this->visits($start, $end, $restrict, $mine, $userId));
+            $events = $events->merge($this->visits($start, $end, $restrict, $mine, $userId, $isAdmin, $staffAgencyIds));
         }
         if (in_array('task', $types, true)) {
             $events = $events->merge($this->tasks($start, $end, $mine, $userId, $isAdmin, $staffAgencyIds, $memberAgencyIds));
@@ -212,8 +212,16 @@ class CalendarEventCollector
         ]);
     }
 
-    /** @return Collection<int, array<string, mixed>> */
-    private function visits(Carbon $start, Carbon $end, \Closure $restrict, bool $mine, int $userId): Collection
+    /**
+     * TCK-2585 — un événement `visit` dit aussi avec qui et où (`visitor_name`, `address_line`,
+     * `neighborhood`), au super-admin et au PERSONNEL de l'agence du bien seulement (`$staffAgencyIds`,
+     * déjà bornées à l'agence de l'agenda) : le bailleur et le collaborateur hors personnel gardent
+     * l'événement sans ces clés. Le nom est celui de la fiche, à défaut celui saisi.
+     *
+     * @param  list<int>  $staffAgencyIds
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function visits(Carbon $start, Carbon $end, \Closure $restrict, bool $mine, int $userId, bool $isAdmin = false, array $staffAgencyIds = []): Collection
     {
         $query = PropertyVisit::query()
             ->whereIn('status', [VisitStatus::Scheduled, VisitStatus::Confirmed])
@@ -224,7 +232,9 @@ class CalendarEventCollector
             $query->where('agent_id', $userId);
         }
 
-        return $query->with('property:id,title,slug')->get()->map(function (PropertyVisit $v) {
+        // TCK-2585 — l'agence du bien, son adresse et la fiche : en trois requêtes pour la fenêtre.
+        return $query->with(['property:id,title,slug,agency_id', 'property.address', 'customer:id,first_name,last_name'])->get()->map(function (PropertyVisit $v) use ($isAdmin, $staffAgencyIds) {
+            $terrain = self::terrain($v, $isAdmin, $staffAgencyIds);
             $startAt = $v->scheduled_at;
             $endAt = $startAt && $v->duration_minutes
                 ? $startAt->copy()->addMinutes((int) $v->duration_minutes)
@@ -256,7 +266,7 @@ class CalendarEventCollector
                     'property_id' => $v->property_id,
                     'property_slug' => $v->property?->slug,
                     'resource_url' => "/app/visits/{$v->id}",
-                ];
+                ] + $terrain;
             }
 
             return [
@@ -273,8 +283,32 @@ class CalendarEventCollector
                 'property_id' => $v->property_id,
                 'property_slug' => $v->property?->slug,
                 'resource_url' => "/app/visits/{$v->id}",
-            ];
+            ] + $terrain;
         });
+    }
+
+    /**
+     * TCK-2585 — le visiteur et l'adresse d'une visite, pour le personnel de l'agence du bien ;
+     * aucune clé pour tout autre lecteur.
+     *
+     * @param  list<int>  $staffAgencyIds
+     * @return array{visitor_name?: ?string, address_line?: ?string, neighborhood?: ?string}
+     */
+    private static function terrain(PropertyVisit $v, bool $isAdmin, array $staffAgencyIds): array
+    {
+        $agencyId = $v->property?->agency_id;
+        if (! $isAdmin && ($agencyId === null || ! in_array((int) $agencyId, $staffAgencyIds, true))) {
+            return [];
+        }
+
+        $fiche = $v->customer !== null ? trim($v->customer->first_name.' '.$v->customer->last_name) : '';
+        $address = $v->property?->address;
+
+        return [
+            'visitor_name' => $fiche !== '' ? $fiche : $v->visitor_name,
+            'address_line' => $address?->street,
+            'neighborhood' => $address?->neighborhood,
+        ];
     }
 
     /**

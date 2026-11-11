@@ -10,9 +10,15 @@ use App\Models\Enums\VisitReportOutcome;
 use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitType;
 use App\Models\Enums\VisitWindow;
+use App\Rules\PersonnelDeLAgence;
+use App\Services\Visit\VisitSchedulingService;
+use App\Support\CaseInsensitive;
+use App\Support\Http\ParametreUnique;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Validator;
 use Spatie\QueryBuilder\AllowedFilter;
 
 class PropertyVisit extends AbstractModel
@@ -172,6 +178,50 @@ class PropertyVisit extends AbstractModel
                 $q->toClose();
             }
         });
+
+        // TCK-2585 — `filter[search]` : nom ou téléphone du visiteur, titre du bien. Le nom et le
+        // téléphone ne se cherchent que là où le lecteur les LIT (`PropertyVisitResource` les masque
+        // sur une visite à fiche hors du personnel de l'agence du bien) : sinon la recherche dirait
+        // au bailleur qu'un client de l'agence porte ce nom.
+        $filters[] = AllowedFilter::callback('search', function (Builder $q, mixed $value) {
+            $value = trim(ParametreUnique::valeur($value) ?? '');
+            if ($value === '') {
+                return;
+            }
+            $motif = '%'.addcslashes(CaseInsensitive::fold($value), '\\%_').'%';
+            $chiffres = preg_replace('/\D+/', '', $value) ?? '';
+            $viewer = request()->user();
+            $staff = $viewer === null ? [] : PersonnelDeLAgence::agencesOuPersonnelActif($viewer);
+
+            $q->where(function (Builder $w) use ($motif, $chiffres, $viewer, $staff) {
+                $w->whereHas('property', fn (Builder $p) => $p->whereRaw(CaseInsensitive::sql('title').' like ?', [$motif]))
+                    ->orWhere(function (Builder $personne) use ($motif, $chiffres, $viewer, $staff) {
+                        $personne->where(function (Builder $champ) use ($motif, $chiffres) {
+                            $champ->whereRaw(CaseInsensitive::sql('property_visits.visitor_name').' like ?', [$motif]);
+                            if (strlen($chiffres) >= 3) {
+                                $champ->orWhere('property_visits.visitor_phone', 'like', '%'.$chiffres.'%');
+                            }
+                        });
+                        if ($viewer?->isSuperAdmin() !== true) {
+                            $personne->where(fn (Builder $lisible) => $lisible
+                                ->whereNull('property_visits.customer_id')
+                                ->orWhereHas('property', fn (Builder $p) => $p->whereIn('agency_id', $staff)));
+                        }
+                    });
+            });
+        })->delimiter('');
+
+        // TCK-2585 — `filter[day]=YYYY-MM-DD` : la journée de Dakar, raccourci de
+        // `scheduled_at_min`/`scheduled_at_max` (début inclus, lendemain exclu).
+        $filters[] = AllowedFilter::callback('day', function (Builder $q, mixed $value) {
+            // Comme `RangeFilter` : une valeur mal formée (ou un tableau) rend 422 sur `filter.day`.
+            Validator::make(['filter' => ['day' => $value]], [
+                'filter.day' => ['string', 'date_format:Y-m-d'],
+            ])->validate();
+            $parsed = CarbonImmutable::createFromFormat('!Y-m-d', (string) $value, VisitSchedulingService::TIMEZONE);
+            $q->where('property_visits.scheduled_at', '>=', $parsed->utc())
+                ->where('property_visits.scheduled_at', '<', $parsed->addDay()->utc());
+        })->delimiter('');
 
         return $filters;
     }

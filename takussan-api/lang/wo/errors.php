@@ -687,6 +687,8 @@ return [
     'visit' => [
         'active_limit_reached' => 'Am nga ba noppi :max seeti yuy dox ci kër gii. Neenalal benn balaa ngay laaj beneen.',
         'already_assigned' => 'Seetaan bii, keneen ci ajaans bi moo ko jël.',
+        // TCK-2585 — attribution en lot : l'agent désigné n'est pas du personnel de l'agence du bien.
+        'agent_not_staff' => 'L\'agent choisi doit faire partie du personnel de l\'agence du bien.',
         'cannot_cancel' => 'Seeti bii mënuñu ko neenal ni mu nekke léegi.',
         'cannot_complete' => 'Seeti bii mënuñu ko jeexal ni mu nekke léegi.',
         'cannot_mark_no_show' => 'Seule une visite planifiée ou confirmée dont l\'heure est passée peut être marquée absente.',

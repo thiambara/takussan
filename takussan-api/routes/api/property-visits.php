@@ -5,6 +5,16 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('property-visits', [PropertyVisitController::class, 'index'])->name('property-visits.index');
+    // TCK-2585 — routes littérales AVANT `{visit}` : les compteurs des onglets, les créneaux libres
+    // de la console, la confirmation et l'attribution en lot (bornées comme la planification).
+    Route::get('property-visits/counts', [PropertyVisitController::class, 'counts'])->name('property-visits.counts');
+    Route::get('property-visits/slots', [PropertyVisitController::class, 'slots'])->name('property-visits.slots');
+    Route::post('property-visits/bulk-confirm', [PropertyVisitController::class, 'bulkConfirm'])
+        ->middleware('throttle:visit-planning')
+        ->name('property-visits.bulk-confirm');
+    Route::post('property-visits/bulk-assign', [PropertyVisitController::class, 'bulkAssign'])
+        ->middleware('throttle:visit-planning')
+        ->name('property-visits.bulk-assign');
     Route::get('property-visits/{visit}', [PropertyVisitController::class, 'show'])->name('property-visits.show');
     // TCK-590 — la planification confirmée fait partir un SMS : bornée par émetteur et par
     // destinataire (`visit-planning`, vérification adverse B2).

@@ -3,9 +3,13 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Models\Enums\VisitStatus;
+use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Policies\PropertyVisitPolicy;
 use App\Rules\PersonnelDeLAgence;
+use App\Services\Media\PublicPhotoUrl;
+use App\Services\Visit\VisitReadContext;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Route;
 
@@ -43,11 +47,23 @@ class PropertyVisitResource extends BaseResource
             'rating' => $this->rating !== null ? (float) $this->rating : null,
             'notes' => $this->notes,
             'metadata' => $this->metadata,
-            'property' => $this->whenLoaded('property', fn () => [
+            'property' => $this->whenLoaded('property', fn () => $this->property === null ? null : [
                 'id' => $this->property->id,
                 'title' => $this->property->title,
                 'slug' => $this->property->slug,
+                // TCK-2585 — la photo du bien, par le seul chemin des URL publiques (jamais l'original,
+                // filigrane respecté) ; l'adresse, au personnel et au propriétaire toujours, au
+                // visiteur une fois la visite confirmée (décision du porteur du 2026-11-10, § 1.3) :
+                // clé ABSENTE sinon.
+                'cover_url' => ($media = $this->property->getFirstMedia('photos')) !== null
+                    ? PublicPhotoUrl::upTo($media, 'preview', fn () => $this->property->requiresWatermark())
+                    : null,
+                ...($this->adresseLisible($request) ? ['address' => self::adresse($this->property)] : []),
             ]),
+            // TCK-2585 — le visiteur tel que la carte le montre : la fiche, à défaut le compte, à défaut
+            // le nom saisi ; « 1re visite » ou « revient » (`visits_on_property`, celle-ci comprise).
+            // Masqué comme `visitor_name` : `null` quand la fiche n'est pas lisible.
+            'visitor_display' => $this->visitorDisplay($request),
             'visitor' => $this->whenLoaded('visitor', fn () => $visiteurLisible && $this->visitor ? [
                 'id' => $this->visitor->id,
                 'first_name' => $this->visitor->first_name,
@@ -91,6 +107,108 @@ class PropertyVisitResource extends BaseResource
                     && PropertyVisitPolicy::agitPourLeBien($request->user(), $this->resource),
             ]),
         ];
+    }
+
+    /**
+     * TCK-2585 — l'adresse d'un bien, sous la forme de la carte du lieu.
+     *
+     * @return array{line: ?string, neighborhood: ?string, city: ?string, latitude: ?float, longitude: ?float}|null
+     */
+    public static function adresse(Property $property): ?array
+    {
+        $address = $property->address;
+        if ($address === null) {
+            return null;
+        }
+
+        return [
+            'line' => $address->street,
+            'neighborhood' => $address->neighborhood,
+            'city' => $address->city,
+            'latitude' => $address->latitude !== null ? (float) $address->latitude : null,
+            'longitude' => $address->longitude !== null ? (float) $address->longitude : null,
+        ];
+    }
+
+    /**
+     * TCK-2585 — qui lit l'adresse du bien d'une visite : le super-admin, le personnel actif de
+     * l'agence du bien, le propriétaire du bien ; tout autre lecteur de la visite (le visiteur, le
+     * client de la fiche) seulement une fois la visite confirmée. Jugé sur les valeurs RELUES
+     * (`VisitReadContext`) : sous sparse fieldsets, l'agence, le propriétaire et le statut peuvent
+     * manquer à la ligne rendue. Rien de connu : fermé.
+     */
+    private function adresseLisible(Request $request): bool
+    {
+        $user = $request->user();
+        if ($user === null) {
+            return false;
+        }
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        $ctx = VisitReadContext::for($request, $this->resource);
+        if ($ctx === null) {
+            return false;
+        }
+        if ($ctx['owner_id'] !== null && $ctx['owner_id'] === (int) $user->id) {
+            return true;
+        }
+        if ($ctx['agency_id'] !== null && $this->personnelDe($request, $ctx['agency_id'])) {
+            return true;
+        }
+
+        return $ctx['status'] === VisitStatus::Confirmed->value;
+    }
+
+    /**
+     * TCK-2585 — la carte du visiteur est un outil de la console : au super-admin, au personnel actif
+     * de l'agence du bien, au propriétaire d'un bien sans agence ; `null` pour tout autre lecteur
+     * (le visiteur, le client, le bailleur d'un bien d'agence) — comme `visits_on_property` d'une
+     * réservation (TCK-2593). Jugé sur les valeurs RELUES : la ligne rendue peut ne porter ni la
+     * fiche ni l'agence.
+     *
+     * @return array{name: ?string, phone: ?string, kind: string, visits_on_property: int}|null
+     */
+    private function visitorDisplay(Request $request): ?array
+    {
+        $user = $request->user();
+        $ctx = $user !== null ? VisitReadContext::for($request, $this->resource) : null;
+        if ($ctx === null) {
+            return null;
+        }
+        $lisible = $user->isSuperAdmin()
+            || ($ctx['agency_id'] !== null
+                ? $this->personnelDe($request, $ctx['agency_id'])
+                : $ctx['owner_id'] === (int) $user->id);
+        if (! $lisible) {
+            return null;
+        }
+
+        return [
+            'name' => $ctx['customer_name'] ?? $ctx['visitor_name'],
+            'phone' => $ctx['visitor_phone'] ?? $ctx['customer_phone'],
+            'kind' => $ctx['customer_id'] !== null ? 'customer' : ($ctx['visitor_id'] !== null ? 'account' : 'anonymous'),
+            'visits_on_property' => $ctx['visits_on_property'],
+        ];
+    }
+
+    /** Personnel actif de l'agence, jugé une fois par agence et par requête (comme le compte rendu). */
+    private function personnelDe(Request $request, int $agencyId): bool
+    {
+        $personnelDe = $request->attributes->get('visits.staff_agencies');
+        if (is_array($personnelDe)) {
+            return in_array($agencyId, $personnelDe, true);
+        }
+
+        $user = $request->user();
+        $verdicts = $request->attributes->get('visits.staff_of', []);
+        if (! array_key_exists($agencyId, $verdicts)) {
+            $verdicts[$agencyId] = $user !== null && PersonnelDeLAgence::personnelActifDe($user, $agencyId);
+            $request->attributes->set('visits.staff_of', $verdicts);
+        }
+
+        return $verdicts[$agencyId];
     }
 
     private function isDetailRequest(Request $request): bool
