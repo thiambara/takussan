@@ -4,10 +4,12 @@ namespace App\Console\Commands;
 
 use App\Models\Agency;
 use App\Models\ThresholdAlert;
-use App\Models\User;
 use App\Notifications\ThresholdAlertTriggered;
 use App\Services\Dashboard\KpiResolver;
+use App\Services\Dashboard\ThresholdAlertReading;
+use App\Services\Dashboard\ThresholdAlertRecipients;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Throwable;
 
@@ -58,18 +60,33 @@ class CheckThresholdAlertsCommand extends Command
                     continue;
                 }
 
-                $recipients = User::query()
-                    ->whereHas('agencyAdminProfiles', fn ($qq) => $qq->active()->where('agency_id', $agency->id))
-                    ->get();
+                // TCK-2627 — la requête que la lecture de l'alerte nomme aussi.
+                $recipients = ThresholdAlertRecipients::query((int) $agency->id)->get();
 
                 // P123.05 (TCK-1249) — marquée AVANT l'envoi, et l'échec rattrapé par alerte : un
                 // courriel qui levait laissait la cloche écrite et `last_triggered_at` nul, arrêtait
                 // la boucle sur les agences suivantes, et le passage horaire suivant récrivait la
                 // cloche. `cooldown_hours` promet un déclenchement par fenêtre, envoi réussi ou non.
-                $alert->forceFill([
-                    'last_triggered_at' => now(),
-                    'last_value' => $value,
-                ])->save();
+                // TCK-2627 — le déclenchement entre au journal dans la MÊME transaction que
+                // `last_triggered_at`, avant l'envoi : l'historique ne perd pas une alerte dont le
+                // courriel a levé, et ne garde pas une entrée que la marque n'a pas suivie.
+                DB::transaction(function () use ($alert, $value, $recipients): void {
+                    $alert->forceFill([
+                        'last_triggered_at' => now(),
+                        'last_value' => $value,
+                    ])->save();
+
+                    activity(ThresholdAlertReading::LOG_NAME)
+                        ->performedOn($alert)
+                        ->event(ThresholdAlertReading::EVENT)
+                        ->withProperties([
+                            'value' => $value,
+                            'threshold' => (float) $alert->threshold,
+                            'operator' => $alert->operator,
+                            'recipients_count' => $recipients->count(),
+                        ])
+                        ->log(ThresholdAlertReading::EVENT);
+                });
 
                 $fired++;
 

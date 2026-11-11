@@ -113,6 +113,9 @@ class ValeursEnListeParcoursDesRoutesTest extends ApiTestCase
         'api/public/agencies/{slug}' => '{slug} : sans liaison de modèle',
         'api/public/agencies/{slug}/properties' => '{slug} : sans liaison de modèle',
         'api/service-provider-bills/{bill}' => '{bill} : sans liaison de modèle',
+        // TCK-2627 — liée (`ThresholdAlert $thresholdAlert`), mais sous le nom `{threshold_alert}` de
+        // `apiResource`, que ce parcours ne rapproche pas ; et `ThresholdAlert` n'a pas de fabrique.
+        'api/threshold-alerts/{threshold_alert}' => '{threshold_alert} : sans liaison de modèle',
         'api/webhooks/sms/lafricamobile/status/{token}/{notification}' => '{token} : sans liaison de modèle',
         'api/webhooks/whatsapp/status/{token}' => '{token} : sans liaison de modèle',
         'api/webhooks/whatsapp/radar/{token}' => '{token} : sans liaison de modèle',

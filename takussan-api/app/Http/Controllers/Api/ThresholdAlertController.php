@@ -8,14 +8,18 @@ use App\Http\Requests\Api\UpdateThresholdAlertRequest;
 use App\Http\Resources\ThresholdAlertResource;
 use App\Models\ThresholdAlert;
 use App\Policies\AgencyIndicatorPolicy;
+use App\Services\Dashboard\ThresholdAlertReading;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 
 /**
  * TCK-032 P3 — CRUD for per-agency alert thresholds.
  */
 class ThresholdAlertController extends Controller
 {
+    public function __construct(private readonly ThresholdAlertReading $reading) {}
+
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -33,7 +37,29 @@ class ThresholdAlertController extends Controller
             ->paginate();
 
         // TCK-2045 (P61.04) — par la ressource, et non plus le modèle brut.
-        return $this->paginated($paginator, ThresholdAlertResource::collection($paginator)->toArray($request));
+        // TCK-2627 — plus la valeur actuelle, les destinataires et les canaux, lus pour toute la page.
+        return $this->paginated($paginator, $this->withReading(collect($paginator->items()), $request));
+    }
+
+    /** TCK-2627 — une alerte, sous la règle de la liste ({@see AgencyIndicatorPolicy::view()}). */
+    public function show(Request $request, ThresholdAlert $thresholdAlert): JsonResponse
+    {
+        $this->authorize('view', $thresholdAlert);
+
+        return $this->json(['data' => $this->withReading(collect([$thresholdAlert]), $request)[0]]);
+    }
+
+    /**
+     * @param  Collection<int, ThresholdAlert>  $alerts
+     * @return list<array<string, mixed>>
+     */
+    private function withReading(Collection $alerts, Request $request): array
+    {
+        $includes = array_filter(explode(',', (string) $request->query('include', '')));
+        $reading = $this->reading->forAlerts($alerts, in_array('triggers', $includes, true));
+
+        return $alerts->map(fn (ThresholdAlert $alert): array => (new ThresholdAlertResource($alert))->resolve($request)
+            + ($reading[(int) $alert->id] ?? []))->values()->all();
     }
 
     public function store(StoreThresholdAlertRequest $request): JsonResponse

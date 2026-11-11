@@ -88,4 +88,34 @@ Sans objet (ticket API). Écrans servis : TCK-2629 (« Alertes », « Exports »
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+**Re-mesure (2026-11-11, branche `feat/audit-ux-app-lot-1`)** : le Contrat de données est juste sur trois points (`last_value` écrite au seul déclenchement ; aucun historique ; journal `data_exported` jamais relu). Trois écarts :
+
+1. **`show` n'existait pas** : `threshold-alerts` n'exposait que `index/store/update/destroy`. Ajouté, sous `AgencyIndicatorPolicy::view` (neuve), qui reprend la règle de la liste : le personnel de l'agence (`staffAgencyId`) ou le super-admin.
+2. **Canaux** : le vocabulaire des canaux de notification sur le fil est `inapp` (`PreferenceResolver::CHANNEL_INAPP`, déjà lu par le front pour les recherches sauvegardées), pas `in_app`. Pour rester cohérent avec ce vocabulaire, `channels` rend `["inapp", "email"]` (`ThresholdAlertTriggered::CHANNELS`, qui reprend les deux constantes de `via()`).
+3. **Instants** : `at` sort dans la forme du dépôt (`BaseResource::instantOnWire`, `…+00:00`).
+
+**Ce qui est fait**
+
+- `ThresholdAlertReading` (service) ajoute à chaque alerte `current_value`, `recipients {count, users [{id, name}]}` et `channels`, plus `triggers [{at, value}]` sur `include=triggers` (les 10 derniers, le plus récent d'abord). Le coût ne dépend pas du nombre d'alertes :
+  - une résolution `KpiResolver::forAgency` et une requête de destinataires par agence de la page, donc une seule pour le personnel ;
+  - une requête `ROW_NUMBER()` pour tous les déclenchements.
+
+  `current_value` vaut `null` quand la métrique est `null`.
+- `include=triggers` est déclaré à spatie par `AllowedInclude::custom('triggers', InclusionLueParLeControleur)` (`app/Support/Query/`), une inclusion sans relation que le contrôleur lit. Sans elle, spatie rendait 400.
+- `ThresholdAlertRecipients::query()` : la requête des destinataires, extraite du passage horaire et relue par la lecture de l'alerte.
+- `CheckThresholdAlertsCommand` écrit `activity('threshold_alert')`, `event=triggered`, sur le sujet (l'alerte, donc `agency_id` du journal résolu par `AuditAgencyResolver`). Propriétés : `value`, `threshold`, `operator`, `recipients_count`. L'écriture se fait dans le même `DB::transaction` que `last_triggered_at`, avant l'envoi.
+- `GET /api/me/exports` (`MeExportsController`, `ListMeExportsRequest` avec `limit` 1..50, 10 par défaut, 422 au-delà) lit le journal `export`/`data_exported` de l'appelant (`causer`) dans son agence active. L'agence active se lit par la même expression que l'écrivain (`staffAgencyId() ?? agency_id`), comparée à la colonne `agency_id` du journal. Forme : `{at, entity, format, filters {from, to}, row_count}`.
+- La route est dans un fichier neuf, `routes/api/me-exports.php`, car `me.php` porte des modifications en cours d'une autre voie (TCK-2649).
+- `ValeursEnListeParcoursDesRoutesTest::HORS_PARCOURS` nomme la route neuve `threshold-alerts/{threshold_alert}`, que le parcours ne rapproche pas de `$thresholdAlert`. `ThresholdAlert` n'a pas de fabrique.
+
+**Tests** :
+
+- `ThresholdAlertCurrentValueTest` (5 : AC1 ; `null` sans dénominateur ; une seule résolution pour toutes les métriques ; requêtes constantes de 1 à 5 alertes ; `show` et refus inter-agence) ;
+- `ThresholdAlertTriggersHistoryTest` (3 : deux passages donnent deux entrées et le cooldown respecté n'en écrit pas ; un envoi qui lève garde l'entrée ; plafond de 10 par alerte) ;
+- `MeExportsTest` (4 : AC3 par deux vrais exports ; agence active et ordre ; 10/50/422 ; invité refusé).
+
+AC3 : B est un second **admin** et non un agent. Le rôle système d'agent n'a pas `reports.export`, son export de biens rendrait 403 et n'écrirait rien.
+
+Ablations D1 à D12, toutes rouges puis restaurées (md5). D1 est AC4.
+
+Voisins : 131 tests verts (alertes, indicateurs, gouvernance, exports, notifications) ; gardes de parcours des routes et des includes vertes.

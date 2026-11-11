@@ -30,6 +30,21 @@ class AgencyIndicatorPolicy
         return $agency !== null && $this->managesIndicatorsOf($user, $agency);
     }
 
+    /**
+     * TCK-2627 — lire une alerte (`GET threshold-alerts/{id}`) : la règle de la liste, le PERSONNEL
+     * de son agence (TCK-587, ADR-0031) ou le super-admin.
+     */
+    public function view(User $user, KpiConfig|ThresholdAlert $indicator): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        $staffAgencyId = $user->staffAgencyId();
+
+        return $staffAgencyId !== null && (int) $staffAgencyId === (int) $indicator->agency_id;
+    }
+
     public function update(User $user, KpiConfig|ThresholdAlert $indicator): bool
     {
         return $this->managesIndicatorsOf($user, $indicator->agency);
