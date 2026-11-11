@@ -29,6 +29,8 @@ class ReservationNatureReadersTest extends TestCase
 
     private Booking $candidature;
 
+    private Booking $offre;
+
     private Booking $sejour;
 
     protected function setUp(): void
@@ -38,10 +40,15 @@ class ReservationNatureReadersTest extends TestCase
         Carbon::setTestNow('2026-11-15 10:00:00');
         $this->buildStakeholders();
 
-        // Dix nuits de candidature, trois de séjour, en novembre.
+        // Dix nuits de candidature, trois d'offre, trois de séjour, en novembre. L'offre est là pour
+        // qu'un filtre écrit « tout sauf la candidature » rougisse aussi (contre-vérification).
         $this->candidature = $this->bookingOfClient([
             'kind' => BookingKind::Application, 'status' => BookingStatus::Confirmed, 'confirmed_at' => now(),
             'start_date' => '2026-11-03', 'end_date' => '2026-11-13',
+        ]);
+        $this->offre = $this->bookingOfClient([
+            'kind' => BookingKind::Offer, 'status' => BookingStatus::Confirmed, 'confirmed_at' => now(),
+            'start_date' => '2026-11-15', 'end_date' => '2026-11-18',
         ]);
         $this->sejour = $this->bookingOfClient([
             'kind' => BookingKind::Stay, 'status' => BookingStatus::Confirmed, 'confirmed_at' => now(),
@@ -66,6 +73,8 @@ class ReservationNatureReadersTest extends TestCase
         $this->assertStringContainsString('DTSTART;VALUE=DATE:20261120', $body);
         $this->assertStringNotContainsString('DTSTART;VALUE=DATE:20261103', $body);
         $this->assertStringNotContainsString("booking-{$this->candidature->id}@takussan", $body);
+        $this->assertStringNotContainsString('DTSTART;VALUE=DATE:20261115', $body);
+        $this->assertStringNotContainsString("booking-{$this->offre->id}@takussan", $body);
     }
 
     public function test_l_agenda_ne_montre_que_le_sejour(): void
@@ -82,7 +91,7 @@ class ReservationNatureReadersTest extends TestCase
     {
         Sanctum::actingAs($this->landlord);
 
-        // 3 nuits sur 30, et non 13 : la candidature n'occupe rien.
+        // 3 nuits sur 30, et non 16 : ni la candidature ni l'offre n'occupent rien.
         $this->assertEquals(10.0, $this->getJson('/api/dashboard/owner')->assertOk()->json('data.occupancy.short_stay_percent'));
     }
 

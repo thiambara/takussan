@@ -31,6 +31,10 @@ export function usePropertyUnavailabilities(propertyId: number, from: string, to
  * TCK-1369 (P135.03) — TOUS les séjours confirmés du bien, page par page. Aucun séjour ne passe à
  * `completed` : une seule page de 100, triée par `start_date` croissant, perdait au 101ᵉ les
  * séjours les plus récents, donc ceux à venir, et le calendrier montrait libres des nuits réservées.
+ *
+ * TCK-2735 (ADR-0102 § 3) — des SÉJOURS seulement (`filter[kind]=stay`) : une candidature ou une
+ * offre confirmée, restée sur un bien devenu loué à la nuit, n'est pas une nuit réservée. Même règle
+ * que l'export iCal du bien et que la disponibilité.
  */
 export function usePropertyConfirmedStays(propertyId: number) {
   const locale = useLocale();
@@ -43,7 +47,7 @@ export function usePropertyConfirmedStays(propertyId: number) {
         apiRequest<PaginatedResponse<Booking>>(
           cheminApi`/api/bookings${requete(buildQueryString({
             fields: { bookings: ['id', 'reference_number', 'status', 'start_date', 'end_date', 'property_id'] },
-            filter: { property_id: propertyId, status: 'confirmed' },
+            filter: { property_id: propertyId, status: 'confirmed', kind: 'stay' },
             sort: ['start_date'],
             page,
             per_page: PAR_PAGE_MAX,
