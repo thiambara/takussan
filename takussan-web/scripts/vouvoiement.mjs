@@ -17,9 +17,13 @@
  *    « attend »), et seul « je » les précède à l'indicatif — d'où l'exclusion de « je ».
  * 3. **Les impératifs AMBIGUS** (`IMPERATIFS`), en TÊTE DE PROPOSITION seulement : début du texte,
  *    après une fin de phrase, un tiret, un deux-points, un point-virgule, une parenthèse, un
- *    guillemet ou un connecteur (« Ensuite, », « puis », « et »), en toute casse. Ailleurs, « envoie »,
- *    « garde » ou « crée » sont une 3ᵉ personne, un nom ou un participe. Plus la forme négative
- *    `N’hésite pas`, `Ne … pas` / `plus` / `jamais` sur ces mêmes verbes.
+ *    guillemet ou un connecteur (« ensuite », « puis », « alors », « sinon », « enfin », « d'abord »,
+ *    virgule facultative — PAS « et », qui suit trop souvent un sujet déjà posé : « … et garde son
+ *    avis »), en toute casse, puis suivis d'une espace et d'une lettre (le drapeau `i` ne distingue pas
+ *    la casse : « Partage Facebook » est signalé, « Partage » seul ne l'est pas) ou d'un pronom lié
+ *    (« envoie-le »). Ailleurs, « envoie », « garde » ou « crée » sont une 3ᵉ personne, un nom ou un
+ *    participe. Plus la forme négative `N’hésite pas`, `Ne … pas` / `plus` / `jamais` sur ces mêmes
+ *    verbes.
  *
  * La liste 3 est FERMÉE parce que la conjugaison ne se devine pas : « Choisis » est aussi un participe
  * (« Choisis sur Takussan et partagés avec vous »), « Envoie » une 3ᵉ personne des descriptions de la
@@ -72,8 +76,9 @@ const IMPERATIF_SANS_HOMONYME = new RegExp(
 const TETE = `(?:^\\s*|[.!?…]\\s+|[—–:;(«“"]\\s*|\\n\\s*|(?<!${LETTRE})(?:ensuite|puis|alors|sinon|enfin|d['’]abord),?\\s+)`;
 
 /**
- * Suivi d'un mot en minuscule ou d'un pronom lié (« envoie-le ») : « Partage » ou « Continue » seuls
- * sont des titres, pas des ordres.
+ * Suivi d'une espace et d'une lettre — en toute casse sous le drapeau `i`, donc « Partage Facebook »
+ * rougit — ou d'un pronom lié (« envoie-le ») : « Partage » ou « Continue » seuls sont des titres,
+ * pas des ordres.
  */
 const IMPERATIF_EN_TETE = new RegExp(
   `${TETE}(${ALTERNANCE(IMPERATIFS)})(?=\\s+[a-zà-ÿ'’]|-(?:le|la|les|moi|nous|lui|leur|y|en)(?!${LETTRE}))`,

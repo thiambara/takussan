@@ -5260,8 +5260,8 @@
         "owner-onboarding": "Création de votre espace propriétaire",
         "agent-onboarding": "Création de votre espace agent",
         "customer-onboarding": "Création de votre espace locataire",
-        "owner-kyc": "Vérification d’identité (propriétaire)",
-        "agent-kyc": "Vérification d’identité (agent)",
+        "owner-kyc": "Vos pièces justificatives (propriétaire)",
+        "agent-kyc": "Vos pièces justificatives (agent)",
         "sp-onboarding": "Création de votre espace prestataire",
         "agency-upgrade": "Passage en pro",
         "property-create-wizard": "Publication d’un bien"

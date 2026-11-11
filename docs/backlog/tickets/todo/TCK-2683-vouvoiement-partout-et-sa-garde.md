@@ -190,8 +190,12 @@ La vérification a refusé le ticket : deux textes tutoyaient encore, et la gard
   propre avis », « … et complète les conditions ») ; les noms « Demande », « Note », « Relance » en tête
   (50 faux positifs : « Demande en cours », « Note moyenne ») ; un impératif ambigu au milieu d'une
   proposition sans connecteur ; « Ne touche à rien » (négation sans `pas`, et 3ᵉ personne de
-  `superAdmin.operatorLevels.viewer.hint`). ADR-0095 dit désormais ce que la garde voit, et ce
-  qu'elle ne voit pas.
+  `superAdmin.operatorLevels.viewer.hint`) ; dans le texte JSX, l'effacement des identifiants retire
+  aussi un mot de phrase suivi de « : », « ( », « = » ou « . » (« Attention : reviens » garde
+  « reviens », mais « Réessaie (dans 5 min) » perd « Réessaie ») et tout mot en capitales (« TON
+  ADRESSE »). À l'inverse, sous le drapeau `i`, un impératif ambigu suivi d'une majuscule rougit
+  (« Partage Facebook ») : pas de faux positif aujourd'hui, mais à savoir. ADR-0095 dit désormais ce
+  que la garde voit, et ce qu'elle ne voit pas.
 - **Ablations** (une par trou, `cp` + `md5`, fichier restauré) : ancienne capture JSX → 5 rouges ;
   `te` retiré → 3 rouges ; tête de proposition ramenée au début de phrase → 3 rouges ; impératifs sans
   homonyme coupés → 8 rouges ; effacement des identifiants coupé → 1 rouge et 14 écarts sur `src/`.
