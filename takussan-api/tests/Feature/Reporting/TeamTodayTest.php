@@ -315,4 +315,22 @@ class TeamTodayTest extends ApiTestCase
         $this->assertSame(0, $lignes[$awa->id]['open_leads_count'], 'demande de B comptée chez A');
         $this->assertNull($lignes[$awa->id]['current_absence'], 'absence de B rendue chez A');
     }
+
+    /**
+     * Contre-vérification de TCK-2623 (A4) — la borne d'agence de l'ÉQUIPE elle-même : un agent actif
+     * de B seulement n'est pas une ligne de l'équipe de A. Sans elle, l'admin de A lirait le nom et
+     * l'avatar de chaque agent actif de la plateforme, et aucun autre test ne le voyait.
+     */
+    public function test_un_agent_de_b_seulement_n_est_pas_dans_l_equipe_de_a(): void
+    {
+        $deA = $this->agent('Awa', 'Ndiaye');
+        $deB = $this->agencyAgent(Agency::factory()->create());
+
+        $this->actingAsApi($this->agencyAdmin($this->agency));
+        $lignes = $this->lignes();
+
+        $this->assertArrayHasKey($deA->id, $lignes);
+        $this->assertArrayNotHasKey($deB->id, $lignes, 'agent de B rendu dans l\'équipe de A');
+        $this->assertSame([$deA->id], array_keys($lignes));
+    }
 }

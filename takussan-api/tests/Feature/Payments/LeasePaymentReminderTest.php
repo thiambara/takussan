@@ -255,6 +255,30 @@ class LeasePaymentReminderTest extends ApiTestCase
         $this->assertSame(1, $row['reminders_count'], 'le personnel de l\'agence du bail la lit');
     }
 
+    /**
+     * Contre-vérification de TCK-2658 (B4) — le super-admin, qui lit `/lease-payments/{id}/reminders`
+     * par `Gate::before`, lit aussi les relances dans l'historique, sans aucun profil dans l'agence du
+     * bail. Retirer sa branche laissait la suite verte : il perdait ses relances sans qu'un test rougisse.
+     */
+    public function test_history_include_reminders_is_read_by_the_super_admin(): void
+    {
+        $this->remind($this->overdue, ['channel' => 'call'])->assertCreated();
+        $superAdmin = User::factory()->create();
+        $this->materializeRoleProfile($superAdmin, 'super_admin');
+        $this->assertNull($superAdmin->staffAgencyId(), 'sans agence de personnel : seule sa branche le laisse lire');
+
+        $this->actingAsApi($superAdmin);
+        $this->getJson("/api/lease-payments/{$this->overdue->id}/reminders")->assertOk();
+        $row = collect($this->getJson('/api/payments/history?per_page=100&include=reminders')->assertOk()->json('data'))
+            ->firstWhere('id', $this->overdue->id);
+
+        $this->assertNotNull($row, 'la ligne est lue');
+        $this->assertSame(1, $row['reminders_count']);
+        $this->assertSame('manual', $row['last_reminder']['source']);
+        $this->assertSame('call', $row['last_reminder']['channel']);
+        $this->assertSame($this->admin->id, $row['last_reminder']['by']['id']);
+    }
+
     public function test_ac5_recording_a_reminder_sends_nothing(): void
     {
         Notification::fake();
