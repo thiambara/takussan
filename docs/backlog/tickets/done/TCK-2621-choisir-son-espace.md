@@ -1,7 +1,7 @@
 ---
 id: TCK-2621
 title: "Choisir son espace : à la connexion d'un compte de plusieurs agences, et dans le menu du compte (coché, rôle et ville, jamais le slug)"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: S
@@ -123,3 +123,8 @@ Le changement d'espace passe par le chemin unique actuel (`useSwitchActiveProfil
   - Sans défilement : 390 × 844 (bas des actions à 760 et 812) et 360 × 780 ; aucun débord de 360 à 1440.
   - Après les mesures, l'espace retenu du compte a été effacé (`remember=false`) : le compte est rendu dans son état
     de départ, l'écran de choix réapparaît à sa prochaine arrivée.
+- **Vérification adverse (verif-patrimoine, 2026-11-11) : acceptée, aucun défaut** — 16 ablations rouges, AC1 à AC4
+  tenus contre les correctifs faux (écran montré à tous, `remember` forcé, cookie front pour AC2). `remember` sur le
+  profil d'autrui : 403 avant toute écriture (le test du dépôt ne vérifie pas l'absence d'écriture — trou hérité de
+  TCK-2620). **Limite connue, à décider par le porteur s'il le veut** : en impersonation d'un compte de deux agences,
+  rien n'est lié et la coque est celle du client ; l'opérateur ne voit pas les espaces d'agence de la cible (TCK-2620).
