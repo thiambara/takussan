@@ -75,6 +75,13 @@ return [
         'unsubscribe' => 'Se désabonner des e-mails récapitulatifs',
     ],
 
+    // TCK-2633 — le nom des filtres de `GET /api/notifications` dans un 422.
+    'attributes' => [
+        'filters' => 'filtres',
+        'unread_filter' => 'non lues',
+        'action_filter' => 'à traiter',
+        'family_filter' => 'famille',
+    ],
     'types' => [
         'booking' => 'Réservations',
         'payment' => 'Paiements',

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Domain\Notifications\NotificationClassification;
 use App\Domain\Notifications\NotificationCode;
 use App\Domain\Notifications\NotificationTarget;
 use App\Http\Resources\Bases\BaseResource;
@@ -28,6 +29,8 @@ class AppNotificationResource extends BaseResource
     public const FIELDS = [
         'id', 'type', 'code', 'params', 'param_types', 'target', 'title', 'body', 'data',
         'is_read', 'read_at', 'sent_at', 'created_at',
+        // TCK-2633 — la famille de la cloche et « à traiter » (`NotificationClassification`).
+        'famille', 'a_traiter',
     ];
 
     public function toArray(Request $request): array
@@ -36,6 +39,7 @@ class AppNotificationResource extends BaseResource
         $want = fn (string $field): bool => $fields === null || in_array($field, $fields, true);
 
         $code = is_string($this->code) ? NotificationCode::tryFrom($this->code) : null;
+        $classe = NotificationClassification::ofRow($this->resource);
 
         $out = [
             'id' => $this->id,
@@ -54,6 +58,10 @@ class AppNotificationResource extends BaseResource
             'read_at' => $this->iso($this->read_at),
             'sent_at' => $this->iso($this->sent_at),
             'created_at' => $this->iso($this->created_at),
+            // TCK-2633 — lus dans LA table (`NotificationClassification`), depuis les colonnes
+            // stockées : une ligne sans code prend la famille de son type, et n'est jamais à traiter.
+            'famille' => $classe['famille']->value,
+            'a_traiter' => $classe['a_traiter'],
         ];
 
         return $fields === null ? $out : array_intersect_key($out, array_flip($fields));

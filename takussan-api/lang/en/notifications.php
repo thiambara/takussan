@@ -74,6 +74,13 @@ return [
         'unsubscribe' => 'Unsubscribe from digest emails',
     ],
 
+    // TCK-2633 — le nom des filtres de `GET /api/notifications` dans un 422.
+    'attributes' => [
+        'filters' => 'filters',
+        'unread_filter' => 'unread',
+        'action_filter' => 'to do',
+        'family_filter' => 'family',
+    ],
     'types' => [
         'booking' => 'Bookings',
         'payment' => 'Payments',

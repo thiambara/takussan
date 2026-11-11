@@ -73,7 +73,7 @@ Sans objet (ticket API). Écrans servis : TCK-2634 (puces « À traiter · Tout 
 
 ## Delta à produire
 
-- [ ] `App\Domain\Notifications\NotificationFamily` (enum) et la table `NotificationCode` → `{famille, a_traiter}`, plus `NotificationType` → `famille` pour les lignes sans code.
+- [ ] `App\Domain\Notifications\NotificationFamily` (enum) et la table `NotificationCode` → `{famille, a_traiter}`, plus, pour les lignes sans code, le genre de la cible stockée → `famille` puis `NotificationType` → `famille` (décision du 2026-11-11).
 - [ ] `AppNotificationResource` : `famille`, `a_traiter`.
 - [ ] `NotificationController::index` : `filter[famille]`, `filter[a_traiter]`, `meta.counts`.
 - [ ] Tests :
@@ -83,7 +83,7 @@ Sans objet (ticket API). Écrans servis : TCK-2634 (puces « À traiter · Tout 
 ## Critères d'acceptation
 
 - [ ] AC1 — Un admin avec 16 notifications non lues « mise en avant terminée » et 1 « visite demandée » : `filter[a_traiter]=1` rend la seule visite, et `meta.counts.a_traiter_non_lues = 1`.
-- [ ] AC2 — `meta.counts.par_famille` vaut exactement `{bien: 16, visite: 1}` pour le même compte : une famille sans non-lue est absente de l'objet.
+- [ ] AC2 — `meta.counts.par_famille` vaut exactement `{bien: 16, visite: 1}` pour le même compte : une famille sans non-lue est absente de l'objet. *« Mise en avant terminée » est écrite sans code ; c'est sa cible stockée (`property`) qui la range en `bien` (décision du 2026-11-11, Notes d'implémentation).*
 - [ ] AC3 — Une notification écrite sans `code`, de `type = payment`, rend `famille = paiement` et `a_traiter = false`.
 - [ ] AC4 — Ablation : retirer de la table la ligne d'un code fait rougir `NotificationFamilyTableTest`, avec le nom du code dans le message.
 
@@ -95,4 +95,55 @@ Sans objet (ticket API). Écrans servis : TCK-2634 (puces « À traiter · Tout 
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+Relevé le 2026-11-11 sur `feat/audit-ux-app-lot-1` (c66938af4).
+
+**Prémisses qui différaient**
+
+- `NotificationCode` compte **114** cas, pas 111.
+- **« Mise en avant terminée » n'a pas de code** : `BoostEndedNotification` écrit `type = system`, `code = null`,
+  `target.kind = property`. Par la règle du ticket (une ligne sans code prend la famille de son type), elle est en
+  `systeme`, et **AC2 (`{bien: 16, visite: 1}`) ne pouvait pas être tenu par la règle du ticket**. Base de démo : 153 lignes sans code sur 5071 — 81 `system`/`property` (mises en
+  avant), 62 `booking` sans cible (réservation expirée), 6 `system`/`credits`, 3 `maintenance`, 1 `system` ; aucun
+  code ni type stocké hors des enums. **Décision de la session (2026-11-11, option b)** : une ligne sans code
+  prend d'abord la famille du genre de sa cible STOCKÉE (`target->>'kind'`), puis celle de son type. AC2 est
+  tenu tel qu'écrit, les 81 lignes existantes comprises, sans migration.
+- **Trois exemples « à traiter » du ticket arrivent aussi SANS code**, donc `a_traiter = false` par la règle : « bien
+  à valider » proposé par un bailleur (`PropertyProposedNotification`, `system`, `PropertyController`
+  l. 472 — distinct de `property.submitted_for_review`, qui a un code), l'intervention urgente
+  (`UrgentMaintenanceCreatedNotification`, `maintenance`) et la demande de passage en agence au super-admin
+  (`AgencyUpgradeRequestSubmittedNotification`, `system`). Même contradiction que la mise en avant, côté « à traiter » :
+  seule une colonne qui nomme la notification (un `code`) permet de les ranger. **La règle de cible ne les corrige
+  pas** : ces trois classes passent par `AppDatabaseChannel::TYPES` et n'écrivent AUCUNE cible stockée (seules les
+  classes à `toAppNotification()` en écrivent : `Boost/*` → `property`, `Credits/*` → `credits`, favoris →
+  `favorites`, recherches sauvegardées → `saved_searches`). « Bien proposé par un bailleur » reste donc en `systeme`,
+  l'intervention urgente en `demande`, toutes trois non « à traiter » : c'est le ticket « donner un code aux classes
+  sans code » qui les rangera. Classes sans code relevées dans `AppDatabaseChannel::TYPES` (21) et `Boost/*`,
+  `Credits/*`, `FavoriteChangesNotification`, `SavedSearchMatchesNotification`.
+
+**Décisions**
+
+- Table unique : `App\Domain\Notifications\NotificationClassification` — `CODES` par code : `[famille, à traiter]` ;
+  `TARGETS` par genre de cible (une ligne par clé de `NotificationTarget::PATHS`, `null` quand le genre ne tranche
+  pas : `lease`, qui porte aussi les échéances) ; `TYPES` par type. Ordre : code → cible stockée → type. `of()` lit
+  les colonnes stockées ; la ressource, les filtres et les comptes ne passent que par elle. Un code hors catalogue se
+  lit comme l'absence de code, un genre inconnu comme l'absence de cible, en PHP comme en SQL ; un type inconnu
+  tombe en `systeme`. La cible DÉDUITE (`NotificationTarget::derive()`, depuis `data`) n'est pas lue : le SQL ne
+  saurait pas la refaire.
+- Garde de recensement : `tests/Unit/Notifications/NotificationFamilyTableTest.php` — tout `NotificationCode`, tout
+  genre de `NotificationTarget::PATHS` et tout `NotificationType` doit avoir sa ligne, et aucune ligne orpheline.
+- Rangements par cible qui sont un jugement : `saved_searches` et `favorites` en `bien` ; `credits` et les pages
+  d'agence (`team`, `audit`…) en `systeme` ; les pages de paiement en `paiement`.
+- `meta.counts` : une requête `GROUP BY code, type, target->>'kind'` sur les non-lues, repliée en PHP par `of()` — pas de `CASE`
+  SQL qui dériverait de la table. Le total `meta.unread` (inchangé) sort de la même requête : la liste fait une
+  requête de moins qu'avant. Les comptes ignorent les filtres.
+- `filter[unread]`, `filter[a_traiter]` : `1`/`true`/`0`/`false`, sinon 422 (`ListNotificationsRequest`) ; avant,
+  `$request->boolean()` lisait toute valeur (`oui` → faux). Le front envoie `1`.
+- Rangements qui sont un jugement (à revoir avec la maquette) : le bail (`lease.*`) en `systeme`, comme « Bail
+  signé » dans la maquette ; les interventions (`maintenance*`) et les messages en `demande` ; KYC, gouvernance,
+  délégations, invitations, moyens de reversement en `systeme` ; relevés bancaires, reversements, commissions en
+  `paiement` ; `prospect_match.digest` et la modération d'un bien en `bien`.
+- « À traiter » par code, d'après le destinataire réel : `lease_payment.overdue` (au locataire : payer) et
+  `lease_payment.overdue_digest` (à l'agent, contact principal) sont vrais ; `lease_payment.overdue_landlord`
+  (au bailleur, l'agence relance) est faux. `message.received` est faux (la messagerie a ses non-lus).
+- Toute voie qui ajoute un `NotificationCode` lui doit désormais une ligne dans `CODES`
+  (`NotificationFamilyTableTest` le nomme).

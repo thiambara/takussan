@@ -197,6 +197,26 @@ reference_number, price, status, cover_url}`, `lease {id, status, reference, ten
 au seul personnel de l'agence du fil, sur une directe — `customer {id, full_name, stage, phone,
 assigned_agent {id, name}}` ; la clé `customer` est absente pour tout autre lecteur (TCK-2630).
 
+### Notifications — `GET /api/notifications` (TCK-2633)
+
+Filtres cumulables, traduits en SQL depuis la table `App\Domain\Notifications\NotificationClassification`
+(jamais recopiée côté front) :
+
+| Paramètre | Valeurs | Effet |
+|---|---|---|
+| `filter[unread]` | `1`, `true`, `0`, `false` | les non lues seulement |
+| `filter[famille]` | liste : `visite,demande` ou `filter[famille][]=…` ; `demande`, `visite`, `paiement`, `retard`, `bien`, `avis`, `systeme` | une ligne à code prend la famille de son code ; une ligne sans code (ou à code hors catalogue), celle du genre de sa cible stockée (`target.kind`), sinon celle de son `type` |
+| `filter[a_traiter]` | `1`, `true`, `0`, `false` | les notifications qui demandent un geste au destinataire ; une ligne sans code ne l'est jamais |
+
+Chaque ligne porte `famille` et `a_traiter` (demandables par `fields[app_notifications]=id,famille,a_traiter,…`).
+`meta.counts = {a_traiter_non_lues, par_famille: {visite: 1, …}}` porte sur les **non lues** de l'appelant, filtres
+ignorés ; une famille sans non-lue est absente de `par_famille` (`{}` si aucune). Une valeur mal formée rend 422.
+
+```
+GET /api/notifications?filter[a_traiter]=1&filter[unread]=1
+GET /api/notifications?filter[famille]=visite,demande&per_page=20
+```
+
 ### Historique des paiements — `GET /api/payments/history`
 
 Lu **à la main** par `PaymentController::history` (loyers et réservations fusionnés en PHP, plafond

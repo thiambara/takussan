@@ -24,6 +24,12 @@ En touchant la cloche, on voit d'abord ce qui attend un geste (« Visite demand�
 ## Contrat de données
 
 - `GET /api/notifications` : `filter[unread]`, `filter[a_traiter]`, `filter[famille]`, `meta.counts {a_traiter_non_lues, par_famille}`, et `famille` et `a_traiter` par ligne (TCK-2633).
+- **Relevé après TCK-2633** :
+  - `filter[famille]` est une liste (`visite,demande`) ; `filter[a_traiter]` et `filter[unread]` valent `1`, `0`, `true` ou `false` — toute autre valeur rend 422 ;
+  - une requête qui passe `fields[app_notifications]` doit y nommer `famille` et `a_traiter`, sinon elles ne sont pas rendues ;
+  - `meta.counts` ignore les filtres de la requête (il porte sur toutes les non-lues de l'appelant) : les puces se lisent sur n'importe quelle page ;
+  - une famille sans non-lue est ABSENTE de `par_famille` (objet `{}` si aucune) : lire `par_famille[f] ?? 0` ;
+  - « Mise en avant terminée » (`BoostEndedNotification`) est écrite SANS `code` : `famille = bien` (par sa cible), `a_traiter = false` ; le repli des répétitions ne peut donc pas se faire « par code » pour elle. « Bien proposé par un bailleur » (`PropertyProposedNotification`), sans code ni cible, est en `systeme` et jamais « à traiter » tant qu'on ne lui donne pas un code (TCK-2633, Notes d'implémentation).
 - Gestes existants :
   - `POST notifications/{id}/read` et `/unread` ;
   - `POST notifications/read-all`.

@@ -35,6 +35,13 @@ L'agent répond à ses clients comme sur WhatsApp, avec en plus ce que WhatsApp 
 - **Contexte** : `GET /api/conversations/{id}/context` (TCK-2630).
 - **Nouvelle conversation à une personne** : `POST /api/conversations` avec `type = direct`, qui existe déjà. Le hook du front qui l'appelle existe et n'est utilisé nulle part. Les personnes proposées viennent de `GET /api/conversations/contacts` (périmètre de TCK-565).
 - **Pièces jointes** : `type = image | document`, plus le fichier (TCK-2631).
+- **Relevé après TCK-2631 (c66938af4)** :
+  - le fichier part dans le champ `file` (`multipart`), un seul par message ; `content` est la légende, facultative ;
+  - une pièce sans légende rend `content = ''` : n'afficher la légende que si elle n'est pas vide ;
+  - `attachments[]` porte `{id, name, mime_type, size, url, thumbnail_url}` ; `thumbnail_url` (vignette 400 px, signée) est `null` pour un PDF, une note vocale, ou tant que la file `media` ne l'a pas produite — retomber alors sur `url` ;
+  - une photo de plus de **20 Mpx** est refusée en 422 (`PixelsAuPlus`, sur l'en-tête) : **réduire l'image avant l'envoi** (un capteur de 48 Mpx en pleine définition dépasse la borne) ; une image que le serveur ne sait pas décoder rend 422 `media.file_rejected` ;
+  - bornes appliquées par le serveur : image `jpeg`/`png`/`webp` ≤ 8 Mo, PDF ≤ 10 Mo, refus en 422 sur `errors.file` ;
+  - `last_message.type` (`image`, `document`) permet de rendre l'aperçu de la liste dans la langue du lecteur ; `last_message_preview` vaut « Photo » ou « Document », écrit dans la langue de l'expéditeur.
 - **Appel et WhatsApp** : le téléphone de la fiche client du contexte, seulement quand l'API le rend.
 
 ## Direction UX / Artistique
