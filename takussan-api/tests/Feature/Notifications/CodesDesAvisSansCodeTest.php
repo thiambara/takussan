@@ -2,8 +2,17 @@
 
 namespace Tests\Feature\Notifications;
 
+use App\Jobs\EscalateUrgentMaintenanceJob;
+use App\Models\Agency;
 use App\Models\AgencyUpgradeRequest;
 use App\Models\AppNotification;
+use App\Models\BoostProduct;
+use App\Models\Enums\AgencyKind;
+use App\Models\Enums\CreditLotOrigin;
+use App\Models\Enums\MaintenancePriority;
+use App\Models\Enums\MaintenanceStatus;
+use App\Models\Enums\PropertyStatus;
+use App\Models\Enums\PropertyVisibility;
 use App\Models\MaintenanceRequest;
 use App\Models\Property;
 use App\Models\User;
@@ -11,8 +20,14 @@ use App\Notifications\AgencyUpgradeRequestSubmittedNotification;
 use App\Notifications\Boost\BoostEndedNotification;
 use App\Notifications\PropertyProposedNotification;
 use App\Notifications\UrgentMaintenanceCreatedNotification;
+use App\Services\Boost\BoostPurchaseService;
+use App\Services\Credits\CreditLedger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Laravel\Sanctum\Sanctum;
+use Tests\Concerns\CreatesAgencyMembers;
 use Tests\TestCase;
 
 /**
@@ -25,6 +40,7 @@ use Tests\TestCase;
  */
 class CodesDesAvisSansCodeTest extends TestCase
 {
+    use CreatesAgencyMembers;
     use RefreshDatabase;
 
     /**
@@ -122,5 +138,142 @@ class CodesDesAvisSansCodeTest extends TestCase
         $this->assertSame('/app/properties/7', $ligne['target']['path']);
         $this->assertSame('Promotion ended', $ligne['title']);
         $this->assertSame('Mise en avant terminée', $this->laLigneDe($titulaire, 'fr')['title']);
+    }
+
+    // ─── Par les vrais émetteurs ─────────────────────────────────────────────────────────────
+    //
+    // Les tests ci-dessus appellent `notify()` en direct : ils prouvent la forme de la ligne, pas
+    // qu'elle arrive. Ceux-ci passent par le geste ou le balayage réel, SANS `Notification::fake()` :
+    // `via()` et le choix des destinataires sont exercés, et la ligne est lue par la cloche.
+
+    /**
+     * Les lignes de la cloche de ce lecteur, rangées par code.
+     *
+     * @return Collection<string, array<string, mixed>>
+     */
+    private function laClocheDe(User $user, string $lang = 'fr'): Collection
+    {
+        Sanctum::actingAs($user);
+
+        return collect($this->getJson("/api/notifications?lang={$lang}")->assertOk()->json('data'))->keyBy('code');
+    }
+
+    /** AC1 — chaque admin actif de l'agence reçoit la proposition d'un bailleur, à traiter. */
+    public function test_par_l_emetteur_chaque_admin_actif_recoit_le_bien_propose(): void
+    {
+        $agency = Agency::factory()->create();
+        $admins = [$this->agencyAdmin($agency), $this->agencyAdmin($agency)];
+
+        Sanctum::actingAs(User::factory()->withOwnerProfile($agency)->create());
+        $id = $this->postJson('/api/properties', [
+            'title' => 'Villa des Almadies', 'type' => 'apartment', 'contract_type' => 'rent',
+            'rent_period' => 'monthly', 'price' => 450000,
+        ])->assertCreated()->json('data.id');
+
+        foreach ($admins as $admin) {
+            $ligne = $this->laClocheDe($admin)->get('property.proposed');
+            $this->assertNotNull($ligne, "admin {$admin->id}");
+            $this->assertSame(['bien', true], [$ligne['famille'], $ligne['a_traiter']]);
+            $this->assertSame("/app/properties/{$id}", $ligne['target']['path']);
+        }
+    }
+
+    /** AC2 — l'agence (son administrateur principal) reçoit l'intervention urgente, à traiter. */
+    public function test_par_l_emetteur_l_agence_recoit_l_intervention_urgente(): void
+    {
+        $agency = Agency::factory()->create();
+        $principal = $this->agencyAdmin($agency);
+        $agency->update(['primary_admin_id' => $principal->id]);
+        $bailleur = User::factory()->withOwnerProfile($agency)->create();
+        $property = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $bailleur->id]);
+
+        Sanctum::actingAs($bailleur);
+        $id = $this->postJson('/api/maintenance-requests', [
+            'property_id' => $property->id, 'title' => 'Fuite au plafond', 'description' => 'L’eau coule',
+            'category' => 'plumbing', 'priority' => 'urgent',
+        ])->assertCreated()->json('data.id');
+
+        $ligne = $this->laClocheDe($principal)->get('maintenance.urgent_created');
+        $this->assertNotNull($ligne);
+        $this->assertSame(['demande', true], [$ligne['famille'], $ligne['a_traiter']]);
+        $this->assertSame("/app/maintenance/{$id}", $ligne['target']['path']);
+    }
+
+    /** AC2 — l'escalade du balayage porte son propre code, à traiter. */
+    public function test_par_le_balayage_l_escalade_urgente_porte_son_code(): void
+    {
+        $agency = Agency::factory()->create();
+        $principal = $this->agencyAdmin($agency);
+        $agency->update(['primary_admin_id' => $principal->id]);
+        $demande = MaintenanceRequest::factory()->create([
+            'property_id' => Property::factory()->create(['agency_id' => $agency->id])->id,
+            'priority' => MaintenancePriority::Urgent->value,
+            'status' => MaintenanceStatus::Open->value,
+            'created_at' => now()->subMinutes(35),
+            'metadata' => [],
+        ]);
+
+        (new EscalateUrgentMaintenanceJob)->handle();
+
+        $ligne = $this->laClocheDe($principal)->get('maintenance.urgent_escalated');
+        $this->assertNotNull($ligne);
+        $this->assertSame(['demande', true], [$ligne['famille'], $ligne['a_traiter']]);
+        $this->assertSame("/app/maintenance/{$demande->id}", $ligne['target']['path']);
+    }
+
+    /** AC3 — chaque super-admin reçoit la demande de passage en agence, à traiter. */
+    public function test_par_l_emetteur_chaque_super_admin_recoit_la_demande_de_passage_en_agence(): void
+    {
+        $agency = Agency::factory()->create(['kind' => AgencyKind::Individual]);
+        $superAdmins = [User::factory()->create(), User::factory()->create()];
+        foreach ($superAdmins as $superAdmin) {
+            $this->materializeRoleProfile($superAdmin, 'super_admin');
+        }
+
+        $this->actingAsRole('agency_admin', ['agency_id' => $agency->id]);
+        $this->postJson("/api/agencies/{$agency->id}/upgrade-requests", [
+            'rc' => 'RC-DKR-2026-001', 'ninea' => '0123456789012', 'rib_pro' => 'SN012 01234 0123456789012 34',
+            'company_legal_name' => 'Takussan Immo SARL', 'address_fiscale' => '12 Avenue Léopold Sédar Senghor, Dakar',
+            'planned_agents_count' => 5,
+            'statuts_doc' => UploadedFile::fake()->create('statuts.pdf', 800, 'application/pdf'),
+        ])->assertCreated();
+        $demande = AgencyUpgradeRequest::query()->where('agency_id', $agency->id)->sole();
+
+        foreach ($superAdmins as $superAdmin) {
+            $ligne = $this->laClocheDe($superAdmin)->get('agency.upgrade_requested');
+            $this->assertNotNull($ligne, "super-admin {$superAdmin->id}");
+            $this->assertSame(['systeme', true], [$ligne['famille'], $ligne['a_traiter']]);
+            $this->assertSame("/super-admin/agency-upgrade-requests/{$demande->id}", $ligne['target']['path']);
+        }
+    }
+
+    /** AC4 — une mise en avant close par la modération : un bien à lire, écrit dans la langue du titulaire. */
+    public function test_par_l_emetteur_la_mise_en_avant_terminee_arrive_dans_la_langue_du_titulaire(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-12 10:00:00'));
+        $agency = Agency::factory()->create();
+        $admin = $this->actingAsRole('agency_admin', ['agency' => $agency]);
+        $admin->forceFill(['preferred_language' => 'en'])->save();
+        $property = Property::factory()->published()->create(['agency_id' => $agency->id, 'title' => 'Villa à Ngor']);
+        app(CreditLedger::class)->grant($agency, CreditLotOrigin::Welcome, 500, now()->addDays(180));
+        app(BoostPurchaseService::class)->purchase(
+            $property->fresh(),
+            BoostProduct::query()->where('kind', 'featured')->where('duration_days', 7)->sole(),
+            $admin,
+        );
+
+        // Ce qu'écrit `PropertyModerationService::hold()` — la clôture sans remboursement.
+        $property->forceFill([
+            'status' => PropertyStatus::Rejected, 'visibility' => PropertyVisibility::Private,
+            'published_at' => null, 'platform_hold_at' => now(),
+        ])->save();
+
+        $stockee = AppNotification::query()->where('user_id', $admin->id)->where('code', 'boost.ended')->sole();
+        $this->assertSame('Promotion ended', $stockee->title);
+
+        $ligne = $this->laClocheDe($admin, 'en')->get('boost.ended');
+        $this->assertNotNull($ligne);
+        $this->assertSame(['bien', false], [$ligne['famille'], $ligne['a_traiter']]);
+        $this->assertSame("/app/properties/{$property->id}", $ligne['target']['path']);
     }
 }
