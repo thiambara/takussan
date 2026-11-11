@@ -8,6 +8,7 @@ use App\Models\AppNotification;
 use App\Models\Enums\NotificationType;
 use App\Models\User;
 use App\Notifications\Boost\BoostEndedNotification;
+use App\Notifications\Boost\BoostRefundedNotification;
 use App\Services\Model\NotificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -19,9 +20,10 @@ use Tests\TestCase;
  * TCK-2633 — `GET /api/notifications` : `famille` et `a_traiter` sur chaque ligne, `filter[famille]`
  * et `filter[a_traiter]` cumulables avec `filter[unread]`, et `meta.counts` sur les non-lues.
  *
- * Les lignes sont écrites par les VRAIS émetteurs (`BoostEndedNotification`, sans code ;
+ * Les lignes sont écrites par les VRAIS émetteurs (`BoostEndedNotification`, code `boost.ended`
+ * depuis TCK-2704 ; `BoostRefundedNotification`, SANS code, `system`, cible `property` ;
  * `NotificationService::send`, par code) : une ligne bâtie à la main cacherait ce qu'un émetteur
- * stocke réellement (code absent, type `system`).
+ * stocke réellement.
  */
 class NotificationFiltersTest extends TestCase
 {
@@ -69,10 +71,7 @@ class NotificationFiltersTest extends TestCase
             ->assertJsonPath('meta.total', 1);
     }
 
-    /**
-     * AC2. La « Mise en avant terminée » est écrite SANS code, en `system`, avec une cible
-     * `property` : la cible stockée la range en `bien` (décision du 2026-11-11, Notes du ticket).
-     */
+    /** AC2 — les 16 « Mise en avant terminée » comptent en `bien`. */
     public function test_par_famille_ne_compte_que_les_familles_presentes(): void
     {
         $this->laClocheDeLAdmin();
@@ -122,10 +121,10 @@ class NotificationFiltersTest extends TestCase
         $this->assertEquals(['visit.requested' => 2, 'lead.received' => 1, 'booking.confirmed' => 1], $codes('filter[famille][]=visite&filter[famille][]=demande'));
         $this->assertEquals(['visit.requested' => 2, 'lead.received' => 1], $codes('filter[famille]=visite,demande&filter[a_traiter]=1'));
         $this->assertEquals(['visit.requested' => 1, 'lead.received' => 1], $codes('filter[famille]=visite,demande&filter[a_traiter]=1&filter[unread]=1'));
-        // Une ligne sans code n'est jamais à traiter : les 16 mises en avant n'y sont pas.
+        // Une ligne sans code n'est jamais à traiter.
         $aTraiter = $this->getJson('/api/notifications?per_page=50&filter[a_traiter]=1')->json('data');
         $this->assertNotContains(null, array_column($aTraiter, 'code'));
-        // `bien` rend les lignes sans code dont la cible est un bien ; `systeme` ne les rend pas.
+        // `bien` rend les mises en avant ; `systeme` ne les rend pas.
         $this->assertCount(16, $this->getJson('/api/notifications?per_page=50&filter[famille]=bien')->json('data'));
         $this->assertSame([], $this->getJson('/api/notifications?per_page=50&filter[famille]=systeme')->json('data'));
     }
@@ -162,6 +161,8 @@ class NotificationFiltersTest extends TestCase
         app(NotificationService::class)->send($this->admin, NotificationCode::ReviewToModerate, ['subject' => 'Villa', 'rating' => 2]);
         AppNotification::query()->create(['user_id' => $this->admin->id, 'type' => NotificationType::Payment, 'title' => 'x', 'sent_at' => now()]);
         AppNotification::query()->create(['user_id' => $this->admin->id, 'type' => NotificationType::Booking, 'code' => 'code.disparu', 'title' => 'x', 'sent_at' => now()]);
+        // Sans code, par le vrai émetteur : `system` et cible `property` — la cible tranche (`bien`).
+        $this->admin->notify(new BoostRefundedNotification(3, 'Villa à Ngor', 12));
         // Sans code : une cible qui ne tranche pas (`lease`), une cible de `systeme`, un genre inconnu.
         AppNotification::query()->create(['user_id' => $this->admin->id, 'type' => NotificationType::Payment, 'target' => ['kind' => 'lease', 'id' => 4], 'title' => 'x', 'sent_at' => now()]);
         AppNotification::query()->create(['user_id' => $this->admin->id, 'type' => NotificationType::System, 'target' => ['kind' => 'credits'], 'title' => 'x', 'sent_at' => now()]);
@@ -171,6 +172,8 @@ class NotificationFiltersTest extends TestCase
         $tout = $this->getJson('/api/notifications?per_page=50')->assertOk();
         $parLigne = array_count_values(array_column($tout->json('data'), 'famille'));
         $this->assertSame($this->trie($parLigne), $this->trie($tout->json('meta.counts.par_famille')));
+        // 16 `boost.ended` + le remboursement sans code rangé par sa cible ; la visite demandée et le genre de cible inconnu (type `visit`).
+        $this->assertSame(['avis' => 1, 'bien' => 17, 'demande' => 1, 'paiement' => 2, 'systeme' => 1, 'visite' => 2], $this->trie($parLigne));
 
         foreach ($parLigne as $famille => $n) {
             $filtrees = $this->getJson("/api/notifications?per_page=50&filter[famille]={$famille}")->json('data');

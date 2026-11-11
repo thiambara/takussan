@@ -55,6 +55,8 @@ final class NotificationTarget
         'lead' => '/app/leads?lead={id}',
         'agency_kyc' => '/app/agency/kyc',
         'kyc_review' => '/super-admin/kyc',
+        // TCK-2704 — la revue d'une demande de passage en agence professionnelle, par le super-admin.
+        'agency_upgrade_request' => '/super-admin/agency-upgrade-requests/{id}',
         'finances' => '/app/agency/finances',
         // TCK-2320 (P39.07) — les reversements de la plateforme à l'agence (`agency.update_billing`).
         'agency_billing' => '/app/agency/billing',

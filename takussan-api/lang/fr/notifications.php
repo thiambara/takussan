@@ -277,6 +277,15 @@ return [
 
     // TCK-588 (ADR-0032) — une notification est un CODE rendu par surface dans la langue du destinataire : `codes.<code>.<surface>` (title, body, sms ; mail_subject/mail_body retombent sur title/body ; `_link` quand le lien de paiement est fourni). LangGroupParityTest garde les trois langues.
     'codes' => [
+        // TCK-2704 — une Vedette ou un Badge a pris fin (`BoostEndedNotification`, texte venu de `credits.boost.ended`).
+        'boost' => [
+            // Au titulaire du bien.
+            'ended' => [
+                'title' => 'Mise en avant terminée',
+                'body' => 'La mise en avant de « :property » est terminée.',
+                'sms' => 'Takussan : la mise en avant de « :property » est terminée.',
+            ],
+        ],
         'impersonation' => [
             'ended' => [
                 'title' => 'Votre compte a été consulté par l\'équipe Takussan',
@@ -285,6 +294,12 @@ return [
             ],
         ],
         'agency' => [
+            // TCK-2704 — aux super-admins : demande de passage en agence professionnelle (`AgencyUpgradeRequestSubmittedNotification`).
+            'upgrade_requested' => [
+                'title' => 'Nouvelle demande d\'upgrade d\'agence : :agency',
+                'body' => 'L\'agence :agency demande à passer en mode professionnel. Examinez la demande.',
+                'sms' => 'Takussan : demande d\'upgrade de l\'agence :agency.',
+            ],
             'suspended' => [
                 'title' => 'Agence suspendue : :agency',
                 'body' => 'L\'agence :agency est suspendue par la plateforme. Motif : :reason. Ses annonces ne sont plus publiées et son espace est en lecture seule.',
@@ -641,6 +656,18 @@ return [
             ],
         ],
         'maintenance' => [
+            // TCK-2704 — à l'agence : intervention urgente créée ou passée en urgent (`UrgentMaintenanceCreatedNotification`).
+            'urgent_created' => [
+                'title' => 'Urgent : :title',
+                'body' => 'L\'intervention urgente « :title » attend votre prise en charge.',
+                'sms' => 'Takussan : intervention urgente « :title ».',
+            ],
+            // TCK-2704 — à l'agence : l'intervention urgente n'a pas été prise en charge à temps.
+            'urgent_escalated' => [
+                'title' => 'Escalade urgente : :title',
+                'body' => 'L\'intervention urgente « :title » n\'a toujours pas été prise en charge.',
+                'sms' => 'Takussan : escalade urgente, « :title ».',
+            ],
             'created' => [
                 'title' => 'Nouvelle demande de maintenance',
                 'body' => 'Une demande de maintenance (:reference) a été soumise pour :property.',
@@ -796,6 +823,12 @@ return [
             ],
         ],
         'property' => [
+            // TCK-2704 — aux admins de l'agence : un bailleur propose un bien (`PropertyProposedNotification`).
+            'proposed' => [
+                'title' => 'Bien proposé par un bailleur : :property',
+                'body' => 'Un bailleur propose « :property » à votre agence. Ouvrez-le pour l\'examiner.',
+                'sms' => 'Takussan : un bailleur propose « :property » à votre agence.',
+            ],
             'approved' => [
                 'title' => 'Bien approuvé : :property',
                 'body' => 'Votre bien « :property » a été approuvé et est maintenant visible sur la plateforme.',

@@ -2,8 +2,13 @@
 
 namespace App\Notifications;
 
+use App\Domain\Notifications\NotificationCode;
+use App\Domain\Notifications\NotificationTarget;
+use App\Models\Enums\NotificationType;
 use App\Models\MaintenanceRequest;
+use App\Models\User;
 use App\Notifications\Concerns\RetriesWithBackoff;
+use App\Services\Notifications\NotificationRenderer;
 use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -11,6 +16,13 @@ use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
+/**
+ * Une intervention urgente : créée, passée en urgent, ou escaladée faute de prise en charge.
+ *
+ * TCK-2704 — la ligne de cloche porte un code, `maintenance.urgent_created` (création, passage en
+ * urgent) ou `maintenance.urgent_escalated` : « à traiter » pour l'agence
+ * (`NotificationClassification`). L'e-mail et la diffusion ne changent pas.
+ */
 class UrgentMaintenanceCreatedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
@@ -71,6 +83,42 @@ class UrgentMaintenanceCreatedNotification extends Notification implements Shoul
         return $mail
             ->line(__('notifications.urgent_maintenance.cta'))
             ->salutation(__('notifications.salutation'));
+    }
+
+    /** @return array<string, mixed> */
+    public function toAppNotification(object $notifiable): array
+    {
+        return [
+            'type' => NotificationType::Maintenance,
+            'code' => $this->code()->value,
+            'params' => $this->params(),
+            'target' => NotificationTarget::of('maintenance', $this->maintenanceRequest->id)->toArray(),
+            'title' => $this->render($notifiable, 'title'),
+            'body' => $this->render($notifiable, 'body'),
+            'data' => $this->toArray($notifiable),
+        ];
+    }
+
+    public function code(): NotificationCode
+    {
+        return $this->isEscalation ? NotificationCode::MaintenanceUrgentEscalated : NotificationCode::MaintenanceUrgentCreated;
+    }
+
+    /** @return array{title: string} */
+    private function params(): array
+    {
+        return ['title' => (string) $this->maintenanceRequest->title];
+    }
+
+    private function render(object $notifiable, string $surface): string
+    {
+        return app(NotificationRenderer::class)->render(
+            $this->code(),
+            $this->params(),
+            app()->getLocale(),
+            $notifiable instanceof User ? $notifiable->timezone : null,
+            $surface,
+        );
     }
 
     public function toArray(object $notifiable): array

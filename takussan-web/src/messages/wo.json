@@ -13663,6 +13663,14 @@
         "schedule_changed": {
           "title": "Passage prévu : « {request} »",
           "body": "Le passage pour l'intervention « {request} » est prévu le {scheduled_at}."
+        },
+        "urgent_created": {
+          "title": "Urgent : {title}",
+          "body": "L’intervention urgente « {title} » attend votre prise en charge."
+        },
+        "urgent_escalated": {
+          "title": "Escalade urgente : {title}",
+          "body": "L’intervention urgente « {title} » n’a toujours pas été prise en charge."
         }
       },
       "maintenance_quote": {
@@ -13725,6 +13733,10 @@
         "source_listing_gone": {
           "title": "Votre bien est-il toujours disponible ? {property}",
           "body": "L’annonce d’origine de « {property} » n’est plus en ligne. Ouvrez le bien pour nous dire s’il est loué, vendu ou toujours disponible."
+        },
+        "proposed": {
+          "title": "Bien proposé par un bailleur : {property}",
+          "body": "Un bailleur propose « {property} » à votre agence. Ouvrez-le pour l’examiner."
         }
       },
       "lease": {
@@ -13759,6 +13771,10 @@
         "member_deletion_requested": {
           "title": "Effacement de compte demandé : {member}",
           "body": "{member} a demandé l'effacement de son compte, effectif le {scheduled_for}. Son portefeuille dans l'agence : {tasks, plural, one {# tâche} other {# tâches}}, {visits, plural, one {# visite} other {# visites}}, {maintenance, plural, one {# intervention} other {# interventions}}, {responsible_properties, plural, one {# bien dont il est l'agent principal} other {# biens dont il est l'agent principal}}, {held_properties, plural, one {# bien saisi} other {# biens saisis}}, {collaborations, plural, one {# collaboration} other {# collaborations}}, {customers, plural, one {# client suivi} other {# clients suivis}}, {contact_leads, plural, one {# demande de contact non traitée} other {# demandes de contact non traitées}}. Passez-le à un collègue avant cette date depuis l'équipe : {url}"
+        },
+        "upgrade_requested": {
+          "title": "Nouvelle demande d’upgrade d’agence : {agency}",
+          "body": "L’agence {agency} demande à passer en mode professionnel. Examinez la demande."
         }
       },
       "platform_operator": {
@@ -13849,6 +13865,12 @@
         "paid": {
           "title": "{count, plural, one {Commission payée} other {# commissions payées}}",
           "body": "{count, plural, one {Votre commission de {amount} vous a été payée.} other {# de vos commissions vous ont été payées, pour un total de {amount}.}}"
+        }
+      },
+      "boost": {
+        "ended": {
+          "title": "Mise en avant terminée",
+          "body": "La mise en avant de « {property} » est terminée."
         }
       }
     },

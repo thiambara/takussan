@@ -28,7 +28,8 @@ use Illuminate\Support\Facades\DB;
  *
  * L'ordre est donc code → cible STOCKÉE (`target->>'kind'`, jamais la cible déduite de `data`,
  * que le SQL ne sait pas relire) → type. Décision de la session du 2026-11-11 : « Mise en avant
- * terminée » est écrite sans code, en `system`, avec une cible `property` — elle est un `bien`.
+ * terminée » était écrite sans code, en `system`, avec une cible `property` — elle est un `bien`.
+ * Ses lignes déjà stockées le restent ; les nouvelles portent `boost.ended` (TCK-2704).
  *
  * Une ligne dont le code n'est pas au catalogue est traitée comme une ligne sans code, un genre de
  * cible inconnu comme une cible absente ; une ligne dont rien n'est connu tombe en `systeme`,
@@ -223,6 +224,16 @@ final class NotificationClassification
         'account.blocked' => [self::S, false],
         'account.reactivated' => [self::S, false],
         'platform_operator.revoked' => [self::S, false],
+        // TCK-2704 — une demande de passage en agence professionnelle, à examiner.
+        'agency.upgrade_requested' => [self::S, true],
+
+        // ─── Avis qui n'avaient pas de code (TCK-2704) ────────────────────────────────────
+        'boost.ended' => [self::B, false],
+        // Un bien à examiner, proposé par un bailleur rattaché.
+        'property.proposed' => [self::B, true],
+        // Une intervention urgente à prendre en charge.
+        'maintenance.urgent_created' => [self::D, true],
+        'maintenance.urgent_escalated' => [self::D, true],
     ];
 
     /**
@@ -249,6 +260,7 @@ final class NotificationClassification
         'lead' => self::D,
         'agency_kyc' => self::S,
         'kyc_review' => self::S,
+        'agency_upgrade_request' => self::S,
         'team' => self::S,
         'owners' => self::S,
         'service_providers' => self::S,

@@ -59,7 +59,8 @@ class AppNotificationResource extends BaseResource
             'sent_at' => $this->iso($this->sent_at),
             'created_at' => $this->iso($this->created_at),
             // TCK-2633 — lus dans LA table (`NotificationClassification`), depuis les colonnes
-            // stockées : une ligne sans code prend la famille de son type, et n'est jamais à traiter.
+            // stockées : une ligne sans code prend la famille de sa cible stockée, sinon de son type,
+            // et n'est jamais à traiter.
             'famille' => $classe['famille']->value,
             'a_traiter' => $classe['a_traiter'],
         ];

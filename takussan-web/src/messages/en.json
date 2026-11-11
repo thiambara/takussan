@@ -13663,6 +13663,14 @@
         "schedule_changed": {
           "title": "Visit planned: \"{request}\"",
           "body": "The visit for the maintenance request \"{request}\" is planned on {scheduled_at}."
+        },
+        "urgent_created": {
+          "title": "Urgent: {title}",
+          "body": "The urgent maintenance request “{title}” is waiting for you to handle it."
+        },
+        "urgent_escalated": {
+          "title": "Urgent escalation: {title}",
+          "body": "The urgent maintenance request “{title}” still hasn’t been handled."
         }
       },
       "maintenance_quote": {
@@ -13725,6 +13733,10 @@
         "source_listing_gone": {
           "title": "Is your property still available? {property}",
           "body": "The original listing for “{property}” is no longer online. Open the property to tell us whether it is rented, sold or still available."
+        },
+        "proposed": {
+          "title": "Property proposed by a landlord: {property}",
+          "body": "A landlord is proposing “{property}” to your agency. Open it to review it."
         }
       },
       "lease": {
@@ -13759,6 +13771,10 @@
         "member_deletion_requested": {
           "title": "Account deletion requested: {member}",
           "body": "{member} has requested the deletion of their account, effective {scheduled_for}. Their portfolio in the agency: {tasks, plural, one {# task} other {# tasks}}, {visits, plural, one {# visit} other {# visits}}, {maintenance, plural, one {# maintenance request} other {# maintenance requests}}, {responsible_properties, plural, one {# property as lead agent} other {# properties as lead agent}}, {held_properties, plural, one {# property entered} other {# properties entered}}, {collaborations, plural, one {# collaboration} other {# collaborations}}, {customers, plural, one {# client followed} other {# clients followed}}, {contact_leads, plural, one {# unhandled contact request} other {# unhandled contact requests}}. Hand it over to a colleague before that date from the team page: {url}"
+        },
+        "upgrade_requested": {
+          "title": "New agency upgrade request: {agency}",
+          "body": "The agency {agency} is asking to upgrade to professional. Review the request."
         }
       },
       "platform_operator": {
@@ -13849,6 +13865,12 @@
         "paid": {
           "title": "{count, plural, one {Commission paid} other {# commissions paid}}",
           "body": "{count, plural, one {Your commission of {amount} has been paid.} other {# of your commissions have been paid, totalling {amount}.}}"
+        }
+      },
+      "boost": {
+        "ended": {
+          "title": "Promotion ended",
+          "body": "The promotion of “{property}” has ended."
         }
       }
     },

@@ -2,11 +2,14 @@
 
 namespace App\Notifications;
 
+use App\Domain\Notifications\NotificationCode;
+use App\Domain\Notifications\NotificationTarget;
 use App\Models\AgencyUpgradeRequest;
 use App\Models\Enums\NotificationType;
 use App\Models\User;
 use App\Notifications\Channels\AppDatabaseChannel;
 use App\Notifications\Concerns\RetriesWithBackoff;
+use App\Services\Notifications\NotificationRenderer;
 use App\Support\LienFront;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -67,17 +70,39 @@ class AgencyUpgradeRequestSubmittedNotification extends Notification implements 
      * `toArray()` de cette classe n'en porte pas. On les déclare donc ici plutôt que
      * de les laisser deviner — {@see AppDatabaseChannel}.
      *
-     * @return array{type: NotificationType, title: string, data: array<string,mixed>}
+     * TCK-2704 — la ligne porte le code `agency.upgrade_requested`, « à traiter » pour le
+     * super-admin, et ouvre la revue de la demande.
+     *
+     * @return array<string, mixed>
      */
     public function toAppNotification(object $notifiable): array
     {
         return [
             'type' => NotificationType::System,
-            'title' => __('agency_upgrade.notifications.submitted.subject', [
-                'agency' => $this->upgradeRequest->agency?->name ?? '#'.$this->upgradeRequest->agency_id,
-            ]),
+            'code' => NotificationCode::AgencyUpgradeRequested->value,
+            'params' => $this->params(),
+            'target' => NotificationTarget::of('agency_upgrade_request', $this->upgradeRequest->id)->toArray(),
+            'title' => $this->render($notifiable, 'title'),
+            'body' => $this->render($notifiable, 'body'),
             'data' => $this->toArray($notifiable),
         ];
+    }
+
+    /** @return array{agency: string} */
+    private function params(): array
+    {
+        return ['agency' => $this->upgradeRequest->agency?->name ?? '#'.$this->upgradeRequest->agency_id];
+    }
+
+    private function render(object $notifiable, string $surface): string
+    {
+        return app(NotificationRenderer::class)->render(
+            NotificationCode::AgencyUpgradeRequested,
+            $this->params(),
+            app()->getLocale(),
+            $notifiable instanceof User ? $notifiable->timezone : null,
+            $surface,
+        );
     }
 
     /** @return array<string,mixed> */

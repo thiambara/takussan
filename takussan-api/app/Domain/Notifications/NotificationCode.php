@@ -235,6 +235,18 @@ enum NotificationCode: string
     /** Au titulaire d'un bien publié par le Radar : sa dernière annonce source a disparu — le bien est-il toujours disponible ? */
     case PropertySourceListingGone = 'property.source_listing_gone';
 
+    // ─── Avis qui n'avaient pas de code (TCK-2704) ──────────────────────────────────────
+    /** Au titulaire du bien : une Vedette ou un Badge a pris fin (`Boost\BoostEndedNotification`). */
+    case BoostEnded = 'boost.ended';
+    /** Aux admins actifs de l'agence : un bailleur rattaché propose un bien (`PropertyProposedNotification`, ADR-0031). */
+    case PropertyProposed = 'property.proposed';
+    /** À l'agence : une intervention urgente créée, ou passée en urgent (`UrgentMaintenanceCreatedNotification`). */
+    case MaintenanceUrgentCreated = 'maintenance.urgent_created';
+    /** À l'agence : l'intervention urgente n'a pas été prise en charge à temps (`EscalateUrgentMaintenanceJob`). */
+    case MaintenanceUrgentEscalated = 'maintenance.urgent_escalated';
+    /** Aux super-admins : une agence individuelle demande à passer en agence professionnelle (TCK-267). */
+    case AgencyUpgradeRequested = 'agency.upgrade_requested';
+
     /** Les natures de paramètre, chacune formatée à sa façon au rendu. */
     public const PARAM_MONEY = 'money';
 
@@ -334,6 +346,9 @@ enum NotificationCode: string
             self::PayoutThresholdRelaxRequested, self::OwnerStatementAvailable,
             self::ServiceProviderBillKeptOnReopen, self::CommissionPaid => NotificationType::Payment,
             self::PropertySourceListingGone => NotificationType::System,
+            // TCK-2704 — le type que la classe écrivait déjà.
+            self::BoostEnded, self::PropertyProposed, self::AgencyUpgradeRequested => NotificationType::System,
+            self::MaintenanceUrgentCreated, self::MaintenanceUrgentEscalated => NotificationType::Maintenance,
         };
     }
 
@@ -409,6 +424,10 @@ enum NotificationCode: string
             self::AgencyMemberDeletionRequested => null,
             // TCK-2432 — une question de produit, pas un avis de sécurité : elle suit les préférences du titulaire.
             self::PropertySourceListingGone => 'property_availability_check',
+            // TCK-2704 — la cloche de ces avis n'avait aucun interrupteur (canal `database` imposé,
+            // celui de l'urgence « locked-on » dans `PreferenceResolver`) : elle n'en gagne pas.
+            self::BoostEnded, self::PropertyProposed, self::AgencyUpgradeRequested,
+            self::MaintenanceUrgentCreated, self::MaintenanceUrgentEscalated => null,
         };
     }
 
@@ -527,6 +546,10 @@ enum NotificationCode: string
             ],
             self::PlatformOperatorRevoked => ['operator' => self::PARAM_TEXT, 'reason' => self::PARAM_TEXT],
             self::PropertySourceListingGone => ['property' => self::PARAM_TEXT],
+            // TCK-2704
+            self::BoostEnded, self::PropertyProposed => ['property' => self::PARAM_TEXT],
+            self::MaintenanceUrgentCreated, self::MaintenanceUrgentEscalated => ['title' => self::PARAM_TEXT],
+            self::AgencyUpgradeRequested => ['agency' => self::PARAM_TEXT],
         };
     }
 
