@@ -62,8 +62,9 @@ function mockMutations() {
   } as unknown as ReturnType<typeof useCapabilityCatalogue>);
 }
 
+/** La case d'une capacité par son code — TCK-2676 : le code n'est plus qu'au survol de la ligne. */
 function box(capability: string): HTMLInputElement {
-  const label = screen.getByText(capability).closest('label')!;
+  const label = document.querySelector<HTMLElement>(`label[data-capability="${capability}"]`)!;
   return within(label).getByRole('checkbox') as HTMLInputElement;
 }
 
@@ -155,6 +156,8 @@ describe('<AgencyRoleEditor>', () => {
     expect(screen.queryByRole('button', { name: 'Enregistrer' })).toBeNull();
     // P164.04 (TCK-1808) — le nom affiché du rôle système, pas son défaut français rangé.
     expect(screen.getByLabelText('Nom du rôle')).toHaveValue('Agent immobilier');
+    // TCK-2676 — un champ désactivé n'invite pas à écrire.
+    expect(screen.getByLabelText('Description')).not.toHaveAttribute('placeholder');
   });
 
   it('reste en lecture seule sans roles.edit_custom, même sur un rôle personnalisé', () => {

@@ -64,4 +64,37 @@ Aucun endpoint neuf. Rôles : catalogue des capacités et éditeur existants (`A
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Re-mesure (2026-11-11).**
+
+- Le catalogue compte **49** capacités (`Capability.php`), et non 46 : `owners.update` (TCK-2640, non commité au moment de la mesure) n'avait **ni libellé ni domaine** côté front. Il s'affichait donc en code brut. Les clés `admin.roles.capabilities.owners.update` et `admin.roles.domains.owners` sont ajoutées ici.
+- Les capacités sans effet sont au nombre de **6** dans l'inventaire (`CapabilityEnforcementInventory::AWAITING`). Deux sont aussi réservées à la plateforme. La messagerie n'a **aucune** capacité attribuable, et son en-tête lisait « 0/0 » : il lit désormais « Sans effet pour l'instant ».
+- Journal : sur la démo, `activity_log` filtré par `agency_id` rend **15** événements et **17** types d'objet. Seuls 4 types et 13 événements avaient un libellé.
+- L'API écrit **184** valeurs littérales `->event('…')`, plus des noms passés par ternaire, par constante `…EVENT` ou par variable (passation d'un agent : `tasks`, `visits`… ; collaborations de prestataire). Tous ceux qu'une agence lit ont désormais leur phrase sous `admin.audit.events.*`. Restent exclus ceux de la plateforme : `super_admin_*`, `radar_*`, `ops_*`, `search_alias_*`.
+  - Un point du code y devient `_` (`property.report_resolved` → `property_report_resolved`).
+  - Le test de parité voit les littéraux, les ternaires et les constantes. Il ne voit pas les noms passés par variable, dont les libellés sont posés à la main.
+
+**Choix.**
+
+- **Matrice.** Le code n'est plus affiché : il passe dans le `title` de la ligne et de la case (description accessible). Une capacité absente du dictionnaire se lit « Autre capacité », au lieu du code brut.
+  - Une capacité sans effet a sa case désactivée et sa raison écrite à côté. Elle passe en bas de son domaine et sort des comptes.
+  - **Aucun droit ne change** : une capacité sans effet déjà accordée reste dans la valeur émise par « Tout cocher » et « Tout décocher ».
+  - Conséquence : elle ne peut plus être retirée d'un rôle depuis l'écran. Elle ne fait rien, mais il faudra la retirer le jour où son geste sera branché.
+- **Téléphone.** La matrice était déjà un accordéon par domaine. Le constat de l'audit (5 600 px, défilement) venait de la ligne de code `break-all`, qui est retirée. Aucune logique de largeur d'écran n'est ajoutée. **Non mesuré au navigateur.**
+- **Description d'un rôle.** Le texte d'invitation n'apparaît plus dès que le champ est en lecture seule : rôle système, ou absence de `roles.edit_custom`.
+- **Intégrations.**
+  - Libellés en français, sous-titre sans « Providers ». Le schéma de l'API publie des `label` anglais : l'écran ne les lit pas.
+  - « URL de webhook », le champ générique d'un fournisseur sans adresse générée, est gardé. Il désigne l'URL que l'agence saisit, et ne doit pas se confondre avec l'« Adresse de notification » générée par Takussan.
+  - Les messages de validation SMS (« Sender name… », « Host invalide ») sont aussi traduits.
+  - Le nom du fournisseur (« Orange Money ») remplace `orange_money` dans le titre du dialogue, la confirmation et le nom accessible de la suppression.
+  - La suppression a un libellé visible, poussée au bout de la rangée. Les dates passent par `formatDateTime`, sans secondes.
+- **Journal.**
+  - `KNOWN_AUDIT_EVENTS` et `KNOWN_SUBJECT_TYPES` sont **inchangés** : ce sont les filtres. `libelleEvenementAudit` (partagé avec la console de la plateforme) n'est pas touché.
+  - Un événement sans clé se lit par sa description si c'est une phrase. Sinon il se lit « Autre action », le code au survol.
+  - L'objet se lit « Réservation n° 276 », le nom du modèle au survol. Un type inconnu se lit « Autre objet n° N ».
+  - Les libellés existants `subjects.*` sont gardés : « Profil d'agent n° 20 », et non « Agent n° 20 » comme dans l'exemple du ticket.
+  - Date au format commun (`formatDateTime`).
+  - Au passage, `events.kyc_expired` devient « Pièce justificative expirée » (plus « KYC »).
+
+**Pour `/sync-specs`.** `features.md` § 2.2 (ligne TCK-587) décrit le signalement « sans effet pour l'instant ». Il faut y ajouter que ces cases ne sont plus cochables et sortent du compte (TCK-2676).
+
+**Wolof.** Les `wo` déjà traduits sont conservés par l'outil de clés (ADR-0095 § 4). Plusieurs portent encore « Sender ID » ou « Host » (`fields.senderIdLam`, `fields.hostLam`, `validation.setting.*`) : à reprendre quand le wolof reprendra.

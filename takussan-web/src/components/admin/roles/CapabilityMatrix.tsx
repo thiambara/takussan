@@ -34,14 +34,21 @@ interface CapabilityMatrixProps {
  * il ne l'a pas, et une ligne absente ne répond pas à cette question. Une
  * ligne désactivée avec son motif y répond.
  *
- * ## Les capacités sans effet restent COCHABLES (TCK-587)
+ * ## Les capacités sans effet ne sont PLUS cochables (TCK-2676, revient sur TCK-587)
  *
  * `not_enforced` liste les capacités qu'aucun geste ne juge encore
- * (`CapabilityEnforcementInventory`). Avant TCK-587, retirer `payouts.approve`
- * à un rôle n'y changeait rien, et l'écran laissait croire le contraire. La
- * mention le dit ; la case reste active, parce que préparer un rôle pour le
- * jour où le geste sera branché est légitime. Une réservée plateforme ne la
- * porte pas : elle est déjà grisée avec son propre motif.
+ * (`CapabilityEnforcementInventory`). TCK-587 les laissait cochables et comptées : un rôle
+ * plafonnait à « 46 sur 46 » en portant des cases qui ne faisaient rien. Elles passent en bas
+ * de leur domaine, case désactivée, leur raison écrite à côté, hors des comptes et des deux
+ * raccourcis. Aucun droit ne change pour autant : une capacité sans effet déjà accordée reste
+ * dans la valeur émise — « Tout cocher » et « Tout décocher » la conservent telle quelle.
+ *
+ * ## Le libellé, jamais le code (TCK-2676)
+ *
+ * Le code `<domaine>.<verbe>` n'est plus écrit sous le libellé : il vit dans le `title` de la
+ * ligne et de la case (infobulle au survol, description accessible au lecteur d'écran), pour le
+ * support. Une capacité que le dictionnaire ne connaît pas encore se lit « Autre capacité »,
+ * son code au survol — jamais brute à l'écran.
  *
  * ## Cases natives, pas de primitive
  *
@@ -74,16 +81,16 @@ export function CapabilityMatrix({
    * Total sur lequel se compte « x sur y » : les réservées plateforme en
    * sont exclues. Les compter ferait plafonner l'indicateur à 42/44 pour un
    * rôle qui a pourtant TOUT ce qu'il peut avoir — un « incomplet » qui n'a
-   * aucun geste pour être résolu.
+   * aucun geste pour être résolu. TCK-2676 : les sans effet aussi — le compte ne
+   * dit plus que ce qui agit.
    */
-  const grantable = useMemo(
-    () =>
-      catalogue.domains.flatMap((d) => d.capabilities).filter((c) => !reserved.has(c)),
-    [catalogue.domains, reserved],
-  );
+  const attribuable = (c: CapabilityValue) => !reserved.has(c) && !notEnforced.has(c);
+  const grantable = catalogue.domains.flatMap((d) => d.capabilities).filter(attribuable);
+  /** Les capacités sans effet déjà accordées : aucun raccourci ne les retire ni ne les ajoute. */
+  const conservees = value.filter((c) => notEnforced.has(c) && !reserved.has(c));
 
   const toggle = (capability: CapabilityValue) => {
-    if (readOnly || reserved.has(capability)) return;
+    if (readOnly || !attribuable(capability)) return;
     const next = new Set(selected);
     if (next.has(capability)) next.delete(capability);
     else next.add(capability);
@@ -101,7 +108,7 @@ export function CapabilityMatrix({
 
   const label = (capability: CapabilityValue): string => {
     const key = `capabilities.${capability}`;
-    return t.has(key) ? t(key) : capability;
+    return t.has(key) ? t(key) : t('matrix.unknown_capability');
   };
 
   const domainLabel = (domain: string): string => {
@@ -121,10 +128,10 @@ export function CapabilityMatrix({
           <div className="flex gap-2">
             {/* Primitive `Button` : les deux boutons faits main mesuraient 24 px de haut. L'anneau
                 PLEIN est repris (TCK-371) : celui de la primitive est à 50 %, mesuré à 2,12:1. */}
-            <Button type="button" variant="outline" size="sm" className={ANNEAU} onClick={() => onChange([...grantable])}>
+            <Button type="button" variant="outline" size="sm" className={ANNEAU} onClick={() => onChange([...conservees, ...grantable])}>
               {t('matrix.select_all')}
             </Button>
-            <Button type="button" variant="outline" size="sm" className={ANNEAU} onClick={() => onChange([])}>
+            <Button type="button" variant="outline" size="sm" className={ANNEAU} onClick={() => onChange([...conservees])}>
               {t('matrix.clear')}
             </Button>
           </div>
@@ -134,8 +141,13 @@ export function CapabilityMatrix({
       <ul className="space-y-2">
         {catalogue.domains.map((group) => {
           const isCollapsed = collapsed.has(group.domain);
-          const domainGrantable = group.capabilities.filter((c) => !reserved.has(c));
+          const domainGrantable = group.capabilities.filter(attribuable);
           const domainGranted = domainGrantable.filter((c) => selected.has(c)).length;
+          // Les sans effet en bas de leur domaine ; l'ordre du catalogue est gardé de part et d'autre.
+          const ordonnees = [
+            ...group.capabilities.filter((c) => !notEnforced.has(c) || reserved.has(c)),
+            ...group.capabilities.filter((c) => notEnforced.has(c) && !reserved.has(c)),
+          ];
 
           return (
             <li
@@ -151,10 +163,13 @@ export function CapabilityMatrix({
               >
                 <span className="font-semibold text-foreground">{domainLabel(group.domain)}</span>
                 <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                  {t('matrix.domain_selected', {
-                    count: domainGranted,
-                    total: domainGrantable.length,
-                  })}
+                  {/* Un domaine sans aucune capacité attribuable (messagerie) ne lit pas « 0/0 ». */}
+                  {domainGrantable.length > 0
+                    ? t('matrix.domain_selected', {
+                      count: domainGranted,
+                      total: domainGrantable.length,
+                    })
+                    : t('matrix.not_enforced')}
                   <ChevronDown
                     className={cn('size-4 transition-transform', isCollapsed && '-rotate-90')}
                     aria-hidden="true"
@@ -164,13 +179,15 @@ export function CapabilityMatrix({
 
               {isCollapsed ? null : (
                 <ul className="border-t border-border">
-                  {group.capabilities.map((capability) => {
+                  {ordonnees.map((capability) => {
                     const isReserved = reserved.has(capability);
                     const isNotEnforced = !isReserved && notEnforced.has(capability);
                     const isChecked = selected.has(capability);
                     return (
                       <li key={capability} className="border-b border-border/50 last:border-b-0">
                         <label
+                          title={capability}
+                          data-capability={capability}
                           // ⚠ Plus d'`opacity-60` sur la ligne : en lecture seule (rôle système),
                           // c'est TOUTE la matrice qui passait à 60 %, et le code de capacité
                           // (`text-muted-foreground`) tombait sous 4,5:1. La case désactivée dit
@@ -179,7 +196,7 @@ export function CapabilityMatrix({
                           // de la carte.
                           className={cn(
                             'flex flex-wrap items-start gap-x-3 gap-y-1 px-4 py-2.5 text-sm',
-                            isReserved
+                            isReserved || isNotEnforced
                               ? 'cursor-not-allowed'
                               : readOnly
                                 ? 'cursor-default'
@@ -189,20 +206,28 @@ export function CapabilityMatrix({
                           <input
                             type="checkbox"
                             className="mt-0.5 size-4 shrink-0 accent-primary"
+                            title={capability}
                             checked={isChecked}
-                            disabled={isReserved || readOnly}
+                            disabled={isReserved || isNotEnforced || readOnly}
                             onChange={() => toggle(capability)}
                           />
                           <span className="min-w-0 flex-1 basis-40">
                             <span
                               className={cn(
                                 'block',
-                                isReserved ? 'text-muted-foreground' : 'text-foreground',
+                                isReserved || isNotEnforced ? 'text-muted-foreground' : 'text-foreground',
                               )}
                             >
                               {label(capability)}
                             </span>
-                            <code className="block break-all text-xs text-muted-foreground">{capability}</code>
+                            {isNotEnforced ? (
+                              <span
+                                className="block text-xs text-muted-foreground"
+                                data-testid={`capability-not-enforced-reason-${capability}`}
+                              >
+                                {t('matrix.not_enforced_reason')}
+                              </span>
+                            ) : null}
                           </span>
                           {isReserved ? (
                             <Badge
@@ -218,7 +243,6 @@ export function CapabilityMatrix({
                             <Badge
                               variant="outline"
                               className="shrink-0 gap-1"
-                              title={t('matrix.not_enforced_hint')}
                               data-testid={`capability-not-enforced-${capability}`}
                             >
                               <CircleDashed className="size-3" aria-hidden="true" />

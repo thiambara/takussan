@@ -4,7 +4,7 @@ import { useCallback, useState, useTransition } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { CheckCircle2, Loader2, Plug, Plus, Trash2, XCircle } from 'lucide-react';
 import { EmptyState } from '@/components/feedback';
-import { formatDate } from '@/lib/format';
+import { formatDateTime } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 
 import { Button } from '@/components/ui/button';
@@ -75,6 +75,15 @@ const PROVIDER_SUGGESTIONS = [
   { value: 'sms_mtarget', label: 'SMS — Mtarget' },
   { value: 'sms_lafricamobile', label: 'SMS — LAfricaMobile' },
 ];
+
+/**
+ * TCK-2676 — le nom d'un fournisseur tel que l'écran le montre : « Orange Money », jamais la valeur
+ * d'API `orange_money` (titre du dialogue, confirmation de suppression, nom accessible). Un
+ * fournisseur hors de la liste garde l'ancien rendu, tirets bas remplacés par des espaces.
+ */
+function nomDuFournisseur(provider: string): string {
+  return PROVIDER_SUGGESTIONS.find((p) => p.value === provider)?.label ?? provider.replace(/_/g, ' ');
+}
 
 function emptyForm(): IntegrationFormValues {
   return {
@@ -168,7 +177,7 @@ export function IntegrationsManager({
   }, [garde]);
 
   const handleDelete = useCallback((integration: Integration) => {
-    const ok = window.confirm(t('confirmDelete', { provider: integration.provider }));
+    const ok = window.confirm(t('confirmDelete', { provider: nomDuFournisseur(integration.provider) }));
     if (!ok) return;
     startTransition(async () => {
       const result = await avecGardeDoubleFacteurAction(() => deleteIntegrationAction(integration.id), garde);
@@ -272,7 +281,7 @@ export function IntegrationsManager({
                     <Plug className="size-5 shrink-0 text-primary" aria-hidden="true" />
                     <div>
                       <h3 className="text-sm font-semibold capitalize text-foreground">
-                        {integration.provider.replace(/_/g, ' ')}
+                        {nomDuFournisseur(integration.provider)}
                       </h3>
                       <p className="text-xs text-pretty tabular-nums text-muted-foreground">
                         {integration.is_active ? t('statusActive') : t('statusInactive')}
@@ -280,17 +289,8 @@ export function IntegrationsManager({
                           ? t('lastTest', {
                             // TCK-292 — la locale ACTIVE, plus `fr-FR` en dur : la date
                             // s'affichait en français quelle que soit la langue choisie.
-                            date: formatDate(integration.last_used_at, locale, {
-                              // `formatDate` pose `dateStyle: 'medium'` par défaut, et
-                              // Intl REFUSE `dateStyle` mêlé à des champs explicites.
-                              dateStyle: undefined,
-                              day: '2-digit',
-                              month: '2-digit',
-                              year: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                              second: '2-digit',
-                            }),
+                            // TCK-2676 — le format commun de l'application, sans les secondes.
+                            date: formatDateTime(integration.last_used_at, locale),
                           })
                           : null}
                       </p>
@@ -368,12 +368,15 @@ export function IntegrationsManager({
                     type="button"
                     size="sm"
                     variant="ghost"
-                    aria-label={t('deleteAria', { provider: integration.provider })}
-                    className="text-muted-foreground hover:text-destructive"
+                    // TCK-2676 — un libellé, plus une poubelle seule collée à « Configurer » : poussé
+                    // au bout de la rangée, le nom accessible commence par le texte visible.
+                    aria-label={t('deleteAria', { provider: nomDuFournisseur(integration.provider) })}
+                    className="ms-auto text-muted-foreground hover:text-destructive"
                     onClick={() => handleDelete(integration)}
                     disabled={isPending}
                   >
                     <Trash2 aria-hidden="true" />
+                    <span>{t('delete')}</span>
                   </Button>
                 </div>
               </article>
@@ -484,7 +487,7 @@ function IntegrationDialog({
           <DialogTitle>
             {mode === 'create'
               ? t('dialog.createTitle')
-              : t('dialog.editTitle', { provider: integration?.provider ?? '' })}
+              : t('dialog.editTitle', { provider: integration ? nomDuFournisseur(integration.provider) : '' })}
           </DialogTitle>
           <DialogDescription>{t('dialog.description')}</DialogDescription>
         </DialogHeader>
