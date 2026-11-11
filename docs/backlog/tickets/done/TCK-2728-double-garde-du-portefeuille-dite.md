@@ -1,7 +1,7 @@
 ---
 id: TCK-2728
 title: "La lecture du portefeuille de crédits a deux gardes sur les mises en avant : les dire, et épingler celle qui est seule ailleurs"
-status: todo
+status: done
 phase: P3
 family: technique
 estimate: S
@@ -66,11 +66,11 @@ Aucun changement de réponse.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `authorize` de `ReadsWallet::walletAgency()` retiré : au moins un test de `GET /api/credits` et un de
+- [x] AC1 — `authorize` de `ReadsWallet::walletAgency()` retiré : au moins un test de `GET /api/credits` et un de
       `GET /api/credits/balance` rougissent (ablation consignée dans les notes, md5 restauré).
-- [ ] AC2 — `AuthorizesWalletReading::authorize()` forcé à `true` : les tests 403-avant-422 des boosts et des suggestions
+- [x] AC2 — `AuthorizesWalletReading::authorize()` forcé à `true` : les tests 403-avant-422 des boosts et des suggestions
       rougissent.
-- [ ] AC3 — Les deux docblocks nomment l'autre garde et les routes où chacune est seule.
+- [x] AC3 — Les deux docblocks nomment l'autre garde et les routes où chacune est seule.
 
 ## Hors périmètre
 
@@ -78,4 +78,19 @@ Aucun changement de réponse.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Aucun code changé, aucune garde retirée.** Les deux docblocks se citent l'un l'autre (en texte plutôt qu'en
+`{@see}`, pour qu'aucun `use` ne relie une FormRequest à un trait de contrôleur) et disent où chaque garde est seule.
+
+**Ablations du 2026-11-11.** Une à la fois, au premier plan, md5 restauré et vérifié après chacune.
+
+| Mutant | Fichier de test | Résultat |
+|---|---|---|
+| A1 : `authorize` retiré de `ReadsWallet::walletAgency()` | `Boost/CreditsApiTest` | **rouge** (« l'agent n'y a pas accès », `GET /api/credits`) |
+| A1 | `Boost/CreditBalanceEndpointTest` | **rouge** (« l'agent n'y a pas accès », `…/balance`) |
+| A1 | `Credits/CreditsBoostsListTest`, `Credits/CreditsSuggestionsTest` | vert : le FormRequest couvre |
+| A2 : `AuthorizesWalletReading::authorize()` rend `true` | `Credits/CreditsBoostsListTest` | **rouge** (« ac3 … 403 avant la validation ») |
+| A2 | `Credits/CreditsSuggestionsTest` | **rouge** (« 403 avant la validation ») |
+| A2 | `Boost/CreditsApiTest` | vert : le trait n'est pas sur cette route |
+
+AC1 et AC2 sont tenus par les tests existants : aucun test à écrire. Sous A2, le 403 d'un appel bien formé aux
+boosts reste tenu par `ReadsWallet`, et seul le cas mal formé rougit. C'est exactement la double garde décrite.
