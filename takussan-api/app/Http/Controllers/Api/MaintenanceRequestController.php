@@ -6,6 +6,7 @@ use App\Domain\Notifications\NotificationCode;
 use App\Domain\Notifications\NotificationTarget;
 use App\Events\Maintenance\MaintenanceScheduleChanged;
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\AcceptMaintenanceRequestRequest;
 use App\Http\Requests\Api\CompleteMaintenanceRequestRequest;
 use App\Http\Requests\Api\ConfirmMaintenanceResolutionRequest;
 use App\Http\Requests\Api\ContestMaintenanceResolutionRequest;
@@ -342,12 +343,13 @@ class MaintenanceRequestController extends Controller
     /**
      * TCK-592 — le prestataire assigné accepte l'intervention : `accepted_at`. Le kit d'accès
      * (rue, coordonnées, téléphone du demandeur) ne s'ouvre qu'après.
+     *
+     * TCK-2680 — avec `scheduled_at`, le prestataire propose son passage dans le même geste.
+     * L'autorisation (`respondToAssignment`) court dans le FormRequest, avant la validation.
      */
-    public function accept(Request $request, MaintenanceRequest $maintenanceRequest): JsonResponse
+    public function accept(AcceptMaintenanceRequestRequest $request, MaintenanceRequest $maintenanceRequest): JsonResponse
     {
-        $this->authorize('respondToAssignment', $maintenanceRequest);
-
-        $mr = $this->service->accept($maintenanceRequest, $request->user());
+        $mr = $this->service->accept($maintenanceRequest, $request->user(), $request->scheduledAt());
 
         return $this->json(['data' => MaintenanceRequestResource::make($mr)->resolve($request)]);
     }

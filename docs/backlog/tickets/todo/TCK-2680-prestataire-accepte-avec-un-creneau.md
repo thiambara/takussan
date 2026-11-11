@@ -92,4 +92,44 @@ venir », boutons « Accepter » et « Proposer un créneau ».
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Implémenté le 2026-11-11 (agent back-entree-2, branche `feat/audit-ux-app-lot-1`).
+
+**Prémisses re-mesurées** : conformes au relevé — `accept` sans corps, autorisation
+`respondToAssignment` dans le contrôleur, créneau réservé au `PATCH` (donneur d'ordre, ou prestataire
+déjà accepté), `MaintenanceScheduleChanged` en `ShouldDispatchAfterCommit` notifié par
+`NotifyMaintenanceParticipants::handleScheduleChanged`. Aucune route ni `NotificationCode` neufs.
+
+**Ce qui différait** : le cast `datetime` d'Eloquent écrit l'**heure murale** de la valeur reçue sans
+convertir son décalage. Mesuré : `fill(['scheduled_at' => '2026-11-12T11:00:00+01:00'])` stocke
+`2026-11-12 11:00:00`, soit 11 h UTC pour un instant qui est 10 h UTC. Le `PATCH` existant a ce
+défaut (non corrigé ici, hors périmètre) ; `accept` ne l'a pas : le service ramène l'instant au fuseau
+de l'application avant de l'écrire.
+
+**Décisions**
+
+- `AcceptMaintenanceRequestRequest` : `authorize()` délègue à `respondToAssignment` (le 403 passe
+  avant le 422 d'une date passée) ; `scheduled_at` `sometimes|nullable|date|after:now`.
+  `scheduledAt()` lit une heure sans décalage à l'heure de Dakar
+  (`MaintenanceRequest::SCHEDULED_TIMEZONE`, UTC+0), une heure avec décalage comme l'instant désigné.
+- `MaintenanceRequestService::accept(…, ?CarbonInterface $scheduledAt = null)` : `accepted_at` et
+  `scheduled_at` posés dans la même écriture, sur la ligne relue sous verrou (les gardes terminale et
+  déjà-acceptée s'appliquent avant, donc un refus ne pose pas le créneau). Après la transaction :
+  `MaintenanceStatusChanged` (acceptée), puis `MaintenanceScheduleChanged` **si l'heure a réellement
+  changé** — même règle que le `PATCH` (TCK-2012) : l'heure déjà fixée par le donneur d'ordre,
+  renvoyée telle quelle, n'annonce rien.
+- `scheduled_at: null` vaut « sans créneau » : l'heure déjà fixée reste (un prestataire ne retire pas
+  par ce geste le passage posé par le donneur d'ordre).
+- Notifications : le donneur d'ordre reçoit `maintenance.accepted` **et**
+  `maintenance.schedule_changed` (un avis par événement) ; le demandeur le seul
+  `maintenance.schedule_changed` ; l'auteur rien.
+
+**Mesures** : `MaintenanceAcceptWithSlotTest` 12 tests (dont 4 jeux de dates refusées), verts ; les
+tests d'acceptation existants (`MaintenanceAcceptDeclineTest`, `MaintenanceAcceptSousVerrouTest`)
+passent sans modification (AC4). Six ablations, toutes rouges puis restaurées par `cp` (md5
+vérifiés) : créneau non posé, événement du créneau retiré, `after:now` retiré, fuseau non ramené,
+`authorize()` ouvert, annonce sans changement d'heure. AC2 est éprouvé sur le scénario
+`MaintenanceActors` (locataire demandeur), pas sur le jeu de démo.
+
+**Non éprouvé par ablation** : l'atomicité contre un échec *après* l'écriture (rien ne peut échouer
+entre la pose des deux colonnes et la fin de la transaction) ; « rien posé à moitié » est éprouvé
+sur les refus de validation et les refus métier.
