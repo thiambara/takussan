@@ -9,7 +9,7 @@ wave: 88
 created: 2026-11-10
 updated: 2026-11-10
 depends_on: []
-blocks: [TCK-2643, TCK-2645, TCK-2649]
+blocks: [TCK-2643, TCK-2645, TCK-2649, TCK-2706]
 spec_refs:
   features:
     - "docs/features.md#14-location-longue-durée-baux"
@@ -176,8 +176,14 @@ Implémenté le 2026-11-11 sur `feat/audit-ux-app-lot-1` (base `acfe73fb3`).
   période qui en a déjà une vivante. Deux tests le gardent (charges saisies à la main ; régénération
   après des loyers annulés un à un), chacun vérifié par ablation, plus l'ablation inverse (contrôle
   élargi aux deux types → rouge).
-- **AC5** (`total_due` de `GET /api/me/rent-summary`) : la route n'existe pas encore — elle est livrée par
-  TCK-2649. Non mesuré ici ; les échéances `charges` y entreront si TCK-2649 compte `SCHEDULED_PERIOD_TYPES`.
+- **AC5** (`total_due` de `GET /api/me/rent-summary`) : la route est livrée par TCK-2649. **Mesuré
+  dans TCK-2649 le 2026-11-11 — tient** : `TenantRentSummary` lit `LeaseService::SCHEDULED_PERIOD_TYPES` ;
+  bail 500 000 F + 150 000 F de charges + caution 1 000 000 F, échéancier généré, rien payé après la
+  première échéance échue → `total_due=650000` (items `rent` puis `charges`, caution hors total).
+  Ablation (filtre ramené au seul loyer) → `500000`, rouge
+  (`TenantRentSummaryTest::test_tck_2679_ac5_les_charges_echues_entrent_dans_le_total`). Non mesurable
+  sur la base de démo : aucun bail n'y porte de charges.
+- **Lien de paiement d'une relance fusionnée** : ticket de suivi TCK-2706.
 - **AC2** est mesuré sur le HTML de la vraie vue `pdf.leases.contract` (comme `LeaseContractTermsTest`),
   pas sur les octets du PDF (flux compressés par dompdf).
 - **AC3, mesure en plus du test** : le HTML du contrat de 5 baux de démo sans charges, rendu par le

@@ -4,15 +4,20 @@ namespace App\Services\Payout;
 
 use App\Models\Agency;
 use App\Models\Enums\LeasePaymentType;
+use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PayeeRole;
+use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PayoutStatus;
+use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Payout;
 use App\Models\Profiles\OwnerProfile;
+use App\Models\Property;
 use App\Models\ServiceProviderBill;
 use App\Models\User;
 use App\Services\Dashboard\CollectedPayments;
 use App\Services\Dashboard\PortfolioMetrics;
+use App\Services\Reporting\OverdueInstalment;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -31,6 +36,12 @@ use Illuminate\Support\Facades\DB;
  */
 final class OwnerStatementService
 {
+    /** TCK-2649 — un bail qui a occupé le bien : ni brouillon, ni en attente de signature. */
+    private const OCCUPYING_STATUSES = [
+        LeaseStatus::Active->value, LeaseStatus::Terminating->value, LeaseStatus::Expired->value,
+        LeaseStatus::Terminated->value, LeaseStatus::Renewed->value,
+    ];
+
     public function __construct(
         private readonly PayoutCalculator $calculator,
         private readonly PayoutClawbacks $clawbacks,
@@ -94,6 +105,16 @@ final class OwnerStatementService
         ])->values()->all();
         $payouts = $carrying->concat($paid)->unique('id')->sortBy('id')->values();
 
+        $totals = array_merge($computation['totals'], [
+            'net' => round($computation['totals']['net'] - $clawedBack, 2),
+            'clawback' => $clawedBack,
+            'paid_out' => round((float) $paid->sum(fn (Payout $p) => (float) $p->net_amount + (float) ($p->clawback_amount ?? 0)) - $clawedBack, 2),
+        ]);
+        // TCK-2649 (ADR-0100) — le reste à verser, calculé ICI et une seule fois : la fiche bailleur
+        // et la page « Loyers » le lisent, jamais une soustraction côté front. Négatif s'il a été trop
+        // versé, rendu tel quel (la reprise suit ADR-0039).
+        $totals['remaining_to_pay'] = self::remainingToPay($totals);
+
         return [
             'agency' => ['id' => $agency->id, 'name' => $agency->name],
             // P234.06 (TCK-2315) — la raison sociale d'un bailleur société, `null` pour un particulier.
@@ -108,12 +129,9 @@ final class OwnerStatementService
             'period_start' => $start->toDateString(),
             'period_end' => $end->toDateString(),
             'currency' => $computation['currency'],
-            'totals' => array_merge($computation['totals'], [
-                'net' => round($computation['totals']['net'] - $clawedBack, 2),
-                'clawback' => $clawedBack,
-                'paid_out' => round((float) $paid->sum(fn (Payout $p) => (float) $p->net_amount + (float) ($p->clawback_amount ?? 0)) - $clawedBack, 2),
-            ]),
-            'properties' => $this->byProperty($computation['lines']),
+            'totals' => $totals,
+            'next_payout' => $this->nextPayout($agency, $landlord),
+            'properties' => $this->properties($agency, $landlord, $start, $end, $this->byProperty($computation['lines'])),
             'lines' => $computation['lines'],
             'payouts' => $payouts->map(fn (Payout $p): array => [
                 'id' => $p->id,
@@ -128,6 +146,169 @@ final class OwnerStatementService
             'unpaid' => $this->unpaid($agency, $landlord, $start, $end),
             'late_fees_outstanding' => $this->lateFeesOutstanding($agency, $landlord, $start, $end),
         ];
+    }
+
+    /**
+     * TCK-2649 — `net − paid_out`, au centime. Public pour l'instantané d'avant ce champ
+     * ({@see OwnerStatementSnapshots::served()}), qui le recompose sur ses propres totaux.
+     *
+     * @param  array<string, mixed>  $totals
+     */
+    public static function remainingToPay(array $totals): float
+    {
+        return round((float) ($totals['net'] ?? 0) - (float) ($totals['paid_out'] ?? 0), 2);
+    }
+
+    /**
+     * TCK-2649 — le prochain reversement AU BAILLEUR encore à venir ({@see PayoutStatus::upcoming()}),
+     * le plus tôt programmé d'abord ; un reversement sans date passe après. Lu au jour, quelle que
+     * soit la période : c'est un « prochain », pas un fait du mois.
+     *
+     * @return array{id: int, scheduled_at: ?string, payment_method: ?string, status: ?string, net_amount: float}|null
+     */
+    public function nextPayout(Agency $agency, User $landlord): ?array
+    {
+        $payout = Payout::query()
+            ->where('agency_id', $agency->id)
+            ->where('landlord_id', $landlord->id)
+            ->where('payee_role', PayeeRole::Landlord->value)
+            ->whereIn('status', array_map(fn (PayoutStatus $s) => $s->value, PayoutStatus::upcoming()))
+            ->orderByRaw('scheduled_at ASC NULLS LAST')
+            ->orderBy('id')
+            ->first();
+
+        return $payout === null ? null : [
+            'id' => (int) $payout->id,
+            'scheduled_at' => $payout->scheduled_at?->toIso8601String(),
+            'payment_method' => $payout->payment_method?->value,
+            'status' => $payout->status?->value,
+            'net_amount' => (float) $payout->net_amount,
+        ];
+    }
+
+    /**
+     * TCK-2649 — la ligne de chaque bien du bailleur dans l'agence : ceux qui ont bougé dans la
+     * période (les lignes de {@see self::byProperty()}, en tête et dans leur ordre, chiffres
+     * inchangés), puis ceux qui n'ont rien encaissé — un bien vacant ou en retard est justement
+     * celui dont le bailleur veut la ligne. `has_movements` les distingue : le PDF n'imprime que
+     * les premiers, comme avant.
+     *
+     * Chaque ligne gagne `title`, `tenant_name` (le locataire du bail le plus récent qui court sur
+     * la période ; le relevé ne porte que les biens de CE bailleur, et ne s'ouvre qu'à lui et au
+     * personnel de l'agence — `OwnerStatementPolicy`), `expected_rent` (les échéances de loyer non
+     * annulées dues dans la période), `month_status` et `days_late` ({@see self::monthStatus()}).
+     *
+     * @param  list<array<string, mixed>>  $moved
+     * @return list<array<string, mixed>>
+     */
+    private function properties(Agency $agency, User $landlord, CarbonImmutable $start, CarbonImmutable $end, array $moved): array
+    {
+        $leases = Lease::query()
+            ->where('agency_id', $agency->id)
+            ->where('landlord_id', $landlord->id)
+            ->whereIn('status', self::OCCUPYING_STATUSES)
+            ->whereDate('start_date', '<=', $end->toDateString())
+            ->with('tenant')
+            ->orderByDesc('start_date')
+            ->orderByDesc('id')
+            ->get()
+            ->filter(fn (Lease $lease) => ($ends = self::effectiveEnd($lease)) === null || $ends >= $start->toDateString())
+            ->groupBy('property_id');
+
+        $dues = LeasePayment::query()
+            ->select('lease_payments.*', 'leases.property_id AS statement_property_id')
+            ->join('leases', 'leases.id', '=', 'lease_payments.lease_id')
+            ->whereNull('leases.deleted_at')
+            ->where('leases.agency_id', $agency->id)
+            ->where('leases.landlord_id', $landlord->id)
+            ->where('lease_payments.payment_type', LeasePaymentType::Rent->value)
+            ->where('lease_payments.status', '!=', PaymentStatus::Cancelled->value)
+            ->whereBetween('lease_payments.due_date', [$start->toDateString(), $end->toDateString()])
+            ->get()
+            ->groupBy('statement_property_id');
+
+        // Un bien archivé avant la période n'a plus de ligne, sauf s'il a encore un bail ou une échéance.
+        $owned = Property::query()
+            ->where('agency_id', $agency->id)
+            ->where('user_id', $landlord->id)
+            ->where(fn ($q) => $q->whereNull('archived_at')->orWhere('archived_at', '>=', $start->startOfDay()))
+            ->orderBy('id')
+            ->pluck('id')
+            ->all();
+
+        $rows = array_map(fn (array $row): array => $row + ['has_movements' => true], $moved);
+        $seen = array_column($rows, 'property_id');
+        $others = array_values(array_diff(array_unique([...$owned, ...$leases->keys()->all(), ...$dues->keys()->all()]), $seen));
+        sort($others);
+        foreach ($others as $id) {
+            $rows[] = ['property_id' => (int) $id, 'collected' => 0.0, 'commission' => 0.0, 'fees' => 0.0, 'net' => 0.0, 'has_movements' => false];
+        }
+
+        $titles = Property::withTrashed()->whereIn('id', array_column($rows, 'property_id'))->pluck('title', 'id');
+
+        return array_map(function (array $row) use ($leases, $dues, $titles): array {
+            $id = $row['property_id'];
+            /** @var Collection<int, Lease> $propertyLeases */
+            $propertyLeases = $leases->get($id, collect());
+            $lease = $propertyLeases->first(fn (Lease $l) => in_array($l->status?->value, Lease::ONGOING_STATUSES, true)) ?? $propertyLeases->first();
+            /** @var Collection<int, LeasePayment> $propertyDues */
+            $propertyDues = $dues->get($id, collect());
+
+            return $row + [
+                'title' => $titles[$id] ?? null,
+                'tenant_name' => trim((string) $lease?->tenant?->full_name) ?: null,
+                'expected_rent' => round((float) $propertyDues->sum(fn (LeasePayment $p) => (float) $p->amount), 2),
+                ...self::monthStatus($propertyDues, $lease !== null),
+            ];
+        }, $rows);
+    }
+
+    /** Le dernier jour d'occupation d'un bail : la sortie anticipée, sinon la résiliation, sinon le terme. */
+    private static function effectiveEnd(Lease $lease): ?string
+    {
+        return $lease->early_termination_effective_date?->toDateString()
+            ?? ($lease->status === LeaseStatus::Terminated ? $lease->terminated_at?->toDateString() : null)
+            ?? $lease->end_date?->toDateString();
+    }
+
+    /**
+     * TCK-2649 — l'état du loyer d'un bien sur la période, sur ses échéances de loyer non annulées.
+     * Dans cet ordre :
+     *
+     * - `paid` : toutes soldées ;
+     * - `late` : au moins une en retard ({@see OverdueInstalment::daysLate()}, la règle de
+     *   l'historique et de la balance âgée) — `days_late` est le plus grand retard ;
+     * - `partial` : une part versée, le reste pas encore échu ;
+     * - `due` : rien de versé, rien d'échu (le loyer du mois n'est pas encore dû) ;
+     * - `none` : un bail court, mais aucune échéance de loyer dans la période (pas encore émise) ;
+     * - `vacant` : ni bail ni échéance.
+     *
+     * `due` et `none` s'ajoutent aux quatre états du ticket, avec le vocabulaire de TCK-2637
+     * (`current_month.status`) : sans eux, un loyer pas encore échu se lirait « payé » ou « en
+     * retard », et un bail sans échéancier « vacant ».
+     *
+     * @param  Collection<int, LeasePayment>  $dues
+     * @return array{month_status: string, days_late: ?int}
+     */
+    private static function monthStatus(Collection $dues, bool $occupied): array
+    {
+        if ($dues->isEmpty()) {
+            return ['month_status' => $occupied ? 'none' : 'vacant', 'days_late' => null];
+        }
+
+        $remaining = $dues->filter(fn (LeasePayment $p) => in_array($p->status, CollectedPayments::OWED_STATUSES, true) && (float) $p->remaining_amount > 0);
+        if ($remaining->isEmpty()) {
+            return ['month_status' => 'paid', 'days_late' => null];
+        }
+
+        $late = $remaining->map(fn (LeasePayment $p) => OverdueInstalment::daysLate($p))->filter()->max();
+        if ($late !== null) {
+            return ['month_status' => 'late', 'days_late' => (int) $late];
+        }
+
+        $paidSomething = $dues->sum(fn (LeasePayment $p) => (float) $p->amount) > $remaining->sum(fn (LeasePayment $p) => (float) $p->remaining_amount);
+
+        return ['month_status' => $paidSomething ? 'partial' : 'due', 'days_late' => null];
     }
 
     /**

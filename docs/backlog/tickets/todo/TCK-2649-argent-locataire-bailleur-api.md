@@ -103,4 +103,99 @@ Le locataire lit un seul montant, « ce que vous devez », pénalités comprises
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+Implémenté le 2026-11-11 sur `feat/audit-ux-app-lot-1` (base `1095f480d`, après TCK-2679).
+
+**Prémisse re-mesurée — tient.** Aucune route `me/rent-summary` ; `OwnerStatementService::statement()`
+rendait `totals` sans reste à verser, `properties[]` = `{property_id, collected, commission, fees, net}`
+des seuls biens qui avaient encaissé, aucun prochain versement.
+
+**Locataire — `GET /api/me/rent-summary`** (`TenantRentSummaryController`, invocable, `auth:sanctum`,
+toujours 200 ; `App\Services\Payments\TenantRentSummary`) :
+
+- Toutes les fiches client du compte (une par agence), comme `DashboardTenantService`.
+- `total_due` = reste dû des échéances `LeaseService::SCHEDULED_PERIOD_TYPES` (loyer **et** charges)
+  dues au plus tard aujourd'hui (heure de Dakar, `OverdueInstalment::today()`), sur la règle
+  `CollectedPayments::leaseOwed()`, **plus** toutes les pénalités restant dues
+  (`CollectedPayments::lateFeesOutstanding()`, loyer payé compris). Ni caution, ni échéance à venir.
+- `parts.payable_online` = Σ `PaymentGatewayService::amountDue()` des échéances qui passent la porte du
+  lien de paiement (`isPayable` **et** un fournisseur actif) ; `payable_at_agency` = le reste. La règle
+  d'encaissement des pénalités n'est pas réécrite : `amountDue` / `lateFeeIncluded` en décident.
+- `items[]` : `{kind: rent|charges|late_fee, lease_payment_id, lease_id, payment_type, due_date,
+  period_start, period_end, amount, currency, days_late, payable_online}` — codes, jamais de libellé.
+- `next_rent` : `{lease_id, lease_payment_id, due_date, amount, charges_amount, currency, payable_online}`
+  — le premier loyer dû APRÈS aujourd'hui ; `charges_amount` = les charges appelées le même jour sur le
+  même bail, à part (le paiement en ligne d'une échéance ne règle qu'elle).
+- `schedule_state` : `due` s'il reste quelque chose ; sinon `none` si un bail en cours n'a aucune
+  échéance de loyer non annulée (une caution seule n'est pas un échéancier) ; sinon `up_to_date`.
+  **Sans aucun bail : `null`** (et `lease: null`) — `none` dirait « bail sans échéancier ».
+- `lease` : le premier bail en cours, sinon le plus récent — `id, reference_number, status,
+  monthly_rent, monthly_charges, currency, property {id, title}, agency {id, name, phone}`.
+- `offline_payment` : `App\Services\Payments\OfflinePaymentMeans::of($agency)`, **la même lecture**
+  que `GET /api/pay/{jeton}` — `PublicPaymentLinkController::offlinePayment()` l'appelle désormais au
+  lieu de sa copie (fichier partagé avec la voie argent de l'agence : seul ce bloc change). Servi
+  toujours sur le résumé ; le lien le garde réservé à une échéance qui doit encore quelque chose.
+
+**Bailleur — `OwnerStatementService`** :
+
+- `totals.remaining_to_pay = round(net − paid_out, 2)`, calculé une fois
+  (`OwnerStatementService::remainingToPay()`), négatif s'il a été trop versé.
+- `next_payout` : `{id, scheduled_at, payment_method, status, net_amount}` du prochain reversement
+  **au bailleur** encore à venir (`PayoutStatus::upcoming()`), même agence, le plus tôt programmé
+  d'abord, un reversement sans date après ; `null` sinon. Lu au jour, quelle que soit la période.
+- `properties[]` : les lignes d'avant **en tête, dans leur ordre, chiffres inchangés**, puis les biens
+  du bailleur sans mouvement (ses biens de l'agence — sauf archivés avant la période —, les biens de
+  ses baux qui courent sur la période, ceux qui ont une échéance de loyer dans la période), à zéro.
+  `has_movements` les distingue. Chaque ligne gagne `title`, `tenant_name` (bail le plus récent qui
+  court sur la période, en cours d'abord ; fin effective = sortie anticipée, sinon résiliation, sinon
+  terme), `expected_rent` (Σ des échéances de loyer non annulées dues dans la période), `month_status`
+  et `days_late` (le plus grand retard, `OverdueInstalment::daysLate`).
+- **Confidentialité** : le relevé ne porte que les baux `landlord_id` = ce bailleur et ses biens, et ne
+  s'ouvre qu'à lui et au personnel de l'agence (`OwnerStatementPolicy`, inchangée) — la projection de
+  TCK-2637 (« un bailleur ne lit que le locataire de ses biens »). Test : un autre bailleur de la même
+  agence n'y apparaît pas, ni son locataire.
+- **ÉCART au ticket — deux états de plus, pris au vocabulaire de TCK-2637** (`current_month.status`) :
+  ordre `paid` → `late` → `partial` → `due` → `none` → `vacant`. `due` = rien de versé, rien d'échu (le
+  loyer de novembre lu le 3 novembre) ; `none` = un bail court mais aucune échéance de loyer dans la
+  période. Sans eux, un loyer pas encore échu se lisait « payé » ou « en retard », et un bail sans
+  échéancier « vacant ». Une échéance échue **partiellement payée** est `late` (le retard prime).
+  Période annuelle : l'état se juge sur les échéances de l'année.
+- **Exports** : le CSV ne lit que `lines` → inchangé. Le PDF n'imprime que les lignes `has_movements`
+  (`?? true` pour un instantané d'avant) → inchangé ; mesuré sur le relevé de novembre d'un bailleur de
+  démo (14 lignes dont 9 avec mouvement) : HTML du gabarit d'avant et d'après **identique octet pour
+  octet** (md5 `237d4676…`).
+
+**Relevé figé (`OwnerStatementSnapshot`, TCK-2321) — le choix pour la PR** :
+
+- Un instantané écrit depuis porte `remaining_to_pay`, figé avec les autres totaux ; il ne garde ni
+  `title`, ni `tenant_name`, ni `next_payout` (lus au jour, comme le nom du bailleur).
+- Un instantané **d'avant** reçoit `remaining_to_pay` recomposé sur **ses** totaux (`net − paid_out`
+  de l'envoi) : la valeur de son temps, et aucun faux rectificatif (sans cela, le champ absent se
+  lisait 0 et faisait naître un écart). Il ne sert pas `expected_rent`/`month_status`/`days_late` :
+  aucun état fabriqué après coup.
+- Le rectificatif compare toujours tous les totaux : il porte désormais aussi l'écart de
+  `remaining_to_pay`.
+
+**Mesures sur la base de démo (lecture seule, 2026-11-11)** :
+
+- AC1 — `locataire-f4` (user 78, bail LS-0DPA75TK) : `total_due=135500`, `payable_online=0`,
+  `payable_at_agency=135500`, `schedule_state=due`, items = deux `late_fee` de 67 750. **Tient.**
+- AC2 — `locataire-vrai` (user 88, bail LS-EC-IEJWXT) : `schedule_state=none`, `total_due=0`. **Tient.**
+- AC4 — owner1 (agence 1), novembre : `net=10587140`, `paid_out=7469771`, `remaining_to_pay=3117369`
+  = `net − paid_out` au centime ; chaque ligne porte titre, locataire (ou `null`) et `month_status`.
+  ⚠ owner1 a ~60 biens « Property Test Filter » dans la base de démo (résidus d'une exécution de tests
+  hors base de test, à l'évidence) : ils sortent en `vacant`, sans mouvement.
+- AC3 et AC5 : mesurés en test (parité contre `GET /api/payments/history` ; instantané relu après
+  écriture).
+
+**Tests** (tous vérifiés par ablation, 18 règles, chacune rouge puis restaurée, md5 contrôlé) :
+`tests/Feature/Payments/TenantRentSummaryTest.php` (12), `tests/Feature/Payout/OwnerStatementRemainingTest.php`
+(2), `tests/Feature/Payout/OwnerStatementPropertiesTest.php` (5),
+`tests/Feature/Payout/OwnerStatementSnapshotUnchangedTest.php` (2). Classes voisines rejouées vertes :
+relevé, instantané, reversements, lien de paiement, balayages de routes (132 + 57 tests).
+
+**TCK-2679 AC5 — mesuré ici** : bail 500 000 F + 150 000 F de charges + caution 1 000 000 F, échéancier
+généré par `LeaseService::generateSchedule()`, rien payé après la première échéance échue →
+`total_due=650000` (items `rent`, `charges` ; la caution n'y est pas ; `next_rent` = 1er décembre,
+500 000 + `charges_amount` 150 000). Ablation : filtre ramené au seul loyer → `500000`, rouge.
+
+**Suite** : TCK-2706 (le lien de paiement d'une relance fusionnée ne règle que le loyer).

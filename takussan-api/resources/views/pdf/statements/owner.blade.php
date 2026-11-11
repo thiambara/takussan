@@ -49,7 +49,7 @@
             </tr>
         </thead>
         <tbody>
-            @foreach ($statement['properties'] as $row)
+            @foreach (array_filter($statement['properties'], fn ($row) => $row['has_movements'] ?? true) as $row)
                 <tr>
                     <td>#{{ $row['property_id'] }}</td>
                     <td class="right amount">@currency($row['collected'], $currency)</td>

@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\Me\ServiceProviderAgenciesController;
 use App\Http\Controllers\Api\Me\ServiceProviderProfileController as MeServiceProviderProfileController;
 use App\Http\Controllers\Api\Me\SubscriptionController;
 use App\Http\Controllers\Api\Me\TenantOnboardingChecklistController;
+use App\Http\Controllers\Api\Me\TenantRentSummaryController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\ServiceProviderCollaborationController;
 use App\Http\Controllers\WelcomeViewController;
@@ -41,6 +42,8 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     Route::get('espace/demarrage', EspaceDemarrageController::class)->name('me.espace.demarrage');
     // TCK-597 — ce que l'acteur peut noter (bien, agent, agence, prestataire), avec la preuve.
     Route::get('review-opportunities', [ReviewController::class, 'opportunities'])->name('me.review-opportunities.index');
+    // TCK-2649 (ADR-0100) — ce que le locataire doit, pénalités et charges comprises, en un montant.
+    Route::get('rent-summary', TenantRentSummaryController::class)->name('me.rent-summary');
 
     Route::get('profiles', [MeProfilesController::class, 'index'])->name('me.profiles.index');
     Route::patch('active-profile', [MeProfilesController::class, 'updateActive'])->name('me.active-profile.update');
