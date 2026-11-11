@@ -150,6 +150,30 @@ class LeaseSignatureTenantNameTest extends TestCase
         $this->assertCount(0, $enfant->getMedia('signed_contract'));
     }
 
+    /**
+     * Décision de la session : `freezeRenewal` reste sans garde. Sans signature à recueillir, un
+     * renouvellement d'un parent aux termes figés naît `active` et fige son contrat, fiche sans nom
+     * comprise (le contrat imprime alors l'e-mail, TCK-2718). La garde ajoutée à `freezeRenewal`
+     * annulerait le renouvellement entier : ce test rougit (verif-2719, mutant H6).
+     */
+    public function test_un_renouvellement_sans_signature_nait_actif_sans_nom(): void
+    {
+        Setting::query()->create(['key' => 'lease.require_signature', 'value' => false]);
+        $this->lease->forceFill([
+            'status' => LeaseStatus::Active, 'start_date' => '2025-11-01', 'end_date' => '2026-10-31',
+            'early_termination_penalty_months' => 2, 'rent_review_max_pct' => 5,
+        ])->save();
+
+        $enfant = app(LeaseRenewalService::class)->renew($this->lease, [
+            'start_date' => '2026-11-01', 'end_date' => '2027-10-31',
+        ], $this->owner);
+
+        $this->assertSame(LeaseStatus::Active, $enfant->status);
+        $this->assertNotNull($enfant->contract_sha256);
+        $this->assertCount(1, $enfant->getMedia('signed_contract'));
+        $this->assertStringContainsString('a@x.sn', (string) $enfant->frozenContractBytes());
+    }
+
     /** AC3 — sans compte ET sans nom : le refus du compte reste le premier. */
     public function test_sans_compte_ni_nom_le_refus_du_compte_passe_d_abord(): void
     {
