@@ -87,6 +87,18 @@ class PropertyContactLead extends AbstractModel
         return $filters;
     }
 
+    /**
+     * TCK-2623 — une demande À TRAITER : déposée par le formulaire (un clic WhatsApp ou Appeler n'est pas
+     * une demande, TCK-590) et que personne n'a traitée. La définition du compteur « Demandes de
+     * contact » du menu (`filter[channel]` par défaut + `filter[handled]=0`), écrite une fois ici pour
+     * les lectures qui comptent hors de la liste (« Équipe aujourd'hui »).
+     */
+    public function scopeATraiter(Builder $query): Builder
+    {
+        return $query->where($query->qualifyColumn('channel'), ContactLeadChannel::Form->value)
+            ->whereNull($query->qualifyColumn('handled_at'));
+    }
+
     public function property(): BelongsTo
     {
         return $this->belongsTo(Property::class);

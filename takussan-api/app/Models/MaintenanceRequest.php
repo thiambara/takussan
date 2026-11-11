@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Http\Filters\DateBoundaryFilter;
 use App\Http\Filters\TypedExactFilter;
 use App\Http\Middleware\EnsureAgencyWritable;
 use App\Models\Bases\AbstractModel;
@@ -23,11 +24,13 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Laravel\Scout\Searchable;
 use Spatie\Image\Enums\Fit;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\AllowedSort;
 use Spatie\QueryBuilder\QueryBuilder;
 
@@ -126,6 +129,41 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
             )
             ->allowedFields(...static::getAllAllowedQueryFields())
             ->allowedIncludes(...static::getAllowedQueryIncludes());
+    }
+
+    /** TCK-2623 — le fuseau dans lequel se lisent les dates de `filter[scheduled_from|to]`. */
+    public const SCHEDULED_TIMEZONE = 'Africa/Dakar';
+
+    /**
+     * TCK-2623 — « mes interventions du jour » : `filter[scheduled_from]` / `filter[scheduled_to]`, des
+     * DATES lues à l'heure de Dakar, bornes incluses. `from` part du début de son jour, `to` s'arrête
+     * avant le début du lendemain ; une intervention sans créneau n'entre dans aucune plage. Une valeur
+     * illisible ou une liste rend 422 (`DateBoundaryFilter::exiger`). Elles s'ajoutent aux filtres
+     * existants, et le cloisonnement reste celui de {@see self::scopeVisibleTo()}.
+     *
+     * @return array<int, AllowedFilter>
+     */
+    protected static function customQueryFilters(): array
+    {
+        $debutDuJour = fn (string $date): Carbon => Carbon::createFromFormat('!Y-m-d', Carbon::parse($date)->format('Y-m-d'), self::SCHEDULED_TIMEZONE)
+            ->setTimezone(config('app.timezone'));
+
+        return [
+            AllowedFilter::callback('scheduled_from', function (Builder $q, mixed $value) use ($debutDuJour): void {
+                if ($value === null || $value === '') {
+                    return;
+                }
+                DateBoundaryFilter::exiger($value, 'scheduled_from');
+                $q->where($q->qualifyColumn('scheduled_at'), '>=', $debutDuJour($value));
+            }),
+            AllowedFilter::callback('scheduled_to', function (Builder $q, mixed $value) use ($debutDuJour): void {
+                if ($value === null || $value === '') {
+                    return;
+                }
+                DateBoundaryFilter::exiger($value, 'scheduled_to');
+                $q->where($q->qualifyColumn('scheduled_at'), '<', $debutDuJour($value)->addDay());
+            }),
+        ];
     }
 
     /**

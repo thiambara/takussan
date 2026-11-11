@@ -4,15 +4,20 @@ namespace App\Services\Dashboard;
 
 use App\Models\Booking;
 use App\Models\Enums\BookingStatus;
+use App\Models\Enums\LeasePaymentType;
+use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\VisitStatus;
 use App\Models\Lease;
+use App\Models\LeasePayment;
 use App\Models\MaintenanceRequest;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\Review;
 use App\Models\User;
 use App\Services\Maintenance\MaintenanceStateMachine;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 
 /**
  * Owner-facing dashboard — portfolio KPIs scoped to the landlord's user id.
@@ -24,6 +29,9 @@ use App\Services\Maintenance\MaintenanceStateMachine;
  */
 class DashboardOwnerService
 {
+    /** TCK-2623 — le mois des loyers se lit à l'heure de Dakar. */
+    public const TIMEZONE = 'Africa/Dakar';
+
     public function __construct(private readonly PortfolioMetrics $metrics) {}
 
     public function summary(User $owner): array
@@ -52,6 +60,9 @@ class DashboardOwnerService
             ->whereIn('status', Lease::ONGOING_STATUSES)
             ->toBase()
             ->selectRaw('COUNT(*) AS active, COALESCE(SUM(monthly_rent), 0) AS expected')
+            // TCK-2623 — les loyers du mois, lus DANS cette requête (sous-requêtes scalaires) : le budget
+            // de requêtes de l'accueil du bailleur (`DashboardQueryBudgetTest`) ne bouge pas.
+            ->tap(fn ($query) => $this->loyersDuMois($query, $scope))
             ->first();
 
         $pendingBookings = Booking::query()
@@ -95,6 +106,11 @@ class DashboardOwnerService
                 'expected_monthly' => round((float) $leases->expected, 2),
                 'overdue_count' => $overdue['count'],
                 'overdue_amount' => $overdue['amount'],
+                'rent_month' => [
+                    'received_count' => (int) $leases->rent_received_count,
+                    'expected_count' => (int) $leases->rent_expected_count,
+                    'received_amount' => round((float) $leases->rent_received_amount, 2),
+                ],
             ],
             'occupancy' => [
                 'rate_percent' => $this->metrics->longStayOccupancyToday($scope),
@@ -124,6 +140,33 @@ class DashboardOwnerService
                     ->count(),
             ],
         ];
+    }
+
+    /**
+     * TCK-2623 — « Loyers de novembre : 8 reçus sur 14 ». Les échéances de LOYER (`rent`) des baux du
+     * bailleur, quel que soit leur statut de bail, dont `due_date` tombe dans le mois courant à l'heure
+     * de Dakar :
+     *  - `expected_count` : toutes, hors annulées (une échéance remplacée par un renouvellement n'est
+     *    plus due). Une échéance en échec de paiement (`failed`) reste attendue : elle repasse à payée ;
+     *  - `received_count` / `received_amount` : les soldées (`paid`), montant net de ce qui a été rendu.
+     *
+     * Ni caution, ni restitution de caution (règle de « Ma situation »), ni charges ou régularisation :
+     * ce sont des échéances, pas des loyers.
+     */
+    private function loyersDuMois(QueryBuilder $query, PortfolioScope $scope): void
+    {
+        $mois = CarbonImmutable::now(self::TIMEZONE);
+        $loyers = fn () => LeasePayment::query()
+            ->where('lease_payments.payment_type', LeasePaymentType::Rent->value)
+            ->where('lease_payments.status', '!=', PaymentStatus::Cancelled->value)
+            ->whereBetween('lease_payments.due_date', [$mois->startOfMonth()->toDateString(), $mois->endOfMonth()->toDateString()])
+            ->whereIn('lease_payments.lease_id', $scope->leases(Lease::query()->select('leases.id')))
+            ->toBase();
+        $paye = PaymentStatus::Paid->value;
+
+        $query->selectSub($loyers()->selectRaw('COUNT(*)'), 'rent_expected_count')
+            ->selectSub($loyers()->selectRaw('COUNT(*) FILTER (WHERE lease_payments.status = ?)', [$paye]), 'rent_received_count')
+            ->selectSub($loyers()->selectRaw('COALESCE(SUM('.CollectedPayments::LEASE_NET_SQL.') FILTER (WHERE lease_payments.status = ?), 0)', [$paye]), 'rent_received_amount');
     }
 
     public function monthlyTimeseries(User $owner, int $months = 12): array

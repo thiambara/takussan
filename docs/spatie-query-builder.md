@@ -167,6 +167,12 @@ GET /api/properties?filter[id]=839,838&filter[agency_id]=1&fields[properties]=id
 ### Invoice / Payout / MaintenanceRequest / Task / Document / Tag
 Même pattern : `filter[status]`, `filter[search]` (selon le model), `sort`.
 
+`MaintenanceRequest` ajoute une plage sur le créneau (TCK-2623, « mes interventions du jour ») :
+
+| Param | Type | Description |
+|---|---|---|
+| `filter[scheduled_from]` / `filter[scheduled_to]` | date | `YYYY-MM-DD`, heure de Dakar, bornes incluses ; une intervention sans créneau n'entre dans aucune plage ; illisible ou liste → 422. Le périmètre reste celui de la Policy (`visibleTo`) |
+
 ### Historique des paiements — `GET /api/payments/history`
 
 Lu **à la main** par `PaymentController::history` (loyers et réservations fusionnés en PHP, plafond
