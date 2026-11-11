@@ -371,6 +371,42 @@ describe('TCK-2494 — le menu « Mon espace »', () => {
   });
 });
 
+describe('TCK-2618 — « Moi » et « Mon espace » portent les libellés du menu composé', () => {
+  // Les deux écrans lisent le menu composé de la persona : renommer une entrée de la colonne la renomme
+  // ici. Épinglé parce que c'est voulu (bailleur, ADR-0100 § 3 ; agent, `libelles.taches = 'tasks'`),
+  // et que rien d'autre ne le dirait si le site public se remettait à écrire ses propres noms.
+  async function ouvrir() {
+    await userEvent.setup().click(screen.getByRole('button', { name: /Mon espace/ }));
+    return screen.findByRole('menu');
+  }
+
+  it('bailleur : « Loyers » vers ses encaissements, jamais « Finances » — dans « Moi » et dans « Mon espace »', async () => {
+    etat.user = compte(['customer', 'owner']);
+    etat.profilActif = 'owner:5';
+    const moi = monter(<EcranDuCompte />);
+    expect(screen.getByRole('link', { name: /^Loyers/ })).toHaveAttribute('href', '/app/payments');
+    expect(screen.queryByText(/Finances/)).toBeNull();
+    moi.unmount();
+    monter(<MenuMonEspace user={etat.user} />);
+    const menu = await ouvrir();
+    expect(menu.querySelector('[data-ligne="paiements"]')!.textContent).toMatch(/^Loyers/);
+    expect(within(menu).queryByText(/Finances/)).toBeNull();
+  });
+
+  it('agent : « Tâches », et non « Mes tâches », dans « Moi » et dans « Mon espace »', async () => {
+    etat.user = compte(['customer', 'agent']);
+    etat.profilActif = 'agent:4';
+    const moi = monter(<EcranDuCompte />);
+    expect(screen.getByRole('link', { name: /^Tâches/ })).toHaveAttribute('href', '/app/tasks');
+    expect(screen.queryByText('Mes tâches')).toBeNull();
+    moi.unmount();
+    monter(<MenuMonEspace user={etat.user} />);
+    const menu = await ouvrir();
+    expect(menu.querySelector('[data-ligne="taches"]')!.textContent).toMatch(/^Tâches/);
+    expect(within(menu).queryByText('Mes tâches')).toBeNull();
+  });
+});
+
 describe('TCK-2493 — la carte de rappel de l’accueil connecté', () => {
   it('anonyme : rien', () => {
     const { container } = monter(<CarteDeRappel />);
