@@ -58,4 +58,33 @@ Sans objet : ticket back. L'écran qui consomme ce contrat est dit dans « Hors 
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+**Re-mesure (2026-11-11, branche `feat/audit-ux-app-lot-1`)** — la prémisse tient :
+`RegisterRequest` exigeait `first_name`, `last_name` et `password` `confirmed` ;
+`PhoneLoginService::createAccount()` écrit bien `''`. `docs/features.md` § 2.1 annonçait déjà le
+contrat. Deux précisions :
+
+- **`users.first_name` est NOT NULL** (models-spec § 1) : écrire `null` rend **500** (mesuré par
+  ablation, `QueryException`). Le `''` par défaut n'est pas un choix de style.
+- **`RegisterRequest` étend `Illuminate\Foundation\Http\FormRequest`**, pas `BaseFormRequest` :
+  laissé tel quel (hors périmètre).
+
+**Décisions** :
+
+- La confirmation est vérifiée dès que la clé est **présente** (`exists()`), et non seulement
+  remplie : une `password_confirmation: ""` (devenue `null` par `ConvertEmptyStringsToNull`) refuse
+  toujours, comme avant. `filled()` l'aurait laissée passer (ablation B4).
+- **Un test existant a dû changer** : `AuthRegistrationTest::test_registration_fails_with_missing_fields`
+  attendait des erreurs sur `first_name` et `last_name` pour un corps vide — ce que le ticket
+  supprime. Il attend désormais `email` et `password`, et l'absence d'erreur sur les noms. AC3
+  vise le test d'inscription nominal (`test_user_can_register_with_valid_data`), inchangé et vert.
+- `docs/models-spec.md` § 1 (`first_name`) : la création par e-mail ajoutée aux sources du `''`.
+
+**Tests** : `tests/Feature/Auth/RegisterWithoutNameTest.php` (5 tests) — AC1 adresse + mot de
+passe → 201, jeton qui ouvre `/api/auth/me`, `first_name = last_name = ''`, `password_set_at`
+posé ; noms vides → `''` ; AC2 confirmation `autre` ou vide → 422 sur `password`, aucun compte ;
+mot de passe faible, prénom de 101 caractères et mot de passe absent refusés ; corps d'aujourd'hui
+→ 201 avec prénom et nom. Les 8 classes qui postent `/api/auth/register` : 67 verts.
+
+**Ablations** (rouges, restaurées par `cp`, md5 prouvé) : prénom requis (AC1 422) ; confirmation
+toujours exigée (AC1 422) ; jamais exigée (AC2 201) ; `filled()` au lieu d'`exists()` (confirmation
+vide acceptée, 201) ; contrôleur qui écrit `null` (500).
