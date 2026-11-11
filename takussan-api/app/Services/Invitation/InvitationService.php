@@ -34,6 +34,7 @@ use App\Services\Property\TitulaireALaSaisie;
 use App\Support\CanonicalPhone;
 use App\Support\CaseInsensitive;
 use App\Support\LienFront;
+use App\Support\Masking;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -308,10 +309,10 @@ class InvitationService
         if ($existingUser !== null) {
             // Branch B — caller must authenticate first.
             if ($authenticated === null || $authenticated->id !== $existingUser->id) {
-                // Surface the email back so the UI can pre-fill the login
-                // form and the wizard can resume on the right account.
+                // TCK-2727 — l'adresse MASQUÉE, comme l'aperçu public (`recipient.masked`) : la page dit
+                // à quel compte se connecter, sans montrer au porteur du jeton une adresse en clair.
                 abort_code(401, 'invitation.requires_login', [], [
-                    'X-Invitation-Email' => $invitation->email,
+                    'X-Invitation-Email' => self::emailMasque($invitation),
                     'X-Invitation-Requires-Login' => '1',
                 ]);
             }
@@ -331,6 +332,16 @@ class InvitationService
     }
 
     /**
+     * TCK-2727 — l'adresse de l'invitation telle que le 401 `invitation.requires_login` la rend (en-tête
+     * `X-Invitation-Email`, relayé dans le corps par les deux routes d'acceptation) : masquée par
+     * {@see Masking::email()}, la fonction de l'aperçu public — la même valeur que son `recipient.masked`.
+     */
+    public static function emailMasque(Invitation $invitation): ?string
+    {
+        return $invitation->email !== null ? Masking::email($invitation->email) : null;
+    }
+
+    /**
      * TCK-2610 (ADR-0094 § 5) — l'acceptation par code SMS : `$user` est le compte dont le numéro vient d'être
      * prouvé par le code (A), ouvert ou créé par {@see PhoneLoginService::authenticate()}. Si un AUTRE compte (E)
      * porte l'e-mail de l'invitation, 401 `invitation.requires_login`, comme l'acceptation sans session ; sinon
@@ -344,7 +355,7 @@ class InvitationService
             $holder = $this->recipientAccount($invitation->email, null);
             if ($holder !== null && $holder->id !== $user->id) {
                 abort_code(401, 'invitation.requires_login', [], [
-                    'X-Invitation-Email' => $invitation->email,
+                    'X-Invitation-Email' => self::emailMasque($invitation),
                     'X-Invitation-Requires-Login' => '1',
                 ]);
             }

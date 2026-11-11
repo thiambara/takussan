@@ -76,7 +76,7 @@ describe('<AccepterInvitation>', () => {
   });
 
   it('un compte existe déjà : on le dit, et la connexion ramène ici', async () => {
-    accepter.mockResolvedValue({ ok: false, seConnecter: true, email: 'awa@x.sn', message: 'Connectez-vous.' });
+    accepter.mockResolvedValue({ ok: false, seConnecter: true, emailMasque: 'a•••@x.sn', message: 'Connectez-vous.' });
     const user = userEvent.setup();
     monter(false);
 

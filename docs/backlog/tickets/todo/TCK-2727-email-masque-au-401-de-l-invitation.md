@@ -92,4 +92,16 @@ il ne préremplit jamais le champ e-mail avec elle.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Une seule source du masque** : `InvitationService::emailMasque(Invitation)` (`Masking::email`, la fonction de
+  `PublicInvitationPreviewResource::recipient()`), posée dans l'en-tête `X-Invitation-Email` par les deux 401 du service
+  (`accept()` et `acceptByVerifiedPhone()`). `InvitationAcceptController` relaie l'en-tête dans le corps (inchangé :
+  déjà masqué) ; `InvitationCodeAcceptance` appelle la même méthode pour le corps. Invitation sans e-mail (par SMS) :
+  `null`, comme avant.
+- **Front** : `accepterInvitationAction` rend `emailMasque` (nom qui dit ce qu'il porte) et plus de champ `email` ;
+  `AccepterInvitation.tsx` ne le lisait pas et ne le lit toujours pas — le lien de connexion ne porte que `redirect`
+  (épinglé par `AccepterInvitation.test.tsx`, « un compte existe déjà »).
+- **Contrat changé** : `InvitationAcceptTest::test_existing_user_returns_401_with_requires_login` attendait l'adresse en
+  clair ; il attend `e•••@example.com`. Le contrat cité par TCK-2611 (todo) est mis à jour.
+- Tests : `InvitationRequiresLoginMaskedTest` (lien et code : corps, en-tête, et aucune trace de l'adresse dans le
+  corps ni les en-têtes) ; `src/app/actions/__tests__/invitations.email-masque.tck-2727.test.ts`. Ablations : 3 API
+  (lien en clair, corps du code en clair, en-tête du code en clair) et 1 front (`email` réintroduit), toutes rouges.

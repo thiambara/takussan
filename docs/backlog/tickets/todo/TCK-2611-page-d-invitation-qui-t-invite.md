@@ -34,7 +34,7 @@ L'invité qui ouvre un lien reçu par SMS sait immédiatement qui l'invite et po
 
 - **`phone` au `/verify` aussi pour une invitation par e-mail** : le numéro saisi à l'envoi du code (`/code`) est renvoyé à la vérification ; requis par e-mail, ignoré par SMS (le code part au numéro de l'invitation). Champs de `/verify` : `phone` (par e-mail), `code`, `first_name`, `last_name`, `two_factor_code` | `recovery_code`, `device_name`, `terms_version`.
 - **Refus à traiter**, sur `/verify` comme sur `POST /api/invitations/{token}/accept` :
-  - 401 `invitation.requires_login` (+ `requires_login: true`, `email`) — l'e-mail de l'invitation appartient à un autre compte que celui du numéro prouvé : se connecter à ce compte ;
+  - 401 `invitation.requires_login` (+ `requires_login: true`, `email` **masqué** — TCK-2727 : la valeur de `recipient.masked` de l'aperçu, que l'action relaie sous `emailMasque`) — l'e-mail de l'invitation appartient à un autre compte que celui du numéro prouvé : dire à quel compte se connecter (« m•••@gmail.com »), sans jamais préremplir le formulaire de connexion avec cette valeur ;
   - 403 `invitation.email_mismatch` / `invitation.phone_mismatch` — sous session, le compte connecté porte un autre e-mail, ou n'a pas vérifié le numéro de l'invitation (ADR-0094 § 7 : il n'est plus créé de compte pour l'invité sous la session d'un autre). L'écran propose de se déconnecter ou de changer de compte ;
   - réponses de la connexion par téléphone : `requires_2fa` (même code reposé avec le TOTP), `requires_terms` (même code reposé avec `terms_version`), 422 `phone_code_invalid`, 423 `account_locked`, 429.
 - **Le code est consommé même quand l'acceptation est ensuite refusée** (401, 403, 409, 410) : l'écran redemande un code avant tout nouvel essai.

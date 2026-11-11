@@ -50,6 +50,7 @@ class InvitationAcceptController extends Controller
 
                 throw $e->with([
                     'requires_login' => true,
+                    // TCK-2727 — déjà masquée par `InvitationService::emailMasque()`.
                     'email' => $headers['X-Invitation-Email'] ?? null,
                 ]);
             }
