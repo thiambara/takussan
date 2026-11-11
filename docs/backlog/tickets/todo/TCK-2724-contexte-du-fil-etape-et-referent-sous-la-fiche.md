@@ -36,7 +36,7 @@ composant du front ne lit encore `stage` ni `assigned_agent` de ce contexte (rel
 
 ## Décision
 
-**Recommandation de session, à confirmer par le porteur ; si refusée → `obsolete`.**
+**Décidé par le porteur le 2026-11-11 : (a), la recommandation (« je valide tes recommandations sur les dix points »).**
 
 - **a) (recommandé)** `stage` et `assigned_agent` sous `CustomerPolicy::view`, comme `phone` ; `id` et `full_name`
   restent au personnel (l'agent garde le nom de son interlocuteur).

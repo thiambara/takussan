@@ -36,7 +36,7 @@ documents qu'en connaissant l'identifiant du bien.
 
 ## Décision
 
-**Recommandation de session, à confirmer par le porteur ; si refusée → `obsolete`.**
+**Décidé par le porteur le 2026-11-11 : (a), la recommandation (« je valide tes recommandations sur les dix points »).**
 
 - **a) (recommandé)** le coffre range aussi, **en lecture seule**, les biens des profils propriétaires bloqués du compte,
   avec les seuls documents que les policies lui ouvrent déjà.

@@ -42,7 +42,7 @@ alignée sur lui.
 
 ## Décision
 
-**Recommandation de session, à confirmer par le porteur ; si refusée → `obsolete`.**
+**Décidé par le porteur le 2026-11-11 : (a), la recommandation (« je valide tes recommandations sur les dix points »).**
 
 - **a) (recommandé)** `scopeVisibleTo` ouvre toutes les lignes de l'agence à `payouts.approve` OU `viewReports` :
   celui qui solde voit ce qu'il solde.

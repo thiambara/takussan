@@ -45,7 +45,7 @@ préremplir.
 
 ## Décision
 
-**Recommandation de session, à confirmer par le porteur ; si refusée → `obsolete`.**
+**Décidé par le porteur le 2026-11-11 : (a), la recommandation (« je valide tes recommandations sur les dix points »).**
 
 - **a) (recommandé)** les trois émetteurs rendent l'e-mail **masqué** par la même fonction que l'aperçu ; le front ne
   préremplit la connexion qu'avec ce que l'invité a tapé lui-même.

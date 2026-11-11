@@ -67,7 +67,7 @@ détail des deux montants.
   pénalité ne s'encaisse en ligne que si l'agence l'a choisi (`late_fee_online_collection`).
 - **Le lien reste stable entre deux relances** (TCK-602, ADR-0051 §1) : le même lien à chaque relance
   d'un même groupe ; il ne doit pas en naître un par message.
-- Deux voies, à trancher par le porteur **avant** l'implémentation (une ADR si la première est
+- **Décidé par le porteur le 2026-11-11 : voie 2, un SMS par échéance payable (la recommandation ; pas d'ADR).** Deux voies étaient ouvertes (une ADR si la première est
   retenue : elle change ce qu'un lien désigne) :
   1. **un lien de groupe** — le lien porte plusieurs échéances, le paiement les règle dans un ordre fixé
      (loyer d'abord), un paiement partiel s'impute comme le reste de TCK-593 ;

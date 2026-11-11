@@ -40,7 +40,7 @@ toute la sélection (avant la page) ; chaque ligne de bail porte déjà `payment
 
 ## Décision
 
-**Décision de session (2026-11-11), à confirmer par le porteur ; si refusée → `obsolete`.**
+**Décidé par le porteur le 2026-11-11 : (a), la recommandation (« je valide tes recommandations sur les dix points »).**
 
 - **a) (retenu)** garder les cautions dans le registre, et le dire : l'API ventile la part des cautions dans
   `meta.totals`, le front écrit « dont cautions ».

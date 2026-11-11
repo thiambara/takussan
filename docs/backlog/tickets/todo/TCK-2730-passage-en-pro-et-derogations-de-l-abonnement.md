@@ -40,8 +40,7 @@ individuel à 20 deviendrait 50 sous un plan pro à 200).
 
 ## Décision
 
-**Recommandation provisoire de back-3, à confirmer par le porteur ; si refusée → `obsolete`.** Le fichier de la session
-laisse le choix ouvert entre a) et b).
+**Décidé par le porteur le 2026-11-11 : (b), la recommandation (« je valide tes recommandations sur les dix points »).**
 
 - **b) (retenu à titre provisoire)** l'approbation est **refusée** tant que l'abonnement ouvert porte une dérogation :
   `409 agency_upgrade.subscription_has_overrides`, avec la liste des dérogations ; le super-admin les retire (ou décide de

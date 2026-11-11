@@ -40,7 +40,7 @@ TCK-2717 veut servir ce champ au bailleur. La règle « qui peut faire une fiche
 
 ## Décision
 
-**Recommandation de session, à confirmer par le porteur ; si refusée → `obsolete`.**
+**Décidé par le porteur le 2026-11-11 : (a), la recommandation (« je valide tes recommandations sur les dix points »).**
 
 - **a) (recommandé)** `POST /api/customers` accepte la visite d'origine et la rattache dans la même transaction ;
   l'API dit par un booléen de la visite si le lecteur peut en faire une fiche, et le front ne préremplit que sur ce

@@ -38,7 +38,7 @@ Précédents de borne haute dans le dépôt : `StorePropertyUnavailabilityReques
 
 ## Décision
 
-**Recommandation de session, à confirmer par le porteur ; si refusée → `obsolete`.**
+**Décidé par le porteur le 2026-11-11 : (a), la recommandation (« je valide tes recommandations sur les dix points »).**
 
 - **a) (recommandé)** borne haute à **un an** à compter de maintenant, sur les deux routes qui écrivent `scheduled_at`.
 - b) pas de borne (statu quo).

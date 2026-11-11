@@ -46,7 +46,7 @@ candidat). Reste à rendre les deux canaux cohérents avec cette règle.
 
 ## Décision
 
-**Recommandation de session, à confirmer par le porteur ; si refusée → `obsolete`.**
+**Décidé par le porteur le 2026-11-11 : (a), la recommandation (« je valide tes recommandations sur les dix points »).**
 
 - **a) (recommandé)** une seule règle pour le bailleur d'un bien d'agence : il lit le contact du visiteur **quand la
   visite n'a pas de fiche**, par `visitor_*`, par la carte `visitor_display` et par l'avis ; il ne le lit **pas** quand
