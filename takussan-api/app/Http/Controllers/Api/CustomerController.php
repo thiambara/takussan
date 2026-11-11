@@ -23,6 +23,7 @@ use App\Services\Crm\CustomerDuplicateDetector;
 use App\Services\Crm\PipelineStatsService;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Privacy\PersonalDataAccessLogger;
+use App\Services\Visit\VisitReportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -201,7 +202,12 @@ class CustomerController extends Controller
             'customer.attached_to_open_lease',
         );
 
-        $customer->delete();
+        // TCK-2578 (ADR-0101 § 7) — la note libre des comptes rendus de ses visites est vidée ;
+        // verdict, objections et suite restent aux statistiques de l'agence.
+        DB::transaction(function () use ($customer): void {
+            VisitReportService::forgetNotesOfCustomer((int) $customer->id);
+            $customer->delete();
+        });
 
         return $this->json(['message' => 'deleted'], 204);
     }
@@ -311,7 +317,12 @@ class CustomerController extends Controller
     {
         $this->authorize('view', $customer);
 
-        $paginator = $feed->paginate($customer, $this->tailleDePage($request, 20));
+        // TCK-2578 — les comptes rendus de visite, au seul personnel de l'agence de la fiche.
+        $paginator = $feed->paginate(
+            $customer,
+            $this->tailleDePage($request, 20),
+            $request->user()->can('viewVisitReports', $customer),
+        );
 
         return $this->paginated(
             $paginator,

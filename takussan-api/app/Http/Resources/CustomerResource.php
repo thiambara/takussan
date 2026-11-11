@@ -4,9 +4,12 @@ namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Customer;
+use App\Models\CustomerNote;
+use App\Models\Enums\CustomerNoteKind;
 use App\Policies\CustomerPolicy;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Support\Masking;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 
 class CustomerResource extends BaseResource
@@ -61,7 +64,7 @@ class CustomerResource extends BaseResource
             'notes' => $this->when(
                 $litLaFiche
                     && (array_key_exists('notes', $this->resource->getAttributes()) || $this->resource->relationLoaded('notes')),
-                fn () => $this->resource->notes,
+                fn () => $this->notesLisibles($request),
             ),
             // TCK-591 §5 — les critères du prospect, que la fiche affiche et édite. Réservés au
             // personnel de l'agence de la fiche (verif-591 m2) : la ressource est imbriquée dans le
@@ -109,6 +112,29 @@ class CustomerResource extends BaseResource
                 ])->values(),
             ),
         ];
+    }
+
+    /**
+     * TCK-2578 (ADR-0101 § 2) — la relation `notes` chargée par `include=notes` porte aussi les
+     * comptes rendus de visite (`visit_report`) : ils ne sortent qu'au personnel de l'agence
+     * (`CustomerPolicy::viewVisitReports`). La colonne texte `notes`, quand elle est lue, passe telle
+     * quelle.
+     */
+    private function notesLisibles(Request $request): mixed
+    {
+        $notes = $this->resource->notes;
+        if (! $notes instanceof Collection) {
+            return $notes;
+        }
+
+        // Jugée sur la fiche relue (`agency_id`, `added_by_id`) : sous `fields[customers]`, le modèle
+        // rendu ne porte pas l'agence, et le personnel perdait ses comptes rendus.
+        $user = $request->user();
+        if ($user !== null && $user->can('viewVisitReports', $this->ficheJugeable($request))) {
+            return $notes;
+        }
+
+        return $notes->reject(fn (CustomerNote $note) => $note->kind === CustomerNoteKind::VisitReport)->values();
     }
 
     /**

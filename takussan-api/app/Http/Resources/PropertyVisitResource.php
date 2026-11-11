@@ -68,6 +68,20 @@ class PropertyVisitResource extends BaseResource
                 'email' => $this->customer->email,
                 'phone' => $this->customer->phone,
             ] : null),
+            // TCK-2578 (ADR-0101 § 2) — le compte rendu de l'agence : clé ABSENTE hors du personnel de
+            // l'agence du bien (visiteur, client, bailleur), en détail comme en liste.
+            'report' => $this->when($this->compteRenduLisible($request), fn (): ?array => $this->reported_at === null ? null : [
+                'outcome' => $this->enumValue($this->report_outcome),
+                'objections' => array_values($this->report_objections ?? []),
+                'note' => $this->report_note,
+                'follow_up' => $this->enumValue($this->report_follow_up),
+                'reported_at' => $this->iso($this->reported_at),
+                'reported_by' => $this->relationLoaded('reportedBy') && $this->reportedBy !== null ? [
+                    'id' => $this->reportedBy->id,
+                    'first_name' => $this->reportedBy->first_name,
+                    'last_name' => $this->reportedBy->last_name,
+                ] : ($this->reported_by_id !== null ? ['id' => $this->reported_by_id] : null),
+            ]),
             'created_at' => $this->iso($this->created_at),
             // P152.04 — sur LA visite de la route seulement (une batterie de règles par ligne d'une
             // liste coûterait) : confirmer, clore, déclarer manquée, déplacer ou annuler au nom de
@@ -88,6 +102,50 @@ class PropertyVisitResource extends BaseResource
         $routed = $route->parameter('visit');
 
         return $routed instanceof PropertyVisit && $routed->is($this->resource);
+    }
+
+    /**
+     * TCK-2578 (ADR-0101 § 2) — la règle de `PropertyVisitPolicy::report` (super-admin, personnel
+     * actif de l'agence du bien), jugée sans relire le bien ligne par ligne : l'index pose
+     * `visits.property_agencies` et `visits.staff_agencies` ; ailleurs, le verdict est retenu par
+     * agence pour la requête (`visits.staff_of`, partagé avec la fiche client). Un bien sans agence
+     * n'a pas de compte rendu : rien n'est servi.
+     */
+    private function compteRenduLisible(Request $request): bool
+    {
+        $user = $request->user();
+        if ($user === null) {
+            return false;
+        }
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        $agences = $request->attributes->get('visits.property_agencies');
+        if (is_array($agences) && array_key_exists((int) $this->property_id, $agences)) {
+            $agencyId = $agences[(int) $this->property_id];
+        } elseif ($this->property !== null) {
+            $agencyId = $this->property->agency_id;
+        } else {
+            return false;
+        }
+
+        if ($agencyId === null) {
+            return false;
+        }
+
+        $personnelDe = $request->attributes->get('visits.staff_agencies');
+        if (is_array($personnelDe)) {
+            return in_array((int) $agencyId, $personnelDe, true);
+        }
+
+        $verdicts = $request->attributes->get('visits.staff_of', []);
+        if (! array_key_exists((int) $agencyId, $verdicts)) {
+            $verdicts[(int) $agencyId] = PersonnelDeLAgence::personnelActifDe($user, $agencyId);
+            $request->attributes->set('visits.staff_of', $verdicts);
+        }
+
+        return $verdicts[(int) $agencyId];
     }
 
     /**

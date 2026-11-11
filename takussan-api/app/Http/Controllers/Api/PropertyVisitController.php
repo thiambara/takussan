@@ -9,6 +9,7 @@ use App\Http\Requests\Api\CompletePropertyVisitRequest;
 use App\Http\Requests\Api\ConfirmPropertyVisitRequest;
 use App\Http\Requests\Api\FeedbackPropertyVisitRequest;
 use App\Http\Requests\Api\ReschedulePropertyVisitRequest;
+use App\Http\Requests\Api\StorePropertyVisitReportRequest;
 use App\Http\Requests\Api\StorePropertyVisitRequest;
 use App\Http\Requests\Api\UpdatePropertyVisitRequest;
 use App\Http\Resources\PropertyVisitResource;
@@ -24,6 +25,7 @@ use App\Rules\PersonnelDeLAgence;
 use App\Services\Notifications\ContactSansCompte;
 use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Visit\VisitNotifier;
+use App\Services\Visit\VisitReportService;
 use App\Services\Visit\VisitSchedulingService;
 use App\Support\TelephoneSaisi;
 use Carbon\Carbon;
@@ -498,6 +500,33 @@ class PropertyVisitController extends Controller
         $visit->update($payload);
 
         return $this->json(['data' => PropertyVisitResource::make($visit->refresh())->resolve($request)]);
+    }
+
+    /**
+     * POST|PATCH /api/property-visits/{visit}/report — TCK-2578 (ADR-0101).
+     *
+     * Le compte rendu de l'agence : `POST` le crée (201), `PATCH` le modifie (200, champs absents
+     * gardés). Sous `PropertyVisitPolicy::report` (`StorePropertyVisitReportRequest::authorize`).
+     * La réponse porte la visite, la note recopiée sur la fiche (`customer_note`, `null` sans
+     * fiche) et l'étape proposée (`suggested_stage`, jamais écrite).
+     */
+    public function report(StorePropertyVisitReportRequest $request, PropertyVisit $visit, VisitReportService $reports): JsonResponse
+    {
+        $creating = $request->isMethod('POST');
+        $result = $reports->write($visit, $request->user(), $request->validated(), $creating);
+
+        $note = $result['note'];
+
+        return $this->json([
+            'data' => PropertyVisitResource::make($result['visit']->fresh(['reportedBy']))->resolve($request),
+            'customer_note' => $note !== null ? [
+                'id' => $note->id,
+                'customer_id' => $note->customer_id,
+                'kind' => $note->kind?->value,
+                'pinned' => $note->pinned,
+            ] : null,
+            'suggested_stage' => $result['suggested_stage'],
+        ], $creating ? 201 : 200);
     }
 
     /**

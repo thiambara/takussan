@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Models\Customer;
 use App\Models\Enums\Capability;
 use App\Models\User;
+use App\Rules\PersonnelDeLAgence;
 use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Database\Eloquent\Model;
 
@@ -113,6 +114,18 @@ class CustomerPolicy extends BasePolicy
     public function invite(User $user, Customer $customer): bool
     {
         return $this->view($user, $customer) && $this->isStaffOf($user, $customer->agency_id);
+    }
+
+    /**
+     * TCK-2578 (ADR-0101 § 2) — lire les comptes rendus de visite recopiés sur la fiche (notes
+     * `visit_report`, flux d'activité) : lire la fiche ET être du personnel actif de son agence,
+     * comme `PropertyVisitPolicy::report`. Le bailleur qui a ajouté la fiche la lit sans eux.
+     */
+    public function viewVisitReports(User $user, Customer $customer): bool
+    {
+        return $user->isSuperAdmin()
+            || ($this->view($user, $customer)
+                && PersonnelDeLAgence::personnelActifDe($user, $customer->agency_id));
     }
 
     private function seesWholeCrm(User $user, Customer $customer): bool

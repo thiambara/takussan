@@ -22,5 +22,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('property-visits/{visit}/claim', [PropertyVisitController::class, 'claim'])->name('property-visits.claim');
     Route::post('property-visits/{visit}/reschedule', [PropertyVisitController::class, 'reschedule'])->name('property-visits.reschedule');
     Route::post('property-visits/{visit}/feedback', [PropertyVisitController::class, 'feedback'])->name('property-visits.feedback');
+    // TCK-2578 (ADR-0101) — le compte rendu de l'agence : créé en POST, modifié en PATCH.
+    Route::post('property-visits/{visit}/report', [PropertyVisitController::class, 'report'])->name('property-visits.report');
+    Route::patch('property-visits/{visit}/report', [PropertyVisitController::class, 'report'])->name('property-visits.report.update');
     Route::delete('property-visits/{visit}', [PropertyVisitController::class, 'destroy'])->name('property-visits.destroy');
 });

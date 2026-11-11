@@ -11,8 +11,11 @@ use App\Http\Resources\CustomerResource;
 use App\Http\Resources\DocumentVersionResource;
 use App\Http\Resources\MediaResource;
 use App\Http\Resources\PayoutMethodResource;
+use App\Http\Resources\PropertyVisitResource;
 use App\Models\Agency;
 use App\Models\Document;
+use App\Models\Property;
+use App\Models\PropertyVisit;
 use App\Models\RadarAdvertiser;
 use App\Models\RadarListing;
 use App\Models\RadarListingSnapshot;
@@ -107,6 +110,15 @@ final class ResourceSubjects
             }
         }
 
+        // TCK-2578 (ADR-0101 § 2) — `report` (qui porte `reported_at`) n'est servi qu'au personnel de
+        // l'agence du BIEN ; le sujet de la factory est sur un bien sans agence. Un second sujet, sur
+        // un bien d'agence, que {@see self::commeLeControleur()} fait lire comme l'index le pose pour
+        // le personnel de cette agence.
+        if ($resource === PropertyVisitResource::class) {
+            $bien = Property::factory()->create(['agency_id' => Agency::factory()->create()->id]);
+            $sujets['PropertyVisit (personnel)'] = self::modele(PropertyVisit::class, $resource, ['property_id' => $bien->id]);
+        }
+
         return $sujets;
     }
 
@@ -117,6 +129,25 @@ final class ResourceSubjects
      */
     public static function commeLeControleur(JsonResource $instance): JsonResource
     {
+        // TCK-2578 — `PropertyVisitController::index` pose l'agence de chaque bien de la page
+        // (`visits.property_agencies`) et celles où le lecteur est personnel (`visits.staff_agencies`) ;
+        // la ressource en décide du bloc `report`. Posées pour le sujet sur un bien d'agence, comme
+        // pour un lecteur du personnel de cette agence ; retirées sinon (la requête est partagée).
+        if ($instance instanceof PropertyVisitResource) {
+            $requete = request();
+            $propertyId = (int) $instance->resource->property_id;
+            $agencyId = Property::query()->whereKey($propertyId)->value('agency_id');
+            if ($agencyId !== null) {
+                $requete->attributes->set('visits.property_agencies', [$propertyId => (int) $agencyId]);
+                $requete->attributes->set('visits.staff_agencies', [(int) $agencyId]);
+            } else {
+                $requete->attributes->remove('visits.property_agencies');
+                $requete->attributes->remove('visits.staff_agencies');
+            }
+
+            return $instance;
+        }
+
         // TCK-2392 — `RadarListingController::show` (et les deux autres contrôleurs de la fiche).
         if ($instance instanceof RadarListingResource) {
             return $instance->withNeighborhoodLink()->withProvenances();

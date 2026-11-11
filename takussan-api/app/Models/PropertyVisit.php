@@ -5,6 +5,8 @@ namespace App\Models;
 use App\Http\Filters\RangeFilter;
 use App\Jobs\SendPropertyVisitReminders;
 use App\Models\Bases\AbstractModel;
+use App\Models\Enums\VisitFollowUp;
+use App\Models\Enums\VisitReportOutcome;
 use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitType;
 use App\Models\Enums\VisitWindow;
@@ -55,6 +57,19 @@ class PropertyVisit extends AbstractModel
         'feedback', 'rating', 'notes', 'metadata',
         // TCK-590 — d'où vient la demande, et dans quelle langue prévenir un visiteur sans compte.
         'source', 'medium', 'locale',
+        // TCK-2578 (ADR-0101) — le compte rendu de l'agence, écrit par `VisitReportService` seul.
+        'report_outcome', 'report_objections', 'report_note', 'report_follow_up',
+        'reported_at', 'reported_by_id',
+    ];
+
+    /**
+     * TCK-2578 (ADR-0101 § 2) — le compte rendu ne sort que par `PropertyVisitResource`, qui le
+     * réserve au personnel : une visite sérialisée telle quelle (relation imbriquée, `toArray()`)
+     * ne l'emporte pas.
+     */
+    protected $hidden = [
+        'report_outcome', 'report_objections', 'report_note', 'report_follow_up',
+        'reported_at', 'reported_by_id',
     ];
 
     protected $casts = [
@@ -66,6 +81,10 @@ class PropertyVisit extends AbstractModel
         'cancelled_at' => 'datetime',
         'rating' => 'decimal:1',
         'metadata' => 'array',
+        'report_outcome' => VisitReportOutcome::class,
+        'report_objections' => 'array',
+        'report_follow_up' => VisitFollowUp::class,
+        'reported_at' => 'datetime',
     ];
 
     protected static array $requestFilterable = ['property_id', 'visitor_id', 'customer_id', 'agent_id', 'type', 'status'];
@@ -87,6 +106,9 @@ class PropertyVisit extends AbstractModel
         'type', 'status', 'scheduled_at', 'preferred_window', 'completed_at', 'duration_minutes',
         'cancelled_at', 'cancellation_reason', 'feedback', 'rating', 'notes', 'metadata',
         'source', 'medium', 'locale',
+        // TCK-2578 — servis au seul personnel par `PropertyVisitResource` (bloc `report`).
+        'report_outcome', 'report_objections', 'report_note', 'report_follow_up',
+        'reported_at', 'reported_by_id',
         'created_at', 'updated_at',
     ];
 
@@ -113,7 +135,45 @@ class PropertyVisit extends AbstractModel
             }
         });
 
+        // TCK-2578 (ADR-0101 § 6) — « À clore » : confirmée dont l'heure est passée, ou terminée
+        // sans compte rendu depuis au plus `visits.report_pending_days` jours.
+        $filters[] = AllowedFilter::callback('to_close', function (Builder $q, mixed $value) {
+            if (filter_var($value, FILTER_VALIDATE_BOOLEAN)) {
+                $q->toClose();
+            }
+        });
+
         return $filters;
+    }
+
+    /** TCK-2578 — la définition d'« À clore », une seule fois (filtre et lecteurs à venir). */
+    public function scopeToClose(Builder $query): Builder
+    {
+        $now = now();
+        $days = max(0, (int) config('visits.report_pending_days', 7));
+
+        return $query->where(fn (Builder $w) => $w
+            ->where(fn (Builder $c) => $c
+                ->where('status', VisitStatus::Confirmed->value)
+                ->where('scheduled_at', '<=', $now))
+            ->orWhere(fn (Builder $c) => $c
+                ->where('status', VisitStatus::Completed->value)
+                ->whereNull('reported_at')
+                ->where('completed_at', '>=', $now->copy()->subDays($days))));
+    }
+
+    /** TCK-2578 — la visite confirmée dont l'heure est passée : le compte rendu la clôt d'un geste. */
+    public function isClosableByReport(): bool
+    {
+        return $this->status === VisitStatus::Completed
+            || ($this->status === VisitStatus::Confirmed
+                && $this->scheduled_at !== null
+                && $this->scheduled_at->lessThanOrEqualTo(now()));
+    }
+
+    public function hasReport(): bool
+    {
+        return $this->reported_at !== null;
     }
 
     public function property(): BelongsTo
@@ -134,5 +194,10 @@ class PropertyVisit extends AbstractModel
     public function agent(): BelongsTo
     {
         return $this->belongsTo(User::class, 'agent_id');
+    }
+
+    public function reportedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reported_by_id');
     }
 }

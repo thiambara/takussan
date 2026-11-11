@@ -15,7 +15,10 @@ class CustomerNoteController extends Controller
     {
         $this->authorize('view', $customer);
 
+        // TCK-2578 (ADR-0101 § 2) — les comptes rendus de visite, au seul personnel de l'agence ;
+        // retirés de la requête, ils ne comptent pas dans le total.
         $notes = $customer->notes()
+            ->when(! $request->user()->can('viewVisitReports', $customer), fn ($q) => $q->withoutVisitReports())
             ->with('author')
             ->orderByDesc('pinned')
             ->latest()
@@ -58,8 +61,10 @@ class CustomerNoteController extends Controller
             'id' => $note->id,
             'customer_id' => $note->customer_id,
             'body' => $note->body,
-            // TCK-591 — `conversion` | `loss` | null : le préfixe se rend côté front.
+            // TCK-591 — `conversion` | `loss` | `visit_report` (TCK-2578) | null : le préfixe se rend côté front.
             'kind' => $note->kind?->value,
+            // TCK-2578 — la visite que cite une note `visit_report` ; `null` pour toute autre.
+            'property_visit_id' => $note->property_visit_id,
             'pinned' => $note->pinned,
             'author' => $note->relationLoaded('author') && $note->author
                 ? ['id' => $note->author->id, 'name' => $note->author->getFullNameAttribute()]

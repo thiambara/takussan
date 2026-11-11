@@ -6,6 +6,7 @@ use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
 use App\Models\Contracts\HasAuditAgency;
 use App\Models\Enums\CustomerNoteKind;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -15,7 +16,8 @@ class CustomerNote extends AbstractModel implements HasAuditAgency
 {
     use Auditable, HasFactory, SoftDeletes;
 
-    protected $fillable = ['customer_id', 'author_id', 'body', 'pinned', 'kind'];
+    /** TCK-2578 — `property_visit_id` : la visite que cite une note `visit_report` (une par visite). */
+    protected $fillable = ['customer_id', 'author_id', 'body', 'pinned', 'kind', 'property_visit_id'];
 
     protected $casts = [
         'pinned' => 'boolean',
@@ -43,6 +45,22 @@ class CustomerNote extends AbstractModel implements HasAuditAgency
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'author_id');
+    }
+
+    public function visit(): BelongsTo
+    {
+        return $this->belongsTo(PropertyVisit::class, 'property_visit_id');
+    }
+
+    /**
+     * TCK-2578 (ADR-0101 § 2) — le compte rendu de visite est lu par le seul personnel de l'agence :
+     * sans ce droit, les notes `visit_report` sortent de la lecture ; les notes sans nature restent.
+     */
+    public function scopeWithoutVisitReports(Builder $query): Builder
+    {
+        return $query->where(fn (Builder $q) => $q
+            ->whereNull('kind')
+            ->orWhere('kind', '!=', CustomerNoteKind::VisitReport->value));
     }
 
     /** TCK-601 (ADR-0044 §3) — l'agence d'une activité sur cette ligne est celle de la fiche client. */

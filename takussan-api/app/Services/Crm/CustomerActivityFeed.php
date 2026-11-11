@@ -4,6 +4,7 @@ namespace App\Services\Crm;
 
 use App\Models\Customer;
 use App\Models\CustomerNote;
+use App\Models\Enums\CustomerNoteKind;
 use App\Models\Task;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -12,6 +13,8 @@ use Spatie\Activitylog\Models\Activity;
 
 /**
  * TCK-591 — le journal d'une fiche client : le client lui-même, ses notes et ses tâches.
+ *
+ * TCK-2578 — et ses comptes rendus de visite (notes `visit_report`), pour le seul personnel.
  *
  * L'onglet « Activité » de la console appelait `/api/audit-log`, réservé au super-admin et à
  * l'admin d'agence : pour un agent, 403 avalé en liste vide. Ce journal-ci s'autorise par la
@@ -36,15 +39,30 @@ class CustomerActivityFeed
         Task::class => ['type' => 'task', 'fields' => ['title', 'status', 'due_at', 'priority', 'assigned_to_id']],
     ];
 
-    public function paginate(Customer $customer, int $perPage = 20): LengthAwarePaginator
+    /**
+     * Les comptes rendus de visite détaillés dans la page, par identifiant de note (TCK-2578).
+     *
+     * @var array<int, array{visit_id: int, property_id: ?int, outcome: ?string, objections: list<string>, follow_up: ?string}>
+     */
+    private array $reports = [];
+
+    /**
+     * TCK-2578 (ADR-0101 § 2) — `$withVisitReports` : le lecteur est-il du personnel de l'agence
+     * (`CustomerPolicy::viewVisitReports`) ? Sinon les notes `visit_report` sortent de la requête
+     * elle-même, et le total ne les compte pas. Fermé par défaut.
+     */
+    public function paginate(Customer $customer, int $perPage = 20, bool $withVisitReports = false): LengthAwarePaginator
     {
-        $noteIds = CustomerNote::withTrashed()->where('customer_id', $customer->id)->pluck('id');
+        $noteIds = CustomerNote::withTrashed()
+            ->where('customer_id', $customer->id)
+            ->when(! $withVisitReports, fn (Builder $q) => $q->withoutVisitReports())
+            ->pluck('id');
         $taskIds = Task::withTrashed()
             ->where('taskable_type', Customer::class)
             ->where('taskable_id', $customer->id)
             ->pluck('id');
 
-        return Activity::query()
+        $paginator = Activity::query()
             ->with('causer')
             ->where(function (Builder $q) use ($customer, $noteIds, $taskIds) {
                 $q->where(fn (Builder $c) => $c->where('subject_type', Customer::class)->where('subject_id', $customer->id))
@@ -54,6 +72,47 @@ class CustomerActivityFeed
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->paginate(min(max($perPage, 1), 100));
+
+        if ($withVisitReports) {
+            $this->loadReports($paginator->getCollection());
+        }
+
+        return $paginator;
+    }
+
+    /**
+     * TCK-2578 — une entrée par compte rendu : la création de sa note `visit_report` (les
+     * réécritures ne sont pas journalisées), enrichie du verdict, des objections et de la suite
+     * COURANTS de la visite. Jamais la note libre. En une requête pour la page.
+     *
+     * @param  Collection<int, Activity>  $logs
+     */
+    private function loadReports(Collection $logs): void
+    {
+        $noteIds = $logs->where('subject_type', CustomerNote::class)->pluck('subject_id')->unique()->values();
+        if ($noteIds->isEmpty()) {
+            return;
+        }
+
+        CustomerNote::withTrashed()
+            ->whereIn('id', $noteIds)
+            ->where('kind', CustomerNoteKind::VisitReport->value)
+            ->whereNotNull('property_visit_id')
+            ->with('visit')
+            ->get()
+            ->each(function (CustomerNote $note): void {
+                $visit = $note->visit;
+                if ($visit === null) {
+                    return;
+                }
+                $this->reports[(int) $note->id] = [
+                    'visit_id' => (int) $visit->id,
+                    'property_id' => $visit->property_id !== null ? (int) $visit->property_id : null,
+                    'outcome' => $visit->report_outcome?->value,
+                    'objections' => array_values($visit->report_objections ?? []),
+                    'follow_up' => $visit->report_follow_up?->value,
+                ];
+            });
     }
 
     /**
@@ -85,6 +144,9 @@ class CustomerActivityFeed
                 ? ['id' => $causer->getKey(), 'name' => $causer->getFullNameAttribute()]
                 : null,
             'created_at' => $log->created_at?->toIso8601String(),
+            ...($subject['type'] === 'note' && isset($this->reports[(int) $log->subject_id])
+                ? ['report' => $this->reports[(int) $log->subject_id]]
+                : []),
         ];
     }
 }
