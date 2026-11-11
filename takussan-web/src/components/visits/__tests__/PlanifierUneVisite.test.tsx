@@ -322,6 +322,8 @@ describe('<PlanifierDialog> — depuis l’agenda et depuis une demande (TCK-258
 
     expect(screen.getByRole('heading', { name: 'Visite avec Mouhamed' })).toBeInTheDocument();
     expect(screen.getByText('Depuis sa demande · tout est repris')).toBeInTheDocument();
+    // TCK-2584 (`app-fil-commercial` a-1) — le numéro se lit groupé.
+    expect(screen.getByText('+221 77 111 22 33 · repris de sa demande')).toBeInTheDocument();
     expect(screen.getByLabelText('Repris de sa demande, non modifiable')).toBeInTheDocument();
     expect(screen.queryByLabelText('Nom du prospect')).not.toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: /Créer la fiche client/ })).toBeChecked();

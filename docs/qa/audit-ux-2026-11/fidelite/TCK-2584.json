@@ -1,0 +1,433 @@
+{
+  "ticket": "TCK-2584",
+  "ecrans": [
+    {
+      "page": "app-demandes",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "Liste",
+      "references": {
+        "telephone": "references/app-demandes/a-0-telephone.json",
+        "bureau-1440": "references/app-demandes/a-0-bureau-1440.json",
+        "bureau-1280": "references/app-demandes/a-0-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/leads",
+        "persona": "agent (téléphone) · admin (bureau, pour le bandeau des délais)",
+        "etat": "les quatre demandes de la maquette (Mouhamed Dieng, Awa Ndiaye, Ibrahima Sarr, Fatou Kane) servies par un BOUCHON de `GET /api/contact-leads*` dans la page, horloge figée au mardi 10 nov. 2026, 12:00 à Dakar (`FID_AVANT=fid2584/bouchon.js`, scratchpad du lot 2) — rien n'est écrit en base"
+      }
+    },
+    {
+      "page": "app-demandes",
+      "approche": "a",
+      "ecran": 1,
+      "nom": "Demande ouverte",
+      "references": {
+        "telephone": "references/app-demandes/a-1-telephone.json",
+        "bureau-1440": "references/app-demandes/a-1-bureau-1440.json",
+        "bureau-1280": "references/app-demandes/a-1-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/leads?ouverte=9002",
+        "persona": "agent",
+        "etat": "la demande d'Awa Ndiaye (déjà cliente, `known_customer`) ouverte : feuille plein écran au téléphone, panneau de droite au bureau ; même bouchon"
+      }
+    },
+    {
+      "page": "app-demandes",
+      "approche": "a",
+      "ecran": 2,
+      "nom": "Retour de WhatsApp",
+      "references": {
+        "telephone": "references/app-demandes/a-2-telephone.json",
+        "bureau-1440": "references/app-demandes/a-2-bureau-1440.json",
+        "bureau-1280": "references/app-demandes/a-2-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/leads",
+        "persona": "agent",
+        "etat": "la liste, puis un geste WhatsApp sur Mouhamed Dieng et le retour sur l'onglet (`--perturber fid2584/retour.js` : clic, `visibilitychange` caché puis visible) — la barre « Avez-vous répondu ? » est montée ; le POST du geste vise l'id 9001 du bouchon et rend 404 à l'API : rien n'est écrit"
+      }
+    },
+    {
+      "page": "app-demandes",
+      "approche": "a",
+      "ecran": 3,
+      "nom": "Tout est traité",
+      "references": {
+        "telephone": "references/app-demandes/a-3-telephone.json",
+        "bureau-1440": "references/app-demandes/a-3-bureau-1440.json",
+        "bureau-1280": "references/app-demandes/a-3-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/leads?fid=vide",
+        "persona": "agent",
+        "etat": "le bouchon rend une page vide (`?fid=vide`, lu par le seul bouchon ; le produit ignore le paramètre)"
+      }
+    },
+    {
+      "page": "app-demandes",
+      "approche": "a",
+      "ecran": 4,
+      "nom": "Chargement",
+      "references": {
+        "telephone": "references/app-demandes/a-4-telephone.json",
+        "bureau-1440": "references/app-demandes/a-4-bureau-1440.json",
+        "bureau-1280": "references/app-demandes/a-4-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/leads?fid=chargement",
+        "persona": "agent",
+        "etat": "le bouchon ne répond jamais (`?fid=chargement`) ; relevé `--sans-attente-donnees`"
+      }
+    },
+    {
+      "page": "app-demandes",
+      "approche": "a",
+      "ecran": 5,
+      "nom": "Erreur",
+      "references": {
+        "telephone": "references/app-demandes/a-5-telephone.json",
+        "bureau-1440": "references/app-demandes/a-5-bureau-1440.json",
+        "bureau-1280": "references/app-demandes/a-5-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/leads?fid=erreur",
+        "persona": "agent",
+        "etat": "le bouchon rend 500 (`?fid=erreur`)"
+      }
+    },
+    {
+      "page": "app-fil-commercial",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "La demande",
+      "references": {
+        "telephone": "references/app-fil-commercial/a-0-telephone.json",
+        "bureau-1440": "references/app-fil-commercial/a-0-bureau-1440.json",
+        "bureau-1280": "references/app-fil-commercial/a-0-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/leads?lead=9001&ouverte=9001",
+        "persona": "agent",
+        "etat": "la demande de Mouhamed Dieng (sans fiche) ouverte depuis sa notification (`?lead=` : l'en-tête dit « Ouverte depuis la notification · 1 sur 4 ») ; même bouchon. Relevé au téléphone et à 1440"
+      }
+    },
+    {
+      "page": "app-fil-commercial",
+      "approche": "a",
+      "ecran": 1,
+      "nom": "Proposer une visite (depuis une demande)",
+      "references": {
+        "telephone": "references/app-fil-commercial/a-1-telephone.json",
+        "bureau-1440": "references/app-fil-commercial/a-1-bureau-1440.json",
+        "bureau-1280": "references/app-fil-commercial/a-1-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/leads?ouverte=9001",
+        "persona": "agent",
+        "etat": "l'état « La demande », puis le geste « Visite ▸ » (`--perturber fid2584/planifier.js`) : la feuille de TCK-2586 ouverte avec la demande (`PlanifierDialog demande={…}`), créneaux du bouchon de `GET /api/property-visits/slots` — sans confirmer. Relevé au téléphone et à 1440"
+      }
+    },
+    {
+      "page": "app-fil-commercial",
+      "approche": "a",
+      "ecran": 2,
+      "nom": "Visite confirmée (depuis une demande)",
+      "references": {
+        "telephone": "references/app-fil-commercial/a-2-telephone.json",
+        "bureau-1440": "references/app-fil-commercial/a-2-bureau-1440.json",
+        "bureau-1280": "references/app-fil-commercial/a-2-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": null,
+        "persona": "agent",
+        "etat": "NON MESURÉ — confirmer créerait une visite et enverrait un SMS ; l'écran « confirmée » est celui de TCK-2586 (app-visites a-6), relevé là avec une réponse simulée, et le composant est le même"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/leads",
+    "persona": "agent",
+    "disposition": "agent",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": "scratchpad du lot 2, fid2584/ : bouchon.js (chargé AVANT la page par `FID_AVANT` : bouchon de `GET /api/contact-leads*`, `/api/contact-leads/response-stats`, `/api/properties/{id}` et `/api/property-visits/slots`, horloge figée au 10 nov. 2026 12:00 Dakar ; modes `?fid=vide|erreur|chargement`) ; retour.js (geste WhatsApp puis retour sur l'onglet) ; planifier.js (geste « Visite ▸ »)"
+  },
+  "coque": true,
+  "roles": [
+    {
+      "nom": "ligne de demande en retard",
+      "appareil": "mobile",
+      "maquette": {
+        "boiteDe": "Mouhamed Dieng",
+        "min": 60
+      },
+      "produit": {
+        "boiteDe": "Mouhamed Dieng",
+        "min": 60
+      }
+    },
+    {
+      "nom": "ligne de demande en retard",
+      "appareil": "desktop",
+      "maquette": {
+        "boiteDe": "Mouhamed Dieng",
+        "min": 60
+      },
+      "produit": {
+        "boiteDe": "Mouhamed Dieng",
+        "min": 60
+      }
+    }
+  ],
+  "zones": [],
+  "alias": {},
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "app-demandes a-*-bureau-*, app-fil-commercial a-*-bureau-1440",
+      "element": "barre latérale et en-tête de la coque (largeur, liens, compteurs, avatar)",
+      "propriete": "boîtes, libellés et pixels de la colonne de 272 px",
+      "exception": "hors périmètre",
+      "motif": "la coque est TCK-2617/TCK-2618/TCK-2619 (terrain-5), en cours dans le même arbre ; l'essentiel des écarts de bureau en vient. Le contenu de la page commence à la même abscisse que la maquette"
+    },
+    {
+      "ecran": "tous",
+      "element": "encres secondaires (âge, aperçu du message, bien, méta)",
+      "propriete": "couleur (encre à transparence de la maquette → `text-encre-douce` / `text-muted-foreground` opaques)",
+      "exception": "règle du design system",
+      "motif": "aucune encre translucide (`text-x/NN`) dans /app — règle du lot (contraste mesuré, cliquets de contraste) ; même exception que TCK-2580, TCK-2586"
+    },
+    {
+      "ecran": "app-demandes a-*",
+      "element": "vues « À moi · Non attribuées · Toutes · Traitées » (puces au téléphone, contrôle segmenté au bureau)",
+      "propriete": "« Non attribuées » en plus ; « Toutes » poussée hors de l'écran (téléphone) ou décalée (bureau)",
+      "exception": "donnée",
+      "motif": "la persona de démonstration porte `crm.assign` : la vue « Non attribuées » s'affiche (la maquette dessine un agent sans ce droit). La vue reste exacte ; le décalage vient de la puce en plus"
+    },
+    {
+      "ecran": "app-demandes a-1-*",
+      "element": "« déjà cliente » de la maquette",
+      "propriete": "libellé",
+      "exception": "donnée",
+      "motif": "la fiche client ne porte pas de genre : le produit écrit « déjà client·e » (ressort « absent de la maquette » ; le libellé de la maquette n'est pas une ancre)"
+    },
+    {
+      "ecran": "tous",
+      "element": "pastille de notifications, comptes des onglets de la coque",
+      "propriete": "valeur",
+      "exception": "donnée",
+      "motif": "comptes de la base de démonstration, non bouchonnés"
+    },
+    {
+      "ecran": "tous",
+      "element": "lien d'évitement « Aller au contenu »",
+      "propriete": "absent de la maquette",
+      "exception": "règle du design system",
+      "motif": "lien d'accessibilité de la coque (visible au seul focus) ; la maquette ne le dessine pas"
+    },
+    {
+      "ecran": "app-demandes a-0-*, a-1-*, app-fil-commercial a-0-*",
+      "element": "vignette du bien",
+      "propriete": "image (photo → icône `image` lucide)",
+      "exception": "donnée",
+      "motif": "le bouchon ne sert pas de photo (`main_photo_url: null`) : le produit dessine sa vignette vide, la boîte est à la cote de la maquette"
+    },
+    {
+      "ecran": "app-demandes a-0-*",
+      "element": "texte d'attente du champ de recherche",
+      "propriete": "libellé (« Nom, téléphone, bien… » → « Nom, téléphone, e-mail… »)",
+      "exception": "technique",
+      "motif": "`filter[search]` de l'API cherche dans le nom, le téléphone et l'e-mail du demandeur, pas dans le titre du bien : promettre « bien » mentirait. Le filtre Bien existe à part au bureau"
+    },
+    {
+      "ecran": "app-demandes a-0-bureau-*",
+      "element": "loupe du champ de recherche",
+      "propriete": "taille",
+      "exception": "règle du design system",
+      "motif": "`DebouncedSearchInput` porte le jeton `size-icone` sous la portée /app (TCK-2688) ; primitive commune — même exception que TCK-2586"
+    },
+    {
+      "ecran": "app-demandes a-0-telephone",
+      "element": "action « Rechercher » de l'en-tête de la page",
+      "propriete": "absente du produit",
+      "exception": "technique",
+      "motif": "la maquette ne montre que la loupe de la coque au téléphone ; le champ de recherche de la page n'apparaît que lorsqu'une recherche `?q=` est en cours"
+    },
+    {
+      "ecran": "app-demandes a-1-*, app-fil-commercial a-0-*",
+      "element": "message WhatsApp prérempli",
+      "propriete": "texte du lien `wa.me` (la maquette nomme l'agent, l'agence et deux créneaux proposés)",
+      "exception": "hors périmètre",
+      "motif": "le message de TCK-590 est conservé ; proposer des créneaux dans le message est une fonction neuve, hors du ticket"
+    },
+    {
+      "ecran": "app-demandes a-2-*",
+      "element": "toast « Marquée traitée » — bouton « Annuler »",
+      "propriete": "absent du produit",
+      "exception": "technique",
+      "motif": "l'API n'a pas de route pour « dé-traiter » une demande ; un « Annuler » qui ne défait rien mentirait"
+    },
+    {
+      "ecran": "app-demandes a-3-*",
+      "element": "toast « Demande traitée. » et son « Annuler » (icône `undo-2`) au-dessus de l'état vide",
+      "propriete": "absents du produit",
+      "exception": "technique",
+      "motif": "la maquette dessine l'état vide juste après le dernier « Oui » ; le relevé l'atteint par une page vide (`?fid=vide`) pour ne rien écrire en base, donc sans toast. Le toast du produit existe (« Oui » de la barre de retour, testé dans ContactLeadsInbox.test.tsx) ; son « Annuler » est absent pour le motif de la ligne précédente"
+    },
+    {
+      "ecran": "app-demandes a-3-*",
+      "element": "lien « Voir les traitées » de l'état vide",
+      "propriete": "absent de la maquette",
+      "exception": "technique",
+      "motif": "au téléphone, la vue « Traitées » est la dernière puce, hors de l'écran à 390 px ; l'état vide donne un chemin direct vers elle plutôt qu'un cul-de-sac"
+    },
+    {
+      "ecran": "app-demandes a-2-*",
+      "element": "« il y a 2 min » de la barre de retour",
+      "propriete": "libellé de temps",
+      "exception": "donnée",
+      "motif": "le relevé revient sur l'onglet aussitôt après le geste : le produit écrit le délai réel"
+    },
+    {
+      "ecran": "app-demandes a-5-bureau-*",
+      "element": "bouton « Réessayer »",
+      "propriete": "taille de police (15 → 13,5 px)",
+      "exception": "règle du design system",
+      "motif": "densité ×0,9 du bureau portée par les jetons (ADR-0107) : `text-corps` au bureau vaut 13,5 px"
+    },
+    {
+      "ecran": "tous",
+      "element": "coche « ✓ » de la maquette",
+      "propriete": "glyphe texte → icône `check` lucide",
+      "exception": "règle du design system",
+      "motif": "les icônes du produit sont lucide ; même nom de rôle, même boîte"
+    },
+    {
+      "ecran": "app-demandes a-*, app-fil-commercial a-*",
+      "element": "icônes dessinées en SVG par la maquette",
+      "propriete": "nom d'icône (svg anonyme → nom lucide)",
+      "exception": "technique",
+      "motif": "l'outil apparie les icônes par nom ; une icône SVG à la main de la maquette ressort « absente » face à son équivalent lucide"
+    },
+    {
+      "ecran": "app-fil-commercial a-1-bureau-1440",
+      "element": "voile sombre derrière le panneau",
+      "propriete": "pixels de la page (69,9 % de l'écran)",
+      "exception": "règle du design system",
+      "motif": "le panneau de droite est sans voile et non modal — décision du porteur du 2026-11-10 (`ui/panneau-droit.tsx`) ; la maquette, antérieure, le dessine"
+    },
+    {
+      "ecran": "app-fil-commercial a-1-*",
+      "element": "jours de la feuille",
+      "propriete": "forme (pastilles de la maquette → cases `rounded-xl`)",
+      "exception": "hors périmètre",
+      "motif": "la feuille est celle de TCK-2586, mesurée contre app-visites a-5, qui fait foi pour elle"
+    },
+    {
+      "ecran": "app-fil-commercial a-1-*",
+      "element": "« Mouhamed a écrit « samedi » » et jour présélectionné",
+      "propriete": "absent du produit",
+      "exception": "hors périmètre",
+      "motif": "déduire un jour du texte libre du message n'est pas dans le ticket ; la feuille ouvre sur aujourd'hui"
+    },
+    {
+      "ecran": "app-fil-commercial a-1-*",
+      "element": "dates, adresse du bien, critères du demandeur",
+      "propriete": "valeurs",
+      "exception": "donnée",
+      "motif": "la maquette date du 2 nov. et porte une adresse et des critères que le bouchon ne sert pas"
+    },
+    {
+      "ecran": "app-fil-commercial a-1-telephone",
+      "element": "nœuds sous la feuille plein écran",
+      "propriete": "« absents de la maquette »",
+      "exception": "technique",
+      "motif": "l'outil ne juge pas le recouvrement : la page sous la feuille plein écran est relevée aussi (49 nœuds), sans être visible"
+    },
+    {
+      "ecran": "app-demandes a-1-*",
+      "element": "« Attribuer à un collègue » — détail",
+      "propriete": "libellé (noms des collègues → texte générique)",
+      "exception": "donnée",
+      "motif": "les noms sont dans le dialogue d'attribution, lu à l'ouverture ; la ligne du menu ne les précharge pas"
+    },
+    {
+      "ecran": "app-demandes a-0-bureau-*, a-1-bureau-*, a-2-bureau-*, app-fil-commercial a-*-bureau-1440",
+      "element": "rôle « ligne de demande en retard » — sa boîte",
+      "propriete": "marges intérieures et `gap` (14,4 / 10,8 px → 0)",
+      "exception": "technique",
+      "motif": "même boîte au pixel des deux côtés (x 272, y 211,7, 419 × 72 à 1440) et retraits du contenu conformes : le produit pose son retrait sur un enfant, la maquette sur la ligne. L'outil compare les propriétés CSS de la boîte, pas sa géométrie seule"
+    },
+    {
+      "ecran": "app-demandes a-1-telephone, a-3-*, a-4-*, a-5-*, app-fil-commercial a-*",
+      "element": "rôle « ligne de demande en retard »",
+      "propriete": "« absent de la maquette » ou apparié à un autre bloc",
+      "exception": "technique",
+      "motif": "l'outil applique un rôle à tous les écrans d'un appareil ; la ligne de la liste n'existe que sur « Liste » et « Retour de WhatsApp » (a-0, a-2), seuls écrans où le rôle se lit. Ailleurs (demande ouverte, vide, chargement, erreur, fil commercial) « Mouhamed Dieng » désigne l'en-tête de la demande ou rien"
+    },
+    {
+      "ecran": "app-demandes a-0-bureau-*, a-1-bureau-*, a-2-bureau-*",
+      "element": "initiales de l'avatar (« MD »)",
+      "propriete": "interligne (19,5 → 18,5 px)",
+      "exception": "règle du design system",
+      "motif": "l'avatar est la primitive commune (`Avatar`), interligne de son jeton ; écart d'un pixel sans effet sur la boîte"
+    },
+    {
+      "ecran": "app-demandes a-0-telephone, a-2-telephone, a-3/4/5-telephone",
+      "element": "zone « coque · en-tête » (0,59 %)",
+      "propriete": "pixels",
+      "exception": "donnée",
+      "motif": "la pastille de notifications (« 7 » de la maquette, compte de la base de démonstration ici, plus large de 4 px) et l'encre opaque des icônes de la coque (règle, terrain-5) ; le titre « Demandes » est conforme"
+    },
+    {
+      "ecran": "app-demandes a-3/4/5-telephone",
+      "element": "zone « coque · barre d'onglets » (0,9 %)",
+      "propriete": "pastille « 2 » de l'onglet Demandes absente",
+      "exception": "donnée",
+      "motif": "le bouchon rend une boîte vide, en erreur ou en chargement : le compteur du menu, lu à la même requête, n'a rien à compter ; la maquette garde son « 2 »"
+    },
+    {
+      "ecran": "app-demandes a-1-telephone, app-fil-commercial a-0-telephone",
+      "element": "zone « coque · en-tête » (1 %)",
+      "propriete": "« ✕ » (trait 2 → 1,75) et encre de « Plus ▾ »",
+      "exception": "règle du design system",
+      "motif": "trait uniforme des icônes de la coque (TCK-2685) ; encre opaque (règle du lot) — même exception que TCK-2586"
+    },
+    {
+      "ecran": "app-fil-commercial a-0-*",
+      "element": "« il y a 25 min » de la maquette",
+      "propriete": "âge (« il y a 8 j » au produit)",
+      "exception": "donnée",
+      "motif": "la maquette écrit « il y a 25 min · reçue le 2 nov. à 17:47 » le 10 nov. : les deux ne peuvent être vrais ensemble ; le produit calcule l'âge depuis la date de réception"
+    }
+  ],
+  "hors_perimetre": [
+    {
+      "element": "coque (barre latérale, en-tête, barre d'onglets)",
+      "ticket": "TCK-2617",
+      "motif": "TCK-2617/TCK-2618/TCK-2619 ; les relevés la gardent visible, ses écarts sont ceux de ces tickets"
+    },
+    {
+      "element": "feuille « Planifier une visite » (créneaux, jours, pied, état confirmé)",
+      "ticket": "TCK-2586",
+      "motif": "le geste « Visite ▸ » de ce ticket l'ouvre avec la demande ; sa fidélité se juge contre app-visites a-5/a-6"
+    },
+    {
+      "element": "raccourcis clavier j / k / t / v",
+      "ticket": null,
+      "motif": "proposés par l'audit, absents de la maquette retenue"
+    }
+  ]
+}

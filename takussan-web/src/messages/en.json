@@ -5720,7 +5720,7 @@
     "slides": {
       "leads": {
         "title": "Your requests",
-        "body": "Find your prospects and customers with their real-time pipeline stage."
+        "body": "Answer the contact requests on your properties: WhatsApp, call or visit, in one tap."
       },
       "properties": {
         "title": "Your properties",
@@ -13445,13 +13445,19 @@
     "filters": {
       "todo": "To handle",
       "handled": "Handled",
-      "all": "All"
+      "all": "All",
+      "unassigned": "Unassigned",
+      "mine": "Mine",
+      "label": "Inbox views"
     },
     "empty": {
-      "todo": "No request waiting.",
-      "handled": "No handled request yet.",
-      "all": "No request received yet.",
-      "description": "Requests left on your properties and your agent page arrive here."
+      "todo": "No request waiting",
+      "handled": "No handled request yet",
+      "all": "No request received yet",
+      "description": "Requests left on your properties and your agent page arrive here.",
+      "unassigned": "No request without an assignee",
+      "mine": "No request is waiting for you",
+      "seeHandled": "See handled requests"
     },
     "error": "The requests could not be loaded.",
     "anonymous": "Visitor",
@@ -13468,7 +13474,8 @@
       "convertAnyway": "Convert anyway",
       "openCustomer": "Open client record",
       "handle": "Mark as handled",
-      "assign": "Assign"
+      "assign": "Assign",
+      "openKnown": "View record"
     },
     "whatsappReply": "Hello {name}, I am following up on your request on Takussan.",
     "whatsappReplyProperty": "Hello {name}, I am following up on your request on Takussan about “{title}”.",
@@ -13484,10 +13491,125 @@
       "handled": "Request marked as handled.",
       "converted": "Client record created.",
       "assigned": "Request assigned.",
-      "error": "The action did not go through."
+      "error": "The action did not go through.",
+      "handledShort": "Request handled."
     },
-    "description": "Messages left on the public site: read them, handle them, turn them into clients.",
-    "aboutProperty": "About “{title}”"
+    "shortTitle": "Requests",
+    "inbox": {
+      "todoCount": "{count, plural, one {# to handle} other {# to handle}}",
+      "allDone": "Everything is handled",
+      "lateCount": "{count, plural, one {# waiting over 24 h} other {# waiting over 24 h}}",
+      "unassignedCount": "{count, plural, one {# unassigned} other {# unassigned}}",
+      "loading": "Loading…",
+      "oldestFirst": "Oldest first",
+      "listFooter": "{count, plural, one {# request to handle} other {# requests to handle}}",
+      "listLabel": "Requests",
+      "alreadyCustomer": "already a customer",
+      "alreadyCustomerVisits": "already a customer · {count, plural, =0 {no visit} one {# visit} other {# visits}}",
+      "open": "Open {name}’s request"
+    },
+    "age": {
+      "justNow": "just now",
+      "minutes": "{n} min ago",
+      "hours": "{n} h ago",
+      "days": "{n} d ago"
+    },
+    "gestures": {
+      "visit": "Visit",
+      "visitAria": "Offer {name} a visit",
+      "whatsappAria": "Reply to {name} on WhatsApp",
+      "callAria": "Call {name}",
+      "emailAria": "Email {name}",
+      "proposeVisit": "Offer a visit",
+      "proposeVisitTo": "Offer {name} a visit",
+      "noEmail": "No email in the request"
+    },
+    "detail": {
+      "title": "Contact request",
+      "position": "{n} of {total} to handle",
+      "positionAll": "{n} of {total}",
+      "more": "More",
+      "receivedOn": "received {date}",
+      "dateAt": "{jour} at {heure}",
+      "message": "Their message",
+      "property": "The property",
+      "requester": "The requester",
+      "toReply": "To reply",
+      "prefilled": "Prefilled message",
+      "seeProperty": "See the property page",
+      "seePropertyShort": "see the page",
+      "directTitle": "Direct contact",
+      "directBody": "No listing named: the visit will ask you to choose a property.",
+      "copy": "Copy",
+      "copyAria": "Copy the number",
+      "copied": "Number copied.",
+      "noEmail": "No email",
+      "noPhone": "No phone",
+      "sourceFor": "{source} · for {name}",
+      "sources": {
+        "property": "Came from the property page",
+        "agent": "Came from your agent page",
+        "google": "Came from search",
+        "facebook": "Came from Facebook",
+        "whatsapp": "Came from WhatsApp",
+        "instagram": "Came from Instagram"
+      },
+      "knownTitle": "Already a customer · {count, plural, =0 {no visit} one {# visit} other {# visits}}",
+      "knownTitleHidden": "Already a customer",
+      "knownBody": "Same contact details as {name}’s record. The visit will be attached to it.",
+      "knownBodyHidden": "An agency record has this phone or email.",
+      "knownOpen": "Open",
+      "unknownTitle": "Already known? No record",
+      "unknownBody": "No customer with this number. Offering a visit creates their record, with this message.",
+      "convertTitle": "Convert to customer, without a visit",
+      "convertDetail": "The message and the property follow into the record",
+      "openCustomerDetail": "The record created from this request",
+      "assignTitle": "Assign to a colleague",
+      "assignDetail": "The chosen colleague receives it and is notified",
+      "handleDetail": "Without a visit or a record",
+      "emailTitle": "Write an email",
+      "emailNone": "No address in the request",
+      "openShort": "See the record",
+      "rentPrice": "{price}/month",
+      "openKnownDetail": "The record that already has these contact details",
+      "fromNotification": "Opened from the notification · {n} of {total}"
+    },
+    "return": {
+      "question": "Did you reply to {name}?",
+      "yes": "Yes, it’s handled",
+      "notYet": "Not yet",
+      "whatsapp": "WhatsApp opened {age}",
+      "call": "Call started {age}"
+    },
+    "errorTitle": "The requests could not be loaded",
+    "errorBody": "The connection was interrupted. Your requests are not lost.",
+    "retry": "Try again",
+    "desktop": {
+      "property": "Property",
+      "agent": "Agent",
+      "channel": "Channel",
+      "anyProperty": "All properties",
+      "anyAgent": "All agents",
+      "anyChannel": "All channels",
+      "propertySearch": "Search a property",
+      "channels": {
+        "form": "Form",
+        "whatsapp": "WhatsApp click",
+        "call": "Call click"
+      },
+      "search": "Name, phone, email…"
+    },
+    "stats": {
+      "median": "Median first-response time",
+      "period": "over {days} days",
+      "over24": "{count, plural, one {# request > 24 h} other {# requests > 24 h}}",
+      "byAgent": "By agent",
+      "lessByAgent": "Hide",
+      "agentLine": "{name} · {delay}",
+      "hoursMinutes": "{h} h {m}",
+      "minutes": "{m} min",
+      "none": "—"
+    }
   },
   "visitPlanning": {
     "unassigned": "Unassigned",

@@ -24,7 +24,6 @@
     "src/components/layout/PaletteDeCommandes.tsx": {"texte-arbitraire":1,"tracking-arbitraire":1},
     "src/components/layout/RecentsDeLaBarre.tsx": {"texte-arbitraire":1},
     "src/components/layout/styles-de-la-barre.ts": {"icone-18":1},
-    "src/components/leads/ContactLeadsInbox.tsx": {"aplat-accent":1},
     "src/components/leases/LeaseChainTimeline.tsx": {"texte-arbitraire":2},
     "src/components/maintenance/MaintenanceList.tsx": {"tracking-arbitraire":2},
     "src/components/messages/ChatView.tsx": {"texte-arbitraire":2},

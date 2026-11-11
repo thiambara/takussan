@@ -67,6 +67,11 @@ const REGISTRE: Readonly<Record<string, string>> = {
   // TCK-2483 — la ligne d'aide du module « Entrées en attente » décrit le même seuil.
   'admin.agencyConfig.modules.items.move_in_follow_up.hint':
     'takussan-api/app/Http/Controllers/Api/Agency/TenantOnboardingPendingController.php:54 — seuil subDays(7)',
+  // TCK-2584 (ADR-0103 § 7) — un seuil mesuré, pas une promesse : la boîte « Demandes » compte les
+  // demandes à traiter créées avant l'instant moins 24 h (`filter[created_at_max]`), la borne que
+  // l'API applique aussi à `open_over_24h_count` de `response-stats`.
+  'contactLeads.inbox.lateCount':
+    'takussan-web/src/lib/demandes/boite.ts:8 — DELAI_DE_RETARD_MS = 24 h, borne de `borneDuRetard` (:47) ; API : ContactLeadResponseStatsService.php:98, `open_over_24h_count`',
   // TCK-592 — la clôture contradictoire : `completed_at <= subDays(7)` (:38), passe quotidienne à
   // 04:00 (routes/console.php:79, sans `--days`) — close au premier passage après le septième jour.
   'maintenance.intervention.resolution.body':

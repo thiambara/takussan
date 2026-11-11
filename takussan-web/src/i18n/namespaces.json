@@ -72,7 +72,10 @@
     "(dashboard)/app/leads": [
       "agentCrm",
       "console",
-      "contactLeads"
+      "contactLeads",
+      "crm",
+      "visitPlanning",
+      "visits"
     ],
     "(dashboard)/app/tasks": [
       "agentCrm"
@@ -300,7 +303,7 @@
     "(dashboard)/app": 27,
     "[locale]/(public)": 25,
     "(dashboard)/app/crm": 30,
-    "(dashboard)/app/leads": 29,
+    "(dashboard)/app/leads": 32,
     "(dashboard)/app/tasks": 29,
     "[locale]/(public)/pay": 27,
     "(dashboard)/app/agency": 54,

@@ -87,4 +87,26 @@ Au téléphone, entre deux rendez-vous, l'agent trie dix demandes en deux minute
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Où vit quoi.** La page `app/(dashboard)/app/leads/page.tsx` monte `components/leads/ContactLeadsInbox.tsx`, qui compose les pièces de `components/leads/boite/` (`LigneDeDemande`, `DemandeOuverte`, `RetourDeContact`, `BandeauDesDelais`, `FiltresDuBureau`, `AttribuerDialog`, `pieces`). La logique sans React est dans `lib/demandes/boite.ts` (âge, retard, tri, vues) ; les lectures et écritures dans `lib/queries/contact-leads.ts`.
+
+**Décisions prises ici** (relevées dans le code, testées) :
+
+- **Vues.** « À moi » = les demandes dont l'utilisateur est destinataire (`filter[mine]`), « Non attribuées » = sans destinataire (`filter[unassigned]`, montrée seulement avec `crm.assign`), « Toutes », « Traitées ». Tout dans l'URL (`?filtre=`, `?bien=`, `?agent=`, `?canal=`, `?q=`, `?ouverte=`) ; le changement de vue revient en page 1.
+- **Âge et retard.** L'âge s'écrit en minutes, en heures, puis en **jours de calendrier à Dakar** (`max(1, jour(maintenant) − jour(création))`) : une demande du 2 nov. à 17 h 47 a « 8 j » le 10 à midi, comme la maquette ; un arrondi de durée en aurait donné 7. Le rouge suit `DELAI_DE_RETARD_MS` (24 h), la même borne que `open_over_24h_count` de l'API (`ContactLeadResponseStatsService`) — inscrit au registre `src/test/__tests__/promesses-de-delai.test.ts`.
+- **Barre « Vous avez répondu ? ».** Montée au retour sur l'onglet (`visibilitychange`) après WhatsApp ou Appeler, **sur la liste comme dans la demande ouverte**, au téléphone **et jusqu'à 1023 px** (`md:flex`) : sous `lg`, la boîte garde le régime du téléphone. E-mail enregistre le geste mais n'ouvre pas de barre (cas testé). « Oui » marque traitée ; « Pas encore » referme sans rien écrire.
+- **Pas d'« Annuler » au toast « Marquée traitée »** : l'API n'a pas de route pour dé-traiter une demande.
+- **Déjà client·e.** `known_customer` remplace « Convertir » par « Voir la fiche » (lien vers la fiche existante), au bureau et dans le menu « Plus » du téléphone ; la feuille de planification se rattache à cette fiche.
+- **Recherche.** Le texte d'attente dit « Nom, téléphone, e-mail… » et non « … bien » : `filter[search]` ne cherche pas dans le titre du bien (le filtre Bien existe à part, au bureau). Au téléphone, la page n'ajoute pas sa propre action de recherche à l'en-tête (la maquette n'y montre que la loupe de la coque) ; le champ ne paraît que lorsqu'une recherche `?q=` est en cours.
+- **Bandeau des délais** : lu seulement par l'administrateur, au bureau (`enabled: admin && large`) ; trois agents dans la ligne, tous au clic sur « Par agent ».
+- **Attribuer** liste les collègues de l'**agence de la demande** (`lead.agency_id`, droit `crm.assign` jugé sur elle), et non plus celle de l'utilisateur. Le filtre Agent du bureau, lui, propose les agents de l'agence de l'utilisateur (le filtre porte sur sa boîte).
+- **Ouverte depuis une notification.** Au téléphone, quand la demande ouverte est la désignée (`?lead=`), l'en-tête dit « Ouverte depuis la notification · n sur N » (écran « La demande » de la maquette) ; sinon le rang seul.
+- **Bienvenue de l'agent.** La diapositive des demandes ne parle plus de pipeline (fr, en ; le wolof, en pause, garde son texte).
+- **Gestes.** WhatsApp passe par `whatsappHref` ; sans e-mail, le geste E-mail du bureau est présent mais **inactif**, avec son motif (`gestures.noEmail`).
+
+**Piège payé — le contenu déclaré à la coque sort de la frontière i18n de la page.** `DeclarerEnTete({ droite })` rend son contenu dans l'en-tête de la coque, hors du `NextIntlClientProvider` restreint aux espaces de la page : un `useTranslations('contactLeads…')` dans ce contenu lève `MISSING_MESSAGE` au rendu et fait tomber la demande ouverte au téléphone. Tout libellé passé à la coque est donc **traduit par la page et passé en prop** (`MenuPlus libelle=…`). Le test monte le menu avec un dictionnaire privé de `contactLeads` (rouge par ablation).
+
+**Espaces i18n.** L'entrée de `/app/leads` dans `src/i18n/namespaces.json` gagne `crm`, `visitPlanning` et `visits` (la feuille de TCK-2586 et le dialogue de doublon s'ouvrent depuis la boîte).
+
+**Fidélité.** Fiche : `docs/qa/audit-ux-2026-11/fidelite/TCK-2584.json`. Les relevés servent les quatre demandes de la maquette par un **bouchon dans la page** (`GET /api/contact-leads*`, horloge figée au 10 nov. 12:00) : rien n'est écrit dans la base de démonstration. « Visite confirmée » depuis une demande n'est pas relevé (il créerait une visite et enverrait un SMS) : l'écran est celui de TCK-2586 (app-visites a-6).
+
+**Hors périmètre confirmé.** Les créneaux proposés dans le message WhatsApp ; un jour déduit du texte du message (« Mouhamed a écrit « samedi » ») ; les raccourcis `j`/`k`/`t`/`v`.

@@ -15,6 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { initialesDe, nomAffichable } from '@/lib/identite';
+import { formaterTelephone } from '@/lib/phone';
 import { FUSEAU_DES_VISITES } from '@/lib/visites/heure-de-dakar';
 import { jourEnClair, jourEnToutesLettres } from '@/lib/visites/planification';
 import { cn } from '@/lib/utils';
@@ -129,7 +130,7 @@ export function TitreDeSection({
   );
 }
 
-function Vignette({ src, className }: { readonly src?: string | null; readonly className?: string }) {
+export function Vignette({ src, className }: { readonly src?: string | null; readonly className?: string }) {
   return (
     <span className={cn('relative inline-flex flex-none items-center justify-center overflow-hidden rounded-lg bg-muted text-muted-foreground', className)}>
       {src ? <Image src={src} alt="" fill sizes="64px" className="object-cover" /> : <ImageIcon className="size-5" aria-hidden="true" />}
@@ -468,7 +469,7 @@ export function CarteDeLaDemande({
         <span className="min-w-0 flex-1 leading-snug">
           <span className="block truncate text-corps font-semibold">{nom}</span>
           <span className="block truncate text-ui tabular-nums text-muted-foreground">
-            {[telephone ?? null, t('fromLead')].filter(Boolean).join(' · ')}
+            {[telephone ? formaterTelephone(telephone) : null, t('fromLead')].filter(Boolean).join(' · ')}
           </span>
         </span>
         <Lock className="size-4 flex-none text-muted-foreground" aria-label={t('lockedFromLead')} />

@@ -5720,7 +5720,7 @@
     "slides": {
       "leads": {
         "title": "Vos demandes",
-        "body": "Retrouvez vos prospects et clients avec leur étape de pipeline en temps réel."
+        "body": "Répondez aux demandes de contact de vos biens : WhatsApp, appel ou visite, en un geste."
       },
       "properties": {
         "title": "Vos biens",
@@ -13445,13 +13445,19 @@
     "filters": {
       "todo": "À traiter",
       "handled": "Traitées",
-      "all": "Toutes"
+      "all": "Toutes",
+      "unassigned": "Non attribuées",
+      "mine": "À moi",
+      "label": "Vues de la boîte"
     },
     "empty": {
-      "todo": "Aucune demande en attente.",
-      "handled": "Aucune demande traitée pour l’instant.",
-      "all": "Aucune demande reçue pour l’instant.",
-      "description": "Les demandes déposées sur vos biens et votre fiche d’agent arrivent ici."
+      "todo": "Aucune demande en attente",
+      "handled": "Aucune demande traitée pour l’instant",
+      "all": "Aucune demande reçue pour l’instant",
+      "description": "Les demandes déposées sur vos biens et votre fiche d’agent arrivent ici.",
+      "unassigned": "Aucune demande sans destinataire",
+      "mine": "Aucune demande ne vous attend",
+      "seeHandled": "Voir les traitées"
     },
     "error": "Les demandes n’ont pas pu être chargées.",
     "anonymous": "Visiteur",
@@ -13468,7 +13474,8 @@
       "convertAnyway": "Convertir quand même",
       "openCustomer": "Voir la fiche client",
       "handle": "Marquer traitée",
-      "assign": "Attribuer"
+      "assign": "Attribuer",
+      "openKnown": "Voir la fiche"
     },
     "whatsappReply": "Bonjour {name}, je fais suite à votre demande sur Takussan.",
     "whatsappReplyProperty": "Bonjour {name}, je fais suite à votre demande sur Takussan au sujet de « {title} ».",
@@ -13484,10 +13491,125 @@
       "handled": "Demande marquée traitée.",
       "converted": "Fiche client créée.",
       "assigned": "Demande attribuée.",
-      "error": "L’action n’a pas abouti."
+      "error": "L’action n’a pas abouti.",
+      "handledShort": "Demande traitée."
     },
-    "description": "Les messages laissés sur le site public : à lire, à traiter, à transformer en client.",
-    "aboutProperty": "À propos de « {title} »"
+    "shortTitle": "Demandes",
+    "inbox": {
+      "todoCount": "{count, plural, one {# à traiter} other {# à traiter}}",
+      "allDone": "Tout est traité",
+      "lateCount": "{count, plural, one {# depuis plus de 24 h} other {# depuis plus de 24 h}}",
+      "unassignedCount": "{count, plural, one {# non attribuée} other {# non attribuées}}",
+      "loading": "Chargement…",
+      "oldestFirst": "Les plus anciennes d’abord",
+      "listFooter": "{count, plural, one {# demande à traiter} other {# demandes à traiter}}",
+      "listLabel": "Demandes",
+      "alreadyCustomer": "déjà client·e",
+      "alreadyCustomerVisits": "déjà client·e · {count, plural, =0 {aucune visite} one {# visite} other {# visites}}",
+      "open": "Ouvrir la demande de {name}"
+    },
+    "age": {
+      "justNow": "à l’instant",
+      "minutes": "il y a {n} min",
+      "hours": "il y a {n} h",
+      "days": "il y a {n} j"
+    },
+    "gestures": {
+      "visit": "Visite",
+      "visitAria": "Proposer une visite à {name}",
+      "whatsappAria": "Répondre à {name} par WhatsApp",
+      "callAria": "Appeler {name}",
+      "emailAria": "Écrire un e-mail à {name}",
+      "proposeVisit": "Proposer une visite",
+      "proposeVisitTo": "Proposer une visite à {name}",
+      "noEmail": "Pas d’e-mail dans la demande"
+    },
+    "detail": {
+      "title": "Demande de contact",
+      "position": "{n} sur {total} à traiter",
+      "positionAll": "{n} sur {total}",
+      "more": "Plus",
+      "receivedOn": "reçue le {date}",
+      "dateAt": "{jour} à {heure}",
+      "message": "Son message",
+      "property": "Le bien demandé",
+      "requester": "Le demandeur",
+      "toReply": "Pour répondre",
+      "prefilled": "Message prérempli",
+      "seeProperty": "Voir la fiche du bien",
+      "seePropertyShort": "voir la fiche",
+      "directTitle": "Contact direct",
+      "directBody": "Aucune annonce citée : la visite demandera de choisir un bien.",
+      "copy": "Copier",
+      "copyAria": "Copier le numéro",
+      "copied": "Numéro copié.",
+      "noEmail": "Pas d’e-mail",
+      "noPhone": "Pas de téléphone",
+      "sourceFor": "{source} · pour {name}",
+      "sources": {
+        "property": "Arrivé par la fiche du bien",
+        "agent": "Arrivé par votre fiche d’agent",
+        "google": "Arrivé par la recherche",
+        "facebook": "Arrivé par Facebook",
+        "whatsapp": "Arrivé par WhatsApp",
+        "instagram": "Arrivé par Instagram"
+      },
+      "knownTitle": "Déjà client·e · {count, plural, =0 {aucune visite} one {# visite} other {# visites}}",
+      "knownTitleHidden": "Déjà client·e",
+      "knownBody": "Mêmes coordonnées que la fiche de {name}. La visite s’y rattachera.",
+      "knownBodyHidden": "Une fiche de l’agence porte ce téléphone ou cet e-mail.",
+      "knownOpen": "Ouvrir",
+      "unknownTitle": "Déjà connu ? Aucune fiche",
+      "unknownBody": "Aucun client à ce numéro. Proposer une visite crée sa fiche, avec ce message.",
+      "convertTitle": "Convertir en client, sans visite",
+      "convertDetail": "Le message et le bien suivent dans la fiche",
+      "openCustomerDetail": "La fiche née de cette demande",
+      "assignTitle": "Attribuer à un collègue",
+      "assignDetail": "Le collègue choisi la reçoit et en est prévenu",
+      "handleDetail": "Sans visite ni fiche",
+      "emailTitle": "Écrire un e-mail",
+      "emailNone": "Pas d’adresse dans la demande",
+      "openShort": "Voir la fiche",
+      "rentPrice": "{price}/mois",
+      "openKnownDetail": "La fiche qui porte déjà ces coordonnées",
+      "fromNotification": "Ouverte depuis la notification · {n} sur {total}"
+    },
+    "return": {
+      "question": "Vous avez répondu à {name} ?",
+      "yes": "Oui, c’est traité",
+      "notYet": "Pas encore",
+      "whatsapp": "WhatsApp ouvert {age}",
+      "call": "Appel lancé {age}"
+    },
+    "errorTitle": "Les demandes n’ont pas pu être chargées",
+    "errorBody": "La connexion a été interrompue. Vos demandes ne sont pas perdues.",
+    "retry": "Réessayer",
+    "desktop": {
+      "property": "Bien",
+      "agent": "Agent",
+      "channel": "Canal",
+      "anyProperty": "Tous les biens",
+      "anyAgent": "Tous les agents",
+      "anyChannel": "Tous les canaux",
+      "propertySearch": "Chercher un bien",
+      "channels": {
+        "form": "Formulaire",
+        "whatsapp": "Clic WhatsApp",
+        "call": "Clic Appeler"
+      },
+      "search": "Nom, téléphone, e-mail…"
+    },
+    "stats": {
+      "median": "Délai médian de première réponse",
+      "period": "sur {days} jours",
+      "over24": "{count, plural, one {# demande > 24 h} other {# demandes > 24 h}}",
+      "byAgent": "Par agent",
+      "lessByAgent": "Masquer",
+      "agentLine": "{name} · {delay}",
+      "hoursMinutes": "{h} h {m}",
+      "minutes": "{m} min",
+      "none": "—"
+    }
   },
   "visitPlanning": {
     "unassigned": "Non attribuées",
