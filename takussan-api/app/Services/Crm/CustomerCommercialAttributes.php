@@ -2,10 +2,12 @@
 
 namespace App\Services\Crm;
 
+use App\Models\Customer;
 use App\Models\Enums\RelationshipStatus;
 use App\Models\Enums\RelationshipType;
 use App\Models\User;
 use App\Models\UserCustomerRelationship;
+use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
@@ -99,10 +101,38 @@ final class CustomerCommercialAttributes
             $values['referent'] = self::referents($ids);
         }
         if (in_array('suggested_stage', $requested, true)) {
-            $values['suggested_stage'] = (new CustomerSuggestedStageQuery)->forPage($ids);
+            // Vérification adverse de TCK-2591 — l'étape proposée est un outil de pilotage de
+            // l'agence : ses faits (compte rendu « intéressé », visite, candidature, bail sur le bien
+            // d'un AUTRE bailleur) ne sortent qu'au personnel de l'agence de la fiche et au
+            // super-admin. Tout autre lecteur (le bailleur auteur de la fiche) reçoit `null`.
+            $staffIds = self::staffReadable($viewer, $ids);
+            $values['suggested_stage'] = $staffIds === []
+                ? []
+                : (new CustomerSuggestedStageQuery)->forPage($staffIds);
         }
 
         $request->attributes->set(self::VALUES, $values);
+    }
+
+    /**
+     * Les fiches de `$ids` dont `$viewer` est du personnel de l'agence (ou toutes, au super-admin) :
+     * la règle de {@see Customer::criteriaBelongTo()}, jugée en une requête pour la page.
+     *
+     * @param  list<int>  $ids
+     * @return list<int>
+     */
+    public static function staffReadable(User $viewer, array $ids): array
+    {
+        if ($viewer->isSuperAdmin()) {
+            return $ids;
+        }
+        $staffAgencyIds = app(MembershipCapabilityResolver::class)->staffAgencyIds($viewer);
+        if ($staffAgencyIds === []) {
+            return [];
+        }
+
+        return Customer::query()->whereKey($ids)->whereIn('agency_id', $staffAgencyIds)
+            ->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Services\Crm\CustomerCommercialAttributes;
 use App\Services\Crm\CustomerSuggestedStageQuery;
 
 /**
@@ -15,7 +16,14 @@ class DismissSuggestedStageRequest extends BaseFormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('update', $this->route('customer')) === true;
+        // Vérification adverse de TCK-2591 — écarter la proposition de l'agence est un geste de
+        // son personnel (la même borne que la lecture de `suggested_stage`), pas du bailleur auteur.
+        $user = $this->user();
+        $customer = $this->route('customer');
+
+        return $user !== null
+            && $user->can('update', $customer)
+            && CustomerCommercialAttributes::staffReadable($user, [(int) $customer->getKey()]) !== [];
     }
 
     /** @return array<string, mixed> */
