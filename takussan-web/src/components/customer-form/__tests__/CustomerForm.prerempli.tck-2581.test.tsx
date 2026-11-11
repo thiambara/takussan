@@ -38,13 +38,17 @@ vi.mock('@/app/actions/dashboard-customers', () => ({
 
 const { default: NouveauClient } = await import('@/app/(dashboard)/app/customers/new/page');
 
-/** La visite telle que l'API la rend au personnel de l'agence du bien (`PropertyVisitResource`). */
+/**
+ * La visite telle que l'API la rend au personnel de l'agence du bien (`PropertyVisitResource`). La
+ * carte (`visitor_display`) et les champs saisis DIFFÈRENT exprès : seule la carte doit préremplir,
+ * et une fixture où les deux coïncident ne départagerait pas les deux sources.
+ */
 const VISITE_SANS_FICHE = {
   id: 228,
   property_id: 40,
   customer: null,
-  visitor_name: 'Mouhamed Fall',
-  visitor_phone: '+221770001122',
+  visitor_name: 'Saisi PARLEVISITEUR',
+  visitor_phone: '+221779999999',
   visitor_display: { name: 'Mouhamed Fall', phone: '+221770001122', kind: 'anonymous', visits_on_property: 1 },
 };
 
@@ -106,6 +110,16 @@ describe('CustomerForm — prérempli depuis la visite (TCK-2581)', () => {
     serveur.lire.mockClear();
     await page({ visite: '1 OR 1' });
     expect(serveur.lire).not.toHaveBeenCalled();
+  });
+
+  it('sans la carte du visiteur (`visitor_display` nul : le lecteur n’est pas de la console du bien), rien — ni nom ni numéro saisis', async () => {
+    // Le compte à double casquette : personnel d'une agence B, bailleur d'un bien de A. Sans carte, le
+    // formulaire part vierge, même si la réponse portait encore les champs saisis.
+    serveur.lire.mockResolvedValueOnce({ data: { ...VISITE_SANS_FICHE, visitor_display: null, visitor_name: 'Prospect Anonyme', visitor_phone: '+221770009999' } });
+    await page({ visite: '228' });
+    expect(screen.getByLabelText(/Prénom/)).toHaveValue('');
+    expect(screen.getByLabelText(/^Nom/)).toHaveValue('');
+    expect(document.body.innerHTML).not.toMatch(/770009999|Prospect|Anonyme/);
   });
 
   it('une visite qui a déjà sa fiche ne préremplit rien', async () => {
