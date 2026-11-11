@@ -1,7 +1,7 @@
 ---
 id: TCK-2586
 title: "Planifier une visite : une feuille, le bien en une recherche, les créneaux libres en pastilles, préremplie d'où l'on vient"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: M
@@ -86,3 +86,6 @@ L'agent planifie une visite en trois touches depuis la demande, la fiche du clie
 - Succès : « Voir la visite » (`/app/visits/<id>`), WhatsApp, « Planifier une autre visite » ; depuis une demande, la liste de ce qui a été fait et « Voir la fiche ».
 
 **AC1 — prop testée, geste câblé par TCK-2597** (périmètre tranché par la session, 2026-11-11) : la feuille reçoit ses préremplissages en props, testées au composant ; le geste sur un créneau vide de l'agenda est porté par TCK-2597 (AC4), « Visite ▸ » de la boîte des demandes par TCK-2584 (AC3). Tous deux se branchent sur CETTE interface, sans en créer une seconde : `PlanifierDialog` / `PlanifierUneVisite` — `property` {id, libelle, photo?, detail?}, `customer` {id, libelle, telephone?, etape?}, `demande` {id, nom, prenom?, telephone?, ficheId?}, `jour` (`AAAA-MM-JJ`, Dakar), `heure` (`HH:MM`), `onClose`, `onPlanifiee`. Fidélité : `docs/qa/audit-ux-2026-11/fidelite/TCK-2586.json` (a-5/a-6 relevés ; a-1/a-2 avec TCK-2584).
+- **Reprise contre-vérifiée (verif-patrimoine, 2026-11-11) : acceptée** — B1, m1 et m2 fermés (f39ae474d), AC1 à AC5
+  tiennent ; ablations r1, r1b, r2, r2b et r3 rouges ; le focus de « Autre heure… » mesuré au navigateur 4 fois sur 4
+  (390 toucher et souris, 1280 souris et clavier), sans écriture.
