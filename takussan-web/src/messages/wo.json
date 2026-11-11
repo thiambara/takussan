@@ -4831,7 +4831,10 @@
         "held_properties": "Biens détenus transmis à un autre agent",
         "collaborations": "Collaborations transmises à un autre agent",
         "customers": "Clients transmis à un autre agent",
-        "contact_leads": "Demandes de contact transmises à un autre agent"
+        "contact_leads": "Demandes de contact transmises à un autre agent",
+        "invitations_expired_purged": "Invitations expirées supprimées",
+        "owner_tax_id_set": "NINEA d'un bailleur saisi",
+        "absence_updated": "Absence modifiée"
       },
       "subjectWithId": "{label} n° {id}",
       "otherAction": "Autre action",

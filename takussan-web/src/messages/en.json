@@ -6693,7 +6693,10 @@
         "held_properties": "Held properties handed over to another agent",
         "collaborations": "Collaborations handed over to another agent",
         "customers": "Customers handed over to another agent",
-        "contact_leads": "Contact requests handed over to another agent"
+        "contact_leads": "Contact requests handed over to another agent",
+        "invitations_expired_purged": "Expired invitations deleted",
+        "owner_tax_id_set": "Landlord's tax ID entered",
+        "absence_updated": "Absence updated"
       },
       "subjectWithId": "{label} #{id}",
       "otherAction": "Other action",
