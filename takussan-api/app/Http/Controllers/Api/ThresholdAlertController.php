@@ -80,7 +80,9 @@ class ThresholdAlertController extends Controller
 
         $alert = ThresholdAlert::create($validated);
 
-        return $this->json(['data' => $alert], 201);
+        // Contre-vérification de TCK-2627 — la même lecture que `show` (chiffre consolidé tu à qui
+        // ne lit pas les rapports), jamais le modèle brut.
+        return $this->json(['data' => $this->withReading(collect([$alert]), $request)[0]], 201);
     }
 
     public function update(UpdateThresholdAlertRequest $request, ThresholdAlert $thresholdAlert): JsonResponse
@@ -90,7 +92,7 @@ class ThresholdAlertController extends Controller
 
         $thresholdAlert->update($validated);
 
-        return $this->json(['data' => $thresholdAlert]);
+        return $this->json(['data' => $this->withReading(collect([$thresholdAlert->fresh()]), $request)[0]]);
     }
 
     public function destroy(Request $request, ThresholdAlert $thresholdAlert): JsonResponse

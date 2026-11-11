@@ -5,16 +5,19 @@ namespace Tests\Feature\Dashboard;
 use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Enums\AgencyAdminProfileStatus;
+use App\Models\Enums\Capability;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\ThresholdAlert;
+use App\Notifications\ThresholdAlertTriggered;
 use App\Services\Dashboard\KpiResolver;
 use App\Services\Dashboard\ThresholdAlertReading;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Tests\ApiTestCase;
 use Tests\Concerns\CreatesAgencyMembers;
 
@@ -175,6 +178,49 @@ class ThresholdAlertCurrentValueTest extends ApiTestCase
         $this->assertEquals(3.5, $admin[$rate->id]['last_value']);
         $this->assertEquals([3.5], array_column($admin[$rate->id]['triggers'], 'value'));
         $this->assertEquals(39100, $admin[$amount->id]['current_value']);
+    }
+
+    /**
+     * Contre-vérification de TCK-2627 — un admin dont le rôle retire `reports.view_agency` : (1) il
+     * n'est pas prévenu d'une alerte sur un chiffre consolidé (la cloche et le courriel portent la
+     * valeur), mais l'est d'une alerte sur une métrique non consolidée, et la liste des destinataires
+     * lue le dit ; (2) la réponse de `PATCH` et de `POST` tait la valeur comme `GET`.
+     */
+    public function test_l_admin_sans_rapports_n_est_ni_prevenu_ni_servi_par_l_ecriture(): void
+    {
+        Notification::fake();
+        $this->unpaidRateOf391();
+        $lecteur = $this->agencyAdmin($this->agency);
+        $sansRapports = $this->adminWithout($this->agency, Capability::ReportsViewAgency);
+        $this->assertFalse($sansRapports->canActAt(Capability::ReportsViewAgency, $this->agency), 'prémisse');
+        $rate = $this->alert('unpaid_rate_percent');
+        $rate->forceFill(['threshold' => -1])->save();
+        $open = $this->alert('maintenance_open');
+        $open->forceFill(['threshold' => -1])->save();
+
+        $this->artisan('dashboard:check-alerts')->assertExitCode(0);
+
+        Notification::assertSentTo($lecteur, ThresholdAlertTriggered::class, fn ($n) => $n->alert->is($rate));
+        Notification::assertNotSentTo($sansRapports, ThresholdAlertTriggered::class, fn ($n) => $n->alert->is($rate));
+        Notification::assertSentTo($sansRapports, ThresholdAlertTriggered::class, fn ($n) => $n->alert->is($open));
+
+        $rows = collect($this->actingAsApi($lecteur)->getJson('/api/threshold-alerts')->assertOk()->json('data'))->keyBy('id');
+        $this->assertEqualsCanonicalizing([$lecteur->id], array_column($rows[$rate->id]['recipients']['users'], 'id'));
+        $this->assertEqualsCanonicalizing([$lecteur->id, $sansRapports->id], array_column($rows[$open->id]['recipients']['users'], 'id'));
+
+        $this->assertNotNull($rate->fresh()->last_value, 'prémisse : la valeur au déclenchement est écrite');
+        $patch = $this->actingAsApi($sansRapports)->patchJson("/api/threshold-alerts/{$rate->id}", ['severity' => 'critical'])->assertOk();
+        $this->assertNull($patch->json('data.last_value'));
+        $this->assertNull($patch->json('data.current_value'));
+        $this->assertArrayNotHasKey('agency', array_filter((array) $patch->json('data')), 'la relation agency entière ne sort pas');
+        $post = $this->actingAsApi($sansRapports)->postJson('/api/threshold-alerts', [
+            'metric' => 'overdue_amount', 'operator' => '>', 'threshold' => 1, 'severity' => 'warning',
+        ])->assertCreated();
+        // La lecture, pas le modèle brut : la clé est là, et tue.
+        $this->assertArrayHasKey('current_value', $post->json('data'));
+        $this->assertArrayHasKey('recipients', $post->json('data'));
+        $this->assertNull($post->json('data.current_value'));
+        $this->assertSame('overdue_amount', $post->json('data.metric'));
     }
 
     private function alert(string $metric): ThresholdAlert

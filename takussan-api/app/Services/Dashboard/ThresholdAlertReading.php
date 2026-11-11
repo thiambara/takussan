@@ -60,13 +60,19 @@ final class ThresholdAlertReading
             $metrics[$agencyId] = $agency !== null ? $this->resolver->forAgency($agency) : [];
             $readsMoney[$agencyId] = $reader === null
                 || ($agency !== null && $reader->can('viewReports', $agency));
-            $users = ThresholdAlertRecipients::query($agencyId)
+            $admins = ThresholdAlertRecipients::query($agencyId)
                 ->orderBy('id')
-                ->get(['id', 'first_name', 'last_name', 'username'])
-                ->map(fn (User $user): array => ['id' => (int) $user->id, 'name' => $user->nameWithoutContact()])
-                ->values()
-                ->all();
-            $recipients[$agencyId] = ['count' => count($users), 'users' => $users];
+                ->get(['id', 'first_name', 'last_name', 'username']);
+            $named = fn (Collection $users): array => [
+                'count' => $users->count(),
+                'users' => $users->map(fn (User $user): array => ['id' => (int) $user->id, 'name' => $user->nameWithoutContact()])->values()->all(),
+            ];
+            // Deux listes par agence : tous les admins actifs, et ceux qu'une alerte sur un chiffre
+            // consolidé prévient ({@see ThresholdAlertRecipients::forMetric()}).
+            $recipients[$agencyId] = $agency === null ? null : [
+                'all' => $named($admins),
+                'money' => $named(ThresholdAlertRecipients::forMetric($agency, AgencyMeMetrics::CONSOLIDATED_KEYS[0], $admins)),
+            ];
         }
 
         $triggers = $withTriggers ? $this->triggers($alerts) : [];
@@ -80,7 +86,9 @@ final class ThresholdAlertReading
                 && in_array($alert->metric, AgencyMeMetrics::CONSOLIDATED_KEYS, true);
             $row = [
                 'current_value' => $value === null || $hidden ? null : (float) $value,
-                'recipients' => $recipients[$agencyId] ?? ['count' => 0, 'users' => []],
+                'recipients' => ($recipients[$agencyId] ?? null) === null
+                    ? ['count' => 0, 'users' => []]
+                    : $recipients[$agencyId][in_array($alert->metric, AgencyMeMetrics::CONSOLIDATED_KEYS, true) ? 'money' : 'all'],
                 'channels' => ThresholdAlertTriggered::CHANNELS,
             ];
             if ($hidden) {
