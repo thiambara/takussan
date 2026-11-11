@@ -61,7 +61,7 @@ export function ModerationQueueList({
                   className="text-[0.625rem] font-semibold uppercase tracking-wide"
                   label={STATUTS_CONNUS.has(status) ? t(`status.${status}`) : status}
                 />
-                {review.reported_count > 0 ? (
+                {(review.reported_count ?? 0) > 0 ? (
                   <span className="inline-flex items-center gap-1 text-xs text-destructive">
                     <Flag className="size-3" />
                     {review.reported_count}

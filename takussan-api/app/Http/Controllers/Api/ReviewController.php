@@ -104,10 +104,19 @@ class ReviewController extends Controller
 
         // TCK-2722 — sous `filter[author_id]=me`, l'auteur ne lit pas le nombre de signalements
         // (la ressource le lui retire) : ni filtre, ni tri par signalements.
+        // Reprise (décision de la session) — la file d'agence liste aussi des avis qu'elle ne modère
+        // pas (sur l'agence elle-même, par exemple) : la ressource leur retire `reported_count` et
+        // `risk`, donc le filtre, le tri et les comptes par signalement ou par risque ne portent que
+        // sur les types qu'elle modère — sans quoi l'ordre ou le filtre trahirait le compte tu. La
+        // liste elle-même est inchangée. Le super-admin modère tout : aucune borne.
+        $moderatedTypes = $isSelfFilter || $user->isSuperAdmin() ? null : Review::AGENCY_MODERATED_TYPES;
         $reported = $request->query('filter.reported')
             ?? data_get($request->query('filter', []), 'reported');
         if (! $isSelfFilter && in_array($reported, [1, '1', true, 'true'], true)) {
             $query->where('reported_count', '>', 0);
+            if ($moderatedTypes !== null) {
+                $query->whereIn('reviews.reviewable_type', $moderatedTypes);
+            }
         }
 
         $subjectType = $request->query('filter.subject_type')
@@ -121,10 +130,10 @@ class ReviewController extends Controller
         // « Sans risque » se lisent ensemble, quel que soit l'onglet ouvert.
         // Vérification adverse — hors de la file de modération (`filter[author_id]=me`), l'auteur ne
         // lit pas le risque (la ressource le lui retire) : ni compteur, ni filtre, ni tri par risque.
-        $riskCounts = $isSelfFilter ? null : ReviewRiskClassifier::counts($query);
+        $riskCounts = $isSelfFilter ? null : ReviewRiskClassifier::counts($query, $moderatedTypes);
         $risk = $isSelfFilter ? null : ParametreUnique::valeur($request->query('filter.risk') ?? data_get($request->query('filter', []), 'risk'));
         if (in_array($risk, ReviewRiskClassifier::LEVELS, true)) {
-            ReviewRiskClassifier::whereLevel($query, $risk);
+            ReviewRiskClassifier::whereLevel($query, $risk, $moderatedTypes);
         }
 
         // Sorting — default surfaces the queue (most reported first, then fresh).
@@ -144,16 +153,32 @@ class ReviewController extends Controller
                 $query->orderBy($spec, $direction);
             } elseif ($spec === 'reported_count' && ! $isSelfFilter) {
                 // TCK-2722 — tri ignoré pour l'auteur, y compris celui par défaut : il retombe sur la date.
-                $query->orderBy($spec, $direction);
+                if ($moderatedTypes === null) {
+                    $query->orderBy($spec, $direction);
+                } else {
+                    // Reprise — un avis que l'agence ne modère pas se range comme sans signalement.
+                    $in = implode(', ', array_fill(0, count($moderatedTypes), '?'));
+                    $query->orderByRaw("CASE WHEN reviews.reviewable_type IN ({$in}) THEN reviews.reported_count ELSE 0 END {$direction}", $moderatedTypes);
+                }
             } elseif ($spec === 'risk' && ! $isSelfFilter) {
                 // TCK-2672 — `risk` : à risque d'abord ; `-risk` : sans risque d'abord.
-                ReviewRiskClassifier::orderBy($query, $direction);
+                ReviewRiskClassifier::orderBy($query, $direction, $moderatedTypes);
             } elseif ($spec === 'pending_first') {
                 // TCK-597 — la vue d'agence montre les avis à trancher d'abord : en attente, puis
                 // signalés, puis le reste. Trié par le serveur, sur toute la file, pas par page.
                 $query->orderByRaw("CASE status WHEN 'pending' THEN 0 WHEN 'reported' THEN 1 ELSE 2 END");
             }
         }
+
+        // Reprise de TCK-2722 — un tri dont toutes les clés sont ignorées (l'auteur et
+        // `sort=-reported_count`, `sort=risk`) ne posait AUCUN ordre : la page sortait dans l'ordre
+        // physique de la table. Sans ordre posé, la date, la plus récente d'abord ; et toujours un
+        // départage par identifiant, pour que les ex aequo (`pending_first`, `-reported_count`)
+        // ne dépendent pas du tas et que la pagination reste stable.
+        if (($query->getQuery()->orders ?? []) === []) {
+            $query->orderBy('reviews.created_at', 'desc');
+        }
+        $query->orderBy('reviews.id', 'desc');
 
         $perPage = max(1, min((int) $request->input('per_page', 20), self::MAX_PER_PAGE));
         $paginator = $query->paginate($perPage);

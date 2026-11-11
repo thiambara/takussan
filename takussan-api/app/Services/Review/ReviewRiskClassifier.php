@@ -59,29 +59,52 @@ final class ReviewRiskClassifier
     }
 
     /**
-     * @param  Builder<Review>  $query
-     * @return Builder<Review>
+     * Reprise de TCK-2722 — le risque n'est lu que sur un avis que le lecteur modère : pour une
+     * file bornée (`$amongTypes`, les types que l'agence modère), un avis hors de ces types n'est ni
+     * « à risque » ni « sans risque » (la ressource lui retire `risk`). `[$haut, $bas, $bindings des
+     * deux]` ; sans borne, `bas` est la négation de `haut`.
+     *
+     * @param  list<string>|null  $amongTypes
+     * @return array{0: string, 1: string, 2: list<string|int>, 3: list<string|int>}
      */
-    public static function whereLevel(Builder $query, string $level): Builder
+    private static function levelsSql(?array $amongTypes): array
     {
         [$sql, $bindings] = self::highSql();
+        if ($amongTypes === null) {
+            return [$sql, "NOT {$sql}", $bindings, $bindings];
+        }
+
+        $in = 'reviews.reviewable_type IN ('.implode(', ', array_fill(0, count($amongTypes), '?')).')';
+
+        return ["({$in} AND {$sql})", "({$in} AND NOT {$sql})", [...$amongTypes, ...$bindings], [...$amongTypes, ...$bindings]];
+    }
+
+    /**
+     * @param  Builder<Review>  $query
+     * @param  list<string>|null  $amongTypes  {@see self::levelsSql()}
+     * @return Builder<Review>
+     */
+    public static function whereLevel(Builder $query, string $level, ?array $amongTypes = null): Builder
+    {
+        [$high, $low, $highBindings, $lowBindings] = self::levelsSql($amongTypes);
 
         return $level === self::HIGH
-            ? $query->whereRaw($sql, $bindings)
-            : $query->whereRaw("NOT {$sql}", $bindings);
+            ? $query->whereRaw($high, $highBindings)
+            : $query->whereRaw($low, $lowBindings);
     }
 
     /**
      * Les deux comptes sur la file telle qu'elle est filtrée, AVANT le filtre de risque.
      *
      * @param  Builder<Review>  $query
+     * @param  list<string>|null  $amongTypes  {@see self::levelsSql()}
      * @return array{high: int, low: int}
      */
-    public static function counts(Builder $query): array
+    public static function counts(Builder $query, ?array $amongTypes = null): array
     {
-        [$sql, $bindings] = self::highSql();
+        [$high, $low, $highBindings, $lowBindings] = self::levelsSql($amongTypes);
         $row = $query->clone()->toBase()->reorder()
-            ->selectRaw("count(*) filter (where {$sql}) as high, count(*) filter (where not {$sql}) as low", [...$bindings, ...$bindings])
+            ->selectRaw("count(*) filter (where {$high}) as high, count(*) filter (where {$low}) as low", [...$highBindings, ...$lowBindings])
             ->first();
 
         return ['high' => (int) ($row->high ?? 0), 'low' => (int) ($row->low ?? 0)];
@@ -91,12 +114,13 @@ final class ReviewRiskClassifier
      * `sort=risk` : les avis à risque d'abord ; `sort=-risk` : les sans risque d'abord.
      *
      * @param  Builder<Review>  $query
+     * @param  list<string>|null  $amongTypes  {@see self::levelsSql()} — hors des types, rangé avec les sans risque
      * @return Builder<Review>
      */
-    public static function orderBy(Builder $query, string $direction): Builder
+    public static function orderBy(Builder $query, string $direction, ?array $amongTypes = null): Builder
     {
-        [$sql, $bindings] = self::highSql();
+        [$high, , $bindings] = self::levelsSql($amongTypes);
 
-        return $query->orderByRaw("CASE WHEN {$sql} THEN 0 ELSE 1 END ".($direction === 'desc' ? 'desc' : 'asc'), $bindings);
+        return $query->orderByRaw("CASE WHEN {$high} THEN 0 ELSE 1 END ".($direction === 'desc' ? 'desc' : 'asc'), $bindings);
     }
 }

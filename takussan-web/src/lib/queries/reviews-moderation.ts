@@ -46,7 +46,11 @@ export interface ModerationReview {
   reviewable_id: number | null;
   status: string | null;
   is_approved: boolean;
-  reported_count: number;
+  /**
+   * TCK-2722 — absent sur une ligne que le lecteur ne modère pas (`viewReports` faux : un avis sur
+   * l'agence elle-même, dans la file d'agence) ; présent sur toutes les autres.
+   */
+  reported_count?: number;
   created_at: string;
   /** verif-597 m1 — jugé par la policy de l'API : ce que l'acteur peut trancher. */
   can_moderate?: boolean;

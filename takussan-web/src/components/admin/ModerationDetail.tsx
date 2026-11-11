@@ -61,7 +61,7 @@ export function ModerationDetail({ review, onModerated, platform = false }: Mode
   const { data: reportsData } = useQuery({
     queryKey: ['reviews-moderation', 'reports', review.id],
     queryFn: () => fetchReviewReports(review.id, token ?? ''),
-    enabled: Boolean(token) && review.reported_count > 0,
+    enabled: Boolean(token) && (review.reported_count ?? 0) > 0,
   });
 
   const mutation = useMutation({
@@ -179,7 +179,7 @@ export function ModerationDetail({ review, onModerated, platform = false }: Mode
             {t('delete')}
           </Button>
           ) : null}
-          {platform && review.reported_count > 0 ? (
+          {platform && (review.reported_count ?? 0) > 0 ? (
             <Button
               variant="ghost"
               onClick={() => handleDecision('ignore')}
