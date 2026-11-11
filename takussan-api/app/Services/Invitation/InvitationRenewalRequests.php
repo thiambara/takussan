@@ -107,6 +107,9 @@ class InvitationRenewalRequests
     {
         $inviter = $invitation->inviter;
         $agencyId = $invitation->agency_id === null ? null : (int) $invitation->agency_id;
+        // TCK-2739 — l'agence chargée une fois : la policy la lit sur la relation au lieu de la relire
+        // pour chaque membre jugé.
+        $invitation->loadMissing('agency');
         // Joignable dans les deux branches : `NotificationService` n'écrit rien vers un compte
         // bloqué ou supprimé, et la borne serait posée sans que personne soit prévenu. Pour une
         // invitation d'agence, `estPersonnel` le juge déjà ; sans agence, rien d'autre ne le jugerait.

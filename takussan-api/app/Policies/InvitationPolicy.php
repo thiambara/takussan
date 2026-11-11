@@ -36,13 +36,24 @@ class InvitationPolicy
      * admin, la révocation la capacité : un admin sans `team.invite` créait et révoquait, un agent
      * qui la tient révoquait une invitation qu'il ne pouvait pas lister.
      */
-    public function invitesAt(User $user, ?int $agencyId): bool
+    public function invitesAt(User $user, ?int $agencyId, ?Agency $loaded = null): bool
     {
         if ($agencyId === null) {
             return false;
         }
 
-        $agency = Agency::query()->find($agencyId);
+        // TCK-2739 — l'agence déjà chargée par l'appelant (la relation de l'invitation) : un repli qui
+        // juge N membres ne la relit pas N fois. Seulement si elle porte ce que le jugement lit
+        // (`primary_admin_id` ici, `status` pour le verrou de suspension du résolveur) et n'est pas
+        // supprimée : une relation chargée en champs restreints (`fields[agencies]`) jugerait autrement
+        // que `find()`.
+        $agency = $loaded !== null
+            && (int) $loaded->getKey() === $agencyId
+            && array_key_exists('primary_admin_id', $loaded->getAttributes())
+            && array_key_exists('status', $loaded->getAttributes())
+            && ! $loaded->trashed()
+            ? $loaded
+            : Agency::query()->find($agencyId);
 
         return $agency !== null
             && ($agency->primary_admin_id === $user->id || $user->canActAt(Capability::TeamInvite, $agency));
@@ -113,7 +124,7 @@ class InvitationPolicy
             return $invitation->invited_by === $user->id;
         }
 
-        return $this->invitesAt($user, (int) $agencyId);
+        return $this->invitesAt($user, (int) $agencyId, $invitation->relationLoaded('agency') ? $invitation->agency : null);
     }
 
     public function resend(User $user, Invitation $invitation): bool

@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Notifications\ThresholdAlertTriggered;
 use App\Policies\AgencyIndicatorPolicy;
 use App\Services\Dashboard\Adapters\AgencyMeMetrics;
+use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -55,6 +56,30 @@ final class ThresholdAlertReading
     public function forAlerts(Collection $alerts, bool $withTriggers, ?User $reader = null): array
     {
         $agencyIds = $alerts->pluck('agency_id')->filter()->map(fn ($id): int => (int) $id)->unique()->values();
+        // Les admins actifs de chaque agence de la page, une requête par agence (une seule pour le personnel).
+        $admins = $agencyIds->mapWithKeys(fn (int $agencyId): array => [$agencyId => ThresholdAlertRecipients::query($agencyId)
+            ->orderBy('id')
+            ->get(['id', 'first_name', 'last_name', 'username'])]);
+
+        // TCK-2739 — les jugements du lecteur (`update`, `viewReports`) et ceux des admins
+        // (`reports.view_agency`, {@see ThresholdAlertRecipients::forMetric()}) lisent rôles,
+        // collaborations, délégations et niveau de plateforme dans l'amorce : chargés une fois pour
+        // tous, au lieu d'une série de requêtes par jugement.
+        return MembershipCapabilityResolver::primed(
+            $admins->flatten()->pluck('id')->push($reader?->id),
+            $agencyIds,
+            fn (): array => $this->read($alerts, $withTriggers, $reader, $agencyIds, $admins),
+        );
+    }
+
+    /**
+     * @param  Collection<int, ThresholdAlert>  $alerts
+     * @param  Collection<int, int>  $agencyIds
+     * @param  Collection<int, \Illuminate\Database\Eloquent\Collection<int, User>>  $adminsByAgency
+     * @return array<int, array<string, mixed>>
+     */
+    private function read(Collection $alerts, bool $withTriggers, ?User $reader, Collection $agencyIds, Collection $adminsByAgency): array
+    {
 
         $metrics = [];
         $recipients = [];
@@ -74,9 +99,7 @@ final class ThresholdAlertReading
             $metrics[$agencyId] = $agency !== null ? $this->resolver->forAgency($agency) : [];
             $readsMoney[$agencyId] = $reader === null
                 || ($agency !== null && $reader->can('viewReports', $agency));
-            $admins = ThresholdAlertRecipients::query($agencyId)
-                ->orderBy('id')
-                ->get(['id', 'first_name', 'last_name', 'username']);
+            $admins = $adminsByAgency[$agencyId];
             $named = fn (Collection $users): array => [
                 'count' => $users->count(),
                 'users' => $users->map(fn (User $user): array => ['id' => (int) $user->id, 'name' => $user->nameWithoutContact()])->values()->all(),

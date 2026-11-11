@@ -515,9 +515,20 @@ trait HasProfiles
         return $this->profileRelationExists('platformProfile');
     }
 
-    /** TCK-600 — le niveau du profil plateforme ACTIF, ou `null`. */
+    /**
+     * TCK-600 — le niveau du profil plateforme ACTIF, ou `null`.
+     *
+     * TCK-2739 — dans une amorce ({@see MembershipCapabilityResolver::primed()}), le niveau de tous ses
+     * utilisateurs est chargé en une requête : `Gate::before` et le résolveur le lisent pour chaque
+     * membre jugé.
+     */
     public function activePlatformLevel(): ?PlatformProfileLevel
     {
+        if (! $this->relationLoaded('platformProfile')
+            && ($amorce = MembershipCapabilityResolver::niveauPlateformeAmorce((int) $this->getKey())) !== false) {
+            return $amorce;
+        }
+
         $profile = $this->relationLoaded('platformProfile')
             ? $this->platformProfile
             : $this->platformProfile()->active()->first();

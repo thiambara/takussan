@@ -14,6 +14,7 @@ use App\Models\Profiles\OwnerProfile;
 use App\Models\RoleDelegation;
 use App\Models\User;
 use App\Services\Invitation\InvitationRenewalRequests;
+use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -316,9 +317,8 @@ class InvitationRenewalRecipientsTest extends TestCase
 
     /**
      * AC5 — le coût de la résolution, équipe de 2 et de 10. Cas nominal (l'invitant en place) : il
-     * ne dépend pas de l'équipe. Par repli (l'invitant parti), chaque membre est jugé par la policy :
-     * le coût croît avec l'équipe (mesuré : 29 et 93 requêtes) tant que le résolveur de capacités
-     * n'amorce pas les rôles — décision de la session, voir le rapport de TCK-2726.
+     * ne dépend pas de l'équipe. Le repli a son épinglage, {@see self::test_le_cout_du_repli_ne_croit_pas_avec_l_equipe()}
+     * (TCK-2739 : 29 et 93 requêtes avant l'amorce des rôles).
      */
     public function test_le_cout_nominal_ne_croit_pas_avec_l_equipe(): void
     {
@@ -345,6 +345,42 @@ class InvitationRenewalRecipientsTest extends TestCase
         $dix = $mesurer(8);
 
         $this->assertSame($deux, $dix, "équipe de 2 : {$deux} requêtes, de 10 : {$dix}");
+    }
+
+    /**
+     * TCK-2739 (AC2) — par repli (l'invitant parti), chaque membre est jugé par la policy, et le
+     * résolveur l'amorce ({@see MembershipCapabilityResolver::primed()}) :
+     * le coût est le même pour une équipe de 2 et pour une équipe de 10.
+     */
+    public function test_le_cout_du_repli_ne_croit_pas_avec_l_equipe(): void
+    {
+        $mesurer = function (int $agents): array {
+            $agency = Agency::factory()->create();
+            $invitant = $this->agencyAdmin($agency);
+            $principal = $this->agencyAdmin($agency);
+            $agency->forceFill(['primary_admin_id' => $principal->id])->save();
+            foreach (range(1, $agents) as $_) {
+                $this->agencyAgent($agency);
+            }
+            $invitation = $this->invitation($invitant, $agency);
+            AgencyAdminProfile::query()->where('user_id', $invitant->id)->delete();
+
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+            $this->demander($invitation);
+            $log = DB::getQueryLog();
+            DB::disableQueryLog();
+            $this->assertSame(1, $this->avis($principal));
+            $this->assertSame(0, $this->avis($invitant));
+
+            return array_map(fn (array $q): string => preg_replace('/\d+/', 'N', $q['query']), $log);
+        };
+
+        $deux = $mesurer(1);
+        $dix = $mesurer(9);
+
+        $this->assertSame(count($deux), count($dix), 'équipe de 2 : '.count($deux).' requêtes, de 10 : '.count($dix)."\n"
+            .print_r(array_count_values($dix), true));
     }
 
     /**

@@ -6,6 +6,7 @@ use App\Models\Agency;
 use App\Models\Enums\Capability;
 use App\Models\ThresholdAlert;
 use App\Models\User;
+use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\ApiTestCase;
@@ -118,9 +119,18 @@ class ThresholdAlertRecipientsVisibilityTest extends ApiTestCase
 
     /**
      * AC3 — le jugement ne coûte pas une requête par ligne : de une à vingt alertes, ni l'agent ni
-     * l'admin ne paient une requête de plus, et l'écart entre eux ne bouge pas. Cet écart existe
-     * (mesuré : 5 requêtes) et ne vient pas de la lecture : l'admin passe le résolveur de
-     * capacités par son raccourci de profil, l'agent par la table de vérité (rôles, délégations).
+     * l'admin ne paient une requête de plus.
+     *
+     * TCK-2739 (AC3) — la lecture amorce le résolveur ({@see MembershipCapabilityResolver::primed()})
+     * pour le lecteur et les admins de l'agence : l'écart agent − admin passe de 5 requêtes à UNE
+     * (mesuré : 31 contre 30 ; 43 contre 38 avant). Il est nommé, et il ne vient pas de la lecture :
+     *
+     * - +2 pour l'agent : les collaborations de prestataire et les délégations de l'amorce, sortes
+     *   paresseuses qu'un jugement REFUSÉ seul parcourt (l'agent ne lit pas les rapports) ; l'admin,
+     *   accordé par son rôle, n'y descend jamais ;
+     * - +1 pour l'admin : `staffAgencyId()` → `isStaffAt()`, hors amorce, qui borne la liste à l'agence
+     *   du lecteur (`ThresholdAlertController::index`, tracé par pile d'appels) — il essaie le profil
+     *   d'agent avant celui d'admin, et l'agent s'arrête au premier.
      */
     public function test_le_jugement_ne_coute_pas_une_requete_par_ligne(): void
     {
@@ -149,5 +159,6 @@ class ThresholdAlertRecipientsVisibilityTest extends ApiTestCase
         $this->assertSame($agentUne, $agentVingt, "agent : 1 alerte {$agentUne}, 20 alertes {$agentVingt}");
         $this->assertSame($adminUne, $adminVingt, "admin : 1 alerte {$adminUne}, 20 alertes {$adminVingt}");
         $this->assertSame($agentUne - $adminUne, $agentVingt - $adminVingt, 'l\'écart agent − admin ne dépend pas de la page');
+        $this->assertSame(1, $agentVingt - $adminVingt, "agent {$agentVingt}, admin {$adminVingt} : l'écart nommé ci-dessus");
     }
 }
