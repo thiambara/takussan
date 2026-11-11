@@ -13,6 +13,7 @@ use App\Models\Enums\RentPeriod;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
 use Tests\ApiTestCase;
@@ -184,5 +185,57 @@ class BookingApplicationSingleAcceptedTest extends ApiTestCase
         $candidature = $this->demande($this->location, BookingKind::Application, BookingStatus::Pending, 5, 400);
 
         $this->confirmer($candidature)->assertOk();
+    }
+
+    /**
+     * AC4 — la règle ne vise pas les offres, même sur un bien qui porte une candidature acceptée (bien
+     * passé de la location à la vente) : un mutant qui soumettrait les offres à la règle rougit ici.
+     */
+    public function test_une_offre_se_confirme_sur_un_bien_a_candidature_acceptee(): void
+    {
+        $this->demande($this->location, BookingKind::Application, BookingStatus::Confirmed);
+        $this->location->forceFill(['contract_type' => ContractType::Sale, 'rent_period' => null])->save();
+        $offre = $this->demande($this->location, BookingKind::Offer, BookingStatus::Pending);
+
+        $this->confirmer($offre)->assertOk()->assertJsonPath('data.status', 'confirmed');
+    }
+
+    /**
+     * Contrainte stricte — la règle est jugée SOUS le verrou du bien (piège PostgreSQL n° 2) : la ligne
+     * du bien est verrouillée avant la requête qui cherche une candidature acceptée. C'est ce verrou qui
+     * fait attendre une seconde confirmation concurrente, puis lui fait voir la première.
+     *
+     * Témoin d'ORDRE, pas de concurrence : l'épreuve à deux connexions (55P03 sous `lock_timeout`, puis
+     * 409) a été mesurée, mais elle exige des données validées entre connexions, donc
+     * `DatabaseTruncation`, qui viderait au test suivant les lignes que les migrations insèrent et dont
+     * dépendent les classes `RefreshDatabase` du même processus. Ce témoin rougit si le verrou disparaît
+     * ou si la règle passe avant lui ; il ne prouve pas la sémantique du verrou, qui est celle du moteur.
+     */
+    public function test_la_regle_est_jugee_sous_le_verrou_du_bien(): void
+    {
+        $this->demande($this->location, BookingKind::Application, BookingStatus::Confirmed);
+        $seconde = $this->demande($this->location, BookingKind::Application, BookingStatus::Pending, 40, 400);
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $this->confirmer($seconde)->assertStatus(409);
+        $requetes = array_column(DB::getQueryLog(), 'query');
+        DB::disableQueryLog();
+
+        $verrou = $regle = null;
+        foreach ($requetes as $i => $sql) {
+            if ($verrou === null && str_contains($sql, 'from "properties"') && str_contains($sql, 'for update')) {
+                $verrou = $i;
+            }
+            // La requête de la règle : `kind` puis `status`, sans dates (celle des nuits filtre
+            // `status` puis `kind`, et borne `start_date`/`end_date`).
+            if ($regle === null && str_contains($sql, 'from "bookings"') && str_contains($sql, '"kind" = ? and "status" = ?')
+                && ! str_contains($sql, 'start_date')) {
+                $regle = $i;
+            }
+        }
+        $this->assertNotNull($verrou, 'la ligne du bien est verrouillée');
+        $this->assertNotNull($regle, 'la règle est jugée');
+        $this->assertLessThan($regle, $verrou, 'le verrou du bien précède la règle');
     }
 }
