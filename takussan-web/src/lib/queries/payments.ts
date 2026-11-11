@@ -47,6 +47,9 @@ export type UsePaymentsHistoryParams = {
   readonly entity_id?: number;
   readonly date_from?: string;
   readonly date_to?: string;
+  /** TCK-2659 (M1) — l'ENCAISSÉ : `filter[paid_from]` / `filter[paid_to]` bornent `paid_at` seul (jamais l'échéance). */
+  readonly paid_from?: string;
+  readonly paid_to?: string;
   readonly page?: number;
   readonly per_page?: number;
   readonly sort?: string;
@@ -103,6 +106,8 @@ export function usePaymentsHistory(params: UsePaymentsHistoryParams = {}) {
   if (params.entity_id) filter.entity_id = params.entity_id;
   if (params.date_from) filter.date_from = params.date_from;
   if (params.date_to) filter.date_to = params.date_to;
+  if (params.paid_from) filter.paid_from = params.paid_from;
+  if (params.paid_to) filter.paid_to = params.paid_to;
   if (params.payer_id) filter.payer_id = params.payer_id;
   if (params.landlord_id) filter.landlord_id = params.landlord_id;
   if (params.payment_method && params.payment_method.length > 0) filter.payment_method = params.payment_method.join(',');

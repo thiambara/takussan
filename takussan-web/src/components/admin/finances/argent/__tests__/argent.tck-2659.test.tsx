@@ -113,6 +113,9 @@ function ligne(partiel: Partial<PaymentHistoryRow>): PaymentHistoryRow {
 let reponseSynthese: FinanceSummary = synthese();
 let lignes: PaymentHistoryRow[] = [];
 let bailleurs: unknown[] = [];
+let reversements: unknown[] = [];
+/** M1 — le faux serveur borne la liste par `paid_at` sur `filter[paid_from|paid_to]`, comme l'API. */
+let serveurBorneParEncaissement = false;
 const appels: URL[] = [];
 
 function repondre(corps: unknown) {
@@ -127,11 +130,17 @@ function brancherLeReseau() {
       appels.push(url);
       if (url.pathname.endsWith('/finance/summary')) return repondre({ data: reponseSynthese });
       if (url.pathname === '/api/payments/history') {
+        const de = url.searchParams.get('filter[paid_from]');
+        const a = url.searchParams.get('filter[paid_to]');
+        const servies = serveurBorneParEncaissement
+          ? lignes.filter((l) => l.paid_at !== null && (!de || l.paid_at.slice(0, 10) >= de) && (!a || l.paid_at.slice(0, 10) <= a))
+          : lignes;
         return repondre({
-          data: lignes,
-          meta: { current_page: 1, last_page: 1, per_page: 20, total: lignes.length, totals: { count: lignes.length, amount: 0, paid_amount: 0, remaining_amount: 0 } },
+          data: servies,
+          meta: { current_page: 1, last_page: 1, per_page: 20, total: servies.length, totals: { count: servies.length, amount: 0, paid_amount: 0, remaining_amount: 0 } },
         });
       }
+      if (url.pathname === '/api/payouts') return repondre({ data: reversements, meta: { current_page: 1, last_page: 1, per_page: 3, total: reversements.length } });
       if (url.pathname === '/api/owners') return repondre({ data: bailleurs, meta: { current_page: 1, last_page: 1, per_page: 20, total: bailleurs.length } });
       return repondre({ data: [], meta: { current_page: 1, last_page: 1, per_page: 20, total: 0 } });
     }),
@@ -159,6 +168,8 @@ beforeEach(() => {
   reponseSynthese = synthese();
   lignes = [];
   bailleurs = [];
+  reversements = [];
+  serveurBorneParEncaissement = false;
   ecran.telephone = false;
   capacites.accordees = new Set(['invoices.create', 'payouts.create', 'payouts.approve', 'payments.export']);
   brancherLeReseau();
@@ -278,6 +289,7 @@ describe('le registre des encaissements (TCK-2659)', () => {
       expect(u.searchParams.get('filter[entity_type]')).toBe('lease');
       expect(u.searchParams.get('filter[entity_id]')).toBe('3');
       expect(u.searchParams.has('filter[date_from]')).toBe(false);
+      expect(u.searchParams.has('filter[paid_from]')).toBe(false);
     }
   });
 
@@ -287,5 +299,147 @@ describe('le registre des encaissements (TCK-2659)', () => {
     await waitFor(() => expect(lecturesDeLaListe().length).toBeGreaterThan(0));
     expect(lecturesDeLaListe().every((u) => u.searchParams.get('filter[entity_id]') === '3')).toBe(true);
     expect(screen.queryByTestId('tuiles-du-mois')).not.toBeInTheDocument();
+  });
+});
+
+describe('vérification adverse de TCK-2659', () => {
+  /** Le lien d'export, lu sur son nom accessible : il dit ce qui part et pour quelles bornes. */
+  const bornesDuLien = (lien: HTMLElement) => {
+    const url = new URL(lien.getAttribute('href') ?? '', 'http://127.0.0.1:3000');
+    return { from: url.searchParams.get('from'), to: url.searchParams.get('to'), chemin: url.pathname };
+  };
+
+  it('R1 — l’export du mois choisi (`?period=2026-10`) part du 1ᵉʳ au 31 octobre, et dit « loyers dus », jamais « encaissements »', async () => {
+    rendre('tab=encaissements&period=2026-10');
+
+    const lien = await screen.findByRole('link', { name: 'Exporter les loyers dus en octobre (CSV)' });
+    expect(bornesDuLien(lien)).toEqual({ from: '2026-10-01', to: '2026-10-31', chemin: '/api/export/payments' });
+    expect(screen.queryByRole('link', { name: /encaissements/i })).not.toBeInTheDocument();
+  });
+
+  it('R1 — des dates posées l’emportent sur le mois, et le nom accessible les dit', async () => {
+    rendre('tab=encaissements&period=2026-10&date_from=2026-01-01&date_to=2026-03-31');
+
+    const lien = await screen.findByRole('link', { name: 'Exporter les loyers dus du 1 janvier 2026 au 31 mars 2026 (CSV)' });
+    expect(bornesDuLien(lien)).toMatchObject({ from: '2026-01-01', to: '2026-03-31' });
+  });
+
+  it('R1 (téléphone) — la ligne du point du mois dit « Exporter les loyers dus », pour le mois affiché', async () => {
+    ecran.telephone = true;
+    rendre('period=2026-10');
+
+    const titre = await screen.findByText('Exporter les loyers dus');
+    expect(screen.getByText('Les échéances du mois affiché, en CSV')).toBeInTheDocument();
+    expect(bornesDuLien(titre.closest('a') as HTMLElement)).toMatchObject({ from: '2026-10-01', to: '2026-10-31' });
+    expect(screen.queryByText(/Exporter les encaissements/)).not.toBeInTheDocument();
+  });
+
+  it('M1 — le loyer d’octobre réglé le 3 novembre est un encaissement de novembre, pas d’octobre', async () => {
+    serveurBorneParEncaissement = true;
+    lignes = [ligne({ id: 5, period_start: '2026-10-01', period_end: '2026-10-31', due_date: '2026-10-05', paid_at: '2026-11-03T10:00:00Z', date: '2026-11-03T10:00:00Z' })];
+
+    const novembre = rendre('tab=encaissements&period=2026-11');
+    expect(await screen.findByText('Loyer d’octobre')).toBeInTheDocument();
+    for (const u of lecturesDeLaListe()) {
+      expect(u.searchParams.get('filter[paid_from]')).toBe('2026-11-01');
+      expect(u.searchParams.get('filter[paid_to]')).toBe('2026-11-30');
+      expect(u.searchParams.has('filter[date_from]')).toBe(false);
+    }
+    novembre.unmount();
+
+    rendre('tab=encaissements&period=2026-10');
+    // 0 se dit au singulier en français (« 0 paiement ») : l'état vide est le signal sans ambiguïté.
+    expect(await screen.findByText('Aucun encaissement')).toBeInTheDocument();
+    expect(screen.queryByText('Loyer d’octobre')).not.toBeInTheDocument();
+  });
+
+  it('M1 — « Derniers encaissements » (bureau) se borne aussi par `paid_at`', async () => {
+    rendre('period=2026-10');
+
+    expect(await screen.findByText('Derniers encaissements')).toBeInTheDocument();
+    await waitFor(() => expect(appels.some((u) => u.pathname === '/api/payments/history' && u.searchParams.get('filter[status]') === 'paid')).toBe(true));
+    const derniers = appels.filter((u) => u.pathname === '/api/payments/history' && u.searchParams.get('filter[status]') === 'paid');
+    for (const u of derniers) {
+      expect(u.searchParams.get('filter[paid_from]')).toBe('2026-10-01');
+      expect(u.searchParams.get('filter[paid_to]')).toBe('2026-10-31');
+      expect(u.searchParams.has('filter[date_from]')).toBe(false);
+    }
+  });
+
+  const reversementAApprouver = { id: 77, reference_number: 'PO-2026-0077', net_amount: 1_400_000, currency: 'XOF', status: 'awaiting_approval', period_start: '2026-10-01', issuer: { id: 3, name: 'Ibou Fall' } };
+  const lecturesDeLaFile = () => appels.filter((u) => u.pathname === '/api/payouts' && u.searchParams.get('filter[status]') === 'awaiting_approval');
+
+  it('A3 (bureau) — avec payouts.approve, la carte « À faire · reversements à approuver » lit la file', async () => {
+    reponseSynthese = synthese({ payouts_awaiting_approval: { amount: 1_400_000, count: 1, landlords_count: 1 } });
+    reversements = [reversementAApprouver];
+    rendre();
+
+    expect(await screen.findByText('À faire · reversements à approuver')).toBeInTheDocument();
+    expect(lecturesDeLaFile().length).toBeGreaterThan(0);
+  });
+
+  it('A3 (bureau) — sans payouts.approve, ni lecture de la file ni carte', async () => {
+    capacites.accordees.delete('payouts.approve');
+    reponseSynthese = synthese({ payouts_awaiting_approval: { amount: 1_400_000, count: 1, landlords_count: 1 } });
+    reversements = [reversementAApprouver];
+    rendre();
+
+    expect(await screen.findByText('Derniers encaissements')).toBeInTheDocument();
+    await waitFor(() => expect(appels.some((u) => u.pathname.endsWith('/finance/summary'))).toBe(true));
+    // La synthèse est reçue (elle annonce 1 reversement à approuver) : la file aurait été lue maintenant.
+    expect(await screen.findByText(/14 baux · 4 de plus de 30 jours/)).toBeInTheDocument();
+    expect(lecturesDeLaFile()).toEqual([]);
+    expect(screen.queryByText('À faire · reversements à approuver')).not.toBeInTheDocument();
+    expect(screen.queryByText('PO-2026-0077')).not.toBeInTheDocument();
+  });
+
+  it('la pastille d’un choix sans ligne reçue ne dit jamais « #42 » : son libellé, avec l’encre du choix', async () => {
+    rendre('tab=encaissements&payer_id=42');
+
+    expect(await screen.findByText('Aucun encaissement')).toBeInTheDocument();
+    const pastille = screen.getByRole('button', { name: 'Payeur' });
+    expect(pastille).toHaveAttribute('data-choisi', 'true');
+    expect(screen.queryByText(/#42/)).not.toBeInTheDocument();
+  });
+
+  it('un bailleur choisi garde son nom même quand le registre filtré est vide', async () => {
+    const user = userEvent.setup();
+    bailleurs = [{ id: 5, user_id: 42, agency_id: 1, status: 'active', metadata: { first_name: 'Moussa', last_name: 'Sarr' }, user: { id: 42, first_name: 'Moussa', last_name: 'Sarr' } }];
+    rendre('tab=encaissements');
+
+    await user.click(await screen.findByRole('button', { name: 'Bailleur' }));
+    await user.click(await screen.findByRole('button', { name: /Moussa Sarr/ }));
+
+    await waitFor(() => expect(lecturesDeLaListe().some((u) => u.searchParams.get('filter[landlord_id]') === '42')).toBe(true));
+    expect(await screen.findByRole('button', { name: 'Bailleur : Moussa Sarr' })).toBeInTheDocument();
+    expect(screen.queryByText(/#42/)).not.toBeInTheDocument();
+    // Le compte inclus ne se lit que pour son nom (sparse fieldset, CLAUDE.md).
+    const lecture = appels.find((u) => u.pathname === '/api/owners');
+    expect(lecture?.searchParams.get('fields[users]')).toBe('id,first_name,last_name,email,phone');
+  });
+  it('M1 (téléphone) — « Derniers encaissements » du point du mois se borne aussi par `paid_at`', async () => {
+    ecran.telephone = true;
+    rendre('period=2026-10');
+
+    await waitFor(() => expect(appels.some((u) => u.pathname === '/api/payments/history' && u.searchParams.get('filter[status]') === 'paid' && u.searchParams.get('per_page') === '4')).toBe(true));
+    for (const u of appels.filter((x) => x.pathname === '/api/payments/history' && x.searchParams.get('per_page') === '4')) {
+      expect(u.searchParams.get('filter[paid_from]')).toBe('2026-10-01');
+      expect(u.searchParams.get('filter[paid_to]')).toBe('2026-10-31');
+      expect(u.searchParams.has('filter[date_from]')).toBe(false);
+    }
+  });
+
+  it('un bailleur sans nom connu se choisit sous « #43 » dans la liste, mais la pastille ne le reprend pas', async () => {
+    const user = userEvent.setup();
+    bailleurs = [{ id: 6, user_id: 43, agency_id: 1, status: 'active', metadata: {}, user: { id: 43, first_name: null, last_name: null, email: null, phone: null } }];
+    rendre('tab=encaissements');
+
+    await user.click(await screen.findByRole('button', { name: 'Bailleur' }));
+    await user.click(await screen.findByRole('button', { name: '#43' }));
+
+    await waitFor(() => expect(lecturesDeLaListe().some((u) => u.searchParams.get('filter[landlord_id]') === '43')).toBe(true));
+    const pastille = await screen.findByRole('button', { name: 'Bailleur' });
+    expect(pastille).toHaveAttribute('data-choisi', 'true');
+    expect(screen.queryByText('#43')).not.toBeInTheDocument();
   });
 });

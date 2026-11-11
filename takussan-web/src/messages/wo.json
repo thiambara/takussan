@@ -4632,7 +4632,8 @@
       "argent": {
         "actions": {
           "exporter": "Exporter",
-          "exporterAria": "Exporter les encaissements en CSV ({mois})"
+          "exporterAria": "Exporter les loyers dus en {mois} (CSV)",
+          "exporterAriaBornes": "Exporter les loyers dus {bornes, select, du {à partir du {du}} au {jusqu’au {au}} other {du {du} au {au}}} (CSV)"
         },
         "auJour": "Au {date}",
         "filLabel": "Fil d’Ariane",
@@ -4681,8 +4682,8 @@
           "impayes": "Impayés",
           "impayesDetail": "Par locataire, par ancienneté",
           "rapprochement": "Rapprochement bancaire",
-          "exporter": "Exporter les encaissements",
-          "exporterDetail": "Le mois affiché, en CSV"
+          "exporter": "Exporter les loyers dus",
+          "exporterDetail": "Les échéances du mois affiché, en CSV"
         },
         "creer": {
           "titre": "Créer",

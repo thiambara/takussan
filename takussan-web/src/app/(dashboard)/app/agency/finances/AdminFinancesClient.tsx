@@ -94,6 +94,19 @@ export function AdminFinancesClient({ canViewFinances, canEmitFinances, rapproch
   const { du, au } = bornesExport.du || bornesExport.au ? bornesExport : bornesDuMois(mois);
   const lienExport = peutExporter ? buildExportUrl({ entity: 'payments', format: 'csv', from: du, to: au }) : null;
   const nomDuMois = (m: string) => f.date(dateDuMois(m), { month: 'long', timeZone: 'UTC' });
+  // TCK-2659 (vérification adverse, R1) — l'export rend les ÉCHÉANCES de loyer dont `due_date` tombe dans
+  // les bornes (impayées comprises, réservations exclues), jamais les encaissements : le nom accessible
+  // dit ce qui part, et les bornes réellement envoyées (des dates posées l'emportent sur le mois). Le
+  // filtre d'entité n'y est pas promis : l'export l'ignore.
+  const jour = (d: string) => f.date(`${d}T00:00:00Z`, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+  const ariaExport =
+    !bornesExport.mois && (bornesExport.du || bornesExport.au)
+      ? t('argent.actions.exporterAriaBornes', {
+          bornes: bornesExport.du && bornesExport.au ? 'deux' : bornesExport.du ? 'du' : 'au',
+          du: bornesExport.du ? jour(bornesExport.du) : '',
+          au: bornesExport.au ? jour(bornesExport.au) : '',
+        })
+      : t('argent.actions.exporterAria', { mois: nomDuMois(bornesExport.mois ?? mois) });
 
   const ctx: ContexteDuPoint = {
     mois,
@@ -116,7 +129,7 @@ export function AdminFinancesClient({ canViewFinances, canEmitFinances, rapproch
   const comptes = { aApprouver: donnees?.payouts_awaiting_approval.count, impayes: donnees?.overdue.count };
   const racine = periodeDansLUrl ? `${RACINE}?period=${periodeDansLUrl}` : RACINE;
   const exporter = lienExport ? (
-    <a href={lienExport} download className={buttonVariants({ variant: 'outline' })} aria-label={t('argent.actions.exporterAria', { mois: nomDuMois(mois) })}>
+    <a href={lienExport} download className={buttonVariants({ variant: 'outline' })} aria-label={ariaExport}>
       <Download aria-hidden="true" />
       {t('argent.actions.exporter')}
     </a>
@@ -237,7 +250,7 @@ export function AdminFinancesClient({ canViewFinances, canEmitFinances, rapproch
               <a
                 href={lienExport}
                 download
-                aria-label={t('argent.actions.exporterAria', { mois: nomDuMois(mois) })}
+                aria-label={ariaExport}
                 className="inline-flex size-11 flex-none items-center justify-center rounded-full text-foreground outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring"
               >
                 <Download className="size-5" strokeWidth={1.75} aria-hidden="true" />

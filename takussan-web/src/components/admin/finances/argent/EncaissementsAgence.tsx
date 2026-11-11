@@ -106,8 +106,12 @@ export function parametresDesEncaissements(recherche: { get(nom: string): string
     status: recherche.get('status') || undefined,
     entity_type: entityType || undefined,
     entity_id: entityType ? entier(recherche.get('entity_id')) : undefined,
-    date_from: du,
-    date_to: au,
+    // TCK-2659 (M1) — un registre d'ENCAISSEMENTS se borne par la date d'encaissement (`paid_at`), comme
+    // la tuile « Encaissé en <mois> » : le loyer d'octobre réglé le 3 novembre est un encaissement de
+    // novembre. Les dates posées (Du / Au) aussi. Une ligne sans `paid_at` (en attente, échouée) sort donc
+    // d'un registre borné.
+    paid_from: du,
+    paid_to: au,
     payer_id: entier(recherche.get('payer_id')),
     landlord_id: entier(recherche.get('landlord_id')),
     payment_method: moyen ? [moyen] : undefined,
@@ -144,12 +148,13 @@ export function EncaissementsAgence({
   const totals = meta?.totals;
   const nomDuMois = mois ? f.date(dateDuMois(mois), { month: 'long', timeZone: 'UTC' }) : null;
 
-  // Le libellé d'un choix porté par l'adresse : la première ligne le nomme (toutes la partagent).
+  // Le libellé d'un choix porté par l'adresse : la première ligne le nomme (toutes la partagent). Sans
+  // ligne, aucun nom : jamais « #42 » (la pastille en garde l'encre, cf. `ChoixAvecRecherche`).
   const premier = rows[0];
   const libelles = {
-    payeur: params.payer_id ? (premier?.payer?.name ?? `#${params.payer_id}`) : null,
-    bien: params.entity_type === 'property' && params.entity_id ? (premier?.property?.title ?? `#${params.entity_id}`) : null,
-    bailleur: params.landlord_id ? (premier?.landlord?.name ?? `#${params.landlord_id}`) : null,
+    payeur: params.payer_id ? (premier?.payer?.name ?? null) : null,
+    bien: params.entity_type === 'property' && params.entity_id ? (premier?.property?.title ?? null) : null,
+    bailleur: params.landlord_id ? (premier?.landlord?.name ?? null) : null,
   };
 
   const filtres = (

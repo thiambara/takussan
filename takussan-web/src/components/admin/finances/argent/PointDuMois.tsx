@@ -113,7 +113,7 @@ export function PointDuMoisTelephone(ctx: ContexteDuPoint) {
   const { synthese, gestes, periodeDansLUrl: periode } = ctx;
   const variation = useVariation(synthese, ctx.mois, 0);
   const { du, au } = bornesDuMois(ctx.mois);
-  const derniers = usePaymentsHistory({ status: 'paid', date_from: du, date_to: au, per_page: 4, include: ['payer', 'property'] });
+  const derniers = usePaymentsHistory({ status: 'paid', paid_from: du, paid_to: au, per_page: 4, include: ['payer', 'property'] });
   const montant = (n: number) => f.montantCourt(n, synthese?.currency);
 
   const lignesAFaire = synthese
@@ -439,7 +439,7 @@ export function AFaireEtDerniers(ctx: ContexteDuPoint) {
   const { du, au } = bornesDuMois(ctx.mois);
   const anciens = usePaymentsHistory({ days_late_min: 1, sort: '-days_late', per_page: 5, include: ['payer', 'property', 'reminders'] });
   const aApprouver = usePayouts({ status: 'awaiting_approval', per_page: 3, enabled: gestes.peutApprouver && (synthese?.payouts_awaiting_approval.count ?? 0) > 0 });
-  const derniers = usePaymentsHistory({ status: 'paid', date_from: du, date_to: au, per_page: 8, include: ['payer', 'property'] });
+  const derniers = usePaymentsHistory({ status: 'paid', paid_from: du, paid_to: au, per_page: 8, include: ['payer', 'property'] });
   const lignesAnciennes = anciens.data?.data ?? [];
   const reversements = aApprouver.data?.data ?? [];
 

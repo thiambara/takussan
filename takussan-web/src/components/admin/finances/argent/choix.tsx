@@ -26,6 +26,8 @@ import { cn } from '@/lib/utils';
 export interface OptionDeChoix {
   readonly value: string;
   readonly label: string;
+  /** `true` quand `label` n'est qu'un repli (« #42 ») : la liste le montre, la pastille ne le reprend jamais. */
+  readonly sansNom?: boolean;
 }
 
 const CLASSE_PASTILLE =
@@ -139,6 +141,11 @@ export function ChoixAvecRecherche({
 }) {
   const t = useTranslations('admin.finances.argent.choix');
   const { frappe, setFrappe, requete, ouvert, setOuvert } = etat;
+  // TCK-2659 (vérification adverse) — le nom d'un choix vient de la page reçue (`choisi`) ; à défaut, du
+  // choix fait ici même (la liste nommait l'option), jamais d'un identifiant (« #42 »). Sans nom connu,
+  // la pastille garde son libellé et l'encre du choix : le filtre posé reste visible et s'efface.
+  const [dernier, setDernier] = useState<OptionDeChoix | null>(null);
+  const nomDuChoix = choisi ?? (dernier !== null && dernier.value === value ? dernier.label : null);
   const enAttente = chargement || frappe.trim() !== requete;
   // À l'ouverture, le focus va au champ de recherche (`initialFocus` du popup, pas `autoFocus`).
   const champ = useRef<HTMLInputElement>(null);
@@ -152,11 +159,11 @@ export function ChoixAvecRecherche({
       }}
     >
       <PopoverTrigger
-        aria-label={choisi ? `${libelle} : ${choisi}` : libelle}
-        data-choisi={choisi !== null}
+        aria-label={nomDuChoix ? `${libelle} : ${nomDuChoix}` : libelle}
+        data-choisi={value !== null}
         className={cn(CLASSE_PASTILLE, className)}
       >
-        <ContenuDeLaPastille libelle={libelle} choisi={choisi} icone={icone} />
+        <ContenuDeLaPastille libelle={libelle} choisi={nomDuChoix} icone={icone} />
       </PopoverTrigger>
       <PopoverContent className="w-72 p-1" initialFocus={champ}>
         <div className="relative border-b border-border p-1.5 pb-2">
@@ -195,6 +202,7 @@ export function ChoixAvecRecherche({
               <button
                 type="button"
                 onClick={() => {
+                  setDernier(o.sansNom ? null : o);
                   onChange(o);
                   setOuvert(false);
                 }}

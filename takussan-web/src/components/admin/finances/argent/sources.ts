@@ -1,7 +1,7 @@
 'use client';
 
 import { useApiQuery } from '@/hooks/useApiQuery';
-import { nomAffichable } from '@/lib/identite';
+import { libelleDe, nomAffichable } from '@/lib/identite';
 import { raisonSocialeDe, type OwnerProfileSummary } from '@/lib/queries/owners';
 import type { PaginatedResponse } from '@/types/api';
 
@@ -23,6 +23,8 @@ const PAR_PAGE = 20;
 const CLIENT_FIELDS = ['id', 'first_name', 'last_name', 'email', 'phone'] as const;
 const BIEN_FIELDS = ['id', 'title', 'reference_number'] as const;
 const BAILLEUR_FIELDS = ['id', 'user_id', 'agency_id', 'status', 'metadata'] as const;
+// Le compte inclus ne sert qu'au nom (`libelleDe` : prénom, nom, puis e-mail, puis téléphone).
+const COMPTE_FIELDS = ['id', 'first_name', 'last_name', 'email', 'phone'] as const;
 
 interface ClientDeLaListe {
   readonly id: number;
@@ -54,7 +56,7 @@ export function useOptionsDesPayeurs(etat: EtatDeRecherche): ResultatDeSource {
     },
   );
   return {
-    options: (q.data?.data ?? []).map((c) => ({ value: String(c.id), label: nomAffichable(c) })),
+    options: (q.data?.data ?? []).map((c) => ({ value: String(c.id), label: nomAffichable(c), sansNom: libelleDe(c) === null })),
     chargement: q.isFetching,
   };
 }
@@ -70,7 +72,10 @@ export function useOptionsDesBiens(etat: EtatDeRecherche): ResultatDeSource {
     },
   );
   return {
-    options: (q.data?.data ?? []).map((b) => ({ value: String(b.id), label: b.title?.trim() || b.reference_number || `#${b.id}` })),
+    options: (q.data?.data ?? []).map((b) => {
+      const nom = b.title?.trim() || b.reference_number?.trim() || null;
+      return { value: String(b.id), label: nom ?? `#${b.id}`, sansNom: nom === null };
+    }),
     chargement: q.isFetching,
   };
 }
@@ -81,7 +86,7 @@ export function useOptionsDesBailleurs(etat: EtatDeRecherche, agencyId: number |
     '/api/owners',
     {
       params: {
-        fields: { owner_profiles: BAILLEUR_FIELDS },
+        fields: { owner_profiles: BAILLEUR_FIELDS, users: COMPTE_FIELDS },
         include: ['user'],
         filter: { agency_id: agencyId, search: etat.requete || undefined },
         per_page: PAR_PAGE,
@@ -91,11 +96,12 @@ export function useOptionsDesBailleurs(etat: EtatDeRecherche, agencyId: number |
     },
   );
   return {
-    options: (q.data?.data ?? []).flatMap((o) =>
-      o.user_id === null
-        ? []
-        : [{ value: String(o.user_id), label: raisonSocialeDe(o) ?? nomAffichable(o.user ?? { id: o.user_id, ...(o.metadata ?? {}) }) }],
-    ),
+    options: (q.data?.data ?? []).flatMap((o) => {
+      if (o.user_id === null) return [];
+      const compte = o.user ?? { id: o.user_id, ...(o.metadata ?? {}) };
+      const nom = raisonSocialeDe(o) ?? libelleDe(compte);
+      return [{ value: String(o.user_id), label: nom ?? nomAffichable(compte), sansNom: nom === null }];
+    }),
     chargement: q.isFetching,
   };
 }
