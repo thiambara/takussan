@@ -1,0 +1,63 @@
+{
+ "meta": {
+  "outil": "takussan-web/scripts/fidelite",
+  "version": 1,
+  "date": "2026-11-11T01:59:53.167Z",
+  "duree_ms": 5807,
+  "commit": "925795e2974a",
+  "base": "http://localhost:3000",
+  "via": "cadre",
+  "gel": {
+   "date": "2026-11-11",
+   "revue": "2026-11-11 — « je valide tout »"
+  }
+ },
+ "source": {
+  "type": "maquette",
+  "page": "app-entree-connexion",
+  "approche": "a",
+  "ecran": 1,
+  "nom": "Numéro (arrivée directe)"
+ },
+ "appareil": "bureau-1440",
+ "W": 1440,
+ "H": 900,
+ "DPR": 2,
+ "rem": 14.4,
+ "spacingPx": 3.6,
+ "densite": 0.9,
+ "noeuds": [
+  {"id":0,"type":"boite","dans":[],"cle":"TAKUSSAN Takussan Retour au site TAKUSSAN Takussan Entre ton numéro Nouveau ou d","tag":"div","r":{"x":0,"y":0,"w":1440,"h":900},"slot":null,"fid":null,"fond":[252,249,243,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[0,0,0,0],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"id":1,"type":"boite","dans":[0],"cle":"","tag":"img","r":{"x":0,"y":0,"w":648,"h":900},"slot":null,"fid":null,"fond":null,"bords":[0,0,0,0],"couleurBord":null,"rayon":[0,0,0,0],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"type":"icone","cle":"svg","r":{"x":36,"y":818,"w":50,"h":35},"dans":[0],"couleur":[31,24,18,1],"trait":"1px","texteParent":"TAKUSSAN Takussan"},
+  {"type":"texte","cle":"Takussan","tag":"span","r":{"x":96.8,"y":825,"w":167.5,"h":39},"dans":[0],"police":"bricolageExt","taille":26,"graisse":600,"interligne":39,"espacement":3.6,"couleur":[252,249,243,1],"casse":"uppercase","chiffres":"normal"},
+  {"type":"texte","cle":"Takussan","tag":"span","r":{"x":35,"y":817,"w":1,"h":1},"dans":[0],"police":"dmSansExt","taille":14.4,"graisse":400,"interligne":21.6,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"Retour au site","tag":"span","r":{"x":684,"y":12.6,"w":128.7,"h":32.4},"dans":[0,6],"police":"dmSansExt","taille":12.6,"graisse":500,"interligne":18,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"id":6,"type":"boite","dans":[0],"cle":"Retour au site","tag":"span","r":{"x":684,"y":12.6,"w":128.7,"h":32.4},"slot":null,"fid":null,"fond":[255,255,255,1],"bords":[1,1,1,1],"couleurBord":[235,229,213,1],"rayon":[33554400,33554400,33554400,33554400],"ombre":null,"marges":[0,12.6,0,12.6],"ecart":5.4},
+  {"type":"icone","cle":"lucide-arrow-left","r":{"x":697.6,"y":21.6,"w":14.4,"h":14.4},"dans":[6,0],"couleur":[31,24,18,1],"trait":"2","texteParent":"Retour au site"},
+  {"type":"icone","cle":"svg","r":{"x":1258.5,"y":14.4,"w":34,"h":21.6},"dans":[0],"couleur":[31,24,18,1],"trait":"1px","texteParent":"TAKUSSAN Takussan"},
+  {"type":"texte","cle":"Takussan","tag":"span","r":{"x":1299.7,"y":18,"w":104.3,"h":25.2},"dans":[0],"police":"bricolageExt","taille":16.2,"graisse":600,"interligne":25.2,"espacement":2.3,"couleur":[31,24,18,1],"casse":"uppercase","chiffres":"normal"},
+  {"type":"texte","cle":"Takussan","tag":"span","r":{"x":1257.5,"y":13.4,"w":1,"h":1},"dans":[0],"police":"dmSansExt","taille":14.4,"graisse":400,"interligne":21.6,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"Entre ton numéro","tag":"h1","r":{"x":844,"y":100.8,"w":400,"h":38.9},"dans":[0],"police":"bricolageExt","taille":36,"graisse":600,"interligne":38.9,"espacement":-0.9,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"Nouveau ou déjà inscrit : un code par SMS suffit.","tag":"p","r":{"x":844,"y":150.5,"w":400,"h":25.5},"dans":[0],"police":"dmSansExt","taille":17,"graisse":400,"interligne":25.5,"espacement":0,"couleur":[110,101,90,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"Ton numéro","tag":"p","r":{"x":844,"y":201.1,"w":69.9,"h":18},"dans":[0],"police":"dmSansExt","taille":12.6,"graisse":500,"interligne":18,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"id":14,"type":"boite","dans":[0],"cle":"+221 77 000 00 00","tag":"div","r":{"x":844,"y":224.5,"w":400,"h":39.6},"slot":null,"fid":null,"fond":[255,255,255,1],"bords":[1,1,1,1],"couleurBord":[168,83,50,1],"rayon":[9,9,9,9],"ombre":"rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, oklab(0.540443 0.0913644 0.0798483 / 0.15) 0px 0px 0px 3px, rgba(0, 0, 0, 0) 0px 0px 0px 0px","marges":[0,12.6,0,12.6],"ecart":9},
+  {"type":"texte","cle":"+221","tag":"span","r":{"x":857.6,"y":232.3,"w":32.7,"h":24},"dans":[14,0],"police":"dmSansExt","taille":16,"graisse":500,"interligne":24,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"tabular-nums"},
+  {"id":16,"type":"boite","dans":[14,0],"cle":"","tag":"span","r":{"x":899.3,"y":235.3,"w":1,"h":18},"slot":null,"fid":null,"fond":[235,229,213,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[0,0,0,0],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"id":17,"type":"boite","dans":[14,0],"cle":"","tag":"span","r":{"x":910.3,"y":234.8,"w":1.5,"h":18},"slot":null,"fid":null,"fond":[168,83,50,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[0,0,0,0],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"type":"texte","cle":"77 000 00 00","tag":"span","r":{"x":915.3,"y":233.8,"w":106.5,"h":21},"dans":[14,0],"police":"dmSansExt","taille":16,"graisse":400,"interligne":24,"espacement":0,"couleur":[110,101,90,0.8],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"+221 est déjà posé. À l’étranger ? Commence par +","tag":"p","r":{"x":844,"y":269.5,"w":400,"h":17.9},"dans":[0],"police":"dmSansExt","taille":13,"graisse":400,"interligne":17.9,"espacement":0,"couleur":[110,101,90,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"En continuant , tu acceptes les et la .","tag":"p","r":{"x":844,"y":301.8,"w":400,"h":35.1},"dans":[0],"police":"dmSansExt","taille":10.8,"graisse":400,"interligne":17.6,"espacement":0,"couleur":[110,101,90,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"conditions générales","tag":"span","r":{"x":998.3,"y":302.8,"w":103.9,"h":14},"dans":[0],"police":"dmSansExt","taille":10.8,"graisse":400,"interligne":17.6,"espacement":0,"couleur":[110,101,90,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"politique de confidentialité","tag":"span","r":{"x":844,"y":302.8,"w":345.1,"h":31.5},"dans":[0],"police":"dmSansExt","taille":10.8,"graisse":400,"interligne":17.6,"espacement":0,"couleur":[110,101,90,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"Recevoir un code","tag":"span","r":{"x":844,"y":358.4,"w":400,"h":43.2},"dans":[0,24],"police":"dmSansExt","taille":16,"graisse":600,"interligne":24,"espacement":0,"couleur":[252,249,243,1],"casse":"none","chiffres":"normal"},
+  {"id":24,"type":"boite","dans":[0],"cle":"Recevoir un code","tag":"span","r":{"x":844,"y":358.4,"w":400,"h":43.2},"slot":null,"fid":null,"fond":[168,83,50,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[33554400,33554400,33554400,33554400],"ombre":null,"marges":[0,21.6,0,21.6],"ecart":7.2},
+  {"type":"texte","cle":"ou","tag":"div","r":{"x":844,"y":423.2,"w":400,"h":19.5},"dans":[0],"police":"dmSansExt","taille":13,"graisse":400,"interligne":19.5,"espacement":0,"couleur":[110,101,90,1],"casse":"none","chiffres":"normal"},
+  {"id":26,"type":"boite","dans":[0],"cle":"","tag":"span","r":{"x":844,"y":432.5,"w":181.6,"h":1},"slot":null,"fid":null,"fond":[235,229,213,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[0,0,0,0],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"id":27,"type":"boite","dans":[0],"cle":"","tag":"span","r":{"x":1062.4,"y":432.5,"w":181.6,"h":1},"slot":null,"fid":null,"fond":[235,229,213,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[0,0,0,0],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"type":"texte","cle":"Continuer avec Google","tag":"span","r":{"x":844,"y":460.7,"w":400,"h":39.6},"dans":[0,29],"police":"dmSansExt","taille":15,"graisse":500,"interligne":22.5,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"id":29,"type":"boite","dans":[0],"cle":"Continuer avec Google","tag":"span","r":{"x":844,"y":460.7,"w":400,"h":39.6},"slot":null,"fid":null,"fond":[255,255,255,1],"bords":[1,1,1,1],"couleurBord":[144,133,113,0.45],"rayon":[33554400,33554400,33554400,33554400],"ombre":null,"marges":[0,18,0,18],"ecart":7.2},
+  {"type":"icone","cle":"svg","r":{"x":950.8,"y":471.5,"w":18,"h":18},"dans":[29,0],"couleur":[31,24,18,1],"trait":"1px","texteParent":"Continuer avec Google"},
+  {"type":"texte","cle":"Utiliser un e-mail et un mot de passe","tag":"span","r":{"x":934.5,"y":514.7,"w":218.9,"h":16},"dans":[0],"police":"dmSansExt","taille":12.6,"graisse":500,"interligne":18,"espacement":0,"couleur":[168,83,50,1],"casse":"none","chiffres":"normal"}
+ ]
+}

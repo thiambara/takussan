@@ -1,0 +1,21 @@
+{
+ "page": "app-rapprochement",
+ "approche": "c",
+ "revue": {
+  "date": "2026-11-11",
+  "citation": "« je valide tout »",
+  "source": "porteur, revue des maquettes téléphone (390, rem 16), bureau 1440 et bureau 1280"
+ },
+ "ecrans": [
+  {
+   "e": 0,
+   "nom": "Reste à rapprocher",
+   "sansBureau": null
+  },
+  {
+   "e": 1,
+   "nom": "Aucun relevé",
+   "sansBureau": null
+  }
+ ]
+}

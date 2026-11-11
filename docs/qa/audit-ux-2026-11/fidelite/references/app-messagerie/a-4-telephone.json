@@ -1,0 +1,61 @@
+{
+ "meta": {
+  "outil": "takussan-web/scripts/fidelite",
+  "version": 1,
+  "date": "2026-11-11T02:25:10.508Z",
+  "duree_ms": 5887,
+  "commit": "572bca1089e1",
+  "base": "http://localhost:3000",
+  "via": "cadre",
+  "gel": {
+   "date": "2026-11-11",
+   "revue": "2026-11-11 — « je valide tout »"
+  }
+ },
+ "source": {
+  "type": "maquette",
+  "page": "app-messagerie",
+  "approche": "a",
+  "ecran": 4,
+  "nom": "Aucune conversation (agent)"
+ },
+ "appareil": "telephone",
+ "W": 390,
+ "H": 844,
+ "DPR": 2,
+ "rem": 16,
+ "spacingPx": 4,
+ "densite": 1,
+ "noeuds": [
+  {"id":0,"type":"boite","dans":[],"cle":"Messages 7 Aucune conversation Vos échanges avec les clients et l’équipe apparaî","tag":"div","r":{"x":0,"y":0,"w":390,"h":844},"slot":null,"fid":null,"fond":[252,249,243,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[0,0,0,0],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"id":1,"type":"boite","dans":[0],"cle":"Messages 7","tag":"header","r":{"x":0,"y":0,"w":390,"h":56},"slot":null,"fid":null,"fond":[252,249,243,1],"bords":[0,0,1,0],"couleurBord":[235,229,214,0.7],"rayon":[0,0,0,0],"ombre":null,"marges":[0,6,0,16],"ecart":4},
+  {"type":"texte","cle":"Messages","tag":"h1","r":{"x":16,"y":13.5,"w":236,"h":28},"dans":[1,0],"police":"bricolageExt","taille":20,"graisse":600,"interligne":28,"espacement":-0.4,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"id":3,"type":"boite","dans":[1,0],"cle":"Nouvelle conversation","tag":"span","r":{"x":256,"y":7.5,"w":40,"h":40},"slot":null,"fid":null,"fond":[168,83,50,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[33554400,33554400,33554400,33554400],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"type":"icone","cle":"lucide-square-pen","r":{"x":266,"y":17.5,"w":20,"h":20},"dans":[3,1,0],"couleur":[252,249,243,1],"trait":"2","texteParent":""},
+  {"type":"icone","cle":"lucide-search","r":{"x":310,"y":17.5,"w":20,"h":20},"dans":[1,0],"couleur":[31,24,17,0.8],"trait":"1.75","texteParent":""},
+  {"type":"icone","cle":"lucide-bell","r":{"x":354,"y":17.5,"w":20,"h":20},"dans":[1,0],"couleur":[31,24,17,0.8],"trait":"1.75","texteParent":"7"},
+  {"type":"texte","cle":"7","tag":"span","r":{"x":366,"y":9.5,"w":16,"h":16},"dans":[1,0,8],"police":"dmSansExt","taille":10,"graisse":600,"interligne":10,"espacement":0,"couleur":[252,249,243,1],"casse":"none","chiffres":"tabular-nums"},
+  {"id":8,"type":"boite","dans":[1,0],"cle":"7","tag":"span","r":{"x":366,"y":9.5,"w":16,"h":16},"slot":null,"fid":null,"fond":[168,83,50,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[33554400,33554400,33554400,33554400],"ombre":"rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(255, 255, 255) 0px 0px 0px 2px, rgba(0, 0, 0, 0) 0px 0px 0px 0px","marges":[0,4,0,4],"ecart":0},
+  {"id":9,"type":"boite","dans":[0],"cle":"","tag":"span","r":{"x":171,"y":152,"w":48,"h":48},"slot":null,"fid":null,"fond":[241,236,224,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[33554400,33554400,33554400,33554400],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"type":"icone","cle":"lucide-messages-square","r":{"x":183,"y":164,"w":24,"h":24},"dans":[9,0],"couleur":[110,101,90,1],"trait":"1.5","texteParent":""},
+  {"type":"texte","cle":"Aucune conversation","tag":"p","r":{"x":113.1,"y":216,"w":163.8,"h":24},"dans":[0],"police":"dmSansExt","taille":16,"graisse":600,"interligne":24,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"Vos échanges avec les clients et l’équipe apparaîtront ici.","tag":"p","r":{"x":35,"y":244,"w":320,"h":40},"dans":[0],"police":"dmSansExt","taille":14,"graisse":400,"interligne":20,"espacement":0,"couleur":[110,101,90,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"Écrire à un client","tag":"span","r":{"x":115.9,"y":304,"w":158.1,"h":48},"dans":[0,14],"police":"dmSansExt","taille":15,"graisse":500,"interligne":22.5,"espacement":0,"couleur":[252,249,243,1],"casse":"none","chiffres":"normal"},
+  {"id":14,"type":"boite","dans":[0],"cle":"Écrire à un client","tag":"span","r":{"x":115.9,"y":304,"w":158.1,"h":48},"slot":null,"fid":null,"fond":[168,83,50,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[10,10,10,10],"ombre":null,"marges":[0,20,0,20],"ecart":6},
+  {"id":15,"type":"boite","dans":[0],"cle":"Aujourd’hui 4 Demandes Clients 2 Messages Menu","tag":"nav","r":{"x":0,"y":780,"w":390,"h":64},"slot":null,"fid":null,"fond":[255,255,255,1],"bords":[1,0,0,0],"couleurBord":[235,229,213,1],"rayon":[0,0,0,0],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"type":"icone","cle":"lucide-sun","r":{"x":29,"y":792.3,"w":20,"h":20},"dans":[15,0],"couleur":[110,101,90,1],"trait":"1.75","texteParent":""},
+  {"type":"texte","cle":"Aujourd’hui","tag":"span","r":{"x":10.3,"y":816.3,"w":57.3,"h":16.5},"dans":[15,0],"police":"dmSansExt","taille":11,"graisse":400,"interligne":16.5,"espacement":0,"couleur":[110,101,90,1],"casse":"none","chiffres":"normal"},
+  {"type":"icone","cle":"lucide-inbox","r":{"x":107,"y":792.3,"w":20,"h":20},"dans":[15,0],"couleur":[110,101,90,1],"trait":"1.75","texteParent":"4"},
+  {"type":"texte","cle":"4","tag":"span","r":{"x":121,"y":786.3,"w":16,"h":16},"dans":[15,0,20],"police":"dmSansExt","taille":10,"graisse":600,"interligne":10,"espacement":0,"couleur":[252,249,243,1],"casse":"none","chiffres":"tabular-nums"},
+  {"id":20,"type":"boite","dans":[15,0],"cle":"4","tag":"span","r":{"x":121,"y":786.3,"w":16,"h":16},"slot":null,"fid":null,"fond":[168,83,50,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[33554400,33554400,33554400,33554400],"ombre":"rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(255, 255, 255) 0px 0px 0px 2px, rgba(0, 0, 0, 0) 0px 0px 0px 0px","marges":[0,4,0,4],"ecart":0},
+  {"type":"texte","cle":"Demandes","tag":"span","r":{"x":89.7,"y":816.3,"w":54.6,"h":16.5},"dans":[15,0],"police":"dmSansExt","taille":11,"graisse":400,"interligne":16.5,"espacement":0,"couleur":[110,101,90,1],"casse":"none","chiffres":"normal"},
+  {"type":"icone","cle":"lucide-users","r":{"x":185,"y":792.3,"w":20,"h":20},"dans":[15,0],"couleur":[110,101,90,1],"trait":"1.75","texteParent":""},
+  {"type":"texte","cle":"Clients","tag":"span","r":{"x":177.3,"y":816.3,"w":35.4,"h":16.5},"dans":[15,0],"police":"dmSansExt","taille":11,"graisse":400,"interligne":16.5,"espacement":0,"couleur":[110,101,90,1],"casse":"none","chiffres":"normal"},
+  {"type":"icone","cle":"lucide-message-square","r":{"x":263,"y":792.3,"w":20,"h":20},"dans":[15,0],"couleur":[168,83,50,1],"trait":"1.75","texteParent":"2"},
+  {"type":"texte","cle":"2","tag":"span","r":{"x":277,"y":786.3,"w":16,"h":16},"dans":[15,0,26],"police":"dmSansExt","taille":10,"graisse":600,"interligne":10,"espacement":0,"couleur":[252,249,243,1],"casse":"none","chiffres":"tabular-nums"},
+  {"id":26,"type":"boite","dans":[15,0],"cle":"2","tag":"span","r":{"x":277,"y":786.3,"w":16,"h":16},"slot":null,"fid":null,"fond":[168,83,50,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[33554400,33554400,33554400,33554400],"ombre":"rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(255, 255, 255) 0px 0px 0px 2px, rgba(0, 0, 0, 0) 0px 0px 0px 0px","marges":[0,4,0,4],"ecart":0},
+  {"type":"texte","cle":"Messages","tag":"span","r":{"x":246.8,"y":816.3,"w":52.4,"h":16.5},"dans":[15,0],"police":"dmSansExt","taille":11,"graisse":600,"interligne":16.5,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"type":"icone","cle":"lucide-menu","r":{"x":341,"y":792.3,"w":20,"h":20},"dans":[15,0],"couleur":[110,101,90,1],"trait":"1.75","texteParent":""},
+  {"type":"texte","cle":"Menu","tag":"span","r":{"x":336.9,"y":816.3,"w":28.1,"h":16.5},"dans":[15,0],"police":"dmSansExt","taille":11,"graisse":400,"interligne":16.5,"espacement":0,"couleur":[110,101,90,1],"casse":"none","chiffres":"normal"}
+ ]
+}

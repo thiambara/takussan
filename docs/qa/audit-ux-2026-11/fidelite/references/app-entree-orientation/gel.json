@@ -1,0 +1,36 @@
+{
+ "page": "app-entree-orientation",
+ "approche": "a",
+ "revue": {
+  "date": "2026-11-11",
+  "citation": "« je valide tout »",
+  "source": "porteur, revue des maquettes téléphone (390, rem 16), bureau 1440 et bureau 1280"
+ },
+ "ecrans": [
+  {
+   "e": 0,
+   "nom": "Prénom",
+   "sansBureau": null
+  },
+  {
+   "e": 1,
+   "nom": "Trois portes",
+   "sansBureau": null
+  },
+  {
+   "e": 2,
+   "nom": "Chercheur : l’alerte",
+   "sansBureau": null
+  },
+  {
+   "e": 3,
+   "nom": "Professionnel",
+   "sansBureau": null
+  },
+  {
+   "e": 4,
+   "nom": "Professionnel : rejoindre",
+   "sansBureau": null
+  }
+ ]
+}

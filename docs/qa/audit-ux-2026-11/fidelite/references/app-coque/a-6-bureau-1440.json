@@ -1,0 +1,59 @@
+{
+ "meta": {
+  "outil": "takussan-web/scripts/fidelite",
+  "version": 1,
+  "date": "2026-11-11T01:44:48.041Z",
+  "duree_ms": 4586,
+  "commit": "d2eaf15a225f",
+  "base": "http://localhost:3000",
+  "via": "cadre",
+  "gel": {
+   "date": "2026-11-11",
+   "revue": "2026-11-11 — « je valide tout »"
+  }
+ },
+ "source": {
+  "type": "maquette",
+  "page": "app-coque",
+  "approche": "a",
+  "ecran": 6,
+  "nom": "Choisir un espace (connexion)"
+ },
+ "appareil": "bureau-1440",
+ "W": 1440,
+ "H": 900,
+ "DPR": 2,
+ "rem": 14.4,
+ "spacingPx": 3.6,
+ "densite": 0.9,
+ "noeuds": [
+  {"id":0,"type":"boite","dans":[],"cle":"TAKUSSAN Takussan Dans quel espace travaillez-vous ? Sokhna, votre compte ouvre ","tag":"div","r":{"x":0,"y":0,"w":1440,"h":900},"slot":null,"fid":null,"fond":[242,237,223,0.6],"bords":[0,0,0,0],"couleurBord":null,"rayon":[0,0,0,0],"ombre":null,"marges":[86.4,0,0,0],"ecart":0},
+  {"type":"icone","cle":"svg","r":{"x":647.3,"y":86.4,"w":34,"h":21.6},"dans":[0],"couleur":[31,24,18,1],"trait":"1px","texteParent":"TAKUSSAN Takussan"},
+  {"type":"texte","cle":"Takussan","tag":"span","r":{"x":688.5,"y":90,"w":104.3,"h":25.2},"dans":[0],"police":"bricolageExt","taille":16.2,"graisse":600,"interligne":25.2,"espacement":2.3,"couleur":[31,24,18,1],"casse":"uppercase","chiffres":"normal"},
+  {"type":"texte","cle":"Takussan","tag":"span","r":{"x":646.3,"y":85.4,"w":1,"h":1},"dans":[0],"police":"dmSansExt","taille":14.4,"graisse":400,"interligne":21.6,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"id":4,"type":"boite","dans":[0],"cle":"Dans quel espace travaillez-vous ? Sokhna, votre compte ouvre deux espaces. Vous","tag":"div","r":{"x":460,"y":136.8,"w":520,"h":418.3},"slot":null,"fid":null,"fond":[255,255,255,1],"bords":[1,1,1,1],"couleurBord":[235,229,213,1],"rayon":[16.2,16.2,16.2,16.2],"ombre":"rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, oklab(0.215465 0.0073894 0.0141341 / 0.45) 0px 24px 60px -28px","marges":[25.2,25.2,25.2,25.2],"ecart":0},
+  {"type":"texte","cle":"Dans quel espace travaillez-vous ?","tag":"h1","r":{"x":486.2,"y":163,"w":467.6,"h":28.8},"dans":[4,0],"police":"bricolageExt","taille":21.6,"graisse":600,"interligne":28.8,"espacement":-0.4,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"Sokhna, votre compte ouvre deux espaces. Vous pourrez en changer à tout moment d","tag":"p","r":{"x":486.2,"y":198.9,"w":467.6,"h":36},"dans":[4,0],"police":"dmSansExt","taille":12.6,"graisse":400,"interligne":18,"espacement":0,"couleur":[110,101,90,1],"casse":"none","chiffres":"normal"},
+  {"id":7,"type":"boite","dans":[4,0],"cle":"DI Dakar Immo Agent · Dakar 4 demandes · 2 visites aujourd’hui","tag":"div","r":{"x":486.2,"y":256.5,"w":228.4,"h":168},"slot":null,"fid":null,"fond":[177,78,59,0.05],"bords":[1,1,1,1],"couleurBord":[168,83,50,1],"rayon":[16.2,16.2,16.2,16.2],"ombre":"rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(168, 83, 50) 0px 0px 0px 1px","marges":[14.4,14.4,14.4,14.4],"ecart":0},
+  {"type":"texte","cle":"DI","tag":"span","r":{"x":501.6,"y":271.9,"w":40,"h":40},"dans":[7,4,0,9],"police":"bricolageExt","taille":14,"graisse":600,"interligne":21,"espacement":0,"couleur":[252,249,243,1],"casse":"none","chiffres":"normal"},
+  {"id":9,"type":"boite","dans":[7,4,0],"cle":"DI","tag":"span","r":{"x":501.6,"y":271.9,"w":40,"h":40},"slot":null,"fid":null,"fond":[168,83,50,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[12.6,12.6,12.6,12.6],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"id":10,"type":"boite","dans":[7,4,0],"cle":"","tag":"span","r":{"x":681.2,"y":271.9,"w":18,"h":18},"slot":null,"fid":null,"fond":[168,83,50,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[33554400,33554400,33554400,33554400],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"type":"icone","cle":"lucide-check","r":{"x":684.8,"y":275.5,"w":10.8,"h":10.8},"dans":[10,7,4,0],"couleur":[252,249,243,1],"trait":"2.5","texteParent":""},
+  {"type":"texte","cle":"Dakar Immo","tag":"p","r":{"x":501.6,"y":322.7,"w":197.6,"h":25.5},"dans":[7,4,0],"police":"bricolageExt","taille":17,"graisse":600,"interligne":25.5,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"Agent · Dakar","tag":"p","r":{"x":501.6,"y":348.2,"w":197.6,"h":18},"dans":[7,4,0],"police":"dmSansExt","taille":12.6,"graisse":400,"interligne":18,"espacement":0,"couleur":[110,101,90,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"4 demandes · 2 visites aujourd’hui","tag":"p","r":{"x":501.6,"y":373.4,"w":197.6,"h":35.8},"dans":[7,4,0],"police":"dmSansExt","taille":13,"graisse":400,"interligne":17.9,"espacement":0,"couleur":[31,24,17,0.75],"casse":"none","chiffres":"normal"},
+  {"id":15,"type":"boite","dans":[4,0],"cle":"TP Thiès Properties Propriétaire · Thiès 2 biens · 1 loyer en retard","tag":"div","r":{"x":725.4,"y":256.5,"w":228.4,"h":168},"slot":null,"fid":null,"fond":[255,255,255,1],"bords":[1,1,1,1],"couleurBord":[235,229,213,1],"rayon":[16.2,16.2,16.2,16.2],"ombre":null,"marges":[14.4,14.4,14.4,14.4],"ecart":0},
+  {"type":"texte","cle":"TP","tag":"span","r":{"x":740.8,"y":271.9,"w":40,"h":40},"dans":[15,4,0,17],"police":"bricolageExt","taille":14,"graisse":600,"interligne":21,"espacement":0,"couleur":[93,110,79,1],"casse":"none","chiffres":"normal"},
+  {"id":17,"type":"boite","dans":[15,4,0],"cle":"TP","tag":"span","r":{"x":740.8,"y":271.9,"w":40,"h":40},"slot":null,"fid":null,"fond":[94,107,81,0.15],"bords":[0,0,0,0],"couleurBord":null,"rayon":[12.6,12.6,12.6,12.6],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"id":18,"type":"boite","dans":[15,4,0],"cle":"","tag":"span","r":{"x":920.4,"y":271.9,"w":18,"h":18},"slot":null,"fid":null,"fond":null,"bords":[1,1,1,1],"couleurBord":[235,229,213,1],"rayon":[33554400,33554400,33554400,33554400],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"type":"texte","cle":"Thiès Properties","tag":"p","r":{"x":740.8,"y":322.7,"w":197.6,"h":25.5},"dans":[15,4,0],"police":"bricolageExt","taille":17,"graisse":600,"interligne":25.5,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"Propriétaire · Thiès","tag":"p","r":{"x":740.8,"y":348.2,"w":197.6,"h":18},"dans":[15,4,0],"police":"dmSansExt","taille":12.6,"graisse":400,"interligne":18,"espacement":0,"couleur":[110,101,90,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"2 biens · 1 loyer en retard","tag":"p","r":{"x":740.8,"y":373.4,"w":197.6,"h":17.9},"dans":[15,4,0],"police":"dmSansExt","taille":13,"graisse":400,"interligne":17.9,"espacement":0,"couleur":[31,24,17,0.75],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"Se souvenir de mon choix sur cet appareil","tag":"p","r":{"x":486.2,"y":438.9,"w":467.6,"h":39.6},"dans":[4,0],"police":"dmSansExt","taille":15,"graisse":400,"interligne":21.4,"espacement":0,"couleur":[31,24,18,1],"casse":"none","chiffres":"normal"},
+  {"id":23,"type":"boite","dans":[4,0],"cle":"","tag":"span","r":{"x":486.2,"y":449.7,"w":18,"h":18},"slot":null,"fid":null,"fond":[168,83,50,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[7.2,7.2,7.2,7.2],"ombre":null,"marges":[0,0,0,0],"ecart":0},
+  {"type":"icone","cle":"lucide-check","r":{"x":488.9,"y":452.4,"w":12.6,"h":12.6},"dans":[23,4,0],"couleur":[252,249,243,1],"trait":"2.5","texteParent":""},
+  {"type":"texte","cle":"Continuer en tant que cliente","tag":"span","r":{"x":486.2,"y":501.9,"w":174.6,"h":18},"dans":[4,0],"police":"dmSansExt","taille":12.6,"graisse":500,"interligne":18,"espacement":0,"couleur":[168,83,50,1],"casse":"none","chiffres":"normal"},
+  {"type":"texte","cle":"Continuer dans Dakar Immo","tag":"span","r":{"x":748.8,"y":492.9,"w":205,"h":36},"dans":[4,0,27],"police":"dmSansExt","taille":12.6,"graisse":600,"interligne":18,"espacement":0,"couleur":[252,249,243,1],"casse":"none","chiffres":"normal"},
+  {"id":27,"type":"boite","dans":[4,0],"cle":"Continuer dans Dakar Immo","tag":"span","r":{"x":748.8,"y":492.9,"w":205,"h":36},"slot":null,"fid":null,"fond":[168,83,50,1],"bords":[0,0,0,0],"couleurBord":null,"rayon":[9,9,9,9],"ombre":null,"marges":[0,18,0,18],"ecart":5.4}
+ ]
+}
