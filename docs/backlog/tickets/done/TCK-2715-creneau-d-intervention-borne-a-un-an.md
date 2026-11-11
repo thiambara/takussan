@@ -1,7 +1,7 @@
 ---
 id: TCK-2715
 title: "Le créneau d'une intervention ne se pose pas au-delà d'un an"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: S
@@ -133,3 +133,8 @@ font un `PATCH` ou un `…/accept` d'intervention, `LangGroupParityTest`, `Label
 
 **Specs** : à reporter par `/sync-specs` dans `docs/features.md` § 18 (le passage borné à un an, sur les deux routes)
 et `docs/models-spec.md` § 21 (`scheduled_at` : horizon de 12 mois).
+
+**2026-11-11 — vérification adverse, m1 (back-3).** `test_le_29_fevrier_borne_au_28_fevrier_suivant` : maintenant =
+2028-02-29 23:59:59 UTC ; `2029-02-28T23:59:59` passe (PATCH et acceptation), `2029-03-01T00:00:00` → 422 sur les
+deux routes. Ablations, md5 restauré : `addMonthsNoOverflow` → `addMonths` → **rouge** (ce test seul) ; la règle du
+PATCH remplacée par `before_or_equal:+12 months` → **rouge** (ce test et celui du message). Classe : 12 verts.

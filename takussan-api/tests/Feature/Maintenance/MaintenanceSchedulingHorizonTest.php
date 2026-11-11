@@ -101,6 +101,34 @@ class MaintenanceSchedulingHorizonTest extends TestCase
     }
 
     /**
+     * Vérification adverse de TCK-2715 (m1) — le 29 février. Un an après le 29 février 2028 est le
+     * 28 février 2029 (`addMonthsNoOverflow`), pas le 1er mars : `addMonths` déborde au 1er mars, et
+     * un `before_or_equal:+12 months` de Laravel aussi (`strtotime` normalise le 29 février 2029 en
+     * 1er mars). Maintenant : 2028-02-29 23:59:59 UTC, d'où la borne 2029-02-28 23:59:59 incluse.
+     */
+    public function test_le_29_fevrier_borne_au_28_fevrier_suivant(): void
+    {
+        $this->travelTo(Carbon::parse('2028-02-29 23:59:59', 'UTC'));
+        ['mr' => $mr, 'landlord' => $landlord, 'provider' => $provider] = $this->maintenanceScenario(MaintenanceStatus::Assigned, ['scheduled_at' => null]);
+
+        Sanctum::actingAs($landlord);
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['scheduled_at' => '2029-03-01T00:00:00'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['scheduled_at']);
+        $this->assertNull($this->colonne($mr));
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['scheduled_at' => '2029-02-28T23:59:59'])->assertOk();
+        $this->assertSame('2029-02-28 23:59:59', $this->colonne($mr));
+
+        Sanctum::actingAs($provider);
+        $this->postJson("/api/maintenance-requests/{$mr->id}/accept", ['scheduled_at' => '2029-03-01T00:00:00'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['scheduled_at']);
+        $this->assertNull($mr->refresh()->accepted_at);
+        $this->postJson("/api/maintenance-requests/{$mr->id}/accept", ['scheduled_at' => '2029-02-28T23:59:59'])->assertOk();
+        $this->assertNotNull($mr->refresh()->accepted_at);
+    }
+
+    /**
      * AC3 — la borne lit l'instant, pas la chaîne. `07:30-01:00` est 08:30 UTC, au-delà ; `08:30+01:00`
      * est 07:30 UTC, en deçà — l'heure murale de chacune dit l'inverse.
      *
