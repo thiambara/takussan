@@ -25,6 +25,7 @@ use App\Models\User;
 use App\Notifications\UrgentMaintenanceCreatedNotification;
 use App\Policies\MaintenanceRequestPolicy;
 use App\Services\Maintenance\CurrencyUnit;
+use App\Services\Maintenance\MaintenanceQueue;
 use App\Services\Maintenance\MaintenanceStateMachine;
 use App\Services\Maintenance\OwnerApprovalThreshold;
 use App\Services\Membership\AdminsDeLAgence;
@@ -74,6 +75,27 @@ class MaintenanceRequestController extends Controller
             MaintenanceRequestResource::collection($paginator)->toArray($request),
             ['abilities' => ['can_create' => $user->can('openRequests', MaintenanceRequest::class)]],
         );
+    }
+
+    /**
+     * TCK-2652 — `GET /api/maintenance-requests/summary` : les comptes des files d'attente
+     * ({@see MaintenanceQueue}) sous la portée de l'index, en un appel. Les autres filtres de la
+     * requête s'appliquent (statut, priorité, catégorie…), jamais `filter[file]` : il viderait les
+     * autres files. Chaque compte égale le `meta.total` de `GET …?filter[file]=<file>`.
+     */
+    public function summary(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $filters = $request->query('filter');
+        $filters = is_array($filters) ? Arr::except($filters, ['file']) : [];
+
+        // Les seuls filtres : ni tri, ni champs, ni inclusions — un compte ne les lit pas.
+        $scoped = MaintenanceRequest::buildQuery(
+            MaintenanceRequest::query()->visibleTo($user),
+            Request::create($request->path(), 'GET', $filters === [] ? [] : ['filter' => $filters]),
+        )->getEloquentBuilder();
+
+        return $this->json(['data' => MaintenanceQueue::counts($scoped, $user)]);
     }
 
     public function indexForProperty(Request $request, Property $property): JsonResponse

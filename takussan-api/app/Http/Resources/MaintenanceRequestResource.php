@@ -7,6 +7,7 @@ use App\Models\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
 use App\Models\User;
 use App\Policies\MaintenanceRequestPolicy;
+use App\Services\Maintenance\MaintenanceQueue;
 use App\Services\Maintenance\MaintenanceStateMachine;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Model\MaintenanceRequestService;
@@ -27,6 +28,13 @@ class MaintenanceRequestResource extends BaseResource
         'quote_decision_by_id', 'quote_rejection_reason', 'quote_decision_by',
         'quote_lines', 'quote_valid_until', 'quote_estimated_duration_days',
     ];
+
+    /**
+     * TCK-2652 (décision famille 4 n° 6a, amendement de §1.8) — l'estimation et le coût réel suivent
+     * le devis : servis au donneur d'ordre, au bailleur du bien et au prestataire assigné, jamais au
+     * demandeur locataire. Clés absentes, comme {@see self::QUOTE_FIELDS}.
+     */
+    private const COST_FIELDS = ['estimated_cost', 'actual_cost'];
 
     public function toArray(Request $request): array
     {
@@ -65,12 +73,20 @@ class MaintenanceRequestResource extends BaseResource
             'created_at' => $this->iso($this->created_at),
         ];
 
+        // TCK-2652 — la file d'attente de la ligne, sans requête ({@see MaintenanceQueue::describe()}).
+        $queue = MaintenanceQueue::describe($this->resource);
+        $data['file'] = $queue['file'];
+        $data['waiting_on'] = $queue['waiting_on'];
+        $data['waiting_since'] = $this->iso($queue['waiting_since']);
+        $data['slot_overdue_days'] = $queue['slot_overdue_days'];
+        $data['auto_close_at'] = $this->iso($queue['auto_close_at']);
+
         $user = $request->user();
         // TCK-900 (P20.02) — une fois par ligne, et l'agence du personnel une fois par requête.
         $isPrincipal = $this->isPrincipal($user);
 
         if (! $this->seesQuote($user, $isPrincipal)) {
-            $data = array_diff_key($data, array_flip(self::QUOTE_FIELDS));
+            $data = array_diff_key($data, array_flip([...self::QUOTE_FIELDS, ...self::COST_FIELDS]));
         }
 
         // Les consignes d'accès s'écrivent par le donneur d'ordre et se lisent, par le prestataire,
@@ -189,7 +205,10 @@ class MaintenanceRequestResource extends BaseResource
         $status = $mr->status ?? MaintenanceStatus::Open;
         $terminal = $machine->isTerminal($status);
         $isProvider = $user->can('actAsProvider', $mr);
-        $canRespond = ! $terminal && $user->can('respondToAssignment', $mr) && $mr->accepted_at === null;
+        // TCK-2652 — ni sur une demande rendue (`completed`) : « J'accepte » s'y affichait, le serveur
+        // refuse désormais ce geste (409). Même ensemble que la file `a_accepter`.
+        $canRespond = ! in_array($status, MaintenanceQueue::NOT_ACCEPTABLE, true)
+            && $user->can('respondToAssignment', $mr) && $mr->accepted_at === null;
 
         // Mêmes portes que `UpdateStatusMaintenanceRequestRequest::authorize()` : `update` PUIS
         // (acteur, cible). Le demandeur n'a pas `update` : il confirme par son propre geste.

@@ -12,12 +12,15 @@ use App\Models\Enums\ConversationType;
 use App\Models\Enums\MaintenanceCategory;
 use App\Models\Enums\MaintenancePriority;
 use App\Models\Enums\MaintenanceStatus;
+use App\Services\Maintenance\MaintenanceQueue;
 use App\Services\Maintenance\ProviderEligibility;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Property\BailleurDuBien;
 use App\Sorts\MaintenancePrioritySort;
+use App\Support\Http\ParametreUnique;
 use App\Support\Query\DepartageQueryBuilder;
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -90,6 +93,8 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
         'accepted_at' => 'datetime',
+        // TCK-2652 — l'entrée dans le statut courant, posée par {@see self::booted()}.
+        'status_changed_at' => 'datetime',
         'quote_lines' => 'array',
         'quote_valid_until' => 'date',
         'quote_estimated_duration_days' => 'integer',
@@ -113,8 +118,47 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
         'estimated_cost', 'actual_cost', 'quote_amount', 'quote_currency',
         'quote_submitted_at', 'quote_decision_at', 'quote_decision_by_id',
         'scheduled_at', 'completed_at', 'accepted_at', 'quote_valid_until',
+        // TCK-2652 — la source de `waiting_since`.
+        'status_changed_at',
         'created_at', 'updated_at',
     ];
+
+    /**
+     * TCK-2652 — `status_changed_at` suit tout changement de `status`, quel que soit l'écrivain :
+     * machine d'état, devis, acceptation, clôture automatique, seeders. Posée par le modèle et non
+     * par chaque chemin, pour qu'aucun ne l'oublie (les deux `saveQuietly()` du dépôt n'écrivent que
+     * `metadata`). Une valeur posée explicitement dans la même écriture est respectée.
+     *
+     * À la création, l'instant est celui que la ligne porte déjà ({@see self::statusEnteredAt()}) :
+     * une demande créée datée (seeders, import) n'attend pas « depuis aujourd'hui ».
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (self $mr): void {
+            if ($mr->isDirty('status') && ! $mr->isDirty('status_changed_at')) {
+                $mr->status_changed_at = $mr->exists ? now() : ($mr->statusEnteredAt() ?? now());
+            }
+        });
+    }
+
+    /**
+     * TCK-2652 — l'entrée dans le statut d'une ligne créée déjà datée : la colonne qui date le geste
+     * d'entrée, sinon sa création. Même règle que le rétro-remplissage de la migration
+     * `add_status_changed_at_to_maintenance_requests`. Nul pour une création ordinaire (ni l'une ni
+     * l'autre n'est encore posée) : l'appelant prend alors l'instant courant.
+     */
+    private function statusEnteredAt(): ?CarbonInterface
+    {
+        $dated = match ($this->status) {
+            MaintenanceStatus::QuoteSubmitted => $this->quote_submitted_at,
+            MaintenanceStatus::Approved, MaintenanceStatus::Rejected => $this->quote_decision_at,
+            MaintenanceStatus::InProgress => $this->started_at,
+            MaintenanceStatus::Completed => $this->completed_at,
+            default => null,
+        };
+
+        return $dated ?? $this->created_at;
+    }
 
     public static function buildQuery(?Builder $baseQuery = null, ?Request $request = null): QueryBuilder
     {
@@ -167,6 +211,14 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
             ->setTimezone(config('app.timezone'));
 
         return [
+            // TCK-2652 — `filter[file]=a_dispatcher,en_retard` : les files d'attente
+            // ({@see MaintenanceQueue}), plus `a_accepter` pour le prestataire. Une liste à virgules ;
+            // une valeur inconnue, ou une liste `filter[file][]=`, ne rend rien.
+            AllowedFilter::callback('file', function (Builder $q, mixed $value): void {
+                $raw = ParametreUnique::valeur($value);
+                $files = $raw === null ? [] : array_values(array_filter(array_map('trim', explode(',', $raw)), fn (string $f) => $f !== ''));
+                MaintenanceQueue::scopeToFiles($q, $files, request()->user());
+            })->delimiter(''),
             AllowedFilter::callback('scheduled_from', function (Builder $q, mixed $value) use ($debutDuJour): void {
                 if ($value === null || $value === '') {
                     return;

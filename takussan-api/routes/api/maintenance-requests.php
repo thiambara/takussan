@@ -2,13 +2,18 @@
 
 use App\Http\Controllers\Api\MaintenanceQuoteController;
 use App\Http\Controllers\Api\MaintenanceRequestController;
+use App\Http\Controllers\Api\SuggestedProvidersController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('maintenance-requests', [MaintenanceRequestController::class, 'index'])->name('maintenance-requests.index');
     // TCK-1404 (ADR-0072) — une intervention rejouée sous la même clé n'est ouverte qu'une fois.
     Route::post('maintenance-requests', [MaintenanceRequestController::class, 'store'])->middleware('idempotent')->name('maintenance-requests.store');
+    // TCK-2652 — les comptes des files d'attente ; déclarée AVANT `{maintenanceRequest}`.
+    Route::get('maintenance-requests/summary', [MaintenanceRequestController::class, 'summary'])->name('maintenance-requests.summary');
     Route::get('maintenance-requests/{maintenanceRequest}', [MaintenanceRequestController::class, 'show'])->name('maintenance-requests.show');
+    // TCK-2652 — au plus trois prestataires du carnet, pour le dispatch.
+    Route::get('maintenance-requests/{maintenanceRequest}/suggested-providers', SuggestedProvidersController::class)->name('maintenance-requests.suggested-providers');
     Route::put('maintenance-requests/{maintenanceRequest}', [MaintenanceRequestController::class, 'update'])->name('maintenance-requests.update');
     Route::patch('maintenance-requests/{maintenanceRequest}', [MaintenanceRequestController::class, 'update']);
 

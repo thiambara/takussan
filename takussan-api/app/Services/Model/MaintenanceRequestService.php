@@ -239,6 +239,10 @@ class MaintenanceRequestService
                 ->firstOrFail();
 
             abort_code_if($this->machine->isTerminal($fresh->status), 422, 'maintenance.terminal_request');
+            // TCK-2652 — le travail rendu ne s'accepte plus : `completed` n'est pas terminal (le
+            // demandeur peut encore contester), et « J'accepte » y passait. Conflit avec l'état de la
+            // ressource, d'où 409 ; `closed` et `cancelled` gardent le 422 commun des terminaux.
+            abort_code_if($fresh->status === MaintenanceStatus::Completed, 409, 'maintenance.accept_after_completion');
             abort_code_if($fresh->accepted_at !== null, 422, 'maintenance.already_accepted');
 
             $fresh->accepted_at = now();

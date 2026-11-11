@@ -383,6 +383,8 @@ return [
         'password_reset_not_sent' => 'The password reset email could not be sent.',
     ],
     'maintenance' => [
+        // TCK-2652
+        'accept_after_completion' => 'The work is done: the job can no longer be accepted.',
         'actual_cost_needs_owner' => 'This cost exceeds the landlord\'s works threshold and what they approved: only the landlord can record it.',
         'already_accepted' => 'The request is already accepted.',
         'amount_too_large' => 'This amount, rounded to the currency unit, exceeds the largest amount that can be recorded.',

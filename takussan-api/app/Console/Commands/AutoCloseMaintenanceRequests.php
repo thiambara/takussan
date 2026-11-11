@@ -20,7 +20,13 @@ use Illuminate\Support\Facades\Log;
  */
 class AutoCloseMaintenanceRequests extends Command
 {
-    protected $signature = 'maintenance:auto-close {--days=7}';
+    /**
+     * TCK-2652 — le délai par défaut, lu aussi par `MaintenanceQueue` pour annoncer `auto_close_at` au
+     * demandeur d'une demande `completed`.
+     */
+    public const DEFAULT_DAYS = 7;
+
+    protected $signature = 'maintenance:auto-close {--days='.self::DEFAULT_DAYS.'}';
 
     protected $description = 'Close completed maintenance requests the requester neither confirmed nor contested.';
 

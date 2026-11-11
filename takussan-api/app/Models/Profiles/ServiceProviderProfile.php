@@ -6,8 +6,11 @@ use App\Models\Agency;
 use App\Models\Bases\AbstractModel;
 use App\Models\Document;
 use App\Models\Enums\DocumentType;
+use App\Models\Enums\MaintenanceStatus;
 use App\Models\Enums\ServiceProviderProfileStatus;
 use App\Models\Invitation;
+use App\Models\MaintenanceRequest;
+use App\Models\Property;
 use App\Models\Review;
 use App\Models\User;
 use Database\Factories\Profiles\ServiceProviderProfileFactory;
@@ -119,6 +122,30 @@ class ServiceProviderProfile extends AbstractModel
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * TCK-2652 — les interventions RÉALISÉES par ce prestataire pour une agence : assignées à son
+     * compte, rendues (`completed`) ou closes après rendu (`closed`, qu'on n'atteint que depuis
+     * `completed`), sur un bien de l'agence, supprimé compris. Sous-requête corrélée, à poser par
+     * `addSelect` : le carnet et les suggestions la lisent sans requête par ligne.
+     */
+    public static function completedInterventionsSubquery(int $agencyId): Builder
+    {
+        return MaintenanceRequest::query()
+            ->selectRaw('count(*)')
+            ->whereColumn('maintenance_requests.assigned_to', 'service_provider_profiles.user_id')
+            ->whereIn('maintenance_requests.status', [MaintenanceStatus::Completed->value, MaintenanceStatus::Closed->value])
+            ->whereIn('maintenance_requests.property_id', Property::withTrashed()->select('id')->where('agency_id', $agencyId));
+    }
+
+    /**
+     * TCK-2652 — le téléphone du compte lié, lu par sous-requête corrélée ; le carnet retombe sur
+     * `metadata.phone` (le numéro saisi à l'invitation) quand le compte n'en a pas ou n'existe pas.
+     */
+    public static function accountPhoneSubquery(): Builder
+    {
+        return User::query()->select('phone')->whereColumn('users.id', 'service_provider_profiles.user_id');
     }
 
     public function agencyCollaborations(): HasMany

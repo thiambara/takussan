@@ -383,6 +383,8 @@ return [
         'password_reset_not_sent' => 'L\'e-mail de réinitialisation du mot de passe n\'a pas pu être envoyé.',
     ],
     'maintenance' => [
+        // TCK-2652
+        'accept_after_completion' => 'Les travaux sont terminés : l\'intervention ne s\'accepte plus.',
         'actual_cost_needs_owner' => 'Ce coût dépasse le plafond de travaux du bailleur et ce qu\'il a approuvé : seul le bailleur peut l\'inscrire.',
         'already_accepted' => 'L\'intervention est déjà acceptée.',
         'amount_too_large' => 'Ce montant, arrondi à l\'unité de la devise, dépasse le maximum enregistrable.',

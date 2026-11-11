@@ -129,4 +129,76 @@ Autres règles :
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+**2026-11-11 (back-3)** — livré sur `feat/audit-ux-app-lot-1`.
+
+- **`App\Services\Maintenance\MaintenanceQueue`** : la table est UNE fonction (`classify()`, `match`
+  sans `default`) ; l'expression SQL du filtre et des comptes (`fileExpression()`, `CASE` sans `ELSE`)
+  est **construite en parcourant cette fonction** statut × prestataire × créneau : la ligne et le filtre
+  ne peuvent pas diverger. « Créneau passé » = `scheduled_at` < début du jour à Dakar.
+- **Prémisse qui différait — deux cas non classés par la table du ticket** : `assign()` ne change pas
+  le statut, donc `open`/`acknowledged` **avec** prestataire est l'état ordinaire d'une demande
+  dispatchée → classées comme `assigned` avec prestataire (`en_retard`/`en_cours`, attente
+  `provider`). `rejected` avec prestataire → `en_cours`/`provider` (le même prestataire re-soumet).
+  `approved`/`in_progress` sans prestataire suivent la règle du créneau, comme la table l'écrit.
+- **`a_accepter`** n'est pas une file de la table (elle recoupe `en_cours`/`en_retard`) : c'est
+  l'ensemble exact où `abilities.can_accept` est vrai — assignée à l'appelant, `accepted_at` nul, ni
+  `completed` ni `closed` ni `cancelled` (le ticket disait « `assigned` », qui manquait les demandes
+  `open` dispatchées). Clé de `summary` aussi.
+- **Ressource** : `file`, `waiting_on`, `waiting_since` (`status_changed_at`, repli `created_at`),
+  `slot_overdue_days` (jours entiers à Dakar, sur `en_retard` seulement), `auto_close_at`
+  (`completed_at` + `AutoCloseMaintenanceRequests::DEFAULT_DAYS`). Sans requête. ⚠ Sous sparse
+  fieldset, ces clés sont **nulles** si `status`, `assigned_to` ou `scheduled_at` ne sont pas lus (une
+  file déduite d'une colonne absente serait fausse) : le front demande ces colonnes, plus
+  `status_changed_at`, `created_at`, `completed_at`.
+- **`filter[file]`** : liste à virgules ; valeur inconnue ou `filter[file][]=` → rien (comme
+  `filter[due]`). **`GET /api/maintenance-requests/summary`** → `{data: {a_dispatcher, en_retard,
+  chez_le_bailleur, en_cours, a_confirmer, terminees, a_accepter}}`, sous `visibleTo` et les AUTRES
+  filtres de la requête (statut, priorité…), jamais `filter[file]` ; deux requêtes.
+- **`status_changed_at`** : posé par le modèle (`MaintenanceRequest::booted()`, `saving` quand `status`
+  change et que la colonne n'est pas posée dans la même écriture), pas par la seule machine d'état :
+  aucun écrivain (devis, acceptation, clôture auto, seeders) ne peut l'oublier — les deux `saveQuietly()`
+  du dépôt (création urgente, escalade) n'écrivent que `metadata`. À la **création**, l'instant est celui
+  que la ligne porte déjà (colonne datée du geste, sinon `created_at`) : les seeders créent des demandes
+  datées, qui n'attendent donc pas « depuis le seed ». **Rétro-remplissage** :
+  le journal d'activité est inutilisable (lignes `created`/`updated` à `properties` vide, relevé démo) ;
+  choix par statut écrit dans la migration (`open` → `created_at`, colonnes datées du geste, sinon
+  `updated_at`).
+- **Prémisses déjà servies** : `filter[scheduled_from|to]` existaient (TCK-2623) — seul
+  `ProviderWeekFilterTest` ajouté ; les champs de devis étaient déjà retirés au locataire (TCK-592) —
+  seuls `estimated_cost`/`actual_cost` rejoignent la même règle (`seesQuote`).
+- **Accepter une demande terminée** : `completed` → **409 `maintenance.accept_after_completion`** (code
+  neuf, fr/en/wo), jugé sur la ligne relue sous verrou. **Écart assumé** : `closed`/`cancelled` gardent
+  le **422 `maintenance.terminal_request`** commun à tous les gestes sur un terminal (épinglé par
+  `MaintenanceAcceptWithSlotTest`, `MaintenanceTerminalRequestTest`). `can_decline` était déjà faux sur
+  `completed` (`UNSTARTED`).
+- **`description`** : facultative pour le demandeur, exigée du donneur d'ordre (`requiredIf`
+  `isPrincipalFor`). La colonne était `NOT NULL` : migration `make_description_nullable…` (sans elle,
+  500) ; une demande sans description rend `description: null`.
+- **Suggestions** (`SuggestedProvidersController`) : règle écrite dans la classe. Métier = **filtre**
+  (`specialties` contient la catégorie, à la lettre), puis zone (`service_areas` nomme le quartier ou la
+  ville, casse/accents/espaces ignorés), note (sans avis après), interventions réalisées, id. Prestataires
+  actifs en collaboration active. Accès : `view` sur la demande ET `viewAny` du carnet de l'agence (suit
+  `maintenance.assign`) — ni prestataire, ni locataire, ni bailleur seul. ⚠ **Vocabulaires disjoints** :
+  les catégories (`structural`, `appliance`, `cleaning`, `pest_control`) n'ont pas de métier homonyme
+  dans `TradesMultiSelect` (`masonry`, `climate_control`) — ces demandes n'ont pas de suggestion tant
+  qu'aucune correspondance n'est décidée (non inventée ici).
+- **Carnet** : `phone` (compte, sinon `metadata.phone`) et `completed_interventions_count` (rendues ou
+  closes, biens de CETTE agence, supprimés compris) par sous-requêtes corrélées.
+- **Deux conséquences à trancher** (de `assign()` qui ne change pas le statut) :
+  1. `waiting_since` ne bouge qu'avec le statut : une demande `open` du 14 sept. dispatchée aujourd'hui
+     lit « attend le prestataire depuis le 14 sept. » ; de même après un refus du prestataire. Conforme
+     à la lettre du ticket (« entrée dans le statut courant »), qui supposait que dispatcher passait à
+     `assigned`.
+  2. `a_accepter` = l'ensemble de `can_accept` : une demande devisée ou démarrée sans acceptation y
+     reste. La **#9 de la démo** (`in_progress`, 45 j de retard, `accepted_at` nul) est « à accepter »
+     pour son prestataire. Alternative : restreindre aux statuts non démarrés (`UNSTARTED`), ce qui
+     désaccorderait la file et le bouton.
+- **À reporter par `/sync-specs`** : §1.8 de `features.md` (coûts masqués au locataire) ; la table des
+  files et `a_accepter` (le ticket renvoyait à un `spec-delta.md` qui n'existe pas) ; `models-spec`
+  §21 (`status_changed_at`, `description` nullable) et §37 (carnet : `phone`,
+  `completed_interventions_count`).
+- Tests : `MaintenanceQueueMappingTest` (48 cas + parité ligne/filtre aux bornes du jour + AC2),
+  `MaintenanceSummaryCountsTest`, `MaintenanceAcceptOnCompletedTest`,
+  `MaintenanceCostHiddenFromTenantTest`, `ProviderWeekFilterTest`, `SuggestedProvidersTest`,
+  `ServiceProviderIndexPhoneAndCountTest`, `MaintenanceStoreWithoutDescriptionTest` ;
+  `AmountRepresentationTest` adapté (rendu pour le prestataire assigné). 11 ablations, toutes rouges.

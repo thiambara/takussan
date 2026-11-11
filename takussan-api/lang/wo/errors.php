@@ -383,6 +383,8 @@ return [
         'password_reset_not_sent' => 'E-mail soppi baatu jàll bi mënuñu ko yónni.',
     ],
     'maintenance' => [
+        // TCK-2652
+        'accept_after_completion' => 'Les travaux sont terminés : l\'intervention ne s\'accepte plus.',
         'actual_cost_needs_owner' => 'Njëg jii weesu na digu liggéey bu boroom kër gi ak li mu nangu : boroom kër gi rekk mën koo bind.',
         'already_accepted' => 'Liggéey bi nangu nañu ko ba noppi.',
         'amount_too_large' => 'Lim bii, bu ñu ko yokk ba unité devise bi, ëpp na li ñu mëna bind.',
