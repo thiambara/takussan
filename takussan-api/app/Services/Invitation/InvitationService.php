@@ -677,7 +677,11 @@ class InvitationService
      * tokens, 410 for expired/revoked/accepted ones — discriminated so
      * the frontend can show a specific message.
      */
-    protected function lookupActiveInvitation(string $token): Invitation
+    /**
+     * TCK-2609 (ADR-0094 §3) — publique : l'aperçu et la demande de nouveau lien rendent le MÊME
+     * état du jeton que l'acceptation, sans seconde lecture de ses règles.
+     */
+    public function lookupActiveInvitation(string $token): Invitation
     {
         /** @var Invitation|null $invitation */
         $invitation = Invitation::query()->where('token', $token)->first();

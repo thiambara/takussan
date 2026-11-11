@@ -52,6 +52,7 @@ use App\Http\Controllers\Api\ServiceProviderBillController;
 use App\Http\Controllers\Api\SettingController;
 use App\Http\Controllers\Api\UserRoleController;
 use App\Http\Controllers\Public\InvitationAcceptController;
+use App\Http\Controllers\Public\InvitationRenewalRequestController;
 use App\Http\Middleware\RequireRecentTwoFactor;
 use App\Http\Middleware\RequireTwoFactor;
 
@@ -199,6 +200,8 @@ final class ProtectedActions
     public const EXEMPT = [
         // L'invité n'a pas encore de compte : il accepte par le lien reçu.
         InvitationAcceptController::class.'@__invoke' => 'acceptation publique d\'une invitation',
+        // TCK-2609 — l'invité au lien expiré, sans compte, demande un nouveau lien : il ne fait que prévenir l'invitant.
+        InvitationRenewalRequestController::class.'@__invoke' => 'demande publique d\'un nouveau lien d\'invitation',
         // L'argent ENTRE : le client règle sa réservation, il n'est le personnel de personne.
         BookingPaymentController::class.'@store' => 'paiement d\'une réservation par le client',
     ];

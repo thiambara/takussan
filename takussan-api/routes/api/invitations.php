@@ -3,6 +3,8 @@
 use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\InvitationPrefillController;
 use App\Http\Controllers\Public\InvitationAcceptController;
+use App\Http\Controllers\Public\InvitationRenewalRequestController;
+use App\Http\Controllers\Public\PublicInvitationPreviewController;
 use Illuminate\Support\Facades\Route;
 
 // TCK-249 — Public accept endpoint. Mounted outside the auth:sanctum
@@ -13,6 +15,15 @@ use Illuminate\Support\Facades\Route;
 // route.
 Route::post('invitations/{token}/accept', InvitationAcceptController::class)
     ->name('invitations.accept');
+
+// TCK-2609 (ADR-0094 §1-3) — l'aperçu d'une invitation par son jeton, et la demande d'un nouveau
+// lien quand il a expiré : sans compte, le jeton est le secret porteur. Bornés par IP.
+Route::prefix('public/invitations')->group(function (): void {
+    Route::get('{token}', PublicInvitationPreviewController::class)
+        ->middleware('throttle:public-invitation-preview')->name('public.invitations.preview');
+    Route::post('{token}/renewal-request', InvitationRenewalRequestController::class)
+        ->middleware('throttle:public-invitation-renewal')->name('public.invitations.renewal-request');
+});
 
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('invitations', [InvitationController::class, 'index'])->name('invitations.index');

@@ -71,4 +71,58 @@ Sans objet : ticket back. L'écran qui consomme ce contrat est dit dans « Hors 
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+Implémenté le 2026-11-11 (voie back-entree, branche `feat/audit-ux-app-lot-1`).
+
+**Re-mesure de la prémisse** : conforme — aucune route publique de lecture d'invitation n'existait
+(`POST …/accept` public, `GET …/prefill` sous session), `lookupActiveInvitation` était `protected`.
+
+**Ce qui a été fait**
+
+- `GET /api/public/invitations/{token}` (`Public\PublicInvitationPreviewController`,
+  `PublicInvitationPreviewResource`) et `POST /api/public/invitations/{token}/renewal-request`
+  (`Public\InvitationRenewalRequestController`, service `Invitation\InvitationRenewalRequests`),
+  hors `auth:sanctum`, bornés par `throttle:public-invitation-preview` (30/min/IP) et
+  `throttle:public-invitation-renewal` (5/h/IP), réseau /64 en IPv6 (`clientNetwork`).
+- `InvitationService::lookupActiveInvitation` rendue publique : l'aperçu et la demande rendent le
+  même état que l'acceptation (404 `token_not_found` sans donnée ; 410 `token_expired` /
+  `token_revoked` / `token_accepted`). Le 410 de l'aperçu porte en plus `agency` {`name`,
+  `logo_url`, `public_phone`} et `invited_at` (par `ApiError::with()`) ; `agency` vaut `null` pour une
+  agence supprimée.
+- Masquage : `Masking::email()` (`a•••@gmail.com`) et `Masking::phone()` (`77 ••• 45 67`).
+- Agence : mêmes règles que `PublicAgencyController::show` — téléphone public seulement pour une
+  agence `active` + `standard`, compte par `Property::publicPortfolio()`, `verified` = `is_verified`,
+  ville = première adresse.
+- `awaiting` : bailleur → `properties_count` (biens dont `pending_owner_profile_id` = la fiche
+  `invitable` `OwnerProfile`) ; prestataire → `maintenance_request` si l'intervention de
+  `metadata.from_maintenance_request_id` est **dans l'agence qui invite** (sinon rien, pour ne pas
+  laisser un jeton lire l'intervention d'une autre agence) ; sinon `{}`.
+
+**Écarts au ticket, délibérés**
+
+1. **Notification codée, pas une classe** `InvitationRenewalRequestedNotification` : ADR-0032 —
+   code `invitation.renewal_requested` (`NotificationCode::InvitationRenewalRequested`, params
+   `invitee` texte, `role` rôle, `url` lien), textes `lang/{fr,en,wo}/notifications.php` et
+   `notifications.codes.invitation.renewal_requested` côté cloche. Cloche + e-mail.
+2. **Non désactivable** (`preferenceEvent()` null), là où le ticket dit « selon ses préférences » :
+   aucun interrupteur existant ne couvre l'invitation côté invitant, et l'expiration
+   (`InvitationExpiredNotification`) part déjà toujours par e-mail. À trancher si un interrupteur est
+   voulu.
+3. **Jeton encore valable → 410 `invitation.token_sent`** à la demande de nouveau lien (le contrat dit
+   « 410 sinon, avec son code » ; le code existait déjà). Agence supprimée depuis → 410
+   `token_revoked`, même sur un jeton expiré (l'ordre de `lookupActiveInvitation` rendrait
+   `token_expired`).
+4. **202 dans les deux issues** (prévenu / déjà prévenu dans les 24 h), corps
+   `{"data":{"status":"requested"}}` : la réponse n'en dit pas plus à qui tient le jeton.
+5. **Borne de 24 h** stockée sur l'invitation : `metadata.renewal_requested_at` (ISO), posée sous
+   verrou de ligne. `metadata` n'est pas rendu par `InvitationResource` (P181.05).
+6. **Masque téléphonique** : l'exemple du ticket `77 •• •• 45 67` ne tombe pas sur les 9 chiffres
+   d'un numéro sénégalais ; retenu `77 ••• 45 67` (indicatif d'opérateur + 4 derniers chiffres).
+7. **Deux genres de cible** ajoutés à `NotificationTarget::PATHS` : `owners` → `/app/owners`,
+   `service_providers` → `/app/maintenance/providers` (où `OwnersList` / `ServiceProvidersList`
+   renvoient) ; agent et admin d'agence → `team`. Autres rôles (`tenant`, `super_admin`) : sans cible,
+   lien vers `/app`.
+
+**À savoir pour TCK-2611** : un jeton `tenant` ou `super_admin` rend aussi 200 (rôle hors des quatre
+du ticket) ; `agency` et `inviter` peuvent valoir `null` ; `awaiting` est un objet vide `{}` hors
+bailleur et prestataire.
+

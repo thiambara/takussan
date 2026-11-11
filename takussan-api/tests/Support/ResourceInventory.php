@@ -22,9 +22,11 @@ use App\Http\Resources\OwnerProfileResource;
 use App\Http\Resources\PropertyMapGeoJsonResource;
 use App\Http\Resources\PropertySitemapResource;
 use App\Http\Resources\PropertyTagResource;
+use App\Http\Resources\PublicInvitationPreviewResource;
 use App\Http\Resources\ServiceProviderAgencyCollaborationResource;
 use App\Http\Resources\ServiceProviderDirectoryResource;
 use App\Models\Agency;
+use App\Models\Invitation;
 use App\Models\Lease;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
@@ -159,6 +161,11 @@ final class ResourceInventory
                 .'La liste des sujets suit la liste des alias de `ActiveProfileResolver::TYPE_MAP` ; '
                 .'elle ne la précède pas (`aliasFor()` LÈVE pour une classe absente de la carte). '
                 .'Le profil courtier y a figuré, puis a quitté le code (TCK-495, ADR-0030).',
+        ],
+        // TCK-2609
+        PublicInvitationPreviewResource::class => [
+            'modeles' => [Invitation::class],
+            'raison' => "TCK-2609 — l'aperçu public d'une invitation par son jeton (ADR-0094) : le nom dit la vue, pas le modèle.",
         ],
     ];
 

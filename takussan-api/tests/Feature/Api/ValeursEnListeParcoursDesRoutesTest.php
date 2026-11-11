@@ -110,6 +110,8 @@ class ValeursEnListeParcoursDesRoutesTest extends ApiTestCase
         'api/public/properties/{slug}/conversation' => '{slug} : sans liaison de modèle',
         'api/public/agents/{slug}' => '{slug} : sans liaison de modèle',
         'api/public/agents/{slug}/properties' => '{slug} : sans liaison de modèle',
+        // TCK-2609 — l'aperçu d'une invitation : le jeton n'est lié à aucun modèle par la route.
+        'api/public/invitations/{token}' => '{token} : sans liaison de modèle',
         'api/public/agencies/{slug}' => '{slug} : sans liaison de modèle',
         'api/public/agencies/{slug}/properties' => '{slug} : sans liaison de modèle',
         'api/service-provider-bills/{bill}' => '{bill} : sans liaison de modèle',

@@ -542,6 +542,12 @@ class AppServiceProvider extends ServiceProvider
         // (20/min par compte) ; préfixe propre, pour ne partager aucun compteur avec elle.
         RateLimiter::for('public-geo-link', fn (Request $request) => Limit::perMinute(10)->by('geo-link-ip:'.$this->clientNetwork($request)));
 
+        // TCK-2609 (ADR-0094 §3) — l'aperçu d'une invitation par son jeton, sans compte : par IP, assez
+        // large pour un invité qui recharge, assez serré pour qu'on n'y énumère pas de jetons. La
+        // demande d'un nouveau lien écrit à l'invitant : 5 par heure.
+        RateLimiter::for('public-invitation-preview', fn (Request $request) => Limit::perMinute(30)->by('invitation-preview-ip:'.$this->clientNetwork($request)));
+        RateLimiter::for('public-invitation-renewal', fn (Request $request) => Limit::perHour(5)->by('invitation-renewal-ip:'.$this->clientNetwork($request)));
+
         // TCK-596 (ADR-0042 §2) — l'envoi d'un code de signature de bail : par utilisateur, 3/min et
         // 10/h, EN PLUS de la borne du canal SMS (5/h) et du délai de renvoi de 60 s du service.
         RateLimiter::for('lease-signature-code', function (Request $request) {
