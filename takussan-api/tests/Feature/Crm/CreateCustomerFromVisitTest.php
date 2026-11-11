@@ -85,7 +85,14 @@ class CreateCustomerFromVisitTest extends ApiTestCase
         $agent = $this->agencyAgent($this->a);
         $this->assertTrue($this->peutCreer($agent));
 
-        $fiche = $this->creer($agent)->assertCreated()->json('data.id');
+        // Une fiche sous un autre nom, un autre numéro et une autre adresse que ceux saisis sur la visite :
+        // sinon, « rien d'autre n'est réécrit » ne pourrait rien distinguer (vérification adverse).
+        $fiche = $this->creer($agent, [
+            'first_name' => 'Aïssatou',
+            'last_name' => 'Diop Ndiaye',
+            'phone' => '+221776543210',
+            'email' => 'aissatou.ndiaye@exemple.sn',
+        ])->assertCreated()->json('data.id');
 
         $this->assertSame($fiche, $this->getJson("/api/property-visits/{$this->visite->id}")->assertOk()->json('data.customer_id'));
         $this->assertSame($this->a->id, (int) Customer::query()->findOrFail($fiche)->agency_id);
