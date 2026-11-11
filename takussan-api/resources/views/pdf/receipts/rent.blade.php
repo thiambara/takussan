@@ -51,7 +51,8 @@
     <table class="kv">
         <tr>
             <th>Nom</th>
-            <td>{{ trim(($tenant->first_name ?? '').' '.($tenant->last_name ?? '')) }}</td>
+            {{-- TCK-2718 — une fiche sans nom : l'e-mail, puis le téléphone, puis « — ». --}}
+            <td>{{ \App\Services\Pdf\PrintedName::of($tenant) }}</td>
         </tr>
         @if ($tenant->email ?? false)
         <tr>

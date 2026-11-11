@@ -55,7 +55,8 @@
         <tr>
             <th>Locataire</th>
             <td>
-                {{ trim(($tenant->first_name ?? '').' '.($tenant->last_name ?? '')) }}
+                {{-- TCK-2718 — une fiche sans nom : l'e-mail, puis le téléphone, puis « — ». --}}
+                {{ \App\Services\Pdf\PrintedName::of($tenant) }}
                 @if ($tenant->email ?? false)
                     <div class="muted">{{ $tenant->email }}</div>
                 @endif
@@ -178,7 +179,7 @@
             <tbody>
                 @foreach ($guarantors as $g)
                     <tr>
-                        <td>{{ trim(($g->first_name ?? '').' '.($g->last_name ?? '')) }}</td>
+                        <td>{{ \App\Services\Pdf\PrintedName::of($g) }}</td>
                         <td>
                             @if ($g->email ?? false){{ $g->email }}<br>@endif
                             @if ($g->phone ?? false){{ $g->phone }}@endif

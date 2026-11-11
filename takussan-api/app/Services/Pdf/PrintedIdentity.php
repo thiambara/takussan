@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Model;
  * {@see self::KEY}, et le rendu les rend sur des COPIES en mémoire des modèles qu'il passe au
  * gabarit : les gabarits ne changent pas, et rien n'est écrit sur les lignes courantes.
  *
- * Ce qui est figé est ce que les gabarits lisent, et lui seul : nom et courriel d'une personne,
+ * Ce qui est figé est ce que les gabarits lisent, et lui seul : nom, courriel et téléphone d'une personne,
  * titre et adresse d'un bien, nom de l'agence. Le logo de l'agence reste recomposé (P109.04).
  * Un acte acquitté ou signé avant ce ticket n'a pas d'instantané : il imprime les valeurs
  * courantes, comme avant.
@@ -29,8 +29,12 @@ final class PrintedIdentity
      */
     public const LANDLORD_COMPANY = 'landlord_company_name';
 
-    /** Les attributs d'une personne (locataire, client, bailleur) que les gabarits impriment. */
-    private const PERSON = ['first_name', 'last_name', 'name', 'email'];
+    /**
+     * Les attributs d'une personne (locataire, client, bailleur) que les gabarits impriment. Le
+     * téléphone depuis TCK-2718 : {@see PrintedName} l'imprime à défaut de nom et d'e-mail. Un
+     * instantané antérieur ne l'a pas : sa copie garde le téléphone courant, comme avant.
+     */
+    private const PERSON = ['first_name', 'last_name', 'name', 'email', 'phone'];
 
     /** Les composantes de `Address::full_address`, un accesseur : on fige ses parts. */
     private const ADDRESS = ['street', 'neighborhood', 'postal_code', 'city', 'region', 'country'];
