@@ -13688,7 +13688,8 @@
       "openShort": "See the record",
       "rentPrice": "{price}/month",
       "openKnownDetail": "The record that already has these contact details",
-      "fromNotification": "Opened from the notification · {n} of {total}"
+      "fromNotification": "Opened from the notification · {n} of {total}",
+      "fromNotificationAlone": "Opened from the notification"
     },
     "return": {
       "question": "Did you reply to {name}?",

@@ -13688,7 +13688,8 @@
       "openShort": "Voir la fiche",
       "rentPrice": "{price}/mois",
       "openKnownDetail": "La fiche qui porte déjà ces coordonnées",
-      "fromNotification": "Ouverte depuis la notification · {n} sur {total}"
+      "fromNotification": "Ouverte depuis la notification · {n} sur {total}",
+      "fromNotificationAlone": "Ouverte depuis la notification"
     },
     "return": {
       "question": "Vous avez répondu à {name} ?",

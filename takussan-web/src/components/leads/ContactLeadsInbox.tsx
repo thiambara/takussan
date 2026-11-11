@@ -158,18 +158,26 @@ export function ContactLeadsInbox() {
 
   // ── Téléphone : la demande ouverte remplace la liste. ─────────────────────────────────────────
   if (!large && ouverte) {
-    const rang = lignes.findIndex((l) => l.id === ouverte.id);
-    const rangLu = { n: (page - 1) * 20 + rang + 1, total: Math.max(total ?? 0, rang + 1) };
+    // Le rang se lit dans la page SERVIE (`page_`), jamais dans `lignes` : la désignée y est préposée
+    // à chaque page sans être comptée dans `meta.total` de la vue, ce qui décalait tous les rangs
+    // (« 2 sur 2 à traiter » pour une seule à traiter, « 41 sur 40 » en page 2 — vérification adverse
+    // de TCK-2584, d1).
+    const rang = page_.findIndex((l) => l.id === ouverte.id);
+    const rangLu = { n: (page - 1) * 20 + rang + 1, total: total ?? 0 };
+    const depuisLaNotification = enTete?.id === ouverte.id;
     // Ouverte depuis une notification (`?lead=`, la demande désignée) : le sous-titre le dit, comme
-    // l'écran « La demande » de la maquette (app-fil-commercial a-0).
+    // l'écran « La demande » de la maquette (app-fil-commercial a-0) — sans rang quand elle n'est pas
+    // de la page servie (traitée, d'une autre vue ou d'une autre page).
     const position =
       rang >= 0 && total !== null
-        ? enTete?.id === ouverte.id
+        ? depuisLaNotification
           ? t('detail.fromNotification', rangLu)
           : VUES_A_TRAITER.includes(filtre)
             ? t('detail.position', rangLu)
             : t('detail.positionAll', rangLu)
-        : undefined;
+        : depuisLaNotification
+          ? t('detail.fromNotificationAlone')
+          : undefined;
     return (
       <PagePleineLargeur data-slot="boite-des-demandes">
         <DemandeOuverte

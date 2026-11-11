@@ -330,6 +330,22 @@ describe('<ContactLeadsInbox> — TCK-590, TCK-2584', () => {
       await waitFor(() => expect(assign.mutateAsync).toHaveBeenCalledWith({ id: 1, user_id: 21 }));
     });
 
+    it('vérification adverse de TCK-2584 (B12) — « Attribuer » en échec garde le dialogue et le dit', async () => {
+      etat.roles = ['agency_admin'];
+      assign.mutateAsync.mockRejectedValueOnce(new Error('refus'));
+      const user = userEvent.setup();
+      rendre();
+
+      await user.click(within(panneau()).getByRole('button', { name: 'Attribuer' }));
+      await user.click(await screen.findByRole('combobox', { name: 'Collègue' }));
+      await user.click(await screen.findByRole('option', { name: 'Moussa Fall' }));
+      await user.click(screen.getAllByRole('button', { name: 'Attribuer' }).at(-1)!);
+
+      await waitFor(() => expect(toastAdd).toHaveBeenCalledWith({ title: 'L’action n’a pas abouti.', type: 'error' }));
+      expect(screen.getByRole('dialog', { name: 'Attribuer la demande' })).toBeInTheDocument();
+      expect(toastAdd).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'success' }));
+    });
+
     it('TCK-2584 — la liste des collègues est celle de l’agence de la demande, pas celle de l’utilisateur', async () => {
       etat.leads = [lead({ agency_id: 9 })];
       const user = userEvent.setup();
@@ -432,6 +448,18 @@ describe('<ContactLeadsInbox> — TCK-590, TCK-2584', () => {
       expect(ageRecente).toHaveTextContent('il y a 25 min');
       expect(ageRecente).not.toHaveClass('text-destructive');
       expect(recente.querySelector('[data-slot="point-d-age"]')).not.toHaveAttribute('data-en-retard');
+    });
+
+    it('vérification adverse de TCK-2584 (B9) — une demande TRAITÉE de 8 jours n’est pas en rouge', () => {
+      etat.large = false;
+      etat.leads = [lead({ id: 1, name: 'Mouhamed Dieng', created_at: '2026-11-02T08:47:00Z', handled_at: '2026-11-03T09:00:00Z' })];
+      rendre();
+
+      const [ligne] = screen.getAllByRole('listitem');
+      const age = ligne.querySelector('[data-slot="age-de-la-demande"]')!;
+      expect(age).toHaveTextContent('il y a 8 j');
+      expect(age).not.toHaveClass('text-destructive');
+      expect(ligne.querySelector('[data-slot="point-d-age"]')).not.toHaveAttribute('data-en-retard');
     });
 
     it('chaque ligne porte ses trois gestes de 44 px : WhatsApp, Appeler, Visite', () => {
@@ -573,6 +601,31 @@ describe('<ContactLeadsInbox> — TCK-590, TCK-2584', () => {
       await waitFor(() => expect(screen.queryByText('Vous avez répondu à Awa ?')).not.toBeInTheDocument());
     });
 
+    it('vérification adverse de TCK-2584 (B8) — « Oui, c’est traité » en échec garde la barre et le dit', async () => {
+      handle.mutateAsync.mockRejectedValueOnce(new Error('refus'));
+      const user = userEvent.setup();
+      rendre();
+      await user.click(within(panneau()).getByRole('link', { name: 'Répondre à Awa Diop par WhatsApp' }));
+      revenir();
+
+      await user.click(await screen.findByRole('button', { name: 'Oui, c’est traité' }));
+      await waitFor(() => expect(toastAdd).toHaveBeenCalledWith({ title: 'L’action n’a pas abouti.', type: 'error' }));
+      expect(screen.getByText('Vous avez répondu à Awa ?')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Oui, c’est traité' })).toBeInTheDocument();
+    });
+
+    it('vérification adverse de TCK-2584 (B5) — le geste sur une demande déjà traitée est enregistré, sans barre au retour', async () => {
+      etat.large = false;
+      etat.leads = [lead({ handled_at: '2026-11-10T11:50:00Z' })];
+      const user = userEvent.setup();
+      rendre();
+
+      await user.click(screen.getByRole('link', { name: 'Répondre à Awa Diop par WhatsApp' }));
+      expect(contact.mutate).toHaveBeenCalledWith({ id: 1, channel: 'whatsapp' }, expect.anything());
+      revenir();
+      expect(screen.queryByText('Vous avez répondu à Awa ?')).not.toBeInTheDocument();
+    });
+
     it('un e-mail est enregistré, sans barre de retour', async () => {
       const user = userEvent.setup();
       rendre();
@@ -700,6 +753,23 @@ describe('<ContactLeadsInbox> — TCK-590, TCK-2584', () => {
       etat.recherche = 'lead=1&ouverte=2';
       rendre();
       expect(declarations.find((d) => d.forme === 'plein-ecran')?.sousTitre).toBe('2 sur 2 à traiter');
+    });
+
+    it('vérification adverse de TCK-2584 (d1) — la désignée hors de la page servie (traitée) ne décale pas les rangs, et se lit sans rang', () => {
+      etat.large = false;
+      etat.leads = [lead({ id: 1 }), lead({ id: 2, name: 'Ousmane Sow' }), lead({ id: 3, name: 'Fatou Ba' })];
+      etat.designe = { data: lead({ id: 9, name: 'Mariama Sy', handled_at: '2026-11-10T11:50:00Z' }) };
+      const sousTitre = (ouverte: number) => {
+        declarations.length = 0;
+        etat.recherche = `lead=9&ouverte=${ouverte}`;
+        const { unmount } = rendre();
+        const lu = declarations.find((d) => d.forme === 'plein-ecran')?.sousTitre;
+        unmount();
+        return lu;
+      };
+
+      expect([sousTitre(1), sousTitre(2), sousTitre(3)]).toEqual(['1 sur 3 à traiter', '2 sur 3 à traiter', '3 sur 3 à traiter']);
+      expect(sousTitre(9)).toBe('Ouverte depuis la notification');
     });
 
     it('la demande désignée déjà dans la page n’y est pas rendue deux fois', () => {
