@@ -3,12 +3,16 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\Owners\ShowOwnerProfileRequest;
+use App\Http\Requests\Api\Owners\UpdateOwnerProfileRequest;
 use App\Http\Resources\IncludedUserResource;
+use App\Http\Resources\OwnerProfileDetailResource;
 use App\Http\Resources\OwnerProfileResource;
 use App\Models\Invitation;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use App\Policies\OwnerProfilePolicy;
+use App\Services\Owners\OwnerDirectory;
 use App\Services\Privacy\PersonalDataAccessLogger;
 use App\Support\AgencyKindGuard;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -35,6 +39,8 @@ use Illuminate\Http\Request;
  */
 class OwnerProfileController extends Controller
 {
+    public function __construct(private readonly OwnerDirectory $directory) {}
+
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -75,11 +81,63 @@ class OwnerProfileController extends Controller
         $query->addSelect(['pending_invitation_id' => Invitation::idEnvoyeePour(new OwnerProfile)
             ->whereColumn('invitations.agency_id', 'owner_profiles.agency_id')]);
 
+        // TCK-2640 — les chiffres de la ligne : comptes de biens, dernier versement, contact du
+        // compte, en sous-requêtes ; le reste à verser du mois courant, lu au relevé servi pour la
+        // page entière en une passe. `user_id` et `agency_id` sont chargés pour ce calcul.
+        $this->directory->addListColumns($query->getEloquentBuilder());
+        if ($query->getQuery()->columns !== null) {
+            $query->addSelect(['owner_profiles.user_id', 'owner_profiles.agency_id', 'owner_profiles.metadata']);
+        }
+
         $paginator = $query->paginate($this->tailleDePage($request, 20));
+
+        $profiles = collect($paginator->items());
+        $this->directory->fillContactFallbacks($profiles);
+        $remaining = $this->directory->remainingToPay($profiles);
+        foreach ($profiles as $profile) {
+            $profile->setAttribute('remaining_to_pay', $remaining[(int) $profile->id] ?? null);
+        }
 
         IncludedUserResource::preload($paginator->items());
 
         return $this->paginated($paginator, OwnerProfileResource::collection($paginator)->resolve($request));
+    }
+
+    /**
+     * TCK-2640 — la fiche d'un bailleur du carnet : identité, contact, biens, les chiffres du mois du
+     * relevé servi (`period`, le mois courant par défaut), le dernier versement, le plafond de
+     * travaux et le taux de l'agence. 404 hors de l'agence, 403 pour l'agent et une agence
+     * `individual` ({@see ShowOwnerProfileRequest}).
+     */
+    public function show(ShowOwnerProfileRequest $request, OwnerProfile $ownerProfile): JsonResponse
+    {
+        return $this->json(['data' => OwnerProfileDetailResource::make($this->directory->detail($ownerProfile, $request->period()))->resolve($request)]);
+    }
+
+    /**
+     * TCK-2640 — le plafond de travaux (ADR-0037), réglé par l'admin (`owners.update`). Il vaut pour
+     * les décisions À VENIR : il est lu à l'approbation d'un devis, et rien de ce qui est déjà
+     * tranché ou en attente du bailleur ne bouge. L'écriture est journalisée (avant, après, auteur)
+     * — le journal automatique du profil ne retient que `AUDIT_ONLY`.
+     */
+    public function update(UpdateOwnerProfileRequest $request, OwnerProfile $ownerProfile): JsonResponse
+    {
+        $before = $ownerProfile->works_approval_threshold !== null ? (float) $ownerProfile->works_approval_threshold : null;
+        $value = $request->input('works_approval_threshold');
+        $after = $value !== null ? round((float) $value, 2) : null;
+
+        if ($before !== $after) {
+            $ownerProfile->forceFill(['works_approval_threshold' => $after])->save();
+
+            activity('OwnerProfile')
+                ->causedBy($request->user())
+                ->performedOn($ownerProfile)
+                ->withProperties(['before' => $before, 'after' => $after])
+                ->event('owner_works_threshold_updated')
+                ->log('owner_works_threshold_updated');
+        }
+
+        return $this->json(['data' => OwnerProfileDetailResource::make($this->directory->detail($ownerProfile->refresh(), OwnerDirectory::currentPeriod()))->resolve($request)]);
     }
 
     /**

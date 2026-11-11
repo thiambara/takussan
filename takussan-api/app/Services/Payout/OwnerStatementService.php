@@ -3,6 +3,7 @@
 namespace App\Services\Payout;
 
 use App\Models\Agency;
+use App\Models\BookingPayment;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PayeeRole;
@@ -66,54 +67,14 @@ final class OwnerStatementService
     {
         [$start, $end, $annual] = self::period($period);
 
-        // TCK-2151 (P177.01) — une pièce d'un reversement versé se lit par sa copie, quel que soit son
-        // statut du jour : le mois versé ne change plus quand elle est remboursée ensuite.
-        $leasePayments = $this->calculator->leasePayments((int) $agency->id, (int) $landlord->id, $start, $end, false, true)->get();
-        $bookingPayments = $this->calculator->bookingPayments((int) $agency->id, (int) $landlord->id, $start, $end, false, true)->get();
-
-        // P206.01 — la pénalité réglée dans la période, reversée ou non, comme les pièces.
-        $lateFees = $this->calculator->lateFees((int) $agency->id, (int) $landlord->id, $start, $end, false)->get();
-
-        $carrying = $this->payoutsCarrying($agency, $landlord, $leasePayments->pluck('id')->all(), $bookingPayments->pluck('id')->all(), $lateFees);
-        // P177.03 (TCK-2041) — le versé et les frais vont au mois de `processed_at`, comme le « net
-        // reversé » du tableau de bord ({@see PortfolioMetrics::netPaidOutByMonth()}) : un reversement
-        // qui porte des pièces de plusieurs mois n'est compté, frais compris, que dans le mois où il
-        // a été versé, et la somme des mois rejoint l'année. Brut et commission restent ventilés par
-        // pièce de la période. Les frais d'un reversement pas encore versé n'entrent dans aucun mois.
-        $paid = $this->payoutsPaidIn($agency, $landlord, $start, $end);
-        $bills = ServiceProviderBill::query()
-            ->whereIn('imputed_payout_id', $paid->pluck('id'))
-            ->orderBy('id')
-            ->get();
-
-        $computation = $this->calculator->compute($agency, $leasePayments, $bookingPayments, $bills, $this->retainedRates($carrying, $lateFees), $lateFees, $this->retainedAmounts($carrying));
+        [
+            'computation' => $computation,
+            'carrying' => $carrying,
+            'paid' => $paid,
+            'totals' => $totals,
+        ] = $this->figures($agency, [(int) $landlord->id], $start, $end)[(int) $landlord->id];
         $paidIds = $paid->pluck('id')->all();
-
-        // TCK-2151 (P205.01, P205.03 ; ADR-0039, amendement du 2026-10-24, point 4) — la reprise est
-        // la seule ligne négative d'un remboursement, au mois du remboursement : elle diminue le net
-        // dû et le versé. Le reversement qui l'impute compte au versé AVANT reprise.
-        $clawbacks = $this->clawbacks->datedIn('landlord_id', (int) $landlord->id, $start, $end, (int) $agency->id);
-        $clawedBack = round((float) $clawbacks->sum(fn (object $c) => (float) $c->amount), 2);
-        $computation['lines']['clawbacks'] = $clawbacks->map(fn (object $c): array => [
-            'id' => (int) $c->id,
-            'source_payout_id' => (int) $c->source_payout_id,
-            'refunded_at' => CarbonImmutable::parse($c->refunded_at)->toIso8601String(),
-            'refund_amount' => (float) $c->refund_amount,
-            'commission_rate' => (float) $c->commission_rate,
-            'commission' => (float) $c->commission_amount,
-            'amount' => -(float) $c->amount,
-        ])->values()->all();
         $payouts = $carrying->concat($paid)->unique('id')->sortBy('id')->values();
-
-        $totals = array_merge($computation['totals'], [
-            'net' => round($computation['totals']['net'] - $clawedBack, 2),
-            'clawback' => $clawedBack,
-            'paid_out' => round((float) $paid->sum(fn (Payout $p) => (float) $p->net_amount + (float) ($p->clawback_amount ?? 0)) - $clawedBack, 2),
-        ]);
-        // TCK-2649 (ADR-0100) — le reste à verser, calculé ICI et une seule fois : la fiche bailleur
-        // et la page « Loyers » le lisent, jamais une soustraction côté front. Négatif s'il a été trop
-        // versé, rendu tel quel (la reprise suit ADR-0039).
-        $totals['remaining_to_pay'] = self::remainingToPay($totals);
 
         return [
             'agency' => ['id' => $agency->id, 'name' => $agency->name],
@@ -146,6 +107,125 @@ final class OwnerStatementService
             'unpaid' => $this->unpaid($agency, $landlord, $start, $end),
             'late_fees_outstanding' => $this->lateFeesOutstanding($agency, $landlord, $start, $end),
         ];
+    }
+
+    /**
+     * TCK-2640 — les totaux du relevé de plusieurs bailleurs d'une agence pour une période, en un
+     * nombre de requêtes qui ne dépend pas du nombre de bailleurs : la liste des bailleurs les lit
+     * pour sa page entière. Ce sont les totaux de {@see self::statement()}, calculés par le MÊME
+     * chemin ({@see self::figures()}) — jamais une seconde règle. Un bailleur sans rien rend des
+     * totaux à zéro.
+     *
+     * @param  list<int>  $landlordIds
+     * @return array<int, array<string, float>> par bailleur
+     */
+    public function totalsFor(Agency $agency, array $landlordIds, string $period): array
+    {
+        [$start, $end] = self::period($period);
+
+        return array_map(fn (array $f): array => $f['totals'], $this->figures($agency, $landlordIds, $start, $end));
+    }
+
+    /**
+     * Le cœur du relevé, pour un bailleur ou plusieurs : les pièces de la période, les reversements
+     * qui les portent et ceux versés dans la période, les frais, la reprise, puis le calcul de
+     * {@see PayoutCalculator::compute()} bailleur par bailleur — chacun sur SES pièces et SES
+     * reversements, exactement comme s'il était seul.
+     *
+     * @param  list<int>  $landlordIds
+     * @return array<int, array{computation: array<string, mixed>, carrying: Collection<int, Payout>, paid: Collection<int, Payout>, totals: array<string, float>}>
+     */
+    private function figures(Agency $agency, array $landlordIds, CarbonImmutable $start, CarbonImmutable $end): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $landlordIds)));
+        if ($ids === []) {
+            return [];
+        }
+        $agencyId = (int) $agency->id;
+
+        // TCK-2151 (P177.01) — une pièce d'un reversement versé se lit par sa copie, quel que soit son
+        // statut du jour : le mois versé ne change plus quand elle est remboursée ensuite.
+        $leasePayments = $this->calculator->leasePayments($agencyId, $ids, $start, $end, false, true)->get();
+        $bookingPayments = $this->calculator->bookingPayments($agencyId, $ids, $start, $end, false, true)->get();
+        // Le bailleur d'un acompte est le titulaire du bien de sa réservation (la jointure du calcul).
+        $bookingLandlords = Property::withTrashed()
+            ->whereIn('id', $bookingPayments->map(fn (BookingPayment $p) => $p->booking?->property_id)->filter()->unique()->values())
+            ->pluck('user_id', 'id');
+        $bookingPayments = $bookingPayments->groupBy(fn (BookingPayment $p) => (int) ($bookingLandlords[$p->booking?->property_id] ?? 0));
+
+        // P206.01 — la pénalité réglée dans la période, reversée ou non, comme les pièces.
+        $lateFees = $this->calculator->lateFees($agencyId, $ids, $start, $end, false)->get();
+        // Le bailleur d'une pièce de loyer est celui de son bail — lu avec les baux supprimés, que la
+        // jointure du calcul garde aussi (leur pièce n'a plus de relation `lease` chargée).
+        $leaseLandlords = Lease::withTrashed()
+            ->whereIn('id', $leasePayments->concat($lateFees)->pluck('lease_id')->unique()->values())
+            ->pluck('landlord_id', 'id');
+        $leasePayments = $leasePayments->groupBy(fn (LeasePayment $p) => (int) ($leaseLandlords[$p->lease_id] ?? 0));
+        $lateFees = $lateFees->groupBy(fn (LeasePayment $p) => (int) ($leaseLandlords[$p->lease_id] ?? 0));
+
+        $carrying = $this->payoutsCarrying($agencyId, $ids, $leasePayments, $bookingPayments, $lateFees);
+        // P177.03 (TCK-2041) — le versé et les frais vont au mois de `processed_at`, comme le « net
+        // reversé » du tableau de bord ({@see PortfolioMetrics::netPaidOutByMonth()}) : un reversement
+        // qui porte des pièces de plusieurs mois n'est compté, frais compris, que dans le mois où il
+        // a été versé, et la somme des mois rejoint l'année. Brut et commission restent ventilés par
+        // pièce de la période. Les frais d'un reversement pas encore versé n'entrent dans aucun mois.
+        $paid = $this->payoutsPaidIn($agencyId, $ids, $start, $end)->groupBy(fn (Payout $p) => (int) $p->landlord_id);
+        $bills = ServiceProviderBill::query()
+            ->whereIn('imputed_payout_id', $paid->flatten()->pluck('id')->all())
+            ->orderBy('id')
+            ->get()
+            ->groupBy(fn (ServiceProviderBill $b) => (int) $b->imputed_payout_id);
+        $pivots = $this->pivotsOf($carrying->flatten());
+
+        // TCK-2151 (P205.01, P205.03 ; ADR-0039, amendement du 2026-10-24, point 4) — la reprise est
+        // la seule ligne négative d'un remboursement, au mois du remboursement : elle diminue le net
+        // dû et le versé. Le reversement qui l'impute compte au versé AVANT reprise.
+        $clawbacks = $this->clawbacks->datedIn('landlord_id', $ids, $start, $end, $agencyId)
+            ->groupBy(fn (object $c) => (int) $c->landlord_id);
+
+        $figures = [];
+        foreach ($ids as $id) {
+            $ownCarrying = $carrying->get($id, collect());
+            $ownPaid = $paid->get($id, collect());
+            $ownLateFees = $lateFees->get($id, collect());
+            $ownBills = $ownPaid->flatMap(fn (Payout $p) => $bills->get((int) $p->id, collect()))->sortBy('id')->values();
+            $ownClawbacks = $clawbacks->get($id, collect());
+
+            $computation = $this->calculator->compute(
+                $agency,
+                $leasePayments->get($id, collect()),
+                $bookingPayments->get($id, collect()),
+                $ownBills,
+                $this->retainedRates($pivots, $ownCarrying, $ownLateFees),
+                $ownLateFees,
+                $this->retainedAmounts($pivots, $ownCarrying),
+            );
+
+            $clawedBack = round((float) $ownClawbacks->sum(fn (object $c) => (float) $c->amount), 2);
+            $computation['lines']['clawbacks'] = $ownClawbacks->map(fn (object $c): array => [
+                'id' => (int) $c->id,
+                'source_payout_id' => (int) $c->source_payout_id,
+                'refunded_at' => CarbonImmutable::parse($c->refunded_at)->toIso8601String(),
+                'refund_amount' => (float) $c->refund_amount,
+                'commission_rate' => (float) $c->commission_rate,
+                'commission' => (float) $c->commission_amount,
+                'amount' => -(float) $c->amount,
+            ])->values()->all();
+
+            $totals = array_merge($computation['totals'], [
+                'net' => round($computation['totals']['net'] - $clawedBack, 2),
+                'clawback' => $clawedBack,
+                'paid_out' => round((float) $ownPaid->sum(fn (Payout $p) => (float) $p->net_amount + (float) ($p->clawback_amount ?? 0)) - $clawedBack, 2),
+            ]);
+            // TCK-2649 (ADR-0100) — le reste à verser, calculé ICI et une seule fois : la fiche
+            // bailleur et la page « Loyers » le lisent, jamais une soustraction côté front. Négatif
+            // s'il a été trop versé, rendu tel quel (la reprise suit ADR-0039).
+            $totals['remaining_to_pay'] = self::remainingToPay($totals);
+
+            $figures[$id] = ['computation' => $computation, 'carrying' => $ownCarrying, 'paid' => $ownPaid, 'totals' => $totals];
+        }
+
+        return $figures;
     }
 
     /**
@@ -313,20 +393,24 @@ final class OwnerStatementService
 
     /**
      * Les reversements AU BAILLEUR (jamais annulés ni échoués : ceux-là ont rendu leurs pièces) qui
-     * portent au moins un encaissement de la période.
+     * portent au moins un encaissement de la période — de CE bailleur : un reversement d'un autre
+     * qui porterait sa pièce (bien transféré, TCK-999) n'est pas le sien. Rangés par bailleur.
      *
-     * @param  list<int>  $leaseIds
-     * @param  list<int>  $bookingIds
-     * @param  Collection<int, LeasePayment>  $lateFees  P206.01 — une pénalité reversée porte son reversement
-     * @return Collection<int, Payout>
+     * @param  list<int>  $ids
+     * @param  Collection<int, Collection<int, LeasePayment>>  $leasePayments
+     * @param  Collection<int, Collection<int, BookingPayment>>  $bookingPayments
+     * @param  Collection<int, Collection<int, LeasePayment>>  $lateFees  P206.01 — une pénalité reversée porte son reversement
+     * @return Collection<int, Collection<int, Payout>>
      */
-    private function payoutsCarrying(Agency $agency, User $landlord, array $leaseIds, array $bookingIds, Collection $lateFees)
+    private function payoutsCarrying(int $agencyId, array $ids, Collection $leasePayments, Collection $bookingPayments, Collection $lateFees): Collection
     {
-        $lateFeePayoutIds = $lateFees->pluck('late_fee_payout_id')->filter()->unique()->values()->all();
+        $leaseIds = $leasePayments->flatten()->pluck('id')->all();
+        $bookingIds = $bookingPayments->flatten()->pluck('id')->all();
+        $lateFeePayoutIds = $lateFees->flatten()->pluck('late_fee_payout_id')->filter()->unique()->values()->all();
 
-        return Payout::query()
-            ->where('agency_id', $agency->id)
-            ->where('landlord_id', $landlord->id)
+        $candidates = Payout::query()
+            ->where('agency_id', $agencyId)
+            ->whereIn('landlord_id', $ids)
             ->where('payee_role', PayeeRole::Landlord->value)
             ->whereIn('status', array_map(fn (PayoutStatus $s) => $s->value, PayoutStatus::holdingItems()))
             ->where(function ($q) use ($leaseIds, $bookingIds, $lateFeePayoutIds): void {
@@ -336,19 +420,46 @@ final class OwnerStatementService
             })
             ->orderBy('id')
             ->get();
+        if ($candidates->isEmpty()) {
+            return collect();
+        }
+
+        $candidateIds = $candidates->pluck('id')->all();
+        $leaseCarried = DB::table('payout_lease_payment')->whereIn('payout_id', $candidateIds)->whereIn('lease_payment_id', $leaseIds ?: [0])
+            ->get(['payout_id', 'lease_payment_id'])->groupBy('payout_id');
+        $bookingCarried = DB::table('payout_booking_payment')->whereIn('payout_id', $candidateIds)->whereIn('booking_payment_id', $bookingIds ?: [0])
+            ->get(['payout_id', 'booking_payment_id'])->groupBy('payout_id');
+
+        $carrying = collect();
+        foreach ($ids as $id) {
+            $ownLease = $leasePayments->get($id, collect())->pluck('id')->flip();
+            $ownBooking = $bookingPayments->get($id, collect())->pluck('id')->flip();
+            $ownFeePayouts = $lateFees->get($id, collect())->pluck('late_fee_payout_id')->filter()->flip();
+            $own = $candidates->filter(fn (Payout $p) => (int) $p->landlord_id === $id && (
+                $leaseCarried->get($p->id, collect())->contains(fn (object $r) => $ownLease->has($r->lease_payment_id))
+                || $bookingCarried->get($p->id, collect())->contains(fn (object $r) => $ownBooking->has($r->booking_payment_id))
+                || $ownFeePayouts->has($p->id)
+            ))->values();
+            if ($own->isNotEmpty()) {
+                $carrying->put($id, $own);
+            }
+        }
+
+        return $carrying;
     }
 
     /**
      * P177.03 (TCK-2041) — les reversements AU BAILLEUR versés (`completed`) dans la période, par
      * `processed_at`, la règle de {@see PortfolioMetrics::netPaidOutByMonth()}.
      *
+     * @param  list<int>  $ids
      * @return Collection<int, Payout>
      */
-    private function payoutsPaidIn(Agency $agency, User $landlord, CarbonImmutable $start, CarbonImmutable $end)
+    private function payoutsPaidIn(int $agencyId, array $ids, CarbonImmutable $start, CarbonImmutable $end): Collection
     {
         return Payout::query()
-            ->where('agency_id', $agency->id)
-            ->where('landlord_id', $landlord->id)
+            ->where('agency_id', $agencyId)
+            ->whereIn('landlord_id', $ids)
             ->where('payee_role', PayeeRole::Landlord->value)
             ->where('status', PayoutStatus::Completed->value)
             ->whereBetween('processed_at', [$start->startOfDay(), $end->endOfDay()])
@@ -357,26 +468,48 @@ final class OwnerStatementService
     }
 
     /**
+     * Les lignes de pivot des reversements cités : le taux et le montant que chacun a copiés sur
+     * ses pièces (TCK-2017), en une lecture par pivot pour tous les bailleurs.
+     *
+     * @param  Collection<int, Payout>  $payouts
+     * @return array{lease_payments: Collection<int, object>, booking_payments: Collection<int, object>}
+     */
+    private function pivotsOf(Collection $payouts): array
+    {
+        $ids = $payouts->pluck('id')->unique()->values()->all();
+        $pivots = [];
+        foreach (['lease_payments' => ['payout_lease_payment', 'lease_payment_id'], 'booking_payments' => ['payout_booking_payment', 'booking_payment_id']] as $set => [$pivot, $column]) {
+            $pivots[$set] = $ids === [] ? collect() : DB::table($pivot)
+                ->whereIn('payout_id', $ids)
+                ->orderBy('payout_id')
+                ->get(['payout_id', $column.' AS item_id', 'commission_rate', 'amount']);
+        }
+
+        return $pivots;
+    }
+
+    /**
      * P177.02 (TCK-2017) — le taux que chaque reversement a appliqué à ses pièces, copié dans le pivot à
      * sa création : la commission d'un mois reversé ne se recalcule pas au taux d'agence du jour. Une
      * ligne de pivot sans copie (antérieure à la copie) n'y figure pas, et suit le taux du jour.
+     * Seuls les reversements de CE bailleur comptent.
      *
      * P206.01 — la pénalité reversée garde de même le taux copié sur sa ligne
      * (`late_fee_payout_commission_rate`).
      *
+     * @param  array{lease_payments: Collection<int, object>, booking_payments: Collection<int, object>}  $pivots
      * @param  Collection<int, Payout>  $payouts
      * @param  Collection<int, LeasePayment>  $lateFees
      * @return array{lease_payments: array<int, float>, booking_payments: array<int, float>, late_fees: array<int, float>}
      */
-    private function retainedRates(Collection $payouts, Collection $lateFees): array
+    private function retainedRates(array $pivots, Collection $payouts, Collection $lateFees): array
     {
+        $own = $payouts->pluck('id')->flip();
         $rates = [];
-        foreach (['lease_payments' => ['payout_lease_payment', 'lease_payment_id'], 'booking_payments' => ['payout_booking_payment', 'booking_payment_id']] as $set => [$pivot, $column]) {
-            $rates[$set] = DB::table($pivot)
-                ->whereIn('payout_id', $payouts->pluck('id')->all() ?: [0])
-                ->whereNotNull('commission_rate')
-                ->pluck('commission_rate', $column)
-                ->map(fn ($rate): float => (float) $rate)
+        foreach (['lease_payments', 'booking_payments'] as $set) {
+            $rates[$set] = $pivots[$set]
+                ->filter(fn (object $r) => $own->has($r->payout_id) && $r->commission_rate !== null)
+                ->mapWithKeys(fn (object $r): array => [(int) $r->item_id => (float) $r->commission_rate])
                 ->all();
         }
 
@@ -392,19 +525,18 @@ final class OwnerStatementService
      * TCK-2151 (P177.01) — le montant que chaque reversement VERSÉ a pris de ses pièces, copié dans
      * le pivot à sa création (TCK-2017). Une ligne sans copie n'y figure pas, et se lit au jour.
      *
+     * @param  array{lease_payments: Collection<int, object>, booking_payments: Collection<int, object>}  $pivots
      * @param  Collection<int, Payout>  $payouts
      * @return array{lease_payments: array<int, float>, booking_payments: array<int, float>}
      */
-    private function retainedAmounts(Collection $payouts): array
+    private function retainedAmounts(array $pivots, Collection $payouts): array
     {
-        $completed = $payouts->filter(fn (Payout $p) => $p->status === PayoutStatus::Completed)->pluck('id')->all();
+        $completed = $payouts->filter(fn (Payout $p) => $p->status === PayoutStatus::Completed)->pluck('id')->flip();
         $amounts = [];
-        foreach (['lease_payments' => ['payout_lease_payment', 'lease_payment_id'], 'booking_payments' => ['payout_booking_payment', 'booking_payment_id']] as $set => [$pivot, $column]) {
-            $amounts[$set] = DB::table($pivot)
-                ->whereIn('payout_id', $completed ?: [0])
-                ->whereNotNull('amount')
-                ->pluck('amount', $column)
-                ->map(fn ($amount): float => (float) $amount)
+        foreach (['lease_payments', 'booking_payments'] as $set) {
+            $amounts[$set] = $pivots[$set]
+                ->filter(fn (object $r) => $completed->has($r->payout_id) && $r->amount !== null)
+                ->mapWithKeys(fn (object $r): array => [(int) $r->item_id => (float) $r->amount])
                 ->all();
         }
 

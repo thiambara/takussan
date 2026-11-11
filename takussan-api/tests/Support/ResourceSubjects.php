@@ -11,12 +11,17 @@ use App\Http\Resources\ConversationContextResource;
 use App\Http\Resources\CustomerResource;
 use App\Http\Resources\DocumentVersionResource;
 use App\Http\Resources\MediaResource;
+use App\Http\Resources\OwnerProfileDetailResource;
 use App\Http\Resources\PayoutMethodResource;
 use App\Http\Resources\PropertyVisitResource;
 use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Document;
+use App\Models\Enums\PayeeRole;
+use App\Models\Enums\PayoutStatus;
 use App\Models\MaintenanceRequest;
+use App\Models\Payout;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\RadarAdvertiser;
@@ -25,6 +30,7 @@ use App\Models\RadarListingSnapshot;
 use App\Models\User;
 use App\Services\Accounting\MatchCandidate;
 use App\Services\Messaging\ConversationThreadContext;
+use App\Services\Owners\OwnerDirectory;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -458,6 +464,21 @@ final class ResourceSubjects
                     customerPhoneShown: true,
                     referent: User::factory()->create(),
                 ),
+            ],
+            // TCK-2640 — la fiche d'un bailleur, telle que la compose le contrôleur : deux instants
+            // (`joined_at`, `last_payout.processed_at`, casts `datetime`) ; `next_payout` arrive déjà
+            // sérialisé par le relevé.
+            OwnerProfileDetailResource::class => [
+                'tableau' => (function (): array {
+                    $profile = OwnerProfile::factory()->create();
+                    Payout::factory()->create([
+                        'agency_id' => $profile->agency_id, 'landlord_id' => $profile->user_id,
+                        'payee_role' => PayeeRole::Landlord, 'status' => PayoutStatus::Completed,
+                        'processed_at' => Carbon::parse(self::INSTANT, 'UTC'),
+                    ]);
+
+                    return app(OwnerDirectory::class)->detail($profile->refresh(), '2026-08');
+                })(),
             ],
             default => [],
         };

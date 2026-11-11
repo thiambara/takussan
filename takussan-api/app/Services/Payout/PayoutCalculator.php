@@ -68,13 +68,13 @@ final class PayoutCalculator
      *
      * @return Builder<LeasePayment>
      */
-    public function leasePayments(int $agencyId, int $landlordId, ?CarbonInterface $from = null, ?CarbonInterface $to = null, bool $onlyUnpaidOut = true, bool $orPaidOut = false): Builder
+    public function leasePayments(int $agencyId, int|array $landlordId, ?CarbonInterface $from = null, ?CarbonInterface $to = null, bool $onlyUnpaidOut = true, bool $orPaidOut = false): Builder
     {
         $query = LeasePayment::query()
             ->select('lease_payments.*')
             ->join('leases', 'leases.id', '=', 'lease_payments.lease_id')
             ->where('leases.agency_id', $agencyId)
-            ->where('leases.landlord_id', $landlordId)
+            ->where(fn (Builder $q) => $this->whereLandlord($q, 'leases.landlord_id', $landlordId))
             ->where(fn (Builder $q) => $this->paidOrPaidOut($q, 'lease_payments', 'payout_lease_payment', 'lease_payment_id', $orPaidOut))
             ->whereIn('lease_payments.payment_type', array_map(fn ($t) => $t->value, self::LEASE_TYPES))
             ->whereNotNull('lease_payments.paid_at')
@@ -99,13 +99,13 @@ final class PayoutCalculator
      *
      * @return Builder<LeasePayment>
      */
-    public function lateFees(int $agencyId, int $landlordId, ?CarbonInterface $from = null, ?CarbonInterface $to = null, bool $onlyUnpaidOut = true): Builder
+    public function lateFees(int $agencyId, int|array $landlordId, ?CarbonInterface $from = null, ?CarbonInterface $to = null, bool $onlyUnpaidOut = true): Builder
     {
         $query = LeasePayment::query()
             ->select('lease_payments.*')
             ->join('leases', 'leases.id', '=', 'lease_payments.lease_id')
             ->where('leases.agency_id', $agencyId)
-            ->where('leases.landlord_id', $landlordId)
+            ->where(fn (Builder $q) => $this->whereLandlord($q, 'leases.landlord_id', $landlordId))
             ->where(fn (Builder $q) => $this->whereLateFeeSettled($q));
 
         $this->period($query, 'lease_payments.late_fee_paid_at', $from, $to);
@@ -167,7 +167,7 @@ final class PayoutCalculator
      *
      * @return Builder<BookingPayment>
      */
-    public function bookingPayments(int $agencyId, int $landlordId, ?CarbonInterface $from = null, ?CarbonInterface $to = null, bool $onlyUnpaidOut = true, bool $orPaidOut = false): Builder
+    public function bookingPayments(int $agencyId, int|array $landlordId, ?CarbonInterface $from = null, ?CarbonInterface $to = null, bool $onlyUnpaidOut = true, bool $orPaidOut = false): Builder
     {
         return $this->bookingPaymentsIncludingHeld($agencyId, $landlordId, $from, $to, $onlyUnpaidOut, $orPaidOut)
             ->whereNot(fn (Builder $q) => $this->whereHeldForRefund($q));
@@ -238,14 +238,14 @@ final class PayoutCalculator
     }
 
     /** @return Builder<BookingPayment> */
-    private function bookingPaymentsIncludingHeld(int $agencyId, int $landlordId, ?CarbonInterface $from = null, ?CarbonInterface $to = null, bool $onlyUnpaidOut = true, bool $orPaidOut = false): Builder
+    private function bookingPaymentsIncludingHeld(int $agencyId, int|array $landlordId, ?CarbonInterface $from = null, ?CarbonInterface $to = null, bool $onlyUnpaidOut = true, bool $orPaidOut = false): Builder
     {
         $query = BookingPayment::query()
             ->select('booking_payments.*')
             ->join('bookings', 'bookings.id', '=', 'booking_payments.booking_id')
             ->join('properties', 'properties.id', '=', 'bookings.property_id')
             ->where('bookings.agency_id', $agencyId)
-            ->where('properties.user_id', $landlordId)
+            ->where(fn (Builder $q) => $this->whereLandlord($q, 'properties.user_id', $landlordId))
             ->where(fn (Builder $q) => $this->paidOrPaidOut($q, 'booking_payments', 'payout_booking_payment', 'booking_payment_id', $orPaidOut))
             ->whereIn('booking_payments.payment_type', array_map(fn ($t) => $t->value, self::BOOKING_TYPES))
             ->whereNotNull('booking_payments.paid_at')
@@ -259,6 +259,18 @@ final class PayoutCalculator
         }
 
         return $query->orderBy('booking_payments.paid_at')->orderBy('booking_payments.id');
+    }
+
+    /**
+     * TCK-2640 — un bailleur, ou plusieurs : la liste des bailleurs d'une agence lit les chiffres
+     * de leurs relevés en une passe ({@see OwnerStatementService::totalsFor()}), sur ces mêmes
+     * requêtes. Un entier se lit exactement comme avant.
+     *
+     * @param  int|list<int>  $landlordId
+     */
+    private function whereLandlord(Builder $query, string $column, int|array $landlordId): void
+    {
+        is_array($landlordId) ? $query->whereIn($column, $landlordId) : $query->where($column, $landlordId);
     }
 
     /**

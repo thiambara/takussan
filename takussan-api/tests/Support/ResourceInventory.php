@@ -19,6 +19,7 @@ use App\Http\Resources\MediaResource;
 use App\Http\Resources\Messaging\GroupContextLeaseResource;
 use App\Http\Resources\Messaging\GroupContextPropertyResource;
 use App\Http\Resources\Messaging\MessagingContactResource;
+use App\Http\Resources\OwnerProfileDetailResource;
 use App\Http\Resources\OwnerProfileResource;
 use App\Http\Resources\PropertyMapGeoJsonResource;
 use App\Http\Resources\PropertySitemapResource;
@@ -190,6 +191,8 @@ final class ResourceInventory
         // TCK-2630
         ConversationContextResource::class => 'TCK-2630 — enveloppe un objet `readonly` (`App\\Services\\Messaging\\ConversationThreadContext`) qui porte le bien, le bail, l\'intervention et la fiche CRM d\'un fil : construit par appel direct au constructeur.',
 
+        // TCK-2640
+        OwnerProfileDetailResource::class => 'TCK-2640 — enveloppe le TABLEAU de la fiche d\'un bailleur composé par `App\\Services\\Owners\\OwnerDirectory::detail()` (profil, relevé servi, dernier versement) : construit par ce même appel, sur un profil et un reversement versé.',
     ];
 
     /**

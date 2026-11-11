@@ -108,6 +108,36 @@ final class OwnerStatementSnapshots
     }
 
     /**
+     * TCK-2640 — les totaux SERVIS de plusieurs bailleurs d'une agence pour une période, ceux que
+     * {@see served()} rendrait à chacun : l'instantané envoyé quand le mois en a un (son reste à
+     * verser recomposé comme dans `served()`), sinon le calcul du jour. En un nombre de requêtes qui
+     * ne dépend pas du nombre de bailleurs : la liste des bailleurs le lit pour sa page entière.
+     *
+     * @param  list<int>  $landlordIds
+     * @return array<int, array<string, float>> par bailleur
+     */
+    public function servedTotals(Agency $agency, array $landlordIds, string $period): array
+    {
+        $totals = $this->statements->totalsFor($agency, $landlordIds, $period);
+        if ($totals === []) {
+            return [];
+        }
+
+        $rows = DB::table(self::TABLE)
+            ->where('agency_id', $agency->id)
+            ->whereIn('landlord_id', array_keys($totals))
+            ->where('period', $period)
+            ->get(['landlord_id', 'payload']);
+        foreach ($rows as $row) {
+            $sent = json_decode((string) $row->payload, true, flags: JSON_THROW_ON_ERROR)['totals'] ?? [];
+            $sent['remaining_to_pay'] ??= OwnerStatementService::remainingToPay($sent);
+            $totals[(int) $row->landlord_id] = $sent;
+        }
+
+        return $totals;
+    }
+
+    /**
      * Ce qui a été écrit depuis l'envoi : l'écart de chaque total, et les lignes du calcul du jour
      * absentes de l'instantané (`added`) ou l'inverse (`removed`). Une ligne dont un montant a
      * changé figure aux deux. Nul quand rien n'a changé.

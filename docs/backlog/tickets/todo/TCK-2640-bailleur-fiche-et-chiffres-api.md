@@ -99,4 +99,70 @@ Quand un bailleur appelle (« où en est mon argent ? »), l'admin d'agence ouvr
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+**Implémenté le 2026-11-11 (voie back-patrimoine).**
+
+**La prémisse différait du code sur trois points — tranchés ainsi :**
+
+1. **AC5 est impossible par `CaseInsensitive`** : il ne replie que la casse
+   (`lower('SÈNE' COLLATE "und-x-icu")` rend `sène`, qui ne contient pas `sene`), et ADR-0020 §2 /
+   ADR-0025 refusent `unaccent`. La recherche replie casse **et** accents en PHP (`Str::ascii`), sur
+   le périmètre de la requête — le carnet d'UNE agence —, comme `CleDeQuartier` et `ProspectMatcher`
+   (`OwnerDirectory::search()`). Le téléphone se compare sur ses seuls chiffres (≥ 4).
+2. **« Même policy que la liste » contredit « agent 403 »** : `viewAny`/`view` ouvrent le carnet à
+   l'agent. Les tests du ticket l'emportent : nouvelle ability `OwnerProfilePolicy::viewDetail`
+   (admin de l'agence du profil, comme `viewSensitive`) ; `view` est inchangé. L'accès de l'agent
+   reste hors périmètre.
+3. **Le plafond n'est pas lu à la soumission d'un devis, mais à son approbation par l'agence**
+   (`MaintenanceQuoteWorkflow` → `OwnerApprovalThreshold::exceeds`). Le réglage vaut donc pour les
+   devis **approuvés** après lui (AC4 est tenu ainsi : approbation par l'agent après le PATCH). Un
+   devis déjà `awaiting_owner` ne bouge pas (épinglé). ⚠ `docs/models-spec.md` dit « soumis après » :
+   à corriger par `/sync-specs`.
+
+**Décisions :**
+
+- 404 avant 403 avant 422 (`ShowOwnerProfileRequest`, `UpdateOwnerProfileRequest`) : hors du
+  personnel de l'agence (`staffAgencyId()`, ADR-0031), le profil n'existe pas — un **bailleur** de la
+  même agence reçoit donc 404, pas 403, sur toute fiche du carnet ; puis l'ability ; puis l'agence
+  `individual` (`AgencyKindGuard`) ; puis la validation.
+- `owners.update` : catalogue 49 cas, l'admin en tient 47 (`MembershipCapabilityResolverTest`
+  renommé). Migration `2026_11_11_121000` : l'ajoute aux rôles PERSONNALISÉS de base `agency_admin`
+  (forme de `2026_10_24_170000`) ; les rôles système la reçoivent par
+  `membership:reconcile-system-roles`. Libellés front (`admin.roles.*.owners`) et libellé du journal
+  déjà posés par TCK-2676.
+- Journal `owner_works_threshold_updated` (`before`, `after`, auteur) **seulement si la valeur
+  change** ; `null` retire le plafond.
+- Chiffres : jamais recalculés. La fiche lit `OwnerStatementSnapshots::served()` ; la liste lit
+  `servedTotals()` (nouveau, instantané envoyé prioritaire) sur `OwnerStatementService::totalsFor()`
+  (nouveau, par lot). `statement()` passe désormais par un cœur par lot `figures()` : 280 relevés de
+  la démo (40 couples agence/bailleur × 2026-06…11 + 2026) rendus identiques avant/après, au JSON
+  près. `PayoutCalculator` (`leasePayments`, `lateFees`, `bookingPayments*`) et
+  `PayoutClawbacks::datedIn` acceptent `int|array` de bailleurs — comportement inchangé pour un
+  entier.
+- Liste : `properties_count` / `occupied_properties_count` (non supprimés, **non archivés**),
+  `last_payout_at` (reversement AU BAILLEUR `completed`, dans l'agence), `contact_phone` /
+  `contact_email` (compte, sinon `metadata`) en sous-requêtes ; `remaining_to_pay` du mois courant
+  (Dakar) en une passe par agence pour la page. Toujours calculés, même sous un sparse fieldset.
+  `filter[has_remaining]` et `sort=-remaining_to_pay` jugent **tout le périmètre**, pas la page
+  (`OwnerRemainingToPaySort`, `CASE` sur l'id). `sort=name` : nom du compte, sinon celui de
+  l'invitation, collation ICU. Une valeur en liste vaut un filtre absent (ADR-0075).
+- « Occupé » : `App\Services\Property\Occupation::whereOccupied()`, le prédicat de
+  `PortfolioMetrics::longStayOccupancyToday()` (bail en cours, commencé, non échu ni résilié) —
+  réutilisable par TCK-2637.
+- Fiche : `figures` = `{period, currency, collected, commission, fees, net, paid_out,
+  remaining_to_pay, from_snapshot}` (`null` pour un brouillon d'invitation), `last_payout`,
+  `next_payout`, `works_approval_threshold`, `agency_commission_rate`, `lease_commission_rates`
+  (taux propres des baux en cours qui diffèrent de celui de l'agence).
+
+**Mesuré sur la démo (2026-11-11)** : owner1 (profil 1, agence 1) — `user.phone` `+221703757526`,
+`metadata.phone` vide → fiche et liste rendent le numéro du compte (AC1). Reste à verser fiche = relevé
+servi = liste : 2 006 380 (2026-09), 220 751 (2026-10), 3 117 369 (2026-11) (AC2). 72 biens, 12 occupés.
+
+**Ablations** (24, chacune rougit son test, sauf une) : ability `viewDetail`, résolution 404 (fiche et
+écriture), garde `individual` (fiche et écriture), capacité de `update`, nom de l'événement, écriture
+sans changement, sauvegarde, repli de contact (liste, sous-requête du compte, fiche), reste à verser
+de la ligne, priorité de l'instantané, repli d'accents, filtre en liste, sens du tri, archivés,
+statut du dernier versement, passe par agence (N+1 → AC6 rougit), statut du bail occupé, repli du tri
+par nom sur l'invitation, capacité de la migration. **Verte** : retirer la borne du périmètre des
+candidats de la recherche — l'intersection finale avec la requête garde l'isolation ; la borne est
+une borne de coût (sans elle, tous les profils de la plateforme sont chargés).
+
