@@ -172,6 +172,8 @@ describe('<HostIndividualWizard> — trois étapes', () => {
     fireEvent.click(screen.getByRole('button', { name: /Terminer|Publier|Créer/i }));
 
     await waitFor(() => expect(routerPush).toHaveBeenCalledWith('/app/properties/new'));
+    // TCK-2615 — l'arrivée est marquée : la coque n'ouvrira aucune fenêtre de bienvenue.
+    expect(sessionStorage.getItem('takussan:arrivee-de-parcours')).toContain('"assistant"');
     const [toast] = toastAdd.mock.calls.at(-1)!;
     expect(toast.description).not.toMatch(/brouillon/i);
   });

@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
+import { marquerArriveeDeParcours } from '@/lib/arrivee-de-parcours';
 import { useAuth } from '@/context/AuthContext';
 import { useAgentRoleCapabilities } from '@/hooks/useCan';
 import {
@@ -151,6 +152,8 @@ export function AgentOnboardingWizard({
       type: 'success',
     });
 
+    // TCK-2615 — l'arrivée qui suit l'assistant n'ouvre aucune fenêtre de bienvenue.
+    marquerArriveeDeParcours('assistant');
     router.push('/app');
   }, [agentProfileId, refreshUser, router, t, toast]);
 

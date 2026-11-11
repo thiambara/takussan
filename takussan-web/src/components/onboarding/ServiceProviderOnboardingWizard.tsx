@@ -16,6 +16,7 @@ import {
   relireTelephoneBrouillon,
 } from '@/lib/phone';
 import { useToast } from '@/components/ui/toast';
+import { marquerArriveeDeParcours } from '@/lib/arrivee-de-parcours';
 import type { Locale } from '@/i18n/config';
 import { formatCurrency } from '@/lib/format';
 import { useAuth } from '@/context/AuthContext';
@@ -184,6 +185,8 @@ export function ServiceProviderOnboardingWizard({
       const target = completeRes.data.redirect_to_maintenance_request_id
         ?? fromMaintenanceRequestId
         ?? null;
+      // TCK-2615 — l'arrivée qui suit l'assistant n'ouvre aucune fenêtre de bienvenue.
+      marquerArriveeDeParcours('assistant');
       if (target !== null) {
         // TCK-419 — `/app/maintenance/requests/{id}` N'EXISTE PAS : le détail d'une demande est
         // servi par `app/maintenance/[id]`, sans segment `requests`. Ce `router.push` est le

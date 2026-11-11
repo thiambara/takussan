@@ -154,6 +154,8 @@ describe('<ServiceProviderOnboardingWizard>', () => {
       // eu de `page.tsx`. Le détail d'une demande vit sous `app/maintenance/[id]`.
       expect(routerPush).toHaveBeenCalledWith('/app/maintenance/99');
     });
+    // TCK-2615 — l'arrivée est marquée : la coque n'ouvrira aucune fenêtre de bienvenue.
+    expect(sessionStorage.getItem('takussan:arrivee-de-parcours')).toContain('"assistant"');
   });
 });
 

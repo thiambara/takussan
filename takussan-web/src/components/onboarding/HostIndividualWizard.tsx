@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
+import { marquerArriveeDeParcours } from '@/lib/arrivee-de-parcours';
 import { useAuth } from '@/context/AuthContext';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { ROUTES_LEGALES } from '@/lib/legal-routes';
@@ -208,6 +209,8 @@ export function HostIndividualWizard() {
       }
 
       await refreshUser();
+      // TCK-2615 — l'arrivée qui suit l'assistant n'ouvre aucune fenêtre de bienvenue.
+      marquerArriveeDeParcours('assistant');
       // TCK-625 — le message dit ce qui s'est passé. Il annonçait « votre premier bien est en
       // brouillon » : aucun bien n'est créé ici, l'API ne crée que l'espace. Et « Professionnel »
       // n'était jamais lu : le choix menait au même endroit que « Particulier ». Il mène

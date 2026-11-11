@@ -7,6 +7,7 @@ import { ArrowRight, ShieldCheck, Sparkles } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { TotpEnrollment } from '@/components/auth/TotpEnrollment';
+import { marquerArriveeDeParcours } from '@/lib/arrivee-de-parcours';
 import { cn } from '@/lib/utils';
 
 /**
@@ -44,6 +45,8 @@ export function AgencyAdminOnboardingWizard({
   const t = useTranslations('agency.onboarding');
 
   function finish() {
+    // TCK-2615 — l'arrivée qui suit l'assistant n'ouvre aucune fenêtre de bienvenue.
+    marquerArriveeDeParcours('assistant');
     router.replace('/app');
   }
 

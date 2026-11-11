@@ -54,4 +54,56 @@ Aucun changement d'API. Re-mesure sur `dev` (1bce3798a) : la coque de `/app` mon
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+### Re-mesure de la prémisse (2026-11-11, arbre `71c0ea31d`)
+
+- Confirmée : `AppShell` monte cinq fenêtres (client, locataire après le client, bailleur, agent,
+  administrateur d'agence `standard`) sur toutes les routes de `/app`, `/app/properties/new`
+  compris ; leur fermeture est mémorisée par `welcome-seen` (`useAccueilsVus`).
+- Les sorties de parcours : bailleur, agent, prestataire → `router.push('/app'…)` ; administrateur
+  d'agence → `router.replace('/app')` ; hôte → `/app/properties/new` (écran plein) ou la demande
+  d'agence ; publication (`PropertyWizard`, `terminer`) → `/app/properties/{id}` **sans quitter la
+  coque** (la création est déjà sous `/app`). L'assistant de la plateforme sort vers `/super-admin`,
+  qui ne monte aucune de ces fenêtres : non marqué.
+
+### Ce qui change
+
+- **La règle vit dans les trois hooks des fenêtres, pas dans la coque** (`src/components/layout/`
+  est réservé à la vague de préparation) : `useWelcomeOnce`, `useTenantWelcomeOnce`,
+  `useAgencyStandardWelcomeOnce` lisent `useAccueilSuspendu()` (`src/lib/arrivee-de-parcours.ts`).
+  Suspendue, une fenêtre ne s'ouvre pas et **rien n'est écrit** dans `welcome-seen`.
+- Trois cas suspendent : l'écran plein (`estPleinEcran`, la liste unique de `plein-ecran.ts`) tant
+  qu'on y est ; l'arrivée qui suit un assistant ; l'arrivée qui suit une publication.
+- **Le marqueur** : `marquerArriveeDeParcours('assistant' | 'publication')`, appelé juste avant de
+  partir vers `/app` par les assistants bailleur, agent, prestataire, administrateur d'agence et
+  hôte, et par la publication. Hors coque, il est écrit en `sessionStorage`, daté (2 min de
+  fraîcheur : un assistant fini puis abandonné ne suspend pas la visite ordinaire suivante) ; la
+  coque montée (publication), il suspend la visite en cours tout de suite.
+- **La suspension vaut pour la visite** (le montage des fenêtres de la coque, toutes ensemble,
+  y compris le locataire qui se monte après le client) et s'éteint quand la coque se démonte :
+  l'arrivée ordinaire suivante montre la fenêtre, comme avant. La fin de visite est actée au tour
+  suivant, pour qu'un remontage immédiat (StrictMode) ne la coupe pas.
+- Choix écarté : un paramètre d'URL (`?arrivee=`) survit au rechargement, au lien copié et au
+  retour arrière.
+
+### Tests et ablations
+
+- `src/hooks/__tests__/accueil-suspendu.tck-2615.test.tsx` (19) — les cinq fenêtres RÉELLES :
+  AC3 (arrivée ordinaire → `dialog`), AC2 (écran plein → aucun `dialog`, rien de marqué vu), AC1
+  (marqueur d'assistant → aucun `dialog` ; démontage puis arrivée ordinaire → `dialog`) ; la
+  publication coque montée ; quitter l'écran plein sans publier rend la fenêtre ; marqueur périmé ;
+  toutes les fenêtres d'une même arrivée suspendues. ⚠ On compte les `[role="dialog"]` **dans le
+  DOM** : une modale ouverte rend le reste `aria-hidden`, et `queryByRole` ne voyait aucune des
+  trois fenêtres ouvertes ensemble (le test passait sans correctif, rattrapé avant l'ablation).
+- Sorties marquées : assertions ajoutées aux tests de fin de parcours bailleur, agent, prestataire,
+  hôte et publication (`PropertyWizard.test.tsx`) ; administrateur d'agence :
+  `AgencyAdminOnboardingWizard.arrivee.tck-2615.test.tsx`.
+- Ablations (chacune rouge, restaurée par `cp`, `md5` identique) : écran plein ignoré (7 rouges),
+  marqueur jamais lu (6), pas de fin de visite (7), chaque fenêtre consomme seule le marqueur (6),
+  publication coque montée ignorée (1), fraîcheur ignorée (1), `useWelcomeOnce` sans suspension,
+  sortie du bailleur sans marqueur, publication sans marqueur.
+
+### Reste
+
+- Aucune mesure au navigateur : le parcours complet demande un compte invité neuf (ne pas modifier
+  un compte de démo) ; AC1 est prouvé sur les fenêtres réelles en jsdom.
+- Le retrait complet des modales et les bulles en place : famille 3 (décision 4 a).
