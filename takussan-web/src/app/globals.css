@@ -312,8 +312,10 @@
    * Matches `bottom-4` (16px) on small screens and `bottom-6` (24px) on
    * `sm:`+, mirroring the legacy Tailwind classes the components used to
    * apply directly. Read by `useFloatingDockSlot`.
+   * TCK-2712 (5) — plus la barre d'action collante (`--barre-d-action-hauteur`, 0 sans elle) : comme le
+   * toast, tout ce qui flotte en bas se pose au-dessus d'elle, coque sans barre d'onglets comprise.
    */
-  --floating-dock-base: 16px;
+  --floating-dock-base: calc(16px + var(--barre-d-action-hauteur));
 
   /* TCK-2481 — la hauteur de la barre d'onglets mobile de `/app`, zone sûre comprise. Une seule
      définition, lue par la barre (`BarreDOnglets`), par la messagerie compacte (`MessagesPage`) et
@@ -329,7 +331,7 @@
 
 @media (min-width: 640px) {
   :root {
-    --floating-dock-base: 24px;
+    --floating-dock-base: calc(24px + var(--barre-d-action-hauteur));
   }
 }
 
@@ -338,10 +340,12 @@
    (`PropertyList`, créneau `bottom-right`) se posait dessus, à 16 px du bas. La plage est le
    complément exact de `md:hidden` : dès `md`, ni barre ni décalage. Le bouton flottant de la
    messagerie, monté hors de la coque, ne lit pas cette valeur — il ne se rend plus sur `/app`
-   (TCK-2481, arbitrage 3). Gardé par `CoqueHauteur.test.tsx`. */
+   (TCK-2481, arbitrage 3). Gardé par `CoqueHauteur.test.tsx`.
+   TCK-2712 (5) — et au-dessus de la barre d'action collante quand une page en rend une (terme additif,
+   hérité de `:root`, 0 sans elle). */
 @media (width < 48rem) {
   [data-barre-onglets] {
-    --floating-dock-base: calc(16px + var(--barre-onglets-hauteur));
+    --floating-dock-base: calc(16px + var(--barre-onglets-hauteur) + var(--barre-d-action-hauteur));
   }
 }
 
@@ -373,11 +377,19 @@
    ⚠ Sur `:root`, pas sur la coque : le viewport des toasts est rendu EN PORTAIL dans `body`, hors
    de `[data-barre-onglets]` — le `--floating-dock-base` posé sur la coque ne l'atteint pas.
    TCK-2689 — la barre d'action collante (`ui/barre-d-action.tsx`) le relève de SA hauteur, par un
-   terme ADDITIF : `--barre-d-action-hauteur` vaut 0 partout, et 73 px (filet + `py-3` + action de
-   48, zone sûre en plus quand elle est le bas de l'écran) sous `md` quand une barre occupe
+   terme ADDITIF : `--barre-d-action-hauteur` vaut 0 partout, et 69 px (filet + `py-3` + boutons de
+   44, `--spacing-controle` — TCK-2712 (4), la « Page de détail » gelée ; zone sûre en plus quand elle
+   est le bas de l'écran) sous `md` quand une barre occupe
    l'emplacement de la coque (`#emplacement-barre-d-action`). Une barre posée en flux hors de la coque
    (la vitrine) n'est pas le bas de l'écran : elle ne le relève pas.
-   Gardé par `primitives-existantes-tck-2688.test.tsx` et `primitives-neuves-tck-2689.test.tsx`. */
+   TCK-2712 (3) — la pastille « Filtres / Carte|Liste » du site public (`OutilsFlottantsDeListe`, au sol
+   du dock, sous `lg`) le relève à son tour : tant qu'elle est rendue (`data-outils-flottants-de-liste`),
+   le toast se pose 16 px au-dessus d'elle — base du dock (là où elle se pose) + sa hauteur (`h-12`) +
+   16. Deux règles : en liste, celle de la barre publique est plus spécifique et doit être battue ; en
+   carte plein écran, la barre est retirée et la règle courte s'applique. La hauteur de la barre
+   d'action n'y est pas ajoutée une seconde fois : la base du dock la porte déjà (TCK-2712 (5)).
+   Gardé par `primitives-existantes-tck-2688.test.tsx`, `primitives-neuves-tck-2689.test.tsx` et
+   `suites-point-porteur-1.tck-2712.test.ts`. */
 :root {
   --barre-d-action-hauteur: 0px;
   --toast-bas: calc(var(--spacing) * 4 + var(--barre-d-action-hauteur));
@@ -389,10 +401,10 @@
 }
 @media (width < 48rem) {
   :root:has(#emplacement-barre-d-action > [data-slot="barre-d-action"]) {
-    --barre-d-action-hauteur: calc(var(--spacing-controle-action) + var(--spacing) * 6 + 1px);
+    --barre-d-action-hauteur: calc(var(--spacing-controle) + var(--spacing) * 6 + 1px);
   }
   :root:has(#emplacement-barre-d-action[data-bas-de-l-ecran] > [data-slot="barre-d-action"]) {
-    --barre-d-action-hauteur: calc(var(--spacing-controle-action) + var(--spacing) * 6 + 1px + env(safe-area-inset-bottom));
+    --barre-d-action-hauteur: calc(var(--spacing-controle) + var(--spacing) * 6 + 1px + env(safe-area-inset-bottom));
   }
   :root:has([data-barre-onglets]) {
     --toast-bas: calc(var(--spacing) * 4 + var(--barre-onglets-hauteur) + var(--barre-d-action-hauteur));
@@ -401,6 +413,12 @@
 @media (width < 64rem) {
   :root:has([data-barre-onglets-publique]):not(:has(.takussan-carte-plein-ecran)) {
     --toast-bas: calc(var(--spacing) * 4 + var(--barre-publique-hauteur) + var(--barre-d-action-hauteur));
+  }
+  :root:has([data-outils-flottants-de-liste]) {
+    --toast-bas: calc(var(--floating-dock-base) + var(--spacing) * 12 + var(--spacing) * 4);
+  }
+  :root:has([data-barre-onglets-publique]):not(:has(.takussan-carte-plein-ecran)):has([data-outils-flottants-de-liste]) {
+    --toast-bas: calc(var(--floating-dock-base) + var(--spacing) * 12 + var(--spacing) * 4);
   }
 }
 
@@ -1011,6 +1029,10 @@
   /* Texte des déclencheurs (sélecteur, date) : `text-sm`. */
   --text-declencheur: var(--text-sm);
   --text-declencheur--line-height: var(--text-sm--line-height);
+  /* TCK-2712 (7) — texte d'un bouton `default`/`lg` : le `text-sm` d'avant. Au pouce, 14 px fixes : un
+     bouton de 44 px au pointeur grossier dès `lg` gardait le texte de bureau (12,6 px). */
+  --text-bouton: var(--text-sm);
+  --text-bouton--line-height: var(--text-sm--line-height);
   /* Zone de texte : py-2 et l'interligne de son texte. */
   --spacing-zone-texte-y: calc(var(--spacing) * 2);
   --leading-zone-texte: var(--text-champ--line-height);
@@ -1042,6 +1064,7 @@
   --text-champ--line-height: 1.5;
   --text-declencheur: 1rem;
   --text-declencheur--line-height: 1.5;
+  --text-bouton: 0.875rem;
   /* Le petit bouton de la maquette, aux deux largeurs : px-3, gap-1.5, rounded-lg, 13 px. */
   --spacing-petit-bouton-x: calc(var(--spacing) * 3);
   --spacing-petit-bouton-espace: calc(var(--spacing) * 1.5);
@@ -1063,6 +1086,7 @@
     --text-champ--line-height: var(--text-sm--line-height);
     --text-declencheur: var(--text-sm);
     --text-declencheur--line-height: var(--text-sm--line-height);
+    --text-bouton: var(--text-sm);
   }
 }
 

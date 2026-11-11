@@ -64,10 +64,15 @@ interface NotificationBellProps {
   readonly emplacement?: 'colonne' | 'en-tete';
 }
 
-/** TCK-2691 — le bouton et l'icône de la cloche, par emplacement. */
+/**
+ * TCK-2691 — le bouton et l'icône de la cloche, par emplacement.
+ * TCK-2712 (11a) — et la place de la pastille des non-lues, celle de la maquette sur chaque surface :
+ * colonne `-right-2 -top-1.5` de l'icône de 18 px = `top-0 -right-0.5` du bouton de 28,8 px ; en-tête
+ * `right-0.5 top-0.5` du bouton de 40 px.
+ */
 const COTES_DE_LA_CLOCHE = {
-  colonne: { bouton: 'text-muted-foreground', icone: 'size-[18px]', trait: TRAIT_D_ICONE },
-  'en-tete': { bouton: 'text-encre-douce', icone: 'size-5', trait: 1.75 },
+  colonne: { bouton: 'text-muted-foreground', icone: 'size-[18px]', trait: TRAIT_D_ICONE, pastille: 'top-0 -right-0.5' },
+  'en-tete': { bouton: 'text-encre-douce', icone: 'size-5', trait: 1.75, pastille: 'top-0.5 right-0.5' },
 } as const;
 
 export function NotificationBell({ align = 'end', emplacement = 'colonne' }: NotificationBellProps) {
@@ -192,7 +197,14 @@ export function NotificationBell({ align = 'end', emplacement = 'colonne' }: Not
       >
         <Bell className={cotes.icone} strokeWidth={cotes.trait} aria-hidden="true" />
         {unread > 0 ? (
-          <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-[0.625rem] font-bold leading-4 tabular-nums text-primary-foreground ring-2 ring-background">
+          // TCK-2712 (11a, ADR-0106) — la `Pastille` de la maquette : 16 px (14,4 dès lg), 10 px 600,
+          // interligne 10 centré dans sa boîte, anneau `card`.
+          <span
+            className={cn(
+              'absolute inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-pastille font-semibold leading-none tabular-nums text-primary-foreground ring-2 ring-card',
+              cotes.pastille,
+            )}
+          >
             {unread > 9 ? '9+' : unread}
           </span>
         ) : null}

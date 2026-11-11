@@ -20,9 +20,11 @@ const abonner = () => () => {}
  * COLLANTE du bas de l'écran, au téléphone : `EcranApp` `bas` des maquettes retenues
  * (`chrome-app.tsx:433`), 20 pages.
  *
- *  · 73 px = filet 1 + `py-3` (12 + 12) + une action principale de 48 (`<Button size="xl">`) —
- *    mesuré sur 49 écrans (C § 2.3 ; TCK-2617 écrivait 64, à tort). `border-t border-border bg-card
- *    px-4 py-3`, ombre nommée `shadow-barre-collante` (TCK-2685).
+ *  · 69 px = filet 1 + `py-3` (12 + 12) + des boutons de la taille par défaut (`<Button>`, 44 px au
+ *    pouce) — la « Page de détail » gelée (`app-coque` a-2), retenue au point porteur n° 1 (TCK-2712,
+ *    4) contre les 73 px d'une action `size="xl"` (C § 2.3). La hauteur suit le contenu :
+ *    `--barre-d-action-hauteur` (globals.css) suppose des boutons par défaut. `border-t border-border
+ *    bg-card px-4 py-3`, ombre nommée `shadow-barre-collante` (TCK-2685).
  *  · Contenu : une action pleine largeur, ou deux à 50/50 (`gap-2`, chaque enfant `flex-1`).
  *  · PLACE : en flux, ENTRE le contenu et la barre d'onglets (`flex-none`) — rien ne passe dessous,
  *    et le `<main>` rétrécit de sa hauteur (TCK-503). Dans la coque, la barre est rendue EN PORTAIL
@@ -36,9 +38,9 @@ const abonner = () => () => {}
  *  · BUREAU : aucune barre collante dans les maquettes bureau retenues — rendue sous `md` seulement.
  *    ⚠ `md:hidden` CACHE, il ne démonte pas : les boutons restent dans le DOM dès `md`. La page pose
  *    son action de bureau ailleurs (en-tête, pied de carte), et un test jsdom voit les deux.
- *  · Le TOAST se pose au-dessus d'elle : `--barre-d-action-hauteur` (globals.css) s'ajoute à
- *    `--toast-bas` quand la barre occupe l'emplacement. Le dock flottant (`--floating-dock-base`)
- *    garde son calcul (contrainte du ticket) : une page qui monte les deux les vérifie ensemble.
+ *  · Le TOAST et le DOCK FLOTTANT se posent au-dessus d'elle : `--barre-d-action-hauteur`
+ *    (globals.css) s'ajoute à `--toast-bas` et à `--floating-dock-base` quand la barre occupe
+ *    l'emplacement (TCK-2712, 5 : relevé par la coque, plus vérifié page par page).
  *
  * ⚠ FORMULAIRE : rendue en portail, la barre est HORS du `<form>` de la page dans le DOM. Son bouton
  * d'envoi le nomme : `<Button type="submit" form="<id du formulaire>">`. Sans `form`, il n'envoie rien.

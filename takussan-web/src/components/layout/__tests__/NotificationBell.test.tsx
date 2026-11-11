@@ -181,3 +181,36 @@ describe('TCK-2691 — les cotes de la cloche selon sa surface', () => {
   });
 });
 // TCK-2691:fin
+
+// TCK-2712:début
+/**
+ * TCK-2712 (11a, ADR-0106) — la pastille des non-lues de la maquette (`Pastille`, `chrome-app.tsx`) :
+ * `h-4 min-w-4 px-1`, 10 px 600, interligne 10 (`leading-none` dans une boîte de `h-4` centrée), anneau
+ * `card`. Sa place suit la surface : la colonne la pose à `top-0 -right-0.5` du bouton de 28,8 px
+ * (x 203,2 y 10,8 à 1440), l'en-tête à `top-0.5 right-0.5` du bouton de 40 px (x 362 y 9,5 à 390).
+ */
+describe('TCK-2712 — la pastille des non-lues', () => {
+  beforeEach(() => {
+    getNotificationsMock.mockReset();
+    getNotificationsMock.mockResolvedValue({ ok: true, data: response() });
+  });
+
+  const DESSIN = ['inline-flex', 'h-4', 'min-w-4', 'items-center', 'justify-center', 'rounded-full', 'bg-primary', 'px-1', 'text-pastille', 'font-semibold', 'leading-none', 'tabular-nums', 'text-primary-foreground', 'ring-2', 'ring-card'];
+
+  it('dans la colonne : le dessin de la maquette, à `top-0 -right-0.5`', async () => {
+    render(wrap(<NotificationBell align="start" />));
+    const pastille = await screen.findByText('1');
+    const c = pastille.className.split(/\s+/);
+    expect(c).toEqual(expect.arrayContaining([...DESSIN, 'top-0', '-right-0.5']));
+    for (const ancien of ['font-bold', 'leading-4', 'ring-background', '-top-1', '-right-1']) expect(c).not.toContain(ancien);
+  });
+
+  it('dans l’en-tête du téléphone : le même dessin, à `top-0.5 right-0.5`', async () => {
+    render(wrap(<EnTeteMobile onOuvrirPalette={() => {}} />));
+    const pastille = await screen.findByText('1');
+    const c = pastille.className.split(/\s+/);
+    expect(c).toEqual(expect.arrayContaining([...DESSIN, 'top-0.5', 'right-0.5']));
+    expect(c).not.toContain('-right-0.5');
+  });
+});
+// TCK-2712:fin

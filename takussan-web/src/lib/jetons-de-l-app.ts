@@ -58,7 +58,8 @@ export const DENSITE_DE_L_APP = {
     'zone-texte-y',
   ],
   radius: ['petit-bouton'],
-  text: ['petit-bouton', 'champ', 'declencheur'],
+  // TCK-2712 (7) — `bouton` : le texte de `Button` (default, lg), 14 px au pouce dès `lg` aussi.
+  text: ['petit-bouton', 'champ', 'declencheur', 'bouton'],
   leading: ['zone-texte'],
   color: ['fond-champ', 'fond-contour', 'encre-bouton-doux', 'encre-discrete', 'bord-danger'],
   'font-weight': ['bouton-doux'],

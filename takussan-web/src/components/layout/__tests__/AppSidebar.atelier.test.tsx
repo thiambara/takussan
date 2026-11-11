@@ -329,3 +329,23 @@ describe('TCK-2490 (ADR-0090 §5) — « Récents »', () => {
     expect(container.querySelector('[data-slot="recents"]')).toBeNull();
   });
 });
+
+// TCK-2712:début
+/**
+ * TCK-2712 (11b, ADR-0106) — les touches « ⌘ K » de la maquette : `rounded bg-muted px-1`, 11 px à
+ * l'encre discrète, la police mono de la feuille de base (`kbd`, preflight) et l'interligne de la
+ * ligne (15,7 px à 1440) — ni anneau ni boîte carrée de 20 px.
+ */
+describe('TCK-2712 — les touches de « Aller à »', () => {
+  it('chaque touche a le dessin de la maquette', () => {
+    const { container } = monter(() => {});
+    const touches = Array.from(container.querySelectorAll('[data-slot="aller-a"] kbd'));
+    expect(touches.length).toBeGreaterThan(0);
+    for (const t of touches) {
+      const c = t.className.split(/\s+/);
+      expect(c).toEqual(expect.arrayContaining(['rounded', 'bg-muted', 'px-1', 'text-legende', 'text-muted-foreground']));
+      for (const ancien of ['ring-1', 'ring-border', 'h-5', 'min-w-5', 'font-sans', 'leading-none']) expect(c).not.toContain(ancien);
+    }
+  });
+});
+// TCK-2712:fin

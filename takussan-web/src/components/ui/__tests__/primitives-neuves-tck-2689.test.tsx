@@ -323,22 +323,31 @@ describe('BarreDAction (TCK-2689)', () => {
   describe('le bas du toast (`globals.css`)', () => {
     const css = readFileSync(join(__dirname, '../../../app/globals.css'), 'utf8');
 
-    it('`--barre-d-action-hauteur` vaut 0 hors barre, et filet + py-3 + action (73 px) sous md quand une barre occupe l’emplacement', () => {
+    // TCK-2712 (4) — 69 px, des boutons de 44 (`--spacing-controle`, la « Page de détail » gelée), plus 73.
+    it('`--barre-d-action-hauteur` vaut 0 hors barre, et filet + py-3 + bouton de 44 (69 px) sous md quand une barre occupe l’emplacement', () => {
       expect(css).toMatch(/:root \{\s*--barre-d-action-hauteur: 0px;/);
       expect(css).toMatch(
-        /@media \(width < 48rem\) \{\s*:root:has\(#emplacement-barre-d-action > \[data-slot="barre-d-action"\]\) \{\s*--barre-d-action-hauteur: calc\(var\(--spacing-controle-action\) \+ var\(--spacing\) \* 6 \+ 1px\);/,
+        /@media \(width < 48rem\) \{\s*:root:has\(#emplacement-barre-d-action > \[data-slot="barre-d-action"\]\) \{\s*--barre-d-action-hauteur: calc\(var\(--spacing-controle\) \+ var\(--spacing\) \* 6 \+ 1px\);/,
       );
       expect(css).toMatch(
-        /@media \(width < 48rem\) \{(?:\s*[^{}@]+\{[^{}]*\})*\s*:root:has\(#emplacement-barre-d-action\[data-bas-de-l-ecran\] > \[data-slot="barre-d-action"\]\) \{\s*--barre-d-action-hauteur: calc\(var\(--spacing-controle-action\) \+ var\(--spacing\) \* 6 \+ 1px \+ env\(safe-area-inset-bottom\)\);/,
+        /@media \(width < 48rem\) \{(?:\s*[^{}@]+\{[^{}]*\})*\s*:root:has\(#emplacement-barre-d-action\[data-bas-de-l-ecran\] > \[data-slot="barre-d-action"\]\) \{\s*--barre-d-action-hauteur: calc\(var\(--spacing-controle\) \+ var\(--spacing\) \* 6 \+ 1px \+ env\(safe-area-inset-bottom\)\);/,
       );
       // L'`id` de la règle est celui de l'emplacement.
       expect(EMPLACEMENT_BARRE_D_ACTION).toBe('emplacement-barre-d-action');
     });
 
-    it('chaque formule de `--toast-bas` ajoute la hauteur de la barre', () => {
-      const formules = [...css.matchAll(/--toast-bas: (calc\([^;]+\));/g)].map((m) => m[1]);
-      expect(formules).toHaveLength(4);
-      for (const f of formules) expect(f).toContain('+ var(--barre-d-action-hauteur)');
+    it('chaque formule de `--toast-bas` ajoute la hauteur de la barre, une fois', () => {
+      const formules = [...css.matchAll(/--toast-bas: (calc\([^;]+\));/g)].map((m) => m[1]!);
+      // TCK-2712 (3) — six : les quatre de TCK-2688, plus les deux de la pastille du site public.
+      expect(formules).toHaveLength(6);
+      // Celles de la pastille la reçoivent par la base du dock, qui la porte (TCK-2712 (5)) : la
+      // hauteur de la barre y est ajoutée par l'un OU l'autre terme, jamais par les deux.
+      expect(css).toMatch(/--floating-dock-base: calc\(16px \+ var\(--barre-d-action-hauteur\)\);/);
+      for (const f of formules) {
+        const directe = f.includes('+ var(--barre-d-action-hauteur)');
+        const parLeDock = f.includes('var(--floating-dock-base)');
+        expect(directe !== parLeDock, f).toBe(true);
+      }
     });
   });
 });

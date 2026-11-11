@@ -199,7 +199,8 @@ describe('TCK-2481 — la barre d’onglets réserve sa hauteur en sœur du cont
     // TCK-2481 (revue, M5) — la MÊME chaîne que le seuil JS de la barre (`useMatchesMedia`) : un
     // seuil en px décroche du CSS dès que la police par défaut du navigateur dépasse 16 px.
     expect(plage.trim()).toBe(REQUETE_DE_LA_BARRE);
-    expect(corps.trim()).toBe('--floating-dock-base: calc(16px + var(--barre-onglets-hauteur));');
+    // TCK-2712 (5) — et de celle de la barre d'action collante, comme le toast (0 sans elle).
+    expect(corps.trim()).toBe('--floating-dock-base: calc(16px + var(--barre-onglets-hauteur) + var(--barre-d-action-hauteur));');
     // `md` reste le défaut de Tailwind (48rem) : aucun `--breakpoint-md` ne le déplace.
     expect(css).not.toMatch(/--breakpoint-md\s*:/);
   });

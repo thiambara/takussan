@@ -405,7 +405,7 @@ function PrimitivesNeuvesLot1() {
         </div>
       </Section>
 
-      <Section titre="Barre d’action collante (73 px, sous md seulement)">
+      <Section titre="Barre d’action collante (69 px, boutons de 44, sous md seulement)">
         <p className="text-ui text-muted-foreground">
           En flux entre le contenu et les onglets ; dans la coque, rendue dans son emplacement. À 1440, aucune barre :
           les cadres ci-dessous n’en montrent que le contenu.
@@ -418,7 +418,7 @@ function PrimitivesNeuvesLot1() {
               ))}
             </div>
             <BarreDAction data-epreuve="barre-d-action-onglets">
-              <Button size="xl">Enregistrer le bail</Button>
+              <Button>Enregistrer le bail</Button>
             </BarreDAction>
             <OngletsFactices />
           </div>
@@ -429,10 +429,8 @@ function PrimitivesNeuvesLot1() {
               ))}
             </div>
             <BarreDAction zoneSure data-epreuve="barre-d-action-plein">
-              <Button size="xl" variant="outline">
-                Refuser
-              </Button>
-              <Button size="xl">Accepter</Button>
+              <Button variant="outline">Refuser</Button>
+              <Button>Accepter</Button>
             </BarreDAction>
           </div>
         </div>

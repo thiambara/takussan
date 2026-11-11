@@ -578,10 +578,9 @@ function LigneAllerA({ onOuvrir, infobulle }: LigneAllerAProps) {
         <span className="min-w-0 flex-1 truncate text-left icones:sr-only">{t('ouvrir')}</span>
         <span aria-hidden className="ml-auto flex shrink-0 gap-0.5 max-md:hidden tactile:hidden icones:hidden">
           {touches.map((touche) => (
-            <kbd
-              key={touche}
-              className="inline-flex h-5 min-w-5 items-center justify-center rounded-[5px] px-1 font-sans text-[0.6875rem] leading-none text-muted-foreground ring-1 ring-inset ring-border"
-            >
+            // TCK-2712 (11b, ADR-0106) — les touches de la maquette : fond `muted`, 11 px, la police mono et
+            // l'interligne de la ligne (15,7 px à 1440) — plus d'anneau ni de boîte de 20 px.
+            <kbd key={touche} className="rounded bg-muted px-1 text-legende text-muted-foreground">
               {touche}
             </kbd>
           ))}

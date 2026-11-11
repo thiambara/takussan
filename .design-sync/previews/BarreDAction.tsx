@@ -5,7 +5,7 @@ export function OneAction() {
     <div className="flex h-56 max-w-sm flex-col overflow-hidden rounded-xl border border-border bg-background">
       <div className="min-h-0 flex-1 p-4 text-sm text-muted-foreground">Contenu de la page de détail.</div>
       <BarreDAction>
-        <Button size="xl">Enregistrer le bail</Button>
+        <Button>Enregistrer le bail</Button>
       </BarreDAction>
     </div>
   );
@@ -16,10 +16,8 @@ export function TwoActions() {
     <div className="flex h-56 max-w-sm flex-col overflow-hidden rounded-xl border border-border bg-background">
       <div className="min-h-0 flex-1 p-4 text-sm text-muted-foreground">Demande de visite de Moussa Diop.</div>
       <BarreDAction zoneSure>
-        <Button size="xl" variant="outline">
-          Refuser
-        </Button>
-        <Button size="xl">Accepter</Button>
+        <Button variant="outline">Refuser</Button>
+        <Button>Accepter</Button>
       </BarreDAction>
     </div>
   );

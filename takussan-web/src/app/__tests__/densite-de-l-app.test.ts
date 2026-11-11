@@ -55,6 +55,7 @@ const candidats = [
   FIELD_DENSITY_HEIGHT_SIZED,
   'text-champ',
   'text-declencheur',
+  'text-bouton',
   'text-petit-bouton',
   'px-petit-bouton-x',
   'gap-petit-bouton-espace',
@@ -110,6 +111,8 @@ describe('TCK-2686 — le site public ne bouge pas : chaque jeton vaut par défa
     ['--text-champ--line-height', 'var(--text-base--line-height)'],
     ['--text-declencheur', 'var(--text-sm)'],
     ['--text-declencheur--line-height', 'var(--text-sm--line-height)'],
+    ['--text-bouton', 'var(--text-sm)'], // TCK-2712 (7) — le `text-sm` d'avant de `Button`
+    ['--text-bouton--line-height', 'var(--text-sm--line-height)'],
     ['--spacing-zone-texte-y', 'calc(var(--spacing) * 2)'], // py-2
     ['--leading-zone-texte', 'var(--text-champ--line-height)'],
     ['--color-fond-champ', 'transparent'], // bg-transparent
@@ -147,6 +150,7 @@ describe('TCK-2686 — la portée `/app` redéfinit les jetons', () => {
     expect(d.get('--spacing-controle-confortable')).toBe('2.75rem');
     expect(d.get('--text-champ')).toBe('1rem'); // 16 : Safari iOS ne zoome pas
     expect(d.get('--text-declencheur')).toBe('1rem');
+    expect(d.get('--text-bouton')).toBe('0.875rem'); // TCK-2712 (7) — 14 px, le bouton du téléphone
     // Le petit bouton de la maquette, aux deux largeurs : 13 px, px-3, rounded-lg, gap-1.5.
     expect(d.get('--text-petit-bouton')).toBe('var(--text-ui)');
     expect(d.get('--spacing-petit-bouton-x')).toBe('calc(var(--spacing) * 3)');
@@ -170,6 +174,7 @@ describe('TCK-2686 — la portée `/app` redéfinit les jetons', () => {
     expect(d.get('--spacing-controle-confortable')).toBe('calc(var(--spacing) * 11)'); // 44 → 39,6
     expect(d.get('--text-champ')).toBe('var(--text-sm)'); // 12,6 dès lg
     expect(d.get('--text-declencheur')).toBe('var(--text-sm)');
+    expect(d.get('--text-bouton')).toBe('var(--text-sm)'); // TCK-2712 (7)
   });
 
   it('AC3 — teintes de la maquette au thème clair seulement (le sombre garde les siennes)', () => {
@@ -205,6 +210,7 @@ describe('TCK-2686 — ce que la feuille compilée en fait', () => {
     ['bg-fond-champ', 'background-color: var(--color-fond-champ)'],
     ['text-encre-discrete', 'color: var(--color-encre-discrete)'],
     ['font-bouton-doux', 'font-weight: var(--font-weight-bouton-doux)'],
+    ['text-bouton', 'font-size: var(--text-bouton)'], // TCK-2712 (7)
   ])('.%s lit son jeton À L’EXÉCUTION (sinon la portée ne peut pas le redéfinir)', (classe, decl) => {
     const i = position(classe);
     expect(i, `aucune règle pour ${classe}`).toBeGreaterThan(-1);
