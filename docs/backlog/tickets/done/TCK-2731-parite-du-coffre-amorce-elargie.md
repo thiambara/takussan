@@ -1,7 +1,7 @@
 ---
 id: TCK-2731
 title: "La parité du coffre amorcé et non amorcé se juge sur le coffre entier, et sur les personnes que la contre-vérification a ajoutées"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -73,15 +73,15 @@ Aucun changement de code applicatif.
 
 ## Delta à produire
 
-- [ ] `DocumentVaultPrimedVerdictParityTest` étendu (ou une classe sœur dans `tests/Feature/Documents/`) avec le décor et
+- [x] `DocumentVaultPrimedVerdictParityTest` étendu (ou une classe sœur dans `tests/Feature/Documents/`) avec le décor et
       les deux tests ci-dessus.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Le test est vert sur l'arbre courant.
-- [ ] AC2 — Ablation (une, au premier plan, md5 restauré) : `BailleurDuBien::tientUnProfil` lit l'amorce `owner` au lieu
+- [x] AC1 — Le test est vert sur l'arbre courant.
+- [x] AC2 — Ablation (une, au premier plan, md5 restauré) : `BailleurDuBien::tientUnProfil` lit l'amorce `owner` au lieu
       de `owner_any` → le test rougit, et le message nomme la personne 7 et sa cible.
-- [ ] AC3 — Ablation : `primed()` ne remet plus l'amorce à `null` dans son `finally` → le second test rougit.
+- [x] AC3 — Ablation : `primed()` ne remet plus l'amorce à `null` dans son `finally` → le second test rougit.
 
 ## Hors périmètre
 
@@ -92,4 +92,22 @@ Aucun changement de code applicatif.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Une classe sœur** : `tests/Feature/Documents/DocumentVaultPrimedVaultParityTest.php`, avec le décor de
+`CoffreDeDocuments`, plus l'agence B, un relevé de bailleur enregistré (`2025-12`) et les personnes 1 à 10 du ticket,
+chacune essayée sans profil actif puis avec son profil. `build()` et `generatedOf()` sont privées et sont appelées par
+réflexion. Le compte est relu à chaque appel, et le profil actif est posé dans
+`request()->attributes['active_profile']`, puis retiré dans un `finally`.
+
+- Test 1 : coffre amorcé (`for()`) = coffre non amorcé (`build()`) ; coffre sous l'amorce de A seule, puis de B
+  seule = coffre non amorcé ; pour les six cibles, `generatedFor()` = `generatedOf()`. Au moins 10 listes de générés
+  doivent être non vides.
+- Test 2 : le bailleur bloqué conducteur lit bien des générés. Sans ce cas, la parité qui discrimine serait vide.
+- Test 3 : amorce remise à `null` après une exception dans le rappel ; un `primed()` imbriqué n'efface pas l'amorce
+  externe ; le coffre appelé sous l'amorce d'autres utilisateurs rend le même coffre.
+
+Résultat : 3 tests, 210 assertions, verts en 17,6 s (`load average` 4,5 sur 8 cœurs).
+
+**Ablations du 2026-11-11.** Une à la fois, au premier plan, md5 restauré et vérifié.
+- AC2 : `BailleurDuBien::tientUnProfil` lit `owner` au lieu de `owner_any`. Le test 1 rougit avec le message
+  « 7. bailleur bloqué conducteur / sans profil actif : générés de « bien » ».
+- AC3 : le `finally` de `primed()` ne remet plus l'amorce à `null`. Le test 3 rougit.
