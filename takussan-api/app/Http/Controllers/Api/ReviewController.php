@@ -102,9 +102,11 @@ class ReviewController extends Controller
             }
         }
 
+        // TCK-2722 — sous `filter[author_id]=me`, l'auteur ne lit pas le nombre de signalements
+        // (la ressource le lui retire) : ni filtre, ni tri par signalements.
         $reported = $request->query('filter.reported')
             ?? data_get($request->query('filter', []), 'reported');
-        if (in_array($reported, [1, '1', true, 'true'], true)) {
+        if (! $isSelfFilter && in_array($reported, [1, '1', true, 'true'], true)) {
             $query->where('reported_count', '>', 0);
         }
 
@@ -138,7 +140,10 @@ class ReviewController extends Controller
                 $direction = 'desc';
                 $spec = substr($spec, 1);
             }
-            if (in_array($spec, ['created_at', 'reported_count', 'rating', 'id'], true)) {
+            if (in_array($spec, ['created_at', 'rating', 'id'], true)) {
+                $query->orderBy($spec, $direction);
+            } elseif ($spec === 'reported_count' && ! $isSelfFilter) {
+                // TCK-2722 — tri ignoré pour l'auteur, y compris celui par défaut : il retombe sur la date.
                 $query->orderBy($spec, $direction);
             } elseif ($spec === 'risk' && ! $isSelfFilter) {
                 // TCK-2672 — `risk` : à risque d'abord ; `-risk` : sans risque d'abord.

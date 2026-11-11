@@ -19,6 +19,9 @@ class ReviewResource extends BaseResource
     {
         $author = $this->resource->author;
         $viewer = $request->user();
+        // TCK-2672, TCK-2722 — qui modère dans le périmètre de l'avis (la règle de `GET …/reports`)
+        // lit son risque et son nombre de signalements ; l'auteur et le public, ni l'un ni l'autre.
+        $readsReports = $viewer !== null && $viewer->can('viewReports', $this->resource);
         // TCK-1781 (P175.05) — un auteur effacé ou sans nom rend `name` nul : le front écrit
         // « Anonyme » dans la langue du lecteur (principe 5), l'API n'émet pas de libellé.
         $authorName = $author
@@ -44,7 +47,9 @@ class ReviewResource extends BaseResource
             'content' => $this->content,
             'is_approved' => (bool) $this->is_approved,
             'status' => $this->status?->value,
-            'reported_count' => (int) ($this->reported_count ?? 0),
+            // TCK-2722 (décision du porteur du 2026-11-11) — clé absente pour l'auteur et le public :
+            // le compte, et sa trace après ré-approbation, ne se lisent que par qui modère.
+            'reported_count' => $this->when($readsReports, fn (): int => (int) ($this->reported_count ?? 0)),
             'reply_content' => $this->reply_content,
             'replied_at' => $this->iso($this->replied_at),
             'created_at' => $this->iso($this->created_at),
@@ -59,7 +64,7 @@ class ReviewResource extends BaseResource
             // TCK-2672 — le risque ({@see ReviewRiskClassifier}), pour qui modère dans le périmètre
             // de l'avis (la règle de `GET …/reports`) : absent pour l'auteur et le public.
             'risk' => $this->when(
-                $viewer !== null && $viewer->can('viewReports', $this->resource),
+                $readsReports,
                 fn () => app(ReviewRiskClassifier::class)->classify($this->resource),
             ),
         ];
