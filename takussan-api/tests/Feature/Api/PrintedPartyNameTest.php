@@ -2,13 +2,17 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\Booking;
+use App\Models\BookingPayment;
 use App\Models\Customer;
 use App\Models\Guarantor;
+use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Pdf\DocumentPdfService;
+use App\Services\Pdf\PrintedIdentity;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -120,5 +124,74 @@ class PrintedPartyNameTest extends TestCase
 
         $this->assertSame('Awa Ndiaye', $this->caseApres($this->contrat($lease), 'Locataire'));
         $this->assertSame('Awa Ndiaye', $this->caseApres($this->quittance($lease, $payment), 'Nom'));
+    }
+
+    // ─── Contre-vérification de TCK-2718 : ni doublon, ni téléphone figé là où rien ne le lit ───
+
+    /** Le repli n'imprime pas deux fois la même coordonnée : en nom, puis en ligne de détail. */
+    public function test_le_repli_ne_repete_pas_sa_coordonnee_en_ligne_de_detail(): void
+    {
+        $lease = $this->bail($this->sansNom(['email' => 'a@x.sn']));
+        $lease->guarantors()->attach(Guarantor::factory()->create($this->sansNom(['email' => 'g@x.sn', 'phone' => '+221770000002']))->id, ['role' => 'guarantor']);
+        $lease->guarantors()->attach(Guarantor::factory()->create($this->sansNom(['email' => null, 'phone' => '+221770000003']))->id, ['role' => 'guarantor']);
+        $payment = LeasePayment::factory()->paid()->create(['lease_id' => $lease->id, 'payer_id' => $lease->tenant_id]);
+
+        $contrat = $this->contrat($lease);
+        $this->assertSame(1, substr_count($contrat, 'a@x.sn'), 'locataire');
+        $this->assertSame(1, substr_count($contrat, 'g@x.sn'), 'garant, e-mail en nom');
+        $this->assertSame(1, substr_count($contrat, '+221770000002'), 'garant, téléphone en contact');
+        $this->assertSame(1, substr_count($contrat, '+221770000003'), 'garant, téléphone en nom');
+
+        $quittance = $this->quittance($lease, $payment);
+        $this->assertSame(1, substr_count($quittance, 'a@x.sn'));
+        $this->assertStringNotContainsString('<th>Email</th>', $quittance);
+    }
+
+    /** Un nom présent garde sa ligne de détail. */
+    public function test_un_nom_present_garde_sa_ligne_de_detail(): void
+    {
+        $lease = $this->bail(['first_name' => 'Awa', 'last_name' => 'Ndiaye', 'email' => 'awa@x.sn']);
+        $lease->guarantors()->attach(Guarantor::factory()->create(['first_name' => 'Moussa', 'last_name' => 'Fall', 'email' => 'm@x.sn', 'phone' => '+221770000004'])->id, ['role' => 'guarantor']);
+        $payment = LeasePayment::factory()->paid()->create(['lease_id' => $lease->id, 'payer_id' => $lease->tenant_id]);
+
+        $contrat = $this->contrat($lease);
+        $this->assertStringContainsString('<div class="muted">awa@x.sn</div>', $contrat);
+        $this->assertStringContainsString('m@x.sn<br>+221770000004', $contrat);
+
+        $quittance = $this->quittance($lease, $payment);
+        $this->assertStringContainsString('<th>Email</th>', $quittance);
+        $this->assertSame(1, substr_count($quittance, 'awa@x.sn'));
+    }
+
+    /**
+     * Minimisation : seul le gabarit de la quittance de loyer lit le téléphone ; seul son instantané
+     * le fige. L'état des lieux et le reçu de réservation ne figent que le nom et l'e-mail.
+     */
+    public function test_seule_la_quittance_de_loyer_fige_le_telephone(): void
+    {
+        $tenantUser = User::factory()->create();
+        $lease = $this->bail(['user_id' => $tenantUser->id, 'first_name' => 'Awa', 'last_name' => 'Ndiaye', 'phone' => '+221770000005']);
+        $this->landlord->forceFill(['phone' => '+221770000006'])->save();
+
+        $quittance = LeasePayment::factory()->paid()->create(['lease_id' => $lease->id, 'payer_id' => $lease->tenant_id]);
+        $this->assertSame('+221770000005', $quittance->fresh()->metadata[PrintedIdentity::KEY]['tenant']['phone'] ?? null);
+
+        $booking = Booking::factory()->create(['customer_id' => $lease->tenant_id, 'property_id' => $lease->property_id]);
+        $recu = BookingPayment::factory()->paid()->create(['booking_id' => $booking->id]);
+        $this->assertArrayNotHasKey('phone', $recu->fresh()->metadata[PrintedIdentity::KEY]['customer']);
+
+        $inventory = Inventory::factory()->pendingSignature()->create([
+            'lease_id' => $lease->id, 'property_id' => $lease->property_id, 'tenant_id' => $lease->tenant_id, 'conducted_by' => $this->landlord->id,
+        ]);
+        $signature = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAvMBAOeufn4AAAAASUVORK5CYII=';
+        Sanctum::actingAs($this->landlord);
+        $this->postJson("/api/inventories/{$inventory->id}/sign", ['role' => 'landlord', 'signature' => $signature])->assertOk();
+        Sanctum::actingAs($tenantUser);
+        $this->postJson("/api/inventories/{$inventory->id}/sign", ['role' => 'tenant', 'signature' => $signature])->assertOk();
+
+        $instantane = $inventory->fresh()->metadata[PrintedIdentity::KEY];
+        $this->assertSame('Ndiaye', $instantane['tenant']['last_name']);
+        $this->assertArrayNotHasKey('phone', $instantane['tenant']);
+        $this->assertArrayNotHasKey('phone', $instantane['landlord']);
     }
 }

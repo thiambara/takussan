@@ -9,6 +9,7 @@ use App\Models\Contracts\HasAuditAgency;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
 use App\Services\Payments\PaymentGatewayService;
+use App\Services\Pdf\PrintedIdentity;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -138,6 +139,17 @@ class LeasePayment extends AbstractModel implements HasAuditAgency
         ])->find($this->lease_id);
 
         return ['tenant' => $lease?->tenant, 'property' => $lease?->property, 'agency' => $lease?->agency];
+    }
+
+    /**
+     * TCK-2718 — la quittance de loyer fige aussi le téléphone du locataire, qu'elle imprime à
+     * défaut de nom et d'e-mail ({@see PrintedIdentity::RENT_RECEIPT_FIELDS}).
+     *
+     * @return array<string, list<string>>
+     */
+    public function printedIdentityExtraFields(): array
+    {
+        return PrintedIdentity::RENT_RECEIPT_FIELDS;
     }
 
     public function lease(): BelongsTo

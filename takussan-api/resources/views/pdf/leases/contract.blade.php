@@ -55,9 +55,11 @@
         <tr>
             <th>Locataire</th>
             <td>
-                {{-- TCK-2718 — une fiche sans nom : l'e-mail, puis le téléphone, puis « — ». --}}
-                {{ \App\Services\Pdf\PrintedName::of($tenant) }}
-                @if ($tenant->email ?? false)
+                {{-- TCK-2718 — une fiche sans nom : l'e-mail, puis le téléphone, puis « — ». La ligne
+                     de détail ne répète pas ce que le repli imprime déjà en nom. --}}
+                @php($nomDuLocataire = \App\Services\Pdf\PrintedName::of($tenant))
+                {{ $nomDuLocataire }}
+                @if (($tenant->email ?? false) && $tenant->email !== $nomDuLocataire)
                     <div class="muted">{{ $tenant->email }}</div>
                 @endif
             </td>
@@ -178,11 +180,12 @@
             </thead>
             <tbody>
                 @foreach ($guarantors as $g)
+                    @php($nomDuGarant = \App\Services\Pdf\PrintedName::of($g))
+                    @php($contactsDuGarant = array_values(array_filter([$g->email ?? null, $g->phone ?? null], fn ($c) => $c && $c !== $nomDuGarant)))
                     <tr>
-                        <td>{{ \App\Services\Pdf\PrintedName::of($g) }}</td>
+                        <td>{{ $nomDuGarant }}</td>
                         <td>
-                            @if ($g->email ?? false){{ $g->email }}<br>@endif
-                            @if ($g->phone ?? false){{ $g->phone }}@endif
+                            @foreach ($contactsDuGarant as $contact)@if (! $loop->first)<br>@endif{{ $contact }}@endforeach
                         </td>
                         <td>{{ $g->pivot->role ?? $g->role ?? '—' }}</td>
                     </tr>

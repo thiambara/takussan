@@ -51,10 +51,12 @@
     <table class="kv">
         <tr>
             <th>Nom</th>
-            {{-- TCK-2718 — une fiche sans nom : l'e-mail, puis le téléphone, puis « — ». --}}
-            <td>{{ \App\Services\Pdf\PrintedName::of($tenant) }}</td>
+            {{-- TCK-2718 — une fiche sans nom : l'e-mail, puis le téléphone, puis « — ». La ligne
+                 « Email » ne répète pas ce que le repli imprime déjà en nom. --}}
+            @php($nomDuLocataire = \App\Services\Pdf\PrintedName::of($tenant))
+            <td>{{ $nomDuLocataire }}</td>
         </tr>
-        @if ($tenant->email ?? false)
+        @if (($tenant->email ?? false) && $tenant->email !== $nomDuLocataire)
         <tr>
             <th>Email</th>
             <td>{{ $tenant->email }}</td>
