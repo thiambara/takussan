@@ -1,7 +1,7 @@
 ---
 id: TCK-2721
 title: "« Exporter » le registre des encaissements rend les lignes du registre, avec ses filtres"
-status: todo
+status: done
 phase: P1
 family: full
 estimate: M
