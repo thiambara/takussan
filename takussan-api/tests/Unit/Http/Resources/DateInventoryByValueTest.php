@@ -106,6 +106,8 @@ class DateInventoryByValueTest extends TestCase
             .'Un vocabulaire fermé (`designated`, `invitation_order`, `owner`, `null`), jamais une date.',
         'App\Http\Resources\PropertyVisitResource::abilities' => '`when()` sur la seule visite de la route (P152.04) : '
             .'un booléen, jamais une date.',
+        'App\Http\Resources\ReviewResource::reported_count' => '`when(viewReports)` (TCK-2722) : même lecteur que '
+            .'`risk`, que le parcours n\'atteint pas. Un compteur ENTIER (`(int)`), jamais une date.',
         'App\Http\Resources\ReviewResource::risk' => '`when(viewReports)` (TCK-2672) : le parcours ne lit pas en '
             .'modérateur de l\'avis. `{level, reasons}`, deux vocabulaires fermés (`high|low`, codes), jamais une date.',
     ];
