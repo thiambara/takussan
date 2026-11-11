@@ -296,7 +296,7 @@ refusé. Une valeur en liste (`filter[x][]=…`) vaut une valeur absente (ADR-00
 | `filter[payment_method]` | liste | `wave,cash` — inconnu → 422 `payment.filter_payment_method_invalid` (TCK-2657) |
 | `filter[search]` | search | chaque mot dans : nom du payeur, titre ou référence du bien, référence du paiement ; casse repliée (`CaseInsensitive`), **accents non repliés** (TCK-2657) |
 | `filter[days_late_min]` / `filter[days_late_max]` | entier ≥ 0 | échéances dues et échues seulement ; exclut les réservations (TCK-2657) |
-| `include` | `payer`, `property`, `landlord`, `reminders` | `payer {id, name, phone}`, `property {id, title, reference_number}`, `landlord {id, name}` — nom inconnu ignoré (TCK-2657) ; `reminders` : `last_reminder {at, source, channel, by}` (ou `null`) et `reminders_count`, relances notées et rappels automatiques confondus, `null`/`0` sur une réservation (TCK-2658) |
+| `include` | `payer`, `property`, `landlord`, `reminders` | `payer {id, name, phone}`, `property {id, title, reference_number}`, `landlord {id, name}` — nom inconnu ignoré (TCK-2657) ; `reminders` : `last_reminder {at, source, channel, by}` (ou `null`) et `reminders_count`, relances notées et rappels automatiques confondus, `null`/`0` sur une réservation (TCK-2658), et sur toute ligne dont le lecteur n'est ni super-admin ni personnel de l'agence du bail — la règle de `LeasePaymentPolicy::remind`, jugée ligne par ligne (vérification adverse de TCK-2658) |
 | `sort` | `-date` (défaut), `amount`, `remaining_amount`, `created_at`, `days_late` | `days_late` : les lignes sans retard en dernier, dans les deux sens |
 
 ⚠ **`days_late` n'est émis que si la requête porte un paramètre neuf de TCK-2657** (un `include`,
