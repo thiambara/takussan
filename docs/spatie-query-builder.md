@@ -180,7 +180,7 @@ GET /api/properties/portfolio-summary?filter[user_id]=42
 - **La file « À traiter »** (`App\Services\Lease\LeaseAttention`, une règle SQL par motif) :
   `signature_pending` (en signature depuis plus de 3 jours), `notice_received` (préavis sur un bail
   en cours), `rent_late` (loyer échu au-delà du délai de grâce du bail, reste dû > 0),
-  `late_fee_unpaid` (pénalité non réglée sur une échéance payée), `rent_review_open` (anniversaire
+  `late_fee_unpaid` (pénalité non réglée sur une échéance payée, bail en cours — `active`, `terminating`), `rent_review_open` (anniversaire
   passé, aucune révision depuis 12 mois), `deposit_to_refund` (terminé ou expiré, caution restante
   > 0), `ending_soon` (actif, fin dans moins de 4 mois, sans renouvellement), `onboarding_incomplete`
   (checklist ouverte depuis plus de 7 jours ; personnel seulement). ⚠ Le motif `rent_late` n'est pas

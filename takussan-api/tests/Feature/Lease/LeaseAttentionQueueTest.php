@@ -173,6 +173,25 @@ class LeaseAttentionQueueTest extends ApiTestCase
             fn ($v) => is_float($v) ? (int) $v : $v, $e), $a), $rows), fn (array $a) => $a !== []));
     }
 
+    /**
+     * Décision du porteur (2026-11-11) : la pénalité restée due sur un bail FINI (expiré, résilié,
+     * renouvelé) ne met plus le bail dans la file — sur la démo, 126 baux en sortaient pour des
+     * pénalités de 2024. Un bail en préavis (`terminating`) est encore en cours : il y reste.
+     */
+    public function test_la_penalite_due_d_un_bail_fini_ne_met_plus_le_bail_dans_la_file(): void
+    {
+        $fini = ['start_date' => '2024-01-01', 'end_date' => '2025-12-31'];
+        $paye = fn (Lease $l) => $this->loyer($l, '2025-10-05', PaymentStatus::Paid, ['late_fee_amount' => 15_000, 'late_fee_applied_at' => '2025-10-12 00:00:00']);
+        $paye($expire = $this->lease('PEN-EXP', $fini + ['status' => LeaseStatus::Expired]));
+        $paye($renouvele = $this->lease('PEN-REN', $fini + ['status' => LeaseStatus::Renewed]));
+        $paye($preavis = $this->lease('PEN-PRE', ['status' => LeaseStatus::Terminating]));
+
+        $this->assertNotContains('late_fee_unpaid', array_column($this->attentionOf($expire), 'motif'));
+        $this->assertNotContains('late_fee_unpaid', array_column($this->attentionOf($renouvele), 'motif'));
+        $this->assertContains('late_fee_unpaid', array_column($this->attentionOf($preavis), 'motif'));
+        $this->assertSame(['PEN-PRE'], $this->refs('&filter[motif]=late_fee_unpaid'));
+    }
+
     /** La pénalité d'une échéance encore due est dans `rent_late` : `late_fee_unpaid` ne vise que les échéances payées. */
     public function test_la_penalite_d_une_echeance_encore_due_reste_dans_le_retard(): void
     {

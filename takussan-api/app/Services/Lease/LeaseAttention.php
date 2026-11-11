@@ -32,7 +32,7 @@ use Illuminate\Support\Facades\DB;
  * | `signature_pending` | `pending_signature`, signature demandée il y a plus de 3 jours | la demande |
  * | `notice_received` | en cours et en préavis ({@see Occupation::onNotice()}) | la demande de préavis |
  * | `rent_late` | une échéance de LOYER due, non soldée, échue depuis plus que le délai de grâce du bail | l'échéance la plus ancienne |
- * | `late_fee_unpaid` | une échéance payée dont la pénalité n'est pas réglée ({@see CollectedPayments::lateFeesOutstanding()}) | la pénalité la plus ancienne |
+ * | `late_fee_unpaid` | bail en cours (`active`, `terminating`), une échéance payée dont la pénalité n'est pas réglée ({@see CollectedPayments::lateFeesOutstanding()}) | la pénalité la plus ancienne |
  * | `rent_review_open` | `active`, un an passé depuis le début, aucune révision depuis 12 mois | le dernier anniversaire |
  * | `deposit_to_refund` | terminé ou expiré, caution restant à rendre > 0 ({@see DepositRemaining}) | la fin effective |
  * | `ending_soon` | `active`, fin dans moins de 4 mois, aucun renouvellement | l'entrée dans la fenêtre |
@@ -64,6 +64,9 @@ final class LeaseAttention
     public const ENDING_WITHIN_MONTHS = 4;
 
     public const REVIEW_EVERY_MONTHS = 12;
+
+    /** Les baux EN COURS (l'onglet « en cours » du résumé) : seuls à porter `late_fee_unpaid`. */
+    public const LATE_FEE_STATUSES = [LeaseStatus::Active, LeaseStatus::Terminating];
 
     /** Les statuts qui rendent une caution, ceux de `DepositRefundService`. */
     public const DEPOSIT_REFUND_STATUSES = [LeaseStatus::Terminated, LeaseStatus::Expired];
@@ -282,7 +285,10 @@ final class LeaseAttention
     {
         return CollectedPayments::lateFeesOutstanding()
             ->where('lease_payments.status', PaymentStatus::Paid->value)
-            ->whereColumn('lease_payments.lease_id', "{$table}.id");
+            ->whereColumn('lease_payments.lease_id', "{$table}.id")
+            // Décision du porteur (2026-11-11) : sur un bail fini, une pénalité restée due ne se
+            // relance plus depuis la file — elle reste lisible sur la fiche et l'échéancier.
+            ->whereIn("{$table}.status", array_map(fn (LeaseStatus $s) => $s->value, self::LATE_FEE_STATUSES));
     }
 
     private function onboarding(string $table): string
