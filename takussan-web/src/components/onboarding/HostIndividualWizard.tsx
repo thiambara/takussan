@@ -383,7 +383,8 @@ function IdentityStep({ data, setData }: StepProps) {
                 agency: { ...data.agency, currency: value ?? '' },
               })
             }
-            items={CURRENCIES.map((c) => ({ value: c, label: c }))}
+            // TCK-2616 — le code (`XOF`) part à l'API ; la personne lit « F CFA ».
+            items={CURRENCIES.map((c) => ({ value: c, label: t(`currencies.${c}`) }))}
           >
             <SelectTrigger id="agency-currency" className="w-full">
               <SelectValue />
@@ -391,7 +392,7 @@ function IdentityStep({ data, setData }: StepProps) {
             <SelectContent>
               {CURRENCIES.map((c) => (
                 <SelectItem key={c} value={c}>
-                  {c}
+                  {t(`currencies.${c}`)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -574,6 +575,7 @@ function PhoneOtpField({ data, setData }: StepProps) {
 
 function RecapStep({ data, setData }: StepProps) {
   const t = useTranslations('onboarding.host.steps.recap');
+  const tDevises = useTranslations('onboarding.host.steps.identity.currencies');
   const { location } = useUserLocation();
   const indicatif = normaliserIndicatif(location?.country_calling_code);
   const telephone = data.phone_otp.phone
@@ -586,7 +588,10 @@ function RecapStep({ data, setData }: StepProps) {
       label: t('rows.primaryCity'),
       value: data.agency.primary_city || '—',
     },
-    { label: t('rows.currency'), value: data.agency.currency },
+    {
+      label: t('rows.currency'),
+      value: tDevises.has(data.agency.currency) ? tDevises(data.agency.currency) : data.agency.currency || '—',
+    },
     { label: t('rows.phone'), value: telephone || '—' },
     {
       label: t('rows.phoneVerified'),

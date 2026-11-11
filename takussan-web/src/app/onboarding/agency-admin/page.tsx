@@ -34,7 +34,7 @@ export default async function AgencyAdminOnboardingPage() {
   // site. Sans titre (l'assistant porte le sien, qui change d'étape en étape) et sans pied —
   // rien n'y est enregistré au fil de la saisie, la mention d'autosauvegarde serait fausse.
   return (
-    <OnboardingShell note={null}>
+    <OnboardingShell>
       <AgencyAdminOnboardingWizard
         firstName={user.first_name}
         agencyName={agencyName}

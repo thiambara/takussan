@@ -4113,7 +4113,7 @@
             "zonesPlaceholder": "Dakar, Mbour…",
             "zonesHint": "Tofal ay dëkk ak ay quartiers ak virgule.",
             "hourlyRate": "Tarif waxtu (XOF)",
-            "visitFee": "Frais de visite (XOF)"
+            "visitFee": "Frais de visite (F CFA)"
           }
         },
         "availability": {
@@ -4263,6 +4263,12 @@
               "sendFailed": "Kódu bi mënul yónni",
               "verifyFailed": "Kódu baaxul"
             }
+          },
+          "currencies": {
+            "XOF": "F CFA (Afrique de l’Ouest)",
+            "XAF": "F CFA (Afrique centrale)",
+            "EUR": "Euro",
+            "USD": "Dollar américain"
           }
         },
         "firstProperty": {

@@ -22,13 +22,17 @@ import { Logo } from '@/components/brand/Logo';
  * 2. **L'alignement à gauche.** L'en-tête était centré au-dessus d'un formulaire
  *    aligné à gauche : deux axes, rien à quoi s'aligner. Le titre partage
  *    désormais l'arête gauche du rail d'étapes.
- * 3. **La sauvegarde automatique se DIT.** `WizardReprenable` enregistre chaque
- *    saisie depuis TCK-250, et rien à l'écran ne l'annonçait avant de quitter la
- *    page. Une promesse qu'on ne tient qu'après coup ne rassure personne pendant.
+ * 3. **La sauvegarde automatique se DIT — là où elle a lieu, et nulle part ailleurs.**
+ *    `WizardReprenable` enregistre chaque saisie depuis TCK-250, et rien à l'écran
+ *    ne l'annonçait avant de quitter la page. Mais la note était la valeur PAR
+ *    DÉFAUT de la coque : l'écran du prénom, la page d'invitation et l'accueil
+ *    multi-agences la promettaient sans rien enregistrer (TCK-2616). Elle ne
+ *    s'affiche plus que sur demande (`brouillon`) : un écran neuf ne promet rien.
  */
 export async function OnboardingShell({
   title,
   subtitle,
+  brouillon = false,
   note,
   children,
 }: {
@@ -39,16 +43,16 @@ export async function OnboardingShell({
   readonly title?: string;
   readonly subtitle?: string;
   /**
-   * Remplace la mention de sauvegarde automatique en pied de page.
-   *
-   * TCK-493 — la coque sert désormais un écran qui n'est PAS un assistant : la
-   * question d'orientation posée après l'inscription n'enregistre rien au fil de
-   * la saisie. Lui laisser la promesse « vos réponses sont enregistrées
-   * automatiquement » serait une affirmation fausse, sur le premier écran que
-   * voit un compte neuf. `null` retire le pied de page : un écran qui n'a rien à
-   * promettre ne promet rien.
+   * L'écran enregistre RÉELLEMENT un brouillon (`WizardReprenable`) : le pied de page le dit.
+   * Absent, aucune promesse — TCK-2616 : c'était le défaut, et trois écrans sans brouillon
+   * l'affichaient.
    */
-  readonly note?: string | null;
+  readonly brouillon?: boolean;
+  /**
+   * Un pied de page propre à l'écran (TCK-493 : l'orientation dit que la réponse n'engage à
+   * rien). Il prime sur la note de brouillon.
+   */
+  readonly note?: string;
   readonly children: React.ReactNode;
 }) {
   const t = await getTranslations('onboarding.shell');
@@ -56,6 +60,7 @@ export async function OnboardingShell({
   // garde i18n refuse un libellé en dur sur un fichier neuf, et elle a raison —
   // un nom écrit à douze endroits est un nom qu'on ne peut plus changer.
   const tCommon = await getTranslations('common');
+  const piedDePage = note ?? (brouillon ? t('autosave') : null);
 
   return (
     <div className="flex min-h-dvh flex-col bg-background">
@@ -95,14 +100,14 @@ export async function OnboardingShell({
         {children}
       </main>
 
-      {note === null ? null : (
+      {piedDePage ? (
         <footer className="mx-auto w-full max-w-4xl px-4 pb-10 sm:px-6">
           <p className="flex items-start gap-2 text-xs leading-relaxed text-pretty text-muted-foreground">
             <ShieldCheck className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-            {note ?? t('autosave')}
+            {piedDePage}
           </p>
         </footer>
-      )}
+      ) : null}
     </div>
   );
 }

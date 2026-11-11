@@ -84,7 +84,7 @@ export default async function ServiceProviderOnboardingPage({
   }
 
   return (
-    <OnboardingShell title={t('pageTitle')} subtitle={t('pageSubtitle')}>
+    <OnboardingShell title={t('pageTitle')} subtitle={t('pageSubtitle')} brouillon>
       <ServiceProviderOnboardingWizard
         spProfileId={sp.numeric_id}
         fromMaintenanceRequestId={null}

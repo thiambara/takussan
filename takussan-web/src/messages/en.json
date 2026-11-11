@@ -661,7 +661,7 @@
     "twoFactor": {
       "intro": {
         "title": "Strengthen your account security",
-        "description": "Enable two-factor authentication (TOTP) with an app like Google Authenticator, 1Password or Authy.",
+        "description": "Enable two-factor authentication with an authenticator app such as Google Authenticator, 1Password or Authy.",
         "cta": "Set up now",
         "starting": "Starting…",
         "skip": "Later"
@@ -717,7 +717,7 @@
       "sending": "Sending…",
       "codeSentTo": "If this number can receive text messages, a 6-digit code has just been sent to {phone}. It is valid for 5 minutes.",
       "codeLabel": "Code received by text",
-      "verify": "Confirm",
+      "verify": "Verify code",
       "verifying": "Verifying…",
       "resendIn": "Resend the code in {seconds} s",
       "resend": "Resend the code",
@@ -1447,7 +1447,7 @@
         "sendCode": "Get a code",
         "resendCode": "Resend the code",
         "codeAria": "Code received by SMS",
-        "verifyCode": "Confirm",
+        "verifyCode": "Verify code",
         "whatsapp": "This number has WhatsApp",
         "codeSent": "Code sent by SMS.",
         "phoneVerified": "Number verified.",
@@ -2745,7 +2745,7 @@
       "welcome": {
         "title": "Welcome to Takussan, {firstName}",
         "titleNoName": "Welcome to Takussan",
-        "body": "{agencyName}’s workspace is ready. One quick step before you dive into your dashboard.",
+        "body": "{agencyName}’s workspace is ready. One quick step before you head into it.",
         "cta": "Continue"
       }
     },
@@ -5458,9 +5458,9 @@
           "subtitle": "Upload your ID, bank details and NINEA. You may complete this in several sessions.",
           "draftBadge": "Draft",
           "submittedBadge": "Submitted",
-          "submitCta": "Submit my KYC dossier",
+          "submitCta": "Submit my documents",
           "submitting": "Submitting…",
-          "submittedTitle": "KYC dossier submitted",
+          "submittedTitle": "Documents submitted",
           "submittedBody": "You can continue."
         },
         "tour": {
@@ -5495,7 +5495,7 @@
         }
       },
       "errors": {
-        "kycSubmitTitle": "Could not submit KYC",
+        "kycSubmitTitle": "Could not submit your documents",
         "completeTitle": "Could not finalise your onboarding"
       },
       "success": {
@@ -5590,9 +5590,9 @@
           "subtitle": "Licence card, ID and profile picture. You may complete this in several sessions.",
           "draftBadge": "Draft",
           "submittedBadge": "Submitted",
-          "submitCta": "Submit my KYC dossier",
+          "submitCta": "Submit my documents",
           "submitting": "Submitting…",
-          "submittedTitle": "KYC dossier submitted",
+          "submittedTitle": "Documents submitted",
           "submittedBody": "You can continue.",
           "licenseNumberLabel": "Licence number",
           "licenseNumberHint": "Use the number printed on your professional card."
@@ -5632,13 +5632,13 @@
           "capabilitiesEmpty": "No permissions have been granted to you in this agency yet. Its administrator can grant them from team management.",
           "capabilitiesError": "Your permissions couldn’t be loaded. You can still review them from your workspace.",
           "firstLeadLabel": "Your first lead",
-          "noLead": "No pre-assigned lead yet.",
+          "noLead": "No lead assigned to you yet.",
           "stageLabel": "Stage: {stage}",
           "viewLead": "View profile →"
         }
       },
       "errors": {
-        "kycSubmitTitle": "Could not submit KYC",
+        "kycSubmitTitle": "Could not submit your documents",
         "completeTitle": "Could not finalise your onboarding"
       },
       "success": {
@@ -5974,8 +5974,8 @@
             "zones": "Intervention zones",
             "zonesPlaceholder": "Dakar, Mbour…",
             "zonesHint": "Separate cities or districts with commas.",
-            "hourlyRate": "Hourly rate (XOF)",
-            "visitFee": "Visit fee (XOF)"
+            "hourlyRate": "Hourly rate (F CFA)",
+            "visitFee": "Visit fee (F CFA)"
           }
         },
         "availability": {
@@ -5999,7 +5999,7 @@
           },
           "maintenanceRequest": {
             "title": "An intervention is waiting",
-            "body": "An intervention request triggered your invitation. You'll see it as soon as the wizard ends."
+            "body": "An intervention request triggered your invitation. You’ll see it as soon as you finish this setup."
           }
         }
       },
@@ -6010,7 +6010,7 @@
     "multiAgency": {
       "welcomeAgency": "Welcome to {agency}",
       "welcomeGeneric": "A new agency awaits you",
-      "subtitle": "You now collaborate with {count, plural, one {# agency} other {# agencies}}. Your profile, KYC and trades are shared.",
+      "subtitle": "You now collaborate with {count, plural, one {# agency} other {# agencies}}. Your profile, documents and trades apply to each of them.",
       "status": {
         "active": "Active",
         "paused": "Paused",
@@ -6089,7 +6089,7 @@
               "body": "Best for publishing your own properties. Full control, no collaborators."
             },
             "professional": {
-              "title": "Professional (create a real agency)",
+              "title": "Professional (create an agency)",
               "body": "You manage several properties, teams or third-party owners: we set up a dedicated agency."
             }
           },
@@ -6125,6 +6125,12 @@
               "sendFailed": "Could not send the code",
               "verifyFailed": "Invalid code"
             }
+          },
+          "currencies": {
+            "XOF": "CFA franc (West Africa)",
+            "XAF": "CFA franc (Central Africa)",
+            "EUR": "Euro",
+            "USD": "US dollar"
           }
         },
         "firstProperty": {
@@ -6676,7 +6682,7 @@
       "capabilities": {
         "agency": {
           "update": "Edit the agency profile",
-          "update_kyc": "Manage the KYC file",
+          "update_kyc": "Manage the agency’s documents",
           "update_billing": "Manage subscription and billing",
           "upgrade_request": "Request a plan upgrade"
         },
@@ -6696,7 +6702,7 @@
           "moderate": "Moderate properties"
         },
         "bookings": {
-          "validate": "Approve a booking",
+          "validate": "Approve or decline a booking",
           "cancel": "Cancel a booking",
           "refund": "Refund a booking"
         },
@@ -12290,13 +12296,13 @@
       "cancelFailed": "Could not cancel the deletion request."
     },
     "agentOnboarding": {
-      "kycFailed": "Could not submit your KYC file.",
+      "kycFailed": "Could not submit your documents.",
       "specializationFailed": "Could not save your specialization.",
       "firstLeadFailed": "Could not load your first lead.",
       "completeFailed": "Could not complete your onboarding."
     },
     "ownerOnboarding": {
-      "kycFailed": "Could not submit your KYC file.",
+      "kycFailed": "Could not submit your documents.",
       "completeFailed": "Could not complete your onboarding.",
       "propertiesFailed": "Could not load your properties."
     },
@@ -12349,7 +12355,7 @@
     },
     "superAdminCooptation": {
       "enrollFailed": "Could not set up super-admin two-factor authentication.",
-      "invalidTotp": "Invalid TOTP code."
+      "invalidTotp": "Invalid code: enter the one shown in your authenticator app."
     }
   },
   "validation": {
@@ -13847,7 +13853,7 @@
   },
   "invitationAccept": {
     "metaTitle": "Accept an invitation",
-    "title": "You are invited to Takussan",
+    "title": "An agency has invited you to Takussan",
     "subtitleSignedIn": "Accept to join the space that invited you.",
     "subtitleSignedOut": "Create your account to join the space that invited you.",
     "accept": "Accept the invitation",

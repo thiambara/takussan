@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,8 @@ import {
   relireTelephoneBrouillon,
 } from '@/lib/phone';
 import { useToast } from '@/components/ui/toast';
+import type { Locale } from '@/i18n/config';
+import { formatCurrency } from '@/lib/format';
 import { useAuth } from '@/context/AuthContext';
 import {
   WizardReprenable,
@@ -494,6 +496,9 @@ function RecapStep({
   fromMaintenanceRequestId: number | null;
 }) {
   const t = useTranslations('serviceProviders.onboarding.steps.recap');
+  const locale = useLocale() as Locale;
+  // TCK-2616 — un montant se lit avec sa devise (« 15 000 F CFA »), jamais en nombre nu.
+  const montant = (saisie: string) => (saisie ? formatCurrency(Number(saisie), locale) : '—');
 
   const slotCount = useMemo(
     () =>
@@ -524,11 +529,8 @@ function RecapStep({
           label={t('rows.zones')}
           value={data.trades.intervention_zones.join(', ') || '—'}
         />
-        <Row
-          label={t('rows.hourlyRate')}
-          value={data.trades.hourly_rate || '—'}
-        />
-        <Row label={t('rows.visitFee')} value={data.trades.visit_fee || '—'} />
+        <Row label={t('rows.hourlyRate')} value={montant(data.trades.hourly_rate)} />
+        <Row label={t('rows.visitFee')} value={montant(data.trades.visit_fee)} />
         <Row
           label={t('rows.insurance')}
           value={data.trades.insurance_uploaded ? t('rows.yes') : t('rows.no')}

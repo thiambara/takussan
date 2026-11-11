@@ -196,6 +196,19 @@ describe('<HostIndividualWizard> — trois étapes', () => {
     expect(screen.queryByText(/wave/i)).not.toBeInTheDocument();
   });
 
+  it('TCK-2616 — la devise se lit « F CFA », à l’étape de l’espace comme au récapitulatif', () => {
+    // Le code `XOF` reste la valeur envoyée à l'API (`agency.currency`) ; il ne s'affiche plus.
+    const { container } = render(withIntl(<HostIndividualWizard />));
+    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
+    expect(screen.getAllByText(RAIL.identity.currencies.XOF).length).toBeGreaterThan(0);
+    expect(container.textContent).not.toMatch(/XOF/);
+
+    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
+    expect(screen.getByText(RAIL.recap.rows.currency)).toBeInTheDocument();
+    expect(screen.getByText(RAIL.identity.currencies.XOF)).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/XOF/);
+  });
+
   it('un brouillon enregistré à l’ancienne étape 3 reprend sans casse', async () => {
     // AC4 — l'index 3 (le récapitulatif d'AVANT) n'existe plus. Le brouillon
     // doit atterrir sur une étape VALIDE, et les réponses déjà données doivent

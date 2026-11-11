@@ -77,7 +77,7 @@ describe('<CoordonneesPublication> — TCK-633', () => {
     await waitFor(() => expect(m.envoyer).toHaveBeenCalledWith('+221770000901'));
 
     await user.type(await screen.findByLabelText('Code reçu par SMS'), '123456');
-    await user.click(screen.getByRole('button', { name: 'Valider' }));
+    await user.click(screen.getByRole('button', { name: 'Vérifier le code' }));
 
     await waitFor(() => expect(m.refreshUser).toHaveBeenCalled());
     expect(m.verifier).toHaveBeenCalledWith('123456');
@@ -132,7 +132,7 @@ describe('<CoordonneesPublication> — TCK-633', () => {
     fireEvent.change(screen.getByLabelText('Votre numéro'), { target: { value: '770000901' } });
     await user.click(screen.getByRole('button', { name: 'Recevoir un code' }));
     await user.type(await screen.findByLabelText('Code reçu par SMS'), '123456');
-    await user.click(screen.getByRole('button', { name: 'Valider' }));
+    await user.click(screen.getByRole('button', { name: 'Vérifier le code' }));
 
     await waitFor(() => expect(m.refreshUser).toHaveBeenCalled());
     expect(m.maj).toHaveBeenCalledWith({ phone_whatsapp: false });

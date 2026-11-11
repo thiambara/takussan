@@ -58,4 +58,88 @@ Aucun changement d'API. Re-mesure sur `dev` (1bce3798a), surfaces de la famille 
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+### Re-mesure de la prémisse (2026-11-11, arbre `acfe73fb3`)
+
+Relevé par fermeture des imports depuis les pages d'entrée (`app/(auth)`, `app/onboarding`,
+`app/invitations`, `app/publish`, + `PropertyWizard` et le bloc de coordonnées pour « publier ») :
+76 fichiers, 597 chaînes `fr` sous leurs espaces de noms.
+
+- **Mots bannis : confirmé**, 21 chaînes `fr` (liste ci-dessous) + deux que la prémisse ne nommait
+  pas : l'étape « bienvenue » de l'assistant agent rend les libellés de capacités de l'éditeur de
+  rôles (`admin.roles.capabilities.*`), dont « Gérer le dossier KYC » et « Valider une réservation ».
+- **« XOF » : plus large que la prémisse.** Outre les deux libellés du prestataire, l'assistant hôte
+  affiche le **code** brut dans le sélecteur de devise et au récapitulatif (`{c}` en dur, aucune clé).
+  Le récapitulatif du prestataire affichait les tarifs en nombre nu (« 15000 »).
+- **Tutoiement : la prémisse diffère.** Aucune chaîne `fr` des surfaces d'entrée ne tutoie sur cet
+  arbre (0 sur 597) ; AC2 était déjà vert. Le test l'empêche de revenir sur ces surfaces ; la garde
+  globale reste TCK-2683.
+- **Note de pied : confirmée, et c'était le DÉFAUT de la coque.** `OnboardingShell` la montrait à
+  tout écran qui ne passait pas `note={null}` : l'invitation (lien complet et lien incomplet),
+  l'écran du prénom de l'orientation et l'accueil multi-agences du prestataire. La connexion ne
+  l'a jamais portée (relevé : `curl /auth/login`, 0 occurrence).
+- « Valider » est porté par deux clés : `auth.phoneLogin.verify` (connexion) et
+  `property.form.publishContact.verifyCode` (publier).
+
+### Ce qui change
+
+- **La coque ne promet plus rien par défaut** : `OnboardingShell` prend `brouillon` (opt-in) ; seuls
+  les quatre assistants montés sur `WizardReprenable` le passent (hôte, bailleur, agent, prestataire
+  — pas l'accueil multi-agences). `note={null}` disparaît (administrateur d'agence).
+- **Devise de l'hôte** : nouvelles clés `onboarding.host.steps.identity.currencies.{XOF,XAF,EUR,USD}`
+  (« F CFA (Afrique de l'Ouest) »…), lues par le sélecteur et le récapitulatif ; la valeur envoyée
+  reste `XOF`.
+- **Tarifs du prestataire** : le récapitulatif formate par `formatCurrency` (« 15 000 F CFA »).
+- **`wo`** : un texte wolof existant ne se réécrit pas (ADR-0095 § 4) ; seule la clé dont le `wo`
+  recopiait le français (`visitFee`) et les clés neuves reçoivent le français. **`en`** : KYC, TOTP,
+  XOF, wizard, dashboard et « real agency » retirés des clés touchées ; « lead » reste en anglais.
+
+### Relevé des clés (avant → après, `fr`)
+
+| Clé | Avant | Après |
+|---|---|---|
+| `auth.phoneLogin.verify` | Valider | Vérifier le code |
+| `property.form.publishContact.verifyCode` | Valider | Vérifier le code |
+| `auth.twoFactor.intro.description` | … à deux facteurs (TOTP) avec une application comme … | … à deux facteurs avec une application d'authentification, comme … |
+| `serverActions.superAdminCooptation.invalidTotp` | Code TOTP invalide. | Code invalide : saisissez celui qu'affiche votre application d'authentification. |
+| `agency.onboarding.welcome.body` | … avant de plonger dans votre dashboard. | … avant d'y entrer. |
+| `agents.onboarding.steps.kyc.submitCta`, `owners.…` | Soumettre mon dossier KYC | Envoyer mes pièces |
+| `agents.onboarding.steps.kyc.submittedTitle`, `owners.…` | Dossier KYC envoyé | Pièces envoyées |
+| `agents.onboarding.errors.kycSubmitTitle`, `owners.…` | Soumission du KYC impossible | Envoi des pièces impossible |
+| `serverActions.agentOnboarding.kycFailed`, `ownerOnboarding.…` | Impossible de soumettre votre dossier KYC. | Impossible d'envoyer vos pièces. |
+| `agents.onboarding.steps.welcome.subtitle` | … vos premiers leads sont prêts. | … vos premiers prospects sont prêts. |
+| `agents.onboarding.steps.welcome.firstLeadLabel` | Votre premier lead | Votre premier prospect |
+| `agents.onboarding.steps.welcome.noLead` | Aucun lead pré-assigné pour le moment. | Aucun prospect ne vous est encore attribué. |
+| `serverActions.agentOnboarding.firstLeadFailed` | … votre premier lead. | … votre premier prospect. |
+| `onboarding.host.steps.intent.options.professional.title` | Professionnel (créer une vraie agence) | Professionnel (créer une agence) |
+| `serviceProviders.multiAgency.subtitle` | … votre KYC et vos métiers sont mutualisés. | … vos pièces et vos métiers valent pour chacune. |
+| `serviceProviders.onboarding.steps.trades.fields.hourlyRate` | Tarif horaire (XOF) | Tarif horaire (F CFA) |
+| `serviceProviders.onboarding.steps.trades.fields.visitFee` | Frais de visite (XOF) | Frais de visite (F CFA) |
+| `serviceProviders.onboarding.steps.recap.maintenanceRequest.body` | … dès la fin du wizard. | … dès la fin de l'assistant. |
+| `invitationAccept.title` | Vous êtes invité sur Takussan | Une agence vous invite sur Takussan |
+| `admin.roles.capabilities.agency.update_kyc` | Gérer le dossier KYC | Gérer les pièces de l'agence |
+| `admin.roles.capabilities.bookings.validate` | Valider une réservation | Confirmer ou refuser une réservation |
+| `onboarding.host.steps.identity.currencies.*` | *(neuves)* | F CFA (Afrique de l'Ouest) · F CFA (Afrique centrale) · Euro · Dollar américain |
+
+Les deux libellés `admin.roles.capabilities.*` sont partagés avec l'éditeur de rôles de `/app` :
+le changement s'y voit aussi, ce qui suit ADR-0095 (la règle vaut partout).
+
+### Tests et ablations
+
+- `src/components/onboarding/__tests__/mots-de-l-entree.tck-2616.test.ts` — 13 surfaces, espaces de
+  noms **dérivés des fichiers** de chaque surface (jamais recopiés) : AC1 (mots bannis), AC2
+  (tutoiement), et les motifs éprouvés sur des cas positifs et négatifs. Ablation : « Valider » et
+  une phrase au tutoiement remis par l'outil de clés → 2 rouges ; restauré, `md5` de `fr.json`
+  identique.
+- `src/app/onboarding/__tests__/note-de-brouillon.tck-2616.test.tsx` — AC3, pages EXÉCUTÉES
+  (invitation ×2, prénom de l'orientation, assistant bailleur). Ablation : ancienne coque → 4 rouges ;
+  page bailleur sans `brouillon` → 1 rouge.
+- `HostIndividualWizard.test.tsx` et `ServiceProviderOnboardingWizard.test.tsx` — « XOF » absent du
+  rendu, « F CFA » présent. Ablation de chaque composant → rouge.
+- Trois tests cliquaient « Valider » : renommés en « Vérifier le code ».
+
+### Reste hors de ce ticket
+
+- Les `wo` des clés touchées gardent leur texte wolof, qui contient encore « KYC », « lead »,
+  « wizard », « dashboard », « XOF » (wolof en pause, ADR-0095 § 4).
+- `/app` porte encore « KYC » (`kyc.*`, tableau de bord administrateur) : hors des surfaces d'entrée.
+- La page d'invitation ne nomme pas l'agence (« Une agence vous invite ») : c'est TCK-2611.

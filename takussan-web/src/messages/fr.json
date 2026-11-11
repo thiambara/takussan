@@ -618,7 +618,7 @@
     "twoFactor": {
       "intro": {
         "title": "Renforcez la sécurité de votre compte",
-        "description": "Activez l’authentification à deux facteurs (TOTP) avec une application comme Google Authenticator, 1Password ou Authy.",
+        "description": "Activez l’authentification à deux facteurs avec une application d’authentification, comme Google Authenticator, 1Password ou Authy.",
         "cta": "Configurer maintenant",
         "starting": "Initialisation…",
         "skip": "Plus tard"
@@ -674,7 +674,7 @@
       "sending": "Envoi…",
       "codeSentTo": "Si ce numéro peut recevoir des SMS, un code à 6 chiffres vient d’être envoyé au {phone}. Il reste valable 5 minutes.",
       "codeLabel": "Code reçu par SMS",
-      "verify": "Valider",
+      "verify": "Vérifier le code",
       "verifying": "Vérification…",
       "resendIn": "Renvoyer le code dans {seconds} s",
       "resend": "Renvoyer le code",
@@ -1404,7 +1404,7 @@
         "sendCode": "Recevoir un code",
         "resendCode": "Renvoyer le code",
         "codeAria": "Code reçu par SMS",
-        "verifyCode": "Valider",
+        "verifyCode": "Vérifier le code",
         "whatsapp": "Ce numéro reçoit WhatsApp",
         "codeSent": "Code envoyé par SMS.",
         "phoneVerified": "Numéro vérifié.",
@@ -2702,7 +2702,7 @@
       "welcome": {
         "title": "Bienvenue sur Takussan, {firstName}",
         "titleNoName": "Bienvenue sur Takussan",
-        "body": "L’espace de {agencyName} est prêt. Encore une étape rapide avant de plonger dans votre dashboard.",
+        "body": "L’espace de {agencyName} est prêt. Encore une étape rapide avant d’y entrer.",
         "cta": "Continuer"
       }
     },
@@ -5458,9 +5458,9 @@
           "subtitle": "Téléchargez votre CNI, votre RIB et votre NINEA. Vous pouvez compléter en plusieurs fois.",
           "draftBadge": "Brouillon",
           "submittedBadge": "Soumis",
-          "submitCta": "Soumettre mon dossier KYC",
+          "submitCta": "Envoyer mes pièces",
           "submitting": "Envoi…",
-          "submittedTitle": "Dossier KYC envoyé",
+          "submittedTitle": "Pièces envoyées",
           "submittedBody": "Vous pouvez continuer."
         },
         "tour": {
@@ -5495,7 +5495,7 @@
         }
       },
       "errors": {
-        "kycSubmitTitle": "Soumission du KYC impossible",
+        "kycSubmitTitle": "Envoi des pièces impossible",
         "completeTitle": "Impossible de finaliser votre onboarding"
       },
       "success": {
@@ -5590,9 +5590,9 @@
           "subtitle": "Carte professionnelle, pièce d'identité et photo de profil. Vous pouvez compléter en plusieurs fois.",
           "draftBadge": "Brouillon",
           "submittedBadge": "Soumis",
-          "submitCta": "Soumettre mon dossier KYC",
+          "submitCta": "Envoyer mes pièces",
           "submitting": "Envoi…",
-          "submittedTitle": "Dossier KYC envoyé",
+          "submittedTitle": "Pièces envoyées",
           "submittedBody": "Vous pouvez continuer.",
           "licenseNumberLabel": "Numéro de carte professionnelle",
           "licenseNumberHint": "Reportez ici le numéro inscrit sur votre carte d'agent."
@@ -5627,18 +5627,18 @@
         },
         "welcome": {
           "title": "Bienvenue dans l'équipe",
-          "subtitle": "Votre périmètre et vos premiers leads sont prêts.",
+          "subtitle": "Votre périmètre et vos premiers prospects sont prêts.",
           "capabilitiesLabel": "Ce que vous pourrez faire dans l’agence",
           "capabilitiesEmpty": "Aucun droit ne vous est encore attribué dans cette agence. Son administrateur peut vous en donner depuis la gestion de l’équipe.",
           "capabilitiesError": "Vos droits n’ont pas pu être chargés. Ils restent consultables depuis votre espace.",
-          "firstLeadLabel": "Votre premier lead",
-          "noLead": "Aucun lead pré-assigné pour le moment.",
+          "firstLeadLabel": "Votre premier prospect",
+          "noLead": "Aucun prospect ne vous est encore attribué.",
           "stageLabel": "Étape : {stage}",
           "viewLead": "Voir la fiche →"
         }
       },
       "errors": {
-        "kycSubmitTitle": "Soumission du KYC impossible",
+        "kycSubmitTitle": "Envoi des pièces impossible",
         "completeTitle": "Impossible de finaliser votre onboarding"
       },
       "success": {
@@ -5974,8 +5974,8 @@
             "zones": "Zones d'intervention",
             "zonesPlaceholder": "Dakar, Mbour…",
             "zonesHint": "Séparez les villes ou quartiers par une virgule.",
-            "hourlyRate": "Tarif horaire (XOF)",
-            "visitFee": "Frais de visite (XOF)"
+            "hourlyRate": "Tarif horaire (F CFA)",
+            "visitFee": "Frais de visite (F CFA)"
           }
         },
         "availability": {
@@ -5999,7 +5999,7 @@
           },
           "maintenanceRequest": {
             "title": "Une intervention vous attend",
-            "body": "Une demande d'intervention a déclenché votre invitation. Vous pourrez la voir dès la fin du wizard."
+            "body": "Une demande d’intervention a déclenché votre invitation. Vous pourrez la voir dès la fin de l’assistant."
           }
         }
       },
@@ -6010,7 +6010,7 @@
     "multiAgency": {
       "welcomeAgency": "Bienvenue chez {agency}",
       "welcomeGeneric": "Une nouvelle agence vous attend",
-      "subtitle": "Vous collaborez désormais avec {count, plural, one {# agence} other {# agences}}. Votre profil, votre KYC et vos métiers sont mutualisés.",
+      "subtitle": "Vous collaborez désormais avec {count, plural, one {# agence} other {# agences}}. Votre profil, vos pièces et vos métiers valent pour chacune.",
       "status": {
         "active": "Actif",
         "paused": "En pause",
@@ -6089,7 +6089,7 @@
               "body": "Idéal pour publier vos propres biens. Vous gardez le contrôle total, sans collaborateur."
             },
             "professional": {
-              "title": "Professionnel (créer une vraie agence)",
+              "title": "Professionnel (créer une agence)",
               "body": "Vous gérez plusieurs biens, des équipes ou des propriétaires tiers : nous créons une agence dédiée."
             }
           },
@@ -6125,6 +6125,12 @@
               "sendFailed": "Envoi du code impossible",
               "verifyFailed": "Code invalide"
             }
+          },
+          "currencies": {
+            "XOF": "F CFA (Afrique de l’Ouest)",
+            "XAF": "F CFA (Afrique centrale)",
+            "EUR": "Euro",
+            "USD": "Dollar américain"
           }
         },
         "firstProperty": {
@@ -6676,7 +6682,7 @@
       "capabilities": {
         "agency": {
           "update": "Modifier la fiche de l'agence",
-          "update_kyc": "Gérer le dossier KYC",
+          "update_kyc": "Gérer les pièces de l’agence",
           "update_billing": "Gérer l'abonnement et la facturation",
           "upgrade_request": "Demander une montée en gamme"
         },
@@ -6696,7 +6702,7 @@
           "moderate": "Modérer les biens"
         },
         "bookings": {
-          "validate": "Valider une réservation",
+          "validate": "Confirmer ou refuser une réservation",
           "cancel": "Annuler une réservation",
           "refund": "Rembourser une réservation"
         },
@@ -12290,13 +12296,13 @@
       "cancelFailed": "Impossible d'annuler la demande de suppression."
     },
     "agentOnboarding": {
-      "kycFailed": "Impossible de soumettre votre dossier KYC.",
+      "kycFailed": "Impossible d’envoyer vos pièces.",
       "specializationFailed": "Impossible d’enregistrer votre spécialisation.",
-      "firstLeadFailed": "Impossible de charger votre premier lead.",
+      "firstLeadFailed": "Impossible de charger votre premier prospect.",
       "completeFailed": "Impossible de finaliser votre onboarding."
     },
     "ownerOnboarding": {
-      "kycFailed": "Impossible de soumettre votre dossier KYC.",
+      "kycFailed": "Impossible d’envoyer vos pièces.",
       "completeFailed": "Impossible de finaliser votre onboarding.",
       "propertiesFailed": "Impossible de charger vos biens."
     },
@@ -12341,7 +12347,7 @@
     },
     "superAdminCooptation": {
       "enrollFailed": "Impossible d'initialiser la 2FA super-admin.",
-      "invalidTotp": "Code TOTP invalide."
+      "invalidTotp": "Code invalide : saisissez celui qu’affiche votre application d’authentification."
     },
     "auth": {
       "resendFailed": "Impossible de renvoyer l’e-mail de vérification.",
@@ -13847,7 +13853,7 @@
   },
   "invitationAccept": {
     "metaTitle": "Accepter une invitation",
-    "title": "Vous êtes invité sur Takussan",
+    "title": "Une agence vous invite sur Takussan",
     "subtitleSignedIn": "Acceptez pour rejoindre l’espace qui vous invite.",
     "subtitleSignedOut": "Créez votre compte pour rejoindre l’espace qui vous invite.",
     "accept": "Accepter l’invitation",

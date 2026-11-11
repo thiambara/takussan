@@ -107,7 +107,7 @@ describe('drapeau allumé (AC2b)', () => {
     expect(code).toHaveAttribute('autocomplete', 'one-time-code');
     expect(code).toHaveAttribute('inputmode', 'numeric');
     await user.type(code, '123456');
-    await user.click(screen.getByRole('button', { name: 'Valider' }));
+    await user.click(screen.getByRole('button', { name: 'Vérifier le code' }));
 
     // TCK-624 — compte ancien ou neuf, même porte de sortie : elle rend ensuite la destination.
     await waitFor(() =>
@@ -133,7 +133,7 @@ describe('drapeau allumé (AC2b)', () => {
     await user.click(screen.getByRole('button', { name: 'Utiliser ce code' }));
     expect(screen.getByLabelText('Code reçu par SMS')).toHaveValue('482913');
 
-    await user.click(screen.getByRole('button', { name: 'Valider' }));
+    await user.click(screen.getByRole('button', { name: 'Vérifier le code' }));
     await waitFor(() => expect(verifier).toHaveBeenCalledWith({ phone: '+221771234567', code: '482913' }, 'fr'));
   });
 
@@ -149,7 +149,7 @@ describe('drapeau allumé (AC2b)', () => {
     await user.type(screen.getByLabelText('Numéro de téléphone'), '771234567');
     await user.click(screen.getByRole('button', { name: 'Recevoir un code' }));
     await user.type(await screen.findByLabelText('Code reçu par SMS'), '123456');
-    await user.click(screen.getByRole('button', { name: 'Valider' }));
+    await user.click(screen.getByRole('button', { name: 'Vérifier le code' }));
 
     await waitFor(() =>
       expect(pushMock).toHaveBeenCalledWith('/onboarding/intention?redirect=%2Fproperties%2Fx'),
@@ -168,7 +168,7 @@ describe('drapeau allumé (AC2b)', () => {
     await user.type(await screen.findByLabelText('Numéro de téléphone'), '771234567');
     await user.click(screen.getByRole('button', { name: 'Recevoir un code' }));
     await user.type(await screen.findByLabelText('Code reçu par SMS'), '123456');
-    await user.click(screen.getByRole('button', { name: 'Valider' }));
+    await user.click(screen.getByRole('button', { name: 'Vérifier le code' }));
 
     await user.type(await screen.findByLabelText('Code à 6 chiffres'), '654321');
     await user.click(screen.getByRole('button', { name: 'Vérifier' }));
@@ -192,7 +192,7 @@ describe('drapeau allumé (AC2b)', () => {
     await user.type(await screen.findByLabelText('Numéro de téléphone'), '771234567');
     await user.click(screen.getByRole('button', { name: 'Recevoir un code' }));
     await user.type(await screen.findByLabelText('Code reçu par SMS'), '123456');
-    await user.click(screen.getByRole('button', { name: 'Valider' }));
+    await user.click(screen.getByRole('button', { name: 'Vérifier le code' }));
 
     // Aucune session tant que les conditions ne sont pas acceptées : la case, puis le bouton.
     expect(await screen.findByRole('heading', { name: 'Acceptez les conditions d’utilisation' })).toBeInTheDocument();
@@ -225,7 +225,7 @@ describe('drapeau allumé (AC2b)', () => {
     await user.type(await screen.findByLabelText('Numéro de téléphone'), '771234567');
     await user.click(screen.getByRole('button', { name: 'Recevoir un code' }));
     await user.type(await screen.findByLabelText('Code reçu par SMS'), '123456');
-    await user.click(screen.getByRole('button', { name: 'Valider' }));
+    await user.click(screen.getByRole('button', { name: 'Vérifier le code' }));
     await user.click(await screen.findByRole('checkbox', { name: /J’accepte les conditions d’utilisation/ }));
     await user.click(screen.getByRole('button', { name: 'Accepter et continuer' }));
 
@@ -252,7 +252,7 @@ describe('drapeau allumé (AC2b)', () => {
     await user.type(await screen.findByLabelText('Numéro de téléphone'), '771234567');
     await user.click(screen.getByRole('button', { name: 'Recevoir un code' }));
     await user.type(await screen.findByLabelText('Code reçu par SMS'), '123456');
-    await user.click(screen.getByRole('button', { name: 'Valider' }));
+    await user.click(screen.getByRole('button', { name: 'Vérifier le code' }));
     await user.click(await screen.findByRole('checkbox', { name: /J’accepte les conditions d’utilisation/ }));
     await user.click(screen.getByRole('button', { name: 'Accepter et continuer' }));
 
@@ -263,7 +263,7 @@ describe('drapeau allumé (AC2b)', () => {
     expect(demander).toHaveBeenCalledTimes(2);
 
     await user.type(screen.getByLabelText('Code reçu par SMS'), '654321');
-    await user.click(screen.getByRole('button', { name: 'Valider' }));
+    await user.click(screen.getByRole('button', { name: 'Vérifier le code' }));
 
     // Les conditions déjà acceptées accompagnent le nouveau code : elles ne sont pas redemandées.
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/onboarding/intention'));
@@ -283,7 +283,7 @@ describe('drapeau allumé (AC2b)', () => {
     await user.type(await screen.findByLabelText('Numéro de téléphone'), '771234567');
     await user.click(screen.getByRole('button', { name: 'Recevoir un code' }));
     await user.type(await screen.findByLabelText('Code reçu par SMS'), '123456');
-    await user.click(screen.getByRole('button', { name: 'Valider' }));
+    await user.click(screen.getByRole('button', { name: 'Vérifier le code' }));
     await screen.findByRole('heading', { name: 'Acceptez les conditions d’utilisation' });
 
     await user.click(screen.getByRole('button', { name: 'Renvoyer le code' }));
@@ -292,7 +292,7 @@ describe('drapeau allumé (AC2b)', () => {
 
     await user.type(screen.getByLabelText('Code reçu par SMS'), '111111');
     verifier.mockResolvedValueOnce({ requires_terms: true, terms_version: '2026-10-29' });
-    await user.click(screen.getByRole('button', { name: 'Valider' }));
+    await user.click(screen.getByRole('button', { name: 'Vérifier le code' }));
     await screen.findByRole('heading', { name: 'Acceptez les conditions d’utilisation' });
     await user.click(screen.getByRole('button', { name: 'Changer de numéro' }));
     expect(await screen.findByLabelText('Numéro de téléphone')).toBeInTheDocument();
@@ -313,7 +313,7 @@ describe('drapeau allumé (AC2b)', () => {
     await user.type(await screen.findByLabelText('Numéro de téléphone'), '771234567');
     await user.click(screen.getByRole('button', { name: 'Recevoir un code' }));
     await user.type(await screen.findByLabelText('Code reçu par SMS'), '123456');
-    await user.click(screen.getByRole('button', { name: 'Valider' }));
+    await user.click(screen.getByRole('button', { name: 'Vérifier le code' }));
 
     expect(await screen.findByText(new RegExp(attendu))).toBeInTheDocument();
     expect(openSessionMock).not.toHaveBeenCalled();

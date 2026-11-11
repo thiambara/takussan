@@ -52,7 +52,7 @@ export default async function AgentOnboardingPage({
   // (`/api/me/agent-profiles/{id}/role-capabilities`) ; il ne retombe plus sur une table écrite en dur.
 
   return (
-    <OnboardingShell title={t('pageTitle')} subtitle={t('pageSubtitle')}>
+    <OnboardingShell title={t('pageTitle')} subtitle={t('pageSubtitle')} brouillon>
       <AgentOnboardingWizard agentProfileId={agent.numeric_id} />
     </OnboardingShell>
   );
