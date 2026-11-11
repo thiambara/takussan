@@ -71,6 +71,11 @@ final class CustomerNextActionQuery
     {
         $visit = $this->upcomingVisits()
             ->whereColumn('property_visits.customer_id', 'customers.id')
+            // Même règle que `forPage` : hors personnel de l'agence de la fiche, aucune visite ne
+            // classe la fiche (sinon le tri trahirait l'heure d'une visite que la page tait).
+            ->when(! $this->seesAll, fn (Builder $q) => $this->staffAgencyId === null
+                ? $q->whereRaw('1 = 0')
+                : $q->whereRaw('customers.agency_id = ?', [$this->staffAgencyId]))
             ->selectRaw('MIN(property_visits.scheduled_at)')
             ->toBase();
         $task = $this->openTasks()
@@ -123,10 +128,16 @@ final class CustomerNextActionQuery
             ->each(function (PropertyVisit $v) use ($keep, $agencies): void {
                 $staff = $this->seesAll
                     || ($this->staffAgencyId !== null && (int) ($agencies[$v->customer_id] ?? 0) === $this->staffAgencyId);
+                // Vérification adverse de TCK-2588 — une visite n'est la prochaine action que pour le
+                // personnel de l'agence de la fiche : un bailleur auteur ne lit ni son id ni son
+                // heure (la visite peut porter sur le bien d'un autre bailleur).
+                if (! $staff) {
+                    return;
+                }
                 $keep((int) $v->customer_id, $v->scheduled_at, 0, [
                     'type' => 'visit',
                     'id' => (int) $v->id,
-                    'label' => $staff ? $v->getAttribute('property_title') : null,
+                    'label' => $v->getAttribute('property_title'),
                 ]);
             });
 

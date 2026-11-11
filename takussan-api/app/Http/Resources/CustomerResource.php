@@ -95,9 +95,16 @@ class CustomerResource extends BaseResource
             // TCK-2588 — `next_action`, `follow_up`, `referent` : calculés pour la page, rendus
             // seulement quand `fields[customers]` les demande.
             ...CustomerCommercialAttributes::of($request, (int) $this->id),
-            'visits_count' => $this->whenCounted('visits'),
+            // Vérification adverse de TCK-2588 — les visites d'une fiche (compte, à venir) sont au
+            // seul personnel de son agence (et au super-admin) : le bailleur auteur de la fiche
+            // lisait sinon les visites du client sur le bien d'un AUTRE bailleur, que
+            // `PropertyVisitPolicy::view` lui refuse.
+            'visits_count' => $this->when(
+                array_key_exists('visits_count', $this->resource->getAttributes()) && $this->readsVisits($request),
+                fn () => (int) $this->visits_count,
+            ),
             'upcoming_visits' => $this->when(
-                $this->relationLoaded('upcomingVisits'),
+                $this->relationLoaded('upcomingVisits') && $this->readsVisits($request),
                 fn () => $this->upcomingVisits->map(fn ($v) => [
                     'id' => $v->id,
                     'property_id' => $v->property_id,
@@ -194,6 +201,32 @@ class CustomerResource extends BaseResource
      * par fiche et par requête. Les lectures du front les demandent toutes deux dès qu'elles
      * demandent un champ réservé (`DASHBOARD_CUSTOMER_DETAIL_FIELDS`, `PIPELINE_CARD_FIELDS`).
      */
+    /**
+     * Vérification adverse de TCK-2588 — pose, en une requête pour la page, la fiche « jugeable »
+     * ({@see self::ficheJugeable()}) de chaque fiche dont `fields[customers]` n'a lu ni l'agence ni
+     * l'auteur : sans elle, la règle des visites relisait la fiche une fois par ligne.
+     *
+     * @param  iterable<Customer>  $customers
+     */
+    public static function primeFiches(Request $request, iterable $customers): void
+    {
+        $ids = [];
+        foreach ($customers as $customer) {
+            $attributs = $customer->getAttributes();
+            if (! (array_key_exists('agency_id', $attributs) && array_key_exists('added_by_id', $attributs))
+                && ! $request->attributes->has('tck808.fiche.'.$customer->getKey())) {
+                $ids[] = $customer->getKey();
+            }
+        }
+        if ($ids === []) {
+            return;
+        }
+
+        foreach (Customer::query()->select(['id', 'agency_id', 'added_by_id'])->whereKey($ids)->get() as $fiche) {
+            $request->attributes->set('tck808.fiche.'.$fiche->getKey(), $fiche);
+        }
+    }
+
     private function ficheJugeable(Request $request): Customer
     {
         $attributs = $this->resource->getAttributes();
@@ -220,6 +253,26 @@ class CustomerResource extends BaseResource
         $user = $request->user();
         if ($user === null
             || (! $this->resource->relationLoaded('origin') && ! $this->resource->relationLoaded('interestedProperty'))) {
+            return false;
+        }
+
+        $key = 'tck591.staff_agency_ids';
+        if (! $request->attributes->has($key)) {
+            $request->attributes->set($key, app(MembershipCapabilityResolver::class)->staffAgencyIds($user));
+        }
+
+        return $this->ficheJugeable($request)->criteriaBelongTo($user, $request->attributes->get($key));
+    }
+
+    /**
+     * Vérification adverse de TCK-2588 — les visites de la fiche, au seul personnel de son agence (et
+     * au super-admin) : la règle des critères, jugée sur la fiche relue quand `fields[customers]`
+     * n'a pas lu son agence (comme {@see self::readsOrigin()}).
+     */
+    private function readsVisits(Request $request): bool
+    {
+        $user = $request->user();
+        if ($user === null) {
             return false;
         }
 

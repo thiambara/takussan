@@ -52,6 +52,9 @@ class CustomerController extends Controller
 
         // TCK-2588 — les attributs calculés demandés, pour la page entière.
         CustomerCommercialAttributes::attach($request, $request->user(), $paginator->getCollection()->modelKeys());
+        // Vérification adverse de TCK-2588 — l'agence de chaque fiche, relue en UNE requête pour la
+        // page quand `fields[customers]` ne l'a pas lue (règle des visites et de l'origine).
+        CustomerResource::primeFiches($request, $paginator->getCollection());
 
         return $this->paginated($paginator, CustomerResource::collection($paginator)->toArray($request));
     }
