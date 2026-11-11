@@ -1,7 +1,7 @@
 ---
 id: TCK-2723
 title: "Les noms des destinataires d'une alerte ne se lisent que par qui gère les alertes ; les autres en lisent le nombre"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: S
@@ -76,3 +76,7 @@ calculés par `ThresholdAlertReading::forAlerts()` — **à tout le personnel, a
 ## Notes d'implémentation
 
 _(à remplir par implementing-specs)_
+
+## Vérification (2026-11-11)
+
+Vérification adverse acceptée, sans défaut, et 6 ablations sur 6 rougissent. AC3 est tenu à écart constant. On a mesuré à 1, 5, 20 et 40 alertes, avec et sans include : 38 requêtes pour l'admin, 43 pour l'agent, 39 pour l'agent gérant, quelle que soit la taille. L'écart de 2 existait déjà (viewReports) ; ce ticket le porte à 5, toujours constant. Cette tolérance a été acceptée par la session, et un ticket technique sur `primed()` la reprend. La relation `agency` ne sort que sous `include=agency` et se réduit à `{id, name}`. C'est vérifié sur index, show, store et update, pour trois profils sur deux agences.
