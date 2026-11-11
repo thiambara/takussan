@@ -151,7 +151,10 @@
     "(dashboard)/app/calendar": [
       "agentCrm",
       "calendar",
-      "visitPlanning"
+      "console",
+      "crm",
+      "visitPlanning",
+      "visits"
     ],
     "(dashboard)/app/overview": [
       "charts"
@@ -229,7 +232,8 @@
       "owners",
       "property",
       "search",
-      "visitPlanning"
+      "visitPlanning",
+      "visits"
     ],
     "[locale]/(public)/agencies": [
       "agency",
@@ -302,36 +306,36 @@
     "(dashboard)/app/agency": 54,
     "(dashboard)/app/leases": 33,
     "(dashboard)/app/owners": 28,
-    "(dashboard)/app/visits": 32,
+    "(dashboard)/app/visits": 33,
     "onboarding/super-admin": 52,
     "(dashboard)/app/account": 27,
     "(dashboard)/app/credits": 27,
     "(dashboard)/app/profile": 39,
-    "[locale]/(public)/claim": 30,
+    "[locale]/(public)/claim": 29,
     "[locale]/(public)/legal": 25,
     "[locale]/(public)/share": 27,
     "(dashboard)/app/bookings": 33,
-    "(dashboard)/app/calendar": 30,
+    "(dashboard)/app/calendar": 32,
     "(dashboard)/app/overview": 27,
     "(dashboard)/app/payments": 41,
     "[locale]/(public)/agents": 28,
     "(dashboard)/app/(accueil)": 27,
-    "(dashboard)/app/customers": 47,
-    "(dashboard)/app/documents": 39,
-    "(dashboard)/app/favorites": 40,
+    "(dashboard)/app/customers": 48,
+    "(dashboard)/app/documents": 38,
+    "(dashboard)/app/favorites": 39,
     "(super-admin)/super-admin": 59,
     "[locale]/(public)/account": 28,
-    "(dashboard)/app/properties": 47,
+    "(dashboard)/app/properties": 48,
     "[locale]/(public)/agencies": 28,
-    "[locale]/(public)/bookings": 28,
+    "[locale]/(public)/bookings": 27,
     "(dashboard)/app/commissions": 27,
-    "(dashboard)/app/inventories": 31,
+    "(dashboard)/app/inventories": 30,
     "(dashboard)/app/maintenance": 32,
-    "(dashboard)/app/saved-searches": 40,
+    "(dashboard)/app/saved-searches": 39,
     "[locale]/(public)/notifications": 27,
     "[locale]/(public)/search-alerts": 27,
     "[locale]/(public)/properties/[slug]": 27,
-    "[locale]/(public)/playground/vitrine": 26,
-    "[locale]/(public)/properties/(liste)": 26
+    "[locale]/(public)/playground/vitrine": 25,
+    "[locale]/(public)/properties/(liste)": 25
   }
 }

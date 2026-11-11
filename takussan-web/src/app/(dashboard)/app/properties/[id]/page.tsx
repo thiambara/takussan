@@ -141,7 +141,12 @@ export default async function Page({ params, searchParams }: { params: Params; s
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <PlanifierUneVisite
-              property={{ id: property.id, libelle: property.title }}
+              property={{
+                id: property.id,
+                libelle: property.title,
+                photo: property.main_photo_url ?? null,
+                detail: property.reference_number ?? null,
+              }}
               agencyId={agenceDuBien(property)}
             />
             {/* TCK-999 — l'API dit à qui le geste est offert (l'admin, bien tenu par le personnel). */}

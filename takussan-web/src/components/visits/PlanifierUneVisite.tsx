@@ -1,59 +1,75 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { CalendarPlus } from 'lucide-react';
-import { useApiQuery } from '@/hooks/useApiQuery';
-import { usePersonnelActif } from '@/hooks/usePersonnelActif';
-import { usePlanVisit } from '@/lib/queries/visits';
-import { smsRetenu } from '@/lib/visites/sort-du-sms';
-import { instantADakar } from '@/lib/visites/heure-de-dakar';
-import { jourDeLApi } from '@/lib/jour-de-l-api';
-import { ApiError } from '@/lib/api';
-import { nomAffichable } from '@/lib/identite';
+
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { PanneauDroit } from '@/components/ui/panneau-droit';
 import { PhoneInput } from '@/components/ui/phone-input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/components/ui/toast';
-import type { PaginatedResponse } from '@/types/api';
+import { Textarea } from '@/components/ui/textarea';
+import type { CustomerDuplicateMatch } from '@/app/actions/dashboard-customers';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { usePersonnelActif } from '@/hooks/usePersonnelActif';
+import { ApiError } from '@/lib/api';
+import { jourDeLApi, decalerJour } from '@/lib/jour-de-l-api';
+import { useCreneauxDeVisite, usePlanVisit, type PlanVisitPayload } from '@/lib/queries/visits';
+import { instantADakar } from '@/lib/visites/heure-de-dakar';
+import { creneauxProposes, etiquetteDuJour, joursProposes, jourEnClair } from '@/lib/visites/planification';
+import { smsRetenu } from '@/lib/visites/sort-du-sms';
+import { cn } from '@/lib/utils';
+import {
+  CarteDeLaDemande,
+  ChoixDuBien,
+  ChoixDuClient,
+  EncartConfirmee,
+  GestesDuSucces,
+  NoteDeLaDemande,
+  PastilleDeChoix,
+  SuccesDeLaPlanification,
+  TitreDeSection,
+  type BienAPlanifier,
+  type ClientAPlanifier,
+  type VisitePlanifiee,
+} from '@/components/visits/planification/PiecesDeLaPlanification';
 
-/** Valeur repère de « aucun choix » : une valeur vide n'est pas une option du Select. */
-const AUCUN = '__none__';
+export type { BienAPlanifier, ClientAPlanifier } from '@/components/visits/planification/PiecesDeLaPlanification';
 
-/** La grille des visites, à Dakar — la même que celle du serveur (`VisitSchedulingService`). */
-const HEURES: readonly string[] = Array.from({ length: 20 }, (_, i) => {
-  const minutes = 9 * 60 + i * 30;
-  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
-});
-
-interface Choix {
+/** La demande d'où naît la visite (TCK-2582) : son demandeur est repris, verrouillé. */
+export interface DemandeAPlanifier {
   readonly id: number;
-  readonly libelle: string;
+  readonly nom: string;
+  readonly prenom?: string | null;
+  readonly telephone?: string | null;
+  /** La demande est déjà rattachée à une fiche : la case « Créer la fiche » n'a plus d'objet. */
+  readonly ficheId?: number | null;
 }
 
-interface PlanifierUneVisiteProps {
-  /** Depuis la fiche bien : le bien est fixé. */
-  readonly property?: Choix;
-  /** Depuis la fiche client : le client est fixé. */
-  readonly customer?: Choix;
+interface PreRemplissage {
+  /** Depuis la fiche d'un bien, une demande ou une visite terminée : le bien est posé. */
+  readonly property?: BienAPlanifier;
+  /** Depuis la fiche client ou une visite terminée : le client est posé. */
+  readonly customer?: ClientAPlanifier;
+  /** Depuis une demande : `contact_lead_id`, et la fiche qui naît d'elle (`create_customer`). */
+  readonly demande?: DemandeAPlanifier;
+  /** Depuis l'agenda : le jour (`AAAA-MM-JJ`, Dakar) et l'heure (`HH:MM`) du créneau touché. */
+  readonly jour?: string;
+  readonly heure?: string;
+}
+
+interface PlanifierUneVisiteProps extends PreRemplissage {
   /**
    * L'agence du bien, quand on la connaît (fiche bien). `null` : bien sans agence, qui n'a aucun
    * personnel. Omise : l'agence du profil actif (fiche client, calendrier).
    */
   readonly agencyId?: number | null;
+  readonly className?: string;
 }
 
 /**
- * TCK-590 — « Planifier une visite » depuis la fiche bien, la fiche client et le calendrier.
+ * TCK-590 — « Planifier une visite » depuis la fiche bien, la fiche client, l'agenda et les Visites.
  *
  * L'API n'offrait au personnel aucune création qui ait un sens : `POST /property-visits` posait
  * `visitor_id = l'appelant`, et l'agent qui planifiait pour le prospect qui venait d'appeler
@@ -68,274 +84,580 @@ interface PlanifierUneVisiteProps {
  * ou dont le profil actif est celui d'une autre agence, voyait le bouton, et l'API, qui le traite
  * en non-personnel, le faisait réserver pour lui-même. Elle lit désormais le profil actif.
  */
-export function PlanifierUneVisite({ property, customer, agencyId }: PlanifierUneVisiteProps) {
+export function PlanifierUneVisite({ agencyId, className, ...preRemplissage }: PlanifierUneVisiteProps) {
   const t = useTranslations('visitPlanning.plan');
   const personnel = usePersonnelActif(agencyId);
   const [ouvert, setOuvert] = useState(false);
   if (!personnel) return null;
   return (
     <>
-      <Button type="button" variant="outline" className="h-10 gap-2 sm:h-8" onClick={() => setOuvert(true)}>
+      <Button type="button" variant="outline" className={cn('h-10 gap-2 sm:h-8', className)} onClick={() => setOuvert(true)}>
         <CalendarPlus className="size-4" aria-hidden />
         {t('cta')}
       </Button>
-      {ouvert ? (
-        <PlanifierDialog property={property} customer={customer} onClose={() => setOuvert(false)} />
-      ) : null}
+      {ouvert ? <PlanifierDialog {...preRemplissage} onClose={() => setOuvert(false)} /> : null}
     </>
   );
 }
 
-function useRecherche<T>(chemin: string, table: string, champs: string[], terme: string, actif: boolean) {
-  return useApiQuery<PaginatedResponse<T>>(
-    [chemin, 'planifier', terme],
-    chemin,
-    {
-      params: {
-        fields: { [table]: champs },
-        filter: terme ? { search: terme } : {},
-        per_page: 20,
-      },
-      enabled: actif,
-    },
-  );
-}
+const TYPES = ['in_person', 'virtual', 'self_guided', 'hybrid'] as const;
+type TypeDeVisite = (typeof TYPES)[number];
+
+/** L'heure choisie : une pastille (son instant exact, rendu par le serveur) ou l'heure libre. */
+type HeureChoisie = { readonly sorte: 'creneau'; readonly start: string; readonly label: string } | { readonly sorte: 'libre'; readonly label: string };
+
+type Erreurs = Partial<Record<'property' | 'customer' | 'name' | 'phone' | 'jour' | 'heure' | 'general', string>>;
+
+/** Les champs de l'API → la section de la feuille où l'erreur s'affiche. */
+const CHAMP_DE_L_ERREUR: Record<string, keyof Erreurs> = {
+  property_id: 'property',
+  customer_id: 'customer',
+  contact_lead_id: 'customer',
+  visitor_name: 'name',
+  visitor_phone: 'phone',
+  scheduled_at: 'heure',
+  duration_minutes: 'heure',
+};
 
 /**
- * Le dialogue seul, sans son bouton : TCK-2581 l'ouvre depuis « Planifier une 2ᵉ visite » (client
- * et bien de la visite préremplis) et apprend la réussite par `onPlanifiee`, appelé avant `onClose`.
+ * La feuille seule, sans son bouton (TCK-2586) : plein écran au téléphone (en-tête de formulaire,
+ * bouton collant qui redit le choix), panneau latéral de 480 px dès `xl` (`PanneauDroit`). TCK-2581
+ * l'ouvre depuis « Planifier une 2ᵉ visite » (client et bien de la visite posés) et apprend la
+ * réussite par `onPlanifiee`.
  */
 export function PlanifierDialog({
   property,
   customer,
+  demande,
+  jour: jourInitial,
+  heure: heureInitiale,
   onClose,
   onPlanifiee,
-}: PlanifierUneVisiteProps & { readonly onClose: () => void; readonly onPlanifiee?: () => void }) {
+}: PreRemplissage & { readonly onClose: () => void; readonly onPlanifiee?: () => void }) {
   const t = useTranslations('visitPlanning.plan');
-  const tPlanning = useTranslations('visitPlanning');
-  const toast = useToast();
+  const tType = useTranslations('visits.type');
+  const locale = useLocale();
+  const messageErreur = useMessageErreurApi();
   const plan = usePlanVisit();
 
-  const [propertyId, setPropertyId] = useState<number | null>(property?.id ?? null);
-  const [customerId, setCustomerId] = useState<number | null>(customer?.id ?? null);
-  const [rechercheBien, setRechercheBien] = useState('');
-  const [rechercheClient, setRechercheClient] = useState('');
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [jour, setJour] = useState('');
-  const [heure, setHeure] = useState('10:00');
-  // P230.05 — `scheduled_at` `after:now`, l'heure à Dakar (UTC+0) : pas de jour avant celui de l'API.
-  const [premierJour] = useState(() => jourDeLApi());
-  const [erreur, setErreur] = useState<string | null>(null);
+  // P230.05 — le premier jour est celui de l'API (Dakar est à UTC+0), jamais celui du navigateur.
+  const [maintenant] = useState(() => new Date());
+  const premierJour = jourDeLApi(maintenant);
+  const jours = joursProposes(maintenant);
 
-  const biens = useRecherche<{ id: number; title: string }>(
-    '/api/properties',
-    'properties',
-    ['id', 'title'],
-    rechercheBien,
-    !property,
-  );
-  const clients = useRecherche<{ id: number; first_name: string | null; last_name: string | null }>(
-    '/api/customers',
-    'customers',
-    ['id', 'first_name', 'last_name'],
-    rechercheClient,
-    !customer,
-  );
+  const [bien, setBien] = useState<BienAPlanifier | null>(property ?? null);
+  const [client, setClient] = useState<ClientAPlanifier | null>(customer ?? null);
+  const [sansFiche, setSansFiche] = useState(false);
+  const [nom, setNom] = useState('');
+  const [telephone, setTelephone] = useState('');
+  const [jour, setJour] = useState<string | null>(jourInitial ?? null);
+  // Depuis une demande, quatre pastilles de jour (a-1) ; ailleurs, cinq (a-5).
+  const joursMontres = demande ? jours.slice(0, 4) : jours;
+  const [autreDate, setAutreDate] = useState(jourInitial !== undefined && !joursMontres.includes(jourInitial));
+  const [heure, setHeure] = useState<HeureChoisie | null>(heureInitiale ? { sorte: 'libre', label: heureInitiale } : null);
+  const [autreHeure, setAutreHeure] = useState(false);
+  const [type, setType] = useState<TypeDeVisite>('in_person');
+  const [note, setNote] = useState('');
+  const [creerFiche, setCreerFiche] = useState(true);
+  const [erreurs, setErreurs] = useState<Erreurs>({});
+  const [doublons, setDoublons] = useState<readonly CustomerDuplicateMatch[] | null>(null);
+  const [resultat, setResultat] = useState<VisitePlanifiee | null>(null);
 
-  const prospect = customerId === null;
-  const complet =
-    propertyId !== null && jour !== '' && heure !== '' && (!prospect || (name.trim() !== '' && phone !== ''));
+  const creneaux = useCreneauxDeVisite(bien?.id ?? null, jour);
+  const proposes = creneauxProposes(creneaux.data?.data.slots ?? [], maintenant);
 
-  async function valider(e: React.FormEvent) {
-    e.preventDefault();
-    if (!complet || propertyId === null) {
-      setErreur(t('required'));
-      return;
-    }
-    setErreur(null);
-    try {
-      const reponse = await plan.mutateAsync({
-        property_id: propertyId,
-        scheduled_at: instantADakar(jour, heure),
-        ...(prospect ? { visitor_name: name.trim(), visitor_phone: phone } : { customer_id: customerId }),
-      });
-      toast.add({ title: t('success'), type: 'success' });
-      // Passe 3 (R1) — la visite est créée, mais le SMS au client a été retenu : l'agent le sait.
-      if (smsRetenu(reponse)) {
-        toast.add({
-          title: tPlanning('smsWithheld.title'),
-          description: tPlanning('smsWithheld.description'),
-          type: 'warning',
-        });
+  // L'heure de l'agenda (`heureInitiale`) devient la pastille du même créneau s'il est libre ; sinon
+  // elle reste l'heure libre, que la saisie « Autre heure… » montre.
+  const pastilleDeLHeure = heure?.sorte === 'libre' ? proposes.find((c) => c.label === heure.label && c.sort === 'libre') : undefined;
+  if (pastilleDeLHeure && heure?.sorte === 'libre' && !autreHeure) {
+    setHeure({ sorte: 'creneau', start: pastilleDeLHeure.start, label: pastilleDeLHeure.label });
+  }
+  const heureLibreVisible = autreHeure || (heure?.sorte === 'libre' && creneaux.isSuccess && !pastilleDeLHeure);
+
+  const changerDeBien = (suivant: BienAPlanifier | null) => {
+    setBien(suivant);
+    // Un autre bien, d'autres créneaux : l'heure choisie ne vaut plus.
+    if (suivant?.id !== bien?.id) setHeure(null);
+    setErreurs((e) => ({ ...e, property: undefined, heure: undefined }));
+  };
+  const changerDeJour = (suivant: string | null) => {
+    setJour(suivant);
+    if (suivant !== jour) setHeure(null);
+    setErreurs((e) => ({ ...e, jour: undefined, heure: undefined }));
+  };
+
+  const prenomDuVisiteur =
+    demande?.prenom ?? demande?.nom.split(' ')[0] ?? (client ? client.libelle.split(' ')[0] : sansFiche && nom.trim() ? nom.trim().split(' ')[0] : null);
+  const resume = jour && heure ? `${jourEnClair(jour, locale)} ${heure.label}` : null;
+
+  function verifier(): Erreurs {
+    const manque: Erreurs = {};
+    if (bien === null) manque.property = t('requiredProperty');
+    if (jour === null) manque.jour = t('requiredDay');
+    if (heure === null) manque.heure = t('requiredTime');
+    if (!demande && client === null) {
+      if (!sansFiche) manque.customer = t('requiredCustomer');
+      else {
+        if (nom.trim() === '') manque.name = t('requiredName');
+        if (telephone === '') manque.phone = t('requiredPhone');
       }
+    }
+    return manque;
+  }
+
+  function corps(options: { readonly forcer?: boolean; readonly ficheChoisie?: number } = {}): PlanVisitPayload | null {
+    if (bien === null || jour === null || heure === null) return null;
+    const scheduled_at = heure.sorte === 'creneau' ? heure.start : instantADakar(jour, heure.label);
+    const base: PlanVisitPayload = { property_id: bien.id, scheduled_at, type, ...(note.trim() ? { notes: note.trim() } : {}) };
+    if (demande) {
+      const fiche = options.ficheChoisie ?? demande.ficheId ?? null;
+      if (fiche !== null) return { ...base, contact_lead_id: demande.id, customer_id: fiche };
+      if (creerFiche) {
+        return { ...base, contact_lead_id: demande.id, create_customer: true, ...(options.forcer ? { allow_duplicate: true } : {}) };
+      }
+      return {
+        ...base,
+        contact_lead_id: demande.id,
+        visitor_name: demande.nom,
+        ...(demande.telephone ? { visitor_phone: demande.telephone } : {}),
+      };
+    }
+    if (client) return { ...base, customer_id: client.id };
+    return { ...base, visitor_name: nom.trim(), visitor_phone: telephone };
+  }
+
+  async function envoyer(options: { readonly forcer?: boolean; readonly ficheChoisie?: number } = {}) {
+    const manque = verifier();
+    setErreurs(manque);
+    if (Object.keys(manque).length > 0) return;
+    const charge = corps(options);
+    if (charge === null || jour === null || heure === null || bien === null) return;
+    setDoublons(null);
+    try {
+      const reponse = await plan.mutateAsync(charge);
+      const ficheId =
+        options.ficheChoisie ?? demande?.ficheId ?? reponse.data?.customer_id ?? (client ? client.id : null) ?? null;
+      setResultat({
+        id: reponse.data.id,
+        jour,
+        heure: heure.label,
+        bien,
+        visiteur: demande?.nom ?? client?.libelle ?? (nom.trim() || null),
+        prenom: prenomDuVisiteur,
+        telephone: demande?.telephone ?? client?.telephone ?? (telephone || null),
+        smsRetenu: smsRetenu(reponse),
+        ficheId: typeof ficheId === 'number' ? ficheId : null,
+        ficheCreee: Boolean(demande && charge.create_customer),
+      });
       onPlanifiee?.();
-      onClose();
     } catch (err) {
-      const message = err instanceof ApiError ? (err.data as { message?: string } | null)?.message : undefined;
-      setErreur(message ?? t('required'));
+      const existants = doublonsDe(err);
+      if (existants) {
+        setDoublons(existants);
+        return;
+      }
+      const parChamp = err instanceof ApiError ? err.validationErrors : undefined;
+      if (parChamp && Object.keys(parChamp).length > 0) {
+        const suivantes: Erreurs = {};
+        for (const [champ, messages] of Object.entries(parChamp)) {
+          const cle = CHAMP_DE_L_ERREUR[champ] ?? 'general';
+          suivantes[cle] ??= messages[0];
+        }
+        setErreurs(suivantes);
+        return;
+      }
+      // `visit.slot_overlap` (422 sans champ) : le créneau vient d'être pris — l'erreur va sous
+      // « Quelle heure ? », et les créneaux sont relus. Les autres 422 sans champ
+      // (`lead.not_convertible`, `lead.without_agency`) vont au bas de la feuille.
+      if (err instanceof ApiError && err.status === 422 && codeDe(err) === 'visit.slot_overlap') {
+        setErreurs({ heure: messageErreur(err, t('requiredTime')) });
+        void creneaux.refetch();
+        return;
+      }
+      setErreurs({ general: messageErreur(err, t('genericError')) });
     }
   }
 
-  const optionsBien = [
-    { value: AUCUN, label: '—' },
-    ...(biens.data?.data ?? []).map((b) => ({ value: String(b.id), label: b.title })),
-  ];
-  const optionsClient = [
-    { value: AUCUN, label: t('noCustomer') },
-    ...(clients.data?.data ?? []).map((c) => ({ value: String(c.id), label: nomAffichable(c) })),
-  ];
-  const optionsHeure = HEURES.map((h) => ({ value: h, label: h }));
+  const depuisUneDemande = demande !== undefined;
+  const titre = demande ? t('titleWith', { name: prenomDuVisiteur ?? demande.nom }) : t('title');
+
+  if (resultat) {
+    const gestes = (
+      <GestesDuSucces
+        visite={resultat}
+        depuisUneDemande={depuisUneDemande}
+        messageWhatsApp={t('whatsAppMessage', {
+          name: resultat.prenom ?? '',
+          property: resultat.bien.libelle,
+          when: `${jourEnClair(resultat.jour, locale)} ${resultat.heure}`,
+        })}
+        onFermer={onClose}
+        onAutreVisite={() => {
+          setResultat(null);
+          setHeure(null);
+          setNote('');
+        }}
+      />
+    );
+    // a-6 : les gestes sous la carte, sans pied ; a-2 (depuis une demande) : les gestes au pied.
+    return (
+      <PanneauDroit
+        open
+        formulaire
+        onOpenChange={(o) => !o && onClose()}
+        titre={titre}
+        sousTitre={depuisUneDemande ? t('doneStep') : undefined}
+        pied={depuisUneDemande ? gestes : undefined}
+      >
+        <SuccesDeLaPlanification visite={resultat} depuisUneDemande={depuisUneDemande} />
+        {depuisUneDemande ? null : gestes}
+      </PanneauDroit>
+    );
+  }
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-lg">
-        <form onSubmit={(e) => void valider(e)} className="space-y-4" noValidate>
-          <DialogHeader>
-            <DialogTitle>{t('title')}</DialogTitle>
-            <DialogDescription>{t('description')}</DialogDescription>
-          </DialogHeader>
+    <PanneauDroit
+      open
+      formulaire
+      onOpenChange={(o) => !o && onClose()}
+      titre={titre}
+      sousTitre={depuisUneDemande ? t('fromLeadStep') : undefined}
+      pied={
+        <>
+          <Button type="button" variant="ghost" className="max-xl:hidden" onClick={onClose}>
+            {t('cancel')}
+          </Button>
+          <Button
+            type="submit"
+            form="planifier-une-visite"
+            size="xl"
+            disabled={plan.isPending}
+            className="xl:h-controle xl:px-3.5 xl:text-sm"
+          >
+            {resume ? t('submitWith', { when: resume }) : t('submit')}
+          </Button>
+        </>
+      }
+    >
+      <form
+        id="planifier-une-visite"
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault();
+          void envoyer();
+        }}
+        className={depuisUneDemande ? 'space-y-5' : 'space-y-6'}
+      >
+        {demande ? (
+          <>
+            {bien === null ? <ChoixDuBien bien={null} onChoisir={changerDeBien} erreur={erreurs.property} /> : null}
+            <CarteDeLaDemande bien={bien} onChangerDeBien={() => changerDeBien(null)} nom={demande.nom} telephone={demande.telephone} />
+          </>
+        ) : (
+          <ChoixDuBien bien={bien} onChoisir={changerDeBien} erreur={erreurs.property} />
+        )}
 
-          <div className="space-y-1.5">
-            <label htmlFor="plan-property" className="block text-sm font-medium text-foreground">
-              {t('property')}
-            </label>
-            {property ? (
-              <p id="plan-property" className="text-sm text-foreground">{property.libelle}</p>
-            ) : (
-              <>
-                <Input
-                  value={rechercheBien}
-                  onChange={(e) => setRechercheBien(e.target.value)}
-                  placeholder={t('propertyPlaceholder')}
-                  aria-label={t('propertyPlaceholder')}
-                />
-                <Select
-                  value={propertyId === null ? AUCUN : String(propertyId)}
-                  onValueChange={(next) => {
-                    if (next === null) return;
-                    setPropertyId(next === AUCUN ? null : Number(next));
-                  }}
-                  items={optionsBien}
-                >
-                  <SelectTrigger id="plan-property" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {optionsBien.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        {o.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <label htmlFor="plan-customer" className="block text-sm font-medium text-foreground">
-              {t('customer')}
-            </label>
-            {customer ? (
-              <p id="plan-customer" className="text-sm text-foreground">{customer.libelle}</p>
-            ) : (
-              <>
-                <Input
-                  value={rechercheClient}
-                  onChange={(e) => setRechercheClient(e.target.value)}
-                  placeholder={t('customerPlaceholder')}
-                  aria-label={t('customerPlaceholder')}
-                />
-                <Select
-                  value={customerId === null ? AUCUN : String(customerId)}
-                  onValueChange={(next) => {
-                    if (next === null) return;
-                    setCustomerId(next === AUCUN ? null : Number(next));
-                  }}
-                  items={optionsClient}
-                >
-                  <SelectTrigger id="plan-customer" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {optionsClient.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        {o.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </>
-            )}
-          </div>
-
-          {prospect && (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <label htmlFor="plan-name" className="block text-sm font-medium text-foreground">
-                  {t('name')}
-                </label>
-                <Input id="plan-name" value={name} onChange={(e) => setName(e.target.value)} />
+        {demande ? null : (
+          <ChoixDuClient
+            client={client}
+            onChoisir={(c) => {
+              setClient(c);
+              setErreurs((e) => ({ ...e, customer: undefined }));
+            }}
+            sansFiche={sansFiche}
+            onSansFiche={(coche) => {
+              setSansFiche(coche);
+              if (coche) setClient(null);
+            }}
+            erreur={erreurs.customer}
+            champsSansFiche={
+              <div className="mt-1 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label htmlFor="plan-name" className="block text-sm font-medium text-foreground">
+                    {t('name')}
+                  </label>
+                  <Input
+                    id="plan-name"
+                    value={nom}
+                    onChange={(e) => setNom(e.target.value)}
+                    aria-invalid={erreurs.name ? true : undefined}
+                    aria-describedby={erreurs.name ? 'plan-name-erreur' : undefined}
+                  />
+                  {erreurs.name ? (
+                    <p id="plan-name-erreur" role="alert" className="text-sm text-destructive">
+                      {erreurs.name}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="plan-phone" className="block text-sm font-medium text-foreground">
+                    {t('phone')}
+                  </label>
+                  <PhoneInput
+                    id="plan-phone"
+                    value={telephone}
+                    onValueChange={setTelephone}
+                    aria-invalid={erreurs.phone ? true : undefined}
+                    aria-describedby={erreurs.phone ? 'plan-phone-erreur' : undefined}
+                  />
+                  {erreurs.phone ? (
+                    <p id="plan-phone-erreur" role="alert" className="text-sm text-destructive">
+                      {erreurs.phone}
+                    </p>
+                  ) : null}
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <label htmlFor="plan-phone" className="block text-sm font-medium text-foreground">
-                  {t('phone')}
-                </label>
-                <PhoneInput id="plan-phone" value={phone} onValueChange={setPhone} />
-              </div>
-            </div>
-          )}
+            }
+          />
+        )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
+        <div role="group" aria-labelledby="plan-day-titre">
+          <TitreDeSection id="plan-day-titre" fort={depuisUneDemande} className="mb-2">
+            {t('whichDay')}
+          </TitreDeSection>
+          {/* a-5 : cinq jours en pastilles qui se suivent ; a-1 (demande) : quatre, avec le mois, sur trois colonnes. */}
+          <div className={depuisUneDemande ? 'grid grid-cols-3 gap-2' : 'flex flex-wrap gap-2'}>
+            {joursMontres.map((j, i) => (
+              <PastilleDeChoix
+                key={j}
+                actif={!autreDate && jour === j}
+                onChoisir={() => {
+                  setAutreDate(false);
+                  changerDeJour(j);
+                }}
+                className={depuisUneDemande ? 'px-2' : undefined}
+              >
+                {i === 0 ? t('today') : i === 1 ? t('tomorrow') : depuisUneDemande ? capitaliser(jourEnClair(j, locale)) : etiquetteDuJour(j, locale)}
+              </PastilleDeChoix>
+            ))}
+            <PastilleDeChoix actif={autreDate} onChoisir={() => setAutreDate(true)} className={depuisUneDemande ? 'px-2' : undefined}>
+              {t('otherDate')}
+            </PastilleDeChoix>
+          </div>
+          {autreDate ? (
+            <div className="mt-2 space-y-1.5">
               <label htmlFor="plan-date" className="block text-sm font-medium text-foreground">
                 {t('date')}
               </label>
-              <Input id="plan-date" type="date" min={premierJour} value={jour} onChange={(e) => setJour(e.target.value)} />
+              <Input
+                id="plan-date"
+                type="date"
+                min={premierJour}
+                max={decalerJour(premierJour, 60)}
+                value={jour ?? ''}
+                onChange={(e) => changerDeJour(e.target.value || null)}
+              />
             </div>
-            <div className="space-y-1.5">
+          ) : null}
+          {erreurs.jour ? (
+            <p role="alert" className="mt-1.5 text-sm text-destructive">
+              {erreurs.jour}
+            </p>
+          ) : null}
+        </div>
+
+        <div role="group" aria-labelledby="plan-time-titre">
+          <TitreDeSection id="plan-time-titre" fort={depuisUneDemande} droite={depuisUneDemande ? undefined : t('slotsHint')}>
+            {t('whichTime')}
+          </TitreDeSection>
+          <CreneauxDuJour
+            enGrille={depuisUneDemande}
+            etat={bien === null || jour === null ? 'en-attente' : creneaux.isError ? 'erreur' : creneaux.isPending ? 'chargement' : 'pret'}
+            proposes={proposes}
+            heure={heure}
+            autreHeure={heureLibreVisible}
+            onChoisir={(c) => {
+              setAutreHeure(false);
+              setHeure({ sorte: 'creneau', start: c.start, label: c.label });
+              setErreurs((e) => ({ ...e, heure: undefined }));
+            }}
+            onAutreHeure={() => {
+              setAutreHeure(true);
+              setHeure(null);
+            }}
+            onRelire={() => void creneaux.refetch()}
+          />
+          {heureLibreVisible ? (
+            <div className="mt-2 space-y-1.5">
               <label htmlFor="plan-time" className="block text-sm font-medium text-foreground">
                 {t('time')} <span className="font-normal text-muted-foreground">({t('dakarTime')})</span>
               </label>
-              <Select
-                value={heure}
-                onValueChange={(next) => {
-                  if (next === null) return;
-                  setHeure(next);
-                }}
-                items={optionsHeure}
-              >
-                <SelectTrigger id="plan-time" className="w-full tabular-nums">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {optionsHeure.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      {o.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input
+                id="plan-time"
+                type="time"
+                step={300}
+                value={heure?.sorte === 'libre' ? heure.label : ''}
+                onChange={(e) => setHeure(e.target.value ? { sorte: 'libre', label: e.target.value } : null)}
+                className="tabular-nums"
+              />
             </div>
-          </div>
-
-          {erreur ? (
-            <p role="alert" className="text-sm text-destructive">
-              {erreur}
+          ) : null}
+          {erreurs.heure ? (
+            <p role="alert" className="mt-1.5 text-sm text-destructive">
+              {erreurs.heure}
             </p>
           ) : null}
+        </div>
 
-          <DialogFooter>
-            <Button type="button" variant="ghost" onClick={onClose}>
-              {t('cancel')}
+        {demande ? null : (
+          <div role="group" aria-labelledby="plan-type-titre">
+            <TitreDeSection id="plan-type-titre" className="mb-2">
+              {t('visitType')}
+            </TitreDeSection>
+            <div className="flex flex-wrap gap-2">
+              {TYPES.map((tp) => (
+                <PastilleDeChoix key={tp} actif={type === tp} onChoisir={() => setType(tp)}>
+                  {tType(tp)}
+                </PastilleDeChoix>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {demande ? null : (
+          <div>
+            <label htmlFor="plan-note" className="mb-1.5 block text-sm font-medium">
+              {t('note')} <span className="font-normal text-muted-foreground">{t('optional')}</span>
+            </label>
+            <Textarea id="plan-note" value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('notePlaceholder')} />
+          </div>
+        )}
+
+        {demande && !demande.ficheId ? (
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-card p-3.5">
+            <Checkbox checked={creerFiche} onCheckedChange={(c) => setCreerFiche(c === true)} className="mt-0.5" />
+            <span className="min-w-0 flex-1 text-corps leading-snug font-medium">
+              {t('createCustomer')}
+              <span className="mt-0.5 block text-ui font-normal text-muted-foreground">{t('createCustomerHint')}</span>
+            </span>
+          </label>
+        ) : null}
+
+        {doublons ? (
+          <div role="status" className="space-y-2 rounded-xl border border-border bg-card p-3.5 text-sm">
+            <p className="font-medium">{t('duplicateTitle')}</p>
+            <ul className="space-y-2">
+              {doublons.map((d, i) => (
+                <li key={d.id ?? `cachee-${i}`} className="flex flex-wrap items-center justify-between gap-2">
+                  <span>{d.name ?? t('duplicateHidden')}</span>
+                  {d.id !== null ? (
+                    <Button type="button" variant="outline" size="sm" onClick={() => void envoyer({ ficheChoisie: d.id ?? undefined })}>
+                      {t('duplicateUse')}
+                    </Button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+            <Button type="button" variant="ghost" size="sm" onClick={() => void envoyer({ forcer: true })}>
+              {t('duplicateCreateAnyway')}
             </Button>
-            <Button type="submit" disabled={plan.isPending}>
-              {t('submit')}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+          </div>
+        ) : null}
+
+        {erreurs.general ? (
+          <p role="alert" className="text-sm text-destructive">
+            {erreurs.general}
+          </p>
+        ) : null}
+
+        {depuisUneDemande ? (
+          <NoteDeLaDemande>{t('bornConfirmedFromLead', { name: prenomDuVisiteur ?? demande.nom })}</NoteDeLaDemande>
+        ) : (
+          <EncartConfirmee>{prenomDuVisiteur ? t('bornConfirmed', { name: prenomDuVisiteur }) : t('bornConfirmedAnonymous')}</EncartConfirmee>
+        )}
+      </form>
+    </PanneauDroit>
+  );
+}
+
+function capitaliser(texte: string): string {
+  return texte.charAt(0).toLocaleUpperCase() + texte.slice(1);
+}
+
+function codeDe(e: ApiError): string | null {
+  const data = e.data as { code?: unknown } | null;
+  return data && typeof data.code === 'string' ? data.code : null;
+}
+
+/** TCK-1343 — les fiches existantes d'un 409 `customer.duplicate`, sinon `null`. */
+function doublonsDe(e: unknown): CustomerDuplicateMatch[] | null {
+  if (!(e instanceof ApiError) || e.status !== 409) return null;
+  const data = e.data as { code?: unknown; existing?: unknown } | null;
+  if (!data || data.code !== 'customer.duplicate' || !Array.isArray(data.existing)) return null;
+  return data.existing as CustomerDuplicateMatch[];
+}
+
+/**
+ * « Quelle heure ? » : les créneaux libres du jour en pastilles, les pris barrés et non
+ * sélectionnables (AC2), une heure passée jamais proposée ; « Autre heure… » ouvre la saisie libre —
+ * la console n'est pas bornée à la grille. Trois états : en attente (ni bien ni jour), chargement,
+ * erreur (relire) ; une journée sans aucun créneau le dit.
+ */
+function CreneauxDuJour({
+  enGrille,
+  etat,
+  proposes,
+  heure,
+  autreHeure,
+  onChoisir,
+  onAutreHeure,
+  onRelire,
+}: {
+  /** Depuis une demande (a-1) : quatre colonnes, et la règle des créneaux dite dessous. */
+  readonly enGrille: boolean;
+  readonly etat: 'en-attente' | 'chargement' | 'erreur' | 'pret';
+  readonly proposes: ReturnType<typeof creneauxProposes>;
+  readonly heure: HeureChoisie | null;
+  readonly autreHeure: boolean;
+  readonly onChoisir: (c: { readonly start: string; readonly label: string }) => void;
+  readonly onAutreHeure: () => void;
+  readonly onRelire: () => void;
+}) {
+  const t = useTranslations('visitPlanning.plan');
+  if (etat === 'en-attente') return <p className="text-ui text-muted-foreground">{t('slotsWaiting')}</p>;
+  if (etat === 'chargement') {
+    return (
+      <p className="text-ui text-muted-foreground" aria-busy="true">
+        {t('slotsLoading')}
+      </p>
+    );
+  }
+  if (etat === 'erreur') {
+    return (
+      <div role="alert" className="flex flex-wrap items-center gap-2 text-ui text-destructive">
+        {t('slotsError')}
+        <Button type="button" variant="outline" size="sm" onClick={onRelire}>
+          {t('retry')}
+        </Button>
+      </div>
+    );
+  }
+  const unPris = proposes.some((c) => c.sort === 'pris');
+  return (
+    <>
+      <div className={enGrille ? 'grid grid-cols-4 gap-2' : 'flex flex-wrap gap-2'}>
+        {proposes.map((c) => (
+          <PastilleDeChoix
+            key={c.start}
+            actif={!autreHeure && heure?.sorte === 'creneau' && heure.start === c.start}
+            pris={c.sort === 'pris'}
+            onChoisir={() => onChoisir(c)}
+            className={enGrille ? 'px-0' : 'px-3.5'}
+            aria-label={c.sort === 'pris' ? t('slotTaken', { time: c.label }) : undefined}
+          >
+            {c.label}
+          </PastilleDeChoix>
+        ))}
+        <PastilleDeChoix actif={autreHeure} onChoisir={onAutreHeure} className={enGrille ? 'col-span-2 px-0' : 'px-3.5'}>
+          {t('otherTime')}
+        </PastilleDeChoix>
+      </div>
+      {proposes.length === 0 ? <p className="mt-2 text-ui text-muted-foreground">{t('slotsNone')}</p> : null}
+      {enGrille ? (
+        <p className="mt-2 text-ui text-muted-foreground">{t('slotsHintLead')}</p>
+      ) : unPris ? (
+        <p className="mt-2 text-ui text-muted-foreground">{t('slotsTakenHint')}</p>
+      ) : null}
+    </>
   );
 }

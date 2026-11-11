@@ -19,13 +19,13 @@ beforeEach(() => {
 });
 
 describe('fetchDashboardCustomer', () => {
-  it('charge les documents et les étiquettes, pas les notes', async () => {
+  it('charge les documents, les étiquettes et le bien d’intérêt (TCK-2586), pas les notes', async () => {
     await fetchDashboardCustomer('jeton', 7);
 
     const [chemin] = api.apiRequest.mock.calls[0] as [string];
     const url = new URL(chemin, 'http://x');
 
     expect(url.pathname).toBe('/api/customers/7');
-    expect(url.searchParams.get('include')?.split(',').sort()).toEqual(['documents', 'tags']);
+    expect(url.searchParams.get('include')?.split(',').sort()).toEqual(['documents', 'interestedProperty', 'tags']);
   });
 });

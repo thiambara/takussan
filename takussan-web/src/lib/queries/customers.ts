@@ -119,7 +119,9 @@ export async function fetchDashboardCustomer(
   const qs = buildQueryString({
     // TCK-866 (P02.09) — pas `notes` : la fiche et le panneau du pipeline les lisent paginées par
     // `fetchCustomerNotes`, et rien ne lisait les notes sérialisées ici une seconde fois.
-    include: ['documents', 'tags'],
+    // TCK-2586 — `interestedProperty` : « Planifier une visite » part de son bien d'intérêt (AC3,
+    // trois touches depuis la fiche : jour, heure, Confirmer).
+    include: ['documents', 'tags', 'interestedProperty'],
   });
   const res = await apiRequest<ApiResponse<CustomerDetail>>(
     cheminApi`/api/customers/${customerId}${requete(qs)}`,

@@ -14,6 +14,7 @@ import type {
   VisitType,
 } from '@/types/visit';
 import type { SortDuSms } from '@/lib/visites/sort-du-sms';
+import type { CreneauDuServeur } from '@/lib/visites/planification';
 import { cheminApi } from '@/lib/chemin-api';
 import type { CorpsDuCompteRendu, VisiteAvecCompteRendu } from '@/lib/visites/compte-rendu';
 
@@ -296,13 +297,44 @@ export interface PlanVisitPayload {
   customer_id?: number;
   visitor_name?: string;
   visitor_phone?: string;
+  /** TCK-2586 — `in_person` par défaut côté serveur. */
+  type?: 'in_person' | 'virtual' | 'self_guided' | 'hybrid';
+  notes?: string;
+  /** TCK-2582 — la visite qui naît d'une demande : la demande passe en « traitée ». */
+  contact_lead_id?: number;
+  /** TCK-2582 — avec `contact_lead_id` : la fiche client naît de la demande et en garde le message. */
+  create_customer?: boolean;
+  /** TCK-2586 — la fiche naît malgré une fiche voisine (409 `customer.duplicate` d'abord). */
+  allow_duplicate?: boolean;
 }
 
 export function usePlanVisit() {
   return useApiMutation<VisitActionResponse, PlanVisitPayload>(
     { path: '/api/property-visits', method: 'POST' },
-    { invalidate: [['visits'], ['calendar']] },
+    // TCK-2586 — la demande traitée et la fiche née d'elle bougent aussi.
+    { invalidate: [['visits'], ['calendar'], ['contact-leads'], ['customers']] },
   );
+}
+
+/**
+ * TCK-2586 (TCK-2585) — les créneaux d'un jour pour un bien, et pour l'agent qui planifie :
+ * `GET /api/property-visits/slots?property_id=&date=`. Grille de Dakar, 09:00 → 18:30 par 30 min.
+ */
+export interface ReponseDesCreneaux {
+  readonly data: {
+    readonly date: string;
+    readonly timezone: string;
+    readonly slots: readonly CreneauDuServeur[];
+  };
+}
+
+export function useCreneauxDeVisite(propertyId: number | null, jour: string | null) {
+  return useApiQuery<ReponseDesCreneaux>(['visits', 'slots', propertyId, jour], '/api/property-visits/slots', {
+    params: { extra: { property_id: propertyId, date: jour } },
+    enabled: propertyId !== null && jour !== null,
+    // Un créneau pris par un collègue pendant la saisie : relu à chaque ouverture.
+    staleTime: 0,
+  });
 }
 
 /**

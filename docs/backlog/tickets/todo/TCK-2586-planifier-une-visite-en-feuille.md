@@ -76,4 +76,13 @@ L'agent planifie une visite en trois touches depuis la demande, la fiche du clie
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Prémisse re-mesurée (2026-11-11)** : `PlanifierUneVisite.tsx` était un `Dialog` — recherche + `Select` pour le bien et le client, `input date`, `Select` de 20 heures (09:00 → 18:30), ni type de visite ni note ; aucun front n'envoyait `contact_lead_id` ; ni `WeekView` ni `DayView` n'ont de geste sur un créneau vide ; l'en-tête des Visites n'avait aucune action.
+
+**Livré**
+- `PlanifierDialog` sur `PanneauDroit` (nouveau mode `formulaire` : sous `xl`, plein écran, croix à gauche, ligne d'étape `sousTitre`, pied en barre collante ; dès `xl`, le panneau de 480 px inchangé).
+- Pièces : `components/visits/planification/PiecesDeLaPlanification.tsx` (pastille de choix, bien en vignette ou recherche unique, client en carte / recherche / « Visiteur sans fiche », carte de la demande verrouillée, succès a-6 et a-2, gestes du succès). Règles pures : `lib/visites/planification.ts` (jours au jour de Dakar, un créneau dans le délai de prévenance de 30 min n'est pas proposé, un pris est barré et `aria-disabled`).
+- `useCreneauxDeVisite` (`GET /property-visits/slots`) ; `PlanVisitPayload` porte `type`, `notes`, `contact_lead_id`, `create_customer`, `allow_duplicate`. Un 409 `customer.duplicate` propose « Utiliser cette fiche » ; un 422 `visit.slot_overlap` va sous « Quelle heure ? » et relit les créneaux ; les autres 422 sans champ vont au bas de la feuille.
+- Préremplissages : fiche bien (bien + vignette), fiche client (client, téléphone, étape, et son **bien d'intérêt** — `fetchDashboardCustomer` demande désormais `include=interestedProperty`, AC3), visite terminée (bien + client + téléphone), agenda et demande par props (`jour`/`heure`, `demande`) ; l'en-tête des Visites porte l'action.
+- Succès : « Voir la visite » (`/app/visits/<id>`), WhatsApp, « Planifier une autre visite » ; depuis une demande, la liste de ce qui a été fait et « Voir la fiche ».
+
+**AC1 — prop testée, geste câblé par TCK-2597** (périmètre tranché par la session, 2026-11-11) : la feuille reçoit ses préremplissages en props, testées au composant ; le geste sur un créneau vide de l'agenda est porté par TCK-2597 (AC4), « Visite ▸ » de la boîte des demandes par TCK-2584 (AC3). Tous deux se branchent sur CETTE interface, sans en créer une seconde : `PlanifierDialog` / `PlanifierUneVisite` — `property` {id, libelle, photo?, detail?}, `customer` {id, libelle, telephone?, etape?}, `demande` {id, nom, prenom?, telephone?, ficheId?}, `jour` (`AAAA-MM-JJ`, Dakar), `heure` (`HH:MM`), `onClose`, `onPlanifiee`. Fidélité : `docs/qa/audit-ux-2026-11/fidelite/TCK-2586.json` (a-5/a-6 relevés ; a-1/a-2 avec TCK-2584).

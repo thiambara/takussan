@@ -149,7 +149,9 @@ export default async function Page({ params }: { params: Params }) {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <PlanifierUneVisite
-              customer={{ id: customer.id, libelle: nom }}
+              customer={{ id: customer.id, libelle: nom, telephone: customer.phone ?? null, etape: customer.pipeline_stage ?? null }}
+              // TCK-2586 (AC3) — son bien d'intérêt, posé : jour, heure, Confirmer.
+              property={customer.interested_property ? { id: customer.interested_property.id, libelle: customer.interested_property.title } : undefined}
             />
             {/* TCK-2580 — la candidature ou l'offre qu'il vient de faire, le client prérempli. */}
             <EntreeSaisieDemande

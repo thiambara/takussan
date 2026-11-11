@@ -57,6 +57,8 @@ export interface CustomerDetail extends CustomerListItem {
   seeking_cities?: string[] | null;
   seeking_neighborhoods?: string[] | null;
   min_bedrooms?: number | null;
+  /** TCK-2582 — le bien d'intérêt, rendu sous `include=interestedProperty` (TCK-2586). */
+  interested_property?: { id: number; title: string; slug: string | null } | null;
 }
 
 export interface CustomerNote {
