@@ -6459,11 +6459,10 @@
         "toApprove": "To approve"
       },
       "kpis": {
-        "collections30d": "Collections (30 d)",
         "overdue": "Outstanding overdue",
         "pendingPayouts": "Pending payouts",
         "invoicesToIssue": "Invoices to issue",
-        "overdueHint": "{count, plural, one {# lease affected} other {# leases affected}}"
+        "collectedIn": "Collected in {mois}"
       },
       "aging": {
         "groupByLabel": "Group overdue amounts",
@@ -6491,6 +6490,155 @@
         "captionLandlord": "Overdue amounts by landlord and age bracket",
         "emptyTitle": "Nothing overdue",
         "emptyDescription": "No past-due rent instalment is awaiting payment."
+      },
+      "argent": {
+        "actions": {
+          "exporter": "Export",
+          "exporterAria": "Export payments as CSV ({mois})"
+        },
+        "auJour": "As of {date}",
+        "filLabel": "Breadcrumb",
+        "syntheseRefusee": "The monthly summary isn’t available to your profile.",
+        "payeurInconnu": "Unknown payer",
+        "aFaire": {
+          "titre": "To do",
+          "impayes": "{count, plural, one {# overdue payment to chase} other {# overdue payments to chase}}",
+          "impayesDetail": "{montant} · {jamais, plural, =0 {all already reminded} one {# never reminded} other {# never reminded}}",
+          "reversements": "{count, plural, one {# payout to approve} other {# payouts to approve}}",
+          "reversementsDetail": "{montant} · {bailleurs, plural, one {# landlord} other {# landlords}}",
+          "factures": "{count, plural, one {# invoice to issue} other {# invoices to issue}}",
+          "facturesDetail": "{montant} in fees",
+          "plusAnciens": "To do · oldest overdue payments",
+          "aApprouverTitre": "To do · payouts to approve",
+          "voirLes": "{count, plural, =0 {View} one {View} other {View all #}}",
+          "relanceLe": "reminded on {date}",
+          "jamaisRelance": "never reminded",
+          "reversementSansReference": "Payout without reference",
+          "preparePar": "prepared by {nom}",
+          "examiner": "Review",
+          "joursDeRetardCourt": "{count} d late"
+        },
+        "tuiles": {
+          "encaisse": "Collected",
+          "impayes": "Overdue",
+          "bauxEnRetard": "{count, plural, one {# lease overdue} other {# leases overdue}}",
+          "paiements": "{count, plural, one {# payment} other {# payments}}",
+          "variation": "{variation} vs {mois}",
+          "bauxEtAnciens": "{baux, plural, one {# lease} other {# leases}} · {anciens, plural, =0 {none over 30 days} other {# over 30 days}}",
+          "reversementsDetail": "{count, plural, =0 {None pending} one {# payout} other {# payouts}}{aApprouver, plural, =0 {} other { · # to approve}}",
+          "facturesDetail": "{montant} in fees"
+        },
+        "derniers": {
+          "titre": "Latest payments",
+          "tout": "All",
+          "toutVoir": "View all",
+          "vide": "No payments this month."
+        },
+        "registres": {
+          "titre": "Everything",
+          "encaissements": "Payments",
+          "factures": "Invoices",
+          "reversements": "Payouts",
+          "aApprouver": "To approve",
+          "impayes": "Overdue",
+          "impayesDetail": "By tenant, by age",
+          "rapprochement": "Bank reconciliation",
+          "exporter": "Export payments",
+          "exporterDetail": "The month shown, as CSV"
+        },
+        "creer": {
+          "titre": "Create",
+          "reversement": "Create a payout",
+          "facture": "Generate an invoice",
+          "factureDetail": "{count, plural, one {# draft} other {# drafts}} · {montant}"
+        },
+        "jour": {
+          "aujourdhui": "Today",
+          "hier": "Yesterday",
+          "aujourdhuiMinuscule": "today",
+          "hierMinuscule": "yesterday"
+        },
+        "periode": {
+          "rentDu": "{mois} rent",
+          "chargesDu": "{mois} charges",
+          "penaltyDu": "{mois} late fee",
+          "rent": "Rent",
+          "charges": "Charges",
+          "penalty": "Late fee",
+          "deposit": "Deposit",
+          "deposit_refund": "Deposit refund",
+          "regularization": "Adjustment",
+          "autre": "Payment",
+          "reservation": {
+            "deposit": "Booking · deposit",
+            "advance": "Booking · advance",
+            "fee": "Booking · fee",
+            "autre": "Booking"
+          },
+          "rentDuCourt": "{mois} rent",
+          "chargesDuCourt": "{mois} charges",
+          "penaltyDuCourt": "{mois} late fee"
+        },
+        "encaissements": {
+          "recherche": "Search a tenant, a property, a reference",
+          "rechercheCourte": "Tenant, property, reference",
+          "filtres": "Filters",
+          "moyen": "Method",
+          "tous": "All",
+          "tousLesMoyens": "All methods",
+          "tousLesStatuts": "All statuses",
+          "payeur": "Payer",
+          "bien": "Property",
+          "bailleur": "Landlord",
+          "statut": "Status",
+          "dates": "Dates",
+          "du": "From",
+          "au": "To",
+          "chercherPayeur": "Search a payer",
+          "chercherBien": "Search a property",
+          "chercherBailleur": "Search a landlord",
+          "compteDuMois": "{count, plural, one {# payment} other {# payments}} in {mois}",
+          "resume": "{mois} · {count, plural, one {# payment} other {# payments}} · <fort>{montant}</fort> collected",
+          "toutesDates": "All dates",
+          "totaux": {
+            "total": "Total",
+            "lignes": "{count, plural, one {# line} other {# lines}}",
+            "paye": "Paid",
+            "paiements": "{count, plural, one {# payment} other {# payments}}",
+            "restant": "Outstanding",
+            "aEncaisser": "to collect",
+            "echoue": "Failed",
+            "aReprendre": "{count, plural, =0 {nothing to retry} one {# payment to retry} other {# payments to retry}}"
+          },
+          "colonnes": {
+            "payeur": "Payer",
+            "bien": "Property",
+            "periode": "Period",
+            "montant": "Amount",
+            "moyen": "Method",
+            "date": "Date",
+            "statut": "Status",
+            "reference": "Reference"
+          },
+          "legende": "Agency payments",
+          "pied": "{debut}–{fin} of {total}",
+          "precedents": "Show earlier days",
+          "recents": "Back to recent days",
+          "reservation": "Booking",
+          "erreur": "Payments couldn’t be loaded.",
+          "videTitre": "No payments",
+          "videDetail": "No payment matches these filters.",
+          "sousTitre": "{count, plural, one {# payment} other {# payments}} in {mois} · each line says who paid, for which property and which period",
+          "sousTitreSansMois": "{count, plural, one {# payment} other {# payments}} · each line says who paid, for which property and which period"
+        },
+        "choix": {
+          "effacer": "Clear",
+          "aucun": "No results"
+        },
+        "mois": {
+          "toutes": "All dates",
+          "choisir": "Month: {mois}"
+        }
       }
     },
     "audit": {
@@ -7017,7 +7165,7 @@
       },
       "finances": {
         "noAgency": "Finances",
-        "title": "Finances",
+        "title": "Money",
         "subtitle": "Collections, invoices and payouts — the agency's commercial view.",
         "reconciliationLink": "Bank reconciliation"
       },

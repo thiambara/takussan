@@ -62,6 +62,8 @@ export const agencyReportingKeys = {
     ['agencies', agencyId, 'finance', 'aging', groupBy] as const,
   teamPerformance: (agencyId: number, period: string) =>
     ['agencies', agencyId, 'team-performance', period] as const,
+  financeSummary: (agencyId: number | undefined, period: string) =>
+    ['agencies', agencyId, 'finance', 'summary', period] as const,
 };
 
 /** `GET /api/agencies/{agency}/finance/aging` — l'onglet « Impayés » de `/app/agency/finances`. */
@@ -70,6 +72,47 @@ export function useAgingBalance(agencyId: number | undefined, groupBy: AgingGrou
     agencyReportingKeys.aging(agencyId, groupBy),
     cheminApi`/api/agencies/${agencyId}/finance/aging`,
     { params: { extra: { group_by: groupBy } }, enabled: typeof agencyId === 'number' },
+  );
+}
+
+/** Un compte et son montant, tels que la synthèse les rend. */
+export interface CompteEtMontant {
+  readonly count: number;
+  readonly amount: number;
+}
+
+/**
+ * TCK-2657 — `GET /api/agencies/{agency}/finance/summary?period=YYYY-MM`, le point du mois de
+ * « Argent » (TCK-2659). `collected` porte sur le mois civil demandé (et `previous_amount` sur celui
+ * d'avant) ; `overdue`, les reversements et les factures sont l'état AU JOUR (`as_of`), quel que soit
+ * le mois : la tuile « Impayés » ne suit pas le libellé du mois. 422 `reporting.invalid_period` sur
+ * un mois mal formé ; 403 sans `reports.view_agency`.
+ */
+export interface FinanceSummary {
+  readonly period: string;
+  readonly as_of: string;
+  readonly currency: string;
+  readonly collected: CompteEtMontant & { readonly previous_amount: number };
+  readonly overdue: CompteEtMontant & {
+    readonly leases_count: number;
+    readonly never_reminded_count: number;
+    readonly by_age: {
+      readonly under_8: CompteEtMontant;
+      readonly from_8_to_30: CompteEtMontant;
+      readonly over_30: CompteEtMontant;
+    };
+  };
+  readonly deposits_held: number;
+  readonly payouts_awaiting_approval: CompteEtMontant & { readonly landlords_count: number };
+  readonly payouts_pending: CompteEtMontant;
+  readonly invoices_draft: CompteEtMontant;
+}
+
+export function useFinanceSummary(agencyId: number | undefined, period: string) {
+  return useApiQuery<ApiResponse<FinanceSummary>>(
+    agencyReportingKeys.financeSummary(agencyId, period),
+    cheminApi`/api/agencies/${agencyId}/finance/summary`,
+    { params: { extra: { period } }, enabled: typeof agencyId === 'number', staleTime: 30_000 },
   );
 }
 

@@ -22,7 +22,7 @@ export interface DeclarationDEnTete {
   readonly etape?: { readonly n: number; readonly total: number };
   /** Plein écran : une ligne sous le titre à la place de l'étape (« Visite de 10:00 · terminée à 10:35 », TCK-2581). */
   readonly sousTitre?: string;
-  /** Plein écran : ce qui se pose à droite du titre (« Passer », TCK-2581). */
+  /** Plein écran : ce qui se pose à droite du titre (« Passer », TCK-2581) ; détail : une action directe (l'export, TCK-2659). */
   readonly droite?: ReactNode;
   /** Le repli du retour (ou du « ✕ ») quand la page en sait un plus juste que sa liste parente. */
   readonly repli?: string;

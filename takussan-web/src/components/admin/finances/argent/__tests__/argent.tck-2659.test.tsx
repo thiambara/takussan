@@ -1,0 +1,291 @@
+/**
+ * TCK-2659 — « Argent » (`/app/agency/finances`) : le point du mois et le registre nommé.
+ *
+ * La page est rendue ENTIÈRE (point du mois, registres, filtres) ; seul le réseau est simulé, par un
+ * `fetch` qui répond selon le chemin et garde chaque URL. L'adresse est un vrai état : `replace()`
+ * la change et la page se rend de nouveau, comme sous Next.
+ */
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { AdminFinancesClient } from '@/app/(dashboard)/app/agency/finances/AdminFinancesClient';
+import type { FinanceSummary } from '@/lib/queries/agency-reporting';
+import { withIntl } from '@/test/intl';
+import type { PaymentHistoryRow } from '@/types/invoice';
+
+const { adresse, ecran, capacites } = vi.hoisted(() => {
+  const ecouteurs = new Set<() => void>();
+  const adresse = {
+    valeur: '',
+    ecouteurs,
+    poser(qs: string) {
+      adresse.valeur = qs;
+      for (const e of ecouteurs) e();
+    },
+  };
+  return { adresse, ecran: { telephone: false }, capacites: { accordees: new Set<string>() } };
+});
+
+vi.mock('next/navigation', async () => {
+  const React = await import('react');
+  const abonner = (e: () => void) => {
+    adresse.ecouteurs.add(e);
+    return () => adresse.ecouteurs.delete(e);
+  };
+  return {
+    usePathname: () => '/app/agency/finances',
+    useRouter: () => ({
+      replace: (url: string) => act(() => adresse.poser(url.split('?')[1] ?? '')),
+      push: vi.fn(),
+      prefetch: vi.fn(),
+    }),
+    useSearchParams: () => {
+      const qs = React.useSyncExternalStore(abonner, () => adresse.valeur);
+      return React.useMemo(() => new URLSearchParams(qs), [qs]);
+    },
+  };
+});
+vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ token: 'jeton-de-test', user: null }) }));
+vi.mock('@/hooks/useCan', () => ({ useCan: (c: string) => ({ can: capacites.accordees.has(c), isLoading: false }) }));
+vi.mock('@/hooks/useMatchesMedia', () => ({ useMatchesMedia: () => ecran.telephone }));
+// Les tables des autres registres et les dialogues ont leurs propres tests.
+vi.mock('@/components/payments/InvoicesTable', () => ({ InvoicesTable: () => null }));
+vi.mock('@/components/payments/PayoutsTable', () => ({ PayoutsTable: () => null }));
+vi.mock('@/components/payments/CreateInvoiceDialog', () => ({ CreateInvoiceDialog: () => null }));
+vi.mock('@/components/payments/CreatePayoutDialog', () => ({ CreatePayoutDialog: () => null }));
+vi.mock('@/components/payments/InvoiceDetailDialog', () => ({ InvoiceDetailDialog: () => null }));
+vi.mock('@/components/payments/PayoutDetailDialog', () => ({ PayoutDetailDialog: () => null }));
+vi.mock('@/components/admin/finances/OverduePaymentsTable', () => ({ OverduePaymentsTable: () => null }));
+
+function synthese(partiel: Partial<FinanceSummary> = {}): FinanceSummary {
+  return {
+    period: '2026-11',
+    as_of: '2026-11-11',
+    currency: 'XOF',
+    collected: { amount: 95_202_604, count: 69, previous_amount: 101_394_241 },
+    overdue: {
+      amount: 33_715_000,
+      // 16 échéances sur 14 baux : la tuile compte les BAUX, la file d'« À faire » les échéances.
+      count: 16,
+      leases_count: 14,
+      never_reminded_count: 5,
+      by_age: { under_8: { amount: 1, count: 5 }, from_8_to_30: { amount: 1, count: 7 }, over_30: { amount: 1, count: 4 } },
+    },
+    deposits_held: 235_035_000,
+    payouts_awaiting_approval: { amount: 0, count: 0, landlords_count: 0 },
+    payouts_pending: { amount: 0, count: 0 },
+    invoices_draft: { amount: 0, count: 0 },
+    ...partiel,
+  };
+}
+
+function ligne(partiel: Partial<PaymentHistoryRow>): PaymentHistoryRow {
+  return {
+    source: 'lease',
+    id: 1,
+    reference_number: 'LP-2026-0001',
+    amount: 250_000,
+    currency: 'XOF',
+    payment_method: 'wave',
+    payment_type: 'rent',
+    status: 'paid',
+    paid_amount: 250_000,
+    remaining_amount: 0,
+    date: '2026-11-07T00:00:00Z',
+    paid_at: '2026-11-07T00:00:00Z',
+    period_start: '2026-11-01',
+    period_end: '2026-11-30',
+    due_date: '2026-11-05',
+    booking_id: null,
+    lease_id: 3,
+    property_id: 9,
+    customer_id: 108,
+    created_at: '2026-11-07T00:00:00Z',
+    payer: { id: 108, name: 'Awa Diop', phone: null },
+    property: { id: 9, title: 'Villa des Almadies', reference_number: 'P-9' },
+    landlord: { id: 42, name: 'Moussa Sarr' },
+    ...partiel,
+  } as PaymentHistoryRow;
+}
+
+let reponseSynthese: FinanceSummary = synthese();
+let lignes: PaymentHistoryRow[] = [];
+let bailleurs: unknown[] = [];
+const appels: URL[] = [];
+
+function repondre(corps: unknown) {
+  return { ok: true, status: 200, json: async () => corps, text: async () => JSON.stringify(corps), headers: new Headers() };
+}
+
+function brancherLeReseau() {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (entree: RequestInfo | URL) => {
+      const url = new URL(String(entree), 'http://127.0.0.1:8002');
+      appels.push(url);
+      if (url.pathname.endsWith('/finance/summary')) return repondre({ data: reponseSynthese });
+      if (url.pathname === '/api/payments/history') {
+        return repondre({
+          data: lignes,
+          meta: { current_page: 1, last_page: 1, per_page: 20, total: lignes.length, totals: { count: lignes.length, amount: 0, paid_amount: 0, remaining_amount: 0 } },
+        });
+      }
+      if (url.pathname === '/api/owners') return repondre({ data: bailleurs, meta: { current_page: 1, last_page: 1, per_page: 20, total: bailleurs.length } });
+      return repondre({ data: [], meta: { current_page: 1, last_page: 1, per_page: 20, total: 0 } });
+    }),
+  );
+}
+
+/** Les lectures de la LISTE du registre (pas ses totaux à `per_page=1`, ni les cartes du point). */
+const lecturesDeLaListe = () =>
+  appels.filter((u) => u.pathname === '/api/payments/history' && u.searchParams.get('per_page') === '20' && u.searchParams.get('include')?.includes('landlord'));
+
+function rendre(qs = '') {
+  adresse.valeur = qs;
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    withIntl(
+      <QueryClientProvider client={client}>
+        <AdminFinancesClient canViewFinances canEmitFinances agencyId={1} />
+      </QueryClientProvider>,
+    ),
+  );
+}
+
+beforeEach(() => {
+  appels.length = 0;
+  reponseSynthese = synthese();
+  lignes = [];
+  bailleurs = [];
+  ecran.telephone = false;
+  capacites.accordees = new Set(['invoices.create', 'payouts.create', 'payouts.approve', 'payments.export']);
+  brancherLeReseau();
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe('le point du mois (TCK-2659)', () => {
+  it('AC2 — « Octobre 2026 » demande la synthèse d’octobre et nomme la tuile « Encaissé en octobre »', async () => {
+    rendre('period=2026-10');
+
+    expect(await screen.findByText('Encaissé en octobre')).toBeInTheDocument();
+    const lectures = appels.filter((u) => u.pathname === '/api/agencies/1/finance/summary');
+    expect(lectures.length).toBeGreaterThan(0);
+    expect(lectures.every((u) => u.searchParams.get('period') === '2026-10')).toBe(true);
+    // Le mois suit les liens des tuiles : le registre ouvert garde octobre.
+    expect(screen.getByText('Encaissé en octobre').closest('a')).toHaveAttribute('href', '/app/agency/finances?tab=encaissements&period=2026-10');
+  });
+
+  it('AC7 — l’impayé se compte en « baux », jamais en « bails »', async () => {
+    rendre();
+
+    expect(await screen.findByText(/14 baux · 4 de plus de 30 jours/)).toBeInTheDocument();
+    expect(screen.queryByText(/bails/)).not.toBeInTheDocument();
+  });
+
+  it('AC7 (téléphone) — « 14 baux en retard » (les baux) et « 16 impayés à relancer » (les échéances)', async () => {
+    ecran.telephone = true;
+    rendre();
+
+    expect(await screen.findByText('14 baux en retard')).toBeInTheDocument();
+    expect(screen.getByText('16 impayés à relancer')).toBeInTheDocument();
+  });
+
+  it('AC3 — « 3 reversements à approuver » ouvre la file `?tab=a-approuver`', async () => {
+    ecran.telephone = true;
+    reponseSynthese = synthese({ payouts_awaiting_approval: { amount: 4_200_000, count: 3, landlords_count: 3 } });
+    rendre();
+
+    const lien = (await screen.findByText('3 reversements à approuver')).closest('a');
+    expect(lien).toHaveAttribute('href', '/app/agency/finances?tab=a-approuver');
+  });
+
+  it('AC3 — sans payouts.approve, la ligne n’existe pas', async () => {
+    ecran.telephone = true;
+    capacites.accordees.delete('payouts.approve');
+    reponseSynthese = synthese({ payouts_awaiting_approval: { amount: 4_200_000, count: 3, landlords_count: 3 } });
+    rendre();
+
+    expect(await screen.findByText('16 impayés à relancer')).toBeInTheDocument();
+    expect(screen.queryByText('3 reversements à approuver')).not.toBeInTheDocument();
+    expect(screen.queryByText('À approuver')).not.toBeInTheDocument();
+  });
+
+  it('une file vide n’a pas de ligne dans « À faire » (aucune facture à émettre)', async () => {
+    ecran.telephone = true;
+    rendre();
+
+    expect(await screen.findByText('16 impayés à relancer')).toBeInTheDocument();
+    expect(screen.queryByText(/factures? à émettre/)).not.toBeInTheDocument();
+  });
+});
+
+describe('le registre des encaissements (TCK-2659)', () => {
+  it('AC4 — une ligne nomme le locataire, le bien, la période et le moyen ; la référence vient en dernière colonne', async () => {
+    lignes = [ligne({}), ligne({ id: 2, reference_number: 'LP-2026-0002', period_start: '2026-10-01', payment_method: 'cash', payer: { id: 7, name: 'Fatou Ndiaye', phone: null } })];
+    rendre('tab=encaissements');
+
+    const table = await screen.findByRole('table');
+    const rangees = within(table).getAllByRole('row');
+    const premiere = rangees[1];
+    expect(within(premiere).getByText('Awa Diop')).toBeInTheDocument();
+    expect(within(premiere).getByText('Villa des Almadies')).toBeInTheDocument();
+    expect(within(premiere).getByText('Loyer de novembre')).toBeInTheDocument();
+    expect(within(premiere).getByText('Wave')).toBeInTheDocument();
+    expect(within(rangees[2]).getByText('Loyer d’octobre')).toBeInTheDocument();
+
+    const entetes = within(rangees[0]).getAllByRole('columnheader').map((c) => c.textContent);
+    expect(entetes[0]).toBe('Payeur');
+    expect(entetes[entetes.length - 1]).toBe('Référence');
+    expect(screen.queryByText(/Bail #/)).not.toBeInTheDocument();
+  });
+
+  it('AC5 — « diop » tapé part en UNE lecture `filter[search]=diop`, sans les frappes intermédiaires', async () => {
+    const user = userEvent.setup();
+    rendre('tab=encaissements');
+    await waitFor(() => expect(lecturesDeLaListe().length).toBeGreaterThan(0));
+
+    await user.type(screen.getByRole('searchbox', { name: /Chercher un locataire/ }), 'diop');
+
+    await waitFor(() => expect(lecturesDeLaListe().some((u) => u.searchParams.get('filter[search]') === 'diop')).toBe(true));
+    const cherchees = lecturesDeLaListe().filter((u) => u.searchParams.has('filter[search]'));
+    expect(cherchees.map((u) => u.searchParams.get('filter[search]'))).toEqual(['diop']);
+    expect(adresse.valeur).toContain('q=diop');
+  });
+
+  it('AC5 — un bailleur choisi filtre par `filter[landlord_id]` (son compte, pas son profil)', async () => {
+    const user = userEvent.setup();
+    bailleurs = [{ id: 5, user_id: 42, agency_id: 1, status: 'active', metadata: { first_name: 'Moussa', last_name: 'Sarr' }, user: { id: 42, first_name: 'Moussa', last_name: 'Sarr' } }];
+    rendre('tab=encaissements');
+
+    await user.click(await screen.findByRole('button', { name: 'Bailleur' }));
+    await user.click(await screen.findByRole('button', { name: /Moussa Sarr/ }));
+
+    await waitFor(() => expect(lecturesDeLaListe().some((u) => u.searchParams.get('filter[landlord_id]') === '42')).toBe(true));
+    expect(adresse.valeur).toContain('landlord_id=42');
+    expect(appels.some((u) => u.pathname === '/api/owners' && u.searchParams.get('filter[agency_id]') === '1')).toBe(true);
+  });
+
+  it('AC6 — `?tab=encaissements&entity_type=lease&entity_id=3` ne lit que le bail 3, sans borne de mois', async () => {
+    rendre('tab=encaissements&entity_type=lease&entity_id=3');
+
+    await waitFor(() => expect(lecturesDeLaListe().length).toBeGreaterThan(0));
+    for (const u of lecturesDeLaListe()) {
+      expect(u.searchParams.get('filter[entity_type]')).toBe('lease');
+      expect(u.searchParams.get('filter[entity_id]')).toBe('3');
+      expect(u.searchParams.has('filter[date_from]')).toBe(false);
+    }
+  });
+
+  it('AC6 — le lien d’entité seul (sans `tab`) ouvre aussi le registre', async () => {
+    rendre('entity_type=lease&entity_id=3');
+
+    await waitFor(() => expect(lecturesDeLaListe().length).toBeGreaterThan(0));
+    expect(lecturesDeLaListe().every((u) => u.searchParams.get('filter[entity_id]') === '3')).toBe(true);
+    expect(screen.queryByTestId('tuiles-du-mois')).not.toBeInTheDocument();
+  });
+});

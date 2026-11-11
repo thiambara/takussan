@@ -6459,11 +6459,10 @@
         "toApprove": "À approuver"
       },
       "kpis": {
-        "collections30d": "Encaissements (30 j)",
         "overdue": "Impayés en cours",
         "pendingPayouts": "Reversements en attente",
         "invoicesToIssue": "Factures à émettre",
-        "overdueHint": "{count, plural, one {# bail concerné} other {# bails concernés}}"
+        "collectedIn": "Encaissé en {mois}"
       },
       "aging": {
         "groupByLabel": "Regrouper les impayés",
@@ -6491,6 +6490,155 @@
         "captionLandlord": "Impayés par bailleur et par tranche de retard",
         "emptyTitle": "Aucun impayé",
         "emptyDescription": "Aucune échéance de loyer échue n'attend de paiement."
+      },
+      "argent": {
+        "actions": {
+          "exporter": "Exporter",
+          "exporterAria": "Exporter les encaissements en CSV ({mois})"
+        },
+        "auJour": "Au {date}",
+        "filLabel": "Fil d’Ariane",
+        "syntheseRefusee": "Le point du mois n’est pas ouvert à votre profil.",
+        "payeurInconnu": "Payeur inconnu",
+        "aFaire": {
+          "titre": "À faire",
+          "impayes": "{count, plural, one {# impayé à relancer} other {# impayés à relancer}}",
+          "impayesDetail": "{montant} · {jamais, plural, =0 {tous déjà relancés} one {# jamais relancé} other {# jamais relancés}}",
+          "reversements": "{count, plural, one {# reversement à approuver} other {# reversements à approuver}}",
+          "reversementsDetail": "{montant} · {bailleurs, plural, one {# bailleur} other {# bailleurs}}",
+          "factures": "{count, plural, one {# facture à émettre} other {# factures à émettre}}",
+          "facturesDetail": "{montant} d’honoraires",
+          "plusAnciens": "À faire · impayés les plus anciens",
+          "aApprouverTitre": "À faire · reversements à approuver",
+          "voirLes": "{count, plural, =0 {Voir} one {Voir} other {Voir les #}}",
+          "relanceLe": "relancé le {date}",
+          "jamaisRelance": "jamais relancé",
+          "reversementSansReference": "Reversement sans référence",
+          "preparePar": "préparé par {nom}",
+          "examiner": "Examiner",
+          "joursDeRetardCourt": "{count} j de retard"
+        },
+        "tuiles": {
+          "encaisse": "Encaissé",
+          "impayes": "Impayés",
+          "bauxEnRetard": "{count, plural, one {# bail en retard} other {# baux en retard}}",
+          "paiements": "{count, plural, one {# paiement} other {# paiements}}",
+          "variation": "{variation} sur {mois}",
+          "bauxEtAnciens": "{baux, plural, one {# bail} other {# baux}} · {anciens, plural, =0 {aucun de plus de 30 jours} other {# de plus de 30 jours}}",
+          "reversementsDetail": "{count, plural, =0 {Aucun en attente} one {# reversement} other {# reversements}}{aApprouver, plural, =0 {} other { · # à approuver}}",
+          "facturesDetail": "{montant} d’honoraires"
+        },
+        "derniers": {
+          "titre": "Derniers encaissements",
+          "tout": "Tout",
+          "toutVoir": "Tout voir",
+          "vide": "Aucun encaissement ce mois-ci."
+        },
+        "registres": {
+          "titre": "Tout voir",
+          "encaissements": "Encaissements",
+          "factures": "Factures",
+          "reversements": "Reversements",
+          "aApprouver": "À approuver",
+          "impayes": "Impayés",
+          "impayesDetail": "Par locataire, par ancienneté",
+          "rapprochement": "Rapprochement bancaire",
+          "exporter": "Exporter les encaissements",
+          "exporterDetail": "Le mois affiché, en CSV"
+        },
+        "creer": {
+          "titre": "Créer",
+          "reversement": "Créer un reversement",
+          "facture": "Générer une facture",
+          "factureDetail": "{count, plural, one {# brouillon} other {# brouillons}} · {montant}"
+        },
+        "jour": {
+          "aujourdhui": "Aujourd’hui",
+          "hier": "Hier",
+          "aujourdhuiMinuscule": "aujourd’hui",
+          "hierMinuscule": "hier"
+        },
+        "periode": {
+          "rentDu": "Loyer {voyelle, select, oui {d’{mois}} other {de {mois}}}",
+          "chargesDu": "Charges {voyelle, select, oui {d’{mois}} other {de {mois}}}",
+          "penaltyDu": "Pénalité {voyelle, select, oui {d’{mois}} other {de {mois}}}",
+          "rent": "Loyer",
+          "charges": "Charges",
+          "penalty": "Pénalité de retard",
+          "deposit": "Caution",
+          "deposit_refund": "Remboursement de caution",
+          "regularization": "Régularisation",
+          "autre": "Paiement",
+          "reservation": {
+            "deposit": "Réservation · arrhes",
+            "advance": "Réservation · acompte",
+            "fee": "Réservation · frais",
+            "autre": "Réservation"
+          },
+          "rentDuCourt": "Loyer {mois}",
+          "chargesDuCourt": "Charges {mois}",
+          "penaltyDuCourt": "Pénalité {mois}"
+        },
+        "encaissements": {
+          "recherche": "Chercher un locataire, un bien, une référence",
+          "rechercheCourte": "Locataire, bien, référence",
+          "filtres": "Filtres",
+          "moyen": "Moyen",
+          "tous": "Tous",
+          "tousLesMoyens": "Tous les moyens",
+          "tousLesStatuts": "Tous les statuts",
+          "payeur": "Payeur",
+          "bien": "Bien",
+          "bailleur": "Bailleur",
+          "statut": "Statut",
+          "dates": "Dates",
+          "du": "Du",
+          "au": "Au",
+          "chercherPayeur": "Chercher un payeur",
+          "chercherBien": "Chercher un bien",
+          "chercherBailleur": "Chercher un bailleur",
+          "compteDuMois": "{count, plural, one {# paiement} other {# paiements}} en {mois}",
+          "resume": "{mois} · {count, plural, one {# paiement} other {# paiements}} · <fort>{montant}</fort> encaissés",
+          "toutesDates": "Toutes dates",
+          "totaux": {
+            "total": "Total",
+            "lignes": "{count, plural, one {# ligne} other {# lignes}}",
+            "paye": "Payé",
+            "paiements": "{count, plural, one {# paiement} other {# paiements}}",
+            "restant": "Restant dû",
+            "aEncaisser": "à encaisser",
+            "echoue": "Échoué",
+            "aReprendre": "{count, plural, =0 {rien à reprendre} one {# paiement à reprendre} other {# paiements à reprendre}}"
+          },
+          "colonnes": {
+            "payeur": "Payeur",
+            "bien": "Bien",
+            "periode": "Période",
+            "montant": "Montant",
+            "moyen": "Moyen",
+            "date": "Date",
+            "statut": "Statut",
+            "reference": "Référence"
+          },
+          "legende": "Encaissements de l’agence",
+          "pied": "{debut} à {fin} sur {total}",
+          "precedents": "Afficher les jours précédents",
+          "recents": "Revenir aux jours récents",
+          "reservation": "Réservation",
+          "erreur": "Les encaissements n’ont pas pu être chargés.",
+          "videTitre": "Aucun encaissement",
+          "videDetail": "Aucun paiement ne correspond à ces critères.",
+          "sousTitre": "{count, plural, one {# paiement} other {# paiements}} en {mois} · chaque ligne dit qui a payé, pour quel bien et quelle période",
+          "sousTitreSansMois": "{count, plural, one {# paiement} other {# paiements}} · chaque ligne dit qui a payé, pour quel bien et quelle période"
+        },
+        "choix": {
+          "effacer": "Effacer",
+          "aucun": "Aucun résultat"
+        },
+        "mois": {
+          "toutes": "Toutes les dates",
+          "choisir": "Mois : {mois}"
+        }
       }
     },
     "audit": {
@@ -7017,7 +7165,7 @@
       },
       "finances": {
         "noAgency": "Finances",
-        "title": "Finances",
+        "title": "Argent",
         "subtitle": "Encaissements, factures et reversements — vue commerciale de l'agence.",
         "reconciliationLink": "Rapprochement bancaire"
       },

@@ -50,6 +50,19 @@ export type UsePaymentsHistoryParams = {
   readonly page?: number;
   readonly per_page?: number;
   readonly sort?: string;
+  /*
+   * TCK-2659 (contrat de TCK-2657) — l'encaissement nommé et ses filtres métier, tous SERVEUR :
+   * `include=payer,property,landlord` ; `filter[payer_id]` (la fiche client), `filter[landlord_id]`
+   * (le compte du bailleur), `filter[payment_method]` (une liste : `wave,cash`), `filter[search]`.
+   */
+  readonly include?: readonly ('payer' | 'property' | 'landlord' | 'reminders')[];
+  readonly payer_id?: number;
+  readonly landlord_id?: number;
+  readonly payment_method?: readonly string[];
+  readonly search?: string;
+  readonly days_late_min?: number;
+  /** `false` : la requête ne part pas (une file que le lecteur n'a pas le droit de lire). */
+  readonly enabled?: boolean;
 };
 
 export type PaymentHistoryMeta = PaginationMeta & {
@@ -90,18 +103,25 @@ export function usePaymentsHistory(params: UsePaymentsHistoryParams = {}) {
   if (params.entity_id) filter.entity_id = params.entity_id;
   if (params.date_from) filter.date_from = params.date_from;
   if (params.date_to) filter.date_to = params.date_to;
+  if (params.payer_id) filter.payer_id = params.payer_id;
+  if (params.landlord_id) filter.landlord_id = params.landlord_id;
+  if (params.payment_method && params.payment_method.length > 0) filter.payment_method = params.payment_method.join(',');
+  if (params.search && params.search.trim() !== '') filter.search = params.search.trim();
+  if (params.days_late_min !== undefined) filter.days_late_min = params.days_late_min;
 
   const query: SpatieQueryParams = {
     filter,
+    include: params.include && params.include.length > 0 ? params.include : undefined,
     page: params.page ?? 1,
     per_page: params.per_page ?? 20,
     sort: params.sort ?? '-date',
   };
 
+  const { enabled, ...cle } = params;
   return useApiQuery<PaymentHistoryResponse>(
-    paymentsQueryKeys.history(params),
+    paymentsQueryKeys.history(cle),
     '/api/payments/history',
-    { params: query },
+    { params: query, enabled: enabled ?? true },
   );
 }
 
@@ -247,6 +267,8 @@ export type UsePayoutsParams = {
   readonly landlord_id?: number;
   readonly page?: number;
   readonly per_page?: number;
+  /** TCK-2659 — `false` : la file ne se lit pas (« À approuver » sans `payouts.approve`, ou vide). */
+  readonly enabled?: boolean;
 };
 
 export function usePayouts(params: UsePayoutsParams = {}) {
@@ -262,10 +284,11 @@ export function usePayouts(params: UsePayoutsParams = {}) {
     per_page: params.per_page ?? 20,
   };
 
+  const { enabled, ...cle } = params;
   return useApiQuery<PaginatedResponse<Payout>>(
-    paymentsQueryKeys.payoutList(params),
+    paymentsQueryKeys.payoutList(cle),
     '/api/payouts',
-    { params: query },
+    { params: query, enabled: enabled ?? true },
   );
 }
 

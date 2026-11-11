@@ -164,6 +164,14 @@ describe('TCK-2617 — la forme de l’en-tête suit la route', () => {
     expect(within(e).getByTestId('a-droite')).toHaveTextContent('30 s');
   });
 
+  it('détail déclaré (TCK-2659) : `droite` se pose aussi à droite du titre (l’export d’un registre)', () => {
+    chemin.valeur = '/app/agency/finances';
+    const { container } = monter(<DeclarerEnTete forme="detail" titre="Encaissements" repli="/app/agency/finances" droite={<button type="button" data-testid="a-droite">Exporter</button>} />);
+    const e = entete(container)!;
+    expect(e).toHaveAttribute('data-forme', 'detail');
+    expect(within(e).getByTestId('a-droite')).toHaveTextContent('Exporter');
+  });
+
   it('accueil (/app) : l’espace en bouton à gauche, pas de h1 dans l’en-tête', () => {
     const { container } = monter();
     const e = entete(container)!;

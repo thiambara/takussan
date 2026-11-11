@@ -29,7 +29,10 @@ interface EnTeteMobileProps {
   readonly etape?: { readonly n: number; readonly total: number };
   /** Plein écran : une ligne sous le titre à la place de l'étape (« Visite de 10:00 · terminée à 10:35 », TCK-2581). */
   readonly sousTitre?: string;
-  /** Plein écran : ce qui se pose à droite du titre (« Passer », TCK-2581). */
+  /**
+   * Plein écran : ce qui se pose à droite du titre (« Passer », TCK-2581). Détail : l'action directe
+   * d'un registre (l'export des encaissements, TCK-2659), avant « ⋯ ».
+   */
   readonly droite?: ReactNode;
   /** Accueil : le compte et le persona affiché, pour l'espace en bouton (le menu du compte). */
   readonly compte?: { readonly user: User; readonly libelleRole: string };
@@ -118,7 +121,7 @@ export function EnTeteMobile({
             ) : null}
           </div>
         )}
-        {forme === 'plein-ecran' && droite ? <div className="flex shrink-0 items-center">{droite}</div> : null}
+        {droite ? <div className="flex shrink-0 items-center">{droite}</div> : null}
         {forme === 'detail' && actions ? (
           <FeuilleDuBas
             titre={titre ?? tCoque('plusDActions')}
