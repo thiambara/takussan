@@ -4,6 +4,7 @@ namespace App\Services\Accounting;
 
 use App\Events\Accounting\BankStatementFinalized;
 use App\Events\Accounting\BankStatementLineMatched;
+use App\Models\Agency;
 use App\Models\BankStatement;
 use App\Models\BankStatementLine;
 use App\Models\BookingPayment;
@@ -218,6 +219,53 @@ class ReconciliationManager
         $this->events->dispatch(new BankStatementLineMatched($line));
 
         return $line;
+    }
+
+    /**
+     * TCK-2674 — confirmer d'un geste des lignes PROPOSÉES par le matcher, TOUT OU RIEN : une
+     * transaction, les lignes verrouillées dans l'ordre des identifiants, puis chacune confirmée par
+     * {@see self::confirmMatch()} sur le paiement qu'elle propose — mêmes gardes, mêmes effets sur la
+     * ligne, le paiement et les autres propositions, même journal (`matched`). Une ligne inconnue,
+     * d'une autre agence, d'un relevé clos ou qui n'est plus `suggested` (y compris parce que la
+     * confirmation d'une ligne précédente du lot l'a libérée) → 422
+     * `reconciliation.batch_not_confirmable` ; un refus du geste unitaire annule aussi le lot entier.
+     *
+     * @param  list<int>  $lineIds
+     * @return list<int> les lignes confirmées, dans l'ordre des identifiants
+     */
+    public function confirmSuggestedBatch(Agency $agency, array $lineIds, User $caller): array
+    {
+        $lineIds = array_values(array_unique(array_map('intval', $lineIds)));
+
+        return DB::transaction(function () use ($agency, $lineIds, $caller): array {
+            $lines = BankStatementLine::query()->with('statement')
+                ->whereKey($lineIds)->orderBy('id')->lockForUpdate()->get();
+
+            $confirmable = fn (BankStatementLine $line): bool => $line->match_status === BankStatementLineMatchStatus::Suggested
+                && $line->matched_payment_type !== null && $line->matched_payment_id !== null
+                && (int) $line->statement?->agency_id === (int) $agency->id
+                && in_array($line->statement?->status, ReconciliationOverviewService::OPEN_STATEMENT_STATUSES, true);
+
+            abort_code_if(
+                $lines->count() !== count($lineIds) || ! $lines->every($confirmable),
+                422,
+                'reconciliation.batch_not_confirmable',
+            );
+
+            $confirmed = [];
+            foreach ($lines as $line) {
+                // Relue : la confirmation d'une ligne précédente du lot a pu la libérer (TCK-1919 —
+                // deux lignes qui proposent le même paiement), et elle n'a alors plus de paiement.
+                $fresh = BankStatementLine::query()->with('statement')->findOrFail($line->id);
+                $payment = $confirmable($fresh) ? $fresh->matchedPayment()->first() : null;
+                abort_code_if($payment === null, 422, 'reconciliation.batch_not_confirmable');
+
+                $this->confirmMatch($fresh, $payment, $caller);
+                $confirmed[] = (int) $fresh->id;
+            }
+
+            return $confirmed;
+        });
     }
 
     /** Le montant que la ligne devrait porter, colonne par colonne comme le matcher la compare. */

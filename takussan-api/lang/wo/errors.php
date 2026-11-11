@@ -543,6 +543,8 @@ return [
         'listings_exceeded' => 'Quota annonce yuy dox ci sa offre yegg na.',
     ],
     'reconciliation' => [
+        // TCK-2674 — le lot de `confirm-batch`, tout ou rien.
+        'batch_not_confirmable' => 'Une des lignes du lot n\'est pas une ligne proposée d\'un relevé ouvert de l\'agence : rien n\'a été confirmé.',
         'cross_agency' => 'Bii paiement du ci bii agence.',
         'duplicate_file' => 'Bii relevé dañu ko wone nanu bii agence.',
     ],

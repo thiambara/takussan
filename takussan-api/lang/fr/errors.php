@@ -543,6 +543,8 @@ return [
         'listings_exceeded' => 'Le quota d\'annonces actives de votre offre est atteint.',
     ],
     'reconciliation' => [
+        // TCK-2674 — le lot de `confirm-batch`, tout ou rien.
+        'batch_not_confirmable' => 'Une des lignes du lot n\'est pas une ligne proposée d\'un relevé ouvert de l\'agence : rien n\'a été confirmé.',
         'cross_agency' => 'Le paiement ciblé n\'appartient pas à cette agence.',
         'duplicate_file' => 'Ce relevé a déjà été importé pour cette agence.',
     ],

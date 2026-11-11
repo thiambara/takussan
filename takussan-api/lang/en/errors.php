@@ -543,6 +543,8 @@ return [
         'listings_exceeded' => 'Your plan\'s active listing quota has been reached.',
     ],
     'reconciliation' => [
+        // TCK-2674 — le lot de `confirm-batch`, tout ou rien.
+        'batch_not_confirmable' => 'One of the lines in the batch is not a suggested line of an open statement of this agency: nothing was confirmed.',
         'cross_agency' => 'The target payment does not belong to this agency.',
         'duplicate_file' => 'This statement has already been imported for this agency.',
     ],

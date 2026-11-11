@@ -3,6 +3,7 @@
 namespace Tests\Support;
 
 use App\Http\Resources\Accounting\MatchCandidateResource;
+use App\Http\Resources\Accounting\ReconciliationPendingPaymentResource;
 use App\Http\Resources\AgentProfileResource;
 use App\Http\Resources\Api\Admin\AgencyDetailResource;
 use App\Http\Resources\Api\Admin\AgencyProvisioningResource;
@@ -31,8 +32,10 @@ use App\Http\Resources\PublicInvitationPreviewResource;
 use App\Http\Resources\ServiceProviderAgencyCollaborationResource;
 use App\Http\Resources\ServiceProviderDirectoryResource;
 use App\Models\Agency;
+use App\Models\BookingPayment;
 use App\Models\Invitation;
 use App\Models\Lease;
+use App\Models\LeasePayment;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
@@ -110,6 +113,11 @@ final class ResourceInventory
         GroupContextPropertyResource::class => [
             'modeles' => [Property::class],
             'raison' => 'Un bien auquel rattacher un groupe, vu par le sélecteur de la messagerie (TCK-576) — le nom dit le rôle, pas le modèle.',
+        ],
+        // TCK-2674 — deux modèles derrière une même forme.
+        ReconciliationPendingPaymentResource::class => [
+            'modeles' => [LeasePayment::class, BookingPayment::class],
+            'raison' => 'TCK-2674 — un paiement à rapprocher (échéance de bail ou acompte de réservation) et sa ligne proposée — le nom dit la vue, pas le modèle.',
         ],
         PropertyModerationDetailResource::class => [
             'modeles' => [Property::class],

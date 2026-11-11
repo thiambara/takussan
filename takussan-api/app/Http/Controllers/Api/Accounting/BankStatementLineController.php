@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Api\Accounting;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Accounting\ConfirmBankStatementLinesBatchRequest;
 use App\Http\Requests\Accounting\MatchBankStatementLineRequest;
+use App\Http\Requests\Accounting\SearchBankStatementLinesRequest;
 use App\Http\Resources\Accounting\BankStatementLineResource;
+use App\Models\Agency;
 use App\Models\BankStatement;
 use App\Models\BankStatementLine;
 use App\Models\BookingPayment;
@@ -13,6 +16,9 @@ use App\Models\LeasePayment;
 use App\Models\Payout;
 use App\Models\PlatformPayout;
 use App\Services\Accounting\ReconciliationManager;
+use App\Services\Accounting\ReconciliationOverviewService;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class BankStatementLineController extends Controller
@@ -47,6 +53,45 @@ class BankStatementLineController extends Controller
 
         // TCK-1220 (P108.03) — l'enveloppe canonique `{ data, meta }`, et non celle de Laravel.
         return $this->paginated($paginator, BankStatementLineResource::collection($paginator)->toArray($request));
+    }
+
+    /**
+     * TCK-2674 — `GET /api/agencies/{agency}/bank-statement-lines` : chercher la ligne d'un paiement
+     * dans les relevés de l'agence encore ouverts au rapprochement (ceux dont `match` confirme une
+     * ligne). Filtres `match_status`, `direction`, `amount` (au franc près), `date_from` / `date_to`
+     * (bornes comprises) ; tri `-posted_at` puis `id` à défaut.
+     */
+    public function search(SearchBankStatementLinesRequest $request, Agency $agency): JsonResponse
+    {
+        $filter = (array) ($request->validated('filter') ?? []);
+        $query = BankStatementLine::query()
+            ->whereHas('statement', fn (Builder $q) => $q
+                ->where('agency_id', $agency->id)
+                ->whereIn('status', array_map(fn ($s) => $s->value, ReconciliationOverviewService::OPEN_STATEMENT_STATUSES)))
+            ->when($filter['match_status'] ?? null, fn (Builder $q, string $status) => $q->where('match_status', $status))
+            ->when($filter['direction'] ?? null, fn (Builder $q, string $direction) => $q->where('direction', $direction))
+            ->when(isset($filter['amount']), fn (Builder $q) => $q->whereRaw('ABS(amount - ?) < 1', [(float) $filter['amount']]))
+            ->when($filter['date_from'] ?? null, fn (Builder $q, string $from) => $q->whereDate('posted_at', '>=', $from))
+            ->when($filter['date_to'] ?? null, fn (Builder $q, string $to) => $q->whereDate('posted_at', '<=', $to));
+
+        $sort = (string) ($request->validated('sort') ?? '-posted_at');
+        $query->orderBy(ltrim($sort, '-'), str_starts_with($sort, '-') ? 'desc' : 'asc')->orderBy('id');
+
+        $paginator = $query->paginate((int) ($request->validated('per_page') ?? 20));
+        $paginator->getCollection()->load(self::PAYABLE);
+
+        return $this->paginated($paginator, BankStatementLineResource::collection($paginator)->toArray($request));
+    }
+
+    /**
+     * TCK-2674 — `POST /api/agencies/{agency}/bank-statement-lines/confirm-batch` : les lignes
+     * proposées confirmées d'un geste, tout ou rien ({@see ReconciliationManager::confirmSuggestedBatch()}).
+     */
+    public function confirmBatch(ConfirmBankStatementLinesBatchRequest $request, Agency $agency, ReconciliationManager $manager): JsonResponse
+    {
+        $ids = $manager->confirmSuggestedBatch($agency, $request->validated('line_ids'), $request->user());
+
+        return $this->json(['data' => ['line_ids' => $ids, 'count' => count($ids)]]);
     }
 
     public function match(BankStatementLine $line, MatchBankStatementLineRequest $request, ReconciliationManager $manager)
