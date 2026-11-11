@@ -4,6 +4,8 @@ namespace Tests\Feature\Lease;
 
 use App\Models\Agency;
 use App\Models\Lease;
+use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\TenantOnboardingChecklist;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -112,5 +114,32 @@ class LeaseOnboardingPendingFilterTest extends ApiTestCase
         $this->actingAsApi($this->agencyAdmin($this->agency));
         $this->assertCount(2, $this->getJson('/api/leases?filter[onboarding_pending]=0&fields[leases]=id')->assertOk()->json('data'));
         $this->getJson('/api/leases?filter[onboarding_pending]=bof')->assertStatus(422);
+    }
+
+    /**
+     * Vérification adverse de TCK-2642 — la borne d'agence de l'entrée en attente
+     * (`LeaseAttention::onboarding`) : un compte PERSONNEL d'une autre agence et bailleur d'un bail
+     * d'ici lit le bail (il en est le bailleur), mais ni le motif `onboarding_incomplete` ni le
+     * filtre ne le lui rendent ; l'agent de l'agence du bail, si.
+     */
+    public function test_le_personnel_d_une_autre_agence_bailleur_ici_ne_lit_pas_l_entree_en_attente(): void
+    {
+        $double = $this->agencyAgent($this->agence());
+        OwnerProfile::factory()->create(['user_id' => $double->id, 'agency_id' => $this->agency->id]);
+        $double = $double->fresh();
+        $lease = $this->bail($this->bienLoue($this->agency, $double, 'Bien du double'), 'Entrant DOUBLE', ['end_date' => '2027-12-31']);
+        TenantOnboardingChecklist::factory()->create(['lease_id' => $lease->id, 'created_at' => '2026-10-01 09:00:00']);
+
+        // Son profil ACTIF est celui d'agent de l'autre agence : `staffAgencyId()` y est non nul.
+        $this->actingAsApi($double);
+        $this->withHeader('X-Profile-Id', 'agent:'.AgentProfile::query()->where('user_id', $double->id)->value('id'));
+        $lu = $this->getJson('/api/leases?per_page=100&include=attention')->assertOk();
+        $this->assertContains($lease->id, array_column($lu->json('data'), 'id'), 'le bailleur lit pourtant le bail');
+        $this->assertStringNotContainsString('onboarding_incomplete', $lu->getContent());
+        $ids = array_column($this->getJson('/api/leases?per_page=100&filter[onboarding_pending]=1&fields[leases]=id')->assertOk()->json('data'), 'id');
+        $this->assertSame([], $ids);
+        $this->flushHeaders();
+
+        $this->assertSame([$lease->id], $this->filterLeaseIds($this->agencyAgent($this->agency)));
     }
 }
