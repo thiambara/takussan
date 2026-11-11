@@ -392,3 +392,41 @@ _(tenu par la session : date, lot, tickets livrés, refus du vérificateur, PR, 
   régression large est celle de la CI de la PR. Le redémarrage a vidé `/private/tmp` (rapports et
   passations des agents) : les quatre tickets en cours (TCK-2591, TCK-2646, TCK-2674, TCK-2688) sont
   repris depuis l'arbre et leurs Notes.
+- **Reprise (2026-11-11, matinée)** : TCK-2674, TCK-2646, TCK-2591, TCK-2688 repris depuis l'arbre
+  et commités ; puis TCK-2582, TCK-2585, TCK-2595, TCK-2652 (back-3) et TCK-2689, TCK-2691
+  (terrain-4). Tout le back de l'étape 1 bis est commité, sauf TCK-2655 (en cours).
+- **Arbitrages de la session pendant la reprise** (au porteur pour confirmation) :
+  - TCK-2591 : la visite du compte d'un client ne compte que si elle porte sur un bien de l'agence
+    de la fiche (sinon fuite entre agences) ; un fait de la même seconde que la création de la fiche
+    compte (lectures d'ADR-0103 § 5, qui ne tranche aucun des deux cas).
+  - TCK-2582 : budget déduit seulement d'un prix de vente ou d'un loyer mensuel ; `seeking_cities`
+    non déduit ; une demande déjà convertie qui crée une visite rejoint sa fiche, sans 409. La note
+    `lead_message` est une seconde copie du message : un futur effacement devra la suivre.
+  - TCK-2585 : la confirmation en lot est le geste unitaire ligne par ligne, mêmes autorisations et
+    mêmes codes (parité testée sur six cas), aucune attribution implicite ; l'onglet « Aujourd'hui »
+    = toute visite du jour à Dakar, quel que soit son statut ; la recherche par nom ignore la casse,
+    pas les accents (suivi).
+  - TCK-2595 : la vue d'équipe se juge sur `crm.view_all` (capacité, pas rôle : tout agent au rôle
+    par défaut la reçoit) ; une tâche listée s'ouvre en lecture (`TaskPolicy::view`, même portée que
+    `filter[team]`), l'écriture garde sa règle (`UpdateTaskRequest` délègue à `update`).
+  - TCK-2652 : l'ancienneté d'attente est l'entrée dans la file courante (`queue_entered_at`, remis
+    à zéro par le dispatch, le refus, la réassignation) ; `a_accepter` = `can_accept` (file et bouton
+    sur une règle) ; correspondance catégorie → métier (`structural`, `appliance`, `cleaning`,
+    `pest_control`) **au porteur** — sans elle, ces demandes n'ont pas de prestataire suggéré.
+- **Web CI rouge de TCK-2688 à TCK-2691** (deux cliquets de contraste attribués à tort aux maquettes
+  locales) : corrigé par 9a4b016d9. Le compteur des encres inverses sans fond déclaré passe de 415 à
+  430 (quinze `text-muted-foreground` opaques, tous au-dessus de 4,5:1) — **suivi** : déclarer leurs
+  fonds plutôt que d'élargir le trou.
+- **Point porteur n° 1 (2026-11-11)** — captures envoyées au porteur ; la session applique ses
+  recommandations, que le porteur peut renverser : 1 feuille du bas modale dès `md` ; 2 icône du toast
+  à l'encre du toast ; 3 toast relevé au-dessus de la pastille publique ; 4 barre d'action à boutons
+  de 44 px (barre de 69) ; 5 dock flottant relevé par la barre d'action ; 6 contrôle segmenté sur les
+  neuf listes, « Aperçu / Modifier » de la fiche bien en `line` (au ticket de la page) ; 7 texte des
+  boutons à la taille du téléphone sous pointeur grossier dès `lg` ; 8 la pleine largeur retire aussi
+  `py-6` au téléphone ; 9 titres de groupe de 25,2 px gardés ; 10 avatar sans photo au repli par
+  défaut ; 11 petits écarts de la colonne alignés sur la maquette. Les points 3, 4, 5, 7 et 11 font
+  TCK-2712 avant l'étalonnage. Dette relevée (TCK-2688) : 4 `buttonVariants` sans `cn()`,
+  `aria-modal` absent de Dialog/SheetContent, texte de 11 px de DocumentShareDialog, couleurs de `cn`
+  sans test, ProfileHeader.
+- Étape 0 : maquettes archivées hors du dépôt (`~/.takussan-demo/sauvegardes/`, 2026-11-11) ;
+  locataire de démo `locataire@agency1.demo.takussan.sn` (TCK-2684).
