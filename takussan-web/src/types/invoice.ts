@@ -139,6 +139,10 @@ export type PaymentHistoryTotals = {
   amount: number;
   paid_amount: number;
   remaining_amount: number;
+  /** TCK-2733 — les cautions (`deposit`) de la sélection, que la tuile « Encaissé » exclut ; la caution rendue n'en est pas. */
+  deposits_count?: number;
+  /** TCK-2733 — la somme de leur `paid_amount`, sur toute la sélection (pas la page). */
+  deposits_amount?: number;
 };
 
 export type PayeeRole = 'landlord' | 'tenant' | 'service_provider';

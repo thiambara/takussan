@@ -69,22 +69,22 @@ Sous la cellule de total du registre (bureau) et dans le récapitulatif du tél�
 
 ## Delta à produire
 
-- [ ] `PaymentController::history` : `deposits_count`, `deposits_amount` dans `$totals`.
-- [ ] Front, registre des encaissements (`EncaissementsAgence`) : la mention « dont cautions » ; type de `meta.totals`
+- [x] `PaymentController::history` : `deposits_count`, `deposits_amount` dans `$totals`.
+- [x] Front, registre des encaissements (`EncaissementsAgence`) : la mention « dont cautions » ; type de `meta.totals`
       dans `lib/queries/payments.ts`.
-- [ ] Tests : `PaymentHistoryDepositsTotalsTest` (API) ; test de la cellule de total (front).
+- [x] Tests : `PaymentHistoryDepositsTotalsTest` (API) ; test de la cellule de total (front).
 - [ ] `/sync-specs` : `docs/features.md` § 1.5 si les totaux du registre y sont décrits.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Agence dont octobre compte 3 loyers payés (300 000 F) et 2 cautions payées (450 000 F), sans pénalité ni
+- [x] AC1 — Agence dont octobre compte 3 loyers payés (300 000 F) et 2 cautions payées (450 000 F), sans pénalité ni
       réservation : `meta.totals.paid_amount = 750000`, `deposits_count = 2`, `deposits_amount = 450000`, et
       `paid_amount − deposits_amount` égale le montant de la tuile « Encaissé en octobre » de `finance/summary`.
-- [ ] AC2 — Même décor, `per_page=1` : `deposits_*` identiques (calculés sur toute la sélection).
-- [ ] AC3 — Un remboursement de caution payé dans le mois n'entre pas dans `deposits_amount`.
-- [ ] AC4 — `filter[entity_type]=lease&filter[entity_id]=<bail sans caution>` : `deposits_count = 0`,
+- [x] AC2 — Même décor, `per_page=1` : `deposits_*` identiques (calculés sur toute la sélection).
+- [x] AC3 — Un remboursement de caution payé dans le mois n'entre pas dans `deposits_amount`.
+- [x] AC4 — `filter[entity_type]=lease&filter[entity_id]=<bail sans caution>` : `deposits_count = 0`,
       `deposits_amount = 0`.
-- [ ] AC5 — Front : sur la réponse de AC1, la cellule de total affiche « dont cautions » avec 450 000 F ; sur une réponse à
+- [x] AC5 — Front : sur la réponse de AC1, la cellule de total affiche « dont cautions » avec 450 000 F ; sur une réponse à
       `deposits_amount = 0`, la mention est absente.
 
 ## Hors périmètre
@@ -95,4 +95,18 @@ Sous la cellule de total du registre (bureau) et dans le récapitulatif du tél�
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **API** : `CollectedPayments::DEPOSIT_TYPES = [LeasePaymentType::Deposit]` et `depositTypeValues()`, la même source
+  que l'exclusion de la tuile. `PaymentController::history` ajoute à `$totals` `deposits_count` et `deposits_amount`
+  (somme des `paid_amount` des lignes de bail de type `deposit`), calculés sur la sélection fusionnée AVANT la page ;
+  `deposit_refund` n'en est pas. Clés toujours présentes (0 et 0 sans caution).
+- **Front** : `PaymentHistoryTotals.deposits_count?` / `deposits_amount?` (facultatifs : une API d'avant ne dit rien
+  des cautions) ; `EncaissementsAgence` affiche « dont cautions {montant} ({count}) » sous la cellule « Total »
+  (`data-testid="total-dont-cautions"`) et « dont cautions {montant} » dans le récapitulatif du téléphone
+  (`resume-cautions`), seulement quand `deposits_amount > 0`. Clés `admin.finances.argent.encaissements.resumeCautions`
+  et `.totaux.dontCautions` (fr, en ; wo = fr, wolof en pause).
+- **Tests** : `tests/Feature/Payments/PaymentHistoryDepositsTotalsTest.php` (5, AC1 à AC4 + clés d'avant et
+  cloisonnement) ; `src/components/admin/finances/argent/__tests__/cautions-du-registre.tck-2733.test.tsx` (4, AC5 et
+  téléphone). Six ablations rouges : remboursement compté, calcul sur la page, mauvaise somme (API) ; mention de la
+  cellule retirée, récapitulatif retiré, mention sans condition (front).
+- **`/sync-specs`** : `docs/features.md` § 1.5 (totaux du registre des encaissements) si ces totaux y sont décrits.
+

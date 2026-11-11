@@ -236,6 +236,12 @@ class PaymentController extends Controller
             'paid_amount' => round((float) $merged->sum('paid_amount'), 2),
             'remaining_amount' => round((float) $merged->sum('remaining_amount'), 2),
         ];
+        // TCK-2733 — le registre garde les cautions, que la tuile « Encaissé » exclut : il en dit la
+        // part, sur la même sélection (avant la page, troncature comprise).
+        $cautions = $merged->filter(fn (array $row): bool => ($row['source'] ?? null) === 'lease'
+            && in_array($row['payment_type'] ?? null, CollectedPayments::depositTypeValues(), true));
+        $totals['deposits_count'] = $cautions->count();
+        $totals['deposits_amount'] = round((float) $cautions->sum('paid_amount'), 2);
 
         $paginator = new LengthAwarePaginator(
             items: $items,

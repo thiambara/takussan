@@ -167,6 +167,9 @@ export function EncaissementsAgence({
   const rows = query.data?.data ?? [];
   const meta = query.data?.meta;
   const totals = meta?.totals;
+  // TCK-2733 — le registre garde les cautions, que la tuile « Encaissé » exclut : il dit leur part,
+  // seulement quand il y en a.
+  const cautions = totals?.deposits_amount ? { montant: f.montantCourt(totals.deposits_amount), count: totals.deposits_count ?? 0 } : null;
   const nomDuMois = mois ? f.date(dateDuMois(mois), { month: 'long', timeZone: 'UTC' }) : null;
 
   // Le libellé d'un choix porté par l'adresse : la première ligne le nomme (toutes la partagent). Sans
@@ -203,12 +206,18 @@ export function EncaissementsAgence({
             montant: f.montantCourt(totals?.paid_amount ?? 0),
             fort: (morceau) => <span className="font-semibold text-foreground tabular-nums">{morceau}</span>,
           })}
+          {cautions ? <span data-testid="resume-cautions"> · {t('resumeCautions', { montant: cautions.montant })}</span> : null}
         </p>
       ) : null}
 
       {avecTotaux && totals ? (
         <div className="grid grid-cols-4 divide-x divide-border rounded-xl border border-border bg-card max-xl:grid-cols-2">
-          <CelluleDeTotal libelle={t('totaux.total')} valeur={f.montantCourt(totals.amount)} detail={t('totaux.lignes', { count: totals.count })} />
+          <CelluleDeTotal
+            libelle={t('totaux.total')}
+            valeur={f.montantCourt(totals.amount)}
+            detail={t('totaux.lignes', { count: totals.count })}
+            complement={cautions ? t('totaux.dontCautions', cautions) : null}
+          />
           <CelluleDeTotal
             libelle={t('totaux.paye')}
             valeur={f.montantCourt(totals.paid_amount)}
@@ -248,12 +257,27 @@ export function EncaissementsAgence({
   );
 }
 
-function CelluleDeTotal({ libelle, valeur, detail }: { readonly libelle: string; readonly valeur: string; readonly detail: string | null }) {
+function CelluleDeTotal({
+  libelle,
+  valeur,
+  detail,
+  complement = null,
+}: {
+  readonly libelle: string;
+  readonly valeur: string;
+  readonly detail: string | null;
+  readonly complement?: string | null;
+}) {
   return (
     <div className="px-4 py-3">
       <p className="text-ui text-muted-foreground">{libelle}</p>
       <p className="mt-0.5 text-base font-semibold tabular-nums">{valeur}</p>
       <p className="text-ui text-muted-foreground">{detail ?? ' '}</p>
+      {complement ? (
+        <p data-testid="total-dont-cautions" className="text-ui tabular-nums text-muted-foreground">
+          {complement}
+        </p>
+      ) : null}
     </div>
   );
 }

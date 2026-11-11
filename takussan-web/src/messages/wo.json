@@ -219,12 +219,12 @@
         "console": "Administration de Takussan"
       },
       "compte": {
-        "changerDEspace": "Changer d’espace",
         "credits": "Crédits",
         "preferences": "Préférences de notification",
         "langue": "Langue",
         "sitePublic": "Voir le site public",
-        "titre": "Mon compte"
+        "titre": "Mon compte",
+        "changerDEspace": "Changer d’espace"
       },
       "aujourdhui": {
         "titre": "Aujourd’hui",
@@ -4754,6 +4754,7 @@
           "chercherBailleur": "Chercher un bailleur",
           "compteDuMois": "{count, plural, one {# paiement} other {# paiements}} en {mois}",
           "resume": "{mois} · {count, plural, one {# paiement} other {# paiements}} · <fort>{montant}</fort> encaissés",
+          "resumeCautions": "dont cautions {montant}",
           "toutesDates": "Toutes dates",
           "totaux": {
             "total": "Total",
@@ -4763,7 +4764,8 @@
             "restant": "Restant dû",
             "aEncaisser": "à encaisser",
             "echoue": "Échoué",
-            "aReprendre": "{count, plural, =0 {rien à reprendre} one {# paiement à reprendre} other {# paiements à reprendre}}"
+            "aReprendre": "{count, plural, =0 {rien à reprendre} one {# paiement à reprendre} other {# paiements à reprendre}}",
+            "dontCautions": "dont cautions {montant} ({count})"
           },
           "colonnes": {
             "payeur": "Payeur",

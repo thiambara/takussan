@@ -44,6 +44,13 @@ final class CollectedPayments
     ];
 
     /**
+     * TCK-2733 — la caution versée par le locataire : hors revenu, elle reste dans le registre des
+     * encaissements (`GET /api/payments/history`), qui en dit la part dans ses totaux. La caution
+     * RENDUE (`deposit_refund`) n'en est pas.
+     */
+    public const DEPOSIT_TYPES = [LeasePaymentType::Deposit];
+
+    /**
      * Les statuts d'une échéance due et non réglée, en tout ou en partie : ceux de
      * `HasPaymentAttributes::scopeOverdue`, des relances, des pénalités et du relevé du bailleur
      * (verif-595 passe 2 : `partially_paid` manquait, l'impayé se sous-estimait).
@@ -75,6 +82,12 @@ final class CollectedPayments
     public static function leaseIncomeTypeValues(): array
     {
         return array_map(static fn (LeasePaymentType $t): string => $t->value, self::LEASE_INCOME_TYPES);
+    }
+
+    /** @return list<string> */
+    public static function depositTypeValues(): array
+    {
+        return array_map(static fn (LeasePaymentType $t): string => $t->value, self::DEPOSIT_TYPES);
     }
 
     /** @return list<string> */

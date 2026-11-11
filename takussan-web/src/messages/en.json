@@ -229,12 +229,12 @@
         "console": "Takussan administration"
       },
       "compte": {
-        "changerDEspace": "Switch space",
         "credits": "Credits",
         "preferences": "Notification settings",
         "langue": "Language",
         "sitePublic": "View the public site",
-        "titre": "My account"
+        "titre": "My account",
+        "changerDEspace": "Switch space"
       },
       "aujourdhui": {
         "titre": "Today",
@@ -6621,6 +6621,7 @@
           "chercherBailleur": "Search a landlord",
           "compteDuMois": "{count, plural, one {# payment} other {# payments}} in {mois}",
           "resume": "{mois} · {count, plural, one {# payment} other {# payments}} · <fort>{montant}</fort> collected",
+          "resumeCautions": "incl. deposits {montant}",
           "toutesDates": "All dates",
           "totaux": {
             "total": "Total",
@@ -6630,7 +6631,8 @@
             "restant": "Outstanding",
             "aEncaisser": "to collect",
             "echoue": "Failed",
-            "aReprendre": "{count, plural, =0 {nothing to retry} one {# payment to retry} other {# payments to retry}}"
+            "aReprendre": "{count, plural, =0 {nothing to retry} one {# payment to retry} other {# payments to retry}}",
+            "dontCautions": "incl. deposits {montant} ({count})"
           },
           "colonnes": {
             "payeur": "Payer",
