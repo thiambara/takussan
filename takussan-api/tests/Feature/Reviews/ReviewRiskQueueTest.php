@@ -116,5 +116,18 @@ class ReviewRiskQueueTest extends ApiTestCase
         $data = $this->getJson('/api/reviews?filter[author_id]=me')->assertOk()->json('data');
         $this->assertCount(1, $data);
         $this->assertArrayNotHasKey('risk', $data[0]);
+
+        // Vérification adverse — ni par le compteur, ni par le filtre, ni par le tri : un avis sans
+        // risque (5★, non signalé) avant l'avis à risque, et l'ordre ne bouge pas sous `sort=risk`.
+        $calme = $this->review(['author_id' => $author->id, 'rating' => 5]);
+        $page = $this->getJson('/api/reviews?filter[author_id]=me&filter[risk]=high&sort=risk,-id')->assertOk();
+        $this->assertNull($page->json('meta.risk_counts'));
+        $this->assertCount(2, $page->json('data'), 'filter[risk] ignoré');
+        $this->assertSame(
+            array_column($this->getJson('/api/reviews?filter[author_id]=me&sort=-id')->json('data'), 'id'),
+            array_column($page->json('data'), 'id'),
+            'sort=risk ignoré',
+        );
+        $this->assertContains($calme->id, array_column($page->json('data'), 'id'));
     }
 }

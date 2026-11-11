@@ -117,8 +117,10 @@ class ReviewController extends Controller
         // TCK-2672 — le risque ({@see ReviewRiskClassifier}) : les deux comptes portent sur la
         // file telle qu'elle est filtrée, AVANT le filtre de risque — les pastilles « À risque » et
         // « Sans risque » se lisent ensemble, quel que soit l'onglet ouvert.
-        $riskCounts = ReviewRiskClassifier::counts($query);
-        $risk = ParametreUnique::valeur($request->query('filter.risk') ?? data_get($request->query('filter', []), 'risk'));
+        // Vérification adverse — hors de la file de modération (`filter[author_id]=me`), l'auteur ne
+        // lit pas le risque (la ressource le lui retire) : ni compteur, ni filtre, ni tri par risque.
+        $riskCounts = $isSelfFilter ? null : ReviewRiskClassifier::counts($query);
+        $risk = $isSelfFilter ? null : ParametreUnique::valeur($request->query('filter.risk') ?? data_get($request->query('filter', []), 'risk'));
         if (in_array($risk, ReviewRiskClassifier::LEVELS, true)) {
             ReviewRiskClassifier::whereLevel($query, $risk);
         }
@@ -138,7 +140,7 @@ class ReviewController extends Controller
             }
             if (in_array($spec, ['created_at', 'reported_count', 'rating', 'id'], true)) {
                 $query->orderBy($spec, $direction);
-            } elseif ($spec === 'risk') {
+            } elseif ($spec === 'risk' && ! $isSelfFilter) {
                 // TCK-2672 — `risk` : à risque d'abord ; `-risk` : sans risque d'abord.
                 ReviewRiskClassifier::orderBy($query, $direction);
             } elseif ($spec === 'pending_first') {
