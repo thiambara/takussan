@@ -110,6 +110,13 @@ class PropertyVisitResource extends BaseResource
             'abilities' => $this->when($this->isDetailRequest($request), fn (): array => [
                 'manage' => $request->user()->can('update', $this->resource)
                     && PropertyVisitPolicy::agitPourLeBien($request->user(), $this->resource),
+                // Vérification de TCK-2581 — déposer l'avis du VISITEUR : le `$isCustomer` de
+                // `PropertyVisitController::feedback`, le visiteur (`visitor_id`) ou le client
+                // rattaché par la fiche (`customer.user_id`). Le front le déduisait de `customer`,
+                // que l'API masque au client rattaché par la seule fiche ({@see ficheClientLisible}) :
+                // un booléen, plutôt que la fiche. Ni la fenêtre ni le statut n'y entrent : le front
+                // les juge à part (`isFeedbackOpen`), l'API les refuse en 422.
+                'feedback_customer' => $this->lecteurEstLeDemandeur($request),
             ]),
         ];
     }
@@ -208,6 +215,23 @@ class PropertyVisitResource extends BaseResource
             || ($ctx['agency_id'] !== null
                 ? $this->personnelDe($request, $ctx['agency_id'])
                 : $ctx['owner_id'] === (int) $user->id);
+    }
+
+    /**
+     * Le lecteur est le visiteur ou le client de la fiche, jugé sur les valeurs RELUES
+     * (`VisitReadContext`, une requête pour la page) : la ligne rendue peut ne porter ni
+     * `visitor_id` ni la fiche. Rien de connu : faux.
+     */
+    private function lecteurEstLeDemandeur(Request $request): bool
+    {
+        $user = $request->user();
+        $ctx = $user !== null ? VisitReadContext::for($request, $this->resource) : null;
+        if ($ctx === null) {
+            return false;
+        }
+        $moi = (int) $user->getKey();
+
+        return $ctx['visitor_id'] === $moi || $ctx['customer_user_id'] === $moi;
     }
 
     /** Personnel actif de l'agence, jugé une fois par agence et par requête (comme le compte rendu). */

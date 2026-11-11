@@ -44,7 +44,7 @@ final class VisitReadContext
     }
 
     /**
-     * @return array{agency_id: ?int, owner_id: ?int, customer_id: ?int, visitor_id: ?int, status: ?string,
+     * @return array{agency_id: ?int, owner_id: ?int, customer_id: ?int, customer_user_id: ?int, visitor_id: ?int, status: ?string,
      *               visitor_name: ?string, visitor_phone: ?string, customer_name: ?string, customer_phone: ?string,
      *               visits_on_property: int}|null
      */
@@ -86,6 +86,9 @@ final class VisitReadContext
                 'agency_id' => $row->agency_id !== null ? (int) $row->agency_id : null,
                 'owner_id' => $row->owner_id !== null ? (int) $row->owner_id : null,
                 'customer_id' => $row->customer_id !== null ? (int) $row->customer_id : null,
+                // Le compte de la fiche (fiche effacée : `null`, comme `$visit->customer`) — de quoi
+                // dire au lecteur s'il est le demandeur (`abilities.feedback_customer`).
+                'customer_user_id' => $row->customer_user_id !== null ? (int) $row->customer_user_id : null,
                 'visitor_id' => $row->visitor_id !== null ? (int) $row->visitor_id : null,
                 'status' => $row->status,
                 'visitor_name' => $row->visitor_name,
