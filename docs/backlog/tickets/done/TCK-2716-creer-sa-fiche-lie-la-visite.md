@@ -1,7 +1,7 @@
 ---
 id: TCK-2716
 title: "« Créer sa fiche » depuis une visite rattache la visite à la fiche créée"
-status: todo
+status: done
 phase: P1
 family: full
 estimate: M

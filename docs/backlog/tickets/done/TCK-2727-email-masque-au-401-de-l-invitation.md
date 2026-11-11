@@ -1,7 +1,7 @@
 ---
 id: TCK-2727
 title: "Le 401 « connectez-vous » d'une invitation ne rend que l'e-mail masqué, comme l'aperçu"
-status: todo
+status: done
 phase: P1
 family: full
 estimate: S

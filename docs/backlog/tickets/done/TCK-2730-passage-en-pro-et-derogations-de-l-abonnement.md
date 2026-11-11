@@ -1,7 +1,7 @@
 ---
 id: TCK-2730
 title: "Le passage en pro ne fait pas disparaître en silence les dérogations négociées de l'abonnement en cours"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: S

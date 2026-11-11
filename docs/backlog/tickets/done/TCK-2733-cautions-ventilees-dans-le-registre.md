@@ -1,7 +1,7 @@
 ---
 id: TCK-2733
 title: "Le registre des encaissements dit la part des cautions dans ses totaux"
-status: todo
+status: done
 phase: P1
 family: full
 estimate: S
