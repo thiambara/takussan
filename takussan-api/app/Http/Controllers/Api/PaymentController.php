@@ -6,7 +6,6 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Filters\DateBoundaryFilter;
 use App\Models\BookingPayment;
 use App\Models\Customer;
-use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentMethod;
 use App\Models\Enums\PaymentStatus;
 use App\Models\LeasePayment;
@@ -14,13 +13,13 @@ use App\Models\Property;
 use App\Models\User;
 use App\Services\Dashboard\CollectedPayments;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Payments\LeasePaymentReminderReader;
 use App\Services\Payments\PaymentGatewayService;
 use App\Services\Property\BailleurDuBien;
-use App\Services\Reporting\FinanceSummaryService;
+use App\Services\Reporting\OverdueInstalment;
 use App\Support\CaseInsensitive;
 use App\Support\DayRange;
 use App\Support\Http\ParametreUnique;
-use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -35,7 +34,10 @@ use Illuminate\Support\Collection;
  */
 class PaymentController extends Controller
 {
-    public function __construct(protected PaymentGatewayService $gateway) {}
+    public function __construct(
+        protected PaymentGatewayService $gateway,
+        protected LeasePaymentReminderReader $reminderReader,
+    ) {}
 
     /**
      * Consolidated payment history across BookingPayments and LeasePayments.
@@ -50,7 +52,7 @@ class PaymentController extends Controller
      *   - sort=-date|date|-amount|amount (default -date)
      *
      * TCK-2657 — à la demande, et rien de plus sans eux (la ligne garde sa forme d'avant) :
-     *   - include=payer,property,landlord — `payer {id, name, phone}`, `property {id, title,
+     *   - include=payer,property,landlord,reminders — `payer {id, name, phone}`, `property {id, title,
      *     reference_number}`, `landlord {id, name}`
      *   - filter[payer_id], filter[landlord_id], filter[payment_method]=wave,cash,
      *     filter[search], filter[days_late_min], filter[days_late_max] ; sort=days_late|-days_late
@@ -165,7 +167,7 @@ class PaymentController extends Controller
 
         // TCK-2657 — les filtres métier, posés en SQL avant le comptage et le plafond : filtrer
         // après les 5 000 lignes rendrait un compte et un `truncated` faux.
-        $today = now(FinanceSummaryService::TIMEZONE)->toDateString();
+        $today = OverdueInstalment::today();
         $this->applyBusinessFilters($bookingQuery, $leaseQuery, $payerId, $landlordId, $methods, $search, $daysLateMin, $daysLateMax, $today);
 
         // Pagination
@@ -191,7 +193,8 @@ class PaymentController extends Controller
 
         $bookingRows = $bookingQuery->limit($maxRows)->get()
             ->map(fn (BookingPayment $p) => $this->bookingRow($p) + ($extended ? $this->bookingExtras($p, $includes) : []));
-        $leaseRows = $leaseQuery->limit($maxRows)->get()
+        $leasePayments = $leaseQuery->limit($maxRows)->get();
+        $leaseRows = $leasePayments
             ->map(fn (LeasePayment $p) => $this->leaseRow($p) + ($extended ? $this->leaseExtras($p, $includes, $today) : []));
 
         $merged = $bookingRows->concat($leaseRows)->values();
@@ -204,6 +207,10 @@ class PaymentController extends Controller
 
         $total = $merged->count();
         $items = $merged->slice(($page - 1) * $perPage, $perPage)->values();
+        // TCK-2658 — la dernière relance et leur compte, pour la seule page rendue (une requête).
+        if (in_array('reminders', $includes, true)) {
+            $items = $this->withReminders($items, $leasePayments);
+        }
 
         // Totals across the (potentially truncated) filtered dataset.
         $totals = [
@@ -361,7 +368,7 @@ class PaymentController extends Controller
     }
 
     /** TCK-2657 — les relations nommées qu'une ligne peut porter, à la demande. */
-    protected const HISTORY_INCLUDES = ['payer', 'property', 'landlord'];
+    protected const HISTORY_INCLUDES = ['payer', 'property', 'landlord', 'reminders'];
 
     /** TCK-2657 — au-delà, les mots saisis sont ignorés (même borne que la recherche des conversations). */
     protected const SEARCH_MAX_TERMS = 6;
@@ -515,25 +522,6 @@ class PaymentController extends Controller
     }
 
     /**
-     * TCK-2657 — les jours de retard d'une échéance, à la règle de {@see self::applyBusinessFilters()} :
-     * due et non réglée, hors restitution de caution, échue avant aujourd'hui. `null` sinon — une
-     * valeur rendue vaut donc toujours au moins 1.
-     */
-    protected function daysLate(LeasePayment $p, string $today): ?int
-    {
-        if ($p->payment_type === LeasePaymentType::DepositRefund
-            || ! in_array($p->status, CollectedPayments::OWED_STATUSES, true)
-            || $p->due_date === null) {
-            return null;
-        }
-        $due = $p->due_date->toDateString();
-
-        return $due < $today
-            ? (int) CarbonImmutable::parse($due)->diffInDays(CarbonImmutable::parse($today))
-            : null;
-    }
-
-    /**
      * @param  list<string>  $includes
      * @return array<string, mixed>
      */
@@ -541,7 +529,7 @@ class PaymentController extends Controller
     {
         $lease = $p->lease;
 
-        return ['days_late' => $this->daysLate($p, $today)] + $this->named(
+        return ['days_late' => OverdueInstalment::daysLate($p, $today)] + $this->named(
             $includes,
             fn () => $p->payer,
             fn () => $lease?->property,
@@ -563,6 +551,25 @@ class PaymentController extends Controller
             fn () => $booking?->property,
             fn () => $booking?->property?->owner,
         );
+    }
+
+    /**
+     * TCK-2658 (ADR-0105 § 3) — `include=reminders` : `last_reminder {at, source, channel, by}` et
+     * `reminders_count` sur une ligne de bail, lus par la lecture unique des relances (notées et
+     * automatiques) ; une réservation n'a pas de relance (`null`, 0).
+     *
+     * @param  Collection<int, array<string, mixed>>  $items
+     * @param  \Illuminate\Database\Eloquent\Collection<int, LeasePayment>  $leasePayments
+     * @return Collection<int, array<string, mixed>>
+     */
+    protected function withReminders(Collection $items, \Illuminate\Database\Eloquent\Collection $leasePayments): Collection
+    {
+        $ids = $items->where('source', 'lease')->pluck('id')->all();
+        $summaries = $this->reminderReader->summaries($leasePayments->whereIn('id', $ids)->values());
+
+        return $items->map(fn (array $row) => $row + ($row['source'] === 'lease'
+            ? $summaries[$row['id']]
+            : ['last_reminder' => null, 'reminders_count' => 0]));
     }
 
     /**

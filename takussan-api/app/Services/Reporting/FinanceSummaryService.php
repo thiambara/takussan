@@ -10,6 +10,7 @@ use App\Models\Payout;
 use App\Services\Dashboard\CollectedPayments;
 use App\Services\Dashboard\PortfolioMetrics;
 use App\Services\Dashboard\PortfolioScope;
+use App\Services\Payments\LeasePaymentReminderReader;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -125,10 +126,11 @@ class FinanceSummaryService
     }
 
     /**
-     * @return array{amount: float, count: int, leases_count: int, by_age: array<string, array{count: int, amount: float}>}
+     * @return array{amount: float, count: int, leases_count: int, never_reminded_count: int, by_age: array<string, array{count: int, amount: float}>}
      */
     private function overdue(PortfolioScope $scope): array
     {
+        [$neverReminded, $neverRemindedBindings] = LeasePaymentReminderReader::neverRemindedSql();
         $today = now(self::TIMEZONE)->toDateString();
         $query = CollectedPayments::leaseOwed()
             ->join('leases', 'leases.id', '=', 'lease_payments.lease_id')
@@ -137,7 +139,9 @@ class FinanceSummaryService
             ->whereDate('lease_payments.due_date', '<', $today)
             ->toBase()
             ->selectRaw('COUNT(*) AS n, COALESCE(SUM('.CollectedPayments::OWED_REMAINING_SQL.'), 0) AS total')
-            ->selectRaw('COUNT(DISTINCT lease_payments.lease_id) AS leases');
+            ->selectRaw('COUNT(DISTINCT lease_payments.lease_id) AS leases')
+            // TCK-2658 (ADR-0105 § 3) — en retard sans aucune relance, notée ou automatique.
+            ->selectRaw('COUNT(*) FILTER (WHERE '.$neverReminded.') AS never_reminded', $neverRemindedBindings);
 
         foreach (self::AGE_BUCKETS as $key => [$min, $max]) {
             $condition = $max === null
@@ -160,6 +164,7 @@ class FinanceSummaryService
             'amount' => round((float) $row->total, 2),
             'count' => (int) $row->n,
             'leases_count' => (int) $row->leases,
+            'never_reminded_count' => (int) $row->never_reminded,
             'by_age' => $byAge,
         ];
     }

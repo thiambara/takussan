@@ -349,6 +349,7 @@ return [
         'deposit_refund_paid_by_payout' => 'A refunded deposit is settled by its payout, never by hand.',
         'late_fee_not_due' => 'No late fee remains due on this instalment.',
         'lease_not_active' => 'Only an active lease, or one under notice, can take a payment line.',
+        'not_overdue' => 'Only an instalment that is due, unsettled and past its due date can be chased.',
         'receipt_not_a_payment' => 'A refunded deposit is not a tenant payment: it has no receipt.',
         'receipt_unpaid' => 'A rent receipt is only issued for a paid rent.',
         'type_from_schedule' => 'Rent and deposit lines come from the lease schedule: this entry only takes charges, regularizations and penalties.',

@@ -186,6 +186,24 @@ class AgencyFinanceSummaryTest extends ApiTestCase
         $this->assertSame([40], array_column($late, 'days_late'));
     }
 
+    /** TCK-2658 — AC6 : une relance notée fait sortir l'échéance des « jamais relancées ». */
+    public function test_never_reminded_count_drops_when_the_only_unreminded_instalment_is_chased(): void
+    {
+        $chased = $this->owed($this->leaseA, 100_000, 12);
+        $remindedByTakussan = $this->owed($this->leaseB, 100_000, 9);
+        $remindedByTakussan->forceFill(['metadata' => ['reminder_overdue_7_sent_at' => now()->subDays(2)->toIso8601String()]])->saveQuietly();
+        // Une échéance pas encore due, jamais relancée : hors des impayés, hors du compte.
+        $this->owed($this->leaseB, 100_000, -4);
+
+        $this->assertSame(1, $this->summary()['overdue']['never_reminded_count']);
+
+        $this->postJson("/api/lease-payments/{$chased->id}/reminders", ['channel' => 'call'])->assertCreated();
+
+        $overdue = $this->summary()['overdue'];
+        $this->assertSame(0, $overdue['never_reminded_count']);
+        $this->assertSame(2, $overdue['count']);
+    }
+
     public function test_age_bucket_bounds_are_7_8_30_31_days(): void
     {
         foreach ([7, 8, 30, 31] as $days) {

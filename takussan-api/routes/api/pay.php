@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\LeasePaymentLinkController;
+use App\Http\Controllers\Api\LeasePaymentReminderController;
 use App\Http\Controllers\Api\PublicPaymentLinkController;
 use App\Services\Payments\LeasePaymentLinkService;
 use Illuminate\Support\Facades\Route;
@@ -36,4 +37,10 @@ Route::middleware('auth:sanctum')->group(function (): void {
         ->name('lease-payments.payment-link.store');
     Route::delete('lease-payments/{payment}/payment-link', [LeasePaymentLinkController::class, 'destroy'])
         ->name('lease-payments.payment-link.destroy');
+    // TCK-2658 (ADR-0105) — la relance NOTÉE d'un impayé : l'agence a relancé depuis son téléphone,
+    // l'API garde le fait et n'envoie rien. La lecture fusionne relances notées et rappels automatiques.
+    Route::get('lease-payments/{payment}/reminders', [LeasePaymentReminderController::class, 'index'])
+        ->name('lease-payments.reminders.index');
+    Route::post('lease-payments/{payment}/reminders', [LeasePaymentReminderController::class, 'store'])
+        ->name('lease-payments.reminders.store');
 });

@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\Support\LogOptions;
 
@@ -162,6 +163,12 @@ class LeasePayment extends AbstractModel implements HasAuditAgency
     public function bankStatementLine(): BelongsTo
     {
         return $this->belongsTo(BankStatementLine::class, 'bank_statement_line_id');
+    }
+
+    /** TCK-2658 (ADR-0105) — les relances notées à la main ; les rappels automatiques restent dans `metadata`. */
+    public function reminders(): HasMany
+    {
+        return $this->hasMany(LeasePaymentReminder::class);
     }
 
     public function scopeWhereNotReconciled(Builder $query): Builder

@@ -190,7 +190,7 @@ refusé. Une valeur en liste (`filter[x][]=…`) vaut une valeur absente (ADR-00
 | `filter[payment_method]` | liste | `wave,cash` — inconnu → 422 `payment.filter_payment_method_invalid` (TCK-2657) |
 | `filter[search]` | search | chaque mot dans : nom du payeur, titre ou référence du bien, référence du paiement ; casse repliée (`CaseInsensitive`), **accents non repliés** (TCK-2657) |
 | `filter[days_late_min]` / `filter[days_late_max]` | entier ≥ 0 | échéances dues et échues seulement ; exclut les réservations (TCK-2657) |
-| `include` | `payer`, `property`, `landlord` | `payer {id, name, phone}`, `property {id, title, reference_number}`, `landlord {id, name}` — nom inconnu ignoré (TCK-2657) |
+| `include` | `payer`, `property`, `landlord`, `reminders` | `payer {id, name, phone}`, `property {id, title, reference_number}`, `landlord {id, name}` — nom inconnu ignoré (TCK-2657) ; `reminders` : `last_reminder {at, source, channel, by}` (ou `null`) et `reminders_count`, relances notées et rappels automatiques confondus, `null`/`0` sur une réservation (TCK-2658) |
 | `sort` | `-date` (défaut), `amount`, `remaining_amount`, `created_at`, `days_late` | `days_late` : les lignes sans retard en dernier, dans les deux sens |
 
 ⚠ **`days_late` n'est émis que si la requête porte un paramètre neuf de TCK-2657** (un `include`,
@@ -207,6 +207,16 @@ hors restitution de caution ; `null` sinon, et toujours `null` sur une réservat
 {under_8, from_8_to_30, over_30} → {count, amount}}` (à date, `as_of`), `deposits_held`,
 `payouts_awaiting_approval {count, amount, landlords_count}`, `payouts_pending {count, amount}`,
 `invoices_draft {count, amount}`, plus `period`, `as_of` et `currency` (TCK-2657).
+`overdue.never_reminded_count` : les impayés sans aucune relance, notée (`lease_payment_reminders`) ni
+automatique (`metadata.reminder_*_sent_at`) (TCK-2658).
+
+### Relances d'une échéance — `GET|POST /api/lease-payments/{payment}/reminders`
+
+Personnel de l'agence du bail seulement (`LeasePaymentPolicy::remind`). `POST {channel: whatsapp|call,
+note?}` **note** une relance faite depuis le téléphone de l'agence — rien n'est envoyé (ADR-0105) ;
+409 `lease_payment.not_overdue` hors d'une échéance due, non soldée et échue. `GET` rend toutes les
+relances, de la plus récente à la plus ancienne : `{at, source: manual|automatic, channel, by {id,
+name}, note, milestone}` — sans pagination ni filtre (TCK-2658).
 
 ---
 
