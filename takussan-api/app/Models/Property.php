@@ -177,9 +177,11 @@ class Property extends AbstractModel implements HasMedia
         // Invariant: a rental listing must always carry a billing period.
         // If contract_type=rent but rent_period is missing/cleared, default
         // to monthly — the most common rental cadence in the local market.
+        // TCK-2703 — la règle vit dans `avecPeriodeParDefaut()`, que les seeders (sous
+        // `withoutEvents()`, donc sans ce crochet) appliquent aussi.
         static::saving(function (self $m) {
             if ($m->contract_type === ContractType::Rent && $m->rent_period === null) {
-                $m->rent_period = RentPeriod::Monthly;
+                $m->rent_period = self::avecPeriodeParDefaut(['contract_type' => $m->contract_type])['rent_period'];
             }
         });
 
@@ -955,6 +957,28 @@ class Property extends AbstractModel implements HasMedia
     public function boosts(): HasMany
     {
         return $this->hasMany(PropertyBoost::class);
+    }
+
+    /**
+     * TCK-2703 — la période d'une location : celle qu'on lui donne, sinon `monthly`, la cadence
+     * courante du marché. Une vente n'en reçoit pas. Une seule écriture de la règle : le crochet
+     * `saving` du modèle, et les seeders qui écrivent sous `withoutEvents()` (sans elle, 381 biens
+     * en location sur 451 de la base de démo n'avaient pas de période, et sortaient de
+     * l'occupation et des filtres « au mois »).
+     *
+     * @param  array<string, mixed>  $attributes
+     * @return array<string, mixed>
+     */
+    public static function avecPeriodeParDefaut(array $attributes): array
+    {
+        $contract = $attributes['contract_type'] ?? null;
+        $estLocation = $contract === ContractType::Rent || $contract === ContractType::Rent->value;
+
+        if ($estLocation && ($attributes['rent_period'] ?? null) === null) {
+            $attributes['rent_period'] = RentPeriod::Monthly;
+        }
+
+        return $attributes;
     }
 
     public function agency(): BelongsTo

@@ -103,6 +103,12 @@ class ReferentialIntegrityChecker
                 ->where('status', BookingStatus::Completed->value)
                 ->where('start_date', '>', now()->toDateString())
                 ->count(),
+            // TCK-2703 — une location porte sa période (`Property::avecPeriodeParDefaut`) : sans elle,
+            // le bien sort de l'occupation et des filtres « au mois ».
+            'bien_en_location_sans_periode' => DB::table('properties')
+                ->where('contract_type', ContractType::Rent->value)
+                ->whereNull('rent_period')
+                ->count(),
             'bien_loue_sans_bail_actif' => DB::table('properties as p')
                 ->where('p.status', PropertyStatus::Rented->value)
                 ->whereNotExists(fn (Builder $q) => $q->from('leases as l')
