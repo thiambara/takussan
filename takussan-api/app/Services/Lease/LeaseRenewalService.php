@@ -5,18 +5,19 @@ namespace App\Services\Lease;
 use App\Events\Lease\LeaseRenewed;
 use App\Exceptions\ApiError;
 use App\Jobs\GenerateLeasePaymentSchedule;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\User;
 use App\Services\Admin\PlatformSettingService;
-use App\Services\Model\LeaseService;
 use App\Services\Model\ReferenceNumberGenerator;
 use App\Services\Payments\PaymentGatewayService;
 use App\Support\ScopedSetting;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -324,16 +325,27 @@ class LeaseRenewalService
     /**
      * Les échéances de loyer du parent dues à partir du début de l'enfant : celles que l'échéancier
      * de l'enfant (premier terme ≥ son début) facture à nouveau. Vaut pour un parent sans fin.
-     * TCK-2679 — et ses échéances de charges, que l'échéancier de l'enfant appelle aussi.
+     * TCK-2679 — et ses échéances de charges, que l'échéancier de l'enfant appelle aussi : jugées sur
+     * leur PÉRIODE (qui commence au début de l'enfant ou après), jamais sur leur date d'échéance —
+     * une régularisation saisie à la main pour une période passée, mais échue plus tard, reste due
+     * au parent (vérification adverse de TCK-2679). Sans période, une ligne de charges ne bouge pas.
      *
      * @return Collection<int, LeasePayment>
      */
     protected function overlappingRentDues(Lease $parent, CarbonInterface $startDate): Collection
     {
+        $start = $startDate->toDateString();
+
         return LeasePayment::query()
             ->where('lease_id', $parent->id)
-            ->whereIn('payment_type', LeaseService::SCHEDULED_PERIOD_TYPES)
-            ->whereDate('due_date', '>=', $startDate->toDateString())
+            ->where(fn (Builder $q) => $q
+                ->where(fn (Builder $rent) => $rent
+                    ->where('payment_type', LeasePaymentType::Rent->value)
+                    ->whereDate('due_date', '>=', $start))
+                ->orWhere(fn (Builder $charges) => $charges
+                    ->where('payment_type', LeasePaymentType::Charges->value)
+                    ->whereNotNull('period_start')
+                    ->whereDate('period_start', '>=', $start)))
             ->orderBy('due_date')
             ->lockForUpdate()
             ->get();

@@ -369,6 +369,34 @@ class LeaseChargesScheduleTest extends TestCase
         $this->assertCount(12, $open($child));
     }
 
+    /**
+     * Vérification adverse de TCK-2679 — une régularisation de charges saisie à la main pour une
+     * période PASSÉE du parent, mais échue après le début de l'enfant, n'est pas un terme que
+     * l'enfant refacture : impayée, elle reste due ; payée, elle ne bloque pas le renouvellement.
+     * Bail SANS charges (tous les baux existants), où le défaut se voyait le mieux.
+     */
+    public function test_une_regularisation_d_une_periode_passee_n_est_ni_annulee_ni_bloquante(): void
+    {
+        Bus::fake([GenerateLeasePaymentSchedule::class]);
+        Carbon::setTestNow('2027-04-20 10:00:00');
+
+        foreach ([PaymentStatus::Pending, PaymentStatus::Paid] as $status) {
+            $parent = $this->lease(['monthly_charges' => null]);
+            app(LeaseService::class)->generateSchedule($parent);
+            $regularisation = LeasePayment::factory()->create([
+                'lease_id' => $parent->id, 'payment_type' => LeasePaymentType::Charges->value,
+                'amount' => 90_000, 'status' => $status,
+                'period_start' => '2027-01-01', 'period_end' => '2027-03-31', 'due_date' => '2027-06-15',
+            ]);
+            Sanctum::actingAs($parent->landlord);
+
+            $this->postJson("/api/leases/{$parent->id}/renew", ['start_date' => '2027-06-01', 'end_date' => '2028-05-31'])
+                ->assertCreated();
+
+            $this->assertSame($status, $regularisation->fresh()->status, $status->value);
+        }
+    }
+
     /** Renégocier les charges d'un bail signé est un avenant : l'enfant attend sa signature. */
     public function test_renegocier_les_charges_d_un_contrat_signe_demande_une_signature(): void
     {
