@@ -40,7 +40,7 @@ ne suffit pas à dire « encore actif ».
 
 ## Décision
 
-**Recommandation de session, à confirmer par le porteur ; si refusée → `obsolete`.**
+**Décidé par le porteur le 2026-11-11 : (a), la recommandation (« je valide tout »).**
 
 - **a) (recommandé)** prévenir l'invitant s'il est encore **personnel actif** de l'agence de l'invitation
   (`PersonnelDeLAgence::personnelActifDe`) **et** peut la renvoyer (`InvitationPolicy::resend`) ; sinon, les membres

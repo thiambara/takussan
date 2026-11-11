@@ -34,7 +34,7 @@ téléphone). Un contrat signé ne se régénère jamais.
 
 ## Décision
 
-**Recommandation de session, à confirmer par le porteur ; si refusée → `obsolete`.**
+**Décidé par le porteur le 2026-11-11 : (a), la recommandation (« je valide tout »).**
 
 - **a) (recommandé)** la demande de signature est refusée tant que la fiche du locataire n'a ni prénom ni nom :
   `422 lease_signature.tenant_without_name`, l'agent complète la fiche puis renvoie.

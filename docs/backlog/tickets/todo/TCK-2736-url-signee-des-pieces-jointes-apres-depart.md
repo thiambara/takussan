@@ -40,8 +40,7 @@ Relevé à la vérification de TCK-2631 et accepté pour le lot avec un « suivi
 
 ## Décision
 
-**À trancher par le porteur. Recommandation de la session : (a).** Sans confirmation, l'écart reste écrit dans
-`features.md` §1.7, et ce ticket passe `obsolete`.
+**Décidé par le porteur le 2026-11-11 : (a), la recommandation (« je valide tout »).**
 
 - **(a) Une échéance courte pour la collection `attachments`** : 5 minutes, comme l'URL présignée de
   `PrivateMediaAccess::redirect()`. Le front relit le fil quand une pièce rend 403 à l'ouverture. La fenêtre passe de

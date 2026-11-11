@@ -44,7 +44,7 @@ Suivi de TCK-2672 (risque d'un avis au seul modérateur). Relevé sur l'arbre du
 
 ## Décision
 
-**Recommandation de session, à confirmer par le porteur ; si refusée → `obsolete`.**
+**Décidé par le porteur le 2026-11-11 : (a), la recommandation (« je valide tout »).**
 
 - **a) (recommandé)** `reported_count` au seul lecteur qui passe `viewReports` sur l'avis ; `filter[reported]` et
   `sort=reported_count` sans effet sous `filter[author_id]=me` (tri par défaut de l'auteur : `-created_at`).

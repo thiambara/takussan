@@ -40,8 +40,7 @@ trancher par le porteur ») et re-mesuré dans le code le 2026-11-11 :
 
 ## Décision
 
-**À trancher par le porteur. Recommandation de la session : (a).** Sans confirmation du porteur, ce ticket passe
-`obsolete` et le comportement actuel (c) est écrit dans `features.md` §1.3.
+**Décidé par le porteur le 2026-11-11 : (a), la recommandation (« je valide tout »).**
 
 - **(a) Une seule candidature confirmée par bien à la fois.** Confirmer une seconde candidature rend
   `409 booking.application_already_accepted` tant que la première est `confirmed`. Elle est libérée quand le bail
