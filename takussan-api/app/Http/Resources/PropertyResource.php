@@ -6,6 +6,7 @@ use App\Http\Resources\Bases\BaseResource;
 use App\Models\Agency;
 use App\Models\Document;
 use App\Models\Profiles\AgentProfile;
+use App\Models\Property;
 use App\Models\PropertyPriceHistory;
 use App\Models\Review;
 use App\Models\Tag;
@@ -107,6 +108,12 @@ class PropertyResource extends BaseResource
             'status' => $this->whenHas('status', fn ($valeur) => $valeur?->value),
             'status_label' => $this->enumLabel($this->status, 'properties.status'),
             'visibility' => $this->whenHas('visibility', fn ($valeur) => $valeur?->value),
+            // TCK-2637 (ADR-0097 § 1) — « en ligne » et l'occupation, posés pour la page par le
+            // contrôleur (`include=online`, `include=occupancy`) : rien sinon.
+            ...($this->resource instanceof Property && $this->resource->onlineFlag() !== null
+                ? ['is_online' => $this->resource->onlineFlag()] : []),
+            ...($this->resource instanceof Property && $this->resource->occupancyBlock() !== null
+                ? ['occupancy' => $this->buildOccupancy($this->resource->occupancyBlock())] : []),
             'title_type' => $this->whenHas('title_type', fn ($valeur) => $valeur?->value),
             'title_type_label' => $this->enumLabel($this->title_type, 'properties.title_type'),
             'condition' => $this->whenHas('condition', fn ($valeur) => $valeur?->value),
@@ -308,6 +315,26 @@ class PropertyResource extends BaseResource
     /**
      * @return array<string, mixed>
      */
+    /**
+     * TCK-2637 — le bloc de `PropertyOccupancy`, ses dates calendaires en `Y-m-d` (ADR-0018).
+     *
+     * @param  array<string, mixed>  $block
+     * @return array<string, mixed>
+     */
+    private function buildOccupancy(array $block): array
+    {
+        $block['vacant_since'] = $this->calendarDate($block['vacant_since']);
+        if (is_array($block['lease'] ?? null)) {
+            $block['lease']['start_date'] = $this->calendarDate($block['lease']['start_date']);
+            $block['lease']['end_date'] = $this->calendarDate($block['lease']['end_date']);
+        }
+        if (is_array($block['current_month'] ?? null)) {
+            $block['current_month']['due_date'] = $this->calendarDate($block['current_month']['due_date']);
+        }
+
+        return $block;
+    }
+
     private function buildLocation(mixed $address): array
     {
         $quarter = $address?->neighborhood;

@@ -23,20 +23,28 @@ use App\Observers\PropertyObserver;
 use App\Services\Media\AgencyWatermarkContext;
 use App\Services\Media\PhotoConversionFormat;
 use App\Services\Media\WatermarkRequirement;
+use App\Services\Payments\RentMonthStatus;
+use App\Services\Property\Occupation;
+use App\Sorts\PropertyRentLateSort;
+use App\Support\CaseInsensitive;
 use App\Support\DayRange;
 use App\Support\Http\ParametreUnique;
+use App\Support\Query\InclusionLueParLeControleur;
 use App\Support\Search\CleDeQuartier;
 use App\Support\Search\PropertyLabels;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Laravel\Scout\ModelObserver;
 use Laravel\Scout\Searchable;
 use Spatie\Image\Enums\Fit;
@@ -44,6 +52,8 @@ use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\AllowedInclude;
+use Spatie\QueryBuilder\AllowedSort;
 
 class Property extends AbstractModel implements HasMedia
 {
@@ -57,6 +67,15 @@ class Property extends AbstractModel implements HasMedia
      * Statique, remis à son état dans un `finally` : jamais un attribut de requête ni un rôle.
      */
     private static bool $moderationGateBypassed = false;
+
+    /**
+     * TCK-2637 (ADR-0097 § 1) — `is_online`, posé pour une page entière par {@see markOnline()} sur
+     * `include=online` ; `null` : non demandé, et la ressource n'émet rien.
+     */
+    private ?bool $onlineFlag = null;
+
+    /** TCK-2637 — le bloc `occupancy` posé par `PropertyOccupancy`, ou `null` s'il n'a pas été demandé. */
+    private ?array $occupancyBlock = null;
 
     protected $fillable = [
         'user_id', 'agency_id', 'parent_id', 'reference_number',
@@ -163,6 +182,33 @@ class Property extends AbstractModel implements HasMedia
         'ranked_at', 'sponsored_until', 'badge', 'badge_until',
     ];
 
+    /**
+     * TCK-2637 — deux inclusions calculées, lues par le contrôleur pour toute la page, et non des
+     * relations : `include=occupancy` (le bloc d'occupation, `PropertyOccupancy`) et `include=online`
+     * (`is_online`, {@see onlineAmong()}). `is_online` n'est PAS un champ de `fields[properties]` :
+     * un champ calculé derrière les sparse fieldsets est la voie écartée d'ADR-0021.
+     *
+     * @return array<int, AllowedInclude>
+     */
+    protected static function getAllowedQueryIncludes(): array
+    {
+        return [
+            ...parent::getAllowedQueryIncludes(),
+            AllowedInclude::custom('occupancy', new InclusionLueParLeControleur),
+            AllowedInclude::custom('online', new InclusionLueParLeControleur),
+        ];
+    }
+
+    /**
+     * TCK-2637 — `sort=retard` : les loyers du mois en retard d'abord, le plus ancien en tête.
+     *
+     * @return array<int, AllowedSort>
+     */
+    protected static function customQuerySorts(): array
+    {
+        return [AllowedSort::custom('retard', new PropertyRentLateSort)];
+    }
+
     protected static function booted(): void
     {
         static::creating(function (self $m) {
@@ -233,6 +279,9 @@ class Property extends AbstractModel implements HasMedia
      * l'occupation (`PortfolioMetrics::EXCLUDED_PROPERTY_STATUSES`), qui retire aussi les brouillons.
      */
     public const OUT_OF_PORTFOLIO_STATUSES = [PropertyStatus::Archived, PropertyStatus::Sold];
+
+    /** TCK-2637 — les valeurs de `filter[occupancy]` ({@see scopeOccupancyState()}). */
+    public const OCCUPANCY_STATES = ['occupied', 'notice', 'vacant'];
 
     public const TYPE_SEARCH_ALIASES = [
         // TCK-506 — alias enrichis APRÈS mesure de collision de corpus (la
@@ -624,6 +673,98 @@ class Property extends AbstractModel implements HasMedia
             ]);
     }
 
+    /**
+     * TCK-2637 (ADR-0097 § 1) — « en ligne » : ce bien est-il visible du public ? La règle est
+     * {@see scopePublic()}, lue telle quelle : `is_online`, `filter[public]` et la tuile « En ligne »
+     * de `portfolio-summary` ne peuvent pas diverger. Une requête ; une page passe par
+     * {@see onlineAmong()}.
+     */
+    public function isOnline(): bool
+    {
+        return static::query()->public()->whereKey($this->getKey())->exists();
+    }
+
+    /**
+     * TCK-2637 — les identifiants en ligne parmi `$ids`, en une requête ({@see isOnline()}).
+     *
+     * @param  list<int>  $ids
+     * @return list<int>
+     */
+    public static function onlineAmong(array $ids): array
+    {
+        return $ids === [] ? [] : static::query()->public()->whereIn('properties.id', $ids)
+            ->pluck('properties.id')->map(fn ($id) => (int) $id)->all();
+    }
+
+    /** TCK-2637 — pose `is_online` sur une instance de la page (`PropertyController`). */
+    public function markOnline(bool $online): void
+    {
+        $this->onlineFlag = $online;
+    }
+
+    public function onlineFlag(): ?bool
+    {
+        return $this->onlineFlag;
+    }
+
+    /** @param  array<string, mixed>  $block */
+    public function setOccupancyBlock(array $block): void
+    {
+        $this->occupancyBlock = $block;
+    }
+
+    /** @return array<string, mixed>|null */
+    public function occupancyBlock(): ?array
+    {
+        return $this->occupancyBlock;
+    }
+
+    /**
+     * TCK-2637 — `filter[occupancy]` et les tuiles de `portfolio-summary` : `occupied` (un bail
+     * courant, préavis COMPRIS — occupés + vacants = tous), `notice` (bail courant en préavis),
+     * `vacant` (aucun bail courant). Le bail courant est {@see currentLease()}.
+     *
+     * @param  Builder<Property>  $query
+     * @return Builder<Property>
+     */
+    public function scopeOccupancyState(Builder $query, string $state): Builder
+    {
+        return match ($state) {
+            'occupied' => $query->whereHas('currentLease'),
+            'notice' => $query->whereHas('currentLease', fn (Builder $lease) => Occupation::onNotice($lease)),
+            'vacant' => $query->whereDoesntHave('currentLease'),
+        };
+    }
+
+    /**
+     * TCK-2637 — vacant depuis `$days` jours au moins : vacant, et le dernier bail a pris fin
+     * ({@see Occupation::lastEnd()}) il y a `$days` jours ou plus. Un bien jamais loué n'a pas de
+     * date de vacance (`vacant_since` nul) : il n'y entre pas.
+     *
+     * @param  Builder<Property>  $query
+     * @return Builder<Property>
+     */
+    public function scopeVacantForAtLeast(Builder $query, int $days): Builder
+    {
+        $lastEnd = Occupation::lastEnd($query->qualifyColumn('id'));
+
+        return $query->occupancyState('vacant')
+            ->whereRaw('('.$lastEnd->toSql().') <= ?::date', [...$lastEnd->getBindings(), now()->subDays($days)->toDateString()]);
+    }
+
+    /**
+     * TCK-2637 — `filter[rent_late]` : le loyer du mois en retard ({@see RentMonthStatus::lateOfMonth()})
+     * sur le bail courant, que `$viewer` peut lire.
+     *
+     * @param  Builder<Property>  $query
+     * @return Builder<Property>
+     */
+    public function scopeRentLate(Builder $query, User $viewer): Builder
+    {
+        return $query->whereHas('currentLease', fn (Builder $lease) => $lease->visibleTo($viewer)
+            ->whereHas('payments', fn (Builder $payments) => RentMonthStatus::lateOfMonth($payments)));
+    }
+
     public function scopeAvailable(Builder $query): Builder
     {
         return $query->where('status', PropertyStatus::Available);
@@ -738,6 +879,54 @@ class Property extends AbstractModel implements HasMedia
                 $q->public();
             }
         });
+
+        // TCK-2637 — l'occupation : état, loyer du mois en retard, locataire du bail en cours. Une
+        // valeur en liste vaut un filtre absent (ADR-0075) ; une valeur inconnue rend 422.
+        $filters[] = AllowedFilter::callback('occupancy', function (Builder $q, mixed $value): void {
+            $state = ParametreUnique::valeur($value);
+            if ($state === null || $state === '') {
+                return;
+            }
+            Validator::make(['occupancy' => $state], ['occupancy' => [Rule::in(self::OCCUPANCY_STATES)]])->validate();
+            $q->occupancyState($state);
+        });
+
+        $filters[] = AllowedFilter::callback('rent_late', function (Builder $q, mixed $value): void {
+            $flag = ParametreUnique::valeur($value);
+            if ($flag === null || $flag === '') {
+                return;
+            }
+            Validator::make(['rent_late' => $flag], ['rent_late' => ['boolean']])->validate();
+            if (! filter_var($flag, FILTER_VALIDATE_BOOL)) {
+                return;
+            }
+            $viewer = request()->user();
+            $viewer === null ? $q->whereRaw('1 = 0') : $q->rentLate($viewer);
+        });
+
+        // Le locataire du bail EN COURS, et seulement s'il est lisible par l'appelant : chaque mot
+        // dans le prénom ou le nom, casse repliée (`CaseInsensitive`, sans repli des accents).
+        $filters[] = AllowedFilter::callback('tenant', function (Builder $q, mixed $value): void {
+            $words = preg_split('/\s+/u', trim(ParametreUnique::valeur($value) ?? ''), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+            if ($words === []) {
+                return;
+            }
+            $viewer = request()->user();
+            if ($viewer === null) {
+                $q->whereRaw('1 = 0');
+
+                return;
+            }
+            $q->whereHas('currentLease', fn (Builder $lease) => $lease->visibleTo($viewer)
+                ->whereHas('tenant', function (Builder $tenant) use ($words): void {
+                    foreach ($words as $word) {
+                        $motif = '%'.addcslashes(CaseInsensitive::fold($word), '\\%_').'%';
+                        $tenant->where(fn (Builder $w) => $w
+                            ->whereRaw(CaseInsensitive::sql('customers.first_name').' like ?', [$motif])
+                            ->orWhereRaw(CaseInsensitive::sql('customers.last_name').' like ?', [$motif]));
+                    }
+                }));
+        })->delimiter('');
 
         $filters[] = AllowedFilter::callback('created_from', function (Builder $q, mixed $value): void {
             if ($value !== null && $value !== '') {
@@ -1046,6 +1235,15 @@ class Property extends AbstractModel implements HasMedia
     public function leases(): HasMany
     {
         return $this->hasMany(Lease::class);
+    }
+
+    /**
+     * TCK-2637 — le bail qui occupe le bien aujourd'hui, le plus récent s'il y en a plusieurs (lots) :
+     * {@see Occupation::current()}, la règle de l'occupation du tableau de bord.
+     */
+    public function currentLease(): HasOne
+    {
+        return $this->hasOne(Lease::class)->current();
     }
 
     public function visits(): HasMany

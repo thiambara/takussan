@@ -103,7 +103,11 @@ GET /api/properties?per_page=10&page=2
 | `filter[area_min]` | range | Surface minimum (m²) |
 | `filter[area_max]` | range | Surface maximum (m²) |
 | `filter[search]` | search | Recherche dans title, reference_number, description |
-| `sort` | `-price`, `price`, `-created_at`, `area`, `bedrooms`, `featured` | |
+| `filter[public]` | callback | `1` : les biens EN LIGNE (`Property::scopePublic`, ADR-0097) |
+| `filter[occupancy]` | callback | TCK-2637 — `occupied` (bail courant, préavis compris), `notice` (bail courant en préavis), `vacant` ; autre valeur → 422 |
+| `filter[rent_late]` | callback | TCK-2637 — `1` : le loyer du mois en retard sur le bail courant que l'appelant peut lire |
+| `filter[tenant]` | callback | TCK-2637 — chaque mot dans le prénom ou le nom du locataire du bail EN COURS lisible par l'appelant (casse repliée, accents non) |
+| `sort` | `-price`, `price`, `-created_at`, `area`, `bedrooms`, `featured`, `retard` | `retard` (TCK-2637) : loyers du mois en retard d'abord, le plus ancien en tête, puis les autres |
 
 **`filter[id]`** (TCK-2524) — lire des biens par leurs ids, avec leurs `fields` : la vitrine de
 l'agence nomme ainsi les biens de sa sélection, quel que soit leur rang dans la liste.
@@ -123,6 +127,28 @@ GET /api/properties?filter[id]=839,838&filter[agency_id]=1&fields[properties]=id
   (`Me\OwnerProfileController::properties`) et `GET /api/admin/agencies/{agency}/properties`
   (`Admin\AgencyDetailController::properties`). La liste se relit par
   `grep -rn "Property::buildQuery" takussan-api/app`.
+
+**Occupation et présence en ligne** (TCK-2637, ADR-0097) — sur `GET /api/properties` et
+`GET /api/properties/{property}` seulement :
+
+```
+GET /api/properties?include=occupancy,online&fields[properties]=id,title&sort=retard
+GET /api/properties/portfolio-summary?filter[user_id]=42
+```
+
+- **`include=online`** → `is_online` (booléen), sur la liste comme sur la fiche ; absent sans
+  l'inclusion. Ce n'est **pas** un champ de `fields[properties]` (`…,is_online` → 400) : un champ
+  calculé derrière les sparse fieldsets est la voie écartée d'ADR-0021. Une requête pour la page,
+  le même code que `filter[public]`.
+- **`include=occupancy`** : `{state, vacant_since, lease, tenant, rent, current_month}` —
+  `lease`, `tenant`, `rent` et `current_month` seulement si l'appelant peut lire le bail (la clause
+  de `GET /api/leases`) ; `null` sur un bien vacant. `current_month.status` : `paid`, `late`,
+  `partial`, `due` ou `none` (la règle du relevé du bailleur).
+- **`portfolio-summary`** : `{total, occupied, vacant, vacant_over_60_days, notice, rent_late,
+  rent_late_amount, online}` sous la portée et les filtres de la liste ; chaque compte égale le
+  `meta.total` de la liste filtrée correspondante.
+- Les autres listes de biens (`children`, `me/owner-profiles/…/properties`, `admin/agencies/…`)
+  acceptent les filtres et `include=occupancy,online`, mais ne rendent ni `occupancy` ni `is_online`.
 
 ### Customer
 | Param | Type | Description |

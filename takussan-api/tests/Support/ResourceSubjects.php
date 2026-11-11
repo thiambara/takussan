@@ -13,15 +13,21 @@ use App\Http\Resources\DocumentVersionResource;
 use App\Http\Resources\MediaResource;
 use App\Http\Resources\OwnerProfileDetailResource;
 use App\Http\Resources\PayoutMethodResource;
+use App\Http\Resources\PropertyResource;
 use App\Http\Resources\PropertyVisitResource;
 use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Document;
+use App\Models\Enums\LeasePaymentType;
+use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PayeeRole;
 use App\Models\Enums\PayoutStatus;
+use App\Models\Lease;
+use App\Models\LeasePayment;
 use App\Models\MaintenanceRequest;
 use App\Models\Payout;
 use App\Models\Profiles\OwnerProfile;
+use App\Models\Profiles\PlatformProfile;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\RadarAdvertiser;
@@ -31,6 +37,7 @@ use App\Models\User;
 use App\Services\Accounting\MatchCandidate;
 use App\Services\Messaging\ConversationThreadContext;
 use App\Services\Owners\OwnerDirectory;
+use App\Services\Property\PropertyOccupancy;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -129,6 +136,26 @@ final class ResourceSubjects
             $sujets['PropertyVisit (personnel)'] = self::modele(PropertyVisit::class, $resource, ['property_id' => $bien->id]);
         }
 
+        // TCK-2637 — le bloc `occupancy` porte des dates (bail, échéance du mois, `vacant_since`) : un
+        // bien loué avec son loyer du mois, et un bien vacant après un bail, que
+        // {@see self::commeLeControleur()} fait lire comme `PropertyController` les pose.
+        if ($resource === PropertyResource::class) {
+            $agence = Agency::factory()->create();
+            $loue = Property::factory()->create(['agency_id' => $agence->id]);
+            $bail = Lease::factory()->create([
+                'property_id' => $loue->id, 'agency_id' => $agence->id, 'status' => LeaseStatus::Active,
+                'start_date' => now()->subMonth()->toDateString(), 'end_date' => now()->addYear()->toDateString(),
+            ]);
+            LeasePayment::factory()->create(['lease_id' => $bail->id, 'payment_type' => LeasePaymentType::Rent, 'due_date' => now()->startOfMonth()->toDateString()]);
+            $sujets['Property (occupé, TCK-2637)'] = $loue->fresh();
+            $vacant = Property::factory()->create(['agency_id' => $agence->id]);
+            Lease::factory()->create([
+                'property_id' => $vacant->id, 'agency_id' => $agence->id, 'status' => LeaseStatus::Expired,
+                'start_date' => now()->subYears(2)->toDateString(), 'end_date' => now()->subMonths(2)->toDateString(),
+            ]);
+            $sujets['Property (vacant, TCK-2637)'] = $vacant->fresh();
+        }
+
         return $sujets;
     }
 
@@ -154,6 +181,17 @@ final class ResourceSubjects
                 $requete->attributes->remove('visits.property_agencies');
                 $requete->attributes->remove('visits.staff_agencies');
             }
+
+            return $instance;
+        }
+
+        // TCK-2637 — `PropertyController::index` / `show` posent, sur `include=online`, `is_online`
+        // et, sur `include=occupancy`, le bloc d'occupation (lu ici par un super-admin, qui lit tout bail).
+        if ($instance instanceof PropertyResource && $instance->resource instanceof Property && $instance->resource->exists) {
+            $instance->resource->markOnline($instance->resource->isOnline());
+            $lecteur = User::factory()->create();
+            PlatformProfile::factory()->superAdmin()->create(['user_id' => $lecteur->id]);
+            app(PropertyOccupancy::class)->attach(collect([$instance->resource]), $lecteur);
 
             return $instance;
         }

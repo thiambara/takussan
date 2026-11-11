@@ -63,7 +63,7 @@ L'agence et le bailleur savent, pour chaque bien de la liste et sur sa fiche, s'
   - un bien jamais loué rend `null`. Le front dira « Sans locataire », pas « Vacant depuis ».
 - **`current_month`** : il lit l'échéance de loyer du mois courant (jamais celle de caution), avec le même calcul d'`amount_due` et de `late_fee_outstanding` que `GET /api/payments/history`. Le calcul ne doit pas être copié.
 - **Confidentialité** : le bloc `tenant` (nom, téléphone) n'est servi qu'à un appelant qui peut `view` le bail, avec **la même projection** que `GET /api/leases?include=tenant` pour ce même appelant. Un bailleur ne lit que le locataire de ses biens. Sans droit sur le bail, le bloc `tenant` est absent, et `state` reste servi.
-- **Sparse fieldsets** : `occupancy` et `is_online` se demandent comme tout champ (`fields[properties]=…,is_online`, `include=occupancy`). Rien n'est servi quand on ne le demande pas.
+- **Sparse fieldsets** : `occupancy` et `is_online` se demandent par include (`include=occupancy`, `include=online`). Rien n'est servi quand on ne le demande pas. *(Réécrit le 2026-11-11 : `fields[properties]=…,is_online` contredisait ADR-0021 — voir les Notes et l'amendement d'ADR-0097 § 1.)*
 - **Performance** : une page de 50 biens se lit en un nombre **constant** de requêtes SQL, sans requête par bien.
 
 ## Delta à produire
@@ -100,4 +100,53 @@ L'agence et le bailleur savent, pour chaque bien de la liste et sur sa fiche, s'
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+**2026-11-11 — implémenté sur `feat/audit-ux-app-lot-1`.**
+
+**Prémisse re-mesurée — ce qui diffère du ticket :**
+
+- `scopePublic` est à `Property.php:609-625` avant ce ticket (et non 607-624). Le filtre `filter[public]` existait déjà.
+- **Le bail courant suit la règle d'`Occupation` (TCK-2640), plus stricte que celle du ticket** : statut
+  `active`/`terminating`, commencé, ET ni échu ni résilié (`LEAST(end_date, terminated_at) ≥ aujourd'hui`).
+  C'est la règle de l'occupation du tableau de bord (TCK-2626) : un bail `active` dont le terme est passé
+  n'occupe plus le bien. `Occupation` porte désormais la règle au niveau du bail (`occupying()`, `current()`) ;
+  `whereOccupied()` (carnet des bailleurs) la lit. **`PortfolioMetrics::longStayOccupancyToday()` en garde une
+  copie en SQL brut, identique** : non touché (voie de l'accueil) — à faire converger.
+- **Plusieurs baux courants** (28 biens sur 227 occupés dans la démo, le 2026-11-11) : le plus récent par
+  `(start_date, id)`. `currentLease()` est un `HasOne` contraint par `Occupation::current()` (un `NOT EXISTS`
+  d'un bail courant plus récent), et non un `latestOfMany` : la même clause sert la relation, les filtres, le tri
+  et le résumé, ce qu'un `ofMany` ne permettait pas en sous-requête scalaire.
+- **`current_month.status`** vaut `paid`, `late`, `partial`, `due` ou `none` : c'est `RentMonthStatus::of()`,
+  extraite telle quelle d'`OwnerStatementService::monthStatus()` (TCK-2649) — `partial` en plus des quatre
+  valeurs du ticket. Relevé du bailleur inchangé : 280 relevés de la démo identiques octet pour octet avant/après
+  (`month_status` compris).
+- **`rent_late` et `sort=retard` lisent le loyer DU MOIS** (comme la ligne) : un bail dont seul un mois antérieur
+  est impayé n'y entre pas (5 baux dans la démo le 2026-11-11). La relance des arriérés est TCK-2706 / l'historique.
+- **`filter[occupancy]=occupied` compte les biens en préavis** : occupés + vacants = tous ; `notice` en est un
+  sous-ensemble. Le bloc, lui, dit `notice` pour ces biens.
+- **`is_online` se demande par `include=online`, et non par `fields[properties]=…,is_online`** comme le
+  disent ce ticket (« Sparse fieldsets ») et ADR-0097 § 1 (« se demande comme tout champ »). Une première
+  version l'acceptait dans `fields[]` par un mécanisme générique de champs dérivés (`HasQueryBuilder`,
+  `DepartageQueryBuilder`) : refusée à la revue du 2026-11-11 — c'est la voie (b) qu'ADR-0021 a écartée le
+  2026-10-20, et le mécanisme l'aurait ouverte à tout le dépôt. Retiré ; `include=online` est une inclusion
+  calculée (`InclusionLueParLeControleur`, comme `include=occupancy`), sur la liste comme sur la fiche, clé
+  absente sans elle ; `fields[properties]=…,is_online` rend 400. Calculé pour la page en une requête par
+  `scopePublic` lui-même (`Property::onlineAmong()`, `isOnline()`). **ADR-0097 § 1 est à amender** sur ce point.
+- **Requêtes (démo, 2026-11-11, super-admin)** : `include=occupancy,online` → 24 requêtes pour 10 comme pour 50
+  biens ; `online` seul coûte 1 requête, `occupancy` 6 (17 sans inclusion).
+- **AC4** : un agent d'une autre agence n'atteint pas le bien (`PropertyPolicy::view` refuse la fiche, 403 ; la
+  liste ne le porte pas). Le cas 200 sans `tenant` est celui d'un bailleur dont le bien a changé de titulaire
+  (TCK-999) ou d'un bail saisi par l'agent (`landlord_id` = l'agent, TCK-1926). Sans droit sur le bail, `lease`,
+  `rent` et `current_month` sont retirés avec `tenant` (ils disent le loyer et l'arriéré).
+- **`vacant_since`** : `COALESCE(terminated_at, end_date)` le plus récent des baux commencés (hors `draft`,
+  `pending_signature`). Un bien jamais loué : `null`, et il n'entre pas dans `vacant_over_60_days`.
+- **`rent_late_amount`** : la somme des `current_month.amount_due` des biens en retard (`amountDue()` de
+  l'historique : la pénalité n'y est que si l'agence l'encaisse en ligne).
+- `only_mine` n'existe que côté front (`filter[user_id]`) : le résumé lit les filtres de la liste.
+
+**Fichiers** : `Occupation`, `PropertyOccupancy`, `PropertyListScope` (portée de l'index extraite),
+`RentMonthStatus`, `PropertyRentLateSort`, `PropertyPortfolioController`, `Lease::scopeVisibleTo` (clause de
+`LeaseController::index` extraite) et `scopeCurrent`.
+
+**Reste** : les autres listes de biens (`children`, `me/owner-profiles/…/properties`, `admin/agencies/…`)
+acceptent `include=occupancy,online` sans les rendre ; `vacant_over_60_days` n'a pas de filtre de liste.
+

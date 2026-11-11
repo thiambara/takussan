@@ -13,7 +13,11 @@ use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\LeaseType;
 use App\Models\Enums\PayeeRole;
 use App\Models\Enums\PaymentFrequency;
+use App\Policies\LeasePolicy;
 use App\Services\Lease\LeaseRenewalService;
+use App\Services\Property\BailleurDuBien;
+use App\Services\Property\Occupation;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -141,6 +145,43 @@ class Lease extends AbstractModel implements HasMedia
         'early_termination_effective_date', 'early_termination_penalty_amount',
         'early_termination_reason', 'notice_period_days', 'early_termination_invoice_id',
     ];
+
+    /**
+     * TCK-2637 — les baux que `$user` peut lire, en requête : la clause de `GET /api/leases`, qui
+     * suit {@see LeasePolicy::view()} (TCK-1926, TCK-587). Le bailleur DÉSIGNÉ par `landlord_id`
+     * et propriétaire dans l'agence (`BailleurDuBien`), le locataire, le personnel de l'agence du
+     * bail ; le super-admin, tous. Lue par la liste des baux et par l'occupation des biens (bloc
+     * `tenant`, filtres `tenant` et `rent_late`, tri `retard`), pour qu'une même ligne ne soit pas
+     * lisible par un chemin et refusée par l'autre.
+     *
+     * @param  Builder<Lease>  $query
+     * @return Builder<Lease>
+     */
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        if ($user->isSuperAdmin()) {
+            return $query;
+        }
+
+        return $query->where(function (Builder $q) use ($user) {
+            $q->where(fn ($b) => BailleurDuBien::restreindre($b, $user, $q->qualifyColumn('landlord_id'), $q->qualifyColumn('agency_id')))
+                ->orWhereHas('tenant', fn ($t) => $t->where('user_id', $user->id));
+            if (($staffAgencyId = $user->staffAgencyId()) !== null) {
+                $q->orWhere($q->qualifyColumn('agency_id'), $staffAgencyId);
+            }
+        });
+    }
+
+    /**
+     * TCK-2637 — le bail COURANT de son bien ({@see Occupation::current()}).
+     *
+     * @param  Builder<Lease>  $query
+     * @return Builder<Lease>
+     */
+    public function scopeCurrent(Builder $query): Builder
+    {
+        return $query->where(fn (Builder $q) => Occupation::current($q, $q->getModel()->getTable()));
+    }
 
     public function property(): BelongsTo
     {

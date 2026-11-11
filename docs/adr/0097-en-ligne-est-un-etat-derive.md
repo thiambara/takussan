@@ -26,7 +26,7 @@ Relevé sur `dev` (1bce3798a) le 2026-11-10, audit UX famille 4 ([`04-patrimoine
    - La règle de `scopePublic` est extraite en un seul endroit (`Property::isOnline()` ou équivalent).
    - Elle est lue par le filtre `filter[public]` **et** par le champ `is_online` de la ressource.
    - Elle n'est jamais recopiée, ni dans l'API, ni dans le front.
-   - `is_online` se demande comme tout champ (sparse fieldsets, [ADR-0006](0006-lecture-api-par-query-builder.md)).
+   - `is_online` se demande par `include=online`, calculé pour la page en une requête ; il est absent sans l'include. *Amendé le 2026-11-11 (TCK-2637, décision de la session) : la première rédaction disait « comme tout champ » (`fields[properties]`), ce qui aurait rendu un champ dérivé demandable par `fields[]` — la voie (b) d'[ADR-0021](0021-sparse-fieldsets-au-niveau-ressource.md), écartée par le porteur le 2026-10-20.*
 2. **« En ligne / Hors ligne » est le seul état de présence affiché.** Le mot « Publié » ne s'affiche plus comme un état : ni pastille, ni tuile, ni filtre.
 3. **La visibilité devient un réglage**, libellé « Public / Privé ». Elle dit ce que l'agence **demande**. « En ligne » dit ce qui **est**.
 4. **Le libellé du statut `published`.** **Décidé par le porteur le 2026-11-10** : « Validé ». C'est le sens du statut dans le cycle de modération : le bien a passé la revue, il peut être en ligne. Le code et la valeur `published` ne changent pas, seul le libellé change. C'est le front qui porte le texte (principe 5).

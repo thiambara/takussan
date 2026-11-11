@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\PropertyContactController;
 use App\Http\Controllers\Api\PropertyController;
 use App\Http\Controllers\Api\PropertyMediaController;
 use App\Http\Controllers\Api\PropertyOwnerController;
+use App\Http\Controllers\Api\PropertyPortfolioController;
 use App\Http\Controllers\Api\PropertyPriceHistoryController;
 use App\Http\Controllers\Api\PropertyTagController;
 use App\Http\Controllers\Api\ReviewController;
@@ -17,6 +18,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('properties', [PropertyController::class, 'index'])->name('properties.index');
+    // TCK-2637 — littérale, AVANT `properties/{property}` : les comptes des tuiles de la liste.
+    Route::get('properties/portfolio-summary', [PropertyPortfolioController::class, 'summary'])->name('properties.portfolio-summary');
     Route::post('properties', [PropertyController::class, 'store'])->name('properties.store');
     // TCK-074 — bulk actions (must be declared before the `{property}` route).
     Route::post('properties/bulk-archive', [PropertyController::class, 'bulkArchive'])->name('properties.bulk-archive');

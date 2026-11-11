@@ -15,7 +15,6 @@ use App\Models\Lease;
 use App\Models\Property;
 use App\Services\Lease\LeaseSignatureService;
 use App\Services\Model\LeaseService;
-use App\Services\Property\BailleurDuBien;
 use App\Services\Property\ContactDeLAgenceDuBien;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -32,20 +31,12 @@ class LeaseController extends Controller
 
         $base = Lease::query()->with(['property.address', 'property.media', 'tenant']);
 
-        if (! $user->isSuperAdmin()) {
-            $base->where(function ($q) use ($user) {
-                // TCK-1926 (P190.04) — la clause du bailleur suit `LeasePolicy::view` : désigné, ET bail
-                // sans agence ou profil propriétaire dans son agence (`BailleurDuBien`). L'agent
-                // créateur suspendu ou retiré ne liste plus le bail qui le désigne.
-                $q->where(fn ($b) => BailleurDuBien::restreindre($b, $user, 'landlord_id'))
-                    ->orWhereHas('tenant', fn ($t) => $t->where('user_id', $user->id));
-                // TCK-587 — le périmètre d'agence est celui du PERSONNEL (ADR-0031) : un bailleur de l'agence
-                // listait les ressources de tous les autres.
-                if (($staffAgencyId = $user->staffAgencyId()) !== null) {
-                    $q->orWhere('agency_id', $staffAgencyId);
-                }
-            });
-        }
+        // TCK-1926 (P190.04) — la clause du bailleur suit `LeasePolicy::view` : désigné, ET bail sans
+        // agence ou profil propriétaire dans son agence (`BailleurDuBien`). L'agent créateur suspendu
+        // ou retiré ne liste plus le bail qui le désigne. TCK-587 — le périmètre d'agence est celui du
+        // PERSONNEL (ADR-0031). TCK-2637 — la clause vit dans `Lease::scopeVisibleTo()`, que lit aussi
+        // l'occupation des biens (bloc `tenant`).
+        $base->visibleTo($user);
 
         $paginator = Lease::buildQuery($base, $request)
             ->defaultSort('-created_at')
