@@ -102,9 +102,13 @@ return [
     'booking' => [
         'cannot_cancel' => 'This booking cannot be cancelled in its current state.',
         'cannot_expire' => 'This booking cannot be expired: it must be pending.',
+        // TCK-2579
+        'customer_required' => 'A booking recorded by the agency must name a customer.',
         'dates_overlap' => 'Another confirmed booking already covers these dates on this property.',
         'dates_unavailable' => 'These dates are not available for this property.',
         'expire_race' => 'The booking status changed in the meantime. Reload the page.',
+        // TCK-2579
+        'kind_mismatch' => 'This kind of request does not match the property: an application is for a monthly rental, an offer for a property for sale.',
         'not_found' => 'Booking not found.',
         'not_in_active_agency' => 'This booking does not belong to your active agency.',
         'not_pending_confirm' => 'Only a pending booking can be confirmed.',

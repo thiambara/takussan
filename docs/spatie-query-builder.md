@@ -150,6 +150,7 @@ GET /api/properties?filter[id]=839,838&filter[agency_id]=1&fields[properties]=id
 | Param | Type | Description |
 |---|---|---|
 | `filter[status]` | exact | `pending`, `confirmed`, `cancelled`, ... |
+| `filter[kind]` | exact | `stay`, `application`, `offer` — la nature (TCK-2579, ADR-0102) ; liste admise (`stay,offer`) |
 | `filter[property_id]` | exact | |
 | `filter[customer_id]` | exact | |
 | `filter[total_amount_min]` | range | |

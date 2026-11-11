@@ -102,9 +102,13 @@ return [
     'booking' => [
         'cannot_cancel' => 'Wootu bii mënuñu ko neenal ni mu nekke léegi.',
         'cannot_expire' => 'Wootu bii mënuñu ko jeexal: war na nekk ci xaar.',
+        // TCK-2579
+        'customer_required' => 'Une réservation saisie par l\'agence doit désigner un client.',
         'dates_overlap' => 'Beneen wootu bu ñu dëggal am na ba noppi ci bés yii ci kër gii.',
         'dates_unavailable' => 'Bis yii jëfandikoowuñu leen ci kër gii.',
         'expire_race' => 'Statut wootu bi soppiku na ci diggante bi. Yeesalal page bi.',
+        // TCK-2579
+        'kind_mismatch' => 'Cette nature de demande ne correspond pas au bien : une candidature vise une location au mois, une offre un bien à vendre.',
         'not_found' => 'Wootu bi gisuñu ko.',
         'not_in_active_agency' => 'Wootu bii bokkul ci sa agence bu dox bi.',
         'not_pending_confirm' => 'Wootu buy xaar rekk lañu mën a dëggal.',

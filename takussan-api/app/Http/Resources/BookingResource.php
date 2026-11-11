@@ -20,6 +20,19 @@ class BookingResource extends BaseResource
             'customer_id' => $this->customer_id,
             'agency_id' => $this->agency_id,
             'status' => $this->status?->value,
+            // TCK-2579 (ADR-0102) — la nature, et ce qu'une offre ou une candidature retient du bien.
+            // Omises sous un sparse fieldset qui ne les lit pas ; nulles sur un modèle qui vient d'être
+            // créé sans elles (même exception que `responseDeadline()`), comme le `show` les rend.
+            'kind' => $this->when($this->lue('kind'), fn (): ?string => $this->kind?->value),
+            'offer_expires_at' => $this->when($this->lue('offer_expires_at'), fn (): ?string => $this->calendarDate($this->offer_expires_at)),
+            'list_price_at_booking' => $this->when($this->lue('list_price_at_booking'), fn (): ?float => $this->list_price_at_booking !== null ? (float) $this->list_price_at_booking : null),
+            // TCK-2579 — qui l'a saisie (le nom seul, jamais une coordonnée) et si c'était pour le
+            // client ; seulement quand l'auteur, ou le client, est chargé : jamais une requête par ligne.
+            'created_by' => $this->when($this->authorLoaded(), fn (): ?array => $this->createdBy === null ? null : [
+                'id' => $this->createdBy->id,
+                'name' => $this->createdBy->nameWithoutContact(),
+            ]),
+            'recorded_by_staff' => $this->when(($recordedByStaff = $this->recordedByStaff()) !== null, fn (): ?bool => $recordedByStaff),
             // TCK-1182 (P100.03) — `whenHas` : sous un sparse fieldset qui ne lit pas la colonne, la clé
             // est omise au lieu d'une valeur inventée (montant à 0, nature ou devise par défaut).
             'total_amount' => $this->whenHas('total_amount', fn () => (float) $this->total_amount),
@@ -84,6 +97,38 @@ class BookingResource extends BaseResource
             $statuses->contains(PaymentStatus::Refunded) => 'refunded',
             default => null,
         };
+    }
+
+    /** TCK-2579 — la colonne a été lue, ou le modèle vient d'être créé (une colonne absente y vaut `null` en base). */
+    private function lue(string $colonne): bool
+    {
+        return $this->resource instanceof Booking
+            && ($this->resource->wasRecentlyCreated || array_key_exists($colonne, $this->resource->getAttributes()));
+    }
+
+    /** TCK-2579 — l'auteur chargé ET sa colonne lue : sinon `null` dirait « sans auteur » à tort. */
+    private function authorLoaded(): bool
+    {
+        return $this->resource instanceof Booking
+            && $this->resource->relationLoaded('createdBy')
+            && array_key_exists('created_by_id', $this->resource->getAttributes());
+    }
+
+    /**
+     * TCK-2579 — {@see Booking::recordedOnBehalf()}, seulement quand le modèle porte les deux
+     * colonnes qu'elle lit et son client : sous un sparse fieldset qui les omet, `false` serait
+     * une valeur inventée.
+     */
+    private function recordedByStaff(): ?bool
+    {
+        $booking = $this->resource;
+        if (! $booking instanceof Booking
+            || ! array_key_exists('customer_id', $booking->getAttributes())
+            || ! array_key_exists('created_by_id', $booking->getAttributes())) {
+            return null;
+        }
+
+        return $booking->recordedOnBehalf();
     }
 
     private function responseDeadline(): ?\DateTimeInterface

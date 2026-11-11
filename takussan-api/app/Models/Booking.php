@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
+use App\Models\Enums\BookingKind;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\CancellationBy;
 use App\Models\Enums\Currency;
@@ -26,6 +27,8 @@ class Booking extends AbstractModel
         'start_date', 'end_date', 'notes',
         'confirmed_at', 'cancelled_at', 'expires_at', 'expired_at', 'expiry_reason',
         'cancellation_by', 'cancellation_reason', 'metadata',
+        // TCK-2579 (ADR-0102) — la nature, et ce qu'une offre ou une candidature retient du bien.
+        'kind', 'offer_expires_at', 'list_price_at_booking',
     ];
 
     protected $casts = [
@@ -41,6 +44,9 @@ class Booking extends AbstractModel
         'expires_at' => 'datetime',
         'expired_at' => 'datetime',
         'metadata' => 'array',
+        'kind' => BookingKind::class,
+        'offer_expires_at' => 'date',
+        'list_price_at_booking' => 'decimal:2',
     ];
 
     /**
@@ -60,7 +66,8 @@ class Booking extends AbstractModel
      */
     public const STAFF_PAYABLE_STATUSES = [BookingStatus::Pending, BookingStatus::Confirmed, BookingStatus::Completed];
 
-    protected static array $requestFilterable = ['property_id', 'customer_id', 'created_by_id', 'agency_id', 'status', 'currency'];
+    // TCK-2579 — `filter[kind]` : les écrans et les compteurs se découpent par nature (ADR-0102).
+    protected static array $requestFilterable = ['property_id', 'customer_id', 'created_by_id', 'agency_id', 'status', 'currency', 'kind'];
 
     protected static array $requestSortable = ['id', 'created_at', 'start_date', 'end_date', 'status'];
 
@@ -102,7 +109,48 @@ class Booking extends AbstractModel
         'reference_number', 'status', 'total_amount', 'deposit_amount', 'currency',
         'start_date', 'end_date', 'confirmed_at', 'cancelled_at', 'expires_at', 'expired_at',
         'created_at', 'updated_at',
+        // TCK-2579
+        'kind', 'offer_expires_at', 'list_price_at_booking',
     ];
+
+    /**
+     * TCK-2579 (ADR-0102 §1) — la nature est posée À L'ÉCRITURE, et toujours : une création qui ne
+     * la dit pas (seeders, fabrique avec `kind => null`, tout appelant futur) reçoit celle que
+     * donne le bien à cet instant. La fabrique, elle, pose `stay` par défaut (`BookingFactory`). Ici et non dans un écouteur `creating` : les seeders créent sous
+     * `Booking::withoutEvents()`, qui le ferait taire, et la colonne est NOT NULL.
+     */
+    protected function performInsert(Builder $query)
+    {
+        if ($this->getAttribute('kind') === null && $this->property_id !== null) {
+            $property = $this->relationLoaded('property') ? $this->property : Property::withTrashed()->find($this->property_id);
+            if ($property !== null) {
+                $this->setAttribute('kind', BookingKind::forProperty($property));
+            }
+        }
+
+        return parent::performInsert($query);
+    }
+
+    /**
+     * TCK-2579 — la demande a-t-elle été saisie par quelqu'un d'autre que le client, pour lui ?
+     * Vrai quand son auteur n'est pas le compte de la fiche client (fiche sans compte comprise).
+     * La voie du client et le tunnel public créent toujours au nom de l'auteur
+     * (`BookingService::create`, `$isBookingForSelf`). Une seule définition : la ressource
+     * (`recorded_by_staff`) et l'avis au client (`NotifyCustomerOfBookingRecordedOnBehalf`).
+     *
+     * `null` quand on ne peut pas le dire sans requête : client non chargé.
+     */
+    public function recordedOnBehalf(): ?bool
+    {
+        if ($this->customer_id === null || $this->created_by_id === null) {
+            return false;
+        }
+        if (! $this->relationLoaded('customer')) {
+            return null;
+        }
+
+        return $this->customer !== null && (int) $this->customer->user_id !== (int) $this->created_by_id;
+    }
 
     public function property(): BelongsTo
     {

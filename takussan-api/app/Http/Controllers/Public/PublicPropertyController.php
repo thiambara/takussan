@@ -28,6 +28,7 @@ use App\Http\Resources\ReviewResource;
 use App\Jobs\NotifyNewMessageJob;
 use App\Models\Booking;
 use App\Models\Customer;
+use App\Models\Enums\BookingKind;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\ContactLeadChannel;
 use App\Models\Enums\ContractType;
@@ -999,6 +1000,11 @@ class PublicPropertyController extends Controller
                 // valait le 21 à 00:00. La date choisie reste telle quelle dans `metadata`.
                 'expires_at' => FinInclusive::de($data['offer_expires_at']),
                 'notes' => $data['message'] ?? null,
+                // TCK-2579 (ADR-0102) — la nature et les termes de l'offre ont leurs colonnes ;
+                // `metadata` reste écrit comme avant, et n'est plus lu.
+                'kind' => BookingKind::Offer->value,
+                'offer_expires_at' => $data['offer_expires_at'],
+                'list_price_at_booking' => $property->price,
                 'metadata' => [
                     'kind' => 'offer',
                     'offer_amount' => (float) $data['offer_amount'],
@@ -1039,6 +1045,7 @@ class PublicPropertyController extends Controller
             // une demande refusée en 422 ne crée ni ne rattache plus de fiche. Verrous dans l'ordre
             // `properties` puis `users` (`findOrCreateFromUser`), comme `BookingService::create`.
             $customer = $customers->findOrCreateFromUser($user, $property);
+            $kind = BookingKind::forProperty($locked);
 
             return Booking::create([
                 'property_id' => $property->id,
@@ -1054,6 +1061,10 @@ class PublicPropertyController extends Controller
                 'currency' => $locked->currency,
                 'status' => BookingStatus::Pending->value,
                 'notes' => $data['message'] ?? null,
+                // TCK-2579 (ADR-0102) — séjour ou candidature, d'après le bien relu sous le verrou ;
+                // une candidature retient le loyer affiché.
+                'kind' => $kind,
+                'list_price_at_booking' => $kind === BookingKind::Application ? $locked->price : null,
                 'metadata' => ['guests' => $data['guests']],
             ]);
         });

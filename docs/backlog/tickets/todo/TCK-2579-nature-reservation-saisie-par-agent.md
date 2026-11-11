@@ -83,4 +83,21 @@ Quand un client dit à la sortie d'une visite « je prends » ou « je vous en o
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Prémisse re-mesurée (2026-11-11, `fba85c3f9`)** — juste dans l'ensemble ; deux écarts :
+
+- le code du refus d'une location au mois est `rent_period_not_bookable` (`BookingQuote::CODE_PERIOD_NOT_BOOKABLE`), pas `period_not_bookable` ;
+- la notification n'est pas une classe `BookingRecordedOnBehalfNotification` : depuis ADR-0032, une notification est un **code** envoyé par `NotificationService::send()` (ADR-0102 §2 le dit : « une notification à code »). Livrée comme `NotificationCode::BookingRecordedOnBehalf` (`booking.recorded_on_behalf`), émise par l'écouteur `NotifyCustomerOfBookingRecordedOnBehalf` sur `BookingRequested` ; textes API (fr/en/wo) et cloche du front (`notifications.codes.booking.recorded_on_behalf`).
+
+**Décisions** :
+
+- **La nature se pose à l'insertion, dans `Booking::performInsert()`**, quand l'appelant ne la donne pas (seeders, tout appelant futur). Pas dans un écouteur `creating` : les trois seeders de réservations créent sous `Booking::withoutEvents()`, qui l'aurait fait taire, et la colonne est NOT NULL. La voie du personnel et le tunnel public la posent explicitement.
+- **`BookingFactory` pose `stay` par défaut** (`kind => null` la fait dériver du bien). Dérivée du bien tiré au hasard par `PropertyFactory`, une réservation confirmée de fabrique sur deux devenait une candidature qui ne bloque rien : `BookingOverlapAndExpirationTest` a rougi ainsi, et la même cause aurait fait basculer au hasard tout test qui lit une réservation de fabrique comme des nuits occupées.
+- **`stay` ou sans `kind` : la règle d'avant** (« sauf stay qui garde ses règles actuelles »). La nature enregistrée reste celle du bien : un `stay` demandé sur un bien au mois est refusé par le devis (`rent_period_not_bookable`), et un bien à vendre sans `kind` reste au prix affiché, avec la nature `offer`. Le montant libre exige `kind: offer`.
+- **Seul un séjour occupe des nuits** : `PropertyAvailabilityService` ne lit plus que `kind = stay`. Une candidature datée et confirmée (celles du tunnel public, et les 240 de la démo) ne grise plus le calendrier d'un bien et ne refuse plus un blocage manuel. Le test qui le garde porte une candidature **datée des deux bouts**, pour que l'ablation soit informative (une candidature saisie n'a pas de `end_date` et ne bloquerait rien de toute façon).
+- **L'autorisation précède la validation** : `StoreBookingRequest::authorize()` délègue à `BookingPolicy::recordForCustomer` (le « personnel de l'agence du bien, ou super-admin » que `BookingService::create` appliquait déjà, désormais lu des deux côtés). Un bien absent ou un identifiant illisible reçoit 403, comme un bien tiers (TCK-1066).
+- `booking.customer_required` vaut pour **toute** nature en mode personnel, et se juge après les refus de visibilité, d'état et de propriété.
+- **Écart au ticket** (« même mécanisme que `VisitNotifier::confirmed` ») : le SMS au client sans compte n'est pas borné au point d'envoi par émetteur. Seule la limite du canal s'applique — `SmsChannel::withinRateLimit`, 5 par heure et par numéro, tous émetteurs confondus (lu dans le code, non éprouvé par un test), comme pour l'avis de remboursement.
+- **Conséquence du filtre `kind = stay` à faire trancher** : `confirm()` passe par la même requête ; deux candidatures datées qui se chevauchent sur une même location peuvent désormais être confirmées toutes deux (avant : `booking.dates_overlap` à la seconde). L'export iCal (`IcalExportController`), l'agenda agrégé (`CalendarEventCollector`) et l'occupation (`PortfolioMetrics`) lisent toujours les réservations confirmées sans regarder la nature.
+- Rattrapage : `metadata.kind = 'offer'` l'emporte sur le contrat actuel ; une demande portant `metadata.guests` sur un bien passé en vente devient `application` (période d'alors inconnue). Les deux cas ambigus sont comptés au journal (`[migration] add_kind_to_bookings`). La validité et le prix affiché d'une offre publique sont recopiés de `metadata` ; une valeur illisible reste nulle.
+
+**AC5 sur la base de démo** (migration jouée le 2026-11-11 par `--path`) : 299 réservations, 0 `kind` nul ; 59 `offer` sur des biens à vendre, 240 `application` sur des locations au mois ; **0 écart** avec la nature que donne le bien. Cas ambigus : 0 et 0.

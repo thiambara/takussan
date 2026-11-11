@@ -42,6 +42,18 @@ class BookingPolicy extends BasePolicy
             || ($model->customer && $model->customer->user_id === $user->id);
     }
 
+    /**
+     * TCK-2579 (ADR-0102 §2, décision 9 (c)) — saisir une réservation AU NOM D'UN CLIENT : le
+     * personnel de l'agence du bien, ou le super-admin. Pas de capacité nouvelle : c'est la règle
+     * « personnel » que `BookingService::create` appliquait déjà (TCK-587), désormais lue ici par
+     * le service ET par `StoreBookingRequest::authorize()` (le refus 403 précède la validation).
+     * Un client, un bailleur, un prestataire, le personnel d'une autre agence : non.
+     */
+    public function recordForCustomer(User $user, Property $property): bool
+    {
+        return $user->isSuperAdmin() || $this->isStaffOf($user, $property->agency_id);
+    }
+
     /** Administrer une réservation : super-admin, propriétaire du bien, ou périmètre d'agence. */
     public function update(User $user, Model $model): bool
     {

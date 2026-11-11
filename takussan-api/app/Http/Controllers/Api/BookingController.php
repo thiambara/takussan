@@ -20,11 +20,15 @@ class BookingController extends Controller
 {
     public function __construct(protected BookingService $bookings) {}
 
+    /** TCK-2579 — les colonnes de l'auteur que `created_by` lit : le nom, jamais une coordonnée. */
+    private const AUTEUR = 'id,first_name,last_name,username';
+
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
 
-        $base = Booking::query()->with(['property.address', 'property.media', 'customer', 'agency']);
+        // TCK-2579 — `createdBy` (le nom de l'auteur, `created_by`), en une requête pour la page.
+        $base = Booking::query()->with(['property.address', 'property.media', 'customer', 'agency', 'createdBy:'.self::AUTEUR]);
 
         if (! $user->isSuperAdmin()) {
             // P218.03 (TCK-2196) — le créateur encore membre de l'agence, comme `BookingPolicy::view`.
@@ -109,7 +113,7 @@ class BookingController extends Controller
      */
     private function presenter(Request $request, Booking $booking): array
     {
-        $data = BookingResource::make($booking->load(['property.address', 'customer', 'payments']))->resolve($request);
+        $data = BookingResource::make($booking->load(['property.address', 'customer', 'payments', 'createdBy:'.self::AUTEUR]))->resolve($request);
         // TCK-596 — le geste de remboursement ne s'affiche qu'à qui peut le faire aboutir.
         $data['can_refund'] = BookingMoneyAccess::canRefund($request->user(), $booking);
 

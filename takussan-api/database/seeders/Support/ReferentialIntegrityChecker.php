@@ -4,6 +4,7 @@ namespace Database\Seeders\Support;
 
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgentProfileStatus;
+use App\Models\Enums\BookingKind;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\BoostKind;
 use App\Models\Enums\ContractType;
@@ -260,6 +261,10 @@ class ReferentialIntegrityChecker
             'indisponibilite_sur_une_reservation_confirmee' => DB::table('property_unavailabilities as u')
                 ->join('bookings as b', 'b.property_id', '=', 'u.property_id')
                 ->where('b.status', BookingStatus::Confirmed->value)
+                // TCK-2579 (ADR-0102 §3) — seul un SÉJOUR occupe des nuits : la règle que tient
+                // `PropertyAvailabilityService` (et le blocage manuel qui la lit). Une candidature
+                // confirmée datée n'empêche plus de bloquer ces dates.
+                ->where('b.kind', BookingKind::Stay->value)
                 ->whereColumn('b.start_date', '<', 'u.ends_on')
                 ->whereColumn('b.end_date', '>', 'u.starts_on')
                 ->count(),

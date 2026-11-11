@@ -7,16 +7,20 @@ use App\Events\Booking\BookingClosed;
 use App\Events\Booking\BookingRequested;
 use App\Models\Booking;
 use App\Models\Customer;
+use App\Models\Enums\BookingKind;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\CancellationBy;
+use App\Models\Enums\Currency;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
 use App\Models\User;
+use App\Policies\BookingPolicy;
 use App\Services\Booking\BookingNotificationParams;
 use App\Services\Booking\BookingQuote;
 use App\Services\Booking\PropertyAvailabilityService;
 use App\Services\Property\BailleurDuBien;
 use App\Services\Property\ContactDeLAgenceDuBien;
+use App\Support\FinInclusive;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -62,8 +66,9 @@ class BookingService
         // pour un autre bailleur de l'agence : il réservait un bien privé ou non publié, sans
         // client. Il suit désormais le chemin du client. Le disjoint `$property->user_id ===
         // $user->id` était mort : le propriétaire est refusé plus bas.
-        $isStaff = $user->isSuperAdmin()
-            || ($property->agency_id !== null && $user->staffAgencyId() === (int) $property->agency_id);
+        // TCK-2579 — la règle est lue dans `BookingPolicy::recordForCustomer`, que
+        // `StoreBookingRequest::authorize()` lit aussi : une seule définition du « personnel ».
+        $isStaff = app(BookingPolicy::class)->recordForCustomer($user, $property);
 
         // TCK-1066 (P62.02) — la visibilité AVANT l'état, pour qui n'est ni du personnel ni le
         // propriétaire : un brouillon tiers rendait 422 là où un bien privé rendait 403, et
@@ -85,6 +90,22 @@ class BookingService
 
         // Owners cannot book their own property (admins can still act on their behalf).
         abort_code_if($isOwner, 403, 'booking.own_property');
+
+        // TCK-2579 (ADR-0102) — la nature est celle du BIEN. Une candidature ou une offre saisie
+        // doit être celle que le bien donne ; un `stay` (ou rien) suit la règle d'avant : devis,
+        // nuits, prix affiché — un séjour demandé sur un bien au mois y est refusé par le devis.
+        $kind = BookingKind::forProperty($property);
+        $asked = isset($data['kind']) ? BookingKind::from($data['kind']) : null;
+        unset($data['kind']);
+        $recorded = $asked === BookingKind::Application || $asked === BookingKind::Offer;
+        // `StoreBookingRequest::authorize()` l'a déjà refusé : défense pour un appelant hors HTTP.
+        abort_unless(! $recorded || $isStaff, 403);
+        abort_code_if($recorded && $asked !== $kind, 422, 'booking.kind_mismatch');
+
+        // TCK-2579 (ADR-0102 §2) — une réservation saisie par le personnel a TOUJOURS un client :
+        // sans `customer_id`, elle naissait sans client (l'ancienne branche « personnel » de
+        // `elseif (! $isStaff)`). Après les refus de visibilité, d'état et de propriété.
+        abort_code_if($isStaff && empty($data['customer_id']), 422, 'booking.customer_required');
 
         $isBookingForSelf = false;
         $resoudreLeClient = false;
@@ -114,21 +135,31 @@ class BookingService
 
         abort_unless($isStaff || $isBookingForSelf, 403);
 
-        // TCK-1065 (P80.02) — le nombre de voyageurs n'a pas de colonne : il va dans `metadata`,
-        // sous la forme qu'écrit déjà `PublicPropertyController::bookingRequest()`.
-        if (array_key_exists('guests', $data)) {
-            $data['metadata'] = ['guests' => (int) $data['guests']];
-            unset($data['guests']);
-        }
+        if ($recorded) {
+            // TCK-2579 — ni devis ni nuits : le montant est celui du client.
+            $data = array_merge($data, $this->recordedTerms($property, $kind, $data));
+        } else {
+            // TCK-1065 (P80.02) — le nombre de voyageurs n'a pas de colonne : il va dans `metadata`,
+            // sous la forme qu'écrit déjà `PublicPropertyController::bookingRequest()`.
+            if (array_key_exists('guests', $data)) {
+                $data['metadata'] = ['guests' => (int) $data['guests']];
+                unset($data['guests']);
+            }
 
-        // Montants ET devise viennent du bien : la devise n'est plus le défaut XOF (TCK-530).
-        $data = array_merge($data, $this->pricedAmounts($property, $data));
+            // Montants ET devise viennent du bien : la devise n'est plus le défaut XOF (TCK-530).
+            $data = array_merge($data, $this->pricedAmounts($property, $data));
+        }
+        $data['kind'] = $kind->value;
 
         // TCK-596 — une demande sur des nuits déjà confirmées est refusée dès la demande, sous le
         // verrou de la ligne du bien que `confirm` prend aussi.
-        $booking = DB::transaction(function () use ($property, $user, $data, $resoudreLeClient): Booking {
+        $booking = DB::transaction(function () use ($property, $user, $data, $resoudreLeClient, $recorded): Booking {
             Property::query()->whereKey($property->getKey())->lockForUpdate()->first();
-            $this->availability->assertAvailable($property, $data['start_date'] ?? null, $data['end_date'] ?? null);
+            // TCK-2579 (ADR-0102 §3) — une candidature ou une offre ne bloque aucune nuit et ne
+            // passe pas par la disponibilité : seul le séjour y est soumis.
+            if (! $recorded) {
+                $this->availability->assertAvailable($property, $data['start_date'] ?? null, $data['end_date'] ?? null);
+            }
 
             // Verrous dans l'ordre `properties` puis `users` (`findOrCreateFromUser`), comme le tunnel public.
             if ($resoudreLeClient) {
@@ -186,6 +217,43 @@ class BookingService
         }
 
         return ['currency' => $quote['currency']->value] + $quote;
+    }
+
+    /**
+     * TCK-2579 (ADR-0102 §3) — les termes d'une candidature ou d'une offre saisie par le personnel.
+     *
+     * - montant : celui que le client propose — une offre le DIT (requis, > 0), une candidature
+     *   reprend le loyer du bien à défaut ; aucun acompte ;
+     * - `list_price_at_booking` : le prix ou le loyer affiché à cet instant ;
+     * - dates : l'entrée d'une candidature (`start_date`), jamais de départ ; aucune pour une offre ;
+     * - échéance : la validité de l'offre, fin de journée de Dakar (`FinInclusive`, comme le tunnel
+     *   public), sinon la règle d'avant (`expires_at` envoyé, ou 7 jours).
+     *
+     * La devise est celle du bien : une autre est refusée, comme pour un séjour (TCK-530).
+     *
+     * @param  array<string,mixed>  $data
+     * @return array<string,mixed>
+     */
+    protected function recordedTerms(Property $property, BookingKind $kind, array $data): array
+    {
+        $currency = ($property->currency ?? Currency::default())->value;
+        if (isset($data['currency']) && $data['currency'] !== $currency) {
+            throw ValidationException::withMessages(['currency' => [__('bookings.'.BookingQuote::CODE_CURRENCY_MISMATCH)]]);
+        }
+
+        $listPrice = $property->price !== null ? (string) $property->price : null;
+        $offerExpiresAt = $kind === BookingKind::Offer ? ($data['offer_expires_at'] ?? null) : null;
+
+        return [
+            'total_amount' => isset($data['total_amount']) ? (string) $data['total_amount'] : ($listPrice ?? '0'),
+            'deposit_amount' => null,
+            'currency' => $currency,
+            'list_price_at_booking' => $listPrice,
+            'start_date' => $kind === BookingKind::Application ? ($data['start_date'] ?? null) : null,
+            'end_date' => null,
+            'offer_expires_at' => $offerExpiresAt,
+            'expires_at' => $offerExpiresAt !== null ? FinInclusive::de($offerExpiresAt) : ($data['expires_at'] ?? null),
+        ];
     }
 
     public function confirm(Booking $booking): Booking

@@ -102,9 +102,13 @@ return [
     'booking' => [
         'cannot_cancel' => 'Cette réservation ne peut pas être annulée dans son état actuel.',
         'cannot_expire' => 'Cette réservation ne peut pas être expirée : elle doit être en attente.',
+        // TCK-2579
+        'customer_required' => 'Une réservation saisie par l\'agence doit désigner un client.',
         'dates_overlap' => 'Une autre réservation confirmée occupe déjà ces dates sur ce bien.',
         'dates_unavailable' => 'Ces dates ne sont pas disponibles pour ce bien.',
         'expire_race' => 'Le statut de la réservation a changé entre-temps. Rechargez la page.',
+        // TCK-2579
+        'kind_mismatch' => 'Cette nature de demande ne correspond pas au bien : une candidature vise une location au mois, une offre un bien à vendre.',
         'not_found' => 'Réservation introuvable.',
         'not_in_active_agency' => 'Cette réservation n\'appartient pas à votre agence active.',
         'not_pending_confirm' => 'Seule une réservation en attente peut être confirmée.',

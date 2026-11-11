@@ -26,6 +26,8 @@ class BookingResourceContractTest extends TestCase
         'total_amount', 'deposit_amount', 'currency', 'start_date', 'end_date',
         'confirmed_at', 'cancelled_at', 'expires_at', 'response_deadline',
         'cancellation_by', 'cancellation_reason', 'notes', 'created_at',
+        // TCK-2579 (ADR-0102) — la nature et les termes d'une offre ou d'une candidature.
+        'kind', 'offer_expires_at', 'list_price_at_booking',
     ];
 
     /** Seulement quand `payments` est chargé (TCK-596). */
