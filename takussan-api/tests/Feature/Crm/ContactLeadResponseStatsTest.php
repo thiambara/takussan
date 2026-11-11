@@ -6,6 +6,7 @@ use App\Models\Agency;
 use App\Models\AgencyRole;
 use App\Models\Enums\Capability;
 use App\Models\Enums\ContactLeadChannel;
+use App\Models\Profiles\PlatformProfile;
 use App\Models\PropertyContactLead;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -147,5 +148,42 @@ class ContactLeadResponseStatsTest extends ApiTestCase
         Sanctum::actingAs($this->admin);
         $this->getJson('/api/contact-leads/response-stats?period=abc')->assertStatus(422);
         $this->getJson('/api/contact-leads/response-stats?period=0')->assertStatus(422);
+    }
+
+    /**
+     * Vérification adverse de TCK-2583 — l'isolation d'agence ne dépend pas d'un paramètre : un admin
+     * de A qui nomme l'agence B reçoit 422, jamais les délais nominatifs des agents de B.
+     */
+    public function test_un_admin_ne_lit_jamais_une_autre_agence_par_agency_id(): void
+    {
+        $autre = $this->agence();
+        $etranger = $this->personnel($autre);
+        $this->demande($autre, 24 * 2, 5, $etranger);
+
+        Sanctum::actingAs($this->admin);
+        $this->getJson("/api/contact-leads/response-stats?agency_id={$autre->id}")
+            ->assertStatus(422)
+            ->assertJsonMissing(['id' => $etranger->id]);
+    }
+
+    /** Le super-admin, sans agence, nomme celle qu'il lit : sans `agency_id` 422, avec, cette agence seule. */
+    public function test_le_super_admin_nomme_l_agence_qu_il_lit(): void
+    {
+        $this->demande($this->agence, 24 * 2, 2);
+        $autre = $this->agence();
+        $etranger = $this->personnel($autre);
+        $this->demande($autre, 24 * 2, 5, $etranger);
+
+        $superAdmin = User::factory()->create();
+        PlatformProfile::factory()->superAdmin()->create(['user_id' => $superAdmin->id]);
+        Sanctum::actingAs($superAdmin->fresh());
+
+        $this->getJson('/api/contact-leads/response-stats')->assertStatus(422);
+
+        $data = $this->getJson("/api/contact-leads/response-stats?agency_id={$autre->id}")->assertOk()->json('data');
+        $this->assertSame(18000, $data['agency']['median_first_response_seconds']);
+        $this->assertSame(1, $data['agency']['responded_count']);
+        $this->assertNotNull(collect($data['agents'])->firstWhere('user.id', $etranger->id));
+        $this->assertNull(collect($data['agents'])->firstWhere('user.id', $this->agent->id));
     }
 }

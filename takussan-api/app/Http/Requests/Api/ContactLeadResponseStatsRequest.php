@@ -25,7 +25,11 @@ class ContactLeadResponseStatsRequest extends BaseFormRequest
     {
         return [
             'period' => ['nullable', 'integer', 'min:1', 'max:365'],
-            'agency_id' => [$this->user()?->isSuperAdmin() ? 'required' : 'nullable', 'integer', Rule::exists('agencies', 'id')->withoutTrashed()],
+            // Vérification adverse de TCK-2583 : hors super-admin, `agency_id` est INTERDIT (422) — la
+            // portée est l'agence active de l'appelant, jamais un paramètre qu'il choisit.
+            'agency_id' => $this->user()?->isSuperAdmin() === true
+                ? ['required', 'integer', Rule::exists('agencies', 'id')->withoutTrashed()]
+                : ['prohibited'],
         ];
     }
 
