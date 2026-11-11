@@ -131,7 +131,7 @@ L'agent répond à ses clients comme sur WhatsApp, avec en plus ce que WhatsApp 
 ## Critères d'acceptation
 
 - [ ] AC1 — À 390, la première ligne de la liste d'un agent dit « Malick Seck », et non « Maison avec jardin · Thiès », qui est en deuxième ligne.
-- [ ] AC2 — Taper « thies » dans la recherche envoie `filter[search]=thies` (réseau) et laisse une seule ligne. Effacer rend la liste entière.
+- [ ] AC2 — Taper « thiès » dans la recherche envoie `filter[search]=thiès` (réseau) et laisse une seule ligne. Effacer rend la liste entière. *(Réécrit le 2026-11-11 : l'API replie la casse, pas les accents — TCK-2630 AC1, ADR-0020 § 2.)*
 - [ ] AC3 — À 390, le fil ouvert occupe toute la hauteur, de `y = 0` jusqu'au composeur. Aucun `[data-slot=en-tete-mobile]` ni barre d'onglets n'est rendu, et le composeur reste visible clavier ouvert.
 - [ ] AC4 — « Nouvelle conversation » → « Awa Ndiaye », qui a déjà un fil : le fil existant s'ouvre, et aucun `POST /api/conversations` ne part. Pour une personne sans fil, le premier envoi crée la conversation `direct` (une seule requête).
 - [ ] AC5 — À 1280, l'arrivée sur `/app/messages` ouvre le fil non lu le plus récent. La colonne de contexte montre l'étape et le téléphone du client, et se replie.

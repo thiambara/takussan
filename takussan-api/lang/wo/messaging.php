@@ -27,6 +27,11 @@ return [
     // TCK-576, reprise (2026-09-24) — le nom du champ dans un 422, jamais « filter.property id ».
     'attributes' => [
         'property_filter' => 'ber',
+        // TCK-2630 — les filtres de la liste des conversations.
+        'filters' => 'filtres',
+        'search_filter' => 'recherche',
+        'unread_filter' => 'non lus',
+        'type_filter' => 'type de conversation',
     ],
 
     // TCK-592 — ADR-0038 : aperçu d'une note vocale dans la liste des conversations.

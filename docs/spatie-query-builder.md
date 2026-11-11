@@ -173,6 +173,29 @@ Même pattern : `filter[status]`, `filter[search]` (selon le model), `sort`.
 |---|---|---|
 | `filter[scheduled_from]` / `filter[scheduled_to]` | date | `YYYY-MM-DD`, heure de Dakar, bornes incluses ; une intervention sans créneau n'entre dans aucune plage ; illisible ou liste → 422. Le périmètre reste celui de la Policy (`visibleTo`) |
 
+### Conversations — `GET /api/conversations` (TCK-2630)
+
+Ne passe **pas** par `HasQueryBuilder` : la liste est cloisonnée par
+`ConversationAccess::constrainListing` et filtrée dans `ConversationController::index`
+(`ListConversationsRequest` ; saisie mal formée → 422).
+
+| Param | Type | Description |
+|---|---|---|
+| `archived` | `0`/`1` | les fils archivés par l'appelant au lieu des autres |
+| `filter[search]` | texte | chaque mot (6 au plus) trouve le prénom ou le nom d'un membre actuel autre que l'appelant, le titre ou la référence du bien, ou le sujet ; casse repliée (`CaseInsensitive`), **accents non repliés** (« thies » ne trouve pas « Thiès ») ; moins de 2 caractères → ignoré (TCK-2630) |
+| `filter[unread]` | `1`/`0` | fils ayant au moins un message non lu (même définition que `unread_count`) (TCK-2630) |
+| `filter[type]` | `direct` \| `group` | (TCK-2630) |
+
+`meta.counts {all, unread, group}` : les compteurs des puces, sur tout le cloisonné **hors
+archives**, sans aucun filtre ; `unread` compte des fils, sourdine comprise — `meta.unread_total`
+compte des messages, hors sourdine (TCK-2630).
+
+`GET /api/conversations/{conversation}/context` (garde de `show`) rend `property {id, slug, title,
+reference_number, price, status, cover_url}`, `lease {id, status, reference, tenant_name}`,
+`maintenance {id, status, title, scheduled_at}`, chacun `null` s'il est absent ou interdit, et —
+au seul personnel de l'agence du fil, sur une directe — `customer {id, full_name, stage, phone,
+assigned_agent {id, name}}` ; la clé `customer` est absente pour tout autre lecteur (TCK-2630).
+
 ### Historique des paiements — `GET /api/payments/history`
 
 Lu **à la main** par `PaymentController::history` (loyers et réservations fusionnés en PHP, plafond

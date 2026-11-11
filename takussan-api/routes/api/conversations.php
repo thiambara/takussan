@@ -19,6 +19,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('conversations/context/leases', [ConversationContextController::class, 'leases'])
         ->name('conversations.context.leases');
     Route::get('conversations/{conversation}', [ConversationController::class, 'show'])->name('conversations.show');
+    // TCK-2630 — la colonne de contexte d'un fil : bien, bail, intervention, fiche CRM (personnel).
+    // Trois segments comme les littérales `conversations/context/…` de TCK-576, mais le troisième
+    // est `context` : aucune ne la masque, et elle n'en masque aucune.
+    Route::get('conversations/{conversation}/context', [ConversationController::class, 'context'])
+        ->name('conversations.context.show');
     // TCK-565 — les personnes qu'on peut ajouter à CE groupe (même règle que l'ajout, avec lui).
     Route::get('conversations/{conversation}/contacts', [MessagingContactController::class, 'forConversation'])
         ->name('conversations.contacts.for-conversation');

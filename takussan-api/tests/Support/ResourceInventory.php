@@ -11,6 +11,7 @@ use App\Http\Resources\Api\Admin\RadarAdvertiserRankingResource;
 use App\Http\Resources\Api\Admin\UserDetailResource;
 use App\Http\Resources\Api\Admin\UserListResource;
 use App\Http\Resources\Api\Me\ProfileResource;
+use App\Http\Resources\ConversationContextResource;
 use App\Http\Resources\Credits\CreditWalletResource;
 use App\Http\Resources\DocumentVersionResource;
 use App\Http\Resources\IncludedUserResource;
@@ -186,6 +187,9 @@ final class ResourceInventory
         MediaResource::class => 'Enveloppe un `Spatie\\MediaLibrary\\…\\Media`, modèle d\'un paquet tiers sans factory : instancié à la main avec des attributs concrets (`getUrl()` exige `disk`, `id`, `file_name`).',
         DocumentVersionResource::class => 'Même sujet `Media` que ci-dessus, lu par ses `custom_properties` de version.',
         RadarAdvertiserRankingResource::class => 'TCK-2393 — un `RadarAdvertiser` vu par le classement : il exige les trois `withCount` du contrôleur (`listings_count`, `published_count`, `outreaches_count`), que la convention `<Modele>Resource` ne poserait pas.',
+        // TCK-2630
+        ConversationContextResource::class => 'TCK-2630 — enveloppe un objet `readonly` (`App\\Services\\Messaging\\ConversationThreadContext`) qui porte le bien, le bail, l\'intervention et la fiche CRM d\'un fil : construit par appel direct au constructeur.',
+
     ];
 
     /**

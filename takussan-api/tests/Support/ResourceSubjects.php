@@ -7,13 +7,16 @@ use App\Http\Resources\Api\Admin\AgencyProvisioningResource;
 use App\Http\Resources\Api\Admin\ModerationItemResource;
 use App\Http\Resources\Api\Admin\RadarAdvertiserRankingResource;
 use App\Http\Resources\Api\Admin\RadarListingResource;
+use App\Http\Resources\ConversationContextResource;
 use App\Http\Resources\CustomerResource;
 use App\Http\Resources\DocumentVersionResource;
 use App\Http\Resources\MediaResource;
 use App\Http\Resources\PayoutMethodResource;
 use App\Http\Resources\PropertyVisitResource;
 use App\Models\Agency;
+use App\Models\Customer;
 use App\Models\Document;
+use App\Models\MaintenanceRequest;
 use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\RadarAdvertiser;
@@ -21,6 +24,7 @@ use App\Models\RadarListing;
 use App\Models\RadarListingSnapshot;
 use App\Models\User;
 use App\Services\Accounting\MatchCandidate;
+use App\Services\Messaging\ConversationThreadContext;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -438,6 +442,22 @@ final class ResourceSubjects
                     RadarAdvertiser::factory()->create(['do_not_contact_at' => Carbon::parse(self::INSTANT, 'UTC')])->refresh(),
                     self::hydraterLesDates(...),
                 )->setAttribute('listings_count', 3)->setAttribute('published_count', 1)->setAttribute('outreaches_count', 2),
+            ],
+            // TCK-2630 — la colonne de contexte d'un fil : la seule date est `maintenance.scheduled_at`
+            // (cast `datetime`) ; la fiche est rendue pour que le parcours atteigne `customer`.
+            ConversationContextResource::class => [
+                'DTO' => new ConversationThreadContext(
+                    property: null,
+                    lease: null,
+                    maintenance: tap(
+                        MaintenanceRequest::factory()->create(['scheduled_at' => Carbon::parse(self::INSTANT, 'UTC')])->refresh(),
+                        self::hydraterLesDates(...),
+                    ),
+                    customerShown: true,
+                    customer: Customer::factory()->create(),
+                    customerPhoneShown: true,
+                    referent: User::factory()->create(),
+                ),
             ],
             default => [],
         };
