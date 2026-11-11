@@ -72,8 +72,8 @@ Sans objet (ticket API). Écran servi : TCK-2632 (trombone, appareil photo, aper
 ## Critères d'acceptation
 
 - [ ] AC1 — Un locataire participant envoie une photo jpeg de 3 Mo prise avec position GPS. Réponse 201 : `type = image` et `attachments[0].url` signée. Le fichier relu n'a aucune balise EXIF GPS.
-- [ ] AC2 — Un PDF de 11 Mo est refusé en 422 avec un code d'erreur de taille, et aucun message n'est écrit (compte avant / après).
-- [ ] AC3 — Un utilisateur retiré du groupe après l'envoi reçoit 403 sur l'URL de la pièce. Un participant actuel la lit.
+- [ ] AC2 — Un PDF de 11 Mo est refusé en 422 avec l'erreur de taille de la validation (`errors.file` = `validation.max.file`, 10240 Ko ; le dépôt n'a pas de code pour un 422 de validation), et aucun message n'est écrit (compte avant / après). *Réécrit le 2026-11-11 d'après la mesure (TCK-2631, Notes d'implémentation).*
+- [ ] AC3 — Un utilisateur retiré du groupe après l'envoi, et un non-participant, reçoivent 403 sur le fil (`GET …/messages`) : aucune URL de la pièce ne leur est plus émise. Une URL retouchée ou échue rend 403. Un participant actuel la lit. *Réécrit le 2026-11-11 d'après la mesure : l'URL signée est hors `auth:sanctum`, une URL déjà émise reste lisible 30 min par qui la détient (Notes d'implémentation).*
 - [ ] AC4 — La liste des conversations montre « Photo » en aperçu, et non le nom du fichier.
 - [ ] AC5 — Ablation : remettre `PARTICIPANT_TYPES = [Text, Audio]` fait rougir AC1.
 
@@ -85,4 +85,49 @@ Sans objet (ticket API). Écran servi : TCK-2632 (trombone, appareil photo, aper
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+Relevé le 2026-11-11 sur `feat/audit-ux-app-lot-1` (b9cf98153).
+
+**Prémisses qui différaient**
+
+- **AC3 ne peut pas être tenu tel qu'écrit, et rien ne le tenait pour la note vocale non plus.** `media.private.show`
+  est hors `auth:sanctum` (`PrivateMediaController`) : la signature EST l'autorisation, et une URL déjà émise reste
+  lisible 30 min (`PrivateMediaAccess::SIGNED_ROUTE_TTL_MINUTES`) par qui la détient, ancien membre compris.
+  `PrivateMediaAccess` ne « refuse » donc personne : le contrôle réutilisé est celui de la RÉPONSE qui émet l'URL
+  (`ConversationAccess`). Éprouvé (`test_seule_une_reponse_autorisee_emet_l_url_de_la_piece`) : l'ancien membre et le
+  non-participant reçoivent 403 sur `GET …/messages` (plus d'URL neuve) ; une URL retouchée vers un autre média ou
+  échue (31 min) rend 403 ; un participant actuel lit la pièce. **Fenêtre résiduelle : 30 min après le retrait**,
+  à accepter ou à fermer par un ticket (TTL plus court pour `attachments`, ou une route authentifiée), pas ici : le
+  ticket interdit un second contrôle.
+- `messages.content` est **NOT NULL** : une pièce sans légende porte `content = ''` (et non l'aperçu, comme la note
+  vocale) pour que le front distingue une légende du texte de repli. L'aperçu de la liste vient de
+  `Message::neutralPreview()`, légende ou non ; l'avis de nouveau message (`NotifyNewMessageJob`) retombe sur lui
+  quand `content` est vide (sans quoi l'extrait partait vide).
+- **Export** : `messages.json` porte les lignes de message, `media/manifest.json` les seuls médias du compte —
+  les notes vocales n'y sont pas listées comme fichiers aujourd'hui. « Comme les notes vocales » (ADR point 6) :
+  aucun changement.
+- **Suppression du compte** : `AccountDeletionService` ne touche aucun message ni ses médias (la note vocale suit le
+  message, ADR-0038 point 6) — même règle pour une photo ou un PDF, aucun changement. Aucune route ne modifie ni ne
+  supprime un message de participant ; `MessageObserver::created` écrit un aperçu depuis `content`, que
+  `sendMessage` remplace dans la même transaction par l'aperçu neutre.
+- **Idempotence** (ADR-0072) : la même photo rejouée sous la même clé rend un message et une pièce (testé).
+- AC2 « code d'erreur de taille » : le dépôt n'a pas de code pour un 422 de validation. Le refus est
+  `errors.file = validation.max.file` (attribut `messaging.attributes.file`, 10240 Ko), asserté tel quel.
+
+**Décisions**
+
+- Champ du fichier : `file` (le ticket dit « règles `file` »), requis pour `image`/`document`, interdit ailleurs
+  (`audio` garde son champ `audio`). Règles par type dans `SendMessageConversationRequest::ATTACHMENT_RULES`.
+- **Bombe de décompression** : le réencodage décode l'image entière dans la requête → `PixelsAuPlus` (20 Mpx, celle
+  des avatars) sur l'en-tête, avant tout décodage. Conséquence : une photo de 48 Mpx (capteur plein) est refusée en
+  422 — le front de TCK-2632 devra réduire avant l'envoi. Une image dont l'en-tête est lisible mais que GD ne décode
+  pas rend 422 `media.file_rejected` (code existant), sans message ni fichier.
+- EXIF : `AvatarReencode::sansMetadonnees()` réutilisé (spatie/image + GD, orientation appliquée aux pixels avant
+  la perte de la balise) — pas de troisième réencodeur.
+- Vignette : conversion `thumbnail` (400 px, jpg, file `media`) sur les seules images d'`attachments`, servie par
+  `SERVABLE_CONVERSIONS` ; `attachments[].thumbnail_url` (null pour une note vocale, un PDF, ou tant que la file ne
+  l'a pas produite).
+- Limites d'envoi : `upload_max_filesize = 25M`, `post_max_size = 26M` (`docker/php.ini`), Caddy 25 MiB — un PDF de
+  10 Mo passe en déploiement.
+- Fixture : un JPEG porté à 3 Mo par des octets après `EOI`. Des segments `COM` ne conviennent pas : au-delà de 50,
+  `finfo` renonce (« name use count (50) exceeded ») et `mimetypes:` refuse un JPEG valide.
+- [D-73](../../../ardoise.md#d-73--les-pièces-jointes-de-la-messagerie-ne-seront-analysées-par-aucun-antivirus) passe de « décidée » à « ouverte ».

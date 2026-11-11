@@ -4,6 +4,7 @@ namespace App\Services\Media;
 
 use App\Models\Inventory;
 use App\Models\MaintenanceRequest;
+use App\Models\Message;
 use App\Support\RelativeSignedUrl;
 use DateTimeInterface;
 use Illuminate\Contracts\Filesystem\Filesystem;
@@ -57,6 +58,8 @@ class PrivateMediaAccess
             'before_photos' => ['thumbnail'],
             'completion_photos' => ['thumbnail'],
         ],
+        // TCK-2631 — la vignette d'une photo jointe à un message (ADR-0038, amendement du 2026-11-10).
+        Message::class => ['attachments' => ['thumbnail']],
     ];
 
     /**

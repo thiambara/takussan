@@ -32,8 +32,14 @@ return [
         'search_filter' => 'recherche',
         'unread_filter' => 'non lus',
         'type_filter' => 'type de conversation',
+        // TCK-2631 — la pièce jointe d'un message (photo ou PDF).
+        'file' => 'pièce jointe',
     ],
 
     // TCK-592 — ADR-0038 : aperçu d'une note vocale dans la liste des conversations.
     'audio_preview' => 'Kàddu bu ñu yónnee',
+
+    // TCK-2631 — ADR-0038, amendement du 2026-11-10 : aperçu neutre d'une photo et d'un PDF, jamais le nom du fichier.
+    'image_preview' => 'Photo',
+    'document_preview' => 'Document',
 ];

@@ -20,6 +20,7 @@ use App\Models\Enums\ConversationType;
 use App\Models\Enums\MessageType;
 use App\Models\Message;
 use App\Models\User;
+use App\Services\Media\AvatarReencode;
 use App\Services\Messaging\ConversationAccess;
 use App\Services\Messaging\ConversationThreadContext;
 use App\Services\Messaging\GroupConversationService;
@@ -28,7 +29,9 @@ use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Spatie\Image\Exceptions\CouldNotLoadImage;
 
 class ConversationController extends Controller
 {
@@ -430,11 +433,16 @@ class ConversationController extends Controller
         // et sa durée déclarée ; son texte est un aperçu neutre pour la liste des conversations.
         $isAudio = ($data['type'] ?? null) === MessageType::Audio->value;
         $audio = $isAudio ? $request->file('audio') : null;
+        // TCK-2631 (ADR-0038, amendement du 2026-11-10) — une photo ou un PDF, préparés AVANT la
+        // transaction : une photo illisible est refusée sans message ni fichier.
+        $piece = $this->pieceJointe($request);
 
-        $message = DB::transaction(function () use ($conversation, $sender, $data, $isAudio, $audio) {
+        $message = DB::transaction(function () use ($conversation, $sender, $data, $isAudio, $audio, $piece) {
             $message = $conversation->messages()->create([
                 'sender_id' => $sender->id,
-                'content' => $isAudio ? __('messaging.audio_preview') : $data['content'],
+                // TCK-2631 — la légende d'une pièce est facultative ; `content` n'est pas nullable, et
+                // une pièce sans légende porte une chaîne vide (son aperçu est `neutralPreview()`).
+                'content' => $isAudio ? __('messaging.audio_preview') : ($data['content'] ?? ''),
                 'type' => $data['type'] ?? MessageType::Text->value,
                 'metadata' => $isAudio ? ['duration' => (int) $data['duration']] : null,
             ]);
@@ -443,9 +451,17 @@ class ConversationController extends Controller
                 $message->addMedia($audio)->toMediaCollection('attachments');
             }
 
+            if ($piece !== null) {
+                $message->addMedia($piece['path'])
+                    ->usingName($piece['name'])
+                    ->usingFileName($piece['file_name'])
+                    ->toMediaCollection('attachments');
+            }
+
             $conversation->update([
                 'last_message_id' => $message->id,
-                'last_message_preview' => mb_substr($message->content, 0, 255),
+                // TCK-2631 — l'aperçu d'une pièce est neutre (« Photo », « Document »), légende ou non.
+                'last_message_preview' => mb_substr($message->neutralPreview() ?? $message->content, 0, 255),
                 'last_message_at' => now(),
             ]);
 
@@ -474,6 +490,40 @@ class ConversationController extends Controller
         return $this->json([
             'data' => MessageResource::make($message)->resolve($request),
         ], 201);
+    }
+
+    /**
+     * TCK-2631 (ADR-0038, amendement du 2026-11-10) — la pièce jointe à ranger, ou `null`.
+     *
+     * Une photo est RÉENCODÉE (`AvatarReencode`, le même geste que l'avatar) : GD n'écrit aucune
+     * métadonnée, la position GPS d'une photo prise chez le locataire ne survit pas, et l'orientation
+     * EXIF est appliquée aux pixels avant de disparaître. Ses pixels sont déjà bornés par la requête
+     * (`PixelsAuPlus`). Un en-tête lisible sur une image que GD ne décode pas rend 422
+     * `media.file_rejected`. Un PDF n'est pas réécrit (ses métadonnées restent, comme dans un
+     * courriel) ; aucun antivirus ne l'analyse (dette D-73).
+     *
+     * @return array{path: string|UploadedFile, name: string, file_name: string}|null
+     */
+    private function pieceJointe(SendMessageConversationRequest $request): ?array
+    {
+        $type = $request->validated('type');
+        $file = $request->file('file');
+        if (! $file instanceof UploadedFile || ! in_array($type, [MessageType::Image->value, MessageType::Document->value], true)) {
+            return null;
+        }
+
+        $name = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+        if ($type === MessageType::Document->value) {
+            return ['path' => $file, 'name' => $name, 'file_name' => $name.'.pdf'];
+        }
+
+        try {
+            $path = AvatarReencode::sansMetadonnees($file);
+        } catch (CouldNotLoadImage) {
+            abort_code(422, 'media.file_rejected');
+        }
+
+        return ['path' => $path, 'name' => $name, 'file_name' => AvatarReencode::nomDeFichier($file)];
     }
 
     public function markAsRead(Request $request, Conversation $conversation): JsonResponse

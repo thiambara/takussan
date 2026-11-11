@@ -62,7 +62,8 @@ class NotifyNewMessageJob implements ShouldQueue
         foreach ($recipients as $recipient) {
             $notifications->send($recipient, NotificationCode::MessageReceived, [
                 'sender' => $senderName,
-                'excerpt' => mb_strimwidth((string) $message->content, 0, 80, '…'),
+                // TCK-2631 — une photo ou un PDF sans légende : l'aperçu neutre, jamais un extrait vide.
+                'excerpt' => mb_strimwidth($message->content !== '' ? (string) $message->content : (string) $message->neutralPreview(), 0, 80, '…'),
             ], NotificationTarget::of('conversation', $message->conversation_id));
         }
     }
