@@ -11,6 +11,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AdminFinancesClient } from '@/app/(dashboard)/app/agency/finances/AdminFinancesClient';
+import { parametresDesEncaissements } from '@/components/admin/finances/argent/EncaissementsAgence';
 import type { FinanceSummary } from '@/lib/queries/agency-reporting';
 import { withIntl } from '@/test/intl';
 import type { PaymentHistoryRow } from '@/types/invoice';
@@ -522,5 +523,29 @@ describe('vérification adverse de TCK-2659', () => {
     const pastille = await screen.findByRole('button', { name: 'Bailleur' });
     expect(pastille).toHaveAttribute('data-choisi', 'true');
     expect(screen.queryByText('#43')).not.toBeInTheDocument();
+  });
+});
+
+describe('D2 — les bornes de la lecture selon le statut filtré (m1 de la contre-vérification)', () => {
+  const lire = (statut: string) => parametresDesEncaissements(new URLSearchParams(`period=2026-11&status=${statut}`), '2026-11');
+
+  it.each(['late', 'pending', 'failed', 'partially_paid', 'cancelled'])('« %s » (non soldé) borne par l’échéance : date_from / date_to', (statut) => {
+    const p = lire(statut);
+    expect(p).toMatchObject({ status: statut, date_from: '2026-11-01', date_to: '2026-11-30' });
+    expect(p.paid_from).toBeUndefined();
+    expect(p.paid_to).toBeUndefined();
+  });
+
+  it.each(['paid', 'refunded'])('« %s » (encaissé) borne par l’encaissement : paid_from / paid_to', (statut) => {
+    const p = lire(statut);
+    expect(p).toMatchObject({ status: statut, paid_from: '2026-11-01', paid_to: '2026-11-30' });
+    expect(p.date_from).toBeUndefined();
+    expect(p.date_to).toBeUndefined();
+  });
+
+  it('sans statut, la lecture borne par l’encaissement', () => {
+    const p = parametresDesEncaissements(new URLSearchParams('period=2026-11'), '2026-11');
+    expect(p).toMatchObject({ paid_from: '2026-11-01', paid_to: '2026-11-30' });
+    expect(p.date_from).toBeUndefined();
   });
 });
