@@ -428,6 +428,12 @@ describe('vérification adverse de TCK-2659', () => {
       expect(u.searchParams.has('filter[paid_from]')).toBe(false);
     }
     await waitFor(() => expect(within(celluleDeTotal('Échoué')).getByText('1 paiement à reprendre')).toBeInTheDocument());
+    // N1d — le compte de « Payé » vient de la lecture status=paid : il suit l'encaissé comme son montant.
+    expect(lecturesDeLaBande('paid').length).toBeGreaterThan(0);
+    for (const u of lecturesDeLaBande('paid')) {
+      expect(u.searchParams.get('filter[paid_from]')).toBe('2026-11-01');
+      expect(u.searchParams.has('filter[date_from]')).toBe(false);
+    }
   });
 
   it('N1 — « Restant dû » de novembre compte l’échéance en retard de novembre, pas celle d’octobre', async () => {
