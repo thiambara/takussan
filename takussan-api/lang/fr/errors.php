@@ -554,6 +554,8 @@ return [
     ],
     'review' => [
         'agency_already_reviewed' => 'Vous avez déjà donné un avis sur cette agence.',
+        // TCK-2672 — un lot dont un avis est inconnu, n'est plus en attente, ou hors du périmètre de l'appelant.
+        'batch_not_moderatable' => 'Un des avis du lot ne peut pas être publié par vous : rien n\'a été publié.',
         'moderation_decision_invalid' => 'Décision de modération invalide.',
         'no_reply' => 'Cet avis n\'a pas de réponse à supprimer.',
         'property_already_reviewed' => 'Vous avez déjà donné un avis sur ce bien.',

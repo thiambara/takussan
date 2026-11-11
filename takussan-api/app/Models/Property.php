@@ -87,6 +87,8 @@ class Property extends AbstractModel implements HasMedia
         'featured', 'lot_position', 'level', 'admin_monitored', 'is_test',
         'available_from', 'published_at', 'archived_at', 'metadata',
         'rejection_reason', 'submitted_at', 'approved_at', 'rejected_at',
+        // TCK-2672 — le code du motif d'une demande de correction.
+        'rejection_reason_code',
         'approved_by_user_id', 'rejected_by_user_id',
         // TCK-598 — coût d'entrée d'une location mensuelle, et visite virtuelle (lien seulement).
         'deposit_months', 'advance_months', 'agency_fee_months', 'monthly_charges',

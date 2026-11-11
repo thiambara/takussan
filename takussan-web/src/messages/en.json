@@ -6697,7 +6697,8 @@
         "invitations_expired_purged": "Expired invitations deleted",
         "owner_tax_id_set": "Landlord's tax ID entered",
         "absence_updated": "Absence updated",
-        "agency_upgrade_subscription_assigned": "Pro subscription assigned on professional agency upgrade"
+        "agency_upgrade_subscription_assigned": "Pro subscription assigned on professional agency upgrade",
+        "review_moderated": "Review published (batch)"
       },
       "subjectWithId": "{label} #{id}",
       "otherAction": "Other action",

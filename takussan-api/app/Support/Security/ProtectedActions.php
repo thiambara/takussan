@@ -351,6 +351,8 @@ final class ProtectedActions
         PropertyModerationController::class.'@approve',
         PropertyModerationController::class.'@reject',
         ReviewController::class.'@moderate',
+        // TCK-2672 — la publication par lot : la même décision, sous la même garde.
+        ReviewController::class.'@moderateBatch',
         ReviewController::class.'@approve',
         ReviewController::class.'@reject',
         // TCK-600 (verif-600 R1) — les réglages génériques. TCK-651 (ADR-0065) : la portée `global`

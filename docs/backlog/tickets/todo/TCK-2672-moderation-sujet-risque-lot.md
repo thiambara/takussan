@@ -42,23 +42,23 @@ Re-mesuré sur `dev` le 2026-11-10 :
 
 ## Delta à produire
 
-- [ ] `ReviewResource` : `target.photo_url` (photo principale du bien) et `target.agent {id, name}` (agent principal du bien) ; `risk {level, reasons[]}`.
-- [ ] `ReviewController::index` : `filter[risk]=high|low`, tri `risk`, `meta.risk_counts {high, low}` sur la file filtrée.
-- [ ] `App\Services\Reviews\ReviewRiskClassifier` (règle ci-dessus, testée seule).
-- [ ] `POST /api/reviews/moderate-batch` → `ReviewController::moderateBatch`, `ModerateReviewBatchRequest` (`review_ids[]` ≤ 100, `decision: approve`), transaction.
-- [ ] `GET /api/properties/moderation/{property}` → forme détaillée (description, photos, adresse, prix, type, transaction), `submitted_by {id, name, profile: owner|agent|agency_admin}`, `submitted_count_in_agency`, `checks {photos_count, address_complete, description_words, description_has_contact, price_vs_median {median, deviation_pct, sample_size} | null}`.
-- [ ] Migration `add_rejection_reason_code_to_properties` ; `RejectPropertyRequest` : `reason_code` requis ; la ressource du bien rejeté le rend à l'auteur.
-- [ ] Tests : `ReviewRiskClassifierTest`, `ReviewModerationBatchTest`, `ReviewTargetSubjectTest`, `PropertyModerationDetailTest`, `PropertyModerationChecksTest`, extension de `PropertyRejectTest`.
+- [x] `ReviewResource` : `target.photo_url` (photo principale du bien) et `target.agent {id, name}` (agent principal du bien) ; `risk {level, reasons[]}`.
+- [x] `ReviewController::index` : `filter[risk]=high|low`, tri `risk`, `meta.risk_counts {high, low}` sur la file filtrée.
+- [x] `App\Services\Reviews\ReviewRiskClassifier` (règle ci-dessus, testée seule).
+- [x] `POST /api/reviews/moderate-batch` → `ReviewController::moderateBatch`, `ModerateReviewBatchRequest` (`review_ids[]` ≤ 100, `decision: approve`), transaction.
+- [x] `GET /api/properties/moderation/{property}` → forme détaillée (description, photos, adresse, prix, type, transaction), `submitted_by {id, name, profile: owner|agent|agency_admin}`, `submitted_count_in_agency`, `checks {photos_count, address_complete, description_words, description_has_contact, price_vs_median {median, deviation_pct, sample_size} | null}`.
+- [x] Migration `add_rejection_reason_code_to_properties` ; `RejectPropertyRequest` : `reason_code` requis ; la ressource du bien rejeté le rend à l'auteur.
+- [x] Tests : `ReviewRiskClassifierTest`, `ReviewModerationBatchTest`, `ReviewTargetSubjectTest`, `PropertyModerationDetailTest`, `PropertyModerationChecksTest`, extension de `PropertyRejectTest`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Un avis 5 ★ contenant « appelez-moi au 77 418 90 22 » est `high` avec `contact_details` ; un avis 4 ★ sans signalement ni coordonnées est `low`.
-- [ ] AC2 — `filter[risk]=low` sur une file de 55 avis dont 4 à risque rend 51 avis, et `meta.risk_counts` vaut `{high: 4, low: 51}`.
-- [ ] AC3 — Un lot de 12 avis `low` → 12 avis publiés et 12 entrées de journal ; un lot qui contient un avis d'une autre agence → 422 et aucun avis publié (relu en base).
-- [ ] AC4 — Un avis sur un bien rend la photo principale du bien et le nom de son agent principal.
-- [ ] AC5 — Le détail d'un bien soumis rend sa description et toutes ses photos ; `submitted_by.profile = owner` pour un bien déposé par un bailleur.
-- [ ] AC6 — Avec 4 biens comparables, `price_vs_median` vaut `null` ; avec 6, il rend la médiane et l'écart en pourcentage.
-- [ ] AC7 — `reject` sans `reason_code` → 422 ; avec, l'auteur relit le code et la raison sur son bien.
+- [x] AC1 — Un avis 5 ★ contenant « appelez-moi au 77 418 90 22 » est `high` avec `contact_details` ; un avis 4 ★ sans signalement ni coordonnées est `low`.
+- [x] AC2 — `filter[risk]=low` sur une file de 55 avis dont 4 à risque rend 51 avis, et `meta.risk_counts` vaut `{high: 4, low: 51}`.
+- [x] AC3 — Un lot de 12 avis `low` → 12 avis publiés et 12 entrées de journal ; un lot qui contient un avis d'une autre agence → 422 et aucun avis publié (relu en base).
+- [x] AC4 — Un avis sur un bien rend la photo principale du bien et le nom de son agent principal.
+- [x] AC5 — Le détail d'un bien soumis rend sa description et toutes ses photos ; `submitted_by.profile = owner` pour un bien déposé par un bailleur.
+- [x] AC6 — Avec 4 biens comparables, `price_vs_median` vaut `null` ; avec 6, il rend la médiane et l'écart en pourcentage.
+- [x] AC7 — `reject` sans `reason_code` → 422 ; avec, l'auteur relit le code et la raison sur son bien.
 
 ## Hors périmètre
 
@@ -68,4 +68,15 @@ Re-mesuré sur `dev` le 2026-11-10 :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Implémenté le 2026-11-11 (agent back-agence, lot audit UX /app). Prémisses re-mesurées sur l'arbre : aucune notion de risque ni de lot côté agence, pas de code de motif, pas de détail de bien soumis — conformes au contrat ci-dessus.
+
+- **Coordonnées** — `App\Support\ContactDetails` : UNE définition (mobile 70/75/76/77/78 et fixe 30/33, avec ou sans `+221`/`00221`, groupés par espaces, points ou tirets ; e-mail ; URL ou domaine nu en `.com|.sn|.net|.org|.fr|.io|.co|.info|.biz|.me`), lue en PHP (`found()`) et en SQL (`sql()`, `~*` de PostgreSQL). Les motifs sont écrits pour être compris à l'identique par les deux moteurs ; `ContactDetailsParityTest` passe 21 exemples par les deux. Un prix n'est pas un numéro : neuf chiffres suivis d'une devise (`F`, `FCFA`, `CFA`, `XOF`, `francs`) ne comptent pas — « 780 000 000 FCFA » a la forme d'un mobile.
+- **Risque** — `App\Services\Review\ReviewRiskClassifier` (écart de nom : `Services\Review`, le dossier qui existe déjà, et non `Services\Reviews`). Calculé, jamais stocké : `classify()` pour une ligne, `highSql()` pour la file (filtre, tri, comptes). `meta.risk_counts` porte sur la file filtrée **avant** le filtre de risque (les deux pastilles se lisent ensemble). `sort=risk` met les avis à risque **d'abord**, `sort=-risk` les sans risque d'abord. `risk` n'est rendu qu'à qui peut `viewReports` l'avis (le modérateur de son périmètre) : absent pour l'auteur et le public — la clé est inscrite aux `CLES_JAMAIS_ATTEINTES` de `DateInventoryByValueTest`. Le filtre, le tri et les comptes restent ouverts sur la liste de l'auteur (`filter[author_id]=me`) : rien n'y est révélé, l'auteur lit déjà la note, le texte et `reported_count` de ses propres avis.
+- **Sujet** — `target.photo_url` par `PublicPhotoUrl::upTo(…, 'preview')` (jamais l'original), `target.agent {id, name}` par `PrimaryPropertyContact::collaborateurPrincipal()` ; préchargés par `morphWith` (médias et contact principal), une fois par page.
+- **Lot** — `POST /api/reviews/moderate-batch` (`reviews.moderate-batch`), autorisé par `viewModerationQueue`. `ReviewModerationService::approveBatch()` : une transaction, lignes verrouillées dans l'ordre des identifiants, **toutes** les vérifications (existence, `pending`, `canModerate` approve) avant la première écriture, sinon 422 `review.batch_not_moderatable` et rien ne change. Seuls les avis **en attente**, même pour la plateforme (un avis signalé se tranche à l'unité, avec son motif). Chaque avis est publié par `approve()` comme une décision unitaire et journalisé `review.moderated` `{decision: approve, batch: true, batch_size}`. ⚠ La décision unitaire (`PATCH …/moderate`) n'écrit, elle, **aucun** journal : « journalisé comme une décision unitaire » s'est lu « une ligne par avis », et la décision unitaire n'a pas été touchée. 2FA exigée des profils plateforme (`PLATFORM_TWO_FACTOR`), jamais de l'admin d'agence — comme la décision unitaire.
+- **Détail d'un bien soumis** — `GET /api/properties/moderation/{property}` (`properties.moderation.show`, déclarée après la liste), gardé par `reject-property` + `AgencyKindGuard`, rendu par `PropertyModerationDetailResource`. `submitted_by` = l'auteur du dernier passage en `pending_review` relevé au journal (`Auditable`), à défaut le titulaire (`user_id`) ; le profil est jugé dans l'agence du bien (`agency_admin`, puis `agent`, sinon `owner`). `submitted_count_in_agency` = les biens de l'agence que cette personne a mis en revue ou dont elle est titulaire, celui-ci compris, chacun une fois.
+- **Médiane** — `PropertyModerationChecks::priceVsMedian()` : `percentile_cont(0.5)` sur les biens **en ligne** (`scopePublic()`, la règle du public), même type, même transaction, **même période de loyer** pour une location (un loyer journalier ne se compare pas à un mensuel — précision ajoutée à la règle), même `geo_neighborhood_id`, prix > 0, le bien lui-même exclu ; `null` sous 5 comparables. Sur la base de démo, seules des locations mensuelles existent (73 lignes, médiane 1 220 000).
+- **Motif codé** — migration `2026_11_11_160000_add_rejection_reason_code_to_properties` (string(20), nullable ; `down()` éprouvé sur une base jetable : up → down → up). `RejectPropertyRequest::REASON_CODES` ; `reason_code` requis. Le code est effacé à l'approbation, au renvoi, et au verrou plateforme (`hold`). `PropertyResource` le rend sous la même garde que `rejection_reason`.
+- Tests : `PropertyRejectTest` n'existe pas — c'est `PropertyModerationTest` qui est étendu (code requis, relu par l'auteur, effacé à l'approbation et au verrou) ; `ModerationDAgenceExigePublierTest` passe le code.
+- ⚠ **Le front casse jusqu'à TCK-2673** : l'écran de modération (`rejectProperty` de `takussan-web/src/lib/queries/property-moderation.ts`, seul appelant : `components/admin/PropertyModerationDetail.tsx`) poste `reject` sans `reason_code` → 422.
+- À reporter par `/sync-specs` : `properties.rejection_reason_code` (models-spec), la règle de risque d'un avis, les deux routes neuves.

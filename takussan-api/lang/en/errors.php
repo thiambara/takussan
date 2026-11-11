@@ -554,6 +554,8 @@ return [
     ],
     'review' => [
         'agency_already_reviewed' => 'You have already reviewed this agency.',
+        // TCK-2672 — a batch holding a review that is unknown, no longer pending, or outside the caller's perimeter.
+        'batch_not_moderatable' => 'One of the reviews in the batch cannot be published by you: nothing was published.',
         'moderation_decision_invalid' => 'Invalid moderation decision.',
         'no_reply' => 'This review has no reply to delete.',
         'property_already_reviewed' => 'You have already reviewed this property.',

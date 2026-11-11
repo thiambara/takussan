@@ -297,6 +297,11 @@ class PropertyResource extends BaseResource
                 $appelantConnu,
                 fn () => $this->whenHas('rejection_reason'),
             ),
+            // TCK-2672 — le code du motif, rendu à l'auteur avec le texte.
+            'rejection_reason_code' => $this->when(
+                $appelantConnu,
+                fn () => $this->whenHas('rejection_reason_code'),
+            ),
             'submitted_at' => $this->when(
                 $appelantConnu,
                 fn () => $this->whenHas('submitted_at', fn ($valeur) => $this->iso($valeur)),

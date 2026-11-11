@@ -553,6 +553,8 @@ return [
         'report_unknown' => 'Rapport bii xamuñu ko.',
     ],
     'review' => [
+        // TCK-2672 — un lot dont un avis est inconnu, n'est plus en attente, ou hors du périmètre de l'appelant.
+        'batch_not_moderatable' => 'Un des avis du lot ne peut pas être publié par vous : rien n\'a été publié.',
         'agency_already_reviewed' => 'Joxe nga xalaat ci agence bii ba noppi.',
         'moderation_decision_invalid' => 'Dogal modération bi baaxul.',
         'no_reply' => 'Xalaat bii amul tontu buñu mën a far.',

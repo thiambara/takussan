@@ -33,6 +33,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // only since TCK-144) — gating stays in the controller.
     Route::get('properties/moderation', [PropertyModerationController::class, 'index'])
         ->name('properties.moderation.index');
+    // TCK-2672 — le bien à valider vu en entier, avec sa liste de contrôle.
+    Route::get('properties/moderation/{property}', [PropertyModerationController::class, 'show'])
+        ->name('properties.moderation.show');
     Route::post('properties/{property}/approve', [PropertyModerationController::class, 'approve'])
         ->name('properties.moderation.approve');
     Route::post('properties/{property}/reject', [PropertyModerationController::class, 'reject'])
@@ -105,6 +108,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('reviews', [ReviewController::class, 'index'])->name('reviews.index');
     // TCK-597 — la boîte des avis reçus (agent, bailleur, prestataire, admin d'agence).
     Route::get('reviews/received', [ReviewController::class, 'received'])->name('reviews.received');
+    // TCK-2672 — publier un lot d'avis sans risque (au plus 100, tout ou rien).
+    Route::post('reviews/moderate-batch', [ReviewController::class, 'moderateBatch'])->name('reviews.moderate-batch');
     Route::patch('reviews/{review}/moderate', [ReviewController::class, 'moderate'])->name('reviews.moderate');
     Route::get('reviews/{review}/reports', [ReviewController::class, 'reports'])->name('reviews.reports');
 

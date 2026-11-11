@@ -51,6 +51,7 @@ class PropertyModerationService
                 'rejected_at' => null,
                 'rejected_by_user_id' => null,
                 'rejection_reason' => null,
+                'rejection_reason_code' => null,
                 'platform_hold_at' => null,
                 'platform_hold_by_id' => null,
                 'platform_hold_reason' => null,
@@ -76,7 +77,8 @@ class PropertyModerationService
      * Reject a property: transition to `rejected`, record rejecter + reason +
      * timestamp, emit an activity log entry, notify the property owner.
      */
-    public function reject(Property $property, User $admin, string $rejectionReason): Property
+    /** TCK-2672 — `$reasonCode` : le motif codé d'une demande de correction (`RejectPropertyRequest::REASON_CODES`). */
+    public function reject(Property $property, User $admin, string $rejectionReason, ?string $reasonCode = null): Property
     {
         abort_code_unless(
             $property->status === PropertyStatus::PendingReview,
@@ -84,12 +86,13 @@ class PropertyModerationService
             'property.not_pending_moderation'
         );
 
-        DB::transaction(function () use ($property, $admin, $rejectionReason) {
+        DB::transaction(function () use ($property, $admin, $rejectionReason, $reasonCode) {
             $property->update([
                 'status' => PropertyStatus::Rejected,
                 'rejected_at' => now(),
                 'rejected_by_user_id' => $admin->id,
                 'rejection_reason' => $rejectionReason,
+                'rejection_reason_code' => $reasonCode,
                 'approved_at' => null,
                 'approved_by_user_id' => null,
             ]);
@@ -101,6 +104,7 @@ class PropertyModerationService
                     'old_status' => 'pending_review',
                     'new_status' => 'rejected',
                     'rejection_reason' => $rejectionReason,
+                    'rejection_reason_code' => $reasonCode,
                 ])
                 ->event('property.rejected')
                 ->log('Bien refusé');
@@ -131,6 +135,7 @@ class PropertyModerationService
                 'status' => PropertyStatus::PendingReview,
                 'submitted_at' => now(),
                 'rejection_reason' => null,
+                'rejection_reason_code' => null,
                 'rejected_at' => null,
                 'rejected_by_user_id' => null,
             ]);
@@ -257,6 +262,8 @@ class PropertyModerationService
             'rejected_at' => now(),
             'rejected_by_user_id' => $admin->id,
             'rejection_reason' => $motif,
+            // TCK-2672 — le code d'une demande de correction d'agence ne survit pas au verrou.
+            'rejection_reason_code' => null,
             'platform_hold_at' => now(),
             'platform_hold_by_id' => $admin->id,
             'platform_hold_reason' => $reasonCode ?? $motif,

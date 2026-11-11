@@ -7,9 +7,11 @@ use App\Models\Enums\AgencyKind;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Property;
+use App\Models\PropertyReport;
 use App\Models\User;
 use App\Notifications\PropertyApprovedNotification;
 use App\Notifications\PropertyRejectedNotification;
+use App\Services\Property\PropertyModerationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
@@ -122,6 +124,7 @@ class PropertyModerationTest extends TestCase
         $reason = 'Les photos de ce bien ne respectent pas nos standards de qualité.';
         $response = $this->postJson("/api/properties/{$property->id}/reject", [
             'rejection_reason' => $reason,
+            'reason_code' => 'photos',
         ]);
 
         $response->assertOk();
@@ -130,6 +133,7 @@ class PropertyModerationTest extends TestCase
         $property->refresh();
         $this->assertSame(PropertyStatus::Rejected, $property->status);
         $this->assertSame($reason, $property->rejection_reason);
+        $this->assertSame('photos', $property->rejection_reason_code);
         $this->assertNotNull($property->rejected_at);
 
         Notification::assertSentTo($agent, PropertyRejectedNotification::class);
@@ -148,6 +152,7 @@ class PropertyModerationTest extends TestCase
             'user_id' => $agent->id,
             'status' => PropertyStatus::Rejected,
             'rejection_reason' => 'Photos insuffisantes pour publication sur la plateforme.',
+            'rejection_reason_code' => 'photos',
             'rejected_at' => now()->subDay(),
         ]);
 
@@ -161,7 +166,81 @@ class PropertyModerationTest extends TestCase
         $property->refresh();
         $this->assertSame(PropertyStatus::PendingReview, $property->status);
         $this->assertNull($property->rejection_reason);
+        $this->assertNull($property->rejection_reason_code);
         $this->assertNotNull($property->submitted_at);
+    }
+
+    /** TCK-2672 (AC7) — « Demander une correction » exige un motif codé, en plus du texte. */
+    public function test_reject_sans_code_de_motif_rend_422(): void
+    {
+        $agency = Agency::factory()->create(['moderation_required' => true]);
+        $property = Property::factory()->create(['agency_id' => $agency->id, 'status' => PropertyStatus::PendingReview]);
+        $this->actingAsRole('agency_admin', ['agency_id' => $agency->id]);
+        $reason = 'Les photos de ce bien ne respectent pas nos standards de qualité.';
+
+        $this->postJson("/api/properties/{$property->id}/reject", ['rejection_reason' => $reason])
+            ->assertUnprocessable()->assertJsonValidationErrors('reason_code');
+        $this->postJson("/api/properties/{$property->id}/reject", ['rejection_reason' => $reason, 'reason_code' => 'couleur'])
+            ->assertUnprocessable()->assertJsonValidationErrors('reason_code');
+
+        $this->assertSame(PropertyStatus::PendingReview, $property->fresh()->status);
+    }
+
+    /** TCK-2672 (AC7) — l'auteur relit le code et la raison sur son bien. */
+    public function test_l_auteur_relit_le_code_et_la_raison(): void
+    {
+        Notification::fake();
+        $agency = Agency::factory()->create(['moderation_required' => true]);
+        $agent = $this->actingAsRole('agent', ['agency_id' => $agency->id]);
+        $property = Property::factory()->create([
+            'agency_id' => $agency->id, 'user_id' => $agent->id,
+            'status' => PropertyStatus::PendingReview, 'submitted_at' => now(),
+        ]);
+        $reason = 'Le prix annoncé ne correspond pas au marché du quartier.';
+
+        $this->actingAsRole('agency_admin', ['agency_id' => $agency->id]);
+        $this->postJson("/api/properties/{$property->id}/reject", ['rejection_reason' => $reason, 'reason_code' => 'price'])->assertOk();
+
+        $this->actingAs($agent);
+        $this->getJson("/api/properties/{$property->id}")->assertOk()
+            ->assertJsonPath('data.rejection_reason_code', 'price')
+            ->assertJsonPath('data.rejection_reason', $reason);
+    }
+
+    /** TCK-2672 — approuver après une correction efface le code avec le texte. */
+    public function test_approuver_efface_le_code(): void
+    {
+        Notification::fake();
+        $agency = Agency::factory()->create(['moderation_required' => true]);
+        $property = Property::factory()->create([
+            'agency_id' => $agency->id, 'status' => PropertyStatus::PendingReview, 'submitted_at' => now(),
+            'rejection_reason' => 'Ancienne demande de correction, déjà traitée.', 'rejection_reason_code' => 'address',
+        ]);
+        $this->actingAsRole('agency_admin', ['agency_id' => $agency->id]);
+
+        $this->postJson("/api/properties/{$property->id}/approve")->assertOk();
+
+        $this->assertNull($property->fresh()->rejection_reason_code);
+    }
+
+    /** TCK-2672 — un verrou plateforme (signalement tranché « masquer ») ne garde pas le code d'agence. */
+    public function test_le_verrou_plateforme_efface_le_code(): void
+    {
+        Notification::fake();
+        $agency = Agency::factory()->create();
+        $property = Property::factory()->create([
+            'agency_id' => $agency->id, 'status' => PropertyStatus::Rejected,
+            'rejection_reason' => 'Ancienne demande de correction.', 'rejection_reason_code' => 'price',
+        ]);
+        $report = PropertyReport::create(['property_id' => $property->id, 'reason' => 'fraud', 'details' => 'Annonce douteuse.']);
+        $super = User::factory()->create();
+        $this->materializeRoleProfile($super, 'super_admin');
+
+        app(PropertyModerationService::class)->resolveReport($report, $super, 'hide', null, 'fraud');
+
+        $property->refresh();
+        $this->assertNotNull($property->platform_hold_at);
+        $this->assertNull($property->rejection_reason_code);
     }
 
     // ─────────────────────────────────────────────────────────────────────

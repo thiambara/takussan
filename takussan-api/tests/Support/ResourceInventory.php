@@ -24,6 +24,7 @@ use App\Http\Resources\Messaging\MessagingContactResource;
 use App\Http\Resources\OwnerProfileDetailResource;
 use App\Http\Resources\OwnerProfileResource;
 use App\Http\Resources\PropertyMapGeoJsonResource;
+use App\Http\Resources\PropertyModerationDetailResource;
 use App\Http\Resources\PropertySitemapResource;
 use App\Http\Resources\PropertyTagResource;
 use App\Http\Resources\PublicInvitationPreviewResource;
@@ -109,6 +110,10 @@ final class ResourceInventory
         GroupContextPropertyResource::class => [
             'modeles' => [Property::class],
             'raison' => 'Un bien auquel rattacher un groupe, vu par le sélecteur de la messagerie (TCK-576) — le nom dit le rôle, pas le modèle.',
+        ],
+        PropertyModerationDetailResource::class => [
+            'modeles' => [Property::class],
+            'raison' => 'TCK-2672 — un bien soumis vu par la modération d\'agence, en entier avec sa liste de contrôle — le nom dit la vue, pas le modèle.',
         ],
         GroupContextLeaseResource::class => [
             'modeles' => [Lease::class],

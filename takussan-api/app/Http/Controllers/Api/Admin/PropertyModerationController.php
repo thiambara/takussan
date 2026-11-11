@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\RejectPropertyRequest;
+use App\Http\Resources\PropertyModerationDetailResource;
 use App\Http\Resources\PropertyResource;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
@@ -74,6 +75,22 @@ class PropertyModerationController extends Controller
     }
 
     /**
+     * TCK-2672 — `GET /api/properties/moderation/{property}` : le bien soumis en entier, qui l'a
+     * soumis et la liste de contrôle. Le périmètre est celui du refus (`reject-property` : l'agence
+     * du profil actif et `properties.publish`, ou la plateforme) — sans la condition du verrou
+     * plateforme, qui n'empêche pas de regarder.
+     */
+    public function show(Request $request, Property $property): JsonResponse
+    {
+        abort_unless($request->user()->can('reject-property', $property), 403);
+        AgencyKindGuard::ensureStandardForNonGlobal($request->user(), $property->agency_id);
+
+        $property->load(['address', 'media', 'owner']);
+
+        return $this->json(['data' => PropertyModerationDetailResource::make($property)->resolve($request)]);
+    }
+
+    /**
      * POST /api/admin/properties/{property}/approve
      */
     public function approve(Request $request, Property $property): JsonResponse
@@ -94,7 +111,12 @@ class PropertyModerationController extends Controller
         abort_unless($request->user()->can('reject-property', $property), 403);
         AgencyKindGuard::ensureStandardForNonGlobal($request->user(), $property->agency_id);
 
-        $property = $this->service->reject($property, $request->user(), $request->string('rejection_reason')->value());
+        $property = $this->service->reject(
+            $property,
+            $request->user(),
+            $request->string('rejection_reason')->value(),
+            $request->string('reason_code')->value(),
+        );
 
         return $this->json(['data' => PropertyResource::make($property)->resolve($request)]);
     }

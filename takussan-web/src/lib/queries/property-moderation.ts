@@ -160,14 +160,22 @@ export async function approveProperty(
   );
 }
 
+/** TCK-2672 — les motifs d'une demande de correction (`RejectPropertyRequest::REASON_CODES`). */
+export type PropertyRejectionReasonCode = 'photos' | 'price' | 'address' | 'description' | 'other';
+
+/**
+ * TCK-2672 — `reason_code` est exigé par l'API. Tant que l'écran ne propose pas le choix du motif
+ * (TCK-2673), l'appel envoie `other` : le texte libre reste le motif lu par l'agent.
+ */
 export async function rejectProperty(
   propertyId: number,
   rejectionReason: string,
   token: string,
+  reasonCode: PropertyRejectionReasonCode = 'other',
 ): Promise<PropertyModerationResponse> {
   return apiRequest<PropertyModerationResponse>(
     cheminApi`/api/properties/${propertyId}/reject`,
-    { method: 'POST', body: { rejection_reason: rejectionReason }, token },
+    { method: 'POST', body: { rejection_reason: rejectionReason, reason_code: reasonCode }, token },
   );
 }
 
