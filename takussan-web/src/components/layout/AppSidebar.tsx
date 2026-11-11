@@ -735,8 +735,12 @@ export function AppSidebar({
   // l'action et « Aller à », AVANT « Aujourd'hui » et « Démarrer ». La composition ne change pas (c'est
   // une donnée de `dispositions.ts`) : seul le rendu le hisse. Épinglé, il est dans « Épinglés » et
   // n'ouvre plus le groupe de tête : rien n'est hissé.
+  // TCK-2618 — l'agent aussi ouvre sa tête sur le tableau de bord, sous le nom « Aujourd'hui » : il y
+  // RESTE, au-dessus de « Messagerie » et « Tâches » (maquette `app-coque`, gelée le 2026-11-11). La
+  // décision de la revue porte sur le tableau de bord de l'admin d'agence, et lui seul est hissé.
   const tete = autresComposes[0];
-  const tableauEnTete = tete?.id === 'tete' && tete.entrees[0]?.id === 'tableau-de-bord' ? tete.entrees[0] : null;
+  const tableauEnTete =
+    menu.persona === 'admin-agence' && tete?.id === 'tete' && tete.entrees[0]?.id === 'tableau-de-bord' ? tete.entrees[0] : null;
   const autres = tableauEnTete
     ? [{ ...tete!, entrees: tete!.entrees.slice(1) }, ...autresComposes.slice(1)].filter((g) => g.entrees.length > 0)
     : autresComposes;

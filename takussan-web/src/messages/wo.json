@@ -157,7 +157,11 @@
         "demandes": "Demandes",
         "reservations": "Réservations",
         "nomAvecCompteur": "{libelle}, {compteur}",
-        "plafond": "99+"
+        "plafond": "99+",
+        "messages": "Messages",
+        "argent": "Argent",
+        "biens": "Biens",
+        "clients": "Clients"
       },
       "receivedReviews": "Avis yi ñu la bind",
       "commissions": "Komisioŋ yi",
@@ -280,7 +284,10 @@
       "icones": {
         "reduire": "Réduire la barre",
         "deplier": "Déplier la barre"
-      }
+      },
+      "today": "Aujourd’hui",
+      "tasks": "Tâches",
+      "rents": "Loyers"
     },
     "admin": {
       "team": "Ekib",

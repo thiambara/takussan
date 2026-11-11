@@ -368,9 +368,9 @@ function EnTeteDeLaCoque({
 }) {
   const pathname = usePathname();
   const declaration = useDeclarationDEnTete();
-  const { ctx } = useMenuDeLEspace(contexteDuMenu);
+  const { ctx, persona } = useMenuDeLEspace(contexteDuMenu);
   const t = useTranslations();
-  const derive = titreDeLaRoute(pathname, ctx);
+  const derive = titreDeLaRoute(pathname, ctx, persona);
   const titre = declaration.titre ?? (derive ? t(`${derive.espace}.${derive.cle}`) : null);
   return (
     <EnTeteMobile

@@ -288,7 +288,8 @@ const MENU_ATTENDU: Record<Persona, { action: string | null; enTete?: string; gr
     action: 'Proposer un bien à mon agence',
     groupes: [
       [null, false, 'Messagerie'],
-      ['Mon patrimoine', false, 'Mes biens', 'Baux', 'Finances', 'États des lieux'],
+      // TCK-2618 — « Loyers », le mot du porteur (ADR-0100 § 3).
+      ['Mon patrimoine', false, 'Mes biens', 'Baux', 'Loyers', 'États des lieux'],
       ['Activité', false, 'Demandes de contact', 'Visites', 'Réservations', 'Calendrier', 'Interventions'],
       // TCK-2489 (ADR-0090 §4) — le tableau de bord, groupe sans titre après le deuxième groupe titré.
       [null, false, 'Tableau de bord'],
@@ -300,11 +301,11 @@ const MENU_ATTENDU: Record<Persona, { action: string | null; enTete?: string; gr
   agent: {
     action: 'Publier un bien',
     groupes: [
-      [null, false, 'Messagerie', 'Mes tâches'],
+      // TCK-2618 (décision 10 (a)) — « Aujourd'hui » (le tableau de bord) ouvre la tête, qui y RESTE :
+      // seul le tableau de bord de l'admin d'agence est hissé. « Mes tâches » devient « Tâches ».
+      [null, false, 'Aujourd’hui', 'Messagerie', 'Tâches'],
       ['Prospection', false, 'Demandes de contact', 'Clients (CRM)', 'Visites', 'Calendrier'],
       ['Catalogue', false, 'Mes biens', 'Réservations'],
-      // TCK-2489 (ADR-0090 §4) — le tableau de bord, groupe sans titre après le deuxième groupe titré.
-      [null, false, 'Tableau de bord'],
       ['Gestion', false, 'Baux', 'Entrées en attente', 'États des lieux', 'Interventions', 'Commissions'],
       ['Plus', true, 'Avis reçus', 'Documents', 'Statistiques', 'Exports', 'Mes favoris', 'Recherches sauvegardées'],
     ],
@@ -420,12 +421,26 @@ describe('revue adverse (3) — le tableau de bord de l’admin d’agence vient
     ]) expect(repere!.contains(el), el.outerHTML.slice(0, 80)).toBe(true);
   });
 
-  it.each(PERSONAS.filter((p) => p !== 'admin-agence'))('%s : inchangé — le tableau de bord reste dans le menu, après « Aujourd’hui »', (persona) => {
+  it.each(PERSONAS.filter((p) => p !== 'admin-agence'))('%s : le tableau de bord reste dans le menu, après « Aujourd’hui » — l’agent compris (TCK-2618)', (persona) => {
     unreadMock.mockReturnValue(3);
     const { container } = renderSidebar(persona, '/app', { onOuvrirPalette: () => {} });
     const tableau = container.querySelector('aside a[href="/app"]');
     expect(tableau, 'le tableau de bord').not.toBeNull();
     expect(container.querySelector<HTMLElement>('[data-slot="menu"]')!.contains(tableau)).toBe(true);
+  });
+
+  it('TCK-2618 (AC2) — agent : le menu s’ouvre sur « Aujourd’hui » (soleil, `/app`), « Messagerie », « Tâches », sans « Tableau de bord »', () => {
+    unreadMock.mockReturnValue(3);
+    const { container } = renderSidebar('agent', '/app/leads', { onOuvrirPalette: () => {} });
+    const liens = Array.from(container.querySelectorAll<HTMLAnchorElement>('[data-slot="menu"] a'));
+    expect(liens.slice(0, 3).map((a) => [libelle(a), a.getAttribute('href')])).toEqual([
+      ['Aujourd’hui', '/app'],
+      ['Messagerie', '/app/messages'],
+      ['Tâches', '/app/tasks'],
+    ]);
+    expect(liens[0].querySelector('svg')!.getAttribute('class')).toContain('lucide-sun');
+    expect(within(container.querySelector('aside')!).queryByRole('link', { name: 'Tableau de bord' })).toBeNull();
+    expect(container.querySelectorAll('aside a[href="/app"]')).toHaveLength(1);
   });
 });
 
@@ -1085,7 +1100,10 @@ describe('TCK-2490 — « Aujourd’hui » (ADR-0090 §3, reprend la bande de TC
     const { container } = renderSidebar('agent', '/app');
     expect(bande()).toBeNull();
     expect(container.querySelector('[data-slot="aujourdhui"]')).toBeNull();
-    expect(screen.queryByText('Aujourd’hui')).toBeNull();
+    // TCK-2618 — le tableau de bord de l'agent s'appelle aussi « Aujourd’hui » (son entrée de menu,
+    // qui reste) : c'est le TITRE du bloc (`<p>`) qui ne doit pas se rendre.
+    expect(screen.queryByText('Aujourd’hui', { selector: 'p' })).toBeNull();
+    expect(within(container.querySelector('[data-slot="menu"]') as HTMLElement).getByRole('link', { name: 'Aujourd’hui' })).toHaveAttribute('href', '/app');
   });
 
   it.each(PERSONAS)('AC2 — %s : le menu garde les mêmes entrées, dans le même ordre, avec ou sans compteurs', async (persona) => {

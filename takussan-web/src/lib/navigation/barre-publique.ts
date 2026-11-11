@@ -51,7 +51,9 @@ function sansLesCasesFixes<E extends EntreeJugee>(groupes: readonly GroupeDEntre
  * (`groupesDeLaDisposition`) — une épingle range le menu, elle ne déplace pas un onglet.
  */
 export function casesDuPersona<E extends EntreeJugee>(groupes: readonly GroupeDEntrees<E>[], persona: Persona): E[] {
-  const declares = DISPOSITIONS[persona].onglets.filter((id) => !HORS_DES_CASES.has(id));
+  // TCK-2618 — la barre publique garde ses cases validées quand les onglets de `/app` changent.
+  const { casesPubliques, onglets } = DISPOSITIONS[persona];
+  const declares = (casesPubliques ?? onglets).filter((id) => !HORS_DES_CASES.has(id));
   return ongletsDuMenu(sansLesCasesFixes(groupes), declares).slice(0, 2);
 }
 

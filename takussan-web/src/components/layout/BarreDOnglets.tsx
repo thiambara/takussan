@@ -92,7 +92,7 @@ export function BarreDOnglets({
     agencySuspended,
     modulesMasques,
   });
-  const onglets = ongletsDuMenu(groupesDeLaDisposition, DISPOSITIONS[persona].onglets);
+  const onglets = ongletsDuMenu(groupesDeLaDisposition, DISPOSITIONS[persona].onglets, DISPOSITIONS[persona].libellesDOnglets);
   const counters = useCompteursDuMenu(onglets, { agencyIsStandard, actif: sousMd });
   // Résolu sur TOUTES les entrées, comme la barre latérale : une sous-page d'une entrée qui n'est
   // pas un onglet n'en allume aucun à tort.
@@ -116,6 +116,9 @@ export function BarreDOnglets({
         {onglets.map((onglet) => {
           const Icone = onglet.icon;
           const actif = onglet.href === activeHref;
+          // TCK-2618 (maquette « Menu (tiroir) ») — tiroir ouvert, c'est « Menu » qui se lit en avant ;
+          // la page reste la page courante (`aria-current`), seule sa mise en avant visuelle cède.
+          const enAvant = actif && !menuOuvert;
           const compte = onglet.counterKey ? counters[onglet.counterKey] : 0;
           const libelle = onglet.labelSpace === 'nav.admin' ? tAdmin(onglet.labelKey) : t(onglet.labelKey);
           return (
@@ -133,12 +136,12 @@ export function BarreDOnglets({
                 className={cn(
                   STYLE_CASE,
                   FOCUS_RING,
-                  actif ? 'font-semibold text-foreground' : 'text-muted-foreground hover:text-foreground',
+                  enAvant ? 'font-semibold text-foreground' : 'text-muted-foreground hover:text-foreground',
                 )}
               >
                 {/* L'onglet actif se lit par une FORME (ce trait), un poids et `aria-current` —
                     jamais par la seule teinte. */}
-                {actif ? (
+                {enAvant ? (
                   <span
                     aria-hidden
                     data-slot="indicateur-onglet"
@@ -147,7 +150,13 @@ export function BarreDOnglets({
                   />
                 ) : null}
                 <span className="relative">
-                  <Icone className="size-5" strokeWidth={TRAIT_DES_ONGLETS} aria-hidden />
+                  {/* TCK-2618 — l'icône de l'onglet actif en couleur primaire, EN PLUS du trait et du gras. */}
+                  <Icone
+                    className={cn('size-5', enAvant && 'text-primary')}
+                    strokeWidth={TRAIT_DES_ONGLETS}
+                    aria-hidden
+                    data-slot="icone-onglet"
+                  />
                   {compte > 0 ? (
                     <span
                       aria-hidden
@@ -170,9 +179,21 @@ export function BarreDOnglets({
             onClick={onOuvrirMenu}
             aria-haspopup="dialog"
             aria-expanded={menuOuvert}
-            className={cn(STYLE_CASE, FOCUS_RING, 'text-muted-foreground hover:text-foreground')}
+            className={cn(
+              STYLE_CASE,
+              FOCUS_RING,
+              menuOuvert ? 'font-semibold text-foreground' : 'text-muted-foreground hover:text-foreground',
+            )}
           >
-            <Menu className="size-5" strokeWidth={TRAIT_DES_ONGLETS} aria-hidden />
+            {menuOuvert ? (
+              <span aria-hidden data-slot="indicateur-onglet" className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-primary" />
+            ) : null}
+            <Menu
+              className={cn('size-5', menuOuvert && 'text-primary')}
+              strokeWidth={TRAIT_DES_ONGLETS}
+              aria-hidden
+              data-slot="icone-onglet"
+            />
             <span className="max-w-full truncate">{t('onglets.menu')}</span>
           </button>
         </li>

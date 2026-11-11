@@ -118,6 +118,15 @@ describe('TCK-2617 — le titre dérivé du menu', () => {
     expect(libelle(titreDeLaRoute('/app/agency/team', ADMIN))).toBe('Équipe');
   });
 
+  it('TCK-2618 — le libellé propre au persona : « Loyers » du bailleur, le mot de son onglet et de son entrée', () => {
+    const BAILLEUR: ContexteDeMenu = { roles: ['customer', 'owner'] as UserRole[], capacites: null };
+    expect(libelle(titreDeLaRoute('/app/payments', BAILLEUR, 'bailleur'))).toBe('Loyers');
+    expect(libelle(titreDeLaRoute('/app/payments/12', BAILLEUR, 'bailleur'))).toBe('Loyers');
+    expect(libelle(titreDeLaRoute('/app/payments', CLIENT, 'locataire'))).toBe('Paiements');
+    // Sans persona : le libellé du catalogue, inchangé.
+    expect(libelle(titreDeLaRoute('/app/payments', BAILLEUR))).toBe('Finances');
+  });
+
   it('un détail non nommé prend le titre de sa liste ; hors /app, rien', () => {
     expect(libelle(titreDeLaRoute('/app/leases/7', ADMIN))).toBe('Baux');
     expect(titreDeLaRoute('/super-admin', ADMIN)).toBeNull();

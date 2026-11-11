@@ -32,7 +32,7 @@ const COMPTES: Record<Persona, ContexteDeMenu> = {
 
 /** `[id, clé de libellé]` de chaque onglet, lus sur le menu composé. */
 function lire(persona: Persona, ctx = COMPTES[persona], onglets: readonly IdDestination[] = DISPOSITIONS[persona].onglets) {
-  return ongletsDuMenu(composerMenu(ctx, persona).groupes, onglets).map((o) => [o.id, o.labelKey]);
+  return ongletsDuMenu(composerMenu(ctx, persona).groupes, onglets, DISPOSITIONS[persona].libellesDOnglets).map((o) => [o.id, o.labelKey]);
 }
 
 describe('TCK-2481 — la garde des onglets', () => {
@@ -49,21 +49,31 @@ describe('TCK-2481 — la garde des onglets', () => {
   });
 });
 
-describe('TCK-2481 — AC1 : les quatre onglets de chaque persona (table du ticket)', () => {
-  const ADMIN: [string, string][] = [
-    ['tableau-de-bord', 'onglets.accueil'], ['demandes', 'onglets.demandes'], ['mes-biens', 'allProperties'], ['messagerie', 'messaging'],
-  ];
+describe('TCK-2481 → TCK-2618 — AC1 : les quatre onglets de chaque persona (table des tickets)', () => {
+  // TCK-2618 — « Messages » partout ; l'agent, l'admin d'agence et le bailleur changent, les autres non.
+  const MESSAGES: [string, string] = ['messagerie', 'onglets.messages'];
   it.each([
-    ['client', [['tableau-de-bord', 'onglets.accueil'], ['favoris', 'onglets.favoris'], ['visites', 'onglets.visites'], ['messagerie', 'messaging']]],
-    ['locataire', [['tableau-de-bord', 'onglets.accueil'], ['paiements', 'payments'], ['maintenance', 'interventions'], ['messagerie', 'messaging']]],
-    ['bailleur', [['tableau-de-bord', 'onglets.accueil'], ['mes-biens', 'myProperties'], ['demandes', 'onglets.demandes'], ['messagerie', 'messaging']]],
-    ['agent', [['tableau-de-bord', 'onglets.accueil'], ['demandes', 'onglets.demandes'], ['visites', 'onglets.visites'], ['messagerie', 'messaging']]],
-    ['admin-agence', ADMIN],
-    ['hote', [['tableau-de-bord', 'onglets.accueil'], ['mes-biens', 'myProperties'], ['reservations', 'onglets.reservations'], ['messagerie', 'messaging']]],
-    ['prestataire', [['tableau-de-bord', 'onglets.accueil'], ['maintenance', 'interventions'], ['messagerie', 'messaging'], ['documents', 'documents']]],
-    ['plateforme', ADMIN],
+    ['client', [['tableau-de-bord', 'onglets.accueil'], ['favoris', 'onglets.favoris'], ['visites', 'onglets.visites'], MESSAGES]],
+    ['locataire', [['tableau-de-bord', 'onglets.accueil'], ['paiements', 'payments'], ['maintenance', 'interventions'], MESSAGES]],
+    ['bailleur', [['tableau-de-bord', 'onglets.accueil'], ['mes-biens', 'onglets.biens'], ['paiements', 'rents'], MESSAGES]],
+    ['agent', [['tableau-de-bord', 'today'], ['demandes', 'onglets.demandes'], ['clients', 'onglets.clients'], MESSAGES]],
+    ['admin-agence', [['tableau-de-bord', 'onglets.accueil'], ['agence-finances', 'onglets.argent'], ['mes-biens', 'allProperties'], MESSAGES]],
+    ['hote', [['tableau-de-bord', 'onglets.accueil'], ['mes-biens', 'myProperties'], ['reservations', 'onglets.reservations'], MESSAGES]],
+    ['prestataire', [['tableau-de-bord', 'onglets.accueil'], ['maintenance', 'interventions'], MESSAGES, ['documents', 'documents']]],
+    // La plateforme garde les onglets de `BASE_ADMIN` (TCK-2618 ne la nomme pas).
+    ['plateforme', [['tableau-de-bord', 'onglets.accueil'], ['demandes', 'onglets.demandes'], ['mes-biens', 'allProperties'], MESSAGES]],
   ] as [Persona, [string, string][]][])('%s', (persona, attendus) => {
     expect(lire(persona)).toEqual(attendus);
+  });
+
+  it('TCK-2618 — « Argent » est une page d’agence : son onglet quitte `nav.admin` pour `nav.sidebar`', () => {
+    const argent = ongletsDuMenu(composerMenu(COMPTES['admin-agence'], 'admin-agence').groupes, DISPOSITIONS['admin-agence'].onglets)
+      .find((o) => o.id === 'agence-finances')!;
+    expect(argent.labelKey).toBe('onglets.argent');
+    expect(argent.labelSpace).toBeUndefined();
+    // Au menu, l'entrée garde son libellé d'agence (« Finances de l'agence »).
+    const entree = composerMenu(COMPTES['admin-agence'], 'admin-agence').groupes.flatMap((g) => g.entrees).find((e) => e.id === 'agence-finances')!;
+    expect([entree.labelSpace, entree.labelKey]).toEqual(['nav.admin', 'finances']);
   });
 });
 
@@ -81,7 +91,7 @@ describe('TCK-2481 — un onglet inaccessible cède sa place, jamais cadenassé'
       entrees: g.entrees.map((e) => ({ ...e, locked: e.href === '/app/leads' })),
     }));
     const onglets = ongletsDuMenu(groupes, DISPOSITIONS.agent.onglets);
-    expect(onglets.map((o) => o.id)).toEqual(['tableau-de-bord', 'taches', 'visites', 'messagerie']);
+    expect(onglets.map((o) => o.id)).toEqual(['tableau-de-bord', 'taches', 'clients', 'messagerie']);
     expect(onglets.some((o) => o.locked)).toBe(false);
   });
 
@@ -109,7 +119,7 @@ describe('TCK-2481 × TCK-2480 — une destination d’onglet épinglée reste u
 
     const onglets = ongletsDuMenu(menu.groupes, DISPOSITIONS.client.onglets);
     expect(onglets.map((o) => [o.id, o.labelKey])).toEqual([
-      ['tableau-de-bord', 'onglets.accueil'], ['favoris', 'onglets.favoris'], ['visites', 'onglets.visites'], ['messagerie', 'messaging'],
+      ['tableau-de-bord', 'onglets.accueil'], ['favoris', 'onglets.favoris'], ['visites', 'onglets.visites'], ['messagerie', 'onglets.messages'],
     ]);
   });
 

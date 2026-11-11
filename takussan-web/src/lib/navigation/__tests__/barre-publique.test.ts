@@ -77,7 +77,17 @@ describe('ADR-0091 §2 — les cases 2 et 3 de chaque persona (la table de l’A
     expect(cases).toHaveLength(2);
     expect(cases[0]).toBe('demandes');
     expect(cases).not.toContain('visites');
-    expect(DISPOSITIONS.agent.onglets).toContain('visites');
+    expect(DISPOSITIONS.agent.casesPubliques).toContain('visites');
+  });
+
+  it('TCK-2618 — les onglets de `/app` changent, les cases publiques de l’agent, de l’admin et du bailleur non', () => {
+    // Prémisse : leurs onglets de `/app` ne portent plus les cases publiques validées (TCK-2493).
+    expect(DISPOSITIONS.agent.onglets).not.toContain('visites');
+    expect(DISPOSITIONS['admin-agence'].onglets).not.toContain('demandes');
+    expect(DISPOSITIONS.bailleur.onglets).not.toContain('demandes');
+    expect(ids(casesDuPersona(groupesDe('agent'), 'agent'))).toEqual(['demandes', 'visites']);
+    expect(ids(casesDuPersona(groupesDe('admin-agence'), 'admin-agence'))).toEqual(['demandes', 'mes-biens']);
+    expect(ids(casesDuPersona(groupesDe('bailleur'), 'bailleur'))).toEqual(['mes-biens', 'demandes']);
   });
 });
 

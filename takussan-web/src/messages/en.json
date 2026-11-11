@@ -167,7 +167,11 @@
         "demandes": "Requests",
         "reservations": "Bookings",
         "nomAvecCompteur": "{libelle}, {compteur}",
-        "plafond": "99+"
+        "plafond": "99+",
+        "messages": "Messages",
+        "argent": "Money",
+        "biens": "Properties",
+        "clients": "Clients"
       },
       "receivedReviews": "Reviews received",
       "commissions": "Commissions",
@@ -290,7 +294,10 @@
       "icones": {
         "reduire": "Collapse sidebar",
         "deplier": "Expand sidebar"
-      }
+      },
+      "today": "Today",
+      "tasks": "Tasks",
+      "rents": "Rents"
     },
     "admin": {
       "team": "Team",

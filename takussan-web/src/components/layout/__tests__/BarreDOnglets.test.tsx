@@ -112,7 +112,7 @@ const COMPTES: Record<string, Compte> = {
   plateforme: { roles: ['customer', 'super_admin'] },
 };
 
-function monter(persona: string, chemin = '/app', navigation?: PreferencesDeNavigation) {
+function monter(persona: string, chemin = '/app', navigation?: PreferencesDeNavigation, menuOuvert = false) {
   etat.chemin = chemin;
   const compte = COMPTES[persona];
   const user = {
@@ -132,7 +132,7 @@ function monter(persona: string, chemin = '/app', navigation?: PreferencesDeNavi
         agencyIsStandard={compte.agencyIsStandard ?? true}
         typeProfilActif={compte.typeProfilActif ?? null}
         modulesMasques={etat.modulesMasques}
-        menuOuvert={false}
+        menuOuvert={menuOuvert}
         onOuvrirMenu={vi.fn()}
         refMenu={createRef<HTMLButtonElement>()}
       />
@@ -173,28 +173,36 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404, json: async () => ({}) }));
 });
 
-describe('TCK-2481 — AC1 : quatre onglets par persona, puis « Menu »', () => {
-  const ADMIN = [
-    ['Accueil', '/app'],
-    ['Demandes', '/app/leads'],
-    ['Biens', '/app/properties'],
-    ['Messagerie', '/app/messages'],
-  ];
+describe('TCK-2481 → TCK-2618 — AC1 : quatre onglets par persona, puis « Menu »', () => {
+  // TCK-2618 — « Messages » partout ; l'agent, l'admin d'agence et le bailleur changent de cases.
+  const MESSAGES = ['Messages', '/app/messages'];
   it.each([
-    ['client', [['Accueil', '/app'], ['Favoris', '/app/favorites'], ['Visites', '/app/visits'], ['Messagerie', '/app/messages']]],
-    ['locataire', [['Accueil', '/app'], ['Paiements', '/app/payments'], ['Interventions', '/app/maintenance'], ['Messagerie', '/app/messages']]],
-    ['bailleur', [['Accueil', '/app'], ['Mes biens', '/app/properties'], ['Demandes', '/app/leads'], ['Messagerie', '/app/messages']]],
-    ['agent', [['Accueil', '/app'], ['Demandes', '/app/leads'], ['Visites', '/app/visits'], ['Messagerie', '/app/messages']]],
-    ['admin-agence', ADMIN],
-    ['hote', [['Accueil', '/app'], ['Mes biens', '/app/properties'], ['Réservations', '/app/bookings'], ['Messagerie', '/app/messages']]],
-    ['prestataire', [['Accueil', '/app'], ['Interventions', '/app/maintenance'], ['Messagerie', '/app/messages'], ['Documents', '/app/documents']]],
-    ['plateforme', ADMIN],
+    ['client', [['Accueil', '/app'], ['Favoris', '/app/favorites'], ['Visites', '/app/visits'], MESSAGES]],
+    ['locataire', [['Accueil', '/app'], ['Paiements', '/app/payments'], ['Interventions', '/app/maintenance'], MESSAGES]],
+    ['bailleur', [['Accueil', '/app'], ['Biens', '/app/properties'], ['Loyers', '/app/payments'], MESSAGES]],
+    ['agent', [['Aujourd’hui', '/app'], ['Demandes', '/app/leads'], ['Clients', '/app/customers'], MESSAGES]],
+    ['admin-agence', [['Accueil', '/app'], ['Argent', '/app/agency/finances'], ['Biens', '/app/properties'], MESSAGES]],
+    ['hote', [['Accueil', '/app'], ['Mes biens', '/app/properties'], ['Réservations', '/app/bookings'], MESSAGES]],
+    ['prestataire', [['Accueil', '/app'], ['Interventions', '/app/maintenance'], MESSAGES, ['Documents', '/app/documents']]],
+    ['plateforme', [['Accueil', '/app'], ['Demandes', '/app/leads'], ['Biens', '/app/properties'], MESSAGES]],
   ] as [string, string[][]][])('%s', (persona, attendus) => {
     monter(persona);
     expect(onglets()).toEqual(attendus);
     const items = within(barre()).getAllByRole('listitem');
     expect(items).toHaveLength(5);
     expect(within(items.at(-1)!).getByRole('button', { name: 'Menu' })).toBeInTheDocument();
+  });
+
+  it.each([
+    ['agent', 'Sun'],
+    ['admin-agence', 'Wallet'],
+    ['bailleur', 'Wallet'],
+  ])('TCK-2618 — %s : l’icône de la maquette (%s) sur son onglet propre', (persona, icone) => {
+    monter(persona);
+    const lien = within(barre()).getByRole('link', {
+      name: { agent: 'Aujourd’hui', 'admin-agence': 'Argent', bailleur: 'Loyers' }[persona]!,
+    });
+    expect(lien.querySelector('svg')!.getAttribute('class')).toContain(`lucide-${icone === 'Sun' ? 'sun' : 'wallet'}`);
   });
 
   it('la barre ne vit que sous md', () => {
@@ -215,7 +223,7 @@ describe('TCK-2481 × TCK-2480 — un remplaçant vient de la disposition, jamai
       ['Accueil', '/app'],
       ['Favoris', '/app/favorites'],
       ['Visites', '/app/visits'],
-      ['Messagerie', '/app/messages'],
+      ['Messages', '/app/messages'],
     ]);
   });
 
@@ -225,7 +233,7 @@ describe('TCK-2481 × TCK-2480 — un remplaçant vient de la disposition, jamai
       ['Accueil', '/app'],
       ['Favoris', '/app/favorites'],
       ['Visites', '/app/visits'],
-      ['Messagerie', '/app/messages'],
+      ['Messages', '/app/messages'],
     ]);
   });
 });
@@ -241,6 +249,38 @@ describe('TCK-2481 — l’onglet actif, lisible sans la couleur seule', () => {
     expect(barre().querySelectorAll('[data-slot="indicateur-onglet"]')).toHaveLength(1);
   });
 
+  it('TCK-2618 — l’icône de l’onglet actif est en couleur primaire, celle des autres non', () => {
+    monter('agent', '/app/leads/12');
+    const icones = [...barre().querySelectorAll('a [data-slot="icone-onglet"]')];
+    expect(icones).toHaveLength(4);
+    const primaires = icones.filter((i) => i.getAttribute('class')!.split(/\s+/).includes('text-primary'));
+    expect(primaires).toHaveLength(1);
+    expect(primaires[0].closest('a')).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('TCK-2618 (maquette « Menu (tiroir) ») — tiroir ouvert : « Menu » est mis en avant, la page garde aria-current', () => {
+    monter('admin-agence', '/app', undefined, true);
+    const menu = within(barre()).getByRole('button', { name: 'Menu' });
+    const accueil = within(barre()).getByRole('link', { name: 'Accueil' });
+    expect(menu).toHaveClass('font-semibold', 'text-foreground');
+    expect(menu.querySelector('[data-slot="indicateur-onglet"]')).not.toBeNull();
+    expect(menu.querySelector('[data-slot="icone-onglet"]')!.getAttribute('class')!.split(/\s+/)).toContain('text-primary');
+    // La page courante reste annoncée comme telle, mais ne se lit plus en avant.
+    expect(accueil).toHaveAttribute('aria-current', 'page');
+    expect(accueil).not.toHaveClass('font-semibold');
+    expect(accueil.querySelector('[data-slot="indicateur-onglet"]')).toBeNull();
+    expect(accueil.querySelector('[data-slot="icone-onglet"]')!.getAttribute('class')!.split(/\s+/)).not.toContain('text-primary');
+    expect(barre().querySelectorAll('[data-slot="indicateur-onglet"]')).toHaveLength(1);
+  });
+
+  it('TCK-2618 — tiroir fermé : « Menu » reste éteint', () => {
+    monter('admin-agence', '/app');
+    const menu = within(barre()).getByRole('button', { name: 'Menu' });
+    expect(menu).not.toHaveClass('font-semibold');
+    expect(menu.querySelector('[data-slot="indicateur-onglet"]')).toBeNull();
+    expect(menu.querySelector('[data-slot="icone-onglet"]')!.getAttribute('class')!.split(/\s+/)).not.toContain('text-primary');
+  });
+
   it('page hors onglets (`/app/leases`) : aucun onglet allumé — `/app` est une racine exacte', () => {
     monter('agent', '/app/leases');
     expect(barre().querySelectorAll('[aria-current]')).toHaveLength(0);
@@ -252,7 +292,7 @@ describe('TCK-2481 — les compteurs, ceux du menu', () => {
     largeurDeFenetre(390);
     etat.nonLus = 3;
     monter('agent');
-    const messagerie = within(barre()).getByRole('link', { name: 'Messagerie, 3 messages non lus' });
+    const messagerie = within(barre()).getByRole('link', { name: 'Messages, 3 messages non lus' });
     const pastille = messagerie.querySelector('[data-slot="pastille-onglet"]');
     expect(pastille).toHaveTextContent('3');
     expect(pastille).toHaveAttribute('aria-hidden', 'true');
@@ -262,14 +302,14 @@ describe('TCK-2481 — les compteurs, ceux du menu', () => {
     largeurDeFenetre(390);
     etat.nonLus = 120;
     monter('agent');
-    const messagerie = within(barre()).getByRole('link', { name: 'Messagerie, 120 messages non lus' });
+    const messagerie = within(barre()).getByRole('link', { name: 'Messages, 120 messages non lus' });
     expect(messagerie.querySelector('[data-slot="pastille-onglet"]')).toHaveTextContent('99+');
   });
 
   it('à zéro : ni pastille ni mot de plus', () => {
     largeurDeFenetre(390);
     monter('agent');
-    expect(within(barre()).getByRole('link', { name: 'Messagerie' })).toBeInTheDocument();
+    expect(within(barre()).getByRole('link', { name: 'Messages' })).toBeInTheDocument();
     expect(barre().querySelector('[data-slot="pastille-onglet"]')).toBeNull();
   });
 
@@ -410,10 +450,10 @@ describe('TCK-2483 — AC10 : un onglet vers une destination masquée n’est pa
     etat.ongletsDeLAgent = ONGLETS;
     monter('agent');
     expect(onglets()).toEqual([
-      ['Accueil', '/app'],
+      ['Aujourd’hui', '/app'],
       ['Demandes', '/app/leads'],
       ['Calendrier', '/app/calendar'],
-      ['Messagerie', '/app/messages'],
+      ['Messages', '/app/messages'],
     ]);
   });
 
@@ -423,12 +463,12 @@ describe('TCK-2483 — AC10 : un onglet vers une destination masquée n’est pa
     monter('agent');
     const rendus = onglets();
     expect(rendus.map(([, href]) => href)).not.toContain('/app/calendar');
-    // « Mes tâches » : la première entrée de la disposition de l'agent qui n'est pas un onglet déclaré.
+    // « Tâches » : la première entrée de la disposition de l'agent qui n'est pas un onglet déclaré.
     expect(rendus).toEqual([
-      ['Accueil', '/app'],
+      ['Aujourd’hui', '/app'],
       ['Demandes', '/app/leads'],
-      ['Mes tâches', '/app/tasks'],
-      ['Messagerie', '/app/messages'],
+      ['Tâches', '/app/tasks'],
+      ['Messages', '/app/messages'],
     ]);
   });
 

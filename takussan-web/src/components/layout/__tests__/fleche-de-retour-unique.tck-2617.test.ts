@@ -35,7 +35,8 @@ const PERMIS: Readonly<Record<string, Categorie>> = {
   // retour de l'écran de détail du téléphone est celui de la coque (`DeclarerEnTete forme="detail"`).
   'src/components/admin/finances/argent/EncaissementsAgence.tsx': 'pagination',
   'src/components/public/index/ProfilePagination.tsx': 'pagination',
-  'src/components/favorites/PublicFavoritesPage.tsx': 'pagination',
+  // TCK-2618 — la pagination des favoris a suivi le contenu de la page, sorti de `PublicFavoritesPage`.
+  'src/components/favorites/SuiviDesFavoris.tsx': 'pagination',
   'src/components/property/cards/PropertyRow.tsx': 'carrousel',
   'src/components/public/profile/TeamStrip.tsx': 'carrousel',
   'src/app/[locale]/(public)/properties/[slug]/components/PropertyLightbox.tsx': 'carrousel',

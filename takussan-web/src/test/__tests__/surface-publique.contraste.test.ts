@@ -519,8 +519,16 @@ const FICHIERS_HORS_JETONS = 5;
  * Aucun défaut réel. Les deux défauts que le même relevé a trouvés sont CORRIGÉS dans le code, pas
  * comptés : l'action du toast passe de l'encre principale à 80 % à l'encre douce opaque (cf.
  * `encre-sans-alpha.contraste.test.ts`), et la puce active survolée déclare sa propre encre.
+ *
+ * 430 → 433 (2026-11-11, TCK-2618) : la page des favoris (publique ET `/app`) rend le réglage d'alerte
+ * et la suppression de chaque recherche (`GestionDeLaRecherche`). `ReglageDAlerte`, sorti de
+ * `SavedSearchesList` (hors surface publique), y entre : 2 (fréquence au repos, ligne des canaux) ;
+ * `OngletRecherches` 1 (le bouton « Supprimer », ghost). Les trois sont `text-muted-foreground`
+ * OPAQUE sur la carte de la recherche (`bg-card`). Le contenu de `PublicFavoritesPage` passé dans
+ * `SuiviDesFavoris` ne change rien au compte (4 entrées déplacées). Relevé en listant les encres
+ * inverses de `components/favorites/` dans un arbre sans maquettes. Aucun défaut réel.
  */
-const ENCRES_INVERSES = 430;
+const ENCRES_INVERSES = 433;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);

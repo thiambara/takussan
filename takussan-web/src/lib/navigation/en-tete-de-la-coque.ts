@@ -1,8 +1,10 @@
 import { PAGES_ADMIN } from '@/lib/access/pages-admin';
 import { estPleinEcran } from '@/components/layout/plein-ecran';
 import { listePour } from './app-sections';
-import { CATALOGUE, cleDe } from './catalogue';
+import { CATALOGUE, cleDe, type IdDestination } from './catalogue';
 import { destinationDuChemin } from './composer-menu';
+import { DISPOSITIONS } from './dispositions';
+import type { Persona } from './personas';
 import type { ContexteDeMenu } from './types';
 
 /**
@@ -115,9 +117,15 @@ export function formeDeLaRoute(pathname: string | null | undefined): FormeDEnTet
   return parentDeLaRoute(chemin) ? 'detail' : 'racine';
 }
 
-/** Le libellé du menu pour cet `href` : la destination OUVERTE au compte d'abord (« Mes baux » / « Baux »). */
-function titreDuMenu(href: string, ctx: ContexteDeMenu): TitreDerive | null {
+/**
+ * Le libellé du menu pour cet `href` : la destination OUVERTE au compte d'abord (« Mes baux » / « Baux »),
+ * sous le libellé propre au persona quand sa disposition en écrit un (TCK-2618 : « Loyers » du bailleur,
+ * le mot de son onglet et de son entrée).
+ */
+function titreDuMenu(href: string, ctx: ContexteDeMenu, persona?: Persona): TitreDerive | null {
   const destination = destinationDuChemin(ctx, href);
+  const propre = destination && persona ? DISPOSITIONS[persona].libelles?.[destination.id as IdDestination] : undefined;
+  if (propre) return { espace: 'nav.sidebar', cle: propre };
   if (destination) return { espace: destination.espace ?? 'nav.sidebar', cle: cleDe(destination, ctx) };
   const page = PAGES_ADMIN.find((p) => p.chemin === href);
   if (page?.menu) return { espace: 'nav.admin', cle: page.menu.cle };
@@ -128,13 +136,13 @@ function titreDuMenu(href: string, ctx: ContexteDeMenu): TitreDerive | null {
  * Le titre dérivé d'une route : le libellé du menu qui la sert, sinon celui de la table hors menu,
  * sinon — un détail que la page n'a pas encore nommé — le titre de sa page parente. `null` hors `/app`.
  */
-export function titreDeLaRoute(pathname: string | null | undefined, ctx: ContexteDeMenu): TitreDerive | null {
+export function titreDeLaRoute(pathname: string | null | undefined, ctx: ContexteDeMenu, persona?: Persona): TitreDerive | null {
   const chemin = cheminDe(pathname);
   if (chemin !== '/app' && !chemin.startsWith('/app/')) return null;
   const horsMenu = HORS_MENU[chemin];
   if (horsMenu) return horsMenu.titre;
-  const duMenu = titreDuMenu(chemin, ctx);
+  const duMenu = titreDuMenu(chemin, ctx, persona);
   if (duMenu) return duMenu;
   const parent = parentDeLaRoute(chemin);
-  return parent ? titreDeLaRoute(parent, ctx) : null;
+  return parent ? titreDeLaRoute(parent, ctx, persona) : null;
 }

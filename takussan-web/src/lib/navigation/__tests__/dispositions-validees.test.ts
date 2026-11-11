@@ -1,3 +1,4 @@
+import { Sun, Wallet } from 'lucide-react';
 import { describe, expect, it } from 'vitest';
 import { composerMenu } from '../composer-menu';
 import { DISPOSITIONS } from '../dispositions';
@@ -81,10 +82,10 @@ describe('TCK-2478 — les dispositions validées par le porteur le 2026-11-05',
       action: ['publier-bien', 'publishProperty'],
       carte: null,
       groupes: [
-        ['tete', null, false, 'messagerie', 'taches'],
+        // TCK-2618 (décision 10 (a)) — « Aujourd'hui » (le tableau de bord) ouvre la tête.
+        ['tete', null, false, 'tableau-de-bord', 'messagerie', 'taches'],
         ['prospection', 'prospection', false, 'demandes', 'clients', 'visites', 'calendrier'],
         ['catalogue', 'catalogue', false, 'mes-biens', 'reservations'],
-        ['tableau-de-bord', null, false, 'tableau-de-bord'],
         ['gestion', 'gestion', false, 'baux', 'entrees-en-attente', 'etats-des-lieux', 'maintenance', 'commissions'],
         ['plus', 'plus', true, 'avis', 'documents', 'statistiques', 'exports', 'favoris', 'recherches'],
       ],
@@ -142,10 +143,12 @@ describe('TCK-2478 — les dispositions validées par le porteur le 2026-11-05',
  * TCK-2489 (ADR-0090 §4) — la place du « Tableau de bord », par persona. Deux lectures : la RÈGLE,
  * recalculée sur la disposition (les groupes titrés), et la PLACE, lue sur le menu composé.
  */
-describe('TCK-2489 — le tableau de bord n’ouvre le menu que pour l’admin d’agence', () => {
+describe('TCK-2489 → TCK-2618 — le tableau de bord n’ouvre le menu que pour l’admin d’agence et l’agent', () => {
   /** Où la règle du ticket place l'entrée : après quel groupe titré, ou à quelle ligne de la tête. */
   function placeAttendue(persona: Persona): { readonly apres: string | null; readonly ligne: number | null } {
-    if (persona === 'admin-agence') return { apres: null, ligne: 0 };
+    // TCK-2618 — l'agent rejoint l'admin d'agence : sa journée (« Aujourd'hui ») ouvre sa tête. Écart
+    // VOULU à la règle de TCK-2489, décidé par le porteur (décision 10 (a)), écrit dans `dispositions.ts`.
+    if (persona === 'admin-agence' || persona === 'agent') return { apres: null, ligne: 0 };
     const titres = DISPOSITIONS[persona].groupes.filter((g) => g.titre !== null && g.id !== 'tableau-de-bord');
     if (titres.length === 0) return { apres: null, ligne: 3 };
     return { apres: titres[Math.min(2, titres.length) - 1].id, ligne: null };
@@ -157,7 +160,7 @@ describe('TCK-2489 — le tableau de bord n’ouvre le menu que pour l’admin d
     const porteurs = groupes.filter((g) => g.entrees.includes('tableau-de-bord'));
     expect(porteurs, 'une seule fois').toHaveLength(1);
     if (apres === null) {
-      // admin d'agence : première ligne de la tête ; prestataire : quatrième ligne de la tête.
+      // admin d'agence et agent : première ligne de la tête ; prestataire : quatrième ligne de la tête.
       expect(groupes[0].titre).toBeNull();
       expect(groupes[0].entrees.indexOf('tableau-de-bord')).toBe(ligne);
       return;
@@ -171,7 +174,7 @@ describe('TCK-2489 — le tableau de bord n’ouvre le menu que pour l’admin d
     const ids = composerMenu(COMPTES[persona], persona).groupes.flatMap((g) => g.entrees.map((e) => e.id));
     const rang = ids.indexOf('tableau-de-bord');
     expect(rang, 'le tableau de bord reste au menu').toBeGreaterThanOrEqual(0);
-    if (persona === 'admin-agence') expect(rang).toBe(0);
+    if (persona === 'admin-agence' || persona === 'agent') expect(rang).toBe(0);
     else expect(rang, 'jamais en tête').toBeGreaterThan(0);
   });
 
@@ -188,7 +191,7 @@ describe('TCK-2489 — le tableau de bord n’ouvre le menu que pour l’admin d
       client: ['mes-demarches', 'tableau-de-bord', 0],
       locataire: ['mes-recherches', 'tableau-de-bord', 0],
       bailleur: ['activite', 'tableau-de-bord', 0],
-      agent: ['catalogue', 'tableau-de-bord', 0],
+      agent: [null, 'tete', 0],
       'admin-agence': [null, 'tete', 0],
       hote: ['mes-locations', 'tableau-de-bord', 0],
       prestataire: [null, 'tete', 3],
@@ -198,5 +201,96 @@ describe('TCK-2489 — le tableau de bord n’ouvre le menu que pour l’admin d
 
   it.each(PERSONAS)('%s : la page d’arrivée et les onglets mobiles ne changent pas (« Tableau de bord » en premier onglet)', (persona) => {
     expect(DISPOSITIONS[persona].onglets[0]).toBe('tableau-de-bord');
+  });
+});
+
+/**
+ * TCK-2618 — les menus par persona : « Aujourd'hui » pour l'agent, « Argent » pour l'admin d'agence,
+ * « Loyers » pour le bailleur.
+ */
+describe('TCK-2618 — l’agent : « Aujourd’hui » en tête, plus de « Tableau de bord »', () => {
+  const entrees = (persona: Persona, prefs = {}) =>
+    composerMenu(COMPTES[persona], persona, undefined, prefs).groupes.flatMap((g) => g.entrees);
+
+  it('AC2 — la tête : Aujourd’hui (soleil, `/app`), Messagerie, Tâches ; aucune entrée « Tableau de bord »', () => {
+    const tete = composerMenu(COMPTES.agent, 'agent').groupes[0];
+    expect(tete.entrees.map((e) => [e.labelKey, e.href])).toEqual([
+      ['today', '/app'],
+      ['messaging', '/app/messages'],
+      ['tasks', '/app/tasks'],
+    ]);
+    expect(tete.entrees[0].icon).toBe(Sun);
+    expect(entrees('agent').map((e) => e.labelKey)).not.toContain('dashboard');
+    expect(entrees('agent').filter((e) => e.href === '/app')).toHaveLength(1);
+  });
+
+  it('une épingle de l’agent sur le tableau de bord reste rendue — la même destination, « Aujourd’hui »', () => {
+    const menu = composerMenu(COMPTES.agent, 'agent', undefined, { epingles: ['tableau-de-bord'] });
+    expect(menu.epingles).toEqual(['tableau-de-bord']);
+    expect(menu.groupes[0].id).toBe('epingles');
+    expect(menu.groupes[0].entrees.map((e) => [e.id, e.labelKey, e.href])).toEqual([['tableau-de-bord', 'today', '/app']]);
+    expect(menu.groupes[0].entrees[0].icon).toBe(Sun);
+    // Retirée de la tête, jamais en double.
+    expect(menu.groupes.flatMap((g) => g.entrees).filter((e) => e.href === '/app')).toHaveLength(1);
+  });
+
+  it('les autres personas gardent « Tableau de bord » et leur icône', () => {
+    for (const persona of PERSONAS.filter((p) => p !== 'agent')) {
+      const tdb = entrees(persona).find((e) => e.id === 'tableau-de-bord')!;
+      expect(tdb.labelKey, persona).toBe('dashboard');
+      expect(tdb.icon, persona).not.toBe(Sun);
+    }
+  });
+});
+
+describe('TCK-2618 — le bailleur : « Loyers » (portefeuille) ; l’admin d’agence : ses finances au portefeuille', () => {
+  const entree = (persona: Persona, id: string) =>
+    composerMenu(COMPTES[persona], persona).groupes.flatMap((g) => g.entrees).find((e) => e.id === id)!;
+
+  it('bailleur : « Mon patrimoine » porte « Loyers », vers ses paiements', () => {
+    const patrimoine = composerMenu(COMPTES.bailleur, 'bailleur').groupes.find((g) => g.id === 'mon-patrimoine')!;
+    const loyers = patrimoine.entrees.find((e) => e.id === 'paiements')!;
+    expect([loyers.labelKey, loyers.href, loyers.icon]).toEqual(['rents', '/app/payments', Wallet]);
+  });
+
+  it('admin d’agence : « Finances de l’agence » au portefeuille ; la plateforme et l’hôte gardent leur icône', () => {
+    expect(entree('admin-agence', 'agence-finances').icon).toBe(Wallet);
+    expect(entree('plateforme', 'agence-finances').icon).not.toBe(Wallet);
+    expect(entree('hote', 'agence-finances').icon).not.toBe(Wallet);
+  });
+
+  it('locataire et hôte : leurs paiements gardent leur libellé (« Paiements »)', () => {
+    expect(entree('locataire', 'paiements').labelKey).toBe('payments');
+    expect(entree('hote', 'paiements').labelKey).toBe('payments');
+  });
+});
+
+/**
+ * TCK-2618 — AC3 : aucune destination ouverte avant le ticket ne disparaît, pour aucun persona. Les
+ * jeux d'`href` ci-dessous sont RELEVÉS sur l'arbre d'avant le ticket (`git show HEAD` du 2026-11-11,
+ * mêmes comptes que ci-dessus : action, carte et toutes les entrées des groupes, dédoublonnés) — pas
+ * recalculés : un test qui recalculerait l'« avant » se validerait lui-même.
+ */
+const HREFS_AVANT_TCK_2618: Record<Persona, readonly string[]> = {
+  client: ['/app', '/app/bookings', '/app/documents', '/app/favorites', '/app/inventories', '/app/leases', '/app/maintenance', '/app/messages', '/app/overview', '/app/payments', '/app/profile/reviews', '/app/saved-searches', '/app/visits', '/properties', '/publish'],
+  locataire: ['/app', '/app/bookings', '/app/documents', '/app/favorites', '/app/inventories', '/app/leases', '/app/maintenance', '/app/messages', '/app/overview', '/app/payments', '/app/profile/reviews', '/app/saved-searches', '/app/visits', '/properties', '/publish'],
+  bailleur: ['/app', '/app/bookings', '/app/calendar', '/app/customers', '/app/documents', '/app/favorites', '/app/inventories', '/app/leads', '/app/leases', '/app/maintenance', '/app/messages', '/app/overview', '/app/overview/exports', '/app/payments', '/app/profile/reviews', '/app/properties', '/app/properties/new', '/app/saved-searches', '/app/tasks', '/app/visits'],
+  agent: ['/app', '/app/bookings', '/app/calendar', '/app/commissions', '/app/customers', '/app/documents', '/app/favorites', '/app/inventories', '/app/leads', '/app/leases', '/app/leases/onboarding-pending', '/app/maintenance', '/app/messages', '/app/overview', '/app/overview/exports', '/app/profile/reviews', '/app/properties', '/app/properties/new', '/app/saved-searches', '/app/tasks', '/app/visits'],
+  'admin-agence': ['/app', '/app/agency', '/app/agency/audit', '/app/agency/billing', '/app/agency/finances', '/app/agency/integrations', '/app/agency/kyc', '/app/agency/moderation', '/app/agency/moderation/properties', '/app/agency/roles', '/app/agency/team', '/app/bookings', '/app/calendar', '/app/commissions', '/app/credits', '/app/customers', '/app/documents', '/app/favorites', '/app/inventories', '/app/leads', '/app/leases', '/app/leases/onboarding-pending', '/app/maintenance', '/app/maintenance/providers', '/app/messages', '/app/overview', '/app/overview/agency', '/app/overview/alerts', '/app/overview/exports', '/app/overview/kpis', '/app/owners', '/app/profile/reviews', '/app/properties', '/app/properties/new', '/app/saved-searches', '/app/tasks', '/app/visits'],
+  hote: ['/app', '/app/agency', '/app/agency/billing', '/app/agency/finances', '/app/agency/integrations', '/app/agency/kyc', '/app/bookings', '/app/calendar', '/app/commissions', '/app/credits', '/app/customers', '/app/documents', '/app/favorites', '/app/inventories', '/app/leads', '/app/leases', '/app/leases/onboarding-pending', '/app/maintenance', '/app/maintenance/providers', '/app/messages', '/app/overview', '/app/overview/agency', '/app/overview/alerts', '/app/overview/exports', '/app/overview/kpis', '/app/owners', '/app/payments', '/app/profile/reviews', '/app/properties', '/app/properties/new', '/app/saved-searches', '/app/tasks', '/app/visits'],
+  prestataire: ['/app', '/app/bookings', '/app/calendar', '/app/documents', '/app/favorites', '/app/leases', '/app/maintenance', '/app/messages', '/app/saved-searches', '/app/visits'],
+  plateforme: ['/app', '/app/agency', '/app/agency/audit', '/app/agency/billing', '/app/agency/finances', '/app/agency/integrations', '/app/agency/kyc', '/app/agency/moderation', '/app/agency/moderation/properties', '/app/agency/roles', '/app/agency/team', '/app/bookings', '/app/calendar', '/app/commissions', '/app/credits', '/app/customers', '/app/documents', '/app/favorites', '/app/inventories', '/app/leads', '/app/leases', '/app/leases/onboarding-pending', '/app/maintenance', '/app/maintenance/providers', '/app/messages', '/app/overview', '/app/overview/agency', '/app/overview/alerts', '/app/overview/exports', '/app/overview/kpis', '/app/owners', '/app/profile/reviews', '/app/properties', '/app/properties/new', '/app/saved-searches', '/app/tasks', '/app/visits'],
+};
+
+describe('TCK-2618 — AC3 : le menu composé garde chaque destination d’avant', () => {
+  it.each(PERSONAS)('%s : même jeu d’`href`, aucune entrée en double', (persona) => {
+    const menu = composerMenu(COMPTES[persona], persona);
+    const hrefs = [menu.action?.href, menu.carte?.href, ...menu.groupes.flatMap((g) => g.entrees.map((e) => e.href))].filter(
+      (h): h is string => Boolean(h),
+    );
+    expect([...new Set(hrefs)].sort()).toEqual(HREFS_AVANT_TCK_2618[persona]);
+    // Une seule entrée par `href` dans les groupes : le doublon `/app` de l'agent a fusionné.
+    const desGroupes = menu.groupes.flatMap((g) => g.entrees.map((e) => e.href));
+    expect(new Set(desGroupes).size, persona).toBe(desGroupes.length);
   });
 });
