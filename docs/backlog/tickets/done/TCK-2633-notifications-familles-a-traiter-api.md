@@ -89,7 +89,7 @@ Sans objet (ticket API). Écrans servis : TCK-2634 (puces « À traiter · Tout 
 
 ## Hors périmètre
 
-- **Donner un `code` aux classes qui n'en ont pas** (texte encore rendu par l'API) : [TCK-2704](../todo/TCK-2704-codes-des-notifications-sans-code.md), dans la ligne de TCK-605 et du principe 5. Il ne bloque pas celui-ci.
+- **Donner un `code` aux classes qui n'en ont pas** (texte encore rendu par l'API) : [TCK-2704](TCK-2704-codes-des-notifications-sans-code.md), dans la ligne de TCK-605 et du principe 5. Il ne bloque pas celui-ci.
 - Le regroupement des répétitions (« 9 biens »), fait par le front sur les lignes chargées (TCK-2634).
 - Le résumé quotidien par WhatsApp (spec § 2.3, digest).
 
@@ -117,7 +117,7 @@ Relevé le 2026-11-11 sur `feat/audit-ux-app-lot-1` (c66938af4).
   classes à `toAppNotification()` en écrivent : `Boost/*` → `property`, `Credits/*` → `credits`, favoris →
   `favorites`, recherches sauvegardées → `saved_searches`). « Bien proposé par un bailleur » reste donc en `systeme`,
   l'intervention urgente en `demande`, toutes trois non « à traiter » : elles relèvent de
-  [TCK-2704](../todo/TCK-2704-codes-des-notifications-sans-code.md), qui leur donne un code. Les deux se complètent : la
+  [TCK-2704](TCK-2704-codes-des-notifications-sans-code.md), qui leur donne un code. Les deux se complètent : la
   cible range les lignes DÉJÀ stockées sans code, le code rend « à traiter » juste pour les lignes futures. Classes sans code relevées dans `AppDatabaseChannel::TYPES` (21) et `Boost/*`,
   `Credits/*`, `FavoriteChangesNotification`, `SavedSearchMatchesNotification`.
 

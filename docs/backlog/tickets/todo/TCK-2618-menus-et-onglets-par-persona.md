@@ -118,4 +118,33 @@ Toute fonction de ces pages absente de la page publique y est ajoutée avant que
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+- **Écart voulu à ADR-0090 §4 (TCK-2489)** : le tableau de bord de l'agent ouvre sa tête, sous le nom
+  « Aujourd'hui » (icône soleil) — décision 10 (a). L'agent rejoint l'admin d'agence comme exception à
+  la règle « après le deuxième groupe titré » ; `dispositions-validees.test.ts` l'écrit (règle et table).
+  Il n'est PAS hissé au-dessus de « Aujourd'hui » (les comptes) comme celui de l'admin : la maquette le
+  laisse dans sa tête, au-dessus de « Messagerie » et « Tâches » (`AppSidebar`, `tableauEnTete`).
+- `Disposition` gagne trois champs : `icones` (soleil de l'agent, portefeuille des loyers du bailleur et
+  des finances de l'admin d'agence), `libellesDOnglets` (« Aujourd'hui » de l'agent, « Biens » du
+  bailleur) et `casesPubliques`. `LIBELLES_COURTS` gagne « Messages », « Argent » (une page `nav.admin`
+  dont l'onglet lit `nav.sidebar`) et « Clients » (et non « Clients (CRM) »).
+- **La barre du site public ne bouge pas** : ses cases 2 et 3 (ADR-0091 §2) dérivaient des onglets de
+  `/app` ; l'agent, l'admin d'agence et le bailleur les gardent par `casesPubliques` (TCK-2493, validées
+  à part). La plateforme garde les onglets de `BASE_ADMIN` (le ticket ne la nomme pas).
+- L'en-tête du téléphone lit le libellé propre au persona (`titreDeLaRoute(…, persona)`) : « Loyers » au
+  bailleur sur `/app/payments`, comme son onglet.
+- **Favoris** : le contenu de la page publique est sorti dans `SuiviDesFavoris` (sans `Navbar`, `Footer`
+  ni `<main>`) ; `PublicFavoritesPage` l'enveloppe. Sous `/app`, l'onglet suit la route et en change
+  (`ROUTES_DES_ONGLETS`), et chaque recherche porte son réglage d'alerte et sa suppression
+  (`gestion`, `ReglageDAlerte` sorti de `SavedSearchesList`) ; le site garde « Gérer mes alertes », qui
+  mène là. Le comparateur (`CompareProvider` + barre) est monté par les deux layouts de `/app`.
+- La page publique n'a que deux onglets (« Biens · Recherches ») : les nouveautés sont dans
+  « Recherches » (« 3 nouveaux » par recherche). Aucun onglet « Nouveautés » n'est inventé.
+- `FavoritesList` et `SavedSearchesList` ne sont plus rendus par aucune route (leurs tests restent) :
+  à retirer par un ticket à part.
+- **Tiroir ouvert, « Menu » en avant** (maquette « Menu (tiroir) », relevé de fidélité) : la case
+  « Menu » prend le poids, le trait et l'icône primaire de l'onglet actif ; l'onglet de la page
+  courante garde `aria-current` mais cède sa mise en avant (`enAvant` dans `BarreDOnglets`).
+- Fidélité : la fiche `docs/qa/audit-ux-2026-11/fidelite/TCK-2618.json` écarte les rôles de coque
+  par défaut (`"coque": false`) pour désigner la barre d'onglets du produit par son `data-slot` :
+  `boiteDe: "Menu"` retenait la carte de contenu qui défile SOUS la barre fixe (même artefact dans les
+  rapports de TCK-2617).

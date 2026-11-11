@@ -1,7 +1,7 @@
 ---
 id: TCK-2704
 title: "Notifications : les quatre avis de la cloche qui n'ont pas de code en reçoivent un, pour être rangés et marqués « à traiter » justement"
-status: todo
+status: done
 phase: P1
 family: back
 estimate: M
@@ -148,3 +148,11 @@ Relevé et implémenté le 2026-11-11 sur `feat/audit-ux-app-lot-1`, à la suite
   Aucune migration.
 - Textes : les titres reprennent ceux d'avant (« Mise en avant terminée », « Urgent : … », « Nouvelle demande
   d'upgrade d'agence : … ») ; les corps sont neufs (la cloche n'en avait pas pour trois des quatre).
+
+## Vérification (2026-11-11)
+
+Le code est sur `dev` depuis 5f1bc7b82. Les tests qui passent par les vrais émetteurs ont été ajoutés au lot 2 (634db0ef4). La vérification adverse est acceptée : AC1 à AC5 ont été re-mesurés par exécution, et 13 ablations sur 14 rougissent. La quatorzième est D10 (la langue stockée de `property.proposed`) : elle n'est épinglée que pour `boost.ended`, comme le demande l'AC4, et la cloche relit le texte par son code.
+
+Suites mineures, au lot 2 :
+- épingler la langue du texte stocké pour les autres codes ;
+- remplacer « upgrade » dans les textes fr de l'API par « passage en agence professionnelle ».
