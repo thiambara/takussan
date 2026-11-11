@@ -41,9 +41,23 @@ class SubscriptionController extends Controller
                 ? $this->quota->listingUsage((int) $agencyId)
                 : ['limit' => null, 'used' => 0, 'can_create' => true])
                 // TCK-2669 (AC6) — les agents, à côté des biens : les clés plates restent celles
-                // des annonces, que le formulaire du bien lit déjà.
-                + ['agents' => $this->quota->agentUsage($agencyId ? (int) $agencyId : null)],
+                // des annonces, que le formulaire du bien lit déjà. L'effectif de l'équipe et la
+                // limite du plan sont un fait interne d'agence : au seul personnel de l'agence du
+                // profil actif (et au super-admin) — un bailleur lit `null` (vérification adverse).
+                + ['agents' => $this->readsTeamQuota($request, $agencyId)
+                    ? $this->quota->agentUsage($agencyId ? (int) $agencyId : null)
+                    : null],
         ]);
+    }
+
+    private function readsTeamQuota(Request $request, mixed $agencyId): bool
+    {
+        $user = $request->user();
+        if ($user->isSuperAdmin() || ! $agencyId) {
+            return true;
+        }
+
+        return $user->staffAgencyId() === (int) $agencyId;
     }
 
     /**

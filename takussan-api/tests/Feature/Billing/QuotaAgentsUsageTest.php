@@ -7,6 +7,8 @@ use App\Models\AgencySubscription;
 use App\Models\Enums\AgencySubscriptionStatus;
 use App\Models\Plan;
 use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
+use App\Models\User;
 use App\Services\Billing\QuotaResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -75,6 +77,27 @@ class QuotaAgentsUsageTest extends ApiTestCase
         $this->apiActingAsRole('customer');
 
         $this->apiGet('/api/me/quota')->assertOk()->assertJsonPath('data.agents', ['limit' => null, 'used' => 0]);
+    }
+
+    /**
+     * Vérification adverse de TCK-2669 — l'effectif des agents et la limite du plan restent au
+     * personnel : un bailleur de l'agence (profil actif propriétaire) lit `agents: null`, et le
+     * quota d'annonces, déjà servi, ne change pas.
+     */
+    public function test_le_bailleur_ne_lit_pas_l_effectif_des_agents(): void
+    {
+        $this->subscribe(5);
+        $this->agents();
+        $landlord = User::factory()->create();
+        $profile = OwnerProfile::factory()->create(['user_id' => $landlord->id, 'agency_id' => $this->agency->id]);
+
+        $this->actingAsApi($landlord);
+        $this->withHeader('X-Profile-Id', 'owner:'.$profile->id);
+        $data = $this->getJson('/api/me/quota')->assertOk()->json('data');
+
+        $this->assertArrayHasKey('agents', $data);
+        $this->assertNull($data['agents']);
+        $this->assertArrayHasKey('can_create', $data);
     }
 
     public function test_le_controle_lit_le_meme_compte(): void
