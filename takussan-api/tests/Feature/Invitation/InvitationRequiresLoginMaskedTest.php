@@ -13,6 +13,7 @@ use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Testing\TestResponse;
+use Laravel\Sanctum\Sanctum;
 use Tests\Support\FakeSmsRouter;
 use Tests\TestCase;
 
@@ -88,6 +89,26 @@ class InvitationRequiresLoginMaskedTest extends TestCase
             ->assertJsonPath('email', $masque)
             ->assertHeader('X-Invitation-Email', $masque)
             ->assertHeader('X-Invitation-Requires-Login', '1');
+
+        $this->assertSansAdresseEnClair($reponse);
+        $this->assertSame(InvitationStatus::Sent, $this->invitation->fresh()->status);
+    }
+
+    /**
+     * Vérification adverse de TCK-2727 — le lien transféré : un appelant CONNECTÉ à un autre compte
+     * que celui qui porte l'adresse reçoit le même 401, et l'adresse y reste masquée (corps et en-tête).
+     */
+    public function test_connecte_a_un_autre_compte_le_401_ne_rend_que_l_adresse_masquee(): void
+    {
+        $masque = $this->masqueDeLApercu();
+        Sanctum::actingAs(User::factory()->create(['email' => 'aissatou.fall@exemple.sn']));
+
+        $reponse = $this->postJson("/api/invitations/{$this->invitation->token}/accept", [])
+            ->assertStatus(401)
+            ->assertJsonPath('code', 'invitation.requires_login')
+            ->assertJsonPath('requires_login', true)
+            ->assertJsonPath('email', $masque)
+            ->assertHeader('X-Invitation-Email', $masque);
 
         $this->assertSansAdresseEnClair($reponse);
         $this->assertSame(InvitationStatus::Sent, $this->invitation->fresh()->status);
