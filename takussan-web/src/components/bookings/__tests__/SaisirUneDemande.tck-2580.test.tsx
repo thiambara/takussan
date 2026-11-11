@@ -53,6 +53,9 @@ interface Envoi {
 }
 const envois: Envoi[] = [];
 let reponseDuPost: { status: number; corps: unknown } = { status: 201, corps: { data: { id: 901 } } };
+/** m1 — les biens que la recherche sert, bornés par `filter[agency_id]` comme l'API (`null` : STUDIO et VILLA). */
+let biensCherches: ({ readonly agency_id: number } & Record<string, unknown>)[] | null = null;
+const recherchesDeBiens: URL[] = [];
 
 function json(status: number, corps: unknown) {
   return Promise.resolve(new Response(JSON.stringify(corps), { status, headers: { 'Content-Type': 'application/json' } }));
@@ -63,6 +66,8 @@ beforeEach(() => {
   pousser.mockReset();
   profils.courant = profilsAgent;
   reponseDuPost = { status: 201, corps: { data: { id: 901 } } };
+  biensCherches = null;
+  recherchesDeBiens.length = 0;
   vi.stubGlobal(
     'fetch',
     vi.fn((entree: RequestInfo | URL, init?: RequestInit) => {
@@ -73,7 +78,13 @@ beforeEach(() => {
       }
       const detail = /^\/api\/properties\/(\d+)$/.exec(url.pathname);
       if (detail) return json(200, { data: BIENS[Number(detail[1])] });
-      if (url.pathname === '/api/properties') return json(200, { data: [STUDIO, VILLA], meta: { total: 2 } });
+      if (url.pathname === '/api/properties') {
+        recherchesDeBiens.push(url);
+        if (biensCherches === null) return json(200, { data: [STUDIO, VILLA], meta: { total: 2 } });
+        const agence = url.searchParams.get('filter[agency_id]');
+        const servis = biensCherches.filter((b) => agence === null || String(b.agency_id) === agence);
+        return json(200, { data: servis, meta: { total: servis.length } });
+      }
       if (url.pathname === '/api/customers') {
         return json(200, { data: [{ id: 269, first_name: 'Bineta', last_name: 'Ndoye', email: null, phone: '+221770000000' }], meta: { total: 1 } });
       }
@@ -263,5 +274,30 @@ describe('TCK-2580 — l’entrée, au personnel seulement (AC4)', () => {
     await user.click(within(d).getByRole('button', { name: 'Fermer' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(bouton).toHaveFocus();
+  });
+});
+
+describe('TCK-2580 — vérification adverse, m1 : la recherche du bien, bornée à l’agence du personnel', () => {
+  // Un compte double : agent ACTIF de l'agence 2, et bailleur d'un bien de l'agence 1.
+  const PROFILS_DU_DOUBLE = {
+    data: [
+      { id: 'agent:9', type: 'agent', numeric_id: 9, agency_id: 2, agency: { id: 2, name: 'Agence B', slug: 'agence-b', kind: 'standard' }, status: 'active', created_at: '2026-10-07T22:39:28+00:00' },
+      { id: 'owner:4', type: 'owner', numeric_id: 4, agency_id: 1, agency: { id: 1, name: 'Agence A', slug: 'agence-a', kind: 'standard' }, status: 'active', created_at: '2026-10-07T22:39:28+00:00' },
+    ],
+    meta: { active_profile_id: 'agent:9', count: 2 },
+  };
+  const BIEN_DE_B = { id: 50, title: 'Appartement · Point E', price: 300000, currency: 'XOF', contract_type: 'rent', rent_period: 'monthly', main_photo_url: null, agency_id: 2 };
+  const BIEN_DU_DOUBLE = { id: 51, title: 'Maison du double · Yoff', price: 200000, currency: 'XOF', contract_type: 'rent', rent_period: 'monthly', main_photo_url: null, agency_id: 1 };
+
+  it('sous son profil agent de B, il ne se voit pas proposer son propre bien de A, que l’API refuserait', async () => {
+    profils.courant = PROFILS_DU_DOUBLE;
+    biensCherches = [BIEN_DE_B, BIEN_DU_DOUBLE];
+    monter(<SaisirUneDemande open onOpenChange={() => {}} client={BINETA} />);
+    const d = await feuille();
+
+    expect(await within(d).findByRole('button', { name: /Appartement · Point E/ })).toBeInTheDocument();
+    expect(within(d).queryByRole('button', { name: /Maison du double/ })).not.toBeInTheDocument();
+    expect(recherchesDeBiens.length).toBeGreaterThan(0);
+    expect(recherchesDeBiens.every((u) => u.searchParams.get('filter[agency_id]') === '2')).toBe(true);
   });
 });

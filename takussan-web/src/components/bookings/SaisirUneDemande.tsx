@@ -22,6 +22,7 @@ import { useApiQuery } from '@/hooks/useApiQuery';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { useAgenceDuPersonnelActif } from '@/hooks/usePersonnelActif';
 import { cheminApi } from '@/lib/chemin-api';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { nomAffichable } from '@/lib/identite';
@@ -125,6 +126,10 @@ function Session({ open, onOpenChange, client: clientDonne, bien: bienDonne, onS
   const [erreurGenerale, setErreurGenerale] = useState<string | null>(null);
   // Le premier jour que l'API accepte (`after_or_equal:today`, à Dakar).
   const [premierJour] = useState(() => jourDeLApi());
+  // TCK-2580 (vérification adverse, m1) — la recherche ne propose que les biens de l'agence où le profil
+  // actif est du personnel : c'est là seulement que l'API enregistre (`BookingPolicy::recordForCustomer`).
+  // Un compte agent de B et bailleur d'un bien de A se voyait proposer ce bien, puis un 403 sans motif.
+  const agenceDuPersonnel = useAgenceDuPersonnelActif();
 
   const form = useForm<ValeursDuFormulaire>({
     defaultValues: { montant: null, dateEntree: '', validite: '', message: '' },
@@ -299,6 +304,7 @@ function Session({ open, onOpenChange, client: clientDonne, bien: bienDonne, onS
               aucun={t('bien.aucun')}
               chemin="/api/properties"
               table="properties"
+              filtre={agenceDuPersonnel === null ? undefined : { agency_id: agenceDuPersonnel }}
               champs={['id', 'title', 'contract_type', 'rent_period', 'price', 'currency']}
               ligne={(b) => ({ id: b.id, titre: b.title, detail: ligneDuBien(b, t, f.montantCourt) })}
               debut={(b) => <VignetteDuBien photo={b.main_photo_url ?? null} />}
@@ -549,6 +555,7 @@ function RechercheDeChoix<T extends { readonly id: number }>({
   chemin,
   table,
   champs,
+  filtre,
   ligne,
   debut,
   onChoisir,
@@ -561,6 +568,8 @@ function RechercheDeChoix<T extends { readonly id: number }>({
   readonly chemin: string;
   readonly table: string;
   readonly champs: readonly string[];
+  /** Les filtres SERVEUR qui bornent la liste en plus de la recherche (`filter[agency_id]` des biens). */
+  readonly filtre?: Readonly<Record<string, string | number>>;
   readonly ligne: (r: T) => { readonly id: number; readonly titre: string; readonly detail?: string | null };
   readonly debut: (r: T) => React.ReactNode;
   readonly onChoisir: (r: T) => void;
@@ -568,10 +577,10 @@ function RechercheDeChoix<T extends { readonly id: number }>({
   const t = useTranslations('saisieDemande');
   const [terme, setTerme] = useState('');
   const recherche = useDebouncedValue(terme.trim(), 250);
-  const resultats = useApiQuery<PaginatedResponse<T>>([chemin, 'saisie-demande', recherche], chemin, {
+  const resultats = useApiQuery<PaginatedResponse<T>>([chemin, 'saisie-demande', recherche, filtre ?? null], chemin, {
     params: {
       fields: { [table]: [...champs] },
-      filter: recherche ? { search: recherche } : {},
+      filter: { ...filtre, ...(recherche ? { search: recherche } : {}) },
       per_page: 6,
     },
   });
