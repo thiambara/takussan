@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\Model\MaintenanceRequestService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -93,6 +94,30 @@ class MaintenanceAcceptWithSlotTest extends TestCase
         $this->postJson("/api/maintenance-requests/{$mr->id}/accept", ['scheduled_at' => '2026-11-12T11:00:00+01:00'])->assertOk();
 
         $this->assertSame('2026-11-12 10:00:00', $mr->refresh()->scheduled_at->format('Y-m-d H:i:s'));
+    }
+
+    /**
+     * Vérification adverse de TCK-2700 (m2) — la requête (`AcceptMaintenanceRequestRequest::scheduledAt()`) est la
+     * SEULE à lire la chaîne reçue : une heure sans décalage s'y lit à Dakar. Le service, lui, ne reçoit qu'un objet
+     * date et le ramène au fuseau de l'application. Sous un fuseau PHP par défaut ≠ UTC+0 (Asia/Tokyo), une requête
+     * qui parserait sans `SCHEDULED_TIMEZONE` poserait 01:00 UTC : ce test rougit. La conversion du service, sur ce
+     * chemin, reçoit déjà l'instant UTC et ne peut pas rougir par HTTP ; elle est gardée pour les appelants directs
+     * par `MaintenanceScheduleOffsetTest::test_l_acceptation_par_le_service_convertit`.
+     */
+    public function test_sans_decalage_l_acceptation_lit_l_heure_de_dakar(): void
+    {
+        ['mr' => $mr, 'provider' => $provider] = $this->maintenanceScenario(MaintenanceStatus::Assigned, ['scheduled_at' => null]);
+        $avant = date_default_timezone_get();
+        date_default_timezone_set('Asia/Tokyo');
+        try {
+            Sanctum::actingAs($provider);
+            $this->postJson("/api/maintenance-requests/{$mr->id}/accept", ['scheduled_at' => '2026-11-12T10:00:00'])->assertOk();
+            $brut = DB::table('maintenance_requests')->where('id', $mr->id)->value('scheduled_at');
+        } finally {
+            date_default_timezone_set($avant);
+        }
+
+        $this->assertSame('2026-11-12 10:00:00', $brut);
     }
 
     /** @return array<string, array{0: mixed}> */

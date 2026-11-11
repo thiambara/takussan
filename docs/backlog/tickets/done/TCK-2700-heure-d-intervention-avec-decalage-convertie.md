@@ -1,7 +1,7 @@
 ---
 id: TCK-2700
 title: "Une heure d'intervention envoyée avec un décalage est convertie, au PATCH comme à l'acceptation"
-status: todo
+status: done
 phase: P1
 family: back
 estimate: S
@@ -56,22 +56,22 @@ Sans objet (ticket API).
 
 ## Delta à produire
 
-- [ ] Une conversion unique (`MaintenanceRequest::scheduledInstant()`), employée par
+- [x] Une conversion unique (`MaintenanceRequest::scheduledInstant()`), employée par
       `AcceptMaintenanceRequestRequest`, `MaintenanceRequestService::accept` et
       `MaintenanceRequestController::update`.
-- [ ] Tests `MaintenanceScheduleOffsetTest` : `PATCH {scheduled_at: '2026-11-12T11:00:00+01:00'}` →
+- [x] Tests `MaintenanceScheduleOffsetTest` : `PATCH {scheduled_at: '2026-11-12T11:00:00+01:00'}` →
       10 h UTC, relue 10 h à Dakar ; sans décalage → inchangé ; même instant avec un autre décalage →
       aucune annonce ; `null` → retirée.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `PATCH {scheduled_at: "2026-11-12T11:00:00+01:00"}` par le donneur d'ordre : la ressource
+- [x] AC1 — `PATCH {scheduled_at: "2026-11-12T11:00:00+01:00"}` par le donneur d'ordre : la ressource
       rend `2026-11-12T10:00:00+00:00`, et la colonne relue à Dakar vaut 10:00.
-- [ ] AC2 — `PATCH {scheduled_at: "2026-11-12T10:00:00"}` : stocké `2026-11-12 10:00:00`, comme avant.
-- [ ] AC3 — L'heure déjà fixée (10 h UTC) renvoyée en `11:00+01:00` n'émet aucun
+- [x] AC2 — `PATCH {scheduled_at: "2026-11-12T10:00:00"}` : stocké `2026-11-12 10:00:00`, comme avant.
+- [x] AC3 — L'heure déjà fixée (10 h UTC) renvoyée en `11:00+01:00` n'émet aucun
       `maintenance.schedule_changed`.
-- [ ] AC4 — Ablation : retirer la conversion du `PATCH` fait rougir AC1.
-- [ ] AC5 — Les tests de TCK-2680 (`MaintenanceAcceptWithSlotTest`) restent verts.
+- [x] AC4 — Ablation : retirer la conversion du `PATCH` fait rougir AC1.
+- [x] AC5 — Les tests de TCK-2680 (`MaintenanceAcceptWithSlotTest`) restent verts.
 
 ## Hors périmètre
 
@@ -101,13 +101,14 @@ Implémenté le 2026-11-11 (agent back-entree-2, branche `feat/audit-ux-app-lot-
   `isDirty` sur l'heure UTC, donc le même instant écrit `11:00+01:00` n'annonce rien (AC3).
 
 **Mesures** : `MaintenanceScheduleOffsetTest` 7 tests, verts avec `MaintenanceAcceptWithSlotTest` (AC5,
-19 tests) ; `tests/Feature/Maintenance` et voisins : 364 verts. Trois ablations, rouges puis
+13 tests, mesuré — « 19 » était faux) ; `tests/Feature/Maintenance` et voisins : 364 verts. Trois ablations, rouges puis
 restaurées par `cp` (md5 vérifiés) : conversion du `PATCH` retirée → 3 rouges (AC4) ;
 `setTimezone` retiré de la conversion → 6 rouges ; conversion retirée du service → 1 rouge
 (`test_l_acceptation_par_le_service_convertit`).
 
-**Non éprouvable** : la lecture « sans décalage = Dakar » ne se distingue pas d'une lecture en UTC
-tant qu'Africa/Dakar est à UTC+0 ; elle est écrite pour le sens, pas mesurée.
+**Éprouvable, contrairement à ce qu'écrivait cette note** (vérification adverse, m1) : Africa/Dakar étant à
+UTC+0, « sans décalage = Dakar » ne se distingue pas d'une lecture en UTC, mais se distingue d'une lecture au fuseau
+PHP par défaut quand celui-ci ne l'est pas. Voir « Suites de la vérification » ci-dessous.
 
 **Relevé (non corrigé) — autres dates-heures reçues et écrites telles quelles par le cast**
 
@@ -136,3 +137,21 @@ les casts `datetime` des modèles, puis lecture du chemin d'écriture :
   période par `FinInclusive::de()`, la tranche de visite publique (`->utc()`).
 
 Le croisement est par nom de champ : il ne voit pas une date reçue sous un autre nom que sa colonne.
+
+**Suites de la vérification adverse (verif-commercial, verdict « accepté » ; trous fermés par back-3, 2026-11-11)**
+
+- **m1 — « sans décalage = Dakar » gardé.** `MaintenanceScheduleOffsetTest::test_sans_decalage_se_lit_a_dakar_quel_que_soit_le_fuseau_par_defaut`
+  pose le fuseau PHP par défaut à Asia/Tokyo (UTC+9), rendu en `tearDown` : `scheduledInstant('…T10:00:00')` et le
+  `PATCH` sans décalage donnent 10:00 UTC ; parsée sans `SCHEDULED_TIMEZONE`, la même chaîne donnerait 01:00 UTC.
+- **m2 — les deux conversions de l'acceptation, et pourquoi aucune n'est retirée.** Elles ne font pas le même
+  travail : la REQUÊTE (`AcceptMaintenanceRequestRequest::scheduledAt()`) est la seule à lire la chaîne reçue, donc
+  la seule à dire qu'une heure sans décalage est à Dakar ; le SERVICE ne reçoit qu'un objet date
+  (`?CarbonInterface`) et le ramène au fuseau de l'application, pour tout appelant. Sur le chemin HTTP, le service
+  reçoit déjà l'instant UTC : sa conversion y est idempotente et **ne peut pas rougir par HTTP** ; elle reste le
+  contrat du service pour un appelant direct, gardé par `test_l_acceptation_par_le_service_convertit`.
+  `MaintenanceAcceptWithSlotTest::test_sans_decalage_l_acceptation_lit_l_heure_de_dakar` (même procédé, Asia/Tokyo)
+  garde la requête. `MaintenanceAcceptWithSlotTest` passe à 14 tests.
+- **Ablations** (une à la fois, restaurées après contrôle md5) : B1 `scheduledInstant` sans le fuseau de Dakar →
+  rouge dans les deux fichiers (1 + 1) ; B2 la requête parse sans la conversion partagée → rouge
+  (`MaintenanceAcceptWithSlotTest`, 1) ; B3 conversion retirée du service → rouge (`MaintenanceScheduleOffsetTest`, 1),
+  verte par HTTP comme attendu.
