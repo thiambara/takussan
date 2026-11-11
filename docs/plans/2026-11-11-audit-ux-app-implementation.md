@@ -370,3 +370,10 @@ _(tenu par la session : date, lot, tickets livrés, refus du vérificateur, PR, 
   Hors de son ticket, noté : `filter[risk]`, `sort=risk` et `meta.risk_counts` restent ouverts sur
   la liste de l'auteur (rien n'y est révélé qu'il ne lise déjà). /sync-specs :
   `properties.rejection_reason_code`, règle de risque d'un avis, deux routes neuves.
+- TCK-2674 (arbitré par la session) : « à rapprocher » = payé dans la période, non réglé par une
+  passerelle, non rapproché — la règle littérale laissait les 1 479 paiements de la démo hors des
+  deux paniers. Les factures restent hors de la vue d'ensemble (aucune date de paiement en base) ;
+  **suivi possible** : une colonne `paid_at` sur les factures. **Au porteur** pour confirmation.
+- TCK-2646 (arbitré par la session) : la sortie d'un bail renouvelé s'appuie sur l'entrée signée
+  de la chaîne de renouvellement (même locataire, même bien) ; le bailleur qui a conduit l'état
+  des lieux peut le contester comme partie.
