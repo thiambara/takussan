@@ -4838,6 +4838,7 @@
         "invitations_expired_purged": "Invitations expirées supprimées",
         "owner_tax_id_set": "NINEA d'un bailleur saisi",
         "absence_updated": "Absence modifiée",
+        "suggested_stage_dismissed": "Étape proposée écartée",
         "agency_upgrade_subscription_assigned": "Abonnement pro attribué au passage en agence professionnelle",
         "review_moderated": "Avis publié (lot)"
       },

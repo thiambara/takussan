@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Exceptions\ApiError;
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\DismissSuggestedStageRequest;
+use App\Http\Requests\Api\PipelineStatsRequest;
 use App\Http\Requests\Api\SetPrimaryContactCustomerRequest;
 use App\Http\Requests\Api\StoreCustomerRequest;
 use App\Http\Requests\Api\UpdateCustomerRequest;
@@ -21,12 +23,14 @@ use App\Models\UserCustomerRelationship;
 use App\Services\Crm\CustomerActivityFeed;
 use App\Services\Crm\CustomerCommercialAttributes;
 use App\Services\Crm\CustomerDuplicateDetector;
+use App\Services\Crm\CustomerSuggestedStageQuery;
 use App\Services\Crm\PipelineStatsService;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Privacy\PersonalDataAccessLogger;
 use App\Services\Visit\VisitReportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 
 class CustomerController extends Controller
@@ -339,10 +343,26 @@ class CustomerController extends Controller
      * TCK-083 — pipeline metrics for the kanban top bar.
      * Returns 4 metrics scoped to the agent / agency.
      */
-    public function pipelineStats(Request $request, PipelineStatsService $service): JsonResponse
+    /**
+     * TCK-2591 (ADR-0103 § 5) — « Plus tard » : la proposition courante est écartée, journalisée
+     * sur la fiche avec son fait ; elle ne revient pas pour ce fait, un fait nouveau propose à
+     * nouveau. L'étape ne bouge pas. 409 si la proposition a changé depuis l'affichage.
+     */
+    public function dismissSuggestedStage(DismissSuggestedStageRequest $request, Customer $customer, CustomerSuggestedStageQuery $suggestions): Response
+    {
+        $current = $suggestions->suggestionFor($customer);
+        abort_code_if($current === null || $current['reason'] !== $request->validated('reason_event'), 409, 'customer.suggested_stage_stale');
+
+        CustomerSuggestedStageQuery::dismiss($customer, $request->user(), $current);
+
+        return response()->noContent();
+    }
+
+    /** TCK-2591 — `scope=mine|agency` et les filtres de la liste ({@see PipelineStatsRequest}). */
+    public function pipelineStats(PipelineStatsRequest $request, PipelineStatsService $service): JsonResponse
     {
         return $this->json([
-            'data' => $service->compute($request->user()),
+            'data' => $service->compute($request->user(), $request, $request->scope()),
         ]);
     }
 }

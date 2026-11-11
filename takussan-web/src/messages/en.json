@@ -6700,6 +6700,7 @@
         "invitations_expired_purged": "Expired invitations deleted",
         "owner_tax_id_set": "Landlord's tax ID entered",
         "absence_updated": "Absence updated",
+        "suggested_stage_dismissed": "Suggested stage dismissed",
         "agency_upgrade_subscription_assigned": "Pro subscription assigned on professional agency upgrade",
         "review_moderated": "Review published (batch)"
       },

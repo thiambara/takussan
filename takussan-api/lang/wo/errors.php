@@ -175,6 +175,8 @@ return [
         'invite_already_linked' => "Cette fiche est déjà rattachée à un compte : il n'y a personne à inviter.",
         'invite_no_contact' => "Cette fiche n'a pas de coordonnée où envoyer l'invitation : ajoutez une adresse e-mail.",
         'pipeline_stage_invalid' => 'Étape bi baaxul.',
+        // TCK-2591 — l'écart d'une étape proposée qui a changé depuis l'affichage.
+        'suggested_stage_stale' => "Cette étape proposée n'est plus d'actualité : rechargez la fiche.",
     ],
     'dashboard' => [
         'invalid_scope' => 'Wàll wi ñu laaj war na nekk « mine » walla « agency ».',

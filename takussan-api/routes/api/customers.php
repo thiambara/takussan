@@ -28,6 +28,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('customers/{customer}/relationships', [CustomerController::class, 'relationships'])->name('customers.relationships.index');
     Route::post('customers/{customer}/primary-contact', [CustomerController::class, 'setPrimaryContact'])->name('customers.primary-contact');
     Route::patch('customers/{customer}/pipeline-stage', [CustomerController::class, 'updatePipelineStage'])->name('customers.pipeline-stage');
+    // TCK-2591 — « Plus tard » sur l'étape proposée : 204, journalisé ; l'étape ne bouge pas.
+    Route::post('customers/{customer}/suggested-stage/dismiss', [CustomerController::class, 'dismissSuggestedStage'])->name('customers.suggested-stage.dismiss');
     // P15.01 (TCK-2351) — inviter le client de la fiche à créer son compte (lien à usage unique).
     Route::post('customers/{customer}/invite', CustomerInvitationController::class)
         ->middleware('throttle:invitations-send')

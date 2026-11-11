@@ -175,6 +175,8 @@ return [
         'invite_already_linked' => 'This record is already linked to an account: there is no one to invite.',
         'invite_no_contact' => 'This record has no contact detail to send the invitation to: add an email address.',
         'pipeline_stage_invalid' => 'Invalid pipeline stage.',
+        // TCK-2591 — l'écart d'une étape proposée qui a changé depuis l'affichage.
+        'suggested_stage_stale' => 'This suggested stage is no longer current: reload the customer.',
     ],
     'dashboard' => [
         'invalid_scope' => 'The requested scope must be “mine” or “agency”.',

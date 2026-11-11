@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Models\Agency;
 use App\Models\Customer;
 use App\Models\Enums\Capability;
 use App\Models\User;
@@ -126,6 +127,22 @@ class CustomerPolicy extends BasePolicy
         return $user->isSuperAdmin()
             || ($this->view($user, $customer)
                 && PersonnelDeLAgence::personnelActifDe($user, $customer->agency_id));
+    }
+
+    /**
+     * TCK-2591 — les chiffres du pipeline de TOUTE l'agence active (`scope=agency`) : le
+     * super-admin, ou le personnel de l'agence de son profil actif qui y tient `crm.view_all` —
+     * la capacité qui ouvre déjà le CRM entier de l'agence ({@see self::seesWholeCrm()}).
+     */
+    public function viewAgencyPipeline(User $user): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+        $agencyId = $user->staffAgencyId();
+
+        return $agencyId !== null
+            && $user->canActAt(Capability::CrmViewAll, Agency::query()->find($agencyId));
     }
 
     private function seesWholeCrm(User $user, Customer $customer): bool

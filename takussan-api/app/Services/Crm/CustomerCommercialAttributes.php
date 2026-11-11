@@ -22,7 +22,8 @@ use Illuminate\Http\Request;
  */
 final class CustomerCommercialAttributes
 {
-    public const FIELDS = ['next_action', 'follow_up', 'referent'];
+    // TCK-2591 — `suggested_stage` ({@see CustomerSuggestedStageQuery}).
+    public const FIELDS = ['next_action', 'follow_up', 'referent', 'suggested_stage'];
 
     private const REQUESTED = 'tck2588.commercial.requested';
 
@@ -96,6 +97,9 @@ final class CustomerCommercialAttributes
         }
         if (in_array('referent', $requested, true)) {
             $values['referent'] = self::referents($ids);
+        }
+        if (in_array('suggested_stage', $requested, true)) {
+            $values['suggested_stage'] = (new CustomerSuggestedStageQuery)->forPage($ids);
         }
 
         $request->attributes->set(self::VALUES, $values);

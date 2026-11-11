@@ -85,6 +85,8 @@ class PropertyVisit extends AbstractModel
         'report_objections' => 'array',
         'report_follow_up' => VisitFollowUp::class,
         'reported_at' => 'datetime',
+        // TCK-2591 — l'heure de la confirmation, posée par le modèle ({@see self::markConfirmation()}).
+        'confirmed_at' => 'datetime',
     ];
 
     protected static array $requestFilterable = ['property_id', 'visitor_id', 'customer_id', 'agent_id', 'type', 'status'];
@@ -99,6 +101,32 @@ class PropertyVisit extends AbstractModel
     protected static array $requestSortable = ['id', 'created_at', 'scheduled_at', 'status'];
 
     protected static array $requestLoadable = ['property', 'visitor', 'customer', 'agent'];
+
+    /**
+     * TCK-2591 (ADR-0103 § 5) — « visite confirmée » est un fait daté du pipeline : chaque passage
+     * en `confirmed` pose `confirmed_at`. Ici et non dans un écouteur : les seeders écrivent sous
+     * `withoutEvents()`. Une visite repassée en attente puis reconfirmée prend la nouvelle heure.
+     */
+    protected function performInsert(Builder $query)
+    {
+        $this->markConfirmation();
+
+        return parent::performInsert($query);
+    }
+
+    protected function performUpdate(Builder $query)
+    {
+        $this->markConfirmation();
+
+        return parent::performUpdate($query);
+    }
+
+    private function markConfirmation(): void
+    {
+        if ($this->isDirty('status') && $this->status === VisitStatus::Confirmed && ! $this->isDirty('confirmed_at')) {
+            $this->setAttribute('confirmed_at', $this->freshTimestamp());
+        }
+    }
 
     protected static array $queryFields = [
         'id', 'property_id', 'visitor_id', 'customer_id', 'agent_id',

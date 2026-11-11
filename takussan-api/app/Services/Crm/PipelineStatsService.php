@@ -2,11 +2,13 @@
 
 namespace App\Services\Crm;
 
+use App\Http\Requests\Api\PipelineStatsRequest;
 use App\Models\Customer;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\CustomerStatus;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Spatie\Activitylog\Models\Activity;
@@ -28,39 +30,84 @@ use Spatie\Activitylog\Models\Activity;
 class PipelineStatsService
 {
     /**
+     * TCK-2591 — `$scope` : `mine` (mes fiches de référent, `filter[referent]=me` de TCK-2588),
+     * `agency` (le CRM de l'agence active, `crm.view_all` vérifié par `PipelineStatsRequest`) ou
+     * `null` (la lecture de la fiche, comme avant). `$request` porte les filtres de la liste
+     * (`referent`, `tags`, `search`, `follow_up`…), appliqués par `Customer::buildQuery` : une
+     * définition, la liste et ses chiffres ne divergent pas.
+     *
      * @return array{
+     *   scope: string|null,
      *   stage_counts: array<string,int>,
      *   stage_changes_last_30d: int,
      *   avg_time_in_stage: array<string, float>,
+     *   median_days_in_stage: array<string, float|null>,
      *   conversion_rate: float,
+     *   exits_last_30d: array{converted: int, lost: int},
      * }
      */
-    public function compute(User $user): array
+    public function compute(User $user, ?Request $request = null, ?string $scope = null): array
     {
-        $base = $this->scopedQuery($user);
-        $customerIds = (clone $base)->pluck('id');
+        $base = $this->scopedQuery($user, $request ?? request(), $scope);
+        $customerIds = (clone $base)->pluck('customers.id');
+        $durations = $this->durationsInStage($customerIds);
+        $exits = $this->exitsLast30Days($customerIds);
+        $sorties = $exits['converted'] + $exits['lost'];
 
         return [
+            'scope' => $scope,
             'stage_counts' => $this->stageCounts($base),
             'stage_changes_last_30d' => $this->stageChangesLast30Days($customerIds),
-            'avg_time_in_stage' => $this->avgTimeInStage($customerIds),
-            'conversion_rate' => $this->conversionRate($customerIds),
+            'avg_time_in_stage' => array_map(
+                fn (array $d) => $d === [] ? 0.0 : round(array_sum($d) / count($d), 2),
+                $durations,
+            ),
+            'median_days_in_stage' => array_map(fn (array $d) => $d === [] ? null : self::median($d), $durations),
+            // TCK-2591 (ADR-0103 § 6) — sorties DATÉES par le journal, jamais `updated_at`.
+            'conversion_rate' => $sorties === 0 ? 0.0 : round($exits['converted'] / $sorties, 4),
+            'exits_last_30d' => $exits,
         ];
     }
 
     /**
-     * Scope used by the dashboard — mirrors CustomerController::index access
-     * rules so the UI counts match the kanban content the user can actually
-     * see.
+     * Les fiches que les chiffres lisent : la lecture de la fiche (`Customer::visibleTo`, la règle
+     * de `CustomerController::index`), les fiches actives, la portée, puis les filtres de la liste.
+     * Réduit à une liste d'identifiants : `fields`, `sort` ou `include` de la requête ne peuvent pas
+     * déranger un `GROUP BY`.
      *
      * @return Builder<Customer>
      */
-    protected function scopedQuery(User $user): Builder
+    protected function scopedQuery(User $user, Request $request, ?string $scope = null): Builder
     {
         // TCK-591 §9 — la portée de `CustomerController::index` (`Customer::scopeVisibleTo`).
-        return Customer::query()
+        $base = Customer::query()
             ->visibleTo($user)
-            ->where('status', CustomerStatus::Active);
+            ->where('customers.status', CustomerStatus::Active);
+
+        // TCK-2591 — « Agence » : les seules fiches de l'agence active ; les ajouts de l'appelant
+        // hors agence (ou d'une autre agence) que `visibleTo` lui laisse n'y entrent pas.
+        if ($scope === PipelineStatsRequest::AGENCY && ($agencyId = $user->staffAgencyId()) !== null) {
+            $base->where('customers.agency_id', $agencyId);
+        }
+
+        // TCK-2591 — « Moi » : `filter[referent]=me`, le filtre même de la liste (TCK-2588).
+        if ($scope === PipelineStatsRequest::MINE) {
+            $query = $request->query->all();
+            $query['filter'] = (is_array($query['filter'] ?? null) ? $query['filter'] : []) + ['referent' => 'me'];
+            // Une requête NEUVE, pas `duplicate()` : un FormRequest validé porte ses paramètres dans
+            // sa source d'entrée (`replace()` de `BaseFormRequest`), que spatie lit avant la query
+            // string — le filtre ajouté y serait masqué dès qu'un autre filtre est passé.
+            $resolver = $request->getUserResolver();
+            $request = Request::create('/', 'GET', $query);
+            $request->setUserResolver($resolver);
+        }
+
+        $ids = Customer::buildQuery($base, $request)
+            ->getEloquentBuilder()
+            ->reorder()
+            ->select('customers.id');
+
+        return Customer::query()->whereIn('customers.id', $ids);
     }
 
     /**
@@ -136,16 +183,18 @@ class PipelineStatsService
     }
 
     /**
-     * Average time (in days) a customer spent in each stage, computed across
-     * stage-change activity log entries within the in-scope set.
+     * Les durées (en jours) passées dans chaque étape, tirées du journal : de l'entrée dans l'étape
+     * (la ligne qui la pose, création comprise) à la ligne suivante qui en sort. Une fiche encore
+     * dans l'étape n'a pas de durée close : elle n'y compte pas. Une passe, deux statistiques
+     * (`avg_time_in_stage`, gardée pour compatibilité, et `median_days_in_stage`, TCK-2591).
      *
-     * @return array<string, float>
+     * @return array<string, list<float>>
      */
-    protected function avgTimeInStage(Collection $customerIds): array
+    protected function durationsInStage(Collection $customerIds): array
     {
         $result = [];
         foreach (CustomerPipelineStage::cases() as $stage) {
-            $result[$stage->value] = 0.0;
+            $result[$stage->value] = [];
         }
 
         if ($customerIds->isEmpty()) {
@@ -161,6 +210,7 @@ class PipelineStatsService
             ->whereRaw("{$newExpr} IS NOT NULL")
             ->orderBy('subject_id')
             ->orderBy('created_at')
+            ->orderBy('id')
             ->get([
                 'subject_id',
                 'created_at',
@@ -168,72 +218,63 @@ class PipelineStatsService
                 DB::raw("{$newExpr} as new_stage"),
             ]);
 
-        $accum = [];
+        $entered = [];
         foreach ($rows as $row) {
-            $key = $row->subject_id;
-            $previous = $accum[$key] ?? null;
+            $key = (int) $row->subject_id;
+            $previous = $entered[$key] ?? null;
 
-            if ($previous && $row->old_stage) {
-                $stage = (string) $row->old_stage;
-                $diffDays = abs($previous['at']->diffInSeconds($row->created_at)) / 86400;
-                $accum[$key.'_'.$stage]['durations'][] = $diffDays;
+            if ($previous !== null && $row->old_stage !== null && isset($result[(string) $row->old_stage])) {
+                $result[(string) $row->old_stage][] = abs($previous->diffInSeconds($row->created_at)) / 86400;
             }
 
-            $accum[$key] = ['at' => $row->created_at];
-        }
-
-        $byStage = [];
-        foreach ($accum as $key => $value) {
-            if (! isset($value['durations'])) {
-                continue;
-            }
-            [$_, $stage] = explode('_', $key, 2);
-            foreach ($value['durations'] as $d) {
-                $byStage[$stage][] = $d;
-            }
-        }
-
-        foreach ($byStage as $stage => $durations) {
-            if (! isset($result[$stage])) {
-                continue;
-            }
-            $result[$stage] = round(array_sum($durations) / count($durations), 2);
+            $entered[$key] = $row->created_at;
         }
 
         return $result;
     }
 
-    /**
-     * Conversion rate over the last 30 days = converted / (converted + lost).
-     * Both stages must be the **terminal** stage of a customer in the window
-     * (i.e. their pipeline_stage right now). Returns 0.0 when no terminal
-     * outcome exists yet.
-     */
-    protected function conversionRate(Collection $customerIds): float
+    /** @param  non-empty-list<float>  $values */
+    private static function median(array $values): float
     {
+        sort($values);
+        $n = count($values);
+        $middle = intdiv($n, 2);
+
+        return round($n % 2 === 1 ? $values[$middle] : ($values[$middle - 1] + $values[$middle]) / 2, 2);
+    }
+
+    /**
+     * TCK-2591 (ADR-0103 § 6) — les entrées en `converted` et en `lost` des 30 derniers jours,
+     * lues dans le journal des étapes : une ligne dont `attributes.pipeline_stage` est l'étape et
+     * dont l'ancienne étape diffère (une fiche CRÉÉE dans l'étape y entre aussi). Une retouche
+     * d'une fiche gagnée il y a 60 jours (téléphone, note…) n'écrit pas `pipeline_stage` : elle ne
+     * compte plus, alors que l'ancien calcul lisait `updated_at`.
+     *
+     * @return array{converted: int, lost: int}
+     */
+    protected function exitsLast30Days(Collection $customerIds): array
+    {
+        $exits = ['converted' => 0, 'lost' => 0];
         if ($customerIds->isEmpty()) {
-            return 0.0;
+            return $exits;
         }
 
-        $since = now()->subDays(30);
+        $newExpr = self::PIPELINE_STAGE_NEW;
+        $oldExpr = self::PIPELINE_STAGE_OLD;
 
-        $converted = Customer::query()
-            ->whereIn('id', $customerIds)
-            ->where('pipeline_stage', CustomerPipelineStage::Converted)
-            ->where('updated_at', '>=', $since)
-            ->count();
+        Activity::query()
+            ->where('subject_type', Customer::class)
+            ->whereIn('subject_id', $customerIds)
+            ->where('created_at', '>=', now()->subDays(30))
+            ->whereRaw("{$newExpr} IN (?, ?)", [CustomerPipelineStage::Converted->value, CustomerPipelineStage::Lost->value])
+            ->whereRaw("{$oldExpr} IS DISTINCT FROM {$newExpr}")
+            ->selectRaw("{$newExpr} as stage, COUNT(*) as total")
+            ->groupBy(DB::raw($newExpr))
+            ->get()
+            ->each(function ($row) use (&$exits): void {
+                $exits[(string) $row->stage] = (int) $row->total;
+            });
 
-        $lost = Customer::query()
-            ->whereIn('id', $customerIds)
-            ->where('pipeline_stage', CustomerPipelineStage::Lost)
-            ->where('updated_at', '>=', $since)
-            ->count();
-
-        $total = $converted + $lost;
-        if ($total === 0) {
-            return 0.0;
-        }
-
-        return round($converted / $total, 4);
+        return $exits;
     }
 }

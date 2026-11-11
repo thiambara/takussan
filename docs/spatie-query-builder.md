@@ -158,6 +158,9 @@ GET /api/properties/portfolio-summary?filter[user_id]=42
 | `filter[agency_id]` | exact | ID de l'agence |
 | `filter[search]` | search | Recherche dans first_name, last_name, email, phone |
 | `sort` | `-created_at`, `first_name`, `last_name`, `status` | |
+| `fields[customers]=…,suggested_stage` | calculé | TCK-2591 — `{to, reason, at}` ou `null` : l'étape que propose le dernier fait postérieur au dernier changement d'étape (ADR-0103 § 5) ; jamais une colonne |
+
+`GET /api/customers/pipeline-stats` (TCK-2591) accepte `scope=mine` (= `filter[referent]=me`, qu'aucun autre `filter[referent]` ne peut contredire : 422) ou `scope=agency` (CRM de l'agence active, 403 sans `crm.view_all`), et les MÊMES `filter[…]` que la liste des clients ; sans `scope`, la lecture de la fiche, comme avant. Rend aussi `median_days_in_stage` et `exits_last_30d` ; `conversion_rate` se lit dans le journal des étapes.
 
 ### Lease
 | Param | Type | Description |
