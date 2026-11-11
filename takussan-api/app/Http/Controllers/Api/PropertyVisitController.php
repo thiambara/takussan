@@ -18,11 +18,13 @@ use App\Models\Enums\Capability;
 use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitType;
 use App\Models\Property;
+use App\Models\PropertyContactLead;
 use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Policies\PropertyVisitPolicy;
 use App\Rules\PersonnelDeLAgence;
 use App\Services\Crm\ContactGestureService;
+use App\Services\Lead\ContactLeadService;
 use App\Services\Notifications\ContactSansCompte;
 use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Visit\VisitNotifier;
@@ -32,12 +34,15 @@ use App\Support\TelephoneSaisi;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PropertyVisitController extends Controller
 {
     public function __construct(
         protected VisitSchedulingService $scheduling,
         protected VisitNotifier $notifier,
+        // TCK-2582 — la visite qui naît d'une demande la convertit ou la rattache.
+        protected ContactLeadService $leads,
     ) {}
 
     /**
@@ -175,38 +180,86 @@ class PropertyVisitController extends Controller
     }
 
     /**
+     * TCK-2582 — la fiche de la visite qui naît d'une demande, relue sous le verrou de la demande
+     * (par `convert` / `attach`) :
+     *
+     *   · la demande est déjà rattachée → sa fiche (ou celle donnée par `customer_id`) ;
+     *   · `customer_id` donné → la demande la rejoint (rattachement, mêmes écritures qu'une
+     *     conversion) ;
+     *   · `create_customer` → la demande est convertie (`customer.duplicate` sauf
+     *     `allow_duplicate`, comme `POST /contact-leads/{lead}/convert`) ;
+     *   · sinon aucune fiche : le nom et le téléphone viennent de la demande
+     *     (`StorePropertyVisitRequest::prepareForValidation`).
+     */
+    private function customerFromLead(PropertyContactLead $lead, ?Customer $customer, User $user, StorePropertyVisitRequest $request): ?Customer
+    {
+        $linked = PropertyContactLead::query()->whereKey($lead->id)->value('customer_id');
+        if ($linked !== null) {
+            return $customer ?? Customer::query()->find((int) $linked);
+        }
+
+        if ($customer !== null) {
+            return $this->leads->attach($lead, $customer, $user);
+        }
+
+        if ($request->boolean('create_customer')) {
+            // Les refus de la route `convert` (clic, doublon, déjà convertie) sont tenus par le service.
+            return $this->leads->convert($lead, $user, $request->boolean('allow_duplicate'));
+        }
+
+        return null;
+    }
+
+    /**
      * @param  array<string,mixed>  $data
      */
     private function planForCustomer(StorePropertyVisitRequest $request, Property $property, User $user, array $data): JsonResponse
     {
-        $customer = isset($data['customer_id']) ? Customer::query()->find($data['customer_id']) : null;
-
         $agentId = array_key_exists('agent_id', $data) && $data['agent_id'] !== null
             ? (int) $data['agent_id']
             : (PersonnelDeLAgence::personnelActifDe($user, $property->agency_id) ? $user->id : null);
 
-        $visitor = $customer?->user_id !== null ? User::query()->find($customer->user_id) : null;
+        // TCK-2582 — la visite qui naît d'une demande : conversion (ou rattachement), visite et
+        // demande traitée dans UNE transaction — un chevauchement refusé (422) ne laisse pas une
+        // demande convertie sans visite. Le SMS part après, hors transaction.
+        $lead = $request->lead();
+        $visit = DB::transaction(function () use ($property, $user, $data, $agentId, $lead, $request) {
+            $customer = isset($data['customer_id']) ? Customer::query()->find($data['customer_id']) : null;
+            if ($lead !== null) {
+                $customer = $this->customerFromLead($lead, $customer, $user, $request);
+            }
 
-        $visit = $this->scheduling->createConfirmedOrFail($property, $visitor, [
-            'property_id' => $property->id,
-            'visitor_id' => $visitor?->id,
-            'customer_id' => $customer?->id,
-            'agent_id' => $agentId,
-            'visitor_name' => $data['visitor_name'] ?? ($customer !== null ? trim($customer->first_name.' '.$customer->last_name) : null),
-            // Vérification adverse (M6) — `customers.phone` est saisi librement (TCK-591) : recopié
-            // tel quel, « 77 123 45 67 » donnait un `visitor_phone` que le canal SMS jetait sans bruit.
-            'visitor_phone' => $data['visitor_phone'] ?? TelephoneSaisi::normaliser($customer?->phone),
-            'visitor_email' => $data['visitor_email'] ?? $customer?->email,
-            'scheduled_at' => $data['scheduled_at'],
-            'duration_minutes' => $data['duration_minutes'] ?? null,
-            'notes' => $data['notes'] ?? null,
-            'source' => $data['source'] ?? null,
-            'medium' => $data['medium'] ?? null,
-            // P29.02 (TCK-845) — la langue négociée ici est celle de l'AGENT : un client sans compte
-            // reçoit `fr`, comme ses relances de loyer (`ContactSansCompte::fromCustomer()`).
-            'locale' => $visitor?->preferredLocale() ?? ContactSansCompte::DEFAULT_LOCALE,
-            'type' => $data['type'] ?? VisitType::InPerson->value,
-        ]);
+            $visitor = $customer?->user_id !== null ? User::query()->find($customer->user_id) : null;
+
+            $visit = $this->scheduling->createConfirmedOrFail($property, $visitor, [
+                'property_id' => $property->id,
+                'visitor_id' => $visitor?->id,
+                'customer_id' => $customer?->id,
+                'agent_id' => $agentId,
+                'visitor_name' => $data['visitor_name'] ?? ($customer !== null ? trim($customer->first_name.' '.$customer->last_name) : null),
+                // Vérification adverse (M6) — `customers.phone` est saisi librement (TCK-591) : recopié
+                // tel quel, « 77 123 45 67 » donnait un `visitor_phone` que le canal SMS jetait sans bruit.
+                'visitor_phone' => $data['visitor_phone'] ?? TelephoneSaisi::normaliser($customer?->phone),
+                'visitor_email' => $data['visitor_email'] ?? $customer?->email,
+                'scheduled_at' => $data['scheduled_at'],
+                'duration_minutes' => $data['duration_minutes'] ?? null,
+                'notes' => $data['notes'] ?? null,
+                // TCK-2582 — l'attribution de la demande, à défaut d'une attribution donnée.
+                'source' => $data['source'] ?? $lead?->source,
+                'medium' => $data['medium'] ?? $lead?->medium,
+                'contact_lead_id' => $lead?->id,
+                // P29.02 (TCK-845) — la langue négociée ici est celle de l'AGENT : un client sans compte
+                // reçoit `fr`, comme ses relances de loyer (`ContactSansCompte::fromCustomer()`).
+                'locale' => $visitor?->preferredLocale() ?? ContactSansCompte::DEFAULT_LOCALE,
+                'type' => $data['type'] ?? VisitType::InPerson->value,
+            ]);
+
+            if ($lead !== null) {
+                $this->leads->markHandled($lead->refresh(), $user);
+            }
+
+            return $visit;
+        });
 
         $sms = $this->notifier->confirmed($visit->fresh(['property', 'visitor']), $user);
 

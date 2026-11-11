@@ -6,6 +6,7 @@ use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Public\ContactLeadPublicRequest;
 use App\Models\Enums\VisitType;
 use App\Models\Property;
+use App\Models\PropertyContactLead;
 use App\Rules\ClientDeLAgence;
 use App\Rules\CreneauDeVisite;
 use App\Rules\PersonnelDeLAgence;
@@ -43,14 +44,53 @@ class StorePropertyVisitRequest extends BaseFormRequest
 
     private bool $propertyResolved = false;
 
+    private ?PropertyContactLead $lead = null;
+
+    private bool $leadResolved = false;
+
     /**
      * L'autorisation NE migre PAS ici : elle appartient au contrôleur puis aux policies
      * (principes non négociables 1 et 2, et TCK-306). `BaseFormRequest` refuse par défaut —
      * *fail-closed* — donc sans cette surcharge l'endpoint rendrait 403 pour tout le monde.
+     *
+     * TCK-2582 — sauf `contact_lead_id`, jugé ici, AVANT la validation (une demande d'une autre
+     * agence rend 403, jamais un 422 qui renseignerait) : qui la porte doit pouvoir convertir la
+     * demande (`PropertyContactLeadPolicy::convert`, la règle de `POST …/convert`), être du personnel
+     * de l'agence du bien (`managesProperty`) et ce bien doit être de l'agence de la demande. Un
+     * visiteur qui réserve pour lui-même ne cite jamais une demande. Sans bien (demande sur un
+     * agent, sans `property_id`), la validation répond 422.
      */
     public function authorize(): bool
     {
-        return true;
+        if (! $this->filled('contact_lead_id')) {
+            return true;
+        }
+
+        $lead = $this->lead();
+        if ($lead === null || $this->user()?->can('convert', $lead) !== true) {
+            return false;
+        }
+
+        $property = $this->property();
+        if ($property === null) {
+            return true;
+        }
+
+        return $this->managesProperty()
+            && $lead->agency_id !== null
+            && (int) $property->agency_id === (int) $lead->agency_id;
+    }
+
+    /** TCK-2582 — la demande de contact d'où naît la visite, si `contact_lead_id` la cite. */
+    public function lead(): ?PropertyContactLead
+    {
+        if (! $this->leadResolved) {
+            $this->leadResolved = true;
+            $id = $this->input('contact_lead_id');
+            $this->lead = is_numeric($id) ? PropertyContactLead::query()->find((int) $id) : null;
+        }
+
+        return $this->lead;
     }
 
     public function property(): ?Property
@@ -90,6 +130,20 @@ class StorePropertyVisitRequest extends BaseFormRequest
     {
         parent::prepareForValidation();
 
+        // TCK-2582 — depuis une demande, ce qui n'est pas donné vient d'elle : le bien, puis le nom,
+        // le téléphone (ramené à E.164) et l'e-mail du demandeur. Rien n'en sort si l'appelant n'a
+        // pas le droit de la citer : `authorize()` refuse avant la validation.
+        $lead = $this->filled('contact_lead_id') ? $this->lead() : null;
+        if ($lead !== null) {
+            $fromLead = array_filter([
+                'property_id' => $lead->property_id,
+                'visitor_name' => $lead->name,
+                'visitor_phone' => $lead->phone,
+                'visitor_email' => $lead->email,
+            ], fn ($value) => $value !== null && $value !== '');
+            $this->merge(array_diff_key($fromLead, array_filter($this->all(), fn ($v) => $v !== null)));
+        }
+
         if ($this->has('visitor_phone')) {
             $this->merge(['visitor_phone' => TelephoneSaisi::normaliser($this->input('visitor_phone'))]);
         }
@@ -100,6 +154,11 @@ class StorePropertyVisitRequest extends BaseFormRequest
     {
         $manager = $this->managesProperty();
         $agencyId = $this->property()?->agency_id;
+        // TCK-2582 — la fiche viendra de la demande (conversion, ou demande déjà rattachée) : le nom
+        // et le téléphone du visiteur ne sont plus exigés.
+        $lead = $this->filled('contact_lead_id') ? $this->lead() : null;
+        $ficheDeLaDemande = $lead !== null && ($this->boolean('create_customer') || $lead->customer_id !== null);
+        $visiteurExige = $manager && ! $ficheDeLaDemande;
 
         return [
             // TCK-1072 (P62.06) — pas d'`exists:properties,id` : le contrôleur rend à un bien absent le
@@ -119,15 +178,19 @@ class StorePropertyVisitRequest extends BaseFormRequest
             // minutes, une fois confirmée, bloquait le bien.
             'duration_minutes' => ['nullable', 'integer', 'min:5', 'max:'.self::MAX_DURATION_MINUTES],
             'visitor_name' => $manager
-                ? ['nullable', 'required_without:customer_id', 'string', 'max:120']
+                ? ['nullable', ...($visiteurExige ? ['required_without:customer_id'] : []), 'string', 'max:120']
                 : ['nullable', 'string'],
             'visitor_phone' => $manager
-                ? ['nullable', 'required_without:customer_id', 'string', 'max:30', new TelephoneJoignable, new TelephoneSaisi]
+                ? ['nullable', ...($visiteurExige ? ['required_without:customer_id'] : []), 'string', 'max:30', new TelephoneJoignable, new TelephoneSaisi]
                 : ['nullable', 'string'],
             'visitor_email' => ['nullable', 'email'],
             'notes' => ['nullable', 'string'],
             'source' => ContactLeadPublicRequest::ATTRIBUTION,
             'medium' => ContactLeadPublicRequest::ATTRIBUTION,
+            // TCK-2582 — la visite qui naît d'une demande (jugée dans `authorize()`).
+            'contact_lead_id' => ['nullable', 'integer'],
+            'create_customer' => ['sometimes', 'boolean'],
+            'allow_duplicate' => ['sometimes', 'boolean'],
         ];
     }
 }

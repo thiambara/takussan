@@ -82,6 +82,11 @@ class CustomerResource extends BaseResource
                 'seeking_neighborhoods' => $this->seeking_neighborhoods,
                 'min_bedrooms' => $this->min_bedrooms,
             ] : []),
+            // TCK-2582 (ADR-0101) — d'où vient la fiche : la demande (date, message cité, bien) et le
+            // bien qui a fait venir la personne. Au seul lecteur des critères (personnel de l'agence
+            // de la fiche) : le message n'est jamais recopié vers un compte hors du personnel — la
+            // ressource est imbriquée dans le bail et la réservation, que le bailleur lit.
+            ...($this->readsOrigin($request) ? $this->origine() : []),
             // TCK-2583 — le dernier contact : geste, note, visite terminée ou compte rendu.
             'last_contacted_at' => $this->iso($this->last_contacted_at),
             'created_at' => $this->iso($this->created_at),
@@ -150,7 +155,8 @@ class CustomerResource extends BaseResource
             return $notes;
         }
 
-        return $notes->reject(fn (CustomerNote $note) => $note->kind === CustomerNoteKind::VisitReport)->values();
+        // TCK-2582 — le message d'origine d'une demande (`lead_message`) suit la même règle.
+        return $notes->reject(fn (CustomerNote $note) => in_array($note->kind?->value, CustomerNoteKind::staffOnlyValues(), true))->values();
     }
 
     /**
@@ -202,6 +208,63 @@ class CustomerResource extends BaseResource
         }
 
         return $request->attributes->get($key);
+    }
+
+    /**
+     * TCK-2582 — la règle des critères ({@see Customer::criteriaBelongTo()}), jugée sur la fiche
+     * relue quand `fields[customers]` n'a pas lu son agence : sans elle, le personnel perdait
+     * l'origine qu'il avait demandée. Rien n'est relu si aucune des deux relations n'est chargée.
+     */
+    private function readsOrigin(Request $request): bool
+    {
+        $user = $request->user();
+        if ($user === null
+            || (! $this->resource->relationLoaded('origin') && ! $this->resource->relationLoaded('interestedProperty'))) {
+            return false;
+        }
+
+        $key = 'tck591.staff_agency_ids';
+        if (! $request->attributes->has($key)) {
+            $request->attributes->set($key, app(MembershipCapabilityResolver::class)->staffAgencyIds($user));
+        }
+
+        return $this->ficheJugeable($request)->criteriaBelongTo($user, $request->attributes->get($key));
+    }
+
+    /**
+     * TCK-2582 — `origin` et `interested_property`, rendus seulement si `include=origin` /
+     * `include=interestedProperty` les a chargés.
+     *
+     * @return array<string, mixed>
+     */
+    private function origine(): array
+    {
+        $out = [];
+
+        if ($this->resource->relationLoaded('origin')) {
+            $lead = $this->resource->origin;
+            $out['origin'] = $lead === null ? null : [
+                'contact_lead_id' => $lead->id,
+                'received_at' => $this->iso($lead->created_at),
+                'message' => $lead->message,
+                'property' => $lead->property ? [
+                    'id' => $lead->property->id,
+                    'title' => $lead->property->title,
+                    'slug' => $lead->property->slug,
+                ] : null,
+            ];
+        }
+
+        if ($this->resource->relationLoaded('interestedProperty')) {
+            $property = $this->resource->interestedProperty;
+            $out['interested_property'] = $property === null ? null : [
+                'id' => $property->id,
+                'title' => $property->title,
+                'slug' => $property->slug,
+            ];
+        }
+
+        return $out;
     }
 
     /**

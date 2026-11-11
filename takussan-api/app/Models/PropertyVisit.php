@@ -57,6 +57,8 @@ class PropertyVisit extends AbstractModel
         'feedback', 'rating', 'notes', 'metadata',
         // TCK-590 — d'où vient la demande, et dans quelle langue prévenir un visiteur sans compte.
         'source', 'medium', 'locale',
+        // TCK-2582 — la demande de contact qui a amené la visite (`POST /api/property-visits`).
+        'contact_lead_id',
         // TCK-2578 (ADR-0101) — le compte rendu de l'agence, écrit par `VisitReportService` seul.
         'report_outcome', 'report_objections', 'report_note', 'report_follow_up',
         'reported_at', 'reported_by_id',

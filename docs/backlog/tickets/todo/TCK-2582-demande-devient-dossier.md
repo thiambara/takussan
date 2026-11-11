@@ -74,4 +74,92 @@ Quand l'agent fait d'une demande un client ou une visite, il retrouve dans la fi
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**2026-11-11 (back-3).** Prémisse re-mesurée sur `5ac6480f4` : toujours vraie — `convert`
+(`ContactLeadService.php`) ne recopiait que nom, e-mail, téléphone et l'étape ; `customers` sans
+origine ; aucune ressource ne disait « déjà client » ; `property_visits` sans `contact_lead_id`.
+Écart : **il n'existait aucune voie de « rattachement à une fiche existante »** — le 409
+`customer.duplicate` ne laissait que « Convertir quand même ».
+
+Ce qui est livré :
+
+- Migrations `2026_11_11_190000_add_origin_to_customers` (`source_contact_lead_id`,
+  `interested_property_id`, FK nommées `nullOnDelete`, un index chacune) et
+  `2026_11_11_190100_add_contact_lead_id_to_property_visits`. Toutes deux réversibles. Elles étaient
+  déjà passées sur la base de démo (lot 13) quand je les ai lancées : un `migrate` d'un autre agent
+  les avait prises.
+- `CustomerNoteKind::LeadMessage` ; `staffOnlyValues()` = `visit_report` + `lead_message`.
+  `CustomerNote::scopeWithoutVisitReports` et `CustomerResource::notesLisibles` retirent les deux
+  natures hors du personnel : le bailleur AUTEUR d'une fiche (qui la lit, TCK-591 §9) ne lit pas ce
+  que le prospect a écrit à l'agence — notes, `include=notes` et fil d'activité.
+- `ContactLeadService::linkLead()` (privée), commune à `convert()` et au nouveau `attach()` :
+  origine et bien posés **seulement si la fiche n'en a pas** (la première demande reste l'origine) ;
+  `source`/`medium` dans `metadata.origin` (la fiche n'a pas de colonnes d'attribution), sans écraser ;
+  critères **vides** déduits du bien (`criteriaFromProperty()` : contrat, type, quartier, budget
+  max = prix × 1,2 en entiers) ; note épinglée `lead_message`, le message tel quel (aucun préfixe :
+  le front le rend), **datée de la demande** (`created_at` = celui de la demande) ; demande liée et
+  traitée. Une seule note par demande : elle s'écrit sous le verrou de la demande, à l'instant où
+  `customer_id` passe de `null` à la fiche — une conversion ou un rattachement rejoués rendent 409
+  `lead.already_converted` avant toute écriture.
+- **Choix de la session (à relire)** : le budget n'est déduit que d'une vente ou d'un loyer mensuel
+  (un prix à la nuit ou à la semaine ne dit rien d'un budget mensuel) ; `seeking_cities` n'est pas
+  déduit (le ticket ne le nomme pas).
+- Rattachement : `POST /api/contact-leads/{lead}/convert {customer_id}` — une fiche de l'agence de
+  la demande (`ClientDeLAgence`) que l'appelant lit (`CustomerPolicy::view`, jugée dans
+  `authorize()` : une fiche d'une autre agence rend 403 avant tout 422). Les refus que les deux
+  routes partagent sont tenus par le service (`attach()` / `convert()`) : un clic (WhatsApp, Appeler)
+  rend 422 `lead.not_convertible`, une fiche que l'acteur ne lit pas (agent sans `crm.view_all`,
+  fiche d'un collègue) 403 — la visite qui rattache y passe aussi.
+- `known_customer` (`ContactLeadKnownCustomers`) : la fiche de l'agence de la demande au même
+  téléphone normalisé ou au même e-mail replié (expressions du détecteur), téléphone d'abord, plus
+  ancienne à égalité, `{id, name, visits_count}`. Fiche que le lecteur ne voit pas
+  (`Customer::visibleTo`) : `{id: null, name: null, visits_count: null}`, comme le détecteur. **Clé
+  absente** pour qui n'est pas du personnel de l'agence de la demande (le bailleur destinataire).
+  Amorcée pour la page par `index` (relecture des demandes, fiches avec `withCount('visits')`,
+  visibilité : un nombre de requêtes fixe) ; les autres réponses passent par le même chemin, sur une
+  page d'une ligne. Les demandes sont relues : la clé est servie sous
+  `fields[property_contact_leads]=id,name`. ⚠ Pour TCK-2584 : `known_customer` n'est **pas** une
+  colonne — le citer dans `fields[property_contact_leads]` rend 400 ; il sort toujours (au personnel).
+- `CustomerResource` : `origin` (`include=origin` : `contact_lead_id`, `received_at`, `message`,
+  `property {id, title, slug}`) et `interested_property` (`include=interestedProperty`), au seul
+  lecteur des critères (personnel de l'agence de la fiche), jugé sur la fiche relue si
+  `fields[customers]` a omis l'agence. ⚠ Comme toute relation `belongsTo` sous sparse fieldsets, le
+  front doit demander `source_contact_lead_id` / `interested_property_id` dans `fields[customers]`.
+- `POST /api/property-visits {contact_lead_id, create_customer?, allow_duplicate?, customer_id?}` :
+  `authorize()` exige `PropertyContactLeadPolicy::convert`, le personnel de l'agence du bien et un
+  bien de l'agence de la demande (403 avant la validation) ; un visiteur qui réserve pour lui-même
+  ne cite jamais une demande. Ce qui n'est pas donné vient de la demande (bien, nom, téléphone en
+  E.164, e-mail) ; une demande sans bien et sans `property_id` → 422. Fiche : demande déjà
+  rattachée → sa fiche (pas de 409) ; `customer_id` → rattachement ; `create_customer` →
+  conversion (`customer.duplicate` sauf `allow_duplicate`) ; sinon aucune fiche. Conversion, visite
+  et demande traitée dans **une** transaction (un 422 `visit.slot_overlap` ne laisse pas une
+  demande convertie sans visite) ; le SMS part après. La visite reprend `source`/`medium` de la
+  demande à défaut. `property_id` différent de celui de la demande : permis s'il est de la même
+  agence (l'agent propose un autre bien).
+- `contact_lead_id` n'est pas servi par `PropertyVisitResource` ni dans `PropertyVisit::$queryFields`
+  (aucun écran ne le lit encore).
+- `include=origin` sans `fields[property_contact_leads]` charge la ligne entière de la demande (dont
+  `ip` et `user_agent`) ; elle n'est rendue que par `CustomerResource::origine()`, qui n'en cite que
+  l'id, la date, le message et le bien (seuls appelants de `Customer::buildQuery` qui rendent :
+  `CustomerController::index`/`show`, relevé).
+- **Conservation** : la note `lead_message` est une SECONDE copie du message. Aucun chemin n'efface
+  aujourd'hui le message d'une demande (relevé : `ErasedMemberPortfolio` ne fait que réattribuer) ;
+  l'effacement de la fiche emporte ses notes. Un futur effacement des demandes devra suivre la note.
+
+**Pour /sync-specs** : `docs/models-spec.md` § 7 (Customer : `source_contact_lead_id`,
+`interested_property_id`, relations `origin`/`interestedProperty`), § 17 (PropertyVisit :
+`contact_lead_id`), § 33 (CustomerNote.kind : `conversion`, `loss`, `visit_report`, `lead_message`),
+§ 67 (PropertyContactLead : `known_customer` calculé) ; `docs/features.md` § 16 (conversion,
+rattachement `customer_id`, « déjà client ») et § 13 (visite depuis une demande) ;
+`docs/spatie-query-builder.md` (`include=origin`, `include=interestedProperty`).
+
+Vérifications : 4 classes neuves (28 tests) vertes ; gardes `RessourceUniqueResolue`,
+`ExistsSurTableASuppressionDouce`, `AgencyIdIsIndexed` vertes ; balayages `ImpersonationReadSweep`,
+`ValeursEnListeParcoursDesRoutes`, `DateInventoryByValue` verts ; gardes racine : seules les 5 des
+maquettes locales restent rouges. Ablations (une à une, restaurées par `cp`, md5 vérifié) : AC1
+(critères et note retirés → rouge), AC2 (critère saisi écrasé → rouge), AC3 (aucune fiche cherchée →
+rouge ; calcul ligne à ligne → 48 contre 318 requêtes, rouge), AC4 (fiche de la demande ignorée →
+rouge), transaction retirée (chevauchement → demande convertie sans visite, rouge), portée
+`lead_message` retirée de `withoutVisitReports` (bailleur auteur lit le message → rouge) ; clause
+`managesProperty()` d'`authorize()` retirée (bailleur destinataire planifie → rouge) ; clause « bien de
+l'agence de la demande » retirée (super-admin sur le bien d'une autre agence → rouge) ; refus du clic
+dans `attach()` retiré (→ rouge) ; `can('view')` de la fiche dans `attach()` retiré (→ rouge).

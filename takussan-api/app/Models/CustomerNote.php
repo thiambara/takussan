@@ -55,12 +55,15 @@ class CustomerNote extends AbstractModel implements HasAuditAgency
     /**
      * TCK-2578 (ADR-0101 § 2) — le compte rendu de visite est lu par le seul personnel de l'agence :
      * sans ce droit, les notes `visit_report` sortent de la lecture ; les notes sans nature restent.
+     *
+     * TCK-2582 — et le message d'origine d'une demande (`lead_message`), pour la même raison : le
+     * bailleur auteur d'une fiche rattachée la lit, pas ce que le prospect a écrit à l'agence.
      */
     public function scopeWithoutVisitReports(Builder $query): Builder
     {
         return $query->where(fn (Builder $q) => $q
             ->whereNull('kind')
-            ->orWhere('kind', '!=', CustomerNoteKind::VisitReport->value));
+            ->orWhereNotIn('kind', CustomerNoteKind::staffOnlyValues()));
     }
 
     /** TCK-601 (ADR-0044 §3) — l'agence d'une activité sur cette ligne est celle de la fiche client. */

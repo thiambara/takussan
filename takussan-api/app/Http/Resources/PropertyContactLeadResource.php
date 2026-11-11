@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Services\Crm\ContactLeadKnownCustomers;
 use Illuminate\Http\Request;
 
 /**
@@ -14,6 +15,10 @@ class PropertyContactLeadResource extends BaseResource
 {
     public function toArray(Request $request): array
     {
+        // TCK-2582 — « déjà client » : au seul personnel de l'agence de la demande, calculé pour la
+        // page entière quand la liste l'a amorcé (`ContactLeadKnownCustomers::prime`).
+        $known = ContactLeadKnownCustomers::for($request, $this->resource);
+
         return [
             'id' => $this->id,
             'property_id' => $this->property_id,
@@ -34,6 +39,7 @@ class PropertyContactLeadResource extends BaseResource
             'first_responded_at' => $this->iso($this->first_responded_at),
             'first_responded_by_id' => $this->first_responded_by_id,
             'first_response_channel' => $this->first_response_channel,
+            ...($known !== ContactLeadKnownCustomers::ABSENT ? ['known_customer' => $known] : []),
             'created_at' => $this->iso($this->created_at),
             'property' => $this->whenLoaded('property', fn () => $this->property ? [
                 'id' => $this->property->id,

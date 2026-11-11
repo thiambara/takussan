@@ -100,6 +100,9 @@ class Customer extends AbstractModel
         'min_bedrooms' => 'integer',
         // TCK-2583 — écrite par `ContactGestureService::touchCustomer()` seulement, jamais fillable.
         'last_contacted_at' => 'datetime',
+        // TCK-2582 — écrites par `ContactLeadService` seul (conversion, rattachement), jamais fillable.
+        'source_contact_lead_id' => 'integer',
+        'interested_property_id' => 'integer',
     ];
 
     /**
@@ -121,8 +124,11 @@ class Customer extends AbstractModel
     /** `first_name` et `last_name` se trient à part, en `COLLATE "und-x-icu"` (TCK-1136). */
     protected static array $requestSortable = ['id', 'created_at', 'updated_at', 'status', 'last_contacted_at'];
 
-    /** TCK-2588 — `upcomingVisits` : les trois prochaines visites de la fiche. */
-    protected static array $requestLoadable = ['user', 'agency', 'addresses', 'tags', 'addedBy', 'notes', 'documents', 'tasks', 'upcomingVisits'];
+    /**
+     * TCK-2588 — `upcomingVisits` : les trois prochaines visites de la fiche.
+     * TCK-2582 — `origin` (la demande d'origine et son bien) et `interestedProperty`.
+     */
+    protected static array $requestLoadable = ['user', 'agency', 'addresses', 'tags', 'addedBy', 'notes', 'documents', 'tasks', 'upcomingVisits', 'origin', 'interestedProperty'];
 
     /** TCK-2588 — `visitsCount`. */
     protected static array $requestCountable = ['bookings', 'leases', 'notes', 'tasks', 'visits'];
@@ -168,6 +174,8 @@ class Customer extends AbstractModel
         'seeking_contract_type', 'budget_min', 'budget_max',
         'seeking_property_types', 'seeking_cities', 'seeking_neighborhoods', 'min_bedrooms',
         'locale', 'last_contacted_at',
+        // TCK-2582 — l'origine de la fiche ; à demander avec `include=origin` / `interestedProperty`.
+        'source_contact_lead_id', 'interested_property_id',
         'created_at', 'updated_at',
     ];
 
@@ -398,6 +406,22 @@ class Customer extends AbstractModel
             ->orderBy('property_visits.scheduled_at')
             ->orderBy('property_visits.id')
             ->limit(3);
+    }
+
+    /**
+     * TCK-2582 (ADR-0101) — la demande de contact d'où vient la fiche, avec son bien (titre, slug) :
+     * `include=origin`. Le message n'en sort que par `CustomerResource`, au seul personnel.
+     */
+    public function origin(): BelongsTo
+    {
+        return $this->belongsTo(PropertyContactLead::class, 'source_contact_lead_id')
+            ->with('property:id,title,slug');
+    }
+
+    /** TCK-2582 — le bien qui a fait venir la personne : `include=interestedProperty`. */
+    public function interestedProperty(): BelongsTo
+    {
+        return $this->belongsTo(Property::class, 'interested_property_id');
     }
 
     public function leasePayments(): HasMany
