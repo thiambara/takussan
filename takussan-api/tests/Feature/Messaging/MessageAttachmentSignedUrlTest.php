@@ -14,6 +14,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Testing\TestResponse;
 use Laravel\Sanctum\Sanctum;
 use Tests\Support\FichiersReels;
 use Tests\TestCase;
@@ -83,6 +84,64 @@ class MessageAttachmentSignedUrlTest extends TestCase
             $this->travelTo($this->emise->copy()->addMinutes(5)->addSecond());
             $this->get($url)->assertForbidden();
         }
+    }
+
+    /**
+     * Vérification adverse de TCK-2736 — le membre retiré : il ne relit plus le fil (403), et le lien
+     * qu'il avait reçu à T meurt à T + 5 min. La relecture d'un membre resté re-signe : l'URL relue à
+     * T + 3 min diffère et vit jusqu'à T + 8 min.
+     */
+    public function test_le_membre_retire_perd_le_fil_et_son_lien_meurt_a_cinq_minutes(): void
+    {
+        $admin = User::factory()->create();
+        $membre = User::factory()->create();
+        $conversation = Conversation::create([
+            'type' => ConversationType::Group->value,
+            'status' => ConversationStatus::Active->value,
+            'subject' => 'Fil',
+            'created_by' => $admin->id,
+        ]);
+        $conversation->participants()->attach($admin->id, ['role' => ParticipantRole::Admin->value, 'joined_at' => now()]);
+        $conversation->participants()->attach($membre->id, ['role' => ParticipantRole::Member->value, 'joined_at' => now()]);
+
+        Sanctum::actingAs($admin);
+        $this->post("/api/conversations/{$conversation->id}/messages", [
+            'type' => 'image',
+            'file' => FichiersReels::jpeg(),
+        ], ['Accept' => 'application/json'])->assertCreated();
+        $this->app['auth']->forgetGuards();
+
+        $lire = function (User $lecteur) use ($conversation): TestResponse {
+            Sanctum::actingAs($lecteur);
+            $reponse = $this->getJson("/api/conversations/{$conversation->id}/messages");
+            $this->app['auth']->forgetGuards();
+
+            return $reponse;
+        };
+        $urlDe = fn (TestResponse $reponse): string => (string) collect($reponse->assertOk()->json('data'))
+            ->firstWhere('type', 'image')['attachments'][0]['url'];
+
+        $urlDuMembre = $urlDe($lire($membre));
+
+        Sanctum::actingAs($admin);
+        $this->deleteJson("/api/conversations/{$conversation->id}/participants/{$membre->id}")->assertOk();
+        $this->app['auth']->forgetGuards();
+
+        $lire($membre)->assertForbidden();
+
+        $this->travelTo($this->emise->copy()->addMinutes(3));
+        $urlRelue = $urlDe($lire($admin));
+        $this->assertNotSame($urlDuMembre, $urlRelue, 'la relecture re-signe');
+
+        $this->travelTo($this->emise->copy()->addMinutes(5)->subSecond());
+        $this->assertTrue($this->lisible($urlDuMembre), 'fenêtre résiduelle décidée');
+
+        $this->travelTo($this->emise->copy()->addMinutes(5)->addSecond());
+        $this->get($urlDuMembre)->assertForbidden();
+        $this->assertTrue($this->lisible($urlRelue), "l'URL relue à T + 3 min vit encore");
+
+        $this->travelTo($this->emise->copy()->addMinutes(8)->addSecond());
+        $this->get($urlRelue)->assertForbidden();
     }
 
     /** AC2 — témoin : l'URL signée d'un document garde ses 30 minutes. */
