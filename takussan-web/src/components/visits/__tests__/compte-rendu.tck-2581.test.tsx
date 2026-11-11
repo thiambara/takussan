@@ -67,6 +67,8 @@ const etat = {
   visite: visiteDe(LOCATION),
   bien: LOCATION as typeof LOCATION,
   etape: 'prospect',
+  /** Le PATCH d'étape change-t-il la fiche relue ? (faux : la fiche reste ce que le test pose). */
+  patchEcritLEtape: false,
   candidatures: [] as { id: number }[],
 };
 
@@ -96,6 +98,7 @@ beforeEach(() => {
   etat.visite = visiteDe(LOCATION);
   etat.bien = LOCATION;
   etat.etape = 'prospect';
+  etat.patchEcritLEtape = false;
   etat.candidatures = [];
   ecrans(false);
   vi.stubGlobal(
@@ -121,7 +124,10 @@ beforeEach(() => {
       }
       if (url.pathname === '/api/property-visits/228') return json(200, { data: etat.visite });
       if (url.pathname === `/api/properties/${etat.bien.id}`) return json(200, { data: etat.bien });
-      if (url.pathname === '/api/customers/37/pipeline-stage') return json(200, { data: { id: 37, pipeline_stage: 'qualified' } });
+      if (url.pathname === '/api/customers/37/pipeline-stage') {
+        if (etat.patchEcritLEtape) etat.etape = String(corps?.pipeline_stage);
+        return json(200, { data: { id: 37, pipeline_stage: 'qualified' } });
+      }
       if (url.pathname === '/api/customers/37/matching-properties') return json(200, { data: [{ id: 1 }, { id: 2 }, { id: 3 }], meta: { total: 3 } });
       if (url.pathname === '/api/customers/37') return json(200, { data: { id: 37, first_name: 'Aliou', pipeline_stage: etat.etape } });
       if (url.pathname === '/api/bookings') return json(200, { data: etat.candidatures, meta: { total: etat.candidatures.length } });
@@ -207,6 +213,27 @@ describe('TCK-2581 — le compte rendu', () => {
     expect(texte).toContain('Aliou');
   });
 
+  it('AC2 — le message WhatsApp, qui part AU CLIENT, ne porte que le prénom, le bien et le lien : ni la note, ni les objections', async () => {
+    const user = userEvent.setup();
+    monter();
+    await user.click(await screen.findByRole('radio', { name: /^Intéressé$/ }));
+    await user.click(screen.getByRole('button', { name: 'Prix', pressed: false }));
+    await user.click(screen.getByRole('button', { name: 'Garant', pressed: false }));
+    await user.type(screen.getByLabelText('Une note'), 'Budget serré, hésite avec Ngor');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+    await waitFor(() => expect(ecritures('/api/property-visits/228/report')).toHaveLength(1));
+
+    const bouton = await screen.findByRole('link', { name: /Envoyer par WhatsApp/ });
+    const texte = decodeURIComponent((bouton.getAttribute('href') ?? '').split('?text=')[1] ?? '');
+    expect(texte).toBe(
+      `Bonjour Aliou, voici le lien pour déposer votre candidature pour Studio · Yoff : ${window.location.origin}/fr/properties/studio-yoff?action=reserver`,
+    );
+    expect(texte).not.toContain('Budget serré');
+    expect(texte).not.toMatch(/Prix|Garant|price|guarantor/i);
+    // L'aperçu affiché à l'agent est ce texte même.
+    expect(document.querySelector('[data-slot="apercu-whatsapp"]')?.textContent).toContain(texte);
+  });
+
   it('AC3 — l\'interrupteur est allumé ; éteint puis « Terminer » : aucun PATCH d\'étape', async () => {
     const user = userEvent.setup();
     monter();
@@ -242,6 +269,31 @@ describe('TCK-2581 — le compte rendu', () => {
     await waitFor(() => expect(ecritures('/api/property-visits/228/report').filter((e) => e.methode === 'PATCH')).toHaveLength(1));
     expect(ecritures('/api/property-visits/228/report').find((e) => e.methode === 'PATCH')?.corps).toEqual({ follow_up: 'invite_apply' });
     expect(ecritures('/api/customers/37/pipeline-stage')).toHaveLength(1);
+  });
+
+  it('AC3 — choisir une suite PUIS « Terminer » : l\'étape ne s\'écrit qu\'une fois', async () => {
+    // La fiche relue reste « Prospect » (le double ne la change pas) : seule la mémoire de l'écran
+    // (`etapeAppliquee`) retient que l'étape est déjà partie.
+    const user = userEvent.setup();
+    monter();
+    await enregistrer(user, /^Intéressé$/);
+    await user.click(await screen.findByRole('link', { name: /Envoyer par WhatsApp/ }));
+    await waitFor(() => expect(ecritures('/api/customers/37/pipeline-stage')).toHaveLength(1));
+    await user.click(screen.getByRole('button', { name: 'Terminer' }));
+    await new Promise((r) => setTimeout(r, 100));
+    expect(ecritures('/api/customers/37/pipeline-stage')).toHaveLength(1);
+  });
+
+  it('AC3 — l\'étape a avancé depuis l\'ouverture de l\'écran : « Terminer » ne l\'écrase pas', async () => {
+    const user = userEvent.setup();
+    monter();
+    await enregistrer(user, /^Intéressé$/);
+    expect((await screen.findByRole('switch')).getAttribute('aria-checked')).toBe('true');
+    // Un collègue fait avancer la fiche pendant que l'écran est ouvert : l'écran l'ignore encore.
+    etat.etape = 'negotiation';
+    await user.click(screen.getByRole('button', { name: 'Terminer' }));
+    await new Promise((r) => setTimeout(r, 100));
+    expect(ecritures('/api/customers/37/pipeline-stage')).toHaveLength(0);
   });
 
   it('une fiche déjà « Qualifié » : pas d\'interrupteur', async () => {
@@ -365,6 +417,41 @@ describe('TCK-2581 — au téléphone, deux étapes plein écran', () => {
     expect(screen.getByText(/rejoint la fiche de Aliou/)).toBeTruthy();
     await enregistrer(user, /^Intéressé$/);
     await waitFor(() => expect(nav.replace).toHaveBeenCalledWith('/app/visits/228?etape=et-maintenant'));
+  });
+
+  it('« Modifier » puis retour sans enregistrer : la validation suivante ne réécrit pas l\'étape sur un `from` périmé', async () => {
+    // L'écran « Et maintenant ? » se démonte à « Modifier » ; `SuiteDeLaVisite` garde la réponse de
+    // l'écriture (`suggested_stage.from` = « Prospect »), et un écran remonté oublie ce qu'il a écrit.
+    ecrans(true);
+    etat.patchEcritLEtape = true;
+    nav.recherche = 'etape=compte-rendu';
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const arbre = () =>
+      withIntl(
+        <QueryClientProvider client={client}>
+          <ToastProvider>
+            <VisitDetail id={228} />
+          </ToastProvider>
+        </QueryClientProvider>,
+      );
+    const user = userEvent.setup();
+    const { rerender } = render(arbre());
+    await enregistrer(user, /^Intéressé$/);
+    await waitFor(() => expect(nav.replace).toHaveBeenCalledWith('/app/visits/228?etape=et-maintenant'));
+
+    nav.recherche = 'etape=et-maintenant';
+    rerender(arbre());
+    await user.click(await screen.findByRole('link', { name: /Envoyer par WhatsApp/ }));
+    await waitFor(() => expect(ecritures('/api/customers/37/pipeline-stage')).toHaveLength(1));
+
+    nav.recherche = 'etape=compte-rendu';
+    rerender(arbre());
+    await screen.findByRole('heading', { level: 1, name: 'Comment s’est passée la visite ?' });
+    nav.recherche = 'etape=et-maintenant';
+    rerender(arbre());
+    await user.click(await screen.findByRole('button', { name: 'Terminer' }));
+    await new Promise((r) => setTimeout(r, 100));
+    expect(ecritures('/api/customers/37/pipeline-stage')).toHaveLength(1);
   });
 
   it('« Terminer la visite » enchaîne sur le compte rendu', async () => {

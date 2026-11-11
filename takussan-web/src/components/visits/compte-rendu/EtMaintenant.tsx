@@ -100,6 +100,17 @@ interface Fiche {
 }
 
 /**
+ * L'étape de la fiche, relue. `/api/customers/{id}` est un `show` : il rend la fiche entière et
+ * ignore `fields` (P60.03, `show-sans-fields.garde.test.ts`) — d'où une déclaration à part, sans
+ * paramètres.
+ */
+function useEtapeDeLaFiche(clientId: number | null) {
+  return useApiQuery<ApiResponse<Fiche>>(['customers', 'etape', clientId ?? 0], cheminApi`/api/customers/${clientId ?? 0}`, {
+    enabled: clientId !== null,
+  });
+}
+
+/**
  * TCK-2581 (ADR-0101 § 3) — « Et maintenant ? » : le résumé du compte rendu (« Modifier »), puis les
  * suites dans l'ordre utile, la conseillée en tête et dépliée, et l'interrupteur « Passer <prénom>
  * en « Qualifié » » (décision 2a). Maquette `app-fil-commercial`, écran 5 (`SuiteMobile`, et la
@@ -128,11 +139,10 @@ export function EtMaintenant({ visite, compteRendu, verdictEnCours = null, bien,
   const numero = client?.phone ?? visite.visitor_display?.phone ?? visite.visitor_phone ?? null;
 
   // L'étape de la fiche : l'API ne rend `suggested_stage` qu'à l'écriture ; rouvert, l'écran la lit.
-  const fiche = useApiQuery<ApiResponse<Fiche>>(['customers', 'etape', client?.id ?? 0], cheminApi`/api/customers/${client?.id ?? 0}`, {
-    params: { fields: { customers: ['id', 'first_name', 'pipeline_stage'] } },
-    enabled: client !== null,
-  });
-  const etapeActuelle = etapeSuggeree?.from ?? fiche.data?.data.pipeline_stage ?? null;
+  // La fiche relue fait foi dès qu'elle est là : `etapeSuggeree.from` est l'étape AVANT l'écriture du
+  // compte rendu, et reste dans `SuiteDeLaVisite` quand cet écran se démonte (« Modifier », puis retour).
+  const fiche = useEtapeDeLaFiche(client?.id ?? null);
+  const etapeActuelle = fiche.data?.data.pipeline_stage ?? etapeSuggeree?.from ?? null;
   const etapeOuverte = etapeActuelle === 'lead' || etapeActuelle === 'prospect';
   const proposee = etapeSuggeree ? etapeSuggeree.to === 'qualified' : etapeAProposer(verdict, etapeActuelle);
   const [qualifier, setQualifier] = useState<boolean | null>(null);
@@ -180,6 +190,11 @@ export function EtMaintenant({ visite, compteRendu, verdictEnCours = null, bien,
 
   async function appliquerEtape() {
     if (!client || !etapeOuverte || !allume || etapeAppliquee) return;
+    // Relue AVANT d'écrire : le PATCH n'a pas de précondition, et l'étape a pu avancer depuis
+    // l'ouverture de l'écran (un collègue, une candidature) — on n'écrase jamais une étape au-delà
+    // de « Prospect ». C'est aussi ce qui tient la seconde validation quand l'écran a été remonté.
+    const relue = (await fiche.refetch()).data?.data.pipeline_stage ?? etapeActuelle;
+    if (relue !== 'lead' && relue !== 'prospect') return;
     await etape.mutateAsync({ pipeline_stage: 'qualified' });
     setEtapeAppliquee(true);
     toast.add({ title: t('etapeAppliquee', { prenom }), type: 'success' });
