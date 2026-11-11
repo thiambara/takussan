@@ -19,6 +19,10 @@ class SubscriptionController extends Controller
     {
         $agencyId = $request->activeProfile()?->agency_id ?? $request->user()->agency_id;
         abort_code_unless($agencyId, 404, 'agency.active_profile_missing');
+        // Vérification adverse de TCK-2669 — l'abonnement (limites effectives dont max_agents,
+        // surcharges, commission de la plateforme) est un fait interne d'agence : au seul personnel
+        // de l'agence du profil actif, comme `agents` de /me/quota. Un bailleur n'y lit rien.
+        abort_code_unless($this->readsTeamQuota($request, $agencyId), 403, 'agency.staff_only');
 
         $subscription = $this->quota->currentSubscription((int) $agencyId);
 

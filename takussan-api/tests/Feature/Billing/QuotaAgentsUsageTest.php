@@ -98,6 +98,12 @@ class QuotaAgentsUsageTest extends ApiTestCase
         $this->assertArrayHasKey('agents', $data);
         $this->assertNull($data['agents']);
         $this->assertArrayHasKey('can_create', $data);
+
+        // Ni par l'abonnement voisin (limites effectives, surcharges, commission).
+        $this->getJson('/api/me/subscription')->assertForbidden()->assertJsonPath('code', 'agency.staff_only');
+        $this->flushHeaders();
+        $this->apiActingAsRole('agency_admin', ['agency' => $this->agency]);
+        $this->apiGet('/api/me/subscription')->assertOk()->assertJsonPath('data.effective_limits.max_agents', 5);
     }
 
     public function test_le_controle_lit_le_meme_compte(): void
