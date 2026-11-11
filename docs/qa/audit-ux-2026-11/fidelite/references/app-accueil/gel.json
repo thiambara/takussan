@@ -1,0 +1,51 @@
+{
+ "page": "app-accueil",
+ "approche": "a",
+ "revue": {
+  "date": "2026-11-11",
+  "citation": "« je valide tout »",
+  "source": "porteur, revue des maquettes téléphone (390, rem 16), bureau 1440 et bureau 1280"
+ },
+ "ecrans": [
+  {
+   "e": 0,
+   "nom": "Agent : sa journée (Aujourd’hui)",
+   "sansBureau": null
+  },
+  {
+   "e": 1,
+   "nom": "Admin d’agence",
+   "sansBureau": null
+  },
+  {
+   "e": 2,
+   "nom": "Bailleur",
+   "sansBureau": null
+  },
+  {
+   "e": 3,
+   "nom": "Locataire",
+   "sansBureau": null
+  },
+  {
+   "e": 4,
+   "nom": "Prestataire",
+   "sansBureau": null
+  },
+  {
+   "e": 5,
+   "nom": "Client",
+   "sansBureau": null
+  },
+  {
+   "e": 6,
+   "nom": "Rien à faire (bailleur)",
+   "sansBureau": null
+  },
+  {
+   "e": 7,
+   "nom": "Chargement et erreur (admin)",
+   "sansBureau": null
+  }
+ ]
+}

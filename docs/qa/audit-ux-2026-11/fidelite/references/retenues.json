@@ -1,0 +1,175 @@
+{
+ "_lisez-moi": "Les pages retenues (approche choisie par le porteur) dont `fidelite.mjs geler` gèle les références. `bureau1280` : la session a dessiné l'écran bureau de la page à 1280 (ADR-0106 § 4 ; rapports des lots 1280 f3 à f6 du 2026-11-10) — ses écrans bureau sont gelés aussi à 1280. Les écrans ne sont PAS listés ici : la visionneuse les recense elle-même au gel (`gel.json` de chaque page).",
+ "revue": {
+  "date": "2026-11-11",
+  "citation": "« je valide tout »",
+  "source": "porteur, revue des maquettes téléphone (390, rem 16), bureau 1440 et bureau 1280"
+ },
+ "pages": [
+  {
+   "page": "app-accueil",
+   "approche": "a",
+   "bureau1280": true
+  },
+  {
+   "page": "app-agenda",
+   "approche": "a",
+   "bureau1280": true
+  },
+  {
+   "page": "app-argent",
+   "approche": "a",
+   "bureau1280": true
+  },
+  {
+   "page": "app-aujourdhui",
+   "approche": "a",
+   "bureau1280": true
+  },
+  {
+   "page": "app-bailleurs",
+   "approche": "a",
+   "bureau1280": true
+  },
+  {
+   "page": "app-baux",
+   "approche": "a",
+   "bureau1280": true
+  },
+  {
+   "page": "app-biens",
+   "approche": "a",
+   "bureau1280": true
+  },
+  {
+   "page": "app-clients",
+   "approche": "a",
+   "bureau1280": true
+  },
+  {
+   "page": "app-commissions",
+   "approche": "a",
+   "bureau1280": true
+  },
+  {
+   "page": "app-coque",
+   "approche": "a",
+   "bureau1280": true
+  },
+  {
+   "page": "app-credits",
+   "approche": "a",
+   "bureau1280": true
+  },
+  {
+   "page": "app-demandes",
+   "approche": "a",
+   "bureau1280": true
+  },
+  {
+   "page": "app-documents",
+   "approche": "a",
+   "bureau1280": true
+  },
+  {
+   "page": "app-entree-assistants",
+   "approche": "a",
+   "bureau1280": true
+  },
+  {
+   "page": "app-entree-connexion",
+   "approche": "a",
+   "bureau1280": false
+  },
+  {
+   "page": "app-entree-invitation",
+   "approche": "a",
+   "bureau1280": true
+  },
+  {
+   "page": "app-entree-orientation",
+   "approche": "a",
+   "bureau1280": true
+  },
+  {
+   "page": "app-entree-publier",
+   "approche": "a",
+   "bureau1280": true
+  },
+  {
+   "page": "app-equipe",
+   "approche": "a",
+   "bureau1280": true
+  },
+  {
+   "page": "app-etats-des-lieux",
+   "approche": "a",
+   "bureau1280": true
+  },
+  {
+   "page": "app-fil-commercial",
+   "approche": "a",
+   "bureau1280": true
+  },
+  {
+   "page": "app-identite-agence",
+   "approche": "a",
+   "bureau1280": true
+  },
+  {
+   "page": "app-interventions",
+   "approche": "a",
+   "bureau1280": true
+  },
+  {
+   "page": "app-messagerie",
+   "approche": "a",
+   "bureau1280": true
+  },
+  {
+   "page": "app-moderation",
+   "approche": "b",
+   "bureau1280": true
+  },
+  {
+   "page": "app-notifications",
+   "approche": "a",
+   "bureau1280": false
+  },
+  {
+   "page": "app-paiements",
+   "approche": "a",
+   "bureau1280": true
+  },
+  {
+   "page": "app-pipeline",
+   "approche": "a",
+   "bureau1280": true
+  },
+  {
+   "page": "app-profil",
+   "approche": "a",
+   "bureau1280": true
+  },
+  {
+   "page": "app-rapports",
+   "approche": "a",
+   "bureau1280": true
+  },
+  {
+   "page": "app-rapprochement",
+   "approche": "c",
+   "bureau1280": true
+  },
+  {
+   "page": "app-reservations",
+   "approche": "a",
+   "bureau1280": true
+  },
+  {
+   "page": "app-visites",
+   "approche": "a",
+   "bureau1280": true
+  }
+ ]
+}

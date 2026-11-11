@@ -1,0 +1,51 @@
+{
+ "page": "app-visites",
+ "approche": "a",
+ "revue": {
+  "date": "2026-11-11",
+  "citation": "« je valide tout »",
+  "source": "porteur, revue des maquettes téléphone (390, rem 16), bureau 1440 et bureau 1280"
+ },
+ "ecrans": [
+  {
+   "e": 0,
+   "nom": "Liste",
+   "sansBureau": null
+  },
+  {
+   "e": 1,
+   "nom": "Détail — à confirmer",
+   "sansBureau": null
+  },
+  {
+   "e": 2,
+   "nom": "Détail — jour J",
+   "sansBureau": null
+  },
+  {
+   "e": 3,
+   "nom": "Détail — après l’heure",
+   "sansBureau": null
+  },
+  {
+   "e": 4,
+   "nom": "Compte rendu et suite",
+   "sansBureau": null
+  },
+  {
+   "e": 5,
+   "nom": "Planifier",
+   "sansBureau": null
+  },
+  {
+   "e": 6,
+   "nom": "Planifier — confirmée",
+   "sansBureau": null
+  },
+  {
+   "e": 7,
+   "nom": "Côté client",
+   "sansBureau": null
+  }
+ ]
+}
