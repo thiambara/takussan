@@ -104,6 +104,8 @@ return [
         'unauthenticated' => 'War nga dugg ci sa compte.',
     ],
     'booking' => [
+        // TCK-2734
+        'application_already_accepted' => 'Une autre candidature est déjà acceptée sur ce bien : annulez-la, ou créez son bail, avant d\'en accepter une seconde.',
         'cannot_cancel' => 'Wootu bii mënuñu ko neenal ni mu nekke léegi.',
         'cannot_expire' => 'Wootu bii mënuñu ko jeexal: war na nekk ci xaar.',
         // TCK-2579

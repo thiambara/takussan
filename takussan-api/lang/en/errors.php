@@ -104,6 +104,8 @@ return [
         'unauthenticated' => 'You must be signed in.',
     ],
     'booking' => [
+        // TCK-2734
+        'application_already_accepted' => 'Another application has already been accepted for this property: cancel it, or create its lease, before accepting a second one.',
         'cannot_cancel' => 'This booking cannot be cancelled in its current state.',
         'cannot_expire' => 'This booking cannot be expired: it must be pending.',
         // TCK-2579

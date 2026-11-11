@@ -104,6 +104,8 @@ return [
         'unauthenticated' => 'Vous devez être connecté.',
     ],
     'booking' => [
+        // TCK-2734
+        'application_already_accepted' => 'Une autre candidature est déjà acceptée sur ce bien : annulez-la, ou créez son bail, avant d\'en accepter une seconde.',
         'cannot_cancel' => 'Cette réservation ne peut pas être annulée dans son état actuel.',
         'cannot_expire' => 'Cette réservation ne peut pas être expirée : elle doit être en attente.',
         // TCK-2579
