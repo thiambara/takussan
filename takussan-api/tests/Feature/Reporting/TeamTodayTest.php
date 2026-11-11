@@ -283,4 +283,36 @@ class TeamTodayTest extends ApiTestCase
 
         $this->assertSame($compter(2), $compter(6));
     }
+
+    /**
+     * Vérification adverse de TCK-2623 — un agent de A ET de B : l'admin de A ne lit ni la demande
+     * adressée à l'agent dans B, ni son absence dans B (et le nom du remplaçant de B). Les bornes
+     * d'agence des demandes et des absences n'étaient gardées par aucun test.
+     */
+    public function test_l_admin_de_a_ne_lit_ni_la_demande_ni_l_absence_de_l_agent_dans_b(): void
+    {
+        $this->travelTo(Carbon::parse('2026-11-10 10:00:00', 'Africa/Dakar'));
+        $a = Agency::factory()->create();
+        $b = Agency::factory()->create();
+        $awa = $this->agencyAgent($a);
+        AgentProfile::factory()->create(['user_id' => $awa->id, 'agency_id' => $b->id, 'status' => AgentProfileStatus::Active]);
+        $collegueB = $this->agencyAgent($b);
+
+        PropertyContactLead::factory()->create([
+            'property_id' => Property::factory()->create(['agency_id' => $b->id])->id,
+            'agency_id' => $b->id, 'recipient_user_id' => $awa->id,
+        ]);
+        RoleDelegation::factory()->create([
+            'user_id' => $collegueB->id, 'replaces_user_id' => $awa->id, 'delegator_id' => $awa->id,
+            'agency_id' => $b->id, 'role' => RoleDelegation::ABSENCE_ROLE, 'status' => RoleDelegationStatus::Active,
+            'starts_at' => Carbon::parse('2026-11-08 00:00:00', 'Africa/Dakar'),
+            'ends_at' => Carbon::parse('2026-11-14 23:59:59', 'Africa/Dakar'),
+        ]);
+
+        $this->actingAsApi($this->agencyAdmin($a));
+        $lignes = collect($this->getJson("/api/agencies/{$a->id}/team-today")->assertOk()->json('data.agents'))->keyBy('user_id');
+
+        $this->assertSame(0, $lignes[$awa->id]['open_leads_count'], 'demande de B comptée chez A');
+        $this->assertNull($lignes[$awa->id]['current_absence'], 'absence de B rendue chez A');
+    }
 }
