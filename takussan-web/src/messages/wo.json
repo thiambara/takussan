@@ -13703,7 +13703,8 @@
         },
         "requested": {
           "title": "Laaj seetaan : {property}",
-          "body": "Waxtu bi ñu laaj : {scheduled_at}. Ngir jokkoo ak ki bëgg seetaan : {contact}."
+          "body": "Waxtu bi ñu laaj : {scheduled_at}. Ngir jokkoo ak ki bëgg seetaan : {contact}.",
+          "body_unnamed": "Créneau demandé : {scheduled_at}."
         },
         "rescheduled_by_visitor": {
           "title": "Beneen waxtu : {property}",
@@ -13727,7 +13728,8 @@
         },
         "requested_window": {
           "title": "Demande de visite : {property}",
-          "body": "Jour demandé : {date}, {window, select, morning {le matin} afternoon {l'après-midi} other {en soirée}} — heure à fixer. Pour joindre le visiteur : {contact}."
+          "body": "Jour demandé : {date}, {window, select, morning {le matin} afternoon {l'après-midi} other {en soirée}} — heure à fixer. Pour joindre le visiteur : {contact}.",
+          "body_unnamed": "Jour demandé : {date}, {window, select, morning {le matin} afternoon {l'après-midi} other {en soirée}} — heure à fixer."
         },
         "cancelled_by_visitor_window": {
           "title": "Visite annulée par le visiteur : {property}",

@@ -72,6 +72,10 @@ const MOIS = /^\d{4}-(0[1-9]|1[0-2])$/;
 const PARAMS_NOMMES: Readonly<Record<string, readonly string[]>> = {
   'bank_statement.imported': ['bank'],
   'governance.role_capabilities_changed': ['role'],
+  // TCK-2717 — le bailleur hors console d'une visite rattachée à une fiche reçoit `contact` nul :
+  // le créneau seul, sans « Pour joindre le visiteur : — ».
+  'visit.requested': ['contact'],
+  'visit.requested_window': ['contact'],
 };
 
 function nomAbsent(code: string, params: AppNotification['params']): boolean {

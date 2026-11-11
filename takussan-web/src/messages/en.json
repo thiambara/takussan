@@ -13703,7 +13703,8 @@
         },
         "requested": {
           "title": "Visit request: {property}",
-          "body": "Requested slot: {scheduled_at}. To reach the visitor: {contact}."
+          "body": "Requested slot: {scheduled_at}. To reach the visitor: {contact}.",
+          "body_unnamed": "Requested slot: {scheduled_at}."
         },
         "rescheduled_by_visitor": {
           "title": "Another slot suggested: {property}",
@@ -13727,7 +13728,8 @@
         },
         "requested_window": {
           "title": "Visit request: {property}",
-          "body": "Requested day: {date}, {window, select, morning {in the morning} afternoon {in the afternoon} other {in the evening}} — time to be set. To reach the visitor: {contact}."
+          "body": "Requested day: {date}, {window, select, morning {in the morning} afternoon {in the afternoon} other {in the evening}} — time to be set. To reach the visitor: {contact}.",
+          "body_unnamed": "Requested day: {date}, {window, select, morning {in the morning} afternoon {in the afternoon} other {in the evening}} — time to be set."
         },
         "cancelled_by_visitor_window": {
           "title": "Visit cancelled by the visitor: {property}",
