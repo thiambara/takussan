@@ -33,6 +33,7 @@ Navigation (refaite le 2026-11-10, quand la partie connectée a porté le compte
   cherche une page, une approche ou une route.
 - `[` `]` page précédente / suivante · `←` `→` ou `1`–`4` approche · `↑` `↓` écran d'un parcours ·
   `t` `b` `c` vues Téléphone / Bureau / Comparer · `n` notes · `?` l'aide.
+- **Taille réelle** (2026-11-10, [ADR-0106](../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md)) : chaque cadre est une iframe qui rend l'écran seul (`&cadre=1`) à sa vraie largeur. Le téléphone est rendu en 390 × 844 à `rem` 16 ; avant, vu sur un ordinateur, il héritait des 90 % du bureau (TCK-635). Le bureau se choisit en 1440, 1280, 1024 ou 768 par `l` ou `&l=1280`. Une réduction visuelle, affichée sous le cadre, le fait tenir dans la fenêtre sans changer ses proportions ; « ouvrir seul » l'affiche à 100 %.
 - **Retenir** (`r`) marque une approche d'une étoile (gardé dans le navigateur) ; la vue d'ensemble
   copie la liste des choix en texte, prête à coller dans la conversation.
 - L'URL garde la position (`?p=app-biens&a=b&e=1&v=bureau`). Ouverte sur un téléphone, la
@@ -64,6 +65,14 @@ au chemin absolu ci-dessus (un worktree ne la contient pas) et, si possible, l'o
 écrite hors design system : on en reprend le **résultat**, jamais le code (vrais composants,
 next-intl, `useFormatteurs()`). Les notes « Pour / Contre » d'une approche ont pu se tromper sur
 l'API : le ticket fait foi. Le dossier se supprime avec le dernier ticket qui s'en sert.
+
+**Au pixel, depuis le 2026-11-10 (partie connectée)** : la maquette retenue fait foi au pixel, à
+taille réelle, sauf l'accessibilité mesurée, les contraintes techniques et ses propres
+incohérences ([ADR-0106](../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md)). Avant la
+première page, la vague 91 (TCK-2684 → TCK-2691) prépare l'outil de mesure, les jetons, les
+primitives et la coque. Chaque ticket de page porte les critères AC-F1 à AC-F6, et la preuve
+se fait contre des références gelées, jamais à l'œil sur la visionneuse. État des lieux mesuré :
+[fidelite-au-pixel.md](fidelite-au-pixel.md).
 
 ## Décisions du porteur sur la partie connectée (2026-11-10)
 

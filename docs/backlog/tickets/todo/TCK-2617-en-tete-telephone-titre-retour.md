@@ -8,7 +8,7 @@ estimate: L
 wave: 87
 created: 2026-11-10
 updated: 2026-11-10
-depends_on: []
+depends_on: [TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: [TCK-2632]
 spec_refs:
   features:
@@ -42,6 +42,7 @@ Aucun endpoint neuf.
   - Les liens texte « ← Retour à … » gardent leur forme, avec le même glyphe en 16 px.
   - Les chevrons de période, de pagination et de carrousel ne sont pas des retours.
 - **Barre d'action collante** : la coque offre aux pages de détail une barre de 64 px au-dessus des onglets (fond carte, ombre haute légère), qui porte 1 bouton pleine largeur ou 2 boutons à 50/50. Les pages l'adoptent dans leurs propres tickets.
+  - **Mise à jour du 2026-11-10** (relevé de fidélité au pixel, [annexe C § 2.3 et § 5.1](../../../qa/audit-ux-2026-11/fidelite/C-coque.md)) : la barre mesure **73 px** et non 64 — filet 1 + `py-3` (12 + 12) + bouton d'action principale de 48, relevé sur 49 écrans. Elle est la primitive de TCK-2689 ; au-dessus des onglets elle n'ajoute pas de zone sûre, en plein écran elle ajoute `env(safe-area-inset-bottom)`. Les feuilles que ce ticket crée (compte et espaces, actions « ⋯ ») sont la feuille du bas de TCK-2690, et les icônes de l'en-tête suivent les cotes de TCK-2691 (C5 : 20 px, trait 1,75, encre douce).
 - **Bureau (≥ 1280 px)** : la colonne ne change pas, et le H1 reste dans la zone de contenu. Sur une page de détail, un fil d'Ariane de 13 px (« Baux › Bail de la Villa Ngor ») remplace le lien « ← Retour » au-dessus du H1 (écran « Page de détail », bureau). Entre `md` et `lg`, la règle de la coque vaut : `md` n'est pas le bureau, et l'en-tête de 56 px n'existe que sous `md`, comme aujourd'hui.
 
 ## Contraintes strictes (métier)
@@ -108,6 +109,15 @@ Aucun endpoint neuf.
 - [ ] AC5 — À 360, le titre le plus long d'une page racine (« Demandes de contact ») se tronque sur une ligne à côté de trois boutons, avec `scrollWidth − innerWidth = 0` (`innerWidth` relevé, pas déduit).
 - [ ] AC6 — À 1280, la colonne est inchangée (même jeu d'entrées qu'avant le ticket). Une page de bail montre le fil d'Ariane « Baux › … » et aucun lien « ← Retour ».
 - [ ] AC7 — La garde rougit si l'on remet le lien `ArrowLeft` d'origine dans `LeaseDetail` (ablation).
+
+**Fidélité au pixel** ([ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), préparation : TCK-2684 → TCK-2691) :
+
+- [ ] AC-F1 — **Fiche de fidélité** : `docs/qa/audit-ux-2026-11/fidelite/TCK-2617.json` (modèle de TCK-2684) liste chaque écran de maquette implémenté (page, approche, écran, référence gelée datée), la persona et la route du produit, l'état reproduit, les rôles des composants de données, les zones à contenu identique et les alias de libellés (vouvoiement, renommage décidé).
+- [ ] AC-F2 — **Zéro écart non expliqué** : à 390 × 844 (`rem` 16) et à 1440 × 900 (`rem` 16, densité ×0,9 — [ADR-0107](../../../adr/0107-la-densite-du-bureau-est-un-jeu-de-jetons.md)), `fidelite compare` contre la référence gelée ne rend aucun écart au-delà des tolérances d'[ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md) § 5 — ou chaque écart restant figure au tableau « écarts acceptés » de la PR, avec son motif : une des trois exceptions d'ADR-0106 § 2, ou une donnée.
+- [ ] AC-F3 — **Rien ne manque** : aucun libellé ni aucune icône de la maquette n'est absent du produit sans alias ou motif écrit, et aucun élément d'interface n'est absent de la maquette sans motif.
+- [ ] AC-F4 — **Zones identiques** : chaque zone déclarée dans la fiche (coque, tête de page, barre de filtres) a au plus 0,5 % de pixels différents.
+- [ ] AC-F5 — **Preuve dans la PR** : par écran et par appareil, la ligne `conformes · écarts · absents · % pixels`, et le chemin du rideau ; le porteur valide sur le rideau.
+- [ ] AC-F6 — **Largeurs intermédiaires** (ADR-0106 § 4) : à 1280, l'écran suit la maquette « bureau 1280 » quand la page en a une (visionneuse, `l=1280`), sinon la maquette 1440 sans débord ni coupe ; à 1024 et à 768, le document ne défile pas horizontalement (`scrollWidth − innerWidth = 0`), aucune grille à piste fixe ni aucun panneau de 480 px ne reste à côté du contenu sous 1280, et toute table défile dans son conteneur.
 
 ## Hors périmètre
 
