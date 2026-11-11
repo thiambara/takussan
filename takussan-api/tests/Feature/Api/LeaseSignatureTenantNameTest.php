@@ -8,7 +8,9 @@ use App\Models\Customer;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Lease;
 use App\Models\Property;
+use App\Models\Setting;
 use App\Models\User;
+use App\Services\Lease\LeaseRenewalService;
 use App\Services\Pdf\DocumentPdfService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
@@ -99,6 +101,53 @@ class LeaseSignatureTenantNameTest extends TestCase
         $this->demander()->assertOk()->assertJsonPath('data.status', 'pending_signature');
         $this->assertNotNull($this->lease->fresh()->contract_sha256);
         $this->assertStringContainsString('Awa', (string) $this->lease->fresh()->frozenContractBytes());
+    }
+
+    /** AC2 — un nom de famille seul est un nom (verif-2719 m1 : une garde qui ne lirait que le prénom le refuserait). */
+    public function test_un_nom_de_famille_seul_suffit(): void
+    {
+        $this->tenant->forceFill(['last_name' => 'Ndiaye'])->save();
+
+        $this->demander()->assertOk()->assertJsonPath('data.status', 'pending_signature');
+        $this->assertStringContainsString('Ndiaye', (string) $this->lease->fresh()->frozenContractBytes());
+    }
+
+    /** AC1 — des espaces insécables ne sont pas un nom (verif-2719 m2 : `trim` ne les retire pas). */
+    public function test_des_espaces_insecables_ne_sont_pas_un_nom(): void
+    {
+        $this->tenant->forceFill(['first_name' => "\u{00A0}", 'last_name' => "\u{00A0} "])->save();
+
+        $this->demander()->assertStatus(422)->assertJsonPath('code', 'lease_signature.tenant_without_name');
+        $this->assertRienNEstFige();
+    }
+
+    /**
+     * Un renouvellement qui demande la signature naît `pending_signature` sans rien figer : son
+     * contrat se fige à la demande de signature, que la garde tient. `freezeRenewal` (enfant né
+     * `active`, sans signature, voie papier) reste hors de la garde — décision de la session.
+     */
+    public function test_l_enfant_d_un_renouvellement_signe_ne_part_pas_en_signature_sans_nom(): void
+    {
+        Setting::query()->create(['key' => 'lease.require_signature', 'value' => true]);
+        $this->lease->forceFill([
+            'status' => LeaseStatus::Active, 'start_date' => '2025-11-01', 'end_date' => '2026-10-31',
+        ])->save();
+
+        $enfant = app(LeaseRenewalService::class)->renew($this->lease, [
+            'start_date' => '2026-11-01', 'end_date' => '2027-10-31',
+        ], $this->owner);
+        $this->assertSame(LeaseStatus::PendingSignature, $enfant->status);
+        $this->assertNull($enfant->contract_sha256);
+
+        Sanctum::actingAs($this->owner);
+        $this->postJson("/api/leases/{$enfant->id}/signature-request")
+            ->assertStatus(422)->assertJsonPath('code', 'lease_signature.tenant_without_name');
+
+        $enfant->refresh();
+        $this->assertSame(LeaseStatus::PendingSignature, $enfant->status);
+        $this->assertNull($enfant->contract_sha256);
+        $this->assertNull($enfant->signature_requested_at);
+        $this->assertCount(0, $enfant->getMedia('signed_contract'));
     }
 
     /** AC3 — sans compte ET sans nom : le refus du compte reste le premier. */

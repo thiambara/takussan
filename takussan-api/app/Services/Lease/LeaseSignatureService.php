@@ -17,6 +17,7 @@ use App\Services\Pdf\DocumentPdfService;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Throwable;
 
 /**
@@ -62,7 +63,8 @@ class LeaseSignatureService
         // se fige pas tant que la fiche du locataire n'a ni prénom ni nom (un compte ouvert par e-mail
         // ou par téléphone naît sans, TCK-2605). L'agent complète la fiche, puis relance.
         abort_code_if(
-            trim(($lease->tenant?->first_name ?? '').' '.($lease->tenant?->last_name ?? '')) === '',
+            // `Str::trim`, pas `trim` : une espace insécable n'est pas un nom non plus.
+            Str::trim(($lease->tenant?->first_name ?? '').' '.($lease->tenant?->last_name ?? '')) === '',
             422,
             'lease_signature.tenant_without_name'
         );
