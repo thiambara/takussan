@@ -1,4 +1,4 @@
-import { RouteSkeleton } from '@/components/console';
+import { RouteSkeleton } from '@/components/console/RouteSkeleton';
 
 /**
  * TCK-426 — ce repli était à `overview/`, où il couvrait AUSSI `overview/page.tsx`,

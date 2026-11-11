@@ -244,3 +244,16 @@ export function cheminOuvert(ctx: ContexteDeMenu, href: string): boolean {
   const page: ContexteDeMenu = { ...ctx, masquees: SANS_MASQUE };
   return portees.length === 0 || portees.some((d) => estOuverte(d, page));
 }
+
+/**
+ * TCK-2617 — la destination qui sert ce chemin POUR CE COMPTE (« Mes baux » au bailleur, « Baux » au
+ * personnel), d'où l'en-tête du téléphone tire son titre ; à défaut d'une destination ouverte, la
+ * première qui porte le chemin. Jugée comme `cheminOuvert`, et ici pour la même raison : seul le
+ * compositeur juge l'ouverture d'une destination (`modules.test.ts`, TCK-2483). Masque d'agence ignoré.
+ */
+export function destinationDuChemin(ctx: ContexteDeMenu, href: string): Destination | null {
+  const chemin = href.split('?')[0];
+  const portees = CATALOGUE.filter((d) => d.href === chemin);
+  const page: ContexteDeMenu = { ...ctx, masquees: SANS_MASQUE };
+  return portees.find((d) => estOuverte(d, page)) ?? portees[0] ?? null;
+}

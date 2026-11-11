@@ -1,7 +1,8 @@
 import { PAGES_ADMIN } from '@/lib/access/pages-admin';
 import { estPleinEcran } from '@/components/layout/plein-ecran';
 import { listePour } from './app-sections';
-import { CATALOGUE, cleDe, estOuverte } from './catalogue';
+import { CATALOGUE, cleDe } from './catalogue';
+import { destinationDuChemin } from './composer-menu';
 import type { ContexteDeMenu } from './types';
 
 /**
@@ -116,8 +117,7 @@ export function formeDeLaRoute(pathname: string | null | undefined): FormeDEnTet
 
 /** Le libellé du menu pour cet `href` : la destination OUVERTE au compte d'abord (« Mes baux » / « Baux »). */
 function titreDuMenu(href: string, ctx: ContexteDeMenu): TitreDerive | null {
-  const portees = CATALOGUE.filter((d) => d.href === href);
-  const destination = portees.find((d) => estOuverte(d, ctx)) ?? portees[0];
+  const destination = destinationDuChemin(ctx, href);
   if (destination) return { espace: destination.espace ?? 'nav.sidebar', cle: cleDe(destination, ctx) };
   const page = PAGES_ADMIN.find((p) => p.chemin === href);
   if (page?.menu) return { espace: 'nav.admin', cle: page.menu.cle };
