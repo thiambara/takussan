@@ -113,4 +113,35 @@ Relevé sur `dev` (1bce3798a) le 2026-11-10 :
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+Implémenté le 2026-11-11 (branche `feat/audit-ux-app-lot-2`).
+
+- **Une donnée, deux dessins, un seul monté** — `NotificationPreferencesMatrix` choisit par
+  `useMatchesMedia('(min-width: 64rem)')` : sous `lg` les rangées à puces, dès `lg` la matrice. Deux
+  arbres cachés par CSS auraient doublé chaque case pour l'assistance et pour les tests.
+- **Les groupes et la liste des événements** vivent dans `src/lib/notification-preferences.ts`
+  (`GROUPES_DE_PREFERENCES`, ordre de la maquette : Baux en tête) ; `EVENEMENTS_DE_PREFERENCE` en est
+  DÉRIVÉE. Les six événements prennent leur place (cinq dans Baux, le rappel de tâche dans Alertes) ;
+  `visit_reminder` reste dans Alertes.
+- **Garde de parité** — `src/lib/__tests__/notification-preferences.parity.test.ts` lit
+  `public const EVENTS = [ … ];` de `PreferenceResolver.php` (commentaires retirés). `web-ci.yml` se
+  déclenche désormais sur ce fichier (les deux côtés d'une garde la réveillent). AC5 par ablation :
+  retirer `task_due_reminder` → 2 rouges.
+- **Téléphone** — groupes repliables, TOUS ouverts au chargement (la maquette n'en ouvre que deux ;
+  AC3 veut les 20 rendus — arbitrage signalé). Puce = `button role="checkbox"`, 32 px, cible de 44
+  par `before:`. « Appli » (`inapp_always_on`) : cochée, figée, sans cadenas, comme la maquette. Une
+  puce `channel_unavailable` n'est pas proposée (TCK-588) : une ligne du groupe le dit, comme
+  « Notification mobile : pas encore disponible. ». Les autres verrous : puce grisée + sous-ligne
+  (« SMS et WhatsApp : vérifiez votre téléphone pour les activer. »).
+- **Bureau** — une table ARIA par groupe (légende, en-têtes lus), rangée d'en-têtes visible commune,
+  colonnes de 76 px sur l'échelle, cadre `overflow-x-auto` (plus d'`overflow-hidden`). En-têtes
+  « Appli, E-mail, Notif. mobile, SMS, WhatsApp ».
+- **« Enregistré » à chaque changement** — toast du produit (TCK-2688) à chaque succès ; l'ancien
+  `<p role="status">` gardait le même texte et ne se réannonçait pas. Le bouton « Rafraîchir »,
+  absent de la maquette, est retiré (sa suppression ESLint consignée avec).
+- **Page** — le fil « Profil › Notifications » passe par `fil` (`FilDAriane`, dès `md`) : au
+  téléphone, la flèche unique de la coque (TCK-2617).
+- Mesures au navigateur (persona `admin`, seul compte de démo au téléphone vérifié) : AC1 à 390 et
+  360, débord 0, puce WhatsApp de « Loyer en retard » dans le viewport ; AC2 : action serveur portant
+  `lease_payment_overdue.whatsapp` inversé, API relue avant/après, toast « Enregistré » dans la
+  région vivante, état rétabli ; AC3 20 rangées (390) et 20 en-têtes de rangée (1280) ; AC4 ; 768,
+  1024, 1440 sans débord. Fiche : `docs/qa/audit-ux-2026-11/fidelite/TCK-2636.json`.

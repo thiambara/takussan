@@ -2335,7 +2335,7 @@
       "breadcrumbProfile": "Profile",
       "breadcrumbCurrent": "Notifications",
       "title": "Notification preferences",
-      "subtitle": "Choose which events you receive on each channel."
+      "subtitle": "For each event, choose the channels that notify you."
     },
     "inventoryDetail": {
       "metaTitle": "Inventory",
@@ -12321,30 +12321,35 @@
     "notifications": {
       "smsDisabled": "SMS notifications stay off until your phone is verified.",
       "verifyPhone": "Verify my phone",
-      "saved": "Preferences saved.",
+      "saved": "Saved",
       "eventColumn": "Event",
-      "refresh": "Refresh",
       "toggleAria": "{event} — {channel}",
       "events": {
         "message_received": "New message",
         "booking_request": "Booking request",
-        "booking_status_changed": "Booking — status changed",
-        "lease_payment_due": "Rent — due date",
-        "lease_payment_overdue": "Rent — overdue",
-        "maintenance_status_changed": "Maintenance — status",
-        "review_received": "New review",
+        "booking_status_changed": "Booking status",
+        "lease_payment_due": "Upcoming rent due date",
+        "lease_payment_overdue": "Rent overdue",
+        "maintenance_status_changed": "Maintenance request status",
+        "review_received": "Review received",
         "saved_search_match": "Saved search",
-        "favorite_price_drop": "Favorite — price drop",
-        "favorite_unavailable": "Favorite — no longer available",
+        "favorite_price_drop": "Price drop on a favorite",
+        "favorite_unavailable": "Favorite no longer available",
         "visit_reminder": "Visit reminder",
-        "threshold_alert": "KPI threshold alert",
-        "lease_payment_received": "Rent — payment received",
-        "property_availability_check": "Availability of my published properties"
+        "threshold_alert": "Threshold exceeded",
+        "lease_payment_received": "Rent payment received",
+        "property_availability_check": "Availability of my published properties",
+        "lease_renewed": "Lease renewal",
+        "lease_early_termination": "Early lease termination",
+        "lease_rent_reviewed": "Rent review",
+        "invoice_reminder_sent": "Invoice reminder",
+        "tenant_inventory_reminder": "Move-in inventory reminder",
+        "task_due_reminder": "Task reminder"
       },
       "channels": {
-        "inapp": "In-app",
+        "inapp": "App",
         "email": "Email",
-        "push": "Push",
+        "push": "Mobile notif.",
         "sms": "SMS",
         "whatsapp": "WhatsApp"
       },
@@ -12362,7 +12367,19 @@
         "phoneNotVerified": "Phone not verified.",
         "channelUnavailable": "No message of this kind is sent on this channel.",
         "phoneWithoutWhatsapp": "Your number is declared as not on WhatsApp."
-      }
+      },
+      "resume": "{nombre, plural, one {# event} other {# events}} · {canaux}",
+      "verrous": {
+        "phoneNotVerified": "{canaux}: verify your phone to turn them on.",
+        "phoneWithoutWhatsapp": "{canaux}: your number is declared as not on WhatsApp.",
+        "autre": "{canaux}: unavailable for now."
+      },
+      "pushIndisponible": "Mobile notification: not available yet.",
+      "canauxAbsents": {
+        "tous": "{canaux}: not sent for these events.",
+        "autres": "{canaux}: not sent for the other events in this group."
+      },
+      "enregistrementImmediat": "Each box is saved as soon as it is ticked."
     },
     "payoutMethods": {
       "title": "Where to receive your payouts",

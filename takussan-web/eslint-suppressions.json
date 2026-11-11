@@ -415,11 +415,6 @@
       "count": 2
     }
   },
-  "src/components/profile/NotificationPreferencesMatrix.tsx": {
-    "@typescript-eslint/no-misused-promises": {
-      "count": 1
-    }
-  },
   "src/components/profile/ProfileContactSection.tsx": {
     "@typescript-eslint/no-misused-promises": {
       "count": 1

@@ -11664,7 +11664,6 @@
       "verifyPhone": "Wóoral sama telefon",
       "saved": "Tànneef yi ñu leen denc.",
       "eventColumn": "Xew-xew",
-      "refresh": "Yeesalaat",
       "toggleAria": "{event} — {channel}",
       "events": {
         "message_received": "Bataaxal bu bees",
@@ -11680,12 +11679,18 @@
         "visit_reminder": "Fàttali gis-gis",
         "threshold_alert": "Yégle ci dig KPI",
         "lease_payment_received": "Loyer — fey bi agsi na",
-        "property_availability_check": "Disponibilité de mes biens publiés"
+        "property_availability_check": "Disponibilité de mes biens publiés",
+        "lease_renewed": "Renouvellement du bail",
+        "lease_early_termination": "Résiliation anticipée du bail",
+        "lease_rent_reviewed": "Révision du loyer",
+        "invoice_reminder_sent": "Relance de facture",
+        "tenant_inventory_reminder": "Rappel d’état des lieux d’entrée",
+        "task_due_reminder": "Rappel de tâche"
       },
       "channels": {
         "inapp": "Ci appli bi",
-        "email": "Email",
-        "push": "Push",
+        "email": "E-mail",
+        "push": "Notif. mobile",
         "sms": "SMS",
         "whatsapp": "WhatsApp"
       },
@@ -11703,7 +11708,19 @@
         "phoneNotVerified": "Telefon bi ñu ko wóoralul.",
         "channelUnavailable": "Benn bataaxal bu mel noonu du jaar ci yoon wii.",
         "phoneWithoutWhatsapp": "Votre numéro est déclaré sans WhatsApp."
-      }
+      },
+      "resume": "{nombre, plural, one {# événement} other {# événements}} · {canaux}",
+      "verrous": {
+        "phoneNotVerified": "{canaux} : vérifiez votre téléphone pour les activer.",
+        "phoneWithoutWhatsapp": "{canaux} : votre numéro est déclaré sans WhatsApp.",
+        "autre": "{canaux} : indisponible pour le moment."
+      },
+      "pushIndisponible": "Notification mobile : pas encore disponible.",
+      "canauxAbsents": {
+        "tous": "{canaux} : pas d’envoi pour ces événements.",
+        "autres": "{canaux} : pas d’envoi pour les autres événements de ce groupe."
+      },
+      "enregistrementImmediat": "Chaque case s’enregistre dès qu’elle est cochée."
     },
     "payoutMethods": {
       "title": "Fan ngay bëgg a jot sa fey",

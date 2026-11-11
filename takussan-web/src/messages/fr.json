@@ -2292,7 +2292,7 @@
       "breadcrumbProfile": "Profil",
       "breadcrumbCurrent": "Notifications",
       "title": "Préférences de notifications",
-      "subtitle": "Choisissez quels événements vous recevez sur chaque canal."
+      "subtitle": "Pour chaque événement, choisissez les canaux qui vous préviennent."
     },
     "inventoryDetail": {
       "metaTitle": "État des lieux",
@@ -12321,30 +12321,35 @@
     "notifications": {
       "smsDisabled": "Les notifications SMS sont désactivées tant que votre téléphone n'est pas vérifié.",
       "verifyPhone": "Vérifier mon téléphone",
-      "saved": "Préférences enregistrées.",
+      "saved": "Enregistré",
       "eventColumn": "Événement",
-      "refresh": "Rafraîchir",
       "toggleAria": "{event} — {channel}",
       "events": {
         "message_received": "Nouveau message",
         "booking_request": "Demande de réservation",
-        "booking_status_changed": "Réservation — statut modifié",
-        "lease_payment_due": "Loyer — échéance",
-        "lease_payment_overdue": "Loyer — retard",
-        "maintenance_status_changed": "Maintenance — statut",
-        "review_received": "Nouvel avis",
+        "booking_status_changed": "Statut d’une réservation",
+        "lease_payment_due": "Échéance de loyer à venir",
+        "lease_payment_overdue": "Loyer en retard",
+        "maintenance_status_changed": "Statut d’une demande d’intervention",
+        "review_received": "Avis reçu",
         "saved_search_match": "Recherche sauvegardée",
-        "favorite_price_drop": "Favori — baisse de prix",
-        "favorite_unavailable": "Favori — plus disponible",
+        "favorite_price_drop": "Baisse de prix d’un favori",
+        "favorite_unavailable": "Favori plus disponible",
         "visit_reminder": "Rappel de visite",
-        "threshold_alert": "Alerte seuil KPI",
-        "lease_payment_received": "Loyer — paiement reçu",
-        "property_availability_check": "Disponibilité de mes biens publiés"
+        "threshold_alert": "Seuil dépassé",
+        "lease_payment_received": "Paiement de loyer reçu",
+        "property_availability_check": "Disponibilité de mes biens publiés",
+        "lease_renewed": "Renouvellement du bail",
+        "lease_early_termination": "Résiliation anticipée du bail",
+        "lease_rent_reviewed": "Révision du loyer",
+        "invoice_reminder_sent": "Relance de facture",
+        "tenant_inventory_reminder": "Rappel d’état des lieux d’entrée",
+        "task_due_reminder": "Rappel de tâche"
       },
       "channels": {
-        "inapp": "In-app",
-        "email": "Email",
-        "push": "Push",
+        "inapp": "Appli",
+        "email": "E-mail",
+        "push": "Notif. mobile",
         "sms": "SMS",
         "whatsapp": "WhatsApp"
       },
@@ -12362,7 +12367,19 @@
         "phoneNotVerified": "Téléphone non vérifié.",
         "channelUnavailable": "Aucun message de ce type ne part sur ce canal.",
         "phoneWithoutWhatsapp": "Votre numéro est déclaré sans WhatsApp."
-      }
+      },
+      "resume": "{nombre, plural, one {# événement} other {# événements}} · {canaux}",
+      "verrous": {
+        "phoneNotVerified": "{canaux} : vérifiez votre téléphone pour les activer.",
+        "phoneWithoutWhatsapp": "{canaux} : votre numéro est déclaré sans WhatsApp.",
+        "autre": "{canaux} : indisponible pour le moment."
+      },
+      "pushIndisponible": "Notification mobile : pas encore disponible.",
+      "canauxAbsents": {
+        "tous": "{canaux} : pas d’envoi pour ces événements.",
+        "autres": "{canaux} : pas d’envoi pour les autres événements de ce groupe."
+      },
+      "enregistrementImmediat": "Chaque case s’enregistre dès qu’elle est cochée."
     },
     "payoutMethods": {
       "title": "Où recevoir vos versements",
