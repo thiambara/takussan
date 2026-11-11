@@ -189,4 +189,36 @@ class ReviewReportedCountVisibilityTest extends ApiTestCase
         $this->actingAsApi($superAdmin);
         $this->assertSame(['high' => 2, 'low' => 1], $this->getJson('/api/reviews')->assertOk()->json('meta.risk_counts'));
     }
+
+    /**
+     * Contre-vérification de la reprise (m1) — la borne vaut aussi du côté « sans risque » : un avis
+     * CALME sur l'agence (aucun signalement), que la ressource prive de `risk`, n'entre ni dans
+     * `risk_counts.low` ni dans `filter[risk]=low` ; le super-admin le compte. L'avis sur l'agence
+     * du test précédent, signalé deux fois, tombait toujours du côté « à risque ».
+     */
+    public function test_un_avis_calme_sur_l_agence_n_est_pas_compte_sans_risque(): void
+    {
+        $calme = $this->avis(0, '2026-11-01 10:00:00');
+        $surLAgence = Review::factory()->create([
+            'reviewable_type' => Agency::class, 'reviewable_id' => $this->agency->id, 'agency_id' => $this->agency->id,
+            'author_id' => User::factory()->create()->id,
+            'status' => ReviewStatus::Approved, 'is_approved' => true,
+            'rating' => 4, 'title' => 'Agence', 'content' => 'Équipe sérieuse.', 'reported_count' => 0,
+        ]);
+
+        $this->actingAsApi($this->moderateur);
+        $file = $this->getJson('/api/reviews?per_page=50')->assertOk();
+        $this->assertEqualsCanonicalizing([$calme->id, $surLAgence->id], array_column($file->json('data'), 'id'), 'la liste est inchangée');
+        $this->assertSame(['high' => 0, 'low' => 1], $file->json('meta.risk_counts'));
+        $ligne = collect($file->json('data'))->firstWhere('id', $surLAgence->id);
+        $this->assertArrayNotHasKey('risk', $ligne);
+        $this->assertArrayNotHasKey('reported_count', $ligne);
+        $this->assertSame([$calme->id], $this->idsDeLaFile($this->moderateur, '&filter[risk]=low'));
+
+        $superAdmin = User::factory()->create();
+        $this->materializeRoleProfile($superAdmin, 'super_admin');
+        $this->assertEqualsCanonicalizing([$calme->id, $surLAgence->id], $this->idsDeLaFile($superAdmin, '&filter[risk]=low'));
+        $this->actingAsApi($superAdmin);
+        $this->assertSame(['high' => 0, 'low' => 2], $this->getJson('/api/reviews')->assertOk()->json('meta.risk_counts'));
+    }
 }
