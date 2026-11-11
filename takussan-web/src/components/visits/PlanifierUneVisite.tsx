@@ -101,11 +101,16 @@ function useRecherche<T>(chemin: string, table: string, champs: string[], terme:
   );
 }
 
-function PlanifierDialog({
+/**
+ * Le dialogue seul, sans son bouton : TCK-2581 l'ouvre depuis « Planifier une 2ᵉ visite » (client
+ * et bien de la visite préremplis) et apprend la réussite par `onPlanifiee`, appelé avant `onClose`.
+ */
+export function PlanifierDialog({
   property,
   customer,
   onClose,
-}: PlanifierUneVisiteProps & { readonly onClose: () => void }) {
+  onPlanifiee,
+}: PlanifierUneVisiteProps & { readonly onClose: () => void; readonly onPlanifiee?: () => void }) {
   const t = useTranslations('visitPlanning.plan');
   const tPlanning = useTranslations('visitPlanning');
   const toast = useToast();
@@ -164,6 +169,7 @@ function PlanifierDialog({
           type: 'warning',
         });
       }
+      onPlanifiee?.();
       onClose();
     } catch (err) {
       const message = err instanceof ApiError ? (err.data as { message?: string } | null)?.message : undefined;

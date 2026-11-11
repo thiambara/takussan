@@ -27,6 +27,10 @@ interface EnTeteMobileProps {
   readonly actions?: ReactNode;
   /** Plein écran : « Étape n sur total ». */
   readonly etape?: { readonly n: number; readonly total: number };
+  /** Plein écran : une ligne sous le titre à la place de l'étape (« Visite de 10:00 · terminée à 10:35 », TCK-2581). */
+  readonly sousTitre?: string;
+  /** Plein écran : ce qui se pose à droite du titre (« Passer », TCK-2581). */
+  readonly droite?: ReactNode;
   /** Accueil : le compte et le persona affiché, pour l'espace en bouton (le menu du compte). */
   readonly compte?: { readonly user: User; readonly libelleRole: string };
   /** Ouvre la palette de commandes, depuis ce bouton (le focus lui revient). Absent : pas de bouton. */
@@ -58,6 +62,8 @@ export function EnTeteMobile({
   action,
   actions,
   etape,
+  sousTitre,
+  droite,
   compte,
   onOuvrirPalette,
 }: EnTeteMobileProps) {
@@ -105,9 +111,14 @@ export function EnTeteMobile({
         ) : (
           <div className="min-w-0 flex-1 leading-tight">
             <p className="truncate text-action font-semibold text-foreground">{titre}</p>
-            {etape ? <p className="text-ui text-muted-foreground">{tCoque('etape', etape)}</p> : null}
+            {sousTitre ? (
+              <p className="truncate text-ui text-muted-foreground">{sousTitre}</p>
+            ) : etape ? (
+              <p className="text-ui text-muted-foreground">{tCoque('etape', etape)}</p>
+            ) : null}
           </div>
         )}
+        {forme === 'plein-ecran' && droite ? <div className="flex shrink-0 items-center">{droite}</div> : null}
         {forme === 'detail' && actions ? (
           <FeuilleDuBas
             titre={titre ?? tCoque('plusDActions')}

@@ -16,7 +16,16 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export const dynamic = 'force-dynamic';
 
-export default async function Page() {
+/** TCK-2581 — `?prenom=&nom=&telephone=` : la fiche d'un visiteur qui n'en avait pas, préremplie depuis sa visite. */
+function premier(v: string | string[] | undefined): string | undefined {
+  const s = Array.isArray(v) ? v[0] : v;
+  return s && s.trim() ? s.trim().slice(0, 120) : undefined;
+}
+
+export default async function Page({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> } = {}) {
+  const q = (await searchParams) ?? {};
+  const initial = { first_name: premier(q.prenom), last_name: premier(q.nom), phone: premier(q.telephone) };
+  const prerempli = Object.values(initial).some(Boolean);
   const t = await getTranslations('dashboard.pages.customerNew');
   // TCK-426 — la garde de rôle est REMONTÉE dans le `layout.tsx` de ce segment : ici, sous le
   // `loading.tsx`, son `redirect()` rendait 200 + le squelette de la route interdite.
@@ -26,7 +35,7 @@ export default async function Page() {
     // la largeur de l'écran.
     <div className="max-w-3xl space-y-6">
       <PageHeader title={t('title')} description={t('subtitle')} />
-      <CustomerForm mode="create" />
+      <CustomerForm mode="create" initial={prerempli ? initial : undefined} />
     </div>
   );
 }

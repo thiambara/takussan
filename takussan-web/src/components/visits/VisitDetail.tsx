@@ -15,7 +15,6 @@ import {
   useVisit,
 } from '@/lib/queries/visits';
 import { nomAffichable } from '@/lib/identite';
-import { EntreeSaisieDemande } from '@/components/bookings/EntreeSaisieDemande';
 import { heureMuraleADakar, instantADakar } from '@/lib/visites/heure-de-dakar';
 import { smsRetenu } from '@/lib/visites/sort-du-sms';
 import { JOURS_DE_VISITE_OUVERTS, useCreneaux } from '@/lib/visites/useCreneaux';
@@ -41,6 +40,9 @@ import { useToast } from '@/components/ui/toast';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { isAdmin, isAgent as hasAgentRole, isOwner } from '@/lib/roles';
 import { VisitFeedbackForm } from './VisitFeedbackForm';
+import { REQUETE_TELEPHONE, SuiteDeLaVisite } from './compte-rendu/SuiteDeLaVisite';
+import { useMatchesMedia } from '@/hooks/useMatchesMedia';
+import { compteRenduLisible } from '@/lib/visites/compte-rendu';
 import type { PropertyVisit } from '@/types/visit';
 import type { Locale } from '@/i18n/config';
 import { cn } from '@/lib/utils';
@@ -67,13 +69,13 @@ export function VisitDetail({ id }: { id: number }) {
   const updateVisit = useUpdateVisit(id);
   const claim = useClaimVisit(id);
   const tPlanning = useTranslations('visitPlanning');
-  const tSaisie = useTranslations('saisieDemande');
   const [proposer, setProposer] = useState(false);
   const toast = useToast();
   const messageErreur = useMessageErreurApi();
   // P182.01 — l'erreur d'un geste sans dialogue (confirmer, terminer, absent) se dit sous les
   // actions (ADR-0019) : sans `catch`, la promesse rejetée n'était rattrapée par rien.
   const [erreurGeste, setErreurGeste] = useState<string | null>(null);
+  const telephone = useMatchesMedia(REQUETE_TELEPHONE);
 
   if (isLoading) {
     return <Skeleton className="h-48 rounded-xl" />;
@@ -103,7 +105,11 @@ export function VisitDetail({ id }: { id: number }) {
   const visit = data.data;
   const status = visit.status ?? 'scheduled';
   const type = visit.type ?? 'in_person';
+  // TCK-2581 (AC6) — le client d'une visite ne reçoit plus sa fiche (`customer` masqué, TCK-2585) :
+  // l'API dit si le lecteur est le demandeur (`abilities.feedback_customer`, au détail) ; les deux
+  // comparaisons restent pour le visiteur à compte et une réponse de liste, sans `abilities`.
   const isVisitor =
+    visit.abilities?.feedback_customer === true ||
     (!!user?.id && user.id === visit.visitor_id) ||
     (!!user?.id && !!visit.customer && user.id === visit.customer.user_id);
   const isAssignedAgent = user?.id === visit.agent_id;
@@ -132,6 +138,8 @@ export function VisitDetail({ id }: { id: number }) {
     !!user && (hasAgentRole(user.roles) || isAdmin(user.roles)) && isActive && visit.agent_id == null;
   // Le visiteur ne pouvait qu'annuler : il propose désormais un autre créneau, tiré de la grille.
   const canPropose = isVisitor && !isManager && isActive && !!visit.property?.slug;
+  // TCK-2581 — le compte rendu (et « Et maintenant ? ») : la clé n'existe que pour le personnel.
+  const lisible = compteRenduLisible(visit);
 
   async function handleClaim() {
     try {
@@ -181,6 +189,9 @@ export function VisitDetail({ id }: { id: number }) {
       description: t('toasts.completed.description'),
       type: 'success',
     });
+    // TCK-2581 — au téléphone, « Terminer » enchaîne sur le compte rendu (trois touches), pour qui
+    // le lit : le personnel de l'agence du bien (la clé `report` émise par l'API).
+    if (telephone && lisible) router.push(`/app/visits/${visit.id}?etape=compte-rendu`);
   }
 
   async function handleNoShow() {
@@ -222,8 +233,8 @@ export function VisitDetail({ id }: { id: number }) {
     setDialog(null);
   }
 
-  return (
-    <div className="space-y-6">
+  const principal = (
+    <>
       <div>
         <Link
           href="/app/visits"
@@ -345,28 +356,19 @@ export function VisitDetail({ id }: { id: number }) {
         </div>
       </div>
 
-      {/* TCK-2580 — la suite d'une visite terminée : la candidature ou l'offre du visiteur, client ET
-          bien de la visite préremplis. Personnel seulement (l'entrée se garde elle-même) et visiteur
-          à fiche client : la demande est toujours au nom d'un client. « Et maintenant ? » (TCK-2581)
-          la reprendra parmi les suites. */}
-      {status === 'completed' && visit.customer && visit.property ? (
-        <EntreeSaisieDemande
-          variante="visite"
-          client={{
-            id: visit.customer.id,
-            nom: nomAffichable(visit.customer),
-            detail: tSaisie('client.depuisLaVisite'),
-          }}
-          bien={{ id: visit.property.id, titre: visit.property.title ?? null }}
-        />
-      ) : null}
+    </>
+  );
 
+  // TCK-2581 — la candidature ou l'offre (TCK-2580) se saisit désormais depuis « Et maintenant ? ».
+  // Le retour d'agent noté (1 à 5) laisse la place au compte rendu : il ne s'écrit plus, il se lit.
+  const reste = (
+    <>
       {status === 'completed' && (
         <FeedbackSection
           visit={visit}
           locked={feedbackLocked}
           canCustomer={isVisitor}
-          canAgent={isAssignedAgent || isManager}
+          canRead={isAssignedAgent || isManager}
         />
       )}
 
@@ -386,6 +388,14 @@ export function VisitDetail({ id }: { id: number }) {
       {proposer && visit.property?.slug ? (
         <ProposerUnCreneau visitId={visit.id} slug={visit.property.slug} onClose={() => setProposer(false)} />
       ) : null}
+    </>
+  );
+
+  if (lisible) return <SuiteDeLaVisite visite={visit} principal={principal} reste={reste} />;
+  return (
+    <div className="space-y-6">
+      {principal}
+      {reste}
     </div>
   );
 }
@@ -708,57 +718,79 @@ function resolveRequester(visit: PropertyVisit, t: ReturnType<typeof useTranslat
   };
 }
 
+/** Un avis tel que `PropertyVisitController::feedback` l'écrit dans `metadata.feedback_<rôle>`. */
+interface AvisDeVisite {
+  readonly rating?: number | null;
+  readonly comment?: string | null;
+}
+
+function avisDe(visit: PropertyVisit, role: 'customer' | 'agent'): AvisDeVisite | null {
+  const brut = visit.metadata?.[`feedback_${role}`];
+  return brut && typeof brut === 'object' ? (brut as AvisDeVisite) : null;
+}
+
+/**
+ * Les avis de la visite. Le CLIENT y note la visite (1 à 5) dans sa fenêtre de 24 h — c'est son avis,
+ * distinct du compte rendu de l'agence (TCK-2581), qu'il ne voit jamais. Ceux qui gèrent la visite
+ * LISENT les avis déjà donnés ; ils n'écrivent plus de retour noté (le compte rendu le remplace).
+ */
 function FeedbackSection({
   visit,
   locked,
   canCustomer,
-  canAgent,
+  canRead,
 }: {
   visit: PropertyVisit;
   locked: boolean;
   canCustomer: boolean;
-  canAgent: boolean;
+  canRead: boolean;
 }) {
   const t = useTranslations('visits.detail');
-  const [submittedRole, setSubmittedRole] = useState<'customer' | 'agent' | null>(null);
+  const [submitted, setSubmitted] = useState(false);
+  const lus = canRead
+    ? (['customer', 'agent'] as const).flatMap((role) => {
+        const avis = avisDe(visit, role);
+        return avis && (avis.rating != null || avis.comment) ? [{ role, avis }] : [];
+      })
+    : [];
 
-  if (locked) {
+  if (canCustomer && locked) {
     return (
       <div className="rounded-xl border border-border bg-card p-4 text-sm text-pretty text-muted-foreground sm:p-6">
         {t('feedback.locked')}
       </div>
     );
   }
+  if (!canCustomer && lus.length === 0) return null;
 
   return (
-    <div className="space-y-4 rounded-xl border border-border bg-card p-4 sm:p-6">
+    <div data-slot="avis-de-la-visite" className="space-y-4 rounded-xl border border-border bg-card p-4 sm:p-6">
       <div>
         <h2 className="font-display text-base font-semibold tracking-tight text-foreground">
           {t('feedback.title')}
         </h2>
-        <p className="text-xs text-muted-foreground">
-          {t('feedback.window', { hours: String(FEEDBACK_WINDOW_HOURS) })}
-        </p>
+        {canCustomer ? (
+          <p className="text-xs text-muted-foreground">
+            {t('feedback.window', { hours: String(FEEDBACK_WINDOW_HOURS) })}
+          </p>
+        ) : null}
       </div>
-      {canCustomer && submittedRole !== 'customer' && (
-        <VisitFeedbackForm
-          visitId={visit.id}
-          role="customer"
-          onSubmitted={() => setSubmittedRole('customer')}
-        />
+      {canCustomer && !submitted && (
+        <VisitFeedbackForm visitId={visit.id} role="customer" onSubmitted={() => setSubmitted(true)} />
       )}
-      {canAgent && submittedRole !== 'agent' && (
-        <VisitFeedbackForm
-          visitId={visit.id}
-          role="agent"
-          onSubmitted={() => setSubmittedRole('agent')}
-        />
-      )}
-      {!canCustomer && !canAgent && (
-        <p className="text-sm text-muted-foreground">
-          {t('feedback.restricted')}
-        </p>
-      )}
+      {lus.length > 0 ? (
+        <dl className="space-y-3 text-sm">
+          {lus.map(({ role, avis }) => (
+            <div key={role}>
+              <dt className="text-muted-foreground">{t(role === 'customer' ? 'feedback.avisClient' : 'feedback.avisAgent')}</dt>
+              <dd className="text-foreground">
+                {avis.rating != null ? <span className="font-medium tabular-nums">{t('feedback.note', { note: String(avis.rating) })}</span> : null}
+                {avis.comment ? <span className="block whitespace-pre-line text-pretty">{avis.comment}</span> : null}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
     </div>
   );
 }

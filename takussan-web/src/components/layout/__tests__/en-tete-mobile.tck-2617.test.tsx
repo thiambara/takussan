@@ -144,6 +144,26 @@ describe('TCK-2617 — la forme de l’en-tête suit la route', () => {
     expect(container.querySelector('aside')).not.toBeNull();
   });
 
+  it('plein écran déclaré (TCK-2581) : la ligne `sousTitre` remplace l’étape, `droite` se pose à droite', () => {
+    chemin.valeur = '/app/visits/228';
+    const { container } = monter(
+      <DeclarerEnTete
+        forme="plein-ecran"
+        titre="Compte rendu"
+        sousTitre="Visite de 10:00 · terminée à 10:35"
+        droite={<span data-testid="a-droite">30 s</span>}
+        etape={{ n: 1, total: 2 }}
+        repli="/app/visits/228"
+      />,
+    );
+    const e = entete(container)!;
+    expect(e).toHaveAttribute('data-forme', 'plein-ecran');
+    expect(within(e).getByRole('link', { name: 'Fermer' })).toHaveAttribute('href', '/app/visits/228');
+    expect(e).toHaveTextContent('Visite de 10:00 · terminée à 10:35');
+    expect(e).not.toHaveTextContent('Étape 1 sur 2');
+    expect(within(e).getByTestId('a-droite')).toHaveTextContent('30 s');
+  });
+
   it('accueil (/app) : l’espace en bouton à gauche, pas de h1 dans l’en-tête', () => {
     const { container } = monter();
     const e = entete(container)!;

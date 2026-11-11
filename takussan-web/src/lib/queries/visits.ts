@@ -15,6 +15,7 @@ import type {
 } from '@/types/visit';
 import type { SortDuSms } from '@/lib/visites/sort-du-sms';
 import { cheminApi } from '@/lib/chemin-api';
+import type { CorpsDuCompteRendu, VisiteAvecCompteRendu } from '@/lib/visites/compte-rendu';
 
 /**
  * TCK-075 — React Query hooks for `/api/property-visits`.
@@ -301,5 +302,37 @@ export function usePlanVisit() {
   return useApiMutation<VisitActionResponse, PlanVisitPayload>(
     { path: '/api/property-visits', method: 'POST' },
     { invalidate: [['visits'], ['calendar']] },
+  );
+}
+
+/**
+ * TCK-2581 (TCK-2578, ADR-0101) — le compte rendu de la visite : `POST` le crée, `PATCH` le modifie
+ * (« Modifier », la suite choisie). La réponse porte la visite, la note recopiée dans la fiche et
+ * l'étape proposée (`suggested_stage`, jamais écrite).
+ */
+export interface ReponseDuCompteRendu {
+  readonly data: VisiteAvecCompteRendu;
+  readonly customer_note: { readonly id: number; readonly customer_id: number } | null;
+  readonly suggested_stage: { readonly from: string; readonly to: string } | null;
+}
+
+const INVALIDE_LA_VISITE = (id: number) => [
+  ['visits', 'list'],
+  ['visits', 'detail', id],
+  // La note recopiée et le dernier contact de la fiche avancent (TCK-2583).
+  ['customers'],
+];
+
+export function useCreateVisitReport(id: number) {
+  return useApiMutation<ReponseDuCompteRendu, CorpsDuCompteRendu>(
+    { path: cheminApi`/api/property-visits/${id}/report`, method: 'POST' },
+    { invalidate: INVALIDE_LA_VISITE(id) },
+  );
+}
+
+export function useUpdateVisitReport(id: number) {
+  return useApiMutation<ReponseDuCompteRendu, CorpsDuCompteRendu>(
+    { path: cheminApi`/api/property-visits/${id}/report`, method: 'PATCH' },
+    { invalidate: INVALIDE_LA_VISITE(id) },
   );
 }

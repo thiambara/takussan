@@ -8061,7 +8061,9 @@
         "locked": "La fenêtre de feedback est fermée pour cette visite.",
         "title": "Feedback post-visite",
         "window": "Vous avez {hours}h après la visite pour laisser votre retour.",
-        "restricted": "Seuls le visiteur et l’agent peuvent laisser un retour sur cette visite."
+        "avisClient": "Avis du client",
+        "avisAgent": "Retour de l’agent",
+        "note": "{note} / 5"
       },
       "forbidden": "Cette visite relève d'une autre agence : vous n'y avez pas accès.",
       "dialogs": {
@@ -14499,5 +14501,113 @@
         "kind_mismatch": "Cette nature ne correspond pas au bien : une candidature vise une location, une offre un bien à vendre."
       }
     }
+  },
+  "compteRendu": {
+    "titre": "Compte rendu",
+    "sousTitre": "Visite de {debut} · terminée à {fin}",
+    "sousTitreSansFin": "Visite de {debut}",
+    "duree": "30 s",
+    "dureeLongue": "30 secondes",
+    "avec": "avec {nom}",
+    "rang": "{n, plural, =1 {1ʳᵉ visite} other {#ᵉ visite}}",
+    "question": "Comment s’est passée la visite ?",
+    "verdicts": {
+      "interested": "Intéressé",
+      "thinking": "À réfléchir",
+      "not_interested": "Pas intéressé"
+    },
+    "verdictRequis": "Choisissez comment s’est passée la visite.",
+    "objectionsLibelle": "Ce qui a pesé",
+    "facultatif": "facultatif",
+    "objections": {
+      "price": "Prix",
+      "neighborhood": "Quartier",
+      "size": "Taille",
+      "condition": "État",
+      "availability": "Disponibilité",
+      "guarantor": "Garant"
+    },
+    "note": "Une note",
+    "notePlaceholder": "Ce que le client a dit, ce qu’il faut retenir…",
+    "interne": "Interne à l’agence. Le compte rendu rejoint la fiche de {prenom} ; lui ne le voit pas, et garde son propre avis (1 à 5).",
+    "interneSansFiche": "Interne à l’agence. Le visiteur ne voit pas le compte rendu, et garde son propre avis (1 à 5).",
+    "interneCourt": "Interne à l’agence",
+    "enregistrer": "Enregistrer",
+    "enregistrement": "Enregistrement…",
+    "succes": "Compte rendu enregistré",
+    "faire": "Faire le compte rendu",
+    "faireDetail": "Trois touches, puis la suite avec le client",
+    "codes": {
+      "visit": {
+        "report_exists": "Un compte rendu existe déjà pour cette visite. Rouvrez-la pour le modifier.",
+        "report_not_closable": "Cette visite ne peut pas encore recevoir de compte rendu : elle n’a pas eu lieu.",
+        "report_missing": "Aucun compte rendu à modifier pour cette visite."
+      }
+    }
+  },
+  "etMaintenant": {
+    "titre": "Et maintenant ?",
+    "sousTitre": "La suite avec {prenom}",
+    "passer": "Passer",
+    "apresEnregistrement": "après l’enregistrement",
+    "visiteur": "le visiteur",
+    "conseille": "Conseillé",
+    "sansTelephone": "Aucun numéro joignable pour l’inviter",
+    "ficheRequise": "Créez d’abord sa fiche",
+    "envoyerWhatsApp": "Envoyer par WhatsApp",
+    "message": {
+      "candidature": "Bonjour {prenom}, voici le lien pour déposer votre candidature pour {bien} : {lien}",
+      "offre": "Bonjour {prenom}, voici le lien pour faire votre offre sur {bien} : {lien}"
+    },
+    "suites": {
+      "invite_apply": {
+        "titre": "Inviter à candidater",
+        "detail": "Il candidate depuis son téléphone"
+      },
+      "invite_offer": {
+        "titre": "Inviter à faire une offre",
+        "detail": "Il fait son offre depuis son téléphone"
+      },
+      "record_booking": {
+        "titreCandidature": "Saisir sa candidature maintenant",
+        "titreOffre": "Saisir son offre maintenant",
+        "detailCandidature": "Il est devant vous : loyer, entrée",
+        "detailOffre": "Il est devant vous : montant de l’offre"
+      },
+      "second_visit": {
+        "titre": "Planifier une 2ᵉ visite",
+        "detail": "Le bien et le client, déjà remplis"
+      },
+      "propose_properties": {
+        "titre": "Proposer d’autres biens",
+        "detail": "{n, plural, =0 {Aucun bien ne correspond à sa recherche} one {# bien correspond à sa recherche} other {# biens correspondent à sa recherche}}",
+        "chargement": "Les biens qui correspondent à sa recherche"
+      },
+      "remind": {
+        "titre": "Relancer dans {jours, plural, one {# jour} other {# jours}}",
+        "detail": "Tâche {date} · délai modifiable",
+        "prevue": "Relance prévue {date}",
+        "delai": "Dans combien de jours",
+        "jours": "{jours, plural, one {# jour} other {# jours}}",
+        "creer": "Créer la relance",
+        "tacheTitre": "Relancer {nom} après la visite",
+        "tacheDescription": "Visite de {bien}"
+      },
+      "create_lease": {
+        "titre": "Créer le bail",
+        "actif": "Sa candidature est acceptée",
+        "inactif": "Dès qu’une candidature est acceptée"
+      }
+    },
+    "enregistre": "Enregistré à {heure}",
+    "enregistreFiche": "Enregistré dans la fiche à {heure}",
+    "modifier": "Modifier",
+    "qualifier": "Passer en « Qualifié »",
+    "aujourdhui": "{etape} → Qualifié",
+    "etapeAppliquee": "{prenom} passe en « Qualifié »",
+    "terminer": "Terminer",
+    "fil": "Chaque choix s’écrit dans le fil de la fiche.",
+    "sansFiche": "{nom} n’a pas encore de fiche client.",
+    "creerFiche": "Créer sa fiche"
   }
 }

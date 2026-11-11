@@ -1,0 +1,162 @@
+{
+  "ticket": "TCK-2581",
+  "ecrans": [
+    {
+      "page": "app-fil-commercial",
+      "approche": "a",
+      "ecran": 4,
+      "nom": "Compte rendu de visite (30 secondes)",
+      "references": {
+        "telephone": "references/app-fil-commercial/a-4-telephone.json",
+        "bureau-1440": "references/app-fil-commercial/a-4-bureau-1440.json",
+        "bureau-1280": "references/app-fil-commercial/a-4-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/visits/369?etape=compte-rendu (téléphone) · /app/visits/369 (bureau) — visite terminée sans compte rendu, rien n'est enregistré",
+        "persona": "admin",
+        "etat": "visite terminée sans compte rendu. Le formulaire rempli comme la maquette par `--perturber etat-a4.js` (scratchpad) aux trois appareils : « Intéressé », Prix · Taille · Garant, la note — sans envoyer. Au téléphone, l'étape plein écran ; au bureau, la colonne droite « Compte rendu » et, sous elle, l'aperçu inerte d'« Et maintenant ? »"
+      }
+    },
+    {
+      "page": "app-fil-commercial",
+      "approche": "a",
+      "ecran": 5,
+      "nom": "Et maintenant ? — les suites de la visite",
+      "references": {
+        "telephone": "references/app-fil-commercial/a-5-telephone.json",
+        "bureau-1440": "references/app-fil-commercial/a-5-bureau-1440.json",
+        "bureau-1280": "references/app-fil-commercial/a-5-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/visits/228?etape=et-maintenant (téléphone) · /app/visits/228 (bureau)",
+        "persona": "admin",
+        "etat": "compte rendu « Intéressé · Prix » enregistré ; le client (37) est encore prospect : l'interrupteur « Passer en « Qualifié » » est allumé, aux trois appareils. L'invitation WhatsApp dépliée en tête, « Conseillé »"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/visits/228",
+    "persona": "admin",
+    "disposition": "admin-agence",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": "scratchpad : etat-a4.js — coche « Intéressé », Prix · Taille · Garant et écrit la note, sans enregistrer (a-4, trois appareils)"
+  },
+  "roles": [],
+  "zones": [],
+  "alias": {
+    "Messages": "Messagerie"
+  },
+  "ancres": [],
+  "ignorer": [
+    {
+      "element": "dictée vocale (micro de la note, a-4)",
+      "motif": "exclue du ticket : aucune saisie vocale n'existe dans le produit"
+    },
+    {
+      "element": "lien court « takussan.com/c/7Hk2 » (a-5)",
+      "motif": "exclu du ticket : aucun raccourcisseur n'existe ; l'invitation porte le lien public du bien avec `?action=reserver`"
+    }
+  ],
+  "ecarts_acceptes": [
+    {
+      "ecran": "a-5-telephone, a-5-bureau-1440, a-5-bureau-1280",
+      "element": "toutes les suites sous l'invitation (« Envoyer par WhatsApp » → « Créer le bail »)",
+      "propriete": "y (téléphone +79 à +94 px ; bureau : la marche de −91,5 à −31,2 px sous la bulle)",
+      "exception": "technique",
+      "motif": "la bulle de l'invitation porte le vrai lien public du bien (`/fr/properties/<slug>?action=reserver`, trois lignes au téléphone, deux au bureau) au lieu du lien court de la maquette, qui n'existe pas (exclu). Le décalage naît dans la bulle et se propage ; les lignes elles-mêmes sont conformes (hauteurs, icônes, chevrons, couleurs hors la ligne ci-dessous)"
+    },
+    {
+      "ecran": "a-5-*, a-4-bureau-* (aperçu)",
+      "element": "pastilles d'icône neutres des suites (lucide-calendar-plus, house, clock, file-pen-line)",
+      "propriete": "couleur (rgba(31,24,19,0.7) → rgb(76,70,65))",
+      "exception": "technique",
+      "motif": "encre en alpha dans la maquette ; jeton opaque `encre-douce` imposé dans /app par `encre-sans-alpha.contraste.test.ts` — même exception que TCK-2580 et TCK-2617"
+    },
+    {
+      "ecran": "a-5-*",
+      "element": "titre « Inviter à candidater »",
+      "propriete": "largeur de boîte (+11 à +12 px)",
+      "exception": "technique",
+      "motif": "la boîte du titre est un bloc qui prend la place libre de la ligne, 12 px plus large que celle de la maquette (le retrait droit de la ligne diffère, la cause n'est pas isolée) ; x, taille, graisse et couleur du texte conformes, et le texte ne passe pas à la ligne"
+    },
+    {
+      "ecran": "a-5-*",
+      "element": "pied « Passer en Qualifié ? » · « Plus tard » · « Oui »",
+      "propriete": "absent du produit (remplacé par un interrupteur + « Terminer »)",
+      "exception": "décision produit",
+      "motif": "les deux boutons de la maquette posent une question à part de la suite choisie ; le produit applique l'étape avec le choix d'une suite ou avec « Terminer », et l'interrupteur dit d'avance ce qui sera écrit (éteint : rien n'est écrit). Libellé sans « ? » : ce n'est plus une question. À trancher au point porteur n° 2"
+    },
+    {
+      "ecran": "a-5-*",
+      "element": "sous-titres des suites (« Il remplit son dossier… », « … loyer, entrée, garant », « Avec son garant… », « 3 biens correspondent »)",
+      "propriete": "texte",
+      "exception": "vérité des données",
+      "motif": "aucun dossier ni champ de garant n'existe en base ; le produit écrit ce qui est vrai (« Il candidate depuis son téléphone », « … loyer, entrée », « Le bien et le client, déjà remplis ») et le compte réel des biens qui correspondent à la recherche du client"
+    },
+    {
+      "ecran": "a-4-*, a-5-*",
+      "element": "✕ de l'en-tête plein écran",
+      "propriete": "trait (2 → 1,75)",
+      "exception": "règle du design system",
+      "motif": "trait uniforme des icônes de la coque (TCK-2685, globals.css) ; même exception que TCK-2580"
+    },
+    {
+      "ecran": "a-4-telephone",
+      "element": "pied « Enregistrer » (BarreDAction)",
+      "propriete": "ombre (même couleur, autre notation), écart interne d'un enfant seul, bordure transparente de 1 px du bouton",
+      "exception": "technique",
+      "motif": "primitives communes `BarreDAction` et `Button` : invisibles à l'œil, mêmes exceptions que TCK-2580"
+    },
+    {
+      "ecran": "a-4-telephone",
+      "element": "cadenas de la note",
+      "propriete": "y (−47 px)",
+      "exception": "technique",
+      "motif": "la maquette pose le micro de dictée (exclu) au-dessus de la mention ; sans lui, la mention remonte"
+    },
+    {
+      "ecran": "a-4-bureau-*, a-5-bureau-*",
+      "element": "colonne droite entière",
+      "propriete": "y (−98,6 px en tête de colonne)",
+      "exception": "hors périmètre",
+      "motif": "l'en-tête de page de la visite (fil d'Ariane, titre, statut) est plus bas dans la maquette ; il est à TCK-2587. Le décalage est uniforme jusqu'à la bulle d'invitation (a-5, cf. la ligne du lien) ; dans la colonne, x, largeurs, tailles et couleurs conformes hors les lignes de ce tableau (x 911 · w 500 à 1440 ; x 814 · w 437 à 1280)"
+    },
+    {
+      "ecran": "a-4-bureau-1440, a-4-bureau-1280",
+      "element": "coche du verdict choisi (lucide-check)",
+      "propriete": "trait (1,75 → 1,5)",
+      "exception": "incohérence des maquettes",
+      "motif": "la maquette trace la même coche à 2 au téléphone (conforme) et à 1,75 au bureau ; le produit garde une seule valeur (`strokeWidth={2}`), que la densité du bureau rend à 1,5"
+    },
+    {
+      "ecran": "a-4-bureau-*",
+      "element": "« Interne à l'agence », « Enregistrer »",
+      "propriete": "largeur (−1,6 ; +2 px)",
+      "exception": "technique",
+      "motif": "rendu du texte à la densité ×0,9 (−1,6 px de chasse) ; bordure transparente de 1 px de `Button` (+2 px), comme TCK-2580"
+    }
+  ],
+  "hors_perimetre": [
+    {
+      "element": "colonne gauche de la visite et en-tête de page (fil d'Ariane, titre, carte du bien, actions)",
+      "ticket": "TCK-2587",
+      "motif": "ce ticket ne pose que le compte rendu et ses suites"
+    },
+    {
+      "element": "lignes « coque · barre latérale › texte N / icone N » du rapport au bureau",
+      "ticket": "coque",
+      "motif": "vérifié : dans la maquette, le rôle « coque · barre latérale » englobe toute la page (son « texte 130 » est « Passer en Qualifié ? » à x 971, dans la colonne droite) ; l'appariement par index de ses enfants compare donc des textes sans rapport. Les mêmes éléments sont jugés par leurs ancres (texte, icône, boîte), reprises ci-dessus"
+    }
+  ],
+  "rideaux": [
+    "takussan-web/.fidelite/TCK-2581/cmp-a4-telephone/rideau.html",
+    "takussan-web/.fidelite/TCK-2581/cmp-a4-bureau-1440/rideau.html",
+    "takussan-web/.fidelite/TCK-2581/cmp-a4-bureau-1280/rideau.html",
+    "takussan-web/.fidelite/TCK-2581/cmp-a5-telephone/rideau.html",
+    "takussan-web/.fidelite/TCK-2581/cmp-a5-bureau-1440/rideau.html",
+    "takussan-web/.fidelite/TCK-2581/cmp-a5-bureau-1280/rideau.html"
+  ]
+}

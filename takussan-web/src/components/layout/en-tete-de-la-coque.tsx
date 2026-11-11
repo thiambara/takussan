@@ -20,6 +20,10 @@ export interface DeclarationDEnTete {
   readonly actions?: ReactNode;
   /** Plein écran : « Étape n sur total ». */
   readonly etape?: { readonly n: number; readonly total: number };
+  /** Plein écran : une ligne sous le titre à la place de l'étape (« Visite de 10:00 · terminée à 10:35 », TCK-2581). */
+  readonly sousTitre?: string;
+  /** Plein écran : ce qui se pose à droite du titre (« Passer », TCK-2581). */
+  readonly droite?: ReactNode;
   /** Le repli du retour (ou du « ✕ ») quand la page en sait un plus juste que sa liste parente. */
   readonly repli?: string;
   /**
@@ -89,15 +93,15 @@ export function useDeclarationDEnTete(): DeclarationDEnTete {
 export function DeclarerEnTete({ priorite = 'page', ...declaration }: DeclarationDEnTete & { readonly priorite?: Priorite }) {
   const declarer = useContext(ContexteDeclarer);
   const id = useId();
-  const { titre, forme, action, actions, etape, repli, conversation } = declaration;
+  const { titre, forme, action, actions, etape, repli, conversation, sousTitre, droite } = declaration;
   // L'étape par ses deux nombres : un objet neuf à chaque rendu redéclarerait sans fin.
   const etapeN = etape?.n;
   const etapeTotal = etape?.total;
   useLayoutEffect(() => {
     if (!declarer) return;
     const etapeDeclaree = etapeN !== undefined && etapeTotal !== undefined ? { n: etapeN, total: etapeTotal } : undefined;
-    declarer(id, { priorite, declaration: { titre, forme, action, actions, etape: etapeDeclaree, repli, conversation } });
-  }, [declarer, id, priorite, titre, forme, action, actions, etapeN, etapeTotal, repli, conversation]);
+    declarer(id, { priorite, declaration: { titre, forme, action, actions, etape: etapeDeclaree, repli, conversation, sousTitre, droite } });
+  }, [declarer, id, priorite, titre, forme, action, actions, etapeN, etapeTotal, repli, conversation, sousTitre, droite]);
   useLayoutEffect(() => {
     if (!declarer) return;
     return () => declarer(id, null);

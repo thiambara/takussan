@@ -380,6 +380,8 @@ function EnTeteDeLaCoque({
       action={declaration.action}
       actions={declaration.actions}
       etape={declaration.etape}
+      sousTitre={declaration.sousTitre}
+      droite={declaration.droite}
       compte={{ user: contexteDuMenu.user, libelleRole }}
       onOuvrirPalette={forme === 'racine' || forme === 'accueil' ? onOuvrirPalette : undefined}
     />

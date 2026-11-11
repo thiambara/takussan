@@ -15,7 +15,7 @@
       "produit": {
         "route": "/app/visits/281",
         "persona": "admin",
-        "etat": "visite terminée d'une location au mois (bien 66, client 8) ; la feuille ouverte par « Saisir une candidature ou une offre » (`--perturber ouvrir-saisie.js`), client et bien préremplis. La maquette ouvre la même feuille depuis l'en-tête de Réservations, sur un autre client et un autre bien : les libellés de données diffèrent, la disposition se compare"
+        "etat": "visite terminée d'une location au mois (bien 66, client 8) ; la feuille ouverte par « Saisir une candidature ou une offre » (`--perturber ouvrir-saisie.js`), client et bien préremplis. La maquette ouvre la même feuille depuis l'en-tête de Réservations, sur un autre client et un autre bien : les libellés de données diffèrent, la disposition se compare. ⚠ Depuis TCK-2581, la visite terminée n'a plus ce bouton : la même feuille s'ouvre par « Saisir sa candidature maintenant » d'« Et maintenant ? » (ou « Saisir son offre maintenant » pour une vente) ; `ouvrir-saisie.js` est à repointer sur ce libellé avant tout nouveau relevé"
       }
     },
     {

@@ -15,10 +15,12 @@ interface EntreeSaisieDemandeProps {
    * Où l'entrée se pose (TCK-2580, trois points d'entrée, chacun prérempli) :
    * - `reservations` — l'en-tête de la page : le « + » de l'en-tête du téléphone, le bouton primaire
    *   « Saisir une demande » dès `md` (jamais les deux visibles) ; rien de prérempli ;
-   * - `fiche` — un geste de la fiche client : le client prérempli ;
-   * - `visite` — la suite d'une visite terminée : le client ET le bien de la visite.
+   * - `fiche` — un geste de la fiche client : le client prérempli.
+   *
+   * La suite d'une visite terminée (client ET bien) passe par « Et maintenant ? » (TCK-2581), qui
+   * ouvre `SaisirUneDemande` directement.
    */
-  readonly variante: 'reservations' | 'fiche' | 'visite';
+  readonly variante: 'reservations' | 'fiche';
   readonly client?: ClientDeLaDemande;
   readonly bien?: BienDeLaDemande;
 }

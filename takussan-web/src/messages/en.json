@@ -8061,7 +8061,9 @@
         "locked": "The feedback window is closed for this visit.",
         "title": "Post-visit feedback",
         "window": "You have {hours}h after the visit to leave your feedback.",
-        "restricted": "Only the visitor and the agent can leave feedback on this visit."
+        "avisClient": "Client's review",
+        "avisAgent": "Agent's feedback",
+        "note": "{note} / 5"
       },
       "forbidden": "This visit belongs to another agency: you don't have access to it.",
       "dialogs": {
@@ -14499,5 +14501,113 @@
         "kind_mismatch": "This type does not match the property: an application is for a rental, an offer for a property for sale."
       }
     }
+  },
+  "compteRendu": {
+    "titre": "Visit report",
+    "sousTitre": "Visit at {debut} · ended at {fin}",
+    "sousTitreSansFin": "Visit at {debut}",
+    "duree": "30 s",
+    "dureeLongue": "30 seconds",
+    "avec": "with {nom}",
+    "rang": "{n, selectordinal, one {#st visit} two {#nd visit} few {#rd visit} other {#th visit}}",
+    "question": "How did the visit go?",
+    "verdicts": {
+      "interested": "Interested",
+      "thinking": "Thinking it over",
+      "not_interested": "Not interested"
+    },
+    "verdictRequis": "Choose how the visit went.",
+    "objectionsLibelle": "What weighed in",
+    "facultatif": "optional",
+    "objections": {
+      "price": "Price",
+      "neighborhood": "Neighbourhood",
+      "size": "Size",
+      "condition": "Condition",
+      "availability": "Availability",
+      "guarantor": "Guarantor"
+    },
+    "note": "A note",
+    "notePlaceholder": "What the client said, what to remember…",
+    "interne": "Internal to the agency. The report goes to {prenom}'s record; they never see it, and keep their own review (1 to 5).",
+    "interneSansFiche": "Internal to the agency. The visitor never sees the report, and keeps their own review (1 to 5).",
+    "interneCourt": "Internal to the agency",
+    "enregistrer": "Save",
+    "enregistrement": "Saving…",
+    "succes": "Visit report saved",
+    "faire": "Write the visit report",
+    "faireDetail": "Three taps, then the next step with the client",
+    "codes": {
+      "visit": {
+        "report_exists": "A report already exists for this visit. Reopen it to edit.",
+        "report_not_closable": "This visit can't take a report yet: it hasn't taken place.",
+        "report_missing": "There is no report to edit for this visit."
+      }
+    }
+  },
+  "etMaintenant": {
+    "titre": "What's next?",
+    "sousTitre": "Next steps with {prenom}",
+    "passer": "Skip",
+    "apresEnregistrement": "after saving",
+    "visiteur": "the visitor",
+    "conseille": "Suggested",
+    "sansTelephone": "No reachable number to invite them",
+    "ficheRequise": "Create their record first",
+    "envoyerWhatsApp": "Send on WhatsApp",
+    "message": {
+      "candidature": "Hello {prenom}, here is the link to apply for {bien}: {lien}",
+      "offre": "Hello {prenom}, here is the link to make your offer on {bien}: {lien}"
+    },
+    "suites": {
+      "invite_apply": {
+        "titre": "Invite to apply",
+        "detail": "They apply from their phone"
+      },
+      "invite_offer": {
+        "titre": "Invite to make an offer",
+        "detail": "They make their offer from their phone"
+      },
+      "record_booking": {
+        "titreCandidature": "Record their application now",
+        "titreOffre": "Record their offer now",
+        "detailCandidature": "They're with you: rent, move-in date",
+        "detailOffre": "They're with you: offer amount"
+      },
+      "second_visit": {
+        "titre": "Schedule a second visit",
+        "detail": "Property and client already filled in"
+      },
+      "propose_properties": {
+        "titre": "Suggest other properties",
+        "detail": "{n, plural, =0 {No property matches their search} one {# property matches their search} other {# properties match their search}}",
+        "chargement": "Properties that match their search"
+      },
+      "remind": {
+        "titre": "Follow up in {jours, plural, one {# day} other {# days}}",
+        "detail": "Task {date} · adjustable",
+        "prevue": "Follow-up set for {date}",
+        "delai": "In how many days",
+        "jours": "{jours, plural, one {# day} other {# days}}",
+        "creer": "Create the follow-up",
+        "tacheTitre": "Follow up with {nom} after the visit",
+        "tacheDescription": "Visit of {bien}"
+      },
+      "create_lease": {
+        "titre": "Create the lease",
+        "actif": "Their application is accepted",
+        "inactif": "Once an application is accepted"
+      }
+    },
+    "enregistre": "Saved at {heure}",
+    "enregistreFiche": "Saved to the record at {heure}",
+    "modifier": "Edit",
+    "qualifier": "Move to “Qualified”",
+    "aujourdhui": "{etape} → Qualified",
+    "etapeAppliquee": "{prenom} moves to “Qualified”",
+    "terminer": "Done",
+    "fil": "Each choice is written to the record's timeline.",
+    "sansFiche": "{nom} has no client record yet.",
+    "creerFiche": "Create their record"
   }
 }
