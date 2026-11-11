@@ -335,3 +335,17 @@ _(tenu par la session : date, lot, tickets livrés, refus du vérificateur, PR, 
 - TCK-2700 (neuf) : l'heure d'intervention envoyée avec un décalage est convertie (PATCH et
   acceptation). **Suivi à écrire** : le même défaut sur `PropertyVisit.scheduled_at`, `Task.due_at`
   et les autres écritures relevées dans les Notes de TCK-2700.
+- **Question au porteur — quota d'agents** (TCK-2669) : `max_agents` n'est appliqué NULLE PART —
+  `QuotaResolver::assertCanAddAgent` n'a aucun appelant (relevé par l'agent). L'écran affiche donc
+  `agents.used` = profils d'agent ACTIFS, et la méthode morte lit le même compte. **Suivi à écrire** :
+  appliquer le quota d'agents ; la définition (actifs seuls, ou tout profil non supprimé — qu'un agent
+  suspendu libère ou non une place) est une règle tarifaire à confirmer par le porteur à ce moment-là.
+- TCK-2593 : la fiche client imbriquée dans une réservation sortait entière vers tout lecteur — le
+  client lisait son étape commerciale, le bailleur du bien le téléphone et l'étape du candidat.
+  Désormais téléphone, étape et visites passées au seul personnel actif de l'agence (règle des
+  visites, TCK-590). **À confirmer par le porteur** : si le bailleur doit pouvoir joindre le
+  candidat, c'est une décision à part (aucun écran ne lisait ces champs).
+- TCK-2704 : une intervention urgente peut compter deux fois « à traiter » pour la même personne
+  (créateur du bien → `maintenance.created`, admin principal → `maintenance.urgent_created`, puis
+  l'escalade) — accepté pour le lot, à revoir avec la maquette de TCK-2634. 21 autres classes de
+  notification restent sans code (relevé dans TCK-2704 « Hors périmètre »).
