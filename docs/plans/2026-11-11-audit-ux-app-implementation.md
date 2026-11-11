@@ -377,3 +377,18 @@ _(tenu par la session : date, lot, tickets livrés, refus du vérificateur, PR, 
 - TCK-2646 (arbitré par la session) : la sortie d'un bail renouvelé s'appuie sur l'entrée signée
   de la chaîne de renouvellement (même locataire, même bien) ; le bailleur qui a conduit l'état
   des lieux peut le contester comme partie.
+- **Décisions du porteur du 2026-11-11 (après le redémarrage de la machine)** :
+  1. `late_fee_unpaid` borné aux baux en cours (`active`, `terminating`) — fait (127e3bde9) ;
+  2. le bailleur du bien lit le téléphone et l'étape du candidat à une réservation (les visites
+     passées restent au personnel) — fait (00e529fe2) ;
+  3. arbitrages de TCK-2674 (paiements à rapprocher, factures) et TCK-2646 (sortie d'un bail
+     renouvelé, contestation) validés ;
+  4. variante de bouton sombre gardée (TCK-2686) ; la feuille du bas s'ouvre en panneau latéral dès
+     `md` (TCK-2690 → à faire dans TCK-2688) ; `/super-admin` mesurable au navigateur : le super-admin
+     de démo local est enrôlé au second facteur (secret hors dépôt, chmod 600).
+- **Plantage de la machine (2026-11-11, ~06:50)** : quatre agents jouaient en parallèle de gros lots
+  de tests. Règle de charge désormais en tête du brief : seulement les tests écrits ou modifiés,
+  jamais de dossier entier ni de seeders, ablations une à une, deux agents qui testent au plus ; la
+  régression large est celle de la CI de la PR. Le redémarrage a vidé `/private/tmp` (rapports et
+  passations des agents) : les quatre tickets en cours (TCK-2591, TCK-2646, TCK-2674, TCK-2688) sont
+  repris depuis l'arbre et leurs Notes.
