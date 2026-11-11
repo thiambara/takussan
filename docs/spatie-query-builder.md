@@ -289,7 +289,8 @@ refusé. Une valeur en liste (`filter[x][]=…`) vaut une valeur absente (ADR-00
 |---|---|---|
 | `filter[entity_type]` + `filter[entity_id]` | exact | `property`, `lease`, `customer`, `booking` |
 | `filter[status]` | liste | `pending,late,partially_paid` — inconnu → 422 `payment.filter_status_invalid` |
-| `filter[date_from]` / `filter[date_to]` | date | `YYYY-MM-DD`, heure de Dakar |
+| `filter[date_from]` / `filter[date_to]` | date | `YYYY-MM-DD`, heure de Dakar — `paid_at` **ou** `period_start` dans la borne (une réservation : `paid_at` ou `created_at`) : les échéances de la période, payées ou non |
+| `filter[paid_from]` / `filter[paid_to]` | date | `YYYY-MM-DD`, heure de Dakar — **l'encaissé** : `paid_at` seul, borné au jour (`DayRange`), le sens de la tuile « Encaissé en <mois> » de `finance/summary` ; une échéance jamais payée n'y entre pas ; illisible → 422 (refus de TCK-2659, M1) |
 | `filter[payer_id]` | exact | le client payeur : `lease_payments.payer_id`, ou le client de la réservation (TCK-2657) |
 | `filter[landlord_id]` | exact | `leases.landlord_id`, ou le titulaire du bien de la réservation (TCK-2657) |
 | `filter[payment_method]` | liste | `wave,cash` — inconnu → 422 `payment.filter_payment_method_invalid` (TCK-2657) |

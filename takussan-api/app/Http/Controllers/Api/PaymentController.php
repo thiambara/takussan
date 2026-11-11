@@ -47,7 +47,9 @@ class PaymentController extends Controller
      *   - filter[entity_id]=<id>
      *   - filter[status]=<PaymentStatus>
      *   - filter[date_from]=YYYY-MM-DD
-     *   - filter[date_to]=YYYY-MM-DD
+     *   - filter[date_to]=YYYY-MM-DD — avec `date_from` : `paid_at` OU `period_start` dans la borne
+     *   - filter[paid_from]=YYYY-MM-DD, filter[paid_to]=YYYY-MM-DD — l'ENCAISSÉ : `paid_at` seul
+     *     (refus de TCK-2659, M1), le sens de la tuile « Encaissé en <mois> »
      *   - per_page=<int> (default 20, max 100)
      *   - sort=-date|date|-amount|amount (default -date)
      *
@@ -163,6 +165,21 @@ class PaymentController extends Controller
             $leaseQuery->where(function ($q) use ($to): void {
                 $q->where('paid_at', '<', DayRange::after($to))->orWhereDate('period_start', '<=', $to);
             });
+        }
+
+        // Refus de TCK-2659 (M1) — l'ENCAISSÉ d'une période : `paid_at` SEUL, borné au jour (Dakar,
+        // UTC+0 : `DayRange` lit le fuseau de l'application). C'est le sens de la tuile « Encaissé en
+        // <mois> » (`FinanceSummaryService::collected()`), là où `date_from`/`date_to` retiennent
+        // `paid_at` OU `period_start` (une échéance de la période, payée ou non) — et gardent ce sens
+        // pour les autres écrans. Une échéance jamais payée n'y entre donc jamais.
+        foreach (['paid_from' => '>=', 'paid_to' => '<'] as $cle => $operateur) {
+            if (empty($filters[$cle])) {
+                continue;
+            }
+            DateBoundaryFilter::exiger($filters[$cle], $cle);
+            $borne = $cle === 'paid_from' ? DayRange::start($filters[$cle]) : DayRange::after($filters[$cle]);
+            $bookingQuery->where('paid_at', $operateur, $borne);
+            $leaseQuery->where('paid_at', $operateur, $borne);
         }
 
         // TCK-2657 — les filtres métier, posés en SQL avant le comptage et le plafond : filtrer
