@@ -14,8 +14,9 @@ class MessageResource extends BaseResource
      * (photo, PDF, note vocale) et de sa vignette : 5 minutes, comme la présignature de
      * {@see PrivateMediaAccess::redirect()}. `media.private.show` est hors `auth:sanctum`, la
      * signature y tient lieu d'autorisation : un participant retiré lisait un lien déjà reçu pendant
-     * les 30 minutes par défaut. La fenêtre est réduite, pas fermée ; le front relit le fil quand une
-     * pièce rend 403 à l'ouverture.
+     * les 30 minutes par défaut. La fenêtre est réduite, pas fermée. Le front relit le fil pour une
+     * URL neuve (`PieceJointeDuFil.tsx`) : le lien AVANT d'ouvrir s'il est périmé, car un onglet
+     * neuf ne remonte pas son 403 ; la note vocale APRÈS son échec, puis elle rejoue.
      */
     public const ATTACHMENT_URL_TTL_MINUTES = 5;
 

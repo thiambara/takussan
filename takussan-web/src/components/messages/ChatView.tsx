@@ -30,6 +30,12 @@ import { ConversationInfoSheet } from './ConversationInfoSheet';
 import { MessageDateSeparator } from './MessageDateSeparator';
 import { ChatComposerShell } from './ChatComposerShell';
 import { VoiceNoteRecorder } from './VoiceNoteRecorder';
+import {
+  LienDePieceJointe,
+  urlDeLaPiece,
+  useLecteurDePieceAudio,
+  type RelirePiece,
+} from './PieceJointeDuFil';
 import { groupMessagesByDay } from '@/lib/messages/groupByDay';
 import type { Locale } from '@/i18n/config';
 import type { Message } from '@/types/message';
@@ -88,7 +94,15 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
     hasNextPage,
     isFetchingNextPage,
     fetchNextPage,
+    refetch,
   } = useMessagesInfinite(conversationId);
+
+  // TCK-2736 — l'URL d'une pièce jointe expire en 5 minutes : la pièce relit le fil pour en
+  // reprendre une neuve (`PieceJointeDuFil`).
+  const relirePiece: RelirePiece = async (attachmentId) => {
+    const relu = await refetch();
+    return relu.isError ? null : urlDeLaPiece(relu.data, attachmentId);
+  };
 
   const messages = useMemo<Message[]>(
     () => infiniteData?.pages.flatMap((p) => p.data) ?? [],
@@ -353,6 +367,7 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
                   message={m}
                   isOwn={m.sender_id === user?.id}
                   locale={locale}
+                  relirePiece={relirePiece}
                 />
               );
             })}
@@ -399,10 +414,12 @@ function MessageBubble({
   message,
   isOwn,
   locale,
+  relirePiece,
 }: {
   message: Message;
   isOwn: boolean;
   locale: Locale;
+  relirePiece: RelirePiece;
 }) {
   return (
     <li className={cn('flex', isOwn ? 'justify-end' : 'justify-start')}>
@@ -420,7 +437,7 @@ function MessageBubble({
           </p>
         )}
         {message.type === 'audio' && message.attachments?.[0] ? (
-          <VoiceNotePlayer message={message} />
+          <VoiceNotePlayer message={message} relirePiece={relirePiece} />
         ) : (
           <p className="whitespace-pre-line text-pretty break-words">{message.content}</p>
         )}
@@ -428,10 +445,9 @@ function MessageBubble({
           <ul className="mt-2 space-y-1">
             {message.attachments.map((a) => (
               <li key={a.id}>
-                <a
-                  href={a.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <LienDePieceJointe
+                  piece={a}
+                  relirePiece={relirePiece}
                   className={cn(
                     'inline-flex items-center gap-1 text-xs underline',
                     isOwn ? 'text-primary-foreground/90' : 'text-foreground',
@@ -439,7 +455,7 @@ function MessageBubble({
                 >
                   <Paperclip className="size-3" aria-hidden />
                   {a.name}
-                </a>
+                </LienDePieceJointe>
               </li>
             ))}
           </ul>
@@ -458,14 +474,23 @@ function MessageBubble({
 }
 
 /** TCK-592 (ADR-0038) — une note vocale : le lecteur, et la durée déclarée par l'émetteur. */
-function VoiceNotePlayer({ message }: { message: Message }) {
+function VoiceNotePlayer({ message, relirePiece }: { message: Message; relirePiece: RelirePiece }) {
   const t = useTranslations('messaging.voiceNote');
   const attachment = message.attachments[0];
   const duration = message.metadata?.duration;
+  const { ref: audioRef, src, onError } = useLecteurDePieceAudio(attachment, relirePiece);
 
   return (
     <div className="flex flex-col gap-1">
-      <audio src={attachment.url} controls preload="none" className="h-9 w-56 max-w-full" aria-label={t('label')} />
+      <audio
+        ref={audioRef}
+        src={src}
+        onError={onError}
+        controls
+        preload="none"
+        className="h-9 w-56 max-w-full"
+        aria-label={t('label')}
+      />
       {duration ? (
         <span className="text-[0.6875rem] tabular-nums opacity-80">{t('duration', { seconds: duration })}</span>
       ) : null}
