@@ -13591,15 +13591,27 @@
       "lease_payment": {
         "due_soon": {
           "title": "Rent due on {due_date}",
-          "body": "Your rent of {amount} for {property} is due on {due_date}."
+          "body": "Your rent of {amount} for {property} is due on {due_date}.",
+          "title_rent_charges": "Rent and charges due on {due_date}",
+          "body_rent_charges": "Your rent and charges for {property} are due on {due_date}: rent {rent}, charges {charges}, total {amount}.",
+          "title_charges": "Charges due on {due_date}",
+          "body_charges": "Your charges of {amount} for {property} are due on {due_date}."
         },
         "overdue": {
           "title": "Rent overdue",
-          "body": "{days, plural, one {Your rent of {amount} for {property}, due on {due_date}, is # day overdue.} other {Your rent of {amount} for {property}, due on {due_date}, is # days overdue.}}"
+          "body": "{days, plural, one {Your rent of {amount} for {property}, due on {due_date}, is # day overdue.} other {Your rent of {amount} for {property}, due on {due_date}, is # days overdue.}}",
+          "title_rent_charges": "Rent and charges overdue",
+          "body_rent_charges": "{days, plural, one {Your rent and charges for {property}, due on {due_date}, are # day overdue: rent {rent}, charges {charges}, total {amount}.} other {Your rent and charges for {property}, due on {due_date}, are # days overdue: rent {rent}, charges {charges}, total {amount}.}}",
+          "title_charges": "Charges overdue",
+          "body_charges": "{days, plural, one {Your charges of {amount} for {property}, due on {due_date}, are # day overdue.} other {Your charges of {amount} for {property}, due on {due_date}, are # days overdue.}}"
         },
         "overdue_landlord": {
           "title": "Unpaid rent: {property}",
-          "body": "{days, plural, one {The rent of {amount} from {tenant} for {property} is # day overdue.} other {The rent of {amount} from {tenant} for {property} is # days overdue.}}"
+          "body": "{days, plural, one {The rent of {amount} from {tenant} for {property} is # day overdue.} other {The rent of {amount} from {tenant} for {property} is # days overdue.}}",
+          "title_rent_charges": "Unpaid rent and charges: {property}",
+          "body_rent_charges": "{days, plural, one {The rent and charges from {tenant} for {property} are # day overdue: rent {rent}, charges {charges}, total {amount}.} other {The rent and charges from {tenant} for {property} are # days overdue: rent {rent}, charges {charges}, total {amount}.}}",
+          "title_charges": "Unpaid charges: {property}",
+          "body_charges": "{days, plural, one {The charges of {amount} from {tenant} for {property} are # day overdue.} other {The charges of {amount} from {tenant} for {property} are # days overdue.}}"
         },
         "overdue_digest": {
           "title": "{count, plural, one {# overdue rent} other {# overdue rents}}",

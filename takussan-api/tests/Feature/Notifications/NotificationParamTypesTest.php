@@ -49,6 +49,10 @@ class NotificationParamTypesTest extends TestCase
             'due_date' => NotificationCode::PARAM_DATE,
             'property' => NotificationCode::PARAM_TEXT,
             'payment_url' => NotificationCode::PARAM_URL,
+            // TCK-2706 — le détail d'une relance qui fusionne loyer et charges, et le lien des charges.
+            'rent' => NotificationCode::PARAM_MONEY,
+            'charges' => NotificationCode::PARAM_MONEY,
+            'charges_url' => NotificationCode::PARAM_URL,
         ], $types);
     }
 

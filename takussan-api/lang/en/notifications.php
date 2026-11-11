@@ -330,6 +330,18 @@ return [
                 'body_link' => 'Your rent of :amount for :property is due on :due_date. Pay online: :payment_url',
                 'sms' => 'Takussan: rent of :amount due on :due_date (:property).',
                 'sms_link' => 'Takussan: rent of :amount due on :due_date. Pay: :payment_url',
+                // TCK-2706 — a reminder merging rent and charges due the same day names both and details the
+                // two amounts (`_rent_charges`, one link per due) ; charges alone say “charges”.
+                'title_rent_charges' => 'Rent and charges due on :due_date',
+                'body_rent_charges' => 'Your rent and charges for :property are due on :due_date: rent :rent, charges :charges, total :amount.',
+                'body_rent_charges_link' => 'Your rent and charges for :property are due on :due_date: rent :rent, charges :charges, total :amount. Pay the rent: :payment_url — pay the charges: :charges_url',
+                'sms_rent_charges' => 'Takussan: rent :rent + charges :charges = :amount, due on :due_date (:property).',
+                'sms_rent_charges_link' => 'Takussan: rent :rent + charges :charges = :amount, due on :due_date. Rent: :payment_url Charges: :charges_url',
+                'title_charges' => 'Charges due on :due_date',
+                'body_charges' => 'Your charges of :amount for :property are due on :due_date.',
+                'body_charges_link' => 'Your charges of :amount for :property are due on :due_date. Pay online: :payment_url',
+                'sms_charges' => 'Takussan: charges of :amount due on :due_date (:property).',
+                'sms_charges_link' => 'Takussan: charges of :amount due on :due_date. Pay: :payment_url',
             ],
             'overdue' => [
                 'title' => 'Rent overdue',
@@ -337,11 +349,31 @@ return [
                 'body_link' => '{1} Your rent of :amount for :property, due on :due_date, is :days day overdue. Pay online: :payment_url|[0,*] Your rent of :amount for :property, due on :due_date, is :days days overdue. Pay online: :payment_url',
                 'sms' => '{1} Takussan: rent of :amount is :days day overdue (:property).|[0,*] Takussan: rent of :amount is :days days overdue (:property).',
                 'sms_link' => '{1} Takussan: rent of :amount is :days day overdue. Pay: :payment_url|[0,*] Takussan: rent of :amount is :days days overdue. Pay: :payment_url',
+                // TCK-2706 — a reminder merging rent and charges due the same day names both and details the
+                // two amounts (`_rent_charges`, one link per due) ; charges alone say “charges”.
+                'title_rent_charges' => 'Rent and charges overdue',
+                'body_rent_charges' => '{1} Your rent and charges for :property, due on :due_date, are :days day overdue: rent :rent, charges :charges, total :amount.|[0,*] Your rent and charges for :property, due on :due_date, are :days days overdue: rent :rent, charges :charges, total :amount.',
+                'body_rent_charges_link' => '{1} Your rent and charges for :property, due on :due_date, are :days day overdue: rent :rent, charges :charges, total :amount. Pay the rent: :payment_url — pay the charges: :charges_url|[0,*] Your rent and charges for :property, due on :due_date, are :days days overdue: rent :rent, charges :charges, total :amount. Pay the rent: :payment_url — pay the charges: :charges_url',
+                'sms_rent_charges' => '{1} Takussan: rent :rent + charges :charges = :amount, :days day overdue (:property).|[0,*] Takussan: rent :rent + charges :charges = :amount, :days days overdue (:property).',
+                'sms_rent_charges_link' => '{1} Takussan: rent :rent + charges :charges = :amount, :days day overdue. Rent: :payment_url Charges: :charges_url|[0,*] Takussan: rent :rent + charges :charges = :amount, :days days overdue. Rent: :payment_url Charges: :charges_url',
+                'title_charges' => 'Charges overdue',
+                'body_charges' => '{1} Your charges of :amount for :property, due on :due_date, are :days day overdue.|[0,*] Your charges of :amount for :property, due on :due_date, are :days days overdue.',
+                'body_charges_link' => '{1} Your charges of :amount for :property, due on :due_date, are :days day overdue. Pay online: :payment_url|[0,*] Your charges of :amount for :property, due on :due_date, are :days days overdue. Pay online: :payment_url',
+                'sms_charges' => '{1} Takussan: charges of :amount are :days day overdue (:property).|[0,*] Takussan: charges of :amount are :days days overdue (:property).',
+                'sms_charges_link' => '{1} Takussan: charges of :amount are :days day overdue. Pay: :payment_url|[0,*] Takussan: charges of :amount are :days days overdue. Pay: :payment_url',
             ],
             'overdue_landlord' => [
                 'title' => 'Unpaid rent: :property',
                 'body' => '{1} The rent of :amount from :tenant for :property is :days day overdue.|[0,*] The rent of :amount from :tenant for :property is :days days overdue.',
                 'sms' => '{1} Takussan: rent of :amount from :tenant (:property) is :days day overdue.|[0,*] Takussan: rent of :amount from :tenant (:property) is :days days overdue.',
+                // TCK-2706 — a reminder merging rent and charges due the same day names both and details the
+                // two amounts (`_rent_charges`, one link per due) ; charges alone say “charges”.
+                'title_rent_charges' => 'Unpaid rent and charges: :property',
+                'body_rent_charges' => '{1} The rent and charges from :tenant for :property are :days day overdue: rent :rent, charges :charges, total :amount.|[0,*] The rent and charges from :tenant for :property are :days days overdue: rent :rent, charges :charges, total :amount.',
+                'sms_rent_charges' => '{1} Takussan: rent :rent + charges :charges = :amount from :tenant (:property), :days day overdue.|[0,*] Takussan: rent :rent + charges :charges = :amount from :tenant (:property), :days days overdue.',
+                'title_charges' => 'Unpaid charges: :property',
+                'body_charges' => '{1} The charges of :amount from :tenant for :property are :days day overdue.|[0,*] The charges of :amount from :tenant for :property are :days days overdue.',
+                'sms_charges' => '{1} Takussan: charges of :amount from :tenant (:property) are :days day overdue.|[0,*] Takussan: charges of :amount from :tenant (:property) are :days days overdue.',
             ],
             'overdue_digest' => [
                 'title' => '{1} :count overdue rent|[0,*] :count overdue rents',

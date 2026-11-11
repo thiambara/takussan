@@ -130,6 +130,17 @@ class NotificationRenderer
         };
 
         $candidates = [];
+        // TCK-2706 — la variante d'une relance fusionnée (loyer et charges, ou charges seules) passe
+        // avant tout : sans elle, le texte du loyer annoncerait les charges sous le mot « loyer ».
+        $variant = $code->variant($params);
+        if ($variant !== null) {
+            if ($this->hasOptional($code, $params)) {
+                $candidates[] = $base.$surface.'_'.$variant.'_link';
+                $candidates[] = $base.$fallback.'_'.$variant.'_link';
+            }
+            $candidates[] = $base.$surface.'_'.$variant;
+            $candidates[] = $base.$fallback.'_'.$variant;
+        }
         if ($this->lacksName($code, $params)) {
             $candidates[] = $base.$surface.'_unnamed';
             $candidates[] = $base.$fallback.'_unnamed';

@@ -13591,15 +13591,27 @@
       "lease_payment": {
         "due_soon": {
           "title": "Pey kër bi ngir {due_date}",
-          "body": "Sa pey kër bu {amount} ngir {property}, war nga koo fey ci {due_date}."
+          "body": "Sa pey kër bu {amount} ngir {property}, war nga koo fey ci {due_date}.",
+          "title_rent_charges": "Loyer et charges à payer le {due_date}",
+          "body_rent_charges": "Votre loyer et vos charges pour {property} sont dus le {due_date} : loyer {rent}, charges {charges}, total {amount}.",
+          "title_charges": "Charges à payer le {due_date}",
+          "body_charges": "Vos charges de {amount} pour {property} sont dues le {due_date}."
         },
         "overdue": {
           "title": "Pey kër bi yàgg na",
-          "body": "Sa pey kër bu {amount} ngir {property}, bu waroon a fey ci {due_date}, yàgg na {days} fan."
+          "body": "Sa pey kër bu {amount} ngir {property}, bu waroon a fey ci {due_date}, yàgg na {days} fan.",
+          "title_rent_charges": "Loyer et charges en retard",
+          "body_rent_charges": "{days, plural, =1 {Votre loyer et vos charges pour {property}, dus le {due_date}, sont en retard de # jour : loyer {rent}, charges {charges}, total {amount}.} other {Votre loyer et vos charges pour {property}, dus le {due_date}, sont en retard de # jours : loyer {rent}, charges {charges}, total {amount}.}}",
+          "title_charges": "Charges en retard",
+          "body_charges": "{days, plural, =1 {Vos charges de {amount} pour {property}, dues le {due_date}, sont en retard de # jour.} other {Vos charges de {amount} pour {property}, dues le {due_date}, sont en retard de # jours.}}"
         },
         "overdue_landlord": {
           "title": "Pey kër bu ñu feyul : {property}",
-          "body": "Pey kër bu {amount} bu {tenant} ngir {property} yàgg na {days} fan."
+          "body": "Pey kër bu {amount} bu {tenant} ngir {property} yàgg na {days} fan.",
+          "title_rent_charges": "Loyer et charges impayés : {property}",
+          "body_rent_charges": "{days, plural, =1 {Le loyer et les charges de {tenant} pour {property} sont en retard de # jour : loyer {rent}, charges {charges}, total {amount}.} other {Le loyer et les charges de {tenant} pour {property} sont en retard de # jours : loyer {rent}, charges {charges}, total {amount}.}}",
+          "title_charges": "Charges impayées : {property}",
+          "body_charges": "{days, plural, =1 {Les charges de {amount} de {tenant} pour {property} sont en retard de # jour.} other {Les charges de {amount} de {tenant} pour {property} sont en retard de # jours.}}"
         },
         "overdue_digest": {
           "title": "{count} pey kër yu yàgg",

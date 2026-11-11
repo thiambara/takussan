@@ -570,7 +570,15 @@ enum NotificationCode: string
     public function optionalParams(): array
     {
         return match ($this) {
-            self::LeasePaymentDueSoon, self::LeasePaymentOverdue => ['payment_url' => self::PARAM_URL],
+            // TCK-2706 — `rent` et `charges` : le détail d'une relance qui fusionne loyer et charges du
+            // même jour (TCK-2679), et `charges_url` le lien des charges ({@see variant()}).
+            self::LeasePaymentDueSoon, self::LeasePaymentOverdue => [
+                'payment_url' => self::PARAM_URL,
+                'rent' => self::PARAM_MONEY,
+                'charges' => self::PARAM_MONEY,
+                'charges_url' => self::PARAM_URL,
+            ],
+            self::LeasePaymentOverdueLandlord => ['rent' => self::PARAM_MONEY, 'charges' => self::PARAM_MONEY],
             // Le lien `/pay/{jeton}` sert la quittance : jamais tronqué.
             self::LeasePaymentSettledOnline => ['receipt_url' => self::PARAM_URL],
             // TCK-1002 — la quittance d'un paiement enregistré par l'agence, même lien.
@@ -609,8 +617,44 @@ enum NotificationCode: string
     public function bearerParams(): array
     {
         return match ($this) {
-            self::LeasePaymentDueSoon, self::LeasePaymentOverdue => ['payment_url'],
+            // TCK-2706 — le lien des charges d'une relance fusionnée est un lien porteur comme l'autre.
+            self::LeasePaymentDueSoon, self::LeasePaymentOverdue => ['payment_url', 'charges_url'],
             self::LeasePaymentSettledOnline, self::LeasePaymentRecorded => ['receipt_url'],
+            default => [],
+        };
+    }
+
+    /**
+     * TCK-2706 (voie 2 du porteur, 2026-11-11) — la VARIANTE de texte que les paramètres désignent :
+     * `rent_charges` quand une relance porte le loyer ET les charges d'un même jour (`rent`, `charges`),
+     * `charges` quand elle ne porte que les charges ; `null` sinon (le texte de loyer d'aujourd'hui,
+     * inchangé). Le rendu cherche `<surface>_<variante>[_link]` avant `<surface>[_link]`, et un envoi
+     * WhatsApp hors fenêtre cherche le gabarit de `<code>.<variante>`, qui n'existe pas : il retombe
+     * sur le SMS plutôt que d'envoyer le gabarit du loyer seul.
+     *
+     * @param  array<string, mixed>  $params
+     */
+    public function variant(array $params): ?string
+    {
+        if (! in_array($this, [self::LeasePaymentDueSoon, self::LeasePaymentOverdue, self::LeasePaymentOverdueLandlord], true)
+            || ! is_array($params['charges'] ?? null)) {
+            return null;
+        }
+
+        return is_array($params['rent'] ?? null) ? 'rent_charges' : 'charges';
+    }
+
+    /**
+     * TCK-2706 — les paramètres facultatifs qui n'existent que dans une variante ({@see variant()}) :
+     * aucun gabarit WhatsApp du code ne les porte, puisque la variante n'a pas de gabarit.
+     *
+     * @return list<string>
+     */
+    public function variantParams(): array
+    {
+        return match ($this) {
+            self::LeasePaymentDueSoon, self::LeasePaymentOverdue => ['rent', 'charges', 'charges_url'],
+            self::LeasePaymentOverdueLandlord => ['rent', 'charges'],
             default => [],
         };
     }

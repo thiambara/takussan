@@ -86,6 +86,27 @@ function nomAbsent(code: string, params: AppNotification['params']): boolean {
 }
 
 /**
+ * TCK-2706 — le miroir de `NotificationCode::variant()` : une relance qui fusionne loyer et charges
+ * du même jour porte `rent` et `charges` (deux montants) et se lit sous `title_rent_charges` /
+ * `body_rent_charges` ; des charges seules (le loyer déjà payé) portent `charges` sans `rent` et se
+ * lisent sous `title_charges` / `body_charges`. Sans `charges`, le texte du loyer seul, inchangé.
+ */
+const CODES_A_VARIANTE: ReadonlySet<string> = new Set([
+  'lease_payment.due_soon',
+  'lease_payment.overdue',
+  'lease_payment.overdue_landlord',
+]);
+
+function estMontant(valeur: NotificationParam | undefined): boolean {
+  return typeof valeur === 'object' && valeur !== null;
+}
+
+export function varianteDe(code: string, params: AppNotification['params']): 'rent_charges' | 'charges' | null {
+  if (!CODES_A_VARIANTE.has(code) || !estMontant(params?.charges)) return null;
+  return estMontant(params?.rent) ? 'rent_charges' : 'charges';
+}
+
+/**
  * P235.03 (TCK-2369) — un paramètre de nature `person` (`PARAM_PERSON`) vide — compte ou fiche créés
  * par téléphone — se lit par ce libellé traduit, comme dans le courriel (`NotificationRenderer`).
  */
@@ -171,11 +192,15 @@ export function useTexteNotification(): (notification: AppNotification) => Texte
       notification.param_types,
       tNotifications('unnamedPerson'),
     );
-    const cleCorps = nomAbsent(code, notification.params) && t.has(`${code}.body_unnamed`)
-      ? `${code}.body_unnamed`
-      : `${code}.body`;
+    const variante = varianteDe(code, notification.params);
+    const cleTitre = variante && t.has(`${code}.title_${variante}`) ? `${code}.title_${variante}` : `${code}.title`;
+    const cleCorps = variante && t.has(`${code}.body_${variante}`)
+      ? `${code}.body_${variante}`
+      : nomAbsent(code, notification.params) && t.has(`${code}.body_unnamed`)
+        ? `${code}.body_unnamed`
+        : `${code}.body`;
     return {
-      titre: t(`${code}.title`, valeurs),
+      titre: t(cleTitre, valeurs),
       corps: t.has(cleCorps) ? t(cleCorps, valeurs) : repli.corps,
     };
   };

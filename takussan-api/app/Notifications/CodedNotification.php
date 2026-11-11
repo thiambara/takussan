@@ -316,7 +316,13 @@ class CodedNotification extends Notification implements ShouldBeEncrypted, Shoul
     /** L'événement des lignes `notification_templates` (canal `whatsapp`) : le code lui-même. */
     public function whatsappTemplateEvent(): string
     {
-        return $this->code->value;
+        // TCK-2706 — une relance fusionnée (loyer et charges, ou charges seules) n'a pas de gabarit
+        // Meta : `<code>.<variante>` n'est jamais approuvé, et le canal retombe sur le SMS, qui dit
+        // les deux montants et porte les deux liens. Le gabarit du code annoncerait le total sous
+        // le mot « loyer », avec le seul lien du loyer.
+        $variant = $this->code->variant($this->params);
+
+        return $variant !== null ? $this->code->value.'.'.$variant : $this->code->value;
     }
 
     /**

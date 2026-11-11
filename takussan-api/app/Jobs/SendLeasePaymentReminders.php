@@ -72,11 +72,11 @@ class SendLeasePaymentReminders implements ShouldQueue
     {
         foreach ($this->claim(now()->addDays(self::DUE_SOON_DAYS), 'due_soon') as $dues) {
             $payment = $dues[0];
-            $this->notifyTenant($notifications, $payment, NotificationCode::LeasePaymentDueSoon, [
+            $this->notifyTenant($notifications, $dues, NotificationCode::LeasePaymentDueSoon, [
                 'amount' => $this->remaining($dues),
                 'due_date' => $payment->due_date?->toDateString(),
                 'property' => $payment->lease?->property?->title,
-            ]);
+            ] + $this->detail($dues));
         }
 
         /** @var array<int, array{agent: User, count: int, total: float, currency: ?Currency}> $digests */
@@ -87,13 +87,14 @@ class SendLeasePaymentReminders implements ShouldQueue
                 $days = (int) $payment->due_date->diffInDays(now(), true);
                 $lease = $payment->lease;
                 $amount = $this->remaining($dues);
+                $detail = $this->detail($dues);
 
-                $this->notifyTenant($notifications, $payment, NotificationCode::LeasePaymentOverdue, [
+                $this->notifyTenant($notifications, $dues, NotificationCode::LeasePaymentOverdue, [
                     'amount' => $amount,
                     'days' => $days,
                     'due_date' => $payment->due_date->toDateString(),
                     'property' => $lease?->property?->title,
-                ]);
+                ] + $detail);
 
                 $landlord = $lease?->landlord;
                 if ($landlord) {
@@ -102,7 +103,7 @@ class SendLeasePaymentReminders implements ShouldQueue
                         'days' => $days,
                         'property' => $lease->property?->title,
                         'tenant' => trim(($lease->tenant?->first_name ?? '').' '.($lease->tenant?->last_name ?? '')),
-                    ], NotificationTarget::of('lease', $lease->id), agencyId: self::agenceDuBail($lease));
+                    ] + $detail, NotificationTarget::of('lease', $lease->id), agencyId: self::agenceDuBail($lease));
                 }
 
                 // L'agent : le contact principal du bien, quand ce n'est pas le bailleur lui-même.
@@ -207,14 +208,54 @@ class SendLeasePaymentReminders implements ShouldQueue
     }
 
     /**
+     * TCK-2706 (voie 2 du porteur, 2026-11-11) — le détail d'une relance qui porte des charges : le
+     * solde du loyer (`rent`) et celui des charges (`charges`), qui font choisir le texte « loyer et
+     * charges » ou « charges » ({@see NotificationCode::variant()}). Vide — le texte du loyer
+     * d'aujourd'hui, octet pour octet — pour un loyer seul, et pour un groupe qui porte autre chose
+     * que le loyer et les charges, ou deux échéances d'un même type : ces textes ne sauraient pas le
+     * dire, ni la relance donner un lien à chacune.
+     *
+     * @param  non-empty-list<LeasePayment>  $dues
+     * @return array<string, array{amount: string, currency: string}>
+     */
+    private function detail(array $dues): array
+    {
+        $byType = [];
+        foreach ($dues as $due) {
+            $type = $due->payment_type;
+            if (! in_array($type, [LeasePaymentType::Rent, LeasePaymentType::Charges], true) || isset($byType[$type->value])) {
+                return [];
+            }
+            $byType[$type->value] = $due;
+        }
+        if (! isset($byType[LeasePaymentType::Charges->value])) {
+            return [];
+        }
+
+        $detail = [];
+        foreach ($byType as $type => $due) {
+            $detail[$type] = NotificationRenderer::money(round((float) $due->remaining_amount, 2), $due->currency);
+        }
+
+        return $detail;
+    }
+
+    /**
      * Le locataire : son compte, sinon son téléphone (contact sans compte), sinon personne —
      * journalisé, sans exception. Un compte sans téléphone vérifié reçoit en plus le canal mobile
      * au numéro de sa fiche (TCK-1493).
      *
+     * TCK-2706 (voie 2 du porteur, 2026-11-11) — le contact sans compte d'une relance qui porte les
+     * charges reçoit le lien de CHAQUE échéance : `payment_url` celui du loyer (ou des charges seules),
+     * `charges_url` celui des charges. Tous ou aucun : le SMS annonce chaque montant, et un montant
+     * annoncé sans son lien ne se paierait pas par le message.
+     *
+     * @param  non-empty-list<LeasePayment>  $dues  le loyer en tête ({@see claim()})
      * @param  array<string, mixed>  $params
      */
-    private function notifyTenant(NotificationService $notifications, LeasePayment $payment, NotificationCode $code, array $params): void
+    private function notifyTenant(NotificationService $notifications, array $dues, NotificationCode $code, array $params): void
     {
+        $payment = $dues[0];
         $lease = $payment->lease;
         $tenant = $lease?->tenant;
         $target = $lease ? NotificationTarget::of('lease', $lease->id) : null;
@@ -238,12 +279,21 @@ class SendLeasePaymentReminders implements ShouldQueue
         if ($contact?->hasPhone()) {
             // TCK-602 (ADR-0051 §1) — 588 a prévu la place du lien, 602 le génère : le MÊME lien à
             // chaque relance, seulement si l'échéance se paie en ligne (un fournisseur au moins).
+            // TCK-2706 — sans détail (`charges`), le seul lien de la tête du groupe, comme avant.
+            $payables = $code->variant($params) !== null ? $dues : [$payment];
             $gateway = app(PaymentGatewayService::class);
             $guard = null;
-            if ($gateway->isPayable($payment) && $gateway->availableProviders($payment) !== []) {
-                $params['payment_url'] = app(LeasePaymentLinkService::class)->urlFor($payment, locale: $contact->locale);
-                // TCK-1346 (P132.04) — reporté à la nuit, le SMS relit son lien avant de partir.
-                $guard = DeferredSmsGuard::forPayLink($params['payment_url']);
+            $enLigne = array_filter($payables, fn (LeasePayment $due): bool => $gateway->isPayable($due) && $gateway->availableProviders($due) !== []);
+            if (count($enLigne) === count($payables)) {
+                $links = app(LeasePaymentLinkService::class);
+                $urls = array_map(fn (LeasePayment $due): string => $links->urlFor($due, locale: $contact->locale), $payables);
+                $params['payment_url'] = $urls[0];
+                if (isset($urls[1])) {
+                    $params['charges_url'] = $urls[1];
+                }
+                // TCK-1346 (P132.04) — reporté à la nuit, le SMS relit son lien avant de partir ;
+                // TCK-2706 — tous ses liens.
+                $guard = count($urls) === 1 ? DeferredSmsGuard::forPayLink($urls[0]) : DeferredSmsGuard::forPayLinks(...$urls);
             }
             // P207.01 (TCK-2157) — au plus une fois (TCK-740) : un SMS que tous les fournisseurs
             // refusent n'est pas renvoyé, et laisse une activité d'exploitation sur l'échéance.

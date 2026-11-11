@@ -335,6 +335,18 @@ return [
                 'body_link' => 'Votre loyer de :amount pour :property est dû le :due_date. Payer en ligne : :payment_url',
                 'sms' => 'Takussan : loyer de :amount dû le :due_date (:property).',
                 'sms_link' => 'Takussan : loyer de :amount dû le :due_date. Payer : :payment_url',
+                // TCK-2706 — une relance qui fusionne loyer et charges du même jour les nomme et détaille les
+                // deux montants (`_rent_charges`, un lien par échéance) ; des charges seules disent « charges ».
+                'title_rent_charges' => 'Loyer et charges à payer le :due_date',
+                'body_rent_charges' => 'Votre loyer et vos charges pour :property sont dus le :due_date : loyer :rent, charges :charges, total :amount.',
+                'body_rent_charges_link' => 'Votre loyer et vos charges pour :property sont dus le :due_date : loyer :rent, charges :charges, total :amount. Payer le loyer : :payment_url — payer les charges : :charges_url',
+                'sms_rent_charges' => 'Takussan : loyer :rent + charges :charges = :amount, dus le :due_date (:property).',
+                'sms_rent_charges_link' => 'Takussan : loyer :rent + charges :charges = :amount, dus le :due_date. Loyer : :payment_url Charges : :charges_url',
+                'title_charges' => 'Charges à payer le :due_date',
+                'body_charges' => 'Vos charges de :amount pour :property sont dues le :due_date.',
+                'body_charges_link' => 'Vos charges de :amount pour :property sont dues le :due_date. Payer en ligne : :payment_url',
+                'sms_charges' => 'Takussan : charges de :amount dues le :due_date (:property).',
+                'sms_charges_link' => 'Takussan : charges de :amount dues le :due_date. Payer : :payment_url',
             ],
             'overdue' => [
                 'title' => 'Loyer en retard',
@@ -342,11 +354,31 @@ return [
                 'body_link' => '{1} Votre loyer de :amount pour :property, dû le :due_date, est en retard de :days jour. Payer en ligne : :payment_url|[0,*] Votre loyer de :amount pour :property, dû le :due_date, est en retard de :days jours. Payer en ligne : :payment_url',
                 'sms' => '{1} Takussan : loyer de :amount en retard de :days jour (:property).|[0,*] Takussan : loyer de :amount en retard de :days jours (:property).',
                 'sms_link' => '{1} Takussan : loyer de :amount en retard de :days jour. Payer : :payment_url|[0,*] Takussan : loyer de :amount en retard de :days jours. Payer : :payment_url',
+                // TCK-2706 — une relance qui fusionne loyer et charges du même jour les nomme et détaille les
+                // deux montants (`_rent_charges`, un lien par échéance) ; des charges seules disent « charges ».
+                'title_rent_charges' => 'Loyer et charges en retard',
+                'body_rent_charges' => '{1} Votre loyer et vos charges pour :property, dus le :due_date, sont en retard de :days jour : loyer :rent, charges :charges, total :amount.|[0,*] Votre loyer et vos charges pour :property, dus le :due_date, sont en retard de :days jours : loyer :rent, charges :charges, total :amount.',
+                'body_rent_charges_link' => '{1} Votre loyer et vos charges pour :property, dus le :due_date, sont en retard de :days jour : loyer :rent, charges :charges, total :amount. Payer le loyer : :payment_url — payer les charges : :charges_url|[0,*] Votre loyer et vos charges pour :property, dus le :due_date, sont en retard de :days jours : loyer :rent, charges :charges, total :amount. Payer le loyer : :payment_url — payer les charges : :charges_url',
+                'sms_rent_charges' => '{1} Takussan : loyer :rent + charges :charges = :amount, en retard de :days jour (:property).|[0,*] Takussan : loyer :rent + charges :charges = :amount, en retard de :days jours (:property).',
+                'sms_rent_charges_link' => '{1} Takussan : loyer :rent + charges :charges = :amount, en retard de :days jour. Loyer : :payment_url Charges : :charges_url|[0,*] Takussan : loyer :rent + charges :charges = :amount, en retard de :days jours. Loyer : :payment_url Charges : :charges_url',
+                'title_charges' => 'Charges en retard',
+                'body_charges' => '{1} Vos charges de :amount pour :property, dues le :due_date, sont en retard de :days jour.|[0,*] Vos charges de :amount pour :property, dues le :due_date, sont en retard de :days jours.',
+                'body_charges_link' => '{1} Vos charges de :amount pour :property, dues le :due_date, sont en retard de :days jour. Payer en ligne : :payment_url|[0,*] Vos charges de :amount pour :property, dues le :due_date, sont en retard de :days jours. Payer en ligne : :payment_url',
+                'sms_charges' => '{1} Takussan : charges de :amount en retard de :days jour (:property).|[0,*] Takussan : charges de :amount en retard de :days jours (:property).',
+                'sms_charges_link' => '{1} Takussan : charges de :amount en retard de :days jour. Payer : :payment_url|[0,*] Takussan : charges de :amount en retard de :days jours. Payer : :payment_url',
             ],
             'overdue_landlord' => [
                 'title' => 'Loyer impayé : :property',
                 'body' => '{1} Le loyer de :amount de :tenant pour :property est en retard de :days jour.|[0,*] Le loyer de :amount de :tenant pour :property est en retard de :days jours.',
                 'sms' => '{1} Takussan : loyer de :amount de :tenant (:property) en retard de :days jour.|[0,*] Takussan : loyer de :amount de :tenant (:property) en retard de :days jours.',
+                // TCK-2706 — une relance qui fusionne loyer et charges du même jour les nomme et détaille les
+                // deux montants (`_rent_charges`, un lien par échéance) ; des charges seules disent « charges ».
+                'title_rent_charges' => 'Loyer et charges impayés : :property',
+                'body_rent_charges' => '{1} Le loyer et les charges de :tenant pour :property sont en retard de :days jour : loyer :rent, charges :charges, total :amount.|[0,*] Le loyer et les charges de :tenant pour :property sont en retard de :days jours : loyer :rent, charges :charges, total :amount.',
+                'sms_rent_charges' => '{1} Takussan : loyer :rent + charges :charges = :amount de :tenant (:property), en retard de :days jour.|[0,*] Takussan : loyer :rent + charges :charges = :amount de :tenant (:property), en retard de :days jours.',
+                'title_charges' => 'Charges impayées : :property',
+                'body_charges' => '{1} Les charges de :amount de :tenant pour :property sont en retard de :days jour.|[0,*] Les charges de :amount de :tenant pour :property sont en retard de :days jours.',
+                'sms_charges' => '{1} Takussan : charges de :amount de :tenant (:property) en retard de :days jour.|[0,*] Takussan : charges de :amount de :tenant (:property) en retard de :days jours.',
             ],
             'overdue_digest' => [
                 'title' => '{1} :count loyer en retard|[0,*] :count loyers en retard',
