@@ -170,7 +170,7 @@ class AgentAbsenceTest extends ApiTestCase
         // L'absence finie, le remplaçant ne PREND plus part à la tâche : il ne la coche plus et elle
         // quitte sa liste. Il la lit encore, en lecture seule, au titre de l'équipe — le rôle d'agent
         // tient `crm.view_all` (TCK-2595, `TaskPolicy::readsAsTeam`), comme toute tâche d'un collègue.
-        $this->actingAsApi($this->substitute)->apiPut("/api/tasks/{$task->id}", ['status' => 'todo'])->assertForbidden();
+        $this->actingAsApi($this->substitute)->apiPut("/api/tasks/{$task->id}", ['status' => 'open'])->assertForbidden();
         $this->actingAsApi($this->substitute)->apiGet("/api/tasks/{$task->id}")->assertOk();
         $this->assertNotContains(
             $task->id,
