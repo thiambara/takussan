@@ -3,10 +3,14 @@
 namespace Tests\Feature\Payments;
 
 use App\Models\Agency;
+use App\Models\Booking;
+use App\Models\BookingPayment;
+use App\Models\Enums\BookingPaymentType;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Models\Property;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Testing\TestResponse;
@@ -118,6 +122,59 @@ class PaymentHistoryDepositsTotalsTest extends ApiTestCase
         $this->assertSame(2, $totaux['count']);
         $this->assertSame(0, $totaux['deposits_count']);
         $this->assertEquals(0, $totaux['deposits_amount']);
+    }
+
+    /**
+     * Vérification adverse de TCK-2733 — `deposit` nomme aussi l'ACOMPTE d'une réservation
+     * (`BookingPaymentType::Deposit`, « arrhes »), un revenu que la tuile compte : il n'entre pas dans
+     * la part des cautions, et le registre hors cautions rejoint toujours la tuile.
+     */
+    public function test_l_acompte_d_une_reservation_n_est_pas_une_caution(): void
+    {
+        $bien = Property::factory()->create(['agency_id' => $this->agency->id]);
+        $reservation = Booking::factory()->create(['property_id' => $bien->id, 'agency_id' => $this->agency->id]);
+        BookingPayment::factory()->create([
+            'booking_id' => $reservation->id,
+            'payment_type' => BookingPaymentType::Deposit,
+            'amount' => 90_000,
+            'status' => PaymentStatus::Paid,
+            'paid_at' => '2026-10-12 09:00:00',
+        ]);
+        $this->actingAsApi($this->agencyAdmin($this->agency));
+
+        $reponse = $this->octobre('&per_page=100');
+        $totaux = $reponse->json('meta.totals');
+        $tuile = $this->getJson("/api/agencies/{$this->agency->id}/finance/summary?period=2026-10")->assertOk()->json('data.collected');
+
+        $this->assertContains('booking', array_column($reponse->json('data'), 'source'), 'prémisse : l\'acompte est au registre');
+        $this->assertEquals(840_000, $totaux['paid_amount']);
+        $this->assertSame(2, $totaux['deposits_count']);
+        $this->assertEquals(450_000, $totaux['deposits_amount']);
+        $this->assertEquals(390_000, $tuile['amount'], 'prémisse : la tuile compte l\'acompte');
+        $this->assertEquals($tuile['amount'], $totaux['paid_amount'] - $totaux['deposits_amount']);
+    }
+
+    /** Vérification adverse de TCK-2733 — une caution réglée en partie compte pour ce qui est réglé, pas pour son montant. */
+    public function test_une_caution_partiellement_payee_compte_ce_qui_est_regle(): void
+    {
+        LeasePayment::factory()->create([
+            'lease_id' => $this->avecCautions->id,
+            'payment_type' => LeasePaymentType::Deposit,
+            'amount' => 300_000,
+            'status' => PaymentStatus::PartiallyPaid,
+            'metadata' => ['paid_amount' => 120_000],
+            'paid_at' => '2026-10-15 09:00:00',
+            'due_date' => '2026-10-05',
+            'period_start' => '2026-10-01',
+            'period_end' => '2026-10-31',
+            'late_fee_amount' => null,
+        ]);
+        $this->actingAsApi($this->agencyAdmin($this->agency));
+
+        $totaux = $this->getJson('/api/payments/history?filter[paid_from]=2026-10-01&filter[paid_to]=2026-10-31')->assertOk()->json('meta.totals');
+
+        $this->assertSame(3, $totaux['deposits_count']);
+        $this->assertEquals(570_000, $totaux['deposits_amount']);
     }
 
     /** Les clés d'avant ne changent pas, et la part des cautions suit le cloisonnement du lecteur. */
