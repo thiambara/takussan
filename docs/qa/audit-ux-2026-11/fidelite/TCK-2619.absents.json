@@ -58,14 +58,15 @@
  "par_renvoi": {
   "TCK-2622": 450,
   "TCK-2596": 100,
-  "TCK-2618": 43,
   "donnée": 42,
   "replié": 33,
   "alias": 32,
   "accepté": 29,
+  "appariement": 24,
+  "TCK-2742": 23,
   "hors cadre": 23,
-  "appariement": 22,
   "a11y": 18,
+  "TCK-2618": 18,
   "TCK-2480": 14,
   "état de la démo": 14,
   "TCK-2628": 13,
@@ -243,8 +244,8 @@
   {
    "ecran": "a-0 bureau-1280-masquer-accueil",
    "conteneur": "colonne",
-   "motif": "icône de l'entrée « Commissions » : receipt dans la maquette, hand-coins dans le catalogue du produit (TCK-2618)",
-   "renvoi": "TCK-2618",
+   "motif": "icône de l'entrée « Commissions » : receipt dans la maquette, hand-coins dans le catalogue du produit (TCK-2477) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
+   "renvoi": "TCK-2742",
    "elements": [
     "M icone « lucide-receipt » (14, 784) [rôle]",
     "M icone « lucide-receipt » (14, 784)"
@@ -253,8 +254,8 @@
   {
    "ecran": "a-0 bureau-1280-masquer-accueil",
    "conteneur": "colonne",
-   "motif": "icône de l'entrée « Crédits » : credit-card dans la maquette, coins dans le catalogue du produit (TCK-2618)",
-   "renvoi": "TCK-2618",
+   "motif": "icône de l'entrée « Crédits » : credit-card dans la maquette, coins dans le catalogue du produit (TCK-2477) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
+   "renvoi": "TCK-2742",
    "elements": [
     "M icone « lucide-credit-card » (14, 817) [rôle]",
     "M icone « lucide-credit-card » (14, 817)"
@@ -401,8 +402,8 @@
   {
    "ecran": "a-0 bureau-1280-masquer-accueil",
    "conteneur": "colonne",
-   "motif": "icône du catalogue pour « Commissions » (hand-coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé)",
-   "renvoi": "TCK-2618",
+   "motif": "icône du catalogue (TCK-2477) pour « Commissions » (hand-coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
+   "renvoi": "TCK-2742",
    "elements": [
     "P icone « lucide-hand-coins » (14, 869)"
    ]
@@ -564,8 +565,8 @@
   {
    "ecran": "a-0 bureau-1440-masquer-accueil",
    "conteneur": "colonne",
-   "motif": "icône de l'entrée « Commissions » : receipt dans la maquette, hand-coins dans le catalogue du produit (TCK-2618)",
-   "renvoi": "TCK-2618",
+   "motif": "icône de l'entrée « Commissions » : receipt dans la maquette, hand-coins dans le catalogue du produit (TCK-2477) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
+   "renvoi": "TCK-2742",
    "elements": [
     "M icone « lucide-receipt » (14, 784) [rôle]",
     "M icone « lucide-receipt » (14, 784)"
@@ -574,8 +575,8 @@
   {
    "ecran": "a-0 bureau-1440-masquer-accueil",
    "conteneur": "colonne",
-   "motif": "icône de l'entrée « Crédits » : credit-card dans la maquette, coins dans le catalogue du produit (TCK-2618)",
-   "renvoi": "TCK-2618",
+   "motif": "icône de l'entrée « Crédits » : credit-card dans la maquette, coins dans le catalogue du produit (TCK-2477) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
+   "renvoi": "TCK-2742",
    "elements": [
     "M icone « lucide-credit-card » (14, 817) [rôle]",
     "M icone « lucide-credit-card » (14, 817)"
@@ -722,8 +723,8 @@
   {
    "ecran": "a-0 bureau-1440-masquer-accueil",
    "conteneur": "colonne",
-   "motif": "icône du catalogue pour « Commissions » (hand-coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé)",
-   "renvoi": "TCK-2618",
+   "motif": "icône du catalogue (TCK-2477) pour « Commissions » (hand-coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
+   "renvoi": "TCK-2742",
    "elements": [
     "P icone « lucide-hand-coins » (14, 869)"
    ]
@@ -1060,8 +1061,8 @@
   {
    "ecran": "a-3 bureau-1440-edition-bureau",
    "conteneur": "colonne",
-   "motif": "icône de l'entrée « Commissions » : receipt dans la maquette, hand-coins dans le catalogue du produit (TCK-2618)",
-   "renvoi": "TCK-2618",
+   "motif": "icône de l'entrée « Commissions » : receipt dans la maquette, hand-coins dans le catalogue du produit (TCK-2477) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
+   "renvoi": "TCK-2742",
    "elements": [
     "M icone « lucide-receipt » (32, 734)"
    ]
@@ -1069,8 +1070,8 @@
   {
    "ecran": "a-3 bureau-1440-edition-bureau",
    "conteneur": "colonne",
-   "motif": "icône du catalogue pour « Commissions » (hand-coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé)",
-   "renvoi": "TCK-2618",
+   "motif": "icône du catalogue (TCK-2477) pour « Commissions » (hand-coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
+   "renvoi": "TCK-2742",
    "elements": [
     "P icone « lucide-hand-coins » (14, 644)"
    ]
@@ -1096,8 +1097,8 @@
   {
    "ecran": "a-3 bureau-1440-edition-bureau",
    "conteneur": "colonne",
-   "motif": "icône du catalogue pour « Crédits » (coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé)",
-   "renvoi": "TCK-2618",
+   "motif": "icône du catalogue (TCK-2477) pour « Crédits » (coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
+   "renvoi": "TCK-2742",
    "elements": [
     "P icone « lucide-coins » (14, 676)"
    ]
@@ -1359,8 +1360,8 @@
   {
    "ecran": "a-3 telephone-ouvrir-menu",
    "conteneur": "onglets",
-   "motif": "icône de l'onglet « Argent » de la maquette ; le produit garde l'icône de TCK-2618 pour cet onglet",
-   "renvoi": "TCK-2618",
+   "motif": "artefact d'appariement : le produit rend la MÊME icône « lucide-wallet » au même endroit (107, 792), sous l'onglet « Argent » (relevé produit de cet écran) ; l'outil a apparié l'icône du produit à une autre « lucide-wallet » de la maquette, plus haut dans la page, et laisse celle de l'onglet seule",
+   "renvoi": "appariement",
    "elements": [
     "M icone « lucide-wallet » (107, 792)"
    ]
@@ -1476,8 +1477,8 @@
   {
    "ecran": "a-5 bureau-1440-compte-bureau",
    "conteneur": "colonne",
-   "motif": "icône de l'entrée « Commissions » : receipt dans la maquette, hand-coins dans le catalogue du produit (TCK-2618)",
-   "renvoi": "TCK-2618",
+   "motif": "icône de l'entrée « Commissions » : receipt dans la maquette, hand-coins dans le catalogue du produit (TCK-2477) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
+   "renvoi": "TCK-2742",
    "elements": [
     "M icone « lucide-receipt » (14, 723) [rôle]",
     "M icone « lucide-receipt » (14, 723)"
@@ -1651,8 +1652,8 @@
   {
    "ecran": "a-5 bureau-1440-compte-bureau",
    "conteneur": "colonne",
-   "motif": "icône du catalogue pour « États des lieux » (clipboard-list) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé)",
-   "renvoi": "TCK-2618",
+   "motif": "icône du catalogue (TCK-2477) pour « États des lieux » (clipboard-list) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
+   "renvoi": "TCK-2742",
    "elements": [
     "P icone « lucide-clipboard-list » (14, 698)"
    ]
@@ -1660,8 +1661,8 @@
   {
    "ecran": "a-5 bureau-1440-compte-bureau",
    "conteneur": "colonne",
-   "motif": "icône du catalogue pour « Commissions » (hand-coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé)",
-   "renvoi": "TCK-2618",
+   "motif": "icône du catalogue (TCK-2477) pour « Commissions » (hand-coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
+   "renvoi": "TCK-2742",
    "elements": [
     "P icone « lucide-hand-coins » (14, 763)"
    ]
@@ -1798,8 +1799,8 @@
   {
    "ecran": "a-5 telephone-compte-telephone",
    "conteneur": "onglets",
-   "motif": "icône de l'onglet « Demandes » de la maquette (inbox) ; le produit garde l'icône de TCK-2618 pour cet onglet",
-   "renvoi": "TCK-2618",
+   "motif": "artefact d'appariement : le produit rend la MÊME icône « lucide-inbox » au même endroit (107, 792), sous l'onglet « Demandes » (relevé produit de cet écran) ; l'outil a apparié l'icône du produit à une autre « lucide-inbox » de la maquette, plus haut dans la page, et laisse celle de l'onglet seule",
+   "renvoi": "appariement",
    "elements": [
     "M icone « lucide-inbox » (107, 792)"
    ]
@@ -2050,8 +2051,8 @@
   {
    "ecran": "a-8 bureau-1280-introuvable-masque",
    "conteneur": "colonne",
-   "motif": "icône de l'entrée « Commissions » : receipt dans la maquette, hand-coins dans le catalogue du produit (TCK-2618)",
-   "renvoi": "TCK-2618",
+   "motif": "icône de l'entrée « Commissions » : receipt dans la maquette, hand-coins dans le catalogue du produit (TCK-2477) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
+   "renvoi": "TCK-2742",
    "elements": [
     "M icone « lucide-receipt » (14, 723)"
    ]
@@ -2059,8 +2060,8 @@
   {
    "ecran": "a-8 bureau-1280-introuvable-masque",
    "conteneur": "colonne",
-   "motif": "icône du catalogue pour « États des lieux » (clipboard-list) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé)",
-   "renvoi": "TCK-2618",
+   "motif": "icône du catalogue (TCK-2477) pour « États des lieux » (clipboard-list) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
+   "renvoi": "TCK-2742",
    "elements": [
     "P icone « lucide-clipboard-list » (14, 698)"
    ]
@@ -2068,8 +2069,8 @@
   {
    "ecran": "a-8 bureau-1280-introuvable-masque",
    "conteneur": "colonne",
-   "motif": "icône du catalogue pour « Commissions » (hand-coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé)",
-   "renvoi": "TCK-2618",
+   "motif": "icône du catalogue (TCK-2477) pour « Commissions » (hand-coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
+   "renvoi": "TCK-2742",
    "elements": [
     "P icone « lucide-hand-coins » (14, 763)"
    ]
@@ -2338,8 +2339,8 @@
   {
    "ecran": "a-8 bureau-1440-introuvable-masque",
    "conteneur": "colonne",
-   "motif": "icône de l'entrée « Commissions » : receipt dans la maquette, hand-coins dans le catalogue du produit (TCK-2618)",
-   "renvoi": "TCK-2618",
+   "motif": "icône de l'entrée « Commissions » : receipt dans la maquette, hand-coins dans le catalogue du produit (TCK-2477) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
+   "renvoi": "TCK-2742",
    "elements": [
     "M icone « lucide-receipt » (14, 723)"
    ]
@@ -2347,8 +2348,8 @@
   {
    "ecran": "a-8 bureau-1440-introuvable-masque",
    "conteneur": "colonne",
-   "motif": "icône du catalogue pour « États des lieux » (clipboard-list) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé)",
-   "renvoi": "TCK-2618",
+   "motif": "icône du catalogue (TCK-2477) pour « États des lieux » (clipboard-list) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
+   "renvoi": "TCK-2742",
    "elements": [
     "P icone « lucide-clipboard-list » (14, 698)"
    ]
@@ -2356,8 +2357,8 @@
   {
    "ecran": "a-8 bureau-1440-introuvable-masque",
    "conteneur": "colonne",
-   "motif": "icône du catalogue pour « Commissions » (hand-coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé)",
-   "renvoi": "TCK-2618",
+   "motif": "icône du catalogue (TCK-2477) pour « Commissions » (hand-coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé) — divergence systématique du catalogue avec TOUTES les maquettes ; décision du lead (2026-11-11) : le catalogue prend l'icône des maquettes, TCK-2742",
+   "renvoi": "TCK-2742",
    "elements": [
     "P icone « lucide-hand-coins » (14, 763)"
    ]
