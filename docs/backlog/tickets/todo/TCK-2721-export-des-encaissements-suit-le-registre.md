@@ -111,4 +111,64 @@ Le bouton reste où il est. Son nom accessible dit le périmètre réel (« Expo
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Décision.** (a) retenue sous la consigne du 2026-11-11 (« implémentez tous les tickets selon vos
+recommandations »).
+
+**Une seule source de vérité.** Toute la sélection de `PaymentController::history` est déplacée dans le service
+`App\Services\Payments\PaymentHistory` : cloisonnement, filtres et leurs refus en 422 (dans le même ordre),
+lignes, tri, plafond. Le déplacement s'est fait en deux étapes.
+1. Un déplacement pur. Les helpers déplacés ne diffèrent de l'original que par leur visibilité, et `withReminders()`
+   reçoit le lecteur en paramètre au lieu de lire `request()->user()`. Les 19 fichiers de test qui lisent
+   `/api/payments/history`, joués un par un, sont verts.
+2. L'export. `ExportDataService::paymentHistory()` appelle `PaymentHistory::select()` avec `limit + 1` lignes au plus
+   (la règle des autres constructeurs), et `collect()` en déduit la coupure et `X-Export-Truncated`.
+
+Le contrôleur ne garde que la pagination et les totaux.
+
+**Écart au delta : `ShowExportRequest` ne reçoit aucune règle de filtre (AC4).** Ses règles s'exécutent avant le
+contrôle de capacité de `ExportController::show`, donc un filtre mal formé y aurait rendu 422 à qui n'a pas le droit
+d'exporter. Le contrôleur lit `filter[…]` et `sort` dans la requête après le 403. La sélection les refuse ensuite
+elle-même, comme la liste (par exemple `payment.filter_status_invalid`). L'ablation E3 (une règle `filter.status`
+ajoutée à `ShowExportRequest`) fait rougir l'AC4. Le test `test_ac4_sans_payments_export_403_meme_avec_un_filtre_mal_forme`
+envoie un appel non autorisé avec un filtre invalide (`filter[status]=nope`, `filter[payer_id]=abc`) et attend 403 ;
+son versant autorisé attend le 422 `payment.filter_status_invalid`. `from` et `to` restent acceptés mais n'ont pas d'effet pour cette
+entité : les bornes sont `filter[paid_from]`/`filter[paid_to]`.
+
+**Qui exporte.** `payment_history` exige `payments.export` et fait partie de `STAFF_ONLY`. Le bailleur et le
+locataire reçoivent 403, alors que la liste leur rend leurs propres lignes. Le registre est un écran du personnel ; à
+rouvrir si on veut un export de « mes paiements ». Le journal d'export enregistre `filters.filter` (les filtres du
+registre) pour cette entité.
+
+**Colonnes.** `paid_at` (date ISO), `payer`, `property`, `payment_type`, `period_start`, `period_end`,
+`payment_method`, `amount` (nombre), `currency`, `status`, `reference`. Le fichier s'appelle
+`encaissements-<horodatage>`.
+
+**Garde d'architecture.** `ControllerInstantFormTest` ne lit que `Http/Controllers` et `Services/Admin`. Le
+`toISOString()` de l'historique, toléré par l'exception TCK-1500, a quitté le contrôleur, et la garde rougissait
+(« exception qui ne s'applique plus à rien »). L'exception suit le code, et la nouvelle liste `FICHIERS_EXTRAITS`
+remet le service sous la garde. Sans elle, déplacer une conversion dans un service suffisait à la faire disparaître
+du relevé.
+
+**Front.** `filtresDeLHistorique()` (`lib/queries/payments.ts`) écrit les `filter[…]` une seule fois, pour la liste
+comme pour le lien `lienDExportDuRegistre()` (`lib/queries/exports.ts`). Ce lien n'est pas dans `ExportEntity` :
+`ExportForm` y attache une table de capacités par entité, et le formulaire d'exports n'offre pas le registre. Le
+relais `api/export/[entity]` admet `payment_history`, transmet pour elle seule une liste fermée de `filter[…]` plus
+`sort`, et ne transmet rien d'autre. Le nom accessible du bouton se lit sur le total de la liste (la même requête,
+donc aucune lecture de plus) : « Exporter les N encaissements affichés (CSV) ». La ligne du téléphone devient
+« Exporter les encaissements · Les encaissements du mois affiché, en CSV ».
+
+**Tests.**
+- `PaymentHistoryExportTest` : 9 tests (AC1 à AC4 et AC6, colonnes, cloisonnement, journal). Six ablations, toutes
+  rouges (E1 à E6).
+- Relais : `route.registre.tck-2721.test.ts`, 3 tests. Trois ablations, toutes rouges.
+- Lien : trois tests dans `argent.tck-2659.test.tsx`, qui remplacent les trois tests R1 de TCK-2659 (« loyers dus »).
+
+**Pour /sync-specs.** `docs/features.md` §15 et §25 ne nomment pas l'export du registre. À ajouter si la spec énumère
+les exports.
+
+**Messages (accord de team-lead du 2026-11-11).** `admin.finances.argent.actions.exporterAria` réécrite
+(« Exporter {count, plural, =0 {le registre affiché} one {l’encaissement affiché} other {les # encaissements
+affichés}} (CSV) »), `exporterAriaSansCompte` ajoutée, `exporterAriaBornes` retirée (plus aucun lecteur),
+`registres.exporter` et `registres.exporterDetail` réécrites ; fr, en, et wo = le texte français (`=1`).
+`docs/spatie-query-builder.md` § « Historique des paiements » : un paragraphe sur `PaymentHistory` et l'export.
+Front : `argent.tck-2659.test.tsx` 38 verts, `route.registre.tck-2721.test.ts` 3 verts.

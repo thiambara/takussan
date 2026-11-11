@@ -6515,8 +6515,8 @@
       "argent": {
         "actions": {
           "exporter": "Export",
-          "exporterAria": "Export rent due in {mois} (CSV)",
-          "exporterAriaBornes": "Export rent due {bornes, select, du {from {du}} au {until {au}} other {from {du} to {au}}} (CSV)"
+          "exporterAria": "Export {count, plural, =0 {the register shown} one {the receipt shown} other {the # receipts shown}} (CSV)",
+          "exporterAriaSansCompte": "Export the receipts shown (CSV)"
         },
         "auJour": "As of {date}",
         "filLabel": "Breadcrumb",
@@ -6566,8 +6566,8 @@
           "impayes": "Overdue",
           "impayesDetail": "By tenant, by age",
           "rapprochement": "Bank reconciliation",
-          "exporter": "Export rent due",
-          "exporterDetail": "Instalments due in the month shown, as CSV"
+          "exporter": "Export receipts",
+          "exporterDetail": "Receipts for the month shown, as CSV"
         },
         "creer": {
           "titre": "Create",

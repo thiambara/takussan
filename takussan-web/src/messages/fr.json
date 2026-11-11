@@ -6515,8 +6515,8 @@
       "argent": {
         "actions": {
           "exporter": "Exporter",
-          "exporterAria": "Exporter les loyers dus en {mois} (CSV)",
-          "exporterAriaBornes": "Exporter les loyers dus {bornes, select, du {à partir du {du}} au {jusqu’au {au}} other {du {du} au {au}}} (CSV)"
+          "exporterAria": "Exporter {count, plural, =0 {le registre affiché} one {l’encaissement affiché} other {les # encaissements affichés}} (CSV)",
+          "exporterAriaSansCompte": "Exporter les encaissements affichés (CSV)"
         },
         "auJour": "Au {date}",
         "filLabel": "Fil d’Ariane",
@@ -6566,8 +6566,8 @@
           "impayes": "Impayés",
           "impayesDetail": "Par locataire, par ancienneté",
           "rapprochement": "Rapprochement bancaire",
-          "exporter": "Exporter les loyers dus",
-          "exporterDetail": "Les échéances du mois affiché, en CSV"
+          "exporter": "Exporter les encaissements",
+          "exporterDetail": "Les encaissements du mois affiché, en CSV"
         },
         "creer": {
           "titre": "Créer",

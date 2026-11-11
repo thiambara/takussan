@@ -16,7 +16,9 @@ use Illuminate\Contracts\Support\Responsable;
  * TCK-032 P2 — data exports. Supported entities: payments, leases, customers,
  * properties ; TCK-595 (§7) adds payouts, invoices, commissions, aging and
  * deposits. All outputs respect the actor's role scope (agency / owner /
- * tenant) — see `ExportDataService::scopeToActor()`.
+ * tenant) — see `ExportDataService::scopeToActor()`. TCK-2721 adds
+ * `payment_history`, the cash-receipts register with its `filter[…]` (the
+ * selection of `GET /api/payments/history`, staff only).
  *
  * Query params:
  *   - format: csv|xlsx|pdf (default csv)
@@ -45,10 +47,16 @@ class ExportController extends Controller
         'commissions' => Capability::ReportsExport,
         'aging' => Capability::ReportsExport,
         'deposits' => Capability::ReportsExport,
+        // TCK-2721 — le registre des encaissements d'« Argent », avec ses filtres : la capacité de
+        // l'entité `payments`.
+        'payment_history' => Capability::PaymentsExport,
     ];
 
-    /** TCK-595 — ni le bailleur ni le locataire n'exportent les finances d'une agence. */
-    private const STAFF_ONLY = ['payouts', 'invoices', 'commissions', 'aging', 'deposits'];
+    /**
+     * TCK-595 — ni le bailleur ni le locataire n'exportent les finances d'une agence. TCK-2721 — le
+     * registre des encaissements non plus : c'est un écran du personnel (`/app/agency/finances`).
+     */
+    private const STAFF_ONLY = ['payouts', 'invoices', 'commissions', 'aging', 'deposits', 'payment_history'];
 
     public function show(ShowExportRequest $request, string $entity)
     {
@@ -81,14 +89,23 @@ class ExportController extends Controller
         $validated = $request->validated();
         $format = $validated['format'] ?? 'csv';
 
-        $payload = $this->data->collect($entity, $user, $validated + ['own_lines_only' => $ownLinesOnly]);
+        // TCK-2721 — les filtres du registre (`filter[…]`, `sort`) ne passent PAS par
+        // `ShowExportRequest` : ses règles courent avant le contrôle de capacité, et un filtre mal
+        // formé rendrait 422 à qui n'a pas le droit d'exporter. La sélection de l'historique les lit
+        // et les refuse elle-même (422), ici, APRÈS le 403 — comme la liste.
+        $registre = $entity === 'payment_history'
+            ? ['history_filters' => (array) $request->input('filter', []), 'history_sort' => $request->input('sort', '-date')]
+            : [];
+
+        $payload = $this->data->collect($entity, $user, $validated + $registre + ['own_lines_only' => $ownLinesOnly]);
 
         activity('export')
             ->causedBy($user)
             ->event('data_exported')
             ->withProperties([
                 'entity' => $entity,
-                'filters' => array_intersect_key($validated, array_flip(['from', 'to', 'limit'])),
+                'filters' => array_intersect_key($validated, array_flip(['from', 'to', 'limit']))
+                    + ($registre !== [] ? ['filter' => $registre['history_filters']] : []),
                 'row_count' => count($payload['rows']),
                 'agency_id' => $staffAgencyId ?? $user->agency_id,
                 'format' => $format,

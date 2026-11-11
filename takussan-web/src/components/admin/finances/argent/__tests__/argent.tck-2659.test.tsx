@@ -317,35 +317,56 @@ describe('le registre des encaissements (TCK-2659)', () => {
 });
 
 describe('vérification adverse de TCK-2659', () => {
-  /** Le lien d'export, lu sur son nom accessible : il dit ce qui part et pour quelles bornes. */
-  const bornesDuLien = (lien: HTMLElement) => {
+  /** Le lien d'export : son chemin et ses paramètres. */
+  const parametresDuLien = (lien: HTMLElement) => {
     const url = new URL(lien.getAttribute('href') ?? '', 'http://127.0.0.1:3000');
-    return { from: url.searchParams.get('from'), to: url.searchParams.get('to'), chemin: url.pathname };
+    return { chemin: url.pathname, ...Object.fromEntries(url.searchParams) };
   };
 
-  it('R1 — l’export du mois choisi (`?period=2026-10`) part du 1ᵉʳ au 31 octobre, et dit « loyers dus », jamais « encaissements »', async () => {
-    rendre('tab=encaissements&period=2026-10');
+  it('TCK-2721 (AC5) — depuis le lien d’un bail, « Exporter » vise le registre avec le filtre d’entité et les bornes de l’écran', async () => {
+    lignes = [ligne({ id: 501 }), ligne({ id: 502 })];
+    rendre('tab=encaissements&period=2026-10&entity_type=lease&entity_id=7');
 
-    const lien = await screen.findByRole('link', { name: 'Exporter les loyers dus en octobre (CSV)' });
-    expect(bornesDuLien(lien)).toEqual({ from: '2026-10-01', to: '2026-10-31', chemin: '/api/export/payments' });
-    expect(screen.queryByRole('link', { name: /encaissements/i })).not.toBeInTheDocument();
+    const lien = await screen.findByRole('link', { name: 'Exporter les 2 encaissements affichés (CSV)' });
+    expect(parametresDuLien(lien)).toEqual({
+      chemin: '/api/export/payment_history',
+      format: 'csv',
+      'filter[entity_type]': 'lease',
+      'filter[entity_id]': '7',
+      'filter[paid_from]': '2026-10-01',
+      'filter[paid_to]': '2026-10-31',
+      sort: '-date',
+    });
   });
 
-  it('R1 — des dates posées l’emportent sur le mois, et le nom accessible les dit', async () => {
-    rendre('tab=encaissements&period=2026-10&date_from=2026-01-01&date_to=2026-03-31');
+  it('TCK-2721 — le lien porte les filtres posés (payeur, bailleur, moyen, recherche, statut) et des dates posées', async () => {
+    rendre('tab=encaissements&payer_id=108&landlord_id=42&moyen=wave&q=awa&status=paid&date_from=2026-01-01&date_to=2026-03-31');
 
-    const lien = await screen.findByRole('link', { name: 'Exporter les loyers dus du 1 janvier 2026 au 31 mars 2026 (CSV)' });
-    expect(bornesDuLien(lien)).toMatchObject({ from: '2026-01-01', to: '2026-03-31' });
+    const lien = await screen.findByRole('link', { name: /^Exporter (le registre affiché|l’encaissement affiché|les \d+ encaissements affichés|les encaissements affichés) \(CSV\)$/ });
+    expect(parametresDuLien(lien)).toMatchObject({
+      chemin: '/api/export/payment_history',
+      'filter[payer_id]': '108',
+      'filter[landlord_id]': '42',
+      'filter[payment_method]': 'wave',
+      'filter[search]': 'awa',
+      'filter[status]': 'paid',
+      'filter[paid_from]': '2026-01-01',
+      'filter[paid_to]': '2026-03-31',
+    });
   });
 
-  it('R1 (téléphone) — la ligne du point du mois dit « Exporter les loyers dus », pour le mois affiché', async () => {
+  it('TCK-2721 (téléphone) — la ligne du point du mois exporte les encaissements du mois affiché', async () => {
     ecran.telephone = true;
     rendre('period=2026-10');
 
-    const titre = await screen.findByText('Exporter les loyers dus');
-    expect(screen.getByText('Les échéances du mois affiché, en CSV')).toBeInTheDocument();
-    expect(bornesDuLien(titre.closest('a') as HTMLElement)).toMatchObject({ from: '2026-10-01', to: '2026-10-31' });
-    expect(screen.queryByText(/Exporter les encaissements/)).not.toBeInTheDocument();
+    const titre = await screen.findByText('Exporter les encaissements');
+    expect(screen.getByText('Les encaissements du mois affiché, en CSV')).toBeInTheDocument();
+    expect(parametresDuLien(titre.closest('a') as HTMLElement)).toMatchObject({
+      chemin: '/api/export/payment_history',
+      'filter[paid_from]': '2026-10-01',
+      'filter[paid_to]': '2026-10-31',
+    });
+    expect(screen.queryByText(/loyers dus/)).not.toBeInTheDocument();
   });
 
   it('M1 — le loyer d’octobre réglé le 3 novembre est un encaissement de novembre, pas d’octobre', async () => {

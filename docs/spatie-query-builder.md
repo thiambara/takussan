@@ -285,6 +285,13 @@ de 5 000 lignes, `meta.truncated`), pas par `HasQueryBuilder` : ni `fields[…]`
 refusé. Une valeur en liste (`filter[x][]=…`) vaut une valeur absente (ADR-0075), sauf
 `filter[status]` (422).
 
+La sélection vit dans `App\Services\Payments\PaymentHistory` (TCK-2721), que lisent **deux** routes :
+cette liste, et l'export du registre `GET /api/export/payment_history?format=csv&filter[…]&sort=…`
+— mêmes filtres, même tri, mêmes lignes, sans pagination (`limit` des exports : 5 000 par défaut, 10 000 au plus ; au-delà, l'en-tête
+`X-Export-Truncated` porte le nombre de lignes rendues). L'export exige `payments.export` ; le 403
+passe avant le 422 d'un filtre invalide. Colonnes : `paid_at`, `payer`, `property`, `payment_type`,
+`period_start`, `period_end`, `payment_method`, `amount`, `currency`, `status`, `reference`.
+
 | Param | Type | Description |
 |---|---|---|
 | `filter[entity_type]` + `filter[entity_id]` | exact | `property`, `lease`, `customer`, `booking` |

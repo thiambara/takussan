@@ -13,6 +13,7 @@ use App\Models\Payout;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Dashboard\CollectedPayments;
+use App\Services\Payments\PaymentHistory;
 use App\Services\Property\BailleurDuBien;
 use App\Services\Reporting\AgingBalanceService;
 use App\Support\DayRange;
@@ -27,6 +28,10 @@ use Illuminate\Support\Carbon;
  */
 class ExportDataService
 {
+    public function __construct(
+        private readonly PaymentHistory $paymentHistory,
+    ) {}
+
     /**
      * TCK-713 (piste P02.07) — l'export est synchrone : il se borne. 10 000 lignes au plus, 2 000 en
      * PDF, dont le rendu coûte bien plus par ligne. `ShowExportRequest` refuse une `limit` au-delà ;
@@ -87,6 +92,46 @@ class ExportDataService
             'columns' => ['id', 'reference', 'lease', 'payer', 'amount', 'currency', 'payment_method', 'payment_type', 'due_date', 'paid_at', 'status', 'late_fee_amount', 'refund_amount', 'late_fee_paid_at'],
             'rows' => $rows,
             'filename' => 'payments-'.now()->format('Ymd-His'),
+        ];
+    }
+
+    /**
+     * TCK-2721 — le registre des encaissements (« Argent »), avec ses filtres : les lignes que
+     * `GET /api/payments/history` rendrait à ce lecteur, par la MÊME sélection
+     * ({@see PaymentHistory::select()}) — cloisonnement, réservations, `paid_at`, tri. Une ligne de
+     * plus que la limite, comme les autres constructeurs : `collect()` en déduit la coupure. `from` et
+     * `to` n'y ont pas de sens (les bornes sont `filter[paid_from]`/`filter[paid_to]`).
+     *
+     * @return array{columns: array<int,string>, rows: array<int,array<string,mixed>>, filename: string}
+     */
+    public function paymentHistory(User $actor, array $filters = []): array
+    {
+        $selection = $this->paymentHistory->select(
+            $actor,
+            (array) ($filters['history_filters'] ?? []),
+            ['payer', 'property'],
+            PaymentHistory::sort($filters['history_sort'] ?? '-date'),
+            $this->limit($filters) + 1,
+        );
+
+        $rows = $selection['rows']->map(fn (array $r) => [
+            'paid_at' => isset($r['paid_at']) ? Carbon::parse($r['paid_at'])->toDateString() : null,
+            'payer' => $r['payer']['name'] ?? null,
+            'property' => $r['property']['title'] ?? null,
+            'payment_type' => $r['payment_type'] ?? null,
+            'period_start' => $r['period_start'] ?? null,
+            'period_end' => $r['period_end'] ?? null,
+            'payment_method' => $r['payment_method'] ?? null,
+            'amount' => $r['amount'],
+            'currency' => $r['currency'] ?? null,
+            'status' => $r['status'] ?? null,
+            'reference' => $r['reference_number'] ?? null,
+        ])->all();
+
+        return [
+            'columns' => ['paid_at', 'payer', 'property', 'payment_type', 'period_start', 'period_end', 'payment_method', 'amount', 'currency', 'status', 'reference'],
+            'rows' => $rows,
+            'filename' => 'encaissements-'.now()->format('Ymd-His'),
         ];
     }
 
@@ -441,6 +486,7 @@ class ExportDataService
             'commissions' => $this->commissions($actor, $filters),
             'aging' => $this->aging($actor, $filters),
             'deposits' => $this->deposits($actor, $filters),
+            'payment_history' => $this->paymentHistory($actor, $filters),
             default => throw new \InvalidArgumentException("Unknown export entity: {$entity}"),
         };
     }

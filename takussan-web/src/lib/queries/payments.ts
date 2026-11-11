@@ -99,7 +99,12 @@ export const paymentsQueryKeys = {
   serviceProviderBills: (params: UseServiceProviderBillsParams) => ['service-provider-bills', params] as const,
 };
 
-export function usePaymentsHistory(params: UsePaymentsHistoryParams = {}) {
+/**
+ * Les `filter[…]` de `GET /api/payments/history` pour ces paramètres. TCK-2721 — une seule écriture,
+ * lue par la liste ET par le lien d'export du registre ({@link lienDExportDuRegistre}) : le fichier
+ * part avec les filtres mêmes de l'écran.
+ */
+export function filtresDeLHistorique(params: UsePaymentsHistoryParams): Record<string, string | number> {
   const filter: Record<string, string | number> = {};
   if (params.status) filter.status = params.status;
   if (params.entity_type) filter.entity_type = params.entity_type;
@@ -113,9 +118,12 @@ export function usePaymentsHistory(params: UsePaymentsHistoryParams = {}) {
   if (params.payment_method && params.payment_method.length > 0) filter.payment_method = params.payment_method.join(',');
   if (params.search && params.search.trim() !== '') filter.search = params.search.trim();
   if (params.days_late_min !== undefined) filter.days_late_min = params.days_late_min;
+  return filter;
+}
 
+export function usePaymentsHistory(params: UsePaymentsHistoryParams = {}) {
   const query: SpatieQueryParams = {
-    filter,
+    filter: filtresDeLHistorique(params),
     include: params.include && params.include.length > 0 ? params.include : undefined,
     page: params.page ?? 1,
     per_page: params.per_page ?? 20,

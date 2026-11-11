@@ -20,9 +20,9 @@ import { useCan } from '@/hooks/useCan';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { bornesDesEncaissements, moisAffiche, vueDeLArgent, type OngletArgent } from '@/lib/finances/vue-argent';
-import { bornesDuMois, dateDuMois, moisCourant } from '@/lib/finances/mois';
+import { dateDuMois, moisCourant } from '@/lib/finances/mois';
 import { useFinanceSummary } from '@/lib/queries/agency-reporting';
-import { buildExportUrl } from '@/lib/queries/exports';
+import { lienDExportDuRegistre } from '@/lib/queries/exports';
 import { usePaymentsHistory } from '@/lib/queries/payments';
 import { ApiError } from '@/lib/api';
 
@@ -90,23 +90,16 @@ export function AdminFinancesClient({ canViewFinances, canEmitFinances, rapproch
   }
 
   const donnees = synthese.data?.data;
+  // TCK-2721 — « Exporter » rend les lignes du REGISTRE, avec ses filtres (entité d'un lien entrant,
+  // payeur, bien, bailleur, moyen, statut, recherche, bornes) : l'entité `payment_history`, servie par
+  // la sélection même de la liste. Le lien porte les paramètres de l'écran au moment du clic, et son
+  // nom accessible dit combien de lignes partent.
+  const lienExport = peutExporter ? lienDExportDuRegistre(parametresDesEncaissements(recherche, courant)) : null;
   const bornesExport = bornesDesEncaissements(recherche, courant);
-  const { du, au } = bornesExport.du || bornesExport.au ? bornesExport : bornesDuMois(mois);
-  const lienExport = peutExporter ? buildExportUrl({ entity: 'payments', format: 'csv', from: du, to: au }) : null;
   const nomDuMois = (m: string) => f.date(dateDuMois(m), { month: 'long', timeZone: 'UTC' });
-  // TCK-2659 (vérification adverse, R1) — l'export rend les ÉCHÉANCES de loyer dont `due_date` tombe dans
-  // les bornes (impayées comprises, réservations exclues), jamais les encaissements : le nom accessible
-  // dit ce qui part, et les bornes réellement envoyées (des dates posées l'emportent sur le mois). Le
-  // filtre d'entité n'y est pas promis : l'export l'ignore.
-  const jour = (d: string) => f.date(`${d}T00:00:00Z`, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+  const totalAffiche = encaissements.data?.meta.total;
   const ariaExport =
-    !bornesExport.mois && (bornesExport.du || bornesExport.au)
-      ? t('argent.actions.exporterAriaBornes', {
-          bornes: bornesExport.du && bornesExport.au ? 'deux' : bornesExport.du ? 'du' : 'au',
-          du: bornesExport.du ? jour(bornesExport.du) : '',
-          au: bornesExport.au ? jour(bornesExport.au) : '',
-        })
-      : t('argent.actions.exporterAria', { mois: nomDuMois(bornesExport.mois ?? mois) });
+    totalAffiche !== undefined ? t('argent.actions.exporterAria', { count: totalAffiche }) : t('argent.actions.exporterAriaSansCompte');
 
   const ctx: ContexteDuPoint = {
     mois,
