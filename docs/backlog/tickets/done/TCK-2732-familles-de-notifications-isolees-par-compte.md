@@ -1,7 +1,7 @@
 ---
 id: TCK-2732
 title: "Les familles de notifications ne mêlent jamais les notifications d'un autre compte : un test qui le dit"
-status: todo
+status: done
 phase: P3
 family: technique
 estimate: S
@@ -45,16 +45,16 @@ Aucun changement.
 
 ## Delta à produire
 
-- [ ] Un test dans `NotificationFiltersTest` (ou une classe sœur) : A et B, mêmes familles.
+- [x] Un test dans `NotificationFiltersTest` (ou une classe sœur) : A et B, mêmes familles.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `GET /api/notifications?filter[famille]=visite` par A ne rend que les notifications de A ;
+- [x] AC1 — `GET /api/notifications?filter[famille]=visite` par A ne rend que les notifications de A ;
       `meta.counts.par_famille` de A ne compte que les siennes et n'a pas la famille que seul B porte ;
       `meta.counts.a_traiter_non_lues` et `meta.unread` de A ignorent celles de B.
-- [ ] AC2 — Ablation (une, au premier plan, md5 restauré) : `where('user_id', …)` retiré de la liste de `index` → le test
+- [x] AC2 — Ablation (une, au premier plan, md5 restauré) : `where('user_id', …)` retiré de la liste de `index` → le test
       rougit.
-- [ ] AC3 — Ablation : `where('user_id', $userId)` retiré de `unreadCounts()` → le test rougit.
+- [x] AC3 — Ablation : `where('user_id', $userId)` retiré de `unreadCounts()` → le test rougit.
 
 ## Hors périmètre
 
@@ -62,4 +62,18 @@ Aucun changement.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**2026-11-11 — implémenté (back-3).**
+
+- Test `NotificationFiltersTest::test_la_liste_et_les_compteurs_par_famille_ne_lisent_que_le_compte_appelant`.
+  Décor : A porte une visite demandée (« à traiter », non lue) et deux mises en avant terminées (`bien`) ; B porte,
+  non lues, trois visites demandées, quatre mises en avant terminées et une notification de type `payment` (famille
+  `paiement`, que A n'a pas). Le test vérifie d'abord, **sous B**, que son décor rend bien
+  `{bien:4, paiement:1, visite:3}` — sans ce contrôle, un décor qui n'aurait rien créé chez B passerait vert.
+- AC1, sous A : `filter[famille]=visite` ne rend que la visite de A (`meta.total` 1) ; toutes les lignes de la liste
+  appartiennent à A ; `par_famille` = `{bien:2, visite:1}`, sans `paiement` ; `a_traiter_non_lues` 1, `meta.unread`
+  3, `meta.total` 3 ; `filter[a_traiter]=1` ne rend que la visite de A.
+- Classe entière : 14 verts (83 assertions).
+- AC2 — ablation, `AppNotification::where('user_id', $request->user()->id)` remplacé par `AppNotification::query()`
+  dans `index` → **rouge**. md5 restauré (`56349937…`).
+- AC3 — ablation, `->where('user_id', $userId)` retiré de `unreadCounts()` → **rouge**. md5 restauré.
+- Aucun changement de code applicatif ni de spec.
