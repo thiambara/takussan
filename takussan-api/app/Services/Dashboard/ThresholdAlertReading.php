@@ -8,6 +8,7 @@ use App\Models\Agency;
 use App\Models\ThresholdAlert;
 use App\Models\User;
 use App\Notifications\ThresholdAlertTriggered;
+use App\Policies\AgencyIndicatorPolicy;
 use App\Services\Dashboard\Adapters\AgencyMeMetrics;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -20,6 +21,9 @@ use Illuminate\Support\Facades\DB;
  *   passage horaire ; `null` sans dénominateur (TCK-1114). `last_value` n'est écrite qu'au
  *   déclenchement, une alerte jamais déclenchée n'en a pas.
  * - `recipients {count, users [{id, name}]}` : {@see ThresholdAlertRecipients}, la requête du passage.
+ *   TCK-2723 (décision du porteur du 2026-11-11) — les NOMS au seul lecteur qui peut modifier
+ *   l'alerte ({@see AgencyIndicatorPolicy::update()}, la règle de l'écriture) ; les autres lisent le
+ *   même `count` et `users: []`.
  * - `channels` : les canaux de l'événement ({@see ThresholdAlertTriggered::CHANNELS}), sans les
  *   préférences de chacun.
  * - `triggers [{at, value}]` sur demande : les dix derniers déclenchements, au journal
@@ -55,8 +59,18 @@ final class ThresholdAlertReading
         $metrics = [];
         $recipients = [];
         $readsMoney = [];
+        $readsNames = [];
         foreach ($agencyIds as $agencyId) {
             $agency = Agency::query()->find($agencyId);
+            // TCK-2723 — un jugement par agence de la page, sur une de ses alertes : la règle ne
+            // dépend que de l'agence de l'alerte (`managesIndicatorsOf`), pas de l'alerte elle-même.
+            // Sur une COPIE : la relation posée sur l'alerte de l'appelant sortirait dans la ressource
+            // (`whenLoaded('agency')`), l'agence entière, sans `include=agency`.
+            $sample = clone $alerts->first(fn (ThresholdAlert $alert): bool => (int) $alert->agency_id === $agencyId);
+            if ($agency !== null) {
+                $sample->setRelation('agency', $agency);
+            }
+            $readsNames[$agencyId] = $reader === null || $reader->can('update', $sample);
             $metrics[$agencyId] = $agency !== null ? $this->resolver->forAgency($agency) : [];
             $readsMoney[$agencyId] = $reader === null
                 || ($agency !== null && $reader->can('viewReports', $agency));
@@ -84,11 +98,13 @@ final class ThresholdAlertReading
             $value = $values[$alert->metric] ?? null;
             $hidden = ! ($readsMoney[$agencyId] ?? false)
                 && in_array($alert->metric, AgencyMeMetrics::CONSOLIDATED_KEYS, true);
+            $named = ($recipients[$agencyId] ?? null) === null
+                ? ['count' => 0, 'users' => []]
+                : $recipients[$agencyId][in_array($alert->metric, AgencyMeMetrics::CONSOLIDATED_KEYS, true) ? 'money' : 'all'];
             $row = [
                 'current_value' => $value === null || $hidden ? null : (float) $value,
-                'recipients' => ($recipients[$agencyId] ?? null) === null
-                    ? ['count' => 0, 'users' => []]
-                    : $recipients[$agencyId][in_array($alert->metric, AgencyMeMetrics::CONSOLIDATED_KEYS, true) ? 'money' : 'all'],
+                // TCK-2723 — la clé reste, la liste est vide ; `count` ne dépend pas du lecteur.
+                'recipients' => ($readsNames[$agencyId] ?? false) ? $named : ['count' => $named['count'], 'users' => []],
                 'channels' => ThresholdAlertTriggered::CHANNELS,
             ];
             if ($hidden) {
