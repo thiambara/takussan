@@ -167,6 +167,41 @@ GET /api/properties?filter[id]=839,838&filter[agency_id]=1&fields[properties]=id
 ### Invoice / Payout / MaintenanceRequest / Task / Document / Tag
 Même pattern : `filter[status]`, `filter[search]` (selon le model), `sort`.
 
+### Historique des paiements — `GET /api/payments/history`
+
+Lu **à la main** par `PaymentController::history` (loyers et réservations fusionnés en PHP, plafond
+de 5 000 lignes, `meta.truncated`), pas par `HasQueryBuilder` : ni `fields[…]`, ni filtre inconnu
+refusé. Une valeur en liste (`filter[x][]=…`) vaut une valeur absente (ADR-0075), sauf
+`filter[status]` (422).
+
+| Param | Type | Description |
+|---|---|---|
+| `filter[entity_type]` + `filter[entity_id]` | exact | `property`, `lease`, `customer`, `booking` |
+| `filter[status]` | liste | `pending,late,partially_paid` — inconnu → 422 `payment.filter_status_invalid` |
+| `filter[date_from]` / `filter[date_to]` | date | `YYYY-MM-DD`, heure de Dakar |
+| `filter[payer_id]` | exact | le client payeur : `lease_payments.payer_id`, ou le client de la réservation (TCK-2657) |
+| `filter[landlord_id]` | exact | `leases.landlord_id`, ou le titulaire du bien de la réservation (TCK-2657) |
+| `filter[payment_method]` | liste | `wave,cash` — inconnu → 422 `payment.filter_payment_method_invalid` (TCK-2657) |
+| `filter[search]` | search | chaque mot dans : nom du payeur, titre ou référence du bien, référence du paiement ; casse repliée (`CaseInsensitive`), **accents non repliés** (TCK-2657) |
+| `filter[days_late_min]` / `filter[days_late_max]` | entier ≥ 0 | échéances dues et échues seulement ; exclut les réservations (TCK-2657) |
+| `include` | `payer`, `property`, `landlord` | `payer {id, name, phone}`, `property {id, title, reference_number}`, `landlord {id, name}` — nom inconnu ignoré (TCK-2657) |
+| `sort` | `-date` (défaut), `amount`, `remaining_amount`, `created_at`, `days_late` | `days_late` : les lignes sans retard en dernier, dans les deux sens |
+
+⚠ **`days_late` n'est émis que si la requête porte un paramètre neuf de TCK-2657** (un `include`,
+un des filtres ci-dessus marqués TCK-2657, ou `sort=days_late`) : sans eux, la ligne garde sa forme
+d'avant, clé pour clé. `filter[status]=pending` seul ne le rend pas. Sa valeur : un entier ≥ 1 sur
+une échéance due (`pending`, `partially_paid`, `late`) échue avant aujourd'hui (heure de Dakar),
+hors restitution de caution ; `null` sinon, et toujours `null` sur une réservation.
+
+### Point du mois d'une agence — `GET /api/agencies/{agency}/finance/summary`
+
+`period=YYYY-MM` (défaut : le mois courant, heure de Dakar ; illisible → 422
+`reporting.invalid_period`). Même Policy que `finance/aging` (`reports.view_agency`). Rend
+`collected {amount, count, previous_amount}`, `overdue {amount, count, leases_count, by_age
+{under_8, from_8_to_30, over_30} → {count, amount}}` (à date, `as_of`), `deposits_held`,
+`payouts_awaiting_approval {count, amount, landlords_count}`, `payouts_pending {count, amount}`,
+`invoices_draft {count, amount}`, plus `period`, `as_of` et `currency` (TCK-2657).
+
 ---
 
 ## Architecture interne

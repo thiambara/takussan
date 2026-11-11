@@ -415,7 +415,10 @@ return [
         'checkout_in_progress' => 'An online payment is in progress on this instalment: try again in a few minutes.',
         'currency_unsupported' => 'The provider :provider does not accept the :currency currency.',
         'xof_requires_local_provider' => 'Lemon Squeezy does not accept XOF: use Wave or Orange Money for a payment in XOF.',
+        'filter_days_late_invalid' => 'Invalid days-late filter: a non-negative integer is expected.',
         'filter_entity_invalid' => 'Invalid item type filter.',
+        'filter_id_invalid' => 'Invalid identifier filter.',
+        'filter_payment_method_invalid' => 'Invalid payment method filter.',
         'filter_status_invalid' => 'Invalid status filter.',
         'integration_agency_missing' => 'The payment integration does not match any agency.',
         'integration_credential_missing' => 'The payment integration is incomplete: a credential is missing.',
@@ -532,6 +535,7 @@ return [
     ],
     'reporting' => [
         'invalid_group_by' => 'The requested grouping must be “tenant” or “landlord”.',
+        'invalid_period' => 'The requested period must be a month in YYYY-MM format.',
         'range_too_wide' => 'The requested range exceeds the limit of :max “:granularity” intervals. Narrow the range or widen the granularity.',
         'report_unknown' => 'Unknown report.',
     ],

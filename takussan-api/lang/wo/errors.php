@@ -415,7 +415,10 @@ return [
         'checkout_in_progress' => 'Fey ci internet mungi dox ci bii échéance : jéemaatal ci ay simili.',
         'currency_unsupported' => 'Prestataire :provider nanguwul xaalisu :currency.',
         'xof_requires_local_provider' => 'Lemon Squeezy nanguwul XOF : jëfandikoo Wave walla Orange Money ngir fey ci XOF.',
+        'filter_days_late_invalid' => 'Filtre de jours de retard invalide : un entier positif ou nul est attendu.',
         'filter_entity_invalid' => 'Filtre xeetu mbir bi baaxul.',
+        'filter_id_invalid' => 'Filtre d\'identifiant invalide.',
+        'filter_payment_method_invalid' => 'Filtre de moyen de paiement invalide.',
         'filter_status_invalid' => 'Filtre statut bi baaxul.',
         'integration_agency_missing' => 'Intégration fay bi méngoowul ak benn agence.',
         'integration_credential_missing' => 'Intégration fay bi matul: benn identifiant amul.',
@@ -532,6 +535,7 @@ return [
     ],
     'reporting' => [
         'invalid_group_by' => 'Mboolo mi ñu laaj war na nekk « tenant » walla « landlord ».',
+        'invalid_period' => 'La période demandée doit être un mois au format AAAA-MM.',
         'range_too_wide' => 'Diggante bi nga laaj ëpp na :max intervalle « :granularity ». Wàññil diggante bi walla yokk granularité bi.',
         'report_unknown' => 'Rapport bii xamuñu ko.',
     ],
