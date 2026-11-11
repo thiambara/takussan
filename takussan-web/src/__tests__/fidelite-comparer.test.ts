@@ -119,6 +119,11 @@ describe('fidélité — tolérances (annexe D, § 6.3)', () => {
     expect(ecartsDe(icone, avec(icone, { trait: '2.5' })).map((e) => e.propriete)).toEqual(['trait']);
   });
 
+  it('TCK-2685 — le trait calculé (« 1.5px ») et l’attribut gelé (« 1.5 ») sont le même trait ; 1.5 ≠ 1.75', () => {
+    expect(ecartsDe(avec(icone, { trait: '1.5' }), avec(icone, { trait: '1.5px' }))).toEqual([]);
+    expect(ecartsDe(avec(icone, { trait: '1.75' }), avec(icone, { trait: '1.5px' })).map((e) => e.propriete)).toEqual(['trait']);
+  });
+
   it('les tolérances par défaut sont celles d’ADR-0106 § 5', () => {
     expect(TOLERANCES).toMatchObject({ position: 2, taille: 1, marge: 1, couleur: 3, alpha: 0.02, zone: 0.5 });
   });

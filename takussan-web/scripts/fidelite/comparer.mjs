@@ -48,6 +48,9 @@ export const formatCouleur = (c) => (c ? (c[3] === 1 ? `rgb(${c.slice(0, 3).join
  * propriété. Les tolérances exactes (police, taille, graisse, rayon, bordure, ombre, icône) sont des
  * jetons discrets : toute différence est une autre classe.
  */
+/** Le trait d'une icône, sans unité : `1.5px` et `1.5` se valent ; une valeur illisible reste telle quelle. */
+const traitDe = (t) => (Number.isFinite(parseFloat(t)) ? String(parseFloat(t)) : String(t));
+
 export function ecartsDe(m, p, tol = TOLERANCES) {
   const e = [];
   const num = (propriete, a, b, t, unite = 'px') => {
@@ -90,7 +93,8 @@ export function ecartsDe(m, p, tol = TOLERANCES) {
   }
   if (icone) {
     couleur('couleur', m.couleur, p.couleur);
-    num('trait', String(m.trait), String(p.trait), 0, '');
+    // TCK-2685 — « 1.5px » (style calculé) et « 1.5 » (attribut, références gelées) sont le même trait.
+    num('trait', traitDe(m.trait), traitDe(p.trait), 0, '');
   }
   return e;
 }

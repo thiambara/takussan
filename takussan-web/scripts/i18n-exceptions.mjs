@@ -100,6 +100,16 @@ const R_POC_PLAYGROUND =
   + "false }`, ce qui était le vrai défaut. L'énoncé précédent concluait à la suppression du POC ; "
   + "la documentation qui fait autorité disait l'inverse.";
 
+// TCK-2685 — la vitrine de la partie connectée.
+const R_VITRINE_APP =
+  "Vitrine des jetons et des primitives de `/app` (`/playground/vitrine`, TCK-2685, ADR-0106 § 5) : "
+  + "un banc de MESURE pour l'outil de fidélité, et non une surface produit — elle rend 404 dans toute "
+  + "construction de production et déclare `noindex`, comme le POC voisin. Ses libellés nomment des "
+  + "jetons (`text-sm`, `montantCourt`) ou recopient le texte d'une maquette (« 2 biens libres ce "
+  + "soir ») pour en éprouver l'interligne : les traduire fixerait dans le dictionnaire des chaînes "
+  + "sans propriétaire produit, et changerait ce que la mesure compare. Le fichier ENTIER est visé : "
+  + "chaque ticket de primitive (TCK-2686 à TCK-2691) y ajoute ses états.";
+
 const R_JETON_SCHEMA_ORG =
   "Valeur normative de `query-input` dans une `SearchAction` de schema.org : la chaîne EST le "
   + "vocabulaire, au même titre que `@type` ou `https://schema.org`. Elle n'est pas rendue, elle est "
@@ -400,6 +410,7 @@ export const EXCEPTIONS_JUSTIFIEES = [
   { fichier: 'src/components/playground/PropertyRowLocal.tsx', motif: /^(Wide horizontal|Variante :|Tout voir|aria-label="(Précédent|Suivant)"|Pas encore de biens dans cette sélection\.)$/, famille: 'PLAYGROUND', raison: R_POC_PLAYGROUND },
   { fichier: 'src/components/playground/PropertyCardLocal.tsx', motif: /^(En vente|En location|ch|sdb)$/, famille: 'PLAYGROUND', raison: R_POC_PLAYGROUND },
   { fichier: 'src/components/playground/PropertyCardCompact.tsx', litteral: 'ch', famille: 'PLAYGROUND', raison: R_POC_PLAYGROUND },
+  { fichier: 'src/app/[locale]/(public)/playground/vitrine/VitrineClient.tsx', motif: /^[\s\S]+$/, famille: 'PLAYGROUND', raison: R_VITRINE_APP },
   {
     fichier: 'src/app/[locale]/(public)/playground/page.tsx',
     litteral: 'Times New Roman',

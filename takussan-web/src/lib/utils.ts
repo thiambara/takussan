@@ -1,6 +1,30 @@
 import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { extendTailwindMerge } from "tailwind-merge"
 import { formatMontant } from "./format/currency"
+import {
+  ESPACEMENTS_DE_LETTRES,
+  OMBRES,
+  POINTS_DE_RUPTURE,
+  TAILLES_DE_TEXTE,
+  TAILLES_FIXES,
+} from "./jetons-de-l-app"
+
+/**
+ * TCK-2685 — la fusion connaît les jetons de la partie connectée (`globals.css`, bloc
+ * `jetons-de-l-app`). Sans eux, `text-ui` était lu comme une couleur et jeté par un
+ * `text-foreground` voisin (cf. `src/lib/jetons-de-l-app.ts`).
+ */
+const twMerge = extendTailwindMerge({
+  extend: {
+    theme: {
+      text: Object.keys(TAILLES_DE_TEXTE),
+      tracking: [...ESPACEMENTS_DE_LETTRES],
+      spacing: [...TAILLES_FIXES],
+      shadow: [...OMBRES],
+      breakpoint: [...POINTS_DE_RUPTURE],
+    },
+  },
+})
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))

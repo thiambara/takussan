@@ -275,6 +275,17 @@
    */
   --shadow-color: #1f1812;
 
+  /*
+   * TCK-2685 (ADR-0106 § 2 c) — L'ENCRE DOUCE de la partie connectée. Les maquettes écrivent
+   * `foreground/70`, `/75`, `/80`, `/85` (385 occurrences) ; une seule encre est retenue, celle de
+   * la valeur majoritaire (`/80`, 137 occ.), et elle est OPAQUE : une encre de texte ne s'atténue pas
+   * par l'opacité (TCK-658, cliquet de `encre-sans-alpha.contraste.test.ts`). Valeur : `--foreground`
+   * à 80 % composé en sRGB sur `--card`. L'inverse : `--background` à 70 % sur `--foreground` (compte
+   * d'une puce active). Contrastes gardés par `jetons-de-l-app.contraste.test.ts`.
+   */
+  --encre-douce: #4c4641;
+  --encre-douce-inverse: #bab6b0;
+
   /* === Geometry === */
   --radius: 0.625rem;
 
@@ -387,6 +398,10 @@
 
   /* Voile — cf. le docblock de `--scrim` dans `:root`. */
   --color-scrim: var(--scrim);
+
+  /* TCK-2685 — l'encre douce de la partie connectée (cf. `--encre-douce` dans `:root`). */
+  --color-encre-douce: var(--encre-douce);
+  --color-encre-douce-inverse: var(--encre-douce-inverse);
 
   /* Charts */
   --color-chart-5: var(--chart-5);
@@ -701,6 +716,9 @@
   --card-foreground: #fcf9f3;
   --popover: #2a2018;
   --popover-foreground: #fcf9f3;
+  /* TCK-2685 — même composition qu'en clair, sur les jetons du thème sombre (absent de `/app`). */
+  --encre-douce: #d2cec7;
+  --encre-douce-inverse: #615c56;
   --primary: #c87a52;
   --primary-foreground: #1f1812;
   /* Survol du bouton plein. L'encre est SOMBRE ici : le survol s'éclaircit (6,78:1 avec
@@ -827,6 +845,88 @@
   }
 }
 /* densite-du-bureau:fin */
+
+/* jetons-de-l-app:début
+ * TCK-2685 (ADR-0106 § 3, ADR-0107 § 4) — LES JETONS DE LA PARTIE CONNECTÉE : les tailles fixes des
+ * maquettes retenues, nommées, pour qu'aucune page n'écrive de valeur arbitraire
+ * (`scripts/check-valeurs-arbitraires-app.mjs`).
+ *
+ * ⚠ HORS DE L'ÉCHELLE ×0,9 — et c'est leur raison d'être. La maquette écrit 13 px et le garde au
+ *   bureau ; `text-sm` rend 14 puis 12,6 px. Ces jetons sont en `rem` CALCULÉS (13 px = 0,8125rem) et
+ *   le bloc `densite-du-bureau` ne les redéfinit pas : ils rendent la valeur de la maquette à toute
+ *   largeur au réglage par défaut, et suivent le réglage de police de l'utilisateur.
+ *   `jetons-de-l-app.test.ts` refuse un de ces jetons dans le bloc de densité, et un jeton en px.
+ * ⚠ SANS INTERLIGNE. `text-[13px]` ne pose que `font-size` et HÉRITE l'interligne du parent : 19,5 px
+ *   sous la racine (1,5), 17,875 px sous un `leading-snug`. Un `--text-*--line-height` poserait le
+ *   sien (Tailwind l'écrit `var(--tw-leading, …)`, et `--tw-leading` n'hérite pas) et casserait ce
+ *   rendu sous un parent qui pose `leading-snug` (332 occ. dans les maquettes) ou `leading-tight`.
+ * ⚠ `tailwind-merge` doit connaître chaque nom (`src/lib/utils.ts`) : sinon `cn('text-ui',
+ *   'text-foreground')` jette `text-ui`, pris pour une couleur.
+ */
+@theme {
+  /* Échelle de texte — la valeur en px de la maquette entre parenthèses. */
+  --text-pastille: 0.625rem; /* 10 — chiffre d'une pastille de compte */
+  --text-legende: 0.6875rem; /* 11 — légende, libellé d'onglet du bas */
+  --text-ui: 0.8125rem; /* 13 — méta, détail de ligne, fil d'Ariane, libellé de chiffre clé */
+  --text-corps: 0.9375rem; /* 15 — titre de ligne et de carte, bouton d'action principale */
+  --text-action: 1rem; /* 16 — action principale des écrans d'entrée (`text-base` : 14,4 au bureau) */
+  --text-titre-court: 1.0625rem; /* 17 — titre d'en-tête de détail, de feuille, de panneau */
+  --text-affiche-22: 1.375rem; /* 22 — titres d'écrans d'entrée, chiffres */
+  --text-affiche-26: 1.625rem; /* 26 — code à six chiffres, chiffres */
+  --text-affiche-28: 1.75rem; /* 28 — titres d'écrans d'entrée (30 px rabattus) */
+  --text-affiche-32: 2rem; /* 32 — grands chiffres (34 px rabattus) */
+  --text-affiche-40: 2.5rem; /* 40 — grands chiffres */
+
+  /* Espacement des lettres. `tracking-tight` (−0,025 em) reste celui de Tailwind. */
+  --tracking-titre: -0.02em; /* −0,01 et −0,03 em rabattus ici */
+  --tracking-surtitre: 0.08em;
+
+  /* L'icône de 18 px (`size-icone`), hors de l'échelle : `size-4.5` rendrait 16,2 px au bureau. */
+  --spacing-icone: 1.125rem;
+
+  /* Ombres nommées, sur `--shadow-color` en `in_srgb` (la maquette écrit `in_oklab` : même couleur
+     composée, l'alpha porté par `color-mix` sur `transparent`). La feuille garde la valeur exacte de
+     `shadow-2xl` de Tailwind, que la maquette rend (noir à 25 %) : la CLASSE reste interdite. */
+  --shadow-barre-collante: 0 -6px 16px -12px color-mix(in srgb, var(--shadow-color) 40%, transparent);
+  --shadow-filet: 0 1px 0 color-mix(in srgb, var(--shadow-color) 22%, transparent);
+  --shadow-bouton-photo: 0 2px 8px -2px color-mix(in srgb, var(--shadow-color) 35%, transparent);
+  --shadow-actif: 0 1px 2px color-mix(in srgb, var(--shadow-color) 18%, transparent);
+  --shadow-panneau: -24px 0 48px -32px color-mix(in srgb, var(--shadow-color) 45%, transparent);
+  --shadow-feuille: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+
+  /* ADR-0106 § 4 — la bande ≥ 1440 des maquettes « bureau 1280 » (`min-[1440px]:`), distincte de
+     `2xl` (1536 px, site public). `w1440:` : « largeur ≥ 1440 ». Une requête MÉDIA : 90rem se lit
+     contre la taille initiale du navigateur, pas contre la racine. */
+  --breakpoint-w1440: 90rem;
+}
+
+/*
+ * TCK-2685 — LA PORTÉE `/app`. Un seul marqueur, `data-portee-app`, posé par la coque (`AppShell`)
+ * et par la vitrine (`/‹langue›/playground/vitrine`). Lu par `:root:has(…)`, il atteint TOUT le
+ * document, donc aussi ce que Base UI rend en portail hors de l'arbre de la coque (feuilles,
+ * dialogues, menus, toasts) ; il est juste au premier octet (rendu serveur) et disparaît avec la
+ * coque. Les tickets TCK-2686 à TCK-2691 s'y accrochent par la variante `portee-app:`.
+ */
+@custom-variant portee-app (&:where(:root:has([data-portee-app]) *));
+
+/*
+ * TCK-2685 (A § 7) — le trait par défaut des icônes lucide sous la portée : 1,75 au téléphone, 1,5
+ * dès `md` (le seuil où la coque change). Lucide écrit `stroke-width="2"` en ATTRIBUT quand
+ * l'appelant ne fixe rien : seul ce défaut est visé, un `strokeWidth={2.5}` garde le sien. ⚠ Un
+ * `strokeWidth={2}` explicite ne se distingue pas du défaut et prend aussi le trait de la portée
+ * (aucun dans `/app` au 2026-11-11). En `base`, sous les utilitaires : un `stroke-*` d'appelant gagne.
+ */
+@layer base {
+  :root:has([data-portee-app]) svg.lucide[stroke-width="2"] {
+    stroke-width: 1.75;
+  }
+  @media (width >= 48rem) {
+    :root:has([data-portee-app]) svg.lucide[stroke-width="2"] {
+      stroke-width: 1.5;
+    }
+  }
+}
+/* jetons-de-l-app:fin */
 
 /* plancher-tactile:début
  * Revue design 2026-09-16 — PLANCHERS TACTILES des primitives sous `sm` (Button, Input, Select,

@@ -11,6 +11,8 @@ import {
   formatNumber,
   type FormatDateOptions,
 } from '@/lib/format';
+import { TIMEZONE } from '@/i18n/config';
+import { currencySymbol } from '@/lib/format/currency';
 
 /**
  * Les formatteurs de `@/lib/format`, liés à la locale ACTIVE (TCK-364).
@@ -80,6 +82,49 @@ export interface Formatteurs {
     currency?: string | null,
     options?: Intl.NumberFormatOptions,
   ) => string;
+  /*
+   * ── TCK-2685 (A § 6, décision du porteur du 2026-11-10) — les préréglages de la partie connectée.
+   * La maquette retenue fait foi : « F » et non « F CFA » dans `/app` (+40 % de largeur sinon) ; la
+   * date sans l'année de l'année en cours. Tous AJOUTÉS : `montant()`, `date()`, `DATE_COURTE` et
+   * `VALEUR_ABSENTE` rendent ce qu'ils rendaient (99 fichiers appelants).
+   */
+  /**
+   * Montant court : « 1 355 000 F ». Les groupes viennent d'`Intl` (U+202F en `fr`), le symbole est
+   * collé par une espace INSÉCABLE (U+00A0) : un montant ne se coupe jamais en fin de ligne. Franc
+   * CFA (XOF, XAF) → « F » ; une autre devise garde son symbole et sa place.
+   */
+  readonly montantCourt: (value: number | null | undefined, currency?: string | null) => string;
+  /**
+   * Montant abrégé : « 3,9 M F », « 350 k F » — la notation compacte d'`Intl` (U+00A0), puis le
+   * symbole court. Sous 1 000, le montant entier (« 850 F »).
+   */
+  readonly montantAbrege: (value: number | null | undefined, currency?: string | null) => string;
+  /**
+   * Jour et mois : « 4 nov. » pour une date de l'année en cours (au fuseau de Dakar), « 4 déc. 2025 »
+   * sinon. `maintenant` sert aux tests ; par défaut, l'horloge.
+   */
+  readonly jourMois: (value: Date | string | number | null | undefined, maintenant?: Date) => string;
+  /** Heure : « 09:00 » (24 h, deux chiffres), au fuseau de Dakar. */
+  readonly heure: (value: Date | string | number | null | undefined) => string;
+  /**
+   * Pourcentage d'une FRACTION (0,87 → « 87 % », U+00A0 en `fr`), comme `formatPercent`. Entier par
+   * défaut, comme la maquette.
+   */
+  readonly pourcentage: (value: number | null | undefined, options?: Intl.NumberFormatOptions) => string;
+}
+
+/** TCK-2685 — l'espace insécable qui colle le symbole au montant. */
+const INSECABLE = '\u00a0';
+
+/** TCK-2685 — « F » pour le franc CFA dans `/app` ; « F CFA » reste le symbole de `montant()`. */
+function symboleCourt(currency: string): string {
+  const code = currency.toUpperCase();
+  return code === 'XOF' || code === 'XAF' ? 'F' : currencySymbol(code);
+}
+
+/** L'année d'un instant au fuseau de Dakar — pas celle du fuseau de la machine qui rend. */
+function anneeA(date: Date): string {
+  return new Intl.DateTimeFormat('en-US', { year: 'numeric', timeZone: TIMEZONE }).format(date);
 }
 
 /**
@@ -133,6 +178,47 @@ export function formatteursPour(locale: Locale): Formatteurs {
         currency: currency ?? 'XOF',
         ...options,
       });
+      return sortie === '' ? VALEUR_ABSENTE : sortie;
+    },
+    montantCourt: (value, currency) => {
+      const devise = currency ?? 'XOF';
+      const sortie = formatCurrency(value, locale, { currency: devise });
+      if (sortie === '') return VALEUR_ABSENTE;
+      const symbole = currencySymbol(devise);
+      // La forme longue colle déjà le symbole par une insécable (`formatMontant`), après le nombre :
+      // seul le symbole change. Une devise au symbole en tête (USD) reste telle quelle.
+      return sortie.endsWith(symbole) && /\s$/u.test(sortie.slice(0, -symbole.length))
+        ? `${sortie.slice(0, -symbole.length - 1)}${INSECABLE}${symboleCourt(devise)}`
+        : sortie;
+    },
+    montantAbrege: (value, currency) => {
+      const nombre = formatNumber(value, locale, { notation: 'compact', maximumFractionDigits: 1 });
+      return nombre === '' ? VALEUR_ABSENTE : `${nombre}${INSECABLE}${symboleCourt(currency ?? 'XOF')}`;
+    },
+    jourMois: (value, maintenant) => {
+      if (value === null || value === undefined || value === '') return VALEUR_ABSENTE;
+      const instant = value instanceof Date ? value : new Date(value);
+      if (Number.isNaN(instant.getTime())) return VALEUR_ABSENTE;
+      const memeAnnee = anneeA(instant) === anneeA(maintenant ?? new Date());
+      const sortie = formatDate(instant, locale, {
+        dateStyle: undefined,
+        day: 'numeric',
+        month: 'short',
+        ...(memeAnnee ? {} : { year: 'numeric' }),
+      });
+      return sortie === '' ? VALEUR_ABSENTE : sortie;
+    },
+    heure: (value) => {
+      const sortie = formatDate(value, locale, {
+        dateStyle: undefined,
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+      });
+      return sortie === '' ? VALEUR_ABSENTE : sortie;
+    },
+    pourcentage: (value, options) => {
+      const sortie = formatNumber(value, locale, { style: 'percent', maximumFractionDigits: 0, ...options });
       return sortie === '' ? VALEUR_ABSENTE : sortie;
     },
   };

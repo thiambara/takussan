@@ -173,4 +173,30 @@ i18n : les libellés neufs de la vitrine passent par next-intl en `fr`/`en`/`wo`
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+2026-11-11 — relevés sur l'arbre de travail de `feat/audit-ux-app-lot-1`, Chrome par l'outil de fidélité, au réglage par défaut du navigateur sauf mention.
+
+**Noms retenus.** Texte : `text-pastille` 10 · `text-legende` 11 · `text-ui` 13 · `text-corps` 15 · `text-action` 16 · `text-titre-court` 17 · `text-affiche-22/26/28/32/40`, en `rem` calculés (÷16), **sans interligne propre** (le texte hérite celui de son parent, comme `text-[13px]` dans la maquette). Lettres : `tracking-titre` (−0,02 em), `tracking-surtitre` (0,08 em). Icône : `size-icone` (1,125 rem). Ombres : `shadow-barre-collante`, `-filet`, `-bouton-photo`, `-actif`, `-panneau`, `-feuille`. Encres : `text-encre-douce` (#4c4641), `text-encre-douce-inverse` (#bab6b0). Point de rupture : `w1440:` (90 rem). Portée : attribut `data-portee-app` sur la racine d'`AppShell`, variante `portee-app:`. Les noms vivent aussi dans `src/lib/jetons-de-l-app.ts`, que `cn()` passe à `extendTailwindMerge` : sans cela, **mesuré**, `cn('text-ui', 'text-foreground')` rendait `text-foreground` seul (le jeton, inconnu, était pris pour une couleur).
+
+**Relevés.**
+
+- AC1 — vitrine : `text-ui` 13 px à 390 et à 1440, `text-sm` voisin 14 puis 12,6 px ; 10/11/15/16/17/22…40 exacts aux deux largeurs. À 20 px de police par défaut, `text-ui` rend 16,25 px : le jeton suit la police de qui lit.
+- AC2 — référence gelée `app-agenda/a-0-bureau-1440`, « 2 biens libres ce soir » (source `app-agenda-pieces.tsx:203-205`, parent `text-sm leading-snug`) : interligne 17,9 px dans la maquette (17,9 aussi en `a-3-telephone`) ; réécrit avec `text-ui` dans la vitrine, 17,875 px aux deux largeurs.
+- AC3 — vitrine : lucide sans `strokeWidth` 1,75 à 390, 1,5 à 1440, `strokeWidth={2.5}` garde 2,5. `/fr` et une fiche publique : 2 px aux deux largeurs. `/app/leases` réel : 1,75 × 9 au téléphone, 1,5 × 4 au bureau (les 21 autres portent un 1,75 explicite, antérieur).
+- AC4 — icône d'un bouton dans un dialogue ouvert (portail hors du sous-arbre de la vitrine) et croix de fermeture : 1,75 / 1,5. La portée s'écrit `:root:has([data-portee-app])`, donc elle atteint les portails ; la réécrire en `[data-portee-app] svg…` (le portail la perdrait) fait rougir `jetons-de-l-app.test.ts`. `AppShell` n'est monté que par `(dashboard)/app/layout.tsx` : la portée ne déborde pas sur `/super-admin`, `/onboarding` ni `/publish`.
+- AC5 — les six ombres, rendues sur canvas contre la forme `in_oklab` de la maquette : 0/255 d'écart sur chaque canal, 0 sur l'alpha. Encres opaques ; contrastes 9,29:1 (carte), 8,84:1 (fond), 7,88:1 (`muted`), 8,69:1 pour l'inverse sur `foreground`.
+- AC6 — Node et Chrome : `1 355 000 F`, `3,9 M F`, `350 k F`, `4 nov.`, `4 déc. 2025`, `09:00`, `87 %` ; `montant()` inchangé (`… F CFA`).
+- AC7 — `scripts/check-valeurs-arbitraires-app.mjs`, consigne de 85 valeurs dans 50 fichiers, périmètre de 891 fichiers. Ablations une par une, toutes rouges, md5 restauré : chacun des huit prédicats neutralisé tour à tour (l'auto-épreuve nomme la forme manquée) ; `text-[13px]` ajouté dans `styles-de-la-barre.ts` (`(dashboard)/app/layout.tsx` → `AppShell` → `AppSidebar` → `styles-de-la-barre`, trois maillons) ; compte consigné abaissé ; compte réel baissé sans `--consigner` ; fermeture des imports coupée (témoin perdu, périmètre 360/891) ; step retiré de `repo-ci.yml` (rouge de `check-gardes-branchees`).
+- AC8 — aller-retour sur le même serveur, `globals.css` et `utils.ts` d'origine remis puis l'état neuf restauré (md5 vérifié) : `/fr` et une fiche, à 390 et 1440, **0 écart, 0 % de pixels**.
+- AC-BP — `w1440:flex` absent à 1439, présent à 1440 ; colonnes de `/fr/properties` identiques avant/après à 1439/1440/1535/1536/1800 (4, 4, 4, 5, 6).
+
+**Prémisses qui différaient.**
+
+- Le compte des valeurs de texte arbitraires de la clôture de `(dashboard)` est de 55 après TCK-2692, pas 69 + 125 : le relevé A § 2.3 portait sur un autre périmètre. La consigne porte le compte mesuré.
+- L'outil de fidélité relevait l'**attribut** `stroke-width` de l'icône, pas la valeur calculée : la portée aurait été invisible pour lui. `inventaire.mjs` relève désormais la valeur calculée, et `comparer.mjs` normalise `1.5px`/`1.5` (test ajouté).
+- Un `strokeWidth={2}` explicite ne se distingue pas du défaut de lucide : la règle le ramène aussi à 1,75/1,5. Aucun dans `/app` ; dix ailleurs (public, recharts, playground), hors de la portée.
+- `shadow-feuille` garde le noir à 25 % de `shadow-2xl` (ce que rend la maquette), pas `--shadow-color`.
+- Le nouveau seuil ajoute un palier de 90 rem à `container` ; la classe n'est employée nulle part dans `src/`.
+- À 20 px de police, la requête de 90 rem bascule à 1800 px de fenêtre : c'est voulu (le seuil suit la police, comme les autres).
+- `contraste-wcag.ts` range les tailles de texte nommées parmi les non-couleurs : sans cela, `text-legende` et les autres étaient comptés comme des couleurs illisibles par l'épreuve de surface publique.
+
+**Garde locale.** Dans l'arbre de travail, `polices-du-layout-racine`, `encre-sans-alpha` et `surface-publique` rougissent à cause des maquettes locales (`playground/maquettes`, non versionnées). Elles sont vertes dans un arbre sans maquettes.

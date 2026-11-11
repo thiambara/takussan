@@ -34,8 +34,11 @@ export const INVENTAIRE = String.raw`(racineSel, W, H) => {
     const s = getComputedStyle(el);
     const tag = el.tagName.toLowerCase();
     if (tag === 'svg') {
+      // TCK-2685 — le trait RENDU (style calculé), plus l'attribut : sous la portée /app, une règle CSS
+      // remplace le stroke-width="2" par défaut de lucide, et l'attribut mentait. comparer.mjs lit
+      // « 1.5px » et « 1.5 » comme le même trait (références gelées sur l'attribut).
       const cls = String(el.getAttribute('class') || '').split(/\s+/).find((c) => c.startsWith('lucide-') && c !== 'lucide-icon');
-      out.push({ type: 'icone', cle: cls || 'svg', r, dans: ancetres(el), couleur: rgba(s.color), trait: el.getAttribute('stroke-width') || s.strokeWidth, texteParent: norm(el.parentElement?.innerText || '').slice(0, 40) });
+      out.push({ type: 'icone', cle: cls || 'svg', r, dans: ancetres(el), couleur: rgba(s.color), trait: s.strokeWidth || el.getAttribute('stroke-width'), texteParent: norm(el.parentElement?.innerText || '').slice(0, 40) });
       continue;
     }
     const bg = rgba(s.backgroundColor);

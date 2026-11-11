@@ -175,8 +175,10 @@ export function AppShell({
         persona={persona}
         modeIconesInitial={modeIcones}
       >
-        {/* TCK-2481 — `data-barre-onglets` : la coque porte la barre d'onglets (sous `md`). */}
-        <div className="flex h-dvh flex-col bg-background" data-barre-onglets={barreDOnglets ? '' : undefined}>
+        {/* TCK-2481 — `data-barre-onglets` : la coque porte la barre d'onglets (sous `md`).
+            TCK-2685 — `data-portee-app` : la portée `/app` (trait d'icône, densité…), lue par
+            `:root:has(…)` dans `globals.css`, et qui atteint donc aussi les portails. */}
+        <div className="flex h-dvh flex-col bg-background" data-barre-onglets={barreDOnglets ? '' : undefined} data-portee-app="">
           {/* TCK-905 (P31.04) — avant la bannière, l'en-tête mobile et la colonne. */}
           <LienEvitement />
           {/* TCK-600 (ADR-0055) — la session d'impersonation, lue sur le serveur du front : rien

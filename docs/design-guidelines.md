@@ -27,7 +27,9 @@ Règles :
 - Taille minimale de corps : **14px** (16px préféré). Jamais de texte en dessous de 12px (sauf eyebrow uppercase 11px tracking).
 - Interligne confortable : `leading-relaxed` (1.625) pour le texte courant.
 - Poids : 400 (corps), 500 (labels), 600 (titres de section, prix), 700 (titres de page). Éviter 800/900.
-- Letter-spacing : titres display en `tracking-tight` (≈ −0.01em) ; eyebrows en `tracking-[0.12em] uppercase`.
+- Letter-spacing : titres display en `tracking-tight` (−0,025 em en Tailwind 4 ; cette ligne disait
+  « ≈ −0.01em », corrigé par TCK-2685, A § 8.4) ; eyebrows en `tracking-[0.12em] uppercase`. Dans
+  `/app`, `tracking-titre` (−0,02 em) et `tracking-surtitre` (0,08 em) : cf. la section suivante.
 
 > Les fontes alternatives (Geist, Manrope, Inter, Fraunces) restent chargées pour le `/playground` mais ne doivent **jamais** apparaître en prod.
 
@@ -57,6 +59,66 @@ toute largeur** (16 px par défaut). Ce sont les échelles qui passent à ×0,9 
   `globals.css`. Une feuille neuve s'y ajoute.
 - `src/app/__tests__/echelle-du-bureau.test.ts` lit le thème de Tailwind et refuse une échelle oubliée,
   ou une racine qui reprend une taille.
+
+### Les jetons de la partie connectée ([ADR-0106](adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), TCK-2685)
+
+La maquette retenue fait foi au pixel, et elle écrit ses tailles fixes en px (13 et 15 px surtout),
+qu'elle **ne réduit pas** au bureau. Ces valeurs sont des **jetons nommés**, déclarés dans le bloc
+`jetons-de-l-app` de `globals.css`, en **`rem` calculés et hors de l'échelle ×0,9** : ils rendent la
+valeur de la maquette à toute largeur au réglage par défaut (13 px à 390 comme à 1440, quand
+`text-sm` passe de 14 à 12,6 px), et suivent le réglage de police de l'utilisateur (16,25 px sous une
+police de 20 px). Une page de `/app` n'écrit **aucune valeur arbitraire** pour y parvenir :
+`scripts/check-valeurs-arbitraires-app.mjs` le garde (ci-dessous).
+
+| Maquette | Jeton | Rôle |
+|---|---|---|
+| `text-[10px]` | `text-pastille` | chiffre d'une pastille de compte |
+| `text-[11px]` | `text-legende` | légende, libellé d'onglet du bas |
+| `text-[13px]` | `text-ui` | méta, détail de ligne, fil d'Ariane, libellé de chiffre clé |
+| `text-[15px]` | `text-corps` | titre de ligne et de carte, bouton d'action principale |
+| `text-[16px]` | `text-action` | action principale des écrans d'entrée (`text-base` rend 14,4 px au bureau) |
+| `text-[17px]` | `text-titre-court` | titre d'en-tête de détail, de feuille, de panneau |
+| `text-[22px]` à `text-[40px]` | `text-affiche-22`, `-26`, `-28`, `-32`, `-40` | titres d'écrans d'entrée, chiffres ; 30 → 28 et 34 → 32 (valeur majoritaire) |
+| `tracking-[-0.02em]` (et −0,01, −0,03) | `tracking-titre` | titres |
+| `tracking-[0.08em]` | `tracking-surtitre` | sur-titres |
+| `size-[18px]` | `size-icone` | icône de ligne, 18 px à toute largeur |
+
+- **Pas d'interligne propre.** `text-[13px]` ne pose que la taille et hérite l'interligne du parent
+  (19,5 px sous la racine, 17,875 px sous un `leading-snug`) ; les jetons font de même. Un interligne
+  se pose par `leading-*`, comme dans la maquette.
+- **`cn()` les connaît** (`src/lib/jetons-de-l-app.ts`) : sans cette table, `tailwind-merge` prenait
+  `text-ui` pour une couleur et le jetait devant un `text-foreground`.
+- **Les ombres nommées** composent `--shadow-color` en `in_srgb` (la maquette écrit `in_oklab` : même
+  couleur rendue, mesurée à 0/255 d'écart) : `shadow-barre-collante` (barre d'action du bas),
+  `shadow-filet` (filet bas), `shadow-bouton-photo`, `shadow-actif` (item actif d'un contrôle
+  segmenté), `shadow-panneau` (panneau latéral droit), `shadow-feuille` (feuille du bas : la valeur de
+  `shadow-2xl`, noir à 25 %, que la maquette rend ; la **classe** `shadow-2xl` reste interdite).
+- **L'encre douce** `text-encre-douce` remplace les `foreground/70` à `/85` des maquettes : une seule
+  encre, **opaque** (`foreground` à 80 % composé sur `--card`, `#4c4641` : 9,3:1 sur `card`, 8,8:1 sur
+  `background`, 7,9:1 sur `muted`), parce qu'une encre de texte ne s'atténue pas par l'opacité (TCK-658).
+  `text-encre-douce-inverse` (`background` à 70 % sur `foreground`) sert au compte d'une puce active.
+- **Les formats** viennent de `useFormatteurs`, jamais écrits en dur : `montantCourt` « 1 355 000 F »
+  (groupes U+202F, symbole collé par U+00A0), `montantAbrege` « 3,9 M F », `jourMois` « 4 nov. »
+  (« 4 déc. 2025 » hors de l'année en cours), `heure` « 09:00 », `pourcentage` « 87 % » (U+00A0).
+  « F » dans `/app`, « F CFA » sur l'offre et l'abonnement (`montant()`, inchangé).
+- **Le point de rupture `w1440:`** (90rem) traduit le `min-[1440px]:` des maquettes « bureau 1280 »
+  (ADR-0106 § 4, trois bandes), distinct de `2xl` (1536 px) que le site public emploie. C'est une
+  requête média : elle se lit contre la taille initiale du navigateur (à une police de 20 px, elle
+  bascule à 1800 px).
+- **La portée `/app`.** La coque (`AppShell`) pose `data-portee-app`, lu par `:root:has(…)` : il atteint
+  tout le document, donc aussi les portails de Base UI (dialogues, feuilles, menus, toasts). Elle
+  porte le trait des icônes lucide (1,75 sous `md`, 1,5 dès `md`, à la place du 2 par défaut ; un
+  `strokeWidth` explicite garde le sien, sauf `2`, indiscernable du défaut). Les primitives de `/app`
+  s'y accrochent par la variante **`portee-app:`** — jamais par une classe posée à l'appelant.
+- **La vitrine** `/‹langue›/playground/vitrine` (versionnée, `noindex`, 404 en production) rend chaque
+  jeton puis chaque primitive sous la portée : c'est l'écran que l'outil de fidélité relève.
+
+**La garde `check-valeurs-arbitraires-app.mjs`** refuse, dans la clôture des imports de
+`src/app/(dashboard)` : `text-[<longueur>]`, `tracking-[…]`, `size-[18px]`, une opacité entre
+crochets (`/[0.07]` : écrire `/7`), `shadow-[…]`, `shadow-2xl`, `text-muted-foreground/70` (3,03:1)
+et `bg-accent/<n>` (l'accent est réservé aux badges *featured*). L'existant est consigné par fichier ;
+un compte qui monte rougit, un compte qui descend aussi tant que la consigne ne suit pas
+(`node scripts/check-valeurs-arbitraires-app.mjs --consigner`, qui refuse toute hausse).
 
 ## Palette de couleurs
 
