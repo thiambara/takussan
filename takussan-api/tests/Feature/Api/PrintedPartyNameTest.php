@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Services\Pdf\DocumentPdfService;
 use App\Services\Pdf\PrintedIdentity;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -193,5 +194,24 @@ class PrintedPartyNameTest extends TestCase
         $this->assertSame('Ndiaye', $instantane['tenant']['last_name']);
         $this->assertArrayNotHasKey('phone', $instantane['tenant']);
         $this->assertArrayNotHasKey('phone', $instantane['landlord']);
+    }
+
+    /**
+     * Un instantané écrit sous l'ancien schéma (edbaf5d62 : PERSON portait `phone` pour tous les
+     * rôles) se rend encore, et la quittance imprime le téléphone FIGÉ, non le courant : la
+     * restauration rend toutes les clés de l'instantané, pas la seule liste des champs d'aujourd'hui
+     * (vérification adverse de 11c8e88b2).
+     */
+    public function test_une_quittance_figee_sous_l_ancien_schema_imprime_son_telephone_fige(): void
+    {
+        $lease = $this->bail($this->sansNom(['email' => null, 'phone' => '+221770000010']));
+        $payment = LeasePayment::factory()->paid()->create(['lease_id' => $lease->id, 'payer_id' => $lease->tenant_id]);
+
+        $metadata = json_decode((string) DB::table('lease_payments')->where('id', $payment->id)->value('metadata'), true);
+        $metadata[PrintedIdentity::KEY]['tenant'] = ['first_name' => '', 'last_name' => '', 'name' => null, 'email' => null, 'phone' => '+221770000011'];
+        DB::table('lease_payments')->where('id', $payment->id)->update(['metadata' => json_encode($metadata)]);
+        $lease->tenant->forceFill(['phone' => '+221779999999'])->save();
+
+        $this->assertSame('+221770000011', $this->caseApres($this->quittance($lease->fresh(), $payment), 'Nom'));
     }
 }
