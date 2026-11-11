@@ -64,6 +64,8 @@ return [
     ],
     'agent_absence' => [
         'overlaps' => 'Ñàkk bu jëm ci moom dafa am ba noppi walla mu ngi dox ci diir boobu.',
+        // TCK-2666 — modifier une absence terminée ou révoquée.
+        'closed' => 'Cette absence est terminée ou révoquée : elle ne se modifie plus.',
     ],
     'agent_handover' => [
         'member_not_staff' => 'Jox liggéey bi, ajaŋ walla njiitu ajaans bi rekk la jëm ; boroom kër bokkul ci.',
@@ -560,6 +562,10 @@ return [
     ],
     'role' => [
         'super_admin_grant_forbidden' => 'Super admin rekk mën na jox super_admin.',
+    ],
+    // TCK-2666 — une délégation liée à une absence ne se révoque que par elle.
+    'role_delegation' => [
+        'covers_absence' => 'Cette délégation couvre une absence : modifiez ou révoquez l\'absence, qui la porte.',
     ],
     // TCK-599 — l'alerte de recherche sans compte.
     'search_alert' => [

@@ -181,6 +181,8 @@ final class ProtectedActions
         // TCK-591 (ADR-0035) — une délégation : le suppléant couvre les tâches de l'absent.
         AgentAbsenceController::class.'@store',
         AgentAbsenceController::class.'@destroy',
+        // TCK-2666 — modifier une absence modifie aussi la délégation liée.
+        AgentAbsenceController::class.'@update',
 
         OwnerInvitationController::class.'@__invoke',
         AgentInvitationController::class.'@__invoke',

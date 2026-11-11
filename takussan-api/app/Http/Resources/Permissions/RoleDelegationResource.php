@@ -40,6 +40,15 @@ class RoleDelegationResource extends BaseResource
             'expired_at' => $this->iso($this->resource->expired_at),
             'revoked_at' => $this->iso($this->resource->revoked_at),
             'revoked_by' => $this->whenLoaded('revokedBy', fn () => $this->resource->revokedBy?->id),
+            // TCK-2666 (ADR-0035, amendement du 2026-11-10) — l'absence que la délégation couvre ;
+            // `null` pour une délégation ordinaire.
+            'covers_absence' => $this->whenLoaded('coversAbsence', fn () => $this->resource->coversAbsence === null ? null : [
+                'id' => $this->resource->coversAbsence->id,
+                'absent' => $this->resource->coversAbsence->replaces === null ? null : [
+                    'id' => $this->resource->coversAbsence->replaces->id,
+                    'name' => $this->resource->coversAbsence->replaces->nameWithoutContact(),
+                ],
+            ]),
             'created_at' => $this->iso($this->resource->created_at),
             'updated_at' => $this->iso($this->resource->updated_at),
         ];

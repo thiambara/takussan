@@ -64,6 +64,8 @@ return [
     ],
     'agent_absence' => [
         'overlaps' => 'An absence of this member is already scheduled or ongoing over this period.',
+        // TCK-2666 — modifier une absence terminée ou révoquée.
+        'closed' => 'This absence has ended or been revoked: it can no longer be changed.',
     ],
     'agent_handover' => [
         'member_not_staff' => 'A handover only applies to an agent or an administrator of the agency; a landlord is not handed over.',
@@ -560,6 +562,10 @@ return [
     ],
     'role' => [
         'super_admin_grant_forbidden' => 'Only a super admin can grant the super_admin role.',
+    ],
+    // TCK-2666 — une délégation liée à une absence ne se révoque que par elle.
+    'role_delegation' => [
+        'covers_absence' => 'This delegation covers an absence: change or revoke the absence, which carries it.',
     ],
     // TCK-599 — l'alerte de recherche sans compte.
     'search_alert' => [

@@ -38,7 +38,8 @@ class RoleDelegationController extends Controller
             // retirant l'ordre par défaut (`defaultSorts()` rend la main dès qu'il est présent).
             ->allowedSorts('created_at')
             ->defaultSort('-created_at')
-            ->with(['user', 'delegator', 'revokedBy']);
+            // TCK-2666 — une délégation liée nomme l'absence qu'elle couvre.
+            ->with(['user', 'delegator', 'revokedBy', 'coversAbsence.replaces']);
 
         $paginated = $query->paginate($this->tailleDePage($request, 20));
 
@@ -50,7 +51,7 @@ class RoleDelegationController extends Controller
         Gate::authorize('create', [RoleDelegation::class, $agency]);
 
         $delegation = $this->service->create($agency, $request->user(), $request->validated());
-        $delegation->load(['user', 'delegator']);
+        $delegation->load(['user', 'delegator', 'coversAbsence.replaces']);
 
         return $this->json([
             'data' => RoleDelegationResource::make($delegation),
@@ -62,9 +63,12 @@ class RoleDelegationController extends Controller
         abort_unless($delegation->agency_id === $agency->id, 404);
 
         Gate::authorize('revoke', $delegation);
+        // TCK-2666 (ADR-0035, amendement du 2026-11-10) — une délégation liée ne se révoque pas seule :
+        // elle renvoie à son absence, qui la porte.
+        abort_code_if($delegation->covers_absence_id !== null, 422, 'role_delegation.covers_absence');
 
         $this->service->revoke($delegation, $request->user());
-        $delegation->refresh()->load(['user', 'delegator', 'revokedBy']);
+        $delegation->refresh()->load(['user', 'delegator', 'revokedBy', 'coversAbsence.replaces']);
 
         return $this->json([
             'data' => RoleDelegationResource::make($delegation),
