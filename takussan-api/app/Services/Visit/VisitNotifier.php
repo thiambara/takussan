@@ -215,7 +215,7 @@ class VisitNotifier
                 $this->notifications->send(
                     $recipient,
                     $code,
-                    $this->params($visit, $code, $recipient->timezone),
+                    $this->params($visit, $code, $recipient->timezone, $recipient),
                     NotificationTarget::of('visit', $visit->id),
                     // P203.01 (TCK-2161) — l'intégration de l'agence du bien.
                     agencyId: $this->agenceDuBien($visit),
@@ -290,9 +290,13 @@ class VisitNotifier
      * Les paramètres BRUTS d'un code de visite. Aucun texte libre du visiteur : ni son message, ni
      * le nom qu'il a saisi (contrainte 4) ; une demande neuve porte de quoi le joindre.
      *
+     * TCK-2717 — sauf pour le propriétaire du bien hors console ({@see ProprietaireHorsConsole}, la
+     * fonction de la ressource) sur une visite NÉE AVEC une fiche : l'écran lui cache ce contact,
+     * l'avis aussi. Sans fiche, il le reçoit, comme il le lit.
+     *
      * @return array<string, mixed>
      */
-    private function params(PropertyVisit $visit, NotificationCode $code, ?string $timezone): array
+    private function params(PropertyVisit $visit, NotificationCode $code, ?string $timezone, ?User $recipient = null): array
     {
         $params = [
             'property' => $visit->property?->title ?? '#'.$visit->id,
@@ -300,7 +304,9 @@ class VisitNotifier
             'timezone' => $timezone ?: NotificationRenderer::DEFAULT_TIMEZONE,
         ];
         if ($code === NotificationCode::VisitRequested || $code === NotificationCode::VisitRequestedWindow) {
-            $params['contact'] = implode(' · ', array_filter([$visit->visitor_phone, $visit->visitor_email])) ?: null;
+            $cache = $recipient !== null && $visit->customer_id !== null
+                && ProprietaireHorsConsole::est($recipient, $visit->property?->user_id !== null ? (int) $visit->property->user_id : null, $this->agenceDuBien($visit));
+            $params['contact'] = $cache ? null : (implode(' · ', array_filter([$visit->visitor_phone, $visit->visitor_email])) ?: null);
         }
         if (in_array($code, [NotificationCode::VisitRequestedWindow, NotificationCode::VisitCancelledWindow, NotificationCode::VisitCancelledByVisitorWindow], true)) {
             // Le jour à Dakar, où la tranche a été demandée — pas dans le fuseau du destinataire.

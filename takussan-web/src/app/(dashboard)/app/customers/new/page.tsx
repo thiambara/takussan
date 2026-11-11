@@ -27,8 +27,10 @@ export const dynamic = 'force-dynamic';
  * TCK-2581 — `?visite=<id>` : la fiche d'un visiteur qui n'en avait pas, préremplie depuis sa visite,
  * RELUE ICI avec le jeton du lecteur. L'URL ne porte que l'identifiant : un nom et un numéro de
  * téléphone y partiraient dans l'historique, les journaux et l'en-tête `Referer`. L'API juge ce que
- * le lecteur voit (`visitor_display`, au seul personnel de l'agence du bien) ; une visite illisible
- * ne préremplit rien, sans erreur — le formulaire reste celui d'une fiche vierge.
+ * le lecteur voit (`visitor_display`) et s'il peut créer la fiche
+ * (`abilities.create_customer`, TCK-2716 — la carte, servie aussi au bailleur depuis TCK-2717, n'en
+ * décide pas) ; une visite illisible ne préremplit rien, sans erreur — le formulaire reste celui
+ * d'une fiche vierge.
  */
 async function preremplissage(
   brut: string | string[] | undefined,

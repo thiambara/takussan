@@ -480,6 +480,9 @@ return [
                 'title' => 'Laaj seetaan : :property',
                 'body' => 'Waxtu bi ñu laaj : :scheduled_at. Ngir jokkoo ak ki bëgg seetaan : :contact.',
                 'mail_body' => "Am na ku laaj seetaan :property.\nWaxtu bi ñu laaj : :scheduled_at (waxtu :timezone).\nNgir jokkoo ak ki bëgg seetaan : :contact.",
+                // TCK-2717 — sans `contact` (le bailleur d'un bien d'agence, sur une visite à fiche) : la phrase sans lui.
+                'body_unnamed' => 'Créneau demandé : :scheduled_at.',
+                'mail_body_unnamed' => "Une demande de visite pour :property.\nCréneau demandé : :scheduled_at (fuseau :timezone).",
                 'sms' => 'Takussan : laaj seetaan ngir :property ci :scheduled_at (:timezone).',
             ],
             // TCK-2502 — une demande par jour et tranche : la tranche est dite, l'heure reste à fixer.
@@ -487,6 +490,9 @@ return [
                 'title' => 'Demande de visite : :property',
                 'body' => 'Jour demandé : :date, :window — heure à fixer. Pour joindre le visiteur : :contact.',
                 'mail_body' => "Une demande de visite pour :property.\nJour demandé : :date, :window — l'heure est à fixer en confirmant la visite.\nPour joindre le visiteur : :contact.",
+                // TCK-2717 — sans `contact` (le bailleur d'un bien d'agence, sur une visite à fiche) : la phrase sans lui.
+                'body_unnamed' => 'Jour demandé : :date, :window — heure à fixer.',
+                'mail_body_unnamed' => "Une demande de visite pour :property.\nJour demandé : :date, :window — l'heure est à fixer en confirmant la visite.",
                 'sms' => 'Takussan : demande de visite pour :property le :date, :window (heure à fixer).',
             ],
             'rescheduled_by_visitor' => [

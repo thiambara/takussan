@@ -480,6 +480,9 @@ return [
                 'title' => 'Visit request: :property',
                 'body' => 'Requested slot: :scheduled_at. To reach the visitor: :contact.',
                 'mail_body' => "A visit has been requested for :property.\nRequested slot: :scheduled_at (time zone :timezone).\nTo reach the visitor: :contact.",
+                // TCK-2717 — without `contact` (the landlord of an agency property, on a visit with a customer file): the sentence without it.
+                'body_unnamed' => 'Requested slot: :scheduled_at.',
+                'mail_body_unnamed' => "A visit has been requested for :property.\nRequested slot: :scheduled_at (time zone :timezone).",
                 'sms' => 'Takussan: visit request for :property on :scheduled_at (:timezone).',
             ],
             // TCK-2502 — a request by day and time of day: the time of day is stated, the time is to be set.
@@ -487,6 +490,9 @@ return [
                 'title' => 'Visit request: :property',
                 'body' => 'Requested day: :date, :window — time to be set. To reach the visitor: :contact.',
                 'mail_body' => "A visit has been requested for :property.\nRequested day: :date, :window — set the time when confirming the visit.\nTo reach the visitor: :contact.",
+                // TCK-2717 — without `contact` (the landlord of an agency property, on a visit with a customer file): the sentence without it.
+                'body_unnamed' => 'Requested day: :date, :window — time to be set.',
+                'mail_body_unnamed' => "A visit has been requested for :property.\nRequested day: :date, :window — set the time when confirming the visit.",
                 'sms' => 'Takussan: visit request for :property on :date, :window (time to be set).',
             ],
             'rescheduled_by_visitor' => [

@@ -112,12 +112,17 @@ export interface PropertyVisit {
   /**
    * TCK-2585 — la carte du visiteur, pour le personnel de l'agence du bien (et le propriétaire d'un
    * bien sans agence) ; `null` pour tout autre lecteur. `visits_on_property` compte celle-ci.
+   *
+   * TCK-2717 — servie aussi, RÉDUITE, au propriétaire d'un bien d'agence qui n'en est pas personnel,
+   * sur une visite sans fiche : le nom et le numéro de `visitor_*`, jamais `kind: 'customer'`, et
+   * `visits_on_property` nul (il relierait des visites que ce lecteur ne voit pas comme une même
+   * personne). La carte n'ouvre pas « Créer sa fiche » : `abilities.create_customer` seul (TCK-2716).
    */
   visitor_display?: {
     readonly name: string | null;
     readonly phone: string | null;
     readonly kind: 'customer' | 'account' | 'anonymous';
-    readonly visits_on_property: number;
+    readonly visits_on_property: number | null;
   } | null;
 }
 

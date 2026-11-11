@@ -85,30 +85,30 @@ candidat). Reste à rendre les deux canaux cohérents avec cette règle.
 
 ## Delta à produire
 
-- [ ] `PropertyVisitResource` : prédicat de la carte séparé de `outilDeLaConsole()` ; forme réduite pour le lecteur hors
+- [x] `PropertyVisitResource` : prédicat de la carte séparé de `outilDeLaConsole()` ; forme réduite pour le lecteur hors
       console ; `visits_on_property` nul pour lui.
-- [ ] `VisitNotifier::params()` reçoit le destinataire ; `contact` retiré pour un destinataire hors console sur une visite
+- [x] `VisitNotifier::params()` reçoit le destinataire ; `contact` retiré pour un destinataire hors console sur une visite
       à fiche.
-- [ ] Type du front `visitor_display.visits_on_property: number | null` (les lecteurs actuels font déjà `?? null`).
-- [ ] Tests : `ProprietaireDuBienTest` étendu (carte du bailleur), `VisitRequestRoutingTest` étendu (avis au bailleur
+- [x] Type du front `visitor_display.visits_on_property: number | null` (les lecteurs actuels font déjà `?? null`).
+- [x] Tests : `ProprietaireDuBienTest` étendu (carte du bailleur), `VisitRequestRoutingTest` étendu (avis au bailleur
       avec et sans fiche).
 - [ ] `/sync-specs` : `docs/models-spec.md` § 17 (lecteurs de `visitor_display`).
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Bailleur d'un bien de l'agence A, visite anonyme V (sans fiche) : `visitor_display = {name, phone}` égaux à
+- [x] AC1 — Bailleur d'un bien de l'agence A, visite anonyme V (sans fiche) : `visitor_display = {name, phone}` égaux à
       `visitor_name` / `visitor_phone` de la même réponse, `kind = 'anonymous'`, `visits_on_property = null` ; `metadata`
       **absente** de la réponse.
-- [ ] AC2 — Même bailleur, visite W rattachée à une fiche de A : `visitor_name`, `visitor_phone` et `visitor_display`
+- [x] AC2 — Même bailleur, visite W rattachée à une fiche de A : `visitor_name`, `visitor_phone` et `visitor_display`
       nuls (comme aujourd'hui pour `visitor_*`).
-- [ ] AC3 — Personnel de A sur V : `visitor_display` inchangé (`visits_on_property` entier, `kind` juste) — test de
+- [x] AC3 — Personnel de A sur V : `visitor_display` inchangé (`visits_on_property` entier, `kind` juste) — test de
       non-régression sur la forme.
-- [ ] AC4 — Le compte à double casquette (personnel de B, bailleur du bien de V) lit la carte de V **et**
+- [x] AC4 — Le compte à double casquette (personnel de B, bailleur du bien de V) lit la carte de V **et**
       `abilities.create_customer = false` sur V (la carte n'ouvre pas le préremplissage).
-- [ ] AC5 — Un compte qui a déjà une fiche dans A demande une visite publique du bien (visite née avec `customer_id`) :
+- [x] AC5 — Un compte qui a déjà une fiche dans A demande une visite publique du bien (visite née avec `customer_id`) :
       l'avis « visite demandée » reçu par le bailleur reconnu n'a **pas** de `contact` ; celui reçu par l'agent ou
       l'admin de A l'a.
-- [ ] AC6 — Demande anonyme (sans fiche) : l'avis du bailleur reconnu porte `contact` (comportement d'aujourd'hui gardé).
+- [x] AC6 — Demande anonyme (sans fiche) : l'avis du bailleur reconnu porte `contact` (comportement d'aujourd'hui gardé).
 
 ## Hors périmètre
 
@@ -118,4 +118,27 @@ candidat). Reste à rendre les deux canaux cohérents avec cette règle.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Prédicat unique** : `App\Services\Visit\ProprietaireHorsConsole::est(User, ?ownerId, ?agencyId)` — propriétaire du
+  bien (`properties.user_id`), bien d'agence, pas super-admin, pas personnel actif de l'agence du bien
+  (`isStaffAt`, quel que soit l'espace ouvert). Jugé sur les valeurs RELUES (`VisitReadContext` dans la ressource, la
+  visite et son bien dans l'avis), jamais sur le profil actif.
+- **Ressource** : `PropertyVisitResource::visitorDisplay()` garde la carte complète pour la console
+  (`outilDeLaConsole()`, inchangé) ; hors console, la forme réduite `{name, phone, kind: account|anonymous,
+  visits_on_property: null}` pour ce seul lecteur et sur une visite sans fiche. La `metadata` reste à
+  `outilDeLaConsole()` : deux prédicats distincts.
+- **Avis** : `VisitNotifier::params(…, ?User $recipient)` (passé par `toAgency`) met `contact = null` pour ce
+  destinataire quand `customer_id` est posé. Pour ne pas écrire « Pour joindre le visiteur : — », `contact` entre dans
+  `NotificationCode::unnamedParams()` de `VisitRequested` / `VisitRequestedWindow`, avec les variantes
+  `body_unnamed` / `mail_body_unnamed` (fr/en ; wo = fr, wolof en pause) : la phrase sans le contact. Le SMS ne
+  portait pas le contact, inchangé.
+- **Front** : `visitor_display.visits_on_property: number | null` (`src/types/visit.ts`) ; `SuiteDeLaVisite` le lisait
+  déjà avec `?? null`. « Créer sa fiche » reste jugé par `abilities.create_customer` seul (TCK-2716).
+- **Tests** : `ProprietaireDuBienTest` (AC1 à AC4), `VisitRequestRoutingTest` (AC5, AC6, et le propriétaire qui est
+  aussi personnel de l'agence garde le contact), `PropertyVisitAddressVisibilityTest` amendé (le bailleur lisait
+  `visitor_display = null` : il lit désormais la carte réduite de la visite sans fiche, et rien sur celle à fiche).
+  Huit ablations rouges (carte refusée, rang servi, test de la fiche retiré côté carte et côté avis, contact toujours
+  posé, variante retirée, prédicat vrai pour tous, personnel compris dans le prédicat).
+- **Reste** : un gabarit d'avis surchargé par le super-admin (`fromTemplate`) pour `visit.requested` ne connaît pas la
+  variante sans contact (risque préexistant, même famille que `lease_payment_due`). `/sync-specs` :
+  `docs/models-spec.md` § 17 (lecteurs de `visitor_display`) et `docs/features.md` § 23 (contenu de l'avis au
+  bailleur).

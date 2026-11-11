@@ -9,6 +9,7 @@ use App\Models\PropertyVisit;
 use App\Policies\PropertyVisitPolicy;
 use App\Rules\PersonnelDeLAgence;
 use App\Services\Media\PublicPhotoUrl;
+use App\Services\Visit\ProprietaireHorsConsole;
 use App\Services\Visit\VisitReadContext;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Route;
@@ -179,17 +180,36 @@ class PropertyVisitResource extends BaseResource
 
     /**
      * TCK-2585 — la carte du visiteur est un outil de la console : au super-admin, au personnel actif
-     * de l'agence du bien, au propriétaire d'un bien sans agence ; `null` pour tout autre lecteur
-     * (le visiteur, le client, le bailleur d'un bien d'agence) — comme `visits_on_property` d'une
+     * de l'agence du bien, au propriétaire d'un bien sans agence — comme `visits_on_property` d'une
      * réservation (TCK-2593). Jugé sur les valeurs RELUES : la ligne rendue peut ne porter ni la
      * fiche ni l'agence.
      *
-     * @return array{name: ?string, phone: ?string, kind: string, visits_on_property: int}|null
+     * TCK-2717 — et, sous une forme RÉDUITE, au propriétaire du bien hors console
+     * ({@see ProprietaireHorsConsole}) sur une visite SANS fiche : ce que `visitor_*` lui montrent déjà
+     * (le nom et le numéro saisis), jamais plus — ni la fiche, ni `kind: 'customer'`, ni le rang de
+     * visite (`visits_on_property` nul : il relie des visites qu'il ne voit pas comme une même
+     * personne). Un prédicat distinct de celui de la `metadata`, qui reste à la console. `null` pour
+     * tout autre lecteur (le visiteur et le client compris), et pour ce propriétaire sur une visite à
+     * fiche.
+     *
+     * @return array{name: ?string, phone: ?string, kind: string, visits_on_property: ?int}|null
      */
     private function visitorDisplay(Request $request): ?array
     {
         if (! $this->outilDeLaConsole($request)) {
-            return null;
+            $user = $request->user();
+            $ctx = $user !== null ? VisitReadContext::for($request, $this->resource) : null;
+            if ($ctx === null || $ctx['customer_id'] !== null
+                || ! ProprietaireHorsConsole::est($user, $ctx['owner_id'], $ctx['agency_id'])) {
+                return null;
+            }
+
+            return [
+                'name' => $ctx['visitor_name'],
+                'phone' => $ctx['visitor_phone'],
+                'kind' => $ctx['visitor_id'] !== null ? 'account' : 'anonymous',
+                'visits_on_property' => null,
+            ];
         }
         $ctx = VisitReadContext::for($request, $this->resource);
 

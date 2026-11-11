@@ -590,6 +590,9 @@ enum NotificationCode: string
         return match ($this) {
             self::BankStatementImported => ['bank'],
             self::GovernanceRoleCapabilitiesChanged => ['role'],
+            // TCK-2717 — le contact du visiteur, retiré de l'avis au bailleur d'un bien d'agence quand la
+            // visite est née avec une fiche (`VisitNotifier::params`) : la phrase sans lui, pas « — ».
+            self::VisitRequested, self::VisitRequestedWindow => ['contact'],
             default => [],
         };
     }
