@@ -8,6 +8,10 @@ import { EmptyState } from '@/components/feedback';
 import { Avatar, AvatarFallback, type TailleAvatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { FeuilleDuBas } from '@/components/ui/feuille-du-bas';
+import { Progress, ProgressSegments, type TonDeJauge } from '@/components/ui/progress';
+import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DatePicker } from '@/components/ui/date-picker';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
@@ -67,6 +71,17 @@ const SURFACES_DE_PASTILLE: ReadonlyArray<readonly [string, string]> = [
   ['background', 'bg-background'],
   ['muted', 'bg-muted'],
 ];
+
+/** TCK-2690 — les quatre tons de la jauge, chacun à une valeur lisible. */
+const TONS_DE_JAUGE: ReadonlyArray<readonly [TonDeJauge, number, string]> = [
+  ['primary', 60, 'Crédits utilisés'],
+  ['success', 100, 'Dossier complet'],
+  ['warning', 85, 'Quota presque atteint'],
+  ['neutral', 30, 'Profil renseigné'],
+];
+
+/** TCK-2690 — un titre de 80 caractères : la feuille le tronque sur une ligne (AC1). */
+const TITRE_LONG = 'Relance du loyer de novembre pour l’appartement F4 de Sacré-Cœur, rue 10, bloc B';
 
 /** TCK-2687 — les six tailles d'avatar en px, puis les trois d'avant. */
 const TAILLES_AVATAR: readonly TailleAvatar[] = ['28', '32', '36', '40', '44', '48', 'sm', 'default', 'lg'];
@@ -215,6 +230,116 @@ export function VitrineClient() {
             icon={<BellOff className="size-6" strokeWidth={1.5} aria-hidden="true" />}
             title="Vous êtes à jour"
             description="Les nouvelles notifications apparaîtront ici."
+          />
+        </div>
+      </Section>
+
+      {/* TCK-2690 — les quatre primitives neuves. La feuille du bas ne s'ouvre EN FEUILLE que sous
+          `md` : dès `md`, aucune maquette bureau n'en dessine, et le même contenu s'ouvre en
+          dialogue centré (`max-w-lg` : 460,8 px au bureau), en-tête et pied compris. */}
+      <Section titre="Feuille du bas (sous md ; dialogue centré dès md)">
+        <div className="flex flex-wrap gap-3">
+          <FeuilleDuBas
+            data-epreuve="feuille-compte"
+            titre="Mon compte"
+            declencheur={<Button variant="outline" data-epreuve="ouvrir-feuille-compte" />}
+          >
+            <ul className="divide-y divide-border">
+              {['Mon profil', 'Préférences', 'Changer d’espace', 'Se déconnecter'].map((ligne) => (
+                <li key={ligne} className="flex min-h-12 items-center text-corps">
+                  {ligne}
+                </li>
+              ))}
+            </ul>
+          </FeuilleDuBas>
+          <FeuilleDuBas
+            data-epreuve="feuille-longue"
+            titre={TITRE_LONG}
+            declencheur={<Button variant="outline" data-epreuve="ouvrir-feuille-longue" />}
+            pied={
+              <Button size="xl" className="w-full" data-epreuve="feuille-action">
+                Envoyer la relance
+              </Button>
+            }
+          >
+            <div className="space-y-3 text-ui text-encre-douce">
+              {Array.from({ length: 24 }, (_, i) => (
+                <p key={i}>Paragraphe {i + 1} : le corps défile, l’en-tête et le pied restent en place.</p>
+              ))}
+            </div>
+          </FeuilleDuBas>
+        </div>
+        <p className="text-ui text-muted-foreground">
+          Les déclencheurs : « Mon compte » (référence gelée <Code>app-coque</Code>, écran 5) et un titre de 80 caractères
+          avec une action collante.
+        </p>
+      </Section>
+
+      <Section titre="Cases à cocher (la ligne est la cible)">
+        <div className="max-w-sm divide-y divide-border rounded-xl border border-border bg-card">
+          <label data-epreuve="ligne-case-vide" className="flex min-h-12 items-center gap-3 px-4 text-corps">
+            <Checkbox data-epreuve="case-vide" />
+            Awa Ndiaye
+          </label>
+          <label className="flex min-h-12 items-center gap-3 px-4 text-corps">
+            <Checkbox data-epreuve="case-cochee" defaultChecked />
+            Moussa Diop
+          </label>
+          <label className="flex min-h-12 items-center gap-3 px-4 text-corps">
+            <Checkbox data-epreuve="case-mixte" indeterminate />
+            Tout sélectionner
+          </label>
+          <label className="flex min-h-12 items-center gap-3 px-4 text-corps text-muted-foreground">
+            <Checkbox data-epreuve="case-desactivee" disabled />
+            Désactivée
+          </label>
+          <label className="flex min-h-12 items-center gap-3 px-4 text-corps">
+            <Checkbox data-epreuve="case-erreur" aria-invalid />
+            En erreur
+          </label>
+        </div>
+        <div className="flex gap-4 rounded-xl bg-background p-4">
+          <Checkbox data-epreuve="case-vide-fond" aria-label="Case sur le fond de page" />
+        </div>
+      </Section>
+
+      <Section titre="Interrupteurs (la ligne est la cible)">
+        <div className="max-w-sm divide-y divide-border rounded-xl border border-border bg-card">
+          <label className="flex min-h-14 items-center justify-between gap-3 px-4 text-corps">
+            Rappels de visite
+            <Switch data-epreuve="interrupteur-eteint" />
+          </label>
+          <label className="flex min-h-14 items-center justify-between gap-3 px-4 text-corps">
+            Synchroniser l’agenda
+            <Switch data-epreuve="interrupteur-allume" defaultChecked />
+          </label>
+          <label className="flex min-h-14 items-center justify-between gap-3 px-4 text-corps text-muted-foreground">
+            Désactivé
+            <Switch data-epreuve="interrupteur-desactive" disabled />
+          </label>
+        </div>
+      </Section>
+
+      <Section titre="Jauges">
+        <div className="max-w-md space-y-4">
+          {TONS_DE_JAUGE.map(([ton, valeur, libelle]) => (
+            <div key={ton} className="space-y-1.5">
+              <div className="flex justify-between text-ui">
+                <span id={`jauge-${ton}`}>{libelle}</span>
+                <span data-epreuve={`jauge-${ton}-valeur`} className="tabular-nums text-muted-foreground">
+                  {valeur} %
+                </span>
+              </div>
+              <Progress data-epreuve={`jauge-${ton}`} aria-labelledby={`jauge-${ton}`} value={valeur} ton={ton} />
+            </div>
+          ))}
+          <Progress data-epreuve="jauge-grande" aria-label="Jauge grande" value={40} taille="grand" />
+          <ProgressSegments
+            data-epreuve="jauge-segments"
+            aria-label="Étapes de la publication"
+            aria-valuetext="Étape 2 sur 4"
+            value={2}
+            total={4}
           />
         </div>
       </Section>

@@ -72,5 +72,8 @@ export const DENSITE_DE_L_APP = {
 export const PRIMITIVES_DE_L_APP = {
   spacing: ['avatar-28', 'avatar-32', 'avatar-36', 'avatar-40', 'avatar-44', 'avatar-48'],
   text: ['avatar-28', 'avatar-32', 'avatar-36', 'avatar-40', 'avatar-44', 'avatar-48'],
-  color: ['fond-avatar', 'encre-avatar'],
+  /** TCK-2690 — `controle-vide` : bord de la case vide, piste de l'interrupteur éteint. */
+  color: ['fond-avatar', 'encre-avatar', 'controle-vide'],
+  /** TCK-2690 — le rayon de la case à cocher (5 px). */
+  radius: ['case'],
 } as const satisfies Record<string, readonly string[]>;

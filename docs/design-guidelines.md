@@ -592,3 +592,29 @@ d'une carte, police d'un titre) — la classe reste littérale, lisible par les 
 appelants la règlent (le repli de l'avatar, que `MenuDuCompte` repeint) ; un **prop** pour ce qui est neuf. L'avatar
 « soi » de la maquette (`accent/15`) n'est pas repris : 4,31:1 sur `--background`, 3,68:1 sur `--card` en sombre, et
 l'accent reste réservé aux badges *featured*.
+
+### Les primitives neuves de la partie connectée ([ADR-0106](adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), TCK-2690)
+
+Quatre primitives que le produit n'avait pas, dessinées comme la maquette retenue. Elles n'ont aucun appelant d'avant :
+leur défaut EST la maquette, sans portée. Les cases, interrupteurs et jauges natifs ou locaux existants ne changent pas ;
+leur migration relève des pages.
+
+| Primitive | Dessin | Contraste (WCAG 1.4.11, 3:1) |
+|---|---|---|
+| `FeuilleDuBas` (`ui/feuille-du-bas.tsx`) | voile `foreground/35` ; panneau `rounded-t-2xl bg-card`, 90 % de la hauteur au plus, `shadow-feuille` ; poignée 32 × 4 ; titre 17 px tronqué ; fermer 44 px ; corps `px-4 pb-4` ; pied `border-t px-4 py-3` ; zone sûre au pied, sinon au corps. **Dès `md`, dialogue centré** (`max-w-lg`, 460,8 px au bureau, sans poignée) : aucune maquette bureau ne dessine de feuille du bas | — |
+| `Checkbox` (`ui/checkbox.tsx`) | **18 px**, rayon 5 px (`size-icone`, `rounded-case`, fixes) ; cochée `bg-primary` + coche 14 px au trait 2,5 ; mixte : la barre 10 × 2 de la maquette | bord vide `controle-vide` : `--input` en clair (3,59:1 sur `--card`, 3,04:1 sur `--muted`), `--muted-foreground` en sombre |
+| `Switch` (`ui/switch.tsx`) | piste **24 × 40** (`h-6 w-10 p-0.5`), pouce `size-5 bg-card shadow-sm` | allumé `--primary` (5,32:1) ; éteint `controle-vide` |
+| `Progress`, `ProgressSegments` (`ui/progress.tsx`) | rail `h-1.5 bg-muted` (`h-2` en grand), remplissage arrondi ; segments `h-1 gap-1.5` ; nom accessible exigé par le type | chaque ton contre le rail `--muted`, clair / sombre : `primary` 4,51 / 3,99, `success` 5,24 / 6,25, `warning` 5,31 / 6,03, `neutral` (`foreground/50` composé sur le rail) 3,23 / 4,37 |
+
+**Ce que la maquette écrivait et qui ne passe pas** : bord de case `foreground/30` (1,93:1), `border` (1,26:1) ou
+`input/60` (2,01:1) ; interrupteur éteint `foreground/20` (1,52:1) ou `border` (1,26:1). `--input` tient en clair mais
+rend 1,44:1 sur `--card` sombre, d'où le jeton `controle-vide`, redéclaré sur `.dark`.
+
+**La cible est la ligne, pas le contrôle** : une case de 18 px ou une piste de 24 px ne font pas une cible tactile. La
+ligne qui les porte (44 à 56 px) est un `<label>` qui les enveloppe ; son clic les bascule (`eslint.config.mjs` déclare
+`Checkbox` et `Switch` comme contrôles de `label-has-associated-control`).
+
+**Le verrou de défilement de la feuille** : hors du régime du bureau (téléphone, et tablette à pointeur grossier),
+`useVerrouDeDefilement` (TCK-551 — `overflow: hidden` seul ne tient pas sur iOS, et `scrollBy` le traverse : mesuré à
+1024 px tactile), avec `modal="trap-focus"` ; au régime du bureau (`md` et pointeur non grossier), celui de base-ui, qui
+compense une barre de défilement classique (le premier sortirait `body` du flux — saut déduit, non mesuré).

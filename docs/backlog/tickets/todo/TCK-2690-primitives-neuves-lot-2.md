@@ -114,4 +114,66 @@ Rail `h-1.5 rounded-full bg-muted overflow-hidden` (grand : `h-2`) ; remplissage
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Livré** (2026-11-11) : `ui/feuille-du-bas.tsx` (`FeuilleDuBas`), `ui/checkbox.tsx` (`Checkbox`), `ui/switch.tsx`
+(`Switch`), `ui/progress.tsx` (`Progress`, `ProgressSegments`), rendus par la vitrine dans chacun de leurs états ; jetons
+`rounded-case` et `controle-vide` (bloc `primitives-de-l-app` de `globals.css`, sous-partie TCK-2690) ;
+`docs/design-guidelines.md` § « Les primitives neuves de la partie connectée » ; fiches et aperçus `.design-sync/`.
+`ui/sheet.tsx` n'est **pas** touché.
+
+**Écarts au ticket, et pourquoi** :
+
+- **Thème sombre** : la table d'exceptions ne mesurait que le clair. `--input` sombre rend **1,44:1** sur `--card` :
+  le bord de case et la piste éteinte passent par le jeton `controle-vide` — `--input` en clair, `--muted-foreground`
+  en sombre (7,01:1), redéclaré sur `.dark` (mesuré au navigateur, `.dark` imbriqué compris : `rgb(184, 170, 151)`).
+- **Case mixte** : la **barre de 10 × 2** de la maquette (`h-0.5 w-2.5`, `app-equipe`, `app-moderation`), pas l'icône
+  `Minus` que le ticket nommait (ADR-0106 : la maquette fait foi).
+- **Verrou de défilement** : `useVerrouDeDefilement` + `modal="trap-focus"` **hors du régime du bureau** (téléphone,
+  tablette à pointeur grossier) ; au régime du bureau (`md` ET pointeur non grossier, celui de la densité), celui de
+  base-ui (`modal`), qui compense une barre de défilement classique — le crochet sort `body` du flux (saut DÉDUIT, non
+  mesuré : le Chrome de mesure a des barres superposées). Mesuré à 1024 px tactile avec un découpage sur la seule
+  largeur : base-ui y posait `overflow: hidden`, que `scrollBy` traversait (803 → 1103) — d'où le critère du pointeur.
+- **À ≥ `md`** : dialogue centré (`max-w-lg rounded-2xl` : 460,8 px et coins de 16,2 px au bureau, sans poignée), en-tête et pied gardés ; écrit dans la
+  vitrine.
+- **Le ✕** : un bouton `ghost` sous la portée prend l'encre discrète (`rgb(76, 70, 65)`) ; la maquette dessine
+  `--foreground` — posé sur le bouton (écart relevé par la comparaison d'AC2).
+- **Libellés** : aucune clé neuve. « Fermer » est `common.actions.close` ; « Tout sélectionner » et les noms de jauge
+  sont ceux de l'appelant ; les états lus par l'assistance (`aria-checked="mixed"`, `aria-valuetext`) viennent de base-ui,
+  le texte de la jauge formaté dans la langue de la page (`useLocale`).
+- **ESLint** : `label-has-associated-control` déclare `Checkbox` et `Switch` comme contrôles (`eslint.config.mjs`) — la
+  ligne-cible de la maquette est un `<label>` qui les enveloppe.
+
+**AC1** — vitrine, 390 : coins hauts **18 px**, poignée **32 × 4**, titre de **80 caractères** à **17 px** sur une ligne
+(25,5 px de haut, `text-overflow: ellipsis`, `scrollWidth > clientWidth`), fermer **44 × 44** (✕ 20 px), panneau
+`max-height` 759,6 px (90 % de 844). Ouverte, `body` en `position: fixed` : `scrollingElement.scrollTop` 0 → 0 après
+`scrollBy(0, 400)` ; la position réelle (1 500) revient à la fermeture. `Échap` ferme, le focus revient au déclencheur,
+`body` redevient `static` ; un clic sur le voile ferme. Même verrou sur une tablette de 1024 px à pointeur grossier
+(803 → 0 → 803) ; au bureau (1440, pointeur fin), celui de base-ui.
+
+**AC2** — la feuille « Mon compte » de la vitrine contre la référence gelée `app-coque/a-5-telephone.json`, aux
+tolérances de l'outil de TCK-2684 (`TOLERANCES` et `egalCouleur` de `scripts/fidelite/comparer.mjs` ; pas
+`fidelite.mjs compare`, qui compare des pages entières) — positions relatives au haut du panneau, sa hauteur (portée
+par le contenu) exclue : **30 contrôles, 0 écart** — voile (boîte, alpha 0,35), panneau (x, largeur, bas, fond,
+rayons 18/18/0/0, ombre identique au caractère), poignée (x 179, +8, 32 × 4, fond), titre (x 16, +25,25 contre +25,3,
+318 × 25,5, DM Sans 17/600, interligne, couleur), ✕ (x 354, +28, 20 × 20, couleur, trait 2), corps (+64, x 16).
+
+**AC3** — 18 × 18 aux deux largeurs, rayon 5 px ; bord vide `rgb(145, 134, 114)` (3,59:1 sur `--card`, 3,41 sur
+`--background`, 3,04 sur `--muted` — test, deux thèmes) ; cochée et mixte `rgb(168, 83, 50)` ; coche 14 px, barre
+10 × 2 (9 × 1,8 au bureau) ; un clic sur le libellé de la ligne (cible `LABEL`) la coche.
+
+**AC4** — 24 × 40 à 390 (21,6 × 36 à 1440, l'échelle ×0,9) ; éteint `rgb(145, 134, 114)`, 3,59:1 sur `--card` ;
+`role="switch"`, `Espace` le bascule et `aria-checked` suit (test).
+
+**AC5** — rail 6 px à 390 (5,4 au bureau ; 8 / 7,2 en grand) ; chaque ton ≥ 3:1 contre `--muted` (test, deux thèmes :
+`primary` 4,51 / 3,99, `success` 5,24 / 6,25, `warning` 5,31 / 6,03, `neutral` 3,23 / 4,37) ; `aria-valuenow` = la
+valeur affichée (60 / « 60 % », 100, 85, 30).
+
+**AC6** — relevé avant/après de tous les `[data-slot]`, `h1`, `h2` du document : `/app/properties` à 390 **feuille des
+filtres OUVERTE** — ses 22 nœuds de portail, **0 écart** ; hors feuille, 315 nœuds, 0 écart (une fois retiré le nœud
+« Get started 2 of 3 » du menu (persona en anglais), apparu entre les deux relevés : donnée du compte de démo). Fiche publique à 390 (barre du
+bas) et après « Écrire » (dialogue) : 0 ; `/fr/favorites` anonyme et client, 390 et 1440 : 0. Les feuilles de partage
+(aucun favori sur le compte de démo) et la feuille « numéros » de la fiche (un seul numéro) ne s'ouvrent pas sur ces
+données : la preuve de structure est le test qui fige `SheetContent side="bottom"` au caractère près.
+
+**Compteur relevé** : `surface-publique.contraste.test.ts`, `ENCRES_INVERSES` 411 → 415 (la vitrine seule, détail dans le
+docblock).
+

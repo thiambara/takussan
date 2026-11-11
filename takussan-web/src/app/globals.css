@@ -1097,6 +1097,23 @@
   --color-fond-avatar: var(--muted);
   --color-encre-avatar: var(--muted-foreground);
 }
+
+/* TCK-2690 — LES PRIMITIVES NEUVES (case à cocher, interrupteur) : aucun appelant d'avant, donc
+   aucune portée — leur défaut EST la maquette.
+   · `rounded-case` : le rayon de 5 px de la case de 18 px (`size-icone`), en `rem` fixe comme elle.
+   · `controle-vide` : le bord de la case vide et la piste de l'interrupteur éteint. La maquette
+     écrit `foreground/30` (1,93:1), `border` (1,26:1) ou `foreground/20` (1,52:1) ; WCAG 1.4.11
+     veut 3:1 (ADR-0106 § 2 a). `--input` tient en clair (3,59:1 sur `--card`, 3,04:1 sur
+     `--muted`) mais rend 1,44:1 sur `--card` SOMBRE : le thème sombre prend `--muted-foreground`
+     (7,01:1). Redéclaré sur `.dark`, pour la même raison que le repli d'avatar (alias résolu là
+     où il est déclaré). */
+@theme {
+  --radius-case: 0.3125rem;
+  --color-controle-vide: var(--input);
+}
+.dark {
+  --color-controle-vide: var(--muted-foreground);
+}
 /* primitives-de-l-app:fin */
 
 /* plancher-tactile:début

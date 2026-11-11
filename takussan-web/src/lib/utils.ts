@@ -18,6 +18,7 @@ import {
  * TCK-2686 — et les jetons de l'échelle de densité (`DENSITE_DE_L_APP`) : `cn('h-controle', 'h-11')`
  * rend `h-11` seul, la hauteur de l'appelant l'emporte sur celle de la portée `/app`.
  * TCK-2687 — et ceux des primitives (`PRIMITIVES_DE_L_APP`) : le repli de l'avatar.
+ * TCK-2690 — et le bord/la piste des contrôles neufs (`controle-vide`), le rayon de la case (`rounded-case`).
  */
 const twMerge = extendTailwindMerge({
   extend: {
@@ -27,7 +28,7 @@ const twMerge = extendTailwindMerge({
       spacing: [...TAILLES_FIXES, ...DENSITE_DE_L_APP.spacing, ...PRIMITIVES_DE_L_APP.spacing],
       shadow: [...OMBRES],
       breakpoint: [...POINTS_DE_RUPTURE],
-      radius: [...DENSITE_DE_L_APP.radius],
+      radius: [...DENSITE_DE_L_APP.radius, ...PRIMITIVES_DE_L_APP.radius],
       leading: [...DENSITE_DE_L_APP.leading],
       color: [...DENSITE_DE_L_APP.color, ...PRIMITIVES_DE_L_APP.color],
       "font-weight": [...DENSITE_DE_L_APP["font-weight"]],

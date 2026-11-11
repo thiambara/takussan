@@ -71,6 +71,9 @@ export const JETONS_CLAIR: Readonly<Record<string, string>> = {
   // `muted` et `muted-foreground`. Sous la portée : `secondary` et `primary-deep` (6,72:1).
   'fond-avatar': '#f1ece0',
   'encre-avatar': '#6e655a',
+  // TCK-2690 — le bord de la case vide et la piste de l'interrupteur éteint (`globals.css`, bloc
+  // `primitives-de-l-app`) : `--input` en clair, `--muted-foreground` en sombre (1,44:1 sinon).
+  'controle-vide': '#918672',
   accent: '#5d6e4f',
   'accent-foreground': '#fcf9f3',
   warning: '#8a5410',
@@ -275,6 +278,8 @@ export const JETONS_SOMBRE: Readonly<Record<string, string>> = {
   // TCK-2687 — mêmes alias qu'en clair (`muted`, `muted-foreground`), sur les jetons sombres.
   'fond-avatar': '#3a2e23',
   'encre-avatar': '#b8aa97',
+  // TCK-2690 — `--muted-foreground` sombre : `--input` sombre (#413b36) rendrait 1,44:1 sur `--card`.
+  'controle-vide': '#b8aa97',
   // TCK-2685 — même composition qu'en clair, sur les jetons sombres.
   'encre-douce': '#d2cec7',
   'encre-douce-inverse': '#615c56',

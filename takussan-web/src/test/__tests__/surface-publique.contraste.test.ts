@@ -494,8 +494,15 @@ const FICHIERS_HORS_JETONS = 5;
  * `console/StatCard` 0 → 4, `ui/card` 0 → 1 (`CardDescription`), `ui/tabs` 0 → 1 (`TabsCount` neuf),
  * `feedback/EmptyState` 1 → 2 (la variante `nue`). Les onze sont `text-muted-foreground` OPAQUE,
  * posé sur la page ou la carte (5,44:1 et 5,72:1) ; aucune n'est translucide, aucun défaut réel.
+ *
+ * 411 → 415 (2026-11-11, TCK-2690) : la vitrine rend les quatre primitives neuves (feuille du bas,
+ * case, interrupteur, jauge). Relevé `HEAD` (`ba8ba7e83`, `git archive`) contre l'arbre, maquettes
+ * exclues : seul `playground/vitrine/VitrineClient` bouge, 0 → 4 — la légende des feuilles, les
+ * libellés des lignes désactivées (case, interrupteur) et la valeur affichée d'une jauge, tous
+ * `text-muted-foreground` OPAQUE sur la page ou la carte. Les primitives elles-mêmes n'en posent
+ * aucune ; aucun défaut réel.
  */
-const ENCRES_INVERSES = 411;
+const ENCRES_INVERSES = 415;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);
