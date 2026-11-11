@@ -35,7 +35,11 @@ export type Review = {
   content: string | null;
   is_approved: boolean;
   status: ReviewStatus | null;
-  reported_count: number;
+  /**
+   * TCK-2722 — absent pour qui ne modère pas l'avis (`viewReports`) : l'auteur et le public ne lisent
+   * pas le nombre de signalements. La file de modération lit le sien par `reviews-moderation.ts`.
+   */
+  reported_count?: number;
   reply_content: string | null;
   replied_at: string | null;
   created_at: string | null;
