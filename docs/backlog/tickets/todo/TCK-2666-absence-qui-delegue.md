@@ -70,7 +70,7 @@ du 2026-11-10 d'ADR-0035, déjà écrit.
 **Prémisse re-mesurée** : conforme — aucun lien entre absence et délégation, pas de `PATCH`, les
 absences hors de la console des délégations.
 
-**Écart à l'ADR, à trancher par la session** : l'amendement pose `covers_absence_id` **unique**.
+**Unicité partielle — décision (a) de la session du 2026-11-11, écrite dans l'amendement d'ADR-0035** : l'amendement posait `covers_absence_id` **unique**.
 L'unicité est ici **partielle** (`role_delegations_live_cover_unique` : unique parmi les délégations
 `scheduled`/`active`) — au plus UNE délégation liée en cours par absence. Changer de remplaçant
 révoque la délégation et en crée une neuve, et retirer puis rendre le droit aussi : une unicité
