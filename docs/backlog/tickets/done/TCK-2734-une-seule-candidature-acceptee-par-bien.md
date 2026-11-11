@@ -91,7 +91,8 @@ bail.
 
 ## Notes d'implémentation
 
-_(À remplir pendant l'implémentation.)_
+- **Une candidature confirmée ne peut pas passer à « refusée »** : `reject` n'accepte qu'une candidature en attente et rend 422 sinon. Une fois une candidature acceptée, le bien n'est donc libéré que par la création du bail depuis cette candidature ou par une annulation (de l'agent ou du client).
+- La seconde confirmation est refusée **sous le verrou du bien** (409 `booking.application_already_accepted`). Côté front, aucune clé neuve : le dialogue de BookingDetail affiche la prose localisée de l'API, par `useMessageErreurApi`.
 
 ## Vérification (2026-11-11)
 
