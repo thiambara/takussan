@@ -1,0 +1,114 @@
+---
+id: TCK-2721
+title: "« Exporter » le registre des encaissements rend les lignes du registre, avec ses filtres"
+status: todo
+phase: P1
+family: full
+estimate: M
+wave: 90
+created: 2026-11-11
+updated: 2026-11-11
+depends_on: [TCK-2659]
+blocks: []
+spec_refs:
+  features:
+    - "docs/features.md#15-transactions--paiements"
+    - "docs/features.md#25-reporting--tableaux-de-bord"
+  models:
+    - "docs/models-spec.md#15-leasepayment-"
+tags: [full, argent, export, encaissements, csv, suivi-lot-1, decision-porteur]
+---
+
+## Objectif utilisateur
+
+L'admin d'agence qui a ouvert les encaissements d'un bail (ou filtré par payeur, bien, bailleur, moyen) et touche
+« Exporter » reçoit un fichier qui contient **exactement** les lignes qu'il a à l'écran, pas tout le mois de l'agence.
+
+## Contexte
+
+Relevé à la vérification adverse de TCK-2659 (R1), re-mesuré sur 2fcd7fb57 :
+
+- Le bouton « Exporter » d'« Argent » appelle l'export générique `GET /api/export/payments` (`ExportDataService::payments`)
+  avec les seules bornes `from` / `to`. Cet export rend les **échéances** de loyer dont `due_date` tombe dans les bornes —
+  impayées comprises, **réservations exclues** —, pas les encaissements (`paid_at`) du registre.
+- Les filtres du registre (`filter[entity_type]` + `filter[entity_id]` d'un lien entrant — bail, client, réservation,
+  bien —, `filter[payer_id]`, `filter[landlord_id]`, `filter[payment_method]`, `filter[status]`, `filter[search]`,
+  `filter[paid_from]` / `filter[paid_to]`) ne sont **pas transmis** et `ShowExportRequest` ne les accepterait pas : depuis
+  le lien d'un bail, l'export rend tout le mois de l'agence.
+- Le correctif de R1 (b10afead0) a fait dire au bouton ce qui part (« Exporter les loyers dus en <mois> (CSV) ») ; il n'a
+  pas changé ce qui part, et le commentaire d'`AdminFinancesClient.tsx` (~l. 97-100) le dit : « le filtre d'entité n'y est
+  pas promis : l'export l'ignore ».
+- Le téléchargement passe par le relais du front `src/app/api/export/[entity]/route.ts`, qui n'accepte que les entités
+  de `ALLOWED_ENTITIES` et ne transmet que `format`, `from`, `to`, `limit` (`FORWARD_PARAMS`) : aucun `filter[…]` ne
+  passerait aujourd'hui, même si l'API l'acceptait.
+
+## Décision
+
+**Recommandation de back-3** (le fichier des décisions de la session n'en porte pas pour ce point), **à confirmer par le
+porteur ; si refusée → `obsolete`.**
+
+- **a) (recommandé)** une entité d'export neuve, **le registre lui-même** (`payment_history`), servie par la route
+  d'export existante : mêmes filtres, même périmètre, mêmes lignes que `GET /api/payments/history` ; « Exporter » du
+  registre l'appelle avec les paramètres de l'écran.
+- b) statu quo : l'export des loyers dus du mois, nommé comme tel depuis b10afead0, sans filtre d'entité.
+
+## Contrat de données
+
+- `GET /api/export/payment_history?format=csv|xlsx&<les filtres de l'historique>` (`ExportController::show`, entité
+  neuve) → fichier ; capacité `payments.export` (celle de l'entité `payments`), 403 sinon, **avant** la validation.
+- Lignes = celles que `GET /api/payments/history` rendrait au même lecteur avec les mêmes filtres et le même tri, toutes
+  pages confondues, bornées par le plafond des exports (`ExportDataService::maxRows($format)`) **comme les autres
+  entités** : au-delà, le fichier est tronqué et la réponse porte `X-Export-Truncated` (une `limit` demandée au-delà du
+  plafond reste refusée en 422 par `ShowExportRequest`).
+- Relais du front : `payment_history` entre dans `ALLOWED_ENTITIES` ; les clés `filter[…]` de l'historique sont
+  transmises pour cette entité (liste fermée, pas de recopie aveugle de la requête).
+- Colonnes, dans l'ordre du registre : date d'encaissement, payeur, bien, période (« Loyer de novembre » en données
+  brutes : type + période), moyen, montant, statut, référence. Montants en nombres (pas de séparateur), dates ISO.
+
+## Direction UX / Artistique
+
+Le bouton reste où il est. Son nom accessible dit le périmètre réel (« Exporter les 12 encaissements affichés », ou
+« … du bail B-2026-014 ») ; le lien porte les paramètres de l'écran au moment du clic.
+
+## Contraintes strictes (métier)
+
+- **Une seule source de vérité des lignes** : l'export réutilise la requête de `PaymentController::history` (même
+  cloisonnement d'agence et de bailleur, mêmes lignes de réservation, même `paid_at`), jamais une seconde requête écrite
+  à côté. Un test de parité le garde.
+- Un payeur, un bailleur ou un bien hors du périmètre du lecteur ne sort pas plus par l'export que par la liste.
+- L'entité d'export `payments` (les échéances) reste telle quelle.
+- Le journal d'export existant (`filters` journalisés) s'applique.
+
+## Delta à produire
+
+- [ ] La requête de `PaymentController::history` extraite en un point commun ; `ExportDataService::paymentHistory()` la
+      lit ; `ExportController` : entité `payment_history` → `Capability::PaymentsExport`.
+- [ ] `ShowExportRequest` : les règles des filtres de l'historique, pour cette seule entité.
+- [ ] Relais `src/app/api/export/[entity]/route.ts` : l'entité et ses clés de filtre ; `ExportEntity` du front.
+- [ ] Front « Argent » : le lien d'export porte les paramètres de `parametresDesEncaissements` ; libellé accessible.
+- [ ] Tests : `PaymentHistoryExportTest` (parité liste/export, filtre d'entité, cloisonnement, plafond) ; test du lien côté
+      front.
+- [ ] `docs/spatie-query-builder.md` si la liste des filtres y est recopiée.
+
+## Critères d'acceptation
+
+- [ ] AC1 — Agence avec deux baux B1 et B2 encaissés en novembre : `/api/export/payment_history?filter[entity_type]=lease&filter[entity_id]=B1&filter[paid_from]=2026-11-01&filter[paid_to]=2026-11-30`
+      rend les seules lignes de B1 ; l'export sans filtre d'entité rend celles de B1 et B2.
+- [ ] AC2 — Pour cinq combinaisons de filtres (entité, payeur, bailleur, moyen, recherche), l'ensemble des références de
+      l'export égale celui des pages de `GET /api/payments/history` aux mêmes paramètres.
+- [ ] AC3 — Une réservation payée en novembre figure dans l'export du mois (l'export générique l'excluait).
+- [ ] AC4 — Un agent sans `payments.export` → 403, y compris avec un filtre mal formé (403 avant 422).
+- [ ] AC5 — Front : depuis `/app/agency/finances?tab=encaissements&entity_type=lease&entity_id=<B1>`, le lien
+      « Exporter » vise `/api/export/payment_history` et contient `filter[entity_type]=lease` et `filter[entity_id]=<B1>` ;
+      le relais les transmet à l'API (test du route handler).
+- [ ] AC6 — Au-delà du plafond, le fichier est tronqué au plafond et la réponse porte `X-Export-Truncated`, comme l'entité
+      `payments`.
+
+## Hors périmètre
+
+- L'export PDF du registre.
+- Les autres registres d'« Argent » (factures, reversements, impayés), qui ont leurs exports.
+
+## Notes d'implémentation
+
+_(à remplir par implementing-specs)_
