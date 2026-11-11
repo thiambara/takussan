@@ -115,6 +115,9 @@ const TONS_ATTENDUS: Readonly<Record<StatusTone, readonly string[]>> = {
   // docblock de `TONE_CLASSES`. La ligne est modifiée ICI et non dérivée : c'est un test de
   // NON-DÉRIVE, et l'AC1 ci-dessous porte toujours sur la table ENTIÈRE.
   info: ['bg-info/10', 'text-info'],
+  // TCK-2687 — le sixième ton, opaque : le beige de chrome et l'encre profonde (« Nouvelle »,
+  // « Aujourd'hui »). Ajouté ICI à la main, pour la même raison que la ligne ci-dessus.
+  primary: ['bg-secondary', 'text-primary-deep'],
 };
 
 const TONS = Object.keys(TONS_ATTENDUS) as StatusTone[];

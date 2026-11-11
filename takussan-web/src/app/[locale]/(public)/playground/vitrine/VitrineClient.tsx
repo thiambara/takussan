@@ -1,9 +1,14 @@
 'use client';
 
-import { Bell, Check, Home, MoreHorizontal, Plus, Search } from 'lucide-react';
+import { Bell, BellOff, Check, Home, MoreHorizontal, Plus, Search } from 'lucide-react';
 import type { ReactNode } from 'react';
 
+import { PageHeader, StatCard, StatusBadge, type StatusTone } from '@/components/console';
+import { EmptyState } from '@/components/feedback';
+import { Avatar, AvatarFallback, type TailleAvatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DatePicker } from '@/components/ui/date-picker';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -45,6 +50,26 @@ const OMBRES: ReadonlyArray<readonly [string, string]> = [
 ];
 
 const ECHANTILLON = 'Takussan 1 355 000';
+
+/** TCK-2687 — les six tons de `StatusBadge`, avec un libellé de la maquette. */
+const TONS: ReadonlyArray<readonly [StatusTone, string]> = [
+  ['neutral', 'Brouillon'],
+  ['success', 'Payé'],
+  ['attention', 'En retard'],
+  ['danger', 'Impayé'],
+  ['info', 'En cours'],
+  ['primary', 'Nouvelle'],
+];
+
+/** TCK-2687 — les surfaces où une pastille se pose (AC1 : ≥ 4,5:1 sur chacune). */
+const SURFACES_DE_PASTILLE: ReadonlyArray<readonly [string, string]> = [
+  ['card', 'bg-card'],
+  ['background', 'bg-background'],
+  ['muted', 'bg-muted'],
+];
+
+/** TCK-2687 — les six tailles d'avatar en px, puis les trois d'avant. */
+const TAILLES_AVATAR: readonly TailleAvatar[] = ['28', '32', '36', '40', '44', '48', 'sm', 'default', 'lg'];
 
 function Section({ titre, children }: { readonly titre: string; readonly children: ReactNode }) {
   return (
@@ -91,12 +116,108 @@ export function VitrineClient() {
 
   return (
     <div data-portee-app="" className="mx-auto max-w-5xl space-y-8 bg-background px-4 py-8">
-      <header className="space-y-1">
-        <h1 className="font-display text-affiche-22 font-semibold tracking-titre">Vitrine de la partie connectée</h1>
-        <p className="text-ui text-encre-douce">
-          Jetons de TCK-2685, puis primitives de TCK-2686 à TCK-2691, sous la portée <Code>data-portee-app</Code>.
-        </p>
-      </header>
+      {/* TCK-2687 — l'en-tête de la vitrine EST un `PageHeader` : son H1 (unique) se mesure ici avec
+          ses trois emplacements neufs (bandeau, fil d'Ariane, sous l'en-tête). Le nom du fil est
+          écrit en dur, comme toute la vitrine : `console.pageHeader.breadcrumb` est celui des pages
+          de `/app`, et le lire ici ferait servir l'espace `console` entier au site public. */}
+      <PageHeader
+        title="Vitrine de la partie connectée"
+        description={
+          <>
+            Jetons de TCK-2685, puis primitives de TCK-2686 à TCK-2691, sous la portée <Code>data-portee-app</Code>.
+          </>
+        }
+        fil={{ label: 'Fil d’Ariane', etapes: [{ label: 'Terrain de jeu', href: '/fr/playground' }, { label: 'Vitrine' }] }}
+        bandeau={
+          <p data-epreuve="en-tete-bandeau" className="rounded-xl border border-border bg-card p-4 text-ui">
+            Bandeau pleine largeur, au-dessus du titre.
+          </p>
+        }
+        actions={
+          <>
+            <Button variant="outline">Exporter</Button>
+            <Button>Nouveau bail</Button>
+          </>
+        }
+        dessous={
+          <Tabs defaultValue="apercu">
+            <TabsList variant="line" data-epreuve="onglets-liste">
+              <TabsTrigger value="apercu" data-epreuve="onglet-actif">Aperçu</TabsTrigger>
+              <TabsTrigger value="documents" data-epreuve="onglet-inactif">
+                Documents <TabsCount data-epreuve="onglet-compte">4</TabsCount>
+              </TabsTrigger>
+              <TabsTrigger value="historique">Historique</TabsTrigger>
+            </TabsList>
+            <TabsContent value="apercu" className="pt-4 text-ui text-encre-douce">Contenu de l’aperçu.</TabsContent>
+            <TabsContent value="documents" className="pt-4 text-ui text-encre-douce">Quatre documents.</TabsContent>
+            <TabsContent value="historique" className="pt-4 text-ui text-encre-douce">L’historique.</TabsContent>
+          </Tabs>
+        }
+      />
+
+      <Section titre="Pastilles de statut (six tons, trois surfaces)">
+        <div className="grid gap-3 sm:grid-cols-3">
+          {SURFACES_DE_PASTILLE.map(([nom, fond]) => (
+            <div key={nom} data-surface={nom} className={`flex flex-wrap gap-2 rounded-xl border border-border p-3 ${fond}`}>
+              {TONS.map(([ton, libelle]) => (
+                <StatusBadge key={ton} tone={ton} label={libelle} data-testid={`pastille-${ton}-${nom}`} />
+              ))}
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section titre="Cartes">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Card data-epreuve="carte">
+            <CardHeader filet data-epreuve="carte-en-tete">
+              <CardTitle data-epreuve="carte-titre">Paiements à venir</CardTitle>
+              <CardAction data-epreuve="carte-action">Tout voir</CardAction>
+            </CardHeader>
+            <CardContent className="text-ui text-encre-douce">Trois échéances cette semaine.</CardContent>
+          </Card>
+          <Card data-epreuve="carte-sans-filet">
+            <CardHeader>
+              <CardTitle>Sans filet</CardTitle>
+            </CardHeader>
+            <CardContent className="text-ui text-encre-douce">L’en-tête d’avant, pour les appelants existants.</CardContent>
+          </Card>
+        </div>
+      </Section>
+
+      <Section titre="Avatars (repli)">
+        <div className="flex flex-wrap items-end gap-3">
+          {TAILLES_AVATAR.map((taille) => (
+            <Avatar key={taille} size={taille} data-epreuve={`avatar-${taille}`}>
+              <AvatarFallback>AN</AvatarFallback>
+            </Avatar>
+          ))}
+        </div>
+      </Section>
+
+      <Section titre="Chiffre clé et état vide">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div data-epreuve="chiffre" className="self-start">
+            <StatCard
+              variant="chiffre"
+              label="Encaissé ce mois"
+              value="95,2 M F"
+              delta={{ label: '+8 % sur octobre', direction: 'up' }}
+            />
+          </div>
+          <StatCard label="Ancienne tuile" value="73 %" hint="Variante par défaut" className="self-start" />
+        </div>
+        <div className="rounded-xl border border-border bg-card">
+          <EmptyState
+            variant="nue"
+            className="py-16"
+            data-epreuve="etat-vide-nu"
+            icon={<BellOff className="size-6" strokeWidth={1.5} aria-hidden="true" />}
+            title="Vous êtes à jour"
+            description="Les nouvelles notifications apparaîtront ici."
+          />
+        </div>
+      </Section>
 
       <Section titre="Échelle de texte (rem calculés, hors ×0,9)">
         <ul className="space-y-2">

@@ -149,4 +149,54 @@ Sans carte ni pointillé, `px-6 py-12` ; disque **48 px** (`size-12`) `bg-muted 
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Implémenté le 2026-11-11 (terrain-3). Mesures au navigateur sur la vitrine (`/fr/playground/vitrine`, Chrome, 390 × 844
+et 1440 × 900, pointeur fin), relevés sous `…/scratchpad/impl/terrain-3/t2687/`.
+
+**Mécanique, par primitive.** Une variante `portee-app:` quand aucun appelant ne règle la propriété (pastille, trait et
+titre de carte, onglet souligné, H1) : la classe reste littérale, lisible par les gardes et le test de contraste ; un
+**jeton** pour le repli de l'avatar, que `MenuDuCompte`, `UserMenu` et `ProfileHeader` repeignent (bloc
+`primitives-de-l-app` de `globals.css`, connu de `cn` par `PRIMITIVES_DE_L_APP`) ; un **prop** pour le neuf
+(`CardHeader filet`, `Avatar size="28"…"48"`, `TabsCount`, `PageHeader fil/bandeau/dessous`, `StatCard variant="chiffre"`,
+`EmptyState variant="nue"`, ton `primary`). Sans emplacement neuf, `PageHeader` rend le DOM d'avant (l'en-tête est la racine).
+
+**Exceptions tranchées par la mesure** (harnais `contraste-wcag.ts`, sept surfaces, deux thèmes) :
+- `success` → `/11` sous la portée : pire cas 4,54:1 (`--muted` plein, clair) ; `/12` rend 4,49:1.
+- `danger` reste `/10` : `/12` rend 4,37:1 sur `--muted` sombre, et le plafond `APLAT_MAX = 10` de
+  `check-destructive-contrast.mjs` le refuse.
+- `attention` : `warning/20` + encre principale, 11,31:1 (clair) et 8,47:1 (sombre) au pire.
+- Avatar « soi » (`accent/15 text-accent`) **non repris** : 4,51:1 sur `--card` mais 4,31 sur `--background`, 3,88 sur
+  `--muted`, 3,68 sur `--card` sombre ; et `bg-accent/<n>` est refusé par `check-valeurs-arbitraires-app` (aplat-accent).
+
+**AC1** — 390 : 24 px pour les six tons sur `--card`, `--background`, `--muted` (21,6 à 1440) ; couples rendus = table
+de `StatusBadge.portee-app-tck-2687.test.tsx` ; `info` à l'encre `rgb(63, 90, 107)` (`--info`).
+**AC2** — carte : bord 1 px `rgb(235, 229, 213)` aux quatre côtés ; `box-shadow` réduit à des anneaux de 0 px (aucun
+visible) ; titre 15 px, 600, DM Sans aux deux largeurs ; en-tête à filet `12px 16px` (390), `10.8px 14.4px` (1440).
+**AC3** — avatars 28/32/36/40/44/48 px aux deux largeurs ; police 10,08 / 11,52 / 12,96 / 14,4 / 15,84 / 17,28 px
+(0,36 × la taille exacte) ; repli `rgb(130, 60, 32)` sur `rgb(243, 234, 216)`, 600 — re-mesuré après le passage de la
+graisse par la variante `portee-app:font-semibold` (le jeton de graisse est retiré) : zéro écart.
+**AC4** — 390 : trait `rgb(168, 83, 50)`, 2 px, bas du trait 314 = bas du filet de la liste 314 ; onglet visible 32 px,
+`::before` de 44 px ; `elementFromPoint` à ±17 et ±21 px du centre tombe sur l'onglet. (À 1440, pointeur fin : trait
+1,8 px — `h-0.5` sur l'échelle ×0,9, comme la maquette — et cible de 32,4 px, `h-controle` du bureau.) Survol forcé
+(CDP) d'un onglet inactif : `rgb(110, 101, 90)` → `rgb(31, 24, 18)`. Sans `not-data-active:hover:text-foreground` sous la
+portée, la couleur inactive de portée battait le `hover:` nu et le survol ne changeait rien (ablation au navigateur).
+**AC5** — `/app/leases`, avant → après : 1440 H1 Bricolage 21,6 px, 700 → **600**, −0,54 → **−0,432 px** ; 390
+24 px / 32 / 700 → **20 px / 28 / 600**, −0,4 px. Aucune autre propriété ne change sur la page (décalages verticaux seuls).
+**AC6** — relevé avant/après de tous les éléments de `main` : `/fr/favorites` anonyme et client (390, 1440 :
+`EmptyState` public, onglets `default`, avatar de l'en-tête public), `/fr/bookings` (état vide), `/fr/agents/yacine-f` :
+**zéro écart**. `/super-admin` **non mesuré au navigateur** : le compte de démo y est renvoyé vers
+`/onboarding/securite` (double authentification). Preuve de structure à la place
+(`src/components/__tests__/primitives-de-l-app.test.tsx`) : hors portée, chaque primitive rend les classes d'avant au
+caractère près, et chaque classe `portee-app:` compilée n'émet de règle que sous `:root:has([data-portee-app])`. Au navigateur, par
+injection : le repli d'avatar hors portée rend `rgb(241, 236, 224)` / `rgb(110, 101, 90)` (`--muted` /
+`--muted-foreground`, comme avant), `rgb(58, 46, 35)` / `rgb(184, 170, 151)` sous un `.dark` imbriqué.
+**AC7** — comparaison des styles calculés de la vitrine à la référence gelée (pas par `fidelite.mjs compare`, qui
+compare des pages entières) : `Chiffre` de `app-notifications/a-0-bureau-1440` (le vrai `Chiffre` de `chrome-app` ;
+celui d'`app-accueil` est une tuile locale à 22 px) — boîte 100,6 px de haut, padding 14,4, rayon 12,6, bord
+`rgb(235, 229, 213)` ; libellé à +15,4 (réf. 15,3), valeur à +38,5 (38,4), contexte à +70,8 (70,8) ; 13 / 21,6 / 10,8 px,
+graisses et couleurs identiques. `EtatVide` d'`app-notifications/a-2` (même appel, `py-16`) : 390 disque 48 à +64, titre
+à +128, texte à +156 (réf. 64 / 128 / 156), largeurs de texte 122,4 et 276,4 (identiques) ; 1440 disque 43,2 à +57,6,
+titre à +115,2, texte à +140,4 (identiques).
+
+**Compteur relevé** : `surface-publique.contraste.test.ts`, `ENCRES_INVERSES` 401 → 411 (la vitrine importe désormais
+`PageHeader`, `StatCard`, `Card`, `Tabs` et la variante `nue` : onze `text-muted-foreground` opaques, détail dans le
+docblock).

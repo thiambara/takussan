@@ -63,3 +63,14 @@ export const DENSITE_DE_L_APP = {
   color: ['fond-champ', 'fond-contour', 'encre-bouton-doux', 'encre-discrete', 'bord-danger'],
   'font-weight': ['bouton-doux'],
 } as const satisfies Record<string, readonly string[]>;
+
+/**
+ * TCK-2687 — les jetons du bloc `primitives-de-l-app` de `globals.css` : tailles et repli de
+ * l'avatar. Même raison que `DENSITE_DE_L_APP` : `cn('bg-fond-avatar', 'bg-foreground')` doit rendre
+ * `bg-foreground` seul, la teinte de l'appelant l'emporte sur celle de la portée `/app`.
+ */
+export const PRIMITIVES_DE_L_APP = {
+  spacing: ['avatar-28', 'avatar-32', 'avatar-36', 'avatar-40', 'avatar-44', 'avatar-48'],
+  text: ['avatar-28', 'avatar-32', 'avatar-36', 'avatar-40', 'avatar-44', 'avatar-48'],
+  color: ['fond-avatar', 'encre-avatar'],
+} as const satisfies Record<string, readonly string[]>;

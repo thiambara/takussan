@@ -27,6 +27,9 @@ Règles :
 - Taille minimale de corps : **14px** (16px préféré). Jamais de texte en dessous de 12px (sauf eyebrow uppercase 11px tracking).
 - Interligne confortable : `leading-relaxed` (1.625) pour le texte courant.
 - Poids : 400 (corps), 500 (labels), 600 (titres de section, prix), 700 (titres de page). Éviter 800/900.
+  *Amendé le 2026-11-11 (TCK-2687, [ADR-0106](adr/0106-la-maquette-retenue-fait-foi-au-pixel.md)) : dans `/app`, le titre de
+  page (`PageHeader`) est en **600**, à −0,02 em (`tracking-titre`), 20 px au téléphone ; 700 reste au site public et à
+  `/super-admin`.*
 - Letter-spacing : titres display en `tracking-tight` (−0,025 em en Tailwind 4 ; cette ligne disait
   « ≈ −0.01em », corrigé par TCK-2685, A § 8.4) ; eyebrows en `tracking-[0.12em] uppercase`. Dans
   `/app`, `tracking-titre` (−0,02 em) et `tracking-surtitre` (0,08 em) : cf. la section suivante.
@@ -194,8 +197,17 @@ façon — elle donnait `shadow-[0_8px_24px_rgba(27,40,69,0.08)]` en exemple, un
 palette, corrigé par TCK-460. *Une charte qui donne un hexadécimal en exemple enseigne
 l'hexadécimal.* Un jeton et un alpha, jamais une couleur.
 
+**Sous la portée `/app` (TCK-2687, maquettes retenues)**, la pastille mesure 24 px (`h-6`, 21,6 au bureau) et
+porte un sixième ton, **`primary`** — beige de chrome et encre profonde (`bg-secondary text-primary-deep`, 6,72:1) —
+pour ce qui demande l'attention sans rien signaler d'anormal (« Nouvelle », « Aujourd'hui »). Trois tons y changent,
+mesurés sur les sept surfaces dans les deux thèmes : `neutral` prend l'encre douce (opaque) ; `success` monte à **`/11`**,
+l'aplat le plus fort qui tienne (4,54:1 au pire, `/12` rend 4,49:1) ; `attention` écrit l'encre **principale** sur
+`warning/20` (11,3:1). `danger` reste à `/10` (plafond de `check-destructive-contrast.mjs`), `info` reste `--info`
+(la maquette écrit l'accent de marque). Le site public et `/super-admin` gardent la table ci-dessus.
+
 La garde de cette décision est
-`takussan-web/src/components/console/__tests__/StatusBadge.contraste-tck-450.test.tsx` : elle lit
+`takussan-web/src/components/console/__tests__/StatusBadge.contraste-tck-450.test.tsx` (et, sous la portée,
+`StatusBadge.portee-app-tck-2687.test.tsx`) : elle lit
 l'encre et l'aplat **sur le badge rendu** et recalcule les 14 ratios à chaque exécution. Le tableau
 ci-dessus est donc un relevé daté, pas une entrée de test — s'il diverge un jour, c'est lui qui est
 périmé.
@@ -559,3 +571,24 @@ cibles de 32 px ; au pointeur grossier, la portée rend le régime du pouce en `
 appelant **remplace** le jeton (`tailwind-merge` le connaît) : l'appelant garde la main — une classe
 `portee-app:h-9` l'aurait raboté. Les pages des vagues 86 à 90 adoptent l'échelle **en retirant** leurs hauteurs
 d'appelant, jamais en en écrivant.
+
+### Les primitives existantes sous la portée `/app` ([ADR-0106](adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), TCK-2687)
+
+Sous la portée, sept primitives prennent l'aspect des maquettes retenues ; hors portée (site public, `/super-admin`)
+leurs classes sont celles d'avant, au caractère près (`src/components/__tests__/primitives-de-l-app.test.tsx`).
+
+| Primitive | Sous la portée `/app` | Opt-in, partout |
+|---|---|---|
+| `StatusBadge` | 24 px, tons ci-dessus (§ L'aplat d'une pastille) | ton `primary` |
+| `Card` | **trait** sable `border border-border` (1 px, dans la boîte) au lieu de l'anneau gris ; `CardTitle` DM Sans 15 px (`text-corps`) en 600 ; `CardAction` `text-sm font-medium text-primary` | `<CardHeader filet>` : `px-4 py-3`, filet `border-b` |
+| `Avatar` | repli `bg-secondary text-primary-deep` en 600 (jetons `fond-avatar` / `encre-avatar` : la teinte d'un appelant les remplace) | `size="28"` à `"48"` : px fixes, police 0,36 × la taille |
+| `Tabs` `variant="line"` | pleine largeur sur un filet `border-b`, `gap-6`, onglet de 32 px visibles (`pb-3`), inactif `text-muted-foreground`, trait actif 2 px `--primary` sur le filet ; **cible de 44 px** par un `before:` | `<TabsCount>` |
+| `PageHeader` | H1 600, −0,02 em, 20 px / 28 au téléphone | `fil` (fil d'Ariane, 13 px, « › »), `bandeau` (`mb-5`), `dessous` (`mt-5`) |
+| `StatCard` | — | `variant="chiffre"` : trait sable, libellé 13 px en casse normale, valeur à −0,02 em |
+| `EmptyState` | — | `variant="nue"` : sans carte, `px-6 py-12`, disque de 48 px `bg-muted`, titre DM Sans |
+
+**La mécanique** : une variante `portee-app:` quand aucun appelant ne règle la propriété (couleur d'une pastille, trait
+d'une carte, police d'un titre) — la classe reste littérale, lisible par les gardes de contraste ; un **jeton** quand des
+appelants la règlent (le repli de l'avatar, que `MenuDuCompte` repeint) ; un **prop** pour ce qui est neuf. L'avatar
+« soi » de la maquette (`accent/15`) n'est pas repris : 4,31:1 sur `--background`, 3,68:1 sur `--card` en sombre, et
+l'accent reste réservé aux badges *featured*.

@@ -1,5 +1,6 @@
 "use client"
 
+import type * as React from "react"
 import { Tabs as TabsPrimitive } from "@base-ui/react/tabs"
 import { cva, type VariantProps } from "class-variance-authority"
 
@@ -35,7 +36,11 @@ const tabsListVariants = cva(
     variants: {
       variant: {
         default: "bg-muted overflow-x-auto",
-        line: "gap-1 bg-transparent",
+        // TCK-2687 — sous la portée `/app`, la liste soulignée de la maquette (`OngletsSoulignes`,
+        // `chrome-app.tsx:377`) : pleine largeur, calée à gauche, `gap-6`, sans padding, sur un filet
+        // `border-b`. La hauteur suit les onglets (32 px visibles) : la cible de 44 est portée par
+        // chaque onglet (`before:`), pas par la liste — le plancher tactile est donc levé.
+        line: "gap-1 bg-transparent portee-app:w-full portee-app:justify-start portee-app:gap-x-6 portee-app:border-b portee-app:border-border portee-app:p-0 portee-app:min-h-0 portee-app:group-data-horizontal/tabs:h-auto",
       },
     },
     defaultVariants: {
@@ -85,6 +90,44 @@ function TabsList({
  * ⚠ Primitive PARTAGÉE (12 consommateurs) : ne pas redescendre cette opacité sans refaire les six
  * mesures ci-dessus. Le fond à mesurer est celui du PARENT, jamais celui de la `TabsList`.
  */
+/**
+ * TCK-2687 (ADR-0106) — L'ONGLET SOULIGNÉ SOUS LA PORTÉE `/app`, et seulement là (`/super-admin` et
+ * le site public gardent le leur, AC6). Valeurs de la maquette (annexe B § 3.1) :
+ *
+ *  · 32 px visibles (`text-sm` 500 et `pb-3`), sans padding x ni fond, calé sur son texte (`flex-none`) ;
+ *  · inactif `text-muted-foreground` — 4,85:1 sur `--muted`, 5,44:1 sur `--background` en clair,
+ *    5,79:1 au pire en sombre ; actif `text-foreground` (la règle `not-data-active:` ne touche
+ *    pas l'onglet actif) ; au survol, l'inactif reprend `text-foreground` ;
+ *  · le trait actif : 2 px `--primary` à `-bottom-px`, son bas sur le bas du filet de la liste. La
+ *    règle porte AUSSI `group-data-horizontal/tabs:` pour l'emporter, par la spécificité et non par
+ *    l'ordre de la feuille, sur `bottom-[-5px]` de la règle de base ;
+ *  · la CIBLE de 44 px (WCAG 2.5.8, exception (1) d'ADR-0106) : un `before:` centré, de la hauteur
+ *    d'un contrôle de la portée (`h-controle` : 44 sous le pouce, 32,4 au bureau). Un pseudo-élément
+ *    appartient à son élément pour le pointeur : le clic à 6 px au-dessus du texte tombe sur l'onglet.
+ *    `after:` est déjà le trait.
+ */
+const ONGLET_SOULIGNE_APP = [
+  "portee-app:group-data-[variant=line]/tabs-list:h-auto",
+  "portee-app:group-data-[variant=line]/tabs-list:min-h-0",
+  "portee-app:group-data-[variant=line]/tabs-list:flex-none",
+  "portee-app:group-data-[variant=line]/tabs-list:rounded-none",
+  "portee-app:group-data-[variant=line]/tabs-list:border-0",
+  "portee-app:group-data-[variant=line]/tabs-list:px-0",
+  "portee-app:group-data-[variant=line]/tabs-list:pt-0",
+  "portee-app:group-data-[variant=line]/tabs-list:pb-3",
+  "portee-app:group-data-[variant=line]/tabs-list:not-data-active:text-muted-foreground",
+  // Le survol de l'onglet inactif : la règle ci-dessus (3 sélecteurs) battrait `hover:text-foreground`
+  // de la base (2) — l'onglet n'aurait plus d'état de survol visible. Celle-ci en porte 4.
+  "portee-app:group-data-[variant=line]/tabs-list:not-data-active:hover:text-foreground",
+  "portee-app:group-data-[variant=line]/tabs-list:after:bg-primary",
+  "portee-app:group-data-horizontal/tabs:group-data-[variant=line]/tabs-list:after:-bottom-px",
+  "portee-app:group-data-[variant=line]/tabs-list:before:absolute",
+  "portee-app:group-data-[variant=line]/tabs-list:before:inset-x-0",
+  "portee-app:group-data-[variant=line]/tabs-list:before:top-1/2",
+  "portee-app:group-data-[variant=line]/tabs-list:before:h-controle",
+  "portee-app:group-data-[variant=line]/tabs-list:before:-translate-y-1/2",
+].join(" ")
+
 function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
   return (
     <TabsPrimitive.Tab
@@ -94,6 +137,7 @@ function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
         "group-data-[variant=line]/tabs-list:bg-transparent group-data-[variant=line]/tabs-list:data-active:bg-transparent dark:group-data-[variant=line]/tabs-list:data-active:border-transparent dark:group-data-[variant=line]/tabs-list:data-active:bg-transparent",
         "data-active:bg-background data-active:text-foreground dark:data-active:border-input dark:data-active:bg-input/30 dark:data-active:text-foreground",
         "after:absolute after:bg-foreground after:opacity-0 after:transition-opacity group-data-horizontal/tabs:after:inset-x-0 group-data-horizontal/tabs:after:bottom-[-5px] group-data-horizontal/tabs:after:h-0.5 group-data-vertical/tabs:after:inset-y-0 group-data-vertical/tabs:after:-right-1 group-data-vertical/tabs:after:w-0.5 group-data-[variant=line]/tabs-list:data-active:after:opacity-100",
+        ONGLET_SOULIGNE_APP,
         className
       )}
       {...props}
@@ -111,4 +155,18 @@ function TabsContent({ className, ...props }: TabsPrimitive.Panel.Props) {
   )
 }
 
-export { Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants }
+/**
+ * TCK-2687 — le compte d'un onglet (« Documents 4 ») : `text-xs`, chiffres tabulaires, encre
+ * discrète. L'écart de 6 px au libellé est le `gap-1.5` de l'onglet (la maquette écrit `ml-1.5`).
+ */
+function TabsCount({ className, ...props }: React.ComponentProps<"span">) {
+  return (
+    <span
+      data-slot="tabs-count"
+      className={cn("text-xs tabular-nums text-muted-foreground", className)}
+      {...props}
+    />
+  )
+}
+
+export { Tabs, TabsList, TabsTrigger, TabsContent, TabsCount, tabsListVariants }

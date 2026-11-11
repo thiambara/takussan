@@ -487,8 +487,15 @@ const FICHIERS_HORS_JETONS = 5;
  * page publique de mesure, 404 en production) rend désormais chaque champ, `DateTimePicker`
  * compris — `ui/date-time-picker.tsx` entre dans la surface avec ses trois encres
  * `text-muted-foreground` sans fond propre (l. 171, 200, 220), déjà là, rien de neuf.
+ *
+ * 401 → 411 (2026-11-11, TCK-2687) : la vitrine rend désormais les primitives existantes de `/app`.
+ * Relevé fichier par fichier, `HEAD` (`a7a78aa4b`, extrait par `git archive`) contre l'arbre, les
+ * maquettes exclues des deux côtés : `console/PageHeader` 0 → 3 (description, fil d'Ariane neuf),
+ * `console/StatCard` 0 → 4, `ui/card` 0 → 1 (`CardDescription`), `ui/tabs` 0 → 1 (`TabsCount` neuf),
+ * `feedback/EmptyState` 1 → 2 (la variante `nue`). Les onze sont `text-muted-foreground` OPAQUE,
+ * posé sur la page ou la carte (5,44:1 et 5,72:1) ; aucune n'est translucide, aucun défaut réel.
  */
-const ENCRES_INVERSES = 401;
+const ENCRES_INVERSES = 411;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);

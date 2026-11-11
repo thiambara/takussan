@@ -4,6 +4,7 @@ import { formatMontant } from "./format/currency"
 import {
   DENSITE_DE_L_APP,
   ESPACEMENTS_DE_LETTRES,
+  PRIMITIVES_DE_L_APP,
   OMBRES,
   POINTS_DE_RUPTURE,
   TAILLES_DE_TEXTE,
@@ -16,18 +17,19 @@ import {
  * `text-foreground` voisin (cf. `src/lib/jetons-de-l-app.ts`).
  * TCK-2686 — et les jetons de l'échelle de densité (`DENSITE_DE_L_APP`) : `cn('h-controle', 'h-11')`
  * rend `h-11` seul, la hauteur de l'appelant l'emporte sur celle de la portée `/app`.
+ * TCK-2687 — et ceux des primitives (`PRIMITIVES_DE_L_APP`) : le repli de l'avatar.
  */
 const twMerge = extendTailwindMerge({
   extend: {
     theme: {
-      text: [...Object.keys(TAILLES_DE_TEXTE), ...DENSITE_DE_L_APP.text],
+      text: [...Object.keys(TAILLES_DE_TEXTE), ...DENSITE_DE_L_APP.text, ...PRIMITIVES_DE_L_APP.text],
       tracking: [...ESPACEMENTS_DE_LETTRES],
-      spacing: [...TAILLES_FIXES, ...DENSITE_DE_L_APP.spacing],
+      spacing: [...TAILLES_FIXES, ...DENSITE_DE_L_APP.spacing, ...PRIMITIVES_DE_L_APP.spacing],
       shadow: [...OMBRES],
       breakpoint: [...POINTS_DE_RUPTURE],
       radius: [...DENSITE_DE_L_APP.radius],
       leading: [...DENSITE_DE_L_APP.leading],
-      color: [...DENSITE_DE_L_APP.color],
+      color: [...DENSITE_DE_L_APP.color, ...PRIMITIVES_DE_L_APP.color],
       "font-weight": [...DENSITE_DE_L_APP["font-weight"]],
     },
   },

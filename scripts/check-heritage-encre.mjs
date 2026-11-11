@@ -227,8 +227,10 @@ const JETONS_SOMBRE = {
  * Sous la portée `/app` (thème clair), le fond du contour devient `--card` (#fff) : à moins de 2 %
  * de luminance de `--background`, un couple qui passe ici passe là.
  */
-{
-  const i = css.indexOf('/* densite-de-l-app:début');
+// TCK-2687 — même lecture pour le bloc `primitives-de-l-app` (le repli de l'avatar : `fond-avatar`,
+// `encre-avatar`, alias de `muted` et `muted-foreground` hors portée).
+for (const marque of ['/* densite-de-l-app:début', '/* primitives-de-l-app:début']) {
+  const i = css.indexOf(marque);
   const t = i === -1 ? null : css.slice(i).match(/@theme \{([\s\S]*?)\n\}/);
   for (const m of t ? t[1].matchAll(/--color-([a-z0-9-]+)\s*:\s*var\(--([a-z0-9-]+)\)\s*;/g) : []) {
     if (JETONS_CLAIR[m[2]]) JETONS_CLAIR[m[1]] = JETONS_CLAIR[m[2]];

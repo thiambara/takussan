@@ -10,7 +10,7 @@
 export { DataState } from './DataState';
 export type { DataStateProps } from './DataState';
 export { PageHeader } from './PageHeader';
-export type { PageHeaderProps } from './PageHeader';
+export type { EtapeDuFil, PageHeaderProps } from './PageHeader';
 export { RouteSkeleton } from './RouteSkeleton';
 export type { RouteSkeletonProps, RouteSkeletonVariant } from './RouteSkeleton';
 export { StatCard } from './StatCard';

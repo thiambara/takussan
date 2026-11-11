@@ -72,6 +72,9 @@
     },
     "search": {
       "pending": "Mi ngi wut…"
+    },
+    "pageHeader": {
+      "breadcrumb": "Fil d'Ariane"
     }
   },
   "nav": {

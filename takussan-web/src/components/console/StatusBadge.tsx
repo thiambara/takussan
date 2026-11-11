@@ -4,13 +4,17 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 /**
- * Les tons SÉMANTIQUES, et il n'y en a que cinq.
+ * Les tons SÉMANTIQUES, et il n'y en a que six.
  *
  * Le ton dit ce que le statut VEUT DIRE, jamais la couleur qu'il porte : c'est ce qui permettra à
  * TCK-358 de changer la palette sans rouvrir un seul écran. Un appelant qui aurait besoin d'un
- * sixième ton a probablement besoin d'une colonne, pas d'une couleur de plus.
+ * septième ton a probablement besoin d'une colonne, pas d'une couleur de plus.
+ *
+ * TCK-2687 — le sixième, `primary`, vient des maquettes retenues de `/app` (ADR-0106) : « Nouvelle »,
+ * « Aujourd'hui » — ce qui DEMANDE l'attention sans rien signaler d'anormal. Ni `attention` (un
+ * risque), ni `info` (un état en cours) ne le disent.
  */
-type StatusTone = 'neutral' | 'success' | 'attention' | 'danger' | 'info';
+type StatusTone = 'neutral' | 'success' | 'attention' | 'danger' | 'info' | 'primary';
 
 interface StatusBadgeProps {
   /** Libellé affiché. Déjà traduit — cf. le docblock d'`EmptyState`. */
@@ -135,6 +139,34 @@ const TONE_CLASSES: Record<StatusTone, string> = {
   attention: 'bg-warning/12 text-warning',
   danger: 'bg-destructive/10 text-destructive',
   info: 'bg-info/10 text-info',
+  // TCK-2687 — le beige de chrome et l'encre profonde : 6,72:1 en clair, 5,09:1 en sombre, sur
+  // toute surface (l'aplat est opaque, la surface ne compte pas).
+  primary: 'bg-secondary text-primary-deep',
+};
+
+/**
+ * TCK-2687 (ADR-0106) — CE QUI CHANGE SOUS LA PORTÉE `/app`, et seulement là : le site public et
+ * `/super-admin` gardent la table ci-dessus au pixel (AC6). Une variante `portee-app:` et non un
+ * jeton : aucun appelant ne repeint une pastille (relevé du 2026-11-11 : les `className` passés
+ * règlent marges, retour à la ligne et taille de texte, jamais la couleur) — et la classe reste
+ * LITTÉRALE, lisible par `check-destructive-contrast.mjs` et par le test de contraste.
+ *
+ *  · `neutral` — l'encre douce de TCK-2685 (opaque) au lieu de l'encre discrète : la maquette
+ *    écrit l'encre principale à 75 %, une encre à alpha que `encre-sans-alpha` refuse.
+ *  · `success` — l'aplat le plus fort qui tient 4,5:1 sur les sept surfaces, dans les deux thèmes :
+ *    `/11` (pire cas : `--muted` plein en clair, 4,54:1). `/12` y rend 4,49:1, et la maquette écrit `/15`.
+ *  · `attention` — encre PRINCIPALE sur un aplat ocre plus fort, comme la maquette : 11,3:1 au pire
+ *    en clair, 8,5:1 en sombre. L'ocre en encre ne tenait que 4,52:1.
+ *  · `danger` ne change pas : la maquette écrit `/12`, que le plafond de
+ *    `check-destructive-contrast.mjs` refuse (thème sombre, `--muted` : 4,37:1).
+ *  · `info` ne change pas : la maquette écrit l'accent de MARQUE, réservé aux badges *featured*.
+ *
+ * Les chiffres sont recalculés par `__tests__/StatusBadge.portee-app-tck-2687.test.tsx`.
+ */
+const TONE_CLASSES_APP: Partial<Record<StatusTone, string>> = {
+  neutral: 'portee-app:text-encre-douce',
+  success: 'portee-app:bg-success/11',
+  attention: 'portee-app:bg-warning/20 portee-app:text-foreground',
 };
 
 /**
@@ -164,7 +196,14 @@ export function StatusBadge({
       variant="outline"
       data-tone={tone}
       data-testid={dataTestId}
-      className={cn('h-auto gap-1 border-transparent py-0.5', TONE_CLASSES[tone], className)}
+      // TCK-2687 — 24 px sous la portée `/app` (`h-6`, 21,6 au bureau), 22 ailleurs (`h-auto` :
+      // 16 de texte, `py-0.5`, le bord transparent).
+      className={cn(
+        'h-auto gap-1 border-transparent py-0.5 portee-app:h-6',
+        TONE_CLASSES[tone],
+        TONE_CLASSES_APP[tone],
+        className,
+      )}
     >
       {icon}
       {label}

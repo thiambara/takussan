@@ -72,6 +72,9 @@
     },
     "search": {
       "pending": "Recherche en cours…"
+    },
+    "pageHeader": {
+      "breadcrumb": "Fil d'Ariane"
     }
   },
   "nav": {

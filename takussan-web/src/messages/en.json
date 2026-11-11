@@ -72,6 +72,9 @@
     },
     "search": {
       "pending": "Searching…"
+    },
+    "pageHeader": {
+      "breadcrumb": "Breadcrumb"
     }
   },
   "nav": {

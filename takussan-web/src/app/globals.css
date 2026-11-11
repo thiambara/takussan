@@ -1053,6 +1053,52 @@
 }
 /* densite-de-l-app:fin */
 
+/* primitives-de-l-app:début
+ * TCK-2687 (ADR-0106) — LES PRIMITIVES EXISTANTES SOUS LA PORTÉE `/app`, quand une variante
+ * `portee-app:` ne suffit pas. Pastille, carte, onglets soulignés et en-tête de page passent par la
+ * variante (aucun appelant n'en règle la couleur ni la police) ; le REPLI DE L'AVATAR, lui, est
+ * repeint par ses appelants (`MenuDuCompte`, `UserMenu`, `ProfileHeader` : `bg-foreground
+ * text-background`), et une variante les aurait écrasés sous `/app`. D'où des JETONS, même
+ * mécanique que `densite-de-l-app` : défaut = la classe d'avant, redéfinis par la portée, connus de
+ * `tailwind-merge` (`PRIMITIVES_DE_L_APP`) pour que la classe de l'appelant les REMPLACE.
+ *
+ * Les tailles d'avatar (`size="28"` à `"48"`) sont en `rem` FIXES : la maquette les pose en px
+ * (`style`), elles ne rétrécissent pas au bureau. La police du repli vaut 0,36 × la taille.
+ */
+@theme {
+  --spacing-avatar-28: 1.75rem;
+  --spacing-avatar-32: 2rem;
+  --spacing-avatar-36: 2.25rem;
+  --spacing-avatar-40: 2.5rem;
+  --spacing-avatar-44: 2.75rem;
+  --spacing-avatar-48: 3rem;
+  --text-avatar-28: 0.63rem; /* 10,08 px */
+  --text-avatar-32: 0.72rem; /* 11,52 px */
+  --text-avatar-36: 0.81rem; /* 12,96 px */
+  --text-avatar-40: 0.9rem; /* 14,4 px */
+  --text-avatar-44: 0.99rem; /* 15,84 px */
+  --text-avatar-48: 1.08rem; /* 17,28 px */
+  /* Le repli : hors portée, celui d'avant (`bg-muted text-muted-foreground`). Sa graisse passe par
+     `portee-app:font-semibold` : hors portée, le repli n'en pose AUCUNE et hérite (un jeton à 400
+     l'aurait fixée). */
+  --color-fond-avatar: var(--muted);
+  --color-encre-avatar: var(--muted-foreground);
+}
+
+/* Sous la portée, le repli de la maquette : beige de chrome, encre profonde — 6,72:1 en clair,
+   5,09:1 en sombre (aplats opaques). Redéclaré sur une surface `.dark` imbriquée : un alias se
+   résout là où il est DÉCLARÉ (cf. la note de `densite-de-l-app`). */
+:root:has([data-portee-app]),
+:root:has([data-portee-app]) .dark {
+  --color-fond-avatar: var(--secondary);
+  --color-encre-avatar: var(--primary-deep);
+}
+.dark {
+  --color-fond-avatar: var(--muted);
+  --color-encre-avatar: var(--muted-foreground);
+}
+/* primitives-de-l-app:fin */
+
 /* plancher-tactile:début
  * Revue design 2026-09-16 — PLANCHERS TACTILES des primitives sous `sm` (Button, Input, Select,
  * DatePicker, Tabs horizontaux). En `@layer components`, SOUS les utilitaires : un `min-h-*`
