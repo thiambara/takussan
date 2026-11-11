@@ -8,6 +8,7 @@ import { ecrireModeIcones, type ModeIcones } from '@/lib/navigation/mode-icones'
 import type { Persona } from '@/lib/navigation/personas';
 import {
   avecPersona,
+  epinglesApresDeplacement,
   prefsApresEpingle,
   prefsApresRepli,
   prefsDe,
@@ -170,6 +171,9 @@ export function PreferencesDuMenuProvider({
     navigation,
     modeIcones,
     basculerEpingle: (cible, id, rendues) => modifier(cible, (p) => prefsApresEpingle(p, rendues, id)),
+    // TCK-2619 — l'ordre des épingles est celui du tableau : le geste le récrit, rien d'autre.
+    deplacerEpingle: (cible, id, vers, rendues) =>
+      modifier(cible, (p) => ({ ...p, epingles: epinglesApresDeplacement(rendues, id, vers) })),
     basculerRepli: (cible, groupe, replie, replieParDefaut) =>
       modifier(cible, (p) => prefsApresRepli(p, groupe, replie, replieParDefaut)),
     masquerDemarrer: (cible) => modifier(cible, (p) => ({ ...p, demarrer_masque: true })),

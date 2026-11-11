@@ -4,7 +4,18 @@ import { useId, useRef, useState, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronDown, Lock, PanelLeftClose, PanelLeftOpen, Pin, Plus, PlusCircle, Search, ShieldCheck } from 'lucide-react';
+import {
+  DndContext,
+  PointerSensor,
+  TouchSensor,
+  closestCenter,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import { ChevronDown, GripVertical, Lock, PanelLeftClose, PanelLeftOpen, Pin, Plus, PlusCircle, Search, ShieldCheck } from 'lucide-react';
 import type { User } from '@/types/user';
 import { isSuperAdmin } from '@/lib/roles';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -49,6 +60,7 @@ import {
   LIBELLE_DE_LIGNE,
   STYLE_COMPTEUR,
   STYLE_EPINGLE,
+  STYLE_POIGNEE,
   STYLE_LIGNE,
   STYLE_LIGNE_ACTIVE,
   STYLE_LIGNE_REPOS,
@@ -156,6 +168,8 @@ interface SidebarItemProps {
   readonly epingle?: EpingleDeLigne;
   /** TCK-2480 — la barre est réduite MAINTENANT : le libellé passe en infobulle (survol et focus). */
   readonly infobulle?: boolean;
+  /** TCK-2619 — la poignée d'une épingle, en mode « Modifier le menu » : avant le lien, dans la ligne. */
+  readonly poignee?: ReactNode;
 }
 
 /**
@@ -175,6 +189,7 @@ function SidebarItem({
   nomAccessible,
   epingle,
   infobulle = false,
+  poignee,
 }: SidebarItemProps) {
   const { labelKey, labelSpace, icon: Icon, emphasized, locked, counterKey } = entree;
   const t = useTranslations('nav.sidebar');
@@ -269,10 +284,11 @@ function SidebarItem({
     <div
       data-ligne=""
       className={cn(
-        'group/ligne flex items-center rounded-lg transition-colors motion-reduce:transition-none',
+        'flex items-center rounded-lg transition-colors motion-reduce:transition-none',
         active ? 'bg-foreground/8' : 'hover:bg-foreground/5',
       )}
     >
+      {poignee}
       {lien}
       {/* TCK-2480 — l'épingle est une SŒUR du lien (un bouton dans un lien n'est pas valide) : bouton à
           bascule, nom constant, état dans `aria-pressed`. Refusée (A7, cinq épingles), elle reste
@@ -306,6 +322,101 @@ const ESPACE_ENTRE_LIGNES = 'max-md:space-y-px';
 interface CompteCache {
   readonly nombre: number;
   readonly libelle: string;
+}
+
+/**
+ * TCK-2619 — une épingle ordonnable, en mode « Modifier le menu » : la ligne entière se glisse (souris,
+ * doigt) depuis sa poignée, et se dépose sur une autre épingle. `@dnd-kit/core` (déjà au dépôt, pipeline
+ * CRM) : déplaçable ET cible de dépôt, la ligne suit le doigt en vertical seulement.
+ */
+function LigneOrdonnable({ id, children }: { readonly id: string; readonly children: (poignee: PoigneeOrdonnable) => ReactNode }) {
+  const deplacable = useDraggable({ id });
+  const cible = useDroppable({ id });
+  const decalage = deplacable.transform?.y ?? 0;
+  return (
+    <div
+      ref={(noeud) => {
+        deplacable.setNodeRef(noeud);
+        cible.setNodeRef(noeud);
+      }}
+      data-ordonnable={id}
+      style={decalage ? { transform: `translate3d(0, ${decalage}px, 0)` } : undefined}
+      className={cn(deplacable.isDragging && 'relative z-10 rounded-lg bg-card shadow-sm')}
+    >
+      {children({ ecouteurs: deplacable.listeners, attributs: deplacable.attributes })}
+    </div>
+  );
+}
+
+interface PoigneeOrdonnable {
+  readonly ecouteurs: ReturnType<typeof useDraggable>['listeners'];
+  readonly attributs: ReturnType<typeof useDraggable>['attributes'];
+}
+
+/**
+ * TCK-2619 — la poignée : un bouton (le glisser n'est pas le seul chemin, WCAG 2.5.7) que les flèches
+ * haut et bas déplacent d'un rang. Son nom dit le geste ; le rang se lit dans une région polie.
+ */
+function PoigneeDEpingle({
+  id,
+  libelle,
+  ordonnable,
+  onDeplacer,
+}: {
+  readonly id: string;
+  readonly libelle: string;
+  readonly ordonnable: PoigneeOrdonnable;
+  readonly onDeplacer: (pas: 1 | -1) => void;
+}) {
+  const t = useTranslations('nav.sidebar.edition');
+  return (
+    <button
+      type="button"
+      data-poignee={id}
+      aria-label={t('deplacer', { libelle })}
+      aria-roledescription={ordonnable.attributs['aria-roledescription']}
+      aria-describedby={ordonnable.attributs['aria-describedby']}
+      onKeyDown={(event) => {
+        if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+        event.preventDefault();
+        onDeplacer(event.key === 'ArrowUp' ? -1 : 1);
+      }}
+      className={cn(STYLE_POIGNEE, FOCUS_RING)}
+      {...ordonnable.ecouteurs}
+    >
+      <GripVertical className="size-4" aria-hidden />
+    </button>
+  );
+}
+
+/**
+ * TCK-2619 — le bandeau du mode « Modifier le menu » (maquette `app-coque`, « Menu (tiroir) », bureau) :
+ * la limite, le compte, le geste, et « Terminé », qui rend le menu à sa lecture.
+ */
+function BandeauDEdition({ nombre, onTerminer }: { readonly nombre: number; readonly onTerminer: () => void }) {
+  const t = useTranslations('nav.sidebar.edition');
+  return (
+    <div
+      data-slot="bandeau-d-edition"
+      className="mx-2 mb-2 flex shrink-0 items-center gap-2 rounded-lg bg-secondary px-3 py-2 text-ui icones:hidden"
+    >
+      <p className="min-w-0 flex-1 leading-snug">
+        <span className="font-semibold">{t('titre', { max: EPINGLES_MAX })}</span>
+        <span className="block text-muted-foreground">{t('compte', { nombre, max: EPINGLES_MAX })}</span>
+      </p>
+      <button
+        type="button"
+        data-slot="terminer-l-edition"
+        onClick={onTerminer}
+        className={cn(
+          'inline-flex h-8 shrink-0 items-center rounded-lg bg-primary px-3 text-ui font-medium text-primary-foreground hover:bg-primary/90 max-md:h-10',
+          FOCUS_RING,
+        )}
+      >
+        {t('terminer')}
+      </button>
+    </div>
+  );
 }
 
 interface GroupeDuMenuProps {
@@ -685,6 +796,30 @@ export function AppSidebar({
     flushSync(() => prefs.basculerEpingle(persona, id, menu.epingles));
     barre.current?.querySelector<HTMLButtonElement>(`button[data-epingle="${id}"]`)?.focus();
   };
+  // TCK-2619 — le mode « Modifier le menu » : punaises et poignées n'existent que là (tiroir et colonne).
+  // Local à CE montage : le tiroir et la colonne fixe ne s'ouvrent pas en édition l'un pour l'autre. Le
+  // focus suit le geste, comme pour l'épingle : « Terminé » à l'entrée, « Modifier le menu » à la sortie.
+  const [edition, setEdition] = useState(false);
+  const changerEdition = (suivante: boolean) => {
+    flushSync(() => setEdition(suivante));
+    barre.current
+      ?.querySelector<HTMLButtonElement>(suivante ? '[data-slot="terminer-l-edition"]' : '[data-slot="modifier-le-menu"]')
+      ?.focus();
+  };
+  // TCK-2619 — l'ordre des épingles : le tableau `epingles`, récrit au rang voulu (glisser, ou flèches).
+  const deplacerLEpingle = (id: EntreeComposee['id'], vers: number) => {
+    flushSync(() => prefs.deplacerEpingle(persona, id, vers, menu.epingles));
+    barre.current?.querySelector<HTMLButtonElement>(`button[data-poignee="${id}"]`)?.focus();
+  };
+  const capteurs = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 6 } }),
+  );
+  const surDepot = ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return;
+    const vers = menu.epingles.indexOf(String(over.id) as EntreeComposee['id']);
+    if (vers !== -1) deplacerLEpingle(String(active.id) as EntreeComposee['id'], vers);
+  };
   // Même famille (décision de la session) — la croix de « Démarrer » démonte le bloc qui avait le
   // focus : il passe au premier élément focalisable du menu qui le SUIT (le premier groupe hors
   // « Épinglés », qui le précède), cherché dans CETTE barre, sans effet. Pas de `flushSync` ici,
@@ -698,9 +833,10 @@ export function AppSidebar({
     prefs.masquerDemarrer(persona);
   };
 
-  const rendreEntree = (entree: EntreeRendue, replie = false) => (
+  const rendreEntree = (entree: EntreeRendue, replie = false, poignee?: ReactNode) => (
     <SidebarItem
       key={entree.href}
+      poignee={poignee}
       entree={entree}
       href={lien(entree)}
       active={entree.href === activeHref}
@@ -715,7 +851,8 @@ export function AppSidebar({
       epingle={
         // TCK-2480 (A7) — ni l'action, ni la carte, ni « Aussi … » (`epinglable` absent), ni une ligne
         // cadenassée. Le geste repart des épingles RENDUES (`menu.epingles`).
-        prefs.actif && entree.epinglable && !entree.locked
+        // TCK-2619 — seulement en mode « Modifier le menu ».
+        edition && prefs.actif && entree.epinglable && !entree.locked
           ? {
               epinglee: entree.epinglee === true,
               plein: menu.epingles.length >= EPINGLES_MAX,
@@ -739,7 +876,9 @@ export function AppSidebar({
   // RESTE, au-dessus de « Messagerie » et « Tâches » (maquette `app-coque`, gelée le 2026-11-11). La
   // décision de la revue porte sur le tableau de bord de l'admin d'agence, et lui seul est hissé.
   const tete = autresComposes[0];
+  // TCK-2619 — en édition, rien n'est hissé : le tableau de bord reste dans son groupe, épinglable.
   const tableauEnTete =
+    !edition &&
     menu.persona === 'admin-agence' && tete?.id === 'tete' && tete.entrees[0]?.id === 'tableau-de-bord' ? tete.entrees[0] : null;
   const autres = tableauEnTete
     ? [{ ...tete!, entrees: tete!.entrees.slice(1) }, ...autresComposes.slice(1)].filter((g) => g.entrees.length > 0)
@@ -758,6 +897,26 @@ export function AppSidebar({
         },
       ];
     });
+  // TCK-2619 — en édition, une épingle porte sa poignée et se glisse parmi les autres.
+  const rendreEpinglee = (entree: EntreeRendue, replie = false) => {
+    const rang = menu.epingles.indexOf(entree.id);
+    return (
+      <LigneOrdonnable key={entree.href} id={entree.id}>
+        {(ordonnable) => (
+          rendreEntree(
+            entree,
+            replie,
+            <PoigneeDEpingle
+              id={entree.id}
+              libelle={libelleDEntree(entree)}
+              ordonnable={ordonnable}
+              onDeplacer={(pas) => deplacerLEpingle(entree.id, rang + pas)}
+            />,
+          )
+        )}
+      </LigneOrdonnable>
+    );
+  };
   const rendreGroupe = (groupe: (typeof groupes)[number], premier: boolean) => (
     <GroupeDuMenu
       key={groupe.id}
@@ -766,7 +925,7 @@ export function AppSidebar({
       premier={premier}
       idBase={idBase}
       activeHref={activeHref}
-      rendreEntree={rendreEntree}
+      rendreEntree={edition && groupe.id === 'epingles' ? rendreEpinglee : rendreEntree}
       onBasculer={basculerGroupe}
       infobulle={infobulle}
       comptesCaches={comptesCachesDu(groupe)}
@@ -793,9 +952,11 @@ export function AppSidebar({
       {/* TCK-2691 (C12) — `px-4` et un lien sans marge propre : le logo à 14,4 px du bord, comme la maquette. */}
       <div className="flex h-14 shrink-0 items-center gap-2 px-4 icones:h-auto icones:flex-col icones:gap-1 icones:px-0 icones:py-3">
         {/* Revue adverse (M4) — dans le rail aussi : de 768 à 1023 px c'est le mode par défaut, et sans
-            elle la coque n'avait plus de lien vers l'accueil. Le symbole seul ; le nom reste lu. */}
+            elle la coque n'avait plus de lien vers l'accueil. Le symbole seul ; le nom reste lu.
+            TCK-2619 — la marque ramène à l'espace de travail (`/app`), elle n'en fait plus sortir : le
+            site public est au menu du compte (« Voir le site public »). Colonne, rail et tiroir. */}
         <Link
-          href="/"
+          href="/app"
           onClick={onNavigate}
           data-slot="marque"
           className={cn('inline-flex shrink-0 rounded-md py-1 icones:px-1', FOCUS_RING)}
@@ -830,8 +991,11 @@ export function AppSidebar({
           le tableau de bord hissé, « Aujourd'hui », le menu et « Récents ». Le tableau de bord hissé hors
           du `<nav>` échappait à qui saute au menu par les repères. La marque, la cloche et le compte, qui
           ne mènent pas dans l'espace, restent hors du repère. */}
+      {edition ? <BandeauDEdition nombre={menu.epingles.length} onTerminer={() => changerEdition(false)} /> : null}
       <nav aria-label={t('navLabel')} className="flex min-h-0 flex-1 flex-col">
-        {(action && IconeAction) || onOuvrirPalette || tableauEnTete ? (
+        {/* TCK-2619 — en édition, la colonne ne montre que ce qui s'épingle (maquette « Menu (tiroir) »,
+            bureau) : ni l'action, ni « Aller à », ni « Aujourd'hui », ni « Démarrer », ni « Récents ». */}
+        {!edition && ((action && IconeAction) || onOuvrirPalette || tableauEnTete) ? (
           <div className={cn('shrink-0 px-2 pb-2', ESPACE_ENTRE_LIGNES)}>
             {action && IconeAction ? (
               <Tooltip disabled={!infobulle}>
@@ -846,7 +1010,7 @@ export function AppSidebar({
                         // TCK-2478 — mesuré au navigateur : « Proposer un bien à mon agence » était tronqué.
                         // L'action dit ce qu'elle fait en entier : elle passe à la ligne, jamais d'ellipse.
                         STYLE_LIGNE,
-                        'h-auto min-h-9 py-1.5 transition-colors max-md:h-auto max-md:min-h-10',
+                        'h-auto min-h-9 py-1.5 transition-colors max-md:h-auto max-md:min-h-11',
                         actionCourante ? STYLE_LIGNE_ACTIVE : 'hover:bg-foreground/5',
                         FOCUS_RING_RENTRANT,
                       )}
@@ -880,15 +1044,23 @@ export function AppSidebar({
         >
           {/* TCK-2490 (ADR-0090 §3) — ce qui attend une réponse, HORS du menu (`data-slot="menu"`) : le
               menu ne bouge jamais selon un compteur. Rien n'est rendu quand rien n'attend. */}
-          <AujourdhuiDeLaBarre lignes={aujourdhui} entrees={entrees} onNavigate={onNavigate} infobulle={infobulle} />
+          <AujourdhuiDeLaBarre lignes={edition ? [] : aujourdhui} entrees={entrees} onNavigate={onNavigate} infobulle={infobulle} />
           <div data-slot="menu" className="relative">
             {/* TCK-2480 (A6) — « Épinglés » d'abord, avant « Démarrer », qui est transitoire. */}
-            {epingles ? rendreGroupe(epingles, true) : null}
+            {epingles ? (
+              edition ? (
+                <DndContext sensors={capteurs} collisionDetection={closestCenter} onDragEnd={surDepot}>
+                  {rendreGroupe(epingles, true)}
+                </DndContext>
+              ) : (
+                rendreGroupe(epingles, true)
+              )
+            ) : null}
             {/* TCK-2479 — « Démarrer » : un espace neuf sait par où commencer. Dans le menu, il défile
                 avec le menu ; il n'en réordonne aucune entrée. `menu.demarrer` est `null` pour un persona
                 sans mise en service, dans un espace suspendu, et (TCK-2480, A9) masqué par l'utilisateur
                 pour ce persona : ni groupe, ni lecture. */}
-            {menu.demarrer ? (
+            {menu.demarrer && !edition ? (
               <DemarrerDeLEspace
                 mode={menu.demarrer}
                 ouverte={(href) => cheminOuvert(ctxMenu, href)}
@@ -903,6 +1075,7 @@ export function AppSidebar({
             {autres.map((groupe, index) => rendreGroupe(groupe, index === 0 && epingles === null))}
           </div>
           {/* TCK-2490 (ADR-0090 §5) — les pages récentes de l'appareil, quatre au plus, sans icône. */}
+          {edition ? null : (
           <RecentsDeLaBarre
             compte={user.id}
             groupes={groupes}
@@ -911,6 +1084,23 @@ export function AppSidebar({
             lien={lien}
             onNavigate={onNavigate}
           />
+          )}
+          {/* TCK-2619 — l'entrée du mode « Modifier le menu », discrète, en bas du menu (tiroir et colonne,
+              jamais le rail). Sans fournisseur, aucun geste ne s'enregistre : rien. */}
+          {prefs.actif && !edition ? (
+            <button
+              type="button"
+              data-slot="modifier-le-menu"
+              onClick={() => changerEdition(true)}
+              className={cn(
+                'mt-3 flex h-9 w-full items-center gap-2 border-t border-border px-2 text-ui text-muted-foreground hover:text-foreground max-md:h-11 max-md:text-sm icones:hidden',
+                FOCUS_RING_RENTRANT,
+              )}
+            >
+              <Pin className="size-4" aria-hidden />
+              {t('edition.modifier')}
+            </button>
+          ) : null}
         </div>
       </nav>
       <div className="shrink-0 space-y-px border-t border-border p-2">

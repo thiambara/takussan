@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 
 import { buttonVariants } from '@/components/ui/button';
 import { listePour } from '@/lib/navigation/app-sections';
+import { cn } from '@/lib/utils';
 
 /**
  * Le seul morceau CLIENT de l'écran introuvable — et il est isolé ici pour une raison mesurée.
@@ -21,6 +22,10 @@ import { listePour } from '@/lib/navigation/app-sections';
  * client que ce qui exige l'URL demandée : le raccourci vers la liste. Ce raccourci apparaît à
  * l'hydratation ; ce qui manque avant elle est un raccourci, plus jamais l'explication.
  *
+ * ⚠ Mesuré le 2026-11-11 (TCK-2619, build de production) : une 404 de `/app` est servie en document
+ * d'erreur de Next, corps vide — rien de l'écran, serveur ou client, n'est dans le HTML. Pourquoi le
+ * relevé ci-dessus disait autre chose n'est pas établi (docblock de `not-found.tsx`).
+ *
  * `usePathname()` rend bien l'URL DEMANDÉE, y compris sur une navigation douce — vérifié au
  * navigateur sur la sonde (clic depuis une autre page, `pathname` lu dans la frontière :
  * `/sonde-nf/leases/abc`, l'URL cible et non celle d'origine). C'était la dernière affirmation
@@ -32,7 +37,8 @@ export function RetourVersLaListe() {
   if (!liste) return null;
 
   return (
-    <Link href={liste} className={buttonVariants()}>
+    // TCK-2619 — le retour de la maquette (« Page introuvable », bureau) : contour, en tête des deux.
+    <Link href={liste} data-slot="retour-a-la-liste" className={cn(buttonVariants({ variant: 'outline' }), 'max-md:h-12 max-md:w-full max-md:text-corps')}>
       {t('backToList')}
     </Link>
   );

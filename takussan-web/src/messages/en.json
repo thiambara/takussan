@@ -232,7 +232,9 @@
         "changerDEspace": "Switch space",
         "credits": "Credits",
         "preferences": "Notification settings",
-        "langue": "Language"
+        "langue": "Language",
+        "sitePublic": "View the public site",
+        "titre": "My account"
       },
       "aujourdhui": {
         "titre": "Today",
@@ -240,7 +242,7 @@
         "lignes": {
           "unreadMessages": "Unread messages",
           "pendingVisits": "Visits to confirm",
-          "unhandledLeads": "Contact requests",
+          "unhandledLeads": "Requests to handle",
           "reviewModeration": "Reviews to moderate",
           "propertyModeration": "Listings to review"
         }
@@ -297,7 +299,14 @@
       },
       "today": "Today",
       "tasks": "Tasks",
-      "rents": "Rents"
+      "rents": "Rents",
+      "edition": {
+        "modifier": "Edit the menu",
+        "titre": "Pin up to {max} pages",
+        "compte": "{nombre} of {max} · drag to reorder",
+        "terminer": "Done",
+        "deplacer": "Move {libelle} (up and down arrows)"
+      }
     },
     "admin": {
       "team": "Team",
@@ -2643,9 +2652,14 @@
     },
     "notFound": {
       "title": "Not found",
-      "description": "This item does not exist, or it does not belong to your agency. Check the link, or go back to the list.",
+      "description": "This item doesn't exist, or it isn't part of your agency.",
       "backToList": "Back to the list",
-      "backToDashboard": "Back to the dashboard"
+      "backToDashboard": "Back to the dashboard",
+      "heading": "Page not found",
+      "aide": "Check the link, or go straight to where you meant to go.",
+      "backHome": "Back to home",
+      "backToday": "Back to Today",
+      "recent": "Recent"
     },
     "agencySetup": {
       "title": "Agency setup",
@@ -5705,7 +5719,7 @@
   "agentWelcome": {
     "slides": {
       "leads": {
-        "title": "Your leads",
+        "title": "Your requests",
         "body": "Find your prospects and customers with their real-time pipeline stage."
       },
       "properties": {
@@ -13399,7 +13413,6 @@
   },
   "contactLeads": {
     "title": "Contact requests",
-    "description": "Messages left on the public site: read them, handle them, turn them into clients.",
     "filters": {
       "todo": "To handle",
       "handled": "Handled",
@@ -13413,7 +13426,6 @@
     },
     "error": "The requests could not be loaded.",
     "anonymous": "Visitor",
-    "aboutProperty": "About “{title}”",
     "aboutAgent": "Direct contact",
     "receivedAt": "Received on {date}",
     "handledAt": "Handled on {date}",
@@ -13444,7 +13456,9 @@
       "converted": "Client record created.",
       "assigned": "Request assigned.",
       "error": "The action did not go through."
-    }
+    },
+    "description": "Messages left on the public site: read them, handle them, turn them into clients.",
+    "aboutProperty": "About “{title}”"
   },
   "visitPlanning": {
     "unassigned": "Unassigned",

@@ -222,7 +222,9 @@
         "changerDEspace": "Changer d’espace",
         "credits": "Crédits",
         "preferences": "Préférences de notification",
-        "langue": "Langue"
+        "langue": "Langue",
+        "sitePublic": "Voir le site public",
+        "titre": "Mon compte"
       },
       "aujourdhui": {
         "titre": "Aujourd’hui",
@@ -230,7 +232,7 @@
         "lignes": {
           "unreadMessages": "Messages non lus",
           "pendingVisits": "Visites à confirmer",
-          "unhandledLeads": "Demandes de contact",
+          "unhandledLeads": "Demandes à traiter",
           "reviewModeration": "Avis à modérer",
           "propertyModeration": "Biens à valider"
         }
@@ -287,7 +289,14 @@
       },
       "today": "Aujourd’hui",
       "tasks": "Tâches",
-      "rents": "Loyers"
+      "rents": "Loyers",
+      "edition": {
+        "modifier": "Modifier le menu",
+        "titre": "Épinglez jusqu’à {max} pages",
+        "compte": "{nombre} sur {max} · glissez pour ordonner",
+        "terminer": "Terminé",
+        "deplacer": "Déplacer {libelle} (flèches haut et bas)"
+      }
     },
     "admin": {
       "team": "Ekib",
@@ -12397,7 +12406,12 @@
       "title": "Gisuñu ko",
       "description": "Mbir mii amul, walla bokkul ci sa ajaas. Xoolaatal lien bi, walla dellul ci limu bi.",
       "backToList": "Dellu ci limu bi",
-      "backToDashboard": "Dellu ci tablo bi"
+      "backToDashboard": "Dellu ci tablo bi",
+      "heading": "Page introuvable",
+      "aide": "Vérifiez le lien, ou allez directement où vous vouliez aller.",
+      "backHome": "Retour à l’accueil",
+      "backToday": "Retour à Aujourd’hui",
+      "recent": "Récent"
     },
     "agencySetup": {
       "title": "Taxawal ajaans bi",
@@ -13399,7 +13413,6 @@
   },
   "contactLeads": {
     "title": "Laaj jokkoo yi",
-    "description": "Bataaxal yi ñu bayyi ci site bi : jàng leen, topp leen, def leen ay kiliyaan.",
     "filters": {
       "todo": "Ñoo war a topp",
       "handled": "Topp nañu leen",
@@ -13413,7 +13426,6 @@
     },
     "error": "Laaj yi mënuñu ñëw.",
     "anonymous": "Ganaa",
-    "aboutProperty": "Ci mbirum « {title} »",
     "aboutAgent": "Jokkoo bu jub",
     "receivedAt": "Jot nañu ko {date}",
     "handledAt": "Topp nañu ko {date}",
@@ -13444,7 +13456,9 @@
       "converted": "Xët kiliyaan bi sos nañu ko.",
       "assigned": "Laaj bi jox nañu ko.",
       "error": "Jëf ji antuwul."
-    }
+    },
+    "description": "Bataaxal yi ñu bayyi ci site bi : jàng leen, topp leen, def leen ay kiliyaan.",
+    "aboutProperty": "Ci mbirum « {title} »"
   },
   "visitPlanning": {
     "unassigned": "Ñu jaggagul",

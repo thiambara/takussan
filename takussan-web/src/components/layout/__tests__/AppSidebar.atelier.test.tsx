@@ -89,7 +89,8 @@ describe('TCK-2490 (ADR-0090 §2) — l’ordre de la colonne est l’ordre de l
       // DOCUMENT_POSITION_FOLLOWING : l'élément suivant vient après, donc après au clavier.
       expect(ordre[i - 1].compareDocumentPosition(ordre[i]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     }
-    expect(aside.querySelector('[data-slot="marque"]')).toHaveAttribute('href', '/');
+    // TCK-2619 — la marque ramène à l'espace de travail, plus au site public.
+    expect(aside.querySelector('[data-slot="marque"]')).toHaveAttribute('href', '/app');
     expect(aside.querySelector('[data-slot="defilement"] [data-slot="menu"]')).not.toBeNull();
   });
 
@@ -140,11 +141,11 @@ describe('TCK-2491 (ADR-0090 §2) — l’en-tête de la colonne et le menu du c
   // Revue adverse (M4) — de 768 à 1023 px, le rail est le mode par défaut : la marque y était cachée, et
   // l'en-tête mobile (`md:hidden`) ne la porte pas — plus aucun lien vers l'accueil. Dans le rail, le
   // symbole seul ; le nom reste lu, une seule fois dans chaque mode.
-  it('la marque mène à `/` dans tous les modes ; dans le rail, le symbole seul, le nom toujours lu', () => {
+  it('la marque mène à `/app` dans tous les modes (TCK-2619) ; dans le rail, le symbole seul, le nom toujours lu', () => {
     const { container } = monter();
     const marque = container.querySelector<HTMLElement>('aside [data-slot="marque"]')!;
     const classes = (el: Element | null) => (el?.getAttribute('class') ?? '').split(/\s+/);
-    expect(marque).toHaveAttribute('href', '/');
+    expect(marque).toHaveAttribute('href', '/app');
     expect(classes(marque)).not.toContain('icones:hidden');
     // La marque entière se cache dans le rail ; le symbole seul n'y paraît que là, avec le nom en `sr-only`.
     // Chacune porte le nom LU ; jsdom, sans CSS, lit les deux — Chrome n'en lit qu'un par mode (relevé dans

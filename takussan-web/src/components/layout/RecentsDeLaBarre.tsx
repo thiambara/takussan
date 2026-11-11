@@ -62,6 +62,15 @@ function lireBrut(compte: number): string | null {
 }
 
 /**
+ * TCK-2619 — les chemins récents de l'appareil, lus APRÈS l'hydratation (instantané serveur : aucun) : la
+ * même lecture que « Récents » de la colonne, pour la page introuvable.
+ */
+export function useCheminsRecents(compte: number): readonly string[] {
+  const brut = useSyncExternalStore(abonnerAuStockage, () => lireBrut(compte), () => null);
+  return brut === null ? [] : lirePagesRecentes(compte);
+}
+
+/**
  * TCK-2490 (ADR-0090 §5) — « Récents », en fin de colonne : les pages ouvertes sur CET appareil
  * (`RetenirLaPageRecente`, TCK-2482), quatre au plus, sans icône, en texte discret.
  *

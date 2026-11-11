@@ -232,7 +232,9 @@
         "changerDEspace": "Changer d’espace",
         "credits": "Crédits",
         "preferences": "Préférences de notification",
-        "langue": "Langue"
+        "langue": "Langue",
+        "sitePublic": "Voir le site public",
+        "titre": "Mon compte"
       },
       "aujourdhui": {
         "titre": "Aujourd’hui",
@@ -240,7 +242,7 @@
         "lignes": {
           "unreadMessages": "Messages non lus",
           "pendingVisits": "Visites à confirmer",
-          "unhandledLeads": "Demandes de contact",
+          "unhandledLeads": "Demandes à traiter",
           "reviewModeration": "Avis à modérer",
           "propertyModeration": "Biens à valider"
         }
@@ -297,7 +299,14 @@
       },
       "today": "Aujourd’hui",
       "tasks": "Tâches",
-      "rents": "Loyers"
+      "rents": "Loyers",
+      "edition": {
+        "modifier": "Modifier le menu",
+        "titre": "Épinglez jusqu’à {max} pages",
+        "compte": "{nombre} sur {max} · glissez pour ordonner",
+        "terminer": "Terminé",
+        "deplacer": "Déplacer {libelle} (flèches haut et bas)"
+      }
     },
     "admin": {
       "team": "Équipe",
@@ -2600,9 +2609,14 @@
     },
     "notFound": {
       "title": "Introuvable",
-      "description": "Cet élément n'existe pas, ou il ne relève pas de votre agence. Vérifiez le lien, ou revenez à la liste.",
+      "description": "Cet élément n’existe pas, ou il ne relève pas de votre agence.",
       "backToList": "Revenir à la liste",
-      "backToDashboard": "Retour au tableau de bord"
+      "backToDashboard": "Retour au tableau de bord",
+      "heading": "Page introuvable",
+      "aide": "Vérifiez le lien, ou allez directement où vous vouliez aller.",
+      "backHome": "Retour à l’accueil",
+      "backToday": "Retour à Aujourd’hui",
+      "recent": "Récent"
     },
     "agencySetup": {
       "title": "Mise en service de l’agence",
@@ -5705,7 +5719,7 @@
   "agentWelcome": {
     "slides": {
       "leads": {
-        "title": "Vos leads",
+        "title": "Vos demandes",
         "body": "Retrouvez vos prospects et clients avec leur étape de pipeline en temps réel."
       },
       "properties": {
@@ -13399,7 +13413,6 @@
   },
   "contactLeads": {
     "title": "Demandes de contact",
-    "description": "Les messages laissés sur le site public : à lire, à traiter, à transformer en client.",
     "filters": {
       "todo": "À traiter",
       "handled": "Traitées",
@@ -13413,7 +13426,6 @@
     },
     "error": "Les demandes n’ont pas pu être chargées.",
     "anonymous": "Visiteur",
-    "aboutProperty": "À propos de « {title} »",
     "aboutAgent": "Contact direct",
     "receivedAt": "Reçue le {date}",
     "handledAt": "Traitée le {date}",
@@ -13444,7 +13456,9 @@
       "converted": "Fiche client créée.",
       "assigned": "Demande attribuée.",
       "error": "L’action n’a pas abouti."
-    }
+    },
+    "description": "Les messages laissés sur le site public : à lire, à traiter, à transformer en client.",
+    "aboutProperty": "À propos de « {title} »"
   },
   "visitPlanning": {
     "unassigned": "Non attribuées",

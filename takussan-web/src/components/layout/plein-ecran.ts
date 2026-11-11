@@ -16,6 +16,16 @@ export function estPleinEcran(pathname: string | null | undefined): boolean {
 }
 
 /**
+ * TCK-2619 (décision 6 a, ADR-0090) — `/app` et toutes ses pages : la console. Le widget de messagerie
+ * (`ChatWidget`) ne s'y monte plus, à aucune largeur : la barre d'onglets (téléphone) et l'entrée
+ * « Messagerie » de la colonne (bureau) y mènent déjà, et le lanceur recouvrait le coin bas droit du
+ * contenu. Il reste sur le site public.
+ */
+export function estDansLaConsole(pathname: string | null | undefined): boolean {
+  return pathname != null && (pathname === '/app' || pathname.startsWith('/app/'));
+}
+
+/**
  * TCK-2481 — les routes où la coque porte la barre d'onglets mobile : `/app` et ses pages, hors plein
  * écran. Lue par `AppShell` (la barre) et par `CorpsDuWidget` (le bouton flottant « Messagerie »,
  * qui ne se rend plus là où la barre porte déjà la messagerie). Une règle, deux lecteurs — comme
@@ -23,7 +33,7 @@ export function estPleinEcran(pathname: string | null | undefined): boolean {
  */
 export function porteLaBarreDOnglets(pathname: string | null | undefined): boolean {
   if (pathname == null || estPleinEcran(pathname)) return false;
-  return pathname === '/app' || pathname.startsWith('/app/');
+  return estDansLaConsole(pathname);
 }
 
 /**

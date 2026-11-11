@@ -105,9 +105,12 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-/** Tous les liens de la barre, dans l'ordre : action principale, menu, carte, pied. */
+/**
+ * Tous les liens de la barre, dans l'ordre : action principale, menu, carte, pied. TCK-2619 — sans la
+ * marque, qui mène désormais à `/app` comme l'accueil du menu.
+ */
 const tousLesLiens = (racine: Element) =>
-  Array.from(racine.querySelectorAll('a')).map((a) => a.getAttribute('href'));
+  Array.from(racine.querySelectorAll('a:not([data-slot="marque"])')).map((a) => a.getAttribute('href'));
 /** Les titres des groupes, et l'état de leur bascule. */
 const groupes = (racine: Element) =>
   Array.from(racine.querySelectorAll('[data-groupe]')).map((g) => [

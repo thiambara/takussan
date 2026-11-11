@@ -91,6 +91,20 @@ export function prefsApresEpingle(p: PreferencesDuPersona, rendues: readonly str
   return ajoutee ? { ...p, epingles, replies: (p.replies ?? []).filter((g) => g !== 'epingles') } : { ...p, epingles };
 }
 
+/**
+ * TCK-2619 — déplacer l'épingle `id` au rang `vers` (borné), en repartant des épingles RENDUES : c'est
+ * l'ordre du tableau `epingles` qui fait celui du groupe « Épinglés » (`composerMenu`). Une épingle
+ * absente ne bouge rien ; une épingle déjà à sa place non plus (même tableau, aucune écriture utile).
+ */
+export function epinglesApresDeplacement(rendues: readonly string[], id: string, vers: number): string[] {
+  const depuis = rendues.indexOf(id);
+  if (depuis === -1) return [...rendues];
+  const cible = Math.max(0, Math.min(rendues.length - 1, vers));
+  const sortie = rendues.filter((e) => e !== id);
+  sortie.splice(cible, 0, id);
+  return sortie;
+}
+
 /** Replier (`replie`) ou ouvrir un groupe : seul l'écart au défaut de la disposition s'enregistre. */
 export function prefsApresRepli(
   p: PreferencesDuPersona,

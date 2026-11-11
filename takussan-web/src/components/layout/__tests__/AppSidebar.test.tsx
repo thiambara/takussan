@@ -384,7 +384,7 @@ describe('revue adverse (3) — le tableau de bord de l’admin d’agence vient
     demarrageMock.mockReturnValue({ data: { data: { etapes: [{ code: 'kyc', faite: false }] } } });
     const { container } = renderSidebar('admin-agence', '/app', { onOuvrirPalette: () => {} });
     const aside = container.querySelector('aside')!;
-    const tableau = aside.querySelector('a[href="/app"]')!;
+    const tableau = aside.querySelector('a[href="/app"]:not([data-slot="marque"])')!;
     expect(tableau).toHaveAccessibleName('Tableau de bord');
     const chaine = [
       aside.querySelector('[data-slot="action-principale"]')!,
@@ -397,7 +397,7 @@ describe('revue adverse (3) — le tableau de bord de l’admin d’agence vient
     chaine.forEach((el, i) => expect(el, `maillon ${i}`).not.toBeNull());
     for (let i = 1; i < chaine.length; i++) expect(avant(chaine[i - 1]!, chaine[i]!), `maillon ${i}`).toBe(true);
     // Une seule fois : il a quitté le groupe de tête, qui garde le reste dans son ordre.
-    expect(aside.querySelectorAll('a[href="/app"]')).toHaveLength(1);
+    expect(aside.querySelectorAll('a[href="/app"]:not([data-slot="marque"])')).toHaveLength(1);
     expect(groupesRendus(container)[0]).toEqual([null, false, 'Vue agence', 'Messagerie']);
   });
 
@@ -413,7 +413,7 @@ describe('revue adverse (3) — le tableau de bord de l’admin d’agence vient
     const [repere] = reperes;
     expect(repere).toHaveAccessibleName('Navigation du tableau de bord');
     for (const el of [
-      aside.querySelector('a[href="/app"]')!,
+      aside.querySelector('a[href="/app"]:not([data-slot="marque"])')!,
       aside.querySelector('[data-slot="action-principale"]')!,
       aside.querySelector('[data-slot="aller-a"]')!,
       aside.querySelector('[data-slot="aujourdhui"]')!,
@@ -424,7 +424,7 @@ describe('revue adverse (3) — le tableau de bord de l’admin d’agence vient
   it.each(PERSONAS.filter((p) => p !== 'admin-agence'))('%s : le tableau de bord reste dans le menu, après « Aujourd’hui » — l’agent compris (TCK-2618)', (persona) => {
     unreadMock.mockReturnValue(3);
     const { container } = renderSidebar(persona, '/app', { onOuvrirPalette: () => {} });
-    const tableau = container.querySelector('aside a[href="/app"]');
+    const tableau = container.querySelector('aside a[href="/app"]:not([data-slot="marque"])');
     expect(tableau, 'le tableau de bord').not.toBeNull();
     expect(container.querySelector<HTMLElement>('[data-slot="menu"]')!.contains(tableau)).toBe(true);
   });
@@ -440,7 +440,7 @@ describe('revue adverse (3) — le tableau de bord de l’admin d’agence vient
     ]);
     expect(liens[0].querySelector('svg')!.getAttribute('class')).toContain('lucide-sun');
     expect(within(container.querySelector('aside')!).queryByRole('link', { name: 'Tableau de bord' })).toBeNull();
-    expect(container.querySelectorAll('aside a[href="/app"]')).toHaveLength(1);
+    expect(container.querySelectorAll('aside a[href="/app"]:not([data-slot="marque"])')).toHaveLength(1);
   });
 });
 
@@ -455,9 +455,10 @@ describe('TCK-2478 — la barre montée suit la disposition du persona (AC1)', (
     }
     expect(action?.textContent?.trim()).toBe(attendue);
     // Au clavier : l'action vient avant le menu, et le menu s'ouvre sur sa première entrée. La marque
-    // (`/`) la précède seule (TCK-2490 : l'en-tête d'espace a quitté le haut de la barre). TCK-2489 —
+    // la précède seule (TCK-2490 : l'en-tête d'espace a quitté le haut de la barre). TCK-2489 —
     // la première entrée est celle de la disposition (le tableau de bord n'ouvre plus tous les menus).
-    const liens = Array.from(container.querySelectorAll('aside a')).filter((a) => a.getAttribute('href') !== '/');
+    // TCK-2619 — la marque mène à `/app`, comme « Aujourd'hui » de l'agent : écartée par son `data-slot`.
+    const liens = Array.from(container.querySelectorAll('aside a')).filter((a) => a.getAttribute('data-slot') !== 'marque');
     expect(liens[0]).toBe(action);
     // Revue adverse (3) — l'entrée hissée en tête (le tableau de bord de l'admin d'agence) vient avant le
     // menu ; sinon, le menu s'ouvre sur sa première entrée.
@@ -1126,7 +1127,7 @@ describe('TCK-2490 — « Aujourd’hui » (ADR-0090 §3, reprend la bande de TC
     const { unmount } = renderSidebar('plateforme', '/app');
     await waitFor(() =>
       // TCK-2490 — toutes les lignes non nulles : plus de coupe à quatre derrière « +N » (TCK-2489).
-      expect(noms()).toEqual(['Biens à valider, 4', 'Avis à modérer, 5', 'Demandes de contact, 1', 'Visites à confirmer, 2', 'Messages non lus, 3']),
+      expect(noms()).toEqual(['Biens à valider, 4', 'Avis à modérer, 5', 'Demandes à traiter, 1', 'Visites à confirmer, 2', 'Messages non lus, 3']),
     );
     unmount();
     chargerLesCompteurs();
@@ -1153,14 +1154,14 @@ describe('TCK-2490 — « Aujourd’hui » (ADR-0090 §3, reprend la bande de TC
   it('AC2 — l’épreuve n’est pas vide : avec les compteurs chargés, l’agent a bien ses lignes', () => {
     chargerLesCompteurs();
     renderSidebar('agent', '/app');
-    expect(noms()).toEqual(['Demandes de contact, 1', 'Visites à confirmer, 2', 'Messages non lus, 3']);
+    expect(noms()).toEqual(['Demandes à traiter, 1', 'Visites à confirmer, 2', 'Messages non lus, 3']);
   });
 
   it.each([
     [
       'pendingVisits',
       () => pendingVisitsMock.mockReturnValue({ data: { meta: { total: 2 } }, isError: true }),
-      ['Demandes de contact, 1', 'Messages non lus, 3'],
+      ['Demandes à traiter, 1', 'Messages non lus, 3'],
       '2 demandes de visite en attente',
     ],
     [

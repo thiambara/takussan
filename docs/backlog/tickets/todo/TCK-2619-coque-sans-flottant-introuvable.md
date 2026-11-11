@@ -7,7 +7,7 @@ family: front
 estimate: M
 wave: 87
 created: 2026-11-10
-updated: 2026-11-10
+updated: 2026-11-11
 depends_on: [TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: []
 spec_refs:
@@ -64,7 +64,7 @@ Aucun endpoint neuf. « Aujourd'hui » lit les compteurs qu'il lit déjà (`useC
   - un vrai `HTTP 404` ;
   - `<title>` « Introuvable — Takussan » ;
   - rendue dans la coque ;
-  - message et retour principal rendus côté serveur. `RetourVersLaListe` explique pourquoi : un `not-found` client n'est pas dans le HTML initial.
+  - message, champ « Aller à… » et retour principal portés par un composant serveur (`CorpsDeLIntrouvable`) ; l'écran se rend dans la coque après hydratation. Qu'ils soient dans le HTML du serveur n'est PAS tenu aujourd'hui, ni avant ce ticket : TCK-2740.
 
 **Autres règles :**
 
@@ -86,7 +86,7 @@ Aucun endpoint neuf. « Aujourd'hui » lit les compteurs qu'il lit déjà (`useC
   - libellés d'« Aujourd'hui » ;
   - aucune punaise hors du mode « Modifier » ;
   - réordonner deux épingles écrit le nouvel ordre ;
-  - 404 avec H1 et champ « Aller à… », dans le HTML du serveur.
+  - 404 avec H1 et champ « Aller à… », rendus dans la coque après hydratation (le HTML du serveur : TCK-2740).
 
 ## Critères d'acceptation
 
@@ -94,7 +94,8 @@ Aucun endpoint neuf. « Aujourd'hui » lit les compteurs qu'il lit déjà (`useC
 - [ ] AC2 — Le logo de la colonne a `href="/app"`. « Voir le site public » mène à l'accueil public.
 - [ ] AC3 — À 390, le tiroir ouvert ne contient aucun bouton « Épingler » (compte = 0) tant que « Modifier le menu » n'est pas touché. Après le geste, chaque ligne épinglable en porte un.
 - [ ] AC4 — La ligne « Aujourd'hui » d'un admin avec une demande non traitée dit « Demandes à traiter 1 » et mène à la liste filtrée sur les non traitées.
-- [ ] AC5 — `GET /app/zzz` rend 404. Son HTML de serveur contient un `h1` « Page introuvable » et un champ de recherche. Taper « baux » propose l'entrée « Baux » du menu du persona.
+- [ ] AC5 — La 404 de `/app` répond 404 et l'écran se rend dans la coque après hydratation : `GET /app/zzz` rend 404 ; au navigateur, un `h1` « Page introuvable » et un champ de recherche ; taper « baux » propose l'entrée « Baux » du menu du persona.
+  - **Écart mesuré** (amendement du 2026-11-11, décision de la session, option (a)) : le critère exigeait aussi le `h1` et le champ dans le HTML du serveur. Sur `next build` + `next start`, la 404 de `/app` sort en document d'erreur de Next (`<html id="__next_error__">`, corps de 58 octets hors scripts) — mesuré sur deux builds : be658051c + ce ticket, et **46c0b49f1** (dev avant la fusion du lot 1). Préexistant, cause non établie : [TCK-2740](TCK-2740-la-404-de-app-sort-sans-html-serveur.md).
 
 **Fidélité au pixel** ([ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), préparation : TCK-2684 → TCK-2691) :
 
@@ -121,4 +122,4 @@ Aucun endpoint neuf. « Aujourd'hui » lit les compteurs qu'il lit déjà (`useC
 - **Feuille du compte** : `FeuilleDuCompte` (sur `FeuilleDuBas`) sous `md` (`useMatchesMedia('(width < 48rem)')`, instantané serveur = menu), menu déroulant dès `md`. `EspacesDeLaFeuille` réutilise `useEspacesDuCompte`. Langue en trois boutons `aria-pressed`.
 - **Page introuvable** : H1 « Page introuvable » (nouvelle clé `heading` ; `title` « Introuvable » reste celui de l'onglet), forme d'en-tête `racine` déclarée (un seul H1 à toute largeur, mesuré sur `/app/zzz` et `/app/leases/abc-zzz` à 390 et 1440), « Aller à… » en ligne : `useOptionsDeLaPalette` (sorti de `PaletteDeCommandes`, même index) via un contexte que la coque fournit (`ContexteDuMenuDeLaCoque`), liens et non `listbox`. « Retour à Aujourd'hui » quand la disposition nomme l'accueil `today`.
 - **Ce que l'introuvable rend AU SERVEUR** : `not-found.tsx` est un composant serveur asynchrone qui rend `CorpsDeLIntrouvable` (sans directive) — H1, message, le champ « Aller à… » (un vrai `<form role="search">`, sans état React) et le retour à l'accueil, nommé au serveur par `accueilNommeAujourdhui` (rôles + profil actif, les entrées mêmes du layout ; `getMeAction` est en cache pour la requête). Le client (`SecoursDeLIntrouvable`) n'ajoute que la liste des pages : il écoute le champ par son `id`, filtre à la saisie, ouvre la première à Entrée. Motif : le relevé du 2026-08-27 (l'enfant client d'un introuvable serveur absent du HTML du 404, `next build` compris) ; la première version de ce ticket mettait le champ et le retour dans un composant client. Le contour du retour passe au discret derrière « Revenir à la liste » en CSS (`[[data-slot=retour-a-la-liste]~&]`), le serveur ne connaissant pas l'URL. `accueil-nomme.test.ts` refuse que `agenceIndividuelle`, inconnu du serveur, change la réponse pour un seul compte.
-- ⚠ **HTML serveur du 404** : en `next dev`, les 404 de `/app` (notFound dans un layout comme dans une page) rendent un `<body>` vide hors scripts (`<template data-next-error-message="NEXT_HTTP_ERROR_FALLBACK;404">`) et `<title>` « Tableau de bord — Takussan » ; le contenu n'arrive qu'au rendu client. Le relevé du 2026-08-27 (docblock de `RetourVersLaListe`) disait l'inverse. **Même chose à HEAD** : le `not-found.tsx` d'avant ce ticket remis en place sous `next dev`, corps identique (69 octets hors scripts, gabarit de repli) — ce n'est pas une régression de TCK-2619. AC5 (« son HTML de serveur contient un `h1` et un champ ») **n'est pas mesuré** : il se juge sur `next build` + `next start`, en lisant le corps SANS ses `<script>` (la charge RSC y porte les textes ; un `includes` sur la page entière est vert sur un corps vide).
+- ⚠ **HTML serveur du 404** : en `next dev`, les 404 de `/app` (notFound dans un layout comme dans une page) rendent un `<body>` vide hors scripts (`<template data-next-error-message="NEXT_HTTP_ERROR_FALLBACK;404">`) et `<title>` « Tableau de bord — Takussan » ; le contenu n'arrive qu'au rendu client. Le relevé du 2026-08-27 (docblock de `RetourVersLaListe`) disait l'inverse. **Même chose à HEAD** : le `not-found.tsx` d'avant ce ticket remis en place sous `next dev`, corps identique (69 octets hors scripts, gabarit de repli) — ce n'est pas une régression de TCK-2619. **Mesuré sur `next build` + `next start` (worktree propre, `npm ci`, port 3100)** : `/app/zzz`, `/app/leases/abc-zzz` et `/app/properties/99999999`, agent et admin, rendent **404** mais un document d'erreur de Next — `<html id="__next_error__">`, corps de 58 octets hors scripts, titre « Tableau de bord — Takussan » ; le H1, le champ et les retours ne sont que dans la charge RSC, et l'écran entier (coque comprise) est rendu au client — sans erreur de console, conforme au navigateur à 390 et 1440. **Même résultat avant le lot 1** (46c0b49f1, construit à part) : ni ce ticket ni le lot 1 n'en sont la cause. AC5, dans sa moitié « HTML de serveur », **n'est donc pas tenu**. La cause n'est pas établie ; deux explications, aucune vérifiée : TCK-426 (c0dc2af43) a retiré le 2026-08-27 la frontière de suspension ancêtre de `/app` pour que le statut 404 survive ; ou le relevé du 2026-08-27 (docblock de `RetourVersLaListe`) a lu la réponse entière, charge RSC comprise — la même lecture rendait « vrai » ici sur un corps vide. Lecture du corps : `corps.py`, scripts retirés (la charge RSC porte les textes : un `includes` sur la page entière est vert sur un corps vide).

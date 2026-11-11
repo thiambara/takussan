@@ -31,6 +31,7 @@ import { isAgencyAdmin, isAgent, isCustomerOnly, isOwner } from '@/lib/roles';
 import { estPleinEcran, porteLaBarreDOnglets } from './plein-ecran';
 import { EnveloppeDuContenu } from './PagePleineLargeur';
 import { PreferencesDuMenuProvider } from './PreferencesDuMenu';
+import { ContexteDuMenuDeLaCoque } from './contexte-du-menu-de-la-coque';
 import type { ModeIcones } from '@/lib/navigation/mode-icones';
 import { personaDeLaCoque } from '@/lib/navigation/personas';
 import { useAccesAdminOuRepli } from '@/lib/access/acces-admin-contexte';
@@ -285,7 +286,10 @@ function CoqueDeLApp({
               <BandeauxDuSite emplacement="page" />
               {/* TCK-2691 (ADR-0106, C1 et C2) — la marge des pages : `px-8` dès `lg` (28,8 px, largeur
                   utile de la maquette), et rien au téléphone pour une page qui adopte la pleine largeur. */}
-              <EnveloppeDuContenu>{children}</EnveloppeDuContenu>
+              {/* TCK-2619 — le menu de l'espace à la portée des pages (la page introuvable y cherche). */}
+              <ContexteDuMenuDeLaCoque.Provider value={contexteDuMenu}>
+                <EnveloppeDuContenu>{children}</EnveloppeDuContenu>
+              </ContexteDuMenuDeLaCoque.Provider>
             </main>
           </div>
           {/* TCK-2689 — l'emplacement de la barre d'action collante (`ui/barre-d-action.tsx`), qu'une page

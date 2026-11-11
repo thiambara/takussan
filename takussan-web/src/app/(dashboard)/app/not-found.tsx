@@ -1,10 +1,8 @@
-import Link from 'next/link';
-import { useTranslations } from 'next-intl';
-import { SearchX } from 'lucide-react';
-
-import { EmptyState } from '@/components/feedback';
-import { buttonVariants } from '@/components/ui/button';
-import { RetourVersLaListe } from './RetourVersLaListe';
+import { getMeAction } from '@/app/actions/auth';
+import { accueilNommeAujourdhui } from '@/lib/navigation/accueil-nomme';
+import { typeDuProfilActif } from '@/lib/navigation/personas';
+import { getActiveProfileId } from '@/lib/session';
+import { CorpsDeLIntrouvable } from './CorpsDeLIntrouvable';
 
 /**
  * L'introuvable DU TABLEAU DE BORD — et le mot « du » porte tout le fichier.
@@ -44,29 +42,36 @@ import { RetourVersLaListe } from './RetourVersLaListe';
  * `__tests__/introuvable.test.tsx`, qui échoue si un segment dynamique apparaît sous `/app` sans
  * y figurer, ou si une destination citée n'a pas de `page.tsx` sur le disque.
  *
- * ⚠ **Ce fichier n'est PAS `'use client'`, et ce n'est pas un détail de style.** Mesuré : un
- * `not-found.tsx` client n'est pas rendu dans le HTML de la réponse 404 — l'écran reste vide
- * jusqu'à l'hydratation. Le message et le retour au tableau de bord sont donc servis par le
- * serveur ; seul le raccourci contextuel vit dans `RetourVersLaListe`, qui porte le relevé.
+ * ## TCK-2619 — une adresse fausse propose d'aller ailleurs
+ *
+ * H1 « Page introuvable », la phrase qui ne tranche pas (ci-dessus), puis « Aller à… » OUVERT dans la page
+ * (le champ et l'index de la palette), les récents et quatre entrées du menu, et deux retours :
+ * « Retour à la liste » quand l'URL en a une, « Retour à l'accueil » (« Retour à Aujourd'hui » chez
+ * l'agent : `accueilNommeAujourdhui`, sur les entrées mêmes du layout — `getMeAction` est mis en cache
+ * pour la requête, aucune lecture de plus). Au téléphone, l'en-tête de la coque porte le H1 (la page le déclare, forme
+ * `racine`) et celui du contenu est masqué par la règle « un seul H1 » (`globals.css`, TCK-2617) ; le
+ * disque de l'icône ne paraît qu'au téléphone (maquette `app-coque`, « Page introuvable »).
+ *
+ * ⚠ **Ce fichier n'est PAS `'use client'`, et ce n'est pas un détail de style.** Relevé du
+ * 2026-08-27 : un `not-found.tsx` client n'est pas rendu dans le HTML de la réponse 404, ni l'enfant
+ * client d'un introuvable serveur. Le H1, le message, le champ « Aller à… » et le retour à l'accueil
+ * sont donc rendus par des composants SERVEUR (`CorpsDeLIntrouvable`) ; le client n'ajoute que la
+ * liste des pages (menu et récents de l'appareil, `SecoursDeLIntrouvable`) et le raccourci contextuel
+ * (`RetourVersLaListe`).
+ *
+ * ⚠⚠ **Mesuré le 2026-11-11 sur `next build` + `next start` (TCK-2619) : AUCUN de ces composants
+ * n'est aujourd'hui dans le HTML.** Une 404 de `/app` (`/app/zzz`, `/app/leases/abc-zzz`,
+ * `/app/properties/99999999`) est servie en document d'erreur de Next (`<html id="__next_error__">`,
+ * corps vide hors scripts, titre « Tableau de bord ») : l'erreur `notFound()` atteint la coque du
+ * rendu serveur, et tout l'écran — coque comprise — est rendu au client depuis la charge RSC. Même
+ * mesure avant le lot 1 (46c0b49f1) : ce n'est pas ce fichier. La CAUSE n'est pas établie ; deux
+ * explications, aucune vérifiée : TCK-426 (c0dc2af43) a retiré la frontière de suspension ancêtre de
+ * `/app` pour que le statut 404 survive ; ou le relevé du 2026-08-27 a lu la réponse entière, charge
+ * RSC comprise, et le HTML serveur n'a jamais existé. La structure serveur est gardée : elle ne coûte
+ * rien, et elle rendra le HTML le jour où la coque ne tombera plus.
  */
-
-export default function AppNotFound() {
-  const t = useTranslations('dashboard.notFound');
-
-  return (
-    <EmptyState
-      data-testid="app-not-found"
-      icon={<SearchX className="size-8" aria-hidden="true" />}
-      title={t('title')}
-      description={t('description')}
-      action={
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          <RetourVersLaListe />
-          <Link href="/app" className={buttonVariants({ variant: 'outline' })}>
-            {t('backToDashboard')}
-          </Link>
-        </div>
-      }
-    />
-  );
+export default async function AppNotFound() {
+  const user = await getMeAction();
+  const typeProfilActif = typeDuProfilActif(await getActiveProfileId());
+  return <CorpsDeLIntrouvable aujourdhui={accueilNommeAujourdhui({ roles: user.roles, typeProfilActif })} />;
 }

@@ -1,0 +1,286 @@
+{
+ "ticket": "TCK-2619",
+ "ecrans": [
+  {
+   "page": "app-coque",
+   "approche": "a",
+   "ecran": 0,
+   "nom": "Accueil (admin)",
+   "references": {
+    "bureau-1440": "references/app-coque/a-0-bureau-1440.json",
+    "bureau-1280": "references/app-coque/a-0-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app",
+    "persona": "admin",
+    "etat": "accueil de l’admin d’agence au bureau : AUCUN bouton flottant (le lanceur « Messagerie » ne se monte plus sous /app) ; marque vers /app"
+   }
+  },
+  {
+   "page": "app-coque",
+   "approche": "a",
+   "ecran": 3,
+   "nom": "Menu (tiroir)",
+   "references": {
+    "telephone": "references/app-coque/a-3-telephone.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app",
+    "persona": "admin",
+    "etat": "tiroir « Menu » ouvert depuis la barre d’onglets (`--perturber ouvrir-menu.js`) : lignes de 44 px, sans punaise, « Modifier le menu » en bas"
+   }
+  },
+  {
+   "page": "app-coque",
+   "approche": "a",
+   "ecran": 3,
+   "nom": "Menu (tiroir) — bureau, mode « Modifier le menu »",
+   "references": {
+    "bureau-1440": "references/app-coque/a-3-bureau-1440.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app",
+    "persona": "admin",
+    "etat": "colonne en mode « Modifier le menu » (`--perturber edition-bureau.js`, qui masque la modale d’accueil puis touche « Modifier le menu » ; aucune écriture) : bandeau « Épinglez jusqu’à 5 pages · n sur 5 · Terminé », punaises sur chaque ligne, poignées sur les épingles"
+   }
+  },
+  {
+   "page": "app-coque",
+   "approche": "a",
+   "ecran": 5,
+   "nom": "Compte et espaces",
+   "references": {
+    "telephone": "references/app-coque/a-5-telephone.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app",
+    "persona": "agent",
+    "etat": "accueil « Aujourd’hui » de l’agent, la feuille « Mon compte » ouverte depuis l’espace de l’en-tête (`--perturber compte-telephone.js`)"
+   }
+  },
+  {
+   "page": "app-coque",
+   "approche": "a",
+   "ecran": 5,
+   "nom": "Compte et espaces",
+   "references": {
+    "bureau-1440": "references/app-coque/a-5-bureau-1440.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app",
+    "persona": "agent",
+    "etat": "menu du compte ouvert au pied de la colonne (`--perturber compte-bureau.js`)"
+   }
+  },
+  {
+   "page": "app-coque",
+   "approche": "a",
+   "ecran": 8,
+   "nom": "Page introuvable",
+   "references": {
+    "telephone": "references/app-coque/a-8-telephone.json",
+    "bureau-1440": "references/app-coque/a-8-bureau-1440.json",
+    "bureau-1280": "references/app-coque/a-8-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app/page-introuvable-tck-2619",
+    "persona": "agent",
+    "etat": "page introuvable sous /app vue par l’agent, atteinte par navigation CÔTÉ CLIENT depuis /app (`--perturber introuvable-masque.js`) : le relevé refuse un document en 404. H1 « Page introuvable » (en-tête au téléphone), disque, phrase, « Aller à… » ouvert, entrées du menu, « Retour à Aujourd’hui »"
+   }
+  }
+ ],
+ "produit": {
+  "route": "/app",
+  "persona": "agent",
+  "disposition": "agent",
+  "etat": "voir chaque écran (`ecrans[].produit`)",
+  "defiler": null,
+  "perturber": null
+ },
+ "coque": false,
+ "_coque": "Les rôles de coque de roles-coque.json, repris ici tels quels SAUF la barre d'onglets du produit, désignée par son `data-slot` : `boiteDe: \"Menu\"` y retient la plus petite boîte qui contient le texte « Menu » par la géométrie, et la page défile SOUS la barre fixe — sur l'accueil de l'admin, c'est la carte « Impayés » (171 × 128) qui était comparée à la barre (relevé du 2026-11-11 ; même artefact dans les rapports de TCK-2617).",
+ "roles": [
+  {
+   "appareil": "mobile",
+   "nom": "coque · barre d'onglets",
+   "maquette": {
+    "boiteDe": "Menu",
+    "min": 56
+   },
+   "produit": {
+    "slot": "barre-onglets",
+    "tag": "nav"
+   },
+   "contenu": true
+  },
+  {
+   "appareil": "mobile",
+   "nom": "coque · en-tête",
+   "maquette": {
+    "zone": {
+     "y": 0,
+     "h": 56,
+     "tol": 8,
+     "wMin": 380
+    }
+   },
+   "produit": {
+    "zone": {
+     "y": 0,
+     "h": 56,
+     "tol": 8,
+     "wMin": 380
+    }
+   }
+  },
+  {
+   "appareil": "desktop",
+   "nom": "coque · barre latérale",
+   "maquette": {
+    "zone": {
+     "y": 0,
+     "h": 900,
+     "tol": 40,
+     "wMin": 200
+    }
+   },
+   "produit": {
+    "zone": {
+     "y": 0,
+     "h": 900,
+     "tol": 40,
+     "wMin": 200
+    }
+   }
+  }
+ ],
+ "zones": [
+  {
+   "appareil": "mobile",
+   "nom": "coque · barre d'onglets",
+   "role": "coque · barre d'onglets"
+  }
+ ],
+ "alias": {
+  "Clients": "Clients (CRM)",
+  "Demandes de contact": "Demandes à traiter",
+  "Cette page n’existe pas, ou plus.": "Cet élément n’existe pas, ou il ne relève pas de votre agence.",
+  "Retour à la liste des baux": "Revenir à la liste",
+  "Vos espaces": "Changer d’espace"
+ },
+ "_alias": {
+  "Demandes de contact → Demandes à traiter": "ligne d’« Aujourd’hui » (colonne, tiroir) : le ticket et docs/features.md:615 l’emportent sur la maquette — le libellé dit l’action, l’entrée du menu la destination. L’entrée du menu garde « Demandes de contact ».",
+  "Cette page n’existe pas, ou plus. → phrase actuelle": "le ticket garde la phrase qui ne tranche pas entre « absent » et « hors de l’agence » (TCK-382) ; la seconde ligne de la maquette est reprise telle quelle",
+  "Retour à la liste des baux → Revenir à la liste": "libellé existant (TCK-382), gardé : il sert toutes les sections",
+  "Vos espaces → Changer d’espace": "« Vos espaces » et ses cartes sont TCK-2620/TCK-2621 ; ce ticket garde la liste de TCK-2491 (liste de non-régression du ticket)"
+ },
+ "ancres": [],
+ "ignorer": [],
+ "ecarts_acceptes": [
+  {
+   "ecran": "a-*-telephone",
+   "element": "coque · en-tête › icônes « Aller à » et cloche",
+   "propriete": "couleur",
+   "exception": "technique",
+   "motif": "repris de TCK-2617 : l'encre douce en alpha de la maquette contre le jeton opaque `encre-douce` imposé dans /app (1 à 3 unités par canal)"
+  },
+  {
+   "ecran": "a-*-bureau-1440, a-*-bureau-1280",
+   "element": "tout écran de bureau",
+   "propriete": "tailles, positions",
+   "exception": "technique",
+   "motif": "l'outil annonce « rem différent (maquette 14.4 px, produit 16 px) », densité 0,9 des deux côtés ; cause non établie ici. À 1280, l'écart de la zone « barre latérale », qui couvre tout le cadre, est suivi par TCK-2738. Au bureau, ce ticket ne juge que l'ordre et la présence des entrées de la colonne"
+  },
+  {
+   "ecran": "a-3-bureau-1440",
+   "element": "colonne en édition › poignées des lignes non épinglées",
+   "propriete": "présence",
+   "exception": "motif",
+   "motif": "la maquette dessine une poignée sur chaque ligne ; seules les épingles s’ordonnent (l’ordre du menu est celui de la disposition, ADR-0089) : une poignée sur une ligne qui ne bouge pas serait un geste mort. Le ticket : « Les poignées ordonnent les épingles »."
+  },
+  {
+   "ecran": "a-3-bureau-1440",
+   "element": "colonne en édition › « Réinitialiser le menu », pied estompé",
+   "propriete": "présence",
+   "exception": "motif",
+   "motif": "hors du delta du ticket : la réinitialisation reste dans le profil (TCK-2480, non-régression) ; le pied du compte reste actif"
+  },
+  {
+   "ecran": "a-5-bureau-1440",
+   "element": "menu du compte › langue en segments FR/EN/WO, « Vos espaces » en cartes",
+   "propriete": "forme",
+   "exception": "motif",
+   "motif": "au bureau le menu déroulant garde ses `menuitemradio` (TCK-2491) ; les cartes d’espaces sont TCK-2620/2621. Au téléphone, la feuille porte les segments de la maquette"
+  },
+  {
+   "ecran": "a-8-*",
+   "element": "secours › quatre récents « Récent »",
+   "propriete": "présence",
+   "exception": "donnée",
+   "motif": "les récents sont ceux de l’appareil (localStorage) : le Chrome de relevé n’en a aucun ; la liste montre alors quatre entrées du menu, dans l’ordre de la disposition de l’agent (Messagerie, Tâches, Demandes de contact, Clients (CRM)) au lieu de celles de la maquette"
+  },
+  {
+   "ecran": "a-8-bureau-1440, a-8-bureau-1280",
+   "element": "variante « l’élément existe dans un autre espace · Basculer »",
+   "propriete": "présence",
+   "exception": "motif",
+   "motif": "hors périmètre du ticket : l’API ne distingue pas « inexistant » d’« autre agence » sur une URL tapée"
+  },
+  {
+   "ecran": "a-8-*",
+   "element": "champ « Aller à » de l’introuvable",
+   "propriete": "hauteur, rayon, contour, halo, taille du texte",
+   "exception": "incohérence des maquettes",
+   "motif": "ADR-0106 § 2 (c) : une primitive n’a qu’un dessin. La maquette dessine ce champ à 48 px au téléphone et 43,2 px au bureau, rayon 14, avec un halo ; le produit rend la primitive `Input` de la portée /app (44 px au téléphone, 32,4 px au bureau), et `check-champs-uniformes` (TCK-2460) refuse une hauteur écrite chez l’appelant. L’outil apparie la maquette par son placeholder et le produit par son `aria-label` : la même boîte sort « absente » des deux côtés."
+  }
+ ],
+ "hors_perimetre": [
+  {
+   "element": "a-3 · tiroir et a-0 bureau · « Tableau de bord » hissé en tête du menu de l’admin",
+   "ticket": "TCK-2490 (en revue)",
+   "motif": "la maquette le place sous les comptes « Aujourd’hui » ; même écart relevé par TCK-2617"
+  },
+  {
+   "element": "a-0, a-3 · colonne de l’admin › « Rapports » (le produit : « Vue agence »)",
+   "ticket": "TCK-2628",
+   "motif": "nom et place de cette destination"
+  },
+  {
+   "element": "a-8 bureau · colonne de l'agent › « Entrées en attente », groupe « Plus » (Avis reçus, Documents, Statistiques), « Rapports » absent",
+   "ticket": "TCK-2618 AC3 / TCK-2628",
+   "motif": "AC3 interdit qu'une destination ouverte avant le ticket quitte le menu composé : les entrées que la maquette de l'agent n'écrit pas restent ; « Rapports » est à TCK-2628. L'ordre des entrées communes est celui de la maquette : Aujourd’hui, Messagerie, Tâches · Prospection (Demandes de contact, Clients, Visites, Calendrier) · Catalogue (Mes biens, Réservations) · Gestion (Baux, États des lieux, Interventions, Commissions)"
+  },
+  {
+   "element": "contenu des pages sous la coque (accueils, page introuvable)",
+   "ticket": "tickets de page",
+   "motif": "seules la barre d’onglets, la colonne et le tiroir sont comparés ici"
+  },
+  {
+   "element": "tiroir « Menu » › style des entrées (taille 15 contre 14, encre en alpha, comptes en tête)",
+   "ticket": "TCK-2617 / TCK-2691",
+   "motif": "la coque du tiroir ; ce ticket n’en change que la composition par persona"
+  },
+  {
+   "element": "coque · en-tête (titre, initiales, nom de l’espace)",
+   "ticket": "TCK-2617",
+   "motif": "l’en-tête de la coque"
+  },
+  {
+   "element": "colonne repliée en rail à 768 (libellés en ellipse relevés par `balayer`)",
+   "ticket": "coque (existant)",
+   "motif": "la colonne passe en icônes à 768 : les libellés masqués comptent comme ellipses, pour toutes les personas et sur toutes les routes"
+  },
+  {
+   "element": "comparateur sous /app au téléphone",
+   "ticket": "TCK-2493 (ADR-0091 § 4)",
+   "motif": "sous `lg`, la pastille du comparateur ne paraît que là où la barre publique est portée : aucune page de /app, favoris compris (mesuré : pastille sur /fr/favorites, rien sur /app/favorites ni /app/properties). Au bureau, le dock est en bas à droite (x 978, y 648-809 à 1280)"
+  }
+ ],
+ "mesures": {}
+}

@@ -104,3 +104,55 @@ export function EspacesDuMenu({ titre }: { readonly titre?: string }) {
     </>
   );
 }
+
+/**
+ * TCK-2619 — le même changement d'espace, dans la FEUILLE du compte (téléphone) : des boutons de 48 px
+ * au lieu d'éléments de menu (une feuille est un dialogue, pas un `menu`). Même lecture, même mutation,
+ * mêmes règles ; rien quand il n'y a pas de choix.
+ */
+export function EspacesDeLaFeuille({ titre }: { readonly titre: string }) {
+  const tTypes = useTranslations('profile.types');
+  const { switchMutation, activeId, profiles, grouped } = useEspacesDuCompte();
+  if (profiles.length <= 1) return null;
+  return (
+    <section data-slot="espaces-de-la-feuille" aria-label={titre} className="pb-2">
+      <p className="pb-2 pt-1 text-xs font-medium text-muted-foreground">{titre}</p>
+      <ul className="space-y-2">
+        {TYPE_ORDER.flatMap((type) =>
+          (grouped.get(type) ?? []).map((profile) => {
+            const isActive = profile.id === activeId;
+            const nom = profile.agency?.name ?? profileTypeLabel(type, tTypes);
+            const slug = slugAAfficher(profile);
+            return (
+              <li key={profile.id}>
+                <button
+                  type="button"
+                  data-testid={`espace-de-la-feuille-${profile.id}`}
+                  aria-current={isActive ? 'true' : undefined}
+                  disabled={switchMutation.isPending}
+                  onClick={() => {
+                    if (isActive || switchMutation.isPending) return;
+                    switchMutation.mutate(profile.id);
+                  }}
+                  className={
+                    isActive
+                      ? 'flex min-h-12 w-full items-center gap-3 rounded-xl border border-primary/40 bg-primary/5 p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60'
+                      : 'flex min-h-12 w-full items-center gap-3 rounded-xl border border-border bg-card p-3 text-left hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60'
+                  }
+                >
+                  <span className="flex min-w-0 flex-1 flex-col leading-tight">
+                    <span className="truncate text-corps font-semibold">{nom}</span>
+                    <span className="truncate text-ui text-muted-foreground">
+                      {[profileTypeLabel(type, tTypes), slug].filter(Boolean).join(' · ')}
+                    </span>
+                  </span>
+                  {isActive ? <Check className="size-4 shrink-0 text-primary" aria-hidden="true" /> : null}
+                </button>
+              </li>
+            );
+          }),
+        )}
+      </ul>
+    </section>
+  );
+}

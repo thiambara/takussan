@@ -99,7 +99,7 @@ export function DemarrerDeLEspace({ mode, ouverte, onNavigate, onMasquer, classN
             <Link
               href={etape.href}
               onClick={onNavigate}
-              className={cn(STYLE_LIGNE, 'h-auto min-h-9 py-1.5 transition-colors max-md:h-auto max-md:min-h-10', STYLE_LIGNE_REPOS, FOCUS_RING_RENTRANT)}
+              className={cn(STYLE_LIGNE, 'h-auto min-h-9 py-1.5 transition-colors max-md:h-auto max-md:min-h-11', STYLE_LIGNE_REPOS, FOCUS_RING_RENTRANT)}
             >
               <CircleDashed className={cn(ICONE_DE_LIGNE, 'text-muted-foreground')} strokeWidth={TRAIT_D_ICONE} aria-hidden />
               <span className="min-w-0 flex-1 leading-snug text-pretty">{t(etape.cle)}</span>

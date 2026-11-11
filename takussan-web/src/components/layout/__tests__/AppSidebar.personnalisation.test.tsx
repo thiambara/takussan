@@ -120,6 +120,9 @@ function element(
 const utilisateur = () => userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 const groupe = (nom: string) => screen.getByRole('group', { name: nom });
 const corps = (appel = 0) => JSON.parse(String(fetchMock.mock.calls[appel][1]?.body)) as unknown;
+// TCK-2619 — punaises et poignées n'existent qu'en mode « Modifier le menu » : on y entre d'abord.
+const entrerEnEdition = (racine: HTMLElement = document.body) =>
+  act(() => within(racine).getByRole('button', { name: fr.nav.sidebar.edition.modifier }).click());
 const attendreLEnvoi = () =>
   act(async () => {
     await vi.advanceTimersByTimeAsync(DELAI_D_ENVOI_MS);
@@ -129,6 +132,7 @@ describe('TCK-2480 — personnaliser le menu depuis la barre', () => {
   it('AC1 — au clavier : Tab mène de « Commissions » à son épingle ; Entrée la monte dans « Épinglés »', async () => {
     const user = utilisateur();
     render(element(AGENT_ET_BAILLEUR, 'agent', { typeProfilActif: 'agent' }));
+    entrerEnEdition();
     within(groupe('Gestion')).getByRole('link', { name: 'Commissions' }).focus();
     await user.tab();
     expect(document.activeElement).toBe(
@@ -182,6 +186,7 @@ describe('TCK-2480 — personnaliser le menu depuis la barre', () => {
       ),
     );
     const tiroir = document.querySelectorAll('aside')[1] as HTMLElement;
+    entrerEnEdition(tiroir);
     within(tiroir).getByRole('button', { name: 'Épingler Commissions' }).focus();
     await user.keyboard('{Enter}');
     expect(tiroir.contains(document.activeElement)).toBe(true);
@@ -202,6 +207,7 @@ describe('TCK-2480 — personnaliser le menu depuis la barre', () => {
     const user = utilisateur();
     const navigation = { v: 1, personas: { agent: { epingles: ['commissions'] } } };
     render(element(AGENT_ET_BAILLEUR, 'bailleur', { navigation, typeProfilActif: 'owner' }));
+    entrerEnEdition();
     await user.click(screen.getAllByRole('button', { name: /^Épingler / })[0]!);
     await attendreLEnvoi();
     const envoye = corps() as { navigation: { personas: Record<string, unknown> } };
@@ -238,12 +244,14 @@ describe('TCK-2480 — personnaliser le menu depuis la barre', () => {
 
   it('A7 — l’action principale ne s’épingle pas (« Paiements » du locataire), le reste oui', () => {
     render(element(['customer', 'tenant'], 'locataire'));
+    entrerEnEdition();
     expect(screen.queryByRole('button', { name: 'Épingler Paiements' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Épingler Mon bail' })).toBeInTheDocument();
   });
 
   it('A7 — une ligne cadenassée ne s’épingle pas (« Vue agence » de l’hôte, agence `individual`)', () => {
     render(element(['customer', 'agency_admin', 'owner'], 'hote', { agencyIsStandard: false }));
+    entrerEnEdition();
     // Les deux lignes cadenassées de l'hôte sont sous « Plus », replié : `hidden: true`.
     const cadenassees = screen.getAllByTitle(fr.nav.sidebar.proLocked);
     expect(cadenassees.map((c) => c.textContent)).toEqual(
@@ -261,6 +269,7 @@ describe('TCK-2480 — personnaliser le menu depuis la barre', () => {
 
   it('A7 — le complément « Aussi … » ne s’épingle pas', () => {
     render(element(AGENT_ET_BAILLEUR, 'agent', { typeProfilActif: 'agent' }));
+    entrerEnEdition();
     const aussi = document.querySelector('[data-groupe="aussi"]') as HTMLElement;
     expect(aussi).not.toBeNull();
     expect(within(aussi).queryAllByRole('button', { name: /^Épingler / })).toEqual([]);
@@ -273,6 +282,7 @@ describe('TCK-2480 — personnaliser le menu depuis la barre', () => {
       personas: { agent: { epingles: ['commissions', 'baux', 'demandes', 'clients', 'calendrier'] } },
     };
     render(element(['customer', 'agent'], 'agent', { navigation }));
+    entrerEnEdition();
     const visites = screen.getByRole('button', { name: 'Épingler Visites' });
     expect(visites).toHaveAttribute('aria-disabled', 'true');
     expect(visites).toHaveAttribute('title', fr.nav.sidebar.epingle.plein);
@@ -327,6 +337,7 @@ describe('TCK-2480 — personnaliser le menu depuis la barre', () => {
     render(element(AGENT_ET_BAILLEUR, 'agent', { typeProfilActif: 'agent', navigation }));
     const titre = () => within(groupe('Épinglés')).getByRole('button', { name: 'Épinglés' });
     expect(titre()).toHaveAttribute('aria-expanded', 'false');
+    entrerEnEdition();
     await user.click(within(groupe('Gestion')).getByRole('button', { name: 'Épingler Commissions' }));
     expect(titre()).toHaveAttribute('aria-expanded', 'true');
     const lien = within(groupe('Épinglés')).getByRole('link', { name: 'Commissions' });
@@ -345,6 +356,7 @@ describe('TCK-2480 — personnaliser le menu depuis la barre', () => {
     fetchMock.mockResolvedValue(new Response('{}', { status: 500 }));
     const user = utilisateur();
     render(element(['customer', 'agent'], 'agent'));
+    entrerEnEdition();
     within(groupe('Gestion')).getByRole('button', { name: 'Épingler Commissions' }).focus();
     await user.keyboard('{Enter}');
     expect(within(groupe('Épinglés')).getByRole('link', { name: 'Commissions' })).toBeInTheDocument();
@@ -693,27 +705,102 @@ describe('TCK-2480 — M1 : barre réduite, la ligne cadenassée a son infobulle
 });
 
 /**
- * Revue adverse de TCK-2490 (M2) — un même bord droit pour les nombres, les puces et les touches. L'épingle
- * invisible (`opacity-0`) gardait au repos sa place (28 px + 4 px) : les compteurs du menu s'arrêtaient
- * à 226 px, les puces d'« Aujourd'hui » et les touches de « Aller à » à 255 (mesuré, 1440). Elle ne
- * réserve plus sa place que là où elle s'affiche : au survol de la ligne, au focus, épinglée, au doigt.
+ * Revue adverse de TCK-2490 (M2) — un même bord droit pour les nombres, les puces et les touches : l'épingle
+ * invisible gardait au repos sa place (28 px + 4 px). TCK-2619 — elle n'est plus RENDUE hors du mode
+ * « Modifier le menu » : au repos, aucune place réservée, par construction ; en édition, sa largeur.
  * (jsdom n'applique pas le CSS : on lit les classes ; le bord droit est relevé au navigateur.)
  */
 describe('revue adverse (M2) — l’épingle ne réserve sa place que là où elle s’affiche', () => {
   const classes = (el: Element) => (el.getAttribute('class') ?? '').split(/\s+/);
-  /** Les classes de largeur ou de marge droite SANS variante : celles qui valent au repos. */
-  const auRepos = (el: Element) => classes(el).filter((c) => /^(w-|size-|mr-|me-)/.test(c));
 
-  it('au repos : largeur nulle, aucune marge ; épinglée, au survol, au focus, au doigt : sa largeur', () => {
+  it('au repos : aucune épingle ; en édition, chacune à sa largeur, toujours visible', () => {
     render(element(['customer', 'agent'], 'agent', { modeIcones: 'complet' }));
+    expect(document.querySelectorAll('button[data-epingle]')).toHaveLength(0);
+    entrerEnEdition();
     const epingle = document.querySelector('button[data-epingle][aria-pressed="false"]')!;
     expect(epingle).not.toBeNull();
-    expect(auRepos(epingle)).toEqual(['w-0']);
-    for (const variante of ['group-hover/ligne', 'focus', 'aria-pressed', 'tactile']) {
-      expect(classes(epingle), variante).toEqual(expect.arrayContaining([`${variante}:w-(--l-epingle)`, `${variante}:mr-1`]));
+    expect(classes(epingle)).toEqual(expect.arrayContaining(['size-7', 'mr-1']));
+    for (const cache of ['w-0', 'opacity-0', 'hidden', 'invisible']) expect(classes(epingle)).not.toContain(cache);
+  });
+});
+
+describe('TCK-2619 — le mode « Modifier le menu » (tiroir et colonne)', () => {
+  const epingler = /^Épingler /;
+
+  it('AC3 — aucune punaise avant le geste ; après, chaque ligne épinglable en porte une (le tiroir est relevé à 390)', () => {
+    render(element(AGENT_ET_BAILLEUR, 'agent', { typeProfilActif: 'agent' }));
+    expect(screen.queryAllByRole('button', { name: epingler, hidden: true })).toEqual([]);
+    expect(document.querySelector('[data-poignee]')).toBeNull();
+    entrerEnEdition();
+    const punaises = screen.getAllByRole('button', { name: epingler, hidden: true });
+    // Chaque lien du menu rendu hors du complément « Aussi … » (non épinglable) a sa punaise, une seule.
+    const liens = [...document.querySelectorAll('[data-slot="menu"] [data-groupe]:not([data-groupe="aussi"]) a[href]')];
+    expect(liens.length).toBeGreaterThan(3);
+    expect(punaises).toHaveLength(liens.length);
+    for (const lien of liens) {
+      expect(lien.closest('[data-ligne]')?.querySelector('button[data-epingle]'), lien.textContent ?? '').not.toBeNull();
     }
-    // Toujours atteignable au clavier : ni `hidden`, ni `invisible` (une largeur nulle se focalise).
-    expect(classes(epingle)).not.toEqual(expect.arrayContaining(['hidden']));
-    expect(classes(epingle)).not.toEqual(expect.arrayContaining(['invisible']));
+  });
+
+  it('le bandeau dit la limite et le compte ; « Terminé » retire punaises et poignées, et rend le focus', () => {
+    const navigation = { v: 1, personas: { agent: { epingles: ['commissions', 'baux'] } } };
+    render(element(['customer', 'agent'], 'agent', { navigation }));
+    entrerEnEdition();
+    const bandeau = document.querySelector<HTMLElement>('[data-slot="bandeau-d-edition"]')!;
+    expect(bandeau).toHaveTextContent('Épinglez jusqu’à 5 pages');
+    expect(bandeau).toHaveTextContent('2 sur 5 · glissez pour ordonner');
+    const terminer = within(bandeau).getByRole('button', { name: 'Terminé' });
+    expect(document.activeElement).toBe(terminer);
+    act(() => terminer.click());
+    expect(document.querySelector('[data-slot="bandeau-d-edition"]')).toBeNull();
+    expect(screen.queryAllByRole('button', { name: epingler })).toEqual([]);
+    expect(document.querySelector('[data-poignee]')).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: fr.nav.sidebar.edition.modifier }));
+  });
+
+  it('réordonner deux épingles au clavier écrit le nouvel ordre, et la poignée garde le focus', async () => {
+    const user = utilisateur();
+    const navigation = { v: 1, personas: { agent: { epingles: ['commissions', 'baux'] } } };
+    render(element(['customer', 'agent'], 'agent', { navigation }));
+    const ordre = () => within(groupe('Épinglés')).getAllByRole('link').map((a) => a.textContent);
+    expect(ordre()).toEqual(['Commissions', 'Baux']);
+    entrerEnEdition();
+    // Une poignée par épingle, et aucune ailleurs.
+    expect([...document.querySelectorAll('[data-poignee]')].map((p) => p.getAttribute('data-poignee'))).toEqual([
+      'commissions',
+      'baux',
+    ]);
+    within(groupe('Épinglés')).getByRole('button', { name: /^Déplacer Baux/ }).focus();
+    await user.keyboard('{ArrowUp}');
+    expect(ordre()).toEqual(['Baux', 'Commissions']);
+    expect(document.activeElement).toHaveAttribute('data-poignee', 'baux');
+    await attendreLEnvoi();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(corps()).toEqual({ navigation: { v: 1, personas: { agent: { epingles: ['baux', 'commissions'] } } } });
+    // Au bord, la flèche ne déplace rien et n'écrit rien de plus.
+    await user.keyboard('{ArrowUp}');
+    await attendreLEnvoi();
+    expect(ordre()).toEqual(['Baux', 'Commissions']);
+  });
+
+  it('en édition, la colonne ne montre que ce qui s’épingle : ni « Aujourd’hui », ni « Récents », ni l’action', () => {
+    nonLus.n = 3;
+    render(element(AGENT_ET_BAILLEUR, 'agent', { typeProfilActif: 'agent' }));
+    expect(document.querySelector('[data-slot="aujourdhui"]')).not.toBeNull();
+    entrerEnEdition();
+    expect(document.querySelector('[data-slot="aujourdhui"]')).toBeNull();
+    expect(document.querySelector('[data-slot="action-principale"]')).toBeNull();
+    expect(document.querySelector('[data-slot="modifier-le-menu"]')).toBeNull();
+  });
+});
+
+describe('TCK-2619 — epinglesApresDeplacement', () => {
+  it('déplace au rang voulu, borné ; une épingle absente ne bouge rien', async () => {
+    const { epinglesApresDeplacement } = await import('@/lib/navigation/preferences');
+    expect(epinglesApresDeplacement(['a', 'b', 'c'], 'c', 0)).toEqual(['c', 'a', 'b']);
+    expect(epinglesApresDeplacement(['a', 'b', 'c'], 'a', 1)).toEqual(['b', 'a', 'c']);
+    expect(epinglesApresDeplacement(['a', 'b', 'c'], 'a', 9)).toEqual(['b', 'c', 'a']);
+    expect(epinglesApresDeplacement(['a', 'b', 'c'], 'b', -1)).toEqual(['b', 'a', 'c']);
+    expect(epinglesApresDeplacement(['a', 'b'], 'z', 0)).toEqual(['a', 'b']);
   });
 });

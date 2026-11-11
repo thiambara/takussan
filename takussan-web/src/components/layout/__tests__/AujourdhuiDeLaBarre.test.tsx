@@ -47,7 +47,7 @@ describe('M1 — « Aujourd’hui » plafonne à 99+, comme le menu, par la mêm
  * TCK-2712 (11c, ADR-0106) — « Aujourd'hui » dans la colonne dépliée, comme la maquette (`chrome-app.tsx`,
  * bloc « Aujourd'hui ») : titre de 18 px (`pb-1`), lignes `h-8` (28,8 px à 1440) en 13 px, SANS icône et
  * sans interstice ; compte `rounded-full` 11 px 600, neutre sur `muted` à l'encre douce opaque (TCK-658).
- * Le rail garde l'icône (I1) et le tiroir sa ligne de 40 px en 15 px à icône de 20 (aucune maquette ne
+ * Le rail garde l'icône (I1) et le tiroir sa ligne de 44 px (TCK-2619) en 15 px à icône de 20 (aucune maquette ne
  * dessine « Aujourd'hui » au téléphone) : jsdom n'applique pas le CSS, ce sont les variantes qui sont lues.
  */
 describe('TCK-2712 — « Aujourd’hui » aux cotes de la maquette', () => {
@@ -57,11 +57,11 @@ describe('TCK-2712 — « Aujourd’hui » aux cotes de la maquette', () => {
   ] as const;
   const cl = (el: Element | null) => (el?.getAttribute('class') ?? '').split(/\s+/);
 
-  it('les lignes : h-8 en 13 px dans la colonne, h-9 au rail, 40 px en 15 px au tiroir ; sans interstice', () => {
+  it('les lignes : h-8 en 13 px dans la colonne, h-9 au rail, 44 px en 15 px au tiroir (TCK-2619) ; sans interstice', () => {
     monter(LIGNES);
     const lien = screen.getByRole('link', { name: /^Visites à confirmer/ });
     const c = cl(lien);
-    expect(c).toEqual(expect.arrayContaining(['h-8', 'text-ui', 'icones:h-9', 'max-md:h-10', 'max-md:text-corps']));
+    expect(c).toEqual(expect.arrayContaining(['h-8', 'text-ui', 'icones:h-9', 'max-md:h-11', 'max-md:text-corps']));
     expect(c).not.toContain('h-9');
     expect(c).not.toContain('text-sm');
     expect(cl(lien.closest('ul'))).not.toContain('space-y-px');
