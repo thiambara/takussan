@@ -15,6 +15,7 @@ import {
   useVisit,
 } from '@/lib/queries/visits';
 import { nomAffichable } from '@/lib/identite';
+import { EntreeSaisieDemande } from '@/components/bookings/EntreeSaisieDemande';
 import { heureMuraleADakar, instantADakar } from '@/lib/visites/heure-de-dakar';
 import { smsRetenu } from '@/lib/visites/sort-du-sms';
 import { JOURS_DE_VISITE_OUVERTS, useCreneaux } from '@/lib/visites/useCreneaux';
@@ -66,6 +67,7 @@ export function VisitDetail({ id }: { id: number }) {
   const updateVisit = useUpdateVisit(id);
   const claim = useClaimVisit(id);
   const tPlanning = useTranslations('visitPlanning');
+  const tSaisie = useTranslations('saisieDemande');
   const [proposer, setProposer] = useState(false);
   const toast = useToast();
   const messageErreur = useMessageErreurApi();
@@ -342,6 +344,22 @@ export function VisitDetail({ id }: { id: number }) {
           )}
         </div>
       </div>
+
+      {/* TCK-2580 — la suite d'une visite terminée : la candidature ou l'offre du visiteur, client ET
+          bien de la visite préremplis. Personnel seulement (l'entrée se garde elle-même) et visiteur
+          à fiche client : la demande est toujours au nom d'un client. « Et maintenant ? » (TCK-2581)
+          la reprendra parmi les suites. */}
+      {status === 'completed' && visit.customer && visit.property ? (
+        <EntreeSaisieDemande
+          variante="visite"
+          client={{
+            id: visit.customer.id,
+            nom: nomAffichable(visit.customer),
+            detail: tSaisie('client.depuisLaVisite'),
+          }}
+          bien={{ id: visit.property.id, titre: visit.property.title ?? null }}
+        />
+      ) : null}
 
       {status === 'completed' && (
         <FeedbackSection

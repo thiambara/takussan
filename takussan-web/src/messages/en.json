@@ -14421,5 +14421,83 @@
       "hebdoFaitTitre": "Once a week it is",
       "hebdoFaitTexte": "You will receive at most one message a week. Each one still has its unsubscribe link."
     }
+  },
+  "saisieDemande": {
+    "titre": "Record a request",
+    "entree": "Record an application or an offer",
+    "entreeCourte": "Record a request",
+    "entreeCandidature": "Record their application",
+    "entreeOffre": "Record their offer",
+    "client": {
+      "libelle": "Client",
+      "changer": "Change",
+      "changerLibelle": "Change client",
+      "rechercher": "Search for a client",
+      "placeholder": "Name or phone",
+      "aucun": "No client matches.",
+      "depuisLaVisite": "Taken from their viewing"
+    },
+    "bien": {
+      "libelle": "Property",
+      "changerLibelle": "Change property",
+      "rechercher": "Search for a property",
+      "placeholder": "Title or neighbourhood",
+      "aucun": "No property matches.",
+      "aLouer": "For rent",
+      "aVendre": "For sale",
+      "chargement": "Loading the property…",
+      "parMois": "{prix}/month",
+      "parAn": "{prix}/year"
+    },
+    "recherche": {
+      "enCours": "Searching…",
+      "erreur": "The search failed. Try again."
+    },
+    "nature": {
+      "libelle": "Type",
+      "candidature": "Application",
+      "offre": "Purchase offer",
+      "raisonLocation": "This property is for rent: the request is an application.",
+      "raisonVente": "This property is for sale: the request is a purchase offer.",
+      "raisonSejour": "This property is rented by the night: a stay is booked from its calendar, not here.",
+      "choisirLeBien": "Choose the property first: it decides the type."
+    },
+    "montant": {
+      "loyer": "Proposed rent",
+      "offre": "Amount offered",
+      "uniteMois": "F/month",
+      "uniteAn": "F/year",
+      "unite": "F",
+      "ecart": "{ecart} against the listed price ({prix})",
+      "prixAffiche": "Listed price: {prix}"
+    },
+    "dateEntree": "Move-in date",
+    "validite": "Valid until",
+    "facultatif": "Optional",
+    "message": "Message",
+    "messagePlaceholder": "What the client told you",
+    "prevenu": "The client will be notified and can cancel.",
+    "enregistrerCandidature": "Save the application",
+    "enregistrerOffre": "Save the offer",
+    "enregistrer": "Save",
+    "enregistrement": "Saving…",
+    "succes": {
+      "candidature": "Application saved",
+      "offre": "Offer saved",
+      "description": "The client has been notified."
+    },
+    "erreur": "The request could not be saved. Try again.",
+    "requis": {
+      "client": "Choose the client.",
+      "bien": "Choose the property.",
+      "montant": "Enter the amount.",
+      "dateEntree": "Enter the move-in date."
+    },
+    "codes": {
+      "booking": {
+        "customer_required": "Choose the client: a request recorded by the agency is always in their name.",
+        "kind_mismatch": "This type does not match the property: an application is for a rental, an offer for a property for sale."
+      }
+    }
   }
 }

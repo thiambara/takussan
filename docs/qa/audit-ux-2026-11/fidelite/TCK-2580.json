@@ -1,0 +1,119 @@
+{
+  "ticket": "TCK-2580",
+  "ecrans": [
+    {
+      "page": "app-reservations",
+      "approche": "a",
+      "ecran": 8,
+      "nom": "Saisir une demande (candidature, reprise d'une visite)",
+      "references": {
+        "telephone": "references/app-reservations/a-8-telephone.json",
+        "bureau-1440": "references/app-reservations/a-8-bureau-1440.json",
+        "bureau-1280": "references/app-reservations/a-8-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/visits/281",
+        "persona": "admin",
+        "etat": "visite terminée d'une location au mois (bien 66, client 8) ; la feuille ouverte par « Saisir une candidature ou une offre » (`--perturber ouvrir-saisie.js`), client et bien préremplis. La maquette ouvre la même feuille depuis l'en-tête de Réservations, sur un autre client et un autre bien : les libellés de données diffèrent, la disposition se compare"
+      }
+    },
+    {
+      "page": "app-reservations",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "En-tête de Réservations — l'entrée seule",
+      "references": {
+        "telephone": "references/app-reservations/a-0-telephone.json",
+        "bureau-1440": "references/app-reservations/a-0-bureau-1440.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/bookings",
+        "persona": "admin",
+        "etat": "seule l'ENTRÉE est de ce ticket : le « + » primaire de 40 px à x 256 de l'en-tête du téléphone, le bouton « Saisir une demande » dès md. La liste est à TCK-2594"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/visits/281",
+    "persona": "admin",
+    "disposition": "admin-agence",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": "scratchpad : ouvrir-saisie.js — clique le bouton « Saisir une candidature ou une offre », attend la feuille et le loyer prérempli"
+  },
+  "roles": [],
+  "zones": [],
+  "alias": { "Messages": "Messagerie" },
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "a-8-telephone",
+      "element": "toute la feuille (ancres « Saisir une demande » → « Message », ✕, « Candidature »)",
+      "propriete": "y (+17,7 px)",
+      "exception": "technique",
+      "motif": "la feuille du bas se pose à la hauteur de son contenu, pied à y 784 des deux côtés (« Enregistrer la candidature » conforme). Le décalage vient tout entier de la ligne d'information, une ligne au lieu de deux : la maquette écrit « … et pourra compléter son dossier », et aucun dossier n'existe en base ; le produit dit ce qui est vrai depuis TCK-2579, « Le client sera prévenu et pourra annuler. »"
+    },
+    {
+      "ecran": "a-8-*",
+      "element": "ligne d'information › icône lucide-info",
+      "propriete": "couleur",
+      "exception": "technique",
+      "motif": "encre douce en alpha dans la maquette (rgba(31,24,17,0.8)), jeton opaque `encre-douce` (rgb(76,70,65)) imposé dans /app par `encre-sans-alpha.contraste.test.ts` — même exception que TCK-2617"
+    },
+    {
+      "ecran": "a-8-*",
+      "element": "✕ de la feuille / du panneau",
+      "propriete": "trait (2 → 1,75)",
+      "exception": "incohérence des maquettes",
+      "motif": "la maquette trace ce ✕ à 2 et toutes ses autres icônes de feuille (loupe, info) à 1,75 ; le produit garde le trait des primitives `FeuilleDuBas`/`PanneauDroit`, communes à toutes les feuilles"
+    },
+    {
+      "ecran": "a-8-*, a-0-bureau-1440",
+      "element": "boutons « Enregistrer la candidature », « Saisir une demande »",
+      "propriete": "bordure (0 → 1 transparente), largeur +2 px",
+      "exception": "technique",
+      "motif": "la primitive `Button` porte une bordure de 1 px transparente à toutes ses variantes (bascule vers `outline` sans saut) : invisible, elle élargit la boîte de 2 px"
+    },
+    {
+      "ecran": "a-8-bureau-1440, a-8-bureau-1280",
+      "element": "champs « Loyer proposé », « Date d'entrée », « Message »",
+      "propriete": "hauteur (39,6 → 32,4 ; 76 → 68,4)",
+      "exception": "incohérence des maquettes",
+      "motif": "la maquette garde au bureau la hauteur de champ du téléphone ; tous les champs du produit suivent la hauteur uniforme `h-controle` de la densité du bureau (ADR-0107, `check-champs-uniformes`), valeur majoritaire des maquettes de formulaire"
+    },
+    {
+      "ecran": "a-8-bureau-1440, a-8-bureau-1280",
+      "element": "unité « F/mois » dans le champ",
+      "propriete": "taille de police (15 → 12,6)",
+      "exception": "technique",
+      "motif": "la maquette écrit « 250 000 F/mois » comme UNE valeur à 15 px ; le produit sépare l'unité de la valeur (le formulaire reçoit un nombre) et la pose à la taille de la valeur, `text-champ`, qui suit la densité du bureau. Au téléphone, les deux font 16 px (pas de zoom iOS)"
+    },
+    {
+      "ecran": "a-8-telephone",
+      "element": "« Date d'entrée »",
+      "propriete": "astérisque",
+      "exception": "accessibilité",
+      "motif": "la date d'entrée est REQUISE par l'API pour une candidature (`StoreBookingRequest`) ; le champ le dit comme tout champ requis du produit"
+    }
+  ],
+  "hors_perimetre": [
+    {
+      "element": "a-0 · la liste des réservations (onglets, lignes, filtres)",
+      "ticket": "TCK-2594",
+      "motif": "ce ticket ne pose que l'entrée de l'en-tête"
+    },
+    {
+      "element": "page de visite sous la feuille (« ← Toutes les visites », feedback)",
+      "ticket": "TCK-2581",
+      "motif": "le compte rendu et « Et maintenant ? » ; ce ticket n'y pose que l'entrée de la visite terminée"
+    },
+    {
+      "element": "détail de la réservation créée (« Dates — » pour une candidature, « Expire le » d'une demande)",
+      "ticket": "TCK-2594",
+      "motif": "le détail Qui / Quoi / Suite par nature"
+    }
+  ]
+}

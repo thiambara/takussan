@@ -14421,5 +14421,83 @@
       "hebdoFaitTitre": "Une fois par semaine, c’est noté",
       "hebdoFaitTexte": "Vous recevrez au plus un message par semaine. Chacun garde son lien de désinscription."
     }
+  },
+  "saisieDemande": {
+    "titre": "Saisir une demande",
+    "entree": "Saisir une candidature ou une offre",
+    "entreeCourte": "Saisir une demande",
+    "entreeCandidature": "Saisir sa candidature",
+    "entreeOffre": "Saisir son offre",
+    "client": {
+      "libelle": "Client",
+      "changer": "Changer",
+      "changerLibelle": "Changer de client",
+      "rechercher": "Rechercher un client",
+      "placeholder": "Nom ou téléphone",
+      "aucun": "Aucun client ne correspond.",
+      "depuisLaVisite": "Repris de sa visite"
+    },
+    "bien": {
+      "libelle": "Bien",
+      "changerLibelle": "Changer de bien",
+      "rechercher": "Rechercher un bien",
+      "placeholder": "Titre ou quartier",
+      "aucun": "Aucun bien ne correspond.",
+      "aLouer": "À louer",
+      "aVendre": "À vendre",
+      "chargement": "Chargement du bien…",
+      "parMois": "{prix}/mois",
+      "parAn": "{prix}/an"
+    },
+    "recherche": {
+      "enCours": "Recherche…",
+      "erreur": "La recherche n’a pas abouti. Réessayez."
+    },
+    "nature": {
+      "libelle": "Nature",
+      "candidature": "Candidature",
+      "offre": "Offre d’achat",
+      "raisonLocation": "Ce bien est à louer : la demande est une candidature.",
+      "raisonVente": "Ce bien est à vendre : la demande est une offre d’achat.",
+      "raisonSejour": "Ce bien se loue à la nuit : un séjour se réserve depuis son calendrier, pas ici.",
+      "choisirLeBien": "Choisissez d’abord le bien : il décide de la nature."
+    },
+    "montant": {
+      "loyer": "Loyer proposé",
+      "offre": "Montant offert",
+      "uniteMois": "F/mois",
+      "uniteAn": "F/an",
+      "unite": "F",
+      "ecart": "{ecart} par rapport au prix affiché ({prix})",
+      "prixAffiche": "Prix affiché : {prix}"
+    },
+    "dateEntree": "Date d’entrée",
+    "validite": "Valable jusqu’au",
+    "facultatif": "Facultatif",
+    "message": "Message",
+    "messagePlaceholder": "Ce que le client vous a dit",
+    "prevenu": "Le client sera prévenu et pourra annuler.",
+    "enregistrerCandidature": "Enregistrer la candidature",
+    "enregistrerOffre": "Enregistrer l’offre",
+    "enregistrer": "Enregistrer",
+    "enregistrement": "Enregistrement…",
+    "succes": {
+      "candidature": "Candidature enregistrée",
+      "offre": "Offre enregistrée",
+      "description": "Le client en est prévenu."
+    },
+    "erreur": "La demande n’a pas pu être enregistrée. Réessayez.",
+    "requis": {
+      "client": "Choisissez le client.",
+      "bien": "Choisissez le bien.",
+      "montant": "Indiquez le montant.",
+      "dateEntree": "Indiquez la date d’entrée."
+    },
+    "codes": {
+      "booking": {
+        "customer_required": "Choisissez le client : une demande saisie par l’agence est toujours à son nom.",
+        "kind_mismatch": "Cette nature ne correspond pas au bien : une candidature vise une location, une offre un bien à vendre."
+      }
+    }
   }
 }

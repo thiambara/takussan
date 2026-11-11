@@ -26,6 +26,7 @@ import { CustomerReferent } from '@/components/crm/CustomerReferent';
 import { CustomerStageControl } from '@/components/crm/CustomerStageControl';
 import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
 import { PlanifierUneVisite } from '@/components/visits/PlanifierUneVisite';
+import { EntreeSaisieDemande } from '@/components/bookings/EntreeSaisieDemande';
 import {
   CUSTOMER_ENUM_NAMESPACES,
   CUSTOMER_STATUS_TONE,
@@ -149,6 +150,11 @@ export default async function Page({ params }: { params: Params }) {
           <div className="flex flex-wrap items-center gap-2">
             <PlanifierUneVisite
               customer={{ id: customer.id, libelle: nom }}
+            />
+            {/* TCK-2580 — la candidature ou l'offre qu'il vient de faire, le client prérempli. */}
+            <EntreeSaisieDemande
+              variante="fiche"
+              client={{ id: customer.id, nom, detail: customer.phone ?? customer.email ?? null }}
             />
             <AddDocumentButton
               documentableType="customer"
