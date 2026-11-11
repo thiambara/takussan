@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
+import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
 import { cn } from '@/lib/utils';
 
 /** Une étape du fil d'Ariane. La dernière est la page courante : sans lien. */
@@ -79,6 +80,9 @@ export function PageHeader({
       )}
     >
       <div className="min-w-0">
+        {/* TCK-2617 — le titre de la page, déclaré à l'en-tête du téléphone de `/app` (son H1 sous `md`
+            pour une racine, son nom court pour un détail). Hors de la coque (`/super-admin`), rien. */}
+        {typeof title === 'string' ? <DeclarerEnTete priorite="en-tete-de-page" titre={title} /> : null}
         {eyebrow ? (
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
             {eyebrow}
@@ -112,10 +116,23 @@ export function PageHeader({
  * TCK-2687 — le fil d'Ariane de la maquette (`TeteDePage`, `chrome-app.tsx:300`) : 13 px
  * (`text-ui`), encre discrète, séparateur « › » (décoratif, tu aux lecteurs d'écran : la liste dit
  * déjà l'ordre), `mb-2` ; la page courante en encre douce, marquée `aria-current`.
+ *
+ * TCK-2617 — **dès `md` seulement** : il remplace le lien « ← Retour » des pages de détail au bureau
+ * (et dans le rail, de 768 à 1023, sans quoi cette plage n'aurait ni flèche ni fil) ; au téléphone,
+ * c'est la flèche de l'en-tête de la coque (la maquette « Page de détail » n'y a pas de fil). Exporté :
+ * une page de détail sans `PageHeader` (`LeaseDetail`) le pose elle-même.
  */
-function FilDAriane({ label, etapes }: { readonly label: string; readonly etapes: readonly EtapeDuFil[] }) {
+export function FilDAriane({
+  label,
+  etapes,
+  className,
+}: {
+  readonly label: string;
+  readonly etapes: readonly EtapeDuFil[];
+  readonly className?: string;
+}) {
   return (
-    <nav aria-label={label} className="mb-2">
+    <nav aria-label={label} className={cn('mb-2 max-md:hidden', className)}>
       <ol className="flex flex-wrap items-center gap-1.5 text-ui text-muted-foreground">
         {etapes.map((etape, i) => {
           const derniere = i === etapes.length - 1;

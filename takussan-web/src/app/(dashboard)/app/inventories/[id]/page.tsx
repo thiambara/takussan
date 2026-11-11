@@ -1,11 +1,8 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
 
 import { getMeAction } from '@/app/actions/auth';
 
 import { InventoryDetail } from '@/components/inventory/InventoryDetail';
-import { buttonVariants } from '@/components/ui/button';
 import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/console';
 
@@ -20,6 +17,8 @@ interface PageProps {
 
 export default async function Page({ params }: PageProps) {
   const t = await getTranslations('dashboard.inventoryDetail');
+  const tPages = await getTranslations('dashboard.pages');
+  const tConsole = await getTranslations('console.pageHeader');
   await getMeAction();
   const { id } = await params;
   const numericId = Number(id);
@@ -35,12 +34,11 @@ export default async function Page({ params }: PageProps) {
       <PageHeader
         title={t('title', { id: numericId })}
         description={t('subtitle')}
-        actions={
-          <Link href="/app/inventories" className={buttonVariants({ variant: 'outline' })}>
-            <ArrowLeft aria-hidden="true" />
-            {t('back')}
-          </Link>
-        }
+        // TCK-2617 — plus de bouton « ← Retour » : la flèche de l'en-tête au téléphone, le fil dès `md`.
+        fil={{
+          label: tConsole('breadcrumb'),
+          etapes: [{ label: tPages('inventories.title'), href: '/app/inventories' }, { label: t('title', { id: numericId }) }],
+        }}
       />
       <InventoryDetail id={numericId} />
     </div>

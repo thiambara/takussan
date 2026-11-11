@@ -6,6 +6,9 @@ import { useTranslations } from 'next-intl';
 import type { User } from '@/types/user';
 import type { ProfileType } from '@/types/profile';
 import { EnTeteMobile } from './EnTeteMobile';
+import { FournisseurDEnTete, useDeclarationDEnTete } from './en-tete-de-la-coque';
+import { formeDeLaRoute, parentDeLaRoute, titreDeLaRoute } from '@/lib/navigation/en-tete-de-la-coque';
+import { useMenuDeLEspace } from './useMenuDeLEspace';
 import { AppSidebar } from './AppSidebar';
 import { BarreDOnglets } from './BarreDOnglets';
 import { EMPLACEMENT_BARRE_D_ACTION } from '@/components/ui/barre-d-action';
@@ -65,7 +68,21 @@ interface AppShellProps {
   modulesMasques?: readonly string[];
 }
 
-export function AppShell({
+/**
+ * TCK-2617 — la coque, sous le fournisseur des déclarations d'en-tête : la page (rendue dans `<main>`)
+ * déclare son titre, sa forme ou une conversation ouverte, et la coque — en-tête du téléphone, barre
+ * d'onglets, attributs lus par `globals.css` — la lit. Les enfants (la page) sont le même élément d'un
+ * rendu à l'autre : une déclaration ne re-rend pas la page.
+ */
+export function AppShell(props: AppShellProps) {
+  return (
+    <FournisseurDEnTete>
+      <CoqueDeLApp {...props} />
+    </FournisseurDEnTete>
+  );
+}
+
+function CoqueDeLApp({
   user,
   children,
   agencyIsStandard,
@@ -83,8 +100,14 @@ export function AppShell({
   // ils disent quelque chose sur la session, pas sur la navigation.
   const pathname = usePathname();
   const pleinEcran = estPleinEcran(pathname);
+  // TCK-2617 — la forme de l'en-tête du téléphone : celle de la route, que la page précise. Une
+  // conversation ouverte (un ÉTAT de `/app/messages`) et un formulaire plein écran n'ont pas de barre
+  // d'onglets — sous `md` seulement : la colonne, la palette et les récents restent (≠ `pleinEcran`).
+  const declaration = useDeclarationDEnTete();
+  const forme = declaration.forme ?? formeDeLaRoute(pathname);
+  const sansOnglets = forme === 'plein-ecran' || declaration.conversation === true;
   // TCK-2481 — sous `md`, la barre d'onglets ; « Menu » y ouvre le tiroir, qui lui rend le focus.
-  const barreDOnglets = porteLaBarreDOnglets(pathname);
+  const barreDOnglets = porteLaBarreDOnglets(pathname) && !sansOnglets;
   const boutonMenu = useRef<HTMLButtonElement>(null);
   // TCK-2481 (revue, M1) — le tiroir se referme-t-il sur une NAVIGATION ? Posé par `onNavigate`, lu
   // par `finalFocus` : « Menu » est le dernier focalisable du document, y rendre le focus après le
@@ -180,7 +203,14 @@ export function AppShell({
         {/* TCK-2481 — `data-barre-onglets` : la coque porte la barre d'onglets (sous `md`).
             TCK-2685 — `data-portee-app` : la portée `/app` (trait d'icône, densité…), lue par
             `:root:has(…)` dans `globals.css`, et qui atteint donc aussi les portails. */}
-        <div className="flex h-dvh flex-col bg-background" data-barre-onglets={barreDOnglets ? '' : undefined} data-portee-app="">
+        {/* TCK-2617 — `data-forme-en-tete` : sous `md`, une racine a SON H1 dans l'en-tête, celui du
+            contenu est masqué (`globals.css`) — un seul H1 exposé à toute largeur. */}
+        <div
+          className="flex h-dvh flex-col bg-background"
+          data-barre-onglets={barreDOnglets ? '' : undefined}
+          data-forme-en-tete={pleinEcran ? undefined : forme}
+          data-portee-app=""
+        >
           {/* TCK-905 (P31.04) — avant la bannière, l'en-tête mobile et la colonne. */}
           <LienEvitement />
           {/* TCK-600 (ADR-0055) — la session d'impersonation, lue sur le serveur du front : rien
@@ -189,7 +219,14 @@ export function AppShell({
           {agencySuspended ? <AgencySuspendedBanner /> : null}
           {/* TCK-2491 (ADR-0090 §2, §8) — plus de barre du haut : dès `md`, la colonne porte la marque, la
               cloche et le compte ; sous `md`, une en-tête compacte (marque, « Aller à », cloche). */}
-          {pleinEcran ? null : <EnTeteMobile onOuvrirPalette={(depuis) => changerPalette(true, depuis)} />}
+          {pleinEcran || declaration.conversation ? null : (
+            <EnTeteDeLaCoque
+              contexteDuMenu={contexteDuMenu}
+              forme={forme}
+              libelleRole={t(`personas.${persona}`)}
+              onOuvrirPalette={(depuis) => changerPalette(true, depuis)}
+            />
+          )}
           <div className="flex min-h-0 flex-1 overflow-hidden">
             {pleinEcran ? null : (
               <>
@@ -280,8 +317,11 @@ export function AppShell({
               et non `fixed` : le `<main>` rétrécit de sa hauteur exacte, et rien de la page ne passe
               dessous (TCK-503). Après le `<main>` dans le document comme à l'écran ; le lien
               d'évitement reste le premier focalisable. */}
-          {barreDOnglets ? (
+          {/* TCK-2617 — sans onglets (conversation, formulaire), la barre ne rend que sa région `aria-live`
+              des non-lus : l'annonce ne se tait pas parce qu'un fil est ouvert. */}
+          {barreDOnglets || (sansOnglets && porteLaBarreDOnglets(pathname)) ? (
             <BarreDOnglets
+              masquee={!barreDOnglets}
               user={user}
               agencyIsStandard={agencyIsStandard}
               typeProfilActif={typeProfilActif}
@@ -307,5 +347,41 @@ export function AppShell({
         </div>
       </PreferencesDuMenuProvider>
     </MinimalProfileTriggerProvider>
+  );
+}
+
+/**
+ * TCK-2617 — l'en-tête du téléphone, nourri par la route (forme, titre du menu, repli du retour) et
+ * par la déclaration de la page, qui l'emporte. Le titre dérivé est rendu dès le serveur : une page
+ * qui ne déclare rien n'est jamais sans titre, et celle qui déclare le même ne fait rien bouger.
+ */
+function EnTeteDeLaCoque({
+  contexteDuMenu,
+  forme,
+  libelleRole,
+  onOuvrirPalette,
+}: {
+  readonly contexteDuMenu: Parameters<typeof useMenuDeLEspace>[0];
+  readonly forme: ReturnType<typeof formeDeLaRoute>;
+  readonly libelleRole: string;
+  readonly onOuvrirPalette: (depuis: HTMLElement) => void;
+}) {
+  const pathname = usePathname();
+  const declaration = useDeclarationDEnTete();
+  const { ctx } = useMenuDeLEspace(contexteDuMenu);
+  const t = useTranslations();
+  const derive = titreDeLaRoute(pathname, ctx);
+  const titre = declaration.titre ?? (derive ? t(`${derive.espace}.${derive.cle}`) : null);
+  return (
+    <EnTeteMobile
+      forme={forme}
+      titre={titre}
+      repli={declaration.repli ?? parentDeLaRoute(pathname)}
+      action={declaration.action}
+      actions={declaration.actions}
+      etape={declaration.etape}
+      compte={{ user: contexteDuMenu.user, libelleRole }}
+      onOuvrirPalette={forme === 'racine' || forme === 'accueil' ? onOuvrirPalette : undefined}
+    />
   );
 }

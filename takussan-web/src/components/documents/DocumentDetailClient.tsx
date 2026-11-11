@@ -1,10 +1,11 @@
 'use client';
 
-import { ArrowLeft, FileText, Shield, ShieldCheck } from 'lucide-react';
-import Link from 'next/link';
+import { FileText, Shield, ShieldCheck } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 
 import { ErrorState } from '@/components/feedback';
+import { FilDAriane } from '@/components/console/PageHeader';
+import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Locale } from '@/i18n/config';
 import { formatDate } from '@/lib/format';
@@ -28,6 +29,8 @@ export function DocumentDetailClient({ documentId }: DocumentDetailClientProps) 
   const tTypes = useTranslations('documents.types');
   const tCommon = useTranslations('common');
   const tPage = useTranslations('dashboard.pages.documentDetail');
+  const tPages = useTranslations('dashboard.pages');
+  const tConsole = useTranslations('console.pageHeader');
   const locale = useLocale() as Locale;
   const documentQuery = useDocumentWithVersions(documentId);
   const { data, isLoading, isError } = documentQuery;
@@ -64,14 +67,13 @@ export function DocumentDetailClient({ documentId }: DocumentDetailClientProps) 
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      {/* Back link */}
-      <Link
-        href="/app/documents"
-        className="-my-1 inline-flex min-h-8 items-center gap-1 rounded-md text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <ArrowLeft className="size-4" aria-hidden="true" />
-        {t('back')}
-      </Link>
+      {/* TCK-2617 — plus de lien « ← Retour » : la flèche de l'en-tête au téléphone, le fil dès `md`. */}
+      <DeclarerEnTete titre={document.name} />
+      <FilDAriane
+        label={tConsole('breadcrumb')}
+        etapes={[{ label: tPages('documents.title'), href: '/app/documents' }, { label: document.name }]}
+        className="mb-0"
+      />
 
       {/* Document card */}
       <div className="overflow-hidden rounded-xl border border-border bg-card">

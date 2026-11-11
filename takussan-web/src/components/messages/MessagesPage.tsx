@@ -10,6 +10,7 @@ import { usePropertyConversation } from '@/lib/queries/conversations';
 import { useMatchesMaxWidth } from '@/hooks/useMatchesMedia';
 import { cn } from '@/lib/utils';
 import { ConversationList } from './ConversationList';
+import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
 import { ChatView } from './ChatView';
 import { PropertyDraftChatView } from './PropertyDraftChatView';
 import { NewGroupDialog } from './NewGroupDialog';
@@ -145,12 +146,16 @@ export function MessagesPage({ titre, sousTitre }: MessagesPageProps) {
    * ils changent avec elle. Au-dessus de `lg`, rien de tout cela : la page garde son en-tête et sa
    * carte d'avant.
    */
+  // TCK-2617 — une conversation ouverte prend tout l'écran du téléphone : la coque n'y rend ni son
+  // en-tête ni sa barre d'onglets (déclaré ci-dessous) ; le cadre n'en retire donc plus rien.
   const cadre = enConversation
-    ? '-mx-4 -my-6 h-[calc(100dvh-var(--spacing)*14-var(--barre-onglets-hauteur))] md:-mx-6 md:-my-8 md:h-[calc(100dvh-var(--spacing)*14)]'
+    ? '-mx-4 -my-6 h-dvh md:-mx-6 md:-my-8 md:h-[calc(100dvh-var(--spacing)*14)]'
     : '-mx-4 -mb-6 h-[calc(100dvh-var(--spacing)*20-var(--barre-onglets-hauteur))] md:-mx-6 md:-mb-8 md:h-[calc(100dvh-var(--spacing)*22)]';
 
   return (
     <>
+      {/* TCK-2617 — l'ÉTAT de la page, pas sa route : `?conversation=…` ne change pas le chemin. */}
+      <DeclarerEnTete conversation={enConversation} />
       <div
         data-testid="messagerie"
         className={cn(

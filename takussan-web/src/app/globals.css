@@ -349,6 +349,16 @@
   }
 }
 
+/* TCK-2617 (décision 5 (a) du porteur) — UN SEUL H1 EXPOSÉ, à toute largeur. Sous `md`, l'en-tête
+   d'une page RACINE porte le titre en `<h1>` (`EnTeteMobile`, `md:hidden` : il n'existe pas au-delà) ;
+   celui du contenu y est masqué — dès `md`, c'est lui qui reste. Un détail, l'accueil et un formulaire
+   gardent le H1 de leur contenu (leur en-tête porte un `<p>`). Gardé par `en-tete-mobile.tck-2617`. */
+@media (width < 48rem) {
+  [data-forme-en-tete="racine"] main h1 {
+    display: none;
+  }
+}
+
 /* TCK-2493 (ADR-0091 §4) — sous `lg`, quand la page porte la barre d'onglets publique
    (`data-barre-onglets-publique`, rendue seulement là où aucune autre couche d'action ne tient le
    bas) : `body` réserve sa hauteur — rien de la page ne passe dessous, le dernier élément focalisable

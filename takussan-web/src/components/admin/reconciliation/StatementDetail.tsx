@@ -1,12 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
-import { ArrowLeft } from 'lucide-react';
 
 import { ErrorState } from '@/components/feedback';
 import { StatusBadge } from '@/components/console';
+import { FilDAriane } from '@/components/console/PageHeader';
+import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
@@ -52,6 +52,7 @@ export function StatementDetail({
 }) {
   const t = useTranslations('admin.reconciliation');
   const tCommon = useTranslations('common');
+  const tConsole = useTranslations('console.pageHeader');
   const locale = useLocale() as Locale;
   const messageErreur = useMessageErreurApi();
   const [filtre, setFiltre] = useState<BankLineMatchStatus | null>(null);
@@ -90,6 +91,7 @@ export function StatementDetail({
   const releve = releveQuery.data.data;
   const fige = releveFige(releve);
   const ratio = releve.reconciled_ratio;
+  const nomDuReleve = releve.bank_name || t('list.fallbackName', { id: String(releve.id) });
   const lignes = lignesQuery.data?.data ?? [];
   const dernierePage = lignesQuery.data?.meta?.last_page ?? 1;
 
@@ -100,16 +102,13 @@ export function StatementDetail({
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <Link
-            href="/app/agency/finances/reconciliation"
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-3.5" aria-hidden="true" />
-            {t('detail.back')}
-          </Link>
-          <h2 className="mt-1 font-display text-lg font-semibold text-foreground">
-            {releve.bank_name || t('list.fallbackName', { id: String(releve.id) })}
-          </h2>
+          {/* TCK-2617 — plus de lien « ← Retour » : la flèche de l'en-tête au téléphone, le fil dès `md`. */}
+          <DeclarerEnTete titre={nomDuReleve} />
+          <FilDAriane
+            label={tConsole('breadcrumb')}
+            etapes={[{ label: t('title'), href: '/app/agency/finances/reconciliation' }, { label: nomDuReleve }]}
+          />
+          <h2 className="font-display text-lg font-semibold text-foreground">{nomDuReleve}</h2>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             {releve.status && (
               <StatusBadge

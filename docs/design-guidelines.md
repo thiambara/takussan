@@ -639,7 +639,7 @@ vivent dans `src/components/layout/styles-de-la-barre.ts` (colonne et tiroir), `
 | Marge du contenu (`EnveloppeDuContenu`) | `px-4 py-6` au téléphone ; 24 px de `md` à `lg` ; **`px-8` (28,8 px) dès `lg`** : largeur utile **1110** à 1440, **694** à 1024, **660** à 768 (rail de 60 px) — mesurées sur `/app/leases` |
 | **Page « pleine largeur »** (`<PagePleineLargeur>`) | sous `md`, l'enveloppe perd sa marge (`:has([data-pleine-largeur])`, CSS seul) : la page porte ses marges élément par élément, une rangée va de x = 0, son texte à x = 16. Adoption **page par page** ; une page qui ne l'adopte pas garde `px-4 py-6`. Dès `md`, l'enveloppe garde sa marge. Le conteneur de la page ne porte **aucune** marge latérale (`PagePleineLargeur.garde.test.ts`) |
 | Barre d'onglets | **64 px** + zone sûre (`--barre-onglets-hauteur: calc(4rem + env(safe-area-inset-bottom))`) ; 4 px entre icône et libellé ; icône 20 px au trait 1,75 ; libellé 11 px, interligne 16,5 ; trait actif 2 px `primary`, `inset-x-4`, arrondi plein |
-| En-tête du téléphone | `pl-4 pr-1.5` ; « Aller à » et la cloche : icônes de 20 px au trait 1,75, **encre douce**, cibles de 40 |
+| En-tête du téléphone | `pl-4 pr-1.5` ; « Aller à » et la cloche : icônes de 20 px au trait 1,75, **encre douce**, cibles de 40. Quatre formes (TCK-2617) : voir ci-dessous |
 | Colonne (dès `md`) | filet droit `border-border` plein ; tête `px-4` (logo à 14,4 px du bord) ; ligne `h-9 px-2 gap-2.5 text-sm` (**12,6 px** dès `lg`) ; titre de groupe `text-xs` 400 ; compteur `text-xs` 600 `primary-deep` ; action principale : pastille `size-6`, libellé 600 ; touches « ⌘ K » `rounded bg-muted px-1`, 11 px, police mono (TCK-2712) |
 | « Aujourd'hui » (colonne dépliée, TCK-2712) | titre `pb-1` (18 px) ; lignes `h-8` (**28,8**) en **13 px**, **sans icône**, sans interstice ; compte `rounded-full h-5 px-1.5` 11 px 600, le premier `bg-primary`, les autres `bg-muted` à l'encre douce opaque. Le rail garde l'icône et son point (TCK-2490, I1) ; le tiroir sa ligne de 40 px en 15 px à icône de 20 (aucune maquette du téléphone ne le dessine) |
 | Pastille des non-lues de la cloche (TCK-2712) | `h-4 min-w-4 px-1`, 10 px 600, interligne 10, anneau `card` ; `top-0 -right-0.5` du bouton dans la colonne, `top-0.5 right-0.5` dans l'en-tête du téléphone |
@@ -657,6 +657,36 @@ de chaque groupe tombe où la maquette la pose ; la zone sûre s'ajoute aux 64 p
 
 Au bureau, les lignes du menu se suivent **sans interstice** (pas de 32,4 px, comme la maquette) ; le tiroir garde le
 pixel qui sépare ses voiles (`max-md:space-y-px`).
+
+#### L'en-tête du téléphone, la flèche unique (TCK-2617, décision 5 (a) du porteur)
+
+Sous `md`, l'en-tête de `/app` mesure 56 px, colle en haut (enfant de la coque `h-dvh`, il ne défile pas) et **ne porte
+plus le logo** (il reste dans la colonne et le tiroir). Sa forme se dérive de la route
+(`lib/navigation/en-tete-de-la-coque.ts`, éprouvée sur chaque `page.tsx`) et la page la précise par
+`<DeclarerEnTete>` (`components/layout/en-tete-de-la-coque.tsx`) ; `PageHeader` y déclare son titre de lui-même.
+
+| Forme | Quand | Ce qu'elle porte |
+|---|---|---|
+| **Racine** | une page du menu | le titre à gauche, **c'est le H1** (Bricolage 20 px 600, −0,02 em, tronqué) ; à droite : 0 ou 1 action de page (`ActionDEnTete`, 40 px, « + » primaire plein ou discret), « Aller à », la cloche. Le H1 du contenu est masqué sous `md` (`[data-forme-en-tete="racine"] main h1`) : **un seul H1 exposé à toute largeur** |
+| **Accueil** | `/app` | l'espace en bouton (initiales 28 px, nom de l'espace 15 px 600, chevron 16) — il ouvre le menu du compte et des espaces ; puis « Aller à », la cloche. Le salut reste le H1 du contenu |
+| **Détail** | une route sous une page parente (`/app/leases/7`) | la flèche de retour, un titre court (17 px 600, `<p>`), « ⋯ » de 44 px quand la page déclare des actions secondaires (feuille du bas). Ni cloche ni « Aller à » |
+| **Plein écran** | un formulaire de création (`…/new`) | « ✕ » de 44 px vers la liste, le titre (16 px 600) et « Étape n sur total » (13 px) ; **pas de barre d'onglets** |
+
+Une **conversation ouverte** n'a ni en-tête de coque ni barre d'onglets au téléphone : c'est un ÉTAT de la page
+(`DeclarerEnTete conversation`), pas une route. La région `aria-live` des non-lus reste montée.
+
+**La flèche de retour est unique** : `ArrowLeft` de 20 px dans une cible ronde de 44 px, à l'encre principale —
+`LienFlecheDeRetour` (un lien : revient en arrière si la page précédente de l'onglet est du site, sinon mène au repli,
+la liste parente) et `BoutonFlecheDeRetour` (un bouton, quand le retour est un état), dans
+`navigation-publique/FlecheDeRetour.tsx` — un fichier qui ne lit aucun espace de traduction, pour que la messagerie et
+la coque ne transportent pas `navigationPublique` (`check:i18n-namespaces`) ; `BoutonRetourDePage` du site public
+l'enveloppe et la nomme « Retour » par défaut. Sa variante **sur photo** prend le fond de carte et l'ombre de `BoutonSurPhoto`.
+Le lien texte « ← Retour à … » (`BoutonRetour`) garde sa forme, glyphe de 16 px. **Ne sont pas des retours** : les
+chevrons de période, de pagination, de carrousel, de calendrier, et l'étape précédente d'un assistant. La garde
+`fleche-de-retour-unique.tck-2617.test.ts` tient la liste fermée des fichiers qui nomment une flèche à gauche.
+
+**Au bureau** (dès `md`), le lien « ← Retour » d'une page de détail est remplacé par le **fil d'Ariane** de 13 px
+(`FilDAriane`, « Baux › Bail … »), au-dessus du H1 ; il n'existe pas au téléphone, où la flèche de l'en-tête le remplace.
 
 ### Les primitives neuves de la partie connectée ([ADR-0106](adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), TCK-2690)
 

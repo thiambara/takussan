@@ -244,14 +244,22 @@ describe('<MessagesPage> sous le point de rupture lg (TCK-501, TCK-505)', () => 
 
   // TCK-2481 — sous `md`, la barre d'onglets prend le bas du `<main>` : le cadre s'en retire, sans
   // quoi le composeur passe sous le pli. Dès `md`, pas de barre : la hauteur ne bouge pas.
-  it.each([
-    ['liste', () => null],
-    ['conversation', (cle: string) => (cle === 'conversation' ? '42' : null)],
-  ] as [string, (cle: string) => string | null][])('cadre (%s) : moins la barre sous md, inchangé dès md', (_cas, lecture) => {
-    searchParamsGet.mockImplementation(lecture);
+  it('cadre (liste) : moins la barre sous md, inchangé dès md', () => {
+    searchParamsGet.mockImplementation(() => null);
     render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
     const classes = screen.getByTestId('messagerie').className.split(/\s+/);
     expect(classes.find((c) => c.startsWith('h-[calc('))).toContain('var(--barre-onglets-hauteur)');
+    expect(classes.find((c) => c.startsWith('md:h-[calc('))).not.toContain('barre-onglets');
+  });
+
+  // TCK-2617 — une conversation ouverte est déclarée à la coque, qui n'y rend ni son en-tête ni sa barre
+  // d'onglets au téléphone : le cadre prend tout l'écran (`h-dvh`), il ne retire plus rien.
+  it('cadre (conversation) : tout l’écran sous md, inchangé dès md', () => {
+    searchParamsGet.mockImplementation((cle: string) => (cle === 'conversation' ? '42' : null));
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
+    const classes = screen.getByTestId('messagerie').className.split(/\s+/);
+    expect(classes).toContain('h-dvh');
+    expect(classes.find((c) => c.startsWith('h-[calc('))).toBeUndefined();
     expect(classes.find((c) => c.startsWith('md:h-[calc('))).not.toContain('barre-onglets');
   });
 

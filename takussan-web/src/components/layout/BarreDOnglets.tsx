@@ -47,6 +47,11 @@ interface BarreDOngletsProps {
   readonly onOuvrirMenu: () => void;
   /** Le bouton « Menu », à qui le tiroir rend le focus à sa fermeture (`finalFocus`, AC3). */
   readonly refMenu: RefObject<HTMLButtonElement | null>;
+  /**
+   * TCK-2617 — la barre n'est pas rendue (conversation ouverte, formulaire plein écran) : seule sa
+   * région `aria-live` des non-lus reste montée, et ses compteurs continuent d'être sondés.
+   */
+  readonly masquee?: boolean;
 }
 
 /**
@@ -72,6 +77,7 @@ export function BarreDOnglets({
   menuOuvert,
   onOuvrirMenu,
   refMenu,
+  masquee = false,
 }: BarreDOngletsProps) {
   const t = useTranslations('nav.sidebar');
   const tAdmin = useTranslations('nav.admin');
@@ -97,6 +103,8 @@ export function BarreDOnglets({
   );
   const libelleCompteur = (cle: NavCounterKey, count: number) =>
     COMPTEURS_DE_MODERATION.has(cle) ? tAdmin('pendingBadge', { count }) : t(`counters.${cle}`, { count });
+
+  if (masquee) return <AnnonceDesNonLus compte={counters.unreadMessages} actif={sousMd} />;
 
   return (
     <nav

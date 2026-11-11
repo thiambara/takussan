@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { Menu as MenuPrimitive } from '@base-ui/react/menu';
-import { Bell, Check, ChevronsUpDown, Coins, LogOut, ShieldCheck, UserCircle, UserRound } from 'lucide-react';
+import { Bell, Check, ChevronDown, ChevronsUpDown, Coins, LogOut, ShieldCheck, UserCircle, UserRound } from 'lucide-react';
 import { useFormatter, useLocale, useTranslations } from 'next-intl';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -36,6 +36,12 @@ interface MenuDuCompteProps {
   readonly libelleRole: string;
   /** Le tiroir se referme quand un choix navigue. */
   readonly onNavigate?: () => void;
+  /**
+   * TCK-2617 — `en-tete` : le déclencheur de l'en-tête d'ACCUEIL au téléphone (l'espace en bouton :
+   * initiales de 28 px, nom de l'espace en 15 px, chevron) ; le même menu s'ouvre dessous. Défaut :
+   * le pied de la colonne.
+   */
+  readonly variante?: 'pied' | 'en-tete';
 }
 
 /**
@@ -57,7 +63,7 @@ interface MenuDuCompteProps {
  * - Le solde ne paraît que connu (jamais un « 0 » qui ne serait pas un solde, comme `PastilleCredits`),
  *   et seulement pour qui voit le portefeuille.
  */
-export function MenuDuCompte({ user, libelleRole, onNavigate }: MenuDuCompteProps) {
+export function MenuDuCompte({ user, libelleRole, onNavigate, variante = 'pied' }: MenuDuCompteProps) {
   const router = useRouter();
   const { logout } = useAuth();
   const t = useTranslations('nav');
@@ -85,6 +91,27 @@ export function MenuDuCompte({ user, libelleRole, onNavigate }: MenuDuCompteProp
 
   return (
     <DropdownMenu>
+      {variante === 'en-tete' ? (
+        <DropdownMenuTrigger
+          data-slot="espace-de-l-en-tete"
+          className={cn(
+            'flex min-w-0 flex-1 items-center gap-2 rounded-lg py-1 pr-2 text-left transition-colors hover:bg-foreground/5 data-popup-open:bg-foreground/5',
+            FOCUS_RING_RENTRANT,
+          )}
+        >
+          {/* Le nom accessible est le texte visible : l'espace (ou le compte, sans agence). */}
+          <Avatar className="size-7" aria-hidden>
+            {user.avatar_url ? <AvatarImage src={user.avatar_url} alt="" /> : null}
+            <AvatarFallback className="text-legende font-semibold">
+              {initiales ?? <UserRound className="size-4" aria-hidden="true" />}
+            </AvatarFallback>
+          </Avatar>
+          {/* TCK-2617 — L'ESPACE, tel que le pied le nomme (`espace`, première partie) : l'agence, sinon le
+              persona (« Locataire »), jamais le nom de la personne — il est déjà dans la feuille. */}
+          <span className="min-w-0 truncate text-corps font-semibold text-foreground">{actif?.agency?.name ?? (libelleRole || libelle)}</span>
+          <ChevronDown className="size-4 shrink-0 stroke-2 text-muted-foreground" aria-hidden />
+        </DropdownMenuTrigger>
+      ) : (
       <DropdownMenuTrigger
         data-slot="pied-du-compte"
         className={cn(
@@ -111,6 +138,7 @@ export function MenuDuCompte({ user, libelleRole, onNavigate }: MenuDuCompteProp
         </span>
         <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground icones:hidden" aria-hidden />
       </DropdownMenuTrigger>
+      )}
       <DropdownMenuContent align="start" voile data-slot="menu-du-compte" className="w-64 max-w-[calc(100vw-var(--spacing)*4)]">
         <div className="px-3 py-2">
           <p className="truncate text-sm font-medium text-foreground">{libelle}</p>

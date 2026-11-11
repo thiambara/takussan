@@ -457,6 +457,12 @@
         "agence-journal": "audit, log, history",
         "agence-integrations": "api, webhooks, connectors"
       }
+    },
+    "coque": {
+      "retour": "Back",
+      "fermer": "Close",
+      "plusDActions": "More actions",
+      "etape": "Step {n} of {total}"
     }
   },
   "footer": {
