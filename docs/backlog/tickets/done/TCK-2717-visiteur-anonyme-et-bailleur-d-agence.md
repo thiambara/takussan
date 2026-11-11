@@ -1,7 +1,7 @@
 ---
 id: TCK-2717
 title: "Le bailleur d'un bien d'agence lit le visiteur sans fiche par la carte comme par les champs, et l'avis suit la même règle"
-status: todo
+status: done
 phase: P1
 family: back
 estimate: M
