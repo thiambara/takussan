@@ -59,8 +59,26 @@ vi.mock('@/lib/queries/property-moderation', () => ({
   fetchPropertyModerationQueue: () => Promise.resolve({ meta: { total: 0 } }),
 }));
 
+// Réserve de la vérification de TCK-2619 (F19) — le glisser-déposer des épingles. jsdom n'a pas de mise en
+// page : un vrai geste de pointeur n'y désigne aucune cible fiable (tous les rectangles sont nuls). Le
+// `DndContext` réel reste monté ; on retient seulement le `onDragEnd` que la barre lui passe, pour le
+// rejouer avec la fin de geste que @dnd-kit rendrait (`active`, `over`).
+const finDuGlisser = vi.hoisted(() => ({ rappel: null as null | ((e: unknown) => void) }));
+vi.mock('@dnd-kit/core', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@dnd-kit/core')>();
+  const { createElement } = await import('react');
+  return {
+    ...original,
+    DndContext: (props: import('@dnd-kit/core').DndContextProps) => {
+      finDuGlisser.rappel = (props.onDragEnd as (e: unknown) => void) ?? null;
+      return createElement(original.DndContext, props);
+    },
+  };
+});
+
 const fetchMock = vi.fn<typeof fetch>();
 beforeEach(() => {
+  finDuGlisser.rappel = null;
   vi.useFakeTimers({ shouldAdvanceTime: true });
   demarrage.etapes = null;
   nonLus.n = 0;
@@ -783,6 +801,33 @@ describe('TCK-2619 — le mode « Modifier le menu » (tiroir et colonne)', () =
     expect(ordre()).toEqual(['Baux', 'Commissions']);
   });
 
+  it('réordonner en glissant : déposer « Visites » sur « Commissions » écrit le nouvel ordre ; un dépôt hors cible ou sur soi ne fait rien', async () => {
+    const navigation = { v: 1, personas: { agent: { epingles: ['commissions', 'baux', 'visites'] } } };
+    render(element(['customer', 'agent'], 'agent', { navigation }));
+    const ordre = () => within(groupe('Épinglés')).getAllByRole('link').map((a) => a.textContent);
+    expect(ordre()).toEqual(['Commissions', 'Baux', 'Visites']);
+    // Hors édition, pas de contexte de glisser : rien à rejouer.
+    expect(finDuGlisser.rappel).toBeNull();
+    entrerEnEdition();
+    const deposer = (active: string, over: string | null) =>
+      act(() => finDuGlisser.rappel!({ active: { id: active }, over: over === null ? null : { id: over } }));
+    expect(finDuGlisser.rappel).toBeTypeOf('function');
+
+    deposer('baux', null);
+    deposer('baux', 'baux');
+    await attendreLEnvoi();
+    expect(ordre()).toEqual(['Commissions', 'Baux', 'Visites']);
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    deposer('visites', 'commissions');
+    expect(ordre()).toEqual(['Visites', 'Commissions', 'Baux']);
+    // La poignée de l'épingle déplacée garde le focus, comme au clavier.
+    expect(document.activeElement).toHaveAttribute('data-poignee', 'visites');
+    await attendreLEnvoi();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(corps()).toEqual({ navigation: { v: 1, personas: { agent: { epingles: ['visites', 'commissions', 'baux'] } } } });
+  });
+
   it('en édition, la colonne ne montre que ce qui s’épingle : ni « Aujourd’hui », ni « Récents », ni l’action', () => {
     nonLus.n = 3;
     render(element(AGENT_ET_BAILLEUR, 'agent', { typeProfilActif: 'agent' }));
@@ -791,6 +836,19 @@ describe('TCK-2619 — le mode « Modifier le menu » (tiroir et colonne)', () =
     expect(document.querySelector('[data-slot="aujourdhui"]')).toBeNull();
     expect(document.querySelector('[data-slot="action-principale"]')).toBeNull();
     expect(document.querySelector('[data-slot="modifier-le-menu"]')).toBeNull();
+  });
+
+  it('en édition, la tête de colonne ne garde que la marque : ni cloche, ni bascule ; « Terminé » les rend', () => {
+    render(element(AGENT_ET_BAILLEUR, 'agent', { typeProfilActif: 'agent' }));
+    expect(document.querySelector('[data-slot="cloche"]')).not.toBeNull();
+    expect(document.querySelector('[data-slot="bascule-icones"]')).not.toBeNull();
+    entrerEnEdition();
+    expect(document.querySelector('[data-slot="marque"]')).not.toBeNull();
+    expect(document.querySelector('[data-slot="cloche"]')).toBeNull();
+    expect(document.querySelector('[data-slot="bascule-icones"]')).toBeNull();
+    act(() => screen.getByRole('button', { name: 'Terminé' }).click());
+    expect(document.querySelector('[data-slot="cloche"]')).not.toBeNull();
+    expect(document.querySelector('[data-slot="bascule-icones"]')).not.toBeNull();
   });
 });
 

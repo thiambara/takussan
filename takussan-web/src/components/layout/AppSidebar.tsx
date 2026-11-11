@@ -969,8 +969,10 @@ export function AppSidebar({
             <span className="sr-only">{tCommon('appName')}</span>
           </span>
         </Link>
-        {/* TCK-2480 (A10) — la bascule de l'appareil : jamais dans le tiroir, jamais sans fournisseur. */}
-        {tiroir ? null : (
+        {/* TCK-2480 (A10) — la bascule de l'appareil : jamais dans le tiroir, jamais sans fournisseur.
+            TCK-2619 — ni en mode « Modifier le menu » : la maquette (« Menu (tiroir) », bureau) n'y garde
+            que la marque, la cloche et la bascule reviennent avec « Terminé ». */}
+        {tiroir || edition ? null : (
           <div className="ml-auto flex items-center gap-2 icones:ml-0 icones:flex-col icones:gap-1">
             <NotificationBell align="start" />
             {prefs.actif ? (

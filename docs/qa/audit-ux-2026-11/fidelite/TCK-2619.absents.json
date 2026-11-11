@@ -1,0 +1,2492 @@
+{
+ "ticket": "TCK-2619",
+ "objet": "AC-F3 — « aucun libellé ni aucune icône de la maquette n'est « absent du produit » sans alias ou motif écrit ; aucun élément d'interface « absent de la maquette » sans motif ». Chaque absent des neuf rapports, élément par élément.",
+ "methode": [
+  "Rapports : `node scripts/fidelite/fidelite.mjs compare --maquette references/app-coque/<écran>.json --produit .fidelite/TCK-2619/prod-<écran>-<perturbateur> --roles docs/qa/audit-ux-2026-11/fidelite/TCK-2619.json` (relevés locaux, `.fidelite/` n'est pas versionné).",
+  "Élément : une ligne « absent » du rapport ; « M » = de la maquette, absent du produit ; « P » = du produit, absent de la maquette ; (x, y) en px du cadre.",
+  "Conteneur : lu dans l'ASCENDANCE du nœud retrouvé dans son relevé (par rectangle et type), jamais par la seule position — produit : `aside`, `sheet-content` (tiroir), `feuille-du-bas`, `menu-du-compte`, `en-tete-mobile`, `barre-onglets`, `main` ; maquette : `aside`, `header`, `nav`, le tiroir de 288 × 844, les calques sans parent (feuille, menu du compte), le cadre « Variante ».",
+  "Motif : la première règle dont la PREUVE tient sur le relevé — même libellé ou même icône à ±12 px en face (doublon apparié ailleurs par l'outil), rang dans le menu composé du persona (`composerMenu`, lu par un test jetable retiré) au-delà de la dernière entrée relevée (hors cadre), groupe replié par défaut (`replie: true`, divulgation « Plus »), ou un motif nommé. Une ligne sans règle sortait « NON CLASSÉ » : il n'en reste aucune.",
+  "Le contenu des PAGES sous la coque (accueils de l'admin et de l'agent) est hors de ce ticket : il est rangé ici par son conteneur (`main` du produit, hors `aside`/calques de la maquette), élément par élément, et renvoie aux tickets de page."
+ ],
+ "releves": {
+  "a-0-bureau-1280-masquer-accueil": {
+   "produit_commit": "379545cb79ae",
+   "releve_le": "2026-11-11 18:10 Z",
+   "compte": "30 conformes · 135 écarts · 169 absents · 19.1 % pixels"
+  },
+  "a-0-bureau-1440-masquer-accueil": {
+   "produit_commit": "379545cb79ae",
+   "releve_le": "2026-11-11 18:10 Z",
+   "compte": "30 conformes · 135 écarts · 169 absents · 18.83 % pixels"
+  },
+  "a-3-bureau-1440-edition-bureau": {
+   "produit_commit": "43340f7777a1",
+   "releve_le": "2026-11-11 20:25 Z",
+   "compte": "8 conformes · 211 écarts · 201 absents · 14.23 % pixels"
+  },
+  "a-3-telephone-ouvrir-menu": {
+   "produit_commit": "be658051cabb",
+   "releve_le": "2026-11-11 19:31 Z",
+   "compte": "27 conformes · 36 écarts · 62 absents · 15.01 % pixels"
+  },
+  "a-5-bureau-1440-compte-bureau": {
+   "produit_commit": "43340f7777a1",
+   "releve_le": "2026-11-11 20:26 Z",
+   "compte": "22 conformes · 149 écarts · 112 absents · 13.51 % pixels"
+  },
+  "a-5-telephone-compte-telephone": {
+   "produit_commit": "be658051cabb",
+   "releve_le": "2026-11-11 19:31 Z",
+   "compte": "34 conformes · 13 écarts · 39 absents · 34.67 % pixels"
+  },
+  "a-8-bureau-1280-introuvable-masque": {
+   "produit_commit": "be658051cabb",
+   "releve_le": "2026-11-11 19:30 Z",
+   "compte": "35 conformes · 106 écarts · 40 absents · 3.84 % pixels"
+  },
+  "a-8-bureau-1440-introuvable-masque": {
+   "produit_commit": "be658051cabb",
+   "releve_le": "2026-11-11 19:30 Z",
+   "compte": "28 conformes · 113 écarts · 40 absents · 3.59 % pixels"
+  },
+  "a-8-telephone-introuvable-masque": {
+   "produit_commit": "be658051cabb",
+   "releve_le": "2026-11-11 19:30 Z",
+   "compte": "24 conformes · 19 écarts · 26 absents · 7.45 % pixels"
+  }
+ },
+ "par_renvoi": {
+  "TCK-2622": 450,
+  "TCK-2596": 100,
+  "TCK-2618": 43,
+  "donnée": 42,
+  "replié": 33,
+  "alias": 32,
+  "accepté": 29,
+  "hors cadre": 23,
+  "appariement": 22,
+  "a11y": 18,
+  "TCK-2480": 14,
+  "état de la démo": 14,
+  "TCK-2628": 13,
+  "route du relevé": 6,
+  "décision du porteur": 4,
+  "donnée / TCK-2621": 3,
+  "TCK-2619": 3,
+  "TCK-2490": 2,
+  "hors périmètre": 2,
+  "TCK-2617": 1,
+  "forme": 1,
+  "état de capture": 1,
+  "TCK-2491": 1,
+  "primitive": 1
+ },
+ "ecarts_reels_trouves": [
+  "a-3 bureau (édition) — la tête de colonne gardait la cloche et la bascule « Réduire » : la maquette n'y garde que la marque. Corrigé (`AppSidebar.tsx`), re-relevé : ni `lucide-bell` ni `lucide-panel-left-close` en tête de colonne.",
+  "a-5 bureau — « Mon profil » et « Préférences de notification » du menu du compte portaient circle-user et bell ; la maquette (et la feuille du téléphone) user et bell-ring. Corrigé (`MenuDuCompte.tsx`, lot de TCK-2621), re-relevé : `lucide-user`, `lucide-bell-ring`."
+ ],
+ "groupes": [
+  {
+   "ecran": "a-0 bureau-1280-masquer-accueil",
+   "conteneur": "page",
+   "motif": "contenu de l'accueil de l'admin d'agence, sous la coque : TCK-2622 (accueil de /app, une page par persona)",
+   "renvoi": "TCK-2622",
+   "elements": [
+    "M texte « Sokhna Sène » (996, 479) [rôle]",
+    "M texte « Bureau 80 m² au Plateau » (356, 491) [rôle]",
+    "M texte « 2 visites · 4 demandes » (1125, 488) [rôle]",
+    "M texte « Sur le terrain à 11:00 » (996, 497) [rôle]",
+    "M texte « Abdoulaye Kane » (356, 522) [rôle]",
+    "M texte « Voir » (766, 526) [rôle]",
+    "M texte « Attribuer » (815, 526) [rôle]",
+    "M texte « hier » (736, 533) [rôle]",
+    "M texte « KF » (953, 531) [rôle]",
+    "M texte « Khady Faye » (996, 530) [rôle]",
+    "M texte « Maison avec terrasse, Li » (356, 542) [rôle]",
+    "M texte « 3 visites · 1 demande » (1133, 540) [rôle]",
+    "M texte « Première visite à 09:30 » (996, 548) [rôle]",
+    "M texte « MT » (953, 582) [rôle]",
+    "M texte « Modou Thiam » (996, 582) [rôle]",
+    "M texte « Visites à confirmer » (316, 596) [rôle]",
+    "M texte « 12 » (437, 596) [rôle]",
+    "M texte « Tout voir » (826, 595) [rôle]",
+    "M texte « 1 visite · 2 demandes » (1133, 591) [rôle]",
+    "M texte « Au bureau » (996, 600) [rôle]",
+    "M texte « Mer. 11 nov. · 09:30 — V » (356, 632) [rôle]",
+    "M texte « Autre créneau » (696, 635) [rôle]",
+    "M texte « Confirmer » (809, 635) [rôle]",
+    "M texte « OS » (953, 633) [rôle]",
+    "M texte « Oumy Samb » (996, 633) [rôle]",
+    "M texte « 1 état des lieux » (1163, 642) [rôle]",
+    "M texte « Pape Gueye · agent : Kha » (356, 651) [rôle]",
+    "M texte « Sacré-Cœur, 15:00 » (996, 651) [rôle]",
+    "M texte « Mer. 11 nov. · 16:00 — D » (356, 682) [rôle]",
+    "M texte « Autre créneau » (696, 686) [rôle]",
+    "M texte « Confirmer » (809, 686) [rôle]",
+    "M texte « BN » (953, 685) [rôle]",
+    "M texte « Babacar Ndour » (996, 685) [rôle]",
+    "M texte « Aucune visite » (1168, 694) [rôle]",
+    "M texte « Coumba Diouf · agent : M » (356, 702) [rôle]",
+    "M texte « En congé jusqu’au 13 » (996, 703) [rôle]",
+    "M texte « Voir les 10 autres visit » (302, 726) [rôle]",
+    "M icone « lucide-chevron-right » (540, 738) [rôle]",
+    "M texte « Impayés » (316, 792) [rôle]",
+    "M texte « Tout voir » (826, 791) [rôle]",
+    "M icone « lucide-chevron-right » (881, 795) [rôle]",
+    "M texte « 16 échéances · 33 715 00 » (356, 828) [rôle]",
+    "M texte « Relancer tout » (788, 832) [rôle]",
+    "M icone « lucide-wallet » (322, 837) [rôle]",
+    "M texte « 9 de moins de 30 jours · » (356, 848) [rôle]",
+    "M texte « Seydou Camara · Villa bl » (356, 879) [rôle]",
+    "M texte « Voir » (768, 882) [rôle]",
+    "M texte « Relancer » (817, 882) [rôle]",
+    "M icone « lucide-wallet » (322, 888) [rôle]",
+    "M texte « 94 jours » (716, 890) [rôle]",
+    "M texte « 4 200 000 F · 3 loyers » (356, 899) [rôle]",
+    "M texte « Continuer » (1152, 41)",
+    "M texte « Ce mois » (938, 162)",
+    "M texte « Visites à confirmer » (316, 596)",
+    "M texte « Encaissé » (953, 204)",
+    "M texte « Impayés » (316, 792)",
+    "M texte « Tout voir » (826, 210)",
+    "M texte « Tout voir » (826, 384)",
+    "M texte « Tout voir » (826, 595)",
+    "M texte « Tout voir » (826, 791)",
+    "M texte « À valider » (316, 211)",
+    "M texte « Voir » (780, 257)",
+    "M texte « Voir » (766, 424)",
+    "M texte « Voir » (766, 475)",
+    "M texte « Voir » (766, 526)",
+    "M texte « Voir » (768, 882)",
+    "M texte « Valider » (829, 257)",
+    "M texte « Modérer » (819, 315)",
+    "M texte « Attribuer » (815, 424)",
+    "M texte « Attribuer » (815, 475)",
+    "M texte « Attribuer » (815, 526)",
+    "M texte « hier » (736, 533)",
+    "M texte « Confirmer » (809, 635)",
+    "M texte « Confirmer » (809, 686)",
+    "M texte « Relancer » (817, 882)",
+    "P texte « Vue d'ensemble de votre activité » (301, 61)",
+    "P texte « Mise en service de l’agence » (320, 120)",
+    "P texte « Ce qu’il reste à faire pour que l’agence fonctionne pleinement. » (320, 145)",
+    "P texte « Double authentification de l’administrateur activée » (345, 201)",
+    "P texte « À faire » (319, 209)",
+    "P texte « À faire » (319, 250)",
+    "P texte « Dossier KYC vérifié » (345, 241)",
+    "P texte « Logo de l’agence ajouté » (345, 281)",
+    "P texte « Fait » (319, 290)",
+    "P texte « Fait » (319, 330)",
+    "P texte « Fait » (319, 369)",
+    "P texte « Fait » (319, 409)",
+    "P texte « Fait » (319, 449)",
+    "P texte « Taux de commission renseigné » (345, 321)",
+    "P texte « Moyen de paiement connecté » (345, 361)",
+    "P texte « Premier membre invité dans l’équipe » (345, 400)",
+    "P texte « Premier bien publié » (345, 440)",
+    "P texte « Revenus du mois » (805, 531)",
+    "P texte « Raccourcis » (301, 625)",
+    "P texte « Administration » (344, 668)",
+    "P texte « Statistiques » (584, 668)",
+    "P texte « Exports » (825, 668)",
+    "M icone « svg » (315, 41)",
+    "M icone « lucide-chevron-right » (881, 213)",
+    "M icone « lucide-chevron-right » (881, 388)",
+    "M icone « lucide-chevron-right » (881, 598)",
+    "M icone « lucide-chevron-right » (540, 738)",
+    "M icone « lucide-chevron-right » (881, 795)",
+    "M icone « lucide-arrow-up-right » (1061, 208)",
+    "M icone « lucide-arrow-up-right » (1223, 208)",
+    "M icone « lucide-arrow-up-right » (1061, 322)",
+    "M icone « lucide-arrow-up-right » (1223, 322)",
+    "M icone « lucide-star » (322, 320)",
+    "M icone « lucide-user-plus » (322, 430)",
+    "M icone « lucide-user-plus » (322, 480)",
+    "M icone « lucide-user-plus » (322, 531)",
+    "M icone « lucide-calendar-clock » (322, 640)",
+    "M icone « lucide-calendar-clock » (322, 691)",
+    "M icone « lucide-wallet » (322, 837)",
+    "M icone « lucide-wallet » (322, 888)",
+    "P icone « lucide-circle » (320, 202)",
+    "P icone « lucide-circle » (320, 243)",
+    "P icone « lucide-circle-check » (320, 283)",
+    "P icone « lucide-circle-check » (320, 323)",
+    "P icone « lucide-circle-check » (320, 362)",
+    "P icone « lucide-circle-check » (320, 402)",
+    "P icone « lucide-circle-check » (320, 442)",
+    "P icone « lucide-shield-check » (315, 668)",
+    "P icone « lucide-download » (796, 668)",
+    "M boite « Valider » (829, 257)",
+    "M boite « Modérer » (819, 315)",
+    "M boite « Attribuer » (815, 424)",
+    "M boite « Attribuer » (815, 475)",
+    "M boite « Attribuer » (815, 526)",
+    "M boite « Confirmer » (809, 635)",
+    "M boite « Confirmer » (809, 686)",
+    "M boite « Relancer » (817, 882)",
+    "P boite « Administration » (301, 654)",
+    "P boite « Statistiques » (541, 654)",
+    "P boite « Exports » (781, 654)",
+    "P boite « Messagerie » (1022, 654)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1280-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "présent des deux côtés : « Calendrier » est aussi dans la colonne de l'autre relevé (41, 585) ; l'outil l'a apparié à un autre nœud de même libellé (doublon : 1 ici, 1 en face, plus ceux de la page)",
+   "renvoi": "appariement",
+   "elements": [
+    "M texte « Calendrier » (41, 500) [rôle]",
+    "M texte « Calendrier » (41, 500)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1280-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "icône de l'entrée « Commissions » : receipt dans la maquette, hand-coins dans le catalogue du produit (TCK-2618)",
+   "renvoi": "TCK-2618",
+   "elements": [
+    "M icone « lucide-receipt » (14, 784) [rôle]",
+    "M icone « lucide-receipt » (14, 784)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1280-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "icône de l'entrée « Crédits » : credit-card dans la maquette, coins dans le catalogue du produit (TCK-2618)",
+   "renvoi": "TCK-2618",
+   "elements": [
+    "M icone « lucide-credit-card » (14, 817) [rôle]",
+    "M icone « lucide-credit-card » (14, 817)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1280-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "dans le menu composé (groupe « Finances »), APRÈS la dernière entrée relevée du produit (« Commissions ») : rendu plus bas, hors du cadre (le produit montre en plus « Démarrer » et les lignes d'« Aujourd'hui »). Dernier texte relevé à y = 873",
+   "renvoi": "hors cadre",
+   "elements": [
+    "M texte « Crédits » (41, 817) [rôle]",
+    "M texte « Abonnement » (41, 849) [rôle]",
+    "M texte « Crédits » (41, 817)",
+    "M texte « Abonnement » (41, 849)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1280-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "icône de l'entrée « Abonnement », la même que le catalogue : la ligne n'est pas dans le cadre relevé, voir son libellé",
+   "renvoi": "hors cadre",
+   "elements": [
+    "M icone « lucide-credit-card » (14, 849) [rôle]",
+    "M icone « lucide-credit-card » (14, 849)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1280-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "pied de la colonne : nom et initiales de la personne de la maquette ; le compte de démo porte un autre nom et une photo (donnée)",
+   "renvoi": "donnée",
+   "elements": [
+    "M texte « AD » (11, 857) [rôle]",
+    "M texte « Awa Diop » (49, 856) [rôle]",
+    "M texte « Dakar Immo · Administrat » (49, 874) [rôle]"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1280-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "titre de groupe « Agence » du menu composé : aucune de ses entrées n'est dans le cadre relevé du produit — rendu plus bas, hors du cadre",
+   "renvoi": "hors cadre",
+   "elements": [
+    "M texte « Agence » (7, 885) [rôle]",
+    "M texte « Agence » (7, 885)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1280-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "chevron du titre de groupe « Agence » (groupe repliable, TCK-2480 A8) : suit son titre, voir la ligne de ce titre",
+   "renvoi": "TCK-2480",
+   "elements": [
+    "M icone « lucide-chevron-down » (56, 887) [rôle]",
+    "M icone « lucide-chevron-down » (56, 887)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1280-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "artefact de l'alias « Demandes de contact → Demandes à traiter », qui vaut pour la ligne d'« Aujourd'hui » : l'entrée du menu de la maquette, renommée par l'alias, est « Demandes de contact » des deux côtés (même rang)",
+   "renvoi": "alias",
+   "elements": [
+    "M texte « Demandes à traiter » (41, 403)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1280-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "« Rapports » de la maquette, « Vue agence » du produit : nom et place de cette destination sont à TCK-2628",
+   "renvoi": "TCK-2628",
+   "elements": [
+    "M texte « Rapports » (41, 310)",
+    "P texte « Vue agence » (41, 394)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1280-masquer-accueil",
+   "conteneur": "hors conteneur",
+   "motif": "lien d'évitement du produit (accessibilité), rendu hors écran (−1, −1) jusqu'au focus clavier ; la maquette n'en dessine pas",
+   "renvoi": "a11y",
+   "elements": [
+    "P texte « Aller au contenu principal » (-1, -1)",
+    "P boite « Aller au contenu principal » (-1, -1)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1280-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "libellé masqué (sr-only, 1 × 1) du bouton qui réduit la colonne (TCK-2480) ; le bouton est relevé et apparié",
+   "renvoi": "TCK-2480",
+   "elements": [
+    "P texte « Réduire la barre » (242, 25)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1280-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "statut masqué (sr-only, 1 × 1) d'une étape de « Démarrer »",
+   "renvoi": "état de la démo",
+   "elements": [
+    "P texte « À faire » (13, 352)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1280-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "compte d'une ligne d'« Aujourd'hui » plafonné à 99+ (donnée de la démo : plus de 99 visites à confirmer)",
+   "renvoi": "donnée",
+   "elements": [
+    "P texte « 99+ » (231, 211)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1280-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "bloc « Démarrer » (TCK-2479) : l'agence de démo n'a pas fini sa mise en service ; la maquette le dessine sans",
+   "renvoi": "état de la démo",
+   "elements": [
+    "P texte « Démarrer » (16, 315)",
+    "P texte « Faire vérifier l’agence » (41, 344)",
+    "P icone « lucide-circle-dashed » (14, 344)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1280-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "entrée de menu « Demandes de contact » du produit, que la maquette porte aussi mais sous l'alias global « Demandes à traiter » (voir la ligne maquette du même rang)",
+   "renvoi": "alias",
+   "elements": [
+    "P texte « Demandes de contact » (41, 488)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1280-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "croix « Masquer » du bloc « Démarrer » (TCK-2480 A9) : voir « Démarrer »",
+   "renvoi": "état de la démo",
+   "elements": [
+    "P icone « lucide-x » (245, 316)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1280-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "icône du catalogue pour « Commissions » (hand-coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé)",
+   "renvoi": "TCK-2618",
+   "elements": [
+    "P icone « lucide-hand-coins » (14, 869)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1440-masquer-accueil",
+   "conteneur": "page",
+   "motif": "contenu de l'accueil de l'admin d'agence, sous la coque : TCK-2622 (accueil de /app, une page par persona)",
+   "renvoi": "TCK-2622",
+   "elements": [
+    "M texte « SS » (1067, 479) [rôle]",
+    "M texte « Sokhna Sène » (1109, 479) [rôle]",
+    "M texte « 2 visites · 4 demandes » (1285, 488) [rôle]",
+    "M texte « Sur le terrain à 11:00 » (1109, 497) [rôle]",
+    "M texte « Abdoulaye Kane » (356, 508) [rôle]",
+    "M texte « Voir » (879, 512) [rôle]",
+    "M texte « Attribuer » (928, 512) [rôle]",
+    "M texte « hier » (849, 519) [rôle]",
+    "M texte « Maison avec terrasse, Li » (356, 528) [rôle]",
+    "M texte « KF » (1067, 531) [rôle]",
+    "M texte « Khady Faye » (1109, 530) [rôle]",
+    "M texte « 3 visites · 1 demande » (1293, 540) [rôle]",
+    "M texte « Première visite à 09:30 » (1109, 548) [rôle]",
+    "M texte « Visites à confirmer » (316, 582) [rôle]",
+    "M texte « 12 » (437, 582) [rôle]",
+    "M texte « Tout voir » (940, 581) [rôle]",
+    "M texte « MT » (1067, 582) [rôle]",
+    "M texte « Modou Thiam » (1109, 582) [rôle]",
+    "M texte « 1 visite · 2 demandes » (1293, 591) [rôle]",
+    "M texte « Au bureau » (1109, 600) [rôle]",
+    "M texte « Mer. 11 nov. · 09:30 — V » (356, 618) [rôle]",
+    "M texte « Autre créneau » (810, 622) [rôle]",
+    "M texte « Confirmer » (922, 622) [rôle]",
+    "M texte « OS » (1067, 633) [rôle]",
+    "M texte « Oumy Samb » (1109, 633) [rôle]",
+    "M texte « Pape Gueye · agent : Kha » (356, 638) [rôle]",
+    "M texte « 1 état des lieux » (1323, 642) [rôle]",
+    "M texte « Sacré-Cœur, 15:00 » (1109, 651) [rôle]",
+    "M texte « Mer. 11 nov. · 16:00 — D » (356, 669) [rôle]",
+    "M texte « Autre créneau » (810, 672) [rôle]",
+    "M texte « Confirmer » (922, 672) [rôle]",
+    "M texte « Coumba Diouf · agent : M » (356, 688) [rôle]",
+    "M texte « BN » (1067, 685) [rôle]",
+    "M texte « Babacar Ndour » (1109, 685) [rôle]",
+    "M texte « Aucune visite » (1328, 694) [rôle]",
+    "M texte « En congé jusqu’au 13 » (1109, 703) [rôle]",
+    "M texte « Voir les 10 autres visit » (302, 712) [rôle]",
+    "M icone « lucide-chevron-right » (540, 724) [rôle]",
+    "M texte « Impayés » (316, 778) [rôle]",
+    "M texte « Tout voir » (940, 778) [rôle]",
+    "M icone « lucide-chevron-right » (994, 781) [rôle]",
+    "M texte « 16 échéances · 33 715 00 » (356, 814) [rôle]",
+    "M texte « Relancer tout » (901, 818) [rôle]",
+    "M icone « lucide-wallet » (322, 823) [rôle]",
+    "M texte « 9 de moins de 30 jours · » (356, 834) [rôle]",
+    "M texte « Seydou Camara · Villa bl » (356, 865) [rôle]",
+    "M texte « Voir » (882, 869) [rôle]",
+    "M texte « Relancer » (931, 869) [rôle]",
+    "M icone « lucide-wallet » (322, 874) [rôle]",
+    "M texte « 94 jours » (830, 876) [rôle]",
+    "M texte « 4 200 000 F · 3 loyers » (356, 885) [rôle]",
+    "M texte « Continuer » (1312, 41)",
+    "M texte « Ce mois » (1051, 162)",
+    "M texte « Visites à confirmer » (316, 582)",
+    "M texte « Encaissé » (1067, 204)",
+    "M texte « Impayés » (316, 778)",
+    "M texte « Tout voir » (940, 210)",
+    "M texte « Tout voir » (940, 370)",
+    "M texte « Tout voir » (940, 581)",
+    "M texte « Tout voir » (940, 778)",
+    "M texte « À valider » (316, 211)",
+    "M texte « Voir » (894, 250)",
+    "M texte « Voir » (879, 411)",
+    "M texte « Voir » (879, 461)",
+    "M texte « Voir » (879, 512)",
+    "M texte « Voir » (882, 869)",
+    "M texte « Valider » (943, 250)",
+    "M texte « Modérer » (932, 301)",
+    "M texte « Attribuer » (928, 411)",
+    "M texte « Attribuer » (928, 461)",
+    "M texte « Attribuer » (928, 512)",
+    "M texte « hier » (849, 519)",
+    "M texte « Confirmer » (922, 622)",
+    "M texte « Confirmer » (922, 672)",
+    "M texte « Relancer » (931, 869)",
+    "P texte « Vue d'ensemble de votre activité » (301, 61)",
+    "P texte « Mise en service de l’agence » (320, 120)",
+    "P texte « Ce qu’il reste à faire pour que l’agence fonctionne pleinement. » (320, 145)",
+    "P texte « Double authentification de l’administrateur activée » (345, 201)",
+    "P texte « À faire » (319, 209)",
+    "P texte « À faire » (319, 250)",
+    "P texte « Dossier KYC vérifié » (345, 241)",
+    "P texte « Logo de l’agence ajouté » (345, 281)",
+    "P texte « Fait » (319, 290)",
+    "P texte « Fait » (319, 330)",
+    "P texte « Fait » (319, 369)",
+    "P texte « Fait » (319, 409)",
+    "P texte « Fait » (319, 449)",
+    "P texte « Taux de commission renseigné » (345, 321)",
+    "P texte « Moyen de paiement connecté » (345, 361)",
+    "P texte « Premier membre invité dans l’équipe » (345, 400)",
+    "P texte « Premier bien publié » (345, 440)",
+    "P texte « Revenus du mois » (885, 531)",
+    "P texte « Raccourcis » (301, 625)",
+    "P texte « Administration » (344, 668)",
+    "P texte « Statistiques » (624, 668)",
+    "P texte « Exports » (905, 668)",
+    "M icone « svg » (315, 41)",
+    "M icone « lucide-chevron-right » (994, 213)",
+    "M icone « lucide-chevron-right » (994, 374)",
+    "M icone « lucide-chevron-right » (994, 585)",
+    "M icone « lucide-chevron-right » (540, 724)",
+    "M icone « lucide-chevron-right » (994, 781)",
+    "M icone « lucide-arrow-up-right » (1198, 208)",
+    "M icone « lucide-arrow-up-right » (1383, 208)",
+    "M icone « lucide-arrow-up-right » (1198, 322)",
+    "M icone « lucide-arrow-up-right » (1383, 322)",
+    "M icone « lucide-star » (322, 307)",
+    "M icone « lucide-user-plus » (322, 416)",
+    "M icone « lucide-user-plus » (322, 466)",
+    "M icone « lucide-user-plus » (322, 517)",
+    "M icone « lucide-calendar-clock » (322, 627)",
+    "M icone « lucide-calendar-clock » (322, 678)",
+    "M icone « lucide-wallet » (322, 823)",
+    "M icone « lucide-wallet » (322, 874)",
+    "P icone « lucide-circle » (320, 202)",
+    "P icone « lucide-circle » (320, 243)",
+    "P icone « lucide-circle-check » (320, 283)",
+    "P icone « lucide-circle-check » (320, 323)",
+    "P icone « lucide-circle-check » (320, 362)",
+    "P icone « lucide-circle-check » (320, 402)",
+    "P icone « lucide-circle-check » (320, 442)",
+    "P icone « lucide-shield-check » (315, 668)",
+    "P icone « lucide-download » (876, 668)",
+    "M boite « Valider » (943, 250)",
+    "M boite « Modérer » (932, 301)",
+    "M boite « Attribuer » (928, 411)",
+    "M boite « Attribuer » (928, 461)",
+    "M boite « Attribuer » (928, 512)",
+    "M boite « Confirmer » (922, 622)",
+    "M boite « Confirmer » (922, 672)",
+    "M boite « Relancer » (931, 869)",
+    "P boite « Administration » (301, 654)",
+    "P boite « Statistiques » (581, 654)",
+    "P boite « Exports » (861, 654)",
+    "P boite « Messagerie » (1142, 654)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1440-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "présent des deux côtés : « Calendrier » est aussi dans la colonne de l'autre relevé (41, 585) ; l'outil l'a apparié à un autre nœud de même libellé (doublon : 1 ici, 1 en face, plus ceux de la page)",
+   "renvoi": "appariement",
+   "elements": [
+    "M texte « Calendrier » (41, 500) [rôle]",
+    "M texte « Calendrier » (41, 500)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1440-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "icône de l'entrée « Commissions » : receipt dans la maquette, hand-coins dans le catalogue du produit (TCK-2618)",
+   "renvoi": "TCK-2618",
+   "elements": [
+    "M icone « lucide-receipt » (14, 784) [rôle]",
+    "M icone « lucide-receipt » (14, 784)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1440-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "icône de l'entrée « Crédits » : credit-card dans la maquette, coins dans le catalogue du produit (TCK-2618)",
+   "renvoi": "TCK-2618",
+   "elements": [
+    "M icone « lucide-credit-card » (14, 817) [rôle]",
+    "M icone « lucide-credit-card » (14, 817)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1440-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "dans le menu composé (groupe « Finances »), APRÈS la dernière entrée relevée du produit (« Commissions ») : rendu plus bas, hors du cadre (le produit montre en plus « Démarrer » et les lignes d'« Aujourd'hui »). Dernier texte relevé à y = 873",
+   "renvoi": "hors cadre",
+   "elements": [
+    "M texte « Crédits » (41, 817) [rôle]",
+    "M texte « Abonnement » (41, 849) [rôle]",
+    "M texte « Crédits » (41, 817)",
+    "M texte « Abonnement » (41, 849)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1440-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "icône de l'entrée « Abonnement », la même que le catalogue : la ligne n'est pas dans le cadre relevé, voir son libellé",
+   "renvoi": "hors cadre",
+   "elements": [
+    "M icone « lucide-credit-card » (14, 849) [rôle]",
+    "M icone « lucide-credit-card » (14, 849)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1440-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "pied de la colonne : nom et initiales de la personne de la maquette ; le compte de démo porte un autre nom et une photo (donnée)",
+   "renvoi": "donnée",
+   "elements": [
+    "M texte « AD » (11, 857) [rôle]",
+    "M texte « Awa Diop » (49, 856) [rôle]",
+    "M texte « Dakar Immo · Administrat » (49, 874) [rôle]"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1440-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "titre de groupe « Agence » du menu composé : aucune de ses entrées n'est dans le cadre relevé du produit — rendu plus bas, hors du cadre",
+   "renvoi": "hors cadre",
+   "elements": [
+    "M texte « Agence » (7, 885) [rôle]",
+    "M texte « Agence » (7, 885)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1440-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "chevron du titre de groupe « Agence » (groupe repliable, TCK-2480 A8) : suit son titre, voir la ligne de ce titre",
+   "renvoi": "TCK-2480",
+   "elements": [
+    "M icone « lucide-chevron-down » (56, 887) [rôle]",
+    "M icone « lucide-chevron-down » (56, 887)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1440-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "artefact de l'alias « Demandes de contact → Demandes à traiter », qui vaut pour la ligne d'« Aujourd'hui » : l'entrée du menu de la maquette, renommée par l'alias, est « Demandes de contact » des deux côtés (même rang)",
+   "renvoi": "alias",
+   "elements": [
+    "M texte « Demandes à traiter » (41, 403)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1440-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "« Rapports » de la maquette, « Vue agence » du produit : nom et place de cette destination sont à TCK-2628",
+   "renvoi": "TCK-2628",
+   "elements": [
+    "M texte « Rapports » (41, 310)",
+    "P texte « Vue agence » (41, 394)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1440-masquer-accueil",
+   "conteneur": "hors conteneur",
+   "motif": "lien d'évitement du produit (accessibilité), rendu hors écran (−1, −1) jusqu'au focus clavier ; la maquette n'en dessine pas",
+   "renvoi": "a11y",
+   "elements": [
+    "P texte « Aller au contenu principal » (-1, -1)",
+    "P boite « Aller au contenu principal » (-1, -1)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1440-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "libellé masqué (sr-only, 1 × 1) du bouton qui réduit la colonne (TCK-2480) ; le bouton est relevé et apparié",
+   "renvoi": "TCK-2480",
+   "elements": [
+    "P texte « Réduire la barre » (242, 25)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1440-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "statut masqué (sr-only, 1 × 1) d'une étape de « Démarrer »",
+   "renvoi": "état de la démo",
+   "elements": [
+    "P texte « À faire » (13, 352)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1440-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "compte d'une ligne d'« Aujourd'hui » plafonné à 99+ (donnée de la démo : plus de 99 visites à confirmer)",
+   "renvoi": "donnée",
+   "elements": [
+    "P texte « 99+ » (231, 211)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1440-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "bloc « Démarrer » (TCK-2479) : l'agence de démo n'a pas fini sa mise en service ; la maquette le dessine sans",
+   "renvoi": "état de la démo",
+   "elements": [
+    "P texte « Démarrer » (16, 315)",
+    "P texte « Faire vérifier l’agence » (41, 344)",
+    "P icone « lucide-circle-dashed » (14, 344)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1440-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "entrée de menu « Demandes de contact » du produit, que la maquette porte aussi mais sous l'alias global « Demandes à traiter » (voir la ligne maquette du même rang)",
+   "renvoi": "alias",
+   "elements": [
+    "P texte « Demandes de contact » (41, 488)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1440-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "croix « Masquer » du bloc « Démarrer » (TCK-2480 A9) : voir « Démarrer »",
+   "renvoi": "état de la démo",
+   "elements": [
+    "P icone « lucide-x » (245, 316)"
+   ]
+  },
+  {
+   "ecran": "a-0 bureau-1440-masquer-accueil",
+   "conteneur": "colonne",
+   "motif": "icône du catalogue pour « Commissions » (hand-coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé)",
+   "renvoi": "TCK-2618",
+   "elements": [
+    "P icone « lucide-hand-coins » (14, 869)"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "page",
+   "motif": "contenu de l'accueil de l'admin d'agence, sous la coque : TCK-2622 (accueil de /app, une page par persona)",
+   "renvoi": "TCK-2622",
+   "elements": [
+    "M texte « Sokhna Sène » (1109, 479) [rôle]",
+    "M texte « 2 visites · 4 demandes » (1285, 488) [rôle]",
+    "M texte « Sur le terrain à 11:00 » (1109, 497) [rôle]",
+    "M texte « Abdoulaye Kane » (356, 508) [rôle]",
+    "M texte « Voir » (879, 512) [rôle]",
+    "M texte « Attribuer » (928, 512) [rôle]",
+    "M texte « hier » (849, 519) [rôle]",
+    "M texte « Maison avec terrasse, Li » (356, 528) [rôle]",
+    "M texte « KF » (1067, 531) [rôle]",
+    "M texte « Khady Faye » (1109, 530) [rôle]",
+    "M texte « 3 visites · 1 demande » (1293, 540) [rôle]",
+    "M texte « Première visite à 09:30 » (1109, 548) [rôle]",
+    "M texte « Visites à confirmer » (316, 582) [rôle]",
+    "M texte « 12 » (437, 582) [rôle]",
+    "M texte « Tout voir » (940, 581) [rôle]",
+    "M texte « MT » (1067, 582) [rôle]",
+    "M texte « Modou Thiam » (1109, 582) [rôle]",
+    "M texte « 1 visite · 2 demandes » (1293, 591) [rôle]",
+    "M texte « Au bureau » (1109, 600) [rôle]",
+    "M texte « Mer. 11 nov. · 09:30 — V » (356, 618) [rôle]",
+    "M texte « Autre créneau » (810, 622) [rôle]",
+    "M texte « Confirmer » (922, 622) [rôle]",
+    "M texte « OS » (1067, 633) [rôle]",
+    "M texte « Oumy Samb » (1109, 633) [rôle]",
+    "M texte « Pape Gueye · agent : Kha » (356, 638) [rôle]",
+    "M texte « 1 état des lieux » (1323, 642) [rôle]",
+    "M texte « Sacré-Cœur, 15:00 » (1109, 651) [rôle]",
+    "M texte « Mer. 11 nov. · 16:00 — D » (356, 669) [rôle]",
+    "M texte « Autre créneau » (810, 672) [rôle]",
+    "M texte « Confirmer » (922, 672) [rôle]",
+    "M texte « Coumba Diouf · agent : M » (356, 688) [rôle]",
+    "M texte « BN » (1067, 685) [rôle]",
+    "M texte « Babacar Ndour » (1109, 685) [rôle]",
+    "M texte « Aucune visite » (1328, 694) [rôle]",
+    "M texte « En congé jusqu’au 13 » (1109, 703) [rôle]",
+    "M texte « Voir les 10 autres visit » (302, 712) [rôle]",
+    "M texte « Impayés » (316, 778) [rôle]",
+    "M texte « Tout voir » (940, 778) [rôle]",
+    "M icone « lucide-chevron-right » (994, 781) [rôle]",
+    "M texte « 16 échéances · 33 715 00 » (356, 814) [rôle]",
+    "M texte « Relancer tout » (901, 818) [rôle]",
+    "M icone « lucide-wallet » (322, 823) [rôle]",
+    "M texte « 9 de moins de 30 jours · » (356, 834) [rôle]",
+    "M texte « Seydou Camara · Villa bl » (356, 865) [rôle]",
+    "M texte « Voir » (882, 869) [rôle]",
+    "M texte « Relancer » (931, 869) [rôle]",
+    "M icone « lucide-wallet » (322, 874) [rôle]",
+    "M texte « 94 jours » (830, 876) [rôle]",
+    "M texte « 4 200 000 F · 3 loyers » (356, 885) [rôle]",
+    "M texte « Continuer » (1312, 41)",
+    "M texte « Ce mois » (1051, 162)",
+    "M texte « Encaissé » (1067, 204)",
+    "M texte « Impayés » (316, 778)",
+    "M texte « Tout voir » (940, 210)",
+    "M texte « Tout voir » (940, 370)",
+    "M texte « Tout voir » (940, 581)",
+    "M texte « Tout voir » (940, 778)",
+    "M texte « À valider » (316, 211)",
+    "M texte « Voir » (894, 250)",
+    "M texte « Voir » (879, 411)",
+    "M texte « Voir » (879, 461)",
+    "M texte « Voir » (879, 512)",
+    "M texte « Voir » (882, 869)",
+    "M texte « Valider » (943, 250)",
+    "M texte « Modérer » (932, 301)",
+    "M texte « Attribuer » (928, 411)",
+    "M texte « Attribuer » (928, 461)",
+    "M texte « Attribuer » (928, 512)",
+    "M texte « hier » (849, 519)",
+    "M texte « Visites à confirmer » (316, 582)",
+    "M texte « Confirmer » (922, 622)",
+    "M texte « Confirmer » (922, 672)",
+    "M texte « Relancer » (931, 869)",
+    "P texte « Vue d'ensemble de votre activité » (301, 61)",
+    "P texte « Mise en service de l’agence » (320, 120)",
+    "P texte « Ce qu’il reste à faire pour que l’agence fonctionne pleinement. » (320, 145)",
+    "P texte « Double authentification de l’administrateur activée » (345, 201)",
+    "P texte « À faire » (319, 209)",
+    "P texte « À faire » (319, 250)",
+    "P texte « Dossier KYC vérifié » (345, 241)",
+    "P texte « Logo de l’agence ajouté » (345, 281)",
+    "P texte « Fait » (319, 290)",
+    "P texte « Fait » (319, 330)",
+    "P texte « Fait » (319, 369)",
+    "P texte « Fait » (319, 409)",
+    "P texte « Fait » (319, 449)",
+    "P texte « Taux de commission renseigné » (345, 321)",
+    "P texte « Moyen de paiement connecté » (345, 361)",
+    "P texte « Premier membre invité dans l’équipe » (345, 400)",
+    "P texte « Premier bien publié » (345, 440)",
+    "P texte « Revenus du mois » (885, 531)",
+    "P texte « Raccourcis » (301, 625)",
+    "P texte « Administration » (344, 668)",
+    "P texte « Statistiques » (624, 668)",
+    "P texte « Exports » (905, 668)",
+    "M icone « svg » (315, 41)",
+    "M icone « lucide-chevron-right » (994, 213)",
+    "M icone « lucide-chevron-right » (994, 374)",
+    "M icone « lucide-chevron-right » (994, 585)",
+    "M icone « lucide-chevron-right » (540, 724)",
+    "M icone « lucide-chevron-right » (994, 781)",
+    "M icone « lucide-calendar-clock » (322, 627)",
+    "M icone « lucide-calendar-clock » (322, 678)",
+    "M icone « lucide-arrow-up-right » (1198, 208)",
+    "M icone « lucide-arrow-up-right » (1383, 208)",
+    "M icone « lucide-arrow-up-right » (1198, 322)",
+    "M icone « lucide-arrow-up-right » (1383, 322)",
+    "M icone « lucide-star » (322, 307)",
+    "M icone « lucide-user-plus » (322, 416)",
+    "M icone « lucide-user-plus » (322, 466)",
+    "M icone « lucide-user-plus » (322, 517)",
+    "M icone « lucide-wallet » (322, 823)",
+    "M icone « lucide-wallet » (322, 874)",
+    "P icone « lucide-circle » (320, 202)",
+    "P icone « lucide-circle » (320, 243)",
+    "P icone « lucide-circle-check » (320, 283)",
+    "P icone « lucide-circle-check » (320, 323)",
+    "P icone « lucide-circle-check » (320, 362)",
+    "P icone « lucide-circle-check » (320, 402)",
+    "P icone « lucide-circle-check » (320, 442)",
+    "P icone « lucide-shield-check » (315, 668)",
+    "P icone « lucide-download » (876, 668)",
+    "M boite « Valider » (943, 250)",
+    "M boite « Modérer » (932, 301)",
+    "M boite « Attribuer » (928, 411)",
+    "M boite « Attribuer » (928, 461)",
+    "M boite « Attribuer » (928, 512)",
+    "M boite « Confirmer » (922, 622)",
+    "M boite « Confirmer » (922, 672)",
+    "M boite « Relancer » (931, 869)",
+    "P boite « Administration » (301, 654)",
+    "P boite « Statistiques » (581, 654)",
+    "P boite « Exports » (861, 654)",
+    "P boite « Messagerie » (1142, 654)"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "colonne",
+   "motif": "poignée sur une ligne non épinglée : écart déjà accepté (fiche, `ecarts_acceptes`)",
+   "renvoi": "accepté",
+   "elements": [
+    "M icone « lucide-grip-vertical » (11, 768) [rôle]",
+    "M icone « lucide-grip-vertical » (11, 800) [rôle]",
+    "M icone « lucide-grip-vertical » (11, 862) [rôle]",
+    "M icone « lucide-grip-vertical » (11, 894) [rôle]",
+    "M icone « lucide-grip-vertical » (11, 153)",
+    "M icone « lucide-grip-vertical » (11, 185)",
+    "M icone « lucide-grip-vertical » (11, 228)",
+    "M icone « lucide-grip-vertical » (11, 293)",
+    "M icone « lucide-grip-vertical » (11, 354)",
+    "M icone « lucide-grip-vertical » (11, 386)",
+    "M icone « lucide-grip-vertical » (11, 419)",
+    "M icone « lucide-grip-vertical » (11, 451)",
+    "M icone « lucide-grip-vertical » (11, 512)",
+    "M icone « lucide-grip-vertical » (11, 545)",
+    "M icone « lucide-grip-vertical » (11, 577)",
+    "M icone « lucide-grip-vertical » (11, 610)",
+    "M icone « lucide-grip-vertical » (11, 642)",
+    "M icone « lucide-grip-vertical » (11, 703)",
+    "M icone « lucide-grip-vertical » (11, 736)",
+    "M icone « lucide-grip-vertical » (11, 768)",
+    "M icone « lucide-grip-vertical » (11, 800)",
+    "M icone « lucide-grip-vertical » (11, 862)",
+    "M icone « lucide-grip-vertical » (11, 894)"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "colonne",
+   "motif": "icône de l'entrée « Abonnement », la même que le catalogue : la ligne n'est pas dans le cadre relevé, voir son libellé",
+   "renvoi": "hors cadre",
+   "elements": [
+    "M icone « lucide-credit-card » (32, 798) [rôle]",
+    "M icone « lucide-credit-card » (32, 798)"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "colonne",
+   "motif": "pied de la colonne : nom et initiales de la personne de la maquette ; le compte de démo porte un autre nom et une photo (donnée)",
+   "renvoi": "donnée",
+   "elements": [
+    "M texte « AD » (11, 857) [rôle]",
+    "M texte « Awa Diop » (49, 856) [rôle]",
+    "M texte « Dakar Immo · Administrat » (49, 874) [rôle]"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "colonne",
+   "motif": "groupe « Épinglés » : la maquette dessine des épingles ; le compte admin du relevé n'en a aucune (préférences du compte de démo), et un groupe vide ne se rend pas (`epingles ? … : null`)",
+   "renvoi": "donnée",
+   "elements": [
+    "M texte « Épinglés » (7, 126)"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "colonne",
+   "motif": "présent des deux côtés : « Visites » est aussi dans la colonne de l'autre relevé (41, 295) ; l'outil l'a apparié à un autre nœud de même libellé (doublon : 2 ici, 1 en face, plus ceux de la page)",
+   "renvoi": "appariement",
+   "elements": [
+    "M texte « Visites » (58, 385)"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "colonne",
+   "motif": "« Rapports » de la maquette, « Vue agence » du produit : nom et place de cette destination sont à TCK-2628",
+   "renvoi": "TCK-2628",
+   "elements": [
+    "M texte « Rapports » (58, 259)",
+    "P texte « Vue agence » (41, 169)",
+    "M icone « lucide-grip-vertical » (11, 260)"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "colonne",
+   "motif": "artefact de l'alias « Demandes de contact → Demandes à traiter », qui vaut pour la ligne d'« Aujourd'hui » : l'entrée du menu de la maquette, renommée par l'alias, est « Demandes de contact » des deux côtés (même rang)",
+   "renvoi": "alias",
+   "elements": [
+    "M texte « Demandes à traiter » (58, 352)"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "colonne",
+   "motif": "présent des deux côtés : « Calendrier » est aussi dans la colonne de l'autre relevé (41, 360) ; l'outil l'a apparié à un autre nœud de même libellé (doublon : 1 ici, 1 en face, plus ceux de la page)",
+   "renvoi": "appariement",
+   "elements": [
+    "M texte « Calendrier » (58, 450)"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "hors conteneur",
+   "motif": "lien d'évitement du produit (accessibilité), rendu hors écran (−1, −1) jusqu'au focus clavier ; la maquette n'en dessine pas",
+   "renvoi": "a11y",
+   "elements": [
+    "P texte « Aller au contenu principal » (-1, -1)",
+    "P boite « Aller au contenu principal » (-1, -1)"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "colonne",
+   "motif": "entrée de menu « Demandes de contact » du produit, que la maquette porte aussi mais sous l'alias global « Demandes à traiter » (voir la ligne maquette du même rang)",
+   "renvoi": "alias",
+   "elements": [
+    "P texte « Demandes de contact » (41, 262)"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "colonne",
+   "motif": "entrée du groupe REPLIÉ « Pilotage » (replié par défaut : `replie: true` de dispositions.ts, ou divulgation « Plus ») : dans le DOM sous une liste de hauteur nulle, invisible — le relevé la retient, elle chevauche le titre suivant",
+   "renvoi": "replié",
+   "elements": [
+    "P texte « Statistiques » (41, 798)",
+    "P texte « Exports » (41, 896)",
+    "P texte « KPIs » (41, 831)",
+    "P texte « Alertes » (41, 863)"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "colonne",
+   "motif": "titre de groupe « Pilotage » du menu composé du persona : la maquette ne le dessine pas dans ce cadre (son dernier titre de colonne relevé : « ['Agence'] »)",
+   "renvoi": "TCK-2618",
+   "elements": [
+    "P texte « Pilotage » (14, 772)"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "colonne",
+   "motif": "titre de groupe « Plus » du menu composé du persona : la maquette ne le dessine pas dans ce cadre (son dernier titre de colonne relevé : « ['Agence'] »)",
+   "renvoi": "TCK-2618",
+   "elements": [
+    "P texte « Plus » (14, 800)"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "colonne",
+   "motif": "entrée du groupe REPLIÉ « Plus » (replié par défaut : `replie: true` de dispositions.ts, ou divulgation « Plus ») : dans le DOM sous une liste de hauteur nulle, invisible — le relevé la retient, elle chevauche le titre suivant",
+   "renvoi": "replié",
+   "elements": [
+    "P texte « Maintenance » (41, 827)",
+    "P texte « Carnet prestataires » (41, 860)",
+    "P texte « États des lieux » (41, 892)"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "colonne",
+   "motif": "entrée du groupe REPLIÉ « Agence » (replié par défaut : `replie: true` de dispositions.ts, ou divulgation « Plus ») : dans le DOM sous une liste de hauteur nulle, invisible — le relevé la retient, elle chevauche le titre suivant",
+   "renvoi": "replié",
+   "elements": [
+    "P texte « KYC agence » (41, 867)",
+    "P texte « Modération avis » (41, 899)"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "colonne",
+   "motif": "icône de l'entrée « Visites », la même que le catalogue : la ligne n'est pas dans le cadre relevé, voir son libellé",
+   "renvoi": "hors cadre",
+   "elements": [
+    "M icone « lucide-calendar-clock » (32, 385)"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "colonne",
+   "motif": "icône de l'entrée « Biens », la même que le catalogue : la ligne n'est pas dans le cadre relevé, voir son libellé",
+   "renvoi": "hors cadre",
+   "elements": [
+    "M icone « lucide-building2 » (32, 511)"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "colonne",
+   "motif": "icône de l'entrée « Commissions » : receipt dans la maquette, hand-coins dans le catalogue du produit (TCK-2618)",
+   "renvoi": "TCK-2618",
+   "elements": [
+    "M icone « lucide-receipt » (32, 734)"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "colonne",
+   "motif": "icône du catalogue pour « Commissions » (hand-coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé)",
+   "renvoi": "TCK-2618",
+   "elements": [
+    "P icone « lucide-hand-coins » (14, 644)"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "colonne",
+   "motif": "icône d'une entrée de groupe replié (« KYC agence » (Agence)) : invisible sous la liste repliée, voir son libellé",
+   "renvoi": "replié",
+   "elements": [
+    "P icone « lucide-shield-check » (14, 867)"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "colonne",
+   "motif": "icône d'une entrée de groupe replié (« Exports » (Pilotage)) : invisible sous la liste repliée, voir son libellé",
+   "renvoi": "replié",
+   "elements": [
+    "P icone « lucide-download » (14, 896)"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "colonne",
+   "motif": "icône du catalogue pour « Crédits » (coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé)",
+   "renvoi": "TCK-2618",
+   "elements": [
+    "P icone « lucide-coins » (14, 676)"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "colonne",
+   "motif": "chevron du titre de groupe « Agence » (groupe repliable, TCK-2480 A8) : suit son titre, voir la ligne de ce titre",
+   "renvoi": "TCK-2480",
+   "elements": [
+    "P icone « lucide-chevron-down » (56, 744)"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "colonne",
+   "motif": "chevron du titre de groupe « Équipe » (groupe repliable, TCK-2480 A8) : suit son titre, voir la ligne de ce titre",
+   "renvoi": "TCK-2480",
+   "elements": [
+    "P icone « lucide-chevron-down » (58, 772)"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "colonne",
+   "motif": "chevron du titre de groupe « Plus » (groupe repliable, TCK-2480 A8) : suit son titre, voir la ligne de ce titre",
+   "renvoi": "TCK-2480",
+   "elements": [
+    "P icone « lucide-chevron-down » (38, 801)"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "colonne",
+   "motif": "icône d'une entrée de groupe replié (« Rôles » (Agence)) : invisible sous la liste repliée, voir son libellé",
+   "renvoi": "replié",
+   "elements": [
+    "P icone « lucide-key-round » (14, 802)"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "colonne",
+   "motif": "icône d'une entrée de groupe replié (« Maintenance » (Plus), « Carnet prestataires » (Plus)) : invisible sous la liste repliée, voir son libellé",
+   "renvoi": "replié",
+   "elements": [
+    "P icone « lucide-wrench » (14, 827)",
+    "P icone « lucide-wrench » (14, 860)"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "colonne",
+   "motif": "icône d'une entrée de groupe replié (« KPIs » (Pilotage)) : invisible sous la liste repliée, voir son libellé",
+   "renvoi": "replié",
+   "elements": [
+    "P icone « lucide-gauge » (14, 831)"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "colonne",
+   "motif": "icône d'une entrée de groupe replié (« Agence » (Agence)) : invisible sous la liste repliée, voir son libellé",
+   "renvoi": "replié",
+   "elements": [
+    "P icone « lucide-briefcase » (14, 834)"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "colonne",
+   "motif": "icône d'une entrée de groupe replié (« Alertes » (Pilotage)) : invisible sous la liste repliée, voir son libellé",
+   "renvoi": "replié",
+   "elements": [
+    "P icone « lucide-bell-ring » (14, 863)"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "colonne",
+   "motif": "chevron du pied du compte : en édition, la maquette estompe le pied et y pose « Réinitialiser le menu » — écart accepté (fiche, `ecarts_acceptes`, « pied estompé »)",
+   "renvoi": "accepté",
+   "elements": [
+    "P icone « lucide-chevrons-up-down » (244, 864)"
+   ]
+  },
+  {
+   "ecran": "a-3 bureau-1440-edition-bureau",
+   "conteneur": "colonne",
+   "motif": "icône d'une entrée de groupe replié (« États des lieux » (Plus)) : invisible sous la liste repliée, voir son libellé",
+   "renvoi": "replié",
+   "elements": [
+    "P icone « lucide-clipboard-list » (14, 892)"
+   ]
+  },
+  {
+   "ecran": "a-3 telephone-ouvrir-menu",
+   "conteneur": "onglets",
+   "motif": "compte sur l'onglet « Messages » de la maquette : donnée (aucun message non lu sur le compte de démo au relevé)",
+   "renvoi": "donnée",
+   "elements": [
+    "M texte « 2 » (277, 786) [rôle]"
+   ]
+  },
+  {
+   "ecran": "a-3 telephone-ouvrir-menu",
+   "conteneur": "en-tête",
+   "motif": "initiales de l'avatar de la maquette ; le compte de démo a une photo (`avatar-image`, relevée)",
+   "renvoi": "donnée",
+   "elements": [
+    "M texte « AD » (12, 14) [rôle]"
+   ]
+  },
+  {
+   "ecran": "a-3 telephone-ouvrir-menu",
+   "conteneur": "page",
+   "motif": "contenu de l'accueil de l'admin d'agence, sous la coque : TCK-2622 (accueil de /app, une page par persona) — sous le tiroir ouvert, masqué à l’écran",
+   "renvoi": "TCK-2622",
+   "elements": [
+    "M texte « Activez la double authentification » (90, 80)",
+    "M texte « Voir » (33, 332)",
+    "M texte « Voir » (302, 512)",
+    "M texte « Valider » (199, 332)",
+    "M texte « Attribuer » (268, 422)",
+    "M texte « Modérer » (272, 602)",
+    "M texte « Relancer » (268, 692)",
+    "M texte « Ce mois » (16, 782)",
+    "P texte « Vue d'ensemble de votre activité » (16, 112)",
+    "P texte « Mise en service de l’agence » (33, 173)",
+    "P texte « Ce qu’il reste à faire pour que l’agence fonctionne pleinement. » (33, 225)",
+    "P texte « Double authentification de l’administrateur activée » (61, 303)",
+    "P texte « À faire » (32, 322)",
+    "P texte « À faire » (32, 374)",
+    "P texte « Dossier KYC vérifié » (61, 364)",
+    "P texte « Logo de l’agence ajouté » (61, 408)",
+    "P texte « Fait » (32, 418)",
+    "P texte « Fait » (32, 462)",
+    "P texte « Fait » (32, 506)",
+    "P texte « Fait » (32, 550)",
+    "P texte « Fait » (32, 594)",
+    "P texte « Taux de commission renseigné » (61, 452)",
+    "P texte « Moyen de paiement connecté » (61, 496)",
+    "P texte « Premier membre invité dans l’équipe » (61, 540)",
+    "P texte « Premier bien publié » (61, 585)",
+    "P texte « Baux actifs » (227, 682)",
+    "P texte « Revenus du mois » (40, 798)",
+    "P texte « Impayés » (227, 798)",
+    "M icone « svg » (28, 80)",
+    "M icone « lucide-user-plus » (42, 436)",
+    "M icone « lucide-star » (42, 616)",
+    "P icone « lucide-circle » (33, 315)",
+    "P icone « lucide-circle » (33, 366)",
+    "P icone « lucide-circle-check » (33, 410)",
+    "P icone « lucide-circle-check » (33, 454)",
+    "P icone « lucide-circle-check » (33, 498)",
+    "P icone « lucide-circle-check » (33, 542)",
+    "P icone « lucide-circle-check » (33, 587)",
+    "M boite « Voir » (33, 332)",
+    "M boite « Voir » (302, 512)",
+    "M boite « Valider » (199, 332)",
+    "M boite « Attribuer » (268, 422)",
+    "M boite « Modérer » (272, 602)",
+    "M boite « Relancer » (268, 692)"
+   ]
+  },
+  {
+   "ecran": "a-3 telephone-ouvrir-menu",
+   "conteneur": "tiroir",
+   "motif": "artefact de l'alias « Demandes de contact → Demandes à traiter », qui vaut pour la ligne d'« Aujourd'hui » : l'entrée du menu de la maquette, renommée par l'alias, est « Demandes de contact » des deux côtés (même rang)",
+   "renvoi": "alias",
+   "elements": [
+    "M texte « Demandes à traiter » (50, 551)"
+   ]
+  },
+  {
+   "ecran": "a-3 telephone-ouvrir-menu",
+   "conteneur": "tiroir",
+   "motif": "« Rapports » de la maquette, « Vue agence » du produit : nom et place de cette destination sont à TCK-2628",
+   "renvoi": "TCK-2628",
+   "elements": [
+    "M texte « Rapports » (50, 423)"
+   ]
+  },
+  {
+   "ecran": "a-3 telephone-ouvrir-menu",
+   "conteneur": "tiroir",
+   "motif": "titre de groupe « Portefeuille » du menu composé : aucune de ses entrées n'est dans le cadre relevé du produit — rendu plus bas, hors du cadre",
+   "renvoi": "hors cadre",
+   "elements": [
+    "M texte « Portefeuille » (8, 724)"
+   ]
+  },
+  {
+   "ecran": "a-3 telephone-ouvrir-menu",
+   "conteneur": "tiroir",
+   "motif": "dans le menu composé (groupe « Portefeuille »), APRÈS la dernière entrée relevée du produit (« Calendrier ») : rendu plus bas, hors du cadre (le produit montre en plus « Démarrer » et les lignes d'« Aujourd'hui »). Dernier texte relevé à y = 818",
+   "renvoi": "hors cadre",
+   "elements": [
+    "M texte « Propriétaires » (50, 811)"
+   ]
+  },
+  {
+   "ecran": "a-3 telephone-ouvrir-menu",
+   "conteneur": "hors conteneur",
+   "motif": "lien d'évitement du produit (accessibilité), rendu hors écran (−1, −1) jusqu'au focus clavier ; la maquette n'en dessine pas",
+   "renvoi": "a11y",
+   "elements": [
+    "P texte « Aller au contenu principal » (-1, -1)",
+    "P boite « Aller au contenu principal » (-1, -1)"
+   ]
+  },
+  {
+   "ecran": "a-3 telephone-ouvrir-menu",
+   "conteneur": "colonne",
+   "motif": "compte d'une ligne d'« Aujourd'hui » plafonné à 99+ (donnée de la démo : plus de 99 visites à confirmer)",
+   "renvoi": "donnée",
+   "elements": [
+    "P texte « 99+ » (246, 291)"
+   ]
+  },
+  {
+   "ecran": "a-3 telephone-ouvrir-menu",
+   "conteneur": "colonne",
+   "motif": "statut masqué (sr-only, 1 × 1) d'une étape de « Démarrer »",
+   "renvoi": "état de la démo",
+   "elements": [
+    "P texte « À faire » (15, 482)"
+   ]
+  },
+  {
+   "ecran": "a-3 telephone-ouvrir-menu",
+   "conteneur": "colonne",
+   "motif": "bloc « Démarrer » (TCK-2479) : l'agence de démo n'a pas fini sa mise en service ; la maquette le dessine sans",
+   "renvoi": "état de la démo",
+   "elements": [
+    "P texte « Démarrer » (18, 437)",
+    "P texte « Faire vérifier l’agence » (46, 473)",
+    "P icone « lucide-circle-dashed » (16, 473)"
+   ]
+  },
+  {
+   "ecran": "a-3 telephone-ouvrir-menu",
+   "conteneur": "colonne",
+   "motif": "« Rapports » de la maquette, « Vue agence » du produit : nom et place de cette destination sont à TCK-2628",
+   "renvoi": "TCK-2628",
+   "elements": [
+    "P texte « Vue agence » (46, 536)"
+   ]
+  },
+  {
+   "ecran": "a-3 telephone-ouvrir-menu",
+   "conteneur": "colonne",
+   "motif": "entrée de menu « Demandes de contact » du produit, que la maquette porte aussi mais sous l'alias global « Demandes à traiter » (voir la ligne maquette du même rang)",
+   "renvoi": "alias",
+   "elements": [
+    "P texte « Demandes de contact » (46, 683)"
+   ]
+  },
+  {
+   "ecran": "a-3 telephone-ouvrir-menu",
+   "conteneur": "onglets",
+   "motif": "icône de l'onglet « Argent » de la maquette ; le produit garde l'icône de TCK-2618 pour cet onglet",
+   "renvoi": "TCK-2618",
+   "elements": [
+    "M icone « lucide-wallet » (107, 792)"
+   ]
+  },
+  {
+   "ecran": "a-3 telephone-ouvrir-menu",
+   "conteneur": "tiroir",
+   "motif": "icône de l'entrée « Propriétaires », la même que le catalogue : la ligne n'est pas dans le cadre relevé, voir son libellé",
+   "renvoi": "hors cadre",
+   "elements": [
+    "M icone « lucide-users » (18, 812)"
+   ]
+  },
+  {
+   "ecran": "a-3 telephone-ouvrir-menu",
+   "conteneur": "colonne",
+   "motif": "icône de la ligne « Avis à modérer » d'« Aujourd'hui » (shield, TCK-2490) : la maquette du tiroir dessine ces lignes sans icône ; les autres icônes de ces lignes existent aussi dans le menu de la maquette, où l'outil les apparie. Style des lignes du tiroir : TCK-2617 (hors périmètre de la fiche)",
+   "renvoi": "TCK-2617",
+   "elements": [
+    "P icone « lucide-shield » (16, 379)"
+   ]
+  },
+  {
+   "ecran": "a-5 bureau-1440-compte-bureau",
+   "conteneur": "colonne",
+   "motif": "compte d'une ligne (« Aujourd'hui » ou menu) : donnée de la démo, le produit rend le sien à côté",
+   "renvoi": "donnée",
+   "elements": [
+    "M texte « 4 » (250, 376) [rôle]",
+    "M texte « 6 » (250, 441) [rôle]"
+   ]
+  },
+  {
+   "ecran": "a-5 bureau-1440-compte-bureau",
+   "conteneur": "page",
+   "motif": "contenu de l'accueil de l'agent (« Aujourd'hui »), sous la coque : TCK-2596 (la journée de l'agent)",
+   "renvoi": "TCK-2596",
+   "elements": [
+    "M texte « En retard depuis le 17 o » (1068, 378) [rôle]",
+    "M texte « 16:55 » (320, 416) [rôle]",
+    "M texte « Vérifier le titre foncie » (1068, 415) [rôle]",
+    "M texte « Visite » (420, 421) [rôle]",
+    "M texte « Reporter » (1324, 423) [rôle]",
+    "M texte « 45 min » (320, 438) [rôle]",
+    "M texte « Terrain 300 m² · Dakar-P » (420, 442) [rôle]",
+    "M texte « Itinéraire » (764, 438) [rôle]",
+    "M texte « Terrain · Diourbel » (1068, 435) [rôle]",
+    "M texte « En retard depuis le 14 o » (1068, 453) [rôle]",
+    "M texte « Av. Lamine Guèye, lot 14 » (420, 464) [rôle]",
+    "M texte « Mes chiffres » (1011, 504) [rôle]",
+    "M texte « Voir le rapport du mois » (1271, 502) [rôle]",
+    "M texte « 18:00 » (320, 536) [rôle]",
+    "M texte « Tâche » (454, 536) [rôle]",
+    "M texte « Reporter » (784, 542) [rôle]",
+    "M texte « Prospects » (1224, 544) [rôle]",
+    "M icone « lucide-chevron-right » (1383, 546) [rôle]",
+    "M texte « Relancer Yacine (offre v » (454, 553) [rôle]",
+    "M icone « lucide-phone » (881, 552) [rôle]",
+    "M icone « svg » (928, 552) [rôle]",
+    "M texte « Yacine Diouf · Villa Lib » (454, 574) [rôle]",
+    "M texte « 3 sans photo » (1025, 590) [rôle]",
+    "M texte « 6 à relancer » (1224, 590) [rôle]",
+    "M icone « lucide-chevron-right » (1184, 631) [rôle]",
+    "M texte « Commissions · nov. » (1224, 629) [rôle]",
+    "M icone « lucide-chevron-right » (1383, 631) [rôle]",
+    "M texte « 10 » (1025, 650) [rôle]",
+    "M texte « 0 F » (1224, 650) [rôle]",
+    "M texte « dont 2 en retard » (1025, 675) [rôle]",
+    "M texte « 310 000 F à venir » (1224, 675) [rôle]",
+    "M texte « Ajouter » (1303, 29)",
+    "M texte « Libre » (1270, 123)",
+    "M texte « À régler » (1011, 168)",
+    "M texte « Visite » (420, 267)",
+    "M texte « Visite » (906, 363)",
+    "M texte « Visite » (420, 421)",
+    "M texte « Itinéraire » (764, 276)",
+    "M texte « Itinéraire » (764, 438)",
+    "M texte « Mes chiffres » (1011, 504)",
+    "M texte « Tâche » (454, 536)",
+    "M texte « Prospects » (1224, 544)",
+    "P texte « Vue d'ensemble de votre activité » (301, 61)",
+    "P texte « Pipeline » (604, 122)",
+    "P texte « Commissions du mois » (1166, 122)",
+    "P texte « Raccourcis » (301, 234)",
+    "P texte « Mon CRM » (344, 277)",
+    "M icone « svg » (1371, 272)",
+    "M icone « svg » (928, 287)",
+    "M icone « svg » (928, 449)",
+    "M icone « svg » (928, 552)",
+    "M icone « lucide-chevron-left » (1148, 38)",
+    "M icone « lucide-chevron-right » (1271, 38)",
+    "M icone « lucide-chevron-right » (1184, 546)",
+    "M icone « lucide-chevron-right » (1383, 546)",
+    "M icone « lucide-chevron-right » (1184, 631)",
+    "M icone « lucide-chevron-right » (1383, 631)",
+    "M icone « lucide-plus » (906, 365)",
+    "M icone « lucide-notebook-pen » (1030, 214)",
+    "M icone « lucide-phone » (881, 287)",
+    "M icone « lucide-phone » (881, 449)",
+    "M icone « lucide-phone » (881, 552)",
+    "M icone « lucide-navigation » (777, 288)",
+    "M icone « lucide-navigation » (777, 450)",
+    "M boite « Aujourd’hui » (1171, 29)",
+    "M boite « Ajouter » (1303, 29)",
+    "M boite « Itinéraire » (764, 276)",
+    "M boite « Itinéraire » (764, 438)",
+    "P boite « Mon CRM » (301, 263)",
+    "P boite « Visites » (581, 263)",
+    "P boite « Calendrier » (861, 263)",
+    "P boite « Messagerie » (1142, 263)"
+   ]
+  },
+  {
+   "ecran": "a-5 bureau-1440-compte-bureau",
+   "conteneur": "colonne",
+   "motif": "icône de l'entrée « Commissions » : receipt dans la maquette, hand-coins dans le catalogue du produit (TCK-2618)",
+   "renvoi": "TCK-2618",
+   "elements": [
+    "M icone « lucide-receipt » (14, 723) [rôle]",
+    "M icone « lucide-receipt » (14, 723)"
+   ]
+  },
+  {
+   "ecran": "a-5 bureau-1440-compte-bureau",
+   "conteneur": "colonne",
+   "motif": "« Rapports » de la maquette, « Vue agence » du produit : nom et place de cette destination sont à TCK-2628",
+   "renvoi": "TCK-2628",
+   "elements": [
+    "M texte « Rapports » (41, 756) [rôle]",
+    "M texte « Rapports » (41, 756)"
+   ]
+  },
+  {
+   "ecran": "a-5 bureau-1440-compte-bureau",
+   "conteneur": "colonne",
+   "motif": "pied de la colonne : nom et initiales de la personne de la maquette ; le compte de démo porte un autre nom et une photo (donnée)",
+   "renvoi": "donnée",
+   "elements": [
+    "M texte « SS » (11, 857) [rôle]",
+    "M texte « Sokhna Sène » (49, 856) [rôle]"
+   ]
+  },
+  {
+   "ecran": "a-5 bureau-1440-compte-bureau",
+   "conteneur": "colonne",
+   "motif": "présent des deux côtés : « Aujourd’hui » est aussi dans la colonne de l'autre relevé (41, 256) ; l'outil l'a apparié à un autre nœud de même libellé (doublon : 2 ici, 2 en face, plus ceux de la page)",
+   "renvoi": "appariement",
+   "elements": [
+    "M texte « Aujourd’hui » (41, 248)"
+   ]
+  },
+  {
+   "ecran": "a-5 bureau-1440-compte-bureau",
+   "conteneur": "colonne",
+   "motif": "artefact de l'alias « Demandes de contact → Demandes à traiter », qui vaut pour la ligne d'« Aujourd'hui » : l'entrée du menu de la maquette, renommée par l'alias, est « Demandes de contact » des deux côtés (même rang)",
+   "renvoi": "alias",
+   "elements": [
+    "M texte « Demandes à traiter » (41, 374)"
+   ]
+  },
+  {
+   "ecran": "a-5 bureau-1440-compte-bureau",
+   "conteneur": "menu du compte",
+   "motif": "bloc « Vos espaces » de la maquette (deux espaces, l'actif coché) : le produit ne le rend qu'à plusieurs espaces, et le compte agent du relevé n'en a qu'un (donnée). Le bloc est éprouvé par `FeuilleDuCompte.espaces.tck-2621.test.tsx` et `AppSidebar.atelier.test.tsx` ; ses cartes « rôle · ville » sont TCK-2621",
+   "renvoi": "donnée / TCK-2621",
+   "elements": [
+    "M texte « Vos espaces » (14, 485)"
+   ]
+  },
+  {
+   "ecran": "a-5 bureau-1440-compte-bureau",
+   "conteneur": "menu du compte",
+   "motif": "ligne « Crédits » : rendue pour un persona qui voit le portefeuille (`voitLePortefeuille`) ; l'agent ne le voit pas depuis la décision du porteur du 2026-11-10 (« Argent » fermé à l'agent)",
+   "renvoi": "décision du porteur",
+   "elements": [
+    "M texte « Crédits » (46, 630)",
+    "M icone « lucide-coins » (21, 632)"
+   ]
+  },
+  {
+   "ecran": "a-5 bureau-1440-compte-bureau",
+   "conteneur": "hors conteneur",
+   "motif": "lien d'évitement du produit (accessibilité), rendu hors écran (−1, −1) jusqu'au focus clavier ; la maquette n'en dessine pas",
+   "renvoi": "a11y",
+   "elements": [
+    "P texte « Aller au contenu principal » (-1, -1)",
+    "P boite « Aller au contenu principal » (-1, -1)"
+   ]
+  },
+  {
+   "ecran": "a-5 bureau-1440-compte-bureau",
+   "conteneur": "colonne",
+   "motif": "libellé masqué (sr-only, 1 × 1) du bouton qui réduit la colonne (TCK-2480) ; le bouton est relevé et apparié",
+   "renvoi": "TCK-2480",
+   "elements": [
+    "P texte « Réduire la barre » (242, 25)"
+   ]
+  },
+  {
+   "ecran": "a-5 bureau-1440-compte-bureau",
+   "conteneur": "colonne",
+   "motif": "compte d'une ligne d'« Aujourd'hui » plafonné à 99+ (donnée de la démo : plus de 99 visites à confirmer)",
+   "renvoi": "donnée",
+   "elements": [
+    "P texte « 99+ » (231, 179)"
+   ]
+  },
+  {
+   "ecran": "a-5 bureau-1440-compte-bureau",
+   "conteneur": "colonne",
+   "motif": "entrée de menu « Demandes de contact » du produit, que la maquette porte aussi mais sous l'alias global « Demandes à traiter » (voir la ligne maquette du même rang)",
+   "renvoi": "alias",
+   "elements": [
+    "P texte « Demandes de contact » (41, 382)"
+   ]
+  },
+  {
+   "ecran": "a-5 bureau-1440-compte-bureau",
+   "conteneur": "colonne",
+   "motif": "entrée du menu composé du persona (groupe « Gestion », TCK-2618) que la maquette ne dessine pas dans ce cadre",
+   "renvoi": "TCK-2618",
+   "elements": [
+    "P texte « Entrées en attente » (41, 666)"
+   ]
+  },
+  {
+   "ecran": "a-5 bureau-1440-compte-bureau",
+   "conteneur": "menu du compte",
+   "motif": "langue du menu du compte au bureau : trois `menuitemradio` (TCK-2491) au lieu des segments FR/EN/WO et de l'icône « Langue » de la maquette — écart accepté (fiche, « langue en segments FR/EN/WO »). La feuille du téléphone porte les segments",
+   "renvoi": "accepté",
+   "elements": [
+    "P texte « Français » (43, 707)",
+    "P texte « English » (43, 739)",
+    "P texte « Wolof » (43, 771)",
+    "M icone « lucide-languages » (21, 762)",
+    "M boite « FR » (136, 758)"
+   ]
+  },
+  {
+   "ecran": "a-5 bureau-1440-compte-bureau",
+   "conteneur": "colonne",
+   "motif": "titre de groupe « Plus » du menu composé du persona : la maquette ne le dessine pas dans ce cadre (son dernier titre de colonne relevé : « ['Gestion'] »)",
+   "renvoi": "TCK-2618",
+   "elements": [
+    "P texte « Plus » (14, 797)"
+   ]
+  },
+  {
+   "ecran": "a-5 bureau-1440-compte-bureau",
+   "conteneur": "colonne",
+   "motif": "entrée du groupe REPLIÉ « Plus » (replié par défaut : `replie: true` de dispositions.ts, ou divulgation « Plus ») : dans le DOM sous une liste de hauteur nulle, invisible — le relevé la retient, elle chevauche le titre suivant",
+   "renvoi": "replié",
+   "elements": [
+    "P texte « Avis reçus » (41, 824)",
+    "P texte « Documents » (41, 856)",
+    "P texte « Statistiques » (41, 889)"
+   ]
+  },
+  {
+   "ecran": "a-5 bureau-1440-compte-bureau",
+   "conteneur": "colonne",
+   "motif": "lien « Modifier le menu » (ce ticket, écran « Menu (tiroir) ») au pied du menu : la maquette « Compte et espaces » ne le dessine pas, celle de « Menu (tiroir) » si — incohérence entre deux écrans de la maquette, le produit suit l'écran qui le décrit",
+   "renvoi": "TCK-2619",
+   "elements": [
+    "P texte « Modifier le menu » (7, 828)",
+    "P icone « lucide-pin » (14, 837)",
+    "P boite « Modifier le menu » (7, 828)"
+   ]
+  },
+  {
+   "ecran": "a-5 bureau-1440-compte-bureau",
+   "conteneur": "colonne",
+   "motif": "présent des deux côtés : la même icone « lucide-plus » est en face à (18, 59) ; l'outil l'a appariée à un autre nœud de même nom (doublon de la colonne ou de la page)",
+   "renvoi": "appariement",
+   "elements": [
+    "M icone « lucide-plus » (18, 59)"
+   ]
+  },
+  {
+   "ecran": "a-5 bureau-1440-compte-bureau",
+   "conteneur": "colonne",
+   "motif": "présent des deux côtés : la même icone « lucide-inbox » est en face à (14, 382) ; l'outil l'a appariée à un autre nœud de même nom (doublon de la colonne ou de la page)",
+   "renvoi": "appariement",
+   "elements": [
+    "M icone « lucide-inbox » (14, 374)"
+   ]
+  },
+  {
+   "ecran": "a-5 bureau-1440-compte-bureau",
+   "conteneur": "colonne",
+   "motif": "icône du catalogue pour « États des lieux » (clipboard-list) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé)",
+   "renvoi": "TCK-2618",
+   "elements": [
+    "P icone « lucide-clipboard-list » (14, 698)"
+   ]
+  },
+  {
+   "ecran": "a-5 bureau-1440-compte-bureau",
+   "conteneur": "colonne",
+   "motif": "icône du catalogue pour « Commissions » (hand-coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé)",
+   "renvoi": "TCK-2618",
+   "elements": [
+    "P icone « lucide-hand-coins » (14, 763)"
+   ]
+  },
+  {
+   "ecran": "a-5 bureau-1440-compte-bureau",
+   "conteneur": "colonne",
+   "motif": "icône d'une entrée de groupe replié (« Avis reçus » (Plus)) : invisible sous la liste repliée, voir son libellé",
+   "renvoi": "replié",
+   "elements": [
+    "P icone « lucide-message-square-quote » (14, 824)"
+   ]
+  },
+  {
+   "ecran": "a-5 bureau-1440-compte-bureau",
+   "conteneur": "colonne",
+   "motif": "icône d'une entrée de groupe replié (« Documents » (Plus)) : invisible sous la liste repliée, voir son libellé",
+   "renvoi": "replié",
+   "elements": [
+    "P icone « lucide-folder-open » (14, 856)"
+   ]
+  },
+  {
+   "ecran": "a-5 bureau-1440-compte-bureau",
+   "conteneur": "colonne",
+   "motif": "présent des deux côtés : la même boite « Aujourd’hui » est en face à (7, 248) ; l'outil l'a appariée à un autre nœud de même nom (doublon de la colonne ou de la page)",
+   "renvoi": "appariement",
+   "elements": [
+    "M boite « Aujourd’hui » (7, 241)"
+   ]
+  },
+  {
+   "ecran": "a-5 bureau-1440-compte-bureau",
+   "conteneur": "menu du compte",
+   "motif": "filet au-dessus de « Déconnexion » : la maquette le pose en contour haut de la ligne, le produit en `DropdownMenuSeparator` (relevé à y = 800) — même filet, autre nœud",
+   "renvoi": "forme",
+   "elements": [
+    "M boite « Déconnexion » (14, 789)"
+   ]
+  },
+  {
+   "ecran": "a-5 bureau-1440-compte-bureau",
+   "conteneur": "menu du compte",
+   "motif": "fond de mise en évidence (`data-highlighted`, rgb 241 236 224) du premier élément : le menu s'ouvre le focus sur lui (base-ui), état de la capture ; la maquette le dessine au repos",
+   "renvoi": "état de capture",
+   "elements": [
+    "P boite « Mon profil » (11, 569)"
+   ]
+  },
+  {
+   "ecran": "a-5 telephone-compte-telephone",
+   "conteneur": "page",
+   "motif": "contenu de l'accueil de l'agent (« Aujourd'hui »), sous la coque : TCK-2596 (la journée de l'agent) — sous la feuille ouverte, masquée à l’écran",
+   "renvoi": "TCK-2596",
+   "elements": [
+    "M texte « À régler » (16, 162)",
+    "M texte « Visite » (95, 656)",
+    "M texte « Visite » (302, 835)",
+    "M texte « Itinéraire » (95, 752)",
+    "P texte « Vue d'ensemble de votre activité » (16, 112)",
+    "P texte « Biens gérés » (40, 180)",
+    "P texte « Pipeline » (227, 180)",
+    "P texte « Tâches ouvertes » (40, 296)",
+    "P texte « Commissions du mois » (227, 296)",
+    "P texte « Raccourcis » (16, 416)",
+    "P texte « Mon CRM » (64, 464)",
+    "P texte « Visites » (249, 464)",
+    "P texte « Calendrier » (64, 528)",
+    "P texte « Messagerie » (249, 528)",
+    "M icone « lucide-plus » (302, 837)",
+    "M icone « lucide-notebook-pen » (38, 221)",
+    "M icone « svg » (330, 312)",
+    "M icone « svg » (328, 765)",
+    "M icone « lucide-phone » (276, 765)",
+    "M icone « lucide-navigation » (135, 766)",
+    "P icone « lucide-calendar-clock » (217, 464)",
+    "P icone « lucide-calendar-days » (32, 528)",
+    "M boite « Itinéraire » (95, 752)",
+    "P boite « Mon CRM » (16, 448)",
+    "P boite « Visites » (201, 448)",
+    "P boite « Calendrier » (16, 512)",
+    "P boite « Messagerie » (201, 512)"
+   ]
+  },
+  {
+   "ecran": "a-5 telephone-compte-telephone",
+   "conteneur": "feuille",
+   "motif": "bloc « Vos espaces » de la maquette (deux espaces, l'actif coché) : le produit ne le rend qu'à plusieurs espaces, et le compte agent du relevé n'en a qu'un (donnée). Le bloc est éprouvé par `FeuilleDuCompte.espaces.tck-2621.test.tsx` et `AppSidebar.atelier.test.tsx` ; ses cartes « rôle · ville » sont TCK-2621",
+   "renvoi": "donnée / TCK-2621",
+   "elements": [
+    "M texte « Vos espaces » (16, 304)",
+    "M icone « lucide-check » (342, 364)"
+   ]
+  },
+  {
+   "ecran": "a-5 telephone-compte-telephone",
+   "conteneur": "feuille",
+   "motif": "ligne « Crédits » : rendue pour un persona qui voit le portefeuille (`voitLePortefeuille`) ; l'agent ne le voit pas depuis la décision du porteur du 2026-11-10 (« Argent » fermé à l'agent)",
+   "renvoi": "décision du porteur",
+   "elements": [
+    "M texte « Crédits » (48, 536)",
+    "M icone « lucide-coins » (16, 537)"
+   ]
+  },
+  {
+   "ecran": "a-5 telephone-compte-telephone",
+   "conteneur": "onglets",
+   "motif": "artefact de l'alias « Clients → Clients (CRM) », qui vaut pour l'entrée de la colonne : l'onglet dit « Clients » des deux côtés, même boîte (177, 816)",
+   "renvoi": "alias",
+   "elements": [
+    "M texte « Clients (CRM) » (177, 816)",
+    "P texte « Clients » (177, 816)"
+   ]
+  },
+  {
+   "ecran": "a-5 telephone-compte-telephone",
+   "conteneur": "hors conteneur",
+   "motif": "lien d'évitement du produit (accessibilité), rendu hors écran (−1, −1) jusqu'au focus clavier ; la maquette n'en dessine pas",
+   "renvoi": "a11y",
+   "elements": [
+    "P texte « Aller au contenu principal » (-1, -1)",
+    "P boite « Aller au contenu principal » (-1, -1)"
+   ]
+  },
+  {
+   "ecran": "a-5 telephone-compte-telephone",
+   "conteneur": "en-tête",
+   "motif": "action « + » de l'en-tête de l'accueil de l'agent dessinée par la maquette : l'en-tête du téléphone est celui de TCK-2491 ; l'action principale est dans le tiroir",
+   "renvoi": "TCK-2596",
+   "elements": [
+    "M icone « lucide-plus » (266, 18)"
+   ]
+  },
+  {
+   "ecran": "a-5 telephone-compte-telephone",
+   "conteneur": "onglets",
+   "motif": "icône de l'onglet « Demandes » de la maquette (inbox) ; le produit garde l'icône de TCK-2618 pour cet onglet",
+   "renvoi": "TCK-2618",
+   "elements": [
+    "M icone « lucide-inbox » (107, 792)"
+   ]
+  },
+  {
+   "ecran": "a-5 telephone-compte-telephone",
+   "conteneur": "en-tête",
+   "motif": "chevron du déclencheur de l'espace de l'en-tête (il ouvre la feuille « Mon compte ») ; la maquette écrit l'espace sans chevron",
+   "renvoi": "TCK-2491",
+   "elements": [
+    "P icone « lucide-chevron-down » (142, 20)"
+   ]
+  },
+  {
+   "ecran": "a-5 telephone-compte-telephone",
+   "conteneur": "feuille",
+   "motif": "bouton « Fermer » de la feuille du bas (primitive `FeuilleDuBas`, 44 × 44) ; la maquette ferme la feuille par le voile seul",
+   "renvoi": "primitive",
+   "elements": [
+    "P boite « Fermer » (342, 458)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1280-introuvable-masque",
+   "conteneur": "page",
+   "motif": "texte d'attente du champ « Aller à… » : identique dans le produit (`nav.palette.placeholder`, « Une page, une action, un espace… »), mais un `placeholder` n'est pas un nœud de texte pour le relevé ; la boîte du champ est appariée par l'alias",
+   "renvoi": "alias",
+   "elements": [
+    "M texte « Rechercher une page, une action ou un espace » (301, 101)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1280-introuvable-masque",
+   "conteneur": "page",
+   "motif": "artefact de l'alias « Demandes de contact → Demandes à traiter », qui vaut pour la ligne d'« Aujourd'hui » : l'entrée du menu de la maquette, renommée par l'alias, est « Demandes de contact » des deux côtés (même rang)",
+   "renvoi": "alias",
+   "elements": [
+    "M texte « Demandes à traiter » (343, 237)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1280-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "artefact de l'alias « Demandes de contact → Demandes à traiter », qui vaut pour la ligne d'« Aujourd'hui » : l'entrée du menu de la maquette, renommée par l'alias, est « Demandes de contact » des deux côtés (même rang)",
+   "renvoi": "alias",
+   "elements": [
+    "M texte « Demandes à traiter » (41, 374)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1280-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "présent des deux côtés : « Baux » est aussi dans la colonne de l'autre relevé (41, 633) ; l'outil l'a apparié à un autre nœud de même libellé (doublon : 1 ici, 1 en face, plus ceux de la page)",
+   "renvoi": "appariement",
+   "elements": [
+    "M texte « Baux » (41, 626)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1280-introuvable-masque",
+   "conteneur": "page",
+   "motif": "récents de l'appareil : vides dans le navigateur du relevé (profil neuf). Rendu prouvé par `introuvable-aller-a.tck-2619.test.tsx` (« à vide : les récents de l’appareil (« Récent »)… »)",
+   "renvoi": "donnée",
+   "elements": [
+    "M texte « Récent » (732, 166)",
+    "M texte « Récent » (493, 202)",
+    "M texte « Récent » (732, 202)",
+    "M icone « lucide-rotate-ccw-clock » (553, 165)",
+    "M icone « lucide-rotate-ccw-clock » (314, 201)",
+    "M icone « lucide-rotate-ccw-clock » (553, 201)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1280-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "présent des deux côtés : « Commissions » est aussi dans la colonne de l'autre relevé (41, 763) ; l'outil l'a apparié à un autre nœud de même libellé (doublon : 1 ici, 1 en face, plus ceux de la page)",
+   "renvoi": "appariement",
+   "elements": [
+    "M texte « Commissions » (41, 723)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1280-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "présent des deux côtés : « Mes biens » est aussi dans la colonne de l'autre relevé (41, 540) ; l'outil l'a apparié à un autre nœud de même libellé (doublon : 1 ici, 1 en face, plus ceux de la page)",
+   "renvoi": "appariement",
+   "elements": [
+    "M texte « Mes biens » (41, 533)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1280-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "présent des deux côtés : « Visites » est aussi dans la colonne de l'autre relevé (41, 446) ; l'outil l'a apparié à un autre nœud de même libellé (doublon : 1 ici, 1 en face, plus ceux de la page)",
+   "renvoi": "appariement",
+   "elements": [
+    "M texte « Visites » (41, 439)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1280-introuvable-masque",
+   "conteneur": "page",
+   "motif": "retour à la liste parente : la route du relevé (`/app/page-introuvable-tck-2619`) n'a pas de liste parente, le produit ne rend que le retour à l'accueil. La maquette montre un bail (« Retour à la liste des baux », alias). Rendu prouvé par `introuvable-aller-a.tck-2619.test.tsx` (« les deux retours : la liste quand l’URL en a une… »)",
+   "renvoi": "route du relevé",
+   "elements": [
+    "M texte « Revenir à la liste » (301, 319)",
+    "M boite « Revenir à la liste » (301, 319)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1280-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "« Rapports » de la maquette, « Vue agence » du produit : nom et place de cette destination sont à TCK-2628",
+   "renvoi": "TCK-2628",
+   "elements": [
+    "M texte « Rapports » (41, 756)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1280-introuvable-masque",
+   "conteneur": "hors conteneur",
+   "motif": "lien d'évitement du produit (accessibilité), rendu hors écran (−1, −1) jusqu'au focus clavier ; la maquette n'en dessine pas",
+   "renvoi": "a11y",
+   "elements": [
+    "P texte « Aller au contenu principal » (-1, -1)",
+    "P boite « Aller au contenu principal » (-1, -1)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1280-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "libellé masqué (sr-only, 1 × 1) du bouton qui réduit la colonne (TCK-2480) ; le bouton est relevé et apparié",
+   "renvoi": "TCK-2480",
+   "elements": [
+    "P texte « Réduire la barre » (242, 25)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1280-introuvable-masque",
+   "conteneur": "page",
+   "motif": "phrase de TCK-382 (alias « Cette page n’existe pas, ou plus. »). Au bureau, la maquette écrit les deux phrases en UN nœud ; le produit en deux (`p` puis `p`) : l'alias de la première ne peut pas apparier le nœud double",
+   "renvoi": "alias",
+   "elements": [
+    "P texte « Cet élément n’existe pas, ou il ne relève pas de votre agence. » (301, 61)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1280-introuvable-masque",
+   "conteneur": "page",
+   "motif": "seconde phrase, identique à la maquette ; au bureau la maquette la colle à la première dans un seul nœud (voir la ligne précédente)",
+   "renvoi": "alias",
+   "elements": [
+    "P texte « Vérifiez le lien, ou allez directement où vous vouliez aller. » (658, 61)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1280-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "compte d'une ligne d'« Aujourd'hui » plafonné à 99+ (donnée de la démo : plus de 99 visites à confirmer)",
+   "renvoi": "donnée",
+   "elements": [
+    "P texte « 99+ » (231, 179)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1280-introuvable-masque",
+   "conteneur": "page",
+   "motif": "entrée de menu « Demandes de contact » du produit, que la maquette porte aussi mais sous l'alias global « Demandes à traiter » (voir la ligne maquette du même rang)",
+   "renvoi": "alias",
+   "elements": [
+    "P texte « Demandes de contact » (582, 190)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1280-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "entrée de menu « Demandes de contact » du produit, que la maquette porte aussi mais sous l'alias global « Demandes à traiter » (voir la ligne maquette du même rang)",
+   "renvoi": "alias",
+   "elements": [
+    "P texte « Demandes de contact » (41, 382)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1280-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "entrée du menu composé du persona (groupe « Gestion », TCK-2618) que la maquette ne dessine pas dans ce cadre",
+   "renvoi": "TCK-2618",
+   "elements": [
+    "P texte « Entrées en attente » (41, 666)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1280-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "titre de groupe « Plus » du menu composé du persona : la maquette ne le dessine pas dans ce cadre (son dernier titre de colonne relevé : « ['Gestion'] »)",
+   "renvoi": "TCK-2618",
+   "elements": [
+    "P texte « Plus » (14, 797)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1280-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "entrée du groupe REPLIÉ « Plus » (replié par défaut : `replie: true` de dispositions.ts, ou divulgation « Plus ») : dans le DOM sous une liste de hauteur nulle, invisible — le relevé la retient, elle chevauche le titre suivant",
+   "renvoi": "replié",
+   "elements": [
+    "P texte « Avis reçus » (41, 824)",
+    "P texte « Documents » (41, 856)",
+    "P texte « Statistiques » (41, 889)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1280-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "titre du groupe « Récents » de la colonne (TCK-2490), au pied du menu : rendu dès que l'appareil a une page récente (le relevé arrive par /app) ; la maquette de l'agent ne le dessine pas dans ce cadre",
+   "renvoi": "TCK-2490",
+   "elements": [
+    "P texte « Récents » (7, 835)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1280-introuvable-masque",
+   "conteneur": "variante",
+   "motif": "variante « l'élément existe, dans un autre espace · Basculer » : hors périmètre écrit du ticket (l'API ne distingue pas « inexistant » d'« autre agence » sur une URL tapée)",
+   "renvoi": "hors périmètre",
+   "elements": [
+    "M icone « lucide-arrow-left-right » (899, 230)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1280-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "présent des deux côtés : la même icone « lucide-building2 » est en face à (14, 540) ; l'outil l'a appariée à un autre nœud de même nom (doublon de la colonne ou de la page)",
+   "renvoi": "appariement",
+   "elements": [
+    "M icone « lucide-building2 » (14, 533)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1280-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "présent des deux côtés : la même icone « lucide-calendar-clock » est en face à (14, 446) ; l'outil l'a appariée à un autre nœud de même nom (doublon de la colonne ou de la page)",
+   "renvoi": "appariement",
+   "elements": [
+    "M icone « lucide-calendar-clock » (14, 439)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1280-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "icône de l'entrée « Commissions » : receipt dans la maquette, hand-coins dans le catalogue du produit (TCK-2618)",
+   "renvoi": "TCK-2618",
+   "elements": [
+    "M icone « lucide-receipt » (14, 723)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1280-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "icône du catalogue pour « États des lieux » (clipboard-list) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé)",
+   "renvoi": "TCK-2618",
+   "elements": [
+    "P icone « lucide-clipboard-list » (14, 698)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1280-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "icône du catalogue pour « Commissions » (hand-coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé)",
+   "renvoi": "TCK-2618",
+   "elements": [
+    "P icone « lucide-hand-coins » (14, 763)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1280-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "chevron du titre de groupe « Plus » (groupe repliable, TCK-2480 A8) : suit son titre, voir la ligne de ce titre",
+   "renvoi": "TCK-2480",
+   "elements": [
+    "P icone « lucide-chevron-down » (38, 798)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1280-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "icône d'une entrée de groupe replié (« Avis reçus » (Plus)) : invisible sous la liste repliée, voir son libellé",
+   "renvoi": "replié",
+   "elements": [
+    "P icone « lucide-message-square-quote » (14, 824)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1280-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "icône d'une entrée de groupe replié (« Documents » (Plus)) : invisible sous la liste repliée, voir son libellé",
+   "renvoi": "replié",
+   "elements": [
+    "P icone « lucide-folder-open » (14, 856)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1280-introuvable-masque",
+   "conteneur": "page",
+   "motif": "le produit dessine « Retour à Aujourd’hui » en bouton contour (`variant=outline`, second derrière la liste) ; la maquette l'écrit en lien sans boîte quand une liste le précède. Le libellé est apparié",
+   "renvoi": "route du relevé",
+   "elements": [
+    "P boite « Retour à Aujourd’hui » (301, 272)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1440-introuvable-masque",
+   "conteneur": "page",
+   "motif": "texte d'attente du champ « Aller à… » : identique dans le produit (`nav.palette.placeholder`, « Une page, une action, un espace… »), mais un `placeholder` n'est pas un nœud de texte pour le relevé ; la boîte du champ est appariée par l'alias",
+   "renvoi": "alias",
+   "elements": [
+    "M texte « Rechercher une page, une action ou un espace » (301, 101)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1440-introuvable-masque",
+   "conteneur": "page",
+   "motif": "artefact de l'alias « Demandes de contact → Demandes à traiter », qui vaut pour la ligne d'« Aujourd'hui » : l'entrée du menu de la maquette, renommée par l'alias, est « Demandes de contact » des deux côtés (même rang)",
+   "renvoi": "alias",
+   "elements": [
+    "M texte « Demandes à traiter » (343, 237)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1440-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "artefact de l'alias « Demandes de contact → Demandes à traiter », qui vaut pour la ligne d'« Aujourd'hui » : l'entrée du menu de la maquette, renommée par l'alias, est « Demandes de contact » des deux côtés (même rang)",
+   "renvoi": "alias",
+   "elements": [
+    "M texte « Demandes à traiter » (41, 374)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1440-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "présent des deux côtés : « Baux » est aussi dans la colonne de l'autre relevé (41, 633) ; l'outil l'a apparié à un autre nœud de même libellé (doublon : 1 ici, 1 en face, plus ceux de la page)",
+   "renvoi": "appariement",
+   "elements": [
+    "M texte « Baux » (41, 626)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1440-introuvable-masque",
+   "conteneur": "page",
+   "motif": "récents de l'appareil : vides dans le navigateur du relevé (profil neuf). Rendu prouvé par `introuvable-aller-a.tck-2619.test.tsx` (« à vide : les récents de l’appareil (« Récent »)… »)",
+   "renvoi": "donnée",
+   "elements": [
+    "M texte « Récent » (732, 166)",
+    "M texte « Récent » (493, 202)",
+    "M texte « Récent » (732, 202)",
+    "M icone « lucide-rotate-ccw-clock » (553, 165)",
+    "M icone « lucide-rotate-ccw-clock » (314, 201)",
+    "M icone « lucide-rotate-ccw-clock » (553, 201)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1440-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "présent des deux côtés : « Commissions » est aussi dans la colonne de l'autre relevé (41, 763) ; l'outil l'a apparié à un autre nœud de même libellé (doublon : 1 ici, 1 en face, plus ceux de la page)",
+   "renvoi": "appariement",
+   "elements": [
+    "M texte « Commissions » (41, 723)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1440-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "présent des deux côtés : « Mes biens » est aussi dans la colonne de l'autre relevé (41, 540) ; l'outil l'a apparié à un autre nœud de même libellé (doublon : 1 ici, 1 en face, plus ceux de la page)",
+   "renvoi": "appariement",
+   "elements": [
+    "M texte « Mes biens » (41, 533)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1440-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "présent des deux côtés : « Visites » est aussi dans la colonne de l'autre relevé (41, 446) ; l'outil l'a apparié à un autre nœud de même libellé (doublon : 1 ici, 1 en face, plus ceux de la page)",
+   "renvoi": "appariement",
+   "elements": [
+    "M texte « Visites » (41, 439)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1440-introuvable-masque",
+   "conteneur": "page",
+   "motif": "retour à la liste parente : la route du relevé (`/app/page-introuvable-tck-2619`) n'a pas de liste parente, le produit ne rend que le retour à l'accueil. La maquette montre un bail (« Retour à la liste des baux », alias). Rendu prouvé par `introuvable-aller-a.tck-2619.test.tsx` (« les deux retours : la liste quand l’URL en a une… »)",
+   "renvoi": "route du relevé",
+   "elements": [
+    "M texte « Revenir à la liste » (301, 319)",
+    "M boite « Revenir à la liste » (301, 319)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1440-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "« Rapports » de la maquette, « Vue agence » du produit : nom et place de cette destination sont à TCK-2628",
+   "renvoi": "TCK-2628",
+   "elements": [
+    "M texte « Rapports » (41, 756)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1440-introuvable-masque",
+   "conteneur": "hors conteneur",
+   "motif": "lien d'évitement du produit (accessibilité), rendu hors écran (−1, −1) jusqu'au focus clavier ; la maquette n'en dessine pas",
+   "renvoi": "a11y",
+   "elements": [
+    "P texte « Aller au contenu principal » (-1, -1)",
+    "P boite « Aller au contenu principal » (-1, -1)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1440-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "libellé masqué (sr-only, 1 × 1) du bouton qui réduit la colonne (TCK-2480) ; le bouton est relevé et apparié",
+   "renvoi": "TCK-2480",
+   "elements": [
+    "P texte « Réduire la barre » (242, 25)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1440-introuvable-masque",
+   "conteneur": "page",
+   "motif": "phrase de TCK-382 (alias « Cette page n’existe pas, ou plus. »). Au bureau, la maquette écrit les deux phrases en UN nœud ; le produit en deux (`p` puis `p`) : l'alias de la première ne peut pas apparier le nœud double",
+   "renvoi": "alias",
+   "elements": [
+    "P texte « Cet élément n’existe pas, ou il ne relève pas de votre agence. » (304, 61)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1440-introuvable-masque",
+   "conteneur": "page",
+   "motif": "seconde phrase, identique à la maquette ; au bureau la maquette la colle à la première dans un seul nœud (voir la ligne précédente)",
+   "renvoi": "alias",
+   "elements": [
+    "P texte « Vérifiez le lien, ou allez directement où vous vouliez aller. » (661, 61)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1440-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "compte d'une ligne d'« Aujourd'hui » plafonné à 99+ (donnée de la démo : plus de 99 visites à confirmer)",
+   "renvoi": "donnée",
+   "elements": [
+    "P texte « 99+ » (231, 179)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1440-introuvable-masque",
+   "conteneur": "page",
+   "motif": "entrée de menu « Demandes de contact » du produit, que la maquette porte aussi mais sous l'alias global « Demandes à traiter » (voir la ligne maquette du même rang)",
+   "renvoi": "alias",
+   "elements": [
+    "P texte « Demandes de contact » (585, 190)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1440-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "entrée de menu « Demandes de contact » du produit, que la maquette porte aussi mais sous l'alias global « Demandes à traiter » (voir la ligne maquette du même rang)",
+   "renvoi": "alias",
+   "elements": [
+    "P texte « Demandes de contact » (41, 382)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1440-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "entrée du menu composé du persona (groupe « Gestion », TCK-2618) que la maquette ne dessine pas dans ce cadre",
+   "renvoi": "TCK-2618",
+   "elements": [
+    "P texte « Entrées en attente » (41, 666)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1440-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "titre de groupe « Plus » du menu composé du persona : la maquette ne le dessine pas dans ce cadre (son dernier titre de colonne relevé : « ['Gestion'] »)",
+   "renvoi": "TCK-2618",
+   "elements": [
+    "P texte « Plus » (14, 797)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1440-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "entrée du groupe REPLIÉ « Plus » (replié par défaut : `replie: true` de dispositions.ts, ou divulgation « Plus ») : dans le DOM sous une liste de hauteur nulle, invisible — le relevé la retient, elle chevauche le titre suivant",
+   "renvoi": "replié",
+   "elements": [
+    "P texte « Avis reçus » (41, 824)",
+    "P texte « Documents » (41, 856)",
+    "P texte « Statistiques » (41, 889)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1440-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "titre du groupe « Récents » de la colonne (TCK-2490), au pied du menu : rendu dès que l'appareil a une page récente (le relevé arrive par /app) ; la maquette de l'agent ne le dessine pas dans ce cadre",
+   "renvoi": "TCK-2490",
+   "elements": [
+    "P texte « Récents » (7, 835)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1440-introuvable-masque",
+   "conteneur": "variante",
+   "motif": "variante « l'élément existe, dans un autre espace · Basculer » : hors périmètre écrit du ticket (l'API ne distingue pas « inexistant » d'« autre agence » sur une URL tapée)",
+   "renvoi": "hors périmètre",
+   "elements": [
+    "M icone « lucide-arrow-left-right » (899, 212)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1440-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "présent des deux côtés : la même icone « lucide-building2 » est en face à (14, 540) ; l'outil l'a appariée à un autre nœud de même nom (doublon de la colonne ou de la page)",
+   "renvoi": "appariement",
+   "elements": [
+    "M icone « lucide-building2 » (14, 533)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1440-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "présent des deux côtés : la même icone « lucide-calendar-clock » est en face à (14, 446) ; l'outil l'a appariée à un autre nœud de même nom (doublon de la colonne ou de la page)",
+   "renvoi": "appariement",
+   "elements": [
+    "M icone « lucide-calendar-clock » (14, 439)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1440-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "icône de l'entrée « Commissions » : receipt dans la maquette, hand-coins dans le catalogue du produit (TCK-2618)",
+   "renvoi": "TCK-2618",
+   "elements": [
+    "M icone « lucide-receipt » (14, 723)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1440-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "icône du catalogue pour « États des lieux » (clipboard-list) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé)",
+   "renvoi": "TCK-2618",
+   "elements": [
+    "P icone « lucide-clipboard-list » (14, 698)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1440-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "icône du catalogue pour « Commissions » (hand-coins) ; en face, la maquette dessine une autre icône sur cette ligne, ou ne la dessine pas dans ce cadre (voir la ligne maquette de même libellé)",
+   "renvoi": "TCK-2618",
+   "elements": [
+    "P icone « lucide-hand-coins » (14, 763)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1440-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "chevron du titre de groupe « Plus » (groupe repliable, TCK-2480 A8) : suit son titre, voir la ligne de ce titre",
+   "renvoi": "TCK-2480",
+   "elements": [
+    "P icone « lucide-chevron-down » (38, 798)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1440-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "icône d'une entrée de groupe replié (« Avis reçus » (Plus)) : invisible sous la liste repliée, voir son libellé",
+   "renvoi": "replié",
+   "elements": [
+    "P icone « lucide-message-square-quote » (14, 824)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1440-introuvable-masque",
+   "conteneur": "colonne",
+   "motif": "icône d'une entrée de groupe replié (« Documents » (Plus)) : invisible sous la liste repliée, voir son libellé",
+   "renvoi": "replié",
+   "elements": [
+    "P icone « lucide-folder-open » (14, 856)"
+   ]
+  },
+  {
+   "ecran": "a-8 bureau-1440-introuvable-masque",
+   "conteneur": "page",
+   "motif": "le produit dessine « Retour à Aujourd’hui » en bouton contour (`variant=outline`, second derrière la liste) ; la maquette l'écrit en lien sans boîte quand une liste le précède. Le libellé est apparié",
+   "renvoi": "route du relevé",
+   "elements": [
+    "P boite « Retour à Aujourd’hui » (304, 272)"
+   ]
+  },
+  {
+   "ecran": "a-8 telephone-introuvable-masque",
+   "conteneur": "page",
+   "motif": "texte d'attente du champ « Aller à… » : identique dans le produit (`nav.palette.placeholder`, « Une page, une action, un espace… »), mais un `placeholder` n'est pas un nœud de texte pour le relevé ; la boîte du champ est appariée par l'alias",
+   "renvoi": "alias",
+   "elements": [
+    "M texte « Rechercher une page, une action ou un espace » (16, 248)"
+   ]
+  },
+  {
+   "ecran": "a-8 telephone-introuvable-masque",
+   "conteneur": "page",
+   "motif": "récents de l'appareil : vides dans le navigateur du relevé (profil neuf). Rendu prouvé par `introuvable-aller-a.tck-2619.test.tsx` (« à vide : les récents de l’appareil (« Récent »)… »)",
+   "renvoi": "donnée",
+   "elements": [
+    "M texte « Récent » (320, 372)",
+    "M texte « Récent » (320, 420)",
+    "M texte « Récent » (320, 468)",
+    "M icone « lucide-rotate-ccw-clock » (31, 372)",
+    "M icone « lucide-rotate-ccw-clock » (31, 420)",
+    "M icone « lucide-rotate-ccw-clock » (31, 468)"
+   ]
+  },
+  {
+   "ecran": "a-8 telephone-introuvable-masque",
+   "conteneur": "page",
+   "motif": "récents de l'appareil de la maquette (« Baux », « Commissions » portent « Récent ») : vides au relevé, voir « Récent »",
+   "renvoi": "donnée",
+   "elements": [
+    "M texte « Baux » (61, 369)",
+    "M texte « Commissions » (61, 465)"
+   ]
+  },
+  {
+   "ecran": "a-8 telephone-introuvable-masque",
+   "conteneur": "page",
+   "motif": "artefact de l'alias « Demandes de contact → Demandes à traiter », qui vaut pour la ligne d'« Aujourd'hui » : l'entrée du menu de la maquette, renommée par l'alias, est « Demandes de contact » des deux côtés (même rang)",
+   "renvoi": "alias",
+   "elements": [
+    "M texte « Demandes à traiter » (61, 513)",
+    "M boite « Demandes à traiter » (17, 501)"
+   ]
+  },
+  {
+   "ecran": "a-8 telephone-introuvable-masque",
+   "conteneur": "page",
+   "motif": "les quatre entrées sous le champ sont les premières du menu composé de l'agent, hors accueil (TCK-2618 : Messagerie, Tâches, Demandes de contact…) ; la maquette en dessine d'autres (Mes biens, Visites)",
+   "renvoi": "TCK-2618",
+   "elements": [
+    "M texte « Mes biens » (61, 561)",
+    "M texte « Visites » (61, 609)",
+    "P texte « Tâches » (61, 440)",
+    "M icone « lucide-building2 » (31, 564)",
+    "M icone « lucide-calendar-clock » (31, 612)",
+    "P icone « lucide-list-checks » (31, 442)",
+    "M boite « Mes biens » (17, 549)",
+    "M boite « Visites » (17, 597)",
+    "P boite « Messagerie » (17, 378)",
+    "P boite « Tâches » (17, 427)"
+   ]
+  },
+  {
+   "ecran": "a-8 telephone-introuvable-masque",
+   "conteneur": "hors conteneur",
+   "motif": "lien d'évitement du produit (accessibilité), rendu hors écran (−1, −1) jusqu'au focus clavier ; la maquette n'en dessine pas",
+   "renvoi": "a11y",
+   "elements": [
+    "P texte « Aller au contenu principal » (-1, -1)",
+    "P boite « Aller au contenu principal » (-1, -1)"
+   ]
+  },
+  {
+   "ecran": "a-8 telephone-introuvable-masque",
+   "conteneur": "page",
+   "motif": "entrée de menu « Demandes de contact » du produit, que la maquette porte aussi mais sous l'alias global « Demandes à traiter » (voir la ligne maquette du même rang)",
+   "renvoi": "alias",
+   "elements": [
+    "P texte « Demandes de contact » (61, 489)",
+    "P boite « Demandes de contact » (17, 476)"
+   ]
+  },
+  {
+   "ecran": "a-8 telephone-introuvable-masque",
+   "conteneur": "onglets",
+   "motif": "artefact de l'alias « Clients → Clients (CRM) », qui vaut pour l'entrée de la colonne : l'onglet dit « Clients » des deux côtés, même boîte (177, 816)",
+   "renvoi": "alias",
+   "elements": [
+    "P texte « Clients » (177, 816)"
+   ]
+  }
+ ]
+}

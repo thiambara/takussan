@@ -39,7 +39,7 @@ Aucun endpoint neuf. « Aujourd'hui » lit les compteurs qu'il lit déjà (`useC
 - **Bureau (≥ 1280)** : le même mode « Modifier le menu » (écran « Menu (tiroir) », bureau) remplace la punaise au survol. Les poignées ordonnent les épingles.
 - **Page introuvable** :
   - H1 « Page introuvable », une icône de recherche barrée dans un disque, et la phrase actuelle (« Cet élément n'existe pas, ou il ne relève pas de votre agence… »).
-  - Puis le champ « Aller à… » ouvert dans la page : 48 px au téléphone, 480 px au bureau. Sous lui, les récents et quatre entrées du menu.
+  - Puis le champ « Aller à… » ouvert dans la page : 44 px au téléphone (la hauteur de la primitive `Input`, ADR-0106 § 2 c : la maquette dessine ce seul champ à 48 px), 480 px au bureau. Sous lui, les récents et quatre entrées du menu.
   - Puis « Retour à la liste » quand l'URL a une liste parente, et « Retour à l'accueil » (« Retour à Aujourd'hui » chez l'agent).
 - **Mobile et bureau** : à 360–390, la page introuvable garde la barre d'onglets, et le bouton de retour reste atteignable au-dessus d'elle.
 

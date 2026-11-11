@@ -106,6 +106,11 @@ se décide alors par une ADR (ou un amendement de celle qui porte TCK-426), **av
       `<body>`, scripts retirés, contient le `h1` « Page introuvable » et le champ « Aller à… ». Même mesure sur
       `/app/properties/99999999`. Une ablation du correctif fait retomber le corps au document d'erreur.
 - [ ] AC3 — Aucun docblock du dépôt n'affirme plus le contraire de la mesure.
+- [ ] AC4 — **Toute 404 de `/app` porte aujourd'hui le titre « Tableau de bord — Takussan »** (relevé de la
+      vérification de TCK-2619, `next dev` comme `next start`, préexistant) : l'onglet nomme le tableau de bord
+      pour une page qui n'existe pas. Si un correctif est livré, `/app/zzz` et `/app/properties/99999999` portent
+      un titre qui dit « Page introuvable » (dans la langue de l'utilisateur) ; sinon le ticket consigne pourquoi
+      ce titre ne peut pas changer sans le rendu serveur de la 404.
 
 ## Hors périmètre
 

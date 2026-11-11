@@ -62,16 +62,17 @@ function utilisateur(roles: UserRole[]): User {
   return { id: 1, first_name: 'Awa', last_name: 'Diop', full_name: 'Awa Diop', email: 'awa@example.test', roles } as unknown as User;
 }
 
-function monter(roles: UserRole[]) {
+function monter(roles: UserRole[], acces?: AccesAdmin) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const coque = (
+    <AppShell user={utilisateur(roles)} agencyIsStandard>
+      <p>contenu</p>
+    </AppShell>
+  );
   return render(
     withIntl(
       <QueryClientProvider client={client}>
-        <ToastProvider>
-          <AppShell user={utilisateur(roles)} agencyIsStandard>
-            <p>contenu</p>
-          </AppShell>
-        </ToastProvider>
+        <ToastProvider>{acces ? <AccesAdminProvider acces={acces}>{coque}</AccesAdminProvider> : coque}</ToastProvider>
       </QueryClientProvider>,
     ),
   );
@@ -143,6 +144,28 @@ describe('TCK-2619 — le menu du compte en feuille du bas, au téléphone', () 
     await user.click(within(feuille).getByRole('button', { name: 'Voir le site public' }));
     expect(pousser).toHaveBeenCalledWith('/fr');
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  // Réserve de la vérification (F6) — la ligne d'administration n'était éprouvée nulle part.
+  it('l’admin d’agence a sa ligne « Administration » : elle mène à la première page ouverte et referme tout', async () => {
+    const roles: UserRole[] = ['agency_admin'];
+    const acces = accesDepuis({ roles, agence: { kind: 'standard' }, capacites: ['agency.update'] });
+    expect(acces.chemins.length).toBeGreaterThan(0);
+    monter(roles, acces);
+    const { user, feuille } = await ouvrirLaFeuilleDepuisLeTiroir();
+    const ligne = within(feuille).getByRole('button', { name: 'Administration' });
+    expect(ligne).toHaveClass('h-12');
+    await user.click(ligne);
+    expect(pousser).toHaveBeenCalledWith(acces.chemins[0]);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('sans page d’administration ouverte, la ligne n’est pas rendue', async () => {
+    monter(['agent'], { chemins: [], espaceIndividuel: false });
+    const { feuille } = await ouvrirLaFeuilleDepuisLeTiroir();
+    expect(within(feuille).getByRole('button', { name: 'Mon profil' })).toBeInTheDocument();
+    expect(within(feuille).queryByRole('button', { name: 'Administration' })).toBeNull();
+    expect(within(feuille).queryByRole('button', { name: 'Mon espace' })).toBeNull();
   });
 
   it('témoin — dès `md`, le pied de la colonne ouvre toujours le menu déroulant', async () => {

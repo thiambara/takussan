@@ -172,13 +172,15 @@
   "Demandes de contact": "Demandes à traiter",
   "Cette page n’existe pas, ou plus.": "Cet élément n’existe pas, ou il ne relève pas de votre agence.",
   "Retour à la liste des baux": "Revenir à la liste",
-  "Vos espaces": "Changer d’espace"
+  "Aujourd'hui": "Aujourd’hui",
+  "Une page, une action, un espace…": "Rechercher une page, une action ou un espace"
  },
  "_alias": {
   "Demandes de contact → Demandes à traiter": "ligne d’« Aujourd’hui » (colonne, tiroir) : le ticket et docs/features.md:615 l’emportent sur la maquette — le libellé dit l’action, l’entrée du menu la destination. L’entrée du menu garde « Demandes de contact ».",
   "Cette page n’existe pas, ou plus. → phrase actuelle": "le ticket garde la phrase qui ne tranche pas entre « absent » et « hors de l’agence » (TCK-382) ; la seconde ligne de la maquette est reprise telle quelle",
   "Retour à la liste des baux → Revenir à la liste": "libellé existant (TCK-382), gardé : il sert toutes les sections",
-  "Vos espaces → Changer d’espace": "« Vos espaces » et ses cartes sont TCK-2620/TCK-2621 ; ce ticket garde la liste de TCK-2491 (liste de non-régression du ticket)"
+  "Aujourd'hui → Aujourd’hui": "typographie : la maquette écrit l’apostrophe droite, le produit l’apostrophe typographique de fr.json (même libellé)",
+  "Une page, une action, un espace… → Rechercher une page, une action ou un espace": "champ « Aller à… » : la maquette nomme sa boîte par le texte d’attente, le relevé nomme l’`input` du produit par son nom accessible (`nav.palette.champ`). Le texte d’attente du produit est le même, « Une page, une action, un espace… » (`nav.palette.placeholder`) ; l’alias apparie les deux champs"
  },
  "ancres": [],
  "ignorer": [],
@@ -282,5 +284,6 @@
    "motif": "sous `lg`, la pastille du comparateur ne paraît que là où la barre publique est portée : aucune page de /app, favoris compris (mesuré : pastille sur /fr/favorites, rien sur /app/favorites ni /app/properties). Au bureau, le dock est en bas à droite (x 978, y 648-809 à 1280)"
   }
  ],
- "mesures": {}
+ "mesures": {},
+ "_absents": "TCK-2619.absents.json : chaque « absent » des neuf rapports (AC-F3), classé ÉLÉMENT PAR ÉLÉMENT — conteneur lu dans l’ascendance du nœud (colonne, tiroir, feuille, menu du compte, en-tête, onglets, page, variante), puis un motif tiré d’une preuve du relevé (même libellé en face, rang dans le menu composé, groupe replié) ; aucune ligne n’est couverte par une règle de famille sans cette preuve"
 }
