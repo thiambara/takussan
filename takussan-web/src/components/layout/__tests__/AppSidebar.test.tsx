@@ -305,7 +305,7 @@ const MENU_ATTENDU: Record<Persona, { action: string | null; enTete?: string; gr
       ['Catalogue', false, 'Mes biens', 'Réservations'],
       // TCK-2489 (ADR-0090 §4) — le tableau de bord, groupe sans titre après le deuxième groupe titré.
       [null, false, 'Tableau de bord'],
-      ['Gestion', false, 'Baux', 'Onboardings en attente', 'États des lieux', 'Interventions', 'Commissions'],
+      ['Gestion', false, 'Baux', 'Entrées en attente', 'États des lieux', 'Interventions', 'Commissions'],
       ['Plus', true, 'Avis reçus', 'Documents', 'Statistiques', 'Exports', 'Mes favoris', 'Recherches sauvegardées'],
     ],
   },
@@ -317,7 +317,7 @@ const MENU_ATTENDU: Record<Persona, { action: string | null; enTete?: string; gr
     groupes: [
       [null, false, 'Vue agence', 'Messagerie'],
       ['Activité', false, 'Demandes de contact', 'Visites', 'Réservations', 'Calendrier'],
-      ['Portefeuille', false, 'Biens', 'Propriétaires', 'Clients (CRM)', 'Baux', 'Onboardings en attente'],
+      ['Portefeuille', false, 'Biens', 'Propriétaires', 'Clients (CRM)', 'Baux', 'Entrées en attente'],
       ['Finances', false, "Finances de l'agence", 'Commissions', 'Crédits', 'Abonnement'],
       ['Agence', true, 'Équipe', 'Rôles', 'Agence', 'KYC agence', 'Modération avis', 'Modération biens', "Journal d'audit", 'Intégrations'],
       ['Pilotage', true, 'Statistiques', 'KPIs', 'Alertes', 'Exports'],
@@ -337,7 +337,7 @@ const MENU_ATTENDU: Record<Persona, { action: string | null; enTete?: string; gr
       ['Mon espace', false, 'Agence', 'KYC agence', 'Reversements', 'Crédits', 'Intégrations'],
       [
         'Plus', true, 'Clients (CRM)', 'Statistiques', 'Exports', 'KPIs', 'Alertes', 'Avis reçus', 'Documents',
-        'Mes tâches', 'Mes favoris', 'Recherches sauvegardées', 'Paiements', 'Commissions', 'Onboardings en attente',
+        'Mes tâches', 'Mes favoris', 'Recherches sauvegardées', 'Paiements', 'Commissions', 'Entrées en attente',
         'Vue agence', 'Propriétaires',
       ],
     ],
@@ -359,7 +359,7 @@ const MENU_ATTENDU: Record<Persona, { action: string | null; enTete?: string; gr
     groupes: [
       [null, false, 'Vue agence', 'Messagerie'],
       ['Activité', false, 'Demandes de contact', 'Visites', 'Réservations', 'Calendrier'],
-      ['Portefeuille', false, 'Biens', 'Propriétaires', 'Clients (CRM)', 'Baux', 'Onboardings en attente'],
+      ['Portefeuille', false, 'Biens', 'Propriétaires', 'Clients (CRM)', 'Baux', 'Entrées en attente'],
       // TCK-2489 (ADR-0090 §4) — le tableau de bord, groupe sans titre après le deuxième groupe titré.
       [null, false, 'Tableau de bord'],
       ['Finances', false, "Finances de l'agence", 'Commissions', 'Crédits', 'Abonnement'],
@@ -693,7 +693,7 @@ describe('AC2 — jamais deux entrées allumées sur des routes imbriquées', ()
   // page, c'est elle qui est courante, et « Biens », son parent d'URL, ne s'allume pas.
   it.each([
     ['/app/properties/new', 'Publier un bien'],
-    ['/app/leases/onboarding-pending', 'Onboardings en attente'],
+    ['/app/leases/onboarding-pending', 'Entrées en attente'],
     ['/app/maintenance/providers', 'Carnet prestataires'],
     ['/app/overview/kpis', 'KPIs'],
     ['/app/overview/exports', 'Exports'],

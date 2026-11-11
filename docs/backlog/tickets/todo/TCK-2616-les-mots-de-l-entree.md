@@ -143,3 +143,34 @@ le changement s'y voit aussi, ce qui suit ADR-0095 (la règle vaut partout).
   « wizard », « dashboard », « XOF » (wolof en pause, ADR-0095 § 4).
 - `/app` porte encore « KYC » (`kyc.*`, tableau de bord administrateur) : hors des surfaces d'entrée.
 - La page d'invitation ne nomme pas l'agence (« Une agence vous invite ») : c'est TCK-2611.
+
+### Correction après vérification (2026-11-11) — « onboarding » rejoint les mots bannis
+
+Décision de session : « onboarding » ne s'affiche plus en français. Ajouté à ADR-0095 § 5 et au motif
+`MOTS_BANNIS` de `mots-de-l-entree.tck-2616.test.ts` (rouge sur 3 surfaces avant la réécriture).
+
+| Clé `fr` | Avant | Après |
+|---|---|---|
+| `owners/agents/serviceProviders.onboarding.metaTitle` | « Onboarding propriétaire / agent / prestataire » | « Premiers pas — espace propriétaire / agent / prestataire » |
+| `owners/agents/serviceProviders.onboarding.errors.completeTitle` | « Impossible de finaliser votre onboarding » | « Impossible de finaliser la mise en place de votre espace » |
+| `serverActions.ownerOnboarding/agentOnboarding.completeFailed` | « … votre onboarding. » | « … la mise en place de votre espace. » |
+| `serverActions.serviceProviderOnboarding.completeFailed` | « … votre onboarding prestataire. » | « … la mise en place de votre espace prestataire. » |
+| `wizardDrafts.banner.labels.{owner,agent,customer,sp}-onboarding` | « Onboarding … » | « Création de votre espace … » (patron de `host-individual-wizard`) |
+| `wizardDrafts.banner.labels.{owner,agent}-kyc` | « KYC propriétaire / agent » | « Vérification d’identité (propriétaire / agent) » |
+
+`wo` : seuls `agents.onboarding.metaTitle` et `serviceProviders.onboarding.metaTitle`, qui recopiaient
+le français, suivent ; les autres sont écrits en wolof (§ 4). `en` inchangé.
+
+Suivi mineur : `HostIndividualWizard.test` ouvre désormais la liste des devises et lit le texte des
+options (ablation : options rendues par leur code → 1 rouge).
+
+Côté agence, même décision : « Onboardings en attente » devient « Entrées en attente », le nom de la
+palette (`entrees-en-attente`) — `nav.sidebar.onboardingPending`,
+`dashboard.onboardingPending.{metaTitle,title}`, `admin.agencyConfig.modules.items.move_in_follow_up.label`
+(son `wo`, qui recopiait le français, suit) ; `dashboard.onboardingPending.subtitle` « Locataires dont
+la liste d’entrée dans les lieux est ouverte depuis plus de 7 jours. » ;
+`agency.tenantOnboardingPending.emptyTitle` « Aucune entrée en retard » et `.emptyDescription` « Les
+entrées ouvertes depuis moins de 7 jours n'apparaissent pas ici. ». `AppSidebar.test` suit.
+Plus aucune valeur `fr` rendue ne contient « onboarding » ; reste le synonyme de recherche
+`nav.palette.synonymes.entrees-en-attente`, cherché et jamais affiché (`lib/navigation/palette.ts`),
+gardé pour qu'une personne qui tape « onboarding » trouve la page.

@@ -64,7 +64,7 @@ const REGISTRE: Readonly<Record<string, string>> = {
   'agency.tenantOnboardingPending.emptyDescription':
     'takussan-api/app/Http/Controllers/Api/Agency/TenantOnboardingPendingController.php:53 — seuil subDays(7)',
   'dashboard.onboardingPending.subtitle': 'idem — TenantOnboardingPendingController.php:53',
-  // TCK-2483 — la ligne d'aide du module « Onboardings en attente » décrit le même seuil.
+  // TCK-2483 — la ligne d'aide du module « Entrées en attente » décrit le même seuil.
   'admin.agencyConfig.modules.items.move_in_follow_up.hint':
     'takussan-api/app/Http/Controllers/Api/Agency/TenantOnboardingPendingController.php:54 — seuil subDays(7)',
   // TCK-592 — la clôture contradictoire : `completed_at <= subDays(7)` (:38), passe quotidienne à

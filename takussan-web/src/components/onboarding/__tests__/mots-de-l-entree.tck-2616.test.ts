@@ -63,9 +63,13 @@ const SURFACES: Readonly<Record<string, readonly string[]>> = {
   'assistant hôte': ['app/onboarding/host', 'components/onboarding/HostIndividualWizard.tsx', 'app/actions/onboarding.ts'],
 };
 
-/** ADR-0095 § 5 : le jargon de l'entrée. `XOF` reste le code envoyé à l'API, jamais l'affichage. */
+/**
+ * ADR-0095 § 5 : le jargon de l'entrée. `XOF` reste le code envoyé à l'API, jamais l'affichage.
+ * « onboarding » s'y ajoute (vérification de TCK-2616, décision de session) : il titrait l'onglet des
+ * trois assistants et leurs messages d'échec.
+ */
 const MOTS_BANNIS =
-  /(?<!\p{L})(?:leads?|wizards?|dashboards?|KYC|TOTP|valider|XOF)(?!\p{L})|vraie agence|(?<!\p{L})êtes invité(?!\p{L})/iu;
+  /(?<!\p{L})(?:leads?|wizards?|dashboards?|onboardings?|KYC|TOTP|valider|XOF)(?!\p{L})|vraie agence|(?<!\p{L})êtes invité(?!\p{L})/iu;
 
 /** Les formes du tutoiement qui ne sont jamais autre chose (pronoms et possessifs de la 2ᵉ personne). */
 const TUTOIEMENT = /(?<!\p{L})(?:tu|te|toi|ton|ta|tes|tien|tienne|tiens|tiennes)(?!\p{L})|(?<!\p{L})t['’](?=\p{L})|-(?:toi|tu)(?!\p{L})/iu;
@@ -112,7 +116,7 @@ describe.each(Object.entries(SURFACES))('TCK-2616 — les mots de la surface « 
     expect(textes.length).toBeGreaterThan(0);
   });
 
-  it('AC1 — aucun mot banni (« lead », « wizard », « dashboard », « KYC », « TOTP », « Valider », « XOF »…)', () => {
+  it('AC1 — aucun mot banni (« lead », « wizard », « dashboard », « onboarding », « KYC », « TOTP », « Valider », « XOF »…)', () => {
     expect(textes.filter(([, v]) => MOTS_BANNIS.test(v))).toEqual([]);
   });
 
@@ -133,10 +137,13 @@ describe('TCK-2616 — les gardes de ce fichier mordent', () => {
       'Tarif horaire (XOF)',
       'créer une vraie agence',
       'Vous êtes invité sur Takussan',
+      'Onboarding agent',
+      'Impossible de finaliser votre onboarding',
+      'Onboardings en attente',
     ]) {
       expect(MOTS_BANNIS.test(mauvais), mauvais).toBe(true);
     }
-    for (const bon of ['Votre premier prospect', 'leadership', 'Vérifier le code', 'validée', 'Tarif horaire (F CFA)', 'Une agence vous invite']) {
+    for (const bon of ['Votre premier prospect', 'leadership', 'Vérifier le code', 'validée', 'Tarif horaire (F CFA)', 'Une agence vous invite', 'Premiers pas — espace agent', 'onboardingPending']) {
       expect(MOTS_BANNIS.test(bon), bon).toBe(false);
     }
   });

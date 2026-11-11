@@ -6,52 +6,101 @@
  * où un texte tutoie ; la garde le branche sur `src/messages/fr.json` et sur les chaînes écrites
  * dans `src/`.
  *
- * Deux familles de marques, et seulement celles qui ne sont jamais autre chose :
+ * Trois familles de marques, et seulement celles qui ne sont jamais autre chose :
  *
- * 1. **Les pronoms et possessifs de la 2ᵉ personne du singulier** — `tu`, `toi`, `ton`, `ta`, `tes`,
- *    `t’`/`t'` devant une minuscule (« t’accompagner » ; pas le `'T'H` d'un format de date), `-toi`,
- *    `-tu`. `te` est écarté : il n'apparaît en français qu'avec
- *    un verbe déjà au tutoiement, que l'un des autres motifs attrape, et il est un mot courant
- *    d'autres langues présentes dans les sources.
- * 2. **Une liste FERMÉE d'impératifs au singulier en tête de phrase** (« Essaie », « Reviens »…).
- *    Fermée parce que la conjugaison ne se devine pas : « Choisis » est aussi un participe
- *    (« Choisis sur Takussan et partagés avec vous »), « Envoie » une 3ᵉ personne des descriptions
- *    de la console. Ces cas-là passent par une EXCEPTION nommée, avec sa raison, jamais par une
- *    tolérance.
+ * 1. **Les pronoms et possessifs de la 2ᵉ personne du singulier**, partout, en toute casse — `tu`,
+ *    `te`, `toi`, `ton`, `ta`, `tes`, `t’`/`t'` devant une minuscule (« t’accompagner » ; pas le
+ *    `'T'H` d'un format de date), `-toi`, `-tu`. `te` n'est pas un mot d'une autre langue des
+ *    sources lues : le wolof (où « te » veut dire « et ») vit dans `wo.json`, que la garde ne lit pas.
+ * 2. **Les impératifs SANS HOMONYME** (`IMPERATIFS_SANS_HOMONYME` : « reviens », « attends »,
+ *    « prends »…), partout et en toute casse : leur 3ᵉ personne s'écrit autrement (« revient »,
+ *    « attend »), et seul « je » les précède à l'indicatif — d'où l'exclusion de « je ».
+ * 3. **Les impératifs AMBIGUS** (`IMPERATIFS`), en TÊTE DE PROPOSITION seulement : début du texte,
+ *    après une fin de phrase, un tiret, un deux-points, un point-virgule, une parenthèse, un
+ *    guillemet ou un connecteur (« Ensuite, », « puis », « et »), en toute casse. Ailleurs, « envoie »,
+ *    « garde » ou « crée » sont une 3ᵉ personne, un nom ou un participe. Plus la forme négative
+ *    `N’hésite pas`, `Ne … pas` / `plus` / `jamais` sur ces mêmes verbes.
  *
- * Insensible à la casse pour les pronoms (« Ton agence… ») ; les impératifs ne sont cherchés qu'en
- * tête de phrase, avec leur majuscule.
+ * La liste 3 est FERMÉE parce que la conjugaison ne se devine pas : « Choisis » est aussi un participe
+ * (« Choisis sur Takussan et partagés avec vous »), « Envoie » une 3ᵉ personne des descriptions de la
+ * console. Ces cas-là passent par une EXCEPTION nommée, avec sa raison, jamais par une tolérance.
+ *
+ * Ce qu'elle ne voit PAS, et le dit : un impératif ambigu au milieu d'une proposition sans connecteur
+ * (« Pour finir clique ici »), un verbe hors des deux listes, et la négation sans `pas`/`plus`/`jamais`
+ * (« Ne touche à rien », qui est aussi la 3ᵉ personne des niveaux d'opérateur).
  */
 
 const LETTRE = '\\p{L}';
 
 /** Pronoms et possessifs : un mot entier, jamais l'intérieur d'un mot (« boîte », « tête », « taux »). */
 const PRONOMS = new RegExp(
-  `(?<!${LETTRE})(?:tu|toi|ton|ta|tes)(?!${LETTRE}|['’])|(?<![${LETTRE}'’])t['’](?=\\p{Ll})|-(?:toi|tu)(?!${LETTRE})`,
+  `(?<!${LETTRE})(?:tu|te|toi|ton|ta|tes)(?!${LETTRE}|['’])|(?<![${LETTRE}'’])t['’](?=\\p{Ll})|-(?:toi|tu)(?!${LETTRE})`,
   'giu',
 );
 
-/** La liste du relevé de TCK-2683 — elle ne s'allonge que par un cas mesuré. */
-export const IMPERATIFS = [
-  'Essaie', 'Reviens', 'Choisis', 'Découvre', 'Trouve', 'Publie', 'Ajoute', 'Contacte', 'Crée',
-  'Connecte', 'Inscris', 'Vérifie', 'Renseigne', 'Indique', 'Regarde', 'Laisse', 'Envoie', 'Écris',
-  'Partage', 'Garde', 'Reçois', 'Compare', 'Explore', 'Commence', 'Continue', 'Prends', 'Enregistre',
-  'Clique', 'Appuie', 'Saisis', 'Retrouve', 'Rejoins', 'Accède', 'Consulte', 'Modifie', 'Élargis',
-  'Tape', 'Mets', 'Fais',
+/**
+ * Impératifs dont aucune autre forme ne s'écrit pareil, hormis la 1ʳᵉ personne (« je viens ») :
+ * jugés à toute position. Un participe (« saisis », « remplis », « choisis ») n'a rien à faire ici.
+ */
+export const IMPERATIFS_SANS_HOMONYME = [
+  'Reviens', 'Viens', 'Attends', 'Prends', 'Reprends', 'Apprends', 'Inscris', 'Écris', 'Décris',
+  'Reçois', 'Rejoins', 'Joins', 'Mets', 'Remets', 'Fais', 'Refais', 'Sois', 'Aie', 'Dis', 'Réessaie',
+  'Réponds', 'Rends', 'Descends', 'Vends', 'Vas-y',
 ];
 
-/** En tête du texte, ou après une fin de phrase ; suivi d'un mot en minuscule (« Partage » seul est un titre). */
+/** Impératifs qui sont AUSSI une 3ᵉ personne, un nom ou un participe : en tête de proposition seulement. */
+export const IMPERATIFS = [
+  'Essaie', 'Choisis', 'Découvre', 'Trouve', 'Publie', 'Ajoute', 'Contacte', 'Crée',
+  'Connecte', 'Vérifie', 'Renseigne', 'Indique', 'Regarde', 'Laisse', 'Envoie',
+  'Partage', 'Garde', 'Compare', 'Explore', 'Commence', 'Continue', 'Enregistre',
+  'Clique', 'Appuie', 'Saisis', 'Retrouve', 'Accède', 'Consulte', 'Modifie', 'Élargis',
+  'Tape', 'Sélectionne', 'Remplis', 'Pense', 'Va', 'Hésite', 'Oublie', 'Touche', 'Ouvre', 'Complète',
+  'Précise', 'Ajuste', 'Télécharge', 'Importe', 'Dépose', 'Utilise', 'Profite', 'Passe', 'Patiente',
+  'Recommence', 'Corrige', 'Confirme', 'Invite', 'Appelle', 'Cherche',
+  'Finis', 'Termine', 'Supprime',
+];
+
+const ALTERNANCE = (liste) => liste.join('|');
+
+/** Les formes sans homonyme, à toute position ; « je » les met à l'indicatif. */
+const IMPERATIF_SANS_HOMONYME = new RegExp(
+  `(?<!${LETTRE})(?<!je\\s+)(${ALTERNANCE(IMPERATIFS_SANS_HOMONYME)})(?!${LETTRE})`,
+  'giu',
+);
+
+/** Une tête de proposition : début, fin de phrase, ponctuation forte, ouverture, ou connecteur. */
+const TETE = `(?:^\\s*|[.!?…]\\s+|[—–:;(«“"]\\s*|\\n\\s*|(?<!${LETTRE})(?:ensuite|puis|alors|sinon|enfin|d['’]abord),?\\s+)`;
+
+/**
+ * Suivi d'un mot en minuscule ou d'un pronom lié (« envoie-le ») : « Partage » ou « Continue » seuls
+ * sont des titres, pas des ordres.
+ */
 const IMPERATIF_EN_TETE = new RegExp(
-  `(?:^|[.!?…]\\s+)(${IMPERATIFS.join('|')}) (?=[a-zà-ÿ])`,
-  'gu',
+  `${TETE}(${ALTERNANCE(IMPERATIFS)})(?=\\s+[a-zà-ÿ'’]|-(?:le|la|les|moi|nous|lui|leur|y|en)(?!${LETTRE}))`,
+  'giu',
+);
+
+/** La négation : « N’hésite pas », « Ne garde pas », « N’oublie jamais »… sur les verbes ambigus. */
+const IMPERATIF_NEGATIF = new RegExp(
+  `${TETE}(n['’]|ne\\s+)(${ALTERNANCE(IMPERATIFS)})\\s+(?:pas|plus|jamais)(?!${LETTRE})`,
+  'giu',
 );
 
 /** Les marques du tutoiement trouvées dans `texte`, dans l'ordre (vide : le texte vouvoie ou n'adresse personne). */
 export function motsDuTutoiement(texte) {
   const trouves = [];
   for (const m of texte.matchAll(PRONOMS)) trouves.push({ position: m.index, mot: m[0] });
-  for (const m of texte.matchAll(IMPERATIF_EN_TETE)) trouves.push({ position: m.index + m[0].indexOf(m[1]), mot: m[1] });
-  return trouves.sort((a, b) => a.position - b.position).map((t) => t.mot);
+  for (const m of texte.matchAll(IMPERATIF_SANS_HOMONYME)) trouves.push({ position: m.index, mot: m[1] });
+  for (const m of texte.matchAll(IMPERATIF_EN_TETE)) trouves.push({ position: m.index + m[0].lastIndexOf(m[1]), mot: m[1] });
+  for (const m of texte.matchAll(IMPERATIF_NEGATIF)) {
+    const debut = m.index + m[0].lastIndexOf(m[1] + m[2]);
+    if (!trouves.some((t) => t.position === debut)) trouves.push({ position: debut, mot: `${m[1]}${m[2]}` });
+  }
+  const vus = new Set();
+  return trouves
+    .sort((a, b) => a.position - b.position)
+    .filter((t) => (vus.has(t.position) ? false : vus.add(t.position)))
+    .map((t) => t.mot);
 }
 
 /** Toutes les feuilles chaîne d'un dictionnaire, avec leur clé pointée. */
@@ -63,6 +112,19 @@ export function feuillesDuDictionnaire(arbre, prefixe = '') {
     else if (valeur && typeof valeur === 'object') sortie.push(...feuillesDuDictionnaire(valeur, chemin));
   }
   return sortie;
+}
+
+/**
+ * Un segment lu comme texte JSX, sans ce qui n'est qu'un identifiant de code : un mot qui porte `_`,
+ * `$` ou un chiffre, un mot tout en capitales (une constante), le nom qui suit un mot-clé de
+ * déclaration, et un mot suivi de `=`, `:`, `(` ou `.` — jamais la forme d'un mot de phrase.
+ */
+function sansIdentifiants(segment) {
+  return segment
+    .replace(/(?<![\p{L}\w$])(?:const|let|var|type|interface|function|class|enum)\s+[\p{L}\w$]+/gu, ' ')
+    .replace(/[\p{L}\w$]*[_$\d][\p{L}\w$]*/gu, ' ')
+    .replace(/(?<![\p{L}\w$])\p{Lu}{2,}(?![\p{L}\w$])/gu, ' ')
+    .replace(/[\p{L}\w$]+(?=\s*(?:=(?!=)|:|\(|\.(?=\p{L})))/gu, ' ');
 }
 
 /**
@@ -188,10 +250,16 @@ export function chainesDuSource(source, { tsx = false } = {}) {
   }
 
   if (tsx) {
-    // Le texte JSX : entre `>` et `<` ou `{`, sans rien qui ressemble à du code.
+    // Le texte JSX : tout segment entre `>` ou `}` et `<` ou `{` — donc aussi la suite d'une
+    // expression (« <p>{nom}, vérifie ton adresse</p> ») et le texte qui porte une parenthèse, un
+    // `;` ou un `&`. Le code ordinaire en attrape aussi des segments (`} else {`, `a > b) {`) : ils ne
+    // `;` ou un `&`. Le code ordinaire en attrape aussi des segments (`} else {`, `a > b) {`) : on y
+    // efface ce qui ne peut être qu'un identifiant (`TON_PAR_STATUT`, `const TON`, `type Ton =`)
+    // avant de juger — mesuré sur `src/` entier, il n'en reste aucun faux positif.
     const nu = code.join('');
-    for (const m of nu.matchAll(/>([^<>{}();=&|]+)(?=[<{])/g)) {
-      if (/\p{L}{2}/u.test(m[1])) sortie.push({ ligne: ligneDe(m.index + 1), texte: m[1] });
+    for (const m of nu.matchAll(/[>}]([^<>{}]+)(?=[<{])/g)) {
+      const texte = sansIdentifiants(m[1]);
+      if (/\p{L}{2}/u.test(texte)) sortie.push({ ligne: ligneDe(m.index + 1), texte });
     }
   }
   return sortie;

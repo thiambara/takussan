@@ -26,8 +26,8 @@
  *   `playground/` (les maquettes sont locales et ne sont pas une référence de ton, ADR-0095 § 3).
  *
  * Les marques reconnues sont dans `scripts/vouvoiement.mjs` (pronoms et possessifs de la 2ᵉ personne,
- * liste fermée d'impératifs au singulier en tête de phrase). `en` n'a pas de voix ; le wolof est en
- * pause.
+ * `te` compris ; impératifs sans homonyme à toute position ; liste fermée d'impératifs ambigus en tête
+ * de proposition), avec ce qu'elles ne voient pas. `en` n'a pas de voix ; le wolof est en pause.
  *
  * **Plafond 0, sans cliquet** : un retour du tutoiement rougit, toujours. Un faux positif ne se tolère
  * que par une EXCEPTION ci-dessous, nommée par sa clé (ou son fichier), avec sa raison. Une exception

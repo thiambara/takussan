@@ -211,6 +211,17 @@ describe('<HostIndividualWizard> — trois étapes', () => {
     expect(container.textContent).not.toMatch(/XOF/);
   });
 
+  it('TCK-2616 (vérification) — la liste ouverte des devises se lit en toutes lettres, sans aucun code', async () => {
+    // Le test précédent ne lit que la valeur affichée : la liste n'était jamais ouverte, et des
+    // options rendues par leur code (« XOF », « EUR ») restaient vertes (ablation de la vérification).
+    render(withIntl(<HostIndividualWizard />));
+    fireEvent.click(screen.getByRole('button', { name: /Suivant/i }));
+    fireEvent.click(screen.getByRole('combobox', { name: RAIL.identity.fields.currency }));
+    const options = (await screen.findAllByRole('option')).map((o) => o.textContent?.trim());
+    expect(options).toEqual(['XOF', 'XAF', 'EUR', 'USD'].map((c) => RAIL.identity.currencies[c as keyof typeof RAIL.identity.currencies]));
+    expect(options.join(' ')).not.toMatch(/\b(?:XOF|XAF|EUR|USD)\b/);
+  });
+
   it('un brouillon enregistré à l’ancienne étape 3 reprend sans casse', async () => {
     // AC4 — l'index 3 (le récapitulatif d'AVANT) n'existe plus. Le brouillon
     // doit atterrir sur une étape VALIDE, et les réponses déjà données doivent

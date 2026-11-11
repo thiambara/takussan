@@ -165,3 +165,34 @@ participe ; descriptions de la console à la 3ᵉ personne : « Envoie un email 
 - Ablations des tests de la bibliothèque : sans les pronoms → 4 rouges ; exception sans raison
   acceptée → 1 rouge ; exception morte tolérée → 1 rouge ; sans texte JSX → 1 rouge ; restauré par
   `cp`, `md5` identique.
+
+### Correction après vérification adverse (2026-11-11)
+
+La vérification a refusé le ticket : deux textes tutoyaient encore, et la garde avait trois trous.
+
+- **Textes** : `agency.publicPage.emptyBody` « … — revenez bientôt. » et `publicProfileIndex.error.body`
+  « … Réessayez dans quelques instants. » (`fr` ; leurs `wo` sont écrits en wolof et ne changent pas,
+  ADR-0095 § 4 ; `en` inchangé).
+- **Trou 1, texte JSX** : la capture `>…<` excluait `( ; = & |` et ne partait jamais d'un `}`. Elle lit
+  désormais tout segment entre `>`/`}` et `<`/`{`, après effacement de ce qui ne peut être qu'un
+  identifiant (`TON_PAR_STATUT`, `const TON`, `type Ton =`, un mot suivi de `=`/`:`/`(`) — sans cet
+  effacement, 14 faux positifs dans `src/`.
+- **Trou 2, `te`** : ajouté aux pronoms. Aucun faux positif dans `fr.json` ni `src/` (le « te » wolof
+  vit dans `wo.json`, que la garde ne lit pas).
+- **Trou 3, impératifs** : deux listes. Les impératifs SANS HOMONYME (« reviens », « réessaie »,
+  « attends », « viens »…) sont jugés partout, en toute casse, sauf après « je ». Les impératifs
+  AMBIGUS (liste fermée élargie : « sélectionne », « remplis », « pense », « va », « hésite »…) le sont
+  en tête de proposition — début, fin de phrase, `— – : ; ( « "`, ou « ensuite, puis, alors, sinon,
+  enfin, d'abord » —, en toute casse, suivis d'un mot en minuscule ou d'un pronom lié (« envoie-le »),
+  plus la négation `N’hésite pas` / `Ne … pas|plus|jamais`.
+- **Ce qui n'est pas couvert, faute de le faire sans faux positif** (mesuré sur `fr.json` et `src/`) :
+  « et » comme connecteur (5 faux positifs : « … et enregistre la consultation », « … et garde son
+  propre avis », « … et complète les conditions ») ; les noms « Demande », « Note », « Relance » en tête
+  (50 faux positifs : « Demande en cours », « Note moyenne ») ; un impératif ambigu au milieu d'une
+  proposition sans connecteur ; « Ne touche à rien » (négation sans `pas`, et 3ᵉ personne de
+  `superAdmin.operatorLevels.viewer.hint`). ADR-0095 dit désormais ce que la garde voit, et ce
+  qu'elle ne voit pas.
+- **Ablations** (une par trou, `cp` + `md5`, fichier restauré) : ancienne capture JSX → 5 rouges ;
+  `te` retiré → 3 rouges ; tête de proposition ramenée au début de phrase → 3 rouges ; impératifs sans
+  homonyme coupés → 8 rouges ; effacement des identifiants coupé → 1 rouge et 14 écarts sur `src/`.
+  Les deux anciens textes, réinjectés dans une copie du dictionnaire, rendent 2 écarts.

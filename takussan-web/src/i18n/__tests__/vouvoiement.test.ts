@@ -22,6 +22,22 @@ describe('motsDuTutoiement', () => {
     ['Que veux-tu faire ?', '-tu'],
     ['C’est pour toi.', 'toi'],
     ['La ville est prête. Découvre les annonces du jour.', 'Découvre'],
+    // Vérification adverse de TCK-2683 — trou n° 2 : « te » n'était pas lu.
+    ['L’agence te rappelle demain.', 'te'],
+    ['On te répond sous 24 h.', 'te'],
+    ['Ça te plaît ?', 'te'],
+    // Trou n° 3 : les impératifs n'étaient cherchés qu'en tête de phrase, capitalisés, dans une liste courte.
+    ['Nous n’avons pas pu charger la liste. Réessaie dans quelques instants.', 'Réessaie'],
+    ['Cette agence prépare ses prochaines annonces — reviens bientôt.', 'reviens'],
+    ['Sélectionne une ville pour commencer.', 'Sélectionne'],
+    ['Remplis le formulaire.', 'Remplis'],
+    ['N’hésite pas à nous écrire.', 'N’hésite'],
+    ['Pense à vérifier ton numéro.', 'Pense'],
+    ['Viens nous voir à l’agence.', 'Viens'],
+    ['Attends la réponse du bailleur.', 'Attends'],
+    ['Va sur la page du bien.', 'Va'],
+    ['Ensuite, clique sur « Publier ».', 'clique'],
+    ['Le dossier est prêt : envoie-le au bailleur.', 'envoie'],
   ])('« %s » tutoie (%s)', (texte, mot) => {
     expect(motsDuTutoiement(texte)[0]).toBe(mot);
   });
@@ -35,6 +51,15 @@ describe('motsDuTutoiement', () => {
     'Partage',
     'Ne touche à rien.',
     'Votre agence n’est pas encore là ?',
+    // Ce que l'élargissement ne doit pas accuser : 1ʳᵉ personne, noms en tête, 3ᵉ personne, participes.
+    'Je reviens vers vous demain.',
+    'Demande en cours',
+    'Note moyenne de 4 sur 5',
+    'Relance prévue le 12 mars.',
+    'Le système vérifie et envoie un rappel.',
+    'Les montants saisis sont arrondis.',
+    'Interne à l’agence. Le visiteur ne voit pas le compte rendu, et garde son propre avis.',
+    'Une agence vous invite',
   ])('« %s » ne tutoie pas', (texte) => {
     expect(motsDuTutoiement(texte)).toEqual([]);
   });
@@ -55,6 +80,31 @@ describe('chainesDuSource', () => {
     expect(textes).toContain('4:, voici tes biens');
     expect(textes).toContain('5:Reviens bientôt sur la page');
     expect(textes.some((t) => t.startsWith('1:'))).toBe(false);
+  });
+
+  // Vérification adverse de TCK-2683 — trou n° 1 : le texte JSX qui suit une expression, ou qui porte
+  // `(`, `;`, `=`, `&` ou `|`, n'était jamais lu.
+  it.each([
+    ['<p>{nom}, vérifie ton adresse</p>', 'ton'],
+    ['<p>Erreur (code 3) : réessaie dans un instant</p>', 'réessaie'],
+    ['<p>Prix&nbsp;: choisis ton bien</p>', 'choisis'],
+    ['<p>{n} biens — reviens bientôt</p>', 'reviens'],
+    ['<p>Total = {t} ; reviens demain</p>', 'reviens'],
+  ])('le texte JSX « %s » est lu (%s)', (jsx, mot) => {
+    const source = `export const C = ({ nom, n, t }) => ${jsx};\n`;
+    const { ecarts } = verifier({ dictionnaire: {}, fichiers: [{ chemin: 'src/C.tsx', source }], exceptions: [] });
+    expect(ecarts.map((e) => e.mot)).toEqual([mot]);
+  });
+
+  it('le code lu entre deux accolades n’est pas une phrase : ses identifiants ne tutoient pas', () => {
+    const source = [
+      "import { x } from 'y';",
+      'const TON_PAR_STATUT: Record<string, string> = { a: x };',
+      "type Ton = 'clair' | 'sombre';",
+      'const TON: Record<string, Ton> = {};',
+      'export const C = () => <p>{TON.a} et {TON_PAR_STATUT.a}</p>;',
+    ].join('\n');
+    expect(verifier({ dictionnaire: {}, fichiers: [{ chemin: 'src/C.tsx', source }], exceptions: [] }).ecarts).toEqual([]);
   });
 
   it('une expression régulière qui contient un guillemet n’ouvre pas de chaîne fantôme', () => {

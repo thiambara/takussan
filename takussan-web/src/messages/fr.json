@@ -150,7 +150,7 @@
       "owners": "Propriétaires",
       "crm": "Clients (CRM)",
       "calendar": "Calendrier",
-      "onboardingPending": "Onboardings en attente",
+      "onboardingPending": "Entrées en attente",
       "proLocked": "Réservé aux comptes pro",
       "navLabel": "Navigation du tableau de bord",
       "counters": {
@@ -2297,9 +2297,9 @@
       "metaTitle": "Demande de maintenance"
     },
     "onboardingPending": {
-      "metaTitle": "Onboardings en attente",
-      "title": "Onboardings en attente",
-      "subtitle": "Locataires dont la checklist d'onboarding est ouverte depuis plus de 7 jours."
+      "metaTitle": "Entrées en attente",
+      "title": "Entrées en attente",
+      "subtitle": "Locataires dont la liste d’entrée dans les lieux est ouverte depuis plus de 7 jours."
     },
     "pages": {
       "bookings": {
@@ -2718,8 +2718,8 @@
     },
     "tenantOnboardingPending": {
       "error": "Impossible de charger la liste pour le moment.",
-      "emptyTitle": "Aucun onboarding en retard",
-      "emptyDescription": "Les onboardings ouverts depuis moins de 7 jours n'apparaissent pas ici.",
+      "emptyTitle": "Aucune entrée en retard",
+      "emptyDescription": "Les entrées ouvertes depuis moins de 7 jours n'apparaissent pas ici.",
       "leaseReference": "Bail {reference}",
       "signedAt": "Signé le {date}",
       "missing": "Il reste : {items}",
@@ -2852,7 +2852,7 @@
       "portfolioEyebrow": "Portefeuille",
       "portfolioHeading": "Biens à l'affiche",
       "emptyTitle": "Pas encore de bien à présenter",
-      "emptyBody": "Cette agence prépare ses prochaines annonces — reviens bientôt.",
+      "emptyBody": "Cette agence prépare ses prochaines annonces — revenez bientôt.",
       "metaTitle": "{name} — Agence immobilière",
       "metaSummary": "{count, plural, one {# bien} other {# biens}}",
       "metaSummaryInCity": "{count, plural, one {# bien} other {# biens}} à {city}",
@@ -5257,12 +5257,12 @@
       "description": "{count, plural, =1 {Vous avez 1 démarche en cours.} other {Vous avez # démarches en cours.}}",
       "labels": {
         "host-individual-wizard": "Création de votre espace hôte",
-        "owner-onboarding": "Onboarding propriétaire",
-        "agent-onboarding": "Onboarding agent",
-        "customer-onboarding": "Onboarding locataire",
-        "owner-kyc": "KYC propriétaire",
-        "agent-kyc": "KYC agent",
-        "sp-onboarding": "Onboarding prestataire",
+        "owner-onboarding": "Création de votre espace propriétaire",
+        "agent-onboarding": "Création de votre espace agent",
+        "customer-onboarding": "Création de votre espace locataire",
+        "owner-kyc": "Vérification d’identité (propriétaire)",
+        "agent-kyc": "Vérification d’identité (agent)",
+        "sp-onboarding": "Création de votre espace prestataire",
         "agency-upgrade": "Passage en pro",
         "property-create-wizard": "Publication d’un bien"
       }
@@ -5506,13 +5506,13 @@
       },
       "errors": {
         "kycSubmitTitle": "Envoi des pièces impossible",
-        "completeTitle": "Impossible de finaliser votre onboarding"
+        "completeTitle": "Impossible de finaliser la mise en place de votre espace"
       },
       "success": {
         "title": "Bienvenue !",
         "body": "Votre profil propriétaire est actif."
       },
-      "metaTitle": "Onboarding propriétaire"
+      "metaTitle": "Premiers pas — espace propriétaire"
     },
     "sensitive": {
       "notice": "Le RIB, le NINEA et le numéro de pièce sont masqués. « Afficher » révèle la valeur complète et enregistre la consultation dans le journal de l'agence.",
@@ -5649,13 +5649,13 @@
       },
       "errors": {
         "kycSubmitTitle": "Envoi des pièces impossible",
-        "completeTitle": "Impossible de finaliser votre onboarding"
+        "completeTitle": "Impossible de finaliser la mise en place de votre espace"
       },
       "success": {
         "title": "Bienvenue !",
         "body": "Votre profil agent est actif."
       },
-      "metaTitle": "Onboarding agent"
+      "metaTitle": "Premiers pas — espace agent"
     },
     "publicPage": {
       "notFound": "Agent introuvable",
@@ -5882,7 +5882,7 @@
       "errors": {
         "tradesTitle": "Impossible d'enregistrer vos métiers",
         "availabilityTitle": "Impossible d'enregistrer vos disponibilités",
-        "completeTitle": "Impossible de finaliser votre onboarding"
+        "completeTitle": "Impossible de finaliser la mise en place de votre espace"
       },
       "success": {
         "title": "Bienvenue !",
@@ -6017,7 +6017,7 @@
           }
         }
       },
-      "metaTitle": "Onboarding prestataire",
+      "metaTitle": "Premiers pas — espace prestataire",
       "pageTitle": "Bienvenue dans votre espace prestataire",
       "pageSubtitle": "Quatre étapes guidées pour vérifier votre identité, déclarer vos métiers et planifier votre semaine."
     },
@@ -7211,7 +7211,7 @@
             "hint": "Les états des lieux d’entrée et de sortie."
           },
           "move_in_follow_up": {
-            "label": "Onboardings en attente",
+            "label": "Entrées en attente",
             "hint": "Les locataires dont l’état des lieux d’entrée attend depuis plus de 7 jours."
           },
           "provider_book": {
@@ -12484,17 +12484,17 @@
       "kycFailed": "Impossible d’envoyer vos pièces.",
       "specializationFailed": "Impossible d’enregistrer votre spécialisation.",
       "firstLeadFailed": "Impossible de charger votre premier prospect.",
-      "completeFailed": "Impossible de finaliser votre onboarding."
+      "completeFailed": "Impossible de finaliser la mise en place de votre espace."
     },
     "ownerOnboarding": {
       "kycFailed": "Impossible d’envoyer vos pièces.",
-      "completeFailed": "Impossible de finaliser votre onboarding.",
+      "completeFailed": "Impossible de finaliser la mise en place de votre espace.",
       "propertiesFailed": "Impossible de charger vos biens."
     },
     "serviceProviderOnboarding": {
       "tradesFailed": "Impossible de sauvegarder vos métiers.",
       "availabilityFailed": "Impossible de sauvegarder vos disponibilités.",
-      "completeFailed": "Impossible de finaliser votre onboarding prestataire.",
+      "completeFailed": "Impossible de finaliser la mise en place de votre espace prestataire.",
       "agenciesFailed": "Impossible de charger vos agences partenaires."
     },
     "hostOnboarding": {
@@ -13123,7 +13123,7 @@
     },
     "error": {
       "title": "Annuaire momentanément indisponible",
-      "body": "Nous n’avons pas pu charger la liste. Réessaie dans quelques instants."
+      "body": "Nous n’avons pas pu charger la liste. Réessayez dans quelques instants."
     },
     "agencies": {
       "searchPlaceholder": "Nom d’une agence",
