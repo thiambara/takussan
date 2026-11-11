@@ -144,12 +144,12 @@ Autres règles :
   l'ensemble exact où `abilities.can_accept` est vrai — assignée à l'appelant, `accepted_at` nul, ni
   `completed` ni `closed` ni `cancelled` (le ticket disait « `assigned` », qui manquait les demandes
   `open` dispatchées). Clé de `summary` aussi.
-- **Ressource** : `file`, `waiting_on`, `waiting_since` (`status_changed_at`, repli `created_at`),
+- **Ressource** : `file`, `waiting_on`, `waiting_since` (`queue_entered_at`, repli `created_at`),
   `slot_overdue_days` (jours entiers à Dakar, sur `en_retard` seulement), `auto_close_at`
   (`completed_at` + `AutoCloseMaintenanceRequests::DEFAULT_DAYS`). Sans requête. ⚠ Sous sparse
   fieldset, ces clés sont **nulles** si `status`, `assigned_to` ou `scheduled_at` ne sont pas lus (une
   file déduite d'une colonne absente serait fausse) : le front demande ces colonnes, plus
-  `status_changed_at`, `created_at`, `completed_at`.
+  `queue_entered_at`, `created_at`, `completed_at`.
 - **`filter[file]`** : liste à virgules ; valeur inconnue ou `filter[file][]=` → rien (comme
   `filter[due]`). **`GET /api/maintenance-requests/summary`** → `{data: {a_dispatcher, en_retard,
   chez_le_bailleur, en_cours, a_confirmer, terminees, a_accepter}}`, sous `visibleTo` et les AUTRES
