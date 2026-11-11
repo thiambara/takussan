@@ -12826,7 +12826,7 @@
     "partager": {
       "libelle": "Partager la fiche de {nom}",
       "copie": "Lien copié",
-      "echec": "Partage impossible ici : copiez l’adresse de la page."
+      "echec": "Impossible de partager ici : copiez l’adresse de la page."
     }
   },
   "privacy": {
@@ -12973,8 +12973,8 @@
       "cta": "Voir la vitrine"
     },
     "join": {
-      "title": "Ton agence n’est pas encore là ?",
-      "body": "Une vitrine gratuite, tes annonces sur Takussan, et l’atelier pour les visites, les baux et les loyers.",
+      "title": "Votre agence n’est pas encore là ?",
+      "body": "Une vitrine gratuite, vos annonces sur Takussan, et l’atelier pour les visites, les baux et les loyers.",
       "cta": "Rejoindre Takussan"
     }
   },

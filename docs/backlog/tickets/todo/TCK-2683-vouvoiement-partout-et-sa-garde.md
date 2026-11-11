@@ -111,4 +111,57 @@ participe ; descriptions de la console à la 3ᵉ personne : « Envoie un email 
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Re-mesure de la prémisse (2026-11-11, arbre `914bb7c65`)
+
+- Les deux `grep` du relevé rendent exactement ce que le ticket annonce (4 et 8 lignes).
+- **Une sixième clé au tutoiement, que ces `grep` ne voient pas** : `agency.publicPage.teamHeading`,
+  « {count, plural, =1 {# interlocuteur pour t'accompagner} … } » (la fiche publique d'agence,
+  `TeamStrip`). Le premier motif exige une espace après `t’` et ne connaît que l'apostrophe
+  typographique ; ici l'élision est droite et suivie d'une lettre. La garde l'a trouvée au premier
+  passage ; corrigée en « pour vous accompagner » (`wo` en wolof, inchangé).
+- Chaînes en dur dans `src/` (hors tests et maquettes) : 0 au tutoiement, confirmé par la garde
+  (1 555 fichiers).
+- Faux positifs du second motif : les 5 annoncés (participe, trois descriptions de la console à la
+  3ᵉ personne, le nom « Partage »). Quatre sont les exceptions nommées de la garde, chacune avec sa
+  raison. Le cinquième, `publicProfile.partager.echec`, est **dans un espace que vise AC1** : tel
+  qu'écrit, AC1 restait rouge sur un faux positif. Le texte est reformulé (« Impossible de partager
+  ici : copiez l’adresse de la page. », même sens, `wo` copie suivie, `PartagerLaFiche.test.tsx`
+  aligné) plutôt que toléré : une exception de moins.
+
+### Ce qui est livré
+
+- 6 clés `fr` au vouvoiement (les 5 du ticket + `agency.publicPage.teamHeading`), et `publicProfile.partager.echec` reformulée (ci-dessus) ; les 2 `wo` qui
+  recopiaient le français suivent ; `en` inchangé ; les 4 `wo` en wolof identiques avant / après
+  (diff des dictionnaires : seules `publicProfileIndex.join.title` et `.join.body` changent en `wo`).
+- `docs/design-guidelines.md`, § « Ton & Micro-copy » : la phrase du tutoiement remplacée.
+- `takussan-web/scripts/vouvoiement.mjs` (fonctions pures) + `scripts/check-vouvoiement.mjs`
+  (la garde, ses `EXCEPTIONS`) ; `npm run check:vouvoiement` ; étape « Vouvoiement » de `web-ci.yml`
+  (`scripts/check-gardes-branchees.mjs` vert).
+- Règles de la garde, au-delà du ticket, toutes deux mesurées :
+  - `t’`/`t'` n'est retenu que devant une **minuscule** et hors d'un mot ou d'une citation : le
+    format de date `yyyy-MM-dd'T'HH:mm` (3 fichiers) était un faux positif ;
+  - une chaîne de `src/` d'**un seul mot** n'est pas lue : la prop `ton: 'clair' | 'sombre'` de
+    `PastilleCredits` (2 lignes) était un faux positif. Une phrase a au moins deux mots.
+  - `te` n'est pas dans la liste (le ticket ne le nomme pas) : il n'apparaît qu'avec un verbe déjà
+    au tutoiement.
+  - une exception qui ne couvre plus aucun texte rougit (pas de tolérance morte).
+- Tests : `takussan-web/src/i18n/__tests__/vouvoiement.test.ts` (26) — texte au tutoiement rouge,
+  exception avec raison verte, exception sans raison rouge, exception morte rouge, chaîne en dur
+  dans un `.tsx` rouge avec fichier:ligne, lexeur (commentaires ignorés, regex à guillemet).
+
+### Mesures
+
+- AC1 : le premier `grep` rend 0 ligne ; le second en rend 4, aucune dans `publicProfile` ni
+  `publicProfileIndex` (les 4 exceptions de la garde).
+- AC2 : `npm run check:vouvoiement` vert ; « Ton agence n’est pas encore là ? » remis dans `fr.json`
+  (sous le verrou des clés, restauré par `cp`, `md5` identique) → rouge, « publicProfileIndex.join.title — « Ton » ».
+- AC3 : `"Choisis ton bien"` dans `src/components/AblationVouvoiement.tsx` → rouge,
+  « src/components/AblationVouvoiement.tsx:2 — « Choisis » » ; fichier retiré, vert.
+- AC4 : diff des trois dictionnaires contre la sauvegarde d'avant : en `wo`, seules les deux clés
+  copiées changent.
+- AC5 : `/fr/agencies`, Chrome par CDP (sous le verrou de mesure) : à 360 px, débord du défileur
+  0 (`scrollWidth` 360 = `clientWidth` 360, `innerWidth` 360), 0 coupe nette ; le titre tient sur
+  une ligne, le bouton « Rejoindre Takussan » sur la sienne ; idem à 390 px.
+- Ablations des tests de la bibliothèque : sans les pronoms → 4 rouges ; exception sans raison
+  acceptée → 1 rouge ; exception morte tolérée → 1 rouge ; sans texte JSX → 1 rouge ; restauré par
+  `cp`, `md5` identique.

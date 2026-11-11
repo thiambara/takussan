@@ -211,6 +211,14 @@ jobs:
         # autrement : « cette classe n'émet rien », pas « ce code est mal écrit ».
         run: npm run check:classes-emises
 
+      - name: Vouvoiement (TCK-2683, ADR-0095)
+        # Takussan vouvoie partout. Cette garde lit `src/messages/fr.json` et les chaînes de `src/`
+        # (hors tests et maquettes) et rougit sur tout tutoiement, plafond 0. Elle vit ici avec les
+        # trois autres gardes du front parce qu'elle lit `src/` du front ; elle n'a besoin d'aucune
+        # dépendance. Ce qu'elle garde n'est vu par aucune étape voisine : `check:i18n` ne juge que
+        # la parité des langues, et un texte au tutoiement est une chaîne valide pour tout le reste.
+        run: npm run check:vouvoiement
+
       - name: Tests (Vitest)
         run: npm run test
 

@@ -413,7 +413,7 @@ sa finition.
 
 ## Ton & Micro-copy
 
-- **Accueillant** : s'adresser à l'utilisateur directement ("Vos propriétés", "Ajoutez votre premier bien"). Tutoyer sur les surfaces publiques de découverte (« Près de toi », « Pour ton prochain logement »).
+- **Accueillant** : s'adresser à l'utilisateur directement ("Vos propriétés", "Ajoutez votre premier bien"). Vouvoyer partout, site public compris, connecté ou non ([ADR-0095](adr/0095-le-ton-suit-la-session.md)). Les maquettes ne sont pas une référence de ton. La garde `npm run check:vouvoiement` (`takussan-web/scripts/check-vouvoiement.mjs`) rougit sur tout retour du tutoiement.
 - **Clair et direct** : pas de jargon technique, pas de termes métier obscurs sans définition contextuelle.
 - **Labels d'action** : verbe à l'infinitif ("Ajouter un bien", "Envoyer le quittancement") — jamais "OK", "Valider", "Submit".
 - **Messages d'erreur** : expliquer ce qui s'est passé + comment corriger. Jamais "Une erreur est survenue."

@@ -38,7 +38,7 @@ describe('PartagerLaFiche', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Partager la fiche de Dakar Immo' }));
 
-    const message = await screen.findByText('Partage impossible ici : copiez l’adresse de la page.');
+    const message = await screen.findByText('Impossible de partager ici : copiez l’adresse de la page.');
     expect(message).toBeVisible();
     expect(message.closest('[aria-live]')).not.toBeNull();
   });
@@ -49,7 +49,7 @@ describe('PartagerLaFiche', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Partager la fiche de Dakar Immo' }));
 
-    expect(await screen.findByText('Partage impossible ici : copiez l’adresse de la page.')).toBeInTheDocument();
+    expect(await screen.findByText('Impossible de partager ici : copiez l’adresse de la page.')).toBeInTheDocument();
   });
 
   it('la feuille abandonnée n’est pas un échec : rien n’est dit, rien n’est copié', async () => {
@@ -61,7 +61,7 @@ describe('PartagerLaFiche', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Partager la fiche de Dakar Immo' }));
 
     expect(writeText).not.toHaveBeenCalled();
-    expect(screen.queryByText(/Partage impossible/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Impossible de partager/)).not.toBeInTheDocument();
     expect(screen.queryByText('Lien copié')).not.toBeInTheDocument();
   });
 });
