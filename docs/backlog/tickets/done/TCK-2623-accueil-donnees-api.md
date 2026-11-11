@@ -1,13 +1,13 @@
 ---
 id: TCK-2623
 title: "Accueil, côté API : l'équipe aujourd'hui pour l'admin, les interventions d'un jour pour le prestataire, les loyers du mois reçus sur attendus pour le bailleur"
-status: todo
+status: done
 phase: P1
 family: back
 estimate: M
 wave: 87
 created: 2026-11-10
-updated: 2026-11-10
+updated: 2026-11-11
 depends_on: []
 blocks: [TCK-2624, TCK-2625]
 spec_refs:
