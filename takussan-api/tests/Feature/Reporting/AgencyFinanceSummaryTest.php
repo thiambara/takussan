@@ -9,6 +9,7 @@ use App\Models\Customer;
 use App\Models\Enums\InvoiceStatus;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
+use App\Models\Enums\PayeeRole;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PayoutStatus;
 use App\Models\Invoice;
@@ -237,6 +238,13 @@ class AgencyFinanceSummaryTest extends ApiTestCase
         $payout($landlordB, PayoutStatus::Pending, 90_000);
         $payout($landlordB, PayoutStatus::Completed, 1_000_000);
         $payout($landlordA, PayoutStatus::Pending, 999_000, $this->foreign);
+        // Vérification adverse de TCK-2657 — un reversement à un PRESTATAIRE attend aussi
+        // l'approbation : il entre dans la file (compte, montant), pas dans le compte des bailleurs.
+        Payout::factory()->create([
+            'agency_id' => $this->agency->id, 'landlord_id' => User::factory()->create()->id,
+            'payee_role' => PayeeRole::ServiceProvider, 'status' => PayoutStatus::AwaitingApproval,
+            'gross_amount' => 60_000, 'commission_amount' => 0, 'net_amount' => 60_000,
+        ]);
 
         Invoice::factory()->create(['agency_id' => $this->agency->id, 'status' => InvoiceStatus::Draft, 'subtotal' => 30_000, 'total_amount' => 30_000]);
         Invoice::factory()->create(['agency_id' => $this->agency->id, 'status' => InvoiceStatus::Draft, 'subtotal' => 45_000, 'total_amount' => 45_000]);
@@ -250,8 +258,8 @@ class AgencyFinanceSummaryTest extends ApiTestCase
             $this->getJson("/api/agencies/{$this->agency->id}/finance/aging")->assertOk()->json('data.deposits_held.total'),
             $data['deposits_held'],
         );
-        $this->assertSame(3, $data['payouts_awaiting_approval']['count']);
-        $this->assertEquals(750_000.0, $data['payouts_awaiting_approval']['amount']);
+        $this->assertSame(4, $data['payouts_awaiting_approval']['count']);
+        $this->assertEquals(810_000.0, $data['payouts_awaiting_approval']['amount']);
         $this->assertSame(2, $data['payouts_awaiting_approval']['landlords_count']);
         $this->assertSame(1, $data['payouts_pending']['count']);
         $this->assertEquals(90_000.0, $data['payouts_pending']['amount']);

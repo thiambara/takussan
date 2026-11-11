@@ -4,6 +4,7 @@ namespace App\Services\Reporting;
 
 use App\Models\Agency;
 use App\Models\Enums\InvoiceStatus;
+use App\Models\Enums\PayeeRole;
 use App\Models\Enums\PayoutStatus;
 use App\Models\Invoice;
 use App\Models\Payout;
@@ -186,7 +187,10 @@ class FinanceSummaryService
             ->toBase()
             ->selectRaw('COUNT(*) FILTER (WHERE status = ?) AS awaiting_n', [$awaiting])
             ->selectRaw('COALESCE(SUM(net_amount) FILTER (WHERE status = ?), 0) AS awaiting_total', [$awaiting])
-            ->selectRaw('COUNT(DISTINCT landlord_id) FILTER (WHERE status = ?) AS awaiting_landlords', [$awaiting])
+            // Vérification adverse de TCK-2657 — la file d'approbation compte tous les bénéficiaires,
+            // mais `landlords_count` ne compte que les BAILLEURS : un reversement à un prestataire porte
+            // `landlord_id = provider_id`, une caution rendue le bailleur du bail (PayeeRole).
+            ->selectRaw('COUNT(DISTINCT landlord_id) FILTER (WHERE status = ? AND payee_role = ?) AS awaiting_landlords', [$awaiting, PayeeRole::Landlord->value])
             ->selectRaw('COUNT(*) FILTER (WHERE status = ?) AS pending_n', [$pending])
             ->selectRaw('COALESCE(SUM(net_amount) FILTER (WHERE status = ?), 0) AS pending_total', [$pending])
             ->first();
