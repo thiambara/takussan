@@ -14,6 +14,7 @@ use App\Rules\PersonnelDeLAgence;
 use App\Services\Visit\VisitSchedulingService;
 use App\Support\CaseInsensitive;
 use App\Support\Http\ParametreUnique;
+use App\Support\TelephoneSaisi;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -206,7 +207,14 @@ class PropertyVisit extends AbstractModel
                 fn (string $mot) => '%'.addcslashes(CaseInsensitive::fold($mot), '\\%_').'%',
                 preg_split('/\s+/u', $value, -1, PREG_SPLIT_NO_EMPTY) ?: [],
             );
-            $chiffres = preg_replace('/\D+/', '', $value) ?? '';
+            // TCK-2587 (contre-vérification, m1) — les chiffres saisis, et ceux du numéro passé par le
+            // normaliseur de saisie commun (`TelephoneSaisi::normaliser`) : « 00221 77… » y devient
+            // « +22177… », et se trouve comme « +221 77… » ; la saisie brute reste cherchée telle quelle
+            // (un numéro stocké sans indicatif). Trois chiffres au moins.
+            $chiffres = array_values(array_unique(array_filter(
+                [preg_replace('/\D+/', '', $value) ?? '', preg_replace('/\D+/', '', (string) TelephoneSaisi::normaliser($value)) ?? ''],
+                fn (string $c) => strlen($c) >= 3,
+            )));
             $viewer = request()->user();
             $toutVoir = $viewer?->isSuperAdmin() === true;
             $staff = $viewer === null ? [] : PersonnelDeLAgence::agencesOuPersonnelActif($viewer);
@@ -216,8 +224,8 @@ class PropertyVisit extends AbstractModel
                     ->orWhere(function (Builder $personne) use ($motif, $mots, $chiffres, $toutVoir, $staff) {
                         $personne->where(function (Builder $champ) use ($motif, $mots, $chiffres) {
                             $champ->whereRaw(CaseInsensitive::sql('property_visits.visitor_name').' like ?', [$motif]);
-                            if (strlen($chiffres) >= 3) {
-                                $champ->orWhere('property_visits.visitor_phone', 'like', '%'.$chiffres.'%');
+                            foreach ($chiffres as $numero) {
+                                $champ->orWhere('property_visits.visitor_phone', 'like', '%'.$numero.'%');
                             }
                             $champ->orWhereHas('customer', function (Builder $fiche) use ($mots, $chiffres) {
                                 $fiche->where(function (Builder $nomOuNumero) use ($mots, $chiffres) {
@@ -228,8 +236,8 @@ class PropertyVisit extends AbstractModel
                                                 ->orWhereRaw(CaseInsensitive::sql('customers.last_name').' like ?', [$mot]));
                                         }
                                     });
-                                    if (strlen($chiffres) >= 3) {
-                                        $nomOuNumero->orWhere('customers.phone', 'like', '%'.$chiffres.'%');
+                                    foreach ($chiffres as $numero) {
+                                        $nomOuNumero->orWhere('customers.phone', 'like', '%'.$numero.'%');
                                     }
                                 });
                             });

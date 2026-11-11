@@ -117,6 +117,32 @@ class PropertyVisitSearchFilterTest extends ApiTestCase
         }
     }
 
+    /**
+     * TCK-2587 (contre-vérification, m1) — un numéro recopié à l'international, « 00221 … », se trouve
+     * comme « +221 … » : sur le téléphone de la fiche comme sur le téléphone saisi de la visite.
+     */
+    public function test_un_numero_en_00221_trouve_la_fiche_et_le_visiteur(): void
+    {
+        $fiche = $this->ficheClient($this->x, null, ['first_name' => 'Mariama', 'last_name' => 'Ndiayé', 'phone' => '+221765554433']);
+        $parFicheSeule = PropertyVisit::factory()->create([
+            'property_id' => $this->bien->id, 'visitor_id' => null, 'customer_id' => $fiche->id,
+            'visitor_name' => null, 'visitor_phone' => null,
+        ]);
+        $agent = $this->personnel($this->x);
+
+        foreach (['00221 76 555 44 33', '00221765554433', '+221 76 555 44 33', '765554433'] as $recherche) {
+            $this->assertSame([$parFicheSeule->id], $this->ids($agent, ['search' => $recherche]), $recherche);
+        }
+        $this->assertSame([$this->parCompte->id], $this->ids($agent, ['search' => '00221 77 123 45 67']));
+
+        // Une ligne ancienne, écrite avant la normalisation (sans indicatif) : la saisie brute la trouve encore.
+        $ancienne = PropertyVisit::factory()->create([
+            'property_id' => $this->bien->id, 'visitor_id' => null, 'customer_id' => null,
+            'visitor_name' => 'Ousmane Fall', 'visitor_phone' => '781112233',
+        ]);
+        $this->assertSame([$ancienne->id], $this->ids($agent, ['search' => '781112233']));
+    }
+
     /** TCK-2587 — le nom d'une fiche ne se cherche ni hors de son agence, ni par le bailleur. */
     public function test_le_nom_de_la_fiche_ne_fuit_ni_vers_une_autre_agence_ni_vers_le_bailleur(): void
     {
