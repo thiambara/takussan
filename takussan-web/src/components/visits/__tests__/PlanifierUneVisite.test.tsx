@@ -169,6 +169,8 @@ describe('<PlanifierUneVisite> — TCK-590 / TCK-2586', () => {
     expect(screen.getByText('Barrés : vous avez déjà une visite, ou le bien est occupé.')).toBeInTheDocument();
 
     await user.click(pastille('Autre heure…'));
+    // TCK-2586 (m2) — le champ qui apparaît reçoit le focus : la saisie suit le geste.
+    expect(screen.getByLabelText(/^Heure/)).toHaveFocus();
     fireEvent.change(screen.getByLabelText(/^Heure/), { target: { value: '10:15' } });
     await prospect(user);
     await user.click(screen.getByRole('button', { name: 'Confirmer la visite · jeu. 12 nov. 10:15' }));

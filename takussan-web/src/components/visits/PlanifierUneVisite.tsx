@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { CalendarPlus } from 'lucide-react';
 
@@ -156,6 +156,8 @@ export function PlanifierDialog({
   const [autreDate, setAutreDate] = useState(jourInitial !== undefined && !joursMontres.includes(jourInitial));
   const [heure, setHeure] = useState<HeureChoisie | null>(heureInitiale ? { sorte: 'libre', label: heureInitiale } : null);
   const [autreHeure, setAutreHeure] = useState(false);
+  // « Autre heure… » porte le focus sur le champ qu'il fait apparaître (le champ se monte après le geste).
+  const focaliserLHeure = useRef(false);
   const [type, setType] = useState<TypeDeVisite>('in_person');
   const [note, setNote] = useState('');
   const [creerFiche, setCreerFiche] = useState(true);
@@ -472,6 +474,7 @@ export function PlanifierDialog({
               setErreurs((e) => ({ ...e, heure: undefined }));
             }}
             onAutreHeure={() => {
+              focaliserLHeure.current = true;
               setAutreHeure(true);
               setHeure(null);
             }}
@@ -484,6 +487,12 @@ export function PlanifierDialog({
               </label>
               <Input
                 id="plan-time"
+                ref={(champ) => {
+                  if (champ && focaliserLHeure.current) {
+                    focaliserLHeure.current = false;
+                    champ.focus();
+                  }
+                }}
                 type="time"
                 step={300}
                 value={heure?.sorte === 'libre' ? heure.label : ''}

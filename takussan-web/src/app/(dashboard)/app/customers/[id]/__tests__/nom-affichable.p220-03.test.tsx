@@ -45,7 +45,8 @@ describe('fiche client sans nom (P220.03)', () => {
     const arbre = await Page({ params: Promise.resolve({ id: '7' }) });
 
     expect(valeurs(arbre, 'title')).toContain('awa@example.sn');
-    expect(valeurs(arbre, 'customer')).toContainEqual({ id: 7, libelle: 'awa@example.sn' });
+    // TCK-2586 — la feuille « Planifier une visite » reçoit aussi le téléphone et l'étape du client.
+    expect(valeurs(arbre, 'customer')).toContainEqual(expect.objectContaining({ id: 7, libelle: 'awa@example.sn' }));
     expect(valeurs(arbre, 'displayLabel')).toEqual(['awa@example.sn']);
     expect(valeurs(arbre, 'fullName')).toEqual(['awa@example.sn']);
     expect(valeurs(arbre, 'name')).toContain('awa@example.sn');
