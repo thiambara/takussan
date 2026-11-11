@@ -1,10 +1,16 @@
 'use client';
 
-import { Bell, Check, Home, Search } from 'lucide-react';
+import { Bell, Check, Home, MoreHorizontal, Plus, Search } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { DatePicker } from '@/components/ui/date-picker';
+import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { fieldDensityScope } from '@/components/ui/field-density';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { TAILLES_DE_TEXTE, type TailleDeTexte } from '@/lib/jetons-de-l-app';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 
@@ -51,6 +57,30 @@ function Section({ titre, children }: { readonly titre: string; readonly childre
 
 function Code({ children }: { readonly children: ReactNode }) {
   return <code className="font-mono text-legende text-encre-douce">{children}</code>;
+}
+
+/**
+ * TCK-2686 — un champ de chaque type, rendu tel qu'une page de `/app` l'écrit (sans hauteur ni
+ * teinte d'appelant). `regime` préfixe les `data-epreuve` : « app » sous la seule portée `/app`,
+ * « confortable » sous une portée `fieldDensityScope()` posée DANS la portée `/app` (AC2).
+ */
+function Champs({ regime }: { readonly regime: string }) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <Input data-epreuve={`${regime}-input`} aria-label={`Champ ${regime}`} placeholder="Nom du client" />
+      <Select>
+        <SelectTrigger data-epreuve={`${regime}-select`} aria-label={`Sélecteur ${regime}`} className="w-full">
+          <SelectValue placeholder="Tous les statuts" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="actif">Actif</SelectItem>
+        </SelectContent>
+      </Select>
+      <DatePicker data-testid={`${regime}-date`} value="" onValueChange={() => {}} aria-label={`Date ${regime}`} />
+      <DateTimePicker data-testid={`${regime}-date-heure`} value="" onValueChange={() => {}} aria-label={`Date et heure ${regime}`} />
+      <Textarea data-epreuve={`${regime}-textarea`} aria-label={`Zone de texte ${regime}`} placeholder="Note interne" className="sm:col-span-2" />
+    </div>
+  );
 }
 
 export function VitrineClient() {
@@ -145,6 +175,53 @@ export function VitrineClient() {
             </Button>
           </DialogContent>
         </Dialog>
+      </Section>
+
+      {/* TCK-2686 — l'échelle de densité de `/app` : chaque taille, chaque variante, chaque champ. */}
+      <Section titre="Contrôles — échelle de densité de /app (TCK-2686)">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button data-epreuve="bouton-default">Enregistrer</Button>
+          <Button size="sm" data-epreuve="bouton-sm">Modifier</Button>
+          <Button size="xl" data-epreuve="bouton-xl">Créer le bail</Button>
+          <Button size="icon" variant="ghost" aria-label="Plus d’actions" data-epreuve="bouton-icon">
+            <MoreHorizontal aria-hidden />
+          </Button>
+          <Button size="lg" variant="outline" data-epreuve="bouton-lg">Taille lg</Button>
+          <Button size="xs" variant="outline" data-epreuve="bouton-xs">Taille xs</Button>
+          <Button size="icon-sm" variant="outline" aria-label="Ajouter" data-epreuve="bouton-icon-sm">
+            <Plus aria-hidden />
+          </Button>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button data-epreuve="variante-default">Principal</Button>
+          <Button variant="outline" data-epreuve="variante-outline">Contour</Button>
+          <Button variant="secondary" data-epreuve="variante-secondary">Confirmer</Button>
+          <Button variant="ghost" data-epreuve="variante-ghost">Discret</Button>
+          <Button variant="destructive" data-epreuve="variante-destructive">Supprimer</Button>
+          <Button variant="sombre" data-epreuve="variante-sombre">Faire</Button>
+          <Button variant="link" data-epreuve="variante-link">Lien</Button>
+          <Button disabled data-epreuve="variante-desactive">Désactivé</Button>
+        </div>
+        {/* Une SURFACE sombre imbriquée relit les teintes du thème sombre (les alias sont redéclarés sur `.dark`). */}
+        <div className="dark flex flex-wrap items-center gap-3 rounded-lg bg-background p-3 text-foreground">
+          <Button variant="secondary" data-epreuve="surface-sombre-secondary">Confirmer</Button>
+          <Button variant="ghost" data-epreuve="surface-sombre-ghost">Discret</Button>
+          <Button variant="outline" data-epreuve="surface-sombre-outline">Contour</Button>
+        </div>
+        <Code>portée /app seule</Code>
+        <Champs regime="app" />
+        <Code>portée « confortable » sous la portée /app</Code>
+        <div {...fieldDensityScope()}>
+          <Champs regime="confortable" />
+        </div>
+        <Select>
+          <SelectTrigger variante="filtre" data-epreuve="select-filtre" aria-label="Filtre de statut">
+            <SelectValue placeholder="Statut" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="actif">Actif</SelectItem>
+          </SelectContent>
+        </Select>
       </Section>
 
       <Section titre="Ombres nommées">

@@ -120,4 +120,103 @@ Aucun changement d'API.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**2026-11-11 — implémenté (agent « terrain-3 »).**
+
+### La mécanique retenue : des jetons que la portée redéfinit, pas des classes `portee-app:`
+
+- Chaque primitive lit sa hauteur, son texte et quelques teintes dans un **jeton** du bloc
+  `densite-de-l-app` de `globals.css` (`h-controle`, `h-controle-petit`, `h-controle-action`,
+  `h-controle-confortable`, `text-champ`, `text-declencheur`, `text-petit-bouton`, `px-petit-bouton-x`,
+  `gap-petit-bouton-espace`, `rounded-petit-bouton`, `py-zone-texte-y`, `leading-zone-texte`,
+  `bg-fond-champ`, `bg-fond-contour`, `text-encre-bouton-doux`, `text-encre-discrete`,
+  `border-bord-danger`, `font-bouton-doux`). **Valeur par défaut = la classe d'avant** : hors portée,
+  rien ne bouge (AC5 : zéro écart mesuré).
+- La portée `/app` (`:root:has([data-portee-app])`, TCK-2685) redéfinit les jetons : régime du pouce
+  en `rem` FIXES (2,75 / 2,25 / 3rem, texte de champ 1rem), puis le régime du bureau sous
+  `@media (width >= 48rem) and (not (pointer: coarse))` ; teintes au thème clair seulement
+  (`:root:not(.dark):has(…)`).
+- **Surfaces `.dark` imbriquées** (barre du super-admin, bandeau de modération) : un alias se résout là
+  où il est DÉCLARÉ. Déclaré sur `:root` seulement, `--color-encre-bouton-doux: var(--secondary-foreground)`
+  y valait l'encre CLAIRE, héritée telle quelle dans la surface sombre — mesuré au navigateur sur `/fr`
+  avant correctif : bouton doux dans un conteneur `.dark` à `rgb(31, 24, 18)` sur `rgb(58, 46, 35)`.
+  Les alias de teinte sont redéclarés sur `.dark` : `rgb(252, 249, 243)` après, sur `/fr` comme sous la
+  portée (vitrine, échantillon `surface-sombre-*`).
+- **`buttonVariants({ className })` sans `cn()`** (`InventoryList`, `MaintenanceList`,
+  `MaintenanceAccessKit`, `BrandingBanner`) : cva concatène sans fusionner, l'ordre de la feuille
+  tranche. Relevé sur la feuille compilée : `h-9 < h-10 < h-11 < h-controle` et
+  `bg-background < bg-card < bg-fond-contour`. Les `h-9` d'appelant perdaient déjà contre `h-10` (rien
+  ne change : la primitive gagne) ; `h-11` (`MaintenanceAccessKit`, sous `sm`) perd désormais contre
+  `h-controle`, qui vaut aussi 44 px au pouce dans `/app` ; le `bg-card` de `BrandingBanner` (accueil de
+  `/app`) perd contre `bg-fond-contour`, qui vaut `card` sous la portée claire. Rendu inchangé ; à
+  ramener sous `cn()` quand ces pages seront reprises.
+- **Pourquoi pas `portee-app:h-9`** (premier plan envisagé) : mesuré par un balayage des appelants,
+  ~115 `<Button>` de `src/components` écrivent leur hauteur (`h-11` de la maintenance, `size-11` de la
+  messagerie, `h-10` du calendrier) et une vingtaine leur teinte (`bg-transparent` sur un contour,
+  `text-destructive` sur un discret). Une classe à variante ne se fusionne avec rien et vient plus tard
+  dans la feuille : elle les aurait rabotés. Un jeton nommé est REMPLACÉ par la classe de l'appelant
+  (`tailwind-merge` le connaît : `DENSITE_DE_L_APP` dans `src/lib/jetons-de-l-app.ts`, étendu dans
+  `cn`). Relevé sur `/app/calendar` : les boutons `h-10` d'appelant gardent 40 / 36 px, seuls leurs
+  fonds de contour passent à `card`.
+- La portée « confortable » gagne sous `/app` : sa classe (`in-data-[field-density=comfortable]:h-controle-confortable`)
+  est une variante, émise après la hauteur nue (test sur la feuille compilée). Son jeton suit le pouce :
+  au pointeur grossier dès `lg`, 44 px au lieu de 39,6.
+
+### Mesures (vitrine `/fr/playground/vitrine`, Chrome par CDP, verrou de mesure ; px CSS)
+
+| | 390 | 768 | 1024 fin | 1440 fin | 1024 grossier | 1440 grossier |
+|---|---|---|---|---|---|---|
+| Bouton courant | 44 | 36 | 32,39 | 32,39 | 44 | 44 |
+| Petit bouton (texte) | 36 (13) | 32 (13) | 28,8 (13) | 28,8 (13) | 36 (13) | 36 (13) |
+| Action principale `xl` (texte) | 48 (15) | 48 (15) | 43,19 (15) | 43,19 (15) | 48 (15) | 48 (15) |
+| Bouton icône | 44 | 36 | 32,39 | 32,39 | 44 | 44 |
+| `Input` / `SelectTrigger` / `DatePicker` / `DateTimePicker` (texte) | 44 (16) | 36 (14) | 32,39 (12,6) | 32,39 (12,6) | 44 (16) | 44 (16) |
+| Les mêmes sous portée confortable | 44 | 44 | 39,59 | 39,59 | 44 | 44 |
+| Bouton dans un dialogue (portail) | 44 | 36 | 32,39 | 32,39 | 44 | 44 |
+
+AC3 (1440) : contour de champ `rgb(145, 134, 114)`, fond `rgb(255, 255, 255)` ; bouton contour fond
+`rgb(255, 255, 255)` ; doux `rgb(130, 60, 32)` en 600 ; discret `rgb(76, 70, 65)` ; danger bordé
+`destructive / 0.3` ; sombre `rgb(31, 24, 18)` sur `rgb(252, 249, 243)`.
+
+AC5 : contrôles relevés avant/après pris d'affilée (`getComputedStyle` de chaque bouton et champ :
+hauteur, largeur, police, graisse, interligne, padding, fond, bord, encre, rayon, espace) — `/fr`,
+`/fr/properties/superbe-villa-4-chambres-liberte-6-ga1P5l`, `/auth/login`, à 390 et 1440 : **0 écart**
+sur 43 / 60 / 30 / 35 / 5 / 5 contrôles. AC7 : `/app/customers/new` à 390, champs **40 → 44**, texte 16.
+
+### Où la prémisse différait
+
+- **`/super-admin` n'est pas joignable par un jeton** (AC5 non mesuré sur cette page) : le compte
+  `super@takussan.sn` est renvoyé vers `/onboarding/securite` (second facteur à configurer), relevé à la
+  place (hors portée aussi) : 0 écart. `SuperAdminShell` ne pose pas `data-portee-app` ; ses surfaces
+  `.dark` sont couvertes par la redéclaration des alias (épreuve par injection sur `/fr`).
+- **Variante sombre** : le Delta dit « seulement si le porteur la confirme », le tableau et ADR-0106 § 2
+  disent « décidée (2 a) ». Construite (`variant="sombre"`), et la ligne « un seul style de bouton
+  principal » de la charte est amendée.
+- **Sélecteur de filtre** : la primitive ne peut pas deviner son rôle — prop opt-in
+  `<SelectTrigger variante="filtre">` (graisse 500), à poser par les pages.
+- **Discret** : la maquette écrit `text-foreground/80`, le ticket « encre douce » : `--encre-douce`
+  (#4c4641) retenu, opaque.
+- **`DatePicker` / `DateTimePicker`** écrivaient `text-sm` (pas `text-base md:text-sm`) : sous la portée
+  `/app`, ils passent à 16 px au pouce (AC2) ; hors portée, `text-sm` inchangé.
+- **Effet de bord mesuré** : `Input` portait `text-base md:text-sm` ; un appelant qui écrivait une
+  taille (`DocumentShareDialog`, `text-[0.6875rem]`, seul cas relevé) la voyait écrasée dès `md` ; elle
+  vaut désormais à toute largeur (l'appelant garde la main, comme pour la hauteur).
+
+### Gardes et harnais touchés
+
+- `scripts/check-heritage-encre.mjs` : résout les teintes du bloc (`fond-contour` → `background`) —
+  sans quoi la recette d'`outline` perdait son fond hexadécimal et la garde tombait sur `undefined`
+  (ablation : `TypeError`). Bilan identique à avant (14 couples, minimum 5,44:1), un jeton non résolu
+  de plus (`--declencheur`, une TAILLE lue comme encre, compté non mesuré, comme `--corps`).
+- `src/test/contraste-wcag.ts` : alias `fond-contour`, `encre-bouton-doux` (valeurs hors portée) ;
+  `fond-champ`, `bord-danger`, `encre-discrete` et les tailles en non-couleurs.
+- `surface-publique.contraste.test.ts` : `ENCRES_INVERSES` 398 → 401 — la vitrine fait entrer
+  `ui/date-time-picker.tsx` dans la surface publique avec ses trois `text-muted-foreground` sans fond,
+  déjà là (liste avant/après comparée).
+- `check-valeurs-arbitraires-app` : consigne descendue (`button.tsx`, `text-[calc(…*3.2)]` devenu jeton).
+- `check-champs-uniformes` : vert, table d'exceptions inchangée (arbre sans maquettes).
+
+### Reste (au point porteur n° 1)
+
+- Au pointeur grossier dès `lg`, le texte des BOUTONS reste `text-sm` (12,6 px) dans 44 px : le ticket ne
+  fixe que celui des champs (16). À trancher si le rendu iPad paraît petit.
+- Le thème sombre garde les teintes du produit (aucune maquette ne le dessine).

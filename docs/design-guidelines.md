@@ -10,7 +10,7 @@ Ces directives s'appliquent à **toutes les interfaces** de Takussan. Elles prim
 - **Accueillant et chaleureux** : l'immobilier est un acte de vie fort — l'interface doit inspirer confiance et sérénité, pas anxiété. La palette Lin (sable clair + terracotta atténué) ancre l'identité dans un imaginaire local sans tomber dans le folklore.
 - **Professionnel sans être froid** : l'esthétique vise les meilleures apps PropTech (Airbnb, Houzz) — pas un back-office générique.
 - **Pas de hero marketing sur les surfaces de découverte** : l'utilisateur qui arrive a déjà une intention (louer/acheter). Modèle de référence : Airbnb. Toute proposition de hero illustratif / value prop / slogan est à rejeter sur la homepage publique.
-- **Cohérence avant tout** : un seul style de bouton principal, une seule façon d'afficher un état vide, une seule famille d'icônes.
+- **Cohérence avant tout** : un seul style de bouton principal, une seule façon d'afficher un état vide, une seule famille d'icônes. *Amendé le 2026-11-10 (décision 2 a du porteur, [ADR-0106](adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), TCK-2686) : le bouton **sombre** (`variant="sombre"`, `bg-foreground text-background`) des maquettes retenues s'y ajoute — « Faire », « Réessayer » — à côté du plein terracotta ; il reste un seul CTA principal par écran.*
 
 ## Typographie
 
@@ -518,7 +518,7 @@ La page `src/app/(public)/playground/page.tsx` permet de switcher au runtime ent
 - Les typos Éditorial (Fraunces) et Humaniste (Manrope) idem.
 - En production, utiliser exclusivement les tokens Tailwind héritant de `--primary`, `--background`, etc. — ne pas référencer `--pg-*` (réservés au playground).
 
-## Champs de formulaire — une seule hauteur (TCK-2460)
+## Champs de formulaire — une seule hauteur (TCK-2460), deux échelles depuis TCK-2686
 
 La hauteur d'un contrôle ne s'écrit jamais chez l'appelant : `scripts/check-champs-uniformes.mjs` casse sur `h-*` posé sur
 `Input`, `SelectTrigger` ou `Textarea`, et sur `<select>`, `<textarea>` ou `<input>` de saisie natifs hors de `components/ui/`.
@@ -530,3 +530,32 @@ La hauteur d'un contrôle ne s'écrit jamais chez l'appelant : `scripts/check-ch
 | Pagination, filtre de ligne | `SelectTrigger size="sm"`, `Button size="sm"` | `h-8` |
 
 `Button` s'aligne sur la même échelle : défaut `h-10`, `sm` `h-8`, `lg` `h-11`. `min-h-*` reste permis sur `Textarea`.
+
+### L'échelle de densité de `/app` — amendement de TCK-2460 ([ADR-0106](adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), TCK-2686)
+
+Décidé par le porteur le 2026-11-10 : dans la partie connectée, boutons et champs ont la hauteur des maquettes retenues.
+Le tableau ci-dessus reste celui du **site public**, de `/super-admin` et des écrans d'entrée, qui ne bougent pas d'un pixel.
+
+| Rôle (portée `/app`) | Pouce : sous `md`, et au pointeur grossier à toute largeur | Bureau : dès `md`, pointeur fin (rendu dès `lg`) |
+|---|---|---|
+| Bouton courant, bouton icône, `Input`, `SelectTrigger`, `DatePicker` | **44 px**, texte de champ 16 px | `h-9` (36 → 32,4), texte `text-sm` (12,6) |
+| Petit bouton (`size="sm"`) | 36 px (plancher tactile) | `h-8` (32 → 28,8) ; `px-3`, `rounded-lg`, texte **13 px** aux deux |
+| Action principale (`size="xl"`, neuve) | **48 px**, `px-5`, texte 15 px | `h-12` (48 → 43,2) |
+| Portée confortable sous `/app` (`fieldDensityScope()`) | 44 px | `h-11` (44 → 39,6) — elle gagne sur la portée `/app` |
+
+Aspect, au thème clair : contour (`outline`) et champs sur `bg-card` ; doux (`secondary`) à l'encre `primary-deep` en 600 ;
+discret (`ghost`) à l'encre douce ; danger bordé de `destructive/30`. Le contour de champ reste `border-input` (3,59:1)
+et le focus l'anneau plein (TCK-753) — exceptions d'accessibilité d'ADR-0106 § 2 a. Le sélecteur d'une barre de filtres
+s'écrit `<SelectTrigger variante="filtre">` (graisse 500).
+
+**Pourquoi deux échelles.** Le site public est un catalogue lu au doigt et à la souris, réglé une fois (TCK-2460) ;
+la partie connectée est un outil de travail dense dont le porteur a choisi les maquettes au pixel. **Pourquoi le
+pointeur et pas seulement la largeur** : un iPad à l'horizontale fait 1024 px, et la largeur seule lui donnerait des
+cibles de 32 px ; au pointeur grossier, la portée rend le régime du pouce en `rem` fixes (44 px même dès `lg`).
+
+**La mécanique** : chaque primitive lit sa hauteur dans un jeton (`h-controle`, `text-champ`, `bg-fond-champ`… — bloc
+`densite-de-l-app` de `globals.css`), dont la valeur par défaut est la classe d'avant ; la portée `/app`
+(`data-portee-app`, posée par la coque) le redéfinit, portails compris. Une hauteur ou une teinte écrite par un
+appelant **remplace** le jeton (`tailwind-merge` le connaît) : l'appelant garde la main — une classe
+`portee-app:h-9` l'aurait raboté. Les pages des vagues 86 à 90 adoptent l'échelle **en retirant** leurs hauteurs
+d'appelant, jamais en en écrivant.

@@ -5,6 +5,19 @@
  * aligne. Les hauteurs citées plus bas datent de TCK-468. Une hauteur de champ ne s'écrit jamais chez
  * l'appelant : `scripts/check-champs-uniformes.mjs`.
  *
+ * TCK-2686 — **AMENDEMENT DE TCK-2460 par [ADR-0106](../../../../docs/adr/0106-la-maquette-retenue-fait-foi-au-pixel.md)**
+ * (décidé par le porteur le 2026-11-10) : il y a désormais DEUX RÉGIMES posés par un ancêtre, sur la
+ * même idée que celle-ci (l'ancêtre choisit, l'appelant n'écrit rien).
+ *   - **La portée `/app`** (`data-portee-app`, posée par la coque) : boutons ET champs à 44 px sous
+ *     le pouce (48 l'action principale, 36 le petit bouton), `h-9` au bureau, et au pointeur grossier
+ *     le régime du pouce à toute largeur. Elle passe par des JETONS (`h-controle`, `text-champ`…, bloc
+ *     `densite-de-l-app` de `globals.css`), que la portée redéfinit — pas par une variante : un jeton
+ *     cède à la hauteur qu'écrit un appelant, une variante l'aurait rabotée.
+ *   - **La portée « confortable »** ci-dessous, inchangée dans son principe : 44 px (39,6 rendus au
+ *     bureau), et elle GAGNE quand elle est posée sous la portée `/app` — sa classe est une variante,
+ *     émise après la hauteur de base nue. Son jeton (`--spacing-controle-confortable`) suit le pouce :
+ *     2,75rem fixes au pointeur grossier.
+ *
  * ## L'arbitrage
  *
  * Les pastilles du parcours de publication tiennent 44 px (`min-h-11`, `ChoiceChips`), les champs
@@ -47,14 +60,14 @@
 export type FieldDensity = 'comfortable';
 
 /** Hauteur confortable (44 px) — pour une primitive dont la hauteur de base est nue (`h-8`). */
-export const FIELD_DENSITY_HEIGHT = 'in-data-[field-density=comfortable]:h-11';
+export const FIELD_DENSITY_HEIGHT = 'in-data-[field-density=comfortable]:h-controle-confortable';
 
 /**
  * Même chose pour une primitive dont la hauteur de base vit déjà sous une variante
  * (`data-[size=default]:h-8`) : sans l'empilement, la règle de base gagne en spécificité.
  */
 export const FIELD_DENSITY_HEIGHT_SIZED =
-  'in-data-[field-density=comfortable]:data-[size=default]:h-11';
+  'in-data-[field-density=comfortable]:data-[size=default]:h-controle-confortable';
 
 /**
  * Ouvre la portée sur l'élément qui la reçoit — à SPREADER sur un élément DÉJÀ présent

@@ -219,6 +219,23 @@ const JETONS_SOMBRE = {
   'sidebar-border': '#352f2a',
 };
 
+/*
+ * TCK-2686 — les teintes de l'échelle de densité de `/app` (`bg-fond-contour` du bouton contour…)
+ * sont des ALIAS : `--color-fond-contour: var(--background)` dans le `@theme` du bloc
+ * `densite-de-l-app`. La garde les résout vers le jeton qu'ils valent hors portée — sans quoi la
+ * recette de `outline` n'avait plus de fond hexadécimal et l'auto-épreuve tombait sur `undefined`.
+ * Sous la portée `/app` (thème clair), le fond du contour devient `--card` (#fff) : à moins de 2 %
+ * de luminance de `--background`, un couple qui passe ici passe là.
+ */
+{
+  const i = css.indexOf('/* densite-de-l-app:début');
+  const t = i === -1 ? null : css.slice(i).match(/@theme \{([\s\S]*?)\n\}/);
+  for (const m of t ? t[1].matchAll(/--color-([a-z0-9-]+)\s*:\s*var\(--([a-z0-9-]+)\)\s*;/g) : []) {
+    if (JETONS_CLAIR[m[2]]) JETONS_CLAIR[m[1]] = JETONS_CLAIR[m[2]];
+    if (JETONS_SOMBRE[m[2]]) JETONS_SOMBRE[m[1]] = JETONS_SOMBRE[m[2]];
+  }
+}
+
 // ────────────────────────────────────────────────────────────────────────────────────────────────
 // LA LECTURE DES UTILITAIRES ET DES RECETTES DE VARIANTE
 // ────────────────────────────────────────────────────────────────────────────────────────────────

@@ -482,8 +482,13 @@ const FICHIERS_HORS_JETONS = 5;
  *  · annuaire (TCK-2521) +7. `public/index/OngletsDeLAnnuaire` (2) et `CarteMiseEnAvant` (2)
  *    entrent. `ProfileCard` passe de 5 à 7, et `ProfileFilters` de 2 à 3 ;
  *  · console (TCK-2524) 0 : ses écrans sont sous `/app`, hors de la surface publique.
+ *
+ * 398 → 401 (2026-11-11, TCK-2686) : la vitrine de la partie connectée (`/playground/vitrine`,
+ * page publique de mesure, 404 en production) rend désormais chaque champ, `DateTimePicker`
+ * compris — `ui/date-time-picker.tsx` entre dans la surface avec ses trois encres
+ * `text-muted-foreground` sans fond propre (l. 171, 200, 220), déjà là, rien de neuf.
  */
-const ENCRES_INVERSES = 398;
+const ENCRES_INVERSES = 401;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);

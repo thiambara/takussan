@@ -928,6 +928,131 @@
 }
 /* jetons-de-l-app:fin */
 
+/* densite-de-l-app:début
+ * TCK-2686 (ADR-0106 § 2, AMENDE TCK-2460 « une seule hauteur de contrôle ») — L'ÉCHELLE DE DENSITÉ
+ * DE `/app`. Dans la portée `/app`, boutons et champs ont la hauteur des maquettes retenues :
+ * 44 px sous le pouce (48 l'action principale, 36 le petit bouton), 36 px au bureau (`h-9`, rendu
+ * 32,4 dès `lg`, ADR-0107). Le site public, `/super-admin` et les écrans d'entrée gardent les leurs.
+ *
+ * LA MÉCANIQUE : un JETON par propriété, pas une classe `portee-app:h-9` par primitive.
+ *   - Chaque primitive (`ui/button.tsx`, `input.tsx`, `select.tsx`, `textarea.tsx`, `date-picker.tsx`,
+ *     `date-time-picker.tsx`) lit sa hauteur dans un jeton (`h-controle` → `var(--spacing-controle)`)
+ *     dont la valeur PAR DÉFAUT (ci-dessous) est exactement la classe d'avant : rien ne bouge hors portée.
+ *   - La portée redéfinit le jeton sur `:root` (`:root:has([data-portee-app])`, TCK-2685) : le
+ *     contenu en portail (dialogue, feuille, menu) suit, comme la page.
+ *   - ⚠ Pourquoi pas `portee-app:h-9` : une telle classe ne se fusionne avec rien et vient plus tard
+ *     dans la feuille — elle aurait RABOTÉ les ~115 boutons dont l'appelant écrit la hauteur
+ *     (`h-11` de la maintenance, `size-11` de la messagerie). Un jeton nommé est REMPLACÉ par la
+ *     classe de l'appelant (`tailwind-merge` le connaît : `DENSITE_DE_L_APP`) : l'appelant garde la
+ *     main, comme avec les planchers tactiles. Même raisonnement pour les teintes (`text-destructive`
+ *     d'un bouton discret, `bg-transparent` d'un bouton contour).
+ *   - La portée « confortable » (`fieldDensityScope()`, 44 px) GAGNE sous `/app` : sa classe
+ *     `in-data-[field-density=comfortable]:h-controle-confortable` est une variante, émise après la
+ *     hauteur de base nue (`densite-de-l-app.test.ts` le vérifie sur la feuille compilée).
+ *
+ * LA DENSITÉ SUIT LE POINTEUR (décision du porteur, 2026-11-10, « a ») : au pointeur GROSSIER, la
+ * portée rend le régime du pouce à TOUTE largeur — un iPad à l'horizontale (1024) ne reçoit pas des
+ * cibles de 32 px. D'où des `rem` FIXES dans ce régime (2,75rem = 44 px à 1440 aussi) : `h-11`
+ * rendrait 39,6 dès `lg`. Le bureau n'est rendu qu'à la largeur ET au pointeur non grossier.
+ */
+@theme {
+  /* Hauteurs, sur l'échelle (×0,9 dès lg) — valeurs du site public, celles d'avant le ticket. */
+  --spacing-controle: calc(var(--spacing) * 10); /* h-10 : bouton courant, champ, bouton icône */
+  --spacing-controle-petit: calc(var(--spacing) * 8); /* h-8 : `size="sm"` */
+  --spacing-controle-action: calc(var(--spacing) * 12); /* h-12 : `size="xl"`, action principale */
+  --spacing-controle-confortable: calc(var(--spacing) * 11); /* h-11 : portée confortable (TCK-468) */
+  /* Le petit bouton : px-2.5, gap-1, rayon et texte d'avant. */
+  --spacing-petit-bouton-x: calc(var(--spacing) * 2.5);
+  --spacing-petit-bouton-espace: calc(var(--spacing) * 1);
+  --radius-petit-bouton: min(var(--radius-md), 12px);
+  --text-petit-bouton: calc(var(--spacing) * 3.2);
+  /* Texte des champs : `text-base` (16 px, anti-zoom iOS), `text-sm` dès md (règle plus bas). */
+  --text-champ: var(--text-base);
+  --text-champ--line-height: var(--text-base--line-height);
+  /* Texte des déclencheurs (sélecteur, date) : `text-sm`. */
+  --text-declencheur: var(--text-sm);
+  --text-declencheur--line-height: var(--text-sm--line-height);
+  /* Zone de texte : py-2 et l'interligne de son texte. */
+  --spacing-zone-texte-y: calc(var(--spacing) * 2);
+  --leading-zone-texte: var(--text-champ--line-height);
+  /* Teintes : fond des champs (transparent), du bouton contour (`bg-background`), encre et graisse
+     du bouton doux, encre du bouton discret (héritée), bord du bouton danger (aucun). */
+  --color-fond-champ: transparent;
+  --color-fond-contour: var(--background);
+  --color-encre-bouton-doux: var(--secondary-foreground);
+  --color-encre-discrete: currentColor;
+  --color-bord-danger: transparent;
+  --font-weight-bouton-doux: 500;
+}
+
+/* Le `md:text-sm` d'avant de `Input` / `Textarea`. */
+@media (width >= 48rem) {
+  :root {
+    --text-champ: var(--text-sm);
+    --text-champ--line-height: var(--text-sm--line-height);
+  }
+}
+
+/* Le régime du pouce : sous md, et au pointeur grossier à toute largeur. `rem` fixes. */
+:root:has([data-portee-app]) {
+  --spacing-controle: 2.75rem;
+  --spacing-controle-petit: 2.25rem;
+  --spacing-controle-action: 3rem;
+  --spacing-controle-confortable: 2.75rem;
+  --text-champ: 1rem;
+  --text-champ--line-height: 1.5;
+  --text-declencheur: 1rem;
+  --text-declencheur--line-height: 1.5;
+  /* Le petit bouton de la maquette, aux deux largeurs : px-3, gap-1.5, rounded-lg, 13 px. */
+  --spacing-petit-bouton-x: calc(var(--spacing) * 3);
+  --spacing-petit-bouton-espace: calc(var(--spacing) * 1.5);
+  --radius-petit-bouton: var(--radius);
+  --text-petit-bouton: var(--text-ui);
+  /* La zone de texte de la maquette : py-2.5 leading-snug. */
+  --spacing-zone-texte-y: calc(var(--spacing) * 2.5);
+  --leading-zone-texte: 1.375;
+}
+
+/* Le régime du bureau : dès md, au pointeur qui n'est pas grossier (souris, pavé, aucun). */
+@media (width >= 48rem) and (not (pointer: coarse)) {
+  :root:has([data-portee-app]) {
+    --spacing-controle: calc(var(--spacing) * 9);
+    --spacing-controle-petit: calc(var(--spacing) * 8);
+    --spacing-controle-action: calc(var(--spacing) * 12);
+    --spacing-controle-confortable: calc(var(--spacing) * 11);
+    --text-champ: var(--text-sm);
+    --text-champ--line-height: var(--text-sm--line-height);
+    --text-declencheur: var(--text-sm);
+    --text-declencheur--line-height: var(--text-sm--line-height);
+  }
+}
+
+/* Les teintes de la maquette, au thème clair : le thème sombre garde celles du produit (aucune
+   maquette ne le dessine). Le contour de champ reste `border-input` et le focus l'anneau plein
+   (TCK-753, exceptions d'ADR-0106 § 2 a). */
+:root:not(.dark):has([data-portee-app]) {
+  --color-fond-champ: var(--card);
+  --color-fond-contour: var(--card);
+  --color-encre-bouton-doux: var(--primary-deep);
+  --color-encre-discrete: var(--encre-douce);
+  --color-bord-danger: color-mix(in oklab, var(--destructive) 30%, transparent);
+  --font-weight-bouton-doux: 600;
+}
+
+/* Une SURFACE sombre (`.dark` posé sur un conteneur : barre du super-admin, bandeau de modération)
+   relit les teintes à leur valeur par défaut. Un alias se résout là où il est DÉCLARÉ : déclaré sur
+   `:root` seulement, `var(--secondary-foreground)` y vaudrait l'encre du thème CLAIR, héritée telle
+   quelle dans la surface sombre : encre noire sur `bg-secondary` sombre. */
+.dark {
+  --color-fond-champ: transparent;
+  --color-fond-contour: var(--background);
+  --color-encre-bouton-doux: var(--secondary-foreground);
+  --color-encre-discrete: currentColor;
+  --color-bord-danger: transparent;
+  --font-weight-bouton-doux: 500;
+}
+/* densite-de-l-app:fin */
+
 /* plancher-tactile:début
  * Revue design 2026-09-16 — PLANCHERS TACTILES des primitives sous `sm` (Button, Input, Select,
  * DatePicker, Tabs horizontaux). En `@layer components`, SOUS les utilitaires : un `min-h-*`

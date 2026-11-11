@@ -38,3 +38,28 @@ export const OMBRES = ['barre-collante', 'filet', 'bouton-photo', 'actif', 'pann
 
 /** Le point de rupture de la bande ≥ 1440 (ADR-0106 § 4). */
 export const POINTS_DE_RUPTURE = ['w1440'] as const;
+
+/**
+ * TCK-2686 — les jetons de l'ÉCHELLE DE DENSITÉ de `/app` (bloc `densite-de-l-app` de
+ * `globals.css`), rangés par espace de nom de Tailwind (`--<espace>-<nom>`). Chaque primitive lit
+ * sa hauteur et quelques teintes dans l'un d'eux ; la portée `/app` les redéfinit. `tailwind-merge`
+ * doit les connaître pour qu'une classe d'appelant (`h-11`, `text-destructive`) REMPLACE le jeton
+ * au lieu de cohabiter avec lui — c'est ce qui laisse la main à l'appelant.
+ * `src/app/__tests__/densite-de-l-app.test.ts` confronte cette table au bloc.
+ */
+export const DENSITE_DE_L_APP = {
+  spacing: [
+    'controle',
+    'controle-petit',
+    'controle-action',
+    'controle-confortable',
+    'petit-bouton-x',
+    'petit-bouton-espace',
+    'zone-texte-y',
+  ],
+  radius: ['petit-bouton'],
+  text: ['petit-bouton', 'champ', 'declencheur'],
+  leading: ['zone-texte'],
+  color: ['fond-champ', 'fond-contour', 'encre-bouton-doux', 'encre-discrete', 'bord-danger'],
+  'font-weight': ['bouton-doux'],
+} as const satisfies Record<string, readonly string[]>;

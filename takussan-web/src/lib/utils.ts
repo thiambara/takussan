@@ -2,6 +2,7 @@ import { clsx, type ClassValue } from "clsx"
 import { extendTailwindMerge } from "tailwind-merge"
 import { formatMontant } from "./format/currency"
 import {
+  DENSITE_DE_L_APP,
   ESPACEMENTS_DE_LETTRES,
   OMBRES,
   POINTS_DE_RUPTURE,
@@ -13,15 +14,21 @@ import {
  * TCK-2685 — la fusion connaît les jetons de la partie connectée (`globals.css`, bloc
  * `jetons-de-l-app`). Sans eux, `text-ui` était lu comme une couleur et jeté par un
  * `text-foreground` voisin (cf. `src/lib/jetons-de-l-app.ts`).
+ * TCK-2686 — et les jetons de l'échelle de densité (`DENSITE_DE_L_APP`) : `cn('h-controle', 'h-11')`
+ * rend `h-11` seul, la hauteur de l'appelant l'emporte sur celle de la portée `/app`.
  */
 const twMerge = extendTailwindMerge({
   extend: {
     theme: {
-      text: Object.keys(TAILLES_DE_TEXTE),
+      text: [...Object.keys(TAILLES_DE_TEXTE), ...DENSITE_DE_L_APP.text],
       tracking: [...ESPACEMENTS_DE_LETTRES],
-      spacing: [...TAILLES_FIXES],
+      spacing: [...TAILLES_FIXES, ...DENSITE_DE_L_APP.spacing],
       shadow: [...OMBRES],
       breakpoint: [...POINTS_DE_RUPTURE],
+      radius: [...DENSITE_DE_L_APP.radius],
+      leading: [...DENSITE_DE_L_APP.leading],
+      color: [...DENSITE_DE_L_APP.color],
+      "font-weight": [...DENSITE_DE_L_APP["font-weight"]],
     },
   },
 })

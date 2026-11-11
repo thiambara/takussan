@@ -37,7 +37,7 @@
  * {@link JETONS_SOMBRE}, dont l'en-tête porte le détail et l'angle mort qui a produit l'erreur.
  */
 
-import { TAILLES_DE_TEXTE } from '@/lib/jetons-de-l-app';
+import { DENSITE_DE_L_APP, TAILLES_DE_TEXTE } from '@/lib/jetons-de-l-app';
 
 /** Seuil WCAG 1.4.11 — indicateur non textuel (anneau de focus, bordure porteuse de sens). */
 export const SEUIL_NON_TEXTUEL = 3;
@@ -61,6 +61,12 @@ export const JETONS_CLAIR: Readonly<Record<string, string>> = {
   // TCK-2685 — l'encre douce de la partie connectée, et son inverse (opaques, cf. `globals.css`).
   'encre-douce': '#4c4641',
   'encre-douce-inverse': '#bab6b0',
+  // TCK-2686 — les teintes OPAQUES de l'échelle de densité, à leur valeur HORS portée `/app`
+  // (`globals.css`, bloc `densite-de-l-app`) : le contour peint `background`, le bouton doux écrit
+  // `secondary-foreground`. Sous la portée claire, elles deviennent `card` (#ffffff) et
+  // `primary-deep` (#823c20) — mesurées au navigateur sur la vitrine (TCK-2686, AC3).
+  'fond-contour': '#fcf9f3',
+  'encre-bouton-doux': '#1f1812',
   accent: '#5d6e4f',
   'accent-foreground': '#fcf9f3',
   warning: '#8a5410',
@@ -257,6 +263,9 @@ export const JETONS_SOMBRE: Readonly<Record<string, string>> = {
   'primary-deep': '#d6916b',
   secondary: '#3a2e23',
   'secondary-foreground': '#fcf9f3',
+  // TCK-2686 — mêmes alias qu'en clair (`background`, `secondary-foreground`), sur les jetons sombres.
+  'fond-contour': '#1f1812',
+  'encre-bouton-doux': '#fcf9f3',
   muted: '#3a2e23',
   'muted-foreground': '#b8aa97',
   // TCK-2685 — même composition qu'en clair, sur les jetons sombres.
@@ -363,17 +372,25 @@ const NON_COULEURS: Readonly<Record<string, ReadonlySet<string>>> = {
     // TCK-2685 — l'échelle de texte de la partie connectée (`text-ui`, `text-corps`…) : des TAILLES,
     // lues dans la table qui nomme les jetons de `globals.css` (`jetons-de-l-app.test.ts` les confronte).
     ...Object.keys(TAILLES_DE_TEXTE),
+    // TCK-2686 — les tailles de l'échelle de densité (`text-champ`…), et l'encre du bouton discret,
+    // qui hors portée `/app` vaut `currentColor` : une encre HÉRITÉE, pas posée.
+    ...DENSITE_DE_L_APP.text,
+    'encre-discrete',
   ]),
   bg: new Set([
     'auto', 'cover', 'contain', 'none', 'fixed', 'local', 'scroll', 'clip-text', 'clip-border',
     'clip-padding', 'clip-content', 'origin-border', 'origin-padding', 'origin-content',
     'repeat', 'no-repeat', 'repeat-x', 'repeat-y', 'repeat-round', 'repeat-space',
     'top', 'bottom', 'left', 'right', 'center', 'blend-normal', 'blend-multiply',
+    // TCK-2686 — le fond des champs : transparent hors portée `/app` (un fond qui ne repeint rien).
+    'fond-champ',
   ]),
   outline: new Set(['none', 'hidden', 'solid', 'dashed', 'dotted', 'double']),
   border: new Set([
     'solid', 'dashed', 'dotted', 'double', 'hidden', 'none',
     'x', 'y', 't', 'r', 'b', 'l', 's', 'e', 'collapse', 'separate', 'spacing',
+    // TCK-2686 — le bord du bouton danger : transparent hors portée `/app`.
+    'bord-danger',
   ]),
   ring: new Set(['inset']),
 };

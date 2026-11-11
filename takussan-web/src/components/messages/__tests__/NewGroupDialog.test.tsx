@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { withIntl } from '@/test/intl';
 import { ApiError } from '@/lib/api';
+import { FIELD_DENSITY_HEIGHT } from '@/components/ui/field-density';
 import { NewGroupDialog } from '../NewGroupDialog';
 
 /**
@@ -732,6 +733,6 @@ describe('<NewGroupDialog>', () => {
 
     const sujet = screen.getByLabelText('Sujet');
     expect(sujet.closest('[data-field-density="comfortable"]')).not.toBeNull();
-    expect(sujet).toHaveClass('in-data-[field-density=comfortable]:h-11');
+    expect(sujet).toHaveClass(FIELD_DENSITY_HEIGHT); // TCK-2686 : `h-controle-confortable`
   });
 });

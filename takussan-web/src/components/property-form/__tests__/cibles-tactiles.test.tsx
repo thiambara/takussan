@@ -3,7 +3,11 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { useForm, type UseFormReturn } from 'react-hook-form';
 
 import { withIntl } from '@/test/intl';
-import { fieldDensityScope } from '@/components/ui/field-density';
+import {
+  FIELD_DENSITY_HEIGHT,
+  FIELD_DENSITY_HEIGHT_SIZED,
+  fieldDensityScope,
+} from '@/components/ui/field-density';
 import type { PropertyFormValues } from '@/lib/schemas/property';
 import type { PropertyDetail } from '@/types/property';
 
@@ -72,10 +76,9 @@ import { StepPhotos } from '../wizard/steps/StepPhotos';
 
 /** 44 px ou plus, sans condition. `min-h-16` = 64 px : le `Textarea` est déjà au-dessus. */
 const HAUTEURS_SUFFISANTES = ['h-11', 'h-12', 'h-14', 'min-h-11', 'min-h-12', 'min-h-14', 'min-h-16'];
-const CLASSES_DE_DENSITE = [
-  'in-data-[field-density=comfortable]:h-11',
-  'in-data-[field-density=comfortable]:data-[size=default]:h-11',
-];
+// TCK-2686 — lues dans `field-density.ts` : la hauteur confortable est devenue le jeton
+// `h-controle-confortable` (44 px, 2,75rem fixes au pointeur grossier sous la portée `/app`).
+const CLASSES_DE_DENSITE = [FIELD_DENSITY_HEIGHT, FIELD_DENSITY_HEIGHT_SIZED];
 
 /**
  * Tout ce qu'un doigt vise dans un formulaire. Trois exclusions, chacune motivée :
@@ -262,7 +265,7 @@ describe('la garde refuse ce qu’elle doit refuser', () => {
       <form>
         <input
           id="hors-portee"
-          className="h-8 in-data-[field-density=comfortable]:h-11"
+          className={`h-8 ${FIELD_DENSITY_HEIGHT}`}
         />
       </form>,
     );
