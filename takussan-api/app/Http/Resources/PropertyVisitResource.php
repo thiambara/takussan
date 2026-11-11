@@ -46,7 +46,12 @@ class PropertyVisitResource extends BaseResource
             'feedback' => $this->feedback,
             'rating' => $this->rating !== null ? (float) $this->rating : null,
             'notes' => $this->notes,
-            'metadata' => $this->metadata,
+            // Constat de TCK-2581 — la `metadata` porte l'avis de l'agence (`feedback_agent`, texte
+            // libre), celui du visiteur et les marques des rappels : un outil de la console, servi
+            // comme `visitor_display` ({@see outilDeLaConsole}). Clé ABSENTE pour le visiteur, le
+            // client et le bailleur d'un bien d'agence ; l'avis du visiteur lui reste lisible par
+            // `feedback` et `rating`.
+            'metadata' => $this->when($this->outilDeLaConsole($request), fn () => $this->metadata),
             'property' => $this->whenLoaded('property', fn () => $this->property === null ? null : [
                 'id' => $this->property->id,
                 'title' => $this->property->title,
@@ -172,18 +177,10 @@ class PropertyVisitResource extends BaseResource
      */
     private function visitorDisplay(Request $request): ?array
     {
-        $user = $request->user();
-        $ctx = $user !== null ? VisitReadContext::for($request, $this->resource) : null;
-        if ($ctx === null) {
+        if (! $this->outilDeLaConsole($request)) {
             return null;
         }
-        $lisible = $user->isSuperAdmin()
-            || ($ctx['agency_id'] !== null
-                ? $this->personnelDe($request, $ctx['agency_id'])
-                : $ctx['owner_id'] === (int) $user->id);
-        if (! $lisible) {
-            return null;
-        }
+        $ctx = VisitReadContext::for($request, $this->resource);
 
         return [
             'name' => $ctx['customer_name'] ?? $ctx['visitor_name'],
@@ -191,6 +188,26 @@ class PropertyVisitResource extends BaseResource
             'kind' => $ctx['customer_id'] !== null ? 'customer' : ($ctx['visitor_id'] !== null ? 'account' : 'anonymous'),
             'visits_on_property' => $ctx['visits_on_property'],
         ];
+    }
+
+    /**
+     * Ce qui n'appartient qu'à ceux qui gèrent la visite — la carte du visiteur (TCK-2585) et la
+     * `metadata` (constat de TCK-2581) : le super-admin, le personnel actif de l'agence du bien, le
+     * propriétaire d'un bien sans agence. Jugé sur les valeurs RELUES (`VisitReadContext`) : la ligne
+     * rendue peut ne porter ni l'agence ni le propriétaire. Rien de connu : fermé.
+     */
+    private function outilDeLaConsole(Request $request): bool
+    {
+        $user = $request->user();
+        $ctx = $user !== null ? VisitReadContext::for($request, $this->resource) : null;
+        if ($ctx === null) {
+            return false;
+        }
+
+        return $user->isSuperAdmin()
+            || ($ctx['agency_id'] !== null
+                ? $this->personnelDe($request, $ctx['agency_id'])
+                : $ctx['owner_id'] === (int) $user->id);
     }
 
     /** Personnel actif de l'agence, jugé une fois par agence et par requête (comme le compte rendu). */
