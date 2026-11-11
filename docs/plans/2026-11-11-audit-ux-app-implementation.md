@@ -430,3 +430,17 @@ _(tenu par la session : date, lot, tickets livrés, refus du vérificateur, PR, 
   sans test, ProfileHeader.
 - Étape 0 : maquettes archivées hors du dépôt (`~/.takussan-demo/sauvegardes/`, 2026-11-11) ;
   locataire de démo `locataire@agency1.demo.takussan.sn` (TCK-2684).
+- **Réponses du porteur (2026-11-11, après le point n° 1)** : les onze recommandations du point
+  n° 1 sont validées ; les arbitrages de la reprise sont confirmés ; l'effacement d'un compte de
+  visiteur efface aussi les copies du compte rendu (`customer_notes`, `activity_log`) ; `/sync-specs`
+  à la fin du lot. Correspondance catégorie → métier : laissée à la recommandation de la session
+  (`structural` → maçonnerie ; `appliance` → climatisation + électricité ; deux métiers neufs
+  `cleaning` et `pest_control` ; `other` → aucune suggestion), en ticket à part.
+- **Vérification adverse, famille commerciale** (verdicts hors dépôt) : acceptés TCK-2578, 2579,
+  2582, 2585, 2593, 2595 ; refusés puis corrigés TCK-2583 (`agency_id` interdit hors super-admin,
+  e8c5a63ae), TCK-2588 (visites de la fiche au seul personnel de son agence, cd07e9c27), TCK-2591
+  (étape proposée au seul personnel, b0f642e42). Les contre-vérifications de 2583/2588 ont trouvé
+  **le même motif par un autre canal** — le bailleur auteur d'une fiche lisait l'heure d'un compte
+  rendu sur le bien d'un autre bailleur par `last_contacted_at`, `follow_up`, leur filtre et leurs
+  tris — fermé par a598a9f4f (quatre ablations rouges). **Le motif à chercher partout** : un acteur
+  hors personnel qui lit un fait interne de l'agence, y compris par un **tri** sur une valeur tue.
