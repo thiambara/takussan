@@ -68,7 +68,9 @@ class UpdateMeRequest extends FormRequest
             // profil n'est créé, aucune capacité accordée. `skipped` est une
             // réponse à part entière — c'est elle qui empêche de reposer la
             // question à quelqu'un qui a choisi de passer.
-            'entry_intent' => ['sometimes', 'nullable', 'string', 'in:search,publish,skipped'],
+            // TCK-2607 — `professional` : la porte du professionnel (agence, agent, prestataire).
+            // Elle oriente comme les autres et n'accorde aucun profil.
+            'entry_intent' => ['sometimes', 'nullable', 'string', 'in:search,publish,professional,skipped'],
             // TCK-2480 (ADR-0089 §6) — épingles et replis du menu de `/app`, PAR PERSONA. L'API n'en
             // valide que la FORME : le catalogue des destinations appartient au front. Chaque niveau
             // liste ses clés (`array:…`) et les scalaires sont stricts : le contrôleur stocke

@@ -575,7 +575,8 @@ class PropertySearchService
         'contract_type' => ['contract_type', 'rent_period'],
         'type' => ['type'],
         'bedrooms' => ['bedrooms'],
-        'neighborhood' => ['location'],
+        // TCK-2607 — la facette des quartiers se compte sans le quartier ni la liste de quartiers.
+        'neighborhood' => ['location', 'locations'],
     ];
 
     /**
@@ -671,6 +672,21 @@ class PropertySearchService
     }
 
     /**
+     * TCK-663 (P01.02) — la clause d'UN quartier : son identifiant pour une adresse rattachée au
+     * référentiel, la clé repliée de son texte sinon. Extraite telle quelle pour `locations`
+     * (TCK-2607) : `location` rend exactement la même chaîne qu'avant.
+     */
+    private static function clauseDeQuartier(string $saisie): string
+    {
+        $libre = 'geo_neighborhood_id IS NULL AND neighborhood_key = '.self::quote((string) CleDeQuartier::de($saisie));
+        $ids = app(QuartierDuFiltre::class)->idsDuReferentiel($saisie);
+
+        return $ids === []
+            ? $libre
+            : '(geo_neighborhood_id IN ['.implode(', ', $ids).'] OR ('.$libre.'))';
+    }
+
+    /**
      * Build the Meilisearch filter — outer array is AND-joined, a nested array
      * is OR-joined. The first clauses reproduce `Property::scopePublic()` so a
      * draft / non-public listing can never surface here.
@@ -686,11 +702,18 @@ class PropertySearchService
         // non rattachée porte un texte libre (« Grand-Yoff ») : l'égalité stricte rendait 0 bien.
         // Rattachée, l'adresse se juge par son identifiant ; sinon par sa clé repliée.
         if (! empty($p['location'])) {
-            $libre = 'geo_neighborhood_id IS NULL AND neighborhood_key = '.self::quote((string) CleDeQuartier::de((string) $p['location']));
-            $ids = app(QuartierDuFiltre::class)->idsDuReferentiel((string) $p['location']);
-            $filter[] = $ids === []
-                ? $libre
-                : '(geo_neighborhood_id IN ['.implode(', ', $ids).'] OR ('.$libre.'))';
+            $filter[] = self::clauseDeQuartier((string) $p['location']);
+        }
+        // TCK-2607 — plusieurs quartiers, en OU, chacun jugé par la règle de `location` : une seule
+        // expression parenthésée, pour qu'elle reste un ET avec les autres clauses du filtre.
+        if (! empty($p['locations']) && is_array($p['locations'])) {
+            $quartiers = array_values(array_filter(array_map(fn ($q) => trim((string) $q), $p['locations'])));
+            if ($quartiers !== []) {
+                $filter[] = '('.implode(' OR ', array_map(
+                    fn (string $q) => '('.self::clauseDeQuartier($q).')',
+                    $quartiers,
+                )).')';
+            }
         }
         // TCK-1169 (P99.01) — un ancien nom de ville (renommée par le jeu) désigne toujours la ville.
         if (! empty($p['city'])) {

@@ -315,6 +315,23 @@ export const SEARCH_FILTER_KEYS = {
     eclater: (v: string[]) => v.map((x) => ({ sousCle: x, valeur: [x] })),
   },
   /**
+   * TCK-2607 — plusieurs quartiers, en OU côté serveur, chacun résolu comme `location`. Liste à
+   * virgules dans l'URL, comme `cities` ; une puce par quartier, retirable seule (l'URL accepte
+   * un seul quartier restant). Écrite par l'orientation du chercheur et le lien d'une alerte.
+   */
+  locations: {
+    role: 'filtre',
+    params: ['locations'],
+    lire: (sp: URLSearchParams) => {
+      const quartiers = (litTexte(sp, 'locations') ?? '').split(',').map((v) => v.trim()).filter(Boolean);
+      return quartiers.length > 0 ? quartiers : undefined;
+    },
+    ecrire: (v: string[]) => v.join(','),
+    libelle: (v: string[], t: TraducteursDeFiltre) =>
+      v.map((x) => t.tags('tags.quarter', { value: x })).join(', '),
+    eclater: (v: string[]) => v.map((x) => ({ sousCle: x, valeur: [x] })),
+  },
+  /**
    * TCK-635 (ADR-0062 §8) — la région d'une ville HOMONYME : Dinguiraye est à Diourbel et à Kolda,
    * Missirah à Diourbel et à Tambacounda, Vélingara à Matam et à Kolda. Le sélecteur de ville ne
    * l'écrit que pour ces villes-là ; partout ailleurs l'URL reste `city=Thiès`.

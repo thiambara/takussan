@@ -68,4 +68,48 @@ Sans objet : ticket back. L'écran qui consomme ce contrat est dit dans « Hors 
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+**Re-mesure (2026-11-11, branche `feat/audit-ux-app-lot-1`)** — la prémisse tient (`entry_intent`
+∈ `search,publish,skipped` ; aucune clé de plusieurs quartiers). Trois écarts :
+
+- **AC2 vise `/api/public/properties/search`**, pas `/api/public/properties` : l'index public passe
+  par `HasQueryBuilder` (`filter[…]`) et ne lit ni `location` ni `cities`. C'est `/search`
+  (Meilisearch) et `/map` (PostgreSQL) qui lisent `SearchPublicPropertyRequest` ; les deux sont
+  éprouvés.
+- **Le front casse sans une entrée `locations` dans `SEARCH_FILTER_KEYS`**
+  (`search-filters.parity.test.ts` lit les règles PHP : toute clé acceptée par le serveur doit être
+  un `filtre` de la table, sinon c'est un filtre appliqué, invisible et non retirable). Ajoutée dans
+  `takussan-web/src/types/search.ts`, calquée sur `cities` (liste à virgules, une puce par quartier,
+  libellé `tags.quarter` existant — aucune clé i18n neuve), plus une ligne dans les inventaires de
+  `SearchToolbar.test.tsx` et `FilterSidebar.place-des-filtres.test.tsx` (hors panneau, comme
+  `cities`).
+- **`ENTRY_INTENTS` du front** (`src/types/user.ts`) n'est pas touché : l'ajouter casserait
+  `QuestionDIntention` (`Record<Exclude<EntryIntent,'skipped'>, string>`) ; c'est l'écran, TCK-2608.
+
+**Décisions** :
+
+- **L'URL accepte 1 à 12 quartiers, l'alerte 2 à 12.** Une puce se retire seule : avec `min:2` sur
+  l'URL, retirer Ngor de « Mermoz, Ngor » ferait rendre 422 à la liste. Bornes partagées par
+  `SearchPublicPropertyRequest::QUARTIERS_MAX` / `QUARTIER_LONGUEUR_MAX`.
+- Exclusivité par `prohibits:criteria.location` : `location: null` + `locations` passe (le vide
+  n'est pas un quartier). La modification remplace `criteria` (`fill`), la règle suffit.
+- Moteur : la clause d'un quartier est extraite en `clauseDeQuartier()` (même chaîne qu'avant pour
+  `location`) ; `locations` = une seule expression `((q1) OR (q2))`, donc un ET avec le reste. Carte :
+  un seul `whereHas('address')`, un groupe OU par quartier.
+- `FILTRES_D_UNE_FACETTE['neighborhood']` ignore aussi `locations` ; `SearchJournal` journalise
+  `locations` comme `cities` (texte libre, liste triée) ; le lien « Voir les N biens » de l'alerte
+  écrit `locations=Mermoz,Almadies,Ngor` (et non `locations[0]=…`).
+
+**Tests** : `EntryIntentProfessionalTest` (3), `SavedSearchLocationsTest` (5), `PublicSearchLocationsTest`
+(3 : union liste et carte — rattaché par identifiant, texte libre, témoin Médina ; combinaison ET +
+facette ; bornes de l'URL) ; une ligne `locations` dans `SavedSearchCriteriaVocabularyTest` (25 clés)
+et `MapFiltersParityTest`. 12 classes concernées : 178 verts. Front : les 8 fichiers qui lisent la
+table, 154 verts ; `vitest related src/types/search.ts` 1508/1509, le rouge
+(`SaveSearchButton.test.tsx`, 6,5 s à `load` 200) vert seul ; eslint propre.
+
+**Ablations** (rouges, restaurées par `cp`, md5 prouvé) : sans `professional` ; sans `prohibits` ;
+plafond 50 ; liste en ET (moteur) ; liste en ET (carte) ; lien en tableau ; facette qui voit la
+liste ; `locations` hors vocabulaire (l'alerte capte tout).
+
+**Reste** : `RadarDemandSignals` et `ClaimDemand` ne lisent que `location`/`cities` — une alerte à
+`locations` ne nourrit pas encore la demande du Radar. Le front d'enregistrement d'une alerte
+(TCK-2608) doit écrire `location` pour un seul quartier, `locations` pour deux et plus.
