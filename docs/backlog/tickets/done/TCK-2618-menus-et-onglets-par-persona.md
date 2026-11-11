@@ -1,13 +1,13 @@
 ---
 id: TCK-2618
 title: "Menus et onglets par persona : « Aujourd'hui » pour l'agent, « Argent » pour l'admin, « Loyers » pour le bailleur, et les favoris dans la coque"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: L
 wave: 87
 created: 2026-11-10
-updated: 2026-11-10
+updated: 2026-11-11
 depends_on: [TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: [TCK-2622, TCK-2628]
 spec_refs:
@@ -148,3 +148,12 @@ Toute fonction de ces pages absente de la page publique y est ajoutée avant que
   par défaut (`"coque": false`) pour désigner la barre d'onglets du produit par son `data-slot` :
   `boiteDe: "Menu"` retenait la carte de contenu qui défile SOUS la barre fixe (même artefact dans les
   rapports de TCK-2617).
+
+## Vérification (2026-11-11)
+
+Vérification adverse acceptée : AC1 à AC5 ont été mesurés au navigateur sur six personas, à 360, 390 et 1280, et les 8 ablations rougissent. Aucun href n'est perdu. Le cliquet des encres inverses, à 433, a été reproduit sans les maquettes. La réserve de fidélité à 1280 était mal motivée : TCK-2692 est déjà fusionné. Elle ne cache aucun écart réel de la colonne ; c'est la zone « barre latérale » de l'outil qui couvre tout le cadre (TCK-2738).
+
+Mineurs :
+- m2 : les libellés publics « Loyers » et « Tâches » ne sont épinglés par aucun test, et le docblock de `libellePublic` est périmé. À corriger par la coque au lot 2.
+- m3 : la pagination et la note d'un favori ne sont testées que par `FavoritesList.test`. Ces tests sont à porter avant la suppression (TCK-2738).
+- m4 : « Comparer » ne mène nulle part sous /app au téléphone. Le défaut existait avant ce ticket (TCK-2738).

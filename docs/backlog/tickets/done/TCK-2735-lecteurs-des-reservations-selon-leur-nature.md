@@ -1,7 +1,7 @@
 ---
 id: TCK-2735
 title: "Seul un séjour occupe des nuits, partout : export iCal, agenda, occupation et clôture des réservations lisent la nature"
-status: todo
+status: done
 phase: P1
 family: back
 estimate: S
@@ -83,3 +83,7 @@ Aucune colonne. La nature est `bookings.kind` (`BookingKind`), indexée avec `(a
 ## Notes d'implémentation
 
 _(À remplir pendant l'implémentation.)_
+
+## Vérification (2026-11-11)
+
+Le premier passage a été refusé : l'onglet Calendrier du bien lisait encore les candidatures et les offres, et l'offre n'était pas couverte par les tests. Le correctif est en ab8762d1d. La contre-vérification, faite par un autre vérificateur, est acceptée : B6, B7 et le mutant de l'occupation rougissent, et l'ablation du filtre `kind` du hook front rougit aussi. Aucun autre lecteur ne peint de nuits. Reste ouvert, hors de ce ticket : où une candidature ou une offre doit-elle paraître dans l'agenda ?

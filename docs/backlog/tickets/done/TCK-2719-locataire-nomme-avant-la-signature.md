@@ -1,7 +1,7 @@
 ---
 id: TCK-2719
 title: "Un bail ne part pas en signature tant que son locataire n'a pas de nom"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: S
@@ -76,3 +76,9 @@ téléphone). Un contrat signé ne se régénère jamais.
 ## Notes d'implémentation
 
 _(à remplir par implementing-specs)_
+
+## Vérification (2026-11-11)
+
+Vérification adverse acceptée : les 3 AC tiennent. Le 422 n'écrit rien : la ligne du bail, ses médias, ses signatures, le journal et les notifications restent identiques. L'agent lit la prose localisée de l'erreur, pas un code brut. `freezeRenewal` ne demande pas de signature : un renouvellement qui en exige une naît `pending_signature` et passe par la demande, déjà gardée. Il reste donc sans garde, et un test le confirme. Mineurs, corrigés au lot 2 :
+- un locataire avec un nom seul n'était pas testé ;
+- un nom fait d'une espace insécable passait la garde (`Str::trim`).
