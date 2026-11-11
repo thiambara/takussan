@@ -1,7 +1,7 @@
 ---
 id: TCK-2726
 title: "La demande d'un nouveau lien d'invitation va à qui peut encore la renvoyer"
-status: todo
+status: done
 phase: P1
 family: back
 estimate: S
@@ -94,4 +94,4 @@ ne suffit pas à dire « encore actif ».
 - **`PersonnelDeLAgence::estPersonnel` plutôt que `personnelActifDe`**, que le ticket nommait. `personnelActifDe` juge l'**appelant** par son profil actif (`staffAgencyId()`). `estPersonnel` juge un **tiers**, « le destinataire d'une notification ». Ici, l'appelant est l'invité, sur une route publique, et l'invitant n'a pas de profil actif dans la requête. Le prédicat de personnel est le même (`isStaffAt` + joignable), mais sans profil actif. Il double `Gate::forUser($u)->allows('resend', $invitation)` pour une invitation d'agence.
 - **Joignable dans les deux branches** (reprise de la vérification adverse, M1). Sans agence, rien ne jugeait le statut du compte : un invitant bloqué ou supprimé était retenu, `NotificationService` ne lui écrivait rien, et la borne était consommée quand même. `PrimaryPropertyContact::joignable` entre dans `$peutRenvoyer`. Dans le repli, `estPersonnel` est redondant par construction, puisque la requête du personnel est le personnel : il reste comme défense, au même prédicat que la branche de l'invitant.
 - **La borne de 24 h est lue d'abord**, sous le verrou de la ligne : une demande répétée ne paie pas la résolution. Elle n'est **écrite** que si quelqu'un est prévenu.
-- **AC5 n'est tenu que dans le cas nominal** (décision (a) de la session, 2026-11-11). Quand l'invitant est en place, le coût est le même pour 2 et pour 10 membres, et c'est épinglé. **Par repli** (l'invitant parti), le coût croît d'environ 8 requêtes par membre jugé : 29 pour une équipe de 2, 93 pour 10. Ce surcoût vient de la policy (`Agency::find` dans `invitesAt`, niveau de plateforme, `roleAllows`, collaboration de prestataire, délégations), que `primed()` n'amorce pas. On l'accepte parce que la voie est rare : route publique bornée à 5 demandes par heure et par IP, et une résolution par 24 h et par invitation. Ce coût est repris par [TCK-2739](TCK-2739-amorce-des-capacites-de-role.md).
+- **AC5 n'est tenu que dans le cas nominal** (décision (a) de la session, 2026-11-11). Quand l'invitant est en place, le coût est le même pour 2 et pour 10 membres, et c'est épinglé. **Par repli** (l'invitant parti), le coût croît d'environ 8 requêtes par membre jugé : 29 pour une équipe de 2, 93 pour 10. Ce surcoût vient de la policy (`Agency::find` dans `invitesAt`, niveau de plateforme, `roleAllows`, collaboration de prestataire, délégations), que `primed()` n'amorce pas. On l'accepte parce que la voie est rare : route publique bornée à 5 demandes par heure et par IP, et une résolution par 24 h et par invitation. Ce coût est repris par [TCK-2739](../todo/TCK-2739-amorce-des-capacites-de-role.md).
