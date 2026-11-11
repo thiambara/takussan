@@ -5,6 +5,7 @@ namespace App\Http\Requests\Api;
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\MaintenancePriority;
 use App\Rules\AssignableProvider;
+use App\Rules\DansLHorizonDuPassage;
 use App\Services\Maintenance\CurrencyUnit;
 use Illuminate\Validation\Rule;
 
@@ -118,7 +119,9 @@ class UpdateMaintenanceRequestRequest extends BaseFormRequest
             'estimated_cost' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:'.CurrencyUnit::MAX_COLUMN, 'decimal:0,2'],
             // verif-592 passe 2 (N5) — `numeric` admet `5e5`, que bcmath refuse (500).
             'actual_cost' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:'.CurrencyUnit::MAX_COLUMN, 'decimal:0,2'],
-            'scheduled_at' => ['sometimes', 'nullable', 'date'],
+            // TCK-2715 — la même borne qu'à l'acceptation (même colonne) ; pas d'`after:now` ici : une
+            // heure passée peut consigner un passage déjà fait (hors périmètre).
+            'scheduled_at' => ['sometimes', 'nullable', 'date', new DansLHorizonDuPassage],
             'started_at' => ['prohibited'],
             'completed_at' => ['prohibited'],
             'resolution_notes' => ['sometimes', 'nullable', 'string'],

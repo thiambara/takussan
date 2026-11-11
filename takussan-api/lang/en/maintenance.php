@@ -24,6 +24,8 @@ return [
 
     'errors' => [
         'not_assignable' => 'This account cannot receive the request: it must be an active service provider with an active collaboration with the property\'s agency, or a member of its team.',
+        // TCK-2715 — la borne haute du passage (`MaintenanceRequest::SCHEDULING_HORIZON_MONTHS`).
+        'beyond_scheduling_horizon' => 'The visit cannot be scheduled more than a year ahead.',
         'invitation_request_invalid' => 'The linked maintenance request must belong to this agency and be neither closed nor cancelled.',
     ],
 

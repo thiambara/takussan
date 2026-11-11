@@ -185,6 +185,18 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
     public const SCHEDULED_TIMEZONE = 'Africa/Dakar';
 
     /**
+     * TCK-2715 — l'horizon du passage : un créneau ne se pose pas au-delà de ce nombre de mois à
+     * compter de maintenant, à l'acceptation comme au `PATCH` (`App\Rules\DansLHorizonDuPassage`).
+     */
+    public const SCHEDULING_HORIZON_MONTHS = 12;
+
+    /** TCK-2715 — le dernier instant admis pour un passage, borne incluse, dans le fuseau de l'application. */
+    public static function schedulingHorizon(): CarbonImmutable
+    {
+        return CarbonImmutable::now(config('app.timezone'))->addMonthsNoOverflow(self::SCHEDULING_HORIZON_MONTHS);
+    }
+
+    /**
      * TCK-2700 — l'instant d'un créneau reçu, ramené au fuseau de l'application avant l'écriture. Une
      * heure sans décalage se lit à l'heure de Dakar ; une heure qui porte son décalage, ou un objet
      * date, est l'instant qu'elle désigne. Sans cette conversion, le cast `datetime` écrit l'heure

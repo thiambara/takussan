@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Models\MaintenanceRequest;
+use App\Rules\DansLHorizonDuPassage;
 use Carbon\CarbonInterface;
 
 /**
@@ -27,7 +28,8 @@ class AcceptMaintenanceRequestRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'scheduled_at' => ['sometimes', 'nullable', 'date', 'after:now'],
+            // TCK-2715 — et pas au-delà d'un an, jugé sur l'instant converti.
+            'scheduled_at' => ['sometimes', 'nullable', 'date', 'after:now', new DansLHorizonDuPassage],
         ];
     }
 

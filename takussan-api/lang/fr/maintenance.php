@@ -24,6 +24,8 @@ return [
 
     'errors' => [
         'not_assignable' => 'Ce compte ne peut pas recevoir l\'intervention : il faut un prestataire actif en collaboration active avec l\'agence du bien, ou un membre de son équipe.',
+        // TCK-2715 — la borne haute du passage (`MaintenanceRequest::SCHEDULING_HORIZON_MONTHS`).
+        'beyond_scheduling_horizon' => 'Le passage ne peut pas être fixé à plus d\'un an d\'ici.',
         'invitation_request_invalid' => 'La demande d\'intervention liée doit appartenir à cette agence et ne pas être clôturée ni annulée.',
     ],
 
