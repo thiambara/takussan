@@ -117,6 +117,37 @@ describe('<LienDePieceJointe>', () => {
     await waitFor(() => expect(faux.location.href).toBe('https://api.test/neuve'));
   });
 
+  // Vérification de TCK-2736 (m2) — l'âge est celui de l'URL ACTUELLE : la relecture pose une URL
+  // neuve, son âge repart de zéro. Hérité de l'ancienne, chaque clic relirait le fil ; figé sur la
+  // première, l'âge ne compterait plus après la première relecture, et seul `expires` jugerait —
+  // à l'horloge du client, ce que le critère d'âge existe pour éviter.
+  it("l'âge repart de zéro sur l'URL neuve, et compte de nouveau pour elle", () => {
+    const loin = T0 + 3_600_000;
+    const relire = vi.fn().mockResolvedValue(null);
+    vi.spyOn(window, 'open').mockReturnValue({ opener: {}, location: { href: '' }, close: vi.fn() } as unknown as Window);
+    const vue = render(
+      <LienDePieceJointe piece={piece(urlSignee(loin, 'a'))} relirePiece={relire}>
+        plan.pdf
+      </LienDePieceJointe>,
+    );
+
+    maintenant = T0 + AGE_MAX_D_UN_LIEN_MS + 1;
+    vue.rerender(
+      <LienDePieceJointe piece={piece(urlSignee(loin, 'b'))} relirePiece={relire}>
+        plan.pdf
+      </LienDePieceJointe>,
+    );
+    const lien = () => screen.getByRole('link', { name: 'plan.pdf' });
+    // L'URL neuve vient d'être vue : le lien s'ouvre tel quel, sans relire.
+    expect(fireEvent.click(lien())).toBe(true);
+    expect(relire).not.toHaveBeenCalled();
+
+    // Quatre minutes plus tard, elle est périmée à son tour, signature encore lointaine.
+    maintenant += AGE_MAX_D_UN_LIEN_MS + 1;
+    expect(fireEvent.click(lien())).toBe(false);
+    expect(relire).toHaveBeenCalledTimes(1);
+  });
+
   it("referme l'onglet si le fil ne se relit pas, sans boucler", async () => {
     const faux = onglet();
     const relire = vi.fn().mockResolvedValue(null);
