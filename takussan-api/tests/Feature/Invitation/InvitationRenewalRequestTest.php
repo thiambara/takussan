@@ -7,6 +7,7 @@ use App\Models\Agency;
 use App\Models\AppNotification;
 use App\Models\Enums\InvitationStatus;
 use App\Models\Invitation;
+use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\User;
 use App\Notifications\CodedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -37,6 +38,8 @@ class InvitationRenewalRequestTest extends TestCase
         Notification::fake();
         $this->agency = Agency::factory()->create(['name' => 'Dakar Immo']);
         $this->inviter = User::factory()->create(['first_name' => 'Moussa', 'email' => 'moussa@dakar-immo.sn']);
+        // TCK-2726 — l'invitant prévenu est celui qui peut encore renvoyer : un admin actif de l'agence.
+        AgencyAdminProfile::factory()->create(['user_id' => $this->inviter->id, 'agency_id' => $this->agency->id]);
     }
 
     private function demander(string $token): TestResponse
