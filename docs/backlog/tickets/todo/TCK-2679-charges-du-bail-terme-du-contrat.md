@@ -125,4 +125,66 @@ Sans objet (ticket API). Écrans servis : création du bail (TCK-2643), fiche du
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Implémenté le 2026-11-11 sur `feat/audit-ux-app-lot-1` (base `acfe73fb3`).
+
+**Prémisse re-mesurée — tient**, à deux précisions près :
+
+- `LeaseService` est `app/Services/Model/LeaseService.php` ; `ApplyLateFeesJob` est
+  `app/Jobs/Lease/ApplyLateFeesJob.php`. Les lignes citées (`:277`, `:116`, `:331`, `:476`, `:515`,
+  `Lease.php:326`, `contract.blade.php:102-105`, `LateFeeCalculator:88`, `ApplyLateFeesJob:76`,
+  `RentReviewService:161`, `DocumentPdfController:108`, `CollectedPayments:41`, `PayoutCalculator:55`)
+  correspondent.
+- **Les relances relançaient déjà les charges** : `SendLeasePaymentReminders::claim()` n'exclut que la
+  caution. Le delta réel est la **fusion** (une relance par bail et par date), pas l'inclusion.
+
+**Ce qui est posé** :
+
+- Migration `2026_11_11_120000_add_monthly_charges_to_leases_table` (`decimal(14,2)` nullable, sans
+  défaut ; `down()` la retire). `Lease` : `$fillable`, cast `decimal:2`, `$queryFields`
+  (`fields[leases]=monthly_charges`), `CONTRACT_PRINTED_TERMS`. Création, mise à jour (`PATCH`) et
+  renouvellement : `nullable|numeric|min:0`. `LeaseResource` : `monthly_charges` (float ou `null`).
+- `LeaseService::SCHEDULED_PERIOD_TYPES = [rent, charges]` — une seule source pour la sortie
+  (`rentDuesAfter`) et le renouvellement (`overlappingRentDues`).
+- Échéancier : une échéance `charges` par loyer écrit quand `monthly_charges > 0` (même `due_date`,
+  période, payeur, devise ; `charges × mois`), sauf si une échéance de charges vivante commence déjà à
+  cette période (`chargesAlreadyCalled`). La valeur rendue par `generateSchedule()` compte
+  désormais aussi les échéances de charges (c'est le nombre de lignes écrites).
+- Contrat : ligne « Charges mensuelles » sous le loyer, rendue si la colonne est posée **et > 0** (un `0`
+  n'imprime rien, comme `null`).
+- Renouvellement : `monthly_charges` hérité (`$data[…] ?? $parent`, comme les autres termes : `0` retire
+  les charges, `null` laisse hériter), renégociable (`RENEGOTIABLE_SIGNED_TERMS`) et suivi (`diffChanges`).
+- Relances : `claim()` rend des **groupes** (bail, date) ; chaque échéance est réservée sous son verrou,
+  le groupe des réservées part dans une relance au solde cumulé, au locataire et au bailleur. Le
+  récapitulatif d'agent compte toujours des **échéances** (`+= count($dues)`) : le compter par relance
+  faisait rougir `SendLeasePaymentRemindersTest::ac4` (deux échéances d'un même bail, même date →
+  attendu 3, rendu 2). Le loyer passe en tête du groupe.
+- `ApplyLateFeesJob`, `LateFeeCalculator`, `RentReviewService` : **non modifiés** (AC6).
+
+**Écarts et limites, à trancher par la session** :
+
+- **Lien de paiement d'une relance fusionnée** : le lien porteur (`LeasePaymentLinkService`) vise UNE
+  échéance — celle du loyer, en tête du groupe. Un locataire **sans compte** lit le total loyer + charges
+  dans le SMS mais le lien ne règle que le loyer. Un lien qui couvre les deux est un autre chantier.
+- **Textes** : « Votre loyer de :amount » annonce désormais le total charges comprises ; les textes ne
+  sont pas changés (ni `lang/` de l'API, ni le front).
+- **ÉCART au ticket — le contrôle « déjà émis » reste sur le seul loyer.** Le ticket demandait qu'il
+  compte les deux types. Mesuré : ainsi élargi, il fait rougir
+  `DepositInstalmentScheduleTest::test_l_echeance_de_caution_se_paie_en_ligne` — une échéance `charges`
+  saisie à la main (régularisation, que la saisie accepte toujours) fait taire l'échéancier, qui n'écrit
+  alors ni loyer ni caution : exactement le défaut que TCK-957 a fermé pour la caution. Le but du ticket
+  (pas de double appel de charges) est tenu autrement : l'échéancier n'appelle pas les charges d'une
+  période qui en a déjà une vivante. Deux tests le gardent (charges saisies à la main ; régénération
+  après des loyers annulés un à un), chacun vérifié par ablation, plus l'ablation inverse (contrôle
+  élargi aux deux types → rouge).
+- **AC5** (`total_due` de `GET /api/me/rent-summary`) : la route n'existe pas encore — elle est livrée par
+  TCK-2649. Non mesuré ici ; les échéances `charges` y entreront si TCK-2649 compte `SCHEDULED_PERIOD_TYPES`.
+- **AC2** est mesuré sur le HTML de la vraie vue `pdf.leases.contract` (comme `LeaseContractTermsTest`),
+  pas sur les octets du PDF (flux compressés par dompdf).
+- **AC3, mesure en plus du test** : le HTML du contrat de 5 baux de démo sans charges, rendu par le
+  gabarit d'avant et par celui d'après, est **identique octet pour octet** (6865/6865, 6829/6829…). Une
+  première écriture (directives indentées, commentaire sur sa ligne) laissait 17 octets d'espaces : les
+  directives sont en colonne 0 et le commentaire sur la ligne du `@if`.
+
+**Tests** : `tests/Feature/Lease/LeaseChargesScheduleTest.php` (15 tests) et
+`tests/Feature/Api/LeaseContractTermsTest.php` (variante `monthly_charges` ajoutée ; le test de parité
+`$fillable` reste vert). Ablations : voir le rapport de l'agent.

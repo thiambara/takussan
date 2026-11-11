@@ -103,6 +103,13 @@
             <th>Loyer mensuel</th>
             <td class="amount"><strong>@currency($lease->monthly_rent, $currency)</strong></td>
         </tr>
+{{-- TCK-2679 — rendue seulement quand les charges sont posées. Directives en colonne 0, commentaire sur
+     la ligne du @if : sans charges, le HTML rendu est octet pour octet celui d'avant (mesuré). --}}@if ($lease->monthly_charges !== null && (float) $lease->monthly_charges > 0)
+        <tr>
+            <th>Charges mensuelles</th>
+            <td class="amount">@currency($lease->monthly_charges, $currency)</td>
+        </tr>
+@endif
         <tr>
             <th>Dépôt de garantie (caution)</th>
             <td class="amount">@currency($lease->deposit_amount, $currency)</td>

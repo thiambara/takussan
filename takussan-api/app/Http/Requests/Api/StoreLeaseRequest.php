@@ -52,6 +52,8 @@ class StoreLeaseRequest extends BaseFormRequest
             'start_date' => ['required', 'date'],
             'end_date' => ['nullable', 'date', 'after:start_date'],
             'monthly_rent' => ['nullable', 'numeric', 'min:0'],
+            // TCK-2679 — les charges mensuelles, terme imprimé au contrat et appelé par l'échéancier.
+            'monthly_charges' => ['nullable', 'numeric', 'min:0'],
             'sale_price' => ['nullable', 'numeric', 'min:0'],
             'deposit_amount' => ['nullable', 'numeric', 'min:0'],
             'commission_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],

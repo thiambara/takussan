@@ -36,6 +36,8 @@ class RenewLeaseRequest extends BaseFormRequest
             'start_date' => ['sometimes', 'nullable', 'date'],
             'end_date' => ['sometimes', 'nullable', 'date', 'after:start_date'],
             'monthly_rent' => ['sometimes', 'nullable', 'numeric', 'min:0'],
+            // TCK-2679 — renégociables comme le loyer ; absentes, héritées du parent.
+            'monthly_charges' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'deposit_amount' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'commission_rate' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:100'],
             'late_fee_percent' => ['sometimes', 'nullable', 'numeric', 'between:0,50'],

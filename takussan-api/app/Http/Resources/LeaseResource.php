@@ -45,6 +45,8 @@ class LeaseResource extends BaseResource
             'end_date' => $this->calendarDate($this->end_date),
             'renewal_date' => $this->calendarDate($this->renewal_date),
             'monthly_rent' => $this->monthly_rent !== null ? (float) $this->monthly_rent : null,
+            // TCK-2679 — les charges mensuelles du bail ; nulles sur un bail antérieur.
+            'monthly_charges' => $this->monthly_charges !== null ? (float) $this->monthly_charges : null,
             'sale_price' => $this->sale_price !== null ? (float) $this->sale_price : null,
             'currency' => $this->currency?->value,
             'deposit_amount' => $this->deposit_amount !== null ? (float) $this->deposit_amount : null,

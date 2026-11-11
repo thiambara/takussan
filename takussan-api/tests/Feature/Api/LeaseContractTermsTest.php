@@ -49,6 +49,8 @@ class LeaseContractTermsTest extends TestCase
         'end_date' => ['2027-01-01', '2027-06-30'],
         'renewal_date' => [null, '2026-12-01'],
         'monthly_rent' => [400_000, 450_000],
+        // TCK-2679 — nulles, aucune ligne : le contrat d'un bail antérieur garde ses octets.
+        'monthly_charges' => [null, 150_000],
         'sale_price' => [null, 50_000_000],
         'currency' => ['XOF', 'EUR'],
         'deposit_amount' => [800_000, 900_000],

@@ -169,6 +169,20 @@ class LeaseService
     public const COMMISSION_TERMS = ['commission_amount', 'agent_id', 'commission_rate'];
 
     /**
+     * TCK-2679 — les types d'échéance que l'échéancier émet PAR PÉRIODE : le loyer, et les charges du
+     * contrat à côté de lui. La sortie et le renouvellement les traitent de même. La pénalité de
+     * retard et la révision du loyer restent sur le seul loyer.
+     *
+     * Le contrôle « échéancier déjà émis » reste sur le seul loyer : une échéance de charges SAISIE à
+     * la main (régularisation, toujours permise) ferait sinon taire l'échéancier, comme la caution
+     * avant TCK-957 (mesuré : `DepositInstalmentScheduleTest`). Le doublon de charges est fermé
+     * période par période ({@see self::chargesAlreadyCalled()}).
+     *
+     * @var list<string>
+     */
+    public const SCHEDULED_PERIOD_TYPES = [LeasePaymentType::Rent->value, LeasePaymentType::Charges->value];
+
+    /**
      * TCK-595 (verif-595 B1) — les termes de commission ne s'écrivent que par le personnel
      * de l'agence du bail qui tient `leases.create` (la capacité qui ouvre le bail). Le bailleur et
      * le locataire ne les écrivent jamais. À la création, une valeur nulle vaut absence ; à la
@@ -289,6 +303,7 @@ class LeaseService
             $end = $lease->end_date ? Carbon::parse($lease->end_date) : null;
             $frequency = $lease->payment_frequency ?? PaymentFrequency::Monthly;
             $amount = (float) ($lease->monthly_rent ?? 0);
+            $charges = (float) ($lease->monthly_charges ?? 0);
             $paymentDay = $lease->payment_day ?? 1;
 
             $current = $start->copy()->day(min($paymentDay, $start->daysInMonth));
@@ -299,6 +314,7 @@ class LeaseService
 
             $deposits = $this->writeDepositInstalment($lease, $start);
             $count = 0;
+            $chargeCount = 0;
 
             while ($end === null || $current->lte($end)) {
                 // P04.01 (TCK-667) — une échéance couvre tous les mois de sa période et les facture
@@ -309,18 +325,33 @@ class LeaseService
                     $months = min($months, (int) $periodStart->diffInMonths($end->copy()->startOfMonth()) + 1);
                 }
 
-                LeasePayment::create([
+                $due = [
                     'lease_id' => $lease->id,
-                    'reference_number' => ReferenceNumberGenerator::leasePayment(),
                     'payer_id' => $lease->tenant_id,
-                    'payment_type' => LeasePaymentType::Rent->value,
-                    'amount' => $amount * $months,
                     'currency' => $lease->currency?->value ?? 'XOF',
                     'status' => PaymentStatus::Pending,
                     'due_date' => $current->toDateString(),
                     'period_start' => $periodStart->toDateString(),
                     'period_end' => $periodStart->copy()->addMonthsNoOverflow($months - 1)->endOfMonth()->toDateString(),
+                ];
+
+                LeasePayment::create($due + [
+                    'reference_number' => ReferenceNumberGenerator::leasePayment(),
+                    'payment_type' => LeasePaymentType::Rent->value,
+                    'amount' => $amount * $months,
                 ]);
+
+                // TCK-2679 (ADR-0100 § 6) — les charges du contrat, appelées à côté du loyer : même
+                // échéance, même période, charges mensuelles × mois. Aucune sans charges posées, ni
+                // sur une période dont les charges sont déjà appelées.
+                if ($charges > 0 && ! $this->chargesAlreadyCalled($lease, $due['period_start'])) {
+                    LeasePayment::create($due + [
+                        'reference_number' => ReferenceNumberGenerator::leasePayment(),
+                        'payment_type' => LeasePaymentType::Charges->value,
+                        'amount' => $charges * $months,
+                    ]);
+                    $chargeCount++;
+                }
 
                 $count++;
                 $current = $this->advancePeriod($current, $frequency);
@@ -331,8 +362,22 @@ class LeaseService
                 }
             }
 
-            return $count + $deposits;
+            return $count + $chargeCount + $deposits;
         });
+    }
+
+    /**
+     * TCK-2679 — une échéance de charges encore vivante (non annulée) commence déjà à cette période :
+     * l'échéancier ne l'appelle pas une seconde fois (régénération après des loyers annulés un à un,
+     * charges saisies à la main pour ce mois).
+     */
+    private function chargesAlreadyCalled(Lease $lease, string $periodStart): bool
+    {
+        return $lease->payments()
+            ->where('payment_type', LeasePaymentType::Charges->value)
+            ->where('status', '!=', PaymentStatus::Cancelled->value)
+            ->whereDate('period_start', $periodStart)
+            ->exists();
     }
 
     /**

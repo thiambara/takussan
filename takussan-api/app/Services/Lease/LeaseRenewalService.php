@@ -5,13 +5,13 @@ namespace App\Services\Lease;
 use App\Events\Lease\LeaseRenewed;
 use App\Exceptions\ApiError;
 use App\Jobs\GenerateLeasePaymentSchedule;
-use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\User;
 use App\Services\Admin\PlatformSettingService;
+use App\Services\Model\LeaseService;
 use App\Services\Model\ReferenceNumberGenerator;
 use App\Services\Payments\PaymentGatewayService;
 use App\Support\ScopedSetting;
@@ -120,6 +120,9 @@ class LeaseRenewalService
                 'start_date' => $startDate,
                 'end_date' => $endDate,
                 'monthly_rent' => $data['monthly_rent'] ?? $parent->monthly_rent,
+                // TCK-2679 — les charges, terme imprimé : héritées du parent, renégociables (0 les retire,
+                // comme `null` laisse hériter les autres termes).
+                'monthly_charges' => $data['monthly_charges'] ?? $parent->monthly_charges,
                 'sale_price' => $parent->sale_price,
                 'currency' => $parent->currency,
                 'deposit_amount' => $data['deposit_amount'] ?? $parent->deposit_amount,
@@ -321,6 +324,7 @@ class LeaseRenewalService
     /**
      * Les échéances de loyer du parent dues à partir du début de l'enfant : celles que l'échéancier
      * de l'enfant (premier terme ≥ son début) facture à nouveau. Vaut pour un parent sans fin.
+     * TCK-2679 — et ses échéances de charges, que l'échéancier de l'enfant appelle aussi.
      *
      * @return Collection<int, LeasePayment>
      */
@@ -328,7 +332,7 @@ class LeaseRenewalService
     {
         return LeasePayment::query()
             ->where('lease_id', $parent->id)
-            ->where('payment_type', LeasePaymentType::Rent->value)
+            ->whereIn('payment_type', LeaseService::SCHEDULED_PERIOD_TYPES)
             ->whereDate('due_date', '>=', $startDate->toDateString())
             ->orderBy('due_date')
             ->lockForUpdate()
@@ -474,7 +478,7 @@ class LeaseRenewalService
      * un renouvellement les change toujours, c'est son objet.
      */
     public const RENEGOTIABLE_SIGNED_TERMS = [
-        'monthly_rent', 'deposit_amount', 'late_fee_percent', 'late_fee_grace_days',
+        'monthly_rent', 'monthly_charges', 'deposit_amount', 'late_fee_percent', 'late_fee_grace_days',
         'early_termination_penalty_months', 'rent_review_max_pct', 'terms', 'special_conditions',
     ];
 
@@ -513,7 +517,7 @@ class LeaseRenewalService
     protected function diffChanges(Lease $parent, Lease $child): array
     {
         $tracked = [
-            'start_date', 'end_date', 'monthly_rent', 'deposit_amount',
+            'start_date', 'end_date', 'monthly_rent', 'monthly_charges', 'deposit_amount',
             'late_fee_percent', 'late_fee_grace_days', 'terms', 'special_conditions',
             'early_termination_penalty_months', 'rent_review_max_pct',
         ];

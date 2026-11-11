@@ -52,6 +52,9 @@ class Lease extends AbstractModel implements HasMedia
         'reference_number', 'type', 'status',
         'start_date', 'end_date', 'renewal_date',
         'monthly_rent', 'sale_price', 'currency',
+        // TCK-2679 (ADR-0042, amendement du 2026-11-10) — les charges, terme imprimé au contrat et
+        // appelées par l'échéancier à côté du loyer. Nulles sur un bail antérieur.
+        'monthly_charges',
         'deposit_amount', 'deposit_refunded_amount', 'deposit_refunded_at', 'deposit_refund_reason',
         'commission_amount', 'commission_rate',
         'payment_frequency', 'payment_day',
@@ -75,6 +78,7 @@ class Lease extends AbstractModel implements HasMedia
         'currency' => Currency::class,
         'payment_frequency' => PaymentFrequency::class,
         'monthly_rent' => 'decimal:2',
+        'monthly_charges' => 'decimal:2',
         'sale_price' => 'decimal:2',
         'deposit_amount' => 'decimal:2',
         'deposit_refunded_amount' => 'decimal:2',
@@ -120,7 +124,7 @@ class Lease extends AbstractModel implements HasMedia
         'booking_id', 'guarantor_id', 'renewed_from_lease_id',
         'reference_number', 'type', 'status',
         'start_date', 'end_date', 'renewal_date',
-        'monthly_rent', 'sale_price', 'currency',
+        'monthly_rent', 'monthly_charges', 'sale_price', 'currency',
         'deposit_amount', 'deposit_refunded_amount', 'deposit_refunded_at', 'deposit_refund_reason',
         'commission_amount', 'commission_rate',
         'payment_frequency', 'payment_day',
@@ -325,7 +329,7 @@ class Lease extends AbstractModel implements HasMedia
      */
     public const CONTRACT_PRINTED_TERMS = [
         'type', 'start_date', 'end_date', 'renewal_date',
-        'monthly_rent', 'sale_price', 'currency', 'deposit_amount',
+        'monthly_rent', 'monthly_charges', 'sale_price', 'currency', 'deposit_amount',
         'payment_frequency', 'payment_day',
         'late_fee_percent', 'late_fee_grace_days', 'notice_period_days',
         'early_termination_penalty_months', 'rent_review_max_pct',

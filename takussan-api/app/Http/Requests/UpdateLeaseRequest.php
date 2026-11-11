@@ -37,6 +37,8 @@ class UpdateLeaseRequest extends BaseFormRequest
             // que le bail n'est pas signé, refusés ensuite (`lease.terms_locked`).
             'early_termination_penalty_months' => ['sometimes', 'nullable', 'integer', 'between:0,12'],
             'rent_review_max_pct' => ['sometimes', 'nullable', 'numeric', 'between:0,100'],
+            // TCK-2679 — les charges, terme imprimé : même régime (défigent avant signature, 422 après).
+            'monthly_charges' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             // TCK-595 (ADR-0049 §1, §2) — modifiables, mais le grand livre est figé à l'activation : une
             // correction après coup ne régénère aucune ligne, l'admin annule la ligne fausse.
             'commission_amount' => ['sometimes', 'nullable', 'numeric', 'min:0'],
