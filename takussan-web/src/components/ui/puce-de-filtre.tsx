@@ -60,7 +60,7 @@ function PuceDeFiltre({
       className={cn(
         "group/puce relative inline-flex h-9 flex-none items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-sm font-medium whitespace-nowrap text-foreground outline-none select-none",
         "transition-[color,background-color,border-color,box-shadow] hover:bg-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
-        "aria-pressed:border-foreground aria-pressed:bg-foreground aria-pressed:text-background aria-pressed:hover:bg-foreground",
+        "aria-pressed:border-foreground aria-pressed:bg-foreground aria-pressed:text-background aria-pressed:hover:bg-foreground aria-pressed:hover:text-background",
         "data-[taille=sm]:h-8 data-[taille=sm]:px-3 data-[taille=sm]:text-ui",
         "data-[variante=ajouter]:border-dashed",
         // La cible de 44 px (cf. docblock).

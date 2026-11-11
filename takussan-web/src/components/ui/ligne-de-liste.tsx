@@ -81,7 +81,7 @@ function LigneDeListe({ titre, detail, debut, fin, chevron = false, href, onClic
 
 /**
  * L'icône de début, dans un disque `size-9` sur `bg-muted`. L'encre douce OPAQUE de TCK-2685 au lieu
- * du `text-foreground/70` de la maquette (TCK-658 : aucune encre translucide).
+ * de l'encre principale à 70 % de la maquette (TCK-658 : aucune encre translucide).
  */
 function IconeDeLigne({ className, ...props }: React.ComponentProps<"span">) {
   return (

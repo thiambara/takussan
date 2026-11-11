@@ -31,8 +31,9 @@ type ToastData = {
 
 /**
  * TCK-2688 — L'ACTION TEXTE du toast sombre (« Annuler » de la maquette `app-demandes` a-3) : à
- * passer dans `data.action`. Graisse 500, encre principale à 80 % sur le fond sombre (ancêtre
- * `.dark` du toast : ≥ 11:1), une icône facultative de 16 px avant le libellé ; 44 px d'appui au
+ * passer dans `data.action`. Graisse 500, l'encre douce OPAQUE de TCK-2685 (#d2cec7 sous le `.dark`
+ * du toast : le rendu de l'encre principale à 80 % de la maquette, 11,2:1 sur #1f1812 ; TCK-658 :
+ * aucune encre de texte translucide), une icône facultative de 16 px avant le libellé ; 44 px d'appui au
  * pouce par le pseudo-élément, sans grandir le toast.
  */
 function ActionDuToast({ className, type = "button", ...props }: React.ComponentProps<"button">) {
@@ -41,7 +42,7 @@ function ActionDuToast({ className, type = "button", ...props }: React.Component
       type={type}
       data-slot="toast-action"
       className={cn(
-        "relative inline-flex items-center gap-1 rounded-sm font-medium text-foreground/80 outline-none transition-colors after:absolute after:-inset-x-2 after:-inset-y-3 after:content-[''] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-4 [&_svg]:flex-none",
+        "relative inline-flex items-center gap-1 rounded-sm font-medium text-encre-douce outline-none transition-colors after:absolute after:-inset-x-2 after:-inset-y-3 after:content-[''] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-4 [&_svg]:flex-none",
         className
       )}
       {...props}

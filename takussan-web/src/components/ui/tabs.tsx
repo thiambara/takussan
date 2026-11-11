@@ -153,11 +153,11 @@ const ONGLET_SOULIGNE_APP = [
  *  · `h-9 px-4 rounded-md text-sm` 500 ; `size="sm"` : `h-8 px-3`, 13 px (`text-ui`) ;
  *  · actif `bg-card` (#fff) + l'ombre nommée « item actif » (`shadow-actif`, TCK-2685) — au thème
  *    clair ; le sombre garde `bg-input/30` (cf. la règle) ;
- *  · inactif `text-muted-foreground` — 4,85:1 sur `--muted` en clair (au lieu du
- *    `text-foreground/70` de TCK-359, que la maquette ne retient pas) ; au survol, `text-foreground`.
+ *  · inactif `text-muted-foreground` — 4,85:1 sur `--muted` en clair (au lieu de
+ *    l'encre principale à 70 % de TCK-359, que la maquette ne retient pas) ; au survol, `text-foreground`.
  *
  * Chaque règle porte `group-data-[variant=default]/tabs-list:` : un sélecteur d'attribut de plus que
- * la règle de base qu'elle remplace (`px-1.5`, `h-[calc(100%-1px)]`, `text-foreground/70`,
+ * la règle de base qu'elle remplace (`px-1.5`, `h-[calc(100%-1px)]`, l'encre à 70 %,
  * `data-active:bg-background`). L'ombre, à égalité avec `…data-active:shadow-sm` de la base, porte
  * en plus `group-data-horizontal/tabs:`. Le comportement (flèches, `aria-selected`) est celui de
  * base-ui, inchangé.

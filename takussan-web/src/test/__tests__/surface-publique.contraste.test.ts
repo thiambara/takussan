@@ -501,8 +501,26 @@ const FICHIERS_HORS_JETONS = 5;
  * libellés des lignes désactivées (case, interrupteur) et la valeur affichée d'une jauge, tous
  * `text-muted-foreground` OPAQUE sur la page ou la carte. Les primitives elles-mêmes n'en posent
  * aucune ; aucun défaut réel.
+ *
+ * 415 → 430 (2026-11-11, TCK-2688, TCK-2689, TCK-2691) : les primitives de `/app` dans la vitrine,
+ * et le toast sombre. Relevé `d7e9cecb7^` contre `3c6180e8c`, tous deux extraits par `git archive`
+ * (sans maquettes), numéros de ligne retirés. Les quinze entrées sont `text-muted-foreground`
+ * OPAQUE, sans fond propre :
+ *  · TCK-2688 +9 : `console/DataTable` 1 (en-tête de colonne), `console/DebouncedSearchInput` 3
+ *    (loupe, attente, effacer), `ui/table` 1 (`TableCaption`), `ui/choice-card` 2 (icône et
+ *    description), qui entrent par la vitrine. Ils sont posés sur la carte, la page ou `--muted`
+ *    (5,72, 5,44 et 4,85:1). `ui/toast` 2 (description et croix) : le toast ne déclare plus
+ *    d'aplat teinté, et son fond est celui de sa racine `.dark`, #1f1812, avec l'encre sombre
+ *    #b8aa97 (7,71:1) ;
+ *  · TCK-2689 +4 : `ui/ligne-de-liste` 2 (détail, chevron), `ui/puce-de-filtre` 1 (le compte, sur
+ *    `bg-card` au repos ; sur la puce active, il prend l'encre douce inverse, 8,69:1), et
+ *    `VitrineClient` 1 (légende de la barre d'action) ;
+ *  · TCK-2691 +2 : `VitrineClient`, les légendes de la section « pleine largeur ».
+ * Aucun défaut réel. Les deux défauts que le même relevé a trouvés sont CORRIGÉS dans le code, pas
+ * comptés : l'action du toast passe de l'encre principale à 80 % à l'encre douce opaque (cf.
+ * `encre-sans-alpha.contraste.test.ts`), et la puce active survolée déclare sa propre encre.
  */
-const ENCRES_INVERSES = 415;
+const ENCRES_INVERSES = 430;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);

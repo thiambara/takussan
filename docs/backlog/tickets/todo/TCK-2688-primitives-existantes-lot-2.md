@@ -232,3 +232,25 @@ contourner : à trancher au point porteur n° 1 si on préfère le lever au-dess
 
 Débord horizontal du document : 0 à 390 et à 1440 (vitrine, `/app/leases`).
 
+
+### Correction après fusion : les deux cliquets de contraste (2026-11-11)
+
+La Web CI était rouge depuis `d7e9cecb7` sur deux cliquets, et ce n'était **pas** dû aux maquettes
+non suivies, contrairement à ce que disait la première version du rapport. Je l'ai relevé sur un
+arbre `git archive` de `3c6180e8c`, sans maquettes :
+
+- `encre-sans-alpha.contraste.test.ts` : l'action texte du toast portait l'encre principale à
+  80 %, une encre translucide. Elle passe à l'encre douce **opaque**, qui vaut #d2cec7 sous le
+  `.dark` du toast, soit le même rendu (11,2:1 sur #1f1812). Trois commentaires
+  (`ligne-de-liste`, deux dans `tabs`, de TCK-2689) écrivaient l'utilitaire translucide en toutes
+  lettres et le cliquet les comptait. Je les ai reformulés, sans changer les classes.
+- `surface-publique.contraste.test.ts` : le couple de la puce active survolée (TCK-2689) se
+  mesurait encre de repos sur fond de l'état actif, 1,00:1. C'est un couple que l'écran ne rend
+  jamais, puisque l'encre active l'emporte. La puce déclare maintenant
+  `aria-pressed:hover:text-background`, sans changement de rendu.
+- **Le compteur des encres inverses passe de 415 à 430**, avec la justification dans le docblock
+  du test. TCK-2688 en apporte 9, TCK-2689 4 et TCK-2691 2. Ce sont toutes des
+  `text-muted-foreground` **opaques**, sans fond sur l'élément : sur la carte (5,72:1), la page
+  (5,44:1) ou `--muted` (4,85:1), et dans le toast, sur sa racine `.dark` (7,71:1). Déclarer un
+  fond pour chacun reviendrait à écrire un fond pour faire plaisir au compteur. C'est la règle
+  écrite au 151 → 154 du même test.
