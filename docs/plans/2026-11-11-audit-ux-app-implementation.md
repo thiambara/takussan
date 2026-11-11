@@ -444,3 +444,34 @@ _(tenu par la session : date, lot, tickets livrés, refus du vérificateur, PR, 
   rendu sur le bien d'un autre bailleur par `last_contacted_at`, `follow_up`, leur filtre et leurs
   tris — fermé par a598a9f4f (quatre ablations rouges). **Le motif à chercher partout** : un acteur
   hors personnel qui lit un fait interne de l'agence, y compris par un **tri** sur une valeur tue.
+- **Étalonnage (étape 2), après-midi du 2026-11-11** — TCK-2580, TCK-2581 et TCK-2659 livrés, chacun
+  refusé puis repris jusqu'à l'acceptation par un **second** vérificateur :
+  - TCK-2581 : la metadata d'une visite (avis interne de l'agence) servie à tout lecteur → au seul
+    personnel (012106f3b) ; `abilities.feedback_customer` pour le client rattaché par la fiche
+    (627ecd6e6) ; « Créer sa fiche » ne porte plus le téléphone dans l'URL et ne pré-remplit que
+    depuis `visitor_display` (65ad322aa, 8a556c9dd : le repli copiait le prospect d'une agence dans le
+    CRM d'une autre pour un compte double).
+  - TCK-2580 : l'entrée de la saisie n'était gardée sur aucune des deux pages (l'AC « le bailleur ne
+    l'a nulle part » était coché aussi par sa suppression pour tous) → tests de page entière ;
+    recherche de biens bornée à l'agence du profil personnel actif (3b7ac7cbe).
+  - TCK-2659 : l'export annonçait des « encaissements » et sortait les échéances (R1) ; le « mois » avait
+    trois sens sur un écran (M1) → `filter[paid_from]`/`filter[paid_to]` neufs côté API (9f0c10404,
+    2acfdfdea) ; **décision de session D2** : filtré sur un statut non soldé, le registre borne par
+    l'échéance, sinon par l'encaissé (a66aea9ce) ; la contre-vérification a trouvé « Échoué » à 0 pour
+    tout mois et « Restant dû » qui ignorait les impayés du mois (2fcd7fb57, 9a0808ea1, 767a9a98a).
+    **M2 à confirmer par le porteur** : les totaux du registre restent servis à un lecteur sans
+    `reports.view_agency` — ce ne sont que les sommes des lignes qu'il lit déjà (épinglé par test).
+  - Le Web CI de b5552cdb2 a rougi sur trois gardes de dépôt que les tests de l'écran ne jouent pas
+    (promesses de délai, flèche de retour unique, pluriels) : f1bd713ae. **Leçon** : un agent front
+    joue `src/test/__tests__`, `src/i18n/__tests__` et `src/components/layout/__tests__` à chaque passe.
+  - Ablations dans l'arbre partagé : un vérificateur a restauré un fichier qu'un implémenteur éditait
+    (rien de perdu, vérifié par md5) → règle : restaurer seulement si le md5 est celui du mutant, et la
+    session ne déclare un fichier libre qu'après le commit de son éditeur.
+- **Contre-vérifications finales** des correctifs du matin jamais rejoués : TCK-2583 et TCK-2658
+  acceptés ; TCK-2623 refusé pour une borne d'agence (l'équipe elle-même) gardée par aucun test.
+- **Suites écrites en tickets** (8fa7cd6ac, 0be3711b5) : TCK-2714 (groupes de milliers U+202F →
+  U+00A0, décision n° 11 du point 2) et TCK-2715 à TCK-2733, chacun portant la recommandation de
+  session comme décision provisoire, « si refusée → obsolete ». Restent hors ticket : l'état
+  « rejected » des pièces de profil (TCK-2612 — qui refuse ? spec à écrire d'abord).
+- **Statuts** : 58 tickets à `done` sur verdict accepté (9d0725918) ; TCK-2623 suit son test.
+  `/sync-specs` (demandé par le porteur pour la fin du lot) part en PR à part après la fusion.
