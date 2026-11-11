@@ -254,3 +254,49 @@ contre-vérification est faite par un **autre** vérificateur.
 ## Journal
 
 _(tenu par la session : date, lot, tickets livrés, refus du vérificateur, PR, fusion)_
+
+### 2026-11-11 — lot 1 (branche `feat/audit-ux-app-lot-1`), en cours
+
+- Commités : TCK-2599, TCK-2605, TCK-2616, TCK-2683, TCK-2620, TCK-2578, TCK-2657, TCK-2684 (partiel : gel complet en cours), TCK-2679 (AC5 avec TCK-2649), TCK-2623, TCK-2658.
+- **Décisions prises par la session** (délégation du porteur, à relire au point d'étape) :
+  - TCK-2657 AC3 : `CaseInsensitive` ne replie que la casse (ADR-0020 § 2) ; AC3 réécrit dans le ticket.
+  - TCK-2620 : un dernier espace retenu dont l'**agence** est suspendue reste lié (comme le cookie
+    et l'auto-bascule) — ADR-0004 (amendement) et ADR-0048 § 4 l'emportent sur la phrase du ticket ;
+    aucun test ne fige l'un ou l'autre. `remember=false` **efface** la valeur retenue (le ticket),
+    là où ADR-0004 § Application dit « n'écrit rien » : formulation de l'ADR à harmoniser au
+    `/sync-specs`.
+  - TCK-2616 : deux libellés de rôle partagés avec `/app` changent aussi (« Gérer les pièces de
+    l'agence », « Confirmer ou refuser une réservation »).
+  - TCK-2658 : la relance notée est réservée au personnel de l'agence du bail (nouvelle
+    `LeasePaymentPolicy::remind`, ADR-0105), pas `update` comme l'écrivait le ticket (qui ouvrait au
+    locataire et au bailleur) ; code 409 `lease_payment.not_overdue` gardé (conflit d'état, comme
+    `visit.report_not_closable`) là où ADR-0105 dit 422 : à harmoniser au `/sync-specs`.
+  - TCK-2679 : le contrôle « échéancier déjà émis » reste sur le loyer (l'étendre aux charges
+    rouvrait TCK-957) ; suivi TCK-2706 : le lien d'une relance fusionnée ne règle que le loyer, et le
+    texte « Votre loyer de … » annonce loyer + charges.
+- Commits partiels : `commiter.mjs --partiel <fichier>=<regex>` pour les fichiers partagés
+  (`lang/*/errors.php`, `docs/spatie-query-builder.md`, modèles) ; deux commits ont dû être
+  amendés (positions de hunk, doc commitée en entier) avant la garde « autres tickets cités ».
+- **Décision à reposer au porteur — repli des accents dans les recherches** : deux tickets
+  (TCK-2657 AC3, TCK-2630 AC1 → TCK-2632 AC2) voulaient que « thies » trouve « Thiès ». Tranché (a)
+  pour le lot : la casse seule (ADR-0020 § 2). Le repli des accents changerait la règle de toutes
+  les recherches : un ADR à part, si le porteur le veut.
+- Suites relevées, à ranger en tickets avant la PR : le Radar (`RadarDemandSignals`, `ClaimDemand`)
+  ne lit pas `criteria.locations` (TCK-2607) ; ~60 biens « Property Test Filter » d'owner1 sur la
+  base de démo (résidus de tests) ; `rent_period` NULL sur 381/451 biens `rent` de la démo (TCK-2703,
+  en cours).
+- Outil de clés i18n : un `wo` déjà traduit est désormais conservé (ADR-0095 § 4), signalé par
+  l'agent des textes après qu'une ablation l'a écrasé (restauré).
+- Références de fidélité gelées : PR #1665 fusionnée sur `dev` (46c0b49f1). Les dossiers
+  `references/app-*` sont non suivis sur la branche du lot : les retirer de l'arbre avant d'y
+  fusionner `dev` (contenu identique), sinon git refuse la fusion.
+- TCK-2640 : l'agent reçoit 403 sur la fiche du bailleur (`viewDetail`, admin de l'agence), mais la
+  liste (`viewAny`) lui rend les chiffres du mandat — c'est la lettre du ticket ; l'accès de l'agent à
+  la fiche reste à trancher. Le plafond de travaux s'applique aux devis **approuvés** après lui
+  (lu à l'approbation), là où models-spec dit « soumis » : `/sync-specs`. Recherche du carnet par
+  repli PHP (`Str::ascii`) sur le carnet borné d'une agence, comme `CleDeQuartier`.
+- TCK-2579 : la fabrique de réservation pose `kind = stay` par défaut. **À trancher par le porteur** :
+  depuis « seul un séjour occupe des nuits » (ADR-0102 § 3), deux candidatures DATÉES qui se
+  chevauchent sur une même location peuvent être confirmées toutes deux (lu dans le code, non
+  éprouvé). L'export iCal, l'agenda agrégé, `PortfolioMetrics` et `CompleteEndedBookingsJob` lisent
+  encore les réservations confirmées sans leur nature (hors périmètre) : suite à ranger en ticket.
