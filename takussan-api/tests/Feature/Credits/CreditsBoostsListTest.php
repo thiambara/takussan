@@ -61,9 +61,9 @@ class CreditsBoostsListTest extends ApiTestCase
         return $lead;
     }
 
-    private function visit(Property $property, string $at, VisitStatus $status = VisitStatus::Scheduled): void
+    private function visit(Property $property, string $at, VisitStatus $status = VisitStatus::Scheduled, array $attributes = []): void
     {
-        $visit = PropertyVisit::factory()->create(['property_id' => $property->id, 'status' => $status]);
+        $visit = PropertyVisit::factory()->create(['property_id' => $property->id, 'status' => $status] + $attributes);
         $visit->forceFill(['created_at' => Carbon::parse($at)])->save();
     }
 
@@ -154,6 +154,37 @@ class CreditsBoostsListTest extends ApiTestCase
         $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
         $row = $this->row($this->apiGet('/api/credits/boosts')->assertOk()->json('data'), $boost->id);
 
+        $this->assertSame(1, $row['measures']['contacts']);
+    }
+
+    /**
+     * TCK-2663 (suite de la vérification adverse) — les visites sont bornées à l'agence du boost,
+     * comme les contacts. Une visite n'a pas de colonne d'agence : la sienne est celle de la demande
+     * de contact qui l'a amenée (instantané, comme un contact), sinon celle du bien.
+     */
+    public function test_une_visite_d_une_autre_agence_ne_compte_pas(): void
+    {
+        $agency = Agency::factory()->create();
+        $other = Agency::factory()->create();
+        $property = $this->property($agency);
+        $boost = $this->boost($property, '2026-11-05 09:00', null, BoostStatus::Active);
+        $this->visit($property, '2026-11-06 12:00');
+        $ownLead = $this->lead($property, '2026-11-06 13:00');
+        $this->visit($property, '2026-11-07 12:00', attributes: ['contact_lead_id' => $ownLead->id]);
+
+        // Le bien passe à une autre agence pendant que le boost court : ce qu'elle reçoit n'est pas
+        // à cet espace — ni la visite sans demande, ni celle amenée par une demande adressée à elle.
+        $property->forceFill(['agency_id' => $other->id])->save();
+        $theirLead = $this->lead($property, '2026-11-08 12:00', ['agency_id' => $other->id]);
+        $this->visit($property, '2026-11-08 13:00', attributes: ['contact_lead_id' => $theirLead->id]);
+        $this->visit($property, '2026-11-09 12:00');
+
+        $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+        $row = $this->row($this->apiGet('/api/credits/boosts')->assertOk()->json('data'), $boost->id);
+
+        // La visite amenée par la demande de cet espace compte encore (instantané) ; celle d'avant
+        // le changement, sans demande, suit l'agence ACTUELLE du bien et ne compte plus.
+        $this->assertSame(1, $row['measures']['visits']);
         $this->assertSame(1, $row['measures']['contacts']);
     }
 

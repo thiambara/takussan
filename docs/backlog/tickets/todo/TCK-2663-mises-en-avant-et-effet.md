@@ -117,3 +117,17 @@ même nombre de requêtes), l'autorisation des deux requêtes ; côté suggestio
 
 `docs/models-spec.md` et `docs/features.md` ne sont pas touchés (compétence) : les deux routes sont
 pour `/sync-specs` (§ 1.12, § 9.3-9.4).
+
+**Suites de la vérification adverse (2026-11-11).**
+
+- Les **visites** des mesures sont bornées à l'agence du boost, comme les contacts. Une visite n'a pas
+  de colonne d'agence : la sienne est celle de la demande de contact qui l'a amenée
+  (`contact_lead_id`, instantané comme un contact), sinon l'agence ACTUELLE du bien. Après un
+  changement d'agence du bien, ses visites sans demande ne comptent donc plus pour l'ancienne agence
+  (aucun instantané ne permet mieux). Test : `CreditsBoostsListTest::test_une_visite_d_une_autre_agence_ne_compte_pas`.
+- `authorize('viewAny', CreditLot)` de `ReadsWallet` n'est PAS redondant : c'est la seule garde de
+  `GET /api/credits` et `GET /api/credits/balance` (`CreditController`, sans FormRequest), épinglée
+  par `CreditsApiTest::test_l_agent_n_y_a_pas_acces` et `CreditBalanceEndpointTest::test_l_agent_n_y_a_pas_acces`
+  (ablation : rouges). Sur `boosts` et `suggestions`, la garde réelle est `AuthorizesWalletReading`
+  (FormRequest, 403 avant 422), épinglée par les tests « 403 avant la validation » (ablation : rouges) ;
+  l'`authorize` du contrôleur y double la règle, conservé (convention, et le trait sert les deux contrôleurs).

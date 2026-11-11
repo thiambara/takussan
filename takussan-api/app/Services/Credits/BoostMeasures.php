@@ -4,6 +4,8 @@ namespace App\Services\Credits;
 
 use App\Models\PropertyBoost;
 use App\Models\PropertyBoostDailyStat;
+use Closure;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +18,12 @@ use Illuminate\Support\Facades\DB;
  *   déjà bornées à sa vie) ;
  * - `contacts` : les `property_contact_leads` du bien dans la fenêtre, tous canaux (formulaire,
  *   WhatsApp, appel), de l'espace qui a payé le boost ;
- * - `visits` : les `property_visits` du bien DEMANDÉES dans la fenêtre (`created_at`), tous statuts.
+ * - `visits` : les `property_visits` du bien DEMANDÉES dans la fenêtre (`created_at`), tous statuts,
+ *   de l'espace qui a payé le boost, comme les contacts. Une visite n'a pas de colonne d'agence : la
+ *   sienne est celle de la demande de contact qui l'a amenée (`contact_lead_id`, instantané comme un
+ *   contact), sinon celle du bien — l'agence ACTUELLE, faute d'instantané : après un changement
+ *   d'agence du bien, ses visites sans demande ne comptent plus pour l'ancienne (suite de la
+ *   vérification adverse : elles comptaient sans borne).
  *
  * Des COMPTES seulement : aucune donnée du demandeur ne sort. Une requête agrégée par mesure, quel
  * que soit le nombre de boosts (pas de N+1). Une Remontée naît close (`starts_at = ended_at`) : sa
@@ -55,8 +62,14 @@ final class BoostMeasures
             ->selectRaw('property_boost_id, SUM(impressions) AS impressions, SUM(clicks) AS clicks')
             ->get()
             ->keyBy('property_boost_id');
-        $contacts = $this->inWindow('property_contact_leads', $ids, $now, sameAgency: true);
-        $visits = $this->inWindow('property_visits', $ids, $now, sameAgency: false);
+        $contacts = $this->inWindow('property_contact_leads', $ids, $now, function (Builder $q): void {
+            $q->whereColumn('m.agency_id', 'b.agency_id');
+        });
+        $visits = $this->inWindow('property_visits', $ids, $now, function (Builder $q): void {
+            $q->join('properties as p', 'p.id', '=', 'm.property_id')
+                ->leftJoin('property_contact_leads as l', 'l.id', '=', 'm.contact_lead_id')
+                ->whereRaw('COALESCE(l.agency_id, p.agency_id) = b.agency_id');
+        });
 
         $measures = [];
         foreach ($ids as $id) {
@@ -72,21 +85,21 @@ final class BoostMeasures
     }
 
     /**
-     * Les lignes de `$table` sur le bien de chaque boost, créées dans sa fenêtre.
+     * Les lignes de `$table` sur le bien de chaque boost, créées dans sa fenêtre, de l'agence du boost
+     * (`$sameAgency` pose la borne, propre à chaque table).
      *
      * @param  list<int>  $ids
+     * @param  Closure(Builder): void  $sameAgency
      * @return Collection<int, int>
      */
-    private function inWindow(string $table, array $ids, \DateTimeInterface $now, bool $sameAgency): Collection
+    private function inWindow(string $table, array $ids, \DateTimeInterface $now, Closure $sameAgency): Collection
     {
         return DB::table('property_boosts as b')
-            ->join("{$table} as m", function (JoinClause $join) use ($sameAgency): void {
+            ->join("{$table} as m", function (JoinClause $join): void {
                 $join->on('m.property_id', '=', 'b.property_id')
                     ->on('m.created_at', '>=', 'b.starts_at');
-                if ($sameAgency) {
-                    $join->on('m.agency_id', '=', 'b.agency_id');
-                }
             })
+            ->tap($sameAgency)
             ->whereIn('b.id', $ids)
             ->whereRaw('m.created_at <= COALESCE(b.ended_at, ?)', [$now])
             ->groupBy('b.id')
