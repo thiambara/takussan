@@ -149,19 +149,42 @@ class Customer extends AbstractModel
     {
         $request = CustomerCommercialAttributes::strip($request ?? request());
 
+        // Vérification adverse de TCK-2583/TCK-2588 — le dernier contact et la relance sont nourris
+        // par les visites et les comptes rendus de TOUS les biens de l'agence : hors personnel (le
+        // bailleur auteur d'une fiche), leurs deux tris retombent sur la date de création, sans
+        // rien trahir de l'heure d'un compte rendu sur le bien d'un autre bailleur.
+        $internes = static::readsAgencyInternals($request->user());
+
         return DepartageQueryBuilder::for($baseQuery ?? static::class, $request)
             ->allowedFilters(...static::getAllowedQueryFilters())
             ->allowedFields(...static::getAllAllowedQueryFields())
             ->allowedSorts(
-                ...static::$requestSortable,
+                ...array_values(array_diff(static::$requestSortable, ['last_contacted_at'])),
                 ...[
                     AllowedSort::custom('first_name', new CollatedNameSort, 'customers.first_name'),
                     AllowedSort::custom('last_name', new CollatedNameSort, 'customers.last_name'),
                     AllowedSort::custom('next_action_at', new CustomerNextActionSort),
-                    AllowedSort::custom('follow_up_days', new CustomerFollowUpSort),
+                    $internes
+                        ? AllowedSort::custom('follow_up_days', new CustomerFollowUpSort)
+                        : AllowedSort::field('follow_up_days', 'created_at'),
+                    $internes
+                        ? AllowedSort::field('last_contacted_at')
+                        : AllowedSort::field('last_contacted_at', 'created_at'),
                 ],
             )
             ->allowedIncludes(...static::getAllowedQueryIncludes());
+    }
+
+    /**
+     * Vérification adverse de TCK-2583/TCK-2588 — le lecteur lit-il les faits internes de l'agence
+     * (dernier contact, relance) ? Le super-admin et le personnel d'une agence ; jamais le bailleur
+     * ni le client. Les tris et le filtre de la liste se jugent sur elle ; la ressource, fiche par
+     * fiche, sur {@see self::criteriaBelongTo()}.
+     */
+    public static function readsAgencyInternals(?User $viewer): bool
+    {
+        return $viewer !== null
+            && ($viewer->isSuperAdmin() || app(MembershipCapabilityResolver::class)->staffAgencyIds($viewer) !== []);
     }
 
     /** TCK-953 — sans `id_number` : `fields[customers]=…,id_number` rend 400 (ADR-0070 § 4). */
@@ -237,8 +260,19 @@ class Customer extends AbstractModel
         // même de l'attribut `follow_up` (`CustomerFollowUpQuery::sinceSql()`).
         $filters[] = AllowedFilter::callback('follow_up', function (Builder $q, mixed $value) {
             $viewer = request()->user();
+            $due = filter_var($value, FILTER_VALIDATE_BOOLEAN);
+            // Vérification adverse de TCK-2588 — hors personnel, `follow_up` est toujours `null` (il
+            // trahirait l'heure d'un compte rendu sur le bien d'un autre bailleur) : le filtre suit
+            // ce que la page sert — `=1` ne rend rien, `=0` ne retire rien.
+            if ($viewer !== null && ! static::readsAgencyInternals($viewer)) {
+                if ($due) {
+                    $q->whereRaw('1 = 0');
+                }
+
+                return;
+            }
             if ($viewer !== null) {
-                (new CustomerFollowUpQuery($viewer))->filter($q, filter_var($value, FILTER_VALIDATE_BOOLEAN));
+                (new CustomerFollowUpQuery($viewer))->filter($q, $due);
             }
         });
 

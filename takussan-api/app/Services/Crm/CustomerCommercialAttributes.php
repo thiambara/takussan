@@ -95,7 +95,10 @@ final class CustomerCommercialAttributes
             $values['next_action'] = (new CustomerNextActionQuery($viewer))->forPage($ids);
         }
         if (in_array('follow_up', $requested, true)) {
-            $values['follow_up'] = (new CustomerFollowUpQuery($viewer))->forPage($ids);
+            // Vérification adverse de TCK-2588 — la relance (nourrie par le dernier contact, donc par
+            // les comptes rendus) au seul personnel de l'agence de la fiche ; `null` sinon.
+            $staffIds = self::staffReadable($viewer, $ids);
+            $values['follow_up'] = $staffIds === [] ? [] : (new CustomerFollowUpQuery($viewer))->forPage($staffIds);
         }
         if (in_array('referent', $requested, true)) {
             $values['referent'] = self::referents($ids);

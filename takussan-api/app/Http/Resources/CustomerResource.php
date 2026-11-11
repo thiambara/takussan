@@ -88,7 +88,12 @@ class CustomerResource extends BaseResource
             // ressource est imbriquée dans le bail et la réservation, que le bailleur lit.
             ...($this->readsOrigin($request) ? $this->origine() : []),
             // TCK-2583 — le dernier contact : geste, note, visite terminée ou compte rendu.
-            'last_contacted_at' => $this->iso($this->last_contacted_at),
+            // Vérification adverse de TCK-2583 — au seul personnel de l'agence de la fiche : nourri
+            // par les visites et les comptes rendus de tous les biens de l'agence, il donnait au
+            // bailleur auteur l'heure d'un compte rendu sur le bien d'un autre bailleur.
+            'last_contacted_at' => $this->resource->last_contacted_at !== null && $this->readsVisits($request)
+                ? $this->iso($this->last_contacted_at)
+                : null,
             'created_at' => $this->iso($this->created_at),
             'updated_at' => $this->iso($this->updated_at),
             'tasks_count' => $this->whenCounted('tasks'),
