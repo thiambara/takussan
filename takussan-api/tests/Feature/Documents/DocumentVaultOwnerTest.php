@@ -4,6 +4,7 @@ namespace Tests\Feature\Documents;
 
 use App\Models\Enums\DocumentType;
 use App\Models\Enums\LeaseStatus;
+use App\Models\Inventory;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\User;
@@ -93,6 +94,12 @@ class DocumentVaultOwnerTest extends TestCase
 
     public function test_another_landlord_of_the_agency_reads_none_of_it(): void
     {
+        // Un relevé envoyé au bailleur du décor : l'autre bailleur de l'agence ne doit pas le voir
+        // (le filtre `landlord_id` des relevés). Versant autorisé d'abord.
+        $this->assertTrue(app(OwnerStatementSnapshots::class)->record($this->agency, $this->landlord, '2025-12', now()));
+        $this->connecter($this->landlord, $this->ownerProfile);
+        $this->assertContains('statements', array_column($this->coffre()['folders'], 'key'));
+
         $stranger = User::factory()->create();
         $profile = OwnerProfile::query()->create(['user_id' => $stranger->id, 'agency_id' => $this->agency->id]);
 
@@ -105,10 +112,13 @@ class DocumentVaultOwnerTest extends TestCase
     }
 
     /**
-     * Le coût suit le nombre de BIENS (une règle de lecture par cible), pas celui des documents :
-     * relevé de 2 à 10 biens, chacun avec un bail et un document. La pente est bornée par bien.
+     * TCK-2655 (vérification adverse) — le coût ne dépend PAS du nombre de biens : de 2 à 10 biens,
+     * chacun avec un bail, deux documents et deux états des lieux signés (l'un conduit par le
+     * bailleur : la branche « conducteur »), le même nombre de requêtes. Les règles de lecture sont
+     * jugées sous amorce (`MembershipCapabilityResolver::primed()`). Avant : 42 requêtes à 2 biens,
+     * 114 à 10. Échauffement d'abord : les capacités du rôle se lisent une fois par processus.
      */
-    public function test_the_query_count_per_property_is_bounded(): void
+    public function test_the_query_count_does_not_depend_on_the_number_of_properties(): void
     {
         $this->connecter($this->landlord, $this->ownerProfile);
         $this->coffre();
@@ -119,9 +129,13 @@ class DocumentVaultOwnerTest extends TestCase
             $lease = $this->leaseFor(User::factory()->create(), $property, LeaseStatus::Active);
             $this->document($lease, $this->admin, DocumentType::Other, "Doc {$i}");
             $this->document($property, $this->admin, DocumentType::Other, "Bien {$i}");
+            Inventory::factory()->signed()->create(['lease_id' => $lease->id, 'property_id' => $property->id, 'tenant_id' => $lease->tenant_id, 'conducted_by' => $this->admin->id]);
+            Inventory::factory()->signed()->moveOut()->create(['lease_id' => $lease->id, 'property_id' => $property->id, 'tenant_id' => $lease->tenant_id, 'conducted_by' => $this->landlord->id]);
         }
 
-        $ten = $this->requetes(fn () => $this->coffre());
-        $this->assertLessThanOrEqual(12, intdiv($ten - $two, 8), "{$two} → {$ten}");
+        $vault = $this->coffre();
+        $this->assertCount(10, array_filter(array_column($vault['folders'], 'kind'), fn (string $k) => $k === 'property'));
+        $this->assertCount(1 + 16, array_filter($this->entrees($vault), fn (array $e) => str_starts_with($e['category'], 'inventory_')));
+        $this->assertSame($two, $this->requetes(fn () => $this->coffre()));
     }
 }

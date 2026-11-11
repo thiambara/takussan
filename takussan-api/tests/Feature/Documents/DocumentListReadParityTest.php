@@ -3,6 +3,8 @@
 namespace Tests\Feature\Documents;
 
 use App\Models\Document;
+use App\Models\Enums\LeaseStatus;
+use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Profiles\OwnerProfile;
@@ -121,6 +123,26 @@ class DocumentListReadParityTest extends TestCase
             $this->getJson('/api/documents/generated'.$query)->assertStatus(422)->assertJsonPath('message', __('errors.document.invalid_target'));
         }
         $this->getJson('/api/documents/generated?target=lease:999999999')->assertNotFound();
+    }
+
+    /**
+     * TCK-2655 (vérification adverse) — `documents/generated` d'un bien, au personnel : le même
+     * nombre de requêtes pour 1 bail ou 9 (avant : une de plus par bail, `view` jugé bail par bail).
+     */
+    public function test_the_generated_entries_of_a_property_cost_the_same_whatever_the_leases(): void
+    {
+        $this->connecter($this->agent);
+        $call = fn () => $this->getJson("/api/documents/generated?target=property:{$this->property->id}")->assertOk();
+        $call();
+        $one = $this->requetes($call);
+
+        foreach (range(1, 8) as $_) {
+            $lease = $this->leaseFor(User::factory()->create(), $this->property, LeaseStatus::Expired);
+            Inventory::factory()->signed()->create(['lease_id' => $lease->id, 'property_id' => $this->property->id, 'tenant_id' => $lease->tenant_id, 'conducted_by' => $this->landlord->id]);
+        }
+
+        $this->assertCount(9 + 9, $call()->json('data'));
+        $this->assertSame($one, $this->requetes($call));
     }
 
     public function test_both_routes_refuse_an_anonymous_caller(): void

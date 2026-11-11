@@ -381,7 +381,8 @@ class DocumentPolicy extends BasePolicy
                     && self::auteurEncoreMembre($user, $documentable->conducted_by, $agencyId)
                 : self::auteurEncoreMembre($user, $documentable->conducted_by, $agencyId)
                     || ($agencyId !== null && $documentable->conducted_by === $user->id
-                        && $user->ownerProfiles()->where('agency_id', $agencyId)->exists());
+                        // TCK-2655 (vérification adverse) — la même requête, jugée en mémoire sous amorce.
+                        && BailleurDuBien::tientUnProfil($user, (int) $agencyId));
 
             return $conducteur
                 || ($documentable->property && $bailleur($documentable->property->user_id, $documentable->property->agency_id))

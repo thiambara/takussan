@@ -16,6 +16,7 @@ use App\Models\Property;
 use App\Models\ServiceProviderBill;
 use App\Models\User;
 use App\Policies\DocumentPolicy;
+use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Payout\OwnerStatementSnapshots;
 use App\Services\Property\BailleurDuBien;
 use App\Support\ImpersonationContext;
@@ -24,6 +25,7 @@ use DateTimeInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
@@ -53,8 +55,10 @@ use Illuminate\Support\Facades\Gate;
  * toujours. Un document n'apparaît que dans UN dossier : celui de sa cible quand elle a un dossier,
  * sinon « mes pièces ».
  *
- * **Requêtes** : un nombre constant par échéance (les quittances d'un bail sont une requête, quel que
- * soit leur nombre) ; les règles de lecture s'évaluent par cible (bail, bien, état des lieux).
+ * **Requêtes** : un nombre constant, quel que soit le nombre d'échéances (les quittances d'un bail sont
+ * une requête), de documents, de biens, de baux et d'états des lieux : les règles de lecture sont
+ * celles des policies, jugées sous amorce ({@see self::agenciesInPlay()}) — TCK-2655, vérification
+ * adverse.
  */
 final class DocumentVault
 {
@@ -79,6 +83,58 @@ final class DocumentVault
      * @return array{folders: list<array<string, mixed>>, counts: array{expiring_soon: int, unverified: int}, attachable_targets: list<array<string, mixed>>}
      */
     public function for(User $user, ?Model $activeProfile): array
+    {
+        return MembershipCapabilityResolver::primed(
+            [$user->id],
+            $this->agenciesInPlay($user),
+            fn (): array => $this->build($user, $activeProfile),
+        );
+    }
+
+    /**
+     * TCK-2655 (vérification adverse) — les agences de l'appelant que ses jugements liront : celle de
+     * son profil actif, ou, sans profil actif qui porte une agence (le locataire, le prestataire),
+     * celles de tous ses profils — `User::getAgencyIdAttribute()` les relit alors à chaque jugement
+     * de policy, et les charger une fois l'en dispense.
+     *
+     * @return SupportCollection<int, mixed>
+     */
+    private function ownAgencies(User $user): SupportCollection
+    {
+        $active = $user->activeProfile();
+        if ($active !== null && isset($active->agency_id)) {
+            return collect([$active->agency_id]);
+        }
+        $user->loadMissing(['ownerProfiles', 'agentProfiles', 'agencyAdminProfiles', 'serviceProviderProfile']);
+
+        return $user->profiles()->pluck('agency_id');
+    }
+
+    /**
+     * TCK-2655 (vérification adverse) — les agences pour lesquelles amorcer une fois les verdicts
+     * « personnel », « membre » et « bailleur » de l'appelant ({@see MembershipCapabilityResolver::primed()}),
+     * au lieu d'une requête par bien, bail et état des lieux. Les policies restent les seules juges :
+     * l'amorce rend la réponse de leur requête, et une agence absente n'est qu'une requête de plus,
+     * jamais un autre verdict (gardé par `DocumentVaultPrimedVerdictParityTest`).
+     *
+     * Pour le COFFRE, les agences de l'APPELANT suffisent, mesuré : les règles ne demandent une agence
+     * que pour le personnel de l'appelant (`staffAgencyId()`, son agence) ou quand une colonne le
+     * désigne lui-même (bailleur, conducteur, auteur) — et le coffre ne range que les biens de l'agence
+     * du profil actif. Y ajouter les agences des baux et des biens jugés (trois requêtes) n'a retiré
+     * aucune requête aux décors de `DocumentVaultOwnerTest` et `DocumentVaultTenantTest` (ablation).
+     * `documents/generated` vise une cible quelconque : il y ajoute les agences de la cible.
+     *
+     * @return list<int>
+     */
+    private function agenciesInPlay(User $user): array
+    {
+        return $this->ownAgencies($user)->filter()->map(fn ($id) => (int) $id)->unique()->values()->all();
+    }
+
+    /**
+     * @return array{folders: list<array<string, mixed>>, counts: array{expiring_soon: int, unverified: int}, attachable_targets: list<array<string, mixed>>}
+     */
+    private function build(User $user, ?Model $activeProfile): array
     {
         $this->user = $user;
         $this->policy = app(DocumentPolicy::class);
@@ -156,15 +212,31 @@ final class DocumentVault
      */
     public function generatedFor(User $user, Lease|Property $target): array
     {
+        $leases = $target instanceof Lease
+            ? new Collection([$target->loadMissing(['property', 'tenant'])])
+            : $target->leases()->with(['property', 'tenant'])->get();
+        // Une cible hors du périmètre du profil actif (la double casquette : agent de A, bailleur
+        // de B, qui lit son bien de B) : ses agences, lues sur les modèles déjà chargés, s'ajoutent.
+        $agencies = $leases->pluck('agency_id')
+            ->merge($leases->map(fn (Lease $lease) => $lease->property?->agency_id))
+            ->push($target instanceof Property ? $target->agency_id : $target->property?->agency_id)
+            ->merge($this->agenciesInPlay($user));
+
+        return MembershipCapabilityResolver::primed([$user->id], $agencies, fn (): array => $this->generatedOf($user, $target, $leases));
+    }
+
+    /**
+     * @param  Collection<int, Lease>  $leases
+     * @return list<array<string, mixed>>
+     */
+    private function generatedOf(User $user, Lease|Property $target, Collection $leases): array
+    {
         $this->user = $user;
         $this->policy = app(DocumentPolicy::class);
         $this->folders = ['target' => ['key' => 'target', 'kind' => 'target', 'entries' => []]];
         $this->folderOfTarget = [];
         $this->targetsOf = [];
 
-        $leases = $target instanceof Lease
-            ? new Collection([$target->loadMissing(['property', 'tenant'])])
-            : $target->leases()->with(['property', 'tenant'])->get();
         foreach ($leases as $lease) {
             $targets = [['type' => 'lease', 'id' => $lease->id]];
             if ($lease->property_id !== null) {

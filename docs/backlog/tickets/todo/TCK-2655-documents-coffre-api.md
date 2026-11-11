@@ -160,9 +160,21 @@ Implémenté le 2026-11-11 (agent back-3).
 PostgreSQL (colonnes choisies à côté d'un agrégat) ; `select([])` avant l'agrégat, épinglé.
 
 **Requêtes** : constant par échéance et par document (3 → 36 échéances, 3 → 13 documents : même
-compte). Les règles de lecture s'évaluent par cible : ~4 requêtes par état des lieux, ~7 par bien au
-coffre du bailleur (42 à 2 biens, 98 à 10). La pente vient du rechargement des profils de
-l'appelant par chaque jugement de policy, pas du coffre.
+compte), et — depuis la vérification adverse (refus du 2026-11-11 : ~9 requêtes par bien) — constant
+par bien, bail et état des lieux. Le coffre et `documents/generated` jugent leurs cibles sous
+`MembershipCapabilityResolver::primed()` (nouvelle sorte paresseuse `owner_any` : un profil
+propriétaire de tout statut, la portée de `BailleurDuBien::est()`, désormais lue par
+`BailleurDuBien::tientUnProfil()`, que lisent aussi les branches « conducteur » d'`InventoryPolicy::view`
+et de `DocumentPolicy::reaches`) ; sans profil actif porteur d'agence (le locataire), les profils de
+l'appelant sont chargés une fois ; `mayReadReceipts()` s'évalue paresseusement. L'amorce du coffre
+porte les agences de l'appelant (celles des cibles n'y retirent aucune requête, mesuré) ; celle de
+`documents/generated` y ajoute les agences de la cible (la double casquette lit un bien hors de son
+profil actif). Les policies restent
+les seules juges : `DocumentVaultPrimedVerdictParityTest` compare, personne par personne, profil actif
+par profil actif et cible par cible, les verdicts amorcés et non amorcés. Mesuré : bailleur 42 / 114 /
+294 requêtes à 2 / 10 / 30 biens → 31 / 31 / 31 ; locataire 49 → 249 (1 → 9 baux) → 28 constant ;
+`documents/generated` d'un bien 16 → 24 (1 → 9 baux) → 18 constant ; coffre de l'agent 14 → 18 et de
+l'admin 15 → 19 (le coût fixe de l'amorce).
 
 **/sync-specs** : `docs/features.md` §1.10 (coffre, `documents/generated`, alias de cible,
 `expiring_within_days`, `meta.expiring_soon`/`unverified`) ; `docs/models-spec.md` §22 (règle de liste

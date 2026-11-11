@@ -33,7 +33,8 @@ class InventoryPolicy extends BasePolicy
             // profil de bailleur de tout statut (le bailleur bloqué garde la lecture).
             || $this->auteurEncoreMembre($user, $model->conducted_by, $property?->agency_id)
             || ($property?->agency_id !== null && $model->conducted_by === $user->id
-                && $user->ownerProfiles()->where('agency_id', $property->agency_id)->exists())
+                // TCK-2655 (vérification adverse) — la même requête, jugée en mémoire sous amorce.
+                && BailleurDuBien::tientUnProfil($user, (int) $property->agency_id))
             // TCK-1928 (P190.01, décision du porteur) — le bailleur du bien, de tout statut ; plus
             // l'agent qui l'a saisi (`properties.user_id`), jugé au titre du personnel.
             || ($property && BailleurDuBien::est($user, $property->user_id, $property->agency_id))

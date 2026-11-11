@@ -2,10 +2,15 @@
 
 namespace Tests\Feature\Documents;
 
+use App\Models\Agency;
 use App\Models\Enums\DocumentType;
 use App\Models\Enums\LeasePaymentType;
+use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Inventory;
+use App\Models\Profiles\OwnerProfile;
+use App\Models\Property;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\CoffreDeDocuments;
 use Tests\TestCase;
@@ -105,9 +110,7 @@ class DocumentVaultTenantTest extends TestCase
     }
 
     /**
-     * Le coût est constant par échéance et par document : 3 échéances ou 36, 3 documents ou 13. Les
-     * règles de lecture s'évaluent par CIBLE (bail, état des lieux) : un état des lieux de plus coûte
-     * un nombre borné de requêtes, relevé ici pour qu'une pente par échéance ne s'y cache pas.
+     * Le coût est constant par échéance et par document : 3 échéances ou 36, 3 documents ou 13.
      */
     public function test_the_query_count_does_not_grow_with_the_installments_nor_the_documents(): void
     {
@@ -127,11 +130,36 @@ class DocumentVaultTenantTest extends TestCase
         $this->assertCount(36, array_filter($this->entrees($vault), fn (array $e) => str_starts_with($e['category'], 'receipt_')));
         $this->assertCount(13, array_filter($this->entrees($vault), fn (array $e) => $e['kind'] === 'uploaded'));
         $this->assertSame($few, $this->requetes(fn () => $this->coffre()));
+    }
 
-        Inventory::factory()->signed()->moveOut()->create([
-            'lease_id' => $this->lease->id, 'property_id' => $this->property->id,
-            'tenant_id' => $this->lease->tenant_id, 'conducted_by' => $this->admin->id,
-        ]);
-        $this->assertLessThanOrEqual($few + 8, $this->requetes(fn () => $this->coffre()));
+    /**
+     * TCK-2655 (vérification adverse) — ni par bail ni par état des lieux : de 1 à 7 baux, répartis
+     * sur deux agences, chacun avec ses états des lieux signés (l'un conduit par le bailleur), une
+     * échéance payée et un document, le même nombre de requêtes. Avant : 49 requêtes pour un bail,
+     * 249 pour neuf (les profils de l'appelant relus à chaque jugement de policy).
+     */
+    public function test_the_query_count_does_not_depend_on_the_number_of_leases(): void
+    {
+        $this->connecter($this->tenant);
+        $this->coffre();
+        $one = $this->requetes(fn () => $this->coffre());
+
+        $agencyB = Agency::factory()->create();
+        $landlordB = User::factory()->create();
+        OwnerProfile::query()->create(['user_id' => $landlordB->id, 'agency_id' => $agencyB->id]);
+        foreach (range(1, 6) as $i) {
+            [$agency, $landlord] = $i % 2 === 0 ? [$this->agency, $this->landlord] : [$agencyB, $landlordB];
+            $property = Property::factory()->create(['agency_id' => $agency->id, 'user_id' => $landlord->id]);
+            $lease = $this->leaseFor($this->tenant, $property, LeaseStatus::Active);
+            Inventory::factory()->signed()->create(['lease_id' => $lease->id, 'property_id' => $property->id, 'tenant_id' => $lease->tenant_id, 'conducted_by' => $this->admin->id]);
+            Inventory::factory()->signed()->moveOut()->create(['lease_id' => $lease->id, 'property_id' => $property->id, 'tenant_id' => $lease->tenant_id, 'conducted_by' => $landlord->id]);
+            $this->payment($lease, LeasePaymentType::Rent, PaymentStatus::Paid, '2026-03-05');
+            $this->document($lease, $this->admin, DocumentType::Other, "Bail {$i}");
+        }
+
+        $vault = $this->coffre();
+        $this->assertCount(7, array_filter(array_column($vault['folders'], 'kind'), fn (string $k) => $k === 'lease'));
+        $this->assertCount(13, array_filter($this->entrees($vault), fn (array $e) => str_starts_with($e['category'], 'inventory_')));
+        $this->assertSame($one, $this->requetes(fn () => $this->coffre()));
     }
 }

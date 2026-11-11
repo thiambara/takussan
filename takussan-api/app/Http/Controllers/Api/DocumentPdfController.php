@@ -206,26 +206,31 @@ class DocumentPdfController extends Controller
      */
     public static function mayReadReceipts(User $user, Lease $lease): bool
     {
+        // TCK-2655 (vérification adverse) — la même disjonction, évaluée paresseusement : le coffre la
+        // juge pour chaque bail du locataire, et la branche collaborateur coûte une requête.
         $isTenant = $lease->tenant && $lease->tenant->user_id === $user->id;
         $isLandlord = $lease->landlord_id === $user->id;
+        if ($user->isSuperAdmin() || $isTenant || $isLandlord) {
+            return true;
+        }
         // TCK-587 — le PERSONNEL de l'agence du bail (ADR-0031) : un autre bailleur de l'agence
         // téléchargeait la quittance. La branche collaborateur, propre à ce geste, reste.
         $staffAgencyId = $user->staffAgencyId();
-        $isAgency = $staffAgencyId !== null && $staffAgencyId === (int) $lease->agency_id;
+        if ($staffAgencyId !== null && $staffAgencyId === (int) $lease->agency_id) {
+            return true;
+        }
         // TCK-1154 (P86.04) — le collaborateur `agent` ou `manager` accepté, encore personnel de
         // l'agence du bail, comme `BookingStakeholders::collaboratorsOf`. Sans condition de rôle, un
         // `viewer` accepté téléchargeait la quittance d'un bien que `PropertyPolicy` lui refuse.
         $collabAgencyId = $lease->agency_id ?? $lease->property?->agency_id;
-        $isCollab = $collabAgencyId !== null
+
+        return $collabAgencyId !== null
             && (bool) $lease->property?->collaborators()
                 ->where('user_id', $user->id)
                 ->whereNotNull('accepted_at')
                 ->whereIn('role', [CollaboratorRole::Agent->value, CollaboratorRole::Manager->value])
                 ->exists()
             && app(MembershipCapabilityResolver::class)->isStaffAt($user, (int) $collabAgencyId);
-        $isAdmin = $user->isSuperAdmin();
-
-        return $isAdmin || $isTenant || $isLandlord || $isAgency || $isCollab;
     }
 
     /**

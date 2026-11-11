@@ -4,6 +4,7 @@ namespace App\Services\Property;
 
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
+use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 
 /**
@@ -30,10 +31,23 @@ final class BailleurDuBien
             return false;
         }
 
-        return $agencyId === null || OwnerProfile::query()
-            ->where('user_id', $user->id)
-            ->where('agency_id', (int) $agencyId)
-            ->exists();
+        return $agencyId === null || self::tientUnProfil($user, (int) $agencyId);
+    }
+
+    /**
+     * L'utilisateur détient-il un profil propriétaire dans l'agence, de TOUT statut ? La moitié
+     * « agence » de {@see self::est()}, que lisent aussi les branches « conducteur » des états des
+     * lieux (`InventoryPolicy::view`, `DocumentPolicy`). TCK-2655 (vérification adverse) — jugée en
+     * mémoire dans une liste amorcée (`MembershipCapabilityResolver::primed()`, sorte `owner_any`),
+     * une requête sinon : le coffre de documents la posait une fois par bien, bail et état des lieux.
+     */
+    public static function tientUnProfil(User $user, int $agencyId): bool
+    {
+        return MembershipCapabilityResolver::amorce('owner_any', (int) $user->id, $agencyId)
+            ?? OwnerProfile::query()
+                ->where('user_id', $user->id)
+                ->where('agency_id', $agencyId)
+                ->exists();
     }
 
     /**
