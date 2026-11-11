@@ -355,6 +355,7 @@ Signalement et suivi des problèmes techniques sur un bien loué.
 | P3 | 🧑‍💼 | Contrats de maintenance récurrents |
 | P3 | 👤🏢 | Annuaire public des prestataires, sur consentement du prestataire, contact via la plateforme |
 | P1 | 🧑‍💼🔧🏢🏠 | Files par état d'attente : chaque demande est, d'après son statut, son prestataire et son créneau, dans une seule file — à dispatcher, en cours, en retard (créneau dépassé), chez le bailleur, à confirmer par le locataire, terminées — et dit qui doit agir et depuis quand (table ci-dessous) ; prestataires suggérés par métier, zone, note et interventions réalisées (TCK-2652, TCK-2653) |
+| P1 | 🧑‍💼🏢🔧 | Prestataires suggérés par métier : chaque catégorie de demande est servie par des métiers définis en code — plomberie → plomberie, électricité → électricité, structure → maçonnerie, électroménager → climatisation puis électricité, peinture → peinture, nettoyage → nettoyage, nuisibles → désinsectisation, serrurerie → serrurerie, autre → aucune suggestion ; la catégorie elle-même désigne aussi (métiers cochés à l'invitation par l'agence) ; le métier affiché est le premier de la liste que le prestataire exerce ; le prestataire peut déclarer « Nettoyage » et « Désinsectisation » (TCK-2713) |
 | P1 | 🏠 | Le locataire demandeur ne voit ni le coût estimé, ni le coût réel, ni le devis ; le donneur d'ordre, le bailleur du bien et le prestataire assigné les voient (TCK-2652, TCK-2654) |
 | P1 | 🔧 | Le prestataire n'accepte ni ne refuse une intervention terminée, close ou annulée (TCK-2652) |
 

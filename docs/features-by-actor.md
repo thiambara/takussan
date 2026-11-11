@@ -39,9 +39,9 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 1. [👤 Visiteur anonyme (pas encore de compte)](#visiteur-anonyme-pas-encore-de-compte) — 49 fonctionnalités
 2. [🏠 Locataire / Acheteur (Customer)](#locataire-acheteur-customer) — 106 fonctionnalités
-3. [🏢 Bailleur / Propriétaire (owner)](#bailleur-propriétaire-owner) — 106 fonctionnalités
-4. [🧑‍💼 Agent immobilier](#agent-immobilier) — 157 fonctionnalités
-5. [🔧 Prestataire de service (service provider)](#prestataire-de-service-service-provider) — 23 fonctionnalités
+3. [🏢 Bailleur / Propriétaire (owner)](#bailleur-propriétaire-owner) — 107 fonctionnalités
+4. [🧑‍💼 Agent immobilier](#agent-immobilier) — 158 fonctionnalités
+5. [🔧 Prestataire de service (service provider)](#prestataire-de-service-service-provider) — 24 fonctionnalités
 6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 178 fonctionnalités
 7. [👥 Tous les utilisateurs authentifiés](#tous-les-utilisateurs-authentifiés) — 96 fonctionnalités
 
@@ -421,6 +421,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P3 | §1.8 | Facturation directe prestataire → agence : à la fin d'une intervention, facture du prestataire générée (devis approuvé ou coût réel), validée par l'agence, payée par mobile money et imputable au reversement du bailleur (TCK-594) ; la contestation ou l'annulation de l'intervention annule la facture encore ouverte et non engagée, une facture déjà payée ou refacturée reste avec un avis à l'agence, et seule une intervention terminée ou close voit sa facture validée, payée ou refacturée (TCK-2270) |
 | P3 | §1.8 | Annuaire public des prestataires, sur consentement du prestataire, contact via la plateforme |
 | P1 | §1.8 | Files par état d'attente : chaque demande est, d'après son statut, son prestataire et son créneau, dans une seule file — à dispatcher, en cours, en retard (créneau dépassé), chez le bailleur, à confirmer par le locataire, terminées — et dit qui doit agir et depuis quand (table ci-dessous) ; prestataires suggérés par métier, zone, note et interventions réalisées (TCK-2652, TCK-2653) |
+| P1 | §1.8 | Prestataires suggérés par métier : chaque catégorie de demande est servie par des métiers définis en code — plomberie → plomberie, électricité → électricité, structure → maçonnerie, électroménager → climatisation puis électricité, peinture → peinture, nettoyage → nettoyage, nuisibles → désinsectisation, serrurerie → serrurerie, autre → aucune suggestion ; la catégorie elle-même désigne aussi (métiers cochés à l'invitation par l'agence) ; le métier affiché est le premier de la liste que le prestataire exerce ; le prestataire peut déclarer « Nettoyage » et « Désinsectisation » (TCK-2713) |
 
 ### §1.9 État des lieux & inventaires
 
@@ -655,6 +656,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P2 | §1.8 | Noter le prestataire après une intervention terminée (1 à 5 + commentaire) ; note agrégée visible des agences dans le carnet (TCK-597) |
 | P3 | §1.8 | Contrats de maintenance récurrents |
 | P1 | §1.8 | Files par état d'attente : chaque demande est, d'après son statut, son prestataire et son créneau, dans une seule file — à dispatcher, en cours, en retard (créneau dépassé), chez le bailleur, à confirmer par le locataire, terminées — et dit qui doit agir et depuis quand (table ci-dessous) ; prestataires suggérés par métier, zone, note et interventions réalisées (TCK-2652, TCK-2653) |
+| P1 | §1.8 | Prestataires suggérés par métier : chaque catégorie de demande est servie par des métiers définis en code — plomberie → plomberie, électricité → électricité, structure → maçonnerie, électroménager → climatisation puis électricité, peinture → peinture, nettoyage → nettoyage, nuisibles → désinsectisation, serrurerie → serrurerie, autre → aucune suggestion ; la catégorie elle-même désigne aussi (métiers cochés à l'invitation par l'agence) ; le métier affiché est le premier de la liste que le prestataire exerce ; le prestataire peut déclarer « Nettoyage » et « Désinsectisation » (TCK-2713) |
 
 ### §1.9 État des lieux & inventaires
 
@@ -762,6 +764,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P2 | §1.8 | Kit d'accès au logement (adresse, itinéraire, téléphone du locataire, consignes) pendant l'intervention acceptée (TCK-592) |
 | P3 | §1.8 | Facturation directe prestataire → agence : à la fin d'une intervention, facture du prestataire générée (devis approuvé ou coût réel), validée par l'agence, payée par mobile money et imputable au reversement du bailleur (TCK-594) ; la contestation ou l'annulation de l'intervention annule la facture encore ouverte et non engagée, une facture déjà payée ou refacturée reste avec un avis à l'agence, et seule une intervention terminée ou close voit sa facture validée, payée ou refacturée (TCK-2270) |
 | P1 | §1.8 | Files par état d'attente : chaque demande est, d'après son statut, son prestataire et son créneau, dans une seule file — à dispatcher, en cours, en retard (créneau dépassé), chez le bailleur, à confirmer par le locataire, terminées — et dit qui doit agir et depuis quand (table ci-dessous) ; prestataires suggérés par métier, zone, note et interventions réalisées (TCK-2652, TCK-2653) |
+| P1 | §1.8 | Prestataires suggérés par métier : chaque catégorie de demande est servie par des métiers définis en code — plomberie → plomberie, électricité → électricité, structure → maçonnerie, électroménager → climatisation puis électricité, peinture → peinture, nettoyage → nettoyage, nuisibles → désinsectisation, serrurerie → serrurerie, autre → aucune suggestion ; la catégorie elle-même désigne aussi (métiers cochés à l'invitation par l'agence) ; le métier affiché est le premier de la liste que le prestataire exerce ; le prestataire peut déclarer « Nettoyage » et « Désinsectisation » (TCK-2713) |
 | P1 | §1.8 | Le prestataire n'accepte ni ne refuse une intervention terminée, close ou annulée (TCK-2652) |
 
 ### §1.10 Documents & contrats
@@ -1194,8 +1197,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 ## Provenance
 
-- Source : [`features.md`](./features.md) — **518** lignes de fonctionnalité lues,
-  réparties en **715** placements (une ligne multi-acteurs compte une fois par acteur).
+- Source : [`features.md`](./features.md) — **519** lignes de fonctionnalité lues,
+  réparties en **718** placements (une ligne multi-acteurs compte une fois par acteur).
 - Générateur : `docs/gen-features-by-actor.mjs`.
 - Fraîcheur vérifiée en CI par `node docs/gen-features-by-actor.mjs --check`, qui échoue si
   cette sortie ne correspond plus à sa source.

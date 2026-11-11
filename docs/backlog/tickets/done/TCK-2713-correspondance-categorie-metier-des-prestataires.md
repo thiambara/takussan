@@ -1,7 +1,7 @@
 ---
 id: TCK-2713
 title: "Prestataires suggérés : une correspondance catégorie de demande → métiers, et deux métiers neufs (nettoyage, lutte contre les nuisibles)"
-status: todo
+status: done
 phase: P1
 family: back
 estimate: S
@@ -80,3 +80,9 @@ Décision du porteur du 2026-11-11 (recommandation de la session, validée) :
   prestataires sortait `masonry` et `climate_control` bruts : leurs libellés sont ajoutés à
   `serviceProviders.invite.trades`. **Suivi** : un seul vocabulaire (recommandation : les métiers
   partout, et une migration des valeurs de catégorie déjà écrites).
+
+## Vérification (2026-11-11)
+
+Code fusionné sur `dev` par #1666 (b92535599). Vérification adverse acceptée : les 5 AC tiennent, 15 ablations sur 15 rougissent, aucune migration n'est requise (`specialties` est un jsonb libre). Deux défauts mineurs, épinglés au lot 2 de l'audit :
+- les libellés maçonnerie et climatisation du carnet des prestataires n'avaient pas de test ;
+- le récapitulatif de l'onboarding prestataire affiche les métiers en codes bruts, ce qui était déjà le cas avant ce ticket.
