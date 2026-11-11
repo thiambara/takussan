@@ -29,7 +29,9 @@ class UpdateTaskRequest extends BaseFormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->can('view', $this->route('task')) === true;
+        // TCK-2595 — `update` et non plus `view` : la lecture d'équipe (`TaskPolicy::readsAsTeam`)
+        // ouvre la tâche d'un collègue, pas sa modification.
+        return $this->user()?->can('update', $this->route('task')) === true;
     }
 
     /** @return array<string, mixed> */

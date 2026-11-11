@@ -7,7 +7,7 @@ family: back
 estimate: S
 wave: 89
 created: 2026-11-10
-updated: 2026-11-10
+updated: 2026-11-11
 depends_on: []
 blocks: [TCK-2596]
 spec_refs:
@@ -62,4 +62,14 @@ La tâche « Faire signer l'état des lieux d'entrée » dit de quel logement il
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Livré (2026-11-11, back-3).**
+
+- **Prémisse re-mesurée** : la cause de « Un bien » tenait (`taskable()` jugé sous `attachTo` = `PropertyPolicy::update` pour un bien). Deux écarts : (1) l'assigné était DÉJÀ servi en `assignee: {id, name}` sur toute ligne ; `include=assignedTo` est ajouté comme demandé (relation `Task::assignedTo`, clé `assigned_to` présente seulement quand elle est incluse). (2) **Le rôle système `agent` tient `crm.view_all`** (`SystemRoleCapabilities::agent`) : un agent au rôle par défaut reçoit donc la vue d'équipe (200) ; le 403 de AC3 vaut pour un agent dont le rôle d'agence n'a pas la capacité. **Décision de la session (2026-11-11)** : la vue d'équipe se juge sur la capacité `crm.view_all`, pas sur le rôle — principe du dépôt ; un agent qui lit déjà toutes les fiches de l'agence peut lire les tâches de l'équipe.
+- **`taskable`** `{type, id, label, phone, subtitle, cover_url}` : libellé, téléphone, `subtitle` (quartier du bien ; téléphone du client en E.164 par `TelephoneSaisi::normaliser`, mis en forme par le front) et `cover_url` (vignette `thumbnail` du bien par `PublicPhotoUrl`, filigrane respecté, `WatermarkRequirement::attach` pour la page) se lisent sous `view` du parent (`CustomerPolicy::view`, `PropertyPolicy::view`). `attachTo` reste la règle de `store` (docblock de `TaskPolicy::attachTo` mis à jour). L'index charge `address` et `media` des biens parents (`morphWith`).
+- **`filter[due]`** : liste séparée par des virgules (`overdue,today`), union des périodes, valeur inconnue ignorée dans la liste (seule : rien), `filter[due][]=` toujours une valeur absente (rien — TCK-1407, ADR-0075) ; `delimiter('')` pour distinguer la chaîne du tableau.
+- **`filter[team]=1`** : 403 sans personnel actif dans l'agence du profil actif ou sans `crm.view_all` là ; la portée REMPLACE « mes tâches » : tâches assignées au personnel actif de cette agence (profil agent ou admin actif, ou délégation active, compte ni bloqué ni supprimé — la règle de `filter[assignable]` des membres) ET dont le parent est dans cette agence (`parentInAgency`) ; jamais une tâche personnelle sans parent, jamais une autre agence. `filter[assigned_to_id]` isole un agent. `filter[team]=0` = la liste habituelle.
+- **Lecture d'équipe (décision de la session, 2026-11-11 : une ligne qu'on liste s'ouvre)** : `TaskPolicy::view` accorde la tâche d'un collègue à qui tient `crm.view_all` dans l'agence active, exactement dans la portée de `filter[team]=1` (assignée au personnel actif de l'agence, parent dans l'agence) — `readsAsTeam`, sur la même définition d'agence que l'index (`TaskPolicy::teamAgencyOf`, seule source). `update` ne dérive plus de `view` : il garde la règle d'avant (créateur, assigné, suppléant — `participates`), et `UpdateTaskRequest::authorize` délègue à `update` (il déléguait à `view`). `delete` inchangé.
+- **Tests** : `TaskParentLabelTest` (AC1 + bien privé d'un bailleur → tout `null` + client), `TaskDueListFilterTest`, `TaskTeamFilterTest` (dont : parité « toute ligne de `filter[team]=1` s'ouvre en `show` », l'admin lit sans modifier/cocher/supprimer, autre agence et sans `crm.view_all` → 403, tâches hors portée → 403) ; `TaskAuthorizationTest` mis à jour (deux clés neuves dans la forme exacte de `taskable`).
+- **Ablations** (une à une, restaurées par copie, md5 vérifié) : AC1 `attachTo` au lieu de `view` → 1 rouge ; AC2 sans `delimiter('')` → 4 rouges ; AC3 sans `crm.view_all` → 1 rouge ; AC3 sans `parentInAgency` → 2 rouges ; lecture d'équipe retirée de `view` → 2 rouges ; `UpdateTaskRequest` rendu à `view` → 1 rouge (l'admin modifiait).
+- **/sync-specs** : `docs/models-spec.md` § 32 (`taskable.subtitle`/`cover_url`, règle de lecture du libellé, `filter[due]` en liste, `filter[team]`, `include=assignedTo`) ; `docs/features.md` § 16 (vue d'équipe des tâches).
+
