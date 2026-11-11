@@ -32,8 +32,8 @@ Reste de TCK-2659, mesuré par terrain-5 sur la démo (2026-11-11) :
   liste **toutes** les lignes de bail payées dans la période, **cautions comprises** (`LeasePaymentType::Deposit`) ;
 - la tuile « Encaissé » les **exclut** : elle somme `CollectedPayments::leaseIncome()`, dont les types sont
   `LEASE_INCOME_TYPES` = loyer, charges, régularisation, pénalité ;
-- en octobre sur la démo, **7 cautions pour 24 615 000 F** : le total du registre dépasse la tuile d'autant, sans que
-  l'écran le dise.
+- sur la démo, **7 cautions pour 24 615 000 F en octobre** et **6 pour 10 255 000 F en novembre** : le total du
+  registre dépasse la tuile d'autant, sans que l'écran le dise.
 
 `meta.totals` (`PaymentController::history`) vaut aujourd'hui `{count, amount, paid_amount, remaining_amount}`, sommés sur
 toute la sélection (avant la page) ; chaque ligne de bail porte déjà `payment_type`.

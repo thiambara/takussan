@@ -2,7 +2,7 @@
 
 - **Statut** : Accepté, **amendé le 2026-10-25** (cf. § *Amendement du 2026-10-25 — un renouvellement ne reporte pas les garants*) et **le 2026-11-10** (cf. § *Amendement du 2026-11-10 — les charges sont un terme du bail*)
 - **Date** : 2026-10-08
-- **Tickets** : [TCK-596](../backlog/tickets/done/TCK-596-cycle-locatif-conge-annulation-signature-edl.md) (O17), [TCK-2679](../backlog/tickets/todo/TCK-2679-charges-du-bail-terme-du-contrat.md) (charges du bail)
+- **Tickets** : [TCK-596](../backlog/tickets/done/TCK-596-cycle-locatif-conge-annulation-signature-edl.md) (O17), [TCK-2679](../backlog/tickets/done/TCK-2679-charges-du-bail-terme-du-contrat.md) (charges du bail)
 - **Précise** : [ADR-0031](0031-personnel-de-l-agence-et-cloisonnement-des-bailleurs.md) (qui signe pour
   le bailleur, bailleur suspendu), [ADR-0032](0032-l-api-n-ecrit-plus-de-prose.md) (notifications par
   code).
@@ -201,7 +201,7 @@ cautionnement suit le bail renouvelé (OHADA). Que le rattachement d'un garant �
 
 ## Amendement du 2026-11-10 — les charges sont un terme du bail
 
-- **Ticket** : [TCK-2679](../backlog/tickets/todo/TCK-2679-charges-du-bail-terme-du-contrat.md).
+- **Ticket** : [TCK-2679](../backlog/tickets/done/TCK-2679-charges-du-bail-terme-du-contrat.md).
 - **Décision du porteur** (2026-11-10, point n° 7, option b) : les charges du bail entrent dans le lot de l'audit UX de la partie connectée ([ADR-0100](0100-une-page-paiements-par-public.md) § 6).
 
 **Constat** (relevé sur `dev`, 1bce3798a). Le bien porte `monthly_charges` (§ 1.1) ; le bail n'a **aucune** colonne de charges. Le type d'échéance `charges` existe (`LeasePaymentType::Charges`), avec son reçu (`DocumentPdfController`) et sa place dans l'encaissé et les reversements (`CollectedPayments`, `PayoutCalculator`), mais seule la saisie manuelle en crée (`POST leases/{lease}/payments`) : l'échéancier (`LeaseService::generateSchedule`) n'écrit que le loyer et la caution. Le contrat (`pdf.leases.contract`) n'imprime aucune charge.
