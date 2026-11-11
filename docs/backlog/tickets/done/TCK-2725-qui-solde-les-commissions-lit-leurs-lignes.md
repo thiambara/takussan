@@ -1,7 +1,7 @@
 ---
 id: TCK-2725
 title: "Qui solde les commissions de l'équipe en lit les lignes : le grand livre s'ouvre à « approuver les reversements »"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: S

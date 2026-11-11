@@ -1,7 +1,7 @@
 ---
 id: TCK-2736
 title: "Messagerie : l'URL signée d'une pièce jointe ne reste pas lisible 30 minutes après le départ d'un membre"
-status: todo
+status: done
 phase: P1
 family: full
 estimate: S
@@ -86,3 +86,13 @@ gardée par la policy de la conversation.
 ## Notes d'implémentation
 
 _(À remplir pendant l'implémentation.)_
+
+Vérification (2026-11-11) — API acceptée par verif-patrimoine (06188fe65), front accepté par verif-commercial
+au navigateur (935adb23d) ; trous de test fermés (fa013e886 : le membre retiré ; l'âge qui repart sur l'URL neuve).
+- **Fenêtre réelle sur R2 : jusqu'à ~10 min, pas 5.** Le lien signé ouvert à T+4:59 redirige vers une URL
+  présignée R2 de 5 min émise au clic (`PrivateMediaAccess::redirect()`, hors périmètre de ce ticket) : un
+  membre retiré peut donc lire le fichier jusqu'à ~T+10. Les tests ne le voient pas (disque local servi
+  directement). À porter au porteur si la fenêtre doit être stricte.
+- Une relecture du fil re-signe toutes les pièces et coupe une note vocale en cours de lecture (mesuré : 2,5 s → 0) ;
+  c'était déjà vrai au retour de focus. Sur un fil devenu illisible, un onglet blanc s'ouvre brièvement puis se
+  referme. Le clic du milieu ouvre l'ancienne URL (limite documentée dans PieceJointeDuFil).
