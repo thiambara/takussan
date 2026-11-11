@@ -74,6 +74,7 @@ class DashboardOwnerService
         $bookingIncome = $this->metrics->bookingIncomeByMonth($scope, $monthStart, $monthEnd);
         $netPaidOut = $this->metrics->netPaidOutByMonth($scope, $monthStart, $monthEnd);
         $shortStay = $this->metrics->shortStayOccupancy($scope, $monthStart, $monthEnd);
+        $occupancyToday = $this->metrics->longStayOccupancyToday($scope);
         $overdue = $this->metrics->overdue($scope);
         $month = $monthStart->format('Y-m');
 
@@ -112,8 +113,11 @@ class DashboardOwnerService
                     'received_amount' => round((float) $leases->rent_received_amount, 2),
                 ],
             ],
+            // TCK-2626 — le taux du jour rendu avec sa base ; les clés d'avant gardent nom et sens.
             'occupancy' => [
-                'rate_percent' => $this->metrics->longStayOccupancyToday($scope),
+                'rate_percent' => $occupancyToday['rate_percent'],
+                'eligible_count' => $occupancyToday['eligible_count'],
+                'occupied_count' => $occupancyToday['occupied_count'],
                 'short_stay_percent' => $shortStay[$month] ?? null,
             ],
             'maintenance' => [

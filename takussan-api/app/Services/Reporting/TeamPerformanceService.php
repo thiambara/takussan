@@ -15,6 +15,7 @@ use App\Models\Lease;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Property;
 use App\Models\PropertyCollaborator;
+use App\Models\PropertyContactLead;
 use App\Models\PropertyVisit;
 use App\Models\Task;
 use Carbon\CarbonInterface;
@@ -28,7 +29,7 @@ use Illuminate\Support\Facades\DB;
  *
  * Chaque indicateur est UNE requête groupée par agent, quel que soit l'effectif. Le nombre de
  * requêtes ne dépend donc pas de la taille de l'équipe. Les indicateurs de période (baux, ventes,
- * visites, clients, commissions) lisent le mois demandé. `properties_managed` et `tasks_overdue`
+ * visites, demandes traitées, clients, commissions) lisent le mois demandé. `properties_managed` et `tasks_overdue`
  * sont à date.
  */
 class TeamPerformanceService
@@ -80,6 +81,13 @@ class TeamPerformanceService
             ->groupBy('beneficiary_id')
             ->pluck('total', 'beneficiary_id');
 
+        // TCK-2626 — demandes traitées : celles que l'agent a marquées traitées (`handled_by_id`) dans
+        // le mois, sur l'agence. Même bornes que les autres colonnes de période.
+        $leadsHandled = $this->countBy(PropertyContactLead::query()
+            ->where('agency_id', $agencyId)
+            ->whereIn('handled_by_id', $ids)
+            ->whereBetween('handled_at', [$from, $to]), 'handled_by_id');
+
         // Propriétaire OU collaborateur `agent|manager` : l'UNION dédoublonne le bien que l'agent
         // possède et sur lequel il collabore aussi. P198.04 (TCK-1912) — hors des biens sortis du
         // portefeuille, comme les « Biens gérés » de l'accueil de l'agent (TCK-1359).
@@ -116,7 +124,7 @@ class TeamPerformanceService
 
         return [
             'period' => $from->format('Y-m'),
-            'agents' => $agents->map(function (AgentProfile $profile) use ($signed, $visits, $customers, $commissions, $managed, $overdue): array {
+            'agents' => $agents->map(function (AgentProfile $profile) use ($signed, $visits, $customers, $commissions, $managed, $overdue, $leadsHandled): array {
                 $id = (int) $profile->user_id;
                 $user = $profile->user;
 
@@ -126,6 +134,7 @@ class TeamPerformanceService
                     'leases_signed' => (int) ($signed[$id]->leases ?? 0),
                     'sales_signed' => (int) ($signed[$id]->sales ?? 0),
                     'visits_completed' => (int) ($visits[$id] ?? 0),
+                    'leads_handled' => (int) ($leadsHandled[$id] ?? 0),
                     'customers_added' => (int) ($customers[$id] ?? 0),
                     'commissions_earned' => round((float) ($commissions[$id] ?? 0), 2),
                     'properties_managed' => (int) ($managed[$id] ?? 0),

@@ -80,6 +80,7 @@ class DashboardAgencyService
         $bookingIncome = $this->metrics->bookingIncomeByMonth($scope, $monthStart, $monthEnd);
         $netPaidOut = $this->metrics->netPaidOutByMonth($scope, $monthStart, $monthEnd);
         $shortStay = $this->metrics->shortStayOccupancy($scope, $monthStart, $monthEnd);
+        $occupancyToday = $this->metrics->longStayOccupancyToday($scope);
         $overdue = $this->metrics->overdue($scope);
 
         $leaseIncomeMonth = $leaseIncome[$month] ?? 0.0;
@@ -123,8 +124,11 @@ class DashboardAgencyService
                 // P93.03 (TCK-1177) — impayé ÷ facturé des échéances échues sur 12 mois, `null` sans échéance.
                 'unpaid_rate_percent' => $this->metrics->unpaidRate($scope),
             ],
+            // TCK-2626 — le taux du jour rendu avec sa base ; les clés d'avant gardent nom et sens.
             'occupancy' => [
-                'rate_percent' => $this->metrics->longStayOccupancyToday($scope),
+                'rate_percent' => $occupancyToday['rate_percent'],
+                'eligible_count' => $occupancyToday['eligible_count'],
+                'occupied_count' => $occupancyToday['occupied_count'],
                 'short_stay_percent' => $shortStay[$month] ?? null,
             ],
         ];

@@ -90,4 +90,35 @@ Sans objet (ticket API). Écrans servis : TCK-2628 et TCK-2629 (« Vue d'ensembl
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+**Relevé avant correctif** (base de démo, 2026-11-11 01:33 UTC, `owner1@dakarimmo.sn`, user 8, borne `PortfolioScope::landlord`) — la cause du « 54 dispo · 100 % » n'est PAS celle que supposait le Contrat de données :
+
+| `contract_type` | `rent_period` | feuille | statut exclu | biens |
+|---|---|---|---|---|
+| rent | monthly | oui | non | **2** |
+| rent | `NULL` | oui | non | **55** |
+| rent | `NULL` | oui | oui | 6 |
+| sale | `NULL` | oui | non | 8 |
+| sale | `NULL` | oui | oui | 1 |
+
+- Aucun parent. Statuts : 54 `available`, 5 `rented`, 3 `under_maintenance`, 2 `draft`, 2 `sold`, et un de chaque pour `archived`, `pending`, `pending_review`, `published`, `rejected` et `unavailable`.
+- Baux qui couvrent aujourd'hui par leurs dates (règle d'avant, tous statuts) : 13, tous `active`. Baux du bailleur : 14 `active`, 1 `draft`, 1 `terminated`. **Aucun bail fini ne comptait comme occupant ce jour-là.**
+- Biens éligibles couverts aujourd'hui : 2, sous bail `active`. `longStayOccupancyToday` = 100, soit 2 sur 2.
+- **La vraie cause : 55 biens en location sur 57 ont `rent_period` NULL**, donc aucun n'est éligible. Sur tout le parc de démo, 381 biens `rent` sur 451 sont dans ce cas. Pourtant `Property::saving` pose `monthly` par défaut sur tout bien `rent` sans périodicité (`app/Models/Property.php:178-183`). Ces lignes ont donc été écrites sans passer par le modèle (insertion brute des seeders). La base rendue ici écrira « 100 % · 2 sur 2 » à côté des 54 disponibles. Le défaut de données est signalé dans le rapport, pas corrigé : l'éligibilité ne change pas de sens, ce que le ticket interdit.
+
+**Ce qui est fait**
+
+- `PortfolioMetrics::longStayOccupancyToday` rend `{rate_percent, eligible_count, occupied_count}`. Aujourd'hui, seuls les baux `Lease::ONGOING_STATUSES` occupent ; les placeholders sont dérivés de la constante. Il n'y a toujours qu'une requête : `DashboardQueryBudgetTest` est inchangé.
+- La série mensuelle (`longStayOccupancy`) garde `NON_OCCUPYING_LEASE_STATUSES`. C'est prouvé par ablation C6 : appliquer la règle du jour à la série fait passer octobre à 80, et le test rougit.
+- `DashboardOwnerService::summary` et `DashboardAgencyService` ajoutent `occupancy.eligible_count` et `occupancy.occupied_count`. Les clés existantes et `KpiResolver`/`OwnerMeMetrics` (qui lisent `rate_percent`) ne changent pas.
+- `TeamPerformanceService` ajoute `leads_handled` : une requête groupée par `handled_by_id`, bornée à l'agence (`property_contact_leads.agency_id`) et au mois (`handled_at` entre les mêmes `$from`/`$to` que les autres colonnes). Tous les canaux comptent : le ticket n'en écarte aucun.
+- **Fuseau** : les autres colonnes lisent le mois en `app.timezone` (UTC), et non en `Africa/Dakar` explicite. Dakar est en UTC+0 sans heure d'été, donc les bornes coïncident. `leads_handled` suit les autres colonnes, ce qui donne la même période. Si un jour le serveur n'est plus en UTC, toutes les colonnes de la ligne bougeront ensemble.
+
+**Tests** :
+
+- `OwnerOccupancyBaseTest` (2) ;
+- `OccupancyTodayExcludesEndedLeasesTest` (4 : résilié sans `terminated_at`, expiré avant `end_date`, préavis qui occupe encore, Vue agence) ;
+- `TeamPerformanceLeadsHandledTest` (4 : AC4, bornes à la seconde, autre agence, une seule requête quelle que soit l'équipe).
+
+Ablations C1 à C11, toutes rouges puis restaurées (md5). C1 est AC3.
+
+Voisins : 251 tests verts (dashboards, performance d'équipe, reversements, commissions, relevés).
