@@ -9,8 +9,9 @@ use App\Models\User;
 /**
  * TCK-595 (ADR-0049 §3) — le grand livre est interne à l'agence.
  *
- * Lire : le bénéficiaire lit sa ligne ; qui détient `reports.view_agency` à l'agence de la ligne, sous
- * un profil actif de cette agence (contrat TCK-146), les lit toutes. Marquer payée ou annuler :
+ * Lire : le bénéficiaire lit sa ligne ; qui détient `reports.view_agency` ou `payouts.approve` à
+ * l'agence de la ligne, sous un profil actif de cette agence (contrat TCK-146), les lit toutes
+ * (`CommissionEntry::readsWholeLedger`, TCK-2725). Marquer payée ou annuler :
  * `payouts.approve` à l'agence de la ligne, sous un profil actif de cette agence — le même pouvoir
  * que celui qui approuve un reversement. Le bénéficiaire ne solde pas sa propre ligne. Le
  * super-admin passe par `Gate::before`.
@@ -28,7 +29,7 @@ class CommissionEntryPolicy
     public function view(User $user, CommissionEntry $entry): bool
     {
         return $entry->beneficiary_id === $user->id
-            || $this->actsAtAgencyWith($user, $entry, Capability::ReportsViewAgency);
+            || ($entry->agency !== null && CommissionEntry::readsWholeLedger($user, $entry->agency));
     }
 
     /**

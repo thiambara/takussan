@@ -85,4 +85,7 @@ alignée sur lui.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Une règle, un endroit : `CommissionEntry::readsWholeLedger(User, Agency)` (`viewReports`, ou `payouts.approve` sous le profil actif de l'agence), lue par `scopeVisibleTo` (relevé, point, export) et par `CommissionEntryPolicy::view`. Jugée une fois par requête : le relevé coûte autant de requêtes pour 2 lignes que pour 10.
+- L'export reste gardé par `reports.export` : sans elle, qui solde n'exporte que ses lignes (`own_lines_only`), et c'est épinglé.
+- Front : la portée est décidée par l'API ; seul le docblock de `CommissionsLedger.tsx` change.
+- `docs/models-spec.md` (§ CommissionEntry, « personnel de l'agence active ne lit que ses propres lignes, sauf sous `AgencyPolicy::viewReports` ») est à faire converger par `/sync-specs`.

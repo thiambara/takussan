@@ -37,8 +37,8 @@ const TONS: Record<CommissionEntryStatus, StatusTone> = {
 /**
  * TCK-595 (ADR-0049 §3) — le relevé des commissions.
  *
- * L'agent y lit ses lignes ; qui détient `reports.view_agency` y lit toutes celles de l'agence (la
- * portée est décidée par l'API). « Marquer payée » et « Annuler » ne s'offrent qu'avec
+ * L'agent y lit ses lignes ; qui détient `reports.view_agency` ou `payouts.approve` y lit toutes
+ * celles de l'agence — qui solde voit ce qu'il solde (TCK-2725 ; la portée est décidée par l'API). « Marquer payée » et « Annuler » ne s'offrent qu'avec
  * `payouts.approve`, jamais sur sa propre ligne : la policy refuse au bénéficiaire de solder sa
  * commission, un bouton qui mène à un 403 n'est pas une option.
  */
