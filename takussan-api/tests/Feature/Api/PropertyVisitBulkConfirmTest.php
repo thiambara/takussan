@@ -125,6 +125,62 @@ class PropertyVisitBulkConfirmTest extends ApiTestCase
         $this->assertSame($collegue->id, $attribuee->fresh()->agent_id);
     }
 
+    /**
+     * Décision de la session (2026-11-11) : la ligne du lot EST le geste unitaire — pour un même cas,
+     * le même code. Chaque cas est joué deux fois, sur deux visites identiques : à l'unité, puis en lot.
+     */
+    public function test_parite_ligne_du_lot_et_geste_unitaire(): void
+    {
+        $autreAgence = $this->bienDe($this->agence());
+        $cas = [
+            'deja_confirmee' => fn (string $tel) => $this->visite($tel, ['status' => VisitStatus::Confirmed]),
+            'tranche_sans_heure' => fn (string $tel) => $this->visite($tel, [
+                'scheduled_at' => VisitWindow::Afternoon->startOn($this->jour())->utc(),
+                'preferred_window' => VisitWindow::Afternoon,
+            ]),
+            'annulee' => fn (string $tel) => $this->visite($tel, ['status' => VisitStatus::Cancelled]),
+            'autre_agence' => fn (string $tel) => $this->visite($tel, ['property_id' => $autreAgence->id]),
+        ];
+        // Le bailleur du bien : la visite lui est lisible, pas confirmable.
+        $bailleur = User::query()->findOrFail($this->bien->user_id);
+
+        Sanctum::actingAs($this->agent);
+        $n = 0;
+        foreach ($cas as $nom => $fabrique) {
+            $unitaire = $fabrique('+22177500000'.$n++);
+            $enLot = $fabrique('+22177500000'.$n++);
+
+            $reponse = $this->postJson("/api/property-visits/{$unitaire->id}/confirm");
+            $ligne = $this->postJson('/api/property-visits/bulk-confirm', ['visits' => [['id' => $enLot->id]]])->assertOk()->json('data.0');
+
+            $this->assertFalse($ligne['ok'], $nom);
+            $this->assertSame($reponse->status(), $ligne['status'], $nom);
+            $this->assertSame($reponse->json('code'), $ligne['code'], $nom);
+        }
+
+        // Absente : la liaison de route du geste unitaire.
+        $unitaire = $this->postJson('/api/property-visits/999999/confirm');
+        $ligne = $this->postJson('/api/property-visits/bulk-confirm', ['visits' => [['id' => 999999]]])->json('data.0');
+        $this->assertSame([$unitaire->status(), $unitaire->json('code')], [$ligne['status'], $ligne['code']], 'absente');
+
+        Sanctum::actingAs($bailleur);
+        $unitaire = $this->postJson('/api/property-visits/'.$this->visite('+221775999999')->id.'/confirm');
+        $ligne = $this->postJson('/api/property-visits/bulk-confirm', ['visits' => [['id' => $this->visite('+221775999998')->id]]])->json('data.0');
+        $this->assertSame([$unitaire->status(), $unitaire->json('code')], [$ligne['status'], $ligne['code']], 'bailleur');
+    }
+
+    /** Aucune attribution implicite : confirmer en lot une visite sans agent la laisse sans agent. */
+    public function test_confirmer_en_lot_n_attribue_pas(): void
+    {
+        $libre = $this->visite('+221771111111', ['agent_id' => null]);
+
+        Sanctum::actingAs($this->agent);
+        $this->postJson('/api/property-visits/bulk-confirm', ['visits' => [['id' => $libre->id]]])->assertOk()->assertJsonPath('data.0.ok', true);
+
+        $this->assertSame(VisitStatus::Confirmed, $libre->fresh()->status);
+        $this->assertNull($libre->fresh()->agent_id);
+    }
+
     /** Avec son heure, la visite à tranche se confirme dans le lot, et la tranche tombe. */
     public function test_la_tranche_se_confirme_avec_son_heure(): void
     {
@@ -144,7 +200,7 @@ class PropertyVisitBulkConfirmTest extends ApiTestCase
         $this->assertTrue($heure->equalTo($tranche->scheduled_at));
     }
 
-    /** Une visite d'une autre agence et une visite absente : le même refus, et la ligne seule. */
+    /** Une visite d'une autre agence et une visite absente : refusées comme à l'unité, la ligne seule. */
     public function test_visite_etrangere_ou_absente_refusee_ligne_par_ligne(): void
     {
         $libre = $this->visite('+221771111111');
@@ -155,7 +211,7 @@ class PropertyVisitBulkConfirmTest extends ApiTestCase
             ['id' => $etrangere->id], ['id' => 999999], ['id' => $libre->id],
         ]])->assertOk()->json('data');
 
-        $this->assertSame(['visit.staff_only', 'visit.staff_only', null], array_map(fn ($r) => $r['code'] ?? null, $rows));
+        $this->assertSame(['http.forbidden', 'http.not_found', null], array_map(fn ($r) => $r['code'] ?? null, $rows));
         $this->assertSame(VisitStatus::Scheduled, $etrangere->fresh()->status);
         $this->assertSame(VisitStatus::Confirmed, $libre->fresh()->status);
     }

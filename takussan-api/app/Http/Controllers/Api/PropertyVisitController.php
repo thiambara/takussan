@@ -252,8 +252,10 @@ class PropertyVisitController extends Controller
     /**
      * POST /api/property-visits/bulk-confirm — TCK-2585. Chaque ligne est le geste unitaire
      * (`confirm`) : `update` et `agitPourLeBien`, puis `confirmOrFail` sous le verrou de la ligne, puis
-     * l'avis au visiteur. Le lot n'est PAS atomique : une ligne refusée rend son code (celui du geste
-     * unitaire) et n'arrête pas les autres. Une visite absente rend le refus d'une visite étrangère.
+     * l'avis au visiteur. Le lot n'est PAS atomique : une ligne refusée rend son statut et son code,
+     * ceux du geste unitaire pour le même cas (décision de la session, 2026-11-11 — testée par
+     * parité), et n'arrête pas les autres. Aucune attribution implicite : l'agent reste celui de la
+     * visite.
      */
     public function bulkConfirm(BulkConfirmPropertyVisitsRequest $request): JsonResponse
     {
@@ -266,7 +268,12 @@ class PropertyVisitController extends Controller
 
             return $this->bulkRow($id, function () use ($id, $row, $user, $visits) {
                 $visit = $visits->get($id);
-                abort_code_if($visit === null || ! $user->can('update', $visit) || ! $this->agitPourLeBien($user, $visit), 403, 'visit.staff_only');
+                // Les refus du geste unitaire, dans son ordre : liaison de route (404), puis
+                // `ConfirmPropertyVisitRequest::authorize` (`update`, 403 `http.forbidden`), puis
+                // `agitPourLeBien` (403 `visit.staff_only`) — décision de la session : même cas, même code.
+                abort_code_if($visit === null, 404, 'http.not_found');
+                abort_code_unless($user->can('update', $visit), 403, 'http.forbidden');
+                abort_code_unless($this->agitPourLeBien($user, $visit), 403, 'visit.staff_only');
 
                 $scheduledAt = $row['scheduled_at'] ?? null;
                 $confirmed = $this->scheduling->confirmOrFail($visit, $scheduledAt !== null ? Carbon::parse($scheduledAt) : null);
