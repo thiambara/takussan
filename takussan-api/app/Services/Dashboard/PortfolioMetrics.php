@@ -2,6 +2,7 @@
 
 namespace App\Services\Dashboard;
 
+use App\Models\Enums\BookingKind;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\LeasePaymentType;
@@ -162,6 +163,7 @@ class PortfolioMetrics
                     interval '1 day'
                 ) AS d
                 WHERE b.deleted_at IS NULL
+                  AND b.kind = ?
                   AND b.status IN (?, ?)
                   AND e.created_at < (date_trunc('month', d) + interval '1 month')
                   AND (e.is_current OR d < ?::date)
@@ -191,6 +193,8 @@ class PortfolioMetrics
             $eligibleBindings,
             [$start->toDateString(), $end->startOfMonth()->toDateString()],
             [$start->toDateString(), $end->toDateString()],
+            // TCK-2735 (ADR-0102 § 3) — seul un séjour occupe des nuits.
+            [BookingKind::Stay->value],
             array_map(static fn (BookingStatus $s): string => $s->value, self::OCCUPYING_BOOKING_STATUSES),
             [$this->currentMonthStart(), $this->currentMonthStart()],
         ));

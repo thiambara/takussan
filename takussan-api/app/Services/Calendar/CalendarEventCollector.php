@@ -4,6 +4,7 @@ namespace App\Services\Calendar;
 
 use App\Models\Booking;
 use App\Models\Customer;
+use App\Models\Enums\BookingKind;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\CollaboratorRole;
 use App\Models\Enums\LeaseStatus;
@@ -190,7 +191,9 @@ class CalendarEventCollector
     /** @return Collection<int, array<string, mixed>> */
     private function bookings(Carbon $start, Carbon $end, \Closure $restrict): Collection
     {
+        // TCK-2735 (ADR-0102 § 3) — une barre de séjour n'est qu'un séjour : ni candidature ni offre.
         $query = Booking::query()
+            ->where('kind', BookingKind::Stay)
             ->whereIn('status', [BookingStatus::Confirmed, BookingStatus::Pending])
             ->whereDate('start_date', '<=', $end)
             ->whereDate('end_date', '>=', $start);
