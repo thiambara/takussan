@@ -19,6 +19,7 @@ use App\Models\Lease;
 use App\Models\User;
 use App\Models\UserCustomerRelationship;
 use App\Services\Crm\CustomerActivityFeed;
+use App\Services\Crm\CustomerCommercialAttributes;
 use App\Services\Crm\CustomerDuplicateDetector;
 use App\Services\Crm\PipelineStatsService;
 use App\Services\Membership\MembershipCapabilityResolver;
@@ -44,6 +45,9 @@ class CustomerController extends Controller
         $paginator = $query
             ->defaultSorts(...Customer::defaultSortsWithRelevance('-created_at'))
             ->paginate();
+
+        // TCK-2588 — les attributs calculés demandés, pour la page entière.
+        CustomerCommercialAttributes::attach($request, $request->user(), $paginator->getCollection()->modelKeys());
 
         return $this->paginated($paginator, CustomerResource::collection($paginator)->toArray($request));
     }
@@ -132,6 +136,7 @@ class CustomerController extends Controller
             $query->addSelect(array_map(static fn (string $column): string => 'customers.'.$column, Customer::SENSITIVE));
         }
         $customer = $query->firstOrFail();
+        CustomerCommercialAttributes::attach($request, $request->user(), [(int) $customer->id]);
 
         return $this->json([
             'data' => CustomerResource::make($customer)->resolve($request),

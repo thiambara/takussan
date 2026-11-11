@@ -10916,7 +10916,8 @@
         "limits": "Technical limits",
         "boost": "Credits and promotion",
         "rentals": "Rentals",
-        "radar": "Radar"
+        "radar": "Radar",
+        "crm": "Customer relations"
       },
       "keys": {
         "currency": {
@@ -10993,6 +10994,12 @@
           "mandate_agency_id": {
             "label": "Radar mandate space",
             "description": "ID of the Takussan space where properties published under mandate are created. 0: none. The “radar_mandate” flag must also be on."
+          }
+        },
+        "crm": {
+          "follow_up_days": {
+            "label": "Follow-up without contact",
+            "description": "In days, from 1 to 90. A customer from lead to negotiation is due for follow-up once their last contact is at least this many days old. An agency with its own setting keeps it."
           }
         }
       },

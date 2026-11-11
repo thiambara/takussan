@@ -8,9 +8,14 @@ use App\Models\Enums\Capability;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\CustomerStatus;
 use App\Models\Enums\IdType;
+use App\Services\Crm\CustomerCommercialAttributes;
+use App\Services\Crm\CustomerFollowUpQuery;
+use App\Services\Crm\CustomerNextActionQuery;
 use App\Services\Crm\CustomerPhoneNormalizer;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Sorts\CollatedNameSort;
+use App\Sorts\CustomerFollowUpSort;
+use App\Sorts\CustomerNextActionSort;
 use App\Support\Query\DepartageQueryBuilder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -20,6 +25,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 use Laravel\Scout\Searchable;
 use Spatie\Activitylog\Support\LogOptions;
 use Spatie\QueryBuilder\AllowedFilter;
@@ -115,9 +121,11 @@ class Customer extends AbstractModel
     /** `first_name` et `last_name` se trient à part, en `COLLATE "und-x-icu"` (TCK-1136). */
     protected static array $requestSortable = ['id', 'created_at', 'updated_at', 'status', 'last_contacted_at'];
 
-    protected static array $requestLoadable = ['user', 'agency', 'addresses', 'tags', 'addedBy', 'notes', 'documents', 'tasks'];
+    /** TCK-2588 — `upcomingVisits` : les trois prochaines visites de la fiche. */
+    protected static array $requestLoadable = ['user', 'agency', 'addresses', 'tags', 'addedBy', 'notes', 'documents', 'tasks', 'upcomingVisits'];
 
-    protected static array $requestCountable = ['bookings', 'leases', 'notes', 'tasks'];
+    /** TCK-2588 — `visitsCount`. */
+    protected static array $requestCountable = ['bookings', 'leases', 'notes', 'tasks', 'visits'];
 
     protected static array $requestSearchFields = ['first_name', 'last_name', 'email', 'phone'];
 
@@ -125,10 +133,16 @@ class Customer extends AbstractModel
      * TCK-1136 (P87.01) — les tris déclarés, plus prénom et nom en `COLLATE "und-x-icu"` (ADR-0025,
      * amendement du 2026-10-19) : sous `--locale=C`, « diop » et « Écrivain » passaient après « Zola ».
      *
+     * TCK-2588 — et deux tris calculés : `next_action_at`, `follow_up_days`. Les attributs calculés
+     * (`next_action`, `follow_up`, `referent`) sortent de `fields[customers]` avant spatie, qui les
+     * prendrait pour des colonnes ({@see CustomerCommercialAttributes::strip()}).
+     *
      * @param  Builder<static>|null  $baseQuery
      */
     public static function buildQuery(?Builder $baseQuery = null, ?Request $request = null): QueryBuilder
     {
+        $request = CustomerCommercialAttributes::strip($request ?? request());
+
         return DepartageQueryBuilder::for($baseQuery ?? static::class, $request)
             ->allowedFilters(...static::getAllowedQueryFilters())
             ->allowedFields(...static::getAllAllowedQueryFields())
@@ -137,6 +151,8 @@ class Customer extends AbstractModel
                 ...[
                     AllowedSort::custom('first_name', new CollatedNameSort, 'customers.first_name'),
                     AllowedSort::custom('last_name', new CollatedNameSort, 'customers.last_name'),
+                    AllowedSort::custom('next_action_at', new CustomerNextActionSort),
+                    AllowedSort::custom('follow_up_days', new CustomerFollowUpSort),
                 ],
             )
             ->allowedIncludes(...static::getAllowedQueryIncludes());
@@ -175,6 +191,55 @@ class Customer extends AbstractModel
             foreach ($names as $name) {
                 $q->whereHas('tags', fn (Builder $t) => $t->where('name', $name));
             }
+        });
+
+        // TCK-2588 — `filter[referent]=me|none|{user_id}` : le référent (relation `agent_client`
+        // principale et active). `me` vaut dans l'agence active (principe n° 2).
+        $filters[] = AllowedFilter::callback('referent', function (Builder $q, mixed $value) {
+            Validator::make(['filter' => ['referent' => $value]], [
+                'filter.referent' => ['string', 'regex:/^(me|none|[1-9][0-9]{0,18})$/'],
+            ])->validate();
+
+            $viewer = request()->user();
+            $referent = fn (?int $userId) => fn (Builder $r) => CustomerCommercialAttributes::asReferent($r)
+                ->when($userId !== null, fn (Builder $w) => $w->where('user_customer_relationships.user_id', $userId));
+
+            if ($value === 'none') {
+                $q->whereDoesntHave('relationships', $referent(null));
+
+                return;
+            }
+            if ($value !== 'me') {
+                $q->whereHas('relationships', $referent((int) $value));
+
+                return;
+            }
+
+            $agencyId = $viewer?->staffAgencyId();
+            if ($viewer === null || ($agencyId === null && ! $viewer->isSuperAdmin())) {
+                $q->whereRaw('1 = 0');
+
+                return;
+            }
+            $q->whereHas('relationships', $referent((int) $viewer->id))
+                ->when($agencyId !== null, fn (Builder $w) => $w->where('customers.agency_id', $agencyId));
+        });
+
+        // TCK-2588 — `filter[follow_up]=1` : les fiches à relancer ; `=0`, les autres. La définition
+        // même de l'attribut `follow_up` (`CustomerFollowUpQuery::sinceSql()`).
+        $filters[] = AllowedFilter::callback('follow_up', function (Builder $q, mixed $value) {
+            $viewer = request()->user();
+            if ($viewer !== null) {
+                (new CustomerFollowUpQuery($viewer))->filter($q, filter_var($value, FILTER_VALIDATE_BOOLEAN));
+            }
+        });
+
+        // TCK-2588 — `filter[stage_group]=active` : les étapes vivantes (lead à négociation).
+        $filters[] = AllowedFilter::callback('stage_group', function (Builder $q, mixed $value) {
+            Validator::make(['filter' => ['stage_group' => $value]], [
+                'filter.stage_group' => ['string', 'in:active'],
+            ])->validate();
+            $q->whereIn('customers.pipeline_stage', CustomerFollowUpQuery::liveStageValues());
         });
 
         return $filters;
@@ -318,6 +383,21 @@ class Customer extends AbstractModel
     public function visits(): HasMany
     {
         return $this->hasMany(PropertyVisit::class);
+    }
+
+    /**
+     * TCK-2588 — les trois prochaines visites de la fiche (`include=upcomingVisits`) : le vivier de
+     * la prochaine action ({@see CustomerNextActionQuery::upcomingVisits()}), trois au plus PAR fiche
+     * (limite de chargement anticipé, par fenêtre).
+     */
+    public function upcomingVisits(): HasMany
+    {
+        return $this->hasMany(PropertyVisit::class)
+            ->whereIn('property_visits.status', CustomerNextActionQuery::VISIT_STATUSES)
+            ->where('property_visits.scheduled_at', '>=', now())
+            ->orderBy('property_visits.scheduled_at')
+            ->orderBy('property_visits.id')
+            ->limit(3);
     }
 
     public function leasePayments(): HasMany

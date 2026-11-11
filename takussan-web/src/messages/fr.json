@@ -10916,7 +10916,8 @@
         "limits": "Limites techniques",
         "boost": "Crédits et mise en avant",
         "rentals": "Location",
-        "radar": "Radar"
+        "radar": "Radar",
+        "crm": "Relation client"
       },
       "keys": {
         "currency": {
@@ -10993,6 +10994,12 @@
           "mandate_agency_id": {
             "label": "Espace des mandats du Radar",
             "description": "Identifiant de l’espace Takussan où naissent les biens publiés sous mandat. 0 : aucun. Le drapeau « radar_mandate » doit aussi être allumé."
+          }
+        },
+        "crm": {
+          "follow_up_days": {
+            "label": "Relance sans contact",
+            "description": "En jours, de 1 à 90. Une fiche client de prospect à négociation est à relancer quand son dernier contact date d’au moins ce nombre de jours. Une agence qui a son propre réglage garde le sien."
           }
         }
       },

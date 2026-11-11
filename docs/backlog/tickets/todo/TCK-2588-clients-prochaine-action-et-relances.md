@@ -72,4 +72,35 @@ Quand un client appelle, l'agent sait en dix secondes ce qui est prévu avec lui
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Re-mesures avant code.** `GET /api/customers` honore `per_page` jusqu'à 100 (AC4 tenable sur 20) ;
+`last_contacted_at` n'a qu'un écrivain dans `app/`, `ContactGestureService` (TCK-2583 ; la colonne reste dans `$fillable`, aucune FormRequest ne la valide) ; `PropertyVisit::scopeToClose`
+(ADR-0101 § 6) existe et sert telle quelle de définition du compte rendu manquant ; le catalogue n'avait
+pas de catégorie `crm` ; le tri `last_contacted_at` existait déjà (f08c30c99, TCK-2583) : non retouché.
+
+**Forme.** Trois services, UNE définition SQL chacun, lue par l'attribut, le filtre et le tri :
+`App\Services\Crm\CustomerFollowUpQuery` (`sinceSql()`), `CustomerNextActionQuery` (`atSql()`), et
+`CustomerCommercialAttributes`, qui retire `next_action`, `follow_up`, `referent` de `fields[customers]`
+avant spatie (ce ne sont pas des colonnes), les note sur la requête, puis les calcule pour la page entière
+(`attach()`, index ET show). L'instant est celui de PHP, lié en paramètre, jamais `NOW()` (`travelTo`).
+Coût mesuré : relance 1 requête, prochaine action 3, référent 1 — constant de 2 à 20 fiches (AC4).
+
+**Choix tranchés.**
+- Référent = relation `agent_client`, `is_primary`, `active`. Le portefeuille, lui, ne filtre pas sur le type : non touché.
+- `filter[referent]=me` vaut dans l'agence ACTIVE du personnel ; un lecteur ni personnel ni super-admin reçoit `1=0`. Valeur : `me|none|<id>`, sinon 422.
+- Fiche jamais contactée : le compte part de `created_at`. `days` = jours pleins depuis `since`.
+- `report_missing` réemploie `scopeToClose` (`COALESCE(completed_at, scheduled_at)`) et ne vaut que pour le personnel de l'agence de la fiche (et le super-admin) : les comptes rendus sont du personnel (ADR-0101) ; le bailleur auteur d'une fiche ne la voit pas.
+- Seuil : réglage `crm.follow_up_days` de l'agence active du lecteur (`ScopedSetting`), sinon catalogue (défaut 7, borné 1–90). Catégorie `crm` ajoutée au catalogue ET au front (`platform-settings.tsx`, `super-admin.ts`, trois clés i18n).
+- Libellé d'une tâche : à son auteur, son assigné ou au super-admin seulement — règle plus étroite que `TaskPolicy::view` (qui admet le remplaçant), jugée sans requête par ligne. Une tâche d'un collègue COMPTE mais son titre est `null`. Titre du bien d'une visite : au personnel de l'agence de la fiche. Lecteur non personnel : libellés `null`.
+- Sonde `GET /api/customers/duplicates` : `authorize()` délègue à `can('create', Customer)` (403 bailleur avant 422), cherche dans la seule agence de personnel active par `CustomerDuplicateDetector`, rend `{id, name, stage}` masqués comme le nom — jamais pièce ni adresse. `throttle:20,1` en ligne (pas de limiteur nommé : `AppServiceProvider` non touché). Le 409 `existing` de la création porte désormais aussi `stage`.
+- `upcoming_visits` (3 par fiche) et `visits_count` par `include=`.
+
+**Ablations** (md5 restaurés, script `ablation-2588.py`) : 22 rouges sans correctif — étapes vivantes, seuil,
+seuil par agence, la plus ancienne, compte rendu réservé au personnel, filtre, tri retard, groupe d'étapes,
+visite à venir, visite avant tâche, titre de tâche d'un collègue, tri prochaine action, champs calculés
+retirés, trois par fiche, AC4 sur chacun des trois attributs (prochaine action calculée par ligne, relance calculée par ligne, référent chargé paresseusement : le compte de requêtes diverge à chaque fois), référent actif, `me` limité à
+l'agence active (après renforcement du test), sonde bailleur, étape masquée, throttle de la sonde (retiré sous le verrou des routes → le 429 tombe). Une NON informative : un
+`TaskPolicy::view` par ligne n'ajoute aucune requête dans cette fixture (reste vert).
+
+**Hors de ce ticket, constaté le 2026-11-11** : `ImpersonationReadSweepTest::chaque_parametre…` rougit sur
+le paramètre `threshold_alert` de `api/threshold-alerts/{threshold_alert}` (commit 925795e29, TCK-2627),
+absent de `PARAMETRES_NON_REMPLIS` — pas sur les routes de ce ticket.

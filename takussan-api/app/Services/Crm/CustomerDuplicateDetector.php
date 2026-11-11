@@ -57,7 +57,7 @@ class CustomerDuplicateDetector
     }
 
     /**
-     * @return list<array{id: ?int, name: ?string, matched_on: string}>
+     * @return list<array{id: ?int, name: ?string, stage: ?string, matched_on: string}>
      */
     public function find(?int $agencyId, ?string $phone, ?string $email, User $viewer, ?int $ignoreId = null): array
     {
@@ -92,6 +92,8 @@ class CustomerDuplicateDetector
             return [
                 'id' => $visible ? $c->id : null,
                 'name' => $visible ? $c->getFullNameAttribute() : null,
+                // TCK-2588 — l'étape, pour la sonde pendant la saisie ; masquée comme le nom.
+                'stage' => $visible ? $c->pipeline_stage?->value : null,
                 'matched_on' => $phone !== null && $c->phone === $phone ? 'phone' : 'email',
             ];
         })->values()->all();

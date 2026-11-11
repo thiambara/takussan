@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\CustomerNote;
 use App\Models\Enums\CustomerNoteKind;
 use App\Policies\CustomerPolicy;
+use App\Services\Crm\CustomerCommercialAttributes;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Support\Masking;
 use Illuminate\Database\Eloquent\Collection;
@@ -86,6 +87,19 @@ class CustomerResource extends BaseResource
             'created_at' => $this->iso($this->created_at),
             'updated_at' => $this->iso($this->updated_at),
             'tasks_count' => $this->whenCounted('tasks'),
+            // TCK-2588 — `next_action`, `follow_up`, `referent` : calculés pour la page, rendus
+            // seulement quand `fields[customers]` les demande.
+            ...CustomerCommercialAttributes::of($request, (int) $this->id),
+            'visits_count' => $this->whenCounted('visits'),
+            'upcoming_visits' => $this->when(
+                $this->relationLoaded('upcomingVisits'),
+                fn () => $this->upcomingVisits->map(fn ($v) => [
+                    'id' => $v->id,
+                    'property_id' => $v->property_id,
+                    'status' => $v->status?->value,
+                    'scheduled_at' => $this->iso($v->scheduled_at),
+                ])->values(),
+            ),
             'added_by' => $this->when(
                 $this->relationLoaded('addedBy'),
                 fn () => $this->addedBy ? [

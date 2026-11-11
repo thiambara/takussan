@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\ContactGestureController;
 use App\Http\Controllers\Api\CustomerController;
+use App\Http\Controllers\Api\CustomerDuplicateProbeController;
 use App\Http\Controllers\Api\CustomerInvitationController;
 use App\Http\Controllers\Api\CustomerNoteController;
 use App\Http\Controllers\Api\CustomerTagController;
@@ -10,6 +11,10 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('customers', [CustomerController::class, 'index'])->name('customers.index');
     Route::get('customers/pipeline-stats', [CustomerController::class, 'pipelineStats'])->name('customers.pipeline-stats');
+    // TCK-2588 — la sonde de doublon pendant la saisie. Littérale : avant `customers/{customer}`.
+    Route::get('customers/duplicates', CustomerDuplicateProbeController::class)
+        ->middleware('throttle:20,1,customer_duplicate_probe')
+        ->name('customers.duplicates');
     Route::post('customers', [CustomerController::class, 'store'])->name('customers.store');
     Route::get('customers/{customer}', [CustomerController::class, 'show'])->name('customers.show');
     // TCK-955 (ADR-0070 § 5) — le numéro de pièce en clair : admin de l'agence du client, sous
