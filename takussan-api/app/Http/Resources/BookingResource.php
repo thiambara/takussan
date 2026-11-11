@@ -6,6 +6,7 @@ use App\Http\Resources\Bases\BaseResource;
 use App\Models\Booking;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\PaymentStatus;
+use App\Services\Booking\BookingCustomerFacts;
 use App\Services\Booking\BookingExpirationService;
 use Illuminate\Http\Request;
 
@@ -13,6 +14,8 @@ class BookingResource extends BaseResource
 {
     public function toArray(Request $request): array
     {
+        $visites = $this->resource instanceof Booking ? BookingCustomerFacts::visitsOnProperty($request, $this->resource) : null;
+
         return [
             'id' => $this->id,
             'reference_number' => $this->reference_number,
@@ -56,7 +59,12 @@ class BookingResource extends BaseResource
             'booking_payments' => $this->whenLoaded('payments', fn (): array => BookingPaymentResource::collection($this->payments)->toArray($request)),
             'notes' => $this->notes,
             'property' => $this->whenLoaded('property', fn () => PropertyResource::make($this->property)),
-            'customer' => $this->whenLoaded('customer', fn () => CustomerResource::make($this->customer)),
+            // TCK-2593 — le téléphone et l'étape de la fiche ne sortent que vers le personnel de
+            // l'agence ({@see BookingCustomerFacts}) ; le client ne lit plus ni l'un ni l'autre.
+            'customer' => $this->whenLoaded('customer', fn (): ?array => $this->customerCard($request)),
+            // TCK-2593 — les visites terminées de ce client sur ce bien, au seul personnel, en une
+            // requête pour la page (`BookingCustomerFacts::prime`) ; omise sinon.
+            'visits_on_property' => $this->when($visites !== null, $visites),
             'created_at' => $this->iso($this->created_at),
         ];
     }
@@ -97,6 +105,25 @@ class BookingResource extends BaseResource
             $statuses->contains(PaymentStatus::Refunded) => 'refunded',
             default => null,
         };
+    }
+
+    /**
+     * TCK-2593 — la fiche client imbriquée, sans `phone` ni `pipeline_stage` pour qui n'est pas
+     * du personnel de l'agence de la réservation.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function customerCard(Request $request): ?array
+    {
+        if ($this->customer === null) {
+            return null;
+        }
+        $fiche = CustomerResource::make($this->customer)->resolve($request);
+        if (BookingCustomerFacts::masksCustomerCard($request, $this->resource)) {
+            unset($fiche['phone'], $fiche['pipeline_stage']);
+        }
+
+        return $fiche;
     }
 
     /** TCK-2579 — la colonne a été lue, ou le modèle vient d'être créé (une colonne absente y vaut `null` en base). */

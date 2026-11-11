@@ -9,6 +9,8 @@ use App\Models\Enums\BookingStatus;
 use App\Models\Enums\CancellationBy;
 use App\Models\Enums\Currency;
 use App\Models\Enums\PaymentStatus;
+use App\Services\Booking\BookingSearch;
+use App\Support\Http\ParametreUnique;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -89,6 +91,14 @@ class Booking extends AbstractModel
                 $query->whereIn($query->qualifyColumn('property_id'), Property::query()
                     ->managedBy($user, $user->staffAgencyId())->select('properties.id'));
             }),
+            // TCK-2593 — référence, nom et téléphone du client, titre du bien ({@see BookingSearch}).
+            AllowedFilter::callback('search', function (Builder $query, mixed $value): void {
+                // P216.05 (ADR-0075) — `filter[search][]=…` vaut une recherche absente.
+                $term = ParametreUnique::valeur($value);
+                if ($term !== null) {
+                    BookingSearch::apply($query, $term);
+                }
+            })->delimiter(''),
         ];
     }
 
