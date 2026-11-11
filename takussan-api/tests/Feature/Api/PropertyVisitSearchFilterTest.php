@@ -90,6 +90,53 @@ class PropertyVisitSearchFilterTest extends ApiTestCase
         $this->assertSame([$this->parCompte->id], $this->ids($this->proprietaire, ['search' => 'Awa']));
     }
 
+    /**
+     * TCK-2587 — la console affiche le nom de la FICHE client (`visitor_display`) : la recherche le
+     * trouve, mot par mot (prénom ou nom), ainsi que son téléphone, et les compteurs suivent la liste.
+     */
+    public function test_le_personnel_trouve_la_visite_par_le_nom_et_le_telephone_de_sa_fiche(): void
+    {
+        $fiche = $this->ficheClient($this->x, null, ['first_name' => 'Mariama', 'last_name' => 'Ndiayé', 'phone' => '+221765554433']);
+        $parFicheSeule = PropertyVisit::factory()->create([
+            'property_id' => $this->bien->id, 'visitor_id' => null, 'customer_id' => $fiche->id,
+            'visitor_name' => null, 'visitor_phone' => null,
+        ]);
+        $agent = $this->personnel($this->x);
+
+        foreach (['mariama', 'NDIAYÉ', 'Mariama Ndi', 'ndiayé mariama', '76 555 44'] as $recherche) {
+            $this->assertSame([$parFicheSeule->id], $this->ids($agent, ['search' => $recherche]), $recherche);
+        }
+        // Chaque mot doit se trouver dans la fiche : « Mariama Diop » n'est pas Mariama Ndiayé.
+        $this->assertSame([], $this->ids($agent, ['search' => 'Mariama Diop']));
+
+        // Les compteurs sous la même recherche : « Toutes » vaut le total de la liste.
+        foreach (['mariama', 'Ndiayé'] as $recherche) {
+            $total = $this->getJson('/api/property-visits?'.http_build_query(['filter' => ['search' => $recherche]]))->json('meta.total');
+            $this->assertSame(1, $total);
+            $this->assertSame($total, $this->getJson('/api/property-visits/counts?'.http_build_query(['filter' => ['search' => $recherche]]))->assertOk()->json('data.all'));
+        }
+    }
+
+    /** TCK-2587 — le nom d'une fiche ne se cherche ni hors de son agence, ni par le bailleur. */
+    public function test_le_nom_de_la_fiche_ne_fuit_ni_vers_une_autre_agence_ni_vers_le_bailleur(): void
+    {
+        $nom = ['first_name' => 'Mariama', 'last_name' => 'Ndiayé'];
+        $deX = PropertyVisit::factory()->create([
+            'property_id' => $this->bien->id, 'visitor_id' => null, 'visitor_name' => null, 'visitor_phone' => null,
+            'customer_id' => $this->ficheClient($this->x, null, $nom)->id,
+        ]);
+        $y = $this->agence();
+        $deY = PropertyVisit::factory()->create([
+            'property_id' => $this->bienDe($y)->id, 'visitor_id' => null, 'visitor_name' => null, 'visitor_phone' => null,
+            'customer_id' => $this->ficheClient($y, null, $nom)->id,
+        ]);
+
+        $this->assertSame([$deX->id], $this->ids($this->personnel($this->x), ['search' => 'Mariama']));
+        $this->assertSame([$deY->id], $this->ids($this->personnel($y), ['search' => 'Mariama']));
+        $this->assertSame([], $this->ids($this->proprietaire, ['search' => 'Mariama']));
+        $this->assertSame(0, $this->getJson('/api/property-visits/counts?filter[search]=Mariama')->assertOk()->json('data.all'));
+    }
+
     /** Le jour de Dakar, début inclus, lendemain exclu ; une valeur mal formée → 422. */
     public function test_le_jour_de_dakar(): void
     {

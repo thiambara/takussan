@@ -171,7 +171,8 @@ class PropertyVisitController extends Controller
      *   · `unassigned` — en attente, sans agent, à venir ; `requested` — en attente, à venir ;
      *   · `confirmed` — confirmée, à venir ; `past` — heure passée, tout statut ;
      *   · `cancelled` — annulée ; `today` — tout statut, ce jour à Dakar (`filter[day]`) ;
-     *   · `to_close` — `PropertyVisit::scopeToClose` (`filter[to_close]`) ;
+     *   · `to_close` — `PropertyVisit::scopeToClose` (`filter[to_close]`), pour le seul personnel de
+     *     l'agence du bien (`closableBound`, TCK-2587) ;
      *   · `later` — confirmée, à partir du lendemain à Dakar (`filter[status]=confirmed` +
      *     `filter[scheduled_at_min]`, TCK-2587) ; `all` — toute la portée, sans borne.
      */
@@ -195,6 +196,7 @@ class PropertyVisitController extends Controller
         $scheduled = VisitStatus::Scheduled->value;
         $confirmed = VisitStatus::Confirmed->value;
         $completed = VisitStatus::Completed->value;
+        $closable = $this->closableBound($request->user());
 
         $tabs = [
             'unassigned' => ['status = ? and agent_id is null and scheduled_at >= ?', [$scheduled, $now]],
@@ -204,8 +206,8 @@ class PropertyVisitController extends Controller
             'cancelled' => ['status = ?', [VisitStatus::Cancelled->value]],
             'today' => ['scheduled_at >= ? and scheduled_at < ?', [$day->utc(), $day->addDay()->utc()]],
             'to_close' => [
-                '(status = ? and scheduled_at <= ?) or (status = ? and reported_at is null and completed_at >= ?)',
-                [$confirmed, $now, $completed, $reportFrom],
+                '((status = ? and scheduled_at <= ?) or (status = ? and reported_at is null and completed_at >= ?)) and '.$closable[0],
+                [$confirmed, $now, $completed, $reportFrom, ...$closable[1]],
             ],
             // TCK-2587 — « Plus tard » : confirmée, à partir de demain à Dakar ; « Toutes » : la portée.
             'later' => ['status = ? and scheduled_at >= ?', [$confirmed, $day->addDay()->utc()]],
@@ -226,6 +228,30 @@ class PropertyVisitController extends Controller
         return $this->json([
             'data' => array_map(fn (string $tab) => (int) ($row[$tab] ?? 0), array_combine(array_keys($tabs), array_keys($tabs))),
         ]);
+    }
+
+    /**
+     * TCK-2587 — la borne d'« À clore » en SQL, celle du filtre `filter[to_close]` : une visite n'est à
+     * clore que pour qui peut la clore (`PropertyVisitPolicy::report`), le personnel actif de l'agence
+     * du bien, ou le super-admin. Le client, le bailleur et le prestataire comptent 0.
+     *
+     * @return array{0: string, 1: list<int>}
+     */
+    private function closableBound(User $user): array
+    {
+        if ($user->isSuperAdmin()) {
+            return ['true', []];
+        }
+        $staff = PersonnelDeLAgence::agencesOuPersonnelActif($user);
+        if ($staff === []) {
+            return ['false', []];
+        }
+
+        return [
+            'exists (select 1 from properties where properties.id = property_visits.property_id and properties.deleted_at is null and properties.agency_id in ('
+                .implode(', ', array_fill(0, count($staff), '?')).'))',
+            $staff,
+        ];
     }
 
     /**

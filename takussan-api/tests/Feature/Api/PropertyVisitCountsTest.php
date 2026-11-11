@@ -214,6 +214,41 @@ class PropertyVisitCountsTest extends ApiTestCase
         ])];
     }
 
+    /**
+     * TCK-2587 — « À clore » n'a de sens que pour qui peut clore (`PropertyVisitPolicy::report`) : le
+     * visiteur d'une visite confirmée passée, le bailleur du bien et le personnel d'une autre agence
+     * venu en visiteur comptent 0, et la liste
+     * `filter[to_close]=1` leur rend 0 ligne, comme le compte.
+     */
+    public function test_a_clore_ne_compte_que_pour_le_personnel(): void
+    {
+        $bailleur = $this->bailleur($this->x);
+        $visiteur = $this->client();
+        PropertyVisit::factory()->create([
+            'property_id' => $this->bienDe($this->x, $bailleur)->id, 'visitor_id' => $visiteur->id,
+            'agent_id' => $this->moi->id, 'status' => VisitStatus::Confirmed, 'scheduled_at' => $this->maintenant->subHours(3),
+        ]);
+        // Le personnel d'une AUTRE agence, visiteur ici : il clôt les visites de son agence, pas celle-ci.
+        $agentAilleurs = $this->personnel($this->agence());
+        PropertyVisit::factory()->create([
+            'property_id' => $this->bienDe($this->x)->id, 'visitor_id' => $agentAilleurs->id,
+            'agent_id' => null, 'status' => VisitStatus::Confirmed, 'scheduled_at' => $this->maintenant->subHours(4),
+        ]);
+
+        foreach (['visiteur' => $visiteur, 'bailleur' => $bailleur, 'agent d’une autre agence' => $agentAilleurs] as $qui => $lecteur) {
+            Sanctum::actingAs($lecteur);
+            $counts = $this->getJson('/api/property-visits/counts')->assertOk()->json('data');
+            $this->assertSame(1, $counts['all'], "{$qui} : la visite est dans sa portée");
+            $this->assertSame(0, $counts['to_close'], $qui);
+            $this->assertSame(0, $this->getJson('/api/property-visits?filter[to_close]=1')->assertOk()->json('meta.total'), $qui);
+        }
+
+        // Le versant du personnel : la même visite y est à clore, dans le compte et dans la liste.
+        Sanctum::actingAs($this->moi);
+        $this->assertSame(4, $this->getJson('/api/property-visits/counts')->assertOk()->json('data.to_close'));
+        $this->assertSame(4, $this->getJson('/api/property-visits?filter[to_close]=1')->json('meta.total'));
+    }
+
     public function test_sans_compte_401(): void
     {
         $this->getJson('/api/property-visits/counts')->assertUnauthorized();

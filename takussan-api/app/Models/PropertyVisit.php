@@ -173,9 +173,17 @@ class PropertyVisit extends AbstractModel
 
         // TCK-2578 (ADR-0101 § 6) — « À clore » : confirmée dont l'heure est passée, ou terminée
         // sans compte rendu depuis au plus `visits.report_pending_days` jours.
+        // TCK-2587 — et seulement là où le lecteur peut clore (`PropertyVisitPolicy::report`) : le
+        // personnel actif de l'agence du bien. Le visiteur, le bailleur ou le prestataire n'ont rien
+        // « à clore » ; `counts` pose la même borne (`PropertyVisitController::closableBound`).
         $filters[] = AllowedFilter::callback('to_close', function (Builder $q, mixed $value) {
             if (filter_var($value, FILTER_VALIDATE_BOOLEAN)) {
                 $q->toClose();
+                $viewer = request()->user();
+                if ($viewer?->isSuperAdmin() !== true) {
+                    $staff = $viewer === null ? [] : PersonnelDeLAgence::agencesOuPersonnelActif($viewer);
+                    $q->whereHas('property', fn (Builder $p) => $p->whereIn('agency_id', $staff));
+                }
             }
         });
 
@@ -183,26 +191,50 @@ class PropertyVisit extends AbstractModel
         // téléphone ne se cherchent que là où le lecteur les LIT (`PropertyVisitResource` les masque
         // sur une visite à fiche hors du personnel de l'agence du bien) : sinon la recherche dirait
         // au bailleur qu'un client de l'agence porte ce nom.
+        // TCK-2587 — et le nom et le téléphone de la FICHE client liée : c'est eux que la console
+        // affiche (`visitor_display` : le nom de la fiche d'abord, le téléphone saisi d'abord).
+        // Chaque mot doit se trouver dans le prénom ou le nom (« Abdoulaye Ciss » trouve Abdoulaye
+        // Cissé). La fiche ne se cherche que sous la même condition que le nom saisi : le lecteur est
+        // du personnel de l'agence du bien.
         $filters[] = AllowedFilter::callback('search', function (Builder $q, mixed $value) {
             $value = trim(ParametreUnique::valeur($value) ?? '');
             if ($value === '') {
                 return;
             }
             $motif = '%'.addcslashes(CaseInsensitive::fold($value), '\\%_').'%';
+            $mots = array_map(
+                fn (string $mot) => '%'.addcslashes(CaseInsensitive::fold($mot), '\\%_').'%',
+                preg_split('/\s+/u', $value, -1, PREG_SPLIT_NO_EMPTY) ?: [],
+            );
             $chiffres = preg_replace('/\D+/', '', $value) ?? '';
             $viewer = request()->user();
+            $toutVoir = $viewer?->isSuperAdmin() === true;
             $staff = $viewer === null ? [] : PersonnelDeLAgence::agencesOuPersonnelActif($viewer);
 
-            $q->where(function (Builder $w) use ($motif, $chiffres, $viewer, $staff) {
+            $q->where(function (Builder $w) use ($motif, $mots, $chiffres, $toutVoir, $staff) {
                 $w->whereHas('property', fn (Builder $p) => $p->whereRaw(CaseInsensitive::sql('title').' like ?', [$motif]))
-                    ->orWhere(function (Builder $personne) use ($motif, $chiffres, $viewer, $staff) {
-                        $personne->where(function (Builder $champ) use ($motif, $chiffres) {
+                    ->orWhere(function (Builder $personne) use ($motif, $mots, $chiffres, $toutVoir, $staff) {
+                        $personne->where(function (Builder $champ) use ($motif, $mots, $chiffres) {
                             $champ->whereRaw(CaseInsensitive::sql('property_visits.visitor_name').' like ?', [$motif]);
                             if (strlen($chiffres) >= 3) {
                                 $champ->orWhere('property_visits.visitor_phone', 'like', '%'.$chiffres.'%');
                             }
+                            $champ->orWhereHas('customer', function (Builder $fiche) use ($mots, $chiffres) {
+                                $fiche->where(function (Builder $nomOuNumero) use ($mots, $chiffres) {
+                                    $nomOuNumero->where(function (Builder $nom) use ($mots) {
+                                        foreach ($mots as $mot) {
+                                            $nom->where(fn (Builder $l) => $l
+                                                ->whereRaw(CaseInsensitive::sql('customers.first_name').' like ?', [$mot])
+                                                ->orWhereRaw(CaseInsensitive::sql('customers.last_name').' like ?', [$mot]));
+                                        }
+                                    });
+                                    if (strlen($chiffres) >= 3) {
+                                        $nomOuNumero->orWhere('customers.phone', 'like', '%'.$chiffres.'%');
+                                    }
+                                });
+                            });
                         });
-                        if ($viewer?->isSuperAdmin() !== true) {
+                        if (! $toutVoir) {
                             $personne->where(fn (Builder $lisible) => $lisible
                                 ->whereNull('property_visits.customer_id')
                                 ->orWhereHas('property', fn (Builder $p) => $p->whereIn('agency_id', $staff)));
