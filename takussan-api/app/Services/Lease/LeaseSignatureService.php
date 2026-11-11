@@ -58,6 +58,14 @@ class LeaseSignatureService
         $lease->loadMissing(['property.address', 'tenant.user', 'landlord', 'agency', 'guarantors']);
         // ADR-0042 §5 — la v1 exige un compte au locataire ; sinon, la voie papier.
         abort_code_if($lease->tenant?->user_id === null, 422, 'lease_signature.tenant_without_account');
+        // TCK-2719 (décision du porteur du 2026-11-11) — un contrat signé ne se régénère jamais : il ne
+        // se fige pas tant que la fiche du locataire n'a ni prénom ni nom (un compte ouvert par e-mail
+        // ou par téléphone naît sans, TCK-2605). L'agent complète la fiche, puis relance.
+        abort_code_if(
+            trim(($lease->tenant?->first_name ?? '').' '.($lease->tenant?->last_name ?? '')) === '',
+            422,
+            'lease_signature.tenant_without_name'
+        );
 
         // VERIF-596 passe 2 (N1) — les termes exécutés hors colonne sont figés AVANT le rendu : le
         // PDF imprime exactement ce que le bail enregistre, et exécutera.

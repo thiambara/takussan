@@ -368,6 +368,7 @@ return [
         'sms_not_sent' => 'Le code n\'a pas pu partir par SMS : réessayez dans une minute, ou contactez le support.',
         'no_destination' => 'Aucun moyen de vous envoyer le code : vérifiez votre numéro de téléphone depuis votre profil, puis réessayez.',
         'tenant_without_account' => 'Le locataire de ce bail n\'a pas de compte : signez sur papier et joignez le contrat numérisé.',
+        'tenant_without_name' => 'Le locataire de ce bail n\'a pas de nom : complétez sa fiche (prénom et nom), puis relancez la demande de signature.',
     ],
     'lease_payment' => [
         'cancelled' => 'Cette échéance a été annulée par un renouvellement : elle n\'est plus due et ne s\'encaisse pas.',

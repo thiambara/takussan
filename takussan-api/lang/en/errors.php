@@ -368,6 +368,7 @@ return [
         'sms_not_sent' => 'The code could not be sent by SMS: try again in a minute, or contact support.',
         'no_destination' => 'There is no way to send you the code: verify your phone number from your profile, then try again.',
         'tenant_without_account' => 'The tenant of this lease has no account: sign on paper and attach the scanned contract.',
+        'tenant_without_name' => 'The tenant of this lease has no name: complete their record (first and last name), then request the signature again.',
     ],
     'lease_payment' => [
         'cancelled' => 'This instalment was cancelled by a renewal: it is no longer due and cannot be collected.',
