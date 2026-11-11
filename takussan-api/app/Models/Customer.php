@@ -92,6 +92,8 @@ class Customer extends AbstractModel
         'seeking_cities' => 'array',
         'seeking_neighborhoods' => 'array',
         'min_bedrooms' => 'integer',
+        // TCK-2583 — écrite par `ContactGestureService::touchCustomer()` seulement, jamais fillable.
+        'last_contacted_at' => 'datetime',
     ];
 
     /**
@@ -111,7 +113,7 @@ class Customer extends AbstractModel
     protected static array $requestFilterable = ['user_id', 'agency_id', 'added_by_id', 'status', 'pipeline_stage'];
 
     /** `first_name` et `last_name` se trient à part, en `COLLATE "und-x-icu"` (TCK-1136). */
-    protected static array $requestSortable = ['id', 'created_at', 'updated_at', 'status'];
+    protected static array $requestSortable = ['id', 'created_at', 'updated_at', 'status', 'last_contacted_at'];
 
     protected static array $requestLoadable = ['user', 'agency', 'addresses', 'tags', 'addedBy', 'notes', 'documents', 'tasks'];
 
@@ -149,7 +151,7 @@ class Customer extends AbstractModel
         'status', 'pipeline_stage', 'metadata',
         'seeking_contract_type', 'budget_min', 'budget_max',
         'seeking_property_types', 'seeking_cities', 'seeking_neighborhoods', 'min_bedrooms',
-        'locale',
+        'locale', 'last_contacted_at',
         'created_at', 'updated_at',
     ];
 

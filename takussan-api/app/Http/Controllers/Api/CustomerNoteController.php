@@ -6,6 +6,7 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\StoreCustomerNoteRequest;
 use App\Models\Customer;
 use App\Models\CustomerNote;
+use App\Services\Crm\ContactGestureService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -30,14 +31,16 @@ class CustomerNoteController extends Controller
         return $this->paginated($notes, $notes->getCollection()->map(fn (CustomerNote $n) => $this->format($n))->values());
     }
 
-    public function store(StoreCustomerNoteRequest $request, Customer $customer): JsonResponse
+    public function store(StoreCustomerNoteRequest $request, Customer $customer, ContactGestureService $gestures): JsonResponse
     {
-
         $data = $request->validated();
 
         $note = $customer->notes()->create(array_merge($data, [
             'author_id' => $request->user()->id,
         ]));
+
+        // TCK-2583 — une note écrite sur la fiche est un contact : le dernier contact avance.
+        $gestures->touchCustomer($customer, $note->created_at);
 
         return $this->json(['data' => $this->format($note)], 201);
     }

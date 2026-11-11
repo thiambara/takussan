@@ -10,6 +10,7 @@ use App\Models\Enums\VisitReportOutcome;
 use App\Models\Enums\VisitStatus;
 use App\Models\PropertyVisit;
 use App\Models\User;
+use App\Services\Crm\ContactGestureService;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -72,6 +73,11 @@ class VisitReportService
 
             $customer = $locked->customer;
             $note = $customer !== null ? $this->writeNote($locked, $customer, $author) : null;
+
+            // TCK-2583 — un compte rendu est un contact : le dernier contact de la fiche avance.
+            if ($customer !== null) {
+                app(ContactGestureService::class)->touchCustomer($customer);
+            }
 
             return [
                 'visit' => $locked,

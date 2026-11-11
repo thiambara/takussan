@@ -22,6 +22,7 @@ use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Policies\PropertyVisitPolicy;
 use App\Rules\PersonnelDeLAgence;
+use App\Services\Crm\ContactGestureService;
 use App\Services\Notifications\ContactSansCompte;
 use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Visit\VisitNotifier;
@@ -362,6 +363,11 @@ class PropertyVisitController extends Controller
             'status' => VisitStatus::Completed,
             'completed_at' => now(),
         ]));
+
+        // TCK-2583 — une visite menée est un contact : le dernier contact de la fiche avance.
+        if ($visit->customer_id !== null) {
+            app(ContactGestureService::class)->touchCustomer((int) $visit->customer_id, $visit->completed_at);
+        }
 
         return $this->json(['data' => PropertyVisitResource::make($visit->refresh())->resolve($request)]);
     }

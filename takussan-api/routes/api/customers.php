@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\ContactGestureController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\CustomerInvitationController;
 use App\Http\Controllers\Api\CustomerNoteController;
@@ -28,6 +29,8 @@ Route::middleware('auth:sanctum')->group(function () {
         ->name('customers.invite');
     // TCK-591 — le journal de la fiche (client, notes, tâches), autorisé par la lecture du client.
     Route::get('customers/{customer}/activity', [CustomerController::class, 'activity'])->name('customers.activity');
+    // TCK-2583 — un geste de contact sur la fiche (WhatsApp, appel, e-mail, SMS) : 204.
+    Route::post('customers/{customer}/contacts', [ContactGestureController::class, 'forCustomer'])->name('customers.contacts.store');
 
     // Customer notes
     Route::get('customers/{customer}/notes', [CustomerNoteController::class, 'index'])->name('customer-notes.index');

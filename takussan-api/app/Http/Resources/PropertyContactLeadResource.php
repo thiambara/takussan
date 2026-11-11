@@ -30,6 +30,10 @@ class PropertyContactLeadResource extends BaseResource
             'handled_at' => $this->iso($this->handled_at),
             'handled_by_id' => $this->handled_by_id,
             'customer_id' => $this->customer_id,
+            // TCK-2583 — le premier geste de contact : répondre ne vaut pas traiter (`handled_at`).
+            'first_responded_at' => $this->iso($this->first_responded_at),
+            'first_responded_by_id' => $this->first_responded_by_id,
+            'first_response_channel' => $this->first_response_channel,
             'created_at' => $this->iso($this->created_at),
             'property' => $this->whenLoaded('property', fn () => $this->property ? [
                 'id' => $this->property->id,

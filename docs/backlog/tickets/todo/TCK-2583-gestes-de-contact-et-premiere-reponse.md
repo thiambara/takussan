@@ -72,4 +72,53 @@ L'agent qui répond par WhatsApp ou par téléphone n'a rien d'autre à faire po
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Re-mesure (2026-11-11, branche `feat/audit-ux-app-lot-1`)** — la prémisse tient : ni première réponse
+sur la demande, ni dernier contact sur la fiche, ni filtre `unassigned` / `search` / plage de dates.
+Écarts relevés :
+
+- `filter[created_at_min|max]` passe par `RangeFilter`, qui juge la borne selon le **cast** de la
+  colonne : sans `'created_at' => 'datetime'` dans `$casts`, une date rendait 422 (règle `numeric`).
+  Le cast est ajouté au modèle (ablation `cast-created-at` : rouge).
+- La conversion d'une demande pose déjà `handled_at` : la demande convertie d'AC2 est « traitée »
+  avant le geste ; le geste n'y change rien et avance quand même la fiche.
+- Les deux migrations avaient déjà été jouées sur la base de démo par un `migrate` voisin.
+
+**Choix faits** :
+
+- Un seul écrivain des colonnes dénormalisées : `App\Services\Crm\ContactGestureService`
+  (`onLead`, `onCustomer`, `touchCustomer`). La première réponse se pose sous verrou de la ligne
+  puis `whereNull('first_responded_at')` ; `last_contacted_at` n'avance que vers l'avant, par la
+  requête (`toBase()`) : ni entrée `updated` au journal de la fiche, ni `updated_at` touché.
+- Le geste écrit une entrée `activity_log` `event = contacted`, `properties = {channel}` et rien
+  d'autre, sur la demande ou la fiche. Le journal de la fiche (`CustomerActivityFeed`) rend aussi
+  les gestes posés sur sa demande convertie (`subject: lead`), avec `channel`.
+- Note (`CustomerNoteController::store`), visite terminée (`PropertyVisitController::complete`) et
+  compte rendu (`VisitReportService::write`) appellent `touchCustomer`.
+- Filtres : `responded` et `unassigned` vivent dans `App\Services\Crm\ContactLeadInboxFilters`
+  (branchés par une ligne dans `PropertyContactLead::getAllowedQueryFilters()`). `unassigned` =
+  sans destinataire, ou destinataire qui n'est plus personnel actif et joignable de l'agence de la
+  demande (même définition que `filter[assignable]` des membres) ; une demande sans agence n'est
+  orpheline que sans destinataire.
+- `response-stats` (`ContactLeadResponseStatsService`) : demandes du **formulaire** de l'agence,
+  déposées dans la période (`period`, 30 j par défaut, 1-365) ; médiane `percentile_cont(0.5)` en
+  secondes, brute, `null` sans réponse. « Ouvertes depuis plus de 24 h » = ni répondues ni
+  traitées, déposées il y a plus de 24 h, **sans borne de période** (un état courant), rangées sous
+  leur destinataire. Le super-admin nomme l'agence par `agency_id` (requis pour lui).
+- `CustomerResource` rend `last_contacted_at`, triable (`sort=-last_contacted_at` : sous
+  PostgreSQL, les fiches jamais contactées viennent en tête d'un tri descendant).
+- Pas d'index sur `first_responded_by_id` (piège n° 8 : à poser sur mesure).
+
+**Tests** : `tests/Feature/Crm/{ContactGestureTest,CustomerLastContactedTest,ContactLeadInboxFiltersTest,ContactLeadResponseStatsTest}.php`
+— 19 tests verts ; voisins verts (`ContactLeadInboxTest`, `ContactLeadConvertTest`,
+`PropertyContactLeadTest`, `PropertyContactClickTest`, `CustomerActivityEndpointTest`,
+`CustomerNoteTest`, `PropertyVisitReportTest`, `VisitReportPrivacyTest`, `DateInventoryByValueTest`,
+`AuthorizationPrecedesValidationTest`, `ImpersonationReadSweepTest`, `ValeursEnListe*`…).
+
+**Ablations (23, toutes rouges sans le correctif, restaurées et prouvées par md5)** : première
+réponse idempotente (AC1) ; médiane remplacée par une moyenne, demandes traitées ou de moins de
+24 h comptées ouvertes, clics comptés, autre agence comptée (AC4) ; policy des statistiques et du
+geste, demande comme fiche (AC5) ; fiche de la demande convertie non avancée, geste de la demande
+absent du journal, canal absent (AC2) ; note, visite terminée, compte rendu ; dernier contact qui
+recule ; `updated_at` touché ; `unassigned` sans la branche « désactivé » ou sans `active()` ;
+`responded` lu sur `handled_at` ; filtres non branchés ; recherche sans le message ; cast de
+`created_at` retiré (AC3).

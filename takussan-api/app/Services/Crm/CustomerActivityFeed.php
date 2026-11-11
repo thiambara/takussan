@@ -5,6 +5,7 @@ namespace App\Services\Crm;
 use App\Models\Customer;
 use App\Models\CustomerNote;
 use App\Models\Enums\CustomerNoteKind;
+use App\Models\PropertyContactLead;
 use App\Models\Task;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -15,6 +16,9 @@ use Spatie\Activitylog\Models\Activity;
  * TCK-591 — le journal d'une fiche client : le client lui-même, ses notes et ses tâches.
  *
  * TCK-2578 — et ses comptes rendus de visite (notes `visit_report`), pour le seul personnel.
+ *
+ * TCK-2583 — et ses gestes de contact (`event = contacted`, `channel`), y compris ceux posés sur la
+ * demande de contact qu'elle a convertie : une ligne « WhatsApp », « Appel »… Jamais de coordonnée.
  *
  * L'onglet « Activité » de la console appelait `/api/audit-log`, réservé au super-admin et à
  * l'admin d'agence : pour un agent, 403 avalé en liste vide. Ce journal-ci s'autorise par la
@@ -36,6 +40,8 @@ class CustomerActivityFeed
             ],
         ],
         CustomerNote::class => ['type' => 'note', 'fields' => ['pinned', 'kind']],
+        // TCK-2583 — d'une demande convertie, seuls ses gestes de contact entrent dans le journal.
+        PropertyContactLead::class => ['type' => 'lead', 'fields' => []],
         Task::class => ['type' => 'task', 'fields' => ['title', 'status', 'due_at', 'priority', 'assigned_to_id']],
     ];
 
@@ -61,13 +67,17 @@ class CustomerActivityFeed
             ->where('taskable_type', Customer::class)
             ->where('taskable_id', $customer->id)
             ->pluck('id');
+        $leadIds = PropertyContactLead::query()->where('customer_id', $customer->id)->pluck('id');
 
         $paginator = Activity::query()
             ->with('causer')
-            ->where(function (Builder $q) use ($customer, $noteIds, $taskIds) {
+            ->where(function (Builder $q) use ($customer, $noteIds, $taskIds, $leadIds) {
                 $q->where(fn (Builder $c) => $c->where('subject_type', Customer::class)->where('subject_id', $customer->id))
                     ->orWhere(fn (Builder $n) => $n->where('subject_type', CustomerNote::class)->whereIn('subject_id', $noteIds))
-                    ->orWhere(fn (Builder $t) => $t->where('subject_type', Task::class)->whereIn('subject_id', $taskIds));
+                    ->orWhere(fn (Builder $t) => $t->where('subject_type', Task::class)->whereIn('subject_id', $taskIds))
+                    ->orWhere(fn (Builder $l) => $l->where('subject_type', PropertyContactLead::class)
+                        ->whereIn('subject_id', $leadIds)
+                        ->where('event', ContactGestureService::EVENT));
             })
             ->orderByDesc('created_at')
             ->orderByDesc('id')
@@ -144,6 +154,10 @@ class CustomerActivityFeed
                 ? ['id' => $causer->getKey(), 'name' => $causer->getFullNameAttribute()]
                 : null,
             'created_at' => $log->created_at?->toIso8601String(),
+            // TCK-2583 — le canal d'un geste de contact, rien d'autre de ses propriétés.
+            ...($log->event === ContactGestureService::EVENT
+                ? ['channel' => $log->properties instanceof Collection ? $log->properties->get('channel') : null]
+                : []),
             ...($subject['type'] === 'note' && isset($this->reports[(int) $log->subject_id])
                 ? ['report' => $this->reports[(int) $log->subject_id]]
                 : []),

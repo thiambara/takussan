@@ -81,6 +81,8 @@ class CustomerResource extends BaseResource
                 'seeking_neighborhoods' => $this->seeking_neighborhoods,
                 'min_bedrooms' => $this->min_bedrooms,
             ] : []),
+            // TCK-2583 — le dernier contact : geste, note, visite terminée ou compte rendu.
+            'last_contacted_at' => $this->iso($this->last_contacted_at),
             'created_at' => $this->iso($this->created_at),
             'updated_at' => $this->iso($this->updated_at),
             'tasks_count' => $this->whenCounted('tasks'),
