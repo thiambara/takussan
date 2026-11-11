@@ -1,7 +1,7 @@
 ---
 id: TCK-2724
 title: "Dans le contexte d'un fil, l'étape et le référent de la fiche suivent la lecture de la fiche, comme le téléphone"
-status: todo
+status: done
 phase: P1
 family: back
 estimate: S
