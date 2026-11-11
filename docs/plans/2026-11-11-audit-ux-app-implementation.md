@@ -300,3 +300,12 @@ _(tenu par la session : date, lot, tickets livrés, refus du vérificateur, PR, 
   chevauchent sur une même location peuvent être confirmées toutes deux (lu dans le code, non
   éprouvé). L'export iCal, l'agenda agrégé, `PortfolioMetrics` et `CompleteEndedBookingsJob` lisent
   encore les réservations confirmées sans leur nature (hors périmètre) : suite à ranger en ticket.
+- TCK-2663 : les « contacts » d'une mise en avant comptent tous les canaux (formulaire, clics WhatsApp
+  et Appeler de `property_contact_leads`), pour la mesure comme pour « sans contact depuis 30 jours » :
+  une seule définition. Le seul formulaire = un `channel = form` à deux endroits, si le porteur le veut.
+- TCK-2610 : sous la session d'un AUTRE compte que le destinataire, `accept()` rend désormais 403
+  `invitation.email_mismatch` / `phone_mismatch` au lieu de créer le compte de l'invité (ADR-0094
+  § 7) — visible sur la page actuelle avant TCK-2611 ; `/verify` exige `phone` même pour une
+  invitation par e-mail ; le code SMS est consommé même si l'acceptation est refusée. Les trois sont
+  reportés dans le contrat de TCK-2611. Rouge de `NumeroPublieVerifieTest` sur l'aperçu public de
+  TCK-2609 (693cb3b42) : corrigé à part.
