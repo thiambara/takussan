@@ -15,6 +15,11 @@ on:
   # protection de branche doit exister sur chaque PR, sinon GitHub attend un statut qui ne
   # viendra jamais — et une promotion qui ne touche que `docs/` ne fusionnerait plus.
   workflow_call:
+  # À la demande, sur n'importe quelle branche : une PR de plus de 300 fichiers ne déclenche pas les
+  # workflows filtrés par chemins (GitHub n'évalue `paths` que sur les 300 premiers fichiers du diff),
+  # et `takussan-web/**` vient après `takussan-api/**` dans l'ordre du diff. `api-ci.yml` avait déjà
+  # `workflow_dispatch` ; c'est le pendant du front (lot de l'audit UX de /app, 2026-11-11).
+  workflow_dispatch:
   pull_request:
     branches-ignore: [preview, master]
     paths:
