@@ -95,23 +95,31 @@ function useAdresse() {
   return { recherche, poser };
 }
 
+/**
+ * TCK-2659 (D2, décision du 2026-11-11) — les statuts d'une échéance NON payée : elle n'a pas de `paid_at`,
+ * et un registre borné par l'encaissement la rendrait vide à coup sûr. Filtrée sur l'un d'eux, la lecture
+ * borne par `date_from` / `date_to` (l'échéance de la période) ; sans statut, ou sur un statut encaissé
+ * (`paid`, `refunded`), par `paid_from` / `paid_to`.
+ */
+const STATUTS_NON_PAYES: ReadonlySet<string> = new Set(['late', 'pending', 'failed', 'partially_paid', 'cancelled']);
+
 /** Les paramètres de la lecture, tirés de l'adresse — la même pour la liste et pour ses totaux. */
 export function parametresDesEncaissements(recherche: { get(nom: string): string | null }, courant: string): UsePaymentsHistoryParams {
   const { du, au } = bornesDesEncaissements(recherche, courant);
   const entityType = recherche.get('entity_type') as PaymentHistoryEntity | null;
   const moyen = recherche.get('moyen');
+  const statut = recherche.get('status') || undefined;
+  const parEcheance = statut !== undefined && STATUTS_NON_PAYES.has(statut);
   return {
     page: entier(recherche.get('page')) ?? 1,
     per_page: PAR_PAGE,
-    status: recherche.get('status') || undefined,
+    status: statut,
     entity_type: entityType || undefined,
     entity_id: entityType ? entier(recherche.get('entity_id')) : undefined,
     // TCK-2659 (M1) — un registre d'ENCAISSEMENTS se borne par la date d'encaissement (`paid_at`), comme
     // la tuile « Encaissé en <mois> » : le loyer d'octobre réglé le 3 novembre est un encaissement de
-    // novembre. Les dates posées (Du / Au) aussi. Une ligne sans `paid_at` (en attente, échouée) sort donc
-    // d'un registre borné.
-    paid_from: du,
-    paid_to: au,
+    // novembre. Les dates posées (Du / Au) aussi. Sauf sous un statut non payé ({@link STATUTS_NON_PAYES}).
+    ...(parEcheance ? { date_from: du, date_to: au } : { paid_from: du, paid_to: au }),
     payer_id: entier(recherche.get('payer_id')),
     landlord_id: entier(recherche.get('landlord_id')),
     payment_method: moyen ? [moyen] : undefined,

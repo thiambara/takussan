@@ -114,7 +114,8 @@ let reponseSynthese: FinanceSummary = synthese();
 let lignes: PaymentHistoryRow[] = [];
 let bailleurs: unknown[] = [];
 let reversements: unknown[] = [];
-/** M1 — le faux serveur borne la liste par `paid_at` sur `filter[paid_from|paid_to]`, comme l'API. */
+/** M1 — le faux serveur borne comme l'API : `filter[paid_from|paid_to]` sur `paid_at` seul, `filter[date_from|date_to]`
+ * sur `paid_at` OU `period_start`, et `filter[status]`. */
 let serveurBorneParEncaissement = false;
 const appels: URL[] = [];
 
@@ -130,10 +131,15 @@ function brancherLeReseau() {
       appels.push(url);
       if (url.pathname.endsWith('/finance/summary')) return repondre({ data: reponseSynthese });
       if (url.pathname === '/api/payments/history') {
-        const de = url.searchParams.get('filter[paid_from]');
-        const a = url.searchParams.get('filter[paid_to]');
+        const p = (nom: string) => url.searchParams.get(`filter[${nom}]`);
+        const dans = (jour: string | null | undefined, de: string | null, a: string | null) => !!jour && (!de || jour.slice(0, 10) >= de) && (!a || jour.slice(0, 10) <= a);
         const servies = serveurBorneParEncaissement
-          ? lignes.filter((l) => l.paid_at !== null && (!de || l.paid_at.slice(0, 10) >= de) && (!a || l.paid_at.slice(0, 10) <= a))
+          ? lignes.filter(
+              (l) =>
+                (!p('status') || l.status === p('status')) &&
+                (!(p('paid_from') || p('paid_to')) || dans(l.paid_at, p('paid_from'), p('paid_to'))) &&
+                (!(p('date_from') || p('date_to')) || dans(l.paid_at, p('date_from'), p('date_to')) || dans(l.period_start, p('date_from'), p('date_to'))),
+            )
           : lignes;
         return repondre({
           data: servies,
@@ -362,6 +368,35 @@ describe('vérification adverse de TCK-2659', () => {
     for (const u of derniers) {
       expect(u.searchParams.get('filter[paid_from]')).toBe('2026-10-01');
       expect(u.searchParams.get('filter[paid_to]')).toBe('2026-10-31');
+      expect(u.searchParams.has('filter[date_from]')).toBe(false);
+    }
+  });
+
+  it('D2 — « En retard » en novembre rend les 9 échéances en retard du mois (bornes de l’échéance, pas de l’encaissement)', async () => {
+    serveurBorneParEncaissement = true;
+    const enRetard = Array.from({ length: 9 }, (_, i) =>
+      ligne({ id: 100 + i, reference_number: `LP-2026-01${i}`, status: 'late', paid_at: null, paid_amount: 0, remaining_amount: 250_000, period_start: '2026-11-01', period_end: '2026-11-30', due_date: '2026-11-05', payer: { id: 200 + i, name: `Locataire ${i + 1}`, phone: null } }),
+    );
+    lignes = [...enRetard, ligne({ id: 99, status: 'paid' }), ligne({ id: 98, status: 'late', paid_at: null, period_start: '2026-10-01', period_end: '2026-10-31', due_date: '2026-10-05' })];
+    rendre('tab=encaissements&period=2026-11&status=late');
+
+    const table = await screen.findByRole('table');
+    await waitFor(() => expect(within(table).getAllByRole('row')).toHaveLength(1 + 9));
+    expect(within(table).getByText('Locataire 9')).toBeInTheDocument();
+    for (const u of lecturesDeLaListe()) {
+      expect(u.searchParams.get('filter[status]')).toBe('late');
+      expect(u.searchParams.get('filter[date_from]')).toBe('2026-11-01');
+      expect(u.searchParams.get('filter[date_to]')).toBe('2026-11-30');
+      expect(u.searchParams.has('filter[paid_from]')).toBe(false);
+    }
+  });
+
+  it('D2 — sous « Payé », le registre reste borné par l’encaissement', async () => {
+    rendre('tab=encaissements&period=2026-11&status=paid');
+
+    await waitFor(() => expect(lecturesDeLaListe().length).toBeGreaterThan(0));
+    for (const u of lecturesDeLaListe()) {
+      expect(u.searchParams.get('filter[paid_from]')).toBe('2026-11-01');
       expect(u.searchParams.has('filter[date_from]')).toBe(false);
     }
   });
