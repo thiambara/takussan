@@ -61,6 +61,8 @@ return [
     'agency_upgrade' => [
         // TCK-1003 — l'approbation d'une demande de passage exige un dossier KYC vérifié.
         'kyc_not_verified' => 'The agency KYC dossier must be verified before its upgrade to a professional agency can be approved.',
+        // TCK-2681 — the upgrade plan (billing.upgrade_plan_code) is missing or retired.
+        'plan_unavailable' => 'The pro upgrade plan is missing or retired: reactivate it before approving.',
     ],
     'agent_absence' => [
         'overlaps' => 'An absence of this member is already scheduled or ongoing over this period.',

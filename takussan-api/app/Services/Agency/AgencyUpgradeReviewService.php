@@ -3,6 +3,8 @@
 namespace App\Services\Agency;
 
 use App\Events\AgencyUpgradeApproved;
+use App\Models\Agency;
+use App\Models\AgencySubscription;
 use App\Models\AgencyUpgradeRequest;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\AgencyUpgradeRequestStatus;
@@ -10,6 +12,8 @@ use App\Models\Enums\KycDossierStatus;
 use App\Models\User;
 use App\Notifications\AgencyUpgradeApprovedNotification;
 use App\Notifications\AgencyUpgradeRejectedNotification;
+use App\Services\Billing\AgencySubscriptionService;
+use App\Services\Billing\UpgradeOffer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
@@ -28,7 +32,8 @@ use Throwable;
  *  - approve → activity log `agency_upgrade_approved`, dispatch
  *    {@see AgencyUpgradeApproved} (consumed by TCK-269 to flip the
  *    Agency.kind), notify submitter via
- *    {@see AgencyUpgradeApprovedNotification}.
+ *    {@see AgencyUpgradeApprovedNotification} ; dans la même transaction, l'agence est abonnée
+ *    au plan du passage (TCK-2681, {@see self::subscribeToUpgradePlan()}).
  *  - reject  → activity log `agency_upgrade_rejected`, notify submitter
  *    via {@see AgencyUpgradeRejectedNotification} with the motif.
  *
@@ -39,6 +44,8 @@ class AgencyUpgradeReviewService
 {
     public function __construct(
         private readonly AgencyKindFlipService $kindFlipService,
+        private readonly UpgradeOffer $upgradeOffer,
+        private readonly AgencySubscriptionService $subscriptions,
     ) {}
 
     public function approve(
@@ -95,6 +102,8 @@ class AgencyUpgradeReviewService
                 throw $e;
             }
 
+            $this->subscribeToUpgradePlan($request, $reviewer);
+
             // ShouldDispatchAfterCommit on the event keeps TCK-269's
             // listener safe — it only fires once the row is persisted.
             AgencyUpgradeApproved::dispatch($request);
@@ -149,6 +158,44 @@ class AgencyUpgradeReviewService
         $this->notifySubmitter($rejected, new AgencyUpgradeRejectedNotification($rejected));
 
         return $rejected->fresh() ?? $rejected;
+    }
+
+    /**
+     * TCK-2681 (ADR-0104 § 6, décidé par le porteur le 2026-11-10) — l'approbation abonne l'agence
+     * au plan que l'hôte a lu avant de demander (`GET /api/me/upgrade-offer`, même résolution :
+     * {@see UpgradeOffer}). Sans essai ni dérogation, et sans prélèvement : l'abonnement est posé,
+     * aucun paiement n'est déclenché. Dans la transaction de l'approbation : un plan introuvable ou
+     * retiré fait tout échouer — la demande reste `pending`, l'agence `individual`. Un abonnement
+     * ouvert (posé à la main avant) est clos par `assign()` comme tout changement de plan ; le
+     * journal en garde les identifiants.
+     */
+    protected function subscribeToUpgradePlan(AgencyUpgradeRequest $request, User $reviewer): void
+    {
+        $plan = $this->upgradeOffer->plan();
+        abort_code_unless($plan, 422, 'agency_upgrade.plan_unavailable');
+
+        $agency = Agency::query()->whereKey($request->agency_id)->firstOrFail();
+        $replaced = AgencySubscription::query()
+            ->where('agency_id', $agency->id)
+            ->whereNull('ended_at')
+            ->orderBy('id')
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $subscription = $this->subscriptions->assign($agency, $plan, $reviewer);
+
+        activity('AgencyUpgradeRequest')
+            ->performedOn($subscription)
+            ->causedBy($reviewer)
+            ->withProperties([
+                'agency_id' => $agency->id,
+                'plan_id' => $plan->id,
+                'agency_upgrade_request_id' => $request->id,
+                'replaced_subscription_ids' => $replaced,
+            ])
+            ->event('agency_upgrade_subscription_assigned')
+            ->log('agency_upgrade_subscription_assigned');
     }
 
     /**

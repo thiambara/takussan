@@ -6696,7 +6696,8 @@
         "contact_leads": "Contact requests handed over to another agent",
         "invitations_expired_purged": "Expired invitations deleted",
         "owner_tax_id_set": "Landlord's tax ID entered",
-        "absence_updated": "Absence updated"
+        "absence_updated": "Absence updated",
+        "agency_upgrade_subscription_assigned": "Pro subscription assigned on professional agency upgrade"
       },
       "subjectWithId": "{label} #{id}",
       "otherAction": "Other action",

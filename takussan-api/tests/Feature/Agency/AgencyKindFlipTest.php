@@ -19,6 +19,7 @@ use Mockery;
 use RuntimeException;
 use Spatie\Activitylog\Models\Activity;
 use Symfony\Component\HttpKernel\Exception\HttpException;
+use Tests\Support\PlanDuPassage;
 use Tests\TestCase;
 use Throwable;
 
@@ -32,6 +33,7 @@ use Throwable;
  */
 class AgencyKindFlipTest extends TestCase
 {
+    use PlanDuPassage;
     use RefreshDatabase;
 
     private function pendingRequestForAgency(Agency $agency, ?User $submitter = null): AgencyUpgradeRequest

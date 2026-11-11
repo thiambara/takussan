@@ -15,6 +15,7 @@ use App\Services\Agency\AgencyUpgradeReviewService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Symfony\Component\HttpKernel\Exception\HttpException;
+use Tests\Support\PlanDuPassage;
 use Tests\TestCase;
 
 /**
@@ -27,6 +28,7 @@ use Tests\TestCase;
  */
 class AgencyUpgradeReviewSousVerrouTest extends TestCase
 {
+    use PlanDuPassage;
     use RefreshDatabase;
 
     /** @return array{0: AgencyUpgradeRequest, 1: Agency, 2: User} */

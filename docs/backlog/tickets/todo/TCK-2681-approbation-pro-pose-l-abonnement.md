@@ -69,15 +69,15 @@ abonnement commence à l'approbation » ; il ne le dit pas avant.
 
 ## Delta à produire
 
-- [ ] `AgencyUpgradeReviewService::approve` : résolution du plan, `assign`, erreur `agency_upgrade.plan_unavailable`.
-- [ ] Événement de journal `agency_upgrade_subscription_assigned`.
-- [ ] Tests `AgencyUpgradeApprovalSubscriptionTest` : approbation → un abonnement ouvert au plan `pro`, statut `active`, période d'un mois ; plan inactif → 422, demande `pending`, agence restée `individual`, aucun abonnement ; abonnement préexistant → clos et remplacé ; rejet → aucun abonnement.
+- [x] `AgencyUpgradeReviewService::approve` : résolution du plan, `assign`, erreur `agency_upgrade.plan_unavailable`.
+- [x] Événement de journal `agency_upgrade_subscription_assigned`.
+- [x] Tests `AgencyUpgradeApprovalSubscriptionTest` : approbation → un abonnement ouvert au plan `pro`, statut `active`, période d'un mois ; plan inactif → 422, demande `pending`, agence restée `individual`, aucun abonnement ; abonnement préexistant → clos et remplacé ; rejet → aucun abonnement.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Après `POST /api/admin/agency-upgrade-requests/{id}/approve` sur la démo, `GET /api/me/subscription` de l'admin de l'agence rend le plan `pro`, statut `active`, et `plan.monthly_price_xof=50000`.
-- [ ] AC2 — Avec le plan `pro` désactivé, la même approbation rend 422 `agency_upgrade.plan_unavailable` ; la demande est toujours `pending` et l'agence `individual` (ablation : retirer le `assign` fait rougir AC1, pas AC2).
-- [ ] AC3 — Aucun job de paiement ni aucune facture n'est créé par l'approbation (compte des tables `invoices` et des jobs de paiement inchangé).
+- [x] AC1 — Après `POST /api/admin/agency-upgrade-requests/{id}/approve` sur la démo, `GET /api/me/subscription` de l'admin de l'agence rend le plan `pro`, statut `active`, et `plan.monthly_price_xof=50000`.
+- [x] AC2 — Avec le plan `pro` désactivé, la même approbation rend 422 `agency_upgrade.plan_unavailable` ; la demande est toujours `pending` et l'agence `individual` (ablation : retirer le `assign` fait rougir AC1, pas AC2).
+- [x] AC3 — Aucun job de paiement ni aucune facture n'est créé par l'approbation (compte des tables `invoices` et des jobs de paiement inchangé).
 
 ## Hors périmètre
 
@@ -87,4 +87,12 @@ abonnement commence à l'approbation » ; il ne le dit pas avant.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Implémenté le 2026-11-11 (agent back-agence, lot audit UX /app). Prémisse re-mesurée : `approve` ne posait aucun abonnement, ni `FlipAgencyKindOnUpgradeApproved`.
+
+- `AgencyUpgradeReviewService::subscribeToUpgradePlan()`, appelée dans la transaction d'`approve` **après** la bascule et avant l'événement : plan résolu par `App\Services\Billing\UpgradeOffer::plan()` — la **même** résolution que `GET /api/me/upgrade-offer` (TCK-2669), plan actif de code `billing.upgrade_plan_code` — puis `AgencySubscriptionService::assign($agency, $plan, $reviewer)` sans essai ni dérogation. Plan introuvable ou inactif → 422 `agency_upgrade.plan_unavailable` (`errors.php`, fr/en/wo) levée après la bascule : la transaction entière est annulée — demande `pending` sans `reviewed_at`, agence `individual`, aucun journal d'approbation, aucun avis.
+- Journal `agency_upgrade_subscription_assigned` sur l'abonnement : `agency_id`, `plan_id`, `agency_upgrade_request_id`, `replaced_subscription_ids` (les abonnements ouverts que `assign` clôt, relevés juste avant), en plus de `super_admin_subscription_assigned` qu'écrit `assign`.
+- Aucun paiement : `assign` n'écrit ni facture ni job ; AC3 l'épingle (compte d'`invoices` inchangé, aucun job poussé dont le nom évoque paiement, facture, abonnement ou reversement).
+- AC1 : sur la base de démo, le plan résolu est `pro` à 50 000 (relevé par le service le 2026-11-11) ; l'approbation elle-même n'a pas été jouée sur la démo (elle l'aurait modifiée) — elle est éprouvée par `AgencyUpgradeApprovalSubscriptionTest`, jusqu'à `GET /api/me/subscription` de l'admin.
+- ⚠ **Conséquence de déploiement** : un environnement sans plan `pro` actif ne peut plus approuver aucun passage. La préproduction est semée par `DatabaseSeeder` → `PlanSeeder` (pro, 50 000) ; la production (phase F) devra l'avoir avant la première approbation.
+- Tests : les quatre classes qui approuvent sans parler d'abonnement (`AgencyUpgradeRequestReviewTest`, `AgencyKindFlipTest`, `AgencyUpgradeRequestEncryptionTest`, `AgencyUpgradeReviewSousVerrouTest` — 11 tests rouges sans lui) portent le trait neuf `Tests\Support\PlanDuPassage`, qui pose le plan comme `PlanSeeder`.
+- Hors de ce ticket : ADR-0104 § Application « `AgencyKindFlipService` sans recopie implicite » — la recopie « si vide » des champs légaux à l'approbation est toujours là ; aucun ticket ne la porte encore.

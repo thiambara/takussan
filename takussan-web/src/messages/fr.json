@@ -6696,7 +6696,8 @@
         "contact_leads": "Demandes de contact transmises à un autre agent",
         "invitations_expired_purged": "Invitations expirées supprimées",
         "owner_tax_id_set": "NINEA d'un bailleur saisi",
-        "absence_updated": "Absence modifiée"
+        "absence_updated": "Absence modifiée",
+        "agency_upgrade_subscription_assigned": "Abonnement pro attribué au passage en agence professionnelle"
       },
       "subjectWithId": "{label} n° {id}",
       "otherAction": "Autre action",

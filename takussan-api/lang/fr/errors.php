@@ -61,6 +61,8 @@ return [
     'agency_upgrade' => [
         // TCK-1003 — l'approbation d'une demande de passage exige un dossier KYC vérifié.
         'kyc_not_verified' => 'Le dossier KYC de l\'agence doit être vérifié avant d\'approuver son passage en agence professionnelle.',
+        // TCK-2681 — le plan du passage (billing.upgrade_plan_code) est introuvable ou retiré.
+        'plan_unavailable' => 'Le plan du passage en pro est introuvable ou retiré : réactivez-le avant d\'approuver.',
     ],
     'agent_absence' => [
         'overlaps' => 'Une absence de ce membre est déjà prévue ou en cours sur cette période.',
