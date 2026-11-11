@@ -288,7 +288,9 @@ refusé. Une valeur en liste (`filter[x][]=…`) vaut une valeur absente (ADR-00
 La sélection vit dans `App\Services\Payments\PaymentHistory` (TCK-2721), que lisent **deux** routes :
 cette liste, et l'export du registre `GET /api/export/payment_history?format=csv&filter[…]&sort=…`
 — mêmes filtres, même tri, mêmes lignes, sans pagination (`limit` des exports : 5 000 par défaut, 10 000 au plus ; au-delà, l'en-tête
-`X-Export-Truncated` porte le nombre de lignes rendues). L'export exige `payments.export` ; le 403
+`X-Export-Truncated` porte le nombre de lignes rendues ; le fichier coupé garde les **premières** lignes du
+registre dans le tri demandé : chaque source est triée en SQL sur la clé même du tri avant d'être coupée,
+`date`, `amount`, `created_at`, `remaining_amount` et `days_late` compris). L'export exige `payments.export` ; le 403
 passe avant le 422 d'un filtre invalide. Colonnes : `paid_at`, `payer`, `property`, `payment_type`,
 `period_start`, `period_end`, `payment_method`, `amount`, `currency`, `status`, `reference`.
 

@@ -172,3 +172,32 @@ affichés}} (CSV) »), `exporterAriaSansCompte` ajoutée, `exporterAriaBornes` r
 `registres.exporter` et `registres.exporterDetail` réécrites ; fr, en, et wo = le texte français (`=1`).
 `docs/spatie-query-builder.md` § « Historique des paiements » : un paragraphe sur `PaymentHistory` et l'export.
 Front : `argent.tck-2659.test.tsx` 38 verts, `route.registre.tck-2721.test.ts` 3 verts.
+
+**Vérification adverse — deux défauts corrigés (d1, d2).**
+- **d1 — la coupe gardait des lignes arbitraires.** `PaymentHistory::select()` coupait chaque source à `$maxRows`
+  sans `ORDER BY`, puis triait en PHP. Reproduit : six encaissements insérés du plus ancien au plus récent,
+  `sort=-date&limit=2` rendait R-06 et R-03 au lieu de R-06 et R-05. Chaque source est désormais triée en SQL
+  (`orderForCut()`) sur la clé que rend la ligne, dans le sens d'`applySort()` : `date` (le paiement, sinon le début
+  de période d'une échéance, sinon la création), `amount`, `created_at`, `remaining_amount` (l'accesseur de
+  `HasPaymentAttributes` recopié branche pour branche — ce n'est pas `CollectedPayments::OWED_REMAINING_SQL`, qui
+  ignore `paid` et `refunded`) et `days_late` (la définition du filtre `days_late_min`), `NULL` rangés comme en PHP,
+  `id` croissant pour départager. La clé et le sens se lisent une fois (`sortKey()`), pour la coupe et le tri : un tri
+  inconnu vaut `-date` des deux côtés. La liste en profite au-delà de 5 000 lignes.
+- **Pourquoi deux niveaux de test.** L'export demande `limit + 1` lignes : cette ligne de marge absorbe une ligne mal
+  rangée par la coupe, et trois ablations (branches `refunded` et `paid` à `metadata.paid_amount`, statuts dus du
+  retard) restaient vertes par l'export seul. `assertSelectionCoupeeGardeLeDebut()` appelle donc `select()` à `k`
+  exactement, pour chaque `k`.
+- **d2 — le tri de l'export n'était gardé par aucun test.** `test_d2_l_export_suit_l_ordre_de_la_liste_pour_chaque_tri`
+  compare l'ordre du fichier à celui de la liste pour `-date`, `amount`, `-amount` et `date`, dont deux ordres
+  inverses.
+- **Ablations, toutes rouges, fichiers restaurés à l'empreinte près :** ordre SQL retiré ; `history_sort` forcé à
+  `-date`, puis à `date` ; branche `paid` sans le remboursé ; branche `refunded` retirée ; `paid` sans
+  `metadata.paid_amount` ; retard sans exclure la restitution de caution, sans la condition d'échéance passée, sans
+  les statuts dus, `NULLS FIRST` ; tri inconnu croissant ; date d'une échéance sans le début de période ;
+  départage par `id` retiré. Non gardés par une ablation : le versant réservation de `remaining_amount` (même
+  expression, autre table) et le repli `created_at` de la date d'un acompte.
+- **Le tri `remaining_amount` caste `metadata.paid_amount` en `numeric`** sur toutes les lignes du périmètre, comme
+  `CollectedPayments::OWED_REMAINING_SQL`. Il repose sur le garde d'écriture de `HasPaymentAttributes` (`is_numeric`,
+  ≥ 0, refus 422) : une valeur non numérique posée hors du modèle (`DB::table`) ferait de ce tri une erreur 500 là où
+  l'accesseur PHP la lisait comme 0.
+

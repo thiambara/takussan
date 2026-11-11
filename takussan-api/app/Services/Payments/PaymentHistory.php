@@ -5,6 +5,7 @@ namespace App\Services\Payments;
 use App\Http\Filters\DateBoundaryFilter;
 use App\Models\BookingPayment;
 use App\Models\Customer;
+use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentMethod;
 use App\Models\Enums\PaymentStatus;
 use App\Models\LeasePayment;
@@ -190,6 +191,14 @@ class PaymentHistory
         $leaseCount = (clone $leaseQuery)->toBase()->getCountForPagination();
         $truncated = ($bookingCount + $leaseCount) > $maxRows;
 
+        // TCK-2721 (d1) — chaque source est triée EN SQL sur la clé même du tri PHP avant d'être
+        // coupée : sans cet ordre, la coupe gardait des lignes arbitraires (un export borné à deux
+        // lignes rendait les deux plus ANCIENNES encaissements d'un tri `-date`), et la fusion
+        // ci-dessous ne pouvait plus rendre les premières lignes du registre.
+        [$sortField, $sortDesc] = self::sortKey($sort);
+        $this->orderForCut($bookingQuery, 'booking_payments', $sortField, $sortDesc, $today);
+        $this->orderForCut($leaseQuery, 'lease_payments', $sortField, $sortDesc, $today);
+
         $bookingRows = $bookingQuery->limit($maxRows)->get()
             ->map(fn (BookingPayment $p) => $this->bookingRow($p) + ($extended ? $this->bookingExtras($p, $includes) : []));
         $leasePayments = $leaseQuery->limit($maxRows)->get();
@@ -309,18 +318,90 @@ class PaymentHistory
     }
 
     /**
+     * TCK-2721 (d1) — la clé de tri et son sens, lus UNE fois pour la coupe SQL et le tri PHP : un
+     * champ inconnu (ou `''`) vaut `-date` des deux côtés, sans quoi la coupe et le tri divergeraient.
+     *
+     * @return array{0: string, 1: bool} le champ, et `true` pour un tri décroissant
+     */
+    private static function sortKey(string $sort): array
+    {
+        $field = ltrim($sort, '-');
+        if (! in_array($field, ['date', 'amount', 'remaining_amount', 'created_at', 'days_late'], true)) {
+            return ['date', true];
+        }
+
+        return [$field, str_starts_with($sort, '-')];
+    }
+
+    /**
+     * TCK-2721 (d1) — l'ordre SQL d'une source avant sa coupe : la clé que `bookingRow()` /
+     * `leaseRow()` et leurs extras rendent, dans le sens d'`applySort()`. Les `NULL` se rangent comme
+     * en PHP (en tête d'un tri croissant, en queue d'un décroissant ; toujours en queue pour
+     * `days_late`), et l'`id` croissant départage les ex æquo — l'ordre que le tri stable de PHP
+     * conserve.
+     *
+     * @param  Builder<BookingPayment>|Builder<LeasePayment>  $query
+     */
+    private function orderForCut(Builder $query, string $table, string $field, bool $desc, string $today): void
+    {
+        $sens = $desc ? 'DESC NULLS LAST' : 'ASC NULLS FIRST';
+
+        match ($field) {
+            'date' => $query->orderByRaw($table === 'lease_payments'
+                ? "COALESCE(lease_payments.paid_at, lease_payments.period_start::timestamp, lease_payments.created_at) {$sens}"
+                : "COALESCE(booking_payments.paid_at, booking_payments.created_at) {$sens}"),
+            'amount', 'created_at' => $query->orderByRaw("{$table}.{$field} {$sens}"),
+            'remaining_amount' => $query->orderByRaw(self::remainingAmountSql($table)." {$sens}"),
+            // Une ligne d'acompte n'a jamais de retard : seul l'`id` la range.
+            'days_late' => $table === 'lease_payments'
+                ? $query->orderByRaw(self::daysLateSql().' '.($desc ? 'DESC' : 'ASC').' NULLS LAST', [$today, $today])
+                : null,
+        };
+
+        $query->orderBy("{$table}.id");
+    }
+
+    /**
+     * L'accesseur `remaining_amount` de `HasPaymentAttributes`, branche pour branche : `paid` (la part
+     * de `metadata.paid_amount` si elle est posée, sinon le montant, moins le remboursé), `refunded`
+     * (le montant moins le remboursé), sinon `metadata.paid_amount` ; jamais négatif, arrondi à 2.
+     * ⚠ Ce n'est PAS `CollectedPayments::OWED_REMAINING_SQL`, qui ignore les deux premières branches
+     * (il ne lit que des échéances dues). La parité est épinglée par `PaymentHistoryExportTest`.
+     */
+    private static function remainingAmountSql(string $table): string
+    {
+        $paye = PaymentStatus::Paid->value;
+        $rembourse = PaymentStatus::Refunded->value;
+        $meta = "COALESCE(({$table}.metadata->>'paid_amount')::numeric, 0)";
+        $rendu = "COALESCE({$table}.refund_amount, 0)";
+        $verse = "CASE WHEN {$table}.status = '{$paye}' THEN GREATEST(0, (CASE WHEN {$meta} > 0 THEN {$meta} ELSE COALESCE({$table}.amount, 0) END) - {$rendu})"
+            ." WHEN {$table}.status = '{$rembourse}' THEN GREATEST(0, COALESCE({$table}.amount, 0) - {$rendu})"
+            ." ELSE GREATEST(0, {$meta}) END";
+
+        return "ROUND(GREATEST(0, COALESCE({$table}.amount, 0) - ({$verse})), 2)";
+    }
+
+    /**
+     * `OverdueInstalment::daysLate()` en SQL : les jours écoulés depuis l'échéance d'une ligne due
+     * (`CollectedPayments::OWED_STATUSES`), hors restitution de caution, échue avant `?` (aujourd'hui) ;
+     * sinon `NULL`. La même définition que le filtre `days_late_min` / `days_late_max`.
+     */
+    private static function daysLateSql(): string
+    {
+        $dus = implode(', ', array_map(fn (string $s) => "'{$s}'", CollectedPayments::owedStatusValues()));
+        $restitution = LeasePaymentType::DepositRefund->value;
+
+        return "(CASE WHEN lease_payments.status IN ({$dus}) AND lease_payments.payment_type != '{$restitution}'"
+            .' AND lease_payments.due_date < ?::date THEN (?::date - lease_payments.due_date) END)';
+    }
+
+    /**
      * @param  Collection<int, array<string, mixed>>  $rows
      * @return Collection<int, array<string, mixed>>
      */
     private function applySort(Collection $rows, string $sort): Collection
     {
-        $desc = str_starts_with($sort, '-');
-        $field = ltrim($sort, '-');
-        $allowed = ['date', 'amount', 'remaining_amount', 'created_at', 'days_late'];
-        if (! in_array($field, $allowed, true)) {
-            $field = 'date';
-            $desc = true;
-        }
+        [$field, $desc] = self::sortKey($sort);
 
         // TCK-2657 — une ligne sans retard (`null`) se range en dernier, dans les deux sens.
         if ($field === 'days_late') {
