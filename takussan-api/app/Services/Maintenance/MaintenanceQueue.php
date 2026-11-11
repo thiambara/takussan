@@ -148,7 +148,7 @@ final class MaintenanceQueue
         return [
             'file' => $file,
             'waiting_on' => $waitingOn,
-            'waiting_since' => $mr->status_changed_at ?? $mr->created_at,
+            'waiting_since' => $mr->queue_entered_at ?? $mr->created_at,
             'slot_overdue_days' => $overdueDays,
             'auto_close_at' => $autoCloseAt,
         ];

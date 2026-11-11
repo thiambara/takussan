@@ -126,7 +126,7 @@ class MaintenanceQueueMappingTest extends TestCase
     public function test_ac2_an_open_request_without_provider_is_to_dispatch_since_its_creation(): void
     {
         ['mr' => $mr, 'landlord' => $landlord] = $this->maintenanceScenario(MaintenanceStatus::Open, ['assigned_to' => null]);
-        MaintenanceRequest::query()->whereKey($mr->id)->update(['created_at' => '2026-09-14 20:56:29', 'status_changed_at' => null]);
+        MaintenanceRequest::query()->whereKey($mr->id)->update(['created_at' => '2026-09-14 20:56:29', 'queue_entered_at' => null]);
         $this->travelTo(Carbon::parse('2026-11-11 10:00:00', 'Africa/Dakar'));
 
         Sanctum::actingAs($landlord);
@@ -169,24 +169,59 @@ class MaintenanceQueueMappingTest extends TestCase
         $this->assertSame('2026-11-16T22:59:59+00:00', $row['auto_close_at']);
     }
 
-    /** `waiting_since` suit chaque changement de statut, et lui seul. */
-    public function test_status_changed_at_follows_every_status_change_and_only_it(): void
+    /** `waiting_since` suit chaque changement de statut ; une autre écriture ne la touche pas. */
+    public function test_queue_entered_at_follows_every_status_change(): void
     {
         $this->travelTo(Carbon::parse('2026-11-01 09:00:00'));
         ['mr' => $mr, 'provider' => $provider] = $this->maintenanceScenario(MaintenanceStatus::Assigned);
-        $this->assertSame('2026-11-01 09:00:00', $mr->fresh()->status_changed_at->toDateTimeString());
+        $this->assertSame('2026-11-01 09:00:00', $mr->fresh()->queue_entered_at->toDateTimeString());
 
         $this->travelTo(Carbon::parse('2026-11-03 09:00:00'));
         $mr->fresh()->update(['title' => 'Fuite sous l\'évier']);
-        $this->assertSame('2026-11-01 09:00:00', $mr->fresh()->status_changed_at->toDateTimeString());
+        $this->assertSame('2026-11-01 09:00:00', $mr->fresh()->queue_entered_at->toDateTimeString());
 
         $this->travelTo(Carbon::parse('2026-11-05 09:00:00'));
         app(MaintenanceRequestService::class)->accept($mr->fresh(), $provider);
         Sanctum::actingAs($provider);
         $this->putJson("/api/maintenance-requests/{$mr->id}/status", ['status' => 'in_progress'])->assertOk();
 
-        $this->assertSame('2026-11-05 09:00:00', $mr->fresh()->status_changed_at->toDateTimeString());
+        $this->assertSame('2026-11-05 09:00:00', $mr->fresh()->queue_entered_at->toDateTimeString());
         $this->assertSame('2026-11-05T09:00:00+00:00', $this->getJson("/api/maintenance-requests/{$mr->id}")->json('data.waiting_since'));
+    }
+
+    /**
+     * Décision de la session (2026-11-11) — `waiting_since` est l'entrée dans la FILE courante : le
+     * dispatch, le refus du prestataire et la réassignation changent le destinataire sans changer le
+     * statut (`open`), et remettent l'ancienneté à zéro. Un prestataire ne lit pas « depuis le
+     * 14 sept. » une demande reçue à l'instant.
+     */
+    public function test_dispatch_decline_and_reassignment_restart_the_waiting(): void
+    {
+        ['mr' => $mr, 'provider' => $provider, 'landlord' => $landlord, 'agency' => $agency] = $this->maintenanceScenario(MaintenanceStatus::Open, ['assigned_to' => null]);
+        MaintenanceRequest::query()->whereKey($mr->id)->update(['created_at' => '2026-09-14 20:56:29', 'queue_entered_at' => '2026-09-14 20:56:29']);
+        $other = $this->providerFor($agency);
+        $read = function ($user) use ($mr): array {
+            Sanctum::actingAs($user);
+
+            return $this->getJson("/api/maintenance-requests/{$mr->id}")->assertOk()->json('data');
+        };
+
+        $this->travelTo(Carbon::parse('2026-11-11 10:00:00'));
+        Sanctum::actingAs($landlord);
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['assigned_to' => $provider->id])->assertOk();
+        $row = $read($provider);
+        $this->assertSame(['open', 'en_cours', 'provider', '2026-11-11T10:00:00+00:00'], [$row['status'], $row['file'], $row['waiting_on'], $row['waiting_since']]);
+
+        $this->travelTo(Carbon::parse('2026-11-11 11:00:00'));
+        Sanctum::actingAs($provider);
+        $this->postJson("/api/maintenance-requests/{$mr->id}/decline", ['reason' => 'Pas disponible cette semaine'])->assertOk();
+        $row = $read($landlord);
+        $this->assertSame(['open', 'a_dispatcher', 'agency', '2026-11-11T11:00:00+00:00'], [$row['status'], $row['file'], $row['waiting_on'], $row['waiting_since']]);
+
+        $this->travelTo(Carbon::parse('2026-11-11 12:00:00'));
+        Sanctum::actingAs($landlord);
+        $this->patchJson("/api/maintenance-requests/{$mr->id}", ['assigned_to' => $other->id])->assertOk();
+        $this->assertSame('2026-11-11T12:00:00+00:00', $read($other)['waiting_since']);
     }
 
     /**
@@ -209,9 +244,9 @@ class MaintenanceQueueMappingTest extends TestCase
             'completed_at' => '2026-11-02 12:00:00', 'created_at' => '2026-10-01 09:00:00',
         ])]);
 
-        $this->assertSame('2026-09-14 20:56:29', $open->fresh()->status_changed_at->toDateTimeString());
-        $this->assertSame('2026-11-02 12:00:00', $done->fresh()->status_changed_at->toDateTimeString());
-        $this->assertSame('2026-11-11 10:00:00', $first->fresh()->status_changed_at->toDateTimeString());
+        $this->assertSame('2026-09-14 20:56:29', $open->fresh()->queue_entered_at->toDateTimeString());
+        $this->assertSame('2026-11-02 12:00:00', $done->fresh()->queue_entered_at->toDateTimeString());
+        $this->assertSame('2026-11-11 10:00:00', $first->fresh()->queue_entered_at->toDateTimeString());
     }
 
     /** Une colonne de la table absente du sparse fieldset : aucune file plutôt qu'une file fausse. */
@@ -221,7 +256,7 @@ class MaintenanceQueueMappingTest extends TestCase
 
         Sanctum::actingAs($landlord);
         $sans = $this->getJson('/api/maintenance-requests?fields[maintenance_requests]=id,status')->assertOk()->json('data.0');
-        $avec = $this->getJson('/api/maintenance-requests?fields[maintenance_requests]=id,status,assigned_to,scheduled_at,status_changed_at')->assertOk()->json('data.0');
+        $avec = $this->getJson('/api/maintenance-requests?fields[maintenance_requests]=id,status,assigned_to,scheduled_at,queue_entered_at')->assertOk()->json('data.0');
 
         $this->assertSame($mr->id, $sans['id']);
         $this->assertNull($sans['file']);

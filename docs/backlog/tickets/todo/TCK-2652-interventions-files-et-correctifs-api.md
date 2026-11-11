@@ -154,7 +154,7 @@ Autres règles :
   `filter[due]`). **`GET /api/maintenance-requests/summary`** → `{data: {a_dispatcher, en_retard,
   chez_le_bailleur, en_cours, a_confirmer, terminees, a_accepter}}`, sous `visibleTo` et les AUTRES
   filtres de la requête (statut, priorité…), jamais `filter[file]` ; deux requêtes.
-- **`status_changed_at`** : posé par le modèle (`MaintenanceRequest::booted()`, `saving` quand `status`
+- **`status_changed_at`** (devenu `queue_entered_at`, voir plus bas) : posé par le modèle (`MaintenanceRequest::booted()`, `saving` quand `status`
   change et que la colonne n'est pas posée dans la même écriture), pas par la seule machine d'état :
   aucun écrivain (devis, acceptation, clôture auto, seeders) ne peut l'oublier — les deux `saveQuietly()`
   du dépôt (création urgente, escalade) n'écrivent que `metadata`. À la **création**, l'instant est celui
@@ -184,18 +184,20 @@ Autres règles :
   qu'aucune correspondance n'est décidée (non inventée ici).
 - **Carnet** : `phone` (compte, sinon `metadata.phone`) et `completed_interventions_count` (rendues ou
   closes, biens de CETTE agence, supprimés compris) par sous-requêtes corrélées.
-- **Deux conséquences à trancher** (de `assign()` qui ne change pas le statut) :
-  1. `waiting_since` ne bouge qu'avec le statut : une demande `open` du 14 sept. dispatchée aujourd'hui
-     lit « attend le prestataire depuis le 14 sept. » ; de même après un refus du prestataire. Conforme
-     à la lettre du ticket (« entrée dans le statut courant »), qui supposait que dispatcher passait à
-     `assigned`.
-  2. `a_accepter` = l'ensemble de `can_accept` : une demande devisée ou démarrée sans acceptation y
-     reste. La **#9 de la démo** (`in_progress`, 45 j de retard, `accepted_at` nul) est « à accepter »
-     pour son prestataire. Alternative : restreindre aux statuts non démarrés (`UNSTARTED`), ce qui
-     désaccorderait la file et le bouton.
+- **Deux conséquences tranchées par la session (2026-11-11)** (de `assign()` qui ne change pas le statut) :
+  1. **`waiting_since` = l'entrée dans la FILE courante**, plus dans le statut : un dispatch, un refus
+     du prestataire ou une réassignation remettent l'ancienneté à zéro. La colonne change de sens et de
+     nom : `status_changed_at` → **`queue_entered_at`** (migration `190400`, qui rétro-remplit les
+     demandes `open` avec prestataire depuis `updated_at`, l'instant du dispatch n'étant écrit nulle
+     part). Le modèle la pose quand `status` OU `assigned_to` change. Le passage d'un créneau
+     (`en_cours` → `en_retard`) ne la touche pas : `slot_overdue_days` le dit.
+  2. **`a_accepter` = `can_accept`, gardé** : la file et le bouton suivent une seule règle. La #9 de la
+     démo (`in_progress` jamais acceptée) est une anomalie de données.
+  La correspondance catégorie → métier (`structural`, `appliance`, `cleaning`, `pest_control`) est
+  portée au porteur.
 - **À reporter par `/sync-specs`** : §1.8 de `features.md` (coûts masqués au locataire) ; la table des
   files et `a_accepter` (le ticket renvoyait à un `spec-delta.md` qui n'existe pas) ; `models-spec`
-  §21 (`status_changed_at`, `description` nullable) et §37 (carnet : `phone`,
+  §21 (`queue_entered_at`, `description` nullable) et §37 (carnet : `phone`,
   `completed_interventions_count`).
 - Tests : `MaintenanceQueueMappingTest` (48 cas + parité ligne/filtre aux bornes du jour + AC2),
   `MaintenanceSummaryCountsTest`, `MaintenanceAcceptOnCompletedTest`,

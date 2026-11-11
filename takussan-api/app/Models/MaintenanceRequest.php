@@ -93,8 +93,8 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
         'accepted_at' => 'datetime',
-        // TCK-2652 — l'entrée dans le statut courant, posée par {@see self::booted()}.
-        'status_changed_at' => 'datetime',
+        // TCK-2652 — l'entrée dans la file courante, posée par {@see self::booted()}.
+        'queue_entered_at' => 'datetime',
         'quote_lines' => 'array',
         'quote_valid_until' => 'date',
         'quote_estimated_duration_days' => 'integer',
@@ -119,35 +119,39 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
         'quote_submitted_at', 'quote_decision_at', 'quote_decision_by_id',
         'scheduled_at', 'completed_at', 'accepted_at', 'quote_valid_until',
         // TCK-2652 — la source de `waiting_since`.
-        'status_changed_at',
+        'queue_entered_at',
         'created_at', 'updated_at',
     ];
 
     /**
-     * TCK-2652 — `status_changed_at` suit tout changement de `status`, quel que soit l'écrivain :
-     * machine d'état, devis, acceptation, clôture automatique, seeders. Posée par le modèle et non
-     * par chaque chemin, pour qu'aucun ne l'oublie (les deux `saveQuietly()` du dépôt n'écrivent que
-     * `metadata`). Une valeur posée explicitement dans la même écriture est respectée.
+     * TCK-2652 — `queue_entered_at` date l'entrée dans la FILE courante ({@see MaintenanceQueue}) :
+     * elle repart à zéro quand le statut change OU quand le destinataire change (`assigned_to` :
+     * dispatch, réassignation, refus du prestataire). Décision de la session du 2026-11-11 : un
+     * prestataire ne lit pas « en attente depuis 20 jours » une demande reçue il y a une minute. Le
+     * passage d'un créneau (`en_cours` → `en_retard`) ne la touche pas : `slot_overdue_days` le dit.
      *
-     * À la création, l'instant est celui que la ligne porte déjà ({@see self::statusEnteredAt()}) :
-     * une demande créée datée (seeders, import) n'attend pas « depuis aujourd'hui ».
+     * Posée par le modèle, quel que soit l'écrivain (machine d'état, devis, assignation, clôture
+     * automatique, seeders) ; les deux `saveQuietly()` du dépôt n'écrivent que `metadata`. Une valeur
+     * posée explicitement dans la même écriture est respectée. À la création, l'instant est celui que
+     * la ligne porte déjà ({@see self::queueEnteredAtOnInsert()}) : une demande créée datée (seeders,
+     * import) n'attend pas « depuis aujourd'hui ».
      */
     protected static function booted(): void
     {
         static::saving(function (self $mr): void {
-            if ($mr->isDirty('status') && ! $mr->isDirty('status_changed_at')) {
-                $mr->status_changed_at = $mr->exists ? now() : ($mr->statusEnteredAt() ?? now());
+            if (($mr->isDirty('status') || $mr->isDirty('assigned_to')) && ! $mr->isDirty('queue_entered_at')) {
+                $mr->queue_entered_at = $mr->exists ? now() : ($mr->queueEnteredAtOnInsert() ?? now());
             }
         });
     }
 
     /**
-     * TCK-2652 — l'entrée dans le statut d'une ligne créée déjà datée : la colonne qui date le geste
+     * TCK-2652 — l'entrée dans la file d'une ligne créée déjà datée : la colonne qui date le geste
      * d'entrée, sinon sa création. Même règle que le rétro-remplissage de la migration
      * `add_status_changed_at_to_maintenance_requests`. Nul pour une création ordinaire (ni l'une ni
      * l'autre n'est encore posée) : l'appelant prend alors l'instant courant.
      */
-    private function statusEnteredAt(): ?CarbonInterface
+    private function queueEnteredAtOnInsert(): ?CarbonInterface
     {
         $dated = match ($this->status) {
             MaintenanceStatus::QuoteSubmitted => $this->quote_submitted_at,
