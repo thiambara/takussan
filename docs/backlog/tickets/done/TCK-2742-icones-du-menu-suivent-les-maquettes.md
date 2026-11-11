@@ -1,7 +1,7 @@
 ---
 id: TCK-2742
 title: "Les icônes du menu et des onglets de /app suivent les maquettes : Commissions, Crédits, États des lieux et Recherches sauvegardées prennent l'icône que toutes les maquettes leur donnent"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: S
@@ -166,3 +166,10 @@ Les absents qui restent ne viennent pas des icônes :
 **AC4, ablation.** Chacune des quatre icônes a été remise à l'ancienne, une à la fois. Chaque fois, 1 test rouge sur
 4. Ramener l'entrée `credits` à l'ancienne fait aussi rougir 2 tests de `AppShell.menu-et-credits`. Le passage de
 `Coins` à `ShieldCheck` dans `FeuilleDuCompte` fait rougir 1 test sur 5. Tout a été restauré.
+
+- **Vérification adverse (verif-patrimoine, 2026-11-11) : acceptée, aucun défaut** — exactement quatre icônes changent
+  sur 41 destinations × 9 jeux de rôles ; six ablations rouges (I1–I4 : chaque ancienne icône remise ; I5–I6 : la
+  ligne « Crédits » du compte garde ses pièces). Suivis, non traités ici : en mode icônes seules, le menu du
+  client et du locataire montre la même loupe pour « Chercher un bien », « Recherches sauvegardées » et « Aller à… »,
+  et le même presse-papiers coché pour « États des lieux » et « Entrées en attente » (fidèle aux maquettes,
+  indiscernable sans libellé) ; le test neuf épingle l'icône du catalogue, pas le menu composé d'un persona.
