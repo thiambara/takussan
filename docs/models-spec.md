@@ -1017,7 +1017,7 @@ payeur, par `customers` (`payer_id`). L'ancienne `User::bookingPayments()`, qui 
 | user_id | FK users | oui | null | Compte utilisateur lié, si le client est inscrit (`nullOnDelete`) | |
 | source_contact_lead_id | FK property_contact_leads | oui | null | Demande d'où vient la fiche (`nullOnDelete`, TCK-2582) | ➕ |
 | interested_property_id | FK properties | oui | null | Bien qui a fait venir le client (`nullOnDelete`, TCK-2582) | ➕ |
-| last_contacted_at | timestamp | oui | null | Dernier contact (geste de contact, note, visite terminée, compte rendu) — dénormalisé, indexé avec `agency_id` (`customers_agency_last_contacted_idx`) (TCK-2583). **Lu par le seul personnel de l'agence de la fiche et le super-admin** : nourri par les visites et comptes rendus de tous les biens de l'agence, il vaut `null` pour le bailleur auteur de la fiche, et `sort=last_contacted_at` retombe pour lui sur `created_at` (`CustomerLastContactedSort`) ; même borne pour la relance due (`follow_up`), l'étape proposée (`suggested_stage`) et les visites de la fiche (vérifications adverses de TCK-2583, TCK-2588, TCK-2591) | ➕ |
+| last_contacted_at | timestamp | oui | null | Dernier contact (geste de contact, note, visite terminée, compte rendu) — dénormalisé, indexé avec `agency_id` (`customers_agency_last_contacted_idx`) (TCK-2583). **Lu par le seul personnel de l'agence de la fiche et le super-admin** : nourri par les visites et comptes rendus de tous les biens de l'agence, il vaut `null` pour le bailleur auteur de la fiche. `sort=last_contacted_at` trie par `created_at` pour un lecteur qui n'est personnel d'aucune agence, et classe comme sans contact, pour un compte personnel ailleurs, les fiches hors de ses agences (`CustomerLastContactedSort`, `Customer::buildQuery`) ; même borne pour la relance due (`follow_up`), l'étape proposée (`suggested_stage`) et les visites de la fiche (vérifications adverses de TCK-2583, TCK-2588, TCK-2591) | ➕ |
 | metadata | jsonb | oui | null | | |
 | deleted_at | datetime | oui | null | Soft delete | |
 | created_at | datetime | | auto | | |
@@ -1305,8 +1305,8 @@ dans la langue de la requête (`AppNotificationResource`) — ils ne servent plu
 les lignes sans code. Un contact sans compte (`ContactSansCompte`) ne crée **aucune** ligne.
 
 **Famille et « À traiter » (TCK-2633).** `famille` (demande, visite, paiement, retard, bien, avis, système) et
-`a_traiter` (la notification demande une action) sont **dérivés** de `code` — ou de `type` pour une ligne sans
-code —, jamais stockés : la table de correspondance est en code, exhaustive, gardée par un test ; la ressource les
+`a_traiter` (la notification demande une action) sont **dérivés** de `code` — pour une ligne sans code (ou à code hors catalogue), du genre de sa cible stockée
+(`target.kind`), sinon de `type` —, jamais stockés : la table de correspondance est en code, exhaustive, gardée par un test ; la ressource les
 émet, et `filter[famille]`, `filter[a_traiter]` et `meta.counts` les lisent.
 
 **Note :** le lien vers l'entité est un morph manuel, sans relation Eloquent — voir [Règle 3](#règle-3--morph-referenceable-dans-appnotification).
@@ -2413,7 +2413,7 @@ JSON libre (`{"value": …}`), sans journal, `updated_by_id` pour seule trace. U
 | id_document_type | IdType | oui | null | Type de pièce d'identité |
 | id_document_number | text (cast `encrypted`) | oui | null | Numéro de pièce — chiffré (TCK-601) |
 | monthly_income | text (cast `encrypted`) | oui | null | Revenus mensuels déclarés (XOF) — chiffré (TCK-956, ADR-0070, `2026_10_19_120000`) |
-| works_approval_threshold | decimal(14,2) | oui | null | Plafond de travaux du bailleur pour cette agence : au-delà, l'approbation d'un devis — ou un coût réel déclaré — par l'équipe attend l'accord du bailleur. `null` = pas d'accord requis (état de toutes les lignes antérieures). Lu en un seul endroit, `OwnerApprovalThreshold` (TCK-592, ADR-0037, `2026_10_07_130100`) ; **➕ lu par sparse fieldset et écrit par `PATCH /api/owners/{id}` (capacité `owners.update`, admin d'agence), journalisé (`owner_works_threshold_updated`) ; vaut pour les devis soumis après le changement (TCK-2640)** |
+| works_approval_threshold | decimal(14,2) | oui | null | Plafond de travaux du bailleur pour cette agence : au-delà, l'approbation d'un devis — ou un coût réel déclaré — par l'équipe attend l'accord du bailleur. `null` = pas d'accord requis (état de toutes les lignes antérieures). Lu en un seul endroit, `OwnerApprovalThreshold` (TCK-592, ADR-0037, `2026_10_07_130100`) ; **➕ lu par sparse fieldset et écrit par `PATCH /api/owners/{id}` (capacité `owners.update`, admin d'agence), journalisé (`owner_works_threshold_updated`) ; vaut pour les devis **approuvés** après le changement : le plafond se lit à l'approbation (TCK-2640)** |
 | employer | string | oui | null | Employeur |
 | guarantor_user_id | FK users | oui | null | Garant (autre user — `nullOnDelete`) |
 | metadata | jsonb | oui | null | Données flexibles |
@@ -2704,7 +2704,9 @@ expirant sous 30 jours se remplace sans rouvrir le dossier entier ; le dossier r
 vérification acquise jusqu'à l'échéance de l'ancienne pièce.
 
 **➕ État par pièce (TCK-2612).** Pour un profil agent, prestataire ou bailleur, `GET /api/me/pieces` rend l'état
-lisible de chaque pièce attendue : `missing`, `sent`, `verified`, `rejected` — lu par l'étape « Pièces » du groupe
+lisible de chaque pièce attendue : `missing`, `sent`, `verified` — `rejected` est au contrat mais jamais rendu, rien ne
+consignant le refus d'une pièce de profil ; pièces attendues = toutes celles que l'envoi accepte sauf l'assurance RC pro
+(`PiecesDuProfil::FACULTATIVES`) — lu par l'étape « Pièces » du groupe
 « Démarrer » de la console.
 
 **Traits :**
@@ -3625,7 +3627,7 @@ du délai de refroidissement `cooldown_hours` depuis `last_triggered_at`.
 **➕ Historique et valeur actuelle (TCK-2627).** Chaque déclenchement écrit une entrée du journal d'activité
 (`threshold_alert` / `triggered` : valeur, seuil, nombre de destinataires) — l'historique des déclenchements se lit
 là, sans table. `current_value` est **calculée à la lecture**, jamais stockée (`last_value` reste la valeur du dernier
-passage de l'évaluation). **Destinataires** (`ThresholdAlertRecipients`) : les admins actifs de l'agence — et, pour une métrique **consolidée** (`AgencyMeMetrics::CONSOLIDATED_KEYS` : taux d'impayés, impayés en nombre et en montant), les seuls admins qui tiennent `reports.view_agency` ; la même liste sert la lecture (`recipients`) et la notification. `current_value` et `last_value` d'une métrique consolidée valent `null` pour qui ne lit pas les rapports de l'agence (contre-vérification de TCK-2627).
+passage de l'évaluation). **Destinataires** (`ThresholdAlertRecipients`) : les admins actifs de l'agence — et, pour une métrique **consolidée** (`AgencyMeMetrics::CONSOLIDATED_KEYS` : `revenue_month`, `commission_month`, `overdue_count`, `overdue_amount`, `unpaid_rate_percent`), les seuls admins qui tiennent `reports.view_agency` ; la même liste sert la lecture (`recipients`) et la notification. `current_value` et `last_value` d'une métrique consolidée valent `null` pour qui ne lit pas les rapports de l'agence (contre-vérification de TCK-2627).
 
 ---
 
@@ -3653,7 +3655,7 @@ le temps (`starts_at` → `ends_at`) et révocable. Une délégation programmée
 | expired_at | dateTime | oui | null | Date d'expiration constatée |
 | revoked_at | dateTime | oui | null | Date de révocation |
 | revoked_by | FK users | oui | null | Auteur de la révocation (`nullOnDelete`) |
-| covers_absence_id | FK role_delegations | oui | null | ➕ Pour une délégation de rôle **liée à une absence** : l'absence qu'elle couvre (le rôle de l'absent, au remplaçant, sur la même période) — créée, modifiée et révoquée avec elle ; l'absence elle-même n'accorde toujours rien (amendement d'ADR-0035, TCK-2666) |
+| covers_absence_id | FK role_delegations | oui | null | ➕ Pour une délégation de rôle **liée à une absence** : l'absence qu'elle couvre (le rôle de l'absent, au remplaçant, sur la même période) — créée, modifiée et révoquée avec elle ; l'absence elle-même n'accorde toujours rien (amendement d'ADR-0035, TCK-2666). FK `role_delegations_covers_absence_fk`, index `role_delegations_covers_absence_idx` ; **unique parmi les vivantes seulement** (`role_delegations_live_cover_unique`, index partiel sur `status IN ('scheduled', 'active')`) : changer de suppléant, ou couper puis rouvrir `substitute_can_act`, crée une ligne neuve et garde l'historique |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
