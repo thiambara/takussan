@@ -113,7 +113,7 @@ function EnTete({ sousTitre, action }: { readonly sousTitre: ReactNode; readonly
   return (
     <header className="flex items-end justify-between gap-3">
       <div className="min-w-0">
-        <h1 className="font-display text-[1.75rem] font-semibold leading-tight tracking-[-0.03em] text-balance lg:text-[2.5rem]">
+        <h1 className="font-display text-affiche-28 font-semibold leading-tight tracking-titre text-balance lg:text-affiche-40">
           {t('titre')}
         </h1>
         <p className="text-sm text-muted-foreground tabular-nums lg:text-base">{sousTitre ?? t('sousTitreChargement')}</p>
@@ -384,18 +384,18 @@ function FavorisDuCompte({
       />
       <Tabs value={onglet} onValueChange={changerDOnglet} className="mt-4 lg:mt-6">
         <TabsList className="grid h-12! w-full grid-cols-2 rounded-xl p-1 lg:w-fit lg:self-start">
-          <TabsTrigger value="properties" className="h-10 rounded-lg px-4 text-[0.9375rem]">
+          <TabsTrigger value="properties" className="h-10 rounded-lg px-4 text-corps">
             {t('onglets.biens')}
             {typeof totalFavoris === 'number' ? (
               <span className="tabular-nums text-muted-foreground">{totalFavoris}</span>
             ) : null}
           </TabsTrigger>
-          <TabsTrigger value="searches" className="h-10 rounded-lg px-4 text-[0.9375rem]">
+          <TabsTrigger value="searches" className="h-10 rounded-lg px-4 text-corps">
             {t('onglets.recherches')}
             {totalNouveaux > 0 ? (
               <span
                 data-testid="badge-nouveaux"
-                className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[0.6875rem] font-semibold tabular-nums text-primary-foreground"
+                className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-legende font-semibold tabular-nums text-primary-foreground"
               >
                 <span aria-hidden="true">{totalNouveaux}</span>
                 <span className="sr-only">{t('onglets.nouveaux', { count: totalNouveaux })}</span>

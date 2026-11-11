@@ -81,7 +81,7 @@ export function CarteDeSuivi({ bien, ecart, depuis, note, priorite = false, href
       <div className="min-w-0 flex-1 lg:mt-3 lg:flex lg:flex-col">
         <div className="flex items-start gap-2">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
-          <p className="font-display text-[1.0625rem] font-semibold tabular-nums lg:text-lg">
+          <p className="font-display text-titre-court font-semibold tabular-nums lg:text-lg">
             <span className="whitespace-nowrap">{montant(bien.price, bien.currency)}</span>
             {bien.contract_type === 'rent' ? (
               <span className="whitespace-nowrap font-sans text-sm font-normal text-muted-foreground">
@@ -102,7 +102,7 @@ export function CarteDeSuivi({ bien, ecart, depuis, note, priorite = false, href
             className="-my-1 shrink-0"
           />
         </div>
-        <LienLocalise href={fiche} className="block truncate text-sm text-muted-foreground hover:text-foreground lg:text-[0.9375rem]">
+        <LienLocalise href={fiche} className="block truncate text-sm text-muted-foreground hover:text-foreground lg:text-corps">
           {lieu ? t('titreEtLieu', { title: bien.title, lieu }) : bien.title}
         </LienLocalise>
         {note}
@@ -146,8 +146,8 @@ export function CarteEteinte({ raison, titre, hrefProches = '/properties', onRet
         <SearchX className="size-7 text-muted-foreground" aria-hidden="true" />
       </div>
       <div className="min-w-0 flex-1 lg:mt-3">
-        <p className="text-[0.9375rem] font-semibold">{t(`availability.${raison}`)}</p>
-        <p className="truncate text-sm text-muted-foreground lg:text-[0.9375rem]">{titre ?? t('removedTitle')}</p>
+        <p className="text-corps font-semibold">{t(`availability.${raison}`)}</p>
+        <p className="truncate text-sm text-muted-foreground lg:text-corps">{titre ?? t('removedTitle')}</p>
         <div className="mt-2.5 flex flex-wrap items-center gap-2">
           <LienLocalise href={hrefProches} className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'h-9')}>
             {tSuivi('biensProches')}
