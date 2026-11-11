@@ -371,24 +371,35 @@
    d'elle : celle de `/app` sous `md`, celle du site public sous `lg`.
    ⚠ Sur `:root`, pas sur la coque : le viewport des toasts est rendu EN PORTAIL dans `body`, hors
    de `[data-barre-onglets]` — le `--floating-dock-base` posé sur la coque ne l'atteint pas.
-   ⚠ Une barre d'action collante en bas de page (TCK-2689) doit relever CE jeton, sans quoi le toast
-   se pose dessus. Gardé par `toast-sombre-en-bas.tck-2688.test.tsx`. */
+   TCK-2689 — la barre d'action collante (`ui/barre-d-action.tsx`) le relève de SA hauteur, par un
+   terme ADDITIF : `--barre-d-action-hauteur` vaut 0 partout, et 73 px (filet + `py-3` + action de
+   48, zone sûre en plus quand elle est le bas de l'écran) sous `md` quand une barre occupe
+   l'emplacement de la coque (`#emplacement-barre-d-action`). Une barre posée en flux hors de la coque
+   (la vitrine) n'est pas le bas de l'écran : elle ne le relève pas.
+   Gardé par `primitives-existantes-tck-2688.test.tsx` et `primitives-neuves-tck-2689.test.tsx`. */
 :root {
-  --toast-bas: calc(var(--spacing) * 4);
+  --barre-d-action-hauteur: 0px;
+  --toast-bas: calc(var(--spacing) * 4 + var(--barre-d-action-hauteur));
 }
 @media (width >= 40rem) {
   :root {
-    --toast-bas: calc(var(--spacing) * 6);
+    --toast-bas: calc(var(--spacing) * 6 + var(--barre-d-action-hauteur));
   }
 }
 @media (width < 48rem) {
+  :root:has(#emplacement-barre-d-action > [data-slot="barre-d-action"]) {
+    --barre-d-action-hauteur: calc(var(--spacing-controle-action) + var(--spacing) * 6 + 1px);
+  }
+  :root:has(#emplacement-barre-d-action[data-bas-de-l-ecran] > [data-slot="barre-d-action"]) {
+    --barre-d-action-hauteur: calc(var(--spacing-controle-action) + var(--spacing) * 6 + 1px + env(safe-area-inset-bottom));
+  }
   :root:has([data-barre-onglets]) {
-    --toast-bas: calc(var(--spacing) * 4 + var(--barre-onglets-hauteur));
+    --toast-bas: calc(var(--spacing) * 4 + var(--barre-onglets-hauteur) + var(--barre-d-action-hauteur));
   }
 }
 @media (width < 64rem) {
   :root:has([data-barre-onglets-publique]):not(:has(.takussan-carte-plein-ecran)) {
-    --toast-bas: calc(var(--spacing) * 4 + var(--barre-publique-hauteur));
+    --toast-bas: calc(var(--spacing) * 4 + var(--barre-publique-hauteur) + var(--barre-d-action-hauteur));
   }
 }
 

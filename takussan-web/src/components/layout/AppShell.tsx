@@ -8,6 +8,7 @@ import type { ProfileType } from '@/types/profile';
 import { EnTeteMobile } from './EnTeteMobile';
 import { AppSidebar } from './AppSidebar';
 import { BarreDOnglets } from './BarreDOnglets';
+import { EMPLACEMENT_BARRE_D_ACTION } from '@/components/ui/barre-d-action';
 import { PaletteDeCommandes, RetenirLaPageRecente } from './PaletteDeCommandes';
 import { useRaccourciDeLaPalette } from './usePaletteDeCommandes';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
@@ -247,6 +248,16 @@ export function AppShell({
               <div className="px-4 py-6 md:px-6 md:py-8">{children}</div>
             </main>
           </div>
+          {/* TCK-2689 — l'emplacement de la barre d'action collante (`ui/barre-d-action.tsx`), qu'une page
+              y rend en portail : ENTRE la rangée du contenu et la barre d'onglets, en flux — le
+              `<main>` rétrécit de sa hauteur, rien ne passe dessous. `contents` : vide, il ne prend
+              aucune place. Sans barre d'onglets, la barre est le bas de l'écran et ajoute la zone sûre.
+              Emplacement provisoire : TCK-2617 le reprend. */}
+          <div
+            id={EMPLACEMENT_BARRE_D_ACTION}
+            className="contents"
+            data-bas-de-l-ecran={barreDOnglets ? undefined : ''}
+          />
           {/* TCK-2482 — DANS `PreferencesDuMenuProvider` : le menu de la palette est celui de la barre
               (épingles comprises). Son contenu n'est monté que palette ouverte (A13). */}
           {/* A8 — les pages récentes, retenues sur l'appareil par compte ; jamais une page plein écran.

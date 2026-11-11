@@ -12747,6 +12747,10 @@
     "phoneInput": {
       "hintNational": "The {indicatif} country code is already added: type the rest. Abroad? Start with +.",
       "hintInternational": "Full international number, country code included."
+    },
+    "filterChips": {
+      "rowLabel": "Filters",
+      "add": "Add a filter"
     }
   },
   "reporting": {

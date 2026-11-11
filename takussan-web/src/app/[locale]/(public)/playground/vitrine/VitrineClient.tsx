@@ -1,6 +1,6 @@
 'use client';
 
-import { Bell, BellOff, Check, Home, MoreHorizontal, Plus, Search, TriangleAlert, Undo2 } from 'lucide-react';
+import { Bell, BellOff, Check, FileText, Home, MoreHorizontal, Plus, Search, TriangleAlert, Undo2, Wrench } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 
 import { PageHeader, StatCard, StatusBadge, type StatusTone } from '@/components/console';
@@ -8,6 +8,7 @@ import { DataTable } from '@/components/console/DataTable';
 import { DebouncedSearchInput } from '@/components/console/DebouncedSearchInput';
 import { EmptyState } from '@/components/feedback';
 import { Avatar, AvatarFallback, type TailleAvatar } from '@/components/ui/avatar';
+import { BarreDAction } from '@/components/ui/barre-d-action';
 import { Button } from '@/components/ui/button';
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -15,6 +16,7 @@ import { ChoiceCard } from '@/components/ui/choice-card';
 import { FeuilleDuBas } from '@/components/ui/feuille-du-bas';
 import { PanneauDroit } from '@/components/ui/panneau-droit';
 import { Progress, ProgressSegments, type TonDeJauge } from '@/components/ui/progress';
+import { PuceDeFiltre, RangeeDePuces } from '@/components/ui/puce-de-filtre';
 import { Radio, RadioGroup } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -23,6 +25,7 @@ import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { fieldDensityScope } from '@/components/ui/field-density';
 import { Input } from '@/components/ui/input';
+import { IconeDeLigne, LigneDeListe, MontantDeLigne } from '@/components/ui/ligne-de-liste';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { ActionDuToast, useToast } from '@/components/ui/toast';
@@ -295,6 +298,186 @@ function PrimitivesDuLot2() {
   );
 }
 
+/** TCK-2689 — les douze puces de la rangée (AC2) : elle défile dans sa boîte, jamais le document. */
+const PUCES: readonly { libelle: string; compte?: number }[] = [
+  { libelle: 'À traiter', compte: 4 },
+  { libelle: 'À moi', compte: 2 },
+  { libelle: 'Traitées', compte: 37 },
+  { libelle: 'Toutes', compte: 43 },
+  { libelle: 'Location' },
+  { libelle: 'Vente' },
+  { libelle: 'Plateau' },
+  { libelle: 'Sacré-Cœur' },
+  { libelle: 'Mermoz' },
+  { libelle: 'Ouakam' },
+  { libelle: 'Almadies' },
+  { libelle: 'Ngor' },
+];
+
+/** Une barre d'onglets factice, de la hauteur de celle de la coque (56 px, `BarreDOnglets`). */
+function OngletsFactices() {
+  return (
+    <div data-epreuve="onglets-factices" className="flex h-14 flex-none items-center justify-around border-t border-border bg-card text-legende text-muted-foreground">
+      <span>Accueil</span>
+      <span>Demandes</span>
+      <span>Biens</span>
+      <span>Menu</span>
+    </div>
+  );
+}
+
+/**
+ * TCK-2689 — les primitives neuves, lot 1 : puce de filtre et sa rangée, contrôle segmenté, barre
+ * d'action collante, ligne de liste mobile. Les `data-epreuve` sont les points de mesure des AC.
+ */
+function PrimitivesNeuvesLot1() {
+  const [actif, setActif] = useState('À traiter');
+  const [vue, setVue] = useState('liste');
+
+  return (
+    <>
+      <Section titre="Puces de filtre (36 px rendus, cible de 44) et leur rangée défilante">
+        <div className="-mx-4 border-y border-border bg-background">
+          <RangeeDePuces data-epreuve="rangee-12" aria-label="Filtres des demandes">
+            {PUCES.map((p, i) => (
+              <PuceDeFiltre
+                key={p.libelle}
+                active={p.libelle === actif}
+                compte={p.compte}
+                onClick={() => setActif(p.libelle)}
+                data-epreuve={i === 0 ? 'puce-premiere' : i === 1 ? 'puce-deuxieme' : undefined}
+              >
+                {p.libelle}
+              </PuceDeFiltre>
+            ))}
+          </RangeeDePuces>
+        </div>
+        {/* Rangées enroulées à 12 px : les cibles de 44 px de deux lignes voisines ne se chevauchent pas. */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-3">
+          <PuceDeFiltre data-epreuve="puce-repos" compte={12}>
+            Repos
+          </PuceDeFiltre>
+          <PuceDeFiltre data-epreuve="puce-active" active compte={4}>
+            Active
+          </PuceDeFiltre>
+          <PuceDeFiltre data-epreuve="puce-ajouter" variante="ajouter" />
+          <PuceDeFiltre data-epreuve="puce-desactivee" disabled>
+            Désactivée
+          </PuceDeFiltre>
+          <PuceDeFiltre data-epreuve="puce-sm" taille="sm" compte={8}>
+            Petite
+          </PuceDeFiltre>
+          <PuceDeFiltre data-epreuve="puce-sm-active" taille="sm" active>
+            Petite active
+          </PuceDeFiltre>
+        </div>
+      </Section>
+
+      <Section titre="Contrôle segmenté (piste p-1, items h-9 px-4 ; sm ; pleine largeur)">
+        <div className="space-y-3">
+          <Tabs value={vue} onValueChange={(v) => setVue(String(v))}>
+            <TabsList data-epreuve="segmente" aria-label="Présentation">
+              <TabsTrigger value="liste" data-epreuve="segment-actif">
+                Liste
+              </TabsTrigger>
+              <TabsTrigger value="carte" data-epreuve="segment-inactif">
+                Carte
+              </TabsTrigger>
+              <TabsTrigger value="tableau">Tableau</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <Tabs defaultValue="mois">
+            <TabsList size="sm" data-epreuve="segmente-sm" aria-label="Période">
+              <TabsTrigger value="mois" data-epreuve="segment-sm-actif">
+                Ce mois
+              </TabsTrigger>
+              <TabsTrigger value="trimestre">Trimestre</TabsTrigger>
+              <TabsTrigger value="annee">Année</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <Tabs defaultValue="loyers" className="max-w-sm">
+            <TabsList className="w-full" data-epreuve="segmente-plein" aria-label="Encaissements">
+              <TabsTrigger value="loyers">Loyers</TabsTrigger>
+              <TabsTrigger value="cautions">Cautions</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+      </Section>
+
+      <Section titre="Barre d’action collante (73 px, sous md seulement)">
+        <p className="text-ui text-muted-foreground">
+          En flux entre le contenu et les onglets ; dans la coque, rendue dans son emplacement. À 1440, aucune barre :
+          les cadres ci-dessous n’en montrent que le contenu.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div data-epreuve="cadre-onglets" className="flex h-80 flex-col overflow-hidden rounded-xl border border-border bg-background">
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4 text-ui text-encre-douce">
+              {Array.from({ length: 12 }, (_, i) => (
+                <p key={i}>Ligne de contenu {i + 1}</p>
+              ))}
+            </div>
+            <BarreDAction data-epreuve="barre-d-action-onglets">
+              <Button size="xl">Enregistrer le bail</Button>
+            </BarreDAction>
+            <OngletsFactices />
+          </div>
+          <div data-epreuve="cadre-plein" className="flex h-80 flex-col overflow-hidden rounded-xl border border-border bg-background">
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4 text-ui text-encre-douce">
+              {Array.from({ length: 12 }, (_, i) => (
+                <p key={i}>Champ du formulaire {i + 1}</p>
+              ))}
+            </div>
+            <BarreDAction zoneSure data-epreuve="barre-d-action-plein">
+              <Button size="xl" variant="outline">
+                Refuser
+              </Button>
+              <Button size="xl">Accepter</Button>
+            </BarreDAction>
+          </div>
+        </div>
+      </Section>
+
+      <Section titre="Lignes de liste mobile (56 px au moins, la ligne est la cible)">
+        <div id="lignes-de-liste" data-epreuve="liste-mobile" className="-mx-4 border-t border-border bg-card">
+          <LigneDeListe
+            href="#lignes-de-liste"
+            debut={
+              <Avatar size="40">
+                <AvatarFallback>AN</AvatarFallback>
+              </Avatar>
+            }
+            titre="Awa Ndiaye"
+            detail="Appartement F3 · Sacré-Cœur"
+            fin={<StatusBadge tone="success" label="Payé" />}
+          />
+          <LigneDeListe
+            href="#lignes-de-liste"
+            debut={
+              <IconeDeLigne>
+                <FileText />
+              </IconeDeLigne>
+            }
+            titre="Quittance d’octobre"
+            detail="Envoyée le 4 nov."
+            fin={<MontantDeLigne>{'1 355 000 F'}</MontantDeLigne>}
+          />
+          <LigneDeListe
+            onClick={() => undefined}
+            debut={
+              <IconeDeLigne>
+                <Wrench />
+              </IconeDeLigne>
+            }
+            titre="Fuite sous l’évier, cuisine — un titre long qui se tronque sur une seule ligne"
+            detail="Signalée par le locataire il y a 2 jours, en attente d’un artisan"
+            chevron
+          />
+        </div>
+      </Section>
+    </>
+  );
+}
+
 export function VitrineClient() {
   const f = useFormatteurs();
   const annee = new Date().getUTCFullYear();
@@ -457,6 +640,8 @@ export function VitrineClient() {
 
       <PrimitivesDuLot2 />
 
+      <PrimitivesNeuvesLot1 />
+
       <Section titre="Cases à cocher (la ligne est la cible)">
         <div className="max-w-sm divide-y divide-border rounded-xl border border-border bg-card">
           <label data-epreuve="ligne-case-vide" className="flex min-h-12 items-center gap-3 px-4 text-corps">
@@ -536,7 +721,9 @@ export function VitrineClient() {
               <span className="w-12 shrink-0 tabular-nums">
                 <Code>{TAILLES_DE_TEXTE[nom]} px</Code>
               </span>
-              <span data-jeton={classe} className={classe}>
+              {/* TCK-2689 — `min-w-0 truncate` : à 360, l'échantillon de 40 px (insécables) élargissait le
+                  viewport à 377 et masquait tout débord de la vitrine. Sa taille ne change pas. */}
+              <span data-jeton={classe} className={`min-w-0 truncate ${classe}`}>
                 {ECHANTILLON}
               </span>
             </li>

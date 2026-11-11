@@ -2,6 +2,7 @@
 // primitives réelles de takussan-web. Toute nouvelle primitive de `ui/` s'ajoute ici.
 export * from '../../takussan-web/src/components/ui/avatar';
 export * from '../../takussan-web/src/components/ui/badge';
+export * from '../../takussan-web/src/components/ui/barre-d-action';
 export * from '../../takussan-web/src/components/ui/button';
 export * from '../../takussan-web/src/components/ui/calendar';
 export * from '../../takussan-web/src/components/ui/card';
@@ -17,10 +18,12 @@ export * from '../../takussan-web/src/components/ui/feuille-du-bas';
 export * from '../../takussan-web/src/components/ui/field-density';
 export * from '../../takussan-web/src/components/ui/input';
 export * from '../../takussan-web/src/components/ui/label';
+export * from '../../takussan-web/src/components/ui/ligne-de-liste';
 export * from '../../takussan-web/src/components/ui/panneau-droit';
 export * from '../../takussan-web/src/components/ui/phone-input';
 export * from '../../takussan-web/src/components/ui/popover';
 export * from '../../takussan-web/src/components/ui/progress';
+export * from '../../takussan-web/src/components/ui/puce-de-filtre';
 export * from '../../takussan-web/src/components/ui/radio-group';
 export * from '../../takussan-web/src/components/ui/select';
 export * from '../../takussan-web/src/components/ui/separator';

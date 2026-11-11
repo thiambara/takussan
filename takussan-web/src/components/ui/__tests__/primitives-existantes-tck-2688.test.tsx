@@ -652,17 +652,18 @@ describe('Toast sombre en bas, partout (TCK-2688)', () => {
     const css = readFileSync(join(__dirname, '../../../app/globals.css'), 'utf8');
     const bloc = css.slice(css.indexOf('TCK-2688 (décision D8'), css.indexOf('@theme inline'));
 
+    // TCK-2689 — chaque formule porte le terme additif de la barre d'action (0 sans elle).
     it('16 px du bord par défaut, 24 dès sm (sur l’échelle : 21,6 dès lg, la maquette à 1440)', () => {
-      expect(bloc).toMatch(/:root \{\s*--toast-bas: calc\(var\(--spacing\) \* 4\);/);
-      expect(bloc).toMatch(/@media \(width >= 40rem\) \{\s*:root \{\s*--toast-bas: calc\(var\(--spacing\) \* 6\);/);
+      expect(bloc).toMatch(/:root \{\s*--barre-d-action-hauteur: 0px;\s*--toast-bas: calc\(var\(--spacing\) \* 4 \+ var\(--barre-d-action-hauteur\)\);/);
+      expect(bloc).toMatch(/@media \(width >= 40rem\) \{\s*:root \{\s*--toast-bas: calc\(var\(--spacing\) \* 6 \+ var\(--barre-d-action-hauteur\)\);/);
     });
 
     it('16 px AU-DESSUS de la barre d’onglets de /app sous md, et de celle du site public sous lg', () => {
       expect(bloc).toMatch(
-        /@media \(width < 48rem\) \{\s*:root:has\(\[data-barre-onglets\]\) \{\s*--toast-bas: calc\(var\(--spacing\) \* 4 \+ var\(--barre-onglets-hauteur\)\);/,
+        /@media \(width < 48rem\) \{(?:\s*[^{}@]+\{[^{}]*\})*\s*:root:has\(\[data-barre-onglets\]\) \{\s*--toast-bas: calc\(var\(--spacing\) \* 4 \+ var\(--barre-onglets-hauteur\) \+ var\(--barre-d-action-hauteur\)\);/,
       );
       expect(bloc).toMatch(
-        /@media \(width < 64rem\) \{\s*:root:has\(\[data-barre-onglets-publique\]\):not\(:has\(\.takussan-carte-plein-ecran\)\) \{\s*--toast-bas: calc\(var\(--spacing\) \* 4 \+ var\(--barre-publique-hauteur\)\);/,
+        /@media \(width < 64rem\) \{\s*:root:has\(\[data-barre-onglets-publique\]\):not\(:has\(\.takussan-carte-plein-ecran\)\) \{\s*--toast-bas: calc\(var\(--spacing\) \* 4 \+ var\(--barre-publique-hauteur\) \+ var\(--barre-d-action-hauteur\)\);/,
       );
     });
   });

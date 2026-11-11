@@ -12747,6 +12747,10 @@
     "phoneInput": {
       "hintNational": "L'indicatif {indicatif} est déjà ajouté : saisissez la suite. À l'étranger ? Commencez par +.",
       "hintInternational": "Numéro international complet, indicatif compris."
+    },
+    "filterChips": {
+      "rowLabel": "Filtres",
+      "add": "Ajouter un filtre"
     }
   },
   "reporting": {

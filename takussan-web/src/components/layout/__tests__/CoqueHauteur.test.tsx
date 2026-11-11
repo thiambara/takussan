@@ -25,6 +25,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { withIntl } from '@/test/intl';
 import { SUPER_ADMIN } from '@/test/habilitations';
 import { ToastProvider } from '@/components/ui/toast';
+import { BarreDAction, EMPLACEMENT_BARRE_D_ACTION } from '@/components/ui/barre-d-action';
 import type { User } from '@/types/user';
 import { AppShell } from '../AppShell';
 import { REQUETE_DE_LA_BARRE } from '../plein-ecran';
@@ -216,5 +217,42 @@ describe('AppShell — bandeau de suspension de l’agence (TCK-600)', () => {
       </AppShell>,
     );
     expect(coque.querySelectorAll('[data-testid="agency-suspended-banner"]')).toHaveLength(attendus);
+  });
+});
+
+// TCK-2689 — ici pour la même raison : l'emplacement de la barre d'action collante est dans `AppShell`.
+describe('AppShell — l’emplacement de la barre d’action collante (TCK-2689)', () => {
+  /**
+   * La barre se pose EN FLUX entre la rangée du contenu et la barre d'onglets (annexe C § 4) : le
+   * `<main>` rétrécit de sa hauteur, rien ne passe dessous. L'emplacement est vide (`contents`) tant
+   * qu'aucune page n'y rend de barre, et ne dit « bas de l'écran » que sans barre d'onglets.
+   */
+  it('entre la rangée du contenu et la barre d’onglets, enfant de la coque, sans boîte propre', () => {
+    const coque = monter(COQUES[0][1]);
+    const emplacement = coque.querySelector(`#${EMPLACEMENT_BARRE_D_ACTION}`)!;
+    const rangee = coque.querySelector('main')!.parentElement!;
+    const onglets = coque.querySelector('[data-slot="barre-onglets"]')!;
+    expect(emplacement).not.toBeNull();
+    expect(emplacement.parentElement).toBe(coque);
+    expect(rangee.compareDocumentPosition(emplacement) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(emplacement.compareDocumentPosition(onglets) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(emplacement).toHaveClass('contents');
+    expect(emplacement).not.toHaveAttribute('data-bas-de-l-ecran');
+    expect(emplacement.childElementCount).toBe(0);
+  });
+
+  it('une barre écrite par la page est rendue dans l’emplacement, hors du `<main>`', () => {
+    const coque = monter(
+      <AppShell user={user}>
+        <p>contenu</p>
+        <BarreDAction>
+          <button type="button">Enregistrer</button>
+        </BarreDAction>
+      </AppShell>,
+    );
+    const barre = coque.querySelector('[data-slot="barre-d-action"]')!;
+    expect(barre).not.toBeNull();
+    expect(barre.parentElement?.id).toBe(EMPLACEMENT_BARRE_D_ACTION);
+    expect(coque.querySelector('main')!.contains(barre)).toBe(false);
   });
 });

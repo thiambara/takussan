@@ -606,7 +606,26 @@ Même mécanique que TCK-2687 (variante `portee-app:`, classes d'avant au caract
 | `ChoiceCard` | `min-h-16 px-3.5 py-3` centrée ; radio 20 px au bord 1 px `controle-vide` ; active : `border-primary`, anneau 3 px `primary/12`, fond de carte ; titre 15 px 600, sous-titre 13 px |
 | `RadioGroup`, `Radio` (`ui/radio-group.tsx`, neufs) | rond peint de 20 px (`size-5`), bord 1 px `controle-vide`, point `size-2.5 bg-primary` ; base-ui (flèches, arrêt de tabulation unique) ; la ligne est un `<label>` (`eslint.config.mjs` déclare `Radio`) |
 | `DebouncedSearchInput` | loupe au jeton de 18 px (`size-icone`, trait de la portée), texte à 12 + 18 + 8 px du bord, bouton « Effacer la recherche » (16 px dessinés, 44 d'appui) à la place de la croix native ; hauteur de l'échelle (44 / 36), contour `border-input` (ADR-0106 § 2 a) |
-| **Toast, partout** (décision D8) | **surface sombre** (`.dark` posé sur le toast : `#1f1812`, encre `#fcf9f3`, dans les deux thèmes), `rounded-xl min-h-12 px-4 shadow-lg`, ton dit par l'icône (succès : coche à l'encre du toast, comme la maquette ; attention, danger, info en couleur, ≥ 3:1) ; **en bas** : pleine largeur à 16 px au téléphone, 360 px (`w-toast`) à droite dès `sm` ; `--toast-bas` le pose 16 px au-dessus de la barre d'onglets de `/app` (sous `md`) et du site public (sous `lg`) — une barre d'action collante (TCK-2689) doit relever ce jeton ; action texte `ActionDuToast` |
+| **Toast, partout** (décision D8) | **surface sombre** (`.dark` posé sur le toast : `#1f1812`, encre `#fcf9f3`, dans les deux thèmes), `rounded-xl min-h-12 px-4 shadow-lg`, ton dit par l'icône (succès : coche à l'encre du toast, comme la maquette ; attention, danger, info en couleur, ≥ 3:1) ; **en bas** : pleine largeur à 16 px au téléphone, 360 px (`w-toast`) à droite dès `sm` ; `--toast-bas` le pose 16 px au-dessus de la barre d'onglets de `/app` (sous `md`) et du site public (sous `lg`) — la barre d'action collante (TCK-2689) le relève de sa hauteur, par `--barre-d-action-hauteur` ; action texte `ActionDuToast` |
+
+### Les primitives neuves, lot 1 ([ADR-0106](adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), TCK-2689)
+
+Puce de filtre, contrôle segmenté, barre d'action collante, ligne de liste mobile. La puce, la barre et la ligne
+sont neuves (leur défaut EST la maquette) ; le segmenté est la variante par défaut de `Tabs` sous la portée `/app`.
+Tests : `src/components/ui/__tests__/primitives-neuves-tck-2689.test.tsx` ; vitrine : `/fr/playground/vitrine`.
+
+| Primitive | Dessin |
+|---|---|
+| `PuceDeFiltre`, `RangeeDePuces` (`ui/puce-de-filtre.tsx`) | **36 px rendus** (`h-9`, 32,4 au bureau), `rounded-full border px-3.5 text-sm` 500 ; taille `sm` `h-8 px-3` 13 px. Repos `border-border bg-card` ; active (`aria-pressed`) `bg-foreground text-background` ; compte `tabular-nums`, à l'**encre douce inverse opaque** sur la puce active (TCK-658, pas de `/70`). Variante `ajouter` : tirets, `+`, « Ajouter un filtre », une action (aucun `aria-pressed`). Rangée `role="group"` nommée, `flex gap-2 overflow-x-auto px-4 py-2.5`, sans barre, bord à bord de son conteneur : elle défile dans sa boîte, jamais le document |
+| Contrôle segmenté (`Tabs` par défaut, `ui/tabs.tsx`) | sous la portée : piste `rounded-lg bg-muted p-1` (**44 px** au téléphone, 39,6 au bureau), items `h-9 px-4 rounded-md text-sm` 500 ; actif `bg-card` + ombre `actif` ; inactif `text-muted-foreground` (4,85:1 sur `--muted`). `size="sm"` : `p-0.5`, items `h-8 px-3` 13 px. Pleine largeur : `className="w-full"`. Comportement de base-ui inchangé (la flèche déplace le focus, Entrée choisit). Hors portée, rien ne change |
+| `BarreDAction` (`ui/barre-d-action.tsx`) | **73 px** = filet + `py-3` + une action `size="xl"` (48) ; `border-t bg-card px-4 py-3`, ombre `barre-collante` ; une action pleine largeur ou deux à 50/50. **Sous `md` seulement** — `md:hidden` cache sans démonter : la page pose son action de bureau ailleurs. Dans `/app`, elle est rendue en portail dans l'emplacement de la coque (`#emplacement-barre-d-action`, entre le contenu et la barre d'onglets) : en flux, le `<main>` rétrécit, rien ne passe dessous. Zone sûre en plus quand elle est le bas de l'écran (sans barre d'onglets, ou `zoneSure` hors coque). Elle relève le toast (`--barre-d-action-hauteur`) ; le dock flottant garde son calcul. ⚠ **Formulaire** : en portail, la barre est hors du `<form>` ; le bouton d'envoi le nomme (`<Button type="submit" form="…">`) |
+| `LigneDeListe`, `IconeDeLigne`, `MontantDeLigne` (`ui/ligne-de-liste.tsx`) | `flex min-h-14 items-center gap-3 px-4 py-2.5`, filet bas, bord à bord ; début : avatar 40 ou icône dans un disque `size-9` (encre douce opaque) ; titre 15 px 500 et détail 13 px discret, tronqués ; fin : pastille, montant tabulaire ou chevron `size-4`. La **ligne entière** est la cible : `href` → lien, `onClick` → bouton |
+
+**La zone tactile élargie par pseudo-élément** (exception (1) d'ADR-0106) : quand la maquette dessine une cible plus
+petite que 44 px (puce de 36, onglet souligné de 32), le rendu garde sa taille et un `before:` centré, `absolute
+inset-x-0 top-1/2 -translate-y-1/2 h-controle`, porte la cible : 44 px sous le pouce et au pointeur grossier, la hauteur
+d'un contrôle du bureau ailleurs. Un pseudo-élément appartient à son élément pour le pointeur. Le conteneur doit laisser
+la place au débord (le `py-2.5` de la rangée de puces) : `overflow` le rognerait.
 
 ### Les primitives neuves de la partie connectée ([ADR-0106](adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), TCK-2690)
 

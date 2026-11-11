@@ -35,7 +35,18 @@ const tabsListVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-muted overflow-x-auto",
+        // TCK-2689 — sous la portée `/app`, le CONTRÔLE SEGMENTÉ de la maquette (`Segmente`,
+        // `app-biens-pieces.tsx:94`, valeur majoritaire D5) : piste `p-1` (44 px au téléphone,
+        // 39,6 au bureau), `p-0.5` en `size="sm"`. Chaque règle porte `data-[variant=default]:` pour
+        // l'emporter par la spécificité (`portee-app:` est un `:where`, il n'en ajoute aucune) sur
+        // `p-[3px]` et `group-data-horizontal/tabs:h-8` de la base. Le plancher tactile (couche
+        // `components`) est levé : la piste de 44 le dépasse, la petite est un gabarit de bureau.
+        // Pleine largeur : `className="w-full"` (chaque item est déjà `flex-1`).
+        default: [
+          "bg-muted overflow-x-auto",
+          "portee-app:data-[variant=default]:p-1 portee-app:data-[variant=default]:min-h-0 portee-app:data-[variant=default]:group-data-horizontal/tabs:h-auto",
+          "portee-app:data-[variant=default]:data-[size=sm]:p-0.5",
+        ].join(" "),
         // TCK-2687 — sous la portée `/app`, la liste soulignée de la maquette (`OngletsSoulignes`,
         // `chrome-app.tsx:377`) : pleine largeur, calée à gauche, `gap-6`, sans padding, sur un filet
         // `border-b`. La hauteur suit les onglets (32 px visibles) : la cible de 44 est portée par
@@ -52,12 +63,18 @@ const tabsListVariants = cva(
 function TabsList({
   className,
   variant = "default",
+  size = "default",
   ...props
-}: TabsPrimitive.List.Props & VariantProps<typeof tabsListVariants>) {
+}: TabsPrimitive.List.Props &
+  VariantProps<typeof tabsListVariants> & {
+    /** TCK-2689 — le petit contrôle segmenté (`p-0.5`, items `h-8 px-3`, 13 px), sous la portée `/app`. */
+    readonly size?: "default" | "sm"
+  }) {
   return (
     <TabsPrimitive.List
       data-slot="tabs-list"
       data-variant={variant}
+      data-size={size}
       className={cn(tabsListVariants({ variant }), className)}
       {...props}
     />
@@ -128,6 +145,41 @@ const ONGLET_SOULIGNE_APP = [
   "portee-app:group-data-[variant=line]/tabs-list:before:-translate-y-1/2",
 ].join(" ")
 
+/**
+ * TCK-2689 (ADR-0106, annexe B § 3.2 et § 6 n° 11) — L'ITEM DU CONTRÔLE SEGMENTÉ sous la portée
+ * `/app` (`Tabs` par défaut : `/app/agency/team`, `bookings`, `payments`, `visits`, et les autres
+ * listes d'onglets par défaut de `/app`) ; `/super-admin` et le site public gardent le leur.
+ *
+ *  · `h-9 px-4 rounded-md text-sm` 500 ; `size="sm"` : `h-8 px-3`, 13 px (`text-ui`) ;
+ *  · actif `bg-card` (#fff) + l'ombre nommée « item actif » (`shadow-actif`, TCK-2685) — au thème
+ *    clair ; le sombre garde `bg-input/30` (cf. la règle) ;
+ *  · inactif `text-muted-foreground` — 4,85:1 sur `--muted` en clair (au lieu du
+ *    `text-foreground/70` de TCK-359, que la maquette ne retient pas) ; au survol, `text-foreground`.
+ *
+ * Chaque règle porte `group-data-[variant=default]/tabs-list:` : un sélecteur d'attribut de plus que
+ * la règle de base qu'elle remplace (`px-1.5`, `h-[calc(100%-1px)]`, `text-foreground/70`,
+ * `data-active:bg-background`). L'ombre, à égalité avec `…data-active:shadow-sm` de la base, porte
+ * en plus `group-data-horizontal/tabs:`. Le comportement (flèches, `aria-selected`) est celui de
+ * base-ui, inchangé.
+ */
+const SEGMENTE_APP = [
+  "portee-app:group-data-[variant=default]/tabs-list:h-9",
+  "portee-app:group-data-[variant=default]/tabs-list:min-h-0",
+  "portee-app:group-data-[variant=default]/tabs-list:px-4",
+  "portee-app:group-data-[variant=default]/tabs-list:py-0",
+  "portee-app:group-data-[variant=default]/tabs-list:not-data-active:text-muted-foreground",
+  "portee-app:group-data-[variant=default]/tabs-list:not-data-active:hover:text-foreground",
+  "portee-app:group-data-[variant=default]/tabs-list:data-active:bg-card",
+  // Au thème sombre, `bg-card` est PLUS SOMBRE que la piste `--muted` (1,21:1 mesuré) : l'item choisi
+  // se lirait creusé. Le sombre garde le remplissage du produit (`bg-input/30`, comme hors portée) —
+  // aucune maquette ne dessine le sombre (TCK-2686 fait de même). Un sélecteur de plus pour gagner.
+  "portee-app:dark:group-data-horizontal/tabs:group-data-[variant=default]/tabs-list:data-active:bg-input/30",
+  "portee-app:group-data-horizontal/tabs:group-data-[variant=default]/tabs-list:data-active:shadow-actif",
+  "portee-app:group-data-[variant=default]/tabs-list:group-data-[size=sm]/tabs-list:h-8",
+  "portee-app:group-data-[variant=default]/tabs-list:group-data-[size=sm]/tabs-list:px-3",
+  "portee-app:group-data-[variant=default]/tabs-list:group-data-[size=sm]/tabs-list:text-ui",
+].join(" ")
+
 function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
   return (
     <TabsPrimitive.Tab
@@ -138,6 +190,7 @@ function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
         "data-active:bg-background data-active:text-foreground dark:data-active:border-input dark:data-active:bg-input/30 dark:data-active:text-foreground",
         "after:absolute after:bg-foreground after:opacity-0 after:transition-opacity group-data-horizontal/tabs:after:inset-x-0 group-data-horizontal/tabs:after:bottom-[-5px] group-data-horizontal/tabs:after:h-0.5 group-data-vertical/tabs:after:inset-y-0 group-data-vertical/tabs:after:-right-1 group-data-vertical/tabs:after:w-0.5 group-data-[variant=line]/tabs-list:data-active:after:opacity-100",
         ONGLET_SOULIGNE_APP,
+        SEGMENTE_APP,
         className
       )}
       {...props}

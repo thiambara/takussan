@@ -12747,6 +12747,10 @@
     "phoneInput": {
       "hintNational": "Indicatif {indicatif} bi dugg na : bindal li ci des. Ci bitim-réew nga nekk ? Tàmbaleel ak +.",
       "hintInternational": "Nimero bu mat, indicatif bi ci biir."
+    },
+    "filterChips": {
+      "rowLabel": "Filtres",
+      "add": "Ajouter un filtre"
     }
   },
   "reporting": {
