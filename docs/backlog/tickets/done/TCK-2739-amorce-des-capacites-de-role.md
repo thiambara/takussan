@@ -1,7 +1,7 @@
 ---
 id: TCK-2739
 title: "Juger les capacités de rôle de N membres en un nombre fixe de requêtes : étendre l'amorce de MembershipCapabilityResolver::primed() aux rôles"
-status: todo
+status: done
 phase: P3
 family: technique
 estimate: M
@@ -156,4 +156,11 @@ suppression → 1 rouge.
 - Portée : `activePlatformLevel()` lit désormais l'amorce dans **tout** callback de `primed()` (liste des biens,
   coffre de documents, `DocumentResource`), pas seulement dans les deux appelants mesurés — même portée, une requête
   pour tous les utilisateurs de l'amorce au lieu d'une par jugement.
-- Coût : la classe de parité ajoute ~30 s à la suite (le versant « sans amorce » coûte ~6 requêtes par jugement).
+- Coût : la classe de parité ajoutait ~30 s à la suite (le versant « sans amorce » coûte ~6 requêtes par jugement).
+  Suivi de la vérification : la boucle d'`allows()` ne juge plus que six capacités (`CAPACITES_JUGEES`) — l'amorce
+  porte des identifiants de rôle, jamais un verdict par capacité ; la boucle complète reste dans le test de
+  `filterAllowed`. Classe en 13 s (charge 7,7 sur 8 cœurs). Ablations P1 à P6 rejouées après la réduction : toutes
+  rouges.
+- Suivi de la vérification (Q1) : `test_l_amorce_se_vide_quand_le_rappel_leve` (`MembershipCapabilityResolverTest`)
+  garde le `finally` de `primed()` — après une exception dans le rappel, plus d'amorce, la révocation d'un
+  super-admin se lit, et l'amorce suivante s'arme. Rouge sous l'ablation (remise à zéro après succès seulement).

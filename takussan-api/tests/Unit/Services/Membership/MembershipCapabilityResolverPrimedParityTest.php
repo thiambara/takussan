@@ -40,6 +40,19 @@ class MembershipCapabilityResolverPrimedParityTest extends TestCase
 
     private const AUSSI_HORS_AGENCE = ['agent système', 'prestataire', 'super-admin', 'délégué en vigueur'];
 
+    /**
+     * Les capacités que juge la boucle d'`allows()`. L'amorce porte des IDENTIFIANTS de rôle, de
+     * délégation et de niveau, jamais un verdict par capacité : la capacité n'agit qu'en aval, par
+     * `AgencyRoleCapabilityCache`, que l'amorce ne touche pas. Six capacités qui départagent le décor
+     * (chaque portée y écarte un verdict « vrai ») éprouvent donc l'amorce autant que les 49 : mesuré
+     * par le vérificateur de TCK-2739, les ablations P1 à P6 rougissent à l'identique, pour 5 s au lieu
+     * de 15. La boucle complète reste dans le second test (`filterAllowed`).
+     */
+    private const CAPACITES_JUGEES = [
+        Capability::TeamInvite, Capability::TeamRemove, Capability::MaintenanceClose,
+        Capability::MaintenanceAssign, Capability::PropertiesUpdateOwn, Capability::ReportsViewGlobal,
+    ];
+
     private Agency $agency;
 
     private Agency $autre;
@@ -132,7 +145,7 @@ class MembershipCapabilityResolverPrimedParityTest extends TestCase
                 // éprouver de plus.
                 $agences = in_array($nom, self::AUSSI_HORS_AGENCE, true) ? [$this->agency, $this->autre] : [$this->agency];
                 foreach ($agences as $agency) {
-                    foreach (Capability::cases() as $capability) {
+                    foreach (self::CAPACITES_JUGEES as $capability) {
                         $verdicts["{$nom} @ {$agency->id} : {$capability->value}"] = $resolver->allows($user, $capability, $agency);
                     }
                 }

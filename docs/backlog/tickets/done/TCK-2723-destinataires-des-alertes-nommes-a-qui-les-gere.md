@@ -75,7 +75,7 @@ calculés par `ThresholdAlertReading::forAlerts()` — **à tout le personnel, a
 
 ## Notes d'implémentation
 
-- **AC3 est tenu « à écart constant », pas à la lettre** (décision de la session, 2026-11-11). On a mesuré 38 requêtes pour l'admin, 43 pour l'agent et 39 pour l'agent gérant. Ces chiffres ne bougent pas de 1 à 40 alertes. L'écart vient du résolveur : l'admin passe par le raccourci de son profil, l'agent par la table de vérité. Or `MembershipCapabilityResolver::primed()` n'amorce que l'appartenance, aucune capacité de rôle. Ce coût est repris par [TCK-2739](../todo/TCK-2739-amorce-des-capacites-de-role.md).
+- **AC3 est tenu « à écart constant », pas à la lettre** (décision de la session, 2026-11-11). On a mesuré 38 requêtes pour l'admin, 43 pour l'agent et 39 pour l'agent gérant. Ces chiffres ne bougent pas de 1 à 40 alertes. L'écart vient du résolveur : l'admin passe par le raccourci de son profil, l'agent par la table de vérité. Or `MembershipCapabilityResolver::primed()` n'amorce que l'appartenance, aucune capacité de rôle. Ce coût est repris par [TCK-2739](TCK-2739-amorce-des-capacites-de-role.md).
 - Le droit de lire les noms se juge **une fois par agence de la page** (`ThresholdAlertReading::forAlerts()`), jamais une fois par alerte.
 
 ## Vérification (2026-11-11)
