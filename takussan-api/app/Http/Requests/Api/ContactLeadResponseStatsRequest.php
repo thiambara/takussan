@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Models\PropertyContactLead;
+use Illuminate\Validation\Rule;
 
 /**
  * TCK-2583 — `GET /api/contact-leads/response-stats`. Délégation à
@@ -24,7 +25,7 @@ class ContactLeadResponseStatsRequest extends BaseFormRequest
     {
         return [
             'period' => ['nullable', 'integer', 'min:1', 'max:365'],
-            'agency_id' => [$this->user()?->isSuperAdmin() ? 'required' : 'nullable', 'integer', 'exists:agencies,id'],
+            'agency_id' => [$this->user()?->isSuperAdmin() ? 'required' : 'nullable', 'integer', Rule::exists('agencies', 'id')->withoutTrashed()],
         ];
     }
 

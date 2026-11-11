@@ -6,7 +6,8 @@ use Illuminate\Support\Facades\Schema;
 
 /**
  * TCK-2658 (ADR-0105 § 2) — les relances d'impayés NOTÉES par l'agence. Lues par échéance, de la
- * plus récente à la plus ancienne : index `(lease_payment_id, created_at)`.
+ * plus récente à la plus ancienne : index `(lease_payment_id, created_at)` ; listées par agence :
+ * index `(agency_id, created_at)` (AgencyIdIsIndexedTest).
  */
 return new class extends Migration
 {
@@ -22,6 +23,7 @@ return new class extends Migration
             $table->timestamp('created_at')->useCurrent();
 
             $table->index(['lease_payment_id', 'created_at']);
+            $table->index(['agency_id', 'created_at']);
         });
     }
 

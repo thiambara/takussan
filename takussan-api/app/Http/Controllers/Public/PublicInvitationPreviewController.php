@@ -37,6 +37,6 @@ class PublicInvitationPreviewController extends Controller
 
         $invitation->load(['agency.addresses', 'inviter']);
 
-        return $this->json(['data' => (new PublicInvitationPreviewResource($invitation))->toArray($request)]);
+        return $this->json(['data' => (new PublicInvitationPreviewResource($invitation))->resolve($request)]);
     }
 }
