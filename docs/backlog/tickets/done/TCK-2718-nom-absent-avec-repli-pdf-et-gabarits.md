@@ -1,7 +1,7 @@
 ---
 id: TCK-2718
 title: "Une partie sans nom ne laisse plus de case vide : repli dans le contrat et la quittance, « Bonjour, » sans virgule orpheline"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: S
@@ -95,3 +95,9 @@ Implémenté en edbaf5d62.
 - **Écart au delta, accepté par la session** : `PrintedIdentity::PERSON` gagne `phone`. La règle de la classe est « ce qui est figé est ce que les gabarits lisent, et lui seul ». La quittance lisant désormais le téléphone à défaut de nom et d'e-mail, il est figé au règlement. Un instantané antérieur n'a pas la clé : sa copie restaurée garde le téléphone courant, comme avant.
 - `NotificationTemplateService::renderString()` : une variable rendue vide emporte l'espace qui la précède quand `,` `.` `!` `?` ou `:` la suit. Une valeur non vide, ou « 0 », garde son espace.
 - Tests : `PrintedPartyNameTest` (case lue comme premier texte du `<td>`, téléphone figé compris) et `NotificationTemplateEmptyVariableTest`. Six ablations, chacune rougit ses seuls cas.
+
+## Vérification (2026-11-11)
+
+Vérification adverse acceptée : les 4 AC tiennent et les 11 ablations rougissent. Le téléphone ne s'imprime qu'à défaut de nom et d'e-mail, et ne sort de l'API par aucun chemin. Une quittance figée avant ce ticket, donc sans téléphone, se rend sans erreur. Deux défauts mineurs, à corriger au lot 2 sous ce ticket :
+- le téléphone est figé pour tous les rôles de `PrintedIdentity::PERSON`, alors que seul le locataire de la quittance l'imprime ; il faut une liste par rôle (minimisation) ;
+- quand le repli imprime l'e-mail en guise de nom, la ligne de détail le répète juste en dessous.
