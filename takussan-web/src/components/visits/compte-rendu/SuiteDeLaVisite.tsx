@@ -37,6 +37,8 @@ interface BienLu {
   readonly contract_type: string | null;
   readonly rent_period: string | null;
   readonly main_photo_url?: string | null;
+  /** TCK-2637 — `include=online` : la règle de la fiche publique (`Property::scopePublic()`). */
+  readonly is_online?: boolean;
 }
 
 interface SuiteDeLaVisiteProps {
@@ -71,14 +73,17 @@ export function SuiteDeLaVisite({ visite, principal, reste }: SuiteDeLaVisitePro
   const [edition, setEdition] = useState(false);
   const [verdictEnCours, setVerdictEnCours] = useState<Verdict | null>(null);
 
+  // `include=online` : l'invitation WhatsApp mène à la fiche publique, qu'elle ne propose que si le
+  // bien y est servi. Clé à part : `SaisirUneDemande` lit le même chemin sans `include`, et sa réponse
+  // ne porterait pas `is_online`.
   const lecture = useApiQuery<ApiResponse<BienLu>>(
-    ['saisie-demande', 'bien', visite.property_id],
+    ['saisie-demande', 'bien', visite.property_id, 'en-ligne'],
     cheminApi`/api/properties/${visite.property_id}`,
-    { enabled: visite.property_id > 0 },
+    { params: { include: ['online'] }, enabled: visite.property_id > 0 },
   );
   const lu = lecture.data?.data.id === visite.property_id ? lecture.data.data : null;
   const bien: BienDeLaSuite | null = lu
-    ? { id: lu.id, titre: lu.title ?? visite.property?.title ?? '', slug: lu.slug ?? visite.property?.slug ?? null, nature: natureDuBien(lu) }
+    ? { id: lu.id, titre: lu.title ?? visite.property?.title ?? '', slug: lu.slug ?? visite.property?.slug ?? null, nature: natureDuBien(lu), enLigne: typeof lu.is_online === 'boolean' ? lu.is_online : null }
     : null;
 
   // La réponse de l'écriture fait foi tant que la visite n'est pas relue (l'invalidation la relit).

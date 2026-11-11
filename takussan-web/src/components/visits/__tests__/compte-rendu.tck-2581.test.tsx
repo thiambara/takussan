@@ -69,6 +69,8 @@ const etat = {
   etape: 'prospect',
   /** Le PATCH d'étape change-t-il la fiche relue ? (faux : la fiche reste ce que le test pose). */
   patchEcritLEtape: false,
+  /** `is_online` du bien (TCK-2637) : l'API ne le rend que sur `include=online` ; `undefined` : absent. */
+  enLigne: true as boolean | undefined,
   candidatures: [] as { id: number }[],
 };
 
@@ -99,6 +101,7 @@ beforeEach(() => {
   etat.bien = LOCATION;
   etat.etape = 'prospect';
   etat.patchEcritLEtape = false;
+  etat.enLigne = true;
   etat.candidatures = [];
   ecrans(false);
   vi.stubGlobal(
@@ -123,7 +126,10 @@ beforeEach(() => {
         return json(200, { data: etat.visite });
       }
       if (url.pathname === '/api/property-visits/228') return json(200, { data: etat.visite });
-      if (url.pathname === `/api/properties/${etat.bien.id}`) return json(200, { data: etat.bien });
+      if (url.pathname === `/api/properties/${etat.bien.id}`) {
+        const enLigne = (url.searchParams.get('include') ?? '').split(',').includes('online');
+        return json(200, { data: { ...etat.bien, ...(enLigne && etat.enLigne !== undefined ? { is_online: etat.enLigne } : {}) } });
+      }
       if (url.pathname === '/api/customers/37/pipeline-stage') {
         if (etat.patchEcritLEtape) etat.etape = String(corps?.pipeline_stage);
         return json(200, { data: { id: 37, pipeline_stage: 'qualified' } });
@@ -232,6 +238,30 @@ describe('TCK-2581 — le compte rendu', () => {
     expect(texte).not.toMatch(/Prix|Garant|price|guarantor/i);
     // L'aperçu affiché à l'agent est ce texte même.
     expect(document.querySelector('[data-slot="apercu-whatsapp"]')?.textContent).toContain(texte);
+  });
+
+  it('AC2 — un bien qui n’est pas en ligne : l’invitation reste inactive, dit pourquoi, et n’offre aucun lien', async () => {
+    etat.enLigne = false;
+    etat.visite = visiteDe(LOCATION, { report: COMPTE_RENDU_FAIT as PropertyVisit['report'] });
+    monter();
+    expect(await screen.findByText('Ce bien n’est pas en ligne : le lien ne s’ouvrirait pas')).toBeTruthy();
+    const invitation = screen.getByText('Inviter à candidater').closest('[aria-disabled]');
+    expect(invitation?.getAttribute('aria-disabled')).toBe('true');
+    expect(screen.queryByRole('link', { name: /Envoyer par WhatsApp/ })).toBeNull();
+    expect(document.querySelector('[data-slot="apercu-whatsapp"]')).toBeNull();
+    // Les autres suites restent offertes.
+    expect(screen.getByText('Saisir sa candidature maintenant').closest('[aria-disabled="true"]')).toBeNull();
+  });
+
+  it('AC2 — `is_online` pas encore su : l’invitation reste inactive, sans le motif « hors ligne »', async () => {
+    etat.enLigne = undefined;
+    etat.visite = visiteDe(LOCATION, { report: COMPTE_RENDU_FAIT as PropertyVisit['report'] });
+    monter();
+    const invitation = (await screen.findByText('Inviter à candidater')).closest('[aria-disabled]');
+    expect(invitation?.getAttribute('aria-disabled')).toBe('true');
+    expect(screen.queryByText('Ce bien n’est pas en ligne : le lien ne s’ouvrirait pas')).toBeNull();
+    expect(screen.getByText('Il candidate depuis son téléphone')).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /Envoyer par WhatsApp/ })).toBeNull();
   });
 
   it('AC3 — l\'interrupteur est allumé ; éteint puis « Terminer » : aucun PATCH d\'étape', async () => {
@@ -367,9 +397,9 @@ describe('TCK-2581 — le compte rendu', () => {
     const lien = await screen.findByRole('link', { name: /Créer sa fiche/ });
     const cible = new URL(lien.getAttribute('href') ?? '', 'http://x');
     expect(cible.pathname).toBe('/app/customers/new');
-    expect(cible.searchParams.get('prenom')).toBe('Mouhamed');
-    expect(cible.searchParams.get('nom')).toBe('Fall');
-    expect(cible.searchParams.get('telephone')).toBe('+221770001122');
+    // L'identifiant de la visite, rien d'autre : ni nom ni numéro dans l'URL (historique, journaux, Referer).
+    expect([...cible.searchParams.entries()]).toEqual([['visite', '228']]);
+    expect(lien.getAttribute('href')).not.toMatch(/770001122|Mouhamed|Fall/);
     const saisie = (await screen.findByText('Saisir sa candidature maintenant')).closest('[aria-disabled]');
     expect(saisie).toBeTruthy();
   });
