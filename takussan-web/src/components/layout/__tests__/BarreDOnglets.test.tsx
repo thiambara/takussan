@@ -454,3 +454,35 @@ describe('TCK-2483 — AC10 : un onglet vers une destination masquée n’est pa
     expect(hrefs).toEqual(['/app/properties', '/app', '/app/messages', '/app/tasks']);
   });
 });
+
+// TCK-2691:début
+/**
+ * TCK-2691 (ADR-0106, C4) — les cotes de la maquette : `gap-1` entre l'icône et le libellé, libellé à
+ * l'interligne 16,5 px (`leading-normal` de 11 px), icônes au trait 1,75, trait actif arrondi plein. La
+ * hauteur (64 px + zone sûre) est la variable de `globals.css` (`CoqueHauteur.test.tsx`).
+ */
+describe('TCK-2691 (C4) — la barre d’onglets aux cotes de la maquette', () => {
+  it('chaque case : 4 px entre l’icône et le libellé, interligne `leading-normal`, icône au trait 1,75', () => {
+    largeurDeFenetre(390);
+    monter('agent', '/app/leads');
+    const cases = [...within(barre()).getAllByRole('link'), within(barre()).getByRole('button', { name: 'Menu' })];
+    expect(cases).toHaveLength(5);
+    for (const c of cases) {
+      const classes = c.className.split(/\s+/);
+      expect(classes).toEqual(expect.arrayContaining(['gap-1', 'leading-normal']));
+      expect(classes).not.toContain('gap-0.5');
+      expect(classes).not.toContain('leading-tight');
+      expect(c.querySelector('svg')!.getAttribute('stroke-width')).toBe('1.75');
+    }
+  });
+
+  it('le trait de l’onglet actif est arrondi aux deux bouts (`rounded-full`), comme la maquette', () => {
+    largeurDeFenetre(390);
+    monter('agent', '/app/leads');
+    const actif = within(barre()).getByRole('link', { current: 'page' });
+    const trait = actif.querySelector('[data-slot="indicateur-onglet"]')!;
+    expect(trait.className.split(/\s+/)).toEqual(expect.arrayContaining(['rounded-full', 'inset-x-4', 'h-0.5', 'bg-primary']));
+    expect(trait.className).not.toContain('rounded-b-full');
+  });
+});
+// TCK-2691:fin

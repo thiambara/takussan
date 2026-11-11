@@ -146,3 +146,38 @@ describe('<NotificationBell>', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 });
+
+// TCK-2691:début
+/**
+ * TCK-2691 (ADR-0106, C5 et C9) — la cloche a deux jeux de cotes : dans l'en-tête du téléphone, 20 px au
+ * trait 1,75 à l'encre douce ; dans la colonne, 18 px au trait des lignes (1,5) en `muted-foreground`.
+ */
+describe('TCK-2691 — les cotes de la cloche selon sa surface', () => {
+  beforeEach(() => {
+    getNotificationsMock.mockReset();
+    getNotificationsMock.mockResolvedValue(response());
+  });
+
+  it('dans l’en-tête du téléphone : icônes de 20 px au trait 1,75, à l’encre douce, marges `pl-4 pr-1.5`', () => {
+    const { container } = render(wrap(<EnTeteMobile onOuvrirPalette={() => {}} />));
+    const entete = container.querySelector('[data-slot="en-tete-mobile"]')!;
+    expect(entete.className.split(/\s+/)).toEqual(expect.arrayContaining(['pl-4', 'pr-1.5']));
+    for (const bouton of [screen.getByRole('button', { name: 'Notifications' }), container.querySelector('[data-slot="ouvrir-palette"]')!]) {
+      expect(bouton.className.split(/\s+/)).toContain('text-encre-douce');
+      expect(bouton.className.split(/\s+/)).not.toContain('text-muted-foreground');
+      const icone = bouton.querySelector('svg')!;
+      expect(icone.getAttribute('class')!.split(/\s+/)).toContain('size-5');
+      expect(icone.getAttribute('stroke-width')).toBe('1.75');
+    }
+  });
+
+  it('dans la colonne (défaut) : 18 px au trait 1,5, `muted-foreground`', () => {
+    render(wrap(<NotificationBell align="start" />));
+    const bouton = screen.getByRole('button', { name: 'Notifications' });
+    expect(bouton.className.split(/\s+/)).toContain('text-muted-foreground');
+    const icone = bouton.querySelector('svg')!;
+    expect(icone.getAttribute('class')!.split(/\s+/)).toContain('size-[18px]');
+    expect(icone.getAttribute('stroke-width')).toBe('1.5');
+  });
+});
+// TCK-2691:fin

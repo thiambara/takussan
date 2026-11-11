@@ -26,6 +26,7 @@ import {
   JETONS_CLAIR,
   JETONS_SOMBRE,
   SEUIL_AA_TEXTE,
+  SEUIL_NON_TEXTUEL,
   composer,
   contraste,
   fmt,
@@ -204,3 +205,122 @@ describe('TCK-2490 (AC4) — chaque texte de la colonne tient 4,5:1 sur tous ses
     expect(fonds[0].hex).toBe(versHex(composer(versRvb(JETONS_CLAIR.foreground), lin, 0.08)));
   });
 });
+
+// TCK-2691:début
+/**
+ * TCK-2691 (ADR-0106, C6, C7, AC4, AC5) — les icônes de ligne passent en `muted-foreground` au repos et
+ * `primary` à l'actif : des éléments NON TEXTUELS, ≥ 3:1 sur tous leurs fonds (le lin, le voile du survol,
+ * le voile de l'entrée active), clair et sombre. Et l'avatar du compte quitte l'encre noire pour le repli
+ * par défaut de TCK-2687 : le « soi » de la maquette (`accent/15`, `text-accent`) est mesuré ici, sous
+ * 4,5:1 sur la colonne — c'est ce qui le fait écarter (ADR-0106, exception 1).
+ */
+describe('TCK-2691 (AC4) — chaque icône de la colonne tient 3:1 sur tous ses fonds, clair et sombre', () => {
+  it.each(Object.keys(SCENARIOS))('%s', (nom) => {
+    const { container } = monter(SCENARIOS[nom]);
+    const icones = Array.from(container.querySelectorAll('aside nav svg'))
+      .map((el) => ({ el, encre: Array.from(el.classList).map((c) => litUtilitaireDeCouleur(c, 'text')).find((u) => u?.variante === '') }))
+      .filter((x): x is { el: Element; encre: NonNullable<typeof x.encre> } => x.encre !== undefined && x.encre !== null);
+    // L'épreuve n'est pas vide : les icônes du menu portent bien leur encre.
+    expect(icones.length).toBeGreaterThan(5);
+    const echecs: string[] = [];
+    for (const [theme, jetons] of [['clair', JETONS_CLAIR], ['sombre', JETONS_SOMBRE]] as const) {
+      for (const { el, encre } of icones) {
+        for (const fond of fondsDe(el, jetons)) {
+          const ratio = contraste(composer(versRvb(resoudreCouleur(encre.jeton, jetons)), versRvb(fond.hex), encre.alpha), fond.hex);
+          if (ratio < SEUIL_NON_TEXTUEL) echecs.push(`${theme} · icône text-${encre.jeton} sur ${fond.hex} (${fond.etat}) = ${fmt(ratio)}`);
+        }
+      }
+    }
+    expect(echecs).toEqual([]);
+  });
+
+  it('une icône au repos rend `muted-foreground`, l’icône de l’entrée active `primary` (trait 1,5)', () => {
+    const { container } = monter(SCENARIOS['client sur ses visites']);
+    const actif = container.querySelector('nav a[aria-current="page"]')!;
+    const repos = Array.from(container.querySelectorAll('nav [data-ligne] a:not([aria-current])'))[0]!;
+    expect(actif.querySelector('svg')!.getAttribute('class')!.split(/\s+/)).toContain('text-primary');
+    expect(repos.querySelector('svg')!.getAttribute('class')!.split(/\s+/)).toContain('text-muted-foreground');
+    for (const ligne of [actif, repos]) expect(ligne.querySelector('svg')!.getAttribute('stroke-width')).toBe('1.5');
+  });
+});
+
+describe('TCK-2691 (AC5) — l’avatar du compte : le repli par défaut, pas l’encre noire ni le « soi » de la maquette', () => {
+  const lin = (jetons: Readonly<Record<string, string>>) =>
+    composer(versRvb(jetons.muted), versRvb(jetons.background), 0.45);
+
+  it('le « soi » de la maquette (`accent/15`, `text-accent`) tombe sous 4,5:1 sur la colonne — il est écarté', () => {
+    const fond = composer(versRvb(resoudreCouleur('accent', JETONS_CLAIR)), lin(JETONS_CLAIR), 0.15);
+    expect(contraste(versRvb(resoudreCouleur('accent', JETONS_CLAIR)), versHex(fond))).toBeLessThan(SEUIL_AA_TEXTE);
+  });
+
+  it('le repli retenu (`secondary` / `primary-deep`, aplats opaques) tient 4,5:1, clair et sombre', () => {
+    for (const jetons of [JETONS_CLAIR, JETONS_SOMBRE]) {
+      const ratio = contraste(versRvb(resoudreCouleur('primary-deep', jetons)), resoudreCouleur('secondary', jetons));
+      expect(ratio).toBeGreaterThanOrEqual(SEUIL_AA_TEXTE);
+    }
+  });
+
+  it('le pied rend ce repli (aucune pastille `bg-foreground`) et le nom en graisse 600', () => {
+    const { container } = monter(SCENARIOS['agent sur la messagerie']);
+    const pied = container.querySelector('[data-slot="pied-du-compte"]')!;
+    const repli = pied.querySelector('[data-slot="avatar-fallback"]')!;
+    expect(repli).not.toBeNull();
+    const classes = repli.className.split(/\s+/);
+    expect(classes).toEqual(expect.arrayContaining(['bg-fond-avatar', 'text-encre-avatar', 'font-semibold']));
+    expect(classes).not.toContain('bg-foreground');
+    expect(classes).not.toContain('text-background');
+    expect(pied.querySelector('[data-slot="avatar"]')!.className.split(/\s+/)).toEqual(expect.arrayContaining(['size-8', 'max-md:size-9']));
+    expect(Array.from(pied.querySelectorAll('span')).find((s) => s.textContent === 'Awa Diop')!.className).toContain('font-semibold');
+  });
+});
+describe('TCK-2691 (AC6, C8, C9, C12) — les cotes de la colonne, celles de la maquette', () => {
+  const classes = (el: Element | null) => (el?.getAttribute('class') ?? '').split(/\s+/);
+
+  it('une ligne : `text-sm` (12,6 px dès `lg`), 15 px au tiroir, `px-2`, `gap-2.5` ; au repos, l’encre douce OPAQUE', () => {
+    const { container } = monter(SCENARIOS['client sur ses visites']);
+    const repos = container.querySelector('nav [data-ligne] a:not([aria-current])')!;
+    expect(classes(repos)).toEqual(expect.arrayContaining(['text-sm', 'max-md:text-corps', 'px-2', 'gap-2.5', 'text-encre-douce']));
+    expect(classes(repos)).not.toContain('text-foreground');
+    expect(classes(repos).some((c) => /^text-encre-douce\//.test(c))).toBe(false);
+    const actif = container.querySelector('nav a[aria-current="page"]')!;
+    expect(classes(actif)).toEqual(expect.arrayContaining(['font-medium', 'text-foreground']));
+    // L'icône : 18 px, 20 px au tiroir.
+    expect(classes(repos.querySelector('svg'))).toEqual(expect.arrayContaining(['size-[18px]', 'max-md:size-5']));
+  });
+
+  it('un titre de groupe : `text-xs`, graisse 400 ; un compteur : `text-xs font-semibold` en `primary-deep`', () => {
+    const { container } = monter(SCENARIOS['client sur ses visites']);
+    const titre = container.querySelector('[data-groupe] [id$="-titre"]')!;
+    expect(classes(titre)).toEqual(expect.arrayContaining(['text-xs', 'text-muted-foreground', 'px-2']));
+    // Au bureau, ni marge sous le titre ni interstice entre les lignes : le pas de la maquette (32,4 px).
+    expect(classes(titre)).not.toContain('mb-0.5');
+    const liste = container.querySelector(`#${CSS.escape(titre.getAttribute('aria-controls') ?? titre.id.replace(/-titre$/, '-liste'))}`)!;
+    const lignes = liste.querySelector('[data-ligne]')!.parentElement!;
+    expect(classes(lignes)).toContain('max-md:space-y-px');
+    expect(classes(lignes)).not.toContain('space-y-px');
+    expect(classes(titre).some((c) => /^font-/.test(c))).toBe(false);
+    const compteur = container.querySelector('[data-slot="compteur-entree"] span')!;
+    expect(classes(compteur)).toEqual(expect.arrayContaining(['text-xs', 'font-semibold', 'text-primary-deep']));
+  });
+
+  it('le filet droit et celui du pied à l’encre de bord pleine ; la tête en `px-4`, le lien de la marque sans marge latérale', () => {
+    const { container } = monter(SCENARIOS['agent sur la messagerie']);
+    const aside = container.querySelector('aside')!;
+    expect(classes(aside)).toContain('border-border');
+    expect(classes(aside)).not.toContain('border-border/70');
+    const marque = container.querySelector('[data-slot="marque"]')!;
+    expect(classes(marque.parentElement)).toContain('px-4');
+    expect(classes(marque).some((c) => /^px-/.test(c))).toBe(false);
+    expect(classes(container.querySelector('[data-slot="pied-du-compte"]')!.closest('.border-t'))).toContain('border-border');
+  });
+
+  it('l’action principale : pastille `size-6`, libellé en 600', () => {
+    const { container } = monter(SCENARIOS['agent sur la messagerie']);
+    const action = container.querySelector('[data-slot="action-principale"]');
+    expect(action).not.toBeNull();
+    const [pastille, libelle] = Array.from(action!.children);
+    expect(classes(pastille)).toContain('size-6');
+    expect(classes(libelle)).toContain('font-semibold');
+  });
+});
+// TCK-2691:fin

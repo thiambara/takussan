@@ -10,6 +10,7 @@ import { compteAffiche } from './compte-affiche';
 import type { EntreeRendue } from './useMenuDeLEspace';
 import {
   FOCUS_RING_RENTRANT,
+  ENCRE_D_ICONE_REPOS,
   ICONE_DE_LIGNE,
   STYLE_LIGNE,
   STYLE_LIGNE_REPOS,
@@ -57,7 +58,7 @@ export function AujourdhuiDeLaBarre({ lignes, entrees, onNavigate, infobulle = f
       // Rail : un filet le sépare du menu, comme entre deux groupes.
       className="mb-5 icones:mb-2 icones:border-b icones:border-border/60 icones:pb-2"
     >
-      <p id={idTitre} className={cn('mb-0.5 flex h-7 items-center px-2.5 icones:sr-only', STYLE_TITRE)}>
+      <p id={idTitre} className={cn('mb-0.5 flex h-7 items-center px-2 icones:sr-only', STYLE_TITRE)}>
         {t('titre')}
       </p>
       <ul className="space-y-px">
@@ -77,7 +78,8 @@ export function AujourdhuiDeLaBarre({ lignes, entrees, onNavigate, infobulle = f
                     />
                   }
                 >
-                  {Icone ? <Icone className={ICONE_DE_LIGNE} strokeWidth={TRAIT_D_ICONE} aria-hidden /> : null}
+                  {/* TCK-2691 (C6) — l'icône au repos en `muted-foreground`. */}
+                  {Icone ? <Icone className={cn(ICONE_DE_LIGNE, ENCRE_D_ICONE_REPOS)} strokeWidth={TRAIT_D_ICONE} aria-hidden /> : null}
                   <span
                     aria-hidden
                     data-slot="point-aujourdhui"

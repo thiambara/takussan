@@ -627,6 +627,35 @@ inset-x-0 top-1/2 -translate-y-1/2 h-controle`, porte la cible : 44 px sous le p
 d'un contrôle du bureau ailleurs. Un pseudo-élément appartient à son élément pour le pointeur. Le conteneur doit laisser
 la place au débord (le `py-2.5` de la rangée de puces) : `overflow` le rognerait.
 
+### La coque de `/app` aux cotes de la maquette ([ADR-0106](adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), TCK-2691)
+
+Ce qui entoure chaque page de `/app` — la colonne, le tiroir, la barre d'onglets, l'en-tête du téléphone, la marge du
+contenu — a les cotes de `?p=app-coque&a=a` (annexe C, `docs/qa/audit-ux-2026-11/fidelite/C-coque.md`). Les cotes
+vivent dans `src/components/layout/styles-de-la-barre.ts` (colonne et tiroir), `BarreDOnglets.tsx`, `EnTeteMobile.tsx`,
+`NotificationBell.tsx` (prop `emplacement`) et `PagePleineLargeur.tsx` (l'enveloppe du contenu).
+
+| Élément | Cote |
+|---|---|
+| Marge du contenu (`EnveloppeDuContenu`) | `px-4 py-6` au téléphone ; 24 px de `md` à `lg` ; **`px-8` (28,8 px) dès `lg`** : largeur utile **1110** à 1440, **694** à 1024, **660** à 768 (rail de 60 px) — mesurées sur `/app/leases` |
+| **Page « pleine largeur »** (`<PagePleineLargeur>`) | sous `md`, l'enveloppe perd sa marge (`:has([data-pleine-largeur])`, CSS seul) : la page porte ses marges élément par élément, une rangée va de x = 0, son texte à x = 16. Adoption **page par page** ; une page qui ne l'adopte pas garde `px-4 py-6`. Dès `md`, l'enveloppe garde sa marge. Le conteneur de la page ne porte **aucune** marge latérale (`PagePleineLargeur.garde.test.ts`) |
+| Barre d'onglets | **64 px** + zone sûre (`--barre-onglets-hauteur: calc(4rem + env(safe-area-inset-bottom))`) ; 4 px entre icône et libellé ; icône 20 px au trait 1,75 ; libellé 11 px, interligne 16,5 ; trait actif 2 px `primary`, `inset-x-4`, arrondi plein |
+| En-tête du téléphone | `pl-4 pr-1.5` ; « Aller à » et la cloche : icônes de 20 px au trait 1,75, **encre douce**, cibles de 40 |
+| Colonne (dès `md`) | filet droit `border-border` plein ; tête `px-4` (logo à 14,4 px du bord) ; ligne `h-9 px-2 gap-2.5 text-sm` (**12,6 px** dès `lg`) ; titre de groupe `text-xs` 400 ; compteur `text-xs` 600 `primary-deep` ; action principale : pastille `size-6`, libellé 600 |
+| Tiroir (sous `md`) | lignes en **15 px** (`text-corps`), icônes de **20 px** ; la hauteur des lignes (44) est à TCK-2619 |
+| Icônes de ligne (colonne et tiroir) | 18 px (20 au tiroir), **trait 1,5** (`TRAIT_D_ICONE`, amende TCK-2490) ; **`muted-foreground` au repos, `primary` à l'actif** (≥ 3:1 sur le lin, le survol et le voile actif, clair et sombre — `AppSidebar.contraste`) |
+| Encre des lignes au repos | **encre douce opaque** (`ENCRE_AU_REPOS`) ; l'entrée active et la mise en avant gardent l'encre pleine, 500 |
+| Compte (pied) | avatar 28,8 px au bureau, 36 au tiroir, **repli par défaut** (`secondary` / `primary-deep`, 6,72:1) ; nom 600 |
+
+**Les exceptions** (ADR-0106) : le compteur reste `primary-deep` (la maquette écrit `primary`, 4,10:1 sur le voile
+actif) ; l'encre au repos est l'encre douce opaque, pas `foreground/85` (TCK-658) ; l'avatar « soi » de la maquette
+(`accent/15`, `text-accent`) tombe sous 4,5:1 sur la colonne, d'où le repli par défaut ; le titre de groupe garde
+25,2 px de haut au bureau (c'est le bouton de repli : cible ≥ 24 px, WCAG 2.5.8), compensé par une marge de groupe
+`mt-1` au lieu de `mt-3` et aucune marge dessous (3,6 + 25,2 = 28,8 px, la place de `mt-3` + 18) — la première ligne
+de chaque groupe tombe où la maquette la pose ; la zone sûre s'ajoute aux 64 px de la barre d'onglets.
+
+Au bureau, les lignes du menu se suivent **sans interstice** (pas de 32,4 px, comme la maquette) ; le tiroir garde le
+pixel qui sépare ses voiles (`max-md:space-y-px`).
+
 ### Les primitives neuves de la partie connectée ([ADR-0106](adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), TCK-2690)
 
 Quatre primitives que le produit n'avait pas, dessinées comme la maquette retenue. Elles n'ont aucun appelant d'avant :

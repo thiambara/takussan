@@ -318,8 +318,9 @@
   /* TCK-2481 — la hauteur de la barre d'onglets mobile de `/app`, zone sûre comprise. Une seule
      définition, lue par la barre (`BarreDOnglets`), par la messagerie compacte (`MessagesPage`) et
      par le dock flottant. `env()` vaut 0 tant que le viewport n'est pas `viewport-fit=cover`
-     (piste reportée par le porteur, 2026-10-25) : la règle est juste le jour où il le sera. */
-  --barre-onglets-hauteur: calc(3.5rem + env(safe-area-inset-bottom));
+     (piste reportée par le porteur, 2026-10-25) : la règle est juste le jour où il le sera.
+     TCK-2691 (ADR-0106, C4) — 64 px, la cote de la maquette (56 avant). */
+  --barre-onglets-hauteur: calc(4rem + env(safe-area-inset-bottom));
 
   /* TCK-2493 (ADR-0091) — la hauteur de la barre d'onglets du SITE PUBLIC (60 px), zone sûre comprise.
      Lue par la barre (`BarreDOngletsPublique`), par la réserve de `body` et par le dock flottant. */

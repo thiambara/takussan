@@ -42,6 +42,9 @@ import { RecentsDeLaBarre } from './RecentsDeLaBarre';
 import {
   FOCUS_RING,
   FOCUS_RING_RENTRANT,
+  ENCRE_AU_REPOS,
+  ENCRE_D_ICONE_ACTIVE,
+  ENCRE_D_ICONE_REPOS,
   ICONE_DE_LIGNE,
   LIBELLE_DE_LIGNE,
   STYLE_COMPTEUR,
@@ -225,16 +228,18 @@ function SidebarItem({
               'relative flex-1',
               STYLE_LIGNE,
               FOCUS_RING_RENTRANT,
-              active
-                ? 'font-medium text-foreground'
-                : emphasized
-                  ? 'font-medium text-foreground'
-                  : 'text-foreground',
+              // TCK-2691 (C9) — au repos, l'encre douce opaque ; l'active et la mise en avant, l'encre pleine.
+              active || emphasized ? 'font-medium text-foreground' : ENCRE_AU_REPOS,
             )}
           />
         }
       >
-        <Icon className={cn(ICONE_DE_LIGNE, active && 'text-primary')} strokeWidth={TRAIT_D_ICONE} aria-hidden />
+        {/* TCK-2691 (C6) — l'icône au repos en `muted-foreground`, l'active en `primary`. */}
+        <Icon
+          className={cn(ICONE_DE_LIGNE, active ? ENCRE_D_ICONE_ACTIVE : ENCRE_D_ICONE_REPOS)}
+          strokeWidth={TRAIT_D_ICONE}
+          aria-hidden
+        />
         <span className={LIBELLE_DE_LIGNE}>{label}</span>
         {counterKey && counter && counter > 0 ? (
           compteDansAujourdhui ? (
@@ -250,7 +255,7 @@ function SidebarItem({
         {valeur !== undefined ? (
           <span
             data-slot="valeur-entree"
-            className="ml-auto shrink-0 text-[0.78125rem] font-medium tabular-nums text-foreground icones:hidden"
+            className="ml-auto shrink-0 text-xs font-semibold tabular-nums text-foreground icones:hidden"
           >
             {valeur}
           </span>
@@ -290,6 +295,12 @@ function SidebarItem({
     </div>
   );
 }
+
+/**
+ * TCK-2691 (C8) — les lignes du menu se suivent sans interstice au bureau, comme la maquette (pas de
+ * 32,4 px) ; le tiroir garde le pixel qui sépare ses voiles (TCK-2490, TCK-2619).
+ */
+const ESPACE_ENTRE_LIGNES = 'max-md:space-y-px';
 
 /** Un compte qu'un groupe replié cache, et qu'« Aujourd'hui » ne porte pas. */
 interface CompteCache {
@@ -406,7 +417,13 @@ function GroupeDuMenu({
       data-groupe={groupe.id}
       // TCK-2490 (ADR-0090 §7) — dans le rail, un filet sépare les groupes (maquette « Atelier ») : les
       // titres y sont lus, pas montrés ; la bascule d'un groupe replié reste son chevron, nommé en infobulle.
-      className={cn(!premier && 'mt-5 icones:mt-2 icones:border-t icones:border-border/60 icones:pt-2')}
+      // TCK-2691 (C8) — au bureau, le titre (25,2 px : cible ≥ 24 px du bouton de repli, WCAG 2.5.8) ne
+      // garde que `mt-1` au-dessus de lui, sans marge dessous : 3,6 + 25,2 = 28,8 px, la place que la
+      // maquette donne à `mt-3` + un titre de 18 px. Le tiroir garde son rythme (TCK-2619).
+      className={cn(
+        !premier && (avecTitre ? 'mt-1 max-md:mt-5' : 'mt-5'),
+        !premier && 'icones:mt-2 icones:border-t icones:border-border/60 icones:pt-2',
+      )}
     >
       {bascule ? (
         <Tooltip disabled={!infobulle}>
@@ -419,7 +436,7 @@ function GroupeDuMenu({
                 aria-controls={idListe}
                 onClick={basculer}
                 className={cn(
-                  'group/titre relative mb-0.5 flex h-7 w-full items-center gap-1 rounded-md px-2.5 text-left transition-colors hover:text-foreground max-md:h-9 icones:justify-center icones:px-0',
+                  'group/titre relative flex h-7 w-full max-md:mb-0.5 items-center gap-1 rounded-md px-2 text-left transition-colors hover:text-foreground max-md:h-9 icones:justify-center icones:px-0',
                   STYLE_TITRE,
                   FOCUS_RING,
                 )}
@@ -455,7 +472,7 @@ function GroupeDuMenu({
           </TooltipContent>
         </Tooltip>
       ) : avecTitre ? (
-        <p id={idTitre} className={cn('mb-0.5 flex h-7 items-center px-2.5 icones:sr-only', STYLE_TITRE)}>
+        <p id={idTitre} className={cn('flex h-7 items-center px-2 max-md:mb-0.5 icones:sr-only', STYLE_TITRE)}>
           {libelle}
         </p>
       ) : null}
@@ -467,10 +484,10 @@ function GroupeDuMenu({
           aria-hidden={ferme || undefined}
           className={cn(STYLE_REPLI, ferme ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]')}
         >
-          <div className="min-h-0 space-y-px overflow-hidden">{groupe.entrees.map((e) => rendreEntree(e, ferme))}</div>
+          <div className={cn('min-h-0 overflow-hidden', ESPACE_ENTRE_LIGNES)}>{groupe.entrees.map((e) => rendreEntree(e, ferme))}</div>
         </div>
       ) : (
-        <div id={idListe} className="space-y-px">
+        <div id={idListe} className={ESPACE_ENTRE_LIGNES}>
           {groupe.entrees.map((e) => rendreEntree(e, false))}
         </div>
       )}
@@ -557,13 +574,13 @@ function LigneAllerA({ onOuvrir, infobulle }: LigneAllerAProps) {
           />
         }
       >
-        <Search className={ICONE_DE_LIGNE} strokeWidth={TRAIT_D_ICONE} aria-hidden />
+        <Search className={cn(ICONE_DE_LIGNE, ENCRE_D_ICONE_REPOS)} strokeWidth={TRAIT_D_ICONE} aria-hidden />
         <span className="min-w-0 flex-1 truncate text-left icones:sr-only">{t('ouvrir')}</span>
         <span aria-hidden className="ml-auto flex shrink-0 gap-0.5 max-md:hidden tactile:hidden icones:hidden">
           {touches.map((touche) => (
             <kbd
               key={touche}
-              className="inline-flex h-5 min-w-5 items-center justify-center rounded-[5px] px-1 font-sans text-[0.6875rem] font-medium leading-none text-muted-foreground ring-1 ring-inset ring-border"
+              className="inline-flex h-5 min-w-5 items-center justify-center rounded-[5px] px-1 font-sans text-[0.6875rem] leading-none text-muted-foreground ring-1 ring-inset ring-border"
             >
               {touche}
             </kbd>
@@ -760,7 +777,8 @@ export function AppSidebar({
       className={cn(
         // TCK-2490 (ADR-0090 §1) — la colonne « Atelier » : le lin un cran sous la page (`--muted` à
         // 45 % sur le fond de la coque), un filet à droite ; 272 px, rail de 60 px (§7).
-        'flex h-full flex-col border-r border-border/70 bg-muted/45 transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none',
+        // TCK-2691 (C12) — le filet droit à l'encre de bord pleine, comme la maquette.
+        'flex h-full flex-col border-r border-border bg-muted/45 transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none',
         tiroir ? 'w-full border-r-0' : 'w-[272px] icones:w-[60px]',
         className,
       )}
@@ -769,14 +787,15 @@ export function AppSidebar({
           cloche et le bouton « Replier » à droite ; rail : le symbole, la cloche et le bouton, l'un sous
           l'autre.
           Le tiroir n'a pas de cloche : l'en-tête mobile, qu'il recouvre, porte la sienne. */}
-      <div className="flex h-14 shrink-0 items-center gap-2 px-3 icones:h-auto icones:flex-col icones:gap-1 icones:px-0 icones:py-3">
+      {/* TCK-2691 (C12) — `px-4` et un lien sans marge propre : le logo à 14,4 px du bord, comme la maquette. */}
+      <div className="flex h-14 shrink-0 items-center gap-2 px-4 icones:h-auto icones:flex-col icones:gap-1 icones:px-0 icones:py-3">
         {/* Revue adverse (M4) — dans le rail aussi : de 768 à 1023 px c'est le mode par défaut, et sans
             elle la coque n'avait plus de lien vers l'accueil. Le symbole seul ; le nom reste lu. */}
         <Link
           href="/"
           onClick={onNavigate}
           data-slot="marque"
-          className={cn('inline-flex shrink-0 rounded-md px-1.5 py-1 icones:px-1', FOCUS_RING)}
+          className={cn('inline-flex shrink-0 rounded-md py-1 icones:px-1', FOCUS_RING)}
         >
           <span data-slot="marque-complete" className="inline-flex icones:hidden">
             <Logo nom={tCommon('appName')} />
@@ -788,7 +807,7 @@ export function AppSidebar({
         </Link>
         {/* TCK-2480 (A10) — la bascule de l'appareil : jamais dans le tiroir, jamais sans fournisseur. */}
         {tiroir ? null : (
-          <div className="ml-auto flex items-center gap-0.5 icones:ml-0 icones:flex-col icones:gap-1">
+          <div className="ml-auto flex items-center gap-2 icones:ml-0 icones:flex-col icones:gap-1">
             <NotificationBell align="start" />
             {prefs.actif ? (
               <BasculeDesIcones
@@ -810,7 +829,7 @@ export function AppSidebar({
           ne mènent pas dans l'espace, restent hors du repère. */}
       <nav aria-label={t('navLabel')} className="flex min-h-0 flex-1 flex-col">
         {(action && IconeAction) || onOuvrirPalette || tableauEnTete ? (
-          <div className="shrink-0 space-y-px px-2 pb-2">
+          <div className={cn('shrink-0 px-2 pb-2', ESPACE_ENTRE_LIGNES)}>
             {action && IconeAction ? (
               <Tooltip disabled={!infobulle}>
                 <TooltipTrigger
@@ -831,10 +850,13 @@ export function AppSidebar({
                     />
                   }
                 >
-                  <span className="-mx-0.5 inline-flex size-[22px] shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                    <IconeAction className="size-3.5" strokeWidth={2.25} aria-hidden />
+                  {/* TCK-2691 (C8) — la pastille de la maquette (`size-6`), le libellé en 600. */}
+                  <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                    {/* TCK-2691 — l'icône de la maquette : `size-4`, trait 2. « 2.0 » et non 2 : l'attribut
+                        `stroke-width="2"` est celui que la portée `/app` récrit à 1,5 (`globals.css`). */}
+                    <IconeAction className="size-4" strokeWidth="2.0" aria-hidden />
                   </span>
-                  <span className="min-w-0 text-left font-medium leading-snug text-pretty text-foreground icones:sr-only">
+                  <span className="min-w-0 text-left font-semibold leading-snug text-pretty text-foreground icones:sr-only">
                     {libelleAction}
                   </span>
                 </TooltipTrigger>
@@ -888,7 +910,7 @@ export function AppSidebar({
           />
         </div>
       </nav>
-      <div className="shrink-0 space-y-px border-t border-border/70 p-2">
+      <div className="shrink-0 space-y-px border-t border-border p-2">
         {/* TCK-2490 (ADR-0090 §6) — les cartes deviennent des lignes de statut, au-dessus du compte.
             Rail : la ligne de mise en location garde son icône ; « Passer en agence » se cache. */}
         {menu.carte ? (

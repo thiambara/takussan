@@ -92,15 +92,19 @@ export function MenuDuCompte({ user, libelleRole, onNavigate }: MenuDuCompteProp
           FOCUS_RING_RENTRANT,
         )}
       >
-        {/* Les initiales sont une image du nom, qui suit : hors du nom accessible. */}
-        <Avatar className="size-8" aria-hidden>
+        {/* Les initiales sont une image du nom, qui suit : hors du nom accessible.
+            TCK-2691 (C7) — 28,8 px au bureau, 36 px dans le tiroir ; le repli PAR DÉFAUT de l'avatar
+            (TCK-2687 : `secondary` / `primary-deep`, 6,72:1) et non plus une pastille d'encre noire. Le
+            « soi » de la maquette (`accent/15`, `text-accent`) tombe sous 4,5:1 sur la colonne
+            (`AppSidebar.contraste.test.tsx`, ADR-0106 exception 1). */}
+        <Avatar className="size-8 max-md:size-9" aria-hidden>
           {user.avatar_url ? <AvatarImage src={user.avatar_url} alt="" /> : null}
-          <AvatarFallback className="bg-foreground text-xs font-semibold text-background">
+          <AvatarFallback className="text-xs font-semibold max-md:text-avatar-36">
             {initiales ?? <UserRound className="size-4" aria-hidden="true" />}
           </AvatarFallback>
         </Avatar>
         <span className="min-w-0 flex-1 icones:sr-only">
-          <span className="block truncate text-sm font-medium text-foreground">{libelle}</span>
+          <span className="block truncate text-sm font-semibold text-foreground">{libelle}</span>
           {/* Un séparateur LU : sans lui, le nom accessible collait le nom à l'espace. */}
           {espace ? <span className="sr-only">, </span> : null}
           <span className="block truncate text-xs text-muted-foreground">{espace}</span>

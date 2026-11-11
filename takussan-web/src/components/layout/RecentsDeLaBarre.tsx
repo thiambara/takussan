@@ -78,7 +78,7 @@ export function RecentsDeLaBarre({ compte, groupes, pathname, libelle, lien, onN
 
   return (
     <section aria-labelledby={idTitre} data-slot="recents" className="mt-5 icones:hidden">
-      <p id={idTitre} className={cn('mb-0.5 flex h-7 items-center px-2.5', STYLE_TITRE)}>
+      <p id={idTitre} className={cn('mb-0.5 flex h-7 items-center px-2', STYLE_TITRE)}>
         {t('recents')}
       </p>
       <ul className="space-y-px">
@@ -88,7 +88,7 @@ export function RecentsDeLaBarre({ compte, groupes, pathname, libelle, lien, onN
               href={lien(entree)}
               onClick={onNavigate}
               className={cn(
-                'flex h-8 items-center rounded-lg px-2.5 text-[0.84375rem] text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground max-md:h-10',
+                'flex h-8 items-center rounded-lg px-2 text-[0.84375rem] text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground max-md:h-10',
                 FOCUS_RING_RENTRANT,
               )}
             >

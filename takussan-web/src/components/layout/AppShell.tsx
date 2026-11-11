@@ -26,6 +26,7 @@ import { OwnerWelcomeWizard } from '@/components/owner/OwnerWelcomeWizard';
 import { TenantWelcomeWizard } from '@/components/tenant/TenantWelcomeWizard';
 import { isAgencyAdmin, isAgent, isCustomerOnly, isOwner } from '@/lib/roles';
 import { estPleinEcran, porteLaBarreDOnglets } from './plein-ecran';
+import { EnveloppeDuContenu } from './PagePleineLargeur';
 import { PreferencesDuMenuProvider } from './PreferencesDuMenu';
 import type { ModeIcones } from '@/lib/navigation/mode-icones';
 import { personaDeLaCoque } from '@/lib/navigation/personas';
@@ -245,7 +246,9 @@ export function AppShell({
                   à 320, mesuré) et la maintenance, collante, recouvrait la barre haute une fois
                   défilé. Ici ils défilent avec la page et la coque tient l'écran. */}
               <BandeauxDuSite emplacement="page" />
-              <div className="px-4 py-6 md:px-6 md:py-8">{children}</div>
+              {/* TCK-2691 (ADR-0106, C1 et C2) — la marge des pages : `px-8` dès `lg` (28,8 px, largeur
+                  utile de la maquette), et rien au téléphone pour une page qui adopte la pleine largeur. */}
+              <EnveloppeDuContenu>{children}</EnveloppeDuContenu>
             </main>
           </div>
           {/* TCK-2689 — l'emplacement de la barre d'action collante (`ui/barre-d-action.tsx`), qu'une page

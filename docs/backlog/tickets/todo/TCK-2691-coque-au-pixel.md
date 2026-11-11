@@ -131,4 +131,28 @@ Aucun changement d'API.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**2026-11-11 (terrain-4).**
+
+- **C1** — `src/components/layout/PagePleineLargeur.tsx` : `EnveloppeDuContenu` (la marge des pages, rendue par
+  `AppShell`) et `PagePleineLargeur` (`data-pleine-largeur`). Sous `md`, `max-md:has-[[data-pleine-largeur]]:p-0`
+  ramène la marge de l'enveloppe à zéro, horizontale ET verticale (la maquette n'a aucune enveloppe) ; CSS seul, sans
+  contexte ni effet. Aucune page existante ne l'adopte ; la démonstration est dans la vitrine (`/fr/playground/vitrine`,
+  section « Page pleine largeur »), dans la vraie enveloppe — pas de route de démonstration sous `/app` (les gardes
+  d'inventaire des routes `/app` l'auraient exigé partout). Garde : `PagePleineLargeur.garde.test.ts` (règle compilée
+  + balayage de `src/`, au moins une adoption exigée).
+- **C2** — `lg:px-8` dans l'enveloppe. `MessagesPage` (`md:-mx-6`) n'est pas touchée : elle repose `lg:mx-0`.
+- **C5** — `NotificationBell` prend `emplacement` (`colonne` : 18 px, trait 1,5, `muted-foreground` ; `en-tete` :
+  20 px, trait 1,75, encre douce).
+- **C8** — le titre de groupe garde 25,2 px de haut au bureau (bouton de repli, cible ≥ 24 px, WCAG 2.5.8) ; la marge
+  du groupe titré passe de `mt-5` à `mt-1` au bureau, sans marge sous le titre (`max-md:` garde l'ancien rythme au
+  tiroir) : 3,6 + 25,2 = 28,8 px, la première ligne tombe où la maquette la pose. Les lignes se suivent sans
+  interstice au bureau (`max-md:space-y-px`) : pas de 32,4 mesuré (Visites → Réservations → Calendrier). La tête
+  de la colonne passe à `gap-2` (cloche à x = 197,2, comme la maquette) ; le « + » de l'action principale à
+  `size-4`, trait 2 (écrit « 2.0 » : la portée récrit l'attribut « 2 » à 1,5).
+- **C7** — tous les comptes de démo ont une photo : le repli s'est mesuré dans la vitrine (même composant, même
+  portée : `rgb(243,234,216)` / `rgb(130,60,32)`, 600) et au rendu (`AppSidebar.contraste`).
+- Mesures (2026-11-11, admin) : `/app/leases` 1440 → marge 28,8, utile 1110,4 ; 1024 → 694,4 ; 900 → 24 ; 768 → 660 ;
+  390 → barre 64 px, `gap` 4, interligne 16,5, trait 1,75, dernier élément au-dessus de la barre ; en-tête 20 px, 1,75,
+  `rgb(76,70,65)` ; tiroir 15 px, icônes 20 px au trait 1,5, encre au repos opaque ; `/super-admin` 390 et l'accueil
+  public 390 : zéro écart avant/après ; `/app/messages` 390, conversation ouverte : le composeur finit à 780, le haut
+  de la barre ; à 1440, tout le contenu glisse de 7,2 px, rien d'autre.

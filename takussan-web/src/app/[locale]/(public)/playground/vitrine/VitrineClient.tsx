@@ -26,6 +26,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { fieldDensityScope } from '@/components/ui/field-density';
 import { Input } from '@/components/ui/input';
 import { IconeDeLigne, LigneDeListe, MontantDeLigne } from '@/components/ui/ligne-de-liste';
+import { EnveloppeDuContenu, PagePleineLargeur } from '@/components/layout/PagePleineLargeur';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { ActionDuToast, useToast } from '@/components/ui/toast';
@@ -478,6 +479,41 @@ function PrimitivesNeuvesLot1() {
   );
 }
 
+// TCK-2691:début
+/**
+ * TCK-2691 (C1, AC7) — la page « pleine largeur » au téléphone, dans la VRAIE enveloppe de la coque
+ * (`EnveloppeDuContenu`, celle d'`AppShell`), posée bord à bord de l'écran (`-mx-4`) : la page qui
+ * l'adopte va de x = 0, son texte à x = 16 ; la page témoin, qui ne l'adopte pas, garde ses 16 px.
+ * Dès `md`, les deux gardent la marge de l'enveloppe.
+ */
+function PleineLargeurAuTelephone() {
+  const lignes = (
+    <>
+      <LigneDeListe href="#pleine-largeur" titre="Awa Ndiaye" detail="Appartement F3 · Sacré-Cœur" chevron />
+      <LigneDeListe href="#pleine-largeur" titre="Moussa Diop" detail="Studio · Mermoz" chevron />
+    </>
+  );
+  return (
+    <Section titre="Page « pleine largeur » au téléphone (l’enveloppe de la coque, adoptée ou non)">
+      <div id="pleine-largeur" className="-mx-4 space-y-4 md:mx-0">
+        <EnveloppeDuContenu>
+          <PagePleineLargeur data-epreuve="page-pleine-largeur">
+            <p className="px-4 pb-2 text-ui text-muted-foreground">Adoptée : la rangée va bord à bord, le texte à 16 px.</p>
+            <div className="border-t border-border bg-card">{lignes}</div>
+          </PagePleineLargeur>
+        </EnveloppeDuContenu>
+        <EnveloppeDuContenu>
+          <div data-epreuve="page-temoin">
+            <p className="pb-2 text-ui text-muted-foreground">Témoin : la page garde la marge de 16 px de la coque.</p>
+            <div className="border-t border-border bg-card">{lignes}</div>
+          </div>
+        </EnveloppeDuContenu>
+      </div>
+    </Section>
+  );
+}
+// TCK-2691:fin
+
 export function VitrineClient() {
   const f = useFormatteurs();
   const annee = new Date().getUTCFullYear();
@@ -641,6 +677,8 @@ export function VitrineClient() {
       <PrimitivesDuLot2 />
 
       <PrimitivesNeuvesLot1 />
+
+      <PleineLargeurAuTelephone />
 
       <Section titre="Cases à cocher (la ligne est la cible)">
         <div className="max-w-sm divide-y divide-border rounded-xl border border-border bg-card">

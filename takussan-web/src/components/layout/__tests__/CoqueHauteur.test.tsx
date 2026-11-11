@@ -256,3 +256,35 @@ describe('AppShell — l’emplacement de la barre d’action collante (TCK-2689
     expect(coque.querySelector('main')!.contains(barre)).toBe(false);
   });
 });
+
+// TCK-2691:début
+/**
+ * TCK-2691 (ADR-0106, C1, C2, C4) — les cotes de la coque : la barre d'onglets à 64 px + zone sûre, la
+ * marge du contenu (`px-8` dès `lg`, 24 px de `md` à `lg`, `px-4 py-6` au téléphone) portée par UNE
+ * enveloppe, que la page « pleine largeur » retire sous `md`.
+ */
+describe('TCK-2691 — les cotes de la coque', () => {
+  const css = () =>
+    readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'app', 'globals.css'), 'utf8');
+
+  it('C4 — la barre d’onglets mesure 64 px, zone sûre en plus (la variable que lisent la barre, la messagerie et le dock)', () => {
+    expect(css()).toContain('--barre-onglets-hauteur: calc(4rem + env(safe-area-inset-bottom));');
+    expect(css()).not.toContain('--barre-onglets-hauteur: calc(3.5rem');
+  });
+
+  it('C2 — le contenu de `/app` est dans l’enveloppe : `px-4 py-6`, `md:px-6 md:py-8`, `lg:px-8`', () => {
+    const coque = monter(COQUES[0][1]);
+    const enveloppe = coque.querySelector('main [data-slot="enveloppe-du-contenu"]')!;
+    expect(enveloppe).not.toBeNull();
+    expect(enveloppe.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(['px-4', 'py-6', 'md:px-6', 'md:py-8', 'lg:px-8', 'max-md:has-[[data-pleine-largeur]]:p-0']),
+    );
+    expect(enveloppe.textContent).toBe('contenu');
+  });
+
+  it('AC9 — la console `/super-admin` n’a pas l’enveloppe de `/app` : ses marges ne bougent pas', () => {
+    const coque = monter(COQUES[1][1]);
+    expect(coque.querySelector('[data-slot="enveloppe-du-contenu"]')).toBeNull();
+  });
+});
+// TCK-2691:fin

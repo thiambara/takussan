@@ -19,6 +19,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useTranslations } from 'next-intl';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { NotificationRow } from '@/components/notifications/NotificationRow';
+import { TRAIT_D_ICONE } from './styles-de-la-barre';
+import { cn } from '@/lib/utils';
 
 const QUERY_KEY = ['notifications', 'feed'] as const;
 
@@ -54,9 +56,22 @@ interface NotificationBellProps {
    * est à gauche de l'écran, le panneau s'ouvre vers le contenu), `end` dans l'en-tête mobile.
    */
   readonly align?: 'start' | 'end';
+  /**
+   * TCK-2691 (ADR-0106, C5 et C9) — les cotes de l'icône selon la surface : dans la colonne, 18 px au
+   * trait des lignes (1,5) en `muted-foreground` ; dans l'en-tête du téléphone, 20 px au trait 1,75 à
+   * l'encre douce (TCK-2685). Un attribut `stroke-width` ne varie pas selon la largeur : d'où la prop.
+   */
+  readonly emplacement?: 'colonne' | 'en-tete';
 }
 
-export function NotificationBell({ align = 'end' }: NotificationBellProps) {
+/** TCK-2691 — le bouton et l'icône de la cloche, par emplacement. */
+const COTES_DE_LA_CLOCHE = {
+  colonne: { bouton: 'text-muted-foreground', icone: 'size-[18px]', trait: TRAIT_D_ICONE },
+  'en-tete': { bouton: 'text-encre-douce', icone: 'size-5', trait: 1.75 },
+} as const;
+
+export function NotificationBell({ align = 'end', emplacement = 'colonne' }: NotificationBellProps) {
+  const cotes = COTES_DE_LA_CLOCHE[emplacement];
   const t = useTranslations('nav.notifications');
   const messageErreur = useMessageErreurApi();
   const [open, setOpen] = useState(false);
@@ -170,9 +185,12 @@ export function NotificationBell({ align = 'end' }: NotificationBellProps) {
         // (le lin, la page) : même bouton d'icône que « Replier », même anneau que toute la colonne.
         // La pastille passe en primaire (la seule couleur du menu) : `bg-primary` sous
         // `text-primary-foreground`, le couple des puces d'« Aujourd'hui », mesuré clair et sombre.
-        className="relative inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors after:absolute after:-inset-1 hover:bg-foreground/5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:size-10"
+        className={cn(
+          'relative inline-flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors after:absolute after:-inset-1 hover:bg-foreground/5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-md:size-10',
+          cotes.bouton,
+        )}
       >
-        <Bell className="size-[18px]" strokeWidth={1.75} aria-hidden="true" />
+        <Bell className={cotes.icone} strokeWidth={cotes.trait} aria-hidden="true" />
         {unread > 0 ? (
           <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-[0.625rem] font-bold leading-4 tabular-nums text-primary-foreground ring-2 ring-background">
             {unread > 9 ? '9+' : unread}

@@ -46,7 +46,7 @@ export function LigneDeStatut({
             onClick={onNavigate}
             data-slot={slot}
             className={cn(
-              'flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[0.8125rem] transition-colors hover:bg-foreground/5 icones:justify-center icones:px-0',
+              'flex items-center gap-2.5 rounded-lg px-2 py-2 text-[0.8125rem] transition-colors hover:bg-foreground/5 icones:justify-center icones:px-0',
               FOCUS_RING_RENTRANT,
             )}
           />

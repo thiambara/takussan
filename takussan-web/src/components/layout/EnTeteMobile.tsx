@@ -22,6 +22,9 @@ interface EnTeteMobileProps {
  *
  * Une surface claire, celle de la page, séparée du contenu par un filet : la marque en ton `encre`. Les
  * deux boutons font 40 px (cible tactile), même anneau que la colonne.
+ *
+ * TCK-2691 (ADR-0106, C5) — aux cotes de la maquette : marges `pl-4 pr-1.5`, icônes de 20 px au trait
+ * 1,75, à l'encre douce (TCK-2685). La STRUCTURE (titre, flèche, quatre formes) est à TCK-2617.
  */
 export function EnTeteMobile({ onOuvrirPalette }: EnTeteMobileProps) {
   const tCommon = useTranslations('common');
@@ -30,7 +33,7 @@ export function EnTeteMobile({ onOuvrirPalette }: EnTeteMobileProps) {
   return (
     <header
       data-slot="en-tete-mobile"
-      className="flex h-14 shrink-0 items-center gap-1 border-b border-border/70 bg-background pl-4 pr-2 md:hidden"
+      className="flex h-14 shrink-0 items-center gap-1 border-b border-border/70 bg-background pl-4 pr-1.5 md:hidden"
     >
       <Link href="/" className={cn('mr-auto inline-flex shrink-0 rounded-md px-1 py-1', FOCUS_RING)}>
         <Logo nom={tCommon('appName')} />
@@ -44,14 +47,14 @@ export function EnTeteMobile({ onOuvrirPalette }: EnTeteMobileProps) {
           // Une fenêtre étroite de bureau a un clavier : le raccourci y ouvre aussi la palette.
           aria-keyshortcuts={raccourciDeLaPalette(surApple)}
           className={cn(
-            'inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-foreground/5 hover:text-foreground',
+            'inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-encre-douce transition-colors hover:bg-foreground/5 hover:text-foreground',
             FOCUS_RING,
           )}
         >
-          <Search className="size-[18px]" strokeWidth={1.75} aria-hidden />
+          <Search className="size-5" strokeWidth={1.75} aria-hidden />
         </button>
       ) : null}
-      <NotificationBell align="end" />
+      <NotificationBell align="end" emplacement="en-tete" />
     </header>
   );
 }
