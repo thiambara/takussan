@@ -328,9 +328,12 @@ export interface ReponseDesCreneaux {
   };
 }
 
-export function useCreneauxDeVisite(propertyId: number | null, jour: string | null) {
-  return useApiQuery<ReponseDesCreneaux>(['visits', 'slots', propertyId, jour], '/api/property-visits/slots', {
-    params: { extra: { property_id: propertyId, date: jour } },
+export function useCreneauxDeVisite(propertyId: number | null, jour: string | null, agentId: number | null = null) {
+  // TCK-2587 (d1) — `agent_id` : l'occupation de l'agent de la VISITE, pas celle de l'appelant (un
+  // admin qui confirme la tranche d'un autre agent). Sans agent, `buildQueryString` omet la clé nulle :
+  // l'API compte l'appelant, comme avant.
+  return useApiQuery<ReponseDesCreneaux>(['visits', 'slots', propertyId, jour, agentId], '/api/property-visits/slots', {
+    params: { extra: { property_id: propertyId, date: jour, agent_id: agentId } },
     enabled: propertyId !== null && jour !== null,
     // Un créneau pris par un collègue pendant la saisie : relu à chaque ouverture.
     staleTime: 0,

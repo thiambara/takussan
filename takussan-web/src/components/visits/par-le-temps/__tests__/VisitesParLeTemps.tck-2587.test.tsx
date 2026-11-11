@@ -20,6 +20,8 @@ const etat = vi.hoisted(() => ({
   capacites: ['crm.assign'] as string[],
   appels: [] as { chemin: string; methode: string; corps: unknown }[],
   lot: null as unknown,
+  aClore: null as PropertyVisit[] | null,
+  aConfirmer: null as PropertyVisit[] | null,
 }));
 
 const remplacer = vi.hoisted(() => vi.fn());
@@ -97,8 +99,8 @@ const COMPTES = { unassigned: 1, requested: 6, confirmed: 11, past: 31, cancelle
 
 function liste(filtre: URLSearchParams): PropertyVisit[] {
   if (filtre.get('filter[day]')) return [TERRAIN, PLATEAU];
-  if (filtre.get('filter[to_close]')) return [LIBERTE];
-  if (filtre.get('filter[status]') === 'scheduled') return [YOFF, MERMOZ, SANS_AGENT];
+  if (filtre.get('filter[to_close]')) return etat.aClore ?? [LIBERTE];
+  if (filtre.get('filter[status]') === 'scheduled') return etat.aConfirmer ?? [YOFF, MERMOZ, SANS_AGENT];
   if (filtre.get('filter[status]') === 'confirmed') return [PLUS_TARD];
   return [];
 }
@@ -150,7 +152,7 @@ const ecritures = (fin: string) => etat.appels.filter((a) => a.methode === 'POST
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(MAINTENANT);
-  Object.assign(etat, { recherche: '', large: false, agence: 3, capacites: ['crm.assign'], appels: [], lot: null });
+  Object.assign(etat, { recherche: '', large: false, agence: 3, capacites: ['crm.assign'], appels: [], lot: null, aClore: null, aConfirmer: null });
   remplacer.mockClear();
   pousser.mockClear();
   toastAdd.mockClear();
@@ -216,6 +218,26 @@ describe('À confirmer : confirmer sans ouvrir la fiche', () => {
     expect(lectures('/api/property-visits/slots').some((a) => a.chemin.includes('property_id=53') && a.chemin.includes('date=2026-11-11'))).toBe(true);
   });
 
+  it('d1 — les heures proposées sont celles de l’agent de la visite : `agent_id` part avec la lecture des créneaux', async () => {
+    etat.recherche = 'vue=to_confirm';
+    monter();
+    await screen.findByRole('button', { name: 'Confirmer 15:00' });
+    const creneaux = lectures('/api/property-visits/slots').map((a) => new URLSearchParams(a.chemin.split('?')[1]));
+    expect(creneaux.length).toBeGreaterThan(0);
+    // YOFF (tranche, bien 53) est attribuée à l'agent 3 — l'appelant est l'utilisateur 7.
+    expect(creneaux.filter((p) => p.get('property_id') === '53').map((p) => p.get('agent_id'))).toEqual(expect.arrayContaining(['3']));
+    expect(creneaux.every((p) => p.get('agent_id') !== '7')).toBe(true);
+  });
+
+  it('d1 — une demande sans agent lit les créneaux sans `agent_id`, comme avant', async () => {
+    etat.recherche = 'vue=to_confirm';
+    etat.aConfirmer = [{ ...YOFF, agent_id: null, agent: null } as PropertyVisit];
+    monter();
+    await waitFor(() => expect(lectures('/api/property-visits/slots').length).toBeGreaterThan(0));
+    const creneaux = lectures('/api/property-visits/slots').map((a) => new URLSearchParams(a.chemin.split('?')[1]));
+    expect(creneaux.every((p) => !p.has('agent_id'))).toBe(true);
+  });
+
   it('une demande à heure fixée se confirme à son heure, sans `scheduled_at`', async () => {
     etat.recherche = 'vue=to_confirm';
     const user = userEvent.setup();
@@ -245,6 +267,16 @@ describe('À clore : le verdict depuis la liste', () => {
     await waitFor(() => expect(ecritures('/api/property-visits/2280/report')).toHaveLength(1));
     expect(ecritures('/api/property-visits/2280/report')[0].corps).toEqual({ outcome: 'interested' });
     await waitFor(() => expect(pousser).toHaveBeenCalledWith('/app/visits/2280?etape=et-maintenant'));
+  });
+
+  it('« n’est pas venu » n’est offert que pour une visite confirmée : une demande restée à confirmer n’en a pas', async () => {
+    etat.recherche = 'vue=to_close';
+    etat.aClore = [LIBERTE, { ...LIBERTE, id: 2281, status: 'scheduled', customer: { id: 10, first_name: 'Awa', last_name: 'Ndiaye' }, visitor_display: visiteur('Awa Ndiaye') } as PropertyVisit];
+    monter();
+    const cartes = await screen.findAllByText(/(Yacine Diouf|Awa Ndiaye)/);
+    expect(cartes.length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByRole('button', { name: 'Yacine n’est pas venu' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Awa n’est pas venu' })).toBeNull();
   });
 
   it('AC4 — « Yacine n’est pas venu » marque Absent', async () => {
@@ -287,6 +319,21 @@ describe('le bureau', () => {
     expect(within(refusee).getByText('L’heure chevauche une autre visite.')).toBeInTheDocument();
     expect(lignes.filter((r) => r.getAttribute('data-coche') === 'true')).toHaveLength(1);
     expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({ title: '2 visites traitées · 1 refus', type: 'warning' }));
+  });
+
+  it('la case d’en-tête est indéterminée quand une partie des lignes est cochée, cochée quand toutes le sont', async () => {
+    etat.large = true;
+    etat.recherche = 'vue=to_confirm';
+    const user = userEvent.setup();
+    monter();
+    await screen.findByRole('button', { name: 'Confirmer 15:00' });
+    const tete = screen.getByRole('checkbox', { name: 'Tout sélectionner' });
+    expect(tete).toHaveAttribute('aria-checked', 'false');
+    const lignes = screen.getAllByRole('row').filter((r) => r.getAttribute('data-slot') === 'ligne-de-visite');
+    await user.click(within(lignes[0]).getByRole('checkbox'));
+    expect(screen.getByRole('checkbox', { name: 'Tout sélectionner' })).toHaveAttribute('aria-checked', 'mixed');
+    await user.click(screen.getByRole('checkbox', { name: 'Tout sélectionner' }));
+    expect(screen.getByRole('checkbox', { name: 'Tout sélectionner' })).toHaveAttribute('aria-checked', 'true');
   });
 
   it('les onglets du bureau se comptent sur la même lecture : « Toutes 58 »', async () => {
