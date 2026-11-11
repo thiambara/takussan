@@ -15,7 +15,7 @@
    "produit": {
     "route": "/app/profile/notifications",
     "persona": "admin",
-    "etat": "admin d'agence (Dakar Immo), téléphone vérifié, WhatsApp non refusé : SMS et WhatsApp ouverts sur les cinq événements mobiles, cochés par défaut sur l'échéance, le retard, le statut de réservation et le rappel de visite (TCK-588) ; notification mobile sans transport (`broadcasting.default` = log) ; tous les groupes ouverts. Seconde mesure en `agent` pour la coque (même barre d'onglets que la maquette)."
+    "etat": "admin d'agence (Dakar Immo), téléphone vérifié, WhatsApp non refusé : SMS et WhatsApp ouverts sur les cinq événements mobiles, cochés par défaut sur l'échéance, le retard, le statut de réservation et le rappel de visite (TCK-588) ; notification mobile sans transport (`broadcasting.default` = log) ; au téléphone, Baux et Messages ouverts, les cinq autres groupes repliés sur leur résumé (comme la maquette, arbitrage du 2026-11-11). Seconde mesure en `agent` pour la coque (même barre d'onglets que la maquette)."
    }
   }
  ],
@@ -95,13 +95,6 @@
   },
   {
    "ecran": "a-2-telephone",
-   "element": "groupes repliés",
-   "propriete": "présence des rangées de Réservations à Biens, résumé « N événements · … »",
-   "exception": "donnée",
-   "motif": "la maquette n'ouvre que les deux premiers groupes ; le produit les ouvre tous au chargement (AC3 : les 20 événements rendus, chacun avec ses puces), repliables par leur titre. Arbitrage signalé au porteur le 2026-11-11 (option a)."
-  },
-  {
-   "ecran": "a-2-telephone",
    "element": "puces SMS / WhatsApp des événements non mobiles",
    "propriete": "absentes du produit",
    "exception": "donnée",
@@ -178,7 +171,7 @@
  "mesures": {
   "a-2-telephone": {
    "ligne": "21 conformes · 68 écarts · 47 absents · 25.26 % pixels",
-   "releve_le": "2026-11-11 21:17 Z",
+   "releve_le": "2026-11-11 21:22 Z",
    "commit": "8fd075b66bf5",
    "rideau": ".fidelite/TCK-2636/cmp-a-2-telephone/"
   },

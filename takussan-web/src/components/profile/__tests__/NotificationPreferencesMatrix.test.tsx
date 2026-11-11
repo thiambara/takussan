@@ -104,10 +104,33 @@ describe('<NotificationPreferencesMatrix> — téléphone : une rangée par év�
     ]) {
       expect(screen.getByText(libelle)).toBeInTheDocument();
     }
-    const titres = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    // Le titre seul : un groupe replié ajoute son résumé au nom du bouton.
+    const titres = screen.getAllByRole('heading', { level: 2 }).map((h) => h.querySelector('button > span > span')?.textContent);
     expect(titres).toEqual(['Baux', 'Messages', 'Réservations', 'Maintenance', 'Avis', 'Alertes', 'Biens']);
     // Aucune matrice au téléphone : pas de table, pas d'en-tête de colonne.
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    // Comme la maquette : les deux premiers groupes ouverts, les autres repliés sur leur résumé.
+    const deplies = screen.getAllByRole('button', { expanded: true }).map((b) => b.textContent);
+    expect(deplies).toEqual(['Baux', 'Messages']);
+    expect(screen.getAllByRole('button', { expanded: false })).toHaveLength(5);
+  });
+
+  it('AC3 — chaque événement est atteignable : ouvrir chaque groupe replié montre toutes ses rangées, avec leurs puces', async () => {
+    const user = userEvent.setup();
+    getMock.mockResolvedValue({ ok: true, data: grille() });
+    const { container } = render(wrap(<NotificationPreferencesMatrix />));
+    await waitFor(() => screen.getByText('Loyer en retard'));
+
+    expect(screen.getByText('Rappel de tâche')).not.toBeVisible();
+    for (const bouton of screen.getAllByRole('button', { expanded: false })) await user.click(bouton);
+
+    const rangees = [...container.querySelectorAll('li[data-evenement]')];
+    expect(rangees).toHaveLength(20);
+    for (const li of rangees) {
+      expect(li, li.getAttribute('data-evenement') ?? '').toBeVisible();
+      expect(within(li as HTMLElement).getAllByRole('checkbox').length).toBeGreaterThan(0);
+    }
+    expect(screen.getByText('Rappel de tâche')).toBeVisible();
   });
 
   it('chaque événement mobile a ses puces, dont « WhatsApp » ; les autres disent pourquoi elle manque', async () => {
@@ -211,18 +234,26 @@ describe('<NotificationPreferencesMatrix> — téléphone : une rangée par év�
     expect(within(ligne).queryByText(/:/)).not.toBeInTheDocument();
   });
 
-  it('un groupe se replie et se résume', async () => {
+  it('un groupe replié se résume et s’ouvre ; un groupe ouvert se replie', async () => {
     const user = userEvent.setup();
     getMock.mockResolvedValue({ ok: true, data: grille() });
     render(wrap(<NotificationPreferencesMatrix />));
     await waitFor(() => screen.getByText('Nouveau message'));
 
-    const bouton = screen.getByRole('button', { name: 'Messages' });
-    expect(bouton).toHaveAttribute('aria-expanded', 'true');
-    await user.click(bouton);
-    expect(screen.queryByText('Nouveau message')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Messages/ })).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.getByText('1 événement · E-mail, Appli')).toBeInTheDocument();
+    // Réservations, replié au chargement : son résumé, ses rangées montées mais masquées.
+    const reservations = screen.getByRole('button', { name: /Réservations/ });
+    expect(reservations).toHaveAttribute('aria-expanded', 'false');
+    expect(within(reservations).getByText('2 événements · WhatsApp, SMS, E-mail, Appli')).toBeInTheDocument();
+    expect(screen.getByText('Statut d’une réservation')).not.toBeVisible();
+    await user.click(reservations);
+    expect(reservations).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Statut d’une réservation')).toBeVisible();
+
+    const messages = screen.getByRole('button', { name: 'Messages' });
+    await user.click(messages);
+    expect(messages).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByText('Nouveau message')).not.toBeVisible();
+    expect(within(messages).getByText('1 événement · E-mail, Appli')).toBeInTheDocument();
   });
 
   it('un canal absent du dictionnaire garde sa valeur brute sur la puce', async () => {

@@ -27,7 +27,8 @@ import { cn } from '@/lib/utils';
  *
  * TCK-2636 (maquette `app-profil` a-2, décision 7 (a) du porteur) — DEUX DESSINS d'une même donnée :
  *
- *  · sous `lg`, UNE RANGÉE PAR ÉVÉNEMENT, groupée sous son titre, les canaux en PUCES cochables qui
+ *  · sous `lg`, UNE RANGÉE PAR ÉVÉNEMENT, groupée sous son titre (les deux premiers groupes ouverts,
+ *    les autres repliés sur leur résumé, contenu monté), les canaux en PUCES cochables qui
  *    passent à la ligne. La matrice de cinq colonnes ne tenait pas à 390 : la carte de chaque groupe
  *    était en `overflow-hidden`, l'en-tête « WhatsApp » commençait à x = 373 pour une carte qui
  *    s'arrêtait à 374 — le canal par défaut au Sénégal ne se réglait pas au téléphone ;
@@ -55,6 +56,8 @@ const RAISON_INDISPONIBLE = 'channel_unavailable';
 const RAISON_TOUJOURS_ACTIVE = 'inapp_always_on';
 /** `lg` (64rem) : la matrice. `matchMedia` lit le `rem` initial, 16 px, comme Tailwind. */
 const REQUETE_MATRICE = '(min-width: 64rem)';
+/** Groupes ouverts au chargement, au téléphone (maquette `PrefsParEvenement`, `ouverts = 2`). */
+const GROUPES_OUVERTS = 2;
 
 type Groupe = (typeof GROUPES_DE_PREFERENCES)[number];
 
@@ -95,7 +98,12 @@ export function NotificationPreferencesMatrix() {
   const toast = useToast();
   const auBureau = useMatchesMedia(REQUETE_MATRICE);
   const [localError, setLocalError] = useState<string | null>(null);
-  const [replies, setReplies] = useState<ReadonlySet<string>>(() => new Set());
+  // Les deux premiers groupes ouverts, les autres repliés sur leur résumé, comme la maquette
+  // (arbitrage du 2026-11-11 : la fidélité au pixel). Le contenu replié reste MONTÉ (`hidden`) :
+  // chaque événement reste atteignable, à un geste, et compté (AC3).
+  const [ouverts, setOuverts] = useState<ReadonlySet<string>>(
+    () => new Set(GROUPES_DE_PREFERENCES.slice(0, GROUPES_OUVERTS).map((g) => g.cle)),
+  );
 
   // Repli sur le jeton brut pour un événement que le back émettrait sans que le front ne le connaisse.
   const labelEvenement = (event: string) =>
@@ -257,9 +265,9 @@ export function NotificationPreferencesMatrix() {
             <GroupeEnRangees
               key={groupe.cle}
               groupe={groupe}
-              ouvert={!replies.has(groupe.cle)}
+              ouvert={ouverts.has(groupe.cle)}
               onBasculer={() =>
-                setReplies((avant) => {
+                setOuverts((avant) => {
                   const apres = new Set(avant);
                   if (apres.has(groupe.cle)) apres.delete(groupe.cle);
                   else apres.add(groupe.cle);
@@ -356,55 +364,53 @@ function GroupeEnRangees({
           />
         </button>
       </h2>
-      {ouvert ? (
-        <ul id={idListe} className="pb-2">
-          {evenements.map((event) => {
-            const cellules = channels
-              .map((c) => cellMap.get(cellKey(event, c)))
-              .filter((c): c is NotificationPreferenceCell => c !== undefined && c.reason !== RAISON_INDISPONIBLE);
-            const parRaison = new Map<string, string[]>();
-            for (const c of cellules) {
-              if (!verrouAvecRaison(c)) continue;
-              const raison = c.reason ?? 'autre';
-              parRaison.set(raison, [...(parRaison.get(raison) ?? []), c.channel]);
-            }
-            return (
-              <li key={event} className="border-t border-border/60 py-3" data-evenement={event}>
-                <p className="text-corps text-foreground">{labelEvenement(event)}</p>
-                {cellules.length > 0 ? (
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {cellules.map((cell) => (
-                      <PuceDeCanal
-                        key={cell.channel}
-                        cell={cell}
-                        nom={channelLabel(cell.channel)}
-                        nomAccessible={nomDeLaCase(cell)}
-                        onToggle={onToggle}
-                      />
-                    ))}
-                  </div>
-                ) : null}
-                {[...parRaison].map(([raison, canaux]) => (
-                  <p key={raison} className="mt-1.5 text-xs text-muted-foreground">
-                    {raison === 'phone_not_verified'
-                      ? t('verrous.phoneNotVerified', { canaux: liste(canaux) })
-                      : raison === 'phone_without_whatsapp'
-                        ? t('verrous.phoneWithoutWhatsapp', { canaux: liste(canaux) })
-                        : t('verrous.autre', { canaux: liste(canaux) })}
-                  </p>
-                ))}
-              </li>
-            );
-          })}
-          {pushIndisponible ? <NoteVerrou>{t('pushIndisponible')}</NoteVerrou> : null}
-          {absentsPartout.length > 0 ? (
-            <NoteVerrou>{t('canauxAbsents.tous', { canaux: liste(absentsPartout) })}</NoteVerrou>
-          ) : null}
-          {absentsParfois.length > 0 ? (
-            <NoteVerrou>{t('canauxAbsents.autres', { canaux: liste(absentsParfois) })}</NoteVerrou>
-          ) : null}
-        </ul>
-      ) : null}
+      <ul id={idListe} hidden={!ouvert} className="pb-2">
+        {evenements.map((event) => {
+          const cellules = channels
+            .map((c) => cellMap.get(cellKey(event, c)))
+            .filter((c): c is NotificationPreferenceCell => c !== undefined && c.reason !== RAISON_INDISPONIBLE);
+          const parRaison = new Map<string, string[]>();
+          for (const c of cellules) {
+            if (!verrouAvecRaison(c)) continue;
+            const raison = c.reason ?? 'autre';
+            parRaison.set(raison, [...(parRaison.get(raison) ?? []), c.channel]);
+          }
+          return (
+            <li key={event} className="border-t border-border/60 py-3" data-evenement={event}>
+              <p className="text-corps text-foreground">{labelEvenement(event)}</p>
+              {cellules.length > 0 ? (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {cellules.map((cell) => (
+                    <PuceDeCanal
+                      key={cell.channel}
+                      cell={cell}
+                      nom={channelLabel(cell.channel)}
+                      nomAccessible={nomDeLaCase(cell)}
+                      onToggle={onToggle}
+                    />
+                  ))}
+                </div>
+              ) : null}
+              {[...parRaison].map(([raison, canaux]) => (
+                <p key={raison} className="mt-1.5 text-xs text-muted-foreground">
+                  {raison === 'phone_not_verified'
+                    ? t('verrous.phoneNotVerified', { canaux: liste(canaux) })
+                    : raison === 'phone_without_whatsapp'
+                      ? t('verrous.phoneWithoutWhatsapp', { canaux: liste(canaux) })
+                      : t('verrous.autre', { canaux: liste(canaux) })}
+                </p>
+              ))}
+            </li>
+          );
+        })}
+        {pushIndisponible ? <NoteVerrou>{t('pushIndisponible')}</NoteVerrou> : null}
+        {absentsPartout.length > 0 ? (
+          <NoteVerrou>{t('canauxAbsents.tous', { canaux: liste(absentsPartout) })}</NoteVerrou>
+        ) : null}
+        {absentsParfois.length > 0 ? (
+          <NoteVerrou>{t('canauxAbsents.autres', { canaux: liste(absentsParfois) })}</NoteVerrou>
+        ) : null}
+      </ul>
     </section>
   );
 }

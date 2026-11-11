@@ -126,8 +126,10 @@ Implémenté le 2026-11-11 (branche `feat/audit-ux-app-lot-2`).
   `public const EVENTS = [ … ];` de `PreferenceResolver.php` (commentaires retirés). `web-ci.yml` se
   déclenche désormais sur ce fichier (les deux côtés d'une garde la réveillent). AC5 par ablation :
   retirer `task_due_reminder` → 2 rouges.
-- **Téléphone** — groupes repliables, TOUS ouverts au chargement (la maquette n'en ouvre que deux ;
-  AC3 veut les 20 rendus — arbitrage signalé). Puce = `button role="checkbox"`, 32 px, cible de 44
+- **Téléphone** — groupes repliables ; Baux et Messages ouverts au chargement, les cinq autres repliés
+  sur leur résumé (« 6 événements · WhatsApp, SMS, E-mail, Appli »), comme la maquette (arbitrage du
+  2026-11-11, option b). Le contenu replié reste MONTÉ (`hidden`) : AC3 compte des événements
+  atteignables — 20 rangées, toutes visibles avec leurs puces une fois chaque groupe ouvert. Puce = `button role="checkbox"`, 32 px, cible de 44
   par `before:`. « Appli » (`inapp_always_on`) : cochée, figée, sans cadenas, comme la maquette. Une
   puce `channel_unavailable` n'est pas proposée (TCK-588) : une ligne du groupe le dit, comme
   « Notification mobile : pas encore disponible. ». Les autres verrous : puce grisée + sous-ligne
@@ -143,5 +145,5 @@ Implémenté le 2026-11-11 (branche `feat/audit-ux-app-lot-2`).
 - Mesures au navigateur (persona `admin`, seul compte de démo au téléphone vérifié) : AC1 à 390 et
   360, débord 0, puce WhatsApp de « Loyer en retard » dans le viewport ; AC2 : action serveur portant
   `lease_payment_overdue.whatsapp` inversé, API relue avant/après, toast « Enregistré » dans la
-  région vivante, état rétabli ; AC3 20 rangées (390) et 20 en-têtes de rangée (1280) ; AC4 ; 768,
+  région vivante, état rétabli ; AC3 20 rangées atteignables à 390 (cinq groupes ouverts d'un geste chacun, 20 visibles avec leurs puces) et 20 en-têtes de rangée à 1280 ; AC4 ; 768,
   1024, 1440 sans débord. Fiche : `docs/qa/audit-ux-2026-11/fidelite/TCK-2636.json`.
