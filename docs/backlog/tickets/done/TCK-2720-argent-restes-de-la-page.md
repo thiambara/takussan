@@ -1,7 +1,7 @@
 ---
 id: TCK-2720
 title: "« Argent » : les bailleurs des reversements en cours comptés une fois, les montants d'un milliard tiennent dans leur colonne, le module mort retiré"
-status: todo
+status: done
 phase: P2
 family: full
 estimate: S
