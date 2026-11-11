@@ -349,3 +349,8 @@ _(tenu par la session : date, lot, tickets livrés, refus du vérificateur, PR, 
   (créateur du bien → `maintenance.created`, admin principal → `maintenance.urgent_created`, puis
   l'escalade) — accepté pour le lot, à revoir avec la maquette de TCK-2634. 21 autres classes de
   notification restent sans code (relevé dans TCK-2704 « Hors périmètre »).
+- TCK-2681 : l'approbation d'un passage en pro abonne l'agence au plan de `UpgradeOffer` dans la
+  transaction ; sans plan pro actif → 422 et rien ne reste. **Déploiement** : la production (phase
+  F) doit semer le plan pro avant la première approbation (la préproduction l'a par `PlanSeeder`).
+  **Suivi à écrire** : la recopie « si vide » d'`AgencyKindFlipService` (ADR-0104 § Application)
+  n'est portée par aucun ticket.
