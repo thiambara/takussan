@@ -354,3 +354,13 @@ _(tenu par la session : date, lot, tickets livrés, refus du vérificateur, PR, 
   F) doit semer le plan pro avant la première approbation (la préproduction l'a par `PlanSeeder`).
   **Suivi à écrire** : la recopie « si vide » d'`AgencyKindFlipService` (ADR-0104 § Application)
   n'est portée par aucun ticket.
+- TCK-2642 : sur la démo, la file « À traiter » des baux compte 167 baux sur 358, dont 126 pour
+  `late_fee_unpaid` (surtout des pénalités de 2024 sur des baux expirés ou renouvelés). Règle du
+  ticket appliquée telle quelle. **Au porteur** : borner ce motif aux baux en cours, ou à une
+  ancienneté ? Le tri par défaut de `GET /api/leases` devient « en cours d'abord », puis
+  `-created_at`.
+- CI de la PR #1666 (2026-11-11) : rouges sur trois gardes d'architecture (TCK-2609, TCK-2583,
+  TCK-2658), `check-locale-figee` et le recensement des pages publiques (TCK-2685) — corrigés par la
+  session ; les agents ne jouaient que leurs propres tests. Le brief commun exige désormais
+  `tests/Unit/Architecture`, `tests/Feature/Architecture` et `tests/Feature/Database` côté back,
+  et toutes les gardes `scripts/check-*.mjs` côté front.
