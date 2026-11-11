@@ -72,4 +72,14 @@ Sans objet : ticket back. L'écran qui consomme ce contrat est dit dans « Hors 
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+Re-mesure du 2026-11-11 sur `882002ea9` (branche `feat/audit-ux-app-lot-1`) :
+
+- **La vérification est portée PAR PIÈCE, pas par un dossier** : `KycDossier` n'est attaché qu'aux agences (aucun profil n'en a un) ; chaque pièce de profil porte `documents.is_verified` (vidé à chaque nouvel envoi, `ProfilePieces`). `verified` se lit donc sur la pièce — l'inverse du repli que prévoyait le ticket.
+- **`rejected` n'est jamais rendu** : rien ne consigne aujourd'hui le refus d'une pièce de profil (ni colonne, ni dossier). La valeur reste au contrat (`PiecesDuProfil::ETATS`) pour l'écran de TCK-2614 ; la vérification par l'agence est hors périmètre (famille 6).
+- **Pièces et caractère requis** (décision d'implémentation, une seule constante dans `App\Services\Kyc\PiecesDuProfil`) : les pièces sont exactement celles que les envois acceptent (`KYC_KIND_TO_TYPE` des trois requêtes), `code` = la sorte de l'envoi — bailleur `cni`, `rib`, `ninea` ; agent `license`, `cni`, `photo` ; prestataire `cni`, `insurance`. Toutes requises sauf l'assurance RC pro (TCK-2614 ne marque « facultative » qu'elle). « Requise » ne bloque rien.
+- **`kind`** : `file_and_number` pour le NINEA seul (tapé ou joint, l'un ou l'autre vaut `sent`) ; `file` pour le reste. Aucune pièce n'est `number` seul aujourd'hui ; la carte professionnelle de l'agent reste `file` — `agent_profiles.license_number` n'a aucun écrivain côté agent.
+- **Étape `kyc` du bailleur** : faite si `metadata.kyc.submitted_at` est posé (la règle d'avant, gardée : aucun bailleur qui a soumis ne voit l'étape revenir) **ou** si ses pièces requises sont toutes envoyées, le NINEA tapé comptant comme la pièce.
+- **Étape `pieces`** de l'agent et du prestataire : seule étape de leur « Démarrer ». Le front d'aujourd'hui (`demarrer.ts`) ignore un code qu'il ne connaît pas : rien ne s'affiche avant TCK-2614.
+- **Pas de classe `Resource`** pour `GET /api/me/pieces` : une pièce n'est pas un modèle et ne porte aucune date ; le service rend les quatre clés, le contrôleur les sert telles quelles.
+- **Format du NINEA** : 7 chiffres puis le COFI (chiffre, lettre, chiffre), espaces retirés et lettre mise en majuscule (`0 123 456 7g2` → `01234567G2`). Règle propre à la saisie du bailleur : le contrôle de forme du NINEA d'agence reste différé (D-68). Le titulaire est jugé dans `authorize()` (403 avant un 422) ; le super-admin y passe, comme pour l'envoi des pièces (`AuthorizesTransitionally::ownsProfile`).
+- **Journal** : la saisie trace `owner_tax_id_set` (journal `Onboarding`) sans la valeur ; le journal du modèle ne relit que `status` et `agency_role_id` (`OwnerProfile::AUDIT_ONLY`). Le test vérifie qu'aucune ligne d'`activity_log` ne porte le numéro.

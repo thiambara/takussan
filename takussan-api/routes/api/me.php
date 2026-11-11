@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Me\DataExportController;
 use App\Http\Controllers\Api\Me\EspaceDemarrageController;
 use App\Http\Controllers\Api\Me\MeCapabilityController;
 use App\Http\Controllers\Api\Me\MeController;
+use App\Http\Controllers\Api\Me\MePiecesController;
 use App\Http\Controllers\Api\Me\MeProfilesController;
 use App\Http\Controllers\Api\Me\OwnerProfileController as MeOwnerProfileController;
 use App\Http\Controllers\Api\Me\PayoutMethodController as MePayoutMethodController;
@@ -40,6 +41,8 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     Route::get('capabilities', [MeCapabilityController::class, 'index'])->name('me.capabilities.index');
     // TCK-2479 (ADR-0089 §5) — les étapes du groupe « Démarrer » du menu, jugées sur le profil actif.
     Route::get('espace/demarrage', EspaceDemarrageController::class)->name('me.espace.demarrage');
+    // TCK-2612 — les pièces du profil actif (bailleur, agent, prestataire) et leur état, lues par l'étape « Pièces ».
+    Route::get('pieces', MePiecesController::class)->name('me.pieces');
     // TCK-597 — ce que l'acteur peut noter (bien, agent, agence, prestataire), avec la preuve.
     Route::get('review-opportunities', [ReviewController::class, 'opportunities'])->name('me.review-opportunities.index');
     // TCK-2649 (ADR-0100) — ce que le locataire doit, pénalités et charges comprises, en un montant.
@@ -125,6 +128,11 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
         ->whereNumber('owner_profile')
         ->middleware('throttle:10,1')
         ->name('me.owner-profiles.kyc.submit');
+    // TCK-2612 — le NINEA tapé par le bailleur, au lieu d'une photo de la pièce (qui reste acceptée).
+    Route::patch('owner-profiles/{owner_profile}/tax-id', [MeOwnerProfileController::class, 'updateTaxId'])
+        ->whereNumber('owner_profile')
+        ->middleware('throttle:10,1')
+        ->name('me.owner-profiles.tax-id');
     Route::get('owner-profiles/{owner_profile}/properties', [MeOwnerProfileController::class, 'properties'])
         ->whereNumber('owner_profile')
         ->name('me.owner-profiles.properties');

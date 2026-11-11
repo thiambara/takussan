@@ -3,15 +3,19 @@
 namespace Tests\Feature\Api\Me;
 
 use App\Models\Agency;
+use App\Models\Document;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\Capability;
+use App\Models\Enums\DocumentType;
 use App\Models\Enums\KycDossierStatus;
 use App\Models\KycDossier;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
+use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\ApiTestCase;
@@ -21,7 +25,7 @@ use Tests\Concerns\CreatesAgencyMembers;
  * TCK-2479 (ADR-0089 §5) — `GET /api/me/espace/demarrage` : les étapes du groupe « Démarrer » du
  * menu de `/app`, jugées sur le PROFIL ACTIF.
  *
- * Agence neuve, agence en service, hôte, bailleur ; et tout profil sans étape (agent, compte sans
+ * Agence neuve, agence en service, hôte, bailleur, agent et prestataire (TCK-2612) ; et tout profil sans étape (compte sans
  * profil, admin dont le rôle retire `agency.update`) → 200 et `etapes: []` : le groupe ne s'affiche
  * pas, ce n'est pas une erreur.
  *
@@ -140,12 +144,62 @@ class EspaceDemarrageTest extends ApiTestCase
         $this->assertFalse($this->etape($entete, 'premier_bien'));
     }
 
-    public function test_un_agent_n_a_pas_d_etape(): void
+    /**
+     * TCK-2612 (AC2) — l'agent a une étape « Pièces » : à faire sans pièce, faite quand ses trois pièces requises sont parties.
+     * Rouge sur `dev` : `etapes: []`.
+     */
+    public function test_l_agent_a_l_etape_pieces_faite_quand_ses_pieces_requises_sont_envoyees(): void
     {
         $agent = $this->apiActingAsRole('agent');
+        $profil = AgentProfile::query()->where('user_id', $agent->id)->sole();
+        $entete = $this->entete('agent', $profil->id);
 
-        $this->apiGet(self::URL, $this->entete('agent', $this->idDuProfil(AgentProfile::class, $agent)))
-            ->assertOk()->assertExactJson(['data' => ['etapes' => []]]);
+        $this->apiGet(self::URL, $entete)->assertOk()->assertExactJson(['data' => ['etapes' => [
+            ['code' => 'pieces', 'faite' => false],
+        ]]]);
+
+        $this->piece($profil, DocumentType::Other, $agent);
+        $this->piece($profil, DocumentType::IdCard, $agent);
+        $this->assertFalse($this->etape($entete, 'pieces'), 'la photo manque encore');
+
+        $this->piece($profil, DocumentType::Photo, $agent, ['is_verified' => true, 'verified_at' => now()]);
+        $this->assertTrue($this->etape($entete, 'pieces'));
+    }
+
+    /** TCK-2612 — le prestataire : sa pièce d'identité suffit, l'assurance RC pro est facultative. */
+    public function test_le_prestataire_a_l_etape_pieces_sans_attendre_l_assurance(): void
+    {
+        $prestataire = User::factory()->withServiceProviderProfile()->create();
+        $this->actingAs($prestataire, 'sanctum');
+        $profil = ServiceProviderProfile::query()->where('user_id', $prestataire->id)->sole();
+        $entete = $this->entete('service_provider', $profil->id);
+
+        $this->piece($profil, DocumentType::Insurance, $prestataire);
+        $this->apiGet(self::URL, $entete)->assertOk()->assertExactJson(['data' => ['etapes' => [
+            ['code' => 'pieces', 'faite' => false],
+        ]]]);
+
+        $this->piece($profil, DocumentType::IdCard, $prestataire);
+        $this->assertTrue($this->etape($entete, 'pieces'));
+    }
+
+    /**
+     * TCK-2612 — l'étape `kyc` du bailleur compte le NINEA saisi comme la pièce NINEA : pièce d'identité et RIB envoyés, NINEA
+     * tapé → faite, sans soumission. Sans le NINEA, elle reste à faire.
+     */
+    public function test_le_ninea_saisi_compte_pour_l_etape_kyc_du_bailleur(): void
+    {
+        $agence = Agency::factory()->create();
+        $bailleur = $this->apiActingAsRole('owner', ['agency' => $agence]);
+        $profil = OwnerProfile::query()->where('user_id', $bailleur->id)->sole();
+        $entete = $this->entete('owner', $profil->id);
+        $this->piece($profil, DocumentType::IdCard, $bailleur);
+        $this->piece($profil, DocumentType::Rib, $bailleur);
+
+        $this->assertFalse($this->etape($entete, 'kyc'), 'le NINEA manque');
+
+        $profil->forceFill(['tax_id' => '01234567G2'])->save();
+        $this->assertTrue($this->etape($entete, 'kyc'));
     }
 
     public function test_un_compte_sans_profil_n_a_pas_d_etape(): void
@@ -225,6 +279,18 @@ class EspaceDemarrageTest extends ApiTestCase
                 'status' => AgentProfileStatus::Active,
             ]),
         };
+    }
+
+    /** @param  array<string, mixed>  $attributs */
+    private function piece(Model $profil, DocumentType $type, User $par, array $attributs = []): Document
+    {
+        return Document::factory()->create([
+            'documentable_type' => $profil::class,
+            'documentable_id' => $profil->getKey(),
+            'uploaded_by' => $par->id,
+            'type' => $type->value,
+            ...$attributs,
+        ]);
     }
 
     /** @param class-string $classe */
