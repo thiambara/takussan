@@ -12,6 +12,8 @@ use App\Http\Resources\Api\Admin\UserDetailResource;
 use App\Http\Resources\Api\Admin\UserListResource;
 use App\Http\Resources\Api\Me\ProfileResource;
 use App\Http\Resources\ConversationContextResource;
+use App\Http\Resources\Credits\CreditBoostResource;
+use App\Http\Resources\Credits\CreditSuggestionResource;
 use App\Http\Resources\Credits\CreditWalletResource;
 use App\Http\Resources\DocumentVersionResource;
 use App\Http\Resources\IncludedUserResource;
@@ -36,6 +38,7 @@ use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\ServiceProviderAgencyCollaboration;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
+use App\Models\PropertyBoost;
 use App\Models\Tag;
 use App\Models\User;
 use ReflectionClass;
@@ -163,6 +166,16 @@ final class ResourceInventory
                 .'La liste des sujets suit la liste des alias de `ActiveProfileResolver::TYPE_MAP` ; '
                 .'elle ne la précède pas (`aliasFor()` LÈVE pour une classe absente de la carte). '
                 .'Le profil courtier y a figuré, puis a quitté le code (TCK-495, ADR-0030).',
+        ],
+        // TCK-2663
+        CreditBoostResource::class => [
+            'modeles' => [PropertyBoost::class],
+            'raison' => 'TCK-2663 — une mise en avant vue par la page Crédits, avec ses mesures : le préfixe `Credit` dit la vue, pas le modèle.',
+        ],
+        // TCK-2663
+        CreditSuggestionResource::class => [
+            'modeles' => [Property::class],
+            'raison' => 'TCK-2663 — un bien à pousser, vu par la page Crédits : le nom dit la vue, pas le modèle.',
         ],
         // TCK-2609
         PublicInvitationPreviewResource::class => [

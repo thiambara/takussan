@@ -259,6 +259,23 @@ année) rend, par bénéficiaire du même périmètre, `beneficiary {id, name}`,
 `oldest_due_earned_at`, `paid_month`, `paid_year`, `last_paid {at, method}` — le plus dû d'abord ;
 `meta {month, year}` (TCK-2661).
 
+### Mises en avant de l'espace — `GET /api/credits/boosts`, `GET /api/credits/suggestions` (TCK-2663)
+
+Hors `HasQueryBuilder`, forme fixe comme `GET /api/credits` : même autorisation (`boost.spend` sur
+l'espace actif, 403 avant 422), même 422 `credits.no_space` hors d'un espace (TCK-2663).
+
+| Param | Type | Description |
+|---|---|---|
+| `filter[status]` | `active` \| `ended` | `active` : en cours ou en pause ; `ended` : terminé, annulé ou remboursé ; absent : en cours, plus terminé depuis 30 jours (TCK-2663) |
+| `filter[id]` | entier | un boost de l'espace ; celui d'un autre espace rend une liste vide (TCK-2663) |
+| `per_page` | 1 à 50 | défaut 20 ; tri fixe : en cours d'abord, puis le plus récemment terminé (TCK-2663) |
+
+Chaque ligne porte `property {id, title, main_photo_url, quarter}` et `measures {impressions, clicks,
+contacts, visits}`, mesurées de `starts_at` à `ended_at` (ou maintenant) : des comptes, aucune donnée
+du demandeur ; `contacts` compte tous les canaux (TCK-2663). `GET /api/credits/suggestions?limit=N`
+(1 à 10, défaut 10) : les biens publics de l'espace sans contact depuis 30 jours ni boost en cours,
+du moins vu au plus vu, `{…property, views_count, last_contact_at}` et `meta.total` (TCK-2663).
+
 ---
 
 ## Architecture interne

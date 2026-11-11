@@ -63,4 +63,57 @@ Re-mesuré sur `dev` le 2026-11-10 :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Prémisse re-mesurée (2026-11-11)** — conforme au « Contrat de données » : ni liste des boosts de
+l'espace, ni mesure par boost hors de `AdminBoostStatsController`, ni calcul des biens sans contact.
+Deux précisions que le contrat ne disait pas : `property_contact_leads` porte aussi les **clics**
+WhatsApp et Appeler (`channel` `whatsapp`/`call`, sans identité, TCK-590) ; une **Remontée** naît close
+(`starts_at = ended_at`, `BoostPurchaseService::bump`).
+
+**Choix faits ici :**
+
+- **Contacts = tous les canaux** (formulaire, WhatsApp, appel), pour la mesure **et** pour « sans
+  contact depuis 30 jours » — une seule définition. Le contrat dit « demandes de contact » en
+  nommant `PropertyContactLead` ; la boîte « à traiter » (`aTraiter()`) ne retient, elle, que le
+  formulaire. Si l'écran veut les seules demandes écrites, c'est un `channel = form` à poser aux deux
+  endroits (`BoostMeasures`, `BoostSuggestions`).
+- **Visites = demandées dans la fenêtre** (`property_visits.created_at`), tous statuts, annulées
+  comprises : ce que la mise en avant a suscité, daté comme les contacts. Pas `scheduled_at`.
+- **Fenêtre** : `starts_at` ≤ `created_at` ≤ `COALESCE(ended_at, maintenant)`, bornes incluses. Une
+  pause n'est pas retranchée. Une Remontée a une fenêtre d'un instant : ses contacts et visites valent
+  0, et l'API n'invente pas de fenêtre. Impressions et clics : la somme de **tous** les
+  `property_boost_daily_stats` du boost (déjà comptés par boost).
+- **Isolation** : les boosts sont bornés à `agency_id` de l'espace actif ; `filter[id]` ne fait que
+  restreindre. Les contacts exigent en plus `lead.agency_id = boost.agency_id` (un bien qui a changé
+  d'agence ne compte pas les demandes reçues par l'autre). `property_visits` n'a pas d'`agency_id` :
+  les visites sont celles du bien.
+- **`filter[status]`** : `active` = `BoostStatus::live()` (en cours **et en pause**) ; `ended` =
+  terminé, annulé ou remboursé, sans limite d'âge ; absent = en cours + terminés depuis 30 jours
+  (`ended_at`). Toute autre valeur → 422. Tri fixe : en cours d'abord (le plus récent en tête), puis le
+  plus récemment terminé. `per_page` ≤ 50. La ligne porte aussi `status` (pour distinguer la pause).
+- **Suggestions** : `Property::public()` — le prédicat même que l'achat exige
+  (`boost.property_not_public`) — de l'espace, sans contact depuis 30 jours, sans boost `live()` (Badge
+  compris), tri `views_count` puis `id` ; `meta.total` compté avant la borne ; `limit` 1 à 10, défaut
+  10. Chaque bien porte aussi `views_count` et `last_contact_at` (`null` : jamais contacté).
+- **Photo** : `PublicPhotoUrl::upTo(…, 'preview', filigrane)`, jamais l'original. `quarter` =
+  `address.neighborhood`.
+- **Autorisation** : `IndexCreditBoostsRequest` et `CreditSuggestionsRequest` délèguent à
+  `CreditLotPolicy::viewAny` (trait `AuthorizesWalletReading`) : 403 avant 422. L'espace actif est lu
+  par `App\Services\Credits\WalletSpace`, et le contrôle « espace + autorisation » de
+  `CreditController` est passé dans le trait `ReadsWallet`, partagé par les deux contrôleurs (aucun
+  changement de comportement de `GET /api/credits` : `CreditsApiTest`, `CreditBalanceEndpointTest`
+  verts).
+- **Mesures** : `BoostMeasures`, une requête par mesure (stats, contacts, visites), posées sur le boost
+  comme un `withCount` (`measures`) — le registre `Tests\Support\ResourceInventory` instancie chaque
+  ressource avec un seul argument. Les deux ressources y sont inscrites (`MODELES_EXPLICITES`).
+
+**Vérification par ablation** (23) : chaque règle retirée rougit son test — bornes basse et haute de
+la fenêtre, jointure par bien, agence des contacts, somme des stats, agence des boosts, `filter[id]`,
+les trois branches de `filter[status]` et la liste blanche de la requête, le tri « en cours d'abord »,
+la pose des mesures sur le boost, le préchargement (AC5 : 2 boosts et 20 boosts, chacun avec photo, adresse, stats, contact et visite,
+même nombre de requêtes), l'autorisation des deux requêtes ; côté suggestions : contact récent
+(retiré, et rendu toujours vrai), boost en cours, `public()`, agence, tri, total avant la borne,
+`limit` ≤ 10. Le tri « en cours d'abord » ne rougissait pas d'abord (le jeu de test le satisfaisait par
+`starts_at`) : une pause commencée avant les terminés le départage désormais.
+
+`docs/models-spec.md` et `docs/features.md` ne sont pas touchés (compétence) : les deux routes sont
+pour `/sync-specs` (§ 1.12, § 9.3-9.4).
