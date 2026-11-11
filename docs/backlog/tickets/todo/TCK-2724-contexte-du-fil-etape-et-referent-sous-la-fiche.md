@@ -76,4 +76,6 @@ composant du front ne lit encore `stage` ni `assigned_agent` de ce contexte (rel
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Le prédicat s'appelle désormais `customerReadable` (lecture de la fiche, `CustomerPolicy::view`, jugé sur la fiche) ; il remplace `customerPhoneShown` et porte `stage`, `phone` et `assigned_agent`. Le référent n'est plus cherché du tout quand la fiche ne se lit pas : une requête de moins, et rien à oublier dans la ressource.
+- Aucun composant du front ne lit ce contexte (`GET /api/conversations/{id}/context`) : rien à changer côté front.
+- La ligne de `docs/features.md` (§ 17, « Contexte d'un fil au bureau ») décrit encore l'étape et le référent comme lisibles de tout le personnel, « à confirmer par le porteur » : à faire converger par `/sync-specs`.

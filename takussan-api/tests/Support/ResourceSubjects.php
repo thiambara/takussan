@@ -523,7 +523,7 @@ final class ResourceSubjects
                     ),
                     customerShown: true,
                     customer: Customer::factory()->create(),
-                    customerPhoneShown: true,
+                    customerReadable: true,
                     referent: User::factory()->create(),
                 ),
             ],
