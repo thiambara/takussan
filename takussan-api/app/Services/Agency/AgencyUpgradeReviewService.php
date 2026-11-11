@@ -3,6 +3,7 @@
 namespace App\Services\Agency;
 
 use App\Events\AgencyUpgradeApproved;
+use App\Exceptions\ApiError;
 use App\Models\Agency;
 use App\Models\AgencySubscription;
 use App\Models\AgencyUpgradeRequest;
@@ -75,6 +76,8 @@ class AgencyUpgradeReviewService
         // standard by the time it fires.
         $approved = DB::transaction(function () use ($request, $reviewer, $comment): AgencyUpgradeRequest {
             $request = $this->lockPending($request);
+            // TCK-2730 — avant toute écriture, et avant la bascule de type : rien d'écrit à moitié.
+            $this->assertNoNegotiatedOverrides($request);
             $request->update([
                 'status' => AgencyUpgradeRequestStatus::Approved->value,
                 'reviewed_by' => $reviewer->id,
@@ -196,6 +199,41 @@ class AgencyUpgradeReviewService
             ])
             ->event('agency_upgrade_subscription_assigned')
             ->log('agency_upgrade_subscription_assigned');
+    }
+
+    /**
+     * TCK-2730 (décision du porteur du 2026-11-11, option b, provisoire) — `assign()` clôt tout
+     * abonnement ouvert, dérogations comprises, et le nouveau n'en porte aucune (« sans essai ni
+     * dérogation », TCK-2681). Plutôt que de les faire disparaître en silence, l'approbation est
+     * refusée tant que l'abonnement ouvert en porte une : `409 agency_upgrade.subscription_has_overrides`,
+     * avec les dérogations dans `overrides`. Le super-admin les retire (TCK-2222), puis approuve.
+     * Pas de report automatique : une dérogation de quota est une valeur ABSOLUE
+     * (`QuotaResolver::effectiveLimits`), qui pourrait abaisser un quota du plan pro.
+     *
+     * Lu sous verrou, dans la transaction de l'approbation : une dérogation posée entre la lecture
+     * et la clôture ne passe pas.
+     */
+    protected function assertNoNegotiatedOverrides(AgencyUpgradeRequest $request): void
+    {
+        $open = AgencySubscription::query()
+            ->where('agency_id', $request->agency_id)
+            ->whereNull('ended_at')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($open as $subscription) {
+            $overrides = array_filter([
+                'platform_fee_pct' => $subscription->platform_fee_pct_override !== null
+                    ? (float) $subscription->platform_fee_pct_override
+                    : null,
+                'limits' => ($subscription->limits_override ?? []) !== [] ? $subscription->limits_override : null,
+            ], fn ($value) => $value !== null);
+
+            if ($overrides !== []) {
+                throw (new ApiError(409, 'agency_upgrade.subscription_has_overrides'))->with(['overrides' => $overrides]);
+            }
+        }
     }
 
     /**

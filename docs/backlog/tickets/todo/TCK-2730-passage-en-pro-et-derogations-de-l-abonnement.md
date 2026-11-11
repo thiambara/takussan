@@ -85,4 +85,6 @@ individuel à 20 deviendrait 50 sous un plan pro à 200).
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Le contrôle (`AgencyUpgradeReviewService::assertNoNegotiatedOverrides`) court dans la transaction, juste après la relecture sous verrou de la demande (`lockPending`) et avant toute écriture : la mise à jour de la demande, la bascule de type et l'abonnement. Les abonnements ouverts sont relus sous verrou. Les refus existants (`not_pending`, KYC, suspension) passent avant, et c'est épinglé.
+- Corps : `{code, message, overrides: {platform_fee_pct?, limits?}}`, par `ApiError::with()`. Une clé n'est présente que si la dérogation existe.
+- Front : aucune clé neuve. La modale d'approbation affiche la prose de l'API, et la liste des dérogations se nomme avec les libellés du panneau où le super-admin les retire (`billing.agencySubscription.overrides`).

@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ToastProvider } from '@/components/ui/toast';
+import { ApiError } from '@/lib/api';
 import { withIntl } from '@/test/intl';
 import {
   approveAdminAgencyUpgradeRequest,
@@ -109,5 +110,43 @@ describe('<ReviewActionsModal>', () => {
       expect(rejectAdminAgencyUpgradeRequest).toHaveBeenCalledWith(42, motif),
     );
     await waitFor(() => expect(onDecided).toHaveBeenCalledTimes(1));
+  });
+  /**
+   * TCK-2730 — l'API refuse l'approbation tant que l'abonnement ouvert porte des dérogations : la
+   * modale montre sa prose ET les dérogations, nommées comme dans le panneau où on les retire.
+   */
+  it("montre les dérogations qui bloquent l'approbation", async () => {
+    const prose = "L'abonnement en cours de cette agence porte des dérogations (commission ou quotas) : retirez-les avant d'approuver son passage en agence professionnelle.";
+    vi.mocked(approveAdminAgencyUpgradeRequest).mockRejectedValue(
+      new ApiError(409, {
+        code: 'agency_upgrade.subscription_has_overrides',
+        message: prose,
+        overrides: { platform_fee_pct: 3, limits: { max_active_listings: 50 } },
+      }),
+    );
+    const onDecided = vi.fn();
+    renderModal('approve', onDecided);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: /Confirmer l’approbation/i }));
+
+    expect(await screen.findByText(prose)).toBeInTheDocument();
+    const liste = screen.getByRole('list', { name: 'Modifier les dérogations' });
+    const lignes = Array.from(liste.querySelectorAll('li')).map((li) => li.textContent);
+    expect(lignes).toEqual(['Commission dérogée (%)3', 'Quota de biens actifs dérogé50']);
+    expect(onDecided).not.toHaveBeenCalled();
+  });
+
+  it("une autre erreur ne montre pas de liste de dérogations", async () => {
+    vi.mocked(approveAdminAgencyUpgradeRequest).mockRejectedValue(
+      new ApiError(422, { code: 'agency.suspended', message: "Cette agence est suspendue." }),
+    );
+    renderModal('approve');
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: /Confirmer l’approbation/i }));
+
+    expect(await screen.findByText('Cette agence est suspendue.')).toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Modifier les dérogations' })).toBeNull();
   });
 });

@@ -63,6 +63,8 @@ return [
         'kyc_not_verified' => 'Le dossier KYC de l\'agence doit être vérifié avant d\'approuver son passage en agence professionnelle.',
         // TCK-2681 — le plan du passage (billing.upgrade_plan_code) est introuvable ou retiré.
         'plan_unavailable' => 'Le plan du passage en pro est introuvable ou retiré : réactivez-le avant d\'approuver.',
+        // TCK-2730 — l'abonnement ouvert porte une commission ou des quotas négociés : le passage les clôturerait sans les reporter.
+        'subscription_has_overrides' => 'L\'abonnement en cours de cette agence porte des dérogations (commission ou quotas) : retirez-les avant d\'approuver son passage en agence professionnelle.',
     ],
     'agent_absence' => [
         'overlaps' => 'Une absence de ce membre est déjà prévue ou en cours sur cette période.',

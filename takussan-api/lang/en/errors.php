@@ -63,6 +63,8 @@ return [
         'kyc_not_verified' => 'The agency KYC dossier must be verified before its upgrade to a professional agency can be approved.',
         // TCK-2681 — the upgrade plan (billing.upgrade_plan_code) is missing or retired.
         'plan_unavailable' => 'The pro upgrade plan is missing or retired: reactivate it before approving.',
+        // TCK-2730 — the open subscription carries a negotiated fee or quotas: the upgrade would close it without carrying them over.
+        'subscription_has_overrides' => 'This agency\'s current subscription carries overrides (fee or quotas): remove them before approving its switch to a professional agency.',
     ],
     'agent_absence' => [
         'overlaps' => 'An absence of this member is already scheduled or ongoing over this period.',
