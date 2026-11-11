@@ -18,15 +18,15 @@ use Tests\ApiTestCase;
 use Tests\Support\FabriqueDemandesEtVisites;
 
 /**
- * TCK-2585 — `GET /api/property-visits/counts` : les comptes des sept onglets, égaux aux totaux de
- * l'index filtré de chacun, sous la même portée (agence isolée, `mine`).
+ * TCK-2585 — `GET /api/property-visits/counts` : les comptes des onglets, égaux aux totaux de
+ * l'index filtré de chacun (neuf depuis TCK-2587 : « Plus tard » et « Toutes »), sous la même portée (agence isolée, `mine`).
  */
 class PropertyVisitCountsTest extends ApiTestCase
 {
     use FabriqueDemandesEtVisites;
     use RefreshDatabase;
 
-    private const ONGLETS = ['unassigned', 'requested', 'confirmed', 'past', 'cancelled', 'today', 'to_close'];
+    private const ONGLETS = ['unassigned', 'requested', 'confirmed', 'past', 'cancelled', 'today', 'to_close', 'later', 'all'];
 
     private Agency $x;
 
@@ -94,6 +94,9 @@ class PropertyVisitCountsTest extends ApiTestCase
             'cancelled' => ['status' => 'cancelled'],
             'today' => ['day' => $this->maintenant->setTimezone(VisitSchedulingService::TIMEZONE)->format('Y-m-d')],
             'to_close' => ['to_close' => '1'],
+            // TCK-2587 — les bornes de `filtreDeLaVue('later')` et de `'all'` (aucune).
+            'later' => ['status' => 'confirmed', 'scheduled_at_min' => $this->maintenant->setTimezone(VisitSchedulingService::TIMEZONE)->startOfDay()->addDay()->utc()->format('Y-m-d H:i:s')],
+            'all' => [],
         };
     }
 
@@ -110,14 +113,14 @@ class PropertyVisitCountsTest extends ApiTestCase
     }
 
     /** AC2 — `counts?mine=1` rend, onglet par onglet, le `meta.total` de l'index filtré. */
-    public function test_ac2_mine_egale_les_totaux_des_sept_index_filtres(): void
+    public function test_ac2_mine_egale_les_totaux_des_neuf_index_filtres(): void
     {
         Sanctum::actingAs($this->moi);
         $counts = $this->getJson('/api/property-visits/counts?mine=1')->assertOk()->json('data');
 
         $this->assertSame($this->totauxDeLIndex(['mine' => '1']), $counts);
         // Le test n'est pas vide : chaque onglet compte quelque chose de connu.
-        $this->assertSame(['unassigned' => 0, 'requested' => 2, 'confirmed' => 1, 'past' => 4, 'cancelled' => 1, 'today' => 5, 'to_close' => 2], $counts);
+        $this->assertSame(['unassigned' => 0, 'requested' => 2, 'confirmed' => 1, 'past' => 4, 'cancelled' => 1, 'today' => 5, 'to_close' => 2, 'later' => 0, 'all' => 7], $counts);
     }
 
     public function test_sans_mine_l_agence_entiere_et_rien_d_une_autre(): void
@@ -126,7 +129,7 @@ class PropertyVisitCountsTest extends ApiTestCase
         $counts = $this->getJson('/api/property-visits/counts')->assertOk()->json('data');
 
         $this->assertSame($this->totauxDeLIndex([]), $counts);
-        $this->assertSame(['unassigned' => 3, 'requested' => 5, 'confirmed' => 2, 'past' => 6, 'cancelled' => 2, 'today' => 8, 'to_close' => 2], $counts);
+        $this->assertSame(['unassigned' => 3, 'requested' => 5, 'confirmed' => 2, 'past' => 6, 'cancelled' => 2, 'today' => 8, 'to_close' => 2, 'later' => 1, 'all' => 13], $counts);
 
         // `filter[mine]` est l'écriture longue de `mine=1`.
         $this->assertSame(
@@ -144,8 +147,8 @@ class PropertyVisitCountsTest extends ApiTestCase
         $this->assertSame(array_fill_keys(self::ONGLETS, 0), $this->getJson('/api/property-visits/counts')->assertOk()->json('data'));
     }
 
-    /** Une requête pour les sept comptes (plus celles de l'authentification et de la portée). */
-    public function test_les_sept_comptes_en_une_requete(): void
+    /** Une requête pour tous les comptes (plus celles de l'authentification et de la portée). */
+    public function test_les_neuf_comptes_en_une_requete(): void
     {
         Sanctum::actingAs($this->moi);
         $this->getJson('/api/property-visits/counts')->assertOk();
@@ -157,6 +160,58 @@ class PropertyVisitCountsTest extends ApiTestCase
         DB::disableQueryLog();
 
         $this->assertSame(1, $comptes);
+    }
+
+    /**
+     * TCK-2587 (m1) — la borne de « Plus tard » est INCLUSE : minuit pile de demain, à Dakar, est
+     * « Plus tard » ; 23:59:59 aujourd'hui est « Aujourd'hui ». Rougit si `>=` devient `>`.
+     */
+    public function test_plus_tard_commence_a_minuit_pile_de_demain(): void
+    {
+        [$agent, $visite] = $this->agenceVide();
+        $jour = $this->maintenant->setTimezone(VisitSchedulingService::TIMEZONE)->startOfDay();
+        $visite($jour->setTime(23, 59, 59));
+        $visite($jour->addDay());
+
+        Sanctum::actingAs($agent);
+        $counts = $this->getJson('/api/property-visits/counts')->assertOk()->json('data');
+        $this->assertSame($this->totauxDeLIndex([]), $counts);
+        $this->assertSame(['today' => 1, 'later' => 1, 'all' => 2], ['today' => $counts['today'], 'later' => $counts['later'], 'all' => $counts['all']]);
+    }
+
+    /**
+     * TCK-2587 (m2) — « Plus tard » part de DEMAIN, pas de 24 h glissantes : à midi, une visite
+     * confirmée demain à 08:00 (dans 20 h) est « Plus tard ». Rougit si la borne devient maintenant + 24 h.
+     */
+    public function test_plus_tard_est_demain_et_non_dans_vingt_quatre_heures(): void
+    {
+        [$agent, $visite] = $this->agenceVide();
+        $visite($this->maintenant->setTimezone(VisitSchedulingService::TIMEZONE)->startOfDay()->addDay()->setTime(8, 0));
+
+        Sanctum::actingAs($agent);
+        $counts = $this->getJson('/api/property-visits/counts')->assertOk()->json('data');
+        $this->assertSame($this->totauxDeLIndex([]), $counts);
+        $this->assertSame(['today' => 0, 'later' => 1], ['today' => $counts['today'], 'later' => $counts['later']]);
+    }
+
+    /**
+     * Une agence sans aucune visite, son agent, et une fabrique de visites confirmées sur l'agent.
+     *
+     * @return array{0: User, 1: \Closure(CarbonImmutable): PropertyVisit}
+     */
+    private function agenceVide(): array
+    {
+        $z = $this->agence();
+        $agent = $this->personnel($z);
+        $bien = $this->bienDe($z);
+
+        return [$agent, fn (CarbonImmutable $a) => PropertyVisit::factory()->create([
+            'property_id' => $bien->id,
+            'visitor_id' => $this->client()->id,
+            'agent_id' => $agent->id,
+            'status' => VisitStatus::Confirmed,
+            'scheduled_at' => $a->utc(),
+        ])];
     }
 
     public function test_sans_compte_401(): void

@@ -8173,14 +8173,16 @@
         "requested": "No requested visits",
         "confirmed": "No confirmed visits",
         "past": "No past visits",
-        "cancelled": "No cancelled visits"
+        "cancelled": "No cancelled visits",
+        "all": "No visits"
       },
       "empty_description": "Request a visit from a property page to find it here.",
       "tabs": {
         "requested": "Requested",
         "confirmed": "Confirmed",
         "past": "Past",
-        "cancelled": "Cancelled"
+        "cancelled": "Cancelled",
+        "all": "All"
       }
     },
     "detail": {
@@ -8287,6 +8289,120 @@
       "placeholderAgent": "Feedback on how the visit went…",
       "submitting": "Sending…",
       "submit": "Send feedback"
+    },
+    "parLeTemps": {
+      "vuesLabel": "Visit views",
+      "vues": {
+        "today": "Today",
+        "to_confirm": "To confirm",
+        "to_close": "To close",
+        "later": "Later",
+        "status": "By status",
+        "statusDesktop": "All"
+      },
+      "sousTitre": "{today} today · {toConfirm} to confirm · {toClose, plural, =0 {no report to write} =1 {1 report to write} other {# reports to write}}",
+      "sousTitreBailleur": "{today} today · {toConfirm} requested",
+      "aCloreNote": "report to write",
+      "toutVoir": "See all",
+      "voirAutres": "{n, plural, =1 {See the other request} other {See the # other requests}}",
+      "parStatut": "All visits, by status",
+      "retourAuxVues": "Visits by time",
+      "duree": {
+        "minutes": "{n} min",
+        "heures": "{h} h {mm}",
+        "heuresRondes": "{h} h"
+      },
+      "dans": "in {duree}",
+      "depuis": "for {duree}",
+      "libre": "Free from {de} to {a}",
+      "itineraire": "Directions",
+      "appeler": "Call {nom}",
+      "whatsapp": "Message {nom} on WhatsApp",
+      "messageWhatsApp": "Hello {nom}, I'm getting in touch about your viewing: {bien}.",
+      "rang": "{n, plural, =1 {1st visit} other {returning · visit #}}",
+      "visiteur": "Visitor",
+      "quandRelatif": "{jour} at {heure}",
+      "jourRelatif": {
+        "today": "today",
+        "yesterday": "yesterday"
+      },
+      "pasVenu": "{prenom} did not come",
+      "pasVenuSansNom": "The visitor did not come",
+      "compteRendu": "Report",
+      "tranches": {
+        "morning": "Morning",
+        "afternoon": "Afternoon",
+        "evening": "Evening"
+      },
+      "heureAFixer": "{tranche} · time to set",
+      "aFixer": "{tranche} · to set",
+      "autreHeure": "Other time",
+      "confirmerA": "Confirm {heure}",
+      "confirmer": "Confirm",
+      "autresHeures": "Other free times",
+      "aucuneHeureLibre": "No free time in this window",
+      "confirmee": "Visit confirmed · {quand}",
+      "verdictEnregistre": "Outcome saved",
+      "absentEnregistre": "Visit marked as no-show",
+      "erreurGeste": "That did not go through. Please try again.",
+      "vide": {
+        "today": "No visits today",
+        "to_confirm": "No request to confirm",
+        "to_close": "No visit to close",
+        "later": "No confirmed visit ahead"
+      },
+      "videTodayDetail": "Today’s confirmed visits show here, in order.",
+      "erreur": "Visits could not be loaded.",
+      "reessayer": "Try again",
+      "voirPlus": "See more",
+      "bureau": {
+        "quand": "When",
+        "bien": "Property",
+        "visiteur": "Visitor",
+        "agent": "Agent",
+        "statutType": "Status · type",
+        "geste": "Action",
+        "toutCocher": "Select all",
+        "cocher": "Select the visit {nom}",
+        "selection": "{n, plural, =1 {1 visit selected} other {# visits selected}}",
+        "heuresProposees": "{n, plural, =1 {1 time to set: {heures} suggested from free slots} other {# times to set: {heures} suggested from free slots}}",
+        "et": "and",
+        "confirmerLot": "Confirm ({n})",
+        "attribuer": "Assign",
+        "deselectionner": "Clear selection",
+        "recherche": "Property, visitor, phone…",
+        "agentFiltre": "Agent",
+        "bienFiltre": "Property",
+        "periodeFiltre": "Period",
+        "tous": "All",
+        "bienRecherche": "Search a property",
+        "periodes": {
+          "7": "Next 7 days",
+          "30": "Next 30 days",
+          "toutes": "Any date"
+        },
+        "compte": "{n} of {total}",
+        "suivantes": "{n, plural, =1 {Show the next one} other {Show the next #}}",
+        "ouvrir": "Open",
+        "lotResultat": "{ok, plural, =0 {No visit done} =1 {1 visit done} other {# visits done}} · {failed, plural, =0 {no refusal} =1 {1 refusal} other {# refusals}}"
+      },
+      "refus": {
+        "http_forbidden": "You cannot act on this visit.",
+        "http_not_found": "Visit not found.",
+        "visit_staff_only": "For the property agency’s staff only.",
+        "visit_not_scheduled_confirm": "It is no longer awaiting confirmation.",
+        "visit_time_required": "Time to set: no free time suggested.",
+        "visit_slot_overlap": "The time overlaps another visit.",
+        "visit_reassign_forbidden": "You cannot assign it.",
+        "visit_closed": "The visit is closed.",
+        "visit_agent_not_staff": "This agent is not on the property agency’s staff.",
+        "autre": "Refused by the server."
+      },
+      "tranchesCourtes": {
+        "morning": "morning",
+        "afternoon": "afternoon",
+        "evening": "evening"
+      }
     }
   },
   "superAdmin": {

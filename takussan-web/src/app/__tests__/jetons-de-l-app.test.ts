@@ -145,8 +145,13 @@ describe('TCK-2685 — espacement des lettres, icône, ombres', () => {
     const deuxXl = theme.match(/--shadow-2xl:\s*([^;]+);/)![1]!.trim();
     for (const [nom, valeur] of ombres) {
       if (nom === '--shadow-feuille') expect(valeur).toBe(deuxXl);
-      else expect(valeur, nom).toMatch(/^[-\d\s.px]+color-mix\(in srgb, var\(--shadow-color\) \d+%, transparent\)$/);
+      // Une ombre à plusieurs couches (TCK-2587, `carte-levee`) : chaque couche suit la même règle.
+      else for (const couche of valeur.split(/(?<=\)),\s*/)) expect(couche, nom).toMatch(/^[-\d\s.px]+color-mix\(in srgb, var\(--shadow-color\) \d+%, transparent\)$/);
     }
+    // TCK-2587 — la carte « prochaine visite » : les deux couches de `OMBRE` de la maquette.
+    expect(ombres.get('--shadow-carte-levee')).toBe(
+      '0 1px 2px color-mix(in srgb, var(--shadow-color) 5%, transparent), 0 12px 24px -16px color-mix(in srgb, var(--shadow-color) 20%, transparent)',
+    );
     expect(ombres.get('--shadow-barre-collante')).toContain('0 -6px 16px -12px');
     expect(ombres.get('--shadow-barre-collante')).toContain(' 40%');
     expect(ombres.get('--shadow-panneau')).toContain('-24px 0 48px -32px');

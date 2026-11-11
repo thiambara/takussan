@@ -171,7 +171,9 @@ class PropertyVisitController extends Controller
      *   · `unassigned` — en attente, sans agent, à venir ; `requested` — en attente, à venir ;
      *   · `confirmed` — confirmée, à venir ; `past` — heure passée, tout statut ;
      *   · `cancelled` — annulée ; `today` — tout statut, ce jour à Dakar (`filter[day]`) ;
-     *   · `to_close` — `PropertyVisit::scopeToClose` (`filter[to_close]`).
+     *   · `to_close` — `PropertyVisit::scopeToClose` (`filter[to_close]`) ;
+     *   · `later` — confirmée, à partir du lendemain à Dakar (`filter[status]=confirmed` +
+     *     `filter[scheduled_at_min]`, TCK-2587) ; `all` — toute la portée, sans borne.
      */
     public function counts(Request $request): JsonResponse
     {
@@ -205,6 +207,9 @@ class PropertyVisitController extends Controller
                 '(status = ? and scheduled_at <= ?) or (status = ? and reported_at is null and completed_at >= ?)',
                 [$confirmed, $now, $completed, $reportFrom],
             ],
+            // TCK-2587 — « Plus tard » : confirmée, à partir de demain à Dakar ; « Toutes » : la portée.
+            'later' => ['status = ? and scheduled_at >= ?', [$confirmed, $day->addDay()->utc()]],
+            'all' => ['true', []],
         ];
 
         $select = [];

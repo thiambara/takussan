@@ -64,7 +64,24 @@ export interface PropertyVisit {
   rating?: number | null;
   notes?: string | null;
   metadata?: Record<string, unknown> | null;
-  property?: { id: number; title?: string | null; slug?: string | null } | null;
+  property?: {
+    id: number;
+    title?: string | null;
+    slug?: string | null;
+    /** TCK-2585 — la photo du bien, par le chemin des URL publiques (filigrane respecté). */
+    cover_url?: string | null;
+    /**
+     * TCK-2585 — l'adresse : au personnel et au propriétaire toujours, au visiteur une fois la visite
+     * confirmée. Clé ABSENTE sinon.
+     */
+    address?: {
+      line: string | null;
+      neighborhood: string | null;
+      city: string | null;
+      latitude: number | null;
+      longitude: number | null;
+    } | null;
+  } | null;
   visitor?: {
     id: number;
     first_name?: string | null;

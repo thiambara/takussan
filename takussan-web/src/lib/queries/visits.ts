@@ -368,3 +368,144 @@ export function useUpdateVisitReport(id: number) {
     { invalidate: INVALIDE_LA_VISITE(id) },
   );
 }
+
+/* ─────────────────────────── TCK-2587 — les Visites par le temps ─────────────────────────── */
+
+/** Les colonnes d'une carte « par le temps » : l'heure, la tranche, le visiteur et son mot. */
+export const VISIT_TIME_FIELDS: string[] = [
+  'id',
+  'property_id',
+  'visitor_id',
+  'customer_id',
+  'agent_id',
+  'visitor_name',
+  'visitor_phone',
+  'type',
+  'status',
+  'scheduled_at',
+  'preferred_window',
+  'completed_at',
+  'duration_minutes',
+  'notes',
+  'created_at',
+];
+
+/** Les affinages du bureau, communs à la liste et aux comptes (`filter[...]`). */
+export interface AffinageDesVisites {
+  readonly agent?: number | null;
+  readonly bien?: number | null;
+  readonly q?: string | null;
+  /** La période du bureau : jusqu'à cet instant (`filter[scheduled_at_max]`). */
+  readonly jusquA?: string | null;
+}
+
+export function filtreDeLAffinage(a: AffinageDesVisites): Record<string, string> {
+  return {
+    ...(a.agent ? { agent_id: String(a.agent) } : {}),
+    ...(a.bien ? { property_id: String(a.bien) } : {}),
+    ...(a.q?.trim() ? { search: a.q.trim() } : {}),
+    ...(a.jusquA ? { scheduled_at_max: a.jusquA } : {}),
+  };
+}
+
+/**
+ * Les comptes de toutes les vues, en UNE requête (`GET /api/property-visits/counts`, TCK-2585) :
+ * AC2 de TCK-2587 — la page n'émet plus une lecture par onglet. La clé vit SOUS `['visits', 'list']`
+ * pour que chaque geste qui relit les listes (confirmer, clore, attribuer…) relise aussi les comptes.
+ */
+export function useComptesDesVisites(affinage: AffinageDesVisites = {}, options: { enabled?: boolean } = {}) {
+  const filtre = filtreDeLAffinage(affinage);
+  return useApiQuery<ApiResponse<import('@/lib/visites/par-le-temps').ComptesDesVisites>>(
+    ['visits', 'list', 'counts', filtre],
+    '/api/property-visits/counts',
+    { params: { filter: filtre }, enabled: options.enabled ?? true },
+  );
+}
+
+/** Une page d'une vue par le temps : la borne de la vue, puis les affinages du bureau. */
+export function useVisitesDeLaVue(
+  filtreDeVue: Record<string, string>,
+  tri: string,
+  affinage: AffinageDesVisites = {},
+  page = 1,
+  perPage = 30,
+  options: { enabled?: boolean } = {},
+) {
+  const filter = { ...filtreDeVue, ...filtreDeLAffinage(affinage) };
+  return useApiQuery<PaginatedResponse<PropertyVisit>>(
+    ['visits', 'list', 'par-le-temps', filter, tri, page, perPage],
+    '/api/property-visits',
+    {
+      params: {
+        fields: {
+          property_visits: VISIT_TIME_FIELDS,
+          properties: ['id', 'title', 'slug'],
+          users: ['id', 'first_name', 'last_name'],
+          customers: ['id', 'first_name', 'last_name', 'phone'],
+        },
+        filter,
+        include: ['property', 'agent', 'visitor', 'customer'],
+        sort: [tri],
+        page,
+        per_page: perPage,
+      },
+      enabled: options.enabled ?? true,
+    },
+  );
+}
+
+/** Confirmer depuis la liste : l'heure fixée pour une tranche (`scheduled_at`), sinon rien. */
+export function useConfirmerDepuisLaListe() {
+  return useApiMutation<VisitActionResponse, { readonly id: number; readonly scheduled_at?: string }>(
+    {
+      path: ({ id }) => cheminApi`/api/property-visits/${id}/confirm`,
+      method: 'POST',
+      body: ({ scheduled_at }) => (scheduled_at ? { scheduled_at } : {}),
+    },
+    { invalidate: [['visits', 'list'], ['visits', 'detail']] },
+  );
+}
+
+/** Une ligne d'un lot (`bulk-confirm`, `bulk-assign`) : le geste unitaire, son refus codé sinon. */
+export interface LigneDuLot {
+  readonly id: number;
+  readonly ok: boolean;
+  readonly code?: string;
+  readonly status?: number;
+  readonly sms_sent?: boolean;
+}
+
+export interface ReponseDuLot {
+  readonly data: readonly LigneDuLot[];
+  readonly meta: { readonly ok: number; readonly failed: number };
+}
+
+export function useConfirmerEnLot() {
+  return useApiMutation<ReponseDuLot, { readonly visits: readonly { readonly id: number; readonly scheduled_at?: string }[] }>(
+    { path: '/api/property-visits/bulk-confirm', method: 'POST' },
+    { invalidate: [['visits', 'list'], ['visits', 'detail']] },
+  );
+}
+
+export function useAttribuerEnLot() {
+  return useApiMutation<ReponseDuLot, { readonly ids: readonly number[]; readonly agent_id: number }>(
+    { path: '/api/property-visits/bulk-assign', method: 'POST' },
+    { invalidate: [['visits', 'list'], ['visits', 'detail']] },
+  );
+}
+
+/** Le verdict posé depuis la carte « À clore » : le compte rendu naît avec lui (TCK-2578). */
+export function useVerdictDepuisLaListe() {
+  return useApiMutation<ReponseDuCompteRendu, { readonly id: number; readonly outcome: import('@/lib/visites/compte-rendu').Verdict }>(
+    { path: ({ id }) => cheminApi`/api/property-visits/${id}/report`, method: 'POST', body: ({ outcome }) => ({ outcome }) },
+    { invalidate: [['visits', 'list'], ['visits', 'detail'], ['customers']] },
+  );
+}
+
+/** « n'est pas venu » depuis la carte « À clore ». */
+export function useAbsentDepuisLaListe() {
+  return useApiMutation<ApiResponse<PropertyVisit>, { readonly id: number }>(
+    { path: ({ id }) => cheminApi`/api/property-visits/${id}/no-show`, method: 'POST', body: () => ({}) },
+    { invalidate: [['visits', 'list'], ['visits', 'detail']] },
+  );
+}

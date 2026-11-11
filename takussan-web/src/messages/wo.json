@@ -7514,14 +7514,16 @@
         "requested": "Amul benn seetlu bu ñu ñaan",
         "confirmed": "Amul benn seetlu bu ñu dëggal",
         "past": "Amul benn seetlu bu weesu",
-        "cancelled": "Amul benn seetlu bu ñu neenal"
+        "cancelled": "Amul benn seetlu bu ñu neenal",
+        "all": "Aucune visite"
       },
       "empty_description": "Ñaanal benn seetlu ci xët bu kër ngir gis ko fii.",
       "tabs": {
         "requested": "Yu ñu ñaan",
         "confirmed": "Yu ñu dëggal",
         "past": "Yu weesu",
-        "cancelled": "Yu ñu neenal"
+        "cancelled": "Yu ñu neenal",
+        "all": "Toutes"
       }
     },
     "detail": {
@@ -7628,6 +7630,120 @@
       "placeholderAgent": "Xalaat ci ni seetlu bi doxe…",
       "submitting": "Ñu ngi yónnee…",
       "submit": "Yónnee xalaat bi"
+    },
+    "parLeTemps": {
+      "vuesLabel": "Vues des visites",
+      "vues": {
+        "today": "Aujourd’hui",
+        "to_confirm": "À confirmer",
+        "to_close": "À clore",
+        "later": "Plus tard",
+        "status": "Par statut",
+        "statusDesktop": "Toutes"
+      },
+      "sousTitre": "{today} aujourd’hui · {toConfirm} à confirmer · {toClose, plural, =0 {aucun compte rendu à faire} =1 {1 compte rendu à faire} other {# comptes rendus à faire}}",
+      "sousTitreBailleur": "{today} aujourd’hui · {toConfirm} demandées",
+      "aCloreNote": "compte rendu à faire",
+      "toutVoir": "Tout voir",
+      "voirAutres": "{n, plural, =1 {Voir l’autre demande} other {Voir les # autres demandes}}",
+      "parStatut": "Toutes les visites, par statut",
+      "retourAuxVues": "Visites par le temps",
+      "duree": {
+        "minutes": "{n} min",
+        "heures": "{h} h {mm}",
+        "heuresRondes": "{h} h"
+      },
+      "dans": "dans {duree}",
+      "depuis": "depuis {duree}",
+      "libre": "Libre de {de} à {a}",
+      "itineraire": "Itinéraire",
+      "appeler": "Appeler {nom}",
+      "whatsapp": "Écrire à {nom} sur WhatsApp",
+      "messageWhatsApp": "Bonjour {nom}, je vous contacte au sujet de votre visite : {bien}.",
+      "rang": "{n, plural, =1 {1re visite} other {revient · #e visite}}",
+      "visiteur": "Visiteur",
+      "quandRelatif": "{jour} à {heure}",
+      "jourRelatif": {
+        "today": "aujourd’hui",
+        "yesterday": "hier"
+      },
+      "pasVenu": "{prenom} n’est pas venu",
+      "pasVenuSansNom": "Le visiteur n’est pas venu",
+      "compteRendu": "Compte rendu",
+      "tranches": {
+        "morning": "Le matin",
+        "afternoon": "L’après-midi",
+        "evening": "Le soir"
+      },
+      "heureAFixer": "{tranche} · heure à fixer",
+      "aFixer": "{tranche} · à fixer",
+      "autreHeure": "Autre heure",
+      "confirmerA": "Confirmer {heure}",
+      "confirmer": "Confirmer",
+      "autresHeures": "Autres heures libres",
+      "aucuneHeureLibre": "Aucune heure libre dans la tranche",
+      "confirmee": "Visite confirmée · {quand}",
+      "verdictEnregistre": "Verdict enregistré",
+      "absentEnregistre": "Visite marquée absente",
+      "erreurGeste": "Le geste n’a pas abouti. Réessayez.",
+      "vide": {
+        "today": "Aucune visite aujourd’hui",
+        "to_confirm": "Aucune demande à confirmer",
+        "to_close": "Aucune visite à clore",
+        "later": "Aucune visite confirmée à venir"
+      },
+      "videTodayDetail": "Les visites confirmées du jour s’affichent ici, dans l’ordre.",
+      "erreur": "Les visites n’ont pas pu être chargées.",
+      "reessayer": "Réessayer",
+      "voirPlus": "Voir plus",
+      "bureau": {
+        "quand": "Quand",
+        "bien": "Bien",
+        "visiteur": "Visiteur",
+        "agent": "Agent",
+        "statutType": "Statut · type",
+        "geste": "Geste",
+        "toutCocher": "Tout sélectionner",
+        "cocher": "Sélectionner la visite {nom}",
+        "selection": "{n, plural, =1 {1 visite sélectionnée} other {# visites sélectionnées}}",
+        "heuresProposees": "{n, plural, =1 {1 heure à fixer : {heures} proposée d’après les créneaux libres} other {# heures à fixer : {heures} proposées d’après les créneaux libres}}",
+        "et": "et",
+        "confirmerLot": "Confirmer ({n})",
+        "attribuer": "Attribuer",
+        "deselectionner": "Désélectionner",
+        "recherche": "Bien, visiteur, téléphone…",
+        "agentFiltre": "Agent",
+        "bienFiltre": "Bien",
+        "periodeFiltre": "Période",
+        "tous": "Tous",
+        "bienRecherche": "Chercher un bien",
+        "periodes": {
+          "7": "7 prochains jours",
+          "30": "30 prochains jours",
+          "toutes": "Toutes dates"
+        },
+        "compte": "{n} sur {total}",
+        "suivantes": "{n, plural, =1 {Afficher la suivante} other {Afficher les # suivantes}}",
+        "ouvrir": "Ouvrir",
+        "lotResultat": "{ok, plural, =0 {Aucune visite traitée} =1 {1 visite traitée} other {# visites traitées}} · {failed, plural, =0 {aucun refus} =1 {1 refus} other {# refus}}"
+      },
+      "refus": {
+        "http_forbidden": "Vous n’avez pas la main sur cette visite.",
+        "http_not_found": "Visite introuvable.",
+        "visit_staff_only": "Réservé au personnel de l’agence du bien.",
+        "visit_not_scheduled_confirm": "Elle n’est plus à confirmer.",
+        "visit_time_required": "Heure à fixer : aucune heure libre proposée.",
+        "visit_slot_overlap": "L’heure chevauche une autre visite.",
+        "visit_reassign_forbidden": "Vous ne pouvez pas l’attribuer.",
+        "visit_closed": "La visite est close.",
+        "visit_agent_not_staff": "Cet agent n’est pas de l’agence du bien.",
+        "autre": "Refusée par le serveur."
+      },
+      "tranchesCourtes": {
+        "morning": "matin",
+        "afternoon": "après-midi",
+        "evening": "soir"
+      }
     }
   },
   "superAdmin": {
