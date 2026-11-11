@@ -7,6 +7,8 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\PropertyVisit;
 use App\Notifications\CodedNotification;
 use App\Services\Notifications\NotificationRenderer;
+use App\Services\Visit\VisitSchedulingService;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\Notification;
@@ -224,6 +226,47 @@ class VisitRequestRoutingTest extends TestCase
         $this->assertStringNotContainsString('joindre', $rendu->render($avisDuBailleur->code, $avisDuBailleur->params, 'fr', null, 'body'));
         $this->assertNotNull($this->contactRecuPar($agent));
         $this->assertStringContainsString('776665544', $this->contactRecuPar($agent));
+    }
+
+    /**
+     * Vérification de TCK-2717 (m2) — AC5 sur l'AUTRE code, `visit.requested_window` (une demande par
+     * tranche, l'heure à fixer) : l'avis du bailleur n'a pas de `contact`, et ses deux corps se rendent
+     * sous `body_unnamed` / `mail_body_unnamed` dans les trois langues — ni « — », ni `:contact`, ni la
+     * mention de joindre le visiteur. Celui de l'agent porte le numéro et la phrase complète.
+     */
+    public function test_tck2717_ac5_par_tranche_le_bailleur_lit_la_phrase_sans_contact(): void
+    {
+        Notification::fake();
+        $x = $this->agence();
+        $owner = $this->bailleur($x);
+        $agent = $this->personnel($x);
+        $bien = $this->bienDe($x, $owner);
+        $this->collaborateur($bien, $agent);
+        $client = $this->client(['phone' => '+221776665544', 'email' => 'fiche@exemple.sn']);
+        $this->ficheClient($x, $client);
+
+        Sanctum::actingAs($client);
+        $jour = CarbonImmutable::now(VisitSchedulingService::TIMEZONE)->addDays(3)->format('Y-m-d');
+        $this->demander($bien->slug, ['scheduled_at' => null, 'date' => $jour, 'preferred_window' => 'morning'])->assertCreated();
+
+        $avisDuBailleur = Notification::sent($owner, CodedNotification::class, self::deCode(NotificationCode::VisitRequestedWindow))->first();
+        $this->assertNotNull($avisDuBailleur, 'prémisse : la demande par tranche rend visit.requested_window');
+        $this->assertNull($avisDuBailleur->params['contact']);
+        $rendu = app(NotificationRenderer::class);
+        $phrases = ['fr' => 'joindre', 'en' => 'reach', 'wo' => 'joindre'];
+        foreach ($phrases as $langue => $joindre) {
+            foreach (['body', 'mail_body'] as $surface) {
+                $texte = $rendu->render($avisDuBailleur->code, $avisDuBailleur->params, $langue, null, $surface);
+                $this->assertStringNotContainsString('—.', $texte, "{$langue} {$surface}");
+                $this->assertStringNotContainsString(':contact', $texte, "{$langue} {$surface}");
+                $this->assertStringNotContainsString($joindre, $texte, "{$langue} {$surface}");
+                $this->assertStringNotContainsString('776665544', $texte, "{$langue} {$surface}");
+            }
+        }
+
+        $avisDeLAgent = Notification::sent($agent, CodedNotification::class, self::deCode(NotificationCode::VisitRequestedWindow))->first();
+        $this->assertStringContainsString('776665544', (string) $avisDeLAgent->params['contact']);
+        $this->assertStringContainsString('776665544', $rendu->render($avisDeLAgent->code, $avisDeLAgent->params, 'fr', null, 'body'));
     }
 
     /** TCK-2717 AC6 — demande anonyme, sans fiche : l'avis du bailleur reconnu porte le contact, comme aujourd'hui. */

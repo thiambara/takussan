@@ -436,6 +436,35 @@ class ProprietaireDuBienTest extends ApiTestCase
     }
 
     /**
+     * Vérification de TCK-2717 (m1) — le propriétaire qui est AUSSI personnel de l'agence du bien n'est
+     * pas « hors console » (`isStaffAt`, tout espace). Sous un profil de cette agence, même celui de
+     * propriétaire, il est personnel (`staffAgencyId`, ADR-0031 §1) : la carte de la console, rang
+     * compris. Ouvert dans une AUTRE agence où il est aussi agent, il n'est personnel actif de rien ici,
+     * et la carte réduite ne lui est pas servie pour autant — `null`, le même jugement que l'avis, qui
+     * lui garde le contact (`VisitRequestRoutingTest::test_tck2717_le_proprietaire_personnel_de_l_agence_garde_le_contact`).
+     * Sans ce cas, retirer `isStaffAt` du prédicat ne rougissait que du côté de l'avis.
+     */
+    public function test_tck2717_le_proprietaire_personnel_de_l_agence_n_est_pas_hors_console(): void
+    {
+        $double = $this->bailleur($this->x);
+        AgentProfile::factory()->create(['user_id' => $double->id, 'agency_id' => $this->x->id]);
+        $ailleurs = AgentProfile::factory()->create(['user_id' => $double->id, 'agency_id' => $this->agence()->id]);
+        $proprietaire = OwnerProfile::query()->where('user_id', $double->id)->firstOrFail();
+        $bien = $this->bienDe($this->x, $double->fresh());
+        $v = $this->visiteAnonyme($bien);
+
+        Sanctum::actingAs($double->fresh());
+        $console = $this->getJson("/api/property-visits/{$v->id}", ['X-Profile-Id' => "owner:{$proprietaire->id}"])->assertOk()
+            ->json('data.visitor_display');
+        $this->assertSame('anonymous', $console['kind']);
+        $this->assertIsInt($console['visits_on_property'], 'sous un profil de l\'agence du bien : la carte de la console');
+
+        $this->getJson("/api/property-visits/{$v->id}", ['X-Profile-Id' => "agent:{$ailleurs->id}"])->assertOk()
+            ->assertJsonPath('data.visitor_display', null)
+            ->assertJsonPath('data.visitor_name', 'Moussa Fall');
+    }
+
+    /**
      * TCK-2717 AC4 — le compte à double casquette (personnel de Y, bailleur du bien dans X) lit la carte
      * réduite de la visite anonyme, et la carte n'ouvre pas le préremplissage : `create_customer = false`.
      * Un visiteur sans rapport avec le bien, lui, ne lit pas la carte de sa propre visite.
