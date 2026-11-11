@@ -158,9 +158,13 @@ class BookingCustomerFieldsTest extends TestCase
         $landlord = User::factory()->create();
         OwnerProfile::factory()->create(['user_id' => $landlord->id, 'agency_id' => $this->agency->id]);
         $this->property->update(['user_id' => $landlord->id]);
+        // Contre-vérification adverse de TCK-2583 — le dernier contact (nourri par les comptes rendus
+        // de tous les biens de l'agence) reste un fait du personnel, même dans la fiche imbriquée.
+        $this->booking->customer->forceFill(['last_contacted_at' => now()->subHour()])->saveQuietly();
 
         Sanctum::actingAs($landlord->fresh());
         $row = $this->getJson('/api/bookings?include=customer')->assertOk()->json('data.0');
+        $this->assertNull($row['customer']['last_contacted_at']);
 
         $this->assertSame($this->booking->id, $row['id']);
         $this->assertSame('+221771234567', $row['customer']['phone']);
@@ -169,6 +173,10 @@ class BookingCustomerFieldsTest extends TestCase
 
         $fiche = $this->getJson("/api/bookings/{$this->booking->id}?include=customer")->assertOk()->json('data.customer');
         $this->assertSame('+221771234567', $fiche['phone']);
+        $this->assertNull($fiche['last_contacted_at']);
+
+        Sanctum::actingAs($this->agent);
+        $this->assertNotNull($this->getJson("/api/bookings/{$this->booking->id}?include=customer")->assertOk()->json('data.customer.last_contacted_at'));
     }
 
     /** Le verdict « bailleur » coûte une requête pour la page, pas une par réservation. */
