@@ -11,7 +11,6 @@ import {
   formatNumber,
   type FormatDateOptions,
 } from '@/lib/format';
-import { TIMEZONE } from '@/i18n/config';
 import { currencySymbol } from '@/lib/format/currency';
 
 /**
@@ -122,10 +121,6 @@ function symboleCourt(currency: string): string {
   return code === 'XOF' || code === 'XAF' ? 'F' : currencySymbol(code);
 }
 
-/** L'année d'un instant au fuseau de Dakar — pas celle du fuseau de la machine qui rend. */
-function anneeA(date: Date): string {
-  return new Intl.DateTimeFormat('en-US', { year: 'numeric', timeZone: TIMEZONE }).format(date);
-}
 
 /**
  * Les champs « composants » d'`Intl.DateTimeFormat` — ceux qui s'excluent mutuellement avec
@@ -199,7 +194,9 @@ export function formatteursPour(locale: Locale): Formatteurs {
       if (value === null || value === undefined || value === '') return VALEUR_ABSENTE;
       const instant = value instanceof Date ? value : new Date(value);
       if (Number.isNaN(instant.getTime())) return VALEUR_ABSENTE;
-      const memeAnnee = anneeA(instant) === anneeA(maintenant ?? new Date());
+      // L'année au fuseau de Dakar (TIMEZONE, posé par `formatDate`), pas celle de la machine qui rend.
+      const annee = (d: Date) => formatDate(d, locale, { dateStyle: undefined, year: 'numeric' });
+      const memeAnnee = annee(instant) === annee(maintenant ?? new Date());
       const sortie = formatDate(instant, locale, {
         dateStyle: undefined,
         day: 'numeric',
