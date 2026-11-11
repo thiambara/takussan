@@ -89,4 +89,9 @@ demande une, est TCK-2719.)
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Implémenté en edbaf5d62.
+
+- Le repli vit dans un seul helper, `App\Services\Pdf\PrintedName::of()`. Il est employé par la ligne « Locataire » du contrat, la colonne « Nom » des garants et la ligne « Nom » de la quittance. Le bailleur et l'état des lieux gardent leur repli existant, hors périmètre.
+- **Écart au delta, accepté par la session** : `PrintedIdentity::PERSON` gagne `phone`. La règle de la classe est « ce qui est figé est ce que les gabarits lisent, et lui seul ». La quittance lisant désormais le téléphone à défaut de nom et d'e-mail, il est figé au règlement. Un instantané antérieur n'a pas la clé : sa copie restaurée garde le téléphone courant, comme avant.
+- `NotificationTemplateService::renderString()` : une variable rendue vide emporte l'espace qui la précède quand `,` `.` `!` `?` ou `:` la suit. Une valeur non vide, ou « 0 », garde son espace.
+- Tests : `PrintedPartyNameTest` (case lue comme premier texte du `<td>`, téléphone figé compris) et `NotificationTemplateEmptyVariableTest`. Six ablations, chacune rougit ses seuls cas.
