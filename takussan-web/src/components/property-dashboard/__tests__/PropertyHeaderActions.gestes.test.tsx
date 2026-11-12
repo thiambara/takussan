@@ -110,7 +110,10 @@ describe.each(NOMS)('les gestes du bien depuis « %s » : rattrapés, dits par u
     await toastAttendu('error', INJOIGNABLE);
     expect(duplicatePropertyAction).toHaveBeenCalledWith(47);
     expect(m.push).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: MENU_DU_BIEN })).toBeEnabled();
+    // Le toast part DANS la transition : le menu ne se rend qu'au rendu qui la clôt, un temps plus
+    // tard. L'attendre, sans quoi l'assertion lit l'état en attente quand la machine est chargée
+    // (rouge intermittent sous charge, reproduit en retardant la fin de la transition de 300 ms).
+    await waitFor(() => expect(screen.getByRole('button', { name: MENU_DU_BIEN })).toBeEnabled());
   });
 
   it('« Dupliquer » réussi : un geste, sans dialogue, confirmé par un toast', async () => {

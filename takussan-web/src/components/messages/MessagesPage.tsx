@@ -13,6 +13,7 @@ import {
 import { useMatchesMaxWidth, useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { cn } from '@/lib/utils';
 import { ConversationList } from './ConversationList';
+import { EtatVideDeLaMessagerie } from './EtatVideDeLaMessagerie';
 import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
 import { ActionDEnTete } from '@/components/layout/EnTeteMobile';
 import { ChatView } from './ChatView';
@@ -341,6 +342,10 @@ export function MessagesPage({ titre, sousTitre }: MessagesPageProps) {
                   contexte={bureau ? contexte : undefined}
                   onPlusDActions={compact ? () => setFeuilleDuFil(true) : undefined}
                 />
+              ) : !compact && comptes?.all === 0 ? (
+                // TCK-2632 (a-4 bureau) — une messagerie sans aucun fil : le panneau dit d'où
+                // vient une conversation, au lieu de « Sélectionnez une conversation ».
+                <EtatVideDeLaMessagerie bureau onNouvelle={ouvrirNouvelle} />
               ) : (
                 <div className="flex flex-1 flex-col items-center justify-center gap-3 bg-muted/50 p-8 text-center text-sm text-pretty text-muted-foreground">
                   <MessagesSquare className="size-8 text-muted-foreground/70" aria-hidden />

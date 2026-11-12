@@ -1,11 +1,9 @@
 'use client';
 
 import Image from 'next/image';
-import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
-import { BellOff, MessagesSquare, Search, Users, Wrench, X } from 'lucide-react';
+import { BellOff, Search, Users, Wrench, X } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { buttonVariants } from '@/components/ui/button';
 import { PuceDeFiltre, RangeeDePuces } from '@/components/ui/puce-de-filtre';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState, ErrorState } from '@/components/feedback';
@@ -17,10 +15,10 @@ import { useIntersectionObserver } from '@/hooks/useIntersectionObserver';
 import { useAuth } from '@/context/AuthContext';
 import { initiales } from '@/lib/fiche-publique';
 import { cn } from '@/lib/utils';
-import { isAgencyAdmin, isAgent, isOwner, isServiceProvider } from '@/lib/roles';
 import type { Locale } from '@/i18n/config';
 import type { Conversation } from '@/types/message';
 import { useTexteMessageSysteme } from './useTexteMessageSysteme';
+import { EtatVideDeLaMessagerie } from './EtatVideDeLaMessagerie';
 import { quandDansLaListe } from './quand';
 
 /** TCK-2632 — le délai de la recherche : une requête quand la frappe s'arrête, pas une par lettre. */
@@ -87,38 +85,29 @@ export function ConversationList({ selectedId, onSelect, dense = false, onNouvel
 
   // Ni recherche ni puce sur une messagerie vide : l'état vide dit d'où vient une conversation.
   const vraimentVide = !isLoading && !isError && conversations.length === 0 && !filtre && (comptes?.all ?? 0) === 0;
+  if (vraimentVide && !dense) {
+    // TCK-645 — la liste EST déjà la surface : l'état vide n'y pose pas un second cadre.
+    // TCK-2632 (AC6, a-4 téléphone) — l'état vide propre à la personne, posé à 96 px du haut.
+    return <EtatVideDeLaMessagerie onNouvelle={onNouvelle} />;
+  }
   if (vraimentVide) {
-    // TCK-645 — la liste EST déjà la surface : l'état vide n'y pose pas un second cadre (le
-    // pointillé d'`EmptyState` dans la carte de la page, relevé à 390 px), il remplit sa hauteur
-    // au lieu de flotter en haut d'un grand vide, et dit d'où vient une conversation.
-    // TCK-2632 (AC6) — l'état vide est propre à la personne : l'agent et l'admin écrivent à un
-    // client (« Nouvelle conversation ») ; le client garde « Parcourir les annonces » ; le
-    // prestataire et le bailleur, dont les fils naissent des interventions et des baux, lisent
-    // une phrase, sans bouton vers les annonces.
-    const roles = user?.roles ?? [];
-    const personnel = (isAgent(roles) || isAgencyAdmin(roles)) && onNouvelle !== undefined;
-    const metier = !personnel && (isServiceProvider(roles) || isOwner(roles));
+    // TCK-2632 (a-4 bureau) — au bureau, l'état vide occupe le panneau du fil (`MessagesPage`) ;
+    // la liste garde sa recherche, éteinte (rien à chercher), et dit quand elle se remplira.
     return (
-      <EmptyState
-        data-testid="conversations-vide"
-        className="min-h-full border-0 bg-transparent px-6 py-12"
-        icon={<MessagesSquare className="size-8" aria-hidden="true" />}
-        title={personnel || metier ? t('list.videPersonnel') : t('list.empty')}
-        description={
-          personnel ? t('list.videPersonnelAide') : metier ? t('list.videMetierAide') : t('list.emptyHint')
-        }
-        action={
-          metier ? undefined : personnel ? (
-            <button type="button" onClick={onNouvelle} className={buttonVariants({ size: 'lg' })}>
-              {t('list.ecrireAUnClient')}
-            </button>
-          ) : (
-            <Link href="/properties" className={cn(buttonVariants({ variant: 'outline' }))}>
-              {t('list.emptyCta')}
-            </Link>
-          )
-        }
-      />
+      <div className="flex min-h-full flex-col" data-slot="liste-des-conversations" data-testid="conversations-vide-liste">
+        <div className="px-4 pt-1 opacity-50">
+          <div
+            aria-hidden="true"
+            className="flex h-9 items-center gap-2.5 rounded-full border border-border bg-card px-3.5 text-muted-foreground"
+          >
+            <Search className="size-4.5 flex-none stroke-[1.75]" />
+            <span className="truncate text-champ">{t('list.recherche')}</span>
+          </div>
+        </div>
+        <p className="mt-3 flex-1 border-t border-border/70 px-6 pt-10 text-center text-sm text-muted-foreground">
+          {t('list.seRemplira')}
+        </p>
+      </div>
     );
   }
 

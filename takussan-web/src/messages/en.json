@@ -4349,7 +4349,9 @@
       "videPersonnel": "No conversations",
       "videPersonnelAide": "Your conversations with clients and the team will appear here.",
       "ecrireAUnClient": "Write to a client",
-      "videMetierAide": "Your conversations start from service requests and leases: they will appear here."
+      "videMetierAide": "Your conversations start from service requests and leases: they will appear here.",
+      "seRemplira": "The list will fill up with the first message.",
+      "ouVoirLesDemandes": "or <lien>see contact requests</lien>"
     },
     "propertyDraft": {
       "message": "Hello, I'm interested in “{title}” (ref. {reference}). Is it still available?",

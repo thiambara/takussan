@@ -2252,7 +2252,9 @@
       "videPersonnel": "Aucune conversation",
       "videPersonnelAide": "Vos échanges avec les clients et l’équipe apparaîtront ici.",
       "ecrireAUnClient": "Écrire à un client",
-      "videMetierAide": "Vos conversations naissent des interventions et des baux : elles apparaîtront ici."
+      "videMetierAide": "Vos conversations naissent des interventions et des baux : elles apparaîtront ici.",
+      "seRemplira": "La liste se remplira au premier message.",
+      "ouVoirLesDemandes": "ou <lien>voir les demandes de contact</lien>"
     },
     "propertyDraft": {
       "message": "Salaam, bëgg naa xam lu ëpp ci « {title} » (réf. {reference}). Ndax mu ngi am ba tey ?",

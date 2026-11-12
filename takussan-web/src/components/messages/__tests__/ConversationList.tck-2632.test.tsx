@@ -169,6 +169,35 @@ describe('<ConversationList> — l’état vide selon la personne (TCK-2632, AC6
   );
 });
 
+/**
+ * TCK-2632 (a-4) — au bureau, l'état vide occupe le panneau du fil (`EtatVideDeLaMessagerie bureau`,
+ * monté par `MessagesPage`) : la liste garde sa recherche, éteinte, et dit quand elle se remplira.
+ * Au téléphone, la liste EST l'état vide, posé à 96 px du haut (maquette `pt-24`).
+ */
+describe('<ConversationList> — messagerie vide, téléphone et bureau (TCK-2632, a-4)', () => {
+  beforeEach(() => {
+    pages = [page([], { all: 0, unread: 0, group: 0 })];
+  });
+
+  it('au bureau : la recherche éteinte et « La liste se remplira au premier message. », sans second état vide', () => {
+    render(withIntl(<ConversationList selectedId={null} onSelect={() => {}} onNouvelle={() => {}} dense />));
+    const liste = screen.getByTestId('conversations-vide-liste');
+    expect(within(liste).getByText('La liste se remplira au premier message.')).toBeInTheDocument();
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('conversations-vide')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Écrire à un client' })).not.toBeInTheDocument();
+  });
+
+  it('au téléphone : l’état vide posé à 96 px du haut, et l’action à hauteur de pouce (48 px)', () => {
+    render(withIntl(<ConversationList selectedId={null} onSelect={() => {}} onNouvelle={() => {}} />));
+    const vide = screen.getByTestId('conversations-vide');
+    expect(vide).toHaveClass('pt-24');
+    expect(vide).not.toHaveClass('border-dashed');
+    expect(screen.getByRole('button', { name: 'Écrire à un client' })).toHaveClass('h-controle-action');
+    expect(screen.queryByTestId('conversations-vide-liste')).not.toBeInTheDocument();
+  });
+});
+
 describe('quandDansLaListe (TCK-2632)', () => {
   const maintenant = new Date('2026-11-12T15:00:00Z');
   it('l’heure aujourd’hui, « Hier », le jour dans la semaine, la date au-delà', () => {

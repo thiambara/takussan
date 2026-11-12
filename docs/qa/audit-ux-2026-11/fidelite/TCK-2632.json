@@ -72,6 +72,23 @@
   {
    "page": "app-messagerie",
    "approche": "a",
+   "ecran": 4,
+   "nom": "Aucune conversation (agent)",
+   "references": {
+    "telephone": "references/app-messagerie/a-4-telephone.json",
+    "bureau-1440": "references/app-messagerie/a-4-bureau-1440.json",
+    "bureau-1280": "references/app-messagerie/a-4-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app/messages",
+    "persona": "agent",
+    "etat": "agent de démo, la réponse de `GET /api/conversations` réécrite VIDE dans le navigateur (`data: []`, `counts` à 0) par une copie jetable de l'outil hors du dépôt (`Fetch.fulfillRequest`) : la base de démo n'a pas d'agent sans fil, et en créer un serait une écriture. Rien n'est écrit (`--bloquer` de la fiche). Au téléphone, l'état vide occupe la liste ; au bureau, la liste garde sa recherche éteinte et « La liste se remplira au premier message. », l'état vide occupe le panneau du fil avec « ou voir les demandes de contact » (`/app/leads`). Relevé du 2026-11-12 : téléphone 29 conformes · 9 écarts · 0,35 % de pixels (6,27 % avant) ; bureau 1440 et 1280 : icône, titre, texte, « Écrire à un client » et « ou voir les demandes de contact » aux positions de la maquette (Δ ≤ 1,1 px), 2,2 et 2,36 % de pixels, le reste dans la barre latérale."
+   }
+  },
+  {
+   "page": "app-messagerie",
+   "approche": "a",
    "ecran": 5,
    "nom": "Groupe et note vocale",
    "references": {
@@ -320,6 +337,20 @@
    "propriete": "absents du produit / de la maquette",
    "exception": "technique",
    "motif": "le produit dit les mêmes textes, en attribut `placeholder` (`messaging.recherche`, aide du composeur) ; le relevé ne compte pas un `placeholder` comme texte, la maquette les dessinait en texte. « Chercher une conversation » et « Chercher une personne » sont les libellés `sr-only` des champs (1 × 1 px), absents de la maquette qui n'en avait pas."
+  },
+  {
+   "ecran": "a-4-*",
+   "element": "« Écrire à un client » (et « Nouvelle » au bureau) : bordure 1 px, largeur +2 px ; au téléphone, interligne 21,4 au lieu de 22,5",
+   "propriete": "bordure, largeur, interligne",
+   "exception": "composant partagé",
+   "motif": "`Button` porte `border border-transparent` dans toutes ses variantes (src/components/ui/button.tsx) : la bordure ne se voit pas, et ses 2 × 1 px font les 2 px de largeur ; la hauteur (48 px au téléphone, `size=\"xl\"`, 32,4 au bureau) et la position sont celles de la maquette. L'interligne est celui de la base du bouton, `text-corps` (TCK-2686) ne fixant que la taille ; la maquette hérite de 1,5."
+  },
+  {
+   "ecran": "a-4-bureau-*",
+   "element": "recherche éteinte de la liste : le texte « Chercher un nom, un bien… » mesuré sur sa propre boîte (x 325,2, 157 × 18) au lieu de celle du champ (x 286,4, 310 × 32,4)",
+   "propriete": "boîte du texte",
+   "exception": "technique",
+   "motif": "la maquette écrit le texte directement dans le `div` du champ, que le relevé mesure alors comme boîte du texte ; le produit le pose dans un `span`, après l'icône et l'écart de la maquette (300 + 16,2 + 9 = 325,2). Le champ lui-même (286,4 ; 86,1 ; 310 × 32,4, fond, bordure) est à la place de la maquette. Il est éteint (`opacity-50`, `aria-hidden`) : sans fil, rien à chercher."
   },
   {
    "ecran": "a-3-telephone",

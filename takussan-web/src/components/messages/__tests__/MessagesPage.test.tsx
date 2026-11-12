@@ -411,6 +411,38 @@ describe('<MessagesPage> sous le point de rupture lg (TCK-501, TCK-505)', () => 
   });
 
   /**
+   * TCK-2632 (a-4 bureau) — une messagerie sans AUCUN fil : le panneau du fil dit d'où vient une
+   * conversation (l'état vide de la personne), au lieu de « Sélectionnez une conversation ». Au
+   * téléphone, le panneau n'existe pas : la liste porte l'état vide.
+   */
+  it('au bureau, une messagerie sans aucun fil : l’état vide occupe le panneau du fil', () => {
+    largeurDeFenetre(1440);
+    listeSansFiltre.mockReturnValue(pageDeListe([]));
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
+
+    expect(screen.getByTestId('messagerie-panneau-vide')).toBeInTheDocument();
+    expect(screen.getByTestId('conversations-vide')).toBeInTheDocument();
+    expect(screen.queryByText(/Sélectionnez une conversation/)).not.toBeInTheDocument();
+  });
+
+  it('au bureau, des fils filtrés à zéro ne sont pas une messagerie vide : « Sélectionnez » reste', () => {
+    largeurDeFenetre(1440);
+    listeSansFiltre.mockReturnValue(pageDeListe([], { all: 3, unread: 0, group: 0 }));
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
+
+    expect(screen.queryByTestId('messagerie-panneau-vide')).not.toBeInTheDocument();
+    expect(screen.getByText(/Sélectionnez une conversation/)).toBeInTheDocument();
+  });
+
+  it('au téléphone, une messagerie sans aucun fil n’ouvre pas de panneau', () => {
+    listeSansFiltre.mockReturnValue(pageDeListe([]));
+    render(wrap(<MessagesPage titre="Messagerie" sousTitre="Vos conversations" />));
+
+    expect(screen.getByTestId('conv-list')).toBeInTheDocument();
+    expect(screen.queryByTestId('messagerie-panneau-vide')).not.toBeInTheDocument();
+  });
+
+  /**
    * TCK-505 AC2 — à 768 px, UN seul panneau. C'est la largeur où l'ancien gate `(max-width:
    * 767px)` ne correspondait plus : les deux panneaux montaient, et la grille `md:[320px_1fr]`
    * laissait ≈ 150 px au fil derrière une barre latérale de 256 px. À 1024, les deux panneaux
