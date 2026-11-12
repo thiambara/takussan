@@ -463,6 +463,55 @@ export function useVisitesDeLaVue(
   );
 }
 
+/* ─────────────────────────── TCK-2587 (lot C) — « Mes visites », la vue du client ─────────────────────────── */
+
+/**
+ * Les colonnes d'une ligne de « Mes visites » : l'heure ou la tranche, le statut, la clôture (pour
+ * la fenêtre d'avis), l'annulation et son motif, la note déjà donnée (`rating`, la colonne que
+ * l'avis du client écrit). Ni le nom ni le téléphone du visiteur : c'est lui qui lit.
+ */
+export const VISIT_CLIENT_FIELDS: string[] = [
+  'id',
+  'property_id',
+  'visitor_id',
+  'agent_id',
+  'type',
+  'status',
+  'scheduled_at',
+  'preferred_window',
+  'completed_at',
+  'cancelled_at',
+  'cancellation_reason',
+  'duration_minutes',
+  'rating',
+  'created_at',
+];
+
+/**
+ * Une section de « Mes visites » : un `filter[...]` de `/api/property-visits`, borné côté serveur.
+ * La clé vit SOUS `['visits', 'list']` : annuler, proposer un créneau ou donner son avis la relit.
+ */
+export function useVisitesDuClient(filtre: Record<string, string>, tri: string, page = 1, perPage = 20) {
+  return useApiQuery<PaginatedResponse<PropertyVisit>>(
+    ['visits', 'list', 'client', filtre, tri, page, perPage],
+    '/api/property-visits',
+    {
+      params: {
+        fields: {
+          property_visits: VISIT_CLIENT_FIELDS,
+          properties: ['id', 'title', 'slug'],
+          users: ['id', 'first_name', 'last_name'],
+        },
+        filter: filtre,
+        include: ['property', 'agent'],
+        sort: [tri],
+        page,
+        per_page: perPage,
+      },
+    },
+  );
+}
+
 /** Confirmer depuis la liste : l'heure fixée pour une tranche (`scheduled_at`), sinon rien. */
 export function useConfirmerDepuisLaListe() {
   return useApiMutation<VisitActionResponse, { readonly id: number; readonly scheduled_at?: string }>(

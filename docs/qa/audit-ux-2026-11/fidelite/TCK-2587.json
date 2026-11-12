@@ -68,6 +68,23 @@
         "persona": "agent",
         "etat": "la visite 429 servie par un BOUCHON des GET dans la page (`FID_AVANT=fid2587/bouchon-b.js`, scratchpad du lot 2) : visite confirmée de 10:57, « Commencer » à 10:58, bien « Local commercial » TK-2291 à 450 000 F/mois, Abdoulaye Cissé (+221 77 123 45 67), créneaux du 11 nov., deux visites du client ; horloge figée le mardi 10 nov. 2026 à 11:10 (Dakar) — rien n'est écrit en base"
       }
+    },
+    {
+      "page": "app-visites",
+      "approche": "a",
+      "ecran": 7,
+      "nom": "Côté client",
+      "references": {
+        "telephone": "references/app-visites/a-7-telephone.json",
+        "bureau-1440": "references/app-visites/a-7-bureau-1440.json",
+        "bureau-1280": "references/app-visites/a-7-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/visits?fid=client",
+        "persona": "client (bureau : relevé sous `--disposition locataire`, le compte de démo ayant des baux — sa barre latérale montre Paiements et Maintenance)",
+        "etat": "« Mes visites » servie par un BOUCHON des GET `/api/property-visits` dans la page (`FID_AVANT=fid2587c/bouchon-c.js`, scratchpad du lot 2) : studio confirmé jeu. 12 nov. 10:00 avec Sokhna Sène, deux-pièces demandé sam. 14 nov. au matin, appartement neuf visité hier à 16:00 à noter, chambre notée 3/5 le 31 oct., appartement 3 chambres annulé le 28 oct. (« empêchement ») ; horloge figée le mardi 10 nov. 2026 à 10:12 (Dakar) — rien n'est écrit en base. `?fid=ac6` : la persona d'AC6 (aucune à venir), `?fid=vide` : aucune visite"
+      }
     }
   ],
   "produit": {
@@ -402,6 +419,76 @@
       "propriete": "absente",
       "exception": "vérité des données",
       "motif": "rien n’atteste que le message est parti ; la bulle reste en jour J, où elle est un aperçu"
+    },
+    {
+      "ecran": "app-visites a-7-*",
+      "element": "bloc de l'agent : « Appeler » et WhatsApp ; « Agent · Dakar Immo »",
+      "propriete": "absents ; « Votre agent »",
+      "exception": "donnée",
+      "motif": "`PropertyVisitResource.agent` ne sert au visiteur ni le téléphone de l'agent ni le nom de l'agence (id, prénom, nom) ; ouvrir ce numéro est une décision (question posée au team-lead le 2026-11-12). Conséquence au téléphone : la carte est 4 px plus basse (disque de 40 au lieu des gestes de 44), « Votre avis » et la suite remontent de 5,5 px"
+    },
+    {
+      "ecran": "app-visites a-7-*",
+      "element": "« · Ngor », « · Point E », « · Mermoz » après le titre (avis, en attente, passées)",
+      "propriete": "absents",
+      "exception": "vérité des données",
+      "motif": "le quartier vient de l'adresse, que l'API ne sert au visiteur qu'une fois la visite confirmée (décision du porteur du 2026-11-10, § 1.3) : seule la prochaine visite, confirmée, le porte"
+    },
+    {
+      "ecran": "app-visites a-7-*",
+      "element": "« L'agence vous répond d'ordinaire en 2 h »",
+      "propriete": "absente",
+      "exception": "donnée",
+      "motif": "aucune mesure du délai de réponse de l'agence n'existe"
+    },
+    {
+      "ecran": "app-visites a-7-*",
+      "element": "« Annulée par vous : « empêchement » »",
+      "propriete": "« Motif : « empêchement » »",
+      "exception": "donnée",
+      "motif": "l'auteur de l'annulation n'est pas servi par la liste ; le motif l'est (`cancellation_reason`)"
+    },
+    {
+      "ecran": "app-visites a-7-*",
+      "element": "étoiles de l'avis : quatre pleines et « Très bien »",
+      "propriete": "aucune étoile pleine, libellé absent, « Envoyer mon avis » inactif",
+      "exception": "vérité des données",
+      "motif": "la maquette montre la carte APRÈS un choix ; une note posée d'office serait envoyée sans que le client l'ait donnée. Le libellé (« Très bien ») s'affiche au choix"
+    },
+    {
+      "ecran": "app-visites a-7-*",
+      "element": "étoile non choisie",
+      "propriete": "couleur (encre principale à 25 % → `text-muted-foreground`)",
+      "exception": "règle du design system",
+      "motif": "pas d'encre à alpha dans la partie connectée (`check-heritage-encre`, encre-sans-alpha)"
+    },
+    {
+      "ecran": "app-visites a-7-*",
+      "element": "pastille « Confirmée » sur la photo",
+      "propriete": "icône 14 → 12 px, trait 2 → 1,75",
+      "exception": "règle du design system",
+      "motif": "primitive `Badge` (`[&>svg]:size-3!`) ; les lucide de la coque sont à 1,75"
+    },
+    {
+      "ecran": "app-visites a-7-*",
+      "element": "champ « Un mot pour l'agence (facultatif) »",
+      "propriete": "fond (lin → blanc), bordure (filet → `border-input`)",
+      "exception": "règle du design system",
+      "motif": "primitive `Textarea`, commune à tous les champs (`check-champs-uniformes`)"
+    },
+    {
+      "ecran": "app-visites a-7-*",
+      "element": "« Envoyer mon avis », « Terminée », « Annulée »",
+      "propriete": "bordure (0 → 1 px transparente)",
+      "exception": "règle du design system",
+      "motif": "primitives `Button` et `StatusBadge` : bordure transparente d'un pixel, sans effet sur la couleur rendue"
+    },
+    {
+      "ecran": "app-visites a-7-*",
+      "element": "titre « Mes visites » (bureau)",
+      "propriete": "largeur (720 → largeur du texte)",
+      "exception": "règle du design system",
+      "motif": "primitive `PageHeader` : le titre est dans une colonne `min-w-0`, la boîte suit le texte ; même position, même texte"
     }
   ],
   "hors_perimetre": [

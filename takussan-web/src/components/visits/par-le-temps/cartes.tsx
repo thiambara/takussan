@@ -166,7 +166,7 @@ const VERDICTS: readonly { readonly verdict: Verdict; readonly icone: typeof Thu
 ];
 
 /** « hier à 16:00 », « aujourd'hui à 10:57 », « 3 nov. à 09:30 ». */
-function useQuandRelatif() {
+export function useQuandRelatif() {
   const t = useTranslations('visits.parLeTemps');
   const f = useFormatteurs();
   return (iso: string, maintenant: Date) => {

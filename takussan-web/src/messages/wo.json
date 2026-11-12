@@ -1769,7 +1769,6 @@
         "today": "Tey",
         "yesterday": "Démb"
       },
-      "attachmentRejected": "Bañ nañu fiise bi.",
       "uploadFailed": "Yeb bi antuwul. Jéemaatal.",
       "participants": "{count} ñi bokk",
       "viewProperty": "Xool kër bi",
@@ -1777,10 +1776,11 @@
       "loadError": "Mënunu yeb bataaxal yi.",
       "empty": "Amul benn bataaxal ba tey. Yónnee bu njëkk bi !",
       "loadingMore": "Yëngu…",
-      "attachAria": "Boole ab fiise",
       "placeholder": "Bind ab bataaxal…",
       "sendAria": "Yónnee",
-      "readOnly": "Ce fil est en lecture seule : votre bail pour ce logement a pris fin."
+      "readOnly": "Ce fil est en lecture seule : votre bail pour ce logement a pris fin.",
+      "attachmentRejected": "Bañ nañu fiise bi.",
+      "attachAria": "Boole ab fiise"
     },
     "group": {
       "create": {
@@ -7916,6 +7916,54 @@
         "morning": "matin",
         "afternoon": "après-midi",
         "evening": "soir"
+      }
+    },
+    "client": {
+      "titre": "Mes visites",
+      "erreur": "Vos visites n’ont pas pu être chargées.",
+      "sousTitre": {
+        "confirmees": "{n, plural, one {# visite confirmée} other {# visites confirmées}}",
+        "enAttente": "{n} en attente",
+        "avis": "{n} avis à donner"
+      },
+      "sections": {
+        "prochaine": "Prochaine visite",
+        "avis": "Votre avis",
+        "enAttente": "En attente de confirmation",
+        "ensuite": "Ensuite",
+        "passees": "Passées"
+      },
+      "vide": {
+        "titre": "Aucune visite pour l’instant",
+        "description": "Les visites que vous demandez depuis une annonce apparaissent ici."
+      },
+      "jourEtHeure": "{jour} · {heure}",
+      "dureeEtType": "{duree}, {type}",
+      "trancheAFixer": "{tranche}, heure à fixer",
+      "votreAgent": "Votre agent",
+      "agentAAttribuer": "L’agence attribue un agent",
+      "proposer": "Proposer un autre créneau",
+      "annuler": "Annuler la visite",
+      "motif": "Motif : « {motif} »",
+      "avis": {
+        "question": "Comment s’est passée la visite ?",
+        "visiteAvec": "Visité {quand} avec {agent}",
+        "visite": "Visité {quand}",
+        "placeholder": "Un mot pour l’agence (facultatif)",
+        "envoyer": "Envoyer mon avis",
+        "envoi": "Envoi…",
+        "reste": "encore {heures} h",
+        "merci": "Merci, votre avis est transmis à l’agence.",
+        "erreur": "Votre avis n’a pas pu être envoyé.",
+        "etoiles": "{n, plural, one {# étoile} other {# étoiles}} sur 5",
+        "noteDonnee": "Votre note : {n} sur 5",
+        "notes": {
+          "1": "Décevante",
+          "2": "Moyenne",
+          "3": "Correcte",
+          "4": "Très bien",
+          "5": "Excellente"
+        }
       }
     }
   },

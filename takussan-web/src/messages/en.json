@@ -3636,7 +3636,6 @@
         "today": "Today",
         "yesterday": "Yesterday"
       },
-      "attachmentRejected": "File rejected.",
       "uploadFailed": "The file couldn't be uploaded. Try again.",
       "participants": "{count, plural, one {# participant} other {# participants}}",
       "viewProperty": "View property",
@@ -3644,10 +3643,11 @@
       "loadError": "Messages could not be loaded.",
       "empty": "No messages yet. Send the first one!",
       "loadingMore": "Loading…",
-      "attachAria": "Attach a file",
       "placeholder": "Write a message…",
       "sendAria": "Send",
-      "readOnly": "This thread is read-only: your lease for this home has ended."
+      "readOnly": "This thread is read-only: your lease for this home has ended.",
+      "attachmentRejected": "File rejected.",
+      "attachAria": "Attach a file"
     },
     "group": {
       "create": {
@@ -8575,6 +8575,54 @@
         "morning": "morning",
         "afternoon": "afternoon",
         "evening": "evening"
+      }
+    },
+    "client": {
+      "titre": "My visits",
+      "erreur": "Your visits could not be loaded.",
+      "sousTitre": {
+        "confirmees": "{n, plural, one {# confirmed visit} other {# confirmed visits}}",
+        "enAttente": "{n} pending",
+        "avis": "{n, plural, one {# review to give} other {# reviews to give}}"
+      },
+      "sections": {
+        "prochaine": "Next visit",
+        "avis": "Your review",
+        "enAttente": "Awaiting confirmation",
+        "ensuite": "Coming up",
+        "passees": "Past"
+      },
+      "vide": {
+        "titre": "No visits yet",
+        "description": "Visits you request from a listing appear here."
+      },
+      "jourEtHeure": "{jour} · {heure}",
+      "dureeEtType": "{duree}, {type}",
+      "trancheAFixer": "{tranche}, time to be set",
+      "votreAgent": "Your agent",
+      "agentAAttribuer": "The agency will assign an agent",
+      "proposer": "Suggest another time",
+      "annuler": "Cancel the visit",
+      "motif": "Reason: “{motif}”",
+      "avis": {
+        "question": "How did the visit go?",
+        "visiteAvec": "Visited {quand} with {agent}",
+        "visite": "Visited {quand}",
+        "placeholder": "A word for the agency (optional)",
+        "envoyer": "Send my review",
+        "envoi": "Sending…",
+        "reste": "{heures} h left",
+        "merci": "Thank you, your review has been sent to the agency.",
+        "erreur": "Your review could not be sent.",
+        "etoiles": "{n, plural, one {# star} other {# stars}} out of 5",
+        "noteDonnee": "Your rating: {n} out of 5",
+        "notes": {
+          "1": "Disappointing",
+          "2": "Average",
+          "3": "Fair",
+          "4": "Very good",
+          "5": "Excellent"
+        }
       }
     }
   },
