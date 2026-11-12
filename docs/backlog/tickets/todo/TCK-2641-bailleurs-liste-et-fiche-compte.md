@@ -57,7 +57,7 @@ L'admin d'agence retrouve un bailleur en deux secondes, l'appelle ou lui écrit 
   - « Réglages du mandat » : plafond de travaux sans accord, modifiable, et commission de l'agence ;
   - « Documents » : mandat, pièce, RIB ;
   - pièces sensibles masquées, avec « Afficher » journalisé ;
-  - « Accès et départ », en bas de fiche : « Suspendre l'accès » / « Réactiver », puis « Retirer de l'agence », séparé et destructif. Chaque geste dit ce qu'il fait.
+  - « Accès et départ », en bas de fiche : « Suspendre l'accès » / « Réactiver », puis « Retirer de l'agence », séparé et destructif. Chaque geste dit ce qu'il fait. **« Retirer de l'agence » est reporté à [TCK-2753](TCK-2753-retirer-un-bailleur-de-l-agence.md)** (ce que retirer un bailleur veut dire — biens, baux, mandat — reste une décision du porteur, 2026-11-12).
 - **Téléphone (360-390 px)** : « Créer le reversement » et « Envoyer le relevé » dans une barre collée. Aucune colonne ne sort du cadre.
 - **Bureau (≥ 1280 px)** : la fiche en deux colonnes dès `lg`. À gauche l'identité, les réglages et les documents ; à droite le relevé du mois, les biens et les derniers reversements. « Créer le reversement » se place dans la case « Reste à verser ».
 
@@ -116,7 +116,7 @@ Autres contraintes :
 - [ ] AC4 — À 390 px, pour une invitation en cours, « Renvoyer » et « Révoquer » sont visibles et touchables (≥ 44 px), et aucune cellule ne déborde.
 - [ ] AC5 — Le sélecteur de mois affiche « novembre 2026 » en `fr` et « November 2026 » en `en`, quelle que soit la langue du navigateur. `grep 'type="month"'` ne rend rien dans les écrans touchés.
 - [ ] AC6 — « Créer le reversement » ouvre le dialogue existant avec ce bailleur présélectionné et les paiements de `payouts/preparation`. Le reversement créé apparaît dans « Derniers reversements ».
-- [ ] AC7 — Sur la fiche d'un bailleur actif, « Suspendre l'accès » envoie `POST /api/agencies/{agency}/team/{user}/suspend` après confirmation et double authentification. Le statut affiché devient « Suspendu », et « Réactiver » le rétablit. « Retirer de l'agence » envoie `DELETE …/members/{user}`.
+- [ ] AC7 — Sur la fiche d'un bailleur actif, « Suspendre l'accès » envoie `POST /api/agencies/{agency}/team/{user}/suspend` après confirmation et double authentification. Le statut affiché devient « Suspendu », et « Réactiver » le rétablit. « Retirer de l'agence » envoie `DELETE …/members/{user}` — **reporté à TCK-2753** : AC7 se juge sans ce geste.
 
 **Fidélité au pixel** ([ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), préparation : TCK-2684 → TCK-2691) :
 
