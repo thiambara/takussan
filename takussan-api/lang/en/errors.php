@@ -106,8 +106,8 @@ return [
         'unauthenticated' => 'You must be signed in.',
     ],
     'booking' => [
-        // TCK-2734
-        'application_already_accepted' => 'Another application has already been accepted for this property: cancel it, or create its lease, before accepting a second one.',
+        // TCK-2734 (décision 7 du porteur, 2026-11-12 : le bail libère le bien à son envoi en signature)
+        'application_already_accepted' => 'Another application has already been accepted for this property: cancel it, or send its lease for signature, before accepting a second one.',
         'cannot_cancel' => 'This booking cannot be cancelled in its current state.',
         'cannot_expire' => 'This booking cannot be expired: it must be pending.',
         // TCK-2579
@@ -122,6 +122,8 @@ return [
         'not_pending_confirm' => 'Only a pending booking can be confirmed.',
         'not_pending_reject' => 'Only a pending booking can be rejected.',
         'own_property' => 'You cannot book your own property.',
+        // TCK-2747 (décision 6 du porteur, 2026-11-12)
+        'property_already_leased' => 'This property is let, or a lease is being prepared, for the requested move-in date: the application can only be accepted for a move-in after the lease ends.',
         'property_unavailable' => 'This property is not available for booking.',
     ],
     'booking_payment' => [

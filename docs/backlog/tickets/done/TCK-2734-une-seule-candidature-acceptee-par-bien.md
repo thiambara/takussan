@@ -138,3 +138,48 @@ où un bail a suivi la confirmation : la candidature 42, avec un bail créé san
 
 Tests : `BailFermeLesAutresCandidaturesTest`. Dans `BookingApplicationSingleAcceptedTest`, le cas « convertie en bail »
 change de sens : la seconde candidature est désormais close par le bail.
+
+## Décision 7 — les candidatures se closent quand le bail PART (2026-11-12, soir)
+
+**Décision du porteur (option b, contre la recommandation), relayée par team-lead** : les autres candidatures ne se
+ferment plus à la création du brouillon. Elles se ferment à l'**envoi du bail en signature**, avec l'avis « non
+retenue ». Un brouillon abandonné ne ferme rien. Cette décision remplace le « À la création d'un bail » de la section
+précédente.
+
+**Lecture retenue, gardée par team-lead (2026-11-12) et présentée au porteur comme décision prise** : la candidature d'origine (ou celles du futur locataire) passe
+`completed` **au même moment** que les autres se ferment, c'est-à-dire à l'envoi, et non à la création du brouillon.
+Pendant le brouillon, elle reste `confirmed` : ses nuits bloquent encore et la règle de TCK-2734 tient. La prose de
+`booking.application_already_accepted` le dit désormais : « …annulez-la, ou envoyez son bail en signature… ».
+
+- `LeaseService::create()` ne ferme plus rien. Il verrouille le bien, puis crée le bail.
+- `LeaseService::cloreLesCandidaturesDuBien(Lease, User)` porte la clôture : la réservation d'origine passe `completed`,
+  les candidatures du locataire aussi, et les autres passent `rejected` avec un avis après le commit. Deux appelants :
+  - `LeaseSignatureService::request()`, après les refus (422, 409 `terms_changed`) : un envoi refusé ne ferme rien ;
+  - `signOnPaper()`, qui accepte un brouillon jamais envoyé. Il clôt au même moment logique, celui où le bail part.
+- **Le renouvellement ne ferme rien** (`renewed_from_lease_id` non nul). Ses candidatures ont été closes au départ du
+  bail d'origine.
+- **Ordre des verrous** : les deux transactions de `LeaseSignatureService` prennent maintenant le bien AVANT le bail
+  (`LeaseService::verrouillerLeBienPuisLeBail`), puis les réservations. `PropertyOwnerTransfer` écrit les baux après le
+  bien : prendre le bail d'abord aurait inversé l'ordre global (`takussan-api/CLAUDE.md`, piège n° 10).
+- **À reprendre ailleurs** (signalé à team-lead, fichiers de terrain-7) :
+  - le texte « Vérifier » de TCK-2643 doit dire « L'envoi en signature clôturera… » ;
+  - le commentaire de `LeaseDefaults.php` (vers les lignes 120 à 123) cite encore la fermeture à la création.
+
+Tests :
+- `BailFermeLesAutresCandidaturesTest` réécrit (14) : le brouillon ne ferme rien, l'envoi ferme, papier, renouvellement,
+  envoi refusé, avis après le commit, rejeu, ordre des verrous à l'envoi et sur papier.
+- `BailTireDUneCandidatureTest` : la candidature d'origine se termine à l'envoi. Ses nuits libérées le sont désormais
+  pour un séjour, puisque la candidature voisine est close par l'envoi.
+- `BookingApplicationSingleAcceptedTest`, AC3 : pendant le brouillon, toujours 409 ; après l'envoi, la première est
+  `completed` et la seconde `rejected` ; une entrée après la fin du bail se confirme.
+
+Ablations (une à la fois, md5 vérifié avant restauration) :
+- **a1 — plus de clôture à l'envoi** : 10 rouges dans `BailFermeLesAutresCandidaturesTest` et `BailTireDUneCandidatureTest`.
+- **a2 — plus de clôture sur papier** : 2 rouges (papier, ordre des verrous sur papier).
+- **a3 — garde du renouvellement retirée** : 1 rouge.
+- **a4 — le bail verrouillé sans le bien** : 2 rouges (ordre des verrous, à l'envoi et sur papier).
+- **Ordre des verrous des autres transactions du bail** (relevé, lecture) : `sign()`, `terminate`, l'échéancier
+  et la résiliation anticipée verrouillent le bail seul et n'écrivent aucune ligne de `properties`. Rien n'y inverse
+  l'ordre bien → bail.
+- **a11 — la clôture remise à la création du brouillon** (la régression que la décision écarte) : 7 rouges, dont « le
+  brouillon ne ferme rien », « un envoi refusé ne ferme rien » et « la première convertie en bail ne retient plus le bien ».

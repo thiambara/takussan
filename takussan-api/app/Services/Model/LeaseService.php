@@ -105,13 +105,14 @@ class LeaseService
         // l'unité de la devise du bail : `round(…, 2)` laissait 30 864,18 XOF (ADR-0009).
         $data['commission_amount'] = self::roundCommission($data['commission_amount'] ?? null, $data['currency'] ?? 'XOF');
 
-        return DB::transaction(function () use ($data, $property, $user, $reservation, $tenant): Lease {
-            // TCK-2734 (seconde porte) — l'ordre global des verrous (`takussan-api/CLAUDE.md`, piège
-            // n° 10) : le bien d'abord, puis ses réservations, comme `BookingService::confirm()`.
+        return DB::transaction(function () use ($data, $property, $user): Lease {
+            // TCK-2747 — sous le verrou du bien, que `BookingService::confirm()` prend aussi : une
+            // confirmation de candidature voit le brouillon né ici, ou le précède.
+            // TCK-2734 (décision 7 du porteur, 2026-11-12) — le brouillon ne ferme plus rien : les
+            // candidatures du bien se closent à l'ENVOI en signature ({@see self::cloreLesCandidaturesDuBien()}).
             Property::query()->whereKey($property->getKey())->lockForUpdate()->first();
-            $candidatures = $this->verrouillerLesCandidaturesOuvertes($property, $reservation);
 
-            $lease = Lease::create(array_merge($data, [
+            return Lease::create(array_merge($data, [
                 'reference_number' => ReferenceNumberGenerator::lease(),
                 'landlord_id' => $property->user_id,
                 'agency_id' => $property->agency_id ?? $user->agency_id,
@@ -119,31 +120,72 @@ class LeaseService
                 'currency' => $data['currency'] ?? 'XOF',
                 'payment_frequency' => $data['payment_frequency'] ?? 'monthly',
             ]));
-
-            if ($reservation !== null) {
-                $this->terminerLaReservation($reservation, $lease, $user);
-            }
-            $this->fermerLesCandidatures($candidatures, $tenant, $lease, $user);
-
-            return $lease;
         });
     }
 
     /**
-     * TCK-2734 (seconde porte, décision du porteur du 2026-11-12) — les candidatures encore ouvertes
-     * du bien (`pending`, `confirmed`) et la réservation d'origine, verrouillées en UNE passe par
-     * identifiant croissant, APRÈS le bien. Rend les candidatures hors la réservation d'origine, que
-     * {@see self::terminerLaReservation()} traite. Offres d'achat et séjours n'y sont pas : plusieurs
-     * offres sur un bien à vendre sont normales, et un séjour a ses nuits.
+     * TCK-2734 (décision 7 du porteur, 2026-11-12) — l'ordre global des verrous (`takussan-api/CLAUDE.md`,
+     * piège n° 10) pour qui écrit un bail ET les réservations de son bien : le BIEN d'abord, puis la ligne
+     * du bail, relue. `PropertyOwnerTransfer` écrit les baux après le bien, et `BookingService::confirm()`
+     * les réservations après lui : prendre le bail avant le bien inverserait l'ordre. Dans la transaction
+     * de l'appelant.
+     */
+    public static function verrouillerLeBienPuisLeBail(Lease $lease): Lease
+    {
+        Property::query()->whereKey($lease->property_id)->lockForUpdate()->first();
+
+        /** @var Lease */
+        return Lease::query()->whereKey($lease->getKey())->lockForUpdate()->firstOrFail();
+    }
+
+    /**
+     * TCK-2734 (décision 7 du porteur, 2026-11-12, contre la recommandation) — les candidatures du bien
+     * se closent quand le bail PART : à l'envoi en signature (`LeaseSignatureService::request()`) ou à
+     * la signature sur papier (`signOnPaper()`, qui accepte un brouillon), et plus à la création du
+     * brouillon. Un brouillon abandonné ne ferme donc rien.
+     *
+     * - La réservation d'origine (`booking_id`) et les candidatures ouvertes du LOCATAIRE passent
+     *   `completed` (P48.03), sans avis.
+     * - Les autres candidatures ouvertes (`pending`, `confirmed`) passent `rejected`, avec l'avis
+     *   « Candidature non retenue », un par client, après le commit.
+     *
+     * Un renouvellement ne ferme rien : le locataire reste, le bien n'est pas reloué.
+     * Un second envoi (bail déjà `pending_signature`) ne retrouve que ce qui est ouvert depuis le premier.
+     *
+     * L'appelant tient la transaction et a pris {@see self::verrouillerLeBienPuisLeBail()}.
+     */
+    public function cloreLesCandidaturesDuBien(Lease $lease, User $by): void
+    {
+        if ($lease->renewed_from_lease_id !== null) {
+            return;
+        }
+
+        $reservation = $lease->booking_id !== null
+            ? Booking::query()->whereKey($lease->booking_id)->where('property_id', $lease->property_id)->first()
+            : null;
+        $candidatures = $this->verrouillerLesCandidaturesOuvertes((int) $lease->property_id, $reservation);
+
+        if ($reservation !== null) {
+            $this->terminerLaReservation($reservation, $lease, $by);
+        }
+        $this->fermerLesCandidatures($candidatures, (int) $lease->tenant_id, $lease, $by);
+    }
+
+    /**
+     * TCK-2734 — les candidatures encore ouvertes du bien (`pending`, `confirmed`) et la réservation
+     * d'origine, verrouillées en UNE passe par identifiant croissant, APRÈS le bien. Rend les
+     * candidatures hors la réservation d'origine, que {@see self::terminerLaReservation()} traite.
+     * Offres d'achat et séjours n'y sont pas : plusieurs offres sur un bien à vendre sont normales, et
+     * un séjour a ses nuits.
      *
      * @return Collection<int, Booking>
      */
-    private function verrouillerLesCandidaturesOuvertes(Property $property, ?Booking $reservation): Collection
+    private function verrouillerLesCandidaturesOuvertes(int $propertyId, ?Booking $reservation): Collection
     {
         return Booking::query()
             ->where(fn ($q) => $q
                 ->where(fn ($q) => $q
-                    ->where('property_id', $property->getKey())
+                    ->where('property_id', $propertyId)
                     ->where('kind', BookingKind::Application->value)
                     ->whereIn('status', [BookingStatus::Pending->value, BookingStatus::Confirmed->value]))
                 ->when($reservation !== null, fn ($q) => $q->orWhere('id', $reservation->getKey())))
@@ -155,8 +197,8 @@ class LeaseService
     }
 
     /**
-     * TCK-2734 (seconde porte) — un bail est créé : les autres candidatures ouvertes du bien se
-     * ferment, acceptée comprise. Sans cela, une candidature acceptée qu'un bail tiré d'une AUTRE
+     * TCK-2734 (seconde porte ; décision 7 du 2026-11-12 : à l'envoi du bail) — les autres
+     * candidatures ouvertes du bien se ferment, acceptée comprise. Sans cela, une candidature acceptée qu'un bail tiré d'une AUTRE
      * (ou créé sans `booking_id`) laissait `confirmed` retenait le bien, et toute confirmation suivante
      * rendait `409 booking.application_already_accepted`.
      *
@@ -168,13 +210,13 @@ class LeaseService
      *
      * @param  Collection<int, Booking>  $candidatures  verrouillées par {@see self::verrouillerLesCandidaturesOuvertes()}
      */
-    private function fermerLesCandidatures(Collection $candidatures, Customer $tenant, Lease $lease, User $user): void
+    private function fermerLesCandidatures(Collection $candidatures, int $tenantId, Lease $lease, User $user): void
     {
         // Vérification adverse de TCK-2734-b — un avis par AUTEUR : un client qui a deux candidatures
         // ouvertes sur le bien lit une fois « non retenue », pas deux. Chaque candidature se ferme.
         $avises = [];
         foreach ($candidatures as $candidature) {
-            if ((int) $candidature->customer_id === (int) $tenant->id) {
+            if ((int) $candidature->customer_id === $tenantId) {
                 $this->terminerLaReservation($candidature, $lease, $user);
 
                 continue;

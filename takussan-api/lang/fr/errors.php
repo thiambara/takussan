@@ -106,8 +106,8 @@ return [
         'unauthenticated' => 'Vous devez être connecté.',
     ],
     'booking' => [
-        // TCK-2734
-        'application_already_accepted' => 'Une autre candidature est déjà acceptée sur ce bien : annulez-la, ou créez son bail, avant d\'en accepter une seconde.',
+        // TCK-2734 (décision 7 du porteur, 2026-11-12 : le bail libère le bien à son envoi en signature)
+        'application_already_accepted' => 'Une autre candidature est déjà acceptée sur ce bien : annulez-la, ou envoyez son bail en signature, avant d\'en accepter une seconde.',
         'cannot_cancel' => 'Cette réservation ne peut pas être annulée dans son état actuel.',
         'cannot_expire' => 'Cette réservation ne peut pas être expirée : elle doit être en attente.',
         // TCK-2579
@@ -122,6 +122,8 @@ return [
         'not_pending_confirm' => 'Seule une réservation en attente peut être confirmée.',
         'not_pending_reject' => 'Seule une réservation en attente peut être refusée.',
         'own_property' => 'Vous ne pouvez pas réserver votre propre bien.',
+        // TCK-2747 (décision 6 du porteur, 2026-11-12)
+        'property_already_leased' => 'Ce logement est loué, ou un bail est en préparation, pour la date d\'entrée demandée : la candidature ne peut être acceptée que pour une entrée après la fin du bail.',
         'property_unavailable' => 'Ce bien n\'est pas disponible à la réservation.',
     ],
     'booking_payment' => [

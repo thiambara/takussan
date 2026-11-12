@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Domain\Notifications\NotificationCode;
+use App\Jobs\GenerateLeasePaymentSchedule;
 use App\Models\Agency;
 use App\Models\AppNotification;
 use App\Models\Booking;
@@ -12,14 +13,19 @@ use App\Models\Enums\BookingKind;
 use App\Models\Enums\BookingPaymentType;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\ContractType;
+use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PaymentStatus;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\RentPeriod;
+use App\Models\Lease;
 use App\Models\Property;
 use App\Models\Task;
 use App\Models\User;
-use App\Services\Model\LeaseService;
+use App\Services\Lease\LeaseSignatureService;
+use App\Services\Pdf\DocumentPdfService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
@@ -27,15 +33,17 @@ use Tests\ApiTestCase;
 use Tests\Concerns\CreatesAgencyMembers;
 
 /**
- * TCK-2734 (seconde porte, décision du porteur du 2026-11-12, option a) — à la création d'un bail,
- * les AUTRES candidatures ouvertes du bien (`pending`, `confirmed`) se ferment, acceptée comprise :
- * elles passent `rejected`, et leurs auteurs reçoivent « Candidature non retenue », une fois, après
- * le commit. Sans cela, une candidature acceptée qu'un bail tiré d'une AUTRE (ou sans `booking_id`)
- * laissait `confirmed` retenait le bien : toute confirmation suivante rendait 409.
+ * TCK-2734 (seconde porte, décision du porteur du 2026-11-12, option a ; décision 7 du même soir,
+ * option b, contre la recommandation) — quand le bail PART, les AUTRES candidatures ouvertes du bien
+ * (`pending`, `confirmed`) se ferment, acceptée comprise : elles passent `rejected`, et leurs auteurs
+ * reçoivent « Candidature non retenue », une fois, après le commit. Le bail part à l'ENVOI EN
+ * SIGNATURE (`POST /api/leases/{id}/signature-request`) ou à la signature sur PAPIER d'un brouillon
+ * (`POST /api/leases/{id}/activate`) ; la création du brouillon ne ferme plus rien, et un brouillon
+ * abandonné non plus.
  *
- * Les candidatures du LOCATAIRE du bail sont celles du bail : `completed`, sans avis, qu'elles soient
- * nommées par `booking_id` ou non (cas 42 de la démo : bail créé pour le client de la candidature
- * acceptée, sans `booking_id`). Offres d'achat et séjours ne sont pas touchés.
+ * Les candidatures du LOCATAIRE du bail sont celles du bail : `completed`, sans avis, au même
+ * moment, qu'elles soient nommées par `booking_id` ou non (cas 42 de la démo). Offres d'achat,
+ * séjours et renouvellements ne sont pas touchés.
  */
 class BailFermeLesAutresCandidaturesTest extends ApiTestCase
 {
@@ -52,6 +60,10 @@ class BailFermeLesAutresCandidaturesTest extends ApiTestCase
     {
         parent::setUp();
         Notification::fake();
+        Bus::fake([GenerateLeasePaymentSchedule::class]);
+        $this->mock(DocumentPdfService::class, function ($mock) {
+            $mock->shouldReceive('render')->andReturnUsing(fn (string $template, array $data) => view($template, $data)->render());
+        });
         $this->agence = Agency::factory()->create();
         $this->agent = $this->agencyAgent($this->agence);
         $this->location = Property::factory()->published()->create([
@@ -97,9 +109,26 @@ class BailFermeLesAutresCandidaturesTest extends ApiTestCase
         ], static fn ($v) => $v !== null);
     }
 
-    private function creerLeBail(Customer $locataire, ?Booking $depuis = null): TestResponse
+    /** Le brouillon, créé par l'agent. */
+    private function creerLeBrouillon(Customer $locataire, ?Booking $depuis = null): Lease
     {
-        return $this->actingAsApi($this->agent)->postJson('/api/leases', $this->corpsDuBail($locataire, $depuis))->assertCreated();
+        $id = $this->actingAsApi($this->agent)->postJson('/api/leases', $this->corpsDuBail($locataire, $depuis))->assertCreated()->json('data.id');
+
+        return Lease::query()->findOrFail($id);
+    }
+
+    private function envoyerEnSignature(Lease $bail): TestResponse
+    {
+        return $this->actingAsApi($this->agent)->postJson("/api/leases/{$bail->id}/signature-request");
+    }
+
+    /** Le brouillon, puis son envoi en signature : le moment où le bail part. */
+    private function bailEnvoye(Customer $locataire, ?Booking $depuis = null): Lease
+    {
+        $bail = $this->creerLeBrouillon($locataire, $depuis);
+        $this->envoyerEnSignature($bail)->assertOk()->assertJsonPath('data.status', 'pending_signature');
+
+        return $bail;
     }
 
     private function avisNonRetenue(Booking $booking): int
@@ -111,17 +140,36 @@ class BailFermeLesAutresCandidaturesTest extends ApiTestCase
     }
 
     /**
-     * Le cœur de la décision : un bail tiré d'une candidature en attente ferme l'acceptée et l'autre en
-     * attente, chacune notifiée une fois ; la candidature du bail passe `completed`, sans avis ; et le
-     * bien n'est plus retenu — une candidature déposée ensuite se confirme (plus de 409).
+     * Décision 7 — la création du brouillon ne ferme rien : ni les autres candidatures, ni celle du
+     * futur locataire. Un brouillon abandonné laisse donc le bien comme il l'a trouvé.
      */
-    public function test_le_bail_ferme_les_autres_candidatures_et_libere_le_bien(): void
+    public function test_le_brouillon_ne_ferme_rien(): void
     {
         $acceptee = $this->demande(BookingKind::Application, BookingStatus::Confirmed);
         $retenue = $this->demande(BookingKind::Application, BookingStatus::Pending);
         $autre = $this->demande(BookingKind::Application, BookingStatus::Pending);
 
-        $this->creerLeBail($retenue->customer, $retenue);
+        $this->creerLeBrouillon($retenue->customer, $retenue);
+
+        $this->assertSame(BookingStatus::Confirmed, $acceptee->refresh()->status);
+        $this->assertSame(BookingStatus::Pending, $retenue->refresh()->status);
+        $this->assertSame(BookingStatus::Pending, $autre->refresh()->status);
+        $this->assertSame(0, AppNotification::query()->where('code', NotificationCode::BookingApplicationNotSelected->value)->count());
+    }
+
+    /**
+     * Le cœur de la décision : l'envoi en signature d'un bail tiré d'une candidature en attente ferme
+     * l'acceptée et l'autre en attente, chacune notifiée une fois ; la candidature du bail passe
+     * `completed`, sans avis ; et le bien n'est plus retenu — une candidature déposée ensuite n'est plus
+     * refusée pour une autre acceptée.
+     */
+    public function test_l_envoi_en_signature_ferme_les_autres_candidatures(): void
+    {
+        $acceptee = $this->demande(BookingKind::Application, BookingStatus::Confirmed);
+        $retenue = $this->demande(BookingKind::Application, BookingStatus::Pending);
+        $autre = $this->demande(BookingKind::Application, BookingStatus::Pending);
+
+        $this->bailEnvoye($retenue->customer, $retenue);
 
         $this->assertSame(BookingStatus::Completed, $retenue->refresh()->status);
         $this->assertSame(0, $this->avisNonRetenue($retenue));
@@ -130,22 +178,18 @@ class BailFermeLesAutresCandidaturesTest extends ApiTestCase
             $this->assertNotNull($close->cancelled_at);
             $this->assertSame(1, $this->avisNonRetenue($close), 'notifiée une seule fois');
         }
-
-        $suivante = $this->demande(BookingKind::Application, BookingStatus::Pending);
-        $this->actingAsApi($this->agent)->postJson("/api/bookings/{$suivante->id}/confirm")
-            ->assertOk()->assertJsonPath('data.status', 'confirmed');
     }
 
     /**
-     * Le cas 42 de la démo : bail créé pour le client de la candidature acceptée, SANS `booking_id`.
-     * Sa candidature est celle du bail (`completed`, sans avis) : lui dire « non retenue » serait faux.
+     * Le cas 42 de la démo : bail pour le client de la candidature acceptée, SANS `booking_id`. Sa
+     * candidature est celle du bail (`completed`, sans avis) : lui dire « non retenue » serait faux.
      */
     public function test_la_candidature_du_locataire_sans_booking_id_est_celle_du_bail(): void
     {
         $acceptee = $this->demande(BookingKind::Application, BookingStatus::Confirmed);
         $autre = $this->demande(BookingKind::Application, BookingStatus::Pending);
 
-        $this->creerLeBail($acceptee->customer);
+        $this->bailEnvoye($acceptee->customer);
 
         $this->assertSame(BookingStatus::Completed, $acceptee->refresh()->status);
         $this->assertSame(0, $this->avisNonRetenue($acceptee));
@@ -161,7 +205,7 @@ class BailFermeLesAutresCandidaturesTest extends ApiTestCase
         $annulee = $this->demande(BookingKind::Application, BookingStatus::Cancelled);
         $ailleurs = $this->demande(BookingKind::Application, BookingStatus::Confirmed, bien: Property::factory()->create(['agency_id' => $this->agence->id]));
 
-        $this->creerLeBail($this->client());
+        $this->bailEnvoye($this->client());
 
         $this->assertSame(BookingStatus::Pending, $offre->refresh()->status);
         $this->assertSame(BookingStatus::Confirmed, $sejour->refresh()->status);
@@ -180,7 +224,7 @@ class BailFermeLesAutresCandidaturesTest extends ApiTestCase
         $encaisse = BookingPayment::factory()->create(['booking_id' => $autre->id, 'status' => PaymentStatus::Paid, 'payment_type' => BookingPaymentType::Deposit, 'amount' => 50_000]);
         $enAttente = BookingPayment::factory()->create(['booking_id' => $autre->id, 'status' => PaymentStatus::Pending, 'payment_type' => BookingPaymentType::Advance, 'amount' => 50_000]);
 
-        $this->creerLeBail($this->client());
+        $this->bailEnvoye($this->client());
 
         $this->assertSame(PaymentStatus::Paid, $encaisse->refresh()->status);
         $this->assertSame(PaymentStatus::Cancelled, $enAttente->refresh()->status);
@@ -193,9 +237,8 @@ class BailFermeLesAutresCandidaturesTest extends ApiTestCase
 
     /**
      * Vérification adverse de TCK-2734-b — un client qui a deux candidatures ouvertes sur le bien : les
-     * deux se ferment, et il ne lit « non retenue » qu'une fois. Un autre client garde son avis. L'avis
-     * se déduplique, PAS la clôture : l'acompte encaissé sur la SECONDE ouvre bien sa tâche de
-     * remboursement (`BookingClosed` pour chaque candidature).
+     * deux se ferment, et il ne lit « non retenue » qu'une fois. L'avis se déduplique, PAS la clôture :
+     * l'acompte encaissé sur la SECONDE ouvre bien sa tâche de remboursement.
      */
     public function test_deux_candidatures_d_un_meme_client_un_seul_avis(): void
     {
@@ -205,7 +248,7 @@ class BailFermeLesAutresCandidaturesTest extends ApiTestCase
         BookingPayment::factory()->create(['booking_id' => $seconde->id, 'status' => PaymentStatus::Paid, 'payment_type' => BookingPaymentType::Deposit, 'amount' => 50_000]);
         $autre = $this->demande(BookingKind::Application, BookingStatus::Pending);
 
-        $this->creerLeBail($this->client());
+        $this->bailEnvoye($this->client());
 
         foreach ([$premiere, $seconde, $autre] as $close) {
             $this->assertSame(BookingStatus::Rejected, $close->refresh()->status);
@@ -216,29 +259,90 @@ class BailFermeLesAutresCandidaturesTest extends ApiTestCase
             ->where('taskable_type', $seconde->getMorphClass())
             ->where('taskable_id', $seconde->id)
             ->where('metadata->kind', 'booking_refund')
-            ->count(), 'la seconde candidature du même client est close comme un refus : son acompte encaissé est à rembourser');
+            ->count(), 'la seconde candidature du même client est close comme un refus');
     }
 
-    /** Un second bail sur le bien ne renotifie pas une candidature déjà close. */
-    public function test_un_second_bail_ne_renotifie_pas(): void
+    /**
+     * Un second envoi (le bail est `pending_signature`) ne renotifie pas une candidature déjà close ;
+     * une candidature déposée ENTRE les deux envois se ferme au second.
+     */
+    public function test_un_second_envoi_ne_renotifie_pas(): void
     {
         $autre = $this->demande(BookingKind::Application, BookingStatus::Pending);
+        $bail = $this->bailEnvoye($this->client());
+        $tardive = $this->demande(BookingKind::Application, BookingStatus::Pending);
 
-        $this->creerLeBail($this->client());
-        $this->creerLeBail($this->client());
+        $this->envoyerEnSignature($bail)->assertOk();
 
         $this->assertSame(1, $this->avisNonRetenue($autre));
+        $this->assertSame(BookingStatus::Rejected, $tardive->refresh()->status);
+        $this->assertSame(1, $this->avisNonRetenue($tardive));
+    }
+
+    /** Un envoi refusé (locataire sans compte, 422) ne ferme rien : la clôture est dans sa transaction. */
+    public function test_un_envoi_refuse_ne_ferme_rien(): void
+    {
+        $autre = $this->demande(BookingKind::Application, BookingStatus::Confirmed);
+        $bail = $this->creerLeBrouillon(Customer::factory()->create(['agency_id' => $this->agence->id]));
+
+        $this->envoyerEnSignature($bail)->assertStatus(422)->assertJsonPath('code', 'lease_signature.tenant_without_account');
+
+        $this->assertSame(BookingStatus::Confirmed, $autre->refresh()->status);
+        $this->assertSame(0, $this->avisNonRetenue($autre));
+    }
+
+    /**
+     * La voie papier (`POST /leases/{id}/activate`) accepte un brouillon qui n'est jamais parti en
+     * signature : elle ferme au même moment logique, le bail part.
+     */
+    public function test_la_signature_papier_d_un_brouillon_ferme_aussi(): void
+    {
+        $acceptee = $this->demande(BookingKind::Application, BookingStatus::Confirmed);
+        $retenue = $this->demande(BookingKind::Application, BookingStatus::Pending);
+        $bail = $this->creerLeBrouillon($retenue->customer, $retenue);
+
+        $actif = app(LeaseSignatureService::class)->signOnPaper(
+            $bail,
+            UploadedFile::fake()->create('bail-signe.pdf', 20, 'application/pdf'),
+            User::query()->findOrFail($this->location->user_id),
+        );
+
+        $this->assertSame(LeaseStatus::Active, $actif->status);
+        $this->assertSame(BookingStatus::Completed, $retenue->refresh()->status);
+        $this->assertSame(BookingStatus::Rejected, $acceptee->refresh()->status);
+        $this->assertSame(1, $this->avisNonRetenue($acceptee));
+    }
+
+    /** Un renouvellement garde le même locataire : son envoi en signature ne ferme rien. */
+    public function test_l_envoi_d_un_renouvellement_ne_ferme_rien(): void
+    {
+        $locataire = $this->client();
+        $parent = Lease::factory()->create([
+            'property_id' => $this->location->id, 'landlord_id' => $this->location->user_id,
+            'tenant_id' => $locataire->id, 'agency_id' => $this->agence->id, 'status' => LeaseStatus::Active,
+        ]);
+        $enfant = Lease::factory()->create([
+            'property_id' => $this->location->id, 'landlord_id' => $this->location->user_id,
+            'tenant_id' => $locataire->id, 'agency_id' => $this->agence->id, 'status' => LeaseStatus::Draft,
+            'renewed_from_lease_id' => $parent->id,
+        ]);
+        $autre = $this->demande(BookingKind::Application, BookingStatus::Pending);
+
+        $this->envoyerEnSignature($enfant)->assertOk();
+
+        $this->assertSame(BookingStatus::Pending, $autre->refresh()->status);
+        $this->assertSame(0, $this->avisNonRetenue($autre));
     }
 
     /** L'avis part APRÈS le commit : dans une transaction englobante, rien n'est écrit avant. */
     public function test_l_avis_part_apres_le_commit(): void
     {
         $autre = $this->demande(BookingKind::Application, BookingStatus::Pending);
-        $locataire = $this->client();
+        $bail = $this->creerLeBrouillon($this->client());
 
-        DB::transaction(function () use ($autre, $locataire): void {
-            app(LeaseService::class)->create($this->location, $this->agent, $this->corpsDuBail($locataire));
-            $this->assertSame(BookingStatus::Rejected, $autre->refresh()->status, 'fermée dans la transaction du bail');
+        DB::transaction(function () use ($autre, $bail): void {
+            app(LeaseSignatureService::class)->request($bail, $this->agent);
+            $this->assertSame(BookingStatus::Rejected, $autre->refresh()->status, 'fermée dans la transaction de l’envoi');
             $this->assertSame(0, $this->avisNonRetenue($autre), 'aucun avis avant le commit');
         });
 
@@ -246,18 +350,18 @@ class BailFermeLesAutresCandidaturesTest extends ApiTestCase
     }
 
     /**
-     * Rejouée après un retour arrière (un interblocage que l'appelant relance, par exemple), la création
-     * n'envoie l'avis qu'une fois : le rappel de la transaction annulée part avec elle.
+     * Rejoué après un retour arrière (un interblocage que l'appelant relance, par exemple), l'envoi
+     * n'émet l'avis qu'une fois : le rappel de la transaction annulée part avec elle.
      */
-    public function test_rejouee_apres_un_retour_arriere_l_avis_ne_part_qu_une_fois(): void
+    public function test_rejoue_apres_un_retour_arriere_l_avis_ne_part_qu_une_fois(): void
     {
         $autre = $this->demande(BookingKind::Application, BookingStatus::Confirmed);
-        $locataire = $this->client();
-        $creer = fn () => app(LeaseService::class)->create($this->location, $this->agent, $this->corpsDuBail($locataire));
+        $bail = $this->creerLeBrouillon($this->client());
+        $envoyer = fn () => app(LeaseSignatureService::class)->request($bail, $this->agent);
 
         try {
-            DB::transaction(function () use ($creer): void {
-                $creer();
+            DB::transaction(function () use ($envoyer): void {
+                $envoyer();
                 throw new \RuntimeException('retour arrière');
             });
         } catch (\RuntimeException) {
@@ -265,34 +369,49 @@ class BailFermeLesAutresCandidaturesTest extends ApiTestCase
         $this->assertSame(BookingStatus::Confirmed, $autre->refresh()->status, 'rien n’est resté du premier essai');
         $this->assertSame(0, $this->avisNonRetenue($autre));
 
-        DB::transaction(fn () => $creer());
+        DB::transaction(fn () => $envoyer());
 
         $this->assertSame(BookingStatus::Rejected, $autre->refresh()->status);
         $this->assertSame(1, $this->avisNonRetenue($autre));
     }
 
     /**
-     * L'ordre global des verrous (`takussan-api/CLAUDE.md`, piège n° 10) : le bien d'abord, puis les
-     * réservations, par identifiant croissant — celui de `BookingService::confirm()` (bien → réservation).
+     * L'ordre global des verrous (`takussan-api/CLAUDE.md`, piège n° 10) à l'envoi : le bien d'abord,
+     * puis le bail, puis les candidatures en une passe triée — celui de `BookingService::confirm()`
+     * (bien → réservation) et de `PropertyOwnerTransfer` (bien → baux).
      */
-    public function test_le_bien_est_verrouille_avant_les_candidatures(): void
+    public function test_l_envoi_verrouille_le_bien_puis_le_bail_puis_les_candidatures(): void
     {
         $this->demande(BookingKind::Application, BookingStatus::Confirmed);
         $this->demande(BookingKind::Application, BookingStatus::Pending);
-        $locataire = $this->client();
+        $bail = $this->creerLeBrouillon($this->client());
 
         $verrous = [];
         DB::listen(function ($q) use (&$verrous): void {
-            if (preg_match('/from "(properties|bookings)" where (.*) for update/', $q->sql, $m) === 1) {
+            if (preg_match('/from "(properties|leases|bookings)" where (.*) for update/', $q->sql, $m) === 1) {
                 $verrous[] = [$m[1], $m[2]];
             }
         });
-        $this->creerLeBail($locataire);
+        $this->envoyerEnSignature($bail)->assertOk();
 
-        $this->assertSame('properties', $verrous[0][0] ?? null, 'le bien d’abord');
-        // Puis les candidatures, en UNE passe triée ; les verrous ligne à ligne qui suivent
-        // (`terminerLaReservation`) reprennent une ligne déjà tenue, ce qui ne coûte rien.
-        $this->assertSame('bookings', $verrous[1][0] ?? null, 'puis les candidatures');
-        $this->assertStringEndsWith('order by "id" asc', $verrous[1][1]);
+        $this->assertSame(['properties', 'leases', 'bookings'], array_slice(array_column($verrous, 0), 0, 3));
+        $this->assertStringEndsWith('order by "id" asc', $verrous[2][1]);
+    }
+
+    /** Même ordre pour la voie papier. */
+    public function test_la_voie_papier_verrouille_le_bien_avant_le_bail(): void
+    {
+        $this->demande(BookingKind::Application, BookingStatus::Pending);
+        $bail = $this->creerLeBrouillon($this->client());
+
+        $verrous = [];
+        DB::listen(function ($q) use (&$verrous): void {
+            if (preg_match('/from "(properties|leases|bookings)" where .* for update/', $q->sql, $m) === 1) {
+                $verrous[] = $m[1];
+            }
+        });
+        app(LeaseSignatureService::class)->signOnPaper($bail, UploadedFile::fake()->create('b.pdf', 20, 'application/pdf'), User::query()->findOrFail($this->location->user_id));
+
+        $this->assertSame(['properties', 'leases', 'bookings'], array_slice($verrous, 0, 3));
     }
 }

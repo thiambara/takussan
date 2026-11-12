@@ -11,7 +11,9 @@ use App\Models\Enums\BookingKind;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\CancellationBy;
 use App\Models\Enums\Currency;
+use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PropertyStatus;
+use App\Models\Lease;
 use App\Models\Property;
 use App\Models\User;
 use App\Policies\BookingPolicy;
@@ -21,6 +23,7 @@ use App\Services\Booking\PropertyAvailabilityService;
 use App\Services\Property\BailleurDuBien;
 use App\Services\Property\ContactDeLAgenceDuBien;
 use App\Support\FinInclusive;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -285,6 +288,7 @@ class BookingService
 
             $this->assertNoOverlap($booking);
             $this->assertNoOtherAcceptedApplication($booking);
+            $this->assertPropertyNotLeased($booking);
 
             $booking->update([
                 'status' => BookingStatus::Confirmed,
@@ -356,7 +360,9 @@ class BookingService
      * logement à deux personnes. Jugée sous le verrou du bien que {@see self::confirm()} pose (la
      * ligne parent, piège PostgreSQL n° 2). Une candidature quitte `confirmed` annulée, convertie
      * en bail (`completed`), ou close par le bail d'un autre locataire sur le bien (`rejected`, seconde
-     * porte de TCK-2734, {@see LeaseService::create()}). Les offres d'achat et les séjours n'y sont pas
+     * porte de TCK-2734) — l'un et l'autre quand ce bail PART : envoi en signature ou signature papier
+     * ({@see LeaseService::cloreLesCandidaturesDuBien()}, décision 7 du porteur du 2026-11-12), plus à
+     * la création du brouillon. Les offres d'achat et les séjours n'y sont pas
      * soumis : plusieurs offres sur un bien à vendre sont normales, et le séjour garde sa règle de nuits.
      */
     protected function assertNoOtherAcceptedApplication(Booking $booking): void
@@ -375,6 +381,55 @@ class BookingService
             409,
             'booking.application_already_accepted'
         );
+    }
+
+    /**
+     * TCK-2747 (décision 6 du porteur, 2026-11-12, option a) — une candidature ne s'accepte pas sur un
+     * logement qu'un bail occupe ou occupera : `active`, `terminating`, ou à venir (`draft`,
+     * `pending_signature`), sauf si ce bail finit AVANT le début demandé (relocation anticipée). Sa fin
+     * est `end_date`, ou la date d'effet du préavis d'un bail `terminating` ; un bail sans fin couvre
+     * tout, et une candidature sans date ne prouve aucun début après lui.
+     *
+     * Le bail du candidat lui-même ne compte pas : sa candidature reste ouverte pendant le brouillon
+     * tiré d'elle (décision 7, TCK-2734), et l'agent peut encore l'accepter.
+     *
+     * Jugée sous le verrou du bien que {@see self::confirm()} pose, et que `LeaseService::create()` prend
+     * aussi : un brouillon né en même temps est vu, ou attend. Offres d'achat et séjours non soumis.
+     */
+    protected function assertPropertyNotLeased(Booking $booking): void
+    {
+        if ($booking->kind !== BookingKind::Application) {
+            return;
+        }
+
+        abort_code_if(self::bauxQuiOccupent($booking)->exists(), 409, 'booking.property_already_leased');
+    }
+
+    /**
+     * TCK-2747 — les baux du bien qui occupent le logement au début demandé par `$booking`, hors ceux
+     * de son client (la règle de {@see self::assertPropertyNotLeased()}). Public : le jeu de démo s'en
+     * sert pour ne pas laisser de candidature acceptée sur un bien loué (`LeaseSeeder`).
+     *
+     * @return Builder<Lease>
+     */
+    public static function bauxQuiOccupent(Booking $booking): Builder
+    {
+        $debut = $booking->start_date?->toDateString();
+        $fin = 'CASE WHEN status = ? AND early_termination_effective_date IS NOT NULL'
+            .' THEN early_termination_effective_date ELSE end_date END';
+
+        return Lease::query()
+            ->where('property_id', $booking->property_id)
+            ->whereIn('status', [
+                LeaseStatus::Draft->value,
+                LeaseStatus::PendingSignature->value,
+                LeaseStatus::Active->value,
+                LeaseStatus::Terminating->value,
+            ])
+            ->where(fn ($q) => $q->whereNull('tenant_id')->orWhere('tenant_id', '!=', $booking->customer_id))
+            ->when($debut !== null, fn ($q) => $q->where(fn ($q) => $q
+                ->whereRaw("({$fin}) IS NULL", [LeaseStatus::Terminating->value])
+                ->orWhereRaw("({$fin}) >= ?", [LeaseStatus::Terminating->value, $debut])));
     }
 
     public function cancel(Booking $booking, User $user, ?string $reason = null): Booking

@@ -65,3 +65,38 @@ Les offres d'achat et les séjours ne sont pas concernés.
 ## Hors périmètre
 
 - Le rattrapage des données existantes : il n'y en a pas en production (décision du 2026-11-12)
+
+## Notes d'implémentation
+
+**Décision du porteur (2026-11-12, soir) : option (a)** — décision 6, relayée par team-lead.
+
+- **La règle** : `BookingService::confirm()` appelle `assertPropertyNotLeased()` après la règle de TCK-2734, sous le
+  verrou du bien déjà posé. La requête est `BookingService::bauxQuiOccupent($booking)`, publique parce que le seeder la
+  reprend. Elle retient les baux du bien en `draft`, `pending_signature`, `active` ou `terminating` qui couvrent le début
+  demandé, c'est-à-dire dont la fin est absente ou ≥ ce début. Pour un bail `terminating`, la fin est la date d'effet du
+  préavis (`early_termination_effective_date`) quand elle existe : une entrée le lendemain de cette date se confirme.
+  Une candidature sans date de début est refusée dès qu'un bail occupe le bien, car elle ne prouve aucune entrée après
+  la fin. Le code rendu est `409 booking.property_already_leased`, avec sa prose en fr/en/wo dans `lang/*/errors.php`
+  (wo = fr). Le front n'a pas de clé neuve : `useMessageErreurApi` rend la prose.
+- **Le bail du candidat ne le refuse pas** (`tenant_id` = son client). Depuis la décision 7 (TCK-2734), sa candidature
+  reste ouverte pendant le brouillon tiré d'elle, et l'agent peut encore l'accepter. Un bail sans locataire compte comme
+  celui d'un autre.
+- **Seeder** : `LeaseSeeder::fermerLesCandidaturesSurUnBienLoue()` est appelé à la fin de `run()`. Les réservations sont
+  semées avant les baux, et `BookingSeeder` n'appelle pas `confirm()`. L'étape passe donc en `rejected` les candidatures
+  acceptées que la règle de l'API aurait refusées, par la même requête, en datant `cancelled_at` et `updated_at` de leur
+  acceptation (`withoutEvents`). Le compte sur le jeu entier n'a pas été mesuré en local : les seeders se jouent en CI.
+- **Limite à connaître** : un brouillon abandonné bloque la confirmation des candidatures du bien tant qu'il existe.
+  Aucune route ne supprime un bail, et `terminate` refuse un brouillon. Pour l'instant, la seule sortie est de le mener
+  à son terme. Le porteur n'a pas eu à trancher ce cas ; il est remonté à team-lead.
+
+**Tests** — `tests/Feature/Api/CandidatureSurUnBienDejaLoueTest.php` (12 ; `LangGroupParityTest` vert pour le code neuf). AC1 a été éprouvé avant la règle : 6 rouges
+« Expected 409 but received 200 », 3 verts (les témoins).
+
+**Ablations** (une à la fois, md5 du mutant vérifié avant restauration, relevés dans le scratchpad du lot 2,
+`back4/abl/`) :
+- **a5 — règle retirée de `confirm()` (AC4)** : 6 rouges, tous des cas AC2 (bail actif, à venir ou en préavis, sans
+  fin, jour de fin couvert, date d'effet du préavis couverte, verrou). 6 verts, dont les deux AC3 (relocation après la
+  fin, entrée le lendemain de l'effet du préavis), séparés de leur refus pour que l'ablation les juge seuls.
+- **a6 — exclusion du bail du candidat retirée** : 2 rouges (bail du candidat, jeu de démo).
+- **a7 — date d'effet du préavis ignorée** : 1 rouge (préavis).
+- **a8 — étape du seeder sans la règle de l'API** (tout bail du bien ferme) : 1 rouge (jeu de démo).

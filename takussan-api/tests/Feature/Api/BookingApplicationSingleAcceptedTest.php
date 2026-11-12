@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Jobs\GenerateLeasePaymentSchedule;
 use App\Models\Agency;
 use App\Models\Booking;
 use App\Models\Customer;
@@ -12,7 +13,9 @@ use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\RentPeriod;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Pdf\DocumentPdfService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
@@ -25,7 +28,8 @@ use Tests\Concerns\CreatesAgencyMembers;
  * deux personnes. La seconde rend `409 booking.application_already_accepted` tant que la première est
  * `confirmed` ; elle se confirme une fois la première annulée, close, ou convertie en bail (qui la
  * passe `completed`). Les offres d'achat et les séjours gardent leurs règles. Le bail ferme en outre
- * les autres candidatures ouvertes du bien (seconde porte, `BailFermeLesAutresCandidaturesTest`).
+ * les autres candidatures ouvertes du bien (seconde porte, `BailFermeLesAutresCandidaturesTest`) —
+ * depuis la décision 7 du porteur (2026-11-12), à son ENVOI en signature, plus à sa création.
  */
 class BookingApplicationSingleAcceptedTest extends ApiTestCase
 {
@@ -118,18 +122,23 @@ class BookingApplicationSingleAcceptedTest extends ApiTestCase
 
     /**
      * AC3 — la première convertie en bail (qui la passe `completed`) ne retient plus le bien. Depuis la
-     * seconde porte de TCK-2734 (décision du porteur du 2026-11-12), le bail ferme aussi la seconde
-     * (`rejected`, « non retenue », cf. `BailFermeLesAutresCandidaturesTest`) : c'est une candidature
-     * déposée APRÈS le bail qui se confirme.
+     * seconde porte de TCK-2734, le bail ferme aussi la seconde (`rejected`, « non retenue », cf.
+     * `BailFermeLesAutresCandidaturesTest`) — et depuis la décision 7 du porteur (2026-11-12), à son
+     * ENVOI en signature : le brouillon seul ne libère rien. Une candidature déposée ensuite pour une
+     * entrée APRÈS la fin du bail (TCK-2747 : avant, le bail la refuse) se confirme.
      */
     public function test_la_premiere_convertie_en_bail_ne_retient_plus_le_bien(): void
     {
-        $client = Customer::factory()->create(['agency_id' => $this->agence->id]);
+        Bus::fake([GenerateLeasePaymentSchedule::class]);
+        $this->mock(DocumentPdfService::class, function ($mock) {
+            $mock->shouldReceive('render')->andReturnUsing(fn (string $template, array $data) => view($template, $data)->render());
+        });
+        $client = Customer::factory()->create(['agency_id' => $this->agence->id, 'user_id' => User::factory()->create()->id]);
         $premiere = $this->demande($this->location, BookingKind::Application, BookingStatus::Confirmed, client: $client);
         $seconde = $this->demande($this->location, BookingKind::Application, BookingStatus::Pending, 40, 400);
         $this->confirmer($seconde)->assertStatus(409);
 
-        $this->actingAsApi($this->agent)->postJson('/api/leases', [
+        $bail = $this->actingAsApi($this->agent)->postJson('/api/leases', [
             'property_id' => $this->location->id,
             'tenant_id' => $client->id,
             'booking_id' => $premiere->id,
@@ -138,12 +147,16 @@ class BookingApplicationSingleAcceptedTest extends ApiTestCase
             'end_date' => now()->addYear()->toDateString(),
             'monthly_rent' => 250000,
             'deposit_amount' => 0,
-        ])->assertCreated();
+        ])->assertCreated()->json('data.id');
+        $this->assertSame(BookingStatus::Confirmed, $premiere->refresh()->status, 'le brouillon ne libère rien');
+        $this->confirmer($seconde)->assertStatus(409)->assertJsonPath('code', 'booking.application_already_accepted');
+
+        $this->actingAsApi($this->agent)->postJson("/api/leases/{$bail}/signature-request")->assertOk();
         $this->assertSame(BookingStatus::Completed, $premiere->refresh()->status);
         $this->assertSame(BookingStatus::Rejected, $seconde->refresh()->status);
 
-        $suivante = $this->demande($this->location, BookingKind::Application, BookingStatus::Pending, 40, 400);
-        $this->confirmer($suivante)->assertOk();
+        $apresLeBail = $this->demande($this->location, BookingKind::Application, BookingStatus::Pending, 400, 800);
+        $this->confirmer($apresLeBail)->assertOk();
     }
 
     /** La règle est par bien : la candidature acceptée d'un autre bien ne retient pas celui-ci. */

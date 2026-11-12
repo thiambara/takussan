@@ -106,8 +106,8 @@ return [
         'unauthenticated' => 'War nga dugg ci sa compte.',
     ],
     'booking' => [
-        // TCK-2734
-        'application_already_accepted' => 'Une autre candidature est déjà acceptée sur ce bien : annulez-la, ou créez son bail, avant d\'en accepter une seconde.',
+        // TCK-2734 (décision 7 du porteur, 2026-11-12 : le bail libère le bien à son envoi en signature)
+        'application_already_accepted' => 'Une autre candidature est déjà acceptée sur ce bien : annulez-la, ou envoyez son bail en signature, avant d\'en accepter une seconde.',
         'cannot_cancel' => 'Wootu bii mënuñu ko neenal ni mu nekke léegi.',
         'cannot_expire' => 'Wootu bii mënuñu ko jeexal: war na nekk ci xaar.',
         // TCK-2579
@@ -122,6 +122,8 @@ return [
         'not_pending_confirm' => 'Wootu buy xaar rekk lañu mën a dëggal.',
         'not_pending_reject' => 'Wootu buy xaar rekk lañu mën a bañ.',
         'own_property' => 'Mënuloo woote sa kër boppam.',
+        // TCK-2747 (décision 6 du porteur, 2026-11-12)
+        'property_already_leased' => 'Ce logement est loué, ou un bail est en préparation, pour la date d\'entrée demandée : la candidature ne peut être acceptée que pour une entrée après la fin du bail.',
         'property_unavailable' => 'Kër gii nekkul ci woote.',
     ],
     'booking_payment' => [

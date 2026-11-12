@@ -78,9 +78,9 @@ class LeaseSignatureService
         $bytes = $this->renderContract($lease, $printed);
         $sha = hash('sha256', $bytes);
 
-        $fresh = DB::transaction(function () use ($lease, $bytes, $sha, $terms): Lease {
-            /** @var Lease $locked */
-            $locked = Lease::query()->whereKey($lease->getKey())->lockForUpdate()->firstOrFail();
+        $fresh = DB::transaction(function () use ($lease, $bytes, $sha, $terms, $by): Lease {
+            // TCK-2734 (décision 7) — le bien avant le bail : l'envoi écrit aussi les candidatures du bien.
+            $locked = LeaseService::verrouillerLeBienPuisLeBail($lease);
             abort_code_unless(
                 in_array($locked->status, [LeaseStatus::Draft, LeaseStatus::PendingSignature], true),
                 422,
@@ -101,6 +101,10 @@ class LeaseSignatureService
                 'contract_sha256' => $sha,
                 'signature_requested_at' => now(),
             ])->save();
+
+            // TCK-2734 (décision 7 du porteur, 2026-11-12) — l'envoi en signature clôt les candidatures
+            // du bien ; le brouillon n'en fermait aucune. Après les refus (422, 409 `terms_changed`).
+            $this->leases->cloreLesCandidaturesDuBien($locked, $by);
 
             return $locked->refresh();
         });
@@ -233,13 +237,18 @@ class LeaseSignatureService
         $sha = hash_file('sha256', $contract->getRealPath());
 
         return DB::transaction(function () use ($lease, $contract, $sha, $by): Lease {
-            /** @var Lease $locked */
-            $locked = Lease::query()->whereKey($lease->getKey())->lockForUpdate()->firstOrFail();
+            // TCK-2734 (décision 7) — le bien avant le bail, comme l'envoi en signature.
+            $locked = LeaseService::verrouillerLeBienPuisLeBail($lease);
             abort_code_unless(
                 in_array($locked->status, [LeaseStatus::Draft, LeaseStatus::PendingSignature], true),
                 422,
                 'lease.not_activatable'
             );
+
+            // TCK-2734 (décision 7 du porteur, 2026-11-12) — la voie papier accepte un brouillon, qui
+            // n'est jamais passé par l'envoi en signature : elle clôt les candidatures au même moment
+            // logique (le bail part). Un bail déjà envoyé n'a plus rien d'ouvert d'avant l'envoi.
+            $this->leases->cloreLesCandidaturesDuBien($locked, $by);
 
             $locked->forceFill($this->executionTerms($locked) + ['contract_sha256' => $sha])->save();
 
