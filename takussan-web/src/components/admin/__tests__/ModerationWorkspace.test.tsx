@@ -432,6 +432,37 @@ describe('<ModerationWorkspace> — le lot (TCK-2673)', () => {
     expect(screen.queryByRole('checkbox', { name: /Cocher l’avis/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /Publier la sélection/ })).toBeNull();
   });
+
+  // Contre-vérification de fd3ae77b4 : le compte rendu par la lecture de « Tout cocher » (un avis
+  // non publiable sur une page non lue) et sa remise à zéro au changement de filtre.
+  it('TCK-2673 d1 — un avis non publiable sur une page non lue : « Tout cocher » passe à « Tout décocher »', async () => {
+    serveur = { high: [], low: [...plage(100, 25), avis(200, { can_moderate: false, reviewable_type: 'App\\Models\\Agency' })] };
+    const user = userEvent.setup();
+    render(wrap(<ModerationWorkspace />));
+    await screen.findByTestId('moderation-queue-item-100');
+    expect(screen.queryByTestId('moderation-queue-item-200')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Tout cocher' }));
+    expect(await screen.findByRole('button', { name: 'Publier la sélection · 25 avis' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tout décocher' })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Cocher tous les avis sans risque' })).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('TCK-2673 d1 — le compte de « Tout cocher » ne survit pas à un changement de filtre', async () => {
+    serveur = { high: [], low: [...plage(100, 3), avis(200, { can_moderate: false, reviewable_type: 'App\\Models\\Agency' })] };
+    const user = userEvent.setup();
+    const { rerender } = render(wrap(<ModerationWorkspace />));
+    await screen.findByTestId('moderation-queue-item-100');
+    await user.click(screen.getByRole('button', { name: 'Tout cocher' }));
+    await screen.findByRole('button', { name: 'Tout décocher' });
+    serveur = { high: [], low: plage(300, 5) };
+    urlCourante = 'filter[reported]=1';
+    rerender(wrap(<ModerationWorkspace />));
+    await screen.findByTestId('moderation-queue-item-300');
+    for (const n of [300, 301, 302]) await user.click(screen.getByRole('checkbox', { name: `Cocher l’avis de Auteur ${n}` }));
+    expect(screen.getByRole('button', { name: 'Publier la sélection · 3 avis' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Tout décocher' })).toBeNull();
+    expect(screen.getByRole('checkbox', { name: 'Cocher tous les avis sans risque' })).toHaveAttribute('aria-checked', 'mixed');
+  });
 });
 
 describe('<ModerationWorkspace> — largeurs (TCK-2673)', () => {
