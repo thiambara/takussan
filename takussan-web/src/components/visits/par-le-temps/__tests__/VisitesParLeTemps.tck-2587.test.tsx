@@ -236,6 +236,16 @@ describe('À confirmer : confirmer sans ouvrir la fiche', () => {
     expect(creneaux.every((p) => p.get('agent_id') !== '7')).toBe(true);
   });
 
+  it('TCK-2744 — les heures proposées se jugent sur la durée de la visite : `duration_minutes` part avec la lecture', async () => {
+    etat.recherche = 'vue=to_confirm';
+    etat.aConfirmer = [{ ...YOFF, duration_minutes: 45 } as PropertyVisit];
+    monter();
+    await waitFor(() => expect(lectures('/api/property-visits/slots').length).toBeGreaterThan(0));
+    const creneaux = lectures('/api/property-visits/slots').map((a) => new URLSearchParams(a.chemin.split('?')[1]));
+    // Jugée sur 30 min, la grille offrait 09:30 à une visite de 45 min que `confirm` refusait.
+    expect(creneaux.filter((p) => p.get('property_id') === '53').map((p) => p.get('duration_minutes'))).toEqual(expect.arrayContaining(['45']));
+  });
+
   it('d1 — une demande sans agent lit les créneaux sans `agent_id`, comme avant', async () => {
     etat.recherche = 'vue=to_confirm';
     etat.aConfirmer = [{ ...YOFF, agent_id: null, agent: null } as PropertyVisit];

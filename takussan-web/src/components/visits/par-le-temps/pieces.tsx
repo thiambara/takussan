@@ -99,7 +99,12 @@ export function useHeuresProposees(
   const tranche = v.status === 'scheduled' ? (v.preferred_window ?? null) : null;
   const jour = tranche && v.scheduled_at ? jourADakar(new Date(v.scheduled_at)) : null;
   // Les heures libres de l'agent de la visite (d1) : un admin ne propose pas les siennes.
-  const creneaux = useCreneauxDeVisite(actif && tranche ? v.property_id : null, actif ? jour : null, v.agent_id ?? null);
+  const creneaux = useCreneauxDeVisite(
+    actif && tranche ? v.property_id : null,
+    actif ? jour : null,
+    v.agent_id ?? null,
+    v.duration_minutes ?? null,
+  );
   if (!tranche) {
     return v.scheduled_at ? { etat: 'charge', heures: [{ start: null, label: heureDe(v.scheduled_at) }] } : { etat: 'aucune', heures: [] };
   }

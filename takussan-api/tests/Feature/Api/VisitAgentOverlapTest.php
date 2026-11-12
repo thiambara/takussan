@@ -295,6 +295,52 @@ class VisitAgentOverlapTest extends ApiTestCase
         }
     }
 
+    /**
+     * TCK-2744 (contre-vérification) — la grille prend la durée de la visite. Elle jugeait chaque
+     * créneau sur 30 min : pour une visite de 45 min, 09:30 s'y disait libre (09:30-10:00 ne touche
+     * pas l'occupation de 10:00), et `confirm` le refusait (09:30-10:15 la chevauche). Avec
+     * `duration_minutes`, la grille dit ce que la confirmation fera — pour l'agent (son occupation
+     * sur un autre bien) comme pour le bien (une visite d'un autre agent sur lui).
+     */
+    public function test_ac9_la_grille_prend_la_duree_demandee_pour_l_agent_comme_pour_le_bien(): void
+    {
+        $agentY = $this->personnel($this->x);
+        $this->visite($this->c, 14, 0, ['status' => VisitStatus::Confirmed, 'duration_minutes' => 30, 'agent_id' => $agentY->id]);
+        $jour = $this->h(10)->setTimezone(VisitSchedulingService::TIMEZONE)->format('Y-m-d');
+
+        Sanctum::actingAs($this->admin);
+        $grilleAgent = collect($this->getJson("/api/property-visits/slots?property_id={$this->a->id}&date={$jour}&agent_id={$this->agentX->id}&duration_minutes=45")
+            ->assertOk()->json('data.slots'))->keyBy('label');
+        $grilleBien = collect($this->getJson("/api/property-visits/slots?property_id={$this->c->id}&date={$jour}&duration_minutes=45")
+            ->assertOk()->json('data.slots'))->keyBy('label');
+
+        $this->assertFalse($grilleAgent['09:30']['available'], '09:30 + 45 min chevauche 10:00 de l’agent');
+        $this->assertTrue($grilleAgent['09:00']['available']);
+        $this->assertFalse($grilleBien['13:30']['available'], '13:30 + 45 min chevauche 14:00 du bien');
+        $this->assertTrue($grilleBien['13:00']['available']);
+
+        foreach ([[$this->a, $grilleAgent, ['09:00', '09:30', '10:30']], [$this->c, $grilleBien, ['13:00', '13:30', '14:30']]] as [$bien, $grille, $heures]) {
+            foreach ($heures as $label) {
+                [$heure, $minute] = array_map('intval', explode(':', $label));
+                $demande = $this->visite($bien, $heure, $minute, ['duration_minutes' => 45]);
+                $reponse = $this->confirmer($demande);
+                if ($grille[$label]['available']) {
+                    $this->assertSame(200, $reponse->status(), "{$label} libre sur la grille");
+                    $demande->update(['status' => VisitStatus::Cancelled]);
+                } else {
+                    $reponse->assertStatus(422);
+                }
+            }
+        }
+
+        // Sans durée, la grille reste celle de 30 min (la durée par défaut d'une visite).
+        $parDefaut = collect($this->getJson("/api/property-visits/slots?property_id={$this->a->id}&date={$jour}&agent_id={$this->agentX->id}")
+            ->assertOk()->json('data.slots'))->keyBy('label');
+        $this->assertTrue($parDefaut['09:30']['available']);
+        $this->getJson("/api/property-visits/slots?property_id={$this->a->id}&date={$jour}&duration_minutes=0")
+            ->assertUnprocessable()->assertJsonValidationErrors(['duration_minutes']);
+    }
+
     public function test_ac10_bien_et_agent_pris_c_est_le_bien_qui_parle(): void
     {
         $this->occupation->update(['property_id' => $this->a->id]);

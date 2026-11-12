@@ -21,6 +21,7 @@ import { JOURS_DE_VISITE_OUVERTS } from '@/lib/visites/useCreneaux';
 export function AutreHeure({
   propertyId,
   agentId,
+  dureeMinutes = null,
   jourInitial,
   enCours,
   erreur,
@@ -30,6 +31,8 @@ export function AutreHeure({
   readonly propertyId: number;
   /** L'agent de la visite : ses créneaux, pas ceux de l'appelant (d1). `null` : l'appelant. */
   readonly agentId: number | null;
+  /** La durée de la visite : la grille juge chaque heure sur elle (TCK-2744). `null` : 30 min. */
+  readonly dureeMinutes?: number | null;
   /** Le jour de la demande (`AAAA-MM-JJ` à Dakar), choisi d'emblée s'il est encore ouvert. */
   readonly jourInitial: string | null;
   readonly enCours: boolean;
@@ -44,7 +47,7 @@ export function AutreHeure({
   const dernierJour = decalerJour(premierJour, JOURS_DE_VISITE_OUVERTS);
   const [jour, setJour] = useState(() => (jourInitial && jourInitial >= premierJour && jourInitial <= dernierJour ? jourInitial : ''));
   const [choisi, setChoisi] = useState<{ readonly start: string; readonly label: string } | null>(null);
-  const creneaux = useCreneauxDeVisite(jour ? propertyId : null, jour || null, agentId);
+  const creneaux = useCreneauxDeVisite(jour ? propertyId : null, jour || null, agentId, dureeMinutes);
   // L'instant de la lecture tient lieu de « maintenant » : le rendu reste pur.
   const auPlusTot = creneaux.dataUpdatedAt + DELAI_DE_PREVENANCE_MINUTES * 60_000;
   const liste = (creneaux.data?.data.slots ?? []).map((c) => ({ ...c, libre: c.available && Date.parse(c.start) >= auPlusTot }));

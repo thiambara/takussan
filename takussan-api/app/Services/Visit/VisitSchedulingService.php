@@ -76,10 +76,16 @@ class VisitSchedulingService
      * ou s'il chevauche une visite CONFIRMÉE du bien — ou de l'agent pressenti, qui ne visite pas
      * deux biens à la fois. Rien n'est rendu sur les visites qui l'occupent : ni qui, ni pourquoi.
      *
+     * TCK-2744 (contre-vérification) — chaque créneau se juge sur `[début, début + $durationMinutes)`,
+     * l'intervalle que `confirm` comparera ({@see self::assertNoOverlap()}, {@see self::assertAgentFree()}) :
+     * jugée sur 30 min, une visite de 45 min voyait 09:30 libre devant une occupation de 10:00, que la
+     * confirmation refusait. Sans durée, celle d'une visite qui n'en porte pas.
+     *
      * @return list<array{start: string, label: string, available: bool}>
      */
-    public function availableSlots(Property $property, CarbonImmutable $date, ?User $agent = null): array
+    public function availableSlots(Property $property, CarbonImmutable $date, ?User $agent = null, ?int $durationMinutes = null): array
     {
+        $duration = $durationMinutes ?? self::DEFAULT_DURATION_MINUTES;
         $day = $date->setTimezone(self::TIMEZONE)->startOfDay();
         $first = $day->setTimeFromTimeString(self::GRID_FIRST);
         $last = $day->setTimeFromTimeString(self::GRID_LAST);
@@ -107,7 +113,7 @@ class VisitSchedulingService
 
         $slots = [];
         for ($start = $first; $start->lte($last); $start = $start->addMinutes(self::GRID_STEP_MINUTES)) {
-            $end = $start->addMinutes(self::DEFAULT_DURATION_MINUTES);
+            $end = $start->addMinutes($duration);
             $taken = $busy->contains(fn (array $b) => $start->lt($b[1]) && $end->gt($b[0]));
 
             $slots[] = [

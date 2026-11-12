@@ -253,7 +253,12 @@ class PropertyVisitController extends Controller
             'data' => [
                 'date' => $date->format('Y-m-d'),
                 'timezone' => VisitSchedulingService::TIMEZONE,
-                'slots' => $this->scheduling->availableSlots($property, $date, $agent),
+                'slots' => $this->scheduling->availableSlots(
+                    $property,
+                    $date,
+                    $agent,
+                    $request->validated('duration_minutes') !== null ? (int) $request->validated('duration_minutes') : null,
+                ),
             ],
         ]);
     }
@@ -816,8 +821,13 @@ class PropertyVisitController extends Controller
 
         $completedAt = $visit->completed_at;
         $windowHours = (int) config('visits.feedback_window_hours', 24);
+        // TCK-2587 (contre-vérification) — la fenêtre court depuis `min(completed_at, maintenant)`,
+        // la règle que l'écran affiche (`heuresRestantesPourLAvis`) : une clôture datée dans le futur
+        // (horloge d'un poste, base de démo ; le code n'écrit que `now()`) compte comme une clôture à
+        // l'instant, et l'écart jugé n'est jamais négatif — rien ne repose plus sur le signe de
+        // `diffInHours`.
         abort_code_if(
-            $completedAt === null || $completedAt->diffInHours(now()) > $windowHours,
+            $completedAt === null || $completedAt->min(now())->diffInHours(now()) > $windowHours,
             422,
             'visit.feedback_window_closed'
         );

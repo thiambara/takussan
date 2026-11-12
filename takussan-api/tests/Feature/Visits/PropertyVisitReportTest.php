@@ -343,4 +343,28 @@ class PropertyVisitReportTest extends ApiTestCase
             ->assertUnprocessable()
             ->assertJsonPath('code', 'visit.feedback_window_closed');
     }
+
+    /**
+     * TCK-2587 (contre-vérification) — une clôture datée dans le FUTUR (le code n'en écrit jamais :
+     * `complete()` et le compte rendu posent `now()` ; seules l'horloge d'un poste ou une base de démo
+     * en font naître) compte comme une clôture à l'instant : la fenêtre court depuis
+     * `min(completed_at, maintenant)`, la règle que `heuresRestantesPourLAvis()` affiche (« encore
+     * 24 h »). L'avis est donc reçu — la carte l'offre — et la fenêtre ne se juge jamais sur une durée
+     * négative ; une lecture absolue de l'écart (`abs`, le `diffInHours` de Carbon 2) refuserait
+     * l'avis que l'écran promet.
+     */
+    public function test_une_cloture_datee_dans_le_futur_compte_comme_une_cloture_a_l_instant(): void
+    {
+        $fiche = $this->fiche();
+        $visiteur = User::query()->findOrFail($fiche->user_id);
+        $future = $this->visite(['completed_at' => now()->addHours(48)], $fiche);
+        $limite = $this->visite(['completed_at' => now()->subHours(24)->addMinute()], $fiche);
+
+        Sanctum::actingAs($visiteur);
+        $this->postJson("/api/property-visits/{$future->id}/feedback", ['role' => 'customer', 'rating' => 5])
+            ->assertOk()
+            ->assertJsonPath('data.rating', 5);
+        $this->postJson("/api/property-visits/{$limite->id}/feedback", ['role' => 'customer', 'rating' => 3])
+            ->assertOk();
+    }
 }

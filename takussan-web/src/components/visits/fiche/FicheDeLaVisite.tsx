@@ -670,6 +670,7 @@ function DialogueAutreHeure({ p, l }: { readonly p: FicheDeLaVisiteProps; readon
     <AutreHeure
       propertyId={p.visite.property_id}
       agentId={p.visite.agent_id ?? null}
+      dureeMinutes={p.visite.duration_minutes ?? null}
       jourInitial={l.jour}
       enCours={p.gestes.enCours}
       erreur={p.erreur}

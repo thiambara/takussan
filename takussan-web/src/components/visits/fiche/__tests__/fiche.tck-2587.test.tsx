@@ -31,7 +31,7 @@ const etat = vi.hoisted(() => ({
   /** L'agence du personnel actif : `null` = pas du personnel (le bailleur, le client). */
   agence: null as number | null,
   profils: undefined as unknown,
-  creneaux: [] as (readonly [number | null, string | null, number | null | undefined])[],
+  creneaux: [] as (readonly [number | null, string | null, number | null | undefined, (number | null)?])[],
   capacites: [] as string[],
   /** Suivi du lot A : l'agent parti ou suspendu, dont `/slots` refuse l'`agent_id` en 422. */
   agentParti: null as number | null,
@@ -77,8 +77,8 @@ vi.mock('@/lib/queries/visits', () => ({
   useAttribuerEnLot: () => autre,
   useCreateVisitReport: () => autre,
   useUpdateVisitReport: () => autre,
-  useCreneauxDeVisite: (id: number | null, jour: string | null, agent?: number | null) => {
-    etat.creneaux.push([id, jour, agent]);
+  useCreneauxDeVisite: (id: number | null, jour: string | null, agent?: number | null, duree?: number | null) => {
+    etat.creneaux.push([id, jour, agent, duree]);
     if (jour && agent != null && agent === etat.agentParti) {
       return { data: undefined, isError: true, error: new ApiError(422, { message: 'Le champ agent est invalide.', errors: { agent_id: ['Le champ agent est invalide.'] } }), dataUpdatedAt: 0 };
     }
@@ -232,6 +232,35 @@ describe('TCK-2587 lot B — à confirmer (téléphone)', () => {
     expect(screen.queryByRole('link', { name: /WhatsApp/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /^Confirmer/ })).toBeNull();
     expect(screen.getByRole('button', { name: /^Annuler la visite/ })).toBeInTheDocument();
+  });
+});
+
+describe('Vérification du lot C (constat a) — les étapes de la fiche au téléphone', () => {
+  const etapes = () => [...document.querySelectorAll('[data-slot="etapes-de-la-visite"] li')].map((li) => li.textContent);
+
+  it('le client lit trois temps, sans « Compte rendu » : le compte rendu est celui de l’agence', () => {
+    ecrans(true);
+    etat.user = { id: 30, roles: ['customer'], first_name: 'Abdoulaye' };
+    etat.visite = visite({ visitor_id: 30, scheduled_at: '2026-11-11T14:00:00Z', abilities: { manage: false, feedback_customer: true } });
+    monter();
+    expect(etapes()).toEqual([f.etapes.demandee, f.etapes.confirmee, f.etapes.visite]);
+    expect(document.querySelector('[data-slot="etapes-de-la-visite"] [aria-current="step"]')).toHaveTextContent(f.etapes.confirmee);
+  });
+
+  it('terminée, le client voit ses trois temps faits, aucun en cours', () => {
+    ecrans(true);
+    etat.user = { id: 30, roles: ['customer'], first_name: 'Abdoulaye' };
+    etat.visite = visite({ visitor_id: 30, status: 'completed', completed_at: '2026-11-10T09:00:00Z', scheduled_at: '2026-11-10T08:30:00Z', abilities: { manage: false, feedback_customer: true } });
+    monter();
+    expect(etapes()).toEqual([f.etapes.demandee, f.etapes.confirmee, f.etapes.visite]);
+    expect(document.querySelector('[data-slot="etapes-de-la-visite"] [aria-current="step"]')).toBeNull();
+  });
+
+  it('le personnel qui lit le compte rendu garde ses quatre temps', () => {
+    ecrans(true);
+    etat.visite = visite({ scheduled_at: '2026-11-11T14:00:00Z', report: null } as Partial<PropertyVisit>);
+    monter();
+    expect(etapes()).toEqual([f.etapes.demandee, f.etapes.confirmee, f.etapes.visite, f.etapes.compteRendu]);
   });
 });
 
@@ -568,6 +597,15 @@ describe('TCK-2587 lot B — réponses du team-lead', () => {
     expect(etat.creneaux.some(([id, jour, agent]) => id === 10 && jour !== null && agent === 21)).toBe(true);
     // Toute lecture de créneaux de la fiche — la tranche ET le choix « Autre heure » — porte l'agent.
     expect(etat.creneaux.every(([, , agent]) => agent === 21)).toBe(true);
+  });
+
+  it('TCK-2744 — « Autre heure » juge les créneaux sur la durée de la visite', () => {
+    etat.visite = visite({ status: 'scheduled', preferred_window: 'afternoon', scheduled_at: '2026-11-11T14:00:00Z', duration_minutes: 45 });
+    etat.recherche = 'heure=autre';
+    monter();
+    // Toute lecture de créneaux de la fiche — la tranche ET le choix « Autre heure » — porte la durée.
+    expect(etat.creneaux.some(([id, jour]) => id === 10 && jour !== null)).toBe(true);
+    expect(etat.creneaux.every(([, , , duree]) => duree === 45)).toBe(true);
   });
 });
 

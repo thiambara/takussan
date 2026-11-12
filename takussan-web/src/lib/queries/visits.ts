@@ -334,12 +334,19 @@ export interface ReponseDesCreneaux {
   };
 }
 
-export function useCreneauxDeVisite(propertyId: number | null, jour: string | null, agentId: number | null = null) {
+export function useCreneauxDeVisite(
+  propertyId: number | null,
+  jour: string | null,
+  agentId: number | null = null,
+  dureeMinutes: number | null = null,
+) {
   // TCK-2587 (d1) — `agent_id` : l'occupation de l'agent de la VISITE, pas celle de l'appelant (un
   // admin qui confirme la tranche d'un autre agent). Sans agent, `buildQueryString` omet la clé nulle :
   // l'API compte l'appelant, comme avant.
-  return useApiQuery<ReponseDesCreneaux>(['visits', 'slots', propertyId, jour, agentId], '/api/property-visits/slots', {
-    params: { extra: { property_id: propertyId, date: jour, agent_id: agentId } },
+  // TCK-2744 (contre-vérification) — `duration_minutes` : la durée de la visite à placer. Jugée sur
+  // 30 min, la grille offrait 09:30 à une visite de 45 min que `confirm` refusait (10:00 occupé).
+  return useApiQuery<ReponseDesCreneaux>(['visits', 'slots', propertyId, jour, agentId, dureeMinutes], '/api/property-visits/slots', {
+    params: { extra: { property_id: propertyId, date: jour, agent_id: agentId, duration_minutes: dureeMinutes } },
     enabled: propertyId !== null && jour !== null,
     // Un créneau pris par un collègue pendant la saisie : relu à chaque ouverture.
     staleTime: 0,
