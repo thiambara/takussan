@@ -63,6 +63,27 @@ export type AppNotification = {
   is_read: boolean;
   read_at: string | null;
   created_at: string;
+  /**
+   * TCK-2633 — la famille de la ligne (`NotificationClassification`, côté API) : le front n'en garde
+   * aucune liste, il n'en porte que l'icône et le ton (TCK-2634). Absente d'une réponse plus ancienne :
+   * la ligne se lit en `systeme`.
+   */
+  famille?: FamilleDeNotification | null;
+  /** TCK-2633 — la ligne attend un geste de son destinataire (« À traiter »). Jamais vrai sans code. */
+  a_traiter?: boolean | null;
+};
+
+/** TCK-2633 — les familles de la cloche, telles que l'API les nomme (`NotificationFamily`). */
+export const FAMILLES_DE_NOTIFICATION = ['demande', 'visite', 'paiement', 'retard', 'bien', 'avis', 'systeme'] as const;
+export type FamilleDeNotification = (typeof FAMILLES_DE_NOTIFICATION)[number];
+
+/**
+ * TCK-2633 — les comptes des NON LUES de l'appelant, filtres de la requête ignorés : ils se lisent sur
+ * n'importe quelle page. Une famille sans non-lue est ABSENTE de `par_famille` (`par_famille[f] ?? 0`).
+ */
+export type ComptesDesNotifications = {
+  a_traiter_non_lues: number;
+  par_famille: Partial<Record<FamilleDeNotification, number>>;
 };
 
 export type NotificationsResponse = {
@@ -73,6 +94,7 @@ export type NotificationsResponse = {
     current_page: number;
     last_page?: number;
     per_page?: number;
+    counts?: ComptesDesNotifications;
   };
 };
 
@@ -81,25 +103,37 @@ export type NotificationsQuery = {
   /** Plafonné à 50 par l'API. */
   perPage?: number;
   unread?: boolean;
+  /**
+   * TCK-2634 — les seules lignes qui attendent un geste : `filter[a_traiter]=1` ET `filter[unread]=1`.
+   * `a_traiter` tient au code (une demande de visite l'est, lue ou non) ; la puce porte le compte de
+   * l'API `a_traiter_non_lues` — sans la non-lecture, la liste en montrait 69 sous une puce à 16
+   * (agent de démo, relevé du 2026-11-12).
+   */
+  aTraiter?: boolean;
+  /** TCK-2634 — `filter[famille]=visite,demande` ; vide ou absent : toutes les familles. */
+  familles?: readonly FamilleDeNotification[];
 };
 
 /**
  * TCK-1326 (P128.05) — les seules colonnes que la cloche et l'historique lisent (règle des champs
  * clairsemés). Ni `data` — que la ressource enrichit à la lecture, pièces signées comprises — ni
- * `sent_at`.
+ * `sent_at`. TCK-2634 — `famille` et `a_traiter` : une requête qui nomme ses champs doit les y
+ * nommer, sans quoi l'API ne les rend pas (relevé de TCK-2633).
  */
-const CHAMPS_NOTIFICATION = 'id,type,code,params,param_types,target,title,body,is_read,read_at,created_at';
+const CHAMPS_NOTIFICATION = 'id,type,code,params,param_types,target,title,body,is_read,read_at,created_at,famille,a_traiter';
 
 export async function fetchNotifications(
   token: string,
-  { page = 1, perPage = 10, unread = false }: NotificationsQuery = {},
+  { page = 1, perPage = 10, unread = false, aTraiter = false, familles = [] }: NotificationsQuery = {},
 ): Promise<NotificationsResponse> {
   const search = new URLSearchParams({
     page: String(page),
     per_page: String(perPage),
     'fields[app_notifications]': CHAMPS_NOTIFICATION,
   });
-  if (unread) search.set('filter[unread]', '1');
+  if (unread || aTraiter) search.set('filter[unread]', '1');
+  if (aTraiter) search.set('filter[a_traiter]', '1');
+  if (familles.length > 0) search.set('filter[famille]', familles.join(','));
 
   return apiRequest<NotificationsResponse>(cheminApi`/api/notifications?${search.toString()}`, {
     token,

@@ -385,7 +385,60 @@
       "empty": "Aucune notification.",
       "markRead": "Marquer lu",
       "markUnread": "Marquer non lu",
-      "viewAll": "Voir tout l’historique"
+      "viewAll": "Voir tout l’historique",
+      "aTraiter": "À traiter",
+      "tout": "Tout",
+      "nonLues": "Non lues",
+      "puces": "Afficher",
+      "jours": {
+        "aujourdhui": "Aujourd’hui",
+        "hier": "Hier",
+        "semaine": "Cette semaine",
+        "ancien": "Plus ancien"
+      },
+      "historique": "Tout l’historique",
+      "preferences": "Préférences",
+      "preferencesLong": "Préférences de notification",
+      "resume": "{nonLues, plural, =0 {Aucune non lue} one {# non lue} other {# non lues}}{aTraiter, plural, =0 {} other { · # à traiter}}",
+      "aJour": {
+        "titre": "Vous êtes à jour",
+        "texte": "Les nouvelles notifications apparaîtront ici."
+      },
+      "rienATraiter": "Rien à traiter",
+      "erreur": {
+        "titre": "Impossible de charger les notifications.",
+        "texte": "Vérifiez votre connexion, puis réessayez."
+      },
+      "reessayer": "Réessayer",
+      "marquerLue": "Marquer comme lue",
+      "marquerNonLue": "Marquer comme non lue",
+      "nonLue": "Non lue",
+      "deplier": "Déplier",
+      "replier": "Replier",
+      "voirAutres": "{count, plural, one {Voir l’autre} other {Voir les # autres}}",
+      "toutLireLeRepli": "Tout lire ({count})",
+      "dansLEspace": "Dans {espace}",
+      "glisser": "Glissez une ligne vers la gauche pour la marquer lue ou non lue.",
+      "familleFiltre": "Famille",
+      "familles": {
+        "titre": "Familles",
+        "toutes": "Toutes",
+        "demande": "Demandes",
+        "visite": "Visites",
+        "paiement": "Paiements",
+        "retard": "Retards",
+        "bien": "Biens",
+        "avis": "Avis",
+        "systeme": "Système"
+      },
+      "plage": "{debut} à {fin} sur {total} · page {page} sur {last}",
+      "periode": "Du {debut} au {fin}",
+      "quand": {
+        "instant": "à l’instant",
+        "minutes": "il y a {n} min",
+        "heures": "il y a {n} h",
+        "hier": "hier"
+      }
     },
     "proUpgrade": {
       "title": "Passer en agence",
@@ -14895,6 +14948,131 @@
       "previous": "Précédente",
       "next": "Suivante",
       "pageOf": "Page {page} sur {last}"
+    },
+    "repli": {
+      "ligne": "{titre} · {compte}",
+      "etAutres": "{titre} et {count, plural, one {# autre} other {# autres}}",
+      "titres": {
+        "maintenance": {
+          "auto_closed": "Intervention clôturée",
+          "assigned": "Nouvelles interventions",
+          "accepted": "Interventions acceptées",
+          "completed": "Interventions terminées",
+          "cancelled": "Interventions annulées"
+        },
+        "boost": {
+          "ended": "Mise en avant terminée"
+        },
+        "visit": {
+          "requested": "Demandes de visite",
+          "requested_window": "Demandes de visite",
+          "confirmed": "Visites confirmées",
+          "reminder": "Rappels de visite",
+          "rescheduled_by_visitor": "Autres créneaux proposés",
+          "cancelled_by_visitor": "Visites annulées par le visiteur",
+          "cancelled_by_visitor_window": "Visites annulées par le visiteur"
+        },
+        "lease_payment": {
+          "overdue_landlord": "Loyers impayés",
+          "received_landlord": "Loyers reçus",
+          "settled_online": "Paiements reçus"
+        },
+        "message": {
+          "received": "Nouveaux messages"
+        },
+        "lead": {
+          "received": "Nouvelles demandes"
+        },
+        "maintenance_quote": {
+          "requested": "Demandes de devis",
+          "submitted": "Devis soumis"
+        }
+      },
+      "compte": {
+        "property": "{count, plural, one {# bien} other {# biens}}",
+        "maintenance": "{count, plural, one {# intervention} other {# interventions}}",
+        "visit": "{count, plural, one {# visite} other {# visites}}",
+        "lease": "{count, plural, one {# bail} other {# baux}}",
+        "booking": "{count, plural, one {# demande} other {# demandes}}",
+        "payments": "{count, plural, one {# paiement} other {# paiements}}",
+        "autre": "{count, plural, one {# notification} other {# notifications}}"
+      }
+    },
+    "verbes": {
+      "lease_payment": {
+        "overdue": "Payer",
+        "overdue_digest": "Relancer"
+      },
+      "payment": {
+        "duplicate": "Régler",
+        "duplicate_late_fee": "Régler"
+      },
+      "booking": {
+        "created": "Répondre",
+        "requested_undated": "Répondre"
+      },
+      "visit": {
+        "requested": "Confirmer",
+        "requested_window": "Confirmer",
+        "rescheduled_by_visitor": "Confirmer"
+      },
+      "lead": {
+        "received": "Répondre"
+      },
+      "kyc": {
+        "submitted": "Examiner",
+        "rejected": "Corriger",
+        "expiring_soon": "Renouveler"
+      },
+      "bank_statement": {
+        "imported": "Rapprocher"
+      },
+      "maintenance": {
+        "created": "Traiter",
+        "assigned": "Répondre",
+        "declined": "Réattribuer",
+        "completed": "Confirmer",
+        "contested": "Reprendre",
+        "urgent_created": "Traiter",
+        "urgent_escalated": "Traiter"
+      },
+      "maintenance_quote": {
+        "requested": "Chiffrer",
+        "submitted": "Valider",
+        "awaiting_owner": "Valider"
+      },
+      "property": {
+        "rejected": "Corriger",
+        "submitted_for_review": "Valider",
+        "calendar_conflict": "Résoudre",
+        "calendar_feed_failing": "Réparer",
+        "unpublished_contact_erased": "Attribuer",
+        "source_listing_gone": "Mettre à jour",
+        "proposed": "Examiner"
+      },
+      "lease": {
+        "signature_requested": "Signer"
+      },
+      "payout": {
+        "awaiting_approval": "Approuver",
+        "due": "Reverser",
+        "failed": "Corriger"
+      },
+      "payout_threshold": {
+        "relax_requested": "Examiner"
+      },
+      "review": {
+        "to_moderate": "Modérer"
+      },
+      "invitation": {
+        "received": "Répondre",
+        "reminder": "Répondre",
+        "renewal_requested": "Renvoyer"
+      },
+      "agency": {
+        "member_deletion_requested": "Réattribuer",
+        "upgrade_requested": "Examiner"
+      }
     }
   },
   "impersonation": {

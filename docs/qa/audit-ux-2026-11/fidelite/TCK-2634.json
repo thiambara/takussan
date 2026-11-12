@@ -1,0 +1,322 @@
+{
+  "ticket": "TCK-2634",
+  "ecrans": [
+    {
+      "page": "app-notifications",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "Cloche (téléphone) / panneau (bureau)",
+      "references": {
+        "telephone": "references/app-notifications/a-0-telephone.json",
+        "bureau-1440": "references/app-notifications/a-0-bureau-1440.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app",
+        "persona": "agent",
+        "etat": "agent de démo (Dakar Immo) : 63 non lues, 16 à traiter (`visit.requested`). La cloche est ouverte par `--perturber ouvrir-cloche.js` (un clic sur la cloche visible, rien d'autre) : feuille au téléphone, panneau à droite de la colonne au bureau, puce « Tout ». Contre-relevé en admin (`prod-admin-a-0-*`, 50 non lues, 0 à traiter) : coque de la maquette ; ses 20 lignes chargées sont toutes `maintenance.auto_closed` et se replient en UNE ligne non lue (fond, graisse 600, geste ✓ du bureau conformes)."
+      }
+    },
+    {
+      "page": "app-notifications",
+      "approche": "a",
+      "ecran": 1,
+      "nom": "Historique",
+      "references": {
+        "telephone": "references/app-notifications/a-1-telephone.json",
+        "bureau-1440": "references/app-notifications/a-1-bureau-1440.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/notifications",
+        "persona": "agent",
+        "etat": "même agent, historique, puce « Non lues » active (celle de la maquette) et premier repli déplié (`nonlues-deplier.js` : deux boutons, aucune écriture) ; 63 non lues. Contre-relevé en admin (`prod-admin-a-1-*`) : coque de la maquette, repli NON LU de 20 « Intervention clôturée »."
+      }
+    },
+    {
+      "page": "app-notifications",
+      "approche": "a",
+      "ecran": 2,
+      "nom": "Tout lu",
+      "references": {
+        "telephone": "references/app-notifications/a-2-telephone.json",
+        "bureau-1440": "references/app-notifications/a-2-bureau-1440.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app",
+        "persona": "agent2",
+        "etat": "second agent de démo (Dakar Immo), aucune notification : la cloche ouverte, puce « À traiter 0 » active comme la maquette (`cloche-a-traiter.js`) — « Vous êtes à jour »."
+      }
+    },
+    {
+      "page": "app-notifications",
+      "approche": "a",
+      "ecran": 3,
+      "nom": "Chargement et erreur",
+      "references": {
+        "telephone": "references/app-notifications/a-3-telephone.json",
+        "bureau-1440": "references/app-notifications/a-3-bureau-1440.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app (téléphone) · /app/notifications (bureau)",
+        "persona": "agent",
+        "etat": "téléphone : la cloche ouverte, puis la puce « À traiter » demande une liste suspendue (`chargement-cloche.js` : les server actions ne répondent jamais) — le squelette de la feuille. Bureau : l'historique chargé, puis les server actions échouent et la puce « Non lues » demande une page (`erreur-historique.js`) — le bandeau d'erreur. Aucun appel n'atteint l'API pendant ces états."
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app · /app/notifications",
+    "persona": "agent",
+    "disposition": "agent",
+    "etat": "voir chaque écran (`ecrans[].produit`)",
+    "defiler": null,
+    "perturber": "scripts dans le rapport du ticket ; aucun ne clique une ligne ni un geste de lecture",
+    "bloquer": "*/api/notifications/*/read,*/api/notifications/read-all"
+  },
+  "roles": [
+    {
+      "appareil": "mobile",
+      "nom": "feuille de la cloche",
+      "maquette": {
+        "boiteDe": "Tout l’historique",
+        "min": 600
+      },
+      "produit": {
+        "boiteDe": "Tout l’historique",
+        "min": 600
+      },
+      "contenu": false
+    },
+    {
+      "appareil": "desktop",
+      "nom": "panneau de la cloche",
+      "maquette": {
+        "zone": {
+          "y": 10.8,
+          "h": 640,
+          "tol": 2,
+          "wMin": 395
+        }
+      },
+      "produit": {
+        "slot": "popover-content"
+      },
+      "contenu": false
+    },
+    {
+      "nom": "pied de la cloche (« Tout l’historique », « Préférences »)",
+      "maquette": {
+        "boiteDe": "Tout l’historique",
+        "min": 44
+      },
+      "produit": {
+        "boiteDe": "Tout l’historique",
+        "min": 44
+      },
+      "contenu": true,
+      "appareil": "mobile"
+    },
+    {
+      "nom": "pied de la cloche (« Tout l’historique », « Préférences »)",
+      "maquette": {
+        "zone": {
+          "y": 606.6,
+          "h": 43.2,
+          "tol": 2,
+          "wMin": 390
+        }
+      },
+      "produit": {
+        "zone": {
+          "y": 606.6,
+          "h": 43.2,
+          "tol": 2,
+          "wMin": 390
+        }
+      },
+      "contenu": true,
+      "appareil": "desktop"
+    },
+    {
+      "nom": "puce « À traiter »",
+      "maquette": {
+        "boiteDe": "À traiter",
+        "min": 28
+      },
+      "produit": {
+        "boiteDe": "À traiter",
+        "min": 28
+      },
+      "contenu": true
+    },
+    {
+      "nom": "titre de jour « Aujourd’hui »",
+      "maquette": {
+        "boiteDe": "Aujourd’hui",
+        "min": 20
+      },
+      "produit": {
+        "slot": "titre-de-jour"
+      },
+      "contenu": true
+    },
+    {
+      "nom": "ligne à traiter, non lue, avec son verbe",
+      "maquette": {
+        "boiteDe": "Visite demandée · Studio meublé, Mermoz",
+        "min": 60
+      },
+      "produit": {
+        "slot": "rangee",
+        "rang": 1
+      },
+      "contenu": true
+    },
+    {
+      "nom": "ligne repliée",
+      "maquette": {
+        "boiteDe": "Mise en avant terminée · 9 biens",
+        "min": 60
+      },
+      "produit": {
+        "slot": "rangee",
+        "rang": 0
+      },
+      "contenu": true
+    }
+  ],
+  "zones": [],
+  "alias": {},
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "a-*",
+      "element": "titres, détails, dates, comptes (« 63 non lues · 16 à traiter », puces, familles), ordre des rangées",
+      "propriete": "texte, nombre de rangées, état, positions verticales",
+      "exception": "donnée",
+      "motif": "compte de démo agent1@dakarimmo.sn (Dakar Immo) : 153 notifications, 63 non lues, 16 à traiter (toutes `visit.requested`) ; la maquette dessine l'administratrice avec 16 non lues dont 3 à traiter, et une famille par rangée. Le texte des rangées est celui de `texteNotification` (code et paramètres, TCK-588, inchangé par le ticket) : « Demande de visite : … » là où la maquette écrit « Visite demandée · … ». Des rangées de démo sont datées après le relevé (22 nov.–1er déc.) : elles tombent sous « Aujourd’hui » et disent leur date. Rien n'est bouchonné ; les POST de lecture sont bloqués (`produit.bloquer`) et aucun relevé ne touche une rangée."
+    },
+    {
+      "ecran": "a-0-*, a-1-*",
+      "element": "ligne repliée : fond, graisse du titre, icône (famille), geste ✓ au bureau, « hier »",
+      "propriete": "fond, graisse, couleur d'icône, présence",
+      "exception": "donnée",
+      "motif": "la maquette replie 9 « Mise en avant terminée » NON LUES (fond `color-mix(primary 5 %, card)`, titre 600, geste « Tout lire ») ; le premier repli du produit est fait de 8 demandes de visite LUES (fond `card`, titre 500, pas de geste : il n'y a rien à lire). Le fond non lu est la même classe que la maquette (rangée seule non lue : conforme). L'icône suit la famille (`visite`, calendrier, accent), la date appariée par ordre de lecture n'est pas la même ligne. Contre-relevé admin : son repli est NON LU — fond `color-mix(primary 5 %, card)`, titre 600 et geste ✓ du bureau rendus conformes ; restent la famille (`demande`, boîte, ton primary) et la hauteur (titre « Intervention clôturée · 20 interventions » sur deux lignes à 390)."
+    },
+    {
+      "ecran": "a-0-*, a-1-*",
+      "element": "ligne à traiter : position verticale",
+      "propriete": "y",
+      "exception": "donnée",
+      "motif": "la première ligne à traiter non lue du produit vient après un repli (8 demandes lues) ; son contenu (icône, titre, détail, date, verbe plein « Confirmer ») est conforme hors l'interligne du verbe (ligne suivante)."
+    },
+    {
+      "ecran": "a-0-*, a-1-*, a-3-bureau-1440",
+      "element": "« Confirmer », puces : interligne 18,6 contre 19,5",
+      "propriete": "interligne",
+      "exception": "contrainte technique",
+      "motif": "jetons du petit bouton et de la puce de la portée /app (TCK-2686, `text-petit-bouton`) ; même exception que les fiches précédentes (`SelectTrigger`, TCK-2686)."
+    },
+    {
+      "ecran": "a-0-*, a-2-*, a-3-telephone",
+      "element": "pied : « Préférences » et son icône",
+      "propriete": "couleur",
+      "exception": "contrainte technique",
+      "motif": "encre en alpha dans la maquette (rgba(31,24,17,0.75)) ; jeton opaque `encre-douce` (rgb(76,70,65)) imposé dans /app par `encre-sans-alpha.contraste.test.ts` — même exception que TCK-2580, TCK-2617."
+    },
+    {
+      "ecran": "a-*",
+      "element": "icônes lucide (chevron, ✓, ✕)",
+      "propriete": "trait",
+      "exception": "contrainte technique",
+      "motif": "trait de la portée /app : 1,75 au téléphone, 1,5 au bureau (`globals.css`, `:root:has([data-portee-app]) svg.lucide[stroke-width=\"2\"]`, TCK-2685) ; la maquette garde le trait 2 de lucide."
+    },
+    {
+      "ecran": "a-0-telephone, a-2-telephone, a-3-telephone",
+      "element": "en-tête de la feuille : « 63 non lues » sous « Notifications » ; puces, jours et rangées 4 px plus bas",
+      "propriete": "présence, y",
+      "exception": "incohérence des maquettes",
+      "motif": "contrainte du ticket : « Pas de régression — Cloche : « N non lues » et « Tout lire » ». La maquette du téléphone ne l'écrit pas, celle du panneau du bureau l'écrit (« 16 non lues · 3 à traiter ») : la feuille garde le compte, sur une ligne, et le contenu descend de 4 px."
+    },
+    {
+      "ecran": "a-0-bureau-1440",
+      "element": "panneau de la cloche : ombre",
+      "propriete": "ombre (chaîne)",
+      "exception": "contrainte technique",
+      "motif": "ombre nommée `shadow-panneau-cloche` (0 24px 60px -24px, 55 %, `globals.css`) : mêmes valeurs que la maquette, composée `in srgb` comme toutes les ombres nommées (la maquette écrit `in oklab`), plus la couche d'anneau nulle de `PopoverContent` (`ring-0`). La garde `check-valeurs-arbitraires-app` interdit `shadow-[…]`."
+    },
+    {
+      "ecran": "a-2-bureau-1440",
+      "element": "panneau « Tout lu » : puces « À traiter 0 · Tout », panneau 40 px plus haut",
+      "propriete": "présence, hauteur",
+      "exception": "incohérence des maquettes",
+      "motif": "le téléphone de la maquette garde les puces quand tout est lu (« À traiter 0 · Tout »), le panneau du bureau les retire : le produit est un seul composant pour les deux surfaces et garde les puces (valeur de l'écran téléphone, où la maquette les dessine)."
+    },
+    {
+      "ecran": "a-1-*",
+      "element": "familles : comptes",
+      "propriete": "texte",
+      "exception": "donnée",
+      "motif": "comptes des NON LUES (`meta.counts.par_famille`) : l'API ne rend pas d'autre compte, filtres ignorés ; « Toutes » porte le total des non lues (63) là où la maquette écrit 42."
+    },
+    {
+      "ecran": "a-3-telephone",
+      "element": "squelette sous « À traiter » (active) plutôt que sous « Tout »",
+      "propriete": "état",
+      "exception": "contrainte technique",
+      "motif": "la liste « Tout » est déjà en cache (la pastille la lit) : le squelette ne se montre que pour une liste pas encore reçue. Relevé : la cloche ouverte, puis « À traiter » sur des server actions suspendues (`chargement-cloche.js`)."
+    },
+    {
+      "ecran": "a-3-bureau-1440",
+      "element": "bandeau d'erreur sous « Non lues » (active) ; « Le menu, la cloche et le reste de la page restent utilisables. » absent",
+      "propriete": "état, présence",
+      "exception": "contrainte technique",
+      "motif": "l'historique chargé, puis « Non lues » sur des server actions qui échouent (`erreur-historique.js`) : une page jamais reçue rend le bandeau. La phrase sous le bandeau est une annotation de la maquette (ce que l'état garantit), pas un libellé : rien ne la rend dans le produit."
+    },
+    {
+      "ecran": "a-*",
+      "element": "fond de l'écran derrière la cloche (accueil), coque latérale du bureau",
+      "propriete": "tout",
+      "exception": "donnée",
+      "motif": "la maquette dessine la coque et l'accueil de l'administratrice ; le relevé est fait en agent (seul compte de démo avec des lignes à traiter) : menu, accueil et colonne d'un agent. Hors du périmètre du ticket ; les rôles de la fiche portent sur la feuille, le panneau et l'historique."
+    },
+    {
+      "ecran": "a-0-*, a-1-*",
+      "element": "« Confirmer » (et tout verbe) : 36 px de haut, marges 12 px, au lieu de 32 et 14",
+      "propriete": "hauteur, marges",
+      "exception": "contrainte technique",
+      "motif": "`buttonVariants size=sm` de la portée /app (`h-controle-petit`, `plancher-tactile-9`, TCK-2686) : la maquette dessine son « Bouton petit » (h-8). Même exception que les fiches précédentes (TCK-2686)."
+    },
+    {
+      "ecran": "a-0-telephone, a-2-telephone, a-3-telephone",
+      "element": "pied : « Tout l’historique » et « Préférences » de 44 px de haut (20 px dans la maquette)",
+      "propriete": "hauteur, y",
+      "exception": "accessibilité mesurée",
+      "motif": "cible du pouce de 44 px (`min-h-11`) dans un pied de 48 px : même centre que la maquette (y 820,5 des deux côtés), le texte ne bouge pas."
+    },
+    {
+      "ecran": "a-*",
+      "element": "« Déplier » / « Replier » (texte lu seulement), « Marquer lu » / « Marquer comme lue » sous la rangée",
+      "propriete": "présence",
+      "exception": "accessibilité mesurée",
+      "motif": "le nom accessible du bouton d'un repli (`sr-only`, 1 × 1 px) ; le panneau du balayage est posé SOUS chaque rangée (`md:hidden`, couvert par la rangée opaque) et ne se découvre qu'au glissé — la maquette ne le dessine que sur sa rangée « glissée » de l'historique. Le relevé apparie par ordre de lecture : le « Déplier » lu décale l'appariement des textes du repli (« Du 4 au 9 novembre » ↔ « Déplier »)."
+    },
+    {
+      "ecran": "a-*",
+      "element": "chevron « › » d'une rangée sans verbe",
+      "propriete": "couleur",
+      "exception": "contrainte technique",
+      "motif": "`text-muted-foreground/70` de la maquette interdit par `check-valeurs-arbitraires-app` (« encre-sourde », 3,03:1 sur `--card`, sous AA) : `text-muted-foreground` opaque."
+    },
+    {
+      "ecran": "a-0-telephone, a-2-telephone, a-3-telephone",
+      "element": "« Notifications » : interligne 21,3 au lieu de 25,5 ; « Tout lire » 1 px plus haut",
+      "propriete": "interligne, y",
+      "exception": "incohérence des maquettes",
+      "motif": "le titre et son compte « N non lues » partagent l'interligne serré du panneau du bureau (`leading-tight`, 17 px → 21,3) : c'est la valeur de la maquette du bureau, la seule qui écrit le compte (cf. l'écart « 63 non lues »)."
+    }
+  ]
+}

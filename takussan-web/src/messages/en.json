@@ -385,7 +385,60 @@
       "empty": "No notifications.",
       "markRead": "Mark as read",
       "markUnread": "Mark as unread",
-      "viewAll": "View full history"
+      "viewAll": "View full history",
+      "aTraiter": "To do",
+      "tout": "All",
+      "nonLues": "Unread",
+      "puces": "Show",
+      "jours": {
+        "aujourdhui": "Today",
+        "hier": "Yesterday",
+        "semaine": "This week",
+        "ancien": "Older"
+      },
+      "historique": "Full history",
+      "preferences": "Preferences",
+      "preferencesLong": "Notification preferences",
+      "resume": "{nonLues, plural, =0 {Nothing unread} one {# unread} other {# unread}}{aTraiter, plural, =0 {} other { · # to do}}",
+      "aJour": {
+        "titre": "You’re all caught up",
+        "texte": "New notifications will appear here."
+      },
+      "rienATraiter": "Nothing to do",
+      "erreur": {
+        "titre": "Notifications could not be loaded.",
+        "texte": "Check your connection, then try again."
+      },
+      "reessayer": "Try again",
+      "marquerLue": "Mark as read",
+      "marquerNonLue": "Mark as unread",
+      "nonLue": "Unread",
+      "deplier": "Expand",
+      "replier": "Collapse",
+      "voirAutres": "{count, plural, one {See the other one} other {See the # others}}",
+      "toutLireLeRepli": "Read all ({count})",
+      "dansLEspace": "In {espace}",
+      "glisser": "Swipe a row to the left to mark it read or unread.",
+      "familleFiltre": "Type",
+      "familles": {
+        "titre": "Types",
+        "toutes": "All",
+        "demande": "Requests",
+        "visite": "Viewings",
+        "paiement": "Payments",
+        "retard": "Late payments",
+        "bien": "Properties",
+        "avis": "Reviews",
+        "systeme": "System"
+      },
+      "plage": "{debut} to {fin} of {total} · page {page} of {last}",
+      "periode": "From {debut} to {fin}",
+      "quand": {
+        "instant": "just now",
+        "minutes": "{n} min ago",
+        "heures": "{n} h ago",
+        "hier": "yesterday"
+      }
     },
     "proUpgrade": {
       "title": "Become an agency",
@@ -14895,6 +14948,131 @@
       "previous": "Previous",
       "next": "Next",
       "pageOf": "Page {page} of {last}"
+    },
+    "repli": {
+      "ligne": "{titre} · {compte}",
+      "etAutres": "{titre} and {count, plural, one {# other} other {# others}}",
+      "titres": {
+        "maintenance": {
+          "auto_closed": "Request closed",
+          "assigned": "New jobs",
+          "accepted": "Jobs accepted",
+          "completed": "Jobs completed",
+          "cancelled": "Jobs cancelled"
+        },
+        "boost": {
+          "ended": "Boost ended"
+        },
+        "visit": {
+          "requested": "Visit requests",
+          "requested_window": "Visit requests",
+          "confirmed": "Visits confirmed",
+          "reminder": "Visit reminders",
+          "rescheduled_by_visitor": "New times proposed",
+          "cancelled_by_visitor": "Visits cancelled by the visitor",
+          "cancelled_by_visitor_window": "Visits cancelled by the visitor"
+        },
+        "lease_payment": {
+          "overdue_landlord": "Unpaid rents",
+          "received_landlord": "Rents received",
+          "settled_online": "Payments received"
+        },
+        "message": {
+          "received": "New messages"
+        },
+        "lead": {
+          "received": "New requests"
+        },
+        "maintenance_quote": {
+          "requested": "Quote requests",
+          "submitted": "Quotes submitted"
+        }
+      },
+      "compte": {
+        "property": "{count, plural, one {# property} other {# properties}}",
+        "maintenance": "{count, plural, one {# request} other {# requests}}",
+        "visit": "{count, plural, one {# viewing} other {# viewings}}",
+        "lease": "{count, plural, one {# lease} other {# leases}}",
+        "booking": "{count, plural, one {# request} other {# requests}}",
+        "payments": "{count, plural, one {# payment} other {# payments}}",
+        "autre": "{count, plural, one {# notification} other {# notifications}}"
+      }
+    },
+    "verbes": {
+      "lease_payment": {
+        "overdue": "Pay",
+        "overdue_digest": "Follow up"
+      },
+      "payment": {
+        "duplicate": "Resolve",
+        "duplicate_late_fee": "Resolve"
+      },
+      "booking": {
+        "created": "Respond",
+        "requested_undated": "Respond"
+      },
+      "visit": {
+        "requested": "Confirm",
+        "requested_window": "Confirm",
+        "rescheduled_by_visitor": "Confirm"
+      },
+      "lead": {
+        "received": "Reply"
+      },
+      "kyc": {
+        "submitted": "Review",
+        "rejected": "Fix",
+        "expiring_soon": "Renew"
+      },
+      "bank_statement": {
+        "imported": "Reconcile"
+      },
+      "maintenance": {
+        "created": "Handle",
+        "assigned": "Respond",
+        "declined": "Reassign",
+        "completed": "Confirm",
+        "contested": "Reopen",
+        "urgent_created": "Handle",
+        "urgent_escalated": "Handle"
+      },
+      "maintenance_quote": {
+        "requested": "Quote",
+        "submitted": "Approve",
+        "awaiting_owner": "Approve"
+      },
+      "property": {
+        "rejected": "Fix",
+        "submitted_for_review": "Approve",
+        "calendar_conflict": "Resolve",
+        "calendar_feed_failing": "Fix",
+        "unpublished_contact_erased": "Assign",
+        "source_listing_gone": "Update",
+        "proposed": "Review"
+      },
+      "lease": {
+        "signature_requested": "Sign"
+      },
+      "payout": {
+        "awaiting_approval": "Approve",
+        "due": "Pay out",
+        "failed": "Fix"
+      },
+      "payout_threshold": {
+        "relax_requested": "Review"
+      },
+      "review": {
+        "to_moderate": "Moderate"
+      },
+      "invitation": {
+        "received": "Respond",
+        "reminder": "Respond",
+        "renewal_requested": "Resend"
+      },
+      "agency": {
+        "member_deletion_requested": "Reassign",
+        "upgrade_requested": "Review"
+      }
     }
   },
   "impersonation": {

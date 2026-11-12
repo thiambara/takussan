@@ -975,6 +975,8 @@
   --shadow-feuille: 0 25px 50px -12px rgb(0 0 0 / 0.25);
   /* TCK-2621 — la carte centrée sur le fond `muted` d'un écran d'entrée au bureau (« Choisir un espace »). */
   --shadow-carte-d-entree: 0 24px 60px -28px color-mix(in srgb, var(--shadow-color) 45%, transparent);
+  /* TCK-2634 — le panneau de la cloche au bureau (`app-notifications`, `PanneauCloche`). */
+  --shadow-panneau-cloche: 0 24px 60px -24px color-mix(in srgb, var(--shadow-color) 55%, transparent);
   /* TCK-2587 — la carte « prochaine visite » (`app-visites-a-mobile.tsx`, `OMBRE`) : seule carte levée de la liste. */
   --shadow-carte-levee: 0 1px 2px color-mix(in srgb, var(--shadow-color) 5%, transparent), 0 12px 24px -16px color-mix(in srgb, var(--shadow-color) 20%, transparent);
 

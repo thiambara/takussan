@@ -82,6 +82,31 @@ export async function markNotificationUnreadAction(
   }
 }
 
+/**
+ * TCK-2634 — « Tout lire » d'une ligne repliée : chacune de ses notifications est marquée lue, par le
+ * geste existant (`POST notifications/{id}/read`), l'éventail se faisant ici et non dans le navigateur.
+ * L'API n'a pas de lecture groupée par identifiants, et `read-all` marquerait aussi le reste. Par
+ * paquets de cinq ; la première erreur arrête et se rend comme celle d'une ligne seule.
+ */
+export async function markNotificationsReadAction(
+  notificationIds: readonly number[],
+): Promise<ActionResult<AppNotification[]>> {
+  const token = await getToken();
+  if (!token) return nonAuthentifie();
+
+  try {
+    const lues: AppNotification[] = [];
+    for (let i = 0; i < notificationIds.length; i += 5) {
+      const paquet = notificationIds.slice(i, i + 5);
+      const reponses = await Promise.all(paquet.map((id) => markNotificationRead(token, id)));
+      lues.push(...reponses.map((r) => r.data));
+    }
+    return { ok: true, data: lues };
+  } catch (err) {
+    return failure(err, 'markReadFailed');
+  }
+}
+
 export async function markAllNotificationsReadAction(): Promise<
   ActionResult<true>
 > {
