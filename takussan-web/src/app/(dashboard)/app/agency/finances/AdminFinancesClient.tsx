@@ -24,6 +24,7 @@ import { dateDuMois, moisCourant } from '@/lib/finances/mois';
 import { useFinanceSummary } from '@/lib/queries/agency-reporting';
 import { lienDExportDuRegistre } from '@/lib/queries/exports';
 import { usePaymentsHistory } from '@/lib/queries/payments';
+import { useResumeDesImpayes } from '@/components/admin/finances/impayes/Impayes';
 import { ApiError } from '@/lib/api';
 
 interface AdminFinancesClientProps {
@@ -68,6 +69,8 @@ export function AdminFinancesClient({ canViewFinances, canEmitFinances, rapproch
   const telephone = useMatchesMedia(REQUETE_DE_LA_BARRE);
   const courant = moisCourant();
   const vue = vueDeLArgent(recherche);
+  // TCK-2660 — le sous-titre de l'écran Impayés au bureau : le total dû et les cautions (balance âgée).
+  const resumeDesImpayes = useResumeDesImpayes(vue.sorte === 'registre' && vue.onglet === 'impayes' ? agencyId : undefined);
   const mois = moisAffiche(recherche, courant);
   const periodeDansLUrl = recherche.get('period');
   const gestes = useGestesDeLArgent(canEmitFinances);
@@ -192,7 +195,9 @@ export function AdminFinancesClient({ canViewFinances, canEmitFinances, rapproch
   const onglet = vue.onglet === 'a-approuver' && !gestes.peutApprouver ? 'encaissements' : vue.onglet;
   const total = encaissements.data?.meta.total;
   const description =
-    onglet === 'encaissements' && total !== undefined
+    onglet === 'impayes'
+      ? (resumeDesImpayes?.sousTitre ?? undefined)
+      : onglet === 'encaissements' && total !== undefined
       ? bornesExport.mois
         ? t('argent.encaissements.sousTitre', { count: total, mois: nomDuMois(bornesExport.mois) })
         : t('argent.encaissements.sousTitreSansMois', { count: total })

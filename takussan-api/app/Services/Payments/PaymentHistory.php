@@ -69,7 +69,7 @@ class PaymentHistory
 
         $bookingQuery = BookingPayment::query()
             ->with('booking.property')
-            ->when(in_array('payer', $includes, true), fn ($q) => $q->with(['booking.customer' => fn ($c) => $c->withTrashed()]))
+            ->when(in_array('payer', $includes, true), fn ($q) => $q->with(['booking.customer' => fn ($c) => $c->withTrashed()->with('user:id,preferred_language')]))
             ->when(in_array('landlord', $includes, true), fn ($q) => $q->with(['booking.property.owner' => fn ($u) => $u->withTrashed()]))
             ->when(! $user->isSuperAdmin(), function ($q) use ($user): void {
                 // P233.01 (TCK-2241) — l'auteur encore membre de l'agence de la réservation, comme
@@ -92,7 +92,7 @@ class PaymentHistory
 
         $leaseQuery = LeasePayment::query()
             ->with(['lease.property', 'lease.agency'])
-            ->when(in_array('payer', $includes, true), fn ($q) => $q->with(['payer' => fn ($c) => $c->withTrashed()]))
+            ->when(in_array('payer', $includes, true), fn ($q) => $q->with(['payer' => fn ($c) => $c->withTrashed()->with('user:id,preferred_language')]))
             ->when(in_array('landlord', $includes, true), fn ($q) => $q->with(['lease.landlord' => fn ($u) => $u->withTrashed()]))
             ->when(! $user->isSuperAdmin(), function ($q) use ($user): void {
                 $q->whereHas('lease', function ($lq) use ($user): void {
@@ -648,7 +648,18 @@ class PaymentHistory
         $out = [];
         if (in_array('payer', $includes, true)) {
             $c = $payer();
-            $out['payer'] = $c !== null ? ['id' => $c->id, 'name' => $c->full_name, 'phone' => $c->phone] : null;
+            // TCK-2660 (ADR-0105 § 1) — `first_name` et `locale` : la relance s'écrit au prénom, dans la
+            // langue du LOCATAIRE. La langue suit la règle de `ContactSansCompte::fromCustomer()` (celle
+            // du compte lié, sinon celle de la fiche), sans son défaut : `null` laisse l'écran choisir.
+            // Le bailleur et le locataire, qui lisent aussi cette route, recevaient déjà le nom et le
+            // téléphone ; la langue est le seul ajout qui leur parvienne.
+            $out['payer'] = $c !== null ? [
+                'id' => $c->id,
+                'name' => $c->full_name,
+                'phone' => $c->phone,
+                'first_name' => $c->first_name,
+                'locale' => $c->user?->preferredLocale() ?? ($c->locale ?: null),
+            ] : null;
         }
         if (in_array('property', $includes, true)) {
             $b = $property();

@@ -137,17 +137,32 @@ class PaymentHistoryNamedRowsTest extends ApiTestCase
             ->all();
     }
 
+    /**
+     * TCK-2660 (ADR-0105 § 1) — la langue du locataire, pour la relance : celle de son compte lié
+     * d'abord, sinon celle de sa fiche, sinon `null` (l'écran choisit) — la règle de
+     * `ContactSansCompte::fromCustomer()`, sans son défaut.
+     */
+    public function test_tck_2660_payer_locale_follows_the_linked_account_then_the_customer_card(): void
+    {
+        $this->tenantA->update(['locale' => 'en']);
+        $this->assertSame('en', $this->rows('&include=payer')['lease:'.$this->lateRent->id]['payer']['locale']);
+
+        $compte = User::factory()->create(['preferred_language' => 'wo']);
+        $this->tenantA->update(['user_id' => $compte->id]);
+        $this->assertSame('wo', $this->rows('&include=payer')['lease:'.$this->lateRent->id]['payer']['locale']);
+    }
+
     public function test_ac1_include_names_the_payer_the_property_and_the_landlord(): void
     {
         $rows = $this->rows('&include=payer,property,landlord');
 
         $lease = $rows['lease:'.$this->lateRent->id];
-        $this->assertSame(['id' => $this->tenantA->id, 'name' => 'Moussa Diop', 'phone' => '+221770000001'], $lease['payer']);
+        $this->assertSame(['id' => $this->tenantA->id, 'name' => 'Moussa Diop', 'phone' => '+221770000001', 'first_name' => 'Moussa', 'locale' => null], $lease['payer']);
         $this->assertSame(['id' => $this->propertyA->id, 'title' => 'Villa des Almadies', 'reference_number' => $this->propertyA->reference_number], $lease['property']);
         $this->assertSame(['id' => $this->landlordA->id, 'name' => 'Awa Ndiaye'], $lease['landlord']);
 
         $booking = $rows['booking:'.$this->bookingPayment->id];
-        $this->assertSame(['id' => $this->bookingCustomer->id, 'name' => 'Fatou Sall', 'phone' => '+221770000002'], $booking['payer']);
+        $this->assertSame(['id' => $this->bookingCustomer->id, 'name' => 'Fatou Sall', 'phone' => '+221770000002', 'first_name' => 'Fatou', 'locale' => null], $booking['payer']);
         $this->assertSame('Studio Plateau', $booking['property']['title']);
         $this->assertSame(['id' => $this->landlordB->id, 'name' => 'Ibrahima Fall'], $booking['landlord']);
     }

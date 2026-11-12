@@ -11,7 +11,7 @@ import type { OngletArgent } from '@/lib/finances/vue-argent';
 
 import { EncaissementsAgence } from './argent/EncaissementsAgence';
 import type { GestesDeLArgent } from './argent/gestes';
-import { OverduePaymentsTable } from './OverduePaymentsTable';
+import { Impayes } from './impayes/Impayes';
 
 /**
  * Les valeurs acceptées par `?tab=` — déclarées dans `lib/finances/vue-argent.ts` depuis TCK-2659,
@@ -97,7 +97,7 @@ export function AdminFinancesTabs({ onglet, onChange, gestes, telephone, variant
       ) : null}
 
       <TabsContent value="impayes" className="space-y-4 pt-4">
-        <OverduePaymentsTable />
+        <Impayes agencyId={agencyId} />
       </TabsContent>
     </Tabs>
   );

@@ -64,6 +64,8 @@ export type UsePaymentsHistoryParams = {
   readonly payment_method?: readonly string[];
   readonly search?: string;
   readonly days_late_min?: number;
+  /** TCK-2660 — la borne haute du retard (« 8–30 j », « Moins de 8 j »), en jours, bornes incluses. */
+  readonly days_late_max?: number;
   /** `false` : la requête ne part pas (une file que le lecteur n'a pas le droit de lire). */
   readonly enabled?: boolean;
 };
@@ -118,6 +120,7 @@ export function filtresDeLHistorique(params: UsePaymentsHistoryParams): Record<s
   if (params.payment_method && params.payment_method.length > 0) filter.payment_method = params.payment_method.join(',');
   if (params.search && params.search.trim() !== '') filter.search = params.search.trim();
   if (params.days_late_min !== undefined) filter.days_late_min = params.days_late_min;
+  if (params.days_late_max !== undefined) filter.days_late_max = params.days_late_max;
   return filter;
 }
 

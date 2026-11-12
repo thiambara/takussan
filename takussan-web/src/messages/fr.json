@@ -6817,6 +6817,113 @@
           "toutes": "Toutes les dates",
           "choisir": "Mois : {mois}"
         }
+      },
+      "impayes": {
+        "vues": {
+          "label": "Regrouper les impayés",
+          "locataire": "Par locataire",
+          "bailleur": "Par bailleur"
+        },
+        "tranches": {
+          "label": "Retard",
+          "tous": "Tous",
+          "plus30": "Plus de 30 j",
+          "de8a30": "8–30 j",
+          "moins8": "Moins de 8 j"
+        },
+        "recherche": "Chercher un locataire, un bien",
+        "bailleur": {
+          "filtre": "Bailleur : {nom}",
+          "retirer": "Retirer le filtre du bailleur {nom}"
+        },
+        "vide": {
+          "titre": "Aucun impayé",
+          "titreFiltre": "Aucun impayé dans cette sélection",
+          "description": "Aucune échéance échue n’attend de paiement."
+        },
+        "resume": "dus sur {count, plural, one {# échéance} other {# échéances}} · cautions détenues : {cautions}",
+        "sousTitre": "{montant} dus sur {count, plural, one {# échéance} other {# échéances}} · cautions détenues : {cautions}",
+        "voirPlus": "{count, plural, one {Voir l’autre} other {Voir les # autres}}",
+        "carte": {
+          "retard": "{count} j de retard"
+        },
+        "retardCourt": "{count} j",
+        "sansTelephone": "Aucun numéro pour ce locataire",
+        "sansTelephoneCourt": "Sans numéro",
+        "agence": "l’agence",
+        "relance": {
+          "jamais": "jamais relancé",
+          "aujourdhui": "relancé aujourd’hui",
+          "le": "relancé le {date}"
+        },
+        "canal": {
+          "whatsapp": "WhatsApp",
+          "appel": "Appel",
+          "automatique": "Rappel automatique"
+        },
+        "gestes": {
+          "relancerWhatsApp": "Relancer sur WhatsApp",
+          "relancer": "Relancer",
+          "appeler": "Appeler",
+          "appelerNom": "Appeler {nom}",
+          "ouvrirWhatsApp": "Ouvrir WhatsApp",
+          "encaisser": "Encaisser un paiement",
+          "ficheClient": "Fiche client",
+          "ouvrirDossier": "Ouvrir le dossier de {nom}"
+        },
+        "relancer": {
+          "titre": "Relancer {nom}",
+          "retard": "{count, plural, one {# jour de retard} other {# jours de retard}}",
+          "message": "Le message",
+          "modifier": "Modifier",
+          "lien": "Lien de paiement de l’échéance",
+          "lienRefuse": "Cette échéance ne se paie plus en ligne : WhatsApp ne s’ouvrira pas.",
+          "lienEchec": "Le lien de paiement n’a pas pu être préparé.",
+          "reessayer": "Réessayer",
+          "derniere": "Dernière relance le {date} : {canal}, par {nom}.",
+          "derniereAutomatique": "Dernier rappel automatique le {date}.",
+          "jamais": "Aucune relance jusqu’ici.",
+          "seraNotee": "Celle-ci sera notée sur la ligne : « relancé aujourd’hui ».",
+          "noteEchec": "La relance n’a pas pu être notée.",
+          "copier": "Copier",
+          "copie": "Copié"
+        },
+        "dossier": {
+          "bailleur": "Bailleur : {nom}",
+          "payee": "Échéance payée : rien à relancer.",
+          "duDepuis": "{count, plural, one {Dû depuis # jour} other {Dû depuis # jours}}",
+          "echeances": "Échéances dues",
+          "echeance": "{periode} · échue le {date}",
+          "penalite": "Pénalité de retard",
+          "penaliteHorsLien": "Pénalité de retard · hors du lien",
+          "caution": "Caution détenue",
+          "lien": "Lien de paiement",
+          "lienAide": "Le paiement solde l’échéance et prévient l’agence.",
+          "relances": "Relances",
+          "aucuneRelance": "Aucune relance",
+          "jalon": {
+            "avant": "avant l’échéance",
+            "apres": "{count} j après l’échéance",
+            "inconnu": "envoi automatique"
+          },
+          "anciennete": "Ancienneté du dû"
+        },
+        "colonnes": {
+          "locataire": "Locataire",
+          "bien": "Bien",
+          "bailleur": "Bailleur",
+          "montant": "Montant dû",
+          "retard": "Retard",
+          "relance": "Dernière relance",
+          "gestes": "Gestes"
+        },
+        "legende": "Impayés par échéance, du plus ancien au plus récent",
+        "pied": "{debut} à {fin} sur {total}",
+        "piedAvecTotal": "{debut} à {fin} sur {total} · total dû {montant}",
+        "message": {
+          "loyer": "Bonjour{prenom, select, aucun {} other { {prenom}}}, le loyer {voyelle, select, oui {d’{mois}} other {de {mois}}} ({montant}){bien, select, aucun {} other { du bien « {bien} »}} reste à régler depuis le {date}. Vous pouvez le payer en ligne ici : {lien}",
+          "autre": "Bonjour{prenom, select, aucun {} other { {prenom}}}, le paiement « {libelle} » ({montant}){bien, select, aucun {} other { du bien « {bien} »}} reste à régler depuis le {date}. Vous pouvez le payer en ligne ici : {lien}"
+        }
       }
     },
     "audit": {

@@ -82,4 +82,66 @@ L'admin qui voit un loyer en retard relance le locataire en deux touches, sur Wh
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Mesuré le 2026-11-12 (base de démo, agence 1, lecture seule) : 16 échéances échues sur 14 baux, 33 715 000 F
+— l'âge des créances rend le même total ; 7 à plus de 30 j, 0 de 8 à 30 j, 9 à moins de 8 j ; toutes des
+loyers, toutes payables ; chaque payeur a un téléphone et un prénom ; aucun n'a de langue ; aucune relance.
+
+**La règle *Impayé* est celle de TCK-595, partagée** : la liste lit `GET /api/payments/history` avec
+`filter[days_late_min]=1` (et `days_late_max` pour les pastilles), **jamais `filter[status]`** — le
+§ Contrat de données citait `filter[status]=late,partially_paid`, qui laisse dehors une échéance `pending`
+échue. Un test le garde (« lit la règle *Impayé* partagée… une échéance `pending` échue y est »).
+Les pastilles : Plus de 30 j = `days_late_min=31` (AC3) ; 8–30 j = 8 à 30 ; Moins de 8 j = 1 à 7
+(`impayes/tranches.ts`) ; leurs comptes sont trois requêtes `per_page=1` en parallèle (`meta.total`),
+« Tous » leur somme ; une requête en échec laisse sa pastille sans chiffre, rien d'autre.
+
+**Une carte par échéance** (pas par locataire, décision 2) : compteur = `meta.total`, « Voir plus » par 20.
+Les autres échéances dues du locataire sont dans son dossier (« Échéances dues », même règle, `payer_id`).
+
+**Qui lit `/api/payments/history`** (relevé avant d'y ajouter `first_name` et `locale` au payeur) : le
+personnel de l'agence, le bailleur du bail ou du bien (`BailleurDuBien`), le locataire lui-même
+(`customer.user_id`) et le créateur de la réservation. Le bailleur et le locataire recevaient déjà le nom
+et le téléphone du payeur ; ils reçoivent en plus sa langue — admise par la décision 4 — et son prénom — accepté par le chef d'équipe le 2026-11-12 : le prénom est une partie du nom (`name`) qu'ils lisaient déjà, rien de neuf n'est exposé.
+`locale` = la langue du compte lié (`preferredLocale()`), sinon celle de la fiche client, sinon `null`
+(la règle de `ContactSansCompte`, sans le repli `fr`) — `PaymentHistoryNamedRowsTest`.
+
+**Le message** est composé côté serveur (`app/actions/relance.ts`) dans la langue du **locataire**
+(ADR-0105 § 1), celle de l'écran en repli, `fr` sinon ; un locataire `wo` reçoit le français (wolof en
+pause — test « wolof en pause »). Il ne nomme aucun moyen de paiement et n'est jamais stocké. Il reste
+modifiable avant l'envoi.
+
+**Ce que montrait l'ancien âge des créances par locataire (`OverduePaymentsTable`) et où chaque chose vit
+désormais** — le composant est gardé, monté dans « Par bailleur » (`regroupement="landlord"`,
+le bailleur cliquable → `filter[landlord_id]`, son résumé total + cautions gardé) ; aucun de ses six fichiers de tests n'est
+supprimé (`AdminFinancesTabs.capacites` adapté par un double de `Impayes`) :
+
+| Information | Où elle vit |
+|---|---|
+| Les 4 tuiles de tranches de l'agence (1–30, 31–60, 61–90, 90+ ; montant et compte) | « Par bailleur », inchangées |
+| Les colonnes de tranches par bailleur, et le lien vers chaque bailleur | « Par bailleur » ; le nom filtre « Par locataire » sur ce bailleur |
+| Total dû (montant et compte) | en-tête : « 33 715 000 F dus sur 16 échéances » (âge des créances) ; « Par bailleur », tuile « Total des impayés » |
+| Cautions détenues (total) et leur nombre de bailleurs | en-tête : « cautions détenues : … » ; « Par bailleur », tuile « Cautions détenues · N bailleurs » ; par bail, dans le dossier (« Caution détenue ») |
+| Une ligne par locataire avec son total | une carte (ou rangée) par échéance ; le dossier liste toutes ses échéances dues avec leur échéance |
+| Lien vers la fiche client | nom de la carte ; « Fiche client » du dossier ; lien sous le bouton désactivé sans numéro |
+| Le dû d'UN locataire par tranche (1–30, 31–60, 61–90, plus de 90 jours) | dossier, « Ancienneté du dû » (balance âgée par locataire, même cache que l'en-tête), au bas du dossier |
+
+**La relance n'écrit que sa note** (ADR-0105 § 3) : `POST …/reminders {channel}` à l'ouverture de wa.me
+(« Ouvrir WhatsApp ») ou de `tel:` (« Appeler »), par `impayes/useNoterLaRelance.ts`, qui DIT un échec par
+un toast (P228.06) posé sur la mutation elle-même (`useNoterUneRelance({ onError })`), pas sur l'appel : il ne dépend pas du geste qui l'a lancée (le test « après Ouvrir WhatsApp » prouve le toast sur ce chemin ; il ne distingue pas les deux poses, le crochet qui porte la mutation restant monté) ; la ligne prend la relance de la réponse, sans relire la liste (AC1). Le lien de
+paiement se demande à l'ouverture de la feuille ou du dossier ; un 409 le dit et « Ouvrir WhatsApp »
+reste un bouton désactivé (`aria-describedby`), sans wa.me.
+
+**Tests** : `impayes.tck-2660.test.tsx` (15 : règle partagée, AC1, AC2, AC3, AC5, AC6, 409, comptes des
+pastilles et échec d'un compte, « Voir plus », dossier et son « Ancienneté du dû », lien non répété, « Par bailleur »
+(tranches, cautions et leur nombre de bailleurs, filtre), note refusée depuis « Appeler » et depuis « Ouvrir WhatsApp »), `relance.tck-2660.test.ts`
+(6 : langue du locataire, repli, `wo` → français, sans prénom ni bien, période nommée), et côté API
+`PaymentHistoryNamedRowsTest` (9). **Ablations**, une à la fois, md5 vérifié avant restauration : 409 →
+`echec` (rouge) ; langue du locataire ignorée (2 rouges) ; encaissement sans `status: paid` (AC2 rouge) ;
+toast retiré de la note (rouge) ; « Ancienneté du dû » retirée du dossier (rouge) ; côté API, règle du compte lié retirée (rouge).
+
+**Fidélité** : fiche `docs/qa/audit-ux-2026-11/fidelite/TCK-2660.json` (a-1 et a-2, trois appareils,
+largeurs 360 · 768 · 1024 · 1280). Aucun relevé n'écrit : `POST …/payment-link` intercepté (URL fictive)
+et `POST …/reminders` refusé dans la page, journal dans `perturbation.interceptions`, aucun POST dans
+`meta.reseau` ; wa.me et `tel:` jamais suivis. AC1 est prouvé par les tests, pas par un relevé.
+
+Hors du ticket, laissés ouverts dans le produit : les coches et la barre de sélection (TCK-2682 — la
+première colonne est celle du locataire, une coche s'ajoutera devant), la bascule SMS / E-mail, « Lu le ».

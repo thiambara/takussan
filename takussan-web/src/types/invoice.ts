@@ -124,13 +124,26 @@ export type PaymentHistoryRow = {
    * (`landlord.id` est celui de `filter[landlord_id]`). Absents sans l'`include`, nuls quand la
    * relation manque.
    */
-  payer?: { readonly id: number; readonly name: string | null; readonly phone?: string | null } | null;
+  payer?: {
+    readonly id: number;
+    readonly name: string | null;
+    readonly phone?: string | null;
+    /** TCK-2660 — le prénom et la langue du payeur, pour la relance (ADR-0105 § 1) ; `locale` nulle : l'écran choisit. */
+    readonly first_name?: string | null;
+    readonly locale?: string | null;
+  } | null;
   property?: { readonly id: number; readonly title: string | null; readonly reference_number?: string | null } | null;
   landlord?: { readonly id: number; readonly name: string | null } | null;
   /** Jours de retard (≥ 1), nul sinon ; servi dès qu'un paramètre de TCK-2657 est passé. */
   days_late?: number | null;
   /** TCK-2658 — `include=reminders` : la dernière relance d'une ligne de bail (nulle sinon). */
-  last_reminder?: { readonly at: string; readonly channel?: string | null } | null;
+  last_reminder?: {
+    readonly at: string;
+    /** TCK-2660 — `manual` (notée par l'agence) ou `automatic` (rappel du job, sans canal ni auteur). */
+    readonly source?: 'manual' | 'automatic' | null;
+    readonly channel?: string | null;
+    readonly by?: { readonly id: number; readonly name: string | null } | null;
+  } | null;
   reminders_count?: number;
 };
 

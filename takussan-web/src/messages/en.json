@@ -6817,6 +6817,113 @@
           "toutes": "All dates",
           "choisir": "Month: {mois}"
         }
+      },
+      "impayes": {
+        "vues": {
+          "label": "Group unpaid rent",
+          "locataire": "By tenant",
+          "bailleur": "By landlord"
+        },
+        "tranches": {
+          "label": "Days late",
+          "tous": "All",
+          "plus30": "Over 30 days",
+          "de8a30": "8–30 days",
+          "moins8": "Under 8 days"
+        },
+        "recherche": "Search a tenant or a property",
+        "bailleur": {
+          "filtre": "Landlord: {nom}",
+          "retirer": "Remove the landlord filter {nom}"
+        },
+        "vide": {
+          "titre": "No unpaid rent",
+          "titreFiltre": "No unpaid rent in this selection",
+          "description": "No overdue instalment is waiting for payment."
+        },
+        "resume": "due across {count, plural, one {# instalment} other {# instalments}} · deposits held: {cautions}",
+        "sousTitre": "{montant} due across {count, plural, one {# instalment} other {# instalments}} · deposits held: {cautions}",
+        "voirPlus": "{count, plural, one {See the other one} other {See the # others}}",
+        "carte": {
+          "retard": "{count} d late"
+        },
+        "retardCourt": "{count} d",
+        "sansTelephone": "No phone number for this tenant",
+        "sansTelephoneCourt": "No number",
+        "agence": "the agency",
+        "relance": {
+          "jamais": "never reminded",
+          "aujourdhui": "reminded today",
+          "le": "reminded on {date}"
+        },
+        "canal": {
+          "whatsapp": "WhatsApp",
+          "appel": "Call",
+          "automatique": "Automatic reminder"
+        },
+        "gestes": {
+          "relancerWhatsApp": "Remind on WhatsApp",
+          "relancer": "Remind",
+          "appeler": "Call",
+          "appelerNom": "Call {nom}",
+          "ouvrirWhatsApp": "Open WhatsApp",
+          "encaisser": "Record a payment",
+          "ficheClient": "Customer record",
+          "ouvrirDossier": "Open {nom}’s file"
+        },
+        "relancer": {
+          "titre": "Remind {nom}",
+          "retard": "{count, plural, one {# day late} other {# days late}}",
+          "message": "The message",
+          "modifier": "Edit",
+          "lien": "Payment link for this instalment",
+          "lienRefuse": "This instalment can no longer be paid online: WhatsApp will not open.",
+          "lienEchec": "The payment link could not be prepared.",
+          "reessayer": "Try again",
+          "derniere": "Last reminder on {date}: {canal}, by {nom}.",
+          "derniereAutomatique": "Last automatic reminder on {date}.",
+          "jamais": "No reminder so far.",
+          "seraNotee": "This one will be noted on the row: “reminded today”.",
+          "noteEchec": "The reminder could not be recorded.",
+          "copier": "Copy",
+          "copie": "Copied"
+        },
+        "dossier": {
+          "bailleur": "Landlord: {nom}",
+          "payee": "Instalment paid: nothing to remind.",
+          "duDepuis": "{count, plural, one {Due for # day} other {Due for # days}}",
+          "echeances": "Instalments due",
+          "echeance": "{periode} · due on {date}",
+          "penalite": "Late fee",
+          "penaliteHorsLien": "Late fee · not in the link",
+          "caution": "Deposit held",
+          "lien": "Payment link",
+          "lienAide": "Paying settles the instalment and notifies the agency.",
+          "relances": "Reminders",
+          "aucuneRelance": "No reminder",
+          "jalon": {
+            "avant": "before the due date",
+            "apres": "{count} d after the due date",
+            "inconnu": "automatic send"
+          },
+          "anciennete": "Amount due by age"
+        },
+        "colonnes": {
+          "locataire": "Tenant",
+          "bien": "Property",
+          "bailleur": "Landlord",
+          "montant": "Amount due",
+          "retard": "Late",
+          "relance": "Last reminder",
+          "gestes": "Actions"
+        },
+        "legende": "Unpaid rent by instalment, oldest first",
+        "pied": "{debut} to {fin} of {total}",
+        "piedAvecTotal": "{debut} to {fin} of {total} · total due {montant}",
+        "message": {
+          "loyer": "Hello{prenom, select, aucun {} other { {prenom}}}, the {mois} rent ({montant}){bien, select, aucun {} other { for “{bien}”}} has been due since {date}. You can pay it online here: {lien}",
+          "autre": "Hello{prenom, select, aucun {} other { {prenom}}}, the payment “{libelle}” ({montant}){bien, select, aucun {} other { for “{bien}”}} has been due since {date}. You can pay it online here: {lien}"
+        }
       }
     },
     "audit": {

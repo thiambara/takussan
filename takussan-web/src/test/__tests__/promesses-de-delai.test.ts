@@ -125,6 +125,12 @@ const REGISTRE: Readonly<Record<string, string>> = {
   // `over_30` que l'API mesure (`by_age.over_30.count`). Une ANCIENNETÉ de retard, pas un délai promis.
   'admin.finances.argent.tuiles.bauxEtAnciens':
     'takussan-api/app/Services/Reporting/FinanceSummaryService.php:44-48 — AGE_BUCKETS, over_30 = [31, null] (plus de 30 jours de retard)',
+  // TCK-2660 — les pastilles des impayés : « Plus de 30 j » et « Moins de 8 j » filtrent l'historique par
+  // ANCIENNETÉ de retard (`filter[days_late_min|max]`, mesurée par l'API). Une tranche affichée, pas un délai promis.
+  'admin.finances.impayes.tranches.plus30':
+    'takussan-web/src/components/admin/finances/impayes/tranches.ts:21 — plus30 = days_late_min 31 (plus de 30 jours de retard)',
+  'admin.finances.impayes.tranches.moins8':
+    'takussan-web/src/components/admin/finances/impayes/tranches.ts:23 — moins8 = days_late 1 à 7 (moins de 8 jours de retard)',
 };
 
 /**
@@ -158,6 +164,8 @@ const CHIFFRE_TENU: Readonly<Record<string, number | readonly number[]>> = {
   'search.publicAlert.codeBody': 5,
   'superAdmin.pages.radar.listing.source.capturesExpire': 30,
   'admin.finances.argent.tuiles.bauxEtAnciens': 30,
+  'admin.finances.impayes.tranches.plus30': 30,
+  'admin.finances.impayes.tranches.moins8': 8,
 };
 
 /**
