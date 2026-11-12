@@ -62,7 +62,7 @@ vi.mock('@/components/documents/DocumentUploadDialog', () => ({
     open ? <button type="button" onClick={onUploaded}>déposer le document</button> : null,
 }));
 vi.mock('@/components/customer-form', () => ({ CustomerForm: () => <p>formulaire de la fiche</p> }));
-vi.mock('@/components/crm/InviterACreerSonCompte', () => ({ InviterACreerSonCompte: () => null }));
+vi.mock('@/components/crm/InviterACreerSonCompte', () => ({ InviterACreerSonCompte: () => null, useInvitationDuClient: () => ({ etat: 'aucune' }) }));
 const etiquettes = vi.hoisted(() => ({ forme: undefined as string | undefined }));
 vi.mock('@/components/customer-dashboard/CustomerTagPicker', () => ({
   CustomerTagPicker: ({ forme }: { forme?: string }) => {

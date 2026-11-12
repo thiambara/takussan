@@ -76,6 +76,12 @@ export interface RoleDelegation {
   readonly revoked_at: string | null;
   readonly created_at: string | null;
   readonly updated_at: string | null;
+  /**
+   * TCK-2666 (ADR-0035, amendement) — la délégation LIÉE à une absence nomme l'absence qu'elle
+   * couvre ; elle ne se révoque pas seule (422 `role_delegation.covers_absence`) : elle renvoie à
+   * l'absence, sur la page Équipe.
+   */
+  readonly covers_absence?: { readonly id: number; readonly absent: { readonly id: number; readonly name: string } | null } | null;
 }
 
 /** Le corps de `POST /api/agencies/{agency}/role-delegations`. */

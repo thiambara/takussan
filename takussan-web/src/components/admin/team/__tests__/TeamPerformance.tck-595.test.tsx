@@ -9,13 +9,11 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { withIntl } from '@/test/intl';
-import { TeamConsole } from '@/components/admin/TeamConsole';
+import { ConsoleDeLEquipe } from '@/components/admin/equipe/ConsoleDeLEquipe';
 import { TeamPerformanceTable } from '../TeamPerformanceTable';
 
 const etat = vi.hoisted(() => ({ capacites: [] as string[], recherche: '' }));
 
-vi.mock('@/components/admin/PendingInvitationsSection', () => ({ PendingInvitationsSection: () => null }));
-vi.mock('@/components/crm/AgentAbsencesSection', () => ({ AgentAbsencesSection: () => null }));
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
   useSearchParams: () => new URLSearchParams(etat.recherche),
@@ -30,6 +28,19 @@ vi.mock('@/hooks/useCan', () => ({
 vi.mock('@/lib/queries/agency-roles', () => ({
   useAgencyRoleAssignments: () => ({ data: { data: [] }, isLoading: false, isError: false }),
   agencyRoleKeys: { assignments: () => ['agency-roles', 'assignments'] },
+}));
+vi.mock('@/hooks/useMatchesMedia', () => ({ useMatchesMedia: (q: string) => !q.includes('<') }));
+vi.mock('@/lib/queries/agent-crm', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/queries/agent-crm')>()),
+  fetchAbsences: async () => [],
+}));
+vi.mock('@/lib/queries/agency-invitations', () => ({
+  agencyInvitationKeys: {
+    all: ['agency-invitations'],
+    liste: (a: number, s: string, p: number, n: number) => ['agency-invitations', 'liste', a, s, p, n],
+  },
+  DEFAULT_PER_PAGE: 10,
+  fetchPendingAgencyInvitations: async () => ({ data: [], meta: { total: 0, current_page: 1, last_page: 1, per_page: 10 } }),
 }));
 vi.mock('@/lib/queries/admin-users', () => ({
   fetchAdminUsers: () => Promise.resolve({ data: [], meta: { current_page: 1, last_page: 1, per_page: 20, total: 0 } }),
@@ -90,11 +101,12 @@ describe('TeamPerformanceTable', () => {
   });
 });
 
-describe('TeamConsole — l’onglet Performance', () => {
+// TCK-2667 — `ConsoleDeLEquipe` remplace `TeamConsole` ; l'onglet garde ses deux conditions.
+describe('ConsoleDeLEquipe — l’onglet Performance', () => {
   it('absent sans reports.view_agency, même si l’URL le demande', async () => {
     etat.recherche = 'vue=performance';
     mockFetch();
-    monter(<TeamConsole agencyId={5} currentUserId={1} agencyKind="standard" />);
+    monter(<ConsoleDeLEquipe agencyId={5} currentUserId={1} agencyKind="standard" />);
 
     expect(screen.queryByRole('tab', { name: 'Performance' })).toBeNull();
     expect(screen.queryByText("Performance de l'équipe")).toBeNull();
@@ -103,7 +115,7 @@ describe('TeamConsole — l’onglet Performance', () => {
   it('absent pour une agence individual', () => {
     etat.capacites = ['reports.view_agency'];
     mockFetch();
-    monter(<TeamConsole agencyId={5} currentUserId={1} agencyKind="individual" />);
+    monter(<ConsoleDeLEquipe agencyId={5} currentUserId={1} agencyKind="individual" />);
 
     expect(screen.queryByRole('tab', { name: 'Performance' })).toBeNull();
   });
@@ -112,7 +124,7 @@ describe('TeamConsole — l’onglet Performance', () => {
     etat.capacites = ['reports.view_agency'];
     etat.recherche = 'vue=performance';
     mockFetch();
-    monter(<TeamConsole agencyId={5} currentUserId={1} agencyKind="standard" />);
+    monter(<ConsoleDeLEquipe agencyId={5} currentUserId={1} agencyKind="standard" />);
 
     expect(screen.getByRole('tab', { name: 'Performance' })).toHaveAttribute('aria-selected', 'true');
     expect(await screen.findByText('Awa Diop')).toBeInTheDocument();

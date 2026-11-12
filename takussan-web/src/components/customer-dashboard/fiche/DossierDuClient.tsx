@@ -8,7 +8,7 @@ import { ChevronDown, FileText, FolderOpen, Home, IdCard, KeyRound, ListChecks, 
 import { CustomerLinkedRecords } from '@/components/crm/CustomerLinkedRecords';
 import { CustomerMatches } from '@/components/crm/CustomerMatches';
 import { CustomerTasksPanel } from '@/components/crm/CustomerTasksPanel';
-import { InviterACreerSonCompte } from '@/components/crm/InviterACreerSonCompte';
+import { InviterACreerSonCompte, useInvitationDuClient } from '@/components/crm/InviterACreerSonCompte';
 import { CustomerDocumentsPanel } from '@/components/customer-dashboard/CustomerDocumentsPanel';
 import { RevelationNumeroDePiece } from '@/components/customer-form/RevelationNumeroDePiece';
 import { Surtitre } from '@/components/leads/boite/pieces';
@@ -163,6 +163,8 @@ export function DossierDuClient({ customer, relationships, peutInviter, peutReve
   const { token } = useAuth();
   const presentes = lignesDuDossier(customer, { relations: relationships.length, peutInviter });
   const { ouverte, basculer } = useSectionDuDossier(presentes);
+  // TCK-2668 — l'état de l'invitation à créer son compte se lit sur la ligne repliée (AC4).
+  const { etat: invitation } = useInvitationDuClient(customer.id, presentes.includes('compte'));
   // Ouverte au chargement, par l'URL : la seule ligne à amener à l'écran.
   const [ouverteAuChargement] = useState(ouverte);
 
@@ -238,7 +240,7 @@ export function DossierDuClient({ customer, relationships, peutInviter, peutReve
     compte: {
       libelle: t('compte'),
       detail: t('compteDetail'),
-      valeur: t('inviter'),
+      valeur: invitation === 'expiree' ? t('invitationExpiree') : invitation === 'envoyee' ? t('invitationEnvoyee') : t('inviter'),
       valeurLien: true,
       contenu: <InviterACreerSonCompte customerId={customer.id} />,
     },

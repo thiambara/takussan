@@ -25,7 +25,14 @@ vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ token: 'jeton', user
 vi.mock('@/components/crm/CustomerMatches', () => ({ CustomerMatches: () => <p>contenu biens</p> }));
 vi.mock('@/components/crm/CustomerTasksPanel', () => ({ CustomerTasksPanel: () => <p>contenu tâches</p> }));
 vi.mock('@/components/crm/CustomerLinkedRecords', () => ({ CustomerLinkedRecords: ({ kind }: { kind: string }) => <p>contenu {kind}</p> }));
-vi.mock('@/components/crm/InviterACreerSonCompte', () => ({ InviterACreerSonCompte: () => <button type="button">inviter</button> }));
+const invitation = vi.hoisted(() => ({ etat: 'aucune' as 'aucune' | 'envoyee' | 'expiree', actif: [] as boolean[] }));
+vi.mock('@/components/crm/InviterACreerSonCompte', () => ({
+  InviterACreerSonCompte: () => <button type="button">inviter</button>,
+  useInvitationDuClient: (_id: number, actif: boolean) => {
+    invitation.actif.push(actif);
+    return { etat: invitation.etat };
+  },
+}));
 vi.mock('@/components/customer-dashboard/CustomerDocumentsPanel', () => ({ CustomerDocumentsPanel: () => <p>contenu documents</p> }));
 vi.mock('@/components/customer-form/RevelationNumeroDePiece', () => ({ RevelationNumeroDePiece: () => <button type="button">Afficher</button> }));
 
@@ -106,6 +113,8 @@ const bouton = (section: string) => within(ligne(section)).getAllByRole('button'
 
 beforeEach(() => {
   vi.clearAllMocks();
+  invitation.etat = 'aucune';
+  invitation.actif = [];
   nav.params = new URLSearchParams();
   lectures.taches.mockResolvedValue([{ id: 1, status: 'open' }, { id: 2, status: 'done' }]);
   lectures.correspondances.mockResolvedValue({ data: [], meta: { total: 4, per_page: 20, current_page: 1, last_page: 1 } });
@@ -193,5 +202,20 @@ describe('TCK-2589 (lot D) — le dossier de la fiche client', () => {
     expect(within(contenu).getAllByText('Bailleur / locataire').length).toBeGreaterThan(0);
     expect(within(contenu).getByText('Autre relation')).toBeInTheDocument();
     expect(within(contenu).queryByText(/owner|guarantor/)).toBeNull();
+  });
+
+  it('TCK-2668 (AC4) — la ligne repliée « Compte client » dit l’état de l’invitation', () => {
+    invitation.etat = 'expiree';
+    const { unmount } = rendu(COMPLET);
+    expect(within(ligne('compte')).getByText('Invitation expirée')).toBeInTheDocument();
+    unmount();
+    invitation.etat = 'envoyee';
+    rendu(COMPLET);
+    expect(within(ligne('compte')).getByText('Invitation envoyée')).toBeInTheDocument();
+  });
+
+  it('TCK-2668 — l’invitation ne se lit que si la ligne « Compte client » existe', () => {
+    rendu(SANS_RIEN);
+    expect(invitation.actif.every((a) => a === false)).toBe(true);
   });
 });

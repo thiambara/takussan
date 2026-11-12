@@ -46,7 +46,12 @@ export const ADMIN_USERS_FIELDS = [
 export interface FetchAdminUsersParams {
   readonly search?: string;
   readonly status?: AdminUserStatusFilter;
-  readonly role?: AdminUserRoleFilter;
+  /** Un rôle, ou plusieurs lus en OU (`agent,agency_admin` : le personnel, TCK-2665). */
+  readonly role?: AdminUserRoleFilter | 'agent,agency_admin';
+  /** TCK-2667 — la pastille « Absents » : les membres qu'une absence remplace (`filter[absent]=1`). */
+  readonly absent?: boolean;
+  /** TCK-2665 — `include=team_summary` : biens suivis, commissions dues, absence, arrivée. */
+  readonly resume?: boolean;
   readonly sort?: string;
   readonly page?: number;
   readonly perPage?: number;
@@ -58,10 +63,11 @@ export async function fetchAdminUsers(
   const qs = new URLSearchParams();
   qs.set('fields[users]', ADMIN_USERS_FIELDS.join(','));
   // TCK-665 — sans `platformProfile` : l'API le refuse hors de la console super-admin (400).
-  qs.set('include', 'agentProfiles,ownerProfiles,agencyAdminProfiles');
+  qs.set('include', ['agentProfiles', 'ownerProfiles', 'agencyAdminProfiles', ...(params.resume ? ['team_summary'] : [])].join(','));
   if (params.search) qs.set('filter[search]', params.search);
   if (params.status) qs.set('filter[status]', params.status);
   if (params.role) qs.set('filter[role]', params.role);
+  if (params.absent) qs.set('filter[absent]', '1');
   qs.set('sort', params.sort ?? '-created_at');
   qs.set('page', String(params.page ?? 1));
   qs.set('per_page', String(params.perPage ?? 20));

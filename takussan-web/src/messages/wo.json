@@ -1445,7 +1445,20 @@
         "action": "Inviter à créer son compte",
         "sending": "Envoi…",
         "sent": "Invitation envoyée. Le lien vaut une seule fois ; à l'acceptation, le compte est relié à cette fiche.",
-        "failed": "L'invitation n'a pas pu partir. Réessayez."
+        "failed": "L'invitation n'a pas pu partir. Réessayez.",
+        "envoyee": "Invitation envoyée",
+        "expiree": "Invitation expirée",
+        "envoyeeLe": "envoyée le {date}",
+        "expireLe": "expire le {date}",
+        "expireeLe": "le {date}",
+        "relancee": "Invitation relancée : un nouveau lien est parti, valable 7 jours.",
+        "annulee": "Invitation annulée.",
+        "annulerDetail": "Le lien déjà envoyé au client cessera de fonctionner. Vous pourrez l’inviter à nouveau.",
+        "relancer": "Relancer",
+        "annuler": "Annuler",
+        "annulerTitre": "Annuler cette invitation ?",
+        "conserver": "Conserver",
+        "annulerConfirmer": "Annuler l'invitation"
       },
       "relationships": {
         "empty_title": "Amul jokkoo bu ñu bind",
@@ -1733,7 +1746,9 @@
         "pieceDetail": "Révélée à l’admin, après double facteur",
         "compte": "Compte client",
         "compteDetail": "Pas encore de compte",
-        "inviter": "Inviter"
+        "inviter": "Inviter",
+        "invitationExpiree": "Invitation expirée",
+        "invitationEnvoyee": "Invitation envoyée"
       },
       "menu": {
         "plus": "Plus d’actions"
@@ -6271,7 +6286,8 @@
         "actions": {
           "create": "Jox wàll",
           "revoke": "Dakkal",
-          "revoke_named": "Dakkal wàll bi ñu jox {name}"
+          "revoke_named": "Dakkal wàll bi ñu jox {name}",
+          "see_absence": "Voir l’absence"
         },
         "errors": {
           "load": "Mënuñu yeb wàll yi ñu jox.",
@@ -6299,7 +6315,9 @@
           "description": "{name} dina ñàkk wàll bi ñu ko jox léegi, du xaar {end}. Rëdd bi dina des, ci « Ñu ko dakkal ».",
           "submit": "Dakkal",
           "submitting": "Ñu ngi dakkal…"
-        }
+        },
+        "absence_hint": "Pour un congé, <lien>couvrez l’absence depuis l’Équipe</lien> : le remplacement et ce droit d’agir partent et s’arrêtent ensemble.",
+        "covers_absence": "couvre l’absence de {name}"
       }
     },
     "pages": {
@@ -6423,6 +6441,226 @@
           "description": "Lëkkalekaay bi ñu yónnee {email} du dox ba tey. Mën ngeen koo woowaat.",
           "cancel": "Bàyyi ko",
           "confirm": "Neenal woote bi"
+        }
+      },
+      "equipe": {
+        "titre": "Équipe",
+        "sousTitre": "{agents, plural, one {# agent} other {# agents}}, {admins, plural, one {# administrateur} other {# administrateurs}}",
+        "sousTitreInvitations": "{equipe} · {n, plural, one {# invitation en cours} other {# invitations en cours}}",
+        "inviter": "Inviter un membre",
+        "onglets": {
+          "aria": "Vues de l’équipe",
+          "membres": "Membres",
+          "invitations": "Invitations",
+          "performance": "Performance"
+        },
+        "pastilles": {
+          "aria": "Filtrer les membres",
+          "tous": "Tous",
+          "agents": "Agents",
+          "admins": "Admins",
+          "absents": "Absents"
+        },
+        "recherche": {
+          "telephone": "Chercher un membre",
+          "bureau": "Chercher par nom, e-mail ou téléphone"
+        },
+        "trier": {
+          "titre": "Trier et filtrer",
+          "statut": "Statut du compte",
+          "ordre": "Ordre",
+          "arrivee": "Les derniers arrivés d’abord",
+          "nom": "Par nom",
+          "connexion": "Dernière connexion",
+          "fermer": "Voir les membres",
+          "tousLesStatuts": "Tous les statuts"
+        },
+        "compte": "{n, plural, one {# membre} other {# membres}}",
+        "vous": "Vous",
+        "role": {
+          "agent": "Agent",
+          "agency_admin": "Administrateur",
+          "court": {
+            "agent": "Agent",
+            "agency_admin": "Admin"
+          }
+        },
+        "presence": {
+          "jamais": "Jamais connecté",
+          "aujourdhui": "En ligne aujourd’hui",
+          "hier": "En ligne hier",
+          "ilYa": "En ligne il y a {n} j",
+          "le": "En ligne le {date}"
+        },
+        "connexion": {
+          "jamais": "Jamais",
+          "aujourdhui": "aujourd’hui, {heure}",
+          "hier": "hier, {heure}"
+        },
+        "deuxFA": {
+          "court": "2FA",
+          "courtAActiver": "2FA à activer",
+          "activee": "Activée",
+          "aActiver": "À activer"
+        },
+        "etat": {
+          "actif": "Actif",
+          "absent": "Absent jusqu’au {date}",
+          "suspendu": "Suspendu",
+          "accesSuspendu": "Accès suspendu dans l’agence",
+          "couvertPar": "couvert par {nom}"
+        },
+        "table": {
+          "aria": "Membres de l’équipe",
+          "membre": "Membre",
+          "role": "Rôle",
+          "statut": "Statut et absence",
+          "deuxFA": "Double auth.",
+          "biens": "Biens suivis",
+          "dues": "Commissions dues",
+          "connexion": "Dernière connexion",
+          "actions": "Actions de {nom}",
+          "ouvrir": "Ouvrir la fiche",
+          "trierPar": "Trier par {colonne}"
+        },
+        "renvois": {
+          "invitations": "{n, plural, one {# invitation en cours} other {# invitations en cours}}",
+          "performance": "Performance de l’équipe",
+          "performanceDetail": "Demandes, visites et baux par agent"
+        },
+        "bailleurs": {
+          "telephone": "Vos bailleurs ne sont plus listés ici : ils sont dans <lien>Propriétaires</lien>.",
+          "bureau": "Vos bailleurs sont dans <lien>Propriétaires</lien>"
+        },
+        "bandeau": {
+          "texte": "<fort>{absent} est absent jusqu’au {date}.</fort> Ses nouvelles tâches, visites et demandes vont à {remplacant}.",
+          "sansRemplacant": "<fort>{absent} est absent jusqu’au {date}.</fort>",
+          "ouvrir": "Voir l’absence",
+          "texteQuiAgit": "<fort>{absent} est absent jusqu’au {date}.</fort> Ses nouvelles tâches, visites et demandes vont à {remplacant}, qui peut agir à sa place.",
+          "modifier": "Modifier l’absence",
+          "terminer": "Terminer l’absence",
+          "terminerEchec": "L’absence n’a pas pu être terminée."
+        },
+        "fiche": {
+          "titre": "Fiche du membre",
+          "depuis": "{role} · dans l’équipe depuis {date}",
+          "appeler": "Appeler",
+          "whatsapp": "WhatsApp",
+          "email": "E-mail",
+          "absenceEnCours": "Absent du {debut} au {fin}",
+          "roleEtCommission": "Rôle et commission",
+          "portefeuille": "Portefeuille",
+          "biensSuivis": "Biens suivis",
+          "nbBiens": "{n, plural, =0 {Aucun bien} one {# bien} other {# biens}}",
+          "clientsEtVisites": "Clients et visites",
+          "nbClientsEtVisites": "{clients, plural, one {# client actif} other {# clients actifs}} · {visites, plural, =0 {aucune visite à venir} one {# visite à venir} other {# visites à venir}}",
+          "commissionsDues": "Commissions dues",
+          "duesMontant": "{montant} de commissions dues",
+          "rienAPayer": "Rien à payer",
+          "securite": "Sécurité",
+          "doubleAuth": "Double authentification",
+          "doubleAuthActivee": "Activée",
+          "doubleAuthAbsente": "Pas encore activée",
+          "derniereConnexion": "Dernière connexion",
+          "accesEtDepart": "Accès et départ",
+          "suspendre": "Suspendre l’accès",
+          "suspendreDetail": "Ce membre ne peut plus agir dans l’agence, dès sa prochaine action. Ses biens et ses clients restent à son nom ; vous pourrez réactiver.",
+          "reactiver": "Réactiver l’accès",
+          "reactiverDetail": "Ce membre retrouve les droits de son rôle dans l’agence.",
+          "retirer": "Retirer de l’agence",
+          "retirerDetail": "Vous choisirez d’abord qui reprend ses biens, ses clients, ses visites et ses tâches.",
+          "vousMeme": "C’est votre compte : votre accès et votre départ ne se gèrent pas d’ici.",
+          "barre": {
+            "suspendre": "Suspendre",
+            "reactiver": "Réactiver",
+            "declarer": "Déclarer une absence"
+          },
+          "roleDansLAgence": "Rôle dans l’agence",
+          "tauxDeCommission": "Taux de commission",
+          "tauxDetail": "Sur les baux que cette personne négocie",
+          "tauxValeur": "{taux} %",
+          "tauxAucun": "Aucun",
+          "modifierLeTaux": "Modifier le taux de commission, actuellement {valeur}",
+          "typeDeProfil": "Profil dans l’agence",
+          "typeDeProfilDetail": "Agent, administrateur ou bailleur",
+          "enregistrer": "Enregistrer"
+        },
+        "absence": {
+          "titre": "Couvrir une absence",
+          "titreModifier": "Modifier l’absence",
+          "fermer": "Fermer",
+          "annuler": "Annuler",
+          "enregistrer": "Enregistrer l’absence",
+          "teteDetail": "{role} · {n, plural, =0 {aucun bien suivi} one {# bien suivi} other {# biens suivis}}",
+          "du": "Du",
+          "au": "Au (inclus)",
+          "finRequise": "Choisissez le dernier jour de l’absence.",
+          "quiReprend": "Qui reprend ses nouvelles demandes ?",
+          "quiReprendAide": "Demandes de contact, visites et tâches nouvelles lui arrivent ; ce qui est en cours reste à {prenom}.",
+          "remplacantRequis": "Choisissez qui reprend ses nouvelles demandes.",
+          "personnelIllisible": "Impossible de lire l’équipe.",
+          "reessayer": "Réessayer",
+          "personne": "Personne d’autre dans l’équipe ne peut reprendre ses demandes.",
+          "biens": "{n, plural, =0 {aucun bien} one {# bien} other {# biens}}",
+          "aucuneAbsence": "aucune absence prévue",
+          "absencePrevue": "absence prévue du {debut} au {fin}",
+          "absentJusquau": "absence en cours jusqu’au {fin}",
+          "plusCharge": "portefeuille le plus chargé",
+          "peutAgir": "{prenom} peut agir à sa place pendant l’absence",
+          "peutAgirSansNom": "La personne choisie peut agir à sa place pendant l’absence",
+          "peutAgirRole": "{remplacant} reçoit le rôle « {role} » de {prenom} dans l’agence, en plus du sien.",
+          "peutAgirFin": "Ce droit s’arrête seul le {date} au soir.",
+          "peutAgirFinSansDate": "Ce droit s’arrête seul avec l’absence.",
+          "motif": "Motif (facultatif)",
+          "motifAide": "Visible des administrateurs seulement.",
+          "echec": "L’absence n’a pas pu être enregistrée. Réessayez."
+        },
+        "absences": {
+          "titre": "Absences",
+          "declarer": "Déclarer",
+          "modifier": "Modifier",
+          "terminer": "Terminer l’absence",
+          "terminerEchec": "L’absence n’a pas pu être terminée.",
+          "periode": "Du {debut} au {fin}",
+          "couverteParLe": "{periode} · couverte par {nom}",
+          "enCours": "En cours",
+          "aVenir": "À venir",
+          "aucuneAutre": "Aucune autre absence prévue",
+          "aucune": "Aucune absence prévue.",
+          "reprendra": "{nom} reprendra ses nouvelles demandes",
+          "remplacant": "{nom} reçoit ses nouvelles demandes.",
+          "remplacantQuiAgit": "{nom} reçoit ses nouvelles demandes et peut agir à sa place.",
+          "illisibles": "Impossible de lire les absences.",
+          "reessayer": "Réessayer"
+        },
+        "invitations": {
+          "enCours": "En cours · {n}",
+          "expirees": "Expirées · {n}",
+          "aucuneEnCours": "Aucune invitation en cours.",
+          "envoyeeLe": "envoyée le {date}",
+          "expireLe": "expire le {date}",
+          "expireeLe": "expirée le {date}",
+          "relancerLExpiree": "Relancer l’invitation de {nom}",
+          "toutEffacer": "Tout effacer",
+          "autres": "et {n, plural, one {# autre, plus ancienne} other {# autres, plus anciennes}}",
+          "locataires": "Les invitations de locataires se suivent désormais sur la fiche du client, plus ici.",
+          "inviterUnMembre": "Inviter un membre",
+          "envoyer": "Envoyer l’invitation",
+          "reessayer": "Réessayer",
+          "effacerTitre": "Effacer {n, plural, one {l’invitation expirée} other {les # invitations expirées}} ?",
+          "effacerDetail": "Leurs liens ne fonctionnent déjà plus. Les invitations en cours ne bougent pas, et celles des locataires restent sur la fiche de leur client.",
+          "effacerConfirmer": "Effacer {n, plural, one {l’invitation} other {les # invitations}}",
+          "conserver": "Conserver",
+          "effacees": "{n, plural, =0 {Aucune invitation à effacer.} one {# invitation expirée effacée.} other {# invitations expirées effacées.}}",
+          "formulaire": {
+            "email": "Adresse e-mail",
+            "roleDetail": {
+              "agent": "Ses biens, ses clients, ses visites.",
+              "agency_admin": "Toute l’agence, l’argent, l’équipe."
+            },
+            "validite": "Le lien d’invitation reste valable 7 jours. En l’ouvrant, la personne crée son compte ou se connecte, puis rejoint l’agence.",
+            "envoyee": "Invitation envoyée à {email}."
+          }
         }
       }
     },

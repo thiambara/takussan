@@ -44,8 +44,7 @@ vi.mock('@/components/admin/ModerationWorkspace', () => ({ ModerationWorkspace: 
 vi.mock('@/components/admin/PropertyModerationWorkspace', () => ({ PropertyModerationWorkspace: () => null }));
 vi.mock('@/components/admin/roles/AgencyRolesConsole', () => ({ AgencyRolesConsole: () => null }));
 vi.mock('@/components/admin/roles/RoleDelegationsSection', () => ({ RoleDelegationsSection: () => null }));
-vi.mock('@/components/admin/TeamConsole', () => ({ TeamConsole: () => null }));
-vi.mock('@/components/admin/InviteMemberButton', () => ({ InviteMemberButton: () => null }));
+vi.mock('@/components/admin/equipe/ConsoleDeLEquipe', () => ({ ConsoleDeLEquipe: () => null }));
 vi.mock('@/app/actions/admin-settings', () => ({
   fetchIntegrationsAction: async () => ({ ok: false, message: '' }),
   fetchPaymentProviderSchemasAction: async () => ({ ok: false, message: '' }),

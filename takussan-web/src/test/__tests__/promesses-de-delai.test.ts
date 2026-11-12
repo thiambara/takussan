@@ -31,6 +31,11 @@ import wo from '@/messages/wo.json';
  * de 72 et les nombres wolof en lettres passent aussi — écrit dans TCK-575.
  */
 const REGISTRE: Readonly<Record<string, string>> = {
+  // TCK-2668 — la validité du lien d'invitation d'équipe (`agents/invite` → AgentInvitationService.php:121
+  // → InvitationService::send) et celle du lien qu'une relance renvoie (InvitationService::resend).
+  'admin.team.equipe.invitations.formulaire.validite':
+    'takussan-api/app/Services/Invitation/InvitationService.php:139 — DEFAULT_TTL_DAYS = 7, posé à :247 (send)',
+  'crm.customerDetail.inviteAccount.relancee': 'idem — InvitationService.php:139, reposé à :571 (resend)',
   'auth.forgotPassword.sentBody': "takussan-api/config/auth.php:99 — `passwords.users.expire` = 60 (minutes)",
   'account.deletion.dialog.codeSentHint':
     'takussan-api/app/Services/Account/DeletionStepUpService.php:38 — CODE_TTL_SECONDS = 300, usage unique',

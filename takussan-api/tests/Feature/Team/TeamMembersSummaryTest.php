@@ -98,7 +98,7 @@ class TeamMembersSummaryTest extends ApiTestCase
 
         $this->assertSame(11, $response->json('meta.total'));
         $this->assertCount(5, $response->json('data'));
-        $this->assertSame(['agent' => 9, 'agency_admin' => 2, 'owner' => 11, 'absent' => 1], $response->json('meta.counts'));
+        $this->assertSame(['agent' => 9, 'agency_admin' => 2, 'owner' => 11, 'staff' => 11, 'absent' => 1], $response->json('meta.counts'));
     }
 
     public function test_un_seul_role_et_un_role_inconnu(): void
@@ -121,7 +121,7 @@ class TeamMembersSummaryTest extends ApiTestCase
 
         $counts = $this->apiGet('/api/users?filter[role]=agent&filter[status]=blocked')->assertOk()->json('meta.counts');
 
-        $this->assertSame(['agent' => 1, 'agency_admin' => 0, 'owner' => 1, 'absent' => 0], $counts);
+        $this->assertSame(['agent' => 1, 'agency_admin' => 0, 'owner' => 1, 'staff' => 1, 'absent' => 0], $counts);
     }
 
     public function test_le_resume_de_chaque_membre(): void

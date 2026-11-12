@@ -3556,7 +3556,20 @@
         "action": "Invite to create an account",
         "sending": "Sending…",
         "sent": "Invitation sent. The link works once; on acceptance, the account is linked to this record.",
-        "failed": "The invitation could not be sent. Try again."
+        "failed": "The invitation could not be sent. Try again.",
+        "envoyee": "Invitation sent",
+        "expiree": "Invitation expired",
+        "envoyeeLe": "sent on {date}",
+        "expireLe": "expires on {date}",
+        "expireeLe": "on {date}",
+        "relancee": "Invitation resent: a new link went out, valid for 7 days.",
+        "annulee": "Invitation cancelled.",
+        "annulerDetail": "The link already sent to the client will stop working. You can invite them again.",
+        "relancer": "Resend",
+        "annuler": "Cancel",
+        "annulerTitre": "Cancel this invitation?",
+        "conserver": "Keep",
+        "annulerConfirmer": "Cancel invitation"
       },
       "relationships": {
         "empty_title": "No relationship recorded",
@@ -3844,7 +3857,9 @@
         "pieceDetail": "Shown to the admin, after two-factor check",
         "compte": "Client account",
         "compteDetail": "No account yet",
-        "inviter": "Invite"
+        "inviter": "Invite",
+        "invitationExpiree": "Invitation expired",
+        "invitationEnvoyee": "Invitation sent"
       },
       "menu": {
         "plus": "More actions"
@@ -8382,7 +8397,8 @@
         "actions": {
           "create": "Delegate a role",
           "revoke": "Revoke",
-          "revoke_named": "Revoke {name}'s delegation"
+          "revoke_named": "Revoke {name}'s delegation",
+          "see_absence": "See the absence"
         },
         "errors": {
           "load": "Delegations could not be loaded.",
@@ -8410,7 +8426,9 @@
           "description": "{name} will lose the delegated role immediately, without waiting for {end}. The row stays visible, as “Revoked”.",
           "submit": "Revoke",
           "submitting": "Revoking…"
-        }
+        },
+        "absence_hint": "For a leave, <lien>cover the absence from the Team page</lien>: the replacement and this right to act start and stop together.",
+        "covers_absence": "covers {name}’s absence"
       }
     },
     "pages": {
@@ -8534,6 +8552,226 @@
           "description": "The link already sent to {email} will stop working. You can invite them again.",
           "cancel": "Keep",
           "confirm": "Cancel invitation"
+        }
+      },
+      "equipe": {
+        "titre": "Team",
+        "sousTitre": "{agents, plural, one {# agent} other {# agents}}, {admins, plural, one {# administrator} other {# administrators}}",
+        "sousTitreInvitations": "{equipe} · {n, plural, one {# pending invitation} other {# pending invitations}}",
+        "inviter": "Invite a member",
+        "onglets": {
+          "aria": "Team views",
+          "membres": "Members",
+          "invitations": "Invitations",
+          "performance": "Performance"
+        },
+        "pastilles": {
+          "aria": "Filter members",
+          "tous": "All",
+          "agents": "Agents",
+          "admins": "Admins",
+          "absents": "Away"
+        },
+        "recherche": {
+          "telephone": "Search for a member",
+          "bureau": "Search by name, email or phone"
+        },
+        "trier": {
+          "titre": "Sort and filter",
+          "statut": "Account status",
+          "ordre": "Order",
+          "arrivee": "Newest first",
+          "nom": "By name",
+          "connexion": "Last sign-in",
+          "fermer": "Show members",
+          "tousLesStatuts": "All statuses"
+        },
+        "compte": "{n, plural, one {# member} other {# members}}",
+        "vous": "You",
+        "role": {
+          "agent": "Agent",
+          "agency_admin": "Administrator",
+          "court": {
+            "agent": "Agent",
+            "agency_admin": "Admin"
+          }
+        },
+        "presence": {
+          "jamais": "Never signed in",
+          "aujourdhui": "Online today",
+          "hier": "Online yesterday",
+          "ilYa": "Online {n} d ago",
+          "le": "Online on {date}"
+        },
+        "connexion": {
+          "jamais": "Never",
+          "aujourdhui": "today, {heure}",
+          "hier": "yesterday, {heure}"
+        },
+        "deuxFA": {
+          "court": "2FA",
+          "courtAActiver": "2FA to turn on",
+          "activee": "On",
+          "aActiver": "To turn on"
+        },
+        "etat": {
+          "actif": "Active",
+          "absent": "Away until {date}",
+          "suspendu": "Suspended",
+          "accesSuspendu": "Access suspended in the agency",
+          "couvertPar": "covered by {nom}"
+        },
+        "table": {
+          "aria": "Team members",
+          "membre": "Member",
+          "role": "Role",
+          "statut": "Status and absence",
+          "deuxFA": "Two-factor",
+          "biens": "Properties followed",
+          "dues": "Commissions due",
+          "connexion": "Last sign-in",
+          "actions": "Actions for {nom}",
+          "ouvrir": "Open the profile",
+          "trierPar": "Sort by {colonne}"
+        },
+        "renvois": {
+          "invitations": "{n, plural, one {# pending invitation} other {# pending invitations}}",
+          "performance": "Team performance",
+          "performanceDetail": "Requests, visits and leases per agent"
+        },
+        "bailleurs": {
+          "telephone": "Your landlords are no longer listed here: they are in <lien>Owners</lien>.",
+          "bureau": "Your landlords are in <lien>Owners</lien>"
+        },
+        "bandeau": {
+          "texte": "<fort>{absent} is away until {date}.</fort> Their new tasks, visits and requests go to {remplacant}.",
+          "sansRemplacant": "<fort>{absent} is away until {date}.</fort>",
+          "ouvrir": "See the absence",
+          "texteQuiAgit": "<fort>{absent} is away until {date}.</fort> Their new tasks, visits and requests go to {remplacant}, who can act on their behalf.",
+          "modifier": "Edit the absence",
+          "terminer": "End the absence",
+          "terminerEchec": "The absence could not be ended."
+        },
+        "fiche": {
+          "titre": "Member profile",
+          "depuis": "{role} · on the team since {date}",
+          "appeler": "Call",
+          "whatsapp": "WhatsApp",
+          "email": "Email",
+          "absenceEnCours": "Away from {debut} to {fin}",
+          "roleEtCommission": "Role and commission",
+          "portefeuille": "Portfolio",
+          "biensSuivis": "Properties followed",
+          "nbBiens": "{n, plural, =0 {No property} one {# property} other {# properties}}",
+          "clientsEtVisites": "Clients and visits",
+          "nbClientsEtVisites": "{clients, plural, one {# active client} other {# active clients}} · {visites, plural, =0 {no upcoming visit} one {# upcoming visit} other {# upcoming visits}}",
+          "commissionsDues": "Commissions due",
+          "duesMontant": "{montant} in commissions due",
+          "rienAPayer": "Nothing to pay",
+          "securite": "Security",
+          "doubleAuth": "Two-factor authentication",
+          "doubleAuthActivee": "On",
+          "doubleAuthAbsente": "Not turned on yet",
+          "derniereConnexion": "Last sign-in",
+          "accesEtDepart": "Access and departure",
+          "suspendre": "Suspend access",
+          "suspendreDetail": "This member can no longer act in the agency, from their next action. Their properties and clients stay in their name; you can reactivate them.",
+          "reactiver": "Reactivate access",
+          "reactiverDetail": "This member gets back the rights of their role in the agency.",
+          "retirer": "Remove from the agency",
+          "retirerDetail": "You will first choose who takes over their properties, clients, visits and tasks.",
+          "vousMeme": "This is your account: your access and departure are not managed from here.",
+          "barre": {
+            "suspendre": "Suspend",
+            "reactiver": "Reactivate",
+            "declarer": "Report an absence"
+          },
+          "roleDansLAgence": "Role in the agency",
+          "tauxDeCommission": "Commission rate",
+          "tauxDetail": "On the leases this person negotiates",
+          "tauxValeur": "{taux}%",
+          "tauxAucun": "None",
+          "modifierLeTaux": "Edit the commission rate, currently {valeur}",
+          "typeDeProfil": "Profile in the agency",
+          "typeDeProfilDetail": "Agent, administrator or landlord",
+          "enregistrer": "Save"
+        },
+        "absence": {
+          "titre": "Cover an absence",
+          "titreModifier": "Edit the absence",
+          "fermer": "Close",
+          "annuler": "Cancel",
+          "enregistrer": "Save the absence",
+          "teteDetail": "{role} · {n, plural, =0 {no listings followed} one {# listing followed} other {# listings followed}}",
+          "du": "From",
+          "au": "To (inclusive)",
+          "finRequise": "Choose the last day of the absence.",
+          "quiReprend": "Who takes over their new requests?",
+          "quiReprendAide": "New contact requests, visits and tasks go to them; what is already under way stays with {prenom}.",
+          "remplacantRequis": "Choose who takes over their new requests.",
+          "personnelIllisible": "The team could not be loaded.",
+          "reessayer": "Try again",
+          "personne": "Nobody else in the team can take over their requests.",
+          "biens": "{n, plural, =0 {no listings} one {# listing} other {# listings}}",
+          "aucuneAbsence": "no absence planned",
+          "absencePrevue": "away from {debut} to {fin}",
+          "absentJusquau": "away until {fin}",
+          "plusCharge": "busiest portfolio",
+          "peutAgir": "{prenom} can act on their behalf during the absence",
+          "peutAgirSansNom": "The person chosen can act on their behalf during the absence",
+          "peutAgirRole": "{remplacant} receives {prenom}’s “{role}” role in the agency, on top of their own.",
+          "peutAgirFin": "This right ends by itself on the evening of {date}.",
+          "peutAgirFinSansDate": "This right ends by itself with the absence.",
+          "motif": "Reason (optional)",
+          "motifAide": "Visible to administrators only.",
+          "echec": "The absence could not be saved. Try again."
+        },
+        "absences": {
+          "titre": "Absences",
+          "declarer": "Declare",
+          "modifier": "Edit",
+          "terminer": "End the absence",
+          "terminerEchec": "The absence could not be ended.",
+          "periode": "From {debut} to {fin}",
+          "couverteParLe": "{periode} · covered by {nom}",
+          "enCours": "Under way",
+          "aVenir": "Upcoming",
+          "aucuneAutre": "No other absence planned",
+          "aucune": "No absence planned.",
+          "reprendra": "{nom} will take over their new requests",
+          "remplacant": "{nom} receives their new requests.",
+          "remplacantQuiAgit": "{nom} receives their new requests and can act on their behalf.",
+          "illisibles": "The absences could not be loaded.",
+          "reessayer": "Try again"
+        },
+        "invitations": {
+          "enCours": "Pending · {n}",
+          "expirees": "Expired · {n}",
+          "aucuneEnCours": "No pending invitation.",
+          "envoyeeLe": "sent on {date}",
+          "expireLe": "expires on {date}",
+          "expireeLe": "expired on {date}",
+          "relancerLExpiree": "Resend the invitation to {nom}",
+          "toutEffacer": "Clear all",
+          "autres": "and {n, plural, one {# older one} other {# older ones}}",
+          "locataires": "Tenant invitations are now followed on the client’s record, not here.",
+          "inviterUnMembre": "Invite a member",
+          "envoyer": "Send the invitation",
+          "reessayer": "Try again",
+          "effacerTitre": "Clear {n, plural, one {the expired invitation} other {the # expired invitations}}?",
+          "effacerDetail": "Their links already no longer work. Pending invitations are untouched, and tenant invitations stay on their client’s record.",
+          "effacerConfirmer": "Clear {n, plural, one {the invitation} other {the # invitations}}",
+          "conserver": "Keep",
+          "effacees": "{n, plural, =0 {No invitation to clear.} one {# expired invitation cleared.} other {# expired invitations cleared.}}",
+          "formulaire": {
+            "email": "Email address",
+            "roleDetail": {
+              "agent": "Their listings, clients and visits.",
+              "agency_admin": "The whole agency, the money, the team."
+            },
+            "validite": "The invitation link stays valid for 7 days. Opening it, the person creates an account or signs in, then joins the agency.",
+            "envoyee": "Invitation sent to {email}."
+          }
         }
       }
     },

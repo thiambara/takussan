@@ -1,5 +1,5 @@
 import { apiRequest, buildQueryString } from '@/lib/api';
-import { STATUTS_INVITATION_SANS_REPONSE } from '@/lib/queries/agency-invitations';
+import { ROLES_D_EQUIPE, STATUTS_INVITATION_SANS_REPONSE } from '@/lib/queries/agency-invitations';
 import { fetchAgencyKyc } from '@/lib/queries/kyc';
 import { fetchPropertyModerationQueue } from '@/lib/queries/property-moderation';
 import type { PaginatedResponse } from '@/types/api';
@@ -111,7 +111,9 @@ export async function fetchPendingInvitationsCount(token: string): Promise<numbe
     // Sparse fieldset minimal : on ne lit que `meta`, mais l'API refuse un `fields` vide et le
     // contrat du dépôt exige qu'une lecture nomme ses colonnes.
     fields: { invitations: ['id'] },
-    filter: { status: STATUTS_INVITATION_SANS_REPONSE },
+    // TCK-2668 — les rôles que suit l'Équipe, où mène la file : sans eux, l'aperçu comptait les
+    // invitations de locataires que l'écran des invitations ne montre plus.
+    filter: { status: STATUTS_INVITATION_SANS_REPONSE, role: ROLES_D_EQUIPE },
     per_page: 1,
   });
   const response = await apiRequest<PaginatedResponse<{ id: number }>>(

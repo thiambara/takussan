@@ -255,10 +255,37 @@ export async function fetchAbsences(token: string, agencyId: number): Promise<Ag
 export async function declareAbsence(
   token: string,
   agencyId: number,
-  payload: { user_id: number; substitute_id: number; starts_at?: string | null; ends_at: string; reason?: string | null },
+  payload: {
+    user_id: number;
+    substitute_id: number;
+    starts_at?: string | null;
+    ends_at: string;
+    reason?: string | null;
+    /** TCK-2666 — le remplaçant peut agir à sa place : une délégation liée, sur la même période. */
+    substitute_can_act?: boolean;
+  },
 ): Promise<AgentAbsence> {
   const res = await apiRequest<ApiResponse<AgentAbsence>>(cheminApi`/api/agencies/${agencyId}/absences`, {
     method: 'POST',
+    body: payload,
+    token,
+  });
+  return res.data;
+}
+
+/**
+ * TCK-2668 — modifier une absence en cours ou à venir (`PATCH`, TCK-2666). L'appelant n'envoie QUE
+ * les champs changés : la seule présence de `starts_at`, `ends_at`, `substitute_id` ou
+ * `substitute_can_act` fait juger le droit de déléguer (`UpdateAgentAbsenceRequest::touchesGrant`).
+ */
+export async function updateAbsence(
+  token: string,
+  agencyId: number,
+  absenceId: number,
+  payload: Partial<{ starts_at: string | null; ends_at: string; substitute_id: number; substitute_can_act: boolean; reason: string | null }>,
+): Promise<AgentAbsence> {
+  const res = await apiRequest<ApiResponse<AgentAbsence>>(cheminApi`/api/agencies/${agencyId}/absences/${absenceId}`, {
+    method: 'PATCH',
     body: payload,
     token,
   });

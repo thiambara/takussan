@@ -65,6 +65,10 @@ export interface AgentAbsence {
   ends_at: string | null;
   status: 'scheduled' | 'active' | 'expired' | 'revoked';
   reason: string | null;
+  /** TCK-2666 — le remplaçant peut agir à la place de l'absent : une délégation liée EN COURS. */
+  substitute_can_act?: boolean;
+  /** TCK-2666 — la dernière délégation liée à l'absence, s'il y en a une. */
+  delegation_id?: number | null;
 }
 
 export interface CalendarFeedState {

@@ -59,7 +59,7 @@ const FICHIERS_P07_07 = [
   'app/(dashboard)/app/overview/kpis/KpiConfigList.tsx',
   'components/leases/CreateLeaseForm.tsx',
   'components/leases/DepositRefundModal.tsx',
-  'components/admin/InviteAgentDialog.tsx',
+  'components/admin/equipe/FormulaireDInvitation.tsx',
   'components/owners/InviteOwnerSheet.tsx',
   'components/service-providers/InviteServiceProviderSheet.tsx',
 ];

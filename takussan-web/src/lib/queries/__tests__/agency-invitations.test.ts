@@ -33,9 +33,7 @@ describe('agency-invitations', () => {
     const url = urlAppelee();
     expect(url.startsWith('/api/invitations?')).toBe(true);
     const params = new URLSearchParams(url.split('?')[1]);
-    expect(params.get('fields[invitations]')).toBe(
-      'id,email,role,status,agency_id,expires_at,created_at',
-    );
+    expect(params.get('fields[invitations]')).toBe('id,email,phone,role,status,agency_id,expires_at,created_at');
     // TCK-368 (revue) — les DEUX états. Ne demander que `sent` faisait
     // s'évaporer l'invitation périmée dès que le cron la marquait, puis la
     // ré-invitation en posait une seconde.
@@ -62,7 +60,8 @@ describe('agency-invitations', () => {
     // sous-chaîne nue rendrait ce test vert pour la mauvaise raison, ou rouge
     // pour aucune.
     expect(params.get('filter[agency_id]')).toBeNull();
-    expect([...params.keys()].filter((k) => k.startsWith('filter['))).toEqual(['filter[status]']);
+    // TCK-2668 — et `filter[role]`, les rôles que suit l'Équipe (sans `tenant`).
+    expect([...params.keys()].filter((k) => k.startsWith('filter['))).toEqual(['filter[status]', 'filter[role]']);
     expect(params.get('page')).toBe('3');
     expect(params.get('per_page')).toBe('25');
   });

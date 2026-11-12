@@ -79,4 +79,23 @@ Fonctions existantes à garder (`team/page.tsx`, `TeamConsole.tsx`, `AdminUsersT
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**2026-11-12 — implémenté (terrain-5), branche `feat/audit-ux-app-lot-2`.**
+
+API :
+- `TeamMemberSummary::counts` rend `staff` (agent OU administrateur, une fois par personne) : c'est le compte de « Tous » (AC2). `absent` lit le nouveau `User::scopeAbsentDansLAgence`, que `buildAgencyTeamQuery` sert aussi en `filter[absent]=1` (la pastille « Absents »). Tests : `TeamStaffCountAndAbsentFilterTest` (4, ablation du résumé : 2 rouges), `TeamMembersSummaryTest` (tableaux exacts complétés de `staff`).
+
+Front — `src/components/admin/equipe/` remplace `TeamConsole`, `AdminUsersTable`, `UserDetailDrawer`, `AdminUsersFilters`, `isAgencyStaffRow` et `InviteMemberButton` (supprimés avec leurs 11 fichiers de tests, dont l'intention est reprise) :
+- `ConsoleDeLEquipe` : au téléphone l'en-tête de la coque (« Équipe », « Inviter » plein), les pastilles Tous · Agents · Admins · Absents et leurs comptes, la recherche et une feuille « Trier et filtrer », une ligne par personne, la fiche poussée (`?membre=`) avec « Suspendre » et « Déclarer une absence » dans sa barre (AC1). Au bureau `PageHeader` et les onglets Membres · Invitations · Performance, le bandeau des absences, le tableau, la fiche en panneau de 480 px dès `xl` (plein écran dessous).
+- La liste ne demande que le personnel (`filter[role]=agent,agency_admin`) ; « Vos bailleurs sont dans Propriétaires » mène à `/app/owners`, dont la fiche porte suspendre / réactiver depuis TCK-2641 (AC3) ; l'ancien `?filter[role]=owner` y est renvoyé.
+- « Commissions dues » (colonne et rangée) n'existe que si la ligne porte `commissions_due_amount` (AC4) ; `?vue=performance` ouvre la performance (AC5).
+- La fiche : identité, Appeler / WhatsApp / E-mail, absence en cours, « Rôle et commission » en rangées (`MemberAgencyRoleSelect` et `AgentCommissionRateField` gagnent `disposition="ligne"` ; « Profil dans l’agence » = `UserRolesEditor`, qui lit désormais le profil en place quand la ligne ne porte pas `roles` — il s'ouvrait sur « Choisir un rôle » pour un agent actif, déjà dans le tiroir d'avant), Portefeuille, Sécurité, absences (`AgentAbsencesSection`, bornée au membre), Accès et départ. Tous les gestes passent sous la double authentification comme avant.
+- `console-agence-a11y`, `equipe-membre-sans-nom.p220-04`, `TeamPerformance.tck-595` et `agency/__tests__/gardes` portent sur les nouveaux composants. Le tableau défile désormais dans son cadre à toute largeur (il rognait dès `xl`).
+
+Tests : `equipe/__tests__/` — ConsoleDeLEquipe (39), etat-de-l-equipe (9), FicheDuMembre.role-et-commission (4), BandeauDesAbsences (3). Ablations : liste sans le filtre du personnel (3 rouges), colonne et rangée des dues forcées (2), agence hors de la clé de requête (1), cadre du tableau sans défilement (1), profil en place retiré (1) — toutes restaurées.
+
+Fidélité : `docs/qa/audit-ux-2026-11/fidelite/TCK-2667.json` (relevés v3, écarts acceptés et leurs motifs). AC-F6 : `balayer` 360 · 768 · 1024 · 1280, liste et fiche ouverte — débord 0, coupes 0.
+
+Restes, notés pour la suite :
+- `?membre=` n'ouvre la fiche que si le membre est sur la page et sous les filtres en cours (la fiche se lit dans la page de la liste) ; un lien profond vers un membre d'une autre page ouvre la liste seule.
+- « Modifier » une absence, « Couvrir une absence » et les invitations : TCK-2668.
+- Non servis par l'API, donc non affichés : ventilation des biens suivis, ancienneté des commissions dues, date d'activation de la 2FA, appareil de la dernière connexion, description des rôles système (vide en démo) ; aucune liste de biens ni de clients ne se filtre par agent.

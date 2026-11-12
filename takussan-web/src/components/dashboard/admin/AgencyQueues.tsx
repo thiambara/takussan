@@ -70,7 +70,8 @@ const ICONES: Record<QueueId, ComponentType<{ className?: string }>> = {
 const DESTINATIONS: Record<QueueId, CheminAdmin | `${CheminAdmin}?${string}`> = {
   kyc: '/app/agency/kyc',
   moderation: '/app/agency/moderation/properties',
-  invitations: '/app/agency/team',
+  // TCK-2668 — l'écran des invitations de l'Équipe, pas la liste des membres.
+  invitations: '/app/agency/team?vue=invitations',
   overdue: '/app/agency/finances?tab=impayes',
 };
 

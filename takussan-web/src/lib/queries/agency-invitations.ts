@@ -42,22 +42,17 @@ export type { InvitationSummary } from '@/lib/queries/owners';
  * `expires_at` l'est — d'où sa présence, ci-dessous, dans une liste de colonnes
  * dont la section n'affiche pourtant pas la date d'expiration.
  */
-export const AGENCY_INVITATION_FIELDS = [
-  'id',
-  'email',
-  'role',
-  'status',
-  'agency_id',
-  'expires_at',
-  'created_at',
-] as const;
+export const AGENCY_INVITATION_FIELDS = ['id', 'email', 'phone', 'role', 'status', 'agency_id', 'expires_at', 'created_at'] as const;
 
 /**
  * `InvitationSummary` (owners.ts) ne porte pas `created_at` — la section en a
  * besoin pour dire « depuis quand ». On ÉTEND le type partagé au lieu d'en
  * déclarer un second.
  */
-export type PendingAgencyInvitation = InvitationSummary & {
+export type PendingAgencyInvitation = Omit<InvitationSummary, 'email'> & {
+  /** Nul pour une invitation partie par SMS (connexion par téléphone, TCK-589) : `phone` la nomme. */
+  readonly email: string | null;
+  readonly phone?: string | null;
   readonly created_at: string | null;
   /**
    * TCK-367 — « morte » est un état, pas une nuance de « en attente ». Le
@@ -78,8 +73,12 @@ export const agencyInvitationKeys = {
    * racine emporte toutes les pages — c'est ce qui fait que « inviter »
    * rafraîchit la liste quelle que soit la page regardée.
    */
-  pending: (agencyId: number, page: number) =>
-    ['agency-invitations', 'pending', agencyId, page] as const,
+  pending: (agencyId: number, page: number) => ['agency-invitations', 'pending', agencyId, page] as const,
+  /** TCK-2668 — une des deux listes de l'écran des invitations (`sent` ou `expired`), par page. */
+  liste: (agencyId: number, statut: string, page: number, perPage: number) =>
+    ['agency-invitations', 'liste', agencyId, statut, page, perPage] as const,
+  /** TCK-2668 — l'invitation d'un client à créer son compte, sur sa fiche. */
+  duClient: (customerId: number) => ['agency-invitations', 'client', customerId] as const,
 };
 
 /**
@@ -93,6 +92,8 @@ export const DEFAULT_PER_PAGE = 10;
 export interface FetchPendingAgencyInvitationsParams {
   readonly page?: number;
   readonly perPage?: number;
+  /** TCK-2668 — `sent` (en cours) ou `expired` ; sans lui, les deux (`STATUTS_INVITATION_SANS_REPONSE`). */
+  readonly statut?: string;
 }
 
 /**
@@ -103,10 +104,20 @@ export interface FetchPendingAgencyInvitationsParams {
  */
 export const STATUTS_INVITATION_SANS_REPONSE = 'sent,expired';
 
-function buildParams({
-  page,
-  perPage,
-}: FetchPendingAgencyInvitationsParams): SpatieQueryParams {
+/**
+ * TCK-2668 — les rôles que l'écran Équipe suit : tout sauf `tenant`. Les invitations de locataires
+ * se suivent sur la fiche du client (`InviterACreerSonCompte`), et la page Équipe n'en montre plus
+ * — vingt-sept invitations de locataires expirées masquaient l'unique invitation d'équipe.
+ *
+ * UNE constante pour la liste, ses comptes (onglet, sous-titre, renvoi du téléphone), la purge
+ * « Tout effacer » et la file de l'aperçu d'agence : le nombre affiché, la liste qu'il ouvre et ce
+ * que la purge efface ne peuvent pas se contredire. Les bailleurs y restent (décision 2 : leur
+ * invitation se suit encore ici), les rôles d'agent retirés aussi (P234.01 : des invitations
+ * anciennes en portent).
+ */
+export const ROLES_D_EQUIPE = 'owner,agent,agent_senior,agent_manager,agency_admin,service_provider';
+
+function buildParams({ page, perPage, statut }: FetchPendingAgencyInvitationsParams): SpatieQueryParams {
   return {
     fields: { invitations: AGENCY_INVITATION_FIELDS },
     // TCK-368 (revue) — `sent` ET `expired`.
@@ -123,7 +134,7 @@ function buildParams({
     // `accepted` (devenue un membre, elle est dans le tableau) et `revoked`
     // (annulée par un geste explicite) restent dehors : elles, l'admin les a
     // déjà vues sortir.
-    filter: { status: STATUTS_INVITATION_SANS_REPONSE },
+    filter: { status: statut ?? STATUTS_INVITATION_SANS_REPONSE, role: ROLES_D_EQUIPE },
     sort: '-created_at',
     page: page ?? 1,
     per_page: perPage ?? DEFAULT_PER_PAGE,
@@ -178,4 +189,34 @@ export async function inviteAgencyAgent(
     cheminApi`/api/agencies/${agencyId}/agents/invite`,
     { method: 'POST', body: payload, token },
   );
+}
+
+/**
+ * TCK-2668 — « Tout effacer » : les invitations expirées de l'agence, des rôles suivis par l'Équipe
+ * seulement (`DELETE /api/invitations/expired`, TCK-2665). L'API compte aussi les `sent` dont
+ * l'échéance est passée et que le cron n'a pas encore marquées : le nombre effacé est le sien.
+ */
+export async function purgeExpiredAgencyInvitations(token: string): Promise<number> {
+  const qs = buildQueryString({ filter: { role: ROLES_D_EQUIPE } });
+  const res = await apiRequest<{ deleted: number }>(cheminApi`/api/invitations/expired${requete(qs)}`, {
+    method: 'DELETE',
+    token,
+  });
+  return res.deleted;
+}
+
+/**
+ * TCK-2668 — la dernière invitation SANS RÉPONSE d'un client à créer son compte (`role=tenant`, née de
+ * sa fiche : `filter[customer_id]`, TCK-2665). L'API borne la lecture comme la liste : l'agence pour
+ * qui tient `team.invite`, sinon les invitations qu'on a soi-même envoyées.
+ */
+export async function fetchInvitationDuClient(token: string, customerId: number): Promise<PendingAgencyInvitation | null> {
+  const qs = buildQueryString({
+    fields: { invitations: AGENCY_INVITATION_FIELDS },
+    filter: { customer_id: customerId, role: 'tenant', status: STATUTS_INVITATION_SANS_REPONSE },
+    sort: '-created_at',
+    per_page: 1,
+  });
+  const res = await apiRequest<PaginatedResponse<PendingAgencyInvitation>>(cheminApi`/api/invitations${requete(qs)}`, { token });
+  return res.data[0] ?? null;
 }

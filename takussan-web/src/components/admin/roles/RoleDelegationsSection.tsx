@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { CalendarClock, Plus } from 'lucide-react';
 
@@ -165,6 +166,11 @@ interface RoleDelegationsSectionProps {
  * Elle vit sous la console des rôles parce qu'une délégation est une
  * *dérogation dans le temps* à ce que la console au-dessus définit : on lit
  * d'abord ce qu'un rôle permet, ensuite qui l'emprunte et jusqu'à quand.
+ *
+ * TCK-2668 (ADR-0035, amendement) — une délégation LIÉE à une absence s'y lit comme telle
+ * (« couvre l'absence de … ») : elle se modifie et se termine avec l'absence, sur la page Équipe, où
+ * mène sa ligne au lieu de « Révoquer » (l'API refuse sa révocation seule, 422). La section renvoie
+ * à « Couvrir une absence » de l'Équipe, le geste d'un congé.
  */
 export function RoleDelegationsSection({ agencyId }: RoleDelegationsSectionProps) {
   const t = useTranslations('admin.roles.role_delegations');
@@ -236,6 +242,18 @@ export function RoleDelegationsSection({ agencyId }: RoleDelegationsSectionProps
             {t('heading')}
           </h2>
           <p className="max-w-2xl text-sm text-muted-foreground">{t('description')}</p>
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            {t.rich('absence_hint', {
+              lien: (morceau) => (
+                <Link
+                  href="/app/agency/team"
+                  className="rounded-sm font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                >
+                  {morceau}
+                </Link>
+              ),
+            })}
+          </p>
         </div>
 
         {canDelegate ? (
@@ -278,26 +296,24 @@ export function RoleDelegationsSection({ agencyId }: RoleDelegationsSectionProps
               {delegations.map((delegation) => {
                 const statut = statutEffectif(delegation, maintenant);
                 return (
-                <TableRow
-                  key={delegation.id}
-                  data-status={statut}
-                  className={STATUS_ROW[statut]}
-                >
-                  <TableCell className="font-medium text-foreground">
-                    {nomComplet(delegation)}
-                  </TableCell>
-                  <TableCell>{libelleRole(delegation.role)}</TableCell>
-                  <TableCell className="whitespace-nowrap">{periode(delegation)}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={STATUS_BADGE[statut]}
-                      data-testid={`delegation-status-${statut}`}
-                    >
-                      {t(`statuses.${statut}`)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {/*
+                  <TableRow key={delegation.id} data-status={statut} className={STATUS_ROW[statut]}>
+                    <TableCell className="font-medium text-foreground">
+                      {nomComplet(delegation)}
+                      {delegation.covers_absence ? (
+                        <span className="block text-xs font-normal text-muted-foreground">
+                          {t('covers_absence', { name: delegation.covers_absence.absent?.name || '—' })}
+                        </span>
+                      ) : null}
+                    </TableCell>
+                    <TableCell>{libelleRole(delegation.role)}</TableCell>
+                    <TableCell className="whitespace-nowrap">{periode(delegation)}</TableCell>
+                    <TableCell>
+                      <Badge variant={STATUS_BADGE[statut]} data-testid={`delegation-status-${statut}`}>
+                        {t(`statuses.${statut}`)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {/*
                       ⚠️ **Le bouton se décide sur `delegation.status`, pas sur `statut`.**
 
                       `statut` est le statut EFFECTIF, calculé ici en comparant `ends_at` à
@@ -322,22 +338,33 @@ export function RoleDelegationsSection({ agencyId }: RoleDelegationsSectionProps
                       L'estompage et le badge « Expirée » restent sur le statut effectif : le
                       mensonge inverse — annoncer « Active » sur des droits éteints — est pire.
                     */}
-                    {canDelegate && estDelegationRevocable(delegation.status) ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        // Le nom passe par l'étiquette accessible et non par
-                        // le libellé visible : quatre boutons « Révoquer »
-                        // empilés sont indiscernables pour un lecteur d'écran
-                        // qui parcourt les commandes hors contexte.
-                        aria-label={t('actions.revoke_named', { name: nomComplet(delegation) })}
-                        onClick={() => setPendingRevoke(delegation)}
-                      >
-                        {t('actions.revoke')}
-                      </Button>
-                    ) : null}
-                  </TableCell>
-                </TableRow>
+                      {delegation.covers_absence && estDelegationRevocable(delegation.status) ? (
+                        <Link
+                          href={
+                            delegation.covers_absence.absent
+                              ? `/app/agency/team?filter[absent]=1&membre=${delegation.covers_absence.absent.id}`
+                              : '/app/agency/team'
+                          }
+                          className="rounded-sm text-sm font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                        >
+                          {t('actions.see_absence')}
+                        </Link>
+                      ) : canDelegate && estDelegationRevocable(delegation.status) ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          // Le nom passe par l'étiquette accessible et non par
+                          // le libellé visible : quatre boutons « Révoquer »
+                          // empilés sont indiscernables pour un lecteur d'écran
+                          // qui parcourt les commandes hors contexte.
+                          aria-label={t('actions.revoke_named', { name: nomComplet(delegation) })}
+                          onClick={() => setPendingRevoke(delegation)}
+                        >
+                          {t('actions.revoke')}
+                        </Button>
+                      ) : null}
+                    </TableCell>
+                  </TableRow>
                 );
               })}
             </TableBody>
