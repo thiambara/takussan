@@ -260,19 +260,24 @@
     }
   ],
   "comparaisons": {
-    "dossier": "takussan-web/.fidelite/TCK-2670/cmp-v4-a{0,2,3,7}-…, cmp-v3-a{1,4,6}-…",
-    "le": "2026-11-12, avant le passage aux jetons de l'app ; une passe v5 (jetons, perturbateurs a2 et a7, alias) reste à jouer quand le navigateur de mesure est libre",
+    "dossier": "takussan-web/.fidelite/TCK-2670/cmp-v5-a{0,1,2,3,4,6,7}-…",
+    "le": "2026-11-12, base de démo, jetons de l'app ; perturbateurs a-0, a-2 (raison « Gestion locative depuis 2017 » saisie) et a-7 (`module-credits` décoché), alias « Onboardings en attente »",
     "resultats": {
-      "a0": "téléphone 17 conformes · 35 écarts · 11,3 % ; 1440 69 · 173 · 12,61 % ; 1280 69 · 172 · 13,05 %",
-      "a1": "téléphone 23 · 17 · 10,13 % ; 1440 12,02 % ; 1280 12,76 %",
-      "a2": "téléphone 13,65 % ; 1440 16,86 % ; 1280 18,49 % (sans saisie : la barre d'action manquait)",
-      "a3": "téléphone 8,82 % ; 1440 11,69 % ; 1280 12,82 %",
+      "a0": "téléphone 16 conformes · 36 écarts · 13 absents · 11,58 % ; 1440 63 · 179 · 32 · 12,61 % ; 1280 63 · 178 · 31 · 13,05 %",
+      "a1": "téléphone 23 · 17 · 3 · 10,13 % ; 1440 12,02 % ; 1280 12,76 %",
+      "a2": "téléphone 5 · 13 · 16 · 15,44 % (saisie faite : barre d'action présente, barre d'onglets effacée) ; 1440 16,29 % ; 1280 17,89 %",
+      "a3": "téléphone 8,82 % ; 1440 11,68 % ; 1280 12,82 %",
       "a4": "téléphone 27,72 % (encart de reprise absent, −219 px) ; 1440 16,57 % ; 1280 17,5 %",
       "a6": "téléphone 10,56 % ; 1440 12,71 % ; 1280 13,73 %",
-      "a7": "téléphone 10,28 % ; 1440 13,55 % ; 1280 14,36 % (sans saisie)"
+      "a7": "téléphone 32 · 5 · 24 · 11,93 % (une case décochée : barre d'action présente) ; 1440 11,99 % ; 1280 12,7 %"
     },
     "corriges_pendant_la_passe": [
       "apostrophe typographique de « Seuil d’approbation des reversements (F CFA) » (fr seulement ; en et wo inchangés)"
-    ]
+    ],
+    "remarques": [
+      "a-2 et a-7 au téléphone : la maquette montre À LA FOIS la barre d'onglets et la barre d'action ; le produit efface la barre d'onglets tant qu'il y a des changements non enregistrés (règle du team-lead, écart déjà accepté)",
+      "a-7 : les cases de la maquette sont des cases dessinées (« Masqué », coche `lucide-check`) ; `SectionMenu` pose des `<input type=checkbox>` natifs. La primitive `src/components/ui/checkbox.tsx` existe : l'adopter rapprocherait l'écran de la maquette (non fait ici, hors du delta)"
+    ],
+    "largeurs_intermediaires": "`fidelite balayer --largeurs 360,768,1024` sur /app/agency et chacune de ses sections (`?section=…`) : débord 0 et coupes 0 partout ; à 768, ~47 ellipses, toutes dans le rail de 60 px de la coque (famille 3)"
   }
 }
