@@ -1,13 +1,13 @@
 ---
 id: TCK-2636
 title: "Préférences de notification : une rangée par événement au téléphone (WhatsApp enfin réglable), les six événements oubliés, des en-têtes en français"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: S
 wave: 87
 created: 2026-11-10
-updated: 2026-11-10
+updated: 2026-11-12
 depends_on: [TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: []
 spec_refs:

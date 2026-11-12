@@ -189,6 +189,52 @@ describe('<NotificationPreferencesMatrix> — téléphone : une rangée par év�
     await waitFor(() => expect(screen.getAllByText('Enregistré')).toHaveLength(2));
   });
 
+  it('m1 — un refus du serveur remet la puce comme avant et dit pourquoi', async () => {
+    const user = userEvent.setup();
+    getMock.mockResolvedValue({ ok: true, data: grille() });
+    updateMock.mockResolvedValue({ ok: false, message: 'Le serveur a refusé.' });
+    render(wrap(<NotificationPreferencesMatrix />));
+    await waitFor(() => screen.getByText('Loyer en retard'));
+
+    const email = within(rangee('Loyer en retard')).getByRole('checkbox', { name: /Loyer en retard.*E-mail/ });
+    expect(email).toHaveAttribute('aria-checked', 'true');
+    await user.click(email);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Le serveur a refusé.');
+    await waitFor(() => expect(email).toHaveAttribute('aria-checked', 'true'));
+    expect(screen.queryByText('Enregistré')).not.toBeInTheDocument();
+  });
+
+  it('m2 — pendant un enregistrement, la puce qui part est occupée, les autres le disent, et un toucher n’est pas perdu sans signe', async () => {
+    const user = userEvent.setup();
+    const initial = grille();
+    getMock.mockResolvedValue({ ok: true, data: initial });
+    let repondre: (v: unknown) => void = () => {};
+    updateMock.mockImplementation(() => new Promise((r) => (repondre = r)));
+    render(wrap(<NotificationPreferencesMatrix />));
+    await waitFor(() => screen.getByText('Loyer en retard'));
+
+    const a = within(rangee('Loyer en retard')).getByRole('checkbox', { name: /Loyer en retard.*E-mail/ });
+    const b = within(rangee('Nouveau message')).getByRole('checkbox', { name: /Nouveau message.*E-mail/ });
+    await user.click(a);
+    await waitFor(() => expect(a).toHaveAttribute('aria-busy', 'true'));
+    expect(a).not.toHaveAttribute('aria-disabled');
+    expect(b).toHaveAttribute('aria-disabled', 'true');
+    // Toujours au clavier : pas de `disabled`, le focus ne saute pas.
+    expect(b).not.toBeDisabled();
+
+    await user.click(b);
+    expect(updateMock).toHaveBeenCalledTimes(1);
+    expect(b).toHaveAttribute('aria-checked', 'true');
+
+    repondre({ ok: true, data: initial });
+    await waitFor(() => expect(b).not.toHaveAttribute('aria-disabled'));
+    expect(a).not.toHaveAttribute('aria-busy');
+    // Une fois l'envoi fini, B se touche normalement.
+    await user.click(b);
+    await waitFor(() => expect(updateMock).toHaveBeenCalledTimes(2));
+  });
+
   it('une puce verrouillée n’envoie rien et montre sa raison en sous-ligne', async () => {
     const user = userEvent.setup();
     getMock.mockResolvedValue({ ok: true, data: grille({ telephoneVerifie: false }) });
@@ -329,6 +375,27 @@ describe('<NotificationPreferencesMatrix> — bureau : la matrice (TCK-2636)', (
     await waitFor(() =>
       expect(updateMock).toHaveBeenCalledWith([{ event_type: 'lease_payment_overdue', channel: 'whatsapp', enabled: false }]),
     );
+  });
+
+  it('m2 — au bureau aussi, la case qui part est occupée et les autres attendent en le disant', async () => {
+    const user = userEvent.setup();
+    const initial = grille();
+    getMock.mockResolvedValue({ ok: true, data: initial });
+    let repondre: (v: unknown) => void = () => {};
+    updateMock.mockImplementation(() => new Promise((r) => (repondre = r)));
+    render(wrap(<NotificationPreferencesMatrix />));
+    await waitFor(() => screen.getByText('Loyer en retard'));
+
+    const a = screen.getByRole('checkbox', { name: 'Loyer en retard — WhatsApp' });
+    const b = screen.getByRole('checkbox', { name: 'Loyer en retard — E-mail' });
+    await user.click(a);
+    await waitFor(() => expect(a).toHaveAttribute('aria-busy', 'true'));
+    expect(b).toHaveAttribute('aria-disabled', 'true');
+    await user.click(b);
+    expect(updateMock).toHaveBeenCalledTimes(1);
+
+    repondre({ ok: true, data: initial });
+    await waitFor(() => expect(b).not.toHaveAttribute('aria-disabled'));
   });
 
   it('une case verrouillée dit pourquoi et n’envoie rien ; « Appli » reste cochée', async () => {

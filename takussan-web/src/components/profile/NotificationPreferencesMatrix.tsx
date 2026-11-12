@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, ChevronDown, Lock } from 'lucide-react';
+import { Check, ChevronDown, Loader2, Lock } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/components/ui/toast';
 import {
@@ -179,9 +179,18 @@ export function NotificationPreferencesMatrix() {
     return map;
   }, [data]);
 
+  // La case en cours d'enregistrement (TCK-2636, m2). Un seul envoi à la fois : pendant qu'il
+  // part, les AUTRES cases n'envoient rien — et le DISENT (`aria-disabled`, voile, curseur
+  // d'attente), au lieu d'avaler le toucher en silence. Pas de `disabled` : il ôterait la case
+  // du parcours au clavier et ferait sauter le focus à chaque enregistrement.
+  const envoiEnCours =
+    mutation.isPending && mutation.variables
+      ? cellKey(mutation.variables.event_type, mutation.variables.channel)
+      : null;
+
   function toggle(cell: NotificationPreferenceCell) {
-    // Une case verrouillée n'envoie rien ; un clic pendant l'enregistrement précédent non plus
-    // (sans désactiver toutes les cases, ce qui les faisait clignoter à chaque enregistrement).
+    // Une case verrouillée n'envoie rien ; un toucher pendant l'enregistrement précédent non plus,
+    // mais la case le montre (`etatDEnvoi`).
     if (cell.locked || mutation.isPending) return;
     setLocalError(null);
     mutation.mutate({ event_type: cell.event_type, channel: cell.channel, enabled: !cell.enabled });
@@ -257,6 +266,7 @@ export function NotificationPreferencesMatrix() {
           nomDeLaCase={nomDeLaCase}
           raisonLongue={raisonLongue}
           onToggle={toggle}
+          envoiEnCours={envoiEnCours}
           pushIndisponible={pushToujoursIndisponible(EVENEMENTS_DE_PREFERENCE)}
         />
       ) : (
@@ -281,6 +291,7 @@ export function NotificationPreferencesMatrix() {
               labelEvenement={labelEvenement}
               nomDeLaCase={nomDeLaCase}
               onToggle={toggle}
+              envoiEnCours={envoiEnCours}
               pushIndisponible={pushToujoursIndisponible(groupe.evenements)}
             />
           ))}
@@ -297,6 +308,8 @@ interface RenduCommunProps {
   readonly labelEvenement: (event: string) => string;
   readonly nomDeLaCase: (cell: NotificationPreferenceCell) => string;
   readonly onToggle: (cell: NotificationPreferenceCell) => void;
+  /** `cellKey` de la case dont l'enregistrement part, `null` au repos (TCK-2636, m2). */
+  readonly envoiEnCours: string | null;
   /** La notification mobile n'a pas de transport : elle se dit en une ligne, pas en puces mortes. */
   readonly pushIndisponible: boolean;
 }
@@ -320,6 +333,7 @@ function GroupeEnRangees({
   labelEvenement,
   nomDeLaCase,
   onToggle,
+  envoiEnCours,
   pushIndisponible,
 }: GroupeEnRangeesProps) {
   const t = useTranslations('profile.notifications');
@@ -387,6 +401,7 @@ function GroupeEnRangees({
                       nom={channelLabel(cell.channel)}
                       nomAccessible={nomDeLaCase(cell)}
                       onToggle={onToggle}
+                      envoi={etatDEnvoi(cell, envoiEnCours)}
                     />
                   ))}
                 </div>
@@ -424,11 +439,24 @@ function NoteVerrou({ children }: { readonly children: ReactNode }) {
   );
 }
 
+/**
+ * Où en est une case pendant un enregistrement (TCK-2636, m2) : celle qui part est `occupee`
+ * (`aria-busy`), les autres sont `en-attente` (`aria-disabled`, voile) — elles restent au clavier
+ * et le disent. Une case verrouillée garde son propre état.
+ */
+type EtatDEnvoi = 'repos' | 'occupee' | 'en-attente';
+
+function etatDEnvoi(cell: NotificationPreferenceCell, envoiEnCours: string | null): EtatDEnvoi {
+  if (envoiEnCours === null || cell.locked) return 'repos';
+  return envoiEnCours === cellKey(cell.event_type, cell.channel) ? 'occupee' : 'en-attente';
+}
+
 interface PuceDeCanalProps {
   readonly cell: NotificationPreferenceCell;
   readonly nom: string;
   readonly nomAccessible: string;
   readonly onToggle: (cell: NotificationPreferenceCell) => void;
+  readonly envoi: EtatDEnvoi;
 }
 
 /**
@@ -436,7 +464,7 @@ interface PuceDeCanalProps {
  * (même mécanique que `PuceDeFiltre`). Cochée : aplat `secondary`, encre `primary-deep`, coche.
  * Verrouillée : grisée, cadenas, et elle n'envoie rien. « Appli », toujours active, reste cochée.
  */
-function PuceDeCanal({ cell, nom, nomAccessible, onToggle }: PuceDeCanalProps) {
+function PuceDeCanal({ cell, nom, nomAccessible, onToggle, envoi }: PuceDeCanalProps) {
   const verrou = verrouAvecRaison(cell);
   return (
     <button
@@ -444,6 +472,8 @@ function PuceDeCanal({ cell, nom, nomAccessible, onToggle }: PuceDeCanalProps) {
       role="checkbox"
       aria-checked={cell.enabled}
       aria-label={nomAccessible}
+      aria-busy={envoi === 'occupee' || undefined}
+      aria-disabled={envoi === 'en-attente' || undefined}
       disabled={cell.locked}
       data-canal={cell.channel}
       onClick={() => onToggle(cell)}
@@ -454,10 +484,14 @@ function PuceDeCanal({ cell, nom, nomAccessible, onToggle }: PuceDeCanalProps) {
         cell.enabled ? 'border-primary/40 bg-secondary text-primary-deep' : 'border-border bg-card text-encre-douce',
         verrou && 'opacity-70',
         cell.locked && 'cursor-not-allowed',
+        envoi !== 'repos' && 'cursor-wait',
+        envoi === 'en-attente' && 'opacity-60',
       )}
     >
       {verrou ? (
         <Lock className="size-3 stroke-2" aria-hidden="true" />
+      ) : envoi === 'occupee' ? (
+        <Loader2 className="size-3.5 animate-spin stroke-2 motion-reduce:animate-none" aria-hidden="true" />
       ) : cell.enabled ? (
         <Check className="size-3.5 stroke-2" aria-hidden="true" />
       ) : null}
@@ -483,6 +517,7 @@ function Matrice({
   nomDeLaCase,
   raisonLongue,
   onToggle,
+  envoiEnCours,
   pushIndisponible,
 }: MatriceProps) {
   const t = useTranslations('profile.notifications');
@@ -543,6 +578,7 @@ function Matrice({
                               nomAccessible={nomDeLaCase(cell)}
                               raison={cell.locked ? raisonLongue(cell.reason) : undefined}
                               onToggle={onToggle}
+                              envoi={etatDEnvoi(cell, envoiEnCours)}
                             />
                           ) : (
                             <span aria-hidden="true" className="text-muted-foreground">
@@ -573,6 +609,7 @@ interface CaseDeLaMatriceProps {
   readonly nomAccessible: string;
   readonly raison: string | undefined;
   readonly onToggle: (cell: NotificationPreferenceCell) => void;
+  readonly envoi: EtatDEnvoi;
 }
 
 /**
@@ -580,7 +617,7 @@ interface CaseDeLaMatriceProps {
  * dessine en aplat — cadenas sur `muted`, ou coche sur `primary/35` si elle est active ; « Appli »,
  * toujours active, reste une case cochée. La raison est l'infobulle et la fin du nom accessible.
  */
-function CaseDeLaMatrice({ cell, nomAccessible, raison, onToggle }: CaseDeLaMatriceProps) {
+function CaseDeLaMatrice({ cell, nomAccessible, raison, onToggle, envoi }: CaseDeLaMatriceProps) {
   const cible = 'inline-flex size-10 items-center justify-center rounded-md';
   if (verrouAvecRaison(cell)) {
     return (
@@ -602,9 +639,18 @@ function CaseDeLaMatrice({ cell, nomAccessible, raison, onToggle }: CaseDeLaMatr
     );
   }
   return (
-    <label className={cn(cible, cell.locked ? 'cursor-default' : 'cursor-pointer hover:bg-muted')} title={raison}>
+    <label
+      className={cn(
+        cible,
+        cell.locked ? 'cursor-default' : envoi === 'repos' ? 'cursor-pointer hover:bg-muted' : 'cursor-wait',
+        envoi === 'en-attente' && 'opacity-60',
+      )}
+      title={raison}
+    >
       <Checkbox
         checked={cell.enabled}
+        aria-busy={envoi === 'occupee' || undefined}
+        aria-disabled={envoi === 'en-attente' || undefined}
         // « Appli » : cochée, figée, sans le voile des cases désactivées (elle est active).
         readOnly={cell.locked}
         aria-readonly={cell.locked || undefined}
