@@ -83,7 +83,7 @@
       "produit": {
         "route": "/app/visits?fid=client",
         "persona": "client (bureau : relevé sous `--disposition locataire`, le compte de démo ayant des baux — sa barre latérale montre Paiements et Maintenance)",
-        "etat": "« Mes visites » servie par un BOUCHON des GET `/api/property-visits` dans la page (`FID_AVANT=fid2587c/bouchon-c.js`, scratchpad du lot 2) : studio confirmé jeu. 12 nov. 10:00 avec Sokhna Sène, deux-pièces demandé sam. 14 nov. au matin, appartement neuf visité hier à 16:00 à noter, chambre notée 3/5 le 31 oct., appartement 3 chambres annulé le 28 oct. (« empêchement ») ; horloge figée le mardi 10 nov. 2026 à 10:12 (Dakar) — rien n'est écrit en base. `?fid=ac6` : la persona d'AC6 (aucune à venir), `?fid=vide` : aucune visite"
+        "etat": "« Mes visites » servie par un BOUCHON des GET `/api/property-visits` dans la page (`FID_AVANT=fid2587c/bouchon-c.js`, scratchpad du lot 2) : studio confirmé jeu. 12 nov. 10:00 avec Sokhna Sène (« Agent · Dakar Immo », numéro FICTIF déclaré WhatsApp, comme l'API le sert au seul demandeur d'une visite confirmée à venir), deux-pièces demandé sam. 14 nov. au matin, appartement neuf visité hier à 16:00 à noter, chambre notée 3/5 le 31 oct., appartement 3 chambres annulé le 28 oct. (« empêchement ») ; horloge figée le mardi 10 nov. 2026 à 10:12 (Dakar) — rien n'est écrit en base. `?fid=ac6` : la persona d'AC6 (aucune à venir), `?fid=vide` : aucune visite"
       }
     }
   ],
@@ -422,10 +422,10 @@
     },
     {
       "ecran": "app-visites a-7-*",
-      "element": "bloc de l'agent : « Appeler » et WhatsApp ; « Agent · Dakar Immo »",
-      "propriete": "absents ; « Votre agent »",
-      "exception": "donnée",
-      "motif": "`PropertyVisitResource.agent` ne sert au visiteur ni le téléphone de l'agent ni le nom de l'agence (id, prénom, nom) ; ouvrir ce numéro est une décision (question posée au team-lead le 2026-11-12). Conséquence au téléphone : la carte est 4 px plus basse (disque de 40 au lieu des gestes de 44), « Votre avis » et la suite remontent de 5,5 px"
+      "element": "bloc de l'agent : nom accessible du geste WhatsApp",
+      "propriete": "« Écrire sur WhatsApp » → « Écrire à Sokhna Sène sur WhatsApp »",
+      "exception": "accessibilité",
+      "motif": "le geste nomme l'agent qu'il joint, comme « Appeler Sokhna Sène » à côté (même libellé que la maquette) : l'outil apparie par nom et le compte absent. Les deux gestes, « Agent · Dakar Immo » et leur place sont ceux de la maquette depuis que l'API sert le contact de l'agent au seul demandeur d'une visite confirmée à venir (décision a) du team-lead, confirmée par le porteur)"
     },
     {
       "ecran": "app-visites a-7-*",
@@ -439,7 +439,7 @@
       "element": "« L'agence vous répond d'ordinaire en 2 h »",
       "propriete": "absente",
       "exception": "donnée",
-      "motif": "aucune mesure du délai de réponse de l'agence n'existe"
+      "motif": "aucune mesure du délai de réponse de l'agence n'existe ; la ligne en moins rend la demande plus basse de 10 px au bureau : « Passées » et ses lignes remontent d'autant"
     },
     {
       "ecran": "app-visites a-7-*",
@@ -464,10 +464,10 @@
     },
     {
       "ecran": "app-visites a-7-*",
-      "element": "pastille « Confirmée » sur la photo",
-      "propriete": "icône 14 → 12 px, trait 2 → 1,75",
+      "element": "icônes lucide (coche de « Confirmée », chevron des demandes)",
+      "propriete": "coche 14 → 12 px (12,6 → 10,8 au bureau) ; trait 2 → 1,75 au téléphone, 1,5 au bureau",
       "exception": "règle du design system",
-      "motif": "primitive `Badge` (`[&>svg]:size-3!`) ; les lucide de la coque sont à 1,75"
+      "motif": "primitive `Badge` (`[&>svg]:size-3!`) ; trait des lucide de la partie connectée (même écart que a-0, « icônes lucide »)"
     },
     {
       "ecran": "app-visites a-7-*",
@@ -478,10 +478,10 @@
     },
     {
       "ecran": "app-visites a-7-*",
-      "element": "« Envoyer mon avis », « Terminée », « Annulée »",
-      "propriete": "bordure (0 → 1 px transparente)",
+      "element": "pastilles « Confirmée », « Terminée », « Annulée » ; boutons « Envoyer mon avis », « Annuler la visite »",
+      "propriete": "bordure (0 → 1 px transparente, d'où +2 px de largeur), rayon (plein → 26 px sur 24 de haut, 23,4 au bureau), marges verticales (0 → 2 px)",
       "exception": "règle du design system",
-      "motif": "primitives `Button` et `StatusBadge` : bordure transparente d'un pixel, sans effet sur la couleur rendue"
+      "motif": "primitives `StatusBadge` et `Button`, comme a-0 : bordure transparente d'un pixel, sans effet sur la couleur rendue ; la pastille garde sa hauteur de 24 px"
     },
     {
       "ecran": "app-visites a-7-*",
@@ -489,6 +489,20 @@
       "propriete": "largeur (720 → largeur du texte)",
       "exception": "règle du design system",
       "motif": "primitive `PageHeader` : le titre est dans une colonne `min-w-0`, la boîte suit le texte ; même position, même texte"
+    },
+    {
+      "ecran": "app-visites a-7-bureau-*",
+      "element": "pastilles « Terminée » et « Annulée »",
+      "propriete": "encre de « Terminée » (principale à 75 % → encre douce opaque) ; aplat de « Annulée » (/12 → /10)",
+      "exception": "règle du design system",
+      "motif": "`StatusBadge` sous la portée /app : le neutre en encre douce opaque (encre-sans-alpha), le danger plafonné à /10 par `check-destructive-contrast` (4,37:1 en sombre à /12)"
+    },
+    {
+      "ecran": "app-visites a-2-*",
+      "element": "« Commencer » à 10:12 pour une visite de 10:57",
+      "propriete": "grisé, et « « Commencer » possible à partir de 10:27 » (bureau : une ligne sous la plage, 9 px de plus pour la barre du jour et tout ce qui suit ; téléphone : un paragraphe sous la carte « en route »)",
+      "exception": "reprise demandée (vérification du lot B, m1)",
+      "motif": "cliqué des heures avant la visite, « Commencer » faisait dire à la fiche « l'heure de fin prévue est passée » ; le geste ne s'offre plus qu'à partir de l'heure moins 30 min, et l'instant dessiné par la maquette (« dans 45 min ») tombe avant. Relevé du 2026-11-12 : téléphone 30 conformes · 10,4 % ; 1440 71 conformes · 9,96 % (7,66 % avant) ; 1280 71 conformes · 10,29 % (7,73 % avant). À côté du bouton, le texte renvoyait les gestes à la ligne à 1280 (65 px, 13,59 %) : il a été placé sous la plage"
     }
   ],
   "hors_perimetre": [

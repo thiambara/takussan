@@ -4,6 +4,11 @@ import type { PropertyVisit } from '@/types/visit';
 
 import { commenceeDeLUrl, commenceeRetenue, etatDeLaFiche, finPrevue } from '../etat-de-la-fiche';
 
+// Reprise (vérification du lot B, g2) : la machine et la CI sont à l'heure de Dakar (UTC+0), où l'heure
+// locale et l'heure de Dakar se confondent ; une lecture en heure locale y passerait inaperçue. Le
+// fichier tourne donc dans un fuseau qui en diffère, et Dakar doit rester juste partout.
+process.env.TZ = 'Europe/Paris';
+
 /** Mardi 10 novembre 2026, 10:12 à Dakar (UTC+0 toute l'année). */
 const MAINTENANT = new Date('2026-11-10T10:12:00Z');
 const a = (iso: string) => new Date(iso);

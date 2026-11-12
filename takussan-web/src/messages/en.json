@@ -8505,7 +8505,8 @@
         "enRoute": "I’m on my way",
         "commencer": "Start",
         "absent": "No-show",
-        "terminer": "End the visit"
+        "terminer": "End the visit",
+        "commencerDes": "“Start” is available from {heure}, 30 min before the visit."
       },
       "autreHeure": {
         "titre": "Choose another time",
@@ -8567,7 +8568,8 @@
         "contrats": {
           "rent": "Rent",
           "sale": "Purchase"
-        }
+        },
+        "commencerPossibleA": "“Start” available from {heure}"
       },
       "fil": "Visits",
       "attribuee": "Visit assigned",
@@ -8623,7 +8625,11 @@
           "4": "Very good",
           "5": "Excellent"
         }
-      }
+      },
+      "agentDe": "Agent · {agence}",
+      "appelerAgent": "Call {nom}",
+      "whatsappAgent": "Message {nom} on WhatsApp",
+      "messageAgent": "Hello {nom}, I am writing about my visit: {bien}."
     }
   },
   "superAdmin": {

@@ -17,6 +17,11 @@ import type { PropertyVisit } from '@/types/visit';
 
 import { VisitDetail } from '../../VisitDetail';
 
+// Reprise (vérification du lot B, g2) : la machine et la CI sont à l'heure de Dakar (UTC+0), où l'heure
+// locale et l'heure de Dakar se confondent ; une lecture en heure locale y passerait inaperçue. Le
+// fichier tourne donc dans un fuseau qui en diffère, et Dakar doit rester juste partout.
+process.env.TZ = 'Europe/Paris';
+
 const f = fr.visits.fiche;
 
 const etat = vi.hoisted(() => ({
@@ -271,10 +276,31 @@ describe('TCK-2587 lot B — jour J (téléphone)', () => {
   });
 
   it('« Commencer » pose l’heure du clic dans l’URL, et n’écrit rien', () => {
+    // 10:12 pour 10:40 : dans les 30 min qui précèdent l'heure, le geste se clique (m1).
+    etat.visite = visite({ scheduled_at: '2026-11-10T10:40:00Z' });
     monter();
     fireEvent.click(screen.getByRole('button', { name: f.barre.commencer }));
     expect(nav.replace).toHaveBeenCalledWith('/app/visits/1?commencee=10:12');
     aucuneEcriture();
+  });
+
+  it('plus de 30 min avant l’heure, « Commencer » est grisé et dit à partir de quand (m1)', () => {
+    monter();
+    const commencer = screen.getByRole('button', { name: f.barre.commencer });
+    expect(commencer).toBeDisabled();
+    const pourquoi = screen.getByText('« Commencer » est possible à partir de 10:27, 30 min avant la visite.');
+    expect(commencer).toHaveAttribute('aria-describedby', pourquoi.id);
+    fireEvent.click(commencer);
+    expect(nav.replace).not.toHaveBeenCalled();
+  });
+
+  it('à 30 min de l’heure tout juste, « Commencer » se clique et ne dit plus rien (m1)', () => {
+    etat.visite = visite({ scheduled_at: '2026-11-10T10:42:00Z' });
+    monter();
+    const commencer = screen.getByRole('button', { name: f.barre.commencer });
+    expect(commencer).toBeEnabled();
+    expect(commencer).not.toHaveAttribute('aria-describedby');
+    expect(screen.queryByText(/« Commencer » est possible à partir de/)).toBeNull();
   });
 
   it('une visite confirmée pour un autre jour : ni « en route », ni « Commencer »', () => {
@@ -339,6 +365,22 @@ describe('TCK-2587 lot B — bureau', () => {
     const barre = screen.getByText('Dans 45 min').closest('[data-slot="barre-du-jour-j"]') as HTMLElement;
     expect(within(barre).getByRole('link', { name: f.barre.enRoute })).toBeInTheDocument();
     expect(within(barre).getByRole('button', { name: f.barre.commencer })).toBeInTheDocument();
+  });
+
+  it('jour J à plus de 30 min de l’heure : « Commencer » grisé, « possible à partir de 10:27 » sous la plage (m1)', () => {
+    monter();
+    const barre = document.querySelector('[data-slot="barre-du-jour-j"]') as HTMLElement;
+    const commencer = within(barre).getByRole('button', { name: f.barre.commencer });
+    expect(commencer).toBeDisabled();
+    expect(commencer).toHaveAttribute('aria-describedby', within(barre).getByText('« Commencer » possible à partir de 10:27').id);
+  });
+
+  it('jour J dans les 30 min : « Commencer » se clique au bureau aussi (m1)', () => {
+    etat.visite = visite({ scheduled_at: '2026-11-10T10:40:00Z' });
+    monter();
+    const barre = document.querySelector('[data-slot="barre-du-jour-j"]') as HTMLElement;
+    expect(within(barre).getByRole('button', { name: f.barre.commencer })).toBeEnabled();
+    expect(within(barre).queryByText(/possible à partir de/)).toBeNull();
   });
   it('le créneau dit la maquette : « Mer. 11 nov. 2026 », « après-midi — à fixer », « mercredi après-midi, heure à fixer » et les créneaux libres du jour', () => {
     etat.visite = visite({ status: 'scheduled', preferred_window: 'afternoon', scheduled_at: '2026-11-11T14:00:00Z' });

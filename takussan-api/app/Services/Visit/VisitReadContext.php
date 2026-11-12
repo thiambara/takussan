@@ -45,7 +45,7 @@ final class VisitReadContext
 
     /**
      * @return array{agency_id: ?int, owner_id: ?int, customer_id: ?int, customer_user_id: ?int, visitor_id: ?int, status: ?string,
-     *               visitor_name: ?string, visitor_phone: ?string, customer_name: ?string, customer_phone: ?string,
+     *               agent_id: ?int, scheduled_at: ?string, visitor_name: ?string, visitor_phone: ?string, customer_name: ?string, customer_phone: ?string,
      *               visits_on_property: int}|null
      */
     public static function for(Request $request, PropertyVisit $visit): ?array
@@ -72,7 +72,7 @@ final class VisitReadContext
             ->get([
                 'property_visits.id', 'property_visits.property_id', 'property_visits.customer_id',
                 'property_visits.visitor_id', 'property_visits.status', 'property_visits.visitor_name',
-                'property_visits.visitor_phone', 'properties.agency_id', 'properties.user_id as owner_id',
+                'property_visits.visitor_phone', 'property_visits.agent_id', 'property_visits.scheduled_at', 'properties.agency_id', 'properties.user_id as owner_id',
                 'customers.first_name as customer_first_name', 'customers.last_name as customer_last_name',
                 'customers.phone as customer_phone', 'customers.user_id as customer_user_id',
             ]);
@@ -91,6 +91,10 @@ final class VisitReadContext
                 'customer_user_id' => $row->customer_user_id !== null ? (int) $row->customer_user_id : null,
                 'visitor_id' => $row->visitor_id !== null ? (int) $row->visitor_id : null,
                 'status' => $row->status,
+                // TCK-2587 (lot C) — le contact de l'agent, servi au visiteur d'une visite confirmée À
+                // VENIR : l'agent et l'heure, relus comme le statut.
+                'agent_id' => $row->agent_id !== null ? (int) $row->agent_id : null,
+                'scheduled_at' => $row->scheduled_at !== null ? (string) $row->scheduled_at : null,
                 'visitor_name' => $row->visitor_name,
                 'visitor_phone' => $row->visitor_phone,
                 'customer_name' => $customerName !== '' ? $customerName : null,

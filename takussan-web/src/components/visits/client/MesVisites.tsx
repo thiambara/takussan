@@ -4,9 +4,11 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
-import { CalendarClock, Check, ChevronRight, MapPin } from 'lucide-react';
+import { CalendarClock, Check, ChevronRight, MapPin, Phone } from 'lucide-react';
 
 import { PageHeader, StatusBadge } from '@/components/console';
+import { telHref, whatsappHref } from '@/components/crm/contact';
+import { IconeWhatsApp } from '@/components/crm/IconeWhatsApp';
 import { Pagination } from '@/components/console/Pagination';
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
@@ -60,7 +62,7 @@ export function MesVisites({ titre }: { readonly titre: string }) {
   const demandees = useVisitesDuClient({ status: 'scheduled', scheduled_at_min: borne }, 'scheduled_at', 1, 30);
   const terminees = useVisitesDuClient({ status: 'completed' }, '-scheduled_at', 1, 10);
   const closesAVenir = useVisitesDuClient({ status: STATUTS_CLOS, scheduled_at_min: borne }, '-scheduled_at', 1, 30);
-  const passees = useVisitesDuClient({ scheduled_at_max: borne }, '-scheduled_at', page, 20);
+  const passees = useVisitesDuClient({ scheduled_at_max: borne }, '-scheduled_at', page, 20, { garderLaPage: true });
   const lectures = [confirmees, demandees, terminees, closesAVenir, passees];
 
   if (lectures.some((q) => q.isError)) {
@@ -280,8 +282,13 @@ function ProchaineVisite({ v }: { readonly v: PropertyVisit }) {
           </span>
           <div className="min-w-0 flex-1">
             <p className="truncate text-corps font-semibold text-foreground">{agent || t('agentAAttribuer')}</p>
-            {agent ? <p className="truncate text-sm text-muted-foreground">{t('votreAgent')}</p> : null}
+            {agent ? (
+              <p className="truncate text-sm text-muted-foreground">
+                {v.agent?.agency_name?.trim() ? t('agentDe', { agence: v.agent.agency_name.trim() }) : t('votreAgent')}
+              </p>
+            ) : null}
           </div>
+          {agent ? <GestesDeLAgent v={v} nom={agent} bien={titre} /> : null}
         </div>
 
         <div className="mt-3 flex flex-col gap-2 md:flex-row md:flex-wrap">
@@ -310,6 +317,38 @@ function ProchaineVisite({ v }: { readonly v: PropertyVisit }) {
       />
       {proposer && slug ? <ProposerUnCreneau visitId={v.id} slug={slug} onClose={() => setProposer(false)} /> : null}
     </article>
+  );
+}
+
+const ROND = 'inline-flex size-11 flex-none items-center justify-center rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring';
+
+/**
+ * Appeler et WhatsApp l'agent (maquette a-7 : contour, puis vert plein). Le numéro n'est servi qu'au
+ * demandeur d'une visite confirmée à venir (`PropertyVisitResource::contactDeLAgent`) ; sans lui, aucun
+ * geste. WhatsApp seulement sur un numéro déclaré WhatsApp. Aucun signalement de clic.
+ */
+function GestesDeLAgent({ v, nom, bien }: { readonly v: PropertyVisit; readonly nom: string; readonly bien: string }) {
+  const t = useTranslations('visits.client');
+  const numero = v.agent?.phone?.trim() || null;
+  if (!numero) return null;
+  return (
+    <>
+      <a href={telHref(numero)} aria-label={t('appelerAgent', { nom })} data-slot="geste-appeler-agent" className={cn(ROND, 'border border-border bg-card text-foreground')}>
+        <Phone className="size-icone" strokeWidth={1.75} aria-hidden="true" />
+      </a>
+      {v.agent?.phone_whatsapp ? (
+        <a
+          href={whatsappHref(numero, t('messageAgent', { nom: v.agent?.first_name?.trim() || nom, bien }))}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={t('whatsappAgent', { nom })}
+          data-slot="geste-whatsapp-agent"
+          className={cn(ROND, 'bg-success text-success-foreground')}
+        >
+          <IconeWhatsApp className="size-icone" />
+        </a>
+      ) : null}
+    </>
   );
 }
 

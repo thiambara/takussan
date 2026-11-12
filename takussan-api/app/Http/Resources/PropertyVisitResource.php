@@ -3,9 +3,11 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Models\Agency;
 use App\Models\Enums\VisitStatus;
 use App\Models\Property;
 use App\Models\PropertyVisit;
+use App\Models\User;
 use App\Policies\PropertyVisitPolicy;
 use App\Rules\PersonnelDeLAgence;
 use App\Services\Media\PublicPhotoUrl;
@@ -13,6 +15,7 @@ use App\Services\Visit\ProprietaireHorsConsole;
 use App\Services\Visit\VisitReadContext;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Route;
+use Illuminate\Support\Carbon;
 
 class PropertyVisitResource extends BaseResource
 {
@@ -81,7 +84,7 @@ class PropertyVisitResource extends BaseResource
                 'id' => $this->agent->id,
                 'first_name' => $this->agent->first_name,
                 'last_name' => $this->agent->last_name,
-            ] : null),
+            ] + $this->contactDeLAgent($request) : null),
             'customer' => $this->whenLoaded('customer', fn () => $fiche && $this->customer ? [
                 'id' => $this->customer->id,
                 'user_id' => $this->customer->user_id,
@@ -256,6 +259,49 @@ class PropertyVisitResource extends BaseResource
         $moi = (int) $user->getKey();
 
         return $ctx['visitor_id'] === $moi || $ctx['customer_user_id'] === $moi;
+    }
+
+    /**
+     * TCK-2587 (lot C, décision a) du team-lead, confirmée par le porteur) — le visiteur d'une visite
+     * CONFIRMÉE et À VENIR joint son agent : `phone`, `phone_whatsapp` et le nom de l'agence. Un
+     * contact professionnel, au SEUL demandeur (le visiteur, ou le compte de sa fiche) ; clés ABSENTES
+     * pour tout autre lecteur (le personnel garde ce qu'il voit déjà), et pour une visite en attente,
+     * annulée, close, manquée ou passée.
+     *
+     * Le numéro : il n'existe aucun numéro professionnel (ni le profil agent ni l'adhésion n'en
+     * portent) ; c'est donc celui du compte, sous la règle de toute surface tournée vers l'extérieur,
+     * `User::numeroPrincipalPublic()` puis `numeroSecondairePublic()` — un numéro non vérifié n'est
+     * servi nulle part. Aucun : `phone` à `null`, et le front ne montre pas le geste. Un agent qui n'est
+     * plus du personnel actif de l'agence du bien (parti, suspendu) n'est pas joint par là.
+     *
+     * Jugé sur les valeurs RELUES (`VisitReadContext`) : sous sparse fieldsets, ni le statut, ni l'heure,
+     * ni l'agence ne sont garantis à la ligne rendue. Rien de connu : fermé.
+     *
+     * @return array{phone?: ?string, phone_whatsapp?: bool, agency_name?: ?string}
+     */
+    private function contactDeLAgent(Request $request): array
+    {
+        $ctx = $request->user() !== null ? VisitReadContext::for($request, $this->resource) : null;
+        if ($ctx === null || $ctx['agent_id'] === null || $ctx['agency_id'] === null || $ctx['scheduled_at'] === null
+            || $ctx['status'] !== VisitStatus::Confirmed->value
+            || ! Carbon::parse($ctx['scheduled_at'])->isFuture()
+            || ! $this->lecteurEstLeDemandeur($request)) {
+            return [];
+        }
+
+        $agent = User::query()->whereKey($ctx['agent_id'])->first();
+        if (! PersonnelDeLAgence::personnelActifDe($agent, $ctx['agency_id'])) {
+            return [];
+        }
+        $principal = $agent->numeroPrincipalPublic();
+        $second = $principal === null ? $agent->numeroSecondairePublic() : null;
+
+        return [
+            'phone' => $principal ?? $second,
+            'phone_whatsapp' => $principal !== null ? (bool) $agent->phone_whatsapp
+                : ($second !== null && (bool) $agent->secondary_phone_whatsapp),
+            'agency_name' => Agency::query()->whereKey($ctx['agency_id'])->value('name'),
+        ];
     }
 
     /** Personnel actif de l'agence, jugé une fois par agence et par requête (comme le compte rendu). */

@@ -4,7 +4,7 @@
  * demandés et les corps postés.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -20,6 +20,8 @@ const etat = vi.hoisted(() => ({
   terminees: [] as PropertyVisit[],
   closesAVenir: [] as PropertyVisit[],
   passees: [] as PropertyVisit[],
+  /** La seconde page des passées (`page=2`) ; vide : une seule page. */
+  passeesPage2: [] as PropertyVisit[],
 }));
 const toastAdd = vi.hoisted(() => vi.fn());
 
@@ -56,6 +58,11 @@ vi.mock('@/lib/api', async (original) => {
                   : !statut && p.get('filter[scheduled_at_max]')
                     ? etat.passees
                     : [];
+        if (!statut && p.get('filter[scheduled_at_max]') && etat.passeesPage2.length > 0) {
+          const page = Number(p.get('page') ?? '1');
+          const lignes = page === 2 ? etat.passeesPage2 : etat.passees;
+          return { data: lignes, meta: { total: etat.passees.length + etat.passeesPage2.length, per_page: 20, current_page: page, last_page: 2 } };
+        }
         return { data, meta: { total: data.length, per_page: 20, current_page: 1, last_page: 1 } };
       }
       if (methode === 'POST') return { data: {} };
@@ -126,7 +133,7 @@ const GESTES_DU_PERSONNEL = /^(Confirmer|Terminer|Absent|Replanifier|Attribuer|R
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(MAINTENANT);
-  Object.assign(etat, { appels: [], confirmees: [], demandees: [], terminees: [], closesAVenir: [], passees: [] });
+  Object.assign(etat, { appels: [], confirmees: [], demandees: [], terminees: [], closesAVenir: [], passees: [], passeesPage2: [] });
   toastAdd.mockClear();
 });
 afterEach(() => vi.useRealTimers());
@@ -219,6 +226,15 @@ describe('la prochaine visite et les demandes', () => {
     expect(screen.queryByRole('heading', { name: /Passées/ })).toBeNull();
   });
 
+  it('ne montre aucun geste du personnel, la prochaine visite et la demande rendues', async () => {
+    monter();
+    await screen.findByText('Jeudi 12 nov. · 10:00');
+    expect(screen.getByRole('button', { name: 'Proposer un autre créneau' })).toBeInTheDocument();
+    const gestes = screen.queryAllByRole('button').filter((b) => GESTES_DU_PERSONNEL.test(b.textContent?.trim() ?? ''));
+    expect(gestes).toEqual([]);
+    expect(screen.queryByRole('link', { name: /WhatsApp|Appeler/ })).toBeNull();
+  });
+
   it('chaque section est un filtre du serveur, borné à la minute du montage', async () => {
     monter();
     await screen.findByText('Jeudi 12 nov. · 10:00');
@@ -243,6 +259,52 @@ describe('la prochaine visite et les demandes', () => {
   });
 });
 
+describe('joindre l’agent de la prochaine visite (contact servi par l’API au seul demandeur)', () => {
+  const AGENT = { id: 3, first_name: 'Sokhna', last_name: 'Sène', agency_name: 'Dakar Immo' };
+  const carte = async () => (await screen.findByText('Jeudi 12 nov. · 10:00')).closest('[data-slot="prochaine-visite-client"]') as HTMLElement;
+
+  it('« Agent · Dakar Immo », Appeler (tel:) et WhatsApp (wa.me, son prénom et le bien), sans aucune écriture', async () => {
+    etat.confirmees = [{ ...STUDIO, agent: { ...AGENT, phone: '+221771112233', phone_whatsapp: true } }];
+    monter();
+    const c = await carte();
+    expect(within(c).getByText('Agent · Dakar Immo')).toBeInTheDocument();
+    const appeler = within(c).getByRole('link', { name: 'Appeler Sokhna Sène' });
+    expect(appeler).toHaveAttribute('href', 'tel:+221771112233');
+    const whatsapp = within(c).getByRole('link', { name: 'Écrire à Sokhna Sène sur WhatsApp' });
+    expect(whatsapp.getAttribute('href')).toBe(
+      `https://wa.me/221771112233?text=${encodeURIComponent('Bonjour Sokhna, je vous écris au sujet de ma visite : Studio meublé près de la VDN.')}`,
+    );
+    expect(whatsapp).toHaveAttribute('target', '_blank');
+    fireEvent.click(appeler);
+    fireEvent.click(whatsapp);
+    expect(ecritures('')).toEqual([]);
+  });
+
+  it('un numéro sans WhatsApp : Appeler seul', async () => {
+    etat.confirmees = [{ ...STUDIO, agent: { ...AGENT, phone: '+221771112233', phone_whatsapp: false } }];
+    monter();
+    const c = await carte();
+    expect(within(c).getByRole('link', { name: 'Appeler Sokhna Sène' })).toBeInTheDocument();
+    expect(within(c).queryByRole('link', { name: /WhatsApp/ })).toBeNull();
+  });
+
+  it('aucun numéro servi : ni Appeler ni WhatsApp, l’agence reste dite', async () => {
+    etat.confirmees = [{ ...STUDIO, agent: { ...AGENT, phone: null, phone_whatsapp: false } }];
+    monter();
+    const c = await carte();
+    expect(within(c).getByText('Agent · Dakar Immo')).toBeInTheDocument();
+    expect(within(c).queryByRole('link', { name: /Appeler|WhatsApp/ })).toBeNull();
+  });
+
+  it('sans le contact (clés absentes) : « Votre agent », aucun geste', async () => {
+    etat.confirmees = [STUDIO];
+    monter();
+    const c = await carte();
+    expect(within(c).getByText('Votre agent')).toBeInTheDocument();
+    expect(within(c).queryByRole('link', { name: /Appeler|WhatsApp/ })).toBeNull();
+  });
+});
+
 describe('les passées', () => {
   it('une visite annulée avant son heure n’échappe pas à la liste : elle est en tête des passées, avec son motif', async () => {
     etat.closesAVenir = [visite({ id: 920, status: 'cancelled', scheduled_at: '2026-11-20T10:00:00Z', cancellation_reason: 'empêchement' })];
@@ -253,7 +315,23 @@ describe('les passées', () => {
     const lignes = within(passees).getAllByRole('listitem');
     expect(lignes).toHaveLength(2);
     expect(within(lignes[0]).getByText('Motif : « empêchement »')).toBeInTheDocument();
-    expect(within(lignes[0]).getByText('Annulée')).toBeInTheDocument();
+    // Les tons de la maquette a-7 : l'annulée en rouge, la terminée neutre.
+    expect(within(lignes[0]).getByText('Annulée').closest('[data-tone]')).toHaveAttribute('data-tone', 'danger');
+    expect(within(lignes[1]).getByText('Terminée').closest('[data-tone]')).toHaveAttribute('data-tone', 'neutral');
+  });
+
+  it('la page suivante des passées ne vide pas la vue : l’avis en cours de saisie reste', async () => {
+    const user = userEvent.setup();
+    etat.terminees = [RECENTE];
+    etat.passees = [RECENTE, ANCIENNE];
+    etat.passeesPage2 = [visite({ id: 930, status: 'completed', scheduled_at: '2026-10-01T10:00:00Z', completed_at: '2026-10-01T10:30:00Z', rating: 5, property: { id: 60, title: 'Villa des Almadies', slug: 'villa', cover_url: null } })];
+    monter();
+    const carte = (await screen.findByText('Visité aujourd’hui à 06:00 avec Sokhna')).closest('[data-slot="avis-du-client"]') as HTMLElement;
+    await user.type(within(carte).getByRole('textbox'), 'Très bon accueil');
+    await user.click(screen.getByRole('button', { name: /Suivant/ }));
+    expect(await screen.findByText('Villa des Almadies')).toBeInTheDocument();
+    expect(screen.getByText('Page 2 sur 2')).toBeInTheDocument();
+    expect(within(document.querySelector('[data-slot="avis-du-client"]') as HTMLElement).getByRole('textbox')).toHaveValue('Très bon accueil');
   });
 
   it('aucune visite : un état vide, pas trois sections vides', async () => {

@@ -164,6 +164,23 @@ function absentPossibleA(v: PropertyVisit, maintenant: Date): string | null {
   return Date.parse(v.scheduled_at) <= maintenant.getTime() ? null : v.scheduled_at;
 }
 
+/** L'id du texte « Possible à partir de HH:MM », que le bouton « Commencer » grisé désigne. */
+const ID_COMMENCER_DES = 'fiche-commencer-des';
+
+/** « Commencer » s'offre à partir de 30 min avant l'heure prévue. */
+const COMMENCER_AVANT_MINUTES = 30;
+
+/**
+ * Vérification du lot B (m1) — cliqué à 14:00 pour une visite de 17:00, « Commencer » faisait dire à
+ * la fiche « l'heure de fin prévue est passée » dès 14:30. Le geste se grise donc avant l'heure prévue
+ * moins 30 min ; rend l'instant à partir duquel il se clique, ou `null` quand il se clique déjà.
+ */
+function commencerPossibleA(v: PropertyVisit, maintenant: Date): string | null {
+  if (!v.scheduled_at) return null;
+  const des = Date.parse(v.scheduled_at) - COMMENCER_AVANT_MINUTES * 60_000;
+  return Number.isFinite(des) && maintenant.getTime() < des ? new Date(des).toISOString() : null;
+}
+
 const capitaliser = (s: string) => s.charAt(0).toLocaleUpperCase() + s.slice(1);
 const minuscule = (s: string) => s.charAt(0).toLocaleLowerCase() + s.slice(1);
 
@@ -528,6 +545,7 @@ function FicheTelephone(p: FicheDeLaVisiteProps) {
         </Button>
       );
   } else if (etat === 'jour-j' && personnel) {
+    const commencerDes = commencerPossibleA(v, p.maintenant);
     secondaire = 'dernier';
     barre = (
       <>
@@ -543,7 +561,7 @@ function FicheTelephone(p: FicheDeLaVisiteProps) {
             {t('barre.enRoute')}
           </a>
         ) : null}
-        <Button variant="outline" className="px-4" onClick={p.onCommencer}>
+        <Button variant="outline" className="px-4" disabled={commencerDes !== null} aria-describedby={commencerDes ? ID_COMMENCER_DES : undefined} onClick={p.onCommencer}>
           {t('barre.commencer')}
         </Button>
       </>
@@ -616,6 +634,7 @@ function FicheTelephone(p: FicheDeLaVisiteProps) {
           />
         ) : null}
         {etat === 'jour-j' && l.peutEcrire && l.messageEnRoute ? <CarteEnRoute message={l.messageEnRoute} /> : null}
+        {etat === 'jour-j' && personnel ? <CommencerDes v={v} maintenant={p.maintenant} /> : null}
         {(etat === 'en-cours' || etat === 'apres') && personnel ? <CarteEnCours p={p} l={l} /> : null}
         <CarteCreneau titre={t('creneau.titre')} lignes={lignes}>
           {motif}
@@ -798,6 +817,7 @@ function BarreDuJourJ({ p, l }: { readonly p: FicheDeLaVisiteProps; readonly l: 
   const t = useTranslations('visits.fiche');
   const { etat, gestes: g, visite: v } = p;
   const absentDes = absentPossibleA(v, p.maintenant);
+  const commencerDes = commencerPossibleA(v, p.maintenant);
   const f = useFormatteurs();
   const grand = etat === 'jour-j' ? (l.pastille ? capitaliser(l.pastille) : l.heure) : etat === 'en-cours' ? t('bureau.enCours') : t('bureau.apres');
   return (
@@ -808,6 +828,13 @@ function BarreDuJourJ({ p, l }: { readonly p: FicheDeLaVisiteProps; readonly l: 
           {l.aujourdhui ? t('bureau.plage', { debut: l.heure, fin: l.fin }) : `${l.heure} – ${l.fin}`}
           {v.property?.address?.line ? ` · ${v.property.address.line}` : null}
         </p>
+        {/* Sous la plage, pas à côté du bouton : à 1280, la bulle « en route » et un texte de plus
+            renvoyaient les gestes à la ligne (65 px de décalage relevés). */}
+        {etat === 'jour-j' && commencerDes ? (
+          <p id={ID_COMMENCER_DES} className="mt-0.5 text-sm tabular-nums text-encre-douce">
+            {t('bureau.commencerPossibleA', { heure: f.heure(commencerDes) })}
+          </p>
+        ) : null}
       </div>
       {etat === 'jour-j' && l.peutEcrire && l.messageEnRoute ? (
         <p className="max-w-[calc(var(--spacing)*92)] rounded-xl rounded-bl-sm bg-success/10 px-3.5 py-2 text-sm leading-relaxed text-encre-douce">{l.messageEnRoute}</p>
@@ -827,7 +854,7 @@ function BarreDuJourJ({ p, l }: { readonly p: FicheDeLaVisiteProps; readonly l: 
                 {t('barre.enRoute')}
               </a>
             ) : null}
-            <Button variant="sombre" onClick={p.onCommencer}>
+            <Button variant="sombre" disabled={commencerDes !== null} aria-describedby={commencerDes ? ID_COMMENCER_DES : undefined} onClick={p.onCommencer}>
               {t('barre.commencer')}
             </Button>
           </>
@@ -852,6 +879,19 @@ function BarreDuJourJ({ p, l }: { readonly p: FicheDeLaVisiteProps; readonly l: 
         )}
       </div>
     </div>
+  );
+}
+
+/** Au téléphone, jour J avant l'heure moins 30 min : pourquoi « Commencer » est grisé. */
+function CommencerDes({ v, maintenant }: { readonly v: PropertyVisit; readonly maintenant: Date }) {
+  const t = useTranslations('visits.fiche.barre');
+  const f = useFormatteurs();
+  const des = commencerPossibleA(v, maintenant);
+  if (!des) return null;
+  return (
+    <p id={ID_COMMENCER_DES} className="text-corps leading-relaxed tabular-nums text-encre-douce">
+      {t('commencerDes', { heure: f.heure(des) })}
+    </p>
   );
 }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useLocale } from 'next-intl';
 import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
 import { useAuth } from '@/context/AuthContext';
@@ -491,7 +491,13 @@ export const VISIT_CLIENT_FIELDS: string[] = [
  * Une section de « Mes visites » : un `filter[...]` de `/api/property-visits`, borné côté serveur.
  * La clé vit SOUS `['visits', 'list']` : annuler, proposer un créneau ou donner son avis la relit.
  */
-export function useVisitesDuClient(filtre: Record<string, string>, tri: string, page = 1, perPage = 20) {
+export function useVisitesDuClient(
+  filtre: Record<string, string>,
+  tri: string,
+  page = 1,
+  perPage = 20,
+  options: { readonly garderLaPage?: boolean } = {},
+) {
   return useApiQuery<PaginatedResponse<PropertyVisit>>(
     ['visits', 'list', 'client', filtre, tri, page, perPage],
     '/api/property-visits',
@@ -508,6 +514,9 @@ export function useVisitesDuClient(filtre: Record<string, string>, tri: string, 
         page,
         per_page: perPage,
       },
+      // Une section paginée garde sa page pendant que la suivante charge : sans quoi la vue entière
+      // repasse en squelette, et l'avis en cours de saisie avec elle.
+      ...(options.garderLaPage ? { placeholderData: keepPreviousData } : {}),
     },
   );
 }

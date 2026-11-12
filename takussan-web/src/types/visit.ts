@@ -89,7 +89,18 @@ export interface PropertyVisit {
     email?: string | null;
     phone?: string | null;
   } | null;
-  agent?: { id: number; first_name?: string; last_name?: string } | null;
+  agent?: {
+    id: number;
+    first_name?: string;
+    last_name?: string;
+    /**
+     * TCK-2587 (lot C) — le contact de l'agent, au SEUL demandeur d'une visite confirmée à venir ;
+     * clés absentes ailleurs. `phone` à `null` : aucun numéro servi, pas de geste.
+     */
+    phone?: string | null;
+    phone_whatsapp?: boolean;
+    agency_name?: string | null;
+  } | null;
   customer?: {
     id: number;
     user_id?: number | null;
