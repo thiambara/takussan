@@ -120,3 +120,19 @@ ne les montre pas.
   `SaisirUneDemande`, payeurs de `argent/sources.ts`) ; `occupation` et `notes` du panneau du pipeline
   viennent du show. `libelleDe` lit `email`/`phone` par `?.` et `??` : `undefined` vaut `null`.
 - Suite possible, hors de ce ticket : la même règle pour le show et les lecteurs imbriqués (voie b).
+- 2026-11-12 — vérification adverse :
+  - **d1 (moyen, préexistant, colonne « Cherche » de TCK-2590)** : `readsCriteria` jugeait sur la fiche telle que la
+    liste l'a lue ; `DASHBOARD_CUSTOMER_FIELDS` ne lit pas `agency_id`, et le personnel ne recevait jamais les critères.
+    Jugée désormais sur `ficheJugeable()`, comme les visites et l'origine (`primeFiches` relit la page en une
+    requête). Effet sur le show (décision a, toutes colonnes rendues) : sous `fields` sans critères, le personnel
+    reçoit les sept clés de critères à `null`, comme toute colonne non lue ; elles manquaient par le refus de la règle.
+    Test `tests/Feature/Crm/CustomerListCriteriaTest.php` (la requête du front : admin et agent reçoivent
+    `budget_max`, `seeking_cities`, `seeking_contract_type` ; bailleur auteur d'une fiche d'agence : rien).
+  - **suivi de TCK-2757** : la fiche relue pour la policy porte aussi `user_id` (`TRAITS_JUGES`), et le verdict mis
+    en cache distingue le sujet (`.sujet`). Test `tests/Feature/Crm/CustomerResourceSujetTest.php`, par la ressource.
+  - **d2 (mineur)** : sous `fields` strict, la clé étrangère de chaque include `belongsTo` demandé est lue (dérivée
+    de la relation : `getForeignKeyName()`), sans être rendue — les colonnes rendues sont celles que `fields` demande
+    (`CustomerResource::noterLesChampsDemandes`). Vaut aussi avec des colonnes explicites. Test d2 de
+    `CustomerIndexSparseFieldsTest`.
+  - Ablations, toutes rouges : critères jugés sur la ressource ; `user_id` retiré des traits relus ; `.sujet` retiré
+    de la clé ; clés étrangères retirées de la lecture ; filtre par colonnes demandées retiré.

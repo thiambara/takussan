@@ -4,6 +4,7 @@ namespace Tests\Feature\Crm;
 
 use App\Models\Agency;
 use App\Models\Customer;
+use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -38,11 +39,18 @@ class CustomerIndexSparseFieldsTest extends ApiTestCase
         'last_contacted_at', 'created_at', 'updated_at',
     ];
 
-    /** La forme du show sous `fields[customers]=id,first_name`, relevée avant le correctif : inchangée. */
+    /**
+     * La forme du show sous `fields[customers]=id,first_name` (décision a : le show rend toutes ses
+     * colonnes). Vérification adverse de TCK-2756 (d1) : les sept critères y entrent pour le personnel —
+     * ils manquaient non parce qu'ils n'étaient pas demandés, mais parce que leur règle se jugeait sur
+     * une fiche lue sans son agence, et refusait.
+     */
     private const FORME_DU_SHOW_ID_PRENOM = [
         'id', 'first_name', 'last_name', 'email', 'phone', 'id_type', 'id_number_masked', 'occupation',
         'emergency_contact_name', 'emergency_contact_phone', 'status', 'pipeline_stage', 'locale',
         'agency_id', 'user_id', 'added_by_id', 'metadata', 'last_contacted_at', 'created_at', 'updated_at',
+        'seeking_contract_type', 'budget_min', 'budget_max', 'seeking_property_types', 'seeking_cities',
+        'seeking_neighborhoods', 'min_bedrooms',
     ];
 
     private Agency $agency;
@@ -131,6 +139,50 @@ class CustomerIndexSparseFieldsTest extends ApiTestCase
         $lignes = $this->getJson('/api/customers?fields[customers]=id,first_name,next_action,referent')->assertOk()->json('data');
 
         $this->assertClesDeChaqueLigne(['id', 'first_name', 'next_action', 'referent'], $lignes);
+    }
+
+    /**
+     * Vérification adverse de TCK-2756 (d2) — un include `belongsTo` (`addedBy`, `interestedProperty`…) sous
+     * des attributs calculés seuls : sa clé étrangère rejoint la lecture, sans être émise. Sans elle, la
+     * relation se rendait `null` (« fiche sans auteur »), le null-pour-absent que le ticket retire.
+     */
+    public function test_d2_un_include_garde_sa_cle_etrangere_sans_l_emettre(): void
+    {
+        $auteur = User::factory()->create(['first_name' => 'Awa']);
+        $bien = Property::factory()->create(['agency_id' => $this->agency->id]);
+        Customer::query()->update(['added_by_id' => $auteur->id, 'interested_property_id' => $bien->id]);
+
+        $lignes = $this->getJson('/api/customers?fields[customers]=next_action&include=addedBy,interestedProperty')->assertOk()->json('data');
+
+        $this->assertClesDeChaqueLigne(['id', 'next_action', 'added_by', 'interested_property'], $lignes);
+        $this->assertSame($auteur->id, $lignes[0]['added_by']['id'] ?? null);
+        $this->assertSame($bien->id, $lignes[0]['interested_property']['id'] ?? null);
+
+        // Avec des colonnes demandées, de même : la clé étrangère est lue pour l'include, pas rendue.
+        $lignes = $this->getJson('/api/customers?fields[customers]=id,first_name&include=addedBy')->assertOk()->json('data');
+        $this->assertClesDeChaqueLigne(['id', 'first_name', 'added_by'], $lignes);
+        $this->assertSame($auteur->id, $lignes[0]['added_by']['id'] ?? null);
+    }
+
+    /**
+     * Vérification adverse de abfa84589 — un nom d'include n'appelle jamais une méthode du modèle qui
+     * n'est pas une relation déclarée (`Customer::$requestLoadable`). La lecture des clés étrangères
+     * des includes appelait `$modele->{$include}()` AVANT que spatie ne refuse l'include : `unguard`
+     * levait la protection d'affectation de masse pour tout le processus, `save` tentait un INSERT,
+     * `removeAllFromSearch` vidait l'index. La liste est ouverte à tout compte authentifié.
+     */
+    public function test_un_include_qui_n_est_pas_une_relation_declaree_n_appelle_rien(): void
+    {
+        $this->actingAsApi(User::factory()->create());
+        $avant = Customer::query()->count();
+
+        foreach (['unguard', 'save', 'increment', 'touch', 'delete', 'replicate'] as $methode) {
+            $this->getJson("/api/customers?fields[customers]=next_action&include={$methode}")->assertStatus(400);
+            $this->getJson("/api/customers?fields[customers]=id,first_name&include=tags,{$methode}")->assertStatus(400);
+        }
+
+        $this->assertFalse(Customer::isUnguarded(), 'include=unguard a levé la protection d\'affectation de masse');
+        $this->assertSame($avant, Customer::query()->count());
     }
 
     public function test_ac3_sans_fields_la_liste_garde_sa_forme(): void

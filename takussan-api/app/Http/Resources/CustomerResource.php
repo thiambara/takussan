@@ -25,6 +25,15 @@ class CustomerResource extends BaseResource
 
     private const CHAMPS_STRICTS = 'tck2756.champs_stricts';
 
+    private const CHAMPS_DEMANDES = 'tck2756.champs_demandes';
+
+    /**
+     * Les traits de la fiche que la policy et la règle des critères lisent : l'agence, l'auteur et — suivi
+     * de TCK-2757, « l'auteur n'est jamais le sujet » — le sujet. Une fiche lue sans l'un d'eux est relue
+     * ({@see self::ficheJugeable()}).
+     */
+    private const TRAITS_JUGES = ['id', 'agency_id', 'added_by_id', 'user_id'];
+
     /**
      * TCK-2756 (décision du porteur : a) — la LISTE du CRM rend les seules colonnes que
      * `fields[customers]` a demandées : une colonne non lue est absente, pas rendue à `null` (qui se
@@ -42,6 +51,18 @@ class CustomerResource extends BaseResource
     public static function champsStricts(Request $request): bool
     {
         return $request->attributes->get(self::CHAMPS_STRICTS) === true;
+    }
+
+    /**
+     * Vérification adverse de TCK-2756 (d2) — les colonnes que `fields[customers]` a demandées, notées
+     * par {@see CustomerCommercialAttributes::strip()} quand la lecture en lit d'autres (la clé étrangère
+     * d'un include) : seules celles-ci sont rendues.
+     *
+     * @param  list<string>  $colonnes
+     */
+    public static function noterLesChampsDemandes(Request $request, array $colonnes): void
+    {
+        $request->attributes->set(self::CHAMPS_DEMANDES, $colonnes);
     }
 
     public function toArray(Request $request): array
@@ -191,12 +212,16 @@ class CustomerResource extends BaseResource
         // TCK-2756 — une colonne de la fiche que la lecture n'a pas chargée n'est pas rendue. Les
         // clés calculées, masquées ou de relation (`id_number_masked`, `notes`, `next_action`,
         // `visits_count`…) ont déjà leur propre condition.
+        // D2 : quand la lecture a lu plus que demandé (la clé étrangère d'un include), la liste des
+        // colonnes demandées tranche.
         $colonnes = Customer::getOwnQueryFields();
+        $demandees = $request->attributes->get(self::CHAMPS_DEMANDES);
         $lues = $this->resource->getAttributes();
 
         return array_filter(
             $rendu,
-            fn (string $cle) => ! in_array($cle, $colonnes, true) || array_key_exists($cle, $lues),
+            fn (string $cle) => ! in_array($cle, $colonnes, true)
+                || (is_array($demandees) ? in_array($cle, $demandees, true) : array_key_exists($cle, $lues)),
             ARRAY_FILTER_USE_KEY,
         );
     }
@@ -245,8 +270,11 @@ class CustomerResource extends BaseResource
         }
 
         $fiche = $this->ficheJugeable($request);
+        // Suivi de TCK-2757 — le sujet entre dans la clé : la fiche d'un tiers ajoutée par l'appelant et
+        // la sienne ne partagent pas un verdict.
         $key = 'tck808.reads_customer.'.$user->id.'.'.($fiche->agency_id ?? 'aucune')
-            .'.'.($fiche->added_by_id === $user->id ? 'auteur' : 'tiers');
+            .'.'.($fiche->added_by_id === $user->id ? 'auteur' : 'tiers')
+            .((int) $fiche->user_id === (int) $user->id ? '.sujet' : '');
         if (! $request->attributes->has($key)) {
             $request->attributes->set($key, $user->can('view', $fiche));
         }
@@ -271,8 +299,7 @@ class CustomerResource extends BaseResource
     {
         $ids = [];
         foreach ($customers as $customer) {
-            $attributs = $customer->getAttributes();
-            if (! (array_key_exists('agency_id', $attributs) && array_key_exists('added_by_id', $attributs))
+            if (! self::porteLesTraitsJuges($customer)
                 && ! $request->attributes->has('tck808.fiche.'.$customer->getKey())) {
                 $ids[] = $customer->getKey();
             }
@@ -281,7 +308,7 @@ class CustomerResource extends BaseResource
             return;
         }
 
-        foreach (Customer::query()->select(['id', 'agency_id', 'added_by_id'])->whereKey($ids)->get() as $fiche) {
+        foreach (Customer::query()->select(self::TRAITS_JUGES)->whereKey($ids)->get() as $fiche) {
             $request->attributes->set('tck808.fiche.'.$fiche->getKey(), $fiche);
         }
     }
@@ -315,16 +342,20 @@ class CustomerResource extends BaseResource
         return MembershipCapabilityResolver::primed([$request->user()->id], $agences, $render);
     }
 
+    private static function porteLesTraitsJuges(Customer $customer): bool
+    {
+        return array_diff(self::TRAITS_JUGES, array_keys($customer->getAttributes())) === [];
+    }
+
     private function ficheJugeable(Request $request): Customer
     {
-        $attributs = $this->resource->getAttributes();
-        if (array_key_exists('agency_id', $attributs) && array_key_exists('added_by_id', $attributs)) {
+        if (self::porteLesTraitsJuges($this->resource)) {
             return $this->resource;
         }
 
         $key = 'tck808.fiche.'.$this->resource->getKey();
         if (! $request->attributes->has($key)) {
-            $request->attributes->set($key, Customer::query()->select(['id', 'agency_id', 'added_by_id'])
+            $request->attributes->set($key, Customer::query()->select(self::TRAITS_JUGES)
                 ->whereKey($this->resource->getKey())->first() ?? $this->resource);
         }
 
@@ -424,6 +455,8 @@ class CustomerResource extends BaseResource
             $request->attributes->set($key, app(MembershipCapabilityResolver::class)->staffAgencyIds($user));
         }
 
-        return $this->resource->criteriaBelongTo($user, $request->attributes->get($key));
+        // Vérification adverse de TCK-2756 (d1) — sur la fiche relue, comme les visites et l'origine : la
+        // liste du front ne lit pas `agency_id`, et la règle refusait les critères à tout le personnel.
+        return $this->ficheJugeable($request)->criteriaBelongTo($user, $request->attributes->get($key));
     }
 }

@@ -313,6 +313,18 @@ trait HasQueryBuilder
         return [];
     }
 
+    /**
+     * Les relations qu'une requête peut charger par `include=` : la seule liste de noms qu'un lecteur
+     * de la requête peut traiter comme des relations (vérification adverse de abfa84589 — un nom
+     * d'include venu de l'URL n'appelle jamais une méthode du modèle qui n'y figure pas).
+     *
+     * @return list<string>
+     */
+    public static function getRequestLoadable(): array
+    {
+        return array_values(static::$requestLoadable ?? []);
+    }
+
     /** @return array<int, AllowedInclude> */
     protected static function getAllowedQueryIncludes(): array
     {
