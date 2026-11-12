@@ -8133,7 +8133,6 @@
         },
         "toggleMine": "Samay kër",
         "toggleArchived": "Yu ñu denc",
-        "advanced": "Filtre yu yaatu",
         "removeChip": "Dindi filtre {label}",
         "resetAll": "Delloo lépp ci bopp",
         "cityAria": "Dëkk",
@@ -8177,7 +8176,20 @@
           "scopeHeading": "Wone",
           "criteriaHeading": "Natt yi",
           "showResults": "Xool njureef yi"
-        }
+        },
+        "panneau": {
+          "aria": "Filtres de la liste",
+          "titre": "Filtres",
+          "replier": "Replier les filtres",
+          "reinitialiser": "Réinitialiser",
+          "occupation": "Occupation",
+          "typeEtLieu": "Type et lieu",
+          "lieu": "Lieu",
+          "agentEtPortee": "Agent et portée",
+          "afficher": "Afficher",
+          "plus": "Plus de critères"
+        },
+        "total": "{count, plural, one {# bien} other {# biens}}"
       },
       "actions": {
         "error": "Aksioŋ bi antuwul. Jéematal.",
@@ -8523,7 +8535,8 @@
           "texte": "{used, plural, one {# annonce active} other {# annonces actives}} sur {limit}",
           "aria": "Quota d’annonces de votre agence",
           "definition": "Disponibles, validées ou en attente"
-        }
+        },
+        "boostee": "Boostée jusqu’au {date}"
       }
     },
     "status": {

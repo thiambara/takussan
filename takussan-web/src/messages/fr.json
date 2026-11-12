@@ -1635,7 +1635,6 @@
         },
         "toggleMine": "Mes biens",
         "toggleArchived": "Archivés",
-        "advanced": "Filtres avancés",
         "removeChip": "Retirer le filtre {label}",
         "resetAll": "Tout réinitialiser",
         "cityAria": "Ville",
@@ -1679,7 +1678,20 @@
           "scopeHeading": "Afficher",
           "criteriaHeading": "Critères",
           "showResults": "Voir les résultats"
-        }
+        },
+        "panneau": {
+          "aria": "Filtres de la liste",
+          "titre": "Filtres",
+          "replier": "Replier les filtres",
+          "reinitialiser": "Réinitialiser",
+          "occupation": "Occupation",
+          "typeEtLieu": "Type et lieu",
+          "lieu": "Lieu",
+          "agentEtPortee": "Agent et portée",
+          "afficher": "Afficher",
+          "plus": "Plus de critères"
+        },
+        "total": "{count, plural, one {# bien} other {# biens}}"
       },
       "actions": {
         "error": "Action impossible. Réessayez.",
@@ -2025,7 +2037,8 @@
           "texte": "{used, plural, one {# annonce active} other {# annonces actives}} sur {limit}",
           "aria": "Quota d’annonces de votre agence",
           "definition": "Disponibles, validées ou en attente"
-        }
+        },
+        "boostee": "Boostée jusqu’au {date}"
       }
     },
     "visibility": {

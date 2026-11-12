@@ -167,11 +167,32 @@
       "motif": "`filter[search]` lit le titre, la référence et la description ; le locataire est un filtre à part (`filter[tenant]`, TCK-2637) et l'API combine les filtres en ET : promettre « locataire » dans ce champ mentirait"
     },
     {
-      "ecran": "app-biens a-0-bureau-*, a-1-bureau-*",
-      "element": "panneau de filtres de 204 px (1440) et barre recherche + tri dans la carte du tableau",
-      "propriete": "disposition",
-      "exception": "lot B2 du ticket",
-      "motif": "décision 5 a : le panneau de filtres du bureau (Gestion) et la barre recherche + tri intégrée arrivent dans un lot B2 ; `PropertyListFilters` garde tous les filtres, puces et « Tout réinitialiser » (AC5)"
+      "ecran": "app-biens a-0-bureau-*",
+      "element": "panneau de filtres : groupe « Bailleur et agent », liste « Tous les bailleurs »",
+      "propriete": "présence",
+      "exception": "donnée absente",
+      "motif": "l'API n'a aucun filtre par bailleur (`filter[owner_id]` n'existe pas) : aucun contrôle inventé (décision 4 de la session, lot B2) ; le groupe s'appelle « Agent et portée » et porte l'agent, « Mes biens » et « Archivés » — suivi en ticket à part si le porteur le veut"
+    },
+    {
+      "ecran": "app-biens a-0-bureau-*",
+      "element": "panneau de filtres : « Quartier » en liste déroulante, « Type » en cases à cocher comptées",
+      "propriete": "forme du contrôle",
+      "exception": "donnée absente",
+      "motif": "le lieu ne se filtre qu'en texte libre (`filter[city]`, adresse) et le type n'accepte qu'une valeur, sans compte par type dans `portfolio-summary` (AC3 interdit de compter par listes) : le panneau garde la saisie « Ville » et la liste « Type » d'avant (rien ne se perd)"
+    },
+    {
+      "ecran": "app-biens a-0-bureau-*",
+      "element": "panneau de filtres : groupe « Plus de critères » (prix, statut, contrat, visibilité, dates)",
+      "propriete": "présence",
+      "exception": "Contraintes strictes (rien ne se perd)",
+      "motif": "la maquette ne dessine pas ces critères, que la liste d'avant offrait : ils restent, dans un dernier groupe du panneau, avec « Appliquer » pour la saisie libre (AC5)"
+    },
+    {
+      "ecran": "app-biens a-1-bureau-*",
+      "element": "barre « Tous les types · Visibilité · Tous les agents · tri »",
+      "propriete": "compléments",
+      "exception": "Contraintes strictes (rien ne se perd)",
+      "motif": "« Mes biens », « Archivés », le lieu et les autres critères des Annonces passent dans le même panneau, replié derrière « Filtres » en tête de la barre (lot B2, décision 3)"
     },
     {
       "ecran": "app-biens a-0-telephone, a-1-telephone",
@@ -230,13 +251,6 @@
       "motif": "la liste sert `views_count` et `favorites_count`, cumulés : la carte dit « N vues · N favoris » (les gestes d'avant, Contraintes strictes) ; ni contacts ni visites par bien, ni fenêtre de 30 jours, dans l'API de liste"
     },
     {
-      "ecran": "app-biens a-1-*",
-      "element": "« Boostée jusqu'au 18 nov. » sur la photo",
-      "propriete": "présence",
-      "exception": "question au porteur",
-      "motif": "la liste d'avant n'avait pas cette pastille (relevé de prémisse du 2026-11-12) : rien ne se perd ; « boostée » peut dire l'emplacement sponsorisé (`sponsored_until`) ou le badge acheté (`badge`, `badge_until`) — à trancher avant de l'écrire"
-    },
-    {
       "ecran": "app-biens a-1-bureau-*",
       "element": "sous-titre « … annonces visibles du public ou du réseau »",
       "propriete": "libellé",
@@ -266,14 +280,13 @@
     },
     {
       "ecran": "app-biens a-1-bureau-*",
-      "element": "« Sélectionner tous les biens » au-dessus de la grille, et la barre de filtres",
+      "element": "« Sélectionner tous les biens » au-dessus de la grille",
       "propriete": "présence, position des cartes",
-      "exception": "Contraintes strictes ; lot B2",
-      "motif": "la sélection multiple garde son « tout sélectionner » au bureau ; la barre de filtres actuelle (`PropertyListFilters`) reste jusqu'au lot B2, d'où les cartes plus bas que dans la maquette"
+      "exception": "Contraintes strictes (rien ne se perd)",
+      "motif": "la sélection multiple garde son « tout sélectionner » au bureau, d'où les cartes un peu plus bas que dans la maquette"
     }
   ],
   "hors_perimetre": [
-    "le panneau de filtres du bureau et la barre recherche + tri intégrée : lot B2 (décision 5 a)",
     "l'écran du quota de la création (`/app/properties/new`) : lot C, mesuré à part (`.fidelite/TCK-2638/lot-C/`)",
     "l'étiquette « Biens » / « Mes biens » du menu de la coque (famille 3)"
   ]

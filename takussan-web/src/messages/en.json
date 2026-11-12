@@ -1678,7 +1678,6 @@
         },
         "toggleMine": "My properties",
         "toggleArchived": "Archived",
-        "advanced": "Advanced filters",
         "removeChip": "Remove filter {label}",
         "resetAll": "Reset all",
         "cityAria": "City",
@@ -1722,7 +1721,20 @@
           "scopeHeading": "Show",
           "criteriaHeading": "Criteria",
           "showResults": "Show results"
-        }
+        },
+        "panneau": {
+          "aria": "List filters",
+          "titre": "Filters",
+          "replier": "Collapse the filters",
+          "reinitialiser": "Reset",
+          "occupation": "Occupancy",
+          "typeEtLieu": "Type and location",
+          "lieu": "Location",
+          "agentEtPortee": "Agent and scope",
+          "afficher": "Show",
+          "plus": "More criteria"
+        },
+        "total": "{count, plural, one {# property} other {# properties}}"
       },
       "actions": {
         "error": "Action failed. Please try again.",
@@ -2068,7 +2080,8 @@
           "texte": "{used, plural, one {# active listing} other {# active listings}} of {limit}",
           "aria": "Your agency’s listing quota",
           "definition": "Available, approved or pending"
-        }
+        },
+        "boostee": "Boosted until {date}"
       }
     },
     "visibility": {

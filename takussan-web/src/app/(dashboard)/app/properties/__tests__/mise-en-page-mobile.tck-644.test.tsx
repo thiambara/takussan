@@ -43,7 +43,16 @@ vi.mock('@/components/console', () => ({
 }));
 vi.mock('@/components/contact/AvertissementNumeroNonVerifie', () => ({ AvertissementNumeroNonVerifie: () => null }));
 vi.mock('@/components/property-dashboard/PropertyList', () => ({ PropertyList: () => null }));
-vi.mock('@/components/property-dashboard/PropertyListFilters', () => ({ PropertyListFilters: () => null }));
+// TCK-2638 (lot B2) — la barre ENVELOPPE la liste et sa pagination : le double les rend en place.
+vi.mock('@/components/property-dashboard/PropertyListFilters', () => ({
+  PropertyListFilters: (props: { sousLaBarre?: React.ReactNode; children?: React.ReactNode; pied?: React.ReactNode }) => (
+    <>
+      {props.sousLaBarre}
+      {props.children}
+      {props.pied}
+    </>
+  ),
+}));
 vi.mock('@/components/property-dashboard/PropertyPagination', () => ({ PropertyPagination: () => null }));
 // TCK-2638 — la page a deux modes, et les épingles valent pour les deux.
 const memoire = vi.hoisted(() => ({ mode: 'annonces' as string }));

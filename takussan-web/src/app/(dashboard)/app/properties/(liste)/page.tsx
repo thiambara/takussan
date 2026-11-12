@@ -155,7 +155,10 @@ export default async function Page({
     m === 'gestion'
       ? {
           ...pagination,
-          sort: triPermis(true),
+          // TCK-2638 (lot B2) — « Retards d'abord » est le tri par défaut de la Gestion (maquette retenue par
+          // le porteur), posé ICI par le serveur et jamais écrit dans l'URL. Pendant une recherche, aucun
+          // défaut : l'API classe par pertinence (TCK-662).
+          sort: triPermis(true) ?? (filters.search ? undefined : 'retard'),
           filters: {
             ...filters,
             occupancy: (ETATS_D_OCCUPATION as readonly string[]).includes(asString(params.occupancy) ?? '')
@@ -327,22 +330,22 @@ function CoqueDeLaListe({
 function pageGestion(contexte: ContexteDeLaPage) {
   const { user, response, resume } = contexte;
   const agentOptions = buildAgentOptions(response.data, user);
+  // TCK-2638 (lot B2) — au bureau, le panneau de filtres et UNE carte : barre, table, pagination en pied.
   return (
     <CoqueDeLaListe {...contexte} mode="gestion">
       <TuilesGestion resume={resume} className="hidden lg:grid" />
-      <div className="lg:space-y-6">
-        <div className="px-4 md:px-0">
-          <PropertyListFilters
-            currentUserId={user.id}
-            agentOptions={agentOptions}
-            mode="gestion"
-            basculeMesBiens={estDeLAgence(user.roles)}
-          />
-        </div>
-        <PastillesGestion resume={resume} className="md:-mx-6 md:px-6 lg:hidden" />
+      <PropertyListFilters
+        currentUserId={user.id}
+        agentOptions={agentOptions}
+        mode="gestion"
+        basculeMesBiens={estDeLAgence(user.roles)}
+        resume={resume}
+        total={response.meta.total}
+        sousLaBarre={<PastillesGestion resume={resume} className="md:-mx-6 md:px-6 lg:hidden" />}
+        pied={<Pagination meta={response.meta} dansLaCarte />}
+      >
         <PropertyList page={response} currentUserId={user.id} agentOptions={agentOptions} presentation="gestion" />
-      </div>
-      <Pagination meta={response.meta} />
+      </PropertyListFilters>
     </CoqueDeLaListe>
   );
 }
@@ -363,14 +366,15 @@ function pageAnnonces(contexte: ContexteDeLaPage & { readonly quota: { readonly 
         <OngletsAnnonces resume={resume} className="flex-1" />
         {quota ? <JaugeDuQuota used={quota.used} limit={quota.limit} presentation="bureau" /> : null}
       </div>
-      <div className="space-y-3 lg:space-y-6">
-        <div className="px-4 md:px-0">
-          <PropertyListFilters currentUserId={user.id} agentOptions={agentOptions} basculeMesBiens={estDeLAgence(user.roles)} />
-        </div>
-        <PastillesAnnonces resume={resume} className="md:-mx-6 md:px-6 lg:hidden" />
+      <PropertyListFilters
+        currentUserId={user.id}
+        agentOptions={agentOptions}
+        basculeMesBiens={estDeLAgence(user.roles)}
+        sousLaBarre={<PastillesAnnonces resume={resume} className="md:-mx-6 md:px-6 lg:hidden" />}
+        pied={<Pagination meta={response.meta} />}
+      >
         <PropertyList page={response} currentUserId={user.id} agentOptions={agentOptions} presentation="annonces" />
-      </div>
-      <Pagination meta={response.meta} />
+      </PropertyListFilters>
       {quota ? (
         <div className="px-4 md:px-0 lg:hidden">
           <JaugeDuQuota used={quota.used} limit={quota.limit} presentation="telephone" />
@@ -384,12 +388,19 @@ function pageAnnonces(contexte: ContexteDeLaPage & { readonly quota: { readonly 
  * La pagination des deux modes : au téléphone, « Afficher les 20 suivants » tant qu'il en reste sur la
  * première page ; sinon, et toujours au bureau, 10 / 20 / 50 et Précédent / Suivant (jamais les deux).
  */
-function Pagination({ meta }: { readonly meta: Awaited<ReturnType<typeof fetchDashboardProperties>>['meta'] }) {
+function Pagination({
+  meta,
+  dansLaCarte = false,
+}: {
+  readonly meta: Awaited<ReturnType<typeof fetchDashboardProperties>>['meta'];
+  /** TCK-2638 (lot B2) — Gestion, bureau : le pied de la carte de la table (bordure du haut, marge intérieure). */
+  readonly dansLaCarte?: boolean;
+}) {
   const suivants = suivantsProposes(meta);
   return (
     <div className="px-4 md:px-0">
       {suivants ? <AfficherLesSuivants meta={meta} className="lg:hidden" /> : null}
-      <div className={cn(suivants && 'max-lg:hidden')}>
+      <div className={cn(suivants && 'max-lg:hidden', dansLaCarte && 'empty:hidden lg:border-t lg:border-border lg:px-4')}>
         <PropertyPagination meta={meta} />
       </div>
     </div>

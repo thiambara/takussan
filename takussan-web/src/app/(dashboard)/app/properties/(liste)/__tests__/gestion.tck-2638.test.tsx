@@ -44,9 +44,16 @@ vi.mock('@/components/property-dashboard/PropertyList', () => ({
   },
 }));
 vi.mock('@/components/property-dashboard/PropertyListFilters', () => ({
-  PropertyListFilters: (props: unknown) => {
+  // TCK-2638 (lot B2) — la barre ENVELOPPE la liste et sa pagination : le double les rend en place.
+  PropertyListFilters: (props: { sousLaBarre?: React.ReactNode; children?: React.ReactNode; pied?: React.ReactNode }) => {
     recus.filtres.push(props);
-    return null;
+    return (
+      <>
+        {props.sousLaBarre}
+        {props.children}
+        {props.pied}
+      </>
+    );
   },
 }));
 vi.mock('@/components/property-dashboard/PropertyPagination', () => ({
@@ -224,6 +231,36 @@ describe('/app/properties — mode Gestion (TCK-2638)', () => {
     expect(listes()[0]).not.toContain('sort=retard');
     // Les pastilles de Gestion restent dans l'URL (on les retrouve en revenant) sans filtrer les annonces.
     expect(listes()[0]).not.toContain('filter[occupancy]');
+  });
+
+  it('TCK-2638 (lot B2) — « Retards d’abord » est le défaut de la Gestion, posé par le SERVEUR ; jamais en Annonces, jamais pendant une recherche', async () => {
+    await rendre({ mode: 'gestion' });
+    expect(listes()[0]).toContain('sort=retard');
+
+    apiRequest.mockClear();
+    await rendre({ mode: 'gestion', sort: 'price' });
+    expect(listes()[0]).toContain('sort=price');
+    expect(listes()[0]).not.toContain('sort=retard');
+
+    // Pendant une recherche, aucun défaut : l'API classe par pertinence (TCK-662).
+    apiRequest.mockClear();
+    await rendre({ mode: 'gestion', search: 'Mermoz' });
+    expect(listes()[0]).not.toContain('sort=');
+
+    apiRequest.mockClear();
+    await rendre({ mode: 'annonces' });
+    expect(listes()[0]).toContain('sort=-created_at');
+  });
+
+  it('TCK-2638 (lot B2) — la barre reçoit le mode, le résumé (occupation du panneau) et le total (« N biens ») ; elle enveloppe la liste et sa pagination', async () => {
+    await rendre({ mode: 'gestion' });
+    expect(recus.filtres.at(-1)).toMatchObject({ mode: 'gestion', resume: RESUME, total: expect.any(Number) });
+    expect(recus.liste.at(-1)).toMatchObject({ presentation: 'gestion' });
+    expect(recus.pagination).not.toHaveLength(0);
+
+    recus.filtres = [];
+    await rendre({ mode: 'annonces' });
+    expect((recus.filtres.at(-1) as { mode?: string }).mode).toBeUndefined();
   });
 
   it('une page au-delà de la dernière (changement de mode ou de pastille) se relit à la dernière', async () => {

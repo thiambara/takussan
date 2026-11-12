@@ -295,7 +295,9 @@ export function PropertyList({
     return (
       <div className="space-y-4">
         <DataTable
-          className="hidden lg:block"
+          // TCK-2638 (lot B2) — la table vit DANS la carte de la liste (barre, table, pied) : son propre cadre
+          // s'efface (bord, anneau, rayon), sans toucher à la primitive.
+          className="hidden rounded-none ring-0 portee-app:border-0 lg:block"
           caption={tGestion('caption')}
           columns={colonnesGestion}
           rows={properties}
@@ -352,6 +354,7 @@ export function PropertyList({
             selectionne={selectedIds.includes(property.id)}
             onBasculer={() => toggleOne(property.id)}
             libelleCase={t('selectOne', { title: property.title })}
+            maintenant={aujourdhui}
           />
         ))}
       </ul>

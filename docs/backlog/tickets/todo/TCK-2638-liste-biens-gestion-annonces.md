@@ -252,3 +252,34 @@ _(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, P
   les noms à 390 et 1280). La pagination du téléphone dit « Afficher le suivant » / « Afficher les N suivants »
   (pluriel ICU). Écarts restants à la maquette : la fiche de fidélité `docs/qa/audit-ux-2026-11/fidelite/TCK-2638.json`
   (données de la démo, pastille « Boostée », barre de filtres du bureau → lot B2).
+
+### Lot B2 — le bureau : panneau de filtres, carte de la table, « Boostée » (2026-11-12, terrain-6)
+
+- **Décisions de la session** : 1 a — sous `w1440`, « Filtres » déplie le panneau EN PLACE (la table défile alors
+  dans sa carte) ; 2 — « Retards d'abord » est le tri par défaut de la Gestion, posé par le serveur (`page.tsx`,
+  jamais pendant une recherche : pertinence, TCK-662) et jamais écrit dans l'URL (choisir le défaut retire `sort`) ;
+  3 — la barre du bureau des Annonces avec le même composant ; 4 — aucun filtre par bailleur (l'API n'en a pas) :
+  écart inscrit dans la fiche, aucun contrôle inventé.
+- **Gestion, bureau** : `PropertyListFilters` porte la mise en page. À gauche, un panneau de 204 px de la maquette
+  (`calc(var(--spacing)*56.67)`), ouvert dès `w1440`, replié en bouton dessous, refermable (« Replier les filtres ») :
+  Occupation (les pastilles en boutons radio, même requête `requeteDeLaPastille`, mêmes comptes, « À vendre » aux
+  mêmes conditions), Type et lieu, Agent et portée (« Mes biens », « Archivés » en interrupteurs), Plus de critères
+  (prix + « Appliquer », statut, contrat, visibilité, dates), « Réinitialiser » (garde le mode). À droite, UNE carte :
+  la barre (« Filtres » sous 1440, recherche, tri, « N biens » = `meta.total`), les puces, la table (son propre cadre
+  effacé par `className`, la primitive `DataTable` intacte), la pagination en pied.
+- **Annonces, bureau** : une rangée — « Filtres », recherche, type, visibilité, agent, tri ; « Mes biens »,
+  « Archivés », le lieu et les autres critères dans le même panneau, replié au départ (aucun doublon de la barre).
+- **Une seule commande par geste** : le bouton « Filtres » est UN bouton — feuille au téléphone, panneau au bureau
+  (`matchMedia('(min-width: 64rem)')`) ; tous les contrôles appellent les mêmes `updateParam(s)` que la feuille
+  (TCK-644). Le téléphone ne change pas.
+- **« Boostée »** (décision du porteur : mise en avant payée EN COURS, `sponsored_until` > maintenant) :
+  `PropertyResource` émet `sponsored_until` (ISO, nul sans boost) quand la liste pro le demande, jamais sur la
+  surface publique (`BoostEnCoursDansLaListeTest`, 3 tests, 2 ablations rouges) ; `DASHBOARD_PROPERTY_FIELDS` le
+  demande ; la carte pose « Boostée jusqu'au 18 nov. » sur la photo (`boostEnCours`, instant de référence unique de
+  la liste). `requetes-du-front.json` régénéré, `RequetesDuFrontTest` vert.
+- **Garde réparée** : `property-fields.coverage` rougissait depuis le lot B (12 colonnes lues < 13) — les lectures
+  avaient quitté `PropertyList.tsx` pour `CarteAnnonce`, `GestionDuBien`, `etat-d-annonce` et `etat-locatif`, déclarés
+  consommateurs (13/13).
+- **Tests** : `PanneauDeFiltres.tck-2638.test.tsx` (19), `gestion.tck-2638` (+2 : défaut serveur, props de la barre),
+  `CarteAnnonce.tck-2638` (+3 : cadre de la table, « Boostée »), les doubles de `PropertyListFilters` rendent la liste
+  et sa pagination ; ablations front 19/19 rouges, restaurées.

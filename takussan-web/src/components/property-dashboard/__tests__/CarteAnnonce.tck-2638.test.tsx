@@ -10,8 +10,9 @@
  */
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { boostEnCours } from '@/components/property-dashboard/CarteAnnonce';
 import { PropertyList } from '@/components/property-dashboard/PropertyList';
 import { withIntl } from '@/test/intl';
 import type { PaginatedResponse } from '@/types/api';
@@ -210,5 +211,42 @@ describe('CarteAnnonce — propriétaire et agent se lisent entiers', () => {
     const ligne = within(cartes()[0]!).getByText(/Propriétaire :/).closest('p')!;
     expect(ligne.className.split(/\s+/)).toContain('whitespace-normal');
     expect(ligne.className.split(/\s+/)).not.toContain('whitespace-nowrap');
+  });
+});
+
+describe('Gestion (lot B2) — la table s’inscrit dans la carte de la liste', () => {
+  it('son propre cadre s’efface (rayon, anneau, bord de la portée) : la carte de la barre le porte', () => {
+    render(withIntl(<PropertyList page={page([bien()])} currentUserId={1} presentation="gestion" />));
+    const cadre = screen.getByRole('table').closest('.overflow-hidden')!;
+    expect(cadre.className.split(/\s+/)).toEqual(expect.arrayContaining(['rounded-none', 'ring-0', 'portee-app:border-0']));
+    expect(cadre.className.split(/\s+/)).not.toContain('rounded-xl');
+  });
+});
+
+describe('« Boostée » (lot B2, décision du porteur : la mise en avant payée EN COURS)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-12T10:00:00Z'));
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it('la pastille dit jusqu’à quand, sur la photo ; un boost échu ou absent ne se dit pas', () => {
+    rendre([
+      bien({ sponsored_until: '2026-11-18T23:59:59+00:00' }),
+      bien({ sponsored_until: '2026-11-11T23:59:59+00:00' }),
+      bien({ sponsored_until: null }),
+      bien(),
+    ]);
+    const [boostee, echue, sans, absente] = cartes();
+    expect(within(boostee!).getByTestId('boostee')).toHaveTextContent('Boostée jusqu’au 18 nov.');
+    expect(within(boostee!).getByTestId('boostee').parentElement!.querySelector('img')).not.toBeNull();
+    for (const carte of [echue!, sans!, absente!]) expect(within(carte).queryByTestId('boostee')).toBeNull();
+  });
+
+  it('« en cours » : strictement après l’instant de référence', () => {
+    const maintenant = new Date('2026-11-12T10:00:00Z');
+    expect(boostEnCours({ sponsored_until: '2026-11-12T10:00:01Z' }, maintenant)).not.toBeNull();
+    expect(boostEnCours({ sponsored_until: '2026-11-12T10:00:00Z' }, maintenant)).toBeNull();
+    expect(boostEnCours({ sponsored_until: undefined }, maintenant)).toBeNull();
   });
 });

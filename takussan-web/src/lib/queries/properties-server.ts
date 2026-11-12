@@ -76,6 +76,8 @@ export const DASHBOARD_PROPERTY_FIELDS = [
   'area',
   'published_at',
   'created_at',
+  // TCK-2638 (lot B2) — la pastille « Boostée » de la carte d'annonce (`CarteAnnonce`).
+  'sponsored_until',
 ] as const;
 
 export interface DashboardPropertyFilters {

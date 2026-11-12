@@ -135,6 +135,13 @@ class PropertyResource extends BaseResource
             // par `BoostLifecycle` ; nul sans badge actif.
             'badge' => $this->whenHas('badge', fn ($valeur) => $valeur?->value),
             'badge_until' => $this->whenHas('badge_until', fn ($valeur) => $this->iso($valeur)),
+            // TCK-2638 (lot B2) — la pastille « Boostée » de la liste pro : la mise en avant payée, projetée
+            // par `BoostLifecycle` (décision du porteur : en cours = `sponsored_until` > maintenant, jugé
+            // par l'écran). Hors surface publique : la fin d'un boost n'est pas une donnée du catalogue.
+            'sponsored_until' => $this->when(
+                $appelantConnu && array_key_exists('sponsored_until', $this->resource->getAttributes()),
+                fn () => $this->iso($this->resource->sponsored_until),
+            ),
             // ⚠ `views_count` / `favorites_count` restent dans la FORME LISTE, et c'est mesuré :
             // `DASHBOARD_PROPERTY_FIELDS` (`takussan-web/src/lib/queries/properties-server.ts`)
             // les demande explicitement, et `PropertyList.tsx` les rend dans chaque ligne du

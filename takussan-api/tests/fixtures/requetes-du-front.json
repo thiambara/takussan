@@ -109,7 +109,7 @@
       "acteur": "agence",
       "chemin": "/api/properties",
       "parametres": {
-        "fields[properties]": "id,user_id,agency_id,reference_number,title,slug,price,currency,type,contract_type,rent_period,status,visibility,views_count,favorites_count,bedrooms,area,published_at,created_at",
+        "fields[properties]": "id,user_id,agency_id,reference_number,title,slug,price,currency,type,contract_type,rent_period,status,visibility,views_count,favorites_count,bedrooms,area,published_at,created_at,sponsored_until",
         "include": "address,owner,collaborators",
         "sort": "-created_at",
         "page": "1",

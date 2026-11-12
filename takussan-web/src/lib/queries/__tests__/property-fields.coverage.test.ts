@@ -142,6 +142,12 @@ const APPELANTS: readonly Appelant[] = [
       ['src/components/property-dashboard/PropertyList.tsx', ['property']],
       ['src/components/property-dashboard/PropertyRowActions.tsx', ['property']],
       ['src/components/property-dashboard/ProprietaireEtResponsable.tsx', ['property']],
+      // TCK-2638 — les cellules et la carte d'annonce lisent les colonnes que la ligne d'avant lisait.
+      ['src/components/property-dashboard/CarteAnnonce.tsx', ['property']],
+      ['src/components/property-dashboard/GestionDuBien.tsx', ['property']],
+      ['src/lib/biens/etat-d-annonce.ts', ['property']],
+      // Le loyer et sa période (AC7), lus pour la carte comme pour la ligne (`loyerDuBien`, `estAVendre`).
+      ['src/lib/biens/etat-locatif.ts', ['p']],
     ],
     // `primary_contact` (TCK-603) : servie sur l'index dès que `agency_id` et `user_id` sont
     // demandés — les deux le sont, et `takussan-api` l'éprouve

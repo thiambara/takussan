@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useMemo, useSyncExternalStore } from 'react';
 import { useTranslations } from 'next-intl';
-import { Eye } from 'lucide-react';
+import { Eye, Rocket } from 'lucide-react';
 
 import { StatusBadge, type StatusTone } from '@/components/console/StatusBadge';
 import { PROPERTY_ENUM_NAMESPACES } from '@/components/property-form/options';
@@ -43,14 +43,19 @@ export function CarteAnnonce({
   selectionne,
   onBasculer,
   libelleCase,
+  maintenant,
 }: {
   readonly property: PropertyListItem;
   readonly currentUserId?: number;
   readonly selectionne: boolean;
   readonly onBasculer: () => void;
   readonly libelleCase: string;
+  /** L'instant de référence de la liste (un seul pour toutes les cartes) : juge un boost en cours. */
+  readonly maintenant: Date;
 }) {
   const t = useTranslations('property.dashboard.annonces');
+  const fmt = useFormatteurs();
+  const finDuBoost = boostEnCours(property, maintenant);
   const tListe = useTranslations('property.dashboard.list');
   const tVisibilite = useTranslations(PROPERTY_ENUM_NAMESPACES.visibilityScope);
   const lieu = lieuDuBien(property);
@@ -72,6 +77,16 @@ export function CarteAnnonce({
             sizes="(min-width: 80rem) 33vw, (min-width: 64rem) 50vw, 100vw"
             className="object-cover"
           />
+        ) : null}
+        {/* TCK-2638 (lot B2) — « Boostée » : la mise en avant payée EN COURS (décision du porteur). */}
+        {finDuBoost ? (
+          <span
+            data-testid="boostee"
+            className="absolute top-3 left-3 inline-flex h-6 items-center gap-1 rounded-full bg-card px-2 text-xs font-medium"
+          >
+            <Rocket aria-hidden="true" strokeWidth={1.75} className="size-3.5 text-primary" />
+            {t('boostee', { date: fmt.jourMois(finDuBoost, maintenant) })}
+          </span>
         ) : null}
       </div>
       <div className="flex flex-1 flex-col p-4">
@@ -133,6 +148,16 @@ export function CarteAnnonce({
       </div>
     </li>
   );
+}
+
+/**
+ * TCK-2638 (lot B2) — un boost est EN COURS quand `sponsored_until` est après l'instant de référence de la
+ * liste ; sa fin est alors rendue, sinon `null` (pas de boost, boost échu, ou clé absente).
+ */
+export function boostEnCours(property: Pick<PropertyListItem, 'sponsored_until'>, maintenant: Date): Date | null {
+  if (!property.sponsored_until) return null;
+  const fin = new Date(property.sponsored_until);
+  return fin.getTime() > maintenant.getTime() ? fin : null;
 }
 
 /**
