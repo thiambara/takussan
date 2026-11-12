@@ -1711,7 +1711,12 @@
         "deleteBodyRow": "Le bien <b>{title}</b> sera supprimé et retiré du site. Cette action est irréversible.",
         "deleteBodyDetail": "Le bien <b>{title}</b> sera supprimé de votre portefeuille et retiré du site. Cette action est irréversible.",
         "cancel": "Annuler",
-        "sentForReview": "Envoyé pour validation à l'administrateur de l'agence : le bien sera en ligne une fois approuvé."
+        "sentForReview": "Envoyé pour validation à l'administrateur de l'agence : le bien sera en ligne une fois approuvé.",
+        "duplicated": "Bien dupliqué.",
+        "archiveTitle": "Archiver ce bien ?",
+        "archiveBody": "Le bien <b>{title}</b> sera archivé et ne sera plus visible sur le site.",
+        "unpublishTitle": "Dépublier ce bien ?",
+        "unpublishBody": "Le bien <b>{title}</b> ne sera plus visible sur le site. Vous pourrez le republier depuis ce menu."
       },
       "calendar": {
         "title": "Calendrier du bien",

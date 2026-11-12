@@ -1754,7 +1754,12 @@
         "deleteBodyRow": "The property <b>{title}</b> will be deleted and taken off the site. This action cannot be undone.",
         "deleteBodyDetail": "The property <b>{title}</b> will be removed from your portfolio and taken off the site. This action cannot be undone.",
         "cancel": "Cancel",
-        "sentForReview": "Sent for approval to the agency administrator: the listing goes online once approved."
+        "sentForReview": "Sent for approval to the agency administrator: the listing goes online once approved.",
+        "duplicated": "Property duplicated.",
+        "archiveTitle": "Archive this property?",
+        "archiveBody": "<b>{title}</b> will be archived and will no longer be visible on the site.",
+        "unpublishTitle": "Unpublish this property?",
+        "unpublishBody": "<b>{title}</b> will no longer be visible on the site. You can publish it again from this menu."
       },
       "calendar": {
         "title": "Property calendar",

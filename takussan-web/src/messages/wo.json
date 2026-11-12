@@ -7825,7 +7825,12 @@
         "deleteBodyRow": "Kër gi <b>{title}</b> dañu koy far, te du feeñati ci sit bi. Jëf bii mënatul dellu.",
         "deleteBodyDetail": "Kër gi <b>{title}</b> dañu koy dindi ci sa portfey, te du feeñati ci sit bi. Jëf bii mënatul dellu.",
         "cancel": "Neenal",
-        "sentForReview": "Yónnee nañ ko administrateur agence bi ngir mu nangu ko : kër gi dina feeñ su ko nanguwee."
+        "sentForReview": "Yónnee nañ ko administrateur agence bi ngir mu nangu ko : kër gi dina feeñ su ko nanguwee.",
+        "duplicated": "Bien dupliqué.",
+        "archiveTitle": "Archiver ce bien ?",
+        "archiveBody": "Le bien <b>{title}</b> sera archivé et ne sera plus visible sur le site.",
+        "unpublishTitle": "Dépublier ce bien ?",
+        "unpublishBody": "Le bien <b>{title}</b> ne sera plus visible sur le site. Vous pourrez le republier depuis ce menu."
       },
       "calendar": {
         "title": "Arminaatu kër gi",

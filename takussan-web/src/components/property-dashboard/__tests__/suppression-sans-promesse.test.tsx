@@ -28,6 +28,13 @@ vi.mock('@/app/actions/dashboard-properties', () => ({
   updatePropertyStatusAction: vi.fn(),
   updatePropertyVisibilityAction: vi.fn(),
 }));
+// Réserve de verif-patrimoine (2026-11-12) — l'en-tête de la fiche dit l'issue d'un geste par un
+// toast ; la ligne de liste, à côté d'elle.
+const toast = vi.hoisted(() => ({ add: vi.fn() }));
+vi.mock('@/components/ui/toast', async (original) => ({
+  ...(await original<typeof import('@/components/ui/toast')>()),
+  useToast: () => toast,
+}));
 vi.mock('@/components/documents/AddDocumentButton', () => ({ AddDocumentButton: () => null }));
 // Le membre tient `properties.delete` : le cloisonnement a son propre fichier (TCK-587).
 vi.mock('@/hooks/useCan', () => ({ useCan: () => ({ can: true, isLoading: false }) }));

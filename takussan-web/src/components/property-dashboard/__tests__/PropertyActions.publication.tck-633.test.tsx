@@ -23,6 +23,13 @@ vi.mock('@/app/actions/dashboard-properties', () => ({
   updatePropertyStatusAction: vi.fn(),
   updatePropertyVisibilityAction: vi.fn(),
 }));
+// Réserve de verif-patrimoine (2026-11-12) — l'en-tête de la fiche dit l'issue d'un geste par un
+// toast ; la ligne de liste, à côté d'elle.
+const toast = vi.hoisted(() => ({ add: vi.fn() }));
+vi.mock('@/components/ui/toast', async (original) => ({
+  ...(await original<typeof import('@/components/ui/toast')>()),
+  useToast: () => toast,
+}));
 vi.mock('@/components/documents/AddDocumentButton', () => ({ AddDocumentButton: () => null }));
 
 const m = vi.hoisted(() => ({
@@ -43,9 +50,29 @@ const BIEN = { id: 47, title: 'Studio à Ouakam', slug: 'studio-ouakam', status:
 /** L'en-tête de la fiche dit « Plus d'actions » ; la ligne de liste y ajoute le bien (TCK-1035). */
 const MENU_DU_BIEN = (nom: string) => nom === 'Plus d’actions' || nom === `Plus d’actions — ${BIEN.title}`;
 
+type Ton = 'success' | 'error';
+
+/** La ligne de liste écrit l'issue à côté d'elle (`role="status"` ou `"alert"`). */
+const aCoteDuMenu = {
+  dit: async (ton: Ton, texte: string | RegExp) =>
+    expect(await screen.findByRole(ton === 'success' ? 'status' : 'alert')).toHaveTextContent(texte),
+  rienDit: () => expect(screen.queryByRole('status')).not.toBeInTheDocument(),
+};
+
+/** L'en-tête de la fiche la dit par un toast : au téléphone, le menu vit dans la feuille « ⋯ ». */
+const parUnToast = {
+  dit: (ton: Ton, texte: string | RegExp) =>
+    waitFor(() =>
+      expect(toast.add).toHaveBeenCalledWith(
+        expect.objectContaining({ type: ton, title: typeof texte === 'string' ? texte : expect.stringMatching(texte) }),
+      ),
+    ),
+  rienDit: () => expect(toast.add).not.toHaveBeenCalled(),
+};
+
 const MENUS = {
-  'ligne de la liste': () => <PropertyRowActions property={BIEN as unknown as PropertyListItem} layout="card" />,
-  'en-tête de la fiche': () => <PropertyHeaderActions property={BIEN as unknown as PropertyDetail} />,
+  'ligne de la liste': { rendre: () => <PropertyRowActions property={BIEN as unknown as PropertyListItem} layout="card" />, ...aCoteDuMenu },
+  'en-tête de la fiche': { rendre: () => <PropertyHeaderActions property={BIEN as unknown as PropertyDetail} />, ...parUnToast },
 };
 
 const PRET = {
@@ -71,6 +98,7 @@ async function cliquerPublier(user: ReturnType<typeof userEvent.setup>) {
 
 describe.each(Object.entries(MENUS))('publier depuis « %s » (TCK-633)', (_nom, menu) => {
   beforeEach(() => {
+    toast.add.mockReset();
     m.publier.mockReset();
     m.user = PRET;
   });
@@ -78,11 +106,11 @@ describe.each(Object.entries(MENUS))('publier depuis « %s » (TCK-633)', (_nom,
   it('un compte prêt publie au premier geste, sans boîte de dialogue', async () => {
     m.publier.mockResolvedValue({ ok: true, data: { id: 47, status: 'available' } });
     const user = userEvent.setup();
-    render(withIntl(menu()));
+    render(withIntl(menu.rendre()));
 
     await cliquerPublier(user);
 
-    expect(await screen.findByRole('status')).toHaveTextContent(/^Bien publié\.$/);
+    await menu.dit('success', /^Bien publié\.$/);
     expect(m.publier).toHaveBeenCalledWith(47, { acceptTerms: false });
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
@@ -93,7 +121,7 @@ describe.each(Object.entries(MENUS))('publier depuis « %s » (TCK-633)', (_nom,
       .mockResolvedValueOnce({ ok: false, status: 422, message: 'x', missing: ['terms'], contactIsSelf: true })
       .mockResolvedValueOnce({ ok: true, data: { id: 47, status: 'available' } });
     const user = userEvent.setup();
-    render(withIntl(menu()));
+    render(withIntl(menu.rendre()));
 
     await cliquerPublier(user);
 
@@ -102,7 +130,7 @@ describe.each(Object.entries(MENUS))('publier depuis « %s » (TCK-633)', (_nom,
     await user.click(await publierDansLaBoite(dialogue));
 
     await waitFor(() => expect(m.publier).toHaveBeenLastCalledWith(47, { acceptTerms: true }));
-    expect(await screen.findByRole('status')).toHaveTextContent(/^Bien publié\.$/);
+    await menu.dit('success', /^Bien publié\.$/);
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
@@ -110,20 +138,20 @@ describe.each(Object.entries(MENUS))('publier depuis « %s » (TCK-633)', (_nom,
     m.user = { ...PRET, phone: null, phone_verified_at: null };
     m.publier.mockResolvedValue({ ok: false, status: 422, message: 'x', missing: ['verified_phone'], contactIsSelf: true });
     const user = userEvent.setup();
-    render(withIntl(menu()));
+    render(withIntl(menu.rendre()));
 
     await cliquerPublier(user);
 
     const dialogue = await screen.findByRole('dialog', { name: 'Avant de publier' });
     expect(within(dialogue).getByLabelText('Votre numéro')).toBeInTheDocument();
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    menu.rienDit();
   });
 
   it('un second refus dans la boîte dit ce qui manque, sans parler d’un brouillon', async () => {
     m.user = { ...PRET, phone: null, phone_verified_at: null };
     m.publier.mockResolvedValue({ ok: false, status: 422, message: 'x', missing: ['verified_phone'], contactIsSelf: true });
     const user = userEvent.setup();
-    render(withIntl(menu()));
+    render(withIntl(menu.rendre()));
 
     await cliquerPublier(user);
     const dialogue = await screen.findByRole('dialog', { name: 'Avant de publier' });
@@ -138,11 +166,11 @@ describe.each(Object.entries(MENUS))('publier depuis « %s » (TCK-633)', (_nom,
   it('un refus qui n’est pas un manque de coordonnées se dit, sans boîte', async () => {
     m.publier.mockResolvedValue({ ok: false, status: 422, message: 'Limite d’annonces atteinte.', missing: null, contactIsSelf: true });
     const user = userEvent.setup();
-    render(withIntl(menu()));
+    render(withIntl(menu.rendre()));
 
     await cliquerPublier(user);
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Limite d’annonces atteinte.');
+    await menu.dit('error', 'Limite d’annonces atteinte.');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });

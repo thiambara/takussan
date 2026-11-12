@@ -32,6 +32,13 @@ vi.mock('@/app/actions/dashboard-properties', () => ({
   updatePropertyStatusAction: (...a: unknown[]) => m.statutBrut(...a),
   updatePropertyVisibilityAction: vi.fn(),
 }));
+// Réserve de verif-patrimoine (2026-11-12) — l'en-tête de la fiche dit l'issue d'un geste par un
+// toast ; la ligne de liste, à côté d'elle.
+const toast = vi.hoisted(() => ({ add: vi.fn() }));
+vi.mock('@/components/ui/toast', async (original) => ({
+  ...(await original<typeof import('@/components/ui/toast')>()),
+  useToast: () => toast,
+}));
 vi.mock('@/components/documents/AddDocumentButton', () => ({ AddDocumentButton: () => null }));
 vi.mock('@/app/actions/publish-property', () => ({
   publishPropertyAction: (...a: unknown[]) => m.publier(...a),
@@ -49,9 +56,29 @@ const BIEN = { id: 47, title: 'Studio à Ouakam', slug: 'studio-ouakam', status:
 /** L'en-tête de la fiche dit « Plus d'actions » ; la ligne de liste y ajoute le bien (TCK-1035). */
 const MENU_DU_BIEN = (nom: string) => nom === 'Plus d’actions' || nom === `Plus d’actions — ${BIEN.title}`;
 
+type Ton = 'success' | 'error';
+
+/** La ligne de liste écrit l'issue à côté d'elle (`role="status"` ou `"alert"`). */
+const aCoteDuMenu = {
+  dit: async (ton: Ton, texte: string | RegExp) =>
+    expect(await screen.findByRole(ton === 'success' ? 'status' : 'alert')).toHaveTextContent(texte),
+  rienDit: () => expect(screen.queryByRole('status')).not.toBeInTheDocument(),
+};
+
+/** L'en-tête de la fiche la dit par un toast : au téléphone, le menu vit dans la feuille « ⋯ ». */
+const parUnToast = {
+  dit: (ton: Ton, texte: string | RegExp) =>
+    waitFor(() =>
+      expect(toast.add).toHaveBeenCalledWith(
+        expect.objectContaining({ type: ton, title: typeof texte === 'string' ? texte : expect.stringMatching(texte) }),
+      ),
+    ),
+  rienDit: () => expect(toast.add).not.toHaveBeenCalled(),
+};
+
 const MENUS = {
-  'ligne de la liste': () => <PropertyRowActions property={BIEN as unknown as PropertyListItem} layout="card" />,
-  'en-tête de la fiche': () => <PropertyHeaderActions property={BIEN as unknown as PropertyDetail} />,
+  'ligne de la liste': { rendre: () => <PropertyRowActions property={BIEN as unknown as PropertyListItem} layout="card" />, ...aCoteDuMenu },
+  'en-tête de la fiche': { rendre: () => <PropertyHeaderActions property={BIEN as unknown as PropertyDetail} />, ...parUnToast },
 };
 
 /** Un compte antérieur au lot C : numéro vérifié, CGU jamais datées. */
@@ -67,6 +94,7 @@ async function choisirStatut(user: ReturnType<typeof userEvent.setup>, libelle: 
 
 describe.each(Object.entries(MENUS))('remettre en ligne par le statut depuis « %s »', (_nom, menu) => {
   beforeEach(() => {
+    toast.add.mockReset();
     m.publier.mockReset();
     m.changerStatut.mockReset();
     m.statutBrut.mockReset();
@@ -78,7 +106,7 @@ describe.each(Object.entries(MENUS))('remettre en ligne par le statut depuis « 
       .mockResolvedValueOnce({ ok: false, status: 422, message: 'Pour publier, les conditions…', missing: ['terms'], contactIsSelf: true })
       .mockResolvedValueOnce({ ok: true, data: { id: 47, status: 'available' } });
     const user = userEvent.setup();
-    render(withIntl(menu()));
+    render(withIntl(menu.rendre()));
 
     // Le menu propose « Dépublier », pas « Publier » : le bien est encore `public`.
     await user.click(screen.getByRole('button', { name: MENU_DU_BIEN }));
@@ -100,7 +128,7 @@ describe.each(Object.entries(MENUS))('remettre en ligne par le statut depuis « 
     await user.click(publier);
 
     await waitFor(() => expect(m.changerStatut).toHaveBeenLastCalledWith(47, 'available', { acceptTerms: true }));
-    expect(await screen.findByRole('status')).toHaveTextContent(/^Statut mis à jour\.$/);
+    await menu.dit('success', /^Statut mis à jour\.$/);
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(m.publier).not.toHaveBeenCalled();
     expect(m.statutBrut).not.toHaveBeenCalled();
@@ -109,11 +137,11 @@ describe.each(Object.entries(MENUS))('remettre en ligne par le statut depuis « 
   it('un statut qui ne remet pas en ligne passe au premier geste, sans boîte', async () => {
     m.changerStatut.mockResolvedValue({ ok: true, data: { id: 47, status: 'under_maintenance' } });
     const user = userEvent.setup();
-    render(withIntl(menu()));
+    render(withIntl(menu.rendre()));
 
     await choisirStatut(user, 'En maintenance');
 
-    expect(await screen.findByRole('status')).toHaveTextContent(/^Statut mis à jour\.$/);
+    await menu.dit('success', /^Statut mis à jour\.$/);
     expect(m.changerStatut).toHaveBeenCalledWith(47, 'under_maintenance', { acceptTerms: false });
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
@@ -121,11 +149,11 @@ describe.each(Object.entries(MENUS))('remettre en ligne par le statut depuis « 
   it('un refus qui n’est pas un manque de coordonnées se dit, sans boîte', async () => {
     m.changerStatut.mockResolvedValue({ ok: false, status: 403, message: 'Action non autorisée.', missing: null, contactIsSelf: true });
     const user = userEvent.setup();
-    render(withIntl(menu()));
+    render(withIntl(menu.rendre()));
 
     await choisirStatut(user, 'Disponible');
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Action non autorisée.');
+    await menu.dit('error', 'Action non autorisée.');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });

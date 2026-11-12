@@ -160,3 +160,37 @@ Autres contraintes :
   carnet et celui de la fiche du bien. L'API rend toujours `owner_profile_id` au super-admin, à qui
   `GET /api/owners/{id}` est ouvert. Test `properties/[id]/__tests__/lien-vers-le-bailleur.tck-2639.test.tsx`
   (3) : rouge avant ; ablations (`isAdmin` remis à la page ; super-admin dans le prédicat) rouges.
+
+**Réserve préexistante de verif-patrimoine : les gestes du menu « ⋯ » (2026-11-12).** Avant le
+correctif, Dépublier, Dupliquer, les statuts et Archiver partaient au premier toucher. Relevé au
+navigateur, admin, `/app/properties/6`, requêtes non-GET bloquées : l'échec réseau d'une action
+serveur (`TypeError: Failed to fetch`) n'était rattrapé nulle part. Il remontait de la transition
+jusqu'à `(dashboard)/error.tsx`, et la PAGE ENTIÈRE passait à l'écran d'erreur. Le bureau et le
+téléphone rendent le même `PropertyHeaderActions` ; le bureau ne confirmait que « Supprimer ».
+Décisions de la session :
+
+- (a) Tout échec est rattrapé et se dit par un toast, au téléphone comme au bureau.
+  - `runAction` et `duplicate` portent leur `try/catch`, et le message vient de
+    `useMessageErreurApi`.
+  - `usePublicationAvecCoordonnees.tenter` porte aussi le sien : publier et changer de statut, pour
+    l'en-tête, la ligne de liste et `GestionDuBien`. L'échec se dit dans la boîte si elle est ouverte,
+    sinon il passe à `onEchec`.
+  - L'erreur de « Supprimer » reste dans son dialogue, qui est ouvert au moment de l'échec.
+  - Les messages en ligne à côté du menu disparaissent de l'en-tête : au téléphone, ils vivaient
+    dans la feuille « ⋯ ».
+- (b) Archiver et Dépublier ouvrent un dialogue qui nomme le bien et l'effet (« ne sera plus visible
+  sur le site »). Dupliquer et les statuts restent en un geste, confirmé par un toast (nouvelle clé
+  `duplicated`).
+- Tests : `PropertyHeaderActions.gestes.test.tsx` (14 tests). Les tests paramétrés (statut,
+  publication, capacités, suppression, `PropertyHeaderActions.test.tsx`) lisent désormais l'issue
+  par un toast pour l'en-tête, et toujours à côté du menu pour la ligne de liste.
+- Ablations : sept, toutes rouges puis restaurées. Les quatre `catch` (runAction, duplicate,
+  delete, hook) relancent l'erreur ; Dépublier et Archiver partent sans dialogue ; le toast de
+  Dupliquer disparaît.
+- Navigateur, non-GET bloqués, admin, bien 6 :
+  - à 390 px (feuille « ⋯ ») : Dupliquer, En maintenance, Archiver puis confirmer, Dépublier puis
+    confirmer ;
+  - à 1440 px : Dupliquer, En maintenance, Archiver puis confirmer, Dépublier puis Annuler (aucun
+    POST de plus).
+  - Chaque fois : toast « Le serveur est injoignable… », zéro erreur en console, la page reste.
+
