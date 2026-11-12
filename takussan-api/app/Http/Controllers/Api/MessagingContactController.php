@@ -124,7 +124,11 @@ class MessagingContactController extends Controller
                         return;
                     }
                     $q->where('users.id', (int) $brut);
-                }),
+                    // Contre-vérification de TCK-2589 — `nullable()` : vide ou fait d'espaces, la valeur
+                    // arrive `null` (`TrimStrings`, `ConvertEmptyStringsToNull`), et spatie n'applique
+                    // pas un filtre non `nullable` à `null` : la LISTE ENTIÈRE revenait, au lieu de
+                    // personne comme le dit l'en-tête. Le filtre posé décide, quelle que soit sa valeur.
+                })->nullable(),
                 AllowedFilter::callback('search', function (Builder $q, mixed $value) use (&$relevance) {
                     $terms = trim(is_array($value) ? implode(' ', $value) : (string) $value);
                     if ($terms === '') {

@@ -451,12 +451,14 @@ class MessagingContactsTest extends ApiTestCase
             ->assertUnprocessable()->assertJsonValidationErrors(['participants']);
         $this->postJson('/api/conversations', ['participants' => [$lie->id]])->assertCreated();
 
-        // Un identifiant illisible, plusieurs, ou soi-même : personne.
-        foreach (['abc', '0', "{$lie->id},{$nonLie->id}", (string) $moi->id] as $valeur) {
-            $this->getJson('/api/conversations/contacts?filter[id]='.$valeur)
-                ->assertOk()
-                ->assertJsonPath('meta.total', 0);
+        // Un identifiant illisible, plusieurs, ou soi-même : personne. Vide ou fait d'espaces aussi
+        // (contre-vérification) : `TrimStrings` et `ConvertEmptyStringsToNull` en font `null`, que
+        // spatie n'applique pas à un filtre non `nullable` — la liste entière revenait.
+        foreach (['abc', '0', "{$lie->id},{$nonLie->id}", (string) $moi->id, '', '%20%20', '%09'] as $valeur) {
+            $total = $this->getJson('/api/conversations/contacts?filter[id]='.$valeur)->assertOk()->json('meta.total');
+            $this->assertSame(0, $total, "filter[id]={$valeur}");
         }
+        $this->getJson('/api/conversations/contacts?filter[id][]=')->assertOk()->assertJsonPath('meta.total', 0);
     }
 
     public function test_un_administrateur_d_agence_est_de_l_equipe_et_joint_les_proprietaires(): void
@@ -776,8 +778,9 @@ class MessagingContactsTest extends ApiTestCase
                 ->assertUnprocessable()->assertJsonValidationErrors(['user_ids']);
         }
 
-        // Témoin : `inactive` passe, en directe comme à l'ajout.
-        $this->postJson('/api/conversations', ['participants' => [$inactif->id]])->assertCreated();
+        // Témoin : `inactive` passe, en directe comme à l'ajout. La directe partagée plus haut existe
+        // déjà : elle est rendue (200) au lieu d'être recréée (contre-vérification de TCK-2632).
+        $this->postJson('/api/conversations', ['participants' => [$inactif->id]])->assertOk();
         $this->postJson("/api/conversations/{$groupe->id}/participants", ['user_ids' => [$inactif->id]])->assertCreated();
     }
 

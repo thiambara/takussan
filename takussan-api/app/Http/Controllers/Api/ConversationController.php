@@ -15,7 +15,6 @@ use App\Http\Resources\ConversationResource;
 use App\Http\Resources\MessageResource;
 use App\Jobs\NotifyNewMessageJob;
 use App\Models\Conversation;
-use App\Models\Enums\ConversationStatus;
 use App\Models\Enums\ConversationType;
 use App\Models\Enums\MessageType;
 use App\Models\Message;
@@ -23,6 +22,7 @@ use App\Models\User;
 use App\Services\Media\AvatarReencode;
 use App\Services\Messaging\ConversationAccess;
 use App\Services\Messaging\ConversationThreadContext;
+use App\Services\Messaging\DirectConversationService;
 use App\Services\Messaging\GroupConversationService;
 use App\Support\CaseInsensitive;
 use Closure;
@@ -209,7 +209,7 @@ class ConversationController extends Controller
         ]);
     }
 
-    public function store(StoreConversationRequest $request, GroupConversationService $groups): JsonResponse
+    public function store(StoreConversationRequest $request, GroupConversationService $groups, DirectConversationService $directes): JsonResponse
     {
         // TCK-085 — group requests get the dedicated FormRequest
         // (subject required, 3..20 total participants).
@@ -230,21 +230,19 @@ class ConversationController extends Controller
         $data['participants'] = $participantIds;
 
         $initialMessage = null;
+        $creee = false;
 
-        $conversation = DB::transaction(function () use ($data, $user, &$initialMessage) {
-            $conversation = Conversation::create([
-                'subject' => $data['subject'] ?? null,
-                'type' => $data['type'] ?? ConversationType::Direct->value,
-                'status' => ConversationStatus::Active->value,
-                'created_by' => $user->id,
-                'property_id' => $data['property_id'] ?? null,
-                'lease_id' => $data['lease_id'] ?? null,
-            ]);
-
-            $participantIds = array_unique(array_merge($data['participants'], [$user->id]));
-            foreach ($participantIds as $pid) {
-                $conversation->participants()->attach($pid, ['joined_at' => now()]);
-            }
+        // Contre-vérification de TCK-2632 — une directe n'est PAS recréée : la directe existante
+        // entre les deux mêmes personnes, dans le même contexte, est rendue (200), son message
+        // initial y est posté. Une directe relie l'acteur et UNE autre personne
+        // (`StoreConversationRequest`), jamais un bien (TCK-888). Le verrou de la paire ferme la course.
+        $conversation = DB::transaction(function () use ($data, $user, $directes, &$initialMessage, &$creee) {
+            [$conversation, $creee] = $directes->firstOrCreate(
+                $user,
+                (int) $data['participants'][0],
+                isset($data['lease_id']) ? (int) $data['lease_id'] : null,
+                $data['subject'] ?? null,
+            );
 
             if (! empty($data['initial_message'])) {
                 $message = $conversation->messages()->create([
@@ -273,7 +271,7 @@ class ConversationController extends Controller
 
         return $this->json([
             'data' => ConversationResource::make($conversation)->resolve($request),
-        ], 201);
+        ], $creee ? 201 : 200);
     }
 
     /**
