@@ -7426,16 +7426,15 @@
         "submit": "Yebal",
         "uploading": "Ñu ngi koy yebal…",
         "accepted": "Relevé bi agsi na : ñu ngi koy saytu.",
-        "failed": "Yebal relevé bi mënul."
+        "failed": "Yebal relevé bi mënul.",
+        "choisir": "Choisir un fichier",
+        "aucunFichier": "Aucun fichier choisi"
       },
       "list": {
         "title": "Relevé yi ñu yebal",
         "error": "Mënuñu yeb relevé yi.",
         "emptyTitle": "Amul relevé bu ñu yebal",
         "emptyDescription": "Yebal ab relevé CSV walla OFX ngir tàmbali méngale.",
-        "statement": "Relevé",
-        "period": "Jamono",
-        "status": "Nekkin",
         "progress": "Fi mu tollu",
         "fallbackName": "Relevé n° {id}",
         "ratio": "{confirmed} / {total} méngale nañu leen",
@@ -7455,16 +7454,6 @@
         },
         "hasHeader": "Rëdd bu njëkk bi am na turu kolon yi",
         "dateFormat": "Anamu bés",
-        "dateFormatPlaceholder": "d/m/Y",
-        "columns": {
-          "date_column": "Kolonu bés",
-          "amount_column": "Kolonu mbënd",
-          "label_column": "Kolonu tur",
-          "reference_column": "Kolonu référence",
-          "counterparty_column": "Kolonu ki ci des",
-          "currency_column": "Kolonu xaalis",
-          "direction_column": "Kolonu fi muy jëm (débit / crédit)"
-        },
         "signConvention": "Fi mbënd yiy jëm",
         "signConventions": {
           "amount_signed": "Mbënd bu am màndarga (négatif = génn)",
@@ -7488,7 +7477,33 @@
         "save": "Denc paramétrage bi",
         "saving": "Ñu ngi koy denc…",
         "saved": "Denc nañu paramétrage CSV bi.",
-        "saveFailed": "Mënuñu denc paramétrage bi."
+        "saveFailed": "Mënuñu denc paramétrage bi.",
+        "colonnes": {
+          "date_column": "Date",
+          "amount_column": "Montant",
+          "label_column": "Libellé",
+          "reference_column": "Référence",
+          "counterparty_column": "Contrepartie",
+          "currency_column": "Devise",
+          "direction_column": "Sens (débit ou crédit)"
+        },
+        "colonnesTitre": "Les colonnes de votre fichier",
+        "colonnesAide": "Le nom de chaque colonne, tel qu’il figure sur la première ligne de votre fichier.",
+        "colonnesAideSansEnTete": "Le numéro de chaque colonne, en comptant à partir de 0.",
+        "exemple": "Ex. : {exemple}",
+        "colonneRequise": "Indiquez cette colonne : l’import ne peut pas s’en passer.",
+        "formatDeDateAide": "La forme qu’a le 25 novembre 2026 dans vos fichiers.",
+        "formatAutre": "Autre forme : {exemple}",
+        "lectureTitre": "Les montants",
+        "exemples": {
+          "date_column": "Date opération",
+          "amount_column": "Montant",
+          "label_column": "Libellé",
+          "reference_column": "Référence",
+          "counterparty_column": "Tiers",
+          "currency_column": "Devise",
+          "direction_column": "Sens"
+        }
       },
       "detail": {
         "back": "Relevé yépp",
@@ -7519,7 +7534,10 @@
         "previous": "Ginnaaw",
         "next": "Topp",
         "pageOf": "Xët {page} ci {total}",
-        "metaTitle": "Relevé bànk bi"
+        "metaTitle": "Relevé bànk bi",
+        "introuvable": "Ce relevé n’existe pas",
+        "introuvableTexte": "Il a peut-être été supprimé, ou il appartient à une autre agence.",
+        "versLaListe": "Retour au rapprochement"
       },
       "search": {
         "title": "Seet fey bi",
@@ -7536,6 +7554,127 @@
         "error": "Seet bi mënul.",
         "choose": "Méngale",
         "matchFailed": "Méngale bi mënul."
+      },
+      "titreCourt": "Rapprochement",
+      "sousTitre": "Ce qu’une passerelle de paiement a confirmé est déjà rapproché ; le reste se rapproche d’un relevé de banque.",
+      "reste": {
+        "compteurs": {
+          "auto": "Confirmés tout seuls",
+          "aRapprocher": "À rapprocher",
+          "enAttente": "En attente d’un relevé",
+          "par": "par {liste}",
+          "aucun": "Aucun ce mois-ci",
+          "etAutres": "{liste} et {count, plural, one {# autre} other {# autres}}",
+          "phrase": "{mois} · {total, plural, one {# paiement} other {# paiements}} · <fort>{pct} déjà rapprochés</fort>{sansReleve, select, oui {, sans relevé} other {}}",
+          "phraseVide": "{mois} · aucun paiement encaissé",
+          "jauge": "Part des paiements du mois déjà rapprochés"
+        },
+        "filtres": {
+          "label": "Filtrer les paiements à rapprocher",
+          "tout": "Tout",
+          "suggestion": "Avec suggestion",
+          "sans": "Sans ligne de banque"
+        },
+        "bandeau": {
+          "titre": "{count, plural, one {# suggestion à plus de 90 %} other {# suggestions à plus de 90 %}}",
+          "raison": "même montant, même référence",
+          "confirmer": "{count, plural, one {Confirmer la suggestion} other {Confirmer les #}}",
+          "confirmes": "{count, plural, one {# paiement rapproché.} other {# paiements rapprochés.}}",
+          "echec": "Rien n’a été confirmé : les suggestions ont changé entre-temps. La liste est relue."
+        },
+        "carte": {
+          "declare": "{moyen} · déclaré le {date}",
+          "surLeReleve": "Sur le relevé {banque}",
+          "surUnReleve": "Sur un relevé importé",
+          "aucunDepot": "Aucun dépôt en banque ne correspond encore à ce paiement.",
+          "aucunDepotCourt": "Aucun dépôt en banque ne correspond",
+          "sansPayeur": "Payeur non renseigné"
+        },
+        "actions": {
+          "confirmer": "Confirmer",
+          "delier": "Délier",
+          "chercher": "Chercher",
+          "autreLigne": "Autre ligne",
+          "chercherPour": "Chercher une autre ligne pour {qui}",
+          "delierPour": "Délier la ligne proposée pour {qui}",
+          "confirme": "Paiement rapproché.",
+          "delie": "La ligne proposée est déliée.",
+          "echecConfirmer": "Le rapprochement a échoué.",
+          "echecDelier": "La ligne n’a pas pu être déliée."
+        },
+        "plus": "{count, plural, one {Afficher l’autre} other {Afficher les # autres}}",
+        "pied": "{affiches, plural, one {# ligne affichée} other {# lignes affichées}} sur {total} · les montants les plus élevés d’abord",
+        "aucunPourLeFiltre": "Aucun paiement à rapprocher pour ce filtre.",
+        "toutRapproche": {
+          "titre": "Rien à rapprocher en {mois}",
+          "texte": "Aucun paiement encaissé ce mois-ci n’attend de relevé."
+        },
+        "erreur": "Impossible de charger les paiements à rapprocher.",
+        "erreurCompteurs": "Impossible de charger le point du mois.",
+        "colonnes": {
+          "paiement": "Paiement déclaré",
+          "montant": "Montant",
+          "ligne": "Ligne de banque proposée",
+          "ligneEtConfiance": " · confiance",
+          "confiance": "Confiance",
+          "actions": "Actions"
+        },
+        "chercher": {
+          "titre": "Chercher la ligne de banque",
+          "montant": "Montant",
+          "submit": "Chercher",
+          "aide": "Les encaissements des relevés ouverts, à un franc près, les plus récents d’abord.",
+          "echec": "Le rapprochement a échoué.",
+          "erreur": "La recherche a échoué.",
+          "aucune": "Aucun encaissement de ce montant sur les relevés ouverts.",
+          "resultats": "Lignes de banque trouvées",
+          "rapprocher": "Rapprocher"
+        },
+        "moyens": {
+          "court": {
+            "bank_transfer": "Virement",
+            "card": "Carte"
+          },
+          "pluriel": {
+            "cash": "Espèces",
+            "bank_transfer": "Virements",
+            "check": "Chèques",
+            "card": "Cartes bancaires"
+          },
+          "phrase": {
+            "cash": "espèces",
+            "bank_transfer": "virements",
+            "check": "chèques",
+            "card": "cartes bancaires",
+            "mobile_money": "mobile money"
+          }
+        }
+      },
+      "vide": {
+        "titre": "Il ne manque que le relevé de la banque",
+        "auto": "Tout ce qui est passé par {liste} est déjà rapproché.",
+        "reste": "{count, plural, one {Pour le paiement qui reste, importez le relevé de votre banque.} other {Pour les # paiements qui restent, importez le relevé de votre banque.}}",
+        "formats": "CSV ou OFX de votre banque",
+        "aucunReleve": "Aucun relevé pour l’instant."
+      },
+      "releves": {
+        "rubrique": "Relevés",
+        "importerTitre": "Importer un relevé bancaire",
+        "voirTous": "{count, plural, one {Voir le relevé} other {Voir les # relevés}}",
+        "importer": "Importer",
+        "reglagesDetail": "Colonnes, dates et montants de vos fichiers CSV"
+      },
+      "actions": {
+        "importer": "Importer un relevé",
+        "reglages": "Réglages de l’import",
+        "fermer": "Fermer"
+      },
+      "integrations": {
+        "titre": "Paiements en ligne",
+        "lien": "Intégrations",
+        "connecte": "Connecté",
+        "confirmes": "{count, plural, =0 {aucun confirmé en {mois}} one {# confirmé en {mois}} other {# confirmés en {mois}}}",
+        "aucune": "Aucun paiement en ligne n’est connecté."
       }
     },
     "agencyPublicProfile": {

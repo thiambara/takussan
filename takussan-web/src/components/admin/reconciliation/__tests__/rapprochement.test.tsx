@@ -9,6 +9,8 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { useMatchesMedia } from '@/hooks/useMatchesMedia';
+import { ApiError } from '@/lib/api';
 import { withIntl } from '@/test/intl';
 import fr from '@/messages/fr.json';
 import type { BankStatement, BankStatementLine, CsvMapping } from '@/types/reconciliation';
@@ -27,6 +29,9 @@ const q = vi.hoisted(() => ({
   ignore: vi.fn(),
   finalize: vi.fn(),
 }));
+
+// TCK-2675 — le détail rend des cartes au téléphone, le tableau dès `md` : la largeur se choisit.
+vi.mock('@/hooks/useMatchesMedia', () => ({ useMatchesMedia: vi.fn(() => false) }));
 
 vi.mock('@/lib/queries/reconciliation', () => ({
   useBankStatements: q.useBankStatements,
@@ -65,6 +70,7 @@ const ok = <T,>(data: T) => ({ data, isLoading: false, isError: false, refetch: 
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(useMatchesMedia).mockReturnValue(false);
   q.usePaymentSearch.mockReturnValue({ data: undefined, isLoading: false, isError: false });
 });
 
@@ -328,5 +334,123 @@ describe('StatementDetail — rapprocher ligne à ligne', () => {
     render(withIntl(<StatementDetail agencyId={3} statementId={1} />));
     expect(screen.queryByRole('button', { name: fr.admin.reconciliation.detail.finalize })).toBeNull();
     expect(screen.queryByRole('button', { name: fr.admin.reconciliation.detail.validate })).toBeNull();
+  });
+});
+
+describe('TCK-2675 — un relevé introuvable', () => {
+  it.each([404, 403])('AC3 — %i : « Ce relevé n’existe pas », un lien vers la liste, sans « Réessayer »', (statut) => {
+    q.useBankStatement.mockReturnValue({ data: undefined, isLoading: false, isError: true, error: new ApiError(statut, { message: 'x' }), refetch: vi.fn() });
+    q.useBankStatementLines.mockReturnValue(ok({ data: [], meta: { current_page: 1, last_page: 1, per_page: 50, total: 0 } }));
+    render(withIntl(<StatementDetail agencyId={3} statementId={999} />));
+    expect(screen.getByRole('heading', { name: 'Ce relevé n’existe pas' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Retour au rapprochement' })).toHaveAttribute('href', '/app/agency/finances/reconciliation');
+    expect(screen.queryByRole('button', { name: fr.common.actions.retry })).toBeNull();
+  });
+
+  it('une panne (500) garde « Réessayer »', () => {
+    q.useBankStatement.mockReturnValue({ data: undefined, isLoading: false, isError: true, error: new ApiError(500, { message: 'x' }), refetch: vi.fn() });
+    q.useBankStatementLines.mockReturnValue(ok({ data: [], meta: { current_page: 1, last_page: 1, per_page: 50, total: 0 } }));
+    render(withIntl(<StatementDetail agencyId={3} statementId={1} />));
+    expect(screen.getByRole('button', { name: fr.common.actions.retry })).toBeInTheDocument();
+    expect(screen.queryByText('Ce relevé n’existe pas')).toBeNull();
+  });
+});
+
+describe('TCK-2675 — le détail au téléphone, en cartes', () => {
+  beforeEach(() => {
+    q.useBankStatement.mockReturnValue(ok({ data: releve({}) }));
+    q.useBankStatementLines.mockReturnValue(ok({ data: [ligne({})], meta: { current_page: 1, last_page: 1, per_page: 50, total: 1 } }));
+  });
+
+  it('AC4 — une carte par ligne, « Valider » dans la carte, aucun tableau', () => {
+    render(withIntl(<StatementDetail agencyId={3} statementId={1} />));
+    expect(screen.queryByRole('table')).toBeNull();
+    const carte = screen.getByTestId('ligne-100');
+    expect(carte.tagName).toBe('LI');
+    expect(within(carte).getByRole('button', { name: fr.admin.reconciliation.detail.validate })).toBeInTheDocument();
+  });
+
+  it('dès `md`, le tableau', () => {
+    vi.mocked(useMatchesMedia).mockReturnValue(true);
+    render(withIntl(<StatementDetail agencyId={3} statementId={1} />));
+    expect(screen.getByRole('table')).toBeInTheDocument();
+    expect(screen.getByTestId('ligne-100').tagName).toBe('TR');
+  });
+});
+
+/** Le paramétrage que l'API rend quand l'agence n'a rien réglé (`CsvDriver::DEFAULT_MAPPING`). */
+const PAR_DEFAUT: CsvMapping = {
+  delimiter: ',',
+  has_header: true,
+  date_column: 'date',
+  date_format: 'd/m/Y',
+  amount_column: 'amount',
+  label_column: 'label',
+  reference_column: 'reference',
+  counterparty_column: 'counterparty',
+  currency_column: null,
+  sign_convention: 'amount_signed',
+  direction_column: null,
+  decimal_separator: ',',
+  thousands_separator: null,
+};
+
+/**
+ * Tout ce que le DOM MONTRE ou envoie : le texte, la valeur de chaque champ (masqués du Select
+ * compris), et les attributs lus par l'utilisateur ou son lecteur d'écran. Pas les attributs
+ * techniques (`data-slot="label"` est le nom d'une primitive, pas un libellé).
+ */
+const ATTRIBUTS_LUS = ['value', 'placeholder', 'aria-label', 'aria-valuetext', 'title', 'id', 'name'];
+function toutLeDom(racine: HTMLElement): string[] {
+  const sortie: string[] = [racine.textContent ?? ''];
+  for (const el of Array.from(racine.querySelectorAll('*'))) {
+    for (const a of ATTRIBUTS_LUS) {
+      const v = el.getAttribute(a);
+      if (v !== null) sortie.push(v);
+    }
+    if (el instanceof HTMLInputElement) sortie.push(el.value);
+  }
+  return sortie;
+}
+
+describe('TCK-2675 — les réglages de l’import, en français', () => {
+  it('AC5 — ni `date`, ni `amount`, ni `label`, ni `d/m/Y` dans le DOM', () => {
+    const { container } = render(withIntl(<CsvMappingForm agencyId={3} initial={PAR_DEFAUT} />));
+    const dom = toutLeDom(container);
+    for (const interdit of ['amount', 'label', 'd/m/Y', 'counterparty']) {
+      expect(dom.filter((v) => v.includes(interdit)), interdit).toEqual([]);
+    }
+    // « date » est aussi un mot français (« Format de date ») : c'est la VALEUR anglaise qui est interdite.
+    expect(dom.filter((v) => v.trim() === 'date')).toEqual([]);
+    expect(screen.getByLabelText('Date')).toHaveValue('');
+    expect(screen.getByLabelText('Montant')).toHaveAttribute('placeholder', 'Ex. : Montant');
+    expect(screen.getByLabelText('Format de date')).toHaveTextContent('25/11/2026');
+  });
+
+  it('un champ obligatoire vide refuse l’enregistrement, et le dit sur le champ', async () => {
+    render(withIntl(<CsvMappingForm agencyId={3} initial={PAR_DEFAUT} />));
+    fireEvent.click(screen.getByRole('button', { name: fr.admin.reconciliation.mapping.save }));
+    await waitFor(() => expect(screen.getByLabelText('Date')).toHaveAttribute('aria-invalid', 'true'));
+    expect(screen.getByLabelText('Montant')).toHaveAccessibleDescription('Indiquez cette colonne : l’import ne peut pas s’en passer.');
+    expect(q.saveMapping).not.toHaveBeenCalled();
+  });
+
+  it('le format choisi sur l’exemple part au format de l’API', async () => {
+    q.saveMapping.mockResolvedValue({});
+    render(withIntl(<CsvMappingForm agencyId={3} initial={PAR_DEFAUT} />));
+    fireEvent.change(screen.getByLabelText('Date'), { target: { value: 'Date opération' } });
+    fireEvent.change(screen.getByLabelText('Montant'), { target: { value: 'Montant' } });
+    fireEvent.click(screen.getByRole('button', { name: fr.admin.reconciliation.mapping.save }));
+    await waitFor(() => expect(q.saveMapping).toHaveBeenCalledTimes(1));
+    expect(q.saveMapping.mock.calls[0][0]).toMatchObject({ date_column: 'Date opération', amount_column: 'Montant', label_column: null, date_format: 'd/m/Y' });
+  });
+
+  it('un format enregistré hors de la liste reste proposé, sur son exemple', async () => {
+    q.saveMapping.mockResolvedValue({});
+    render(withIntl(<CsvMappingForm agencyId={3} initial={{ ...MAPPING, date_format: 'Y.m.d', decimal_separator: ',' }} />));
+    expect(screen.getByLabelText('Format de date')).toHaveTextContent('Autre forme : 2026.11.25');
+    fireEvent.click(screen.getByRole('button', { name: fr.admin.reconciliation.mapping.save }));
+    await waitFor(() => expect(q.saveMapping).toHaveBeenCalledTimes(1));
+    expect(q.saveMapping.mock.calls[0][0]).toMatchObject({ date_format: 'Y.m.d' });
   });
 });

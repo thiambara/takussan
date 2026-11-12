@@ -9552,16 +9552,15 @@
         "submit": "Import",
         "uploading": "Importing…",
         "accepted": "Statement received: processing has started.",
-        "failed": "The statement import failed."
+        "failed": "The statement import failed.",
+        "choisir": "Choose a file",
+        "aucunFichier": "No file chosen"
       },
       "list": {
         "title": "Imported statements",
         "error": "Couldn’t load the statements.",
         "emptyTitle": "No statement imported",
         "emptyDescription": "Import a CSV or OFX statement to start reconciling.",
-        "statement": "Statement",
-        "period": "Period",
-        "status": "Status",
         "progress": "Progress",
         "fallbackName": "Statement #{id}",
         "ratio": "{confirmed} / {total} matched",
@@ -9581,16 +9580,6 @@
         },
         "hasHeader": "The first line holds the column names",
         "dateFormat": "Date format",
-        "dateFormatPlaceholder": "d/m/Y",
-        "columns": {
-          "date_column": "Date column",
-          "amount_column": "Amount column",
-          "label_column": "Label column",
-          "reference_column": "Reference column",
-          "counterparty_column": "Counterparty column",
-          "currency_column": "Currency column",
-          "direction_column": "Direction column (debit / credit)"
-        },
         "signConvention": "Amount direction",
         "signConventions": {
           "amount_signed": "Signed amount (negative = outgoing)",
@@ -9614,7 +9603,33 @@
         "save": "Save settings",
         "saving": "Saving…",
         "saved": "CSV settings saved.",
-        "saveFailed": "The settings couldn’t be saved."
+        "saveFailed": "The settings couldn’t be saved.",
+        "colonnes": {
+          "date_column": "Date",
+          "amount_column": "Amount",
+          "label_column": "Description",
+          "reference_column": "Reference",
+          "counterparty_column": "Counterparty",
+          "currency_column": "Currency",
+          "direction_column": "Direction (debit or credit)"
+        },
+        "colonnesTitre": "The columns of your file",
+        "colonnesAide": "The name of each column, as it appears on the first line of your file.",
+        "colonnesAideSansEnTete": "The number of each column, counting from 0.",
+        "exemple": "E.g.: {exemple}",
+        "colonneRequise": "Enter this column: the import cannot do without it.",
+        "formatDeDateAide": "How 25 November 2026 is written in your files.",
+        "formatAutre": "Other form: {exemple}",
+        "lectureTitre": "Amounts",
+        "exemples": {
+          "date_column": "Transaction date",
+          "amount_column": "Amount",
+          "label_column": "Description",
+          "reference_column": "Reference",
+          "counterparty_column": "Counterparty",
+          "currency_column": "Currency",
+          "direction_column": "Direction"
+        }
       },
       "detail": {
         "back": "All statements",
@@ -9645,7 +9660,10 @@
         "previous": "Previous",
         "next": "Next",
         "pageOf": "Page {page} of {total}",
-        "metaTitle": "Bank statement"
+        "metaTitle": "Bank statement",
+        "introuvable": "This statement does not exist",
+        "introuvableTexte": "It may have been deleted, or it belongs to another agency.",
+        "versLaListe": "Back to reconciliation"
       },
       "search": {
         "title": "Find the payment",
@@ -9662,6 +9680,127 @@
         "error": "The search failed.",
         "choose": "Match",
         "matchFailed": "Matching failed."
+      },
+      "titreCourt": "Reconciliation",
+      "sousTitre": "What a payment gateway confirmed is already reconciled; the rest is matched against a bank statement.",
+      "reste": {
+        "compteurs": {
+          "auto": "Confirmed automatically",
+          "aRapprocher": "To reconcile",
+          "enAttente": "Waiting for a statement",
+          "par": "via {liste}",
+          "aucun": "None this month",
+          "etAutres": "{liste} and {count, plural, one {# other} other {# others}}",
+          "phrase": "{mois} · {total, plural, one {# payment} other {# payments}} · <fort>{pct} already reconciled</fort>{sansReleve, select, oui {, with no statement} other {}}",
+          "phraseVide": "{mois} · no payment received",
+          "jauge": "Share of this month’s payments already reconciled"
+        },
+        "filtres": {
+          "label": "Filter the payments to reconcile",
+          "tout": "All",
+          "suggestion": "With a suggestion",
+          "sans": "No bank line"
+        },
+        "bandeau": {
+          "titre": "{count, plural, one {# suggestion above 90%} other {# suggestions above 90%}}",
+          "raison": "same amount, same reference",
+          "confirmer": "{count, plural, one {Confirm the suggestion} other {Confirm all #}}",
+          "confirmes": "{count, plural, one {# payment reconciled.} other {# payments reconciled.}}",
+          "echec": "Nothing was confirmed: the suggestions changed in the meantime. The list has been reloaded."
+        },
+        "carte": {
+          "declare": "{moyen} · recorded on {date}",
+          "surLeReleve": "On the {banque} statement",
+          "surUnReleve": "On an imported statement",
+          "aucunDepot": "No bank deposit matches this payment yet.",
+          "aucunDepotCourt": "No bank deposit matches",
+          "sansPayeur": "Payer not recorded"
+        },
+        "actions": {
+          "confirmer": "Confirm",
+          "delier": "Unlink",
+          "chercher": "Search",
+          "autreLigne": "Other line",
+          "chercherPour": "Search another line for {qui}",
+          "delierPour": "Unlink the line suggested for {qui}",
+          "confirme": "Payment reconciled.",
+          "delie": "The suggested line has been unlinked.",
+          "echecConfirmer": "The reconciliation failed.",
+          "echecDelier": "The line could not be unlinked."
+        },
+        "plus": "{count, plural, one {Show the other one} other {Show the # others}}",
+        "pied": "{affiches, plural, one {# line shown} other {# lines shown}} of {total} · highest amounts first",
+        "aucunPourLeFiltre": "No payment to reconcile for this filter.",
+        "toutRapproche": {
+          "titre": "Nothing to reconcile in {mois}",
+          "texte": "No payment received this month is waiting for a statement."
+        },
+        "erreur": "Unable to load the payments to reconcile.",
+        "erreurCompteurs": "Unable to load this month’s summary.",
+        "colonnes": {
+          "paiement": "Recorded payment",
+          "montant": "Amount",
+          "ligne": "Suggested bank line",
+          "ligneEtConfiance": " · confidence",
+          "confiance": "Confidence",
+          "actions": "Actions"
+        },
+        "chercher": {
+          "titre": "Find the bank line",
+          "montant": "Amount",
+          "submit": "Search",
+          "aide": "Credits from open statements, to within one franc, most recent first.",
+          "echec": "The reconciliation failed.",
+          "erreur": "The search failed.",
+          "aucune": "No credit of this amount on the open statements.",
+          "resultats": "Bank lines found",
+          "rapprocher": "Match"
+        },
+        "moyens": {
+          "court": {
+            "bank_transfer": "Transfer",
+            "card": "Card"
+          },
+          "pluriel": {
+            "cash": "Cash",
+            "bank_transfer": "Transfers",
+            "check": "Cheques",
+            "card": "Card payments"
+          },
+          "phrase": {
+            "cash": "cash",
+            "bank_transfer": "transfers",
+            "check": "cheques",
+            "card": "card payments",
+            "mobile_money": "mobile money"
+          }
+        }
+      },
+      "vide": {
+        "titre": "Only the bank statement is missing",
+        "auto": "Everything paid via {liste} is already reconciled.",
+        "reste": "{count, plural, one {For the remaining payment, import your bank statement.} other {For the # remaining payments, import your bank statement.}}",
+        "formats": "CSV or OFX from your bank",
+        "aucunReleve": "No statement yet."
+      },
+      "releves": {
+        "rubrique": "Statements",
+        "importerTitre": "Import a bank statement",
+        "voirTous": "{count, plural, one {See the statement} other {See all # statements}}",
+        "importer": "Import",
+        "reglagesDetail": "Columns, dates and amounts of your CSV files"
+      },
+      "actions": {
+        "importer": "Import a statement",
+        "reglages": "Import settings",
+        "fermer": "Close"
+      },
+      "integrations": {
+        "titre": "Online payments",
+        "lien": "Integrations",
+        "connecte": "Connected",
+        "confirmes": "{count, plural, =0 {none confirmed in {mois}} one {# confirmed in {mois}} other {# confirmed in {mois}}}",
+        "aucune": "No online payment is connected."
       }
     },
     "agencyPublicProfile": {

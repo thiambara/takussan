@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
+import { FileQuestion } from 'lucide-react';
 
 import { ErrorState } from '@/components/feedback';
 import { StatusBadge } from '@/components/console';
@@ -9,7 +11,9 @@ import { FilDAriane } from '@/components/console/PageHeader';
 import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { ApiError } from '@/lib/api';
 import { formatCurrency, formatDate, formatPercent } from '@/lib/format';
 import {
   useBankStatement,
@@ -66,6 +70,8 @@ export function StatementDetail({
   const delier = useUnmatchLine(statementId);
   const ignorer = useIgnoreLine(statementId);
   const finaliser = useFinalizeStatement(statementId);
+  // TCK-2675 — au téléphone, une carte par ligne (le tableau à six colonnes défilait) ; dès `md`, le tableau.
+  const bureau = useMatchesMedia('(width >= 48rem)');
   const occupe = rapprocher.isPending || delier.isPending || ignorer.isPending || finaliser.isPending;
 
   async function agir(action: () => Promise<unknown>, repli: string) {
@@ -78,6 +84,11 @@ export function StatementDetail({
   }
 
   if (releveQuery.isLoading) return <Skeleton className="h-48 rounded-xl" />;
+  // TCK-2675 — un relevé inconnu (404) ou d'une autre agence (403, `BankStatementPolicy`) n'existe
+  // pas pour cet écran : le dire, et rendre la liste. « Réessayer » ne ferait que relire le refus.
+  if (releveQuery.error instanceof ApiError && (releveQuery.error.status === 404 || releveQuery.error.status === 403)) {
+    return <ReleveIntrouvable />;
+  }
   if (releveQuery.isError || !releveQuery.data) {
     return (
       <ErrorState
@@ -180,147 +191,113 @@ export function StatementDetail({
           {t('detail.noLines')}
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border bg-card">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
-              <tr>
-                <th className="px-3 py-2 font-medium whitespace-nowrap">{t('detail.date')}</th>
-                <th className="px-3 py-2 font-medium">{t('detail.label')}</th>
-                <th className="px-3 py-2 font-medium">{t('detail.direction')}</th>
-                <th className="px-3 py-2 text-right font-medium">{t('detail.amount')}</th>
-                <th className="px-3 py-2 font-medium">{t('detail.match')}</th>
-                <th className="px-3 py-2 font-medium">
-                  <span className="sr-only">{t('detail.actions')}</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {lignes.map((l) => {
-                const confiance = confianceEnFraction(l.match_confidence);
-                const suggestion =
-                  l.matched_payment_type && l.matched_payment_id !== null
-                    ? t('detail.paymentRef', {
-                        type: t(`paymentTypes.${l.matched_payment_type}`),
-                        id: String(l.matched_payment_id),
-                      })
-                    : null;
-                return (
-                  <tr key={l.id} className="align-top" data-testid={`ligne-${l.id}`}>
-                    <td className="px-3 py-2 whitespace-nowrap tabular-nums text-muted-foreground">
-                      {l.posted_at ? formatDate(l.posted_at, locale) : '—'}
-                    </td>
-                    <td className="min-w-48 px-3 py-2">
-                      <p className="text-foreground">{l.label || '—'}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {[l.reference, l.counterparty].filter(Boolean).join(' · ')}
-                      </p>
-                      {l.duplicate_of_line_id != null && (
-                        <div className="mt-1">
-                          {/* TCK-1919 (P157.06) — déjà importée par un autre relevé : marquée, pas sautée. */}
-                          <StatusBadge tone="attention" label={t('detail.duplicate')} data-testid={`doublon-${l.id}`} />
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      {l.direction && (
-                        <span
-                          className={
-                            l.direction === 'credit' ? 'text-xs text-foreground' : 'text-xs text-muted-foreground'
-                          }
-                        >
-                          {t(`directions.${l.direction}`)}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-right whitespace-nowrap font-medium tabular-nums text-foreground">
-                      {l.direction === 'debit' ? '−' : ''}
-                      {montant(l)}
-                    </td>
-                    <td className="px-3 py-2">
-                      {l.match_status && (
-                        <StatusBadge tone={TON_LIGNE[l.match_status]} label={t(`lineStatus.${l.match_status}`)} />
-                      )}
-                      {suggestion && <p className="mt-1 text-xs text-foreground">{suggestion}</p>}
-                      {l.matched_payment_type && (
-                        <div className="mt-1">
-                          <PayableStatusBadge
-                            type={l.matched_payment_type}
-                            status={l.matched_payment_status}
-                            data-testid={`statut-payable-${l.id}`}
-                          />
-                        </div>
-                      )}
-                      {l.match_status === 'suggested' && confiance !== null && (
-                        <p className="text-xs text-muted-foreground">
-                          {t('detail.confidence', { value: formatPercent(confiance, locale, { maximumFractionDigits: 0 }) })}
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-3 py-2">
-                      {!fige && (
-                        <div className="flex flex-wrap justify-end gap-1">
-                          {l.match_status === 'suggested' && l.matched_payment_type && l.matched_payment_id !== null && (
-                            <Button
-                              type="button"
-                              size="sm"
-                              disabled={occupe}
-                              onClick={() =>
-                                void agir(
-                                  () =>
-                                    rapprocher.mutateAsync({
-                                      lineId: l.id,
-                                      payment_type: l.matched_payment_type!,
-                                      payment_id: l.matched_payment_id!,
-                                    }),
-                                  t('detail.matchFailed'),
-                                )
-                              }
-                            >
-                              {t('detail.validate')}
-                            </Button>
-                          )}
-                          {(l.match_status === 'suggested' || l.match_status === 'unmatched') && (
-                            <>
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                disabled={occupe}
-                                onClick={() => setRecherche(l)}
-                              >
-                                {t('detail.search')}
-                              </Button>
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                disabled={occupe}
-                                onClick={() => void agir(() => ignorer.mutateAsync(l.id), t('detail.ignoreFailed'))}
-                              >
-                                {t('detail.ignore')}
-                              </Button>
-                            </>
-                          )}
-                          {l.match_status === 'confirmed' && (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              disabled={occupe}
-                              onClick={() => void agir(() => delier.mutateAsync(l.id), t('detail.unmatchFailed'))}
-                            >
-                              {t('detail.unmatch')}
-                            </Button>
-                          )}
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <LignesDuReleve
+          lignes={lignes}
+          bureau={bureau}
+          rendre={(l) => {
+            const confiance = confianceEnFraction(l.match_confidence);
+            const suggestion =
+              l.matched_payment_type && l.matched_payment_id !== null
+                ? t('detail.paymentRef', {
+                    type: t(`paymentTypes.${l.matched_payment_type}`),
+                    id: String(l.matched_payment_id),
+                  })
+                : null;
+            return {
+              date: l.posted_at ? formatDate(l.posted_at, locale) : '—',
+              libelle: (
+                <>
+                  <p className="break-words text-foreground">{l.label || '—'}</p>
+                  <p className="text-xs break-words text-muted-foreground">{[l.reference, l.counterparty].filter(Boolean).join(' · ')}</p>
+                  {l.duplicate_of_line_id != null && (
+                    <div className="mt-1">
+                      {/* TCK-1919 (P157.06) — déjà importée par un autre relevé : marquée, pas sautée. */}
+                      <StatusBadge tone="attention" label={t('detail.duplicate')} data-testid={`doublon-${l.id}`} />
+                    </div>
+                  )}
+                </>
+              ),
+              sens: l.direction ? (
+                <span className={l.direction === 'credit' ? 'text-xs text-foreground' : 'text-xs text-muted-foreground'}>
+                  {t(`directions.${l.direction}`)}
+                </span>
+              ) : null,
+              montant: (
+                <>
+                  {l.direction === 'debit' ? '−' : ''}
+                  {montant(l)}
+                </>
+              ),
+              rapprochement: (
+                <>
+                  {l.match_status && <StatusBadge tone={TON_LIGNE[l.match_status]} label={t(`lineStatus.${l.match_status}`)} />}
+                  {suggestion && <p className="mt-1 text-xs text-foreground">{suggestion}</p>}
+                  {l.matched_payment_type && (
+                    <div className="mt-1">
+                      <PayableStatusBadge type={l.matched_payment_type} status={l.matched_payment_status} data-testid={`statut-payable-${l.id}`} />
+                    </div>
+                  )}
+                  {l.match_status === 'suggested' && confiance !== null && (
+                    <p className="text-xs text-muted-foreground">
+                      {t('detail.confidence', { value: formatPercent(confiance, locale, { maximumFractionDigits: 0 }) })}
+                    </p>
+                  )}
+                </>
+              ),
+              actions: fige ? null : (
+                <>
+                  {l.match_status === 'suggested' && l.matched_payment_type && l.matched_payment_id !== null && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={occupe}
+                      onClick={() =>
+                        void agir(
+                          () =>
+                            rapprocher.mutateAsync({
+                              lineId: l.id,
+                              payment_type: l.matched_payment_type!,
+                              payment_id: l.matched_payment_id!,
+                            }),
+                          t('detail.matchFailed'),
+                        )
+                      }
+                    >
+                      {t('detail.validate')}
+                    </Button>
+                  )}
+                  {(l.match_status === 'suggested' || l.match_status === 'unmatched') && (
+                    <>
+                      <Button type="button" size="sm" variant="outline" disabled={occupe} onClick={() => setRecherche(l)}>
+                        {t('detail.search')}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        disabled={occupe}
+                        onClick={() => void agir(() => ignorer.mutateAsync(l.id), t('detail.ignoreFailed'))}
+                      >
+                        {t('detail.ignore')}
+                      </Button>
+                    </>
+                  )}
+                  {l.match_status === 'confirmed' && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={occupe}
+                      onClick={() => void agir(() => delier.mutateAsync(l.id), t('detail.unmatchFailed'))}
+                    >
+                      {t('detail.unmatch')}
+                    </Button>
+                  )}
+                </>
+              ),
+            };
+          }}
+        />
       )}
 
       {dernierePage > 1 && (
@@ -359,5 +336,100 @@ export function StatementDetail({
         />
       )}
     </div>
+  );
+}
+
+/** Ce qu'une ligne affiche, rendu une fois et posé en rangée (bureau) ou en carte (téléphone). */
+interface ContenuDeLigne {
+  readonly date: ReactNode;
+  readonly libelle: ReactNode;
+  readonly sens: ReactNode;
+  readonly montant: ReactNode;
+  readonly rapprochement: ReactNode;
+  readonly actions: ReactNode;
+}
+
+function LignesDuReleve({
+  lignes,
+  bureau,
+  rendre,
+}: {
+  readonly lignes: readonly BankStatementLine[];
+  readonly bureau: boolean;
+  readonly rendre: (l: BankStatementLine) => ContenuDeLigne;
+}) {
+  const t = useTranslations('admin.reconciliation.detail');
+  if (!bureau) {
+    return (
+      <ul className="space-y-3" aria-label={t('metaTitle')}>
+        {lignes.map((l) => {
+          const c = rendre(l);
+          return (
+            <li key={l.id} className="rounded-xl border border-border bg-card p-4 text-sm" data-testid={`ligne-${l.id}`}>
+              <div className="flex items-baseline gap-2">
+                <p className="min-w-0 flex-1 text-ui text-muted-foreground tabular-nums">
+                  {c.date}
+                  {c.sens ? <> · {c.sens}</> : null}
+                </p>
+                <p className="flex-none font-semibold tabular-nums text-foreground">{c.montant}</p>
+              </div>
+              <div className="mt-1 min-w-0">{c.libelle}</div>
+              <div className="mt-2">{c.rapprochement}</div>
+              {c.actions ? <div className="mt-3 flex flex-wrap gap-2">{c.actions}</div> : null}
+            </li>
+          );
+        })}
+      </ul>
+    );
+  }
+  return (
+    <div className="overflow-x-auto rounded-xl border border-border bg-card">
+      <table className="w-full text-sm">
+        <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
+          <tr>
+            <th className="px-3 py-2 font-medium whitespace-nowrap">{t('date')}</th>
+            <th className="px-3 py-2 font-medium">{t('label')}</th>
+            <th className="px-3 py-2 font-medium">{t('direction')}</th>
+            <th className="px-3 py-2 text-right font-medium">{t('amount')}</th>
+            <th className="px-3 py-2 font-medium">{t('match')}</th>
+            <th className="px-3 py-2 font-medium">
+              <span className="sr-only">{t('actions')}</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {lignes.map((l) => {
+            const c = rendre(l);
+            return (
+              <tr key={l.id} className="align-top" data-testid={`ligne-${l.id}`}>
+                <td className="px-3 py-2 whitespace-nowrap tabular-nums text-muted-foreground">{c.date}</td>
+                <td className="min-w-48 px-3 py-2">{c.libelle}</td>
+                <td className="px-3 py-2 whitespace-nowrap">{c.sens}</td>
+                <td className="px-3 py-2 text-right whitespace-nowrap font-medium tabular-nums text-foreground">{c.montant}</td>
+                <td className="px-3 py-2">{c.rapprochement}</td>
+                <td className="px-3 py-2">{c.actions ? <div className="flex flex-wrap justify-end gap-1">{c.actions}</div> : null}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** TCK-2675 — « Ce relevé n'existe pas » et le chemin du retour, sans « Réessayer ». */
+function ReleveIntrouvable() {
+  const t = useTranslations('admin.reconciliation');
+  return (
+    <section className="flex flex-col items-center rounded-xl border border-border bg-card px-4 py-10 text-center" data-testid="releve-introuvable">
+      <span className="inline-flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+        <FileQuestion className="size-6" strokeWidth={1.5} aria-hidden="true" />
+      </span>
+      <h2 className="mt-4 font-display text-xl font-semibold tracking-titre">{t('detail.introuvable')}</h2>
+      <p className="mt-1 max-w-md text-sm text-muted-foreground">{t('detail.introuvableTexte')}</p>
+      <Link href="/app/agency/finances/reconciliation" className="mt-5 text-sm font-medium text-primary hover:underline">
+        {t('detail.versLaListe')}
+      </Link>
+    </section>
   );
 }
