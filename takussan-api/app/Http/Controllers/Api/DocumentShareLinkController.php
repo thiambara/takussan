@@ -51,7 +51,7 @@ class DocumentShareLinkController extends Controller
     public function store(StoreDocumentShareLinkRequest $request, Document $document): JsonResponse
     {
 
-        $data = $request->validated();
+        $data = $request->validatedAvecInstants();
 
         $link = $this->shareLinks->create($document, $request->user(), $data);
 

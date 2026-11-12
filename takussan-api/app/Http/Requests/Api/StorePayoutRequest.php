@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\Enums\Currency;
 use App\Models\Enums\PaymentMethod;
 use App\Models\Payout;
@@ -18,6 +19,8 @@ use Illuminate\Validation\Rule;
  */
 class StorePayoutRequest extends BaseFormRequest
 {
+    use ConvertitLesInstantsRecus;
+
     /**
      * TCK-528 — l'autorisation court ICI, avant la validation, comme pour les autres FormRequest
      * de TCK-305 : placée dans le contrôleur, un appelant sans la capacité recevrait 422 et le
@@ -67,5 +70,11 @@ class StorePayoutRequest extends BaseFormRequest
             'scheduled_at' => ['nullable', 'date'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ];
+    }
+
+    /** TCK-2743 — {@see ConvertitLesInstantsRecus}. */
+    protected function instantsRecus(): array
+    {
+        return ['scheduled_at'];
     }
 }

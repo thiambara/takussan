@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\DB;
 class LateFeeSettlement
 {
     /**
-     * @param  array{paid_at?: ?string, payment_method?: ?string, override_open_checkout?: bool, override_reason?: ?string}  $data
+     * @param  array{paid_at?: \DateTimeInterface|string|null, payment_method?: ?string, override_open_checkout?: bool, override_reason?: ?string}  $data
      */
     public function markPaid(LeasePayment $payment, User $by, array $data = []): LeasePayment
     {

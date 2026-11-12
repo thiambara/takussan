@@ -100,7 +100,7 @@ class TaskController extends Controller
     {
         $user = $request->user();
 
-        $data = $request->validated();
+        $data = $request->validatedAvecInstants();
 
         // Resolve & authorize the polymorphic parent: a user may only attach a
         // task to a record their agency owns / they created (superadmin bypass).
@@ -190,7 +190,7 @@ class TaskController extends Controller
 
     public function update(UpdateTaskRequest $request, Task $task): JsonResponse
     {
-        $data = $request->validated();
+        $data = $request->validatedAvecInstants();
 
         // TCK-591 — le contrôle d'assigné de `store` est rejoué dès que l'assigné change : un `PUT`
         // poussait la tâche chez n'importe quel utilisateur de la plateforme.

@@ -175,3 +175,26 @@ motivées de la garde.
   d'avant — hors grille converti, sans décalage — ne prouvent rien du correctif et n'en sont pas la preuve). Ablations
   7/7 rouges (store, update, reschedule, confirm, lot, publique, helper sans `setTimezone`). 45 fichiers voisins
   (visites, demandes publiques, interventions) joués un à un : verts.
+
+**Lot 2 — P2 : échéances, encaissements, liens, reversements.**
+- `App\Http\Requests\Concerns\ConvertitLesInstantsRecus` : chaque FormRequest dont le corps validé part tel quel vers
+  un service déclare ses dates-heures reçues (`instantsRecus()`), et le contrôleur lit `validatedAvecInstants()` —
+  chaque champ déclaré passe par `InstantRecu::ouNul()`. `validated()` n'est **pas** surchargé, délibérément :
+  surchargé, il changerait le type de la valeur pour tout lecteur, sans couvrir `safe()` ni `input()`.
+- Huit écritures : `due_at` des tâches (`store`, `update`) ; `paid_at` du loyer encaissé (`markPaid`), de la pénalité
+  réglée (`markLateFeePaid`) et de l'acompte d'une réservation (`BookingPaymentController::store`) ; `expires_at` d'un
+  lien de partage ; `scheduled_at` d'un reversement (`PayoutController::store`) et du paiement programmé d'une facture
+  de prestataire (`ServiceProviderBillController::pay`).
+- AC4 tenu par deux tests : `before_or_equal:now` et `after:now` jugent l'instant, et l'écriture écrivait l'heure
+  murale — une pénalité réglée « 10:30+01:00 » à 10:00 UTC passait la règle et s'écrivait dans le futur ; un lien
+  « 09:30-01:00 » passait `after:now` et naissait expiré.
+- Une date seule (`paid_at = 2026-11-10`) se lit au début du jour à Dakar, comme avant (tenu par le test du loyer).
+- Les autres lectures de `validated()` de ces contrôleurs n'ont pas de date-heure (remboursement, `markProcessed`,
+  `markFailed`, validation de facture) ou n'ont que des dates calendaires (`StoreLeasePaymentRequest` : `period_start`,
+  `period_end`, `due_date`, castés `date`) : hors périmètre.
+- Tests : une méthode par écrivain, ajoutée à la classe existante (`TaskTest`, `LeasePaymentLateFeeMarkPaidTest` ×2,
+  `DocumentShareLinkTest`, `BookingPaymentStaffBoundTest`, `PayoutTest`, `ServiceProviderBillTest`) ; 7/7 rouges avant
+  le correctif.
+- Ablations 9/9 rouges : chacun des huit contrôleurs rendu à `validated()`, et le trait sans conversion. 69 fichiers
+  voisins (tâches, loyers, pénalités, acomptes, réservations, liens, reversements, factures de prestataires,
+  rapprochement, double authentification des sorties d'argent, parcours des routes) joués un à un : verts.

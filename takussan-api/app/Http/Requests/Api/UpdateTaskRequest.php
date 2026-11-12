@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\Enums\TaskPriority;
 use App\Models\Enums\TaskStatus;
 use Illuminate\Validation\Rule;
@@ -17,6 +18,8 @@ use Illuminate\Validation\Rule;
  */
 class UpdateTaskRequest extends BaseFormRequest
 {
+    use ConvertitLesInstantsRecus;
+
     /**
      * TCK-305 — l'autorisation court ICI, avant la validation.
      *
@@ -45,5 +48,11 @@ class UpdateTaskRequest extends BaseFormRequest
             'status' => ['sometimes', Rule::enum(TaskStatus::class)],
             'priority' => ['sometimes', Rule::enum(TaskPriority::class)],
         ];
+    }
+
+    /** TCK-2743 — {@see ConvertitLesInstantsRecus}. */
+    protected function instantsRecus(): array
+    {
+        return ['due_at'];
     }
 }

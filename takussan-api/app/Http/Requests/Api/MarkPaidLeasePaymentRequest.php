@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\Enums\PaymentMethod;
 use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Validation\Rule;
@@ -17,6 +18,8 @@ use Illuminate\Validation\Rule;
  */
 class MarkPaidLeasePaymentRequest extends BaseFormRequest
 {
+    use ConvertitLesInstantsRecus;
+
     /**
      * TCK-305 — l'autorisation court ICI, avant la validation.
      *
@@ -69,5 +72,11 @@ class MarkPaidLeasePaymentRequest extends BaseFormRequest
             'override_open_checkout' => ['sometimes', 'boolean'],
             'override_reason' => ['nullable', 'string', 'max:500', 'required_if_accepted:override_open_checkout'],
         ];
+    }
+
+    /** TCK-2743 — {@see ConvertitLesInstantsRecus}. */
+    protected function instantsRecus(): array
+    {
+        return ['paid_at'];
     }
 }

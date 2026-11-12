@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Concerns\AuthorizesTransitionally;
+use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\Booking;
 use App\Models\Enums\BookingPaymentType;
 use App\Models\Enums\PaymentMethod;
@@ -22,6 +23,7 @@ use Illuminate\Validation\Rule;
 class StoreBookingPaymentRequest extends BaseFormRequest
 {
     use AuthorizesTransitionally;
+    use ConvertitLesInstantsRecus;
 
     /**
      * TCK-305 — l'autorisation court ICI, avant la validation.
@@ -84,5 +86,11 @@ class StoreBookingPaymentRequest extends BaseFormRequest
             'transaction_id' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],
         ];
+    }
+
+    /** TCK-2743 — {@see ConvertitLesInstantsRecus}. */
+    protected function instantsRecus(): array
+    {
+        return ['paid_at'];
     }
 }

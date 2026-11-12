@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 
 /**
  * TCK-305 — extrait de DocumentShareLinkController::store(), où les règles étaient écrites en ligne.
@@ -14,6 +15,8 @@ use App\Http\Requests\BaseFormRequest;
  */
 class StoreDocumentShareLinkRequest extends BaseFormRequest
 {
+    use ConvertitLesInstantsRecus;
+
     /**
      * TCK-305 — l'autorisation court ICI, avant la validation.
      *
@@ -40,5 +43,11 @@ class StoreDocumentShareLinkRequest extends BaseFormRequest
             'max_downloads' => ['nullable', 'integer', 'min:1'],
             'password' => ['nullable', 'string', 'min:4'],
         ];
+    }
+
+    /** TCK-2743 — {@see ConvertitLesInstantsRecus}. */
+    protected function instantsRecus(): array
+    {
+        return ['expires_at'];
     }
 }
