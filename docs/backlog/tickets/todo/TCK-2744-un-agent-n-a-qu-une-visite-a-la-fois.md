@@ -197,3 +197,31 @@ du bien seule ; ancienne heure, durée ou agent dans `update` ; attribution de t
 `LangGroupParityTest`, joués un à un : verts.
 
 **Spec.** La règle de `docs/features.md` § 1.3 suit par `/sync-specs`.
+
+**d3 — l'effacement écrivait des biens après la ligne `users` (contre-vérification du 2026-11-12).**
+`ErasedAccountListings::handle()` dépublie, en dernier geste d'`anonymize()`, les biens restés sans contact
+(`$bien->update(…)`), et `TitulaireALaSaisie::delier()` délie les biens saisis pour l'invitation de bailleur que
+l'effacement révoque (mise à jour de masse) : deux écritures sur `properties` APRÈS le verrou du compte, hors de la
+passe des biens. Une écriture verrouille sa ligne comme un `for update`. Course mesurée par verif-commercial (s9 :
+le compte, agent de l'agence ET titulaire d'un bien en ligne sans autre contact, effacé contre la confirmation d'une
+visite de ce bien qui lui est attribuée) : **18 interblocages sur 20** avant, **0 sur 20** avec la requête de
+`handle()` ajoutée à la passe triée. Correctif : `lockInGlobalOrder()` ajoute à sa passe unique, par les requêtes
+mêmes qui écriront, `ErasedAccountListings::candidates()` (propriétaire ou collaborateur) et
+`TitulaireALaSaisie::biensLies()` des invitations de bailleur ouvertes (`invitationsDeBailleurOuvertes()`, partagée
+avec la révocation). `delier()` lui-même n'a pas été rejoué en course ; même mécanisme, même correctif.
+Test : `OrdreDesVerrousDuRetraitTest::test_l_effacement_verrouille_aussi_les_biens_qu_il_depublie_et_ceux_qu_il_delie`
+— chaque bien ÉCRIT (dépublié, collaboré, délié) figure dans la première passe, triée ; il ne compte pas les verrous,
+l'épingle `DB::listen` ne voyant pas les `update`. Ablations 2/2 rouges (sans les candidats, sans les biens liés).
+
+Autres appelants de `delier()`, relus : la purge des invitations expirées et la révocation (`InvitationService`)
+verrouillent l'invitation puis écrivent les biens, sans ligne `users` ; l'acceptation (`PropertyOwnerTransfer::
+aLAcceptation`, dans la transaction de `InvitationService` l. 1021) écrit le compte qui accepte puis les biens —
+utilisateur → bien. Un cycle y demanderait que le bailleur qui accepte soit aussi l'agent d'une visite confirmée au
+même instant sur un de ces biens : non mesuré, non corrigé ici, à reprendre s'il le faut par un ticket.
+
+Harnais de course (hors dépôt, jamais un test) : `course.php` de la contre-vérification, scénarios s5 à s9, sur une
+base jetable `UTF8/C` migrée (jamais `fresh`), SMS et WhatsApp en `log`, Scout `null`. Les courses ne se rejouent
+pas en CI ; elles se relancent à la main quand un écrivain de ces tables change.
+
+Piège n° 10 de `takussan-api/CLAUDE.md` complété : l'ordre se prolonge jusqu'à la délégation (TCK-2746), une
+écriture verrouille comme un `for update`, et l'épingle ne voit pas les verrous implicites.

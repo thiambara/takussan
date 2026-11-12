@@ -12,6 +12,7 @@ use App\Models\Property;
 use App\Models\User;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Model\NotificationService;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * TCK-997 (P15.06, P50.01, P50.03 ; ADR-0036, amendement du 2026-10-19) — le titulaire d'un bien
@@ -116,8 +117,22 @@ final class TitulaireALaSaisie
             return;
         }
 
-        Property::withTrashed()->whereIn('pending_owner_profile_id', $ids)->toBase()
-            ->update(['pending_owner_profile_id' => null]);
+        self::biensLies($ids)->toBase()->update(['pending_owner_profile_id' => null]);
+    }
+
+    /**
+     * Les biens saisis pour ces profils invités, ceux que {@see delier()} écrit. TCK-2744 (d3) —
+     * l'effacement d'un compte les verrouille par cette requête avant la ligne `users`
+     * (`AccountDeletionService::lockInGlobalOrder()`) : la mise à jour de masse verrouille ses lignes.
+     *
+     * @param  iterable<int>  $profileIds
+     * @return Builder<Property>
+     */
+    public static function biensLies(iterable $profileIds): Builder
+    {
+        $ids = collect($profileIds)->map(fn ($id) => (int) $id)->unique()->values()->all();
+
+        return Property::withTrashed()->whereIn('pending_owner_profile_id', $ids);
     }
 
     /**

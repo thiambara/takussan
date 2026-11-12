@@ -895,17 +895,30 @@ rien attraper.*
 
    ⚠ Ça ne replie **pas** les accents, délibérément : `Café` ≠ `Cafe`, reconduction d'ADR-0020 §2.
 
-10. **Les verrous se prennent dans UN ordre : bien → visite → utilisateur** (TCK-2744). Deux
-    écrivains qui verrouillent les mêmes lignes dans l'ordre inverse s'interbloquent, et PostgreSQL
-    en tue un (`SQLSTATE[40P01] deadlock detected`) — au hasard du tempo, donc jamais dans un test
-    séquentiel. Mesuré : deux `PATCH` simultanés sur un même bien, 19 interblocages sur 20 ; le
-    retrait d'un agent contre la confirmation d'une de ses visites, 20 sur 20. Les écrivains de
+10. **Les verrous se prennent dans UN ordre : bien → visite → utilisateur → délégation** (TCK-2744,
+    TCK-2746). Deux écrivains qui verrouillent les mêmes lignes dans l'ordre inverse s'interbloquent,
+    et PostgreSQL en tue un (`SQLSTATE[40P01] deadlock detected`) — au hasard du tempo, donc jamais
+    dans un test séquentiel. Mesuré : deux `PATCH` simultanés sur un même bien, 19 interblocages sur
+    20 ; le retrait d'un agent contre la confirmation d'une de ses visites, 20 sur 20 ; l'effacement
+    d'un compte qui dépubliait ses biens après sa ligne `users`, 18 sur 20 ; la modification d'une
+    absence (délégation puis absent) contre l'effacement de l'absent, 14 sur 20. Les écrivains de
     visites passent par `VisitSchedulingService::verrouillerBienPuisVisite()` ; le retrait d'un
     membre (`AgencyMemberRemovalService::lockMarkedProperties()`) et l'effacement d'un compte
-    (`AccountDeletionService::lockInGlobalOrder()`) prennent leurs biens AVANT la ligne `users`.
-    Plusieurs lignes d'une même table : par identifiant croissant (`orderBy('id')`). L'ordre est
-    épinglé par `DB::listen` sur les `select … for update` (`VisitAgentOverlapTest`,
-    `OrdreDesVerrousDuRetraitTest`) : un écrivain neuf qui touche ces tables s'y ajoute.
+    (`AccountDeletionService::lockInGlobalOrder()`) prennent leurs biens AVANT la ligne `users` ;
+    `AgentAbsenceService::update()` prend l'absent avant la délégation. Plusieurs lignes d'une même
+    table : par identifiant croissant (`orderBy('id')`).
+
+    ⚠ **Une ÉCRITURE verrouille sa ligne comme un `for update`.** Un `update()` ou un `delete()` — de
+    modèle ou de masse — sur un bien, après la ligne `users`, inverse l'ordre aussi sûrement qu'un
+    `lockForUpdate()`. D'où la règle : tout ce qu'un écrivain écrit APRÈS une ligne plus basse dans
+    l'ordre est verrouillé AVANT elle, **par la requête même qui l'écrira**
+    (`ErasedAccountListings::candidates()`, `TitulaireALaSaisie::biensLies()`), jamais par une copie.
+
+    ⚠ **L'épingle ne voit pas tout.** L'ordre est épinglé par `DB::listen` sur les `select … for
+    update` (`VisitAgentOverlapTest`, `OrdreDesVerrousDuRetraitTest`) : elle ne voit ni les verrous
+    implicites des `update`, ni ceux des clés étrangères à l'insertion. C'est pourquoi le test de
+    l'effacement affirme que chaque bien ÉCRIT figure dans la passe des biens, au lieu de compter
+    des verrous. Un écrivain neuf qui touche ces tables s'y ajoute — par discipline : rien ne le force.
 
 **Les pièges MySQL qui ont DISPARU** — ne plus les chercher : `DEFAULT` sur `JSON`/`TEXT` (accepté
 par PostgreSQL), `dropUnique`/`dropIndex` sur une colonne portant une FK (voir n°8), et la limite

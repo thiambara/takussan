@@ -63,3 +63,23 @@ déjà `users` en premier et n'insère qu'ensuite : rien à changer.
 
 - Les autres écrivains de délégations (`RoleDelegationService::activate`, l'expiration planifiée), à relire dans le
   même esprit mais hors de ce delta
+
+## Notes d'implémentation
+
+**Mesure (AC1, AC2), par la contre-vérification de TCK-2744 (verif-commercial, 2026-11-12)** : s7, modifier
+l'absence de X contre retirer X, **5 interblocages sur 20** (3 côté modification, 2 côté retrait) ; s8, modifier
+l'absence de X contre effacer X, **14 sur 20**. Avec le correctif (l'absent lu sans verrou, `users` verrouillé, PUIS
+la délégation) : **0 sur 40** (« ok | agent_absence.closed » ou « ok | ok »). Le correctif livré est celui-là, à la
+lettre : `replaces_user_id` ne change jamais, sa lecture sans verrou ne peut pas désigner un autre absent.
+
+**Correctif** : `AgentAbsenceService::update()` verrouille l'absent avant la délégation ; le reste de la méthode
+(règles, délégation de couverture verrouillée ensuite, révocation, activation) ne bouge pas. L'ordre du dépôt devient
+bien → visite → utilisateur → délégation (piège n° 10 de `takussan-api/CLAUDE.md`).
+
+**Tests** : `OrdreDesVerrousDuRetraitTest::test_modifier_une_absence_verrouille_l_absent_avant_la_delegation` (AC3 :
+l'ablation qui remet la délégation avant `users` le fait rougir). AC4 : `AbsenceCoverDelegationTest` (30),
+`AgentAbsenceTest` (11), `TeamHandoverAbsenceTwoFactorTest` (9), `EffacementMarquesEtDelegationsTest` (3),
+`CompteBloqueNonAttribuableTest` (8), joués un à un : verts.
+
+Harnais de course hors dépôt (jamais un test) : le `course.php` de la contre-vérification de TCK-2744, scénarios s7
+et s8.
