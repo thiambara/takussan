@@ -25,6 +25,9 @@ class CreditBoostResource extends BaseResource
             'variant' => $this->enumValue($this->variant),
             'status' => $this->enumValue($this->status),
             'price_credits' => $this->price_credits,
+            // TCK-2664 — la durée achetée (cumulée par une prolongation ; 0 pour une Remontée) : « Vedette 7 j »
+            // et « Relancer », qui rachète l'offre active de même famille et de même durée.
+            'duration_days' => $this->duration_days,
             'starts_at' => $this->iso($this->starts_at),
             'ends_at' => $this->iso($this->ends_at),
             'ended_at' => $this->iso($this->ended_at),

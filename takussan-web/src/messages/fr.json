@@ -15485,16 +15485,20 @@
   },
   "credits": {
     "metaTitle": "Crédits",
-    "title": "Crédits de l’espace",
-    "subtitle": "Les crédits de votre espace paient la mise en avant de vos biens.",
-    "balance": "Solde",
-    "balanceValue": "{count, plural, =0 {Aucun crédit} one {# crédit} other {# crédits}}",
     "lots": {
-      "title": "Crédits disponibles",
       "empty": "Aucun crédit disponible pour le moment.",
-      "expires": "Expire le {date}",
       "noExpiry": "Sans expiration",
-      "remaining": "{remaining} sur {initial}"
+      "remaining": "{remaining} sur {initial}",
+      "origines": {
+        "welcome": "Offre de bienvenue",
+        "admin_grant": "Offerts par Takussan",
+        "refund": "Remboursement",
+        "purchase": "Achat"
+      },
+      "surInitial": "sur {initial}",
+      "recus": "reçus le {date}",
+      "jaugeAria": "{remaining} crédits restants sur {initial}",
+      "expireDans": "Expire le {date} · {count, plural, =0 {aujourd’hui} one {dans # jour} other {dans # jours}}"
     },
     "origins": {
       "welcome": "Offre de bienvenue",
@@ -15503,23 +15507,9 @@
       "purchase": "Achat"
     },
     "movements": {
-      "title": "Historique",
       "caption": "Historique des crédits de l’espace",
       "empty": "Aucun mouvement pour le moment.",
-      "colDate": "Date",
-      "colType": "Opération",
-      "colAmount": "Crédits",
-      "colReason": "Motif",
-      "colObject": "Objet",
-      "object": "{offer} — {property}",
-      "offers": {
-        "bump": "Remontée",
-        "featured": "Vedette",
-        "badge": {
-          "urgent": "Badge « Urgent »",
-          "price_drop": "Badge « Baisse de prix »"
-        }
-      }
+      "object": "{offer} — {property}"
     },
     "types": {
       "grant": "Octroi",
@@ -15529,7 +15519,136 @@
       "admin_debit": "Débit par Takussan"
     },
     "loadError": "Impossible de charger les crédits.",
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "page": {
+      "titre": "Crédits",
+      "sousTitre": "Ce que vos mises en avant coûtent, et ce qu’elles rapportent.",
+      "unite": "{count, plural, one {crédit} other {crédits}}",
+      "expirent": "{count, plural, one {# expire} other {# expirent}} le {date}",
+      "soldeAgence": "Solde de l’agence",
+      "soldeEspace": "Solde de votre espace",
+      "mettreEnAvant": "Mettre un bien en avant",
+      "recharger": "Recharger",
+      "bientot": "Bientôt",
+      "cout": "Ce que ça coûte",
+      "historique": "Historique",
+      "lots": "Lots de crédits",
+      "toutVoir": "Tout voir",
+      "derniere": "Dernière opération : {date} · {delta} {count, plural, one {crédit} other {crédits}}",
+      "nbLots": "{count, plural, one {# lot} other {# lots}}",
+      "expireLe": "expire le {date}"
+    },
+    "reserve": {
+      "titre": "Cette page est réservée aux administrateurs de l’espace",
+      "texte": "Les crédits paient la mise en avant des biens. Pour mettre un bien en avant, adressez-vous à un administrateur de votre espace."
+    },
+    "offres": {
+      "bump": {
+        "nom": "Remontée",
+        "detail": "Repasse en tête des résultats"
+      },
+      "featured": {
+        "nom": "Vedette",
+        "detail": "En tête de liste et sur l’accueil",
+        "court": "Vedette {jours} j"
+      },
+      "urgent": {
+        "nom": "Badge « Urgent »",
+        "detail": "{jours, plural, one {# jour} other {# jours}} sur l’annonce"
+      },
+      "price_drop": {
+        "nom": "Badge « Baisse de prix »",
+        "detail": "{jours, plural, one {# jour} other {# jours}} sur l’annonce"
+      },
+      "paliers": "{paliers} {count, plural, one {crédit} other {crédits}}",
+      "palier": "{jours} j : {prix}"
+    },
+    "historique": {
+      "quand": "{date}, {heure}"
+    },
+    "pied": "{debut} à {fin} sur {total}",
+    "boosts": {
+      "titre": "En avant en ce moment",
+      "vide": "Aucune mise en avant pour le moment.",
+      "fin": {
+        "enPause": "en pause",
+        "jusquau": "jusqu’au {date}",
+        "enCours": "en cours",
+        "terminee": "terminée le {date}",
+        "annulee": "annulée le {date}",
+        "remboursee": "remboursée le {date}"
+      },
+      "etat": {
+        "paused": "En pause",
+        "ended": "Terminée",
+        "cancelled": "Annulée",
+        "refunded": "Remboursée"
+      },
+      "relancer": "Relancer · {count, plural, one {# crédit} other {# crédits}}",
+      "relancerCourt": "Relancer · {prix}",
+      "relancerAria": "Relancer la mise en avant de « {bien} » pour {count, plural, one {# crédit} other {# crédits}}",
+      "restants": "{count, plural, =0 {dernier jour} one {# j restant} other {# j restants}}",
+      "mesures": {
+        "vues": "<n>{count}</n> {count, plural, one {vue} other {vues}}",
+        "contacts": "<n>{count}</n> {count, plural, one {contact} other {contacts}}",
+        "visites": "<n>{count}</n> {count, plural, one {visite} other {visites}}"
+      },
+      "col": {
+        "bien": "Bien",
+        "offre": "Offre",
+        "fin": "Fin",
+        "vues": "Vues",
+        "contacts": "Contacts",
+        "visites": "Visites"
+      }
+    },
+    "pousser": {
+      "titre": "À pousser",
+      "titreCompte": "À pousser · {count, plural, one {# bien sans contact} other {# biens sans contact}} depuis 30 jours",
+      "compte": "{count, plural, one {# bien sans contact} other {# biens sans contact}} depuis 30 jours.",
+      "prixRemontee": "Une Remontée coûte {count, plural, one {# crédit} other {# crédits}}",
+      "vide": "Aucun bien sans contact depuis 30 jours.",
+      "vues": "{count, plural, one {# vue} other {# vues}}",
+      "remonter": "Remonter · {prix}",
+      "remonterAria": "Remonter « {bien} » pour {count, plural, one {# crédit} other {# crédits}}"
+    },
+    "flux": {
+      "titre": "Mettre un bien en avant",
+      "solde": "Solde : {count, plural, =0 {aucun crédit} one {# crédit} other {# crédits}}",
+      "etapeBien": "1 · Quel bien ?",
+      "etapeOffre": "2 · Quelle mise en avant ?",
+      "ordre": "Sans contact depuis 30 jours, les moins vus d’abord",
+      "chercher": "Chercher parmi vos {count, plural, one {# bien en ligne} other {# biens en ligne}}",
+      "chercherSansCompte": "Chercher parmi vos biens en ligne",
+      "chercherAria": "Chercher un bien en ligne, par titre ou référence",
+      "aucunContact": "aucun contact",
+      "dernierContact": "dernier contact le {date}",
+      "aucunResultat": "Aucun bien en ligne ne correspond à « {q} ».",
+      "aucuneSuggestion": "Aucun bien sans contact depuis 30 jours : cherchez parmi vos biens en ligne.",
+      "biensEnEchec": "Impossible de charger vos biens en ligne.",
+      "reessayer": "Réessayer",
+      "detail": {
+        "bump": "Repasse en tête des résultats, une fois",
+        "featured": "En tête de liste et sur l’accueil",
+        "urgent": "{jours, plural, one {# jour} other {# jours}} sur l’annonce",
+        "price_drop": "{jours, plural, one {# jour} other {# jours}} sur l’annonce"
+      },
+      "dureesAria": "Durée de la Vedette",
+      "duree": "{jours, plural, one {# jour} other {# jours}}",
+      "prix": "{count, plural, =0 {offert} one {# crédit} other {# crédits}}",
+      "manque": "Il vous manque {count, plural, one {# crédit} other {# crédits}}",
+      "manqueCourt": "{count, plural, one {il en manque #} other {il en manque #}}",
+      "pasDAchat": "L’achat de crédits arrive bientôt. En attendant, choisissez une offre couverte par votre solde.",
+      "restera": "Il vous restera <b>{count, plural, =0 {aucun crédit} one {# crédit} other {# crédits}}</b> sur {solde}",
+      "confirmer": "Mettre en avant · {count, plural, =0 {offert} one {# crédit} other {# crédits}}",
+      "confirmerSansChoix": "Mettre en avant",
+      "vedette": "Vedette {jours, plural, one {# jour} other {# jours}}",
+      "resume": "{offre} · {bien}",
+      "fermer": "Fermer",
+      "echecAchat": "La mise en avant n’a pas pu être enregistrée.",
+      "fait": "« {bien} » est mis en avant : {offre}.",
+      "bienEnEchec": "Impossible de lire les mises en avant de ce bien."
+    }
   },
   "commissions": {
     "metaTitle": "Commissions",

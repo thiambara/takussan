@@ -83,4 +83,54 @@ Fonctions existantes à garder (`credits/page.tsx`, `CreditsPanel.tsx`, `boost/a
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Page** : `components/credits/PageCredits.tsx` remplace `CreditsPanel` (supprimé avec son test) ; la route ne
+  rend plus que le client. Téléphone sous `md` (`REQUETE_DE_LA_BARRE`) : `PagePleineLargeur` + `DeclarerEnTete`,
+  « Historique » et « Lots de crédits » en `LigneDeListe` qui ouvrent un `PanneauDroit` ; bureau : `PageHeader`,
+  grille de la maquette (`xl:grid-cols-[minmax(0,1fr)_min(20rem,calc(100%-42.5rem))]`, puis `5fr/7fr` dès `xl`).
+- **Accès (AC5)** : lu de `GET /api/credits` ; un 403 rend « Cette page est réservée aux administrateurs de
+  l'espace », et AUCUNE autre lecture ne part tant que le solde n'est pas rendu (boosts, suggestions, offres).
+- **Grille (AC1)** : `lecture.ts › grilleDesOffres` — familles fixes, offres actives de `GET /api/boost-products`,
+  aucun prix dans le code ; sans Remontée active, aucun « Remonter ».
+- **Parcours (AC2, AC3)** : `MettreEnAvant.tsx` (formulaire plein écran au téléphone, dialogue 55rem en deux
+  colonnes au bureau). Les règles de l'achat sont extraites de `BoostDialog` dans `boost/useAchatDeBoost.ts`
+  (solde, manque, effet sur le boost en place, refus `credits.insufficient`, clé d'idempotence bien + offre,
+  renouvelée après succès) ; `BoostDialog` n'en garde que le rendu (ses 11 tests verts). Biens proposés :
+  `GET /api/credits/suggestions?limit=5` ; recherche serveur sur les biens en ligne (`filter[public]=1`,
+  `filter[search]`, temporisée). Une famille ou une durée que le solde ne couvre pas est désactivée, sa raison
+  reliée par `aria-describedby`. Le choix d'un bien ne masque plus tout le corps (lecture de ses boosts en place
+  à part : confirmer attend l'effet).
+- **Historique (AC4)** : ligne du téléphone = objet tronqué (lien vers `/app/properties/{id}` pour une mise en
+  avant) + détail `line-clamp-2` (opération, date et heure, motif) ; 5 par page au bureau, 20 dans le panneau
+  (`useCreditsJournal`, taille de page dans la clé).
+- **« Vues » = `measures.clicks`** ; pas de « × la semaine d'avant », pas de « Rapport », pas de « Lots épuisés »
+  (motifs dans la fiche de fidélité). « Recharger » : `aria-disabled`, « Bientôt », aucun prix.
+- **Décisions 1 à 10 : « a » partout** (team-lead, 2026-11-12), avec leurs conditions :
+  - 1 — « vues » = `measures.clicks` (fiche ouverte depuis un emplacement de la mise en avant) ; les impressions
+    ne s'affichent jamais sous « vues » (alias motivé dans la fiche).
+  - 2 — la confirmation dit ce qui sera dépensé et ce qui restera (« Il vous restera 40 crédits sur 60 »).
+  - 5, 7 — aucune taille de page ne dépend de la largeur : chaque liste lit sa propre taille, fixe (mises en
+    avant 10, biens à pousser 3 sur la page et 5 dans le parcours, historique 5 dans le tableau du bureau,
+    20 dans le panneau, taille dans la clé de requête), et n'en change jamais après l'hydratation. Le choix
+    téléphone/bureau passe par `useMatchesMedia` (instantané serveur `false`), mais la page ne rend qu'un
+    squelette tant que `GET /api/credits` n'a pas répondu — lecture du navigateur seul — : aucune liste n'est
+    rendue par le serveur, aucune ne se redimensionne. Le tableau du bureau ne lit son historique que hors
+    téléphone (`enabled`), il ne change pas de taille.
+  - 6 — « Sans contact depuis 30 jours, les moins vus d'abord » : alias motivé dans la fiche.
+  - 8 — `BoostDialog` inchangé dans son rendu (11 tests verts) ; ablations par règle extraite (clé
+    d'idempotence, `credits.insufficient`).
+  - 9 a appliquée : `CreditBoostResource` rend `duration_days` (cumulée par prolongation, 0 pour une
+    Remontée ; `CreditsBoostsListTest`). « Vedette 7 j » ; « Relancer » rachète l'offre ACTIVE de même famille
+    et de même durée au prix d'aujourd'hui ; sans offre correspondante (Vedette prolongée à 14 j, offre
+    retirée), pas de « Relancer ».
+  - 10 — le libellé du solde suit la NATURE de l'espace actif (`natureDeLEspaceActif`, `GET /api/me/profiles`),
+    pas le rôle : l'hôte de démo (utilisateur 50) est `agency_admin` de son espace `individual` — mesuré — et lit
+    « Solde de votre espace » ; une agence `standard` lit « Solde de l'agence » ; un espace inconnu, « de votre
+    espace ».
+  - Les phrases de l'effet sur le boost en place sont celles de la fenêtre d'achat (`boost.dialog.effect.*`),
+    aucune copie dans `credits.*`.
+- Tests : `credits/__tests__/credits.tck-2664.test.tsx` (15) et `CreditsBoostsListTest` (API) ; 27 ablations toutes
+  rouges (dont `duration_days` de la ressource, la durée dans « Relancer », l'espace du libellé, l'espace i18n de
+  l'effet). Le bien choisi reste en
+  tête de la liste quelle que soit la recherche (on n'achète jamais pour un bien qu'on ne voit plus). Relevé du panneau « Historique » à 390 : 42
+  opérations, deux lignes au plus, aucun détail coupé (les motifs de démo sont courts : 31 caractères au plus). Fiche :
+  `docs/qa/audit-ux-2026-11/fidelite/TCK-2664.json`.

@@ -204,6 +204,7 @@ class CreditsBoostsListTest extends ApiTestCase
         $this->assertSame('featured', $row['kind']);
         $this->assertSame('ended', $row['status']);
         $this->assertSame(20, $row['price_credits']);
+        $this->assertSame(7, $row['duration_days']);
         $this->assertSame(['id', 'title', 'main_photo_url', 'quarter'], array_keys($row['property']));
         $this->assertSame('Villa Mermoz', $row['property']['title']);
         $this->assertSame('Mermoz', $row['property']['quarter']);

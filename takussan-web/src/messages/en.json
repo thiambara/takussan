@@ -15485,16 +15485,20 @@
   },
   "credits": {
     "metaTitle": "Credits",
-    "title": "Workspace credits",
-    "subtitle": "Your workspace credits pay for promoting your listings.",
-    "balance": "Balance",
-    "balanceValue": "{count, plural, =0 {No credits} one {# credit} other {# credits}}",
     "lots": {
-      "title": "Available credits",
       "empty": "No credits available yet.",
-      "expires": "Expires on {date}",
       "noExpiry": "No expiry",
-      "remaining": "{remaining} of {initial}"
+      "remaining": "{remaining} of {initial}",
+      "origines": {
+        "welcome": "Welcome offer",
+        "admin_grant": "Offered by Takussan",
+        "refund": "Refund",
+        "purchase": "Purchase"
+      },
+      "surInitial": "of {initial}",
+      "recus": "received on {date}",
+      "jaugeAria": "{remaining} credits left of {initial}",
+      "expireDans": "Expires on {date} · {count, plural, =0 {today} one {in # day} other {in # days}}"
     },
     "origins": {
       "welcome": "Welcome offer",
@@ -15503,23 +15507,9 @@
       "purchase": "Purchase"
     },
     "movements": {
-      "title": "History",
       "caption": "Workspace credit history",
       "empty": "No activity yet.",
-      "colDate": "Date",
-      "colType": "Operation",
-      "colAmount": "Credits",
-      "colReason": "Reason",
-      "colObject": "Item",
-      "object": "{offer} — {property}",
-      "offers": {
-        "bump": "Bump",
-        "featured": "Featured",
-        "badge": {
-          "urgent": "“Urgent” badge",
-          "price_drop": "“Price drop” badge"
-        }
-      }
+      "object": "{offer} — {property}"
     },
     "types": {
       "grant": "Grant",
@@ -15529,7 +15519,136 @@
       "admin_debit": "Debit by Takussan"
     },
     "loadError": "Could not load the credits.",
-    "retry": "Retry"
+    "retry": "Retry",
+    "page": {
+      "titre": "Credits",
+      "sousTitre": "What your promotions cost, and what they bring in.",
+      "unite": "{count, plural, one {credit} other {credits}}",
+      "expirent": "{count, plural, one {# expires} other {# expire}} on {date}",
+      "soldeAgence": "Agency balance",
+      "soldeEspace": "Your space’s balance",
+      "mettreEnAvant": "Promote a property",
+      "recharger": "Top up",
+      "bientot": "Soon",
+      "cout": "What it costs",
+      "historique": "History",
+      "lots": "Credit lots",
+      "toutVoir": "See all",
+      "derniere": "Last operation: {date} · {delta} {count, plural, one {credit} other {credits}}",
+      "nbLots": "{count, plural, one {# lot} other {# lots}}",
+      "expireLe": "expires on {date}"
+    },
+    "reserve": {
+      "titre": "This page is reserved for the space’s administrators",
+      "texte": "Credits pay for promoting properties. To promote a property, ask an administrator of your space."
+    },
+    "offres": {
+      "bump": {
+        "nom": "Bump",
+        "detail": "Goes back to the top of the results"
+      },
+      "featured": {
+        "nom": "Featured",
+        "detail": "Top of the list and on the home page",
+        "court": "Featured {jours} d"
+      },
+      "urgent": {
+        "nom": "“Urgent” badge",
+        "detail": "{jours, plural, one {# day} other {# days}} on the listing"
+      },
+      "price_drop": {
+        "nom": "“Price drop” badge",
+        "detail": "{jours, plural, one {# day} other {# days}} on the listing"
+      },
+      "paliers": "{paliers} {count, plural, one {credit} other {credits}}",
+      "palier": "{jours} d: {prix}"
+    },
+    "historique": {
+      "quand": "{date}, {heure}"
+    },
+    "pied": "{debut} to {fin} of {total}",
+    "boosts": {
+      "titre": "Promoted right now",
+      "vide": "No promotion for now.",
+      "fin": {
+        "enPause": "paused",
+        "jusquau": "until {date}",
+        "enCours": "running",
+        "terminee": "ended on {date}",
+        "annulee": "cancelled on {date}",
+        "remboursee": "refunded on {date}"
+      },
+      "etat": {
+        "paused": "Paused",
+        "ended": "Ended",
+        "cancelled": "Cancelled",
+        "refunded": "Refunded"
+      },
+      "relancer": "Run again · {count, plural, one {# credit} other {# credits}}",
+      "relancerCourt": "Run again · {prix}",
+      "relancerAria": "Run the promotion of “{bien}” again for {count, plural, one {# credit} other {# credits}}",
+      "restants": "{count, plural, =0 {last day} one {# d left} other {# d left}}",
+      "mesures": {
+        "vues": "<n>{count}</n> {count, plural, one {view} other {views}}",
+        "contacts": "<n>{count}</n> {count, plural, one {contact} other {contacts}}",
+        "visites": "<n>{count}</n> {count, plural, one {visit} other {visits}}"
+      },
+      "col": {
+        "bien": "Property",
+        "offre": "Offer",
+        "fin": "End",
+        "vues": "Views",
+        "contacts": "Contacts",
+        "visites": "Visits"
+      }
+    },
+    "pousser": {
+      "titre": "To push",
+      "titreCompte": "To push · {count, plural, one {# property with no contact} other {# properties with no contact}} for 30 days",
+      "compte": "{count, plural, one {# property with no contact} other {# properties with no contact}} for 30 days.",
+      "prixRemontee": "A Bump costs {count, plural, one {# credit} other {# credits}}",
+      "vide": "No property without contact for 30 days.",
+      "vues": "{count, plural, one {# view} other {# views}}",
+      "remonter": "Bump · {prix}",
+      "remonterAria": "Bump “{bien}” for {count, plural, one {# credit} other {# credits}}"
+    },
+    "flux": {
+      "titre": "Promote a property",
+      "solde": "Balance: {count, plural, =0 {no credits} one {# credit} other {# credits}}",
+      "etapeBien": "1 · Which property?",
+      "etapeOffre": "2 · Which promotion?",
+      "ordre": "No contact for 30 days, least viewed first",
+      "chercher": "Search your {count, plural, one {# online property} other {# online properties}}",
+      "chercherSansCompte": "Search your online properties",
+      "chercherAria": "Search an online property, by title or reference",
+      "aucunContact": "no contact",
+      "dernierContact": "last contact on {date}",
+      "aucunResultat": "No online property matches “{q}”.",
+      "aucuneSuggestion": "No property without contact for 30 days: search your online properties.",
+      "biensEnEchec": "Your online properties could not be loaded.",
+      "reessayer": "Retry",
+      "detail": {
+        "bump": "Goes back to the top of the results, once",
+        "featured": "Top of the list and on the home page",
+        "urgent": "{jours, plural, one {# day} other {# days}} on the listing",
+        "price_drop": "{jours, plural, one {# day} other {# days}} on the listing"
+      },
+      "dureesAria": "Featured duration",
+      "duree": "{jours, plural, one {# day} other {# days}}",
+      "prix": "{count, plural, =0 {free} one {# credit} other {# credits}}",
+      "manque": "You are {count, plural, one {# credit} other {# credits}} short",
+      "manqueCourt": "{count, plural, one {# short} other {# short}}",
+      "pasDAchat": "Buying credits is coming soon. Meanwhile, choose an offer your balance covers.",
+      "restera": "You will have <b>{count, plural, =0 {no credits} one {# credit} other {# credits}}</b> left of {solde}",
+      "confirmer": "Promote · {count, plural, =0 {free} one {# credit} other {# credits}}",
+      "confirmerSansChoix": "Promote",
+      "vedette": "Featured {jours, plural, one {# day} other {# days}}",
+      "resume": "{offre} · {bien}",
+      "fermer": "Close",
+      "echecAchat": "The promotion could not be saved.",
+      "fait": "“{bien}” is promoted: {offre}.",
+      "bienEnEchec": "This property's promotions could not be loaded."
+    }
   },
   "commissions": {
     "metaTitle": "Commissions",

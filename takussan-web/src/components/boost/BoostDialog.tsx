@@ -18,9 +18,9 @@ import {
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { cn } from '@/lib/utils';
-import { useBoostProducts, useBuyBoost, useCredits, usePropertyBoosts } from './api';
-import { effetAchat, type EffetAchat } from './effet-achat';
-import { manqueDeCredits, type BoostProduct } from './types';
+import type { EffetAchat } from './effet-achat';
+import type { BoostProduct } from './types';
+import { useAchatDeBoost } from './useAchatDeBoost';
 
 export interface BoostDialogProps {
   readonly propertyId: number;
@@ -32,36 +32,18 @@ export interface BoostDialogProps {
 /**
  * TCK-633 lot F (ADR-0061 §5, AC14) — choisir une mise en avant. Le solde et le montant manquant
  * sont dits AVANT la confirmation ; il n'y a pas de bouton d'achat de crédits (phase 2, §11).
+ * TCK-2664 — les règles de l'achat vivent dans `useAchatDeBoost`, partagé avec le parcours de la
+ * page Crédits : ce dialogue n'en garde que le rendu.
  */
-/** TCK-822 — une clé par ouverture du dialogue ; l'offre choisie la complète (cf. `cleAchat`). */
-function nouvelleOuverture(): string {
-  return globalThis.crypto.randomUUID();
-}
-
 export function BoostDialog({ propertyId, propertyTitle, open, onOpenChange }: BoostDialogProps) {
   const t = useTranslations('boost');
   const router = useRouter();
   const messageErreur = useMessageErreurApi();
-  const credits = useCredits(open);
-  const offres = useBoostProducts(open);
-  const [choix, setChoix] = useState<number | null>(null);
-  const [ouverture, setOuverture] = useState(nouvelleOuverture);
-  // TCK-822 (P24.01) : la clé naît à l'ouverture et reste la même tant que le dialogue est ouvert,
-  // si bien qu'un « Confirmer » repris après une réponse perdue ne débite pas deux fois. Elle porte
-  // l'offre : choisir une autre offre est un autre achat, que l'API refuserait sous la même clé.
-  const achat = useBuyBoost(propertyId, `${ouverture}-${choix ?? 0}`);
-  const [fait, setFait] = useState(false);
-
-  const solde = credits.data?.data.balance ?? 0;
-  const liste = offres.data?.data ?? [];
-  const offre = liste.find((p) => p.id === choix) ?? null;
-  const manque = offre ? Math.max(0, offre.price_credits - solde) : 0;
-  const refusSolde = manqueDeCredits(achat.error);
-  // TCK-824 (P24.02) — le boost en place, lu à l'ouverture : l'offre choisie dit ce qu'elle lui fera.
   const f = useFormatteurs();
-  const enPlace = usePropertyBoosts(propertyId, open);
-  const [maintenant] = useState(() => Date.now());
-  const effet = effetAchat(offre, enPlace.data?.data ?? [], enPlace.data?.bump_available_at ?? null, maintenant);
+  const a = useAchatDeBoost({ propertyId, ouvert: open });
+  const { achat, solde, offre, manque, refusSolde, effet, choix } = a;
+  const liste = a.offres;
+  const [fait, setFait] = useState(false);
 
   const libelle = (p: BoostProduct) =>
     p.kind === 'bump'
@@ -87,29 +69,19 @@ export function BoostDialog({ propertyId, propertyTitle, open, onOpenChange }: B
 
   const fermer = (ouvert: boolean) => {
     if (!ouvert) {
-      setChoix(null);
+      a.reinitialiser();
       setFait(false);
-      setOuverture(nouvelleOuverture());
-      achat.reset();
     }
     onOpenChange(ouvert);
   };
 
-  const confirmer = () => {
-    if (!offre || manque > 0) return;
-    achat.mutate(
-      { product_id: offre.id },
-      {
-        onSuccess: () => {
-          setFait(true);
-          router.refresh();
-        },
-      },
-    );
-  };
+  const confirmer = () =>
+    a.confirmer(() => {
+      setFait(true);
+      router.refresh();
+    });
 
-  const chargement = credits.isLoading || offres.isLoading || enPlace.isLoading;
-  const echec = credits.isError || offres.isError || enPlace.isError;
+  const { chargement, echec } = a;
 
   return (
     <Dialog open={open} onOpenChange={fermer}>
@@ -124,11 +96,7 @@ export function BoostDialog({ propertyId, propertyTitle, open, onOpenChange }: B
         ) : echec ? (
           <ErrorState
             message={t('dialog.loadError')}
-            onRetry={() => {
-              void credits.refetch();
-              void offres.refetch();
-              void enPlace.refetch();
-            }}
+            onRetry={a.relire}
             retryLabel={t('dialog.retry')}
           />
         ) : (
@@ -140,7 +108,7 @@ export function BoostDialog({ propertyId, propertyTitle, open, onOpenChange }: B
                   <button
                     type="button"
                     aria-pressed={choix === p.id}
-                    onClick={() => setChoix(p.id)}
+                    onClick={() => a.choisir(p.id)}
                     className={cn(
                       'flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left text-sm transition-colors',
                       choix === p.id ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted',

@@ -1,0 +1,221 @@
+{
+  "ticket": "TCK-2664",
+  "ecrans": [
+    {
+      "page": "app-credits",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "Crédits",
+      "references": {
+        "telephone": "references/app-credits/a-0-telephone.json",
+        "bureau-1440": "references/app-credits/a-0-bureau-1440.json",
+        "bureau-1280": "references/app-credits/a-0-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/credits",
+        "persona": "admin",
+        "etat": "l'admin de l'agence de démo : solde 60 (un lot « Offerts par Takussan » 60 sur 60, expire le 24 déc.), 34 mises en avant (les premières en pause, mesures à 0), 43 biens à pousser, 42 opérations"
+      }
+    },
+    {
+      "page": "app-credits",
+      "approche": "a",
+      "ecran": 1,
+      "nom": "Mettre en avant",
+      "references": {
+        "telephone": "references/app-credits/a-1-telephone.json",
+        "bureau-1440": "references/app-credits/a-1-bureau-1440.json",
+        "bureau-1280": "references/app-credits/a-1-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/credits",
+        "persona": "admin",
+        "etat": "« Mettre un bien en avant » ouvert, le premier bien à pousser et « Vedette 7 jours » choisis (`--perturber perturber-flux.js`) ; tout POST vers /boosts est refusé dans la page : rien n'est acheté"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/credits",
+    "persona": "admin",
+    "disposition": "admin-agence",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": null
+  },
+  "roles": [],
+  "zones": [],
+  "alias": {
+    "Messages": "Messagerie",
+    "Les moins vus en 30 jours d’abord": "Sans contact depuis 30 jours, les moins vus d’abord",
+    "Chercher parmi vos 72 biens en ligne": "Chercher parmi vos 67 biens en ligne"
+  },
+  "ancres": [],
+  "ignorer": [
+    {
+      "element": "barre d'onglets du téléphone (« Messages », « Menu » actif) et barre latérale du bureau (rubriques, libellés, compteurs, « Plus », « Modifier le menu »)",
+      "motif": "exclus du ticket : navigation de la famille 3 ; les deux barres sont les primitives de la coque, communes à tout /app — mêmes exclusions que TCK-2677"
+    },
+    {
+      "element": "page Crédits sous le formulaire plein écran (a-1 téléphone) et sous le voile du dialogue (a-1 bureau)",
+      "motif": "le relevé lit aussi la page que le panneau ou le dialogue recouvre : ses libellés (« Crédits », « Recharger », « En pause »…) ressortent « absents de la maquette » ou appariés à tort avec ceux du dialogue (« Vedette », « Remontée ») ; seul le contenu du panneau et du dialogue est comparé ancre à ancre"
+    }
+  ],
+  "ecarts_acceptes": [
+    {
+      "ecran": "a-*",
+      "element": "titres des biens, quartiers, photos, nombre de mises en avant (34) et de biens à pousser (43), états « En pause », mesures à 0, dates, nombre d'opérations",
+      "propriete": "texte, largeur, nombre de lignes et y de tout ce qui suit",
+      "exception": "vérité des données",
+      "motif": "la base de démo du 2026-11-12 (agence de démo) : 34 mises en avant dont les premières sont en pause (fin non datée : « en pause », pas de « 2 j restants » ni de « Relancer » pour une mise en avant en cours), mesures toutes à 0, 43 biens sans contact depuis 30 jours ; le tableau des mises en avant (10 par page) pousse « Lots de crédits » et « Historique » sous le pli au bureau, et « À pousser » au téléphone"
+    },
+    {
+      "ecran": "a-0",
+      "element": "« × la semaine d'avant » (sous les vues)",
+      "propriete": "absent du produit",
+      "exception": "décision produit",
+      "motif": "contrainte du ticket : la mesure n'existe pas (TCK-2663, aucune série de vues par jour) ; aucune comparaison inventée"
+    },
+    {
+      "ecran": "a-0 bureau",
+      "element": "« Rapport des 30 derniers jours » (en-tête « En avant en ce moment ») et « Lots épuisés ou expirés » (en-tête « Lots de crédits »)",
+      "propriete": "absents du produit",
+      "exception": "décision produit",
+      "motif": "décision 4 a (recommandation, en attente du porteur) : le rapport détaillé est hors périmètre du ticket ; l'API ne rend que les lots dépensables (`CreditLot::spendable()`), aucun lot épuisé ou expiré à montrer"
+    },
+    {
+      "ecran": "a-0",
+      "element": "« vues » d'une mise en avant (pastille, ligne et colonne « Vues » du tableau)",
+      "propriete": "sens de la mesure",
+      "exception": "décision produit",
+      "motif": "décision 1 a (team-lead, 2026-11-12) : « vues » = les fiches ouvertes depuis un emplacement de la mise en avant (`measures.clicks`) ; les impressions (`measures.impressions`) ne s'affichent jamais sous « vues ». Les « vues » des biens à pousser sont celles du bien (`views_count`), le tri de `GET /api/credits/suggestions`"
+    },
+    {
+      "ecran": "a-1",
+      "element": "libellé d'ordre des biens proposés (« Sans contact depuis 30 jours, les moins vus d'abord » au lieu de « Les moins vus en 30 jours d'abord »), sur deux lignes au téléphone",
+      "propriete": "texte, hauteur, y de tout ce qui suit",
+      "exception": "décision produit",
+      "motif": "décision 6 a (recommandation) : la liste est celle de `GET /api/credits/suggestions` — sans contact depuis 30 jours, puis les moins vus ; le libellé de la maquette décrivait un autre tri"
+    },
+    {
+      "ecran": "a-1",
+      "element": "cinq biens proposés au lieu de quatre ; dialogue du bureau plus haut (centré)",
+      "propriete": "nombre de lignes, y du dialogue et de son contenu",
+      "exception": "vérité des données",
+      "motif": "cinq suggestions de l'API (`limit=5`) ; le dialogue est centré verticalement, sa hauteur suit le nombre de biens"
+    },
+    {
+      "ecran": "a-*",
+      "element": "« Mettre un bien en avant », « Mettre en avant · 20 crédits », « Fermer », « Remonter · 5 »",
+      "propriete": "graisse, bordure, marges, écart",
+      "exception": "règle du design system",
+      "motif": "primitive `Button` (`buttonVariants`), seule admise dans /app — même exception que TCK-2660 et TCK-2662"
+    },
+    {
+      "ecran": "a-*",
+      "element": "pastilles « Vedette », « En pause », « Terminée », « Bientôt »",
+      "propriete": "rayon, bordure, marges, encre",
+      "exception": "règle du design system",
+      "motif": "`StatusBadge`, seule pastille de statut admise (`check-status-badge-unique`) — même exception que TCK-2660"
+    },
+    {
+      "ecran": "a-*",
+      "element": "icônes (trending-up, plus, eye, clock, arrow-up, star, flame, trending-down, history, layers, search, x)",
+      "propriete": "trait",
+      "exception": "règle du design system",
+      "motif": "trait uniforme des icônes de la coque (TCK-2685) — mêmes exceptions que TCK-2659"
+    },
+    {
+      "ecran": "a-*",
+      "element": "encres secondaires (« crédits » après le solde, « Bientôt », lieux, détails)",
+      "propriete": "couleur",
+      "exception": "règle du design system",
+      "motif": "l'encre douce opaque remplace les encres translucides des maquettes (docs/design-guidelines.md, « L'encre douce » ; `encre-sans-alpha`)"
+    },
+    {
+      "ecran": "a-*",
+      "element": "intertitres du téléphone (« En avant en ce moment », « À pousser », « Ce que ça coûte »)",
+      "propriete": "espacement des lettres",
+      "exception": "règle du design system",
+      "motif": "jeton `tracking-surtitre` (`check-valeurs-arbitraires-app` refuse `tracking-[…]`)"
+    },
+    {
+      "ecran": "a-1",
+      "element": "radios des biens et des offres, champ de recherche",
+      "propriete": "taille, bordure",
+      "exception": "règle du design system",
+      "motif": "primitives `Radio` (20 px, bord `controle-vide` 3:1, ADR-0106 § 2 a) et `DebouncedSearchInput` (recherche temporisée côté serveur, bouton « effacer »)"
+    },
+    {
+      "ecran": "a-1 bureau",
+      "element": "voile derrière le dialogue",
+      "propriete": "pixels",
+      "exception": "règle du design system",
+      "motif": "primitive `Dialog` (`DialogPrimitive.Backdrop`, `backdrop-blur-xs`) ; le contenu du dialogue est comparé ancre à ancre"
+    },
+    {
+      "ecran": "a-*",
+      "element": "« Fermer » (✕) du dialogue et du panneau, « Aller au contenu principal »",
+      "propriete": "absent de la maquette",
+      "exception": "règle du design system",
+      "motif": "bouton de fermeture des primitives `Dialog` / `PanneauDroit` (44 × 44) et lien d'évitement de la coque (WCAG 2.4.1) — mêmes exceptions que TCK-2619 et TCK-2660"
+    },
+    {
+      "ecran": "a-0 bureau",
+      "element": "lots et historique en deux colonnes dès `xl`",
+      "propriete": "disposition",
+      "exception": "décision produit",
+      "motif": "la maquette pose `xl:grid-cols-[5fr_7fr]` ; le ticket disait « dès `lg` » : à 1024 la largeur utile (694 px) ne tient pas les deux colonnes — même lecture que la décision 5 a de TCK-2662"
+    },
+    {
+      "ecran": "a-0 bureau, a-1 bureau",
+      "element": "solde de la carte compacte (32 px au lieu de 34) et tout ce qui suit dans la colonne de droite (−3 px)",
+      "propriete": "taille de police, y",
+      "exception": "règle du design system",
+      "motif": "jeton `text-affiche-32` (« 34 px rabattus », globals.css) : aucun jeton de 34 px, `check-valeurs-arbitraires-app` refuse `text-[34px]`"
+    },
+    {
+      "ecran": "a-0 bureau, a-1 bureau",
+      "element": "titre « Crédits » et sous-titre de la tête de page",
+      "propriete": "largeur de la boîte",
+      "exception": "règle du design system",
+      "motif": "primitive `PageHeader` (la boîte du texte prend sa largeur, celle de la maquette s'étire) ; position, police et encre identiques"
+    },
+    {
+      "ecran": "a-0 bureau",
+      "element": "« En avant en ce moment » (titre de carte), tableau nommé « En avant en ce moment »",
+      "propriete": "largeur ; absent de la maquette",
+      "exception": "règle du design system",
+      "motif": "le titre de carte prend la place laissée par l'action « Rapport » écartée (décision 4 a) ; le tableau porte le nom de sa carte (`role=table`, `aria-label`)"
+    },
+    {
+      "ecran": "a-0 bureau",
+      "element": "pied paginé du tableau des mises en avant (« 1 à 10 sur 34 », précédent, suivant)",
+      "propriete": "absent de la maquette",
+      "exception": "vérité des données",
+      "motif": "34 mises en avant, 10 par page (décision 5 a) ; la maquette en dessine 2"
+    },
+    {
+      "ecran": "a-0",
+      "element": "« Lots de crédits », « Historique », « Tout voir », « Offerts par Takussan », « Remonter · 5 », « À pousser »",
+      "propriete": "absents du produit (sous le pli)",
+      "exception": "vérité des données",
+      "motif": "le tableau des mises en avant (10 lignes) pousse ces sections sous le pli du relevé ; relevées à part, défilées (`v4-bas-telephone`, `v4-bas-bureau-1440`) et dans le panneau « Historique » (42 opérations sur 3 pages, aucun détail coupé, deux lignes au plus)"
+    },
+    {
+      "ecran": "a-1 bureau",
+      "element": "✕ du dialogue (14,4 px au bureau)",
+      "propriete": "taille, trait, position",
+      "exception": "règle du design system",
+      "motif": "bouton de fermeture de la primitive `Dialog`, à l'échelle du bureau (ADR-0107)"
+    },
+    {
+      "ecran": "a-0",
+      "element": "« Relancer » absent d'une Vedette terminée après prolongation (durée cumulée, ex. 14 j)",
+      "propriete": "présence",
+      "exception": "décision produit",
+      "motif": "décision 9 a : « Relancer » rachète l'offre ACTIVE de même famille et de même durée au prix d'aujourd'hui (`duration_days` rendu par `CreditBoostResource`) ; une durée cumulée par prolongation n'a pas d'offre correspondante, donc pas de « Relancer »"
+    }
+  ]
+}

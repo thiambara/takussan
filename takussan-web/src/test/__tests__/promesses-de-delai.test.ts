@@ -136,6 +136,18 @@ const REGISTRE: Readonly<Record<string, string>> = {
     'takussan-web/src/components/admin/finances/impayes/tranches.ts:21 — plus30 = days_late_min 31 (plus de 30 jours de retard)',
   'admin.finances.impayes.tranches.moins8':
     'takussan-web/src/components/admin/finances/impayes/tranches.ts:23 — moins8 = days_late 1 à 7 (moins de 8 jours de retard)',
+  // TCK-2664 — « À pousser » : les biens SANS CONTACT depuis 30 jours que l'API choisit (TCK-2663). Une
+  // fenêtre de mesure, pas un délai promis.
+  'credits.pousser.titreCompte':
+    'takussan-api/app/Services/Credits/BoostSuggestions.php:19 — QUIET_DAYS = 30, appliqué à :45 (sans demande de contact depuis)',
+  'credits.pousser.compte':
+    'takussan-api/app/Services/Credits/BoostSuggestions.php:19 — QUIET_DAYS = 30, appliqué à :45 (sans demande de contact depuis)',
+  'credits.pousser.vide':
+    'takussan-api/app/Services/Credits/BoostSuggestions.php:19 — QUIET_DAYS = 30, appliqué à :45 (sans demande de contact depuis)',
+  'credits.flux.ordre':
+    'takussan-api/app/Services/Credits/BoostSuggestions.php:19 — QUIET_DAYS = 30, appliqué à :45 (sans demande de contact depuis)',
+  'credits.flux.aucuneSuggestion':
+    'takussan-api/app/Services/Credits/BoostSuggestions.php:19 — QUIET_DAYS = 30, appliqué à :45 (sans demande de contact depuis)',
 };
 
 /**
