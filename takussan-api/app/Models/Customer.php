@@ -17,6 +17,7 @@ use App\Sorts\CollatedNameSort;
 use App\Sorts\CustomerFollowUpSort;
 use App\Sorts\CustomerLastContactedSort;
 use App\Sorts\CustomerNextActionSort;
+use App\Support\Query\CompteDansLAgenceDeLaFiche;
 use App\Support\Query\DepartageQueryBuilder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -30,6 +31,7 @@ use Illuminate\Support\Facades\Validator;
 use Laravel\Scout\Searchable;
 use Spatie\Activitylog\Support\LogOptions;
 use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\AllowedInclude;
 use Spatie\QueryBuilder\AllowedSort;
 use Spatie\QueryBuilder\QueryBuilder;
 
@@ -131,8 +133,11 @@ class Customer extends AbstractModel
      */
     protected static array $requestLoadable = ['user', 'agency', 'addresses', 'tags', 'addedBy', 'notes', 'documents', 'tasks', 'upcomingVisits', 'origin', 'interestedProperty'];
 
-    /** TCK-2588 — `visitsCount`. */
-    protected static array $requestCountable = ['bookings', 'leases', 'notes', 'tasks', 'visits'];
+    /**
+     * TCK-2588 — `visitsCount`. TCK-2589 — `bookingsCount` et `leasesCount` sont déclarés à part
+     * ({@see self::getAllowedQueryIncludes()}) : comptés dans l'agence de la fiche seulement.
+     */
+    protected static array $requestCountable = ['notes', 'tasks', 'visits'];
 
     protected static array $requestSearchFields = ['first_name', 'last_name', 'email', 'phone'];
 
@@ -177,6 +182,21 @@ class Customer extends AbstractModel
                 ],
             )
             ->allowedIncludes(...static::getAllowedQueryIncludes());
+    }
+
+    /**
+     * TCK-2589 — les comptes du dossier de la fiche (« Réservations », « Baux ») : ceux de l'agence
+     * de la fiche seulement ({@see CompteDansLAgenceDeLaFiche}).
+     *
+     * @return array<int, AllowedInclude>
+     */
+    protected static function getAllowedQueryIncludes(): array
+    {
+        return [
+            ...parent::getAllowedQueryIncludes(),
+            AllowedInclude::custom('bookingsCount', new CompteDansLAgenceDeLaFiche('bookings')),
+            AllowedInclude::custom('leasesCount', new CompteDansLAgenceDeLaFiche('leases')),
+        ];
     }
 
     /**

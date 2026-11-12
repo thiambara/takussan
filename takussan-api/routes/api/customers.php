@@ -36,6 +36,8 @@ Route::middleware('auth:sanctum')->group(function () {
         ->name('customers.invite');
     // TCK-591 — le journal de la fiche (client, notes, tâches), autorisé par la lecture du client.
     Route::get('customers/{customer}/activity', [CustomerController::class, 'activity'])->name('customers.activity');
+    // TCK-2589 — le fil de la fiche (notes, visites, contacts, étapes), autorisé comme la lecture du client.
+    Route::get('customers/{customer}/timeline', [CustomerController::class, 'timeline'])->name('customers.timeline');
     // TCK-2583 — un geste de contact sur la fiche (WhatsApp, appel, e-mail, SMS) : 204.
     Route::post('customers/{customer}/contacts', [ContactGestureController::class, 'forCustomer'])->name('customers.contacts.store');
 

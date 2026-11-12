@@ -108,6 +108,17 @@ class CustomerResource extends BaseResource
                 array_key_exists('visits_count', $this->resource->getAttributes()) && $this->readsVisits($request),
                 fn () => (int) $this->visits_count,
             ),
+            // TCK-2589 — les comptes du dossier (« Réservations », « Baux »), dans l'agence de la fiche
+            // (`CompteDansLAgenceDeLaFiche`) et au même lecteur que `visits_count` : une
+            // réservation ou un bail peut porter sur le bien d'un autre bailleur.
+            'bookings_count' => $this->when(
+                array_key_exists('bookings_count', $this->resource->getAttributes()) && $this->readsVisits($request),
+                fn () => (int) $this->bookings_count,
+            ),
+            'leases_count' => $this->when(
+                array_key_exists('leases_count', $this->resource->getAttributes()) && $this->readsVisits($request),
+                fn () => (int) $this->leases_count,
+            ),
             'upcoming_visits' => $this->when(
                 $this->relationLoaded('upcomingVisits') && $this->readsVisits($request),
                 fn () => $this->upcomingVisits->map(fn ($v) => [

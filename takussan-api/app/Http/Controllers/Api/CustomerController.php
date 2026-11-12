@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Exceptions\ApiError;
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\CustomerTimelineRequest;
 use App\Http\Requests\Api\DismissSuggestedStageRequest;
 use App\Http\Requests\Api\PipelineStatsRequest;
 use App\Http\Requests\Api\SetPrimaryContactCustomerRequest;
@@ -26,6 +27,7 @@ use App\Services\Crm\CustomerActivityFeed;
 use App\Services\Crm\CustomerCommercialAttributes;
 use App\Services\Crm\CustomerDuplicateDetector;
 use App\Services\Crm\CustomerSuggestedStageQuery;
+use App\Services\Crm\CustomerTimeline;
 use App\Services\Crm\PipelineStatsService;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Privacy\PersonalDataAccessLogger;
@@ -374,6 +376,27 @@ class CustomerController extends Controller
             $paginator,
             $paginator->getCollection()->map(fn ($log) => $feed->format($log))->values()->all(),
         );
+    }
+
+    /**
+     * TCK-2589 — le fil de la fiche : notes, visites, gestes de contact et changements d'étape,
+     * mêlés dans le temps, paginés ici. Autorisé comme la lecture de la fiche (le FormRequest
+     * délègue à `CustomerPolicy::view`). Les visites et les gestes de contact sont des faits de
+     * l'agence : au seul personnel de l'agence de la fiche (`viewVisitReports`), comme
+     * `upcoming_visits` et les comptes rendus.
+     */
+    public function timeline(CustomerTimelineRequest $request, Customer $customer, CustomerTimeline $timeline): JsonResponse
+    {
+        $paginator = $timeline->paginate(
+            $customer,
+            $request->user(),
+            $request->user()->can('viewVisitReports', $customer),
+            $request->types(),
+            $this->tailleDePage($request, 20),
+            max(1, (int) $request->input('page', 1)),
+        );
+
+        return $this->paginated($paginator, $paginator->getCollection()->all());
     }
 
     /**

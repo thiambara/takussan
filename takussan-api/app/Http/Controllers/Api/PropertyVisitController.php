@@ -32,6 +32,7 @@ use App\Services\Lead\ContactLeadService;
 use App\Services\Media\WatermarkRequirement;
 use App\Services\Notifications\ContactSansCompte;
 use App\Services\Property\PrimaryPropertyContact;
+use App\Services\Visit\VisitesLisibles;
 use App\Services\Visit\VisitNotifier;
 use App\Services\Visit\VisitReadContext;
 use App\Services\Visit\VisitReportService;
@@ -118,38 +119,15 @@ class PropertyVisitController extends Controller
     private function indexScope(Request $request): Builder
     {
         $user = $request->user();
-        $base = PropertyVisit::query();
-
-        if (! $user->isSuperAdmin()) {
-            // Vérification adverse (M7) — le créateur d'un bien d'agence n'en est le propriétaire
-            // que s'il y est bailleur actif (`PrimaryPropertyContact::estProprietaire`).
-            $bailleurDe = PersonnelDeLAgence::agencesOuBailleur($user);
-            // Passe 3 (M7′) — l'agent assigné ne lit la visite d'un bien d'agence que tant qu'il
-            // est du personnel de cette agence : parti ou suspendu, il la perd, comme dans `view`.
-            // Passe 4 (X1) — le compte doit être joignable ; passe 5 (X1′) — et l'agence est celle
-            // du profil actif (ADR-0031 §1) : `agencesOuPersonnelActif`, au plus une.
-            $personnelDe = PersonnelDeLAgence::agencesOuPersonnelActif($user);
-            $request->attributes->set('visits.staff_agencies', $personnelDe);
-            // P217.05 (TCK-2237) — sur un bien SANS agence, le créateur n'est propriétaire que
-            // joignable, comme dans `view` (`PrimaryPropertyContact::estProprietaire`).
-            $proprietaireSansAgence = PrimaryPropertyContact::joignable($user);
-
-            $base->where(function ($q) use ($user, $bailleurDe, $personnelDe, $proprietaireSansAgence) {
-                $q->where('visitor_id', $user->id)
-                    ->orWhere(fn ($a) => $a->where('agent_id', $user->id)
-                        ->whereHas('property', fn ($p) => $p->whereNull('agency_id')->orWhereIn('agency_id', $personnelDe)))
-                    ->orWhereHas('property', fn ($p) => $p->where('user_id', $user->id)
-                        ->where(fn ($a) => $a->when($proprietaireSansAgence, fn ($s) => $s->whereNull('agency_id'))
-                            ->orWhereIn('agency_id', $bailleurDe)))
-                    ->orWhereHas('customer', fn ($c) => $c->where('user_id', $user->id));
-
-                if ($personnelDe !== []) {
-                    $q->orWhereHas('property', fn ($p) => $p->whereIn('agency_id', $personnelDe));
-                }
-            });
+        if ($user->isSuperAdmin()) {
+            return VisitesLisibles::pour($user);
         }
+        // La ressource lit les agences du personnel pour décider de la fiche client de chaque ligne.
+        $personnelDe = PersonnelDeLAgence::agencesOuPersonnelActif($user);
+        $request->attributes->set('visits.staff_agencies', $personnelDe);
 
-        return $base;
+        // TCK-2589 — la règle vit dans `VisitesLisibles`, que le fil de la fiche client lit aussi.
+        return VisitesLisibles::pour($user, $personnelDe);
     }
 
     public function show(Request $request, PropertyVisit $visit): JsonResponse
