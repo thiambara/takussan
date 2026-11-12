@@ -185,3 +185,28 @@ _(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, P
 - Tests : `tests/Feature/Property/OccupationHorsLocationTest.php` (filtre, bloc de la liste, fiche, résumé et
   concordance tuile/liste, bailleur, valeur inconnue). Ablations 5/5 rouges : sans `forRent` sur `vacant`, sans
   `not_rental` dans `attach`, sans `for_sale`, `vacant_since` d'une vente, état lu par la colonne chargée.
+
+### Lot C — l'écran du quota de `/app/properties/new` (2026-11-12, terrain-6)
+
+- **Prémisse re-mesurée** (API locale, GET seuls) : `GET /api/me/quota` rend `used 120 · limit 100 · can_create false`
+  à l'admin ET à l'agent de la démo (le chiffre est celui de l'AGENCE), et la même agence compte 67 biens en ligne
+  (`portfolio-summary.online` = `meta.total` de `filter[public]=1`). L'écran disait « Vous avez 120 annonces actives
+  sur 100 … changez d'offre » aux deux. **Pas de maquette** pour cet écran (`app-biens` n'en dessine pas) : aucune
+  référence de fidélité, rien à comparer.
+- **La définition est celle d'ADR-0097 § 6, pas celle du ticket.** Le ticket écrit « en ligne ou en attente » ; le
+  quota compte `QuotaResolver::ACTIVE_LISTING_STATUSES` (disponible, validé, en attente, en attente de validation)
+  **sans regarder la visibilité** — un bien privé validé compte et n'est pas en ligne. L'écran dit donc « Une
+  annonce est active quand elle est disponible, validée ou en attente de validation, qu'elle soit en ligne ou non ».
+- **Par rôle** (`isAdmin`, celui qui décidait déjà du lien « Voir les offres ») : l'admin lit « Archivez une annonce ou
+  changez d'offre … » et garde « Voir les offres » ; l'agent lit « Seul un administrateur de votre agence peut changer
+  d'offre. Vous pouvez archiver une annonce dont vous avez la charge … », sans lien vers les offres. Le chiffre dit
+  « Votre agence a 120 annonces actives sur 100 permises par son offre » aux deux. La note de l'assistant (sous la
+  limite) dit « … permises par l'offre de votre agence (disponibles, validées ou en attente de validation) ».
+- **Flèche de retour** : la route est plein écran (TCK-631), l'en-tête n'y avait que le logo. `EnTetePublication`
+  reçoit `retour` (facultatif) et rend `LienFlecheDeRetour`, la flèche de la coque, vers `/app/properties` ; le
+  parcours ne la reçoit jamais (sa sortie écrit le brouillon, TCK-465).
+- Clés : `dashboard.pages.propertyNew.quota.{usage,definition,admin,agent,note}` ; `quotaUsage` et `quotaReachedBody`
+  supprimées (leur seul lecteur était la page ; `pluriels.test.ts` lit désormais `quota.usage`).
+- Tests : `page.quota.test.tsx` passe au traducteur RÉEL (`createTranslator`) — le double serveur rendait le gabarit
+  ICU brut, et l'ancien test était vert sur « {used, plural, … } ». Ablations 4/4 rouges : message de l'admin donné à
+  l'agent, définition retirée, flèche retirée, note revenue à l'ancien texte.

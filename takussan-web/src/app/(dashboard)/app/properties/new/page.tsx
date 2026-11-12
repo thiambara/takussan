@@ -115,7 +115,9 @@ export default async function Page() {
   if (quota && !quota.can_create) {
     return (
       <div className="absolute inset-0 flex flex-col overflow-y-auto">
-        <EnTetePublication titre={titre} enregistrement="aucun" />
+        {/* TCK-2638 — la route est plein écran : sans parcours, l'en-tête n'avait que le logo, et la seule
+            issue était « Gérer mes annonces ». La flèche de la coque ramène à la liste. */}
+        <EnTetePublication titre={titre} enregistrement="aucun" retour="/app/properties" />
         <div className="flex flex-col gap-6 px-4 py-6 sm:px-8 md:py-10">
           <PageHeader title={titre} />
           <section
@@ -124,9 +126,15 @@ export default async function Page() {
             data-testid="quota-atteint"
           >
             <h2 className="font-display text-lg font-semibold text-foreground">{t('quotaReachedTitle')}</h2>
-            <p className="text-sm text-muted-foreground">
-              {t('quotaReachedBody', { used: quota.used, limit: quota.limit ?? 0 })}
+            {/* TCK-2638 (lot C, P1 de l'audit) — le chiffre de `GET /api/me/quota`, celui de l'AGENCE, et
+                ce qu'il compte (`QuotaResolver::ACTIVE_LISTING_STATUSES`, ADR-0097 § 6) : « actif » n'est
+                pas « en ligne », et la liste du même agent les compte à part. Puis ce que CE lecteur
+                peut faire : l'agent ne tient ni le quota ni l'abonnement. */}
+            <p className="text-sm text-foreground">
+              {t('quota.usage', { used: quota.used, limit: quota.limit ?? 0 })}
             </p>
+            <p className="text-sm text-muted-foreground">{t('quota.definition')}</p>
+            <p className="text-sm text-muted-foreground">{t(isAdmin(roles) ? 'quota.admin' : 'quota.agent')}</p>
             <div className="flex flex-wrap gap-2">
               {isAdmin(roles) ? (
                 <Link href="/app/agency/billing" className={buttonVariants({ size: 'sm' })}>
@@ -153,7 +161,7 @@ export default async function Page() {
         peutInviterUnBailleur={peutInviterUnBailleur}
         quotaNote={
           quota && quota.limit !== null
-            ? t('quotaUsage', { used: quota.used, limit: quota.limit })
+            ? t('quota.note', { used: quota.used, limit: quota.limit })
             : undefined
         }
       />

@@ -2723,11 +2723,16 @@
         "metaTitle": "Publish a property",
         "title": "Publish a property",
         "proposalTitle": "Propose a property to my agency",
-        "quotaUsage": "{used} of {limit} active listings allowed by your plan.",
         "quotaReachedTitle": "Listing limit reached",
-        "quotaReachedBody": "You have {used} of {limit} active listings. Archive one or change plan to publish a new one.",
         "quotaReachedUpgrade": "See plans",
-        "quotaReachedManage": "Manage my listings"
+        "quotaReachedManage": "Manage my listings",
+        "quota": {
+          "usage": "Your agency has {used, plural, one {# active listing} other {# active listings}} of the {limit} its plan allows.",
+          "definition": "A listing is active when it is available, approved or awaiting approval, whether or not it is online.",
+          "admin": "Archive a listing or change plan to publish a new one.",
+          "agent": "Only an administrator of your agency can change plan. You can archive a listing you are in charge of to publish a new one.",
+          "note": "{used, plural, one {# active listing} other {# active listings}} of the {limit} allowed by your agency’s plan (available, approved or awaiting approval)."
+        }
       },
       "privacy": {
         "metaTitle": "Privacy",

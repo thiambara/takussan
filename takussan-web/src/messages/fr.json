@@ -2680,11 +2680,16 @@
         "metaTitle": "Publier un bien",
         "title": "Publier un bien",
         "proposalTitle": "Proposer un bien à mon agence",
-        "quotaUsage": "{used, plural, one {# annonce active} other {# annonces actives}} sur {limit} permises par votre offre.",
         "quotaReachedTitle": "Limite d’annonces atteinte",
-        "quotaReachedBody": "Vous avez {used} annonces actives sur {limit}. Archivez-en une ou changez d’offre pour en publier une nouvelle.",
         "quotaReachedUpgrade": "Voir les offres",
-        "quotaReachedManage": "Gérer mes annonces"
+        "quotaReachedManage": "Gérer mes annonces",
+        "quota": {
+          "usage": "Votre agence a {used, plural, one {# annonce active} other {# annonces actives}} sur {limit} permises par son offre.",
+          "definition": "Une annonce est active quand elle est disponible, validée ou en attente de validation, qu’elle soit en ligne ou non.",
+          "admin": "Archivez une annonce ou changez d’offre pour en publier une nouvelle.",
+          "agent": "Seul un administrateur de votre agence peut changer d’offre. Vous pouvez archiver une annonce dont vous avez la charge pour en publier une nouvelle.",
+          "note": "{used, plural, one {# annonce active} other {# annonces actives}} sur {limit} permises par l’offre de votre agence (disponibles, validées ou en attente de validation)."
+        }
       },
       "privacy": {
         "metaTitle": "Confidentialité",
