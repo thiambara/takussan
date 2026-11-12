@@ -18,6 +18,7 @@ import {
 } from '@/lib/queries/conversations';
 import { messageErreurApi } from '@/lib/api';
 import { isAgencyAdmin, isAgent } from '@/lib/roles';
+import { typeDuProfilActif } from '@/lib/navigation/personas';
 import { useMatchesMaxWidth } from '@/hooks/useMatchesMedia';
 import { ApercuDeLaPiece, BoutonDePieceJointe, usePieceEnAttente } from './composeur/PieceJointeDuComposeur';
 import { ReponsesRapides, insererLaReponse } from './composeur/ReponsesRapides';
@@ -88,7 +89,7 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
   const tRacine = useTranslations();
   const tWidget = useTranslations('messaging.widget');
   const locale = useLocale() as Locale;
-  const { user } = useAuth();
+  const { user, activeProfileId } = useAuth();
   const [isVisible, setIsVisible] = useState(
     typeof document === 'undefined' ? true : !document.hidden,
   );
@@ -168,8 +169,13 @@ export function ChatView({ conversationId, variant = 'page', onBack, contexte, o
   const canSend = conversation?.abilities?.can_send_message !== false;
   // TCK-2632 — les réponses rapides sont celles de l'agence À SES CLIENTS : personnel d'agence, fil
   // à deux. Jamais pour un client (AC6), ni dans un groupe de travail.
+  // Suivi de vérification (2026-11-12) — jugées sur le profil ACTIF quand on le connaît, pas sur les
+  // rôles globaux : un compte agent ailleurs et bailleur ici ne parle pas au nom d'une agence.
+  // Sans profil connu, les rôles, comme avant.
   const roles = user?.roles ?? [];
-  const reponsesRapides = !isGroup && (isAgent(roles) || isAgencyAdmin(roles));
+  const typeActif = typeDuProfilActif(activeProfileId ?? user?.active_profile_id);
+  const duPersonnel = typeActif !== null ? typeActif === 'agent' || typeActif === 'agency_admin' : isAgent(roles) || isAgencyAdmin(roles);
+  const reponsesRapides = !isGroup && duPersonnel;
   // TCK-2632 — le micro cède la place à l'envoi dès qu'il y a quelque chose à envoyer (maquette) ;
   // pendant une note vocale, le champ et le trombone s'effacent devant elle.
   const contenu = useWatch({ control: form.control, name: 'content' }) ?? '';
