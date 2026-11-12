@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
@@ -19,7 +20,6 @@ import { FeuilleDuBas } from '@/components/ui/feuille-du-bas';
 import { PuceDeFiltre, RangeeDePuces } from '@/components/ui/puce-de-filtre';
 import { Tabs, TabsCount, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/toast';
-import { CreationDuClient } from '@/components/customer-form/creation/CreationDuClient';
 import { PlanifierDialog } from '@/components/visits/PlanifierUneVisite';
 import { useMinuteCourante } from '@/hooks/useMinuteCourante';
 import { useVueDansLUrl } from '@/hooks/useVueDansLUrl';
@@ -31,6 +31,13 @@ import type { PaginatedResponse } from '@/types/api';
 import type { CustomerListItem } from '@/types/customer';
 
 import { EtapeDuClient, GestesDuClient, InitialesDuClient, type LectureDuClient, useLecteurDuClient } from './pieces';
+
+/**
+ * TCK-1038 (P70.01) — un écran de lecture ne charge pas zod ni react-hook-form : la création courte
+ * (`CreationDuClient` → `CustomerForm`) n'entre dans le JS de la liste qu'à sa première ouverture
+ * (le patron de `PaymentsTabs`, TCK-1041). Gardé par `zod-hors-des-ecrans-de-lecture.test.ts`.
+ */
+const CreationDuClient = dynamic(() => import('@/components/customer-form/creation/CreationDuClient').then((m) => m.CreationDuClient));
 
 /** La clé de traduction d'une vue (`crm.list.vues.*`). */
 const CLE_DE_LA_VUE: Record<VueDesClients, string> = {
@@ -85,6 +92,9 @@ export function ListeDesClients(props: ListeDesClientsProps) {
   const [planifier, setPlanifier] = useState<{ readonly client: CustomerListItem; readonly lecture: LectureDuClient } | null>(null);
   // TCK-2590 — « Ajouter un client » ouvre la création sur place : plein écran au téléphone, panneau au bureau.
   const [creer, setCreer] = useState(false);
+  // Montée à la première ouverture, puis gardée : sa fermeture s'anime, et elle ne se recharge pas.
+  const [creationMontee, setCreationMontee] = useState(false);
+  if (creer && !creationMontee) setCreationMontee(true);
   // Un geste de contact s'enregistre à côté du lien, qui s'ouvre de lui-même : son échec ne retient ni
   // l'appel ni WhatsApp, mais il se DIT (P228.06) — la fiche ne porte pas ce contact.
   const enregistrement = useEnregistrerContactClient();
@@ -218,7 +228,7 @@ export function ListeDesClients(props: ListeDesClientsProps) {
         </>
       )}
 
-      {personnel ? <CreationDuClient open={creer} onClose={() => setCreer(false)} /> : null}
+      {personnel && creationMontee ? <CreationDuClient open={creer} onClose={() => setCreer(false)} /> : null}
       {planifier ? (
         <PlanifierDialog
           customer={{ id: planifier.client.id, libelle: planifier.lecture.nom, telephone: planifier.client.phone, etape: planifier.client.pipeline_stage }}

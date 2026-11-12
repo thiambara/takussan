@@ -236,11 +236,12 @@ describe('le tableau', () => {
 });
 
 describe('le bailleur et la liste vide', () => {
-  it('le personnel : « Étapes » mène au pipeline, « Ajouter un client » ouvre la création', () => {
+  it('le personnel : « Étapes » mène au pipeline, « Ajouter un client » ouvre la création', async () => {
     monter(<ListeDesClients {...AGENT} />);
     expect(screen.getByRole('link', { name: 'Étapes' })).toHaveAttribute('href', '/app/crm/pipeline');
     fireEvent.click(screen.getByRole('button', { name: 'Ajouter un client' }));
-    expect(screen.getByRole('dialog', { name: 'Nouveau client' })).toBeInTheDocument();
+    // Chargée à sa première ouverture (TCK-1038, `next/dynamic`) : elle paraît une fois son morceau lu.
+    expect(await screen.findByRole('dialog', { name: 'Nouveau client' })).toBeInTheDocument();
   });
 
   it('le bailleur : ni « Ajouter un client », ni « Étapes », ni vues (AC5)', () => {
@@ -251,13 +252,14 @@ describe('le bailleur et la liste vide', () => {
     expect(screen.queryByRole('group', { name: 'Vues des clients' })).toBeNull();
   });
 
-  it('vide, le personnel est invité à ajouter un client ; le bailleur, non', () => {
+  it('vide, le personnel est invité à ajouter un client ; le bailleur, non', async () => {
     const { unmount } = monter(<ListeDesClients {...AGENT} page={page([])} />);
     expect(screen.getByText('Pas encore de clients')).toBeInTheDocument();
     expect(screen.getByText('Ils arrivent avec vos demandes de contact, ou ajoutez-en un.')).toBeInTheDocument();
     // « Ajouter un client » ouvre la création sur place (TCK-2590), dans l'état vide comme en tête.
     fireEvent.click(screen.getAllByRole('button', { name: /Ajouter un client/ }).at(-1)!);
-    expect(screen.getByRole('dialog', { name: 'Nouveau client' })).toBeInTheDocument();
+    // Chargée à sa première ouverture (TCK-1038, `next/dynamic`) : elle paraît une fois son morceau lu.
+    expect(await screen.findByRole('dialog', { name: 'Nouveau client' })).toBeInTheDocument();
     unmount();
     monter(<ListeDesClients {...AGENT} page={page([])} personnel={false} vues={[]} comptes={{}} />);
     expect(screen.queryByRole('button', { name: /Ajouter un client/ })).toBeNull();
