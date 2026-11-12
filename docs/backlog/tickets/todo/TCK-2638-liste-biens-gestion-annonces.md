@@ -168,8 +168,20 @@ _(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, P
     cours, ventes comprises : il ne lit pas « vacant », et un bailleur dont la vente est louée a bien un bien occupé.
   - `PortfolioMetrics` (taux d'occupation des tableaux de bord, KPI, alertes de seuil) a sa propre éligibilité et ne
     lit pas le scope.
-- **Front** : `types/property.ts` doit recevoir `'not_rental'` dans l'union de `state` et `for_sale` dans le résumé —
-  fichier du lot A, édité après son commit. `etat-locatif.ts` teste déjà la vente avant l'état.
+- **Front (après le commit du lot A)** : `types/property.ts` reçoit `'not_rental'` dans l'union de `state` et
+  `for_sale` dans `ResumeDuPortefeuille` ; `ETATS_D_OCCUPATION` de `(liste)/page.tsx` la valeur `not_rental` (sans
+  elle, le paramètre est écarté et la liste de la tuile ouvrirait tous les biens). Une pastille et une tuile
+  « À vendre » (`aVendre`, comptée par `for_sale`, ouvrant `occupancy=not_rental`) s'ajoutent **seulement** quand le
+  portefeuille a des biens hors location, ou quand elle est active (`pastilleGestionProposee`) : un portefeuille tout
+  en location garde les cinq pastilles et les quatre tuiles de la maquette ; la grille passe à cinq colonnes sinon.
+  `etat-locatif.ts` reconnaît une vente par `contract_type` **ou** par l'état `not_rental` de l'API (une page qui
+  omet `contract_type` de ses champs la lisait « Occupé »). Mesuré sur la démo (2026-11-12, API locale) : agence
+  `for_sale` 51 = `meta.total` de `not_rental` 51, 70 + 88 + 51 = 209 ; bailleur 9 = 9, 10 + 52 + 9 = 71 ; les
+  autres tuiles égalent aussi leur liste. Ablations 8/8 rouges. **Décision (team-lead, 2026-11-12, a)** : la tuile
+  « Occupés » se lit sur les biens à louer — « n / (occupés + vacants) », sa part libellée « des biens à louer »
+  (clé `tuiles.partALouer`, qui remplace `partOccupee` « du portefeuille ») : sur la démo, 70 / 158 = 44 % au lieu de
+  70 / 209 = 33 %. Un test avec des ventes au portefeuille tient que ni le taux ni le total affiché ne les reprennent ;
+  ablations 3/3 rouges (dénominateur, total affiché, libellé).
 - Tests : `tests/Feature/Property/OccupationHorsLocationTest.php` (filtre, bloc de la liste, fiche, résumé et
   concordance tuile/liste, bailleur, valeur inconnue). Ablations 5/5 rouges : sans `forRent` sur `vacant`, sans
   `not_rental` dans `attach`, sans `for_sale`, `vacant_since` d'une vente, état lu par la colonne chargée.

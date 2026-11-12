@@ -54,6 +54,10 @@ export function requeteDuMode(params: URLSearchParams, mode: ModeDeListe): strin
 /**
  * Les pastilles du mode Gestion, comptées par `portfolio-summary` (TCK-2637) : chacune est un filtre
  * de la liste (`filter[occupancy]`, `filter[rent_late]`), et son compte est la clé du résumé.
+ *
+ * TCK-2638 — « À vendre » (`not_rental`, compté par `for_sale`) n'est proposée que lorsque le
+ * portefeuille a des biens hors location, ou qu'elle est la pastille active
+ * ({@link pastilleGestionProposee}) : un portefeuille tout en location garde les pastilles d'avant.
  */
 export const PASTILLES_GESTION = [
   { cle: 'tous', compte: 'total', params: {} },
@@ -61,6 +65,7 @@ export const PASTILLES_GESTION = [
   { cle: 'vacants', compte: 'vacant', params: { occupancy: 'vacant' } },
   { cle: 'retard', compte: 'rent_late', params: { rent_late: '1' } },
   { cle: 'preavis', compte: 'notice', params: { occupancy: 'notice' } },
+  { cle: 'aVendre', compte: 'for_sale', params: { occupancy: 'not_rental' } },
 ] as const satisfies readonly {
   readonly cle: string;
   readonly compte: string;
@@ -80,9 +85,16 @@ export function pastilleGestionActive(params: URLSearchParams): PastilleGestion 
       return 'vacants';
     case 'notice':
       return 'preavis';
+    case 'not_rental':
+      return 'aVendre';
     default:
       return 'tous';
   }
+}
+
+/** « À vendre » ne s'affiche que s'il y a des biens hors location, ou si elle est active ; les autres toujours. */
+export function pastilleGestionProposee(cle: PastilleGestion, aVendre: number, active: PastilleGestion): boolean {
+  return cle !== 'aVendre' || aVendre > 0 || active === 'aVendre';
 }
 
 /** La requête d'une pastille : elle remplace la précédente, garde le reste, repart de la page 1. */

@@ -57,6 +57,7 @@ const RESUME = {
   total: 84,
   occupied: 61,
   vacant: 9,
+  for_sale: 0,
   vacant_over_60_days: 2,
   notice: 3,
   rent_late: 6,
@@ -150,6 +151,11 @@ describe('/app/properties — mode Gestion (TCK-2638)', () => {
     await rendre({ mode: 'gestion', rent_late: '1', occupancy: 'demoli' });
     expect(listes()[0]).toContain('filter[rent_late]=1');
     expect(listes()[0]).not.toContain('filter[occupancy]');
+  });
+
+  it('TCK-2638 : la tuile « À vendre » (occupancy=not_rental) filtre la liste — sans elle, le paramètre serait écarté', async () => {
+    await rendre({ mode: 'gestion', occupancy: 'not_rental' });
+    expect(listes()[0]).toContain('filter[occupancy]=not_rental');
   });
 
   it('« Retards d’abord » (sort=retard) part en Gestion, jamais en Annonces', async () => {

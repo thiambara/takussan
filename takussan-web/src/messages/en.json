@@ -1844,20 +1844,23 @@
           "occupes": "Occupied",
           "vacants": "Vacant",
           "retard": "Rent overdue",
-          "preavis": "Notice"
+          "preavis": "Notice",
+          "aVendre": "For sale"
         },
         "tuiles": {
           "aria": "Portfolio occupancy — filter the list",
           "occupes": "Occupied",
           "surTotal": "/ {total}",
-          "partOccupee": "{part} of the portfolio",
           "vacants": "Vacant",
           "vacantsLongs": "{count, plural, =0 {None for over 60 days} one {# for over 60 days} other {# for over 60 days}}",
           "retard": "Overdue rents",
           "aEncaisser": "{montant} to collect",
           "aJour": "All rents are up to date",
           "preavis": "Notice",
-          "sorties": "{count, plural, =0 {No move-out announced} one {# move-out announced} other {# move-outs announced}}"
+          "sorties": "{count, plural, =0 {No move-out announced} one {# move-out announced} other {# move-outs announced}}",
+          "partALouer": "{part} of properties for rent",
+          "aVendre": "For sale",
+          "horsLocation": "Neither occupied nor vacant"
         },
         "ligne": {
           "locataire": "{nom} · lease until {date}",

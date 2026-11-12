@@ -5,6 +5,7 @@ import {
   PASTILLES_GESTION,
   cookieDuModeDeListe,
   pastilleGestionActive,
+  pastilleGestionProposee,
   requeteDeLaPastille,
   requeteDuMode,
   resoudreMode,
@@ -61,8 +62,8 @@ describe('requeteDuMode', () => {
 });
 
 describe('les pastilles du mode Gestion', () => {
-  it('sont, dans l’ordre : Tous, Occupés, Vacants, Loyer en retard, Préavis', () => {
-    expect(PASTILLES_GESTION.map((p) => p.cle)).toEqual(['tous', 'occupes', 'vacants', 'retard', 'preavis']);
+  it('sont, dans l’ordre : Tous, Occupés, Vacants, Loyer en retard, Préavis, À vendre', () => {
+    expect(PASTILLES_GESTION.map((p) => p.cle)).toEqual(['tous', 'occupes', 'vacants', 'retard', 'preavis', 'aVendre']);
   });
 
   it('se lisent de l’URL', () => {
@@ -70,7 +71,24 @@ describe('les pastilles du mode Gestion', () => {
     expect(pastilleGestionActive(new URLSearchParams('occupancy=occupied'))).toBe('occupes');
     expect(pastilleGestionActive(new URLSearchParams('occupancy=vacant'))).toBe('vacants');
     expect(pastilleGestionActive(new URLSearchParams('occupancy=notice'))).toBe('preavis');
+    expect(pastilleGestionActive(new URLSearchParams('occupancy=not_rental'))).toBe('aVendre');
     expect(pastilleGestionActive(new URLSearchParams('rent_late=1'))).toBe('retard');
+  });
+
+  it('TCK-2638 : « À vendre » ouvre la liste hors location (`occupancy=not_rental`)', () => {
+    const avant = new URLSearchParams('search=Mermoz&rent_late=1&page=2&mode=gestion');
+    const vente = new URLSearchParams(requeteDeLaPastille(avant, 'aVendre'));
+    expect(vente.get('occupancy')).toBe('not_rental');
+    expect(vente.has('rent_late')).toBe(false);
+    expect(vente.has('page')).toBe(false);
+    expect(vente.get('search')).toBe('Mermoz');
+  });
+
+  it('TCK-2638 : « À vendre » n’est proposée que s’il y a des biens hors location, ou qu’elle est active', () => {
+    expect(pastilleGestionProposee('aVendre', 0, 'tous')).toBe(false);
+    expect(pastilleGestionProposee('aVendre', 3, 'tous')).toBe(true);
+    expect(pastilleGestionProposee('aVendre', 0, 'aVendre')).toBe(true);
+    expect(pastilleGestionProposee('vacants', 0, 'tous')).toBe(true);
   });
 
   it('une pastille remplace la précédente, garde le reste et repart de la page 1', () => {

@@ -51,8 +51,12 @@ function asString(value: string | string[] | undefined): string | undefined {
   return value;
 }
 
-/** TCK-2637 — les états d'occupation que `filter[occupancy]` accepte (pastilles du mode Gestion). */
-const ETATS_D_OCCUPATION = ['occupied', 'vacant', 'notice'] as const;
+/**
+ * TCK-2637 — les états d'occupation que `filter[occupancy]` accepte (pastilles du mode Gestion).
+ * TCK-2638 — `not_rental`, la liste de la tuile « À vendre » : hors de cette liste, le paramètre
+ * est écarté et la tuile ouvrirait tous les biens.
+ */
+const ETATS_D_OCCUPATION = ['occupied', 'vacant', 'notice', 'not_rental'] as const;
 
 /** Les tris de la liste ; `retard` (« Retards d'abord », TCK-2637) n'a de sens qu'en mode Gestion. */
 const TRIS = ['-created_at', 'created_at', 'price', '-price', 'views_count', '-views_count'] as const;

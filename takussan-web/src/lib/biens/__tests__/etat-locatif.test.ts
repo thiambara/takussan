@@ -73,6 +73,13 @@ describe('ligneOccupant', () => {
     expect(ligneOccupant(bien({ contract_type: 'sale' }, { state: 'vacant' }), AUJOURDHUI)).toEqual({ cle: 'aVendre' });
   });
 
+  it('TCK-2638 : l’état `not_rental` de l’API suffit, même sans `contract_type` dans les champs lus', () => {
+    const vente = bien({ contract_type: undefined }, { state: 'not_rental', tenant: AMINATA, lease: BAIL });
+    expect(ligneOccupant(vente, AUJOURDHUI)).toEqual({ cle: 'aVendre' });
+    expect(etatDuMois(vente, AUJOURDHUI)).toBeNull();
+    expect(publicationProposee(vente)).toBe(false);
+  });
+
   it('sans bloc d’occupation : rien', () => {
     expect(ligneOccupant(bien(), AUJOURDHUI)).toBeNull();
   });

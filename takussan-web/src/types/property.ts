@@ -23,10 +23,13 @@ export type PropertyCondition = 'off_plan' | 'new' | 'renovated' | 'good' | 'to_
  * TCK-2637 — l'occupation d'un bien (`include=occupancy`), calculée par `PropertyOccupancy` côté API.
  * Sans droit sur le bail, `lease`, `tenant`, `rent` et `current_month` sont absents (nuls) : seul
  * `state` reste servi.
+ *
+ * TCK-2638 — `not_rental` : un bien qui n'est pas à louer (`contract_type` ≠ `rent`), ni occupé, ni
+ * vacant, ni en préavis. Le bail en cours d'une vente reste servi (`lease`, `tenant`, `current_month`).
  */
 export interface OccupationDuBien {
-  state: 'occupied' | 'notice' | 'vacant';
-  /** Fin effective du dernier bail ; `null` pour un bien jamais loué (« Sans locataire »). */
+  state: 'occupied' | 'notice' | 'vacant' | 'not_rental';
+  /** Fin effective du dernier bail ; `null` pour un bien jamais loué (« Sans locataire ») et pour une vente. */
   vacant_since: string | null;
   lease: {
     id: number;
@@ -57,11 +60,16 @@ export interface OccupationDuBien {
   } | null;
 }
 
-/** TCK-2637 — `GET /api/properties/portfolio-summary` : les comptes des tuiles, en un appel. */
+/**
+ * TCK-2637 — `GET /api/properties/portfolio-summary` : les comptes des tuiles, en un appel.
+ * TCK-2638 — `for_sale` compte les biens hors location (`filter[occupancy]=not_rental`) :
+ * `occupied + vacant + for_sale = total`.
+ */
 export interface ResumeDuPortefeuille {
   total: number;
   occupied: number;
   vacant: number;
+  for_sale: number;
   vacant_over_60_days: number;
   rent_late: number;
   rent_late_amount: number;

@@ -34,8 +34,9 @@ function joursDepuis(date: string, aujourdhui: Date): number {
   return Math.max(0, Math.round((jour - debut) / UN_JOUR));
 }
 
+/** Une vente, lue du contrat ou de l'état que l'API rend (`not_rental`, TCK-2638) : l'un suffit. */
 function estAVendre(p: PropertyListItem): boolean {
-  return p.contract_type === 'sale';
+  return p.contract_type === 'sale' || p.occupancy?.state === 'not_rental';
 }
 
 /** La deuxième ligne de la carte : le locataire et la fin du bail, « Sans locataire », « À vendre ». */

@@ -22,6 +22,7 @@ const RESUME: ResumeDuPortefeuille = {
   total: 84,
   occupied: 61,
   vacant: 9,
+  for_sale: 0,
   vacant_over_60_days: 2,
   notice: 3,
   rent_late: 6,
@@ -75,6 +76,23 @@ describe('PastillesGestion', () => {
     expect(pastilles[0]).toHaveAttribute('aria-pressed', 'true');
   });
 
+  it('TCK-2638 : « À vendre » s’ajoute, comptée par `for_sale`, quand le portefeuille en a ; elle ouvre `not_rental`', async () => {
+    m.params = 'mode=gestion&occupancy=vacant';
+    render(withIntl(<PastillesGestion resume={{ ...RESUME, total: 96, for_sale: 12 }} />));
+
+    expect(screen.getAllByRole('button').map((p) => p.textContent)).toEqual([
+      'Tous96', 'Occupés61', 'Vacants9', 'Loyer en retard6', 'Préavis3', 'À vendre12',
+    ]);
+    await userEvent.click(screen.getByRole('button', { name: /À vendre/ }));
+    expect(new URLSearchParams(String(m.replace.mock.calls[0]?.[0]).slice(1)).get('occupancy')).toBe('not_rental');
+  });
+
+  it('TCK-2638 : active, « À vendre » reste affichée même à zéro (on peut en revenir)', () => {
+    m.params = 'mode=gestion&occupancy=not_rental';
+    render(withIntl(<PastillesGestion resume={RESUME} />));
+    expect(screen.getByRole('button', { name: /À vendre/ })).toHaveAttribute('aria-pressed', 'true');
+  });
+
   it('une pastille remplace la précédente, garde la recherche et repart de la page 1', async () => {
     m.params = 'mode=gestion&search=Mermoz&occupancy=vacant&page=3';
     render(withIntl(<PastillesGestion resume={RESUME} />));
@@ -92,13 +110,14 @@ describe('PastillesGestion', () => {
 });
 
 describe('TuilesGestion', () => {
-  it('quatre tuiles : occupés sur le total, vacants longs, loyers en retard et leur montant, préavis', () => {
+  it('quatre tuiles : occupés sur les biens à louer, vacants longs, loyers en retard et leur montant, préavis', () => {
     render(withIntl(<TuilesGestion resume={RESUME} />));
     const tuiles = within(screen.getByRole('navigation', { name: /Occupation du portefeuille/ })).getAllByRole('link');
 
     expect(tuiles).toHaveLength(4);
-    expect(tuiles[0].textContent).toMatch(/^Occupés61\s\/\s84/);
-    expect(tuiles[0].textContent).toMatch(/73\s%\sdu portefeuille$/);
+    // 61 occupés + 9 vacants = 70 biens à louer ; 61 / 70 = 87 %.
+    expect(tuiles[0].textContent).toMatch(/^Occupés61\s\/\s70/);
+    expect(tuiles[0].textContent).toMatch(/87\s%\sdes biens à louer$/);
     expect(tuiles[1].textContent).toBe('Vacants92 depuis plus de 60 j');
     expect(tuiles[2].textContent).toMatch(/^Loyers en retard64\s210\s000\sF à encaisser$/);
     expect(tuiles[3].textContent).toBe('Préavis33 sorties annoncées');
@@ -114,6 +133,40 @@ describe('TuilesGestion', () => {
     const retour = new URLSearchParams(retard.getAttribute('href')!.slice(1));
     expect(retour.has('rent_late')).toBe(false);
     expect(retour.get('mode')).toBe('gestion');
+  });
+
+  it('TCK-2638 : une cinquième tuile « À vendre », comptée par `for_sale`, ouvre la liste `not_rental`', () => {
+    render(withIntl(<TuilesGestion resume={{ ...RESUME, total: 96, for_sale: 12 }} />));
+    const nav = screen.getByRole('navigation', { name: /Occupation du portefeuille/ });
+    const tuiles = within(nav).getAllByRole('link');
+
+    expect(tuiles).toHaveLength(5);
+    expect(nav).toHaveClass('grid-cols-5');
+    expect(tuiles[4].textContent).toBe('À vendre12Ni occupés ni vacants');
+    expect(new URLSearchParams(tuiles[4].getAttribute('href')!.slice(1)).get('occupancy')).toBe('not_rental');
+  });
+
+  it('TCK-2638 : les ventes n’entrent pas dans le taux d’occupation — ni au dénominateur, ni au total affiché', () => {
+    // 70 occupés + 30 vacants = 100 biens à louer ; 50 ventes en plus : 150 au portefeuille.
+    render(withIntl(<TuilesGestion resume={{ ...RESUME, total: 150, occupied: 70, vacant: 30, for_sale: 50 }} />));
+    const occupes = within(screen.getByRole('navigation', { name: /Occupation du portefeuille/ })).getAllByRole('link')[0];
+
+    expect(occupes.textContent).toMatch(/^Occupés70\s\/\s100/);
+    expect(occupes.textContent).toMatch(/70\s%\sdes biens à louer$/);
+    expect(occupes.textContent).not.toMatch(/150|47\s%|portefeuille/);
+  });
+
+  it('TCK-2638 : sans aucun bien à louer, le taux est nul, sans division par zéro', () => {
+    render(withIntl(<TuilesGestion resume={{ ...RESUME, total: 4, occupied: 0, vacant: 0, for_sale: 4 }} />));
+    const occupes = within(screen.getByRole('navigation', { name: /Occupation du portefeuille/ })).getAllByRole('link')[0];
+    expect(occupes.textContent).toMatch(/^Occupés0\s\/\s0.*0\s%\sdes biens à louer$/);
+  });
+
+  it('TCK-2638 : sans bien hors location, les quatre tuiles d’avant', () => {
+    render(withIntl(<TuilesGestion resume={RESUME} />));
+    const nav = screen.getByRole('navigation', { name: /Occupation du portefeuille/ });
+    expect(within(nav).getAllByRole('link')).toHaveLength(4);
+    expect(nav).toHaveClass('grid-cols-4');
   });
 
   it('sans retard, la tuile le dit au lieu d’un montant nul', () => {

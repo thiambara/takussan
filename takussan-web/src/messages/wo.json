@@ -7043,20 +7043,23 @@
           "occupes": "Occupés",
           "vacants": "Vacants",
           "retard": "Loyer en retard",
-          "preavis": "Préavis"
+          "preavis": "Préavis",
+          "aVendre": "À vendre"
         },
         "tuiles": {
           "aria": "Occupation du portefeuille — filtrer la liste",
           "occupes": "Occupés",
           "surTotal": "/ {total}",
-          "partOccupee": "{part} du portefeuille",
           "vacants": "Vacants",
           "vacantsLongs": "{count, plural, =0 {Aucun depuis plus de 60 j} one {# depuis plus de 60 j} other {# depuis plus de 60 j}}",
           "retard": "Loyers en retard",
           "aEncaisser": "{montant} à encaisser",
           "aJour": "Tous les loyers sont à jour",
           "preavis": "Préavis",
-          "sorties": "{count, plural, =0 {Aucune sortie annoncée} one {# sortie annoncée} other {# sorties annoncées}}"
+          "sorties": "{count, plural, =0 {Aucune sortie annoncée} one {# sortie annoncée} other {# sorties annoncées}}",
+          "partALouer": "{part} des biens à louer",
+          "aVendre": "À vendre",
+          "horsLocation": "Ni occupés ni vacants"
         },
         "ligne": {
           "locataire": "{nom} · bail jusqu’au {date}",

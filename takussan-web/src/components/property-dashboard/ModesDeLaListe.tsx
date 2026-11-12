@@ -12,6 +12,7 @@ import {
   PASTILLES_GESTION,
   ecrireModeDeListe,
   pastilleGestionActive,
+  pastilleGestionProposee,
   requeteDeLaPastille,
   requeteDuMode,
   type ModeDeListe,
@@ -56,7 +57,10 @@ const COMPTE_DE: Record<PastilleGestion, keyof ResumeDuPortefeuille> = Object.fr
   PASTILLES_GESTION.map((p) => [p.cle, p.compte]),
 ) as Record<PastilleGestion, keyof ResumeDuPortefeuille>;
 
-/** Les pastilles défilantes du téléphone (sous `lg`) : Tous, Occupés, Vacants, Loyer en retard, Préavis. */
+/**
+ * Les pastilles défilantes du téléphone (sous `lg`) : Tous, Occupés, Vacants, Loyer en retard, Préavis,
+ * et « À vendre » quand le portefeuille en compte (TCK-2638).
+ */
 export function PastillesGestion({ resume, className }: { readonly resume: ResumeDuPortefeuille; readonly className?: string }) {
   const t = useTranslations('property.dashboard.gestion.pastilles');
   const fmt = useFormatteurs();
@@ -66,7 +70,7 @@ export function PastillesGestion({ resume, className }: { readonly resume: Resum
   const active = pastilleGestionActive(params);
   return (
     <RangeeDePuces aria-label={t('aria')} className={className}>
-      {PASTILLES_GESTION.map((p) => (
+      {PASTILLES_GESTION.filter((p) => pastilleGestionProposee(p.cle, resume.for_sale, active)).map((p) => (
         <PuceDeFiltre
           key={p.cle}
           active={p.cle === active}
@@ -83,6 +87,8 @@ export function PastillesGestion({ resume, className }: { readonly resume: Resum
 /**
  * Les quatre tuiles du bureau (dès `lg`) : chacune est le lien de son filtre ; la tuile active
  * ramène à « Tous ». Le compte de chaque tuile est celui de la liste qu'elle ouvre (TCK-2637, AC3).
+ * TCK-2638 — une cinquième, « À vendre », quand le portefeuille a des biens hors location : ils ne
+ * sont ni occupés ni vacants, et sa liste est `filter[occupancy]=not_rental`.
  */
 export function TuilesGestion({ resume, className }: { readonly resume: ResumeDuPortefeuille; readonly className?: string }) {
   const t = useTranslations('property.dashboard.gestion.tuiles');
@@ -91,6 +97,9 @@ export function TuilesGestion({ resume, className }: { readonly resume: ResumeDu
   const params = new URLSearchParams(searchParams.toString());
   const active = pastilleGestionActive(params);
   const lien = (cle: PastilleGestion) => `?${requeteDeLaPastille(params, active === cle ? 'tous' : cle)}`;
+  // TCK-2638 — le taux d'occupation se lit sur les biens À LOUER (occupés + vacants) : une vente n'est ni
+  // occupée ni vacante, et la compter au dénominateur ferait baisser le taux sans qu'aucun bien se vide.
+  const aLouer = resume.occupied + resume.vacant;
   const tuiles: readonly {
     readonly cle: PastilleGestion;
     readonly libelle: string;
@@ -104,10 +113,10 @@ export function TuilesGestion({ resume, className }: { readonly resume: ResumeDu
       valeur: (
         <>
           {fmt.nombre(resume.occupied)}{' '}
-          <span className="text-base font-normal text-muted-foreground">{t('surTotal', { total: fmt.nombre(resume.total) })}</span>
+          <span className="text-base font-normal text-muted-foreground">{t('surTotal', { total: fmt.nombre(aLouer) })}</span>
         </>
       ),
-      contexte: t('partOccupee', { part: fmt.pourcentage(resume.total > 0 ? resume.occupied / resume.total : 0) }),
+      contexte: t('partALouer', { part: fmt.pourcentage(aLouer > 0 ? resume.occupied / aLouer : 0) }),
       alerte: false,
     },
     {
@@ -132,9 +141,20 @@ export function TuilesGestion({ resume, className }: { readonly resume: ResumeDu
       contexte: t('sorties', { count: resume.notice }),
       alerte: false,
     },
+    ...(pastilleGestionProposee('aVendre', resume.for_sale, active)
+      ? [
+          {
+            cle: 'aVendre' as const,
+            libelle: t('aVendre'),
+            valeur: fmt.nombre(resume.for_sale),
+            contexte: t('horsLocation'),
+            alerte: false,
+          },
+        ]
+      : []),
   ];
   return (
-    <nav aria-label={t('aria')} className={cn('grid grid-cols-4 gap-4', className)}>
+    <nav aria-label={t('aria')} className={cn('grid gap-4', tuiles.length > 4 ? 'grid-cols-5' : 'grid-cols-4', className)}>
       {tuiles.map((tuile) => {
         const actif = tuile.cle === active;
         return (
