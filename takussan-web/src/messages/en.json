@@ -2727,7 +2727,8 @@
       "leaseNew": {
         "metaTitle": "New lease",
         "title": "New lease",
-        "subtitle": "Fill in the parties, the term and the financial terms."
+        "subtitle": "Fill in the parties, the term and the financial terms.",
+        "subtitlePrerempli": "Prefilled from the property page"
       },
       "maintenanceNew": {
         "metaTitle": "New maintenance request",
@@ -5112,9 +5113,7 @@
       "searching": "Searching…",
       "selectTenant": "Select a tenant",
       "selectedProperty": "Selected property",
-      "noPropertySelected": "No property selected",
       "selectedTenant": "Selected tenant",
-      "noTenantSelected": "No tenant selected",
       "landlordOfProperty": "Landlord: {name}",
       "landlordPending": "Landlord: the holder of the chosen property",
       "guarantorsHint": "Guarantors can be added on the lease page once the draft is created.",
@@ -5246,11 +5245,11 @@
         "mois": "{count, plural, one {# month} other {# months}}",
         "duree": "{debut} → {fin}",
         "dureeSansFin": "From {debut}",
-        "parMois": "{montant} / month",
+        "parMois": "{montant}<suffixe> / month</suffixe>",
         "caution": "{mois} · {montant}",
         "echeance": "On day {jour} of the month"
       },
-      "candidatures": "{count, plural, one {Creating this lease will close # other open application on this property.} other {Creating this lease will close # other open applications on this property.}}",
+      "candidatures": "{count, plural, one {Sending for signature will close # other open application on this property.} other {Sending for signature will close # other open applications on this property.}}",
       "signature": {
         "aide": "“Send for signature” texts a code to the tenant and the landlord. A draft stays editable.",
         "sansCompte": "{nom} has no account yet, so the lease can’t be sent for signature. Create the draft, then invite the tenant from their profile.",
@@ -5282,6 +5281,15 @@
           "memeEmail": "same email",
           "creerQuandMeme": "Create anyway"
         }
+      },
+      "ligne": {
+        "changer": "Change",
+        "changerLeBien": "Change the property",
+        "changerLeLocataire": "Change the tenant",
+        "bailleur": "landlord {nom}",
+        "loyerAnnonceMensuel": "advertised rent {montant} / month",
+        "loyerAnnoncePeriode": "advertised rent {montant} {periode}",
+        "prixAnnonce": "advertised price {montant}"
       }
     },
     "payment": {

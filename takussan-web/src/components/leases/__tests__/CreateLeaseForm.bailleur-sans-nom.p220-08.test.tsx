@@ -45,6 +45,9 @@ async function choisirLeBien(nom: RegExp) {
 }
 
 /**
+ * TCK-2643 — la ligne vit désormais dans la ligne du bien choisi (« REF-011 · bailleur Bineta Sarr »,
+ * maquette `app-baux` a) ; la règle ne change pas.
+ *
  * TCK-997 (P50.01) — le récapitulatif nomme le bailleur du bail, c'est-à-dire le TITULAIRE du bien
  * choisi (`LeaseService::create` : `landlord_id = property.user_id`), jamais l'utilisateur courant.
  * Avant, la ligne disait « Bailleur actif : <qui saisit> » : pour un bien saisi au nom d'un
@@ -56,7 +59,8 @@ describe('CreateLeaseForm — la ligne « Bailleur » (TCK-997, P220.08)', () =>
   it('sans bien choisi, ne nomme personne', () => {
     render(withIntl(<CreateLeaseForm />));
 
-    expect(screen.getByText('Bailleur : le titulaire du bien choisi')).toBeInTheDocument();
+    // Aucune ligne du bien : personne n'est nommé bailleur.
+    expect(document.querySelector('[data-slot="ligne-choisie"]')).toBeNull();
     expect(screen.queryByText(/Moussa Fall/)).toBeNull();
   });
 
@@ -64,7 +68,7 @@ describe('CreateLeaseForm — la ligne « Bailleur » (TCK-997, P220.08)', () =>
     render(withIntl(<CreateLeaseForm />));
     await choisirLeBien(/Villa Almadies/);
 
-    expect(screen.getByText('Bailleur : Bineta Sarr')).toBeInTheDocument();
+    expect(screen.getByText('REF-011 · bailleur Bineta Sarr')).toBeInTheDocument();
     expect(screen.queryByText(/Moussa Fall/)).toBeNull();
   });
 
@@ -72,6 +76,6 @@ describe('CreateLeaseForm — la ligne « Bailleur » (TCK-997, P220.08)', () =>
     render(withIntl(<CreateLeaseForm />));
     await choisirLeBien(/Studio Ouakam/);
 
-    expect(screen.getByText('Bailleur : #8')).toBeInTheDocument();
+    expect(screen.getByText('REF-012 · bailleur #8')).toBeInTheDocument();
   });
 });

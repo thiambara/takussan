@@ -117,9 +117,11 @@ final class LeaseDefaults
                 $agencyId,
                 $this->number($this->rentReview->resolveMaxPct($agencyId)),
             ),
-            // TCK-2734 — les candidatures ouvertes que le bail fermera : l'étape « Vérifier » le dit.
-            // Avec leur client : celles du LOCATAIRE du bail (la réservation d'origine comprise) se
-            // complètent, les autres sont refusées (`LeaseService::fermerLesCandidatures()`) — le
+            // TCK-2734 — les candidatures ouvertes que l'ENVOI en signature du bail fermera (décision 7b :
+            // plus la création du brouillon) : l'étape « Vérifier » le dit près de « Envoyer à la
+            // signature ». Avec leur client : celles du LOCATAIRE du bail (la réservation d'origine
+            // comprise) se complètent, les autres sont refusées — `LeaseService::cloreLesCandidaturesDuBien()`,
+            // appelée par `LeaseSignatureService` (envoi en signature et signature papier). Le
             // locataire n'est connu qu'à l'étape 2, le front compte donc lui-même.
             'open_applications' => Booking::query()
                 ->where('property_id', $property->id)

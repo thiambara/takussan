@@ -39,11 +39,16 @@ vi.mock('@/lib/queries/leases', () => ({
 import { CreateLeaseForm } from '../CreateLeaseForm';
 
 describe('CreateLeaseForm — bien préchoisi par ?property= (TCK-2643)', () => {
-  it('nomme le bien venu de sa fiche dans le récapitulatif, sans choix', () => {
+  it('montre le bien venu de sa fiche en une ligne, sans liste à ouvrir ; « Changer » rend le choix', async () => {
+    const user = userEvent.setup();
     render(withIntl(<CreateLeaseForm propertyId={12} />));
 
-    expect(screen.getByText('Studio Plateau · REF-012')).toBeInTheDocument();
-    expect(screen.queryByText('Aucun bien sélectionné')).toBeNull();
+    expect(screen.getByText('Studio Plateau')).toBeInTheDocument();
+    expect(screen.getByText(/^REF-012/)).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: /^Bien/ })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Changer le bien' }));
+    expect(screen.getByRole('combobox', { name: /^Bien/ })).toBeInTheDocument();
   });
 
   it('envoie le bien préchoisi avec le bail', async () => {
@@ -62,7 +67,8 @@ describe('CreateLeaseForm — bien préchoisi par ?property= (TCK-2643)', () => 
     const user = userEvent.setup();
     render(withIntl(<CreateLeaseForm propertyId={999} />));
 
-    expect(screen.getByText('Aucun bien sélectionné')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /^Bien/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Changer le bien' })).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Créer le brouillon' }));
 
     // Le récapitulatif dirait « aucun » même avec un id caché : c'est la validation qui le prouve.

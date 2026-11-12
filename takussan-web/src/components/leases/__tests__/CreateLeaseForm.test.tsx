@@ -63,20 +63,23 @@ describe('CreateLeaseForm — les champs suivent le type et les parties (TCK-571
     expect(screen.queryByLabelText(/^Loyer/)).toBeNull();
   });
 
-  it('le récapitulatif nomme le bien et le locataire choisis', async () => {
+  // TCK-2643 — un choix fait se montre en une ligne (« Changer » le défait), la liste se referme.
+  it('le bien et le locataire choisis se montrent chacun en une ligne', async () => {
     const user = userEvent.setup();
     render(withIntl(<CreateLeaseForm />));
-    expect(screen.getByText('Aucun bien sélectionné')).toBeInTheDocument();
-    expect(screen.getByText('Aucun locataire sélectionné')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Changer le bien' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Changer le locataire' })).toBeNull();
 
     await user.click(screen.getByRole('combobox', { name: /^Bien/ }));
     await user.click(await screen.findByRole('option', { name: /Villa Almadies/ }));
     await user.click(document.getElementById('field-tenant_id')!);
     await user.click(await screen.findByRole('option', { name: /Awa Diop/ }));
 
-    expect(screen.getByText('Villa Almadies · REF-011')).toBeInTheDocument();
-    expect(screen.queryByText('Aucun bien sélectionné')).toBeNull();
-    expect(screen.queryByText('Aucun locataire sélectionné')).toBeNull();
+    expect(screen.getByText('Villa Almadies')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Changer le bien' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Changer le locataire' })).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: /^Bien/ })).toBeNull();
+    expect(document.getElementById('field-tenant_id')).toBeNull();
   });
 });
 

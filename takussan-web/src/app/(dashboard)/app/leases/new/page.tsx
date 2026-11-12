@@ -4,6 +4,7 @@ import { getMeAction } from '@/app/actions/auth';
 import { CreateLeaseForm } from '@/components/leases/CreateLeaseForm';
 import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/console';
+import { PagePleineLargeur } from '@/components/layout/PagePleineLargeur';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { buttonVariants } from '@/components/ui/button';
 import { isAdmin, isAgent, isSuperAdmin } from '@/lib/roles';
@@ -53,12 +54,15 @@ export default async function Page({
   const personnel = isAgent(user.roles) || isAdmin(user.roles) || isSuperAdmin(user.roles);
   const retour = propertyId ? `/app/properties/${propertyId}` : '/app/leases';
 
+  // TCK-2643 — pleine largeur au téléphone : le formulaire pose sa marge (16 px, comme la maquette)
+  // au lieu des 24 px de l'enveloppe de la coque.
   return (
-    <div className="space-y-6">
+    <PagePleineLargeur className="space-y-6">
       <PageHeader
         className="max-md:hidden"
         title={t('title')}
-        description={t('subtitle')}
+        // Venu de la fiche du bien, le bail en reprend les valeurs (maquette : « Prérempli depuis la fiche du bien »).
+        description={propertyId ? t('subtitlePrerempli') : t('subtitle')}
         fil={{ label: tConsole('breadcrumb'), etapes: [{ label: tListe('title'), href: '/app/leases' }, { label: t('title') }] }}
         actions={
           <Link href={retour} className={buttonVariants({ variant: 'ghost' })}>
@@ -73,6 +77,6 @@ export default async function Page({
         personnel={personnel}
         retour={retour}
       />
-    </div>
+    </PagePleineLargeur>
   );
 }

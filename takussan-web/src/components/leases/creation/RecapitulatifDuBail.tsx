@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import Image from 'next/image';
 import { Settings2 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -38,7 +39,7 @@ export function CarteDeRecapitulatif({
       </div>
       <dl>
         {lignes.map((ligne) => (
-          <div key={ligne.cle} className="flex items-baseline justify-between gap-4 border-t border-border py-2 text-sm">
+          <div key={ligne.cle} className="flex items-baseline justify-between gap-4 py-2 text-sm">
             <dt className="text-muted-foreground">{ligne.cle}</dt>
             <dd className="min-w-0 text-right font-medium tabular-nums text-foreground">{ligne.valeur}</dd>
           </div>
@@ -72,5 +73,17 @@ export function ReglagesAppliques({
         {detail}
       </p>
     </div>
+  );
+}
+
+/**
+ * TCK-2643 — la photo du bien, 44 px (maquette `ContexteBail`) ; sans photo, le même carré au fond neutre,
+ * vide : la place reste, rien n'invente une image.
+ */
+export function VignetteDuBien({ src, className }: { readonly src: string | null | undefined; readonly className?: string }) {
+  return (
+    <span aria-hidden="true" className={cn('relative size-11 flex-none overflow-hidden rounded-lg bg-muted', className)}>
+      {src ? <Image src={src} alt="" fill sizes="48px" className="object-cover" /> : null}
+    </span>
   );
 }

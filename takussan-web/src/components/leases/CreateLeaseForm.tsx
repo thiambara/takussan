@@ -42,7 +42,8 @@ import { createLeaseSchema, type CreateLeaseFormValues } from '@/lib/schemas/lea
 import { messageErreurApi } from '@/lib/api';
 import { totalALEntreeDuBail } from '@/lib/cout-d-entree';
 import { formatCurrency } from '@/lib/format';
-import { DATE_COURTE, useFormatteurs } from '@/lib/format/useFormatteurs';
+import type { FormatDateOptions } from '@/lib/format';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { nomAffichable } from '@/lib/identite';
 import type { Booking } from '@/types/booking';
 import type { CustomerListItem } from '@/types/customer';
@@ -50,7 +51,10 @@ import type { LeaseDefaults, SourceDuDefaut } from '@/types/lease';
 import type { PropertyListItem } from '@/types/property';
 import { CreationRapideDuLocataire, type LocataireRetenu } from './creation/CreationRapideDuLocataire';
 import { PasAPasDeMois } from './creation/PasAPasDeMois';
-import { CarteDeRecapitulatif, ReglagesAppliques } from './creation/RecapitulatifDuBail';
+import { CarteDeRecapitulatif, ReglagesAppliques, VignetteDuBien } from './creation/RecapitulatifDuBail';
+import { InitialesDuLocataire, LigneChoisie } from './creation/LigneChoisie';
+import { initiales } from '@/lib/fiche-publique';
+import { formaterTelephone } from '@/lib/phone';
 import { ReperesDEtapes } from './creation/ReperesDEtapes';
 import { SectionDuBail, TitreDeBloc } from './creation/SectionDuBail';
 import { TotalALEntreeDuBail } from './creation/TotalALEntreeDuBail';
@@ -80,6 +84,9 @@ const DEVISES = ['XOF', 'XAF', 'EUR', 'USD'] as const;
  * TCK-2643 — les quatre étapes du téléphone, et les champs que « Continuer » valide avant de passer
  * à la suivante. L'étape « Vérifier » ne porte aucun champ : elle relit.
  */
+/** « 1 déc. 2026 » : le jour sans zéro, comme la maquette (`DATE_COURTE` écrit « 01 déc. 2026 »). */
+const DATE_DU_BAIL: FormatDateOptions = { day: 'numeric', month: 'short', year: 'numeric' };
+
 const ETAPES = ['bien', 'locataire', 'conditions', 'verifier'] as const;
 const CHAMPS_DES_ETAPES: readonly (readonly FieldPath<CreateLeaseFormValues>[])[] = [
   ['property_id'],
@@ -236,6 +243,9 @@ function FormulaireDuBail({
   const propertiesQuery = useLeasePropertyOptions();
   const customersQuery = useLeaseCustomerOptions(customerSearch);
   const [locataireConnu, setLocataireConnu] = useState<LocataireRetenu | null>(null);
+  // TCK-2643 — un bien ou un locataire choisi se montre en une ligne ; « Changer » rend le sélecteur.
+  const [changerLeBien, setChangerLeBien] = useState(false);
+  const [changerLeLocataire, setChangerLeLocataire] = useState(false);
   // La REF décide de l'envoi (le clic précède l'envoi dans le même évènement : un état n'y serait pas
   // encore lu) ; l'ÉTAT nomme le bouton qui attend.
   const intention = useRef<'brouillon' | 'signature'>('brouillon');
@@ -436,6 +446,27 @@ function FormulaireDuBail({
   })();
   const nomDuLocataire = selectedCustomer ? nomDuClient(selectedCustomer, (id) => t('customerFallback', { id: String(id) })) : null;
   const titreDuBien = selectedProperty?.title ?? reservation?.property?.title ?? null;
+  // TCK-2643 — « TK-52086 · bailleur Khady Faye · loyer annoncé 670 000 F / mois » (maquette) : le bail
+  // naît au nom du TITULAIRE du bien (TCK-997), la ligne le nomme ; sans titulaire connu, elle se tait.
+  const annonce = defauts?.property_price ?? null;
+  const ligneDuBien = selectedProperty
+    ? [
+        selectedProperty.reference_number ?? `#${selectedProperty.id}`,
+        nomDuBailleur ? t('ligne.bailleur', { nom: nomDuBailleur }) : null,
+        annonce
+          ? annonce.contract_type === 'rent'
+            ? annonce.period && annonce.period !== 'monthly'
+              ? t('ligne.loyerAnnoncePeriode', {
+                  montant: f.montantCourt(annonce.amount, devise),
+                  periode: t(`periodes.${annonce.period as 'daily' | 'weekly' | 'yearly'}`),
+                })
+              : t('ligne.loyerAnnonceMensuel', { montant: f.montantCourt(annonce.amount, devise) })
+            : t('ligne.prixAnnonce', { montant: f.montantCourt(annonce.amount, devise) })
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    : null;
 
   const valeurDePenalite =
     typeof taux === 'number' && taux > 0
@@ -443,6 +474,12 @@ function FormulaireDuBail({
       : t('valeurs.sansPenalite');
 
   const nomsDesEtapes = ETAPES.map((cle) => t(`etapes.${cle}`));
+  // « 670 000 F / mois », « / mois » en encre secondaire (maquette `ParMois`).
+  const parMois = (montant: string) =>
+    t.rich('valeurs.parMois', {
+      montant,
+      suffixe: (morceau) => <span className="font-normal text-muted-foreground">{morceau}</span>,
+    });
   const etapeMin = 0;
 
   const continuer = async () => {
@@ -470,20 +507,22 @@ function FormulaireDuBail({
       <Button
         type="submit"
         form={idFormulaire}
-        className={dansLaBarre ? 'w-full gap-2 font-semibold' : 'h-11 w-full gap-2'}
+        size={dansLaBarre ? 'xl' : 'default'}
+        className={dansLaBarre ? 'w-full font-semibold' : 'h-11 w-full gap-2'}
         disabled={isSubmitting || sansCompte || bailCree !== null}
         onClick={() => {
           intention.current = 'signature';
           setIntentionAffichee('signature');
         }}
       >
-        <FileSignature className="size-4" strokeWidth={1.75} aria-hidden="true" />
+        <FileSignature className={dansLaBarre ? 'size-icone' : 'size-4'} strokeWidth={1.75} aria-hidden="true" />
         {isSubmitting && intentionAffichee === 'signature' ? t('envoiEnCours') : t('envoyerALaSignature')}
       </Button>
       <Button
         type="submit"
         form={idFormulaire}
         variant="outline"
+        size={dansLaBarre ? 'xl' : 'default'}
         className={dansLaBarre ? 'w-full' : 'h-11 w-full'}
         disabled={isSubmitting || bailCree !== null}
         onClick={() => {
@@ -498,7 +537,9 @@ function FormulaireDuBail({
 
   const avisDEnvoi = (
     <div className="space-y-2">
-      {candidatures > 0 ? (
+      {/* TCK-2734, décision 7b — les autres candidatures se closent à l’ENVOI en signature, plus à la création
+          du brouillon : l’avis ne se dit que si l’envoi est ouvert (un locataire sans compte le ferme). */}
+      {candidatures > 0 && !sansCompte ? (
         <p className="flex gap-2.5 text-ui leading-relaxed text-muted-foreground">
           <Info className="mt-0.5 size-4 flex-none" strokeWidth={1.75} aria-hidden="true" />
           {t('candidatures', { count: candidatures })}
@@ -515,6 +556,11 @@ function FormulaireDuBail({
           {t('signature.aide')}
         </p>
       )}
+      {/* Décision 11 — les garants s'ajoutent sur la fiche, une fois le bail créé : dit avec l'envoi. */}
+      <p className="flex gap-2.5 text-ui leading-relaxed text-muted-foreground">
+        <Info className="mt-0.5 size-4 flex-none" strokeWidth={1.75} aria-hidden="true" />
+        {t('guarantorsHint')}
+      </p>
     </div>
   );
 
@@ -532,7 +578,7 @@ function FormulaireDuBail({
         onSubmit={(e) => {
           void envoyer(e);
         }}
-        className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_min(calc(var(--spacing)*100),36.5%)]"
+        className="grid items-start gap-6 max-md:px-4 max-md:pt-4 max-md:pb-6 xl:grid-cols-[minmax(0,1fr)_min(25rem,36.5%)]"
       >
         {/* « Entrée » dans un champ n'envoie pas le bail (il partirait d'une étape, ou à la signature) :
             l'envoi implicite passe par le PREMIER bouton d'envoi du formulaire, et celui-ci, désactivé,
@@ -561,17 +607,29 @@ function FormulaireDuBail({
               />
             ) : (
               <div className="space-y-4">
-                <EntitySelect
-                  control={form.control}
-                  name="property_id"
-                  label={t('property')}
-                  placeholder={propertiesQuery.isLoading ? t('loadingProperties') : t('selectProperty')}
-                  options={properties.map((property) => ({
-                    value: property.id,
-                    label: formatPropertyLabel(property),
-                  }))}
-                  required
-                />
+                {selectedProperty && !changerLeBien ? (
+                  <LigneChoisie
+                    visuel={<VignetteDuBien src={selectedProperty.main_photo_url} className="size-12" />}
+                    titre={selectedProperty.title}
+                    detail={ligneDuBien}
+                    libelleChanger={t('ligne.changer')}
+                    nomDuGeste={t('ligne.changerLeBien')}
+                    onChanger={() => setChangerLeBien(true)}
+                  />
+                ) : (
+                  <EntitySelect
+                    control={form.control}
+                    name="property_id"
+                    label={t('property')}
+                    placeholder={propertiesQuery.isLoading ? t('loadingProperties') : t('selectProperty')}
+                    options={properties.map((property) => ({
+                      value: property.id,
+                      label: formatPropertyLabel(property),
+                    }))}
+                    onChoisi={() => setChangerLeBien(false)}
+                    required
+                  />
+                )}
                 {aucunBien ? (
                   // TCK-776 (P15.09) — une liste vide se dit, et mène à ce qui la remplit.
                   <div className="space-y-2 rounded-lg border border-dashed border-border p-4 text-sm">
@@ -581,21 +639,6 @@ function FormulaireDuBail({
                     </Link>
                   </div>
                 ) : null}
-                <div className="rounded-lg bg-muted/50 p-4 text-sm">
-                  <SummaryBlock
-                    label={t('selectedProperty')}
-                    value={
-                      selectedProperty
-                        ? `${selectedProperty.title} · ${selectedProperty.reference_number ?? `#${selectedProperty.id}`}`
-                        : t('noPropertySelected')
-                    }
-                    detail={
-                      selectedProperty && typeof selectedProperty.price === 'number'
-                        ? formatCurrency(selectedProperty.price, 'fr', { currency: selectedProperty.currency ?? 'XOF' })
-                        : undefined
-                    }
-                  />
-                </div>
               </div>
             )}
           </SectionDuBail>
@@ -604,91 +647,97 @@ function FormulaireDuBail({
           {reservation ? null : (
             <SectionDuBail n={2} titre={t('sections.locataire')} faite={selectedTenantId > 0} cachee={etape !== 1}>
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <label htmlFor="tenant-search" className="block text-sm font-medium">
-                    {t('tenant')}
-                    <span aria-hidden="true" className="ml-0.5 text-destructive">*</span>
-                  </label>
-                  <Input
-                    id="tenant-search"
-                    value={customerSearch}
-                    onChange={(event) => setCustomerSearch(event.target.value)}
-                    placeholder={t('tenantSearchPlaceholder')}
+                {selectedCustomer && nomDuLocataire && !changerLeLocataire ? (
+                  <LigneChoisie
+                    visuel={<InitialesDuLocataire texte={initiales(nomDuLocataire)} />}
+                    titre={nomDuLocataire}
+                    detail={selectedCustomer.phone ? formaterTelephone(selectedCustomer.phone) : (selectedCustomer.email ?? null)}
+                    libelleChanger={t('ligne.changer')}
+                    nomDuGeste={t('ligne.changerLeLocataire')}
+                    onChanger={() => setChangerLeLocataire(true)}
                   />
-                  <EntitySelect
-                    control={form.control}
-                    name="tenant_id"
-                    label={null}
-                    ariaLabel={t('tenant')}
-                    placeholder={customersQuery.isLoading ? t('searching') : t('selectTenant')}
-                    options={optionsDeLocataire.map((customer) => ({
-                      value: customer.id,
-                      label: customerLabel(customer),
-                    }))}
-                    onChoisi={(id) => setLocataireConnu(customers.find((c) => c.id === id) ?? null)}
-                    required
-                  />
-                </div>
-                {personnel ? (
-                  <CreationRapideDuLocataire
-                    onCree={(locataire) => {
-                      setLocataireConnu(locataire);
-                      form.setValue('tenant_id', locataire.id, { shouldDirty: true, shouldValidate: true });
-                    }}
-                    onChoisi={(id) => {
-                      setLocataireConnu(null);
-                      form.setValue('tenant_id', id, { shouldDirty: true, shouldValidate: true });
-                    }}
-                  />
-                ) : null}
-                {aucunLocataire && !personnel ? (
-                  <div className="space-y-2 rounded-lg border border-dashed border-border p-4 text-sm">
-                    <p className="text-muted-foreground">{t('emptyTenants')}</p>
-                    <Link href="/app/customers/new" className="font-medium text-primary underline-offset-4 hover:underline">
-                      {t('addTenant')}
-                    </Link>
-                  </div>
-                ) : null}
-                <div className="rounded-lg bg-muted/50 p-4 text-sm">
-                  <SummaryBlock
-                    label={t('selectedTenant')}
-                    value={selectedCustomer ? customerLabel(selectedCustomer) : t('noTenantSelected')}
-                    detail={
-                      // TCK-997 (P50.01) — le bail naît au nom du TITULAIRE du bien (`LeaseService::create`,
-                      // `landlord_id = property.user_id`), jamais de qui le saisit : la ligne le nomme.
-                      selectedProperty?.owner
-                        ? t('landlordOfProperty', {
-                            name: nomAffichable({ id: selectedProperty.owner.id }, selectedProperty.owner.name),
-                          })
-                        : t('landlordPending')
-                    }
-                  />
-                </div>
-                <p className="rounded-lg border border-dashed border-border p-3 text-xs text-muted-foreground">
-                  {t('guarantorsHint')}
-                </p>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <label htmlFor="tenant-search" className="block text-sm font-medium">
+                        {t('tenant')}
+                        <span aria-hidden="true" className="ml-0.5 text-destructive">*</span>
+                      </label>
+                      <Input
+                        id="tenant-search"
+                        value={customerSearch}
+                        onChange={(event) => setCustomerSearch(event.target.value)}
+                        placeholder={t('tenantSearchPlaceholder')}
+                      />
+                      <EntitySelect
+                        control={form.control}
+                        name="tenant_id"
+                        label={null}
+                        ariaLabel={t('tenant')}
+                        placeholder={customersQuery.isLoading ? t('searching') : t('selectTenant')}
+                        options={optionsDeLocataire.map((customer) => ({
+                          value: customer.id,
+                          label: customerLabel(customer),
+                        }))}
+                        onChoisi={(id) => {
+                          setLocataireConnu(customers.find((c) => c.id === id) ?? null);
+                          setChangerLeLocataire(false);
+                        }}
+                        required
+                      />
+                    </div>
+                    {personnel ? (
+                      <CreationRapideDuLocataire
+                        onCree={(locataire) => {
+                          setLocataireConnu(locataire);
+                          setChangerLeLocataire(false);
+                          form.setValue('tenant_id', locataire.id, { shouldDirty: true, shouldValidate: true });
+                        }}
+                        onChoisi={(id) => {
+                          setLocataireConnu(null);
+                          setChangerLeLocataire(false);
+                          form.setValue('tenant_id', id, { shouldDirty: true, shouldValidate: true });
+                        }}
+                      />
+                    ) : null}
+                    {aucunLocataire && !personnel ? (
+                      <div className="space-y-2 rounded-lg border border-dashed border-border p-4 text-sm">
+                        <p className="text-muted-foreground">{t('emptyTenants')}</p>
+                        <Link href="/app/customers/new" className="font-medium text-primary underline-offset-4 hover:underline">
+                          {t('addTenant')}
+                        </Link>
+                      </div>
+                    ) : null}
+                  </>
+                )}
               </div>
             </SectionDuBail>
           )}
 
           {/* ── 3. Les conditions ──────────────────────────────────────────────────────────── */}
           <SectionDuBail n={reservation ? 2 : 3} titre={t('sections.conditions')} cachee={etape !== 2}>
-            <div className="space-y-4">
+            {/* `flex` + `gap` et non `space-y` : la marge haute d'un titre de bloc (`mt-1`, 20 px au-dessus
+                comme la maquette) ne se fond pas dans celle du bloc d'avant. */}
+            <div className="flex flex-col gap-4">
               {etape === 2 && titreDuBien ? (
                 // Au téléphone, le rappel du bail en cours (maquette `ContexteBail`).
-                <div className="rounded-xl bg-muted/60 p-3 leading-snug md:hidden">
-                  <p className="truncate text-sm font-semibold">
-                    {titreDuBien}
-                    {' · '}
-                    {selectedProperty?.reference_number ?? `#${selectedPropertyId}`}
-                  </p>
-                  <p className="truncate text-ui text-muted-foreground">
-                    {t('contexte', { locataire: nomDuLocataire ?? '—', bailleur: nomDuBailleur ?? '—' })}
-                  </p>
+                <div className="flex items-center gap-3 rounded-xl bg-muted/60 p-3 leading-snug md:hidden">
+                  <VignetteDuBien src={selectedProperty?.main_photo_url} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold">
+                      {titreDuBien}
+                      {' · '}
+                      {selectedProperty?.reference_number ?? `#${selectedPropertyId}`}
+                    </p>
+                    <p className="truncate text-ui text-muted-foreground">
+                      {t('contexte', { locataire: nomDuLocataire ?? '—', bailleur: nomDuBailleur ?? '—' })}
+                    </p>
+                  </div>
                 </div>
               ) : null}
 
-              <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+              {/* Maquette : 12 px entre le type et les dates au téléphone, 16 au bureau (×0,9). */}
+              <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-3">
                 <FormSelect<CreateLeaseFormValues>
                   control={form.control}
                   name="type"
@@ -697,14 +746,14 @@ function FormulaireDuBail({
                   required
                   containerClassName="max-lg:col-span-2"
                 />
-                <FormDatePicker<CreateLeaseFormValues> control={form.control} name="start_date" label={t('debut')} required />
+                <FormDatePicker<CreateLeaseFormValues> control={form.control} name="start_date" label={t('debut')} formatAffiche="d MMM yyyy" required />
                 <div>
-                  <FormDatePicker<CreateLeaseFormValues> control={form.control} name="end_date" label={t('fin')} />
+                  <FormDatePicker<CreateLeaseFormValues> control={form.control} name="end_date" label={t('fin')} formatAffiche="d MMM yyyy" />
                   <p className="mt-1 text-xs text-muted-foreground">{t('finAide')}</p>
                 </div>
               </div>
 
-              <TitreDeBloc className="pt-1 md:sr-only">{t('loyerEtCharges')}</TitreDeBloc>
+              <TitreDeBloc className="mt-1 md:sr-only">{t('loyerEtCharges')}</TitreDeBloc>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {isSale ? (
                   <FormAmountInput<CreateLeaseFormValues>
@@ -782,22 +831,8 @@ function FormulaireDuBail({
                   <Aide>{aideDeSource(sourceDe('deposit_amount', caution))}</Aide>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-                <FormSelect<CreateLeaseFormValues>
-                  control={form.control}
-                  name="currency"
-                  label={t('currency')}
-                  options={CURRENCY_OPTIONS}
-                />
-                <FormSelect<CreateLeaseFormValues>
-                  control={form.control}
-                  name="payment_frequency"
-                  label={t('frequency')}
-                  options={paymentFrequencyOptions}
-                />
-              </div>
 
-              <TitreDeBloc className="pt-1 md:sr-only">{t('reglesDuBail')}</TitreDeBloc>
+              <TitreDeBloc className="mt-1 md:sr-only">{t('reglesDuBail')}</TitreDeBloc>
               {defauts && !isSale ? (
                 <ReglagesAppliques
                   titre={reglagesDeLAgence ? t('reglages.agence') : t('reglages.plateforme')}
@@ -873,6 +908,22 @@ function FormulaireDuBail({
                   </div>
                 )}
               </div>
+              {/* Décision 12 — la devise reste au choix (la maquette ne la dessine pas) ; avec la fréquence,
+                  après les règles du bail : ce que la maquette montre garde sa place à l'écran. */}
+              <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+                <FormSelect<CreateLeaseFormValues>
+                  control={form.control}
+                  name="currency"
+                  label={t('currency')}
+                  options={CURRENCY_OPTIONS}
+                />
+                <FormSelect<CreateLeaseFormValues>
+                  control={form.control}
+                  name="payment_frequency"
+                  label={t('frequency')}
+                  options={paymentFrequencyOptions}
+                />
+              </div>
             </div>
           </SectionDuBail>
 
@@ -913,14 +964,14 @@ function FormulaireDuBail({
                   {
                     cle: t('recap.duree'),
                     valeur: fin
-                      ? t('valeurs.duree', { debut: f.date(debut, DATE_COURTE), fin: f.date(fin, DATE_COURTE) })
-                      : t('valeurs.dureeSansFin', { debut: f.date(debut, DATE_COURTE) }),
+                      ? t('valeurs.duree', { debut: f.date(debut, DATE_DU_BAIL), fin: f.date(fin, DATE_DU_BAIL) })
+                      : t('valeurs.dureeSansFin', { debut: f.date(debut, DATE_DU_BAIL) }),
                   },
                   ...(isSale
                     ? [{ cle: t('recap.prixDeVente'), valeur: f.montantCourt(prixDeVente ?? null, devise) }]
                     : [
-                        { cle: t('recap.loyer'), valeur: t('valeurs.parMois', { montant: f.montantCourt(loyerSaisi, devise) }) },
-                        { cle: t('recap.charges'), valeur: t('valeurs.parMois', { montant: f.montantCourt(typeof charges === 'number' ? charges : 0, devise) }) },
+                        { cle: t('recap.loyer'), valeur: parMois(f.montantCourt(loyerSaisi, devise)) },
+                        { cle: t('recap.charges'), valeur: parMois(f.montantCourt(typeof charges === 'number' ? charges : 0, devise)) },
                       ]),
                   {
                     cle: t('recap.caution'),
@@ -954,18 +1005,22 @@ function FormulaireDuBail({
 
       {/* ── Téléphone : « Retour » / « Continuer », puis les deux envois ────────────────────── */}
       {etape < ETAPE_VERIFIER ? (
-        <BarreDAction secondaire={etape > etapeMin ? 'premier' : undefined}>
+        // Maquette : des boutons de 48 px (`taille="action"`, comme la fiche d'une visite, TCK-2587).
+        <BarreDAction secondaire={etape > etapeMin ? 'premier' : undefined} taille="action">
           {etape > etapeMin ? (
-            <Button type="button" variant="outline" className="px-4" onClick={revenir}>
+            <Button type="button" variant="outline" size="xl" className="px-4" onClick={revenir}>
               {t('retour')}
             </Button>
           ) : null}
-          <Button type="button" className="font-semibold" onClick={() => void continuer()}>
+          <Button type="button" size="xl" className="font-semibold" onClick={() => void continuer()}>
             {t('continuer')}
           </Button>
         </BarreDAction>
       ) : (
-        <BarreDAction className="flex-col">{boutonsDEnvoi(true)}</BarreDAction>
+        // En colonne, `flex-1` écraserait la hauteur des boutons : chacun garde la sienne.
+        <BarreDAction className="flex-col *:flex-none" taille="action">
+          {boutonsDEnvoi(true)}
+        </BarreDAction>
       )}
     </>
   );

@@ -175,8 +175,10 @@ describe('CreateLeaseForm — préremplissage depuis le bien (TCK-2643)', () => 
     const total = await screen.findByText((_, el) => el?.getAttribute('data-slot') === 'total-a-l-entree');
     await waitFor(() => expect(espaces(total.textContent ?? '')).toContain('2 035 000 F'));
     expect(espaces(total.textContent ?? '')).toContain('Loyer 670 000 F + charges 25 000 F + caution 1 340 000 F');
-    // La candidature du locataire se complète ; celle de l'autre client se ferme.
-    expect(screen.getByText('Créer ce bail clôturera 1 autre candidature en cours sur ce bien.')).toBeInTheDocument();
+    // La candidature du locataire se complète ; celle de l'autre client se ferme — à l'ENVOI en signature
+    // (TCK-2734, décision 7b), plus à la création du brouillon.
+    expect(screen.getByText('L’envoi en signature clôturera 1 autre candidature en cours sur ce bien.')).toBeInTheDocument();
+    expect(screen.queryByText(/Créer ce bail clôturera/)).not.toBeInTheDocument();
   });
 
   it('une valeur saisie avant le choix du bien n’est pas réécrite ; les autres se préremplissent', async () => {
@@ -272,6 +274,11 @@ describe('CreateLeaseForm — « Envoyer à la signature » (TCK-2643, AC4)', ()
     await waitFor(() => expect(screen.getByRole('button', { name: 'Envoyer à la signature' })).toBeDisabled());
     expect(screen.getByText(/Awa Diop n’a pas encore de compte/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Créer le brouillon' })).toBeEnabled();
+    // Les défauts (et leurs candidatures) sont arrivés : le total en dépend.
+    const total = await screen.findByText((_, el) => el?.getAttribute('data-slot') === 'total-a-l-entree');
+    await waitFor(() => expect(espaces(total.textContent ?? '')).toContain('2 035 000 F'));
+    // L'envoi fermé ne close rien : l'avis des candidatures (celle du client 7) ne se dit pas (décision 7b).
+    expect(screen.queryByText(/L’envoi en signature clôturera/)).not.toBeInTheDocument();
   });
 });
 
@@ -321,7 +328,9 @@ describe('CreateLeaseForm — création rapide du locataire (TCK-2643, décision
     await user.click(screen.getByRole('button', { name: 'Créer le locataire' }));
 
     // Le récapitulatif ET le sélecteur le nomment.
-    await waitFor(() => expect(screen.getAllByText('Awa Diop · +221770000001').length).toBeGreaterThan(0));
+    // Retenu pour le bail : il se montre en une ligne, la liste se referme.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Changer le locataire' })).toBeInTheDocument());
+    expect(screen.getAllByText('Awa Diop').length).toBeGreaterThan(0);
     expect(CREER_CLIENT).toHaveBeenCalledWith({ first_name: 'Awa', last_name: 'Diop', phone: null });
     // Sans compte : le brouillon, pas la signature.
     expect(screen.getByRole('button', { name: 'Envoyer à la signature' })).toBeDisabled();
@@ -340,7 +349,8 @@ describe('CreateLeaseForm — création rapide du locataire (TCK-2643, décision
 
     // Lue par son identifiant (`useLeaseCustomer`) : le nom et le compte de la fiche existante.
     // Le récapitulatif ET le sélecteur le nomment.
-    await waitFor(() => expect(screen.getAllByText('Ndèye Sokhna Thiam · +221765182207').length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Changer le locataire' })).toBeInTheDocument());
+    expect(screen.getAllByText('Ndèye Sokhna Thiam').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Envoyer à la signature' })).toBeEnabled();
   });
 

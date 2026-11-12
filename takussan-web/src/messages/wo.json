@@ -3001,9 +3001,7 @@
       "searching": "Seet…",
       "selectTenant": "Tànnal benn luwékat",
       "selectedProperty": "Kër gi ñu tànn",
-      "noPropertySelected": "Tannuñu benn kër",
       "selectedTenant": "Luwékat bi ñu tànn",
-      "noTenantSelected": "Tannuñu benn luwékat",
       "landlordOfProperty": "Bailleur : {name}",
       "landlordPending": "Bailleur : le titulaire du bien choisi",
       "guarantorsHint": "Garant yi mën nañu leen yokk ci xëtu luwé bi bu buruyoŋ bi sosoo.",
@@ -3135,11 +3133,11 @@
         "mois": "{count, plural, one {# mois} other {# mois}}",
         "duree": "{debut} → {fin}",
         "dureeSansFin": "À partir du {debut}",
-        "parMois": "{montant} / mois",
+        "parMois": "{montant}<suffixe> / mois</suffixe>",
         "caution": "{mois} · {montant}",
         "echeance": "Le {jour} du mois"
       },
-      "candidatures": "{count, plural, one {Créer ce bail clôturera # autre candidature en cours sur ce bien.} other {Créer ce bail clôturera # autres candidatures en cours sur ce bien.}}",
+      "candidatures": "{count, plural, one {L’envoi en signature clôturera # autre candidature en cours sur ce bien.} other {L’envoi en signature clôturera # autres candidatures en cours sur ce bien.}}",
       "signature": {
         "aide": "« Envoyer à la signature » adresse un code par SMS au locataire et au bailleur. Le brouillon, lui, reste modifiable.",
         "sansCompte": "{nom} n’a pas encore de compte : le bail ne peut pas lui être envoyé à la signature. Créez le brouillon, puis invitez le locataire depuis sa fiche.",
@@ -3171,6 +3169,15 @@
           "memeEmail": "même e-mail",
           "creerQuandMeme": "Créer quand même"
         }
+      },
+      "ligne": {
+        "changer": "Changer",
+        "changerLeBien": "Changer le bien",
+        "changerLeLocataire": "Changer le locataire",
+        "bailleur": "bailleur {nom}",
+        "loyerAnnonceMensuel": "loyer annoncé {montant} / mois",
+        "loyerAnnoncePeriode": "loyer annoncé {montant} {periode}",
+        "prixAnnonce": "prix annoncé {montant}"
       }
     },
     "payment": {
@@ -14497,7 +14504,8 @@
       "leaseNew": {
         "metaTitle": "Kontaraa bu bees",
         "title": "Kontaraa bu bees",
-        "subtitle": "Bindal ñi ci bokk, diir bi ak kondisioŋu xaalis."
+        "subtitle": "Bindal ñi ci bokk, diir bi ak kondisioŋu xaalis.",
+        "subtitlePrerempli": "Prérempli depuis la fiche du bien"
       },
       "maintenanceNew": {
         "metaTitle": "Ñaanu wattu bu bees",
