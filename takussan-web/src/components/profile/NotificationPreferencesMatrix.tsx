@@ -251,7 +251,7 @@ export function NotificationPreferencesMatrix() {
       {!data.phone_verified ? (
         <p className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
           {t('smsDisabled')}{' '}
-          <Link href="/app/profile" className="font-semibold underline">
+          <Link href="/app/profile/contact" className="font-semibold underline">
             {t('verifyPhone')}
           </Link>
         </p>
@@ -446,6 +446,15 @@ function NoteVerrou({ children }: { readonly children: ReactNode }) {
  */
 type EtatDEnvoi = 'repos' | 'occupee' | 'en-attente';
 
+/**
+ * Le voile des cases en attente n'apparaît qu'après 300 ms : un enregistrement local dure 250 ms
+ * environ (mesuré au navigateur le 2026-11-12), et un voile immédiat faisait clignoter toute la
+ * grille à chaque toucher — ce que le commentaire d'avant voulait éviter. Le retard ne vaut qu'à
+ * l'entrée (la classe part avec l'état) : la grille se rallume aussitôt. `aria-disabled`, lui, est
+ * immédiat.
+ */
+const VOILE_D_ATTENTE = 'opacity-60 delay-300';
+
 function etatDEnvoi(cell: NotificationPreferenceCell, envoiEnCours: string | null): EtatDEnvoi {
   if (envoiEnCours === null || cell.locked) return 'repos';
   return envoiEnCours === cellKey(cell.event_type, cell.channel) ? 'occupee' : 'en-attente';
@@ -479,13 +488,13 @@ function PuceDeCanal({ cell, nom, nomAccessible, onToggle, envoi }: PuceDeCanalP
       onClick={() => onToggle(cell)}
       className={cn(
         'relative inline-flex h-8 flex-none items-center gap-1 whitespace-nowrap rounded-full border px-2.5 text-ui font-medium outline-none select-none',
-        'transition-[color,background-color,border-color,box-shadow] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring',
+        'transition-[color,background-color,border-color,box-shadow,opacity] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring',
         'before:absolute before:inset-x-0 before:top-1/2 before:h-controle before:-translate-y-1/2',
         cell.enabled ? 'border-primary/40 bg-secondary text-primary-deep' : 'border-border bg-card text-encre-douce',
         verrou && 'opacity-70',
         cell.locked && 'cursor-not-allowed',
         envoi !== 'repos' && 'cursor-wait',
-        envoi === 'en-attente' && 'opacity-60',
+        envoi === 'en-attente' && VOILE_D_ATTENTE,
       )}
     >
       {verrou ? (
@@ -642,8 +651,9 @@ function CaseDeLaMatrice({ cell, nomAccessible, raison, onToggle, envoi }: CaseD
     <label
       className={cn(
         cible,
+        'transition-opacity',
         cell.locked ? 'cursor-default' : envoi === 'repos' ? 'cursor-pointer hover:bg-muted' : 'cursor-wait',
-        envoi === 'en-attente' && 'opacity-60',
+        envoi === 'en-attente' && VOILE_D_ATTENTE,
       )}
       title={raison}
     >

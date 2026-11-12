@@ -2,6 +2,7 @@
 
 import { ApiError, messageErreurApi } from '@/lib/api';
 import { getToken } from '@/lib/session';
+import { revalidatePath } from 'next/cache';
 import { getTranslations } from 'next-intl/server';
 import { codeDoubleFacteur, type CodeDoubleFacteur } from '@/lib/double-facteur';
 import {
@@ -95,6 +96,15 @@ export async function twoFactorEnableAction(): Promise<
   }
 }
 
+/**
+ * TCK-2635 — « À régler » et le point des rangées du profil se lisent au rendu serveur du cadre
+ * (`/app/profile/**`) : un numéro vérifié ou une double authentification activée doit les éteindre
+ * sans recharger la page.
+ */
+function rafraichirLeProfil(): void {
+  revalidatePath('/app/profile', 'layout');
+}
+
 export async function twoFactorConfirmAction(
   code: string,
 ): Promise<ActionResult<TwoFactorConfirmResponse>> {
@@ -102,6 +112,7 @@ export async function twoFactorConfirmAction(
     const token = await getToken();
     requireToken(token, await jetonManquant());
     const data = await twoFactorConfirm(token, code);
+    rafraichirLeProfil();
     return { ok: true, data };
   } catch (err) {
     return failure(err, 'invalidCode');
@@ -116,6 +127,7 @@ export async function twoFactorDisableAction(payload: {
     const token = await getToken();
     requireToken(token, await jetonManquant());
     await twoFactorDisable(token, payload);
+    rafraichirLeProfil();
     return { ok: true, data: null };
   } catch (err) {
     return failure(err, 'disableFailed');
@@ -167,6 +179,7 @@ export async function phoneVerifyOtpAction(
     const token = await getToken();
     requireToken(token, await jetonManquant());
     await phoneVerifyOtp(token, code);
+    rafraichirLeProfil();
     return { ok: true, data: null };
   } catch (err) {
     return failure(err, 'invalidOrExpiredCode');

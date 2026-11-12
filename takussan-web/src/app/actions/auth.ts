@@ -85,7 +85,7 @@ export async function updateProfileAction(
 
   try {
     const user = await updateProfile(token, payload);
-    revalidatePath('/app/profile');
+    revalidatePath('/app/profile', 'layout');
     revalidatePath('/app');
     return { ok: true, user };
   } catch (err) {

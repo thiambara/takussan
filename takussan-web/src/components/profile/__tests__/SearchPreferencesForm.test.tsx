@@ -75,7 +75,7 @@ describe('<SearchPreferencesForm>', () => {
     // TCK-632 — vers les coordonnées, qui ajoutent l'adresse d'un compte ouvert par téléphone.
     expect(screen.getByRole('link', { name: 'Vérifier mon email' })).toHaveAttribute(
       'href',
-      '/app/profile#coordonnees',
+      '/app/profile/contact',
     );
   });
 
@@ -160,9 +160,26 @@ describe('<SearchPreferencesForm>', () => {
       return JSON.parse(((call[1] as RequestInit).body as string) ?? '{}');
     }
 
-    it('enregistrer sans rien changer laisse les critères inchangés', async () => {
-      const body = await enregistrer(ALERTE);
+    it('sans modification, « Enregistrer » est inactif et rien ne part (TCK-2635)', async () => {
+      const user = userEvent.setup();
+      const fetchSpy = mockFetch({ payload: { data: ALERTE } });
+      renderForm({ initial: ALERTE, emailVerified: true });
+      expect(screen.getByTestId('pref-save')).toBeDisabled();
+      await user.click(screen.getByTestId('pref-save'));
+      expect(fetchSpy).not.toHaveBeenCalled();
+      // Une saisie annulée n'est pas une modification.
+      await user.type(screen.getByTestId('pref-cities'), 'x');
+      expect(screen.getByTestId('pref-save')).toBeEnabled();
+      await user.type(screen.getByTestId('pref-cities'), '{Backspace}');
+      expect(screen.getByTestId('pref-save')).toBeDisabled();
+    });
+
+    it('n’enregistrer que les alertes laisse les critères inchangés', async () => {
+      const body = await enregistrer(ALERTE, async (user) => {
+        await user.click(screen.getByTestId('pref-alerts-toggle'));
+      });
       expect(body.criteria).toEqual(ALERTE.criteria);
+      expect(body.notification_frequency).toBe('off');
     });
 
     it('changer les villes écrit `cities`, retire `city` et garde les autres critères', async () => {

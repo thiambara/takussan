@@ -106,7 +106,8 @@ function CoqueDeLApp({
   // d'onglets — sous `md` seulement : la colonne, la palette et les récents restent (≠ `pleinEcran`).
   const declaration = useDeclarationDEnTete();
   const forme = declaration.forme ?? formeDeLaRoute(pathname);
-  const sansOnglets = forme === 'plein-ecran' || declaration.conversation === true;
+  // TCK-2635 — et une section du profil à enregistrer : sa barre « Enregistrer » prend la place des onglets.
+  const sansOnglets = forme === 'plein-ecran' || declaration.conversation === true || declaration.formulaire === true;
   // TCK-2481 — sous `md`, la barre d'onglets ; « Menu » y ouvre le tiroir, qui lui rend le focus.
   const barreDOnglets = porteLaBarreDOnglets(pathname) && !sansOnglets;
   const boutonMenu = useRef<HTMLButtonElement>(null);

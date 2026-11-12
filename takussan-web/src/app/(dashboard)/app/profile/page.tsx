@@ -1,120 +1,68 @@
 import type { Metadata } from 'next';
-import { getTranslations } from 'next-intl/server';
-import Link from 'next/link';
-import { getMeAction } from '@/app/actions/auth';
+import { getLocale, getTranslations } from 'next-intl/server';
 
-import { isAgent, isOwner, isCustomerOnly, isAdmin, isServiceProvider } from '@/lib/roles';
-import { ProfileLayout } from '@/components/profile/ProfileLayout';
+import { PagePleineLargeur } from '@/components/layout/PagePleineLargeur';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
-import { ProfileContactSection } from '@/components/profile/ProfileContactSection';
-import { ProfileTimezoneSection } from '@/components/profile/ProfileTimezoneSection';
-import { ProfileDirectorySection } from '@/components/profile/ProfileDirectorySection';
-import { ProfileMenuSection } from '@/components/profile/ProfileMenuSection';
-import { ProfileCustomerSection } from '@/components/profile/ProfileCustomerSection';
-import { ProfileAgentSection } from '@/components/profile/ProfileAgentSection';
-import { ProfileAgentDirectorySection } from '@/components/profile/ProfileAgentDirectorySection';
-import { ProfileOwnerSection } from '@/components/profile/ProfileOwnerSection';
-import { ProfileAdminSection } from '@/components/profile/ProfileAdminSection';
-import { ProfileServiceProviderSection } from '@/components/profile/ProfileServiceProviderSection';
-import { ProfileSecuritySection } from '@/components/profile/ProfileSecuritySection';
-import { MyProfilesSection } from '@/components/profile/MyProfilesSection';
-import { PayoutMethodsSection } from '@/components/profile/PayoutMethodsSection';
-// `buttonVariants()` sur un `<Link>`, et non le wrapper polymorphe de shadcn/Radix que le ticket
-// prescrivait : ce dépôt n'a aucune dépendance Radix, cette API n'existe pas ici.
-import { buttonVariants } from '@/components/ui/button';
+import { AReglerDuProfil } from '@/components/profile/sommaire/AReglerDuProfil';
+import { detailsDuSommaire } from '@/components/profile/sommaire/details-du-sommaire';
+import { MenuEtAffichage } from '@/components/profile/sommaire/MenuEtAffichage';
+import { MesEspacesEnBref } from '@/components/profile/sommaire/MesEspacesEnBref';
+import { identiteDuSommaire } from '@/lib/profil/identite-du-sommaire';
+import { noteDeLaFiche } from '@/lib/profil/note-de-la-fiche';
+import { SommaireDuTelephone } from '@/components/profile/sommaire/SommaireDuTelephone';
+import type { Locale } from '@/i18n/config';
+import { faitsDuSommaire } from '@/lib/profil/faits-du-sommaire';
+import { aRegler, rangeesAPoint, rangeesDuSommaire } from '@/lib/profil/sommaire';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.profile');
   return { title: t('metaTitle') };
 }
 
+/**
+ * TCK-2635 — le profil s'ouvre sur son sommaire (maquette `app-profil` a, « Sommaire »).
+ *
+ * - Au téléphone : l'identité, « À régler », puis une rangée par section, qui ouvre sa page ; en
+ *   dernier, « Supprimer mon compte » et « Déconnexion ».
+ * - Au bureau : la « Vue d'ensemble », à droite du sommaire collant (`CadreDuProfil`) — l'identité,
+ *   « À régler », mes espaces en bref, et « Menu et affichage » (barre latérale, menu, langue, fuseau).
+ *
+ * Chaque section d'avant le ticket a sa rangée et sa page (`/app/profile/*`, `/app/account/privacy`).
+ */
 export default async function ProfilePage() {
-  const t = await getTranslations('dashboard.profile');
-  const user = await getMeAction();
+  const faits = await faitsDuSommaire();
+  const [tDetails, tTypes, locale] = await Promise.all([
+    getTranslations('profile.sommaire.details'),
+    getTranslations('profile.types'),
+    getLocale(),
+  ]);
+  const rangees = rangeesDuSommaire(faits);
+  const liste = aRegler(faits);
+  const note = await noteDeLaFiche(faits, locale);
+  const details = detailsDuSommaire(faits, {
+    t: (cle, valeurs) => tDetails(cle, valeurs),
+    tTypes: (cle) => tTypes(cle),
+    locale: locale as Locale,
+    note,
+  });
+
+  const identite = identiteDuSommaire(faits, (type) => tTypes(type));
+
   return (
-    <ProfileLayout>
-      <ProfileHeader user={user} />
-      <ProfileContactSection user={user} />
-      {/* TCK-1497 (P107.03) — le fuseau des rendus de l'API (notifications, rappels, résumé). */}
-      <ProfileTimezoneSection timezone={user.timezone} />
-      {/* TCK-2480 — le menu de la console : réinitialiser le persona actif, et la barre de cet appareil. */}
-      <ProfileMenuSection />
-      <MyProfilesSection />
-      {/* TCK-492 — `isCustomerOnly` : ces deux sections n'ont plus été rendues
-          depuis le cutover TCK-278 (`customer` n'était plus émis). Les rétablir
-          sur `isCustomer` les aurait ajoutées à la page de profil de TOUT compte,
-          agents et administrateurs compris — un élargissement que personne n'a
-          demandé. */}
-      {isCustomerOnly(user.roles) && <ProfileCustomerSection user={user} />}
-      {isAgent(user.roles) && <ProfileAgentSection />}
-      {/* TCK-2524 — ses langues et ses quartiers, que la fiche publique d'agent affiche (TCK-2518). */}
-      {isAgent(user.roles) && <ProfileAgentDirectorySection />}
-      {isOwner(user.roles) && <ProfileOwnerSection user={user} />}
-      {/* TCK-2506 — un propriétaire n'est dans l'annuaire public que s'il le choisit. Un agent y est
-          toujours : l'interrupteur ne lui dirait rien de vrai. */}
-      {isOwner(user.roles) && !isAgent(user.roles) && (
-        <ProfileDirectorySection listed={user.listed_in_public_directory === true} />
-      )}
-      {isAdmin(user.roles) && <ProfileAdminSection user={user} />}
-      {/* TCK-594 (ADR-0039 §6) — qui est payé déclare où : le bailleur et le prestataire. */}
-      {(isOwner(user.roles) || isServiceProvider(user.roles)) && <PayoutMethodsSection />}
-      {/* TCK-592 (P16) — métiers, zones, tarifs, disponibilités : éditables hors de l'assistant. */}
-      {isServiceProvider(user.roles) && <ProfileServiceProviderSection />}
-      <ProfileSecuritySection />
+    <PagePleineLargeur data-slot="sommaire-du-profil-page" className="grid gap-6 max-md:gap-0">
+      <div className="grid gap-6 max-md:gap-4 max-md:px-4 max-md:pt-5 max-md:pb-4">
+        <ProfileHeader user={faits.user} fonction={identite.fonction} fiche={identite.fiche} />
+        <AReglerDuProfil liste={liste} />
+      </div>
 
-      {/*
-        TCK-379 — `/app/account/privacy` (portabilité RGPD) n'avait AUCUN lien entrant dans tout
-        le front : ni la barre latérale, ni le menu utilisateur, ni cette page. L'écran existait,
-        il était injoignable. Il est posé ici et pas ailleurs parce que l'export de ses données
-        est le PENDANT de la suppression de compte, qui vit dans `ProfileSecuritySection`
-        juste au-dessus : les deux droits RGPD se lisent au même endroit.
-      */}
-      <section className="rounded-2xl bg-card p-6">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-bold text-foreground">{t('privacy')}</h2>
-            <p className="text-sm text-muted-foreground">{t('privacyBody')}</p>
-          </div>
-          <Link
-            href="/app/account/privacy"
-            className={buttonVariants({ variant: 'outline' })}
-          >
-            {t('managePrivacy')}
-          </Link>
-        </div>
-      </section>
+      <SommaireDuTelephone rangees={rangees} points={rangeesAPoint(liste)} details={details} />
 
-      <section className="rounded-2xl bg-card p-6">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-bold text-foreground">{t('notifications')}</h2>
-            <p className="text-sm text-muted-foreground">{t('notificationsBody')}</p>
-          </div>
-          <Link
-            href="/app/profile/notifications"
-            className={buttonVariants({ variant: 'outline' })}
-          >
-            {t('managePrefs')}
-          </Link>
-        </div>
-      </section>
-
-      {isCustomerOnly(user.roles) && (
-        <section className="rounded-2xl bg-card p-6">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-bold text-foreground">{t('reviews')}</h2>
-              <p className="text-sm text-muted-foreground">{t('reviewsBody')}</p>
-            </div>
-            <Link
-              href="/app/profile/reviews"
-              className={buttonVariants({ variant: 'outline' })}
-            >
-              {t('seeReviews')}
-            </Link>
-          </div>
-        </section>
-      )}
-    </ProfileLayout>
+      {/* Au bureau, la vue d'ensemble (maquette `ASommaireBureau`) ; chacun de ces blocs a aussi sa page,
+          ouverte du sommaire. */}
+      <div className="grid gap-6 max-md:hidden">
+        <MesEspacesEnBref profils={faits.profils} profilActif={faits.profilActif} />
+        <MenuEtAffichage timezone={faits.user.timezone} />
+      </div>
+    </PagePleineLargeur>
   );
 }

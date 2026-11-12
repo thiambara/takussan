@@ -1,0 +1,14 @@
+// Corps de fonction (le `return` final rend le compte rendu) : `.txt`, parce que ce n'est pas un module.
+// TCK-2635 — a-1 (Coordonnées, téléphone) relevé dans l'état de la maquette : une présentation saisie, NON
+// enregistrée (aucun clic sur « Enregistrer », aucune écriture). Le texte est celui de la référence,
+// tronqué par elle à 83 caractères.
+//   node scripts/fidelite/fidelite.mjs releve --url /app/profile/contact --persona agent --device mobile \
+//     --perturber scripts/fidelite/fixtures/perturber-tck-2635-a-1-telephone.txt --out .fidelite/TCK-2635/prod-a-1-telephone-agent
+const t = document.querySelector('textarea');
+if (!t) return 'pas de champ';
+const d = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(t), 'value');
+d.set.call(t, "Agent chez Dakar Immo depuis 2021. J’accompagne les locataires et les acheteurs");
+t.dispatchEvent(new Event('input', { bubbles: true }));
+await new Promise((r) => setTimeout(r, 600));
+window.scrollTo(0, 0);
+return 'saisie posée';

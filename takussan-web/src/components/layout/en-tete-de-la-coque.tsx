@@ -31,6 +31,12 @@ export interface DeclarationDEnTete {
    * porte la flèche. Un ÉTAT, pas une route : `/app/messages?conversation=…` garde son chemin.
    */
   readonly conversation?: boolean;
+  /**
+   * TCK-2635 — un formulaire à enregistrer (une section du profil) : au téléphone, la barre d'onglets
+   * s'efface devant sa barre « Enregistrer » (maquette `app-profil`, `EcranApp sansOnglets`) ; l'en-tête
+   * de détail reste, flèche comprise. ≠ `plein-ecran`, qui remplace la flèche par « ✕ ».
+   */
+  readonly formulaire?: boolean;
 }
 
 /**
@@ -93,15 +99,15 @@ export function useDeclarationDEnTete(): DeclarationDEnTete {
 export function DeclarerEnTete({ priorite = 'page', ...declaration }: DeclarationDEnTete & { readonly priorite?: Priorite }) {
   const declarer = useContext(ContexteDeclarer);
   const id = useId();
-  const { titre, forme, action, actions, etape, repli, conversation, sousTitre, droite } = declaration;
+  const { titre, forme, action, actions, etape, repli, conversation, formulaire, sousTitre, droite } = declaration;
   // L'étape par ses deux nombres : un objet neuf à chaque rendu redéclarerait sans fin.
   const etapeN = etape?.n;
   const etapeTotal = etape?.total;
   useLayoutEffect(() => {
     if (!declarer) return;
     const etapeDeclaree = etapeN !== undefined && etapeTotal !== undefined ? { n: etapeN, total: etapeTotal } : undefined;
-    declarer(id, { priorite, declaration: { titre, forme, action, actions, etape: etapeDeclaree, repli, conversation, sousTitre, droite } });
-  }, [declarer, id, priorite, titre, forme, action, actions, etapeN, etapeTotal, repli, conversation, sousTitre, droite]);
+    declarer(id, { priorite, declaration: { titre, forme, action, actions, etape: etapeDeclaree, repli, conversation, formulaire, sousTitre, droite } });
+  }, [declarer, id, priorite, titre, forme, action, actions, etapeN, etapeTotal, repli, conversation, formulaire, sousTitre, droite]);
   useLayoutEffect(() => {
     if (!declarer) return;
     return () => declarer(id, null);

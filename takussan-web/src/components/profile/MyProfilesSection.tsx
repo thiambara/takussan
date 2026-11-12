@@ -54,6 +54,9 @@ function profileTitle(profile: Profile, tTypes: (cle: string) => string): string
  * type. Read-only first iteration: KYC editing endpoints land in a follow-up
  * ticket (creation / suspension by agency_admin — see TCK-143 hors-périmètre).
  */
+/** Les statuts des profils (`*ProfileStatus` de l'API), tels que `profile.myProfiles.statuts` les dit. */
+const STATUTS_CONNUS: ReadonlySet<string> = new Set(['active', 'archived', 'blocked', 'draft', 'inactive', 'suspended']);
+
 export function MyProfilesSection() {
   const t = useTranslations('profile.myProfiles');
   const tTypes = useTranslations('profile.types');
@@ -132,7 +135,11 @@ export function MyProfilesSection() {
                   <p className="text-base font-semibold text-foreground">{profileTitle(profile, tTypes)}</p>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <ProfileBadge profile={profile} />
-                    {profile.status ? <span>· {profile.status}</span> : null}
+                    {/* TCK-2635 — le statut se DIT (« Actif »), il ne s'affiche plus en code (« · active »).
+                        Un statut que le front ne connaît pas encore ne s'affiche pas plutôt qu'en code. */}
+                    {profile.status && STATUTS_CONNUS.has(profile.status) ? (
+                      <span>· {t(`statuts.${profile.status}`)}</span>
+                    ) : null}
                     {isActive ? (
                       <span className="font-medium text-success">{t('activeProfile')}</span>
                     ) : null}

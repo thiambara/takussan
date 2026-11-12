@@ -1,11 +1,13 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { Check, Mail } from 'lucide-react';
+import { StatusBadge } from '@/components/console/StatusBadge';
 import { useAuth } from '@/context/AuthContext';
+import { ListeDeSecurite, RangeeDeSecurite } from './security/RangeeDeSecurite';
 import { TwoFactorSection } from './security/TwoFactorSection';
 import { PhoneVerificationSection } from './security/PhoneVerificationSection';
 import { ActiveSessionsSection } from './security/ActiveSessionsSection';
-import { AccountDeletionSection } from './security/AccountDeletionSection';
 
 /**
  * TCK-069 — Sécurité du profil :
@@ -24,53 +26,28 @@ export function ProfileSecuritySection() {
   // renvoyait vers une boîte qui n'existe pas. L'ajout se fait dans les coordonnées, plus haut.
   const sansAdresse = !user?.email;
 
+  // TCK-2635 — maquette `SectionSecurite` : à nu sous le titre « Sécurité », une carte de trois rangées
+  // (double authentification, téléphone, courriel), puis « Appareils connectés ».
   return (
-    <section className="space-y-4 rounded-2xl bg-card p-6">
-      <div>
-        <h2 className="text-lg font-bold text-foreground">{t('title')}</h2>
-        <p className="text-sm text-muted-foreground">
-          {t('description')}
-        </p>
-      </div>
-
-      <div className="rounded-2xl border border-border bg-card p-6">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h3 className="text-base font-semibold text-foreground">{t('emailTitle')}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {emailVerified ? t('emailVerified') : sansAdresse ? t('emailMissing') : t('emailNotVerified')}
-            </p>
-          </div>
-          {sansAdresse ? null : (
-            <span
-              className={
-                'rounded-full px-2 py-1 text-xs font-semibold ' +
-                (emailVerified
-                  ? 'bg-success/15 text-success'
-                  : 'bg-card text-primary')
-              }
-            >
-              {emailVerified ? t('verified') : t('notVerified')}
-            </span>
-          )}
-        </div>
-      </div>
-
-      <TwoFactorSection enabled={Boolean(user?.two_factor_enabled)} />
-
-      <PhoneVerificationSection
-        phone={user?.phone ?? null}
-        phoneVerified={Boolean(user?.phone_verified_at)}
-      />
+    <section aria-label={t('title')} className="grid gap-5">
+      <ListeDeSecurite>
+        <TwoFactorSection enabled={Boolean(user?.two_factor_enabled)} />
+        <PhoneVerificationSection phone={user?.phone ?? null} phoneVerified={Boolean(user?.phone_verified_at)} />
+        <RangeeDeSecurite
+          icone={sansAdresse || !emailVerified ? Mail : Check}
+          titre={t('emailTitle')}
+          statut={
+            sansAdresse ? undefined : (
+              <StatusBadge tone={emailVerified ? 'success' : 'attention'} label={emailVerified ? t('verified') : t('notVerified')} />
+            )
+          }
+          detail={sansAdresse ? t('emailAbsent') : emailVerified ? user?.email : t('emailNotVerified')}
+        />
+      </ListeDeSecurite>
 
       <ActiveSessionsSection />
-
-      <AccountDeletionSection
-        twoFactorEnabled={Boolean(user?.two_factor_enabled)}
-        // TCK-272 — défaut `true` : tant que `user` n'est pas chargé on
-        // montre le parcours mot de passe, jamais la voie de secours.
-        hasUsablePassword={user?.has_usable_password ?? true}
-      />
+      {/* TCK-2635 — la suppression du compte a sa page (`/app/profile/delete-account`,
+          `SuppressionDuCompte`), en dernier du sommaire, jamais au milieu de la sécurité. */}
     </section>
   );
 }

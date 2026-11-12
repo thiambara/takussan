@@ -11721,7 +11721,24 @@
       "opportunitySentBody": "Jërëjëf ! Sa avis dina feeñ su ñu ko nanguwee.",
       "opportunityError": "Sa avis mënul a dem.",
       "opportunityPartiallySent": "Déjà enregistré : {targets}.",
-      "anonymous": "Anonyme"
+      "anonymous": "Anonyme",
+      "onglets": {
+        "titre": "Mes avis",
+        "recus": "Reçus",
+        "a-laisser": "À laisser",
+        "publies": "Publiés"
+      },
+      "tete": {
+        "moyenneAria": "Note moyenne : {moyenne} sur 5",
+        "nombre": "{nombre, plural, one {# avis reçu} other {# avis reçus}}"
+      },
+      "filtres": {
+        "titre": "Filtrer les avis reçus",
+        "bouton": "Filtres"
+      },
+      "opportunitySubmitOne": "Publier mon avis",
+      "noteAria": "Note : {note} sur 5",
+      "pastilleEnAttente": "En attente de validation"
     },
     "contact": {
       "title": "Jokkoo yi",
@@ -11755,7 +11772,6 @@
       "emailFormatError": "Bindal adrees e-mail bu baax (misaal : yow@misaal.com).",
       "emailAddHint": "Yokkal adrees e-mail : dinanu la yónne lien ngir nga dëggal ko.",
       "emailUnverifiedHint": "Mën nga defar adrees bii bala ñu koy dëggal.",
-      "emailVerifiedHint": "Adrees bu ñu dëggal mënuñu ko soppi ci xët wii.",
       "emailVerifyPrompt": "Ubbil lien bi ñu yónne ci {email} ngir dëggal sa adrees.",
       "emailResend": "Yónneeti lien bi",
       "emailLinkSent": "Lien bu dëggal bi yónne nañu ko ci {email}.",
@@ -11771,7 +11787,11 @@
         "verified": "Ñaareelu nimero bi wóor na.",
         "remove": "Far",
         "removed": "Ñaareelu nimero bi far nañu ko."
-      }
+      },
+      "phoneAide": "Un code vous est envoyé par SMS. Vérifié, ce numéro reçoit les alertes par SMS et WhatsApp. À l’étranger ? Commencez par +.",
+      "bioCompte": "{n} / 500",
+      "bioAide": "Visible sur votre fiche publique.",
+      "emailIdentifiant": "C’est votre identifiant de connexion : il ne se modifie pas ici."
     },
     "searchPreferences": {
       "defaultName": "Samay tànneef",
@@ -11800,7 +11820,6 @@
     "security": {
       "twoFactor": {
         "title": "Wóoral ci ñaari pas (TOTP)",
-        "description": "Aaral sa kont ak appli bu wóoral (Google Authenticator, 1Password, Authy…).",
         "enabled": "Ñu ko ubbi",
         "disabled": "Ñu ko tëj",
         "initializing": "Mu ngi tàmbali…",
@@ -11817,21 +11836,24 @@
         "regenerate": "Génneeti kod yu dellu yi",
         "disable": "Tëj 2FA bi",
         "passwordPlaceholder": "Baatu jàll",
-        "confirmDisable": "Dëgëral tëj bi"
+        "confirmDisable": "Dëgëral tëj bi",
+        "enableShort": "Activer",
+        "explication": "Un code de votre application à chaque connexion, et des codes de secours à garder."
       },
       "title": "Kaaraange",
       "description": "Toppatool ni ñuy dugg ci sa kont ak jumtukaay yi ko jokkoo.",
       "emailTitle": "Email",
       "emailVerified": "Sa email ñu ko wóoral na.",
       "emailNotVerified": "Sa email ñu ko wóoralagul. Xoolal sa boyetu jot.",
-      "emailMissing": "Amul benn adrees e-mail ci kont bii. Yokkal ci sa coordonnées, ci kaw.",
       "verified": "Ñu ko wóoral",
       "notVerified": "Ñu ko wóoralul",
       "phone": {
         "title": "Wóoralu telefon",
         "descriptionWithPhone": "Kodu SMS bu benn yoon ñu ko yónnee ci {phone}.",
         "descriptionNoPhone": "Dugalal jëkk benn nimero telefon ci wàll « Jokkoo yi ».",
-        "sendCode": "Yónnee kod bi"
+        "sendCode": "Yónnee kod bi",
+        "titreCourt": "Téléphone",
+        "detail": "{phone} · un code par SMS suffit."
       },
       "sessions": {
         "title": "Session yuy dox",
@@ -11843,8 +11865,10 @@
         "revoke": "Fàqal",
         "lastActivity": "Aktiwite bu mujj :",
         "unknown": "leerul",
-        "ip": "IP : {ip}"
-      }
+        "ip": "IP : {ip}",
+        "compte": "{n, plural, one {# session ouverte sur votre compte.} other {# sessions ouvertes sur votre compte.}}"
+      },
+      "emailAbsent": "Aucune adresse e-mail sur ce compte. Ajoutez-en une dans « Coordonnées »."
     },
     "types": {
       "agency_admin": "Njiit",
@@ -11899,6 +11923,14 @@
             "help": "Asiraasu liggéey (responsabilité civile)."
           }
         }
+      },
+      "statuts": {
+        "active": "Actif",
+        "archived": "Archivé",
+        "blocked": "Bloqué",
+        "draft": "Brouillon",
+        "inactive": "Inactif",
+        "suspended": "Suspendu"
       }
     },
     "header": {
@@ -11911,7 +11943,8 @@
       "saving": "Mu ngi denc…",
       "invalidImage": "Dencukaay bi war na doon nataal bu baax.",
       "imageTooLarge": "Nataal bi warul weesu 2 Mo.",
-      "saveError": "Coppite yi ci profil bi antuwul."
+      "saveError": "Coppite yi ci profil bi antuwul.",
+      "voirMaFiche": "Voir ma fiche publique"
     },
     "admin": {
       "title": "Njiiteef",
@@ -12028,11 +12061,11 @@
       "holder": "Boroom kont bi (du war)",
       "add": "Yokk",
       "saveFailed": "Mënuñu denc fi ñuy fey.",
-      "removeFailed": "Mënuñu far fi ñuy fey."
+      "removeFailed": "Mënuñu far fi ñuy fey.",
+      "ajouter": "Ajouter un moyen de versement"
     },
     "serviceProvider": {
       "title": "Sama liggéeyu liggéeykat",
-      "subtitle": "Li ajaas yi ngay ànd ak ñoom di gis. Bépp ndigal dañu koy denc moom rekk.",
       "trades": "Métier yi",
       "zones": "Gox yi ngay liggéey",
       "zonesPlaceholder": "Dakar, Mbour, Thiès",
@@ -12050,7 +12083,8 @@
       "subtitle": "L'heure de vos e-mails, SMS et notifications suit ce fuseau.",
       "label": "Fuseau horaire",
       "saved": "Fuseau horaire enregistré.",
-      "error": "Le fuseau horaire n'a pas pu être enregistré."
+      "error": "Le fuseau horaire n'a pas pu être enregistré.",
+      "dakar": "Dakar (GMT)"
     },
     "menu": {
       "titre": "Menu",
@@ -12063,8 +12097,14 @@
         "auto": "Automatique : réduite aux icônes sur un écran moyen",
         "icones": "Toujours réduite aux icônes",
         "complet": "Toujours complète",
-        "aide": "Ce réglage ne vaut que pour ce navigateur."
-      }
+        "aide": "Ce réglage ne vaut que pour ce navigateur.",
+        "court": {
+          "auto": "Automatique",
+          "complet": "Complète",
+          "icones": "Icônes"
+        }
+      },
+      "aide": "Vos épingles et vos groupes repliés."
     },
     "directory": {
       "title": "Annuaire public",
@@ -12118,6 +12158,111 @@
       "seSouvenir": "Se souvenir de mon choix",
       "continuerDans": "Continuer dans {agence}",
       "continuerClient": "Continuer en tant que client"
+    },
+    "sommaire": {
+      "titre": "Profil",
+      "attention": "{count, plural, one {# réglage demande votre attention} other {# réglages demandent votre attention}}",
+      "sansAttention": "Vos coordonnées, votre sécurité et vos préférences.",
+      "navLabel": "Sommaire du profil",
+      "vueDEnsemble": "Vue d’ensemble",
+      "supprimer": "Supprimer mon compte",
+      "deconnexion": "Déconnexion",
+      "point": "Demande une action",
+      "rangees": {
+        "coordonnees": "Coordonnées",
+        "fiche": "Fiche publique",
+        "pro": "Profil professionnel",
+        "recherche": "Préférences de recherche",
+        "versement": "Moyens de versement",
+        "annuaire": "Annuaire public",
+        "notifications": "Notifications",
+        "securite": "Sécurité",
+        "espaces": "Mes espaces",
+        "menu": "Menu et affichage",
+        "langue": "Langue",
+        "fuseau": "Fuseau horaire",
+        "avis": "Mes avis",
+        "donnees": "Mes données"
+      },
+      "aides": {
+        "coordonnees": "Comment l’agence et vos clients vous joignent.",
+        "fiche": "Votre carte de visite sur le site.",
+        "pro": "Ce que vous exercez, et comment.",
+        "recherche": "Ce que vous cherchez, pour des annonces qui vous correspondent.",
+        "versement": "Là où vous recevez vos reversements.",
+        "annuaire": "Paraître dans l’annuaire des bailleurs du site.",
+        "notifications": "Pour chaque événement, les canaux par lesquels vous êtes prévenu.",
+        "securite": "Ce qui protège votre compte, et où il est ouvert.",
+        "espaces": "Les agences et les rôles de votre compte.",
+        "menu": "Votre menu et la barre latérale sur cet appareil.",
+        "langue": "La langue de l’application.",
+        "fuseau": "L’heure de vos e-mails, SMS et notifications.",
+        "avis": "Votre réputation, et les avis que vous devez encore laisser.",
+        "donnees": "Récupérer ce que Takussan sait de vous.",
+        "suppression": "Effectif après 30 jours : vous pouvez annuler d’ici là en vous reconnectant."
+      },
+      "aRegler": {
+        "titre": "À régler",
+        "telephone": {
+          "titre": "Vérifier votre numéro",
+          "detail": "Pour recevoir les alertes par SMS et WhatsApp.",
+          "action": "Vérifier"
+        },
+        "double-authentification": {
+          "titre": "Activer la double authentification",
+          "detail": "Un code de plus à la connexion protège vos clients et vos baux.",
+          "action": "Activer"
+        },
+        "fiche": {
+          "titre": "Compléter votre fiche publique",
+          "detail": "Indiquez vos langues et vos quartiers.",
+          "action": "Compléter"
+        }
+      },
+      "details": {
+        "coordonnees": {
+          "aVerifier": "{telephone} · à vérifier",
+          "verifie": "{telephone} · vérifié",
+          "sansNumero": "Aucun numéro"
+        },
+        "fiche": {
+          "faits": "{langues, plural, =0 {Aucune langue} one {# langue} other {# langues}} · {quartiers, plural, =0 {aucun quartier} one {# quartier} other {# quartiers}}"
+        },
+        "pro": {
+          "carte": "Carte n° {numero}",
+          "carteARenseigner": "Carte professionnelle à renseigner",
+          "prestataire": "Métiers, zones et tarifs"
+        },
+        "recherche": "Ce que vous cherchez",
+        "versement": "Là où vous recevez vos reversements",
+        "annuaire": {
+          "inscrit": "Inscrit",
+          "nonInscrit": "Non inscrit"
+        },
+        "notifications": "Par événement et par canal",
+        "securite": {
+          "active": "Double authentification activée",
+          "inactive": "Double authentification désactivée"
+        },
+        "espaces": {
+          "un": "{agence} · {role}",
+          "plusieurs": "{count, plural, one {# espace} other {# espaces}}",
+          "aucun": "Aucun espace professionnel"
+        },
+        "menu": "Barre latérale et épingles",
+        "fuseau": {
+          "dakar": "Dakar (GMT)"
+        },
+        "avis": "Reçus, à laisser et publiés",
+        "donnees": "Exporter mes données",
+        "avisNote": "{nombre, plural, one {# reçu} other {# reçus}} · {moyenne} sur 5"
+      },
+      "nonEnregistrees": "{n, plural, one {# modification non enregistrée} other {# modifications non enregistrées}}",
+      "espaces": {
+        "titre": "Mes espaces",
+        "enCours": "Espace en cours",
+        "carte": "carte professionnelle n° {numero}"
+      }
     }
   },
   "contact": {

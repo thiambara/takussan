@@ -72,4 +72,29 @@ describe('PayoutMethodsSection — où recevoir ses versements (TCK-594)', () =>
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Le numéro est invalide.');
   });
+
+  // TCK-2635 — avec une destination, le formulaire se déplie sous « Ajouter un moyen de versement »,
+  // et envoie la même requête qu'avant (AC4) ; la destination suivante n'est pas « par défaut ».
+  it('déplie le formulaire d’ajout quand une destination existe déjà', async () => {
+    LISTE.current = {
+      isLoading: false,
+      data: { data: [{ id: 1, kind: 'wave', masked_identifier: '•••• 4567', is_default: true, verified: true }] },
+    };
+    CREATE.mutateAsync.mockResolvedValue({ data: { id: 3 } });
+    render(withIntl(<PayoutMethodsSection />));
+
+    expect(screen.queryByLabelText('Numéro de téléphone')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter un moyen de versement' }));
+    fireEvent.change(screen.getByLabelText('Numéro de téléphone'), { target: { value: '+221 76 000 00 00' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter' }));
+
+    await waitFor(() => expect(CREATE.mutateAsync).toHaveBeenCalledTimes(1));
+    expect(CREATE.mutateAsync.mock.calls[0][0]).toEqual({
+      kind: 'wave',
+      account_identifier: '+221 76 000 00 00',
+      account_holder_name: null,
+      is_default: false,
+    });
+    await waitFor(() => expect(screen.queryByLabelText('Numéro de téléphone')).toBeNull());
+  });
 });

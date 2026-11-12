@@ -37,6 +37,7 @@ interface PageHorsMenu {
 }
 
 const PAGES = 'dashboard.pages';
+const SOMMAIRE = 'profile.sommaire.rangees';
 
 /**
  * Les routes qu'aucune entrée du menu ne porte, avec le titre de leur page (`generateMetadata` ou
@@ -44,12 +45,29 @@ const PAGES = 'dashboard.pages';
  * sous un préfixe du menu (`/app/overview/owner` n'est pas un détail des statistiques).
  */
 const HORS_MENU: Readonly<Record<string, PageHorsMenu>> = {
-  '/app/profile': { titre: { espace: 'nav', cle: 'myProfile' } },
+  // TCK-2635 — « Profil », comme la maquette et le titre du bureau.
+  '/app/profile': { titre: { espace: 'profile.sommaire', cle: 'titre' } },
   '/app/profile/notifications': {
     titre: { espace: 'nav.sidebar', cle: 'compte.preferences' },
     parent: '/app/profile',
   },
   '/app/account/privacy': { titre: { espace: PAGES, cle: 'privacy.title' }, parent: '/app/profile' },
+  // TCK-2635 — une page par section du profil, chacune un détail du sommaire (`/app/profile`).
+  '/app/profile/contact': { titre: { espace: SOMMAIRE, cle: 'coordonnees' }, parent: '/app/profile' },
+  '/app/profile/public-profile': { titre: { espace: SOMMAIRE, cle: 'fiche' }, parent: '/app/profile' },
+  '/app/profile/professional': { titre: { espace: SOMMAIRE, cle: 'pro' }, parent: '/app/profile' },
+  '/app/profile/search-preferences': { titre: { espace: SOMMAIRE, cle: 'recherche' }, parent: '/app/profile' },
+  '/app/profile/payouts': { titre: { espace: SOMMAIRE, cle: 'versement' }, parent: '/app/profile' },
+  '/app/profile/directory': { titre: { espace: SOMMAIRE, cle: 'annuaire' }, parent: '/app/profile' },
+  '/app/profile/security': { titre: { espace: SOMMAIRE, cle: 'securite' }, parent: '/app/profile' },
+  '/app/profile/spaces': { titre: { espace: SOMMAIRE, cle: 'espaces' }, parent: '/app/profile' },
+  '/app/profile/menu': { titre: { espace: SOMMAIRE, cle: 'menu' }, parent: '/app/profile' },
+  '/app/profile/language': { titre: { espace: SOMMAIRE, cle: 'langue' }, parent: '/app/profile' },
+  '/app/profile/timezone': { titre: { espace: SOMMAIRE, cle: 'fuseau' }, parent: '/app/profile' },
+  // « Mes avis » est aussi une entrée du menu de l'agent (« Avis reçus ») ; la maquette en fait une section
+  // du profil, un détail du sommaire (« ← Mes avis »), d'où qu'on l'ouvre.
+  '/app/profile/reviews': { titre: { espace: SOMMAIRE, cle: 'avis' }, parent: '/app/profile' },
+  '/app/profile/delete-account': { titre: { espace: 'profile.sommaire', cle: 'supprimer' }, parent: '/app/profile' },
   '/app/notifications': { titre: { espace: PAGES, cle: 'notifications.title' } },
   '/app/crm': { titre: { espace: 'nav.sidebar', cle: 'crm' } },
   '/app/crm/pipeline': { titre: { espace: PAGES, cle: 'crmPipeline.metaTitle' } },

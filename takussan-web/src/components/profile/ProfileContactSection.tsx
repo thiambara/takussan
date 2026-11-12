@@ -1,12 +1,16 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useId, useState, useTransition } from 'react';
+import { Check, Lock } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { User } from '@/types/user';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { CodeDePreproduction } from '@/components/auth/CodeDePreproduction';
 import { Button } from '@/components/ui/button';
+import { PhoneInput } from '@/components/ui/phone-input';
+import { StatusBadge } from '@/components/console/StatusBadge';
+import { PiedDEnregistrement } from '@/components/profile/sommaire/PiedDEnregistrement';
 import { resendVerificationEmailAction, updateProfileAction } from '@/app/actions/auth';
 import {
   phoneChangeCodeAction,
@@ -51,6 +55,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
   const t = useTranslations('profile.contact');
   const tCommon = useTranslations('common.actions');
   const { setUser, user: contextUser } = useAuth();
+  const idFormulaire = useId();
   const [bio, setBio] = useState(user.bio ?? '');
   const [phone, setPhone] = useState(user.phone ?? '');
   const [savedPhone, setSavedPhone] = useState(user.phone ?? '');
@@ -219,212 +224,71 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
   const showVerifyControls = savedPhone.length > 0 && !phoneVerified && !phoneDirty;
   const showEmailVerify = savedEmail.length > 0 && !emailVerified && !emailDirty;
 
+  const modifications = Number(phoneDirty) + Number(emailDirty) + Number(bioDirty);
+
+  // TCK-2635 — la section suit la maquette `app-profil` « Coordonnées » (`SectionCoordonnees`) : à nu
+  // sous le titre de la page (le titre et l'aide sont ceux de la section), trois champs dans l'ordre
+  // Téléphone · Courriel · Présentation, chacun avec son libellé, son statut à droite, son aide dessous.
   return (
-    <section id="coordonnees" className="scroll-mt-20 space-y-4 rounded-2xl bg-card p-6">
-      <div>
-        <h2 className="text-lg font-bold text-foreground">{t('title')}</h2>
-        <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
-      </div>
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <div className="space-y-1">
-          <label htmlFor="contact-email" className="text-xs font-semibold text-muted-foreground">
-            {t('emailLabel')}
-          </label>
-          <div className="flex items-center gap-2">
-            <Input
-              id="contact-email"
-              data-testid="email-input"
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              readOnly={emailVerified}
-              placeholder={t('emailPlaceholder')}
-              aria-invalid={!emailFormatValid}
-              aria-describedby={!emailFormatValid ? 'email-error' : 'email-hint'}
-              className={emailVerified ? 'bg-card/60' : undefined}
-            />
-            {savedEmail.length > 0 && !emailDirty ? (
-              <span
-                data-testid="email-status-badge"
-                className={
-                  'whitespace-nowrap rounded-full px-2 py-1 text-xs font-semibold ' +
-                  (emailVerified ? 'bg-success/15 text-success' : 'bg-warning/15 text-warning')
-                }
-              >
-                {emailVerified ? t('verified') : t('notVerified')}
-              </span>
-            ) : null}
-          </div>
-          {!emailFormatValid ? (
-            <p id="email-error" role="alert" className="text-xs text-destructive">
-              {t('emailFormatError')}
-            </p>
-          ) : (
-            <p id="email-hint" className="text-xs text-muted-foreground">
-              {emailVerified ? t('emailVerifiedHint') : savedEmail.length > 0 ? t('emailUnverifiedHint') : t('emailAddHint')}
-            </p>
-          )}
-        </div>
-
-        {showEmailVerify ? (
-          <div
-            data-testid="email-verify-block"
-            className="space-y-2 rounded-md border border-warning/30 bg-warning/10 p-3"
-          >
-            <p className="text-xs text-warning">{t('emailVerifyPrompt', { email: savedEmail })}</p>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleResendEmail}
-              disabled={emailPending}
-              data-testid="email-resend"
-            >
-              {emailPending ? t('sending') : t('emailResend')}
-            </Button>
-            {emailFeedback ? (
-              <p
-                role={emailFeedback.ok ? 'status' : 'alert'}
-                className={'text-xs ' + (emailFeedback.ok ? 'text-success' : 'text-destructive')}
-              >
-                {emailFeedback.message}
-              </p>
-            ) : null}
-          </div>
-        ) : null}
-
-        <div className="space-y-1">
-          <label htmlFor="phone" className="text-xs font-semibold text-muted-foreground">
-            {t('phoneLabel')}
-          </label>
-          <div className="flex items-center gap-2">
-            <Input
-              id="phone"
-              data-testid="phone-input"
-              type="tel"
-              autoComplete="tel"
-              value={phone}
-              onChange={(e) => setPhone(normalizePhoneInput(e.target.value))}
-              placeholder="+221770000000"
-              aria-invalid={!phoneFormatValid}
-              aria-describedby={!phoneFormatValid ? 'phone-error' : undefined}
-            />
+    <section id="coordonnees" aria-label={t('title')} className="scroll-mt-20">
+      <form id={idFormulaire} onSubmit={handleSubmit} className="grid gap-5">
+        <div>
+          <div className="mb-1.5 flex items-center gap-2">
+            <label htmlFor="phone" className="flex-1 text-sm font-medium">
+              {t('phoneLabel')}
+            </label>
             {savedPhone.length > 0 && !phoneDirty ? (
-              <span
+              <StatusBadge
                 data-testid="phone-status-badge"
-                className={
-                  'whitespace-nowrap rounded-full px-2 py-1 text-xs font-semibold ' +
-                  (phoneVerified
-                    ? 'bg-success/15 text-success'
-                    : 'bg-warning/15 text-warning')
-                }
-              >
-                {phoneVerified ? t('verified') : t('notVerified')}
-              </span>
+                tone={phoneVerified ? 'success' : 'attention'}
+                icon={phoneVerified ? <Check aria-hidden="true" /> : undefined}
+                label={phoneVerified ? t('verified') : t('notVerified')}
+              />
             ) : null}
           </div>
-          {!phoneFormatValid ? (
-            <p id="phone-error" role="alert" className="text-xs text-destructive">
-              {t('phoneFormatError')}
-            </p>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              {t('phoneHint')}
-            </p>
-          )}
-          {/* TCK-633 (lot C) — la case WhatsApp vaut pour le numéro ENREGISTRÉ et vérifié. */}
-          {phoneVerified && !phoneDirty && savedPhone.length > 0 ? (
-            <CaseWhatsApp champ="phone_whatsapp" id="phone-whatsapp" />
-          ) : null}
-        </div>
-
-        {needsProof ? (
-          <div
-            data-testid="phone-change-proof"
-            className="space-y-2 rounded-md border border-border bg-muted/40 p-3"
-          >
-            <p className="text-xs text-foreground">{t('changeProofPrompt')}</p>
-            {canProveByPassword ? (
-              <>
-                <label
-                  htmlFor="phone-change-password"
-                  className="text-xs font-semibold text-muted-foreground"
-                >
-                  {t('changeProofPasswordLabel')}
-                </label>
-                <Input
-                  id="phone-change-password"
-                  data-testid="phone-change-password"
-                  type="password"
-                  autoComplete="current-password"
-                  value={proofPassword}
-                  onChange={(e) => setProofPassword(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">{t('changeProofOr')}</p>
-              </>
-            ) : null}
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleSendProofCode}
-                disabled={proofPending}
-                data-testid="phone-change-send-code"
-              >
-                {proofPending ? t('sending') : t('changeProofSendCode', { phone: savedPhone })}
-              </Button>
-              {proofCodeSent ? (
-                <Input
-                  inputMode="numeric"
-                  pattern="\d{6}"
-                  maxLength={6}
-                  value={proofCode}
-                  onChange={(e) => setProofCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="123456"
-                  autoComplete="one-time-code"
-                  aria-label={t('changeProofCodeAria')}
-                  data-testid="phone-change-code"
-                  className="max-w-32"
-                />
-              ) : null}
+          <div className="flex gap-2">
+            <div className="min-w-0 flex-1">
+              <PhoneInput
+                id="phone"
+                data-testid="phone-input"
+                value={phone}
+                onValueChange={(valeur) => setPhone(normalizePhoneInput(valeur))}
+                aide={false}
+                aria-invalid={!phoneFormatValid}
+                aria-describedby={!phoneFormatValid ? 'phone-error' : 'phone-hint'}
+              />
             </div>
-            <CodeDePreproduction code={proofCodeSent ? proofApercu : null} onUtiliser={setProofCode} />
-            {proofFeedback ? (
-              <p
-                role={proofFeedback.ok ? 'status' : 'alert'}
-                className={'text-xs ' + (proofFeedback.ok ? 'text-success' : 'text-destructive')}
-              >
-                {proofFeedback.message}
-              </p>
-            ) : null}
-          </div>
-        ) : null}
-
-        {showVerifyControls ? (
-          <div
-            data-testid="phone-verify-block"
-            className="space-y-2 rounded-md border border-warning/30 bg-warning/10 p-3"
-          >
-            <p className="text-xs text-warning">
-              {t('verifyPrompt')}
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
+            {showVerifyControls ? (
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
+                className="h-controle"
                 onClick={handleSendOtp}
                 disabled={otpPending}
                 data-testid="phone-otp-send"
               >
-                {otpPending && !otpSent
-                  ? t('sending')
-                  : otpSent
-                    ? t('resendCode')
-                    : t('verify')}
+                {otpPending && !otpSent ? t('sending') : otpSent ? t('resendCode') : t('verify')}
               </Button>
+            ) : null}
+          </div>
+          {!phoneFormatValid ? (
+            <p id="phone-error" role="alert" className="mt-1.5 text-xs text-destructive">
+              {t('phoneFormatError')}
+            </p>
+          ) : (
+            <p id="phone-hint" className="mt-1.5 text-xs text-muted-foreground">
+              {t('phoneAide')}
+            </p>
+          )}
+          {/* TCK-633 (lot C) — la case WhatsApp vaut pour le numéro ENREGISTRÉ et vérifié. */}
+          {phoneVerified && !phoneDirty && savedPhone.length > 0 ? (
+            <div className="mt-2">
+              <CaseWhatsApp champ="phone_whatsapp" id="phone-whatsapp" />
+            </div>
+          ) : null}
+
+          {showVerifyControls ? (
+            <div data-testid="phone-verify-block" className="mt-2 grid gap-2 empty:hidden">
               {otpSent ? (
                 <div className="flex flex-wrap items-center gap-2">
                   <Input
@@ -432,9 +296,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
                     pattern="\d{6}"
                     maxLength={6}
                     value={otpCode}
-                    onChange={(e) =>
-                      setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))
-                    }
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -458,48 +320,188 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
                   </Button>
                 </div>
               ) : null}
+              <CodeDePreproduction code={otpSent ? otpApercu : null} onUtiliser={setOtpCode} />
+              {otpFeedback ? (
+                <p
+                  role={otpFeedback.ok ? 'status' : 'alert'}
+                  className={'text-xs ' + (otpFeedback.ok ? 'text-success' : 'text-destructive')}
+                >
+                  {otpFeedback.message}
+                </p>
+              ) : null}
             </div>
-            <CodeDePreproduction code={otpSent ? otpApercu : null} onUtiliser={setOtpCode} />
-            {otpFeedback ? (
-              <p
-                role={otpFeedback.ok ? 'status' : 'alert'}
-                className={'text-xs ' + (otpFeedback.ok ? 'text-success' : 'text-destructive')}
-              >
-                {otpFeedback.message}
-              </p>
+          ) : null}
+
+          {needsProof ? (
+            <div data-testid="phone-change-proof" className="mt-2 space-y-2 rounded-lg border border-border bg-muted/40 p-3">
+              <p className="text-xs text-foreground">{t('changeProofPrompt')}</p>
+              {canProveByPassword ? (
+                <>
+                  <label htmlFor="phone-change-password" className="text-xs font-semibold text-muted-foreground">
+                    {t('changeProofPasswordLabel')}
+                  </label>
+                  <Input
+                    id="phone-change-password"
+                    data-testid="phone-change-password"
+                    type="password"
+                    autoComplete="current-password"
+                    value={proofPassword}
+                    onChange={(e) => setProofPassword(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">{t('changeProofOr')}</p>
+                </>
+              ) : null}
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSendProofCode}
+                  disabled={proofPending}
+                  data-testid="phone-change-send-code"
+                >
+                  {proofPending ? t('sending') : t('changeProofSendCode', { phone: savedPhone })}
+                </Button>
+                {proofCodeSent ? (
+                  <Input
+                    inputMode="numeric"
+                    pattern="\d{6}"
+                    maxLength={6}
+                    value={proofCode}
+                    onChange={(e) => setProofCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="123456"
+                    autoComplete="one-time-code"
+                    aria-label={t('changeProofCodeAria')}
+                    data-testid="phone-change-code"
+                    className="max-w-32"
+                  />
+                ) : null}
+              </div>
+              <CodeDePreproduction code={proofCodeSent ? proofApercu : null} onUtiliser={setProofCode} />
+              {proofFeedback ? (
+                <p
+                  role={proofFeedback.ok ? 'status' : 'alert'}
+                  className={'text-xs ' + (proofFeedback.ok ? 'text-success' : 'text-destructive')}
+                >
+                  {proofFeedback.message}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+
+        <div>
+          <div className="mb-1.5 flex items-center gap-2">
+            <label htmlFor="contact-email" className="flex-1 text-sm font-medium">
+              {t('emailLabel')}
+            </label>
+            {savedEmail.length > 0 && !emailDirty ? (
+              <StatusBadge
+                data-testid="email-status-badge"
+                tone={emailVerified ? 'success' : 'attention'}
+                icon={emailVerified ? <Check aria-hidden="true" /> : undefined}
+                label={emailVerified ? t('verified') : t('notVerified')}
+              />
             ) : null}
           </div>
-        ) : null}
+          {/* Vérifiée, l'adresse est l'identifiant de connexion : en lecture seule, verrouillée. */}
+          <div className="relative">
+            <Input
+              id="contact-email"
+              data-testid="email-input"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              readOnly={emailVerified}
+              placeholder={t('emailPlaceholder')}
+              aria-invalid={!emailFormatValid}
+              aria-describedby={!emailFormatValid ? 'email-error' : 'email-hint'}
+              className={emailVerified ? 'bg-muted/50 pr-9 text-foreground/75' : undefined}
+            />
+            {emailVerified ? (
+              <Lock
+                className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground"
+                strokeWidth={1.75}
+                aria-hidden="true"
+              />
+            ) : null}
+          </div>
+          {!emailFormatValid ? (
+            <p id="email-error" role="alert" className="mt-1.5 text-xs text-destructive">
+              {t('emailFormatError')}
+            </p>
+          ) : (
+            <p id="email-hint" className="mt-1.5 text-xs text-muted-foreground">
+              {emailVerified ? t('emailIdentifiant') : savedEmail.length > 0 ? t('emailUnverifiedHint') : t('emailAddHint')}
+            </p>
+          )}
+          {showEmailVerify ? (
+            <div data-testid="email-verify-block" className="mt-2 space-y-2 rounded-lg border border-warning/30 bg-warning/10 p-3">
+              <p className="text-xs text-warning">{t('emailVerifyPrompt', { email: savedEmail })}</p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleResendEmail}
+                disabled={emailPending}
+                data-testid="email-resend"
+              >
+                {emailPending ? t('sending') : t('emailResend')}
+              </Button>
+              {emailFeedback ? (
+                <p
+                  role={emailFeedback.ok ? 'status' : 'alert'}
+                  className={'text-xs ' + (emailFeedback.ok ? 'text-success' : 'text-destructive')}
+                >
+                  {emailFeedback.message}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
 
-        <SecondaryPhoneSection />
-
-        <div className="space-y-1">
-          <label htmlFor="contact-bio" className="text-xs font-semibold text-muted-foreground">
-            {t('bioLabel')}
-          </label>
+        <div>
+          <div className="mb-1.5 flex items-center gap-2">
+            <label htmlFor="contact-bio" className="flex-1 text-sm font-medium">
+              {t('bioLabel')}
+            </label>
+            <span className="text-xs text-muted-foreground tabular-nums">{t('bioCompte', { n: bio.length })}</span>
+          </div>
           <Textarea
             id="contact-bio"
             value={bio}
             onChange={(e) => setBio(e.target.value)}
             maxLength={500}
-            rows={3}
+            rows={4}
             placeholder={t('bioPlaceholder')}
+            aria-describedby="contact-bio-aide"
+            className="min-h-28"
           />
-          <p className="text-right text-xs text-muted-foreground">{bio.length}/500</p>
-        </div>
-        {feedback ? (
-          <p
-            role={feedback.ok ? 'status' : 'alert'}
-            className={'text-sm ' + (feedback.ok ? 'text-success' : 'text-destructive')}
-          >
-            {feedback.message}
+          <p id="contact-bio-aide" className="mt-1.5 text-xs text-muted-foreground">
+            {t('bioAide')}
           </p>
-        ) : null}
-        <div className="flex justify-end">
-          <Button type="submit" disabled={!canSubmit} data-testid="contact-save">
-            {loading ? t('saving') : tCommon('save')}
-          </Button>
         </div>
+
+        <SecondaryPhoneSection />
+
+        {/* TCK-2635 — un seul « Enregistrer », actif sur une modification. */}
+        <PiedDEnregistrement
+          modifications={modifications}
+          bouton={
+            <Button type="submit" form={idFormulaire} disabled={!canSubmit} data-testid="contact-save">
+              {loading ? t('saving') : tCommon('save')}
+            </Button>
+          }
+        >
+          {/* « Enregistré » se tait dès la modification suivante : « 1 modification non enregistrée ·
+              Modifications enregistrées. » se contredirait. */}
+          {feedback && !(feedback.ok && modifications > 0) ? (
+            <p role={feedback.ok ? 'status' : 'alert'} className={'text-sm ' + (feedback.ok ? 'text-success' : 'text-destructive')}>
+              {feedback.message}
+            </p>
+          ) : null}
+        </PiedDEnregistrement>
       </form>
     </section>
   );

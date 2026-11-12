@@ -1,0 +1,564 @@
+{
+ "ticket": "TCK-2635",
+ "ecrans": [
+  {
+   "page": "app-profil",
+   "approche": "a",
+   "ecran": 0,
+   "nom": "Sommaire",
+   "references": {
+    "telephone": "references/app-profil/a-0-telephone.json",
+    "bureau-1440": "references/app-profil/a-0-bureau-1440.json",
+    "bureau-1280": "references/app-profil/a-0-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app/profile",
+    "persona": "agent",
+    "etat": "agent de démo (id 3, Dakar Immo) : numéro renseigné non vérifié, double authentification inactive, fiche publique sans langue ni quartier — « À régler » porte trois choses."
+   }
+  },
+  {
+   "page": "app-profil",
+   "approche": "a",
+   "ecran": 1,
+   "nom": "Coordonnées",
+   "references": {
+    "telephone": "references/app-profil/a-1-telephone.json",
+    "bureau-1440": "references/app-profil/a-1-bureau-1440.json",
+    "bureau-1280": "references/app-profil/a-1-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app/profile/contact",
+    "persona": "agent",
+    "etat": "même agent : e-mail vérifié, numéro non vérifié (« Vérifier » ouvre la vérification, aucun code n'est envoyé au relevé), bio vide."
+   }
+  },
+  {
+   "page": "app-profil",
+   "approche": "a",
+   "ecran": 3,
+   "nom": "Fiche publique (agent)",
+   "references": {
+    "telephone": "references/app-profil/a-3-telephone.json",
+    "bureau-1440": "references/app-profil/a-3-bureau-1440.json",
+    "bureau-1280": "references/app-profil/a-3-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app/profile/public-profile",
+    "persona": "agent",
+    "etat": "même agent : aucune langue ni quartier sur sa fiche."
+   }
+  },
+  {
+   "page": "app-profil",
+   "approche": "a",
+   "ecran": 4,
+   "nom": "Mes avis",
+   "references": {
+    "telephone": "references/app-profil/a-4-telephone.json",
+    "bureau-1440": "references/app-profil/a-4-bureau-1440.json",
+    "bureau-1280": "references/app-profil/a-4-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app/profile/reviews",
+    "persona": "agent",
+    "etat": "même agent : 10 avis reçus, tous en attente de validation ; 3 formulaires à laisser ; aucun avis publié ; fiche publique sans avis approuvé (`count: 0`), donc sans note en tête. Au bureau, la maquette ouvre « À laisser » : relevé sur `?onglet=a-laisser`."
+   }
+  },
+  {
+   "page": "app-profil",
+   "approche": "a",
+   "ecran": 5,
+   "nom": "Sécurité",
+   "references": {
+    "telephone": "references/app-profil/a-5-telephone.json",
+    "bureau-1440": "references/app-profil/a-5-bureau-1440.json",
+    "bureau-1280": "references/app-profil/a-5-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app/profile/security",
+    "persona": "agent",
+    "etat": "même agent : double authentification inactive, numéro non vérifié."
+   }
+  },
+  {
+   "page": "app-profil",
+   "approche": "a",
+   "ecran": 6,
+   "nom": "Sommaire (bailleur)",
+   "references": {
+    "telephone": "references/app-profil/a-6-telephone.json",
+    "bureau-1440": "references/app-profil/a-6-bureau-1440.json",
+    "bureau-1280": "references/app-profil/a-6-bureau-1280.json"
+   },
+   "gele_le": "2026-11-11",
+   "produit": {
+    "route": "/app/profile (téléphone) · /app/profile/payouts (bureau)",
+    "persona": "proprietaire",
+    "etat": "bailleur de démo (Dakar Immo) : numéro NON vérifié au relevé du 2026-11-11 (« À régler » porte « Vérifier votre numéro »), inscrit à l'annuaire, une destination Orange Money vérifiée et par défaut. La maquette « bureau » de l'écran 6 dessine la section « Moyens de versement » (sommaire à gauche, versement actif) : relevée sur `/app/profile/payouts` ; celle du téléphone dessine le sommaire, relevé sur `/app/profile`."
+   }
+  }
+ ],
+ "produit": {
+  "route": "/app/profile",
+  "persona": "agent",
+  "disposition": "agent",
+  "etat": "voir chaque écran (`ecrans[].produit`)",
+  "defiler": null,
+  "perturber": null
+ },
+ "coque": false,
+ "_coque": "Rôles de coque REPRIS de roles-coque.json (`coque: false`), à un sélecteur près : la barre d'onglets s'ancre sur « Messages » au lieu de « Menu ». Sur le sommaire, « Menu » attrape d'abord la rangée « Menu et affichage » (la plus petite boîte de 56 px qui contient « Menu ») : la « zone barre d'onglets » mesurait une rangée du sommaire (8,39 % sur a-0, 13,99 % sur a-6, Δ y 170 px). « Messages » n'apparaît que dans la barre, sur les six écrans. La maquette dessine la coque de l'agent ; l'écran 6 est mesuré en `proprietaire` (cf. écarts acceptés, « coque »). a-1 et a-3 : la maquette, prise sur une modification en cours, n'a pas de barre d'onglets au téléphone (« Enregistrer » à sa place) ; le produit au repos l'a (arbitrage du 2026-11-12, cf. écarts acceptés « Enregistrer », barre d'onglets) — elle s'efface dès la première modification, et les deux écrans sont relevés dans cet état (`--perturber`, rien n'est enregistré).",
+ "roles": [
+  {
+   "appareil": "mobile",
+   "nom": "coque · barre d'onglets",
+   "maquette": {
+    "boiteDe": "Messages",
+    "min": 56
+   },
+   "produit": {
+    "boiteDe": "Messages",
+    "min": 56
+   },
+   "contenu": true
+  },
+  {
+   "appareil": "mobile",
+   "nom": "coque · en-tête",
+   "maquette": {
+    "zone": {
+     "y": 0,
+     "h": 56,
+     "tol": 8,
+     "wMin": 380
+    }
+   },
+   "produit": {
+    "zone": {
+     "y": 0,
+     "h": 56,
+     "tol": 8,
+     "wMin": 380
+    }
+   }
+  },
+  {
+   "appareil": "desktop",
+   "nom": "coque · barre latérale",
+   "maquette": {
+    "zone": {
+     "y": 0,
+     "h": 900,
+     "tol": 40,
+     "wMin": 200
+    }
+   },
+   "produit": {
+    "zone": {
+     "y": 0,
+     "h": 900,
+     "tol": 40,
+     "wMin": 200
+    }
+   }
+  },
+  {
+   "appareil": "mobile",
+   "nom": "rangée « Double authentification »",
+   "maquette": {
+    "boiteDe": "Double authentification",
+    "min": 56
+   },
+   "produit": {
+    "boiteDe": "Double authentification",
+    "min": 56
+   },
+   "contenu": true
+  },
+  {
+   "appareil": "desktop",
+   "nom": "rangée « Double authentification »",
+   "maquette": {
+    "boiteDe": "Double authentification",
+    "min": 50
+   },
+   "produit": {
+    "boiteDe": "Double authentification",
+    "min": 50
+   },
+   "contenu": true
+  },
+  {
+   "appareil": "mobile",
+   "nom": "carte d'avis reçu en attente",
+   "maquette": {
+    "boiteDe": "En attente de validation",
+    "min": 100
+   },
+   "produit": {
+    "boiteDe": "En attente de validation",
+    "min": 100
+   },
+   "contenu": false
+  },
+  {
+   "appareil": "desktop",
+   "nom": "rangée de destination « Par défaut »",
+   "maquette": {
+    "boiteDe": "Par défaut",
+    "min": 50
+   },
+   "produit": {
+    "boiteDe": "Par défaut",
+    "min": 50
+   },
+   "contenu": false
+  }
+ ],
+ "_roles": "Une seule fiche porte six écrans, et `comparer.mjs` applique chaque rôle à tous les écrans de son appareil : un rôle se lit sur SON écran (« Double authentification » → a-5 ; carte d'avis → a-4 téléphone ; destination → a-6 bureau) et rend « absent » ailleurs, sans signification. La rangée « Double authentification » est la seule dont la donnée coïncide (inactive des deux côtés) : son contenu se compare. La carte d'avis et la destination se comparent en géométrie seule (auteurs, biens et moyens différents).",
+ "zones": [
+  {
+   "appareil": "mobile",
+   "nom": "coque · barre d'onglets",
+   "role": "coque · barre d'onglets"
+  },
+  {
+   "appareil": "mobile",
+   "nom": "coque · en-tête",
+   "role": "coque · en-tête"
+  }
+ ],
+ "_zones": "Les deux zones de coque du téléphone (barre d'onglets, en-tête). Aucune zone de contenu n'est déclarée identique. L'en-tête porte le titre de la route ; la barre d'onglets diffère par ses pastilles (données) et par « Menu » mis en avant dans la maquette (cf. écarts acceptés).",
+ "alias": {
+  "Cet appareil": "Courante",
+  "Déconnecter": "Révoquer",
+  "Bailleur · Dakar Immo": "Propriétaire · Dakar Immo",
+  "Là où Dakar Immo vous reverse vos loyers.": "Là où vous recevez vos reversements."
+ },
+ "_alias": {
+  "Cet appareil → Courante": "libellé existant de la session courante (`profile.security.sessions.currentShort`), gardé.",
+  "Déconnecter → Révoquer": "le geste existant (`DELETE /api/me/sessions/{id}`) révoque un jeton ; libellé gardé, aucun geste ajouté.",
+  "Bailleur → Propriétaire": "libellé du type de profil (`profile.types.owner`), commun au sélecteur de profil et à « Mes espaces ». ⚠ La coque dit « Bailleur » (`nav.sidebar.personas.bailleur`) : incohérence de vocabulaire signalée, hors de ce ticket (un libellé partagé). « Dakar Immo · Bailleur » de la ligne « Mes espaces » (téléphone) n'est pas aliasé : la même chaîne est celle de la coque au bureau.",
+  "loyers → reversements": "aide de la section, commune au bailleur et au prestataire (qui ne reçoit pas de loyers), sans nom d'agence (un compte peut être payé par plusieurs)."
+ },
+ "ancres": [],
+ "ignorer": [],
+ "ecarts_acceptes": [
+  {
+   "ecran": "a-0-*",
+   "element": "« À régler »",
+   "propriete": "un encart par chose à régler et un titre, au lieu d'un bandeau (Δ y sur tout ce qui suit)",
+   "exception": "donnée",
+   "motif": "AC1 et décision 8 du ticket : chaque chose à régler est un encart, calculé sur les faits de l'API (numéro non vérifié, double authentification inactive, fiche sans langue ni quartier) ; la maquette n'en dessine qu'un bandeau. Les rangées « Langue », « Fuseau horaire », « Mes avis », « Mes données » passent sous le pli du relevé ; elles sont rendues plus bas. Au bureau, les mêmes faits (« Vérifier votre numéro », « Indiquez vos langues et vos quartiers. »)."
+  },
+  {
+   "ecran": "a-0-*, a-3-*",
+   "element": "« 60 % complète », jauge, aperçu en direct de la fiche",
+   "propriete": "absents",
+   "exception": "donnée",
+   "motif": "aucune règle de complétude n'existe côté API ; en inventer une serait une supposition (ticket : « jamais sur une supposition »), et le delta du ticket est « contenus et gestes d'aujourd'hui ». Le sommaire dit ce qui manque (« Aucune langue · aucun quartier »). Proposé en suite (hors périmètre)."
+  },
+  {
+   "ecran": "a-*",
+   "element": "nom, e-mail, photo, téléphone, sessions, pastilles de la coque",
+   "propriete": "texte, image, nombre de rangées",
+   "exception": "donnée",
+   "motif": "comptes de démo (« Sokhna Sene » avec photo, sessions de bureau seulement — d'où l'icône `smartphone` absente sur a-5)."
+  },
+  {
+   "ecran": "a-4-*",
+   "element": "note en tête (« 4,1 », répartition), « 1 avis en attente de validation »",
+   "propriete": "absents",
+   "exception": "donnée",
+   "motif": "la note est celle de la fiche publique (AC5), rendue au-dessus des onglets comme la maquette : sans avis approuvé (`count: 0`) elle se tait plutôt que d'afficher zéro ; la répartition n'est pas rendue par l'API. Le compte des avis en attente demanderait une requête de plus (l'enveloppe de `GET /api/reviews/received` n'en porte pas) : non ajouté (hors périmètre)."
+  },
+  {
+   "ecran": "a-4-telephone",
+   "element": "drapeau « Signaler » des avis en attente",
+   "propriete": "absent",
+   "exception": "donnée",
+   "motif": "un avis en attente n'est pas public : il ne se signale pas encore (règle TCK-597, gardée, test). Le drapeau est rendu sur les avis publiés, en icône de 36 px en haut à droite comme la maquette ; la pastille « En attente de validation » est rendue, et la phrase complète reste pour le lecteur d'écran."
+  },
+  {
+   "ecran": "a-4-bureau-*",
+   "element": "formulaires « À laisser »",
+   "propriete": "nombre, libellés (« Votre intervention », « Le prestataire »)",
+   "exception": "donnée",
+   "motif": "les trois opportunités du compte de démo ; la carte « en attente » de la maquette n'a pas d'équivalent dans l'API des opportunités."
+  },
+  {
+   "ecran": "a-6-bureau-*",
+   "element": "« Annuaire public » sous les moyens de versement ; « Envoyer le RIB » ; « reversements du 5 de chaque mois »",
+   "propriete": "absents de la page",
+   "exception": "donnée",
+   "motif": "l'annuaire est sa propre section du sommaire (`/app/profile/directory`, rangée « Annuaire public », gestes inchangés) ; l'API ne connaît ni l'envoi d'un RIB ni un jour de reversement. Wave et banque « À confirmer » : données (une seule destination, Orange Money, vérifiée)."
+  },
+  {
+   "ecran": "a-6-bureau-*",
+   "element": "formulaire d'ajout",
+   "propriete": "replié sous « Ajouter un moyen de versement »",
+   "exception": "donnée",
+   "motif": "comme la maquette ; ouvert d'emblée quand le compte n'a aucune destination. Même requête qu'avant (AC4, test)."
+  },
+  {
+   "ecran": "a-*-telephone",
+   "element": "onglet « Menu »",
+   "propriete": "couleur de l'icône, graisse du libellé",
+   "exception": "composant partagé",
+   "motif": "la coque ne met « Menu » en avant que tiroir ouvert (TCK-2618) ; signalé, hors périmètre (même constat que TCK-2636)."
+  },
+  {
+   "ecran": "a-6-*",
+   "element": "coque",
+   "propriete": "onglets, colonne, pastilles",
+   "exception": "donnée",
+   "motif": "persona bailleur (cf. `_coque`)."
+  },
+  {
+   "ecran": "a-*-bureau-*",
+   "element": "rem, densité, colonne du sommaire",
+   "propriete": "tailles ×0,9, largeur 260 px",
+   "exception": "composant partagé",
+   "motif": "ADR-0107 (racine 16 px, densité par jetons ; la maquette est relevée en rem 14,4). Le sommaire suit la maquette (260 px) ; le texte d'AC3 dit 240."
+  },
+  {
+   "ecran": "a-1-telephone",
+   "element": "numéro",
+   "propriete": "chiffres non groupés dans le champ",
+   "exception": "composant partagé",
+   "motif": "`PhoneInput` (préfixe +221 en tête, saisie libre) ; le groupage s'affiche dans le sommaire et la sécurité (`formaterTelephone`)."
+  },
+  {
+   "ecran": "a-3-*",
+   "element": "langues et quartiers cochés, ville « Dakar »",
+   "propriete": "puces non cochées, liste « Ville » vide, langues de l'API (Peul (pulaar), Portugais, Italien, Allemand)",
+   "exception": "donnée",
+   "motif": "la fiche de démo n'a aucune langue ni quartier ; la liste des langues est celle de l'API."
+  },
+  {
+   "ecran": "a-6-*",
+   "element": "« À régler » du bailleur : « Envoyez vos pièces d’identité pour recevoir vos reversements. · Envoyer », points de « Moyens de versement » et « Sécurité » (« Pièces d’identité à envoyer »), « 2 réglages demandent votre attention »",
+   "propriete": "absents ; un seul point (Coordonnées), « 1 réglage »",
+   "exception": "donnée",
+   "motif": "le sommaire ne lit aucun fait d'identité (KYC) du bailleur (Notes du ticket : « rien pour le KYC du bailleur tant que l'API n'en rend pas de fait ») ; le bailleur de démo a en revanche un numéro non vérifié : « Vérifier votre numéro » et le point de « Coordonnées ». ⚠ La coque lit une étape « Envoyer vos pièces d’identité » (`GET /api/me/espace/demarrage`, liste « Démarrer ») : une source possible du fait, proposée en suite."
+  },
+  {
+   "ecran": "a-0-telephone, a-6-telephone",
+   "element": "aide des rangées du sommaire",
+   "propriete": "« WhatsApp, appli », « Barre latérale automatique », « 1 à laisser », « Wave · un compte à confirmer », « 60 % complète » → « Par événement et par canal », « Barre latérale et épingles », « Reçus, à laisser et publiés », « Là où vous recevez vos reversements », « Aucune langue · aucun quartier »",
+   "exception": "donnée",
+   "motif": "une rangée résume l'état de sa section quand le sommaire l'a déjà lu (numéro, double authentification, annuaire, espaces, carte professionnelle, langue, fuseau, note) ; sinon une aide fixe : résumer les notifications, le mode du menu, les avis à laisser ou les destinations demanderait la requête de chaque section au chargement du sommaire."
+  },
+  {
+   "ecran": "a-*-bureau-*",
+   "element": "colonne de la coque (groupes et entrées de l'agent)",
+   "propriete": "« Aujourd'hui », « Demandes de contact », « Clients », « Rapports » contre « Demandes à traiter », « Clients (CRM) », « Entrées en attente », « Avis reçus », « Documents », « Statistiques », « Modifier le menu »",
+   "exception": "composant partagé",
+   "motif": "le menu de l'agent est celui de la coque (TCK-2480, TCK-2618), pas de ce ticket ; l'apostrophe typographique (« Aujourd’hui ») est celle des messages du produit."
+  },
+  {
+   "ecran": "a-1-telephone, a-3-telephone, a-5-telephone",
+   "element": "marge du haut de la section",
+   "propriete": "Δ y +4 px sur tout le contenu",
+   "exception": "composant partagé",
+   "motif": "la coque pose 24 px sous l'en-tête du téléphone sur toutes les pages de /app ; la maquette « réglage » en pose 20."
+  },
+  {
+   "ecran": "a-1-telephone, a-3-telephone",
+   "element": "« Enregistrer », barre d'onglets",
+   "propriete": "au repos (sans modification) : barre d'onglets de la coque et « Enregistrer », inactif, sous la section — la maquette, dessinée sur une modification en cours, met la barre d'action à la place des onglets. Relevé dans l'état de la maquette (cf. mesures), le produit la suit.",
+   "exception": "arbitrage du 2026-11-12",
+   "motif": "arbitrage du responsable du lot, 2026-11-12 : « la barre d'onglets s'efface devant « Enregistrer » : d'accord, mais seulement tant qu'il y a des changements non enregistrés. Sinon, la navigation reste. Et l'accès au clavier doit être tenu. » Éprouvé au navigateur (390 × 844, `barre-conditionnelle.mjs`) : onglets au chargement, effacés à la première modification, revenus quand elle est annulée ou enregistrée ; enregistré au clavier depuis la barre, le focus revient au pied (qui porte « Modifications enregistrées. »). Hauteur de la barre (69 px, bouton 44 px ; 73 et 48 dans la maquette) : `BarreDAction` et le bouton `lg` de la coque, communs à toutes les barres d'action (composant partagé)."
+  },
+  {
+   "ecran": "a-1-*, a-5-*",
+   "element": "pastilles de statut (« Non vérifié », « Vérifié », « Désactivée », « Courante ») et boutons « Vérifier », « Activer », « Révoquer »",
+   "propriete": "bord de 1 px, rayon 26 px, fond à 11 % ; hauteur 36 px au lieu de 32 ; ton de « Courante »",
+   "exception": "composant partagé",
+   "motif": "`StatusBadge` de la coque (TCK-2687 : 24 px, bord transparent) et le bouton `sm` de la portée /app (cible de 36 px) ; « Cet appareil » est dessiné au ton « accent », que `StatusBadge` n'a pas : ton `info`."
+  },
+  {
+   "ecran": "a-1-*",
+   "element": "aide du téléphone",
+   "propriete": "une phrase de plus : « À l’étranger ? Commencez par +. »",
+   "exception": "donnée",
+   "motif": "le champ porte le préfixe +221 ; un numéro étranger se saisit avec son indicatif (format international, AC2) — la phrase le dit, la maquette ne dessine que le cas sénégalais."
+  },
+  {
+   "ecran": "a-4-*",
+   "element": "tout le contenu sous le titre de la section",
+   "propriete": "Δ y (la note en tête absente)",
+   "exception": "donnée",
+   "motif": "conséquence de la note qui se tait (cf. ci-dessus)."
+  },
+  {
+   "ecran": "a-4-bureau-*",
+   "element": "carte « à laisser »",
+   "propriete": "titre (bien ou personne au lieu de « Intervention du 3 nov. · Fuite »), une légende par cible (« Le prestataire · … »), libellé de la note (« Très bien ») absent, encre des étoiles vides",
+   "exception": "donnée",
+   "motif": "un formulaire porte un contexte (visite, bail, séjour, intervention) et une à plusieurs cibles (bien, agent, agence, prestataire) : chacune est nommée, comme avant le ticket ; l'API ne rend ni la date ni l'objet de l'intervention. Aucun libellé de note n'existe aujourd'hui. Étoiles de 32 px dans des cibles de 44 px, « Publier mon avis » pleine largeur et cartes côte à côte dès 360 px, comme la maquette ; les étoiles vides gardent l'encre douce (exception accessibilité : la couleur de filet de la maquette ne tient pas 3:1 sur un contrôle)."
+  },
+  {
+   "ecran": "a-0-bureau-*",
+   "element": "sélecteurs « Langue » et « Fuseau horaire »",
+   "propriete": "hauteur 32,4 au lieu de 36 px, couleur de bord",
+   "exception": "composant partagé",
+   "motif": "`SelectTrigger` de la portée /app (TCK-2686, jetons de densité) ; la maquette dessine un champ de 36 px à bord de filet."
+  }
+ ],
+ "hors_perimetre": [
+  {
+   "element": "jauge de complétude et aperçu en direct de la fiche publique",
+   "ticket": "à proposer",
+   "motif": "règle de complétude à poser côté API d'abord."
+  },
+  {
+   "element": "compte « N avis en attente de validation »",
+   "ticket": "à proposer",
+   "motif": "un compte dans l'enveloppe de `GET /api/reviews/received` (une seule requête) ; sans lui, une seconde requête."
+  },
+  {
+   "element": "« Bailleur » (coque) contre « Propriétaire » (profil)",
+   "ticket": "à proposer",
+   "motif": "libellé partagé (`profile.types.owner`)."
+  },
+  {
+   "element": "préférences de notification (a-2)",
+   "ticket": "TCK-2636",
+   "motif": "hors périmètre du ticket."
+  },
+  {
+   "element": "« Menu » mis en avant sur les pages du profil",
+   "ticket": "TCK-2618",
+   "motif": "comportement de la coque."
+  }
+ ],
+ "mesures": {
+  "a-0-bureau-1280": {
+   "ligne": "143 conformes · 96 écarts · 32 absents · 2.56 % pixels",
+   "releve_le": "2026-11-11 23:54 Z",
+   "commit": "57383cd28 + arbre de travail (lot 2, non commité)",
+   "rideau": ".fidelite/TCK-2635/cmp-a-0-bureau-1280-agent/"
+  },
+  "a-0-bureau-1440": {
+   "ligne": "143 conformes · 96 écarts · 32 absents · 2.27 % pixels",
+   "releve_le": "2026-11-11 23:37 Z",
+   "commit": "57383cd28 + arbre de travail (lot 2, non commité)",
+   "rideau": ".fidelite/TCK-2635/cmp-a-0-bureau-1440-agent/"
+  },
+  "a-0-telephone": {
+   "ligne": "26 conformes · 42 écarts · 26 absents · 10.99 % pixels",
+   "releve_le": "2026-11-11 23:37 Z",
+   "commit": "57383cd28 + arbre de travail (lot 2, non commité)",
+   "rideau": ".fidelite/TCK-2635/cmp-a-0-telephone-agent/",
+   "zones": "coque · barre d'onglets 1.31 % ; coque · en-tête 0.59 %"
+  },
+  "a-1-bureau-1280": {
+   "ligne": "107 conformes · 93 écarts · 23 absents · 3.9 % pixels",
+   "releve_le": "2026-11-11 23:54 Z",
+   "commit": "57383cd28 + arbre de travail (lot 2, non commité)",
+   "rideau": ".fidelite/TCK-2635/cmp-a-1-bureau-1280-agent/"
+  },
+  "a-1-bureau-1440": {
+   "ligne": "107 conformes · 93 écarts · 23 absents · 3.47 % pixels",
+   "releve_le": "2026-11-11 23:37 Z",
+   "commit": "57383cd28 + arbre de travail (lot 2, non commité)",
+   "rideau": ".fidelite/TCK-2635/cmp-a-1-bureau-1440-agent/"
+  },
+  "a-1-telephone": {
+   "ligne": "5 conformes · 17 écarts · 6 absents · 8.98 % pixels",
+   "releve_le": "2026-11-12 00:29 Z",
+   "commit": "11edcd4e6 + arbre de travail (lot 2, non commité)",
+   "rideau": ".fidelite/TCK-2635/cmp-a-1-telephone-agent/",
+   "zones": "coque · en-tête 0 %",
+   "note": "relevé dans l'état de la maquette — présentation saisie, non enregistrée (`takussan-web/scripts/fidelite/fixtures/perturber-tck-2635-a-1-telephone.txt` : le texte de la maquette, tronqué à 83 caractères par la référence) : barre d'action à la place des onglets, comme la maquette. Aucun clic sur « Enregistrer ». Au repos, la barre d'onglets est là (arbitrage du 2026-11-12) : 14,04 %."
+  },
+  "a-3-bureau-1280": {
+   "ligne": "96 conformes · 124 écarts · 77 absents · 6.16 % pixels",
+   "releve_le": "2026-11-11 23:26 Z",
+   "commit": "57383cd28 + arbre de travail (lot 2, non commité)",
+   "rideau": ".fidelite/TCK-2635/cmp-a-3-bureau-1280-agent/"
+  },
+  "a-3-bureau-1440": {
+   "ligne": "96 conformes · 124 écarts · 77 absents · 5.61 % pixels",
+   "releve_le": "2026-11-11 23:19 Z",
+   "commit": "57383cd28 + arbre de travail (lot 2, non commité)",
+   "rideau": ".fidelite/TCK-2635/cmp-a-3-bureau-1440-agent/"
+  },
+  "a-3-telephone": {
+   "ligne": "5 conformes · 20 écarts · 34 absents · 16.44 % pixels",
+   "releve_le": "2026-11-12 00:29 Z",
+   "commit": "11edcd4e6 + arbre de travail (lot 2, non commité)",
+   "rideau": ".fidelite/TCK-2635/cmp-a-3-telephone-agent/",
+   "zones": "coque · en-tête 0 %",
+   "note": "relevé dans l'état de la maquette — « Français » et « Wolof » cochés, non enregistrés (`takussan-web/scripts/fidelite/fixtures/perturber-tck-2635-a-3-telephone.txt`) : barre d'action à la place des onglets, comme la maquette. Aucun clic sur « Enregistrer ». Au repos, la barre d'onglets est là (arbitrage du 2026-11-12) : 20,37 %."
+  },
+  "a-4-bureau-1280": {
+   "ligne": "98 conformes · 118 écarts · 32 absents · 10.6 % pixels",
+   "releve_le": "2026-11-11 23:55 Z",
+   "commit": "57383cd28 + arbre de travail (lot 2, non commité)",
+   "rideau": ".fidelite/TCK-2635/cmp-a-4-bureau-1280-agent/"
+  },
+  "a-4-bureau-1440": {
+   "ligne": "101 conformes · 115 écarts · 35 absents · 8.18 % pixels",
+   "releve_le": "2026-11-11 23:55 Z",
+   "commit": "57383cd28 + arbre de travail (lot 2, non commité)",
+   "rideau": ".fidelite/TCK-2635/cmp-a-4-bureau-1440-agent/"
+  },
+  "a-4-telephone": {
+   "ligne": "24 conformes · 34 écarts · 10 absents · 17.11 % pixels",
+   "releve_le": "2026-11-11 23:55 Z",
+   "commit": "57383cd28 + arbre de travail (lot 2, non commité)",
+   "rideau": ".fidelite/TCK-2635/cmp-a-4-telephone-agent/",
+   "zones": "coque · barre d'onglets 1.31 % ; coque · en-tête 0 %"
+  },
+  "a-5-bureau-1280": {
+   "ligne": "126 conformes · 93 écarts · 23 absents · 2.2 % pixels",
+   "releve_le": "2026-11-11 23:54 Z",
+   "commit": "57383cd28 + arbre de travail (lot 2, non commité)",
+   "rideau": ".fidelite/TCK-2635/cmp-a-5-bureau-1280-agent/"
+  },
+  "a-5-bureau-1440": {
+   "ligne": "126 conformes · 93 écarts · 23 absents · 1.95 % pixels",
+   "releve_le": "2026-11-11 23:38 Z",
+   "commit": "57383cd28 + arbre de travail (lot 2, non commité)",
+   "rideau": ".fidelite/TCK-2635/cmp-a-5-bureau-1440-agent/"
+  },
+  "a-5-telephone": {
+   "ligne": "29 conformes · 28 écarts · 5 absents · 9.15 % pixels",
+   "releve_le": "2026-11-11 23:37 Z",
+   "commit": "57383cd28 + arbre de travail (lot 2, non commité)",
+   "rideau": ".fidelite/TCK-2635/cmp-a-5-telephone-agent/",
+   "zones": "coque · barre d'onglets 1.31 % ; coque · en-tête 0 %"
+  },
+  "a-6-bureau-1280": {
+   "ligne": "84 conformes · 79 écarts · 43 absents · 2.98 % pixels",
+   "releve_le": "2026-11-11 23:27 Z",
+   "commit": "57383cd28 + arbre de travail (lot 2, non commité)",
+   "rideau": ".fidelite/TCK-2635/cmp-a-6-bureau-1280-proprietaire/",
+   "note": "persona proprietaire"
+  },
+  "a-6-bureau-1440": {
+   "ligne": "84 conformes · 79 écarts · 43 absents · 2.65 % pixels",
+   "releve_le": "2026-11-11 23:26 Z",
+   "commit": "57383cd28 + arbre de travail (lot 2, non commité)",
+   "rideau": ".fidelite/TCK-2635/cmp-a-6-bureau-1440-proprietaire/",
+   "note": "persona proprietaire"
+  },
+  "a-6-telephone": {
+   "ligne": "12 conformes · 45 écarts · 29 absents · 11.08 % pixels",
+   "releve_le": "2026-11-11 23:19 Z",
+   "commit": "57383cd28 + arbre de travail (lot 2, non commité)",
+   "rideau": ".fidelite/TCK-2635/cmp-a-6-telephone-proprietaire/",
+   "zones": "coque · barre d'onglets 1.12 % ; coque · en-tête 0.61 %",
+   "note": "persona proprietaire"
+  }
+ },
+ "_absents": "Aucun libellé ni icône de la maquette n'est absent sans alias ou motif (cf. écarts acceptés). Absents de la maquette, avec motif : « Aller au contenu principal » (lien d'évitement), l'état annoncé du menu (« Votre menu suit la disposition par défaut. », `sr-only`, revue de TCK-2480), la tête et les groupes de la colonne de l'agent (coque), les aides de section (« Comment l'agence et vos clients vous joignent. », « Ce qui protège votre compte, et où il est ouvert. », « Votre réputation, et les avis que vous devez encore laisser. ») rendues sous le titre au bureau et lues au téléphone, « Voir ma fiche publique » en tête de la fiche, le texte de garde des versements (« Votre numéro n'est plus affiché en clair… ») et « Retirer » (gestes d'aujourd'hui). ⚠ Lecture des comptes : une fiche porte six écrans, et chaque rôle de contenu rend « absent » sur les écrans qui ne sont pas les siens (cf. `_roles`) — 1 à 3 absents par ligne de `mesures` n'ont pas d'autre cause."
+}

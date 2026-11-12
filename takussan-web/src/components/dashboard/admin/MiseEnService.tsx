@@ -28,14 +28,14 @@ import type { AgencyKind } from '@/types/agency';
  * L'écran qui fait chaque étape. Les pages d'administration sont tenues à la table des pages
  * (`CheminAdmin`, TCK-649) : un chemin qu'elle ne déclare pas ne compile pas.
  */
-const DESTINATIONS: Readonly<Record<string, CheminAdmin | '/app/properties/new' | '/app/profile'>> = {
+const DESTINATIONS: Readonly<Record<string, CheminAdmin | '/app/properties/new' | '/app/profile/security'>> = {
   kyc_verified: '/app/agency/kyc',
   logo: '/app/agency',
   commission_rate: '/app/agency',
   payment_integration: '/app/agency/integrations',
   first_member: '/app/agency/team',
   first_published_property: '/app/properties/new',
-  admin_two_factor: '/app/profile',
+  admin_two_factor: '/app/profile/security',
 };
 
 /** L'étape qui en conditionne d'autres, montrée la première (TCK-761). */

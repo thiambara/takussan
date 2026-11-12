@@ -62,10 +62,11 @@ describe('Boîte des avis reçus — filtres portés par l’URL (TCK-1515)', ()
     const urls = espionnerFetch();
     monter();
 
+    // TCK-2635 — le compte de l'onglet « Reçus » est une requête sans filtre ; la liste, elle, part
+    // avec les filtres de l'URL.
     await waitFor(() => {
       const recus = urls.filter((u) => u.includes('/api/reviews/received'));
-      expect(recus.at(-1)).toContain('filter[replied]=0');
-      expect(recus.at(-1)).toContain('filter[subject_type]=property');
+      expect(recus.some((u) => u.includes('filter[replied]=0') && u.includes('filter[subject_type]=property'))).toBe(true);
     });
     expect(screen.getByRole('combobox', { name: fr.profile.reviews.filterByReply })).toHaveTextContent(
       fr.profile.reviews.unreplied,
@@ -80,8 +81,9 @@ describe('Boîte des avis reçus — filtres portés par l’URL (TCK-1515)', ()
     await waitFor(() => {
       expect(urls.some((u) => u.includes('/api/reviews/received'))).toBe(true);
     });
-    const recu = urls.filter((u) => u.includes('/api/reviews/received')).at(-1);
-    expect(recu).not.toContain('filter[replied]');
-    expect(recu).not.toContain('filter[subject_type]');
+    for (const recu of urls.filter((u) => u.includes('/api/reviews/received'))) {
+      expect(recu).not.toContain('filter[replied]');
+      expect(recu).not.toContain('filter[subject_type]');
+    }
   });
 });

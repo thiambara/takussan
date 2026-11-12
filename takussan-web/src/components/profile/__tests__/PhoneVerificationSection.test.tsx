@@ -24,7 +24,7 @@ describe('<PhoneVerificationSection>', () => {
       screen.getByText(/ajoutez d'abord un numéro de téléphone/i),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: /envoyer le code/i }),
+      screen.queryByRole('button', { name: /^vérifier$/i }),
     ).not.toBeInTheDocument();
   });
 
@@ -37,7 +37,7 @@ describe('<PhoneVerificationSection>', () => {
       <PhoneVerificationSection phone="+221771234567" phoneVerified={false} />,
     ));
 
-    await user.click(screen.getByRole('button', { name: /envoyer le code/i }));
+    await user.click(screen.getByRole('button', { name: /^vérifier$/i }));
     await waitFor(() => expect(screen.getByRole('status')).toBeInTheDocument());
     expect(screen.getByRole('status')).not.toHaveTextContent(/999999/);
     expect(document.body).not.toHaveTextContent(/999999/);
@@ -52,10 +52,10 @@ describe('<PhoneVerificationSection>', () => {
       <PhoneVerificationSection phone="+221771234567" phoneVerified={false} />,
     ));
 
-    await user.click(screen.getByRole('button', { name: /envoyer le code/i }));
+    await user.click(screen.getByRole('button', { name: /^vérifier$/i }));
     await waitFor(() => screen.getByLabelText(/code à 6 chiffres/i));
     await user.type(screen.getByLabelText(/code à 6 chiffres/i), '123456');
-    await user.click(screen.getByRole('button', { name: /vérifier$/i }));
+    await user.click(screen.getByRole('button', { name: /^confirmer$/i }));
 
     await waitFor(() => expect(screen.getByText('Vérifié')).toBeInTheDocument());
   });
@@ -69,7 +69,7 @@ describe('<PhoneVerificationSection>', () => {
     render(withIntl(
       <PhoneVerificationSection phone="+221771234567" phoneVerified={false} />,
     ));
-    await user.click(screen.getByRole('button', { name: /envoyer le code/i }));
+    await user.click(screen.getByRole('button', { name: /^vérifier$/i }));
 
     await waitFor(() =>
       expect(screen.getByRole('alert')).toHaveTextContent(/please wait/i),

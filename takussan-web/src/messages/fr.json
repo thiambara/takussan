@@ -3526,7 +3526,7 @@
         "step1Title": "Pourquoi souhaitez-vous partir ?",
         "step1Description": "Choisissez un motif. Cela nous aide à améliorer Takussan.",
         "step2Title": "Confirmer avec votre mot de passe",
-        "step2Description": "Pour des raisons de sécurité, ressaisissez votre mot de passe et, si activée, votre 2FA.",
+        "step2Description": "Pour des raisons de sécurité, ressaisissez votre mot de passe et, si elle est activée, le code de votre double authentification.",
         "reasonOptions": {
           "service_completed": "J'ai terminé d'utiliser le service",
           "quality_issue": "Problème de qualité",
@@ -3535,7 +3535,7 @@
         },
         "reasonOtherPlaceholder": "Décrivez brièvement votre motif (optionnel)",
         "passwordLabel": "Mot de passe",
-        "twoFactorLabel": "Code 2FA (6 chiffres)",
+        "twoFactorLabel": "Code de double authentification (6 chiffres)",
         "next": "Continuer",
         "back": "Retour",
         "confirmCta": "Supprimer définitivement",
@@ -3560,7 +3560,7 @@
       "errors": {
         "generic": "Une erreur est survenue, veuillez réessayer.",
         "passwordInvalid": "Mot de passe incorrect.",
-        "twoFactorInvalid": "Code 2FA invalide.",
+        "twoFactorInvalid": "Code de double authentification invalide.",
         "obligations": "Vous avez des obligations en cours qui empêchent la suppression.",
         "stepUpCodeInvalid": "Code de confirmation invalide ou expiré."
       }
@@ -12380,24 +12380,41 @@
       "opportunitySentBody": "Merci ! Votre avis sera publié après validation.",
       "opportunityError": "Votre avis n'a pas pu être envoyé.",
       "opportunityPartiallySent": "Déjà enregistré : {targets}.",
-      "anonymous": "Anonyme"
+      "anonymous": "Anonyme",
+      "onglets": {
+        "titre": "Mes avis",
+        "recus": "Reçus",
+        "a-laisser": "À laisser",
+        "publies": "Publiés"
+      },
+      "tete": {
+        "moyenneAria": "Note moyenne : {moyenne} sur 5",
+        "nombre": "{nombre, plural, one {# avis reçu} other {# avis reçus}}"
+      },
+      "filtres": {
+        "titre": "Filtrer les avis reçus",
+        "bouton": "Filtres"
+      },
+      "opportunitySubmitOne": "Publier mon avis",
+      "noteAria": "Note : {note} sur 5",
+      "pastilleEnAttente": "En attente de validation"
     },
     "contact": {
       "title": "Coordonnées",
       "subtitle": "Gérez vos informations de contact.",
-      "emailLabel": "Email",
+      "emailLabel": "Courriel",
       "verified": "Vérifié",
       "notVerified": "Non vérifié",
       "phoneLabel": "Téléphone",
-      "phoneFormatError": "Format E.164 attendu : `+`, indicatif pays, puis chiffres (ex : +221770000000).",
-      "phoneHint": "Format international (E.164). Modifier le numéro réinitialise sa vérification.",
+      "phoneFormatError": "Numéro au format international : +, l’indicatif du pays, puis les chiffres (ex. : +221770000000).",
+      "phoneHint": "Numéro au format international. Le modifier réinitialise sa vérification.",
       "verifyPrompt": "Vérifiez votre numéro pour recevoir des notifications par SMS.",
       "sending": "Envoi…",
       "resendCode": "Renvoyer le code",
       "verify": "Vérifier",
       "otpCodeAria": "Code à 6 chiffres",
       "verifying": "Vérification…",
-      "bioLabel": "Bio",
+      "bioLabel": "Présentation",
       "bioPlaceholder": "Parlez-nous un peu de vous...",
       "saving": "Enregistrement…",
       "saveError": "Échec de la mise à jour du profil.",
@@ -12414,7 +12431,6 @@
       "emailFormatError": "Saisissez une adresse e-mail valide (ex : vous@exemple.com).",
       "emailAddHint": "Ajoutez une adresse e-mail : nous vous enverrons un lien pour la vérifier.",
       "emailUnverifiedHint": "Vous pouvez corriger cette adresse tant qu’elle n’est pas vérifiée.",
-      "emailVerifiedHint": "Une adresse vérifiée ne se modifie pas depuis cette page.",
       "emailVerifyPrompt": "Ouvrez le lien envoyé à {email} pour vérifier votre adresse.",
       "emailResend": "Renvoyer le lien",
       "emailLinkSent": "Lien de vérification envoyé à {email}.",
@@ -12430,7 +12446,11 @@
         "verified": "Second numéro vérifié.",
         "remove": "Retirer",
         "removed": "Second numéro retiré."
-      }
+      },
+      "phoneAide": "Un code vous est envoyé par SMS. Vérifié, ce numéro reçoit les alertes par SMS et WhatsApp. À l’étranger ? Commencez par +.",
+      "bioCompte": "{n} / 500",
+      "bioAide": "Visible sur votre fiche publique.",
+      "emailIdentifiant": "C’est votre identifiant de connexion : il ne se modifie pas ici."
     },
     "searchPreferences": {
       "defaultName": "Mes préférences",
@@ -12458,12 +12478,11 @@
     },
     "security": {
       "twoFactor": {
-        "title": "Authentification à deux facteurs (TOTP)",
-        "description": "Protégez votre compte avec une application d'authentification (Google Authenticator, 1Password, Authy…).",
+        "title": "Double authentification",
         "enabled": "Activée",
         "disabled": "Désactivée",
         "initializing": "Initialisation…",
-        "enable": "Activer la 2FA",
+        "enable": "Activer la double authentification",
         "qrAlt": "QR code à scanner",
         "scanHint": "Scannez le QR code ou saisissez manuellement cette clé dans votre application :",
         "confirmHint": "Ensuite, entrez le code à 6 chiffres généré pour confirmer.",
@@ -12474,26 +12493,29 @@
         "recoveryHint": "Sauvegardez ces codes dans un gestionnaire sécurisé — ils ne seront plus jamais affichés. Chaque code permet une connexion d'urgence si vous perdez l'accès à votre application.",
         "copyAll": "Copier tous les codes",
         "regenerate": "Régénérer les codes de récupération",
-        "disable": "Désactiver la 2FA",
+        "disable": "Désactiver la double authentification",
         "passwordPlaceholder": "Mot de passe",
-        "confirmDisable": "Confirmer la désactivation"
+        "confirmDisable": "Confirmer la désactivation",
+        "enableShort": "Activer",
+        "explication": "Un code de votre application à chaque connexion, et des codes de secours à garder."
       },
       "title": "Sécurité",
       "description": "Gérez l'accès à votre compte et les appareils connectés.",
-      "emailTitle": "Email",
+      "emailTitle": "Courriel",
       "emailVerified": "Votre email est vérifié.",
       "emailNotVerified": "Votre email n'est pas encore vérifié. Consultez votre boîte de réception.",
-      "emailMissing": "Aucune adresse e-mail sur ce compte. Ajoutez-en une dans vos coordonnées, plus haut.",
       "verified": "Vérifié",
       "notVerified": "Non vérifié",
       "phone": {
         "title": "Vérification du téléphone",
         "descriptionWithPhone": "Code SMS à usage unique envoyé au {phone}.",
         "descriptionNoPhone": "Ajoutez d'abord un numéro de téléphone dans la section « Coordonnées ».",
-        "sendCode": "Envoyer le code"
+        "sendCode": "Envoyer le code",
+        "titreCourt": "Téléphone",
+        "detail": "{phone} · un code par SMS suffit."
       },
       "sessions": {
-        "title": "Sessions actives",
+        "title": "Appareils connectés",
         "description": "Appareils et applications actuellement connectés à votre compte.",
         "empty": "Aucune session active.",
         "unnamed": "Session sans nom",
@@ -12502,8 +12524,10 @@
         "revoke": "Révoquer",
         "lastActivity": "Dernière activité :",
         "unknown": "inconnue",
-        "ip": "IP : {ip}"
-      }
+        "ip": "IP : {ip}",
+        "compte": "{n, plural, one {# session ouverte sur votre compte.} other {# sessions ouvertes sur votre compte.}}"
+      },
+      "emailAbsent": "Aucune adresse e-mail sur ce compte. Ajoutez-en une dans « Coordonnées »."
     },
     "types": {
       "agency_admin": "Administrateur",
@@ -12538,14 +12562,14 @@
             "help": "Iban / BIC pour le versement des loyers."
           },
           "taxId": {
-            "label": "Identifiant fiscal (tax_id)",
+            "label": "Identifiant fiscal",
             "help": "Pour les retenues à la source."
           }
         },
         "agent": {
           "license": {
-            "label": "Numéro de licence",
-            "help": "Carte professionnelle agence — license_number."
+            "label": "Carte professionnelle",
+            "help": "Le numéro de votre carte professionnelle d’agent."
           }
         },
         "serviceProvider": {
@@ -12558,6 +12582,14 @@
             "help": "Responsabilité civile professionnelle."
           }
         }
+      },
+      "statuts": {
+        "active": "Actif",
+        "archived": "Archivé",
+        "blocked": "Bloqué",
+        "draft": "Brouillon",
+        "inactive": "Inactif",
+        "suspended": "Suspendu"
       }
     },
     "header": {
@@ -12570,7 +12602,8 @@
       "saving": "Enregistrement…",
       "invalidImage": "Le fichier doit être une image valide.",
       "imageTooLarge": "L’image ne doit pas dépasser 2 Mo.",
-      "saveError": "Échec de la mise à jour du profil."
+      "saveError": "Échec de la mise à jour du profil.",
+      "voirMaFiche": "Voir ma fiche publique"
     },
     "admin": {
       "title": "Administration",
@@ -12687,11 +12720,11 @@
       "holder": "Titulaire (facultatif)",
       "add": "Ajouter",
       "saveFailed": "La destination n'a pas pu être enregistrée.",
-      "removeFailed": "La destination n'a pas pu être retirée."
+      "removeFailed": "La destination n'a pas pu être retirée.",
+      "ajouter": "Ajouter un moyen de versement"
     },
     "serviceProvider": {
       "title": "Mon activité de prestataire",
-      "subtitle": "Ce que voient les agences avec lesquelles vous travaillez. Chaque réglage s'enregistre séparément.",
       "trades": "Métiers",
       "zones": "Zones d'intervention",
       "zonesPlaceholder": "Dakar, Mbour, Thiès",
@@ -12709,7 +12742,8 @@
       "subtitle": "L'heure de vos e-mails, SMS et notifications suit ce fuseau.",
       "label": "Fuseau horaire",
       "saved": "Fuseau horaire enregistré.",
-      "error": "Le fuseau horaire n'a pas pu être enregistré."
+      "error": "Le fuseau horaire n'a pas pu être enregistré.",
+      "dakar": "Dakar (GMT)"
     },
     "menu": {
       "titre": "Menu",
@@ -12722,8 +12756,14 @@
         "auto": "Automatique : réduite aux icônes sur un écran moyen",
         "icones": "Toujours réduite aux icônes",
         "complet": "Toujours complète",
-        "aide": "Ce réglage ne vaut que pour ce navigateur."
-      }
+        "aide": "Ce réglage ne vaut que pour ce navigateur.",
+        "court": {
+          "auto": "Automatique",
+          "complet": "Complète",
+          "icones": "Icônes"
+        }
+      },
+      "aide": "Vos épingles et vos groupes repliés."
     },
     "directory": {
       "title": "Annuaire public",
@@ -12777,6 +12817,111 @@
       "seSouvenir": "Se souvenir de mon choix",
       "continuerDans": "Continuer dans {agence}",
       "continuerClient": "Continuer en tant que client"
+    },
+    "sommaire": {
+      "titre": "Profil",
+      "attention": "{count, plural, one {# réglage demande votre attention} other {# réglages demandent votre attention}}",
+      "sansAttention": "Vos coordonnées, votre sécurité et vos préférences.",
+      "navLabel": "Sommaire du profil",
+      "vueDEnsemble": "Vue d’ensemble",
+      "supprimer": "Supprimer mon compte",
+      "deconnexion": "Déconnexion",
+      "point": "Demande une action",
+      "rangees": {
+        "coordonnees": "Coordonnées",
+        "fiche": "Fiche publique",
+        "pro": "Profil professionnel",
+        "recherche": "Préférences de recherche",
+        "versement": "Moyens de versement",
+        "annuaire": "Annuaire public",
+        "notifications": "Notifications",
+        "securite": "Sécurité",
+        "espaces": "Mes espaces",
+        "menu": "Menu et affichage",
+        "langue": "Langue",
+        "fuseau": "Fuseau horaire",
+        "avis": "Mes avis",
+        "donnees": "Mes données"
+      },
+      "aides": {
+        "coordonnees": "Comment l’agence et vos clients vous joignent.",
+        "fiche": "Votre carte de visite sur le site.",
+        "pro": "Ce que vous exercez, et comment.",
+        "recherche": "Ce que vous cherchez, pour des annonces qui vous correspondent.",
+        "versement": "Là où vous recevez vos reversements.",
+        "annuaire": "Paraître dans l’annuaire des bailleurs du site.",
+        "notifications": "Pour chaque événement, les canaux par lesquels vous êtes prévenu.",
+        "securite": "Ce qui protège votre compte, et où il est ouvert.",
+        "espaces": "Les agences et les rôles de votre compte.",
+        "menu": "Votre menu et la barre latérale sur cet appareil.",
+        "langue": "La langue de l’application.",
+        "fuseau": "L’heure de vos e-mails, SMS et notifications.",
+        "avis": "Votre réputation, et les avis que vous devez encore laisser.",
+        "donnees": "Récupérer ce que Takussan sait de vous.",
+        "suppression": "Effectif après 30 jours : vous pouvez annuler d’ici là en vous reconnectant."
+      },
+      "aRegler": {
+        "titre": "À régler",
+        "telephone": {
+          "titre": "Vérifier votre numéro",
+          "detail": "Pour recevoir les alertes par SMS et WhatsApp.",
+          "action": "Vérifier"
+        },
+        "double-authentification": {
+          "titre": "Activer la double authentification",
+          "detail": "Un code de plus à la connexion protège vos clients et vos baux.",
+          "action": "Activer"
+        },
+        "fiche": {
+          "titre": "Compléter votre fiche publique",
+          "detail": "Indiquez vos langues et vos quartiers.",
+          "action": "Compléter"
+        }
+      },
+      "details": {
+        "coordonnees": {
+          "aVerifier": "{telephone} · à vérifier",
+          "verifie": "{telephone} · vérifié",
+          "sansNumero": "Aucun numéro"
+        },
+        "fiche": {
+          "faits": "{langues, plural, =0 {Aucune langue} one {# langue} other {# langues}} · {quartiers, plural, =0 {aucun quartier} one {# quartier} other {# quartiers}}"
+        },
+        "pro": {
+          "carte": "Carte n° {numero}",
+          "carteARenseigner": "Carte professionnelle à renseigner",
+          "prestataire": "Métiers, zones et tarifs"
+        },
+        "recherche": "Ce que vous cherchez",
+        "versement": "Là où vous recevez vos reversements",
+        "annuaire": {
+          "inscrit": "Inscrit",
+          "nonInscrit": "Non inscrit"
+        },
+        "notifications": "Par événement et par canal",
+        "securite": {
+          "active": "Double authentification activée",
+          "inactive": "Double authentification désactivée"
+        },
+        "espaces": {
+          "un": "{agence} · {role}",
+          "plusieurs": "{count, plural, one {# espace} other {# espaces}}",
+          "aucun": "Aucun espace professionnel"
+        },
+        "menu": "Barre latérale et épingles",
+        "fuseau": {
+          "dakar": "Dakar (GMT)"
+        },
+        "avis": "Reçus, à laisser et publiés",
+        "donnees": "Exporter mes données",
+        "avisNote": "{nombre, plural, one {# reçu} other {# reçus}} · {moyenne} sur 5"
+      },
+      "nonEnregistrees": "{n, plural, one {# modification non enregistrée} other {# modifications non enregistrées}}",
+      "espaces": {
+        "titre": "Mes espaces",
+        "enCours": "Espace en cours",
+        "carte": "carte professionnelle n° {numero}"
+      }
     }
   },
   "contact": {

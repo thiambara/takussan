@@ -118,7 +118,8 @@ export interface ReceivedReviewsParams {
 
 export const RECEIVED_REVIEWS_PER_PAGE = 20;
 
-export function useReceivedReviews(params: ReceivedReviewsParams) {
+/** `enabled` : TCK-2635 — le compte de l'onglet « Reçus » ne se demande qu'à qui peut en recevoir. */
+export function useReceivedReviews(params: ReceivedReviewsParams, options: { readonly enabled?: boolean } = {}) {
   const filter: Record<string, string> = {};
   if (params.propertyId) filter.property_id = String(params.propertyId);
   if (params.replied !== undefined) filter.replied = params.replied ? '1' : '0';
@@ -134,7 +135,7 @@ export function useReceivedReviews(params: ReceivedReviewsParams) {
   return useApiQuery<PaginatedResponse<Review>>(
     ['received-reviews', params],
     '/api/reviews/received',
-    { params: spatieParams },
+    { params: spatieParams, enabled: options.enabled },
   );
 }
 

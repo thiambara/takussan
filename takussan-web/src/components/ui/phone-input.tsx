@@ -43,12 +43,20 @@ export interface PhoneInputProps
   readonly onValueChange: (valeur: string) => void;
   /** Indicatif affiché en préfixe (`+221` par défaut). */
   readonly indicatif?: string;
+  /**
+   * TCK-2635 — l'aide sous le champ, quand l'appelant en a une plus juste que celle de l'indicatif
+   * (la vérification du numéro, au profil). Sans elle, l'aide de l'indicatif. `false` : aucune aide
+   * ici — l'appelant pose la sienne sous une rangée plus large (champ + bouton) et la relie par
+   * `aria-describedby`.
+   */
+  readonly aide?: React.ReactNode | false;
 }
 
 export function PhoneInput({
   value,
   onValueChange,
   indicatif = INDICATIF_PAR_DEFAUT,
+  aide,
   id,
   className,
   disabled,
@@ -98,7 +106,7 @@ export function PhoneInput({
     return () => observateur.disconnect();
   }, [international, indicatif]);
 
-  const decrit = [international ? null : idPrefixe, idAide, descriptionExterne]
+  const decrit = [international ? null : idPrefixe, aide === false ? null : idAide, descriptionExterne]
     .filter(Boolean)
     .join(' ');
 
@@ -146,9 +154,11 @@ export function PhoneInput({
           }
         />
       </div>
-      <p id={idAide} className="text-xs text-pretty text-muted-foreground">
-        {international ? t('hintInternational') : t('hintNational', { indicatif })}
-      </p>
+      {aide === false ? null : (
+        <p id={idAide} className="text-xs text-pretty text-muted-foreground">
+          {aide ?? (international ? t('hintInternational') : t('hintNational', { indicatif }))}
+        </p>
+      )}
     </div>
   );
 }

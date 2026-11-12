@@ -3569,7 +3569,7 @@
         "step1Title": "Why are you leaving?",
         "step1Description": "Pick a reason. This helps us improve Takussan.",
         "step2Title": "Confirm with your password",
-        "step2Description": "For security reasons, please re-enter your password and, if enabled, your 2FA code.",
+        "step2Description": "For security reasons, please re-enter your password and, if it is on, your two-factor authentication code.",
         "reasonOptions": {
           "service_completed": "I'm done using the service",
           "quality_issue": "Quality issue",
@@ -3578,7 +3578,7 @@
         },
         "reasonOtherPlaceholder": "Briefly describe your reason (optional)",
         "passwordLabel": "Password",
-        "twoFactorLabel": "2FA code (6 digits)",
+        "twoFactorLabel": "Two-factor authentication code (6 digits)",
         "next": "Continue",
         "back": "Back",
         "confirmCta": "Permanently delete",
@@ -3603,7 +3603,7 @@
       "errors": {
         "generic": "Something went wrong, please try again.",
         "passwordInvalid": "Incorrect password.",
-        "twoFactorInvalid": "Invalid 2FA code.",
+        "twoFactorInvalid": "Invalid two-factor authentication code.",
         "obligations": "You have outstanding obligations preventing deletion.",
         "stepUpCodeInvalid": "Confirmation code is invalid or has expired."
       }
@@ -12380,7 +12380,24 @@
       "opportunitySentBody": "Thank you! Your review will be published once approved.",
       "opportunityError": "Your review could not be sent.",
       "opportunityPartiallySent": "Already saved: {targets}.",
-      "anonymous": "Anonymous"
+      "anonymous": "Anonymous",
+      "onglets": {
+        "titre": "My reviews",
+        "recus": "Received",
+        "a-laisser": "To leave",
+        "publies": "Published"
+      },
+      "tete": {
+        "moyenneAria": "Average rating: {moyenne} out of 5",
+        "nombre": "{nombre, plural, one {# review received} other {# reviews received}}"
+      },
+      "filtres": {
+        "titre": "Filter received reviews",
+        "bouton": "Filters"
+      },
+      "opportunitySubmitOne": "Publish my review",
+      "noteAria": "Rating: {note} out of 5",
+      "pastilleEnAttente": "Awaiting approval"
     },
     "contact": {
       "title": "Contact details",
@@ -12389,15 +12406,15 @@
       "verified": "Verified",
       "notVerified": "Not verified",
       "phoneLabel": "Phone",
-      "phoneFormatError": "E.164 format expected: `+`, country code, then digits (e.g. +221770000000).",
-      "phoneHint": "International format (E.164). Changing the number resets its verification.",
+      "phoneFormatError": "Number in international format: +, the country code, then the digits (e.g. +221770000000).",
+      "phoneHint": "Number in international format. Changing it resets its verification.",
       "verifyPrompt": "Verify your number to receive SMS notifications.",
       "sending": "Sending…",
       "resendCode": "Resend the code",
       "verify": "Verify",
       "otpCodeAria": "6-digit code",
       "verifying": "Verifying…",
-      "bioLabel": "Bio",
+      "bioLabel": "About you",
       "bioPlaceholder": "Tell us a little about yourself...",
       "saving": "Saving…",
       "saveError": "Profile update failed.",
@@ -12414,7 +12431,6 @@
       "emailFormatError": "Enter a valid email address (e.g. you@example.com).",
       "emailAddHint": "Add an email address: we will send you a link to verify it.",
       "emailUnverifiedHint": "You can correct this address until it is verified.",
-      "emailVerifiedHint": "A verified address cannot be changed from this page.",
       "emailVerifyPrompt": "Open the link sent to {email} to verify your address.",
       "emailResend": "Resend the link",
       "emailLinkSent": "Verification link sent to {email}.",
@@ -12430,7 +12446,11 @@
         "verified": "Second number verified.",
         "remove": "Remove",
         "removed": "Second number removed."
-      }
+      },
+      "phoneAide": "A code is sent to you by SMS. Once verified, this number receives SMS and WhatsApp alerts. Abroad? Start with +.",
+      "bioCompte": "{n} / 500",
+      "bioAide": "Shown on your public profile.",
+      "emailIdentifiant": "This is your sign-in identifier: it can’t be changed here."
     },
     "searchPreferences": {
       "defaultName": "My preferences",
@@ -12458,12 +12478,11 @@
     },
     "security": {
       "twoFactor": {
-        "title": "Two-factor authentication (TOTP)",
-        "description": "Protect your account with an authenticator app (Google Authenticator, 1Password, Authy…).",
+        "title": "Two-factor authentication",
         "enabled": "On",
         "disabled": "Off",
         "initializing": "Initialising…",
-        "enable": "Turn 2FA on",
+        "enable": "Turn on two-factor authentication",
         "qrAlt": "QR code to scan",
         "scanHint": "Scan the QR code, or type this key manually into your app:",
         "confirmHint": "Then enter the 6-digit code it generates to confirm.",
@@ -12474,26 +12493,29 @@
         "recoveryHint": "Save these codes in a secure manager — they will never be shown again. Each code allows one emergency sign-in if you lose access to your app.",
         "copyAll": "Copy all the codes",
         "regenerate": "Regenerate the recovery codes",
-        "disable": "Turn 2FA off",
+        "disable": "Turn off two-factor authentication",
         "passwordPlaceholder": "Password",
-        "confirmDisable": "Confirm deactivation"
+        "confirmDisable": "Confirm deactivation",
+        "enableShort": "Turn on",
+        "explication": "A code from your app at each sign-in, and backup codes to keep."
       },
       "title": "Security",
       "description": "Manage access to your account and the connected devices.",
       "emailTitle": "Email",
       "emailVerified": "Your email is verified.",
       "emailNotVerified": "Your email is not verified yet. Check your inbox.",
-      "emailMissing": "No email address on this account. Add one in your contact details, above.",
       "verified": "Verified",
       "notVerified": "Not verified",
       "phone": {
         "title": "Phone verification",
         "descriptionWithPhone": "One-time SMS code sent to {phone}.",
         "descriptionNoPhone": "Add a phone number in the “Contact details” section first.",
-        "sendCode": "Send the code"
+        "sendCode": "Send the code",
+        "titreCourt": "Phone",
+        "detail": "{phone} · one SMS code is enough."
       },
       "sessions": {
-        "title": "Active sessions",
+        "title": "Signed-in devices",
         "description": "Devices and applications currently connected to your account.",
         "empty": "No active session.",
         "unnamed": "Unnamed session",
@@ -12502,8 +12524,10 @@
         "revoke": "Revoke",
         "lastActivity": "Last activity:",
         "unknown": "unknown",
-        "ip": "IP: {ip}"
-      }
+        "ip": "IP: {ip}",
+        "compte": "{n, plural, one {# session open on your account.} other {# sessions open on your account.}}"
+      },
+      "emailAbsent": "No email address on this account. Add one under “Contact details”."
     },
     "types": {
       "agency_admin": "Administrator",
@@ -12538,14 +12562,14 @@
             "help": "IBAN / BIC for rent payouts."
           },
           "taxId": {
-            "label": "Tax identifier (tax_id)",
+            "label": "Tax identifier",
             "help": "For withholding at source."
           }
         },
         "agent": {
           "license": {
-            "label": "Licence number",
-            "help": "Agency professional card — license_number."
+            "label": "Professional card",
+            "help": "The number of your agent’s professional card."
           }
         },
         "serviceProvider": {
@@ -12558,6 +12582,14 @@
             "help": "Professional liability insurance."
           }
         }
+      },
+      "statuts": {
+        "active": "Active",
+        "archived": "Archived",
+        "blocked": "Blocked",
+        "draft": "Draft",
+        "inactive": "Inactive",
+        "suspended": "Suspended"
       }
     },
     "header": {
@@ -12570,7 +12602,8 @@
       "saving": "Saving…",
       "invalidImage": "The file must be a valid image.",
       "imageTooLarge": "The image must not exceed 2 MB.",
-      "saveError": "Profile update failed."
+      "saveError": "Profile update failed.",
+      "voirMaFiche": "View my public profile"
     },
     "admin": {
       "title": "Administration",
@@ -12687,11 +12720,11 @@
       "holder": "Account holder (optional)",
       "add": "Add",
       "saveFailed": "The destination could not be saved.",
-      "removeFailed": "The destination could not be removed."
+      "removeFailed": "The destination could not be removed.",
+      "ajouter": "Add a payout method"
     },
     "serviceProvider": {
       "title": "My provider activity",
-      "subtitle": "What the agencies you work with see. Each setting is saved separately.",
       "trades": "Trades",
       "zones": "Service areas",
       "zonesPlaceholder": "Dakar, Mbour, Thiès",
@@ -12709,7 +12742,8 @@
       "subtitle": "The times in your e-mails, SMS and notifications follow this time zone.",
       "label": "Time zone",
       "saved": "Time zone saved.",
-      "error": "The time zone could not be saved."
+      "error": "The time zone could not be saved.",
+      "dakar": "Dakar (GMT)"
     },
     "menu": {
       "titre": "Menu",
@@ -12722,8 +12756,14 @@
         "auto": "Automatic: icons only on medium screens",
         "icones": "Always icons only",
         "complet": "Always full",
-        "aide": "This setting only applies to this browser."
-      }
+        "aide": "This setting only applies to this browser.",
+        "court": {
+          "auto": "Automatic",
+          "complet": "Full",
+          "icones": "Icons"
+        }
+      },
+      "aide": "Your pins and collapsed groups."
     },
     "directory": {
       "title": "Public directory",
@@ -12777,6 +12817,111 @@
       "seSouvenir": "Remember my choice",
       "continuerDans": "Continue in {agence}",
       "continuerClient": "Continue as a client"
+    },
+    "sommaire": {
+      "titre": "Profile",
+      "attention": "{count, plural, one {# setting needs your attention} other {# settings need your attention}}",
+      "sansAttention": "Your contact details, security and preferences.",
+      "navLabel": "Profile sections",
+      "vueDEnsemble": "Overview",
+      "supprimer": "Delete my account",
+      "deconnexion": "Log out",
+      "point": "Needs action",
+      "rangees": {
+        "coordonnees": "Contact details",
+        "fiche": "Public profile",
+        "pro": "Professional profile",
+        "recherche": "Search preferences",
+        "versement": "Payout methods",
+        "annuaire": "Public directory",
+        "notifications": "Notifications",
+        "securite": "Security",
+        "espaces": "My workspaces",
+        "menu": "Menu and display",
+        "langue": "Language",
+        "fuseau": "Time zone",
+        "avis": "My reviews",
+        "donnees": "My data"
+      },
+      "aides": {
+        "coordonnees": "How the agency and your clients reach you.",
+        "fiche": "Your business card on the website.",
+        "pro": "What you do, and how.",
+        "recherche": "What you are looking for, for listings that suit you.",
+        "versement": "Where you receive your payouts.",
+        "annuaire": "Appear in the website’s landlord directory.",
+        "notifications": "For each event, the channels you are notified through.",
+        "securite": "What protects your account, and where it is signed in.",
+        "espaces": "The agencies and roles on your account.",
+        "menu": "Your menu and the sidebar on this device.",
+        "langue": "The language of the app.",
+        "fuseau": "The time used in your emails, texts and notifications.",
+        "avis": "Your reputation, and the reviews you still have to leave.",
+        "donnees": "Get a copy of what Takussan knows about you.",
+        "suppression": "Takes effect after 30 days: you can cancel until then by signing back in."
+      },
+      "aRegler": {
+        "titre": "To do",
+        "telephone": {
+          "titre": "Verify your number",
+          "detail": "To receive alerts by text message and WhatsApp.",
+          "action": "Verify"
+        },
+        "double-authentification": {
+          "titre": "Turn on two-factor authentication",
+          "detail": "One more code at sign-in protects your clients and your leases.",
+          "action": "Turn on"
+        },
+        "fiche": {
+          "titre": "Complete your public profile",
+          "detail": "Add your languages and your neighbourhoods.",
+          "action": "Complete"
+        }
+      },
+      "details": {
+        "coordonnees": {
+          "aVerifier": "{telephone} · to verify",
+          "verifie": "{telephone} · verified",
+          "sansNumero": "No phone number"
+        },
+        "fiche": {
+          "faits": "{langues, plural, =0 {No language} one {# language} other {# languages}} · {quartiers, plural, =0 {no neighbourhood} one {# neighbourhood} other {# neighbourhoods}}"
+        },
+        "pro": {
+          "carte": "Card no. {numero}",
+          "carteARenseigner": "Professional card to fill in",
+          "prestataire": "Trades, areas and rates"
+        },
+        "recherche": "What you are looking for",
+        "versement": "Where you receive your payouts",
+        "annuaire": {
+          "inscrit": "Listed",
+          "nonInscrit": "Not listed"
+        },
+        "notifications": "By event and by channel",
+        "securite": {
+          "active": "Two-factor authentication on",
+          "inactive": "Two-factor authentication off"
+        },
+        "espaces": {
+          "un": "{agence} · {role}",
+          "plusieurs": "{count, plural, one {# workspace} other {# workspaces}}",
+          "aucun": "No professional workspace"
+        },
+        "menu": "Sidebar and pins",
+        "fuseau": {
+          "dakar": "Dakar (GMT)"
+        },
+        "avis": "Received, to leave and published",
+        "donnees": "Export my data",
+        "avisNote": "{nombre} received · {moyenne} out of 5"
+      },
+      "nonEnregistrees": "{n, plural, one {# unsaved change} other {# unsaved changes}}",
+      "espaces": {
+        "titre": "My spaces",
+        "enCours": "Current space",
+        "carte": "professional card no. {numero}"
+      }
     }
   },
   "contact": {

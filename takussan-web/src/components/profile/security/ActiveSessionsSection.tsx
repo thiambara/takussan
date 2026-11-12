@@ -4,7 +4,10 @@ import { useState, useTransition, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Laptop, Smartphone } from 'lucide-react';
+import { StatusBadge } from '@/components/console/StatusBadge';
 import { Button } from '@/components/ui/button';
+import { RangeeDeSecurite } from './RangeeDeSecurite';
 import {
   listActiveSessionsAction,
   revokeSessionAction,
@@ -21,6 +24,9 @@ import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
  * `setState()` inside a `useEffect` (cascading renders warning).
  */
 const SESSIONS_KEY = ['security', 'sessions'] as const;
+
+/** Le nom d'une session qui dit un téléphone : son icône (le nom vient du jeton, rien de plus sûr). */
+const MOBILE = /android|iphone|ipad|mobile/i;
 
 export function ActiveSessionsSection() {
   const t = useTranslations('profile.security.sessions');
@@ -64,64 +70,57 @@ export function ActiveSessionsSection() {
   const loading = query.isPending;
   const queryError = query.error ? messageErreur(query.error) : null;
 
+  // TCK-2635 — « Appareils connectés » (maquette `SectionSecurite`) : un titre de bloc, le nombre de
+  // sessions, puis une rangée par session dans une carte à filets. La session courante se dit, et ne
+  // se révoque pas d'ici (même invariant que l'API).
   return (
-    <div className="rounded-2xl border border-border bg-card p-6">
-      <div>
-        <h3 className="text-base font-semibold text-foreground">{t('title')}</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t('description')}
+    <section aria-labelledby="titre-des-sessions">
+      <div className="mb-2">
+        <h3 id="titre-des-sessions" className="text-corps font-semibold">
+          {t('title')}
+        </h3>
+        <p className="text-ui text-muted-foreground">
+          {sessions && sessions.length > 0 ? t('compte', { n: sessions.length }) : t('description')}
         </p>
       </div>
 
       {(error ?? queryError) ? (
-        <p role="alert" className="mt-3 text-sm text-destructive">
+        <p role="alert" className="mb-2 text-sm text-destructive">
           {error ?? queryError}
         </p>
       ) : null}
 
       {loading ? (
-        <p className="mt-4 text-sm text-muted-foreground">{tCommon('loading')}</p>
+        <p className="text-sm text-muted-foreground">{tCommon('loading')}</p>
       ) : !sessions || sessions.length === 0 ? (
-        <p className="mt-4 text-sm text-muted-foreground">{t('empty')}</p>
+        <p className="text-sm text-muted-foreground">{t('empty')}</p>
       ) : (
-        <ul className="mt-4 space-y-2">
+        <ul className="divide-y divide-border/70 overflow-hidden rounded-xl border border-border bg-card">
           {sessions.map((session) => (
-            <li
-              key={session.id}
-              className="flex flex-col gap-2 rounded-md border border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div>
-                <p className="text-sm font-semibold text-foreground">
-                  {session.name || t('unnamed')}
-                  {session.current ? (
-                    <span className="ml-2 rounded-full bg-success/15 px-2 py-0.5 text-xs font-semibold text-success">
-                      {t('current')}
-                    </span>
-                  ) : null}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {t('lastActivity')}{' '}
-                  {session.last_used_at
-                    ? fmt.dateTime(session.last_used_at)
-                    : t('unknown')}
-                </p>
-                {session.ip ? (
-                  <p className="text-xs text-muted-foreground">{t('ip', { ip: session.ip })}</p>
-                ) : null}
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={session.current || revoke.isPending}
-                onClick={() => handleRevoke(session.id)}
-                className={session.current ? '' : 'text-destructive hover:text-destructive'}
-              >
-                {session.current ? t('currentShort') : t('revoke')}
-              </Button>
+            <li key={session.id}>
+              <RangeeDeSecurite
+                icone={MOBILE.test(session.name ?? '') ? Smartphone : Laptop}
+                titre={session.name || t('unnamed')}
+                niveau="h4"
+                statut={session.current ? <StatusBadge tone="info" label={t('currentShort')} /> : undefined}
+                detail={[
+                  `${t('lastActivity')} ${session.last_used_at ? fmt.dateTime(session.last_used_at) : t('unknown')}`,
+                  session.ip ? t('ip', { ip: session.ip }) : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+                action={
+                  session.current ? undefined : (
+                    <Button variant="outline" size="sm" disabled={revoke.isPending} onClick={() => handleRevoke(session.id)}>
+                      {t('revoke')}
+                    </Button>
+                  )
+                }
+              />
             </li>
           ))}
         </ul>
       )}
-    </div>
+    </section>
   );
 }
