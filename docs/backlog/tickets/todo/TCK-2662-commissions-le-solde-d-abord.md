@@ -82,4 +82,89 @@ Fonctions existantes à garder (`commissions/page.tsx`, `CommissionsLedger.tsx`)
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Une route, deux lectures.** `Commissions.tsx` choisit la vue par les capacités de l'appelant : `reports.view_agency` ou `payouts.approve` → vue admin, sinon vue agent (l'API reste le juge : un agent ne reçoit que ses lignes). Les gestes (« Solder », menu « … ») exigent `payouts.approve` et ne s'affichent jamais sur une ligne dont l'admin est lui-même le bénéficiaire. L'état vit dans l'URL (`src/lib/commissions/vue.ts`, patron de TCK-1732) : `status` (`toutes` explicite), `page`, `annee`/`periode` (agent), `mois`/`vue`/`agent`/`solder` (admin).
+
+**Décisions de la session (2026-11-12)** : 1 a, 2 a, 3 (conditionnelle : cas a), 4 b, 5 a, 6 a, 7 b.
+1. L'icône « relevé » d'un agent ouvre « Par ligne » filtré sur lui (l'export n'a pas de filtre par bénéficiaire).
+2. « Dernières payées » : les trois dernières.
+3. **Cas « a » : quatre moyens** (Wave, Orange Money, Espèces, Virement), ceux de la maquette. L'écran d'avant
+   (`CommissionsLedger.tsx` au commit de base) ne proposait **aucun** moyen : « Marquer payée » partait en un clic, corps
+   vide (`markPaid.mutateAsync({ id })`). Il n'y a donc pas de Free Money à perdre, et pas de régression. L'API accepte
+   toujours `free_money`, et une ligne payée ainsi l'affiche.
+4. **« Dues » par défaut, à toute largeur** ; un `status` de l'URL l'emporte toujours, `toutes` compris. Le rendu
+   serveur ne connaît pas la largeur : un défaut qui en dépendrait ferait sauter la liste après l'hydratation, ou
+   donnerait deux résultats au même lien. Le « Toutes » de la maquette du bureau est un écart déclaré (fiche de
+   fidélité).
+5. Deux colonnes de la vue agent dès `xl` (la maquette), pas `lg`.
+6. « Marquer payée » reprend la preuve du solde via `mark-paid`. Au téléphone, le registre de l'admin est en cartes avec
+   menu, et la pagination reste.
+7. **« Annulé : X F » à côté des puces, à toute largeur** : du texte secondaire (`text-ui`, encre muted), sans carte,
+   absent tant que la sélection n'a aucune ligne annulée. Le montant est sommé sur les lignes annulées de la sélection,
+   avec les filtres des puces (bénéficiaire, année) : `useAnnulees`, une lecture de 100 lignes sur deux colonnes, qui
+   remplace le compte d'une ligne. `meta.totals` couvre toute la portée sans filtre et aurait contredit la puce « Annulées
+   N » à côté. Au-delà de 100 lignes, le texte dit « au moins ».
+
+**Contraintes gardées.**
+- Accès du personnel (layout inchangé).
+- Part en clair (« 40 % de 725 000 F »), origine négociateur / collaborateur, pagination (pied « 1 à 20 sur N » au bureau, `Pagination` au téléphone), état vide expliqué.
+- « Marquer payée » demande date, moyen et référence ; la référence est facultative en espèces, comme à l'API.
+- « Annuler » demande un motif et une confirmation ; « Autre » exige un texte.
+- Montants par `useFormatteurs()`.
+- Totaux : « On vous doit » / « Payé cette année » (agent), « dus · payé en {mois} » (admin), et « Annulé : X F » à côté
+  des puces (décision 7 b).
+
+**Les appelants de `mark-paid` et `cancel`** (relevé du 2026-11-12, avant le retrait du corps vide) :
+
+| Appelant | Ce qu'il envoie |
+|---|---|
+| `takussan-web` `useMarkCommissionPaid` (`lib/queries/commissions.ts`), seul appelé par `MarquerPayee` (`Payer.tsx`) | `paid_at`, `payment_method`, `payment_reference` (`preuveAEnvoyer`) ; bouton inactif tant que la preuve est incomplète |
+| `takussan-web` `useCancelCommission`, seul appelé par `AnnulerLaCommission` (`gestes.tsx`) | `reason_code`, et `reason` pour « Autre » ; bouton inactif sans motif complet |
+| `takussan-web` `useSettleCommissions` (`Solder`) | route neuve `settle` : `beneficiary_id`, `entry_ids`, la preuve |
+| `takussan-web` `CommissionsLedger.tsx` (corps vide, en un clic) | **supprimé** par ce ticket, avec ses deux tests |
+| `takussan-web` route handlers BFF, server actions | aucun : seul `api/export/[entity]` relaie `commissions`, une lecture |
+| `takussan-api` `CommissionSeeder` | le SERVICE (`markPaid($ligne, $admin)`, `cancel(...)`), sans HTTP ni `FormRequest` : le service garde son chemin sans détails, pour le seeder seul |
+| `takussan-api` commandes, jobs, écouteurs | aucun |
+
+Aucun corps vide ne part plus vers ces routes : le 422 ne peut atteindre personne. Le step-up 2FA de `mark-paid` reste
+résolu sur place par `useApiMutation` (TCK-589).
+
+**API.**
+- Transition de TCK-2661 retirée : le trait `TransitionalEmptyBody` et son test sont supprimés, ainsi que les deux usages et la branche de `markPaid`.
+- Un corps vide rend désormais 422 (`CommissionMarkPaidDetailsTest`, `CommissionCancelReasonTest`).
+
+**Front.**
+- `CommissionsLedger.tsx` et ses deux tests sont remplacés par `src/components/commissions/{Commissions,VueAgent,VueAdmin,Payer,gestes,listes,pieces}.tsx`.
+- La sémantique d'URL de TCK-1732 a migré dans `vue.tck-2662.test.ts`.
+- `scripts/check-status-labels.mjs` lit désormais l'union `CommissionEntryStatus` dans `components/commissions/pieces.tsx`.
+- Clés : environ 120 neuves sous `commissions.*`, dont `annule` et `annulePlancher` (7 b) (wo = fr). Les huit clés mortes de l'ancien écran sont supprimées : `title`, `subtitle`, `filterAll`, `totals.*`, `leaseFallback`, `beneficiaryFallback`, `cancel`, `tableCaption`.
+- Valeurs de la maquette par les jetons (`check-valeurs-arbitraires-app`) :
+  - `text-affiche-22` ;
+  - `text-3xl` / `text-4xl` (30 et 36 px exacts au téléphone) ;
+  - `tracking-titre`, `tracking-surtitre`, `size-icone` ;
+  - rangées de 56 / 60 px en `rem` (`min-h-[3.5rem]`, `min-h-[3.75rem]`), comme `PointDuMois`.
+- Un titre de bien qui nomme déjà son quartier ne le répète pas (vu sur la démo : « … – Hann Maristes 1 · Hann Maristes 1 »).
+
+**Tests.**
+- `commissions.tck-2662.test.tsx` (21) couvre :
+  - la vue selon l'appelant ;
+  - AC5 ;
+  - AC3 : corps `entry_ids` à deux éléments, bouton à la somme des deux ;
+  - AC4 : « Annuler » inactif sans motif, « Autre » sans texte ;
+  - « Dues » par défaut au bureau comme au téléphone, un `status` explicite qui l'emporte (4 b) ;
+  - « Annulé : X F » aux deux largeurs, absent sans annulée (7 b) ;
+  - « Marquer payée » en espèces ;
+  - AC2 : le bien en titre, jamais `LS-…` ;
+  - le quartier non répété ;
+  - AC6 : le lien de relevé ;
+  - l'URL.
+- `vue.tck-2662.test.ts` (7).
+- Ablations, chacune restaurée au md5 près :
+  - le quartier non répété : le test rougit sans le correctif ;
+  - `MontantAnnule` neutralisé : le test 7 b rougit ;
+  - le défaut rendu à `null` au bureau : le test 4 b rougit.
+
+**Preuves au navigateur (2026-11-12, base de démo, aucune écriture).**
+- AC3 : `POST /api/commissions/settle` intercepté avant le réseau. Corps `entry_ids` [26, 63] après décoche de la 2e ligne sur 3. Bouton « Confirmer le paiement de 910 000 F ». Mesuré au bureau 1280 et au téléphone 390.
+- AC6 : `GET /api/export/commissions?format=csv&from=…&to=…` rend 200, `text/csv`, en pièce jointe, pour l'agent.
+- AC-F6 : débord 0 à 1280, 1024, 768 et 390 sur les cinq routes.
+- Fidélité : `docs/qa/audit-ux-2026-11/fidelite/TCK-2662.json` (résultats, éléments ignorés, écarts acceptés).

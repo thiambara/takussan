@@ -85,7 +85,7 @@ const LIBELLES = {
   BookingStatus: [{ chemin: 'bookings.status', lu: 'components/crm/CustomerLinkedRecords.tsx' }],
   BoostStatus: [{ chemin: 'superAdmin.boosts.statuses', lu: 'components/boost/admin/AdminBoosts.tsx' }],
   CollaborationStatus: [{ chemin: 'serviceProviders.multiAgency.status', lu: 'components/onboarding/ServiceProviderMultiAgencyWelcome.tsx' }],
-  CommissionEntryStatus: [{ chemin: 'commissions.status', lu: 'components/commissions/CommissionsLedger.tsx' }],
+  CommissionEntryStatus: [{ chemin: 'commissions.status', lu: 'components/commissions/pieces.tsx' }],
   CustomerStatus: [{ chemin: 'crm.customerStatus', lu: 'components/customer-form/CustomerForm.tsx' }],
   DataExportStatus: [{ chemin: 'privacy.dataExports.status', lu: 'components/privacy/DataExportsPanel.tsx' }],
   InventoryStatus: [{ chemin: 'inventory.status', lu: 'components/inventory/InventoryBadges.tsx' }],

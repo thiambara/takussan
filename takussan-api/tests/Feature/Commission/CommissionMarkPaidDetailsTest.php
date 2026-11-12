@@ -63,7 +63,8 @@ class CommissionMarkPaidDetailsTest extends ApiTestCase
 
     public function test_ac1_the_method_is_required_and_the_reference_too_except_in_cash(): void
     {
-        // Un corps VIDE garde le geste d'avant, le temps de TCK-2662 (`CommissionTransitionalEmptyBodyTest`).
+        // TCK-2662 — la transition de TCK-2661 est retirée : un corps VIDE est refusé, la ligne reste due.
+        $this->pay($this->line, [])->assertStatus(422)->assertJsonValidationErrors('payment_method');
         $this->pay($this->line, ['payment_reference' => 'W-1'])->assertStatus(422)->assertJsonValidationErrors('payment_method');
         $this->pay($this->line, ['payment_method' => 'wave'])->assertStatus(422)->assertJsonValidationErrors('payment_reference');
         $this->assertSame(CommissionEntryStatus::Due, $this->line->fresh()->status);

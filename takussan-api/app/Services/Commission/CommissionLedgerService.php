@@ -138,7 +138,7 @@ class CommissionLedgerService
      */
     public function markPaid(CommissionEntry $entry, User $by, array $details = []): CommissionEntry
     {
-        // Sans détails (le seeder ; et le corps vide, transition retirée par TCK-2662) : payée maintenant,
+        // Sans détails (le seeder seul depuis TCK-2662, qui a retiré le corps vide du geste) : payée maintenant,
         // sans contrôle de date — le comportement d'avant TCK-2661.
         return $this->transition(
             $entry,

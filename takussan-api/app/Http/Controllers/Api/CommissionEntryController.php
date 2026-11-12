@@ -60,13 +60,6 @@ class CommissionEntryController extends Controller
     /** TCK-2661 — la date, le moyen et la référence du paiement ; le bénéficiaire en est avisé. */
     public function markPaid(MarkCommissionPaidRequest $request, CommissionEntry $commissionEntry): JsonResponse
     {
-        // TCK-2661 — transition, retiré par TCK-2662 : corps vide → le geste d'avant, sans preuve ni avis.
-        if ($request->isTransitionalEmptyBody()) {
-            $entry = $this->ledger->markPaid($commissionEntry, $request->user());
-
-            return $this->json(['data' => CommissionEntryResource::make($entry)->resolve($request)]);
-        }
-
         $entry = $this->ledger->markPaid($commissionEntry, $request->user(), $request->validated());
         $this->ledger->notifyPaid([$entry]);
 
@@ -76,8 +69,6 @@ class CommissionEntryController extends Controller
     /** TCK-2661 — le motif de l'annulation, lu par le bénéficiaire sur sa ligne. */
     public function cancel(CancelCommissionRequest $request, CommissionEntry $commissionEntry): JsonResponse
     {
-        // TCK-2661 — transition, retiré par TCK-2662 : corps vide → `validated()` vide → annulée sans
-        // motif, le geste d'avant.
         $entry = $this->ledger->cancel($commissionEntry, $request->user(), $request->validated());
 
         return $this->json(['data' => CommissionEntryResource::make($entry)->resolve($request)]);

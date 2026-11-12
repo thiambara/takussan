@@ -15342,19 +15342,11 @@
   },
   "commissions": {
     "metaTitle": "Commissions",
-    "title": "Relevé des commissions",
-    "subtitle": "Les commissions nées des baux activés, ligne par bénéficiaire.",
     "filterLabel": "Filtrer par statut",
-    "filterAll": "Toutes",
     "status": {
       "due": "Due",
       "paid": "Payée",
       "cancelled": "Annulée"
-    },
-    "totals": {
-      "due": "Reste dû",
-      "paid": "Payé",
-      "cancelled": "Annulé"
     },
     "columns": {
       "earnedAt": "Acquise le",
@@ -15370,14 +15362,158 @@
       "collaborator": "Collaborateur"
     },
     "shareOf": "{percent} de {base}",
-    "leaseFallback": "Bail #{id}",
-    "beneficiaryFallback": "Utilisateur #{id}",
     "markPaid": "Marquer payée",
-    "cancel": "Annuler",
     "actionFailed": "L'action n'a pas abouti.",
     "emptyTitle": "Aucune commission",
     "emptyDescription": "Une commission naît à l'activation d'un bail qui porte un montant de commission.",
-    "tableCaption": "Lignes du grand livre des commissions"
+    "titreAgent": "Mes commissions",
+    "titreAdmin": "Commissions",
+    "agent": {
+      "sousTitre": "Ce que l'agence vous doit et vous a payé, bail par bail.",
+      "onVousDoit": "On vous doit",
+      "devise": "CFA",
+      "baux": "{count, plural, =0 {Aucun bail} one {# bail} other {# baux}}",
+      "plusAncienne": "plus ancienne : {date}",
+      "payeCetteAnnee": "Payé cette année",
+      "payeEn": "Payé en {annee}",
+      "releve": "Relevé",
+      "releveAria": "Télécharger mon relevé de {annee}",
+      "exporter": "Exporter mon relevé",
+      "dernieresPayees": "Dernières payées",
+      "toutVoir": "Tout voir",
+      "tousLesPaiements": "Tous les paiements reçus",
+      "aucunPaiement": "Aucun paiement reçu en {annee}.",
+      "naissance": "Une commission naît à l'activation d'un bail ; elle se fige à ce moment-là.",
+      "periode": "Période : {periode}",
+      "depuisJanvier": "Depuis janvier",
+      "enAnnee": "En {annee}",
+      "toutesLesDates": "Toutes les dates",
+      "annee": "Année : {annee}"
+    },
+    "puces": {
+      "due": "Dues",
+      "paid": "Payées",
+      "cancelled": "Annulées",
+      "toutes": "Toutes"
+    },
+    "colonnes": {
+      "bien": "Bien",
+      "role": "Rôle",
+      "base": "Base",
+      "baseTaux": "Base · taux",
+      "taux": "Taux",
+      "date": "Date",
+      "agent": "Agent",
+      "du": "Dû",
+      "lignes": "Lignes",
+      "payeMois": "Payé en {mois}",
+      "payeAnnee": "Payé en {annee}",
+      "dernierPaiement": "Dernier paiement",
+      "paiement": "Paiement"
+    },
+    "ligne": {
+      "sansBien": "Bien non renseigné",
+      "payeeLe": "payée le {date}",
+      "annulee": "annulée",
+      "bailActive": "bail activé"
+    },
+    "roles": {
+      "negotiator": "négociateur",
+      "collaborator": "collaborateur"
+    },
+    "motifs": {
+      "lease_terminated_before_move_in": "Bail résilié avant l'entrée dans les lieux",
+      "wrong_beneficiary": "Erreur de bénéficiaire",
+      "wrong_rate_or_base": "Erreur de taux ou de base",
+      "other": "Autre"
+    },
+    "motifsCourts": {
+      "lease_terminated_before_move_in": "bail résilié",
+      "wrong_beneficiary": "erreur de bénéficiaire",
+      "wrong_rate_or_base": "erreur de taux ou de base",
+      "other": "autre motif"
+    },
+    "moyens": {
+      "wave": "Wave",
+      "orange_money": "Orange Money",
+      "free_money": "Free Money",
+      "cash": "Espèces",
+      "bank_transfer": "Virement"
+    },
+    "admin": {
+      "dusA": "dus à {count, plural, one {# agent} other {# agents}} · payé en {mois} : {paye}",
+      "rienDu": "rien n'est dû · payé en {mois} : {paye}",
+      "affichage": "Affichage",
+      "parAgent": "Par agent",
+      "parLigne": "Par ligne",
+      "agentsTri": "{count, plural, one {# agent} other {# agents}} · ceux à qui l'on doit d'abord",
+      "lignes": "{count, plural, one {# ligne} other {# lignes}}",
+      "aJourLe": "À jour · payée le {date}",
+      "aJour": "À jour",
+      "aJourCourt": "à jour",
+      "solder": "Solder",
+      "solderAria": "Solder {nom}",
+      "solderMontant": "Solder {montant}",
+      "lignesDe": "Lignes de {nom}",
+      "ouvrirAgent": "Ouvrir les lignes de {nom}",
+      "total": "Total",
+      "exporter": "Exporter",
+      "exporterMois": "Exporter les commissions du mois",
+      "exporterAria": "Exporter les commissions de {mois}",
+      "choisirMois": "Mois : {mois}",
+      "beneficiaire": "Bénéficiaire : {nom}",
+      "beneficiaireTous": "Bénéficiaire : tous",
+      "tous": "Tous les bénéficiaires",
+      "dusLignes": "dus · {count, plural, one {# ligne} other {# lignes}} · payé cette année : {paye}",
+      "sansNom": "Bénéficiaire #{id}"
+    },
+    "menu": {
+      "actions": "Marquer payée, annuler",
+      "marquerPayeeDetail": "Date, moyen, référence",
+      "voirBail": "Voir le bail",
+      "annuler": "Annuler la commission…",
+      "annulerDetail": "Motif obligatoire, puis confirmation"
+    },
+    "payer": {
+      "titreSolde": "Solder {nom}",
+      "titreLigne": "Marquer cette commission payée",
+      "dues": "{count, plural, one {# commission due} other {# commissions dues}}",
+      "decocher": "décochez celles que vous ne payez pas aujourd'hui",
+      "lignesPayees": "Les lignes payées",
+      "moyen": "Moyen",
+      "date": "Date du paiement",
+      "dateCourte": "Date",
+      "reference": "Référence",
+      "referenceAide": "Celle du transfert : l'agent la retrouve sur ses lignes.",
+      "referenceRequise": "Saisissez la référence du transfert.",
+      "referenceFacultative": "Facultative en espèces",
+      "avis": "{nom} reçoit un avis ; la date, le moyen et la référence s'affichent sur chacune de ses lignes.",
+      "total": "Total · {count, plural, one {# ligne} other {# lignes}}",
+      "confirmer": "Confirmer le paiement de {montant}",
+      "fermer": "Fermer",
+      "tronque": "Les {max} plus anciennes sont affichées : soldez-les, puis rouvrez pour la suite.",
+      "aucune": "Aucune commission due.",
+      "dateHorsBornes": "Choisissez un jour entre le {min} et aujourd'hui."
+    },
+    "annuler": {
+      "titre": "Annuler cette commission ?",
+      "sousTitre": "{bien} — {montant} dus à {nom}",
+      "consequence": "La ligne passera « Annulée » : elle ne pourra plus être payée, et {nom} verra le motif sur son relevé.",
+      "consequenceTelephone": "La ligne passera « Annulée » ; elle ne pourra plus être payée et {nom} verra le motif.",
+      "motif": "Motif",
+      "motifAide": "· obligatoire, noté au journal d'audit",
+      "motifAideCourte": "· obligatoire, noté au journal",
+      "precision": "Précisez le motif",
+      "garder": "Garder la commission",
+      "garderCourt": "Garder",
+      "confirmer": "Annuler {montant}",
+      "duA": "{montant} dus à {nom}"
+    },
+    "tableLignes": "Commissions, ligne par ligne",
+    "tableAgents": "Commissions par agent",
+    "pied": "{debut} à {fin} sur {total}",
+    "annule": "Annulé : {montant}",
+    "annulePlancher": "Annulé : au moins {montant}"
   },
   "payLink": {
     "metaTitle": "Payer mon loyer",

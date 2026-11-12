@@ -13,7 +13,6 @@ use App\Models\CommissionEntry;
 class MarkCommissionPaidRequest extends BaseFormRequest
 {
     use CommissionPaymentRules;
-    use TransitionalEmptyBody;
 
     public function authorize(): bool
     {
@@ -23,11 +22,8 @@ class MarkCommissionPaidRequest extends BaseFormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
-        // TCK-2661 — transition, retiré par TCK-2662 : un corps vide n'est pas validé.
-        if ($this->isTransitionalEmptyBody()) {
-            return [];
-        }
-
+        // TCK-2662 — la transition de TCK-2661 (un corps vide gardait le geste d'avant) est retirée :
+        // un corps vide est refusé comme tout autre corps sans moyen de paiement.
         $entry = $this->route('commissionEntry');
 
         return $this->paymentRules($entry instanceof CommissionEntry
