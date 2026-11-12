@@ -1,13 +1,13 @@
 ---
 id: TCK-2673
 title: "Modération : la liste triée par risque avec publication par lot, et le bien vu comme le public le verra"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: L
 wave: 90
 created: 2026-11-10
-updated: 2026-11-10
+updated: 2026-11-12
 depends_on: [TCK-2672, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: []
 spec_refs:

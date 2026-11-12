@@ -1,7 +1,7 @@
 ---
 id: TCK-2756
 title: "GET /api/customers n'honore pas fields[customers] : clés non demandées rendues à null, et des attributs calculés seuls servent la fiche entière"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: S

@@ -46,7 +46,7 @@ Relevé sur `dev` (1bce3798a) le 2026-11-10 :
 ## Conséquences
 
 - **Une seule adresse pour trois pages.** L'aiguillage se fait côté serveur, sur la persona du profil actif ([ADR-0089](0089-le-menu-de-app-se-derive-du-profil-actif.md) § 2), et non plus sur `isCustomerOnly`, qui ignore le profil actif.
-- **La redirection du personnel est portée par [TCK-2677](../backlog/tickets/todo/TCK-2677-paiements-du-personnel-vers-argent.md).** Il fait l'inventaire de ce que `PaymentsTabs` sert au personnel et qu'« Argent » n'a pas, puis pose la redirection avec la traduction des paramètres. Relevé du 2026-11-10 : la section `/app/agency` est fermée à l'agent, qui garde donc `/app/payments` — décision du porteur du 2026-11-10 : « Argent » n'est pas ouvert à l'agent.
+- **La redirection du personnel est portée par [TCK-2677](../backlog/tickets/done/TCK-2677-paiements-du-personnel-vers-argent.md).** Il fait l'inventaire de ce que `PaymentsTabs` sert au personnel et qu'« Argent » n'a pas, puis pose la redirection avec la traduction des paramètres. Relevé du 2026-11-10 : la section `/app/agency` est fermée à l'agent, qui garde donc `/app/payments` — décision du porteur du 2026-11-10 : « Argent » n'est pas ouvert à l'agent.
 - **Le bailleur ne voit plus jamais l'écran d'encaissement d'agence.** Rien ne s'y perd pour lui : ses reversements, ses factures et ses relevés sont sur sa page.
 - **Les relevés figés ne sont pas réécrits** (`OwnerStatementSnapshot`, TCK-2321). Le reste à verser s'ajoute au calcul vivant.
 - `check-notification-target-paths` reste vert sans changement : le chemin existe toujours.

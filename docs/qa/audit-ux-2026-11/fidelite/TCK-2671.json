@@ -130,7 +130,7 @@
       "element": "« Sans engagement » de la maquette",
       "propriete": "absent du produit",
       "exception": "décision produit",
-      "motif": "Décision 14 du ticket : aucune phrase que le produit ne tient pas tant que TCK-2681 n'est pas livré"
+      "motif": "Décision 14 du ticket, re-mesurée le 2026-11-12 après TCK-2681 (done) : le produit ne tient toujours pas la phrase. TCK-2681 pose l'abonnement à l'approbation, et l'écran dit désormais ce qu'elle autorise (« Votre abonnement commence à l'approbation », agency.upgrade.page.prix.suite) ; mais l'agence n'a aucun moyen de résilier : la seule résiliation est un geste de l'opérateur (POST /api/admin/agencies/{agency}/subscription/cancel, AgencySubscriptionService::cancel, journal « Abonnement résilié par Takussan »), aucun texte contractuel ne dit « sans engagement », et ADR-0104 § 6 n'autorise que « commence à l'approbation »"
     },
     {
       "ecran": "a-8",

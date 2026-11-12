@@ -1,13 +1,13 @@
 ---
 id: TCK-2671
 title: "Vérification, offre et passage en pro : l'enjeu dit, l'identité reprise, le prix affiché"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: L
 wave: 90
 created: 2026-11-10
-updated: 2026-11-10
+updated: 2026-11-12
 depends_on: [TCK-2669, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: []
 spec_refs:
