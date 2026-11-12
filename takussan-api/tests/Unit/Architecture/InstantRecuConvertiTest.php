@@ -32,8 +32,17 @@ use RecursiveIteratorIterator;
  * Chaque liste est vérifiée dans les deux sens : une entrée qui ne s'applique plus à rien, ou dont le
  * fichier lecteur ne convertit plus, fait rougir la garde.
  *
+ * Le trait ne convertit que pour qui le LIT : chaque FormRequest qui l'emploie a au moins un lecteur
+ * `validatedAvecInstants()` dans `app/Http/Controllers` ou `app/Services`, et aucun lecteur `validated()`
+ * ni `safe()` du même type ({@see self::test_chaque_requete_au_trait_est_lue_par_sa_conversion()}).
+ *
  * **Limites** : le croisement est par NOM — une date reçue sous un autre nom que sa colonne lui échappe ;
- * une règle construite ailleurs (méthode, variable) n'est pas lue. La garde est un plancher.
+ * une règle construite ailleurs (méthode, variable) n'est pas lue, ni une clé écrite par constante
+ * (`self::CHAMP => ['required', 'date']`) : seules les clés littérales entre guillemets simples le sont
+ * (Pint réécrit les doubles). Le lecteur est reconnu par le TYPE de son paramètre (`StoreTaskRequest
+ * $request`) : une requête relue par `app(StoreTaskRequest::class)` ou passée sans type ne l'est pas, et
+ * `input()` / `all()` ne sont pas jugés — ils lisent aussi les champs qui ne sont pas des dates. La garde
+ * est un plancher.
  */
 class InstantRecuConvertiTest extends TestCase
 {
@@ -133,6 +142,133 @@ class InstantRecuConvertiTest extends TestCase
         }
 
         $this->assertSame([], $fautes, "Date-heure reçue écrite sans conversion (TCK-2743) :\n".implode("\n", $fautes));
+    }
+
+    /**
+     * Vérification adverse de TCK-2743 — `TaskController::store` relu par `validated()` gardait la garde
+     * verte : seule la FormRequest était jugée, et le trait ne convertit que pour `validatedAvecInstants()`.
+     */
+    public function test_chaque_requete_au_trait_est_lue_par_sa_conversion(): void
+    {
+        $app = dirname(__DIR__, 3).'/app';
+        $auTrait = [];
+        foreach ($this->fichiers($app.'/Http/Requests') as $chemin) {
+            $code = (string) file_get_contents($chemin);
+            if (str_contains($this->sansCommentaires($code), 'use ConvertitLesInstantsRecus;')
+                && preg_match('/^namespace\s+([\w\\\\]+);/m', $code, $ns) === 1
+                && preg_match('/\bclass\s+(\w+)/', $code, $classe) === 1) {
+                $auTrait[$ns[1].'\\'.$classe[1]] = 0;
+            }
+        }
+        $this->assertGreaterThan(15, count($auTrait), 'Trop peu de FormRequests au trait : la lecture ne les voit plus.');
+
+        $fautes = [];
+        foreach ([...$this->fichiers($app.'/Http/Controllers'), ...$this->fichiers($app.'/Services')] as $chemin) {
+            $code = $this->sansCommentaires((string) file_get_contents($chemin));
+            $relatif = substr($chemin, strlen($app) + 1);
+            foreach ($this->methodes($code) as [$nom, $parametres, $corps]) {
+                foreach ($this->parametresTypes($code, $parametres) as $variable => $type) {
+                    if (! array_key_exists($type, $auTrait)) {
+                        continue;
+                    }
+                    $v = preg_quote($variable, '/');
+                    if (preg_match('/\$'.$v.'\s*->\s*validatedAvecInstants\s*\(/', $corps) === 1) {
+                        $auTrait[$type]++;
+                    }
+                    if (preg_match('/\$'.$v.'\s*->\s*(validated|safe)\s*\(/', $corps, $lu) === 1) {
+                        $fautes[] = "{$relatif}::{$nom}() lit `\${$variable}->{$lu[1]}()` d'une {$type} : les dates-heures y arrivent sans conversion — lire `validatedAvecInstants()`.";
+                    }
+                }
+            }
+        }
+        foreach ($auTrait as $type => $lecteurs) {
+            if ($lecteurs === 0) {
+                $fautes[] = "{$type} emploie ConvertitLesInstantsRecus, mais aucun contrôleur ni service ne lit son `validatedAvecInstants()`.";
+            }
+        }
+
+        $this->assertSame([], $fautes, "Conversion déclarée et non lue (TCK-2743) :\n".implode("\n", $fautes));
+    }
+
+    public function test_la_lecture_des_lecteurs_voit_les_formes_du_depot(): void
+    {
+        $code = <<<'PHP'
+            <?php
+            namespace App\Http\Controllers\Api;
+            use App\Http\Requests\Api\StoreTaskRequest;
+            use App\Http\Requests\Api\UpdateTaskRequest as Modifier;
+            class X {
+                public function store(StoreTaskRequest $request, int $id = 0): void { if ($a) { $b = []; } }
+                public function update(Modifier $req, \App\Models\Task $task): void {}
+                public function sansType($request): void {}
+            }
+            PHP;
+        $methodes = $this->methodes($code);
+        $this->assertSame(['store', 'update', 'sansType'], array_column($methodes, 0));
+        $this->assertSame(' if ($a) { $b = []; } ', $methodes[0][2]);
+        $this->assertSame(['request' => 'App\\Http\\Requests\\Api\\StoreTaskRequest', 'id' => 'int'], $this->parametresTypes($code, $methodes[0][1]));
+        $this->assertSame(['req' => 'App\\Http\\Requests\\Api\\UpdateTaskRequest', 'task' => 'App\\Models\\Task'], $this->parametresTypes($code, $methodes[1][1]));
+        $this->assertSame([], $this->parametresTypes($code, $methodes[2][1]));
+    }
+
+    /** @return list<array{0: string, 1: string, 2: string}> nom, liste des paramètres, corps — des méthodes à corps */
+    private function methodes(string $code): array
+    {
+        $methodes = [];
+        preg_match_all('/function\s+(\w+)\s*\(/', $code, $m, PREG_OFFSET_CAPTURE);
+        foreach ($m[0] as $i => [$tout, $position]) {
+            $debut = $position + strlen($tout);
+            $profondeur = 1;
+            for ($j = $debut, $n = strlen($code); $j < $n && $profondeur > 0; $j++) {
+                $profondeur += match ($code[$j]) {
+                    '(' => 1,
+                    ')' => -1,
+                    default => 0,
+                };
+            }
+            $parametres = substr($code, $debut, $j - 1 - $debut);
+            $accolade = strpos($code, '{', $j);
+            $pointVirgule = strpos($code, ';', $j);
+            if ($accolade === false || ($pointVirgule !== false && $pointVirgule < $accolade)) {
+                continue; // méthode abstraite ou d'interface
+            }
+            $profondeur = 1;
+            for ($k = $accolade + 1; $k < $n && $profondeur > 0; $k++) {
+                $profondeur += match ($code[$k]) {
+                    '{' => 1,
+                    '}' => -1,
+                    default => 0,
+                };
+            }
+            $methodes[] = [$m[1][$i][0], $parametres, substr($code, $accolade + 1, $k - 1 - $accolade - 1)];
+        }
+
+        return $methodes;
+    }
+
+    /** @return array<string, string> variable => type résolu (FQCN pour une classe, sans `\` de tête) */
+    private function parametresTypes(string $code, string $parametres): array
+    {
+        preg_match_all('/^use\s+([\w\\\\]+)(?:\s+as\s+(\w+))?;/m', $code, $u, PREG_SET_ORDER);
+        $imports = [];
+        foreach ($u as $import) {
+            $imports[$import[2] ?? preg_replace('/^.*\\\\/', '', $import[1])] = $import[1];
+        }
+        $espace = preg_match('/^namespace\s+([\w\\\\]+);/m', $code, $ns) === 1 ? $ns[1] : '';
+
+        $types = [];
+        preg_match_all('/(\\\\?[\w\\\\]+)\s+&?(?:\.\.\.)?\$(\w+)/', $parametres, $p, PREG_SET_ORDER);
+        foreach ($p as [, $type, $variable]) {
+            $types[$variable] = match (true) {
+                str_starts_with($type, '\\') => substr($type, 1),
+                in_array(strtolower($type), ['int', 'string', 'bool', 'float', 'array', 'mixed', 'callable', 'iterable', 'object', 'self', 'static'], true) => $type,
+                isset($imports[$type]) => $imports[$type],
+                str_contains($type, '\\') => $espace.'\\'.$type,
+                default => $espace.'\\'.$type,
+            };
+        }
+
+        return $types;
     }
 
     public function test_la_lecture_des_regles_voit_les_formes_du_depot(): void
