@@ -155,7 +155,17 @@ function ChoixDAnnee({ annee, onChange }: { readonly annee: string; readonly onC
   );
 }
 
-function ChoixDePeriode({ annee, toutes, onChange }: { readonly annee: string; readonly toutes: boolean; readonly onChange: (toutes: boolean) => void }) {
+function ChoixDePeriode({
+  annee,
+  toutes,
+  onChange,
+  className,
+}: {
+  readonly annee: string;
+  readonly toutes: boolean;
+  readonly onChange: (toutes: boolean) => void;
+  readonly className?: string;
+}) {
   const t = useTranslations('commissions.agent');
   const courante = annee === jourDeDakar().slice(0, 4);
   const deLAnnee = courante ? t('depuisJanvier') : t('enAnnee', { annee });
@@ -164,7 +174,10 @@ function ChoixDePeriode({ annee, toutes, onChange }: { readonly annee: string; r
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label={t('periode', { periode: libelle })}
-        className="ml-auto inline-flex h-8 flex-none items-center gap-1.5 whitespace-nowrap rounded-lg border border-border bg-card px-3 text-ui font-medium outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring"
+        className={cn(
+          'ml-auto inline-flex h-8 flex-none items-center gap-1.5 whitespace-nowrap rounded-lg border border-border bg-card px-3 text-ui font-medium outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring',
+          className,
+        )}
       >
         {libelle}
         <ChevronDown className="size-4 text-muted-foreground" aria-hidden="true" />
@@ -193,7 +206,9 @@ export function VueAgent({ telephone }: { readonly telephone: boolean }) {
   const vue = vueDesCommissions(params, aujourdhui);
   const statut = statutAffiche(vue);
   const annee = bornesDeLAnnee(vue.annee);
-  const bornes = !telephone && !vue.toutesLesDates ? { earnedFrom: annee.du, earnedTo: annee.au } : {};
+  // Une même URL, un même résultat à toute largeur (team-lead, 2026-11-12) : l'année vient de l'URL
+  // (`annee`, l'année en cours par défaut), `periode=tout` la lève ; le téléphone la dit à côté des puces.
+  const bornes = vue.toutesLesDates ? {} : { earnedFrom: annee.du, earnedTo: annee.au };
   const { moi } = useMonPoint(vue.annee);
   const comptes = useComptesParStatut(bornes);
   const liste = useCommissionEntries({ status: statut ?? undefined, page: vue.page, ...bornes });
@@ -202,7 +217,8 @@ export function VueAgent({ telephone }: { readonly telephone: boolean }) {
     status: 'paid',
     sort: '-paid_at',
     perPage: 3,
-    ...(telephone ? {} : { paidFrom: annee.du, paidTo: annee.au }),
+    // Bureau : la carte « Payé cette année » est toujours de l'année ; téléphone : la période de l'URL.
+    ...(telephone && vue.toutesLesDates ? {} : { paidFrom: annee.du, paidTo: annee.au }),
     enabled: telephone ? statut === 'due' : true,
   });
   const releve = buildExportUrl({ entity: 'commissions', format: 'csv', from: annee.du, to: annee.au });
@@ -231,6 +247,14 @@ export function VueAgent({ telephone }: { readonly telephone: boolean }) {
           </div>
         </div>
         <PucesDeStatut className="pt-1" statut={statut} comptes={comptes} onChange={surStatut} />
+        <div className="flex px-4 pb-3">
+          <ChoixDePeriode
+            className="ml-0 h-9 text-sm"
+            annee={vue.annee}
+            toutes={vue.toutesLesDates}
+            onChange={(toutes) => remplacer({ periode: toutes ? 'tout' : null, page: null })}
+          />
+        </div>
         <div className="px-4">
           {liste.isLoading ? (
             <ListeEnAttente />

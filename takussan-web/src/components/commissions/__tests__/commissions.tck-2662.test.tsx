@@ -7,7 +7,9 @@
  * (filtres, `include`, corps des POST).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { renderToString } from 'react-dom/server';
+import { hydrateRoot } from 'react-dom/client';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -93,7 +95,12 @@ function routeur(capacites: string[], { lignes = [...DUES, PAYEE, ANNULEE, MIENN
         const statut = /filter\[status\]=(\w+)/.exec(url)?.[1];
         const benef = /filter\[beneficiary_id\]=(\d+)/.exec(url)?.[1];
         const parPage = Number(/per_page=(\d+)/.exec(url)?.[1] ?? 20);
-        const choisies = lignes.filter((l) => (!statut || l.status === statut) && (!benef || l.beneficiary_id === Number(benef)));
+        const du = /filter\[earned_from\]=([\d-]+)/.exec(url)?.[1];
+        const au = /filter\[earned_to\]=([\d-]+)/.exec(url)?.[1];
+        const jour = (l: Ligne) => String(l.earned_at).slice(0, 10);
+        const choisies = lignes.filter(
+          (l) => (!statut || l.status === statut) && (!benef || l.beneficiary_id === Number(benef)) && (!du || jour(l) >= du) && (!au || jour(l) <= au),
+        );
         const page = Number(/[?&]page=(\d+)/.exec(url)?.[1] ?? 1);
         corps = {
           data: choisies.slice(0, parPage),
@@ -423,3 +430,82 @@ describe('TCK-2662 — la vue dans l’URL (TCK-1732, reprise)', () => {
     expect(etat.replace).toHaveBeenCalledWith('?status=toutes', { scroll: false });
   });
 });
+
+describe('TCK-2662 (reprise) — une même URL, un même résultat à toute largeur', () => {
+  const ANCIENNE = ligne(9, { status: 'paid', amount: 50000, earned_at: `${Number(ANNEE) - 1}-11-02T10:00:00Z`, paid_at: `${Number(ANNEE) - 1}-11-20T10:00:00Z`, payment_method: 'wave', lease: bien('Chambre', 'Yoff') });
+  const lignesDeLAgent = [...DUES, PAYEE, ANNULEE, ANCIENNE].map((l) => ({ ...l, beneficiary_id: 2 }));
+
+  const comptesLus = () =>
+    ['Dues', 'Payées', 'Annulées', 'Toutes'].map((nom) => screen.getByRole('button', { name: new RegExp(`^${nom}`) }).textContent?.replace(/\D/g, ''));
+
+  it('à 390 comme à 1440, l’URL par défaut borne les puces à l’année en cours ; `periode=tout` la lève partout', async () => {
+    for (const [query, attendu] of [
+      ['', ['3', '1', '1', '5']],
+      ['periode=tout', ['3', '2', '1', '6']],
+    ] as const) {
+      const lus: string[][] = [];
+      for (const telephone of [true, false]) {
+        etat.telephone = telephone;
+        etat.moi = 2;
+        etat.query = query;
+        routeur([], { lignes: lignesDeLAgent });
+        const { unmount } = rendre();
+        await waitFor(() => expect(comptesLus()).toEqual(attendu));
+        lus.push(comptesLus() as string[]);
+        unmount();
+      }
+      expect(lus[0]).toEqual(lus[1]);
+    }
+  });
+
+  it('le téléphone dit la période qui borne ses comptes, et la change', async () => {
+    etat.telephone = true;
+    etat.moi = 2;
+    routeur([], { lignes: lignesDeLAgent });
+    rendre();
+    const periode = await screen.findByRole('button', { name: `${T.agent.periode.replace('{periode}', T.agent.depuisJanvier)}` });
+    expect(periode).toHaveTextContent(T.agent.depuisJanvier);
+    await userEvent.click(periode);
+    await userEvent.click(await screen.findByRole('menuitem', { name: T.agent.toutesLesDates }));
+    expect(etat.replace).toHaveBeenCalledWith('?periode=tout', { scroll: false });
+  });
+});
+
+describe('TCK-2662 (reprise) — les annulées au-delà de la lecture (G6, G7)', () => {
+  it('150 annulées, 100 lues : la puce compte 150 (meta.total) et le montant se dit « au moins »', async () => {
+    etat.moi = 2;
+    const annulees = Array.from({ length: 150 }, (_, i) => ligne(100 + i, { status: 'cancelled', amount: 10000, cancelled_at: `${ANNEE}-01-03T10:00:00Z` }));
+    routeur([], { lignes: [...DUES, ...annulees] });
+    rendre();
+    await waitFor(() => expect(screen.getByRole('button', { name: /^Annulées/ })).toHaveTextContent('150'));
+    // 100 lignes lues × 10 000 : un plancher, jamais un total.
+    expect(await screen.findByText(/^Annulé : au moins 1\s000\s000\sF$/)).toHaveAttribute('data-slot', 'montant-annule');
+  });
+});
+
+describe('TCK-2662 (reprise) — le premier rendu ne dépend pas des capacités en cache', () => {
+  it('rendu serveur sans capacités, hydratation avec les capacités amorcées : même arbre, aucune erreur d’hydratation', async () => {
+    etat.moi = 2;
+    routeur([]);
+    const arbre = (client: QueryClient) => withIntl(<QueryClientProvider client={client}><Commissions /></QueryClientProvider>);
+    const amorce = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    amorce.setQueryData(['me', 'capabilities', 'active'], { data: { agency_id: 3, capabilities: [] } });
+
+    // Le serveur, même avec un cache amorcé, rend le squelette : le premier rendu ne lit pas les capacités.
+    expect(renderToString(arbre(amorce))).toContain('data-testid="route-skeleton"');
+    const html = renderToString(arbre(new QueryClient({ defaultOptions: { queries: { retry: false } } })));
+
+    const conteneur = document.createElement('div');
+    conteneur.innerHTML = html;
+    document.body.appendChild(conteneur);
+    const erreurs: unknown[] = [];
+    await act(async () => {
+      hydrateRoot(conteneur, arbre(amorce), { onRecoverableError: (e) => erreurs.push(e) });
+    });
+    expect(erreurs).toEqual([]);
+    // Puis, hydraté, la vue de l'agent.
+    await waitFor(() => expect(within(conteneur).getByRole('heading', { name: T.titreAgent })).toBeInTheDocument());
+    conteneur.remove();
+  });
+});
+

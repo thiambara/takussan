@@ -168,3 +168,18 @@ résolu sur place par `useApiMutation` (TCK-589).
 - AC6 : `GET /api/export/commissions?format=csv&from=…&to=…` rend 200, `text/csv`, en pièce jointe, pour l'agent.
 - AC-F6 : débord 0 à 1280, 1024, 768 et 390 sur les cinq routes.
 - Fidélité : `docs/qa/audit-ux-2026-11/fidelite/TCK-2662.json` (résultats, éléments ignorés, écarts acceptés).
+
+**Reprise après vérification (2026-11-12, `$S/impl/verif/TCK-2662-verif.json`).**
+- **Hydratation** : `Commissions.tsx` rend le squelette tant que l'arbre n'est pas hydraté (instantané serveur de
+  `useSyncExternalStore`, patron de `messages/espaceActif.ts`), puis tant que les capacités se lisent. Le serveur et le
+  premier rendu client rendent donc le même squelette, que la coque ait amorcé les capacités ou non (la vérification
+  relevait 3 chargements sur 24 avec la vue de l'agent au client contre le squelette du serveur). Une navigation douce,
+  qui n'hydrate rien, rend la vue dès le premier rendu. Test : rendu serveur (même avec un cache amorcé : squelette),
+  puis `hydrateRoot` avec les capacités amorcées, sans erreur d'hydratation.
+- **Une même URL, un même résultat à toute largeur** (décision du team-lead) : la vue agent borne ses lignes et ses
+  puces à l'année de l'URL (`annee`, l'année en cours par défaut) au téléphone comme au bureau ; `periode=tout` la lève
+  partout. Le téléphone affiche la période (« Depuis janvier » / « Toutes les dates ») sous les puces, avec son menu.
+  « Dernières payées » (téléphone) suit la période de l'URL ; la carte « Payé cette année » (bureau) reste de l'année.
+  Test : mêmes comptes à 390 et à 1440 sur la même URL, avec et sans `periode=tout`.
+- **G6 et G7 gardés** : 150 annulées, 100 lues → « Annulées 150 » (`meta.total`) et « Annulé : au moins 1 000 000 F ».
+
