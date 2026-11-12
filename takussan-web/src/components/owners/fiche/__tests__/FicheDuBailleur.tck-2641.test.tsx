@@ -151,6 +151,19 @@ describe('TCK-2641 — la fiche du bailleur', () => {
     expect(screen.queryByRole('button', { name: 'Créer le reversement' })).not.toBeInTheDocument();
   });
 
+  // Vérification adverse de TCK-2641 (d1) — sans `payouts.create`, l'API ne sert pas l'argent de la
+  // fiche (`figures`, `last_payout` : null) et refuse le relevé en 403 : ni la carte du mois (qui
+  // dirait « le bailleur n'a pas encore de compte »), ni « Envoyer le relevé », ni son PDF.
+  it('sans payouts.create, ni la carte du mois ni « Envoyer le relevé »', () => {
+    monter({ owner: owner({ figures: null, last_payout: null }), droits: { ...tous, reversement: false } });
+    expect(document.querySelector('[data-slot="releve-du-mois"]')).toBeNull();
+    expect(screen.queryByText('Aucun relevé pour ce mois : le bailleur n’a pas encore de compte.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Envoyer le relevé/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /PDF/ })).not.toBeInTheDocument();
+    // Le reste de la fiche est là.
+    expect(document.querySelector('[data-slot="plafond-de-travaux"]')).toHaveTextContent(montant('100 000'));
+  });
+
   it('« Suspendre l’accès » confirme, passe la garde du second facteur et rejoue l’appel', async () => {
     let appels = 0;
     apiRequest.mockImplementation(async (chemin: string) => {

@@ -124,7 +124,7 @@ class OwnerProfileController extends Controller
      */
     public function show(ShowOwnerProfileRequest $request, OwnerProfile $ownerProfile): JsonResponse
     {
-        return $this->json(['data' => OwnerProfileDetailResource::make($this->directory->detail($ownerProfile, $request->period()))->resolve($request)]);
+        return $this->json(['data' => OwnerProfileDetailResource::make($this->directory->detail($ownerProfile, $request->period(), OwnerDirectory::readsMoney($request->user())))->resolve($request)]);
     }
 
     /**
@@ -150,7 +150,7 @@ class OwnerProfileController extends Controller
                 ->log('owner_works_threshold_updated');
         }
 
-        return $this->json(['data' => OwnerProfileDetailResource::make($this->directory->detail($ownerProfile->refresh(), OwnerDirectory::currentPeriod()))->resolve($request)]);
+        return $this->json(['data' => OwnerProfileDetailResource::make($this->directory->detail($ownerProfile->refresh(), OwnerDirectory::currentPeriod(), OwnerDirectory::readsMoney($request->user())))->resolve($request)]);
     }
 
     /**

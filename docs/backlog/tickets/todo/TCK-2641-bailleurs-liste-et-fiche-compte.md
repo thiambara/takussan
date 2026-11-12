@@ -136,3 +136,13 @@ Autres contraintes :
 ## Notes d'implémentation
 
 _(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+
+- 2026-11-12 — vérification adverse (d1, moyen) : la fiche (`GET /api/owners/{id}`, et la réponse du `PATCH`)
+  servait `figures`, `last_payout` et `next_payout` à l'admin d'agence sans `payouts.create`, à qui la liste ne
+  sert aucun montant et le relevé répond 403. `OwnerDirectory::detail()` prend la règle (`readsMoney`) de ses deux
+  appelants : sans elle, les trois sont `null` et ne sont pas calculés. Au front, sous `droits.reversement` (la même
+  règle pour qui atteint la page, le super-admin n'y entrant pas) : ni la carte du mois — qui aurait dit « le
+  bailleur n'a pas encore de compte » —, ni « Envoyer le relevé » (en-tête, lien PDF, barre d'action).
+  `tests/Feature/Owners/OwnerDetailMoneyTest.php` (3) : 2 rouges avant ; ablations (relevé calculé sans la règle,
+  dernier versement sans la règle, `PATCH` à `true`) toutes rouges. Front : un cas de
+  `FicheDuBailleur.tck-2641.test.tsx`, rouge avant ; les trois gardes ablatées une à une, rouges.

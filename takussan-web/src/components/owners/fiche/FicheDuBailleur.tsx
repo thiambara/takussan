@@ -61,7 +61,12 @@ import { PiecesDuBailleur } from './PiecesDuBailleur';
 export interface DroitsSurLaFiche {
   /** `owners.update` : le plafond de travaux s'écrit ; sinon il se lit. */
   readonly plafond: boolean;
-  /** `payouts.create` : « Créer le reversement ». */
+  /**
+   * `payouts.create` : « Créer le reversement », et l'argent de la fiche — la carte du mois et
+   * « Envoyer le relevé » (vérification adverse de TCK-2641, d1). C'est la règle d'argent de l'API
+   * (`OwnerDirectory::readsMoney`) pour qui atteint cette page : sans elle, l'API rend `figures` et
+   * `last_payout` à `null` et le relevé en 403.
+   */
   readonly reversement: boolean;
   /** `team.suspend` : « Suspendre l'accès » / « Réactiver ». */
   readonly suspension: boolean;
@@ -139,7 +144,8 @@ export function FicheDuBailleur({ owner, period, moisCourant, biens, agencyId, d
 
   // `CreatePayoutDialog` ne propose que les bailleurs `active` et `inactive` (P120.04) : ni un
   // brouillon, ni un accès suspendu.
-  const reversementPossible = droits.reversement && owner.user_id !== null && (owner.status === 'active' || owner.status === 'inactive');
+  const litLArgent = droits.reversement;
+  const reversementPossible = litLArgent && owner.user_id !== null && (owner.status === 'active' || owner.status === 'inactive');
   const bornes = bornesDuMois(period);
   const statut = <StatusBadge tone={TON_DU_STATUT[owner.status]} label={tStatut(owner.status)} className="whitespace-nowrap" />;
 
@@ -155,7 +161,7 @@ export function FicheDuBailleur({ owner, period, moisCourant, biens, agencyId, d
           actions={
             <>
               <BoutonMessage owner={owner} nom={lecture.nom} variante="contour" />
-              {owner.user_id !== null ? <EnvoyerLeReleve period={period} landlordId={owner.user_id} nom={lecture.nom} variante="contour" /> : null}
+              {owner.user_id !== null && litLArgent ? <EnvoyerLeReleve period={period} landlordId={owner.user_id} nom={lecture.nom} variante="contour" /> : null}
             </>
           }
         />
@@ -170,13 +176,15 @@ export function FicheDuBailleur({ owner, period, moisCourant, biens, agencyId, d
           </Carte>
         </div>
         <div className="contents lg:block lg:space-y-5">
-          <ReleveDuMois
-            owner={owner}
-            period={period}
-            moisCourant={moisCourant}
-            onReverser={reversementPossible ? () => setReverser(true) : undefined}
-            className="order-2"
-          />
+          {litLArgent ? (
+            <ReleveDuMois
+              owner={owner}
+              period={period}
+              moisCourant={moisCourant}
+              onReverser={reversementPossible ? () => setReverser(true) : undefined}
+              className="order-2"
+            />
+          ) : null}
           <BiensDuBailleur owner={owner} biens={biens} className="order-3" />
           {owner.user_id !== null && droits.reversement ? <DerniersReversements landlordId={owner.user_id} className="order-6" /> : null}
         </div>
@@ -188,7 +196,7 @@ export function FicheDuBailleur({ owner, period, moisCourant, biens, agencyId, d
         </div>
       ) : null}
 
-      {owner.user_id !== null ? (
+      {owner.user_id !== null && litLArgent ? (
         <BarreDAction taille="action">
           <EnvoyerLeReleve period={period} landlordId={owner.user_id} nom={lecture.nom} variante="contour" />
           {reversementPossible ? (

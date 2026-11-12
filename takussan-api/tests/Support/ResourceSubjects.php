@@ -539,7 +539,7 @@ final class ResourceSubjects
                         'processed_at' => Carbon::parse(self::INSTANT, 'UTC'),
                     ]);
 
-                    return app(OwnerDirectory::class)->detail($profile->refresh(), '2026-08');
+                    return app(OwnerDirectory::class)->detail($profile->refresh(), '2026-08', true);
                 })(),
             ],
             default => [],

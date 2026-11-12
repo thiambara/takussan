@@ -314,24 +314,29 @@ final class OwnerDirectory
     }
 
     /**
-     * La fiche (`GET /api/owners/{id}`).
+     * La fiche (`GET /api/owners/{id}`, et la réponse de son `PATCH`).
+     *
+     * Vérification adverse de TCK-2641 (d1) — les chiffres du mois, le dernier et le prochain
+     * versement suivent la règle d'argent de la liste et du relevé ({@see self::readsMoney()}) : sans
+     * elle (`$readsMoney` faux), ils sont `null` et ne sont pas calculés. L'admin d'agence à rôle
+     * restreint, à qui le relevé répond 403, les lisait par la fiche.
      *
      * @return array<string, mixed>
      */
-    public function detail(OwnerProfile $profile, string $period): array
+    public function detail(OwnerProfile $profile, string $period, bool $readsMoney): array
     {
         $profile->loadMissing('agency');
         $agency = $profile->agency;
         $landlord = $profile->user_id !== null ? User::withTrashed()->find($profile->user_id) : null;
 
-        $statement = $agency !== null && $landlord !== null ? $this->statements->served($agency, $landlord, $period) : null;
+        $statement = $readsMoney && $agency !== null && $landlord !== null ? $this->statements->served($agency, $landlord, $period) : null;
         $totals = $statement['totals'] ?? null;
 
         $counts = OwnerProfile::query()->whereKey($profile->id)->select('owner_profiles.id');
         $this->addListColumns($counts);
         $row = $counts->first();
 
-        $lastPayout = $landlord === null ? null : Payout::query()
+        $lastPayout = ! $readsMoney || $landlord === null ? null : Payout::query()
             ->where('agency_id', $profile->agency_id)
             ->where('landlord_id', $landlord->id)
             ->where('payee_role', PayeeRole::Landlord->value)
