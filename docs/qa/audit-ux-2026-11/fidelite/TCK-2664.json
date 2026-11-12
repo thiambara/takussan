@@ -82,7 +82,7 @@
       "element": "« Rapport des 30 derniers jours » (en-tête « En avant en ce moment ») et « Lots épuisés ou expirés » (en-tête « Lots de crédits »)",
       "propriete": "absents du produit",
       "exception": "décision produit",
-      "motif": "décision 4 a (recommandation, en attente du porteur) : le rapport détaillé est hors périmètre du ticket ; l'API ne rend que les lots dépensables (`CreditLot::spendable()`), aucun lot épuisé ou expiré à montrer"
+      "motif": "décision 4 a (tranchée le 2026-11-12, notes du ticket) : le rapport détaillé est hors périmètre du ticket ; l'API ne rend que les lots dépensables (`CreditLot::spendable()`), aucun lot épuisé ou expiré à montrer"
     },
     {
       "ecran": "a-0",
