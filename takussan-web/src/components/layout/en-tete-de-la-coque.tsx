@@ -2,6 +2,9 @@
 
 import { createContext, useContext, useId, useLayoutEffect, useState, type ReactNode } from 'react';
 
+import { useMessages } from 'next-intl';
+
+import { IntlProvider } from '@/i18n/IntlProvider';
 import type { FormeDEnTete } from '@/lib/navigation/en-tete-de-la-coque';
 
 /**
@@ -98,19 +101,35 @@ export function useDeclarationDEnTete(): DeclarationDEnTete {
  */
 export function DeclarerEnTete({ priorite = 'page', ...declaration }: DeclarationDEnTete & { readonly priorite?: Priorite }) {
   const declarer = useContext(ContexteDeclarer);
+  return declarer ? <Declarant declarer={declarer} priorite={priorite} declaration={declaration} /> : null;
+}
+
+/**
+ * Ce que la page déclare (`action`, `actions`, `droite`) est MONTÉ par la coque, hors de l'arbre de la
+ * page — donc, sans parade, sous le seul dictionnaire de la coque (`src/i18n/namespaces.json`). La fiche
+ * du bien tombait au toucher de « ⋯ » (`MISSING_MESSAGE: visitPlanning.plan`, `PlanifierUneVisite` dans
+ * ses `actions`), comme la fiche client avant elle (TCK-2589, lot E). Le dictionnaire de la PAGE, lu ici
+ * dans son arbre, accompagne donc ses nœuds : `IntlProvider` le fusionne à celui de la coque, ce qui
+ * redonne exactement celui de la page. Un nœud absent reste absent (pas de « ⋯ » vide).
+ *
+ * Seul le dictionnaire voyage : un autre contexte propre à la page (un fournisseur monté sous la coque)
+ * n'accompagne pas les nœuds. Garde : `__tests__/en-tete-dictionnaire-de-la-page.test.tsx`.
+ */
+function Declarant({ declarer, priorite, declaration }: { readonly declarer: Declarer; readonly priorite: Priorite; readonly declaration: DeclarationDEnTete }) {
   const id = useId();
+  const messages = useMessages();
   const { titre, forme, action, actions, etape, repli, conversation, formulaire, sousTitre, droite } = declaration;
   // L'étape par ses deux nombres : un objet neuf à chaque rendu redéclarerait sans fin.
   const etapeN = etape?.n;
   const etapeTotal = etape?.total;
   useLayoutEffect(() => {
-    if (!declarer) return;
     const etapeDeclaree = etapeN !== undefined && etapeTotal !== undefined ? { n: etapeN, total: etapeTotal } : undefined;
-    declarer(id, { priorite, declaration: { titre, forme, action, actions, etape: etapeDeclaree, repli, conversation, formulaire, sousTitre, droite } });
-  }, [declarer, id, priorite, titre, forme, action, actions, etapeN, etapeTotal, repli, conversation, formulaire, sousTitre, droite]);
-  useLayoutEffect(() => {
-    if (!declarer) return;
-    return () => declarer(id, null);
-  }, [declarer, id]);
+    const sousLaPage = (noeud: ReactNode) => (noeud ? <IntlProvider messages={messages}>{noeud}</IntlProvider> : noeud);
+    declarer(id, {
+      priorite,
+      declaration: { titre, forme, action: sousLaPage(action), actions: sousLaPage(actions), etape: etapeDeclaree, repli, conversation, formulaire, sousTitre, droite: sousLaPage(droite) },
+    });
+  }, [declarer, id, priorite, messages, titre, forme, action, actions, etapeN, etapeTotal, repli, conversation, formulaire, sousTitre, droite]);
+  useLayoutEffect(() => () => declarer(id, null), [declarer, id]);
   return null;
 }
