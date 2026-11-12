@@ -6,11 +6,12 @@ import { Loader2, MessageSquare } from 'lucide-react';
 
 import { BrouillonDirect } from '@/components/messages/BrouillonDirect';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { useAuth } from '@/context/AuthContext';
 import { useTrouverLeFilDirect } from '@/lib/queries/conversations';
 import { cn } from '@/lib/utils';
 
 export interface EcrireAProps {
-  /** Le compte à qui écrire : sans compte (`id` nul), le geste ne se rend pas. */
+  /** Le compte à qui écrire : sans compte (`id` nul), ou soi-même, le geste ne se rend pas. */
   readonly personne: { readonly id: number | null; readonly nom: string };
   /** Le libellé du bouton (« Message » au carnet des bailleurs, « Écrire » à la fiche client). */
   readonly libelle: string;
@@ -26,17 +27,21 @@ export interface EcrireAProps {
  * le fil à deux qui existe déjà (TCK-2632 : jamais un second), sinon le brouillon de `BrouillonDirect`
  * — rien n'est en base avant le premier envoi.
  *
- * ⚠ Les libellés viennent de l'appelant : chaque page a son dictionnaire (`src/i18n/namespaces.json`),
- * et ce composant n'en suppose aucun. Il a des hooks : ne JAMAIS le passer aux `actions` de
- * `DeclarerEnTete`, montées sous le dictionnaire de la coque.
+ * Jamais vers soi-même : on ne s'écrit pas, et `filter[participant]=<soi>` rend 422 depuis TCK-2632 —
+ * le geste ouvrirait un brouillon vers son propre compte.
+ *
+ * Les libellés viennent de l'appelant : chaque page a son dictionnaire (`src/i18n/namespaces.json`),
+ * et ce composant n'en suppose aucun. Il peut être passé aux `actions` de `DeclarerEnTete`, qui les
+ * enveloppe du dictionnaire de la page depuis a2b05c307 (TCK-2639).
  */
 export function EcrireA({ personne, libelle, titre, className, iconeClassName = 'size-4', 'data-slot': slot }: EcrireAProps) {
   const router = useRouter();
+  const { user } = useAuth();
   const trouver = useTrouverLeFilDirect();
   const [brouillon, setBrouillon] = useState(false);
   const [cherche, setCherche] = useState(false);
   const userId = personne.id;
-  if (userId === null) return null;
+  if (userId === null || user?.id === userId) return null;
   const ouvrir = async () => {
     setCherche(true);
     try {
