@@ -148,7 +148,7 @@
       "kpis": "KPIs",
       "alerts": "Alerts",
       "owners": "Owners",
-      "crm": "Clients (CRM)",
+      "crm": "Clients",
       "calendar": "Calendar",
       "onboardingPending": "Pending onboardings",
       "proLocked": "Pro accounts only",
@@ -2558,11 +2558,11 @@
         "metaTitle": "Landlords"
       },
       "customers": {
-        "title": "Customers (CRM)",
+        "title": "Customers",
         "subtitle": "Track your contacts, their pipeline stages and their documents.",
         "add": "Add a customer",
-        "pipelineView": "Pipeline view",
-        "metaTitle": "Customers (CRM)"
+        "pipelineView": "Stages",
+        "metaTitle": "Customers"
       },
       "customerNew": {
         "metaTitle": "Add a customer",
@@ -3261,18 +3261,74 @@
       "loadingColumn": "Loading customers…"
     },
     "list": {
-      "empty_title": "Your CRM is empty",
-      "empty_description": "Add your first contacts to track their interactions and qualify their interest.",
-      "empty_cta": "Add a customer",
       "columns": {
         "client": "Customer",
-        "contact": "Contact",
         "tags": "Tags",
-        "pipeline": "Pipeline",
-        "status": "Status"
+        "cherche": "Looking for",
+        "etape": "Stage",
+        "prochaine": "Next action",
+        "referent": "Account manager"
       },
-      "pagination": "{total, plural, one {# customer} other {# customers}} — page {page} of {pages}",
-      "caption": "Customer list"
+      "caption": "Customer list",
+      "vues": {
+        "label": "Customer views",
+        "aRelancer": "To follow up",
+        "mesClients": "My customers",
+        "negociation": "Negotiation",
+        "sansReferent": "No account manager",
+        "tous": "All"
+      },
+      "sousTitre": {
+        "total": "{count, plural, one {# customer} other {# customers}}",
+        "aRelancer": "{count} to follow up",
+        "sansReferent": "{count} without an account manager"
+      },
+      "tri": {
+        "relance": "Most overdue first",
+        "prochaine": "Next action first",
+        "nom": "By name",
+        "recents": "Newest first",
+        "pertinence": "Most relevant first"
+      },
+      "trierPar": "Sort by {colonne}",
+      "filtres": "Filters",
+      "filtresN": "Filters · {n}",
+      "relance": {
+        "no_contact": "Follow-up overdue · {days} d without contact",
+        "report_missing": "Report for {jour} missing",
+        "overdue_task": "Task overdue · {days} d"
+      },
+      "prochaine": {
+        "visite": "Visit {jour} {heure}",
+        "visiteAujourdhui": "Visit today {heure}",
+        "tache": "Task on {jour}",
+        "sansReferent": "No account manager"
+      },
+      "cherche": {
+        "plafond": "≤ {montant}",
+        "achatPlafond": "purchase ≤ {montant}",
+        "achat": "purchase",
+        "rien": "No search criteria yet"
+      },
+      "gestes": {
+        "planifierAria": "Schedule a visit with {name}",
+        "nonNote": "The contact was not recorded on the customer’s record."
+      },
+      "vide": {
+        "title": "No customers yet",
+        "description": "They arrive with your contact requests, or you can add one.",
+        "descriptionBailleur": "Your tenants’ and applicants’ records appear here."
+      },
+      "videFiltre": {
+        "title": "No customers here",
+        "description": "No record matches this view or these filters."
+      },
+      "referent": {
+        "designer": "Assign me",
+        "designerAria": "Make me the account manager of {name}",
+        "designe": "You are now the account manager of {name}",
+        "erreur": "The assignment did not go through. Try again."
+      }
     },
     "customerDetail": {
       "inviteAccount": {
@@ -3363,7 +3419,7 @@
     },
     "filters": {
       "searchLabel": "Search for a customer",
-      "searchPlaceholder": "Last name, first name, email, phone…",
+      "searchPlaceholder": "Name, phone, email…",
       "pipelinePlaceholder": "Pipeline",
       "statusPlaceholder": "Status",
       "all": "All",
@@ -3372,7 +3428,8 @@
       "customerTags": "Customer tags",
       "clearAll": "Clear all",
       "allStages": "All stages",
-      "allStatuses": "All statuses"
+      "allStatuses": "All statuses",
+      "stage": "Stage"
     },
     "tags": {
       "sectionTitle": "Tags",
@@ -3388,6 +3445,50 @@
       "etranger": "Foreign national",
       "famille": "Family",
       "etudiant": "Student"
+    },
+    "creation": {
+      "titre": "New customer",
+      "etapeQui": "1 of 2 · who",
+      "etapeCherche": "2 of 2 · what they are looking for",
+      "prenom": "First name",
+      "nom": "Last name",
+      "ouUnEmail": "or an email",
+      "dejaDansVosClients": "Already in your customers",
+      "ouvrirLaFiche": "Open {nom}’s record",
+      "creerQuandMeme": "Create a separate record anyway",
+      "sondeAide": "Duplicates are checked as you type, on the phone number and email, before sending.",
+      "vingtSecondes": "20 seconds: the rest can be filled in later",
+      "continuer": "Continue",
+      "annuler": "Cancel",
+      "creerLaFiche": "Create the record",
+      "creerLaFicheDe": "Create {prenom}’s record",
+      "completerPlusTard": "Complete later",
+      "modifier": "Edit",
+      "ceQuIlCherche": "What they are looking for",
+      "contrat": "Rent or buy",
+      "contrats": {
+        "rent": "Rent",
+        "sale": "Buy"
+      },
+      "typeDeBien": "Property type",
+      "plus": "More",
+      "quartiers": "Neighbourhoods",
+      "ajouterQuartier": "Add…",
+      "retirerQuartier": "Remove {quartier}",
+      "budgetParMois": "Monthly budget",
+      "budget": "Budget",
+      "plafond": "≤ {montant}",
+      "sansPlafond": "No ceiling",
+      "paliersMilliers": "In thousands of CFA francs, in steps",
+      "paliersMillions": "In millions of CFA francs, in steps",
+      "plusDeChamps": "More fields",
+      "plusDeChampsDetail": "occupation, language, ID document",
+      "facultatif": "Optional",
+      "indifferent": "Any",
+      "chambresAuMoins": "Bedrooms, at least",
+      "pieceDIdentite": "ID document",
+      "memeNumero": "same number",
+      "plusTardDansModifier": "Occupation, language, ID document, bedrooms, stage, cities and minimum budget: under “Edit” on the record, whenever you have time."
     }
   },
   "agentCrm": {

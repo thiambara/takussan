@@ -148,7 +148,7 @@
       "kpis": "KPIs",
       "alerts": "Alertes",
       "owners": "Propriétaires",
-      "crm": "Clients (CRM)",
+      "crm": "Clients",
       "calendar": "Calendrier",
       "onboardingPending": "Entrées en attente",
       "proLocked": "Réservé aux comptes pro",
@@ -2515,11 +2515,11 @@
         "metaTitle": "Propriétaires"
       },
       "customers": {
-        "title": "Clients (CRM)",
+        "title": "Clients",
         "subtitle": "Suivez vos contacts, leurs étapes de pipeline et leurs documents.",
         "add": "Ajouter un client",
-        "pipelineView": "Vue pipeline",
-        "metaTitle": "Clients (CRM)"
+        "pipelineView": "Étapes",
+        "metaTitle": "Clients"
       },
       "customerNew": {
         "metaTitle": "Ajouter un client",
@@ -3218,18 +3218,74 @@
       "loadingColumn": "Chargement des clients…"
     },
     "list": {
-      "empty_title": "Votre CRM est vide",
-      "empty_description": "Ajoutez vos premiers contacts pour suivre leurs interactions et qualifier leurs intérêts.",
-      "empty_cta": "Ajouter un client",
       "columns": {
         "client": "Client",
-        "contact": "Contact",
-        "tags": "Tags",
-        "pipeline": "Pipeline",
-        "status": "Statut"
+        "tags": "Étiquettes",
+        "cherche": "Cherche",
+        "etape": "Étape",
+        "prochaine": "Prochaine action",
+        "referent": "Référent"
       },
-      "pagination": "{total, plural, one {# client} other {# clients}} — page {page} sur {pages}",
-      "caption": "Liste des clients"
+      "caption": "Liste des clients",
+      "vues": {
+        "label": "Vues des clients",
+        "aRelancer": "À relancer",
+        "mesClients": "Mes clients",
+        "negociation": "Négociation",
+        "sansReferent": "Sans référent",
+        "tous": "Tous"
+      },
+      "sousTitre": {
+        "total": "{count, plural, one {# client} other {# clients}}",
+        "aRelancer": "{count} à relancer",
+        "sansReferent": "{count} sans référent"
+      },
+      "tri": {
+        "relance": "Les plus en retard d’abord",
+        "prochaine": "Prochaine action d’abord",
+        "nom": "Par nom",
+        "recents": "Les plus récents d’abord",
+        "pertinence": "Les plus pertinents d’abord"
+      },
+      "trierPar": "Trier par {colonne}",
+      "filtres": "Filtres",
+      "filtresN": "Filtres · {n}",
+      "relance": {
+        "no_contact": "Relance en retard · {days} j sans contact",
+        "report_missing": "Compte rendu du {jour} manquant",
+        "overdue_task": "Tâche en retard · {days} j"
+      },
+      "prochaine": {
+        "visite": "Visite {jour} {heure}",
+        "visiteAujourdhui": "Visite aujourd’hui {heure}",
+        "tache": "Tâche du {jour}",
+        "sansReferent": "Sans référent"
+      },
+      "cherche": {
+        "plafond": "≤ {montant}",
+        "achatPlafond": "achat ≤ {montant}",
+        "achat": "achat",
+        "rien": "Recherche non renseignée"
+      },
+      "gestes": {
+        "planifierAria": "Planifier une visite avec {name}",
+        "nonNote": "Le contact n’a pas été noté sur la fiche du client."
+      },
+      "vide": {
+        "title": "Pas encore de clients",
+        "description": "Ils arrivent avec vos demandes de contact, ou ajoutez-en un.",
+        "descriptionBailleur": "Les fiches de vos locataires et candidats apparaissent ici."
+      },
+      "videFiltre": {
+        "title": "Aucun client ici",
+        "description": "Aucune fiche ne correspond à cette vue ou à ces filtres."
+      },
+      "referent": {
+        "designer": "Me désigner",
+        "designerAria": "Me désigner référent de {name}",
+        "designe": "Vous êtes le référent de {name}",
+        "erreur": "La désignation n’a pas abouti. Réessayez."
+      }
     },
     "customerDetail": {
       "inviteAccount": {
@@ -3320,16 +3376,17 @@
     },
     "filters": {
       "searchLabel": "Rechercher un client",
-      "searchPlaceholder": "Nom, prénom, e-mail, téléphone…",
+      "searchPlaceholder": "Nom, téléphone, e-mail…",
       "pipelinePlaceholder": "Pipeline",
       "statusPlaceholder": "Statut",
       "all": "Tous",
-      "tags": "Tags",
+      "tags": "Étiquettes",
       "filterByTags": "Filtrer par tags",
-      "customerTags": "Tags clients",
+      "customerTags": "Étiquettes des clients",
       "clearAll": "Tout effacer",
       "allStages": "Toutes les étapes",
-      "allStatuses": "Tous les statuts"
+      "allStatuses": "Tous les statuts",
+      "stage": "Étape"
     },
     "tags": {
       "sectionTitle": "Tags",
@@ -3345,6 +3402,50 @@
       "etranger": "Étranger",
       "famille": "Famille",
       "etudiant": "Étudiant"
+    },
+    "creation": {
+      "titre": "Nouveau client",
+      "etapeQui": "1 sur 2 · qui",
+      "etapeCherche": "2 sur 2 · sa recherche",
+      "prenom": "Prénom",
+      "nom": "Nom",
+      "ouUnEmail": "ou un e-mail",
+      "dejaDansVosClients": "Déjà dans vos clients",
+      "ouvrirLaFiche": "Ouvrir la fiche de {nom}",
+      "creerQuandMeme": "Créer quand même une fiche distincte",
+      "sondeAide": "Le doublon est cherché pendant la frappe, sur le téléphone et l’e-mail, avant l’envoi.",
+      "vingtSecondes": "20 secondes : le reste se complète plus tard",
+      "continuer": "Continuer",
+      "annuler": "Annuler",
+      "creerLaFiche": "Créer la fiche",
+      "creerLaFicheDe": "{elision, select, oui {Créer la fiche d’{prenom}} other {Créer la fiche de {prenom}}}",
+      "completerPlusTard": "Compléter plus tard",
+      "modifier": "Modifier",
+      "ceQuIlCherche": "Sa recherche",
+      "contrat": "Louer ou acheter",
+      "contrats": {
+        "rent": "Louer",
+        "sale": "Acheter"
+      },
+      "typeDeBien": "Type de bien",
+      "plus": "Plus",
+      "quartiers": "Quartiers",
+      "ajouterQuartier": "Ajouter…",
+      "retirerQuartier": "Retirer {quartier}",
+      "budgetParMois": "Budget par mois",
+      "budget": "Budget",
+      "plafond": "≤ {montant}",
+      "sansPlafond": "Sans plafond",
+      "paliersMilliers": "En milliers de F CFA, par paliers",
+      "paliersMillions": "En millions de F CFA, par paliers",
+      "plusDeChamps": "Plus de champs",
+      "plusDeChampsDetail": "profession, langue, pièce d’identité",
+      "facultatif": "Facultatif",
+      "indifferent": "Indifférent",
+      "chambresAuMoins": "Chambres, au moins",
+      "pieceDIdentite": "Pièce d’identité",
+      "memeNumero": "même numéro",
+      "plusTardDansModifier": "Profession, langue, pièce d’identité, chambres, étape, villes et budget minimum : dans « Modifier » de la fiche, quand vous aurez le temps."
     }
   },
   "agentCrm": {

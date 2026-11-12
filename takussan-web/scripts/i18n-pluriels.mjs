@@ -52,6 +52,9 @@ export const INVARIABLES = {
     'admin.moderation.workspace.queued': '« en file d’attente » est invariable',
     'admin.roles.matrix.selected': '« sur {total} » : le nom s’accorde avec le total',
     'superAdmin.failedJobs.confirmDeleteDescription': 'un seul job : l’appelant passe toujours 1',
+    // TCK-2590 — le sous-titre de la liste des clients : « 6 à relancer », « 4 sans référent ».
+    'crm.list.sousTitre.aRelancer': '« à relancer » est invariable',
+    'crm.list.sousTitre.sansReferent': '« sans référent » est invariable',
   },
   en: {
     'nav.admin.pendingBadge': '“pending” is invariable',
@@ -75,6 +78,9 @@ export const INVARIABLES = {
     'publicProfile.portfolio.loadMore': '“remaining” is invariable',
     'admin.roles.matrix.selected': '“of {total}”: the noun agrees with the total',
     'superAdmin.failedJobs.confirmDeleteDescription': 'a single job: the caller always passes 1',
+    // TCK-2590 — the customer list subtitle: “6 to follow up”, “4 without an account manager”.
+    'crm.list.sousTitre.aRelancer': '“to follow up” is invariable',
+    'crm.list.sousTitre.sansReferent': '“without an account manager” is invariable',
   },
 };
 

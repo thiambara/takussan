@@ -1,280 +1,233 @@
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
-import { Search, Tag, X } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { Check, ChevronDown, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  customerStatusValues,
-  pipelineStageValues,
-} from '@/lib/enums/customer';
+import { DebouncedSearchInput } from '@/components/console/DebouncedSearchInput';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useVueDansLUrl } from '@/hooks/useVueDansLUrl';
+import { customerStatusValues, pipelineStageValues } from '@/lib/enums/customer';
 import { ESPACE_DES_ETIQUETTES_CRM, libelleEquipement } from '@/lib/libelle-equipement';
+import { cn } from '@/lib/utils';
 import type { Tag as TagType } from '@/types/tag';
-import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
 
 /**
- * CRM filters bar. Same rules as the property filters: every filter is
- * round-tripped through the URL and pushed to the backend via spatie
- * `filter[...]`.
+ * CRM filters — TCK-042, TCK-093, refaits par TCK-2590 (maquette `app-clients` a, « Liste »).
+ *
+ * Chaque filtre fait l'aller-retour par l'URL (`search`, `pipeline_stage`, `status`, `tags`) et part à
+ * l'API en `filter[...]` ; chacun ramène en page 1. Choisir une étape quitte la vue « Négociation »,
+ * qui n'est qu'une étape posée d'avance.
+ *
+ *  · `barre` (bureau) : Étape ▾ · Statut ▾ · Étiquettes ▾, sous les vues, la recherche à droite ;
+ *  · `feuille` (téléphone) : les mêmes, empilés dans la feuille « Filtres ».
  */
 
-const ALL_VALUE = '__all__';
+export type CrmTagOption = Pick<TagType, 'id' | 'name' | 'color'> & { slug?: string | null };
 
 interface Props {
-  crmTags?: (Pick<TagType, 'id' | 'name' | 'color'> & { slug?: string | null })[];
+  readonly crmTags?: readonly CrmTagOption[];
+  readonly disposition?: 'barre' | 'feuille';
 }
 
-export function CustomerListFilters({ crmTags = [] }: Props) {
+/** Les filtres lus dans l'URL, et leur écriture (page 1, vue « Négociation » quittée). */
+export function useFiltresDesClients() {
+  const { params, remplacer } = useVueDansLUrl();
+  const search = params.get('search') ?? '';
+  const status = params.get('status') ?? '';
+  const stage = params.get('pipeline_stage') ?? '';
+  const tags = (params.get('tags') ?? '').split(',').filter(Boolean);
+  const poser = (cle: 'search' | 'status' | 'pipeline_stage' | 'tags', valeur: string | null) =>
+    remplacer({ [cle]: valeur, page: null, ...(cle === 'pipeline_stage' && params.get('vue') === 'negociation' ? { vue: null } : {}) });
+  return {
+    search,
+    status,
+    stage,
+    tags,
+    /** Le nombre de filtres posés (la recherche à part) : « Filtres · N ». */
+    nombre: (status ? 1 : 0) + (stage ? 1 : 0) + (tags.length > 0 ? 1 : 0),
+    poser,
+    basculerEtiquette: (nom: string) => {
+      const suite = tags.includes(nom) ? tags.filter((x) => x !== nom) : [...tags, nom];
+      poser('tags', suite.length > 0 ? suite.join(',') : null);
+    },
+  };
+}
+
+/** La recherche : nom, prénom, e-mail, téléphone (`filter[search]`), temporisée. */
+export function RechercheDesClients({ className }: { readonly className?: string }) {
+  const t = useTranslations('crm.filters');
+  const f = useFiltresDesClients();
+  return (
+    <DebouncedSearchInput
+      id="customer-search"
+      value={f.search}
+      onCommit={(q) => f.poser('search', q.trim() || null)}
+      placeholder={t('searchPlaceholder')}
+      aria-label={t('searchLabel')}
+      className={className}
+    />
+  );
+}
+
+export function CustomerListFilters({ crmTags = [], disposition = 'barre' }: Props) {
   const t = useTranslations('crm.filters');
   const tStage = useTranslations('crm.pipeline.stage');
   const tStatus = useTranslations('crm.customerStatus');
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const currentSearch = searchParams.get('search') ?? '';
-  const currentStatus = searchParams.get('status') ?? '';
-  const currentPipeline = searchParams.get('pipeline_stage') ?? '';
-  const currentTagsParam = searchParams.get('tags') ?? '';
-
-  const activeTags = currentTagsParam ? currentTagsParam.split(',').filter(Boolean) : [];
-
-  // TCK-316 — resynchronisé sur l'URL SANS `useEffect` : l'effet rendait, puis
-  // peignait l'ancienne valeur, puis re-rendait. Cf. `useStateSyncedWith`.
-  const [searchInput, setSearchInput] = useStateSyncedWith(currentSearch);
-
-  // Fonctions nues : le React Compiler mémoïse (ADR-0015). Les `useCallback` manuels portaient
-  // un `activeTags` recalculé à chaque rendu, ce qui les invalidait de toute façon.
-  const updateParam = (key: string, value: string | null) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (value && value !== ALL_VALUE) {
-      params.set(key, value);
-    } else {
-      params.delete(key);
-    }
-    params.delete('page');
-    router.replace(`?${params.toString()}`);
-  };
-
-  const onSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    updateParam('search', searchInput.trim() || null);
-  };
-
-  const toggleTag = (name: string) => {
-    const next = activeTags.includes(name)
-      ? activeTags.filter((t) => t !== name)
-      : [...activeTags, name];
-    updateParam('tags', next.length > 0 ? next.join(',') : null);
-  };
-
-  const clearTags = () => {
-    updateParam('tags', null);
-  };
-
-  return (
-    // `lg` et non `md` : sous la barre latérale, 768 ne laisse que 464 px — la recherche y
-    // tombait à « Nom, p » (revue design 2026-09-16, TCK-505).
-    <div className="flex flex-col gap-3 rounded-xl bg-card p-4 lg:flex-row lg:items-center">
-      <form onSubmit={onSearchSubmit} className="min-w-0 flex-1">
-        <label htmlFor="customer-search" className="sr-only">
-          {t('searchLabel')}
-        </label>
-        <div className="relative">
-          <Search
-            aria-hidden="true"
-            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-          />
-          <Input
-            id="customer-search"
-            placeholder={t('searchPlaceholder')}
-            className="pl-9"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-          />
-        </div>
-      </form>
-      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-        {crmTags.length > 0 && (
-          <TagFilter
-            tags={crmTags}
-            activeTags={activeTags}
-            onToggle={toggleTag}
-            onClear={clearTags}
-          />
-        )}
-        <FilterSelect
-          value={currentPipeline || ALL_VALUE}
-          onChange={(v) => updateParam('pipeline_stage', v === ALL_VALUE ? null : v)}
-          placeholder={t('pipelinePlaceholder')}
-          options={[
-            { value: ALL_VALUE, label: t('allStages') },
-            ...pipelineStageValues.map((v) => ({ value: v, label: tStage(v) })),
-          ]}
-        />
-        <FilterSelect
-          value={currentStatus || ALL_VALUE}
-          onChange={(v) => updateParam('status', v === ALL_VALUE ? null : v)}
-          placeholder={t('statusPlaceholder')}
-          options={[
-            { value: ALL_VALUE, label: t('allStatuses') },
-            ...customerStatusValues.map((v) => ({ value: v, label: tStatus(v) })),
-          ]}
-        />
-      </div>
-    </div>
-  );
-}
-
-function TagFilter({
-  tags,
-  activeTags,
-  onToggle,
-  onClear,
-}: {
-  tags: (Pick<TagType, 'id' | 'name' | 'color'> & { slug?: string | null })[];
-  activeTags: string[];
-  onToggle: (name: string) => void;
-  onClear: () => void;
-}) {
-  const t = useTranslations('crm.filters');
-  // TCK-922 — l'option affiche l'étiquette traduite ; sa valeur reste le nom en base.
   const tEtiquette = useTranslations(ESPACE_DES_ETIQUETTES_CRM);
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const f = useFiltresDesClients();
+  const feuille = disposition === 'feuille';
 
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  return (
-    <div ref={ref} className="relative col-span-2 sm:col-span-1">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className={`inline-flex h-9 w-full items-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors sm:w-auto ${
-          activeTags.length > 0
-            ? 'border-primary/40 bg-primary/5 text-primary'
-            : 'border-border bg-card text-foreground hover:bg-muted'
-        }`}
-      >
-        <Tag className="size-3.5" aria-hidden="true" />
-        {activeTags.length > 0 ? (
-          <span>
-            {t('tags')}
-            <span className="ml-1 rounded-full bg-primary px-1.5 py-0.5 text-xs font-semibold tabular-nums text-primary-foreground">
-              {activeTags.length}
-            </span>
-          </span>
-        ) : (
-          t('filterByTags')
-        )}
-      </button>
-
-      {open && (
-        <div className="absolute left-0 top-full z-20 mt-1 w-56 rounded-xl border border-border bg-card py-1.5 shadow-md">
-          <div className="px-3 pb-1.5 pt-1">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {t('customerTags')}
-            </p>
-          </div>
-          <ul className="max-h-52 overflow-y-auto">
-            {tags.map((tag) => {
-              const active = activeTags.includes(tag.name);
-              return (
-                <li key={tag.id}>
-                  <button
-                    type="button"
-                    onClick={() => onToggle(tag.name)}
-                    className="flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors hover:bg-muted"
-                  >
-                    <span
-                      className={`flex size-4 shrink-0 items-center justify-center rounded border ${
-                        active
-                          ? 'border-primary bg-primary text-primary-foreground'
-                          : 'border-border bg-card'
-                      }`}
-                      aria-hidden="true"
-                    >
-                      {active && (
-                        <svg viewBox="0 0 10 8" className="size-2.5 fill-current">
-                          <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      )}
-                    </span>
-                    <span className="truncate text-foreground">{libelleEquipement(tag, tEtiquette)}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-          {activeTags.length > 0 && (
-            <>
-              <div className="my-1 h-px bg-muted" />
-              <button
-                type="button"
-                onClick={() => {
-                  onClear();
-                  setOpen(false);
-                }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-destructive transition-colors hover:bg-destructive/10"
-              >
-                <X className="size-3.5" aria-hidden="true" />
-                {t('clearAll')}
-              </button>
-            </>
-          )}
-        </div>
+  const etape = (
+    <Filtre libelle={t('stage')} valeur={f.stage ? tStage.has(f.stage) ? tStage(f.stage) : f.stage : null} actif={Boolean(f.stage)} pleine={feuille}>
+      {(fermer) => (
+        <>
+          <Option choisie={!f.stage} onClick={() => (f.poser('pipeline_stage', null), fermer())}>
+            {t('allStages')}
+          </Option>
+          {pipelineStageValues.map((v) => (
+            <Option key={v} choisie={f.stage === v} onClick={() => (f.poser('pipeline_stage', v), fermer())}>
+              {tStage(v)}
+            </Option>
+          ))}
+        </>
       )}
-    </div>
+    </Filtre>
+  );
+
+  const statut = (
+    <Filtre libelle={t('statusPlaceholder')} valeur={f.status ? (tStatus.has(f.status) ? tStatus(f.status) : f.status) : null} actif={Boolean(f.status)} pleine={feuille}>
+      {(fermer) => (
+        <>
+          <Option choisie={!f.status} onClick={() => (f.poser('status', null), fermer())}>
+            {t('allStatuses')}
+          </Option>
+          {customerStatusValues.map((v) => (
+            <Option key={v} choisie={f.status === v} onClick={() => (f.poser('status', v), fermer())}>
+              {tStatus(v)}
+            </Option>
+          ))}
+        </>
+      )}
+    </Filtre>
+  );
+
+  // TCK-922 — l'option affiche l'étiquette traduite ; sa valeur reste le nom en base.
+  const etiquettes =
+    crmTags.length > 0 ? (
+      <Filtre libelle={t('tags')} valeur={f.tags.length > 0 ? String(f.tags.length) : null} actif={f.tags.length > 0} pleine={feuille}>
+        {(fermer) => (
+          <>
+            <p className="px-2.5 pt-1.5 pb-1 text-xs font-semibold text-muted-foreground">{t('customerTags')}</p>
+            {crmTags.map((tag) => (
+              <Option key={tag.id} choisie={f.tags.includes(tag.name)} onClick={() => f.basculerEtiquette(tag.name)} caseACocher>
+                {libelleEquipement(tag, tEtiquette)}
+              </Option>
+            ))}
+            {f.tags.length > 0 ? (
+              <>
+                <div className="my-1 h-px bg-border" />
+                <button
+                  type="button"
+                  onClick={() => (f.poser('tags', null), fermer())}
+                  className="flex min-h-9 w-full items-center gap-2 rounded-md px-2.5 text-left text-sm text-destructive outline-none hover:bg-destructive/10 focus-visible:bg-destructive/10"
+                >
+                  <X className="size-3.5" aria-hidden="true" />
+                  {t('clearAll')}
+                </button>
+              </>
+            ) : null}
+          </>
+        )}
+      </Filtre>
+    ) : null;
+
+  if (feuille) {
+    return (
+      <div className="space-y-3">
+        {etape}
+        {statut}
+        {etiquettes}
+      </div>
+    );
+  }
+  return (
+    <>
+      {etape}
+      {statut}
+      {etiquettes}
+    </>
   );
 }
 
-function FilterSelect({
-  value,
-  onChange,
-  placeholder,
-  options,
+const DECLENCHEUR = 'inline-flex h-9 flex-none items-center gap-1.5 rounded-lg border px-3 text-sm whitespace-nowrap outline-none focus-visible:ring-3 focus-visible:ring-ring';
+
+/** Un filtre de la barre : « Étape ▾ », « Étape · Négociation ▾ » une fois posé. */
+function Filtre({
+  libelle,
+  valeur,
+  actif,
+  pleine,
+  children,
 }: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder: string;
-  options: readonly { value: string; label: string }[];
+  readonly libelle: string;
+  readonly valeur: string | null;
+  readonly actif: boolean;
+  /** Dans la feuille du téléphone : toute la largeur, 44 px. */
+  readonly pleine?: boolean;
+  readonly children: (fermer: () => void) => ReactNode;
+}) {
+  const [ouvert, setOuvert] = useState(false);
+  return (
+    <Popover open={ouvert} onOpenChange={setOuvert}>
+      <PopoverTrigger
+        className={cn(
+          DECLENCHEUR,
+          pleine && 'h-11 w-full justify-between',
+          actif ? 'border-primary/50 bg-secondary font-medium text-primary-deep' : 'border-border bg-card text-foreground',
+        )}
+      >
+        <span className="truncate">
+          {libelle}
+          {valeur ? ` · ${valeur}` : null}
+        </span>
+        <ChevronDown className="size-3 text-muted-foreground" aria-hidden="true" />
+      </PopoverTrigger>
+      <PopoverContent align="start" className="max-h-80 w-64 overflow-y-auto p-1">
+        {children(() => setOuvert(false))}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function Option({
+  choisie,
+  onClick,
+  caseACocher,
+  children,
+}: {
+  readonly choisie: boolean;
+  readonly onClick: () => void;
+  readonly caseACocher?: boolean;
+  readonly children: ReactNode;
 }) {
   return (
-    <div className="min-w-0 sm:min-w-[160px]">
-      <Select
-        value={value}
-        onValueChange={(v) => onChange((v ?? '') as string)}
-        items={options}
-      >
-        {/* Le nom accessible porte le CRITÈRE et sa valeur : « Actif » seul ne dit pas quel filtre il règle. */}
-        <SelectTrigger
-          className="w-full"
-          aria-label={`${placeholder} : ${options.find((o) => o.value === value)?.label ?? value}`}
+    <button
+      type="button"
+      aria-pressed={choisie}
+      onClick={onClick}
+      className="flex min-h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-sm outline-none hover:bg-muted focus-visible:bg-muted"
+    >
+      {caseACocher ? (
+        <span
+          aria-hidden="true"
+          className={cn('flex size-4 flex-none items-center justify-center rounded border', choisie ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card')}
         >
-          <SelectValue placeholder={placeholder} />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((opt) => (
-            <SelectItem key={opt.value} value={opt.value}>
-              {opt.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+          {choisie ? <Check className="size-3" strokeWidth={2.5} /> : null}
+        </span>
+      ) : null}
+      <span className="min-w-0 flex-1 truncate">{children}</span>
+      {!caseACocher && choisie ? <Check className="size-4 flex-none text-primary" strokeWidth={1.75} aria-hidden="true" /> : null}
+    </button>
   );
 }

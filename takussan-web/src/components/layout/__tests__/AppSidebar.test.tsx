@@ -293,7 +293,7 @@ const MENU_ATTENDU: Record<Persona, { action: string | null; enTete?: string; gr
       ['Activité', false, 'Demandes de contact', 'Visites', 'Réservations', 'Calendrier', 'Interventions'],
       // TCK-2489 (ADR-0090 §4) — le tableau de bord, groupe sans titre après le deuxième groupe titré.
       [null, false, 'Tableau de bord'],
-      ['Plus', true, 'Clients (CRM)', 'Avis reçus', 'Documents', 'Statistiques', 'Exports', 'Mes favoris', 'Recherches sauvegardées', 'Mes tâches'],
+      ['Plus', true, 'Clients', 'Avis reçus', 'Documents', 'Statistiques', 'Exports', 'Mes favoris', 'Recherches sauvegardées', 'Mes tâches'],
     ],
   },
   // Relevé de TCK-2478 : aucun parcours de création de visite sous `/app` — l'action de l'agent
@@ -304,7 +304,7 @@ const MENU_ATTENDU: Record<Persona, { action: string | null; enTete?: string; gr
       // TCK-2618 (décision 10 (a)) — « Aujourd'hui » (le tableau de bord) ouvre la tête, qui y RESTE :
       // seul le tableau de bord de l'admin d'agence est hissé. « Mes tâches » devient « Tâches ».
       [null, false, 'Aujourd’hui', 'Messagerie', 'Tâches'],
-      ['Prospection', false, 'Demandes de contact', 'Clients (CRM)', 'Visites', 'Calendrier'],
+      ['Prospection', false, 'Demandes de contact', 'Clients', 'Visites', 'Calendrier'],
       ['Catalogue', false, 'Mes biens', 'Réservations'],
       ['Gestion', false, 'Baux', 'Entrées en attente', 'États des lieux', 'Interventions', 'Commissions'],
       ['Plus', true, 'Avis reçus', 'Documents', 'Statistiques', 'Exports', 'Mes favoris', 'Recherches sauvegardées'],
@@ -318,7 +318,7 @@ const MENU_ATTENDU: Record<Persona, { action: string | null; enTete?: string; gr
     groupes: [
       [null, false, 'Vue agence', 'Messagerie'],
       ['Activité', false, 'Demandes de contact', 'Visites', 'Réservations', 'Calendrier'],
-      ['Portefeuille', false, 'Biens', 'Propriétaires', 'Clients (CRM)', 'Baux', 'Entrées en attente'],
+      ['Portefeuille', false, 'Biens', 'Propriétaires', 'Clients', 'Baux', 'Entrées en attente'],
       ['Finances', false, "Finances de l'agence", 'Commissions', 'Crédits', 'Abonnement'],
       ['Agence', true, 'Équipe', 'Rôles', 'Agence', 'KYC agence', 'Modération avis', 'Modération biens', "Journal d'audit", 'Intégrations'],
       ['Pilotage', true, 'Statistiques', 'KPIs', 'Alertes', 'Exports'],
@@ -337,7 +337,7 @@ const MENU_ATTENDU: Record<Persona, { action: string | null; enTete?: string; gr
       [null, false, 'Tableau de bord'],
       ['Mon espace', false, 'Agence', 'KYC agence', 'Reversements', 'Crédits', 'Intégrations'],
       [
-        'Plus', true, 'Clients (CRM)', 'Statistiques', 'Exports', 'KPIs', 'Alertes', 'Avis reçus', 'Documents',
+        'Plus', true, 'Clients', 'Statistiques', 'Exports', 'KPIs', 'Alertes', 'Avis reçus', 'Documents',
         'Mes tâches', 'Mes favoris', 'Recherches sauvegardées', 'Paiements', 'Commissions', 'Entrées en attente',
         'Vue agence', 'Propriétaires',
       ],
@@ -360,7 +360,7 @@ const MENU_ATTENDU: Record<Persona, { action: string | null; enTete?: string; gr
     groupes: [
       [null, false, 'Vue agence', 'Messagerie'],
       ['Activité', false, 'Demandes de contact', 'Visites', 'Réservations', 'Calendrier'],
-      ['Portefeuille', false, 'Biens', 'Propriétaires', 'Clients (CRM)', 'Baux', 'Entrées en attente'],
+      ['Portefeuille', false, 'Biens', 'Propriétaires', 'Clients', 'Baux', 'Entrées en attente'],
       // TCK-2489 (ADR-0090 §4) — le tableau de bord, groupe sans titre après le deuxième groupe titré.
       [null, false, 'Tableau de bord'],
       ['Finances', false, "Finances de l'agence", 'Commissions', 'Crédits', 'Abonnement'],
@@ -690,9 +690,9 @@ describe('AC1 — surlignage sur une page fille', () => {
     ['/app/maintenance/9', 'Maintenance'],
     ['/app/documents/4', 'Documents'],
     ['/app/inventories/5', 'États des lieux'],
-    ['/app/customers/8', 'Clients (CRM)'],
+    ['/app/customers/8', 'Clients'],
     ['/app/leases/new', 'Baux'],
-    ['/app/customers/new', 'Clients (CRM)'],
+    ['/app/customers/new', 'Clients'],
     ['/app/inventories/new', 'États des lieux'],
     ['/app/maintenance/new', 'Maintenance'],
   ])('allume la bonne entrée sur %s', (route, label) => {

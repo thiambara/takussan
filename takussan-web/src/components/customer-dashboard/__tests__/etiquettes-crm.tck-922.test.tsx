@@ -88,7 +88,7 @@ describe('les écrans CRM affichent l’étiquette du catalogue dans la langue d
     mockReplace.mockReset();
     render(withIntl(<CustomerListFilters crmTags={[PROSPECT]} />, 'en'));
 
-    fireEvent.click(screen.getByRole('button', { name: /tag/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tags' }));
     fireEvent.click(screen.getByText('Hot lead'));
     expect(String(mockReplace.mock.calls.at(-1)?.[0])).toContain(encodeURIComponent('Prospect chaud').replace(/%20/g, '+'));
   });

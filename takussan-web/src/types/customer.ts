@@ -34,6 +34,40 @@ export interface CustomerListItem {
   tags?: Pick<Tag, 'id' | 'name' | 'slug' | 'color'>[];
   created_at: string;
   updated_at?: string;
+  /** TCK-591 §5 — critères du prospect (`decimal:2` : les montants arrivent en chaîne). Au seul personnel de l'agence de la fiche. */
+  seeking_contract_type?: 'sale' | 'rent' | null;
+  budget_min?: string | null;
+  budget_max?: string | null;
+  seeking_property_types?: string[] | null;
+  seeking_cities?: string[] | null;
+  seeking_neighborhoods?: string[] | null;
+  min_bedrooms?: number | null;
+  /** TCK-2588 — calculés pour la page, demandés par `fields[customers]` ; `null` hors personnel. */
+  next_action?: CustomerNextAction | null;
+  follow_up?: CustomerFollowUp | null;
+  referent?: CustomerReferent | null;
+}
+
+/** TCK-2588 — la prochaine action : visite ou tâche ; `label` est le titre du bien ou de la tâche. */
+export interface CustomerNextAction {
+  readonly type: 'visit' | 'task';
+  readonly id: number;
+  readonly at: string;
+  readonly label: string | null;
+  readonly overdue: boolean;
+}
+
+/** TCK-2588 — la relance due : tâche en retard, compte rendu manquant, ou sans contact depuis `days` jours. */
+export interface CustomerFollowUp {
+  readonly reason: 'overdue_task' | 'report_missing' | 'no_contact';
+  readonly since: string;
+  readonly days: number;
+}
+
+/** TCK-2588 — le référent : l'agent principal et actif de la fiche. */
+export interface CustomerReferent {
+  readonly id: number;
+  readonly name: string;
 }
 
 export interface CustomerDetail extends CustomerListItem {
@@ -49,14 +83,6 @@ export interface CustomerDetail extends CustomerListItem {
   agency_id?: number | null;
   /** TCK-921 — la langue des messages du client sans compte ; `null` : `fr`. */
   locale?: 'fr' | 'en' | 'wo' | null;
-  /** TCK-591 §5 — critères du prospect (`decimal:2` : les montants arrivent en chaîne). */
-  seeking_contract_type?: 'sale' | 'rent' | null;
-  budget_min?: string | null;
-  budget_max?: string | null;
-  seeking_property_types?: string[] | null;
-  seeking_cities?: string[] | null;
-  seeking_neighborhoods?: string[] | null;
-  min_bedrooms?: number | null;
   /** TCK-2582 — le bien d'intérêt, rendu sous `include=interestedProperty` (TCK-2586). */
   interested_property?: { id: number; title: string; slug: string | null } | null;
 }

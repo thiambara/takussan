@@ -6,12 +6,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { withIntl } from '@/test/intl';
 import { ToastProvider } from '@/components/ui/toast';
 import * as AuthContext from '@/context/AuthContext';
-import { CustomerList } from '@/components/customer-dashboard/CustomerList';
 import { OwnersList } from '@/components/owners/OwnersList';
 import { PropertyList } from '@/components/property-dashboard/PropertyList';
 import { ServiceProvidersList } from '@/components/service-providers/ServiceProvidersList';
-import type { PaginatedResponse } from '@/types/api';
-import type { CustomerListItem } from '@/types/customer';
 import type { PropertyListItem } from '@/types/property';
 
 /**
@@ -69,34 +66,9 @@ beforeEach(() => {
 });
 
 describe('AC3 — les colonnes des tables converties', () => {
-  it('CustomerList : client · contact · étiquettes · pipeline · statut', () => {
-    const page: PaginatedResponse<CustomerListItem> = {
-      data: [
-        {
-          id: 1,
-          first_name: 'Awa',
-          last_name: 'Ndiaye',
-          email: 'awa@example.test',
-          phone: '+221770000000',
-          status: 'active',
-          pipeline_stage: 'qualified',
-          occupation: 'Architecte',
-          created_at: '2026-05-06T10:00:00.000Z',
-        } as CustomerListItem,
-      ],
-      meta: { total: 1, current_page: 1, last_page: 1, per_page: 20 },
-      links: { first: null, last: null, prev: null, next: null },
-    };
-    monter(<CustomerList page={page} />);
-
-    expect(enTetesDe('Liste des clients')).toEqual([
-      'Client',
-      'Contact',
-      'Tags',
-      'Pipeline',
-      'Statut',
-    ]);
-  });
+  // TCK-2590 — `CustomerList` n'existe plus : la liste des clients suit la maquette retenue
+  // (`app-clients` a, ADR-0106), qui change ses colonnes par décision. Ses colonnes se gardent dans
+  // `customer-dashboard/liste/__tests__/ListeDesClients.tck-2590.test.tsx`.
 
   it('PropertyList : sélection · bien · prix · activité · statut · actions', () => {
     const bien: PropertyListItem = {

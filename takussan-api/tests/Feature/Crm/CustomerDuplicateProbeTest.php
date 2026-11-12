@@ -8,6 +8,7 @@ use App\Models\Customer;
 use App\Models\Enums\Capability;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\User;
+use App\Services\Crm\CustomerDuplicateDetector;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\ApiTestCase;
@@ -107,5 +108,92 @@ class CustomerDuplicateProbeTest extends ApiTestCase
             $this->getJson('/api/customers/duplicates?email=x'.$i.'@example.com')->assertOk();
         }
         $this->getJson('/api/customers/duplicates?email=y@example.com')->assertStatus(429);
+    }
+
+    /**
+     * TCK-2590 (AC3) — « 70 648 20 » montre déjà Mariama : un numéro sénégalais entamé de sept
+     * chiffres se compare par préfixe, sous toutes ses écritures.
+     */
+    public function test_tck2590_sept_chiffres_trouvent_mariama_par_prefixe(): void
+    {
+        Sanctum::actingAs($this->agent);
+
+        $attendu = [['id' => $this->mariama->id, 'name' => 'Mariama Fall', 'stage' => 'qualified']];
+        foreach (['70%20648%2020', '%2B2217064820', '+2217064820', '002217064820', '70648205'] as $saisie) {
+            $this->assertSame($attendu, $this->getJson('/api/customers/duplicates?phone='.$saisie)->assertOk()->json('data'), $saisie);
+        }
+        // Un préfixe qui n'est pas le sien ne la rend pas.
+        $this->assertSame([], $this->getJson('/api/customers/duplicates?phone=70%20648%2021')->assertOk()->json('data'));
+    }
+
+    /** TCK-2590 — six chiffres ne sondent rien, même quand ils sont le début d'une fiche. */
+    public function test_tck2590_six_chiffres_ne_sondent_rien(): void
+    {
+        Sanctum::actingAs($this->agent);
+
+        $this->getJson('/api/customers/duplicates?phone=70%20648%202')->assertOk()->assertExactJson(['data' => []]);
+        $this->getJson('/api/customers/duplicates?phone=%2B221706482')->assertOk()->assertExactJson(['data' => []]);
+    }
+
+    /** TCK-2590 — le préfixe ne sort pas de l'agence active : la fiche d'une autre agence au même début n'est pas rendue. */
+    public function test_tck2590_le_prefixe_reste_dans_l_agence(): void
+    {
+        $autre = $this->agence();
+        $this->ficheClient($autre, null, ['first_name' => 'Awa', 'last_name' => 'Ndiaye', 'phone' => '+221706482099']);
+
+        Sanctum::actingAs($this->agent);
+        $this->assertSame(
+            [$this->mariama->id],
+            array_column($this->getJson('/api/customers/duplicates?phone=7064820')->assertOk()->json('data'), 'id'),
+        );
+
+        Sanctum::actingAs($this->personnel($autre));
+        $this->assertSame(['Awa Ndiaye'], array_column($this->getJson('/api/customers/duplicates?phone=7064820')->assertOk()->json('data'), 'name'));
+    }
+
+    /** TCK-2590 — cinq fiches au plus sous un préfixe partagé, et masquées à qui ne les lit pas. */
+    public function test_tck2590_cinq_au_plus_et_masquees(): void
+    {
+        foreach (range(10, 16) as $n) {
+            $this->ficheClient($this->agence, null, ['phone' => '+2217064820'.$n]);
+        }
+
+        Sanctum::actingAs($this->agent);
+        $this->assertCount(5, $this->getJson('/api/customers/duplicates?phone=7064820')->assertOk()->json('data'));
+
+        $role = AgencyRole::factory()->for($this->agence)->withCapabilities([Capability::PropertiesCreate])->create();
+        Sanctum::actingAs($this->personnel($this->agence, agencyRole: $role));
+        $data = $this->getJson('/api/customers/duplicates?phone=7064820')->assertOk()->json('data');
+        $this->assertCount(5, $data);
+        $this->assertSame([null], array_values(array_unique(array_column($data, 'name'))));
+    }
+
+    /** TCK-2590 — la création garde l'égalité stricte : un numéro entamé n'y fait aucun 409. */
+    public function test_tck2590_la_creation_ne_compare_pas_par_prefixe(): void
+    {
+        $detecteur = app(CustomerDuplicateDetector::class);
+
+        $this->assertSame([], $detecteur->find($this->agence->id, '70 648 20', null, $this->agent));
+        $this->assertCount(1, $detecteur->probe($this->agence->id, '70 648 20', null, $this->agent));
+    }
+
+    /**
+     * TCK-2590 — aucun joker de l'appelant n'entre dans le `LIKE` : `%` et `_` font renoncer au
+     * préfixe, ils ne sont pas « nettoyés » en chiffres. Rien de plus large qu'une saisie de chiffres
+     * ne revient, ni par la route ni par le détecteur.
+     */
+    public function test_tck2590_les_jokers_de_l_appelant_n_elargissent_rien(): void
+    {
+        $this->ficheClient($this->agence, null, ['first_name' => 'Awa', 'last_name' => 'Ndiaye', 'phone' => '+221776543210']);
+        $detecteur = app(CustomerDuplicateDetector::class);
+
+        Sanctum::actingAs($this->agent);
+        foreach (['70%', '7_6', '%', '_', '7%0', '7064820%', '706482_', '706_820', '7__________'] as $saisie) {
+            $this->assertSame([], $this->getJson('/api/customers/duplicates?phone='.rawurlencode($saisie))->assertOk()->json('data'), $saisie);
+            $this->assertSame([], $detecteur->probe($this->agence->id, $saisie, null, $this->agent), $saisie);
+        }
+
+        // Témoin : les mêmes chiffres, sans joker, trouvent Mariama et elle seule.
+        $this->assertSame([$this->mariama->id], array_column($detecteur->probe($this->agence->id, '7064820', null, $this->agent), 'id'));
     }
 }

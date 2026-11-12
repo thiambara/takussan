@@ -21,6 +21,12 @@ import { lireToutesLesPages, PAR_PAGE_MAX } from './toutes-les-pages';
  * documented in the ticket.
  */
 
+/**
+ * TCK-2590 — la ligne de la liste : le nom, le téléphone (toujours montré quand il existe) ou à
+ * défaut l'e-mail, l'étape, le statut, sa recherche, et les trois attributs calculés de TCK-2588
+ * (`next_action`, `follow_up`, `referent`, `null` hors personnel). Sans `occupation` : la ligne ne la
+ * montre plus.
+ */
 export const DASHBOARD_CUSTOMER_FIELDS = [
   'id',
   'first_name',
@@ -29,7 +35,14 @@ export const DASHBOARD_CUSTOMER_FIELDS = [
   'phone',
   'status',
   'pipeline_stage',
-  'occupation',
+  'seeking_contract_type',
+  'budget_max',
+  'seeking_property_types',
+  'seeking_cities',
+  'seeking_neighborhoods',
+  'next_action',
+  'follow_up',
+  'referent',
   'created_at',
 ] as const;
 
@@ -46,6 +59,10 @@ export interface DashboardCustomerFilters {
   readonly search?: string;
   readonly tags?: string;
   readonly tags_all?: string;
+  /** TCK-2588 — `1` : les fiches à relancer (« À relancer », TCK-2590). */
+  readonly follow_up?: '1';
+  /** TCK-2588 — `me` : « Mes clients » ; `none` : « Sans référent ». */
+  readonly referent?: 'me' | 'none';
 }
 
 export interface FetchDashboardCustomersParams {
@@ -67,6 +84,8 @@ function buildListParams({
   if (filters?.search) filter.search = filters.search;
   if (filters?.tags) filter.tags = filters.tags;
   if (filters?.tags_all) filter.tags_all = filters.tags_all;
+  if (filters?.follow_up) filter.follow_up = filters.follow_up;
+  if (filters?.referent) filter.referent = filters.referent;
 
   return {
     fields: { customers: DASHBOARD_CUSTOMER_FIELDS },
@@ -78,6 +97,22 @@ function buildListParams({
     page: page ?? 1,
     per_page: perPage ?? 20,
   };
+}
+
+/**
+ * TCK-2590 — le compte d'une vue : `per_page=1`, seul `meta.total` est lu. Les pastilles et le
+ * sous-titre en demandent un par vue, en parallèle de la liste ; aucune route de comptes n'existe.
+ */
+export async function fetchCustomerCount(token: string, filters: DashboardCustomerFilters = {}): Promise<number | null> {
+  const filter: Record<string, string> = {};
+  for (const [cle, valeur] of Object.entries(filters)) if (valeur) filter[cle] = valeur;
+  const qs = buildQueryString({ fields: { customers: ['id'] }, filter, per_page: 1 });
+  try {
+    const res = await apiRequest<PaginatedResponse<{ id: number }>>(cheminApi`/api/customers${requete(qs)}`, { token });
+    return res.meta.total;
+  } catch {
+    return null;
+  }
 }
 
 export async function fetchDashboardCustomers(

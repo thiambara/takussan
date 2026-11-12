@@ -97,7 +97,7 @@
       "acteur": "agence",
       "chemin": "/api/customers",
       "parametres": {
-        "fields[customers]": "id,first_name,last_name,email,phone,status,pipeline_stage,occupation,created_at",
+        "fields[customers]": "id,first_name,last_name,email,phone,status,pipeline_stage,seeking_contract_type,budget_max,seeking_property_types,seeking_cities,seeking_neighborhoods,next_action,follow_up,referent,created_at",
         "include": "tags",
         "sort": "-created_at",
         "page": "1",

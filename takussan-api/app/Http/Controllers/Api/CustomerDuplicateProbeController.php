@@ -12,6 +12,9 @@ use Illuminate\Http\JsonResponse;
  * de l'agence active au même téléphone normalisé ou au même e-mail replié, cinq au plus, réduites
  * à `{id, name, stage}`. Une fiche que l'appelant ne lit pas se signale sans rien livrer (tout à
  * `null`), comme dans le 409 de `CustomerController::store`. Ni pièce, ni coordonnée, ni adresse.
+ *
+ * TCK-2590 — un numéro sénégalais entamé de sept chiffres ou plus se compare par préfixe
+ * ({@see CustomerDuplicateDetector::probe()}) ; la création garde l'égalité stricte.
  */
 class CustomerDuplicateProbeController extends Controller
 {
@@ -19,7 +22,7 @@ class CustomerDuplicateProbeController extends Controller
     {
         $user = $request->user();
 
-        $matches = $duplicates->find(
+        $matches = $duplicates->probe(
             $user->staffAgencyId(),
             $request->validated('phone'),
             $request->validated('email'),

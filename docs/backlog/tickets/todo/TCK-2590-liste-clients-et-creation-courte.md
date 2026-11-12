@@ -78,4 +78,73 @@ L'agent rappelle un client depuis la liste sans ouvrir sa fiche, voit d'un coup 
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**2026-11-12 — lots A (liste) et B (création) ; une seule ligne d'API, la sonde de doublons (Q1).**
+
+- **Liste** : `ListeDesClients` (client) remplace `CustomerList`, la page reste serveur et lit en
+  parallèle la liste, les étiquettes et un compte par vue (`per_page=1` → `meta.total` :
+  `fetchCustomerCount`, aucune route de comptes). L'état vit dans l'URL (`lib/crm/liste-des-clients.ts`) :
+  `?vue=a-relancer|mes-clients|negociation|sans-referent` (absente : « Tous »), `per_page` 10/20/50,
+  `sort`. Tri par défaut : `-follow_up_days` sous « À relancer », `next_action_at` pour le personnel,
+  `-created_at` pour le bailleur, aucun sous une recherche (TCK-702). « Sans référent » n'est qu'aux
+  administrateurs. Choisir une étape quitte « Négociation » ; tout filtre ramène en page 1.
+- **Gestes** : Appeler et WhatsApp sur chaque ligne (téléphone d'abord quand la fiche a les deux) ;
+  le personnel enregistre le geste (`POST /customers/{id}/contacts {channel}`), jamais le bailleur
+  (`CustomerPolicy::update`). La mutation vit dans la liste : un geste que l'API n'a pas noté le
+  dit au-dessus de la liste (« Le contact n'a pas été noté… », P228.06), sans retenir l'appel. « Planifier » ouvre `PlanifierDialog` prérempli du client.
+- **Création** : `CreationDuClient` (panneau droit, deux temps sous `xl`, un seul panneau dès `xl`),
+  servie en place depuis la liste et par `/app/customers/new`. Sonde `GET /customers/duplicates`
+  temporisée à 400 ms, partie dès 7 chiffres nationaux ou sur un e-mail complet (la route est
+  limitée à 20/min).
+  409 à l'envoi → « Créer quand même » (`allow_duplicate`, lié au contact saisi). « Compléter plus
+  tard » crée la fiche sans sa recherche. Rien du formulaire d'avant ne se perd (16 types sous
+  « Plus », profession, langue, étape, pièce, villes, budget minimum sous « Plus de champs » dès `xl`) ;
+  sous `xl`, comme la maquette téléphone, le second temps n'a pas « Plus de champs » : une ligne
+  renvoie ces champs à « Modifier » de la fiche, qui les porte tous (`CustomerForm`).
+- **Décisions tranchées (team-lead, 2026-11-12)** :
+  - *Q1 a)* — AC3 tient tel qu'écrit : la sonde compare un **préfixe** sénégalais dès 7 chiffres
+    nationaux (`CustomerDuplicateDetector::probe`, `LIKE '+221<chiffres>%'`), même agence, même
+    limiteur, cinq fiches au plus ; la création (`find`, 409) reste à l'égalité. Seule ligne d'API du
+    ticket : `CustomerDuplicateDetector.php`, `CustomerDuplicateProbeController.php` et cinq tests
+    dans `CustomerDuplicateProbeTest.php` (6 chiffres → rien, autre agence exclue, 5 au plus et
+    masqués, la création ignore le préfixe, et les jokers `%` et `_` de l'appelant n'élargissent rien : une
+    saisie hors de l'alphabet d'un numéro fait renoncer au préfixe, et le motif `LIKE` n'est bâti que
+    de `+221` et de sept ou huit chiffres).
+  - *Q2 a)* — la page lit les capacités du profil actif **dans le même `Promise.all`** que la liste,
+    les étiquettes et les comptes ; un test épingle le lancement parallèle.
+  - *Q7 a)* — « Me désigner » (`POST /customers/{id}/primary-contact {user_id}`) n'est offert qu'au
+    porteur de `crm.assign`, jamais au bailleur ; le 403 est déjà éprouvé
+    (`PrimaryContactScopeTest::test_without_crm_assign_it_is_a_403`). Sans action prévue ni
+    référent, la cellule « Prochaine » dit « Sans référent » au personnel.
+  - *Q8 b)* — rendu serveur gardé ; relevés sur la démo, écritures bloquées dans la page ; les écarts
+    de contenu sont des « données », les cas absents de la démo (liste vide, a-5) sont éprouvés en
+    test de composant avec les personnes de la maquette.
+  - Libellé du menu « Clients (CRM) » → « Clients » (fr et en ; wo inchangé), tests de la barre
+    latérale suivis.
+- **Vues de l'administrateur** : À relancer · Mes clients · Sans référent · Tous (maquette bureau) ;
+  l'agent garde « Négociation ». Cela remplace la décision 4 du plan.
+- **Écarts restants** : pas de tri sur Étape ni Référent (l'API rend 400 sur `pipeline_stage` et
+  `referent`) ; « Relances prévues cette semaine » non servi (aucune donnée) ; pagination au lieu
+  de « Voir plus » ; pas de suggestions de quartier ; pas de référent dans l'alerte de doublon. Le
+  détail est au tableau « écarts acceptés » de `docs/qa/audit-ux-2026-11/fidelite/TCK-2590.json`.
+- **Fidélité** (fiche `docs/qa/audit-ux-2026-11/fidelite/TCK-2590.json`, relevés du 2026-11-12 sur la
+  démo, `--roles` de la fiche) — conformes · écarts · absents · pixels :
+  a-0 téléphone 42 · 19 · 14 · 14,99 % ; a-0 1440 47 · 229 · 72 · 7,6 % ; a-0 1280 48 · 228 · 72 ·
+  8,15 % ; a-3 téléphone 20 · 7 · 53 · 1,4 % ; a-3 1440 / 1280 50 · 265 · 75 · 72,12 % / 68,65 % ;
+  a-4 téléphone 8 · 22 · 57 · 5,8 % ; a-4 1440 / 1280 49 · 261 · 89 · 70,09 % / 66,37 %. Zones de
+  a-0 : titre 0 %, en-tête « Client · Cherche » 0,11 %, barre de tri 0 %. Le gros des écarts de
+  bureau : la coque (TCK-2617 à 2619), les données de la démo, et en a-3/a-4 le voile que le
+  produit n'a pas (décision du porteur du 2026-11-10, `PanneauDroit`). a-5 (liste vide) éprouvé en
+  test de composant. Aucun débord de 360 à 1440 (24 balayages, agent et admin, « Tous » et
+  « À relancer »). Les deux requêtes refusées par la garde des relevés à chaque chargement sont
+  `getNotificationsAction` (lecture de la cloche de la coque, POST par nature). Les gestes repliés des
+  rangées ont été mesurés au navigateur : largeur 0 et hors d'atteinte au repos, 88 px au focus
+  sans déplacer la colonne Référent.
+- **Ablations** (une à la fois, restaurées) : tri et filtre d'« À relancer », enregistrement du
+  geste, sonde sur numéro incomplet, `allow_duplicate`, « Compléter plus tard », création au
+  bailleur, étape qui quitte « Négociation » — chacune rougit au moins un test.
+  Après les décisions : « Me désigner » sans `crm.assign`, capacités jamais lues, lectures en série,
+  case « Me désigner » jamais rendue, sonde au numéro complet seulement, seuil à 6 chiffres (front) ;
+  côté API, `LIKE` retiré, seuil à 6, filtre d'agence retiré, limite de 5 retirée, `find()` au lieu
+  de `probe()` dans le contrôleur ; l'élision de « Créer la fiche d’Astou » retirée, « Plus de champs » rendu au second temps du téléphone, l'échec du geste jamais affiché ; côté API,
+  les jokers `%`/`_` nettoyés en chiffres — chacune rougit au moins un test (relevé :
+  `ablation-2590/resultats.txt`, scratchpad du lot 2).

@@ -41,6 +41,30 @@ const HORS_BUILD_QUERY: Record<string, string> = {
   radar_observatory: 'Admin\\RadarObservatoryController::market (TCK-2393) : les SECTIONS du marché, lues par RadarObservatoryRequest — aucune table `radar_observatory`',
 };
 
+/**
+ * TCK-2590 — attributs CALCULÉS qu'un modèle accepte dans `fields[<table>]` hors de `$queryFields` :
+ * son `buildQuery()` les retire de la requête avant spatie, et la ressource les rend. Les noms sont
+ * lus dans la constante `FIELDS` du fichier de l'API, jamais recopiés ; la garde vérifie que
+ * `buildQuery()` passe encore la requête par `strip()`. Ils ne valent que là où ce modèle est la
+ * racine de la requête : demandés par un `include=` d'un autre modèle, spatie les refuserait.
+ */
+const ATTRIBUTS_CALCULES: Record<string, { readonly source: string; readonly modele: string; readonly appel: RegExp }> = {
+  customers: {
+    source: 'Services/Crm/CustomerCommercialAttributes.php',
+    modele: 'Models/Customer.php',
+    // Un APPEL sur la requête, pas la mention `{@see …::strip()}` du docblock.
+    appel: /=\s*CustomerCommercialAttributes::strip\(\$request\b/,
+  },
+};
+
+function attributsCalcules(table: string): string[] {
+  const entree = ATTRIBUTS_CALCULES[table];
+  if (!entree) return [];
+  const php = readFileSync(join(RACINE, 'takussan-api', 'app', entree.source), 'utf8');
+  const bloc = /public const FIELDS = \[([^\]]*)\];/.exec(php);
+  return bloc ? [...bloc[1].matchAll(/'([a-z0-9_]+)'/g)].map((m) => m[1]) : [];
+}
+
 /** Sites d'appel dont l'endpoint ignore `fields` alors que le modèle de la table l'ouvrirait. */
 const SITES_HORS_BUILD_QUERY: Record<string, string> = {
   'lib/queries/super-admin.ts#agencies': 'Admin\\AgencyModerationController::index, liste écrite à la main',
@@ -196,7 +220,11 @@ describe('fields[…] du front face aux $queryFields de l’API (TCK-1184)', () 
         fautes.push(`${site} : fields[${table}] vise une table sans $queryFields`);
         continue;
       }
-      const refusees = colonnes.filter((c) => !permises.has(c.replace(/^[a-z_]+\./, '')));
+      const calcules = attributsCalcules(table);
+      const refusees = colonnes.filter((c) => {
+        const nom = c.replace(/^[a-z_]+\./, '');
+        return !permises.has(nom) && !calcules.includes(nom);
+      });
       if (refusees.length) fautes.push(`${site} : fields[${table}] refusées → ${refusees.join(', ')}`);
     }
     expect(fautes).toEqual([]);
@@ -215,6 +243,14 @@ describe('fields[…] du front face aux $queryFields de l’API (TCK-1184)', () 
       ),
     ].filter((site) => !/fields[^\n]*(inerte|non lus?\b)|inerte[^\n]*fields/i.test(readFileSync(join(SRC, site), 'utf8')));
     expect(muets).toEqual([]);
+  });
+
+  it('chaque attribut calculé admis est encore retiré avant spatie par le modèle de sa table', () => {
+    for (const [table, { modele, appel }] of Object.entries(ATTRIBUTS_CALCULES)) {
+      expect(attributsCalcules(table).length, `${table} : la constante FIELDS n’est plus lue`).toBeGreaterThan(0);
+      const php = readFileSync(join(RACINE, 'takussan-api', 'app', modele), 'utf8');
+      expect(appel.test(php), `${modele} n’appelle plus ${appel.source}`).toBe(true);
+    }
   });
 
   it('chaque exception nomme encore une demande réelle', () => {

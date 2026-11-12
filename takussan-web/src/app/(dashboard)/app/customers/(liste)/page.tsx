@@ -1,20 +1,13 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
-import { buttonVariants } from '@/components/ui/button';
-import { KanbanSquare, UserPlus } from 'lucide-react';
+import { getTranslations } from 'next-intl/server';
 
 import { getMeAction } from '@/app/actions/auth';
-import { getToken } from '@/lib/session';
+import { ListeDesClients } from '@/components/customer-dashboard/liste/ListeDesClients';
+import { capacitesDuProfilActif } from '@/lib/access/pages-admin-server';
+import { filtresDeLaVue, lireLaListe, vuesDuLecteur, type VueDesClients } from '@/lib/crm/liste-des-clients';
+import { fetchCrmTags, fetchCustomerCount, fetchDashboardCustomers } from '@/lib/queries/customers';
 import { isAdmin, isAgent } from '@/lib/roles';
-import {
-  fetchCrmTags,
-  fetchDashboardCustomers,
-} from '@/lib/queries/customers';
-import { CustomerList } from '@/components/customer-dashboard/CustomerList';
-import { CustomerListFilters } from '@/components/customer-dashboard/CustomerListFilters';
-import { PropertyPagination } from '@/components/property-dashboard/PropertyPagination';
-import { getTranslations } from 'next-intl/server';
-import { PageHeader } from '@/components/console';
+import { getToken } from '@/lib/session';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.pages.customers');
@@ -24,26 +17,22 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * TCK-042 — dashboard agent CRM, liste des clients.
  * TCK-093 — tags filter support.
+ * TCK-2590 — vues « À relancer · Mes clients · Négociation · Tous » (et « Sans référent » pour
+ * l'admin), tri par colonne, `per_page` réellement transmis, lignes de contact : la lecture de l'URL
+ * est dans `lib/crm/liste-des-clients`, le rendu dans `ListeDesClients`.
  */
 
 export const dynamic = 'force-dynamic';
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
-function asString(value: string | string[] | undefined): string | undefined {
-  if (Array.isArray(value)) return value[0];
-  return value;
-}
-
 export default async function Page({
   searchParams,
 }: {
   searchParams: SearchParams;
 }) {
-  const t = await getTranslations('dashboard.pages.customers');
   // TCK-426 — la garde de rôle est REMONTÉE dans le `layout.tsx` de ce segment : ici, sous le
   // `loading.tsx`, son `redirect()` rendait 200 + le squelette de la route interdite.
-
   const params = await searchParams;
   const token = await getToken();
   // TCK-426 — NARROWING DE TYPE, PAS UNE DÉCISION. Le `layout.tsx` de ce segment a déjà refusé
@@ -54,67 +43,45 @@ export default async function Page({
   // page rend 200 + le squelette au lieu du 307.*
   if (!token) return null;
 
-  const page = Number.parseInt(asString(params.page) ?? '1', 10) || 1;
-  const filters = {
-    status: asString(params.status),
-    pipeline_stage: asString(params.pipeline_stage),
-    search: asString(params.search),
-    tags: asString(params.tags),
-  };
-
   // TCK-591 §9 — créer un client et travailler le pipeline sont des gestes du PERSONNEL : l'API
   // refuse `POST /customers` à un bailleur (`CustomerPolicy::create`), l'écran ne le propose plus.
   // Ses fiches existantes restent lisibles. `getMeAction` est mémoïsé : le layout l'a déjà appelé.
-  const { roles } = await getMeAction();
-  const staff = isAgent(roles) || isAdmin(roles);
+  const { id: moi, roles } = await getMeAction();
+  const admin = isAdmin(roles);
+  const personnel = isAgent(roles) || admin;
+  const lecteur = { personnel, admin };
+  const etat = lireLaListe(params, lecteur);
+  const vues = vuesDuLecteur(lecteur);
 
-  const [response, crmTags] = await Promise.all([
-    fetchDashboardCustomers(token, { page, perPage: 20, filters }),
+  // TCK-2590 — les comptes des vues : une lecture `per_page=1` par vue, en parallèle de la liste
+  // (aucune route de comptes). Globaux : ni la recherche ni les filtres ne les changent. Les
+  // capacités partent avec elles : « Me désigner » n'est offert qu'à qui porte `crm.assign`
+  // (`SetPrimaryContactCustomerRequest`, 403 sinon) — jamais au bailleur, qu'on ne lit pas.
+  // Toutes les lectures partent ENSEMBLE, aucune n'attend une autre (épinglé par le test).
+  const [response, crmTags, capacites, ...comptes] = await Promise.all([
+    fetchDashboardCustomers(token, { page: etat.page, perPage: etat.parPage, sort: etat.tri, filters: etat.filtres }),
     fetchCrmTags(token).catch(() => []),
+    personnel ? capacitesDuProfilActif() : Promise.resolve([] as readonly string[]),
+    ...vues.map((v) => fetchCustomerCount(token, filtresDeLaVue(v))),
   ]);
+  // Une lecture des capacités en panne (`null`) n'offre rien : l'API trancherait de toute façon.
+  const designer = personnel && (capacites ?? []).includes('crm.assign') ? { moi } : null;
+  const comptesDesVues: Partial<Record<VueDesClients, number | null>> = Object.fromEntries(vues.map((v, i) => [v, comptes[i] ?? null]));
+
+  const filtre = etat.vue !== 'tous' || Boolean(etat.filtres.search || etat.filtres.status || etat.filtres.pipeline_stage || etat.filtres.tags);
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title={t('title')}
-        description={t('subtitle')}
-        actions={staff ? (
-          <>
-            {/*
-              TCK-379 — `/app/crm/pipeline` n'avait AUCUN lien entrant : le kanban existait, avec
-              ses tests, et n'était atteignable que par saisie d'URL. Il est desservi depuis ICI
-              parce que le pipeline est une VUE du CRM, pas une section parallèle.
-
-              Aucune condition de rôle n'est ajoutée, et ce n'est pas un oubli : `customers/
-              layout.tsx` appelle `assertCanReachAgentArea` AU-DESSUS de cette page, et son
-              ensemble autorisé (agent | owner | admin) est EXACTEMENT l'allowlist du garde de
-              `/app/crm/pipeline` — désormais dans `crm/pipeline/layout.tsx` (TCK-426, les deux
-              gardes ont remonté d'un cran ensemble). Quiconque lit ce lien peut déjà ouvrir sa
-              cible ; le lien n'autorise rien de plus, et la cible garde son propre refus
-              serveur — `assertCanReachAgentArea`, et non un `forbidden()` : TCK-378 a retiré
-              l'appel de cette page-là précisément, parce que sans `experimental.authInterrupts`
-              il rendait un écran de panne au lieu d'un refus.
-            */}
-            <Link
-              href="/app/crm/pipeline"
-              className={buttonVariants({ variant: 'outline', size: 'lg' })}
-            >
-              <KanbanSquare className="size-4" aria-hidden="true" />
-              {t('pipelineView')}
-            </Link>
-            <Link href="/app/customers/new" className={buttonVariants({ size: 'lg' })}>
-              <UserPlus className="size-4" aria-hidden="true" />
-              {t('add')}
-            </Link>
-          </>
-        ) : undefined}
-      />
-
-      <CustomerListFilters crmTags={crmTags} />
-
-      <CustomerList page={response} canAdd={staff} />
-
-      <PropertyPagination meta={response.meta} />
-    </div>
+    <ListeDesClients
+      page={response}
+      vue={etat.vue}
+      tri={etat.tri}
+      vues={vues}
+      comptes={comptesDesVues}
+      personnel={personnel}
+      admin={admin}
+      designer={designer}
+      crmTags={crmTags}
+      filtre={filtre}
+    />
   );
 }

@@ -117,6 +117,11 @@ function toDefaults(customer?: CustomerDetail): CustomerFormValues {
   };
 }
 
+/** TCK-2590 — les valeurs d'une fiche vierge, partagées avec la création en deux temps (`creation/`). */
+export function valeursDeCreation(): CustomerFormValues {
+  return toDefaults();
+}
+
 export function CustomerForm({
   mode,
   customer,
