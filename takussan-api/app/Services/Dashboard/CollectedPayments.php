@@ -72,12 +72,13 @@ final class CollectedPayments
      * la refuse), et le reste dû, le résumé financier, la balance âgée et le tri du registre des
      * encaissements tombaient en 500. Écart résiduel assumé : un tableau JSON non vide vaut 1 en PHP,
      * 0 ici. La regex n'a ni `?` ni antislash : le fragment passe dans des `selectRaw` à paramètres
-     * positionnels. Écrit pour `lease_payments` ; les autres tables passent par
+     * positionnels ; l'exposant saute ses zéros de tête (`"1e0001"` → 10, que le modèle accepte)
+     * avant ses trois chiffres au plus. Écrit pour `lease_payments` ; les autres tables passent par
      * {@see self::paidAmountMetaSql()}. La parité est épinglée par `PaidAmountTolerantReadTest`.
      */
     private const PAID_AMOUNT_META_SQL = "(CASE WHEN lease_payments.metadata->'paid_amount' = 'true'::jsonb THEN 1"
         ." ELSE COALESCE(substring(lease_payments.metadata->>'paid_amount'"
-        ." from '^[[:space:]]*([+-]{0,1}([0-9]+([.][0-9]*){0,1}|[.][0-9]+)([eE][+-]{0,1}[0-9]{1,3}){0,1})')::numeric, 0) END)";
+        ." from '^[[:space:]]*([+-]{0,1}([0-9]+([.][0-9]*){0,1}|[.][0-9]+)([eE][+-]{0,1}0*[0-9]{1,3}){0,1})')::numeric, 0) END)";
 
     /** {@see self::PAID_AMOUNT_META_SQL} pour une table de paiements (`lease_payments`, `booking_payments`). */
     public static function paidAmountMetaSql(string $table): string

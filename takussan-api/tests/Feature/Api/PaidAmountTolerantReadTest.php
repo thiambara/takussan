@@ -38,7 +38,7 @@ class PaidAmountTolerantReadTest extends ApiTestCase
 
     /** Valeurs JSON brutes de `metadata.paid_amount` ; témoins acceptés par le modèle, puis corrompues. */
     private const VALEURS = [
-        '1500', '12.75', '"1e3"', '" 12"', '"+5"', '".5"', '"250.50"',
+        '1500', '12.75', '"1e3"', '" 12"', '"+5"', '".5"', '"250.50"', '"1e0001"', '"5e0002"', '"1e-0002"',
         '"abc"', '""', '"1 000"', '"350,5"', 'true', 'false', 'null', '"5."', '"1e"', '"-2.5e-1z"', '"+-3"', '"0x1A"',
     ];
 
