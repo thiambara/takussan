@@ -1,13 +1,13 @@
 ---
 id: TCK-2743
 title: "Les autres dates-heures reçues avec un décalage sont converties avant l'écriture : visites, tâches, paiements, liens, délégations"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: M
 wave: 86
 created: 2026-11-11
-updated: 2026-11-11
+updated: 2026-11-12
 depends_on: [TCK-2700]
 blocks: []
 spec_refs:
@@ -120,26 +120,26 @@ période par `FinInclusive::de()`, la tranche de visite publique (`->utc()`).
 
 ## Delta à produire
 
-- [ ] Décision du porteur (a, b ou c) ; si (b), ADR avant tout code.
-- [ ] (a) Le helper partagé dans `app/Support`, `MaintenanceRequest::scheduledInstant()` qui l'emploie (sans changer
+- [x] Décision du porteur (a, b ou c) ; si (b), ADR avant tout code.
+- [x] (a) Le helper partagé dans `app/Support`, `MaintenanceRequest::scheduledInstant()` qui l'emploie (sans changer
       son comportement : `MaintenanceScheduleOffsetTest` et `MaintenanceSchedulingHorizonTest` verts).
-- [ ] Les écritures du tableau, par priorité ; un test par colonne : `…T11:00:00+01:00` → `10:00` UTC relu, sans
+- [x] Les écritures du tableau, par priorité ; un test par colonne : `…T11:00:00+01:00` → `10:00` UTC relu, sans
       décalage → inchangé.
-- [ ] Visites : test qui prouve que `CreneauDeVisite` et l'écriture lisent le même instant, et qu'un même instant en
+- [x] Visites : test qui prouve que `CreneauDeVisite` et l'écriture lisent le même instant, et qu'un même instant en
       `+01:00` puis en `Z` n'annonce pas de déplacement.
-- [ ] La garde de balayage (règle `date` × cast `datetime` → accesseur de conversion exigé), avec la liste des
+- [x] La garde de balayage (règle `date` × cast `datetime` → accesseur de conversion exigé), avec la liste des
       exceptions motivées.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `POST /api/property-visits {scheduled_at: "…T10:00:00+01:00"}` (9 h à Dakar, sur la grille) : la visite est
+- [x] AC1 — `POST /api/property-visits {scheduled_at: "…T10:00:00+01:00"}` (9 h à Dakar, sur la grille) : la visite est
       stockée à 09:00 UTC, et la ressource rend `…T09:00:00+00:00`.
-- [ ] AC2 — Le `PATCH` d'une visite à 09:00 UTC avec `…T10:00:00+01:00` n'émet aucune annonce de déplacement.
-- [ ] AC3 — `PATCH /api/tasks/{id} {due_at: "…T11:00:00+01:00"}` : `due_at` relu à 10:00 UTC.
-- [ ] AC4 — `late_fee_paid_at` et `DocumentShareLink.expires_at` reçus avec décalage sont stockés à l'instant désigné ;
+- [x] AC2 — Le `PATCH` d'une visite à 09:00 UTC avec `…T10:00:00+01:00` n'émet aucune annonce de déplacement.
+- [x] AC3 — `PATCH /api/tasks/{id} {due_at: "…T11:00:00+01:00"}` : `due_at` relu à 10:00 UTC.
+- [x] AC4 — `late_fee_paid_at` et `DocumentShareLink.expires_at` reçus avec décalage sont stockés à l'instant désigné ;
       une valeur qui passe `before_or_equal:now` ne s'écrit jamais dans le futur.
-- [ ] AC5 — Chaque autre colonne du tableau a son test « avec décalage → instant, sans décalage → inchangé ».
-- [ ] AC6 — Ablation : retirer la conversion d'une écriture fait rougir son test ; retirer l'accesseur d'une FormRequest
+- [x] AC5 — Chaque autre colonne du tableau a son test « avec décalage → instant, sans décalage → inchangé ».
+- [x] AC6 — Ablation : retirer la conversion d'une écriture fait rougir son test ; retirer l'accesseur d'une FormRequest
       que la garde surveille fait rougir la garde.
 
 ## Hors périmètre
