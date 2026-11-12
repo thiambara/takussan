@@ -88,6 +88,27 @@ class OwnerProfileShowTest extends ApiTestCase
      * TCK-2641 — la fiche porte les identifiants sensibles MASQUÉS, jamais leur valeur (ADR-0044) :
      * la valeur ne sort que par `/sensitive`, journalisé. Un identifiant absent rend `null`.
      */
+    /**
+     * TCK-2641 (AC7) — « Suspendre l'accès » de la fiche : après `POST …/team/{user}/suspend`, la
+     * fiche relue (ce que la page serveur relit au `router.refresh()`) dit `blocked`, que le front
+     * nomme « Suspendu » ; « Réactiver » la rend `active`.
+     */
+    public function test_la_fiche_relue_apres_la_suspension_dit_blocked_puis_active(): void
+    {
+        $agency = $this->moneyAgency();
+        $landlord = $this->landlordOf($agency);
+        $profile = $this->profileOf($landlord, $agency);
+
+        $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+        $this->assertSame('active', $this->apiGet("/api/owners/{$profile->id}")->assertOk()->json('data.status'));
+
+        $this->postJson("/api/agencies/{$agency->id}/team/{$landlord->id}/suspend")->assertOk();
+        $this->assertSame('blocked', $this->apiGet("/api/owners/{$profile->id}")->assertOk()->json('data.status'));
+
+        $this->postJson("/api/agencies/{$agency->id}/team/{$landlord->id}/reactivate")->assertOk();
+        $this->assertSame('active', $this->apiGet("/api/owners/{$profile->id}")->assertOk()->json('data.status'));
+    }
+
     public function test_la_fiche_rend_les_identifiants_masques_jamais_la_valeur(): void
     {
         $agency = $this->moneyAgency();

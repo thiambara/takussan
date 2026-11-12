@@ -591,7 +591,12 @@ function useOccupant() {
  * « Ses biens (n) », chacun avec l'état de son mois (TCK-2637, la puce du mode Gestion) : une liste au
  * téléphone (le lieu et le locataire sous le titre), un tableau Bien · Locataire · Loyer · Ce mois au
  * bureau. Les six premiers, retards d'abord ; « Voir dans Biens » mène au portefeuille filtré.
+ * La liste n'en garde que trois, comme la maquette retenue du téléphone (ADR-0106) : une seule
+ * lecture (`per_page=6`) sert les deux, le tableau (dès `xl`) montre les six ; de 1024 à 1279 px,
+ * c'est la liste, et « Voir dans Biens » mène au reste.
  */
+const BIENS_DE_LA_LISTE = 3;
+
 function BiensDuBailleur({ owner, biens, className }: { readonly owner: OwnerProfileDetail; readonly biens: readonly PropertyListItem[]; readonly className?: string }) {
   const t = useTranslations('owners.fiche.biens');
   const aujourdhui = useMinuteCourante();
@@ -609,8 +614,10 @@ function BiensDuBailleur({ owner, biens, className }: { readonly owner: OwnerPro
         <p className="px-4 py-4 text-sm text-muted-foreground">{t('aucun')}</p>
       ) : (
         <>
-          <ul className="divide-y divide-border lg:hidden">
-            {biens.map((b) => (
+          {/* Le tableau dès `xl` seulement : de 1024 à 1279 px la carte mesure 418 px, et ses trois
+              colonnes fixes (180 + 108 + 130) y réduisaient « Bien » à 0 px (mesuré, fr et en). */}
+          <ul className="divide-y divide-border xl:hidden">
+            {biens.slice(0, BIENS_DE_LA_LISTE).map((b) => (
               <li key={b.id} className="relative flex min-h-14 items-center gap-3 px-4 py-2" data-slot="bien-du-bailleur">
                 <span className="min-w-0 flex-1 leading-snug">
                   <Link href={`/app/properties/${b.id}`} className={cn('block truncate font-medium text-foreground', lien)}>
@@ -622,7 +629,7 @@ function BiensDuBailleur({ owner, biens, className }: { readonly owner: OwnerPro
               </li>
             ))}
           </ul>
-          <table className="hidden w-full table-fixed border-collapse text-sm lg:table">
+          <table className="hidden w-full table-fixed border-collapse text-sm xl:table">
             <caption className="sr-only">{t('titre', { n: owner.properties_count })}</caption>
             <thead className="border-b border-border">
               <tr>

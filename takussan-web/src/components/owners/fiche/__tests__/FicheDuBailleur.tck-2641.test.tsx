@@ -194,6 +194,51 @@ describe('TCK-2641 — la fiche du bailleur', () => {
     expect(document.querySelector('[data-slot="acces-et-depart"]')).toBeNull();
   });
 
+  // Vérification de TCK-2641 (AC7) — le statut que la fiche affiche après la suspension est celui
+  // de la fiche relue par la page serveur (`router.refresh()`) : `blocked`, nommé « Suspendu »,
+  // avec « Réactiver ». L'API épingle la relecture (OwnerProfileShowTest, suspension).
+  it('après « Suspendre l’accès », la fiche relue dit « Suspendu » et offre « Réactiver »', async () => {
+    apiRequest.mockImplementation(async (chemin: string) => (chemin.endsWith('/suspend') ? { data: {} } : vide));
+    const user = userEvent.setup();
+    const { rerender } = monter();
+    expect(screen.getAllByText('Actif').length).toBeGreaterThan(0);
+    await user.click(screen.getByRole('button', { name: 'Suspendre l’accès' }));
+    await user.click(await screen.findByRole('button', { name: 'Suspendre' }));
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+    // Ce que `refresh` rend : la même page, la fiche relue.
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    rerender(withIntl(
+      <QueryClientProvider client={client}>
+        <FicheDuBailleur owner={owner({ status: 'blocked' })} period="2026-11" moisCourant="2026-11" biens={[]} agencyId={7} droits={tous} />
+      </QueryClientProvider>,
+    ));
+    expect(screen.getAllByText('Suspendu').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Actif')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Réactiver' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Suspendre l’accès' })).not.toBeInTheDocument();
+  });
+
+  // Vérification de TCK-2641 (AC6) — le reversement créé depuis la fiche apparaît dans « Derniers
+  // reversements » : `onCreated` invalide `['payouts']`, la liste du bailleur se relit, la page aussi.
+  it('le reversement créé apparaît dans « Derniers reversements »', async () => {
+    let cree = false;
+    apiRequest.mockImplementation(async (chemin: string) => (chemin.startsWith('/api/payouts') && cree
+      ? { ...vide, data: [{ id: 4, status: 'pending', period_start: '2026-11-01', processed_at: null, scheduled_at: null, created_at: '2026-11-12T10:00:00Z', net_amount: 3117369, currency: 'XOF' }] }
+      : vide));
+    const user = userEvent.setup();
+    monter();
+    await waitFor(() => expect(apiRequest.mock.calls.some(([c]) => String(c).startsWith('/api/payouts'))).toBe(true));
+    expect(document.querySelector('[data-slot="derniers-reversements"]')).toBeNull();
+    await user.click(screen.getAllByRole('button', { name: 'Créer le reversement' })[0] as HTMLElement);
+    cree = true;
+    (RECU.props?.onCreated as () => void)();
+    await waitFor(() => expect(document.querySelector('[data-slot="derniers-reversements"]')).not.toBeNull());
+    const liste = within(document.querySelector('[data-slot="derniers-reversements"]') as HTMLElement);
+    expect(liste.getByText('Reversement de novembre')).toBeInTheDocument();
+    expect(liste.getByText(montant('3 117 369'))).toBeInTheDocument();
+    expect(refresh).toHaveBeenCalled();
+  });
+
   it('« Appeler » et « WhatsApp » visent le numéro du compte', () => {
     monter();
     expect(screen.getByRole('link', { name: 'Appeler Mouhamed Sène' })).toHaveAttribute('href', 'tel:+221703757526');
@@ -223,6 +268,28 @@ describe('TCK-2641 — les biens, les reversements et « Message »', () => {
     expect(rangee.getByRole('link', { name: 'Villa 4 chambres · Almadies' })).toHaveAttribute('href', '/app/properties/41');
     expect(rangee.getByText('Fatou Sarr')).toBeInTheDocument();
     expect(carte.getByRole('link', { name: 'Voir dans Biens' })).toHaveAttribute('href', '/app/properties?mode=gestion&user_id=9');
+  });
+
+  // Vérification de TCK-2641 — la maquette retenue du téléphone dessine trois biens ; le bureau,
+  // six (une seule lecture, `per_page=6`).
+  it('la liste du téléphone garde trois biens, le tableau du bureau les six', () => {
+    const six = [41, 42, 43, 44, 45, 46].map((id) => ({ ...VILLA, id, title: `Bien ${id}` }) as PropertyListItem);
+    monter({ biens: six });
+    expect(document.querySelectorAll('[data-slot="bien-du-bailleur"]')).toHaveLength(3);
+    expect(screen.getByText('Bien 43')).toBeInTheDocument();
+    expect(document.querySelectorAll('[aria-labelledby="biens-du-bailleur"] tbody tr')).toHaveLength(6);
+  });
+
+  // Mesuré à 1024 et 1100 px (fr et en) : la carte des biens mesure 418 px, et les trois colonnes
+  // fixes du tableau y laissaient 0 px à « Bien ». Le tableau ne s'affiche donc que dès `xl` (1280 :
+  // « Bien » 137 px), la liste jusque-là.
+  it('le tableau des biens ne s’affiche que dès `xl`, la liste jusque-là', () => {
+    monter({ biens: [VILLA] });
+    const carte = document.querySelector('[aria-labelledby="biens-du-bailleur"]') as HTMLElement;
+    expect(carte.querySelector('table')).toHaveClass('hidden', 'xl:table');
+    expect(carte.querySelector('table')).not.toHaveClass('lg:table');
+    expect(carte.querySelector('ul')).toHaveClass('xl:hidden');
+    expect(carte.querySelector('ul')).not.toHaveClass('lg:hidden');
   });
 
   it('les derniers reversements au bailleur : sa période, son montant, son statut', async () => {

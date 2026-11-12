@@ -132,13 +132,6 @@
       "motif": "la maquette n'en dit pas le contenu ; les gestes de la fiche sont tous visibles (Appeler, WhatsApp, Message, relevé, reversement, accès)"
     },
     {
-      "ecran": "app-bailleurs a-1-telephone",
-      "element": "nombre de biens listés",
-      "propriete": "6 au lieu de 3",
-      "exception": "choix",
-      "motif": "une seule lecture sert le téléphone et le bureau (`per_page=6`, `sort=retard`) : le téléphone en montre six là où la maquette en dessine trois ; « Voir dans Biens » mène au portefeuille filtré. À trancher : couper à trois au téléphone"
-    },
-    {
       "ecran": "app-bailleurs a-1-*",
       "element": "gestes « Afficher » des identifiants",
       "propriete": "nom accessible",
@@ -193,11 +186,30 @@
       "propriete": "boîte 63 × 40 px (bureau) au lieu du libellé seul (49 × 18)",
       "exception": "accessibilité",
       "motif": "la zone de toucher du geste (`h-11 px-2`, 44 px au téléphone, WCAG 2.2 § 2.5.8) ; elle déborde de la ligne par des marges négatives : l'en-tête de la carte garde sa hauteur (43,2 px, 45,1 à la maquette par l'interligne du titre) et le libellé tombe sur la marge droite. Le geste est rendu depuis que les rôles système portent `owners.update` (`membership:reconcile-system-roles`, joué le 2026-11-12)"
+    },
+    {
+      "ecran": "app-bailleurs a-0-telephone",
+      "element": "coque · barre d'onglets du bas (zone déclarée par la coque)",
+      "propriete": "1,94 % de pixels différents (au-delà des 0,5 % d'AC-F4)",
+      "exception": "hors périmètre — la coque n'est pas du ticket",
+      "motif": "la maquette dessine l'onglet « Menu » actif (icône et libellé à la couleur primaire) ; le produit, sur /app/owners, n'allume aucun des cinq onglets : /app/owners n'est la destination d'aucun, et « Menu » ne s'allume que tiroir ouvert (`BarreDOnglets`, `menuOuvert`) — règle de la barre commune à tout /app (famille 3). Mesuré : rapport local .fidelite/TCK-2641/a-0-telephone, zone « coque · barre d'onglets » 1,94 %, « coque · en-tête » 0,12 % ; seul l'état actif diffère"
     }
   ],
   "hors_perimetre": [
     "les étiquettes « Propriétaires » du menu de la coque (famille 3)",
     "les écarts de la coque (barre latérale, en-tête), relevés par les rôles communs",
     "les rôles de la fiche ne sont pas bornés à un écran : un rôle de la liste sort « absent » sur la fiche, et réciproquement"
-  ]
+  ],
+  "decisions": [
+    {
+      "le": "2026-11-12",
+      "question": "six ou trois biens au téléphone sur la fiche du bailleur",
+      "decision": "trois, comme la maquette retenue (ADR-0106 : elle fait foi) ; une seule lecture (`per_page=6`) sert les deux, le tableau du bureau montre les six",
+      "preuve": "FicheDuBailleur.tck-2641 « la liste du téléphone garde trois biens, le tableau du bureau les six », rouge par ablation (biens.map sans coupe)"
+    }
+  ],
+  "mesures": {
+    "ac4": "2026-11-12 21:14, .fidelite/TCK-2641/v3-ac4-telephone (390 × 844, admin, base de démo) : la démo n'ayant aucune invitation de bailleur en attente, une invitation SIMULÉE est ajoutée dans la page à la réponse de GET /api/owners (scratchpad terrain-5/2641/fid/p-ac4.js ; tout envoi non-GET refusé, rien d'écrit). Carte « Khady Faye · invitation envoyée il y a 3 j » de 16 à 374 px ; « Renvoyer » 44 × 130 px et « Révoquer » 44 × 86 px, tous deux à l'écran ; débord du document 0 ; aucune cellule rognée",
+    "ac_f6": "2026-11-12 21:19, `fidelite balayer --largeurs 768,1024` sur /app/owners et /app/owners/1 : débord 0 et coupes 0 à 768 ; à 1024, /app/owners débord 0, coupes 0. Le balayage tourne SANS cookie de langue (anglais) : sur /app/owners/1 à 1024 il rogne « This month » (118 px) et « Vacant » (51 px) du tableau des biens ; relevé en français à 1024 (v3-coupes-1024, p-coupes.js) : débord 0, aucune coupe hors de la légende sr-only. Les ellipses à 768 sont celles du rail de 60 px de la coque (famille 3). CORRIGÉ le 2026-11-12 23:20 : la cause n'était pas l'anglais — de 1024 à 1279 px la carte des biens mesure 418 px et les trois colonnes fixes (180 + 108 + 130) y réduisaient « Bien » à 0 px, en français comme en anglais (mesuré à 1024 et 1100, coupes-en.mjs ; le détecteur de coupes ne voit pas une colonne vide, les ellipses masquant tout). Le tableau ne s'affiche plus que dès `xl` (1280 : « Bien » 137 px, coupes 0, en) ; de 1024 à 1279, la liste (trois biens et « Voir dans Biens »). Remesuré : 1024 fr et en, 1279 en → tableau masqué, débord 0, coupes 0"
+  }
 }
