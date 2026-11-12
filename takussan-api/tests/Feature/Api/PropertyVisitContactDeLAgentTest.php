@@ -188,4 +188,39 @@ class PropertyVisitContactDeLAgentTest extends ApiTestCase
 
         $this->assertAucunContact($this->visiteur, 'un agent qui a quitté l’agence');
     }
+
+    /** Reprise (B6) — le principal non vérifié, le second vérifié : c'est le second qui est servi, avec SON WhatsApp. */
+    public function test_le_second_numero_verifie_prend_le_relais_du_principal_non_verifie(): void
+    {
+        $this->agent->forceFill([
+            'phone_verified_at' => null,
+            'secondary_phone' => '+221781112233',
+            'secondary_phone_verified_at' => now()->subWeek(),
+            'secondary_phone_whatsapp' => false,
+        ])->save();
+
+        foreach ($this->lectures($this->visiteur) as [$corps, $agent]) {
+            $this->assertNotNull($agent);
+            $this->assertSame('+221781112233', $agent['phone']);
+            $this->assertFalse($agent['phone_whatsapp'], 'le WhatsApp est celui du numéro servi, pas celui du principal');
+            $this->assertStringNotContainsString(self::NUMERO, $corps, 'le principal non vérifié ne sort pas');
+        }
+    }
+
+    /** Reprise (B7) — `phone_whatsapp` se lit sur le numéro servi : un principal sans WhatsApp le dit. */
+    public function test_le_whatsapp_suit_le_numero_principal_servi(): void
+    {
+        $this->agent->forceFill([
+            'phone_whatsapp' => false,
+            'secondary_phone' => '+221781112233',
+            'secondary_phone_verified_at' => now()->subWeek(),
+            'secondary_phone_whatsapp' => true,
+        ])->save();
+
+        foreach ($this->lectures($this->visiteur) as [, $agent]) {
+            $this->assertNotNull($agent);
+            $this->assertSame(self::NUMERO, $agent['phone'], 'le principal vérifié passe avant le second');
+            $this->assertFalse($agent['phone_whatsapp']);
+        }
+    }
 }

@@ -20,11 +20,17 @@ export function avisOuvert(visite: Pick<PropertyVisit, 'status' | 'completed_at'
 /**
  * Les heures qu'il reste pour donner l'avis, arrondies à l'heure entamée (« encore 19 h ») ;
  * `null` quand la fenêtre est fermée ou n'a jamais été ouverte.
+ *
+ * La fenêtre court depuis `min(completed_at, maintenant)` : une clôture datée dans le FUTUR (horloge
+ * d'un poste, donnée de démo) compte comme une clôture à l'instant. La visite est terminée — son statut
+ * le dit, et l'API accepte l'avis (`diffInHours` signé, jamais au-delà de 24) — donc la carte reste
+ * offerte, mais elle ne promet jamais plus de 24 h (« encore 392 h » avant TCK-2587 lot C, reprise).
  */
 export function heuresRestantesPourLAvis(visite: Pick<PropertyVisit, 'status' | 'completed_at'>, maintenant: number = Date.now()): number | null {
   if (visite.status !== 'completed' || !visite.completed_at) return null;
-  const close = new Date(visite.completed_at).getTime();
-  if (Number.isNaN(close)) return null;
+  const clos = new Date(visite.completed_at).getTime();
+  if (Number.isNaN(clos)) return null;
+  const close = Math.min(clos, maintenant);
   const reste = close + FENETRE_D_AVIS_HEURES * HEURE_MS - maintenant;
   if (reste < 0) return null;
   return Math.max(1, Math.ceil(reste / HEURE_MS));

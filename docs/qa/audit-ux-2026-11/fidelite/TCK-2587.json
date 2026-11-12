@@ -425,7 +425,7 @@
       "element": "bloc de l'agent : nom accessible du geste WhatsApp",
       "propriete": "« Écrire sur WhatsApp » → « Écrire à Sokhna Sène sur WhatsApp »",
       "exception": "accessibilité",
-      "motif": "le geste nomme l'agent qu'il joint, comme « Appeler Sokhna Sène » à côté (même libellé que la maquette) : l'outil apparie par nom et le compte absent. Les deux gestes, « Agent · Dakar Immo » et leur place sont ceux de la maquette depuis que l'API sert le contact de l'agent au seul demandeur d'une visite confirmée à venir (décision a) du team-lead, confirmée par le porteur)"
+      "motif": "le geste nomme l'agent qu'il joint, comme « Appeler Sokhna Sène » à côté (même libellé que la maquette) : l'outil apparie par nom et le compte absent. Les deux gestes, « Agent · Dakar Immo » et leur place sont ceux de la maquette depuis que l'API sert le contact de l'agent au seul demandeur d'une visite confirmée à venir (décision a) du team-lead, confirmée par le porteur). ⚠ Sur la base de démo, ces gestes n'apparaissent pas : seul un numéro VÉRIFIÉ est servi (règle D10, `User::numeroPrincipalPublic()`, confirmée par le team-lead le 2026-11-12), et sur 21 agents, aucun n'a un numéro vérifié (relevé du 2026-11-12). Le relevé les montre sous bouchon, avec un numéro fictif vérifié"
     },
     {
       "ecran": "app-visites a-7-*",

@@ -49,7 +49,13 @@ class PropertyVisitResource extends BaseResource
             'duration_minutes' => $this->duration_minutes,
             'feedback' => $this->feedback,
             'rating' => $this->rating !== null ? (float) $this->rating : null,
-            'notes' => $this->notes,
+            // TCK-2587 (lot C, reprise) — `notes` a DEUX auteurs : le message d'une demande publique
+            // (le visiteur) et la note de planification du personnel (« Code du portail, étage,
+            // personne à demander… », `PlanifierUneVisite`). Rien ne dit qui a écrit une ligne : elle
+            // suit donc la règle des outils de la console, comme `metadata` — clé ABSENTE pour le
+            // visiteur, le client de la fiche et le bailleur d'un bien d'agence. Aucun écran du client
+            // ne la lit (« Mes visites », l'avis).
+            'notes' => $this->when($this->outilDeLaConsole($request), fn () => $this->notes),
             // Constat de TCK-2581 — la `metadata` porte l'avis de l'agence (`feedback_agent`, texte
             // libre), celui du visiteur et les marques des rappels : un outil de la console, servi
             // comme `visitor_display` ({@see outilDeLaConsole}). Clé ABSENTE pour le visiteur, le

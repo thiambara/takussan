@@ -92,4 +92,56 @@ L'agent sur le terrain voit d'abord ses visites du jour dans l'ordre, avec l'heu
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Décisions tranchées le 2026-11-11** (session, par délégation du porteur) :
+
+- **Filtre « Statut » omis** au bureau : sous un onglet qui borne déjà le statut, il se contredirait.
+- **Temps libre arrondi au quart d'heure suivant** la fin de la visite (« Libre de 11:30 », pas 11:27 — `tempsLibreEntre`).
+- **« Désélectionner » est un bouton** dans la barre de sélection, pour la cible tactile.
+- **Case d'en-tête indéterminée** quand une partie des lignes est cochée : le patron standard.
+- **« Toutes N » ouvre N** : la pastille du bureau compte `counts.all` (la portée entière, comme la maquette) et ouvre la vue des statuts sur l'onglet « Toutes », lu sans `filter[status]` ni borne de date (`?vue=status&tab=all`). « Par statut » au téléphone, sans compte, ouvre le défaut « Demandées ». Sous un filtre du bureau (agent, bien, période, recherche), « Toutes » n'affiche pas de compte : la vue des statuts ne lit pas ces filtres.
+- **Compteurs** : `later` (confirmées à partir de demain 00:00 à Dakar, borne incluse) et `all` (toute la portée de lecture) dans `GET /api/property-visits/counts`, même portée et même requête que les autres clés.
+
+**AC6 — persona client** (base de démo LOCALE seulement) : `client-deux-visites-ac6@example.net`, deux visites terminées (il y a ~3 h 30, et il y a neuf jours), aucune à venir. Créée par un script tinker idempotent du scratchpad (`persona-ac6-2587.php`, `--execute='require "…";'`), notifications, mails et files doublés, sans événements de modèle ; chaque exécution recale l'heure de la visite récente pour que l'avis reste « dans les 24 h ». Son jeton est dans `~/.takussan-demo/jetons.json` (`client_deux_visites_ac6`).
+
+**Lot C — « Mes visites » du client** :
+
+- **Tons de statut alignés sur les maquettes, partout** (validé par le team-lead) : confirmée en vert, terminée en neutre, annulée et manquée en rouge (`VISIT_STATUS_TONE`).
+- **Les passées gardent leur page** pendant que la suivante charge (`keepPreviousData`) : sans cela la vue repassait en squelette, et l'avis en cours de saisie avec elle.
+- **Joindre l'agent** (décision a) du team-lead, confirmée par le porteur : « agent avec WhatsApp », un contact professionnel) : `agent.phone`, `agent.phone_whatsapp` et `agent.agency_name` ne sortent que pour le demandeur (le visiteur, ou le compte de sa fiche), et seulement quand la visite est **confirmée et à venir**. Les clés sont absentes pour tout autre lecteur et tout autre état (`PropertyVisitResource::contactDeLAgent`, jugé sur `VisitReadContext`).
+  - **Il n'existe aucun numéro professionnel** : ni le profil agent ni l'adhésion n'en portent. Le numéro est celui du compte, sous la règle D10 (`User::numeroPrincipalPublic()`, puis le secondaire) : un numéro non vérifié n'est pas servi.
+  - **La règle D10 l'emporte** (team-lead, 2026-11-12) : elle vaut pour tout numéro servi à un tiers. **Sur la démo, le geste n'apparaît donc pas** : sur 21 agents, aucun n'a un numéro vérifié (relevé du 2026-11-12). Le test positif fabrique un agent dont le numéro est vérifié.
+  - Un agent qui n'est plus du personnel actif de l'agence n'est pas joint par là.
+  - Côté front : « Agent · <agence> », Appeler (`tel:`), WhatsApp (`wa.me`, seulement si le numéro est déclaré WhatsApp). Aucun geste sans numéro, aucun signalement de clic.
+
+**Reprises du lot B (vérification)** :
+
+- **L'épingle P152.04 retrouve ses dents** : le bailleur (`abilities.manage` faux) est aussi rendu au téléphone, où les gestes ne dépendent que de `canCancel`, `canComplete`, `canMarkNoShow` et `canReschedule`. Au bureau, le garde `personnel` de la fiche masquait tout.
+- **Les deux fichiers de la fiche tournent sous `TZ=Europe/Paris`** : à Dakar (UTC, la machine et la CI), une lecture en heure locale passait inaperçue.
+- **« Commencer » est grisé avant l'heure prévue moins 30 min**, avec « Possible à partir de HH:MM ». Cliqué à 14:00 pour 17:00, la fiche disait « l'heure de fin prévue est passée » dès 14:30. ⚠ À l'instant dessiné par la maquette (10:12 pour 10:57, « dans 45 min »), le geste est donc grisé : c'est un écart voulu.
+- **`/api/customers/{id}` et `/api/properties/{id}` restent lus sans `fields`** : un `show` rend la ressource entière et ignore `fields` (décision du porteur P60.03, ADR-0021, gardée par `show-sans-fields.garde.test.ts`).
+
+**Reprises du lot C (vérification)** :
+
+- **La fenêtre d'avis court depuis `min(completed_at, maintenant)`** (`lib/visites/fenetre-d-avis.ts`).
+  Une clôture datée dans le futur (horloge d'un poste, donnée de démo) compte comme une clôture à
+  l'instant : la carte reste offerte, et ne promet jamais plus de 24 h (« encore 392 h » avant). Ce
+  choix, plutôt que « rien avant `completed_at` », suit l'API : la visite est terminée (son statut le
+  dit) et `PropertyVisitController::feedback` accepte l'avis (`diffInHours` signé, jamais au-delà de 24).
+  ⚠ L'API, elle, laisse donc la fenêtre ouverte jusqu'à 24 h après une date future : à borner à part
+  si on le veut. Testé, contrôle de statut compris (ablation C2 désormais rouge).
+- **`notes` ne sort plus au client** : la colonne a deux auteurs — le message d'une demande publique et
+  la note de planification du personnel (« Code du portail, étage, personne à demander… ») — et rien ne
+  dit qui a écrit une ligne. Elle suit la règle des outils de la console, comme `metadata` : clé
+  absente pour le visiteur, le client de la fiche et le bailleur d'un bien d'agence ; lue par le
+  personnel et le propriétaire d'un bien sans agence (`VisitNotesPrivacyTest`, un test par rôle).
+  Aucun écran du client ne la lisait.
+- **Gardes ajoutées** : B6 (le second numéro vérifié prend le relais d'un principal non vérifié, avec
+  son propre WhatsApp) et B7 (`phone_whatsapp` lu sur le numéro servi) dans
+  `PropertyVisitContactDeLAgentTest` ; C5 — les colonnes de « Mes visites » (`VISIT_CLIENT_FIELDS`)
+  sont épinglées, et toute colonne de l'agence (`visitor_*`, `notes`, `metadata`, compte rendu…) y
+  fait rougir `visits.champs-du-client.tck-2587.test.ts`.
+
+**Observations à juger à part** :
+
+- Des visites `completed` datées du 27 nov. (dans le futur) dans la base de démo sont comptées par `to_close`.
+- Pour un client, `counts` rend `to_close` = 1 (sa visite terminée du jour) : le front ne lui montre pas « À clore », mais la clé n'est pas bornée au personnel côté API.
