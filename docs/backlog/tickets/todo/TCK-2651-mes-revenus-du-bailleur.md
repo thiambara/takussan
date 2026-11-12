@@ -7,8 +7,8 @@ family: front
 estimate: M
 wave: 88
 created: 2026-11-10
-updated: 2026-11-10
-depends_on: [TCK-2649, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
+updated: 2026-11-12
+depends_on: [TCK-2649, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691, TCK-2760]
 blocks: []
 spec_refs:
   features:
@@ -31,7 +31,8 @@ Il télécharge son relevé et son attestation annuelle.
 
 ## Contrat de données
 
-- `GET /api/owner-statements?period=` avec `remaining_to_pay`, `next_payout` et `properties[]` enrichi (TCK-2649). Exports `/pdf` et `/csv`, existants.
+- `GET /api/owner-statements?period=` avec `next_payout` et `properties[]` enrichi (TCK-2649), et **`balance.remaining_to_pay`**, le solde cumulé au jour (TCK-2760). Exports `/pdf` et `/csv`, existants.
+- **Le reste à verser est le solde cumulé**, décidé par le porteur le 2026-11-12 ([ADR-0100](../../../adr/0100-une-page-paiements-par-public.md), amendement du 2026-11-12) : tout le net dû moins tout le versé, arrêté au jour, quel que soit le mois choisi. `totals.remaining_to_pay` est l'écart **du mois** (net du mois moins versé du mois). Sur la démo, il vaut le net du mois moins le versement du mois précédent (1305 reversements sur 1305 versés le mois suivant) : ce n'est pas ce que l'agence doit au bailleur.
 - Le registre, les factures et les reversements : les endpoints existants de `PaymentsTabs`, inchangés.
 
 ## Direction UX / Artistique
@@ -40,8 +41,8 @@ Il télécharge son relevé et son attestation annuelle.
   - C'est une **référence de fidélité, non versionnée** : à lire et à ouvrir dans l'arbre de travail principal du porteur, cf. [README de l'audit, § Maquettes](../../../qa/audit-ux-2026-11/README.md#maquettes).
   - Écran « Bailleur — Mes revenus », au téléphone et au bureau.
 - **Titre** : **« Loyers »** (décidé par le porteur le 2026-11-10, [ADR-0100](../../../adr/0100-une-page-paiements-par-public.md) § 3), le même mot que l'onglet et l'entrée de menu (TCK-2618), avec le sélecteur « Novembre 2026 ▾ » en français. La maquette titre « Mes revenus » : ce n'est pas une référence de libellé. « Mes revenus » ne subsiste qu'en carte de tête (« Ce qui vous revient en novembre »).
-- **Carte de tête** : « Reste à vous verser », le montant, puis « Prochain versement prévu le … par … » quand un reversement est programmé.
-- **Ventilation** : Encaissé · Commission (taux) · Interventions · Déjà versé.
+- **Carte de tête** : « Reste à vous verser », le montant (le solde cumulé au jour, qui ne change pas avec le mois choisi), puis « Prochain versement prévu le … par … » quand un reversement est programmé.
+- **Ventilation** : Encaissé · Commission (taux) · Interventions · Déjà versé — **ceux du mois choisi**. Elle ne se soustrait pas en tête : « Reste à vous verser » n'est pas Net − Déjà versé du mois (ADR-0100, amendement du 2026-11-12, § 7).
 - **Documents** : « Relevé PDF », « Attestation annuelle », et le CSV, gardé.
 - **« Par bien »** : bien, locataire, loyer, état du mois (« Payé ✓ », « En retard de 6 j »).
 - **« Toutes les opérations › »** : le registre actuel, où le bien et le locataire sont nommés.
@@ -65,7 +66,7 @@ Il télécharge son relevé et son attestation annuelle.
 
 Autres contraintes :
 
-- **Le reste à verser est `remaining_to_pay`**, jamais une soustraction faite dans le front.
+- **Le reste à verser est `balance.remaining_to_pay`**, jamais `totals.remaining_to_pay` (l'écart du mois), jamais une soustraction faite dans le front. Aucun écran de ce ticket n'affiche `totals.remaining_to_pay` sous un libellé « Reste à verser ».
 - **Aucun identifiant technique visible** dans les quatre onglets :
   - pas de « #8 » pour un bailleur (`PayoutsTable.tsx:88`) ;
   - pas de « Bail #63 » ;
@@ -80,7 +81,7 @@ Autres contraintes :
 - [ ] Onglets « Revenus · Versements · Factures · Opérations ». Le registre sans identifiants techniques.
 - [ ] Sélecteur de mois localisé.
 - [ ] Tests :
-  - reste à verser lu sur l'API ;
+  - reste à verser lu sur `balance`, avec une réponse où `balance.remaining_to_pay` ≠ `totals.remaining_to_pay` ;
   - « Par bien » égal à `properties[]` ;
   - aucun « #n » ni « ID entité » rendu ;
   - mois localisé ;
@@ -88,7 +89,7 @@ Autres contraintes :
 
 ## Critères d'acceptation
 
-- [ ] AC1 — owner1, novembre : le montant de « Reste à vous verser » est exactement `totals.remaining_to_pay` de la réponse réseau.
+- [ ] AC1 — owner1, novembre : le montant de « Reste à vous verser » est exactement `balance.remaining_to_pay` de la réponse réseau, **et diffère** de `totals.remaining_to_pay` de la même réponse. Sur la démo, ils diffèrent puisque l'agence verse le mois suivant. Sinon, le test du front le prouve sur une réponse simulée où ils diffèrent. Choisir octobre ne change pas ce montant, alors que la ventilation change.
 - [ ] AC2 — « Par bien » rend une ligne par élément de `properties[]`, avec son titre et son locataire. Un bien en retard dit « En retard de N j ».
 - [ ] AC3 — Dans les quatre onglets, le DOM ne contient ni « ID entité » ni un motif `#\d+` pour désigner un bailleur, un bail ou une facture.
 - [ ] AC4 — Le sélecteur affiche « novembre 2026 » en `fr`, et le changer recharge le relevé avec `period=2026-11`. `grep 'type="month"'` ne rend rien dans les écrans touchés.
