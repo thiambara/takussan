@@ -99,10 +99,13 @@ export function MontantDuBien({
   property,
   periode = 'toujours',
   className,
+  classePeriode,
 }: {
   readonly property: PropertyListItem;
   readonly periode?: 'toujours' | 'si-autre';
   readonly className?: string;
+  /** TCK-2638 (lot B) — la carte Annonces écrit le prix en grand et sa période en petit (maquette a-1). */
+  readonly classePeriode?: string;
 }) {
   const t = useTranslations('property.dashboard.gestion.loyer');
   const tPeriodes = useTranslations('property.rentPeriodsShort');
@@ -115,7 +118,7 @@ export function MontantDuBien({
     <span className={cn('whitespace-nowrap font-semibold tabular-nums', className)}>
       {montant}
       {montrerPeriode ? (
-        <span className="font-normal text-muted-foreground"> / {tPeriodes(loyer.periode as string)}</span>
+        <span className={cn('font-normal text-muted-foreground', classePeriode)}> / {tPeriodes(loyer.periode as string)}</span>
       ) : null}
       {/* Sous « Loyer / mois », un prix de vente se dit tel ; la carte le dit déjà (« À vendre »). */}
       {loyer.periode === null && periode === 'si-autre' ? (

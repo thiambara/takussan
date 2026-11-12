@@ -935,7 +935,7 @@
       "under_maintenance": "En maintenance",
       "unavailable": "Indisponible",
       "archived": "Archivé",
-      "published": "Publié",
+      "published": "Validé",
       "pending_review": "En revue",
       "rejected": "Refusé"
     },
@@ -1589,7 +1589,9 @@
         "results": "{count, plural, =1 {# résultat} other {# résultats}}",
         "perPagePlaceholder": "20 / page",
         "previous": "Précédent",
-        "next": "Suivant"
+        "next": "Suivant",
+        "affiches": "{shown} biens sur {total}",
+        "suivants": "{count, plural, one {Afficher le suivant} other {Afficher les # suivants}}"
       },
       "media": {
         "photos": "Photos",
@@ -1598,17 +1600,8 @@
         "hint": "Glissez pour réorganiser — la première photo devient la couverture."
       },
       "list": {
-        "headers": {
-          "property": "Bien",
-          "price": "Prix",
-          "activity": "Activité",
-          "status": "Statut",
-          "actions": "Actions"
-        },
         "selectAll": "Sélectionner tous les biens",
         "selectOne": "Sélectionner {title}",
-        "viewsTitle": "Vues",
-        "favoritesTitle": "Favoris",
         "ownerPrefix": "Propriétaire :",
         "responsiblePrefix": "Agent responsable :",
         "responsibleNone": "aucun",
@@ -1623,7 +1616,6 @@
         "bulkError": "Action en lot impossible.",
         "bulkArchived": "Biens archivés.",
         "bulkUnpublished": "Biens dépubliés.",
-        "caption": "Liste des biens du tableau de bord",
         "reference": "Réf. {value}"
       },
       "filters": {
@@ -2006,6 +1998,32 @@
         "responsable": {
           "detail": "Agent responsable",
           "aucun": "Non désigné"
+        }
+      },
+      "annonces": {
+        "pastilles": {
+          "aria": "Filtrer par état d’annonce",
+          "toutes": "Toutes",
+          "enLigne": "En ligne",
+          "aValider": "À valider",
+          "brouillons": "Brouillons",
+          "horsLigne": "Hors ligne",
+          "vendusLoues": "Vendus, loués",
+          "archives": "Archivés"
+        },
+        "etat": {
+          "enLigne": "En ligne",
+          "aValider": "À valider",
+          "brouillon": "Brouillon",
+          "horsLigne": "Hors ligne"
+        },
+        "chiffres": "{vues, plural, one {# vue} other {# vues}} · {favoris, plural, one {# favori} other {# favoris}}",
+        "caption": "Annonces",
+        "sousTitre": "{total, plural, one {# bien au portefeuille} other {# biens au portefeuille}} · {online, plural, =0 {aucun en ligne} other {# en ligne}}",
+        "quota": {
+          "texte": "{used, plural, one {# annonce active} other {# annonces actives}} sur {limit}",
+          "aria": "Quota d’annonces de votre agence",
+          "definition": "Disponibles, validées ou en attente de validation"
         }
       }
     },
@@ -2545,10 +2563,6 @@
       "title": "Mes biens",
       "subtitle": "Gérez votre portefeuille immobilier : publication, statut, visibilité.",
       "publish": "Publier un bien",
-      "published": "Publiés",
-      "soldRented": "Vendus / Loués",
-      "archived": "Archivés",
-      "countersAria": "Compteurs de biens — filtrer la liste",
       "titleAgency": "Biens"
     },
     "profile": {

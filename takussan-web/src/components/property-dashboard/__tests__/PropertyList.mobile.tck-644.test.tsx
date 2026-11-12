@@ -7,6 +7,9 @@
  *  - La barre d'actions groupées se posait SOUS le bouton flottant « Messagerie » (les deux en
  *    `fixed` au même coin, z-40) : la croix « Tout désélectionner » tombait dessous. Elle prend
  *    désormais un créneau du FloatingDock, au-dessus du lanceur.
+ *
+ * TCK-2638 (lot B) — les cartes sont celles du mode Annonces (`CarteAnnonce`), au téléphone comme au
+ * bureau : le titre porte le quartier (« titre · quartier »), et la liste se nomme « Annonces ».
  */
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -74,10 +77,13 @@ const page = {
   links: { first: null, last: null, prev: null, next: null },
 } as PaginatedResponse<PropertyListItem>;
 
-/** La liste de cartes (celle de `lg:hidden`) — la table d'ordinateur est rendue aussi sous jsdom. */
+/** La liste des cartes du mode Annonces. */
 function cartes(): HTMLElement {
-  return screen.getByRole('list', { name: 'Liste des biens du tableau de bord' });
+  return screen.getByRole('list', { name: 'Annonces' });
 }
+
+/** Le lien de la carte : « titre · quartier ». */
+const LIEN_DU_TITRE = new RegExp(`^${TITRE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
 
 function ancetresJusquA(el: HTMLElement, borne: HTMLElement): HTMLElement[] {
   const chaine: HTMLElement[] = [];
@@ -89,7 +95,7 @@ describe('<PropertyList> — cartes sous lg (TCK-644)', () => {
   it('AC3 — le titre passe sur deux lignes, jamais tronqué sur une seule', () => {
     render(withIntl(<PropertyList page={page} />));
     const carte = within(cartes()).getByRole('listitem');
-    const titre = within(carte).getByRole('link', { name: TITRE });
+    const titre = within(carte).getByRole('link', { name: LIEN_DU_TITRE });
     expect(titre.className.split(/\s+/)).toContain('line-clamp-2');
     for (const n of ancetresJusquA(titre, carte)) {
       expect(n.className.split(/\s+/), n.outerHTML.slice(0, 120)).not.toContain('truncate');

@@ -7705,7 +7705,9 @@
         "results": "{count, plural, other {# njeexital}}",
         "perPagePlaceholder": "20 / xët",
         "previous": "Bi jiitu",
-        "next": "Bi ci topp"
+        "next": "Bi ci topp",
+        "affiches": "{shown} biens sur {total}",
+        "suivants": "{count, plural, one {Afficher le suivant} other {Afficher les # suivants}}"
       },
       "media": {
         "photos": "Nataal yi",
@@ -7714,17 +7716,8 @@
         "hint": "Wéccee ngir soppi toftal — njëkk nataal bi mooy bopp bi."
       },
       "list": {
-        "headers": {
-          "property": "Kër",
-          "price": "Njëg",
-          "activity": "Jëf yi",
-          "status": "Nekkin",
-          "actions": "Aksioŋ yi"
-        },
         "selectAll": "Tànn kër yépp",
         "selectOne": "Tànn {title}",
-        "viewsTitle": "Xool",
-        "favoritesTitle": "Cofeel",
         "ownerPrefix": "Boroom kër :",
         "responsiblePrefix": "Ajaŋ bi ko topp :",
         "responsibleNone": "kenn",
@@ -7739,7 +7732,6 @@
         "bulkError": "Aksioŋ bu booloo bi antuwul.",
         "bulkArchived": "Denc nañu kër yi.",
         "bulkUnpublished": "Dindi nañu leen ci génn gi.",
-        "caption": "Limu kër yi ci tablo bi",
         "reference": "Nomboro {value}"
       },
       "filters": {
@@ -8122,6 +8114,32 @@
         "responsable": {
           "detail": "Agent responsable",
           "aucun": "Non désigné"
+        }
+      },
+      "annonces": {
+        "pastilles": {
+          "aria": "Filtrer par état d’annonce",
+          "toutes": "Toutes",
+          "enLigne": "En ligne",
+          "aValider": "À valider",
+          "brouillons": "Brouillons",
+          "horsLigne": "Hors ligne",
+          "vendusLoues": "Vendus, loués",
+          "archives": "Archivés"
+        },
+        "etat": {
+          "enLigne": "En ligne",
+          "aValider": "À valider",
+          "brouillon": "Brouillon",
+          "horsLigne": "Hors ligne"
+        },
+        "chiffres": "{vues, plural, one {# vue} other {# vues}} · {favoris, plural, one {# favori} other {# favoris}}",
+        "caption": "Annonces",
+        "sousTitre": "{total, plural, one {# bien au portefeuille} other {# biens au portefeuille}} · {online, plural, =0 {aucun en ligne} other {# en ligne}}",
+        "quota": {
+          "texte": "{used, plural, one {# annonce active} other {# annonces actives}} sur {limit}",
+          "aria": "Quota d’annonces de votre agence",
+          "definition": "Disponibles, validées ou en attente de validation"
         }
       }
     },
@@ -13983,10 +14001,6 @@
       "title": "Samay kër",
       "subtitle": "Topptoo sa portfey kër : génne, nekkin, wone.",
       "publish": "Génne benn kër",
-      "published": "Yu ñu génne",
-      "soldRented": "Yu ñu jaay / luwaa",
-      "archived": "Yu ñu denc",
-      "countersAria": "Limu kër yi — tànnal ci lim bi",
       "titleAgency": "Biens"
     },
     "profile": {

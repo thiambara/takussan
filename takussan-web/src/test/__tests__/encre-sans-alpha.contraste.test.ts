@@ -202,7 +202,6 @@ const RESTANTS: Readonly<Record<string, number>> = {
   'components/leases/LeasesList.tsx': 1,
   'components/legal/TexteJuridique.tsx': 1,
   'components/messages/MessagesPage.tsx': 1,
-  'components/property-dashboard/PropertyList.tsx': 1,
   'components/property/cards/CardMeta.tsx': 1,
   'components/ui/calendar.tsx': 2, // jours désactivés (`disabled`), exemptés par §1.4.3
   'components/ui/tabs.tsx': 2,

@@ -69,7 +69,8 @@ describe('<FeuilleDuFil> (TCK-2632, téléphone)', () => {
     const bien = within(feuille).getByTestId('feuille-du-fil-bien');
     expect(bien).toHaveAttribute('href', '/properties/maison-avec-jardin');
     expect(bien).toHaveTextContent(/68\s000\s000/);
-    expect(bien).toHaveTextContent('Publié');
+    // TCK-2638 — le statut `published` se dit « Validé » (ADR-0097 § 4, décision du porteur du 2026-11-10).
+    expect(bien).toHaveTextContent('Validé');
     expect(bien).toHaveTextContent('TK-48213');
     const fiche = within(feuille).getByRole('link', { name: /Fiche du client/ });
     expect(fiche).toHaveAttribute('href', '/app/customers/31');

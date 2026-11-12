@@ -50,7 +50,8 @@ describe('<ColonneDeContexte> (TCK-2632)', () => {
     render(withIntl(<ColonneDeContexte conversationId={7} ouverte onOuvrir={() => {}} />));
     const bien = screen.getByTestId('contexte-bien');
     expect(bien).toHaveTextContent(/68\s000\s000/);
-    expect(within(bien).getByText('Publié')).toBeInTheDocument();
+    // TCK-2638 — le statut `published` se dit « Validé » (ADR-0097 § 4, décision du porteur du 2026-11-10).
+    expect(within(bien).getByText('Validé')).toBeInTheDocument();
     expect(within(bien).getByRole('link', { name: 'Maison avec jardin · Thiès' })).toHaveAttribute('href', '/properties/maison-avec-jardin');
     expect(bien).toHaveTextContent('TK-THS-001');
   });

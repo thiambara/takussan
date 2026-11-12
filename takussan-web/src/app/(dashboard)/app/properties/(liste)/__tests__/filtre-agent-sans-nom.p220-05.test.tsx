@@ -36,13 +36,16 @@ vi.mock('@/components/property-dashboard/PropertyListFilters', () => ({
   },
 }));
 vi.mock('@/components/property-dashboard/PropertyPagination', () => ({ PropertyPagination: () => null }));
-// TCK-2638 — ces comptes sont ceux du mode Annonces : l'appareil s'en souvient (le mode Gestion,
-// par défaut, prend ses comptes dans `portfolio-summary` — cf. `gestion.tck-2638.test.tsx`).
+// TCK-2638 — le mode Annonces ; les comptes viennent du résumé (`portfolio-summary`).
 vi.mock('@/lib/biens/mode-memorise', () => ({ modeMemoriseDesBiens: async () => 'annonces' }));
 vi.mock('@/components/property-dashboard/ModesDeLaListe', () => ({
   SelecteurDeMode: () => null,
   PastillesGestion: () => null,
   TuilesGestion: () => null,
+  PastillesAnnonces: () => null,
+  OngletsAnnonces: () => null,
+  JaugeDuQuota: () => null,
+  AfficherLesSuivants: () => null,
 }));
 vi.mock('@/components/contact/AvertissementNumeroNonVerifie', () => ({ AvertissementNumeroNonVerifie: () => null }));
 
@@ -51,7 +54,11 @@ import Page from '../page';
 beforeEach(() => {
   apiRequest.mockReset();
   filtres.mockReset();
-  apiRequest.mockResolvedValue({ data: [], meta: { current_page: 1, last_page: 1, per_page: 20, total: 0 } });
+  apiRequest.mockImplementation(async (chemin: string) =>
+    String(chemin).startsWith('/api/properties/portfolio-summary')
+      ? { data: { total: 0, occupied: 0, vacant: 0, online: 0 } }
+      : { data: [], meta: { current_page: 1, last_page: 1, per_page: 20, total: 0 } },
+  );
 });
 
 describe('/app/properties — filtre d’agent pour un compte sans nom (P220.05)', () => {

@@ -1,25 +1,14 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useMemo, useState, useSyncExternalStore, useTransition } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
-import {
-  Archive,
-  EyeOff,
-  Heart,
-  Home,
-  Loader2,
-  Eye as EyeIcon,
-  X,
-} from 'lucide-react';
+import { Archive, Home, Loader2, X } from 'lucide-react';
 
 import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
 import { useFloatingDockSlot } from '@/components/floating-dock';
 import { EmptyState } from '@/components/feedback';
-import { PropertyStatusBadge } from '@/components/property-dashboard/PropertyStatusBadge';
-import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Select,
@@ -28,21 +17,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { Locale } from '@/i18n/config';
-import { formatCurrency } from '@/lib/format';
-import { useFormatteurs } from '@/lib/format/useFormatteurs';
+import { parametresSansFiltre } from '@/lib/biens/mode-de-liste';
 import { cn } from '@/lib/utils';
 import type { PaginatedResponse } from '@/types/api';
 import type { PropertyListItem } from '@/types/property';
-import {
-  PROPERTY_ENUM_NAMESPACES,
-  enumLabel,
-} from '@/components/property-form/options';
-import {
-  contractTypeValues,
-  propertyTypeValues,
-  propertyVisibilityValues,
-} from '@/lib/enums/property';
 import {
   bulkArchivePropertiesAction,
   bulkAssignPropertiesAction,
@@ -50,6 +28,7 @@ import {
 } from '@/app/actions/dashboard-properties';
 import type { BulkResult } from '@/types/agent-crm';
 
+import { CarteAnnonce } from './CarteAnnonce';
 import {
   CarteGestion,
   CelluleAgent,
@@ -60,14 +39,13 @@ import {
   lieuDuBien,
 } from './GestionDuBien';
 import { PropertyRowActions } from './PropertyRowActions';
-import { ProprietaireEtResponsable } from './ProprietaireEtResponsable';
 import { useGestesDuBien } from './useGestesDuBien';
 
 /**
- * Dashboard property list — 6-column desktop table + compact mobile cards.
- * Server-rendered for instant first paint; row actions and bulk operations
- * live in client islands. Bulk actions surface in a sticky bottom toolbar
- * once at least one row is selected.
+ * La liste des biens du tableau de bord, en deux présentations (TCK-2638) : `gestion` (carte compacte au
+ * téléphone, tableau Bien · Bailleur · Locataire · Loyer · Ce mois · Agent au bureau) et `annonces`
+ * (cartes à grande photo, une colonne au téléphone, deux dès `lg`, trois dès `xl`). La sélection, les
+ * actions groupées (barre collée en bas) et les deux états vides sont les mêmes dans les deux.
  */
 
 interface PropertyListProps {
@@ -76,14 +54,12 @@ interface PropertyListProps {
   readonly agentOptions?: readonly { id: number; name: string }[];
   /**
    * TCK-2638 — `gestion` : l'occupation, le loyer et l'état du mois (carte compacte, tableau
-   * Bien · Bailleur · Locataire · Loyer · Ce mois · Agent). `annonces` (défaut) : la liste d'avant.
-   * La sélection, les actions groupées et les états vides sont les mêmes dans les deux.
+   * Bien · Bailleur · Locataire · Loyer · Ce mois · Agent). `annonces` (défaut) : les cartes à grande
+   * photo du mode Annonces (lot B), « En ligne » lu sur `is_online`.
    */
   readonly presentation?: 'gestion' | 'annonces';
 }
 
-/** Les paramètres d'URL qui ne filtrent pas la liste : ils ne font pas d'un portefeuille vide un « filtre sans résultat ». */
-const PARAMS_SANS_FILTRE = new Set(['page', 'sort', 'per_page', 'mode']);
 
 export function PropertyList({
   page,
@@ -93,11 +69,9 @@ export function PropertyList({
 }: PropertyListProps) {
   const t = useTranslations('property.dashboard.list');
   const tGestion = useTranslations('property.dashboard.gestion');
+  const tAnnonces = useTranslations('property.dashboard.annonces');
   // L'état du mois compte des jours : une seule date pour toute la liste, prise au premier rendu.
   const [aujourdhui] = useState(() => new Date());
-  const tType = useTranslations(PROPERTY_ENUM_NAMESPACES.type);
-  const tContract = useTranslations(PROPERTY_ENUM_NAMESPACES.contractType);
-  const tPeriodes = useTranslations('property.rentPeriodsShort');
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: properties } = page;
@@ -113,10 +87,10 @@ export function PropertyList({
     [properties],
   );
 
-  const hasActiveFilters = useMemo(
-    () => Array.from(searchParams.keys()).some((k) => !PARAMS_SANS_FILTRE.has(k)),
-    [searchParams],
-  );
+  // Les paramètres qui ne filtrent pas — ni ceux de l'AUTRE mode, gardés pour le retour (TCK-2638) — ne
+  // font pas d'un portefeuille vide un « filtre sans résultat ».
+  const sansFiltre = parametresSansFiltre(presentation);
+  const hasActiveFilters = Array.from(searchParams.keys()).some((k) => !sansFiltre.has(k));
 
   if (!properties || properties.length === 0) {
     const vide = hasActiveFilters ? (
@@ -127,8 +101,8 @@ export function PropertyList({
     ) : (
       <PortfolioEmpty />
     );
-    // TCK-2638 — en Gestion, la page est pleine largeur au téléphone : l'état vide pose sa marge.
-    return presentation === 'gestion' ? <div className="px-4 md:px-0">{vide}</div> : vide;
+    // TCK-2638 — la page est pleine largeur au téléphone, dans les deux modes : l'état vide pose sa marge.
+    return <div className="px-4 md:px-0">{vide}</div>;
   }
 
   const allVisibleSelected =
@@ -191,64 +165,31 @@ export function PropertyList({
   const selectedCount = selectedIds.length;
 
   /**
-   * Les six colonnes, dans l'ORDRE EXACT de la table faite main qu'elles remplacent
-   * (sélection · bien · prix · activité · statut · actions), éprouvé par test.
-   *
-   * La colonne de sélection garde son en-tête à la case à cocher « tout sélectionner » : c'est
-   * un CONTRÔLE, pas un libellé, donc ni `headerSrOnly` ni titre inventé.
+   * La colonne de sélection garde son en-tête à la case à cocher « tout sélectionner » : c'est un
+   * CONTRÔLE, pas un libellé, donc ni `headerSrOnly` ni titre inventé.
    */
-  const colonnes: readonly DataTableColumn<PropertyListItem>[] = [
-    {
-      id: 'select',
-      header: (
-        <input
-          type="checkbox"
-          aria-label={t('selectAll')}
-          checked={allVisibleSelected}
-          onChange={toggleAll}
-          className="size-4 rounded border-border"
-        />
-      ),
-      className: 'w-10',
-      cell: (property) => (
-        <input
-          type="checkbox"
-          aria-label={t('selectOne', { title: property.title })}
-          checked={selectedIds.includes(property.id)}
-          onChange={() => toggleOne(property.id)}
-          className="size-4 rounded border-border"
-        />
-      ),
-    },
-    {
-      id: 'property',
-      header: t('headers.property'),
-      cell: (property) => <BienCell property={property} currentUserId={currentUserId} />,
-    },
-    { id: 'price', header: t('headers.price'), cell: (property) => <PriceCell property={property} /> },
-    {
-      id: 'activity',
-      header: t('headers.activity'),
-      cell: (property) => <ActivityCell property={property} />,
-    },
-    {
-      id: 'status',
-      header: t('headers.status'),
-      cell: (property) => (
-        <StatusStack status={property.status} visibility={property.visibility} />
-      ),
-    },
-    {
-      id: 'actions',
-      header: t('headers.actions'),
-      align: 'end',
-      cell: (property) => (
-        <div className="flex items-center justify-end">
-          <PropertyRowActions property={property} />
-        </div>
-      ),
-    },
-  ];
+  const colonneSelection: DataTableColumn<PropertyListItem> = {
+    id: 'select',
+    header: (
+      <input
+        type="checkbox"
+        aria-label={t('selectAll')}
+        checked={allVisibleSelected}
+        onChange={toggleAll}
+        className="size-4 rounded border-border"
+      />
+    ),
+    className: 'w-10 align-middle',
+    cell: (property) => (
+      <input
+        type="checkbox"
+        aria-label={t('selectOne', { title: property.title })}
+        checked={selectedIds.includes(property.id)}
+        onChange={() => toggleOne(property.id)}
+        className="size-4 rounded border-border"
+      />
+    ),
+  };
 
   // Le bilan reste lisible quand le lot a tout traité et que la sélection s'est vidée.
   const barreGroupee =
@@ -284,7 +225,7 @@ export function PropertyList({
    * (la colonne « Bien » prend le reste et tronque) : à 1280, le « ⋯ » tient entier (AC6).
    */
   const colonnesGestion: readonly DataTableColumn<PropertyListItem>[] = [
-    { ...colonnes[0], className: 'w-10 align-middle' },
+    colonneSelection,
     {
       id: 'property',
       header: tGestion('colonnes.bien'),
@@ -384,354 +325,38 @@ export function PropertyList({
     );
   }
 
+  /**
+   * TCK-2638 (lot B) — les cartes du mode Annonces (maquette a-1) : une colonne au téléphone, deux dès
+   * `lg`, trois dès `xl`. `minmax(0, 1fr)` (`grid-cols-1`) borne la piste à la largeur disponible : la
+   * piste implicite d'une grille se dimensionne au contenu maximal (TCK-644, carte élargie à 498 px).
+   * « Tout sélectionner » reste au bureau, au-dessus de la grille.
+   */
   return (
     <div className="space-y-4">
-      {/* Table du bureau — 6 colonnes, dès `lg` seulement : à `md` la barre latérale laisse
-          ~464 px, où la table défilait de côté avec des prix cassés sur deux lignes (TCK-505).
-          En dessous de `lg`, la liste reste des CARTES. */}
-      <DataTable
-        className="hidden lg:block"
-        caption={t('caption')}
-        columns={colonnes}
-        rows={properties}
-        rowKey={(property) => property.id}
-        rowProps={(property) => ({
-          className: cn(
-            'align-middle transition-colors hover:bg-muted/30',
-            selectedIds.includes(property.id) && 'bg-primary/5',
-          ),
-        })}
-        stickyHeader
-      />
-
-      {/* Cartes sous `lg` — TCK-644 : la carte ENTIÈRE ouvre le bien (le lien du titre s'étend
-          sur elle par `after:inset-0`) ; la case et les actions passent au-dessus (`z-10`). Le
-          titre tient sur deux lignes (AC3) et la référence a sa propre ligne, entière : toutes
-          deux étaient coupées par `truncate` à 390 px. */}
-      <ul aria-label={t('caption')} className="grid grid-cols-1 gap-3 lg:hidden">
-        {properties.map((property) => {
-          const isSelected = selectedIds.includes(property.id);
-          return (
-            <li
-              key={property.id}
-              className={cn(
-                'relative rounded-2xl bg-card p-3 shadow-[0_1px_3px_color-mix(in_srgb,var(--shadow-color)_6%,transparent)] ring-1 ring-inset ring-border/70 transition-shadow',
-                isSelected && 'ring-2 ring-primary/50',
-              )}
-            >
-              <div className="flex gap-3">
-                <div className="relative shrink-0">
-                  <PropertyThumbnail property={property} size={88} />
-                  <label className="absolute -left-1.5 -top-1.5 z-10 grid size-11 cursor-pointer place-items-center rounded-full">
-                    <input
-                      type="checkbox"
-                      aria-label={t('selectOne', { title: property.title })}
-                      checked={isSelected}
-                      onChange={() => toggleOne(property.id)}
-                      className="size-5 cursor-pointer rounded-md border-card bg-card/90 accent-primary shadow-sm"
-                    />
-                  </label>
-                </div>
-                <div className="flex min-w-0 flex-1 flex-col">
-                  <Link
-                    href={`/app/properties/${property.id}`}
-                    className="line-clamp-2 text-base font-semibold leading-snug text-pretty text-foreground outline-none after:absolute after:inset-0 after:rounded-2xl after:content-[''] hover:text-primary focus-visible:after:ring-3 focus-visible:after:ring-ring"
-                  >
-                    {property.title}
-                  </Link>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {enumLabel(tType, propertyTypeValues, property.type)}
-                    {property.location?.city ? ` · ${property.location.city}` : ''}
-                  </p>
-                  <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2">
-                    <span className="whitespace-nowrap text-base font-semibold text-foreground tabular-nums">
-                      {typeof property.price === 'number'
-                        ? formatCurrency(property.price, 'fr', {
-                            currency: property.currency ?? 'XOF',
-                          })
-                        : '—'}
-                      {property.contract_type === 'rent' &&
-                      property.rent_period ? (
-                        <span className="ml-0.5 text-xs font-medium text-muted-foreground">
-                          /{tPeriodes(property.rent_period)}
-                        </span>
-                      ) : null}
-                    </span>
-                    {property.contract_type ? (
-                      <span className="text-xs text-muted-foreground">
-                        {enumLabel(tContract, contractTypeValues, property.contract_type)}
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                    <PropertyStatusBadge status={property.status} />
-                    <VisibilityBadge visibility={property.visibility} />
-                  </div>
-                  <ProprietaireEtResponsable property={property} currentUserId={currentUserId} />
-                </div>
-              </div>
-              {/* Pied de carte : la référence et l'activité à gauche, les actions à droite —
-                  dans le flux (en absolu, « Modifier » recouvrait le titre à 360-390 px). */}
-              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/70 pt-2">
-                <div className="min-w-0 flex-1 text-xs text-muted-foreground tabular-nums">
-                  {property.reference_number ? (
-                    <p className="font-medium text-foreground/80">
-                      {t('reference', { value: property.reference_number })}
-                    </p>
-                  ) : null}
-                  <p>
-                    <RelativeDate value={property.created_at} /> ·{' '}
-                    <span className="inline-flex items-center gap-1" title={t('viewsTitle')}>
-                      <EyeIcon className="size-3" aria-hidden="true" />
-                      {property.views_count ?? 0}
-                    </span>{' '}
-                    ·{' '}
-                    <span className="inline-flex items-center gap-1" title={t('favoritesTitle')}>
-                      <Heart className="size-3" aria-hidden="true" />
-                      {property.favorites_count ?? 0}
-                    </span>
-                  </p>
-                </div>
-                <div className="relative z-10 ml-auto">
-                  <PropertyRowActions property={property} layout="card" />
-                </div>
-              </div>
-            </li>
-          );
-        })}
+      <label className="hidden items-center gap-2 text-sm text-muted-foreground lg:flex">
+        <input
+          type="checkbox"
+          aria-label={t('selectAll')}
+          checked={allVisibleSelected}
+          onChange={toggleAll}
+          className="size-4 rounded border-border"
+        />
+        {t('selectAll')}
+      </label>
+      <ul aria-label={tAnnonces('caption')} className="grid grid-cols-1 gap-3 px-4 md:px-0 lg:grid-cols-2 lg:gap-5 xl:grid-cols-3">
+        {properties.map((property) => (
+          <CarteAnnonce
+            key={property.id}
+            property={property}
+            currentUserId={currentUserId}
+            selectionne={selectedIds.includes(property.id)}
+            onBasculer={() => toggleOne(property.id)}
+            libelleCase={t('selectOne', { title: property.title })}
+          />
+        ))}
       </ul>
-
       {barreGroupee}
     </div>
-  );
-}
-
-function BienCell({
-  property,
-  currentUserId,
-}: {
-  readonly property: PropertyListItem;
-  readonly currentUserId?: number;
-}) {
-  const tType = useTranslations(PROPERTY_ENUM_NAMESPACES.type);
-  return (
-    <div className="flex items-center gap-3">
-      <PropertyThumbnail property={property} />
-      <div className="min-w-0">
-        <Link
-          href={`/app/properties/${property.id}`}
-          className="block truncate text-sm font-semibold text-foreground hover:text-primary"
-        >
-          {property.title}
-        </Link>
-        <p className="truncate text-xs text-muted-foreground">
-          {enumLabel(tType, propertyTypeValues, property.type)}
-          {property.location?.city ? ` · ${property.location.city}` : ''}
-          {property.reference_number ? ` · ${property.reference_number}` : ''}
-        </p>
-        <ProprietaireEtResponsable property={property} currentUserId={currentUserId} />
-      </div>
-    </div>
-  );
-}
-
-function PriceCell({ property }: { readonly property: PropertyListItem }) {
-  const tContract = useTranslations(PROPERTY_ENUM_NAMESPACES.contractType);
-  const tPeriodes = useTranslations('property.rentPeriodsShort');
-  const isRent = property.contract_type === 'rent';
-  return (
-    <div className="space-y-0.5">
-      <div className="whitespace-nowrap text-base font-semibold text-foreground tabular-nums">
-        {typeof property.price === 'number'
-          ? formatCurrency(property.price, 'fr', {
-              currency: property.currency ?? 'XOF',
-            })
-          : '—'}
-        {isRent && property.rent_period ? (
-          <span className="ml-0.5 text-xs font-medium text-muted-foreground">
-            /{tPeriodes(property.rent_period)}
-          </span>
-        ) : null}
-      </div>
-      {property.contract_type ? (
-        <div className="text-xs text-muted-foreground">
-          {enumLabel(tContract, contractTypeValues, property.contract_type)}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function ActivityCell({ property }: { readonly property: PropertyListItem }) {
-  const t = useTranslations('property.dashboard.list');
-  return (
-    <div className="space-y-0.5 text-xs text-muted-foreground tabular-nums">
-      <div className="whitespace-nowrap text-foreground">
-        <RelativeDate value={property.created_at} />
-      </div>
-      <div className="flex items-center gap-3">
-        <span className="inline-flex items-center gap-1" title={t('viewsTitle')}>
-          <EyeIcon className="size-3" aria-hidden="true" />
-          {property.views_count ?? 0}
-        </span>
-        <span className="inline-flex items-center gap-1" title={t('favoritesTitle')}>
-          <Heart className="size-3" aria-hidden="true" />
-          {property.favorites_count ?? 0}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function StatusStack({
-  status,
-  visibility,
-}: {
-  readonly status: string | null;
-  readonly visibility: string | null;
-}) {
-  return (
-    <div className="flex flex-col items-start gap-1">
-      <PropertyStatusBadge status={status} />
-      <VisibilityBadge visibility={visibility} />
-    </div>
-  );
-}
-
-function PropertyThumbnail({
-  property,
-  size = 56,
-}: {
-  readonly property: PropertyListItem;
-  readonly size?: number;
-}) {
-  const dim = `${size}px`;
-  if (property.main_photo_url) {
-    return (
-      <span
-        className="relative block shrink-0 overflow-hidden rounded-lg bg-muted"
-        style={{ width: dim, height: dim }}
-      >
-        <Image
-          src={property.main_photo_url}
-          alt=""
-          fill
-          sizes={dim}
-          className="object-cover"
-        />
-      </span>
-    );
-  }
-  return (
-    <span
-      aria-hidden="true"
-      className="block shrink-0 rounded-lg bg-muted"
-      style={{ width: dim, height: dim }}
-    />
-  );
-}
-
-function RelativeDate({ value }: { readonly value: string }) {
-  // Two-stage render avoids hydration mismatch: SSR + first client render show
-  // the absolute date, then the relative form is computed after mount where
-  // reading the current clock is safe.
-  //
-  // P06.05 / TCK-721 — l'absolu et le relatif suivent la langue de l'app ; ils étaient figés en
-  // `'fr-SN'` et `'fr'`. L'absolu se lit désormais à Dakar (le défaut de `@/lib/format`), et non
-  // plus dans le fuseau de la machine : serveur et client rendent la même chaîne.
-  const fmt = useFormatteurs();
-  const date = useMemo(() => new Date(value), [value]);
-  const absolute = fmt.date(date, { day: '2-digit', month: 'short', year: 'numeric' });
-  // TCK-316 — `useSyncExternalStore` est la primitive prévue par React pour
-  // « cette valeur diffère entre le serveur et le client » : instantané serveur
-  // `null` (on peint l'absolu), instantané client calculé après hydratation.
-  // Elle remplace le couple `useState` + `useEffect` sans dérogation à la règle,
-  // et surtout sans le rendu en cascade que celui-ci provoquait pour CHAQUE
-  // ligne de la liste.
-  //
-  // ⚠️ L'instantané est mémoïsé par `date` : `formatRelative` lit l'horloge, et
-  // un `getSnapshot` qui rend une chaîne différente à chaque appel ferait
-  // re-rendre React en boucle. Mémoïsé, il reproduit exactement l'ancien
-  // comportement — recalculé quand `date` change, et seulement alors.
-  const getRelative = useMemo(() => {
-    let cached: string | null = null;
-    return (): string => (cached ??= formatRelative(date, fmt.locale));
-  }, [date, fmt.locale]);
-  const relative = useSyncExternalStore(subscribeToNothing, getRelative, () => null);
-
-  return (
-    <time dateTime={date.toISOString()} title={absolute}>
-      {relative ?? absolute}
-    </time>
-  );
-}
-
-/**
- * Abonnement inerte pour `useSyncExternalStore` : la valeur relative ne change
- * pas d'elle-même après le montage (elle est recalculée quand `date` change,
- * comme avant). Déclaré au module et NON en ligne : une fonction recréée à
- * chaque rendu ferait se réabonner React à chaque rendu.
- */
-function subscribeToNothing(): () => void {
-  return () => {};
-}
-
-/**
- * ⚠ `wo` retombe sur `fr`, délibérément, comme `useDateRelative` (cartes de bien) : Chrome ne
- * sert pas `Intl.RelativeTimeFormat` en wolof (`supportedLocalesOf(['wo'])` → `[]`), Node si.
- */
-function formatRelative(date: Date, locale: Locale): string {
-  const diffSec = Math.round((date.getTime() - Date.now()) / 1000);
-  const absSec = Math.abs(diffSec);
-  const rtf = new Intl.RelativeTimeFormat(locale === 'en' ? 'en' : 'fr', { numeric: 'auto' });
-  if (absSec < 60) return rtf.format(diffSec, 'second');
-  if (absSec < 3600) return rtf.format(Math.round(diffSec / 60), 'minute');
-  if (absSec < 86400) return rtf.format(Math.round(diffSec / 3600), 'hour');
-  if (absSec < 86400 * 30) return rtf.format(Math.round(diffSec / 86400), 'day');
-  if (absSec < 86400 * 365) return rtf.format(Math.round(diffSec / (86400 * 30)), 'month');
-  return rtf.format(Math.round(diffSec / (86400 * 365)), 'year');
-}
-
-/*
- * ⚠ **Le `StatusBadge` LOCAL de ce fichier a été supprimé le 2026-08-30** (TCK-472), et le trou
- * qu'il laisse est intentionnellement bruyant : il n'y a plus rien ici qui décide la couleur d'un
- * statut de bien. Ce composant s'appelait `StatusBadge` sans être celui de `console/` — dans un
- * fichier qui définit son propre `StatusBadge`, `<StatusBadge …>` résout vers le local, et ni le
- * typage ni le lint ne le signalent. Il coloriait `sold` en `bg-success/15` là où la console était
- * passée à `/10`, parce qu'il ne lisait pas la table.
- *
- * La table `statut → ton` vit désormais dans `PropertyStatusBadge.tsx`, seule, pour la liste comme
- * pour la fiche. `scripts/check-status-badge-unique.mjs` refuse qu'un homonyme reparaisse.
- *
- * ⚠ **Un écart de comportement, assumé** : l'ancien badge faisait `status ?? 'available'` et
- * peignait donc « Disponible » sur un bien dont l'API ne servait PAS le statut. `PropertyStatusBadge`
- * ne rend rien dans ce cas. Une pastille absente est une donnée absente ; une pastille verte est
- * une affirmation.
- */
-
-function VisibilityBadge({ visibility }: { visibility: string | null }) {
-  const tVisibility = useTranslations(PROPERTY_ENUM_NAMESPACES.visibility);
-  const key = visibility ?? 'private';
-  const label = propertyVisibilityValues.includes(key as never)
-    ? tVisibility(key)
-    : (visibility ?? '—');
-  const isPublic = visibility === 'public';
-  return (
-    <Badge
-      className={cn(
-        'gap-1 border-transparent text-xs',
-        isPublic
-          ? 'bg-primary/10 text-primary'
-          : 'bg-muted text-muted-foreground',
-      )}
-    >
-      {isPublic ? (
-        <EyeIcon aria-hidden="true" className="size-3" />
-      ) : (
-        <EyeOff aria-hidden="true" className="size-3" />
-      )}
-      {label}
-    </Badge>
   );
 }
 

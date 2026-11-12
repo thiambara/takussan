@@ -99,12 +99,14 @@ export interface DashboardPropertyFilters {
   readonly rent_late?: string;
   /** TCK-2637 — le nom ou le téléphone du locataire du bail courant. */
   readonly tenant?: string;
+  /** TCK-2638 (lot B) — `online`, `pending`, `draft` ou `offline` : la pastille du mode Annonces. */
+  readonly listing?: string;
 }
 
 /**
- * TCK-2638 — les blocs que le mode Gestion ajoute à la ligne : l'occupation (`occupancy`, TCK-2637)
- * et « En ligne » (`online` → `is_online`, ADR-0097). Hors de ce mode, ni l'un ni l'autre : le
- * calcul de l'occupation lit les baux de la page.
+ * TCK-2638 — les blocs que les modes ajoutent à la ligne : l'occupation (`occupancy`, TCK-2637, mode
+ * Gestion seulement : son calcul lit les baux de la page) et « En ligne » (`online` → `is_online`,
+ * ADR-0097), que lisent les deux modes.
  */
 export type InclusionDeGestion = 'occupancy' | 'online';
 
@@ -139,6 +141,7 @@ function buildListParams({
   if (filters?.occupancy) filter.occupancy = filters.occupancy;
   if (filters?.rent_late) filter.rent_late = filters.rent_late;
   if (filters?.tenant) filter.tenant = filters.tenant;
+  if (filters?.listing) filter.listing = filters.listing;
 
   return {
     fields: { properties: DASHBOARD_PROPERTY_FIELDS },
@@ -165,26 +168,9 @@ export async function fetchDashboardProperties(
 }
 
 /**
- * TCK-1382 (P138.08) — le nombre de biens que rendrait la liste du tableau de bord sous ces
- * filtres, sans la liste : `per_page=1`, `fields[properties]=id`, sans `include` ni tri. Mêmes
- * filtres, donc même `meta.total` que `fetchDashboardProperties`.
- */
-export async function countDashboardProperties(
-  token: string,
-  filters: DashboardPropertyFilters = {},
-): Promise<number> {
-  const { fields: _fields, include: _include, sort: _sort, ...params } = buildListParams({ filters, page: 1, perPage: 1 });
-  const qs = buildQueryString({ ...params, fields: { properties: ['id'] } });
-  const response = await apiRequest<PaginatedResponse<PropertyListItem>>(
-    cheminApi`/api/properties${requete(qs)}`,
-    { token },
-  );
-  return response.meta.total;
-}
-
-/**
- * TCK-2638 — les comptes des tuiles et des pastilles du mode Gestion, en UN appel
- * (`GET /api/properties/portfolio-summary`, TCK-2637) au lieu d'une liste `per_page=1` par compte.
+ * TCK-2638 — les comptes des tuiles et des pastilles des DEUX modes, en UN appel
+ * (`GET /api/properties/portfolio-summary`, TCK-2637) : il a remplacé les listes `per_page=1` de
+ * comptage (TCK-1382), et `countDashboardProperties` avec elles.
  * Même portée que la liste : seuls `user_id` (« Mes biens », l'agent choisi) et `include_archived`
  * la changent, si bien que chaque compte égale le `meta.total` du filtre qu'il ouvre.
  */

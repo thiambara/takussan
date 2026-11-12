@@ -96,11 +96,14 @@ export function PropertyListFilters({
   currentUserId,
   agentOptions = [],
   mode = 'annonces',
+  basculeMesBiens = true,
 }: {
   readonly currentUserId: number;
   readonly agentOptions?: readonly { id: number; name: string }[];
   /** TCK-2638 — le mode de la liste : il ajoute « Retards d'abord » et survit à « Tout réinitialiser ». */
   readonly mode?: 'gestion' | 'annonces';
+  /** TCK-2638 — « Mes biens » n'est pas proposée au bailleur : sa liste n'a que ses biens. */
+  readonly basculeMesBiens?: boolean;
 }) {
   const t = useTranslations('property.dashboard.filters');
   const tChips = useTranslations('property.dashboard.filters.chips');
@@ -330,7 +333,7 @@ export function PropertyListFilters({
             </Select>
           </div>
 
-          <Toggle label={t('toggleMine')} checked={onlyMine} onChange={toggleMine} />
+          {basculeMesBiens ? <Toggle label={t('toggleMine')} checked={onlyMine} onChange={toggleMine} /> : null}
 
           <Toggle label={t('toggleArchived')} checked={includeArchived} onChange={toggleArchived} />
 
@@ -455,7 +458,7 @@ export function PropertyListFilters({
                   {t('mobile.scopeHeading')}
                 </legend>
                 <div className="divide-y divide-border">
-                  <LigneACocher label={t('toggleMine')} checked={onlyMine} onChange={toggleMine} />
+                  {basculeMesBiens ? <LigneACocher label={t('toggleMine')} checked={onlyMine} onChange={toggleMine} /> : null}
                   <LigneACocher
                     label={t('toggleArchived')}
                     checked={includeArchived}

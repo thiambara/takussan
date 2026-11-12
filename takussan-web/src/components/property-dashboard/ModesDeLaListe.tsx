@@ -5,21 +5,31 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
+import { buttonVariants } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import { PuceDeFiltre, RangeeDePuces } from '@/components/ui/puce-de-filtre';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   MODES_DE_LISTE,
+  ONGLETS_ANNONCES,
+  PASTILLES_ANNONCES,
   PASTILLES_GESTION,
   ecrireModeDeListe,
+  pastilleAnnoncesActive,
   pastilleGestionActive,
   pastilleGestionProposee,
   requeteDeLaPastille,
+  requeteDeLaPastilleAnnonces,
+  requeteDesSuivants,
   requeteDuMode,
+  suivantsProposes,
   type ModeDeListe,
+  type PastilleAnnonces,
   type PastilleGestion,
 } from '@/lib/biens/mode-de-liste';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { cn } from '@/lib/utils';
+import type { PaginationMeta } from '@/types/api';
 import type { ResumeDuPortefeuille } from '@/types/property';
 
 /**
@@ -177,5 +187,148 @@ export function TuilesGestion({ resume, className }: { readonly resume: ResumeDu
         );
       })}
     </nav>
+  );
+}
+
+const COMPTE_ANNONCES: Record<PastilleAnnonces, keyof ResumeDuPortefeuille> = Object.fromEntries(
+  ONGLETS_ANNONCES.map((o) => [o.cle, o.compte]),
+) as Record<PastilleAnnonces, keyof ResumeDuPortefeuille>;
+
+/**
+ * TCK-2638 (lot B) — les pastilles défilantes du mode Annonces, sous `lg` : « Toutes » (décision 1 a),
+ * « En ligne », « À valider », « Brouillons », « Hors ligne », comptées par `portfolio-summary`.
+ */
+export function PastillesAnnonces({ resume, className }: { readonly resume: ResumeDuPortefeuille; readonly className?: string }) {
+  const t = useTranslations('property.dashboard.annonces.pastilles');
+  const fmt = useFormatteurs();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const params = new URLSearchParams(searchParams.toString());
+  const active = pastilleAnnoncesActive(params);
+  return (
+    <RangeeDePuces aria-label={t('aria')} className={className}>
+      {PASTILLES_ANNONCES.map((p) => (
+        <PuceDeFiltre
+          key={p.cle}
+          active={p.cle === active}
+          compte={fmt.nombre(resume[COMPTE_ANNONCES[p.cle]])}
+          onClick={() => router.replace(`?${requeteDeLaPastilleAnnonces(params, p.cle)}`)}
+        >
+          {t(p.cle)}
+        </PuceDeFiltre>
+      ))}
+    </RangeeDePuces>
+  );
+}
+
+/**
+ * Les onglets soulignés du bureau (dès `lg`, maquette a-1) : les pastilles, puis « Vendus, loués » et
+ * « Archivés » — les deux tuiles d'avant, gardées. Chacun est le lien de son filtre ; l'actif ramène à
+ * « Toutes ». La rangée défile dans son cadre si elle manque de place, jamais la page.
+ */
+export function OngletsAnnonces({ resume, className }: { readonly resume: ResumeDuPortefeuille; readonly className?: string }) {
+  const t = useTranslations('property.dashboard.annonces.pastilles');
+  const fmt = useFormatteurs();
+  const searchParams = useSearchParams();
+  const params = new URLSearchParams(searchParams.toString());
+  const active = pastilleAnnoncesActive(params);
+  return (
+    <nav aria-label={t('aria')} className={cn('min-w-0 overflow-x-auto [scrollbar-width:none]', className)}>
+      <ul className="flex gap-6 border-b border-border">
+        {ONGLETS_ANNONCES.map((o) => {
+          const actif = o.cle === active;
+          return (
+            <li key={o.cle} className="flex-none">
+              <Link
+                href={`?${requeteDeLaPastilleAnnonces(params, actif && o.cle !== 'toutes' ? 'toutes' : o.cle)}`}
+                replace
+                aria-current={actif ? 'true' : undefined}
+                className={cn(
+                  'relative flex items-center gap-1.5 whitespace-nowrap pb-3 text-sm font-medium outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring',
+                  actif
+                    ? 'text-foreground after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:bg-primary'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {t(o.cle)}
+                <span className="text-xs tabular-nums text-muted-foreground">{fmt.nombre(resume[COMPTE_ANNONCES[o.cle]])}</span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}
+
+/**
+ * La jauge du quota d'annonces (`GET /api/me/quota`) : discrète en bas de liste au téléphone, fine à
+ * côté des onglets au bureau. Elle dit ce qu'elle compte — les annonces ACTIVES (ADR-0097 § 6 : le
+ * quota ne regarde pas la visibilité), pas les annonces en ligne que montre la maquette.
+ */
+export function JaugeDuQuota({
+  used,
+  limit,
+  presentation,
+  className,
+}: {
+  readonly used: number;
+  readonly limit: number;
+  readonly presentation: 'telephone' | 'bureau';
+  readonly className?: string;
+}) {
+  const t = useTranslations('property.dashboard.annonces.quota');
+  const texte = t('texte', { used, limit });
+  const definition = t('definition');
+  const jauge = (
+    <Progress
+      aria-label={t('aria')}
+      value={Math.min(used, limit)}
+      max={Math.max(limit, 1)}
+      ton={used >= limit ? 'warning' : 'primary'}
+      className={presentation === 'telephone' ? 'mt-2.5' : 'mt-1.5'}
+    />
+  );
+  if (presentation === 'telephone') {
+    return (
+      <section aria-label={t('aria')} data-testid="jauge-du-quota" className={cn('rounded-xl bg-muted/60 p-4', className)}>
+        <p className="text-sm tabular-nums">{texte}</p>
+        <p className="text-ui text-muted-foreground">{definition}</p>
+        {jauge}
+      </section>
+    );
+  }
+  return (
+    <section aria-label={t('aria')} data-testid="jauge-du-quota" title={definition} className={cn('w-60 flex-none pb-3', className)}>
+      <p className="text-ui tabular-nums">{texte}</p>
+      {jauge}
+    </section>
+  );
+}
+
+/**
+ * TCK-2638 — au téléphone (sous `lg`), « Afficher les 20 suivants » : la liste s'allonge (`voir`), la
+ * page reste la première. Au-delà de 100 biens montrés (la borne de l'API), la pagination reprend.
+ */
+export function AfficherLesSuivants({ meta, className }: { readonly meta: PaginationMeta; readonly className?: string }) {
+  const t = useTranslations('property.dashboard.pagination');
+  const fmt = useFormatteurs();
+  const searchParams = useSearchParams();
+  if (!suivantsProposes(meta)) return null;
+  const affiches = meta.per_page;
+  return (
+    <div className={cn('text-center', className)}>
+      <p className="text-ui tabular-nums text-muted-foreground">
+        {t('affiches', { shown: fmt.nombre(affiches), total: fmt.nombre(meta.total) })}
+      </p>
+      <Link
+        href={`?${requeteDesSuivants(new URLSearchParams(searchParams.toString()), meta.per_page)}`}
+        replace
+        scroll={false}
+        className={cn(buttonVariants({ variant: 'outline', size: 'lg' }), 'mt-3 h-12 w-full')}
+      >
+        {t('suivants', { count: Math.min(20, meta.total - affiches) })}
+      </Link>
+    </div>
   );
 }

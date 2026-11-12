@@ -978,7 +978,7 @@
       "under_maintenance": "Under maintenance",
       "unavailable": "Unavailable",
       "archived": "Archived",
-      "published": "Published",
+      "published": "Approved",
       "pending_review": "In review",
       "rejected": "Rejected"
     },
@@ -1632,7 +1632,9 @@
         "results": "{count, plural, =1 {# result} other {# results}}",
         "perPagePlaceholder": "20 / page",
         "previous": "Previous",
-        "next": "Next"
+        "next": "Next",
+        "affiches": "{shown} of {total} properties",
+        "suivants": "{count, plural, one {Show the next one} other {Show the next #}}"
       },
       "media": {
         "photos": "Photos",
@@ -1641,17 +1643,8 @@
         "hint": "Drag to reorder — the first photo becomes the cover."
       },
       "list": {
-        "headers": {
-          "property": "Property",
-          "price": "Price",
-          "activity": "Activity",
-          "status": "Status",
-          "actions": "Actions"
-        },
         "selectAll": "Select all properties",
         "selectOne": "Select {title}",
-        "viewsTitle": "Views",
-        "favoritesTitle": "Favourites",
         "ownerPrefix": "Owner:",
         "responsiblePrefix": "Responsible agent:",
         "responsibleNone": "none",
@@ -1666,7 +1659,6 @@
         "bulkError": "Bulk action failed.",
         "bulkArchived": "Properties archived.",
         "bulkUnpublished": "Properties unpublished.",
-        "caption": "Dashboard property list",
         "reference": "Ref. {value}"
       },
       "filters": {
@@ -2049,6 +2041,32 @@
         "responsable": {
           "detail": "Responsible agent",
           "aucun": "Not assigned"
+        }
+      },
+      "annonces": {
+        "pastilles": {
+          "aria": "Filter by listing state",
+          "toutes": "All",
+          "enLigne": "Online",
+          "aValider": "To approve",
+          "brouillons": "Drafts",
+          "horsLigne": "Offline",
+          "vendusLoues": "Sold, rented",
+          "archives": "Archived"
+        },
+        "etat": {
+          "enLigne": "Online",
+          "aValider": "To approve",
+          "brouillon": "Draft",
+          "horsLigne": "Offline"
+        },
+        "chiffres": "{vues, plural, one {# view} other {# views}} · {favoris, plural, one {# favourite} other {# favourites}}",
+        "caption": "Listings",
+        "sousTitre": "{total, plural, one {# property in the portfolio} other {# properties in the portfolio}} · {online, plural, =0 {none online} other {# online}}",
+        "quota": {
+          "texte": "{used, plural, one {# active listing} other {# active listings}} of {limit}",
+          "aria": "Your agency’s listing quota",
+          "definition": "Available, approved or awaiting approval"
         }
       }
     },
@@ -2588,10 +2606,6 @@
       "title": "My properties",
       "subtitle": "Manage your property portfolio: publication, status, visibility.",
       "publish": "Publish a property",
-      "published": "Published",
-      "soldRented": "Sold / Rented",
-      "archived": "Archived",
-      "countersAria": "Property counters — filter the list",
       "titleAgency": "Properties"
     },
     "profile": {

@@ -105,6 +105,7 @@ GET /api/properties?per_page=10&page=2
 | `filter[search]` | search | Recherche dans title, reference_number, description |
 | `filter[public]` | callback | `1` : les biens EN LIGNE (`Property::scopePublic`, ADR-0097) |
 | `filter[occupancy]` | callback | TCK-2637 — `occupied` (bail courant, préavis compris), `notice` (bail courant en préavis), `vacant` ; autre valeur → 422 |
+| `filter[listing]` | callback | TCK-2638 — l'état d'annonce, une partition : `online` (= `filter[public]=1`), `pending` (pas en ligne ; `pending` ou `pending_review`), `draft` (pas en ligne ; brouillon), `offline` (tout le reste, négation de `scopePublic`) ; autre valeur → 422 |
 | `filter[rent_late]` | callback | TCK-2637 — `1` : le loyer du mois en retard sur le bail courant que l'appelant peut lire |
 | `filter[tenant]` | callback | TCK-2637 — chaque mot dans le prénom ou le nom du locataire du bail EN COURS lisible par l'appelant (casse repliée, accents non) |
 | `sort` | `-price`, `price`, `-created_at`, `area`, `bedrooms`, `featured`, `retard` | `retard` (TCK-2637) : loyers du mois en retard d'abord, le plus ancien en tête, puis les autres |
@@ -144,9 +145,12 @@ GET /api/properties/portfolio-summary?filter[user_id]=42
   `lease`, `tenant`, `rent` et `current_month` seulement si l'appelant peut lire le bail (la clause
   de `GET /api/leases`) ; `null` sur un bien vacant. `current_month.status` : `paid`, `late`,
   `partial`, `due` ou `none` (la règle du relevé du bailleur).
-- **`portfolio-summary`** : `{total, occupied, vacant, vacant_over_60_days, notice, rent_late,
-  rent_late_amount, online}` sous la portée et les filtres de la liste ; chaque compte égale le
-  `meta.total` de la liste filtrée correspondante.
+- **`portfolio-summary`** : `{total, occupied, vacant, for_sale, vacant_over_60_days, notice, rent_late,
+  rent_late_amount, online, pending_validation, drafts, offline, sold_or_rented, archived}` sous la
+  portée et les filtres de la liste ; chaque compte égale le `meta.total` de la liste filtrée
+  correspondante. TCK-2638 : `online + pending_validation + drafts + offline = total` (`filter[listing]`) ;
+  `sold_or_rented` ouvre `filter[status]=sold,rented`, `archived` ouvre
+  `include_archived=1&filter[status]=archived` et se compte toujours avec les archivés.
 - Les autres listes de biens (`children`, `me/owner-profiles/…/properties`, `admin/agencies/…`)
   acceptent les filtres et `include=occupancy,online`, mais ne rendent ni `occupancy` ni `is_online`.
 

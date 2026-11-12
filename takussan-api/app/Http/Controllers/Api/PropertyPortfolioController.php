@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Models\Enums\PropertyStatus;
 use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Property;
@@ -28,7 +29,15 @@ use Illuminate\Http\Request;
  * | `occupied` (préavis compris), `vacant`, `notice` | `filter[occupancy]` |
  * | `for_sale` (TCK-2638 : tout bien qui n'est pas à louer) | `filter[occupancy]=not_rental` |
  * | `rent_late` | `filter[rent_late]=1` |
- * | `online` | `filter[public]=1` |
+ * | `online` | `filter[public]=1` (= `filter[listing]=online`) |
+ * | `pending_validation`, `drafts`, `offline` (TCK-2638) | `filter[listing]=pending`, `draft`, `offline` |
+ * | `sold_or_rented` (TCK-2638) | `filter[status]=sold,rented` |
+ * | `archived` (TCK-2638) | `include_archived=1&filter[status]=archived` |
+ *
+ * TCK-2638 (lot B) — les pastilles du mode Annonces : `online`, `pending_validation`, `drafts` et
+ * `offline` sont une partition ({@see Property::scopeListingState()}) dont la somme est `total`.
+ * `archived` se compte sous la portée de la liste qu'il ouvre (`include_archived=1`), et non sous celle
+ * de la requête : sans `include_archived`, la portée exclut les archivés et le compte vaudrait 0.
  *
  * `occupied`, `vacant` et `notice` ne comptent que les biens à louer ({@see Property::scopeForRent()}) :
  * occupés + vacants + à vendre = tous.
@@ -66,6 +75,26 @@ class PropertyPortfolioController extends Controller
             'rent_late' => $count(fn (Builder $q) => $q->rentLate($user)),
             'rent_late_amount' => round((float) $latePayments->sum(fn (LeasePayment $p) => $this->gateway->amountDue($p) ?? 0), 2),
             'online' => $count(fn (Builder $q) => $q->public()),
+            // TCK-2638 (lot B) — le mode Annonces.
+            'pending_validation' => $count(fn (Builder $q) => $q->listingState('pending')),
+            'drafts' => $count(fn (Builder $q) => $q->listingState('draft')),
+            'offline' => $count(fn (Builder $q) => $q->listingState('offline')),
+            'sold_or_rented' => $count(fn (Builder $q) => $q->whereIn('properties.status', [PropertyStatus::Sold, PropertyStatus::Rented])),
+            'archived' => $this->archived($request),
         ]]);
+    }
+
+    /**
+     * TCK-2638 (lot B) — les archivés que rend la liste de l'onglet « Archivés » (`include_archived=1`),
+     * sous la même portée et les mêmes filtres que la requête.
+     */
+    private function archived(Request $request): int
+    {
+        $avecArchives = $request->duplicate(array_merge($request->query(), ['include_archived' => '1']));
+        $avecArchives->setUserResolver($request->getUserResolver());
+        $avecArchives->setRouteResolver($request->getRouteResolver());
+
+        return Property::buildQuery(PropertyListScope::of($avecArchives), $avecArchives)->getEloquentBuilder()
+            ->where('properties.status', PropertyStatus::Archived)->reorder()->count();
     }
 }

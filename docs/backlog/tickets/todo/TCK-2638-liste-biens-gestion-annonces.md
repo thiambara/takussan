@@ -210,3 +210,45 @@ _(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, P
 - Tests : `page.quota.test.tsx` passe au traducteur RÉEL (`createTranslator`) — le double serveur rendait le gabarit
   ICU brut, et l'ancien test était vert sur « {used, plural, … } ». Ablations 4/4 rouges : message de l'admin donné à
   l'agent, définition retirée, flèche retirée, note revenue à l'ancien texte.
+
+### Lot B — le mode Annonces (2026-11-12, terrain-6)
+
+- **Décisions de la session** (1 a, 2 a, 3, 4 a, 5 a) : une pastille « Toutes » en tête, active par défaut (le mode
+  reste une vue) ; « En ligne », « À valider », « Brouillons », « Hors ligne » sont une **partition** du portefeuille ;
+  le sélecteur n'est pas proposé sans bien à louer ; le panneau de filtres du bureau et la barre recherche + tri
+  intégrée vont dans un lot **B2**. Au téléphone, « Afficher les 20 suivants » dans les deux modes ; au bureau,
+  10 / 20 / 50 et Précédent / Suivant restent.
+- **Back** : `filter[listing]=online|pending|draft|offline` (`Property::scopeListingState()`, `ParametreUnique`, 422
+  sur une valeur inconnue). « En ligne » est `scopePublic()` ; « Hors ligne » sa **négation** (`scopeNotOnline()`,
+  `whereNotIn(id, public())`), jamais une copie de la règle, moins les brouillons et les biens à valider.
+  `portfolio-summary` compte en plus `pending_validation`, `drafts`, `offline`, `sold_or_rented` et `archived`
+  (« Archivés » se compte hors de la portée qui les exclut, `include_archived=1` sur une copie de la requête). Chaque
+  compte égale le `meta.total` de la liste qu'ouvre sa pastille, sous la portée du lecteur (`EtatDAnnonceTest`, 6 tests,
+  ablations 6 rouges sur 7 — la septième, compter les brouillons par statut, est une mutation équivalente).
+- **Mesuré sur la démo** (GET seuls, 2026-11-12) : pour le bailleur, l'admin et l'agent, `online + pending_validation +
+  drafts + offline = total` (71 ; 209 ; 209), chaque compte égal au `meta.total` de sa liste, et sur chaque page de 20
+  de la liste, les lignes `is_online` sont exactement les biens de la page que rend `filter[public]=1` (0 écart sur 71
+  et 209 lignes) — l'AC2 au niveau de l'API.
+- **Front** : la page lance la liste, le résumé et (personnel seulement) le quota ensemble ; plus aucune liste
+  `per_page=1` dans aucun mode — `countDashboardProperties` et `PropertyKpiStrip` (et leurs tests) sont supprimés.
+  Sans bien à louer (`occupied + vacant = 0`), le mode est forcé à « Annonces » et le sélecteur disparaît ; sous une
+  portée (« Mes biens », un agent choisi) il reste, pour que la bascule ne change pas de mode.
+  `CarteAnnonce` : photo 3:2, prix avec sa période (AC7), titre · quartier, état d'annonce lu sur `is_online`
+  (`etatDAnnonce`, même partition que le back), visibilité « Public / Privé », statut seulement quand l'état ne le dit
+  pas, propriétaire et agent, référence et ancienneté, vues et favoris, « ⋯ » (`PropertyRowActions layout="menu"`),
+  case de 44 px hors de la photo. Grille 1 / 2 (`lg`) / 3 (`xl`) colonnes, jamais `md`.
+  Bureau : onglets soulignés (les pastilles + « Vendus, loués », « Archivés », les tuiles d'avant) et la jauge fine du
+  quota ; téléphone : pastilles, cartes, « Afficher les 20 suivants » (`voir`), quota en bas de liste.
+- **Vocabulaire** : `property.status.published` = « Validé » ; la jauge dit « N annonces actives sur L » et sa
+  définition (ADR-0097 § 6), pas « en ligne ». Le bailleur lit « Mes biens » et « Proposer un bien à mon agence »
+  (en-tête de page et en-tête du téléphone) ; la bascule « Mes biens » ne lui est plus proposée.
+- **Hors du lot** : la pastille « Boostée » de la maquette n'existait pas dans la liste d'avant (rien ne se perd) ;
+  « boostée » peut dire l'emplacement sponsorisé (`sponsored_until`) ou le badge acheté (`badge`) — question au porteur.
+- **Mesuré au navigateur** (démo, 2026-11-12, `takussan-web/.fidelite/TCK-2638/lot-B/`, local) : AC1 — en Gestion au
+  téléphone (390), six titres de biens visibles au-dessus de la barre d'onglets ; AC4 — une recherche « Mermoz » est
+  gardée d'un mode à l'autre, `occupancy` est ignoré en Annonces et le sélecteur reste ; AC6 — balayage Annonces à
+  390, 768, 1024, 1280 et 1440, Gestion à 390, 1024 et 1280 : aucun débordement horizontal, aucun texte coupé par
+  des points de suspension à 1280 (la ligne propriétaire · agent de la carte passe désormais à la ligne : elle coupait
+  les noms à 390 et 1280). La pagination du téléphone dit « Afficher le suivant » / « Afficher les N suivants »
+  (pluriel ICU). Écarts restants à la maquette : la fiche de fidélité `docs/qa/audit-ux-2026-11/fidelite/TCK-2638.json`
+  (données de la démo, pastille « Boostée », barre de filtres du bureau → lot B2).

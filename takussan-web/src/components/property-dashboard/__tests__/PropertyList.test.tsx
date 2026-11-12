@@ -98,16 +98,19 @@ describe('PropertyList', () => {
    * `src/i18n/request.ts` deep-merge `fr` sous TOUTE locale ≠ `fr` : une clé sans anglais
    * s'affiche EN FRANÇAIS, sans erreur, sans avertissement et sans test rouge. Ce test est le
    * seul endroit où ce silence devient bruyant — il rougit dès qu'une des clés anglaises de
-   * `property.{status,visibility,dashboard.list}` disparaît, parce que le français reparaît alors
-   * à l'écran anglais.
+   * `property.{status,visibilityScope,dashboard.list,dashboard.annonces}` disparaît, parce que le
+   * français reparaît alors à l'écran anglais. TCK-2638 (lot B) : la carte du mode Annonces a remplacé
+   * la table ; ses libellés sont ceux qu'on éprouve.
    */
   it('rend l’anglais en locale en — aucun libellé français ne subsiste', () => {
-    render(withIntl(<PropertyList page={makePage(makeProperty())} />, 'en'));
+    render(withIntl(<PropertyList page={makePage(makeProperty({ is_online: false }))} />, 'en'));
 
     expect(screen.getAllByText('Draft').length).toBeGreaterThan(0);
-    expect(screen.getByText('Property')).toBeInTheDocument();
-    expect(screen.getByText('Activity')).toBeInTheDocument();
+    expect(screen.getByText('Private')).toBeInTheDocument();
+    expect(screen.getByText('12 views · 3 favourites')).toBeInTheDocument();
+    expect(screen.getByRole('list', { name: 'Listings' })).toBeInTheDocument();
     expect(screen.queryByText('Brouillon')).not.toBeInTheDocument();
-    expect(screen.queryByText('Activité')).not.toBeInTheDocument();
+    expect(screen.queryByText('Privé')).not.toBeInTheDocument();
+    expect(screen.queryByText(/vues|favoris/)).not.toBeInTheDocument();
   });
 });

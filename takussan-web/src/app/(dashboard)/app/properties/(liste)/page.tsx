@@ -1,24 +1,39 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { Plus } from 'lucide-react';
 
 import { getMeAction } from '@/app/actions/auth';
-import { resoudreMode } from '@/lib/biens/mode-de-liste';
+import { fetchListingQuotaAction } from '@/app/actions/dashboard-properties';
+import {
+  gestionProposee,
+  lireVoir,
+  resoudreMode,
+  suivantsProposes,
+  type ModeDeListe,
+} from '@/lib/biens/mode-de-liste';
 import { modeMemoriseDesBiens } from '@/lib/biens/mode-memorise';
 import { nomAffichable } from '@/lib/identite';
 import { getToken } from '@/lib/session';
+import { isOwner, isSuperAdmin } from '@/lib/roles';
 import {
-  countDashboardProperties,
   fetchDashboardProperties,
   fetchPortfolioSummary,
   type FetchDashboardPropertiesParams,
 } from '@/lib/queries/properties-server';
-import { PastillesGestion, SelecteurDeMode, TuilesGestion } from '@/components/property-dashboard/ModesDeLaListe';
+import {
+  AfficherLesSuivants,
+  JaugeDuQuota,
+  OngletsAnnonces,
+  PastillesAnnonces,
+  PastillesGestion,
+  SelecteurDeMode,
+  TuilesGestion,
+} from '@/components/property-dashboard/ModesDeLaListe';
 import { PropertyList } from '@/components/property-dashboard/PropertyList';
 import { PropertyListFilters } from '@/components/property-dashboard/PropertyListFilters';
 import { PropertyPagination } from '@/components/property-dashboard/PropertyPagination';
-import { PropertyKpiStrip } from '@/components/property-dashboard/PropertyKpiStrip';
 import { AvertissementNumeroNonVerifie } from '@/components/contact/AvertissementNumeroNonVerifie';
 import { buttonVariants } from '@/components/ui/button';
 import { PageHeader } from '@/components/console';
@@ -27,6 +42,7 @@ import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
 import { PagePleineLargeur } from '@/components/layout/PagePleineLargeur';
 import { RESERVE_SOUS_LANCEUR } from '@/components/chat-widget/reserve';
 import { cn } from '@/lib/utils';
+import type { ResumeDuPortefeuille } from '@/types/property';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.properties');
@@ -58,6 +74,9 @@ function asString(value: string | string[] | undefined): string | undefined {
  */
 const ETATS_D_OCCUPATION = ['occupied', 'vacant', 'notice', 'not_rental'] as const;
 
+/** TCK-2638 (lot B) — les états d'annonce que `filter[listing]` accepte (pastilles du mode Annonces). */
+const ETATS_D_ANNONCE = ['online', 'pending', 'draft', 'offline'] as const;
+
 /** Les tris de la liste ; `retard` (« Retards d'abord », TCK-2637) n'a de sens qu'en mode Gestion. */
 const TRIS = ['-created_at', 'created_at', 'price', '-price', 'views_count', '-views_count'] as const;
 
@@ -77,6 +96,8 @@ export default async function Page({
   searchParams: SearchParams;
 }) {
   const t = await getTranslations('dashboard.properties');
+  const tNav = await getTranslations('nav.sidebar');
+  const tAnnonces = await getTranslations('property.dashboard.annonces');
   const user = await getMeAction();
   // TCK-426 — la garde de rôle est REMONTÉE dans le `layout.tsx` de ce segment : ici, sous le
   // `loading.tsx`, son `redirect()` rendait 200 + le squelette de la route interdite.
@@ -111,170 +132,85 @@ export default async function Page({
   };
   const sort = asString(params.sort);
 
-  // TCK-2638 — le mode : l'URL, sinon la mémoire de l'appareil, sinon « Gestion ».
-  const mode = resoudreMode({
+  // TCK-2638 — le mode : l'URL, sinon la mémoire de l'appareil, sinon « Gestion ». Le résumé du
+  // portefeuille part EN MÊME TEMPS que la liste : il compte les pastilles des deux modes, et dit si le
+  // compte a des biens à louer (décision 4 a) — sans eux, la liste n'a que ses annonces.
+  const modeDemande = resoudreMode({
     url: asString(params.mode),
     memoire: await modeMemoriseDesBiens(),
     gestionProposee: true,
   });
-  const gestion = mode === 'gestion';
 
   // TCK-662 (P01.01) — un tri absent ou inconnu reste absent : `fetchDashboardProperties` pose
   // `-created_at` hors recherche, et n'en pose aucun pendant une recherche, que l'API classe alors
-  // par pertinence.
-  const safeSort =
-    sort && ((TRIS as readonly string[]).includes(sort) || (gestion && sort === 'retard'))
-      ? sort
-      : undefined;
+  // par pertinence. « Retards d'abord » (`retard`) n'a de sens qu'en mode Gestion.
+  const triPermis = (gestion: boolean) =>
+    sort && ((TRIS as readonly string[]).includes(sort) || (gestion && sort === 'retard')) ? sort : undefined;
 
-  if (gestion) {
-    return pageGestion({
-      token,
-      user,
-      titre: t(estDeLAgence(user.roles) ? 'titleAgency' : 'title'),
-      sousTitre: t('subtitle'),
-      publier: t('publish'),
-      liste: {
-        page,
-        perPage,
-        sort: safeSort,
-        filters: {
-          ...filters,
-          occupancy: (ETATS_D_OCCUPATION as readonly string[]).includes(asString(params.occupancy) ?? '')
-            ? asString(params.occupancy)
-            : undefined,
-          rent_late: asString(params.rent_late) === '1' ? '1' : undefined,
-          tenant: asString(params.tenant),
-        },
-        inclusions: ['occupancy', 'online'],
-      },
-    });
-  }
+  // TCK-2638 — au téléphone, « Afficher les 20 suivants » : `voir` biens sur la première page.
+  const voir = lireVoir(asString(params.voir));
+  const pagination = voir ? { page: 1, perPage: voir } : { page, perPage };
 
-  // Main list + KPI counts run in parallel. KPI requests use per_page=1 to
-  // only pull `meta.total` — keeps the dashboard snappy. TCK-865 (P02.08) : « vendus » et
-  // « loués » partent chacun de leur côté ; « loués » attendait la réponse de « vendus ».
-  const [response, totalCompte, publishedCount, soldCount, rentedCount, archivedCount] =
-    await Promise.all([
-      listeDansLesBornes(token, {
-        page,
-        perPage,
-        filters,
-        sort: safeSort,
-      }),
-      // TCK-1382 (P138.08) — sans autre filtre que la portée, « Total » est le `meta.total` de la
-      // liste elle-même : on ne le redemande pas.
-      sansFiltreHorsPortee(filters) ? null : countProperties(token, { user_id: filters.user_id }),
-      // TCK-2036 (P198.03) — « Publiés » est la règle du catalogue (`Property::public()`,
-      // TCK-1115), celle de l'accueil d'agence : `visibility=public` seul gardait les biens loués,
-      // vendus ou en revue restés publics, et l'avertissement de numéro non vérifié le lisait.
-      countProperties(token, {
-        user_id: filters.user_id,
-        filter: { public: '1' },
-      }),
-      countProperties(token, {
-        user_id: filters.user_id,
-        filter: { status: 'sold' },
-      }),
-      countProperties(token, {
-        user_id: filters.user_id,
-        filter: { status: 'rented' },
-      }),
-      countProperties(token, {
-        user_id: filters.user_id,
-        filter: { status: 'archived' },
-        include_archived: true,
-      }),
-    ]);
+  const listeDuMode = (m: ModeDeListe): FetchDashboardPropertiesParams =>
+    m === 'gestion'
+      ? {
+          ...pagination,
+          sort: triPermis(true),
+          filters: {
+            ...filters,
+            occupancy: (ETATS_D_OCCUPATION as readonly string[]).includes(asString(params.occupancy) ?? '')
+              ? asString(params.occupancy)
+              : undefined,
+            rent_late: asString(params.rent_late) === '1' ? '1' : undefined,
+            tenant: asString(params.tenant),
+          },
+          inclusions: ['occupancy', 'online'],
+        }
+      : {
+          ...pagination,
+          sort: triPermis(false),
+          filters: {
+            ...filters,
+            listing: (ETATS_D_ANNONCE as readonly string[]).includes(asString(params.listing) ?? '')
+              ? asString(params.listing)
+              : undefined,
+          },
+          inclusions: ['online'],
+        };
 
-  const totalCount = totalCompte ?? response.meta.total;
-  const agentOptions = buildAgentOptions(response.data, user);
-  const currentVisibility = asString(params.visibility);
-  const currentStatus = filters.status;
-  const includeArchived = filters.include_archived === '1';
+  const agence = estDeLAgence(user.roles);
+  const [premiere, resume, quota] = await Promise.all([
+    listeDansLesBornes(token, listeDuMode(modeDemande)),
+    fetchPortfolioSummary(token, { user_id: filters.user_id, include_archived: filters.include_archived }),
+    // Le quota est celui de l'AGENCE (`GET /api/me/quota`) : le bailleur ne le consomme pas (TCK-627).
+    agence ? fetchListingQuotaAction() : Promise.resolve(null),
+  ]);
 
-  // TCK-1289 (P131.02) — chaque tuile garde la portée sous laquelle son nombre est compté
-  // (`only_mine=1` ou l'agent choisi) : sous « mes biens », elle ouvrait les biens de toute
-  // l'agence.
-  const userIdChoisi = asString(params.user_id);
-  const portee =
-    asString(params.only_mine) === '1'
-      ? 'only_mine=1'
-      : userIdChoisi
-        ? `user_id=${encodeURIComponent(userIdChoisi)}`
-        : undefined;
-  const lienTuile = (requete?: string) => {
-    const parties = [requete, portee].filter(Boolean);
-    return parties.length > 0 ? `/app/properties?${parties.join('&')}` : '/app/properties';
+  // Décision 4 a — le sélecteur n'est proposé qu'à un compte qui a des biens à louer. Sous une portée
+  // (« Mes biens », un agent choisi), le résumé ne compte que cette portée : le sélecteur reste, pour
+  // que la bascule ne change pas de mode.
+  const selecteur = Boolean(filters.user_id) || gestionProposee(resume);
+  const mode: ModeDeListe = selecteur ? modeDemande : 'annonces';
+  const response = mode === modeDemande ? premiere : await listeDansLesBornes(token, listeDuMode(mode));
+
+  const contexte: ContexteDeLaPage = {
+    user,
+    response,
+    resume,
+    selecteur,
+    titre: t(agence ? 'titleAgency' : 'title'),
+    sousTitre: t('subtitle'),
+    // « Proposer un bien à mon agence » pour le bailleur, en-tête comme barre (TCK-587, TCK-2638).
+    publier: proposeAuBailleur(user.roles) ? tNav('proposeProperty') : t('publish'),
   };
 
-  const kpiTiles = [
-    {
-      label: 'Total',
-      value: totalCount,
-      href: lienTuile(),
-      tone: 'neutral' as const,
-      active:
-        !currentStatus &&
-        !currentVisibility &&
-        !includeArchived &&
-        Object.values(filters).filter(Boolean).length === 0,
-    },
-    {
-      label: t('published'),
-      value: publishedCount,
-      href: lienTuile('public=1'),
-      tone: 'accent' as const,
-      active: filters.public === '1',
-    },
-    {
-      label: t('soldRented'),
-      value: soldCount + rentedCount,
-      // TCK-1289 — la tuile compte les vendus ET les loués : elle ouvre les deux statuts.
-      href: lienTuile('status=sold,rented'),
-      tone: 'success' as const,
-      active: currentStatus === 'sold,rented',
-    },
-    {
-      label: t('archived'),
-      value: archivedCount,
-      href: lienTuile('include_archived=1&status=archived'),
-      tone: 'muted' as const,
-      active: currentStatus === 'archived',
-    },
-  ];
-
-  return (
-    // TCK-644 — sous `lg`, l'écart vertical se resserre (16 px au lieu de 24) et la page réserve
-    // en bas la place du lanceur de messagerie (AC4 : la dernière carte défile au-dessus).
-    <div className={cn('space-y-4 lg:space-y-6', RESERVE_SOUS_LANCEUR)}>
-      {/* TCK-644 — sous `lg`, une seule rangée : le titre à gauche, « Publier un bien » à droite ;
-          la ligne de contexte attend `sm` (à 390 px elle coûtait deux lignes avant la première
-          carte). Dès `lg`, l'en-tête de la console à l'identique. */}
-      <EnTeteDesBiens
-        titre={t(estDeLAgence(user.roles) ? 'titleAgency' : 'title')}
-        sousTitre={t('subtitle')}
-        publier={t('publish')}
-      />
-
-      <SelecteurDeMode mode={mode} />
-
-      {/* TCK-633 (lot C, tour 2) — un numéro non vérifié n'est pas servi sur les annonces en ligne. */}
-      <AvertissementNumeroNonVerifie phoneVerifiedAt={user.phone_verified_at} annoncesEnLigne={publishedCount} />
-
-      <PropertyKpiStrip tiles={kpiTiles} label={t('countersAria')} />
-
-      <PropertyListFilters currentUserId={user.id} agentOptions={agentOptions} />
-
-      <PropertyList
-        page={response}
-        currentUserId={user.id}
-        agentOptions={agentOptions}
-      />
-
-      <PropertyPagination meta={response.meta} />
-    </div>
-  );
+  if (mode === 'gestion') return pageGestion(contexte);
+  return pageAnnonces({
+    ...contexte,
+    // Maquette a-1 : le portefeuille et ce qui en est en ligne, sous le titre (bureau).
+    sousTitre: tAnnonces('sousTitre', { total: resume.total, online: resume.online }),
+    quota: quota && quota.limit !== null ? { used: quota.used, limit: quota.limit } : null,
+  });
 }
 
 type Utilisateur = Awaited<ReturnType<typeof getMeAction>>;
@@ -282,6 +218,11 @@ type Utilisateur = Awaited<ReturnType<typeof getMeAction>>;
 /** TCK-2638 — « Biens » pour l'agence, « Mes biens » pour le bailleur. */
 function estDeLAgence(roles: Utilisateur['roles']): boolean {
   return roles.includes('agency_admin') || roles.includes('agent');
+}
+
+/** Le bailleur PROPOSE un bien à son agence (TCK-587) ; le personnel et le super-admin publient. */
+function proposeAuBailleur(roles: Utilisateur['roles']): boolean {
+  return isOwner(roles) && !estDeLAgence(roles) && !isSuperAdmin(roles);
 }
 
 /**
@@ -329,41 +270,37 @@ function EnTeteDesBiens({
   );
 }
 
-/**
- * TCK-2638 — le mode Gestion : la liste avec l'occupation (`include=occupancy,online`) et les
- * comptes des pastilles et des tuiles en UN appel `portfolio-summary` — aucune liste `per_page=1`
- * (AC3). Le résumé porte aussi le compte « en ligne » que lit l'avertissement de numéro. Une
- * fonction et non un composant : la page la rend déjà résolue, comme le mode Annonces.
- */
-async function pageGestion({
-  token,
-  user,
-  titre,
-  sousTitre,
-  publier,
-  liste,
-}: {
-  readonly token: string;
+/** Ce que les deux modes de la page reçoivent, déjà résolu. */
+type ContexteDeLaPage = {
   readonly user: Utilisateur;
+  readonly response: Awaited<ReturnType<typeof fetchDashboardProperties>>;
+  readonly resume: ResumeDuPortefeuille;
+  /** Le sélecteur de mode est-il proposé (décision 4 a) ? */
+  readonly selecteur: boolean;
   readonly titre: string;
   readonly sousTitre: string;
   readonly publier: string;
-  readonly liste: FetchDashboardPropertiesParams;
-}) {
-  const [response, resume] = await Promise.all([
-    listeDansLesBornes(token, liste),
-    fetchPortfolioSummary(token, {
-      user_id: liste.filters?.user_id,
-      include_archived: liste.filters?.include_archived,
-    }),
-  ]);
-  const agentOptions = buildAgentOptions(response.data, user);
+};
 
-  // Au téléphone, la page est PLEINE LARGEUR (TCK-2691) : chaque élément pose sa marge, et la maquette
-  // enchaîne sans marge la recherche, les pastilles (leur rangée porte son `py-2.5`) et la liste bord
-  // à bord ; l'en-tête de la coque porte le titre et « + ». Sous `md`, l'enveloppe perd son `py-6` :
-  // la page rend ses 24 px du bas (`max-md:pb-6`) ; dès `md`, l'enveloppe et la réserve du lanceur les
-  // portent, comme en « Annonces » (TCK-2481, revue M2).
+/**
+ * Au téléphone, la page est PLEINE LARGEUR (TCK-2691), dans les deux modes : chaque élément pose sa
+ * marge, et la liste va bord à bord ; l'en-tête de la coque porte le titre et « + ». Sous `md`,
+ * l'enveloppe perd son `py-6` : la page rend ses 24 px du bas (`max-md:pb-6`) ; dès `md`, l'enveloppe
+ * et la réserve du lanceur les portent (TCK-2481, revue M2).
+ */
+function CoqueDeLaListe({
+  publier,
+  titre,
+  sousTitre,
+  selecteur,
+  mode,
+  user,
+  resume,
+  children,
+}: Pick<ContexteDeLaPage, 'publier' | 'titre' | 'sousTitre' | 'selecteur' | 'user' | 'resume'> & {
+  readonly mode: ModeDeListe;
+  readonly children: ReactNode;
+}) {
   return (
     <PagePleineLargeur className={cn('space-y-3 pt-3 max-md:pb-6 md:pt-0 lg:space-y-6', RESERVE_SOUS_LANCEUR)}>
       <DeclarerEnTete
@@ -372,45 +309,91 @@ async function pageGestion({
       <div className="max-md:hidden">
         <EnTeteDesBiens titre={titre} sousTitre={sousTitre} publier={publier} />
       </div>
-      <SelecteurDeMode mode="gestion" className="px-4 md:px-0" />
+      {selecteur ? <SelecteurDeMode mode={mode} className="px-4 md:px-0" /> : null}
+      {/* TCK-633 (lot C, tour 2) — un numéro non vérifié n'est pas servi sur les annonces en ligne ; le
+          compte « en ligne » est celui du résumé (`is_online`, ADR-0097). */}
       <div className="px-4 empty:hidden md:px-0">
         <AvertissementNumeroNonVerifie phoneVerifiedAt={user.phone_verified_at} annoncesEnLigne={resume.online} />
       </div>
-      <TuilesGestion resume={resume} className="hidden lg:grid" />
-      <div className="lg:space-y-6">
-        <div className="px-4 md:px-0">
-          <PropertyListFilters currentUserId={user.id} agentOptions={agentOptions} mode="gestion" />
-        </div>
-        <PastillesGestion resume={resume} className="md:-mx-6 md:px-6 lg:hidden" />
-        <PropertyList page={response} currentUserId={user.id} agentOptions={agentOptions} presentation="gestion" />
-      </div>
-      <div className="px-4 md:px-0">
-        <PropertyPagination meta={response.meta} />
-      </div>
+      {children}
     </PagePleineLargeur>
   );
 }
 
-async function countProperties(
-  token: string,
-  opts: {
-    readonly user_id?: string;
-    readonly filter?: Record<string, string>;
-    readonly include_archived?: boolean;
-  } = {},
-): Promise<number> {
-  const filter: Record<string, string> = { ...(opts.filter ?? {}) };
-  if (opts.user_id) filter.user_id = opts.user_id;
-  // TCK-1382 (P138.08) — un compte, pas une page de liste : ni `include` ni le sparse fieldset.
-  return countDashboardProperties(token, {
-    ...filter,
-    include_archived: opts.include_archived ? '1' : undefined,
-  });
+/**
+ * TCK-2638 — le mode Gestion : la liste avec l'occupation (`include=occupancy,online`) et les comptes
+ * des pastilles et des tuiles en UN appel `portfolio-summary` — aucune liste `per_page=1` (AC3).
+ */
+function pageGestion(contexte: ContexteDeLaPage) {
+  const { user, response, resume } = contexte;
+  const agentOptions = buildAgentOptions(response.data, user);
+  return (
+    <CoqueDeLaListe {...contexte} mode="gestion">
+      <TuilesGestion resume={resume} className="hidden lg:grid" />
+      <div className="lg:space-y-6">
+        <div className="px-4 md:px-0">
+          <PropertyListFilters
+            currentUserId={user.id}
+            agentOptions={agentOptions}
+            mode="gestion"
+            basculeMesBiens={estDeLAgence(user.roles)}
+          />
+        </div>
+        <PastillesGestion resume={resume} className="md:-mx-6 md:px-6 lg:hidden" />
+        <PropertyList page={response} currentUserId={user.id} agentOptions={agentOptions} presentation="gestion" />
+      </div>
+      <Pagination meta={response.meta} />
+    </CoqueDeLaListe>
+  );
 }
 
-/** La liste porte-t-elle les seuls filtres du compte « Total » (la portée, sans archives) ? */
-function sansFiltreHorsPortee(filters: Record<string, string | undefined>): boolean {
-  return Object.entries(filters).every(([cle, valeur]) => cle === 'user_id' || !valeur);
+/**
+ * TCK-2638 (lot B) — le mode Annonces (maquette a-1) : les pastilles (téléphone) ou les onglets (bureau)
+ * de `filter[listing]`, comptés par le MÊME `portfolio-summary` — plus aucune liste `per_page=1` de
+ * comptage, ni la bande de tuiles d'avant (« Publiés » comptait `filter[public]`, que « En ligne » dit
+ * désormais). Les cartes à grande photo, puis le quota : discret en bas de liste au téléphone, en jauge
+ * fine à côté des onglets au bureau.
+ */
+function pageAnnonces(contexte: ContexteDeLaPage & { readonly quota: { readonly used: number; readonly limit: number } | null }) {
+  const { user, response, resume, quota } = contexte;
+  const agentOptions = buildAgentOptions(response.data, user);
+  return (
+    <CoqueDeLaListe {...contexte} mode="annonces">
+      <div className="hidden items-end gap-8 lg:flex">
+        <OngletsAnnonces resume={resume} className="flex-1" />
+        {quota ? <JaugeDuQuota used={quota.used} limit={quota.limit} presentation="bureau" /> : null}
+      </div>
+      <div className="space-y-3 lg:space-y-6">
+        <div className="px-4 md:px-0">
+          <PropertyListFilters currentUserId={user.id} agentOptions={agentOptions} basculeMesBiens={estDeLAgence(user.roles)} />
+        </div>
+        <PastillesAnnonces resume={resume} className="md:-mx-6 md:px-6 lg:hidden" />
+        <PropertyList page={response} currentUserId={user.id} agentOptions={agentOptions} presentation="annonces" />
+      </div>
+      <Pagination meta={response.meta} />
+      {quota ? (
+        <div className="px-4 md:px-0 lg:hidden">
+          <JaugeDuQuota used={quota.used} limit={quota.limit} presentation="telephone" />
+        </div>
+      ) : null}
+    </CoqueDeLaListe>
+  );
+}
+
+/**
+ * La pagination des deux modes : au téléphone, « Afficher les 20 suivants » tant qu'il en reste sur la
+ * première page ; sinon, et toujours au bureau, 10 / 20 / 50 et Précédent / Suivant (jamais les deux).
+ */
+function Pagination({ meta }: { readonly meta: Awaited<ReturnType<typeof fetchDashboardProperties>>['meta'] }) {
+  const suivants = suivantsProposes(meta);
+  return (
+    <div className="px-4 md:px-0">
+      {suivants ? <AfficherLesSuivants meta={meta} className="lg:hidden" /> : null}
+      <div className={cn(suivants && 'max-lg:hidden')}>
+        <PropertyPagination meta={meta} />
+      </div>
+    </div>
+  );
 }
 
 function buildAgentOptions(

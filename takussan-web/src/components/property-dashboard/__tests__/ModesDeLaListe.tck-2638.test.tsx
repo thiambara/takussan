@@ -28,6 +28,11 @@ const RESUME: ResumeDuPortefeuille = {
   rent_late: 6,
   rent_late_amount: 4_210_000,
   online: 67,
+  pending_validation: 2,
+  drafts: 5,
+  offline: 10,
+  sold_or_rented: 8,
+  archived: 3,
 };
 
 beforeEach(() => {

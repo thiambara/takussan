@@ -289,6 +289,15 @@ class Property extends AbstractModel implements HasMedia
      */
     public const OCCUPANCY_STATES = ['occupied', 'notice', 'vacant', 'not_rental'];
 
+    /**
+     * TCK-2638 (lot B) — les valeurs de `filter[listing]` ({@see scopeListingState()}) : les pastilles du
+     * mode Annonces, une PARTITION du portefeuille (décision du porteur, 2 a).
+     */
+    public const LISTING_STATES = ['online', 'pending', 'draft', 'offline'];
+
+    /** TCK-2638 — les statuts « À valider » d'un bien qui n'est pas en ligne. */
+    private const LISTING_PENDING_STATUSES = [PropertyStatus::Pending, PropertyStatus::PendingReview];
+
     public const TYPE_SEARCH_ALIASES = [
         // TCK-506 — alias enrichis APRÈS mesure de collision de corpus (la
         // règle de TCK-339), relevé dans docs/plans/2026-09-02-tck-506-…md :
@@ -691,6 +700,41 @@ class Property extends AbstractModel implements HasMedia
     }
 
     /**
+     * TCK-2638 (lot B) — « hors ligne » au sens large : la NÉGATION de {@see scopePublic()}, jamais une
+     * copie de ses conditions (ADR-0097 § 1). Par l'identifiant, pour qu'aucune colonne nulle ne fasse
+     * tomber un bien des deux côtés à la fois.
+     *
+     * @param  Builder<Property>  $query
+     * @return Builder<Property>
+     */
+    public function scopeNotOnline(Builder $query): Builder
+    {
+        return $query->whereNotIn($query->qualifyColumn('id'), static::query()->public()->select('properties.id'));
+    }
+
+    /**
+     * TCK-2638 (lot B) — `filter[listing]` et les pastilles du mode Annonces de `portfolio-summary` :
+     * `online` ({@see scopePublic()}), puis, parmi les biens qui ne sont pas en ligne, `draft` (brouillon),
+     * `pending` (« À valider » : en attente, ou en revue) et `offline` (tout le reste : privé, non publié,
+     * loué, vendu, refusé, archivé, agence suspendue…). Chaque bien est dans un état et un seul : les
+     * quatre comptes font le total.
+     *
+     * @param  Builder<Property>  $query
+     * @return Builder<Property>
+     */
+    public function scopeListingState(Builder $query, string $state): Builder
+    {
+        $status = $query->qualifyColumn('status');
+
+        return match ($state) {
+            'online' => $query->public(),
+            'draft' => $query->notOnline()->where($status, PropertyStatus::Draft),
+            'pending' => $query->notOnline()->whereIn($status, self::LISTING_PENDING_STATUSES),
+            'offline' => $query->notOnline()->whereNotIn($status, [PropertyStatus::Draft, ...self::LISTING_PENDING_STATUSES]),
+        };
+    }
+
+    /**
      * TCK-2637 — les identifiants en ligne parmi `$ids`, en une requête ({@see isOnline()}).
      *
      * @param  list<int>  $ids
@@ -915,6 +959,17 @@ class Property extends AbstractModel implements HasMedia
             }
             Validator::make(['occupancy' => $state], ['occupancy' => [Rule::in(self::OCCUPANCY_STATES)]])->validate();
             $q->occupancyState($state);
+        });
+
+        // TCK-2638 (lot B) — l'état d'annonce (pastilles du mode Annonces) ; une valeur en liste vaut un
+        // filtre absent (ADR-0075), une valeur inconnue rend 422.
+        $filters[] = AllowedFilter::callback('listing', function (Builder $q, mixed $value): void {
+            $state = ParametreUnique::valeur($value);
+            if ($state === null || $state === '') {
+                return;
+            }
+            Validator::make(['listing' => $state], ['listing' => [Rule::in(self::LISTING_STATES)]])->validate();
+            $q->listingState($state);
         });
 
         $filters[] = AllowedFilter::callback('rent_late', function (Builder $q, mixed $value): void {
