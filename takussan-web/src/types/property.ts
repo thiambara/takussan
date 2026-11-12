@@ -75,6 +75,16 @@ export interface ResumeDuPortefeuille {
   rent_late_amount: number;
   notice: number;
   online: number;
+  /**
+   * TCK-2638 (lot B) — le mode Annonces : `online + pending_validation + drafts + offline = total`
+   * (`filter[listing]`), puis les onglets du bureau « Vendus, loués » (`status=sold,rented`) et
+   * « Archivés » (`include_archived=1&status=archived`, compté avec les archivés en toute portée).
+   */
+  pending_validation: number;
+  drafts: number;
+  offline: number;
+  sold_or_rented: number;
+  archived: number;
 }
 
 export interface PropertyListItem {
