@@ -10,8 +10,6 @@ import { useToast } from '@/components/ui/toast';
 import { useCancelEarlyTermination } from '@/lib/queries/leases';
 import type { Lease } from '@/types/lease';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import { useAuth } from '@/context/AuthContext';
-import { isCustomerOnly } from '@/lib/roles';
 
 interface EarlyTerminationBannerProps {
   readonly lease: Lease;
@@ -22,6 +20,11 @@ interface EarlyTerminationBannerProps {
    * the hard rule.
    */
   readonly canCancel?: boolean;
+  /**
+   * TCK-2645 — le lecteur est le locataire de CE bail (`abilities.give_notice`, décision 12) : il va
+   * à sa page de paiements. Lu sur les capacités du bail, plus sur `user.roles` (P2 de l'audit).
+   */
+  readonly locataire?: boolean;
 }
 
 /**
@@ -46,18 +49,17 @@ function daysFromTodayTo(iso: string): number {
  * detail page. The banner state is refreshed via React-Query invalidation
  * triggered by the mutation hook.
  */
-export function EarlyTerminationBanner({ lease, canCancel = true }: EarlyTerminationBannerProps) {
+export function EarlyTerminationBanner({ lease, canCancel = true, locataire = false }: EarlyTerminationBannerProps) {
   const t = useTranslations('lease.early_termination');
   const fmt = useFormatteurs();
   const messageErreur = useMessageErreurApi();
   const cancel = useCancelEarlyTermination(lease.id);
   const toast = useToast();
   const [confirmingCancel, setConfirmingCancel] = useState(false);
-  const { user } = useAuth();
   // TCK-1365 (P131.03) — rien ne lit `?invoice=` : l'équipe va à l'onglet des factures, le client à
   // sa page de paiements (`CustomerPayments`, qui ignore `tab`), où la pénalité est une somme due.
   const lienFacture =
-    user && isCustomerOnly(user.roles) ? '/app/payments' : '/app/payments?tab=invoices';
+    locataire ? '/app/payments' : '/app/payments?tab=invoices';
 
   const remaining = useMemo(() => {
     if (!lease.early_termination_effective_date) return null;

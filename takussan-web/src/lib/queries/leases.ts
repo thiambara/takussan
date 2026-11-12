@@ -216,6 +216,11 @@ export type LeasePropertyLite = {
 export type LeaseTenantLite = {
   id: number;
   user_id: number | null;
+  // TCK-2645 — `CustomerResource` : le nom (« Bail de … ») et le téléphone (Appeler / WhatsApp), servis
+  // à tout lecteur du bail.
+  first_name?: string | null;
+  last_name?: string | null;
+  phone?: string | null;
 };
 
 export type LeaseWithRelations = Lease & {
@@ -226,7 +231,10 @@ export type LeaseWithRelations = Lease & {
 
 export function useLease(id: number | null | undefined) {
   const spatieParams: SpatieQueryParams = {
-    include: ['property'],
+    // TCK-2645 — les parties nommées de l'en-tête (TCK-2642 : `landlord` et `agent` lus à la main par
+    // `show`). Ni `attention` (les motifs de la file, au personnel), ni `due_summary` : l'état du mois
+    // se lit sur les échéances, qui portent l'identifiant que les gestes visent.
+    include: ['property', 'landlord', 'agent'],
   };
 
   return useApiQuery<ApiResponse<LeaseWithRelations>>(
@@ -449,6 +457,9 @@ export function useReviewLeaseRent(id: number) {
       invalidate: [
         ['leases', 'list'],
         ['leases', 'detail', id],
+        // TCK-2645 — l'API réécrit les loyers en attente à partir de la date d'effet
+        // (`RentReviewService::rewriteUpcomingRentPayments`) : l'échéancier de la fiche se relit.
+        ['leases', 'payments', id],
       ],
     },
   );

@@ -5020,31 +5020,11 @@
     "detail": {
       "error": "Lease not found.",
       "backToList": "Back to leases",
-      "latePayments": "{count} overdue",
-      "generateSchedule": "Generate the schedule",
-      "generating": "Generating…",
       "activate": "Activate the lease",
       "activating": "Activating…",
-      "reviewRent": "Review the rent",
-      "recordPayment": "Record a payment received",
-      "downloadContract": "Download the contract PDF",
-      "duration": "Duration",
-      "openEnded": "open-ended",
-      "price": "Price",
-      "rent": "Rent",
-      "deposit": "Deposit",
-      "schedule": "Schedule",
       "activateBeforeSchedule": "Activate the lease before generating the schedule.",
-      "depositInitialAmount": "Initial amount:",
-      "depositRefundedOn": "Refunded on {date}",
-      "depositNoRefund": "No refund recorded",
-      "clauses": "Clauses",
       "activatedToastTitle": "Lease activated",
       "activatedToastBody": "The schedule can now be generated or viewed.",
-      "rentPromptAmount": "New monthly rent",
-      "rentPromptReason": "Reason for the rent review",
-      "rentReviewedToastTitle": "Rent reviewed",
-      "rentReviewedToastBody": "The review is logged in the lease history.",
       "reviewContextActive": "Your lease is ongoing.",
       "reviewContextEnded": "Your lease has ended."
     },
@@ -5068,8 +5048,6 @@
         "refunded": "Refunded"
       },
       "listLabel": "Lease instalments",
-      "dueOn": "Due: {date}",
-      "receiptPdf": "Rent receipt PDF",
       "lateFee": {
         "label": "Late fee",
         "atAgency": "Late fee to be settled with the agency",
@@ -5383,6 +5361,195 @@
       "paperSubmit": "Activate on paper contract",
       "genericError": "The operation failed. Try again.",
       "paperTooLarge": "File too large ({max} MB max): {files}"
+    },
+    "fiche": {
+      "titre": "{nom}'s lease",
+      "monBail": "My lease",
+      "parties": {
+        "titre": "Parties",
+        "appeler": "Call {nom}",
+        "whatsapp": "Message {nom} on WhatsApp",
+        "locataire": "Tenant",
+        "bailleur": "Landlord",
+        "agentResponsable": "Agent in charge"
+      },
+      "loyer": {
+        "titre": "Rent",
+        "prix": "Sale price",
+        "echeance": "Rent · due on day {jour} of the month",
+        "parMois": "/ month",
+        "charges": "Monthly charges: {montant}",
+        "enRetard": "{mois}: {jours} d late",
+        "enRetardSansJours": "{mois}: late",
+        "penaliteDue": "Late fee <m>{montant}</m> due · total <m>{total}</m>",
+        "paye": "{mois}: paid on {date}",
+        "aVenir": "{mois}: due on {date}",
+        "aRegler": "To be paid to your agency"
+      },
+      "duree": {
+        "titre": "Term",
+        "titreIndemnite": "Term · early exit fee: {mois} months",
+        "periode": "{debut} → {fin}",
+        "sansFin": "Since {debut}, open-ended",
+        "avancement": "Month {n} of {total}"
+      },
+      "caution": {
+        "titre": "Deposit",
+        "titreMois": "Deposit · {mois} months",
+        "restituee": "Returned on {date}",
+        "encaissee": "Collected on {date}",
+        "aEncaisser": "To be collected",
+        "reprise": "Carried over from the previous lease"
+      },
+      "revision": {
+        "titre": "Review the rent",
+        "actuel": "Current rent <m>{montant}</m> / month",
+        "nouveau": "New rent",
+        "unite": "{devise} / month",
+        "plafond": "Review cap: {pct}%",
+        "auDela": "This amount exceeds this lease's review cap.",
+        "forcer": "Override the review cap",
+        "effet": "Effective from",
+        "premiere": "First instalment at the new rent: {date}",
+        "motif": "Reason",
+        "motifs": {
+          "indexation": "Indexation",
+          "travaux": "Works",
+          "accord": "Agreement of the parties"
+        },
+        "precision": "Give details",
+        "prevenus": {
+          "deux": "The tenant and the landlord are notified. The schedule is recalculated from the effective date.",
+          "locataire": "The tenant is notified. The schedule is recalculated from the effective date.",
+          "bailleur": "The landlord is notified. The schedule is recalculated from the effective date.",
+          "personne": "The tenant has no account: let them know yourself. The schedule is recalculated from the effective date."
+        },
+        "annuler": "Cancel",
+        "proposer": "Submit the review",
+        "echec": "The review did not go through. Please try again.",
+        "toast": {
+          "titre": "Rent reviewed",
+          "corps": "{montant} per month from {date}."
+        }
+      },
+      "gestes": {
+        "titre": "Actions",
+        "plus": "More actions",
+        "actions": "Actions",
+        "encaisser": "Record a payment",
+        "envoyerSignature": "Send for signature",
+        "bloque": {
+          "sans-compte": "The tenant has no account yet: invite them before sending the lease for signature.",
+          "sans-nom": "The tenant has no name: complete their record before sending the lease for signature."
+        },
+        "signer": "Sign the lease",
+        "relancerSignature": "Chase the signature",
+        "relanceMessage": "Hello {prenom}, lease {reference} is awaiting your signature on Takussan.",
+        "quittance": "Download my receipt",
+        "contrat": "Download my contract",
+        "contratPdf": "Contract PDF",
+        "reviser": "Review the rent",
+        "renouveler": "Renew the lease",
+        "document": "Add a document",
+        "restituer": "Return the deposit",
+        "generer": "Generate the schedule",
+        "generation": "Generating…",
+        "preavis": "Give my notice",
+        "preavisJours": "{jours}-day notice",
+        "indemniteMois": "Fee of {mois} months' rent",
+        "resilier": "Terminate the lease"
+      },
+      "dossier": {
+        "titre": "The file",
+        "echeancier": "Schedule ({n})",
+        "payees": "{n} paid",
+        "enRetard": "{n} late",
+        "aVenir": "{n} upcoming",
+        "edl": "Move-in inspection",
+        "edlEtabli": "Done on {date}",
+        "edlAbsent": "Not done yet",
+        "contrat": "Contract PDF",
+        "contratSigne": "Signed on {date}",
+        "contratNonSigne": "Not signed yet",
+        "conditions": "Terms and clauses",
+        "documents": "Documents",
+        "documentsDetail": "Contract, inspections, uploaded files"
+      },
+      "onglets": {
+        "libelle": "Lease views",
+        "dossier": "File",
+        "documents": "Documents",
+        "historique": "History",
+        "retour": "Back to the file"
+      },
+      "documents": {
+        "vide": "No documents for this lease.",
+        "erreur": "The lease documents could not be loaded.",
+        "generes": {
+          "lease_contract": "Lease contract",
+          "inventory_move_in": "Move-in inspection",
+          "inventory_move_out": "Move-out inspection",
+          "receipt_rent": "Rent receipt",
+          "autre": "Generated document"
+        },
+        "genereLe": "Generated by Takussan · {date}",
+        "deposeLe": "Uploaded on {date}",
+        "chargement": "Loading documents…",
+        "telecharger": "Download",
+        "ouvrir": "Open"
+      },
+      "historique": {
+        "vide": "No events recorded for this lease.",
+        "erreur": "The lease history could not be loaded.",
+        "revise": "{ancien} → {nouveau}",
+        "events": {
+          "created": "Lease created",
+          "updated": "Lease updated",
+          "deleted": "Lease deleted",
+          "lease_rent_reviewed": "Rent reviewed",
+          "lease_expired": "Lease expired",
+          "tenant_welcomed": "Tenant welcomed",
+          "deposit_refunded": "Deposit returned",
+          "deposit_refund_reversed": "Deposit return reversed",
+          "lease_termination_schedule_cancelled": "Exit instalments cancelled",
+          "lease_early_termination_requested": "Early termination requested",
+          "lease_early_termination_confirmed": "Early termination confirmed",
+          "lease_early_termination_cancelled": "Early termination cancelled",
+          "autre": "Lease event"
+        },
+        "chargement": "Loading history…"
+      },
+      "echeancier": {
+        "titre": "Schedule",
+        "prochaines": "Schedule<l> — the next {n} instalments</l>",
+        "toutes": "All {n} instalments",
+        "moins": "Only the next ones",
+        "loyer": "Rent",
+        "charges": "Charges",
+        "autre": "Instalment",
+        "penaliteDue": "<l>Late fee </l>{montant}<l> · due</l>",
+        "penaliteReglee": "<l>Late fee </l>{montant}<l> ·</l> paid<l> on {date}</l>",
+        "penaliteAgence": "<l>Late fee </l>{montant} · to be paid to the agency",
+        "menu": "More actions for {periode}",
+        "encaisser": "Record",
+        "videLocataireTitre": "Your agency is preparing your schedule",
+        "videLocataireDetail": "Your instalments will appear here as soon as it is ready.",
+        "marquerPenalite": "Mark the late fee as paid",
+        "copierLien": "Copy the payment link",
+        "periode": "{type} · {mois}",
+        "colPenalite": "Late fee",
+        "echeanceLe": "<l>Due: </l>{date}",
+        "periodeRiche": "<t>{type} · </t><m>{mois}</m>",
+        "enRetardDe": "{jours} d overdue",
+        "payeLe": "Paid on {date}",
+        "quittance": "Receipt"
+      },
+      "types": {
+        "residential_rent": "Residential",
+        "commercial_rent": "Commercial",
+        "seasonal_rent": "Seasonal",
+        "sale": "Sale"
+      }
     }
   },
   "maintenance": {

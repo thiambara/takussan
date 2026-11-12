@@ -159,4 +159,87 @@ Autres contraintes :
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+### 2026-11-12 — terrain-8 (lot 2 de l'audit UX)
+
+**Décisions** : celles de la session (`decisions-2645`, 14 points) priment sur le texte ci-dessus. Les plus structurantes :
+- tout suit `abilities` ;
+- « Encaisser » du bailleur suit `record_payment` ;
+- « Relancer la signature » = un message WhatsApp, sans refiger le contrat ;
+- « Bailleur » toujours ;
+- le repère du locataire est `abilities.give_notice`.
+
+**AC7 (« Relancer » un impayé) : REPORTÉ, hors de ce lot.**
+- Dépendances : TCK-2660 (l'aide `useRelanceDUnImpaye`, code sur la branche, ticket todo), puis TCK-2758 étendu à la frontière i18n `(dashboard)/app/leases` (l'aide lit `admin.*`, que cette frontière ne sert pas). L'AC7 part avec TCK-2644, qui partage l'aide.
+- Emplacement retenu (décision 1, a) : la carte Loyer et le menu de la ligne en retard, pour le personnel seul. Le POST `reminders` est au personnel seul (`LeasePaymentPolicy`).
+- Dépendance inversée : c'est TCK-2644 qui a besoin de 2645 (paramètre d'URL d'ouverture d'une feuille de la fiche), pas l'inverse.
+
+**Lot 1 — delta API (décision 3)**
+- `abilities.rent_review_force` = capacité `leases.rent_review_force` ET `rent_review_max_pct` nul, dans `LeaseResource`. Un plafond figé n'est jamais forcé : `RentReviewService` rend 422 `lease.rent_review_above_contract_cap`.
+- Test : `tests/Feature/Leases/LeaseRentReviewForceAbilityTest.php`. Chaque cas vérifie que l'offre ET le `PATCH /rent` disent la même chose : 3 tests verts.
+- Ablations, chacune rouge puis restaurée avec md5 vérifié :
+  - retrait de la condition sur le plafond figé ;
+  - capacité remplacée par `true`.
+
+**Lot 1, complément (frontière d'agence, demandé par team-lead)** : `can('leases.rent_review_force')` sans argument se jugeait dans l'agence du PROFIL ACTIF (Gate de `AppServiceProvider`), pas dans celle du bail.
+- Mesuré : un bailleur du bail (propriétaire dans l'agence du bail) qui agit sous son profil d'agent d'une autre agence, où il a la capacité, recevait `rent_review_force=true`. L'API forçait alors le plafond (`PATCH /rent` → 200).
+- Corrigé dans `LeaseResource` et dans `RentReviewService::review`, qui passent tous deux le bail à `can()`.
+- Test : `test_la_capacite_d_une_autre_agence_n_ouvre_pas_le_passage_outre`. Deux ablations, chacune rouge : sans le bail dans la ressource, `true` au lieu de `false` ; sans le bail dans le service, 200 au lieu de 422.
+- Les trois tests à tableau exact de `LeaseAbilitiesTest` portent la clé `rent_review_force`.
+
+**Relevé « avant »** : bail 4, en retard avec pénalité due, persona agent au téléphone et admin au bureau, contre `references/app-baux/a-1-*`.
+
+| Écran | Conformes | Écarts | Absents | Pixels |
+|---|---|---|---|---|
+| Téléphone | 12 | 9 | 50 | 18,25 % |
+| Bureau 1440 | 32 | 141 | 161 | 13,81 % |
+| Bureau 1280 | 32 | 141 | 155 | 13,78 % |
+
+Balayage 390/768/1024/1280/1440 : aucun débord, aucune coupe.
+
+**Prémisse re-mesurée qui diffère du ticket**
+- Colonnes du bureau : la maquette les pose dès `xl` (`xl:flex-row`, une colonne à 1024), pas dès `lg`. Suivi : la maquette, et AC-F6.
+- « Leurs documents » des garants : GuarantorSection n'a jamais eu de pièce.
+- L'onglet Historique exige ce qu'exige `ActivityLogPolicy::viewAny` : admin, agence standard, `reports.view_agency`. Il est lu côté serveur par `accesAdmin()`.
+
+**Lot 2 — la fiche (front)**
+- `LeaseDetail` réécrit en dossier : en-tête (fil, sous-titre bien · référence · statut · type, Contrat PDF et Ajouter un document au bureau, onglets Dossier / Documents / Historique), cartes Loyer (avec les charges), Durée, Caution, échéancier (6 lignes, puis « Les n échéances »), dossier (EDL, conditions, contrat et documents au téléphone), Parties, Actions au bureau ; au téléphone, barre d'action (geste principal + « ⋯ » qui ouvre la feuille « Gestes »). Pièces sous `src/components/leases/fiche/`.
+- Chaque geste suit `abilities` (`fiche/gestes.ts`) ; plus aucune lecture de `user.roles` dans la fiche, `EarlyTerminationBanner` compris (prop `locataire` = `abilities.give_notice`).
+- `window.prompt` de révision remplacé par `FeuilleDeRevision` : montant, écart, plafond `rent_review_cap_pct`, « Passer outre » sur `abilities.rent_review_force` seul, date d'effet et première échéance révisée, motif (puce + texte), qui est prévenu (locataire si `tenant.user_id`, bailleur si `landlord_id` ≠ lecteur) ; 422 du plafond → prose localisée sur le champ. `useReviewLeaseRent` invalide aussi l'échéancier.
+- `?onglet=documents|historique` et `?geste=reviser|restituer|renouveler` (seulement si le geste est offert) : le point d'entrée dont TCK-2644 a besoin.
+- Échéancier : la caution et sa restitution n'y figurent plus (carte Caution) ; ordre « en retard, à venir, passées » ; pénalité comme un état ; « Payer » au locataire seul, « Encaisser » par ligne au personnel.
+- Historique : `GET /api/audit-log/lease/{id}`, libellés du front par code d'événement ; l'auteur de l'événement n'est pas servi (question ouverte).
+- Écarts tenus : ligne « Interventions » absente (aucun filtre `lease_id` sur la maintenance) ; garant par `GuarantorSection` existante.
+- Tests remplacés par `LeaseDetail.fiche.tck-2645.test.tsx` : les garanties des sept anciens fichiers de `LeaseDetail` y sont reprises ; le cas « 403 du téléchargement → message localisé » ne l'est pas (`BoutonTelechargement` le porte).
+
+**Fidélité (fiche `docs/qa/audit-ux-2026-11/fidelite/TCK-2645.json`)** — relevés du 2026-11-12 sur le bail 4 (agent au téléphone, admin au bureau, écritures refusées dans la page) :
+
+| Écran | Avant la fiche | Après (conformes · écarts · absents · pixels) |
+|---|---|---|
+| a-1 téléphone | 12 · 9 · 50 | 23 · 22 · 10 · 8,42 % |
+| a-1 bureau 1440 | 32 · 141 · 161 | 57 · 171 · 98 · 11 % |
+| a-1 bureau 1280 | 32 · 141 · 155 | 56 · 172 · 91 · 11,54 % |
+| a-4 téléphone | — | 22 · 24 · 46 · 22,76 % |
+
+Au bureau, l'essentiel des écarts vient de la coque (hors périmètre). Chaque écart accepté porte son motif dans la fiche. Balayage 390/768/1024/1280/1440 : aucun débord, aucune coupe.
+
+**Lot 3 — fidélité de l'échéancier et de la feuille a-4**
+- Échéancier au bureau : la table de la maquette (Période · Échéance · Montant · Pénalité · Statut), sans quitter la liste. Une grille de six pistes `auto` (comme une table) dont l'en-tête (`aria-hidden`) et chaque `<li>` sont des sous-grilles, avec le même écart de colonnes ; plus large que sa carte, elle défile dedans (AC-F6). Au téléphone, la ligne reste la carte empilée de TCK-593. « Quittance » devient un lien primaire. Les libellés « Échéance : », « Pénalité … · due » et le type d'un loyer sont masqués à l'œil au bureau (`lg:sr-only`), jamais retirés ; le mois prend sa capitale (« Novembre 2026 »). La teinte du retard reste au téléphone.
+- Le test TCK-593 « ne force aucune largeur » attend désormais `lg:grid lg:grid-cols-subgrid` au lieu de `lg:flex-row` ; sa garantie (aucun `whitespace-nowrap`, `min-w-[`, `w-[` ; aucun défilement) est inchangée.
+- « Les n échéances » est l'action de la carte (`aria-expanded`), tenue par la fiche ; le titre redevient « Échéancier » quand tout est déplié, et au téléphone il ne dit qu'« Échéancier » (la suite y était coupée à côté de l'action). Sans la prop `toutes`, `LeaseSchedule` garde son bouton sous la liste.
+- États : « En retard de N j » (jours comptés par `joursEntre` de la carte Loyer, seulement quand l'API dit l'échéance échue), « Payé le … » (`paid_at`), en attention quand l'échéance a porté une pénalité (un loyer réglé dans le délai de grâce reste en succès).
+- Feuille a-4 : avatar du locataire dans le bloc d'identité, montant en `h-14` au corps des chiffres clés, motifs en CHOIX (`h-10 px-4`, coche sur le retenu). La feuille est à la mesure de la maquette ; l'écart restant (+20 px) est l'aide « Première échéance… », absente faute d'échéance après la date d'effet sur le bail 4.
+- Vérifié aussi sur le bail 36 (22 échéances, payées, quittances, pénalités) : relevés 390/1024/1280/1440 et balayage, en-tête et cellules alignés, aucun débord.
+- Clés `lease.schedule.dueOn` et `lease.schedule.receiptPdf` supprimées : leur dernier lecteur était l'échéancier.
+- Ablations, chacune rouge puis restaurée : compte des jours, jugement par l'API, ton « attention » (et sa règle), libellés masqués, écart de colonnes de la ligne, défilement de la grille, état tenu par la fiche, titre, titre court du téléphone, coche du motif.
+
+| Écran (relevés du 2026-11-12, lot 3) | Conformes · écarts · absents · pixels |
+|---|---|
+| a-1 téléphone | 23 · 22 · 10 · 8,42 % (inchangé) |
+| a-1 bureau 1440 | 56 · 185 · 84 · 9,78 % (11 % au lot 2) |
+| a-1 bureau 1280 | 59 · 182 · 77 · 10,43 % (11,54 %) |
+| a-4 téléphone | 19 · 20 · 57 · 12,17 % (22,76 %) ; les éléments de la feuille passent d'écart à conforme (puces, « Motif », coche) ; les conformes perdus sont ceux de la barre d'onglets de la coque, sous la feuille |
+| a-4 bureau 1440 | 24 · 207 · 137 · 61,72 % (61,67 % : feuille du téléphone au bureau sur la fiche, décision du porteur) |
+
+Les écarts nouveaux sont des données du bail 4 (une échéance, pénalité non encaissable en ligne, 7 jours de retard) et la forme de la primitive de téléchargement, motivés dans la fiche de fidélité, qui n'a plus d'écart ouvert. Balayage 390/768/1024/1280/1440 (admin) et 390/768/1024 (agent) : aucun débord, aucune coupe.
+
+La pastille « n en retard » de l'en-tête (TCK-1833) est retirée pour suivre la maquette. Le compte, toujours lu sur `is_overdue`, vit à la ligne « Échéancier » du dossier et à la carte Loyer.

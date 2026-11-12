@@ -1,13 +1,15 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { CalendarClock, Link2 } from 'lucide-react';
+import { CalendarClock, MoreHorizontal } from 'lucide-react';
 import { useIssuePaymentLink, useLeasePayments, useMarkLateFeePaid } from '@/lib/queries/leases';
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { formatCurrency, formatDate } from '@/lib/format';
-import { Badge } from '@/components/ui/badge';
+import { StatusBadge, type StatusTone } from '@/components/console';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Locale } from '@/i18n/config';
 import type { LeasePayment } from '@/types/lease';
@@ -22,6 +24,7 @@ import { checkoutEnCours, type CheckoutEnCours } from '@/components/payments/che
 import { useAuth } from '@/context/AuthContext';
 import { useMyProfiles } from '@/hooks/useProfiles';
 import { PasserOutreDialog } from './PasserOutreDialog';
+import { aujourdhuiADakar, joursEntre } from './fiche/CartesDuBail';
 import { peutPasserOutreAuCheckout } from './passer-outre';
 
 interface LeaseScheduleProps {
@@ -40,6 +43,61 @@ interface LeaseScheduleProps {
    * (`MarkLateFeePaidRequest`), pas par le rôle de gestion : le drapeau `abilities.record_payment`.
    */
   readonly canRecordPayment?: boolean;
+  /**
+   * TCK-2645 — le lecteur est le locataire de CE bail (`abilities.give_notice`, décision 12) : lui seul
+   * a « Payer » sur ses lignes (décision 3 a), et l'état vide parle de son logement.
+   */
+  readonly locataire?: boolean;
+  /** TCK-2645 — au bureau, les N prochaines échéances, puis « Les n échéances » qui déplie (décision 4 a). */
+  readonly limite?: number;
+  /**
+   * TCK-2645 (lot 3) — « Les n échéances » est l'action de la CARTE (maquette a-1) : la fiche tient
+   * l'état et le passe ici. Absent, l'échéancier garde son propre bouton sous la liste.
+   */
+  readonly toutes?: boolean;
+  /** Aujourd'hui à Dakar (`AAAA-MM-JJ`), pour compter « En retard de N j ». Injecté par les tests. */
+  readonly aujourdhui?: string;
+  /** TCK-2645 — « Encaisser » sur la ligne (gestion, `record_payment`) : ouvre le paiement reçu présélectionné. */
+  readonly onEncaisser?: (paymentId: number) => void;
+}
+
+/** TCK-2645 — « Payé » en `--success`, jamais en terracotta (la couleur d'action). */
+const TON_DU_STATUT: Record<ReturnType<typeof displayStatus>, StatusTone> = {
+  paid: 'success',
+  late: 'danger',
+  pending: 'neutral',
+  partially_paid: 'attention',
+  failed: 'danger',
+  refunded: 'neutral',
+  cancelled: 'neutral',
+  other: 'neutral',
+};
+
+/**
+ * TCK-2645 (lot 3) — « Payé » d'une échéance qui a porté une pénalité : en attention (maquette a-1,
+ * « Payé le 29 oct. », pénalité réglée). Pas la seule date : un loyer réglé dans le délai de grâce,
+ * après l'échéance mais sans pénalité, n'est pas un retard (bail 36 de la démo, « Payé le 8 oct. »).
+ */
+function payeeAvecPenalite(p: LeasePayment): boolean {
+  return p.status === 'paid' && typeof p.late_fee_amount === 'number' && p.late_fee_amount > 0;
+}
+
+function echeanceDe(p: LeasePayment): string {
+  return (p.due_date ?? p.period_start).slice(0, 10);
+}
+
+/**
+ * TCK-2645 — l'ordre de lecture : l'échéance en cours en tête (les retards, puis les dues à venir,
+ * de la plus proche à la plus lointaine), puis le passé, du plus récent au plus ancien. La caution
+ * n'y est pas : elle a sa carte (AC5).
+ */
+export function ordreDeLEcheancier(paiements: readonly LeasePayment[]): LeasePayment[] {
+  const lignes = paiements.filter((p) => p.payment_type !== 'deposit' && p.payment_type !== 'deposit_refund');
+  const ouverte = (p: LeasePayment) => p.status === 'pending' || p.status === 'late' || p.status === 'partially_paid' || p.status === 'failed';
+  const enRetard = lignes.filter((p) => ouverte(p) && p.is_overdue).sort((a, b) => echeanceDe(a).localeCompare(echeanceDe(b)));
+  const aVenir = lignes.filter((p) => ouverte(p) && !p.is_overdue).sort((a, b) => echeanceDe(a).localeCompare(echeanceDe(b)));
+  const passe = lignes.filter((p) => !ouverte(p)).sort((a, b) => echeanceDe(b).localeCompare(echeanceDe(a)));
+  return [...enRetard, ...aVenir, ...passe];
 }
 
 /**
@@ -48,8 +106,9 @@ interface LeaseScheduleProps {
  * du jour reste « en attente »). Le statut `late` seul ne suffit pas : l'API ne l'écrit que
  * lorsqu'elle applique une pénalité de retard (`LateFeeCalculator`, bail à `late_fee_percent`
  * positif, délai de grâce écoulé), et sans pénalité configurée aucune échéance n'est jamais
- * marquée `late` côté serveur (TCK-1829, P183.05). Aucune date n'est comparée ici à l'horloge du
- * navigateur.
+ * marquée `late` côté serveur (TCK-1829, P183.05). Le RETARD n'est jamais jugé sur l'horloge du
+ * navigateur ; seul son COMPTE de jours (« En retard de 6 j », TCK-2645 lot 3) part d'aujourd'hui à
+ * Dakar, comme la carte Loyer, une fois l'échéance dite échue par l'API.
  *
  * TCK-1264 (P146.02) — suit chaque cas de `PaymentStatus` : `refunded`, `failed` et
  * `partially_paid` ne retombent plus sur « Autre ». Une restitution de dépôt (`deposit_refund`)
@@ -75,10 +134,15 @@ function displayStatus(
 /**
  * Échéancier du bail.
  *
- * TCK-593 — une LISTE, plus une table : à 390 px, la table de TCK-505 défilait en X pour montrer la
- * colonne d'actions, qui porte désormais jusqu'à trois gestes (payer, quittance, pénalité réglée).
- * Chaque échéance est une ligne qui se replie en carte sur téléphone et s'aligne en colonnes à
- * partir de `lg` ; le conteneur ne défile plus du tout.
+ * TCK-593 — une LISTE, plus une table : chaque échéance est une ligne qui se replie en carte sur
+ * téléphone et s'aligne en colonnes à partir de `lg` ; le conteneur ne défile pas. TCK-2645 (lot 3) :
+ * ces colonnes sont celles de la table de la maquette, sous un en-tête commun (sous-grilles).
+ *
+ * TCK-2645 — la ligne de la maquette `app-baux` : le type et le mois (« Loyer · novembre 2026 »),
+ * l'échéance, le montant, la pénalité comme un ÉTAT (« Pénalité 32 000 F · due »), le statut en
+ * couleur (`--success` pour « Payé »), puis un seul geste visible — « Payer » pour le locataire,
+ * « Encaisser » pour la gestion, sinon la quittance — et le reste dans le menu de la ligne
+ * (« Marquer la pénalité réglée », « Copier le lien de paiement »).
  */
 export function LeaseSchedule({
   leaseId,
@@ -86,12 +150,19 @@ export function LeaseSchedule({
   landlordId,
   canManage = false,
   canRecordPayment = false,
+  locataire = false,
+  limite,
+  toutes: toutesImpose,
+  aujourdhui: aujourdhuiImpose,
+  onEncaisser,
 }: LeaseScheduleProps) {
   const locale = useLocale() as Locale;
   const t = useTranslations('lease.schedule');
+  const tFiche = useTranslations('lease.fiche.echeancier');
   const tScheduleStatus = useTranslations('lease.schedule.status');
   const tCommon = useTranslations('common');
   const tGateway = useTranslations('payments.gateway');
+  const f = useFormatteurs();
   const messageErreur = useMessageErreurApi();
   const toast = useToast();
   const paymentsQuery = useLeasePayments(leaseId);
@@ -112,11 +183,17 @@ export function LeaseSchedule({
     paymentId: number;
     checkout: CheckoutEnCours;
   } | null>(null);
+  const [toutesInterne, setToutes] = useState(false);
+  const toutes = toutesImpose ?? toutesInterne;
+  const aujourdhui = aujourdhuiImpose ?? aujourdhuiADakar();
 
-  const payments = useMemo(() => data?.data ?? [], [data]);
+  const payments = useMemo(() => ordreDeLEcheancier(data?.data ?? []), [data]);
   // TCK-602 — les fournisseurs ne dépendent que de l'agence et de la devise du bail : la première
   // échéance due suffit à les lire, une requête par échéancier et non par ligne.
-  const { providers } = usePaymentProviders('lease-payments', payments.find((p) => p.status !== 'cancelled' && p.amount_due > 0)?.id ?? null);
+  const { providers } = usePaymentProviders(
+    'lease-payments',
+    locataire ? (payments.find((p) => p.status !== 'cancelled' && p.amount_due > 0)?.id ?? null) : null,
+  );
 
   if (isLoading) {
     return <Skeleton className="h-40 rounded-xl" />;
@@ -134,8 +211,8 @@ export function LeaseSchedule({
     return (
       <EmptyState
         icon={<CalendarClock className="size-8" aria-hidden="true" />}
-        title={t('empty_title')}
-        description={t('empty_description')}
+        title={locataire ? tFiche('videLocataireTitre') : t('empty_title')}
+        description={locataire ? tFiche('videLocataireDetail') : t('empty_description')}
       />
     );
   }
@@ -193,112 +270,174 @@ export function LeaseSchedule({
     }
   }
 
+  const visibles = limite !== undefined && !toutes ? payments.slice(0, limite) : payments;
+  const reste = toutesImpose === undefined && limite !== undefined && payments.length > limite;
+  /** « Échéance : », « Pénalité … · due », le type d'un loyer : dits au téléphone, portés par l'en-tête au bureau. */
+  const auTelephone = (c: ReactNode) => <span className="lg:sr-only">{c}</span>;
+
   return (
     <>
-      <ul
-        className="divide-y divide-border rounded-xl border border-border bg-card text-sm tabular-nums"
-        aria-label={t('listLabel')}
-        data-testid="echeancier"
-      >
-        {payments.map((p) => {
-          const st = displayStatus(p);
-          const enDevise = (valeur: number) =>
-            formatCurrency(valeur, locale, { currency: p.currency });
-          const annulee = st === 'cancelled';
-          const penalite = !annulee && typeof p.late_fee_amount === 'number' && p.late_fee_amount > 0 ? p.late_fee_amount : null;
-          const penaliteHorsLigne = p.late_fee_outstanding > 0 && !p.late_fee_payable_online;
-          return (
-            <li
-              key={p.id}
-              className={cn(
-                'flex flex-col gap-3 px-4 py-3 transition-colors lg:flex-row lg:items-center lg:gap-6',
-                st === 'late' && 'bg-destructive/10',
-              )}
-            >
-              <div className="min-w-0 lg:w-64 lg:shrink-0">
-                <p className="font-medium text-foreground">
-                  {formatDate(p.period_start, locale)} → {formatDate(p.period_end, locale)}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {t('dueOn', {
-                    date: p.due_date ? formatDate(p.due_date, locale) : '—',
-                  })}
-                </p>
-              </div>
-
-              <div className="min-w-0 lg:flex-1">
-                <p className={cn('font-medium text-foreground', annulee && 'text-muted-foreground line-through')}>
-                  {enDevise(p.amount)}
-                  {penalite !== null && (
-                    <span className="ml-1 text-xs text-destructive" data-testid="penalite">
-                      +{enDevise(penalite)}
-                    </span>
-                  )}
-                </p>
-                {penalite !== null && (
-                  <p className="text-xs text-muted-foreground">
-                    {p.late_fee_paid_at
-                      ? t('lateFee.settled')
-                      : penaliteHorsLigne
-                        ? t('lateFee.atAgency')
-                        : t('lateFee.label')}
+      {/*
+        TCK-2645 (lot 3) — au bureau, la TABLE de la maquette a-1 (Période · Échéance · Montant ·
+        Pénalité · Statut) sans quitter la liste : une grille dont l'en-tête et chaque ligne sont des
+        sous-grilles ; au téléphone, chaque ligne reste une carte empilée (TCK-593). L'en-tête est
+        visuel (`aria-hidden`) : chaque cellule garde son libellé, masqué à l'œil seulement.
+      */}
+      {/* Des pistes `auto`, comme une table : à leur contenu quand la place le permet, repliées sinon ;
+          au plus étroit (1024-1280, colonne de droite ouverte), la grille défile dans sa carte (AC-F6). */}
+      <div className="lg:grid lg:grid-cols-[repeat(6,auto)] lg:gap-x-6 lg:overflow-x-auto" data-testid="grille-echeancier">
+        <div
+          aria-hidden="true"
+          className="h-10 items-center border-b border-border bg-muted/40 px-4 text-xs font-medium text-muted-foreground max-lg:hidden lg:col-span-full lg:grid lg:grid-cols-subgrid"
+          data-testid="entete-echeancier"
+        >
+          <span>{t('colPeriod')}</span>
+          <span>{t('colDueDate')}</span>
+          <span className="text-right">{t('colAmount')}</span>
+          <span className="text-right">{tFiche('colPenalite')}</span>
+          <span>{t('colStatus')}</span>
+          <span />
+        </div>
+        <ul
+          className="divide-y divide-border text-sm tabular-nums lg:col-span-full lg:grid lg:grid-cols-subgrid"
+          aria-label={t('listLabel')}
+          data-testid="echeancier"
+        >
+          {visibles.map((p) => {
+            const st = displayStatus(p);
+            const annulee = st === 'cancelled';
+            const montant = (valeur: number) => f.montantCourt(valeur, p.currency);
+            const penalite = !annulee && typeof p.late_fee_amount === 'number' && p.late_fee_amount > 0 ? p.late_fee_amount : null;
+            const penaliteHorsLigne = p.late_fee_outstanding > 0 && !p.late_fee_payable_online;
+            const type = p.payment_type === 'rent' ? tFiche('loyer') : p.payment_type === 'charges' ? tFiche('charges') : tFiche('autre');
+            const mois = f.date(p.period_start, { month: 'long', year: 'numeric' });
+            const periode = tFiche('periode', { type, mois });
+            const due = !annulee && p.amount_due > 0;
+            const ouverte = !annulee && (p.status === 'pending' || p.status === 'late' || p.status === 'partially_paid' || p.status === 'failed');
+            const marquerPenalite = canRecordPayment && !annulee && p.late_fee_outstanding > 0;
+            const copierLien = canManage && due && !locataire;
+            // TCK-2645 (lot 3) — « En retard de 6 j », « Payé le 29 oct. » : l'état et sa date (maquette a-1).
+            const joursDeRetard = st === 'late' && p.due_date ? joursEntre(p.due_date, aujourdhui) : 0;
+            const libelle =
+              joursDeRetard > 0
+                ? tFiche('enRetardDe', { jours: joursDeRetard })
+                : st === 'paid' && p.paid_at
+                  ? tFiche('payeLe', { date: f.jourMois(p.paid_at) })
+                  : tScheduleStatus(st);
+            const ton = st === 'paid' && payeeAvecPenalite(p) ? 'attention' : TON_DU_STATUT[st];
+            return (
+              <li
+                key={p.id}
+                data-testid={`echeance-${p.id}`}
+                className={cn(
+                  'flex flex-col gap-2 px-4 py-3 lg:col-span-full lg:grid lg:min-h-12 lg:grid-cols-subgrid lg:items-center lg:gap-x-6 lg:gap-y-0 lg:py-1.5',
+                  // La teinte du retard reste au téléphone ; au bureau, le statut le dit seul (maquette a-1).
+                  st === 'late' && 'bg-destructive/5 lg:bg-transparent',
+                )}
+              >
+                <div className="min-w-0 lg:contents">
+                  <p className="font-medium text-foreground">
+                    {tFiche.rich('periodeRiche', {
+                      type,
+                      mois,
+                      // Un loyer se dit par son mois au bureau (« Novembre 2026 ») ; les charges gardent leur type.
+                      t: (c) => (p.payment_type === 'rent' ? auTelephone(c) : c),
+                      m: (c) => <span className="lg:capitalize">{c}</span>,
+                    })}
                   </p>
-                )}
-              </div>
+                  <p className="text-ui text-muted-foreground lg:text-sm lg:text-encre-douce">
+                    {tFiche.rich('echeanceLe', { date: p.due_date ? f.jourMois(p.due_date) : '—', l: auTelephone })}
+                  </p>
+                </div>
 
-              <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                <Badge
-                  variant={st === 'paid' ? 'default' : st === 'late' ? 'destructive' : 'outline'}
-                >
-                  {tScheduleStatus(st)}
-                </Badge>
-                {!annulee && p.amount_due > 0 && (
-                  <PayOnlineButton
-                    paymentType="lease-payments"
-                    paymentId={p.id}
-                    currency={p.currency}
-                    availableProviders={providers}
-                    montant={detailMontantDu(p)}
-                  />
-                )}
-                {p.receipt_available && (
-                  <BoutonTelechargement
-                    chemin={`/api/leases/${leaseId}/receipts/${p.id}/pdf`}
-                    nomFichier={`quittance-${p.reference_number ?? p.id}.pdf`}
-                    size="sm"
-                  >
-                    {t('receiptPdf')}
-                  </BoutonTelechargement>
-                )}
-                {canManage && !annulee && p.amount_due > 0 && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void copierLienDePaiement(p.id)}
-                    disabled={issuePaymentLink.isPending}
-                    data-testid="lien-de-paiement"
-                  >
-                    <Link2 className="size-4" aria-hidden="true" />
-                    {t('paymentLink.copy')}
-                  </Button>
-                )}
-                {canRecordPayment && !annulee && p.late_fee_outstanding > 0 && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void constaterPenaliteReglee(p.id)}
-                    disabled={markLateFeePaid.isPending}
-                  >
-                    {t('lateFee.markPaid')}
-                  </Button>
-                )}
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+                <div className="min-w-0 lg:contents">
+                  <p className={cn('font-medium text-foreground lg:text-right lg:font-normal', annulee && 'text-muted-foreground line-through')}>
+                    {montant(p.amount)}
+                  </p>
+                  {penalite !== null ? (
+                    <p className="text-ui text-muted-foreground lg:text-right lg:text-sm lg:text-encre-douce" data-testid="penalite">
+                      {p.late_fee_paid_at
+                        ? tFiche.rich('penaliteReglee', { montant: montant(penalite), date: f.jourMois(p.late_fee_paid_at), l: auTelephone })
+                        : penaliteHorsLigne
+                          ? tFiche.rich('penaliteAgence', { montant: montant(penalite), l: auTelephone })
+                          : tFiche.rich('penaliteDue', { montant: montant(penalite), l: auTelephone })}
+                    </p>
+                  ) : (
+                    <p aria-hidden="true" className="text-right text-encre-douce max-lg:hidden">
+                      —
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 lg:contents">
+                  <StatusBadge tone={ton} label={libelle} className="lg:justify-self-start" />
+                  <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                    {locataire && due ? (
+                      <PayOnlineButton
+                        paymentType="lease-payments"
+                        paymentId={p.id}
+                        currency={p.currency}
+                        availableProviders={providers}
+                        montant={detailMontantDu(p)}
+                      />
+                    ) : null}
+                    {!locataire && onEncaisser && canRecordPayment && ouverte ? (
+                      <Button type="button" size="sm" onClick={() => onEncaisser(p.id)}>
+                        {tFiche('encaisser')}
+                      </Button>
+                    ) : null}
+                    {p.receipt_available ? (
+                      // TCK-2645 (lot 3) — maquette a-1 : « Quittance », un lien de la ligne, pas un bouton à bord.
+                      <BoutonTelechargement
+                        chemin={`/api/leases/${leaseId}/receipts/${p.id}/pdf`}
+                        nomFichier={`quittance-${p.reference_number ?? p.id}.pdf`}
+                        variant="link"
+                        size="sm"
+                        className="px-0"
+                      >
+                        {tFiche('quittance')}
+                      </BoutonTelechargement>
+                    ) : null}
+                    {marquerPenalite || copierLien ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          aria-label={tFiche('menu', { periode })}
+                          className="inline-flex size-controle-petit flex-none items-center justify-center rounded-lg outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring"
+                        >
+                          <MoreHorizontal className="size-4" aria-hidden="true" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {marquerPenalite ? (
+                            <DropdownMenuItem disabled={markLateFeePaid.isPending} onClick={() => void constaterPenaliteReglee(p.id)}>
+                              {tFiche('marquerPenalite')}
+                            </DropdownMenuItem>
+                          ) : null}
+                          {copierLien ? (
+                            <DropdownMenuItem
+                              disabled={issuePaymentLink.isPending}
+                              onClick={() => void copierLienDePaiement(p.id)}
+                              data-testid="lien-de-paiement"
+                            >
+                              {tFiche('copierLien')}
+                            </DropdownMenuItem>
+                          ) : null}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : null}
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+      {reste ? (
+        <div className="border-t border-border px-4 py-2.5">
+          <Button type="button" variant="link" className="h-auto px-0" onClick={() => setToutes((v) => !v)} aria-expanded={toutes}>
+            {toutes ? tFiche('moins') : tFiche('toutes', { n: payments.length })}
+          </Button>
+        </div>
+      ) : null}
       <PasserOutreDialog
         checkout={bloquee?.checkout ?? null}
         occupe={markLateFeePaid.isPending}

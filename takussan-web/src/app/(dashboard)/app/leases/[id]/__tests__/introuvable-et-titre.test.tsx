@@ -38,6 +38,8 @@ vi.mock('next-intl/server', () => {
 const notFoundMock = vi.fn(() => { throw new Error('NEXT_NOT_FOUND'); });
 vi.mock('next/navigation', () => ({ notFound: () => notFoundMock() }));
 vi.mock('@/app/actions/auth', () => ({ getMeAction: async () => ({ id: 1, roles: ['agent'] }) }));
+// TCK-2645 — la page lit l'accès à la piste d'audit (onglet « Historique ») : hors sujet ici.
+vi.mock('@/lib/access/pages-admin-server', () => ({ accesAdmin: async () => ({ chemins: [] }) }));
 
 const getTokenMock = vi.fn(async () => 'jeton' as string | null);
 vi.mock('@/lib/session', () => ({ getToken: () => getTokenMock() }));

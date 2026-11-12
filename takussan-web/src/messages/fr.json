@@ -4977,31 +4977,11 @@
     "detail": {
       "error": "Bail introuvable.",
       "backToList": "Retour aux baux",
-      "latePayments": "{count} en retard",
-      "generateSchedule": "Générer l’échéancier",
-      "generating": "Génération…",
       "activate": "Activer le bail",
       "activating": "Activation…",
-      "reviewRent": "Réviser le loyer",
-      "recordPayment": "Enregistrer un paiement reçu",
-      "downloadContract": "Télécharger le contrat PDF",
-      "duration": "Durée",
-      "openEnded": "indéterminée",
-      "price": "Prix",
-      "rent": "Loyer",
-      "deposit": "Caution",
-      "schedule": "Échéancier",
       "activateBeforeSchedule": "Activez le bail avant de générer l’échéancier.",
-      "depositInitialAmount": "Montant initial :",
-      "depositRefundedOn": "Remboursée le {date}",
-      "depositNoRefund": "Aucun remboursement enregistré",
-      "clauses": "Clauses",
       "activatedToastTitle": "Bail activé",
       "activatedToastBody": "L’échéancier peut maintenant être généré ou consulté.",
-      "rentPromptAmount": "Nouveau loyer mensuel",
-      "rentPromptReason": "Motif de révision du loyer",
-      "rentReviewedToastTitle": "Loyer révisé",
-      "rentReviewedToastBody": "La révision est journalisée dans l’historique du bail.",
       "reviewContextActive": "Votre bail est en cours.",
       "reviewContextEnded": "Votre bail est terminé."
     },
@@ -5025,8 +5005,6 @@
         "refunded": "Remboursé"
       },
       "listLabel": "Échéances du bail",
-      "dueOn": "Échéance : {date}",
-      "receiptPdf": "Quittance PDF",
       "lateFee": {
         "label": "Pénalité de retard",
         "atAgency": "Pénalité à régler auprès de l’agence",
@@ -5340,6 +5318,195 @@
       "paperSubmit": "Activer sur contrat papier",
       "genericError": "L’opération a échoué. Réessayez.",
       "paperTooLarge": "Fichier trop lourd ({max} Mo au plus) : {files}"
+    },
+    "fiche": {
+      "titre": "Bail de {nom}",
+      "monBail": "Mon bail",
+      "parties": {
+        "titre": "Parties",
+        "appeler": "Appeler {nom}",
+        "whatsapp": "Écrire à {nom} sur WhatsApp",
+        "locataire": "Locataire",
+        "bailleur": "Bailleur",
+        "agentResponsable": "Agent responsable"
+      },
+      "loyer": {
+        "titre": "Loyer",
+        "prix": "Prix de vente",
+        "echeance": "Loyer · échéance le {jour} du mois",
+        "parMois": "/ mois",
+        "charges": "Charges mensuelles : {montant}",
+        "enRetard": "{mois} : en retard de {jours} j",
+        "enRetardSansJours": "{mois} : en retard",
+        "penaliteDue": "Pénalité <m>{montant}</m> due · total <m>{total}</m>",
+        "paye": "{mois} : payé le {date}",
+        "aVenir": "{mois} : à régler le {date}",
+        "aRegler": "À régler auprès de votre agence"
+      },
+      "duree": {
+        "titre": "Durée",
+        "titreIndemnite": "Durée · indemnité de départ : {mois} mois",
+        "periode": "{debut} → {fin}",
+        "sansFin": "Depuis le {debut}, sans terme",
+        "avancement": "{n, selectordinal, one {#ᵉʳ} other {#ᵉ}} mois sur {total}"
+      },
+      "caution": {
+        "titre": "Caution",
+        "titreMois": "Caution · {mois} mois",
+        "restituee": "Restituée le {date}",
+        "encaissee": "Encaissée le {date}",
+        "aEncaisser": "À encaisser",
+        "reprise": "Reprise du bail précédent"
+      },
+      "revision": {
+        "titre": "Réviser le loyer",
+        "actuel": "Loyer actuel <m>{montant}</m> / mois",
+        "nouveau": "Nouveau loyer",
+        "unite": "{devise} / mois",
+        "plafond": "Plafond de révision : {pct} %",
+        "auDela": "Ce montant dépasse le plafond de révision de ce bail.",
+        "forcer": "Passer outre le plafond de révision",
+        "effet": "À partir du",
+        "premiere": "Première échéance au nouveau loyer : {date}",
+        "motif": "Motif",
+        "motifs": {
+          "indexation": "Indexation",
+          "travaux": "Travaux",
+          "accord": "Accord des parties"
+        },
+        "precision": "Précisez le motif",
+        "prevenus": {
+          "deux": "Le locataire et le bailleur sont prévenus. L’échéancier est recalculé à partir de la date d’effet.",
+          "locataire": "Le locataire est prévenu. L’échéancier est recalculé à partir de la date d’effet.",
+          "bailleur": "Le bailleur est prévenu. L’échéancier est recalculé à partir de la date d’effet.",
+          "personne": "Le locataire n’a pas de compte : prévenez-le vous-même. L’échéancier est recalculé à partir de la date d’effet."
+        },
+        "annuler": "Annuler",
+        "proposer": "Proposer la révision",
+        "echec": "La révision n’a pas abouti. Réessayez.",
+        "toast": {
+          "titre": "Loyer révisé",
+          "corps": "{montant} par mois à partir du {date}."
+        }
+      },
+      "gestes": {
+        "titre": "Gestes",
+        "plus": "Autres actions",
+        "actions": "Actions",
+        "encaisser": "Encaisser",
+        "envoyerSignature": "Envoyer à la signature",
+        "bloque": {
+          "sans-compte": "Le locataire n’a pas encore de compte : invitez-le avant d’envoyer le bail à la signature.",
+          "sans-nom": "Le locataire n’a pas de nom : complétez sa fiche avant d’envoyer le bail à la signature."
+        },
+        "signer": "Signer le bail",
+        "relancerSignature": "Relancer la signature",
+        "relanceMessage": "Bonjour {prenom}, le bail {reference} attend votre signature sur Takussan.",
+        "quittance": "Télécharger ma quittance",
+        "contrat": "Télécharger mon contrat",
+        "contratPdf": "Contrat PDF",
+        "reviser": "Réviser le loyer",
+        "renouveler": "Renouveler le bail",
+        "document": "Ajouter un document",
+        "restituer": "Restituer la caution",
+        "generer": "Générer l’échéancier",
+        "generation": "Génération…",
+        "preavis": "Donner mon préavis",
+        "preavisJours": "Préavis de {jours} jours",
+        "indemniteMois": "Indemnité de {mois} mois de loyer",
+        "resilier": "Résilier le bail"
+      },
+      "dossier": {
+        "titre": "Le dossier",
+        "echeancier": "Échéancier ({n})",
+        "payees": "{n, plural, one {# payée} other {# payées}}",
+        "enRetard": "{n} en retard",
+        "aVenir": "{n} à venir",
+        "edl": "État des lieux d’entrée",
+        "edlEtabli": "Établi le {date}",
+        "edlAbsent": "Pas encore établi",
+        "contrat": "Contrat PDF",
+        "contratSigne": "Signé le {date}",
+        "contratNonSigne": "Pas encore signé",
+        "conditions": "Conditions et clauses",
+        "documents": "Documents",
+        "documentsDetail": "Contrat, états des lieux, pièces déposées"
+      },
+      "onglets": {
+        "libelle": "Vues du bail",
+        "dossier": "Dossier",
+        "documents": "Documents",
+        "historique": "Historique",
+        "retour": "Retour au dossier"
+      },
+      "documents": {
+        "vide": "Aucun document pour ce bail.",
+        "erreur": "Les documents du bail n’ont pas pu être lus.",
+        "generes": {
+          "lease_contract": "Contrat de bail",
+          "inventory_move_in": "État des lieux d’entrée",
+          "inventory_move_out": "État des lieux de sortie",
+          "receipt_rent": "Quittance de loyer",
+          "autre": "Document généré"
+        },
+        "genereLe": "Généré par Takussan · {date}",
+        "deposeLe": "Déposé le {date}",
+        "chargement": "Lecture des documents…",
+        "telecharger": "Télécharger",
+        "ouvrir": "Ouvrir"
+      },
+      "historique": {
+        "vide": "Aucun événement enregistré pour ce bail.",
+        "erreur": "L’historique du bail n’a pas pu être lu.",
+        "revise": "{ancien} → {nouveau}",
+        "events": {
+          "created": "Bail créé",
+          "updated": "Bail modifié",
+          "deleted": "Bail supprimé",
+          "lease_rent_reviewed": "Loyer révisé",
+          "lease_expired": "Bail arrivé à son terme",
+          "tenant_welcomed": "Locataire accueilli",
+          "deposit_refunded": "Caution restituée",
+          "deposit_refund_reversed": "Restitution de caution annulée",
+          "lease_termination_schedule_cancelled": "Échéances de sortie annulées",
+          "lease_early_termination_requested": "Résiliation anticipée demandée",
+          "lease_early_termination_confirmed": "Résiliation anticipée confirmée",
+          "lease_early_termination_cancelled": "Résiliation anticipée annulée",
+          "autre": "Événement du bail"
+        },
+        "chargement": "Lecture de l’historique…"
+      },
+      "echeancier": {
+        "titre": "Échéancier",
+        "prochaines": "Échéancier<l> — les {n} prochaines échéances</l>",
+        "toutes": "Les {n} échéances",
+        "moins": "Les prochaines seulement",
+        "loyer": "Loyer",
+        "charges": "Charges",
+        "autre": "Échéance",
+        "penaliteDue": "<l>Pénalité </l>{montant}<l> · due</l>",
+        "penaliteReglee": "<l>Pénalité </l>{montant}<l> ·</l> réglée<l> le {date}</l>",
+        "penaliteAgence": "<l>Pénalité </l>{montant} · à régler à l’agence",
+        "menu": "Autres gestes pour {periode}",
+        "encaisser": "Encaisser",
+        "videLocataireTitre": "Votre agence prépare votre échéancier",
+        "videLocataireDetail": "Vos échéances apparaîtront ici dès qu’elle l’aura établi.",
+        "marquerPenalite": "Marquer la pénalité réglée",
+        "copierLien": "Copier le lien de paiement",
+        "periode": "{type} · {mois}",
+        "colPenalite": "Pénalité",
+        "echeanceLe": "<l>Échéance : </l>{date}",
+        "periodeRiche": "<t>{type} · </t><m>{mois}</m>",
+        "enRetardDe": "En retard de {jours} j",
+        "payeLe": "Payé le {date}",
+        "quittance": "Quittance"
+      },
+      "types": {
+        "residential_rent": "Habitation",
+        "commercial_rent": "Commercial",
+        "seasonal_rent": "Saisonnier",
+        "sale": "Vente"
+      }
     }
   },
   "maintenance": {

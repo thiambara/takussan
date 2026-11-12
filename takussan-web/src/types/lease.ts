@@ -112,8 +112,28 @@ export type Lease = {
    * l'utilisateur courant. Rendus par le détail seul ; absents, rien n'est offert.
    */
   abilities?: LeaseAbilities;
+  /** TCK-2679 — les charges mensuelles, terme du bail ; `null` sur un bail antérieur. TCK-2645 : la carte « Charges ». */
+  monthly_charges?: number | null;
+  /** TCK-2642 — le plafond de révision que CE bail exécute (figé, sinon l'agence, sinon le global) ; détail seul. */
+  rent_review_cap_pct?: number;
+  /** TCK-2642 / TCK-2645 — les parties nommées (`include=landlord,agent`) ; le téléphone, seulement quand l'API le sert. */
+  landlord?: LeaseParty | null;
+  agent?: LeaseParty | null;
   created_at: string;
   updated_at: string;
+};
+
+/**
+ * TCK-2645 — une partie du bail telle que `LeaseResource::party()` la projette : des noms, et le
+ * téléphone au seul lecteur à qui l'API le sert (bailleur : le personnel de l'agence du bail et le
+ * bailleur lui-même ; agent : jamais).
+ */
+export type LeaseParty = {
+  readonly id: number;
+  readonly first_name: string | null;
+  readonly last_name: string | null;
+  readonly full_name: string | null;
+  readonly phone?: string | null;
 };
 
 export type LeaseSignatureRole = 'tenant' | 'landlord';
@@ -127,6 +147,18 @@ export interface LeaseAbilities {
   readonly request_early_termination: boolean;
   /** P189.03 — `LeasePolicy::update` : l'ajout de garant et le lien de paiement d'une échéance. */
   readonly update: boolean;
+  /**
+   * TCK-2642 — les quatre gestes que la fiche ouvrait par le rôle ; TCK-2645 les lit. `leave_review`
+   * et `give_notice` sont des gestes du LOCATAIRE (hors `Gate::before` : faux pour le super-admin) ;
+   * `give_notice` est le repère « le lecteur est le locataire » (décision 12 de TCK-2645). Optionnels :
+   * un bail lu avant TCK-2642 ne les porte pas, et rien n'est alors offert.
+   */
+  readonly add_document?: boolean;
+  readonly download_contract?: boolean;
+  readonly leave_review?: boolean;
+  readonly give_notice?: boolean;
+  /** TCK-2645 (décision 3) — « Passer outre » le plafond de révision : capacité ET plafond non figé. */
+  readonly rent_review_force?: boolean;
 }
 
 /**
