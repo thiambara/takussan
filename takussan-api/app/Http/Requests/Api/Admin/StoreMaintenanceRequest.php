@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\Admin;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use Illuminate\Validation\Rule;
 
 /**
@@ -15,6 +16,8 @@ use Illuminate\Validation\Rule;
  */
 class StoreMaintenanceRequest extends BaseFormRequest
 {
+    use ConvertitLesInstantsRecus;
+
     /**
      * L'autorisation NE migre PAS ici : elle appartient au contrôleur puis aux policies
      * (principes non négociables 1 et 2, et TCK-306). `BaseFormRequest` refuse par défaut —
@@ -39,5 +42,11 @@ class StoreMaintenanceRequest extends BaseFormRequest
             'messages.wo' => ['nullable', 'string', 'max:500'],
             'banner_lead_minutes' => ['nullable', 'integer', 'min:1', 'max:1440'],
         ];
+    }
+
+    /** TCK-2743 — {@see ConvertitLesInstantsRecus}. */
+    protected function instantsRecus(): array
+    {
+        return ['starts_at', 'ends_at'];
     }
 }

@@ -2,10 +2,13 @@
 
 namespace App\Http\Requests\Api\Admin;
 
+use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use Illuminate\Foundation\Http\FormRequest;
 
 class AssignAgencySubscriptionRequest extends FormRequest
 {
+    use ConvertitLesInstantsRecus;
+
     public function authorize(): bool
     {
         return true;
@@ -23,5 +26,11 @@ class AssignAgencySubscriptionRequest extends FormRequest
             'overrides.limits.max_agents' => ['nullable', 'integer', 'min:0'],
             'overrides.limits.max_branches' => ['nullable', 'integer', 'min:0'],
         ];
+    }
+
+    /** TCK-2743 — {@see ConvertitLesInstantsRecus}. */
+    protected function instantsRecus(): array
+    {
+        return ['trial_ends_at'];
     }
 }

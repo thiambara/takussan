@@ -3,10 +3,13 @@
 namespace App\Http\Requests\Api\Admin;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use Illuminate\Validation\Rule;
 
 class StoreAnnouncementRequest extends BaseFormRequest
 {
+    use ConvertitLesInstantsRecus;
+
     public function authorize(): bool
     {
         return $this->user()?->isSuperAdmin() ?? false;
@@ -36,5 +39,11 @@ class StoreAnnouncementRequest extends BaseFormRequest
             'ends_at' => ['nullable', 'date', 'after:starts_at'],
             'is_active' => ['sometimes', 'boolean'],
         ];
+    }
+
+    /** TCK-2743 — {@see ConvertitLesInstantsRecus}. */
+    protected function instantsRecus(): array
+    {
+        return ['starts_at', 'ends_at'];
     }
 }

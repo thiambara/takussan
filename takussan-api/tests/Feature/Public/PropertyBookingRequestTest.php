@@ -354,4 +354,22 @@ class PropertyBookingRequestTest extends TestCase
             'guests' => 1,
         ])->assertNotFound();
     }
+
+    /** TCK-2743 (lot 3) — l'offre publique valable jusqu'à un INSTANT (avec décalage) : l'instant désigné. */
+    public function test_une_offre_valable_jusqu_a_un_instant_avec_decalage_est_cet_instant(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-20 10:00:00', 'Africa/Dakar'));
+        $property = Property::factory()->published()->create([
+            'price' => 121_000_000, 'currency' => Currency::XOF, 'contract_type' => ContractType::Sale, 'rent_period' => null,
+        ]);
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->postJson("/api/public/properties/{$property->slug}/booking-request", [
+            'offer_amount' => 110_000_000,
+            'offer_expires_at' => '2026-10-21T18:00:00+01:00',
+            'terms_accepted' => true,
+        ])->assertCreated();
+
+        $this->assertSame('2026-10-21 17:00:00', Booking::query()->sole()->getRawOriginal('expires_at'));
+    }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Http\Requests\Concerns\BorneLesReglesDElement;
+use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\Enums\InventoryCondition;
 use App\Models\Enums\InventoryElementState;
 use App\Models\Enums\InventoryType;
@@ -29,6 +30,7 @@ class InventoryStoreRequest extends FormRequest
     // TCK-2488 — une liste hors de sa borne ne fait pas valider ses éléments un à un (hérité de
     // BaseFormRequest pour les autres).
     use BorneLesReglesDElement;
+    use ConvertitLesInstantsRecus;
 
     /**
      * P143.01 (TCK-1915) — décision du porteur (2026-10-23) : le PDF de l'état des lieux est recomposé
@@ -81,5 +83,11 @@ class InventoryStoreRequest extends FormRequest
             // renouvelle, même locataire et même bien (vérifié par le service), à défaut la plus récente.
             'from_inventory_id' => ['nullable', 'prohibited_unless:type,move_out', 'integer', 'min:1'],
         ];
+    }
+
+    /** TCK-2743 — {@see ConvertitLesInstantsRecus}. */
+    protected function instantsRecus(): array
+    {
+        return ['conducted_at'];
     }
 }

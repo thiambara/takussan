@@ -91,7 +91,7 @@ class InventoryController extends Controller
 
     public function store(InventoryStoreRequest $request): JsonResponse
     {
-        $data = $request->validated();
+        $data = $request->validatedAvecInstants();
 
         $user = $request->user();
 

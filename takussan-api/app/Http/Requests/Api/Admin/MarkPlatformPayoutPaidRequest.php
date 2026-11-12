@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Api\Admin;
 
+use App\Support\InstantRecu;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Carbon;
 
 class MarkPlatformPayoutPaidRequest extends FormRequest
 {
@@ -21,5 +23,14 @@ class MarkPlatformPayoutPaidRequest extends FormRequest
             'metadata.bank_ref' => ['nullable', 'string', 'max:255'],
             'metadata.batch_id' => ['nullable', 'string', 'max:255'],
         ];
+    }
+
+    /**
+     * TCK-2743 — la date du virement, l'instant qu'elle désigne ({@see InstantRecu}) : un `Carbon::parse()`
+     * gardait le décalage reçu, et le cast `datetime` en écrivait l'heure murale.
+     */
+    public function processedAt(): Carbon
+    {
+        return Carbon::instance(InstantRecu::utc($this->validated('processed_at')));
     }
 }

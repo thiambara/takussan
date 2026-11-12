@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\Admin;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\Enums\PrivacyRequestChannel;
 use App\Models\Enums\PrivacyRequestType;
 use App\Models\PrivacyRequest;
@@ -11,6 +12,8 @@ use Illuminate\Validation\Rule;
 /** TCK-601 (G) — une demande de droits reçue hors de l'application, saisie par le super-admin. */
 class StorePrivacyRequestRequest extends BaseFormRequest
 {
+    use ConvertitLesInstantsRecus;
+
     public function authorize(): bool
     {
         return $this->user()?->can('create', PrivacyRequest::class) ?? false;
@@ -27,5 +30,11 @@ class StorePrivacyRequestRequest extends BaseFormRequest
             'user_id' => ['nullable', 'integer', 'exists:users,id'],
             'received_at' => ['nullable', 'date', 'before_or_equal:today'],
         ];
+    }
+
+    /** TCK-2743 — {@see ConvertitLesInstantsRecus}. */
+    protected function instantsRecus(): array
+    {
+        return ['received_at'];
     }
 }

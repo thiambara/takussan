@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api\Admin;
 
+use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\Announcement;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
@@ -9,6 +10,8 @@ use Illuminate\Validation\Validator;
 
 class UpdateAnnouncementRequest extends StoreAnnouncementRequest
 {
+    use ConvertitLesInstantsRecus;
+
     public function rules(): array
     {
         return [
@@ -64,5 +67,11 @@ class UpdateAnnouncementRequest extends StoreAnnouncementRequest
                 ? $validator->errors()->add('ends_at', __('validation.after', ['attribute' => 'ends at', 'date' => Carbon::parse($debut)->toIso8601String()]))
                 : $validator->errors()->add('starts_at', __('validation.before', ['attribute' => 'starts at', 'date' => Carbon::parse($fin)->toIso8601String()]));
         }];
+    }
+
+    /** TCK-2743 — {@see ConvertitLesInstantsRecus}. */
+    protected function instantsRecus(): array
+    {
+        return ['starts_at', 'ends_at'];
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Agency;
 
+use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\Agency;
 use App\Models\RoleDelegation;
 use Illuminate\Foundation\Http\FormRequest;
@@ -18,6 +19,8 @@ use Illuminate\Validation\Rule;
  */
 class StoreAgentAbsenceRequest extends FormRequest
 {
+    use ConvertitLesInstantsRecus;
+
     public function authorize(): bool
     {
         /** @var Agency $agency */
@@ -39,5 +42,14 @@ class StoreAgentAbsenceRequest extends FormRequest
             'reason' => ['nullable', 'string', 'max:500'],
             'substitute_can_act' => ['sometimes', 'boolean'],
         ];
+    }
+
+    /**
+     * TCK-2743 — {@see ConvertitLesInstantsRecus}.
+     * `ends_at` n'est pas ici : il passe par `FinInclusive::de()`.
+     */
+    protected function instantsRecus(): array
+    {
+        return ['starts_at'];
     }
 }

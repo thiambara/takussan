@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Agency;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\Agency;
 use App\Models\Enums\RoleDelegationStatus;
 use App\Models\RoleDelegation;
@@ -18,6 +19,8 @@ use Illuminate\Validation\Rule;
  */
 class UpdateAgentAbsenceRequest extends BaseFormRequest
 {
+    use ConvertitLesInstantsRecus;
+
     public function authorize(): bool
     {
         /** @var Agency $agency */
@@ -57,5 +60,14 @@ class UpdateAgentAbsenceRequest extends BaseFormRequest
         $canActAfter = $this->has('substitute_can_act') ? $this->boolean('substitute_can_act') : $live;
 
         return $canActAfter && $this->hasAny(['starts_at', 'ends_at', 'substitute_id', 'substitute_can_act']);
+    }
+
+    /**
+     * TCK-2743 — {@see ConvertitLesInstantsRecus}.
+     * `ends_at` n'est pas ici : il passe par `FinInclusive::de()`.
+     */
+    protected function instantsRecus(): array
+    {
+        return ['starts_at'];
     }
 }

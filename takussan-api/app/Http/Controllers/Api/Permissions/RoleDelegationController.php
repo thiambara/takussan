@@ -50,7 +50,7 @@ class RoleDelegationController extends Controller
     {
         Gate::authorize('create', [RoleDelegation::class, $agency]);
 
-        $delegation = $this->service->create($agency, $request->user(), $request->validated());
+        $delegation = $this->service->create($agency, $request->user(), $request->validatedAvecInstants());
         $delegation->load(['user', 'delegator', 'coversAbsence.replaces']);
 
         return $this->json([

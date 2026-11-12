@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\Booking;
 use App\Models\Enums\BookingKind;
 use App\Models\Enums\Currency;
@@ -19,6 +20,8 @@ use Illuminate\Validation\Rule;
  */
 class StoreBookingRequest extends BaseFormRequest
 {
+    use ConvertitLesInstantsRecus;
+
     /**
      * La RÈGLE d'autorisation ne migre pas ici : elle appartient au contrôleur, au service puis aux
      * policies (principes non négociables 1 et 2, et TCK-306) ; seule son INVOCATION y vient quand
@@ -111,5 +114,15 @@ class StoreBookingRequest extends BaseFormRequest
             'start_date.after_or_equal' => __('bookings.start_in_past'),
             'end_date.after_or_equal' => __('bookings.end_before_start'),
         ];
+    }
+
+    /**
+     * TCK-2743 — {@see ConvertitLesInstantsRecus}.
+     * `offer_expires_at` n'est pas ici : il passe par `FinInclusive::de()`, qui garde la fin du jour
+     * d'une date seule.
+     */
+    protected function instantsRecus(): array
+    {
+        return ['expires_at'];
     }
 }

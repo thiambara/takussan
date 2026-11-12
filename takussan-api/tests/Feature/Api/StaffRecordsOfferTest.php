@@ -125,4 +125,24 @@ class StaffRecordsOfferTest extends TestCase
             'customer_id' => $this->customer->id,
         ])->assertCreated()->assertJsonPath('data.kind', 'offer')->assertJsonPath('data.total_amount', 95000000);
     }
+
+    /**
+     * TCK-2743 (lot 3) — une validité donnée en INSTANT (avec décalage) est l'instant qu'elle désigne ;
+     * `FinInclusive` le rendait tel quel et le cast en écrivait l'heure murale. La date seule garde sa
+     * fin de jour (test précédent).
+     */
+    public function test_une_validite_donnee_en_instant_avec_decalage_est_l_instant_designe(): void
+    {
+        $this->offer(['offer_expires_at' => '2026-11-21T18:00:00+01:00'])->assertCreated();
+
+        $this->assertSame('2026-11-21 17:00:00', Booking::query()->sole()->getRawOriginal('expires_at'));
+    }
+
+    /** TCK-2743 (lot 3) — sans validité, l'échéance envoyée avec décalage : l'instant désigné. */
+    public function test_une_echeance_recue_avec_decalage_sans_validite_est_l_instant_designe(): void
+    {
+        $this->offer(['expires_at' => '2026-11-20T11:00:00+01:00'])->assertCreated();
+
+        $this->assertSame('2026-11-20 10:00:00', Booking::query()->sole()->getRawOriginal('expires_at'));
+    }
 }

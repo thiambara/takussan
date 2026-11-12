@@ -198,3 +198,40 @@ motivées de la garde.
 - Ablations 9/9 rouges : chacun des huit contrôleurs rendu à `validated()`, et le trait sans conversion. 69 fichiers
   voisins (tâches, loyers, pénalités, acomptes, réservations, liens, reversements, factures de prestataires,
   rapprochement, double authentification des sorties d'argent, parcours des routes) joués un à un : verts.
+
+**Lot 3 — P3, et les fins par `FinInclusive`.**
+- **Ajout au périmètre** : `FinInclusive::de()` était rangé parmi les « déjà justes », ce qui ne vaut que pour une
+  **date seule** (fin du jour à Dakar). Un instant explicite était rendu tel quel, et le cast en écrivait l'heure
+  murale : `ends_at = …T08:30:00+02:00` d'une délégation s'écrivait 08:30 au lieu de 06:30. Il passe désormais par
+  `InstantRecu::utc()` (objet `Carbon` mutable, comme la branche de la date seule). Lecteurs corrigés d'un coup : la
+  fin d'une délégation de rôle, celle d'une absence (création et modification), la validité d'une offre (console
+  `BookingService::recordedTerms()` et tunnel public `PublicPropertyController::bookingRequest()`).
+- **Piège d'ordre** : un champ lu par `FinInclusive::de()` n'est **jamais** dans `instantsRecus()`. Converti en amont,
+  une date seule y arriverait en objet (minuit) et perdrait sa fin de jour. D'où `starts_at` seul pour la délégation et
+  l'absence, `expires_at` seul pour la réservation (`offer_expires_at` reste à `FinInclusive`).
+- Une conversion par champ, côté FormRequest (lisible par la garde du lot 4) : le trait sur `InventoryStoreRequest`
+  (`conducted_at`), `StoreBookingRequest` (`expires_at`), `StoreRoleDelegationRequest` et les deux requêtes d'absence
+  (`starts_at`), les deux requêtes d'annonce et `StoreMaintenanceRequest` (`starts_at`, `ends_at`),
+  `AssignAgencySubscriptionRequest` (`trial_ends_at`), `StorePrivacyRequestRequest` (`received_at`) ; un accesseur
+  `processedAt()` sur `MarkPlatformPayoutPaidRequest` (le contrôleur lisait `input()`, et `markPaid()` attend un
+  `Carbon` mutable). Les `Carbon::parse()` des services d'absence et d'abonnement restent : sur un objet, ils ne
+  changent pas l'instant (ablations ci-dessous). Hors HTTP, l'absence n'a aucun appelant ; l'abonnement, deux : la
+  revue de mise à niveau (sans fin d'essai) et le seeder (`toDateTimeString()`, une chaîne sans décalage, lue comme
+  avant).
+- `StoreAgencySpotlightRequest::periode()` était déjà juste (`->utc()`) ; il passe par la même conversion, sans
+  changement de comportement (`AgencySpotlightTest`, dont la période en `+02:00`, vert).
+- Hors périmètre, vérifiés : `UploadKycDocumentRequest.expires_at` (`date_format:Y-m-d`, aucun décalage possible),
+  `PlatformPayoutController::closePeriod()` (`period_end`, colonne `date`), `Booking.start_date` / `end_date` (`date`).
+- **Effet de bord à connaître** : `offer_expires_at` est une colonne `date` (le jour mural reçu) et `expires_at`
+  l'instant. Une validité envoyée en instant près de minuit (`…T00:30:00+01:00`) range le 21 dans l'une et le 20 à
+  23:30 UTC dans l'autre. Le front envoie une date seule ; la forme stricte relève de TCK-2752.
+- Tests : une méthode par écriture, dans la classe existante (`InventoryCreationTest`, `BookingTest`,
+  `StaffRecordsOfferTest` ×2, `PropertyBookingRequestTest`, `RoleDelegationFinInclusiveTest`, `AgentAbsenceTest`
+  création puis modification, `AnnouncementTest` création puis modification avec `ends_at: null` qui efface la fin,
+  `MaintenanceModeTest`, `PlatformPayoutTest`, `PrivacyRequestRegistryTest`, `BillingPlansTest`). Ablations 16/16
+  rouges : chaque contrôleur rendu à `validated()` (absence et annonce : création et modification séparément ;
+  réservation : enregistrée et non enregistrée), `FinInclusive` sans sa nouvelle branche (console, public, délégation),
+  le `Carbon::parse` du virement, `periode()` sans conversion.
+- 75 fichiers voisins (états des lieux, réservations et offres, tunnel public, délégations, absences et passations,
+  annonces, maintenance, reversements de la plateforme, registre de la vie privée, abonnements et mises à niveau, mise
+  en avant, parcours des routes) joués un à un : verts.

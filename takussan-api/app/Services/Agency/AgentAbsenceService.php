@@ -33,7 +33,7 @@ class AgentAbsenceService
     public function __construct(private readonly RoleDelegationService $delegations) {}
 
     /**
-     * @param  array{user_id: int, substitute_id: int, starts_at?: ?string, ends_at: string, reason?: ?string, substitute_can_act?: bool}  $data
+     * @param  array{user_id: int, substitute_id: int, starts_at?: \DateTimeInterface|string|null, ends_at: string, reason?: ?string, substitute_can_act?: bool}  $data
      */
     public function declare(Agency $agency, User $actor, array $data): RoleDelegation
     {
@@ -112,7 +112,7 @@ class AgentAbsenceService
      * mêmes dates ; un autre remplaçant, ou le droit retiré, la révoque (et un autre remplaçant en
      * reçoit une neuve) ; le droit rendu en crée une. Le début d'une absence commencée ne bouge plus.
      *
-     * @param  array{starts_at?: ?string, ends_at?: string, substitute_id?: int, substitute_can_act?: bool, reason?: ?string}  $data
+     * @param  array{starts_at?: \DateTimeInterface|string|null, ends_at?: string, substitute_id?: int, substitute_can_act?: bool, reason?: ?string}  $data
      */
     public function update(RoleDelegation $absence, User $actor, array $data): RoleDelegation
     {

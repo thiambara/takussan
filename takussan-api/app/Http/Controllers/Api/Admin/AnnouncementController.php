@@ -24,7 +24,7 @@ class AnnouncementController extends Controller
     public function store(StoreAnnouncementRequest $request): JsonResponse
     {
         $announcement = Announcement::query()->create([
-            ...$request->validated(),
+            ...$request->validatedAvecInstants(),
             'created_by' => $request->user()->id,
         ]);
 
@@ -39,7 +39,7 @@ class AnnouncementController extends Controller
 
     public function update(UpdateAnnouncementRequest $request, Announcement $announcement): JsonResponse
     {
-        $announcement->update($request->validated());
+        $announcement->update($request->validatedAvecInstants());
 
         activity('Admin')
             ->causedBy($request->user())

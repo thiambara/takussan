@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Permissions;
 
+use App\Http\Requests\Concerns\ConvertitLesInstantsRecus;
 use App\Models\RoleDelegation;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
@@ -10,6 +11,8 @@ use Illuminate\Validation\Validator;
 
 class StoreRoleDelegationRequest extends FormRequest
 {
+    use ConvertitLesInstantsRecus;
+
     /** TCK-818 (P22.04) — la policy que le contrôleur juge, invoquée avant la validation. */
     public function authorize(): bool
     {
@@ -93,5 +96,15 @@ class StoreRoleDelegationRequest extends FormRequest
             'role.in' => __('role_delegations.validation.non_delegable_role'),
             'ends_at.before_or_equal' => __('role_delegations.validation.max_duration'),
         ];
+    }
+
+    /**
+     * TCK-2743 — {@see ConvertitLesInstantsRecus}.
+     * `ends_at` n'est pas ici : il passe par `FinInclusive::de()`, qui convertit l'instant explicite
+     * et garde la fin du jour d'une date seule.
+     */
+    protected function instantsRecus(): array
+    {
+        return ['starts_at'];
     }
 }
