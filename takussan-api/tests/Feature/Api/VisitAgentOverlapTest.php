@@ -440,14 +440,18 @@ class VisitAgentOverlapTest extends ApiTestCase
             }, ['properties', 'users']],
         ];
 
+        // Un seul écouteur pour tous les chemins : `DB::listen` empile, et un écouteur déclaré par
+        // tour enregistrerait chaque verrou autant de fois qu'il y a eu de tours.
+        $verrous = [];
+        DB::listen(function ($q) use (&$verrous): void {
+            if (preg_match('/from "(properties|property_visits|users)" where (.*) for update/', $q->sql, $m) === 1) {
+                $verrous[] = ['table' => $m[1], 'where' => $m[2], 'bindings' => $q->bindings];
+            }
+        });
+
         foreach ($chemins as $nom => [$decor, $geste, $attendu]) {
             $visite = $decor();
             $verrous = [];
-            DB::listen(function ($q) use (&$verrous): void {
-                if (preg_match('/from "(properties|property_visits|users)" where (.*) for update/', $q->sql, $m) === 1) {
-                    $verrous[] = ['table' => $m[1], 'where' => $m[2], 'bindings' => $q->bindings];
-                }
-            });
 
             $reponse = $geste($visite);
             if ($reponse !== null) {

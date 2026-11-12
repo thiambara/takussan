@@ -25,6 +25,7 @@ use App\Models\LeasePayment;
 use App\Models\NotificationDeliveryAttempt;
 use App\Models\Payout;
 use App\Models\Profiles\OwnerProfile;
+use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Models\WhatsappContact;
@@ -38,6 +39,7 @@ use App\Services\Property\BailleurDuBien;
 use App\Services\Property\TitulaireALaSaisie;
 use App\Services\Visit\VisitReportService;
 use App\Support\CaseInsensitive;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -253,6 +255,42 @@ class AccountDeletionService
     }
 
     /**
+     * TCK-2744 (d2) — bien → visite → utilisateur (`takussan-api/CLAUDE.md`, « Migrations — les
+     * pièges PostgreSQL ») : les biens des visites que l'effacement détache et ceux dont le compte
+     * est l'agent principal, en UNE passe par identifiant croissant ; puis ces visites ; puis le
+     * compte.
+     */
+    private function lockInGlobalOrder(User $user): void
+    {
+        $visites = $this->visitsTouchedBy($user);
+        $biens = array_values(array_unique(array_merge(
+            array_map('intval', $visites()->distinct()->pluck('property_id')->all()),
+            app(AgencyMemberRemovalService::class)->markedPropertyIds($user, null),
+        )));
+        sort($biens);
+        if ($biens !== []) {
+            Property::withTrashed()->whereIn('id', $biens)->orderBy('id')->lockForUpdate()->pluck('id');
+        }
+        $visites()->orderBy('id')->lockForUpdate()->pluck('id');
+        User::withTrashed()->whereKey($user->id)->lockForUpdate()->pluck('id');
+    }
+
+    /**
+     * Les visites que l'effacement écrit : celles qu'il a demandées (`visitor_id`), et celles à venir
+     * qu'il accompagne comme agent (cf. les deux `update` d'`anonymize`).
+     *
+     * @return \Closure(): Builder<PropertyVisit>
+     */
+    private function visitsTouchedBy(User $user): \Closure
+    {
+        return fn () => PropertyVisit::query()->where(fn ($q) => $q
+            ->where('visitor_id', $user->id)
+            ->orWhere(fn ($q) => $q
+                ->where('agent_id', $user->id)
+                ->whereIn('status', [VisitStatus::Scheduled->value, VisitStatus::Confirmed->value])));
+    }
+
+    /**
      * Anonymize a user IN PLACE. Public so admin tooling can call it
      * directly via a separate audited route (out of scope here).
      *
@@ -276,6 +314,12 @@ class AccountDeletionService
             $request = $user->deletionRequest()->first();
             $user->notify(new AccountDeletionExecutedNotification($request));
         }
+
+        // TCK-2744 (d2) — les lignes que l'effacement écrit, verrouillées AVANT toute écriture et
+        // dans l'ordre global du dépôt : bien → visite → utilisateur. Il écrivait les visites (sans
+        // leur bien), puis le compte, puis verrouillait les biens marqués : l'inverse de la
+        // confirmation d'une visite (bien → visite → agent), d'où un interblocage possible.
+        $this->lockInGlobalOrder($user);
 
         // Dissociate customers (preserve CRM history).
         Customer::query()->where('user_id', $user->id)->update(['user_id' => null]);
