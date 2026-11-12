@@ -421,5 +421,21 @@
  "_roles": "Une fiche, cinq écrans : un rôle se lit sur l'écran qui le porte (rangée « Malick Seck » → a-0, a-2 ; composeur → a-1, a-2 ; contexte → a-0, a-2 bureau ; « Créer un groupe » → a-3 ; note vocale → a-5 téléphone) et rend « absent » ailleurs, sans signification. Le fil de « Malick Seck » du produit n'est pas celui de la maquette (bien, aperçu, heure) : la rangée se compare en géométrie et en typographie, son texte est de la donnée. La carte du bien se compare en géométrie seule (photo, prix, statut : données).",
  "_alias": {
   "Mettre en sourdine → Couper les notifications": "libellé existant du geste (`messaging.group.info.mute`, `PUT …/mute`), commun au menu et aux infos du groupe ; gardé."
- }
+ },
+ "_decisions": [
+  {
+   "ecran": "a-1-*, a-2-*",
+   "sujet": "réponses rapides du composeur (agent)",
+   "decision": "celles de la maquette — « Toujours disponible », « Quand pouvez-vous visiter ? », « Pièces à fournir », « Le prix est ferme » — sans « Je vous rappelle » que le corps du ticket listait",
+   "par": "décision de la session (team-lead, 2026-11-12), recommandation (a) appliquée sous délégation du porteur ; ADR-0106 : la maquette retenue fait foi",
+   "motif": "la tranche 4 la posait en « décision 1, reco a » restée sans réponse (pret-pour-done.json la tenait ouverte) ; elle est tranchée ici. La maquette gelée porte ces quatre libellés, le produit les rend à l'identique : aucun écart à accepter."
+  },
+  {
+   "ecran": "a-1-*",
+   "sujet": "AC7 — une photo envoyée en vignette, « Photo » dans la liste",
+   "decision": "prouvé SANS écriture en base (décision 6b) : réponses de `GET` réécrites dans le navigateur (`impl/terrain-5/2632/ac7.mjs`), aucun envoi réel",
+   "par": "décision de la session (team-lead, 2026-11-12), recommandation (a) appliquée sous délégation du porteur",
+   "motif": "envoyer une photo écrirait un message et un média dans la base de démo ; la règle du lot est de ne rien écrire. pret-pour-done.json notait qu'aucun rapport ne disait qui l'avait tranchée : c'est cette entrée."
+  }
+ ]
 }
