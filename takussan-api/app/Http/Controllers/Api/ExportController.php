@@ -4,8 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\ShowExportRequest;
-use App\Models\Agency;
-use App\Models\Enums\Capability;
 use App\Services\Export\ExportDataService;
 use App\Services\Export\ExportWriter;
 use Illuminate\Contracts\Support\Responsable;
@@ -32,67 +30,20 @@ class ExportController extends Controller
         private readonly ExportWriter $writer,
     ) {}
 
-    /**
-     * TCK-587 (ADR-0031 §2) — capacité exigée du PERSONNEL, par entité. Le bailleur (non personnel)
-     * garde l'export de ses biens et baux, borné par `ExportDataService::scopeToActor()`.
-     */
-    private const CAPABILITY = [
-        'customers' => Capability::CrmExport,
-        'payments' => Capability::PaymentsExport,
-        'leases' => Capability::ReportsExport,
-        'properties' => Capability::ReportsExport,
-        // TCK-595 (§7) — les exports financiers de l'agence : `reports.export`, et au PERSONNEL seul.
-        'payouts' => Capability::ReportsExport,
-        'invoices' => Capability::ReportsExport,
-        'commissions' => Capability::ReportsExport,
-        'aging' => Capability::ReportsExport,
-        'deposits' => Capability::ReportsExport,
-        // TCK-2721 — le registre des encaissements d'« Argent », avec ses filtres : la capacité de
-        // l'entité `payments`.
-        'payment_history' => Capability::PaymentsExport,
-    ];
-
-    /**
-     * TCK-595 — ni le bailleur ni le locataire n'exportent les finances d'une agence. TCK-2721 — le
-     * registre des encaissements non plus : c'est un écran du personnel (`/app/agency/finances`).
-     */
-    private const STAFF_ONLY = ['payouts', 'invoices', 'commissions', 'aging', 'deposits', 'payment_history'];
-
     public function show(ShowExportRequest $request, string $entity)
     {
+        // L'entité (404) et le droit d'exporter (403) se jugent dans `ShowExportRequest::authorize()`,
+        // avant ses règles (422).
         $user = $request->user();
-        abort_unless($user, 401);
-
-        abort_code_unless(isset(self::CAPABILITY[$entity]), 404, 'export.entity_unknown', ['entity' => $entity]);
-
-        // TCK-587 — le contrôle se fait EN TÊTE, avant toute requête. Il ouvrait l'export à tout
-        // membre (agent comme admin) sans lire `crm.export`, `payments.export` ni `reports.export`,
-        // et le prédicat d'agence (`isAgentAt` sur `$user->agency_id`) ne distinguait pas le
-        // personnel du bailleur.
         $staffAgencyId = $user->staffAgencyId();
-        $ownLinesOnly = false;
-        if (! $user->isSuperAdmin()) {
-            if ($staffAgencyId !== null) {
-                $allowed = $user->canActAt(self::CAPABILITY[$entity], Agency::query()->find($staffAgencyId));
-                // TCK-2661 — sans `reports.export`, le bénéficiaire exporte encore SES commissions, et
-                // elles seules (même s'il lit celles de l'agence au relevé).
-                $ownLinesOnly = ! $allowed && $entity === 'commissions';
-                abort_code_unless($allowed || $ownLinesOnly, 403, 'export.forbidden');
-            } elseif ($entity === 'customers' || in_array($entity, self::STAFF_ONLY, true)) {
-                abort_code(403, 'export.forbidden');
-            } elseif ($entity === 'properties'
-                && ! ($user->agency_id !== null && $user->isOwnerAt((int) $user->agency_id))) {
-                abort_code(403, 'export.forbidden');
-            }
-        }
+        $ownLinesOnly = $request->ownLinesOnly();
 
         $validated = $request->validated();
         $format = $validated['format'] ?? 'csv';
 
-        // TCK-2721 — les filtres du registre (`filter[…]`, `sort`) ne passent PAS par
-        // `ShowExportRequest` : ses règles courent avant le contrôle de capacité, et un filtre mal
-        // formé rendrait 422 à qui n'a pas le droit d'exporter. La sélection de l'historique les lit
-        // et les refuse elle-même (422), ici, APRÈS le 403 — comme la liste.
+        // TCK-2721 — les filtres du registre (`filter[…]`, `sort`) ne passent PAS par les règles de
+        // `ShowExportRequest` : la sélection de l'historique les lit et les refuse elle-même (422),
+        // ici, APRÈS le 403 — comme la liste.
         $registre = $entity === 'payment_history'
             ? ['history_filters' => (array) $request->input('filter', []), 'history_sort' => $request->input('sort', '-date')]
             : [];
