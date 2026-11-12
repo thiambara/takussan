@@ -160,6 +160,10 @@ class OwnerProfileController extends Controller
      */
     public function sensitive(Request $request, OwnerProfile $ownerProfile, PersonalDataAccessLogger $accessLog): JsonResponse
     {
+        // Comme la fiche (`ShowOwnerProfileRequest`) : un profil hors de l'agence du personnel de
+        // l'appelant n'existe pas pour lui — 404, comme un identifiant inexistant, jamais un 403 qui
+        // dirait qu'il existe. Dans l'agence, le refus de la policy (l'agent) reste un 403.
+        abort_unless(OwnerProfilePolicy::isInActorAgency($request->user(), $ownerProfile), 404);
         $this->authorize('viewSensitive', $ownerProfile);
 
         $accessLog->record($request->user(), $ownerProfile, PersonalDataAccessLogger::SURFACE_OWNER_SENSITIVE);
