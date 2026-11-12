@@ -1,7 +1,7 @@
 ---
 id: TCK-2757
 title: "Le bailleur candidat chez sa propre agence ne lit ni ne modifie sa fiche client : l'auteur d'une fiche n'en est jamais le sujet"
-status: todo
+status: done
 phase: P0
 family: back
 estimate: S
@@ -51,23 +51,23 @@ partout (il n'est pas membre). Démo : 0 fiche où `added_by_id = user_id` ; auc
 
 ## Delta à produire
 
-- [ ] Policy : `CustomerPolicy::isAuthorStillMember()` exige en plus `(int) $customer->user_id !== (int) $user->id`
+- [x] Policy : `CustomerPolicy::isAuthorStillMember()` exige en plus `(int) $customer->user_id !== (int) $user->id`
   (fiche sans `user_id` : inchangée).
-- [ ] Scope : `Customer::scopeVisibleTo()`, branche `$ownAdds`, exclut les fiches dont `user_id` = l'appelant
+- [x] Scope : `Customer::scopeVisibleTo()`, branche `$ownAdds`, exclut les fiches dont `user_id` = l'appelant
   (`whereNull('user_id')->orWhere('user_id', '!=', …)` groupé).
-- [ ] Tests : `tests/Feature/Crm/CustomerAuthorIsNotSubjectTest.php` — bailleur candidat chez sa propre agence :
+- [x] Tests : `tests/Feature/Crm/CustomerAuthorIsNotSubjectTest.php` — bailleur candidat chez sa propre agence :
   `show`, `notes`, journal, activité, `PATCH`, note, étape, contact → 403 ; absent de `index` ; bailleur auteur
   d'une AUTRE fiche : inchangé (200) ; personnel : inchangé.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Bailleur dont la fiche client a été créée par sa candidature dans sa propre agence : les huit routes du
+- [x] AC1 — Bailleur dont la fiche client a été créée par sa candidature dans sa propre agence : les huit routes du
   relevé (lecture et écriture) rendent 403.
-- [ ] AC2 — Cette fiche n'apparaît pas dans `GET /api/customers` pour lui ; `meta.total` ne la compte pas.
-- [ ] AC3 — Un bailleur qui a ajouté la fiche d'un TIERS la lit et la modifie comme avant (même périmètre que
+- [x] AC2 — Cette fiche n'apparaît pas dans `GET /api/customers` pour lui ; `meta.total` ne la compte pas.
+- [x] AC3 — Un bailleur qui a ajouté la fiche d'un TIERS la lit et la modifie comme avant (même périmètre que
   TCK-591 / TCK-2754 : sans les gestes de l'agence).
-- [ ] AC4 — Ablations : retirer la condition de la policy rougit AC1 ; retirer celle du scope rougit AC2.
-- [ ] AC5 — Aucune régression : `CustomerTimeline`, `CustomerTest`, `CustomerNoteTest`, `SensitiveRead`, tests de
+- [x] AC4 — Ablations : retirer la condition de la policy rougit AC1 ; retirer celle du scope rougit AC2.
+- [x] AC5 — Aucune régression : `CustomerTimeline`, `CustomerTest`, `CustomerNoteTest`, `SensitiveRead`, tests de
   visibilité du CRM restent verts.
 
 ## Hors périmètre

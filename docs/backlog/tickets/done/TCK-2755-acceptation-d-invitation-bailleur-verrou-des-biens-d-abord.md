@@ -1,7 +1,7 @@
 ---
 id: TCK-2755
 title: "Accepter une invitation de bailleur pendant qu'une visite de son bien se confirme : un interblocage mesuré (bien ↔ utilisateur)"
-status: todo
+status: done
 phase: P1
 family: back
 estimate: S
@@ -56,11 +56,11 @@ de la visite. `delier` écrit le bien même quand le transfert est refusé (titu
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Course rejouée 20 fois sur chacune des trois variantes : 0 interblocage.
-- [ ] AC2 — Test d'épinglage par `DB::listen` : dans `acceptForUser` et dans `acceptForAccount`, le verrou des biens
+- [x] AC1 — Course rejouée 20 fois sur chacune des trois variantes : 0 interblocage.
+- [x] AC2 — Test d'épinglage par `DB::listen` : dans `acceptForUser` et dans `acceptForAccount`, le verrou des biens
   liés précède toute requête sur `users`. Ablation : le retirer fait rougir le test.
-- [ ] AC3 — Une invitation qui ne vise pas un `OwnerProfile` ne prend aucun verrou de bien (test).
-- [ ] AC4 — Aucune régression : les tests d'invitation, d'acceptation et de transfert du bailleur restent verts.
+- [x] AC3 — Une invitation qui ne vise pas un `OwnerProfile` ne prend aucun verrou de bien (test).
+- [x] AC4 — Aucune régression : les tests d'invitation, d'acceptation et de transfert du bailleur restent verts.
 
 ## Notes
 
