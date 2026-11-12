@@ -6630,7 +6630,8 @@
         "overdue": "Overdue",
         "newInvoice": "Generate an invoice",
         "newPayout": "Create a payout",
-        "toApprove": "To approve"
+        "toApprove": "To approve",
+        "interventions": "Repairs"
       },
       "kpis": {
         "overdue": "Outstanding overdue",
@@ -6720,7 +6721,9 @@
           "impayesDetail": "By tenant, by age",
           "rapprochement": "Bank reconciliation",
           "exporter": "Export receipts",
-          "exporterDetail": "Receipts for the month shown, as CSV"
+          "exporterDetail": "Receipts for the month shown, as CSV",
+          "interventions": "Repairs",
+          "interventionsDetail": "Service provider invoices, to approve then pay"
         },
         "creer": {
           "titre": "Create",

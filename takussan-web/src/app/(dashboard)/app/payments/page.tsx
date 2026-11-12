@@ -5,6 +5,8 @@ import { CustomerPayments } from '@/components/payments/CustomerPayments';
 import { isCustomerOnly } from '@/lib/roles';
 import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/console';
+import { aiguillerVersLArgent } from '@/lib/access/pages-admin-server';
+import type { ParametresDeLaPage } from '@/lib/finances/depuis-les-paiements';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.pages.payments');
@@ -22,12 +24,25 @@ export async function generateMetadata(): Promise<Metadata> {
  *
  * TCK-593 — le client (locataire, acheteur) ne reçoit PAS ces onglets : `CustomerPayments` lui
  * montre ce qu'il doit, « Payer », et son historique en lecture seule — sans « reversements ».
+ *
+ * TCK-2677 (ADR-0100 § 4 et § 7) — l'admin de l'agence active (standard) n'a qu'une page pour
+ * l'argent de l'agence : « Argent ». Un lien ancien, une notification (`?tab=payouts`,
+ * `?tab=approvals`, `?tab=bills`) ou un favori l'y mène, sur l'onglet qui correspond, filtres de
+ * l'historique compris (`adresseDeLArgent`). L'agent, l'hôte, le bailleur, le locataire et le client
+ * restent ici (`aiguillerVersLArgent`, `menerALArgent`) ; `/app/payments/return` n'est pas concerné.
+ *
+ * ⚠ La redirection se décide DANS la page et n'est sous AUCUN `loading.tsx` : un repli dans ce
+ * segment (il y en avait un) change son 307 en 200 : le squelette part, puis le navigateur rebondit
+ * (`app/__tests__/etats-de-route.test.ts`). Un layout ne lit pas `searchParams` : il ne saurait pas
+ * traduire l'onglet.
  */
 export const dynamic = 'force-dynamic';
 
-export default async function Page() {
-  const t = await getTranslations('dashboard.pages.payments');
+export default async function Page({ searchParams }: { readonly searchParams: Promise<ParametresDeLaPage> }) {
   const user = await getMeAction();
+  await aiguillerVersLArgent(user, searchParams);
+
+  const t = await getTranslations('dashboard.pages.payments');
   const client = isCustomerOnly(user.roles);
 
   return (

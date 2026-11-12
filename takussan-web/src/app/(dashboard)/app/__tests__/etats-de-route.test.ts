@@ -349,7 +349,12 @@ describe('TCK-382 — inventaire', () => {
  * l'exige) — ce qui n'est juste que tant qu'aucun repli ne se pose au-dessus d'elles. La règle
  * ci-dessous le refuse donc comme pour tout autre terminateur.
  */
-const REFUS = /\b(permanentRedirect|redirect|notFound)\s*\(|\b(assertCanReach\w*|ensureStandardAgencyOrRedirect|exigerRessource|garderPageAdmin)\s*\(/;
+/*
+ * ⚠ `aiguillerVersLArgent` y est entré avec TCK-2677 : `/app/payments` mène l'admin d'agence à
+ * « Argent » selon `?tab=` — une décision de page (un layout ne lit pas `searchParams`), par
+ * `redirect()`, exactement comme `garderPageAdmin`.
+ */
+const REFUS = /\b(permanentRedirect|redirect|notFound)\s*\(|\b(assertCanReach\w*|ensureStandardAgencyOrRedirect|exigerRessource|garderPageAdmin|aiguillerVersLArgent)\s*\(/;
 
 /**
  * TCK-649 — une page qui se garde elle-même par `garderPageAdmin` (la table des pages,
@@ -361,6 +366,29 @@ const REFUS = /\b(permanentRedirect|redirect|notFound)\s*\(|\b(assertCanReach\w*
  */
 function seGardeParLaTableDesPages(page: Page): boolean {
   return /\bawait\s+garderPageAdmin\s*\(/.test(sansCommentaires(page.source));
+}
+
+/**
+ * TCK-2677 — la même logique pour `/app/payments`, qui mène l'admin d'agence à « Argent » par
+ * `aiguillerVersLArgent` depuis son propre rendu : un repli au-dessus d'elle changerait son 307 en
+ * 200. Elle n'a donc PAS de repli (le sien a été retiré), et la règle des refus, où
+ * `aiguillerVersLArgent` est un terminateur, la veut hors de toute frontière. Propriété DÉRIVÉE du
+ * code, comme `seGardeParLaTableDesPages`.
+ *
+ * L'exemption ne vaut que pour une page qui n'attend RIEN d'autre que des lectures déjà payées
+ * par le layout de `/app` : `getMeAction` (`cache()`), l'aiguillage lui-même (l'agence, `cache()`ée
+ * par rendu et déjà lue par le layout), les messages (`getTranslations`, sans réseau) et ses
+ * propres `searchParams` / `params`. Tout autre `await` — une requête à l'API — est une attente
+ * sans squelette : la page perd l'exemption et la règle des replis la réclame (seconde ablation de
+ * TCK-2677).
+ */
+const ATTENTES_SANS_RESEAU = new Set(['getMeAction', 'aiguillerVersLArgent', 'getTranslations', 'searchParams', 'params']);
+
+function aiguilleDansSonRendu(page: Page): boolean {
+  const source = sansCommentaires(page.source);
+  if (!/\bawait\s+aiguillerVersLArgent\s*\(/.test(source)) return false;
+  const attendus = [...source.matchAll(/\bawait\s+(?:\(\s*)?([A-Za-z_$][\w$]*)/g)].map((m) => m[1]);
+  return attendus.every((nom) => ATTENTES_SANS_RESEAU.has(nom));
 }
 
 describe('TCK-426 — aucune page muette sous une frontière de suspension', () => {
@@ -503,6 +531,8 @@ describe('TCK-382 / AC1 — l’attente', () => {
       if (estUneRedirectionSeule(page)) continue;
       // TCK-649 — même logique : une garde DANS la page ne survit à aucun repli au-dessus d'elle.
       if (seGardeParLaTableDesPages(page)) continue;
+      // TCK-2677 — et la page qui aiguille l'admin d'agence vers « Argent ».
+      if (aiguilleDansSonRendu(page)) continue;
       let dossier = page.segment;
       let couverte = false;
       // `app/loading.tsx` ne couvre que `app/page.tsx` : la boucle s'arrête AVANT de remonter

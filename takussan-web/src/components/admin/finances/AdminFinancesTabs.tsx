@@ -6,11 +6,12 @@ import { useTranslations } from 'next-intl';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { InvoicesTable } from '@/components/payments/InvoicesTable';
 import { PayoutsTable } from '@/components/payments/PayoutsTable';
+import { ServiceProviderBillsTable } from '@/components/payments/ServiceProviderBillsTable';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { OngletArgent } from '@/lib/finances/vue-argent';
 
 import { EncaissementsAgence } from './argent/EncaissementsAgence';
-import type { GestesDeLArgent } from './argent/gestes';
+import { ongletPermis, type GestesDeLArgent } from './argent/gestes';
 import { Impayes } from './impayes/Impayes';
 
 /**
@@ -41,8 +42,9 @@ interface AdminFinancesTabsProps {
 }
 
 /**
- * TCK-134 — les cinq registres de « Argent » : encaissements, factures, reversements, « À approuver »
- * (réservé à `payouts.approve`, TCK-594) et impayés. L'onglet vit dans l'adresse (`?tab=`), qui reste
+ * TCK-134 — les registres de « Argent » : encaissements, factures, reversements, « À approuver »
+ * (réservé à `payouts.approve`, TCK-594), « Interventions » (factures des prestataires, réservé à
+ * `payouts.create` — TCK-2677) et impayés. L'onglet vit dans l'adresse (`?tab=`), qui reste
  * partageable et sûre au rechargement.
  *
  * TCK-2659 — les gestes de création ne sont plus ici : ils vivent dans l'en-tête de page (bureau) et
@@ -51,12 +53,12 @@ interface AdminFinancesTabsProps {
 export function AdminFinancesTabs({ onglet, onChange, gestes, telephone, variante, courant, agencyId, comptes, entete }: AdminFinancesTabsProps) {
   const t = useTranslations('admin.finances');
   const f = useFormatteurs();
-  const ouvert: OngletArgent = onglet === 'a-approuver' && !gestes.peutApprouver ? 'encaissements' : onglet;
+  const ouvert = ongletPermis(onglet, gestes);
   const compte = (n: number | undefined) =>
     n !== undefined && n > 0 ? <span className="text-xs tabular-nums text-muted-foreground">{f.nombre(n)}</span> : null;
 
   const onglets = telephone ? null : (
-    // Cinq onglets mesurent plus que la colonne à `lg` : le ruban défile dans son conteneur.
+    // Cinq ou six onglets mesurent plus que la colonne à `lg` : le ruban défile dans son conteneur.
     <div className="-mx-1 max-w-full overflow-x-auto px-1">
       <TabsList variant="line">
         <TabsTrigger value="encaissements">{t('tabs.payments')}</TabsTrigger>
@@ -67,6 +69,7 @@ export function AdminFinancesTabs({ onglet, onChange, gestes, telephone, variant
             {t('tabs.toApprove')} {compte(comptes?.aApprouver)}
           </TabsTrigger>
         ) : null}
+        {gestes.peutPayerLesPrestataires ? <TabsTrigger value="interventions">{t('tabs.interventions')}</TabsTrigger> : null}
         <TabsTrigger value="impayes">
           {t('tabs.overdue')} {compte(comptes?.impayes)}
         </TabsTrigger>
@@ -93,6 +96,13 @@ export function AdminFinancesTabs({ onglet, onChange, gestes, telephone, variant
       {gestes.peutApprouver ? (
         <TabsContent value="a-approuver" className="space-y-4 pt-4">
           <PayoutsTable onSelect={gestes.ouvrirReversement} status="awaiting_approval" />
+        </TabsContent>
+      ) : null}
+
+      {/* TCK-2677 — l'onglet `bills` de `/app/payments`, le même composant : mêmes factures, mêmes gestes. */}
+      {gestes.peutPayerLesPrestataires ? (
+        <TabsContent value="interventions" className="space-y-4 pt-4">
+          <ServiceProviderBillsTable mode="agency" onPaid={gestes.ouvrirReversement} titreMasque />
         </TabsContent>
       ) : null}
 

@@ -6630,7 +6630,8 @@
         "overdue": "Impayés",
         "newInvoice": "Générer une facture",
         "newPayout": "Créer un reversement",
-        "toApprove": "À approuver"
+        "toApprove": "À approuver",
+        "interventions": "Interventions"
       },
       "kpis": {
         "overdue": "Impayés en cours",
@@ -6720,7 +6721,9 @@
           "impayesDetail": "Par locataire, par ancienneté",
           "rapprochement": "Rapprochement bancaire",
           "exporter": "Exporter les encaissements",
-          "exporterDetail": "Les encaissements du mois affiché, en CSV"
+          "exporterDetail": "Les encaissements du mois affiché, en CSV",
+          "interventions": "Interventions",
+          "interventionsDetail": "Factures des prestataires, à valider puis à payer"
         },
         "creer": {
           "titre": "Créer",

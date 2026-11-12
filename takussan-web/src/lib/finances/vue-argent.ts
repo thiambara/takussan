@@ -4,7 +4,7 @@ import { bornesDuMois, estMois } from './mois';
  * TCK-2659 — ce que l'adresse de « Argent » (`/app/agency/finances`) ouvre.
  *
  * - **Le point du mois** (maquette « Tableau du mois ») : l'adresse nue, ou avec le seul `?period=`.
- * - **Un registre** (maquette « Encaissements ») : `?tab=` nomme l'un des cinq. Au téléphone, c'est un
+ * - **Un registre** (maquette « Encaissements ») : `?tab=` nomme l'un des six. Au téléphone, c'est un
  *   écran de détail (flèche de retour vers le point du mois) ; au bureau, une page sous le fil
  *   « Argent › … », ses onglets sous l'en-tête.
  *
@@ -17,8 +17,11 @@ import { bornesDuMois, estMois } from './mois';
  * Les valeurs acceptées par `?tab=` — la table que `AdminFinancesTabs` réexporte (TCK-375 : le bloc
  * de files du tableau de bord d'agence renvoie vers `?tab=impayes`, l'invariant se vérifie contre
  * elle, jamais contre une chaîne recopiée).
+ *
+ * TCK-2677 — `interventions` : les factures des prestataires (TCK-594, ADR-0039 § 8), à valider puis
+ * à payer, que l'onglet `bills` de `/app/payments` servait seul à l'admin d'agence.
  */
-export const TAB_VALUES = ['encaissements', 'factures', 'reversements', 'a-approuver', 'impayes'] as const;
+export const TAB_VALUES = ['encaissements', 'factures', 'reversements', 'a-approuver', 'interventions', 'impayes'] as const;
 export type OngletArgent = (typeof TAB_VALUES)[number];
 
 export function estOngletArgent(valeur: string | null | undefined): valeur is OngletArgent {

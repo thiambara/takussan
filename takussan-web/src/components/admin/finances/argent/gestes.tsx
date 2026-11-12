@@ -7,6 +7,7 @@ import { CreatePayoutDialog } from '@/components/payments/CreatePayoutDialog';
 import { InvoiceDetailDialog } from '@/components/payments/InvoiceDetailDialog';
 import { PayoutDetailDialog } from '@/components/payments/PayoutDetailDialog';
 import { useCan } from '@/hooks/useCan';
+import type { OngletArgent } from '@/lib/finances/vue-argent';
 
 /**
  * TCK-2659 — les gestes de « Argent » et leurs dialogues, montés UNE fois pour la page : l'en-tête
@@ -22,6 +23,13 @@ export interface GestesDeLArgent {
   readonly emetFacture: boolean;
   readonly emetReversement: boolean;
   readonly peutApprouver: boolean;
+  /**
+   * TCK-2677 — le registre « Interventions » (factures des prestataires, TCK-594 / ADR-0039 § 8) suit
+   * `payouts.create`, comme l'onglet `bills` de `/app/payments` qu'il remplace pour l'admin : valider
+   * et « Payer le prestataire » (qui crée un reversement) sont des gestes de reversement. Sans
+   * `canEmit` : l'ancien onglet ne le demandait pas.
+   */
+  readonly peutPayerLesPrestataires: boolean;
   /** Les capacités se lisent encore : le squelette tient la place des boutons. */
   readonly capacitesEnCours: boolean;
   readonly canEmit: boolean;
@@ -60,6 +68,7 @@ export function useGestesDeLArgent(canEmit: boolean): GestesDeLArgent & { readon
     emetFacture,
     emetReversement,
     peutApprouver,
+    peutPayerLesPrestataires: peutReverser,
     capacitesEnCours: facturationEnCours || reversementEnCours,
     canEmit,
     nouvelleFacture: () => setInvoiceOpen(true),
@@ -68,4 +77,15 @@ export function useGestesDeLArgent(canEmit: boolean): GestesDeLArgent & { readon
     ouvrirReversement: setPayoutId,
     dialogues,
   };
+}
+
+/**
+ * L'onglet que la page ouvre vraiment : un registre gardé par une capacité absente retombe sur
+ * « Encaissements » — une fois les capacités lues. Tant qu'elles se lisent, l'onglet demandé tient
+ * (un lien entrant vers `?tab=interventions` ne montre pas les encaissements le temps d'une lecture).
+ */
+export function ongletPermis(onglet: OngletArgent, gestes: Pick<GestesDeLArgent, 'peutApprouver' | 'peutPayerLesPrestataires' | 'capacitesEnCours'>): OngletArgent {
+  if (onglet === 'a-approuver' && !gestes.peutApprouver) return 'encaissements';
+  if (onglet === 'interventions' && !gestes.peutPayerLesPrestataires && !gestes.capacitesEnCours) return 'encaissements';
+  return onglet;
 }

@@ -71,6 +71,17 @@ describe('ServiceProviderBillsTable — factures d’intervention (TCK-594)', ()
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
+  it('TCK-2677 — `titreMasque` : la section garde son nom pour les lecteurs d’écran, le titre ne s’affiche pas', () => {
+    const { unmount } = render(withIntl(<ServiceProviderBillsTable mode="agency" />));
+    expect(screen.getByRole('heading', { level: 2, name: 'Factures des prestataires' })).not.toHaveClass('sr-only');
+    unmount();
+
+    render(withIntl(<ServiceProviderBillsTable mode="agency" titreMasque />));
+    const titre = screen.getByRole('heading', { level: 2, name: 'Factures des prestataires' });
+    expect(titre).toHaveClass('sr-only');
+    expect(screen.getByRole('region', { name: 'Factures des prestataires' })).toBeInTheDocument();
+  });
+
   it('l’agence lit le dépassement du devis, puis valide en refacturant au bailleur', async () => {
     VALIDATE.mutateAsync.mockResolvedValue({ data: {} });
     render(withIntl(<ServiceProviderBillsTable mode="agency" />));

@@ -4763,7 +4763,8 @@
         "overdue": "Yu ñu feyul",
         "newInvoice": "Génne benn fakteer",
         "newPayout": "Sos benn peymaan",
-        "toApprove": "Ngir nangu"
+        "toApprove": "Ngir nangu",
+        "interventions": "Interventions"
       },
       "kpis": {
         "overdue": "Pey yu ñu feyul",
@@ -4853,7 +4854,9 @@
           "impayesDetail": "Par locataire, par ancienneté",
           "rapprochement": "Rapprochement bancaire",
           "exporter": "Exporter les encaissements",
-          "exporterDetail": "Les encaissements du mois affiché, en CSV"
+          "exporterDetail": "Les encaissements du mois affiché, en CSV",
+          "interventions": "Interventions",
+          "interventionsDetail": "Factures des prestataires, à valider puis à payer"
         },
         "creer": {
           "titre": "Créer",

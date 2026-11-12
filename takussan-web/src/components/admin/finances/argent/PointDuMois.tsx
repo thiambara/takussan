@@ -16,6 +16,7 @@ import {
   TrendingUp,
   TriangleAlert,
   Wallet,
+  Wrench,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -41,8 +42,8 @@ import type { OngletArgent } from '@/lib/finances/vue-argent';
  * entré, ce qui manque, ce qui attend un geste — puis les derniers encaissements, nommés.
  *
  * - **Téléphone** : deux tuiles (Encaissé, Impayés), « À faire » en lignes à chevron (une ligne à
- *   zéro disparaît), « Derniers encaissements », puis « Tout voir » (les cinq registres, le
- *   rapprochement, l'export) et « Créer ».
+ *   zéro disparaît), « Derniers encaissements », puis « Tout voir » (les registres — « Interventions »
+ *   avec `payouts.create`, TCK-2677 —, le rapprochement, l'export) et « Créer ».
  * - **Bureau** : quatre tuiles cliquables vers leur onglet, puis dès `xl` deux colonnes — « À faire »
  *   (les impayés les plus anciens, les reversements à approuver) et « Derniers encaissements ».
  *
@@ -230,6 +231,10 @@ export function PointDuMoisTelephone(ctx: ContexteDuPoint) {
             <LigneRegistre href={lienDOnglet('reversements', periode)} icone={<HandCoins />} titre={t('registres.reversements')} droite={synthese?.payouts_open.count} />
             {gestes.peutApprouver ? (
               <LigneRegistre href={lienDOnglet('a-approuver', periode)} icone={<ShieldCheck />} titre={t('registres.aApprouver')} droite={synthese?.payouts_awaiting_approval.count} />
+            ) : null}
+            {/* TCK-2677 — les factures des prestataires, que l'onglet `bills` de `/app/payments` servait seul. */}
+            {gestes.peutPayerLesPrestataires ? (
+              <LigneRegistre href={lienDOnglet('interventions', periode)} icone={<Wrench />} titre={t('registres.interventions')} detail={t('registres.interventionsDetail')} />
             ) : null}
             <LigneRegistre
               href={lienDOnglet('impayes', periode)}

@@ -32,6 +32,11 @@ interface ServiceProviderBillsTableProps {
   readonly mode: 'provider' | 'agency';
   /** Le reversement créé par « Payer » — l'appelant l'ouvre (approbation, marquage payé). */
   readonly onPaid?: (payoutId: number) => void;
+  /**
+   * TCK-2677 — le titre de la section reste pour les lecteurs d'écran, sans s'afficher : dans
+   * « Argent », l'en-tête du registre (« Interventions ») le porte déjà.
+   */
+  readonly titreMasque?: boolean;
 }
 
 /**
@@ -42,7 +47,7 @@ interface ServiceProviderBillsTableProps {
  * quatre yeux, que l'agence marque payé comme les autres. Le serveur refuse au prestataire de
  * valider sa propre facture (`segregation.approve`) ; le dépassement du devis se lit AVANT le geste.
  */
-export function ServiceProviderBillsTable({ mode, onPaid }: ServiceProviderBillsTableProps) {
+export function ServiceProviderBillsTable({ mode, onPaid, titreMasque = false }: ServiceProviderBillsTableProps) {
   const locale = useLocale() as Locale;
   const t = useTranslations('payments.serviceProviderBills');
   const tStatus = useTranslations('payments.serviceProviderBills.status');
@@ -160,7 +165,7 @@ export function ServiceProviderBillsTable({ mode, onPaid }: ServiceProviderBills
 
   return (
     <section aria-labelledby={`spb-${mode}-title`} className="space-y-3">
-      <h2 id={`spb-${mode}-title`} className="text-base font-semibold text-foreground">
+      <h2 id={`spb-${mode}-title`} className={titreMasque ? 'sr-only' : 'text-base font-semibold text-foreground'}>
         {mode === 'provider' ? t('providerTitle') : t('agencyTitle')}
       </h2>
       {error ? (

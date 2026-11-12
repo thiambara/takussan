@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl';
 
 import { AdminFinancesTabs } from '@/components/admin/finances/AdminFinancesTabs';
 import { parametresDesEncaissements } from '@/components/admin/finances/argent/EncaissementsAgence';
-import { useGestesDeLArgent, type GestesDeLArgent } from '@/components/admin/finances/argent/gestes';
+import { ongletPermis, useGestesDeLArgent, type GestesDeLArgent } from '@/components/admin/finances/argent/gestes';
 import { AFaireEtDerniers, PointDuMoisTelephone, TuilesDuMois, type ContexteDuPoint } from '@/components/admin/finances/argent/PointDuMois';
 import { SelecteurDeMois, useTextesDuSelecteurDeMois } from '@/components/admin/finances/argent/SelecteurDeMois';
 import { PageHeader } from '@/components/console';
@@ -190,9 +190,10 @@ export function AdminFinancesClient({ canViewFinances, canEmitFinances, rapproch
     factures: t('tabs.invoices'),
     reversements: t('tabs.payouts'),
     'a-approuver': t('tabs.toApprove'),
+    interventions: t('tabs.interventions'),
     impayes: t('tabs.overdue'),
   };
-  const onglet = vue.onglet === 'a-approuver' && !gestes.peutApprouver ? 'encaissements' : vue.onglet;
+  const onglet = ongletPermis(vue.onglet, gestes);
   const total = encaissements.data?.meta.total;
   const description =
     onglet === 'impayes'
