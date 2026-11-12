@@ -235,3 +235,18 @@ motivées de la garde.
 - 75 fichiers voisins (états des lieux, réservations et offres, tunnel public, délégations, absences et passations,
   annonces, maintenance, reversements de la plateforme, registre de la vie privée, abonnements et mises à niveau, mise
   en avant, parcours des routes) joués un à un : verts.
+
+**Lot 4 — la garde de balayage.** `tests/Unit/Architecture/InstantRecuConvertiTest.php` (PHPUnit pur, sans
+application) croise, comme le relevé, une règle `date` sans `date_format` d'une FormRequest et une colonne castée
+`datetime` dans `app/Models` (par nom ; le dernier segment pour `visits.*.scheduled_at`). Une règle conditionnelle
+(`'scheduled_at' => $manager ? [...] : [...]`) et la forme `$rules['x'] = …` sont lues : l'expression va jusqu'à sa
+virgule de profondeur 0. Un tel champ est converti par le trait (listé dans `instantsRecus()`), par un accesseur (une
+méthode qui nomme le champ et appelle `InstantRecu::` ou `scheduledInstant()`), par `FinInclusive::de()` (liste
+`FINS_INCLUSIVES`, et le champ ne doit PAS être dans `instantsRecus()`), à l'écriture hors de la FormRequest
+(`CONVERTIS_A_L_ECRITURE` : le `PATCH` d'une intervention, TCK-2700), ou c'est une exception motivée (les bornes des
+trois rapports, décision du porteur). Les deux listes à lecteur vérifient que le fichier nommé appelle encore la
+conversion ; toute entrée qui ne s'applique plus rougit. Non-vacuité : > 300 FormRequests lues, > 35 champs relevés
+(41 au 2026-11-12), > 100 colonnes `datetime`. Ablations 7/7 rouges : champ retiré du trait, accesseur d'une règle
+conditionnelle sans conversion, fin ajoutée au trait, lecteur sans `FinInclusive`, écriture d'intervention sans
+conversion, champ imbriqué du lot sans conversion, accesseur du virement par `Carbon::parse`. **Limites** (en-tête) :
+le croisement est par nom ; une règle construite par une méthode ou une variable n'est pas lue.
