@@ -464,6 +464,12 @@ return [
                 'body' => 'The agency recorded request :reference on your behalf for :property. You can cancel it from your bookings.',
                 'sms' => 'Takussan: request :reference recorded on your behalf (:property). To cancel it, contact the agency.',
             ],
+            // TCK-2734 — au client : un bail a été créé sur le bien pour un autre locataire.
+            'application_not_selected' => [
+                'title' => 'Application not selected',
+                'body' => 'Your application :reference for :property was not selected: the property has been allocated to another tenant.',
+                'sms' => 'Takussan: application :reference not selected (:property).',
+            ],
         ],
         // TCK-589 — invitation adressée à un numéro : le nom de l'agence seul, jamais un texte de l'invitant.
         'invitation' => [

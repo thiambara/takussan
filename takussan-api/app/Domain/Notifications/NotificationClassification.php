@@ -86,6 +86,7 @@ final class NotificationClassification
         'booking.rejected' => [self::D, false],
         'booking.cancelled' => [self::D, false],
         'booking.recorded_on_behalf' => [self::D, false],
+        'booking.application_not_selected' => [self::D, false],
 
         // ─── Visites ──────────────────────────────────────────────────────────────────────
         'visit.reminder' => [self::V, false],

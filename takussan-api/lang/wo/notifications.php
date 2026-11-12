@@ -464,6 +464,12 @@ return [
                 'body' => 'L\'agence a enregistré la demande :reference en votre nom pour :property. Vous pouvez l\'annuler depuis vos réservations.',
                 'sms' => 'Takussan : demande :reference enregistrée en votre nom (:property). Pour l\'annuler, contactez l\'agence.',
             ],
+            // TCK-2734 — au client : un bail a été créé sur le bien pour un autre locataire.
+            'application_not_selected' => [
+                'title' => 'Candidature non retenue',
+                'body' => 'Votre candidature :reference pour :property n\'a pas été retenue : le logement a été attribué à un autre locataire.',
+                'sms' => 'Takussan : candidature :reference non retenue (:property).',
+            ],
         ],
         // TCK-589 — invitation adressée à un numéro : le nom de l'agence seul, jamais un texte de l'invitant.
         'invitation' => [

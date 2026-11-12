@@ -7185,7 +7185,8 @@
         "absence_updated": "Absence modifiée",
         "suggested_stage_dismissed": "Étape proposée écartée",
         "agency_upgrade_subscription_assigned": "Abonnement pro attribué au passage en agence professionnelle",
-        "review_moderated": "Avis publié (lot)"
+        "review_moderated": "Avis publié (lot)",
+        "booking_not_selected": "Candidature non retenue"
       },
       "subjectWithId": "{label} n° {id}",
       "otherAction": "Autre action",
@@ -14615,6 +14616,10 @@
         "recorded_on_behalf": {
           "title": "Demande enregistrée en votre nom",
           "body": "L'agence a enregistré la demande {reference} en votre nom pour {property}. Vous pouvez l'annuler depuis vos réservations."
+        },
+        "application_not_selected": {
+          "title": "Candidature non retenue",
+          "body": "Votre candidature {reference} pour {property} n'a pas été retenue : le logement a été attribué à un autre locataire."
         }
       },
       "account": {

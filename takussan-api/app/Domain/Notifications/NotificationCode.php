@@ -62,6 +62,9 @@ enum NotificationCode: string
     // TCK-2579 (ADR-0102 §2) — au CLIENT : le personnel de l'agence a enregistré une candidature ou
     // une offre en son nom ; il peut l'annuler. Son compte, sinon le téléphone de sa fiche.
     case BookingRecordedOnBehalf = 'booking.recorded_on_behalf';
+    // TCK-2734 (seconde porte, décision du porteur du 2026-11-12) — au CLIENT : un bail a été créé
+    // sur le bien pour un autre locataire ; sa candidature, en attente ou acceptée, est close.
+    case BookingApplicationNotSelected = 'booking.application_not_selected';
 
     // ─── Visites, messages, leads ───────────────────────────────────────────────────────
     case VisitReminder = 'visit.reminder';
@@ -312,7 +315,8 @@ enum NotificationCode: string
             self::PlatformPayoutRefundedSincePaid => NotificationType::Payment,
             self::BookingCreated, self::BookingRequestedUndated, self::BookingConfirmed, self::BookingRejected,
             self::BookingCancelled,
-            self::BookingRecordedOnBehalf /* TCK-2579 */ => NotificationType::Booking,
+            self::BookingRecordedOnBehalf /* TCK-2579 */,
+            self::BookingApplicationNotSelected /* TCK-2734 */ => NotificationType::Booking,
             self::VisitReminder, self::VisitRequested, self::VisitRequestedWindow, self::VisitRescheduledByVisitor,
             self::VisitCancelledByVisitor, self::VisitConfirmed, self::VisitRescheduled,
             self::VisitCancelled, self::VisitCancelledWindow, self::VisitCancelledByVisitorWindow => NotificationType::Visit,
@@ -373,7 +377,8 @@ enum NotificationCode: string
             self::LeaseRentReviewedLandlord => 'lease_rent_reviewed',
             self::BookingCreated, self::BookingRequestedUndated => 'booking_request',
             self::BookingConfirmed, self::BookingRejected, self::BookingCancelled,
-            self::BookingRecordedOnBehalf /* TCK-2579 : côté client, comme la suite de sa demande */ => 'booking_status_changed',
+            self::BookingRecordedOnBehalf /* TCK-2579 : côté client, comme la suite de sa demande */,
+            self::BookingApplicationNotSelected /* TCK-2734 : la suite de sa demande */ => 'booking_status_changed',
             // TCK-590 — tous les événements d'une visite obéissent au même interrupteur (TCK-070).
             self::VisitReminder, self::VisitRequested, self::VisitRequestedWindow, self::VisitRescheduledByVisitor,
             self::VisitCancelledByVisitor, self::VisitConfirmed, self::VisitRescheduled,
@@ -460,7 +465,8 @@ enum NotificationCode: string
             self::BookingCreated, self::BookingConfirmed, self::BookingRejected,
             self::BookingCancelled => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT, 'start_date' => self::PARAM_DATE, 'end_date' => self::PARAM_DATE],
             self::BookingRequestedUndated => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT],
-            self::BookingRecordedOnBehalf /* TCK-2579 */ => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT],
+            self::BookingRecordedOnBehalf /* TCK-2579 */,
+            self::BookingApplicationNotSelected /* TCK-2734 */ => ['reference' => self::PARAM_TEXT, 'property' => self::PARAM_TEXT],
             self::VisitReminder => ['property' => self::PARAM_TEXT, 'scheduled_at' => self::PARAM_DATETIME, 'window' => self::PARAM_TEXT],
             self::MessageReceived => ['sender' => self::PARAM_TEXT, 'excerpt' => self::PARAM_TEXT],
             self::MessageGroupInvite => ['inviter' => self::PARAM_TEXT, 'subject' => self::PARAM_TEXT],
@@ -696,6 +702,8 @@ enum NotificationCode: string
             // (`preferenceEvent()` null), ils n'ouvrent aucun canal mobile vers un compte.
             self::InvitationReceived, self::InvitationReminder, self::AccountPhoneChanged,
             self::BookingConfirmed, self::BookingRejected, self::BookingCancelled => true,
+            // TCK-2734 — comme le refus : la fin de sa demande, conséquence d'un geste de l'agence.
+            self::BookingApplicationNotSelected => true,
             // TCK-2579 — un geste humain de l'agence, vers un client qui peut n'avoir que le
             // téléphone de sa fiche ; la limite horaire par numéro du canal le borne.
             self::BookingRecordedOnBehalf => true,

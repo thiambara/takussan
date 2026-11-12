@@ -111,3 +111,30 @@ Toute candidature suivante rend alors 409 jusqu'à l'annulation de A. En démo, 
 Mineurs, au lot 2 :
 - un témoin « offre sur un bien à candidature acceptée » ;
 - un test du verrou, porté du jetable de concurrence.
+
+## Seconde porte — le bail ferme les autres candidatures (2026-11-12)
+
+**Décision du porteur (option a), relayée le 2026-11-12.** À la création d'un bail (`LeaseService::create`), les autres
+candidatures ouvertes du bien (`pending`, `confirmed`) se ferment, acceptée comprise :
+
+- elles passent `rejected`, leurs paiements en attente sont annulés, et `BookingClosed` ouvre la tâche de remboursement
+  d'un acompte encaissé, comme pour un refus ;
+- leur auteur (le compte du client) reçoit `booking.application_not_selected`, « Candidature non retenue », une fois,
+  après le commit. Un client sans compte ne reçoit rien, comme pour `booking.rejected`.
+
+Tout se passe dans la transaction du bail, dans l'ordre global des verrous (`takussan-api/CLAUDE.md`, piège n° 10) :
+le bien, puis les réservations en une passe par identifiant croissant.
+
+**Écart à la lettre de la décision.** Les candidatures ouvertes du LOCATAIRE du bail sont celles du bail, avec ou sans
+`booking_id` : elles passent `completed`, sans avis. Lui dire « non retenue » serait faux. C'est le seul cas de la démo
+où un bail a suivi la confirmation : la candidature 42, avec un bail créé sans `booking_id` pour le même client.
+
+**Ce que la règle ne fait pas :**
+- Elle ne vaut que pour la suite et ne libère aucune donnée existante. Mesuré en démo (lecture seule) : 10 des
+  20 candidatures acceptées sont sur un bien qui a un bail, et 9 de ces 10 ont été acceptées APRÈS ce bail (confirmées
+  sur un bien déjà loué : une autre porte, que cette règle ne ferme pas).
+- Elle ne touche ni les offres d'achat ni les séjours.
+- Le renouvellement (`LeaseRenewalService`) n'emprunte pas `create()` et ne ferme rien.
+
+Tests : `BailFermeLesAutresCandidaturesTest`. Dans `BookingApplicationSingleAcceptedTest`, le cas « convertie en bail »
+change de sens : la seconde candidature est désormais close par le bail.

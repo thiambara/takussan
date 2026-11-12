@@ -354,8 +354,9 @@ class BookingService
      * TCK-2734 (décision du porteur du 2026-11-11) — une seule candidature confirmée par bien à la
      * fois : la confirmation dit « acceptée » au client, et deux acceptations promettraient le même
      * logement à deux personnes. Jugée sous le verrou du bien que {@see self::confirm()} pose (la
-     * ligne parent, piège PostgreSQL n° 2). Une candidature quitte `confirmed` annulée, ou convertie
-     * en bail (`completed`, {@see LeaseService}). Les offres d'achat et les séjours n'y sont pas
+     * ligne parent, piège PostgreSQL n° 2). Une candidature quitte `confirmed` annulée, convertie
+     * en bail (`completed`), ou close par le bail d'un autre locataire sur le bien (`rejected`, seconde
+     * porte de TCK-2734, {@see LeaseService::create()}). Les offres d'achat et les séjours n'y sont pas
      * soumis : plusieurs offres sur un bien à vendre sont normales, et le séjour garde sa règle de nuits.
      */
     protected function assertNoOtherAcceptedApplication(Booking $booking): void

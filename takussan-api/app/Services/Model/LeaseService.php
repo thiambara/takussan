@@ -2,11 +2,14 @@
 
 namespace App\Services\Model;
 
+use App\Domain\Notifications\NotificationCode;
+use App\Events\Booking\BookingClosed;
 use App\Events\Lease\LeaseActivated;
 use App\Jobs\GenerateLeasePaymentSchedule;
 use App\Models\Agency;
 use App\Models\Booking;
 use App\Models\Customer;
+use App\Models\Enums\BookingKind;
 use App\Models\Enums\BookingStatus;
 use App\Models\Enums\Capability;
 use App\Models\Enums\Currency;
@@ -21,12 +24,14 @@ use App\Models\LeasePayment;
 use App\Models\Property;
 use App\Models\User;
 use App\Rules\PersonnelDeLAgence;
+use App\Services\Booking\BookingNotificationParams;
 use App\Services\Lease\EarlyTerminationService;
 use App\Services\Lease\LeaseExitScheduleService;
 use App\Services\Lease\LeaseRenewalService;
 use App\Services\Property\BailleurDuBien;
 use App\Services\Property\ContactDeLAgenceDuBien;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -110,7 +115,12 @@ class LeaseService
         // l'unité de la devise du bail : `round(…, 2)` laissait 30 864,18 XOF (ADR-0009).
         $data['commission_amount'] = self::roundCommission($data['commission_amount'] ?? null, $data['currency'] ?? 'XOF');
 
-        return DB::transaction(function () use ($data, $property, $user, $reservation): Lease {
+        return DB::transaction(function () use ($data, $property, $user, $reservation, $tenant): Lease {
+            // TCK-2734 (seconde porte) — l'ordre global des verrous (`takussan-api/CLAUDE.md`, piège
+            // n° 10) : le bien d'abord, puis ses réservations, comme `BookingService::confirm()`.
+            Property::query()->whereKey($property->getKey())->lockForUpdate()->first();
+            $candidatures = $this->verrouillerLesCandidaturesOuvertes($property, $reservation);
+
             $lease = Lease::create(array_merge($data, [
                 'reference_number' => ReferenceNumberGenerator::lease(),
                 'landlord_id' => $property->user_id,
@@ -123,9 +133,86 @@ class LeaseService
             if ($reservation !== null) {
                 $this->terminerLaReservation($reservation, $lease, $user);
             }
+            $this->fermerLesCandidatures($candidatures, $tenant, $lease, $user);
 
             return $lease;
         });
+    }
+
+    /**
+     * TCK-2734 (seconde porte, décision du porteur du 2026-11-12) — les candidatures encore ouvertes
+     * du bien (`pending`, `confirmed`) et la réservation d'origine, verrouillées en UNE passe par
+     * identifiant croissant, APRÈS le bien. Rend les candidatures hors la réservation d'origine, que
+     * {@see self::terminerLaReservation()} traite. Offres d'achat et séjours n'y sont pas : plusieurs
+     * offres sur un bien à vendre sont normales, et un séjour a ses nuits.
+     *
+     * @return Collection<int, Booking>
+     */
+    private function verrouillerLesCandidaturesOuvertes(Property $property, ?Booking $reservation): Collection
+    {
+        return Booking::query()
+            ->where(fn ($q) => $q
+                ->where(fn ($q) => $q
+                    ->where('property_id', $property->getKey())
+                    ->where('kind', BookingKind::Application->value)
+                    ->whereIn('status', [BookingStatus::Pending->value, BookingStatus::Confirmed->value]))
+                ->when($reservation !== null, fn ($q) => $q->orWhere('id', $reservation->getKey())))
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get()
+            ->reject(fn (Booking $b) => $reservation !== null && $b->is($reservation))
+            ->values();
+    }
+
+    /**
+     * TCK-2734 (seconde porte) — un bail est créé : les autres candidatures ouvertes du bien se
+     * ferment, acceptée comprise. Sans cela, une candidature acceptée qu'un bail tiré d'une AUTRE
+     * (ou créé sans `booking_id`) laissait `confirmed` retenait le bien, et toute confirmation suivante
+     * rendait `409 booking.application_already_accepted`.
+     *
+     * - Celles du LOCATAIRE du bail sont les siennes, nommées par `booking_id` ou non : `completed`,
+     *   comme la réservation d'origine, sans avis — lui dire « non retenue » serait faux.
+     * - Les autres passent `rejected` (ce que `reject()` ne fait que d'une demande en attente) ; leur
+     *   auteur reçoit « Candidature non retenue » APRÈS le commit, une fois, et `BookingClosed`
+     *   (déjà différé au commit) ouvre la tâche de remboursement d'un acompte encaissé.
+     *
+     * @param  Collection<int, Booking>  $candidatures  verrouillées par {@see self::verrouillerLesCandidaturesOuvertes()}
+     */
+    private function fermerLesCandidatures(Collection $candidatures, Customer $tenant, Lease $lease, User $user): void
+    {
+        foreach ($candidatures as $candidature) {
+            if ((int) $candidature->customer_id === (int) $tenant->id) {
+                $this->terminerLaReservation($candidature, $lease, $user);
+
+                continue;
+            }
+
+            $candidature->forceFill([
+                'status' => BookingStatus::Rejected,
+                'cancelled_at' => now(),
+            ])->save();
+            $candidature->cancelPendingPayments();
+
+            activity('Booking')
+                ->performedOn($candidature)
+                ->causedBy($user)
+                ->withProperties(['lease_id' => $lease->id])
+                ->event('booking_not_selected')
+                ->log('booking_not_selected');
+
+            DB::afterCommit(function () use ($candidature): void {
+                $client = $candidature->customer?->user;
+                if ($client !== null) {
+                    app(NotificationService::class)->send(
+                        $client,
+                        NotificationCode::BookingApplicationNotSelected,
+                        BookingNotificationParams::for($candidature, NotificationCode::BookingApplicationNotSelected),
+                        BookingNotificationParams::target($candidature),
+                    );
+                }
+            });
+            BookingClosed::dispatch($candidature, BookingClosed::REASON_REJECTED, $user->id);
+        }
     }
 
     /**

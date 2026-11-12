@@ -24,7 +24,8 @@ use Tests\Concerns\CreatesAgencyMembers;
  * à la fois : la confirmation dit « acceptée » au client, en accepter deux promet le même logement à
  * deux personnes. La seconde rend `409 booking.application_already_accepted` tant que la première est
  * `confirmed` ; elle se confirme une fois la première annulée, close, ou convertie en bail (qui la
- * passe `completed`). Les offres d'achat et les séjours gardent leurs règles.
+ * passe `completed`). Les offres d'achat et les séjours gardent leurs règles. Le bail ferme en outre
+ * les autres candidatures ouvertes du bien (seconde porte, `BailFermeLesAutresCandidaturesTest`).
  */
 class BookingApplicationSingleAcceptedTest extends ApiTestCase
 {
@@ -115,8 +116,13 @@ class BookingApplicationSingleAcceptedTest extends ApiTestCase
         $this->confirmer($seconde)->assertOk();
     }
 
-    /** AC3 — la première convertie en bail (qui la passe `completed`), la seconde se confirme. */
-    public function test_la_premiere_convertie_en_bail_la_seconde_se_confirme(): void
+    /**
+     * AC3 — la première convertie en bail (qui la passe `completed`) ne retient plus le bien. Depuis la
+     * seconde porte de TCK-2734 (décision du porteur du 2026-11-12), le bail ferme aussi la seconde
+     * (`rejected`, « non retenue », cf. `BailFermeLesAutresCandidaturesTest`) : c'est une candidature
+     * déposée APRÈS le bail qui se confirme.
+     */
+    public function test_la_premiere_convertie_en_bail_ne_retient_plus_le_bien(): void
     {
         $client = Customer::factory()->create(['agency_id' => $this->agence->id]);
         $premiere = $this->demande($this->location, BookingKind::Application, BookingStatus::Confirmed, client: $client);
@@ -134,8 +140,10 @@ class BookingApplicationSingleAcceptedTest extends ApiTestCase
             'deposit_amount' => 0,
         ])->assertCreated();
         $this->assertSame(BookingStatus::Completed, $premiere->refresh()->status);
+        $this->assertSame(BookingStatus::Rejected, $seconde->refresh()->status);
 
-        $this->confirmer($seconde)->assertOk();
+        $suivante = $this->demande($this->location, BookingKind::Application, BookingStatus::Pending, 40, 400);
+        $this->confirmer($suivante)->assertOk();
     }
 
     /** La règle est par bien : la candidature acceptée d'un autre bien ne retient pas celui-ci. */

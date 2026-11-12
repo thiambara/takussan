@@ -7185,7 +7185,8 @@
         "absence_updated": "Absence updated",
         "suggested_stage_dismissed": "Suggested stage dismissed",
         "agency_upgrade_subscription_assigned": "Pro subscription assigned on professional agency upgrade",
-        "review_moderated": "Review published (batch)"
+        "review_moderated": "Review published (batch)",
+        "booking_not_selected": "Application not selected"
       },
       "subjectWithId": "{label} #{id}",
       "otherAction": "Other action",
@@ -14615,6 +14616,10 @@
         "recorded_on_behalf": {
           "title": "Request recorded on your behalf",
           "body": "The agency recorded request {reference} on your behalf for {property}. You can cancel it from your bookings."
+        },
+        "application_not_selected": {
+          "title": "Application not selected",
+          "body": "Your application {reference} for {property} was not selected: the property has been allocated to another tenant."
         }
       },
       "account": {
