@@ -61,7 +61,20 @@ export type PendingAgencyInvitation = Omit<InvitationSummary, 'email'> & {
    * `sent` jusqu'à une heure après sa mort.
    */
   readonly is_expired: boolean;
+  /**
+   * Vérification de TCK-2668 (D1) — les gestes que `InvitationPolicy` accorde à l'appelant. Servis
+   * pour une invitation née d'une fiche client, et seulement quand la sélection porte ce que la règle
+   * lit ({@link CHAMPS_DE_L_INVITATION_DU_CLIENT}) : absents, la fiche n'offre aucun geste.
+   */
+  readonly abilities?: { readonly resend?: boolean; readonly revoke?: boolean };
 };
+
+/**
+ * Vérification de TCK-2668 (D1) — l'agent qui a invité SON client relance et annule cette invitation
+ * sans `team.invite` (`InvitationPolicy`) : la règle lit l'émetteur et la cible, que la lecture de la
+ * fiche demande donc, pour que l'API serve `abilities`.
+ */
+export const CHAMPS_DE_L_INVITATION_DU_CLIENT = [...AGENCY_INVITATION_FIELDS, 'invited_by', 'invitable_type', 'invitable_id'] as const;
 
 export const agencyInvitationKeys = {
   /** Racine d'invalidation — tout geste sur une invitation la vise. */
@@ -92,8 +105,11 @@ export const DEFAULT_PER_PAGE = 10;
 export interface FetchPendingAgencyInvitationsParams {
   readonly page?: number;
   readonly perPage?: number;
-  /** TCK-2668 — `sent` (en cours) ou `expired` ; sans lui, les deux (`STATUTS_INVITATION_SANS_REPONSE`). */
-  readonly statut?: string;
+  /**
+   * TCK-2668 — `sent` (en cours) ou `expired` ; sans lui, les deux (`STATUTS_INVITATION_SANS_REPONSE`).
+   * Vérification de TCK-2668 (D6) — au sens de la purge, par `filter[expired]` : voir `filtreDuStatut`.
+   */
+  readonly statut?: 'sent' | 'expired';
 }
 
 /**
@@ -117,6 +133,18 @@ export const STATUTS_INVITATION_SANS_REPONSE = 'sent,expired';
  */
 export const ROLES_D_EQUIPE = 'owner,agent,agent_senior,agent_manager,agency_admin,service_provider';
 
+/**
+ * Vérification de TCK-2668 (D6) — « expirée » au sens de la purge (`filter[expired]`, API) et non de la
+ * seule colonne `status` : une invitation `sent` dont l'échéance est passée, que le balayage horaire
+ * n'a pas encore marquée, est expirée — `is_expired`, et « Tout effacer » l'efface. Filtrée par
+ * `status=expired`, elle restait sous « En cours » et le nombre annoncé était inférieur à ce qui partait.
+ */
+function filtreDuStatut(statut: FetchPendingAgencyInvitationsParams['statut']): Record<string, string> {
+  if (statut === 'sent') return { status: 'sent', expired: '0' };
+  if (statut === 'expired') return { status: STATUTS_INVITATION_SANS_REPONSE, expired: '1' };
+  return { status: STATUTS_INVITATION_SANS_REPONSE };
+}
+
 function buildParams({ page, perPage, statut }: FetchPendingAgencyInvitationsParams): SpatieQueryParams {
   return {
     fields: { invitations: AGENCY_INVITATION_FIELDS },
@@ -134,7 +162,7 @@ function buildParams({ page, perPage, statut }: FetchPendingAgencyInvitationsPar
     // `accepted` (devenue un membre, elle est dans le tableau) et `revoked`
     // (annulée par un geste explicite) restent dehors : elles, l'admin les a
     // déjà vues sortir.
-    filter: { status: statut ?? STATUTS_INVITATION_SANS_REPONSE, role: ROLES_D_EQUIPE },
+    filter: { ...filtreDuStatut(statut), role: ROLES_D_EQUIPE },
     sort: '-created_at',
     page: page ?? 1,
     per_page: perPage ?? DEFAULT_PER_PAGE,
@@ -212,7 +240,7 @@ export async function purgeExpiredAgencyInvitations(token: string): Promise<numb
  */
 export async function fetchInvitationDuClient(token: string, customerId: number): Promise<PendingAgencyInvitation | null> {
   const qs = buildQueryString({
-    fields: { invitations: AGENCY_INVITATION_FIELDS },
+    fields: { invitations: CHAMPS_DE_L_INVITATION_DU_CLIENT },
     filter: { customer_id: customerId, role: 'tenant', status: STATUTS_INVITATION_SANS_REPONSE },
     sort: '-created_at',
     per_page: 1,

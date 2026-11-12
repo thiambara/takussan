@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import type { AdminAgencyUserRow } from '@/types/admin-users';
 import type { AgencyRoleAssignment } from '@/types/agency-role';
 
-import { etatDuMembre, roleDuMembre } from './etat-de-l-equipe';
+import { etatDuMembre, nomOuTiret, roleDuMembre } from './etat-de-l-equipe';
 import { DeuxFacteurs, PuceDEtat, PuceVous, TexteConnexion } from './pieces';
 
 /**
@@ -165,7 +165,7 @@ export function TableDesMembres({
                   <PuceDEtat membre={m} agencyId={agencyId} />
                   {etat === 'absent' && m.current_absence?.substitute ? (
                     <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                      {t('etat.couvertPar', { nom: m.current_absence.substitute.name })}
+                      {t('etat.couvertPar', { nom: nomOuTiret(m.current_absence.substitute.name) })}
                     </span>
                   ) : null}
                 </span>

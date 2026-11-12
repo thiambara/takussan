@@ -292,6 +292,15 @@ class MembershipCapabilityResolver
         Capability $capability,
         Agency $agency,
     ): bool {
+        // Vérification de TCK-2668 (D3, décision de la session du 2026-11-12) — une délégation ne se
+        // redélègue pas (ADR-0035) : `team.delegate_role` ne s'obtient jamais par elle. Le remplaçant
+        // qui « peut agir » à la place d'un admin la recevait dans `/me/capabilities`, quand
+        // `RoleDelegationPolicy` juge la détention PROPRE (`canActDirectlyAt`) : l'écran lui offrait
+        // « Déclarer », « Modifier » et « Terminer l'absence », et l'API rendait 403 à chacun.
+        if ($capability === Capability::TeamDelegateRole) {
+            return false;
+        }
+
         foreach ($delegations as $delegation) {
             $type = AgencyRoleBaseType::tryFrom((string) $delegation->role);
             if ($type === null) {

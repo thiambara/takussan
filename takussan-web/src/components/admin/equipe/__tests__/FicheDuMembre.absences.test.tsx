@@ -3,7 +3,9 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
+import { ContexteGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
 import { ApiError } from '@/lib/api';
+import type { GardeDoubleFacteurFn } from '@/lib/double-facteur';
 import { withIntl } from '@/test/intl';
 import type { AdminAgencyUserRow } from '@/types/admin-users';
 import type { AgentAbsence } from '@/types/agent-crm';
@@ -61,10 +63,11 @@ const A_VENIR: AgentAbsence = {
   substitute_can_act: false,
 };
 
-function monter(peutDeleguer = true) {
+function monter(peutDeleguer = true, garde: GardeDoubleFacteurFn | null = null) {
   const onCouvrir = vi.fn();
   render(
     withIntl(
+      <ContexteGardeDoubleFacteur.Provider value={garde}>
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <FicheDuMembre
           membre={PAPE}
@@ -78,7 +81,8 @@ function monter(peutDeleguer = true) {
           peutDeleguer={peutDeleguer}
           onCouvrir={onCouvrir}
         />
-      </QueryClientProvider>,
+      </QueryClientProvider>
+      </ContexteGardeDoubleFacteur.Provider>,
     ),
   );
   return { onCouvrir };
@@ -124,12 +128,33 @@ describe('FicheDuMembre — les absences', () => {
     await waitFor(() => expect(revokeAbsence).toHaveBeenCalledWith('jeton', AGENCE, 30));
   });
 
+  // Vérification de 776dc214f (D4) — une absence À VENIR s'annule depuis sa ligne (l'ancien
+  // « Lever » couvrait les absences planifiées comme celle en cours).
+  it('une absence à venir s’annule : « Annuler » révoque CETTE absence', async () => {
+    monter();
+    await userEvent.click(await screen.findByRole('button', { name: 'Annuler l’absence (Du 22 déc. au 26 déc.)' }));
+    await waitFor(() => expect(revokeAbsence).toHaveBeenCalledWith('jeton', AGENCE, 40));
+    expect(revokeAbsence).not.toHaveBeenCalledWith('jeton', AGENCE, 30);
+  });
+
+  // Vérification de 776dc214f (F10) — « Terminer l'absence » passe par la garde du second facteur
+  // (`AgentAbsenceController`) : refusée faute d'élévation, elle demande le code puis rejoue.
+  it('« Terminer l’absence » refusée faute de second facteur passe par la garde, puis est rejouée', async () => {
+    revokeAbsence.mockRejectedValueOnce(new ApiError(403, { code: 'two_factor_step_up_required' }));
+    const garde = vi.fn<GardeDoubleFacteurFn>(async () => true);
+    monter(true, garde);
+    await userEvent.click(await screen.findByRole('button', { name: 'Terminer l’absence' }));
+    await waitFor(() => expect(revokeAbsence).toHaveBeenCalledTimes(2));
+    expect(garde).toHaveBeenCalledWith('two_factor_step_up_required');
+  });
+
   it('sans le droit de déléguer, l’absence d’un autre se lit sans geste', async () => {
     monter(false);
     await screen.findByText('Du 10 nov. au 14 nov. · couverte par Khady Diallo');
     expect(screen.queryByRole('button', { name: 'Déclarer' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Modifier' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Terminer l’absence' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Annuler l’absence/ })).toBeNull();
   });
 
   it('la lecture en échec montre l’erreur et « Réessayer », qui relit', async () => {

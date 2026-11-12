@@ -76,6 +76,15 @@ describe('TCK-133 — admin (agency-scoped) user queries', () => {
     expect(url).toContain('page=1');
   });
 
+  // Vérification de 776dc214f (D2) — le personnel EN EXERCICE (remplaçant d'une absence).
+  it('assignable → filter[assignable]=1, sans filter[status]', async () => {
+    const spy = mockFetch({ data: [], meta: { current_page: 1, last_page: 1, per_page: 20, total: 0 } });
+    await fetchAdminUsers({ role: 'agent,agency_admin', assignable: true });
+    const url = decodeURIComponent(String(spy.mock.calls[0][0]));
+    expect(url).toContain('filter[assignable]=1');
+    expect(url).not.toContain('filter[status]');
+  });
+
   it('putUserRole PUTs the body { role } to the proxy', async () => {
     const spy = mockFetch({ data: { id: 7, role: 'agent', roles: ['agent'] } });
     await putUserRole(7, 'agent');

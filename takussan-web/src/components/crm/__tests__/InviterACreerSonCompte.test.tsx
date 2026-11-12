@@ -46,6 +46,7 @@ const EXPIREE: PendingAgencyInvitation = {
   expires_at: '2026-11-09T10:00:00Z',
   created_at: '2026-11-02T10:00:00Z',
   is_expired: true,
+  abilities: { resend: true, revoke: true },
 };
 
 function rendu(garde?: GardeDoubleFacteurFn) {
@@ -131,5 +132,40 @@ describe('InviterACreerSonCompte', () => {
 
     await waitFor(() => expect(revokeInvitation).toHaveBeenCalledTimes(2));
     expect(garde).toHaveBeenCalledTimes(1);
+  });
+
+  // Vérification de 776dc214f (F9) — « Relancer » refusé faute de second facteur passe par la garde,
+  // puis est rejoué.
+  it('« Relancer » passe par la garde du second facteur, puis est rejoué', async () => {
+    fetchInvitationDuClient.mockResolvedValue(EXPIREE);
+    resendInvitation.mockRejectedValueOnce(new ApiError(403, { code: 'two_factor_required', message: 'Second facteur requis.' }));
+    const garde = vi.fn<GardeDoubleFacteurFn>(async () => true);
+    rendu(garde);
+
+    await userEvent.click(within(await screen.findByTestId('invitation-du-client')).getByRole('button', { name: 'Relancer' }));
+
+    await waitFor(() => expect(resendInvitation).toHaveBeenCalledTimes(2));
+    expect(garde).toHaveBeenCalledWith('two_factor_required');
+  });
+
+  // Vérification de 776dc214f (D1) — les gestes suivent `abilities` : l'API les refuse à qui n'a ni
+  // envoyé l'invitation ni `team.invite`, l'écran ne les offre pas, et dit à qui s'adresser.
+  it('sans les gestes de l’API, l’état se lit sans bouton, et la phrase dit à qui s’adresser', async () => {
+    fetchInvitationDuClient.mockResolvedValue({ ...EXPIREE, abilities: { resend: false, revoke: false } });
+    rendu();
+
+    const bloc = await screen.findByTestId('invitation-du-client');
+    expect(bloc).toHaveTextContent('Invitation expirée · le 9 nov.');
+    expect(within(bloc).queryByRole('button')).toBeNull();
+    expect(bloc).toHaveTextContent('Seul l’auteur de l’invitation ou un administrateur de l’agence peut la relancer ou l’annuler.');
+  });
+
+  it('une seule des deux : seul ce geste s’offre', async () => {
+    fetchInvitationDuClient.mockResolvedValue({ ...EXPIREE, abilities: { resend: true, revoke: false } });
+    rendu();
+
+    const bloc = await screen.findByTestId('invitation-du-client');
+    expect(within(bloc).getByRole('button', { name: 'Relancer' })).toBeInTheDocument();
+    expect(within(bloc).queryByRole('button', { name: 'Annuler' })).toBeNull();
   });
 });

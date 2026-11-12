@@ -28,7 +28,7 @@ import type { AgentAbsence } from '@/types/agent-crm';
 
 import { useTerminerLAbsence, type CibleDAbsence } from './CouvrirUneAbsence';
 
-import { etatDuMembre, roleDuMembre } from './etat-de-l-equipe';
+import { etatDuMembre, nomOuTiret, roleDuMembre } from './etat-de-l-equipe';
 import { PuceDEtat, TexteConnexion } from './pieces';
 
 /**
@@ -169,6 +169,9 @@ export function FicheDuMembre({
   // la liste ne nomme pas : l'API reste juge).
   const peutGerer = soi || peutDeleguer;
   const terminer = useTerminerLAbsence(agencyId);
+  // 776dc214f (D4) — une absence À VENIR s'annule (le « Lever » de l'ancien `AgentAbsencesSection`) :
+  // la même révocation que « Terminer », sur sa ligne.
+  const annuler = useTerminerLAbsence(agencyId);
   const couvrir = (absence?: AgentAbsence) => onCouvrir({ absentId: membre.id, absentNom: nom, absence: absence ?? null });
   const periode = (a: AgentAbsence) => t('absences.periode', { debut: jourMois(a.starts_at), fin: jourMois(a.ends_at) });
   // Les rangées « Rôle dans l'agence » : un profil de personnel, rarement deux (agent ET
@@ -245,7 +248,7 @@ export function FicheDuMembre({
               <p className="font-semibold">{t('fiche.absenceEnCours', { debut: jourMois(enCours.starts_at), fin: jourMois(enCours.ends_at) })}</p>
               {enCours.substitute ? (
                 <p className="mt-0.5 text-encre-douce">
-                  {t(enCours.substitute_can_act ? 'absences.remplacantQuiAgit' : 'absences.remplacant', { nom: enCours.substitute.name })}
+                  {t(enCours.substitute_can_act ? 'absences.remplacantQuiAgit' : 'absences.remplacant', { nom: nomOuTiret(enCours.substitute.name) })}
                 </p>
               ) : null}
               {peutGerer ? (
@@ -273,7 +276,7 @@ export function FicheDuMembre({
                 {t('fiche.absenceEnCours', { debut: jourMois(membre.current_absence.starts_at), fin: jourMois(membre.current_absence.ends_at) })}
               </p>
               {membre.current_absence.substitute ? (
-                <p className="mt-0.5 text-encre-douce">{t('absences.remplacant', { nom: membre.current_absence.substitute.name })}</p>
+                <p className="mt-0.5 text-encre-douce">{t('absences.remplacant', { nom: nomOuTiret(membre.current_absence.substitute.name) })}</p>
               ) : null}
             </div>
           </div>
@@ -403,7 +406,7 @@ export function FicheDuMembre({
                 <LigneFiche
                   libelle={t('absences.enCours')}
                   valeur={
-                    enCours.substitute ? t('absences.couverteParLe', { periode: periode(enCours), nom: enCours.substitute.name }) : periode(enCours)
+                    enCours.substitute ? t('absences.couverteParLe', { periode: periode(enCours), nom: nomOuTiret(enCours.substitute.name) }) : periode(enCours)
                   }
                   detail={aVenir.length === 0 ? t('absences.aucuneAutre') : undefined}
                 />
@@ -413,16 +416,24 @@ export function FicheDuMembre({
                   key={a.id}
                   libelle={t('absences.aVenir')}
                   valeur={periode(a)}
-                  detail={a.substitute ? t('absences.reprendra', { nom: a.substitute.name }) : undefined}
+                  detail={a.substitute ? t('absences.reprendra', { nom: nomOuTiret(a.substitute.name) }) : undefined}
                   droite={
                     peutGerer ? (
-                      <LienDAction onClick={() => couvrir(a)} className="flex-none text-sm">
-                        {t('absences.modifier')}
-                      </LienDAction>
+                      <span className="flex flex-none gap-4 text-sm">
+                        <LienDAction onClick={() => couvrir(a)}>{t('absences.modifier')}</LienDAction>
+                        <LienDAction onClick={() => annuler.mutate(a.id)} disabled={annuler.isPending} ariaLabel={t('absences.annulerAria', { periode: periode(a) })}>
+                          {t('absences.annuler')}
+                        </LienDAction>
+                      </span>
                     ) : undefined
                   }
                 />
               ))}
+              {annuler.isError ? (
+                <p role="alert" className="px-4 pb-3 text-sm text-destructive">
+                  {messageErreur(annuler.error, t('absences.annulerEchec'))}
+                </p>
+              ) : null}
             </>
           )}
         </Carte>
@@ -480,17 +491,20 @@ function LienDAction({
   children,
   className,
   disabled,
+  ariaLabel,
 }: {
   readonly onClick: () => void;
   readonly children: ReactNode;
   readonly className?: string;
   readonly disabled?: boolean;
+  readonly ariaLabel?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
+      aria-label={ariaLabel}
       className={cn(
         'rounded-sm font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50',
         className,

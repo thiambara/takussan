@@ -389,11 +389,16 @@ comptes de la liste et de ses autres filtres, **hors** `filter[role]` — ce son
 | Param | Type | Description |
 |---|---|---|
 | `filter[customer_id]` | liste d'entiers | les invitations de locataire de ces fiches client ; valeur non numérique → liste vide (TCK-2665) |
+| `filter[expired]` | `1` / `0` | expirées au sens de la purge et d'`is_expired` (`expired`, ou `sent` dont `expires_at` est passé) ou non ; autre valeur → liste vide. L'écran Équipe lit « En cours » par `status=sent&expired=0` et « Expirées » par `status=sent,expired&expired=1` : le nombre de « Tout effacer » est ce qui part (vérification de TCK-2668, D6) |
 
 `DELETE /api/invitations/expired?filter[role]=agent,agency_admin` supprime les invitations expirées
 (`expired`, ou `sent` dont `expires_at` est passé) de l'agence active, des rôles nommés — exigés et
 connus, sinon 422. `team.invite` (403 avant 422) et second facteur de l'admin (`ProtectedActions`).
 Rend `{deleted: n}`, journalise le nombre et les rôles, jamais une adresse (TCK-2665).
+
+Une invitation née d'une fiche client porte `abilities: {resend, revoke}` quand la sélection lit
+`agency_id`, `invited_by`, `invitable_type` et `invitable_id` : l'émetteur qui peut encore inviter ce
+client la relance et l'annule sans `team.invite` (`InvitationPolicy`, vérification de TCK-2668, D1).
 
 ---
 

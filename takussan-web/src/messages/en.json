@@ -3583,7 +3583,8 @@
         "annuler": "Cancel",
         "annulerTitre": "Cancel this invitation?",
         "conserver": "Keep",
-        "annulerConfirmer": "Cancel invitation"
+        "annulerConfirmer": "Cancel invitation",
+        "sansGeste": "Only whoever sent the invitation or an agency admin can resend or cancel it."
       },
       "relationships": {
         "empty_title": "No relationship recorded",
@@ -8766,7 +8767,10 @@
           "remplacant": "{nom} receives their new requests.",
           "remplacantQuiAgit": "{nom} receives their new requests and can act on their behalf.",
           "illisibles": "The absences could not be loaded.",
-          "reessayer": "Try again"
+          "reessayer": "Try again",
+          "annuler": "Cancel",
+          "annulerAria": "Cancel the absence ({periode})",
+          "annulerEchec": "The absence could not be cancelled."
         },
         "invitations": {
           "enCours": "Pending · {n}",

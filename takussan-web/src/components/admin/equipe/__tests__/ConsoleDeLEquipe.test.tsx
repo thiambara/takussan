@@ -79,7 +79,9 @@ vi.mock('@/lib/queries/admin-users', () => ({
       per_page: 20,
       total: lignes.length,
       role_assignments: affectations,
-      counts: { agent: 9, agency_admin: 2, owner: 11, staff: 11, absent: 1 },
+      // Vérification de 776dc214f (F12) — une personne agent ET admin : `staff` (10) n'est pas
+      // `agent + agency_admin` (11). La pastille « Tous » et l'onglet lisent `staff`, jamais la somme.
+      counts: { agent: 9, agency_admin: 2, owner: 11, staff: 10, absent: 1 },
     },
   })),
 }));
@@ -187,7 +189,7 @@ describe('la liste des collaborateurs (AC2, AC3)', () => {
     const user = userEvent.setup();
     monter();
     const tous = await screen.findByRole('button', { name: new RegExp(`^${E.pastilles.tous}`) });
-    await waitFor(() => expect(tous).toHaveTextContent('11'));
+    await waitFor(() => expect(tous).toHaveTextContent('10'));
     await user.click(screen.getByRole('button', { name: new RegExp(`^${E.pastilles.absents}`) }));
     expect(replace).toHaveBeenLastCalledWith(expect.stringContaining('filter%5Babsent%5D=1'), { scroll: false });
   });
@@ -575,7 +577,7 @@ describe('les vues', () => {
     params = new URLSearchParams('vue=invitations');
     monter();
     expect(await screen.findByText(/^9 agents, 2 administrateurs/)).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /Membres/ })).toHaveTextContent('11');
+    expect(screen.getByRole('tab', { name: /Membres/ })).toHaveTextContent('10');
   });
 
   it('TCK-2668 — l’onglet compte les invitations d’équipe EN COURS', async () => {

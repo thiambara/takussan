@@ -105,6 +105,16 @@ Tests : `equipe/__tests__/` — CouvrirUneAbsence (10), FicheDuMembre.absences (
 
 Fidélité : `docs/qa/audit-ux-2026-11/fidelite/TCK-2668.json` (écrans a-2 et a-3, écarts acceptés et leurs motifs). Corrigé pendant la passe : le pied du dialogue sortait de l'écran au bureau dès onze collègues (primitive en grille : le dialogue est désormais une colonne flexible), le jour affiché « 12 novembre 2… » tronqué (« jeu. 12 nov. », `DatePicker.formatAffiche`, additif), l'en-tête qui perdait sous-titre et compte sous l'onglet « Invitations », la colonne du formulaire à 360 px au lieu de 400. AC-F6 : `balayer` 360 · 768 · 1024 · 1280 — débord 0, coupes 0. Le formulaire passe sous les listes avant `xl`, comme la maquette (le ticket disait « dès `lg` » ; à 1024 il laisserait 294 px aux listes).
 
+**Correctifs de la passe adverse (verdict sur 776dc214f, 2026-11-12)** :
+- D1 — l'agent qui a invité son client se voyait offrir « Relancer » et « Annuler », que l'API lui refusait (403, `team.invite`). Décision de la session : `InvitationPolicy` les accorde à l'émetteur d'une invitation née d'une fiche client tant qu'il peut encore inviter ce client ; l'API sert `abilities` sur ces invitations, la fiche n'offre que ce qu'elles disent (sinon « Seul l'auteur de l'invitation ou un administrateur de l'agence peut la relancer ou l'annuler. »). Les invitations d'équipe restent sous `team.invite`.
+- D2 — « Qui reprend ses nouvelles demandes ? » lit `filter[assignable]=1` : un membre suspendu dans l'agence n'est plus proposé.
+- D3 — une délégation n'accorde jamais `team.delegate_role` (résolveur) : le remplaçant qui « peut agir » ne voit plus « Déclarer » ni « Terminer l'absence ».
+- D4 — une absence à venir s'annule depuis la fiche du membre (« Annuler », la révocation sous garde).
+- D5 — un absent ou un remplaçant sans nom se dit « — ».
+- D6 — « En cours » et « Expirées » se partagent les invitations sans réponse au sens de la purge (`filter[expired]`) : une invitation à l'échéance passée que le balayage horaire n'a pas encore marquée est sous « Expirées », et le nombre de « Tout effacer » est ce qui part.
+- Gestes restés sans test, éprouvés par ablation : la garde du second facteur sur « Terminer l'absence », sur « Annuler » (équipe) et sur « Relancer » (fiche client) ; l'annulation vise la ligne désignée ; « Tous » lit `meta.counts.staff` ; `staff` ne compte pas un profil tenu dans une autre agence.
+- Non mesuré au navigateur : « Annuler » sur une absence à venir, et la phrase sans geste de la fiche client.
+
 Restes, notés pour la suite :
 - L'invitation par lien WhatsApp (hors périmètre).
 - Un agent sans `team.invite` ne lit sur la fiche client que ses propres invitations (règle de lecture de l'API) : celle d'un collègue n'y paraît pas, et « Inviter à créer son compte » rendrait alors le refus de l'API tel quel.

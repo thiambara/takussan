@@ -55,7 +55,9 @@ describe('Invitations — les rôles d’équipe, partout les mêmes (TCK-2668)'
     const roles = [0, 1, 2].map((i) => parametres(i).get('filter[role]'));
     expect(new Set(roles).size).toBe(1);
     expect(roles[0]?.split(',')).toEqual(['owner', 'agent', 'agent_senior', 'agent_manager', 'agency_admin', 'service_provider']);
-    expect(parametres(0).get('filter[status]')).toBe('expired');
+    // Vérification de 776dc214f (D6) — les expirées au sens de la purge : `filter[expired]=1`.
+    expect(parametres(0).get('filter[status]')).toBe('sent,expired');
+    expect(parametres(0).get('filter[expired]')).toBe('1');
     expect(String(mockApiRequest.mock.calls[2][0]).startsWith('/api/invitations/expired?')).toBe(true);
     expect(mockApiRequest.mock.calls[2][1]).toMatchObject({ method: 'DELETE', token: 'jeton' });
     expect(efface).toBe(3);
@@ -68,5 +70,7 @@ describe('Invitations — les rôles d’équipe, partout les mêmes (TCK-2668)'
     expect(p.get('filter[role]')).toBe('tenant');
     expect(p.get('filter[status]')).toBe('sent,expired');
     expect(p.get('per_page')).toBe('1');
+    // Vérification de TCK-2668 (D1) — sans l'émetteur et la cible, l'API ne sert pas `abilities`.
+    expect(p.get('fields[invitations]')?.split(',')).toEqual(expect.arrayContaining(['invited_by', 'invitable_type', 'invitable_id']));
   });
 });

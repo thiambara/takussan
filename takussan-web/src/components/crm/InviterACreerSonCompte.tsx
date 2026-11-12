@@ -60,6 +60,10 @@ export function useInvitationDuClient(customerId: number, actif = true) {
  * « Annuler » (confirmé : le lien parti cesse de fonctionner). Tant qu'une invitation est sans
  * réponse, « Inviter à créer son compte » cède sa place à « Relancer » : l'API refuserait la seconde.
  * Les trois gestes passent par la double authentification de l'agence, comme sur la page Équipe.
+ *
+ * Vérification de TCK-2668 (D1) — « Relancer » et « Annuler » s'offrent sur ce que l'API dit
+ * (`abilities`) : l'agent qui a invité son client les tient sans `team.invite` (`InvitationPolicy`).
+ * Sans eux, l'état reste lisible et une phrase dit à qui s'adresser.
  */
 export function InviterACreerSonCompte({ customerId }: InviterACreerSonCompteProps) {
   const t = useTranslations('crm.customerDetail.inviteAccount');
@@ -86,6 +90,8 @@ export function InviterACreerSonCompte({ customerId }: InviterACreerSonComptePro
     onSuccess: () => void relire(),
   });
   const erreur = inviter.error ?? relancer.error ?? annuler.error;
+  const peutRelancer = invitation?.abilities?.resend === true;
+  const peutAnnuler = invitation?.abilities?.revoke === true;
 
   if (invitation && etat !== 'aucune') {
     return (
@@ -109,15 +115,23 @@ export function InviterACreerSonCompte({ customerId }: InviterACreerSonComptePro
             {t('relancee')}
           </p>
         ) : null}
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" className="min-h-11" disabled={relancer.isPending} onClick={() => relancer.mutate(invitation)}>
-            {relancer.isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <RefreshCw aria-hidden="true" />}
-            {t('relancer')}
-          </Button>
-          <Button type="button" variant="outline" className="min-h-11" disabled={annuler.isPending} onClick={() => setAAnnuler(invitation)}>
-            {t('annuler')}
-          </Button>
-        </div>
+        {peutRelancer || peutAnnuler ? (
+          <div className="flex flex-wrap gap-2">
+            {peutRelancer ? (
+              <Button type="button" variant="outline" className="min-h-11" disabled={relancer.isPending} onClick={() => relancer.mutate(invitation)}>
+                {relancer.isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <RefreshCw aria-hidden="true" />}
+                {t('relancer')}
+              </Button>
+            ) : null}
+            {peutAnnuler ? (
+              <Button type="button" variant="outline" className="min-h-11" disabled={annuler.isPending} onClick={() => setAAnnuler(invitation)}>
+                {t('annuler')}
+              </Button>
+            ) : null}
+          </div>
+        ) : (
+          <p className="max-w-prose text-sm text-muted-foreground">{t('sansGeste')}</p>
+        )}
         {erreur ? (
           <p role="alert" className="max-w-prose text-sm text-destructive">
             {messageErreur(erreur, t('failed'))}

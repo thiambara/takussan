@@ -3540,7 +3540,8 @@
         "annuler": "Annuler",
         "annulerTitre": "Annuler cette invitation ?",
         "conserver": "Conserver",
-        "annulerConfirmer": "Annuler l'invitation"
+        "annulerConfirmer": "Annuler l'invitation",
+        "sansGeste": "Seul l’auteur de l’invitation ou un administrateur de l’agence peut la relancer ou l’annuler."
       },
       "relationships": {
         "empty_title": "Aucune relation enregistrée",
@@ -8766,7 +8767,10 @@
           "remplacant": "{nom} reçoit ses nouvelles demandes.",
           "remplacantQuiAgit": "{nom} reçoit ses nouvelles demandes et peut agir à sa place.",
           "illisibles": "Impossible de lire les absences.",
-          "reessayer": "Réessayer"
+          "reessayer": "Réessayer",
+          "annuler": "Annuler",
+          "annulerAria": "Annuler l’absence ({periode})",
+          "annulerEchec": "L’absence n’a pas pu être annulée."
         },
         "invitations": {
           "enCours": "En cours · {n}",

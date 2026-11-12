@@ -115,7 +115,44 @@ class Invitation extends AbstractModel
                 $query->where($query->qualifyColumn('invitable_type'), (new Customer)->getMorphClass())
                     ->whereIn($query->qualifyColumn('invitable_id'), array_map('intval', $ids));
             }),
+            // Vérification de TCK-2668 (D6) — `filter[expired]=1` (ou `0`) : « expirée » au sens de
+            // `InvitationResource::isExpired()` et de la purge (`ExpiredInvitationPurge`), pas au sens
+            // de la seule colonne `status`. L'écran Équipe filtrait `status=expired` et annonçait donc
+            // moins que « Tout effacer » n'efface : les `sent` à l'échéance passée, que le balayage
+            // horaire n'a pas encore marquées, partaient aussi — depuis la liste « En cours ». Une
+            // valeur illisible ne rend aucune ligne (ADR-0075 § 2).
+            AllowedFilter::callback('expired', function (Builder $query, mixed $value): void {
+                $oui = in_array($value, [true, 1, '1', 'true'], true);
+                $non = in_array($value, [false, 0, '0', 'false'], true);
+                if (! $oui && ! $non) {
+                    $query->whereRaw('1 = 0');
+
+                    return;
+                }
+                // Le contraire s'écrit en clair : `NOT (…)` rendrait NULL — donc écarterait — une
+                // invitation `sent` sans échéance.
+                $oui
+                    ? $query->where(fn (Builder $q) => static::expiree($q))
+                    : $query->where($query->qualifyColumn('status'), '!=', InvitationStatus::Expired->value)
+                        ->where(fn (Builder $q) => $q
+                            ->where($q->qualifyColumn('status'), '!=', InvitationStatus::Sent->value)
+                            ->orWhereNull($q->qualifyColumn('expires_at'))
+                            ->orWhere($q->qualifyColumn('expires_at'), '>', now()));
+            }),
         ];
+    }
+
+    /**
+     * « Expirée » : marquée `expired` par le balayage horaire, ou encore `sent` mais dont `expires_at`
+     * est passé. UNE écriture pour la purge des expirées et `filter[expired]` : le nombre que l'écran
+     * annonce est ce que la purge efface.
+     */
+    public static function expiree(Builder $query): void
+    {
+        $query->where($query->qualifyColumn('status'), InvitationStatus::Expired->value)
+            ->orWhere(fn (Builder $sent) => $sent
+                ->where($sent->qualifyColumn('status'), InvitationStatus::Sent->value)
+                ->where($sent->qualifyColumn('expires_at'), '<=', now()));
     }
 
     protected static array $requestLoadable = ['inviter', 'invitedUser', 'agency', 'invitable'];

@@ -58,6 +58,15 @@ describe('BandeauDesAbsences', () => {
     expect(onOuvrir).toHaveBeenCalledWith(5);
   });
 
+  // P235.02, rétabli après 776dc214f (D5) — le test de l'ancien `AgentAbsencesSection` avait été
+  // supprimé sans remplaçant : un absent et un remplaçant sans nom (vide ou blanc) se disent « — ».
+  it('rend « — » pour un absent et un remplaçant sans nom', async () => {
+    vi.mocked(fetchAbsences).mockResolvedValue([absence({ absent: { id: 5, name: '' }, substitute: { id: 6, name: '   ' } })]);
+    monter();
+    expect(await screen.findByText(/^— est absent jusqu’au 14 nov\./)).toBeInTheDocument();
+    expect(screen.getByText(/vont à —/)).toBeInTheDocument();
+  });
+
   it('sans remplaçant, la phrase s’arrête à la date', async () => {
     vi.mocked(fetchAbsences).mockResolvedValue([absence({ substitute: null })]);
     monter();

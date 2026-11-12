@@ -74,11 +74,15 @@ function jourDe(instant: string | null | undefined): string {
   return instant ? jourDeLApi(new Date(instant)) : '';
 }
 
-/** Le personnel actif de l'agence, parmi qui choisir le remplaçant (`/api/admin-users`). */
+/**
+ * Le personnel EN EXERCICE de l'agence, parmi qui choisir le remplaçant (`/api/admin-users`,
+ * `filter[assignable]=1`, la règle de l'ancien `AgentAbsencesSection`) : un membre suspendu dans
+ * l'agence n'y figure pas — l'API le refuserait (422 `substitute_id`).
+ */
 function usePersonnelActif(agencyId: number, actif: boolean) {
   return useQuery({
     queryKey: ['admin-users', 'remplacants', agencyId],
-    queryFn: () => fetchAdminUsers({ role: 'agent,agency_admin', status: 'active', resume: true, sort: 'first_name', perPage: 100 }),
+    queryFn: () => fetchAdminUsers({ role: 'agent,agency_admin', assignable: true, resume: true, sort: 'first_name', perPage: 100 }),
     enabled: actif,
     staleTime: 30_000,
   });

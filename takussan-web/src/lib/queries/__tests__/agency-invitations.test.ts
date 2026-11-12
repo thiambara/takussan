@@ -46,6 +46,19 @@ describe('agency-invitations', () => {
     expect(mockApiRequest.mock.calls[0][1]).toMatchObject({ token: 'jeton' });
   });
 
+  // Vérification de 776dc214f (D6) — « En cours » et « Expirées » se partagent les sans-réponse au
+  // sens de la purge : une `sent` à l'échéance passée est expirée (`filter[expired]`), jamais en cours.
+  it('« En cours » demande filter[expired]=0, « Expirées » filter[expired]=1 sur les deux statuts', async () => {
+    await fetchPendingAgencyInvitations('jeton', { statut: 'sent' });
+    await fetchPendingAgencyInvitations('jeton', { statut: 'expired' });
+
+    const [enCours, expirees] = mockApiRequest.mock.calls.map((c) => new URLSearchParams(String(c[0]).split('?')[1]));
+    expect(enCours.get('filter[status]')).toBe('sent');
+    expect(enCours.get('filter[expired]')).toBe('0');
+    expect(expirees.get('filter[status]')).toBe('sent,expired');
+    expect(expirees.get('filter[expired]')).toBe('1');
+  });
+
   /**
    * Contrainte stricte du ticket. Le test porte sur l'URL RÉELLEMENT construite,
    * pas sur les paramètres passés à `buildQueryString` : c'est l'URL qui part.

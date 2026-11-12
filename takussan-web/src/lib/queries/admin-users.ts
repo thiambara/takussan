@@ -50,6 +50,12 @@ export interface FetchAdminUsersParams {
   readonly role?: AdminUserRoleFilter | 'agent,agency_admin';
   /** TCK-2667 — la pastille « Absents » : les membres qu'une absence remplace (`filter[absent]=1`). */
   readonly absent?: boolean;
+  /**
+   * `filter[assignable]=1` — le personnel EN EXERCICE dans l'agence (profil d'agent ou d'admin actif,
+   * compte joignable) : ce que l'API accepte comme remplaçant d'une absence (`PersonnelDeLAgence`).
+   * `filter[status]=active` ne juge que le COMPTE : un membre suspendu dans l'agence y reste.
+   */
+  readonly assignable?: boolean;
   /** TCK-2665 — `include=team_summary` : biens suivis, commissions dues, absence, arrivée. */
   readonly resume?: boolean;
   readonly sort?: string;
@@ -68,6 +74,7 @@ export async function fetchAdminUsers(
   if (params.status) qs.set('filter[status]', params.status);
   if (params.role) qs.set('filter[role]', params.role);
   if (params.absent) qs.set('filter[absent]', '1');
+  if (params.assignable) qs.set('filter[assignable]', '1');
   qs.set('sort', params.sort ?? '-created_at');
   qs.set('page', String(params.page ?? 1));
   qs.set('per_page', String(params.perPage ?? 20));

@@ -12,6 +12,7 @@ import { AGENT_CRM_QUERY_KEY, fetchAbsences } from '@/lib/queries/agent-crm';
 import type { AgentAbsence } from '@/types/agent-crm';
 
 import { useTerminerLAbsence } from './CouvrirUneAbsence';
+import { nomOuTiret } from './etat-de-l-equipe';
 
 /**
  * TCK-2667 — le bandeau léger du bureau, au-dessus du tableau (maquette `app-equipe`, a, « Liste » :
@@ -52,7 +53,7 @@ export function BandeauDesAbsences({
       {enCours.map((a) => {
         const absent = a.absent;
         // « 14 nov. » finit la phrase : le point de l'abréviation et celui de la phrase se confondent.
-        const valeurs = { absent: absent?.name ?? '', date: jourMois(a.ends_at).replace(/\.$/, ''), remplacant: a.substitute?.name ?? '' };
+        const valeurs = { absent: nomOuTiret(absent?.name), date: jourMois(a.ends_at).replace(/\.$/, ''), remplacant: nomOuTiret(a.substitute?.name) };
         const fort = (morceau: ReactNode) =>
           absent ? (
             <button

@@ -139,6 +139,31 @@ describe('LesInvitations', () => {
     await waitFor(() => expect(revokeInvitation).toHaveBeenCalledWith('jeton', 1));
   });
 
+  // Vérification de 776dc214f (F4) — l'annulation est irréversible : c'est la ligne touchée qui part,
+  // jamais la première de la liste.
+  it('annule l’invitation DÉSIGNÉE, et la confirmation la nomme', async () => {
+    enCours = page([invitation(1), invitation(2, { email: 'deux@exemple.sn' })]);
+    monter();
+    await userEvent.click(within(await screen.findByTestId('invitation-en-cours-2')).getByRole('button', { name: 'Annuler' }));
+    const dialogue = await screen.findByRole('dialog');
+    expect(dialogue).toHaveTextContent('deux@exemple.sn');
+    await userEvent.click(within(dialogue).getByRole('button', { name: "Annuler l'invitation" }));
+    await waitFor(() => expect(revokeInvitation).toHaveBeenCalledWith('jeton', 2));
+    expect(revokeInvitation).toHaveBeenCalledTimes(1);
+  });
+
+  // Vérification de 776dc214f (F5) — le troisième geste : « Annuler » refusé faute de second facteur
+  // passe lui aussi par la garde, puis est rejoué.
+  it('« Annuler » refusé faute de second facteur passe par la garde, puis est rejoué', async () => {
+    revokeInvitation.mockRejectedValueOnce(new ApiError(403, { code: 'two_factor_required', message: 'Second facteur requis.' }));
+    const garde = vi.fn<GardeDoubleFacteurFn>(async () => true);
+    monter({ garde });
+    await userEvent.click(within(await screen.findByTestId('invitation-en-cours-1')).getByRole('button', { name: 'Annuler' }));
+    await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: "Annuler l'invitation" }));
+    await waitFor(() => expect(revokeInvitation).toHaveBeenCalledTimes(2));
+    expect(garde).toHaveBeenCalledWith('two_factor_required');
+  });
+
   it('les trois gestes passent par la garde du second facteur, puis sont rejoués', async () => {
     const refus = () => new ApiError(403, { code: 'two_factor_required', message: 'Second facteur requis.' });
     resendInvitation.mockRejectedValueOnce(refus());

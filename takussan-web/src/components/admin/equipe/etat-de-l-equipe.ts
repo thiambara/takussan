@@ -143,3 +143,11 @@ export function presenceDe(derniereConnexion: string | null, maintenant: Date = 
   if (ecart < 7) return { forme: 'ilYa', jours: ecart };
   return { forme: 'le', date: derniereConnexion };
 }
+
+/**
+ * Le nom d'un absent ou d'un remplaçant dans une phrase (P235.02, rétabli après 776dc214f) : un nom
+ * vide ou blanc devient « — », jamais un trou (« <vide> est absent jusqu'au 14 nov. »).
+ */
+export function nomOuTiret(nom: string | null | undefined): string {
+  return nom?.trim() || '—';
+}

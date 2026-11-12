@@ -84,6 +84,24 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe('CouvrirUneAbsence', () => {
+  // Vérification de 776dc214f (D2) — le remplaçant se choisit parmi le personnel EN EXERCICE
+  // (`filter[assignable]=1`) : un membre suspendu dans l'agence (compte actif, profil suspendu) n'est
+  // pas proposé ; `filter[status]=active`, qui ne juge que le compte, le proposait, et l'API le
+  // refusait ensuite (422 `substitute_id`). Le serveur filtre : le double ne rend le suspendu que
+  // si la requête ne demande pas le personnel en exercice.
+  it('D2 — un membre suspendu dans l’agence n’est pas proposé comme remplaçant', async () => {
+    const SUSPENDU = { ...membre(7, 'Abdoulaye', 'Gueye', 13), agent_profiles: [{ agency_id: AGENCE, status: 'suspended' }] } as AdminAgencyUserRow;
+    fetchAdminUsers.mockImplementation(async (params: { assignable?: boolean }) => {
+      const data = params.assignable ? [PAPE, KHADY, MAMADOU] : [PAPE, KHADY, MAMADOU, SUSPENDU];
+      return { data, meta: { current_page: 1, last_page: 1, total: data.length } };
+    });
+    monter(true);
+    expect(await screen.findByRole('radio', { name: /Khady Diallo/ })).toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: /Abdoulaye Gueye/ })).not.toBeInTheDocument();
+    expect(fetchAdminUsers.mock.calls[0][0]).toMatchObject({ role: 'agent,agency_admin', assignable: true });
+    expect(fetchAdminUsers.mock.calls[0][0]).not.toHaveProperty('status');
+  });
+
   it('AC1 — la case cochée envoie substitute_can_act: true, avec la fin au soir du jour choisi', async () => {
     const { onFermer } = monter(true);
 

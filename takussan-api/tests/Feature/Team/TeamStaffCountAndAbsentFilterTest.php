@@ -76,6 +76,28 @@ class TeamStaffCountAndAbsentFilterTest extends ApiTestCase
         $this->assertSame(2, $response->json('meta.counts.agency_admin'));
     }
 
+    /**
+     * Vérification de 776dc214f (A3) — `staff` se compte dans L'AGENCE : un bailleur d'ici qui est agent
+     * ou admin AILLEURS n'est pas du personnel ici, et un agent d'ici admin ailleurs ne compte qu'une
+     * fois. Le test précédent n'avait aucun membre tenu dans une autre agence.
+     */
+    public function test_tous_ne_compte_pas_un_profil_tenu_dans_une_autre_agence(): void
+    {
+        $ailleurs = Agency::factory()->create(['kind' => AgencyKind::Standard]);
+        $bailleurIci = $this->member('owner');
+        AgentProfile::factory()->create(['user_id' => $bailleurIci->id, 'agency_id' => $ailleurs->id]);
+        AgencyAdminProfile::factory()->create(['user_id' => $bailleurIci->id, 'agency_id' => $ailleurs->id]);
+        $agentIci = $this->member('agent');
+        AgencyAdminProfile::factory()->create(['user_id' => $agentIci->id, 'agency_id' => $ailleurs->id]);
+
+        $response = $this->apiGet('/api/users?filter[role]=agent,agency_admin&per_page=50')->assertOk();
+
+        // L'admin connecté et l'agent d'ici : deux personnes.
+        $this->assertSame(2, $response->json('meta.counts.staff'));
+        $this->assertSame(1, $response->json('meta.counts.agent'));
+        $this->assertSame(1, $response->json('meta.counts.agency_admin'));
+    }
+
     public function test_tous_ne_bouge_pas_quand_une_autre_pastille_est_choisie(): void
     {
         $this->member('agent');
