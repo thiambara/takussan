@@ -25,7 +25,7 @@ interface SommaireDuBureauProps {
 /** Sous `xl`, la rangée d'une ligne ne se resserre pas : elle défile dans son cadre (ADR-0106 § 4). */
 const RANGEE = 'flex h-10 items-center gap-2.5 rounded-lg px-2.5 text-sm max-xl:flex-none max-xl:whitespace-nowrap';
 const ACTIVE = 'bg-foreground/7 font-medium';
-const INACTIVE = 'text-foreground/85 hover:bg-foreground/4';
+const INACTIVE = 'text-encre-douce hover:bg-foreground/4';
 
 function cheminNu(pathname: string | null): string {
   const nu = (pathname ?? '').split(/[?#]/)[0] ?? '';

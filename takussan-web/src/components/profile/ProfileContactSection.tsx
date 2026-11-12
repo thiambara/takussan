@@ -417,7 +417,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
               placeholder={t('emailPlaceholder')}
               aria-invalid={!emailFormatValid}
               aria-describedby={!emailFormatValid ? 'email-error' : 'email-hint'}
-              className={emailVerified ? 'bg-muted/50 pr-9 text-foreground/75' : undefined}
+              className={emailVerified ? 'bg-muted/50 pr-9 text-encre-douce' : undefined}
             />
             {emailVerified ? (
               <Lock

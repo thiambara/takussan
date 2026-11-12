@@ -38,6 +38,10 @@ const REGISTRE: Readonly<Record<string, string>> = {
   'lease.signature.codeSentSms':
     'takussan-api/app/Services/Lease/LeaseSignatureOtpService.php:24 — CODE_TTL_SECONDS = 600, usage unique',
   'lease.signature.codeSentMail': 'idem — LeaseSignatureOtpService.php:24',
+  // TCK-2635 — l'aide de la rangée « Supprimer le compte » du sommaire : le délai de grâce, annulable en
+  // se reconnectant (AccountDeletionService::cancel).
+  'profile.sommaire.aides.suppression':
+    'takussan-api/app/Services/Account/AccountDeletionService.php:81 — graceDays() = config auth.account_deletion.grace_days, 30 par défaut',
   // Ces cinq textes promettaient « jusqu'à 60 secondes pour arriver » : un délai de LIVRAISON du
   // SMS, que rien ne tient (le transport est un journal en dev, un fournisseur tiers en prod). Le
   // 60 était le délai avant renvoi, une autre chose. Ils annoncent désormais ce que le serveur
@@ -134,6 +138,7 @@ const REGISTRE: Readonly<Record<string, string>> = {
 const CHIFFRE_TENU: Readonly<Record<string, number | readonly number[]>> = {
   'auth.forgotPassword.sentBody': 60,
   'account.deletion.dialog.codeSentHint': 5,
+  'profile.sommaire.aides.suppression': 30,
   'owners.onboarding.steps.phone.sent.body': 5,
   'agents.onboarding.steps.phone.sent.body': 5,
   'serviceProviders.onboarding.steps.phone.sent.body': 5,

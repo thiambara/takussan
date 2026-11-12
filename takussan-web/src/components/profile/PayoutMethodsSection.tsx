@@ -96,7 +96,7 @@ export function PayoutMethodsSection() {
             const Icone = method.kind === 'bank_transfer' ? Landmark : Smartphone;
             return (
               <li key={method.id} className="flex flex-wrap items-center gap-3 px-4 py-3.5">
-                <span className="inline-flex size-9 flex-none items-center justify-center rounded-full bg-muted text-foreground/75">
+                <span className="inline-flex size-9 flex-none items-center justify-center rounded-full bg-muted text-encre-douce">
                   <Icone className="size-icone" strokeWidth={1.75} aria-hidden="true" />
                 </span>
                 <div className="min-w-0 flex-1 basis-40">

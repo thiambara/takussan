@@ -662,7 +662,7 @@ function ReceivedReviewCard({ review }: { readonly review: Review }) {
       {review.title ? (
         <p className="mt-2 text-sm font-medium text-foreground">{review.title}</p>
       ) : null}
-      <p className={cn('max-w-prose whitespace-pre-line text-sm leading-relaxed text-pretty text-foreground/90', review.title ? 'mt-1' : 'mt-2')}>
+      <p className={cn('max-w-prose whitespace-pre-line text-sm leading-relaxed text-pretty text-foreground', review.title ? 'mt-1' : 'mt-2')}>
         {review.content ?? t('noComment')}
       </p>
       {review.reply_content && !editing ? (

@@ -135,6 +135,8 @@ vi.mock('@/lib/api', async (original) => {
         return { data, meta: { total: data.length, per_page: 30, current_page: 1, last_page: 1 } };
       }
       if (route === '/api/property-visits/bulk-confirm') return etat.lot;
+      // L'attribution en lot répond comme la confirmation en lot : une ligne par visite, et ses comptes.
+      if (route === '/api/property-visits/bulk-assign') return { data: [{ id: 2301, ok: true }], meta: { ok: 1, failed: 0 } };
       if (route.endsWith('/report')) return { data: LIBERTE, customer_note: null, suggested_stage: null };
       if (route.startsWith('/api/agencies/')) return { data: [{ id: 21, first_name: 'Moussa', last_name: 'Fall' }], meta: { total: 1 } };
       if (methode === 'POST') return { data: {} };

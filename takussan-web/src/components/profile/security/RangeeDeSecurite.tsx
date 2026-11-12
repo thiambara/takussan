@@ -28,7 +28,7 @@ export function RangeeDeSecurite({ icone: Icone, titre, niveau: Titre = 'h3', st
   return (
     <div data-slot="rangee-de-securite" data-testid={testId} className={cn('px-4 py-3.5', className)}>
       <div className="flex items-center gap-3">
-        <span className="inline-flex size-9 flex-none items-center justify-center self-start rounded-full bg-muted text-foreground/75">
+        <span className="inline-flex size-9 flex-none items-center justify-center self-start rounded-full bg-muted text-encre-douce">
           <Icone className="size-icone" strokeWidth={1.75} aria-hidden="true" />
         </span>
         <div className="min-w-0 flex-1">
