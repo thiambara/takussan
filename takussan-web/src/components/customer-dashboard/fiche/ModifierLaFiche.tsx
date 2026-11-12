@@ -9,6 +9,7 @@ import { CustomerForm } from '@/components/customer-form';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { PanneauDroit } from '@/components/ui/panneau-droit';
+import { nomAffichable } from '@/lib/identite';
 import type { CustomerDetail } from '@/types/customer';
 
 /**
@@ -52,10 +53,12 @@ export function ModifierLaFiche({ customer, open, onOpenChange, peutReveler }: M
 
   const pied = (
     <>
-      <Button type="button" variant="ghost" onClick={demanderLaFermeture} disabled={etat.enCours}>
+      {/* Sous `xl` (plein écran), la maquette ne pose qu'« Enregistrer » sur la barre : la croix ferme. */}
+      <Button type="button" variant="ghost" onClick={demanderLaFermeture} disabled={etat.enCours} className="max-xl:hidden">
         {t('annuler')}
       </Button>
-      <Button type="submit" form={ID_DU_FORMULAIRE} disabled={etat.enCours}>
+      {/* Sous `xl`, le bouton de la barre collante des maquettes (48 px, 15 px 600, rayon 14) : celui de la création. */}
+      <Button type="submit" form={ID_DU_FORMULAIRE} disabled={etat.enCours} className="max-xl:h-controle-action max-xl:rounded-xl max-xl:text-corps max-xl:font-semibold">
         {etat.enCours ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
         {etat.enCours ? t('enregistrement') : t('enregistrer')}
       </Button>
@@ -68,7 +71,8 @@ export function ModifierLaFiche({ customer, open, onOpenChange, peutReveler }: M
         open={open}
         formulaire
         onOpenChange={(o) => (o ? onOpenChange(true) : demanderLaFermeture())}
-        titre={t('titre')}
+        titre={t('titre', { prenom: customer.first_name?.trim() || nomAffichable(customer) })}
+        sousTitre={t('sousTitre')}
         pied={pied}
       >
         {open ? (

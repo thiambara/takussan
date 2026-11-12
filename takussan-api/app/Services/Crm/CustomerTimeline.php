@@ -6,8 +6,10 @@ use App\Http\Resources\Bases\BaseResource;
 use App\Models\Customer;
 use App\Models\CustomerNote;
 use App\Models\Enums\CustomerNoteKind;
+use App\Models\Enums\TaskStatus;
 use App\Models\PropertyContactLead;
 use App\Models\PropertyVisit;
+use App\Models\Task;
 use App\Models\User;
 use App\Services\Visit\VisitesLisibles;
 use Illuminate\Database\Query\Builder as QueryBuilder;
@@ -32,13 +34,29 @@ use Spatie\Activitylog\Models\Activity;
  *    date et le titre du bien, jamais leurs notes ni le visiteur ;
  *  · les gestes de contact au seul personnel de l'agence de la fiche — un geste de l'agence, pas
  *    un fait de la fiche : le bailleur auteur lit sa fiche, pas qui l'agence a appelé ;
- *  · les changements d'étape de `GET …/activity`.
+ *  · les changements d'étape de `GET …/activity` ;
+ *  · (vérification C/C2, d1 a) la vie de la fiche et de ses tâches, que l'onglet « Activité » retiré
+ *    portait seul : la création de la fiche, les modifications de son identité et de son contact
+ *    (les seuls NOMS des champs de {@see self::CHAMPS_DE_LA_FICHE}, jamais leurs valeurs), la
+ *    création d'une tâche et son passage à « faite ». Même lecture que `GET …/activity`
+ *    (`CustomerActivityFeed`) : tout lecteur de la fiche, aucun geste de l'agence (TCK-2754) —
+ *    seuls les événements `created`/`updated` entrent, jamais `contacted` ni « Plus tard ».
  *
  * `$staff` est `CustomerPolicy::viewVisitReports` : le personnel de l'agence de la fiche.
  */
 final class CustomerTimeline
 {
-    public const TYPES = ['note', 'visit', 'contact', 'stage'];
+    public const TYPES = ['note', 'visit', 'contact', 'stage', 'record', 'task'];
+
+    /**
+     * Les champs dont la modification entre au fil (`record`) : ceux du journal
+     * (`CustomerActivityFeed`) hors étape, qui a son type. Ni la pièce d'identité, ni les liens
+     * (`user_id`, `agency_id`, `added_by_id`) : une mise à jour qui ne touche qu'eux n'entre pas.
+     */
+    public const CHAMPS_DE_LA_FICHE = [
+        'first_name', 'last_name', 'email', 'phone', 'occupation',
+        'emergency_contact_name', 'emergency_contact_phone', 'status',
+    ];
 
     /** Les jalons d'une visite qui entrent au fil (TCK-2589, décision 7a). */
     public const JALONS = ['created', 'confirmed', 'cancelled'];
@@ -54,6 +72,10 @@ final class CustomerTimeline
         'visit.created' => 4,
         'contact' => 5,
         'stage' => 6,
+        'task.done' => 7,
+        'task.created' => 8,
+        'record.updated' => 9,
+        'record.created' => 10,
     ];
 
     /**
@@ -74,6 +96,8 @@ final class CustomerTimeline
             ...(in_array('visit', $types, true) && $staff ? $this->visits($customer, $reader) : []),
             in_array('contact', $types, true) && $staff ? $this->contacts($customer) : null,
             in_array('stage', $types, true) ? $this->stages($customer) : null,
+            ...(in_array('record', $types, true) ? $this->records($customer) : []),
+            ...(in_array('task', $types, true) ? $this->tasks($customer) : []),
         ]));
 
         $perPage = min(max($perPage, 1), 100);
@@ -162,6 +186,56 @@ final class CustomerTimeline
     }
 
     /**
+     * La création de la fiche, et chaque modification d'au moins un champ de
+     * {@see self::CHAMPS_DE_LA_FICHE} — par la CLÉ du champ dans les changements, pas sa valeur : un
+     * e-mail effacé (passé à `null`) est une modification.
+     *
+     * @return list<QueryBuilder>
+     */
+    private function records(Customer $customer): array
+    {
+        $journal = fn (string $jalon) => Activity::query()
+            ->where('subject_type', Customer::class)
+            ->where('subject_id', $customer->id)
+            ->where('event', $jalon)
+            ->toBase()
+            ->select([DB::raw("'record' as type"), DB::raw(self::RANGS["record.{$jalon}"].' as rang'), 'activity_log.id', 'activity_log.created_at as occurs_at', DB::raw("'{$jalon}' as jalon")]);
+
+        return [
+            $journal('created'),
+            $journal('updated')->where(function ($q) {
+                foreach (self::CHAMPS_DE_LA_FICHE as $champ) {
+                    $q->orWhereRaw("jsonb_exists(activity_log.attribute_changes::jsonb -> 'attributes', ?)", [$champ]);
+                }
+            }),
+        ];
+    }
+
+    /**
+     * Les tâches de la fiche (supprimées comprises, comme le journal) : leur création, et leur
+     * passage à « faite ».
+     *
+     * @return list<QueryBuilder>
+     */
+    private function tasks(Customer $customer): array
+    {
+        $taskIds = Task::withTrashed()
+            ->where('taskable_type', Customer::class)
+            ->where('taskable_id', $customer->id)
+            ->select('id');
+        $journal = fn (string $jalon) => Activity::query()
+            ->where('subject_type', Task::class)
+            ->whereIn('subject_id', $taskIds)
+            ->toBase()
+            ->select([DB::raw("'task' as type"), DB::raw(self::RANGS["task.{$jalon}"].' as rang'), 'activity_log.id', 'activity_log.created_at as occurs_at', DB::raw("'{$jalon}' as jalon")]);
+
+        return [
+            $journal('created')->where('event', 'created'),
+            $journal('done')->where('event', 'updated')->where('attribute_changes->attributes->status', TaskStatus::Done->value),
+        ];
+    }
+
+    /**
      * Une requête par type présent dans la page, jamais une par ligne.
      *
      * @param  Collection<int, object{type: string, id: int|string, occurs_at: mixed, jalon: ?string}>  $rows
@@ -177,9 +251,14 @@ final class CustomerTimeline
             ->whereKey($ids('visit'))
             ->get(['id', 'property_id', 'status', 'scheduled_at', 'created_at', 'confirmed_at', 'cancelled_at'])
             ->keyBy('id');
-        $logs = Activity::query()->with('causer')->whereKey([...$ids('contact'), ...$ids('stage')])->get()->keyBy('id');
+        $logs = Activity::query()->with('causer')->whereKey([...$ids('contact'), ...$ids('stage'), ...$ids('record'), ...$ids('task')])->get()->keyBy('id');
+        // Le titre COURANT de la tâche (celui du journal n'est écrit qu'à la création et au renommage).
+        $taches = Task::withTrashed()
+            ->whereKey($logs->where('subject_type', Task::class)->pluck('subject_id')->unique()->values()->all())
+            ->get(['id', 'title'])
+            ->keyBy('id');
 
-        return $rows->map(function (object $row) use ($notes, $visits, $logs, $staff): ?array {
+        return $rows->map(function (object $row) use ($notes, $visits, $logs, $taches, $staff): ?array {
             $id = (int) $row->id;
 
             return match ($row->type) {
@@ -187,6 +266,8 @@ final class CustomerTimeline
                 'visit' => isset($visits[$id]) ? $this->visit($visits[$id], (string) $row->jalon) : null,
                 'contact' => isset($logs[$id]) ? $this->contact($logs[$id]) : null,
                 'stage' => isset($logs[$id]) ? $this->stage($logs[$id]) : null,
+                'record' => isset($logs[$id]) ? $this->record($logs[$id], (string) $row->jalon) : null,
+                'task' => isset($logs[$id]) ? $this->task($logs[$id], (string) $row->jalon, $taches) : null,
                 default => null,
             };
         })->filter()->values();
@@ -265,6 +346,44 @@ final class CustomerTimeline
             'at' => BaseResource::instantOnWire($log->created_at),
             'from' => $changes['old']['pipeline_stage'] ?? null,
             'to' => $changes['attributes']['pipeline_stage'] ?? null,
+            'causer' => $this->personne($log->causer),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function record(Activity $log, string $jalon): array
+    {
+        $changes = $log->attribute_changes;
+        $changes = $changes instanceof Collection ? $changes->toArray() : (array) ($changes ?? []);
+        $changes = (array) ($changes['attributes'] ?? []);
+
+        return [
+            'type' => 'record',
+            'id' => $log->id,
+            'milestone' => $jalon,
+            'at' => BaseResource::instantOnWire($log->created_at),
+            // Les NOMS des champs modifiés, dans l'ordre de la liste ; aucune valeur.
+            'fields' => $jalon === 'updated'
+                ? array_values(array_filter(self::CHAMPS_DE_LA_FICHE, fn (string $champ) => array_key_exists($champ, $changes)))
+                : [],
+            'causer' => $this->personne($log->causer),
+        ];
+    }
+
+    /**
+     * @param  Collection<int, Task>  $taches
+     * @return array<string, mixed>
+     */
+    private function task(Activity $log, string $jalon, Collection $taches): array
+    {
+        $tache = $taches->get((int) $log->subject_id);
+
+        return [
+            'type' => 'task',
+            'id' => $log->id,
+            'milestone' => $jalon,
+            'at' => BaseResource::instantOnWire($log->created_at),
+            'task' => $tache !== null ? ['id' => (int) $tache->id, 'title' => $tache->title] : null,
             'causer' => $this->personne($log->causer),
         ];
     }

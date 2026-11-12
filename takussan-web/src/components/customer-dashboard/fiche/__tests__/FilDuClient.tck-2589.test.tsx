@@ -227,4 +227,72 @@ describe('TCK-2589 — le fil de la fiche client', () => {
     expect((document.querySelector('[data-slot="saisie-du-fil"]') as HTMLElement).className).not.toMatch(/max-md:hidden/);
     expect(screen.getByRole('button', { name: 'Tâche' })).toHaveAttribute('aria-pressed', 'true');
   });
+  it('lot E (maquette a-1) — la saisie tient sur une ligne au repos, sans poignée', () => {
+    rendu();
+    const champ = screen.getByRole('textbox', { name: 'Ajouter une note sur Mouhamed…' });
+    expect(champ.className).toMatch(/(^|\s)min-h-0(\s|$)/);
+    expect(champ.className).not.toMatch(/(^|\s)min-h-16(\s|$)/);
+    expect(champ.className).toMatch(/(^|\s)resize-none(\s|$)/);
+  });
+});
+
+describe('TCK-2589 (vérification C/C2, d1 a) — la vie de la fiche et de ses tâches au fil', () => {
+  it('la création, la modification (les noms des champs), la tâche créée puis faite', async () => {
+    api.fil.mockResolvedValue(page([
+      { type: 'task', id: 63, at: '2026-11-06T11:00:00+00:00', milestone: 'done', task: { id: 8, title: 'Rappeler pour le F3' }, causer: SOKHNA },
+      { type: 'task', id: 62, at: '2026-11-06T10:00:00+00:00', milestone: 'created', task: { id: 8, title: 'Rappeler pour le F3' }, causer: SOKHNA },
+      { type: 'record', id: 61, at: '2026-11-06T09:00:00+00:00', milestone: 'updated', fields: ['first_name', 'phone', 'champ_inconnu'], causer: SOKHNA },
+      { type: 'record', id: 60, at: '2026-11-05T09:00:00+00:00', milestone: 'created', fields: [], causer: null },
+    ]));
+    rendu();
+    expect(await screen.findByText('Tâche faite : Rappeler pour le F3')).toBeInTheDocument();
+    expect(lignes().map((l) => l.textContent ?? '')).toEqual([
+      expect.stringContaining('Tâche faite : Rappeler pour le F3'),
+      expect.stringContaining('Tâche créée : Rappeler pour le F3'),
+      expect.stringContaining('Fiche modifiée : prénom, téléphone'),
+      expect.stringContaining('Fiche créée'),
+    ]);
+    expect(lignes()[0]?.textContent).toContain('Sokhna Ba');
+    expect(lignes()[2]?.textContent).not.toContain('champ_inconnu');
+  });
+
+  it('une tâche supprimée sans titre, une modification sans champ connu : la phrase courte', async () => {
+    api.fil.mockResolvedValue(page([
+      { type: 'task', id: 63, at: '2026-11-06T11:00:00+00:00', milestone: 'done', task: null, causer: null },
+      { type: 'record', id: 61, at: '2026-11-06T09:00:00+00:00', milestone: 'updated', fields: ['champ_inconnu'], causer: null },
+    ]));
+    rendu();
+    expect(await screen.findByText('Tâche faite')).toBeInTheDocument();
+    expect(screen.getByText('Fiche modifiée')).toBeInTheDocument();
+  });
+
+  it('une même entrée du journal, étape ET fiche, paraît sous ses deux types', async () => {
+    api.fil.mockResolvedValue(page([
+      { type: 'stage', id: 70, at: '2026-11-06T09:00:00+00:00', from: 'lead', to: 'prospect', causer: SOKHNA },
+      { type: 'record', id: 70, at: '2026-11-06T09:00:00+00:00', milestone: 'updated', fields: ['status'], causer: SOKHNA },
+    ]));
+    rendu();
+    expect(await screen.findByText('Fiche modifiée : statut')).toBeInTheDocument();
+    expect(screen.getByText('Étape : Lead → Prospect')).toBeInTheDocument();
+  });
+
+  it('« Tout » seul les montre : aucune puce de plus, ?fil=etapes ne demande que les étapes', async () => {
+    nav.params = new URLSearchParams('fil=etapes');
+    rendu();
+    await waitFor(() => expect(api.fil).toHaveBeenCalledWith('jeton', 7, { types: ['stage'], page: 1 }));
+    const puces = Array.from(document.querySelectorAll('button[aria-pressed]')).map((b) => b.textContent?.trim());
+    expect(puces).toEqual(expect.arrayContaining(['Tout', 'Notes', 'Visites', 'Appels', 'Étapes']));
+    expect(puces).not.toContain('Fiche');
+    expect(puces).not.toContain('Tâches');
+  });
+
+  it('une tâche créée depuis la saisie relit le fil, où elle entre', async () => {
+    rendu();
+    await screen.findByText('Compte rendu : Intéressé');
+    const lectures = api.fil.mock.calls.length;
+    await userEvent.click(screen.getByRole('button', { name: 'Tâche' }));
+    await userEvent.type(screen.getByRole('textbox', { name: 'Une tâche pour Mouhamed…' }), 'Envoyer le bail');
+    await userEvent.click(screen.getByRole('button', { name: 'Ajouter' }));
+    await waitFor(() => expect(api.fil.mock.calls.length).toBeGreaterThan(lectures));
+  });
 });

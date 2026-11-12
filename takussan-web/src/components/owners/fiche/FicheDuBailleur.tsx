@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
-import { Banknote, ChevronLeft, ChevronRight, Download, FileText, Loader2, Mail, MessageSquare, Phone, Send } from 'lucide-react';
+import { Banknote, ChevronLeft, ChevronRight, Download, FileText, Loader2, Mail, Phone, Send } from 'lucide-react';
 
 import { PageHeader, StatusBadge } from '@/components/console';
 import { IconeWhatsApp } from '@/components/crm/IconeWhatsApp';
@@ -14,12 +14,11 @@ import { isReachable, telHref, whatsappHref } from '@/components/crm/contact';
 import { FormAmountInput } from '@/components/forms/FormAmountInput';
 import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
 import { PagePleineLargeur } from '@/components/layout/PagePleineLargeur';
-import { BrouillonDirect } from '@/components/messages/BrouillonDirect';
+import { EcrireA } from '@/components/messages/EcrireA';
 import { CreatePayoutDialog } from '@/components/payments/CreatePayoutDialog';
 import { MontantDuBien, PuceEtatDuMois, VignetteDuBien, lieuDuBien } from '@/components/property-dashboard/GestionDuBien';
 import { BarreDAction } from '@/components/ui/barre-d-action';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
@@ -30,7 +29,6 @@ import { nomCompletDe } from '@/lib/identite';
 import { bornesDuMois, dateDuMois, moisPrecedent } from '@/lib/finances/mois';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { lireLeReleve, remettreLeReleve } from '@/lib/owners/releve';
-import { useTrouverLeFilDirect } from '@/lib/queries/conversations';
 import { updateOwnerWorksThreshold, type OwnerProfileDetail } from '@/lib/queries/owners';
 import { usePayouts } from '@/lib/queries/payments';
 import { formaterTelephone } from '@/lib/phone';
@@ -280,56 +278,20 @@ function IdentiteDuBailleur({ owner, lecture, depuis, statut, className }: { rea
   );
 }
 
-/**
- * « Message » : le fil à deux qui existe déjà avec le bailleur (TCK-2632 : jamais un second), sinon
- * le brouillon de `BrouillonDirect` — rien n'est en base avant le premier envoi.
- */
-function BoutonMessage({ owner, nom, variante, className }: { readonly owner: OwnerProfileDetail; readonly nom: string; readonly variante: 'contour' | 'egal'; readonly className?: string }) {
+/** « Message » : `EcrireA` (le fil à deux qui existe, sinon un brouillon), au contour ou en geste égal. */
+function BoutonMessage({ owner, nom, variante }: { readonly owner: OwnerProfileDetail; readonly nom: string; readonly variante: 'contour' | 'egal' }) {
   const t = useTranslations('owners.fiche');
-  const router = useRouter();
-  const trouver = useTrouverLeFilDirect();
-  const [brouillon, setBrouillon] = useState(false);
-  const [cherche, setCherche] = useState(false);
-  const userId = owner.user_id;
-  if (userId === null) return null;
-  const ouvrir = async () => {
-    setCherche(true);
-    try {
-      const fil = await trouver({ id: userId, name: nom });
-      if (fil !== null) router.push(`/app/messages?conversation=${fil}`);
-      else setBrouillon(true);
-    } catch {
-      setBrouillon(true);
-    } finally {
-      setCherche(false);
-    }
-  };
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => void ouvrir()}
-        disabled={cherche}
-        className={cn(
-          variante === 'egal'
-            ? 'inline-flex h-12 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border border-border bg-card text-sm font-medium outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring lg:h-11'
-            : buttonVariants({ variant: 'outline' }),
-          className,
-        )}
-      >
-        {cherche ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <MessageSquare className="size-4" strokeWidth={1.75} aria-hidden="true" />}
-        {t('message')}
-      </button>
-      <Dialog open={brouillon} onOpenChange={setBrouillon}>
-        <DialogContent className="h-[min(calc(var(--spacing)*160),90dvh)] p-0 sm:max-w-lg">
-          <DialogTitle className="sr-only">{t('messageA', { nom })}</DialogTitle>
-          <BrouillonDirect
-            personne={{ id: userId, name: nom, avatar_url: null } as never}
-            onCreated={(id) => router.push(`/app/messages?conversation=${id}`)}
-          />
-        </DialogContent>
-      </Dialog>
-    </>
+    <EcrireA
+      personne={{ id: owner.user_id, nom }}
+      libelle={t('message')}
+      titre={t('messageA', { nom })}
+      className={
+        variante === 'egal'
+          ? 'inline-flex h-12 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border border-border bg-card text-sm font-medium outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring lg:h-11'
+          : buttonVariants({ variant: 'outline' })
+      }
+    />
   );
 }
 

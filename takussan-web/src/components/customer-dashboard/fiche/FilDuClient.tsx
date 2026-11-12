@@ -9,6 +9,7 @@ import {
   CalendarCheck,
   CalendarClock,
   CalendarX,
+  CircleCheck,
   ClipboardCheck,
   Inbox,
   ListChecks,
@@ -19,6 +20,8 @@ import {
   PhoneOutgoing,
   Pin,
   TrendingUp,
+  UserPen,
+  UserPlus,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -204,6 +207,7 @@ const ICONE_DU_CANAL: Record<Canal, LucideIcon | typeof IconeWhatsApp> = { call:
 function Entree({ entree, dernier }: { readonly entree: EntreeDuFil; readonly dernier: boolean }) {
   const t = useTranslations('crm.fiche.fil');
   const tStage = useTranslations('crm.pipeline.stage');
+  const tChamps = useTranslations('agentCrm.activity.fields');
   const date = useDateDeLigne();
   switch (entree.type) {
     case 'note':
@@ -220,6 +224,18 @@ function Entree({ entree, dernier }: { readonly entree: EntreeDuFil; readonly de
       const de = etape(entree.from);
       const a = etape(entree.to) ?? '';
       return <LigneDuFil icone={TrendingUp} titre={de ? t('etape', { de, a }) : t('etapeSansOrigine', { a })} date={date(entree.at, entree.causer?.name)} dernier={dernier} />;
+    }
+    case 'record': {
+      // Les noms des champs du journal (`agentCrm.activity.fields`) ; un champ inconnu se tait.
+      const champs = entree.fields.map((c) => (tChamps.has(c) ? tChamps(c) : null)).filter((c): c is string => c !== null);
+      const titre = entree.milestone === 'created' ? t('fiche.creee') : champs.length ? t('fiche.modifiee', { champs: champs.join(', ') }) : t('fiche.modifieeSansChamp');
+      return <LigneDuFil icone={entree.milestone === 'created' ? UserPlus : UserPen} titre={titre} date={date(entree.at, entree.causer?.name)} dernier={dernier} />;
+    }
+    case 'task': {
+      const titreDeLaTache = entree.task?.title ?? null;
+      const faite = entree.milestone === 'done';
+      const titre = titreDeLaTache ? t(faite ? 'tache.faite' : 'tache.creee', { titre: titreDeLaTache }) : t(faite ? 'tache.faiteSansTitre' : 'tache.creeeSansTitre');
+      return <LigneDuFil icone={faite ? CircleCheck : ListChecks} ton={faite ? 'succes' : 'neutre'} titre={titre} date={date(entree.at, entree.causer?.name)} dernier={dernier} />;
     }
   }
 }
@@ -266,10 +282,11 @@ function SaisieDuFil({ customer, demande }: { readonly customer: CustomerDetail;
       setEpingler(false);
       // Le journal du tiroir du pipeline compte notes et tâches (TCK-2093) : il se relit aussi.
       void queryClient.invalidateQueries({ queryKey: AGENT_CRM_QUERY_KEY.activity(customer.id) });
+      // La tâche créée entre au fil (d1 a) : il se relit dans les deux modes.
+      void queryClient.invalidateQueries({ queryKey: FIL_QUERY_KEY.tout(customer.id) });
       if (m === 'tache') {
         void queryClient.invalidateQueries({ queryKey: PIPELINE_QUERY_KEY.customerTasks(customer.id) });
       } else {
-        void queryClient.invalidateQueries({ queryKey: FIL_QUERY_KEY.tout(customer.id) });
         void queryClient.invalidateQueries({ queryKey: PIPELINE_QUERY_KEY.customerNotes(customer.id) });
         // Les épinglées sont lues par la page : elle se relit.
         if (epinglee) router.refresh();
@@ -289,7 +306,7 @@ function SaisieDuFil({ customer, demande }: { readonly customer: CustomerDetail;
     envoi.mutate({ m: mode, corps, epinglee: mode === 'note' && epingler });
   };
 
-  const PUCE = 'inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-ui font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring';
+  const PUCE = 'inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-ui md:h-7 md:px-2.5 font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring';
   const placeholder = mode === 'tache' ? (prenom ? t('placeholderTache', { prenom }) : t('placeholderTacheSansNom')) : prenom ? t('placeholder', { prenom }) : t('placeholderSansNom');
 
   return (
@@ -310,9 +327,10 @@ function SaisieDuFil({ customer, demande }: { readonly customer: CustomerDetail;
         aria-label={placeholder}
         aria-invalid={vide || envoi.isError || undefined}
         aria-describedby={vide || envoi.isError ? idDuMessage : undefined}
-        className="min-h-16 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+        // Maquette a-1 : une ligne au repos (24 px), qui grandit avec le texte (`field-sizing-content` de la primitive).
+        className="min-h-0 resize-none border-0 bg-transparent px-0 py-1 shadow-none focus-visible:ring-0"
       />
-      <div className="mt-2 flex flex-wrap items-center gap-2">
+      <div className="mt-2.5 flex flex-wrap items-center gap-2">
         <button type="button" aria-pressed={mode === 'note'} onClick={() => setMode('note')} className={cn(PUCE, mode === 'note' ? 'bg-foreground text-background' : 'bg-muted text-encre-douce')}>
           <NotebookPen className="size-3.5" aria-hidden="true" />
           {t('note')}
@@ -360,7 +378,7 @@ function FiltresDuFil({ actif }: { readonly actif: CleDeFiltre }) {
           aria-pressed={f.cle === actif}
           onClick={() => router.replace(`${pathname}${requeteAvecFiltre(params.toString(), f.cle)}`, { scroll: false })}
           className={cn(
-            'inline-flex h-8 flex-none items-center rounded-full px-3 text-ui font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring',
+            'inline-flex h-8 flex-none items-center rounded-full px-3 text-ui font-medium outline-none md:h-7 md:px-2.5 focus-visible:ring-3 focus-visible:ring-ring',
             f.cle === actif ? 'bg-foreground text-background' : 'bg-muted text-encre-douce',
           )}
         >

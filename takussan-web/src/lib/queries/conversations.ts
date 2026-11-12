@@ -807,3 +807,24 @@ export function useGroupLeaseOptions(
     },
   );
 }
+
+/**
+ * TCK-2589 — « Écrire » sur la fiche client : le compte `userId` accepterait-il une directe du
+ * lecteur ? Le SERVEUR le dit (`filter[id]` de `GET /api/conversations/contacts`, la règle même
+ * de `StoreConversationRequest`, `MessagingReach`) : le personnel ne joint le compte d'un client que
+ * par un fil existant ou un lien CRM, et un geste qui finirait en 422 ne se montre pas. `false` tant
+ * que la réponse n'est pas là, et sans compte.
+ */
+export function useEstJoignable(userId: number | null): boolean {
+  const { user } = useAuth();
+  const { data } = useApiQuery<PaginatedResponse<MessagingContact>>(
+    ['conversations', 'contacts', 'joignable', userId],
+    '/api/conversations/contacts',
+    {
+      params: { fields: { users: ['id'] }, filter: { id: String(userId ?? '') }, per_page: 1 },
+      enabled: userId !== null && Boolean(user),
+      staleTime: 60_000,
+    },
+  );
+  return userId !== null && (data?.data ?? []).some((c) => c.id === userId);
+}

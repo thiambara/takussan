@@ -77,7 +77,7 @@ function Tenue({ peutReveler = false }: { readonly peutReveler?: boolean }) {
   );
 }
 
-const panneau = () => screen.getByRole('dialog', { name: 'Modifier la fiche' });
+const panneau = () => screen.getByRole('dialog', { name: 'Modifier Mariama' });
 const section = (nom: string) => within(panneau()).getByRole('button', { name: new RegExp(`^${nom}`) });
 
 beforeEach(() => {
@@ -86,10 +86,43 @@ beforeEach(() => {
 });
 
 describe('TCK-2589 (lot D2) — « Modifier » de la fiche client', () => {
-  it('9a — Identité et Ce qu’il cherche ouvertes ; Contact et Pièce repliées sur leur résumé', () => {
+  it('lot E (maquette a-2) — « Modifier <prénom> », « Fiche client » au pouce, « Enregistrer » seul sur la barre du téléphone', () => {
+    render(withIntl(<Tenue />));
+    expect(within(panneau()).getByText('Fiche client')).toBeInTheDocument();
+    // Sous `xl`, la croix ferme : « Annuler » n'est que du panneau latéral.
+    expect(within(panneau()).getByRole('button', { name: 'Annuler' }).className).toMatch(/(^|\s)max-xl:hidden(\s|$)/);
+    expect(within(panneau()).getByRole('button', { name: 'Enregistrer' }).className).not.toMatch(/max-xl:hidden/);
+  });
+
+  it('lot E (maquette a-2) — prénom et nom côte à côte à toute largeur, la langue seule sur sa ligne', () => {
+    render(withIntl(<Tenue />));
+    const rangee = (champ: HTMLElement) => champ.closest('.grid') as HTMLElement | null;
+    const prenom = within(panneau()).getByLabelText(/^Prénom/);
+    const nom = within(panneau()).getByLabelText(/^Nom/);
+    expect(rangee(prenom)).not.toBeNull();
+    expect(rangee(prenom)).toBe(rangee(nom));
+    expect(rangee(prenom)?.className).toMatch(/(^|\s)grid-cols-2(\s|$)/);
+    expect(rangee(within(panneau()).getByRole('combobox', { name: 'Langue des messages' }))).toBeNull();
+  });
+
+  it('lot E — sans prénom, le titre prend le nom affichable de la fiche', () => {
+    render(
+      withIntl(
+        <ModifierLaFiche
+          customer={{ ...MARIAMA, first_name: null, last_name: null } as unknown as CustomerDetail}
+          open
+          onOpenChange={() => {}}
+          peutReveler={false}
+        />,
+      ),
+    );
+    expect(screen.getByRole('dialog', { name: 'Modifier mariama.fall@example.test' })).toBeInTheDocument();
+  });
+
+  it('9a — Identité et Sa recherche ouvertes ; Contact et Pièce repliées sur leur résumé', () => {
     render(withIntl(<Tenue />));
     expect(section('Identité')).toHaveAttribute('aria-expanded', 'true');
-    expect(section('Ce qu’il cherche')).toHaveAttribute('aria-expanded', 'true');
+    expect(section('Sa recherche')).toHaveAttribute('aria-expanded', 'true');
     expect(section('Contact')).toHaveAttribute('aria-expanded', 'false');
     expect(section('Contact')).toHaveTextContent('mariama.fall@example.test');
     expect(section('Pièce d’identité')).toHaveAttribute('aria-expanded', 'false');
@@ -115,7 +148,7 @@ describe('TCK-2589 (lot D2) — « Modifier » de la fiche client', () => {
     expect(corps).toMatchObject({ first_name: 'Mariam', last_name: 'Fall', status: 'active', phone: '+221706482056', email: 'mariama.fall@example.test' });
     expect(corps).toMatchObject({ seeking_contract_type: 'rent', seeking_property_types: ['studio'] });
     // Enregistrée : le panneau se ferme, la page se relit.
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Modifier la fiche' })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Modifier Mariama' })).toBeNull());
     expect(nav.refresh).toHaveBeenCalledTimes(1);
   });
 

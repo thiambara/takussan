@@ -27,15 +27,33 @@ vi.mock('next/navigation', () => ({
 }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ token: 'jeton', user: { id: 1 }, isLoading: false }) }));
 vi.mock('@/hooks/useCan', () => ({ useCan: () => ({ can: false, isLoading: false }) }));
-// L'en-tête de la coque rend ses `actions` dans la feuille du ⋯ (EnTeteMobile) : la même primitive ici.
+// L'en-tête de la coque rend ses `actions` dans la feuille du ⋯ (EnTeteMobile) : la même primitive ici,
+// et SOUS LE DICTIONNAIRE DE LA COQUE — les seuls espaces des frontières `.`, `(dashboard)` et
+// `(dashboard)/app` (`src/i18n/namespaces.json`), qui est ce que voit un élément monté par la coque.
+// Lot E : `useTranslations('saisieDemande')` dans ces actions faisait tomber la page au toucher de « ⋯ ».
 vi.mock('@/components/layout/en-tete-de-la-coque', async () => {
   const { FeuilleDuBas } = await import('@/components/ui/feuille-du-bas');
+  const { NextIntlClientProvider } = await import('next-intl');
+  const table = (await import('@/i18n/namespaces.json')).default as { frontieres: Record<string, string[]> };
+  const fr = (await import('@/messages/fr.json')).default as Record<string, unknown>;
+  const espaces = ['.', '(dashboard)', '(dashboard)/app'].flatMap((f) => table.frontieres[f] ?? []);
+  const deLaCoque = Object.fromEntries(espaces.filter((e) => e in fr).map((e) => [e, fr[e]]));
   return {
     DeclarerEnTete: ({ actions }: { actions?: ReactNode }) =>
-      actions ? <FeuilleDuBas titre="Plus d’actions" declencheur={<button type="button">⋯ de l’en-tête</button>}>{actions}</FeuilleDuBas> : null,
+      actions ? (
+        <NextIntlClientProvider locale="fr" messages={deLaCoque} onError={(e) => { throw e; }}>
+          <FeuilleDuBas titre="Plus d’actions" declencheur={<button type="button">⋯ de l’en-tête</button>}>{actions}</FeuilleDuBas>
+        </NextIntlClientProvider>
+      ) : null,
   };
 });
-vi.mock('@/components/visits/PlanifierUneVisite', () => ({ PlanifierUneVisite: () => <button type="button">Planifier une visite</button> }));
+vi.mock('@/components/visits/PlanifierUneVisite', () => ({
+  PlanifierUneVisite: ({ variant }: { variant?: string }) => (
+    <button type="button" data-variante={variant ?? 'outline'}>
+      Planifier une visite
+    </button>
+  ),
+}));
 vi.mock('@/components/bookings/SaisirUneDemande', () => ({
   SaisirUneDemande: ({ open }: { open: boolean }) => (open ? <p>saisie de la demande ouverte</p> : null),
 }));
@@ -45,7 +63,13 @@ vi.mock('@/components/documents/DocumentUploadDialog', () => ({
 }));
 vi.mock('@/components/customer-form', () => ({ CustomerForm: () => <p>formulaire de la fiche</p> }));
 vi.mock('@/components/crm/InviterACreerSonCompte', () => ({ InviterACreerSonCompte: () => null }));
-vi.mock('@/components/customer-dashboard/CustomerTagPicker', () => ({ CustomerTagPicker: () => null }));
+const etiquettes = vi.hoisted(() => ({ forme: undefined as string | undefined }));
+vi.mock('@/components/customer-dashboard/CustomerTagPicker', () => ({
+  CustomerTagPicker: ({ forme }: { forme?: string }) => {
+    etiquettes.forme = forme;
+    return null;
+  },
+}));
 const role = vi.hoisted(() => ({ personnel: true }));
 vi.mock('@/hooks/usePersonnelActif', () => ({ usePersonnelActif: () => role.personnel }));
 vi.mock('@/lib/queries/customer-timeline', async (original) => ({
@@ -81,6 +105,17 @@ vi.mock('@/lib/queries/agent-crm', async (original) => ({
   fetchMatchingProperties: (...a: unknown[]) => lectures.correspondances(...a),
   fetchAgencyAgents: async () => [],
 }));
+
+// « Écrire » : le serveur dit si le compte est joignable ; le fil existant ou le brouillon.
+const messagerie = vi.hoisted(() => ({ joignable: false, demande: [] as (number | null)[], trouver: vi.fn() }));
+vi.mock('@/lib/queries/conversations', () => ({
+  useEstJoignable: (id: number | null) => {
+    messagerie.demande.push(id);
+    return messagerie.joignable;
+  },
+  useTrouverLeFilDirect: () => messagerie.trouver,
+}));
+vi.mock('@/components/messages/BrouillonDirect', () => ({ BrouillonDirect: () => <p>brouillon direct</p> }));
 
 import { FicheDuClient } from '../FicheDuClient';
 
@@ -144,6 +179,9 @@ beforeEach(() => {
   lectures.taches.mockResolvedValue([]);
   lectures.correspondances.mockResolvedValue({ data: [{ id: 1 }], meta: { total: 3, per_page: 20, current_page: 1, last_page: 1 } });
   lectures.etape.mockResolvedValue({});
+  messagerie.joignable = false;
+  messagerie.demande = [];
+  messagerie.trouver.mockResolvedValue(null);
 });
 
 describe('TCK-2589 — la tête et le résumé de la fiche client', () => {
@@ -273,7 +311,7 @@ describe('TCK-2589 (lot D) — les actions secondaires de la fiche', () => {
     expect(bureau.className).toMatch(/max-md:hidden/);
 
     await userEvent.click(within(bureau).getByRole('button', { name: 'Modifier' }));
-    const feuille = await screen.findByRole('dialog', { name: 'Modifier la fiche' });
+    const feuille = await screen.findByRole('dialog', { name: 'Modifier Mariama' });
     expect(within(feuille).getByText('formulaire de la fiche')).toBeInTheDocument();
   });
 
@@ -320,9 +358,105 @@ describe('TCK-2589 (lot D) — les actions secondaires de la fiche', () => {
     expect(nav.replace).toHaveBeenCalledWith('?section=documents', { scroll: false });
   });
 
+  it('lot E (maquette a-1) — « Modifier » du surtitre CHERCHE ouvre la feuille d’édition', async () => {
+    rendu();
+    const modifier = screen.getByRole('button', { name: 'Modifier sa recherche' });
+    expect(modifier).toHaveTextContent(/^Modifier$/);
+    await userEvent.click(modifier);
+    const feuille = await screen.findByRole('dialog', { name: 'Modifier Mariama' });
+    expect(within(feuille).getByText('formulaire de la fiche')).toBeInTheDocument();
+  });
+
+  it('lot E — sans recherche, CHERCHE garde son « Modifier » : c’est par là qu’on la saisit', () => {
+    rendu({ ...MARIAMA, seeking_contract_type: null, budget_max: null, seeking_property_types: [], seeking_cities: [], seeking_neighborhoods: [] } as unknown as CustomerDetail);
+    expect(screen.getByText('Pas encore de recherche.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Modifier sa recherche' })).toBeInTheDocument();
+  });
+
+  it('lot E (maquette a-1) — au bureau, l’icône de WhatsApp a la taille de celle d’Appeler (14,4 px)', () => {
+    rendu();
+    const icone = document.querySelector('[data-slot="geste-whatsapp"] svg') as SVGElement;
+    const classes = icone.getAttribute('class') ?? '';
+    expect(classes).toMatch(/(^|\s)lg:size-4(\s|$)/);
+    expect(classes).not.toMatch(/(^|\s)lg:size-5(\s|$)/);
+  });
+
+  it('lot E — qui ne lit pas les critères (budget_max non servi) n’a pas de « Modifier » à CHERCHE', () => {
+    const { budget_max: _b, ...sansCriteres } = MARIAMA as unknown as Record<string, unknown>;
+    rendu(sansCriteres as unknown as CustomerDetail);
+    expect(screen.queryByRole('button', { name: 'Modifier sa recherche' })).toBeNull();
+  });
+
+  it('5 (maquette a-1) — « Planifier une visite » de la tête est le bouton plein', () => {
+    rendu();
+    const tete = screen.getByRole('banner');
+    expect(within(tete).getByRole('button', { name: 'Planifier une visite' })).toHaveAttribute('data-variante', 'default');
+  });
+
+  it('3a (maquette a-1) — les étiquettes de la carte du référent en forme « ligne »', () => {
+    rendu();
+    expect(etiquettes.forme).toBe('ligne');
+  });
+
   it('AC3 — toujours un seul contrôle d’étape, le dossier rendu', () => {
     rendu();
     expect(document.querySelector('[data-slot="dossier-du-client"]')).not.toBeNull();
     expect(screen.getAllByRole('combobox', { name: /^Étape de / })).toHaveLength(1);
+  });
+});
+
+describe('TCK-2589 (lot « Écrire », maquette a-1) — le troisième geste', () => {
+  const AVEC_COMPTE: CustomerDetail = { ...MARIAMA, user_id: 42 };
+  const gestes = () => document.querySelector('[data-slot="gestes-de-la-fiche"]') as HTMLElement;
+
+  it('compte joignable : Appeler, WhatsApp, Écrire, sur trois colonnes au téléphone', () => {
+    messagerie.joignable = true;
+    rendu(AVEC_COMPTE);
+    expect(messagerie.demande).toContain(42);
+    const ecrire = within(gestes()).getByRole('button', { name: 'Écrire' });
+    expect(ecrire).toHaveAttribute('data-slot', 'geste-ecrire');
+    expect(gestes().className).toMatch(/(^|\s)grid-cols-3(\s|$)/);
+    expect(Array.from(gestes().children).map((e) => e.getAttribute('data-slot'))).toEqual(['geste-appeler', 'geste-whatsapp', 'geste-ecrire']);
+  });
+
+  it('« Écrire » ouvre le fil à deux qui existe, sans rien enregistrer', async () => {
+    messagerie.joignable = true;
+    messagerie.trouver.mockResolvedValue(88);
+    rendu(AVEC_COMPTE);
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Écrire' }));
+    await waitFor(() => expect(nav.push).toHaveBeenCalledWith('/app/messages?conversation=88'));
+    expect(messagerie.trouver).toHaveBeenCalledWith({ id: 42, name: 'Mariama Fall' });
+    expect(geste.mutate).not.toHaveBeenCalled();
+  });
+
+  it('sans fil, « Écrire » ouvre le brouillon, rien en base avant l’envoi', async () => {
+    messagerie.joignable = true;
+    rendu(AVEC_COMPTE);
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Écrire' }));
+    expect(await screen.findByText('brouillon direct')).toBeInTheDocument();
+    expect(screen.getByText('Écrire à Mariama Fall')).toBeInTheDocument();
+    expect(nav.push).not.toHaveBeenCalled();
+  });
+
+  it('compte que le serveur refuserait : deux gestes, deux colonnes', () => {
+    rendu(AVEC_COMPTE);
+    expect(screen.queryByRole('button', { name: 'Écrire' })).toBeNull();
+    expect(gestes().className).toMatch(/(^|\s)grid-cols-2(\s|$)/);
+  });
+
+  it('sans compte : pas d’« Écrire », même si le lecteur joint tout le monde', () => {
+    messagerie.joignable = true;
+    rendu();
+    expect(messagerie.demande.every((id) => id === null)).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Écrire' })).toBeNull();
+    expect(gestes().className).toMatch(/(^|\s)grid-cols-2(\s|$)/);
+  });
+
+  it('sans numéro, « Écrire » reste, seul sur sa ligne', () => {
+    messagerie.joignable = true;
+    rendu({ ...AVEC_COMPTE, phone: null });
+    expect(within(gestes()).getByRole('button', { name: 'Écrire' })).toBeInTheDocument();
+    expect(within(gestes()).queryByRole('link')).toBeNull();
+    expect(gestes().className).toMatch(/(^|\s)grid-cols-1(\s|$)/);
   });
 });

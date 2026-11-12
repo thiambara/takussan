@@ -310,10 +310,10 @@ class CustomerTimelineTest extends ApiTestCase
     public function test_un_filtre_mal_forme_rend_422_au_lecteur_admis_et_403_au_lecteur_refuse(): void
     {
         Sanctum::actingAs($this->admin);
-        $this->getJson("/api/customers/{$this->fiche->id}/timeline?filter[type]=note,task")->assertUnprocessable();
+        $this->getJson("/api/customers/{$this->fiche->id}/timeline?filter[type]=note,booking")->assertUnprocessable();
 
         Sanctum::actingAs($this->bailleur($this->agence));
-        $this->getJson("/api/customers/{$this->fiche->id}/timeline?filter[type]=note,task")->assertForbidden();
+        $this->getJson("/api/customers/{$this->fiche->id}/timeline?filter[type]=note,booking")->assertForbidden();
     }
 
     public function test_le_filtre_par_type_ne_rend_que_les_types_demandes(): void

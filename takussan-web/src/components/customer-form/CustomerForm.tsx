@@ -356,15 +356,14 @@ export function CustomerForm({
           enErreur={sectionsEnErreur}
           identite={
             <>
-              <div className="grid gap-4 lg:grid-cols-2">
+              {/* Maquette a-2 : prénom et nom côte à côte à toute largeur, la langue seule sur sa ligne. */}
+              <div className="grid grid-cols-2 gap-4">
                 <FormInput control={control} name="first_name" label={t('firstName')} required />
                 <FormInput control={control} name="last_name" label={t('lastName')} required />
               </div>
               <FormInput control={control} name="occupation" label={t('occupation')} placeholder={t('occupationPlaceholder')} />
-              <div className="grid gap-4 lg:grid-cols-2">
-                <FormSelect control={control} name="locale" label={t('locale')} options={localeOptions} placeholder={t('localeDefault')} />
-                <FormSelect control={control} name="status" label={t('status')} options={customerStatusOptions} />
-              </div>
+              <FormSelect control={control} name="locale" label={t('locale')} options={localeOptions} placeholder={t('localeDefault')} />
+              <FormSelect control={control} name="status" label={t('status')} options={customerStatusOptions} />
             </>
           }
           contact={

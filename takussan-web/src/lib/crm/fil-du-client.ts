@@ -7,7 +7,11 @@ import type { EntreeDuFil, TypeDuFil } from '@/lib/queries/customer-timeline';
 /** Le paramètre d'URL du filtre du fil (absent : « Tout »). */
 export const PARAMETRE_DU_FILTRE = 'fil';
 
-/** Les filtres du fil, dans l'ordre des puces, et le type de l'API que chacun demande. */
+/**
+ * Les filtres du fil, dans l'ordre des puces, et le type de l'API que chacun demande. La vie de la
+ * fiche et de ses tâches (`record`, `task`) n'a pas de puce : « Tout » seul la montre (les puces de
+ * la maquette a-1 ; vérification C/C2, d1 a).
+ */
 export const FILTRES_DU_FIL = [
   { cle: 'tout', type: null },
   { cle: 'notes', type: 'note' },

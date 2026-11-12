@@ -5,7 +5,8 @@ import type { CustomerPipelineStage } from '@/types/customer';
 
 /**
  * TCK-2589 — le fil d'une fiche client : `GET /api/customers/{id}/timeline`. L'API mêle notes,
- * visites, gestes de contact et changements d'étape, les trie (instant, puis type, puis id) et les
+ * visites, gestes de contact, changements d'étape, et (vérification C/C2, d1 a) la vie de la fiche
+ * et de ses tâches, que l'onglet « Activité » retiré portait seul ; elle les trie (instant, puis type, puis id) et les
  * pagine : le front ne trie rien et ne filtre rien lui-même — `filter[type]` part au serveur.
  *
  * Ce qu'un lecteur reçoit est jugé par l'API (`CustomerTimeline`) : les visites et les gestes de
@@ -13,7 +14,7 @@ import type { CustomerPipelineStage } from '@/types/customer';
  */
 
 /** Les types du fil (`CustomerTimeline::TYPES`). */
-export const TYPES_DU_FIL = ['note', 'visit', 'contact', 'stage'] as const;
+export const TYPES_DU_FIL = ['note', 'visit', 'contact', 'stage', 'record', 'task'] as const;
 export type TypeDuFil = (typeof TYPES_DU_FIL)[number];
 
 /** Une entrée par page : la taille d'une page du fil. */
@@ -77,7 +78,30 @@ export interface EtapeDuFil {
   readonly causer: PersonneDuFil | null;
 }
 
-export type EntreeDuFil = NoteDuFil | VisiteDuFil | ContactDuFil | EtapeDuFil;
+/**
+ * La création de la fiche, ou la modification de son identité et de son contact : les NOMS des
+ * champs (`CustomerTimeline::CHAMPS_DE_LA_FICHE`), jamais leurs valeurs ; vide à la création.
+ */
+export interface FicheDuFil {
+  readonly type: 'record';
+  readonly id: number;
+  readonly at: string;
+  readonly milestone: 'created' | 'updated';
+  readonly fields: readonly string[];
+  readonly causer: PersonneDuFil | null;
+}
+
+/** Une tâche de la fiche : sa création ou son passage à « faite », avec son titre COURANT. */
+export interface TacheDuFil {
+  readonly type: 'task';
+  readonly id: number;
+  readonly at: string;
+  readonly milestone: 'created' | 'done';
+  readonly task: { readonly id: number; readonly title: string } | null;
+  readonly causer: PersonneDuFil | null;
+}
+
+export type EntreeDuFil = NoteDuFil | VisiteDuFil | ContactDuFil | EtapeDuFil | FicheDuFil | TacheDuFil;
 
 export const FIL_QUERY_KEY = {
   tout: (customerId: number) => ['customer-timeline', customerId] as const,

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
-import { X } from 'lucide-react';
+import { Tag as IconeEtiquette, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import {
@@ -57,6 +57,12 @@ interface Props {
   suggestions?: (Pick<Tag, 'id' | 'name' | 'color'> & { slug?: string | null })[];
   /** Deeplink: clicking a tag navigates to list filtered by that tag */
   onTagClick?: (tagName: string) => void;
+  /**
+   * TCK-2589 (maquette a-1, décision 3a) — `ligne` : au repos, une ligne « icône · pastilles ·
+   * + Étiquette » (la carte du référent de la fiche client) ; « + Étiquette » ouvre le champ et les
+   * pastilles retirables, « Terminé » (ou Échap) le referme. `champ` (défaut) : le champ toujours ouvert.
+   */
+  forme?: 'champ' | 'ligne';
 }
 
 export function CustomerTagPicker({
@@ -64,8 +70,10 @@ export function CustomerTagPicker({
   initialTags,
   suggestions = [],
   onTagClick,
+  forme = 'champ',
 }: Props) {
   const t = useTranslations('crm.tags');
+  const [ouvert, setOuvert] = useState(false);
   const libelle = useLibelleEtiquette();
   const [tags, setTags] = useState<TagChip[]>(initialTags);
   const [input, setInput] = useState('');
@@ -73,6 +81,12 @@ export function CustomerTagPicker({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const containerRef = useRef<HTMLDivElement>(null);
+  const champ = useRef<HTMLInputElement>(null);
+
+  // La forme « ligne » s'ouvre sur le geste « + Étiquette » : le curseur va au champ.
+  useEffect(() => {
+    if (forme === 'ligne' && ouvert) champ.current?.focus();
+  }, [forme, ouvert]);
 
   const filteredSuggestions = suggestions.filter(
     (s) =>
@@ -123,7 +137,11 @@ export function CustomerTagPicker({
       e.preventDefault();
       attach(input);
     }
-    if (e.key === 'Escape') setShowSuggestions(false);
+    if (e.key === 'Escape') {
+      // Sans suggestion ouverte, Échap referme la forme « ligne ».
+      if (forme === 'ligne' && !(showSuggestions && filteredSuggestions.length > 0)) setOuvert(false);
+      setShowSuggestions(false);
+    }
   };
 
   // Close suggestion list on outside click
@@ -136,6 +154,48 @@ export function CustomerTagPicker({
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  const erreur = error ? (
+    <p role="alert" className="text-xs text-destructive">
+      {error}
+    </p>
+  ) : null;
+
+  if (forme === 'ligne' && !ouvert) {
+    return (
+      <div className="space-y-2" data-slot="etiquettes-en-ligne">
+        <div role="group" aria-label={t('ligne.titre')} className="flex flex-wrap items-center gap-2">
+          <IconeEtiquette className="size-4 flex-none text-muted-foreground" strokeWidth={1.75} aria-hidden="true" />
+          {tags.map((tag) =>
+            onTagClick ? (
+              <button
+                key={tag.id}
+                type="button"
+                aria-label={t('filterAria', { tag: libelle(tag) })}
+                onClick={() => onTagClick(tag.name)}
+                className="inline-flex h-6 items-center rounded-full bg-muted px-2 text-xs font-medium text-encre-douce outline-none hover:bg-secondary focus-visible:ring-3 focus-visible:ring-ring"
+              >
+                {libelle(tag)}
+              </button>
+            ) : (
+              <span key={tag.id} className="inline-flex h-6 items-center rounded-full bg-muted px-2 text-xs font-medium text-encre-douce">
+                {libelle(tag)}
+              </span>
+            ),
+          )}
+          <button
+            type="button"
+            aria-label={t('ligne.ajouterAria')}
+            onClick={() => setOuvert(true)}
+            className="rounded-sm text-ui font-medium text-primary outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring"
+          >
+            {t('ligne.ajouter')}
+          </button>
+        </div>
+        {erreur}
+      </div>
+    );
+  }
 
   return (
     <div ref={containerRef} className="space-y-2">
@@ -195,6 +255,7 @@ export function CustomerTagPicker({
           }}
           onKeyDown={onKeyDown}
           onFocus={() => setShowSuggestions(true)}
+          ref={champ}
         />
 
         {showSuggestions && filteredSuggestions.length > 0 && (
@@ -230,10 +291,15 @@ export function CustomerTagPicker({
         )}
       </div>
 
-      {error ? (
-        <p role="alert" className="text-xs text-destructive">
-          {error}
-        </p>
+      {erreur}
+      {forme === 'ligne' ? (
+        <button
+          type="button"
+          onClick={() => setOuvert(false)}
+          className="rounded-sm text-ui font-medium text-primary outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring"
+        >
+          {t('ligne.terminer')}
+        </button>
       ) : null}
     </div>
   );

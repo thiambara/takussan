@@ -75,6 +75,11 @@ interface PlanifierUneVisiteProps extends PreRemplissage {
    * son arrivée. Sans elle, rien n'est rendu avant la lecture (un bailleur n'a pas de place vide).
    */
   readonly placeReservee?: boolean;
+  /**
+   * TCK-2589 (maquette a-1) — `default` : le bouton plein de la fiche client. Défaut `outline`, le
+   * rendu de tous les autres appelants.
+   */
+  readonly variant?: 'outline' | 'default';
 }
 
 /**
@@ -93,7 +98,7 @@ interface PlanifierUneVisiteProps extends PreRemplissage {
  * ou dont le profil actif est celui d'une autre agence, voyait le bouton, et l'API, qui le traite
  * en non-personnel, le faisait réserver pour lui-même. Elle lit désormais le profil actif.
  */
-export function PlanifierUneVisite({ agencyId, className, placeReservee = false, ...preRemplissage }: PlanifierUneVisiteProps) {
+export function PlanifierUneVisite({ agencyId, className, placeReservee = false, variant = 'outline', ...preRemplissage }: PlanifierUneVisiteProps) {
   const t = useTranslations('visitPlanning.plan');
   // TCK-2639 — lu APRÈS l'hydratation, comme `VisitesParLeTemps` : le serveur ne connaît pas les
   // profils, la coque hydratée avant cette frontière les a souvent déjà lus. Rendre le vrai bouton au
@@ -106,7 +111,7 @@ export function PlanifierUneVisite({ agencyId, className, placeReservee = false,
   const [ouvert, setOuvert] = useState(false);
   if (!personnel) {
     return placeReservee && (!hydrate || profils.isPending) ? (
-      <Button type="button" variant="outline" aria-hidden tabIndex={-1} data-slot="place-reservee" className={cn('invisible h-10 gap-2 sm:h-8', className)}>
+      <Button type="button" variant={variant} aria-hidden tabIndex={-1} data-slot="place-reservee" className={cn('invisible h-10 gap-2 sm:h-8', className)}>
         <CalendarPlus className="size-4" aria-hidden />
         {t('cta')}
       </Button>
@@ -114,7 +119,7 @@ export function PlanifierUneVisite({ agencyId, className, placeReservee = false,
   }
   return (
     <>
-      <Button type="button" variant="outline" className={cn('h-10 gap-2 sm:h-8', className)} onClick={() => setOuvert(true)}>
+      <Button type="button" variant={variant} className={cn('h-10 gap-2 sm:h-8', className)} onClick={() => setOuvert(true)}>
         <CalendarPlus className="size-4" aria-hidden />
         {t('cta')}
       </Button>

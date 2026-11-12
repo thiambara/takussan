@@ -12,6 +12,7 @@ import { isReachable, telHref, whatsappHref } from '@/components/crm/contact';
 import { CustomerTagPicker } from '@/components/customer-dashboard/CustomerTagPicker';
 import { InitialesDuClient } from '@/components/customer-dashboard/liste/pieces';
 import { DocumentUploadDialog } from '@/components/documents/DocumentUploadDialog';
+import { EcrireA } from '@/components/messages/EcrireA';
 import { SaisirUneDemande } from '@/components/bookings/SaisirUneDemande';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -26,6 +27,7 @@ import { initiales } from '@/lib/fiche-publique';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { nomAffichable } from '@/lib/identite';
 import { formaterTelephone } from '@/lib/phone';
+import { useEstJoignable } from '@/lib/queries/conversations';
 import { type CanalDeContactClient, useEnregistrerContactClient } from '@/lib/queries/customer-gestures';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
@@ -66,16 +68,33 @@ export interface FicheDuClientProps {
 type Dialogue = 'modifier' | 'saisir' | 'document';
 
 const GESTE =
-  'inline-flex h-12 min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-2 text-corps font-semibold outline-none focus-visible:ring-3 focus-visible:ring-ring md:h-controle md:rounded-lg md:px-3 md:text-sm md:font-medium';
+  'inline-flex h-12 min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-2 text-corps font-semibold outline-none focus-visible:ring-3 focus-visible:ring-ring md:h-controle md:gap-1.5 md:rounded-lg md:px-3.5 md:text-sm md:font-medium';
 const CONTOUR = 'border border-border bg-card text-foreground hover:bg-muted';
+/** L'action d'un surtitre (« Modifier » de CHERCHE) : le lien des actions du référent. */
+const LIEN = 'text-ui font-medium text-primary outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring';
 
-/** Appeler et WhatsApp : enregistrés au toucher pour le personnel (TCK-2583), sans trace sinon. */
-function GestesDeLaFiche({ customer, nom }: { readonly customer: CustomerDetail; readonly nom: string }) {
+/**
+ * Appeler et WhatsApp : enregistrés au toucher pour le personnel (TCK-2583), sans trace sinon.
+ * « Écrire » (maquette a-1, troisième geste) : le fil à deux avec le compte du client, quand il en a
+ * un et que le serveur l'accepterait (`joignable`) ; il n'est pas un contact sortant, rien ne s'enregistre.
+ */
+function GestesDeLaFiche({ customer, nom, joignable }: { readonly customer: CustomerDetail; readonly nom: string; readonly joignable: boolean }) {
   const t = useTranslations('agentCrm.contact');
   const tFiche = useTranslations('crm.fiche');
   const enregistrement = useEnregistrerContactClient();
   const phone = customer.phone;
-  if (!isReachable(phone)) return null;
+  const ecrire =
+    joignable && customer.user_id !== null ? (
+      <EcrireA
+        personne={{ id: customer.user_id, nom }}
+        libelle={tFiche('ecrire')}
+        titre={tFiche('ecrireA', { nom })}
+        data-slot="geste-ecrire"
+        className={cn(GESTE, CONTOUR)}
+        iconeClassName="size-icone md:size-4"
+      />
+    ) : null;
+  if (!isReachable(phone)) return ecrire;
   const noter = (channel: CanalDeContactClient) => {
     if (lecteurDuPersonnel(customer)) enregistrement.mutate({ id: customer.id, channel });
   };
@@ -95,9 +114,10 @@ function GestesDeLaFiche({ customer, nom }: { readonly customer: CustomerDetail;
         data-slot="geste-whatsapp"
         className={cn(GESTE, 'bg-success text-success-foreground hover:bg-success/90', 'md:border md:border-border md:bg-card md:text-foreground md:hover:bg-muted')}
       >
-        <IconeWhatsApp className="size-icone flex-none md:size-4 md:text-success" />
+        <IconeWhatsApp className="size-icone flex-none md:size-4 md:text-success lg:size-4" />
         {t('whatsapp')}
       </a>
+      {ecrire}
       {enregistrement.isError ? (
         <p role="alert" className="col-span-full text-ui text-destructive md:basis-full">
           {tFiche('gestesNonNotes')}
@@ -148,11 +168,31 @@ function ActionsDuBureau({ personnel, onOuvrir }: { readonly personnel: boolean;
   );
 }
 
-/** Les mêmes actions au téléphone, dans la feuille du ⋯ de l'en-tête de la coque : chacune la ferme. */
-function ActionsDuTelephone({ personnel, onOuvrir }: { readonly personnel: boolean; readonly onOuvrir: (d: Dialogue) => void }) {
-  const tActions = useTranslations('common.actions');
-  const tSaisie = useTranslations('saisieDemande');
-  const tDocuments = useTranslations('documents.actions');
+/** Les libellés des actions du téléphone, traduits dans l'arbre de la page. */
+interface LibellesDuTelephone {
+  readonly modifier: string;
+  readonly saisir: string;
+  readonly document: string;
+}
+
+/**
+ * Les mêmes actions au téléphone, dans la feuille du ⋯ de l'en-tête de la coque : chacune la ferme.
+ *
+ * ⚠ AUCUN `useTranslations` ici : l'élément est déclaré par la page (`DeclarerEnTete`) mais MONTÉ
+ * par la coque, sous le fournisseur de messages du layout de `/app`, qui ne porte que les espaces
+ * de la coque (`src/i18n/namespaces.json`, différentiel). `useTranslations('saisieDemande')` y
+ * levait MISSING_MESSAGE et la page tombait au toucher de « ⋯ » (relevé de fidélité, lot E).
+ * Les libellés arrivent donc traduits, de l'arbre de la page.
+ */
+function ActionsDuTelephone({
+  personnel,
+  onOuvrir,
+  libelles,
+}: {
+  readonly personnel: boolean;
+  readonly onOuvrir: (d: Dialogue) => void;
+  readonly libelles: LibellesDuTelephone;
+}) {
   const action = (d: Dialogue, Icone: typeof Pencil, libelle: string) => (
     <SheetClose render={<Button type="button" variant="outline" className="h-12 w-full justify-start gap-3" />} onClick={() => onOuvrir(d)}>
       <Icone className="size-5" aria-hidden="true" />
@@ -161,9 +201,9 @@ function ActionsDuTelephone({ personnel, onOuvrir }: { readonly personnel: boole
   );
   return (
     <div className="flex flex-col items-stretch gap-2 pb-2" data-slot="actions-du-telephone">
-      {action('modifier', Pencil, tActions('edit'))}
-      {personnel ? action('saisir', FilePlus2, tSaisie('entree')) : null}
-      {action('document', Plus, tDocuments('add_document'))}
+      {action('modifier', Pencil, libelles.modifier)}
+      {personnel ? action('saisir', FilePlus2, libelles.saisir) : null}
+      {action('document', Plus, libelles.document)}
     </div>
   );
 }
@@ -173,11 +213,13 @@ function TeteDeLaFiche({
   customer,
   nom,
   personnel,
+  joignable,
   onOuvrir,
 }: {
   readonly customer: CustomerDetail;
   readonly nom: string;
   readonly personnel: boolean;
+  readonly joignable: boolean;
   readonly onOuvrir: (d: Dialogue) => void;
 }) {
   const t = useTranslations('crm.fiche');
@@ -189,6 +231,8 @@ function TeteDeLaFiche({
     .filter(Boolean)
     .join(' · ');
   const referent = customer.referent?.name ? nomCourt(customer.referent.name) : null;
+  // Au téléphone, une colonne par geste rendu (maquette a-1 : Appeler, WhatsApp, Écrire).
+  const nombreDeGestes = (isReachable(customer.phone) ? 2 : 0) + (joignable && customer.user_id !== null ? 1 : 0);
 
   return (
     <header data-slot="tete-de-la-fiche">
@@ -211,12 +255,17 @@ function TeteDeLaFiche({
         </div>
         {/* Au bureau, les actions se rangent à droite et passent à la ligne : le nom garde sa place. */}
         <div className="flex flex-wrap items-center gap-2 lg:max-w-3/5 lg:justify-end">
-          <div className="grid w-full grid-cols-2 gap-2 md:flex md:w-auto md:flex-wrap" data-slot="gestes-de-la-fiche">
-            <GestesDeLaFiche customer={customer} nom={nom} />
+          <div
+            className={cn('grid w-full gap-2 md:flex md:w-auto md:flex-wrap', nombreDeGestes === 3 ? 'grid-cols-3' : nombreDeGestes === 1 ? 'grid-cols-1' : 'grid-cols-2')}
+            data-slot="gestes-de-la-fiche"
+          >
+            <GestesDeLaFiche customer={customer} nom={nom} joignable={joignable} />
           </div>
           {/* Au téléphone, « Visite » est dans la barre du bas (BarreDeLaFiche). */}
+          {/* Maquette a-1 : le bouton plein, à la hauteur des gestes. */}
           <PlanifierUneVisite
-            className="max-md:hidden"
+            variant="default"
+            className="max-md:hidden md:h-controle"
             customer={{ id: customer.id, libelle: nom, telephone: customer.phone ?? null, etape: customer.pipeline_stage ?? null }}
             // TCK-2586 (AC3) — son bien d'intérêt, posé : jour, heure, Confirmer.
             property={customer.interested_property ? { id: customer.interested_property.id, libelle: customer.interested_property.title } : undefined}
@@ -250,6 +299,8 @@ function ReferentEtEtiquettes({
           initialTags={customer.tags ?? []}
           suggestions={[...suggestions]}
           onTagClick={(name) => router.push(`/app/customers?tags=${encodeURIComponent(name)}`)}
+          // Maquette a-1 (décision 3a) : « icône · pastilles · + Étiquette » au repos.
+          forme="ligne"
         />
       </div>
     </section>
@@ -263,21 +314,40 @@ export function FicheDuClient({ customer, relationships, suggestionsDEtiquettes,
   const { remplacer } = useVueDansLUrl();
   // TCK-2580 — « Saisir une demande » : le personnel ACTIF de l'agence seul (l'API répond 403 sinon).
   const personnel = usePersonnelActif();
+  // « Écrire » : le serveur dit si le compte du client accepterait une directe de ce lecteur.
+  const joignable = useEstJoignable(customer.user_id);
   // La barre du bas ouvre la saisie du fil : un jeton neuf à chaque toucher.
   const [demandeDeSaisie, setDemandeDeSaisie] = useState<DemandeDeSaisie | null>(null);
   const [dialogue, setDialogue] = useState<Dialogue | null>(null);
   const fermerSauf = (d: Dialogue) => (ouvert: boolean) => setDialogue(ouvert ? d : null);
+  const tActions = useTranslations('common.actions');
+  const tSaisie = useTranslations('saisieDemande');
+  const tDocuments = useTranslations('documents.actions');
+  const tCherche = useTranslations('crm.fiche.cherche');
+  const libellesDuTelephone = { modifier: tActions('edit'), saisir: tSaisie('entree'), document: tDocuments('add_document') };
 
   return (
     <PagePleineLargeur data-slot="fiche-du-client" className="max-md:pb-6">
-      <DeclarerEnTete forme="detail" titre={nom} repli="/app/customers" actions={<ActionsDuTelephone personnel={personnel} onOuvrir={setDialogue} />} />
+      <DeclarerEnTete forme="detail" titre={nom} repli="/app/customers" actions={<ActionsDuTelephone personnel={personnel} onOuvrir={setDialogue} libelles={libellesDuTelephone} />} />
       <div className="px-4 pt-4 md:px-0 md:pt-0">
-        <TeteDeLaFiche customer={customer} nom={nom} personnel={personnel} onOuvrir={setDialogue} />
+        <TeteDeLaFiche customer={customer} nom={nom} personnel={personnel} joignable={joignable} onOuvrir={setDialogue} />
       </div>
       <div className="flex flex-col gap-4 px-4 pt-4 md:px-0 md:pt-6 xl:grid xl:grid-cols-[calc(var(--spacing)*105.56)_minmax(0,1fr)] xl:items-start xl:gap-6">
         <div className="flex min-w-0 flex-col gap-4" data-slot="resume-du-client">
           <ProchaineActionDuClient customer={customer} />
-          <RechercheDuClient customer={customer} />
+          {/* Maquette a-1 : « Modifier » au surtitre de CHERCHE ouvre la feuille d'édition, sa recherche dépliée —
+              pour qui lit les critères seulement (`budget_max` servi : la règle de `showsCriteria` de
+              CustomerForm) ; sans eux, la feuille n'aurait pas de section « Sa recherche ». */}
+          <RechercheDuClient
+            customer={customer}
+            droite={
+              'budget_max' in customer ? (
+                <button type="button" className={LIEN} aria-label={tCherche('modifierAria')} onClick={() => setDialogue('modifier')} data-slot="modifier-la-recherche">
+                  {tActions('edit')}
+                </button>
+              ) : undefined
+            }
+          />
           <OrigineDuClient customer={customer} />
           <ReferentEtEtiquettes customer={customer} relationships={relationships} suggestions={suggestionsDEtiquettes} />
         </div>

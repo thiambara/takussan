@@ -424,6 +424,41 @@ class MessagingContactsTest extends ApiTestCase
         $this->assertSame([$moi->id], $this->contactIds());
     }
 
+    /**
+     * TCK-2589 — « Écrire » de la fiche client demande `filter[id]=<compte du client>` : la réponse
+     * dit exactement ce que la création de la directe acceptera, dans les deux cas.
+     */
+    public function test_filter_id_dit_si_cette_personne_est_joignable_comme_la_directe(): void
+    {
+        $moi = $this->user('Fatou', 'Diop');
+        $lie = $this->user('Awa', 'Sarr');
+        $this->rattacher($moi, Customer::factory()->create(['user_id' => $lie->id]), RelationshipType::AgentClient);
+        $nonLie = $this->user('Omar', 'Gueye');
+        Customer::factory()->create(['user_id' => $nonLie->id]);
+
+        $this->actingAsApi($moi);
+
+        $this->getJson("/api/conversations/contacts?filter[id]={$lie->id}&fields[users]=id")
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $lie->id);
+        $this->getJson("/api/conversations/contacts?filter[id]={$nonLie->id}&fields[users]=id")
+            ->assertOk()
+            ->assertJsonPath('meta.total', 0);
+
+        // Le serveur de la directe s'accorde avec la réponse, dans les deux sens.
+        $this->postJson('/api/conversations', ['participants' => [$nonLie->id]])
+            ->assertUnprocessable()->assertJsonValidationErrors(['participants']);
+        $this->postJson('/api/conversations', ['participants' => [$lie->id]])->assertCreated();
+
+        // Un identifiant illisible, plusieurs, ou soi-même : personne.
+        foreach (['abc', '0', "{$lie->id},{$nonLie->id}", (string) $moi->id] as $valeur) {
+            $this->getJson('/api/conversations/contacts?filter[id]='.$valeur)
+                ->assertOk()
+                ->assertJsonPath('meta.total', 0);
+        }
+    }
+
     public function test_un_administrateur_d_agence_est_de_l_equipe_et_joint_les_proprietaires(): void
     {
         $agency = Agency::factory()->create();

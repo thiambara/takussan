@@ -3590,7 +3590,13 @@
       "maxReachedPlaceholder": "Max 10 tags",
       "removeAria": "Retirer le tag {tag}",
       "inputLabel": "Ajouter un tag au client",
-      "filterAria": "Voir les clients tagués {tag}"
+      "filterAria": "Voir les clients tagués {tag}",
+      "ligne": {
+        "titre": "Étiquettes",
+        "ajouter": "+ Étiquette",
+        "ajouterAria": "Ajouter une étiquette",
+        "terminer": "Terminé"
+      }
     },
     "tagCatalog": {
       "vip": "VIP",
@@ -3665,7 +3671,8 @@
         "plafond": "≤ {montant}",
         "vide": "Pas encore de recherche.",
         "correspondants": "{count, plural, =0 {Aucun bien ne correspond} one {# bien correspond} other {# biens correspondent}}",
-        "correspondantsSansNombre": "Biens correspondants"
+        "correspondantsSansNombre": "Biens correspondants",
+        "modifierAria": "Modifier sa recherche"
       },
       "origine": {
         "titre": "Origine",
@@ -3742,6 +3749,17 @@
           "note": "Note",
           "tache": "Tâche",
           "visite": "Visite"
+        },
+        "fiche": {
+          "creee": "Fiche créée",
+          "modifiee": "Fiche modifiée : {champs}",
+          "modifieeSansChamp": "Fiche modifiée"
+        },
+        "tache": {
+          "creee": "Tâche créée : {titre}",
+          "creeeSansTitre": "Tâche créée",
+          "faite": "Tâche faite : {titre}",
+          "faiteSansTitre": "Tâche faite"
         }
       },
       "dossier": {
@@ -3764,10 +3782,10 @@
         "plus": "Plus d’actions"
       },
       "modifier": {
-        "titre": "Modifier la fiche",
+        "titre": "Modifier {prenom}",
         "identite": "Identité",
         "contact": "Contact",
-        "recherche": "Ce qu’il cherche",
+        "recherche": "Sa recherche",
         "piece": "Pièce d’identité",
         "aucunContact": "Ni téléphone ni e-mail",
         "aucunePiece": "Aucune pièce",
@@ -3779,8 +3797,11 @@
           "texte": "Ce que vous avez saisi n’est pas enregistré sur la fiche.",
           "rester": "Continuer la saisie",
           "abandonner": "Abandonner"
-        }
-      }
+        },
+        "sousTitre": "Fiche client"
+      },
+      "ecrire": "Écrire",
+      "ecrireA": "Écrire à {nom}"
     }
   },
   "agentCrm": {
