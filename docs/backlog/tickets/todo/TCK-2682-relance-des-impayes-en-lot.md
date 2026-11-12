@@ -1,7 +1,7 @@
 ---
 id: TCK-2682
 title: "Impayés : relancer une sélection, une conversation WhatsApp après l'autre, dans une file guidée"
-status: done
+status: todo
 phase: P2
 family: front
 estimate: M
