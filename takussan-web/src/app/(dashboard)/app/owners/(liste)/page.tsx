@@ -7,6 +7,7 @@ import { OwnersList } from '@/components/owners/OwnersList';
 import { isAdmin } from '@/lib/roles';
 import { capacitesDuProfilActif } from '@/lib/access/pages-admin-server';
 import { lireLeCarnet, parametresDuCarnet } from '@/lib/owners/carnet';
+import { ouvreLaFicheDuBailleur } from '@/lib/owners/fiche-accessible';
 import { getTranslations } from 'next-intl/server';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -57,7 +58,7 @@ export default async function Page({ searchParams }: { readonly searchParams?: S
   const lectureArgent = admin || (capacites ?? []).includes('payouts.create');
   // TCK-2641 (3a) — la fiche est celle de l'admin de l'agence (`OwnerProfilePolicy::viewDetail`) :
   // le super-admin sans profil d'admin dans l'agence ne l'ouvre pas non plus.
-  const lienVersLaFiche = user.roles.includes('agency_admin');
+  const lienVersLaFiche = ouvreLaFicheDuBailleur(user.roles);
 
   // TCK-2641 (4a) — le résumé du carnet et les comptes des vues arrivent avec la page
   // (`meta.summary`) : plus de lecture `per_page=1` par vue.

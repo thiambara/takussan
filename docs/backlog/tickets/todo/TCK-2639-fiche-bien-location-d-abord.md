@@ -153,3 +153,10 @@ Autres contraintes :
 - **La place réservée restait parfois pour de bon** (relevé au repos : 2 essais sur 4 à 1280, requête des profils pourtant `success`). Le serveur rend la place ; la coque, hydratée avant la fiche, a souvent déjà lu les profils, et le client rendait le vrai bouton dès l'hydratation — même balise, même texte : React garde les attributs du serveur (`invisible`, `aria-hidden`, « won't be patched up »). `PlanifierUneVisite` lit désormais les profils APRÈS l'hydratation (`useSyncExternalStore`, comme `VisitesParLeTemps`) ; test d'hydratation dans `PlanifierUneVisite.place-reservee.tck-2639.test.tsx`, rouge avant le correctif ; 5 essais sur 5 au navigateur ensuite. Vaut pour tous les appelants : avant, une fiche client hydratée avec les profils déjà lus rendait un bouton là où le serveur ne rendait rien.
 - **Preuves au navigateur** (2026-11-12, API locale, admin de démo, bien 6) : « Relancer » ouvre `https://wa.me/221…` avec le message de TCK-2644 (« Bonjour Aliou, le loyer de novembre (1 825 000 F CFA) reste à régler… ») ; à 1280, onglet Annonce défilé, la carte « Occupation » reste à l'écran (haut à 22 px) ; `scrollWidth − innerWidth = 0` à 390, 768, 1024, 1280 et 1440 (`fidelite balayer`).
 - **Fidélité** : `docs/qa/audit-ux-2026-11/fidelite/TCK-2639.json` (lignes, écarts acceptés, rideaux sous `takussan-web/.fidelite/TCK-2639/`).
+
+- 2026-11-12 — vérification adverse (d1, mineur) : le super-admin recevait le lien vers `/app/owners/{id}` (`isAdmin`),
+  que la page renvoie en 307 vers `/app`. Source unique côté front : `ouvreLaFicheDuBailleur(roles)`
+  (`src/lib/owners/fiche-accessible.ts`), lu par la garde de la page (`assertCanReachOwnerAccount`), le lien du
+  carnet et celui de la fiche du bien. L'API rend toujours `owner_profile_id` au super-admin, à qui
+  `GET /api/owners/{id}` est ouvert. Test `properties/[id]/__tests__/lien-vers-le-bailleur.tck-2639.test.tsx`
+  (3) : rouge avant ; ablations (`isAdmin` remis à la page ; super-admin dans le prédicat) rouges.

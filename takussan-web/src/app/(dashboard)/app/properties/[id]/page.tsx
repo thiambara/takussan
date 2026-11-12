@@ -31,6 +31,7 @@ import { contractTypeValues, propertyTypeValues } from '@/lib/schemas/property';
 import { getTranslations } from 'next-intl/server';
 import { PageHeader, StatusBadge } from '@/components/console';
 import { PagePleineLargeur } from '@/components/layout/PagePleineLargeur';
+import { ouvreLaFicheDuBailleur } from '@/lib/owners/fiche-accessible';
 import { isAdmin, isAgent } from '@/lib/roles';
 import { cn } from '@/lib/utils';
 
@@ -109,9 +110,10 @@ export default async function Page({ params, searchParams }: { params: Params; s
   // (l'API le lui refuse aussi). `getMeAction` est mémoïsé : le layout l'a déjà appelé.
   const { id: currentUserId, roles } = await getMeAction();
   const staff = isAgent(roles) || isAdmin(roles);
-  // TCK-2639 — le nom du bailleur mène à sa fiche (`/app/owners/{id}`, section de l'admin d'agence) ;
-  // l'API ne rend `owner_profile_id` qu'à qui l'ouvre.
-  const admin = isAdmin(roles);
+  // TCK-2639 — le nom du bailleur mène à sa fiche (`/app/owners/{id}`) pour qui cette page s'ouvre,
+  // par le prédicat de sa garde (d1 : `isAdmin` l'offrait au super-admin, que la page renvoie vers
+  // `/app`). L'API rend `owner_profile_id` au super-admin, à qui `GET /api/owners/{id}` est ouvert.
+  const lienVersLeBailleur = ouvreLaFicheDuBailleur(roles);
 
   const tagsResult = await fetchTagsAction({ filters: { type: 'amenity' } });
   const tags = tagsResult.ok ? (tagsResult.data?.data ?? []) : [];
@@ -238,11 +240,11 @@ export default async function Page({ params, searchParams }: { params: Params; s
       <div className="xl:flex xl:items-start xl:gap-6">
         <div className="min-w-0 flex-1 space-y-6 max-md:px-4">
           <PhotosDuBien property={property} forme="grille" className="max-md:hidden" />
-          <PropertyDetailTabs property={property} tags={tags} personnel={staff} lienVersLeBailleur={admin} />
+          <PropertyDetailTabs property={property} tags={tags} personnel={staff} lienVersLeBailleur={lienVersLeBailleur} />
           {staff ? <PropertyMatchingCustomers propertyId={property.id} /> : null}
         </div>
         <aside className="hidden flex-none space-y-4 xl:sticky xl:top-6 xl:block xl:w-100" data-slot="colonne-occupation">
-          <CarteOccupation property={property} personnel={staff} lienVersLeBailleur={admin} />
+          <CarteOccupation property={property} personnel={staff} lienVersLeBailleur={lienVersLeBailleur} />
           {locatif ? <BlocResponsable property={property} /> : null}
         </aside>
       </div>

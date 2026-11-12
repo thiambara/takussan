@@ -1,5 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
-import { isAdmin, isAgencyAdmin, isAgent, isOwner, isServiceProvider } from '@/lib/roles';
+import { ouvreLaFicheDuBailleur } from '@/lib/owners/fiche-accessible';
+import { isAdmin, isAgent, isOwner, isServiceProvider } from '@/lib/roles';
 import type { UserRole } from '@/types/user';
 
 /**
@@ -84,7 +85,7 @@ export function assertCanReachCalendar(roles: UserRole[]): void {
  * le même appel depuis la page rend 200 (TCK-442, `customers/[id]/layout.tsx`).
  */
 export function assertCanReachOwnerAccount(roles: UserRole[]): void {
-  if (!isAgencyAdmin(roles)) {
+  if (!ouvreLaFicheDuBailleur(roles)) {
     notFound();
   }
 }
