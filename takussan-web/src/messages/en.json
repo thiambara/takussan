@@ -8403,7 +8403,9 @@
         "morning": "morning",
         "afternoon": "afternoon",
         "evening": "evening"
-      }
+      },
+      "agentIndisponible": "This viewing’s agent is no longer available: reassign it",
+      "reattribuer": "Reassign"
     },
     "fiche": {
       "titre": "Visit",
@@ -8562,24 +8564,6 @@
         "proposer": "Suggest",
         "proposerA": "Suggest “{titre}” on WhatsApp",
         "absentPossibleA": "Possible from {heure}",
-        "types": {
-          "land": "land",
-          "house": "house",
-          "apartment": "apartment",
-          "villa": "villa",
-          "studio": "studio",
-          "room": "room",
-          "office": "office",
-          "shop": "commercial unit",
-          "warehouse": "warehouse",
-          "factory": "factory",
-          "farm": "farm",
-          "hotel": "hotel",
-          "resort": "resort",
-          "garage": "garage",
-          "parking": "parking",
-          "other": "other"
-        },
         "contrats": {
           "rent": "Rent",
           "sale": "Purchase"

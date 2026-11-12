@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
+import { ApiError } from '@/lib/api';
 import fr from '@/messages/fr.json';
 import { withIntl } from '@/test/intl';
 import type { PropertyVisit } from '@/types/visit';
@@ -26,6 +27,9 @@ const etat = vi.hoisted(() => ({
   agence: null as number | null,
   profils: undefined as unknown,
   creneaux: [] as (readonly [number | null, string | null, number | null | undefined])[],
+  capacites: [] as string[],
+  /** Suivi du lot A : l'agent parti ou suspendu, dont `/slots` refuse l'`agent_id` en 422. */
+  agentParti: null as number | null,
 }));
 const nav = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
 const confirmer = vi.hoisted(() => ({ mutateAsync: vi.fn(), isPending: false }));
@@ -42,6 +46,7 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ add: vi.fn() }) }));
 vi.mock('@/hooks/usePersonnelActif', () => ({ useAgenceDuPersonnelActif: () => etat.agence }));
 vi.mock('@/hooks/useProfiles', () => ({ useMyProfiles: () => ({ data: etat.profils }) }));
+vi.mock('@/hooks/useCan', () => ({ useCan: (c: string) => ({ can: etat.capacites.includes(c), isLoading: false }) }));
 
 /** Les créneaux du mercredi 11 : 14:00 pris, 15:00, 15:30 et 17:00 libres. */
 function creneaux(jour: string | null) {
@@ -69,6 +74,9 @@ vi.mock('@/lib/queries/visits', () => ({
   useUpdateVisitReport: () => autre,
   useCreneauxDeVisite: (id: number | null, jour: string | null, agent?: number | null) => {
     etat.creneaux.push([id, jour, agent]);
+    if (jour && agent != null && agent === etat.agentParti) {
+      return { data: undefined, isError: true, error: new ApiError(422, { message: 'Le champ agent est invalide.', errors: { agent_id: ['Le champ agent est invalide.'] } }), dataUpdatedAt: 0 };
+    }
     return creneaux(jour);
   },
 }));
@@ -148,6 +156,8 @@ beforeEach(() => {
   etat.agence = null;
   etat.profils = undefined;
   etat.creneaux = [];
+  etat.capacites = [];
+  etat.agentParti = null;
   confirmer.mutateAsync.mockResolvedValue({});
   vi.stubGlobal('fetch', fetchEspion);
   ecrans(true);
@@ -376,6 +386,11 @@ describe('TCK-2587 lot B — la barre à deux gestes', () => {
     expect(barre()).toHaveAttribute('data-secondaire', 'premier');
     expect(barre().className).toContain('*:first:not-last:flex-none');
   });
+
+  it('des boutons de 48 px, comme la maquette : `taille="action"` sur la barre de la fiche (complément du team-lead)', () => {
+    monter();
+    expect(barre()).toHaveAttribute('data-taille', 'action');
+  });
 });
 
 describe('TCK-2587 lot B — le numéro au téléphone', () => {
@@ -443,7 +458,7 @@ describe('TCK-2587 lot B — réponses du team-lead', () => {
       expect(el).not.toBeNull();
       return el as HTMLElement;
     });
-    expect(within(dl).getByText(/^Location · local commercial · Plateau, Yoff · jusqu’à 500\s000\sF\/mois$/u)).toBeInTheDocument();
+    expect(within(dl).getByText(/^Location · commerce · Plateau, Yoff · jusqu’à 500\s000\sF\/mois$/u)).toBeInTheDocument();
     expect(within(dl).getByText('Prospect')).toBeInTheDocument();
     const fiche = lecturesDuClient().filter((u) => /\/api\/customers\/45(\?|$)/.test(u));
     expect(fiche.length).toBeGreaterThan(0);
@@ -511,5 +526,53 @@ describe('TCK-2587 lot B — réponses du team-lead', () => {
     expect(etat.creneaux.some(([id, jour, agent]) => id === 10 && jour !== null && agent === 21)).toBe(true);
     // Toute lecture de créneaux de la fiche — la tranche ET le choix « Autre heure » — porte l'agent.
     expect(etat.creneaux.every(([, , agent]) => agent === 21)).toBe(true);
+  });
+});
+
+describe('TCK-2587 — suivi du lot A : l’agent de la visite parti ou suspendu (`/slots` en 422)', () => {
+  const MESSAGE = 'L’agent de cette visite n’est plus disponible : réattribuez-la';
+  beforeEach(() => {
+    etat.visite = visite({ status: 'scheduled', preferred_window: 'afternoon', scheduled_at: '2026-11-11T14:00:00Z', agent_id: 21 });
+    etat.agentParti = 21;
+    etat.agence = 3;
+  });
+
+  it('téléphone, avec `crm.assign` : la demande le dit, et la barre réattribue au lieu de confirmer', () => {
+    etat.capacites = ['crm.assign'];
+    monter();
+    const ligne = document.querySelector('[data-slot="carte-demande-recue"] [data-slot="agent-indisponible"]') as HTMLElement;
+    expect(within(ligne).getByRole('status')).toHaveTextContent(MESSAGE);
+    expect(within(ligne).getByRole('button', { name: 'Réattribuer' })).toBeInTheDocument();
+    const barre = document.querySelector('[data-slot="barre-d-action"]') as HTMLElement;
+    expect(within(barre).getByRole('button', { name: 'Réattribuer' })).toBeInTheDocument();
+    expect(within(barre).queryByRole('button', { name: /^Confirmer/ })).toBeNull();
+    // Ni heure, ni « Autre… » : l'autre heure lirait les mêmes créneaux refusés.
+    expect(screen.queryByRole('button', { name: f.demande.autre })).toBeNull();
+    // Aucune relecture sans agent : les heures de l'appelant ne remplacent pas celles de la visite.
+    expect(etat.creneaux.filter(([, jour]) => jour !== null).every(([, , agent]) => agent === 21)).toBe(true);
+  });
+
+  it('téléphone, sans `crm.assign` : la ligne seule, aucun geste inventé', () => {
+    monter();
+    const ligne = document.querySelector('[data-slot="carte-demande-recue"] [data-slot="agent-indisponible"]') as HTMLElement;
+    expect(within(ligne).getByRole('status')).toHaveTextContent(MESSAGE);
+    expect(screen.queryByRole('button', { name: 'Réattribuer' })).toBeNull();
+  });
+
+  it('bureau : « Réattribuer » prend la place de « Confirmer à … » ; le corps dit pourquoi', () => {
+    ecrans(false);
+    etat.capacites = ['crm.assign'];
+    monter();
+    expect(screen.queryByRole('button', { name: /^Confirmer à/ })).toBeNull();
+    expect(screen.getAllByRole('button', { name: 'Réattribuer' })).toHaveLength(1);
+    const corps = document.querySelector('[data-slot="carte-creneau"] [data-slot="agent-indisponible"]') as HTMLElement;
+    expect(within(corps).getByRole('status')).toHaveTextContent(MESSAGE);
+  });
+
+  it('« Autre heure » (`?heure=autre`) : le dialogue le dit au lieu de rester vide', () => {
+    etat.recherche = 'heure=autre';
+    monter();
+    const dialogue = document.querySelector('[data-slot="autre-heure"]') as HTMLElement;
+    expect(within(dialogue).getByRole('status')).toHaveTextContent(MESSAGE);
   });
 });

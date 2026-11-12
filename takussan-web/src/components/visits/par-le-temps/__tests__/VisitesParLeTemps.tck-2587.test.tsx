@@ -22,6 +22,8 @@ const etat = vi.hoisted(() => ({
   lot: null as unknown,
   aClore: null as PropertyVisit[] | null,
   aConfirmer: null as PropertyVisit[] | null,
+  /** Suivi du lot A : l'agent parti ou suspendu, dont `/slots` refuse l'`agent_id` en 422. */
+  agentParti: null as number | null,
 }));
 
 const remplacer = vi.hoisted(() => vi.fn());
@@ -116,6 +118,9 @@ vi.mock('@/lib/api', async (original) => {
       const p = new URLSearchParams(qs ?? '');
       if (route === '/api/property-visits/counts') return { data: COMPTES };
       if (route === '/api/property-visits/slots') {
+        if (etat.agentParti !== null && p.get('agent_id') === String(etat.agentParti)) {
+          throw new vrai.ApiError(422, { message: 'Le champ agent est invalide.', errors: { agent_id: ['Le champ agent est invalide.'] } });
+        }
         const jour = p.get('date');
         return {
           data: {
@@ -152,7 +157,7 @@ const ecritures = (fin: string) => etat.appels.filter((a) => a.methode === 'POST
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(MAINTENANT);
-  Object.assign(etat, { recherche: '', large: false, agence: 3, capacites: ['crm.assign'], appels: [], lot: null, aClore: null, aConfirmer: null });
+  Object.assign(etat, { recherche: '', large: false, agence: 3, capacites: ['crm.assign'], appels: [], lot: null, aClore: null, aConfirmer: null, agentParti: null });
   remplacer.mockClear();
   pousser.mockClear();
   toastAdd.mockClear();
@@ -236,6 +241,20 @@ describe('À confirmer : confirmer sans ouvrir la fiche', () => {
     await waitFor(() => expect(lectures('/api/property-visits/slots').length).toBeGreaterThan(0));
     const creneaux = lectures('/api/property-visits/slots').map((a) => new URLSearchParams(a.chemin.split('?')[1]));
     expect(creneaux.every((p) => !p.has('agent_id'))).toBe(true);
+  });
+
+  it('suivi du lot A — l’agent de la visite parti ou suspendu (`/slots` en 422) : la carte le dit, sans heures de repli', async () => {
+    etat.recherche = 'vue=to_confirm';
+    etat.agentParti = 3;
+    monter();
+    const carte = (await screen.findByText('L’après-midi · heure à fixer')).closest('[data-slot="carte-demande"]') as HTMLElement;
+    const ligne = await within(carte).findByText('L’agent de cette visite n’est plus disponible : réattribuez-la');
+    expect(ligne).toHaveAttribute('role', 'status');
+    expect(within(carte).queryByRole('button', { name: /^Confirmer/ })).toBeNull();
+    expect(within(carte).queryByText('Aucune heure libre dans la tranche')).toBeNull();
+    // Aucune relecture sans `agent_id` : les heures de l'appelant ne remplacent pas celles de la visite.
+    const creneaux = lectures('/api/property-visits/slots').map((a) => new URLSearchParams(a.chemin.split('?')[1]));
+    expect(creneaux.filter((q) => q.get('property_id') === '53').every((q) => q.get('agent_id') === '3')).toBe(true);
   });
 
   it('une demande à heure fixée se confirme à son heure, sans `scheduled_at`', async () => {
@@ -334,6 +353,22 @@ describe('le bureau', () => {
     expect(screen.getByRole('checkbox', { name: 'Tout sélectionner' })).toHaveAttribute('aria-checked', 'mixed');
     await user.click(screen.getByRole('checkbox', { name: 'Tout sélectionner' }));
     expect(screen.getByRole('checkbox', { name: 'Tout sélectionner' })).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('suivi du lot A — l’agent de la visite parti : la ligne le dit sous l’agent, et « Réattribuer » attribue la visite', async () => {
+    etat.large = true;
+    etat.recherche = 'vue=to_confirm';
+    etat.agentParti = 3;
+    const user = userEvent.setup();
+    monter();
+    const message = await screen.findByText('L’agent de cette visite n’est plus disponible : réattribuez-la');
+    const ligne = message.closest('[data-slot="ligne-de-visite"]') as HTMLElement;
+    expect(within(ligne).getByText('Abdoulaye Cissé')).toBeInTheDocument();
+    expect(within(ligne).queryByRole('button', { name: /^Confirmer/ })).toBeNull();
+    await user.click(within(ligne).getByRole('button', { name: 'Réattribuer' }));
+    await user.click(await screen.findByRole('button', { name: 'Moussa Fall' }));
+    await waitFor(() => expect(ecritures('/api/property-visits/bulk-assign')).toHaveLength(1));
+    expect(ecritures('/api/property-visits/bulk-assign')[0].corps).toEqual(expect.objectContaining({ ids: [2301], agent_id: 21 }));
   });
 
   it('les onglets du bureau se comptent sur la même lecture : « Toutes 58 »', async () => {

@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { agentIndisponible } from '@/components/visits/par-le-temps/pieces';
 import { PastilleDeChoix } from '@/components/visits/planification/PiecesDeLaPlanification';
 import { decalerJour, jourDeLApi } from '@/lib/jour-de-l-api';
 import { useCreneauxDeVisite } from '@/lib/queries/visits';
@@ -37,6 +38,7 @@ export function AutreHeure({
   readonly onFermer: () => void;
 }) {
   const t = useTranslations('visits.fiche.autreHeure');
+  const tPlt = useTranslations('visits.parLeTemps');
   const locale = useLocale();
   const [premierJour] = useState(() => jourDeLApi());
   const dernierJour = decalerJour(premierJour, JOURS_DE_VISITE_OUVERTS);
@@ -86,6 +88,11 @@ export function AutreHeure({
               <p className="text-sm text-muted-foreground">{t('aucune')}</p>
             )}
           </fieldset>
+        ) : jour && agentIndisponible(creneaux.error) ? (
+          // Suivi du lot A : l'agent de la visite est parti ou suspendu — aucune heure de l'appelant en repli.
+          <p role="status" data-slot="agent-indisponible" className="text-sm font-medium text-warning">
+            {tPlt('agentIndisponible')}
+          </p>
         ) : null}
         {erreur ? (
           <p role="alert" className="text-sm text-destructive">

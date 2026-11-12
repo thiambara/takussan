@@ -7,6 +7,7 @@ import { MapPin, Navigation, Phone } from 'lucide-react';
 
 import { isReachable, telHref, whatsappHref } from '@/components/crm/contact';
 import { IconeWhatsApp } from '@/components/crm/IconeWhatsApp';
+import { ApiError } from '@/lib/api';
 import { useCreneauxDeVisite } from '@/lib/queries/visits';
 import { DELAI_DE_PREVENANCE_MINUTES } from '@/lib/visites/planification';
 import { heuresLibresDeLaTranche, jourADakar } from '@/lib/visites/par-le-temps';
@@ -78,11 +79,23 @@ export interface HeureProposee {
  * tranche (« l'après-midi ») : les créneaux LIBRES du jour (`GET /api/property-visits/slots`) qui
  * tombent dans la tranche, au-delà du délai de prévenance — la première est « Confirmer 15:00 ».
  */
+/** Où en sont les heures proposées. `agent-indisponible` : voir {@link agentIndisponible}. */
+export type EtatDesHeures = 'charge' | 'attente' | 'aucune' | 'agent-indisponible';
+
+/**
+ * TCK-2587 (suivi du lot A) — `/slots` refuse en 422 sur `agent_id` l'agent de la visite qui n'est
+ * plus personnel actif de l'agence du bien (parti, suspendu : `PersonnelDeLAgence`). La carte le dit,
+ * et ne se replie PAS sur les heures de l'appelant : ce ne sont pas celles de la visite.
+ */
+export function agentIndisponible(erreur: unknown): boolean {
+  return erreur instanceof ApiError && erreur.validationErrors?.agent_id !== undefined;
+}
+
 export function useHeuresProposees(
   v: PropertyVisit,
   heureDe: (iso: string) => string,
   actif = true,
-): { readonly etat: 'charge' | 'attente' | 'aucune'; readonly heures: readonly HeureProposee[] } {
+): { readonly etat: EtatDesHeures; readonly heures: readonly HeureProposee[] } {
   const tranche = v.status === 'scheduled' ? (v.preferred_window ?? null) : null;
   const jour = tranche && v.scheduled_at ? jourADakar(new Date(v.scheduled_at)) : null;
   // Les heures libres de l'agent de la visite (d1) : un admin ne propose pas les siennes.
@@ -90,7 +103,10 @@ export function useHeuresProposees(
   if (!tranche) {
     return v.scheduled_at ? { etat: 'charge', heures: [{ start: null, label: heureDe(v.scheduled_at) }] } : { etat: 'aucune', heures: [] };
   }
-  if (!creneaux.data) return { etat: creneaux.isError ? 'aucune' : 'attente', heures: [] };
+  if (!creneaux.data) {
+    if (agentIndisponible(creneaux.error)) return { etat: 'agent-indisponible', heures: [] };
+    return { etat: creneaux.isError ? 'aucune' : 'attente', heures: [] };
+  }
   // L'instant de la lecture des créneaux tient lieu de « maintenant » : un rendu reste pur.
   const auPlusTot = creneaux.dataUpdatedAt + DELAI_DE_PREVENANCE_MINUTES * 60_000;
   const heures = heuresLibresDeLaTranche(creneaux.data.data.slots, tranche, auPlusTot).map((c) => ({ start: c.start, label: c.label }));

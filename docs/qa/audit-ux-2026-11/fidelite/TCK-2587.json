@@ -341,13 +341,6 @@
       "motif": "aucune tuile ni image de carte dans le produit ; l’adresse et « Itinéraire » restent"
     },
     {
-      "ecran": "app-visites a-{2,3}-telephone",
-      "element": "boutons de la barre collante",
-      "propriete": "hauteur 44 px contre « grand »",
-      "exception": "règle du design system",
-      "motif": "BarreDAction (TCK-2689, point porteur n° 1 de TCK-2712) fixe des boutons de taille par défaut"
-    },
-    {
       "ecran": "app-visites a-1-*",
       "element": "heure libre 17:00 de l’après-midi",
       "propriete": "absente",
@@ -395,6 +388,13 @@
       "propriete": "absente",
       "exception": "donnée",
       "motif": "la référente vient des relations du client, une autre lecture que GET /api/customers/{id} ; « N’inventez pas de flux » (réponse 1)"
+    },
+    {
+      "ecran": "app-visites a-{1,2,3}-bureau-*",
+      "element": "« Location · local commercial · … » (Cherche)",
+      "propriete": "« commerce » contre « local commercial »",
+      "exception": "décision produit",
+      "motif": "une seule langue dans le produit (team-lead) : le type cherché prend le libellé du reste du produit (nav.categories, mot pour mot property.types) ; aucun libellé propre à la fiche"
     },
     {
       "ecran": "app-visites a-3-bureau-*",

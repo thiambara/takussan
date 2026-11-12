@@ -127,6 +127,8 @@ function Ligne({ v, coche, refus, onCocher, onHeureProposee, gestes, agence }: L
   const proposees = useHeuresProposees(v, (iso) => f.heure(iso), gestes !== null && aConfirmer);
   const tranche = aConfirmer ? (v.preferred_window ?? null) : null;
   const premiere = tranche ? (proposees.heures[0] ?? null) : null;
+  // Suivi du lot A : l'agent de la visite est parti ou suspendu (`/slots` refuse son `agent_id`).
+  const indisponible = aConfirmer && proposees.etat === 'agent-indisponible';
   const clePremiere = premiere?.start ?? null;
   // La barre de sélection redit les heures proposées des tranches cochées : la ligne les lui remonte.
   useEffect(() => {
@@ -173,13 +175,18 @@ function Ligne({ v, coche, refus, onCocher, onHeureProposee, gestes, agence }: L
       </td>
       <td className="px-3">
         <AgentCellule v={v} />
+        {indisponible ? (
+          <p role="status" data-slot="agent-indisponible" className="mt-0.5 max-w-48 text-ui font-medium text-warning">
+            {t('agentIndisponible')}
+          </p>
+        ) : null}
       </td>
       <td className="px-3">
         <StatusBadge tone={VISIT_STATUS_TONE[status]} label={tVisits(VISIT_STATUS_LABEL_KEY[status])} />
         {v.type ? <TypeDeVisite type={v.type} className="mt-1 flex" /> : null}
       </td>
       <td className="py-2 pr-4 pl-3 text-right">
-        {gestes && aConfirmer && v.agent_id ? (
+        {gestes && aConfirmer && v.agent_id && !indisponible ? (
           <ConfirmerALHeure v={v} proposees={proposees.heures} etat={proposees.etat} enCours={gestes.enCours === v.id} onConfirmer={gestes.onConfirmer} taille="table" />
         ) : gestes && aConfirmer && agence !== null ? (
           <AttribuerA
@@ -187,7 +194,7 @@ function Ligne({ v, coche, refus, onCocher, onHeureProposee, gestes, agence }: L
             onChoisir={(agentId) => gestes.onAttribuer([v.id], agentId)}
             declencheur={
               <button type="button" className="inline-flex h-8 items-center rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring">
-                {t('bureau.attribuer')}
+                {indisponible ? t('reattribuer') : t('bureau.attribuer')}
               </button>
             }
           />

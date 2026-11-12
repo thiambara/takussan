@@ -18,6 +18,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { AttribuerA } from '@/components/visits/par-le-temps/TableDesVisites';
 import { formaterTelephone } from '@/lib/phone';
+import { nomAffichable } from '@/lib/identite';
 import { CARTE, GesteItineraire, nomDuVisiteur, telephoneDuVisiteur, useDureeEnClair, useHeuresProposees, type HeureProposee } from '@/components/visits/par-le-temps/pieces';
 import { PastilleDeChoix, useDetailDuBien } from '@/components/visits/planification/PiecesDeLaPlanification';
 import { VISIT_STATUS_LABEL_KEY, VISIT_STATUS_TONE, VISIT_TYPE_LABEL_KEY } from '@/components/visits/visit-status';
@@ -337,6 +338,34 @@ function useAutresGestes(p: FicheDeLaVisiteProps, l: Lecture, sansReplanifier = 
 
 /* ───────────────────────────── les cartes d'état ───────────────────────────── */
 
+/**
+ * Suivi du lot A (TCK-2587) — l'agent de la visite est parti ou suspendu : `/slots` refuse son
+ * `agent_id`. La ligne le dit ; « Réattribuer » quand le geste existe (`crm.assign`), sinon rien
+ * d'inventé. Aucune heure de l'appelant en repli : ce ne sont pas celles de la visite.
+ */
+function AgentIndisponible({ g, avecGeste = true, className }: { readonly g: GestesDeLaFiche; readonly avecGeste?: boolean; readonly className?: string }) {
+  const t = useTranslations('visits.parLeTemps');
+  return (
+    <div data-slot="agent-indisponible" className={cn('flex flex-wrap items-center gap-x-3 gap-y-2', className)}>
+      <p role="status" className="text-ui font-medium text-warning">
+        {t('agentIndisponible')}
+      </p>
+      {avecGeste && g.attribuer ? (
+        <AttribuerA
+          agence={g.attribuer.agence}
+          onChoisir={g.attribuer.onChoisir}
+          disabled={g.enCours}
+          declencheur={
+            <Button variant="outline" size="sm">
+              {t('reattribuer')}
+            </Button>
+          }
+        />
+      ) : null}
+    </div>
+  );
+}
+
 /** Avant : ce que le visiteur a demandé, et les heures libres ce jour-là. */
 function CarteDemandeRecue({
   v,
@@ -345,6 +374,7 @@ function CarteDemandeRecue({
   choisie,
   onChoisir,
   onAutre,
+  gestes,
 }: {
   readonly v: PropertyVisit;
   readonly l: Lecture;
@@ -352,6 +382,7 @@ function CarteDemandeRecue({
   readonly choisie: HeureProposee | null;
   readonly onChoisir: ((h: HeureProposee) => void) | null;
   readonly onAutre: (() => void) | null;
+  readonly gestes: GestesDeLaFiche;
 }) {
   const t = useTranslations('visits.fiche.demande');
   const tPlt = useTranslations('visits.parLeTemps');
@@ -368,6 +399,7 @@ function CarteDemandeRecue({
       {onChoisir && l.tranche ? (
         <>
           <p className="mt-5 text-sm font-medium text-foreground">{t('heuresLibres')}</p>
+          {proposees.etat === 'agent-indisponible' ? <AgentIndisponible g={gestes} className="mt-2.5" /> : null}
           {proposees.etat === 'attente' ? <p className="mt-2.5 text-ui text-muted-foreground">{t('chargement')}</p> : null}
           {proposees.etat === 'aucune' ? <p className="mt-2.5 text-ui text-muted-foreground">{t('aucune')}</p> : null}
           <div className="mt-2.5 flex flex-wrap gap-2">
@@ -376,7 +408,7 @@ function CarteDemandeRecue({
                 {h.label}
               </PastilleDeChoix>
             ))}
-            {onAutre ? (
+            {onAutre && proposees.etat !== 'agent-indisponible' ? (
               <PastilleDeChoix actif={false} onChoisir={onAutre} className="border-dashed">
                 {t('autre')}
               </PastilleDeChoix>
@@ -443,7 +475,7 @@ function useLignesDuCreneau(p: FicheDeLaVisiteProps, l: Lecture, bureau: boolean
     ],
     [t('duree'), l.duree(l.minutes)],
     [t('type'), l.type],
-    [t('accompagnement'), v.agent ? [v.agent.first_name, v.agent.last_name].filter(Boolean).join(' ') || tDetail('assignedAgent') : t('nonAttribuee')],
+    [t('accompagnement'), v.agent ? nomAffichable(v.agent, tDetail('assignedAgent')) : t('nonAttribuee')],
     [t('reference'), `#${v.id}`],
   ];
   const motif = v.cancellation_reason?.trim() ? (
@@ -459,6 +491,7 @@ function useLignesDuCreneau(p: FicheDeLaVisiteProps, l: Lecture, bureau: boolean
 
 function FicheTelephone(p: FicheDeLaVisiteProps) {
   const t = useTranslations('visits.fiche');
+  const tPlt = useTranslations('visits.parLeTemps');
   const locale = useLocale();
   const l = useLecture(p);
   const { visite: v, etat, gestes: g, personnel } = p;
@@ -481,6 +514,14 @@ function FicheTelephone(p: FicheDeLaVisiteProps) {
           <Check className="size-icone" aria-hidden="true" />
           {t('barre.confirmerPour', { jour: l.jour ? jourDeLaBarre(l.jour, locale) : '', heure: heureChoisie.label })}
         </Button>
+      ) : proposees.etat === 'agent-indisponible' && g.attribuer ? (
+        // Suivi du lot A : sans agent disponible, le geste du bas est de réattribuer la visite.
+        <AttribuerA
+          agence={g.attribuer.agence}
+          onChoisir={g.attribuer.onChoisir}
+          disabled={g.enCours}
+          declencheur={<Button className="w-full">{tPlt('reattribuer')}</Button>}
+        />
       ) : (
         <Button className="w-full" disabled={g.enCours} onClick={() => p.onAutreHeure(true)}>
           {t('barre.confirmerChoisir')}
@@ -560,6 +601,7 @@ function FicheTelephone(p: FicheDeLaVisiteProps) {
             choisie={heureChoisie}
             onChoisir={g.confirmer ? setChoisie : null}
             onAutre={g.confirmer ? () => p.onAutreHeure(true) : null}
+            gestes={g}
           />
         ) : null}
         <CarteLieu v={v} detail={detail} itinerairePlein={etat === 'jour-j' || etat === 'en-cours'} />
@@ -585,7 +627,12 @@ function FicheTelephone(p: FicheDeLaVisiteProps) {
         ) : null}
         <AutresGestes gestes={autres} />
       </div>
-      {barre ? <BarreDAction secondaire={secondaire}>{barre}</BarreDAction> : null}
+      {barre ? (
+        // Le complément du team-lead : des boutons de 48 px, comme la maquette (le défaut de la barre reste 44).
+        <BarreDAction secondaire={secondaire} taille="action">
+          {barre}
+        </BarreDAction>
+      ) : null}
       {p.autreHeure && g.confirmer ? <DialogueAutreHeure p={p} l={l} /> : null}
     </PagePleineLargeur>
   );
@@ -715,6 +762,9 @@ export function EnTeteDeLaFiche(p: FicheDeLaVisiteProps) {
                 <Check className="size-4" aria-hidden="true" />
                 {premiere.start ? t('autreHeure.confirmer', { heure: premiere.label }) : t('autres.confirmer')}
               </Button>
+            ) : proposees.etat === 'agent-indisponible' && g.attribuer ? (
+              // Suivi du lot A : l'agent de la visite est parti ou suspendu — le geste principal réattribue.
+              <AttribuerA agence={g.attribuer.agence} onChoisir={g.attribuer.onChoisir} disabled={g.enCours} declencheur={<Button>{tPlt('reattribuer')}</Button>} />
             ) : null}
           </>
         ) : null}
@@ -860,6 +910,7 @@ export function CorpsDeLaFiche(p: FicheDeLaVisiteProps) {
           {v.notes?.trim() ? (
             <p className="mt-1.5 max-w-xl rounded-xl rounded-tl-sm bg-muted px-3.5 py-2.5 text-corps leading-relaxed whitespace-pre-line text-foreground">« {v.notes.trim()} »</p>
           ) : null}
+          {personnel && l.tranche && proposees.etat === 'agent-indisponible' ? <AgentIndisponible g={p.gestes} avecGeste={false} className="mt-2" /> : null}
           {personnel && l.tranche && proposees.heures.length > 0 ? (
             <p className="mt-2 text-ui text-muted-foreground tabular-nums">{t('bureau.heuresLibres', { quand: `${jourDeLaDemande} ${t(`tranches.${l.tranche}`)}`, heures: proposees.heures.slice(0, 3).map((h) => h.label).join(' · ') })}</p>
           ) : null}
@@ -946,10 +997,13 @@ function useFicheDuClient(clientId: number | null) {
 /** « Location · local commercial · Plateau, Yoff · jusqu’à 500 000 F/mois » — ce qui est renseigné. */
 function useCeQuIlCherche(c: Partial<CustomerDetail> | null): string | null {
   const t = useTranslations('visits.fiche.bureau');
+  // Une seule langue dans le produit (team-lead) : le libellé du type est celui du reste du produit.
+  // `nav.categories` porte mot pour mot `property.types` (fr, en, wo), et la coque /app le sert déjà ;
+  // `property` (13,9 Ko gzip) ferait monter chaque page de /app/visits de 28,5 à 37 %.
+  const tTypes = useTranslations('nav.categories');
   const { montantCourt } = useFormatteurs();
   if (!c) return null;
-  // Les libellés vivent sous `visits.fiche` : l'espace `property` (41 Ko) n'est pas chargé sur /app/visits.
-  const types = (c.seeking_property_types ?? []).map((x) => (t.has(`types.${x}`) ? t(`types.${x}`) : x));
+  const types = (c.seeking_property_types ?? []).map((x) => (tTypes.has(x) ? minuscule(tTypes(x)) : x));
   const lieux = (c.seeking_neighborhoods?.length ? c.seeking_neighborhoods : c.seeking_cities) ?? [];
   const plafond = c.budget_max !== null && c.budget_max !== undefined && c.budget_max !== '' ? montantCourt(Number(c.budget_max)) : null;
   const parties = [

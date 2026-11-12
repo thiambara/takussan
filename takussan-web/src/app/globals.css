@@ -416,6 +416,18 @@
   :root:has(#emplacement-barre-d-action[data-bas-de-l-ecran] > [data-slot="barre-d-action"]) {
     --barre-d-action-hauteur: calc(var(--spacing-controle) + var(--spacing) * 6 + 1px + env(safe-area-inset-bottom));
   }
+  /* TCK-2587 — `taille="action"` (la fiche d'une visite) : des boutons de 48 px, `--spacing-controle-action`,
+     comme les maquettes app-visites a-1 à a-3. La hauteur de la barre suit, sinon le toast et le dock
+     mordraient de 4 px sur elle. Le défaut (44 px) ne change pas. */
+  [data-slot="barre-d-action"][data-taille="action"] {
+    --spacing-controle: var(--spacing-controle-action);
+  }
+  :root:has(#emplacement-barre-d-action > [data-slot="barre-d-action"][data-taille="action"]) {
+    --barre-d-action-hauteur: calc(var(--spacing-controle-action) + var(--spacing) * 6 + 1px);
+  }
+  :root:has(#emplacement-barre-d-action[data-bas-de-l-ecran] > [data-slot="barre-d-action"][data-taille="action"]) {
+    --barre-d-action-hauteur: calc(var(--spacing-controle-action) + var(--spacing) * 6 + 1px + env(safe-area-inset-bottom));
+  }
   :root:has([data-barre-onglets]) {
     --toast-bas: calc(var(--spacing) * 4 + var(--barre-onglets-hauteur) + var(--barre-d-action-hauteur));
   }

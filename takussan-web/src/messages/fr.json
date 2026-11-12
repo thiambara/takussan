@@ -8403,7 +8403,9 @@
         "morning": "matin",
         "afternoon": "après-midi",
         "evening": "soir"
-      }
+      },
+      "agentIndisponible": "L’agent de cette visite n’est plus disponible : réattribuez-la",
+      "reattribuer": "Réattribuer"
     },
     "fiche": {
       "titre": "Visite",
@@ -8562,24 +8564,6 @@
         "proposer": "Proposer",
         "proposerA": "Proposer « {titre} » sur WhatsApp",
         "absentPossibleA": "Possible à partir de {heure}",
-        "types": {
-          "land": "terrain",
-          "house": "maison",
-          "apartment": "appartement",
-          "villa": "villa",
-          "studio": "studio",
-          "room": "chambre",
-          "office": "bureau",
-          "shop": "local commercial",
-          "warehouse": "entrepôt",
-          "factory": "usine",
-          "farm": "ferme",
-          "hotel": "hôtel",
-          "resort": "complexe",
-          "garage": "garage",
-          "parking": "parking",
-          "other": "autre"
-        },
         "contrats": {
           "rent": "Location",
           "sale": "Achat"

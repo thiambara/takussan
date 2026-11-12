@@ -23,6 +23,7 @@ import {
   CARTE,
   GesteItineraire,
   GestesDuVisiteur,
+  type EtatDesHeures,
   type HeureProposee,
   nomDuVisiteur,
   TuileDate,
@@ -327,7 +328,7 @@ export function ConfirmerALHeure({
 }: {
   readonly v: PropertyVisit;
   readonly proposees: readonly HeureProposee[];
-  readonly etat: 'charge' | 'attente' | 'aucune';
+  readonly etat: EtatDesHeures;
   readonly enCours: boolean;
   readonly onConfirmer: (v: PropertyVisit, heure: HeureProposee) => void;
   readonly taille?: 'carte' | 'table';
@@ -340,6 +341,14 @@ export function ConfirmerALHeure({
     taille === 'carte'
       ? 'ml-auto inline-flex h-11 items-stretch overflow-hidden rounded-lg bg-primary/10 text-sm font-semibold text-primary-deep'
       : 'inline-flex h-8 items-stretch overflow-hidden rounded-lg border border-border bg-card text-sm font-medium text-foreground';
+  if (etat === 'agent-indisponible') {
+    // Suivi du lot A : l'agent de la visite est parti ou suspendu — dit, sans heures de repli.
+    return (
+      <span role="status" data-slot="agent-indisponible" className={cn(taille === 'carte' ? 'ml-auto min-w-0 px-2 text-right' : '', 'text-ui font-medium text-warning')}>
+        {t('agentIndisponible')}
+      </span>
+    );
+  }
   if (etat === 'aucune' || (etat === 'charge' && !premiere)) {
     return <span className={cn(taille === 'carte' ? 'ml-auto px-2' : '', 'text-ui text-muted-foreground')}>{t('aucuneHeureLibre')}</span>;
   }
