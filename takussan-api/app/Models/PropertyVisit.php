@@ -195,7 +195,7 @@ class PropertyVisit extends AbstractModel
         // TCK-2587 — et le nom et le téléphone de la FICHE client liée : c'est eux que la console
         // affiche (`visitor_display` : le nom de la fiche d'abord, le téléphone saisi d'abord).
         // Chaque mot doit se trouver dans le prénom ou le nom (« Abdoulaye Ciss » trouve Abdoulaye
-        // Cissé). La fiche ne se cherche que sous la même condition que le nom saisi : le lecteur est
+        // Cissé) — et, de même, dans le nom saisi de la visite. La fiche ne se cherche que sous la même condition que le nom saisi : le lecteur est
         // du personnel de l'agence du bien.
         $filters[] = AllowedFilter::callback('search', function (Builder $q, mixed $value) {
             $value = trim(ParametreUnique::valeur($value) ?? '');
@@ -221,9 +221,16 @@ class PropertyVisit extends AbstractModel
 
             $q->where(function (Builder $w) use ($motif, $mots, $chiffres, $toutVoir, $staff) {
                 $w->whereHas('property', fn (Builder $p) => $p->whereRaw(CaseInsensitive::sql('title').' like ?', [$motif]))
-                    ->orWhere(function (Builder $personne) use ($motif, $mots, $chiffres, $toutVoir, $staff) {
-                        $personne->where(function (Builder $champ) use ($motif, $mots, $chiffres) {
-                            $champ->whereRaw(CaseInsensitive::sql('property_visits.visitor_name').' like ?', [$motif]);
+                    ->orWhere(function (Builder $personne) use ($mots, $chiffres, $toutVoir, $staff) {
+                        $personne->where(function (Builder $champ) use ($mots, $chiffres) {
+                            // Suivi de TCK-2587 (re-mesuré le 2026-11-12) — le nom saisi se cherche mot par
+                            // mot, comme celui de la fiche : « Fatou Diallo » trouvait « Fatou Diallo » et
+                            // non « Fatou B. Diallo », que la fiche, elle, trouvait.
+                            $champ->where(function (Builder $nom) use ($mots) {
+                                foreach ($mots as $mot) {
+                                    $nom->whereRaw(CaseInsensitive::sql('property_visits.visitor_name').' like ?', [$mot]);
+                                }
+                            });
                             foreach ($chiffres as $numero) {
                                 $champ->orWhere('property_visits.visitor_phone', 'like', '%'.$numero.'%');
                             }

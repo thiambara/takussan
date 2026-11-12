@@ -81,6 +81,21 @@ class PropertyVisitSearchFilterTest extends ApiTestCase
         $this->assertSame([], $this->ids($agent, ['search' => '%']));
     }
 
+    /**
+     * Suivi de TCK-2587 (re-mesuré le 2026-11-12) — le nom SAISI de la visite se cherche mot par mot,
+     * comme celui de la fiche : « Diop Awa » trouve Awa Diop, pour le personnel comme pour le
+     * bailleur qui le lit ; chaque mot doit s'y trouver.
+     */
+    public function test_le_nom_saisi_se_cherche_mot_par_mot_comme_la_fiche(): void
+    {
+        foreach ([$this->personnel($this->x), $this->proprietaire] as $lecteur) {
+            foreach (['Diop Awa', 'diop  AWA', 'Aw Dio'] as $recherche) {
+                $this->assertSame([$this->parCompte->id], $this->ids($lecteur, ['search' => $recherche]), $recherche);
+            }
+            $this->assertSame([], $this->ids($lecteur, ['search' => 'Awa Fall']));
+        }
+    }
+
     /** Le bailleur ne lit pas le nom d'un client de l'agence : il ne le trouve pas davantage. */
     public function test_le_bailleur_ne_trouve_pas_le_client_de_l_agence_par_son_nom(): void
     {
