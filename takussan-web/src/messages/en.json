@@ -1046,7 +1046,8 @@
       "daily": "day",
       "weekly": "wk",
       "monthly": "month",
-      "yearly": "year"
+      "yearly": "year",
+      "quarterly": "qtr"
     },
     "rentPeriods": {
       "daily": "Daily",
@@ -1672,7 +1673,8 @@
           "priceAsc": "Price: low to high",
           "priceDesc": "Price: high to low",
           "viewsDesc": "Most viewed",
-          "viewsAsc": "Least viewed"
+          "viewsAsc": "Least viewed",
+          "retard": "Late rents first"
         },
         "toggleMine": "My properties",
         "toggleArchived": "Archived",
@@ -1829,6 +1831,82 @@
         "cancel": "Cancel",
         "success": "The property is now held by {name}.",
         "error": "The change failed. Please try again."
+      },
+      "gestion": {
+        "modes": {
+          "aria": "List mode",
+          "gestion": "Management",
+          "annonces": "Listings"
+        },
+        "pastilles": {
+          "aria": "Filter by occupancy",
+          "tous": "All",
+          "occupes": "Occupied",
+          "vacants": "Vacant",
+          "retard": "Rent overdue",
+          "preavis": "Notice"
+        },
+        "tuiles": {
+          "aria": "Portfolio occupancy — filter the list",
+          "occupes": "Occupied",
+          "surTotal": "/ {total}",
+          "partOccupee": "{part} of the portfolio",
+          "vacants": "Vacant",
+          "vacantsLongs": "{count, plural, =0 {None for over 60 days} one {# for over 60 days} other {# for over 60 days}}",
+          "retard": "Overdue rents",
+          "aEncaisser": "{montant} to collect",
+          "aJour": "All rents are up to date",
+          "preavis": "Notice",
+          "sorties": "{count, plural, =0 {No move-out announced} one {# move-out announced} other {# move-outs announced}}"
+        },
+        "ligne": {
+          "locataire": "{nom} · lease until {date}",
+          "locataireSansFin": "{nom}",
+          "jusquAu": "until {date}",
+          "occupe": "Occupied",
+          "sansLocataire": "No tenant",
+          "sansLocataireDe": "No tenant · {bailleur}",
+          "aVendre": "For sale"
+        },
+        "etat": {
+          "paye": "Paid",
+          "enRetard": "{jours} days late",
+          "partiel": "Partly paid",
+          "aEcheance": "Due on {date}",
+          "aEcheanceSansDate": "Due",
+          "preavis": "Notice · moving out {date}",
+          "preavisSansDate": "Notice",
+          "vacantDepuis": "Vacant for {jours} days",
+          "vacant": "Vacant"
+        },
+        "etatCourt": {
+          "paye": "Paid",
+          "enRetard": "Late {jours} d",
+          "partiel": "Partial",
+          "aEcheance": "Due {date}",
+          "aEcheanceSansDate": "Due",
+          "preavis": "Notice",
+          "preavisSansDate": "Notice",
+          "vacantDepuis": "Vacant {jours} d",
+          "vacant": "Vacant"
+        },
+        "loyer": {
+          "parPeriode": "{montant} / {periode}",
+          "prixDeVente": "Sale price"
+        },
+        "publier": "Publish the listing",
+        "publierPour": "Publish the listing — {title}",
+        "colonnes": {
+          "bien": "Property",
+          "bailleur": "Landlord",
+          "locataire": "Tenant and lease end",
+          "loyer": "Rent / month",
+          "ceMois": "This month",
+          "agent": "Agent",
+          "actions": "Actions"
+        },
+        "agentAucun": "No responsible agent",
+        "caption": "Managed properties"
       }
     },
     "visibility": {
@@ -2370,7 +2448,8 @@
       "published": "Published",
       "soldRented": "Sold / Rented",
       "archived": "Archived",
-      "countersAria": "Property counters — filter the list"
+      "countersAria": "Property counters — filter the list",
+      "titleAgency": "Properties"
     },
     "profile": {
       "metaTitle": "My profile",

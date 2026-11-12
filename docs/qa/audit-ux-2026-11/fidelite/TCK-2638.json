@@ -1,0 +1,123 @@
+{
+  "ticket": "TCK-2638",
+  "ecrans": [
+    {
+      "page": "app-biens",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "Liste — mode Gestion",
+      "references": {
+        "telephone": "references/app-biens/a-0-telephone.json",
+        "bureau-1440": "references/app-biens/a-0-bureau-1440.json",
+        "bureau-1280": "references/app-biens/a-0-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/properties?mode=gestion",
+        "persona": "admin",
+        "etat": "le portefeuille de démo de l'agence Dakar Immo (209 biens, dont 51 à vendre), sans filtre, tri par défaut ; aucun bouchon : les biens, l'occupation et les comptes sont ceux de l'API"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/properties?mode=gestion",
+    "persona": "admin",
+    "disposition": "admin-agence",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": null
+  },
+  "coque": true,
+  "roles": [
+    {
+      "nom": "sélecteur de mode",
+      "maquette": { "boiteDe": "Annonces", "min": 40 },
+      "produit": { "boiteDe": "Annonces", "min": 40 },
+      "contenu": false
+    },
+    {
+      "nom": "pastilles d'occupation",
+      "appareil": "mobile",
+      "maquette": { "boiteDe": "Occupés", "min": 30 },
+      "produit": { "boiteDe": "Occupés", "min": 30 },
+      "contenu": false
+    },
+    {
+      "nom": "tuile « Loyers en retard »",
+      "appareil": "desktop",
+      "maquette": { "boiteDe": "Loyers en retard", "min": 80 },
+      "produit": { "boiteDe": "Loyers en retard", "min": 80 },
+      "contenu": false
+    },
+    {
+      "nom": "tableau Gestion",
+      "appareil": "desktop",
+      "maquette": { "boiteDe": "Locataire et fin de bail", "min": 400 },
+      "produit": { "boiteDe": "Locataire et fin de bail", "min": 400 },
+      "contenu": false
+    }
+  ],
+  "zones": [
+    {
+      "nom": "sélecteur « Gestion · Annonces »",
+      "appareil": "mobile",
+      "role": "sélecteur de mode"
+    }
+  ],
+  "alias": {
+    "Bien, locataire, référence…": "Rechercher par titre, référence, description…",
+    "Bien, locataire, bailleur, référence…": "Rechercher par titre, référence, description…",
+    "Retards d’abord": "Plus récents",
+    "Afficher les 20 suivants": "Suivant"
+  },
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "app-biens a-0-*",
+      "element": "biens, locataires, montants, comptes des pastilles et des tuiles",
+      "propriete": "libellés et nombres",
+      "exception": "donnée",
+      "motif": "la démo sert 209 biens (77 occupés, 132 vacants, 7 en retard pour 16 965 000 F, 1 préavis) là où la maquette en dessine 84 ; la vente compte « vacante » (TCK-2637), d'où 132 vacants — suite back proposée au porteur"
+    },
+    {
+      "ecran": "app-biens a-0-*",
+      "element": "champ de recherche",
+      "propriete": "texte indicatif",
+      "exception": "technique",
+      "motif": "`filter[search]` lit le titre, la référence et la description ; le locataire est un filtre à part (`filter[tenant]`, TCK-2637) et l'API combine les filtres en ET : promettre « locataire » dans ce champ mentirait"
+    },
+    {
+      "ecran": "app-biens a-0-bureau-*",
+      "element": "panneau de filtres de 204 px (1440) et barre recherche + tri dans la carte du tableau",
+      "propriete": "disposition",
+      "exception": "lot B du ticket",
+      "motif": "lot A garde `PropertyListFilters` tel quel (AC5 : tous les filtres, puces et « Tout réinitialiser ») ; le panneau latéral et la barre intégrée arrivent avec le lot B"
+    },
+    {
+      "ecran": "app-biens a-0-telephone",
+      "element": "« Afficher les 20 suivants »",
+      "propriete": "pagination",
+      "exception": "décision demandée au porteur",
+      "motif": "la pagination 10 / 20 / 50, Précédent / Suivant est un geste à garder (Contraintes strictes) ; écart proposé, réponse attendue"
+    },
+    {
+      "ecran": "app-biens a-0-telephone",
+      "element": "chevron de fin de carte",
+      "propriete": "icône",
+      "exception": "accessibilité",
+      "motif": "AC5 et Direction : la carte porte le « ⋯ » (Modifier, Publier/Dépublier, Dupliquer…) et la case de sélection hors de la photo, chacun avec sa cible de 44 px ; la carte entière reste le lien du bien"
+    },
+    {
+      "ecran": "app-biens a-0-bureau-*",
+      "element": "colonne « Ce mois »",
+      "propriete": "libellé « Payé 4 nov. »",
+      "exception": "donnée",
+      "motif": "`current_month` (TCK-2637) ne sert pas la date du paiement : la puce dit « Payé »"
+    }
+  ],
+  "hors_perimetre": [
+    "écran 1 (mode Annonces) et écran du quota : lots B et C du ticket",
+    "l'étiquette « Biens » / « Mes biens » du menu de la coque (famille 3)"
+  ]
+}

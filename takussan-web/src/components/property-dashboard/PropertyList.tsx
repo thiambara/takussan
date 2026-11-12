@@ -50,6 +50,15 @@ import {
 } from '@/app/actions/dashboard-properties';
 import type { BulkResult } from '@/types/agent-crm';
 
+import {
+  CarteGestion,
+  CelluleAgent,
+  CelluleOccupant,
+  MontantDuBien,
+  PuceEtatDuMois,
+  VignetteDuBien,
+  lieuDuBien,
+} from './GestionDuBien';
 import { PropertyRowActions } from './PropertyRowActions';
 import { ProprietaireEtResponsable } from './ProprietaireEtResponsable';
 import { useGestesDuBien } from './useGestesDuBien';
@@ -65,14 +74,27 @@ interface PropertyListProps {
   readonly page: PaginatedResponse<PropertyListItem>;
   readonly currentUserId?: number;
   readonly agentOptions?: readonly { id: number; name: string }[];
+  /**
+   * TCK-2638 — `gestion` : l'occupation, le loyer et l'état du mois (carte compacte, tableau
+   * Bien · Bailleur · Locataire · Loyer · Ce mois · Agent). `annonces` (défaut) : la liste d'avant.
+   * La sélection, les actions groupées et les états vides sont les mêmes dans les deux.
+   */
+  readonly presentation?: 'gestion' | 'annonces';
 }
+
+/** Les paramètres d'URL qui ne filtrent pas la liste : ils ne font pas d'un portefeuille vide un « filtre sans résultat ». */
+const PARAMS_SANS_FILTRE = new Set(['page', 'sort', 'per_page', 'mode']);
 
 export function PropertyList({
   page,
   currentUserId,
   agentOptions = [],
+  presentation = 'annonces',
 }: PropertyListProps) {
   const t = useTranslations('property.dashboard.list');
+  const tGestion = useTranslations('property.dashboard.gestion');
+  // L'état du mois compte des jours : une seule date pour toute la liste, prise au premier rendu.
+  const [aujourdhui] = useState(() => new Date());
   const tType = useTranslations(PROPERTY_ENUM_NAMESPACES.type);
   const tContract = useTranslations(PROPERTY_ENUM_NAMESPACES.contractType);
   const tPeriodes = useTranslations('property.rentPeriodsShort');
@@ -92,16 +114,21 @@ export function PropertyList({
   );
 
   const hasActiveFilters = useMemo(
-    () => Array.from(searchParams.keys()).some((k) => k !== 'page' && k !== 'sort' && k !== 'per_page'),
+    () => Array.from(searchParams.keys()).some((k) => !PARAMS_SANS_FILTRE.has(k)),
     [searchParams],
   );
 
   if (!properties || properties.length === 0) {
-    return hasActiveFilters ? (
-      <PortfolioFilteredEmpty onReset={() => router.replace('?')} />
+    const vide = hasActiveFilters ? (
+      // TCK-2638 — réinitialiser garde le mode : c'est une vue, pas un filtre.
+      <PortfolioFilteredEmpty
+        onReset={() => router.replace(searchParams.get('mode') ? `?mode=${searchParams.get('mode')}` : '?')}
+      />
     ) : (
       <PortfolioEmpty />
     );
+    // TCK-2638 — en Gestion, la page est pleine largeur au téléphone : l'état vide pose sa marge.
+    return presentation === 'gestion' ? <div className="px-4 md:px-0">{vide}</div> : vide;
   }
 
   const allVisibleSelected =
@@ -223,6 +250,140 @@ export function PropertyList({
     },
   ];
 
+  // Le bilan reste lisible quand le lot a tout traité et que la sélection s'est vidée.
+  const barreGroupee =
+    selectedCount > 0 || bulkMessage ? (
+      <BulkActionBar
+        selectedCount={selectedCount}
+        pending={pending}
+        bulkError={bulkError}
+        bulkMessage={bulkMessage}
+        bulkAgentId={bulkAgentId}
+        setBulkAgentId={setBulkAgentId}
+        agentOptions={agentOptions}
+        currentUserId={currentUserId}
+        failureLines={failureLines}
+        onArchive={() => runBatch(bulkArchivePropertiesAction, 'archive')}
+        onUnpublish={() => runBatch(bulkUnpublishPropertiesAction, 'unpublish')}
+        onAssign={() =>
+          runBatch((ids) => bulkAssignPropertiesAction(ids, Number(bulkAgentId)), 'assign')
+        }
+        onClear={() => {
+          setSelectedIds([]);
+          setBulkAgentId('');
+          setBulkError(null);
+          setBulkMessage(null);
+          setBulkFailures([]);
+        }}
+      />
+    ) : null;
+
+  /**
+   * TCK-2638 — le tableau Gestion de la maquette : Bien · Bailleur · Locataire et fin de bail ·
+   * Loyer / mois · Ce mois · Agent · « ⋯ ». Les largeurs sont celles de la maquette sur l'échelle
+   * (la colonne « Bien » prend le reste et tronque) : à 1280, le « ⋯ » tient entier (AC6).
+   */
+  const colonnesGestion: readonly DataTableColumn<PropertyListItem>[] = [
+    { ...colonnes[0], className: 'w-10 align-middle' },
+    {
+      id: 'property',
+      header: tGestion('colonnes.bien'),
+      className: 'w-full max-w-0 align-middle',
+      cell: (property) => {
+        const lieu = lieuDuBien(property);
+        return (
+          <span className="flex items-center gap-3">
+            <VignetteDuBien property={property} taille="ligne" />
+            <span className="min-w-0 leading-tight">
+              <Link
+                href={`/app/properties/${property.id}`}
+                className="block truncate font-medium text-foreground hover:text-primary"
+              >
+                {property.title}
+              </Link>
+              <span className="block truncate text-xs text-muted-foreground">
+                {[lieu, property.reference_number].filter(Boolean).join(' · ')}
+              </span>
+            </span>
+          </span>
+        );
+      },
+    },
+    {
+      id: 'landlord',
+      header: tGestion('colonnes.bailleur'),
+      className: 'w-33 max-w-33 align-middle',
+      cell: (property) => <span className="block truncate">{property.owner?.name ?? '—'}</span>,
+    },
+    {
+      id: 'tenant',
+      header: tGestion('colonnes.locataire'),
+      className: 'w-38 max-w-38 align-middle',
+      cell: (property) => <CelluleOccupant property={property} aujourdhui={aujourdhui} />,
+    },
+    {
+      id: 'rent',
+      header: tGestion('colonnes.loyer'),
+      align: 'end',
+      className: 'w-26 align-middle',
+      cell: (property) => <MontantDuBien property={property} periode="si-autre" className="font-medium" />,
+    },
+    {
+      id: 'month',
+      header: tGestion('colonnes.ceMois'),
+      className: 'w-32 align-middle',
+      cell: (property) => <PuceEtatDuMois property={property} aujourdhui={aujourdhui} court />,
+    },
+    {
+      id: 'agent',
+      header: tGestion('colonnes.agent'),
+      className: 'w-13 align-middle',
+      cell: (property) => <CelluleAgent property={property} />,
+    },
+    {
+      id: 'actions',
+      header: tGestion('colonnes.actions'),
+      headerSrOnly: true,
+      align: 'end',
+      className: 'w-11 align-middle',
+      cell: (property) => <PropertyRowActions property={property} layout="menu" />,
+    },
+  ];
+
+  if (presentation === 'gestion') {
+    return (
+      <div className="space-y-4">
+        <DataTable
+          className="hidden lg:block"
+          caption={tGestion('caption')}
+          columns={colonnesGestion}
+          rows={properties}
+          rowKey={(property) => property.id}
+          rowProps={(property) => ({
+            className: cn('transition-colors hover:bg-muted/30', selectedIds.includes(property.id) && 'bg-primary/5'),
+          })}
+          stickyHeader
+        />
+        <ul
+          aria-label={tGestion('caption')}
+          className="divide-y divide-border border-y border-border bg-card md:-mx-6 lg:hidden"
+        >
+          {properties.map((property) => (
+            <CarteGestion
+              key={property.id}
+              property={property}
+              aujourdhui={aujourdhui}
+              selectionne={selectedIds.includes(property.id)}
+              onBasculer={() => toggleOne(property.id)}
+              libelleCase={t('selectOne', { title: property.title })}
+            />
+          ))}
+        </ul>
+        {barreGroupee}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {/* Table du bureau — 6 colonnes, dès `lg` seulement : à `md` la barre latérale laisse
@@ -340,33 +501,7 @@ export function PropertyList({
         })}
       </ul>
 
-      {/* Sticky bulk actions toolbar */}
-      {/* Le bilan reste lisible quand le lot a tout traité et que la sélection s'est vidée. */}
-      {selectedCount > 0 || bulkMessage ? (
-        <BulkActionBar
-          selectedCount={selectedCount}
-          pending={pending}
-          bulkError={bulkError}
-          bulkMessage={bulkMessage}
-          bulkAgentId={bulkAgentId}
-          setBulkAgentId={setBulkAgentId}
-          agentOptions={agentOptions}
-          currentUserId={currentUserId}
-          failureLines={failureLines}
-          onArchive={() => runBatch(bulkArchivePropertiesAction, 'archive')}
-          onUnpublish={() => runBatch(bulkUnpublishPropertiesAction, 'unpublish')}
-          onAssign={() =>
-            runBatch((ids) => bulkAssignPropertiesAction(ids, Number(bulkAgentId)), 'assign')
-          }
-          onClear={() => {
-            setSelectedIds([]);
-            setBulkAgentId('');
-            setBulkError(null);
-            setBulkMessage(null);
-            setBulkFailures([]);
-          }}
-        />
-      ) : null}
+      {barreGroupee}
     </div>
   );
 }

@@ -1003,7 +1003,8 @@
       "daily": "jour",
       "weekly": "sem.",
       "monthly": "mois",
-      "yearly": "an"
+      "yearly": "an",
+      "quarterly": "trim."
     },
     "rentPeriods": {
       "daily": "Journalier",
@@ -1629,7 +1630,8 @@
           "priceAsc": "Prix croissant",
           "priceDesc": "Prix décroissant",
           "viewsDesc": "Vues décroissantes",
-          "viewsAsc": "Vues croissantes"
+          "viewsAsc": "Vues croissantes",
+          "retard": "Retards d’abord"
         },
         "toggleMine": "Mes biens",
         "toggleArchived": "Archivés",
@@ -1786,6 +1788,82 @@
         "cancel": "Annuler",
         "success": "Le bien est désormais au nom de {name}.",
         "error": "Changement impossible. Réessayez."
+      },
+      "gestion": {
+        "modes": {
+          "aria": "Mode de la liste",
+          "gestion": "Gestion",
+          "annonces": "Annonces"
+        },
+        "pastilles": {
+          "aria": "Filtrer par occupation",
+          "tous": "Tous",
+          "occupes": "Occupés",
+          "vacants": "Vacants",
+          "retard": "Loyer en retard",
+          "preavis": "Préavis"
+        },
+        "tuiles": {
+          "aria": "Occupation du portefeuille — filtrer la liste",
+          "occupes": "Occupés",
+          "surTotal": "/ {total}",
+          "partOccupee": "{part} du portefeuille",
+          "vacants": "Vacants",
+          "vacantsLongs": "{count, plural, =0 {Aucun depuis plus de 60 j} one {# depuis plus de 60 j} other {# depuis plus de 60 j}}",
+          "retard": "Loyers en retard",
+          "aEncaisser": "{montant} à encaisser",
+          "aJour": "Tous les loyers sont à jour",
+          "preavis": "Préavis",
+          "sorties": "{count, plural, =0 {Aucune sortie annoncée} one {# sortie annoncée} other {# sorties annoncées}}"
+        },
+        "ligne": {
+          "locataire": "{nom} · bail jusqu’au {date}",
+          "locataireSansFin": "{nom}",
+          "jusquAu": "jusqu’au {date}",
+          "occupe": "Occupé",
+          "sansLocataire": "Sans locataire",
+          "sansLocataireDe": "Sans locataire · {bailleur}",
+          "aVendre": "À vendre"
+        },
+        "etat": {
+          "paye": "Payé",
+          "enRetard": "En retard de {jours} j",
+          "partiel": "Payé en partie",
+          "aEcheance": "À échéance le {date}",
+          "aEcheanceSansDate": "À échéance",
+          "preavis": "Préavis · sortie le {date}",
+          "preavisSansDate": "Préavis",
+          "vacantDepuis": "Vacant depuis {jours} j",
+          "vacant": "Vacant"
+        },
+        "etatCourt": {
+          "paye": "Payé",
+          "enRetard": "Retard {jours} j",
+          "partiel": "Partiel",
+          "aEcheance": "Échéance {date}",
+          "aEcheanceSansDate": "À échéance",
+          "preavis": "Préavis",
+          "preavisSansDate": "Préavis",
+          "vacantDepuis": "Vacant {jours} j",
+          "vacant": "Vacant"
+        },
+        "loyer": {
+          "parPeriode": "{montant} / {periode}",
+          "prixDeVente": "Prix de vente"
+        },
+        "publier": "Publier l’annonce",
+        "publierPour": "Publier l’annonce — {title}",
+        "colonnes": {
+          "bien": "Bien",
+          "bailleur": "Bailleur",
+          "locataire": "Locataire et fin de bail",
+          "loyer": "Loyer / mois",
+          "ceMois": "Ce mois",
+          "agent": "Agent",
+          "actions": "Actions"
+        },
+        "agentAucun": "Aucun agent responsable",
+        "caption": "Biens en gestion"
       }
     },
     "visibility": {
@@ -2327,7 +2405,8 @@
       "published": "Publiés",
       "soldRented": "Vendus / Loués",
       "archived": "Archivés",
-      "countersAria": "Compteurs de biens — filtrer la liste"
+      "countersAria": "Compteurs de biens — filtrer la liste",
+      "titleAgency": "Biens"
     },
     "profile": {
       "metaTitle": "Mon profil",

@@ -52,9 +52,17 @@ interface PropertyRowActionsProps {
    * `row` : cellule de table (bureau). `card` : pied de carte (mobile et tablette) — les messages
    * de retour y restent VISIBLES, sur leur propre ligne. En `row`, ils sont masqués sous `md`
    * parce que la cellule n'a pas la place ; la carte, elle, n'a pas d'autre endroit où les dire.
+   *
+   * `menu` (TCK-2638, mode Gestion) : le seul « ⋯ », qui porte « Modifier » en tête — la colonne de
+   * fin du tableau et la carte compacte n'ont que sa place (44 px). Les messages de retour restent
+   * VISIBLES, dans une bulle posée sous le bouton, hors du flux de la ligne.
    */
-  readonly layout?: 'row' | 'card';
+  readonly layout?: 'row' | 'card' | 'menu';
 }
+
+/** La bulle des messages du `menu` : sous le « ⋯ », au-dessus de la ligne suivante, sans la pousser. */
+const BULLE_DE_RETOUR =
+  'absolute right-0 top-full z-20 mt-1 w-56 rounded-md bg-popover px-2.5 py-1.5 text-pretty shadow-md ring-1 ring-border';
 
 export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActionsProps) {
   const t = useTranslations('property.dashboard.actions');
@@ -181,6 +189,7 @@ export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActi
       className={cn(
         'flex items-center gap-1',
         layout === 'card' && 'flex-wrap justify-end',
+        layout === 'menu' && 'relative justify-end',
       )}
     >
       {error ? (
@@ -188,9 +197,9 @@ export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActi
           role="alert"
           className={cn(
             'text-xs text-destructive',
-            layout === 'card'
-              ? 'order-last w-full text-right text-pretty'
-              : 'mr-2 hidden truncate md:inline',
+            layout === 'card' && 'order-last w-full text-right text-pretty',
+            layout === 'row' && 'mr-2 hidden truncate md:inline',
+            layout === 'menu' && BULLE_DE_RETOUR,
           )}
         >
           {error}
@@ -201,21 +210,23 @@ export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActi
           role="status"
           className={cn(
             'text-xs text-success',
-            layout === 'card'
-              ? 'order-last w-full text-right text-pretty'
-              : 'mr-2 hidden truncate md:inline',
+            layout === 'card' && 'order-last w-full text-right text-pretty',
+            layout === 'row' && 'mr-2 hidden truncate md:inline',
+            layout === 'menu' && BULLE_DE_RETOUR,
           )}
         >
           {success}
         </span>
       ) : null}
-      <Link
-        href={`/app/properties/${property.id}`}
-        className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}
-        aria-disabled={pending}
-      >
-        {t('edit')}
-      </Link>
+      {layout === 'menu' ? null : (
+        <Link
+          href={`/app/properties/${property.id}`}
+          className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}
+          aria-disabled={pending}
+        >
+          {t('edit')}
+        </Link>
+      )}
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
@@ -225,6 +236,8 @@ export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActi
               // TCK-1035 (P68.08) — une icône par ligne : le nom porte le bien visé.
               aria-label={t('moreFor', { title: property.title })}
               disabled={pending}
+              // TCK-2638 — en `menu`, la cible de 44 px autour du rendu de 32 (`before:`, comme la puce).
+              className={layout === 'menu' ? 'relative before:absolute before:-inset-1.5' : undefined}
             >
               {pending ? (
                 <Loader2 className="animate-spin" aria-hidden="true" />
@@ -235,6 +248,14 @@ export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActi
           }
         />
         <DropdownMenuContent align="end">
+          {layout === 'menu' ? (
+            <>
+              <DropdownMenuItem render={<Link href={`/app/properties/${property.id}`} />}>
+                {t('edit')}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+            </>
+          ) : null}
           <DropdownMenuLabel>{t('quickActions')}</DropdownMenuLabel>
           {!canPublish ? null : isPublic ? (
             <DropdownMenuItem onClick={unpublish} disabled={pending}>

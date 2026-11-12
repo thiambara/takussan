@@ -19,6 +19,56 @@ export type PropertyTitleType = 'bail' | 'titre_foncier' | 'deliberation' | 'aut
  */
 export type PropertyCondition = 'off_plan' | 'new' | 'renovated' | 'good' | 'to_renovate';
 
+/**
+ * TCK-2637 — l'occupation d'un bien (`include=occupancy`), calculée par `PropertyOccupancy` côté API.
+ * Sans droit sur le bail, `lease`, `tenant`, `rent` et `current_month` sont absents (nuls) : seul
+ * `state` reste servi.
+ */
+export interface OccupationDuBien {
+  state: 'occupied' | 'notice' | 'vacant';
+  /** Fin effective du dernier bail ; `null` pour un bien jamais loué (« Sans locataire »). */
+  vacant_since: string | null;
+  lease: {
+    id: number;
+    reference_number: string | null;
+    type: string | null;
+    status: string | null;
+    start_date: string | null;
+    end_date: string | null;
+  } | null;
+  tenant: {
+    id: number;
+    first_name: string | null;
+    last_name: string | null;
+    phone: string | null;
+  } | null;
+  rent: {
+    amount: number;
+    charges: number | null;
+    currency: string | null;
+    payment_frequency: 'monthly' | 'quarterly' | 'yearly' | null;
+  } | null;
+  current_month: {
+    status: 'paid' | 'late' | 'partial' | 'due' | 'none';
+    due_date: string | null;
+    days_late: number | null;
+    amount_due: number | null;
+    late_fee_outstanding: number | null;
+  } | null;
+}
+
+/** TCK-2637 — `GET /api/properties/portfolio-summary` : les comptes des tuiles, en un appel. */
+export interface ResumeDuPortefeuille {
+  total: number;
+  occupied: number;
+  vacant: number;
+  vacant_over_60_days: number;
+  rent_late: number;
+  rent_late_amount: number;
+  notice: number;
+  online: number;
+}
+
 export interface PropertyListItem {
   id: number;
   user_id?: number;
@@ -63,6 +113,10 @@ export interface PropertyListItem {
   primary_contact?: PropertyOwnerLite | null;
   /** TCK-603 (verif-603 M2) — d'où vient `primary_contact` ; absente avec lui. */
   primary_contact_source?: PrimaryContactSource | null;
+  /** TCK-2637 — servi sur `include=occupancy` seulement : clé ABSENTE sinon. */
+  occupancy?: OccupationDuBien | null;
+  /** TCK-2637 (ADR-0097) — « En ligne », le prédicat du catalogue ; servi sur `include=online`. */
+  is_online?: boolean;
   collaborators?: {
     id: number;
     user_id: number;

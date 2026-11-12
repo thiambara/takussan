@@ -40,6 +40,15 @@ vi.mock('@/lib/queries/properties-server', () => ({
       appels.liberer.push(() => resolve(total));
     });
   },
+  // TCK-2638 — en Gestion, les comptes viennent d'UN résumé du portefeuille.
+  fetchPortfolioSummary: () => {
+    appels.lances.push({ filters: { resume: '1' } });
+    return new Promise((resolve) => {
+      appels.liberer.push(() =>
+        resolve({ total: 1, occupied: 0, vacant: 0, vacant_over_60_days: 0, notice: 0, rent_late: 0, rent_late_amount: 0, online: 0 }),
+      );
+    });
+  },
 }));
 vi.mock('@/components/contact/AvertissementNumeroNonVerifie', () => ({ AvertissementNumeroNonVerifie: () => null }));
 vi.mock('@/components/property-dashboard/PropertyList', () => ({ PropertyList: () => null }));
@@ -47,6 +56,15 @@ vi.mock('@/components/property-dashboard/PropertyListFilters', () => ({ Property
 vi.mock('@/components/property-dashboard/PropertyPagination', () => ({ PropertyPagination: () => null }));
 vi.mock('@/components/property-dashboard/PropertyKpiStrip', () => ({ PropertyKpiStrip: () => null }));
 vi.mock('@/components/console', () => ({ PageHeader: () => null }));
+// TCK-2638 — la page a deux modes. L'épingle vaut pour les deux : « Annonces » (la vue d'avant) et
+// « Gestion », où la liste part avec le résumé du portefeuille.
+const memoire = vi.hoisted(() => ({ mode: 'annonces' as string }));
+vi.mock('@/lib/biens/mode-memorise', () => ({ modeMemoriseDesBiens: async () => memoire.mode }));
+vi.mock('@/components/property-dashboard/ModesDeLaListe', () => ({
+  SelecteurDeMode: () => null,
+  PastillesGestion: () => null,
+  TuilesGestion: () => null,
+}));
 
 function tuiles(noeud: ReactNode): Array<{ label: string; value: number }> | undefined {
   if (!noeud || typeof noeud !== 'object') return undefined;
@@ -64,6 +82,7 @@ function tuiles(noeud: ReactNode): Array<{ label: string; value: number }> | und
 describe('/app/properties — les compteurs', () => {
   beforeEach(() => {
     vi.resetModules();
+    memoire.mode = 'annonces';
     appels.lances = [];
     appels.liberer = [];
   });
@@ -79,5 +98,18 @@ describe('/app/properties — les compteurs', () => {
     appels.liberer.forEach((liberer) => liberer());
     const t = tuiles(await rendu);
     expect(t?.find((x) => x.label === 'soldRented')?.value).toBe(7);
+  });
+
+  it('en Gestion, lance la liste et le résumé du portefeuille sans attendre aucune réponse', async () => {
+    memoire.mode = 'gestion';
+    const { default: Page } = await import('../(liste)/page');
+    const rendu = Page({ searchParams: Promise.resolve({}) });
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(appels.lances).toHaveLength(2);
+    expect(appels.lances.filter((p) => p.filters?.resume === '1')).toHaveLength(1);
+
+    appels.liberer.forEach((liberer) => liberer());
+    await rendu;
   });
 });

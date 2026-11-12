@@ -69,6 +69,9 @@ const SORT_OPTIONS = [
   { value: 'views_count', labelKey: 'viewsAsc' },
 ] as const;
 
+/** TCK-2638 — « Retards d'abord » (`sort=retard`, TCK-2637) : le tri du mode Gestion, en tête. */
+const SORT_OPTIONS_GESTION = [{ value: 'retard', labelKey: 'retard' }, ...SORT_OPTIONS] as const;
+
 /**
  * Ce que compte le bouton « Filtres » de la feuille : les critères avancés et les deux cases.
  * Ni la recherche — elle reste visible au-dessus — ni le tri, qui ordonne la liste sans la
@@ -92,9 +95,12 @@ const ADVANCED_KEYS = [
 export function PropertyListFilters({
   currentUserId,
   agentOptions = [],
+  mode = 'annonces',
 }: {
   readonly currentUserId: number;
   readonly agentOptions?: readonly { id: number; name: string }[];
+  /** TCK-2638 — le mode de la liste : il ajoute « Retards d'abord » et survit à « Tout réinitialiser ». */
+  readonly mode?: 'gestion' | 'annonces';
 }) {
   const t = useTranslations('property.dashboard.filters');
   const tChips = useTranslations('property.dashboard.filters.chips');
@@ -120,7 +126,7 @@ export function PropertyListFilters({
   const includeArchived = searchParams.get('include_archived') === '1';
   const onlyMine = searchParams.get('only_mine') === '1';
 
-  const sortOptions = SORT_OPTIONS.map((opt) => ({
+  const sortOptions = (mode === 'gestion' ? SORT_OPTIONS_GESTION : SORT_OPTIONS).map((opt) => ({
     value: opt.value,
     label: t(`sort.${opt.labelKey}`),
   }));
@@ -223,9 +229,11 @@ export function PropertyListFilters({
   const toggleArchived = (checked: boolean) =>
     updateParam('include_archived', checked ? '1' : null);
 
+  // TCK-2638 — le mode est une vue, pas un filtre : « Tout réinitialiser » le garde.
+  const modeDeLUrl = searchParams.get('mode');
   const resetAll = useCallback(() => {
-    router.replace('?');
-  }, [router]);
+    router.replace(modeDeLUrl ? `?mode=${encodeURIComponent(modeDeLUrl)}` : '?');
+  }, [router, modeDeLUrl]);
 
   const criteresProps = {
     t,

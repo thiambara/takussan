@@ -17,6 +17,7 @@ import type {
 import type {
   PropertyDetail,
   PropertyListItem,
+  ResumeDuPortefeuille,
 } from '@/types/property';
 /**
  * TCK-470 — le corps part IMBRIQUÉ, et le type le dit désormais. `PropertyFormPayload` (plat,
@@ -92,13 +93,27 @@ export interface DashboardPropertyFilters {
   readonly created_from?: string;
   readonly created_to?: string;
   readonly include_archived?: string;
+  /** TCK-2637 — `occupied` (préavis compris), `vacant` ou `notice` : la pastille du mode Gestion. */
+  readonly occupancy?: string;
+  /** TCK-2637 — `'1'` : les biens dont le loyer du mois est en retard. */
+  readonly rent_late?: string;
+  /** TCK-2637 — le nom ou le téléphone du locataire du bail courant. */
+  readonly tenant?: string;
 }
+
+/**
+ * TCK-2638 — les blocs que le mode Gestion ajoute à la ligne : l'occupation (`occupancy`, TCK-2637)
+ * et « En ligne » (`online` → `is_online`, ADR-0097). Hors de ce mode, ni l'un ni l'autre : le
+ * calcul de l'occupation lit les baux de la page.
+ */
+export type InclusionDeGestion = 'occupancy' | 'online';
 
 export interface FetchDashboardPropertiesParams {
   readonly page?: number;
   readonly perPage?: number;
   readonly sort?: string;
   readonly filters?: DashboardPropertyFilters;
+  readonly inclusions?: readonly InclusionDeGestion[];
 }
 
 function buildListParams({
@@ -106,6 +121,7 @@ function buildListParams({
   perPage,
   sort,
   filters,
+  inclusions = [],
 }: FetchDashboardPropertiesParams): SpatieQueryParams {
   const filter: Record<string, string> = {};
   if (filters?.status) filter.status = filters.status;
@@ -120,11 +136,14 @@ function buildListParams({
   if (filters?.price_max) filter.price_max = filters.price_max;
   if (filters?.created_from) filter.created_from = filters.created_from;
   if (filters?.created_to) filter.created_to = filters.created_to;
+  if (filters?.occupancy) filter.occupancy = filters.occupancy;
+  if (filters?.rent_late) filter.rent_late = filters.rent_late;
+  if (filters?.tenant) filter.tenant = filters.tenant;
 
   return {
     fields: { properties: DASHBOARD_PROPERTY_FIELDS },
     filter,
-    include: ['address', 'owner', 'collaborators'],
+    include: ['address', 'owner', 'collaborators', ...inclusions],
     // TCK-662 (P01.01) — pendant une recherche, aucun tri par défaut : un `sort=` explicite
     // effacerait la pertinence que l'API restitue (`defaultSortsWithRelevance`).
     sort: sort ?? (filters?.search ? undefined : '-created_at'),
@@ -161,6 +180,27 @@ export async function countDashboardProperties(
     { token },
   );
   return response.meta.total;
+}
+
+/**
+ * TCK-2638 — les comptes des tuiles et des pastilles du mode Gestion, en UN appel
+ * (`GET /api/properties/portfolio-summary`, TCK-2637) au lieu d'une liste `per_page=1` par compte.
+ * Même portée que la liste : seuls `user_id` (« Mes biens », l'agent choisi) et `include_archived`
+ * la changent, si bien que chaque compte égale le `meta.total` du filtre qu'il ouvre.
+ */
+export async function fetchPortfolioSummary(
+  token: string,
+  portee: { readonly user_id?: string; readonly include_archived?: string } = {},
+): Promise<ResumeDuPortefeuille> {
+  const qs = buildQueryString({
+    filter: portee.user_id ? { user_id: portee.user_id } : undefined,
+    extra: portee.include_archived === '1' ? { include_archived: '1' } : undefined,
+  });
+  const res = await apiRequest<ApiResponse<ResumeDuPortefeuille>>(
+    cheminApi`/api/properties/portfolio-summary${requete(qs)}`,
+    { token },
+  );
+  return res.data;
 }
 
 export async function fetchDashboardProperty(

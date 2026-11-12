@@ -33,6 +33,15 @@ vi.mock('@/components/property-dashboard/PropertyListFilters', () => ({ Property
 vi.mock('@/components/property-dashboard/PropertyPagination', () => ({ PropertyPagination: () => null }));
 vi.mock('@/components/property-dashboard/PropertyKpiStrip', () => ({ PropertyKpiStrip: () => null }));
 vi.mock('@/components/console', () => ({ PageHeader: () => null }));
+// TCK-2638 — la page a deux modes ; cette épingle porte sur « Annonces » (la vue d'avant), le mode
+// est donc fixé. Son pendant « Gestion » (l'avertissement lit `online` du résumé) :
+// (liste)/__tests__/gestion.tck-2638.test.tsx.
+vi.mock('@/lib/biens/mode-memorise', () => ({ modeMemoriseDesBiens: async () => 'annonces' }));
+vi.mock('@/components/property-dashboard/ModesDeLaListe', () => ({
+  SelecteurDeMode: () => null,
+  PastillesGestion: () => null,
+  TuilesGestion: () => null,
+}));
 
 async function propsPour(user: Partial<User>, enLigne: number) {
   me.user = { id: 1, roles: ['owner'], ...user } as unknown as User;

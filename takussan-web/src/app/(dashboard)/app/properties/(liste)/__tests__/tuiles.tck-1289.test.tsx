@@ -23,6 +23,14 @@ vi.mock('@/lib/queries/properties-server', () => ({
 vi.mock('@/components/property-dashboard/PropertyList', () => ({ PropertyList: () => null }));
 vi.mock('@/components/property-dashboard/PropertyListFilters', () => ({ PropertyListFilters: () => null }));
 vi.mock('@/components/property-dashboard/PropertyPagination', () => ({ PropertyPagination: () => null }));
+// TCK-2638 — ces comptes sont ceux du mode Annonces : l'appareil s'en souvient (le mode Gestion,
+// par défaut, prend ses comptes dans `portfolio-summary` — cf. `gestion.tck-2638.test.tsx`).
+vi.mock('@/lib/biens/mode-memorise', () => ({ modeMemoriseDesBiens: async () => 'annonces' }));
+vi.mock('@/components/property-dashboard/ModesDeLaListe', () => ({
+  SelecteurDeMode: () => null,
+  PastillesGestion: () => null,
+  TuilesGestion: () => null,
+}));
 vi.mock('@/components/contact/AvertissementNumeroNonVerifie', () => ({ AvertissementNumeroNonVerifie: () => null }));
 
 import Page from '../page';

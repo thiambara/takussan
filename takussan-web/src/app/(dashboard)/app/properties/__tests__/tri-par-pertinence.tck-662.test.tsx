@@ -18,6 +18,9 @@ vi.mock('@/lib/queries/properties-server', () => ({
     return { data: [], meta: { total: 0, current_page: 1, last_page: 1, per_page: 1 } };
   },
   countDashboardProperties: async () => 0,
+  fetchPortfolioSummary: async () => ({
+    total: 0, occupied: 0, vacant: 0, vacant_over_60_days: 0, notice: 0, rent_late: 0, rent_late_amount: 0, online: 0,
+  }),
 }));
 vi.mock('@/components/contact/AvertissementNumeroNonVerifie', () => ({ AvertissementNumeroNonVerifie: () => null }));
 vi.mock('@/components/property-dashboard/PropertyList', () => ({ PropertyList: () => null }));
@@ -25,6 +28,15 @@ vi.mock('@/components/property-dashboard/PropertyListFilters', () => ({ Property
 vi.mock('@/components/property-dashboard/PropertyPagination', () => ({ PropertyPagination: () => null }));
 vi.mock('@/components/property-dashboard/PropertyKpiStrip', () => ({ PropertyKpiStrip: () => null }));
 vi.mock('@/components/console', () => ({ PageHeader: () => null }));
+// TCK-2638 — la page a deux modes. L'épingle vaut pour les deux : « Annonces » (la vue d'avant) et
+// « Gestion », où la liste part avec le résumé du portefeuille.
+const memoire = vi.hoisted(() => ({ mode: 'annonces' as string }));
+vi.mock('@/lib/biens/mode-memorise', () => ({ modeMemoriseDesBiens: async () => memoire.mode }));
+vi.mock('@/components/property-dashboard/ModesDeLaListe', () => ({
+  SelecteurDeMode: () => null,
+  PastillesGestion: () => null,
+  TuilesGestion: () => null,
+}));
 
 async function triDeLaListe(searchParams: Record<string, string>) {
   appels.liste = [];
@@ -38,14 +50,19 @@ async function triDeLaListe(searchParams: Record<string, string>) {
 describe('/app/properties — le tri de la liste', () => {
   beforeEach(() => {
     vi.resetModules();
+    memoire.mode = 'annonces';
   });
 
-  it('ne force aucun tri quand une recherche est posée sans tri choisi', async () => {
-    expect(await triDeLaListe({ search: 'villa' })).toBeUndefined();
-  });
+  for (const mode of ['annonces', 'gestion']) {
+    it(`${mode} — ne force aucun tri quand une recherche est posée sans tri choisi`, async () => {
+      memoire.mode = mode;
+      expect(await triDeLaListe({ search: 'villa' })).toBeUndefined();
+    });
 
-  it('garde le tri choisi, recherche ou non', async () => {
-    expect(await triDeLaListe({ search: 'villa', sort: 'price' })).toBe('price');
-    expect(await triDeLaListe({ sort: '-price' })).toBe('-price');
-  });
+    it(`${mode} — garde le tri choisi, recherche ou non`, async () => {
+      memoire.mode = mode;
+      expect(await triDeLaListe({ search: 'villa', sort: 'price' })).toBe('price');
+      expect(await triDeLaListe({ sort: '-price' })).toBe('-price');
+    });
+  }
 });
