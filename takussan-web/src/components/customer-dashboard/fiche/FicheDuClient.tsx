@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { Phone } from 'lucide-react';
 
@@ -25,9 +25,11 @@ import { formaterTelephone } from '@/lib/phone';
 import { type CanalDeContactClient, useEnregistrerContactClient } from '@/lib/queries/customer-gestures';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
-import type { CustomerDetail, CustomerRelationship } from '@/types/customer';
+import type { CustomerDetail, CustomerNote, CustomerRelationship } from '@/types/customer';
 import type { Tag } from '@/types/tag';
 
+import { BarreDeLaFiche } from './BarreDeLaFiche';
+import { FilDuClient, type DemandeDeSaisie } from './FilDuClient';
 import { OrigineDuClient, ProchaineActionDuClient, RechercheDuClient } from './ResumeDuClient';
 
 /**
@@ -46,9 +48,11 @@ export interface FicheDuClientProps {
   readonly customer: CustomerDetail;
   readonly relationships: readonly CustomerRelationship[];
   readonly suggestionsDEtiquettes: readonly Pick<Tag, 'id' | 'name' | 'color'>[];
+  /** Toutes les notes de la fiche, lues par la page : les épinglées du fil (2b). */
+  readonly notes: readonly CustomerNote[];
   /** P15.01 (TCK-2351) — « Inviter à créer son compte », un geste du personnel (rôle du lecteur). */
   readonly peutInviter: boolean;
-  /** La colonne du fil (TCK-2589, lot C) ; d'ici là, les onglets. */
+  /** Sous le fil, les onglets qui restent jusqu'au lot D de TCK-2589 (le dossier). */
   readonly children: ReactNode;
 }
 
@@ -110,7 +114,7 @@ function TeteDeLaFiche({ customer, nom, peutInviter }: { readonly customer: Cust
     <header data-slot="tete-de-la-fiche">
       <FilDAriane label={tConsole('breadcrumb')} etapes={[{ label: tListe('title'), href: '/app/customers' }, { label: nom }]} />
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3 lg:flex-1">
           <span className="md:hidden">
             <InitialesDuClient texte={initiales(nom)} taille={52} />
           </span>
@@ -125,11 +129,14 @@ function TeteDeLaFiche({ customer, nom, peutInviter }: { readonly customer: Cust
             {sousTitre ? <p className="mt-1 text-sm text-pretty text-muted-foreground max-md:hidden">{sousTitre}</p> : null}
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
+        {/* Au bureau, les actions se rangent à droite et passent à la ligne : le nom garde sa place. */}
+        <div className="flex flex-wrap items-center gap-2 lg:max-w-3/5 lg:justify-end">
           <div className="grid w-full grid-cols-2 gap-2 md:flex md:w-auto md:flex-wrap" data-slot="gestes-de-la-fiche">
             <GestesDeLaFiche customer={customer} nom={nom} />
           </div>
+          {/* Au téléphone, « Visite » est dans la barre du bas (BarreDeLaFiche). */}
           <PlanifierUneVisite
+            className="max-md:hidden"
             customer={{ id: customer.id, libelle: nom, telephone: customer.phone ?? null, etape: customer.pipeline_stage ?? null }}
             // TCK-2586 (AC3) — son bien d'intérêt, posé : jour, heure, Confirmer.
             property={customer.interested_property ? { id: customer.interested_property.id, libelle: customer.interested_property.title } : undefined}
@@ -172,9 +179,11 @@ function ReferentEtEtiquettes({
   );
 }
 
-export function FicheDuClient({ customer, relationships, suggestionsDEtiquettes, peutInviter, children }: FicheDuClientProps) {
+export function FicheDuClient({ customer, relationships, suggestionsDEtiquettes, notes, peutInviter, children }: FicheDuClientProps) {
   // P220.03 (TCK-2281) — une fiche née d'un compte sans nom : son e-mail, son numéro ou `#<id>`.
   const nom = nomAffichable(customer);
+  // La barre du bas ouvre la saisie du fil : un jeton neuf à chaque toucher.
+  const [demandeDeSaisie, setDemandeDeSaisie] = useState<DemandeDeSaisie | null>(null);
 
   return (
     <PagePleineLargeur data-slot="fiche-du-client" className="max-md:pb-6">
@@ -189,10 +198,12 @@ export function FicheDuClient({ customer, relationships, suggestionsDEtiquettes,
           <OrigineDuClient customer={customer} />
           <ReferentEtEtiquettes customer={customer} relationships={relationships} suggestions={suggestionsDEtiquettes} />
         </div>
-        <div className="min-w-0" data-slot="fil-du-client">
+        <div className="flex min-w-0 flex-col gap-6" data-slot="fil-du-client">
+          <FilDuClient customer={customer} notes={notes} demandeDeSaisie={demandeDeSaisie} />
           {children}
         </div>
       </div>
+      <BarreDeLaFiche customer={customer} nom={nom} onSaisir={(mode) => setDemandeDeSaisie((d) => ({ mode, jeton: (d?.jeton ?? 0) + 1 }))} />
     </PagePleineLargeur>
   );
 }

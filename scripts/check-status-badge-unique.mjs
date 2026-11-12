@@ -133,6 +133,11 @@ const TABLES_DE_TONS_CONNUES = new Map([
   ['takussan-web/src/components/announcements/GlobalAnnouncementBanner.tsx',
     "bandeau d'annonce PLEIN, quatre sévérités sur toute la largeur : un message qui remplit "
     + 'sa surface, pas une pastille — `StatusBadge` ne rend que des fonds teintés (`bg-success/10`…)'],
+  // TCK-2589 (lot C) — le fil de la fiche client.
+  ['takussan-web/src/components/customer-dashboard/fiche/FilDuClient.tsx',
+    "une couleur par TYPE d'entrée du fil (note, jalon de visite, geste de contact, étape), "
+    + "jamais par statut, peinte sur la PASTILLE D'ICÔNE d'une ligne — et le ton WhatsApp est un "
+    + 'aplat PLEIN (`bg-success text-success-foreground`), que `StatusBadge` ne rend pas'],
   // TCK-596 §3B (ADR-0041) — le calendrier d'hôte d'un bien.
   ['takussan-web/src/components/property-dashboard/PropertyCalendarPanel.tsx',
     "trois ORIGINES d'une nuit prise (réservée, bloquée, importée) peintes sur les CASES d'un "

@@ -35,7 +35,6 @@ async function ongletRelations(relationships: CustomerRelationship[]) {
   render(withIntl(
     <CustomerDetailTabs
       customer={{ id: 1 } as CustomerDetail}
-      notes={[]}
       documents={[]}
       relationships={relationships}
     />,

@@ -1571,6 +1571,76 @@
         "demandeSurSansDate": "Demande sur « {bien} »",
         "demande": "Demande du {date}",
         "demandeSansDate": "Demande reçue"
+      },
+      "fil": {
+        "titre": "Fil",
+        "quand": "{jour} · {heure}",
+        "quandPar": "{jour} · {heure} · {nom}",
+        "rendezVous": "{jour} {heure}",
+        "note": "Note",
+        "demande": "Demande reçue",
+        "compteRendu": "Compte rendu",
+        "compteRenduVerdict": "Compte rendu : {verdict}",
+        "objections": "Objections : {liste}",
+        "epinglees": "Épinglées",
+        "epingleeAria": "Note épinglée",
+        "etape": "Étape : {de} → {a}",
+        "etapeSansOrigine": "Étape : {a}",
+        "vide": "Rien dans le fil pour l’instant.",
+        "videFiltre": "Rien de ce type dans le fil.",
+        "erreur": "Le fil n’a pas pu être chargé.",
+        "reessayer": "Réessayer",
+        "voirPlus": "Voir plus",
+        "visite": {
+          "created": "Visite demandée pour {quand}",
+          "createdSansHeure": "Visite demandée",
+          "confirmed": "Visite confirmée · {quand}",
+          "confirmedSansHeure": "Visite confirmée",
+          "cancelled": "Visite annulée",
+          "aConfirmer": "à confirmer"
+        },
+        "contact": {
+          "fiche": {
+            "call": "Appel",
+            "whatsapp": "WhatsApp",
+            "email": "E-mail",
+            "sms": "SMS"
+          },
+          "demande": {
+            "call": "Réponse par appel",
+            "whatsapp": "Réponse WhatsApp",
+            "email": "Réponse par e-mail",
+            "sms": "Réponse par SMS"
+          },
+          "inconnu": "Contact"
+        },
+        "filtres": {
+          "aria": "Filtrer le fil",
+          "tout": "Tout",
+          "notes": "Notes",
+          "visites": "Visites",
+          "appels": "Appels",
+          "etapes": "Étapes"
+        },
+        "saisie": {
+          "placeholder": "Ajouter une note sur {prenom}…",
+          "placeholderSansNom": "Ajouter une note…",
+          "placeholderTache": "Une tâche pour {prenom}…",
+          "placeholderTacheSansNom": "Une tâche…",
+          "note": "Note",
+          "tache": "Tâche",
+          "epingler": "Épingler",
+          "ajouter": "Ajouter",
+          "vide": "Écrivez d’abord la note.",
+          "videTache": "Écrivez d’abord la tâche.",
+          "noteRefusee": "La note n’a pas été ajoutée.",
+          "tacheRefusee": "La tâche n’a pas été créée."
+        },
+        "barre": {
+          "note": "Note",
+          "tache": "Tâche",
+          "visite": "Visite"
+        }
       }
     }
   },

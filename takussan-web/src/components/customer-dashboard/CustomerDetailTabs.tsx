@@ -5,28 +5,26 @@ import { Users } from 'lucide-react';
 import { EmptyState } from '@/components/feedback';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CustomerForm } from '@/components/customer-form';
-import { CustomerActivityFeed } from '@/components/crm/CustomerActivityFeed';
 import { CustomerLinkedRecords } from '@/components/crm/CustomerLinkedRecords';
 import { CustomerMatches } from '@/components/crm/CustomerMatches';
 import { CustomerTasksPanel } from '@/components/crm/CustomerTasksPanel';
 import type {
   CustomerDetail,
   CustomerDocument,
-  CustomerNote,
   CustomerRelationship,
 } from '@/types/customer';
 import { formatDateTime } from '@/lib/format';
 import { useLocale, useTranslations } from 'next-intl';
 import type { Locale } from '@/i18n/config';
 
-import { CustomerNotesTimeline } from './CustomerNotesTimeline';
 import { CustomerDocumentsPanel } from './CustomerDocumentsPanel';
 
 /**
  * Tabs shell for the customer detail page — TCK-042.
  *
  * TCK-591 §4 — LA fiche : aperçu, notes, tâches, activité, visites, réservations, baux,
- * correspondances, documents, relations. Le tiroir du pipeline en est la vue réduite et partage
+ * correspondances, documents, relations. TCK-2589 (lot C) — les notes et l'activité sont passées
+ * dans le fil de la fiche (`FilDuClient`) ; le lot D range le reste en dossier. Le tiroir du pipeline en est la vue réduite et partage
  * ses composants (tâches, activité). Un onglet inactif n'est pas monté : ses requêtes ne partent
  * qu'à l'ouverture.
  */
@@ -40,7 +38,6 @@ const TYPES_DE_RELATION_CONNUS = new Set(['owner_tenant', 'agent_client']);
 
 interface CustomerDetailTabsProps {
   readonly customer: CustomerDetail;
-  readonly notes: CustomerNote[];
   readonly documents: CustomerDocument[];
   readonly relationships: CustomerRelationship[];
   /** TCK-955 — le geste « Afficher » du numéro de pièce, pour l'admin (cf. `CustomerForm`). */
@@ -49,7 +46,6 @@ interface CustomerDetailTabsProps {
 
 export function CustomerDetailTabs({
   customer,
-  notes,
   documents,
   relationships,
   canRevealIdNumber = false,
@@ -68,9 +64,7 @@ export function CustomerDetailTabs({
       <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
         <TabsList className="w-max">
           <TabsTrigger value="overview">{tTabs('overview')}</TabsTrigger>
-          <TabsTrigger value="notes">{tTabs('notes', { count: notes.length })}</TabsTrigger>
           <TabsTrigger value="tasks">{tCrmTabs('tasks')}</TabsTrigger>
-          <TabsTrigger value="activity">{tCrmTabs('activity')}</TabsTrigger>
           <TabsTrigger value="visits">{tCrmTabs('visits')}</TabsTrigger>
           <TabsTrigger value="bookings">{tCrmTabs('bookings')}</TabsTrigger>
           <TabsTrigger value="leases">{tCrmTabs('leases')}</TabsTrigger>
@@ -84,16 +78,8 @@ export function CustomerDetailTabs({
         <CustomerForm mode="edit" customer={customer} compact canRevealIdNumber={canRevealIdNumber} />
       </TabsContent>
 
-      <TabsContent value="notes">
-        <CustomerNotesTimeline customerId={customer.id} notes={notes} />
-      </TabsContent>
-
       <TabsContent value="tasks">
         <CustomerTasksPanel customerId={customer.id} />
-      </TabsContent>
-
-      <TabsContent value="activity">
-        <CustomerActivityFeed customerId={customer.id} />
       </TabsContent>
 
       {(['visits', 'bookings', 'leases'] as const).map((kind) => (

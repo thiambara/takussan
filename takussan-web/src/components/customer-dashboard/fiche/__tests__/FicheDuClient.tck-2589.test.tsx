@@ -30,6 +30,11 @@ vi.mock('@/components/bookings/EntreeSaisieDemande', () => ({ EntreeSaisieDemand
 vi.mock('@/components/documents/AddDocumentButton', () => ({ AddDocumentButton: () => null }));
 vi.mock('@/components/crm/InviterACreerSonCompte', () => ({ InviterACreerSonCompte: () => null }));
 vi.mock('@/components/customer-dashboard/CustomerTagPicker', () => ({ CustomerTagPicker: () => null }));
+vi.mock('@/hooks/usePersonnelActif', () => ({ usePersonnelActif: () => true }));
+vi.mock('@/lib/queries/customer-timeline', async (original) => ({
+  ...(await original<typeof import('@/lib/queries/customer-timeline')>()),
+  fetchCustomerTimeline: async () => ({ data: [], meta: { total: 0, per_page: 20, current_page: 1, last_page: 1 } }),
+}));
 
 const geste = vi.hoisted(() => ({ mutate: vi.fn(), isError: false }));
 vi.mock('@/lib/queries/customer-gestures', () => ({ useEnregistrerContactClient: () => geste }));
@@ -106,7 +111,7 @@ function rendu(customer: CustomerDetail = MARIAMA) {
   return render(
     withIntl(
       <QueryClientProvider client={client}>
-        <FicheDuClient customer={customer} relationships={[]} suggestionsDEtiquettes={[]} peutInviter>
+        <FicheDuClient customer={customer} relationships={[]} suggestionsDEtiquettes={[]} notes={[]} peutInviter>
           <div>fil</div>
         </FicheDuClient>
       </QueryClientProvider>,
@@ -220,6 +225,17 @@ describe('TCK-2589 — la tête et le résumé de la fiche client', () => {
     appeler.addEventListener('click', (e) => e.preventDefault());
     await userEvent.click(appeler);
     expect(geste.mutate).not.toHaveBeenCalled();
+  });
+
+  it('la barre du bas ouvre la saisie du fil dans le mode touché ; « Visite » au seul personnel actif', async () => {
+    rendu();
+    const barre = document.querySelector('[data-slot="barre-d-action"]') as HTMLElement;
+    const saisie = () => document.querySelector('[data-slot="saisie-du-fil"]') as HTMLElement;
+    expect(saisie().className).toMatch(/max-md:hidden/);
+    await userEvent.click(within(barre).getByRole('button', { name: 'Tâche' }));
+    expect(saisie().className).not.toMatch(/max-md:hidden/);
+    expect(within(saisie()).getByRole('button', { name: 'Tâche' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(barre).getByRole('button', { name: 'Visite' })).toBeInTheDocument();
   });
 
   it('le personnel : Appeler est enregistré sur la fiche', async () => {

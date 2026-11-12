@@ -96,12 +96,12 @@ export default async function Page({ params }: { params: Params }) {
       customer={customer}
       relationships={relationships}
       suggestionsDEtiquettes={crmTagSuggestions}
+      notes={notes}
       peutInviter={canInviteToAccount}
     >
-      {/* TCK-2589 — la colonne du fil ; les onglets y restent jusqu'au lot D, qui les retire. */}
+      {/* TCK-2589 — sous le fil, les onglets qui restent jusqu'au lot D, qui les range en dossier. */}
       <CustomerDetailTabs
         customer={customer}
-        notes={notes}
         documents={documents}
         relationships={relationships}
         canRevealIdNumber={canRevealIdNumber}

@@ -246,6 +246,9 @@ final class CustomerTimeline
             'id' => $log->id,
             'at' => BaseResource::instantOnWire($log->created_at),
             'channel' => $log->properties instanceof Collection ? $log->properties->get('channel') : null,
+            // TCK-2589 (1a) — où le geste a été posé : sur la demande d'où vient la fiche (une
+            // réponse) ou sur la fiche elle-même.
+            'on' => $log->subject_type === PropertyContactLead::class ? 'lead' : 'customer',
             'causer' => $this->personne($log->causer),
         ];
     }

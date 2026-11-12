@@ -3520,6 +3520,76 @@
         "demandeSurSansDate": "Request about “{bien}”",
         "demande": "Request of {date}",
         "demandeSansDate": "Request received"
+      },
+      "fil": {
+        "titre": "Timeline",
+        "quand": "{jour} · {heure}",
+        "quandPar": "{jour} · {heure} · {nom}",
+        "rendezVous": "{jour} {heure}",
+        "note": "Note",
+        "demande": "Request received",
+        "compteRendu": "Viewing report",
+        "compteRenduVerdict": "Viewing report: {verdict}",
+        "objections": "Objections: {liste}",
+        "epinglees": "Pinned",
+        "epingleeAria": "Pinned note",
+        "etape": "Stage: {de} → {a}",
+        "etapeSansOrigine": "Stage: {a}",
+        "vide": "Nothing in the timeline yet.",
+        "videFiltre": "Nothing of this kind in the timeline.",
+        "erreur": "The timeline could not be loaded.",
+        "reessayer": "Try again",
+        "voirPlus": "Show more",
+        "visite": {
+          "created": "Viewing requested for {quand}",
+          "createdSansHeure": "Viewing requested",
+          "confirmed": "Viewing confirmed · {quand}",
+          "confirmedSansHeure": "Viewing confirmed",
+          "cancelled": "Viewing cancelled",
+          "aConfirmer": "to be confirmed"
+        },
+        "contact": {
+          "fiche": {
+            "call": "Call",
+            "whatsapp": "WhatsApp",
+            "email": "Email",
+            "sms": "Text message"
+          },
+          "demande": {
+            "call": "Replied by call",
+            "whatsapp": "Replied on WhatsApp",
+            "email": "Replied by email",
+            "sms": "Replied by text message"
+          },
+          "inconnu": "Contact"
+        },
+        "filtres": {
+          "aria": "Filter the timeline",
+          "tout": "All",
+          "notes": "Notes",
+          "visites": "Viewings",
+          "appels": "Calls",
+          "etapes": "Stages"
+        },
+        "saisie": {
+          "placeholder": "Add a note about {prenom}…",
+          "placeholderSansNom": "Add a note…",
+          "placeholderTache": "A task for {prenom}…",
+          "placeholderTacheSansNom": "A task…",
+          "note": "Note",
+          "tache": "Task",
+          "epingler": "Pin",
+          "ajouter": "Add",
+          "vide": "Write the note first.",
+          "videTache": "Write the task first.",
+          "noteRefusee": "The note was not added.",
+          "tacheRefusee": "The task was not created."
+        },
+        "barre": {
+          "note": "Note",
+          "tache": "Task",
+          "visite": "Viewing"
+        }
       }
     }
   },

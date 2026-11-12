@@ -109,7 +109,9 @@ class CustomerTimelineTest extends ApiTestCase
         [$etape, $contact, $lue, $notee] = $json['data'];
 
         $this->assertSame(['lead', 'qualified', $this->admin->id], [$etape['from'], $etape['to'], $etape['causer']['id']]);
-        $this->assertSame(['call', $this->admin->id], [$contact['channel'], $contact['causer']['id']]);
+        $this->assertSame(['call', 'customer', $this->admin->id], [$contact['channel'], $contact['on'], $contact['causer']['id']]);
+        // `on` ne se pose que sur un geste de contact.
+        $this->assertSame([false, false, false], array_map(fn (array $e) => array_key_exists('on', $e), [$etape, $lue, $notee]));
         $this->assertSame([$visite->id, 'confirmed', 'confirmed', $this->bien->id], [$lue['id'], $lue['milestone'], $lue['status'], $lue['property']['id']]);
         $this->assertSame(['id', 'title'], array_keys($lue['property']));
         $this->assertSame([$note->id, 'Cherche un F3 à Mermoz', $this->admin->id], [$notee['id'], $notee['body'], $notee['author']['id']]);
@@ -154,7 +156,7 @@ class CustomerTimelineTest extends ApiTestCase
             $this->suite(),
         );
         $data = $this->fil('?per_page=50')['data'];
-        $this->assertSame($sokhna->id, $data[2]['causer']['id']);
+        $this->assertSame([$sokhna->id, 'lead'], [$data[2]['causer']['id'], $data[2]['on']]);
         $this->assertSame('interested', $data[0]['report']['outcome']);
         $this->assertSame('Une visite samedi est-elle possible ?', $data[4]['body']);
     }
@@ -165,8 +167,13 @@ class CustomerTimelineTest extends ApiTestCase
         $planifiee = $this->visite();
         $attente = $this->visite(null, ['status' => VisitStatus::Scheduled]);
         $tot = $this->visite(null, ['status' => VisitStatus::Scheduled]);
-        Carbon::setTestNow('2026-11-05 10:00:03');
+        $juste = $this->visite(null, ['status' => VisitStatus::Scheduled]);
+        // La borne : CustomerTimeline::CREEE_CONFIRMEE_SECONDES (5 s). 4 s : la création vaut
+        // confirmation ; 6 s : la demande a attendu, ses deux jalons paraissent.
+        Carbon::setTestNow('2026-11-05 10:00:04');
         $tot->update(['status' => VisitStatus::Confirmed]);
+        Carbon::setTestNow('2026-11-05 10:00:06');
+        $juste->update(['status' => VisitStatus::Confirmed]);
         Carbon::setTestNow('2026-11-05 11:00:00');
         $attente->update(['status' => VisitStatus::Confirmed]);
         Carbon::setTestNow();
@@ -176,6 +183,7 @@ class CustomerTimelineTest extends ApiTestCase
 
         $this->assertSame(['confirmed'], $jalons[$planifiee->id]);
         $this->assertSame(['confirmed'], $jalons[$tot->id]);
+        $this->assertSame(['confirmed', 'created'], $jalons[$juste->id]);
         $this->assertSame(['confirmed', 'created'], $jalons[$attente->id]);
     }
 
@@ -224,6 +232,7 @@ class CustomerTimelineTest extends ApiTestCase
         $this->assertSame([['note', $libre->id]], array_map(fn ($e) => [$e['type'], $e['id']], $json['data']));
         $this->assertSame(1, $json['meta']['total']);
         $this->assertStringNotContainsString('interne', json_encode($json));
+        $this->assertArrayNotHasKey('on', $json['data'][0]);
 
         // Demander les seules visites ne lui rend rien, sans erreur.
         $this->assertSame([], $this->fil('?filter[type]=visit')['data']);
@@ -240,6 +249,27 @@ class CustomerTimelineTest extends ApiTestCase
         $listees = collect($this->getJson("/api/property-visits?filter[customer_id]={$this->fiche->id}")->assertOk()->json('data'))->pluck('id');
         $this->assertTrue($listees->contains($lisible->id));
         $this->assertFalse($listees->contains($illisible->id));
+
+        $this->assertSame([$lisible->id], array_column($this->fil('?filter[type]=visit')['data'], 'id'));
+    }
+
+    /**
+     * Vérification de TCK-2589 (V1) — `VisitesLisibles` est aussi la règle du fil : le lecteur,
+     * personnel de l'agence de la fiche, reste l'agent ASSIGNÉ d'une visite du client sur le bien
+     * d'une agence qu'il a quittée. Il ne la lit plus, ni en liste ni au fil. Témoin : une visite du
+     * même client dans son agence y entre.
+     */
+    public function test_l_agent_assigne_parti_de_l_agence_du_bien_ne_lit_la_visite_ni_en_liste_ni_au_fil(): void
+    {
+        $quittee = $this->agence();
+        $bienQuitte = $this->bienDe($quittee, $this->bailleur($quittee));
+        $lisible = $this->visite();
+        $perdue = $this->visite($bienQuitte, ['agent_id' => $this->admin->id]);
+
+        Sanctum::actingAs($this->admin);
+        $listees = collect($this->getJson("/api/property-visits?filter[customer_id]={$this->fiche->id}")->assertOk()->json('data'))->pluck('id');
+        $this->assertTrue($listees->contains($lisible->id));
+        $this->assertFalse($listees->contains($perdue->id));
 
         $this->assertSame([$lisible->id], array_column($this->fil('?filter[type]=visit')['data'], 'id'));
     }

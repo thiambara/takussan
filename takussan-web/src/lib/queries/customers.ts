@@ -247,12 +247,14 @@ export async function createCustomerNote(
   token: string,
   customerId: number,
   body: string,
+  /** TCK-2589 — épinglée dès sa création (« Épingler » de la saisie du fil). */
+  pinned = false,
 ): Promise<CustomerNote> {
   const res = await apiRequest<ApiResponse<CustomerNote>>(
     cheminApi`/api/customers/${customerId}/notes`,
     {
       method: 'POST',
-      body: { body },
+      body: pinned ? { body, pinned: true } : { body },
       token,
     },
   );
