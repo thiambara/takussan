@@ -578,6 +578,23 @@ describe('D2 — les bornes de la lecture selon le statut filtré (m1 de la cont
   });
 });
 
+describe('TCK-2677 (reprise) — un statut inconnu dans l’adresse vaut « tous », sans erreur', () => {
+  it('`parametresDesEncaissements` ne garde pas `status=completed`', () => {
+    const p = parametresDesEncaissements(new URLSearchParams('period=2026-11&status=completed'), '2026-11');
+    expect(p.status).toBeUndefined();
+    expect(p).toMatchObject({ paid_from: '2026-11-01', paid_to: '2026-11-30' });
+  });
+
+  it('`?tab=encaissements&status=completed` rend le registre, le choix de statut à « tous », sans `filter[status]`', async () => {
+    rendre('tab=encaissements&status=completed');
+    await waitFor(() => expect(lecturesDeLaListe().length).toBeGreaterThan(0));
+    for (const u of lecturesDeLaListe()) expect(u.searchParams.has('filter[status]')).toBe(false);
+    // La pastille porte son libellé, aucun choix (un statut inconnu ne se traduit pas : plus d'IntlError).
+    const pastille = await screen.findByRole('button', { name: 'Statut' });
+    expect(pastille).toHaveAttribute('data-choisi', 'false');
+  });
+});
+
 describe('TCK-2720 — la tuile « Reversements en attente » compte les bailleurs sur l’union des deux files', () => {
   // Le décor de l'AC1 de l'API : L1 a un reversement à approuver ET un à verser, L2 un à verser, un
   // prestataire un à verser. La file d'approbation ne compte qu'un bailleur ; l'union en compte deux,

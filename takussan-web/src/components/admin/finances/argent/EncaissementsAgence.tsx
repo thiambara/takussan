@@ -117,7 +117,10 @@ export function parametresDesEncaissements(recherche: { get(nom: string): string
   const { du, au } = bornesDesEncaissements(recherche, courant);
   const entityType = recherche.get('entity_type') as PaymentHistoryEntity | null;
   const moyen = recherche.get('moyen');
-  const statut = recherche.get('status') || undefined;
+  // Un statut que l'écran ne connaît pas (`status=completed`, lien ancien ou tapé) vaut « tous » : il
+  // ne part pas à l'API et ne se traduit pas (vérification de TCK-2677).
+  const statutLu = recherche.get('status');
+  const statut = statutLu && (PAYMENT_STATUS_VALUES as readonly string[]).includes(statutLu) ? statutLu : undefined;
   return {
     page: entier(recherche.get('page')) ?? 1,
     per_page: PAR_PAGE,
@@ -319,7 +322,7 @@ function FiltresDesEncaissements({ telephone, variante, params, libelles, agency
   const statut = (
     <ChoixDansUneListe
       libelle={t('statut')}
-      choisi={params.status ? tStatus(params.status) : null}
+      choisi={params.status && tStatus.has(params.status) ? tStatus(params.status) : null}
       options={optionsDeStatut}
       value={params.status ?? null}
       onChange={(v) => poser({ status: v })}

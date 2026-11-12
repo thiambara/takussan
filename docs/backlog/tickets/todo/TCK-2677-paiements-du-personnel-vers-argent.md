@@ -243,3 +243,21 @@ ticket à part (ci-dessous).
   démo en compte **37** — 17 factures sont invisibles, avant comme après. Ticket à écrire.
 - Au téléphone, la table des interventions défile dans son conteneur, mais ses rangées montent à ~140 px (la colonne des
   gestes s'empile hors champ) : c'était déjà l'écran de `/app/payments` ; une forme carte demanderait une maquette.
+
+**Reprise après vérification (2026-11-12, `$S/impl/verif/TCK-2677-verif.json`).**
+- **`status=completed` ne fait plus tomber « Argent »** : `adresseDeLArgent` ne reporte `status` que s'il est dans
+  `PAYMENT_STATUS_VALUES`, `entity_type` que s'il est une des quatre entités (et `entity_id` avec lui) ;
+  `parametresDesEncaissements` ignore un statut inconnu (il ne part pas à l'API, la pastille reste « Statut »), et
+  `FiltresDesEncaissements` ne traduit qu'un statut que `tStatus.has` connaît. Tests : la redirection (statut inconnu,
+  les sept statuts connus, entité inconnue) ; « Argent » sur `?tab=encaissements&status=completed`.
+  L'ablation de `tStatus.has` seule reste verte : la lecture des paramètres l'a déjà filtré (deux gardes, la seconde
+  pour un appelant futur qui passerait un statut brut).
+- **L'exemption `aiguilleDansSonRendu` se perd** sur : une autre attente ; `.then(` ; un nom permis affecté
+  (`const params = fetch(…)`), déstructuré ou importé d'un autre module ; un composant rendu, défini dans la page en
+  `async`, ou importé d'un module serveur qui contient `async` / `await` (barils suivis ; introuvable = perdue). Les
+  limites (descente d'un seul niveau, paquets non lus, promesse rendue sans `await`) sont écrites dans l'en-tête de la
+  garde. Auto-tests de la garde sur des variantes de la vraie page (E2 à E5, homonyme importé, `async` local) ; les
+  mutations E2 à E5 appliquées à `payments/page.tsx` rougissent la règle des replis.
+- **I6** : un test accorde `payouts.create` seul (onglet et ligne du téléphone présents), puis `payouts.approve` seul
+  (absents).
+

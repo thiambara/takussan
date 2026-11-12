@@ -112,6 +112,25 @@ describe('TCK-2677 — le registre « Interventions » de « Argent »', () => {
     expect(screen.getByRole('heading', { level: 1, name: fr.admin.finances.tabs.payments })).toBeInTheDocument();
   });
 
+  it('I6 — « Interventions » suit `payouts.create`, pas `payouts.approve` : chacune seule, bureau et téléphone', () => {
+    for (const telephone of [false, true]) {
+      etat.telephone = telephone;
+      const lien = () => screen.queryByRole('link', { name: new RegExp(fr.admin.finances.argent.registres.interventions) });
+      const onglet = () => screen.queryByRole('tab', { name: INTERVENTIONS });
+      const present = () => (telephone ? lien() : onglet());
+
+      etat.accordees = new Set(['invoices.create', 'payouts.create']);
+      const avecCreer = rendre();
+      expect(present()).not.toBeNull();
+      avecCreer.unmount();
+
+      etat.accordees = new Set(['invoices.create', 'payouts.approve']);
+      const avecApprouver = rendre();
+      expect(present()).toBeNull();
+      avecApprouver.unmount();
+    }
+  });
+
   it('tant que les capacités se lisent, le registre demandé tient (pas d’encaissements le temps d’une lecture)', () => {
     etat.enCours = true;
     etat.recherche = 'tab=interventions';

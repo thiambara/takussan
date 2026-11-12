@@ -65,3 +65,22 @@ describe('TCK-2677 — les filtres de l’historique', () => {
     expect(adresseDeLArgent({ status: ['late', 'paid'] })).toBe('/app/agency/finances?tab=encaissements&status=late');
   });
 });
+
+describe('TCK-2677 (reprise) — une valeur qu’« Argent » ne connaît pas ne suit pas', () => {
+  it('`status=completed` (un ancien favori) tombe ; les autres filtres passent', () => {
+    expect(lire(adresseDeLArgent({ tab: 'history', status: 'completed', date_from: '2026-01-01' })).params).toEqual({
+      tab: 'encaissements',
+      date_from: '2026-01-01',
+    });
+  });
+
+  it.each(['pending', 'paid', 'late', 'partially_paid', 'failed', 'refunded', 'cancelled'])('`status=%s` passe', (status) => {
+    expect(lire(adresseDeLArgent({ status })).params).toEqual({ tab: 'encaissements', status });
+  });
+
+  it('un `entity_type` inconnu tombe, et son `entity_id` avec lui', () => {
+    expect(lire(adresseDeLArgent({ entity_type: 'invoice', entity_id: '3' })).params).toEqual({ tab: 'encaissements' });
+    expect(lire(adresseDeLArgent({ entity_type: 'lease', entity_id: '3' })).params).toEqual({ tab: 'encaissements', entity_type: 'lease', entity_id: '3' });
+  });
+});
+

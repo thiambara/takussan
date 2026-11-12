@@ -1,3 +1,6 @@
+import { PAYMENT_STATUS_VALUES } from '@/components/payments/constants';
+import type { PaymentHistoryEntity } from '@/lib/queries/payments';
+
 import type { OngletArgent } from './vue-argent';
 
 /**
@@ -18,6 +21,11 @@ import type { OngletArgent } from './vue-argent';
  * « Encaissements » — ils ne filtraient que l'historique. `page` tombe : la page N d'une autre
  * sélection (autres bornes, autre taille de page) ne désigne rien. Tout autre paramètre tombe, sans
  * erreur.
+ *
+ * Une valeur qu'« Argent » ne connaît pas tombe aussi (vérification de TCK-2677) : `status` hors
+ * {@link PAYMENT_STATUS_VALUES} (`status=completed`, d'un ancien favori, faisait tomber la page sur
+ * « Une erreur est survenue »), `entity_type` hors des quatre entités — et `entity_id` avec lui, qui
+ * ne désigne rien sans son type.
  */
 const ONGLETS: Readonly<Record<string, OngletArgent>> = {
   history: 'encaissements',
@@ -28,6 +36,16 @@ const ONGLETS: Readonly<Record<string, OngletArgent>> = {
 };
 
 const FILTRES_DE_L_HISTORIQUE = ['status', 'entity_type', 'entity_id', 'date_from', 'date_to'] as const;
+
+const ENTITES: readonly PaymentHistoryEntity[] = ['property', 'lease', 'booking', 'customer'];
+
+/** Les valeurs qu'« Argent » sait lire ; `true` pour un filtre sans liste fermée. */
+function valeurConnue(cle: (typeof FILTRES_DE_L_HISTORIQUE)[number], valeur: string, params: ParametresDeLaPage): boolean {
+  if (cle === 'status') return (PAYMENT_STATUS_VALUES as readonly string[]).includes(valeur);
+  if (cle === 'entity_type') return (ENTITES as readonly string[]).includes(valeur);
+  if (cle === 'entity_id') return valeurConnue('entity_type', premiere(params.entity_type) ?? '', params);
+  return true;
+}
 
 /** Ce que Next passe à une page : `searchParams` résolu. */
 export type ParametresDeLaPage = Readonly<Record<string, string | string[] | undefined>>;
@@ -44,7 +62,7 @@ export function adresseDeLArgent(params: ParametresDeLaPage): string {
   if (onglet === 'encaissements') {
     for (const cle of FILTRES_DE_L_HISTORIQUE) {
       const valeur = premiere(params[cle]);
-      if (valeur !== undefined) sortie.set(cle, valeur);
+      if (valeur !== undefined && valeurConnue(cle, valeur, params)) sortie.set(cle, valeur);
     }
   }
   return `/app/agency/finances?${sortie.toString()}`;
