@@ -192,6 +192,26 @@ class BailFermeLesAutresCandidaturesTest extends ApiTestCase
     }
 
     /** Un second bail sur le bien ne renotifie pas une candidature déjà close. */
+    /**
+     * Vérification adverse de TCK-2734-b — un client qui a deux candidatures ouvertes sur le bien : les
+     * deux se ferment, et il ne lit « non retenue » qu'une fois. Un autre client garde son avis.
+     */
+    public function test_deux_candidatures_d_un_meme_client_un_seul_avis(): void
+    {
+        $client = $this->client();
+        $premiere = $this->demande(BookingKind::Application, BookingStatus::Pending, $client);
+        $seconde = $this->demande(BookingKind::Application, BookingStatus::Confirmed, $client);
+        $autre = $this->demande(BookingKind::Application, BookingStatus::Pending);
+
+        $this->creerLeBail($this->client());
+
+        foreach ([$premiere, $seconde, $autre] as $close) {
+            $this->assertSame(BookingStatus::Rejected, $close->refresh()->status);
+        }
+        $this->assertSame(1, $this->avisNonRetenue($premiere), 'un avis pour le client, pas un par candidature');
+        $this->assertSame(1, $this->avisNonRetenue($autre));
+    }
+
     public function test_un_second_bail_ne_renotifie_pas(): void
     {
         $autre = $this->demande(BookingKind::Application, BookingStatus::Pending);

@@ -180,6 +180,9 @@ class LeaseService
      */
     private function fermerLesCandidatures(Collection $candidatures, Customer $tenant, Lease $lease, User $user): void
     {
+        // Vérification adverse de TCK-2734-b — un avis par AUTEUR : un client qui a deux candidatures
+        // ouvertes sur le bien lit une fois « non retenue », pas deux. Chaque candidature se ferme.
+        $avises = [];
         foreach ($candidatures as $candidature) {
             if ((int) $candidature->customer_id === (int) $tenant->id) {
                 $this->terminerLaReservation($candidature, $lease, $user);
@@ -200,17 +203,22 @@ class LeaseService
                 ->event('booking_not_selected')
                 ->log('booking_not_selected');
 
-            DB::afterCommit(function () use ($candidature): void {
-                $client = $candidature->customer?->user;
-                if ($client !== null) {
-                    app(NotificationService::class)->send(
-                        $client,
-                        NotificationCode::BookingApplicationNotSelected,
-                        BookingNotificationParams::for($candidature, NotificationCode::BookingApplicationNotSelected),
-                        BookingNotificationParams::target($candidature),
-                    );
-                }
-            });
+            $premierAvis = ! isset($avises[(int) $candidature->customer_id]);
+            $avises[(int) $candidature->customer_id] = true;
+
+            if ($premierAvis) {
+                DB::afterCommit(function () use ($candidature): void {
+                    $client = $candidature->customer?->user;
+                    if ($client !== null) {
+                        app(NotificationService::class)->send(
+                            $client,
+                            NotificationCode::BookingApplicationNotSelected,
+                            BookingNotificationParams::for($candidature, NotificationCode::BookingApplicationNotSelected),
+                            BookingNotificationParams::target($candidature),
+                        );
+                    }
+                });
+            }
             BookingClosed::dispatch($candidature, BookingClosed::REASON_REJECTED, $user->id);
         }
     }
