@@ -143,7 +143,12 @@ class LeaseResource extends BaseResource
                 // l'agence DU BAIL (le bail en argument : sans lui, la Gate juge l'agence du profil actif),
                 // et un plafond NON figé au contrat. Un plafond figé n'est jamais forcé
                 // (`RentReviewService::review`, VERIF-596 passe 3) : l'offre suit le refus de l'API.
-                'rent_review_force' => $this->viewer->can('leases.rent_review_force', $this->resource)
+                // Un bail SANS agence ne donne aucun contexte à la Gate, qui retomberait sur l'agence du
+                // profil actif : capacité d'agence, aucun membre ne l'y a — seul le super-admin, qui a
+                // tout (`Gate::before`), y passe outre (réserve r1 de la vérification d'eecb6f893).
+                'rent_review_force' => ($this->resource->agency_id !== null
+                    ? $this->viewer->can('leases.rent_review_force', $this->resource)
+                    : $this->viewer->isSuperAdmin())
                     && $this->resource->rent_review_max_pct === null,
             ]),
             // TCK-2642 — le plafond de révision que CE bail exécute (figé au contrat, sinon le réglage de

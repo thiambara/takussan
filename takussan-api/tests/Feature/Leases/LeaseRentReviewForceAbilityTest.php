@@ -128,6 +128,48 @@ class LeaseRentReviewForceAbilityTest extends TestCase
     }
 
     /**
+     * Réserve r1 de la vérification d'eecb6f893 — un bail SANS agence ne donne aucun contexte à la
+     * Gate, qui retombait sur l'agence du profil actif : le bailleur, agent d'une autre agence dotée
+     * de la capacité, y passait outre (200). `leases.rent_review_force` est une capacité d'agence :
+     * sans agence au bail, personne ne l'a — ni dans l'offre, ni dans l'API.
+     */
+    public function test_un_bail_sans_agence_n_ouvre_jamais_le_passage_outre(): void
+    {
+        [$landlord, $lease] = $this->scaffold(null);
+        $lease->forceFill(['agency_id' => null])->save();
+        $lease->property->forceFill(['agency_id' => null])->save();
+
+        $autreAgence = Agency::factory()->create();
+        $roles = app(AgencyRoleService::class);
+        $role = $roles->replaceCapabilities(
+            $roles->create($autreAgence, ['name' => 'Rôle '.uniqid(), 'base_profile_type' => AgencyRoleBaseType::Agent->value]),
+            [Capability::LeasesRentReviewForce],
+        );
+        $agent = AgentProfile::factory()->create([
+            'user_id' => $landlord->id,
+            'agency_id' => $autreAgence->id,
+            'agency_role_id' => $role->id,
+        ]);
+        Sanctum::actingAs($landlord);
+        $this->withHeader('X-Profile-Id', "agent:{$agent->id}");
+
+        // Témoin : dans SON agence, la capacité est bien accordée.
+        $this->assertTrue($landlord->can('leases.rent_review_force', $autreAgence));
+
+        $this->getJson("/api/leases/{$lease->id}")
+            ->assertOk()
+            ->assertJsonPath('data.abilities.review_rent', true)
+            ->assertJsonPath('data.abilities.rent_review_force', false);
+
+        $this->patchJson("/api/leases/{$lease->id}/rent", [
+            'new_rent' => 260_000,
+            'reason' => 'Travaux',
+            'force' => true,
+        ])->assertStatus(422)->assertJsonValidationErrors('force');
+        $this->assertSame(200_000.0, (float) $lease->fresh()->monthly_rent);
+    }
+
+    /**
      * @return array{0: User, 1: Lease}
      */
     private function scaffold(?float $plafondFige): array

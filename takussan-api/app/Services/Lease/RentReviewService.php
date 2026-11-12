@@ -108,8 +108,14 @@ class RentReviewService
                 ]);
                 // TCK-2645 — la capacité se juge dans l'agence DU BAIL : sans le bail en argument, la
                 // Gate jugeait l'agence du profil actif, et un bailleur membre d'une autre agence y
-                // trouvait de quoi forcer le plafond d'un bail où il n'est que bailleur.
-                if (! $actor->can('leases.rent_review_force', $lease)) {
+                // trouvait de quoi forcer le plafond d'un bail où il n'est que bailleur. Un bail SANS
+                // agence ne donne aucun contexte à la Gate (même repli) : capacité d'agence, aucun
+                // membre ne l'y a — seul le super-admin (`Gate::before`) (réserve r1 de la vérification
+                // d'eecb6f893).
+                $peutForcer = $lease->agency_id !== null
+                    ? $actor->can('leases.rent_review_force', $lease)
+                    : $actor->isSuperAdmin();
+                if (! $peutForcer) {
                     throw ValidationException::withMessages([
                         'force' => [__('messages.lease_rent_review_force_not_allowed')],
                     ])->status(422);
