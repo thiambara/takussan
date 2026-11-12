@@ -317,6 +317,13 @@
       "propriete": "interligne, y",
       "exception": "incohérence des maquettes",
       "motif": "le titre et son compte « N non lues » partagent l'interligne serré du panneau du bureau (`leading-tight`, 17 px → 21,3) : c'est la valeur de la maquette du bureau, la seule qui écrit le compte (cf. l'écart « 63 non lues »)."
+    },
+    {
+      "ecran": "a-*",
+      "element": "AC2 et AC3 : la scène « 16 « Mise en avant terminée » non lues + 1 « Visite demandée » » de l'administratrice, et le dépli des 16 lignes",
+      "propriete": "état reproduit",
+      "exception": "donnée",
+      "motif": "la base de démo n'a pas cette scène et aucune ligne n'y est insérée (décision du 2026-11-12 : « Non, aucune insertion. Les tests suffisent ») : AC2 et AC3 sont prouvés par `cloche.tck-2634.test.tsx` et `regroupement` (Vitest, éprouvés par ablation). Mesuré sur la démo : « À traiter » en persona agent (16 `visit.requested`), le repli en persona admin (ses 20 rangées chargées sont toutes `maintenance.auto_closed`, repliées en une)."
     }
   ]
 }

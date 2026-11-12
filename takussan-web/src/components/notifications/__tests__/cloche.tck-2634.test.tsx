@@ -187,7 +187,7 @@ describe('TCK-2634 — la cloche par familles', () => {
   it('« Tout lire » d’un repli marque chacune de ses 9 lignes', async () => {
     markManyMock.mockImplementation(async (ids: number[]) => ({
       ok: true,
-      data: ids.map((id) => ligne({ id, read_at: MAINTENANT.toISOString(), is_read: true })),
+      data: { lues: ids.map((id) => ligne({ id, read_at: MAINTENANT.toISOString(), is_read: true })), echecs: 0 },
     }));
     const { utilisateur, cloche } = await ouvrir();
     await within(cloche).findByRole('button', { name: /Mise en avant terminée · 9 biens/ });
@@ -198,6 +198,21 @@ describe('TCK-2634 — la cloche par familles', () => {
     expect(markManyMock.mock.calls[0][0]).toEqual([100, 101, 102, 103, 104, 105, 106, 107, 108]);
     // Le compte des non-lues suit : 10 → 1.
     await waitFor(() => expect(within(cloche).getByText('1 non lue · 1 à traiter')).toBeInTheDocument());
+  });
+
+  it('« Tout lire » d’un repli qui n’aboutit qu’en partie corrige les lues ET dit combien ont échoué', async () => {
+    markManyMock.mockImplementation(async (ids: number[]) => ({
+      ok: true,
+      data: { lues: ids.slice(0, 7).map((id) => ligne({ id, read_at: MAINTENANT.toISOString(), is_read: true })), echecs: 2 },
+    }));
+    const { utilisateur, cloche } = await ouvrir();
+    await within(cloche).findByRole('button', { name: /Mise en avant terminée · 9 biens/ });
+
+    await utilisateur.click(within(cloche).getByRole('button', { name: 'Tout lire (9)' }));
+
+    expect(await within(cloche).findByRole('alert')).toHaveTextContent('2 notifications n’ont pas pu être marquées lues. Réessayez.');
+    // Les 7 lues sont corrigées : 10 → 3 non lues.
+    await waitFor(() => expect(within(cloche).getByText('3 non lues · 1 à traiter')).toBeInTheDocument());
   });
 
   it('une ligne à traiter porte le verbe de son code, en lien vers son objet ; une ligne sans verbe a son chevron', async () => {

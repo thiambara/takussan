@@ -8,7 +8,6 @@ import { useTranslations } from 'next-intl';
 import { EmptyState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import { PuceDeFiltre } from '@/components/ui/puce-de-filtre';
-import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { useMinuteCourante } from '@/hooks/useMinuteCourante';
 import type { AppNotification } from '@/lib/notifications';
 import { cn } from '@/lib/utils';
@@ -173,7 +172,6 @@ interface ContenuDeLaClocheProps {
  */
 export function ContenuDeLaCloche({ surface, onFermer, fermer }: ContenuDeLaClocheProps) {
   const t = useTranslations('nav.notifications');
-  const messageErreur = useMessageErreurApi();
   const [aTraiter, setATraiter] = useState(false);
   const [erreurDeGeste, setErreurDeGeste] = useState<string | null>(null);
   const query = useNotificationsDeLaCloche(aTraiter);
@@ -181,7 +179,7 @@ export function ContenuDeLaCloche({ surface, onFermer, fermer }: ContenuDeLaCloc
   // requête de la pastille, déjà en cache — pendant que « À traiter » charge.
   const tout = useNotificationsDeLaCloche(false);
   const gestes = useGestesDesNotifications(
-    (err) => setErreurDeGeste(messageErreur(err)),
+    setErreurDeGeste,
     () => setErreurDeGeste(null),
   );
 

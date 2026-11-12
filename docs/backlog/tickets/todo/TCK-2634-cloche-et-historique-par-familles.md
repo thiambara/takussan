@@ -115,3 +115,13 @@ En touchant la cloche, on voit d'abord ce qui attend un geste (« Visite demand�
 ## Notes d'implémentation
 
 _(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+
+**Décisions de lecture (2026-11-12, tranchées par la session déléguante) :**
+
+- **AC1 se lit « feuille, pas popover »** : la feuille fait 92 dvh (la maquette), pas 100 % de `innerHeight`. Relevé à 390 × 844 : 776,5 px = 0,92 × `innerHeight`. Le défilement est bloqué : un vrai glissé tactile (CDP `synthesizeScrollGesture`) sur `/app/properties` défile la page de 301 px cloche fermée, de 0 px cloche ouverte.
+- **AC4 se juge sur la géométrie** : le voile du panneau est gardé. À 1280, le panneau (x 280, y 11, 400 × 640) ne chevauche pas le bloc de la colonne, mais `elementFromPoint` y rend `popover-voile` : le voile couvre tout l'écran par construction.
+- **« À traiter » = à traiter ET non lue** : `filter[a_traiter]=1&filter[unread]=1`. Le compte vient de `meta` de l'API. Une ligne à traiter non lue ne se replie jamais.
+- **AC2 et AC3 sont prouvés par les tests, sans insertion en base.** La base de démo n'a pas la scène de l'administratrice. L'écart est noté « donnée » dans la fiche de fidélité.
+- **Le repli commence à 3 lignes.** Un texte neuf prend une clé neuve, avec wo = fr.
+- **« Tout lire » d'un repli : l'API n'a pas de route en lot** (`routes/api/notifications.php` : `{id}/read`, `read-all`). L'action `markNotificationsReadAction` fait l'éventail elle-même. Elle le **borne à la liste affichée** (20 lignes au plus), par vagues de 5. Elle **compte l'échec partiel** : les lignes lues restent lues, et l'écran dit « N notifications n'ont pas pu être marquées lues ». Si tout échoue, l'action rend le refus traduit `markReadFailed`. La borne de 20 est une garde, pas un comportement : la cloche (`LIGNES_DE_LA_CLOCHE`) et l'historique (`PER_PAGE`) chargent 20 lignes par page, sans « charger plus », donc un repli n'en tient jamais plus. Chaque refus d'un échec partiel est journalisé (TCK-775).
+- **Piège Vitest** : `beforeEach(() => mock.mockReset())` rend le mock, et Vitest joue une fonction rendue par `beforeEach` comme nettoyage après le test. Il faut des accolades.

@@ -12,7 +12,6 @@ import { PagePleineLargeur } from '@/components/layout/PagePleineLargeur';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { FeuilleDuBas } from '@/components/ui/feuille-du-bas';
 import { PuceDeFiltre } from '@/components/ui/puce-de-filtre';
-import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { FAMILLES_DE_NOTIFICATION, type FamilleDeNotification, type NotificationsQuery } from '@/lib/notifications';
 import { cn } from '@/lib/utils';
 
@@ -77,7 +76,6 @@ export function NotificationsHistory() {
   const t = useTranslations('notifications.history');
   const tCloche = useTranslations('nav.notifications');
   const tPage = useTranslations('dashboard.pages.notifications');
-  const messageErreur = useMessageErreurApi();
   const [page, setPage] = useState(1);
   const [mode, setMode] = useState<Mode>('tout');
   const [famille, setFamille] = useState<FamilleDeNotification | null>(null);
@@ -93,7 +91,7 @@ export function NotificationsHistory() {
   };
   const query = useHistoriqueDesNotifications(requete);
   const gestes = useGestesDesNotifications(
-    (err) => setActionError(messageErreur(err)),
+    setActionError,
     () => setActionError(null),
   );
 

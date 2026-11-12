@@ -1,6 +1,7 @@
 'use client';
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 
 import {
   getNotificationsAction,
@@ -9,6 +10,7 @@ import {
   markNotificationsReadAction,
   markNotificationUnreadAction,
 } from '@/app/actions/notifications';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import type { AppNotification, FamilleDeNotification, NotificationsQuery, NotificationsResponse } from '@/lib/notifications';
 
 import { familleDe } from './familles';
@@ -33,7 +35,7 @@ export const LIGNES_DE_LA_CLOCHE = 20;
 
 async function lire(query: NotificationsQuery): Promise<NotificationsResponse> {
   const res = await getNotificationsAction(query);
-  if (!res.ok) throw new Error(res.message);
+  if (!res.ok) throw new RefusDuGeste(res.message);
   return res.data;
 }
 
@@ -121,50 +123,59 @@ function appliquer(client: QueryClient, corriger: (r: NotificationsResponse | un
   void client.invalidateQueries({ queryKey: CLES_NOTIFICATIONS.historiques });
 }
 
+/** Le refus d'une server action : son message est déjà traduit (`failure`), il passe tel quel. */
+class RefusDuGeste extends Error {}
+
 /**
  * Les gestes : lu / non lu d'une ligne, « Tout lire » d'un repli (chacune de ses lignes), « Tout
- * lire ». Une erreur passe par `surErreur` (la surface l'écrit EN LIGNE, `role="alert"`).
+ * lire ». Une erreur passe par `surErreur`, en MESSAGE (la surface l'écrit EN LIGNE, `role="alert"`) :
+ * le refus traduit de l'action, sinon `useMessageErreurApi`. « Tout lire » d'un repli qui n'aboutit
+ * qu'en partie corrige les lignes lues ET dit combien ne l'ont pas été.
  */
-export function useGestesDesNotifications(surErreur: (err: unknown) => void, surReussite?: () => void) {
+export function useGestesDesNotifications(surErreur: (message: string) => void, surReussite?: () => void) {
   const client = useQueryClient();
+  const t = useTranslations('nav.notifications');
+  const messageErreur = useMessageErreurApi();
+  const direLErreur = (err: unknown) => surErreur(err instanceof RefusDuGeste ? err.message : messageErreur(err));
 
   const basculer = useMutation({
     mutationFn: async ({ id, lue }: { id: number; lue: boolean }) => {
       const res = lue ? await markNotificationReadAction(id) : await markNotificationUnreadAction(id);
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw new RefusDuGeste(res.message);
       return res.data;
     },
     onSuccess: (ligne) => {
       appliquer(client, (r) => corrigerLesLignes(r, [ligne]));
       surReussite?.();
     },
-    onError: surErreur,
+    onError: direLErreur,
   });
 
   const lireLeRepli = useMutation({
     mutationFn: async (ids: readonly number[]) => {
       const res = await markNotificationsReadAction(ids);
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw new RefusDuGeste(res.message);
       return res.data;
     },
-    onSuccess: (lignes) => {
-      appliquer(client, (r) => corrigerLesLignes(r, lignes));
-      surReussite?.();
+    onSuccess: ({ lues, echecs }) => {
+      appliquer(client, (r) => corrigerLesLignes(r, lues));
+      if (echecs > 0) surErreur(t('lectureEnPartie', { count: echecs }));
+      else surReussite?.();
     },
-    onError: surErreur,
+    onError: direLErreur,
   });
 
   const toutLire = useMutation({
     mutationFn: async () => {
       const res = await markAllNotificationsReadAction();
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw new RefusDuGeste(res.message);
       return true;
     },
     onSuccess: () => {
       appliquer(client, toutLu);
       surReussite?.();
     },
-    onError: surErreur,
+    onError: direLErreur,
   });
 
   return {

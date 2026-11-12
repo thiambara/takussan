@@ -83,28 +83,33 @@ export async function markNotificationUnreadAction(
 }
 
 /**
- * TCK-2634 — « Tout lire » d'une ligne repliée : chacune de ses notifications est marquée lue, par le
- * geste existant (`POST notifications/{id}/read`), l'éventail se faisant ici et non dans le navigateur.
- * L'API n'a pas de lecture groupée par identifiants, et `read-all` marquerait aussi le reste. Par
- * paquets de cinq ; la première erreur arrête et se rend comme celle d'une ligne seule.
+ * TCK-2634 — « Tout lire » d'un repli : chacune de ses lignes non lues. L'API n'a pas de route en lot
+ * (`read`, `unread`, `read-all` seulement) : l'éventail part d'ici, par paquets de 5, BORNÉ à la liste
+ * affichée (20 lignes au plus, la cloche comme une page d'historique) — un appel plus large n'en lit
+ * que les 20 premières. Un échec partiel n'efface pas les réussites : il est COMPTÉ (`echecs`), et
+ * l'écran le dit ; tout échoue → l'erreur, comme les autres gestes.
  */
 export async function markNotificationsReadAction(
   notificationIds: readonly number[],
-): Promise<ActionResult<AppNotification[]>> {
+): Promise<ActionResult<{ lues: AppNotification[]; echecs: number }>> {
   const token = await getToken();
   if (!token) return nonAuthentifie();
 
-  try {
-    const lues: AppNotification[] = [];
-    for (let i = 0; i < notificationIds.length; i += 5) {
-      const paquet = notificationIds.slice(i, i + 5);
-      const reponses = await Promise.all(paquet.map((id) => markNotificationRead(token, id)));
-      lues.push(...reponses.map((r) => r.data));
+  const ids = notificationIds.slice(0, 20);
+  const lues: AppNotification[] = [];
+  const raisons: unknown[] = [];
+  for (let i = 0; i < ids.length; i += 5) {
+    const reponses = await Promise.allSettled(ids.slice(i, i + 5).map((id) => markNotificationRead(token, id)));
+    for (const r of reponses) {
+      if (r.status === 'fulfilled') lues.push(r.value.data);
+      else raisons.push(r.reason);
     }
-    return { ok: true, data: lues };
-  } catch (err) {
-    return failure(err, 'markReadFailed');
   }
+  if (lues.length === 0 && raisons.length > 0) return failure(raisons[0], 'markReadFailed');
+  // Un échec partiel n'a pas de `catch` : sans cette ligne, un bug de l'éventail se tairait côté
+  // serveur (TCK-775), l'écran ne disant que « N n'ont pas pu être marquées lues ».
+  for (const raison of raisons) journaliserErreurInattendue('notifications', raison);
+  return { ok: true, data: { lues, echecs: raisons.length } };
 }
 
 export async function markAllNotificationsReadAction(): Promise<

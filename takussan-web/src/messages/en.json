@@ -438,7 +438,8 @@
         "minutes": "{n} min ago",
         "heures": "{n} h ago",
         "hier": "yesterday"
-      }
+      },
+      "lectureEnPartie": "{count, plural, one {# notification could not be marked as read} other {# notifications could not be marked as read}}. Please try again."
     },
     "proUpgrade": {
       "title": "Become an agency",
