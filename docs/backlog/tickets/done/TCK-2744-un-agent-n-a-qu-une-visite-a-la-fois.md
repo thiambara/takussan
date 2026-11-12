@@ -1,13 +1,13 @@
 ---
 id: TCK-2744
 title: "Un agent n'a qu'une visite confirmée à la fois : chaque écriture qui pose un agent et une heure refuse le chevauchement de ses visites, pas seulement de celles du bien"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: M
 wave: null
 created: 2026-11-11
-updated: 2026-11-11
+updated: 2026-11-12
 depends_on: []
 blocks: []
 spec_refs:

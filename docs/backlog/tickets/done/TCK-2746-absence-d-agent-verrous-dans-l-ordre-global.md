@@ -1,7 +1,7 @@
 ---
 id: TCK-2746
 title: "Modifier l'absence d'un agent pendant son retrait ou l'effacement de son compte : un interblocage possible (délégation ↔ utilisateur)"
-status: todo
+status: done
 phase: P1
 family: back
 estimate: S
