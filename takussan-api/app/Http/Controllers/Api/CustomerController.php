@@ -45,6 +45,9 @@ class CustomerController extends Controller
         // pipeline. Un bailleur de l'agence listait tout le CRM, téléphones et pièces d'identité compris.
         $base = Customer::query()->visibleTo($request->user());
 
+        // TCK-2756 — la liste rend les seules colonnes que `fields[customers]` demande.
+        CustomerResource::rendreLesSeulsChampsDemandes($request);
+
         // TCK-281 — `defaultSortsWithRelevance()` doit être évalué APRÈS
         // `buildQuery()`, qui est ce qui interroge Meilisearch : d'où les deux
         // instructions plutôt qu'une chaîne.

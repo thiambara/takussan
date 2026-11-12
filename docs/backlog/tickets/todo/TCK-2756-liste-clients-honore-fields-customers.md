@@ -96,3 +96,27 @@ ne les montre pas.
 - Mesure : `$S/impl/lot2/fields-customers/` (hors dépôt).
 - Ne pas confondre avec la réserve de TCK-2590 (la sonde de doublon par préfixe), tranchée dans ce
   ticket-là.
+
+## Notes d'implémentation
+
+- 2026-11-12 — décision du porteur **a** : seule la liste change. `CustomerController::index` pose
+  `CustomerResource::rendreLesSeulsChampsDemandes()` avant `Customer::buildQuery()` ; sous ce drapeau :
+  - `CustomerCommercialAttributes::strip()` remplace l'`unset($fields['customers'])` par `id` + les colonnes
+    demandées (des attributs calculés seuls lisent `select "customers"."id"`, plus `select *`) ; `id` est
+    aussi ajouté quand il manque, les attributs se calculant sur la clé ;
+  - `CustomerResource::toArray()` retire toute clé de `Customer::getOwnQueryFields()` absente de
+    `getAttributes()`. Les clés calculées, masquées ou de relation gardent leur propre condition.
+  Le show et les lecteurs imbriqués (bail, réservation) n'ont pas le drapeau : forme inchangée.
+- Test : `tests/Feature/Crm/CustomerIndexSparseFieldsTest.php` (6 tests) — 4 rouges avant le correctif,
+  verts après. Clés à `assertSame` triées ; AC2 épingle aussi les requêtes (ni `select *`, ni `id_number`,
+  ni `notes`) ; AC3 et le show sous `fields=id,first_name` comparés à la forme relevée avant le correctif.
+- Ablations : `unset` rétabli sous le drapeau → AC2 rouge ; filtre de la ressource retiré → 4 rouges.
+- Non-régression : les 72 fichiers qui citent `/api/customers`, `CustomerResource`,
+  `CustomerCommercialAttributes` ou `fields[customers]` (dont `CustomerListQueryCountTest`,
+  `CustomerIndexQueryBudgetTest`, `RequetesDuFrontTest`), plus les autres tests marqués TCK-2583/2588/2589/
+  2591/953 du CRM : 627 verts.
+- Front : aucun lecteur de la liste ne lit une colonne qu'il n'a pas demandée (`DASHBOARD_CUSTOMER_FIELDS`,
+  `PIPELINE_CARD_FIELDS`, `PLANIFICATION_CUSTOMER_FIELDS`, `useLeaseCustomerOptions`, `searchTaskables`,
+  `SaisirUneDemande`, payeurs de `argent/sources.ts`) ; `occupation` et `notes` du panneau du pipeline
+  viennent du show. `libelleDe` lit `email`/`phone` par `?.` et `??` : `undefined` vaut `null`.
+- Suite possible, hors de ce ticket : la même règle pour le show et les lecteurs imbriqués (voie b).

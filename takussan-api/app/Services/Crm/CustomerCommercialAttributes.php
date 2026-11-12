@@ -2,6 +2,7 @@
 
 namespace App\Services\Crm;
 
+use App\Http\Resources\CustomerResource;
 use App\Models\Customer;
 use App\Models\Enums\RelationshipStatus;
 use App\Models\Enums\RelationshipType;
@@ -54,7 +55,15 @@ final class CustomerCommercialAttributes
         $request->attributes->set(self::REQUESTED, $virtual);
 
         $rest = array_values(array_diff($names, self::FIELDS));
-        if ($rest === []) {
+        if (CustomerResource::champsStricts($request)) {
+            // TCK-2756 — la liste : la clé de la fiche, sur laquelle les attributs se calculent, et
+            // les seules colonnes demandées. `unset` faisait retomber spatie sur `select *` (notes,
+            // critères, pièce déchiffrée à chaque ligne) pour une page qui ne demandait que
+            // `next_action`.
+            $fields['customers'] = implode(',', array_values(array_unique(['id', ...$rest])));
+        } elseif ($rest === []) {
+            // Le show : la fiche client (TCK-2589) demande des attributs calculés seuls pour
+            // recevoir la ressource entière.
             unset($fields['customers']);
         } else {
             $fields['customers'] = implode(',', $rest);

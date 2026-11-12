@@ -23,6 +23,27 @@ class CustomerResource extends BaseResource
      */
     private const RESERVES = ['id_type', 'id_number', 'emergency_contact_name', 'emergency_contact_phone', 'notes', 'metadata'];
 
+    private const CHAMPS_STRICTS = 'tck2756.champs_stricts';
+
+    /**
+     * TCK-2756 (décision du porteur : a) — la LISTE du CRM rend les seules colonnes que
+     * `fields[customers]` a demandées : une colonne non lue est absente, pas rendue à `null` (qui se
+     * lisait « ce client n'a pas d'e-mail »), et des attributs calculés seuls ne font plus retomber
+     * spatie sur `select *` ({@see CustomerCommercialAttributes::strip()}). Posé par
+     * `CustomerController::index` avant `Customer::buildQuery()`. Le show et les lecteurs imbriqués
+     * (bail, réservation) gardent leur forme : la fiche client envoie au show des attributs calculés
+     * seuls POUR recevoir la ressource entière (TCK-2589).
+     */
+    public static function rendreLesSeulsChampsDemandes(Request $request): void
+    {
+        $request->attributes->set(self::CHAMPS_STRICTS, true);
+    }
+
+    public static function champsStricts(Request $request): bool
+    {
+        return $request->attributes->get(self::CHAMPS_STRICTS) === true;
+    }
+
     public function toArray(Request $request): array
     {
         // TCK-808 (P23.02) — la pièce, le contact d'urgence, les notes et `metadata` ne sortent que
@@ -31,7 +52,7 @@ class CustomerResource extends BaseResource
         // (TCK-587), les lisait par là. Étalé, comme les critères, pour la même raison.
         $litLaFiche = $this->readsCustomer($request);
 
-        return [
+        $rendu = [
             'id' => $this->id,
             'first_name' => $this->first_name,
             'last_name' => $this->last_name,
@@ -162,6 +183,22 @@ class CustomerResource extends BaseResource
                 ])->values(),
             ),
         ];
+
+        if (! self::champsStricts($request)) {
+            return $rendu;
+        }
+
+        // TCK-2756 — une colonne de la fiche que la lecture n'a pas chargée n'est pas rendue. Les
+        // clés calculées, masquées ou de relation (`id_number_masked`, `notes`, `next_action`,
+        // `visits_count`…) ont déjà leur propre condition.
+        $colonnes = Customer::getOwnQueryFields();
+        $lues = $this->resource->getAttributes();
+
+        return array_filter(
+            $rendu,
+            fn (string $cle) => ! in_array($cle, $colonnes, true) || array_key_exists($cle, $lues),
+            ARRAY_FILTER_USE_KEY,
+        );
     }
 
     /**
