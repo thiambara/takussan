@@ -31,6 +31,8 @@ const PERMIS: Readonly<Record<string, Categorie>> = {
   'src/components/inventory/InventoryList.tsx': 'pagination',
   'src/components/maintenance/MaintenanceList.tsx': 'pagination',
   'src/components/maintenance/MaintenanceHistoryByProperty.tsx': 'pagination',
+  // TCK-2660 — le pied de la table des impayés (bureau) : « page précédente », pas un retour.
+  'src/components/admin/finances/impayes/TableDesImpayes.tsx': 'pagination',
   // TCK-2659 — le pied du registre des encaissements (bureau) : « page précédente », pas un retour. Le
   // retour de l'écran de détail du téléphone est celui de la coque (`DeclarerEnTete forme="detail"`).
   'src/components/admin/finances/argent/EncaissementsAgence.tsx': 'pagination',
