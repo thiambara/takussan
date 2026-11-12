@@ -106,7 +106,10 @@ class RentReviewService
                 abort_code_if($lease->rent_review_max_pct !== null, 422, 'lease.rent_review_above_contract_cap', [
                     'max' => (string) $maxPct,
                 ]);
-                if (! $actor->can('leases.rent_review_force')) {
+                // TCK-2645 — la capacité se juge dans l'agence DU BAIL : sans le bail en argument, la
+                // Gate jugeait l'agence du profil actif, et un bailleur membre d'une autre agence y
+                // trouvait de quoi forcer le plafond d'un bail où il n'est que bailleur.
+                if (! $actor->can('leases.rent_review_force', $lease)) {
                     throw ValidationException::withMessages([
                         'force' => [__('messages.lease_rent_review_force_not_allowed')],
                     ])->status(422);

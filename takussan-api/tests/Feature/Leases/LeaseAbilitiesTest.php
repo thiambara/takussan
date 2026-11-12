@@ -74,6 +74,8 @@ class LeaseAbilitiesTest extends ApiTestCase
             'download_contract' => true,
             'leave_review' => false,
             'give_notice' => false,
+            // TCK-2645 (décision 3) — « Passer outre » le plafond de révision : capacité dédiée.
+            'rent_review_force' => false,
         ], $this->abilitiesOfAgent([Capability::CrmViewAll]));
     }
 
@@ -91,6 +93,8 @@ class LeaseAbilitiesTest extends ApiTestCase
             'download_contract' => true,
             'leave_review' => false,
             'give_notice' => false,
+            // TCK-2645 (décision 3) — « Passer outre » le plafond de révision : capacité dédiée.
+            'rent_review_force' => false,
         ], $this->abilitiesOfAgent([Capability::LeasesRenew, Capability::PaymentsRecord]));
     }
 
@@ -115,6 +119,8 @@ class LeaseAbilitiesTest extends ApiTestCase
                 'download_contract' => true,
                 'leave_review' => false,
                 'give_notice' => false,
+                // TCK-2645 (décision 3) — sans `leases.rent_review_force`, le bailleur ne passe pas outre.
+                'rent_review_force' => false,
             ]);
     }
 

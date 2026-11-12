@@ -139,6 +139,12 @@ class LeaseResource extends BaseResource
                 'download_contract' => $this->viewer->can('downloadContract', $this->resource),
                 'leave_review' => app(LeasePolicy::class)->leaveReview($this->viewer, $this->resource),
                 'give_notice' => app(LeasePolicy::class)->giveNotice($this->viewer, $this->resource),
+                // TCK-2645 (décision 3) — « Passer outre » le plafond de révision : la capacité, jugée dans
+                // l'agence DU BAIL (le bail en argument : sans lui, la Gate juge l'agence du profil actif),
+                // et un plafond NON figé au contrat. Un plafond figé n'est jamais forcé
+                // (`RentReviewService::review`, VERIF-596 passe 3) : l'offre suit le refus de l'API.
+                'rent_review_force' => $this->viewer->can('leases.rent_review_force', $this->resource)
+                    && $this->resource->rent_review_max_pct === null,
             ]),
             // TCK-2642 — le plafond de révision que CE bail exécute (figé au contrat, sinon le réglage de
             // son agence, sinon le global : `RentReviewService::maxPctFor`), pour la feuille de révision.
