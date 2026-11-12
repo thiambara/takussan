@@ -1,13 +1,13 @@
 ---
 id: TCK-2635
 title: "Profil : un sommaire de réglages (une rangée par section, ce qui demande une action marqué), les avis en onglets Reçus · À laisser · Publiés, et plus de texte technique"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: L
 wave: 87
 created: 2026-11-10
-updated: 2026-11-10
+updated: 2026-11-12
 depends_on: [TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: []
 spec_refs:
@@ -115,12 +115,12 @@ Aucun endpoint neuf. Les sections lisent et écrivent ce qu'elles lisent et écr
 
 ## Delta à produire
 
-- [ ] Sommaire (téléphone) et colonne de sommaire (bureau), rangées par persona, bloc « À régler ».
-- [ ] Une page par section, aux contenus et gestes d'aujourd'hui ; un seul « Enregistrer » par section.
-- [ ] Mes avis en trois onglets, note moyenne de l'agent, filtres en feuille.
-- [ ] Vocabulaire : fuseau, 2FA, format du téléphone, carte professionnelle, statut des profils.
-- [ ] Adresses existantes conservées.
-- [ ] Tests :
+- [x] Sommaire (téléphone) et colonne de sommaire (bureau), rangées par persona, bloc « À régler ».
+- [x] Une page par section, aux contenus et gestes d'aujourd'hui ; un seul « Enregistrer » par section.
+- [x] Mes avis en trois onglets, note moyenne de l'agent, filtres en feuille.
+- [x] Vocabulaire : fuseau, 2FA, format du téléphone, carte professionnelle, statut des profils.
+- [x] Adresses existantes conservées.
+- [x] Tests :
   - rangées exactes par persona (agent, bailleur, prestataire, client, admin) ;
   - « Vérifier votre numéro » présent si et seulement si le téléphone n'est pas vérifié ;
   - aucun texte `license_number` ni « · active » rendu ;
@@ -130,12 +130,12 @@ Aucun endpoint neuf. Les sections lisent et écrivent ce qu'elles lisent et écr
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Agent au téléphone non vérifié et sans 2FA, à 390 : le premier écran de `/app/profile` montre « À régler », avec « Vérifier votre numéro » et « Activer la double authentification », au-dessus du pli.
-- [ ] AC2 — La page de l'agent ne contient nulle part les chaînes `license_number` ni `active` en minuscule après un point médian (DOM entier, sections ouvertes).
-- [ ] AC3 — À 1280, le sommaire de 240 px reste visible en défilant une section longue (position collante relevée après défilement).
-- [ ] AC4 — Bailleur : le sommaire a « Moyens de versement » et « Annuaire public », et n'a pas « Fiche publique ». Modifier un moyen de versement demande toujours la double authentification (même requête qu'avant le ticket).
-- [ ] AC5 — « Mes avis » d'un agent ouvre sur « Reçus ». La note moyenne affichée est celle de sa fiche publique (même valeur au réseau). « Signaler » reste sur chaque avis reçu.
-- [ ] AC6 — `/app/account/privacy` ouvre la section « Mes données », et « Demander mon export » envoie la même requête qu'avant le ticket.
+- [x] AC1 — Agent au téléphone non vérifié et sans 2FA, à 390 : le premier écran de `/app/profile` montre « À régler », avec « Vérifier votre numéro » et « Activer la double authentification », au-dessus du pli.
+- [x] AC2 — La page de l'agent ne contient nulle part les chaînes `license_number` ni `active` en minuscule après un point médian (DOM entier, sections ouvertes).
+- [x] AC3 — À 1280, le sommaire de 240 px reste visible en défilant une section longue (position collante relevée après défilement).
+- [x] AC4 — Bailleur : le sommaire a « Moyens de versement » et « Annuaire public », et n'a pas « Fiche publique ». Modifier un moyen de versement demande toujours la double authentification (même requête qu'avant le ticket).
+- [x] AC5 — « Mes avis » d'un agent ouvre sur « Reçus ». La note moyenne affichée est celle de sa fiche publique (même valeur au réseau). « Signaler » reste sur chaque avis reçu.
+- [x] AC6 — `/app/account/privacy` ouvre la section « Mes données », et « Demander mon export » envoie la même requête qu'avant le ticket.
 
 **Fidélité au pixel** ([ADR-0106](../../../adr/0106-la-maquette-retenue-fait-foi-au-pixel.md), préparation : TCK-2684 → TCK-2691) :
 
