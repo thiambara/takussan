@@ -76,8 +76,11 @@ const HORS_MENU: Readonly<Record<string, PageHorsMenu>> = {
   '/app/overview/agent': { titre: { espace: 'dashboard.agent', cle: 'title' } },
   '/app/settings/agency/upgrade': { titre: { espace: PAGES, cle: 'upgrade.metaTitle' } },
   '/app/payments/return': { titre: { espace: PAGES, cle: 'paymentReturn.metaTitle' }, parent: '/app/payments' },
+  // TCK-2675 — le titre se lit dans le dictionnaire de la COQUE (`nav`), pas dans `admin` : l'en-tête est
+  // rendu au-dessus de la frontière `(dashboard)/app/agency`, et `admin.reconciliation.title` y levait
+  // MISSING_MESSAGE au rendu serveur (500 sur la page et sur chaque relevé).
   '/app/agency/finances/reconciliation': {
-    titre: { espace: 'admin.reconciliation', cle: 'title' },
+    titre: { espace: 'nav.admin', cle: 'reconciliation' },
     parent: '/app/agency/finances',
   },
   // Les formulaires de création : plein écran au téléphone, leur « ✕ » ramène à la liste.
@@ -167,3 +170,6 @@ export function titreDeLaRoute(pathname: string | null | undefined, ctx: Context
   const parent = parentDeLaRoute(chemin);
   return parent ? titreDeLaRoute(parent, ctx, persona) : null;
 }
+
+/** Les routes hors du menu, pour la garde du dictionnaire de la coque (`__tests__/…dictionnaire-de-la-coque`). */
+export const ROUTES_HORS_MENU: readonly string[] = Object.keys(HORS_MENU);

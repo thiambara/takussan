@@ -323,7 +323,8 @@
       "integrations": "Integrations",
       "mySpace": "My space",
       "openMySpace": "Open my space",
-      "payouts": "Payouts"
+      "payouts": "Payouts",
+      "reconciliation": "Reconciliation"
     },
     "superAdmin": {
       "eyebrow": "Takussan console",

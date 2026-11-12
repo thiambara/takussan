@@ -323,7 +323,8 @@
       "integrations": "Intégrations",
       "mySpace": "Mon espace",
       "openMySpace": "Ouvrir mon espace",
-      "payouts": "Reversements"
+      "payouts": "Reversements",
+      "reconciliation": "Rapprochement"
     },
     "superAdmin": {
       "eyebrow": "Console Takussan",
