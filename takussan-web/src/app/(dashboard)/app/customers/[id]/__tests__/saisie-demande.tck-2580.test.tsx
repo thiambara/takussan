@@ -2,11 +2,12 @@
  * TCK-2580 (vérification adverse, M1) — la PAGE fiche client porte, parmi ses gestes, « Saisir une
  * candidature ou une offre » pour le personnel de l'agence, et seulement pour lui. La page est rendue
  * entière (composant serveur attendu, puis monté) : le test du composant `EntreeSaisieDemande` seul
- * restait vert quand on retirait le geste de la fiche. Les autres gestes et les onglets, qui ont leurs
- * propres tests, sont simulés par un témoin.
+ * restait vert quand on retirait le geste de la fiche. Les autres gestes, qui ont leurs propres tests,
+ * sont simulés. TCK-2589 (lot D) — le geste vit dans le ⋯ des actions de la fiche (menu au bureau).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { withIntl } from '@/test/intl';
@@ -44,7 +45,6 @@ vi.mock('@/lib/queries/customers', () => ({
   fetchCustomerRelationships: async () => [],
   fetchCrmTags: async () => [],
 }));
-vi.mock('@/components/customer-dashboard/CustomerDetailTabs', () => ({ CustomerDetailTabs: () => <p>onglets de la fiche</p> }));
 vi.mock('@/components/customer-dashboard/CustomerTagPickerSection', () => ({ CustomerTagPickerSection: () => null }));
 vi.mock('@/components/crm/ContactGestures', () => ({ ContactGestures: () => null }));
 vi.mock('@/components/crm/InviterACreerSonCompte', () => ({ InviterACreerSonCompte: () => null }));
@@ -77,16 +77,20 @@ describe('TCK-2580 — le geste « Saisir une candidature ou une offre » de la 
     await monterLaPage();
 
     expect(screen.getByRole('heading', { level: 1, name: 'Awa Diop' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Saisir une candidature ou une offre' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Plus d’actions' }));
+    expect(await screen.findByRole('menuitem', { name: 'Saisir une candidature ou une offre' })).toBeInTheDocument();
   });
 
   it('sous un profil bailleur, la même fiche n’offre le geste sous aucune forme', async () => {
     profils.courant = profilsBailleur;
     await monterLaPage();
 
-    // La fiche est bien rendue (témoins) : l'absence du geste n'est pas celle de la page.
+    // La fiche est bien rendue, son menu ouvert : l'absence du geste n'est pas celle de la page.
     expect(screen.getByRole('heading', { level: 1, name: 'Awa Diop' })).toBeInTheDocument();
-    expect(screen.getByText('onglets de la fiche')).toBeInTheDocument();
+    expect(document.querySelector('[data-slot="dossier-du-client"]')).not.toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Plus d’actions' }));
+    expect(await screen.findByRole('menuitem', { name: 'Ajouter un document' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Saisir une candidature ou une offre' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Saisir une candidature ou une offre' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Saisir une demande' })).not.toBeInTheDocument();
   });

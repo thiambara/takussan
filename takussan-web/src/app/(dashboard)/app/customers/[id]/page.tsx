@@ -17,11 +17,10 @@ import {
 } from '@/lib/queries/customers';
 import { EmptyState } from '@/components/feedback';
 import { buttonVariants } from '@/components/ui/button';
-import { CustomerDetailTabs } from '@/components/customer-dashboard/CustomerDetailTabs';
 import { FicheDuClient } from '@/components/customer-dashboard/fiche/FicheDuClient';
 
 /**
- * TCK-042 — la fiche client. TCK-2589 — résumé et fil (`FicheDuClient`, maquette `app-clients-fiche` a) ;
+ * TCK-042 — la fiche client. TCK-2589 — résumé, fil et dossier (`FicheDuClient`, maquette `app-clients-fiche` a) ;
  * la lecture est celle de la sonde du layout (`lireClientDuRendu`) : une requête par rendu.
  */
 
@@ -89,8 +88,6 @@ export default async function Page({ params }: { params: Params }) {
     throw e;
   }
 
-  const documents = customer.documents ?? [];
-
   return (
     <FicheDuClient
       customer={customer}
@@ -98,15 +95,8 @@ export default async function Page({ params }: { params: Params }) {
       suggestionsDEtiquettes={crmTagSuggestions}
       notes={notes}
       peutInviter={canInviteToAccount}
-    >
-      {/* TCK-2589 — sous le fil, les onglets qui restent jusqu'au lot D, qui les range en dossier. */}
-      <CustomerDetailTabs
-        customer={customer}
-        documents={documents}
-        relationships={relationships}
-        canRevealIdNumber={canRevealIdNumber}
-      />
-    </FicheDuClient>
+      peutReveler={canRevealIdNumber}
+    />
   );
 }
 

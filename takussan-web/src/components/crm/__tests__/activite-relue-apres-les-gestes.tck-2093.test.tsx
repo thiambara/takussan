@@ -1,6 +1,6 @@
 /**
  * TCK-2093 (P199.06) — l'onglet « Activité » de la fiche client se relit après chaque geste de la
- * fiche qui journalise : une note (page et tiroir du pipeline), une étape, une tâche (création et
+ * fiche qui journalise : une note (tiroir du pipeline ; la page a son fil depuis TCK-2589), une étape, une tâche (création et
  * bascule). Avant, la clé `AGENT_CRM_QUERY_KEY.activity` n'était invalidée nulle part : le geste
  * n'apparaissait dans le fil qu'après le `staleTime` de cinq minutes.
  */
@@ -14,7 +14,6 @@ import { AGENT_CRM_QUERY_KEY } from '@/lib/queries/agent-crm';
 import { withIntl } from '@/test/intl';
 import { CustomerStageControl } from '../CustomerStageControl';
 import { CustomerTasksPanel } from '../CustomerTasksPanel';
-import { CustomerNotesTimeline } from '@/components/customer-dashboard/CustomerNotesTimeline';
 import { CustomerDetailSheet } from '@/components/pipeline/CustomerDetailSheet';
 
 vi.mock('@/context/AuthContext', () => ({
@@ -89,15 +88,6 @@ describe('TCK-2093 — le fil d’activité se relit après les gestes de la fic
     const { activiteInvalidee } = monter(<CustomerTasksPanel customerId={CLIENT} />);
     await userEvent.click(await screen.findByLabelText('Marquer « Rappeler » comme faite'));
     await waitFor(() => expect(pipeline.updateTask).toHaveBeenCalled());
-    await waitFor(() => expect(activiteInvalidee()).toBe(true));
-  });
-
-  it('note publiée depuis la page de la fiche', async () => {
-    const user = userEvent.setup();
-    const { activiteInvalidee } = monter(<CustomerNotesTimeline customerId={CLIENT} notes={[]} />);
-    await user.type(screen.getByPlaceholderText(/Compte rendu d'appel/), 'Appel fait');
-    await user.click(screen.getByRole('button', { name: /Publier/ }));
-    await waitFor(() => expect(createCustomerNoteAction).toHaveBeenCalledWith(CLIENT, 'Appel fait'));
     await waitFor(() => expect(activiteInvalidee()).toBe(true));
   });
 

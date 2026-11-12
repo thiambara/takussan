@@ -10,7 +10,8 @@ import { ChevronRight, Loader2, Search } from 'lucide-react';
 import { CitationDuMessage, Surtitre } from '@/components/leads/boite/pieces';
 import { useAuth } from '@/context/AuthContext';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import { nombreDeCorrespondances, prochaineVisite, tacheSuivante, type ProchaineVisite } from '@/lib/crm/fiche-du-client';
+import { useVueDansLUrl } from '@/hooks/useVueDansLUrl';
+import { ANCRE_DES_BIENS, nombreDeCorrespondances, PARAMETRE_DE_SECTION, prochaineVisite, tacheSuivante, type ProchaineVisite } from '@/lib/crm/fiche-du-client';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { AGENT_CRM_QUERY_KEY, fetchMatchingProperties } from '@/lib/queries/agent-crm';
 import { PIPELINE_QUERY_KEY } from '@/hooks/pipelineKeys';
@@ -206,10 +207,12 @@ export function RechercheDuClient({ customer, droite, className }: { readonly cu
   const correspondances = useQuery({
     queryKey: AGENT_CRM_QUERY_KEY.matchingProperties(customer.id),
     queryFn: () => fetchMatchingProperties(token ?? '', customer.id),
-    enabled: !!token,
+    // Sans recherche, ni rangée ni ligne de dossier : rien à compter.
+    enabled: !!token && lignes !== null,
     retry: false,
   });
   const nombre = nombreDeCorrespondances(correspondances.data);
+  const { remplacer } = useVueDansLUrl();
 
   return (
     <CarteDeLaFiche className={className}>
@@ -222,15 +225,24 @@ export function RechercheDuClient({ customer, droite, className }: { readonly cu
       ) : (
         <p className="mt-2 text-corps text-muted-foreground">{t('vide')}</p>
       )}
-      <a
-        href="#biens-correspondants"
-        data-slot="biens-correspondants"
-        className="mt-3 flex h-11 items-center gap-2 rounded-lg bg-muted/70 px-3 text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring"
-      >
-        <Search className="size-4 flex-none text-primary" aria-hidden="true" />
-        {nombre === null ? t('correspondantsSansNombre') : t('correspondants', { count: nombre })}
-        <ChevronRight className="ml-auto size-4 flex-none text-muted-foreground" aria-hidden="true" />
-      </a>
+      {/* Lot D — la rangée ouvre la ligne « Biens correspondants » du dossier (`?section=biens`) et
+          l'amène à l'écran ; sans recherche, la ligne n'existe pas, la rangée non plus. */}
+      {lignes ? (
+        <a
+          href={`?${PARAMETRE_DE_SECTION}=biens`}
+          data-slot="biens-correspondants"
+          onClick={(e) => {
+            e.preventDefault();
+            remplacer({ [PARAMETRE_DE_SECTION]: 'biens' });
+            requestAnimationFrame(() => document.getElementById(ANCRE_DES_BIENS)?.scrollIntoView?.({ block: 'start' }));
+          }}
+          className="mt-3 flex h-11 items-center gap-2 rounded-lg bg-muted/70 px-3 text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring"
+        >
+          <Search className="size-4 flex-none text-primary" aria-hidden="true" />
+          {nombre === null ? t('correspondantsSansNombre') : t('correspondants', { count: nombre })}
+          <ChevronRight className="ml-auto size-4 flex-none text-muted-foreground" aria-hidden="true" />
+        </a>
+      ) : null}
     </CarteDeLaFiche>
   );
 }

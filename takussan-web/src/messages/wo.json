@@ -1641,6 +1641,28 @@
           "tache": "Tâche",
           "visite": "Visite"
         }
+      },
+      "dossier": {
+        "titre": "Dossier",
+        "biens": "Biens correspondants",
+        "biensDetail": "Cocher, puis « Partager par WhatsApp »",
+        "taches": "Tâches",
+        "tachesDetail": "{count, plural, =0 {Aucune tâche ouverte} one {# ouverte} other {# ouvertes}}",
+        "documents": "Documents",
+        "relations": "Relations",
+        "reservations": "Réservations",
+        "baux": "Baux",
+        "piece": "Pièce d’identité",
+        "pieceDetail": "Révélée à l’admin, après double facteur",
+        "compte": "Compte client",
+        "compteDetail": "Pas encore de compte",
+        "inviter": "Inviter"
+      },
+      "menu": {
+        "plus": "Plus d’actions"
+      },
+      "modifier": {
+        "titre": "Modifier la fiche"
       }
     }
   },

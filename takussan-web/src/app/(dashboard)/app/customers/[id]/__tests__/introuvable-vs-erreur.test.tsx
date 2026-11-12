@@ -41,7 +41,6 @@ vi.mock('@/lib/queries/customers', () => ({
   fetchCrmTags: async () => [],
 }));
 
-vi.mock('@/components/customer-dashboard/CustomerDetailTabs', () => ({ CustomerDetailTabs: () => null }));
 vi.mock('@/components/customer-dashboard/CustomerTagPickerSection', () => ({ CustomerTagPickerSection: () => null }));
 vi.mock('@/components/documents/AddDocumentButton', () => ({ AddDocumentButton: () => null }));
 

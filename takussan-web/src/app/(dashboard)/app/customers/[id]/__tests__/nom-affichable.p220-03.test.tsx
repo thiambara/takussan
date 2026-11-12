@@ -41,13 +41,13 @@ vi.mock('@/lib/queries/customers', () => ({
   fetchCustomerRelationships: async () => [],
   fetchCrmTags: async () => [],
 }));
-vi.mock('@/components/customer-dashboard/CustomerDetailTabs', () => ({ CustomerDetailTabs: () => <p>onglets de la fiche</p> }));
 vi.mock('@/components/customer-dashboard/CustomerTagPicker', () => ({ CustomerTagPicker: () => null }));
 vi.mock('@/components/crm/InviterACreerSonCompte', () => ({ InviterACreerSonCompte: () => null }));
 vi.mock('@/components/crm/CustomerReferent', () => ({ CustomerReferent: () => null }));
 vi.mock('@/components/bookings/EntreeSaisieDemande', () => ({ EntreeSaisieDemande: () => null }));
 vi.mock('@/components/crm/CustomerStageControl', () => ({ CustomerStageControl: (p: unknown) => (espions.etape(p), null) }));
-vi.mock('@/components/documents/AddDocumentButton', () => ({ AddDocumentButton: (p: unknown) => (espions.document(p), null) }));
+// TCK-2589 (lot D) — « Ajouter un document » vit dans le ⋯ : le dialogue, monté par la fiche, porte le nom.
+vi.mock('@/components/documents/DocumentUploadDialog', () => ({ DocumentUploadDialog: (p: unknown) => (espions.document(p), null) }));
 vi.mock('@/components/visits/PlanifierUneVisite', () => ({ PlanifierUneVisite: (p: unknown) => (espions.planifier(p), null) }));
 vi.mock('@/components/layout/en-tete-de-la-coque', () => ({ DeclarerEnTete: (p: unknown) => (espions.entete(p), null) }));
 
@@ -68,7 +68,7 @@ describe('fiche client sans nom (P220.03)', () => {
     expect(espions.entete).toHaveBeenCalledWith(expect.objectContaining({ titre: 'awa@example.sn' }));
     // TCK-2586 — la feuille « Planifier une visite » reçoit aussi le téléphone et l'étape du client.
     expect(espions.planifier).toHaveBeenCalledWith(expect.objectContaining({ customer: expect.objectContaining({ id: 7, libelle: 'awa@example.sn' }) }));
-    expect(espions.document).toHaveBeenCalledWith(expect.objectContaining({ displayLabel: 'awa@example.sn' }));
+    expect(espions.document).toHaveBeenCalledWith(expect.objectContaining({ defaultDocumentable: expect.objectContaining({ label: 'awa@example.sn' }) }));
     expect(espions.etape).toHaveBeenCalledWith(expect.objectContaining({ name: 'awa@example.sn' }));
   });
 

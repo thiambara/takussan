@@ -1,23 +1,27 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Phone } from 'lucide-react';
+import { Ellipsis, FilePlus2, Pencil, Phone, Plus } from 'lucide-react';
 
 import { FilDAriane } from '@/components/console/PageHeader';
 import { CustomerReferent } from '@/components/crm/CustomerReferent';
 import { CustomerStageControl } from '@/components/crm/CustomerStageControl';
 import { IconeWhatsApp } from '@/components/crm/IconeWhatsApp';
-import { InviterACreerSonCompte } from '@/components/crm/InviterACreerSonCompte';
 import { isReachable, telHref, whatsappHref } from '@/components/crm/contact';
 import { CustomerTagPicker } from '@/components/customer-dashboard/CustomerTagPicker';
 import { InitialesDuClient } from '@/components/customer-dashboard/liste/pieces';
-import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
-import { EntreeSaisieDemande } from '@/components/bookings/EntreeSaisieDemande';
+import { DocumentUploadDialog } from '@/components/documents/DocumentUploadDialog';
+import { SaisirUneDemande } from '@/components/bookings/SaisirUneDemande';
+import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { SheetClose } from '@/components/ui/sheet';
+import { usePersonnelActif } from '@/hooks/usePersonnelActif';
+import { useVueDansLUrl } from '@/hooks/useVueDansLUrl';
 import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
 import { PagePleineLargeur } from '@/components/layout/PagePleineLargeur';
 import { PlanifierUneVisite } from '@/components/visits/PlanifierUneVisite';
-import { lecteurDuPersonnel, nomCourt } from '@/lib/crm/fiche-du-client';
+import { lecteurDuPersonnel, nomCourt, PARAMETRE_DE_SECTION } from '@/lib/crm/fiche-du-client';
 import { initiales } from '@/lib/fiche-publique';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { nomAffichable } from '@/lib/identite';
@@ -29,6 +33,8 @@ import type { CustomerDetail, CustomerNote, CustomerRelationship } from '@/types
 import type { Tag } from '@/types/tag';
 
 import { BarreDeLaFiche } from './BarreDeLaFiche';
+import { DossierDuClient } from './DossierDuClient';
+import { ModifierLaFiche } from './ModifierLaFiche';
 import { FilDuClient, type DemandeDeSaisie } from './FilDuClient';
 import { OrigineDuClient, ProchaineActionDuClient, RechercheDuClient } from './ResumeDuClient';
 
@@ -52,9 +58,12 @@ export interface FicheDuClientProps {
   readonly notes: readonly CustomerNote[];
   /** P15.01 (TCK-2351) — « Inviter à créer son compte », un geste du personnel (rôle du lecteur). */
   readonly peutInviter: boolean;
-  /** Sous le fil, les onglets qui restent jusqu'au lot D de TCK-2589 (le dossier). */
-  readonly children: ReactNode;
+  /** TCK-955 — « Afficher » le numéro de pièce : l'admin (l'API tranche de toute façon). */
+  readonly peutReveler: boolean;
 }
+
+/** Les dialogues des actions secondaires, ouverts depuis le ⋯ (téléphone ou bureau). */
+type Dialogue = 'modifier' | 'saisir' | 'document';
 
 const GESTE =
   'inline-flex h-12 min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-2 text-corps font-semibold outline-none focus-visible:ring-3 focus-visible:ring-ring md:h-controle md:rounded-lg md:px-3 md:text-sm md:font-medium';
@@ -98,8 +107,79 @@ function GestesDeLaFiche({ customer, nom }: { readonly customer: CustomerDetail;
   );
 }
 
+/**
+ * Lot D (décision 7a) — les actions secondaires au bureau : « Modifier » en bouton, puis un ⋯ pour
+ * « Saisir une demande » (le personnel actif seul) et « Ajouter un document ». « Inviter à créer son
+ * compte » vit dans la ligne « Compte client » du dossier.
+ */
+function ActionsDuBureau({ personnel, onOuvrir }: { readonly personnel: boolean; readonly onOuvrir: (d: Dialogue) => void }) {
+  const t = useTranslations('crm.fiche');
+  const tActions = useTranslations('common.actions');
+  const tSaisie = useTranslations('saisieDemande');
+  const tDocuments = useTranslations('documents.actions');
+  return (
+    <div className="flex items-center gap-2 max-md:hidden" data-slot="actions-du-bureau">
+      <Button type="button" variant="outline" onClick={() => onOuvrir('modifier')}>
+        <Pencil className="size-4" aria-hidden="true" />
+        {tActions('edit')}
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          aria-label={t('menu.plus')}
+          data-slot="plus-d-actions-bureau"
+          className="inline-flex size-controle flex-none items-center justify-center rounded-lg border border-border bg-card text-foreground outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring aria-expanded:bg-muted"
+        >
+          <Ellipsis className="size-4" aria-hidden="true" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-60 p-1.5">
+          {personnel ? (
+            <DropdownMenuItem onClick={() => onOuvrir('saisir')} className="gap-2.5 px-2.5 py-2">
+              <FilePlus2 className="size-4 flex-none text-muted-foreground" aria-hidden="true" />
+              {tSaisie('entree')}
+            </DropdownMenuItem>
+          ) : null}
+          <DropdownMenuItem onClick={() => onOuvrir('document')} className="gap-2.5 px-2.5 py-2">
+            <Plus className="size-4 flex-none text-muted-foreground" aria-hidden="true" />
+            {tDocuments('add_document')}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
+
+/** Les mêmes actions au téléphone, dans la feuille du ⋯ de l'en-tête de la coque : chacune la ferme. */
+function ActionsDuTelephone({ personnel, onOuvrir }: { readonly personnel: boolean; readonly onOuvrir: (d: Dialogue) => void }) {
+  const tActions = useTranslations('common.actions');
+  const tSaisie = useTranslations('saisieDemande');
+  const tDocuments = useTranslations('documents.actions');
+  const action = (d: Dialogue, Icone: typeof Pencil, libelle: string) => (
+    <SheetClose render={<Button type="button" variant="outline" className="h-12 w-full justify-start gap-3" />} onClick={() => onOuvrir(d)}>
+      <Icone className="size-5" aria-hidden="true" />
+      {libelle}
+    </SheetClose>
+  );
+  return (
+    <div className="flex flex-col items-stretch gap-2 pb-2" data-slot="actions-du-telephone">
+      {action('modifier', Pencil, tActions('edit'))}
+      {personnel ? action('saisir', FilePlus2, tSaisie('entree')) : null}
+      {action('document', Plus, tDocuments('add_document'))}
+    </div>
+  );
+}
+
 /** La tête de la fiche : fil d'Ariane (dès `md`), nom, étape, référent, puis les gestes et actions. */
-function TeteDeLaFiche({ customer, nom, peutInviter }: { readonly customer: CustomerDetail; readonly nom: string; readonly peutInviter: boolean }) {
+function TeteDeLaFiche({
+  customer,
+  nom,
+  personnel,
+  onOuvrir,
+}: {
+  readonly customer: CustomerDetail;
+  readonly nom: string;
+  readonly personnel: boolean;
+  readonly onOuvrir: (d: Dialogue) => void;
+}) {
   const t = useTranslations('crm.fiche');
   const tListe = useTranslations('dashboard.pages.customers');
   const tConsole = useTranslations('console.pageHeader');
@@ -141,10 +221,7 @@ function TeteDeLaFiche({ customer, nom, peutInviter }: { readonly customer: Cust
             // TCK-2586 (AC3) — son bien d'intérêt, posé : jour, heure, Confirmer.
             property={customer.interested_property ? { id: customer.interested_property.id, libelle: customer.interested_property.title } : undefined}
           />
-          {/* TCK-2580 — la candidature ou l'offre qu'il vient de faire, le client prérempli. */}
-          <EntreeSaisieDemande variante="fiche" client={{ id: customer.id, nom, detail: customer.phone ?? customer.email ?? null }} />
-          <AddDocumentButton documentableType="customer" documentableId={customer.id} displayLabel={nom} />
-          {peutInviter && customer.user_id === null ? <InviterACreerSonCompte customerId={customer.id} /> : null}
+          <ActionsDuBureau personnel={personnel} onOuvrir={onOuvrir} />
         </div>
       </div>
     </header>
@@ -179,17 +256,23 @@ function ReferentEtEtiquettes({
   );
 }
 
-export function FicheDuClient({ customer, relationships, suggestionsDEtiquettes, notes, peutInviter, children }: FicheDuClientProps) {
+export function FicheDuClient({ customer, relationships, suggestionsDEtiquettes, notes, peutInviter, peutReveler }: FicheDuClientProps) {
   // P220.03 (TCK-2281) — une fiche née d'un compte sans nom : son e-mail, son numéro ou `#<id>`.
   const nom = nomAffichable(customer);
+  const router = useRouter();
+  const { remplacer } = useVueDansLUrl();
+  // TCK-2580 — « Saisir une demande » : le personnel ACTIF de l'agence seul (l'API répond 403 sinon).
+  const personnel = usePersonnelActif();
   // La barre du bas ouvre la saisie du fil : un jeton neuf à chaque toucher.
   const [demandeDeSaisie, setDemandeDeSaisie] = useState<DemandeDeSaisie | null>(null);
+  const [dialogue, setDialogue] = useState<Dialogue | null>(null);
+  const fermerSauf = (d: Dialogue) => (ouvert: boolean) => setDialogue(ouvert ? d : null);
 
   return (
     <PagePleineLargeur data-slot="fiche-du-client" className="max-md:pb-6">
-      <DeclarerEnTete forme="detail" titre={nom} repli="/app/customers" />
+      <DeclarerEnTete forme="detail" titre={nom} repli="/app/customers" actions={<ActionsDuTelephone personnel={personnel} onOuvrir={setDialogue} />} />
       <div className="px-4 pt-4 md:px-0 md:pt-0">
-        <TeteDeLaFiche customer={customer} nom={nom} peutInviter={peutInviter} />
+        <TeteDeLaFiche customer={customer} nom={nom} personnel={personnel} onOuvrir={setDialogue} />
       </div>
       <div className="flex flex-col gap-4 px-4 pt-4 md:px-0 md:pt-6 xl:grid xl:grid-cols-[calc(var(--spacing)*105.56)_minmax(0,1fr)] xl:items-start xl:gap-6">
         <div className="flex min-w-0 flex-col gap-4" data-slot="resume-du-client">
@@ -200,10 +283,29 @@ export function FicheDuClient({ customer, relationships, suggestionsDEtiquettes,
         </div>
         <div className="flex min-w-0 flex-col gap-6" data-slot="fil-du-client">
           <FilDuClient customer={customer} notes={notes} demandeDeSaisie={demandeDeSaisie} />
-          {children}
+          <DossierDuClient customer={customer} relationships={relationships} peutInviter={peutInviter} peutReveler={peutReveler} />
         </div>
       </div>
       <BarreDeLaFiche customer={customer} nom={nom} onSaisir={(mode) => setDemandeDeSaisie((d) => ({ mode, jeton: (d?.jeton ?? 0) + 1 }))} />
+      <ModifierLaFiche customer={customer} open={dialogue === 'modifier'} onOpenChange={fermerSauf('modifier')} peutReveler={peutReveler} />
+      {personnel ? (
+        // TCK-2580 — la candidature ou l'offre qu'il vient de faire, le client prérempli.
+        <SaisirUneDemande
+          open={dialogue === 'saisir'}
+          onOpenChange={fermerSauf('saisir')}
+          client={{ id: customer.id, nom, detail: customer.phone ?? customer.email ?? null }}
+        />
+      ) : null}
+      <DocumentUploadDialog
+        open={dialogue === 'document'}
+        onOpenChange={fermerSauf('document')}
+        defaultDocumentable={{ type: 'customer', id: customer.id, label: nom }}
+        // AC4 — les documents viennent du show serveur : la page se relit, la ligne s'ouvre.
+        onUploaded={() => {
+          router.refresh();
+          remplacer({ [PARAMETRE_DE_SECTION]: 'documents' });
+        }}
+      />
     </PagePleineLargeur>
   );
 }

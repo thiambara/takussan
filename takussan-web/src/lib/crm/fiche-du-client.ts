@@ -74,3 +74,62 @@ export function nombreDeCorrespondances(reponse: { readonly meta?: { readonly to
   const total = reponse?.meta?.total;
   return typeof total === 'number' && Number.isFinite(total) ? total : null;
 }
+
+/** Le nombre de tâches encore à faire ; `null` tant qu'elles ne sont pas lues. */
+export function nombreDeTachesOuvertes(taches: readonly Task[] | undefined): number | null {
+  return taches ? taches.filter((t) => TACHE_OUVERTE.has(t.status)).length : null;
+}
+
+/** La fiche porte-t-elle une recherche (de quoi rapprocher des biens) ? */
+export function aUneRecherche(
+  customer: Pick<CustomerDetail, 'seeking_contract_type' | 'seeking_property_types' | 'seeking_cities' | 'seeking_neighborhoods' | 'budget_max'>,
+): boolean {
+  return Boolean(
+    customer.seeking_contract_type
+      || customer.seeking_property_types?.length
+      || customer.seeking_cities?.length
+      || customer.seeking_neighborhoods?.length
+      || (customer.budget_max !== null && customer.budget_max !== undefined && customer.budget_max !== ''),
+  );
+}
+
+/**
+ * TCK-2589 (lot D) — le DOSSIER de la fiche : les anciens onglets, devenus des lignes repliées en fin
+ * de fiche (maquette `app-clients-fiche` a, « Dossier »). Une seule ligne ouverte à la fois, dans
+ * l'URL (`?section=`), pour qu'elle se retrouve au retour.
+ */
+export const PARAMETRE_DE_SECTION = 'section';
+export const SECTIONS_DU_DOSSIER = ['biens', 'taches', 'documents', 'relations', 'reservations', 'baux', 'piece', 'compte'] as const;
+export type SectionDuDossier = (typeof SECTIONS_DU_DOSSIER)[number];
+/** L'ancre d'une ligne du dossier (`id` du DOM) ; celle des biens est visée par la rangée de CHERCHE. */
+export const ancreDeLaSection = (s: SectionDuDossier) => `dossier-${s}`;
+export const ANCRE_DES_BIENS = ancreDeLaSection('biens');
+
+/**
+ * Les lignes du dossier, dans l'ordre, présentes seulement si elles ont quelque chose à montrer
+ * (AC5 — le ticket l'emporte sur les « 0 » de la maquette) :
+ *  · Biens correspondants, dès qu'il y a une recherche ; Tâches, toujours (on y en ajoute) ;
+ *  · Documents, Relations : non vides ; Réservations, Baux : comptés et non nuls — leurs comptes ne
+ *    sont servis qu'au personnel de l'agence de la fiche (TCK-2589, `readsVisits`) ;
+ *  · Pièce d'identité : quand la fiche en porte une ; Compte client : fiche sans compte, et un
+ *    lecteur qui peut inviter.
+ */
+export function lignesDuDossier(
+  customer: Pick<
+    CustomerDetail,
+    'seeking_contract_type' | 'seeking_property_types' | 'seeking_cities' | 'seeking_neighborhoods' | 'budget_max' | 'documents' | 'bookings_count' | 'leases_count' | 'id_number_masked' | 'user_id'
+  >,
+  contexte: { readonly relations: number; readonly peutInviter: boolean },
+): SectionDuDossier[] {
+  const presentes: Record<SectionDuDossier, boolean> = {
+    biens: aUneRecherche(customer),
+    taches: true,
+    documents: (customer.documents?.length ?? 0) > 0,
+    relations: contexte.relations > 0,
+    reservations: (customer.bookings_count ?? 0) > 0,
+    baux: (customer.leases_count ?? 0) > 0,
+    piece: Boolean(customer.id_number_masked),
+    compte: contexte.peutInviter && customer.user_id === null,
+  };
+  return SECTIONS_DU_DOSSIER.filter((s) => presentes[s]);
+}

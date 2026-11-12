@@ -3590,6 +3590,28 @@
           "tache": "Task",
           "visite": "Viewing"
         }
+      },
+      "dossier": {
+        "titre": "File",
+        "biens": "Matching properties",
+        "biensDetail": "Tick, then “Share on WhatsApp”",
+        "taches": "Tasks",
+        "tachesDetail": "{count, plural, =0 {No open task} one {# open} other {# open}}",
+        "documents": "Documents",
+        "relations": "Relationships",
+        "reservations": "Bookings",
+        "baux": "Leases",
+        "piece": "ID document",
+        "pieceDetail": "Shown to the admin, after two-factor check",
+        "compte": "Client account",
+        "compteDetail": "No account yet",
+        "inviter": "Invite"
+      },
+      "menu": {
+        "plus": "More actions"
+      },
+      "modifier": {
+        "titre": "Edit record"
       }
     }
   },

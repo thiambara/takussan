@@ -5,32 +5,49 @@
  *  · 1a — « Confirmer » n'existe que si la visite le permet à ce lecteur, et son refus se dit ;
  *  · 3a — la tâche suivante n'apparaît qu'une fois les tâches lues ;
  *  · 4a — le nombre de biens correspondants vient de `meta.total`, sinon la rangée reste sans nombre ;
- *  · le bailleur auteur : ni gestes enregistrés, ni origine, ni visite.
+ *  · le bailleur auteur : ni gestes enregistrés, ni origine, ni visite ;
+ *  · lot D — les actions secondaires (« Modifier », ⋯ : saisir une demande, ajouter un document), au
+ *    bureau et dans la feuille du ⋯ de l'en-tête ; un document ajouté relit la page et ouvre sa ligne.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiError } from '@/lib/api';
 import { withIntl } from '@/test/intl';
 import type { CustomerDetail } from '@/types/customer';
 
-const nav = vi.hoisted(() => ({ refresh: vi.fn(), push: vi.fn() }));
+const nav = vi.hoisted(() => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn() }));
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: nav.push, replace: vi.fn(), refresh: nav.refresh }),
+  useRouter: () => ({ push: nav.push, replace: nav.replace, refresh: nav.refresh }),
   useSearchParams: () => new URLSearchParams(),
   usePathname: () => '/app/customers/7',
 }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ token: 'jeton', user: { id: 1 }, isLoading: false }) }));
 vi.mock('@/hooks/useCan', () => ({ useCan: () => ({ can: false, isLoading: false }) }));
-vi.mock('@/components/layout/en-tete-de-la-coque', () => ({ DeclarerEnTete: () => null }));
+// L'en-tête de la coque rend ses `actions` dans la feuille du ⋯ (EnTeteMobile) : la même primitive ici.
+vi.mock('@/components/layout/en-tete-de-la-coque', async () => {
+  const { FeuilleDuBas } = await import('@/components/ui/feuille-du-bas');
+  return {
+    DeclarerEnTete: ({ actions }: { actions?: ReactNode }) =>
+      actions ? <FeuilleDuBas titre="Plus d’actions" declencheur={<button type="button">⋯ de l’en-tête</button>}>{actions}</FeuilleDuBas> : null,
+  };
+});
 vi.mock('@/components/visits/PlanifierUneVisite', () => ({ PlanifierUneVisite: () => <button type="button">Planifier une visite</button> }));
-vi.mock('@/components/bookings/EntreeSaisieDemande', () => ({ EntreeSaisieDemande: () => null }));
-vi.mock('@/components/documents/AddDocumentButton', () => ({ AddDocumentButton: () => null }));
+vi.mock('@/components/bookings/SaisirUneDemande', () => ({
+  SaisirUneDemande: ({ open }: { open: boolean }) => (open ? <p>saisie de la demande ouverte</p> : null),
+}));
+vi.mock('@/components/documents/DocumentUploadDialog', () => ({
+  DocumentUploadDialog: ({ open, onUploaded }: { open: boolean; onUploaded?: () => void }) =>
+    open ? <button type="button" onClick={onUploaded}>déposer le document</button> : null,
+}));
+vi.mock('@/components/customer-form', () => ({ CustomerForm: () => <p>formulaire de la fiche</p> }));
 vi.mock('@/components/crm/InviterACreerSonCompte', () => ({ InviterACreerSonCompte: () => null }));
 vi.mock('@/components/customer-dashboard/CustomerTagPicker', () => ({ CustomerTagPicker: () => null }));
-vi.mock('@/hooks/usePersonnelActif', () => ({ usePersonnelActif: () => true }));
+const role = vi.hoisted(() => ({ personnel: true }));
+vi.mock('@/hooks/usePersonnelActif', () => ({ usePersonnelActif: () => role.personnel }));
 vi.mock('@/lib/queries/customer-timeline', async (original) => ({
   ...(await original<typeof import('@/lib/queries/customer-timeline')>()),
   fetchCustomerTimeline: async () => ({ data: [], meta: { total: 0, per_page: 20, current_page: 1, last_page: 1 } }),
@@ -112,9 +129,7 @@ function rendu(customer: CustomerDetail = MARIAMA) {
   return render(
     withIntl(
       <QueryClientProvider client={client}>
-        <FicheDuClient customer={customer} relationships={[]} suggestionsDEtiquettes={[]} notes={[]} peutInviter>
-          <div>fil</div>
-        </FicheDuClient>
+        <FicheDuClient customer={customer} relationships={[]} suggestionsDEtiquettes={[]} notes={[]} peutInviter peutReveler={false} />
       </QueryClientProvider>,
     ),
   );
@@ -122,6 +137,7 @@ function rendu(customer: CustomerDetail = MARIAMA) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  role.personnel = true;
   geste.isError = false;
   visites.confirmer.isError = false;
   visites.confirmer.error = null;
@@ -207,7 +223,8 @@ describe('TCK-2589 — la tête et le résumé de la fiche client', () => {
     rendu();
     await waitFor(() => expect(lectures.correspondances).toHaveBeenCalled());
     await new Promise((r) => setTimeout(r, 0));
-    expect(screen.getByText('Biens correspondants')).toBeInTheDocument();
+    const rangee = document.querySelector('[data-slot="biens-correspondants"]') as HTMLElement;
+    expect(rangee).toHaveTextContent('Biens correspondants');
     expect(screen.queryByText(/biens? correspond/)).toBeNull();
   });
 
@@ -244,5 +261,68 @@ describe('TCK-2589 — la tête et le résumé de la fiche client', () => {
     appeler.addEventListener('click', (e) => e.preventDefault());
     await userEvent.click(appeler);
     expect(geste.mutate).toHaveBeenCalledWith({ id: 7, channel: 'call' });
+  });
+});
+
+describe('TCK-2589 (lot D) — les actions secondaires de la fiche', () => {
+  it('7a — au bureau, « Modifier » ouvre la feuille d’édition ; ⋯ porte la saisie et le document, plus d’inviter en tête', async () => {
+    rendu();
+    const tete = screen.getByRole('banner');
+    expect(within(tete).queryByRole('button', { name: /Inviter/ })).toBeNull();
+    const bureau = document.querySelector('[data-slot="actions-du-bureau"]') as HTMLElement;
+    expect(bureau.className).toMatch(/max-md:hidden/);
+
+    await userEvent.click(within(bureau).getByRole('button', { name: 'Modifier' }));
+    const feuille = await screen.findByRole('dialog', { name: 'Modifier la fiche' });
+    expect(within(feuille).getByText('formulaire de la fiche')).toBeInTheDocument();
+  });
+
+  it('7a — le ⋯ du bureau : « Saisir » au seul personnel actif, « Ajouter un document » à tous', async () => {
+    rendu();
+    await userEvent.click(screen.getByRole('button', { name: 'Plus d’actions' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: /candidature ou une offre/ }));
+    expect(await screen.findByText('saisie de la demande ouverte')).toBeInTheDocument();
+  });
+
+  it('7a — sans être du personnel actif, le ⋯ n’offre que le document', async () => {
+    role.personnel = false;
+    rendu();
+    await userEvent.click(screen.getByRole('button', { name: 'Plus d’actions' }));
+    const items = await screen.findAllByRole('menuitem');
+    expect(items.map((i) => i.textContent)).toEqual(['Ajouter un document']);
+    await userEvent.keyboard('{Escape}');
+
+    // La feuille du ⋯ de l'en-tête, au téléphone : de même.
+    await userEvent.click(screen.getByRole('button', { name: '⋯ de l’en-tête' }));
+    const feuille = await screen.findByRole('dialog', { name: 'Plus d’actions' });
+    expect(within(feuille).getByRole('button', { name: 'Modifier' })).toBeInTheDocument();
+    expect(within(feuille).queryByRole('button', { name: /candidature ou une offre/ })).toBeNull();
+  });
+
+  it('7a — au téléphone, la feuille du ⋯ de l’en-tête porte les trois, et se ferme sur le geste', async () => {
+    rendu();
+    await userEvent.click(screen.getByRole('button', { name: '⋯ de l’en-tête' }));
+    const feuille = await screen.findByRole('dialog', { name: 'Plus d’actions' });
+    const libelles = within(feuille).getAllByRole('button').map((b) => b.textContent?.trim()).filter((l) => l && l !== 'Fermer');
+    expect(libelles).toEqual(['Modifier', expect.stringMatching(/candidature ou une offre/), 'Ajouter un document']);
+
+    await userEvent.click(within(feuille).getByRole('button', { name: 'Ajouter un document' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Plus d’actions' })).toBeNull());
+    expect(screen.getByRole('button', { name: 'déposer le document' })).toBeInTheDocument();
+  });
+
+  it('6a / AC4 — un document ajouté relit la page et ouvre la ligne « Documents » du dossier', async () => {
+    rendu();
+    await userEvent.click(screen.getByRole('button', { name: 'Plus d’actions' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Ajouter un document' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'déposer le document' }));
+    expect(nav.refresh).toHaveBeenCalledTimes(1);
+    expect(nav.replace).toHaveBeenCalledWith('?section=documents', { scroll: false });
+  });
+
+  it('AC3 — toujours un seul contrôle d’étape, le dossier rendu', () => {
+    rendu();
+    expect(document.querySelector('[data-slot="dossier-du-client"]')).not.toBeNull();
+    expect(screen.getAllByRole('combobox', { name: /^Étape de / })).toHaveLength(1);
   });
 });

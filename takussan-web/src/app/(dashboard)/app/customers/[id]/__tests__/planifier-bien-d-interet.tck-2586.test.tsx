@@ -41,7 +41,6 @@ vi.mock('@/lib/queries/customers', () => ({
   fetchCustomerRelationships: async () => [],
   fetchCrmTags: async () => [],
 }));
-vi.mock('@/components/customer-dashboard/CustomerDetailTabs', () => ({ CustomerDetailTabs: () => null }));
 vi.mock('@/components/customer-dashboard/CustomerTagPicker', () => ({ CustomerTagPicker: () => null }));
 vi.mock('@/components/crm/InviterACreerSonCompte', () => ({ InviterACreerSonCompte: () => null }));
 vi.mock('@/components/crm/CustomerReferent', () => ({ CustomerReferent: () => null }));
