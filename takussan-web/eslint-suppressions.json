@@ -392,11 +392,6 @@
       "count": 1
     }
   },
-  "src/components/owners/OwnersList.tsx": {
-    "@typescript-eslint/no-misused-promises": {
-      "count": 1
-    }
-  },
   "src/components/payments/PaymentProviderPicker.tsx": {
     "@typescript-eslint/no-misused-promises": {
       "count": 1

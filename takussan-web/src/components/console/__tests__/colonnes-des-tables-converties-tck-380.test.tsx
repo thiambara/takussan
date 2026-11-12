@@ -123,7 +123,7 @@ describe('AC3 — les colonnes des tables converties', () => {
     expect(entetes.slice(1)).toEqual(['Bien', 'Prix', 'Activité', 'Statut', 'Actions']);
   });
 
-  it('OwnersList : nom · e-mail · statut · actions', () => {
+  it('OwnersList : bailleur · téléphone · biens · argent du mois · statut (TCK-2641)', () => {
     monter(
       <OwnersList
         agencyId={7}
@@ -147,7 +147,10 @@ describe('AC3 — les colonnes des tables converties', () => {
     // TCK-601 — « Identifiants » (RIB, NINEA, pièce, masqués) est un AJOUT délibéré, entre
     // l'e-mail et le statut ; les quatre colonnes relevées à `73ca883b` restent, dans leur ordre.
     // P234.04 (TCK-2280) — « Téléphone » (le numéro saisi à l'invitation) en est un autre, après l'e-mail.
-    expect(enTetesDe('Propriétaires')).toEqual(['Nom', 'Email', 'Téléphone', 'Identifiants', 'Statut', 'Actions']);
+    // TCK-2641 — le carnet est refondu sur la maquette `app-bailleurs` : un tableau centré sur
+    // l'argent du mandat. « Email » passe sous le nom, « Identifiants » et « Actions » quittent la
+    // liste (les identifiants vont à la fiche du bailleur, les gestes d'invitation dans « Statut »).
+    expect(enTetesDe('Bailleurs')).toEqual(['Bailleur', 'Téléphone', 'Biens', 'Encaissé ce mois', 'Reste à verser', 'Dernier versement', 'Statut']);
   });
 
   it('ServiceProvidersList : nom · métiers · zones · statut · actions', () => {

@@ -5,6 +5,7 @@ namespace App\Services\Owners;
 use App\Models\Agency;
 use App\Models\Enums\Capability;
 use App\Models\Enums\LeaseStatus;
+use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Enums\PayeeRole;
 use App\Models\Enums\PayoutStatus;
 use App\Models\Invitation;
@@ -13,9 +14,11 @@ use App\Models\Payout;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use App\Policies\OwnerStatementPolicy;
+use App\Services\Invitation\InvitationService;
 use App\Services\Payout\OwnerStatementSnapshots;
 use App\Services\Property\Occupation;
 use App\Services\Reporting\OverdueInstalment;
+use App\Support\Masking;
 use App\Support\Search\CleDeQuartier;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
@@ -127,8 +130,25 @@ final class OwnerDirectory
      */
     public function remainingToPay(Collection $profiles, ?string $period = null): array
     {
+        return array_map(
+            fn (?array $figures) => $figures['remaining_to_pay'] ?? null,
+            $this->monthFigures($profiles, $period),
+        );
+    }
+
+    /**
+     * TCK-2641 — les deux chiffres du mois d'une ligne du carnet, lus dans la même passe : le reste
+     * à verser et l'encaissé (`gross` du relevé servi, celui que la fiche rend en `collected`). Le
+     * relevé est celui de l'agence du profil : un loyer encaissé par une autre agence n'y entre
+     * pas. Un profil sans compte (brouillon d'invitation) n'a pas de relevé : `null`.
+     *
+     * @param  Collection<int, OwnerProfile>  $profiles  avec `id`, `user_id`, `agency_id`
+     * @return array<int, array{remaining_to_pay: float, collected: float}|null> par id de profil
+     */
+    public function monthFigures(Collection $profiles, ?string $period = null): array
+    {
         $period ??= self::currentPeriod();
-        $remaining = [];
+        $figures = [];
         $agencies = Agency::query()->whereIn('id', $profiles->pluck('agency_id')->filter()->unique()->values())->get()->keyBy('id');
 
         foreach ($profiles->groupBy('agency_id') as $agencyId => $rows) {
@@ -136,13 +156,15 @@ final class OwnerDirectory
             $landlordIds = $rows->pluck('user_id')->filter()->map(fn ($id) => (int) $id)->unique()->values()->all();
             $totals = $agency !== null ? $this->statements->servedTotals($agency, $landlordIds, $period) : [];
             foreach ($rows as $profile) {
-                $remaining[(int) $profile->id] = $profile->user_id !== null && isset($totals[(int) $profile->user_id])
-                    ? (float) $totals[(int) $profile->user_id]['remaining_to_pay']
-                    : null;
+                $line = $profile->user_id !== null ? ($totals[(int) $profile->user_id] ?? null) : null;
+                $figures[(int) $profile->id] = $line === null ? null : [
+                    'remaining_to_pay' => (float) $line['remaining_to_pay'],
+                    'collected' => (float) ($line['gross'] ?? 0),
+                ];
             }
         }
 
-        return $remaining;
+        return $figures;
     }
 
     /**
@@ -158,6 +180,75 @@ final class OwnerDirectory
         $profiles = OwnerProfile::query()->whereIn('id', $ids)->get(['id', 'user_id', 'agency_id']);
 
         return $this->remainingToPay($profiles);
+    }
+
+    /**
+     * TCK-2641 (décision 4a) — le résumé du carnet (`meta.summary` de `GET /api/owners`), sur un
+     * périmètre que ni la recherche, ni une vue, ni la page ne restreignent :
+     *
+     * - `owners` : les bailleurs (tout profil hors brouillon), `invitations` : les brouillons ;
+     * - `properties` : la somme des `properties_count` des lignes (biens ni archivés ni supprimés
+     *   du bailleur, dans l'agence du profil) ;
+     * - `remaining_to_pay` : la somme des restes à verser POSITIFS du mois courant (un trop-versé ne
+     *   diminue pas ce qui reste à verser aux autres), `with_remaining` : le nombre de bailleurs qui
+     *   en ont un — la règle de `filter[has_remaining]=1`. Tous deux `null` pour qui ne lit pas le
+     *   relevé ({@see self::readsMoney()}), comme les chiffres de la ligne.
+     *
+     * @param  Builder<OwnerProfile>  $perimeter
+     * @return array{owners: int, properties: int, remaining_to_pay: float|null, with_remaining: int|null, invitations: int}
+     */
+    public function summary(Builder $perimeter, bool $readsMoney): array
+    {
+        $draft = OwnerProfileStatus::Draft->value;
+        $counts = (clone $perimeter)->reorder()->toBase()
+            ->selectRaw('COUNT(*) FILTER (WHERE owner_profiles.status <> ?) AS owners', [$draft])
+            ->selectRaw('COUNT(*) FILTER (WHERE owner_profiles.status = ?) AS invitations', [$draft])
+            ->first();
+
+        $holders = (clone $perimeter)->reorder()->toBase()
+            ->select(['owner_profiles.user_id', 'owner_profiles.agency_id'])
+            ->whereNotNull('owner_profiles.user_id');
+        $properties = DB::table('properties')
+            ->whereNull('properties.deleted_at')
+            ->whereNull('properties.archived_at')
+            ->whereExists(fn (QueryBuilder $q) => $q->fromSub($holders, 'holders')
+                ->whereColumn('holders.user_id', 'properties.user_id')
+                ->whereColumn('holders.agency_id', 'properties.agency_id'))
+            ->count();
+
+        $remaining = null;
+        $withRemaining = null;
+        if ($readsMoney) {
+            $due = array_filter($this->remainingToPayIn($perimeter), fn (?float $amount) => $amount !== null && $amount > 0);
+            $remaining = round(array_sum($due), 2);
+            $withRemaining = count($due);
+        }
+
+        return [
+            'owners' => (int) ($counts->owners ?? 0),
+            'properties' => $properties,
+            'remaining_to_pay' => $remaining,
+            'with_remaining' => $withRemaining,
+            'invitations' => (int) ($counts->invitations ?? 0),
+        ];
+    }
+
+    /**
+     * TCK-2641 (décision 5a) — la date du dernier ENVOI de l'invitation en cours d'un profil, en
+     * sous-requête à côté de `pending_invitation_id` (même invitation, même contrainte d'agence).
+     *
+     * La table n'a pas de colonne d'envoi, et `updated_at` n'en est pas une : le rappel de J+2
+     * (`invitations:remind`) réécrit la ligne (`last_reminded_at`). L'envoi et le renvoi posent tous
+     * deux `expires_at = now() + DEFAULT_TTL_DAYS` : l'envoi se relit donc `expires_at − TTL`,
+     * la lecture que le service fait déjà pour son rappel ({@see InvitationService::REMINDER_OFFSET_DAYS}).
+     *
+     * @return Builder<Invitation>
+     */
+    public static function pendingInvitationSentAt(): Builder
+    {
+        return Invitation::idEnvoyeePour(new OwnerProfile)
+            ->whereColumn('invitations.agency_id', 'owner_profiles.agency_id')
+            ->select(DB::raw('invitations.expires_at - make_interval(days => '.(int) InvitationService::DEFAULT_TTL_DAYS.')'));
     }
 
     /**
@@ -308,9 +399,21 @@ final class OwnerDirectory
             'next_payout' => $statement['next_payout'] ?? null,
             'works_approval_threshold' => $profile->works_approval_threshold !== null ? (float) $profile->works_approval_threshold : null,
             'agency_commission_rate' => $agencyRate,
+            // TCK-2641 — les identifiants sensibles, MASQUÉS seulement (ADR-0044 § 1), comme sur une
+            // ligne du carnet ({@see OwnerProfileResource}) : la fiche porte « Afficher », qui passe par
+            // `GET /api/owners/{id}/sensitive`, journalisé.
+            'rib_masked' => self::masked($profile->rib, Masking::iban(...)),
+            'tax_id_masked' => self::masked($profile->tax_id, Masking::tail(...)),
+            'id_document_number_masked' => self::masked($profile->id_document_number, Masking::tail(...)),
             // Le taux d'un bail peut différer de celui de l'agence : les taux propres des baux en cours.
             'lease_commission_rates' => $leaseRates,
         ];
+    }
+
+    /** @param  callable(string): string  $mask */
+    private static function masked(mixed $value, callable $mask): ?string
+    {
+        return is_string($value) && $value !== '' ? $mask($value) : null;
     }
 
     private static function metadataString(OwnerProfile $profile, string $key): ?string

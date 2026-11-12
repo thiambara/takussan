@@ -24,7 +24,7 @@ vi.mock('@/components/service-providers/ServiceProvidersList', () => ({
   ServiceProvidersList: ({ canInvite }: { canInvite: boolean }) => <p>{canInvite ? 'Ajouter' : 'sans invitation'}</p>,
 }));
 
-import OwnersPage from '../page';
+import OwnersPage from '../(liste)/page';
 import ProvidersPage from '../../maintenance/providers/page';
 
 const agent = { id: 3, agency_id: 1, roles: ['agent', 'customer'] };

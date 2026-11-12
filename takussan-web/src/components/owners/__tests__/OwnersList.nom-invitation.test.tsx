@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { withIntl } from '@/test/intl';
@@ -10,6 +10,11 @@ import type { OwnerProfileSummary } from '@/lib/queries/owners';
  * P220.06 (TCK-2136) — un bailleur lié à un compte sans nom (créé par téléphone) garde le nom que
  * l'agence a saisi à l'invitation (`metadata`), au lieu d'une ligne de tirets.
  */
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn(), refresh: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => '/app/owners',
+}));
 vi.mock('@/lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/api')>()),
   apiRequest: vi.fn(async () => donnees),
@@ -48,8 +53,11 @@ describe('<OwnersList> — nom saisi à l’invitation', () => {
       </QueryClientProvider>,
     ));
 
-    expect(await screen.findByText('Moussa Ndiaye')).toBeInTheDocument();
-    expect(screen.getByText('Ousmane Ba')).toBeInTheDocument();
+    // TCK-2641 — la carte du téléphone et la rangée du bureau nomment chacune le bailleur.
+    const table = within(await screen.findByRole('table'));
+    expect(table.getByText('Moussa Ndiaye')).toBeInTheDocument();
+    expect(table.getByText('Ousmane Ba')).toBeInTheDocument();
+    expect(screen.getAllByText('Moussa Ndiaye')).toHaveLength(2);
     expect(screen.queryByText('Ancien Nom')).not.toBeInTheDocument();
   });
 });

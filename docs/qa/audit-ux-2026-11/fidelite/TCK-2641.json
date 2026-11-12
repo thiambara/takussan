@@ -1,0 +1,203 @@
+{
+  "ticket": "TCK-2641",
+  "ecrans": [
+    {
+      "page": "app-bailleurs",
+      "approche": "a",
+      "ecran": 0,
+      "nom": "Liste",
+      "references": {
+        "telephone": "references/app-bailleurs/a-0-telephone.json",
+        "bureau-1440": "references/app-bailleurs/a-0-bureau-1440.json",
+        "bureau-1280": "references/app-bailleurs/a-0-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/owners",
+        "persona": "admin",
+        "etat": "le carnet de démo de l'agence Dakar Immo, vue « Tous », sans recherche, tri par reste à verser ; aucun bouchon"
+      }
+    },
+    {
+      "page": "app-bailleurs",
+      "approche": "a",
+      "ecran": 1,
+      "nom": "Fiche du bailleur",
+      "references": {
+        "telephone": "references/app-bailleurs/a-1-telephone.json",
+        "bureau-1440": "references/app-bailleurs/a-1-bureau-1440.json",
+        "bureau-1280": "references/app-bailleurs/a-1-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/owners/1",
+        "persona": "admin",
+        "etat": "owner1 de la démo (Mouhamed Sene), mois en cours ; les chiffres du relevé sont ceux de l'API (TCK-2640) et rendent ceux de la maquette à l'unité"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/owners",
+    "persona": "admin",
+    "disposition": "admin-agence",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": null
+  },
+  "coque": true,
+  "roles": [
+    {
+      "nom": "carte d'un bailleur",
+      "appareil": "mobile",
+      "maquette": {
+        "boiteDe": "7 biens · 6 occupés",
+        "min": 60
+      },
+      "produit": {
+        "slot": "carte-du-bailleur",
+        "tag": "article"
+      },
+      "contenu": false
+    },
+    {
+      "nom": "identité du bailleur",
+      "maquette": {
+        "boiteDe": "Appeler",
+        "min": 150
+      },
+      "produit": {
+        "slot": "identite-du-bailleur"
+      },
+      "contenu": false
+    },
+    {
+      "nom": "relevé du mois",
+      "maquette": {
+        "boiteDe": "Reste à verser",
+        "min": 150
+      },
+      "produit": {
+        "slot": "releve-du-mois"
+      },
+      "contenu": false
+    }
+  ],
+  "zones": [],
+  "alias": {
+    "Novembre 2026": "novembre 2026"
+  },
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "app-bailleurs a-*",
+      "element": "noms, téléphones, e-mails, biens, montants, comptes des pastilles",
+      "propriete": "libellés et nombres",
+      "exception": "donnée",
+      "motif": "la démo sert ses bailleurs (owner1 « Mouhamed Sene », 72 biens confiés, e-mail owner1@dakarimmo.sn) ; les chiffres du relevé de novembre (11 437 597 · 850 457 · 7 469 771 · 3 117 369) sont ceux de la maquette, servis par l'API ; la ligne de résumé et les comptes des pastilles viennent de `meta.summary` (décision 4a) sur le carnet entier de la démo (« 12 bailleurs · 164 biens · … F à verser », « Tous 12 », aucune invitation) là où la maquette dessine 12 · 84 · 5 · 1"
+    },
+    {
+      "ecran": "app-bailleurs a-1-*",
+      "element": "mois du relevé",
+      "propriete": "casse « Novembre 2026 »",
+      "exception": "technique",
+      "motif": "le mois est nommé par `useFormatteurs()` dans la langue de l'application (AC : « novembre 2026 » en fr, « November 2026 » en en) ; le français ne capitalise pas le mois"
+    },
+    {
+      "ecran": "app-bailleurs a-1-bureau-*",
+      "element": "« suivi par Awa Diop », adresse (map-pin), « Versement : virement, avant le 10 », « Mandat : 12 mars 2025 → 11 mars 2028 », « 9 encaissements », libellé et moyen de chaque reversement (« Acompte de novembre », « Virement CBAO »), « Reçu »",
+      "propriete": "lignes absentes",
+      "exception": "technique",
+      "motif": "l'API ne sert ni le référent du bailleur, ni son adresse, ni le moyen et l'échéance de versement, ni les dates du mandat, ni le nombre d'encaissements, ni la nature d'un reversement : à proposer en suite back (rien n'est inventé côté front)"
+    },
+    {
+      "ecran": "app-bailleurs a-1-bureau-*",
+      "element": "« Ajouter » sur la carte des documents",
+      "propriete": "geste absent",
+      "exception": "technique",
+      "motif": "le dépôt d'une pièce sur le profil d'un bailleur (`documentable_type=owner_profile`) n'a pas d'écran d'ajout ciblé ; la carte lit le coffre"
+    },
+    {
+      "ecran": "app-bailleurs a-1-*",
+      "element": "section « Accès et départ » (Suspendre l'accès / Réactiver)",
+      "propriete": "bloc ajouté",
+      "exception": "périmètre du ticket",
+      "motif": "TCK-2641 § Direction et AC7 : « Accès et départ » en bas de fiche, repris de la page Équipe (TCK-587) pour que TCK-2667 puisse l'y retirer sans régression ; la maquette ne le dessine pas. « Retirer de l'agence » n'y est pas : l'API refuse un bailleur hors du personnel (422 `agency_member.not_staff`), décision 1a de team-lead, suite TCK-2753"
+    },
+    {
+      "ecran": "app-bailleurs a-1-telephone",
+      "element": "menu « ⋯ » de la tête de page",
+      "propriete": "icône absente",
+      "exception": "technique",
+      "motif": "la maquette n'en dit pas le contenu ; les gestes de la fiche sont tous visibles (Appeler, WhatsApp, Message, relevé, reversement, accès)"
+    },
+    {
+      "ecran": "app-bailleurs a-1-telephone",
+      "element": "nombre de biens listés",
+      "propriete": "6 au lieu de 3",
+      "exception": "choix",
+      "motif": "une seule lecture sert le téléphone et le bureau (`per_page=6`, `sort=retard`) : le téléphone en montre six là où la maquette en dessine trois ; « Voir dans Biens » mène au portefeuille filtré. À trancher : couper à trois au téléphone"
+    },
+    {
+      "ecran": "app-bailleurs a-1-*",
+      "element": "gestes « Afficher » des identifiants",
+      "propriete": "nom accessible",
+      "exception": "accessibilité",
+      "motif": "chaque « Afficher » se nomme « Afficher en clair : RIB » (etc.) et se décrit par la mention du journal : deux boutons de même nom ne se distinguent pas au lecteur d'écran"
+    },
+    {
+      "ecran": "app-bailleurs a-*-telephone",
+      "element": "barre d'action collée",
+      "propriete": "y (au-dessus de la barre d'onglets)",
+      "exception": "technique",
+      "motif": "la maquette dessine la fiche sans la barre d'onglets de la coque ; dans le produit, la barre d'action se pose au-dessus d'elle (`BarreDAction`, coque commune)"
+    },
+    {
+      "ecran": "app-bailleurs a-*",
+      "element": "puces « Actif », « Payé », « Vacant »",
+      "propriete": "fond, bordure, rayon",
+      "exception": "technique",
+      "motif": "`StatusBadge` et `PuceEtatDuMois` sont les primitives communes (TCK-2637, TCK-2638) : leur habillage se règle hors de ce ticket"
+    },
+    {
+      "ecran": "app-bailleurs a-0-telephone",
+      "element": "bouton « Filtres et tri » (sliders) à droite de la recherche",
+      "propriete": "geste absent",
+      "exception": "technique",
+      "motif": "le carnet n'a pas d'autre filtre que ses trois vues (pastilles) et son tri est fixé (reste à verser d'abord sous lecture de l'argent, sinon par nom) : un bouton sans contenu serait un geste vide"
+    },
+    {
+      "ecran": "app-bailleurs a-0-*",
+      "element": "pastilles de vues",
+      "propriete": "hauteur 28,8 px au lieu de 32,4 px, taille de police",
+      "exception": "technique",
+      "motif": "`PuceDeFiltre` est la primitive commune des listes (TCK-2638) ; son gabarit se règle hors de ce ticket"
+    },
+    {
+      "ecran": "app-bailleurs a-0-*",
+      "element": "invitation en attente (carte, « Renvoyer », « Révoquer »)",
+      "propriete": "absente du relevé",
+      "exception": "donnée",
+      "motif": "la démo n'a aucun bailleur en brouillon dans l'agence 1 au moment du relevé ; la carte et ses gestes de 44 px sont éprouvés par `OwnersList.carnet.tck-2641.test.tsx` (AC4)"
+    },
+    {
+      "ecran": "app-bailleurs a-1-*",
+      "element": "« Ses biens (72) » contre 71 biens dans « Voir dans Biens »",
+      "propriete": "compte",
+      "exception": "donnée",
+      "motif": "`properties_count` (TCK-2640) compte un bien archivé que la liste des biens n'affiche pas sans `include_archived=1` (mesuré : 71 sans, 72 avec) — suite back proposée"
+    },
+    {
+      "ecran": "app-bailleurs a-1-*",
+      "element": "« Modifier » des réglages du mandat",
+      "propriete": "boîte 63 × 40 px (bureau) au lieu du libellé seul (49 × 18)",
+      "exception": "accessibilité",
+      "motif": "la zone de toucher du geste (`h-11 px-2`, 44 px au téléphone, WCAG 2.2 § 2.5.8) ; elle déborde de la ligne par des marges négatives : l'en-tête de la carte garde sa hauteur (43,2 px, 45,1 à la maquette par l'interligne du titre) et le libellé tombe sur la marge droite. Le geste est rendu depuis que les rôles système portent `owners.update` (`membership:reconcile-system-roles`, joué le 2026-11-12)"
+    }
+  ],
+  "hors_perimetre": [
+    "les étiquettes « Propriétaires » du menu de la coque (famille 3)",
+    "les écarts de la coque (barre latérale, en-tête), relevés par les rôles communs",
+    "les rôles de la fiche ne sont pas bornés à un écran : un rôle de la liste sort « absent » sur la fiche, et réciproquement"
+  ]
+}

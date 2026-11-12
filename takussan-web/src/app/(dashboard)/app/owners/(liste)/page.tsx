@@ -6,6 +6,7 @@ import { fetchOwners } from '@/lib/queries/owners';
 import { OwnersList } from '@/components/owners/OwnersList';
 import { isAdmin } from '@/lib/roles';
 import { capacitesDuProfilActif } from '@/lib/access/pages-admin-server';
+import { lireLeCarnet, parametresDuCarnet } from '@/lib/owners/carnet';
 import { getTranslations } from 'next-intl/server';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -29,7 +30,9 @@ export const dynamic = 'force-dynamic';
  * (`OwnerProfileController::index` → `AgencyKindGuard`).
  * *Une garde citée n'est pas une garde posée.*
  */
-export default async function Page() {
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+export default async function Page({ searchParams }: { readonly searchParams?: SearchParams } = {}) {
   const user = await getMeAction();
 
   // TCK-426 — LES CINQ REFUS DE CETTE PAGE ONT REMONTÉ dans `owners/layout.tsx` : jeton absent,
@@ -43,23 +46,31 @@ export default async function Page() {
   const agencyId = user.agency_id;
   if (!token || !agencyId) return null;
 
-  const [owners, capacites] = await Promise.all([
-    fetchOwners(token, { agencyId }),
-    isAdmin(user.roles) ? Promise.resolve(null) : capacitesDuProfilActif(),
-  ]);
+  const etat = lireLeCarnet((await searchParams) ?? {});
+  const admin = isAdmin(user.roles);
+  const capacites = admin ? null : await capacitesDuProfilActif();
 
   // P152.01 — la règle de `OwnerProfilePolicy::invite` : l'admin de l'agence, ou qui tient
   // `team.invite` dans l'agence du profil actif. Une lecture en panne (`null`) ne montre rien.
-  const canInvite = isAdmin(user.roles) || (capacites ?? []).includes('team.invite');
+  const canInvite = admin || (capacites ?? []).includes('team.invite');
+  // TCK-2640 — les chiffres d'argent de la ligne suivent la règle du relevé (`payouts.create`).
+  const lectureArgent = admin || (capacites ?? []).includes('payouts.create');
+  // TCK-2641 (3a) — la fiche est celle de l'admin de l'agence (`OwnerProfilePolicy::viewDetail`) :
+  // le super-admin sans profil d'admin dans l'agence ne l'ouvre pas non plus.
+  const lienVersLaFiche = user.roles.includes('agency_admin');
+
+  // TCK-2641 (4a) — le résumé du carnet et les comptes des vues arrivent avec la page
+  // (`meta.summary`) : plus de lecture `per_page=1` par vue.
+  const owners = await fetchOwners(token, parametresDuCarnet(agencyId, etat, lectureArgent));
 
   return (
     <OwnersList
       agencyId={agencyId}
       canInvite={canInvite}
       initialData={owners}
-      // TCK-601 — le geste « Afficher » (RIB, NINEA, pièce en clair) est celui de l'admin ;
-      // l'API le refuse à l'agent (`OwnerProfilePolicy::viewSensitive`).
-      canRevealSensitive={isAdmin(user.roles)}
+      etat={etat}
+      lienVersLaFiche={lienVersLaFiche}
+      lectureArgent={lectureArgent}
     />
   );
 }

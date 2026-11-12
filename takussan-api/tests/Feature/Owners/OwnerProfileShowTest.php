@@ -9,6 +9,7 @@ use App\Models\Enums\PayoutStatus;
 use App\Models\Payout;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
+use App\Support\Masking;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Tests\ApiTestCase;
@@ -81,6 +82,31 @@ class OwnerProfileShowTest extends ApiTestCase
             ->assertJsonPath('data.figures.period', '2026-08')
             ->assertJsonPath('data.figures.net', 0);
         $this->apiGet("/api/owners/{$profile->id}?period=août")->assertUnprocessable();
+    }
+
+    /**
+     * TCK-2641 — la fiche porte les identifiants sensibles MASQUÉS, jamais leur valeur (ADR-0044) :
+     * la valeur ne sort que par `/sensitive`, journalisé. Un identifiant absent rend `null`.
+     */
+    public function test_la_fiche_rend_les_identifiants_masques_jamais_la_valeur(): void
+    {
+        $agency = $this->moneyAgency();
+        $landlord = $this->landlordOf($agency);
+        $profile = $this->profileOf($landlord, $agency);
+        $profile->forceFill(['rib' => 'SN08SN0100152000048500014471', 'tax_id' => '004567890 2G3', 'id_document_number' => null])->save();
+
+        $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+        $response = $this->apiGet("/api/owners/{$profile->id}")->assertOk();
+        $data = $response->json('data');
+
+        $this->assertSame(Masking::iban('SN08SN0100152000048500014471'), $data['rib_masked']);
+        $this->assertSame(Masking::tail('004567890 2G3'), $data['tax_id_masked']);
+        $this->assertNull($data['id_document_number_masked']);
+        $this->assertStringNotContainsString('0100152000048500', $response->getContent());
+        $this->assertStringNotContainsString('004567890', $response->getContent());
+        foreach (['rib', 'tax_id', 'id_document_number'] as $clear) {
+            $this->assertArrayNotHasKey($clear, $data);
+        }
     }
 
     public function test_un_bailleur_d_une_autre_agence_rend_404(): void

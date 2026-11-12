@@ -5,6 +5,7 @@ import { ApiError, apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import { cheminApi } from '@/lib/chemin-api';
 import { fetchFicheDuClient } from '@/lib/queries/customers';
+import { lireBailleurDuRendu } from '@/lib/owners/fiche-du-rendu';
 import { fetchDashboardProperty } from '@/lib/queries/properties-server';
 
 /**
@@ -84,6 +85,8 @@ export const RESSOURCES_DE_DETAIL = {
   inventories: { api: 'inventories' },
   leases: { api: 'leases' },
   maintenance: { api: 'maintenance-requests' },
+  // TCK-2641 — la fiche d'un bailleur, lue au serveur par sa page (`LECTURES_DE_PAGE`).
+  owners: { api: 'owners' },
   properties: { api: 'properties' },
   visits: { api: 'property-visits' },
 } as const satisfies Record<string, { readonly api: string }>;
@@ -123,6 +126,7 @@ export const lireClientDuRendu = cache((token: string, id: number) => fetchFiche
 const LECTURES_DE_PAGE: Partial<Record<SegmentDeDetail, (token: string, id: number) => Promise<unknown>>> = {
   properties: lireBienDuRendu,
   customers: lireClientDuRendu,
+  owners: (token: string, id: number) => lireBailleurDuRendu(token, id),
 };
 
 /**

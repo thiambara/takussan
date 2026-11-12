@@ -284,13 +284,27 @@ if (routes.length === 0) {
   process.exit(1);
 }
 
-/** La page servant une route de l'App Router, dans le route group `(dashboard)`. */
+/**
+ * La page servant une route de l'App Router, dans le route group `(dashboard)`.
+ *
+ * TCK-2641 — la page peut aussi vivre dans un groupe `(x)` DU segment lui-même : `owners/(liste)/page.tsx`
+ * sert `/app/owners`. Le carnet y a descendu, avec son `loading.tsx`, pour que le `notFound()` du
+ * layout de `owners/[id]` rende 404 (TCK-442 : un repli d'ANCÊTRE efface le statut du layout).
+ */
 function page(route) {
-  const candidats = [
-    join(WEB, 'app', '(dashboard)', ...route.split('/').filter(Boolean), 'page.tsx'),
-    join(WEB, 'app', ...route.split('/').filter(Boolean), 'page.tsx'),
+  const bases = [
+    join(WEB, 'app', '(dashboard)', ...route.split('/').filter(Boolean)),
+    join(WEB, 'app', ...route.split('/').filter(Boolean)),
   ];
-  return candidats.find(existsSync) ?? null;
+  for (const base of bases) {
+    if (existsSync(join(base, 'page.tsx'))) return join(base, 'page.tsx');
+    const groupes = existsSync(base)
+      ? readdirSync(base, { withFileTypes: true }).filter((d) => d.isDirectory() && /^\(.+\)$/.test(d.name))
+      : [];
+    const trouvee = groupes.map((d) => join(base, d.name, 'page.tsx')).find(existsSync);
+    if (trouvee) return trouvee;
+  }
+  return null;
 }
 
 /**

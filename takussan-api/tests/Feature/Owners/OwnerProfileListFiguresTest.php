@@ -136,6 +136,39 @@ class OwnerProfileListFiguresTest extends ApiTestCase
         $this->assertNull($this->rows()[$draft->id]['remaining_to_pay']);
     }
 
+    /**
+     * TCK-2641 — « Encaissé ce mois » de la ligne : le brut (`gross`) du relevé servi du mois
+     * courant, dans l'agence du profil seulement. Le même bailleur, servi par une autre agence, y
+     * encaisse aussi : cela ne compte pas ici. Un loyer d'un autre mois non plus.
+     */
+    public function test_l_encaisse_du_mois_est_le_brut_du_releve_de_l_agence(): void
+    {
+        $agency = $this->moneyAgency();
+        $other = $this->moneyAgency();
+        $landlord = $this->landlordOf($agency);
+        OwnerProfile::factory()->create(['user_id' => $landlord->id, 'agency_id' => $other->id]);
+
+        $here = $this->leaseOf($agency, $landlord, 10);
+        $this->leasePayment($here, 250_000);
+        $this->leasePayment($here, 90_000, LeasePaymentType::Rent, '2026-08-10 10:00:00');
+        $this->leasePayment($this->leaseOf($other, $landlord, 10), 400_000);
+
+        $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+        $row = $this->rows()[$this->profileOf($landlord, $agency)->id];
+        $gross = $this->getJson("/api/owner-statements?period=2026-09&landlord_id={$landlord->id}")->assertOk()->json('data.totals.gross');
+        $this->assertEquals(250000, $gross);
+        $this->assertEquals($gross, $row['collected_this_month']);
+
+        // L'autre agence lit son propre encaissé, pas celui de la première.
+        $this->apiActingAsRole('agency_admin', ['agency' => $other]);
+        $this->assertEquals(400000, $this->rows()[$this->profileOf($landlord, $other)->id]['collected_this_month']);
+
+        // Un brouillon d'invitation n'a pas de relevé.
+        $draft = OwnerProfile::factory()->draft()->create(['agency_id' => $agency->id]);
+        $this->apiActingAsRole('agency_admin', ['agency' => $agency]);
+        $this->assertNull($this->rows()[$draft->id]['collected_this_month']);
+    }
+
     public function test_filtre_has_remaining_et_tri_par_reste_a_verser(): void
     {
         $agency = $this->moneyAgency();
@@ -292,6 +325,7 @@ class OwnerProfileListFiguresTest extends ApiTestCase
         foreach ($rows as $row) {
             $this->assertNull($row['remaining_to_pay']);
             $this->assertNull($row['last_payout_at']);
+            $this->assertNull($row['collected_this_month']);
         }
         $this->assertSame([], $this->rows('&filter[has_remaining]=1'));
         $this->assertCount(2, $this->rows('&filter[has_remaining]=0'));

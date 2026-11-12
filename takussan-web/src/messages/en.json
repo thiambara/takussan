@@ -2680,6 +2680,9 @@
         "metaTitle": "Notifications",
         "title": "Notifications",
         "subtitle": "Everything you were notified of, read or not."
+      },
+      "ownerDetail": {
+        "metaTitle": "Landlord profile"
       }
     },
     "empty": {
@@ -5851,16 +5854,16 @@
   },
   "owners": {
     "page": {
-      "title": "Owners",
+      "title": "Landlords",
       "subtitle": "Manage the landlords linked to your agency.",
-      "empty_title": "No owners yet",
-      "empty_description": "Invite your first owner to start publishing properties on their behalf.",
-      "add": "Add an owner",
+      "empty_title": "No landlords yet",
+      "empty_description": "Invite your first landlord to start publishing properties on their behalf.",
+      "add": "Invite a landlord",
       "status": {
         "draft": "Invited",
         "active": "Active",
         "inactive": "Inactive",
-        "blocked": "Blocked"
+        "blocked": "Suspended"
       },
       "columns": {
         "name": "Name",
@@ -5871,12 +5874,14 @@
         "identifiers": "Identifiers"
       },
       "actions": {
-        "resend": "Resend invitation",
-        "revoke": "Revoke"
+        "resend": "Resend",
+        "revoke": "Revoke",
+        "resendAria": "Resend {nom}'s invitation",
+        "revokeAria": "Revoke {nom}'s invitation"
       }
     },
     "invite": {
-      "title": "Invite an owner",
+      "title": "Invite a landlord",
       "subtitle": "Send an email invitation. The owner will create their account and complete their profile after accepting.",
       "fields": {
         "email": "Email",
@@ -6019,6 +6024,144 @@
       "reveal": "Show",
       "hide": "Hide",
       "error_title": "These identifiers could not be shown"
+    },
+    "carnet": {
+      "titre": "Landlords",
+      "inviter": "Invite a landlord",
+      "recherche": {
+        "placeholder": "Name, phone…",
+        "label": "Search landlords"
+      },
+      "vues": {
+        "label": "Landlord views",
+        "tous": "All",
+        "reste": "With balance to pay",
+        "invitations": "Invitations"
+      },
+      "videFiltre": {
+        "titre": "No landlord matches",
+        "description": "Change the search or pick another view."
+      },
+      "invitationsEnAttente": "{n, plural, one {Pending invitation} other {Pending invitations}}",
+      "nBailleurs": "{n, plural, one {# landlord} other {# landlords}}",
+      "resume": {
+        "telephone": "{bailleurs, plural, one {# landlord} other {# landlords}} · {biens, plural, =0 {no property} one {# property} other {# properties}}{argent, select, oui { · {montant} to pay out} other {}}",
+        "bureau": "{bailleurs, plural, one {# landlord} other {# landlords}} · {biens, plural, =0 {no property} one {# property} other {# properties}}{argent, select, oui { · {montant} to pay out in {mois}} other {}}"
+      },
+      "triReste": "Sorted by balance to pay",
+      "mentionSensible": "IBAN, tax ID and ID number are on the landlord's page, masked; “Show” records the access in the agency log.",
+      "occupation": "{biens, plural, =0 {No properties} one {# property · {occupes, plural, =0 {vacant} other {occupied}}} other {# properties · {tous, select, oui {all occupied} other {{occupes, plural, =0 {none occupied} other {# occupied}}}}}}",
+      "occupes": "{n, plural, =0 {none occupied} other {# occupied}}",
+      "resteAVerser": "Balance to pay",
+      "toutEstVerse": "All paid out",
+      "versementLe": "on {date}",
+      "verseLe": "paid on {date}",
+      "invitationIlYa": "invitation sent {jours, plural, =0 {today} one {# day ago} other {# days ago}}",
+      "invitationEnvoyee": "invitation sent",
+      "invitation": "Invitation",
+      "invitationDepuis": "Invitation · {jours, plural, =0 {today} other {# d}}",
+      "colonnes": {
+        "bailleur": "Landlord",
+        "telephone": "Phone",
+        "biens": "Properties",
+        "encaisse": "Collected this month",
+        "reste": "Balance to pay",
+        "dernier": "Last payout",
+        "statut": "Status"
+      },
+      "gestes": {
+        "appelerAria": "Call {nom}",
+        "whatsappAria": "Message {nom} on WhatsApp",
+        "message": "Hello {prenom},"
+      }
+    },
+    "fiche": {
+      "depuis": "Landlord since {date}",
+      "identite": "Landlord contact details",
+      "appeler": "Call",
+      "whatsapp": "WhatsApp",
+      "message": "Message",
+      "messageA": "Message to {nom}",
+      "creerReversement": "Create the payout",
+      "releve": {
+        "titre": "Management statement",
+        "envoyer": "Send the statement",
+        "pdf": "PDF",
+        "titrePartage": "{mois} statement — {nom}",
+        "echec": "The statement could not be prepared",
+        "moisPrecedent": "Previous month",
+        "moisSuivant": "Next month",
+        "encaisse": "Collected",
+        "commission": "Commission",
+        "dejaVerse": "Already paid out",
+        "dejaVerseLe": "Paid out on {date}",
+        "reste": "Left to pay out",
+        "sansReleve": "No statement for this month: the landlord has no account yet.",
+        "releveDe": "{mois} management statement",
+        "releveDetail": "Line by line, property by property · PDF",
+        "creerReversement": "Create the payout",
+        "commissionAgence": "Agency commission",
+        "tauxDetail": "{taux}% of rents",
+        "leDate": "on {date}"
+      },
+      "reglages": {
+        "titre": "Mandate settings",
+        "modifier": "Edit",
+        "plafond": "Works without approval up to",
+        "effet": "Above it, the quote goes to the landlord, who approves it before the works.",
+        "effetSansPlafond": "With no ceiling, the agency approves quotes without asking for the landlord’s approval.",
+        "sansPlafond": "No limit",
+        "commission": "Agency commission",
+        "taux": "{taux}% of rents",
+        "tauxDesBaux": "Rates specific to some leases: {taux}",
+        "enregistrer": "Save",
+        "annuler": "Cancel",
+        "enregistre": "Ceiling saved",
+        "echec": "The ceiling was not saved"
+      },
+      "biens": {
+        "titre": "Their properties ({n})",
+        "voir": "View in Properties",
+        "aucun": "No property entrusted yet.",
+        "colonnes": {
+          "bien": "Property",
+          "locataire": "Tenant",
+          "loyer": "Rent",
+          "ceMois": "This month"
+        }
+      },
+      "reversements": {
+        "titre": "Latest payouts",
+        "historique": "Full history",
+        "chargement": "Loading…",
+        "aucun": "No payout yet.",
+        "periode": "{mois} payout"
+      },
+      "pieces": {
+        "titre": "Documents and identifiers",
+        "piece": "ID document",
+        "rib": "Bank details (RIB)",
+        "ninea": "NINEA",
+        "afficher": "Show",
+        "masquer": "Hide",
+        "aucune": "No document yet.",
+        "mention": "“Show” reveals the value and records the access in the agency log.",
+        "erreurAffichage": "The identifiers could not be shown",
+        "afficherAria": "Show in full: {quoi}",
+        "masquerAria": "Hide: {quoi}"
+      },
+      "acces": {
+        "titre": "Access and departure",
+        "effetSuspendre": "They will no longer be able to act in your agency, and their open sessions here will be closed. Their account stays active.",
+        "effetReactiver": "Their access is suspended. Reactivating it gives them back their landlord space in your agency.",
+        "suspendre": "Suspend access",
+        "reactiver": "Reactivate",
+        "suspendu": "Access suspended",
+        "reactive": "Access reactivated",
+        "echec": "Access was not changed"
+      },
+      "particulier": "Individual",
+      "societe": "Company"
     }
   },
   "ownerWelcome": {

@@ -2512,7 +2512,7 @@
         "subtitle": "Relancez en un clic les filtres que vous utilisez le plus."
       },
       "owners": {
-        "metaTitle": "Propriétaires"
+        "metaTitle": "Bailleurs"
       },
       "customers": {
         "title": "Clients",
@@ -2637,6 +2637,9 @@
         "metaTitle": "Notifications",
         "title": "Notifications",
         "subtitle": "Tout ce qui vous a été signalé, lu ou non."
+      },
+      "ownerDetail": {
+        "metaTitle": "Fiche du bailleur"
       }
     },
     "empty": {
@@ -5851,16 +5854,16 @@
   },
   "owners": {
     "page": {
-      "title": "Propriétaires",
+      "title": "Bailleurs",
       "subtitle": "Gérez les bailleurs rattachés à votre agence.",
-      "empty_title": "Aucun propriétaire pour le moment",
-      "empty_description": "Invitez votre premier propriétaire pour commencer à publier des biens en son nom.",
-      "add": "Ajouter un propriétaire",
+      "empty_title": "Aucun bailleur pour le moment",
+      "empty_description": "Invitez votre premier bailleur pour commencer à publier des biens en son nom.",
+      "add": "Inviter un bailleur",
       "status": {
         "draft": "Invité",
         "active": "Actif",
         "inactive": "Inactif",
-        "blocked": "Bloqué"
+        "blocked": "Suspendu"
       },
       "columns": {
         "name": "Nom",
@@ -5871,12 +5874,14 @@
         "identifiers": "Identifiants"
       },
       "actions": {
-        "resend": "Renvoyer l'invitation",
-        "revoke": "Révoquer"
+        "resend": "Renvoyer",
+        "revoke": "Révoquer",
+        "resendAria": "Renvoyer l’invitation de {nom}",
+        "revokeAria": "Révoquer l’invitation de {nom}"
       }
     },
     "invite": {
-      "title": "Inviter un propriétaire",
+      "title": "Inviter un bailleur",
       "subtitle": "Envoyez une invitation par email. Le propriétaire pourra créer son compte et compléter son profil après acceptation.",
       "fields": {
         "email": "Email",
@@ -6019,6 +6024,144 @@
       "reveal": "Afficher",
       "hide": "Masquer",
       "error_title": "Impossible d'afficher ces identifiants"
+    },
+    "carnet": {
+      "titre": "Bailleurs",
+      "inviter": "Inviter un bailleur",
+      "recherche": {
+        "placeholder": "Nom, téléphone…",
+        "label": "Rechercher un bailleur"
+      },
+      "vues": {
+        "label": "Vues du carnet",
+        "tous": "Tous",
+        "reste": "Avec reste à verser",
+        "invitations": "Invitations"
+      },
+      "videFiltre": {
+        "titre": "Aucun bailleur ne correspond",
+        "description": "Modifiez la recherche ou choisissez une autre vue."
+      },
+      "invitationsEnAttente": "{n, plural, one {Invitation en attente} other {Invitations en attente}}",
+      "nBailleurs": "{n, plural, one {# bailleur} other {# bailleurs}}",
+      "resume": {
+        "telephone": "{bailleurs, plural, one {# bailleur} other {# bailleurs}} · {biens, plural, =0 {aucun bien} one {# bien} other {# biens}}{argent, select, oui { · {montant} à verser} other {}}",
+        "bureau": "{bailleurs, plural, one {# bailleur} other {# bailleurs}} · {biens, plural, =0 {aucun bien} one {# bien} other {# biens}}{argent, select, oui { · {montant} à verser en {mois}} other {}}"
+      },
+      "triReste": "Tri : reste à verser",
+      "mentionSensible": "RIB, NINEA et numéro de pièce se lisent sur la fiche du bailleur, masqués ; « Afficher » inscrit la consultation au journal.",
+      "occupation": "{biens, plural, =0 {Aucun bien} one {# bien · {occupes, plural, =0 {vacant} other {occupé}}} other {# biens · {tous, select, oui {tous occupés} other {{occupes, plural, =0 {aucun occupé} one {# occupé} other {# occupés}}}}}}",
+      "occupes": "{n, plural, =0 {aucun occupé} one {# occupé} other {# occupés}}",
+      "resteAVerser": "Reste à verser",
+      "toutEstVerse": "Tout est versé",
+      "versementLe": "le {date}",
+      "verseLe": "versé le {date}",
+      "invitationIlYa": "invitation envoyée {jours, plural, =0 {aujourd’hui} other {il y a # j}}",
+      "invitationEnvoyee": "invitation envoyée",
+      "invitation": "Invitation",
+      "invitationDepuis": "Invitation · {jours, plural, =0 {aujourd’hui} other {# j}}",
+      "colonnes": {
+        "bailleur": "Bailleur",
+        "telephone": "Téléphone",
+        "biens": "Biens",
+        "encaisse": "Encaissé ce mois",
+        "reste": "Reste à verser",
+        "dernier": "Dernier versement",
+        "statut": "Statut"
+      },
+      "gestes": {
+        "appelerAria": "Appeler {nom}",
+        "whatsappAria": "Écrire à {nom} sur WhatsApp",
+        "message": "Bonjour {prenom},"
+      }
+    },
+    "fiche": {
+      "depuis": "Bailleur depuis {date}",
+      "identite": "Coordonnées du bailleur",
+      "appeler": "Appeler",
+      "whatsapp": "WhatsApp",
+      "message": "Message",
+      "messageA": "Message à {nom}",
+      "creerReversement": "Créer le reversement",
+      "releve": {
+        "titre": "Relevé de gérance",
+        "envoyer": "Envoyer le relevé",
+        "pdf": "PDF",
+        "titrePartage": "Relevé de {mois} — {nom}",
+        "echec": "Le relevé n’a pas pu être préparé",
+        "moisPrecedent": "Mois précédent",
+        "moisSuivant": "Mois suivant",
+        "encaisse": "Encaissé",
+        "commission": "Commission",
+        "dejaVerse": "Déjà versé",
+        "dejaVerseLe": "Déjà versé le {date}",
+        "reste": "Reste à verser",
+        "sansReleve": "Aucun relevé pour ce mois : le bailleur n’a pas encore de compte.",
+        "releveDe": "Relevé de gérance de {mois}",
+        "releveDetail": "Ligne par ligne, bien par bien · PDF",
+        "creerReversement": "Créer le reversement",
+        "commissionAgence": "Commission d’agence",
+        "tauxDetail": "{taux} % des loyers",
+        "leDate": "le {date}"
+      },
+      "reglages": {
+        "titre": "Réglages du mandat",
+        "modifier": "Modifier",
+        "plafond": "Travaux sans accord jusqu’à",
+        "effet": "Au-delà, le devis part chez le bailleur, qui l’approuve avant les travaux.",
+        "effetSansPlafond": "Sans plafond, l’agence approuve les devis sans demander l’accord du bailleur.",
+        "sansPlafond": "Sans limite",
+        "commission": "Commission d’agence",
+        "taux": "{taux} % des loyers",
+        "tauxDesBaux": "Taux propres à certains baux : {taux}",
+        "enregistrer": "Enregistrer",
+        "annuler": "Annuler",
+        "enregistre": "Plafond enregistré",
+        "echec": "Le plafond n’a pas été enregistré"
+      },
+      "biens": {
+        "titre": "Ses biens ({n})",
+        "voir": "Voir dans Biens",
+        "aucun": "Aucun bien confié pour l’instant.",
+        "colonnes": {
+          "bien": "Bien",
+          "locataire": "Locataire",
+          "loyer": "Loyer",
+          "ceMois": "Ce mois"
+        }
+      },
+      "reversements": {
+        "titre": "Derniers reversements",
+        "historique": "Tout l’historique",
+        "chargement": "Chargement…",
+        "aucun": "Aucun reversement pour l’instant.",
+        "periode": "Reversement de {mois}"
+      },
+      "pieces": {
+        "titre": "Documents et identifiants",
+        "piece": "Pièce d’identité",
+        "rib": "RIB",
+        "ninea": "NINEA",
+        "afficher": "Afficher",
+        "masquer": "Masquer",
+        "aucune": "Aucun document pour l’instant.",
+        "mention": "« Afficher » révèle la valeur et inscrit la consultation au journal de l’agence.",
+        "erreurAffichage": "Les identifiants n’ont pas pu être affichés",
+        "afficherAria": "Afficher en clair : {quoi}",
+        "masquerAria": "Masquer : {quoi}"
+      },
+      "acces": {
+        "titre": "Accès et départ",
+        "effetSuspendre": "Il ne pourra plus agir dans votre agence, et ses sessions ouvertes ici seront fermées. Son compte reste actif.",
+        "effetReactiver": "Son accès est suspendu. Le réactiver lui rend son espace bailleur dans votre agence.",
+        "suspendre": "Suspendre l’accès",
+        "reactiver": "Réactiver",
+        "suspendu": "Accès suspendu",
+        "reactive": "Accès réactivé",
+        "echec": "L’accès n’a pas été modifié"
+      },
+      "particulier": "Particulier",
+      "societe": "Société"
     }
   },
   "ownerWelcome": {

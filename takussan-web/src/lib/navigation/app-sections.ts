@@ -18,6 +18,8 @@ export const LISTES_PAR_SECTION: Readonly<Record<string, string>> = {
   inventories: '/app/inventories',
   leases: '/app/leases',
   maintenance: '/app/maintenance',
+  // TCK-2641 — la fiche d'un bailleur (`/app/owners/[id]`) revient au carnet.
+  owners: '/app/owners',
   properties: '/app/properties',
   visits: '/app/visits',
 };

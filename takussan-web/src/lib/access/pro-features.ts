@@ -34,7 +34,7 @@ import type { User } from '@/types/user';
  */
 export const PRO_ROUTES: ReadonlySet<string> = new Set([
   // /app/... — espace perso agency_admin. Gardées EN LIGNE dans leur page :
-  //   app/overview/agency/page.tsx · app/owners/page.tsx
+  //   app/overview/agency/page.tsx · app/owners/(liste)/page.tsx
   //
   // Sans numéros de ligne, DÉLIBÉRÉMENT. Ceux qui figuraient ici étaient déjà faux dans le
   // commit qui les introduisait : les commentaires explicatifs ajoutés par ce même commit

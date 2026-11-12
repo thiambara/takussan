@@ -1,5 +1,5 @@
-import { redirect } from 'next/navigation';
-import { isAdmin, isAgent, isOwner, isServiceProvider } from '@/lib/roles';
+import { notFound, redirect } from 'next/navigation';
+import { isAdmin, isAgencyAdmin, isAgent, isOwner, isServiceProvider } from '@/lib/roles';
 import type { UserRole } from '@/types/user';
 
 /**
@@ -72,5 +72,19 @@ export function assertCanReachAgencyStaffArea(roles: UserRole[]): void {
 export function assertCanReachCalendar(roles: UserRole[]): void {
   if (!(isAgent(roles) || isOwner(roles) || isAdmin(roles) || isServiceProvider(roles))) {
     redirect('/app');
+  }
+}
+
+/**
+ * TCK-2641 (décision 3a) — la fiche d'un bailleur (`/app/owners/[id]`) est celle de l'ADMIN de
+ * l'agence (`OwnerProfilePolicy::viewDetail`, TCK-2640) : un agent lit le carnet, pas la fiche.
+ *
+ * Le refus n'est pas un renvoi vers `/app` mais `notFound()`, comme l'API, qui rend 404 et jamais
+ * 403 (le refus dirait que le bailleur existe). À appeler depuis un LAYOUT : sous un `loading.tsx`,
+ * le même appel depuis la page rend 200 (TCK-442, `customers/[id]/layout.tsx`).
+ */
+export function assertCanReachOwnerAccount(roles: UserRole[]): void {
+  if (!isAgencyAdmin(roles)) {
+    notFound();
   }
 }

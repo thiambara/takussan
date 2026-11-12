@@ -37,7 +37,7 @@ const REPORT = process.argv.includes('--report');
 /** Fichier (relatif à la racine) → nombre de compositions tolérées et pourquoi. */
 export const EXCEPTIONS = {
   // Le nom de l'invitation (`metadata`) passe avant le repli : TCK-2136 l'a écrit ainsi.
-  'takussan-web/src/components/owners/OwnersList.tsx': { max: 2, motif: 'compte puis nom saisi à l’invitation (TCK-2136)' },
+  // TCK-2641 — `owners/OwnersList.tsx` a quitté la liste : le carnet passe par `nomCompletDe`.
   'takussan-web/src/components/service-providers/ServiceProvidersList.tsx': { max: 2, motif: 'compte puis nom saisi à l’invitation (TCK-2136)' },
   'takussan-web/src/components/payments/CreatePayoutDialog.tsx': { max: 2, motif: 'compte puis nom saisi à l’invitation (TCK-2136)' },
   'takussan-web/src/components/maintenance/MaintenanceAssignmentBlock.tsx': {

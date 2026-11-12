@@ -25,6 +25,8 @@ const PERMIS: Readonly<Record<string, Categorie>> = {
   // Le registre d'icônes réexporte lucide sans rien rendre.
   'src/components/icons.tsx': 'registre',
   'src/components/calendar/CalendarPage.tsx': 'periode',
+  // TCK-2641 — le sélecteur de mois du relevé du bailleur : « mois précédent », pas un retour.
+  'src/components/owners/fiche/FicheDuBailleur.tsx': 'periode',
   'src/components/ui/calendar.tsx': 'calendrier',
   'src/components/bookings/CalendrierDesNuits.tsx': 'calendrier',
   'src/components/console/Pagination.tsx': 'pagination',

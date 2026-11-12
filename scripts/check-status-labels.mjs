@@ -99,7 +99,7 @@ const LIBELLES = {
     { chemin: 'maintenance.status', lu: 'components/maintenance/MaintenanceStatusBadge.tsx' },
     { chemin: 'messaging.maintenanceEvents.statuses', lu: 'components/messages/useTexteMessageSysteme.ts' },
   ],
-  OwnerProfileStatus: [{ chemin: 'owners.page.status', lu: 'components/owners/OwnersList.tsx' }],
+  OwnerProfileStatus: [{ chemin: 'owners.page.status', lu: 'components/owners/carnet/pieces.tsx' }],
   PaymentStatus: [
     { chemin: 'payments.status', lu: 'components/admin/reconciliation/PayableStatusBadge.tsx' },
     { chemin: 'lease.schedule.status', lu: 'components/leases/LeaseSchedule.tsx' },

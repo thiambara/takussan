@@ -1,144 +1,149 @@
 'use client';
 
 /**
- * TCK-256 — owners listing wrapped in react-query so the
- * `<InviteOwnerSheet>` mutation can invalidate it via the shared
- * `['owners', agencyId]` key.
+ * TCK-2641 — le carnet des bailleurs (maquette `app-bailleurs` a, écran « Liste »).
  *
- * The list reads `agency.kind` and the user's `invite_owner` permission
- * (passed in by the server-rendered page) to decide whether to render
- * the "Add owner" CTA. The same checks live server-side
- * ({@see App\Policies\OwnerProfilePolicy}) so an evaded UI gate still
- * yields a 403.
+ *  · Téléphone (sous `lg`) : la recherche « Nom, téléphone… », les vues en pastilles comptées, puis
+ *    les invitations en cours (« Renvoyer » / « Révoquer » de 44 px) et une carte par bailleur :
+ *    initiales, « 7 biens · 6 occupés », « Reste à verser », Appeler et WhatsApp.
+ *  · Bureau (dès `lg`) : le tableau Bailleur · Téléphone · Biens · Encaissé ce mois · Reste à verser ·
+ *    Dernier versement · Statut, sous la recherche et les vues.
+ *
+ * L'état (recherche, vue, page) vit dans l'URL : la page serveur lit, ce composant écrit. Chaque
+ * chiffre vient de l'API (TCK-2640) ; rien n'est recalculé ici.
+ *
+ * TCK-601 — RIB, NINEA et numéro de pièce ne se lisent plus ici : ils sont sur la fiche du
+ * bailleur, masqués, et « Afficher » y journalise la consultation (la mention le dit en bas de page).
+ *
+ * TCK-256 — la liste est enveloppée de react-query sous la clé `['owners', agencyId, …]` : la feuille
+ * d'invitation et la révocation l'invalident par son préfixe.
  */
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Mail, Ban, UserRound, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Lock, Plus, UserRound } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
-import { PageHeader, StatusBadge, type StatusTone } from '@/components/console';
-import { DataTable, type DataTableColumn } from '@/components/console/DataTable';
+import { PageHeader } from '@/components/console';
+import { DebouncedSearchInput } from '@/components/console/DebouncedSearchInput';
 import { EmptyState } from '@/components/feedback';
+import { ActionDEnTete } from '@/components/layout/EnTeteMobile';
+import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
+import { PagePleineLargeur } from '@/components/layout/PagePleineLargeur';
+import { PropertyPagination } from '@/components/property-dashboard/PropertyPagination';
 import { Button } from '@/components/ui/button';
+import { PuceDeFiltre, RangeeDePuces } from '@/components/ui/puce-de-filtre';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
-import { ApiError } from '@/lib/api';
-import { formaterTelephone } from '@/lib/phone';
-import {
-  fetchOwners,
-  fetchOwnerSensitive,
-  raisonSocialeDe,
-  resendInvitation,
-  revokeInvitation,
-  type OwnerProfileSummary,
-  type OwnerProfileStatus,
-  type OwnerSensitiveData,
-} from '@/lib/queries/owners';
 import { useGardeDoubleFacteur } from '@/components/auth/garde-double-facteur-contexte';
-import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
-import type { PaginatedResponse } from '@/types/api';
-import { InviteOwnerSheet } from './InviteOwnerSheet';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { useMinuteCourante } from '@/hooks/useMinuteCourante';
+import { useVueDansLUrl } from '@/hooks/useVueDansLUrl';
+import { ApiError } from '@/lib/api';
+import { avecGardeDoubleFacteur } from '@/lib/double-facteur';
+import { parametresDuCarnet, type EtatDuCarnet, type VueDuCarnet } from '@/lib/owners/carnet';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
+import { fetchOwners, resendInvitation, revokeInvitation, type OwnerProfileSummary, type PageDuCarnet } from '@/lib/queries/owners';
+import { cn } from '@/lib/utils';
 
-type Props = {
+import { CarteDInvitation, CarteDuBailleur, TableDesBailleurs } from './carnet/pieces';
+import { InviteOwnerSheet } from './InviteOwnerSheet';
+
+export interface OwnersListProps {
   readonly agencyId: number;
   readonly canInvite: boolean;
-  readonly initialData: PaginatedResponse<OwnerProfileSummary>;
+  /** La page lue par le serveur ; son `meta.summary` porte le résumé et les comptes des vues (4a). */
+  readonly initialData: PageDuCarnet;
+  /** L'état lu dans l'URL par la page ; par défaut, la première page de « Tous ». */
+  readonly etat?: EtatDuCarnet;
   /**
-   * TCK-601 — l'admin de l'agence (ou le super-admin) a le geste « Afficher » ; l'agent ne l'a
-   * pas. L'API tranche de toute façon (`OwnerProfilePolicy::viewSensitive`, 403 sinon) : ce
-   * drapeau n'évite que de proposer un geste voué au refus.
+   * TCK-2641 (3a) — la fiche (`/app/owners/{id}`) est réservée à l'admin de l'agence
+   * (`OwnerProfilePolicy::viewDetail`, 403 sinon) : sans ce drapeau, aucune ligne n'y mène.
    */
-  readonly canRevealSensitive?: boolean;
-};
+  readonly lienVersLaFiche?: boolean;
+  /**
+   * Le lecteur lit le relevé (`payouts.create`) : la vue « Avec reste à verser » et le tri par reste
+   * n'ont de sens que pour lui (l'API rend `null` à tout autre).
+   */
+  readonly lectureArgent?: boolean;
+}
 
-/**
- * Le SENS de chaque statut, la couleur restant décidée par `StatusBadge`. Les variantes de `Badge`
- * rendaient « Actif » en terracotta primaire — la couleur de l'action, pas celle d'un état sain.
- */
-const STATUS_TONE: Record<OwnerProfileStatus, StatusTone> = {
-  draft: 'attention',
-  active: 'success',
-  inactive: 'neutral',
-  blocked: 'danger',
-};
+const ETAT_PAR_DEFAUT: EtatDuCarnet = { recherche: '', vue: 'tous', page: 1 };
 
-export function OwnersList({ agencyId, canInvite, initialData, canRevealSensitive = false }: Props) {
+export function OwnersList({
+  agencyId,
+  canInvite,
+  initialData,
+  etat = ETAT_PAR_DEFAUT,
+  lienVersLaFiche = false,
+  lectureArgent = false,
+}: OwnersListProps) {
   const tErr = useTranslations('errors');
-  const t = useTranslations('owners');
-  const tInvite = useTranslations('owners.invite');
+  const t = useTranslations('owners.carnet');
   const tPage = useTranslations('owners.page');
+  const tInvite = useTranslations('owners.invite');
   const messageErreur = useMessageErreurApi();
   const toast = useToast();
   const queryClient = useQueryClient();
   const { token } = useAuth();
-  const [sheetOpen, setSheetOpen] = useState(false);
   const garde = useGardeDoubleFacteur();
-  /**
-   * TCK-601 — les valeurs révélées vivent ICI, dans l'état du composant, et nulle part ailleurs :
-   * ni cache React Query (partagé, et persisté par certains écrans), ni `localStorage`. Quitter la
-   * page ou « Masquer » les efface.
-   */
-  const [revealed, setRevealed] = useState<Readonly<Record<number, OwnerSensitiveData>>>({});
-  const [revealingId, setRevealingId] = useState<number | null>(null);
-
-  async function reveal(owner: OwnerProfileSummary) {
-    if (!token) return;
-    setRevealingId(owner.id);
-    try {
-      const res = await avecGardeDoubleFacteur(() => fetchOwnerSensitive(token, owner.id), garde);
-      setRevealed((prev) => ({ ...prev, [owner.id]: res.data }));
-    } catch (error) {
-      toast.add({
-        title: t('sensitive.error_title'),
-        description: messageErreur(error),
-        type: 'error',
-      });
-    } finally {
-      setRevealingId(null);
-    }
-  }
-
-  function hide(ownerId: number) {
-    setRevealed((prev) => {
-      const next = { ...prev };
-      delete next[ownerId];
-      return next;
-    });
-  }
+  const maintenant = useMinuteCourante();
+  const f = useFormatteurs();
+  const { remplacer } = useVueDansLUrl();
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const ownersQuery = useQuery({
-    queryKey: ['owners', agencyId],
+    queryKey: ['owners', agencyId, etat.vue, etat.recherche, etat.page, lectureArgent],
     queryFn: () => {
       if (!token) throw new ApiError(401, { message: tErr('missingToken') });
-      return fetchOwners(token, { agencyId });
+      return fetchOwners(token, parametresDuCarnet(agencyId, etat, lectureArgent));
     },
     initialData,
     enabled: !!token,
   });
 
-  const owners = ownersQuery.data?.data ?? [];
+  const page = ownersQuery.data ?? initialData;
+  const owners = page.data ?? [];
+  const invitations = owners.filter((o) => o.status === 'draft');
+  const bailleurs = owners.filter((o) => o.status !== 'draft');
+
+  // TCK-2641 (4a) — le résumé du carnet entier et les comptes des vues, tels que l'API les rend
+  // (`meta.summary`) : ni la recherche ni la vue ne les changent. Sans résumé, ni ligne ni compte.
+  const resume = page.meta?.summary ?? null;
+  const comptes: Partial<Record<VueDuCarnet, number>> = resume
+    ? {
+        tous: resume.owners + resume.invitations,
+        invitations: resume.invitations,
+        ...(resume.with_remaining !== null ? { reste: resume.with_remaining } : {}),
+      }
+    : {};
+  const ligneDuResume = (forme: 'telephone' | 'bureau') =>
+    resume
+      ? t(`resume.${forme}`, {
+          bailleurs: resume.owners,
+          biens: resume.properties,
+          argent: resume.remaining_to_pay !== null ? 'oui' : 'non',
+          montant: f.montantCourt(resume.remaining_to_pay),
+          mois: f.date(maintenant, { month: 'long' }),
+        })
+      : null;
 
   const resendMutation = useMutation<unknown, ApiError, OwnerProfileSummary>({
     mutationFn: async (owner) => {
       if (!token) throw new ApiError(401, { message: tErr('missingToken') });
-      // P237.01 (TCK-2371) — l'API porte l'invitation en attente sur la ligne. La recherche par
-      // e-mail qu'elle remplace disait « aucune invitation » pour toute panne, et pour un numéro.
+      // P237.01 (TCK-2371) — l'API porte l'invitation en attente sur la ligne.
       const id = owner.pending_invitation_id ?? null;
       if (id === null) throw new ApiError(404, { message: tErr('noPendingInvitation') });
       // TCK-1203 — relancer exige la 2FA de l'agence (`InvitationController@resend`).
       return avecGardeDoubleFacteur(() => resendInvitation(token, id), garde);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.add({ title: tInvite('toasts.resend_success'), type: 'success' });
+      // TCK-2641 — la relance réécrit la date d'envoi que la ligne affiche.
+      await queryClient.invalidateQueries({ queryKey: ['owners', agencyId] });
     },
     onError: (error) => {
-      toast.add({
-        title: tInvite('toasts.error_title'),
-        description: messageErreur(error),
-        type: 'error',
-      });
+      toast.add({ title: tInvite('toasts.error_title'), description: messageErreur(error), type: 'error' });
     },
   });
 
@@ -154,243 +159,175 @@ export function OwnersList({ agencyId, canInvite, initialData, canRevealSensitiv
       await queryClient.invalidateQueries({ queryKey: ['owners', agencyId] });
     },
     onError: (error) => {
-      toast.add({
-        title: tInvite('toasts.error_title'),
-        description: messageErreur(error),
-        type: 'error',
-      });
+      toast.add({ title: tInvite('toasts.error_title'), description: messageErreur(error), type: 'error' });
     },
   });
 
-  /**
-   * Les colonnes, dans l'ORDRE EXACT de la table faite main qu'elles remplacent
-   * (nom · e-mail · statut · actions), plus deux ajouts délibérés : le téléphone saisi à
-   * l'invitation (P234.04) et les identifiants (TCK-601). L'ordre est éprouvé par test : une colonne perdue
-   * à la conversion ne se voit pas dans un diff de quarante lignes.
-   */
-  const colonnes: readonly DataTableColumn<OwnerProfileSummary>[] = [
-    {
-      id: 'name',
-      header: t('page.columns.name'),
-      className: 'font-semibold text-foreground',
-      cell: (owner) => {
-        // TCK-1323 (P117.05) — une société est nommée par sa raison sociale, exigée à
-        // l'invitation (`metadata.company_name`) ; la personne de contact reste en dessous.
-        const raison = raisonSocialeDe(owner);
-        const nom = nomDe(owner);
-        if (!raison) return nom || '—';
-        return (
-          <div className="flex flex-col">
-            <span>{raison}</span>
-            {nom ? <span className="text-xs font-normal text-muted-foreground">{nom}</span> : null}
-          </div>
-        );
-      },
-    },
-    {
-      id: 'email',
-      header: t('page.columns.email'),
-      className: 'text-muted-foreground',
-      cell: (owner) => owner.user?.email ?? owner.metadata?.email ?? '—',
-    },
-    {
-      // P234.04 (TCK-2280) — le numéro saisi par l'agence à l'invitation : une donnée de SA fiche,
-      // jamais posée sur le compte. Ajout délibéré, entre l'e-mail et les identifiants.
-      id: 'phone',
-      header: t('page.columns.phone'),
-      className: 'whitespace-nowrap text-muted-foreground tabular-nums',
-      cell: (owner) => (owner.metadata?.phone ? formaterTelephone(owner.metadata.phone) : '—'),
-    },
-    {
-      id: 'identifiers',
-      header: t('page.columns.identifiers'),
-      cell: (owner) => (
-        <OwnerIdentifiersCell
-          owner={owner}
-          revealed={revealed[owner.id] ?? null}
-          canReveal={canRevealSensitive}
-          revealing={revealingId === owner.id}
-          onReveal={() => reveal(owner)}
-          onHide={() => hide(owner.id)}
-        />
-      ),
-    },
-    {
-      id: 'status',
-      header: t('page.columns.status'),
-      cell: (owner) => (
-        <StatusBadge
-          tone={STATUS_TONE[owner.status]}
-          label={tPage(`status.${owner.status}`)}
-          className="whitespace-nowrap"
-        />
-      ),
-    },
-    {
-      id: 'actions',
-      header: t('page.columns.actions'),
-      // Seul un brouillon porte des actions : un en-tête visible coiffait une colonne vide.
-      headerSrOnly: true,
-      align: 'end',
-      cell: (owner) =>
-        owner.status === 'draft' ? (
-          <div className="inline-flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={resendMutation.isPending}
-              onClick={() => resendMutation.mutate(owner)}
-            >
-              <Mail className="size-3.5" aria-hidden="true" />
-              {tPage('actions.resend')}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={revokeMutation.isPending}
-              onClick={() => revokeMutation.mutate(owner)}
-            >
-              <Ban className="size-3.5" aria-hidden="true" />
-              {tPage('actions.revoke')}
-            </Button>
-          </div>
-        ) : null,
-    },
-  ];
+  /** « Renvoyer » / « Révoquer » : 44 px sous le pouce, liens de texte dans la cellule du bureau. */
+  const gestesDInvitation = (owner: OwnerProfileSummary, forme: 'telephone' | 'bureau'): ReactNode => {
+    const nom = owner.metadata?.email ?? owner.user?.email ?? '';
+    const telephone = forme === 'telephone';
+    return (
+      <>
+        <button
+          type="button"
+          data-slot="renvoyer-l-invitation"
+          disabled={resendMutation.isPending}
+          onClick={() => resendMutation.mutate(owner)}
+          aria-label={tPage('actions.resendAria', { nom })}
+          className={cn(
+            'outline-none focus-visible:ring-3 focus-visible:ring-ring disabled:opacity-50',
+            telephone
+              ? 'inline-flex h-11 min-w-0 flex-1 items-center justify-center rounded-lg border border-border bg-card text-sm font-medium hover:bg-muted'
+              : 'rounded-sm text-primary hover:underline',
+          )}
+        >
+          {tPage('actions.resend')}
+        </button>
+        {telephone ? null : <span className="text-muted-foreground" aria-hidden="true">·</span>}
+        <button
+          type="button"
+          data-slot="revoquer-l-invitation"
+          disabled={revokeMutation.isPending}
+          onClick={() => revokeMutation.mutate(owner)}
+          aria-label={tPage('actions.revokeAria', { nom })}
+          className={cn(
+            'outline-none focus-visible:ring-3 focus-visible:ring-ring disabled:opacity-50',
+            telephone
+              ? 'inline-flex h-11 flex-none items-center justify-center rounded-lg px-3 text-sm font-medium text-destructive hover:bg-destructive/10'
+              : 'rounded-sm text-destructive hover:underline',
+          )}
+        >
+          {tPage('actions.revoke')}
+        </button>
+      </>
+    );
+  };
+
+  const vues: readonly VueDuCarnet[] = lectureArgent ? ['tous', 'reste', 'invitations'] : ['tous', 'invitations'];
+  const choisirVue = (vue: VueDuCarnet) => remplacer({ vue: vue === 'tous' ? null : vue, page: null });
+  const rechercher = (q: string) => remplacer({ q: q.trim() || null, page: null });
+  const filtre = etat.vue !== 'tous' || etat.recherche !== '';
+
+  const inviter = canInvite ? (
+    <Button onClick={() => setSheetOpen(true)}>
+      <Plus className="size-4" aria-hidden="true" />
+      {t('inviter')}
+    </Button>
+  ) : null;
+
+  const recherche = (className?: string) => (
+    <DebouncedSearchInput
+      id="owners-search"
+      value={etat.recherche}
+      onCommit={rechercher}
+      placeholder={t('recherche.placeholder')}
+      aria-label={t('recherche.label')}
+      className={className}
+    />
+  );
+
+  const pastilles = (className?: string, taille?: 'sm') => (
+    <RangeeDePuces aria-label={t('vues.label')} className={className}>
+      {vues.map((v) => (
+        <PuceDeFiltre key={v} taille={taille} active={v === etat.vue} compte={comptes[v] ?? undefined} onClick={() => choisirVue(v)}>
+          {t(`vues.${v}`)}
+        </PuceDeFiltre>
+      ))}
+    </RangeeDePuces>
+  );
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title={t('page.title')}
-        description={t('page.subtitle')}
-        actions={
-          canInvite ? (
-            <Button onClick={() => setSheetOpen(true)} size="lg">
-              <Plus className="size-4" aria-hidden="true" />
-              {t('page.add')}
-            </Button>
-          ) : null
-        }
+    <PagePleineLargeur data-slot="carnet-des-bailleurs" className="max-md:pb-6">
+      <DeclarerEnTete
+        titre={t('titre')}
+        action={canInvite ? <ActionDEnTete libelle={t('inviter')} icone={<Plus className="size-5" aria-hidden="true" />} onClick={() => setSheetOpen(true)} primaire /> : undefined}
       />
 
-      {canRevealSensitive && owners.length > 0 ? (
-        <p id="owners-sensitive-notice" className="text-sm text-pretty text-muted-foreground">
-          {t('sensitive.notice')}
+      <div className="max-md:hidden">
+        <PageHeader
+          title={t('titre')}
+          description={ligneDuResume('bureau') ?? tPage('subtitle')}
+          actions={inviter}
+          dessous={
+            <div className="hidden flex-wrap items-center gap-3 lg:flex xl:flex-nowrap">
+              {recherche('h-9 w-[calc(var(--spacing)*83.33)] text-sm')}
+              {pastilles('px-0 py-0', 'sm')}
+            </div>
+          }
+        />
+      </div>
+
+      {/* Téléphone et tablette : la recherche, puis les vues en pastilles. */}
+      <div className="lg:hidden">
+        <div className="px-4 pt-3 pb-2 md:mt-5 md:px-0">{recherche()}</div>
+        {pastilles('md:px-0')}
+      </div>
+
+      {owners.length === 0 ? (
+        <div className="px-4 pt-4 md:px-0 lg:pt-6">
+          <EmptyState
+            icon={<UserRound className="size-8" aria-hidden="true" />}
+            title={filtre ? t('videFiltre.titre') : tPage('empty_title')}
+            description={<span className="text-pretty">{filtre ? t('videFiltre.description') : tPage('empty_description')}</span>}
+            action={!filtre ? (inviter ?? undefined) : undefined}
+          />
+        </div>
+      ) : (
+        <>
+          <div className="space-y-2.5 px-4 pt-3 pb-2 md:px-0 lg:hidden">
+            {invitations.length > 0 ? (
+              <section aria-labelledby="carnet-invitations" className="space-y-2.5">
+                <h2 id="carnet-invitations" className="text-ui font-semibold text-muted-foreground">
+                  {t('invitationsEnAttente', { n: invitations.length })}
+                </h2>
+                {invitations.map((owner) => (
+                  <CarteDInvitation key={owner.id} owner={owner} maintenant={maintenant} gestes={gestesDInvitation(owner, 'telephone')} />
+                ))}
+              </section>
+            ) : null}
+            {bailleurs.length > 0 ? (
+              <section aria-labelledby="carnet-bailleurs" className={cn('space-y-2.5', invitations.length > 0 && 'pt-3')}>
+                <h2 id="carnet-bailleurs" className="flex items-baseline gap-2 text-ui font-semibold text-muted-foreground">
+                  <span className="min-w-0 flex-1">
+                    {(etat.vue === 'tous' && etat.recherche === '' ? ligneDuResume('telephone') : null) ?? t('nBailleurs', { n: bailleurs.length })}
+                  </span>
+                  {lectureArgent ? <span className="font-normal">{t('triReste')}</span> : null}
+                </h2>
+                {bailleurs.map((owner) => (
+                  <CarteDuBailleur key={owner.id} owner={owner} lienVersLaFiche={lienVersLaFiche} />
+                ))}
+              </section>
+            ) : null}
+            <div className="pt-2">
+              <PropertyPagination meta={page.meta} />
+            </div>
+          </div>
+
+          <div className="hidden pt-6 lg:block">
+            <div className="overflow-x-auto rounded-xl border border-border bg-card">
+              <TableDesBailleurs
+                owners={owners}
+                lienVersLaFiche={lienVersLaFiche}
+                maintenant={maintenant}
+                gestesDInvitation={(owner) => gestesDInvitation(owner, 'bureau')}
+              />
+              <div className="border-t border-border px-4 py-3">
+                <PropertyPagination meta={page.meta} />
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {owners.length > 0 ? (
+        <p id="owners-sensitive-notice" className="mx-4 mt-3 flex items-center gap-2 text-ui text-pretty text-muted-foreground md:mx-0">
+          <Lock className="size-3.5 flex-none" strokeWidth={1.75} aria-hidden="true" />
+          {t('mentionSensible')}
         </p>
       ) : null}
 
-      {owners.length === 0 ? (
-        <EmptyState
-          icon={<UserRound className="size-8" aria-hidden="true" />}
-          title={t('page.empty_title')}
-          description={<span className="text-pretty">{t('page.empty_description')}</span>}
-          action={
-            canInvite ? (
-              <Button onClick={() => setSheetOpen(true)}>
-                <Plus className="size-4" aria-hidden="true" />
-                {t('page.add')}
-              </Button>
-            ) : undefined
-          }
-        />
-      ) : (
-        <DataTable
-          caption={t('page.title')}
-          columns={colonnes}
-          rows={owners}
-          rowKey={(owner) => owner.id}
-        />
-      )}
-
-      {canInvite ? (
-        <InviteOwnerSheet
-          open={sheetOpen}
-          onOpenChange={setSheetOpen}
-          agencyId={agencyId}
-        />
-      ) : null}
-    </div>
+      {canInvite ? <InviteOwnerSheet open={sheetOpen} onOpenChange={setSheetOpen} agencyId={agencyId} /> : null}
+    </PagePleineLargeur>
   );
-}
-
-interface OwnerIdentifiersCellProps {
-  readonly owner: OwnerProfileSummary;
-  readonly revealed: OwnerSensitiveData | null;
-  readonly canReveal: boolean;
-  readonly revealing: boolean;
-  readonly onReveal: () => void;
-  readonly onHide: () => void;
-}
-
-/**
- * TCK-601 — RIB, NINEA et numéro de pièce : masqués par défaut (la valeur que l'API rend), en
- * clair après le geste « Afficher » de l'admin. Un bailleur sans aucun identifiant rend un tiret
- * et aucun bouton : il n'y a rien à consulter, donc rien à journaliser.
- */
-function OwnerIdentifiersCell({
-  owner,
-  revealed,
-  canReveal,
-  revealing,
-  onReveal,
-  onHide,
-}: OwnerIdentifiersCellProps) {
-  const t = useTranslations('owners.sensitive');
-  const lignes = [
-    { key: 'rib', label: t('rib'), masked: owner.rib_masked, clear: revealed?.rib },
-    { key: 'tax_id', label: t('tax_id'), masked: owner.tax_id_masked, clear: revealed?.tax_id },
-    {
-      key: 'id_document_number',
-      label: t('id_document_number'),
-      masked: owner.id_document_number_masked,
-      clear: revealed?.id_document_number,
-    },
-  ].filter((l) => l.masked || l.clear);
-
-  if (lignes.length === 0) return <span className="text-muted-foreground">—</span>;
-
-  return (
-    <div className="flex flex-col items-start gap-1.5">
-      <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-xs">
-        {lignes.map((l) => (
-          <div key={l.key} className="contents">
-            <dt className="text-muted-foreground">{l.label}</dt>
-            <dd className="font-mono tabular-nums text-foreground break-all">
-              {revealed ? (l.clear ?? '—') : l.masked}
-            </dd>
-          </div>
-        ))}
-      </dl>
-      {canReveal ? (
-        revealed ? (
-          <Button size="sm" variant="ghost" onClick={onHide}>
-            <EyeOff className="size-3.5" aria-hidden="true" />
-            {t('hide')}
-          </Button>
-        ) : (
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={revealing}
-            onClick={onReveal}
-            aria-describedby="owners-sensitive-notice"
-          >
-            {revealing
-              ? <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
-              : <Eye className="size-3.5" aria-hidden="true" />}
-            {t('reveal')}
-          </Button>
-        )
-      ) : null}
-    </div>
-  );
-}
-
-/** Le nom composé, seule logique propre à l'ancienne `OwnerRow` qui survivait à la conversion. */
-function nomDe(owner: OwnerProfileSummary): string {
-  const meta = owner.metadata ?? null;
-  // TCK-2136 (P220.06) — un compte lié sans nom (créé par téléphone) laisse place au nom saisi
-  // par l'agence à l'invitation, rangé dans `metadata`.
-  const compte = `${owner.user?.first_name ?? ''} ${owner.user?.last_name ?? ''}`.trim();
-  return compte || `${meta?.first_name ?? ''} ${meta?.last_name ?? ''}`.trim();
 }
