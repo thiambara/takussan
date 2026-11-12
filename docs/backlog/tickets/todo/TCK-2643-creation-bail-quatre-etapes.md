@@ -136,4 +136,18 @@ Autres contraintes :
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+Relevé du 2026-11-12 (terrain-7, branche `feat/audit-ux-app-lot-2`). Décisions de la session (déléguées par le porteur), qui priment sur le texte du ticket là où il se trompait :
+
+1. **Pénalité de retard** : clés `lease.late_fee_percent` (0-50) et `lease.late_fee_grace_days` (0-30) au catalogue `rentals`, défaut **0** = pas de pénalité (aucune valeur commerciale inventée ; la maquette montre 5 % / 5 j : écart accepté). Leur seul lecteur est le préremplissage (`App\Services\Lease\LeaseDefaults`) : `LateFeeCalculator` lit la colonne du bail.
+2. **Total à l'entrée** : `CoutDEntree` (API et front), sur les valeurs SAISIES du bail. La formule du ticket comptait deux fois le premier mois.
+3. **Commission** : `agencies.commission_rate` n'est PAS recopié sur le bail (il figerait le taux des reversements, `PayoutCalculator` lit le bail d'abord). `defaults` le rend en information (`agency_commission_rate`), au personnel seul.
+4. **Autorisation** : `LeasePolicy::createOn(User, Property)` — la règle de `LeaseService::create()` extraite (bailleur du bien non bloqué, ou personnel `leases.create` de l'agence du bien). « policy `create` » du ticket aurait refusé le bailleur que la création admet. Bien absent, id mal formé ou manquant → 403, comme un bien étranger (TCK-1068).
+5. **« Préavis 3 mois »** de la maquette : aucune colonne ; l'étape montre l'indemnité de départ anticipé, bornée 0-12 (le catalogue admet 24 : une valeur d'agence au-delà est ramenée à 12).
+6. **Jour de paiement** : 1, source `platform` ; pas de nouvelle clé (maquette « le 5 » : écart accepté).
+7. **« Réglages de l'agence appliqués — Modifier »** : encadré sans « Modifier » — aucune page n'écrit un réglage d'agence (`POST /api/settings` scope agence sans appelant au front). À suivre dans un ticket à part.
+8. **Locataire créé à l'étape 2** : personnel seulement, prénom ET nom ; « Envoyer à la signature » désactivé pour un locataire sans compte (422 `lease_signature.tenant_without_account` sinon), le brouillon se crée quand même.
+9. **Loyer** prérempli seulement d'une location mensuelle (`CoutDEntree::sApplique`) ; sinon `property_price` (montant, période) pour l'aide. Type : vente si le bien est à vendre, commercial pour bureau/boutique/entrepôt/usine, sinon habitation.
+10. **Candidatures ouvertes** (TCK-2734) : `defaults.open_application_ids`, l'étape « Vérifier » le dit.
+11. **Garant** : la phrase « après création » reste. 12. **Devise** : le sélecteur reste (4 options), devise du bien par défaut.
+
+Livré : `?property=` préchoisit le bien s'il figure parmi les biens proposés (lot 1, débloque TCK-2639) ; `StoreLeaseRequest` accepte les quatre termes aux bornes d'`UpdateLeaseRequest` ; `GET /api/leases/defaults` (route littérale avant `leases/{lease}`). Tests : `tests/Feature/Lease/LeaseDefaultsTest.php`, `StoreLeaseWithLateFeeTest.php` (8 ablations rouges).

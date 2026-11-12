@@ -5,6 +5,7 @@ namespace App\Domain\Settings;
 use App\Services\Crm\CustomerFollowUpQuery;
 use App\Services\Invoice\OverdueReminderService;
 use App\Services\Lease\EarlyTerminationService;
+use App\Services\Lease\LeaseDefaults;
 use App\Services\Lease\RentReviewService;
 use Illuminate\Validation\Rule;
 
@@ -26,7 +27,8 @@ use Illuminate\Validation\Rule;
  * `/api/settings`, sans règle ni journal ; elle s'écrit ici, et seulement ici. La ligne d'une agence
  * l'emporte toujours. **Le défaut est la constante du service**, référencée : deux défauts qui
  * divergent feraient lire deux valeurs selon le chemin. Lecteurs : `OverdueReminderService`,
- * `RentReviewService`, `EarlyTerminationService`, `LeaseRenewalService`, `LateFeeCalculator`.
+ * `RentReviewService`, `EarlyTerminationService`, `LeaseRenewalService`, `LateFeeCalculator`,
+ * et `LeaseDefaults` pour `lease.late_fee_*` (TCK-2643, préremplissage d'un bail neuf).
  *
  * TCK-2394 (ADR-0079) — catégorie `radar` : `radar.mandate_agency_id` → `App\Services\Radar\RadarMandate`.
  */
@@ -112,6 +114,19 @@ class EditablePlatformSettings
             'lease.require_signature' => [
                 'category' => 'rentals', 'type' => 'boolean', 'default' => false, 'public' => false,
                 'rules' => ['present', 'boolean'],
+            ],
+            // TCK-2643 — la pénalité de retard qu'un bail NEUF reprend (`LeaseDefaults`, préremplissage
+            // seul : `LateFeeCalculator` lit la colonne du bail). Défaut 0 = pas de pénalité (décision de
+            // la session du 2026-11-12) ; bornes = celles du bail (`StoreLeaseRequest`, `UpdateLeaseRequest`).
+            'lease.late_fee_percent' => [
+                'category' => 'rentals', 'type' => 'decimal',
+                'default' => LeaseDefaults::DEFAULT_LATE_FEE_PERCENT, 'public' => false,
+                'rules' => ['required', 'numeric', 'min:0', 'max:50'],
+            ],
+            'lease.late_fee_grace_days' => [
+                'category' => 'rentals', 'type' => 'integer',
+                'default' => LeaseDefaults::DEFAULT_LATE_FEE_GRACE_DAYS, 'public' => false,
+                'rules' => ['required', 'integer', 'min:0', 'max:30'],
             ],
             // `null` : aucun plafond (`LateFeeCalculator::capPercent`). Vide se lit « aucun plafond », pas 0.
             'late_fees.cap_percent' => [

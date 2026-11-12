@@ -13084,6 +13084,14 @@
           "require_signature": {
             "label": "Signature required on renewal",
             "description": "A renewed lease waits for the parties’ signatures before taking effect. An agency with its own setting keeps it."
+          },
+          "late_fee_percent": {
+            "label": "Late fee for a new lease",
+            "description": "As a percentage of the amount still due, from 0 to 50. Prefilled when a lease is created, and editable. 0: no late fee. An agency with its own setting keeps it."
+          },
+          "late_fee_grace_days": {
+            "label": "Grace period before the late fee",
+            "description": "In days after the due date, from 0 to 30. Prefilled when a lease is created, and editable. An agency with its own setting keeps it."
           }
         },
         "late_fees": {

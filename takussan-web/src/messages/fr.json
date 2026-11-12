@@ -13084,6 +13084,14 @@
           "require_signature": {
             "label": "Signature exigée au renouvellement",
             "description": "Un bail renouvelé attend la signature des parties avant de prendre effet. Une agence qui a son propre réglage garde le sien."
+          },
+          "late_fee_percent": {
+            "label": "Pénalité de retard d’un bail neuf",
+            "description": "En pourcentage du restant dû, de 0 à 50. Préremplie à la création d’un bail, modifiable. 0 : pas de pénalité. Une agence qui a son propre réglage garde le sien."
+          },
+          "late_fee_grace_days": {
+            "label": "Délai de grâce avant pénalité",
+            "description": "En jours après l’échéance, de 0 à 30. Prérempli à la création d’un bail, modifiable. Une agence qui a son propre réglage garde le sien."
           }
         },
         "late_fees": {

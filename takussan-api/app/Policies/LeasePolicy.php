@@ -6,6 +6,7 @@ use App\Models\Document;
 use App\Models\Enums\Capability;
 use App\Models\Lease;
 use App\Models\LeaseSignature;
+use App\Models\Property;
 use App\Models\User;
 use App\Services\Lease\LandlordSignatory;
 use App\Services\Lease\LeaseSignatureService;
@@ -43,6 +44,33 @@ class LeasePolicy extends BasePolicy
     protected function createCapability(): ?Capability
     {
         return Capability::LeasesCreate;
+    }
+
+    /**
+     * TCK-2643 — ouvrir un bail SUR CE BIEN : la règle de `LeaseService::create()` (TCK-587,
+     * TCK-1722), extraite pour que `GET /api/leases/defaults` juge comme la création. `create()`
+     * ci-dessus ne voit que la capacité, et refuserait le bailleur que la création admet.
+     *
+     * Le bailleur du bien (ni bloqué dans son agence), ou le PERSONNEL de l'agence du bien tenant
+     * `leases.create` — la clause « même agence » laissait un autre bailleur de l'agence ouvrir un
+     * bail sur le bien d'un autre (ADR-0031). Le super-admin passe aussi par `Gate::before`.
+     */
+    public function createOn(User $user, Property $property): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        // TCK-1722 (P160.03) — le créateur du bien seulement s'il en est le bailleur : l'agent qui
+        // l'a saisi ouvre un bail au titre du personnel, sous `leases.create`.
+        if (BailleurDuBien::est($user, $property->user_id, $property->agency_id)
+            && ($property->agency_id === null || ! $user->isBlockedOwnerAt((int) $property->agency_id))) {
+            return true;
+        }
+
+        return $property->agency_id !== null
+            && $user->staffAgencyId() === (int) $property->agency_id
+            && $user->can(Capability::LeasesCreate->value, $property);
     }
 
     /**

@@ -28,7 +28,6 @@ use App\Services\Booking\BookingNotificationParams;
 use App\Services\Lease\EarlyTerminationService;
 use App\Services\Lease\LeaseExitScheduleService;
 use App\Services\Lease\LeaseRenewalService;
-use App\Services\Property\BailleurDuBien;
 use App\Services\Property\ContactDeLAgenceDuBien;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -43,18 +42,9 @@ class LeaseService
     public function create(Property $property, User $user, array $data): Lease
     {
         // TCK-587 (ADR-0031) — le bailleur du bien, ou le PERSONNEL de l'agence du bien tenant
-        // `leases.create`. La clause « même agence » laissait un autre bailleur de l'agence ouvrir un
-        // bail sur le bien d'un autre, et `leases.create` n'avait aucun lecteur.
-        $staffAgencyId = $user->staffAgencyId();
-        $canCreate = $user->isSuperAdmin()
-            // TCK-1722 (P160.03) — le créateur du bien seulement s'il en est le bailleur : l'agent qui
-            // l'a saisi ouvre un bail au titre du personnel, sous `leases.create`.
-            || (BailleurDuBien::est($user, $property->user_id, $property->agency_id)
-                && ($property->agency_id === null || ! $user->isBlockedOwnerAt((int) $property->agency_id)))
-            || ($property->agency_id !== null
-                && $staffAgencyId === (int) $property->agency_id
-                && $user->can(Capability::LeasesCreate->value, $property));
-        abort_unless($canCreate, 403);
+        // `leases.create`. TCK-2643 — la règle vit dans `LeasePolicy::createOn()`, que lit aussi
+        // `GET /api/leases/defaults` : le préremplissage juge comme la création.
+        abort_unless($user->can('createOn', [Lease::class, $property]), 403);
 
         // TCK-587 (vérification adverse, B2) — le locataire et le garant doivent être dans le
         // périmètre de l'émetteur (`view`), comme le client d'une réservation (`BookingService`).
