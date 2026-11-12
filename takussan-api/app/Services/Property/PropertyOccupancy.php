@@ -46,7 +46,7 @@ final class PropertyOccupancy
         }
 
         $ids = $properties->map(fn (Property $p) => (int) $p->getKey())->all();
-        $forRent = array_flip(Property::query()->whereKey($ids)->forRent()->pluck('id')->all());
+        $forRent = array_flip(Property::withTrashed()->whereKey($ids)->forRent()->pluck('id')->all());
         $leases = Lease::query()->current()->whereIn('property_id', $ids)->with(['tenant', 'agency'])->get()->keyBy('property_id');
         $visible = $viewer === null || $leases->isEmpty() ? [] : array_flip(
             Lease::query()->whereKey($leases->modelKeys())->visibleTo($viewer)->pluck('leases.id')->all(),
