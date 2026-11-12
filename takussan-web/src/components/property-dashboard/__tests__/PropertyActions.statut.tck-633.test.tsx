@@ -127,6 +127,31 @@ describe.each(Object.entries(MENUS))('remettre en ligne par le statut depuis « 
     expect(m.statutBrut).not.toHaveBeenCalled();
   });
 
+  // Contre-vérification de 263df479b (verif-commercial, 2026-11-12) — la branche `depuisLeDialogue`
+  // du `catch` n'était éprouvée par aucun test : une panne réseau DEPUIS « Vos coordonnées » doit se
+  // dire DANS la boîte, qui reste ouverte pour réessayer, et non partir en toast derrière elle.
+  it('le « Publier » de la boîte en panne réseau : l’erreur dans la boîte, qui reste ouverte, sans toast', async () => {
+    m.changerStatut
+      .mockResolvedValueOnce({ ok: false, status: 422, message: 'Pour publier, les conditions…', missing: ['terms'], contactIsSelf: true })
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    const user = userEvent.setup();
+    render(withIntl(menu.rendre()));
+
+    await choisirStatut(user, 'Disponible');
+    const dialogue = await screen.findByRole('dialog', { name: 'Avant de publier' });
+    const publier = within(dialogue).getByRole('button', { name: 'Publier' });
+    await waitFor(() => expect(publier).toBeEnabled());
+    await user.click(publier);
+
+    expect(await within(dialogue).findByRole('alert')).toHaveTextContent(
+      'Le serveur est injoignable pour le moment. Réessayez dans un instant.',
+    );
+    expect(m.changerStatut).toHaveBeenLastCalledWith(47, 'available', { acceptTerms: true });
+    expect(screen.getByRole('dialog', { name: 'Avant de publier' })).toBeInTheDocument();
+    await waitFor(() => expect(publier).toBeEnabled());
+    menu.rienDit();
+  });
+
   it('un statut qui ne remet pas en ligne passe au premier geste, sans boîte', async () => {
     m.changerStatut.mockResolvedValue({ ok: true, data: { id: 47, status: 'under_maintenance' } });
     const user = userEvent.setup();

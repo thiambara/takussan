@@ -54,7 +54,8 @@ export function PropertyHeaderActions({ property, ouvrirBoost = false, ajouterUn
       router.refresh();
     },
   });
-  const pending = gestes.pending;
+  // L'état en vol de TOUS les gestes, statuts compris : un seul geste part à la fois.
+  const pending = gestes.enVol;
 
   const canViewPublic =
     property.visibility === 'public' &&
@@ -127,7 +128,7 @@ export function PropertyHeaderActions({ property, ouvrirBoost = false, ajouterUn
                 {t('unpublish')}
               </DropdownMenuItem>
             ) : (
-              <DropdownMenuItem onClick={gestes.publier} disabled={pending || gestes.publicationEnCours}>
+              <DropdownMenuItem onClick={gestes.publier} disabled={pending}>
                 {t('publish')}
               </DropdownMenuItem>
             )}

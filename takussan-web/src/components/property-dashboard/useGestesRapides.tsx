@@ -56,8 +56,15 @@ export function useGestesRapides(
   property: { readonly id: number; readonly title: string; readonly status?: string | null },
   { corpsDeSuppression, apresSuppression }: Options,
 ): {
-  readonly pending: boolean;
-  readonly publicationEnCours: boolean;
+  /**
+   * UN SEUL état « en vol » pour tous les gestes du bien : la transition de l'en-tête (Dupliquer,
+   * Archiver, Dépublier, Supprimer) OU celle de la publication (Publier et les statuts, qui partent
+   * par `usePublicationAvecCoordonnees`). Le « ⋯ », ses entrées et les boutons des dialogues le
+   * lisent tous : le menu ne se désactivait que par la transition de l'en-tête, et pendant un statut
+   * en vol un second statut ou « Dupliquer » pouvait partir (contre-vérification de 263df479b par
+   * verif-commercial, 2026-11-12).
+   */
+  readonly enVol: boolean;
   readonly publier: () => void;
   readonly changerStatut: (status: string) => void;
   readonly dupliquer: () => void;
@@ -117,6 +124,7 @@ export function useGestesRapides(
     },
     onEchec: (message) => signalerEchec(message || t('error')),
   });
+  const enVol = pending || publication.enCours;
 
   const confirmer = () => {
     const fermer = () => setConfirmationOuverte(false);
@@ -180,11 +188,11 @@ export function useGestesRapides(
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setConfirmationOuverte(false)} disabled={pending}>
+            <Button variant="ghost" onClick={() => setConfirmationOuverte(false)} disabled={enVol}>
               {t('cancel')}
             </Button>
-            <Button onClick={confirmer} disabled={pending}>
-              {pending ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
+            <Button onClick={confirmer} disabled={enVol}>
+              {enVol ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
               {aConfirmer === 'archive' ? t('archive') : t('unpublish')}
             </Button>
           </DialogFooter>
@@ -207,11 +215,11 @@ export function useGestesRapides(
             </p>
           ) : null}
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setSuppressionOuverte(false)} disabled={pending}>
+            <Button variant="ghost" onClick={() => setSuppressionOuverte(false)} disabled={enVol}>
               {t('cancel')}
             </Button>
-            <Button variant="destructive" onClick={supprimer} disabled={pending}>
-              {pending ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
+            <Button variant="destructive" onClick={supprimer} disabled={enVol}>
+              {enVol ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
               {t('delete')}
             </Button>
           </DialogFooter>
@@ -221,8 +229,7 @@ export function useGestesRapides(
   );
 
   return {
-    pending,
-    publicationEnCours: publication.enCours,
+    enVol,
     publier: publication.publier,
     changerStatut: (status) => {
       if (status === property.status) return;

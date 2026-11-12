@@ -239,3 +239,62 @@ describe.each(
     expect(m.refresh).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * Contre-vérification de 263df479b par verif-commercial (2026-11-12) — les statuts partent par la
+ * transition de la publication (`usePublicationAvecCoordonnees`), mais le « ⋯ » ne se désactivait
+ * que par celle de l'en-tête : pendant un statut en vol, le menu se rouvrait, et un second statut
+ * ou « Dupliquer » pouvait partir. Un seul état « en vol » (`enVol` de `useGestesRapides`) les
+ * tient désormais tous, et un second appui ne relance rien.
+ */
+describe.each(NOMS)('un geste en vol depuis « %s » : un seul part', (menu) => {
+  /** Une action serveur qui ne répond pas avant qu'on la libère. */
+  function enAttente() {
+    let liberer: (valeur: unknown) => void = () => {};
+    const promesse = new Promise((resolve) => {
+      liberer = resolve;
+    });
+    return { promesse, liberer };
+  }
+
+  it('un statut en vol : le « ⋯ » est désactivé, ni second statut ni « Dupliquer » ne part', async () => {
+    const vol = enAttente();
+    vi.mocked(changePropertyStatusAction).mockReturnValue(vol.promesse as never);
+    const user = rendre(menu);
+
+    await choisir(user, 'En maintenance');
+
+    const declencheur = screen.getByRole('button', { name: MENU_DU_BIEN });
+    await waitFor(() => expect(declencheur).toBeDisabled());
+    // Le second appui : le menu ne se rouvre pas, rien ne part.
+    await user.click(declencheur);
+    expect(screen.queryByRole('menuitem', { name: 'Dupliquer' })).not.toBeInTheDocument();
+    expect(changePropertyStatusAction).toHaveBeenCalledTimes(1);
+    expect(duplicatePropertyAction).not.toHaveBeenCalled();
+
+    vol.liberer({ ok: true, data: { id: 47, status: 'under_maintenance' } });
+    await toastAttendu('success', 'Statut mis à jour.');
+    await waitFor(() => expect(declencheur).toBeEnabled());
+  });
+
+  it.each([
+    { geste: 'Archiver', action: () => vi.mocked(updatePropertyStatusAction) },
+    { geste: 'Dépublier', action: () => vi.mocked(updatePropertyVisibilityAction) },
+  ])('« $geste » confirmé puis rappuyé pendant l’envoi : une seule action part', async ({ geste, action }) => {
+    const vol = enAttente();
+    action().mockReturnValue(vol.promesse as never);
+    const user = rendre(menu);
+
+    await choisir(user, geste);
+    const dialogue = await screen.findByRole('dialog');
+    const confirmer = within(dialogue).getByRole('button', { name: geste });
+    await user.click(confirmer);
+    await waitFor(() => expect(confirmer).toBeDisabled());
+    expect(within(dialogue).getByRole('button', { name: 'Annuler' })).toBeDisabled();
+    await user.click(confirmer);
+
+    expect(action()).toHaveBeenCalledTimes(1);
+    vol.liberer({ ok: true, data: { status: 'archived' } });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+});

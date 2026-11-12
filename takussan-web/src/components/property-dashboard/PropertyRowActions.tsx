@@ -62,7 +62,8 @@ export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActi
     corpsDeSuppression: 'deleteBodyRow',
     apresSuppression: () => router.refresh(),
   });
-  const pending = gestes.pending;
+  // L'état en vol de TOUS les gestes, statuts compris : un seul geste part à la fois.
+  const pending = gestes.enVol;
 
   const isPublic = property.visibility === 'public';
   const statusActions = propertyStatusValues.filter(
@@ -125,7 +126,7 @@ export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActi
               {t('unpublish')}
             </DropdownMenuItem>
           ) : (
-            <DropdownMenuItem onClick={gestes.publier} disabled={pending || gestes.publicationEnCours}>
+            <DropdownMenuItem onClick={gestes.publier} disabled={pending}>
               {t('publish')}
             </DropdownMenuItem>
           )}
