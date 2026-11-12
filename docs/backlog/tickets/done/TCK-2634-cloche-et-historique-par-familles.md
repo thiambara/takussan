@@ -1,13 +1,13 @@
 ---
 id: TCK-2634
 title: "Cloche et historique : une feuille pleine hauteur au téléphone, « À traiter · Tout », une icône par famille, le verbe de l'action, les répétitions repliées, les jours"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: M
 wave: 87
 created: 2026-11-10
-updated: 2026-11-10
+updated: 2026-11-12
 depends_on: [TCK-2633, TCK-2704, TCK-2684, TCK-2687, TCK-2688, TCK-2689, TCK-2691]
 blocks: []
 spec_refs:

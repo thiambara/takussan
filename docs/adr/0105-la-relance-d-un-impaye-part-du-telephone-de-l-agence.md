@@ -61,7 +61,7 @@ Le porteur a retenu le 2026-11-10 l'option (a) : *la relance se fait par WhatsAp
 
 ## Amendement du 2026-11-10 — la relance en lot entre dans le lot, comme une file guidée
 
-- **Ticket** : [TCK-2682](../backlog/tickets/todo/TCK-2682-relance-des-impayes-en-lot.md).
+- **Ticket** : [TCK-2682](../backlog/tickets/done/TCK-2682-relance-des-impayes-en-lot.md).
 - **Décision du porteur** (2026-11-10, retour sur les points ouverts, n° 13) : *« Relance d'impayés en lot : dans le lot »*.
 
 **Constat.** La version initiale renvoyait la relance en lot à un envoi par Takussan, écarté par la décision 13 (a). La maquette « Argent » montre pourtant « Relancer la sélection », et le porteur la veut dans ce lot.
