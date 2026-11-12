@@ -70,6 +70,10 @@ class DateInventoryByValueTest extends TestCase
         'App\Http\Resources\ConversationResource::unread_count' => "`whenHas('unread_count')` — un compteur ENTIER "
             .'(`(int)`), jamais une date. Il vient du seul `withCount` de `ConversationController::index` '
             .'(TCK-579) ; le sujet vient d\'une factory, pas de cette requête.',
+        'App\Http\Resources\CustomerResource::bookings_count' => "`when()` sur l'attribut `bookings_count` (TCK-2589, `include=bookingsCount`) — "
+            .'un compteur ENTIER, jamais une date. Même raison que `tasks_count`.',
+        'App\Http\Resources\CustomerResource::leases_count' => "`when()` sur l'attribut `leases_count` (TCK-2589, `include=leasesCount`) — "
+            .'un compteur ENTIER, jamais une date. Même raison que `tasks_count`.',
         'App\Http\Resources\CustomerResource::tasks_count' => "`whenCounted('tasks')` — un compteur ENTIER, jamais une date. "
             .'Il exige un `withCount()` sur la requête ; le sujet vient d\'une factory, pas d\'un contrôleur.',
         'App\Http\Resources\CustomerResource::visits_count' => "`whenCounted('visits')` (TCK-2588, `include=visitsCount`) — "
