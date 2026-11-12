@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, type MouseEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { BellOff, Bell, Building2, ChevronRight, Info, MoreHorizontal, PanelRightClose, PanelRightOpen, Phone, Users, Wrench } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -19,15 +19,12 @@ import { isReachable, telHref, whatsappHref } from '@/components/crm/contact';
 import { useAuth } from '@/context/AuthContext';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { useMatchesMaxWidth } from '@/hooks/useMatchesMedia';
-import {
-  useConsignerGesteDuClient,
-  useConversationContext,
-  useToggleMute,
-} from '@/lib/queries/conversations';
+import { useConversationContext, useToggleMute } from '@/lib/queries/conversations';
 import { initiales } from '@/lib/fiche-publique';
 import { cn } from '@/lib/utils';
 import type { Conversation } from '@/types/message';
 import { autreParticipant, titreDeConversation } from './ConversationList';
+import { useGesteDuClient } from './useGesteDuClient';
 
 /**
  * L'identifiant de la colonne de contexte du bureau, que le bouton de l'en-tête désigne
@@ -87,7 +84,8 @@ export function EnTeteDuFil({
   const compact = useMatchesMaxWidth(SOUS_LG_PX);
   const [feuilleOuverte, setFeuilleOuverte] = useState(false);
   const { data: contexteData } = useConversationContext(conversationId);
-  const geste = useConsignerGesteDuClient();
+  // Réserve de TCK-2632 : un second appui pendant que le geste est en cours est ignoré.
+  const { consigner: envoyer, enCours } = useGesteDuClient();
   const basculerSourdine = useToggleMute(conversationId);
   const messageErreur = useMessageErreurApi();
   /**
@@ -105,10 +103,9 @@ export function EnTeteDuFil({
     : t('conversationTitleFallback', { id: String(conversationId) });
   const client = contexteData?.data?.customer ?? null;
   const telephone = client && isReachable(client.phone) ? client.phone : null;
-  const consigner = (channel: 'call' | 'whatsapp') => {
-    if (!client) return;
-    setErreur(null);
-    geste.mutate({ id: client.id, channel }, { onError: () => setErreur(t('chat.gesteNonConsigne')) });
+  const consigner = (event: MouseEvent<HTMLElement>, channel: 'call' | 'whatsapp') => {
+    if (!client) return false;
+    return envoyer(event, { id: client.id, channel }, { onDepart: () => setErreur(null), onError: () => setErreur(t('chat.gesteNonConsigne')) });
   };
   const membres = (conversation?.participants ?? []).filter((p) => !p.left_at).length;
   const archivee = Boolean(conversation?.participants?.find((p) => p.user_id === user?.id && !p.left_at)?.archived_at);
@@ -208,11 +205,11 @@ export function EnTeteDuFil({
                 <div className="divide-y divide-border/70">
                   <a
                     href={telHref(telephone)}
-                    onClick={() => {
-                      consigner('call');
-                      setFeuilleOuverte(false);
+                    aria-disabled={enCours || undefined}
+                    onClick={(e) => {
+                      if (consigner(e, 'call')) setFeuilleOuverte(false);
                     }}
-                    className="flex min-h-12 items-center gap-3 py-2 text-corps outline-none focus-visible:ring-3 focus-visible:ring-ring"
+                    className="flex min-h-12 items-center gap-3 py-2 text-corps outline-none focus-visible:ring-3 focus-visible:ring-ring aria-disabled:opacity-60"
                   >
                     <Phone className="size-5 flex-none text-muted-foreground stroke-[1.75]" aria-hidden="true" />
                     <span className="min-w-0 flex-1">
@@ -225,11 +222,11 @@ export function EnTeteDuFil({
                     href={whatsappHref(telephone, '')}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={() => {
-                      consigner('whatsapp');
-                      setFeuilleOuverte(false);
+                    aria-disabled={enCours || undefined}
+                    onClick={(e) => {
+                      if (consigner(e, 'whatsapp')) setFeuilleOuverte(false);
                     }}
-                    className="flex min-h-12 items-center gap-3 py-2 text-corps outline-none focus-visible:ring-3 focus-visible:ring-ring"
+                    className="flex min-h-12 items-center gap-3 py-2 text-corps outline-none focus-visible:ring-3 focus-visible:ring-ring aria-disabled:opacity-60"
                   >
                     <IconeWhatsApp className="size-5 flex-none" />
                     <span className="min-w-0 flex-1">
@@ -245,11 +242,12 @@ export function EnTeteDuFil({
             <div className="flex flex-none items-center gap-2">
               <a
                 href={telHref(telephone)}
-                onClick={() => consigner('call')}
+                aria-disabled={enCours || undefined}
+                onClick={(e) => consigner(e, 'call')}
                 aria-label={t('chat.appelerNom', { nom: titre })}
                 data-testid="appeler-le-client"
                 // Maquette a/2 : le bouton « contour » de taille courante (36 px, 32,4 au bureau).
-                className={cn(buttonVariants({ variant: 'outline' }))}
+                className={cn(buttonVariants({ variant: 'outline' }), 'aria-disabled:opacity-60')}
               >
                 <Phone className="size-4 stroke-[1.75]" aria-hidden="true" />
                 {t('chat.appeler')}
@@ -258,9 +256,10 @@ export function EnTeteDuFil({
                 href={whatsappHref(telephone, '')}
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={() => consigner('whatsapp')}
+                aria-disabled={enCours || undefined}
+                onClick={(e) => consigner(e, 'whatsapp')}
                 aria-label={t('chat.whatsapp')}
-                className="inline-flex size-9 flex-none items-center justify-center rounded-lg border border-border bg-card text-encre-douce outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring"
+                className="inline-flex size-9 flex-none items-center justify-center rounded-lg border border-border bg-card text-encre-douce outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring aria-disabled:opacity-60"
               >
                 <IconeWhatsApp className="size-4.5" />
               </a>

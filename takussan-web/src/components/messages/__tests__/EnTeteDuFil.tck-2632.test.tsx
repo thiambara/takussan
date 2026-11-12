@@ -14,10 +14,11 @@ import { EnTeteDuFil } from '../EnTeteDuFil';
 let contexte: unknown;
 let compact = false;
 const consigner = vi.fn();
+const gesteEnCours = vi.hoisted(() => ({ valeur: false }));
 const sourdine = vi.fn();
 vi.mock('@/lib/queries/conversations', () => ({
   useConversationContext: () => ({ data: contexte }),
-  useConsignerGesteDuClient: () => ({ mutate: consigner }),
+  useConsignerGesteDuClient: () => ({ mutate: consigner, isPending: gesteEnCours.valeur }),
   useToggleMute: () => ({ mutate: sourdine }),
 }));
 // La feuille du bas lit `useMatchesMedia` pour sa propre forme : laissée au défaut.
@@ -81,6 +82,7 @@ beforeEach(() => {
   contexte = { data: { property: null, lease: null, maintenance: null } };
   compact = false;
   consigner.mockReset();
+  gesteEnCours.valeur = false;
   sourdine.mockReset();
 });
 
@@ -132,6 +134,46 @@ describe('<EnTeteDuFil> (TCK-2632)', () => {
     appel.addEventListener('click', (e) => e.preventDefault());
     await userEvent.click(appel);
     expect(consigner).toHaveBeenLastCalledWith({ id: 31, channel: 'call' }, expect.anything());
+  });
+
+  it('réserve de TCK-2632 — au bureau, double appui sur WhatsApp, geste en cours : un seul contact noté, un seul lien suivi', async () => {
+    contexte = avecClient('+221771234567');
+    const suivis: boolean[] = [];
+    const relever = (e: Event) => {
+      if ((e.target as HTMLElement).closest?.('a[href^="https://wa.me"]')) suivis.push(!e.defaultPrevented);
+    };
+    document.addEventListener('click', relever);
+    monter(directe);
+    await userEvent.dblClick(screen.getByRole('link', { name: 'Écrire sur WhatsApp' }));
+    document.removeEventListener('click', relever);
+    expect(consigner).toHaveBeenCalledTimes(1);
+    expect(suivis).toEqual([true, false]);
+  });
+
+  it('réserve de TCK-2632 — au téléphone, double appui dans la feuille « Joindre » : un seul contact noté', async () => {
+    compact = true;
+    contexte = avecClient('+221771234567');
+    monter(directe);
+    await userEvent.click(screen.getByRole('button', { name: 'Joindre Malick Seck' }));
+    const whatsapp = await screen.findByRole('link', { name: /WhatsApp/ });
+    whatsapp.addEventListener('click', (e) => e.preventDefault());
+    // Les deux appuis arrivent sur le lien avant que la feuille ne soit retirée.
+    whatsapp.click();
+    whatsapp.click();
+    expect(consigner).toHaveBeenCalledTimes(1);
+  });
+
+  it('réserve de TCK-2632 — pendant le geste, appeler et WhatsApp se disent indisponibles et un appui ne note rien', async () => {
+    gesteEnCours.valeur = true;
+    contexte = avecClient('+221771234567');
+    monter(directe);
+    const appel = screen.getByRole('link', { name: 'Appeler Malick Seck' });
+    const whatsapp = screen.getByRole('link', { name: 'Écrire sur WhatsApp' });
+    expect(appel).toHaveAttribute('aria-disabled', 'true');
+    expect(whatsapp).toHaveAttribute('aria-disabled', 'true');
+    await userEvent.click(appel);
+    await userEvent.click(whatsapp);
+    expect(consigner).not.toHaveBeenCalled();
   });
 
   it('un groupe : « 3 personnes », et « ⋯ » ouvre ses infos', async () => {

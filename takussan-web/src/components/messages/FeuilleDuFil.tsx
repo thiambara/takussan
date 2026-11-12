@@ -18,8 +18,10 @@ import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { pipelineStageValues } from '@/lib/enums/customer';
 import { formatMontant } from '@/lib/format/currency';
 import { formaterTelephone } from '@/lib/phone';
-import { useConsignerGesteDuClient, useConversation, useConversationContext, useToggleMute } from '@/lib/queries/conversations';
+import { useConversation, useConversationContext, useToggleMute } from '@/lib/queries/conversations';
+import { cn } from '@/lib/utils';
 import { titreDeConversation } from './ConversationList';
+import { useGesteDuClient } from './useGesteDuClient';
 
 interface FeuilleDuFilProps {
   readonly conversationId: number;
@@ -56,7 +58,7 @@ export function FeuilleDuFil({ conversationId, open, onOpenChange }: FeuilleDuFi
   const { data: conversationData } = useConversation(conversationId);
   const { data: contexteData } = useConversationContext(conversationId);
   const basculerSourdine = useToggleMute(conversationId);
-  const geste = useConsignerGesteDuClient();
+  const { consigner, enCours } = useGesteDuClient();
   const personnel = usePersonnelActif();
   const [planifier, setPlanifier] = useState(false);
   const messageErreur = useMessageErreurApi();
@@ -164,17 +166,20 @@ export function FeuilleDuFil({ conversationId, open, onOpenChange }: FeuilleDuFi
               href={whatsappHref(telephone, '')}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={() => {
+              // Réserve de TCK-2632 : la feuille reste ouverte le temps du geste — un second appui est
+              // ignoré (ni second contact noté, ni second onglet) tant qu'il est en cours.
+              aria-disabled={enCours || undefined}
+              onClick={(e) => {
                 // L'échec se dit DANS la feuille : elle ne se ferme donc qu'une fois le geste noté,
                 // et reste ouverte sur la phrase s'il ne l'est pas (P228.06 — vérification de TCK-2632).
                 if (!client) return;
-                setErreur(null);
-                geste.mutate(
+                consigner(
+                  e,
                   { id: client.id, channel: 'whatsapp' },
-                  { onSuccess: () => fermer(), onError: () => setErreur(t('chat.gesteNonConsigne')) },
+                  { onDepart: () => setErreur(null), onSuccess: () => fermer(), onError: () => setErreur(t('chat.gesteNonConsigne')) },
                 );
               }}
-              className={RANGEE}
+              className={cn(RANGEE, 'aria-disabled:opacity-60')}
             >
               <IconeWhatsApp className="size-5 flex-none" />
               <span className="min-w-0 flex-1">

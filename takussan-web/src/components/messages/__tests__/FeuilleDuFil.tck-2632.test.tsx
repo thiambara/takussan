@@ -13,6 +13,7 @@ import { FeuilleDuFil } from '../FeuilleDuFil';
 let contexte: unknown;
 const sourdine = vi.fn();
 const geste = vi.fn();
+const gesteEnCours = vi.hoisted(() => ({ valeur: false }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: { id: 1 } }) }));
 let personnel = true;
 vi.mock('@/hooks/usePersonnelActif', () => ({ usePersonnelActif: () => personnel }));
@@ -38,7 +39,7 @@ vi.mock('@/lib/queries/conversations', () => ({
   }),
   useConversationContext: () => ({ data: contexte }),
   useToggleMute: () => ({ mutate: sourdine }),
-  useConsignerGesteDuClient: () => ({ mutate: geste }),
+  useConsignerGesteDuClient: () => ({ mutate: geste, isPending: gesteEnCours.valeur }),
 }));
 vi.mock('../ConversationList', () => ({ titreDeConversation: () => 'Malick Seck' }));
 
@@ -58,6 +59,7 @@ beforeEach(() => {
   contexte = { data: { property: BIEN, lease: null, maintenance: null, customer: CLIENT } };
   sourdine.mockReset();
   geste.mockReset();
+  gesteEnCours.valeur = false;
 });
 
 describe('<FeuilleDuFil> (TCK-2632, téléphone)', () => {
@@ -121,6 +123,31 @@ describe('<FeuilleDuFil> (TCK-2632, téléphone)', () => {
     render(withIntl(<FeuilleTenue />));
     await userEvent.click(within(screen.getByRole('dialog', { name: 'Malick Seck' })).getByRole('link', { name: /Écrire sur WhatsApp/ }));
     await vi.waitFor(() => expect(screen.queryByRole('dialog', { name: 'Malick Seck' })).not.toBeInTheDocument());
+  });
+
+  it('réserve de TCK-2632 — double appui sur WhatsApp, geste en cours : un seul contact noté, un seul lien suivi', async () => {
+    // Le geste ne rend pas la main : la feuille reste ouverte, comme sur un réseau lent.
+    const suivis: boolean[] = [];
+    const relever = (e: Event) => {
+      if ((e.target as HTMLElement).closest?.('a[href^="https://wa.me"]')) suivis.push(!e.defaultPrevented);
+    };
+    document.addEventListener('click', relever);
+    render(withIntl(<FeuilleTenue />));
+    const lien = within(screen.getByRole('dialog', { name: 'Malick Seck' })).getByRole('link', { name: /Écrire sur WhatsApp/ });
+    await userEvent.dblClick(lien);
+    document.removeEventListener('click', relever);
+    expect(geste).toHaveBeenCalledTimes(1);
+    expect(suivis).toEqual([true, false]);
+    expect(screen.getByRole('dialog', { name: 'Malick Seck' })).toBeInTheDocument();
+  });
+
+  it('réserve de TCK-2632 — pendant le geste, le lien se dit indisponible et un appui ne note rien', async () => {
+    gesteEnCours.valeur = true;
+    render(withIntl(<FeuilleTenue />));
+    const lien = within(screen.getByRole('dialog', { name: 'Malick Seck' })).getByRole('link', { name: /Écrire sur WhatsApp/ });
+    expect(lien).toHaveAttribute('aria-disabled', 'true');
+    await userEvent.click(lien);
+    expect(geste).not.toHaveBeenCalled();
   });
 
   it('sans fiche rendue (un client, un bailleur) : ni fiche ni numéro, le bien et la sourdine restent', () => {
