@@ -150,6 +150,25 @@ describe('<EnTeteDuFil> (TCK-2632)', () => {
     expect(suivis).toEqual([true, false]);
   });
 
+  // Contre-vérification de 05be499f4 (ablation G3 : un verrou jamais relâché restait vert) — le
+  // verrou ne vaut que pendant le geste : rendu, réussi ou refusé, le geste suivant repart.
+  it.each([
+    ['refusé', (o: { onError?: () => void; onSettled?: () => void }) => { o.onError?.(); o.onSettled?.(); }],
+    ['réussi', (o: { onSuccess?: () => void; onSettled?: () => void }) => { o.onSuccess?.(); o.onSettled?.(); }],
+  ])('réserve de TCK-2632 — le geste %s, l’appui suivant se note de nouveau', async (_issue, rendre) => {
+    contexte = avecClient('+221771234567');
+    consigner.mockImplementation((_v: unknown, o: Parameters<typeof rendre>[0]) => rendre(o));
+    monter(directe);
+    const appel = screen.getByRole('link', { name: 'Appeler Malick Seck' });
+    appel.addEventListener('click', (e) => e.preventDefault());
+
+    await userEvent.click(appel);
+    await userEvent.click(appel);
+
+    expect(consigner).toHaveBeenCalledTimes(2);
+    expect(consigner).toHaveBeenLastCalledWith({ id: 31, channel: 'call' }, expect.anything());
+  });
+
   it('réserve de TCK-2632 — au téléphone, double appui dans la feuille « Joindre » : un seul contact noté', async () => {
     compact = true;
     contexte = avecClient('+221771234567');
