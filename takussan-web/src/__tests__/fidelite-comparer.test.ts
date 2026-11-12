@@ -34,8 +34,13 @@ const SIX = [
   ['Répondre', 'couleur de bordure'],
 ] as const;
 
-/** Les seuls éléments que les perturbations touchent (un écart ailleurs serait un faux positif). */
-const ELEMENTS_PERTURBES = ["coque · barre d'onglets", 'ligne « Bien à valider »', 'intertitre de jour', 'Tout', 'Confirmer', 'Répondre'];
+/**
+ * Les seuls éléments que les perturbations touchent (un écart ailleurs serait un faux positif).
+ * « Cette semaine » est le texte de l'intertitre de jour : depuis TCK-2634 c'est un libellé de
+ * `fr.json` (`notifications.jours.semaine`), donc une ancre automatique, et la couleur perturbée de
+ * l'intertitre y est vue une seconde fois — le même élément, pas un intrus.
+ */
+const ELEMENTS_PERTURBES = ["coque · barre d'onglets", 'ligne « Bien à valider »', 'intertitre de jour', 'Cette semaine', 'Tout', 'Confirmer', 'Répondre'];
 
 describe('fidélité — déterminisme', () => {
   it('un relevé comparé à lui-même rend 0 écart et 0 absent', () => {

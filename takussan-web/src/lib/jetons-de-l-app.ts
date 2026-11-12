@@ -35,7 +35,7 @@ export const ESPACEMENTS_DE_LETTRES = ['titre', 'surtitre'] as const;
 export const TAILLES_FIXES = ['icone'] as const;
 
 /** Ombres nommées. */
-export const OMBRES = ['barre-collante', 'filet', 'bouton-photo', 'actif', 'panneau', 'feuille', 'carte-d-entree', 'carte-levee'] as const;
+export const OMBRES = ['barre-collante', 'filet', 'bouton-photo', 'actif', 'panneau', 'feuille', 'carte-d-entree', 'carte-levee', 'panneau-cloche'] as const;
 
 /** Le point de rupture de la bande ≥ 1440 (ADR-0106 § 4). */
 export const POINTS_DE_RUPTURE = ['w1440'] as const;
