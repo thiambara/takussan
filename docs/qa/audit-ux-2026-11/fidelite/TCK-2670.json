@@ -257,6 +257,34 @@
       "propriete": "absent du produit",
       "exception": "décision produit",
       "motif": "l'avertissement ne s'affiche qu'au changement de devise (il porte sur les montants existants), pas à l'ouverture"
+    },
+    {
+      "ecran": "a-0, a-1, a-4, a-6 téléphone",
+      "element": "coque · barre d'onglets du bas (zone de la coque, AC-F4)",
+      "propriete": "0,87 % (a-0) et 1,94 % (a-1, a-4, a-6) de pixels différents, au-delà des 0,5 %",
+      "exception": "hors périmètre — la coque n'est pas du ticket",
+      "motif": "la maquette dessine l'onglet « Menu » actif ; le produit, sur /app/agency, n'en allume aucun : /app/agency n'est la destination d'aucun des cinq onglets, et « Menu » ne s'allume que tiroir ouvert (`BarreDOnglets`, `menuOuvert`) — règle de la barre commune à tout /app (famille 3), même écart que TCK-2641. Mesuré : rapports locaux .fidelite/TCK-2670/cmp-v5-a{0,1,4,6}-telephone ; « coque · en-tête » 0,01 % (a-0), 0 % ailleurs"
+    },
+    {
+      "ecran": "a-2, a-3 téléphone",
+      "element": "coque · barre d'onglets du bas (zone de la coque, AC-F4)",
+      "propriete": "27,27 % de pixels différents",
+      "exception": "décision de la session (team-lead)",
+      "motif": "une saisie est en cours (raison, numéro Wave) : le produit efface la barre d'onglets devant la barre d'action tant qu'il y a des changements non enregistrés ; la maquette dessine les deux. Même cause que l'écart « barre d'action » ci-dessus. En a-7, saisie faite des deux côtés : 0 %"
+    },
+    {
+      "ecran": "a-* bureau",
+      "element": "zones de la coque",
+      "propriete": "non mesurées",
+      "exception": "outil",
+      "motif": "`fidelite compare` ne rend de part par zone (« coque · barre d'onglets », « coque · en-tête ») qu'au téléphone ; au bureau, la coque (colonne de 272 px) est rangée hors du ticket, avec la tête de page, à l'écart « a-* bureau · tête de page et colonne du sommaire »"
+    },
+    {
+      "ecran": "a-7",
+      "element": "les huit cases du menu, et le libellé et l'aide de chaque module",
+      "propriete": "case 18 px au lieu de 22 ; libellés et aides x −4 px, largeur +4 px",
+      "exception": "(c) incohérence des maquettes entre elles — ADR-0106 § 2 c",
+      "motif": "la case est celle de la partie connectée (`ui/checkbox`, TCK-2690) : 18 px, rayon 5 px, la valeur majoritaire des maquettes ; cet écran en dessinait une de 22 px. Avant (v5), un `<input type=checkbox>` natif de 22 px — position juste, dessin du navigateur ; la coche dessinée de la maquette y manquait (absents)"
     }
   ],
   "comparaisons": {
@@ -269,15 +297,17 @@
       "a3": "téléphone 8,82 % ; 1440 11,68 % ; 1280 12,82 %",
       "a4": "téléphone 27,72 % (encart de reprise absent, −219 px) ; 1440 16,57 % ; 1280 17,5 %",
       "a6": "téléphone 10,56 % ; 1440 12,71 % ; 1280 13,73 %",
-      "a7": "téléphone 32 · 5 · 24 · 11,93 % (une case décochée : barre d'action présente) ; 1440 11,99 % ; 1280 12,7 %"
+      "a7": "téléphone 32 · 5 · 24 · 11,93 % (une case décochée : barre d'action présente) ; 1440 11,99 % ; 1280 12,7 % ; v6 (2026-11-12 21:14, case de la partie connectée, charge élevée) : téléphone 9 · 34 · 18 · 12,71 % ; 1440 50 · 244 · 42 · 11,98 % ; 1280 49 · 240 · 50 · 12,65 % — les écarts neufs sont le décalage de 4 px de la case (écart accepté, § 2 c), les coches de la maquette ne sont plus absentes"
     },
     "corriges_pendant_la_passe": [
       "apostrophe typographique de « Seuil d’approbation des reversements (F CFA) » (fr seulement ; en et wo inchangés)"
     ],
     "remarques": [
       "a-2 et a-7 au téléphone : la maquette montre À LA FOIS la barre d'onglets et la barre d'action ; le produit efface la barre d'onglets tant qu'il y a des changements non enregistrés (règle du team-lead, écart déjà accepté)",
-      "a-7 : les cases de la maquette sont des cases dessinées (« Masqué », coche `lucide-check`) ; `SectionMenu` pose des `<input type=checkbox>` natifs. La primitive `src/components/ui/checkbox.tsx` existe : l'adopter rapprocherait l'écran de la maquette (non fait ici, hors du delta)"
+      "a-7 (2026-11-12, après vérification) : les cases du menu sont désormais la case de la partie connectée (`ui/checkbox`, 18 px — ADR-0106 § 2 c, la valeur majoritaire des maquettes ; celle de cet écran en dessine une de 22 px) et non plus des `<input type=checkbox>` natifs. « Affiché » / « Masqué », noms de la case dessinée de la maquette, ne s'écrivent pas : la case porte le nom du module et son état coché (WCAG 4.1.2), et « Masqué » reste l'icône barrée de l'aperçu"
     ],
-    "largeurs_intermediaires": "`fidelite balayer --largeurs 360,768,1024` sur /app/agency et chacune de ses sections (`?section=…`) : débord 0 et coupes 0 partout ; à 768, ~47 ellipses, toutes dans le rail de 60 px de la coque (famille 3)"
-  }
+    "largeurs_intermediaires": "`fidelite balayer --largeurs 360,768,1024` sur /app/agency et chacune de ses sections (`?section=…`) : débord 0 et coupes 0 partout ; à 768, ~47 ellipses, toutes dans le rail de 60 px de la coque (famille 3)",
+    "ac5": "2026-11-12 21:14, relevé .fidelite/TCK-2670/v6-ac5-telephone (390 × 844, admin, base de démo, HEAD de la branche) : le sommaire ENTIER mesuré hors fenêtre — débord du document 0 (scrollWidth 390), huit lignes (« Identité et contact » … « Offre et passage en pro »), hauteurs 61 px (la huitième 60 px), bord droit le plus à droite 390 ; le sommaire descend à 1018 px, la huitième ligne commence à 897"
+  },
+  "coque": true
 }

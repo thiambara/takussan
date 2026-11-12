@@ -51,6 +51,17 @@ describe('Fiche de l’agence — menu de l’équipe (TCK-2483)', () => {
     for (const code of CODES_DE_MODULE) expect(caseDe(code), code).toBeChecked();
   });
 
+  // TCK-2670 (fidélité, ADR-0106 § 2 c) — la case est celle de la partie connectée (`ui/checkbox`),
+  // jamais un <input> natif : check-champs-uniformes ne voit pas les cases à cocher.
+  it('chaque case est la primitive `ui/checkbox`, pas un champ natif', () => {
+    ouvrir(AGENCE);
+    for (const code of CODES_DE_MODULE) {
+      const c = caseDe(code)!;
+      expect(c.tagName, code).not.toBe('INPUT');
+      expect(c).toHaveAttribute('data-slot', 'checkbox');
+    }
+  });
+
   it('un module masqué a sa case décochée, et la case dit ce qu’elle retire', () => {
     ouvrir(avec(['commissions']));
     expect(caseDe('commissions')).not.toBeChecked();

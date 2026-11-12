@@ -8,6 +8,7 @@ import type { ValeursDeLaFiche } from '@/lib/agence/fiche';
 import { composerMenu } from '@/lib/navigation/composer-menu';
 import { CODES_DE_MODULE, MODULES_D_AGENCE, type CodeDeModule } from '@/lib/navigation/modules';
 import { reglagesDeLaFiche } from '@/lib/schemas/agency';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 
 import { useFiche } from './contexte';
@@ -61,14 +62,15 @@ export function SectionMenu() {
                   return (
                     <li key={code} className={cn(!affiche && 'bg-secondary/40')}>
                       <label htmlFor={id} className="flex min-h-[3.75rem] cursor-pointer items-center gap-3 px-3.5 py-2.5">
-                        <input
+                        {/* La case de la partie connectée (`ui/checkbox`, ADR-0106 § 2 c : 18 px, la valeur
+                            majoritaire des maquettes) — la maquette de cet écran en dessine une de 22 px. */}
+                        <Checkbox
                           id={id}
-                          type="checkbox"
                           checked={affiche}
                           aria-describedby={`${id}-aide`}
-                          onChange={(e) => field.onChange(e.target.checked ? field.value.filter((c) => c !== code) : [...field.value, code])}
+                          onCheckedChange={(coche) => field.onChange(coche ? field.value.filter((c) => c !== code) : [...field.value, code])}
                           onBlur={field.onBlur}
-                          className="size-[1.375rem] flex-none cursor-pointer rounded-md accent-primary"
+                          className="flex-none cursor-pointer"
                         />
                         <Icone className="size-icone flex-none text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
                         <span className="min-w-0 flex-1">
