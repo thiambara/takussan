@@ -6923,6 +6923,42 @@
         "message": {
           "loyer": "Hello{prenom, select, aucun {} other { {prenom}}}, the {mois} rent ({montant}){bien, select, aucun {} other { for “{bien}”}} has been due since {date}. You can pay it online here: {lien}",
           "autre": "Hello{prenom, select, aucun {} other { {prenom}}}, the payment “{libelle}” ({montant}){bien, select, aucun {} other { for “{bien}”}} has been due since {date}. You can pay it online here: {lien}"
+        },
+        "lot": {
+          "selectionner": "Select",
+          "selectionnerAria": "Select overdue instalments to remind",
+          "annuler": "Cancel",
+          "toutSelectionner": "Select all",
+          "toutDeselectionner": "Deselect all",
+          "toutCocher": "Select all instalments shown",
+          "cocher": "Select {nom}’s overdue instalment",
+          "selection": "{count} selected",
+          "nonAffiches": "including {count} not shown",
+          "aide": "Remind the selection, each with their own payment link:",
+          "whatsapp": "WhatsApp",
+          "relancerSelection": "Remind selection ({count})",
+          "file": {
+            "position": "{n} of {total}",
+            "passer": "Skip",
+            "arreter": "Stop",
+            "suivant": "Next",
+            "sauteSansTelephone": "No number for this tenant: this instalment is left out.",
+            "sauteLienRefuse": "This instalment can no longer be paid online: it is left out."
+          },
+          "recap": {
+            "titre": "Reminding the selection",
+            "compte": "{relances} reminded · {passes} skipped · {sautes} left out",
+            "sautes": "Left out",
+            "raison": {
+              "sansTelephone": "no number",
+              "lienRefuse": "can no longer be paid online"
+            },
+            "nonNotees": "Reminders not recorded",
+            "nonNotee": "reminder not recorded",
+            "nonNoteeAide": "WhatsApp opened, but the reminder could not be recorded on the row.",
+            "garde": "Skipped and left-out instalments stay selected.",
+            "terminer": "Done"
+          }
         }
       }
     },

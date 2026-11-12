@@ -87,9 +87,19 @@ export function useRelanceDUnImpaye(row: PaymentHistoryRow | null, actif: boolea
         : 'pret';
 
   const noter = useNoterLaRelance();
-  const noterLaRelance = (channel: CanalDeRelance) => {
-    if (id > 0) noter.mutate({ paymentId: id, channel });
-  };
+  /**
+   * TCK-2682 — la promesse dit si CETTE note a été prise (`true`) ou refusée (`false`) : la file en
+   * lot l'inscrit au récapitulatif de l'échéance. `isError` ne dit que la dernière mutation, et les
+   * rappels passés à `mutate` sont perdus dès qu'une note suivante part : d'où `mutateAsync`. L'échec
+   * reste dit par le toast d'`useNoterLaRelance`.
+   */
+  const noterLaRelance = (channel: CanalDeRelance): Promise<boolean> =>
+    id > 0
+      ? noter.mutateAsync({ paymentId: id, channel }).then(
+          () => true,
+          () => false,
+        )
+      : Promise.resolve(false);
 
   return {
     joignable,

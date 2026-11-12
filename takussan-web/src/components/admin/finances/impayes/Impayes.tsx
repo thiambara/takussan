@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { CircleCheckBig, Phone, Search, X } from 'lucide-react';
@@ -8,6 +8,7 @@ import { CircleCheckBig, Phone, Search, X } from 'lucide-react';
 import { isReachable, telHref } from '@/components/crm/contact';
 import { IconeWhatsApp } from '@/components/crm/IconeWhatsApp';
 import { EmptyState } from '@/components/feedback';
+import { DeclarerEnTete } from '@/components/layout/en-tete-de-la-coque';
 import { LeasePaymentDialog } from '@/components/leases/LeasePaymentDialog';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -18,10 +19,11 @@ import { PuceDeFiltre, RangeeDePuces } from '@/components/ui/puce-de-filtre';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useFermeAuRetour } from '@/hooks/useFermeAuRetour';
 import { useMatchesMedia } from '@/hooks/useMatchesMedia';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { useAgingBalance } from '@/lib/queries/agency-reporting';
-import { usePaymentsHistory, type UsePaymentsHistoryParams } from '@/lib/queries/payments';
+import { paymentsQueryKeys, usePaymentsHistory, type UsePaymentsHistoryParams } from '@/lib/queries/payments';
 import { cn } from '@/lib/utils';
 import type { PaymentHistoryRow } from '@/types/invoice';
 
@@ -29,8 +31,11 @@ import { OverduePaymentsTable } from '../OverduePaymentsTable';
 import { useNoterLaRelance } from './useNoterLaRelance';
 import { CarteDImpaye } from './CarteDImpaye';
 import { DossierDImpaye } from './DossierDImpaye';
+import { FileDeRelance, useFileDeRelance } from './FileDeRelance';
 import { useLectureDImpaye } from './lecture';
 import { ComposerLaRelance, OuvrirWhatsApp } from './RelanceDUnImpaye';
+import { ordreDeLaFile, useEcheancesAffichees, useSelectionDesImpayes, type SelectionDesImpayes } from './selection';
+import { BarreDeSelection, TeteDeSelection } from './SelectionDesImpayes';
 import { TableDesImpayes } from './TableDesImpayes';
 import { IMPAYES_PAR_PAGE, TRANCHES, tranche, type CleDeTranche } from './tranches';
 import { useRelanceDUnImpaye } from './useRelanceDUnImpaye';
@@ -72,6 +77,12 @@ function parametres(filtres: Filtres, page: number, perPage: number = IMPAYES_PA
  *
  * « Par locataire » : une carte (téléphone) ou une ligne (bureau) par échéance. « Par bailleur » : la
  * balance âgée par bailleur — ses quatre tranches et son total — et un bailleur ouvre ses impayés.
+ *
+ * TCK-2682 — la relance EN LOT : au bureau, une case par rangée et la barre de sélection ; sous `lg`,
+ * un mode sélection (« Sélectionner » dans l'en-tête, « Annuler », Échap ou le geste retour pour en
+ * sortir) qui pose une case de 44 px sur chaque carte. « Relancer la sélection » ouvre la file guidée
+ * (`FileDeRelance`). La sélection vit par échéance, à travers pages et filtres ; ce qui n'est pas
+ * affiché est dit, et la file le reprend.
  */
 export function Impayes({
   agencyId,
@@ -93,6 +104,34 @@ export function Impayes({
   const [aRelancer, setARelancer] = useState<{ readonly row: PaymentHistoryRow; readonly ouverte: boolean } | null>(null);
   const [dossier, setDossier] = useState<{ readonly row: PaymentHistoryRow; readonly relancer: boolean; readonly ouvert: boolean } | null>(null);
 
+  const f = useFormatteurs();
+  const l = useLectureDImpaye();
+  const selection = useSelectionDesImpayes();
+  const fileApi = useFileDeRelance();
+  const [modeSelection, setModeSelection] = useState(false);
+  // Sous `lg`, une sélection non vide se montre toujours : jamais d'échéance cochée sans sa case.
+  const modeEffectif = !bureau && vue === 'locataire' && (modeSelection || selection.n > 0);
+  const quitterLeMode = () => {
+    setModeSelection(false);
+    selection.vider();
+  };
+  // Le geste retour : arrête la file si elle tourne, sinon quitte le mode sélection.
+  useFermeAuRetour(modeEffectif || fileApi.file !== null, () => {
+    if (fileApi.file) fileApi.arreter();
+    else quitterLeMode();
+  });
+  const surcoucheOuverte = fileApi.file !== null || Boolean(aRelancer?.ouverte) || Boolean(dossier?.ouvert);
+  useEffect(() => {
+    if (!modeEffectif || surcoucheOuverte) return;
+    const surTouche = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      setModeSelection(false);
+      selection.vider();
+    };
+    document.addEventListener('keydown', surTouche);
+    return () => document.removeEventListener('keydown', surTouche);
+  }, [modeEffectif, surcoucheOuverte, selection]);
+
   const changerDeFiltres = (suivant: Partial<Filtres>) => {
     setFiltres((avant) => ({ ...avant, ...suivant }));
     setPageBureau(1);
@@ -102,8 +141,34 @@ export function Impayes({
   const premiere = usePaymentsHistory(parametres(actifs, bureau ? pageBureau : 1));
   const comptes = useComptesDesTranches(actifs);
 
+  // Les échéances affichées : la page du tableau, ou les pages 1 à n des cartes.
+  const pagesAffichees = vue !== 'locataire' ? [] : bureau ? [pageBureau] : Array.from({ length: pagesTelephone }, (_, i) => i + 1);
+  const affichees = useEcheancesAffichees(pagesAffichees.map((p) => paymentsQueryKeys.history(parametres(actifs, p))));
+  const nonAffiches = [...selection.lignes.keys()].filter((id) => !affichees.ids.has(id)).length;
+  const montantDeLaSelection = f.montantCourt([...selection.lignes.values()].reduce((somme, row) => somme + Number(l.du(row) ?? 0), 0));
+  const toutesCochees = affichees.ids.size > 0 && [...affichees.ids].every((id) => selection.coche(id));
+  const relancerLaSelection = () => {
+    // La ligne la plus fraîche quand elle est affichée (dernière relance, numéro) ; la file la fige.
+    const fraiches = new Map(affichees.lignes().map((row) => [row.id, row]));
+    fileApi.demarrer(ordreDeLaFile([...selection.lignes.values()].map((row) => fraiches.get(row.id) ?? row).filter((row) => row.status !== 'paid')));
+  };
+  const avecDesLignes = (premiere.data?.data.length ?? 0) > 0;
+  const boutonDeMode =
+    vue === 'locataire' && !bureau && (avecDesLignes || modeEffectif) ? (
+      <button
+        type="button"
+        onClick={() => (modeEffectif ? quitterLeMode() : setModeSelection(true))}
+        aria-label={modeEffectif ? undefined : t('lot.selectionnerAria')}
+        className="inline-flex h-11 flex-none items-center rounded-full px-3 text-corps font-medium text-primary outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring"
+      >
+        {modeEffectif ? t('lot.annuler') : t('lot.selectionner')}
+      </button>
+    ) : undefined;
+
   return (
     <div data-slot="impayes" className="space-y-0">
+      {/* Au téléphone, « Sélectionner » / « Annuler » à droite de l'en-tête (à la place du « ⋯ » de la maquette). */}
+      <DeclarerEnTete droite={boutonDeMode} />
       <ResumeDesImpayes agencyId={agencyId} className={resume === 'telephone' ? 'lg:hidden' : undefined} />
 
       <Tabs value={vue} onValueChange={(v) => setVue(v as 'locataire' | 'bailleur')}>
@@ -128,6 +193,7 @@ export function Impayes({
                   </PuceDeFiltre>
                 ))}
               </RangeeDePuces>
+              {!bureau && boutonDeMode ? <span className="ml-auto max-md:hidden">{boutonDeMode}</span> : null}
               {bureau ? (
                 <div className="relative ml-auto w-[17.5rem] min-w-0">
                   <Search className="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
@@ -155,6 +221,27 @@ export function Impayes({
                 {t('bailleur.filtre', { nom: filtres.bailleur.nom })}
                 <X className="size-3.5" aria-hidden="true" />
               </PuceDeFiltre>
+            </div>
+          ) : null}
+          {bureau && selection.n > 0 ? (
+            <BarreDeSelection
+              n={selection.n}
+              montant={montantDeLaSelection}
+              nonAffiches={nonAffiches}
+              onRelancer={relancerLaSelection}
+              onToutDeselectionner={selection.vider}
+            />
+          ) : null}
+          {modeEffectif ? (
+            <div className="mt-1">
+              <TeteDeSelection
+                n={selection.n}
+                montant={montantDeLaSelection}
+                nonAffiches={nonAffiches}
+                toutesCochees={toutesCochees}
+                onToutSelectionner={() => selection.changer(affichees.lignes(), true)}
+                onRelancer={relancerLaSelection}
+              />
             </div>
           ) : null}
           <QueryBoundary
@@ -185,7 +272,12 @@ export function Impayes({
                     meta={reponse.meta}
                     totalDu={comptes.montantDe(filtres.tranche)}
                     onPage={setPageBureau}
-                    onOuvrir={(row, relancer) => setDossier({ row, relancer, ouvert: true })}
+                    onOuvrir={(row, relancer) => {
+                      if (fileApi.file) return;
+                      setDossier({ row, relancer, ouvert: true });
+                    }}
+                    selection={{ coche: selection.coche, changer: selection.changer, figee: fileApi.file !== null }}
+                    enCours={fileApi.enCours?.id ?? null}
                   />
                 </div>
               ) : (
@@ -196,6 +288,7 @@ export function Impayes({
                   filtres={actifs}
                   onVoirPlus={() => setPagesTelephone((n) => n + 1)}
                   onRelancer={(row) => setARelancer({ row, ouverte: true })}
+                  selection={modeEffectif ? selection : undefined}
                 />
               )
             }
@@ -224,8 +317,17 @@ export function Impayes({
           agencyId={agencyId}
           etat={dossier}
           onChanger={(suivant) => setDossier((d) => (d ? { ...d, ...suivant } : d))}
+          // Une échéance encaissée quitte la sélection.
+          onEncaisse={(paymentId) => selection.retirer([paymentId])}
         />
       ) : null}
+      <FileDeRelance
+        api={fileApi}
+        onTerminer={(aGarder) => {
+          selection.garder(aGarder);
+          if (aGarder.length === 0) setModeSelection(false);
+        }}
+      />
     </div>
   );
 }
@@ -316,6 +418,7 @@ function ListeDeCartes({
   filtres,
   onVoirPlus,
   onRelancer,
+  selection,
 }: {
   readonly premiere: readonly PaymentHistoryRow[];
   readonly total: number;
@@ -323,16 +426,17 @@ function ListeDeCartes({
   readonly filtres: Filtres;
   readonly onVoirPlus: () => void;
   readonly onRelancer: (row: PaymentHistoryRow) => void;
+  readonly selection?: SelectionDesImpayes;
 }) {
   const t = useTranslations('admin.finances.impayes');
   const affichees = Math.min(total, pages * IMPAYES_PAR_PAGE);
   return (
     <div className="space-y-3 pb-8" data-slot="liste-impayes">
       {premiere.map((row) => (
-        <CarteDImpaye key={`${row.source}-${row.id}`} row={row} onRelancer={onRelancer} />
+        <CarteDImpaye key={`${row.source}-${row.id}`} row={row} onRelancer={onRelancer} selection={caseDe(selection, row)} />
       ))}
       {Array.from({ length: pages - 1 }, (_, i) => (
-        <PageDeCartes key={i + 2} page={i + 2} filtres={filtres} onRelancer={onRelancer} />
+        <PageDeCartes key={i + 2} page={i + 2} filtres={filtres} onRelancer={onRelancer} selection={selection} />
       ))}
       {affichees < total ? (
         <button
@@ -347,16 +451,31 @@ function ListeDeCartes({
   );
 }
 
-function PageDeCartes({ page, filtres, onRelancer }: { readonly page: number; readonly filtres: Filtres; readonly onRelancer: (row: PaymentHistoryRow) => void }) {
+function PageDeCartes({
+  page,
+  filtres,
+  onRelancer,
+  selection,
+}: {
+  readonly page: number;
+  readonly filtres: Filtres;
+  readonly onRelancer: (row: PaymentHistoryRow) => void;
+  readonly selection?: SelectionDesImpayes;
+}) {
   const requete = usePaymentsHistory(parametres(filtres, page));
   if (requete.isPending) return <Skeleton className="h-40 rounded-xl" aria-hidden="true" />;
   return (
     <>
       {(requete.data?.data ?? []).map((row) => (
-        <CarteDImpaye key={`${row.source}-${row.id}`} row={row} onRelancer={onRelancer} />
+        <CarteDImpaye key={`${row.source}-${row.id}`} row={row} onRelancer={onRelancer} selection={caseDe(selection, row)} />
       ))}
     </>
   );
+}
+
+/** La case d'une carte en mode sélection. */
+function caseDe(selection: SelectionDesImpayes | undefined, row: PaymentHistoryRow) {
+  return selection ? { cochee: selection.coche(row.id), onCocher: (cochee: boolean) => selection.changer([row], cochee) } : undefined;
 }
 
 /** Téléphone : la feuille « Relancer {nom} » — montant, période et retard, message, lien, « Ouvrir WhatsApp ». */
@@ -399,10 +518,12 @@ function PanneauDuDossier({
   agencyId,
   etat,
   onChanger,
+  onEncaisse,
 }: {
   readonly agencyId: number | undefined;
   readonly etat: { readonly row: PaymentHistoryRow; readonly relancer: boolean; readonly ouvert: boolean };
   readonly onChanger: (suivant: Partial<{ row: PaymentHistoryRow; relancer: boolean; ouvert: boolean }>) => void;
+  readonly onEncaisse?: (paymentId: number) => void;
 }) {
   const t = useTranslations('admin.finances.impayes');
   const l = useLectureDImpaye();
@@ -489,6 +610,7 @@ function PanneauDuDossier({
           onOpenChange={setEncaisser}
           paiementInitial={row.id}
           onEncaisse={(paymentId) => {
+            onEncaisse?.(paymentId);
             if (paymentId === row.id) onChanger({ row: { ...row, status: 'paid' }, relancer: false });
             void queryClient.invalidateQueries({ queryKey: ['payments', 'history'] });
           }}

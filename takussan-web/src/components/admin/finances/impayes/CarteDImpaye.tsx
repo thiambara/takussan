@@ -9,6 +9,7 @@ import { StatusBadge } from '@/components/console/StatusBadge';
 import { isReachable, telHref } from '@/components/crm/contact';
 import { IconeWhatsApp } from '@/components/crm/IconeWhatsApp';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import type { PaymentHistoryRow } from '@/types/invoice';
 
@@ -27,8 +28,19 @@ const GESTE = 'h-11 min-h-11 text-corps font-semibold';
  *
  * Sans numéro joignable, « Relancer sur WhatsApp » et « Appeler » sont désactivés, et la phrase qui
  * dit pourquoi est nommée par `aria-describedby` (AC6), avec le lien vers la fiche client.
+ *
+ * TCK-2682 — en mode sélection, une case devant l'avatar, dans une cible de 44 px (le `<label>` qui
+ * l'enveloppe) ; la carte cochée prend le fond de la sélection.
  */
-export function CarteDImpaye({ row, onRelancer }: { readonly row: PaymentHistoryRow; readonly onRelancer: (row: PaymentHistoryRow) => void }) {
+export function CarteDImpaye({
+  row,
+  onRelancer,
+  selection,
+}: {
+  readonly row: PaymentHistoryRow;
+  readonly onRelancer: (row: PaymentHistoryRow) => void;
+  readonly selection?: { readonly cochee: boolean; readonly onCocher: (cochee: boolean) => void };
+}) {
   const t = useTranslations('admin.finances.impayes');
   const l = useLectureDImpaye();
   const noter = useNoterLaRelance();
@@ -42,8 +54,22 @@ export function CarteDImpaye({ row, onRelancer }: { readonly row: PaymentHistory
   const meta = [l.periode(row), l.relance(row), row.landlord?.name ?? null].filter(Boolean).join(' · ');
 
   return (
-    <article data-slot="carte-impaye" aria-label={nom} className="rounded-xl border border-border bg-card p-4">
+    <article
+      data-slot="carte-impaye"
+      data-cochee={selection?.cochee ? '' : undefined}
+      aria-label={nom}
+      className={cn('rounded-xl border border-border bg-card p-4', selection?.cochee && 'border-primary/40 bg-primary/5')}
+    >
       <div className="flex items-start gap-3">
+        {selection && row.source === 'lease' ? (
+          <label className="-my-0.5 -mr-1 -ml-2.5 flex size-11 flex-none cursor-pointer items-center justify-center" data-slot="coche-impaye">
+            <Checkbox
+              checked={selection.cochee}
+              onCheckedChange={(c) => selection.onCocher(c === true)}
+              aria-label={t('lot.cocher', { nom })}
+            />
+          </label>
+        ) : null}
         <AvatarDuPayeur nom={nom} />
         <div className="min-w-0 flex-1">
           {fiche ? (

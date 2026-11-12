@@ -140,7 +140,8 @@ export function OuvrirWhatsApp({
   readonly relance: Relance;
   /** L'identifiant de la phrase qui dit pourquoi le bouton est désactivé, si elle est rendue ailleurs. */
   readonly raisonId?: string;
-  readonly onOuvert?: () => void;
+  /** Reçoit la note de la relance : `true` prise, `false` refusée (TCK-2682, récapitulatif de la file). */
+  readonly onOuvert?: (note: Promise<boolean>) => void;
   readonly className?: string;
 }) {
   const t = useTranslations('admin.finances.impayes.gestes');
@@ -164,8 +165,8 @@ export function OuvrirWhatsApp({
       rel="noopener noreferrer"
       data-slot="ouvrir-whatsapp"
       onClick={() => {
-        relance.noterLaRelance('whatsapp');
-        onOuvert?.();
+        const note = relance.noterLaRelance('whatsapp');
+        onOuvert?.(note);
       }}
       className={classes}
     >

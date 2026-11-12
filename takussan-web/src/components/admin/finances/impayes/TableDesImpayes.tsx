@@ -9,6 +9,7 @@ import { StatusBadge } from '@/components/console/StatusBadge';
 import { isReachable, telHref } from '@/components/crm/contact';
 import { IconeWhatsApp } from '@/components/crm/IconeWhatsApp';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import type { PaymentHistoryRow } from '@/types/invoice';
 
@@ -22,8 +23,9 @@ import { RETARD_GRAVE } from './tranches';
  * Bailleur · Montant dû · Retard · Dernière relance · gestes, trié par retard. Un clic sur la ligne
  * (ou sur le nom, au clavier) ouvre le dossier ; « Relancer » l'ouvre sur la relance.
  *
- * La colonne de sélection de la maquette appartient à TCK-2682 (relance en lot) : la première
- * colonne est celle du locataire, et une colonne de coche s'y ajoutera devant sans rien déplacer.
+ * TCK-2682 — la première colonne coche l'échéance (relance en lot) ; l'en-tête coche ou décoche
+ * toutes les échéances AFFICHÉES. Une rangée cochée prend le fond de la sélection, celle que la file
+ * présente (`enCours`) un fond plus soutenu et `aria-current`. Pendant la file, ni coche ni dossier.
  * Sous 1440 px, le bailleur rejoint la ligne du bien (maquette `COLS_IMPAYES_ETROIT`).
  */
 export function TableDesImpayes({
@@ -32,12 +34,23 @@ export function TableDesImpayes({
   totalDu,
   onPage,
   onOuvrir,
+  selection,
+  enCours = null,
 }: {
   readonly rows: readonly PaymentHistoryRow[];
   readonly meta: { readonly current_page: number; readonly last_page: number; readonly total: number; readonly per_page: number } | undefined;
   readonly totalDu: string | null;
   readonly onPage: (page: number) => void;
   readonly onOuvrir: (row: PaymentHistoryRow, relancer: boolean) => void;
+  /** TCK-2682 — la sélection à relancer ; absente : pas de colonne de coche. */
+  readonly selection?: {
+    readonly coche: (id: number) => boolean;
+    readonly changer: (rows: readonly PaymentHistoryRow[], cochees: boolean) => void;
+    /** La file tourne : la sélection est figée. */
+    readonly figee: boolean;
+  };
+  /** TCK-2682 — l'échéance que la file présente. */
+  readonly enCours?: number | null;
 }) {
   const t = useTranslations('admin.finances.impayes');
   const tPagination = useTranslations('console.pagination');
@@ -48,7 +61,41 @@ export function TableDesImpayes({
   const debut = (page - 1) * (meta?.per_page ?? 20) + 1;
   const fin = debut + rows.length - 1;
 
+  const cochables = rows.filter((row) => row.source === 'lease');
+  const toutes = cochables.length > 0 && cochables.every((row) => selection?.coche(row.id));
+  const certaines = !toutes && cochables.some((row) => selection?.coche(row.id));
+
+  const colonneDeCoche: DataTableColumn<PaymentHistoryRow> | null = selection
+    ? {
+        id: 'coche',
+        header: (
+          <span className="flex">
+            <Checkbox
+              checked={toutes}
+              indeterminate={certaines}
+              disabled={selection.figee || cochables.length === 0}
+              onCheckedChange={() => selection.changer(cochables, !toutes)}
+              aria-label={t('lot.toutCocher')}
+            />
+          </span>
+        ),
+        className: 'align-middle w-[2.125rem] pr-0',
+        cell: (row) =>
+          row.source === 'lease' ? (
+            <span className="flex">
+              <Checkbox
+                checked={selection.coche(row.id)}
+                disabled={selection.figee}
+                onCheckedChange={(c) => selection.changer([row], c === true)}
+                aria-label={t('lot.cocher', { nom: l.nom(row) })}
+              />
+            </span>
+          ) : null,
+      }
+    : null;
+
   const colonnes: DataTableColumn<PaymentHistoryRow>[] = [
+    ...(colonneDeCoche ? [colonneDeCoche] : []),
     {
       id: 'locataire',
       header: t('colonnes.locataire'),
@@ -148,9 +195,13 @@ export function TableDesImpayes({
     },
   ];
 
-  /** Un clic sur la ligne ouvre le dossier, sauf s'il part d'un bouton ou d'un lien de la ligne. */
+  /**
+   * Un clic sur la ligne ouvre le dossier, sauf s'il part d'un bouton, d'un lien ou de la case (une
+   * `span[role=checkbox]` de Base UI, pas un bouton) — et jamais pendant la file.
+   */
   const clicDeLigne = (row: PaymentHistoryRow) => (event: MouseEvent<HTMLTableRowElement>) => {
-    if ((event.target as HTMLElement).closest('a, button')) return;
+    if (selection?.figee) return;
+    if ((event.target as HTMLElement).closest('a, button, label, input, [role="checkbox"]')) return;
     onOuvrir(row, false);
   };
 
@@ -163,7 +214,17 @@ export function TableDesImpayes({
             columns={colonnes}
             rows={rows}
             rowKey={(row) => `${row.source}-${row.id}`}
-            rowProps={(row) => ({ onClick: clicDeLigne(row), className: 'cursor-pointer', 'data-slot': 'rangee-impaye' })}
+            rowProps={(row) => ({
+              onClick: clicDeLigne(row),
+              className: cn(
+                'cursor-pointer',
+                selection?.coche(row.id) && 'bg-primary/5 hover:bg-primary/7',
+                enCours === row.id && 'bg-primary/10 hover:bg-primary/10',
+              ),
+              'data-slot': 'rangee-impaye',
+              'data-cochee': selection?.coche(row.id) ? '' : undefined,
+              'aria-current': enCours === row.id ? 'true' : undefined,
+            })}
             className="rounded-none border-0 [&_table]:table-fixed"
           />
         </div>
