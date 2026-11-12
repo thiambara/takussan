@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { PROPERTY_ENUM_NAMESPACES } from '@/components/property-form/options';
 import { propertyStatusValues } from '@/lib/enums/property';
+import { avalerLeClicFantome } from '@/lib/clic-fantome';
 import { STATUTS_DE_PUBLICATION, useGestesDuBien } from './useGestesDuBien';
 import { useGestesRapides } from './useGestesRapides';
 import type { PropertyListItem } from '@/types/property';
@@ -91,7 +92,16 @@ export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActi
           {t('edit')}
         </Link>
       )}
-      <DropdownMenu>
+      <DropdownMenu
+        // Contre-vérification de f02583f76 — au toucher, le second appui d'un double appui sur une
+        // entrée traversait la place libérée par le menu jusqu'au lien étiré de la carte du dessous
+        // (la fiche d'un AUTRE bien). Après un choix au pointeur, le clic qui suit est avalé.
+        onOpenChange={(ouvert, details) => {
+          if (!ouvert && details.reason === 'item-press' && !(details.event instanceof KeyboardEvent)) {
+            avalerLeClicFantome();
+          }
+        }}
+      >
         <DropdownMenuTrigger
           render={
             <Button

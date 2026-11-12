@@ -1,5 +1,6 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import Link from 'next/link';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PropertyHeaderActions } from '@/components/property-dashboard/PropertyHeaderActions';
@@ -11,6 +12,7 @@ import {
   updatePropertyVisibilityAction,
 } from '@/app/actions/dashboard-properties';
 import { changePropertyStatusAction, publishPropertyAction } from '@/app/actions/publish-property';
+import { DELAI_DU_CLIC_FANTOME_MS } from '@/lib/clic-fantome';
 import { withIntl } from '@/test/intl';
 import type { PropertyDetail, PropertyListItem } from '@/types/property';
 
@@ -156,6 +158,27 @@ describe.each(NOMS)('les gestes du bien depuis « %s » : rattrapés, dits par u
     await toastAttendu('error', 'Action non autorisée.');
   });
 
+  it('« Supprimer » réussi : la fiche quitte la page du bien, la ligne de liste se rafraîchit', async () => {
+    vi.mocked(deletePropertyAction).mockResolvedValue({ ok: true } as never);
+    const user = rendre(menu);
+
+    await choisir(user, 'Supprimer');
+    const dialogue = await screen.findByRole('dialog', { name: 'Supprimer ce bien ?' });
+    await user.click(within(dialogue).getByRole('button', { name: 'Supprimer' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(deletePropertyAction).toHaveBeenCalledWith(47);
+    // Contre-vérification de 5a5e7dff9 — sans `router.refresh()`, la ligne supprimée restait dans
+    // la liste jusqu'au prochain rechargement, et rien ne le voyait.
+    if (menu === 'ligne de la liste') {
+      expect(m.refresh).toHaveBeenCalledTimes(1);
+      expect(m.push).not.toHaveBeenCalled();
+    } else {
+      expect(m.push).toHaveBeenCalledWith('/app/properties');
+      expect(m.refresh).toHaveBeenCalled();
+    }
+  });
+
   it('« Supprimer » en panne réseau : l’erreur dans le dialogue, rattrapée', async () => {
     vi.mocked(deletePropertyAction).mockRejectedValue(PANNE());
     const user = rendre(menu);
@@ -296,5 +319,102 @@ describe.each(NOMS)('un geste en vol depuis « %s » : un seul part', (menu) => 
     expect(action()).toHaveBeenCalledTimes(1);
     vol.liberer({ ok: true, data: { status: 'archived' } });
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+});
+
+/**
+ * Contre-vérification de f02583f76 (verif-commercial, 2026-11-12), A — au téléphone, le menu de la
+ * fiche vit dans la feuille « ⋯ » de la coque, DÉMONTÉE à sa fermeture. Rouvrir la feuille pendant
+ * un statut en vol rendait un « ⋯ » actif, et « Dupliquer » partait aussi. L'état en vol vit dans un
+ * registre par bien (`gestes-en-vol`), au-dessus du démontage.
+ */
+describe.each(NOMS)('« %s » démonté puis remonté pendant un geste en vol', (menu) => {
+  it('le menu remonté retrouve le statut en vol : « ⋯ » désactivé, « Dupliquer » ne part pas', async () => {
+    let liberer: (valeur: unknown) => void = () => {};
+    vi.mocked(changePropertyStatusAction).mockReturnValue(new Promise((resolve) => (liberer = resolve)) as never);
+    const premier = rendre(menu);
+    await choisir(premier, 'En maintenance');
+    await waitFor(() => expect(screen.getByRole('button', { name: MENU_DU_BIEN })).toBeDisabled());
+
+    // La feuille se ferme : son contenu est démonté. Elle se rouvre : il est remonté, neuf.
+    cleanup();
+    const second = rendre(menu);
+    const declencheur = screen.getByRole('button', { name: MENU_DU_BIEN });
+    expect(declencheur).toBeDisabled();
+    await second.click(declencheur);
+    expect(screen.queryByRole('menuitem', { name: 'Dupliquer' })).not.toBeInTheDocument();
+    expect(duplicatePropertyAction).not.toHaveBeenCalled();
+
+    // Le statut aboutit, le menu remonté se réactive.
+    liberer({ ok: true, data: { id: 47, status: 'under_maintenance' } });
+    await waitFor(() => expect(declencheur).toBeEnabled());
+  });
+
+  it('un « Dupliquer » en vol aussi : le menu remonté reste désactivé jusqu’à son issue', async () => {
+    let liberer: (valeur: unknown) => void = () => {};
+    vi.mocked(duplicatePropertyAction).mockReturnValue(new Promise((resolve) => (liberer = resolve)) as never);
+    const premier = rendre(menu);
+    await choisir(premier, 'Dupliquer');
+
+    cleanup();
+    rendre(menu);
+    const declencheur = screen.getByRole('button', { name: MENU_DU_BIEN });
+    expect(declencheur).toBeDisabled();
+
+    liberer({ ok: false, message: 'Échec.' });
+    await waitFor(() => expect(declencheur).toBeEnabled());
+  });
+});
+
+/** C — le bouton « Supprimer » du dialogue, rappuyé pendant l'envoi : une seule suppression part. */
+describe.each(NOMS)('« Supprimer » depuis « %s », rappuyé pendant l’envoi', (menu) => {
+  it('une seule suppression part', async () => {
+    let liberer: (valeur: unknown) => void = () => {};
+    vi.mocked(deletePropertyAction).mockReturnValue(new Promise((resolve) => (liberer = resolve)) as never);
+    const user = rendre(menu);
+
+    await choisir(user, 'Supprimer');
+    const dialogue = await screen.findByRole('dialog', { name: 'Supprimer ce bien ?' });
+    const supprimer = within(dialogue).getByRole('button', { name: 'Supprimer' });
+    await user.click(supprimer);
+    await waitFor(() => expect(supprimer).toBeDisabled());
+    await user.click(supprimer);
+
+    expect(deletePropertyAction).toHaveBeenCalledTimes(1);
+    liberer({ ok: false, message: 'Refusé.' });
+    expect(await within(dialogue).findByRole('alert')).toHaveTextContent('Refusé.');
+  });
+});
+
+/**
+ * B — liste au téléphone : le second appui d'un double appui sur une entrée du menu de ligne
+ * traversait jusqu'au lien étiré de la carte du dessous et ouvrait un AUTRE bien. Après un choix au
+ * pointeur, le clic qui suit sur un lien de la page est avalé ; passé le délai, les liens répondent.
+ */
+describe('le clic fantôme après un choix dans le menu de ligne', () => {
+  it('le lien de la carte du dessous ne reçoit pas le clic qui suit le choix ; il répond ensuite', async () => {
+    vi.mocked(changePropertyStatusAction).mockResolvedValue({ ok: true, data: { id: 47, status: 'under_maintenance' } } as never);
+    const ouvrirUnAutreBien = vi.fn((e: { preventDefault: () => void }) => e.preventDefault());
+    render(
+      withIntl(
+        <div>
+          <PropertyRowActions property={EN_LIGNE as unknown as PropertyListItem} layout="menu" />
+          {/* Le lien étiré de la carte du dessous (`CarteAnnonce`), un `Link` comme lui. */}
+          <Link href="/app/properties/50" onClick={ouvrirUnAutreBien}>
+            Pièce indépendante à Ngor
+          </Link>
+        </div>,
+      ),
+    );
+    const user = userEvent.setup();
+
+    await choisir(user, 'En maintenance');
+    await user.click(screen.getByRole('link', { name: 'Pièce indépendante à Ngor' }));
+    expect(ouvrirUnAutreBien).not.toHaveBeenCalled();
+    expect(changePropertyStatusAction).toHaveBeenCalledTimes(1);
+
+    await new Promise((resolve) => setTimeout(resolve, DELAI_DU_CLIC_FANTOME_MS + 50));
+    await user.click(screen.getByRole('link', { name: 'Pièce indépendante à Ngor' }));
+    expect(ouvrirUnAutreBien).toHaveBeenCalledTimes(1);
   });
 });

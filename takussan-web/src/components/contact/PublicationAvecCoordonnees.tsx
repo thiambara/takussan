@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { pendantLeGeste } from '@/lib/biens/gestes-en-vol';
 
 import { CoordonneesPublication } from './CoordonneesPublication';
 
@@ -79,7 +80,9 @@ export function usePublicationAvecCoordonnees(
       // sinon à l'appelant (`onEchec`).
       let r: ResultatPublication;
       try {
-        r = await envoyer(g, depuisLeDialogue);
+        // Contre-vérification de f02583f76 — marqué au registre du bien : un menu démonté puis
+        // remonté pendant l'envoi (la feuille « ⋯ » de la fiche au téléphone) le retrouve en vol.
+        r = await pendantLeGeste(propertyId, () => envoyer(g, depuisLeDialogue));
       } catch (erreur) {
         if (depuisLeDialogue) setErreur(messageErreur(erreur));
         else onEchec(messageErreur(erreur));

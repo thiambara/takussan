@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/toast';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { pendantLeGeste, useGesteEnVol } from '@/lib/biens/gestes-en-vol';
 
 /** Les gestes qui retirent le bien du site : ils se confirment avant de partir. */
 export type GesteAConfirmer = 'archive' | 'unpublish';
@@ -90,7 +91,7 @@ export function useGestesRapides(
   const lancer = (fn: () => Promise<ResultatDAction>, succes: string, apres: () => void) => {
     startTransition(async () => {
       try {
-        const result = await fn();
+        const result = await pendantLeGeste(property.id, fn);
         if (!result.ok) {
           signalerEchec(result.message ?? t('error'));
           return;
@@ -124,7 +125,10 @@ export function useGestesRapides(
     },
     onEchec: (message) => signalerEchec(message || t('error')),
   });
-  const enVol = pending || publication.enCours;
+  // Contre-vérification de f02583f76 — le registre par bien survit au démontage du menu (la feuille
+  // « ⋯ » de la fiche au téléphone) : la fiche remontée retrouve le geste en vol.
+  const enVolAilleurs = useGesteEnVol(property.id);
+  const enVol = pending || publication.enCours || enVolAilleurs;
 
   const confirmer = () => {
     const fermer = () => setConfirmationOuverte(false);
@@ -138,7 +142,7 @@ export function useGestesRapides(
   const dupliquer = () => {
     startTransition(async () => {
       try {
-        const result = await duplicatePropertyAction(property.id);
+        const result = await pendantLeGeste(property.id, () => duplicatePropertyAction(property.id));
         if (!result.ok) {
           signalerEchec(result.message ?? t('duplicateFailed'));
           return;
@@ -160,7 +164,7 @@ export function useGestesRapides(
     setErreurDeSuppression(null);
     startTransition(async () => {
       try {
-        const result = await deletePropertyAction(property.id);
+        const result = await pendantLeGeste(property.id, () => deletePropertyAction(property.id));
         if (!result.ok) {
           setErreurDeSuppression(result.message ?? t('deleteFailed'));
           return;
