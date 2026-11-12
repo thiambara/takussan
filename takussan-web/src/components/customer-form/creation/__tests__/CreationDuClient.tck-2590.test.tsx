@@ -98,6 +98,30 @@ describe('le doublon dit pendant la frappe', () => {
     await waitFor(() => expect(screen.queryByText('Déjà dans vos clients')).toBeNull());
   });
 
+  it('un numéro frappé d’un trait ne sonde qu’une fois, sur sa forme finale : la frappe est temporisée (route limitée à 20 par minute)', async () => {
+    const user = userEvent.setup();
+    ouvrir();
+    // Sept, huit puis neuf chiffres : trois saisies sondables, une seule sonde.
+    await identite(user, '70 648 20 56');
+    await screen.findByText('Déjà dans vos clients');
+    await new Promise((r) => setTimeout(r, 600));
+    expect(sondes()).toHaveLength(1);
+    expect(String(sondes()[0][0])).toContain('phone=%2B221706482056');
+  });
+
+  it('le doublon d’une saisie périmée s’efface AVANT la sonde de la nouvelle, pas à sa réponse', async () => {
+    const user = userEvent.setup();
+    ouvrir();
+    await identite(user, '70 648 20 56');
+    await screen.findByText('Déjà dans vos clients');
+    const avant = sondes().length;
+    await user.type(screen.getByLabelText('Téléphone'), '{Backspace}7');
+    // Pendant la temporisation : la nouvelle saisie n'est pas encore partie, et l'ancien doublon
+    // n'est déjà plus montré.
+    expect(sondes()).toHaveLength(avant);
+    expect(screen.queryByText('Déjà dans vos clients')).toBeNull();
+  });
+
   it('« Créer quand même » à l’envoi : le 409 montre la fiche, et le renvoi porte allow_duplicate', async () => {
     bureau(true);
     action.creer

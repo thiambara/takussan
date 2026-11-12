@@ -106,8 +106,13 @@ class CustomerDuplicateDetector
      * et de plus un numéro sénégalais ENTAMÉ — sept ou huit chiffres nationaux — se compare par
      * préfixe (`phone LIKE '+2217064820%'`), pour que « 70 648 20 » montre déjà la fiche.
      *
-     * Le périmètre ne change pas : l'agence active seule, cinq fiches au plus, masquées à qui ne
-     * les lit pas. Un numéro trop court, ou qui n'est ni complet ni sénégalais, ne sonde rien.
+     * Le périmètre ne change pas : l'agence active seule, cinq fiches au plus. Le signalement masqué
+     * (tout à `null`) ne vaut qu'à l'ÉGALITÉ — numéro complet ou e-mail, comme avant TCK-2590 : il
+     * faut connaître le numéro entier pour apprendre qu'une fiche cachée le porte. Sous un préfixe,
+     * seules les fiches que l'appelant lit reviennent ; sinon la sonde, allongée d'un chiffre à la
+     * fois, rendrait le numéro d'une fiche qu'il ne peut pas ouvrir (constat de vérification de
+     * TCK-2590 : seize appels, sous le limiteur de vingt par minute).
+     * Un numéro trop court, ou qui n'est ni complet ni sénégalais, ne sonde rien.
      * La création (`find()`, 409) garde l'égalité stricte : un préfixe n'y désigne personne.
      *
      * @return list<array{id: ?int, name: ?string, stage: ?string, matched_on: string}>
@@ -130,7 +135,7 @@ class CustomerDuplicateDetector
 
         $matches = Customer::query()
             ->where('agency_id', $agencyId)
-            ->where(function (Builder $q) use ($complete, $prefix, $email) {
+            ->where(function (Builder $q) use ($complete, $prefix, $email, $viewer) {
                 if ($complete !== null) {
                     $q->orWhere('phone', $complete);
                 }
@@ -140,7 +145,11 @@ class CustomerDuplicateDetector
                     if (preg_match('/^\+221[0-9]{7,8}$/', $prefix) !== 1) {
                         throw new \LogicException('préfixe de sonde hors de sa forme');
                     }
-                    $q->orWhere('phone', 'like', $prefix.'%');
+                    // Sous un préfixe, les seules fiches que l'appelant LIT, à la règle de la liste
+                    // (`visibleTo`) : masquée, la réponse ferait un oracle qui, chiffre à chiffre,
+                    // reconstitue le numéro d'une fiche cachée. Filtré DANS la requête, pour que les
+                    // fiches cachées n'occupent pas les cinq places de la limite.
+                    $q->orWhere(fn (Builder $p) => $p->where('phone', 'like', $prefix.'%')->visibleTo($viewer));
                 }
                 if ($email !== null) {
                     $q->orWhereRaw(CaseInsensitive::sql('email').' = ?', [$email]);

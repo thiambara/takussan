@@ -109,6 +109,16 @@ L'agent rappelle un client depuis la liste sans ouvrir sa fiche, voit d'un coup 
     masqués, la création ignore le préfixe, et les jokers `%` et `_` de l'appelant n'élargissent rien : une
     saisie hors de l'alphabet d'un numéro fait renoncer au préfixe, et le motif `LIKE` n'est bâti que
     de `+221` et de sept ou huit chiffres).
+  - *Vérification, réserve tranchée (team-lead, 2026-11-12)* — la réponse masquée sous un préfixe
+    était un oracle : un membre sans `crm.view_all` (403 sur la fiche) reconstituait son numéro en
+    seize appels, sous le limiteur. Sous un préfixe, la sonde ne rend plus que les fiches que l'appelant
+    lit (`Customer::visibleTo`, dans la requête : les fiches cachées n'occupent pas les cinq places) ;
+    le signalement masqué reste à l'égalité (numéro complet, e-mail), comme avant. Tests
+    `test_tck2590_un_prefixe_ne_reconstitue_pas_le_numero_d_une_fiche_cachee` et
+    `…_cinq_au_plus_et_le_prefixe_ne_rend_que_ce_qu_on_lit` ; ablations f1 (filtre retiré), f2 (filtre
+    après la limite), f3 (filtre sur l'égalité aussi) rouges. Front : la temporisation (une sonde pour
+    un numéro frappé d'un trait) et l'effacement d'un doublon périmé avant la nouvelle sonde sont
+    désormais tenus (ablations L6, L7 rouges).
   - *Q2 a)* — la page lit les capacités du profil actif **dans le même `Promise.all`** que la liste,
     les étiquettes et les comptes ; un test épingle le lancement parallèle.
   - *Q7 a)* — « Me désigner » (`POST /customers/{id}/primary-contact {user_id}`) n'est offert qu'au

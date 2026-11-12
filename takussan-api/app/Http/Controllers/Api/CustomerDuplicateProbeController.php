@@ -14,7 +14,9 @@ use Illuminate\Http\JsonResponse;
  * `null`), comme dans le 409 de `CustomerController::store`. Ni pièce, ni coordonnée, ni adresse.
  *
  * TCK-2590 — un numéro sénégalais entamé de sept chiffres ou plus se compare par préfixe
- * ({@see CustomerDuplicateDetector::probe()}) ; la création garde l'égalité stricte.
+ * ({@see CustomerDuplicateDetector::probe()}), et ne rend alors QUE les fiches que l'appelant lit :
+ * le signalement masqué reste réservé à l'égalité (numéro complet, e-mail). La création garde
+ * l'égalité stricte.
  */
 class CustomerDuplicateProbeController extends Controller
 {

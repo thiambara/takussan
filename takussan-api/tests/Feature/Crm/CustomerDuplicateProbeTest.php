@@ -151,8 +151,12 @@ class CustomerDuplicateProbeTest extends ApiTestCase
         $this->assertSame(['Awa Ndiaye'], array_column($this->getJson('/api/customers/duplicates?phone=7064820')->assertOk()->json('data'), 'name'));
     }
 
-    /** TCK-2590 — cinq fiches au plus sous un préfixe partagé, et masquées à qui ne les lit pas. */
-    public function test_tck2590_cinq_au_plus_et_masquees(): void
+    /**
+     * TCK-2590 — cinq fiches au plus sous un préfixe partagé ; à qui ne les lit pas, le préfixe n'en
+     * rend aucune, masquée ou non, et les fiches cachées n'occupent pas les places de la limite : la
+     * fiche qu'il a lui-même ajoutée, huitième au même début, revient seule et nommée.
+     */
+    public function test_tck2590_cinq_au_plus_et_le_prefixe_ne_rend_que_ce_qu_on_lit(): void
     {
         foreach (range(10, 16) as $n) {
             $this->ficheClient($this->agence, null, ['phone' => '+2217064820'.$n]);
@@ -162,10 +166,42 @@ class CustomerDuplicateProbeTest extends ApiTestCase
         $this->assertCount(5, $this->getJson('/api/customers/duplicates?phone=7064820')->assertOk()->json('data'));
 
         $role = AgencyRole::factory()->for($this->agence)->withCapabilities([Capability::PropertiesCreate])->create();
+        $membre = $this->personnel($this->agence, agencyRole: $role);
+        Sanctum::actingAs($membre);
+        $this->assertSame([], $this->getJson('/api/customers/duplicates?phone=7064820')->assertOk()->json('data'));
+
+        $sienne = $this->ficheClient($this->agence, null, [
+            'first_name' => 'Codou', 'last_name' => 'Sarr', 'phone' => '+221706482099', 'added_by_id' => $membre->id,
+        ]);
+        $this->assertSame(
+            [['id' => $sienne->id, 'name' => 'Codou Sarr', 'stage' => $sienne->pipeline_stage?->value]],
+            $this->getJson('/api/customers/duplicates?phone=7064820')->assertOk()->json('data'),
+        );
+    }
+
+    /**
+     * Vérification de TCK-2590 — la sonde n'est pas un oracle : un membre qui ne lit pas la fiche de
+     * Mariama (403 sur elle) n'apprend rien d'un préfixe, à aucune longueur. Il ne l'apprend qu'en
+     * saisissant le numéro ENTIER (ou l'e-mail), et alors sans nom, sans identifiant, sans étape —
+     * l'avertissement contre le doublon, comme avant TCK-2590. Témoin : avec `crm.view_all`, le même
+     * préfixe la rend.
+     */
+    public function test_tck2590_un_prefixe_ne_reconstitue_pas_le_numero_d_une_fiche_cachee(): void
+    {
+        $role = AgencyRole::factory()->for($this->agence)->withCapabilities([Capability::PropertiesCreate])->create();
         Sanctum::actingAs($this->personnel($this->agence, agencyRole: $role));
-        $data = $this->getJson('/api/customers/duplicates?phone=7064820')->assertOk()->json('data');
-        $this->assertCount(5, $data);
-        $this->assertSame([null], array_values(array_unique(array_column($data, 'name'))));
+
+        $this->getJson('/api/customers/'.$this->mariama->id)->assertForbidden();
+        foreach (['7064820', '70648205', '%2B2217064820', '70%20648%2020%205'] as $prefixe) {
+            $this->assertSame([], $this->getJson('/api/customers/duplicates?phone='.$prefixe)->assertOk()->json('data'), $prefixe);
+        }
+
+        $masquee = [['id' => null, 'name' => null, 'stage' => null]];
+        $this->assertSame($masquee, $this->getJson('/api/customers/duplicates?phone=706482056')->assertOk()->json('data'));
+        $this->assertSame($masquee, $this->getJson('/api/customers/duplicates?email=mariama.fall@example.com')->assertOk()->json('data'));
+
+        Sanctum::actingAs($this->agent);
+        $this->assertSame([$this->mariama->id], array_column($this->getJson('/api/customers/duplicates?phone=7064820')->assertOk()->json('data'), 'id'));
     }
 
     /** TCK-2590 — la création garde l'égalité stricte : un numéro entamé n'y fait aucun 409. */
