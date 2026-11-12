@@ -224,6 +224,7 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
      * à `$agencyId` : les profils inclus (`agentProfiles`, `ownerProfiles`, `agencyAdminProfiles`)
      * ne portent que ceux de l'agence ; `include=platformProfile` est refusé (400), être opérateur
      * de la plateforme ne se lit pas depuis une agence ; `filter[role]` juge le rôle DANS l'agence.
+     * TCK-2670 — et `filter[assignable]=1`, le personnel en exercice, comme la liste des membres.
      * Sans cela, la base bornée par le contrôleur laissait sortir, par la personne listée, ses
      * profils des autres agences — licence, commission, revenus, `metadata`.
      *
@@ -245,7 +246,17 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
         $includes[] = AllowedInclude::custom('team_summary', new InclusionLueParLeControleur);
 
         return DepartageQueryBuilder::for($base, $request)
-            ->allowedFilters(...[...array_values($filters), self::teamRoleFilter($agencyId)])
+            ->allowedFilters(...[
+                ...array_values($filters),
+                self::teamRoleFilter($agencyId),
+                self::assignableFilter($agencyId),
+                // TCK-2667 — la pastille « Absents » : la liste des membres qu'une absence remplace.
+                AllowedFilter::callback('absent', function (Builder $q, mixed $value) use ($agencyId) {
+                    if (filter_var($value, FILTER_VALIDATE_BOOLEAN)) {
+                        $q->absentDansLAgence($agencyId);
+                    }
+                }),
+            ])
             ->allowedFields(...static::getAllAllowedQueryFields())
             ->allowedSorts(...static::$requestSortable, ...static::nameSorts())
             ->allowedIncludes(...$includes);
@@ -291,6 +302,22 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
     }
 
     /**
+     * TCK-2665, TCK-2667 — le membre est ABSENT dans l'agence : une absence active l'y remplace
+     * (`RoleDelegation::absences()->active()`, la règle de `TeamTodayService`). Lu par la pastille
+     * « Absents » (`meta.counts.absent`) et par `filter[absent]=1` de la liste de l'équipe.
+     *
+     * @param  Builder<static>  $query
+     */
+    public function scopeAbsentDansLAgence(Builder $query, int $agencyId): void
+    {
+        $query->whereExists(fn ($q) => $q->selectRaw('1')
+            ->from('role_delegations')
+            ->whereColumn('role_delegations.replaces_user_id', 'users.id')
+            ->where('role_delegations.agency_id', $agencyId)
+            ->whereIn('role_delegations.id', RoleDelegation::query()->absences()->active()->select('id')));
+    }
+
+    /**
      * P88.03 (TCK-1096) — la liste des membres d'une agence (`GET /api/agencies/{id}/members`).
      *
      * La liste blanche de {@see HasQueryBuilder::buildQuery()}, à deux écarts près :
@@ -326,7 +353,26 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
             }),
         );
 
-        $assignable = AllowedFilter::callback(
+        return DepartageQueryBuilder::for($base, $request)
+            ->allowedFilters(...[...array_values($filters), $role, self::assignableFilter($agencyId)])
+            ->allowedFields(...static::getAllAllowedQueryFields())
+            ->allowedSorts(...static::$requestSortable, ...static::nameSorts())
+            ->allowedIncludes(...static::getAllowedQueryIncludes());
+    }
+
+    /**
+     * `filter[assignable]=1` — le personnel joignable de `$agencyId` : la règle de
+     * {@see PersonnelDeLAgence::estPersonnel()} écrite en SQL (profil d'agent ou d'admin ACTIF dans
+     * l'agence, ou délégation active de l'un de ces rôles ; compte ni bloqué ni supprimé). Partagé
+     * par la liste des membres (sélecteurs de cible, TCK-1096) et par celle de l'équipe (TCK-2670 :
+     * la fiche de l'agence compte, parmi eux, qui n'a pas activé la double authentification que
+     * l'agence leur exige — jamais un bailleur, `TwoFactorRequirement`).
+     */
+    private static function assignableFilter(int $agencyId): AllowedFilter
+    {
+        $inAgency = fn (Builder $p) => $p->where('agency_id', $agencyId);
+
+        return AllowedFilter::callback(
             'assignable',
             function (Builder $q, mixed $value) use ($inAgency) {
                 if (! filter_var($value, FILTER_VALIDATE_BOOLEAN)) {
@@ -342,12 +388,6 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
                             ->active()));
             },
         );
-
-        return DepartageQueryBuilder::for($base, $request)
-            ->allowedFilters(...[...array_values($filters), $role, $assignable])
-            ->allowedFields(...static::getAllAllowedQueryFields())
-            ->allowedSorts(...static::$requestSortable, ...static::nameSorts())
-            ->allowedIncludes(...static::getAllowedQueryIncludes());
     }
 
     /**
