@@ -1,6 +1,6 @@
 'use client';
 
-import { Send } from 'lucide-react';
+import { Send, SendHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 /**
@@ -23,21 +23,67 @@ interface ChatComposerShellProps {
   readonly children: React.ReactNode;
   /** Le trombone, ou rien du tout quand les pièces jointes n'ont pas de sens. */
   readonly leading?: React.ReactNode;
+  /** TCK-2632 — au-dessus du champ : les réponses rapides de l'agent, la pièce choisie. */
+  readonly dessus?: React.ReactNode;
   readonly error?: string | null;
   readonly sendDisabled: boolean;
   readonly sendAriaLabel: string;
+  /**
+   * TCK-2632 — la forme de la messagerie (maquette `app-messagerie`, « Composeur ») : champ en
+   * pilule, envoi rond, et à droite le micro (`apresLeChamp`) qui cède la place à l'envoi dès
+   * qu'il y a quelque chose à envoyer (`envoiVisible`). Sans elle, l'habillage d'avant.
+   */
+  readonly messagerie?: { readonly apresLeChamp: React.ReactNode; readonly envoiVisible: boolean };
 }
 
 export function ChatComposerShell({
   onSubmit,
   children,
   leading,
+  dessus,
   error,
   sendDisabled,
   sendAriaLabel,
+  messagerie,
 }: ChatComposerShellProps) {
+  if (messagerie) {
+    return (
+      <form
+        onSubmit={onSubmit}
+        data-slot="composeur"
+        // L'ombre n'existe qu'au téléphone : au bureau, la maquette n'en pose AUCUNE (`shadow-none`
+        // y écrirait cinq ombres transparentes, que le relevé de fidélité distingue d'« aucune »).
+        className="border-t border-border bg-card px-4 py-3 max-lg:shadow-barre-collante lg:bg-background lg:px-5"
+      >
+        {dessus}
+        {error && (
+          <p role="alert" className="mb-2 text-xs text-destructive">
+            {error}
+          </p>
+        )}
+        <div className="flex items-end gap-1.5">
+          {leading}
+          {children}
+          {messagerie.apresLeChamp}
+          {messagerie.envoiVisible ? (
+            <Button
+              type="submit"
+              size="icon"
+              className="size-11 shrink-0 rounded-full"
+              disabled={sendDisabled}
+              aria-label={sendAriaLabel}
+            >
+              <SendHorizontal className="size-5" aria-hidden />
+            </Button>
+          ) : null}
+        </div>
+      </form>
+    );
+  }
+
   return (
     <form onSubmit={onSubmit} className="border-t border-border bg-card p-3">
+      {dessus}
       {error && (
         <p role="alert" className="mb-2 text-xs text-destructive">
           {error}

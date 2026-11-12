@@ -13,7 +13,7 @@
  *            --out <préfixe>                                        écrit <préfixe>.json et <préfixe>.png
  *            [--base http://localhost:3100]  le front qui sert le PRODUIT (un worktree) ; défaut :3000
  *            [--base-maquettes <url>]        le front qui sert les maquettes (arbre principal) ; défaut :3000
- *            [--defiler <px>] [--perturber <script>] [--rem 14.4] [--attente <ms>] [--sans-attente-donnees]
+ *            [--defiler <px>] [--perturber <script>] [--bloquer <motifs d'URL>] [--rem 14.4] [--attente <ms>] [--sans-attente-donnees]
  *            [--disposition <persona de coque>]  exige cette disposition (défaut : celle du compte)
  *            [--via visionneuse [--fenetre 1800x1300]]  relève DANS l'iframe de la visionneuse
  *   compare  maquette (référence gelée ou relevé) contre produit
@@ -160,6 +160,11 @@ export async function relever(o) {
     });
     await cdp('Page.enable');
     await cdp('Network.enable');
+    // `--bloquer` : des URL que la page ne doit pas atteindre pendant le relevé — un relevé ne
+    // DOIT pas écrire en base (ouvrir un fil le marque lu : `PUT /api/conversations/{id}/read`,
+    // TCK-2632). Motifs de `Network.setBlockedURLs`, séparés par des virgules ; le relevé les porte.
+    const bloquees = o.bloquer ? o.bloquer.split(',').map((m) => m.trim()).filter(Boolean) : [];
+    if (bloquees.length) await cdp('Network.setBlockedURLs', { urls: bloquees });
     await cdp('Runtime.enable');
     await cdp('Emulation.setLocaleOverride', { locale: 'fr-FR' });
     await cdp('Emulation.setTimezoneOverride', { timezoneId: 'Africa/Dakar' });
@@ -275,7 +280,7 @@ export async function relever(o) {
     if (vide.length) throw new Error(`relevé refusé — ${vide.join(' ; ')}`);
     const shot = await cdp('Page.captureScreenshot', { format: 'png', clip: { ...clipOrigine, width: app.W, height: app.H, scale: 1 } });
     const releve = {
-      meta: { outil: 'takussan-web/scripts/fidelite', version: 1, date: new Date().toISOString(), duree_ms: Date.now() - t0, commit: commitCourant(), base: o.maquette ? baseMaquettes : baseProduit, via: visionneuse ? 'visionneuse' : 'cadre', reseau: [...reseau].sort(), ...(chargementDessine ? { chargementDessine: true } : {}) },
+      meta: { outil: 'takussan-web/scripts/fidelite', version: 1, date: new Date().toISOString(), duree_ms: Date.now() - t0, commit: commitCourant(), base: o.maquette ? baseMaquettes : baseProduit, via: visionneuse ? 'visionneuse' : 'cadre', reseau: [...reseau].sort(), ...(bloquees.length ? { bloquees } : {}), ...(chargementDessine ? { chargementDessine: true } : {}) },
       source,
       ...(o.policeNavigateur ? { policeNavigateur: Number(o.policeNavigateur) } : {}),
       appareil: app.appareil,
@@ -317,6 +322,7 @@ async function cmdReleve() {
     baseMaquettes: opt('base-maquettes'),
     defiler: opt('defiler'),
     perturber: opt('perturber'),
+    bloquer: opt('bloquer'),
     rem: opt('rem'),
     attente: opt('attente'),
     disposition: opt('disposition'),

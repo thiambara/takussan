@@ -1,11 +1,10 @@
 /**
- * TCK-683 (P13.03) — le composeur de la messagerie n'offre plus de pièce jointe.
+ * TCK-683 (P13.03) — le trombone postait le fichier sur `/api/conversations/{c}/messages/{m}/attachments`,
+ * qu'aucune route de l'API ne sert : le texte partait, le fichier échouait sur « L'envoi du fichier
+ * a échoué ». Le porteur l'avait retiré « pour l'instant ».
  *
- * Le trombone postait le fichier sur `/api/conversations/{c}/messages/{m}/attachments`, qu'aucune
- * route de l'API ne sert : le texte partait, le fichier échouait sur « L'envoi du fichier a
- * échoué ». Le porteur a décidé de « retirer le trombone pour l'instant ». Ces tests gardent les
- * deux faces de ce retrait : aucun sélecteur de fichier n'est offert, et plus aucun code du front
- * ne vise la route absente.
+ * TCK-2632 le rend, depuis que l'API reçoit la pièce sur la route du texte (TCK-2631) : le
+ * premier test dit désormais où il poste, le second garde toujours la route absente.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
@@ -27,6 +26,11 @@ vi.mock('@/lib/queries/conversations', () => ({
   useNewMessagesPolling: vi.fn(),
   useMarkConversationRead: vi.fn(),
   useSendMessage: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useSendAttachment: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  // TCK-2632 — l'en-tête du fil lit le contexte (appel, WhatsApp) et porte la sourdine.
+  useConversationContext: () => ({ data: undefined }),
+  useConsignerGesteDuClient: () => ({ mutate: vi.fn() }),
+  useToggleMute: () => ({ mutate: vi.fn() }),
 }));
 
 vi.mock('@/hooks/useIntersectionObserver', () => ({ useIntersectionObserver: () => false }));
@@ -38,12 +42,15 @@ function monter() {
   return render(withIntl(<ChatView conversationId={7} />));
 }
 
-describe('<ChatView> — composeur sans pièce jointe (TCK-683)', () => {
-  it("n'offre ni trombone ni sélecteur de fichier", () => {
+describe('<ChatView> — la pièce jointe et sa route (TCK-683, TCK-2632)', () => {
+  it('offre le trombone, et ses sélecteurs n’acceptent que photos et PDF', () => {
     const { container } = monter();
 
-    expect(screen.queryByLabelText('Joindre un fichier')).toBeNull();
-    expect(container.querySelector('input[type="file"]')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Joindre une photo ou un document' })).toBeInTheDocument();
+    const acceptes = [...container.querySelectorAll('input[type="file"]')].map((i) => i.getAttribute('accept'));
+    expect(acceptes).toContain('image/jpeg,image/png,image/webp');
+    expect(acceptes).toContain('application/pdf');
+    expect(acceptes.every((a) => a === 'application/pdf' || a === 'image/jpeg,image/png,image/webp')).toBe(true);
   });
 
   /**

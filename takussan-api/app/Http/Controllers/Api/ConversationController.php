@@ -156,6 +156,15 @@ class ConversationController extends Controller
             $query->whereHas('messages', $nonLus);
         }
 
+        // TCK-2632 — les fils où cette personne est membre ACTUEL. Le filtre RESTREINT la liste
+        // de l'appelant, déjà cloisonnée et limitée à ses propres fils : il n'ouvre jamais le fil
+        // de deux tiers, quel que soit l'identifiant demandé.
+        if (($filtres['participant'] ?? null) !== null) {
+            $query->whereHas('participants', fn (Builder $m) => $m
+                ->where('users.id', (int) $filtres['participant'])
+                ->whereNull('conversation_participants.left_at'));
+        }
+
         $saisie = trim((string) ($filtres['search'] ?? ''));
         if (mb_strlen($saisie) < 2) {
             return;

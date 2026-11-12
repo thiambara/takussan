@@ -3567,8 +3567,6 @@
     }
   },
   "messaging": {
-    "listHeading": "Conversations",
-    "newGroup": "Nouveau groupe",
     "emptyState": "Sélectionnez une conversation pour afficher les messages.",
     "widget": {
       "launcherAria": "Ouvrir la messagerie",
@@ -3603,8 +3601,13 @@
       "placeholder": "Écrivez un message…",
       "sendAria": "Envoyer",
       "readOnly": "Ce fil est en lecture seule : votre bail pour ce logement a pris fin.",
-      "attachmentRejected": "Fichier refusé.",
-      "attachAria": "Joindre un fichier"
+      "joindre": "Joindre {nom}",
+      "appeler": "Appeler",
+      "appelerNom": "Appeler {nom}",
+      "whatsapp": "Écrire sur WhatsApp",
+      "plusDActions": "Plus d’actions",
+      "gesteNonConsigne": "Le contact n’a pas été noté sur la fiche du client.",
+      "sourdineEchouee": "Les notifications n’ont pas pu être modifiées. Réessayez."
     },
     "group": {
       "create": {
@@ -3674,7 +3677,31 @@
       "groupBadge": "Groupe",
       "muted": "Conversation en sourdine",
       "emptyHint": "Une conversation commence quand vous écrivez au sujet d’une annonce, depuis sa fiche — ou quand quelqu’un vous écrit.",
-      "emptyCta": "Parcourir les annonces"
+      "emptyCta": "Parcourir les annonces",
+      "recherche": "Chercher un nom, un bien…",
+      "rechercheLabel": "Chercher une conversation",
+      "filtres": {
+        "label": "Filtrer les conversations",
+        "tous": "Tous",
+        "nonLus": "Non lus",
+        "groupes": "Groupes"
+      },
+      "personnes": "{n, plural, one {# personne} other {# personnes}}",
+      "intervention": "Intervention",
+      "interventionDe": "Intervention · {bien}",
+      "apercu": {
+        "image": "Photo",
+        "document": "Document",
+        "audio": "Note vocale"
+      },
+      "nonLusAria": "{n, plural, one {# message non lu} other {# messages non lus}}",
+      "aucunResultat": "Aucune conversation ne correspond.",
+      "aucunResultatAide": "Essayez un autre nom ou un autre bien.",
+      "effacerRecherche": "Effacer la recherche",
+      "videPersonnel": "Aucune conversation",
+      "videPersonnelAide": "Vos échanges avec les clients et l’équipe apparaîtront ici.",
+      "ecrireAUnClient": "Écrire à un client",
+      "videMetierAide": "Vos conversations naissent des interventions et des baux : elles apparaîtront ici."
     },
     "propertyDraft": {
       "message": "Bonjour, je suis intéressé(e) par « {title} » (réf. {reference}). Est-il toujours disponible ?",
@@ -3691,7 +3718,8 @@
       "microphoneDenied": "Le micro n'est pas accessible. Autorisez-le dans votre navigateur.",
       "sendFailed": "La note vocale n'a pas été envoyée. Réessayez.",
       "label": "Note vocale",
-      "duration": "{seconds} s"
+      "duration": "{seconds} s",
+      "borne": "Note vocale · {max} secondes au plus"
     },
     "maintenanceEvents": {
       "assigned": "Intervention confiée à {provider}.",
@@ -3713,7 +3741,77 @@
         "closed": "Clôturée",
         "cancelled": "Annulée"
       }
-    }
+    },
+    "composer": {
+      "joindre": "Joindre une photo ou un document",
+      "photo": "Photo",
+      "appareilPhoto": "Prendre une photo",
+      "pdf": "Document PDF",
+      "preparation": "Préparation de la photo…",
+      "retirer": "Retirer {nom}",
+      "refus": {
+        "type": "Ce fichier ne peut pas être envoyé : seules les photos (JPEG, PNG, WebP) et les PDF sont acceptés.",
+        "imageTropLourde": "Cette photo dépasse 8 Mo, même réduite : elle ne peut pas être envoyée.",
+        "pdfTropLourd": "Ce PDF dépasse 10 Mo : il ne peut pas être envoyé."
+      },
+      "reponsesRapides": {
+        "aria": "Réponses rapides",
+        "disponible": {
+          "libelle": "Toujours disponible",
+          "phrase": "Le bien est toujours disponible."
+        },
+        "visite": {
+          "libelle": "Quand pouvez-vous visiter ?",
+          "phrase": "Quand pouvez-vous venir le visiter ?"
+        },
+        "pieces": {
+          "libelle": "Pièces à fournir",
+          "phrase": "Voici les pièces à fournir pour votre dossier :"
+        },
+        "prixFerme": {
+          "libelle": "Le prix est ferme",
+          "phrase": "Le prix affiché est ferme."
+        }
+      }
+    },
+    "bulle": {
+      "ouvrirLaPhoto": "Ouvrir la photo",
+      "pdf": "PDF",
+      "pdfPoids": "PDF · {poids}"
+    },
+    "nouvelle": {
+      "titre": "Nouvelle conversation",
+      "bouton": "Nouvelle",
+      "rechercheLabel": "Chercher une personne",
+      "nouveauGroupe": "Créer un groupe",
+      "nouveauGroupeAide": "Un nom, et un bien ou un bail rattaché.",
+      "personnes": "Personnes",
+      "rechercheEchouee": "Impossible de vérifier vos conversations avec cette personne. Réessayez.",
+      "premierMessage": "Votre premier message à {nom}.",
+      "champ": "Message à {nom}",
+      "envoiEchoue": "Le message n’a pas pu être envoyé. Réessayez."
+    },
+    "contexte": {
+      "titre": "Contexte de la conversation",
+      "afficher": "Afficher le contexte",
+      "replier": "Replier le contexte",
+      "client": "Client",
+      "telephone": "Téléphone",
+      "agent": "Agent",
+      "lie": "Lié à cette conversation",
+      "voirLeBail": "Voir le bail",
+      "intervention": "Intervention",
+      "rienDeLie": "Ni bail ni intervention pour l’instant.",
+      "voirLaFiche": "Voir la fiche du client",
+      "ficheDuClient": "Fiche du client",
+      "nomEtEtape": "{nom} · étape {etape}",
+      "planifier": "Planifier une visite"
+    },
+    "bureau": {
+      "sousTitre": "{nonLues, plural, =0 {Tout est lu} one {# non lue} other {# non lues}} · {total, plural, one {# conversation} other {# conversations}}",
+      "aucune": "Aucune conversation"
+    },
+    "titreTelephone": "Messages"
   },
   "payments": {
     "gateway": {

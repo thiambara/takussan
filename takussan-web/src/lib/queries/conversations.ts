@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  keepPreviousData,
   useInfiniteQuery,
   useQueryClient,
   type InfiniteData,
@@ -14,11 +15,17 @@ import { apiRequest, buildQueryString, type ApiError } from '@/lib/api';
 import type { ApiResponse, PaginatedResponse, SpatieQueryParams } from '@/types/api';
 import type {
   Conversation,
+  ConversationContext,
   Message,
   PropertyConversationResolution,
 } from '@/types/message';
 import { cheminApi, requete } from '@/lib/chemin-api';
-import { conversationListParams, type ConversationListPage } from './conversations-list';
+import {
+  conversationListParams,
+  filtresCanoniques,
+  type ConversationListPage,
+  type FiltresDeLaListe,
+} from './conversations-list';
 
 // TCK-1042 (P70.07) — la liste des conversations vit dans son propre fichier : la pastille de la
 // messagerie, montée par la coque de `/app`, l'importe de là sans embarquer les 37 exports de ce
@@ -27,6 +34,7 @@ export {
   CONVERSATION_PROPERTY_FIELDS,
   useConversations,
   type ConversationListPage,
+  type FiltresDeLaListe,
   type UseConversationsParams,
 } from './conversations-list';
 
@@ -42,18 +50,25 @@ export const CONVERSATIONS_PAGE_SIZE = 30;
  * archivage, sourdine…) la visent déjà. Elle garde la cadence de 10 s de la liste ; TanStack relit
  * alors chaque page chargée, dans l'ordre.
  */
-export function useConversationsInfinite(options: { refetchInterval?: number | false } = {}) {
+export function useConversationsInfinite(
+  options: { refetchInterval?: number | false; filtres?: FiltresDeLaListe } = {},
+) {
   const locale = useLocale();
   const { user, token } = useAuth();
+  // TCK-2632 — les filtres entrent dans la clé, SOUS `['conversations', 'list']` : l'invalidation des
+  // mutations (lu, envoi, sourdine) et la pastille visent ce préfixe. Pendant la frappe, la liste
+  // précédente reste affichée (`placeholderData`) au lieu de retomber sur le squelette.
+  const filtres = filtresCanoniques(options.filtres);
 
   return useInfiniteQuery<ConversationListPage, ApiError, InfiniteData<ConversationListPage>, QueryKey, number>({
-    queryKey: ['conversations', 'list', 'infinite'],
+    queryKey: ['conversations', 'list', 'infinite', filtres],
     enabled: Boolean(user),
     initialPageParam: 1,
     staleTime: 0,
     refetchInterval: options.refetchInterval ?? 10_000,
+    placeholderData: keepPreviousData,
     queryFn: async ({ pageParam, signal }) => {
-      const qs = buildQueryString(conversationListParams(pageParam, CONVERSATIONS_PAGE_SIZE));
+      const qs = buildQueryString(conversationListParams(pageParam, CONVERSATIONS_PAGE_SIZE, filtres));
       return apiRequest<ConversationListPage>(cheminApi`/api/conversations${requete(qs)}`, {
         token: token ?? undefined,
         locale,
@@ -124,6 +139,23 @@ export function useConversation(id: number | null | undefined) {
       params: spatieParams,
       enabled: Boolean(id),
     },
+  );
+}
+
+/**
+ * TCK-2632 — la colonne de contexte d'un fil (TCK-2630) : le bien, le bail, l'intervention, et pour le
+ * personnel de l'agence la fiche du client (étape, téléphone, agent). L'en-tête du fil y lit le
+ * téléphone : pas de téléphone rendu, pas d'appel ni de WhatsApp.
+ */
+export function conversationContextQueryKey(id: number | null | undefined): QueryKey {
+  return ['conversations', 'context', id];
+}
+
+export function useConversationContext(id: number | null | undefined, options: { enabled?: boolean } = {}) {
+  return useApiQuery<ApiResponse<ConversationContext>>(
+    conversationContextQueryKey(id),
+    cheminApi`/api/conversations/${id ?? 0}/context`,
+    { enabled: (options.enabled ?? true) && Boolean(id), staleTime: 60_000 },
   );
 }
 
@@ -405,6 +437,67 @@ export function useCreateGroupConversation() {
   );
 }
 
+/**
+ * TCK-2632 — une conversation à UNE personne, créée au premier envoi : `POST /api/conversations`
+ * sans `type` (directe), `participants` à une seule personne joignable (`MessagingReach`, la règle du
+ * sélecteur), et le premier message dans `initial_message` — une seule requête. Rien ne part à
+ * l'ouverture du brouillon.
+ */
+export type CreateDirectConversationPayload = {
+  participants: [number];
+  initial_message: string;
+};
+
+/**
+ * TCK-2632 (AC4) — le fil à deux qui existe déjà avec cette personne, ou `null`. L'API crée un fil
+ * NEUF à chaque `POST /api/conversations` directe, sans chercher l'existant : c'est au front de ne
+ * pas en ouvrir un second. Le plus récent l'emporte (la liste est triée par dernier message) ; la
+ * personne doit en être membre ACTUEL.
+ */
+export function filDirectAvec(conversations: readonly Conversation[], userId: number): number | null {
+  const fil = conversations.find(
+    (c) => c.type === 'direct' && (c.participants ?? []).some((p) => p.user_id === userId && !p.left_at),
+  );
+  return fil?.id ?? null;
+}
+
+/**
+ * La recherche part au serveur (`filter[type]=direct`, `filter[participant]=<id>`) : l'API rend
+ * les fils de l'appelant où cette personne est membre actuel, quelle que soit leur ancienneté — la
+ * page chargée de la liste, elle, n'en montre que trente. Un identifiant, jamais un nom : deux
+ * homonymes ne partagent pas un fil. `filDirectAvec` revérifie l'identifiant sur la réponse.
+ *
+ * ⚠️ Un fil que l'appelant a ARCHIVÉ n'est pas dans la liste (`?archived=` est un autre écran) :
+ * il n'est pas retrouvé, et un second fil s'ouvre.
+ */
+export function useTrouverLeFilDirect() {
+  const locale = useLocale();
+  const { token } = useAuth();
+  const queryClient = useQueryClient();
+  return async (personne: { id: number; name: string }): Promise<number | null> => {
+    const filtres = filtresCanoniques({ type: 'direct', participant: personne.id });
+    const qs = buildQueryString(conversationListParams(1, CONVERSATIONS_PAGE_SIZE, filtres));
+    const page = await queryClient.fetchQuery({
+      queryKey: ['conversations', 'list', 'fil-direct', personne.id],
+      staleTime: 0,
+      queryFn: ({ signal }) =>
+        apiRequest<ConversationListPage>(cheminApi`/api/conversations${requete(qs)}`, {
+          token: token ?? undefined,
+          locale,
+          signal,
+        }),
+    });
+    return filDirectAvec(page.data, personne.id);
+  };
+}
+
+export function useCreateDirectConversation() {
+  return useApiMutation<ApiResponse<Conversation>, CreateDirectConversationPayload>(
+    { path: '/api/conversations', method: 'POST' },
+    { invalidate: [['conversations', 'list']] },
+  );
+}
+
 export type AddParticipantsPayload = {
   user_ids: number[];
   role?: 'member' | 'admin';
@@ -498,6 +591,63 @@ export function useToggleMute(conversationId: number) {
       ],
     },
   );
+}
+
+/**
+ * TCK-2632 — une photo ou un PDF (TCK-2631) : `type = image | document`, le fichier dans `file`
+ * (un seul par message), la légende dans `content`, facultative — absente, le champ ne part pas.
+ * La même route que le texte et la note vocale : `/conversations/{id}/messages`, JAMAIS
+ * `/messages/{m}/attachments`, qu'aucune route ne sert (TCK-683).
+ */
+export type SendAttachmentPayload = {
+  file: File;
+  type: 'image' | 'document';
+  content?: string;
+};
+
+export function useSendAttachment(conversationId: number) {
+  const queryClient = useQueryClient();
+  return useApiMutation<ApiResponse<Message>, SendAttachmentPayload>(
+    {
+      path: cheminApi`/api/conversations/${conversationId}/messages`,
+      method: 'POST',
+      formData: true,
+      body: ({ file, type, content }) => {
+        const fd = new FormData();
+        fd.append('type', type);
+        fd.append('file', file, file.name);
+        const legende = content?.trim();
+        if (legende) fd.append('content', legende);
+        return fd;
+      },
+    },
+    {
+      invalidate: [
+        ['conversations', 'list'],
+        ['conversations', 'detail', conversationId],
+      ],
+      idempotence: true,
+      onSuccess: (response) => {
+        queryClient.setQueryData<InfiniteData<MessagesPage>>(
+          messagesInfiniteQueryKey(conversationId),
+          (cache) => mergeNewMessages(cache, [response.data]),
+        );
+      },
+    },
+  );
+}
+
+/**
+ * TCK-2632 — appeler ou ouvrir WhatsApp depuis l'en-tête d'un fil est un GESTE DE CONTACT de la fiche
+ * du client (famille 5, `POST /api/customers/{id}/contacts`) : il compte pour le délai de première
+ * réponse. Le geste part au clic ; son échec n'empêche ni l'appel ni WhatsApp, qui sont déjà ouverts.
+ */
+export function useConsignerGesteDuClient() {
+  return useApiMutation<void, { id: number; channel: 'call' | 'whatsapp' }>({
+    path: ({ id }) => cheminApi`/api/customers/${id}/contacts`,
+    method: 'POST',
+    body: ({ channel }) => ({ channel }),
+  });
 }
 
 // =============================================================================

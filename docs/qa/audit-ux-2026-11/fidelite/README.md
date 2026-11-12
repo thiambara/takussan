@@ -55,6 +55,7 @@ $F compare --maquette ../docs/qa/audit-ux-2026-11/fidelite/references/app-notifi
 Options de `releve` : `--maquette <page> --a <approche> --e <écran>` (une maquette, servie par
 l'arbre principal) · `--defiler <px>` (tranche d'un écran long : document ou conteneur intérieur) ·
 `--perturber <fichier>` (un corps de fonction évalué dans la page : ouvrir un menu, remplir un champ) ·
+`--bloquer <motifs>` (URL que la page ne doit pas atteindre — un relevé n'écrit jamais en base : ouvrir un fil le marque lu, `--bloquer '*/api/conversations/*/read'`) ·
 `--disposition <persona de coque>` (exige une autre disposition que celle du compte) · `--rem 14.4`
 (ce que le porteur a vu dans la visionneuse au bureau, **pour mémoire seulement**) ·
 `--via visionneuse` (relève dans l'iframe de la visionneuse plutôt que dans le cadre seul : mêmes

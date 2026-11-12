@@ -31,6 +31,7 @@ return [
         'filters' => 'filters',
         'search_filter' => 'search',
         'unread_filter' => 'unread',
+        'participant_filter' => 'participant',
         'type_filter' => 'conversation type',
         // TCK-2631 — la pièce jointe d'un message (photo ou PDF).
         'file' => 'attachment',

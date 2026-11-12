@@ -44,6 +44,11 @@ vi.mock('@/lib/queries/conversations', () => ({
   useNewMessagesPolling: vi.fn(),
   useMarkConversationRead: vi.fn(),
   useSendMessage: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useSendAttachment: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  // TCK-2632 — l'en-tête du fil lit le contexte (appel, WhatsApp) et porte la sourdine.
+  useConversationContext: () => ({ data: undefined }),
+  useConsignerGesteDuClient: () => ({ mutate: vi.fn() }),
+  useToggleMute: () => ({ mutate: vi.fn() }),
 }));
 
 vi.mock('@/hooks/useIntersectionObserver', () => ({ useIntersectionObserver: () => false }));
@@ -65,7 +70,7 @@ describe('<ChatView> — pièce jointe périmée (TCK-2736)', () => {
     refetch.mockResolvedValue({ isError: false, data: pages('https://api.test/neuve') });
     render(withIntl(<ChatView conversationId={7} />));
 
-    fireEvent.click(screen.getByRole('link', { name: 'plan.pdf' }));
+    fireEvent.click(screen.getByRole('link', { name: /^plan\.pdf/ }));
 
     expect(refetch).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(onglet.location.href).toBe('https://api.test/neuve'));
@@ -76,7 +81,7 @@ describe('<ChatView> — pièce jointe périmée (TCK-2736)', () => {
     refetch.mockResolvedValue({ isError: true, data: pages('https://api.test/neuve') });
     render(withIntl(<ChatView conversationId={7} />));
 
-    fireEvent.click(screen.getByRole('link', { name: 'plan.pdf' }));
+    fireEvent.click(screen.getByRole('link', { name: /^plan\.pdf/ }));
 
     await waitFor(() => expect(onglet.close).toHaveBeenCalledTimes(1));
     expect(onglet.location.href).toBe('');

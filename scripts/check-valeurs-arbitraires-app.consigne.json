@@ -1,7 +1,7 @@
 {
   "_lisez-moi": "Consigne de scripts/check-valeurs-arbitraires-app.mjs (TCK-2685). Un compte ne se relève qu'à la main, avec un champ `motif` ; il se rabaisse par `--consigner`.",
   "motif": "Existant consigné le 2026-11-11 à la bascule (TCK-2685) : chaque ticket de page de l'audit UX le fait baisser.",
-  "perimetre": 930,
+  "perimetre": 1014,
   "fichiers": {
     "src/components/admin/ModerationQueueList.tsx": {"texte-arbitraire":1},
     "src/components/admin/PropertyModerationDetail.tsx": {"aplat-accent":1},
@@ -28,8 +28,6 @@
     "src/components/maintenance/MaintenanceList.tsx": {"tracking-arbitraire":2},
     "src/components/messages/ChatView.tsx": {"texte-arbitraire":2},
     "src/components/messages/ConversationInfoSheet.tsx": {"texte-arbitraire":1},
-    "src/components/messages/ConversationList.tsx": {"texte-arbitraire":3},
-    "src/components/messages/MessageDateSeparator.tsx": {"texte-arbitraire":1},
     "src/components/messages/MessagesPage.tsx": {"encre-sourde":1},
     "src/components/messages/ParticipantPicker.tsx": {"texte-arbitraire":1},
     "src/components/messages/ParticipantRow.tsx": {"texte-arbitraire":1},

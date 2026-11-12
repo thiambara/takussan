@@ -60,6 +60,11 @@ export type MessageAttachment = {
   url: string;
   mime_type: string | null;
   size: number | null;
+  /**
+   * TCK-2631 — la vignette signée (400 px). `null` pour un PDF, une note vocale, ou tant que la file
+   * `media` ne l'a pas produite : retomber alors sur `url`.
+   */
+  thumbnail_url?: string | null;
 };
 
 export type Message = {
@@ -137,5 +142,44 @@ export type PropertyConversationResolution = {
     id: number;
     name: string;
     avatar_url: string | null;
+  } | null;
+};
+
+/**
+ * TCK-2630 — `GET /api/conversations/{id}/context` : la colonne de contexte d'un fil. Chaque bloc vaut
+ * `null` s'il n'existe pas ou n'est pas lisible par l'appelant.
+ *
+ * `customer` est ABSENT (clé omise) pour qui n'est pas du personnel de l'agence du fil : un client,
+ * un bailleur ou un prestataire ne voit jamais qu'une fiche existe. Pour le personnel, `null` sans
+ * fiche ; `stage`, `phone` et `assigned_agent` valent `null` ensemble sans droit de lecture.
+ */
+export type ConversationContext = {
+  property: {
+    id: number;
+    slug: string;
+    title: string;
+    reference_number: string | null;
+    price: number | null;
+    status: string | null;
+    cover_url: string | null;
+  } | null;
+  lease: {
+    id: number;
+    status: string | null;
+    reference: string | null;
+    tenant_name: string | null;
+  } | null;
+  maintenance: {
+    id: number;
+    status: string | null;
+    title: string | null;
+    scheduled_at: string | null;
+  } | null;
+  customer?: {
+    id: number;
+    full_name: string | null;
+    stage: string | null;
+    phone: string | null;
+    assigned_agent: { id: number; name: string } | null;
   } | null;
 };

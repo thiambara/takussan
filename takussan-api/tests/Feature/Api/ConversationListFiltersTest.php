@@ -256,6 +256,45 @@ class ConversationListFiltersTest extends TestCase
         $this->assertSame($peu, $beaucoup);
     }
 
+    /**
+     * TCK-2632 — `filter[participant]` : « Nouvelle conversation » retrouve le fil direct déjà
+     * ouvert avec une personne. Le filtre restreint la liste de l'appelant, il ne l'élargit jamais.
+     */
+    public function test_participant_rend_les_seuls_fils_de_l_appelant_avec_cette_personne(): void
+    {
+        $this->assertSame([$this->filMalick->id], $this->ids('?filter[type]=direct&filter[participant]='.$this->malick->id));
+        // Le fil de l'appelant avec une AUTRE personne n'en sort pas ; le groupe où Malick est membre, si.
+        $this->assertSame([$this->filMalick->id, $this->groupe->id], $this->ids('?filter[participant]='.$this->malick->id));
+    }
+
+    public function test_participant_ne_rend_pas_un_fil_que_la_personne_a_quitte(): void
+    {
+        $this->groupe->participants()->updateExistingPivot($this->malick->id, ['left_at' => now()]);
+
+        $this->assertSame([$this->filMalick->id], $this->ids('?filter[participant]='.$this->malick->id));
+    }
+
+    public function test_participant_n_ouvre_pas_le_fil_de_deux_tiers(): void
+    {
+        // Malick et Awa s'écrivent sans l'agent : le bon identifiant ne suffit pas à le lui montrer.
+        $tiers = $this->fil(ConversationType::Direct, null, $this->malick, [$this->malick, $this->awa]);
+
+        $ids = $this->ids('?filter[type]=direct&filter[participant]='.$this->awa->id);
+        $this->assertNotContains($tiers->id, $ids);
+        $this->assertSame([$this->filAwa->id], $ids);
+        // Et l'agent n'est membre d'aucun fil avec une personne inconnue de lui.
+        $this->assertSame([], $this->ids('?filter[participant]='.User::factory()->create()->id));
+    }
+
+    public function test_participant_mal_forme_rend_422(): void
+    {
+        Sanctum::actingAs($this->agent);
+
+        $this->getJson('/api/conversations?filter[participant]=abc')->assertUnprocessable()->assertJsonValidationErrors('filter.participant');
+        $this->getJson('/api/conversations?filter[participant]=0')->assertUnprocessable()->assertJsonValidationErrors('filter.participant');
+        $this->getJson('/api/conversations?filter[participant][]=1')->assertUnprocessable()->assertJsonValidationErrors('filter.participant');
+    }
+
     private function creerFils(int $n): void
     {
         for ($i = 0; $i < $n; $i++) {

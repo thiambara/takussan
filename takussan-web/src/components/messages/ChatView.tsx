@@ -3,21 +3,27 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import type { ZodType } from 'zod';
 import { useResolveurValidation } from '@/hooks/useApiForm';
 import { useLocale, useTranslations } from 'next-intl';
-import { BellOff, Building2, Info, Paperclip, Settings, Users } from 'lucide-react';
+import { BellOff, Building2, Settings, Users } from 'lucide-react';
 import {
   useConversation,
   useMessagesInfinite,
   useNewMessagesPolling,
   useMarkConversationRead,
+  useSendAttachment,
   useSendMessage,
 } from '@/lib/queries/conversations';
+import { messageErreurApi } from '@/lib/api';
+import { isAgencyAdmin, isAgent } from '@/lib/roles';
+import { useMatchesMaxWidth } from '@/hooks/useMatchesMedia';
+import { ApercuDeLaPiece, BoutonDePieceJointe, usePieceEnAttente } from './composeur/PieceJointeDuComposeur';
+import { ReponsesRapides, insererLaReponse } from './composeur/ReponsesRapides';
+import { PiecesDeLaBulle } from './PiecesDeLaBulle';
 import { useIntersectionObserver } from '@/hooks/useIntersectionObserver';
 import { useAuth } from '@/context/AuthContext';
-import { Button } from '@/components/ui/button';
 import { BoutonFlecheDeRetour } from '@/components/navigation-publique/FlecheDeRetour';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -27,11 +33,11 @@ import { sendMessageSchema, type SendMessageFormValues } from '@/lib/schemas/mes
 import { cn } from '@/lib/utils';
 import { SystemMessageBubble } from './SystemMessageBubble';
 import { ConversationInfoSheet } from './ConversationInfoSheet';
+import { EnTeteDuFil } from './EnTeteDuFil';
 import { MessageDateSeparator } from './MessageDateSeparator';
 import { ChatComposerShell } from './ChatComposerShell';
 import { VoiceNoteRecorder } from './VoiceNoteRecorder';
 import {
-  LienDePieceJointe,
   urlDeLaPiece,
   useLecteurDePieceAudio,
   type RelirePiece,
@@ -57,6 +63,16 @@ interface ChatViewProps {
    * toujours — son comportement est inchangé.
    */
   readonly onBack?: () => void;
+  /**
+   * TCK-2632 — la colonne de contexte du bureau (page seulement) : le bouton de l'en-tête qui la
+   * replie, et la largeur du fil, plus étroite quand elle est ouverte (maquette : 620 / 760).
+   */
+  readonly contexte?: { readonly ouvert: boolean; readonly onBasculer: () => void };
+  /**
+   * TCK-2632 — au téléphone, « ⋯ » d'un fil direct ouvre la feuille du fil (`FeuilleDuFil`) que la
+   * page rend elle-même ; sans ce rappel (widget, groupe), « ⋯ » reste le menu.
+   */
+  readonly onPlusDActions?: () => void;
 }
 
 /**
@@ -66,9 +82,10 @@ interface ChatViewProps {
  * so polling never re-downloads loaded history. Polling pauses while the tab
  * is hidden (visibility listener below). See TCK-045 / pagination plan.
  */
-export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewProps) {
+export function ChatView({ conversationId, variant = 'page', onBack, contexte, onPlusDActions }: ChatViewProps) {
   const isWidget = variant === 'widget';
   const t = useTranslations('messaging');
+  const tRacine = useTranslations();
   const tWidget = useTranslations('messaging.widget');
   const locale = useLocale() as Locale;
   const { user } = useAuth();
@@ -120,6 +137,9 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
   useMarkConversationRead(conversationId, anchorId, { enabled: isVisible });
 
   const sendMessage = useSendMessage(conversationId);
+  const sendAttachment = useSendAttachment(conversationId);
+  const pieceJointe = usePieceEnAttente();
+  const telephone = useMatchesMaxWidth(1023);
 
   // Le cast reproduit celui que portait `zodResolver` ici même : `sendMessageSchema` a des
   // champs à `.default()`, donc son `z.input` diffère de son `z.output` et ne s'unifie pas avec
@@ -146,6 +166,15 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
   // TCK-2374 (P248.01) — l'API refuserait l'envoi : la saisie laisse place à une note. Absent (liste,
   // cache d'avant la réponse), le drapeau ne cache rien.
   const canSend = conversation?.abilities?.can_send_message !== false;
+  // TCK-2632 — les réponses rapides sont celles de l'agence À SES CLIENTS : personnel d'agence, fil
+  // à deux. Jamais pour un client (AC6), ni dans un groupe de travail.
+  const roles = user?.roles ?? [];
+  const reponsesRapides = !isGroup && (isAgent(roles) || isAgencyAdmin(roles));
+  // TCK-2632 — le micro cède la place à l'envoi dès qu'il y a quelque chose à envoyer (maquette) ;
+  // pendant une note vocale, le champ et le trombone s'effacent devant elle.
+  const contenu = useWatch({ control: form.control, name: 'content' }) ?? '';
+  const aEnvoyer = contenu.trim().length > 0 || pieceJointe.piece !== null || pieceJointe.preparation;
+  const [noteEnCours, setNoteEnCours] = useState(false);
 
   // Reset the per-conversation scroll bookkeeping whenever the open
   // conversation changes — otherwise the dashboard's persistent ChatView
@@ -154,10 +183,13 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
   const hasScrolledOnLoadRef = useRef(false);
   const lastIncomingIdRef = useRef<number | null>(null);
   const scrollHeightBeforeFetchRef = useRef<number | null>(null);
+  /** TCK-2632 — la personne est-elle en bas du fil ? (cf. l'observateur de taille plus bas) */
+  const colleEnBasRef = useRef(true);
   useEffect(() => {
     hasScrolledOnLoadRef.current = false;
     lastIncomingIdRef.current = null;
     scrollHeightBeforeFetchRef.current = null;
+    colleEnBasRef.current = true;
   }, [conversationId]);
 
   // Auto-scroll when the newest message id changes (incoming via polling or
@@ -190,6 +222,24 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
       }
     });
   }, [isLoading, messages.length]);
+
+  /**
+   * TCK-2632 — une photo se charge APRÈS le saut en bas du fil (`loading="lazy"`, et sa hauteur
+   * n'est connue qu'au chargement) : la plus récente restait coupée sous le composeur, mesuré à 390.
+   * Tant que la personne est en bas du fil, le fil y reste quand son contenu grandit ; dès qu'elle
+   * remonte lire l'historique, rien ne la déplace.
+   */
+  const premierContenu = isLoading || messages.length === 0;
+  useEffect(() => {
+    const el = scrollRef.current;
+    const contenu = el?.firstElementChild;
+    if (!el || !contenu || typeof ResizeObserver === 'undefined') return;
+    const observateur = new ResizeObserver(() => {
+      if (colleEnBasRef.current) el.scrollTop = el.scrollHeight;
+    });
+    observateur.observe(contenu);
+    return () => observateur.disconnect();
+  }, [premierContenu, conversationId]);
 
   // Preserve scroll position when older history is prepended on scroll-up.
   // Capture `scrollHeight` right before triggering `fetchNextPage`, then
@@ -235,87 +285,111 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
     }
   }
 
+  // TCK-2632 — une pièce choisie part avec le prochain envoi, le texte du champ en légende
+  // (facultative : le schéma du texte seul, qui exige un contenu, ne s'applique pas).
+  async function envoyerLaPiece() {
+    const piece = pieceJointe.piece;
+    if (!piece || sendAttachment.isPending) return;
+    try {
+      await sendAttachment.mutateAsync({ file: piece.fichier, type: piece.nature, content: form.getValues('content') });
+      form.reset({ content: '' });
+      pieceJointe.retirer();
+    } catch (err) {
+      pieceJointe.setRefus(messageErreurApi(err, tRacine, t('chat.uploadFailed')));
+    }
+  }
+
+  function envoyer(e?: React.BaseSyntheticEvent) {
+    if (pieceJointe.piece) {
+      e?.preventDefault();
+      void envoyerLaPiece();
+      return;
+    }
+    void form.handleSubmit(onSubmit)(e);
+  }
+
   return (
     <div className="flex h-full flex-col">
-      <header className="flex items-center gap-3 border-b border-border bg-card px-4 py-3">
-        {onBack && (
-          // TCK-2617 — la flèche unique (`BoutonFlecheDeRetour`) : 20 px dans 44, à toute largeur.
-          <BoutonFlecheDeRetour
-            libelle={tWidget('chatBack')}
-            onClick={onBack}
-            className="-ml-2"
-            data-testid="chat-back-button"
-          />
-        )}
-        {isGroup ? (
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted">
-            <Users className="size-5 text-muted-foreground" aria-hidden />
-          </div>
-        ) : conversation?.property ? (
-          // `rounded-full` : le même rond que dans la liste — la vignette changeait de forme en
-          // ouvrant la conversation.
-          <div className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-muted-foreground">
-            {conversation.property.main_photo_url ? (
-              <Image
-                src={conversation.property.main_photo_url}
-                alt=""
-                fill
-                sizes="40px"
-                className="object-cover outline -outline-offset-1 outline-foreground/10"
-              />
-            ) : (
-              <Building2 className="size-5" aria-hidden />
+      {/* TCK-2632 — la page : l'en-tête « la personne d'abord » ; le widget flottant garde le sien. */}
+      {isWidget ? (
+        <header className="flex items-center gap-3 border-b border-border bg-card px-4 py-3">
+          {onBack && (
+            // TCK-2617 — la flèche unique (`BoutonFlecheDeRetour`) : 20 px dans 44, à toute largeur.
+            <BoutonFlecheDeRetour
+              libelle={tWidget('chatBack')}
+              onClick={onBack}
+              className="-ml-2"
+              data-testid="chat-back-button"
+            />
+          )}
+          {isGroup ? (
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted">
+              <Users className="size-5 text-muted-foreground" aria-hidden />
+            </div>
+          ) : conversation?.property ? (
+            // `rounded-full` : le même rond que dans la liste — la vignette changeait de forme en
+            // ouvrant la conversation.
+            <div className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-muted-foreground">
+              {conversation.property.main_photo_url ? (
+                <Image
+                  src={conversation.property.main_photo_url}
+                  alt=""
+                  fill
+                  sizes="40px"
+                  className="object-cover outline -outline-offset-1 outline-foreground/10"
+                />
+              ) : (
+                <Building2 className="size-5" aria-hidden />
+              )}
+            </div>
+          ) : null}
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate font-display text-base font-semibold tracking-tight text-foreground">
+              {conversation?.subject ??
+                conversation?.property?.title ??
+                t('conversationTitleFallback', { id: String(conversationId) })}
+            </h2>
+            {isGroup && conversation?.participants && (
+              <p className="flex items-center gap-1.5 text-xs tabular-nums text-muted-foreground">
+                {t('chat.participants', {
+                  count: conversation.participants.filter((p) => !p.left_at).length,
+                })}
+                {isMuted && (
+                  <BellOff className="size-3.5" role="img" aria-label={t('list.muted')} />
+                )}
+              </p>
+            )}
+            {!isGroup && conversation?.property && (
+              <Link
+                href={`/properties/${conversation.property.slug}`}
+                className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+              >
+                {t('chat.viewProperty')}
+              </Link>
             )}
           </div>
-        ) : null}
-        <div className="min-w-0 flex-1">
-          <h2 className="truncate font-display text-base font-semibold tracking-tight text-foreground">
-            {conversation?.subject ??
-              conversation?.property?.title ??
-              t('conversationTitleFallback', { id: String(conversationId) })}
-          </h2>
-          {isGroup && conversation?.participants && (
-            <p className="flex items-center gap-1.5 text-xs tabular-nums text-muted-foreground">
-              {t('chat.participants', {
-                count: conversation.participants.filter((p) => !p.left_at).length,
-              })}
-              {isMuted && (
-                <BellOff className="size-3.5" role="img" aria-label={t('list.muted')} />
-              )}
-            </p>
-          )}
-          {!isGroup && conversation?.property && (
+          {isGroup && (
             <Link
-              href={`/properties/${conversation.property.slug}`}
-              className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+              href={`/app/messages?conversation=${conversationId}`}
+              className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label={tWidget('manageGroup')}
+              data-testid="chat-manage-group-link"
             >
-              {t('chat.viewProperty')}
+              <Settings className="size-4" aria-hidden />
             </Link>
           )}
-        </div>
-        {isGroup && !isWidget && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => setInfoOpen(true)}
-            aria-label={t('chat.groupInfoAria')}
-            data-testid="group-info-button"
-          >
-            <Info className="size-4" aria-hidden />
-          </Button>
-        )}
-        {isGroup && isWidget && (
-          <Link
-            href={`/app/messages?conversation=${conversationId}`}
-            className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label={tWidget('manageGroup')}
-            data-testid="chat-manage-group-link"
-          >
-            <Settings className="size-4" aria-hidden />
-          </Link>
-        )}
-      </header>
+        </header>
+      ) : (
+        <EnTeteDuFil
+          conversationId={conversationId}
+          conversation={conversation}
+          onBack={onBack}
+          sourdine={isMuted}
+          onInfosDuGroupe={() => setInfoOpen(true)}
+          contexte={contexte}
+          onPlusDActions={onPlusDActions}
+        />
+      )}
       {isGroup && !isWidget && (
         <ConversationInfoSheet
           open={infoOpen}
@@ -327,6 +401,10 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
 
       <div
         ref={scrollRef}
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          colleEnBasRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+        }}
         className="flex-1 overflow-y-auto bg-muted/50 px-4 py-4"
       >
         {isLoading ? (
@@ -341,7 +419,16 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
             {t('chat.empty')}
           </p>
         ) : (
-          <ul className="space-y-3">
+          <ul
+            className={cn(
+              // TCK-2632 — 8 px entre deux bulles (maquette `Fil`, `gap-2`).
+              'space-y-2',
+              // TCK-2632 — au bureau, le fil a une mesure de lecture (maquette : 760 seul, 620 à côté
+              // du contexte) au lieu de s'étirer sur toute la colonne.
+              !isWidget && 'lg:mx-auto lg:w-full lg:max-w-[calc(var(--spacing)*211.1)]',
+              !isWidget && contexte?.ouvert && 'xl:max-w-[calc(var(--spacing)*172.2)]',
+            )}
+          >
             <li
               ref={loadMoreRef}
               aria-hidden={!hasNextPage}
@@ -366,6 +453,7 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
                   key={m.id}
                   message={m}
                   isOwn={m.sender_id === user?.id}
+                  auteur={isGroup}
                   locale={locale}
                   relirePiece={relirePiece}
                 />
@@ -380,23 +468,71 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
           // TCK-316 — `handleSubmit(onSubmit)` était APPELÉ pendant le rendu pour
           // produire le gestionnaire ; on diffère l'appel dans l'événement, ce que fait
           // déjà le bouton plus bas.
-          onSubmit={(e) => void form.handleSubmit(onSubmit)(e)}
-          sendDisabled={sendMessage.isPending}
+          onSubmit={envoyer}
+          sendDisabled={sendMessage.isPending || sendAttachment.isPending || pieceJointe.preparation}
           sendAriaLabel={t('chat.sendAria')}
-          // TCK-683 (P13.03) — plus de trombone : il postait sur
-          // `/messages/{m}/attachments`, qu'aucune route de l'API ne sert. Le porteur l'a
-          // retiré « pour l'instant » ; la note vocale reste (TCK-592, ADR-0038).
-          leading={<VoiceNoteRecorder conversationId={conversationId} />}
+          error={pieceJointe.refus}
+          // TCK-683 (P13.03) avait retiré le trombone, qui postait sur `/messages/{m}/attachments`,
+          // qu'aucune route ne sert. TCK-2632 le rend, sur la route du texte (TCK-2631) ; le widget
+          // flottant n'en a pas : la photo s'envoie depuis la messagerie.
+          leading={
+            isWidget ? (
+              <VoiceNoteRecorder conversationId={conversationId} />
+            ) : noteEnCours ? null : (
+              <BoutonDePieceJointe
+                onChoisir={(f) => void pieceJointe.choisir(f)}
+                desactive={sendAttachment.isPending}
+                appareilPhoto={telephone}
+              />
+            )
+          }
+          messagerie={
+            isWidget
+              ? undefined
+              : {
+                  apresLeChamp: (
+                    <VoiceNoteRecorder
+                      conversationId={conversationId}
+                      auRepos={aEnvoyer ? 'masque' : 'visible'}
+                      rond
+                      onActif={setNoteEnCours}
+                    />
+                  ),
+                  envoiVisible: aEnvoyer && !noteEnCours,
+                }
+          }
+          dessus={
+            isWidget ? null : (
+              <>
+                {reponsesRapides ? (
+                  <ReponsesRapides
+                    onChoisir={(phrase) => {
+                      form.setValue('content', insererLaReponse(form.getValues('content') ?? '', phrase), { shouldDirty: true });
+                      form.setFocus('content');
+                    }}
+                  />
+                ) : null}
+                <ApercuDeLaPiece piece={pieceJointe.piece} preparation={pieceJointe.preparation} onRetirer={pieceJointe.retirer} />
+              </>
+            )
+          }
         >
           <Textarea
             {...form.register('content')}
             rows={1}
             placeholder={t('chat.placeholder')}
-            className="min-h-11 resize-none sm:min-h-9"
+            className={
+              isWidget
+                ? 'min-h-11 resize-none sm:min-h-9'
+                : cn(
+                    'min-h-11 resize-none rounded-[1.375rem] bg-background px-4 py-2.5 text-corps',
+                    noteEnCours && 'hidden',
+                  )
+            }
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                void form.handleSubmit(onSubmit)();
+                envoyer();
               }
             }}
           />
@@ -410,14 +546,21 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
   );
 }
 
+/**
+ * Une bulle (maquette `app-messagerie`, `Bulle`) : la mienne pleine à droite, l'autre bordée à
+ * gauche, l'heure en bas à droite. L'auteur n'est nommé que dans un groupe (« Pas de
+ * régression » de TCK-2632) : dans un fil direct, l'en-tête le dit déjà.
+ */
 function MessageBubble({
   message,
   isOwn,
+  auteur,
   locale,
   relirePiece,
 }: {
   message: Message;
   isOwn: boolean;
+  auteur: boolean;
   locale: Locale;
   relirePiece: RelirePiece;
 }) {
@@ -425,45 +568,42 @@ function MessageBubble({
     <li className={cn('flex', isOwn ? 'justify-end' : 'justify-start')}>
       <div
         className={cn(
-          'max-w-[75%] rounded-2xl px-3.5 py-2 text-sm shadow-sm',
+          'max-w-[80%] rounded-2xl px-3.5 py-2 text-corps leading-snug',
           isOwn
-            ? 'rounded-br-sm bg-foreground text-primary-foreground'
-            : 'rounded-bl-sm bg-card text-foreground',
+            ? 'rounded-br-md bg-foreground text-background'
+            : 'rounded-bl-md border border-border bg-card text-foreground',
         )}
       >
-        {!isOwn && message.sender && (
-          <p className="mb-0.5 text-xs font-semibold text-muted-foreground">
+        {auteur && !isOwn && message.sender && (
+          <p className="mb-0.5 text-xs font-semibold text-primary-deep">
             {message.sender.full_name}
           </p>
         )}
         {message.type === 'audio' && message.attachments?.[0] ? (
           <VoiceNotePlayer message={message} relirePiece={relirePiece} />
+        ) : message.type === 'image' || message.type === 'document' ? (
+          // TCK-2632 — la pièce d'abord, la légende dessous ; une pièce sans légende rend
+          // `content = ''` (TCK-2631) : pas de paragraphe vide.
+          <>
+            <PiecesDeLaBulle pieces={message.attachments ?? []} isOwn={isOwn} relirePiece={relirePiece} />
+            {message.content?.trim() ? (
+              <p className="mt-1.5 whitespace-pre-line text-pretty break-words">{message.content}</p>
+            ) : null}
+          </>
         ) : (
-          <p className="whitespace-pre-line text-pretty break-words">{message.content}</p>
-        )}
-        {message.type !== 'audio' && message.attachments && message.attachments.length > 0 && (
-          <ul className="mt-2 space-y-1">
-            {message.attachments.map((a) => (
-              <li key={a.id}>
-                <LienDePieceJointe
-                  piece={a}
-                  relirePiece={relirePiece}
-                  className={cn(
-                    'inline-flex items-center gap-1 text-xs underline',
-                    isOwn ? 'text-primary-foreground/90' : 'text-foreground',
-                  )}
-                >
-                  <Paperclip className="size-3" aria-hidden />
-                  {a.name}
-                </LienDePieceJointe>
-              </li>
-            ))}
-          </ul>
+          <>
+            <p className="whitespace-pre-line text-pretty break-words">{message.content}</p>
+            {message.attachments && message.attachments.length > 0 ? (
+              <div className="mt-2">
+                <PiecesDeLaBulle pieces={message.attachments} isOwn={isOwn} relirePiece={relirePiece} />
+              </div>
+            ) : null}
+          </>
         )}
         <p
           className={cn(
-            'mt-1 text-[0.6875rem] tabular-nums',
-            isOwn ? 'text-primary-foreground/70' : 'text-muted-foreground',
+            'mt-1 text-right text-[0.6875rem] tabular-nums',
+            isOwn ? 'text-background/65' : 'text-muted-foreground',
           )}
         >
           {formatDateTime(message.created_at, locale, { timeStyle: 'short', dateStyle: undefined })}

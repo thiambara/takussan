@@ -31,11 +31,14 @@ describe('agent French i18n regressions', () => {
   });
 
   it('keeps messaging labels French in the FR bundle', () => {
-    expect(frMessages.messaging.newGroup).toBe('Nouveau groupe');
+    // TCK-2632 — « Nouveau groupe » est passé dans « Nouvelle conversation » (`messaging.nouvelle`).
+    expect(frMessages.messaging.nouvelle.titre).toBe('Nouvelle conversation');
+    expect(frMessages.messaging.nouvelle.nouveauGroupe).toBe('Créer un groupe');
     expect(frMessages.messaging.emptyState).toBe(
       'Sélectionnez une conversation pour afficher les messages.',
     );
     expect(JSON.stringify(frMessages.messaging)).not.toContain('New group');
+    expect(JSON.stringify(frMessages.messaging)).not.toContain('New conversation');
     expect(JSON.stringify(frMessages.messaging)).not.toContain(
       'Select a conversation to view messages.',
     );
