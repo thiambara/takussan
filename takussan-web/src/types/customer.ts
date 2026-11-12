@@ -46,6 +46,8 @@ export interface CustomerListItem {
   next_action?: CustomerNextAction | null;
   follow_up?: CustomerFollowUp | null;
   referent?: CustomerReferent | null;
+  /** TCK-2643 — le compte du client, servi quand `fields[customers]` le demande (`null` : sans compte). */
+  user_id?: number | null;
 }
 
 /** TCK-2588 — la prochaine action : visite ou tâche ; `label` est le titre du bien ou de la tâche. */

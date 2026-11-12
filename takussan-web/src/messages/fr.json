@@ -5086,7 +5086,144 @@
       "customerFallback": "Client #{id}",
       "fromBooking": "Bail tiré de la réservation {reference}",
       "fromBookingHint": "Le bien et le locataire sont ceux de la réservation. À la création du bail, elle passe à « terminée » et libère ses dates.",
-      "fromBookingError": "La réservation n'a pas pu être chargée."
+      "fromBookingError": "La réservation n'a pas pu être chargée.",
+      "titre": "Nouveau bail",
+      "etapes": {
+        "bien": "Bien",
+        "locataire": "Locataire",
+        "conditions": "Conditions",
+        "verifier": "Vérifier",
+        "libelle": "Étapes de la création du bail",
+        "sousTitre": "Étape {n} sur {total} · {nom}"
+      },
+      "sections": {
+        "bien": "Le bien",
+        "locataire": "Le locataire",
+        "conditions": "Les conditions",
+        "clauses": "Les clauses"
+      },
+      "contexte": "{locataire} · bailleur {bailleur}",
+      "typeDeBail": "Type de bail",
+      "debut": "Début",
+      "fin": "Fin",
+      "finAide": "Facultative",
+      "loyerEtCharges": "Loyer et charges",
+      "reglesDuBail": "Règles du bail",
+      "loyer": "Loyer",
+      "charges": "Charges",
+      "loyerAnnonce": "Loyer annoncé sur la fiche du bien",
+      "prixAnnonce": "Prix annoncé : {montant} {periode} — saisissez le loyer mensuel",
+      "periodes": {
+        "daily": "par jour",
+        "weekly": "par semaine",
+        "yearly": "par an"
+      },
+      "unites": {
+        "parMois": "{symbole} / mois",
+        "jours": "j",
+        "mois": "mois"
+      },
+      "caution": {
+        "moins": "Un mois de moins",
+        "plus": "Un mois de plus"
+      },
+      "source": {
+        "property": "Depuis l’annonce du bien",
+        "agency": "Réglage de l’agence",
+        "platform": "Réglage de la plateforme"
+      },
+      "reglages": {
+        "agence": "Réglages de l’agence appliqués",
+        "plateforme": "Réglages de la plateforme appliqués",
+        "detail": "Échéance, pénalité de retard et indemnité de départ",
+        "detailAvecCommission": "Échéance, pénalité de retard, commission et indemnité de départ"
+      },
+      "echeance": "Échéance",
+      "echeanceAide": "Jour du mois, de 1 à 28",
+      "penalite": {
+        "titre": "Pénalité de retard",
+        "taux": "Taux de la pénalité de retard, en pourcentage",
+        "delai": "Délai de grâce, en jours"
+      },
+      "commission": {
+        "titre": "Commission",
+        "aide": "Taux de l’agence, appliqué aux reversements"
+      },
+      "indemnite": {
+        "titre": "Indemnité de départ",
+        "aide": "En mois de loyer, si le locataire part avant la fin"
+      },
+      "clausesParticulieresAide": "Facultatif — animaux, sous-location, travaux à la charge du locataire…",
+      "total": {
+        "titre": "Total à l’entrée",
+        "vente": "Prix de vente",
+        "vide": "Le total s’affiche dès que le loyer est saisi.",
+        "loyer": "loyer {montant}",
+        "charges": "charges {montant}",
+        "caution": "caution {montant}",
+        "frais": "frais d’agence {montant}"
+      },
+      "recap": {
+        "parties": "Les parties",
+        "conditions": "Les conditions",
+        "modifier": "Modifier",
+        "bien": "Bien",
+        "locataire": "Locataire",
+        "bailleur": "Bailleur",
+        "type": "Type",
+        "duree": "Durée",
+        "loyer": "Loyer",
+        "charges": "Charges",
+        "prixDeVente": "Prix de vente",
+        "caution": "Caution",
+        "echeance": "Échéance",
+        "penalite": "Pénalité",
+        "commission": "Commission",
+        "indemnite": "Indemnité de départ"
+      },
+      "valeurs": {
+        "penalite": "{taux} % après {jours} j",
+        "sansPenalite": "Pas de pénalité de retard",
+        "mois": "{count, plural, one {# mois} other {# mois}}",
+        "duree": "{debut} → {fin}",
+        "dureeSansFin": "À partir du {debut}",
+        "parMois": "{montant} / mois",
+        "caution": "{mois} · {montant}",
+        "echeance": "Le {jour} du mois"
+      },
+      "candidatures": "{count, plural, one {Créer ce bail clôturera # autre candidature en cours sur ce bien.} other {Créer ce bail clôturera # autres candidatures en cours sur ce bien.}}",
+      "signature": {
+        "aide": "« Envoyer à la signature » adresse un code par SMS au locataire et au bailleur. Le brouillon, lui, reste modifiable.",
+        "sansCompte": "{nom} n’a pas encore de compte : le bail ne peut pas lui être envoyé à la signature. Créez le brouillon, puis invitez le locataire depuis sa fiche.",
+        "echec": "Le brouillon du bail est créé, mais l’envoi à la signature a échoué : {message}",
+        "echecInconnu": "réessayez depuis la fiche du bail.",
+        "ouvrirLeBrouillon": "Ouvrir le brouillon"
+      },
+      "envoyerALaSignature": "Envoyer à la signature",
+      "envoiEnCours": "Envoi…",
+      "creerLeBrouillon": "Créer le brouillon",
+      "continuer": "Continuer",
+      "retour": "Retour",
+      "creationRapide": {
+        "ouvrir": "Nouveau locataire",
+        "titre": "Nouveau locataire",
+        "prenom": "Prénom",
+        "nom": "Nom",
+        "telephone": "Téléphone",
+        "prenomRequis": "Saisissez le prénom.",
+        "nomRequis": "Saisissez le nom.",
+        "creer": "Créer le locataire",
+        "annuler": "Annuler",
+        "choisir": "Choisir",
+        "echec": "Le locataire n’a pas pu être créé. Réessayez.",
+        "doublon": {
+          "titre": "Ce client semble déjà exister dans l'agence.",
+          "masquee": "Une fiche que vous ne pouvez pas ouvrir",
+          "memeTelephone": "même téléphone",
+          "memeEmail": "même e-mail",
+          "creerQuandMeme": "Créer quand même"
+        }
+      }
     },
     "payment": {
       "title": "Enregistrer un paiement",
@@ -14775,7 +14912,11 @@
       "emailInvalid": "Email invalide.",
       "refundExceedsDeposit": "Le montant dépasse la caution restante.",
       "refundReasonRequired": "Un motif est obligatoire pour un remboursement partiel.",
-      "installmentRequired": "Sélectionnez une échéance."
+      "installmentRequired": "Sélectionnez une échéance.",
+      "chargesNonNegative": "Les charges doivent être ≥ 0.",
+      "lateFeePercentInvalid": "Pénalité invalide (0 à 50 %).",
+      "graceDaysInvalid": "Nombre de jours de grâce invalide (de 0 à 30).",
+      "earlyTerminationInvalid": "Indemnité invalide (0 à 12 mois)."
     },
     "maintenance": {
       "propertyRequired": "Sélectionnez un bien.",

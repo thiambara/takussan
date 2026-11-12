@@ -32,6 +32,10 @@ vi.mock('@/lib/queries/leases', () => ({
   useCreateLease: () => MUTATION,
   useLeasePropertyOptions: () => ({ data: BIENS, isLoading: false }),
   useLeaseCustomerOptions: () => ({ data: CLIENTS, isLoading: false }),
+  // TCK-2643 — les défauts du bien, le locataire lu par son id, et l'envoi à la signature.
+  useLeaseDefaults: () => ({ data: undefined }),
+  useLeaseCustomer: () => ({ data: undefined }),
+  useDemanderLaSignature: () => ({ mutateAsync: async () => ({ data: {} }) }),
 }));
 vi.mock('@/lib/queries/bookings', () => ({ useCreateBookingPayment: () => MUTATION }));
 vi.mock('@/lib/queries/payments', () => ({ useCreateInvoice: () => MUTATION }));

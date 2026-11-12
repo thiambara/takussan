@@ -5129,7 +5129,144 @@
       "customerFallback": "Customer #{id}",
       "fromBooking": "Lease drawn from booking {reference}",
       "fromBookingHint": "The property and the tenant are those of the booking. When the lease is created, the booking becomes “completed” and frees its dates.",
-      "fromBookingError": "The booking could not be loaded."
+      "fromBookingError": "The booking could not be loaded.",
+      "titre": "New lease",
+      "etapes": {
+        "bien": "Property",
+        "locataire": "Tenant",
+        "conditions": "Terms",
+        "verifier": "Review",
+        "libelle": "Lease creation steps",
+        "sousTitre": "Step {n} of {total} · {nom}"
+      },
+      "sections": {
+        "bien": "The property",
+        "locataire": "The tenant",
+        "conditions": "The terms",
+        "clauses": "The clauses"
+      },
+      "contexte": "{locataire} · landlord {bailleur}",
+      "typeDeBail": "Lease type",
+      "debut": "Start",
+      "fin": "End",
+      "finAide": "Optional",
+      "loyerEtCharges": "Rent and charges",
+      "reglesDuBail": "Lease rules",
+      "loyer": "Rent",
+      "charges": "Charges",
+      "loyerAnnonce": "Rent listed on the property page",
+      "prixAnnonce": "Listed price: {montant} {periode} — enter the monthly rent",
+      "periodes": {
+        "daily": "per day",
+        "weekly": "per week",
+        "yearly": "per year"
+      },
+      "unites": {
+        "parMois": "{symbole} / month",
+        "jours": "d",
+        "mois": "mo."
+      },
+      "caution": {
+        "moins": "One month less",
+        "plus": "One month more"
+      },
+      "source": {
+        "property": "From the property listing",
+        "agency": "Agency setting",
+        "platform": "Platform setting"
+      },
+      "reglages": {
+        "agence": "Agency settings applied",
+        "plateforme": "Platform settings applied",
+        "detail": "Due day, late fee and early termination fee",
+        "detailAvecCommission": "Due day, late fee, commission and early termination fee"
+      },
+      "echeance": "Due day",
+      "echeanceAide": "Day of the month, 1 to 28",
+      "penalite": {
+        "titre": "Late fee",
+        "taux": "Late fee rate, as a percentage",
+        "delai": "Grace period, in days"
+      },
+      "commission": {
+        "titre": "Commission",
+        "aide": "Agency rate, applied to payouts"
+      },
+      "indemnite": {
+        "titre": "Early termination fee",
+        "aide": "In months of rent, if the tenant leaves early"
+      },
+      "clausesParticulieresAide": "Optional — pets, subletting, work paid by the tenant…",
+      "total": {
+        "titre": "Total due at move-in",
+        "vente": "Sale price",
+        "vide": "The total appears once the rent is entered.",
+        "loyer": "rent {montant}",
+        "charges": "charges {montant}",
+        "caution": "deposit {montant}",
+        "frais": "agency fees {montant}"
+      },
+      "recap": {
+        "parties": "The parties",
+        "conditions": "The terms",
+        "modifier": "Edit",
+        "bien": "Property",
+        "locataire": "Tenant",
+        "bailleur": "Landlord",
+        "type": "Type",
+        "duree": "Term",
+        "loyer": "Rent",
+        "charges": "Charges",
+        "prixDeVente": "Sale price",
+        "caution": "Deposit",
+        "echeance": "Due day",
+        "penalite": "Late fee",
+        "commission": "Commission",
+        "indemnite": "Early termination fee"
+      },
+      "valeurs": {
+        "penalite": "{taux}% after {jours} d",
+        "sansPenalite": "No late fee",
+        "mois": "{count, plural, one {# month} other {# months}}",
+        "duree": "{debut} → {fin}",
+        "dureeSansFin": "From {debut}",
+        "parMois": "{montant} / month",
+        "caution": "{mois} · {montant}",
+        "echeance": "On day {jour} of the month"
+      },
+      "candidatures": "{count, plural, one {Creating this lease will close # other open application on this property.} other {Creating this lease will close # other open applications on this property.}}",
+      "signature": {
+        "aide": "“Send for signature” texts a code to the tenant and the landlord. A draft stays editable.",
+        "sansCompte": "{nom} has no account yet, so the lease can’t be sent for signature. Create the draft, then invite the tenant from their profile.",
+        "echec": "The draft lease was created, but sending it for signature failed: {message}",
+        "echecInconnu": "try again from the lease page.",
+        "ouvrirLeBrouillon": "Open the draft"
+      },
+      "envoyerALaSignature": "Send for signature",
+      "envoiEnCours": "Sending…",
+      "creerLeBrouillon": "Create the draft",
+      "continuer": "Continue",
+      "retour": "Back",
+      "creationRapide": {
+        "ouvrir": "New tenant",
+        "titre": "New tenant",
+        "prenom": "First name",
+        "nom": "Last name",
+        "telephone": "Phone",
+        "prenomRequis": "Enter the first name.",
+        "nomRequis": "Enter the last name.",
+        "creer": "Create the tenant",
+        "annuler": "Cancel",
+        "choisir": "Choose",
+        "echec": "The tenant couldn’t be created. Please try again.",
+        "doublon": {
+          "titre": "This customer seems to already exist in the agency.",
+          "masquee": "A record you can't open",
+          "memeTelephone": "same phone",
+          "memeEmail": "same email",
+          "creerQuandMeme": "Create anyway"
+        }
+      }
     },
     "payment": {
       "title": "Record a payment",
@@ -14775,7 +14912,11 @@
       "emailInvalid": "Invalid email.",
       "refundExceedsDeposit": "The amount exceeds the remaining deposit.",
       "refundReasonRequired": "A reason is required for a partial refund.",
-      "installmentRequired": "Select an instalment."
+      "installmentRequired": "Select an instalment.",
+      "chargesNonNegative": "Charges must be ≥ 0.",
+      "lateFeePercentInvalid": "Invalid late fee (0 to 50%).",
+      "graceDaysInvalid": "Invalid number of grace days (0 to 30).",
+      "earlyTerminationInvalid": "Invalid penalty (0 to 12 months)."
     },
     "maintenance": {
       "propertyRequired": "Select a property.",

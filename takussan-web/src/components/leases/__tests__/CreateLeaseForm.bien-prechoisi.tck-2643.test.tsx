@@ -30,6 +30,10 @@ vi.mock('@/lib/queries/leases', () => ({
   useCreateLease: () => MUTATION,
   useLeasePropertyOptions: () => ({ data: BIENS, isLoading: false }),
   useLeaseCustomerOptions: () => ({ data: CLIENTS, isLoading: false }),
+  // TCK-2643 — les défauts du bien, le locataire lu par son id, et l'envoi à la signature.
+  useLeaseDefaults: () => ({ data: undefined }),
+  useLeaseCustomer: () => ({ data: undefined }),
+  useDemanderLaSignature: () => ({ mutateAsync: async () => ({ data: {} }) }),
 }));
 
 import { CreateLeaseForm } from '../CreateLeaseForm';
@@ -48,7 +52,7 @@ describe('CreateLeaseForm — bien préchoisi par ?property= (TCK-2643)', () => 
     render(withIntl(<CreateLeaseForm propertyId={12} />));
 
     // Le reste du formulaire est invalide : on ne lit que le bien retenu, via l'erreur absente du champ.
-    await user.click(screen.getByRole('button', { name: 'Créer le bail' }));
+    await user.click(screen.getByRole('button', { name: 'Créer le brouillon' }));
 
     await waitFor(() => expect(document.getElementById('field-tenant_id-error')).not.toBeNull());
     expect(document.getElementById('field-property_id-error')).toBeNull();
@@ -59,7 +63,7 @@ describe('CreateLeaseForm — bien préchoisi par ?property= (TCK-2643)', () => 
     render(withIntl(<CreateLeaseForm propertyId={999} />));
 
     expect(screen.getByText('Aucun bien sélectionné')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Créer le bail' }));
+    await user.click(screen.getByRole('button', { name: 'Créer le brouillon' }));
 
     // Le récapitulatif dirait « aucun » même avec un id caché : c'est la validation qui le prouve.
     await waitFor(() => expect(document.getElementById('field-property_id-error')).not.toBeNull());

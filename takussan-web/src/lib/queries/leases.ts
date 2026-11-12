@@ -7,7 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { apiRequest, buildQueryString, type ApiError, type RequestOptions } from '@/lib/api';
 import type { ApiResponse, PaginatedResponse, SpatieQueryParams } from '@/types/api';
 import type { CustomerListItem } from '@/types/customer';
-import type { Guarantor, Lease, LeasePayment, LeaseSignatureRole } from '@/types/lease';
+import type { Guarantor, Lease, LeaseDefaults, LeasePayment, LeaseSignatureRole } from '@/types/lease';
 import type { PropertyListItem } from '@/types/property';
 import { cheminApi, requete } from '@/lib/chemin-api';
 import { lireToutesLesPages, PAR_PAGE_MAX } from './toutes-les-pages';
@@ -114,7 +114,8 @@ export function useLeasePropertyOptions() {
         'user_id',
       ],
     },
-    include: ['owner'],
+    // TCK-2643 — `occupancy` : l'étape « Bien » propose les biens VACANTS d'abord (TCK-2637).
+    include: ['owner', 'occupancy'],
     filter: { status: STATUTS_BIEN_POUR_UN_BAIL },
     sort: ['title'],
   };
@@ -173,6 +174,8 @@ export function useLeaseCustomerOptions(search?: string) {
         'status',
         'pipeline_stage',
         'created_at',
+        // TCK-2643 — le compte du locataire : sans lui, « Envoyer à la signature » est refusé (422).
+        'user_id',
       ],
     },
     filter: search ? { search } : {},
@@ -184,6 +187,22 @@ export function useLeaseCustomerOptions(search?: string) {
     ['leases', 'customer-options', search ?? ''],
     '/api/customers',
     { params: spatieParams },
+  );
+}
+
+/**
+ * TCK-2643 — le locataire du bail lu par son identifiant : `?customer=`, la réservation d'origine,
+ * ou une fiche proposée au doublon. Le formulaire le nomme et lit son compte (`user_id`) : sans
+ * compte, « Envoyer à la signature » lui est fermé.
+ */
+export function useLeaseCustomer(customerId: number | null | undefined) {
+  return useApiQuery<ApiResponse<CustomerListItem>>(
+    ['leases', 'customer', customerId ?? 0],
+    cheminApi`/api/customers/${customerId ?? 0}`,
+    {
+      params: { fields: { customers: ['id', 'first_name', 'last_name', 'email', 'phone', 'user_id'] } },
+      enabled: Boolean(customerId && customerId > 0),
+    },
   );
 }
 
@@ -319,6 +338,12 @@ export type CreateLeasePayload = {
   payment_day?: number;
   terms?: string;
   special_conditions?: string;
+  // TCK-2679 — les charges mensuelles, terme du bail. TCK-2643 — la pénalité et l'indemnité dès la
+  // création (`StoreLeaseRequest`), préremplies par `useLeaseDefaults`.
+  monthly_charges?: number;
+  late_fee_percent?: number;
+  late_fee_grace_days?: number;
+  early_termination_penalty_months?: number;
 };
 
 export function useCreateLease() {
@@ -354,6 +379,29 @@ export function useActivateLease(id: number) {
         ['leases', 'payments', id],
       ],
     },
+  );
+}
+
+/**
+ * TCK-2643 — ce qu'un bail neuf reprend du bien, de l'agence et de la plateforme, avec la source de
+ * chaque valeur. Lu dès qu'un bien est choisi ; rien n'est écrit.
+ */
+export function useLeaseDefaults(propertyId: number | null | undefined) {
+  return useApiQuery<ApiResponse<LeaseDefaults>>(
+    ['leases', 'defaults', propertyId ?? 0],
+    cheminApi`/api/leases/defaults${requete(new URLSearchParams({ property_id: String(propertyId ?? 0) }))}`,
+    { enabled: Boolean(propertyId && propertyId > 0) },
+  );
+}
+
+/**
+ * TCK-2643 — « Envoyer à la signature » depuis la création : l'identifiant du bail n'existe qu'APRÈS
+ * le POST, il se passe donc à l'appel (`useRequestLeaseSignature` le lie au rendu).
+ */
+export function useDemanderLaSignature() {
+  return useApiMutation<ApiResponse<Lease>, { readonly leaseId: number }>(
+    { path: (vars) => cheminApi`/api/leases/${vars.leaseId}/signature-request`, method: 'POST', body: () => undefined },
+    { invalidate: [['leases', 'list']] },
   );
 }
 

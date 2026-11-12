@@ -39,6 +39,10 @@ vi.mock('@/lib/queries/leases', () => ({
   useCreateLease: () => MUTATION,
   useLeasePropertyOptions: () => ({ data: BIENS, isLoading: false }),
   useLeaseCustomerOptions: () => ({ data: CLIENTS, isLoading: false }),
+  // TCK-2643 — les défauts du bien, le locataire lu par son id, et l'envoi à la signature.
+  useLeaseDefaults: () => ({ data: undefined }),
+  useLeaseCustomer: () => ({ data: undefined }),
+  useDemanderLaSignature: () => ({ mutateAsync: async () => ({ data: {} }) }),
 }));
 
 import { GuarantorSection } from '../GuarantorSection';
@@ -68,18 +72,18 @@ describe('CreateLeaseForm — claviers numériques (TCK-913)', () => {
     const user = userEvent.setup();
     render(withIntl(<CreateLeaseForm />));
 
-    for (const libelle of [/Loyer mensuel/, /Caution/]) {
+    for (const libelle of [/^Loyer/, /Caution/]) {
       const champ = screen.getByLabelText(libelle);
       expect(champ).toHaveAttribute('inputmode', 'numeric');
       expect(champ).not.toHaveAttribute('type', 'number');
     }
-    await user.type(screen.getByLabelText(/Loyer mensuel/), '250000');
+    await user.type(screen.getByLabelText(/^Loyer/), '250000');
     // Espace fine insécable en français : `\s` la couvre.
-    expect((screen.getByLabelText(/Loyer mensuel/) as HTMLInputElement).value).toMatch(/^250\s000$/);
+    expect((screen.getByLabelText(/^Loyer/) as HTMLInputElement).value).toMatch(/^250\s000$/);
   });
 
   it('jour de paiement au clavier numérique', () => {
     render(withIntl(<CreateLeaseForm />));
-    expect(screen.getByLabelText(/Jour du paiement/)).toHaveAttribute('inputmode', 'numeric');
+    expect(screen.getByLabelText(/Échéance/)).toHaveAttribute('inputmode', 'numeric');
   });
 });

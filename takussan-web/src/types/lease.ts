@@ -212,3 +212,40 @@ export type Guarantor = {
   created_at: string;
   updated_at: string;
 };
+
+/**
+ * TCK-2643 — d'où vient une valeur préremplie : l'annonce du bien, un réglage de l'agence du bien, ou
+ * le catalogue de la plateforme (qui porte le défaut). L'écran le dit à côté du champ.
+ */
+export type SourceDuDefaut = 'property' | 'agency' | 'platform';
+
+export type DefautDuBail<T = number> = { readonly value: T; readonly source: SourceDuDefaut };
+
+/**
+ * TCK-2643 — `GET /api/leases/defaults?property_id=` (`App\Services\Lease\LeaseDefaults`). Préremplir
+ * n'est pas imposer : le formulaire n'écrit que les champs que l'agent n'a pas touchés. `null` : rien
+ * à reprendre (un bien loué à l'année n'a pas de loyer mensuel ; `property_price` le dit).
+ */
+export type LeaseDefaults = {
+  readonly property_id: number;
+  readonly type: LeaseType;
+  readonly currency: Currency;
+  readonly property_price: { readonly amount: number; readonly period: string | null; readonly contract_type: string | null } | null;
+  readonly monthly_rent: DefautDuBail | null;
+  readonly sale_price: DefautDuBail | null;
+  readonly monthly_charges: DefautDuBail | null;
+  readonly deposit_months: DefautDuBail | null;
+  readonly deposit_amount: DefautDuBail | null;
+  readonly advance_months: DefautDuBail | null;
+  readonly agency_fee_months: DefautDuBail | null;
+  readonly entry_cost: { readonly total: number } | null;
+  readonly payment_day: DefautDuBail;
+  readonly late_fee_percent: DefautDuBail;
+  readonly late_fee_grace_days: DefautDuBail;
+  readonly early_termination_penalty_months: DefautDuBail;
+  readonly rent_review_max_pct: DefautDuBail;
+  /** TCK-2734 — les candidatures ouvertes du bien, que la création du bail clôturera (ou complétera). */
+  readonly open_applications: readonly { readonly id: number; readonly customer_id: number }[];
+  /** Au personnel seul, en INFORMATION : jamais un terme du bail (le bail suit le taux de l'agence). */
+  readonly agency_commission_rate?: DefautDuBail | null;
+};
