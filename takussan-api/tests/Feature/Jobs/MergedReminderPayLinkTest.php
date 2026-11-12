@@ -66,9 +66,9 @@ class MergedReminderPayLinkTest extends TestCase
     }
 
     /** Un bail d'agence à 500 000 + 150 000 de charges, dus le même jour, rien payé ; Wave sert l'agence. */
-    private function bail(bool $avecCompte = false, float $loyer = 500_000, float $charges = 150_000): void
+    private function bail(bool $avecCompte = false, float $loyer = 500_000, float $charges = 150_000, ?float $penalite = null, bool $penaliteEnLigne = false, bool $avecCharges = true): void
     {
-        $agency = Agency::factory()->create(['currency' => Currency::XOF]);
+        $agency = Agency::factory()->create(['currency' => Currency::XOF, 'settings' => ['late_fee_online_collection' => $penaliteEnLigne]]);
         $tenant = Customer::factory()->create([
             'user_id' => $avecCompte ? User::factory()->create(['preferred_language' => 'fr'])->id : null,
             'phone' => '+221771234567',
@@ -81,7 +81,9 @@ class MergedReminderPayLinkTest extends TestCase
             'status' => LeaseStatus::Active,
             'currency' => Currency::XOF,
         ]);
-        foreach ([LeasePaymentType::Rent->value => $loyer, LeasePaymentType::Charges->value => $charges] as $type => $montant) {
+        $echeances = [LeasePaymentType::Rent->value => $loyer] + ($avecCharges ? [LeasePaymentType::Charges->value => $charges] : []);
+        foreach ($echeances as $type => $montant) {
+            $penaliteIci = $type === LeasePaymentType::Rent->value ? $penalite : null;
             $due = LeasePayment::factory()->create([
                 'lease_id' => $this->lease->id,
                 'payer_id' => $tenant->id,
@@ -90,7 +92,9 @@ class MergedReminderPayLinkTest extends TestCase
                 'currency' => Currency::XOF,
                 'status' => PaymentStatus::Pending,
                 'due_date' => self::ECHEANCE,
-                'late_fee_amount' => null,
+                'late_fee_amount' => $penaliteIci,
+                'late_fee_applied_at' => $penaliteIci !== null ? self::ECHEANCE.' 09:00:00' : null,
+                'late_fee_paid_at' => null,
             ]);
             $type === LeasePaymentType::Rent->value ? $this->loyer = $due : $this->charges = $due;
         }
@@ -323,5 +327,50 @@ class MergedReminderPayLinkTest extends TestCase
         $this->assertSame([500000.0, 150000.0, 650000.0], $this->montantsDuSms($sms), $sms);
         $this->assertSame(500000.0, $this->payable($avis->params['payment_url']));
         $this->assertSame(150000.0, $this->payable($avis->params['charges_url']));
+    }
+
+    /**
+     * TCK-2706 (d3) — une agence qui encaisse la pénalité en ligne : le lien du loyer encaisse
+     * 500 000 + 25 000 ; le SMS annonce ces 525 000, pas le seul loyer. Le bailleur lit le solde du
+     * loyer, 500 000 (rien ne change pour lui).
+     */
+    public function test_d3_la_penalite_encaissee_en_ligne_est_annoncee_par_le_sms(): void
+    {
+        $this->bail(penalite: 25_000, penaliteEnLigne: true, avecCharges: false);
+        $avis = $this->relancer('2026-11-06');
+        $sms = app(NotificationRenderer::class)->render($avis->code, $avis->params, 'fr', null, 'sms');
+
+        $this->assertSame(525000.0, $this->payable($avis->params['payment_url']), 'prémisse : le lien encaisse la pénalité');
+        $this->assertSame([525000.0], $this->montantsDuSms($sms), $sms);
+
+        $landlord = $this->lease->fresh()->landlord;
+        $this->assertNotNull($landlord, 'prémisse : le bail a un bailleur');
+        $bailleur = Notification::sent($landlord, CodedNotification::class, self::deCode(NotificationCode::LeasePaymentOverdueLandlord))->last();
+        $this->assertSame('500000.00', $bailleur?->params['amount']['amount'] ?? null);
+    }
+
+    /** d3, fusionnée : le loyer porte sa pénalité, les charges non ; le total est ce que les deux liens encaissent. */
+    public function test_d3_fusionnee_chaque_montant_est_ce_que_son_lien_encaisse(): void
+    {
+        $this->bail(penalite: 25_000, penaliteEnLigne: true);
+        $avis = $this->relancer('2026-11-06');
+        $sms = app(NotificationRenderer::class)->render($avis->code, $avis->params, 'fr', null, 'sms');
+
+        $loyer = $this->payable($avis->params['payment_url']);
+        $charges = $this->payable($avis->params['charges_url']);
+
+        $this->assertSame([525000.0, 150000.0], [$loyer, $charges]);
+        $this->assertSame([$loyer, $charges, $loyer + $charges], $this->montantsDuSms($sms), $sms);
+    }
+
+    /** d3, réglage éteint : la pénalité se règle à l'agence ; le lien et le SMS disent le seul loyer. */
+    public function test_d3_sans_encaissement_en_ligne_la_penalite_n_est_pas_annoncee(): void
+    {
+        $this->bail(penalite: 25_000, penaliteEnLigne: false, avecCharges: false);
+        $avis = $this->relancer('2026-11-06');
+        $sms = app(NotificationRenderer::class)->render($avis->code, $avis->params, 'fr', null, 'sms');
+
+        $this->assertSame(500000.0, $this->payable($avis->params['payment_url']));
+        $this->assertSame([500000.0], $this->montantsDuSms($sms), $sms);
     }
 }

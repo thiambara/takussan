@@ -38,7 +38,9 @@ use Illuminate\Support\Facades\Log;
  *     J-3 sur `due_date = today + 3` ; retard sur `due_date ∈ {today - 1, today - 7}`. Un jalon
  *     manqué se rattrape pendant `CATCH_UP_DAYS` jours (TCK-739).
  *   · **Montant.** Le solde (`remaining_amount`), pas `amount` — une échéance partiellement
- *     payée annonçait la somme entière.
+ *     payée annonçait la somme entière. Au locataire, ce que son lien encaisse
+ *     (`PaymentGatewayService::amountDue()`, pénalité comprise si l'agence l'encaisse en ligne —
+ *     TCK-2706, d3) ; au bailleur et à l'agent, le solde.
  *   · **Jours.** `(int) due_date->diffInDays(now(), true)`. Carbon 3 rend `diffInDays` SIGNÉ et
  *     FLOTTANT : la forme d'avant annonçait « en retard de -7.33 jour(s) ».
  *   · **Destinataires.** Le locataire, avec ou sans compte ({@see ContactSansCompte}) ; le
@@ -73,10 +75,10 @@ class SendLeasePaymentReminders implements ShouldQueue
         foreach ($this->claim(now()->addDays(self::DUE_SOON_DAYS), 'due_soon') as $dues) {
             $payment = $dues[0];
             $this->notifyTenant($notifications, $dues, NotificationCode::LeasePaymentDueSoon, [
-                'amount' => $this->remaining($dues),
+                'amount' => $this->remaining($dues, $this->payableAmount(...)),
                 'due_date' => $payment->due_date?->toDateString(),
                 'property' => $payment->lease?->property?->title,
-            ] + $this->detail($dues));
+            ] + $this->detail($dues, $this->payableAmount(...)));
         }
 
         /** @var array<int, array{agent: User, count: int, total: float, currency: ?Currency}> $digests */
@@ -86,15 +88,17 @@ class SendLeasePaymentReminders implements ShouldQueue
                 $payment = $dues[0];
                 $days = (int) $payment->due_date->diffInDays(now(), true);
                 $lease = $payment->lease;
-                $amount = $this->remaining($dues);
-                $detail = $this->detail($dues);
+                // TCK-2706 (d3) — le locataire lit ce que son lien encaisse, pénalité comprise quand
+                // l'agence l'encaisse en ligne ; le bailleur et l'agent lisent le solde de l'échéance.
+                $amount = $this->remaining($dues, $this->dueAmount(...));
+                $detail = $this->detail($dues, $this->dueAmount(...));
 
                 $this->notifyTenant($notifications, $dues, NotificationCode::LeasePaymentOverdue, [
-                    'amount' => $amount,
+                    'amount' => $this->remaining($dues, $this->payableAmount(...)),
                     'days' => $days,
                     'due_date' => $payment->due_date->toDateString(),
                     'property' => $lease?->property?->title,
-                ] + $detail);
+                ] + $this->detail($dues, $this->payableAmount(...)));
 
                 $landlord = $lease?->landlord;
                 if ($landlord) {
@@ -198,11 +202,12 @@ class SendLeasePaymentReminders implements ShouldQueue
      * Le solde cumulé des échéances relancées ensemble (TCK-2679).
      *
      * @param  non-empty-list<LeasePayment>  $dues
+     * @param  \Closure(LeasePayment): float  $montant  {@see dueAmount()} ou {@see payableAmount()}
      * @return array{amount: string, currency: string}
      */
-    private function remaining(array $dues): array
+    private function remaining(array $dues, \Closure $montant): array
     {
-        $total = array_sum(array_map(fn (LeasePayment $due) => $this->dueAmount($due), $dues));
+        $total = array_sum(array_map($montant, $dues));
 
         return NotificationRenderer::money(Currency::roundAmount($total, $dues[0]->currency), $dues[0]->currency);
     }
@@ -216,9 +221,10 @@ class SendLeasePaymentReminders implements ShouldQueue
      * dire, ni la relance donner un lien à chacune.
      *
      * @param  non-empty-list<LeasePayment>  $dues
+     * @param  \Closure(LeasePayment): float  $montant  {@see dueAmount()} ou {@see payableAmount()}
      * @return array<string, array{amount: string, currency: string}>
      */
-    private function detail(array $dues): array
+    private function detail(array $dues, \Closure $montant): array
     {
         $byType = [];
         foreach ($dues as $due) {
@@ -234,21 +240,37 @@ class SendLeasePaymentReminders implements ShouldQueue
 
         $detail = [];
         foreach ($byType as $type => $due) {
-            $detail[$type] = NotificationRenderer::money($this->dueAmount($due), $due->currency);
+            $detail[$type] = NotificationRenderer::money($montant($due), $due->currency);
         }
 
         return $detail;
     }
 
     /**
-     * Le solde d'une échéance arrondi à l'unité de sa devise, AVANT toute somme — la règle de
-     * `PaymentGatewayService::amountDue()` (TCK-593), donc ce que son lien encaissera. Sommer les
+     * Le solde d'une échéance arrondi à l'unité de sa devise, AVANT toute somme — l'arrondi de
+     * `PaymentGatewayService::amountDue()` (TCK-593), sans la pénalité : ce que lisent le bailleur et
+     * l'agent ({@see payableAmount()} pour le locataire). Sommer les
      * soldes bruts puis arrondir annonçait 650 001 pour deux liens qui encaissent 500 001 + 150 001
      * (vérification adverse de TCK-2706, d1).
      */
     private function dueAmount(LeasePayment $due): float
     {
         return Currency::roundAmount((float) $due->remaining_amount, $due->currency);
+    }
+
+    /**
+     * TCK-2706 (vérification adverse, d3) — ce que le LOCATAIRE est invité à payer :
+     * `PaymentGatewayService::amountDue()`, la somme même que son lien encaisse — le solde, plus la
+     * pénalité restant due quand l'agence du bail l'encaisse en ligne. Le SMS d'un loyer de 500 000
+     * à pénalité de 25 000 annonçait 500 000 quand son lien en encaissait 525 000. Une échéance qui ne
+     * se paie pas en ligne (ou sans montant lisible) garde son solde ({@see dueAmount()}) : `amountDue()`
+     * y rendrait 0 ou `null`, pas ce qui reste dû.
+     */
+    private function payableAmount(LeasePayment $due): float
+    {
+        $gateway = app(PaymentGatewayService::class);
+
+        return $gateway->isPayable($due) ? ($gateway->amountDue($due) ?? $this->dueAmount($due)) : $this->dueAmount($due);
     }
 
     /**
