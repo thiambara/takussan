@@ -176,7 +176,7 @@ class CustomerIndexSparseFieldsTest extends ApiTestCase
         $this->actingAsApi(User::factory()->create());
         $avant = Customer::query()->count();
 
-        foreach (['unguard', 'save', 'increment', 'touch', 'delete', 'replicate'] as $methode) {
+        foreach (['unguard', 'save', 'increment', 'touch', 'delete', 'replicate', 'removeAllFromSearch', 'makeAllSearchable'] as $methode) {
             $this->getJson("/api/customers?fields[customers]=next_action&include={$methode}")->assertStatus(400);
             $this->getJson("/api/customers?fields[customers]=id,first_name&include=tags,{$methode}")->assertStatus(400);
         }
