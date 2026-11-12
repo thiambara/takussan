@@ -12,12 +12,18 @@ import { useNoterUneRelance } from '@/lib/queries/relances';
  * tel: s'est ouvert) quand la note échoue : l'écran le DIT (P228.06), par un toast, parce que la
  * feuille ou la carte qui l'a lancé n'est souvent plus là pour le montrer — d'où un `onError` posé
  * sur la mutation elle-même, que le démontage du geste n'emporte pas.
+ *
+ * TCK-2682 — la file guidée le dit ELLE-MÊME (`toast: false`), dans son panneau et en nommant le
+ * locataire : un toast posé en bas à droite tombait sur « Ouvrir WhatsApp » de l'échéance suivante,
+ * et, survolé, ne s'en allait plus (vérification du 2026-11-12, m1).
  */
-export function useNoterLaRelance() {
+export function useNoterLaRelance({ toast: avecToast = true }: { readonly toast?: boolean } = {}) {
   const t = useTranslations('admin.finances.impayes.relancer');
   const messageErreur = useMessageErreurApi();
   const toast = useToast();
   return useNoterUneRelance({
-    onError: (erreur) => toast.add({ title: messageErreur(erreur, t('noteEchec')), type: 'error' }),
+    onError: (erreur) => {
+      if (avecToast) toast.add({ title: messageErreur(erreur, t('noteEchec')), type: 'error' });
+    },
   });
 }

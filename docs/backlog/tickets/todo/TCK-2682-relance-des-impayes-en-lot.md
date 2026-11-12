@@ -142,7 +142,7 @@ L'onglet Impayés de Rapports (TCK-2629) monte **le même composant** Impayés (
 - **(3) Les sauts.** Une échéance sans numéro (aucun lien demandé) ou dont le lien rend 409 est montrée avec sa raison et un bouton « Suivant ». Les deux comptent comme « sautés ».
 - **(4) Le récapitulatif.**
   - Il dit « N relancés · N passés · N sautés », puis nomme chaque sautée et sa raison.
-  - « Terminer » ne garde sélectionnées que les passées et les sautées. Une relance non notée est **retirée** de la sélection, car WhatsApp s'est ouvert ; le récapitulatif l'a nommée.
+  - « Terminer » ne garde sélectionnées que les passées et les sautées, sauf une sautée « déjà payée » (il n'y a plus rien à relancer). Une relance non notée est **retirée** de la sélection, car WhatsApp s'est ouvert ; le récapitulatif l'a nommée.
   - « Arrêter », la croix et Échap gardent toute la sélection.
 - **(5) La sélection par échéance.**
   - Elle survit aux pages, à « Voir plus » et aux filtres.
@@ -160,6 +160,13 @@ L'onglet Impayés de Rapports (TCK-2629) monte **le même composant** Impayés (
 5. **De 768 à 1023 px.** « Sélectionner » est sur sa propre ligne au-dessus des cartes, et « Relancer la sélection (n) » dans la tête de liste.
 6. **Pendant la file.** La sélection est figée et un clic sur une rangée n'ouvre pas le dossier.
 
+**Reprise après la vérification adverse du 2026-11-12** (verif-commercial, un défaut majeur et deux observations) :
+
+- **d1 — un double-clic ouvrait WhatsApp chez le locataire suivant.** Liens en cache (second tour), deux clics à 140 ms : le second tombait sur l'ancre de l'échéance que la file venait de présenter, ouvrait WhatsApp au numéro suivant et notait sa relance — un message que l'admin n'avait pas lu. Le délai et la `key` ne protègent que la rangée présentée AU MOMENT du clic. Correctif : `armement.ts`. Un geste de la file n'est pris que 500 ms après l'arrivée de sa clé ; un clic plus tôt est refusé (`preventDefault`, rien n'est noté). La clé de l'ancre est « prête » (son `href` existe), celle de « Passer » et « Suivant » est le couple tour · échéance · raison. `event.detail > 1` ne suffirait pas : un double toucher rend `detail` 1. L'armement est demandé par la file seule (`OuvrirWhatsApp armee`) ; la relance unitaire de TCK-2660 n'avance pas et n'en a pas besoin.
+- **m1 — le toast d'une note refusée couvrait le geste suivant.** Posé en bas à droite, il tombait sur « Ouvrir WhatsApp » de l'échéance suivante, et un toast survolé ne s'en va pas. Dans la file, la note refusée se dit maintenant dans le panneau, au nom du locataire (`role="alert"`, « La relance de {nom} n'a pas pu être notée »), à l'échéance qui suit ; le récapitulatif la nomme toujours. La file appelle `useRelanceDUnImpaye(…, { signalerLaNote: 'file' })` : ni toast, ni `noterEnEchec`. Une seule instance du crochet sert toutes les échéances : `isError` aurait accusé le locataire présenté d'une note refusée pour le précédent.
+- **m2 — une échéance payée était retirée de la file en silence.** La barre disait N, la file « sur N−1 ». Elle reste dans la file, sautée, avec la raison « déjà payée » ; aucun lien n'est demandé pour elle. « Terminer » ne la garde pas sélectionnée, puisqu'il n'y a plus rien à relancer.
+- **g1 — les trous de tests** relevés par ablation (B1 à B6) sont fermés par six tests. Le relevé de l'`href` suivi reproduit l'écouteur de la vérification : une microtâche posée depuis `window`, en fin de bouillonnement, lit l'ancre après React. Les liens sont mis en cache par un premier tour, sinon l'ancre suivante est d'abord un bouton désactivé, donc toujours une autre ancre.
+
 **Le tour de la file** est compté hors de la file (`useRef`) : une note qui revient après « Arrêter » ne s'inscrit pas dans la file suivante. C'est une garde par construction, sans test.
 
 **Le geste retour pendant la file.** Il arrête la file, et la sélection et le mode restent, comme avec « Arrêter ». Il n'y a qu'une seule entrée sentinelle : `useFermeAuRetour` ne distingue pas deux surfaces ouvertes l'une sur l'autre. Après ce retour, le suivant quitte donc la page. Relevé au téléphone le 2026-11-12 : la file se ferme, 16 cases restent, la page reste.
@@ -170,7 +177,7 @@ L'onglet Impayés de Rapports (TCK-2629) monte **le même composant** Impayés (
 
 **Preuves :**
 
-- Tests : `__tests__/impayes-en-lot.tck-2682.test.tsx`, 7 tests verts.
+- Tests : `__tests__/impayes-en-lot.tck-2682.test.tsx`, 13 tests verts (7, puis 6 à la reprise) ; `__tests__/armement.test.ts`, 2 tests verts.
 - Ablations : 7 en test, toutes rouges, et chaque fichier restauré à l'octet (md5) ; A8 et A9 au navigateur, ci-dessus :
   - A1 : lien demandé sans numéro ;
   - A2 : note écrasée par l'avance ;
@@ -179,4 +186,17 @@ L'onglet Impayés de Rapports (TCK-2629) monte **le même composant** Impayés (
   - A5 : Échap sans effet ;
   - A6 : « Terminer » qui garde tout ;
   - A7 : une échéance encaissée gardée dans la sélection.
+- Ablations de la reprise : 12 en test, toutes rouges, chaque fichier restauré à l'octet (md5) :
+  - ancre non armée, ou `key` retirée : le double-clic (d1) rougit ;
+  - avance synchrone : le lien suivi rougit (la file présente déjà la suivante au moment où le lien est suivi) ;
+  - « Passer » non armé ;
+  - « dont N non affichés » retiré de la tête du téléphone ;
+  - dossier ouvert pendant la file ; cases non figées ;
+  - échéances payées filtrées hors de la file, ou gardées à « Terminer » ;
+  - toast rendu dans la file ; alerte du panneau retirée.
+- Relevé au navigateur le 2026-11-12, admin de démo. Les liens sont simulés et les notes bloquées puis simulées dans le navigateur, et wa.me n'est jamais suivi. Second tour, liens en cache, file 602 → 29 → 390 :
+  - au bureau à 1280, deux clics de souris à 140 ms (le second avec `clickCount` 2) : le second tombe sur l'ancre de 29 et il est **refusé** ; une seule note (602) part, et la file reste à « 2 sur 3 » ;
+  - au téléphone à 390, deux touchers à 120 ms : même chose, une note (16), « 2 sur 2 » ;
+  - contrôle avec l'armement de l'ancre retiré : d1 se reproduit, aux deux largeurs. Au bureau, notes 602 et 29, et la file passe à « 3 sur 3 ». Au téléphone, notes 16 et 17, et la file arrive au récapitulatif ;
+  - m1, avec les notes bloquées : aucun toast, et « La relance de Yacine Diallo n'a pas pu être notée… » s'affiche dans le panneau de l'échéance suivante.
 - Fiche de fidélité : `docs/qa/audit-ux-2026-11/fidelite/TCK-2682.json`.

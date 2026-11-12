@@ -7025,7 +7025,9 @@
             "arreter": "Stop",
             "suivant": "Next",
             "sauteSansTelephone": "No number for this tenant: this instalment is left out.",
-            "sauteLienRefuse": "This instalment can no longer be paid online: it is left out."
+            "sauteLienRefuse": "This instalment can no longer be paid online: it is left out.",
+            "noteRefusee": "The reminder to {nom} could not be recorded. The summary will list it.",
+            "sautePayee": "This instalment is already paid: it is left out."
           },
           "recap": {
             "titre": "Reminding the selection",
@@ -7033,7 +7035,8 @@
             "sautes": "Left out",
             "raison": {
               "sansTelephone": "no number",
-              "lienRefuse": "can no longer be paid online"
+              "lienRefuse": "can no longer be paid online",
+              "payee": "already paid"
             },
             "nonNotees": "Reminders not recorded",
             "nonNotee": "reminder not recorded",

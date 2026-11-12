@@ -95,7 +95,7 @@ vi.mock('@/lib/api', async (importOriginal) => {
         if (reseau.refus.has(`history:${min}-${url.searchParams.get('filter[days_late_max]') ?? ''}`)) throw new reel.ApiError(500, {});
         const page = Number(url.searchParams.get('page') ?? 1);
         const parPage = Number(url.searchParams.get('per_page') ?? 20);
-        const tri = lignes.filter((l) => (l.days_late ?? 0) >= min && (l.days_late ?? 0) <= max && l.status !== 'paid');
+        const tri = lignes.filter((l) => (l.days_late ?? 0) >= min && (l.days_late ?? 0) <= max && (l.status !== 'paid' || reseau.refus.has('history:avecPayees')));
         return {
           data: tri.slice((page - 1) * parPage, page * parPage),
           meta: {
@@ -167,15 +167,40 @@ function rendre(ui: ReactElement = <Impayes agencyId={1} />) {
 beforeEach(() => {
   reseau.appels.length = 0;
   reseau.refus.clear();
+  suivis.length = 0;
   toastAdd.mockClear();
   bureau(false);
-  // Un lien `target=_blank` ne quitte pas la page de test.
-  document.addEventListener('click', empecherLaNavigation, true);
+  // L'horloge est FIGÉE (les minuteurs restent réels) : un geste de la file ne s'arme qu'après
+  // `armer()` — deux clics sans `armer()` entre eux sont un double-clic (armement.ts).
+  vi.useFakeTimers({ toFake: ['Date'] });
+  window.addEventListener('click', suivreLeLien);
 });
-afterEach(() => document.removeEventListener('click', empecherLaNavigation, true));
-function empecherLaNavigation(e: MouseEvent) {
-  if ((e.target as HTMLElement).closest('a[href^="https://wa.me"], a[href^="tel:"]')) e.preventDefault();
+afterEach(() => {
+  window.removeEventListener('click', suivreLeLien);
+  vi.useRealTimers();
+});
+
+/** Un geste de la file est armé 500 ms après son arrivée : on avance l'horloge figée de 600 ms. */
+const armer = () => vi.setSystemTime(Date.now() + 600);
+
+/**
+ * Ce que le NAVIGATEUR suivrait. Il suit l'`href` de l'ancre cliquée après tous les écouteurs ET
+ * leurs microtâches — où React valide le rendu du clic : on le lit donc dans une microtâche posée
+ * depuis `window`, en fin de bouillonnement, avec l'échéance que la file présente à cet instant.
+ * Un clic que le composant a refusé (`defaultPrevented`) ne suit rien. Puis on empêche la navigation :
+ * un lien `target=_blank` ne quitte pas la page de test.
+ */
+const suivis: { readonly ancre: HTMLAnchorElement; readonly href: string | null; readonly connectee: boolean; readonly echeance: string | null }[] = [];
+function suivreLeLien(e: MouseEvent) {
+  const ancre = (e.target as HTMLElement).closest<HTMLAnchorElement>('a[href^="https://wa.me"], a[href^="tel:"]');
+  if (!ancre) return;
+  if (!e.defaultPrevented) {
+    queueMicrotask(() => suivis.push({ ancre, href: ancre.getAttribute('href'), connectee: ancre.isConnected, echeance: echeanceDeLaFile() }));
+  }
+  e.preventDefault();
 }
+const numeroSuivi = (i: number) => new URL(suivis[i].href!).pathname;
+const avecNumero = (id: number, phone: string) => ({ payer: { id: 300 + id, name: `Locataire ${id}`, phone, first_name: `Prénom${id}`, locale: null } });
 
 
 /** Les routes que la file a le droit d'appeler : la liste, la balance âgée, le lien, la note (AC3). */
@@ -218,6 +243,7 @@ describe('TCK-2682 — la file guidée (bureau)', () => {
     // La rangée présentée est surlignée, la liste reste à côté.
     expect(rangee('Locataire 1')).toHaveAttribute('aria-current', 'true');
 
+    armer();
     await utilisateur.click(ouvrir);
 
     // 2/3 — sans numéro : sautée avec sa raison, AUCUN lien demandé pour elle.
@@ -226,11 +252,13 @@ describe('TCK-2682 — la file guidée (bureau)', () => {
     expect(file()!.querySelector('[data-slot="raison-du-saut"]')).toHaveTextContent('Aucun numéro pour ce locataire : cette échéance est sautée.');
     expect(screen.queryByRole('link', { name: /Ouvrir WhatsApp/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Passer' })).not.toBeInTheDocument();
+    armer();
     await utilisateur.click(within(file()!.closest<HTMLElement>('[role="dialog"]')!).getByRole('button', { name: 'Suivant' }));
 
     // 3/3 — 409 : sautée avec sa raison.
     await waitFor(() => expect(file()!.querySelector('[data-slot="raison-du-saut"]')).toHaveTextContent('Cette échéance ne se paie plus en ligne : elle est sautée.'));
     expect(echeanceDeLaFile()).toBe('3');
+    armer();
     await utilisateur.click(within(file()!.closest<HTMLElement>('[role="dialog"]')!).getByRole('button', { name: 'Suivant' }));
 
     // Le récapitulatif.
@@ -269,6 +297,7 @@ describe('TCK-2682 — la file guidée (bureau)', () => {
 
     await screen.findByRole('link', { name: /Ouvrir WhatsApp/ });
     expect(liens()).toEqual(['POST /api/lease-payments/1/payment-link']);
+    armer();
     await utilisateur.click(screen.getByRole('button', { name: 'Passer' }));
 
     await waitFor(() => expect(echeanceDeLaFile()).toBe('2'));
@@ -292,9 +321,24 @@ describe('TCK-2682 — la file guidée (bureau)', () => {
     await cocherAuBureau(utilisateur, 'Locataire 1', 'Locataire 2');
     await utilisateur.click(within(document.querySelector<HTMLElement>('[data-slot="barre-de-selection-impayes"]')!).getByRole('button', { name: /WhatsApp/ }));
 
-    await utilisateur.click(await screen.findByRole('link', { name: /Ouvrir WhatsApp/ }));
+    const premiere = await screen.findByRole('link', { name: /Ouvrir WhatsApp/ });
+    armer();
+    await utilisateur.click(premiere);
     await waitFor(() => expect(echeanceDeLaFile()).toBe('2'));
-    await utilisateur.click(await screen.findByRole('link', { name: /Ouvrir WhatsApp/ }));
+    // m1 — la note refusée se dit DANS le panneau, au nom du locataire, et pas par un toast posé sur
+    // le geste suivant ; le composer ne l'impute pas au locataire présenté.
+    const dite = await waitFor(() => {
+      const p = file()!.querySelector<HTMLElement>('[data-slot="note-refusee"]');
+      expect(p).not.toBeNull();
+      return p!;
+    });
+    expect(dite).toHaveAttribute('role', 'alert');
+    expect(dite).toHaveTextContent('La relance de Locataire 1 n’a pas pu être notée. Le récapitulatif la rappellera.');
+    expect(within(file()!).queryByText('La relance n’a pas pu être notée.')).not.toBeInTheDocument();
+    expect(toastAdd).not.toHaveBeenCalled();
+    const seconde = await screen.findByRole('link', { name: /Ouvrir WhatsApp/ });
+    armer();
+    await utilisateur.click(seconde);
 
     const recap = await waitFor(() => {
       const r = document.querySelector<HTMLElement>('[data-slot="recapitulatif"]');
@@ -305,6 +349,8 @@ describe('TCK-2682 — la file guidée (bureau)', () => {
     const nonNotees = within(recap).getAllByRole('listitem');
     expect(nonNotees.map((li) => li.textContent)).toEqual(['Locataire 1relance non notée']);
     expect(notes().map((n) => n.chemin)).toEqual(['/api/lease-payments/1/reminders', '/api/lease-payments/2/reminders']);
+    expect(recap.querySelector('[data-slot="note-refusee"]')).toBeNull();
+    expect(toastAdd).not.toHaveBeenCalled();
   });
 
   it('la sélection survit aux pages ; la barre dit ce qui n’est pas affiché, et la file le reprend, dans l’ordre du retard', async () => {
@@ -329,6 +375,7 @@ describe('TCK-2682 — la file guidée (bureau)', () => {
     // La plus en retard d'abord (Locataire 2, 59 j), puis Locataire 24 (37 j) — aucune des deux n'est affichée.
     await waitFor(() => expect(echeanceDeLaFile()).toBe('2'));
     expect(screen.getByText('1 sur 2')).toBeInTheDocument();
+    armer();
     await utilisateur.click(screen.getByRole('button', { name: 'Passer' }));
     await waitFor(() => expect(echeanceDeLaFile()).toBe('24'));
     expect(screen.getByText('2 sur 2')).toBeInTheDocument();
@@ -349,6 +396,155 @@ describe('TCK-2682 — la file guidée (bureau)', () => {
 
     await waitFor(() => expect(document.querySelector('[data-slot="barre-de-selection-impayes"]')).toHaveTextContent('1 sélectionné'));
     expect(document.querySelector('[data-slot="barre-de-selection-impayes"]')).not.toHaveTextContent('non affiché');
+  });
+});
+
+const barreDeSelection = () => document.querySelector<HTMLElement>('[data-slot="barre-de-selection-impayes"]')!;
+const relancerAuBureau = (utilisateur: ReturnType<typeof userEvent.setup>) => utilisateur.click(within(barreDeSelection()).getByRole('button', { name: /WhatsApp/ }));
+/** L'ancre « Ouvrir WhatsApp » de l'échéance `id`, prête (son lien et son message sont là). */
+const ancreDe = async (id: string) =>
+  waitFor(() => {
+    expect(echeanceDeLaFile()).toBe(id);
+    return screen.getByRole<HTMLAnchorElement>('link', { name: /Ouvrir WhatsApp/ });
+  });
+
+describe('TCK-2682 — la file ne se trompe jamais de locataire (bureau)', () => {
+  beforeEach(() => bureau(true));
+
+  it('le lien suivi est celui de l’échéance cliquée : la file n’avance qu’APRÈS le clic, et l’ancre suivante est une autre ancre', async () => {
+    lignes = [ligne(1, 40, avecNumero(1, '+221771111111')), ligne(2, 30, avecNumero(2, '+221772222222'))];
+    const utilisateur = rendre();
+    await screen.findByRole('button', { name: 'Ouvrir le dossier de Locataire 2' });
+    await cocherAuBureau(utilisateur, 'Locataire 1', 'Locataire 2');
+    // Un 1er tour met les liens en cache : au 2e, l'ancre suivante est prête dès son arrivée — le cas
+    // où une même ancre, réécrite, porterait le numéro suivant sous le clic.
+    await relancerAuBureau(utilisateur);
+    await ancreDe('1');
+    armer();
+    await utilisateur.click(screen.getByRole('button', { name: 'Passer' }));
+    await ancreDe('2');
+    await utilisateur.click(screen.getByRole('button', { name: 'Arrêter' }));
+    await waitFor(() => expect(file()).toBeNull());
+    await relancerAuBureau(utilisateur);
+
+    const premiere = await ancreDe('1');
+    armer();
+    await utilisateur.click(premiere);
+    // Ce que le navigateur suit : le numéro de Locataire 1, et la file le présente encore à cet instant
+    // (une avance dans le gestionnaire même le remplacerait avant que le lien soit suivi).
+    expect(suivis).toHaveLength(1);
+    expect(numeroSuivi(0)).toBe('/221771111111');
+    expect(suivis[0].echeance).toBe('1');
+
+    // L'échéance suivante a SA propre ancre : celle qu'on a cliquée n'est pas réécrite au numéro suivant.
+    const seconde = await ancreDe('2');
+    expect(seconde).not.toBe(premiere);
+    expect(premiere.isConnected).toBe(false);
+    expect(new URL(premiere.getAttribute('href')!).pathname).toBe('/221771111111');
+    expect(new URL(seconde.getAttribute('href')!).pathname).toBe('/221772222222');
+  });
+
+  it('d1 — un double-clic sur « Ouvrir WhatsApp », liens en cache : le second clic n’ouvre rien et ne note rien chez le locataire suivant', async () => {
+    lignes = [ligne(1, 40, avecNumero(1, '+221771111111')), ligne(2, 30, avecNumero(2, '+221772222222')), ligne(3, 20)];
+    const utilisateur = rendre();
+    await screen.findByRole('button', { name: 'Ouvrir le dossier de Locataire 3' });
+    await cocherAuBureau(utilisateur, 'Locataire 1', 'Locataire 2', 'Locataire 3');
+
+    // 1er tour : chaque échéance est présentée, ses liens et messages passent en cache ; puis « Arrêter ».
+    await relancerAuBureau(utilisateur);
+    await ancreDe('1');
+    armer();
+    await utilisateur.click(screen.getByRole('button', { name: 'Passer' }));
+    await ancreDe('2');
+    await utilisateur.click(screen.getByRole('button', { name: 'Arrêter' }));
+    await waitFor(() => expect(file()).toBeNull());
+
+    // 2e tour : l'ancre de Locataire 2 sera prête DÈS son arrivée.
+    await relancerAuBureau(utilisateur);
+    const premiere = await ancreDe('1');
+    armer();
+    await utilisateur.click(premiere);
+    const seconde = await ancreDe('2');
+    // Le second clic du double-clic, sans que l'horloge ait bougé : il tombe sur l'ancre de Locataire 2.
+    await utilisateur.click(seconde);
+
+    expect(suivis.map((_, i) => numeroSuivi(i))).toEqual(['/221771111111']);
+    expect(notes().map((n) => n.chemin)).toEqual(['/api/lease-payments/1/reminders']);
+    expect(echeanceDeLaFile()).toBe('2');
+    expect(screen.getByText('2 sur 3')).toBeInTheDocument();
+
+    // Armée, la même ancre ouvre WhatsApp chez Locataire 2 et note SA relance.
+    armer();
+    await utilisateur.click(seconde);
+    expect(suivis.map((_, i) => numeroSuivi(i))).toEqual(['/221771111111', '/221772222222']);
+    await waitFor(() => expect(notes().map((n) => n.chemin)).toEqual(['/api/lease-payments/1/reminders', '/api/lease-payments/2/reminders']));
+  });
+
+  it('un double-clic sur « Passer » ne passe qu’une échéance', async () => {
+    lignes = [ligne(1, 40), ligne(2, 30), ligne(3, 20)];
+    const utilisateur = rendre();
+    await screen.findByRole('button', { name: 'Ouvrir le dossier de Locataire 3' });
+    await cocherAuBureau(utilisateur, 'Locataire 1', 'Locataire 2', 'Locataire 3');
+    await relancerAuBureau(utilisateur);
+    await ancreDe('1');
+    armer();
+    await utilisateur.click(screen.getByRole('button', { name: 'Passer' }));
+    await waitFor(() => expect(echeanceDeLaFile()).toBe('2'));
+    await utilisateur.click(screen.getByRole('button', { name: 'Passer' }));
+    expect(echeanceDeLaFile()).toBe('2');
+    expect(screen.getByText('2 sur 3')).toBeInTheDocument();
+  });
+
+  it('m2 — une échéance payée entre-temps reste dans la file : sautée, « déjà payée », sans lien demandé ; « Terminer » ne la garde pas', async () => {
+    reseau.refus.add('history:avecPayees');
+    lignes = [ligne(1, 40, { status: 'paid' }), ligne(2, 30)];
+    const utilisateur = rendre();
+    await screen.findByRole('button', { name: 'Ouvrir le dossier de Locataire 2' });
+    await cocherAuBureau(utilisateur, 'Locataire 1', 'Locataire 2');
+    expect(barreDeSelection()).toHaveTextContent('2 sélectionnés');
+    await relancerAuBureau(utilisateur);
+
+    await waitFor(() => expect(echeanceDeLaFile()).toBe('1'));
+    expect(screen.getByText('1 sur 2')).toBeInTheDocument();
+    expect(file()!.querySelector('[data-slot="raison-du-saut"]')).toHaveTextContent('Cette échéance est déjà payée : elle est sautée.');
+    expect(liens()).toEqual([]);
+    armer();
+    await utilisateur.click(within(file()!.closest<HTMLElement>('[role="dialog"]')!).getByRole('button', { name: 'Suivant' }));
+    await ancreDe('2');
+    armer();
+    await utilisateur.click(screen.getByRole('button', { name: 'Passer' }));
+
+    const recap = await waitFor(() => {
+      const r = document.querySelector<HTMLElement>('[data-slot="recapitulatif"]');
+      expect(r).not.toBeNull();
+      return r!;
+    });
+    expect(within(recap).getByRole('status')).toHaveTextContent('0 relancé · 1 passé · 1 sauté');
+    expect(within(recap).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Locataire 1déjà payée']);
+    expect(liens()).toEqual(['POST /api/lease-payments/2/payment-link']);
+    await utilisateur.click(screen.getByRole('button', { name: 'Terminer' }));
+    await waitFor(() => expect(file()).toBeNull());
+    expect(screen.getByRole('checkbox', { name: 'Sélectionner l’impayé de Locataire 1' })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Sélectionner l’impayé de Locataire 2' })).toBeChecked();
+  });
+
+  it('pendant la file, les cases sont figées et le dossier d’une rangée ne s’ouvre pas', async () => {
+    lignes = [ligne(1, 40), ligne(2, 30)];
+    const utilisateur = rendre();
+    await screen.findByRole('button', { name: 'Ouvrir le dossier de Locataire 2' });
+    await cocherAuBureau(utilisateur, 'Locataire 1');
+    await relancerAuBureau(utilisateur);
+    await ancreDe('1');
+
+    // Une case cliquée pendant la file ne change pas la sélection que la file parcourt.
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Sélectionner l’impayé de Locataire 2' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Sélectionner l’impayé de Locataire 1' }));
+    expect(screen.getByRole('checkbox', { name: 'Sélectionner l’impayé de Locataire 1' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Sélectionner l’impayé de Locataire 2' })).not.toBeChecked();
+    expect(barreDeSelection()).toHaveTextContent('1 sélectionné');
+    fireEvent.click(screen.getByRole('button', { name: 'Ouvrir le dossier de Locataire 2' }));
+    expect(screen.queryByRole('dialog', { name: 'Locataire 2' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
   });
 });
 
@@ -384,6 +580,21 @@ describe('TCK-2682 — le mode sélection (téléphone)', () => {
     });
     await waitFor(() => expect(screen.queryAllByRole('checkbox')).toEqual([]));
     expect(notes()).toEqual([]);
+  });
+
+  it('la tête de sélection du téléphone dit aussi ce qui n’est pas affiché', async () => {
+    lignes = [ligne(1, 40), ligne(2, 3)];
+    const utilisateur = rendre();
+    await screen.findByRole('article', { name: 'Locataire 2' });
+    await utilisateur.click(screen.getByRole('button', { name: 'Sélectionner des impayés à relancer' }));
+    await utilisateur.click(screen.getByRole('checkbox', { name: 'Sélectionner l’impayé de Locataire 1' }));
+    const tete = () => document.querySelector<HTMLElement>('[data-slot="tete-de-selection"]')!;
+    expect(tete()).not.toHaveTextContent('non affiché');
+
+    await utilisateur.click(screen.getByRole('button', { name: /Moins de 8 j/ }));
+    await waitFor(() => expect(screen.queryByRole('article', { name: 'Locataire 1' })).not.toBeInTheDocument());
+    expect(within(tete()).getByText('dont 1 non affiché')).toBeInTheDocument();
+    expect(tete()).toHaveTextContent('1 sélectionné');
   });
 
   it('« Relancer la sélection » ouvre la file plein écran avec sa position ; « Ouvrir WhatsApp » au pied', async () => {

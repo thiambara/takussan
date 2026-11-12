@@ -149,8 +149,10 @@ export function Impayes({
   const toutesCochees = affichees.ids.size > 0 && [...affichees.ids].every((id) => selection.coche(id));
   const relancerLaSelection = () => {
     // La ligne la plus fraîche quand elle est affichée (dernière relance, numéro) ; la file la fige.
+    // Une échéance payée entre-temps reste dans la file, sautée et dite (« déjà payée ») : la barre dit
+    // N, la file dit « sur N ».
     const fraiches = new Map(affichees.lignes().map((row) => [row.id, row]));
-    fileApi.demarrer(ordreDeLaFile([...selection.lignes.values()].map((row) => fraiches.get(row.id) ?? row).filter((row) => row.status !== 'paid')));
+    fileApi.demarrer(ordreDeLaFile([...selection.lignes.values()].map((row) => fraiches.get(row.id) ?? row)));
   };
   const avecDesLignes = (premiere.data?.data.length ?? 0) > 0;
   const boutonDeMode =

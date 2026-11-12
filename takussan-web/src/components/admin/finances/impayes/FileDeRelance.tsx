@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { PanneauDroit } from '@/components/ui/panneau-droit';
 import type { PaymentHistoryRow } from '@/types/invoice';
 
+import { useArmement } from './armement';
 import { useLectureDImpaye } from './lecture';
 import { ComposerLaRelance, OuvrirWhatsApp } from './RelanceDUnImpaye';
 import { useRelanceDUnImpaye } from './useRelanceDUnImpaye';
@@ -20,12 +21,17 @@ import { useRelanceDUnImpaye } from './useRelanceDUnImpaye';
  * · Le lien de paiement d'une échéance se demande QUAND elle s'affiche, jamais en lot au départ.
  * · « Ouvrir WhatsApp » note la relance de CETTE échéance et passe à la suivante ; si la note est
  *   refusée, la file avance quand même et le récapitulatif le dit (« relance non notée »).
- * · « Passer » ne note rien. Une échéance sans numéro (aucun lien demandé) ou dont le lien rend 409
- *   est SAUTÉE : sa raison s'affiche, « Suivant » avance, le récapitulatif la compte et la nomme.
+ * · « Passer » ne note rien. Une échéance déjà payée ou sans numéro (aucun lien demandé), ou dont le
+ *   lien rend 409, est SAUTÉE : sa raison s'affiche, « Suivant » avance, le récapitulatif la compte
+ *   et la nomme. Rien n'est retiré de la file en silence : la barre dit N, la file dit « sur N ».
+ * · Une note refusée se dit DANS le panneau, au nom du locataire (jamais par un toast posé sur le
+ *   geste suivant), puis au récapitulatif.
+ * · Chaque geste qui fait avancer la file s'ARME à l'arrivée d'une échéance (`armement.ts`) : un
+ *   double-clic n'agit jamais sur l'échéance que l'admin n'a pas encore vue.
  * · « Arrêter » (ou la croix, ou Échap) referme la file : les relances notées restent, la sélection
  *   est intacte. « Terminer » ne garde sélectionnées que les échéances passées et sautées.
  */
-export type RaisonDeSaut = 'sansTelephone' | 'lienRefuse';
+export type RaisonDeSaut = 'payee' | 'sansTelephone' | 'lienRefuse';
 
 export type IssueDUneEcheance =
   | { readonly genre: 'relance'; readonly note: 'en-cours' | 'prise' | 'refusee' }
@@ -38,6 +44,8 @@ export interface EtatDeLaFile {
   readonly rows: readonly PaymentHistoryRow[];
   readonly index: number;
   readonly issues: ReadonlyMap<number, IssueDUneEcheance>;
+  /** La dernière note refusée, et la position où le panneau le dit (celle qui suit l'échéance notée). */
+  readonly nonNotee: { readonly id: number; readonly index: number } | null;
 }
 
 export function useFileDeRelance() {
@@ -60,7 +68,7 @@ export function useFileDeRelance() {
     demarrer: (rows: readonly PaymentHistoryRow[]) => {
       if (rows.length === 0) return;
       tours.current += 1;
-      setFile({ tour: tours.current, rows, index: 0, issues: new Map() });
+      setFile({ tour: tours.current, rows, index: 0, issues: new Map(), nonNotee: null });
     },
     /**
      * WhatsApp s'est ouvert : la relance compte, et la file avance — APRÈS le clic. Le navigateur suit
@@ -83,9 +91,14 @@ export function useFileDeRelance() {
         0,
       );
       void note.then((prise) =>
-        setFile((f) =>
-          f && f.tour === tour ? { ...f, issues: new Map(f.issues).set(id, { genre: 'relance', note: prise ? 'prise' : 'refusee' }) } : f,
-        ),
+        setFile((f) => {
+          if (!f || f.tour !== tour) return f;
+          const issues = new Map(f.issues).set(id, { genre: 'relance', note: prise ? 'prise' : 'refusee' } as const);
+          if (prise) return { ...f, issues };
+          // La note revient d'ordinaire avant l'avance : le panneau la dit à l'échéance qui suit.
+          const index = Math.max(f.index, f.rows.findIndex((r) => r.id === id) + 1);
+          return { ...f, issues, nonNotee: { id, index } };
+        }),
       );
     },
     passer: (id: number) => inscrire(file?.tour ?? 0, id, { genre: 'passe' }, true),
@@ -111,7 +124,9 @@ export function bilanDeLaFile(file: EtatDeLaFile) {
     } else if (issue.genre === 'passe') passes.push(row);
     else sautes.push({ row, raison: issue.raison });
   }
-  return { relances, passes, sautes, nonNotees, aGarder: [...passes.map((r) => r.id), ...sautes.map((s) => s.row.id)] };
+  // Une échéance déjà payée ne reste pas sélectionnée : il n'y a plus rien à relancer.
+  const aGarder = [...passes.map((r) => r.id), ...sautes.filter((s) => s.raison !== 'payee').map((s) => s.row.id)];
+  return { relances, passes, sautes, nonNotees, aGarder };
 }
 
 export function FileDeRelance({ api, onTerminer }: { readonly api: FileDeRelanceApi; readonly onTerminer: (aGarder: readonly number[]) => void }) {
@@ -119,13 +134,28 @@ export function FileDeRelance({ api, onTerminer }: { readonly api: FileDeRelance
   const l = useLectureDImpaye();
   const { file, enCours } = api;
   const joignable = isReachable(enCours?.payer?.phone ?? null);
-  // Aucun lien n'est demandé pour une échéance sans numéro : elle sera sautée sans rien créer.
-  const relance = useRelanceDUnImpaye(enCours, enCours !== null && joignable);
+  const payee = enCours?.status === 'paid';
+  // Aucun lien n'est demandé pour une échéance payée ou sans numéro : elle sera sautée sans rien créer.
+  const relance = useRelanceDUnImpaye(enCours, enCours !== null && joignable && !payee, { signalerLaNote: 'file' });
   const raisonId = useId();
+  const saut: RaisonDeSaut | null = !enCours
+    ? null
+    : payee
+      ? 'payee'
+      : !joignable
+        ? 'sansTelephone'
+        : relance.etatDuLien === 'refuse'
+          ? 'lienRefuse'
+          : null;
+  // « Passer » et « Suivant » s'arment comme l'ancre : un double-clic ne passe pas l'échéance suivante.
+  const premature = useArmement(file && enCours ? `${file.tour}:${enCours.id}:${saut ?? ''}` : null);
+  const sansDoubleClic = (geste: () => void) => () => {
+    if (!premature()) geste();
+  };
   if (!file) return null;
 
   const total = file.rows.length;
-  const saut: RaisonDeSaut | null = !enCours ? null : !joignable ? 'sansTelephone' : relance.etatDuLien === 'refuse' ? 'lienRefuse' : null;
+  const nonNotee = enCours && file.nonNotee?.index === file.index ? file.rows.find((r) => r.id === file.nonNotee?.id) : undefined;
   const bilan = bilanDeLaFile(file);
   const terminer = () => {
     onTerminer(bilan.aGarder);
@@ -136,13 +166,14 @@ export function FileDeRelance({ api, onTerminer }: { readonly api: FileDeRelance
   const pied = enCours ? (
     <div className="flex w-full flex-col gap-2 xl:flex-row-reverse xl:items-center">
       {saut ? (
-        <Button type="button" size="xl" onClick={() => api.sauter(enCours.id, saut)} className="xl:h-controle xl:px-3.5 xl:text-sm">
+        <Button type="button" size="xl" onClick={sansDoubleClic(() => api.sauter(enCours.id, saut))} className="xl:h-controle xl:px-3.5 xl:text-sm">
           {t('lot.file.suivant')}
         </Button>
       ) : (
         <OuvrirWhatsApp
           // Une ancre PAR échéance : jamais le lien du locataire suivant sous le doigt.
           key={enCours.id}
+          armee
           relance={relance}
           onOuvert={(note) => api.ouvert(enCours.id, note)}
           className="w-full xl:h-controle xl:w-auto xl:px-3.5 xl:text-sm"
@@ -153,7 +184,7 @@ export function FileDeRelance({ api, onTerminer }: { readonly api: FileDeRelance
           {t('lot.file.arreter')}
         </Button>
         {saut ? null : (
-          <Button type="button" variant="outline" onClick={() => api.passer(enCours.id)}>
+          <Button type="button" variant="outline" onClick={sansDoubleClic(() => api.passer(enCours.id))}>
             {t('lot.file.passer')}
           </Button>
         )}
@@ -182,6 +213,11 @@ export function FileDeRelance({ api, onTerminer }: { readonly api: FileDeRelance
       <div data-slot="file-de-relance" data-echeance={enCours?.id}>
         {enCours ? (
           <>
+            {nonNotee ? (
+              <p role="alert" data-slot="note-refusee" className="mb-4 rounded-xl bg-destructive/10 px-3.5 py-3 text-sm text-destructive">
+                {t('lot.file.noteRefusee', { nom: l.nom(nonNotee) })}
+              </p>
+            ) : null}
             <p className="mb-3 hidden text-ui font-medium text-muted-foreground tabular-nums xl:block" data-slot="position-dans-la-file">
               {position}
             </p>
@@ -191,7 +227,7 @@ export function FileDeRelance({ api, onTerminer }: { readonly api: FileDeRelance
             </p>
             {saut ? (
               <p id={raisonId} role="status" data-slot="raison-du-saut" className="mt-4 rounded-xl bg-warning/10 px-3.5 py-3 text-sm text-foreground">
-                {saut === 'sansTelephone' ? t('lot.file.sauteSansTelephone') : t('lot.file.sauteLienRefuse')}
+                {saut === 'payee' ? t('lot.file.sautePayee') : saut === 'sansTelephone' ? t('lot.file.sauteSansTelephone') : t('lot.file.sauteLienRefuse')}
               </p>
             ) : (
               <div className="mt-4">

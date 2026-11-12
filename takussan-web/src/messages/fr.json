@@ -7025,7 +7025,9 @@
             "arreter": "Arrêter",
             "suivant": "Suivant",
             "sauteSansTelephone": "Aucun numéro pour ce locataire : cette échéance est sautée.",
-            "sauteLienRefuse": "Cette échéance ne se paie plus en ligne : elle est sautée."
+            "sauteLienRefuse": "Cette échéance ne se paie plus en ligne : elle est sautée.",
+            "noteRefusee": "La relance de {nom} n’a pas pu être notée. Le récapitulatif la rappellera.",
+            "sautePayee": "Cette échéance est déjà payée : elle est sautée."
           },
           "recap": {
             "titre": "Relance de la sélection",
@@ -7033,7 +7035,8 @@
             "sautes": "Sautés",
             "raison": {
               "sansTelephone": "aucun numéro",
-              "lienRefuse": "ne se paie plus en ligne"
+              "lienRefuse": "ne se paie plus en ligne",
+              "payee": "déjà payée"
             },
             "nonNotees": "Relances non notées",
             "nonNotee": "relance non notée",

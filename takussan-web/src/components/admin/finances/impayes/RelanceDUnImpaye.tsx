@@ -12,6 +12,7 @@ import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { cn } from '@/lib/utils';
 import type { PaymentHistoryRow } from '@/types/invoice';
 
+import { useArmement } from './armement';
 import { useLectureDImpaye } from './lecture';
 import type { useRelanceDUnImpaye } from './useRelanceDUnImpaye';
 
@@ -135,6 +136,7 @@ export function OuvrirWhatsApp({
   relance,
   raisonId,
   onOuvert,
+  armee = false,
   className,
 }: {
   readonly relance: Relance;
@@ -142,9 +144,15 @@ export function OuvrirWhatsApp({
   readonly raisonId?: string;
   /** Reçoit la note de la relance : `true` prise, `false` refusée (TCK-2682, récapitulatif de la file). */
   readonly onOuvert?: (note: Promise<boolean>) => void;
+  /**
+   * TCK-2682 — la file guidée : un clic qui arrive avant que l'ancre soit ARMÉE (`armement.ts`) n'ouvre
+   * rien et ne note rien. C'est le second clic d'un double-clic sur l'ancre précédente.
+   */
+  readonly armee?: boolean;
   readonly className?: string;
 }) {
   const t = useTranslations('admin.finances.impayes.gestes');
+  const premature = useArmement(relance.hrefWhatsApp ? 'prete' : null);
   const classes = cn(
     buttonVariants({ size: 'xl' }),
     'gap-2 border-transparent bg-success font-semibold text-success-foreground hover:bg-success/90',
@@ -164,7 +172,11 @@ export function OuvrirWhatsApp({
       target="_blank"
       rel="noopener noreferrer"
       data-slot="ouvrir-whatsapp"
-      onClick={() => {
+      onClick={(event) => {
+        if (armee && premature()) {
+          event.preventDefault();
+          return;
+        }
         const note = relance.noterLaRelance('whatsapp');
         onOuvert?.(note);
       }}

@@ -29,7 +29,12 @@ import { useNoterLaRelance } from './useNoterLaRelance';
  */
 export type EtatDuLien = 'inactif' | 'chargement' | 'pret' | 'refuse' | 'echec';
 
-export function useRelanceDUnImpaye(row: PaymentHistoryRow | null, actif: boolean) {
+export function useRelanceDUnImpaye(
+  row: PaymentHistoryRow | null,
+  actif: boolean,
+  /** `'file'` : la file guidée dit elle-même une note refusée (ni toast, ni `noterEnEchec`). */
+  { signalerLaNote = 'ecran' }: { readonly signalerLaNote?: 'ecran' | 'file' } = {},
+) {
   const { token } = useAuth();
   const localeDeLEcran = useLocale();
   const id = row?.id ?? 0;
@@ -86,12 +91,12 @@ export function useRelanceDUnImpaye(row: PaymentHistoryRow | null, actif: boolea
           : 'echec'
         : 'pret';
 
-  const noter = useNoterLaRelance();
+  const noter = useNoterLaRelance({ toast: signalerLaNote === 'ecran' });
   /**
    * TCK-2682 — la promesse dit si CETTE note a été prise (`true`) ou refusée (`false`) : la file en
    * lot l'inscrit au récapitulatif de l'échéance. `isError` ne dit que la dernière mutation, et les
-   * rappels passés à `mutate` sont perdus dès qu'une note suivante part : d'où `mutateAsync`. L'échec
-   * reste dit par le toast d'`useNoterLaRelance`.
+   * rappels passés à `mutate` sont perdus dès qu'une note suivante part : d'où `mutateAsync`. Hors de
+   * la file, l'échec reste dit par le toast d'`useNoterLaRelance`.
    */
   const noterLaRelance = (channel: CanalDeRelance): Promise<boolean> =>
     id > 0
@@ -112,7 +117,9 @@ export function useRelanceDUnImpaye(row: PaymentHistoryRow | null, actif: boolea
     hrefWhatsApp: joignable && url && message.trim() !== '' ? whatsappHref(telephone, message) : null,
     hrefAppel: joignable ? telHref(telephone) : null,
     noterLaRelance,
-    noterEnEchec: noter.isError,
+    // Dans la file, une seule instance sert toutes les échéances : `isError` y accuserait le
+    // locataire présenté d'une note refusée pour le précédent.
+    noterEnEchec: signalerLaNote === 'ecran' && noter.isError,
     relireLeLien: () => void lien.refetch(),
   };
 }
