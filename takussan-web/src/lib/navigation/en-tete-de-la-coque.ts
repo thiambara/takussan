@@ -143,7 +143,10 @@ export function formeDeLaRoute(pathname: string | null | undefined): FormeDEnTet
 function titreDuMenu(href: string, ctx: ContexteDeMenu, persona?: Persona): TitreDerive | null {
   const destination = destinationDuChemin(ctx, href);
   const propre = destination && persona ? DISPOSITIONS[persona].libelles?.[destination.id as IdDestination] : undefined;
-  if (propre) return { espace: 'nav.sidebar', cle: propre };
+  // Vérification de TCK-2671 — le libellé propre vit dans l'espace de SA destination, comme au menu
+  // (`composer-menu`, `labelSpace`) : « Reversements » de l'hôte est `nav.admin.payouts`. Lu sous
+  // `nav.sidebar`, il rendait une 500 (MISSING_MESSAGE) à `/app/agency/billing`.
+  if (propre) return { espace: destination?.espace ?? 'nav.sidebar', cle: propre };
   if (destination) return { espace: destination.espace ?? 'nav.sidebar', cle: cleDe(destination, ctx) };
   const page = PAGES_ADMIN.find((p) => p.chemin === href);
   if (page?.menu) return { espace: 'nav.admin', cle: page.menu.cle };
