@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Exceptions\ApiError;
 use App\Http\Controllers\Base\Controller;
+use App\Http\Middleware\ThrottleRequestsByNetwork;
 use App\Http\Requests\Api\CustomerTimelineRequest;
 use App\Http\Requests\Api\DismissSuggestedStageRequest;
 use App\Http\Requests\Api\PipelineStatsRequest;
@@ -32,10 +33,12 @@ use App\Services\Crm\PipelineStatsService;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Privacy\PersonalDataAccessLogger;
 use App\Services\Visit\VisitReportService;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 
 class CustomerController extends Controller
 {
@@ -167,12 +170,47 @@ class CustomerController extends Controller
             $email = $email !== null && $email !== $current->email ? $email : null;
         }
 
-        $existing = $duplicates->find($agencyId, $phone, $email, $user, $current?->id);
+        $existing = $this->budgeterLeNumeroComplet(
+            $duplicates->find($agencyId, $phone, $email, $user, $current?->id),
+            $user,
+        );
         if ($existing === []) {
             return;
         }
 
         throw (new ApiError(409, 'customer.duplicate'))->with(['existing' => $existing]);
+    }
+
+    /**
+     * TCK-2590 (décision 8 du porteur, seconde porte) — le 409 signale aussi, au numéro complet, une fiche
+     * que l'appelant ne lit pas (tout à `null`) : il puise dans le MÊME budget que la sonde, vingt par
+     * heure et par personne. Chaque signalement masqué au téléphone en consomme un. Le budget épuisé, un
+     * numéro porté par une fiche masquée rend 429 générique (`too_many_requests`, comme la sonde), sans
+     * rien de la fiche, et rien n'est créé : laisser passer créerait en silence le doublon d'une fiche
+     * cachée (correction de team-lead, 2026-11-12). Un numéro sans fiche masquée ne consomme rien et
+     * n'est jamais bloqué : la saisie à la suite d'un agent honnête n'est pas gênée. Les fiches que
+     * l'appelant lit restent signalées (409) : elles ne lui apprennent rien. Même règle à la mise à jour.
+     *
+     * @param  list<array{id: ?int, name: ?string, stage: ?string, matched_on: string}>  $existing
+     * @return list<array{id: ?int, name: ?string, stage: ?string, matched_on: string}>
+     */
+    private function budgeterLeNumeroComplet(array $existing, User $user): array
+    {
+        $masquee = fn (array $e): bool => $e['id'] === null && $e['matched_on'] === 'phone';
+        if (array_filter($existing, $masquee) === []) {
+            return $existing;
+        }
+
+        $seau = ThrottleRequestsByNetwork::namedLimiterKey(
+            CustomerDuplicateDetector::LIMITEUR_DU_NUMERO_COMPLET,
+            CustomerDuplicateDetector::seauDuNumeroComplet($user->id),
+        );
+        if (RateLimiter::tooManyAttempts($seau, CustomerDuplicateDetector::NUMEROS_COMPLETS_PAR_HEURE)) {
+            throw new ThrottleRequestsException('Too Many Attempts.', null, ['Retry-After' => RateLimiter::availableIn($seau)]);
+        }
+        RateLimiter::hit($seau, 3600);
+
+        return $existing;
     }
 
     public function show(Request $request, Customer $customer): JsonResponse

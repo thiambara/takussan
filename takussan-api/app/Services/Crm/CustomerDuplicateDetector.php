@@ -32,6 +32,15 @@ class CustomerDuplicateDetector
      */
     public const PROBE_PREFIX_MIN_DIGITS = 7;
 
+    /**
+     * TCK-2590 (décision 8 du porteur, 2026-11-12) — le budget du signalement « fiche masquée » au numéro
+     * complet : vingt par heure et par personne, UN compteur pour la sonde (limiteur nommé de la route)
+     * et pour la création (`CustomerController::refuseDuplicate`).
+     */
+    public const LIMITEUR_DU_NUMERO_COMPLET = 'customer-duplicate-probe-full-number';
+
+    public const NUMEROS_COMPLETS_PAR_HEURE = 20;
+
     /** Cinq fiches au plus, à la sonde comme au 409 de la création. */
     private const MAX_MATCHES = 5;
 
@@ -123,11 +132,8 @@ class CustomerDuplicateDetector
             return [];
         }
 
-        // Le préfixe d'abord : « +2217064820 » a la FORME d'un E.164 (`PhoneNumber::isValid` ne
-        // compte pas les chiffres nationaux), mais ce n'est le numéro complet de personne.
         $prefix = self::senegalPrefix($phone);
-        $normalized = $prefix === null ? CustomerPhoneNormalizer::normalize($phone) : null;
-        $complete = $normalized !== null && PhoneNumber::isValid($normalized) ? $normalized : null;
+        $complete = self::numeroComplet($phone);
         $email = $email !== null && trim($email) !== '' ? CaseInsensitive::fold(trim($email)) : null;
         if ($complete === null && $prefix === null && $email === null) {
             return [];
@@ -161,6 +167,29 @@ class CustomerDuplicateDetector
 
         return $this->present($matches, $viewer, fn (Customer $c) => ($complete !== null && $c->phone === $complete)
             || ($prefix !== null && str_starts_with((string) $c->phone, $prefix)));
+    }
+
+    /**
+     * TCK-2590 — le numéro COMPLET que la sonde compare à l'égalité (E.164 normalisé), ou `null`
+     * pour un numéro entamé, invalide ou absent. Le préfixe d'abord : « +2217064820 » a la FORME d'un
+     * E.164 (`PhoneNumber::isValid` ne compte pas les chiffres nationaux), mais ce n'est le numéro
+     * complet de personne. Lu aussi par le limiteur `customer-duplicate-probe-full-number`
+     * (décision 8 du porteur, 2026-11-12) : seule une sonde au numéro complet y compte.
+     */
+    /** TCK-2590 — le seau de l'appelant sous {@see self::LIMITEUR_DU_NUMERO_COMPLET}. */
+    public static function seauDuNumeroComplet(int|string $appelant): string
+    {
+        return 'sonde-numero-complet:'.$appelant;
+    }
+
+    public static function numeroComplet(?string $phone): ?string
+    {
+        if (self::senegalPrefix($phone) !== null) {
+            return null;
+        }
+        $normalized = CustomerPhoneNormalizer::normalize($phone);
+
+        return $normalized !== null && PhoneNumber::isValid($normalized) ? $normalized : null;
     }
 
     /**

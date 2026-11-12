@@ -13,7 +13,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('customers/pipeline-stats', [CustomerController::class, 'pipelineStats'])->name('customers.pipeline-stats');
     // TCK-2588 — la sonde de doublon pendant la saisie. Littérale : avant `customers/{customer}`.
     Route::get('customers/duplicates', CustomerDuplicateProbeController::class)
-        ->middleware('throttle:20,1,customer_duplicate_probe')
+        // TCK-2590 (décision 8 du porteur) — et vingt sondes au numéro COMPLET par heure et par personne.
+        ->middleware(['throttle:20,1,customer_duplicate_probe', 'throttle:customer-duplicate-probe-full-number'])
         ->name('customers.duplicates');
     Route::post('customers', [CustomerController::class, 'store'])->name('customers.store');
     Route::get('customers/{customer}', [CustomerController::class, 'show'])->name('customers.show');

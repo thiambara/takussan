@@ -158,3 +158,43 @@ L'agent rappelle un client depuis la liste sans ouvrir sa fiche, voit d'un coup 
   de `probe()` dans le contrôleur ; l'élision de « Créer la fiche d’Astou » retirée, « Plus de champs » rendu au second temps du téléphone, l'échec du geste jamais affiché ; côté API,
   les jokers `%`/`_` nettoyés en chiffres — chacune rougit au moins un test (relevé :
   `ablation-2590/resultats.txt`, scratchpad du lot 2).
+
+**2026-11-12, soir — décision 8 du porteur : le signal « fiche masquée » au numéro complet est gardé, sous un limiteur
+de 20 recherches au numéro complet par heure et par personne** (option a, avec 20/h au lieu des 10/h proposés).
+
+- Le limiteur nommé `customer-duplicate-probe-full-number` est dans `AppServiceProvider` (bloc marqué TCK-2590). Il
+  s'empile sur le limiteur existant de 20/min de `GET customers/duplicates` (`routes/api/customers.php`). Il ne compte
+  que les sondes dont le `phone` est un numéro complet, `CustomerDuplicateDetector::numeroComplet()`, la règle même de
+  `probe()`. La clé est `sonde-numero-complet:<id de l'utilisateur>` : un collègue garde son budget. Un préfixe ou un
+  e-mail ne consomme rien, puisque la décision vise le numéro. La 21ᵉ sonde de l'heure rend 429 avec `Retry-After`.
+- Côté front, `lib/queries/customer-duplicates.ts` avale l'erreur : après un 429, la création n'affiche simplement plus de
+  doublon, et la création elle-même reste juge (409).
+- **Seconde porte, fermée (team-lead, 2026-11-12)** : le 409 de la création (`CustomerController::refuseDuplicate`)
+  signalait aussi, au numéro complet, une fiche cachée. Il puise maintenant dans le MÊME compteur que la sonde. Les
+  noms sont partagés (`CustomerDuplicateDetector::LIMITEUR_DU_NUMERO_COMPLET`, `seauDuNumeroComplet()`), et le seau
+  est celui du limiteur nommé (`ThrottleRequestsByNetwork::namedLimiterKey`, comme `refundPhoneVerify`).
+  - Chaque 409 qui porte une fiche masquée au téléphone consomme une unité.
+  - Budget épuisé, un numéro porté par une fiche masquée rend **429 générique** (`http.too_many_requests`, comme la
+    sonde, avec `Retry-After`), sans rien de la fiche, et **rien n'est créé**. Correction de team-lead (2026-11-12) :
+    laisser passer aurait créé en silence le doublon d'une fiche cachée, que la règle refusait avant.
+  - Un numéro sans fiche masquée ne consomme rien et n'est jamais bloqué. L'agent qui saisit des fiches à la suite
+    n'est pas gêné. Les fiches que l'appelant lit restent signalées (409).
+  - Même règle pour la mise à jour (`PUT`/`PATCH`, numéro changé) : c'est la même fonction.
+  - Limite connue : une fois le budget épuisé, le 429 lui-même distingue un numéro porté par une fiche cachée d'un
+    numéro libre (qui, lui, crée une fiche). Il faut créer une fiche pour chaque numéro libre essayé.
+  - **Non couverts** : les conversions d'une demande ou d'une visite en fiche (`ContactLeadService`,
+    `CreateCustomerFromVisit`) passent par leur propre détection.
+- Tests de la seconde porte (`CustomerDuplicateProbeTest`, 4 neufs) :
+  - `…_la_creation_puise_dans_le_budget_du_numero_complet` : 20 × 409 masqué ; la 21ᵉ tentative rend 429 générique,
+    sans fiche créée ; un numéro libre passe ; la sonde est à 429 ; une heure plus tard, le 409 revient ;
+  - `…_la_sonde_epuise_aussi_le_signalement_de_la_creation` : 429, aucune fiche ;
+  - `…_la_mise_a_jour_suit_la_meme_regle` : 429, le numéro de la fiche est inchangé ;
+  - `…_budget_epuise_une_fiche_lisible_reste_signalee`.
+- Ablations de la seconde porte (rejouées sur la règle du 429) :
+  - **b1 — aucune consommation** : 1 rouge ;
+  - **b2 — la création passe, budget épuisé** : 3 rouges ;
+  - **b3 — un seau propre à la création** : 3 rouges ;
+  - **b5 — toute fiche traitée comme masquée** : 1 rouge ;
+  - **b6 — budget jugé sur tout numéro** (le numéro libre bloqué) : 3 rouges.
+- Ablations : **a9 — le préfixe consomme aussi le budget** → 2 rouges (« vingt sondes… », « le préfixe ne consomme
+  pas… ») ; **a10 — limiteur horaire sans limite** → 1 rouge (« vingt sondes… »).

@@ -98,6 +98,7 @@ use App\Services\Admin\ScheduledRunRecorder;
 use App\Services\Auth\AccessTokenGate;
 use App\Services\Auth\OtpPreview;
 use App\Services\Boost\BoostStatsRecorder;
+use App\Services\Crm\CustomerDuplicateDetector;
 use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Governance\GovernanceAlertService;
 use App\Services\Media\Cdn\BunnyCdnDriver;
@@ -665,6 +666,18 @@ class AppServiceProvider extends ServiceProvider
         // limiteur, et chaque note vocale pèse jusqu'à 2 Mo (ADR-0038). Route authentifiée : la clé
         // est l'utilisateur déjà authentifié par `auth:sanctum` (le throttle passe après dans la
         // priorité des middlewares).
+        // TCK-2590 (décision 8 du porteur, 2026-11-12) — la sonde de doublon au numéro COMPLET peut
+        // signaler une fiche que l'appelant ne lit pas (tout à `null`) : vingt par HEURE et par
+        // personne, en plus des vingt par minute de la route. Le préfixe et l'e-mail n'y comptent pas
+        // (`CustomerDuplicateDetector::numeroComplet()`, le prédicat même de la sonde).
+        // Le même compteur sert à la création (`CustomerController::refuseDuplicate`, seconde porte).
+        RateLimiter::for(CustomerDuplicateDetector::LIMITEUR_DU_NUMERO_COMPLET, fn (Request $request) => CustomerDuplicateDetector::numeroComplet(
+            is_string($request->query('phone')) ? $request->query('phone') : null,
+        ) !== null
+            ? Limit::perHour(CustomerDuplicateDetector::NUMEROS_COMPLETS_PAR_HEURE)
+                ->by(CustomerDuplicateDetector::seauDuNumeroComplet($request->user()?->id ?? $this->clientNetwork($request)))
+            : Limit::none());
+
         RateLimiter::for('conversation-message', fn (Request $request) => Limit::perMinute(30)
             ->by($request->user() !== null ? 'user:'.$request->user()->id : $this->visitorRateLimitKey($request)));
     }
