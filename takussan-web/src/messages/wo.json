@@ -1662,7 +1662,22 @@
         "plus": "Plus d’actions"
       },
       "modifier": {
-        "titre": "Modifier la fiche"
+        "titre": "Modifier la fiche",
+        "identite": "Identité",
+        "contact": "Contact",
+        "recherche": "Ce qu’il cherche",
+        "piece": "Pièce d’identité",
+        "aucunContact": "Ni téléphone ni e-mail",
+        "aucunePiece": "Aucune pièce",
+        "enregistrer": "Enregistrer",
+        "enregistrement": "Enregistrement…",
+        "annuler": "Annuler",
+        "sortie": {
+          "titre": "Abandonner les modifications ?",
+          "texte": "Ce que vous avez saisi n’est pas enregistré sur la fiche.",
+          "rester": "Continuer la saisie",
+          "abandonner": "Abandonner"
+        }
       }
     }
   },

@@ -133,7 +133,8 @@ export interface CustomerFormPayload {
   email?: string | null;
   phone?: string | null;
   occupation?: string | null;
-  pipeline_stage: (typeof pipelineStageValues)[number];
+  /** Absente de « Modifier » de la fiche (TCK-2589, 8a) : l'étape se change depuis l'en-tête ; l'API la tient pour `sometimes`. */
+  pipeline_stage?: (typeof pipelineStageValues)[number];
   /** TCK-1064 — absent à la création : l'API crée toujours un client `active`. */
   status?: (typeof customerStatusValues)[number];
   id_type?: (typeof idTypeValues)[number] | null;

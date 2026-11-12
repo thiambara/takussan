@@ -3611,7 +3611,22 @@
         "plus": "More actions"
       },
       "modifier": {
-        "titre": "Edit record"
+        "titre": "Edit record",
+        "identite": "Identity",
+        "contact": "Contact",
+        "recherche": "What they are looking for",
+        "piece": "ID document",
+        "aucunContact": "No phone or email",
+        "aucunePiece": "No ID document",
+        "enregistrer": "Save",
+        "enregistrement": "Saving…",
+        "annuler": "Cancel",
+        "sortie": {
+          "titre": "Discard your changes?",
+          "texte": "What you entered has not been saved to the record.",
+          "rester": "Keep editing",
+          "abandonner": "Discard"
+        }
       }
     }
   },
