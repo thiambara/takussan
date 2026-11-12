@@ -1674,7 +1674,8 @@
           "priceDesc": "Price: high to low",
           "viewsDesc": "Most viewed",
           "viewsAsc": "Least viewed",
-          "retard": "Late rents first"
+          "retard": "Late rents first",
+          "pertinence": "Relevance"
         },
         "toggleMine": "My properties",
         "toggleArchived": "Archived",

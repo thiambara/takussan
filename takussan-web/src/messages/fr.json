@@ -1631,7 +1631,8 @@
           "priceDesc": "Prix décroissant",
           "viewsDesc": "Vues décroissantes",
           "viewsAsc": "Vues croissantes",
-          "retard": "Retards d’abord"
+          "retard": "Retards d’abord",
+          "pertinence": "Pertinence"
         },
         "toggleMine": "Mes biens",
         "toggleArchived": "Archivés",

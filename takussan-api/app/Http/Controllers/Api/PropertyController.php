@@ -82,8 +82,12 @@ class PropertyController extends Controller
 
         $this->primeOnlineAndOccupancy($biens, $request);
 
+        // TCK-2638 (lot B2, vérification adverse d1) — l'appelant est amorcé avec les titulaires : la fin
+        // d'un boost (`sponsored_until`) se juge sur SON appartenance au personnel de l'agence de chaque
+        // ligne, en mémoire plutôt qu'une requête par bien.
         return $this->paginated($paginator, MembershipCapabilityResolver::primed(
-            $biens->flatMap(fn (Property $p) => [$p->getAttributes()['user_id'] ?? null, ...$p->collaborators->pluck('user_id')]),
+            $biens->flatMap(fn (Property $p) => [$p->getAttributes()['user_id'] ?? null, ...$p->collaborators->pluck('user_id')])
+                ->push($request->user()?->id),
             $biens->map(fn (Property $p) => $p->getAttributes()['agency_id'] ?? null),
             fn () => PropertyResource::collection($paginator)->toArray($request),
         ));

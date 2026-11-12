@@ -87,6 +87,13 @@ const SORT_OPTIONS = [
 const SORT_OPTIONS_GESTION = [{ value: 'retard', labelKey: 'retard' }, ...SORT_OPTIONS] as const;
 
 /**
+ * TCK-2638 (lot B2, vérification adverse) — pendant une recherche sans `sort=`, l'API classe par
+ * pertinence (TCK-662, `defaultSortsWithRelevance`) : le sélecteur le dit, au lieu d'afficher un tri
+ * qui ne s'applique pas. Cette valeur ne part JAMAIS au serveur : la choisir efface `sort=`.
+ */
+const TRI_PERTINENCE = 'pertinence';
+
+/**
  * Ce que compte le bouton « Filtres » de la feuille : les critères avancés et les deux cases.
  * Ni la recherche — elle reste visible au-dessus — ni le tri, qui ordonne la liste sans la
  * restreindre.
@@ -170,13 +177,19 @@ export function PropertyListFilters({
   const currentCreatedFrom = searchParams.get('created_from') ?? '';
   const currentCreatedTo = searchParams.get('created_to') ?? '';
   // TCK-2638 (lot B2) — « Retards d'abord » est le tri par défaut de la Gestion (maquette retenue) ; le
-  // serveur le pose (`page.tsx`), l'URL reste nue tant qu'on garde le défaut.
-  const triParDefaut = gestion ? 'retard' : '-created_at';
-  const currentSort = searchParams.get('sort') ?? triParDefaut;
+  // serveur le pose (`page.tsx`), l'URL reste nue tant qu'on garde le défaut. Pendant une recherche,
+  // l'ordre appliqué sans `sort=` est la pertinence, dans les deux modes : c'est lui que le sélecteur
+  // affiche, et tout autre tri — « Retards d'abord » compris — s'écrit alors dans l'URL.
+  const enRecherche = currentSearch !== '';
+  const triImplicite = enRecherche ? TRI_PERTINENCE : gestion ? 'retard' : '-created_at';
+  const currentSort = searchParams.get('sort') ?? triImplicite;
   const includeArchived = searchParams.get('include_archived') === '1';
   const onlyMine = searchParams.get('only_mine') === '1';
 
-  const sortOptions = (gestion ? SORT_OPTIONS_GESTION : SORT_OPTIONS).map((opt) => ({
+  const sortOptions = [
+    ...(enRecherche ? [{ value: TRI_PERTINENCE, labelKey: 'pertinence' }] : []),
+    ...(gestion ? SORT_OPTIONS_GESTION : SORT_OPTIONS),
+  ].map((opt) => ({
     value: opt.value,
     label: t(`sort.${opt.labelKey}`),
   }));
@@ -241,7 +254,7 @@ export function PropertyListFilters({
   );
 
   /** Le tri : le défaut du mode n'écrit rien dans l'URL (TCK-2638, lot B2). */
-  const choisirTri = (value: string) => updateParam('sort', value === triParDefaut ? null : value);
+  const choisirTri = (value: string) => updateParam('sort', value === triImplicite ? null : value);
 
   const onSearchSubmit = useCallback(
     (e: React.FormEvent<HTMLFormElement>) => {
@@ -445,7 +458,7 @@ export function PropertyListFilters({
               <div className={cn('flex-none', gestion ? 'min-w-[calc(var(--spacing)*50)]' : 'ml-auto min-w-[calc(var(--spacing)*50)]')}>
                 <Select
                   value={currentSort}
-                  onValueChange={(v) => choisirTri((v ?? triParDefaut) as string)}
+                  onValueChange={(v) => choisirTri((v ?? triImplicite) as string)}
                   items={sortOptions}
                 >
                   <SelectTrigger className="w-full" aria-label={t('sortLabel')}>

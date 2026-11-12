@@ -113,6 +113,13 @@ class DateInventoryByValueTest extends TestCase
         'App\Http\Resources\PropertyResource::primary_contact_source' => '`when()` refusé sur `public.*` (TCK-603, '
             .'ADR-0059 §6) — or la route du second appelant répond « oui » à tout `routeIs()`, `public.*` compris. '
             .'Un vocabulaire fermé (`designated`, `invitation_order`, `owner`, `null`), jamais une date.',
+        // TCK-2638 (lot B2) — ⚠ la SEULE entrée de cette liste qui porte une date : sa forme est gardée ailleurs.
+        'App\Http\Resources\PropertyResource::sponsored_until' => '`when()` sur un appelant connu (refusé sur `public.*`), '
+            .'les seules routes `properties.index` / `properties.show`, et le personnel de l\'agence du bien ou son bailleur '
+            .'(vérification adverse d1) — or la route du second appelant répond « oui » à `public.*`, et le premier n\'a pas '
+            .'de route. C\'EST une date (fin du boost, cast `datetime`), émise par `$this->iso()` : sa forme est gardée par '
+            .'`scripts/check-resource-date-format.mjs` (suffixe `_until`, ajouté pour elle) et par la valeur exacte '
+            .'`2026-11-18T23:59:59+00:00` de `Tests\Feature\Property\BoostEnCoursDansLaListeTest`.',
         'App\Http\Resources\PropertyVisitResource::abilities' => '`when()` sur la seule visite de la route (P152.04) : '
             .'un booléen, jamais une date.',
         'App\Http\Resources\ReviewResource::reported_count' => '`when(viewReports)` (TCK-2722) : même lecteur que '

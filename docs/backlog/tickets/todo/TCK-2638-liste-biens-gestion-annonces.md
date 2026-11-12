@@ -283,3 +283,19 @@ _(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, P
 - **Tests** : `PanneauDeFiltres.tck-2638.test.tsx` (19), `gestion.tck-2638` (+2 : défaut serveur, props de la barre),
   `CarteAnnonce.tck-2638` (+3 : cadre de la table, « Boostée »), les doubles de `PropertyListFilters` rendent la liste
   et sa pagination ; ablations front 19/19 rouges, restaurées.
+
+#### Correctifs de la vérification adverse du lot B2 (2026-11-12, terrain-6)
+
+- **d1 — `sponsored_until` au seul personnel de l'agence du bien et à son bailleur.** La version d'origine la servait
+  à tout appelant connu hors `public.*`, donc au locataire (`/api/leases?include=property`) et au candidat
+  (`/api/bookings?include=property`), dont le bien imbriqué est chargé avec toutes ses colonnes. Deux barrières
+  dans `PropertyResource` : les routes `properties.index` et `properties.show` seules (ailleurs, aucun jugement et
+  aucune requête par ligne), puis `BailleurDuBien::est()` ou le personnel de l'agence (`lePersonnelLit`). Sans
+  `agency_id` chargé, la clé reste absente. `PropertyController::index` ajoute l'appelant à l'amorce : le
+  personnel se juge en mémoire, pas par bien. `BoostEnCoursDansLaListeTest` passe de 3 à 8 tests (bailleur,
+  locataire, candidat, sans agence, coût constant) ; ablations : le correctif entier → 3 rouges, la route seule →
+  `LeaseIndexQueryCountTest` rouge, le jugement seul → 1, l'amorce → 1, le bailleur → 1.
+- **Le tri pendant une recherche.** Sans `sort=`, l'API classe par pertinence (TCK-662) : le sélecteur affiche
+  désormais « Pertinence » (option proposée pendant une recherche seulement, jamais envoyée), en Gestion comme en
+  Annonces ; tout autre tri — « Retards d'abord » compris — s'écrit alors dans l'URL, « Pertinence » l'efface.
+  `PanneauDeFiltres.tck-2638` +6 ; ablations 3/3 rouges.

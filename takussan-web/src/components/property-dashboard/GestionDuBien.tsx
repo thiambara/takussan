@@ -17,6 +17,7 @@ import {
   publicationProposee,
   type EtatDuMois,
 } from '@/lib/biens/etat-locatif';
+import { useGesteEnVol } from '@/lib/biens/gestes-en-vol';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { cn } from '@/lib/utils';
 import type { PropertyListItem } from '@/types/property';
@@ -223,6 +224,11 @@ export function PublierLAnnonce({ property, className }: { readonly property: Pr
     },
     onEchec: (message) => setRetour({ ok: false, texte: message || tActions('error') }),
   });
+  // Contre-vérification de TCK-2638 (verif-commercial) — un statut, une duplication ou une suppression
+  // en vol depuis le « ⋯ » du même bien (registre `gestes-en-vol`) ferme aussi « Publier l'annonce » :
+  // sinon deux actions serveur partent sur le même bien. Le sens inverse l'est déjà : la publication
+  // se marque dans le registre (`usePublicationAvecCoordonnees` → `pendantLeGeste`).
+  const gesteEnVol = useGesteEnVol(property.id);
   if (!canPublish || !publicationProposee(property)) return null;
   return (
     <span className={cn('relative z-10 mt-1.5 flex flex-wrap items-center gap-x-2', className)}>
@@ -232,7 +238,7 @@ export function PublierLAnnonce({ property, className }: { readonly property: Pr
           setRetour(null);
           publication.publier();
         }}
-        disabled={publication.enCours}
+        disabled={publication.enCours || gesteEnVol}
         aria-label={t('publierPour', { title: property.title })}
         className="relative rounded-sm text-sm font-medium text-primary outline-none before:absolute before:inset-x-0 before:top-1/2 before:h-controle before:-translate-y-1/2 hover:underline focus-visible:ring-3 focus-visible:ring-ring disabled:opacity-50"
       >

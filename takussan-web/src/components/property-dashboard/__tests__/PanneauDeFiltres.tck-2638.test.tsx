@@ -185,6 +185,62 @@ describe('Gestion — « Retards d’abord » par défaut, URL nue', () => {
   });
 });
 
+describe('Pendant une recherche — le sélecteur dit l’ordre appliqué (vérification adverse)', () => {
+  it('Gestion : sans `sort`, l’API classe par pertinence, et c’est ce que le sélecteur affiche', () => {
+    nav.params = new URLSearchParams('mode=gestion&search=almadies');
+    rendre('gestion');
+    expect(within(barre()).getByRole('combobox', { name: 'Tri' })).toHaveTextContent('Pertinence');
+  });
+
+  it('Annonces : de même, plus « Plus récents » pendant une recherche', () => {
+    nav.params = new URLSearchParams('mode=annonces&search=almadies');
+    rendre('annonces');
+    expect(within(barre()).getByRole('combobox', { name: 'Tri' })).toHaveTextContent('Pertinence');
+  });
+
+  it('Gestion : « Retards d’abord » s’écrit alors dans l’URL, et « Pertinence » l’efface', async () => {
+    const user = userEvent.setup();
+    nav.params = new URLSearchParams('mode=gestion&search=almadies');
+    const { unmount } = rendre('gestion');
+    await choisir(user, barre(), 'Tri', 'Retards d’abord');
+    expect(derniereUrl()).toBe('?mode=gestion&search=almadies&sort=retard');
+    unmount();
+
+    nav.params = new URLSearchParams('mode=gestion&search=almadies&sort=retard');
+    rendre('gestion');
+    await choisir(user, barre(), 'Tri', 'Pertinence');
+    expect(derniereUrl()).toBe('?mode=gestion&search=almadies');
+  });
+
+  it('Annonces : « Plus récents » s’écrit alors dans l’URL', async () => {
+    const user = userEvent.setup();
+    nav.params = new URLSearchParams('mode=annonces&search=almadies');
+    rendre('annonces');
+    await choisir(user, barre(), 'Tri', 'Plus récents');
+    expect(derniereUrl()).toBe('?mode=annonces&search=almadies&sort=-created_at');
+  });
+
+  it('la feuille du téléphone coche « Pertinence », et « Retards d’abord » y écrit `sort` aussi', async () => {
+    auBureau(false);
+    const user = userEvent.setup();
+    nav.params = new URLSearchParams('mode=gestion&search=almadies');
+    rendre('gestion');
+    await user.click(bouton());
+    const feuille = await screen.findByRole('dialog', { name: 'Filtres et tri' });
+    expect(within(feuille).getByRole('radio', { name: 'Pertinence' })).toBeChecked();
+    await user.click(within(feuille).getByRole('radio', { name: 'Retards d’abord' }));
+    expect(derniereUrl()).toBe('?mode=gestion&search=almadies&sort=retard');
+  });
+
+  it('sans recherche, « Pertinence » n’est pas proposé', async () => {
+    const user = userEvent.setup();
+    rendre('gestion');
+    await user.click(within(barre()).getByRole('combobox', { name: 'Tri' }));
+    expect(await screen.findByRole('option', { name: 'Retards d’abord' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Pertinence' })).toBeNull();
+  });
+});
+
 describe('Gestion — la carte de la liste', () => {
   it('« N biens » au bout de la barre ; la liste et la pagination dans la carte', () => {
     rendre('gestion', {

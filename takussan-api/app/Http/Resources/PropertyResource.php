@@ -17,6 +17,7 @@ use App\Services\Media\PrivateMediaAccess;
 use App\Services\Media\PublicPhotoUrl;
 use App\Services\Media\WatermarkRequirement;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Property\BailleurDuBien;
 use App\Services\Property\CoutDEntree;
 use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Property\PropertyContactNumbers;
@@ -138,8 +139,16 @@ class PropertyResource extends BaseResource
             // TCK-2638 (lot B2) — la pastille « Boostée » de la liste pro : la mise en avant payée, projetée
             // par `BoostLifecycle` (décision du porteur : en cours = `sponsored_until` > maintenant, jugé
             // par l'écran). Hors surface publique : la fin d'un boost n'est pas une donnée du catalogue.
+            // Vérification adverse (d1) — sur la liste et la fiche pro SEULES, et au SEUL personnel de
+            // l'agence du bien et à son bailleur : le bien imbriqué d'un bail (`/api/leases?include=property`)
+            // ou d'une réservation (`/api/bookings?include=property`) est chargé avec toutes ses colonnes,
+            // et son locataire ou son candidat n'a pas à lire ce que l'agence a payé. La route d'abord :
+            // ailleurs, aucun jugement, donc aucune requête par ligne (`LeaseIndexQueryCountTest`).
             'sponsored_until' => $this->when(
-                $appelantConnu && array_key_exists('sponsored_until', $this->resource->getAttributes()),
+                $appelantConnu
+                    && $request->routeIs('properties.index', 'properties.show')
+                    && array_key_exists('sponsored_until', $this->resource->getAttributes())
+                    && $this->leBoostSeLitPar($request->user()),
                 fn () => $this->iso($this->resource->sponsored_until),
             ),
             // ⚠ `views_count` / `favorites_count` restent dans la FORME LISTE, et c'est mesuré :
@@ -433,6 +442,19 @@ class PropertyResource extends BaseResource
 
         return $user->isSuperAdmin()
             || ($agencyId !== null && app(MembershipCapabilityResolver::class)->isStaffAt($user, (int) $agencyId));
+    }
+
+    /**
+     * TCK-2638 (lot B2, vérification adverse d1) — la fin d'un boost se lit par le personnel de l'agence
+     * du bien (ou le super-admin) et par son bailleur ({@see BailleurDuBien::est()}, qui ne coûte
+     * aucune requête quand l'appelant n'est pas désigné par `user_id`). Sur la liste, l'amorce de
+     * `PropertyController::index`, qui compte l'appelant parmi ses utilisateurs, juge le personnel en
+     * mémoire.
+     */
+    private function leBoostSeLitPar(User $user): bool
+    {
+        return BailleurDuBien::est($user, $this->resource->getAttribute('user_id'), $this->resource->getAttribute('agency_id'))
+            || $this->lePersonnelLit($user);
     }
 
     /** TCK-2639 — l'identifiant du profil de bailleur du titulaire, si l'appelant en ouvre la fiche. */
