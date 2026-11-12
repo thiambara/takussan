@@ -158,7 +158,8 @@ class CustomerTimelineTachesLisiblesTest extends ApiTestCase
     /**
      * La clause SQL du fil et la policy disent la même chose, branche par branche : créateur,
      * assigné, suppléant d'un absent, lecteur d'équipe, assigné et créateur suspendus, bailleur,
-     * tâche supprimée. Le compte de chaque lecteur est épinglé, pour qu'un
+     * tâche supprimée, délégué ACTIF mais hors vigueur (contre-vérification de 5c81b390a : sans profil
+     * d'agence actif, sa délégation ne le fait pas personnel — `enVigueur()`, pas `active()`). Le compte de chaque lecteur est épinglé, pour qu'un
      * accord vide ne passe pas pour un accord.
      */
     public function test_la_clause_du_fil_rend_exactement_ce_que_la_policy_ouvre(): void
@@ -168,6 +169,12 @@ class CustomerTimelineTachesLisiblesTest extends ApiTestCase
         $suppleant = $this->agentSansVueEquipe();
         $suspendu = $this->agentSansVueEquipe();
         $bailleur = $this->bailleur($this->agence);
+        // Délégation `agent` active dans l'agence, mais aucun profil d'agence actif : hors vigueur.
+        $delegue = User::factory()->create();
+        RoleDelegation::factory()->create([
+            'user_id' => $delegue->id, 'delegator_id' => $this->admin->id, 'agency_id' => $this->agence->id,
+            'role' => 'agent', 'status' => RoleDelegationStatus::Active, 'starts_at' => now()->subDay(), 'ends_at' => now()->addWeek(),
+        ]);
         RoleDelegation::factory()->create([
             'user_id' => $suppleant->id, 'replaces_user_id' => $absent->id, 'delegator_id' => $absent->id,
             'agency_id' => $this->agence->id, 'role' => RoleDelegation::ABSENCE_ROLE, 'status' => RoleDelegationStatus::Active,
@@ -186,12 +193,13 @@ class CustomerTimelineTachesLisiblesTest extends ApiTestCase
         $tache($this->admin, $suspendu);
         $tache($suspendu, null);
         $tache($agent, $suspendu);
+        $deDelegue = $tache($agent, $delegue);
         $tache($bailleur, $agent)->delete();
         AgentProfile::query()->where('user_id', $suspendu->id)->update(['status' => AgentProfileStatus::Suspended]);
 
         $attendus = [];
         $rendus = [];
-        foreach (['admin' => $this->admin, 'agent' => $agent, 'absent' => $absent, 'suppleant' => $suppleant, 'suspendu' => $suspendu, 'bailleur' => $bailleur] as $nom => $lecteur) {
+        foreach (['admin' => $this->admin, 'agent' => $agent, 'absent' => $absent, 'suppleant' => $suppleant, 'suspendu' => $suspendu, 'bailleur' => $bailleur, 'delegue' => $delegue] as $nom => $lecteur) {
             $lecteur = $lecteur->fresh();
             $this->app['auth']->forgetGuards();
             Sanctum::actingAs($lecteur);
@@ -203,8 +211,15 @@ class CustomerTimelineTachesLisiblesTest extends ApiTestCase
 
         $this->assertSame($attendus, $rendus);
         $this->assertSame(
-            ['admin' => 6, 'agent' => 4, 'absent' => 1, 'suppleant' => 1, 'suspendu' => 0, 'bailleur' => 2],
+            ['admin' => 6, 'agent' => 5, 'absent' => 1, 'suppleant' => 1, 'suspendu' => 0, 'bailleur' => 2, 'delegue' => 0],
             array_map('count', $rendus),
         );
+
+        // `filter[team]=1` lit la même borne d'assigné : la tâche du délégué hors vigueur n'y est pas.
+        $this->app['auth']->forgetGuards();
+        Sanctum::actingAs($this->admin->fresh());
+        $equipe = collect($this->getJson('/api/tasks?filter[team]=1&per_page=100')->assertOk()->json('data'))->pluck('id');
+        $this->assertNotContains($deDelegue->id, $equipe);
+        $this->assertNotEmpty($equipe);
     }
 }

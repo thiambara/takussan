@@ -267,7 +267,10 @@ class Task extends AbstractModel
 
     /**
      * TCK-2595 — l'assigné est PERSONNEL ACTIF de l'agence : compte ni bloqué ni supprimé, profil
-     * agent ou admin actif, ou délégation active de ces rôles. Forme SQL de
+     * agent ou admin actif, ou délégation EN VIGUEUR de ces rôles (`enVigueur()`, celle de
+     * `MembershipCapabilityResolver::isStaffAt()` : active ET portée par un profil d'agence actif du
+     * délégué — contre-vérification de 5c81b390a, `active()` seule rendait au lecteur d'équipe la tâche
+     * d'un délégué hors vigueur que `GET /api/tasks/{id}` lui refuse). Forme SQL de
      * `PersonnelDeLAgence::estPersonnel()` sur l'assigné, que `TaskPolicy::readsAsTeam` juge par
      * ligne ; seule définition, lue par `filter[team]=1` et par {@see self::scopeLisiblesSurUnParentPar()}.
      *
@@ -286,7 +289,7 @@ class Task extends AbstractModel
                 ->orWhereHas('agencyAdminProfiles', $actif)
                 ->orWhereHas('roleDelegations', fn (Builder $d) => $inAgency($d)
                     ->whereIn('role', [AgencyRoleBaseType::Agent->value, AgencyRoleBaseType::AgencyAdmin->value])
-                    ->active())));
+                    ->enVigueur())));
     }
 
     /**
