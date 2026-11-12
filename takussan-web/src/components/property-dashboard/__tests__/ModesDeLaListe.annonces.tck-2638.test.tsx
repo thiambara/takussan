@@ -122,7 +122,8 @@ describe('JaugeDuQuota', () => {
     render(withIntl(<JaugeDuQuota used={42} limit={100} presentation="telephone" />));
     const jauge = screen.getByTestId('jauge-du-quota');
     expect(jauge).toHaveTextContent('42 annonces actives sur 100');
-    expect(jauge).toHaveTextContent('Disponibles, validées ou en attente de validation');
+    expect(jauge).toHaveTextContent('Disponibles, validées ou en attente');
+    expect(jauge).not.toHaveTextContent(/de validation/);
     expect(within(jauge).getByRole('progressbar', { name: 'Quota d’annonces de votre agence' })).toBeInTheDocument();
     // Le quota compte les annonces ACTIVES, pas celles en ligne (ADR-0097 § 6).
     expect(jauge.textContent).not.toMatch(/en ligne/i);
@@ -132,7 +133,7 @@ describe('JaugeDuQuota', () => {
     render(withIntl(<JaugeDuQuota used={42} limit={100} presentation="bureau" />));
     const jauge = screen.getByTestId('jauge-du-quota');
     expect(jauge).toHaveTextContent('42 annonces actives sur 100');
-    expect(jauge).toHaveAttribute('title', 'Disponibles, validées ou en attente de validation');
+    expect(jauge).toHaveAttribute('title', 'Disponibles, validées ou en attente');
   });
 
   it('au-delà de la limite, la jauge passe à l’avertissement et reste bornée', () => {

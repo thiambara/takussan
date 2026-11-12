@@ -76,7 +76,7 @@ describe('/app/properties/new — le quota avant l’assistant (TCK-627)', () =>
 
       const ecran = screen.getByTestId('quota-atteint');
       expect(ecran).toHaveTextContent('Votre agence a 120 annonces actives sur 100 permises par son offre.');
-      expect(ecran).toHaveTextContent(/disponible, validée ou en attente de validation/);
+      expect(ecran).toHaveTextContent(/disponible, validée ou en attente, qu’elle soit en ligne ou non/);
       expect(ecran).toHaveTextContent(/changez d’offre/);
       expect(screen.getByRole('link', { name: 'Voir les offres' })).toHaveAttribute('href', '/app/agency/billing');
       expect(ecran).not.toHaveTextContent(/Vous avez/);
@@ -90,7 +90,7 @@ describe('/app/properties/new — le quota avant l’assistant (TCK-627)', () =>
 
       const ecran = screen.getByTestId('quota-atteint');
       expect(ecran).toHaveTextContent('Votre agence a 120 annonces actives sur 100 permises par son offre.');
-      expect(ecran).toHaveTextContent(/disponible, validée ou en attente de validation/);
+      expect(ecran).toHaveTextContent(/disponible, validée ou en attente, qu’elle soit en ligne ou non/);
       expect(ecran).toHaveTextContent(/Seul un administrateur de votre agence peut changer d’offre/);
       expect(ecran).not.toHaveTextContent(/changez d’offre/);
       expect(screen.queryByRole('link', { name: 'Voir les offres' })).not.toBeInTheDocument();
@@ -115,7 +115,7 @@ describe('/app/properties/new — le quota avant l’assistant (TCK-627)', () =>
 
       const note = screen.getByTestId('assistant');
       expect(note).toHaveTextContent('1 annonce active sur 5 permises par l’offre de votre agence');
-      expect(note).toHaveTextContent(/disponibles, validées ou en attente de validation/);
+      expect(note).toHaveTextContent(/\(disponibles, validées ou en attente\)\./);
     });
   });
 
@@ -126,5 +126,30 @@ describe('/app/properties/new — le quota avant l’assistant (TCK-627)', () =>
 
     expect(mockQuota).not.toHaveBeenCalled();
     expect(screen.getByTestId('assistant')).toBeInTheDocument();
+  });
+});
+
+/**
+ * TCK-2638 — ce que le quota compte se dit avec la phrase d'ADR-0097 § 6, « disponibles, validés ou en
+ * attente » : `QuotaResolver::ACTIVE_LISTING_STATUSES` compte `pending` ET `pending_review`, que les
+ * pastilles nomment « En attente » et « En revue ». « en attente de validation » ne nommait ni l'une ni
+ * l'autre, et un bien « En attente » comptait sans être nommé (contre-vérification de 30cb83f06).
+ */
+describe('TCK-2638 — la définition du quota couvre les deux attentes', () => {
+  const CLES = [
+    ['dashboard', 'pages', 'propertyNew', 'quota', 'definition'],
+    ['dashboard', 'pages', 'propertyNew', 'quota', 'note'],
+    ['property', 'dashboard', 'annonces', 'quota', 'definition'],
+  ] as const;
+  const lire = (messages: unknown, chemin: readonly string[]) =>
+    chemin.reduce<unknown>((noeud, cle) => (noeud as Record<string, unknown>)[cle], messages) as string;
+
+  it.each(CLES)('%s.%s.%s.%s.%s : « en attente », sans « de validation » (fr, en)', async (...chemin) => {
+    const fr = (await import('@/messages/fr.json')).default;
+    const en = (await import('@/messages/en.json')).default;
+    expect(lire(fr, chemin)).toMatch(/[Dd]isponibles?, validée?s? ou en attente\b/);
+    expect(lire(fr, chemin)).not.toMatch(/en attente de validation/);
+    expect(lire(en, chemin)).toMatch(/[Aa]vailable, approved or pending\b/);
+    expect(lire(en, chemin)).not.toMatch(/awaiting approval/);
   });
 });
