@@ -363,7 +363,9 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
     /**
      * `filter[assignable]=1` — le personnel joignable de `$agencyId` : la règle de
      * {@see PersonnelDeLAgence::estPersonnel()} écrite en SQL (profil d'agent ou d'admin ACTIF dans
-     * l'agence, ou délégation active de l'un de ces rôles ; compte ni bloqué ni supprimé). Partagé
+     * l'agence, ou délégation EN VIGUEUR de l'un de ces rôles — `enVigueur()`, celle
+     * d'`isStaffAt()` : active ET portée par un profil d'agence actif du délégué, sans quoi la liste
+     * proposait un délégué que l'écriture refuse par 422 (TCK-2589) ; compte ni bloqué ni supprimé). Partagé
      * par la liste des membres (sélecteurs de cible, TCK-1096) et par celle de l'équipe (TCK-2670 :
      * la fiche de l'agence compte, parmi eux, qui n'a pas activé la double authentification que
      * l'agence leur exige — jamais un bailleur, `TwoFactorRequirement`).
@@ -385,7 +387,7 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
                         ->orWhereHas('agencyAdminProfiles', $actif)
                         ->orWhereHas('roleDelegations', fn (Builder $d) => $inAgency($d)
                             ->whereIn('role', [AgencyRoleBaseType::Agent->value, AgencyRoleBaseType::AgencyAdmin->value])
-                            ->active()));
+                            ->enVigueur()));
             },
         );
     }
