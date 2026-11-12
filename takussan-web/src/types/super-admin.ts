@@ -74,6 +74,11 @@ export type KycDocument = {
    * antérieure au ticket.
    */
   document_expires_at?: string | null;
+  /**
+   * TCK-2669 — le numéro que porte la pièce (RCCM, NINEA), saisi au dépôt ; nul quand il n'a pas été
+   * saisi. C'est lui que « Reprendre ces deux numéros » recopie dans les mentions légales (TCK-2670).
+   */
+  document_number?: string | null;
 };
 
 /**

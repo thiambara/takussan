@@ -6,7 +6,7 @@
  * Le contrat est celui de TCK-2518 (`AgencyUpdateRequest`) : `tagline` ≤ 120, `highlights` trois
  * chaînes ≤ 80, `showcase_property_ids` six biens de l'agence au plus, dans l'ordre choisi ; tout est
  * facultatif et `null` vide le champ. Ce module ne porte que des fonctions pures : le composant
- * (`AgencyPublicProfileCard`) n'a ni règle ni calcul à lui.
+ * (`fiche/SectionFichePublique`, TCK-2670) n'a ni règle ni calcul à lui.
  */
 
 export const MAX_ACCROCHE = 120;

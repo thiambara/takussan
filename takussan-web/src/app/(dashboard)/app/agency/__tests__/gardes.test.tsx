@@ -30,10 +30,10 @@ vi.mock('@/lib/access/server-guards', () => ({ resolveAgencyOrNull: async () => 
 vi.mock('@/components/console', () => ({ PageHeader: () => null }));
 vi.mock('@/components/shared/NoAgencyState', () => ({ NoAgencyState: () => null }));
 vi.mock('@/app/actions/admin-agency', () => ({ fetchAgencyAction: async () => ({ ok: false, message: '' }) }));
-vi.mock('@/components/admin-agency/AgencyConfigForm', () => ({ AgencyConfigForm: () => null }));
+vi.mock('@/components/admin-agency/fiche/FicheDeLAgence', () => ({ FicheDeLAgence: () => null }));
 vi.mock('@/components/admin-agency/RegenerateWatermarksCard', () => ({ RegenerateWatermarksCard: () => null }));
 vi.mock('@/components/feedback', () => ({ EmptyState: () => null, ErrorState: () => null }));
-vi.mock('@/components/kyc/AgencyKycClient', () => ({ AgencyKycClient: () => null }));
+vi.mock('@/components/kyc/VerificationDeLAgence', () => ({ VerificationDeLAgence: () => null }));
 vi.mock('@/components/billing/AgencyBillingClient', () => ({ AgencyBillingClient: () => null }));
 vi.mock('@/components/billing/AgencyPayoutsClient', () => ({ AgencyPayoutsClient: () => null }));
 vi.mock('@/components/admin/AuditTrail', () => ({ AuditTrail: () => null }));

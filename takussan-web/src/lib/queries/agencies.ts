@@ -1,7 +1,7 @@
 import { apiRequest, buildQueryString } from '@/lib/api';
 import type { ApiResponse, SpatieQueryParams } from '@/types/api';
 import type { Agency } from '@/types/agency';
-import type { AgencyFormPayload } from '@/lib/schemas/agency';
+import type { CorpsDeLaFiche } from '@/lib/agence/fiche';
 import type { ChargeUtileVitrine } from '@/lib/vitrine-agence';
 import { cheminApi, requete } from '@/lib/chemin-api';
 
@@ -94,7 +94,7 @@ export async function fetchAgency(
 export async function updateAgency(
   token: string,
   agencyId: number,
-  payload: AgencyFormPayload,
+  payload: CorpsDeLaFiche,
   activeProfileId?: string,
 ): Promise<Agency> {
   const res = await apiRequest<ApiResponse<Agency>>(cheminApi`/api/agencies/${agencyId}`, {

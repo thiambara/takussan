@@ -100,14 +100,29 @@ describe('TCK-2483 — le masquage ne se contourne pas', () => {
 
   // Re-mesuré le 2026-11-06 : l'appelant est `components/layout/useMenuDeLEspace.ts` (TCK-2481), le
   // hook que partagent la barre, la barre d'onglets et la palette — pas `AppSidebar`.
+  //
+  // Une exception NOMINATIVE (TCK-2670) : l'aperçu du menu de la fiche de l'agence compose le menu
+  // d'un agent SANS masque, pour y montrer barrées les entrées que la saisie masque. Ce n'est pas
+  // une surface de navigation : aucune de ses lignes n'est un lien.
   it('tout appelant de `composerMenu` pose `masquees` (`destinationsMasquees`)', () => {
-    const appelants = SOURCES.filter(({ f, texte }) => !f.startsWith('lib/navigation/') && /\bcomposerMenu\(/.test(texte));
+    const APERCU_SANS_MASQUE = ['components/admin-agency/fiche/SectionMenu.tsx'];
+    const appelants = SOURCES.filter(
+      ({ f, texte }) => !f.startsWith('lib/navigation/') && !APERCU_SANS_MASQUE.includes(f) && /\bcomposerMenu\(/.test(texte),
+    );
     expect(appelants.length, 'aucun appelant trouvé : le motif est à revoir').toBeGreaterThan(0);
     expect(appelants.filter(({ texte }) => !/\bmasquees:\s*destinationsMasquees\(/.test(texte)).map(({ f }) => f)).toEqual([]);
   });
 
   it('`hidden_modules` n’est lu par aucune page ni aucune garde — affichage seulement', () => {
-    const AUTORISES = ['lib/navigation/modules.ts', 'lib/schemas/agency.ts', 'types/agency.ts', 'components/admin-agency/AgencyConfigForm.tsx'];
+    // TCK-2670 — la fiche de l'agence l'édite : son schéma, sa section « Menu » et son compte de modifications.
+    const AUTORISES = [
+      'lib/navigation/modules.ts',
+      'lib/schemas/agency.ts',
+      'types/agency.ts',
+      'lib/agence/fiche.ts',
+      'components/admin-agency/fiche/SectionMenu.tsx',
+      'components/admin-agency/fiche/FicheDeLAgence.tsx',
+    ];
     const lecteurs = SOURCES.filter(({ texte }) => texte.includes('hidden_modules')).map(({ f }) => f);
     expect(lecteurs.filter((f) => !AUTORISES.includes(f))).toEqual([]);
   });

@@ -340,7 +340,7 @@ export const AGENCY_LOGO_ACCEPT = 'image/jpeg,image/png,image/webp';
  * Rend une CLÉ de message (`validation.agency.…`), jamais un libellé — TCK-292, 2026-08-22.
  *
  * Les deux libellés français rendus ici l'étaient TELS QUELS à l'écran, dans les trois langues,
- * par deux chemins : `AgencyConfigForm.tsx` (`setLogoError` → `<p role="alert">`) et
+ * par deux chemins : le formulaire de l'agence (aujourd'hui `fiche/SectionIdentite.tsx`, TCK-2670) et
  * `uploadAgencyLogoAction` (`{ ok: false, message }`). Ce module est importé des DEUX côtés — un
  * composant client et un module `'use server'` — donc ni `useTranslations` ni `getTranslations`
  * n'y est appelable : c'est le patron de `./messages.ts` qui s'applique (le schéma porte la clé,

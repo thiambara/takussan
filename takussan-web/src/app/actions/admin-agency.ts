@@ -15,7 +15,8 @@ import {
   uploadAgencyLogo,
   type RegenerateWatermarksResult,
 } from '@/lib/queries/agencies';
-import { validateAgencyLogoFile, type AgencyFormPayload } from '@/lib/schemas/agency';
+import { validateAgencyLogoFile } from '@/lib/schemas/agency';
+import type { CorpsDeLaFiche } from '@/lib/agence/fiche';
 import { traduireMessageValidation, type Traducteur } from '@/lib/schemas/messages';
 import type { Agency } from '@/types/agency';
 import type { ChargeUtileVitrine } from '@/lib/vitrine-agence';
@@ -94,7 +95,7 @@ export async function fetchAgencyAction(
 
 export async function updateAgencyAction(
   agencyId: number,
-  payload: AgencyFormPayload,
+  payload: CorpsDeLaFiche,
 ): Promise<ActionResult<Agency>> {
   const auth = await requireToken();
   if (!auth.ok) return auth.result;

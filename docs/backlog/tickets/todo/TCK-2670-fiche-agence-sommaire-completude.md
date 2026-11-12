@@ -91,4 +91,20 @@ Fonctions existantes à garder, toutes (`agency/page.tsx`, `AgencyConfigForm.tsx
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Décisions du 2026-11-12 (team-lead), et leurs limites.**
+
+- **1 a — le pourcentage est toujours calculé**, jamais le 60 % de la maquette : neuf points sur la liste fermée (`standard`), sans les mentions légales pour une agence `individual`. Dakar Immo de démo : 25 %.
+- **2 a — « Abandonner »** remet la dernière réponse enregistrée (pas l'agence lue à l'ouverture) ; `beforeunload` n'est posé que tant que le formulaire est modifié. **Limite** : la navigation par `popstate` et la palette de commandes ne passent pas par la garde.
+- **3 a — la lecture du dossier de vérification** emprunte le même point d'entrée que la page Vérification (capacité `agency.update_kyc`, jugée par l'API) ; un 403 ou un échec de lecture laisse le point hors de la jauge, ni rempli ni en erreur. Pas de garde `useCan` côté front : la capacité est jugée par l'API, une seule source. Testé : `pending`, vérifié avec pièce expirée (« À traiter »), vérifié à jour, 403.
+- **4 a — hydratation** : test `renderToString` → `hydrateRoot`, aucune erreur récupérable. Non ablaté.
+- **5 b — la case du menu** reprend `modules.items.move_in_follow_up.label` (« Entrées en attente ») ; `fiche.menu.entreesAFinaliser` est supprimée (fait par le team-lead).
+
+**Non construit** : « Utiliser cette sélection » et les prix de l'aperçu de la fiche publique. **Aucune écriture** dans la base de démo : les relevés de fidélité refusent tout envoi non-GET dans la page.
+
+**Défauts corrigés en route** : seuil d'approbation `null` mal relu ; aperçu « 0 bien » de la sélection vide ; `Intl.ListFormat` figé en français (il suit `useLocale()`, `check-locale-figee`).
+
+**Gardes** : valeurs arbitraires remplacées par les jetons de l'app (`check-valeurs-arbitraires-app`) ; encres translucides → `text-encre-douce` (`encre-sans-alpha`) ; `h-11` retiré des `<Input>` (`check-champs-uniformes`) ; le détail rouge de « À traiter » est une ligne de message, pas une pastille (`PointDEtat` est la pastille ; `status-badge-unique`).
+
+**Tests** : `src/components/admin-agency/fiche/__tests__/FicheDeLAgence.decisions.test.tsx` (2 a, 3 a, 4 a ; ablations rouges pour 2 a et 3 a, restaurées md5 vérifié), plus les tests de section existants.
+
+**Fidélité** : `docs/qa/audit-ux-2026-11/fidelite/TCK-2670.json` — écrans a0 à a4, a6, a7 ; les écarts restants y sont nommés. Une passe v5 (jetons, saisie reproduite en a2 et a7, alias « Onboardings en attente ») et la mesure des largeurs 1024 et 768 (AC-F6) restent à jouer quand le navigateur de mesure est libre.

@@ -2,9 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
 /**
- * TCK-2524 — le bloc « Fiche publique » est monté sur `/app/agency`, HORS du formulaire de
- * configuration (son propre enregistrement), et seulement pour qui configure l'agence
+ * TCK-2524 — la vitrine (« Fiche publique ») ne se propose qu'à qui configure l'agence
  * (`AgencyPolicy::configure` : l'administrateur principal, ou `agency.update`).
+ *
+ * TCK-2670 — elle n'est plus un bloc à part, avec son propre enregistrement : c'est une section de la
+ * fiche de l'agence, sous l'unique « Enregistrer ». La page ne juge plus que le DROIT, qu'elle passe
+ * à la fiche (`vitrine`) ; la fiche montre ou cache la section (`sectionsMontrees`, lib/agence/fiche).
  */
 const ETAT = vi.hoisted(() => ({
   capacites: ['agency.update'] as readonly string[] | null,
@@ -26,48 +29,46 @@ vi.mock('@/app/actions/admin-agency', () => ({
     data: { id: 7, name: 'Agence Test', slug: 'agence-test', primary_admin_id: ETAT.primaryAdminId, settings: {} },
   }),
 }));
-vi.mock('@/components/admin-agency/AgencyConfigForm', () => ({
-  AgencyConfigForm: () => <form data-testid="agency-config-form" />,
-}));
-vi.mock('@/components/admin-agency/RegenerateWatermarksCard', () => ({ RegenerateWatermarksCard: () => null }));
-vi.mock('@/components/admin-agency/AgencyPublicProfileCard', () => ({
-  AgencyPublicProfileCard: ({ agency }: { agency: { id: number } }) => <section data-testid="fiche-publique" data-agency-id={agency.id} />,
+vi.mock('@/components/admin-agency/fiche/FicheDeLAgence', () => ({
+  FicheDeLAgence: ({ agency, vitrine }: { agency: { id: number }; vitrine: boolean }) => (
+    <form data-testid="fiche-de-l-agence" data-agency-id={agency.id} data-vitrine={String(vitrine)} />
+  ),
 }));
 
-describe('/app/agency — le bloc « Fiche publique » (TCK-2524)', () => {
+const fiche = () => screen.getByTestId('fiche-de-l-agence');
+
+describe('/app/agency — la vitrine (TCK-2524, section de la fiche depuis TCK-2670)', () => {
   beforeEach(() => {
     ETAT.capacites = ['agency.update'];
     ETAT.primaryAdminId = 99;
   });
 
-  it('est monté, sur la bonne agence, hors du formulaire de configuration', async () => {
+  it('est proposée, sur la bonne agence, à qui a la capacité de configurer', async () => {
     const { default: Page } = await import('../page');
     render(await Page());
-    const bloc = screen.getByTestId('fiche-publique');
-    expect(bloc).toHaveAttribute('data-agency-id', '7');
-    expect(bloc.closest('form')).toBeNull();
+    expect(fiche()).toHaveAttribute('data-agency-id', '7');
+    expect(fiche()).toHaveAttribute('data-vitrine', 'true');
   });
 
-  it('n’est pas monté pour un administrateur sans la capacité de configurer', async () => {
+  it('n’est pas proposée à un administrateur sans la capacité de configurer', async () => {
     ETAT.capacites = ['team.invite'];
     const { default: Page } = await import('../page');
     render(await Page());
-    expect(screen.queryByTestId('fiche-publique')).toBeNull();
-    expect(screen.getByTestId('agency-config-form')).toBeInTheDocument();
+    expect(fiche()).toHaveAttribute('data-vitrine', 'false');
   });
 
-  it('est monté pour l’administrateur principal, même sans la capacité listée', async () => {
+  it('est proposée à l’administrateur principal, même sans la capacité listée', async () => {
     ETAT.capacites = [];
     ETAT.primaryAdminId = 1;
     const { default: Page } = await import('../page');
     render(await Page());
-    expect(screen.getByTestId('fiche-publique')).toBeInTheDocument();
+    expect(fiche()).toHaveAttribute('data-vitrine', 'true');
   });
 
-  it('n’est pas monté quand les capacités sont illisibles', async () => {
+  it('n’est pas proposée quand les capacités sont illisibles', async () => {
     ETAT.capacites = null;
     const { default: Page } = await import('../page');
     render(await Page());
-    expect(screen.queryByTestId('fiche-publique')).toBeNull();
+    expect(fiche()).toHaveAttribute('data-vitrine', 'false');
   });
 });

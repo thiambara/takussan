@@ -5,24 +5,22 @@ import { getMeAction } from '@/app/actions/auth';
 import { fetchAgencyAction } from '@/app/actions/admin-agency';
 import { capacitesDuProfilActif, garderPageAdmin } from '@/lib/access/pages-admin-server';
 import { peutEcrireLaVitrine } from '@/lib/vitrine-agence';
-import { AgencyConfigForm } from '@/components/admin-agency/AgencyConfigForm';
-import { RegenerateWatermarksCard } from '@/components/admin-agency/RegenerateWatermarksCard';
-import { AgencyPublicProfileCard } from '@/components/admin-agency/AgencyPublicProfileCard';
+import { FicheDeLAgence } from '@/components/admin-agency/fiche/FicheDeLAgence';
+import { origineSite } from '@/lib/config-publique';
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { PageHeader } from '@/components/console';
 import type { Metadata } from 'next';
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('admin.pages.agencyConfig');
-  return { title: t('title') };
+  const t = await getTranslations('admin.agencyConfig.fiche');
+  return { title: t('titre') };
 }
 
 /**
- * Admin — agency configuration page (TCK-064).
+ * La fiche de l'agence (TCK-064, refondue par TCK-2670 : sommaire, complétude, une section par écran).
  *
- * Loads the current user's agency via SSR so the form is pre-filled with
- * no flash of empty inputs. Users without an attached agency are bounced
- * to the admin root (the layout already gates by admin-level role).
+ * L'agence se lit côté serveur : le formulaire s'ouvre rempli, sans champ vide qui clignote. Sans
+ * agence : `EmptyState` ; agence illisible : `ErrorState`.
  */
 
 export const dynamic = 'force-dynamic';
@@ -57,20 +55,17 @@ export default async function Page() {
     );
   }
 
+  // TCK-2670 — la fiche entière, ses sections et son unique formulaire. La page ne lit PAS `?section=` :
+  // la section se change dans le navigateur (`history.pushState`), sans relire l'agence — une relecture
+  // ratée remplacerait le formulaire par l'état d'erreur et perdrait la saisie.
   return (
-    <div className="space-y-6">
-      <PageHeader title={tPage('title')} description={tPage('subtitle')} />
-      <AgencyConfigForm agency={result.data} />
-      {/* TCK-2524 — la vitrine de la fiche publique : son propre formulaire, HORS de celui du dessus
-          (même raison que la carte des filigranes), et seulement pour qui configure l'agence. */}
-      {peutEcrireLaVitrine(await capacitesDuProfilActif(), result.data, user.id) ? (
-        <AgencyPublicProfileCard agency={result.data} />
-      ) : null}
-      {/* HORS du `<form>` d'AgencyConfigForm, délibérément : un bouton posé dedans partage sa
-          soumission, et un `<form>` imbriqué n'est pas du HTML valide.
-          TCK-633 — et seulement si le filigrane est allumé pour la plateforme : éteint (le
-          défaut), la carte promettait un filigrane qu'aucune photo ne recevrait. */}
-      {result.data.watermark_available === true ? <RegenerateWatermarksCard agencyId={result.data.id} /> : null}
-    </div>
+    <FicheDeLAgence
+      agency={result.data}
+      // TCK-2524 — la vitrine ne se propose qu'à qui configure l'agence.
+      vitrine={peutEcrireLaVitrine(await capacitesDuProfilActif(), result.data, user.id)}
+      // TCK-633 — « Regénérer les filigranes » seulement si le filigrane est allumé pour la plateforme.
+      filigranes={result.data.watermark_available === true}
+      origineSite={origineSite()}
+    />
   );
 }

@@ -8208,6 +8208,239 @@
         "bankDetails": "Bank details",
         "bankDetailsPlaceholder": "Bank, account holder, account number or IBAN",
         "bankDetailsCount": "{count} / {max} characters"
+      },
+      "fiche": {
+        "titre": "My agency",
+        "voirMaFichePublique": "View my public profile",
+        "copier": "Copy",
+        "copiee": "Copied",
+        "copierLAdresse": "Copy the address",
+        "adresseCopiee": "Address copied",
+        "sectionsDeLaFiche": "Profile sections",
+        "jauge": {
+          "titre": "Profile {pourcent}% complete",
+          "aRemplir": "{n, plural, one {# item to fill in} other {# items to fill in}}",
+          "lesDeuxDAbord": "{n, plural, one {# item to fill in:} other {# items to fill in, {affichees, plural, one {the most useful first:} other {the two most useful first:}}}}",
+          "ensuite": "Then: {liste}.",
+          "complete": "Nothing is missing from your profile."
+        },
+        "etats": {
+          "ok": "Complete",
+          "incomplet": "Incomplete",
+          "alerte": "Needs attention"
+        },
+        "champ": {
+          "modifie": "edited",
+          "aRemplir": "to fill in",
+          "devise": "Currency",
+          "vitrine": {
+            "tagline": "Tagline",
+            "highlights": "Why us",
+            "showcase": "Your selection"
+          }
+        },
+        "elements": {
+          "paiement_hors_ligne": {
+            "titre": "Wave number for your tenants",
+            "detail": "Shown on their payment link"
+          },
+          "raison_sociale": {
+            "titre": "Company name",
+            "detail": "Printed on your invoices"
+          },
+          "ninea": {
+            "titre": "NINEA",
+            "detail": "Printed on your invoices"
+          },
+          "rccm": {
+            "titre": "RCCM",
+            "detail": "Printed on your invoices"
+          },
+          "ninea_et_rccm": {
+            "titre": "NINEA and RCCM",
+            "detail": "Printed on your invoices",
+            "detailReprise": "Printed on your invoices · to copy from your verification file"
+          },
+          "adresse_du_siege": {
+            "titre": "Registered address",
+            "detail": "Printed on your invoices"
+          },
+          "verification": {
+            "titre": "Agency verification",
+            "detail": "The “Verified agency” badge and your payouts"
+          },
+          "accroche": {
+            "titre": "Tagline",
+            "detail": "The first sentence of your public profile"
+          },
+          "pourquoi_nous": {
+            "titre": "Why us",
+            "detail": "Reasons to choose your agency"
+          },
+          "vitrine": {
+            "titre": "Showcase",
+            "detail": "Six properties featured on your profile"
+          },
+          "logo": {
+            "titre": "Logo",
+            "detail": "On your documents and public profile"
+          },
+          "telephone": {
+            "titre": "Phone",
+            "detail": "So your clients can reach you"
+          },
+          "email": {
+            "titre": "Email",
+            "detail": "Used in your emails and listings"
+          }
+        },
+        "sections": {
+          "identite": {
+            "titre": "Identity and contact",
+            "titreCourt": "Identity and contact",
+            "detail": "Name, logo, phone, email"
+          },
+          "publique": {
+            "titre": "Public profile",
+            "titreCourt": "Public profile",
+            "detail": "Tagline, reasons, showcase"
+          },
+          "paiement": {
+            "titre": "Offline payment",
+            "titreCourt": "Offline payment"
+          },
+          "facturation": {
+            "titre": "Billing and legal details",
+            "titreIndividuelle": "Billing",
+            "titreCourt": "Billing and legal",
+            "detail": "VAT, commission, currency, legal details",
+            "detailIndividuelle": "VAT, commission, currency"
+          },
+          "verification": {
+            "titre": "Agency verification",
+            "titreCourt": "Verification"
+          },
+          "regles": {
+            "titre": "Agency rules",
+            "titreCourt": "Agency rules",
+            "detail": "Moderation, late fees, dual approval, 2FA",
+            "detailIndividuelle": "Late fees"
+          },
+          "menu": {
+            "titre": "Team menu",
+            "titreCourt": "Team menu"
+          },
+          "offre": {
+            "titre": "Plan and going pro",
+            "titreCourt": "Plan",
+            "detail": "Professional agency",
+            "detailIndividuelle": "Become a professional agency"
+          }
+        },
+        "detail": {
+          "aRemplir": "{liste} to fill in",
+          "aucunMoyen": "No method entered",
+          "wave": "Wave",
+          "orangeMoney": "Orange Money",
+          "banque": "bank transfer",
+          "nineaRccmAReprendre": "NINEA and RCCM to copy over",
+          "verifiee": "Verified",
+          "verificationIllisible": "Verification file",
+          "verification": {
+            "pending": "File to complete",
+            "submitted": "File under review",
+            "verified": "A document has expired",
+            "rejected": "File rejected"
+          },
+          "modules": "{n} of {total} modules shown"
+        },
+        "barre": {
+          "compte": "{n, plural, one {# change} other {# changes}}",
+          "nonEnregistrees": "not saved",
+          "bureau": "{n, plural, one {# unsaved change} other {# unsaved changes}} · {champs}"
+        },
+        "sortie": {
+          "titre": "Leave without saving?",
+          "texte": "{n, plural, one {Your change is not saved.} other {Your # changes are not saved.}}",
+          "rester": "Stay",
+          "abandonner": "Discard changes"
+        },
+        "identite": {
+          "titre": "Identity and contact",
+          "texte": "The name and contact details your clients see, used in your emails, listings and public profile.",
+          "adresse": "Your public profile address",
+          "adresseAide": "Identifier “{slug}”: it cannot be changed, your shared listings lead to it.",
+          "licenceAide": "Your professional real estate agent card.",
+          "descriptionAide": "A few words about your agency, shown on the public site.",
+          "logoAide": "JPG, PNG or WEBP — 2 MB maximum. Shown in the agent space and on generated documents; without a logo, your initials are shown.",
+          "enregistrerApparait": "“Save” appears at the bottom as soon as a field changes."
+        },
+        "paiement": {
+          "titre": "Offline payment",
+          "texte": "When a tenant does not pay online, their payment link shows them where to pay you directly. Fill in at least one method.",
+          "rienNeSePerd": "If you leave this screen without saving, we ask you first: nothing is lost by going back.",
+          "apercu": "What your tenant sees",
+          "apercuObjet": "Their payment link",
+          "payerALAgence": "Pay the agency directly",
+          "apercuVide": "No offline method: their link only offers online payment.",
+          "virement": "Bank transfer",
+          "moyenWave": "Wave",
+          "moyenOrangeMoney": "Orange Money"
+        },
+        "publique": {
+          "titre": "Public profile",
+          "manqueTitre": "{n, plural, one {This section is missing one item} other {This section is missing # items}}",
+          "manqueTexte": "{liste}. Your profile goes from {avant}% to {apres}% once {n, plural, one {it is saved} other {they are saved}}.",
+          "ajouter": "Add “{title}” to the selection",
+          "ajouterCourt": "Add",
+          "nombreDeBiens": "{n, plural, one {# property} other {# properties}}",
+          "accrocheIci": "Your tagline will appear here."
+        },
+        "facturation": {
+          "titre": "Billing and legal details",
+          "titreIndividuelle": "Billing",
+          "texte": "The default rates, and the legal identity printed on your invoices.",
+          "texteIndividuelle": "The default rates applied to your invoices and commissions.",
+          "groupeFacturation": "Billing",
+          "groupeFacturationTexte": "Applied by default to new properties, invoices and commission calculations.",
+          "groupeMentions": "Legal details",
+          "groupeMentionsTexte": "Printed on your invoices.",
+          "repriseTitreLesDeux": "NINEA and RCCM are missing from your invoices",
+          "repriseTitreUn": "The {numero} is missing from your invoices",
+          "repriseTexte": "Your verification file already has it: <numeros></numeros>. You don’t have to enter it a second time.",
+          "reprendreLesDeux": "Copy these two numbers",
+          "reprendreUn": "Copy this number",
+          "aReprendre": "To copy over",
+          "apercu": "What is printed on your invoices",
+          "apercuAbsents": "NINEA and RCCM missing",
+          "apercuNineaAbsent": "NINEA missing",
+          "apercuRccmAbsent": "RCCM missing",
+          "apercuExemple": "Sample invoice",
+          "apercuHonoraires": "Management fees",
+          "apercuTva": "VAT {taux}%",
+          "apercuTotal": "Total incl. VAT"
+        },
+        "regles": {
+          "titre": "Agency rules",
+          "texte": "The rules that apply to every property, every payout and every member of the agency.",
+          "groupePublication": "Publishing and payments",
+          "groupeReversements": "Payouts",
+          "groupeSecurite": "Team security",
+          "biensEnAttente": "{n, plural, one {# property awaits your approval} other {# properties await your approval}}",
+          "ouvrirLaFile": "Open the queue",
+          "membresSansDoubleFacteur": "{n, plural, one {# of {total} members has not turned it on yet} other {# of {total} members have not turned it on yet}}",
+          "membresSansDoubleFacteurAuMoins": "{n, plural, one {At least # of {total} members has not turned it on yet} other {At least # of {total} members have not turned it on yet}}",
+          "voirLEquipe": "View the team",
+          "demandeeLe": "Requested on {date}"
+        },
+        "menu": {
+          "titre": "Team menu",
+          "modifie": "edited",
+          "apercu": "Your agents’ menu",
+          "masque": "Hidden",
+          "modulesAffiches": "Modules shown",
+          "compteAffiches": "{n} of {total}"
+        }
       }
     },
     "users": {

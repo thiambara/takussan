@@ -97,11 +97,6 @@
       "count": 1
     }
   },
-  "src/components/admin-agency/AgencyConfigForm.tsx": {
-    "@typescript-eslint/no-misused-promises": {
-      "count": 2
-    }
-  },
   "src/components/admin-settings/IntegrationWebhookEndpoint.tsx": {
     "@typescript-eslint/no-misused-promises": {
       "count": 1

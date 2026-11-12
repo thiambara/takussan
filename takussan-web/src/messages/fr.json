@@ -8185,7 +8185,7 @@
         "title": "Mentions légales et paiements",
         "description": "Imprimées sur vos factures ; le seuil décide quand un reversement attend une seconde personne.",
         "taxRate": "TVA par défaut des factures (%)",
-        "threshold": "Seuil d'approbation des reversements (F CFA)",
+        "threshold": "Seuil d’approbation des reversements (F CFA)",
         "thresholdHint": "Au-dessus de ce net, un reversement doit être approuvé par une autre personne que celle qui l'a préparé. Laisser vide pour désactiver. Il faut au moins deux personnes habilitées à approuver.",
         "legalName": "Raison sociale",
         "ninea": "NINEA",
@@ -8208,6 +8208,239 @@
         "bankDetails": "Coordonnées bancaires",
         "bankDetailsPlaceholder": "Banque, titulaire du compte, RIB ou IBAN",
         "bankDetailsCount": "{count} / {max} caractères"
+      },
+      "fiche": {
+        "titre": "Mon agence",
+        "voirMaFichePublique": "Voir ma fiche publique",
+        "copier": "Copier",
+        "copiee": "Copiée",
+        "copierLAdresse": "Copier l’adresse",
+        "adresseCopiee": "Adresse copiée",
+        "sectionsDeLaFiche": "Sections de la fiche",
+        "jauge": {
+          "titre": "Fiche complète à {pourcent} %",
+          "aRemplir": "{n, plural, one {# élément à remplir} other {# éléments à remplir}}",
+          "lesDeuxDAbord": "{n, plural, one {# élément à remplir :} other {# éléments à remplir, {affichees, plural, one {le plus utile d’abord :} other {les deux plus utiles d’abord :}}}}",
+          "ensuite": "Ensuite : {liste}.",
+          "complete": "Rien ne manque à votre fiche."
+        },
+        "etats": {
+          "ok": "Complet",
+          "incomplet": "Incomplet",
+          "alerte": "À traiter"
+        },
+        "champ": {
+          "modifie": "modifié",
+          "aRemplir": "à remplir",
+          "devise": "Devise",
+          "vitrine": {
+            "tagline": "Accroche",
+            "highlights": "Pourquoi nous",
+            "showcase": "Votre sélection"
+          }
+        },
+        "elements": {
+          "paiement_hors_ligne": {
+            "titre": "Numéro Wave pour vos locataires",
+            "detail": "Affiché sur leur lien de paiement"
+          },
+          "raison_sociale": {
+            "titre": "Raison sociale",
+            "detail": "Imprimée sur vos factures"
+          },
+          "ninea": {
+            "titre": "NINEA",
+            "detail": "Imprimé sur vos factures"
+          },
+          "rccm": {
+            "titre": "RCCM",
+            "detail": "Imprimé sur vos factures"
+          },
+          "ninea_et_rccm": {
+            "titre": "NINEA et RCCM",
+            "detail": "Imprimés sur vos factures",
+            "detailReprise": "Imprimés sur vos factures · à reprendre de votre dossier de vérification"
+          },
+          "adresse_du_siege": {
+            "titre": "Adresse du siège",
+            "detail": "Imprimée sur vos factures"
+          },
+          "verification": {
+            "titre": "Vérification de l’agence",
+            "detail": "Le badge « Agence vérifiée » et vos reversements"
+          },
+          "accroche": {
+            "titre": "Accroche",
+            "detail": "La première phrase de votre fiche publique"
+          },
+          "pourquoi_nous": {
+            "titre": "Pourquoi nous",
+            "detail": "Les raisons de choisir votre agence"
+          },
+          "vitrine": {
+            "titre": "Vitrine",
+            "detail": "Six biens mis en avant sur votre fiche"
+          },
+          "logo": {
+            "titre": "Logo",
+            "detail": "Sur vos documents et votre fiche publique"
+          },
+          "telephone": {
+            "titre": "Téléphone",
+            "detail": "Pour que vos clients vous joignent"
+          },
+          "email": {
+            "titre": "E-mail",
+            "detail": "Repris par vos e-mails et vos annonces"
+          }
+        },
+        "sections": {
+          "identite": {
+            "titre": "Identité et contact",
+            "titreCourt": "Identité et contact",
+            "detail": "Nom, logo, téléphone, e-mail"
+          },
+          "publique": {
+            "titre": "Fiche publique",
+            "titreCourt": "Fiche publique",
+            "detail": "Accroche, raisons, vitrine"
+          },
+          "paiement": {
+            "titre": "Paiement hors ligne",
+            "titreCourt": "Paiement hors ligne"
+          },
+          "facturation": {
+            "titre": "Facturation et mentions légales",
+            "titreIndividuelle": "Facturation",
+            "titreCourt": "Facturation et mentions",
+            "detail": "TVA, commission, devise, mentions légales",
+            "detailIndividuelle": "TVA, commission, devise"
+          },
+          "verification": {
+            "titre": "Vérification de l’agence",
+            "titreCourt": "Vérification"
+          },
+          "regles": {
+            "titre": "Règles de l’agence",
+            "titreCourt": "Règles de l’agence",
+            "detail": "Modération, pénalités, double validation, 2FA",
+            "detailIndividuelle": "Pénalités de retard"
+          },
+          "menu": {
+            "titre": "Menu de l’équipe",
+            "titreCourt": "Menu de l’équipe"
+          },
+          "offre": {
+            "titre": "Offre et passage en pro",
+            "titreCourt": "Offre",
+            "detail": "Agence professionnelle",
+            "detailIndividuelle": "Passer en agence professionnelle"
+          }
+        },
+        "detail": {
+          "aRemplir": "{liste} à remplir",
+          "aucunMoyen": "Aucun moyen renseigné",
+          "wave": "Wave",
+          "orangeMoney": "Orange Money",
+          "banque": "virement",
+          "nineaRccmAReprendre": "NINEA et RCCM à reprendre",
+          "verifiee": "Vérifiée",
+          "verificationIllisible": "Dossier de vérification",
+          "verification": {
+            "pending": "Dossier à compléter",
+            "submitted": "Dossier en cours d’examen",
+            "verified": "Une pièce a expiré",
+            "rejected": "Dossier refusé"
+          },
+          "modules": "{n} modules affichés sur {total}"
+        },
+        "barre": {
+          "compte": "{n, plural, one {# modification} other {# modifications}}",
+          "nonEnregistrees": "{n, plural, one {non enregistrée} other {non enregistrées}}",
+          "bureau": "{n, plural, one {# modification non enregistrée} other {# modifications non enregistrées}} · {champs}"
+        },
+        "sortie": {
+          "titre": "Quitter sans enregistrer ?",
+          "texte": "{n, plural, one {Votre modification n’est pas enregistrée.} other {Vos # modifications ne sont pas enregistrées.}}",
+          "rester": "Rester",
+          "abandonner": "Abandonner les modifications"
+        },
+        "identite": {
+          "titre": "Identité et contact",
+          "texte": "Le nom et les coordonnées que voient vos clients : repris par vos e-mails, vos annonces et votre fiche publique.",
+          "adresse": "Adresse de votre fiche publique",
+          "adresseAide": "Identifiant « {slug} » : il ne se modifie pas, vos annonces partagées y mènent.",
+          "licenceAide": "Votre carte professionnelle d’agent immobilier.",
+          "descriptionAide": "Quelques mots sur votre agence, affichés sur le site public.",
+          "logoAide": "JPG, PNG ou WEBP — 2 Mo maximum. Affiché dans l’espace agent et sur les documents générés ; sans logo, vos initiales s’affichent.",
+          "enregistrerApparait": "« Enregistrer » apparaît en bas dès qu’un champ change."
+        },
+        "paiement": {
+          "titre": "Paiement hors ligne",
+          "texte": "Quand un locataire ne paie pas en ligne, son lien de paiement lui montre où vous payer directement. Remplissez au moins un moyen.",
+          "rienNeSePerd": "Si vous quittez cet écran sans enregistrer, nous vous le demandons d’abord : rien ne se perd par un retour.",
+          "apercu": "Ce que voit votre locataire",
+          "apercuObjet": "Son lien de paiement",
+          "payerALAgence": "Payer directement à l’agence",
+          "apercuVide": "Aucun moyen hors ligne : son lien ne propose que le paiement en ligne.",
+          "virement": "Virement bancaire",
+          "moyenWave": "Wave",
+          "moyenOrangeMoney": "Orange Money"
+        },
+        "publique": {
+          "titre": "Fiche publique",
+          "manqueTitre": "{n, plural, one {Il manque un élément à cette section} other {Il manque # éléments à cette section}}",
+          "manqueTexte": "{liste}. Votre fiche passe de {avant} % à {apres} % dès {n, plural, one {son enregistrement} other {leur enregistrement}}.",
+          "ajouter": "Ajouter « {title} » à la sélection",
+          "ajouterCourt": "Ajouter",
+          "nombreDeBiens": "{n, plural, one {# bien} other {# biens}}",
+          "accrocheIci": "Votre accroche paraîtra ici."
+        },
+        "facturation": {
+          "titre": "Facturation et mentions légales",
+          "titreIndividuelle": "Facturation",
+          "texte": "Les taux appliqués par défaut, et l’identité légale imprimée sur vos factures.",
+          "texteIndividuelle": "Les taux appliqués par défaut à vos factures et à vos commissions.",
+          "groupeFacturation": "Facturation",
+          "groupeFacturationTexte": "Appliqués par défaut aux nouveaux biens, aux factures et aux calculs de commission.",
+          "groupeMentions": "Mentions légales",
+          "groupeMentionsTexte": "Imprimées sur vos factures.",
+          "repriseTitreLesDeux": "NINEA et RCCM manquent sur vos factures",
+          "repriseTitreUn": "Le {numero} manque sur vos factures",
+          "repriseTexte": "Votre dossier de vérification le porte déjà : <numeros></numeros>. Vous n’avez pas à le saisir une seconde fois.",
+          "reprendreLesDeux": "Reprendre ces deux numéros",
+          "reprendreUn": "Reprendre ce numéro",
+          "aReprendre": "À reprendre",
+          "apercu": "Ce qui s’imprime sur vos factures",
+          "apercuAbsents": "NINEA et RCCM absents",
+          "apercuNineaAbsent": "NINEA absent",
+          "apercuRccmAbsent": "RCCM absent",
+          "apercuExemple": "Facture d’exemple",
+          "apercuHonoraires": "Honoraires de gestion",
+          "apercuTva": "TVA {taux} %",
+          "apercuTotal": "Total TTC"
+        },
+        "regles": {
+          "titre": "Règles de l’agence",
+          "texte": "Les règles qui s’appliquent à tous les biens, à tous les reversements et à chaque membre de l’agence.",
+          "groupePublication": "Publication et paiements",
+          "groupeReversements": "Reversements",
+          "groupeSecurite": "Sécurité de l’équipe",
+          "biensEnAttente": "{n, plural, one {# bien attend votre validation} other {# biens attendent votre validation}}",
+          "ouvrirLaFile": "Ouvrir la file",
+          "membresSansDoubleFacteur": "{n, plural, one {# membre sur {total} ne l’a pas encore activée} other {# membres sur {total} ne l’ont pas encore activée}}",
+          "membresSansDoubleFacteurAuMoins": "{n, plural, one {Au moins # membre sur {total} ne l’a pas encore activée} other {Au moins # membres sur {total} ne l’ont pas encore activée}}",
+          "voirLEquipe": "Voir l’équipe",
+          "demandeeLe": "Demandée le {date}"
+        },
+        "menu": {
+          "titre": "Menu de l’équipe",
+          "modifie": "modifié",
+          "apercu": "Le menu de vos agents",
+          "masque": "Masqué",
+          "modulesAffiches": "Modules affichés",
+          "compteAffiches": "{n} sur {total}"
+        }
       }
     },
     "users": {

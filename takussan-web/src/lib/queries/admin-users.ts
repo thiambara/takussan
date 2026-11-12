@@ -93,3 +93,32 @@ export async function putUserRole(
   });
   return jsonOrThrow<unknown>(res);
 }
+
+/**
+ * TCK-2670 — « N membres sur M ne l'ont pas activée », sous la double authentification obligatoire de
+ * la fiche de l'agence. La liste de l'équipe (`/api/admin-users`, celle de `/app/agency/team`), une
+ * seule page de cent membres au plus, ids seuls : `two_factor_enabled` y est toujours calculé
+ * (`UserAdminController::index`). Au-delà de cent, `lus` < `total` et l'écran dit « au moins ».
+ * Un membre sans la clé n'est pas compté comme « sans » : un champ absent n'est pas un `false`.
+ */
+export interface DoubleFacteurDeLEquipe {
+  readonly sans: number;
+  readonly lus: number;
+  readonly total: number;
+}
+
+export const DOUBLE_FACTEUR_DE_L_EQUIPE_KEY = ['admin-users', 'double-facteur'] as const;
+
+export async function fetchDoubleFacteurDeLEquipe(): Promise<DoubleFacteurDeLEquipe> {
+  const qs = new URLSearchParams();
+  qs.set('fields[users]', 'id');
+  qs.set('per_page', '100');
+  qs.set('page', '1');
+  const res = await fetch(cheminApi`/api/admin-users?${qs.toString()}`, { credentials: 'include' });
+  const page = await jsonOrThrow<AdminAgencyUsersResponse>(res);
+  return {
+    sans: page.data.filter((membre) => membre.two_factor_enabled === false).length,
+    lus: page.data.length,
+    total: page.meta.total,
+  };
+}

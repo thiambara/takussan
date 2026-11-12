@@ -20,7 +20,7 @@ const ECRANS_DE_PHOTOS = [
   'components/property-form/PropertyWizard.tsx',
   'components/media/MediaManager.tsx',
   'components/profile/ProfileHeader.tsx',
-  'components/admin-agency/AgencyConfigForm.tsx',
+  'components/admin-agency/fiche/SectionIdentite.tsx', // le logo (TCK-2670 ; AgencyConfigForm avant)
   'components/maintenance/MaintenanceForm.tsx',
   'components/maintenance/MaintenanceCompleteForm.tsx',
   // `components/messages/ChatView.tsx` n'en est plus : TCK-683 a retiré le trombone, qui postait
