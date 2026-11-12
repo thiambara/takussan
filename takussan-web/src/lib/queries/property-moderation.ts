@@ -161,22 +161,75 @@ export async function approveProperty(
 }
 
 /** TCK-2672 — les motifs d'une demande de correction (`RejectPropertyRequest::REASON_CODES`). */
-export type PropertyRejectionReasonCode = 'photos' | 'price' | 'address' | 'description' | 'other';
+export const MOTIFS_DE_CORRECTION = ['photos', 'price', 'address', 'description', 'other'] as const;
+export type PropertyRejectionReasonCode = (typeof MOTIFS_DE_CORRECTION)[number];
+
+/** La raison écrite d'une demande de correction : 20 caractères au moins, 1000 au plus (API). */
+export const RAISON_MIN = 20;
+export const RAISON_MAX = 1000;
 
 /**
- * TCK-2672 — `reason_code` est exigé par l'API. Tant que l'écran ne propose pas le choix du motif
- * (TCK-2673), l'appel envoie `other` : le texte libre reste le motif lu par l'agent.
+ * « Demander une correction » (TCK-2673) : le rejet de l'API, renvoyé à l'auteur avec un motif CODÉ
+ * (exigé depuis TCK-2672) et la raison écrite. Le motif n'a plus de défaut : c'est l'écran qui le
+ * fait choisir.
  */
 export async function rejectProperty(
   propertyId: number,
-  rejectionReason: string,
+  demande: { readonly reasonCode: PropertyRejectionReasonCode; readonly rejectionReason: string },
   token: string,
-  reasonCode: PropertyRejectionReasonCode = 'other',
 ): Promise<PropertyModerationResponse> {
-  return apiRequest<PropertyModerationResponse>(
-    cheminApi`/api/properties/${propertyId}/reject`,
-    { method: 'POST', body: { rejection_reason: rejectionReason, reason_code: reasonCode }, token },
-  );
+  return apiRequest<PropertyModerationResponse>(cheminApi`/api/properties/${propertyId}/reject`, {
+    method: 'POST',
+    body: { rejection_reason: demande.rejectionReason, reason_code: demande.reasonCode },
+    token,
+  });
+}
+
+/** TCK-2672 — `GET /api/properties/moderation/{property}` (`PropertyModerationDetailResource`). */
+export interface PropertyModerationChecks {
+  readonly photos_count: number;
+  readonly photos_expected: number;
+  readonly address_complete: boolean;
+  readonly description_words: number;
+  readonly description_has_contact: boolean;
+  /** `null` sous 5 biens comparables publiés dans le même quartier, ou sans prix ni quartier. */
+  readonly price_vs_median: { readonly median: number; readonly deviation_pct: number; readonly sample_size: number } | null;
+}
+
+export interface PropertyModerationDetail {
+  readonly id: number;
+  readonly reference_number: string | null;
+  readonly title: string;
+  readonly slug: string | null;
+  readonly status: string | null;
+  readonly type: string | null;
+  readonly contract_type: string | null;
+  readonly rent_period: string | null;
+  readonly price: number | null;
+  readonly currency: string | null;
+  readonly area: number | null;
+  readonly bedrooms: number | null;
+  readonly bathrooms: number | null;
+  readonly description: string | null;
+  readonly photos: readonly { readonly id: number; readonly url: string | null; readonly full_url: string | null }[];
+  readonly address: {
+    readonly street: string | null;
+    readonly neighborhood: string | null;
+    readonly city: string | null;
+    readonly region: string | null;
+  } | null;
+  readonly agency_id: number | null;
+  readonly submitted_at: string | null;
+  readonly submitted_by: { readonly id: number; readonly name: string | null; readonly profile: 'owner' | 'agent' | 'agency_admin' } | null;
+  /** Les biens de l'agence que cette personne a soumis ou dont elle est titulaire, celui-ci compris. */
+  readonly submitted_count_in_agency: number;
+  readonly checks: PropertyModerationChecks;
+}
+
+export const propertyModerationDetailKey = (id: number) => ['property-moderation', 'detail', id] as const;
+
+export async function fetchPropertyModerationDetail(propertyId: number, token: string): Promise<ApiResponse<PropertyModerationDetail>> {
+  return apiRequest<ApiResponse<PropertyModerationDetail>>(cheminApi`/api/properties/moderation/${propertyId}`, { token });
 }
 
 export async function resubmitProperty(

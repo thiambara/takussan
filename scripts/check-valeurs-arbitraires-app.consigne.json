@@ -3,9 +3,6 @@
   "motif": "Existant consigné le 2026-11-11 à la bascule (TCK-2685) : chaque ticket de page de l'audit UX le fait baisser.",
   "perimetre": 1014,
   "fichiers": {
-    "src/components/admin/ModerationQueueList.tsx": {"texte-arbitraire":1},
-    "src/components/admin/PropertyModerationDetail.tsx": {"aplat-accent":1},
-    "src/components/admin/PropertyModerationQueueList.tsx": {"texte-arbitraire":1},
     "src/components/auth/GardeDoubleFacteur.tsx": {"tracking-arbitraire":1},
     "src/components/brand/Logo.tsx": {"texte-arbitraire":1,"tracking-arbitraire":1},
     "src/components/calendar/MonthView.tsx": {"texte-arbitraire":1},

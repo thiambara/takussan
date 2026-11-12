@@ -1,154 +1,209 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { withIntl } from '@/test/intl';
+import { ApiError } from '@/lib/api';
+import type { ModerationReview, ReviewRiskLevel } from '@/lib/queries/reviews-moderation';
 import { ModerationWorkspace } from '../ModerationWorkspace';
+
+/**
+ * TCK-067 → TCK-376 → TCK-2673 — la file des avis, triée par RISQUE (maquette `app-moderation` B).
+ *
+ * Le serveur est simulé (`serveur`) : deux files, « à risque » et « sans risque », lues chacune par
+ * `filter[risk]`, avec `meta.risk_counts` calculé avant ce filtre — comme `ReviewController::index`
+ * (TCK-2672). Un lot publié les retire de la file, pour que la relecture le montre.
+ */
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 const mockFetchQueue = vi.fn();
 const mockFetchReports = vi.fn();
 const mockModerate = vi.fn();
+const mockBatch = vi.fn();
+const mockReply = vi.fn();
 
-vi.mock('@/lib/queries/reviews-moderation', () => ({
+vi.mock('@/lib/queries/reviews-moderation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/queries/reviews-moderation')>()),
   fetchModerationQueue: (...args: unknown[]) => mockFetchQueue(...args),
   fetchReviewReports: (...args: unknown[]) => mockFetchReports(...args),
   moderateReview: (...args: unknown[]) => mockModerate(...args),
+  moderateReviewBatch: (...args: unknown[]) => mockBatch(...args),
+  replyToReview: (...args: unknown[]) => mockReply(...args),
+}));
+
+vi.mock('@/lib/queries/agency-queues', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/queries/agency-queues')>()),
+  propertyModerationCountQueryOptions: () => ({ queryKey: ['property-moderation', 'pending-count'], queryFn: async () => 1 }),
 }));
 
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ user: null, token: 'fake-token', isLoading: false }),
 }));
 
-// TCK-376 — l'état de l'écran vit désormais dans l'URL. Le mock la pilote dans les deux sens :
-// `urlCourante` est ce que le composant LIT, `replace` est ce qu'il ÉCRIT.
-let urlCourante = '';
-const replace = vi.fn();
-
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ replace, push: vi.fn(), refresh: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(urlCourante),
+/** La largeur simulée : téléphone (< 48rem), bureau sous `xl`, bureau à deux colonnes (≥ 80rem). */
+let ecran: 'telephone' | 'moyen' | 'large' = 'large';
+vi.mock('@/hooks/useMatchesMedia', () => ({
+  useMatchesMedia: (q: string) => (q === '(width < 48rem)' ? ecran === 'telephone' : q === '(width >= 80rem)' ? ecran === 'large' : false),
 }));
 
-/** Les paramètres de la dernière URL écrite. */
-function derniereUrl(): URLSearchParams {
-  const appel = replace.mock.calls.at(-1);
-  if (!appel) throw new Error('router.replace n’a pas été appelé');
-  return new URLSearchParams(String(appel[0]).replace(/^\?/, ''));
+// TCK-376 — l'état de l'écran vit dans l'URL. `urlCourante` est ce que le composant LIT, `replace`
+// et `push` ce qu'il ÉCRIT.
+let urlCourante = '';
+const replace = vi.fn();
+const push = vi.fn();
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace, push, refresh: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(urlCourante),
+  usePathname: () => '/app/agency/moderation',
+}));
+
+// ─── Le serveur simulé ───────────────────────────────────────────────────────
+type Avis = ModerationReview;
+let serveur: { high: Avis[]; low: Avis[] } = { high: [], low: [] };
+
+function avis(id: number, o: Partial<Avis> & { niveau?: ReviewRiskLevel; sujet?: string } = {}): Avis {
+  const { niveau = 'low', sujet, ...reste } = o;
+  return {
+    id,
+    rating: niveau === 'high' ? 2 : 5,
+    title: null,
+    content: `Texte de l’avis ${id}`,
+    author: { id: 100 + id, name: `Auteur ${id}`, avatar_url: null },
+    reviewable_type: 'App\\Models\\Property',
+    reviewable_id: 99,
+    status: 'pending',
+    is_approved: false,
+    reported_count: 0,
+    created_at: '2026-11-10T10:00:00Z',
+    can_moderate: true,
+    can_reply: true,
+    reply_content: null,
+    replied_at: null,
+    context_kind: null,
+    target: {
+      type: 'property',
+      id: 99,
+      title: sujet ?? `Villa ${id}`,
+      slug: null,
+      subtitle: 'T-99',
+      photo_url: 'https://exemple.test/v.webp',
+      agent: { id: 5, name: 'Awa Ndiaye' },
+    },
+    risk: { level: niveau, reasons: niveau === 'high' ? ['low_rating'] : [] },
+    ...reste,
+  } as Avis;
+}
+const plage = (de: number, n: number, o: Parameters<typeof avis>[1] = {}) => Array.from({ length: n }, (_, k) => avis(de + k, o));
+
+function servir() {
+  mockFetchQueue.mockImplementation(async (_jeton: string, p: { risk?: ReviewRiskLevel; page?: number; perPage?: number }) => {
+    const liste = p.risk === 'high' ? serveur.high : serveur.low;
+    const page = p.page ?? 1;
+    const par = p.perPage ?? 20;
+    return {
+      data: liste.slice((page - 1) * par, page * par),
+      meta: {
+        total: liste.length,
+        current_page: page,
+        last_page: Math.max(1, Math.ceil(liste.length / par)),
+        per_page: par,
+        pending_count: serveur.high.length + serveur.low.length,
+        risk_counts: { high: serveur.high.length, low: serveur.low.length },
+      },
+      links: { first: null, last: null, prev: null, next: null },
+    };
+  });
 }
 
-/** Les paramètres du dernier appel à `fetchModerationQueue` — ce qui part vraiment au serveur. */
-function derniersParams() {
-  const appel = mockFetchQueue.mock.calls.at(-1);
-  if (!appel) throw new Error('fetchModerationQueue n’a pas été appelé');
+/** Les paramètres de la dernière lecture d'une file (20 par page) — ce qui part au serveur. */
+function paramsDe(risk: ReviewRiskLevel) {
+  const appel = mockFetchQueue.mock.calls.filter((c) => c[1]?.risk === risk && c[1]?.perPage === 20).at(-1);
+  if (!appel) throw new Error(`aucune lecture de la file ${risk}`);
   return appel[1] as Record<string, unknown>;
 }
 
-function metaDe(overrides: Partial<{ last_page: number; current_page: number; total: number }> = {}) {
-  return {
-    total: overrides.total ?? 2,
-    current_page: overrides.current_page ?? 1,
-    last_page: overrides.last_page ?? 1,
-    per_page: 20,
-    pending_count: 2,
-  };
+function derniereUrl(): URLSearchParams {
+  const appel = replace.mock.calls.at(-1);
+  if (!appel) throw new Error('router.replace n’a pas été appelé');
+  return new URLSearchParams(String(appel[0]).replace(/^[^?]*\?/, ''));
 }
 
 function wrap(ui: React.ReactElement) {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return withIntl(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 }
 
-function makeReview(overrides: Partial<{
-  id: number;
-  rating: number;
-  title: string;
-  content: string;
-  status: string;
-  reported_count: number;
-  can_moderate: boolean;
-}> = {}) {
-  return {
-    id: overrides.id ?? 1,
-    rating: overrides.rating ?? 4,
-    title: overrides.title ?? 'Bel avis',
-    content: overrides.content ?? 'Contenu de test',
-    author: { id: 10, name: 'John Doe', avatar_url: null },
-    reviewable_type: 'App\\Models\\Property',
-    reviewable_id: 99,
-    status: overrides.status ?? 'pending',
-    is_approved: false,
-    reported_count: overrides.reported_count ?? 0,
-    created_at: '2025-01-01T00:00:00Z',
-    can_moderate: overrides.can_moderate ?? (overrides.status ?? 'pending') === 'pending',
-  };
-}
+beforeEach(() => {
+  ecran = 'large';
+  urlCourante = '';
+  replace.mockReset();
+  push.mockReset();
+  mockFetchQueue.mockReset();
+  mockFetchReports.mockReset();
+  mockModerate.mockReset();
+  mockBatch.mockReset();
+  mockReply.mockReset();
+  mockFetchReports.mockResolvedValue({ data: [], meta: { total: 0 } });
+  serveur = { high: [avis(1, { niveau: 'high', sujet: 'Premier sujet' })], low: [avis(2, { sujet: 'Second sujet' })] };
+  servir();
+});
 
-describe('<ModerationWorkspace>', () => {
-  beforeEach(() => {
-    urlCourante = '';
-    replace.mockReset();
-    mockFetchQueue.mockReset();
-    mockFetchReports.mockReset();
-    mockModerate.mockReset();
-    mockFetchReports.mockResolvedValue({
-      data: [],
-      meta: { total: 0 },
-    });
-  });
-
-  it('renders the queue list and auto-selects the first review', async () => {
-    mockFetchQueue.mockResolvedValue({
-      data: [
-        makeReview({ id: 1, title: 'Premier avis' }),
-        makeReview({ id: 2, title: 'Second avis', status: 'reported', reported_count: 3 }),
-      ],
-      meta: { total: 2, current_page: 1, last_page: 1, per_page: 20, pending_count: 2 },
-      links: { first: null, last: null, prev: null, next: null },
-    });
-
+describe('<ModerationWorkspace> — décisions', () => {
+  it('rend les deux groupes et, à deux colonnes, ouvre le premier avis', async () => {
     render(wrap(<ModerationWorkspace />));
 
-    await screen.findByTestId('moderation-queue-item-1');
-    expect(screen.getByTestId('moderation-queue-item-1')).toHaveTextContent('Premier avis');
-    expect(screen.getByTestId('moderation-queue-item-2')).toHaveTextContent('Second avis');
-    // The detail panel shows the first review.
-    expect(screen.getByTestId('moderation-detail')).toHaveTextContent('Premier avis');
+    expect(await screen.findByTestId('moderation-queue-item-1')).toHaveTextContent('Premier sujet');
+    expect(screen.getByTestId('moderation-queue-item-2')).toHaveTextContent('Second sujet');
+    expect(screen.getByText('À regarder de près · 1')).toBeInTheDocument();
+    expect(screen.getByText('Sans risque · 1')).toBeInTheDocument();
+    expect(screen.getByTestId('moderation-detail')).toHaveTextContent('Texte de l’avis 1');
   });
 
-  it('triggers approve decision without requiring a reason', async () => {
-    mockFetchQueue.mockResolvedValue({
-      data: [makeReview({ id: 1 })],
-      meta: { total: 1, current_page: 1, last_page: 1, per_page: 20, pending_count: 1 },
-      links: { first: null, last: null, prev: null, next: null },
-    });
-    mockModerate.mockResolvedValue({ data: makeReview({ id: 1 }) });
-
+  it('« Publier » approuve sans demander de motif', async () => {
+    mockModerate.mockResolvedValue({ data: avis(1) });
     const user = userEvent.setup();
     render(wrap(<ModerationWorkspace />));
 
-    await screen.findByTestId('moderation-detail');
+    const detail = await screen.findByTestId('moderation-detail');
+    await user.click(within(detail).getByRole('button', { name: /^publier$/i }));
 
-    await user.click(screen.getByRole('button', { name: /^approuver$/i }));
-
-    await waitFor(() => expect(mockModerate).toHaveBeenCalled());
-    expect(mockModerate).toHaveBeenCalledWith(1, { decision: 'approve' }, 'fake-token');
+    await waitFor(() => expect(mockModerate).toHaveBeenCalledWith(1, { decision: 'approve' }, 'fake-token'));
+    expect(await screen.findByText('Avis publié.')).toBeInTheDocument();
   });
 
-  // TCK-597 (ADR-0043 §7) — le motif est un CODE choisi dans une liste traduite ; le texte libre
-  // n'est exigé que pour « Autre motif ».
-  it('requires a reason code for a delete decision, free text optional', async () => {
-    mockFetchQueue.mockResolvedValue({
-      data: [makeReview({ id: 7 })],
-      meta: { total: 1, current_page: 1, last_page: 1, per_page: 20, pending_count: 1 },
-      links: { first: null, last: null, prev: null, next: null },
-    });
-    mockModerate.mockResolvedValue({ data: { id: 7, deleted: true } });
-
+  it('« Publier avec la réponse » enregistre la réponse, puis publie', async () => {
+    mockReply.mockResolvedValue({ data: avis(1) });
+    mockModerate.mockResolvedValue({ data: avis(1) });
     const user = userEvent.setup();
-    // Supprimer est un geste de plateforme (verif-597 M3).
+    render(wrap(<ModerationWorkspace agencyName="Dakar Immo" />));
+
+    const detail = await screen.findByTestId('moderation-detail');
+    await user.type(within(detail).getByRole('textbox'), 'Merci pour votre retour.');
+    expect(within(detail).getByText(/signée «\s?Dakar Immo\s?»/)).toBeInTheDocument();
+    await user.click(within(detail).getByRole('button', { name: 'Publier avec la réponse' }));
+
+    await waitFor(() => expect(mockModerate).toHaveBeenCalledWith(1, { decision: 'approve' }, 'fake-token'));
+    expect(mockReply).toHaveBeenCalledWith(1, 'Merci pour votre retour.', 'fake-token');
+    expect(mockReply.mock.invocationCallOrder[0]).toBeLessThan(mockModerate.mock.invocationCallOrder[0]);
+  });
+
+  it('la réponse enregistrée mais l’avis non publié : le message le dit', async () => {
+    mockReply.mockResolvedValue({ data: avis(1) });
+    mockModerate.mockRejectedValue(new Error('réseau'));
+    const user = userEvent.setup();
+    render(wrap(<ModerationWorkspace />));
+
+    const detail = await screen.findByTestId('moderation-detail');
+    await user.type(within(detail).getByRole('textbox'), 'Merci.');
+    await user.click(within(detail).getByRole('button', { name: 'Publier avec la réponse' }));
+    expect(await within(detail).findByRole('alert')).toHaveTextContent(/Votre réponse est enregistrée, mais l’avis n’est pas encore publié/);
+  });
+
+  // TCK-597 (ADR-0043 §7) — le motif est un CODE choisi dans une liste traduite.
+  it('supprimer (plateforme) exige un motif codé, le texte libre est facultatif', async () => {
+    mockModerate.mockResolvedValue({ data: { id: 1, deleted: true } });
+    const user = userEvent.setup();
     render(wrap(<ModerationWorkspace platform />));
 
     await screen.findByTestId('moderation-detail');
@@ -160,27 +215,17 @@ describe('<ModerationWorkspace>', () => {
     expect(mockModerate).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole('combobox', { name: 'Motif' }));
-    const options = await screen.findAllByRole('option');
-    expect(options).toHaveLength(9);
+    expect(await screen.findAllByRole('option')).toHaveLength(9);
     await user.click(screen.getByRole('option', { name: 'Propos injurieux' }));
     await user.click(screen.getByRole('button', { name: /confirmer/i }));
 
-    await waitFor(() => expect(mockModerate).toHaveBeenCalled());
-    expect(mockModerate).toHaveBeenCalledWith(
-      7,
-      { decision: 'delete', reason_code: 'offensive', reason: undefined },
-      'fake-token',
+    await waitFor(() =>
+      expect(mockModerate).toHaveBeenCalledWith(1, { decision: 'delete', reason_code: 'offensive', reason: undefined }, 'fake-token'),
     );
   });
 
   it('« Autre motif » exige le complément libre', async () => {
-    mockFetchQueue.mockResolvedValue({
-      data: [makeReview({ id: 8 })],
-      meta: { total: 1, current_page: 1, last_page: 1, per_page: 20, pending_count: 1 },
-      links: { first: null, last: null, prev: null, next: null },
-    });
-    mockModerate.mockResolvedValue({ data: makeReview({ id: 8 }) });
-
+    mockModerate.mockResolvedValue({ data: avis(1) });
     const user = userEvent.setup();
     render(wrap(<ModerationWorkspace />));
 
@@ -195,242 +240,300 @@ describe('<ModerationWorkspace>', () => {
     await user.type(screen.getByLabelText(/précisez le motif/i), 'Publicité déguisée');
     await user.click(screen.getByRole('button', { name: /confirmer/i }));
     await waitFor(() =>
-      expect(mockModerate).toHaveBeenCalledWith(
-        8,
-        { decision: 'hide', reason_code: 'other', reason: 'Publicité déguisée' },
-        'fake-token',
-      ),
+      expect(mockModerate).toHaveBeenCalledWith(1, { decision: 'hide', reason_code: 'other', reason: 'Publicité déguisée' }, 'fake-token'),
     );
   });
 
-  // TCK-597 (ADR-0043 §1) — l'admin d'agence voit l'avis porté sur son agence, mais ne le tranche
-  // pas : l'écran le dit, et aucun bouton de décision n'est offert.
-  it('agency view: a review of the agency itself is platform-only, and the screen says so', async () => {
-    mockFetchQueue.mockResolvedValue({
-      data: [{ ...makeReview({ id: 3, can_moderate: false }), reviewable_type: 'App\\Models\\Agency' }],
-      meta: { total: 1, current_page: 1, last_page: 1, per_page: 20, pending_count: 0 },
-      links: { first: null, last: null, prev: null, next: null },
-    });
-
+  // TCK-597 (ADR-0043 §1) — l'admin d'agence voit l'avis porté sur son agence, mais ne le tranche pas.
+  it('agence : un avis sur l’agence elle-même est réservé à la plateforme, et l’écran le dit', async () => {
+    serveur = { high: [avis(3, { can_moderate: false, reviewable_type: 'App\\Models\\Agency' })], low: [] };
     render(wrap(<ModerationWorkspace />));
 
     expect(await screen.findByTestId('moderation-platform-only')).toHaveTextContent(/modéré par la plateforme/i);
     expect(screen.getByTestId('moderation-agency-scope')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^approuver$/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^publier$/i })).toBeNull();
   });
 
-  // verif-597 M3 — l'agence ne tranche que l'avis en attente, et seulement approuver ou masquer.
-  it('agency view: a pending review offers approve and hide only', async () => {
-    mockFetchQueue.mockResolvedValue({
-      data: [makeReview({ id: 4, title: 'En attente', reported_count: 2 })],
-      meta: { total: 1, current_page: 1, last_page: 1, per_page: 20, pending_count: 1 },
-      links: { first: null, last: null, prev: null, next: null },
-    });
-
+  // verif-597 M3 — l'agence ne tranche que l'avis en attente : publier ou masquer.
+  it('agence : un avis en attente offre « Publier » et « Masquer », rien d’autre', async () => {
+    serveur = { high: [avis(4, { niveau: 'high', reported_count: 2 })], low: [] };
     render(wrap(<ModerationWorkspace />));
 
-    await screen.findByTestId('moderation-detail');
-    expect(screen.getByRole('button', { name: /^approuver$/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^masquer$/i })).toBeInTheDocument();
+    const detail = await screen.findByTestId('moderation-detail');
+    expect(within(detail).getByRole('button', { name: /^publier$/i })).toBeInTheDocument();
+    expect(within(detail).getByRole('button', { name: /^masquer$/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /supprimer/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /ignorer/i })).toBeNull();
   });
 
-  it('agency view: a published review offers no decision, and the screen says why', async () => {
-    mockFetchQueue.mockResolvedValue({
-      data: [makeReview({ id: 5, title: 'Publié', status: 'approved' })],
-      meta: { total: 1, current_page: 1, last_page: 1, per_page: 20, pending_count: 0 },
-      links: { first: null, last: null, prev: null, next: null },
-    });
-
+  it('agence : un avis publié n’offre aucune décision, et l’écran dit pourquoi', async () => {
+    urlCourante = 'filter[moderation_status]=approved';
+    serveur = { high: [], low: [avis(5, { status: 'approved', can_moderate: false })] };
     render(wrap(<ModerationWorkspace />));
 
     expect(await screen.findByTestId('moderation-platform-only')).toHaveTextContent(/seule la plateforme peut le retirer/i);
     expect(screen.queryByRole('button', { name: /^masquer$/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /^approuver$/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^publier$/i })).toBeNull();
   });
 
-  // verif-597 m1 — un avis sur un prestataire, listé dans la file d'agence : l'API rend
-  // `can_moderate: false`, l'écran n'offre aucun bouton et dit que la plateforme le tranche.
-  it('agency view: a review the API says the agency cannot decide offers no button', async () => {
-    mockFetchQueue.mockResolvedValue({
-      data: [{ ...makeReview({ id: 6, can_moderate: false }), reviewable_type: 'App\\Models\\Profiles\\ServiceProviderProfile' }],
-      meta: { total: 1, current_page: 1, last_page: 1, per_page: 20, pending_count: 0 },
-      links: { first: null, last: null, prev: null, next: null },
-    });
-
+  // verif-597 m1 — un avis que l'API dit non tranchable par l'agence : aucun bouton.
+  it('agence : un avis que l’API ne laisse pas trancher n’offre aucun bouton', async () => {
+    serveur = { high: [avis(6, { can_moderate: false, reviewable_type: 'App\\Models\\Profiles\\ServiceProviderProfile' })], low: [] };
     render(wrap(<ModerationWorkspace />));
 
     expect(await screen.findByTestId('moderation-platform-only')).toHaveTextContent(/modéré par la plateforme/i);
-    expect(screen.queryByRole('button', { name: /^approuver$/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^publier$/i })).toBeNull();
   });
 
-  it('platform view: the super-admin decides a review of an agency', async () => {
-    mockFetchQueue.mockResolvedValue({
-      data: [{ ...makeReview({ id: 3 }), reviewable_type: 'App\\Models\\Agency' }],
-      meta: { total: 1, current_page: 1, last_page: 1, per_page: 20, pending_count: 1 },
-      links: { first: null, last: null, prev: null, next: null },
-    });
-
+  it('plateforme : le super-admin tranche un avis sur une agence', async () => {
+    serveur = { high: [avis(3, { reviewable_type: 'App\\Models\\Agency' })], low: [] };
     render(wrap(<ModerationWorkspace platform />));
 
-    await screen.findByTestId('moderation-detail');
-    expect(screen.getByRole('button', { name: /^approuver$/i })).toBeInTheDocument();
+    const detail = await screen.findByTestId('moderation-detail');
+    expect(within(detail).getByRole('button', { name: /^publier$/i })).toBeInTheDocument();
     expect(screen.queryByTestId('moderation-platform-only')).toBeNull();
     expect(screen.queryByTestId('moderation-agency-scope')).toBeNull();
+  });
+
+  it('AC4 — le détail d’un avis sur un bien montre sa photo et son titre, avec un lien vers sa fiche', async () => {
+    render(wrap(<ModerationWorkspace />));
+    const detail = await screen.findByTestId('moderation-detail');
+    const lien = within(detail).getByRole('link', { name: 'Ouvrir la fiche : Premier sujet' });
+    expect(lien).toHaveAttribute('href', '/app/properties/99');
+    expect(lien.querySelector('img')).toHaveAttribute('src', 'https://exemple.test/v.webp');
+    expect(lien).toHaveTextContent('Premier sujet');
+  });
+});
+
+describe('<ModerationWorkspace> — le lot (TCK-2673)', () => {
+  it('AC1 — téléphone : cocher 12 avis sans risque puis « Publier » envoie UN lot de 12 ; les cartes partent, le compte passe de 51 à 39', async () => {
+    ecran = 'telephone';
+    urlCourante = 'filter[risk]=low';
+    serveur = { high: plage(1, 4, { niveau: 'high' }), low: plage(100, 51) };
+    mockBatch.mockImplementation(async (ids: number[]) => {
+      serveur.low = serveur.low.filter((a) => !ids.includes(a.id));
+      return { data: { decision: 'approve', review_ids: ids, count: ids.length } };
+    });
+    const user = userEvent.setup();
+    render(wrap(<ModerationWorkspace />));
+
+    await screen.findByTestId('moderation-queue-item-100');
+    expect(screen.getByRole('button', { name: /Sans risque/ })).toHaveTextContent('51');
+    const ids = plage(100, 12).map((a) => a.id);
+    for (const id of ids) await user.click(screen.getByRole('checkbox', { name: `Cocher l’avis de Auteur ${id}` }));
+    expect(screen.getByText('12 sélectionnés')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Publier' }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /Sans risque/ })).toHaveTextContent('39'));
+    expect(mockBatch).toHaveBeenCalledTimes(1);
+    expect(mockBatch).toHaveBeenCalledWith(ids, 'fake-token');
+    expect(mockModerate).not.toHaveBeenCalled();
+    for (const id of ids) expect(screen.queryByTestId(`moderation-queue-item-${id}`)).toBeNull();
+    expect(screen.getByTestId('moderation-queue-item-112')).toBeInTheDocument();
+    expect(screen.getByText('12 avis publiés.')).toBeInTheDocument();
+  });
+
+  it('AC2 — sur « À risque », ni case ni barre de lot', async () => {
+    ecran = 'telephone';
+    serveur = { high: plage(1, 4, { niveau: 'high' }), low: plage(100, 5) };
+    render(wrap(<ModerationWorkspace />));
+
+    await screen.findByTestId('moderation-queue-item-1');
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(screen.queryByRole('button', { name: /tout cocher/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Publier' })).toBeNull();
+  });
+
+  it('AC2 — bureau : les cartes à risque n’ont pas de case, les autres en ont une', async () => {
+    serveur = { high: plage(1, 2, { niveau: 'high' }), low: plage(100, 2) };
+    render(wrap(<ModerationWorkspace />));
+
+    await screen.findByTestId('moderation-queue-item-1');
+    expect(within(screen.getByTestId('moderation-queue-item-1')).queryByRole('checkbox')).toBeNull();
+    expect(within(screen.getByTestId('moderation-queue-item-100')).getByRole('checkbox')).toBeInTheDocument();
+  });
+
+  it('« Tout cocher » coche tous les avis sans risque publiables, pages non lues comprises, et le lot les publie', async () => {
+    serveur = { high: [], low: [...plage(100, 29), avis(200, { can_moderate: false })] };
+    mockBatch.mockResolvedValue({ data: { decision: 'approve', review_ids: [], count: 29 } });
+    const user = userEvent.setup();
+    render(wrap(<ModerationWorkspace />));
+
+    await screen.findByTestId('moderation-queue-item-100');
+    await user.click(screen.getByRole('button', { name: 'Tout cocher' }));
+    const bouton = await screen.findByRole('button', { name: 'Publier la sélection · 29 avis' });
+    // Une lecture à part, de 100 au plus, en attente et sans risque.
+    expect(mockFetchQueue.mock.calls.some((c) => c[1]?.perPage === 100 && c[1]?.risk === 'low' && c[1]?.status === 'pending')).toBe(true);
+    await user.click(bouton);
+    await waitFor(() => expect(mockBatch).toHaveBeenCalledTimes(1));
+    expect(mockBatch.mock.calls[0][0]).toHaveLength(29);
+    expect(mockBatch.mock.calls[0][0]).not.toContain(200);
+  });
+
+  it('un lot refusé (422) ne publie rien, relit la file et le dit', async () => {
+    serveur = { high: [], low: plage(100, 3) };
+    mockBatch.mockRejectedValue(new ApiError(422, { code: 'review.batch_not_moderatable', message: 'refus' }));
+    const user = userEvent.setup();
+    render(wrap(<ModerationWorkspace />));
+
+    await screen.findByTestId('moderation-queue-item-100');
+    await user.click(screen.getByRole('checkbox', { name: 'Cocher l’avis de Auteur 100' }));
+    const lectures = mockFetchQueue.mock.calls.length;
+    await user.click(screen.getByRole('button', { name: 'Publier la sélection · 1 avis' }));
+    expect(await screen.findByText(/Rien n’a été publié : un des avis cochés a changé entre-temps/)).toBeInTheDocument();
+    await waitFor(() => expect(mockFetchQueue.mock.calls.length).toBeGreaterThan(lectures));
+  });
+
+  it('le lot n’existe que pour la file en attente', async () => {
+    urlCourante = 'filter[moderation_status]=flagged';
+    serveur = { high: [], low: plage(100, 3, { status: 'flagged' }) };
+    render(wrap(<ModerationWorkspace />));
+
+    await screen.findByTestId('moderation-queue-item-100');
+    expect(screen.queryByRole('checkbox', { name: /Cocher l’avis/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Publier la sélection/ })).toBeNull();
+  });
+});
+
+describe('<ModerationWorkspace> — largeurs (TCK-2673)', () => {
+  it('sous `xl`, rien ne s’ouvre seul, et toucher un avis l’ouvre à la place de la file (une entrée d’historique)', async () => {
+    ecran = 'moyen';
+    const user = userEvent.setup();
+    render(wrap(<ModerationWorkspace />));
+
+    await screen.findByTestId('moderation-queue-item-1');
+    expect(screen.queryByTestId('moderation-detail')).toBeNull();
+    await user.click(within(screen.getByTestId('moderation-queue-item-2')).getByRole('button'));
+    expect(push).toHaveBeenCalledWith('/app/agency/moderation?selected=2', { scroll: false });
+  });
+
+  it('sous `xl`, l’avis ouvert remplace la file, et « Retour à la file » la rend', async () => {
+    ecran = 'moyen';
+    urlCourante = 'selected=2&filter[reported]=1';
+    const user = userEvent.setup();
+    render(wrap(<ModerationWorkspace />));
+
+    expect(await screen.findByTestId('moderation-detail')).toHaveTextContent('Texte de l’avis 2');
+    expect(screen.queryByTestId('moderation-queue-item-1')).toBeNull();
+    await user.click(screen.getByRole('button', { name: /Retour à la file/ }));
+    expect(push).toHaveBeenCalledWith('/app/agency/moderation?filter%5Breported%5D=1', { scroll: false });
+  });
+
+  it('téléphone : l’avis ouvert est plein écran, sans la liste', async () => {
+    ecran = 'telephone';
+    urlCourante = 'selected=1';
+    render(wrap(<ModerationWorkspace />));
+
+    expect(await screen.findByTestId('moderation-detail')).toHaveTextContent('Texte de l’avis 1');
+    expect(screen.queryByTestId('moderation-queue-item-1')).toBeNull();
+  });
+
+  it('à deux colonnes, ↓ ouvre l’avis suivant — mais pas depuis un champ de saisie', async () => {
+    const user = userEvent.setup();
+    render(wrap(<ModerationWorkspace />));
+    const detail = await screen.findByTestId('moderation-detail');
+
+    await user.click(within(detail).getByRole('textbox'));
+    await user.keyboard('{ArrowDown}');
+    expect(replace).not.toHaveBeenCalled();
+
+    await user.click(screen.getByText('À regarder de près · 1'));
+    await user.keyboard('{ArrowDown}');
+    expect(derniereUrl().get('selected')).toBe('2');
+  });
+
+  it('bureau : onglets « Avis · Biens à valider » avec leurs comptes, et le compte du jour', async () => {
+    serveur = { high: plage(1, 4, { niveau: 'high' }), low: plage(100, 51) };
+    render(wrap(<ModerationWorkspace />));
+
+    await screen.findByTestId('moderation-queue-item-1');
+    expect(screen.getByRole('tab', { name: /Avis/ })).toHaveTextContent('55');
+    expect(await screen.findByText('55 avis en attente, dont 4 à regarder de près · 1 bien à valider')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Biens à valider/ })).toHaveTextContent('1');
   });
 });
 
 /**
- * TCK-376 — l'état partageable et la pagination de la file d'avis.
- *
- * Les quatre filtres vivaient en `useState` : un rechargement les perdait, un lien collé n'en
- * transportait rien. Et la requête ne portait aucun `page` — ce que la première réponse
- * contenait était tout ce que l'écran montrerait jamais.
+ * TCK-376 — l'état partageable de la file. TCK-2673 : l'URL nue vaut « En attente » (la file du
+ * jour) ; « Tous les statuts » s'écrit `all` et n'est jamais envoyé. Les pages se lisent à la suite
+ * (« Voir les N suivants ») au lieu d'une pagination : une sélection survit aux pages lues.
  */
-describe('<ModerationWorkspace> — état d’URL et pagination (TCK-376)', () => {
-  beforeEach(() => {
-    urlCourante = '';
-    replace.mockReset();
-    mockFetchQueue.mockReset();
-    mockFetchReports.mockReset();
-    mockFetchReports.mockResolvedValue({ data: [], meta: { total: 0 } });
-    mockFetchQueue.mockResolvedValue({
-      data: [makeReview({ id: 1, title: 'Premier avis' }), makeReview({ id: 2, title: 'Second avis' })],
-      meta: metaDe({ last_page: 3, current_page: 1 }),
-      links: { first: null, last: null, prev: null, next: null },
-    });
-  });
-
-  // ─── AC1 — un lien copié rouvre LA MÊME file ───────────────────────────────────────────────
-  it('AC1 — rejoue les quatre filtres ET la page portés par l’URL', async () => {
-    urlCourante =
-      'filter[moderation_status]=flagged'
-      + '&filter[subject_type]=App%5CModels%5CProperty'
-      + '&filter[reported]=1'
-      + '&page=3';
-
+describe('<ModerationWorkspace> — état d’URL (TCK-376)', () => {
+  it('AC1 — rejoue les trois filtres portés par l’URL, pour les deux files', async () => {
+    urlCourante = 'filter[moderation_status]=flagged&filter[subject_type]=App%5CModels%5CProperty&filter[reported]=1';
     render(wrap(<ModerationWorkspace />));
     await screen.findByTestId('moderation-queue-item-1');
 
-    // Ce que le SERVEUR reçoit — pas ce que l'écran affiche : le ticket interdit le filtrage
-    // sur une liste déjà rapatriée, et une assertion de rendu ne saurait pas les distinguer.
-    expect(derniersParams()).toEqual({
-      status: 'flagged',
-      subjectType: 'App\\Models\\Property',
-      reported: true,
-      page: 3,
-      perPage: 20,
-    });
-
-    // ...ET ce que la BARRE affiche. Un écran qui enverrait les bons filtres au serveur en
-    // montrant « Tous les statuts » serait vert sur l'assertion ci-dessus et faux à l'usage :
-    // l'utilisateur ne saurait pas ce qu'il regarde, et le premier clic sur un autre filtre
-    // écraserait celui qu'il croyait absent.
+    for (const risk of ['high', 'low'] as const) {
+      expect(paramsDe(risk)).toEqual({ status: 'flagged', subjectType: 'App\\Models\\Property', reported: true, risk, page: 1, perPage: 20 });
+    }
     expect(screen.getByRole('combobox', { name: 'Filtrer par statut' })).toHaveTextContent('Signalés');
     expect(screen.getByRole('combobox', { name: 'Type de sujet' })).toHaveTextContent('Biens');
-    expect(screen.getByLabelText(/signalés uniquement/i)).toBeChecked();
-    expect(screen.getByText('Page 3 sur 3')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /signalés seulement/i })).toBeChecked();
   });
 
-  it('AC1 — n’envoie AUCUN filtre quand l’URL est nue', async () => {
+  it('AC1 — l’URL nue lit la file EN ATTENTE, sans autre filtre', async () => {
     render(wrap(<ModerationWorkspace />));
     await screen.findByTestId('moderation-queue-item-1');
 
-    expect(derniersParams()).toEqual({
-      status: undefined,
-      subjectType: undefined,
-      reported: undefined,
-      page: 1,
-      perPage: 20,
-    });
-    expect(screen.getByRole('combobox', { name: 'Filtrer par statut' })).toHaveTextContent('Tous les statuts');
+    expect(paramsDe('high')).toEqual({ status: 'pending', subjectType: undefined, reported: undefined, risk: 'high', page: 1, perPage: 20 });
+    expect(screen.getByRole('combobox', { name: 'Filtrer par statut' })).toHaveTextContent('En attente');
     expect(screen.getByRole('combobox', { name: 'Type de sujet' })).toHaveTextContent('Tous les sujets');
-    expect(screen.getByLabelText(/signalés uniquement/i)).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: /signalés seulement/i })).not.toBeChecked();
+  });
+
+  it('« Tous les statuts » s’écrit `all` dans l’URL, et n’envoie aucun statut', async () => {
+    urlCourante = 'filter[moderation_status]=all';
+    const user = userEvent.setup();
+    render(wrap(<ModerationWorkspace />));
+    await screen.findByTestId('moderation-queue-item-1');
+    expect(paramsDe('low').status).toBeUndefined();
+    expect(screen.getByRole('combobox', { name: 'Filtrer par statut' })).toHaveTextContent('Tous les statuts');
+
+    await user.click(screen.getByRole('combobox', { name: 'Filtrer par statut' }));
+    await user.click(await screen.findByRole('option', { name: 'En attente' }));
+    expect(derniereUrl().has('filter[moderation_status]')).toBe(false);
   });
 
   it('AC1 — la sélection est portée par l’URL, et le clic l’y écrit', async () => {
     urlCourante = 'selected=2';
     render(wrap(<ModerationWorkspace />));
 
-    // Le panneau ouvre l'avis DÉSIGNÉ par le lien, pas le premier de la liste.
-    expect(await screen.findByTestId('moderation-detail')).toHaveTextContent('Second avis');
-
+    expect(await screen.findByTestId('moderation-detail')).toHaveTextContent('Texte de l’avis 2');
     const user = userEvent.setup();
-    await user.click(screen.getByTestId('moderation-queue-item-1').querySelector('button')!);
+    await user.click(within(screen.getByTestId('moderation-queue-item-1')).getByRole('button'));
     expect(derniereUrl().get('selected')).toBe('1');
   });
 
-  it('AC1 — cocher « signalés uniquement » l’écrit dans l’URL et retourne page 1', async () => {
-    urlCourante = 'page=7';
-    render(wrap(<ModerationWorkspace />));
-    await screen.findByTestId('moderation-queue-item-1');
-
+  it('AC1 — cocher « signalés seulement » l’écrit dans l’URL ; décocher retire le paramètre', async () => {
     const user = userEvent.setup();
-    await user.click(screen.getByLabelText(/signalés uniquement/i));
+    const { unmount } = render(wrap(<ModerationWorkspace />));
+    await screen.findByTestId('moderation-queue-item-1');
+    await user.click(screen.getByRole('checkbox', { name: /signalés seulement/i }));
+    expect(derniereUrl().get('filter[reported]')).toBe('1');
+    unmount();
 
-    const params = derniereUrl();
-    expect(params.get('filter[reported]')).toBe('1');
-    // On filtre depuis la page 7 : sans ce retour, la file rendrait vide et l'écran dirait
-    // « aucun résultat » alors que la réponse est page 1.
-    expect(params.has('page')).toBe(false);
-  });
-
-  it('AC1 — décocher retire le paramètre au lieu d’écrire « 0 »', async () => {
     urlCourante = 'filter[reported]=1';
     render(wrap(<ModerationWorkspace />));
     await screen.findByTestId('moderation-queue-item-1');
-
-    const user = userEvent.setup();
-    await user.click(screen.getByLabelText(/signalés uniquement/i));
+    await user.click(screen.getByRole('checkbox', { name: /signalés seulement/i }));
     expect(derniereUrl().has('filter[reported]')).toBe(false);
   });
 
-  // ─── AC2 — une file de plus d'une page est parcourable jusqu'à la dernière ──────────────────
-  it('AC2 — « Suivant » avance d’une page et la page part au serveur', async () => {
-    urlCourante = '';
-    render(wrap(<ModerationWorkspace />));
-    await screen.findByTestId('moderation-queue-item-1');
-
+  it('« Voir les N suivants » lit la page suivante de la même file', async () => {
+    serveur = { high: plage(1, 25, { niveau: 'high' }), low: [] };
     const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: /suivant/i }));
-    expect(derniereUrl().get('page')).toBe('2');
-
-    // La page suivante est REJOUÉE : c'est ce qui prouve que la requête la porte.
-    urlCourante = 'page=2';
-    mockFetchQueue.mockClear();
     render(wrap(<ModerationWorkspace />));
-    await waitFor(() => expect(mockFetchQueue).toHaveBeenCalled());
-    expect(derniersParams().page).toBe(2);
+
+    await screen.findByTestId('moderation-queue-item-20');
+    expect(screen.queryByTestId('moderation-queue-item-21')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Voir les 5 suivants' }));
+    expect(await screen.findByTestId('moderation-queue-item-25')).toBeInTheDocument();
+    expect(paramsDe('high').page).toBe(2);
+    expect(screen.queryByRole('button', { name: /Voir les \d+ suivants/ })).toBeNull();
   });
 
-  it('AC2 — la dernière page est atteignable, et « Suivant » y est inerte', async () => {
-    urlCourante = 'page=3';
-    render(wrap(<ModerationWorkspace />));
-    await screen.findByTestId('moderation-queue-item-1');
-
-    expect(screen.getByText('Page 3 sur 3')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /suivant/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /précédent/i })).toBeEnabled();
-  });
-
-  it('AC2 — une file d’une seule page ne rend aucune pagination', async () => {
-    mockFetchQueue.mockResolvedValue({
-      data: [makeReview({ id: 1 })],
-      meta: metaDe({ last_page: 1 }),
-      links: { first: null, last: null, prev: null, next: null },
-    });
-    render(wrap(<ModerationWorkspace />));
-    await screen.findByTestId('moderation-queue-item-1');
-
-    expect(screen.queryByRole('navigation', { name: 'Pagination' })).not.toBeInTheDocument();
-  });
-
-  // ─── Les tables d'options ne sont pas décoratives ───────────────────────────────────────────
-  //
-  // La revue adverse de TCK-363 a trouvé trois tables de paramètres de filtre qui étaient des
-  // MUTANTS SURVIVANTS : les amputer laissait tous les tests verts. Ces deux-ci assèrent la
-  // liste ENTIÈRE et à l'identique — retirer une entrée fait rougir.
+  // La revue adverse de TCK-363 : une table d'options amputée laissait tous les tests verts.
   it('les cinq statuts sont proposés, aucun de plus', async () => {
     render(wrap(<ModerationWorkspace />));
     await screen.findByTestId('moderation-queue-item-1');
@@ -438,9 +541,7 @@ describe('<ModerationWorkspace> — état d’URL et pagination (TCK-376)', () =
     const user = userEvent.setup();
     await user.click(screen.getByRole('combobox', { name: 'Filtrer par statut' }));
     const options = await screen.findAllByRole('option');
-    expect(options.map((o) => o.textContent)).toEqual([
-      'Tous les statuts', 'En attente', 'Signalés', 'Approuvés', 'Rejetés',
-    ]);
+    expect(options.map((o) => o.textContent)).toEqual(['Tous les statuts', 'En attente', 'Signalés', 'Approuvés', 'Rejetés']);
   });
 
   it('les quatre types de sujet sont proposés, et le choix part en FQCN au serveur', async () => {
@@ -450,9 +551,7 @@ describe('<ModerationWorkspace> — état d’URL et pagination (TCK-376)', () =
     const user = userEvent.setup();
     await user.click(screen.getByRole('combobox', { name: 'Type de sujet' }));
     const options = await screen.findAllByRole('option');
-    expect(options.map((o) => o.textContent)).toEqual([
-      'Tous les sujets', 'Biens', 'Agences', 'Utilisateurs',
-    ]);
+    expect(options.map((o) => o.textContent)).toEqual(['Tous les sujets', 'Biens', 'Agences', 'Utilisateurs']);
 
     await user.click(screen.getByRole('option', { name: 'Agences' }));
     expect(derniereUrl().get('filter[subject_type]')).toBe('App\\Models\\Agency');

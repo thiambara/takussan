@@ -7254,6 +7254,103 @@
         "reasonLabelRequired": "Précisez le motif (obligatoire pour « Autre motif »)",
         "publishedPlatformOnly": "Avis déjà publié : seule la plateforme peut le retirer. Vous pouvez y répondre ou le signaler.",
         "platformReserved": "Cet avis est modéré par la plateforme, pas par l'agence."
+      },
+      "file": {
+        "sousTitre": "{avis, plural, one {# avis en attente} other {# avis en attente}}, dont {risque} à regarder de près · {biens, plural, =0 {aucun bien à valider} one {# bien à valider} other {# biens à valider}}",
+        "sousTitreAvis": "{avis, plural, one {# avis en attente} other {# avis en attente}}, dont {risque} à regarder de près",
+        "onglets": {
+          "avis": "Avis",
+          "biens": "Biens à valider",
+          "aria": "Modération"
+        },
+        "puces": {
+          "risque": "À risque",
+          "sansRisque": "Sans risque",
+          "biens": "Biens",
+          "aria": "Afficher"
+        },
+        "filtres": {
+          "ouvrir": "Filtres : statut, sujet, signalés",
+          "titre": "Filtres",
+          "statut": "Statut",
+          "sujet": "Sujet",
+          "signales": "Signalés seulement",
+          "fermer": "Voir les avis"
+        },
+        "groupes": {
+          "risque": "À regarder de près · {n}",
+          "sansRisque": "Sans risque · {n}"
+        },
+        "regleSansRisque": "Notes de 4 et 5, sans signalement ni coordonnées",
+        "toutCocher": "Tout cocher ({n})",
+        "toutCocherCourt": "Tout cocher",
+        "toutDecocher": "Tout décocher",
+        "toutCocherAria": "Cocher tous les avis sans risque",
+        "cocherAria": "Cocher l’avis de {auteur}",
+        "selection": "{n, plural, one {# sélectionné} other {# sélectionnés}}",
+        "surSansRisque": "sur {n} sans risque",
+        "publier": "Publier",
+        "publierLaSelection": "Publier la sélection · {n, plural, one {# avis} other {# avis}}",
+        "voirSuivants": "Voir les {n} suivants",
+        "notePlateforme": "Les avis sur l’agence elle-même sont modérés par Takussan, pas ici.",
+        "lotPublie": "{n, plural, one {# avis publié.} other {# avis publiés.}}",
+        "lotRefuse": "Rien n’a été publié : un des avis cochés a changé entre-temps (déjà tranché, ou hors de votre agence). La file a été relue ; vérifiez la sélection, puis réessayez.",
+        "lotEchec": "La publication n’a pas abouti et rien n’a été publié. Vérifiez votre connexion, puis réessayez.",
+        "toutCocherEchec": "La liste des avis sans risque n’a pas pu être lue. Réessayez, ou cochez les avis un par un.",
+        "risque": {
+          "low_rating": "Note de {note} sur 5",
+          "contact_details": "Coordonnées dans le texte",
+          "reported": "Signalé"
+        },
+        "signalements": "{n, plural, one {# signalement} other {# signalements}}",
+        "aucunSignalement": "Aucun signalement",
+        "sujet": {
+          "property": "Avis sur le bien",
+          "user": "Avis sur l’agent",
+          "agency": "Avis sur l’agence",
+          "service_provider": "Avis sur le prestataire",
+          "inconnu": "Sujet introuvable",
+          "reference": "Réf. {ref}",
+          "suiviPar": "suivi par {nom}",
+          "agent": "Agent de l’agence",
+          "ouvrir": "Ouvrir la fiche : {titre}"
+        },
+        "auteur": {
+          "lease": "Locataire",
+          "booking": "Client d’un séjour",
+          "visit": "A visité le bien",
+          "maintenance_request": "Client d’une intervention",
+          "numero": "avis n° {id}"
+        },
+        "note": "{n} sur 5",
+        "noteAria": "Note : {n} sur 5",
+        "detailTitre": {
+          "risque": "Avis n° {id} · à regarder de près",
+          "autre": "Avis n° {id}"
+        },
+        "telephoneTitre": {
+          "risque": "À risque · {i} sur {n}",
+          "sansRisque": "Sans risque · {i} sur {n}"
+        },
+        "clavier": "avis suivant",
+        "reponse": {
+          "titre": "Répondre publiquement",
+          "aide": "Affichée sous l’avis, signée « {agence} » · {n} / {max}",
+          "aideSansNom": "Affichée sous l’avis, au nom de votre agence · {n} / {max}",
+          "placeholder": "Votre réponse, visible de tous",
+          "enregistrer": "Enregistrer la réponse",
+          "enregistree": "Réponse enregistrée."
+        },
+        "publierAvecLaReponse": "Publier avec la réponse",
+        "publie": "Avis publié.",
+        "reponseSansPublication": "Votre réponse est enregistrée, mais l’avis n’est pas encore publié : la publication n’a pas abouti. Réessayez « Publier ».",
+        "reponseEchec": "La réponse n’a pas été enregistrée et rien n’a été publié. Vérifiez votre connexion, puis réessayez.",
+        "decisionEchec": "La décision n’a pas été enregistrée. Vérifiez votre connexion, puis réessayez.",
+        "motifRappel": "Masquer ou supprimer demande un motif (hors sujet, propos injurieux, données personnelles, faux avis…), journalisé avec vos mots s’il y en a.",
+        "plusDActions": "Supprimer, ignorer les signalements",
+        "retourALaFile": "Retour à la file",
+        "videRisque": "Aucun avis à risque en attente.",
+        "videSansRisque": "Aucun avis sans risque en attente."
       }
     },
     "finances": {
@@ -8273,7 +8370,85 @@
         "approve": "Approuver",
         "reject": "Rejeter"
       },
-      "searchAria": "Rechercher un bien à modérer"
+      "searchAria": "Rechercher un bien à modérer",
+      "bien": {
+        "titreTelephone": "Bien à valider · {i} sur {n}",
+        "titreBureau": "Bien à valider",
+        "apercu": "Aperçu de la fiche publique",
+        "apercuTexte": "telle qu’elle paraîtra une fois publiée",
+        "ouvrirEnGrand": "Ouvrir en grand",
+        "ouvrirApercu": "Ouvrir l’aperçu complet de la fiche",
+        "photo": "Photo {i} sur {n}",
+        "photoPrecedente": "Photo précédente",
+        "photoSuivante": "Photo suivante",
+        "sansPhoto": "Aucune photo",
+        "parPeriode": {
+          "daily": "/ jour",
+          "weekly": "/ semaine",
+          "monthly": "/ mois",
+          "yearly": "/ an"
+        },
+        "chambres": "{n, plural, one {# chambre} other {# chambres}}",
+        "sallesDEau": "{n, plural, one {# salle d’eau} other {# salles d’eau}}",
+        "surface": "{n} m²",
+        "sansDescription": "Aucune description.",
+        "soumisPar": "Soumis par",
+        "profils": {
+          "owner": "Propriétaire",
+          "agent": "Agent",
+          "agency_admin": "Administrateur de l’agence"
+        },
+        "leDate": "le {date}",
+        "rang": "{n, selectordinal, one {son #er bien chez vous} other {son #ᵉ bien chez vous}}",
+        "auteurInconnu": "Auteur inconnu",
+        "controle": {
+          "titre": "Liste de contrôle",
+          "aVoir": "{n, plural, one {# point à voir} other {# points à voir}}",
+          "rien": "Rien à signaler",
+          "photosOk": "{n, plural, one {# photo} other {# photos}}",
+          "photosManque": "{n, plural, =0 {Aucune photo} one {# photo seulement} other {# photos seulement}}",
+          "photosDetail": "{n, plural, one {# au moins est demandée} other {# au moins sont demandées}}",
+          "adresseOk": "Adresse complète",
+          "adresseOkDetail": "{lieu}, repérée sur la carte",
+          "adresseManque": "Adresse incomplète",
+          "adresseManqueDetail": "Le quartier ou la position sur la carte manque",
+          "description": "{n, plural, =0 {Aucune description} one {Description d’# mot} other {Description de # mots}}",
+          "descriptionSansContact": "Sans numéro de téléphone ni lien",
+          "descriptionContact": "Contient un numéro, un e-mail ou un lien",
+          "prixAuDessus": "Prix {pct} au-dessus de la médiane du quartier",
+          "prixAuDessous": "Prix {pct} au-dessous de la médiane du quartier",
+          "prixDetail": "Médiane de {n} biens comparables : {median}",
+          "prixSansMediane": "Prix sans comparaison",
+          "prixSansMedianeDetail": "Moins de 5 biens comparables sont en ligne dans ce quartier"
+        },
+        "correction": {
+          "titre": "Demander une correction",
+          "motifs": {
+            "photos": "Photos floues ou trop peu nombreuses",
+            "price": "Prix incohérent",
+            "address": "Adresse manquante ou imprécise",
+            "description": "Description à compléter",
+            "other": "Autre motif"
+          },
+          "motifLegende": "Motif",
+          "texte": "Vos mots à l’auteur",
+          "placeholder": "Ce qu’il faut reprendre, et pourquoi",
+          "compteur": "Envoyé à {nom} · {min} caractères au moins · {n} saisis",
+          "compteurSansNom": "Envoyé à l’auteur · {min} caractères au moins · {n} saisis",
+          "envoyer": "Envoyer la demande",
+          "envoyee": "Correction demandée : le bien est renvoyé à son auteur.",
+          "echec": "La demande n’a pas été envoyée. Vos mots sont conservés : vérifiez votre connexion, puis réessayez."
+        },
+        "publier": "Publier",
+        "publie": "Bien publié : il est en ligne.",
+        "publierEchec": "Le bien n’a pas été publié. Vérifiez votre connexion, puis réessayez.",
+        "rappel": "Tant qu’il n’est pas publié, ce bien n’est pas en ligne. « Demander une correction » renvoie le bien à son auteur avec un motif et vos mots ({min} caractères au moins).",
+        "detailIllisible": "Le détail de ce bien n’a pas pu être lu.",
+        "retourALaFile": "Retour à la file",
+        "file": "File des biens à valider",
+        "autresPhotos": "Autres photos du bien",
+        "carrousel": "carrousel"
+      }
     },
     "agencyConfig": {
       "watermarks": {

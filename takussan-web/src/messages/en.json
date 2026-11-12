@@ -7254,6 +7254,103 @@
         "reasonLabelRequired": "Describe the reason (required for “Other reason”)",
         "publishedPlatformOnly": "This review is already published: only the platform can take it down. You can reply to it or report it.",
         "platformReserved": "This review is moderated by the platform, not by the agency."
+      },
+      "file": {
+        "sousTitre": "{avis, plural, one {# review pending} other {# reviews pending}}, {risque} to look at closely · {biens, plural, =0 {no property to approve} one {# property to approve} other {# properties to approve}}",
+        "sousTitreAvis": "{avis, plural, one {# review pending} other {# reviews pending}}, {risque} to look at closely",
+        "onglets": {
+          "avis": "Reviews",
+          "biens": "Properties to approve",
+          "aria": "Moderation"
+        },
+        "puces": {
+          "risque": "At risk",
+          "sansRisque": "Low risk",
+          "biens": "Properties",
+          "aria": "Show"
+        },
+        "filtres": {
+          "ouvrir": "Filters: status, subject, reported",
+          "titre": "Filters",
+          "statut": "Status",
+          "sujet": "Subject",
+          "signales": "Reported only",
+          "fermer": "Show reviews"
+        },
+        "groupes": {
+          "risque": "Look at closely · {n}",
+          "sansRisque": "Low risk · {n}"
+        },
+        "regleSansRisque": "Ratings of 4 and 5, with no report and no contact details",
+        "toutCocher": "Select all ({n})",
+        "toutCocherCourt": "Select all",
+        "toutDecocher": "Clear selection",
+        "toutCocherAria": "Select all low-risk reviews",
+        "cocherAria": "Select the review by {auteur}",
+        "selection": "{n} selected",
+        "surSansRisque": "of {n} low risk",
+        "publier": "Publish",
+        "publierLaSelection": "Publish selection · {n, plural, one {# review} other {# reviews}}",
+        "voirSuivants": "Show the next {n}",
+        "notePlateforme": "Reviews of the agency itself are moderated by Takussan, not here.",
+        "lotPublie": "{n, plural, one {# review published.} other {# reviews published.}}",
+        "lotRefuse": "Nothing was published: one of the selected reviews changed in the meantime (already decided, or outside your agency). The queue was reloaded; check the selection, then try again.",
+        "lotEchec": "Publishing failed and nothing was published. Check your connection, then try again.",
+        "toutCocherEchec": "The list of low-risk reviews could not be read. Try again, or select reviews one by one.",
+        "risque": {
+          "low_rating": "Rated {note} out of 5",
+          "contact_details": "Contact details in the text",
+          "reported": "Reported"
+        },
+        "signalements": "{n, plural, one {# report} other {# reports}}",
+        "aucunSignalement": "No report",
+        "sujet": {
+          "property": "Review of the property",
+          "user": "Review of the agent",
+          "agency": "Review of the agency",
+          "service_provider": "Review of the service provider",
+          "inconnu": "Subject not found",
+          "reference": "Ref. {ref}",
+          "suiviPar": "handled by {nom}",
+          "agent": "Agency agent",
+          "ouvrir": "Open the page: {titre}"
+        },
+        "auteur": {
+          "lease": "Tenant",
+          "booking": "Stay guest",
+          "visit": "Visited the property",
+          "maintenance_request": "Maintenance client",
+          "numero": "review no. {id}"
+        },
+        "note": "{n} out of 5",
+        "noteAria": "Rating: {n} out of 5",
+        "detailTitre": {
+          "risque": "Review no. {id} · look at closely",
+          "autre": "Review no. {id}"
+        },
+        "telephoneTitre": {
+          "risque": "At risk · {i} of {n}",
+          "sansRisque": "Low risk · {i} of {n}"
+        },
+        "clavier": "next review",
+        "reponse": {
+          "titre": "Reply publicly",
+          "aide": "Shown under the review, signed “{agence}” · {n} / {max}",
+          "aideSansNom": "Shown under the review, in your agency’s name · {n} / {max}",
+          "placeholder": "Your reply, visible to everyone",
+          "enregistrer": "Save reply",
+          "enregistree": "Reply saved."
+        },
+        "publierAvecLaReponse": "Publish with reply",
+        "publie": "Review published.",
+        "reponseSansPublication": "Your reply is saved, but the review is not published yet: publishing failed. Try “Publish” again.",
+        "reponseEchec": "The reply was not saved and nothing was published. Check your connection, then try again.",
+        "decisionEchec": "The decision was not saved. Check your connection, then try again.",
+        "motifRappel": "Hiding or deleting requires a reason (off-topic, abusive, personal data, fake review…), logged with your words if any.",
+        "plusDActions": "Delete, ignore reports",
+        "retourALaFile": "Back to the queue",
+        "videRisque": "No at-risk review pending.",
+        "videSansRisque": "No low-risk review pending."
       }
     },
     "finances": {
@@ -8273,7 +8370,85 @@
         "approve": "Approve",
         "reject": "Reject"
       },
-      "searchAria": "Search a property to review"
+      "searchAria": "Search a property to review",
+      "bien": {
+        "titreTelephone": "Property to approve · {i} of {n}",
+        "titreBureau": "Property to approve",
+        "apercu": "Public page preview",
+        "apercuTexte": "as it will appear once published",
+        "ouvrirEnGrand": "Open full size",
+        "ouvrirApercu": "Open the full page preview",
+        "photo": "Photo {i} of {n}",
+        "photoPrecedente": "Previous photo",
+        "photoSuivante": "Next photo",
+        "sansPhoto": "No photo",
+        "parPeriode": {
+          "daily": "/ day",
+          "weekly": "/ week",
+          "monthly": "/ month",
+          "yearly": "/ year"
+        },
+        "chambres": "{n, plural, one {# bedroom} other {# bedrooms}}",
+        "sallesDEau": "{n, plural, one {# bathroom} other {# bathrooms}}",
+        "surface": "{n} m²",
+        "sansDescription": "No description.",
+        "soumisPar": "Submitted by",
+        "profils": {
+          "owner": "Owner",
+          "agent": "Agent",
+          "agency_admin": "Agency administrator"
+        },
+        "leDate": "on {date}",
+        "rang": "{n, selectordinal, one {their #st property with you} two {their #nd property with you} few {their #rd property with you} other {their #th property with you}}",
+        "auteurInconnu": "Unknown author",
+        "controle": {
+          "titre": "Checklist",
+          "aVoir": "{n, plural, one {# point to check} other {# points to check}}",
+          "rien": "Nothing to report",
+          "photosOk": "{n, plural, one {# photo} other {# photos}}",
+          "photosManque": "{n, plural, =0 {No photo} one {Only # photo} other {Only # photos}}",
+          "photosDetail": "{n, plural, one {At least # is expected} other {At least # are expected}}",
+          "adresseOk": "Complete address",
+          "adresseOkDetail": "{lieu}, located on the map",
+          "adresseManque": "Incomplete address",
+          "adresseManqueDetail": "The neighbourhood or the map position is missing",
+          "description": "{n, plural, =0 {No description} one {#-word description} other {#-word description}}",
+          "descriptionSansContact": "No phone number or link",
+          "descriptionContact": "Contains a phone number, an email or a link",
+          "prixAuDessus": "Price {pct} above the neighbourhood median",
+          "prixAuDessous": "Price {pct} below the neighbourhood median",
+          "prixDetail": "Median of {n} comparable properties: {median}",
+          "prixSansMediane": "Price not compared",
+          "prixSansMedianeDetail": "Fewer than 5 comparable properties are online in this neighbourhood"
+        },
+        "correction": {
+          "titre": "Request a correction",
+          "motifs": {
+            "photos": "Blurry or too few photos",
+            "price": "Inconsistent price",
+            "address": "Missing or vague address",
+            "description": "Description to complete",
+            "other": "Other reason"
+          },
+          "motifLegende": "Reason",
+          "texte": "Your words to the author",
+          "placeholder": "What to fix, and why",
+          "compteur": "Sent to {nom} · at least {min} characters · {n} typed",
+          "compteurSansNom": "Sent to the author · at least {min} characters · {n} typed",
+          "envoyer": "Send the request",
+          "envoyee": "Correction requested: the property is sent back to its author.",
+          "echec": "The request was not sent. Your words are kept: check your connection, then try again."
+        },
+        "publier": "Publish",
+        "publie": "Property published: it is online.",
+        "publierEchec": "The property was not published. Check your connection, then try again.",
+        "rappel": "Until it is published, this property is not online. “Request a correction” sends it back to its author with a reason and your words (at least {min} characters).",
+        "detailIllisible": "The details of this property could not be read.",
+        "retourALaFile": "Back to the queue",
+        "file": "Properties to approve",
+        "autresPhotos": "More photos of the property",
+        "carrousel": "carousel"
+      }
     },
     "agencyConfig": {
       "watermarks": {

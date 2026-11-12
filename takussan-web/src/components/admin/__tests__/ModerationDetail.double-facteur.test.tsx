@@ -60,7 +60,7 @@ describe('<ModerationDetail> — second facteur', () => {
     const garde = vi.fn<GardeDoubleFacteurFn>(async () => true);
     const onModerated = monter(garde);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Approuver' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Publier' }));
 
     await waitFor(() => expect(onModerated).toHaveBeenCalled());
     expect(garde).toHaveBeenCalledWith('two_factor_required');
@@ -73,7 +73,7 @@ describe('<ModerationDetail> — second facteur', () => {
     const garde = vi.fn<GardeDoubleFacteurFn>(async () => false);
     const onModerated = monter(garde);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Approuver' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Publier' }));
 
     expect(await screen.findByText('Second facteur requis.')).toBeInTheDocument();
     expect(garde).toHaveBeenCalledTimes(1);

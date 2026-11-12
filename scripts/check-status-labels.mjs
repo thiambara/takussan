@@ -116,7 +116,7 @@ const LIBELLES = {
   ],
   ReviewStatus: [
     { chemin: 'profile.reviews.status', lu: 'components/profile/ProfileReviewsList.tsx' },
-    { chemin: 'admin.moderation.status', lu: 'components/admin/ModerationQueueList.tsx' },
+    { chemin: 'admin.moderation.status', lu: 'components/admin/moderation/CarteDAvis.tsx' },
   ],
   RoleDelegationStatus: [{ chemin: 'admin.roles.role_delegations.statuses', lu: 'components/admin/roles/RoleDelegationsSection.tsx' }],
   ScheduledTaskRunStatus: [{ chemin: 'superAdmin.scheduler.status', lu: 'components/admin/super/scheduler.tsx' }],

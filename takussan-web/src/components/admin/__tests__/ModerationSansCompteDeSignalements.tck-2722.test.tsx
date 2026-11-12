@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fetchReviewReports, type ModerationReview } from '@/lib/queries/reviews-moderation';
 import { withIntl } from '@/test/intl';
 import { ModerationDetail } from '../ModerationDetail';
-import { ModerationQueueList } from '../ModerationQueueList';
+import { CarteDAvis } from '../moderation/CarteDAvis';
 
 /**
  * TCK-2722 — l'API retire `reported_count` d'une ligne que le lecteur ne modère pas (un avis sur
@@ -13,7 +13,8 @@ import { ModerationQueueList } from '../ModerationQueueList';
  * signalements : ni drapeau, ni « 0 », ni « undefined », ni lecture des signalements, ni « Ignorer
  * les signalements ». Chaque cas a son témoin AVEC un compte, pour que l'absence prouve quelque chose.
  */
-vi.mock('@/lib/queries/reviews-moderation', () => ({
+vi.mock('@/lib/queries/reviews-moderation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/queries/reviews-moderation')>()),
   fetchReviewReports: vi.fn(() => Promise.resolve({ data: [], meta: { total: 0 } })),
   moderateReview: vi.fn(),
 }));
@@ -37,20 +38,22 @@ function avis(id: number, extra: Record<string, unknown> = {}): ModerationReview
 }
 
 describe('TCK-2722 — une ligne de modération sans reported_count', () => {
-  it('ModerationQueueList : aucun drapeau ni compte sur la ligne sans clé, le témoin garde le sien', () => {
+  // TCK-2673 — la carte de la file (`CarteDAvis`) a remplacé `ModerationQueueList`.
+  it('CarteDAvis : aucun compte de signalements sur la ligne sans clé, le témoin garde le sien', () => {
     render(withIntl(
-      <ModerationQueueList reviews={[avis(1), avis(2, { reported_count: 3 })]} selectedId={null} onSelect={vi.fn()} />,
+      <ul>
+        <CarteDAvis avis={avis(1)} onOuvrir={vi.fn()} />
+        <CarteDAvis avis={avis(2, { reported_count: 3 })} onOuvrir={vi.fn()} />
+      </ul>,
     ));
 
     const sansCle = screen.getByTestId('moderation-queue-item-1');
-    expect(sansCle.querySelector('svg.lucide-flag')).toBeNull();
-    expect(sansCle).not.toHaveTextContent(/undefined|NaN/);
+    expect(sansCle).not.toHaveTextContent(/undefined|NaN|signalement/);
     expect(within(sansCle).queryByText('0')).toBeNull();
-    expect(sansCle).toHaveTextContent('4/5');
+    expect(within(sansCle).getByRole('img', { name: 'Note : 4 sur 5' })).toBeInTheDocument();
 
     const temoin = screen.getByTestId('moderation-queue-item-2');
-    expect(temoin.querySelector('svg.lucide-flag')).not.toBeNull();
-    expect(within(temoin).getByText('3')).toBeInTheDocument();
+    expect(within(temoin).getByText('3 signalements')).toBeInTheDocument();
   });
 
   it('ModerationDetail : sans clé, ni lecture des signalements ni « Ignorer les signalements » ; avec un compte, les deux', async () => {

@@ -59,7 +59,7 @@ import {
 import { AdminUsersTable } from '../users/AdminUsersTable';
 import { OverduePaymentsTable } from '../finances/OverduePaymentsTable';
 import { AuditTrail } from '../AuditTrail';
-import { ModerationQueueList } from '../ModerationQueueList';
+import { CarteDAvis } from '../moderation/CarteDAvis';
 import { PropertyModerationQueueList } from '../PropertyModerationQueueList';
 import { AgencyRolesList } from '../roles/AgencyRolesList';
 import { CapabilityMatrix } from '../roles/CapabilityMatrix';
@@ -503,7 +503,11 @@ describe('AC4 — anneau de focus : mesuré sur chaque écran de la console agen
   it('/app/agency/moderation — file des avis, entrée sélectionnée comprise', () => {
     const { container } = render(
       withIntl(
-        <ModerationQueueList reviews={AVIS} selectedId={AVIS[0].id} onSelect={vi.fn()} />,
+        // TCK-2673 — la carte de la file, ouverte (`actif`) et cochée comprises.
+        <ul>
+          <CarteDAvis avis={AVIS[0]} actif onOuvrir={vi.fn()} />
+          <CarteDAvis avis={AVIS[1]} coche onCocher={vi.fn()} onOuvrir={vi.fn()} />
+        </ul>,
       ),
     );
     mesureLesAnneaux(container, 2);

@@ -46,6 +46,8 @@ const PERMIS: Readonly<Record<string, Categorie>> = {
   // TCK-2618 — la pagination des favoris a suivi le contenu de la page, sorti de `PublicFavoritesPage`.
   'src/components/favorites/SuiviDesFavoris.tsx': 'pagination',
   'src/components/property/cards/PropertyRow.tsx': 'carrousel',
+  // TCK-2673 — le carrousel des photos du bien à valider : « photo précédente », pas un retour.
+  'src/components/admin/PropertyModerationDetail.tsx': 'carrousel',
   'src/components/public/profile/TeamStrip.tsx': 'carrousel',
   'src/app/[locale]/(public)/properties/[slug]/components/PropertyLightbox.tsx': 'carrousel',
   'src/app/[locale]/(public)/properties/[slug]/components/PropertyMobileGallery.tsx': 'carrousel',

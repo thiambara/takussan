@@ -1,89 +1,64 @@
 'use client';
 
-import { Building2, Calendar } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import type { ModerationProperty } from '@/lib/queries/property-moderation';
-import { useLocale, useTranslations } from 'next-intl';
+import { Building2, ChevronRight } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
-import { StatusBadge } from '@/components/console';
-import { formatDate } from '@/lib/format';
-import type { Locale } from '@/i18n/config';
+import type { ModerationProperty } from '@/lib/queries/property-moderation';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
+import { cn } from '@/lib/utils';
 
 interface PropertyModerationQueueListProps {
   readonly properties: ModerationProperty[];
   readonly selectedId: number | null;
   readonly onSelect: (property: ModerationProperty) => void;
+  /**
+   * TCK-2673 — `bande` (bureau) : les biens en attente en une rangée qui défile, au-dessus de
+   * l'aperçu du bien ouvert ; `liste` (téléphone) : une ligne par bien, toucher ouvre son aperçu.
+   */
+  readonly forme?: 'bande' | 'liste';
 }
 
-export function PropertyModerationQueueList({
-  properties,
-  selectedId,
-  onSelect,
-}: PropertyModerationQueueListProps) {
+export function PropertyModerationQueueList({ properties, selectedId, onSelect, forme = 'bande' }: PropertyModerationQueueListProps) {
   const t = useTranslations('admin.moderation');
-  const locale = useLocale() as Locale;
+  const tBien = useTranslations('admin.propertyModeration.bien');
+  const { jourMois } = useFormatteurs();
+
   return (
-    <ul className="max-h-[70vh] overflow-y-auto rounded-xl bg-card">
+    <ul
+      aria-label={tBien('file')}
+      className={cn(forme === 'bande' ? 'flex gap-2 overflow-x-auto pb-1' : 'divide-y divide-border border-y border-border bg-card')}
+    >
       {properties.map((property) => {
         const isSelected = property.id === selectedId;
+        const detail = [property.owner?.name ?? t('unknownAgent'), property.submitted_at ? jourMois(property.submitted_at) : null]
+          .filter(Boolean)
+          .join(' · ');
         return (
-          <li key={property.id} data-testid={`property-queue-item-${property.id}`}>
+          <li key={property.id} data-testid={`property-queue-item-${property.id}`} className={cn(forme === 'bande' && 'w-64 flex-none')}>
             <button
               type="button"
               onClick={() => onSelect(property)}
+              aria-current={isSelected ? 'true' : undefined}
               className={cn(
-                'flex w-full flex-col gap-2 border-b border-muted p-4 text-left text-sm transition-colors',
-                'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
-                isSelected ? 'bg-muted/60' : 'hover:bg-muted/40',
+                'flex w-full items-center gap-3 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
+                forme === 'bande'
+                  ? cn('rounded-xl border p-2.5', isSelected ? 'border-primary bg-secondary' : 'border-border bg-card hover:bg-muted')
+                  : 'min-h-16 px-4 py-3 hover:bg-muted',
               )}
-              aria-pressed={isSelected}
             >
-              <div className="flex items-start gap-3">
+              <span className="flex size-12 flex-none items-center justify-center overflow-hidden rounded-lg bg-muted">
                 {property.main_photo_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={property.main_photo_url}
-                    alt=""
-                    className="size-12 flex-shrink-0 rounded-lg object-cover"
-                  />
+                  // eslint-disable-next-line @next/next/no-img-element -- vignette de l'API (`preview`), déjà dimensionnée
+                  <img src={property.main_photo_url} alt="" className="size-full object-cover" loading="lazy" />
                 ) : (
-                  <div className="flex size-12 flex-shrink-0 items-center justify-center rounded-lg bg-muted">
-                    <Building2 className="size-5 text-muted-foreground" />
-                  </div>
+                  <Building2 className="size-5 text-muted-foreground" strokeWidth={1.75} aria-hidden="true" />
                 )}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-foreground">
-                    {property.title}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {property.reference_number}
-                    {property.agency ? ` · ${property.agency.name}` : ''}
-                  </p>
-                </div>
-                <StatusBadge
-                  tone="attention"
-                  className="flex-shrink-0 text-[0.625rem] font-semibold uppercase tracking-wide"
-                  label={t('status.pending')}
-                />
-              </div>
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <Building2 className="size-3" />
-                  {property.owner?.name ?? t('unknownAgent')}
-                </span>
-                {property.submitted_at ? (
-                  <span className="ml-auto flex items-center gap-1">
-                    <Calendar className="size-3" />
-                    {/* TCK-292 — la locale ACTIVE, plus `fr-FR` en dur. */}
-                    {formatDate(property.submitted_at, locale, {
-                      dateStyle: undefined,
-                      day: '2-digit',
-                      month: '2-digit',
-                      year: 'numeric',
-                    })}
-                  </span>
-                ) : null}
-              </div>
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold">{property.title}</span>
+                <span className="block truncate text-ui text-muted-foreground">{detail}</span>
+              </span>
+              {forme === 'liste' ? <ChevronRight className="size-5 flex-none text-muted-foreground" aria-hidden="true" /> : null}
             </button>
           </li>
         );
