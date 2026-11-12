@@ -191,16 +191,18 @@ class BailFermeLesAutresCandidaturesTest extends ApiTestCase
             ->count());
     }
 
-    /** Un second bail sur le bien ne renotifie pas une candidature déjà close. */
     /**
      * Vérification adverse de TCK-2734-b — un client qui a deux candidatures ouvertes sur le bien : les
-     * deux se ferment, et il ne lit « non retenue » qu'une fois. Un autre client garde son avis.
+     * deux se ferment, et il ne lit « non retenue » qu'une fois. Un autre client garde son avis. L'avis
+     * se déduplique, PAS la clôture : l'acompte encaissé sur la SECONDE ouvre bien sa tâche de
+     * remboursement (`BookingClosed` pour chaque candidature).
      */
     public function test_deux_candidatures_d_un_meme_client_un_seul_avis(): void
     {
         $client = $this->client();
         $premiere = $this->demande(BookingKind::Application, BookingStatus::Pending, $client);
         $seconde = $this->demande(BookingKind::Application, BookingStatus::Confirmed, $client);
+        BookingPayment::factory()->create(['booking_id' => $seconde->id, 'status' => PaymentStatus::Paid, 'payment_type' => BookingPaymentType::Deposit, 'amount' => 50_000]);
         $autre = $this->demande(BookingKind::Application, BookingStatus::Pending);
 
         $this->creerLeBail($this->client());
@@ -210,8 +212,14 @@ class BailFermeLesAutresCandidaturesTest extends ApiTestCase
         }
         $this->assertSame(1, $this->avisNonRetenue($premiere), 'un avis pour le client, pas un par candidature');
         $this->assertSame(1, $this->avisNonRetenue($autre));
+        $this->assertSame(1, Task::query()
+            ->where('taskable_type', $seconde->getMorphClass())
+            ->where('taskable_id', $seconde->id)
+            ->where('metadata->kind', 'booking_refund')
+            ->count(), 'la seconde candidature du même client est close comme un refus : son acompte encaissé est à rembourser');
     }
 
+    /** Un second bail sur le bien ne renotifie pas une candidature déjà close. */
     public function test_un_second_bail_ne_renotifie_pas(): void
     {
         $autre = $this->demande(BookingKind::Application, BookingStatus::Pending);
