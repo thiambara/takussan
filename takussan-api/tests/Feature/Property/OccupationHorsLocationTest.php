@@ -159,4 +159,25 @@ class OccupationHorsLocationTest extends ApiTestCase
         $this->actingAsApi($this->admin);
         $this->getJson('/api/properties?filter[occupancy]=for_sale')->assertStatus(422);
     }
+
+    /**
+     * Vérification adverse de TCK-2638 (A8) — l'état locatif se relit sur les biens PASSÉS, même
+     * supprimés en douceur (a0092c823) : `attach()` ne choisit pas ses biens, il décrit ceux qu'on
+     * lui donne. Relu sans `withTrashed()`, un bien à louer supprimé se disait `not_rental`. Aucune
+     * route ne sert aujourd'hui un bien supprimé avec `include=occupancy` : c'est le service qui est
+     * épinglé, pas une route.
+     */
+    public function test_un_bien_supprime_en_douceur_garde_son_etat_locatif(): void
+    {
+        $titres = ['Loué', 'Vacant 90 j', 'Vente occupée'];
+        Property::query()->whereIn('title', $titres)->get()->each->delete();
+        $biens = Property::withTrashed()->whereIn('title', $titres)->get(['id', 'title', 'deleted_at'])->keyBy('title');
+        $this->assertTrue($biens->every->trashed());
+
+        app(PropertyOccupancy::class)->attach($biens->values(), $this->admin);
+
+        $this->assertSame('occupied', $biens['Loué']->occupancyBlock()['state']);
+        $this->assertSame('vacant', $biens['Vacant 90 j']->occupancyBlock()['state']);
+        $this->assertSame('not_rental', $biens['Vente occupée']->occupancyBlock()['state']);
+    }
 }
