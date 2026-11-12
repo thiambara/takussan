@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Copy, Link2 } from 'lucide-react';
 
@@ -12,7 +12,7 @@ import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { cn } from '@/lib/utils';
 import type { PaymentHistoryRow } from '@/types/invoice';
 
-import { useArmement } from './armement';
+import { DELAI_D_ARMEMENT, useArmement } from './armement';
 import { useLectureDImpaye } from './lecture';
 import type { useRelanceDUnImpaye } from './useRelanceDUnImpaye';
 
@@ -81,7 +81,7 @@ export function ComposerLaRelance({ row, relance }: { readonly row: PaymentHisto
       {relance.etatDuLien === 'refuse' ? null : (
         <>
           <p className="mt-4 mb-1.5 text-sm font-medium">{t('lien')}</p>
-          <LienDePaiement url={relance.url} />
+          <LienDePaiement url={relance.url} creer={relance.creerLeLien} enCours={relance.etatDuLien === 'chargement'} />
         </>
       )}
 
@@ -102,35 +102,69 @@ export function ComposerLaRelance({ row, relance }: { readonly row: PaymentHisto
   );
 }
 
-/** Le lien de paiement de l'échéance, à copier. */
-export function LienDePaiement({ url }: { readonly url: string | null }) {
+/**
+ * Le lien de paiement de l'échéance, à copier. Décision 1 du porteur (2026-11-12) : tant qu'il n'est
+ * pas créé, la ligne le DIT (« créé à l'envoi ») ; « Copier » est un geste d'envoi, il le crée puis le
+ * copie. Sans `creer` (lecture seule), rien ne se crée.
+ */
+export function LienDePaiement({
+  url,
+  creer,
+  enCours = false,
+}: {
+  readonly url: string | null;
+  readonly creer?: () => Promise<string | null>;
+  readonly enCours?: boolean;
+}) {
   const t = useTranslations('admin.finances.impayes.relancer');
   const [copie, setCopie] = useState(false);
-  if (!url) return <Skeleton className="h-11 rounded-lg" aria-hidden="true" />;
-  const affiche = url.replace(/^https?:\/\//, '');
+  const [creation, setCreation] = useState(false);
+  const copier = async () => {
+    if (creation || enCours) return;
+    setCreation(true);
+    const adresse = url ?? (creer ? await creer() : null);
+    setCreation(false);
+    if (adresse) await navigator.clipboard?.writeText(adresse).then(() => setCopie(true), () => undefined);
+  };
+  const affiche = url ? url.replace(/^https?:\/\//, '') : null;
   return (
     <div className="flex h-11 items-center gap-2.5 rounded-lg border border-border bg-card pr-1.5 pl-3 text-sm">
       <Link2 className="size-4 flex-none text-muted-foreground" aria-hidden="true" />
-      <span className="min-w-0 flex-1 truncate tabular-nums" data-slot="lien-de-paiement">
-        {affiche}
-      </span>
-      <button
-        type="button"
-        onClick={() => {
-          void navigator.clipboard?.writeText(url).then(() => setCopie(true), () => undefined);
-        }}
-        className="inline-flex h-8 flex-none items-center gap-1.5 rounded-md bg-muted px-2.5 text-ui font-medium text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring"
-      >
-        <Copy className="size-3.5" aria-hidden="true" />
-        <span aria-live="polite">{copie ? t('copie') : t('copier')}</span>
-      </button>
+      {affiche ? (
+        <span className="min-w-0 flex-1 truncate tabular-nums" data-slot="lien-de-paiement">
+          {affiche}
+        </span>
+      ) : (
+        <span className="min-w-0 flex-1 truncate text-muted-foreground" data-slot="lien-a-creer">
+          {t('lienACreer')}
+        </span>
+      )}
+      {url || creer ? (
+        <button
+          type="button"
+          onClick={() => void copier()}
+          aria-disabled={creation || enCours ? true : undefined}
+          className="inline-flex h-8 flex-none items-center gap-1.5 rounded-md bg-muted px-2.5 text-ui font-medium text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring aria-disabled:opacity-60"
+        >
+          <Copy className="size-3.5" aria-hidden="true" />
+          <span aria-live="polite">{copie ? t('copie') : t('copier')}</span>
+        </button>
+      ) : null}
     </div>
   );
 }
 
 /**
- * « Ouvrir WhatsApp » : un LIEN `wa.me` dès que le numéro, le lien de paiement et le message sont
- * là ; avant, un bouton désactivé qui dit pourquoi (`aria-describedby`). Le clic note la relance.
+ * « Ouvrir WhatsApp ». Décision 1 du porteur (2026-11-12) : le lien de paiement se crée AU CLIC, pas
+ * avant. Le bouton ouvre un onglet vide dans le geste, crée le lien, glisse son URL dans le message,
+ * envoie l'onglet vers `wa.me` et NOTE la relance. Un 409 (l'échéance ne se paie plus en ligne), ou un
+ * échec, referme l'onglet et ne note rien.
+ *
+ * Un navigateur qui bloque l'onglet malgré tout (`window.open` rend `null`) reçoit une ANCRE `wa.me`
+ * prête : « Touchez encore pour ouvrir WhatsApp ». Le lien existe déjà, le second appui ne recrée
+ * rien ; c'est lui qui note la relance.
+ *
+ * Désactivé, il dit pourquoi (`aria-describedby`) : ni numéro, ni message, ou lien refusé.
  */
 export function OuvrirWhatsApp({
   relance,
@@ -145,45 +179,105 @@ export function OuvrirWhatsApp({
   /** Reçoit la note de la relance : `true` prise, `false` refusée (TCK-2682, récapitulatif de la file). */
   readonly onOuvert?: (note: Promise<boolean>) => void;
   /**
-   * TCK-2682 — la file guidée : un clic qui arrive avant que l'ancre soit ARMÉE (`armement.ts`) n'ouvre
-   * rien et ne note rien. C'est le second clic d'un double-clic sur l'ancre précédente.
+   * TCK-2682 — la file guidée : un clic qui arrive avant que le geste soit ARMÉ (`armement.ts`) n'ouvre
+   * rien et ne note rien. C'est le second clic d'un double-clic sur le geste précédent.
    */
   readonly armee?: boolean;
   readonly className?: string;
 }) {
   const t = useTranslations('admin.finances.impayes.gestes');
-  const premature = useArmement(relance.hrefWhatsApp ? 'prete' : null);
+  const pret = relance.pretAEnvoyer && relance.etatDuLien !== 'refuse';
+  const premature = useArmement(pret ? 'prete' : null);
+  const [envoi, setEnvoi] = useState<'repos' | 'enCours' | 'aRetoucher'>('repos');
+  // Le second clic d'un double-clic arrive pendant la création du lien, ou juste après l'ouverture
+  // quand le lien revient vite : il ne crée, n'ouvre ni ne note rien. Un état React ne suffit pas à le
+  // dire avant le rendu suivant ; les références, si.
+  const enVol = useRef(false);
+  const ouvertA = useRef<number | null>(null);
+  // Le bouton a pu quitter l'écran pendant la création du lien (« Passer », « Arrêter », la feuille
+  // refermée) : l'envoi s'arrête là, sans ouvrir WhatsApp ni noter une relance que l'agent a abandonnée.
+  const monte = useRef(false);
+  useEffect(() => {
+    monte.current = true;
+    return () => {
+      monte.current = false;
+    };
+  }, []);
   const classes = cn(
     buttonVariants({ size: 'xl' }),
     'gap-2 border-transparent bg-success font-semibold text-success-foreground hover:bg-success/90',
     className,
   );
-  if (!relance.hrefWhatsApp) {
+  const noter = () => {
+    const note = relance.noterLaRelance('whatsapp');
+    onOuvert?.(note);
+  };
+
+  /**
+   * L'envoi. L'onglet s'ouvre VIDE et tout de suite, dans le geste même : un navigateur qui bloque une
+   * fenêtre ouverte après une attente (Safari iOS) la laisse passer ici. Puis le lien se crée ; l'onglet
+   * part alors vers `wa.me`, ou se referme sur un refus. Sans `noopener` dans l'appel, qui ferait rendre
+   * `null` : l'`opener` est coupé à la main. Si l'onglet est bloqué malgré tout, une ancre prête prend la
+   * place du bouton. **Non mesuré au navigateur réel (Safari iOS)** : éprouvé en test seulement.
+   */
+  const envoyer = async () => {
+    if (enVol.current || (armee && premature())) return;
+    if (ouvertA.current !== null && Date.now() - ouvertA.current < DELAI_D_ARMEMENT) return;
+    enVol.current = true;
+    const onglet = window.open('', '_blank');
+    if (onglet) onglet.opener = null;
+    setEnvoi('enCours');
+    const pretAPartir = await relance.envoyer().finally(() => {
+      enVol.current = false;
+    });
+    if (!monte.current || !pretAPartir) {
+      onglet?.close();
+      if (monte.current) setEnvoi('repos');
+      return;
+    }
+    if (onglet === null) {
+      setEnvoi('aRetoucher');
+      return;
+    }
+    onglet.location.href = pretAPartir.hrefWhatsApp;
+    ouvertA.current = Date.now();
+    setEnvoi('repos');
+    noter();
+  };
+
+  // Le navigateur a bloqué l'onglet : l'ancre prête, que le second appui suit dans son propre geste.
+  if (envoi === 'aRetoucher' && relance.hrefWhatsApp) {
     return (
-      <Button type="button" size="xl" disabled aria-describedby={raisonId} className={cn(classes)}>
+      <a
+        href={relance.hrefWhatsApp}
+        target="_blank"
+        rel="noopener noreferrer"
+        data-slot="ouvrir-whatsapp"
+        onClick={() => {
+          setEnvoi('repos');
+          noter();
+        }}
+        className={classes}
+      >
         <IconeWhatsApp className="size-5" />
-        {t('ouvrirWhatsApp')}
-      </Button>
+        {t('retoucherWhatsApp')}
+      </a>
     );
   }
+
   return (
-    <a
-      href={relance.hrefWhatsApp}
-      target="_blank"
-      rel="noopener noreferrer"
+    <Button
+      type="button"
+      size="xl"
+      disabled={!pret}
+      aria-disabled={envoi === 'enCours' ? true : undefined}
+      aria-describedby={pret ? undefined : raisonId}
       data-slot="ouvrir-whatsapp"
-      onClick={(event) => {
-        if (armee && premature()) {
-          event.preventDefault();
-          return;
-        }
-        const note = relance.noterLaRelance('whatsapp');
-        onOuvert?.(note);
-      }}
+      onClick={() => void envoyer()}
       className={classes}
     >
       <IconeWhatsApp className="size-5" />
       {t('ouvrirWhatsApp')}
-    </a>
+    </Button>
   );
 }

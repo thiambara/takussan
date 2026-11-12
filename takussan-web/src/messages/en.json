@@ -7849,7 +7849,8 @@
           "ouvrirWhatsApp": "Open WhatsApp",
           "encaisser": "Record a payment",
           "ficheClient": "Customer record",
-          "ouvrirDossier": "Open {nom}’s file"
+          "ouvrirDossier": "Open {nom}’s file",
+          "retoucherWhatsApp": "Tap again to open WhatsApp"
         },
         "relancer": {
           "titre": "Remind {nom}",
@@ -7866,7 +7867,8 @@
           "seraNotee": "This one will be noted on the row: “reminded today”.",
           "noteEchec": "The reminder could not be recorded.",
           "copier": "Copy",
-          "copie": "Copied"
+          "copie": "Copied",
+          "lienACreer": "Created when the reminder is sent"
         },
         "dossier": {
           "bailleur": "Landlord: {nom}",
@@ -7901,8 +7903,9 @@
         "pied": "{debut} to {fin} of {total}",
         "piedAvecTotal": "{debut} to {fin} of {total} · total due {montant}",
         "message": {
-          "loyer": "Hello{prenom, select, aucun {} other { {prenom}}}, the {mois} rent ({montant}){bien, select, aucun {} other { for “{bien}”}} has been due since {date}. You can pay it online here: {lien}",
-          "autre": "Hello{prenom, select, aucun {} other { {prenom}}}, the payment “{libelle}” ({montant}){bien, select, aucun {} other { for “{bien}”}} has been due since {date}. You can pay it online here: {lien}"
+          "loyer": "Hello{prenom, select, aucun {} other { {prenom}}}, the {mois} rent ({montant}){bien, select, aucun {} other { for “{bien}”}} has been due since {date}. You can pay it online here: {lien}{agence, select, aucun {} other {\nOn behalf of {agence}.}}",
+          "autre": "Hello{prenom, select, aucun {} other { {prenom}}}, the payment “{libelle}” ({montant}){bien, select, aucun {} other { for “{bien}”}} has been due since {date}. You can pay it online here: {lien}{agence, select, aucun {} other {\nOn behalf of {agence}.}}",
+          "repereDuLien": "[payment link added when sent]"
         },
         "lot": {
           "selectionner": "Select",

@@ -7,7 +7,7 @@
  * lirait dans l'onglet Réseau (AC1, AC3). Le message passe par la vraie action serveur.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createTranslator } from 'next-intl';
 import type { ReactElement } from 'react';
@@ -23,7 +23,7 @@ const DICTIONNAIRES = { fr, en, wo } as const;
 const AUJOURDHUI = new Date().toISOString().slice(0, 10);
 const LIEN = 'https://www.takussan.com/pay/k7Qm2xR9';
 
-const reseau = vi.hoisted(() => ({ appels: [] as { chemin: string; methode: string; corps: unknown }[], refus: new Set<string>() }));
+const reseau = vi.hoisted(() => ({ appels: [] as { chemin: string; methode: string; corps: unknown }[], refus: new Set<string>(), enAttente: [] as (() => void)[] }));
 const toastAdd = vi.hoisted(() => vi.fn());
 
 vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ add: toastAdd }) }));
@@ -35,6 +35,13 @@ vi.mock('next-intl/server', () => ({
 vi.mock('@/context/AuthContext', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/context/AuthContext')>()),
   useAuth: () => ({ token: 'jeton', user: { id: 9, agency_id: 1 } }),
+}));
+// Décision 3 du porteur (2026-11-12) — l'agence du profil actif, nommée dans le message.
+vi.mock('@/hooks/useProfiles', () => ({
+  useMyProfiles: () => ({
+    data: { data: [{ id: 'agent:1', agency: { id: 1, name: 'Keur Immo', slug: 'keur-immo' } }], meta: { active_profile_id: 'agent:1', count: 1 } },
+    isLoading: false,
+  }),
 }));
 vi.mock('@/components/leases/LeasePaymentDialog', () => ({
   LeasePaymentDialog: ({ onEncaisse, paiementInitial }: { onEncaisse?: (id: number) => void; paiementInitial?: number }) => (
@@ -125,6 +132,9 @@ vi.mock('@/lib/api', async (importOriginal) => {
       const lien = /^\/api\/lease-payments\/(\d+)\/payment-link$/.exec(url.pathname);
       if (lien && methode === 'POST') {
         if (reseau.refus.has(`lien:${lien[1]}`)) throw new reel.ApiError(409, { code: 'payment.not_payable' });
+        // Un lien encore en route : il ne revient qu'à `relacher()`.
+        if (reseau.refus.has('lien:echec')) throw new reel.ApiError(500, {});
+        if (reseau.refus.has('lien:attendre')) return new Promise((r) => reseau.enAttente.push(() => r({ data: { url: LIEN, expires_at: null } })));
         return { data: { url: LIEN, expires_at: null } };
       }
       const relances = /^\/api\/lease-payments\/(\d+)\/reminders$/.exec(url.pathname);
@@ -166,16 +176,35 @@ function rendre(ui: ReactElement = <Impayes agencyId={1} />) {
 const historiques = () =>
   reseau.appels.filter((a) => a.chemin.startsWith('/api/payments/history')).map((a) => new URL(a.chemin, 'http://api.test').searchParams);
 const cartes = () => screen.queryAllByRole('article');
+const liensCrees = () => reseau.appels.filter((a) => a.methode === 'POST' && a.chemin.endsWith('/payment-link'));
+/**
+ * Décision 1 — « Ouvrir WhatsApp » ouvre un onglet VIDE dans le geste (`window.open('', '_blank')`),
+ * puis l'envoie vers `wa.me` une fois le lien créé, ou le referme. Les fausses fenêtres relèvent tout.
+ * Non mesuré au navigateur réel (Safari iOS).
+ */
+type FausseFenetre = { opener: unknown; location: { href: string }; fermee: boolean; close: () => void };
+const fenetres: FausseFenetre[] = [];
+const ouvertures = () => fenetres.filter((f) => f.location.href !== '').map((f) => new URL(f.location.href));
 
 beforeEach(() => {
   reseau.appels.length = 0;
   reseau.refus.clear();
+  reseau.enAttente.length = 0;
   toastAdd.mockClear();
   bureau(false);
   // Un lien `target=_blank` ne quitte pas la page de test.
   document.addEventListener('click', empecherLaNavigation, true);
+  fenetres.length = 0;
+  vi.spyOn(window, 'open').mockImplementation(() => {
+    const f: FausseFenetre = { opener: {}, location: { href: '' }, fermee: false, close: () => void (f.fermee = true) };
+    fenetres.push(f);
+    return f as unknown as Window;
+  });
 });
-afterEach(() => document.removeEventListener('click', empecherLaNavigation, true));
+afterEach(() => {
+  document.removeEventListener('click', empecherLaNavigation, true);
+  vi.mocked(window.open).mockRestore();
+});
 function empecherLaNavigation(e: MouseEvent) {
   if ((e.target as HTMLElement).closest('a[href^="https://wa.me"], a[href^="tel:"]')) e.preventDefault();
 }
@@ -246,24 +275,35 @@ describe('TCK-2660 — la liste des impayés', () => {
 });
 
 describe('TCK-2660 — la relance (téléphone)', () => {
-  it('AC1 — « Ouvrir WhatsApp » ouvre wa.me au numéro, avec le lien rendu par POST …/payment-link, puis NOTE la relance (`whatsapp`) : la carte dit « relancé aujourd’hui » sans rechargement', async () => {
+  it('AC1 — « Ouvrir WhatsApp » crée le lien (POST …/payment-link) AU CLIC, ouvre wa.me au numéro avec ce lien et le nom de l’agence, puis NOTE la relance (`whatsapp`) : la carte dit « relancé aujourd’hui » sans rechargement', async () => {
     lignes = [ligne(1, 34)];
     const utilisateur = rendre();
     const carte = await screen.findByRole('article', { name: 'Locataire 1' });
     expect(within(carte).getByText(/jamais relancé/)).toBeInTheDocument();
 
     await utilisateur.click(within(carte).getByRole('button', { name: /Relancer sur WhatsApp/ }));
-    const ouvrir = await screen.findByRole('link', { name: /Ouvrir WhatsApp/ });
-
-    const href = new URL(ouvrir.getAttribute('href')!);
-    expect(`${href.origin}${href.pathname}`).toBe('https://wa.me/221771234567');
-    const texte = href.searchParams.get('text')!;
-    expect(texte).toContain(LIEN);
-    expect(texte).toMatch(/^Bonjour Prénom1, le loyer d’octobre/);
-    expect(reseau.appels.some((a) => a.methode === 'POST' && a.chemin === '/api/lease-payments/1/payment-link')).toBe(true);
+    // Décision 1 — ouvrir la feuille est une LECTURE : le message porte un repère, aucun lien n'est créé.
+    expect(await screen.findByText(/\[lien de paiement ajouté à l’envoi\]/)).toBeInTheDocument();
+    expect(screen.getByText('Créé à l’envoi de la relance')).toBeInTheDocument();
+    expect(liensCrees()).toHaveLength(0);
     expect(document.body.textContent).not.toContain('Lu le');
 
-    await utilisateur.click(ouvrir);
+    await utilisateur.click(screen.getByRole('button', { name: /Ouvrir WhatsApp/ }));
+
+    await waitFor(() => expect(ouvertures()).toHaveLength(1));
+    // L'onglet s'ouvre VIDE, dans le geste ; l'`opener` est coupé à la main (pas de `noopener`).
+    expect(vi.mocked(window.open).mock.calls).toEqual([['', '_blank']]);
+    expect(fenetres[0].opener).toBeNull();
+    expect(fenetres[0].fermee).toBe(false);
+    expect(liensCrees().map((a) => a.chemin)).toEqual(['/api/lease-payments/1/payment-link']);
+    const href = ouvertures()[0];
+    expect(`${href.origin}${href.pathname}`).toBe('https://wa.me/221771234567');
+    const texte = href.searchParams.get('text')!;
+    expect(texte).toMatch(/^Bonjour Prénom1, le loyer d’octobre/);
+    expect(texte).toContain(`Vous pouvez le payer en ligne ici : ${LIEN}`);
+    expect(texte).not.toContain('[lien de paiement');
+    // Décision 3 — le message nomme l'agence.
+    expect(texte).toMatch(/\nDe la part de Keur Immo\.$/);
 
     await waitFor(() =>
       expect(reseau.appels.find((a) => a.methode === 'POST' && a.chemin === '/api/lease-payments/1/reminders')?.corps).toEqual({ channel: 'whatsapp' }),
@@ -273,19 +313,75 @@ describe('TCK-2660 — la relance (téléphone)', () => {
     expect(historiques().filter((p) => p.get('per_page') === '20')).toHaveLength(1);
   });
 
-  it('un 409 du lien dit que l’échéance ne se paie plus en ligne, et « Ouvrir WhatsApp » reste un bouton désactivé, sans wa.me', async () => {
+  it('un texte modifié garde ses mots : le repère devient le lien à l’envoi', async () => {
+    lignes = [ligne(1, 34)];
+    const utilisateur = rendre();
+    await utilisateur.click(within(await screen.findByRole('article', { name: 'Locataire 1' })).getByRole('button', { name: /Relancer sur WhatsApp/ }));
+    await screen.findByText(/\[lien de paiement ajouté à l’envoi\]/);
+
+    await utilisateur.click(screen.getByRole('button', { name: 'Modifier' }));
+    const zone = screen.getByRole('textbox');
+    await utilisateur.clear(zone);
+    // `paste` : les crochets du repère ne sont pas des touches à interpréter.
+    await utilisateur.paste('Bonjour, voici le lien : [lien de paiement ajouté à l’envoi] Merci.');
+    await utilisateur.click(screen.getByRole('button', { name: /Ouvrir WhatsApp/ }));
+
+    await waitFor(() => expect(ouvertures()).toHaveLength(1));
+    expect(ouvertures()[0].searchParams.get('text')).toBe(`Bonjour, voici le lien : ${LIEN} Merci.`);
+  });
+
+  it('un navigateur qui bloque l’onglet malgré tout (`window.open` rend `null`) : une ANCRE wa.me prête, « Touchez encore », qui note ; le lien n’est créé qu’une fois', async () => {
+    lignes = [ligne(1, 34)];
+    vi.mocked(window.open).mockImplementation(() => null);
+    const utilisateur = rendre();
+    await utilisateur.click(within(await screen.findByRole('article', { name: 'Locataire 1' })).getByRole('button', { name: /Relancer sur WhatsApp/ }));
+    await screen.findByText(/\[lien de paiement ajouté à l’envoi\]/);
+
+    await utilisateur.click(screen.getByRole('button', { name: /Ouvrir WhatsApp/ }));
+
+    const encore = await screen.findByRole('link', { name: 'Touchez encore pour ouvrir WhatsApp' });
+    expect(new URL(encore.getAttribute('href')!).searchParams.get('text')).toContain(LIEN);
+    expect(reseau.appels.some((a) => a.chemin.endsWith('/reminders') && a.methode === 'POST')).toBe(false);
+
+    await utilisateur.click(encore);
+
+    await waitFor(() => expect(reseau.appels.find((a) => a.methode === 'POST' && a.chemin.endsWith('/reminders'))?.corps).toEqual({ channel: 'whatsapp' }));
+    expect(liensCrees()).toHaveLength(1);
+  });
+
+  it('un 409 À L’ENVOI dit que l’échéance ne se paie plus en ligne : rien ne s’ouvre, rien n’est noté, et « Ouvrir WhatsApp » se désactive', async () => {
     lignes = [ligne(1, 34)];
     reseau.refus.add('lien:1');
     const utilisateur = rendre();
     const carte = await screen.findByRole('article', { name: 'Locataire 1' });
-
     await utilisateur.click(within(carte).getByRole('button', { name: /Relancer sur WhatsApp/ }));
+    await screen.findByText(/\[lien de paiement ajouté à l’envoi\]/);
+
+    await utilisateur.click(screen.getByRole('button', { name: /Ouvrir WhatsApp/ }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Cette échéance ne se paie plus en ligne');
     const bouton = screen.getByRole('button', { name: /Ouvrir WhatsApp/ });
     expect(bouton).toBeDisabled();
     expect(document.getElementById(bouton.getAttribute('aria-describedby') ?? '')).toHaveTextContent('ne se paie plus en ligne');
+    // L'onglet ouvert vide dans le geste est REFERMÉ : il n'est jamais parti vers wa.me.
+    expect(fenetres).toHaveLength(1);
+    expect(fenetres[0].fermee).toBe(true);
+    expect(ouvertures()).toEqual([]);
     expect(document.querySelector('a[href^="https://wa.me"]')).toBeNull();
+    expect(reseau.appels.some((a) => a.chemin.endsWith('/reminders') && a.methode === 'POST')).toBe(false);
+  });
+
+  it('un échec de la création du lien (500) referme l’onglet ouvert au clic, et ne note rien', async () => {
+    lignes = [ligne(1, 34)];
+    reseau.refus.add('lien:echec');
+    const utilisateur = rendre();
+    await utilisateur.click(within(await screen.findByRole('article', { name: 'Locataire 1' })).getByRole('button', { name: /Relancer sur WhatsApp/ }));
+    await screen.findByText(/\[lien de paiement ajouté à l’envoi\]/);
+
+    await utilisateur.click(screen.getByRole('button', { name: /Ouvrir WhatsApp/ }));
+
+    await waitFor(() => expect(fenetres.map((f) => f.fermee)).toEqual([true]));
+    expect(ouvertures()).toEqual([]);
     expect(reseau.appels.some((a) => a.chemin.endsWith('/reminders') && a.methode === 'POST')).toBe(false);
   });
 
@@ -320,10 +416,33 @@ describe('TCK-2660 — la relance (téléphone)', () => {
     const utilisateur = rendre();
     const carte = await screen.findByRole('article', { name: 'Locataire 1' });
     await utilisateur.click(within(carte).getByRole('button', { name: /Relancer sur WhatsApp/ }));
+    await screen.findByText(/\[lien de paiement ajouté à l’envoi\]/);
 
-    await utilisateur.click(await screen.findByRole('link', { name: /Ouvrir WhatsApp/ }));
+    await utilisateur.click(screen.getByRole('button', { name: /Ouvrir WhatsApp/ }));
 
     await waitFor(() => expect(toastAdd).toHaveBeenCalledWith({ title: 'Le serveur a rencontré une erreur. Réessayez dans un instant.', type: 'error' }));
+  });
+
+  it('la feuille refermée pendant la création du lien : le lien revenu, rien ne s’ouvre et rien n’est noté', async () => {
+    lignes = [ligne(1, 34)];
+    reseau.refus.add('lien:attendre');
+    const utilisateur = rendre();
+    await utilisateur.click(within(await screen.findByRole('article', { name: 'Locataire 1' })).getByRole('button', { name: /Relancer sur WhatsApp/ }));
+    await screen.findByText(/\[lien de paiement ajouté à l’envoi\]/);
+
+    await utilisateur.click(screen.getByRole('button', { name: /Ouvrir WhatsApp/ }));
+    await waitFor(() => expect(liensCrees()).toHaveLength(1));
+    await utilisateur.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('button', { name: /Ouvrir WhatsApp/ })).not.toBeInTheDocument());
+
+    await act(async () => {
+      reseau.enAttente.splice(0).forEach((relacher) => relacher());
+    });
+    await act(async () => {});
+    // L'onglet ouvert vide au clic est refermé, sans être parti vers wa.me.
+    expect(fenetres.map((f) => f.fermee)).toEqual([true]);
+    expect(ouvertures()).toEqual([]);
+    expect(reseau.appels.some((a) => a.methode === 'POST' && a.chemin.endsWith('/reminders'))).toBe(false);
   });
 });
 
@@ -375,7 +494,7 @@ describe('TCK-2660 — le bureau', () => {
 
     await waitFor(() => expect(within(panneau).queryByRole('button', { name: /^Relancer$/ })).not.toBeInTheDocument());
     expect(within(panneau).getByRole('status')).toHaveTextContent('Échéance payée');
-    expect(within(panneau).queryByRole('link', { name: /Ouvrir WhatsApp/ })).not.toBeInTheDocument();
+    expect(within(panneau).queryByRole('button', { name: /Ouvrir WhatsApp/ })).not.toBeInTheDocument();
   });
 
   it('« Relancer » d’une ligne ouvre le dossier sur la relance composée', async () => {
@@ -387,10 +506,14 @@ describe('TCK-2660 — le bureau', () => {
     await utilisateur.click(within(rangee).getByRole('button', { name: /Relancer/ }));
 
     const panneau = await screen.findByRole('dialog');
-    const ouvrir = await within(panneau).findByRole('link', { name: /Ouvrir WhatsApp/ });
-    expect(new URL(ouvrir.getAttribute('href')!).searchParams.get('text')).toContain(LIEN);
+    expect(await within(panneau).findByText(/\[lien de paiement ajouté à l’envoi\]/)).toBeInTheDocument();
     // Le lien n'apparaît qu'une fois : celui de la relance, pas une seconde fois dans le dossier.
     expect(within(panneau).getAllByRole('button', { name: /Copier/ })).toHaveLength(1);
+    expect(liensCrees()).toHaveLength(0);
+
+    await utilisateur.click(within(panneau).getByRole('button', { name: /Ouvrir WhatsApp/ }));
+    await waitFor(() => expect(ouvertures()).toHaveLength(1));
+    expect(ouvertures()[0].searchParams.get('text')).toContain(LIEN);
   });
 
   it('le dossier seul (clic sur la ligne) porte le lien de paiement et « Relancer » au pied', async () => {
@@ -402,6 +525,14 @@ describe('TCK-2660 — le bureau', () => {
     const panneau = await screen.findByRole('dialog');
     expect(await within(panneau).findByText('Lien de paiement')).toBeInTheDocument();
     expect(within(panneau).getAllByRole('button', { name: /Copier/ })).toHaveLength(1);
-    expect(within(panneau).queryByRole('link', { name: /Ouvrir WhatsApp/ })).not.toBeInTheDocument();
+    expect(within(panneau).queryByRole('button', { name: /Ouvrir WhatsApp/ })).not.toBeInTheDocument();
+    // Décision 1 — LIRE le dossier ne crée aucun lien ; « Copier » est un geste d'envoi, qui le crée.
+    expect(within(panneau).getByText('Créé à l’envoi de la relance')).toBeInTheDocument();
+    expect(liensCrees()).toHaveLength(0);
+
+    await utilisateur.click(within(panneau).getByRole('button', { name: /Copier/ }));
+
+    expect(await within(panneau).findByText(LIEN.replace(/^https:\/\//, ''))).toBeInTheDocument();
+    expect(liensCrees()).toHaveLength(1);
   });
 });

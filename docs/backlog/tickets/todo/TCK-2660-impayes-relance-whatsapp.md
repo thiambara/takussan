@@ -160,3 +160,61 @@ des pastilles sont sans `include` (F11). Ablations : les cinq mutations rougisse
 
 Hors du ticket, laissés ouverts dans le produit : les coches et la barre de sélection (TCK-2682 — la
 première colonne est celle du locataire, une coche s'ajoutera devant), la bascule SMS / E-mail, « Lu le ».
+
+**2026-11-12, soir — décisions 1 et 3 du porteur.** Elles remplacent « le lien de paiement se demande à l'ouverture »
+ci-dessus.
+
+- **Décision 1 (a) : le lien n'est créé qu'à l'ENVOI**, jamais à l'ouverture de la feuille, du dossier ou d'une échéance
+  de la file, parce qu'une lecture n'écrit pas. Mécanisme retenu (E, signalé à team-lead) :
+  - le message est composé avec un **repère** à la place du lien, `admin.finances.impayes.message.repereDuLien`
+    (« [lien de paiement ajouté à l'envoi] »), et le cadre du lien dit « Créé à l'envoi de la relance »
+    (`relancer.lienACreer`) ;
+  - « Ouvrir WhatsApp » devient un **bouton**. Ajustement de team-lead : au clic, il ouvre d'abord un onglet VIDE, de
+    façon synchrone, dans le geste (`window.open('', '_blank')`, sans `noopener`, qui ferait rendre `null`). Il coupe
+    ensuite l'`opener` à la main. Puis viennent `POST …/payment-link` et le remplacement du repère par l'URL : un
+    repère effacé par l'agent laisse son texte tel quel. Enfin `onglet.location.href = wa.me…`, et la relance est
+    notée ;
+  - un 409 à l'envoi, ou un échec, **referme l'onglet** et ne note rien : le bouton se désactive, et la file saute
+    l'échéance (« ne se paie plus en ligne ») ;
+  - « Copier » du lien crée le lien. « Appeler » n'en crée jamais ;
+  - si le navigateur bloque l'onglet malgré tout (`window.open` rend `null`), une ancre `wa.me` prête remplace le
+    bouton, « Touchez encore pour ouvrir WhatsApp » (`gestes.retoucherWhatsApp`). C'est le second appui qui ouvre et
+    qui note.
+  - **Non mesuré au navigateur réel (Safari iOS)** : l'onglet vide ouvert dans le geste, puis redirigé, et le repli.
+    Tout est éprouvé en test, avec de fausses fenêtres (`location`, `close`).
+  - Garde contre le double-clic : un second clic pendant la création du lien, ou dans les 500 ms qui suivent
+    l'ouverture (`DELAI_D_ARMEMENT`), ne crée, n'ouvre ni ne note rien.
+  - Envoi abandonné : si l'agent quitte l'échéance pendant la création du lien (« Passer », « Arrêter », feuille
+    refermée), le lien revenu n'ouvre rien et ne note rien, et l'onglet vide est refermé. Deux gardes : le bouton démonté, et la relance devenue
+    inactive dans `useRelanceDUnImpaye`.
+  - **ADR-0105, amendement du 2026-11-10, point 4** dit encore « le lien est demandé… au moment où elle s'affiche ».
+    Il est à amender (signalé à team-lead, non édité).
+- **Décision 3 (a) : le message nomme l'agence du profil actif** (`useMyProfiles`, déjà en cache dans le sélecteur
+  d'espace). Les gabarits `message.loyer` et `message.autre` finissent par « De la part de {agence}. » (en : « On
+  behalf of {agence}. »). Sans agence connue, ni ligne vide ni formule. L'aide est unique : 2660, la file de 2682 et
+  la fiche du bien de 2639 (`FeuilleDeRelance`) la suivent. **TCK-2644 n'a pas encore de relance d'impayé** :
+  `LeaseDetail` n'a que la relance de signature. Il la suivra en réutilisant `useRelanceDUnImpaye`.
+- Tests :
+  - `relance.tck-2660.test.ts` (9) : agence nommée dans la langue du locataire ; sans agence ; repère ;
+  - `impayes.tck-2660.test.tsx` (19) : AC1 au clic (onglet vide dans le geste, `opener` coupé), texte modifié,
+    onglet bloqué, 409 à l'envoi (onglet refermé), échec 500 (onglet refermé), feuille refermée pendant la création
+    du lien ;
+  - `impayes.verif.tck-2660.test.tsx` (5) : F7, aucun lien à l'ouverture, seul l'envoi le crée ;
+  - `impayes-en-lot.tck-2682.test.tsx` (17).
+- Ablations (une à la fois, md5 vérifié) :
+  - **f1 — POST à l'ouverture** : 14 rouges sur les trois fichiers ;
+  - **f2 — agence retirée** : 2 rouges ;
+  - **f3 — repère jamais remplacé** : 4 rouges ;
+  - **f4 — garde des 500 ms retirée** : 1 rouge (d1) ;
+  - **f5 — repli de l'onglet bloqué retiré** : 2 rouges ;
+  - **g1 — l'onglet ouvert après l'attente** (plus dans le geste) : 1 rouge (deux clics pendant la création) ;
+  - **g2 — l'onglet jamais refermé sur un refus** : 6 rouges ;
+  - **g3 — `opener` non coupé** : 1 rouge (AC1) ;
+  - **f6 — verrou « en vol » retiré** : 1 rouge (deux clics pendant la création du lien) ;
+  - **f7 — garde du bouton démonté retirée** : 1 rouge (« Passer » pendant le lien) ;
+  - f5, f6 et f7 ont été rejouées sur le code de l'onglet synchrone, avec les mêmes rouges.
+  - Fiche de fidélité `TCK-2660.json` : l'écart « repère au lieu de l'URL » est inscrit comme décision du porteur
+    (décision 1).
+  - **f8 — garde de la relance inactive retirée** : vert seule, car le démontage couvre ces cas dans jsdom. Elle
+    existe pour la feuille encore montée pendant son animation de fermeture. **f7 + f8 ensemble** : 3 rouges (feuille
+    refermée, « Passer », « Arrêter »).

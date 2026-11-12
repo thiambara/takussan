@@ -591,6 +591,7 @@ function PanneauDuDossier({
           agencyId={agencyId}
           row={row}
           url={relance.url}
+          creerLeLien={relance.creerLeLien}
           milieu={
             etat.relancer && !payee ? (
               <div className="mt-5">

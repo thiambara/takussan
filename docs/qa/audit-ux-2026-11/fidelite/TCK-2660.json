@@ -133,6 +133,13 @@
   "ecarts_acceptes": [
     {
       "ecran": "a-1-*, a-2-*",
+      "element": "la feuille de relance (téléphone) et la relance du dossier (bureau) : le message et le cadre du lien de paiement",
+      "propriete": "texte : l'URL du lien (« takussan.com/pay/… ») → le repère « [lien de paiement ajouté à l’envoi] » dans le message, et « Créé à l’envoi de la relance » dans le cadre du lien",
+      "exception": "décision du porteur (décision 1, 2026-11-12)",
+      "motif": "décision 1 du porteur (2026-11-12) : le lien de paiement n'est créé qu'à l'ENVOI de la relance (clic sur « Ouvrir WhatsApp », ou « Copier »), jamais à l'ouverture de la feuille ou du dossier — une lecture n'écrit pas. Le message porte un repère que l'envoi remplace par l'URL (clés `admin.finances.impayes.message.repereDuLien` et `relancer.lienACreer`)"
+    },
+    {
+      "ecran": "a-1-*, a-2-*",
       "element": "une carte (téléphone) ou une rangée (bureau) PAR LOCATAIRE, « 3 échéances » sous le montant",
       "propriete": "nombre de cartes et texte (« 3 échéances » → « Loyer de juin »)",
       "exception": "décision produit",

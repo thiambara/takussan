@@ -236,7 +236,9 @@ describe('TCK-2660 (vérification) — le dossier du bureau', () => {
 });
 
 describe('TCK-2660 (vérification) — le lien de paiement ne part que sur un geste', () => {
-  it('F7 — la liste rendue (téléphone puis bureau) ne demande aucun lien ; l’ouverture du dossier en demande un', async () => {
+  // Décision 1 du porteur (2026-11-12) — le lien n'est créé qu'à l'ENVOI : ni la liste, ni le dossier,
+  // ni la relance ouverte n'en créent ; seul un geste d'envoi (« Ouvrir WhatsApp », « Copier »).
+  it('F7 — la liste rendue (téléphone puis bureau) ne demande aucun lien, l’ouverture du dossier non plus', async () => {
     lignes = [ligne(1, 34), ligne(2, 3)];
     rendre();
     expect(await screen.findAllByRole('article')).toHaveLength(2);
@@ -248,14 +250,22 @@ describe('TCK-2660 (vérification) — le lien de paiement ne part que sur un ge
     const ouvrir = await screen.findByRole('button', { name: 'Ouvrir le dossier de Locataire 1' });
     expect(liens()).toHaveLength(0);
     await utilisateur.click(ouvrir);
-    await waitFor(() => expect(liens()).toHaveLength(1));
-    expect(liens()[0]).toEqual(expect.objectContaining({ methode: 'POST', chemin: '/api/lease-payments/1/payment-link' }));
+    expect(await screen.findByText('Créé à l’envoi de la relance')).toBeInTheDocument();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(liens()).toHaveLength(0);
   });
 
-  it('F7 — une relance montée FERMÉE ne demande rien ; ouverte, elle demande le lien de son échéance', async () => {
+  it('F7 — une relance montée, fermée PUIS ouverte, ne demande rien ; seul l’envoi crée le lien de son échéance', async () => {
     function Relance({ actif }: { readonly actif: boolean }) {
       const relance = useRelanceDUnImpaye(ligne(7, 12), actif);
-      return <p>{relance.etatDuLien}</p>;
+      return (
+        <>
+          <p>{relance.etatDuLien}</p>
+          <button type="button" onClick={() => void relance.creerLeLien()}>
+            envoyer
+          </button>
+        </>
+      );
     }
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const vue = (actif: boolean) => withIntl(<QueryClientProvider client={client}><Relance actif={actif} /></QueryClientProvider>);
@@ -265,8 +275,13 @@ describe('TCK-2660 (vérification) — le lien de paiement ne part que sur un ge
     expect(liens()).toHaveLength(0);
 
     rerender(vue(true));
-    await waitFor(() => expect(liens()).toHaveLength(1));
-    expect(liens()[0].chemin).toBe('/api/lease-payments/7/payment-link');
+    await screen.findByText('aCreer');
+    await new Promise((r) => setTimeout(r, 50));
+    expect(liens()).toHaveLength(0);
+
+    screen.getByRole('button', { name: 'envoyer' }).click();
+    await screen.findByText('pret');
+    expect(liens().map((a) => a.chemin)).toEqual(['/api/lease-payments/7/payment-link']);
   });
 });
 

@@ -31,6 +31,7 @@ const base = {
   devise: 'XOF',
   bien: 'Studio de Sacré-Cœur',
   lien: LIEN,
+  agence: 'Keur Immo',
 } as const;
 
 describe('TCK-2660 — composerLaRelanceAction', () => {
@@ -76,5 +77,36 @@ describe('TCK-2660 — composerLaRelanceAction', () => {
     const { texte } = await composerLaRelanceAction({ ...base, localeDuLocataire: 'fr', paymentType: 'charges' });
 
     expect(texte).toMatch(/^Bonjour Fatou, le paiement « Charges d’octobre » \(/);
+  });
+
+  // Décision 3 du porteur (2026-11-12) — le message nomme l'agence : « … de la part de {agence} ».
+  it('nomme l’agence, dans la langue du locataire', async () => {
+    const enFrancais = await composerLaRelanceAction({ ...base, localeDuLocataire: 'fr' });
+    expect(enFrancais.texte).toMatch(/\nDe la part de Keur Immo\.$/);
+
+    const enAnglais = await composerLaRelanceAction({ ...base, localeDuLocataire: 'en' });
+    expect(enAnglais.texte).toMatch(/\nOn behalf of Keur Immo\.$/);
+
+    const autre = await composerLaRelanceAction({ ...base, localeDuLocataire: 'fr', paymentType: 'charges' });
+    expect(autre.texte).toMatch(/\nDe la part de Keur Immo\.$/);
+  });
+
+  it('sans nom d’agence connu, pas de ligne vide ni de « de la part de »', async () => {
+    const { texte } = await composerLaRelanceAction({ ...base, localeDuLocataire: 'fr', agence: null });
+
+    expect(texte).not.toMatch(/de la part de/i);
+    expect(texte).toMatch(new RegExp(`ici : ${LIEN.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}$`));
+  });
+
+  // Décision 1 du porteur (2026-11-12) — le lien n'existe qu'à l'envoi : le message porte un repère.
+  it('sans lien encore créé, un REPÈRE lisible tient sa place, et il est rendu pour être remplacé', async () => {
+    const enFrancais = await composerLaRelanceAction({ ...base, localeDuLocataire: 'fr', lien: null });
+    expect(enFrancais.repere).toBe('[lien de paiement ajouté à l’envoi]');
+    expect(enFrancais.texte).toContain(`Vous pouvez le payer en ligne ici : ${enFrancais.repere}`);
+
+    const enAnglais = await composerLaRelanceAction({ ...base, localeDuLocataire: 'en', lien: null });
+    expect(enAnglais.texte).toContain(`You can pay it online here: ${enAnglais.repere}`);
+
+    expect((await composerLaRelanceAction({ ...base, localeDuLocataire: 'fr' })).repere).toBeNull();
   });
 });

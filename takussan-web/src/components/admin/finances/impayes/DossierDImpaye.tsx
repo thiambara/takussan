@@ -29,11 +29,14 @@ export function DossierDImpaye({
   agencyId,
   row,
   url,
+  creerLeLien,
   milieu,
 }: {
   readonly agencyId?: number;
   readonly row: PaymentHistoryRow;
   readonly url: string | null;
+  /** Décision 1 du porteur (2026-11-12) — « Copier » crée le lien : ouvrir le dossier n'en crée aucun. */
+  readonly creerLeLien?: () => Promise<string | null>;
   readonly milieu?: ReactNode;
 }) {
   const t = useTranslations('admin.finances.impayes.dossier');
@@ -104,7 +107,7 @@ export function DossierDImpaye({
       {payee || milieu ? null : (
         <>
           <p className="mt-6 mb-1.5 text-sm font-semibold">{t('lien')}</p>
-          <LienDePaiement url={url} />
+          <LienDePaiement url={url} creer={creerLeLien} />
           <p className="mt-1.5 text-ui text-muted-foreground">{t('lienAide')}</p>
         </>
       )}

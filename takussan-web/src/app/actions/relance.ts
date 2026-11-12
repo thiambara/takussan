@@ -14,6 +14,9 @@ import { formatCurrency, formatDate } from '@/lib/format';
  * Une action serveur, parce que le navigateur ne tient que le dictionnaire de SA langue. Le texte
  * appartient au front (principe 5) et n'est jamais stocké : il part dans `wa.me`, modifiable.
  *
+ * Il nomme l'agence qui relance (« De la part de {agence}. », décision 3 du porteur du 2026-11-12) :
+ * une seule aide pour toutes les relances d'impayé (TCK-2660, TCK-2682, TCK-2639, et TCK-2644 à venir).
+ *
  * Il ne nomme aucun moyen de paiement : le lien de l'échéance ne dit pas lesquels il propose
  * (ticket : « il ne nomme un moyen de paiement que s'il est proposé sur le lien »).
  *
@@ -31,7 +34,17 @@ export interface EntreeDeRelance {
   readonly montant: number;
   readonly devise: string | null | undefined;
   readonly bien: string | null | undefined;
-  readonly lien: string;
+  /**
+   * L'URL du lien de paiement, ou `null` tant qu'il n'est pas créé (décision 1 du porteur du
+   * 2026-11-12 : il ne l'est qu'à l'ENVOI) — le message porte alors un REPÈRE lisible, rendu avec lui,
+   * que l'envoi remplace par l'URL.
+   */
+  readonly lien: string | null;
+  /**
+   * Décision 3 du porteur (2026-11-12) — le nom de l'agence qui relance (« … de la part de {agence} ») :
+   * celle du profil actif de l'expéditeur. Absent, la ligne n'est pas écrite.
+   */
+  readonly agence?: string | null;
 }
 
 const AUCUN = 'aucun';
@@ -43,7 +56,9 @@ function court(valeur: string | null | undefined): string {
   return propre === '' ? AUCUN : propre;
 }
 
-export async function composerLaRelanceAction(entree: EntreeDeRelance): Promise<{ readonly locale: Locale; readonly texte: string }> {
+export async function composerLaRelanceAction(
+  entree: EntreeDeRelance,
+): Promise<{ readonly locale: Locale; readonly texte: string; readonly repere: string | null }> {
   const locale: Locale = isLocale(entree.localeDuLocataire)
     ? entree.localeDuLocataire
     : isLocale(entree.localeDeLEcran)
@@ -58,17 +73,20 @@ export async function composerLaRelanceAction(entree: EntreeDeRelance): Promise<
   const date = echeance
     ? formatDate(echeance, locale, { dateStyle: undefined, day: 'numeric', month: 'long', ...(memeAnnee ? {} : { year: 'numeric' }) })
     : '';
-  const commun = { prenom: court(entree.prenom), montant, bien: court(entree.bien), date, lien: entree.lien.slice(0, 500) };
+  const repere = entree.lien ? null : t('repereDuLien');
+  const lien = entree.lien ? entree.lien.slice(0, 500) : (repere ?? '');
+  const commun = { prenom: court(entree.prenom), montant, bien: court(entree.bien), date, lien, agence: court(entree.agence) };
 
   const { cle, mois } = periodeDe({ source: 'lease', payment_type: entree.paymentType, period_start: entree.periodStart ?? null, due_date: entree.dueDate ?? null });
   if (entree.paymentType === 'rent' && mois) {
     const nomDuMois = formatDate(`${mois.slice(0, 7)}-15T12:00:00Z`, locale, { dateStyle: undefined, month: 'long' });
     return {
       locale,
+      repere,
       texte: t('loyer', { ...commun, mois: nomDuMois, voyelle: /^[aeiouyàâéèêh]/i.test(nomDuMois) ? 'oui' : 'non' }),
     };
   }
   const nomDuMois = mois ? formatDate(`${mois.slice(0, 7)}-15T12:00:00Z`, locale, { dateStyle: undefined, month: 'long' }) : '';
   const libelle = tPeriode(cle, { mois: nomDuMois, voyelle: /^[aeiouyàâéèêh]/i.test(nomDuMois) ? 'oui' : 'non' });
-  return { locale, texte: t('autre', { ...commun, libelle }) };
+  return { locale, repere, texte: t('autre', { ...commun, libelle }) };
 }

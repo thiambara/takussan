@@ -5724,7 +5724,8 @@
           "ouvrirWhatsApp": "Ouvrir WhatsApp",
           "encaisser": "Encaisser un paiement",
           "ficheClient": "Fiche client",
-          "ouvrirDossier": "Ouvrir le dossier de {nom}"
+          "ouvrirDossier": "Ouvrir le dossier de {nom}",
+          "retoucherWhatsApp": "Touchez encore pour ouvrir WhatsApp"
         },
         "relancer": {
           "titre": "Relancer {nom}",
@@ -5741,7 +5742,8 @@
           "seraNotee": "Celle-ci sera notée sur la ligne : « relancé aujourd’hui ».",
           "noteEchec": "La relance n’a pas pu être notée.",
           "copier": "Copier",
-          "copie": "Copié"
+          "copie": "Copié",
+          "lienACreer": "Créé à l’envoi de la relance"
         },
         "dossier": {
           "bailleur": "Bailleur : {nom}",
@@ -5776,8 +5778,9 @@
         "pied": "{debut} à {fin} sur {total}",
         "piedAvecTotal": "{debut} à {fin} sur {total} · total dû {montant}",
         "message": {
-          "loyer": "Bonjour{prenom, select, aucun {} other { {prenom}}}, le loyer {voyelle, select, oui {d’{mois}} other {de {mois}}} ({montant}){bien, select, aucun {} other { du bien « {bien} »}} reste à régler depuis le {date}. Vous pouvez le payer en ligne ici : {lien}",
-          "autre": "Bonjour{prenom, select, aucun {} other { {prenom}}}, le paiement « {libelle} » ({montant}){bien, select, aucun {} other { du bien « {bien} »}} reste à régler depuis le {date}. Vous pouvez le payer en ligne ici : {lien}"
+          "loyer": "Bonjour{prenom, select, aucun {} other { {prenom}}}, le loyer {voyelle, select, oui {d’{mois}} other {de {mois}}} ({montant}){bien, select, aucun {} other { du bien « {bien} »}} reste à régler depuis le {date}. Vous pouvez le payer en ligne ici : {lien}{agence, select, aucun {} other {\nDe la part de {agence}.}}",
+          "autre": "Bonjour{prenom, select, aucun {} other { {prenom}}}, le paiement « {libelle} » ({montant}){bien, select, aucun {} other { du bien « {bien} »}} reste à régler depuis le {date}. Vous pouvez le payer en ligne ici : {lien}{agence, select, aucun {} other {\nDe la part de {agence}.}}",
+          "repereDuLien": "[lien de paiement ajouté à l’envoi]"
         },
         "lot": {
           "selectionner": "Sélectionner",

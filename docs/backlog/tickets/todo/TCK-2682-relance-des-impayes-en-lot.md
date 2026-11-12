@@ -200,3 +200,21 @@ L'onglet Impayés de Rapports (TCK-2629) monte **le même composant** Impayés (
   - contrôle avec l'armement de l'ancre retiré : d1 se reproduit, aux deux largeurs. Au bureau, notes 602 et 29, et la file passe à « 3 sur 3 ». Au téléphone, notes 16 et 17, et la file arrive au récapitulatif ;
   - m1, avec les notes bloquées : aucun toast, et « La relance de Yacine Diallo n'a pas pu être notée… » s'affiche dans le panneau de l'échéance suivante.
 - Fiche de fidélité : `docs/qa/audit-ux-2026-11/fidelite/TCK-2682.json`.
+
+**2026-11-12, soir — décision 1 du porteur (TCK-2660) : le lien n'est créé qu'à l'envoi.** La file ne demande plus le
+lien quand une échéance s'affiche, mais au clic sur « Ouvrir WhatsApp », qui devient un bouton : il ouvre un onglet vide dans le geste, crée
+le lien, puis envoie l'onglet vers `wa.me` (ou le referme sur un refus), l'échéance étant encore présentée. Un 409 n'arrive donc qu'au clic, et le saut
+« ne se paie plus en ligne » s'affiche alors, avec « Suivant », réarmé. « Passer » ne crée aucun lien. La garde de
+l'ancre (`key` par échéance, avance après le clic) reste en place. Une ancre ne sert plus que de repli quand le
+navigateur bloque l'onglet (« Touchez encore… ») ; elle ouvre chez le locataire présenté, puis la file avance.
+
+Les tests de `impayes-en-lot.tck-2682.test.tsx` sont réécrits en conséquence (17) :
+- aucun lien à l'affichage ;
+- onglet ouvert pendant que l'échéance cliquée est présentée ;
+- d1, avec un double-clic sur le même bouton puis sur le suivant ;
+- onglet bloqué dans la file ;
+- m2 sans aucun lien ;
+- un lien encore en route quand l'agent passe ou arrête : rien ne s'ouvre ni n'est noté, et l'échéance reste passée ;
+- deux clics pendant la création du lien : un seul lien.
+
+Ablations : voir TCK-2660 (f1, f4, f5 rougissent ce fichier).

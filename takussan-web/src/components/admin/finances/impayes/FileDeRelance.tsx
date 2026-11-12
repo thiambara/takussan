@@ -18,11 +18,14 @@ import { useRelanceDUnImpaye } from './useRelanceDUnImpaye';
  * une conversation WhatsApp après l'autre. Takussan n'envoie rien : chaque message part du WhatsApp
  * de l'admin, ouvert par `wa.me` (la même aide que la relance unitaire, `useRelanceDUnImpaye`).
  *
- * · Le lien de paiement d'une échéance se demande QUAND elle s'affiche, jamais en lot au départ.
- * · « Ouvrir WhatsApp » note la relance de CETTE échéance et passe à la suivante ; si la note est
- *   refusée, la file avance quand même et le récapitulatif le dit (« relance non notée »).
+ * · Le lien de paiement d'une échéance n'est créé qu'au clic sur « Ouvrir WhatsApp » (décision 1 du
+ *   porteur, 2026-11-12, TCK-2660) : présenter une échéance, ou la passer, n'en crée aucun.
+ * · « Ouvrir WhatsApp » crée le lien, ouvre WhatsApp, note la relance de CETTE échéance et passe à la
+ *   suivante ; si la note est refusée, la file avance quand même et le récapitulatif le dit
+ *   (« relance non notée »). Un geste qui quitte l'échéance pendant la création du lien (« Passer »,
+ *   « Arrêter ») l'abandonne : rien ne s'ouvre, rien n'est noté.
  * · « Passer » ne note rien. Une échéance déjà payée ou sans numéro (aucun lien demandé), ou dont le
- *   lien rend 409, est SAUTÉE : sa raison s'affiche, « Suivant » avance, le récapitulatif la compte
+ *   lien rend 409 au clic, est SAUTÉE : sa raison s'affiche, « Suivant » avance, le récapitulatif la compte
  *   et la nomme. Rien n'est retiré de la file en silence : la barre dit N, la file dit « sur N ».
  * · Une note refusée se dit DANS le panneau, au nom du locataire (jamais par un toast posé sur le
  *   geste suivant), puis au récapitulatif.
@@ -71,12 +74,13 @@ export function useFileDeRelance() {
       setFile({ tour: tours.current, rows, index: 0, issues: new Map(), nonNotee: null });
     },
     /**
-     * WhatsApp s'est ouvert : la relance compte, et la file avance — APRÈS le clic. Le navigateur suit
-     * le lien APRÈS le gestionnaire ET ses microtâches, où React valide le rendu : avancer dans le
-     * gestionnaire même réécrirait l'`href` de la même ancre au numéro du locataire SUIVANT avant
-     * qu'il ne soit suivi (mesuré le 2026-11-12, vrai clic : sans ce délai ni la `key` de l'ancre,
-     * l'`href` suivi est celui de la 2ᵉ échéance). La `key` par échéance est la seconde garde : une
-     * ancre détachée navigue encore, vers SON `href`.
+     * WhatsApp s'est ouvert : la relance compte, et la file avance — APRÈS le clic. Depuis la
+     * décision 1 (TCK-2660), « Ouvrir WhatsApp » est un bouton qui ouvre l'onglet lui-même ; une ANCRE
+     * ne reste que pour le repli d'un onglet bloqué (« Touchez encore… »). Pour elle, la règle tient :
+     * le navigateur suit le lien APRÈS le gestionnaire ET ses microtâches, où React valide le rendu, et
+     * avancer dans le gestionnaire même réécrirait son `href` au numéro du locataire SUIVANT (mesuré le
+     * 2026-11-12, vrai clic). La `key` par échéance est la seconde garde : une ancre détachée navigue
+     * encore, mais vers SON `href` ; un bouton détaché abandonne l'envoi.
      */
     ouvert: (id: number, note: Promise<boolean>) => {
       const tour = file?.tour ?? 0;
@@ -171,7 +175,7 @@ export function FileDeRelance({ api, onTerminer }: { readonly api: FileDeRelance
         </Button>
       ) : (
         <OuvrirWhatsApp
-          // Une ancre PAR échéance : jamais le lien du locataire suivant sous le doigt.
+          // Un geste PAR échéance : jamais le lien du locataire suivant sous le doigt.
           key={enCours.id}
           armee
           relance={relance}
