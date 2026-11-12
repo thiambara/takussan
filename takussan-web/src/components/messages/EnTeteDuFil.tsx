@@ -111,6 +111,7 @@ export function EnTeteDuFil({
     geste.mutate({ id: client.id, channel }, { onError: () => setErreur(t('chat.gesteNonConsigne')) });
   };
   const membres = (conversation?.participants ?? []).filter((p) => !p.left_at).length;
+  const archivee = Boolean(conversation?.participants?.find((p) => p.user_id === user?.id && !p.left_at)?.archived_at);
   const taille = compact ? 36 : 40;
 
   return (
@@ -146,7 +147,19 @@ export function EnTeteDuFil({
           </span>
         )}
         <div className={cn('min-w-0 flex-1 leading-tight', compact && 'ml-2.5')}>
-          <h2 className="truncate text-base font-semibold text-foreground">{titre}</h2>
+          <div className="flex min-w-0 items-center gap-2">
+            <h2 className="truncate text-base font-semibold text-foreground">{titre}</h2>
+            {archivee ? (
+              // TCK-2632 (décision b) — un fil archivé rouvert depuis « Nouvelle conversation » : on le
+              // dit, au lieu d'en ouvrir un second. Le premier message envoyé le désarchive.
+              <span
+                data-testid="fil-archive"
+                className="flex-none rounded-full bg-muted px-2 py-0.5 text-legende font-medium text-encre-douce"
+              >
+                {t('chat.archivee')}
+              </span>
+            ) : null}
+          </div>
           {isGroup ? (
             // TCK-2632 (maquette a/5) — la sous-ligne d'un groupe mène à ses infos, comme celle d'un
             // fil direct mène au bien : « 4 personnes › ».

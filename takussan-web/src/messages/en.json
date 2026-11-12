@@ -3650,7 +3650,8 @@
       "whatsapp": "Message on WhatsApp",
       "plusDActions": "More actions",
       "gesteNonConsigne": "The contact wasn’t logged on the customer record.",
-      "sourdineEchouee": "Notifications couldn’t be changed. Try again."
+      "sourdineEchouee": "Notifications couldn’t be changed. Try again.",
+      "archivee": "Archived"
     },
     "group": {
       "create": {

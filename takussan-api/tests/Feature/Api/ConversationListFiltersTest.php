@@ -286,6 +286,61 @@ class ConversationListFiltersTest extends TestCase
         $this->assertSame([], $this->ids('?filter[participant]='.User::factory()->create()->id));
     }
 
+    /**
+     * TCK-2632 (décision b) — un fil direct que l'appelant a ARCHIVÉ est retrouvé par
+     * `filter[participant]` : « Nouvelle conversation » le rouvre au lieu d'en ouvrir un second.
+     * La liste par défaut, elle, reste sans archives, et ses compteurs n'en tiennent pas compte.
+     */
+    public function test_participant_retrouve_un_fil_archive_par_l_appelant(): void
+    {
+        $this->filMalick->participants()->updateExistingPivot($this->agent->id, ['archived_at' => now()]);
+
+        $this->assertSame([$this->filMalick->id], $this->ids('?filter[type]=direct&filter[participant]='.$this->malick->id));
+        $this->assertNotContains($this->filMalick->id, $this->ids(''));
+
+        Sanctum::actingAs($this->agent);
+        $reponse = $this->getJson('/api/conversations?filter[type]=direct&filter[participant]='.$this->malick->id)->assertOk();
+        $this->assertSame(['all' => 2, 'unread' => 1, 'group' => 1], $reponse->json('meta.counts'));
+    }
+
+    /**
+     * L'élargissement aux archives ne vaut que pour les fils de l'APPELANT : le fil de deux tiers,
+     * archivé par l'un d'eux, n'en sort pas ; ni un fil que l'appelant a quitté puis archivé.
+     */
+    public function test_participant_ne_rend_jamais_le_fil_d_un_tiers_meme_archive(): void
+    {
+        $tiers = $this->fil(ConversationType::Direct, null, $this->malick, [$this->malick, $this->awa]);
+        $tiers->participants()->updateExistingPivot($this->malick->id, ['archived_at' => now()]);
+        $tiers->participants()->updateExistingPivot($this->awa->id, ['archived_at' => now()]);
+
+        $this->assertNotContains($tiers->id, $this->ids('?filter[participant]='.$this->awa->id));
+        $this->assertNotContains($tiers->id, $this->ids('?filter[type]=direct&filter[participant]='.$this->malick->id));
+
+        // Quitté puis archivé par l'appelant : pas rendu non plus.
+        $this->groupe->participants()->updateExistingPivot($this->agent->id, ['left_at' => now(), 'archived_at' => now()]);
+        $this->assertSame([$this->filMalick->id], $this->ids('?filter[participant]='.$this->malick->id));
+    }
+
+    /** L'archive d'un fil est privée, comme la sourdine : rendue au seul lecteur, absente pour les autres. */
+    public function test_archived_at_n_est_rendu_que_pour_le_lecteur(): void
+    {
+        $this->filMalick->participants()->updateExistingPivot($this->agent->id, ['archived_at' => now()]);
+
+        Sanctum::actingAs($this->agent);
+        $lignes = collect($this->getJson('/api/conversations?filter[participant]='.$this->malick->id)
+            ->assertOk()->json('data'))->firstWhere('id', $this->filMalick->id)['participants'];
+        $moi = collect($lignes)->firstWhere('user_id', $this->agent->id);
+        $lui = collect($lignes)->firstWhere('user_id', $this->malick->id);
+        $this->assertNotNull($moi['archived_at']);
+        $this->assertArrayNotHasKey('archived_at', $lui);
+
+        // Vu de Malick, qui n'a rien archivé : sa ligne dit `null`, celle de l'agent ne dit rien.
+        Sanctum::actingAs($this->malick);
+        $lignes = $this->getJson('/api/conversations/'.$this->filMalick->id)->assertOk()->json('data.participants');
+        $this->assertNull(collect($lignes)->firstWhere('user_id', $this->malick->id)['archived_at']);
+        $this->assertArrayNotHasKey('archived_at', collect($lignes)->firstWhere('user_id', $this->agent->id));
+    }
+
     public function test_participant_mal_forme_rend_422(): void
     {
         Sanctum::actingAs($this->agent);

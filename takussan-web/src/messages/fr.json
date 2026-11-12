@@ -3607,7 +3607,8 @@
       "whatsapp": "Écrire sur WhatsApp",
       "plusDActions": "Plus d’actions",
       "gesteNonConsigne": "Le contact n’a pas été noté sur la fiche du client.",
-      "sourdineEchouee": "Les notifications n’ont pas pu être modifiées. Réessayez."
+      "sourdineEchouee": "Les notifications n’ont pas pu être modifiées. Réessayez.",
+      "archivee": "Archivée"
     },
     "group": {
       "create": {

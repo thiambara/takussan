@@ -467,8 +467,9 @@ export function filDirectAvec(conversations: readonly Conversation[], userId: nu
  * page chargée de la liste, elle, n'en montre que trente. Un identifiant, jamais un nom : deux
  * homonymes ne partagent pas un fil. `filDirectAvec` revérifie l'identifiant sur la réponse.
  *
- * ⚠️ Un fil que l'appelant a ARCHIVÉ n'est pas dans la liste (`?archived=` est un autre écran) :
- * il n'est pas retrouvé, et un second fil s'ouvre.
+ * Un fil que l'appelant a ARCHIVÉ est retrouvé aussi : sous `filter[participant]`, l'API rend les
+ * archivés avec les autres (TCK-2632, décision b) — on rouvre le fil, marqué « Archivée » dans son
+ * en-tête, au lieu d'en ouvrir un second.
  */
 export function useTrouverLeFilDirect() {
   const locale = useLocale();

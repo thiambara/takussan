@@ -68,20 +68,25 @@ class ConversationController extends Controller
         $cloisonne = Conversation::query()
             // TCK-592 (verif-592, B2) — un fil d'intervention inaccessible n'apparaît pas.
             ->tap(fn ($q) => app(ConversationAccess::class)->constrainListing($q, $user));
-        $ou = fn (bool $archives) => (clone $cloisonne)
+        // `$archives` : `true` les seuls archivés, `false` les seuls actifs, `null` les deux.
+        $ou = fn (?bool $archives) => (clone $cloisonne)
             ->whereHas('participants', function ($q) use ($user, $archives) {
                 $q->where('user_id', $user->id);
                 // TCK-085 — participants who left a group no longer see it.
                 $q->whereNull('conversation_participants.left_at');
-                if ($archives) {
+                if ($archives === true) {
                     $q->whereNotNull('conversation_participants.archived_at');
-                } else {
+                } elseif ($archives === false) {
                     $q->whereNull('conversation_participants.archived_at');
                 }
             });
         $liste = $ou($includeArchived);
+        // TCK-2632 (décision b) — `filter[participant]` cherche LE fil qu'on a avec une personne
+        // (« Nouvelle conversation ») : archivé ou non, il est rendu, pour être rouvert plutôt que
+        // doublé. La page seule s'élargit ; `unread_total` et `meta.counts` gardent leur base.
+        $page = $request->validated('filter.participant') !== null ? $ou(null) : $liste;
 
-        $paginator = (clone $liste)
+        $paginator = (clone $page)
             // TCK-2630 — les filtres ne portent que sur la page : ni `unread_total` ni `meta.counts`.
             ->tap(fn ($q) => $this->filtrerLaListe($q, $request, $user, $nonLus))
             ->with([

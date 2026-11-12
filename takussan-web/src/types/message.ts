@@ -15,6 +15,11 @@ export type ConversationParticipant = {
   user_id: number;
   role: 'member' | 'admin';
   is_muted?: boolean;
+  /**
+   * TCK-2632 — rendu pour le SEUL lecteur, comme `is_muted` (clé absente pour les autres) : le fil
+   * qu'il a archivé. Envoyer un message le désarchive (`sendMessage`).
+   */
+  archived_at?: string | null;
   last_read_at: string | null;
   joined_at: string;
   left_at: string | null;

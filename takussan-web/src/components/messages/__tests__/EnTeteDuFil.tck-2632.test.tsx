@@ -196,6 +196,20 @@ describe('<EnTeteDuFil> (TCK-2632)', () => {
     expect(screen.getByRole('alert').textContent).not.toBe('');
   });
 
+  it('décision b — un fil que j’ai archivé, rouvert, se dit « Archivée » ; l’archive d’un AUTRE membre ne compte pas', () => {
+    const archive = (userId: number) =>
+      ({
+        ...directe,
+        participants: directe.participants!.map((p) => (p.user_id === userId ? { ...p, archived_at: '2026-11-01T10:00:00Z' } : p)),
+      }) as unknown as Conversation;
+    const { unmount } = monter(archive(1));
+    expect(screen.getByTestId('fil-archive')).toHaveTextContent('Archivée');
+    unmount();
+
+    monter(archive(2));
+    expect(screen.queryByTestId('fil-archive')).not.toBeInTheDocument();
+  });
+
   it('au bureau, le bouton du contexte le replie ou l’affiche, et dit lequel', async () => {
     const onBasculer = vi.fn();
     const { rerender } = monter(directe, { contexte: { ouvert: true, onBasculer } });
