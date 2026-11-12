@@ -35,12 +35,20 @@ describe('TCK-2634 — markNotificationsReadAction', () => {
     journal.journaliserErreurInattendue.mockReset();
   });
 
-  it('borne l’éventail à 20 lignes, même pour une liste plus longue', async () => {
+  it('borne l’éventail à 20 lignes, et COMPTE celles qu’il n’a pas lues', async () => {
     client.markNotificationRead.mockImplementation(async (_jeton: string, id: number) => lue(id));
     const res = await markNotificationsReadAction(ids(25));
 
     expect(client.markNotificationRead).toHaveBeenCalledTimes(20);
-    expect(res).toEqual({ ok: true, data: { lues: ids(20).map((id) => lue(id).data), echecs: 0 } });
+    // Les 5 au-delà de la borne restent non lues : l'écran le dit (« 5 notifications n'ont pas pu… »).
+    expect(res).toEqual({ ok: true, data: { lues: ids(20).map((id) => lue(id).data), echecs: 5 } });
+  });
+
+  it('à la borne exacte, rien n’est compté en trop', async () => {
+    client.markNotificationRead.mockImplementation(async (_jeton: string, id: number) => lue(id));
+    const res = await markNotificationsReadAction(ids(20));
+
+    expect(res.ok && res.data.echecs).toBe(0);
   });
 
   it('un échec partiel est COMPTÉ, les lignes lues restent', async () => {

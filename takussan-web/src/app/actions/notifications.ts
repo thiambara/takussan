@@ -82,12 +82,16 @@ export async function markNotificationUnreadAction(
   }
 }
 
+/** La liste affichée : 20 lignes, la cloche comme une page d'historique. */
+const BORNE_DE_LECTURE_EN_LOT = 20;
+
 /**
  * TCK-2634 — « Tout lire » d'un repli : chacune de ses lignes non lues. L'API n'a pas de route en lot
  * (`read`, `unread`, `read-all` seulement) : l'éventail part d'ici, par paquets de 5, BORNÉ à la liste
  * affichée (20 lignes au plus, la cloche comme une page d'historique) — un appel plus large n'en lit
- * que les 20 premières. Un échec partiel n'efface pas les réussites : il est COMPTÉ (`echecs`), et
- * l'écran le dit ; tout échoue → l'erreur, comme les autres gestes.
+ * que les 20 premières, et les autres COMPTENT dans `echecs` : non lues, elles ne passent pas pour
+ * lues en silence. Un échec partiel n'efface pas les réussites : il est compté, et l'écran le dit ;
+ * tout échoue → l'erreur, comme les autres gestes.
  */
 export async function markNotificationsReadAction(
   notificationIds: readonly number[],
@@ -95,7 +99,8 @@ export async function markNotificationsReadAction(
   const token = await getToken();
   if (!token) return nonAuthentifie();
 
-  const ids = notificationIds.slice(0, 20);
+  const ids = notificationIds.slice(0, BORNE_DE_LECTURE_EN_LOT);
+  const horsBorne = notificationIds.length - ids.length;
   const lues: AppNotification[] = [];
   const raisons: unknown[] = [];
   for (let i = 0; i < ids.length; i += 5) {
@@ -109,7 +114,7 @@ export async function markNotificationsReadAction(
   // Un échec partiel n'a pas de `catch` : sans cette ligne, un bug de l'éventail se tairait côté
   // serveur (TCK-775), l'écran ne disant que « N n'ont pas pu être marquées lues ».
   for (const raison of raisons) journaliserErreurInattendue('notifications', raison);
-  return { ok: true, data: { lues, echecs: raisons.length } };
+  return { ok: true, data: { lues, echecs: raisons.length + horsBorne } };
 }
 
 export async function markAllNotificationsReadAction(): Promise<
