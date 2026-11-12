@@ -13204,9 +13204,9 @@
       "apiError": "Erreur ({status})."
     },
     "security": {
-      "enableFailed": "Impossible d'activer la 2FA.",
+      "enableFailed": "Impossible d'activer la double authentification.",
       "invalidCode": "Code invalide.",
-      "disableFailed": "Impossible de désactiver la 2FA.",
+      "disableFailed": "Impossible de désactiver la double authentification.",
       "regenerateFailed": "Impossible de régénérer les codes de récupération.",
       "sendOtpFailed": "Impossible d'envoyer le code.",
       "invalidOrExpiredCode": "Code invalide ou expiré.",

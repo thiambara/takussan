@@ -140,6 +140,8 @@ export function MyProfilesSection() {
                     {profile.status && STATUTS_CONNUS.has(profile.status) ? (
                       <span>· {t(`statuts.${profile.status}`)}</span>
                     ) : null}
+                    {/* TCK-2635 — la ville de l'agence, comme sur la vue d'ensemble du bureau (MesEspacesEnBref). */}
+                    {profile.agency?.city ? <span>· {profile.agency.city}</span> : null}
                     {isActive ? (
                       <span className="font-medium text-success">{t('activeProfile')}</span>
                     ) : null}
