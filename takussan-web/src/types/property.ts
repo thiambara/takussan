@@ -353,6 +353,11 @@ export interface PropertyDetail extends PropertyListItem {
    * court. Émis sur `properties.show` au seul personnel de l'agence du bien.
    */
   pending_owner?: { profile_id: number; name: string } | null;
+  /**
+   * TCK-2639 — le profil de bailleur du titulaire dans l'agence du bien (`/app/owners/{id}`), rendu à
+   * qui en ouvre la fiche (l'admin actif de l'agence) ; nul pour tout autre appelant.
+   */
+  owner_profile_id?: number | null;
 }
 
 export interface PaginatedProperties {

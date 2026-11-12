@@ -81,12 +81,12 @@ function toSpatieParams(
   };
 }
 
-/** `GET /api/inventories`. */
-export function useInventories(params?: InventoryListParams) {
+/** `GET /api/inventories`. `enabled` à `false` : la requête ne part pas (TCK-2639, bail illisible). */
+export function useInventories(params?: InventoryListParams, enabled = true) {
   return useApiQuery<PaginatedResponse<Inventory>>(
     inventoryKeys.list(params),
     '/api/inventories',
-    { params: toSpatieParams(params, LIST_FIELDS, '-created_at') },
+    { params: toSpatieParams(params, LIST_FIELDS, '-created_at'), enabled },
   );
 }
 

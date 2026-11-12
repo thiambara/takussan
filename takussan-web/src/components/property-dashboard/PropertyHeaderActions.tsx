@@ -7,12 +7,13 @@ import { useTranslations } from 'next-intl';
 import {
   Archive,
   Copy,
-  ExternalLink,
+  Globe,
   Loader2,
   MoreHorizontal,
   Trash2,
 } from 'lucide-react';
 
+import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -23,7 +24,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
 import { BoostButton } from '@/components/boost/BoostButton';
 import {
   deletePropertyAction,
@@ -49,11 +49,13 @@ interface Props {
   readonly property: PropertyDetail;
   /** TCK-633 — la fiche est ouverte avec `?booster=1` (message de confirmation de publication). */
   readonly ouvrirBoost?: boolean;
+  /** TCK-2639 — « Ajouter un document » : la feuille « ⋯ » du téléphone seulement (l'onglet Documents le porte). */
+  readonly ajouterUnDocument?: boolean;
 }
 
 const PUBLIC_VIEWABLE_STATUSES = new Set(['available', 'published']);
 
-export function PropertyHeaderActions({ property, ouvrirBoost = false }: Props) {
+export function PropertyHeaderActions({ property, ouvrirBoost = false, ajouterUnDocument = false }: Props) {
   const t = useTranslations('property.dashboard.actions');
   const tStatus = useTranslations(PROPERTY_ENUM_NAMESPACES.status);
   const router = useRouter();
@@ -193,7 +195,7 @@ export function PropertyHeaderActions({ property, ouvrirBoost = false }: Props) 
           rel="noopener noreferrer"
           className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
         >
-          <ExternalLink aria-hidden="true" />
+          <Globe aria-hidden="true" />
           {t('viewPublic')}
         </Link>
       ) : null}
@@ -207,24 +209,25 @@ export function PropertyHeaderActions({ property, ouvrirBoost = false }: Props) 
           isPublic={Boolean(canViewPublic)}
           ouvrirDemande={ouvrirBoost}
         />
-        <AddDocumentButton
-          documentableType="property"
-          documentableId={property.id}
-          displayLabel={property.title}
-        />
+        {/* TCK-2639 (AC3) — « Ajouter un document » vit dans l'onglet Documents, préattaché au bien ;
+            l'en-tête du bureau n'en porte plus (maquette), la feuille « ⋯ » du téléphone le garde. */}
+        {ajouterUnDocument ? (
+          <AddDocumentButton documentableType="property" documentableId={property.id} displayLabel={property.title} />
+        ) : null}
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
               <Button
-                variant="ghost"
-                size="icon-sm"
+                // TCK-2639 — le « ⋯ » de la maquette `app-biens` a-2 : bordé, sur la carte.
+                variant="outline"
+                size="icon"
                 aria-label={t('more')}
                 disabled={pending}
               >
                 {pending ? (
                   <Loader2 className="animate-spin" aria-hidden="true" />
                 ) : (
-                  <MoreHorizontal aria-hidden="true" />
+                  <MoreHorizontal className="size-icone stroke-2 text-muted-foreground" aria-hidden="true" />
                 )}
               </Button>
             }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useSyncExternalStore } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { CalendarPlus } from 'lucide-react';
 
@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import type { CustomerDuplicateMatch } from '@/app/actions/dashboard-customers';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { usePersonnelActif } from '@/hooks/usePersonnelActif';
+import { useMyProfiles } from '@/hooks/useProfiles';
 import { ApiError } from '@/lib/api';
 import { jourDeLApi, decalerJour } from '@/lib/jour-de-l-api';
 import { useCreneauxDeVisite, usePlanVisit, type PlanVisitPayload } from '@/lib/queries/visits';
@@ -59,6 +60,8 @@ interface PreRemplissage {
   readonly heure?: string;
 }
 
+const sansAbonnement = () => () => {};
+
 interface PlanifierUneVisiteProps extends PreRemplissage {
   /**
    * L'agence du bien, quand on la connaît (fiche bien). `null` : bien sans agence, qui n'a aucun
@@ -66,6 +69,12 @@ interface PlanifierUneVisiteProps extends PreRemplissage {
    */
   readonly agencyId?: number | null;
   readonly className?: string;
+  /**
+   * TCK-2639 (AC5) — la page sait déjà, au rendu serveur, que l'appelant est du personnel : tant que
+   * ses profils se lisent, le bouton occupe sa place (invisible), pour que l'en-tête ne bouge pas à
+   * son arrivée. Sans elle, rien n'est rendu avant la lecture (un bailleur n'a pas de place vide).
+   */
+  readonly placeReservee?: boolean;
 }
 
 /**
@@ -84,11 +93,25 @@ interface PlanifierUneVisiteProps extends PreRemplissage {
  * ou dont le profil actif est celui d'une autre agence, voyait le bouton, et l'API, qui le traite
  * en non-personnel, le faisait réserver pour lui-même. Elle lit désormais le profil actif.
  */
-export function PlanifierUneVisite({ agencyId, className, ...preRemplissage }: PlanifierUneVisiteProps) {
+export function PlanifierUneVisite({ agencyId, className, placeReservee = false, ...preRemplissage }: PlanifierUneVisiteProps) {
   const t = useTranslations('visitPlanning.plan');
-  const personnel = usePersonnelActif(agencyId);
+  // TCK-2639 — lu APRÈS l'hydratation, comme `VisitesParLeTemps` : le serveur ne connaît pas les
+  // profils, la coque hydratée avant cette frontière les a souvent déjà lus. Rendre le vrai bouton au
+  // premier passage du client, c'était hydrater la place réservée (même balise, même texte) en gardant
+  // ses attributs serveur — `invisible`, `aria-hidden` — pour de bon (relevé au navigateur, 2 sur 4).
+  const hydrate = useSyncExternalStore(sansAbonnement, () => true, () => false);
+  const personnelLu = usePersonnelActif(agencyId);
+  const personnel = hydrate && personnelLu;
+  const profils = useMyProfiles();
   const [ouvert, setOuvert] = useState(false);
-  if (!personnel) return null;
+  if (!personnel) {
+    return placeReservee && (!hydrate || profils.isPending) ? (
+      <Button type="button" variant="outline" aria-hidden tabIndex={-1} data-slot="place-reservee" className={cn('invisible h-10 gap-2 sm:h-8', className)}>
+        <CalendarPlus className="size-4" aria-hidden />
+        {t('cta')}
+      </Button>
+    ) : null;
+  }
   return (
     <>
       <Button type="button" variant="outline" className={cn('h-10 gap-2 sm:h-8', className)} onClick={() => setOuvert(true)}>

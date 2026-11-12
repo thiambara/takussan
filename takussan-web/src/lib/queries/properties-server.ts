@@ -203,12 +203,16 @@ export async function fetchPortfolioSummary(
   return res.data;
 }
 
+/**
+ * La fiche d'un bien du tableau de bord. TCK-2639 — avec `include=occupancy,online` (TCK-2637) :
+ * l'onglet « Location » lit l'occupant, le bail et l'état du mois, l'en-tête « En ligne ».
+ */
 export async function fetchDashboardProperty(
   token: string,
   idOrSlug: string | number,
 ): Promise<PropertyDetail> {
   const res = await apiRequest<ApiResponse<PropertyDetail>>(
-    cheminApi`/api/properties/${idOrSlug}`,
+    cheminApi`/api/properties/${idOrSlug}${requete(buildQueryString({ include: ['occupancy', 'online'] }))}`,
     { token },
   );
   return res.data;

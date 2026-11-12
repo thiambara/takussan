@@ -48,3 +48,19 @@ describe('<DocumentUploadDialog> — onUploaded (TCK-700)', () => {
     );
   });
 });
+
+describe('<DocumentUploadDialog> — préattaché à sa cible (TCK-2639, AC3)', () => {
+  it('ne montre ni le type ni l’identifiant de la cible quand elle est fixée, et les montre sinon', () => {
+    const { unmount } = render(
+      withIntl(<DocumentUploadDialog open onOpenChange={vi.fn()} defaultDocumentable={{ type: 'property', id: 7, label: 'Villa Almadies' }} />),
+    );
+    expect(screen.getByText(/Villa Almadies/)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/ID de l'entité/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Associé à')).not.toBeInTheDocument();
+    unmount();
+
+    render(withIntl(<DocumentUploadDialog open onOpenChange={vi.fn()} />));
+    expect(screen.getByLabelText(/ID de l'entité/)).toBeInTheDocument();
+    expect(screen.getByText('Associé à')).toBeInTheDocument();
+  });
+});

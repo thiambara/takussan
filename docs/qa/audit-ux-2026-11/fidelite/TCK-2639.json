@@ -1,0 +1,267 @@
+{
+  "ticket": "TCK-2639",
+  "ecrans": [
+    {
+      "page": "app-biens",
+      "approche": "a",
+      "ecran": 2,
+      "nom": "Fiche — onglet Location",
+      "references": {
+        "telephone": "references/app-biens/a-2-telephone.json",
+        "bureau-1440": "references/app-biens/a-2-bureau-1440.json",
+        "bureau-1280": "references/app-biens/a-2-bureau-1280.json"
+      },
+      "gele_le": "2026-11-11",
+      "produit": {
+        "route": "/app/properties/6",
+        "persona": "admin",
+        "etat": "le bien 6 de la démo (Dakar Immo), loué, loyer de novembre en retard de 7 j avec pénalité due, onglet Location ouvert par défaut ; aucun bouchon : l'occupation, le bail, l'échéancier, l'état des lieux et les documents sont ceux de l'API"
+      }
+    }
+  ],
+  "produit": {
+    "route": "/app/properties/6",
+    "persona": "admin",
+    "disposition": "admin-agence",
+    "etat": "voir `ecrans[].produit`",
+    "defiler": null,
+    "perturber": null
+  },
+  "coque": true,
+  "roles": [
+    {
+      "nom": "onglets de la fiche",
+      "maquette": {
+        "texte": "Location Annonce",
+        "type": "boite"
+      },
+      "produit": {
+        "slot": "onglets-du-bien"
+      },
+      "contenu": false
+    },
+    {
+      "nom": "occupant",
+      "appareil": "mobile",
+      "maquette": {
+        "boiteDe": "Occupé par",
+        "min": 120
+      },
+      "produit": {
+        "boiteDe": "Occupé par",
+        "min": 120
+      },
+      "contenu": false
+    },
+    {
+      "nom": "carte « Occupation »",
+      "appareil": "desktop",
+      "maquette": {
+        "boiteDe": "Occupation",
+        "min": 300
+      },
+      "produit": {
+        "boiteDe": "Occupation",
+        "min": 300
+      },
+      "contenu": false
+    },
+    {
+      "nom": "tableau « Loyers »",
+      "appareil": "desktop",
+      "maquette": {
+        "boiteDe": "Tout l’échéancier",
+        "min": 150
+      },
+      "produit": {
+        "boiteDe": "Tout l’échéancier",
+        "min": 150
+      },
+      "contenu": false
+    },
+    {
+      "nom": "barre du bas",
+      "appareil": "mobile",
+      "maquette": {
+        "boiteDe": "Contacter le locataire",
+        "min": 60
+      },
+      "produit": {
+        "boiteDe": "Contacter le locataire",
+        "min": 60
+      },
+      "contenu": false
+    }
+  ],
+  "zones": [],
+  "alias": {
+    "Appeler": "Appeler Aliou Toure",
+    "WhatsApp": "Écrire à Aliou Toure sur WhatsApp"
+  },
+  "ancres": [],
+  "ignorer": [],
+  "ecarts_acceptes": [
+    {
+      "ecran": "app-biens a-2-*",
+      "element": "bien, locataire, bailleur, montants, dates, échéancier, compteurs des onglets, photos, visibilité",
+      "propriete": "libellés et nombres",
+      "exception": "donnée",
+      "motif": "la démo sert le bien 6 (F6 à Amitié, Aliou Toure, 1 825 000 F, retard de 7 j, 0 intervention, 3 documents, 3 échéances) là où la maquette dessine la villa TK-51720 ; la ligne « Octobre 2026 » apparaît deux fois parce que le bail démarre le 1er octobre (deux échéances de la démo sur ce mois) ; le bien 6 est `visibility=public` en base (relu le 2026-11-12) : la pastille dit « Public » là où la maquette dessine « Privé » ; avec une échéance de moins, « Tout l'échéancier » est plus court d'une ligne et les blocs « À venir » / « Bail en cours » remontent de 44 px (bureau)"
+    },
+    {
+      "ecran": "app-biens a-2-*",
+      "element": "pastille « Occupé »",
+      "propriete": "libellé « Loué »",
+      "exception": "composant partagé",
+      "motif": "`PropertyStatusBadge` dit l'état du bien par son `status` (`rented` → « Loué »), le vocabulaire de la liste et de toutes les fiches (TCK-2638). `occupancy.state` existe, mais une seconde pastille « Occupé » répéterait « Loué » à côté d'elle : l'occupation se lit dans l'onglet Location (« Occupé par … ») et la carte « Occupation »"
+    },
+    {
+      "ecran": "app-biens a-2-*",
+      "element": "pastille « Validé »",
+      "propriete": "pastille absente",
+      "exception": "donnée",
+      "motif": "l'API rend un seul `status`, qui porte à la fois l'état locatif et la modération (TCK-1268) : aucun champ ne dit « Validé » à part de « Loué »"
+    },
+    {
+      "ecran": "app-biens a-2-*",
+      "element": "« Révision possible le … », « avis d'échéance le 28 nov. », « · Wave · quittance envoyée », « 1 collaborateur », « 1 intervention en cours » (bureau), « 3 mois » de préavis",
+      "propriete": "lignes absentes",
+      "exception": "donnée",
+      "motif": "l'API ne sert ni la date de révision, ni la date d'avis d'échéance, ni le moyen de paiement dans l'historique de la fiche, ni le compte de collaborateurs ; le préavis du bail de la démo est vide (« — ») ; sans intervention en cours, la ligne n'a pas d'objet. La ligne « octobre payé le … » est rendue quand la période d'avant est réglée (`precedentRegle`)"
+    },
+    {
+      "ecran": "app-biens a-2-bureau-*",
+      "element": "« Voir la fiche publique »",
+      "propriete": "bouton absent",
+      "exception": "donnée",
+      "motif": "le bien 6 est loué (`status=rented`) : le geste n'est rendu que pour un bien public dont le statut sert une page publique (`available`, `published` — `canViewPublic` de `PropertyHeaderActions`, inchangé)"
+    },
+    {
+      "ecran": "app-biens a-2-*",
+      "element": "pastilles d'état (« Hors ligne », « Privé », « Payé », « En retard ») et leur icône",
+      "propriete": "bord de 1 px transparent, rayon 26 px au lieu de plein, fond à 11 %, icône de 12 px trait 1,75",
+      "exception": "composant partagé",
+      "motif": "`StatusBadge`, la pastille unique du produit (TCK-472, TCK-2687) ; même exception que TCK-2635 et TCK-2638"
+    },
+    {
+      "ecran": "app-biens a-2-telephone",
+      "element": "barre du bas « Signaler un problème » · « Contacter le locataire »",
+      "propriete": "hauteur 69 px (bouton 44, police 14, graisse 500) au lieu de 73 (48, 15, 600) ; bord transparent de 1 px ; ombre portée vers le haut et écart de 8 px entre les deux boutons",
+      "exception": "composant partagé",
+      "motif": "`BarreDAction` et le bouton de la coque, communs à toutes les barres d'action (même exception que TCK-2580, TCK-2635)"
+    },
+    {
+      "ecran": "app-biens a-2-*",
+      "element": "« Planifier une visite » (en-tête du bureau)",
+      "propriete": "icône `calendar-plus` au lieu de `calendar-clock`, hauteur 28,8 px au lieu de 32,4, largeur +1,8 px, écart icône-libellé 7,2 px au lieu de 5,4",
+      "exception": "composant partagé",
+      "motif": "`PlanifierUneVisite`, le même bouton sur la fiche client et la fiche du bien (TCK-2580)"
+    },
+    {
+      "ecran": "app-biens a-2-*",
+      "element": "boutons « Encaisser » et « Contacter le locataire »",
+      "propriete": "bord transparent de 1 px",
+      "exception": "composant partagé",
+      "motif": "`Button` : le bord transparent tient la hauteur de toutes les variantes, invisible à l'œil (TCK-2580)"
+    },
+    {
+      "ecran": "app-biens a-2-*",
+      "element": "onglets « Interventions », « Documents » et « Historique »",
+      "propriete": "largeur (−15 à +9 px) et position qui en découle",
+      "exception": "composant partagé",
+      "motif": "`TabsTrigger` et son compteur (`Compte`) : l'écart entre le libellé et le nombre est celui du produit ; le chiffre est une donnée (0 au lieu de 1)"
+    },
+    {
+      "ecran": "app-biens a-2-*",
+      "element": "rôle « onglets de la fiche »",
+      "propriete": "fond, bordure du bas, écart",
+      "exception": "technique",
+      "motif": "la boîte collante du produit (`onglets-du-bien`) porte le fond (le contenu défile dessous) et enveloppe la liste d'onglets, qui porte elle-même la bordure du bas et l'écart ; même position et même taille que la barre de la maquette, libellés conformes ou à ±2 px (hors compteurs, ci-dessous)"
+    },
+    {
+      "ecran": "app-biens a-2-*",
+      "element": "« Non désigné · Agent responsable »",
+      "propriete": "libellé",
+      "exception": "donnée",
+      "motif": "la carte « Moussa Diallo · Agent principal » de la maquette : le bien 6 n'a pas d'agent désigné. Le libellé est « Agent responsable », le vocabulaire de TCK-603 sur la liste et la fiche ; sans agent, la ligne n'ouvre rien : pas de chevron (la maquette en dessine un vers la fiche de Moussa Diallo)"
+    },
+    {
+      "ecran": "app-biens a-2-*",
+      "element": "boutons « Appeler » et « WhatsApp » (pile du téléphone, carte « Occupation » du bureau)",
+      "propriete": "nom accessible",
+      "exception": "accessibilité",
+      "motif": "le produit nomme le destinataire (« Appeler Aliou Toure »), la maquette ne dit que le geste ; la boîte, la taille et l'icône sont conformes"
+    },
+    {
+      "ecran": "app-biens a-2-*",
+      "element": "« Aller au contenu principal »",
+      "propriete": "lien présent",
+      "exception": "accessibilité",
+      "motif": "le lien d'évitement de la coque (TCK-503), hors de l'écran tant qu'il n'a pas le focus"
+    },
+    {
+      "ecran": "app-biens a-2-*",
+      "element": "loyer du mois « 1 825 000 F / mois »",
+      "propriete": "« / mois » ajouté",
+      "exception": "incohérence des maquettes",
+      "motif": "contrainte stricte du ticket (« le loyer toujours avec sa période ») ; les maquettes de la page se contredisent : a-2 ne l'écrit nulle part, a-0 (« Loyer / mois », « / mois ») et a-1 (« / mois ») l'écrivent — la valeur majoritaire est gardée"
+    },
+    {
+      "ecran": "app-biens a-2-*",
+      "element": "ligne d'identité « Appartement · Location · 120 m² · Dakar · Réf. … »",
+      "propriete": "contrat et ville en plus",
+      "exception": "incohérence des maquettes",
+      "motif": "contrainte stricte « Rien ne se perd » (type · contrat · ville, que l'en-tête d'avant portait). a-2 met le quartier dans le titre (« Villa 5 chambres · Ouest Foire ») et rien sur le contrat ; a-0 l'écrit sur la ligne (« Ouest Foire · TK-51720 »). Le titre du produit est celui que saisit l'agence : la ville passe sur la ligne, comme a-0"
+    },
+    {
+      "ecran": "app-biens a-2-bureau-*",
+      "element": "bouton « Plus d’actions » (⋯)",
+      "propriete": "rayon 9 px au lieu de 7,2",
+      "exception": "composant partagé",
+      "motif": "`Button` `size=\"icon\"` : le rayon de toutes les icônes-boutons du produit ; la boîte, l'icône et sa couleur sont conformes"
+    },
+    {
+      "ecran": "app-biens a-2-bureau-*",
+      "element": "icônes `clipboard-check` (« Entrées en attente » de la coque, « État des lieux d'entrée » de la fiche)",
+      "propriete": "x, y, couleur, trait",
+      "exception": "technique",
+      "motif": "appariement par ordre de lecture : dans « À venir », l'état des lieux remonte de 101 px (44 px d'échéance en moins, et pas de ligne « Révision possible » — donnée), son icône passe avant celle de la coque et les deux paires se croisent ; chacune, rapprochée de son homologue, a le trait de la maquette ; la couleur de celle de la fiche est l'encre pleine `muted-foreground` (entrée « pastilles d'icône rondes »)"
+    },
+    {
+      "ecran": "app-biens a-2-*",
+      "element": "pastilles d'icône rondes (« État des lieux d'entrée », « Occupé par », documents générés)",
+      "propriete": "couleur de l'icône `muted-foreground` (#6e655a) au lieu de `foreground` à 70 % (≈ #5e5850 sur `muted`)",
+      "exception": "accessibilité",
+      "motif": "une encre translucide neuve est refusée par `encre-sans-alpha.contraste.test.ts` (TCK-658, WCAG 2.2 § 1.4.3) : le jeton plein de toutes les icônes de ligne du produit la remplace"
+    }
+  ],
+  "hors_perimetre": [
+    "écrans 0 et 1 (liste) : TCK-2638",
+    "les écarts de la coque (barre latérale, en-tête du téléphone, barre d'onglets), relevés par les rôles communs : la barre latérale de l'admin de démo n'a pas les entrées de la maquette (famille 3)",
+    "l'étiquette « Biens » / « Mes biens » du menu de la coque (famille 3)"
+  ],
+  "mesures": {
+    "a-2-telephone": {
+      "ligne": "43 conformes · 13 écarts · 21 absents · 26.34 % pixels",
+      "releve_le": "2026-11-12 15:01 Z",
+      "commit": "d9cde3558 + arbre de travail (lot 2, non commité)",
+      "rideau": ".fidelite/TCK-2639/cmp-telephone/",
+      "zones": "coque · en-tête 8,86 % (titre du bien : donnée), coque · barre d'onglets 0,82 % (pastille « 2 » de Messages : donnée)",
+      "note": "les 13 écarts restants sont la barre du bas (`BarreDAction`), « Hors ligne » décalé par « Public » (donnée), les compteurs d'onglets, l'icône d'alerte de la pastille (`StatusBadge`) et l'encre pleine des pastilles d'icône (encre-sans-alpha)"
+    },
+    "a-2-bureau-1440": {
+      "ligne": "87 conformes · 152 écarts · 54 absents · 20.2 % pixels",
+      "releve_le": "2026-11-12 15:01 Z",
+      "commit": "d9cde3558 + arbre de travail (lot 2, non commité)",
+      "rideau": ".fidelite/TCK-2639/cmp-bureau-1440/",
+      "note": "l'essentiel des écarts est la coque (barre latérale, hors périmètre) ; dans la fiche : « Tout l'échéancier » plus court d'une ligne et « Bail en cours » 44 px plus haut (une échéance et une ligne « À venir » de moins : donnée), pastilles et boutons partagés"
+    },
+    "a-2-bureau-1280": {
+      "ligne": "78 conformes · 145 écarts · 55 absents · 18.64 % pixels",
+      "releve_le": "2026-11-12 15:01 Z",
+      "commit": "d9cde3558 + arbre de travail (lot 2, non commité)",
+      "rideau": ".fidelite/TCK-2639/cmp-bureau-1280/",
+      "note": "« Bail en cours » entre dans l'écran (la maquette le met sous le pli) : « À venir » y a deux lignes au lieu de trois (pas de révision, donnée). « Planifier une visite » est présent et visible : la place réservée ne reste plus à l'hydratation (voir le ticket, § CLS)"
+    }
+  }
+}

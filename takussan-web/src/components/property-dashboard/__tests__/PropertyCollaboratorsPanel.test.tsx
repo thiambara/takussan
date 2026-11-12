@@ -164,6 +164,17 @@ describe('PropertyCollaboratorsPanel', () => {
     expect(within(screen.getByTestId('collaborator-2')).getByText('Choisi, indisponible')).toBeInTheDocument();
   });
 
+  it('TCK-2639 — une panne de lecture le dit, et se réessaie', async () => {
+    fetchPropertyCollaborators.mockRejectedValueOnce(new ApiError(500, { message: 'Boom' }));
+    rendu();
+    // Le squelette porte le même `data-testid` : on attend le message, pas le bloc.
+    await screen.findByText('Les intervenants du bien n’ont pas pu être lus.');
+    const bloc = screen.getByTestId('property-collaborators');
+    fetchPropertyCollaborators.mockResolvedValueOnce({ data: [], primary_contact: null, can_designate: false });
+    await userEvent.click(within(bloc).getByRole('button', { name: 'Réessayer' }));
+    await waitFor(() => expect(fetchPropertyCollaborators).toHaveBeenCalledTimes(2));
+  });
+
   it('se tait sur un refus de lecture', async () => {
     fetchPropertyCollaborators.mockRejectedValue(new ApiError(403, { message: 'Forbidden' }));
     rendu();

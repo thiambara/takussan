@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Check } from 'lucide-react';
+import { AlertTriangle, Check } from 'lucide-react';
 
 import { StatusBadge, type StatusTone } from '@/components/console/StatusBadge';
 import { usePublicationAvecCoordonnees } from '@/components/contact/PublicationAvecCoordonnees';
@@ -45,10 +45,13 @@ export function PuceEtatDuMois({
   property,
   aujourdhui,
   court = false,
+  alerte = false,
 }: {
   readonly property: PropertyListItem;
   readonly aujourdhui: Date;
   readonly court?: boolean;
+  /** TCK-2639 — la fiche (« Ce mois ») marque le retard d'un triangle ; la liste, non (maquette a-0). */
+  readonly alerte?: boolean;
 }) {
   const tGestion = useTranslations('property.dashboard.gestion');
   const fmt = useFormatteurs();
@@ -74,7 +77,13 @@ export function PuceEtatDuMois({
   return (
     <StatusBadge
       tone={TON[etat.ton]}
-      icon={etat.cle === 'paye' ? <Check className="size-3.5" strokeWidth={2.25} aria-hidden="true" /> : undefined}
+      icon={
+        etat.cle === 'paye' ? (
+          <Check className="size-3.5" strokeWidth={2.25} aria-hidden="true" />
+        ) : alerte && etat.cle === 'enRetard' ? (
+          <AlertTriangle className="size-3.5" strokeWidth={2} aria-hidden="true" />
+        ) : undefined
+      }
       label={libelle}
       className="whitespace-nowrap"
       data-testid="etat-du-mois"

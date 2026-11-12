@@ -103,6 +103,8 @@ class DateInventoryByValueTest extends TestCase
             .'du modèle, une chaîne numérique, jamais une date.',
         'App\Http\Resources\PropertyResource::abilities' => '`when()` sur le détail lu par un appelant connu (TCK-999) : '
             .'un booléen `transfer_owner`, jamais une date.',
+        'App\Http\Resources\PropertyResource::owner_profile_id' => '`when()` sur le détail lu par un appelant connu (TCK-2639) : '
+            .'un identifiant ENTIER (le profil de bailleur que la fiche ouvrirait) ou nul, jamais une date.',
         'App\Http\Resources\PropertyResource::pending_owner' => '`when()` sur `pending_owner_profile_id` et la lecture du '
             .'personnel (TCK-1000) : un identifiant ENTIER et un nom, jamais une date.',
         'App\Http\Resources\PropertyResource::primary_contact_source' => '`when()` refusé sur `public.*` (TCK-603, '

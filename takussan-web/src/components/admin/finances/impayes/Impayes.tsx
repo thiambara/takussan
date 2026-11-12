@@ -481,7 +481,7 @@ function caseDe(selection: SelectionDesImpayes | undefined, row: PaymentHistoryR
 }
 
 /** Téléphone : la feuille « Relancer {nom} » — montant, période et retard, message, lien, « Ouvrir WhatsApp ». */
-function FeuilleDeRelance({ row, ouverte, onFermer }: { readonly row: PaymentHistoryRow; readonly ouverte: boolean; readonly onFermer: () => void }) {
+export function FeuilleDeRelance({ row, ouverte, onFermer }: { readonly row: PaymentHistoryRow; readonly ouverte: boolean; readonly onFermer: () => void }) {
   const t = useTranslations('admin.finances.impayes');
   const l = useLectureDImpaye();
   const relance = useRelanceDUnImpaye(row, ouverte);

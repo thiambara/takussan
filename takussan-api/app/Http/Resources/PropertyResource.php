@@ -6,11 +6,13 @@ use App\Http\Resources\Bases\BaseResource;
 use App\Models\Agency;
 use App\Models\Document;
 use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\PropertyPriceHistory;
 use App\Models\Review;
 use App\Models\Tag;
 use App\Models\User;
+use App\Policies\OwnerProfilePolicy;
 use App\Services\Media\PrivateMediaAccess;
 use App\Services\Media\PublicPhotoUrl;
 use App\Services\Media\WatermarkRequirement;
@@ -270,6 +272,13 @@ class PropertyResource extends BaseResource
                     ? ['profile_id' => (int) $profil->id, 'name' => $profil->display_name]
                     : null,
             ),
+            // TCK-2639 — la fiche du bien mène à celle de son bailleur (`/app/owners/{id}`, TCK-2641) :
+            // le profil de bailleur du titulaire dans l'agence du bien, rendu à qui la fiche du
+            // bailleur s'ouvrirait (la règle même de `ShowOwnerProfileRequest`), nul pour tout autre.
+            'owner_profile_id' => $this->when(
+                $isDetail && $appelantConnu,
+                fn (): ?int => $this->profilDuBailleurLisible($request->user()),
+            ),
             'agency' => $this->when(
                 $isDetail || $this->resource->relationLoaded('agency'),
                 fn () => $this->buildAgency()
@@ -417,6 +426,21 @@ class PropertyResource extends BaseResource
 
         return $user->isSuperAdmin()
             || ($agencyId !== null && app(MembershipCapabilityResolver::class)->isStaffAt($user, (int) $agencyId));
+    }
+
+    /** TCK-2639 — l'identifiant du profil de bailleur du titulaire, si l'appelant en ouvre la fiche. */
+    private function profilDuBailleurLisible(User $user): ?int
+    {
+        $agencyId = $this->resource->getAttribute('agency_id');
+        $ownerId = $this->resource->getAttribute('user_id');
+        if ($agencyId === null || $ownerId === null) {
+            return null;
+        }
+        $profil = OwnerProfile::query()->where('agency_id', $agencyId)->where('user_id', $ownerId)->first();
+
+        return $profil !== null && OwnerProfilePolicy::isInActorAgency($user, $profil) && $user->can('viewDetail', $profil)
+            ? (int) $profil->getKey()
+            : null;
     }
 
     /**

@@ -253,6 +253,10 @@ export function DocumentUploadDialog({
             />
           </div>
 
+          {/* TCK-2639 (ADR-0099 § 5) — préattaché à sa cible (la fiche d'un bien, d'un bail…), le dialogue
+              ne montre ni le type ni l'identifiant de la cible : la description la nomme déjà, et un
+              identifiant ne se saisit jamais. */}
+          {disableTargetType ? null : (
           <div className="grid gap-4 sm:grid-cols-2">
             <FormSelect<DocumentUploadFormValues>
               control={form.control}
@@ -262,7 +266,6 @@ export function DocumentUploadDialog({
                 value,
                 label: tEntities(value),
               }))}
-              disabled={disableTargetType}
             />
             <FormInput<DocumentUploadFormValues>
               control={form.control}
@@ -270,9 +273,9 @@ export function DocumentUploadDialog({
               label={t('entity_id_label')}
               type="number"
               required
-              disabled={disableTargetType}
             />
           </div>
+          )}
 
           <FormTextarea<DocumentUploadFormValues>
             control={form.control}

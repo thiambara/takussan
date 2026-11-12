@@ -1574,7 +1574,14 @@
         "fullPriceHistoryHint": "Toutes les évolutions enregistrées pour ce bien.",
         "noPriceHistory": "Aucune évolution de prix enregistrée pour ce bien.",
         "unknownDate": "Date inconnue",
-        "calendar": "Calendrier"
+        "calendar": "Calendrier",
+        "label": "Onglets du bien",
+        "location": "Location",
+        "annonce": "Annonce",
+        "interventions": "Interventions",
+        "documents": "Documents",
+        "historique": "Historique",
+        "sections": "Sections de l’annonce"
       },
       "pagination": {
         "aria": "Pagination",
@@ -1768,7 +1775,8 @@
         "designate": "Désigner comme principal",
         "designateFor": "Désigner {name} comme agent principal",
         "empty": "Aucun collaborateur n'est associé à ce bien.",
-        "error": "La désignation n'a pas abouti. Réessayez."
+        "error": "La désignation n'a pas abouti. Réessayez.",
+        "lectureEnEchec": "Les intervenants du bien n’ont pas pu être lus."
       },
       "ownerTransfer": {
         "trigger": "Changer le titulaire",
@@ -1867,6 +1875,133 @@
         },
         "agentAucun": "Aucun agent responsable",
         "caption": "Biens en gestion"
+      },
+      "fiche": {
+        "occupant": {
+          "occupePar": "Occupé par",
+          "enPreavis": "En préavis",
+          "locataire": "Locataire",
+          "appeler": "Appeler {nom}",
+          "whatsapp": "Écrire à {nom} sur WhatsApp"
+        },
+        "bail": {
+          "illisible": "Le bail en cours ne se lit pas depuis votre compte.",
+          "periode": "{debut} → {fin}",
+          "depuis": "Depuis le {debut}",
+          "reference": "Bail {reference}",
+          "sansReference": "Bail en cours",
+          "echec": "Le bail n’a pas pu être lu.",
+          "cles": {
+            "reference": "Référence",
+            "type": "Type",
+            "duree": "Durée",
+            "caution": "Caution",
+            "preavis": "Préavis",
+            "preavisJours": "{count, plural, one {# jour} other {# jours}}"
+          }
+        },
+        "ceMois": {
+          "echeance": "{mois} · échéance le {jour}",
+          "sansEcheance": "Aucune échéance ce mois-ci",
+          "penalite": "Pénalité de retard due :",
+          "payeLe": "Payé le {date}",
+          "relancer": "Relancer",
+          "encaisser": "Encaisser",
+          "precedentPaye": "{mois} payé le {date}"
+        },
+        "aVenir": {
+          "prochainLoyer": "Prochain loyer le {date}",
+          "edl": {
+            "titre": "État des lieux d’entrée",
+            "signe": "Signé par les deux parties le {date}",
+            "signeSansDate": "Signé par les deux parties",
+            "enAttente": "En attente de signature",
+            "conteste": "Contesté",
+            "brouillon": "En préparation",
+            "aucun": "Aucun état des lieux d’entrée",
+            "echec": "L’état des lieux n’a pas pu être lu."
+          }
+        },
+        "bailleur": {
+          "titre": "Bailleur",
+          "inconnu": "Bailleur non renseigné"
+        },
+        "titres": {
+          "ceMois": "Ce mois",
+          "aVenir": "À venir",
+          "mandat": "Mandat",
+          "bailEnCours": "Bail en cours",
+          "occupation": "Occupation"
+        },
+        "gestes": {
+          "signaler": "Signaler un problème",
+          "creerUnBail": "Créer un bail",
+          "voirLeBail": "Voir le bail",
+          "contacter": "Contacter le locataire",
+          "planifier": "Planifier une visite",
+          "modifierLAnnonce": "Modifier l’annonce"
+        },
+        "vente": {
+          "titre": "Bien à vendre",
+          "detail": "Ce bien n’est pas en location : sa publication se règle dans l’onglet Annonce.",
+          "ouvrir": "Ouvrir l’annonce"
+        },
+        "vacant": {
+          "detail": "Aucun bail ne court sur ce bien."
+        },
+        "loyers": {
+          "titre": "Loyers",
+          "toutLEcheancier": "Tout l’échéancier ({count})",
+          "echec": "Les échéances n’ont pas pu être lues.",
+          "chargement": "Lecture des échéances…",
+          "vide": "Aucune échéance enregistrée.",
+          "recuLe": "Reçu le {date}",
+          "echeanceLe": "Échéance le {date}",
+          "echeanceEtPenalite": "Échéance le {date} · pénalité {montant} due"
+        },
+        "carte": {
+          "loyerDe": "Loyer de {mois}",
+          "montantDu": "Montant dû",
+          "prochainLoyer": "Prochain loyer",
+          "locataireTelephone": "Locataire · {telephone}"
+        },
+        "contacter": {
+          "titre": "Contacter {nom}",
+          "appeler": "Appeler",
+          "whatsapp": "Écrire sur WhatsApp"
+        },
+        "documents": {
+          "titre": "Documents",
+          "aide": "Les pièces du bien et de ses baux, et les documents générés par Takussan.",
+          "echec": "Les documents n’ont pas pu être lus.",
+          "chargement": "Lecture des documents…",
+          "vide": "Aucun document pour ce bien.",
+          "genere": "Généré par Takussan",
+          "genereLe": "Généré par Takussan · {date}",
+          "deposeLe": "Déposé le {date}",
+          "telecharger": "Télécharger",
+          "ouvrir": "Ouvrir",
+          "generes": {
+            "contrat": "Contrat de bail",
+            "contratRef": "Contrat de bail {reference}",
+            "edlEntree": "État des lieux d’entrée",
+            "edlSortie": "État des lieux de sortie",
+            "autre": "Document généré"
+          }
+        },
+        "photos": {
+          "position": "1 / {n}",
+          "nombre": "{count, plural, one {# photo} other {# photos}}"
+        },
+        "identite": {
+          "surface": "{area} m²",
+          "enLigne": "En ligne",
+          "horsLigne": "Hors ligne"
+        },
+        "responsable": {
+          "detail": "Agent responsable",
+          "aucun": "Non désigné"
+        }
       }
     },
     "visibility": {

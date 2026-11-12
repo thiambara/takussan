@@ -54,6 +54,8 @@ export type UseDocumentsParams = {
   readonly is_verified?: boolean;
   readonly page?: number;
   readonly per_page?: number;
+  /** `false` : la requête ne part pas (TCK-2639 — un bail qui ne se lit pas n'a pas de pièces à lister). */
+  readonly enabled?: boolean;
 };
 
 export const documentsQueryKeys = {
@@ -86,11 +88,40 @@ export function useDocuments(params: UseDocumentsParams = {}) {
     per_page: params.per_page ?? 20,
   };
 
+  const { enabled, ...cle } = params;
   return useApiQuery<DocumentsListResponse>(
-    documentsQueryKeys.list(params),
+    documentsQueryKeys.list(cle),
     '/api/documents',
     // TCK-1024 — `file_url` est une URL signée de 30 min.
-    { params: spatieParams, ...rafraichirAvantExpiration(DUREE_URL_SIGNEE_MEDIA_MS) },
+    { params: spatieParams, enabled: enabled ?? true, ...rafraichirAvantExpiration(DUREE_URL_SIGNEE_MEDIA_MS) },
+  );
+}
+
+/**
+ * TCK-2639 (ADR-0099 § 3) — une entrée GÉNÉRÉE par la plateforme (contrat, état des lieux, quittance…),
+ * listée depuis sa source par `GET /api/documents/generated?target=` et téléchargée par son endpoint
+ * (`download_path`, sous sa propre autorisation). Jamais un `Document` : ni versions, ni partage.
+ */
+export interface DocumentGenere {
+  readonly kind: 'generated';
+  /** `lease_contract`, `inventory_move_in`, `inventory_move_out`, `receipt_rent`… */
+  readonly category: string;
+  readonly title: string | null;
+  readonly date: string | null;
+  readonly download_path: string;
+}
+
+/** La cible d'une lecture des documents générés : un bien (lui et tous ses baux) ou un bail. */
+export type CibleDesDocumentsGeneres = { readonly type: 'property' | 'lease'; readonly id: number };
+
+export function useDocumentsGeneres(cible: CibleDesDocumentsGeneres | null) {
+  return useApiQuery<{ data: DocumentGenere[] }>(
+    ['documents', 'generated', cible?.type ?? null, cible?.id ?? null],
+    '/api/documents/generated',
+    {
+      params: { extra: { target: cible ? `${cible.type}:${cible.id}` : undefined } },
+      enabled: cible !== null && cible.id > 0,
+    },
   );
 }
 
