@@ -3,6 +3,8 @@
 namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Support\InstantRecu;
+use Carbon\CarbonImmutable;
 
 /**
  * TCK-2585 — confirmer en lot : `visits[] = {id, scheduled_at?}`, 50 au plus, sans doublon.
@@ -28,5 +30,19 @@ class BulkConfirmPropertyVisitsRequest extends BaseFormRequest
             'visits.*.id' => ['required', 'integer', 'min:1', 'distinct'],
             'visits.*.scheduled_at' => ['nullable', 'date', 'after:now'],
         ];
+    }
+
+    /**
+     * TCK-2743 — l'heure reçue, ramenée à l'instant qu'elle désigne ({@see InstantRecu}) : la règle, la
+     * comparaison et l'écriture lisent le même instant.
+     *
+     * @return list<array{id: int|string, scheduled_at: ?CarbonImmutable}>
+     */
+    public function lignes(): array
+    {
+        return array_map(
+            fn (array $ligne): array => ['id' => $ligne['id'], 'scheduled_at' => InstantRecu::ouNul($ligne['scheduled_at'] ?? null)],
+            array_values((array) $this->validated('visits')),
+        );
     }
 }

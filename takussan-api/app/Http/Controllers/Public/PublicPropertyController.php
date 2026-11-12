@@ -873,7 +873,8 @@ class PublicPropertyController extends Controller
             'visitor_id' => $user?->id,
             'customer_id' => $customerId,
             'agent_id' => $agentId,
-            'scheduled_at' => $window !== null ? $window->startOn($data['date'])->utc() : $data['scheduled_at'],
+            // TCK-2743 — hors tranche, l'instant que l'heure reçue désigne, et non son heure murale.
+            'scheduled_at' => $window !== null ? $window->startOn($data['date'])->utc() : $request->scheduledAt(),
             'preferred_window' => $window,
             'type' => $data['type'] ?? VisitType::InPerson->value,
             'duration_minutes' => $data['duration_minutes'] ?? VisitSchedulingService::DEFAULT_DURATION_MINUTES,

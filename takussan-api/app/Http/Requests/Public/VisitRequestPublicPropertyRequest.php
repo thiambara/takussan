@@ -7,7 +7,9 @@ use App\Models\Enums\VisitWindow;
 use App\Rules\CreneauDeVisite;
 use App\Rules\TelephoneJoignable;
 use App\Rules\TrancheDeVisite;
+use App\Support\InstantRecu;
 use App\Support\TelephoneSaisi;
+use Carbon\CarbonImmutable;
 use Illuminate\Validation\Rule;
 
 /**
@@ -60,5 +62,14 @@ class VisitRequestPublicPropertyRequest extends PublicPropertySlugRequest
             'source' => ContactLeadPublicRequest::ATTRIBUTION,
             'medium' => ContactLeadPublicRequest::ATTRIBUTION,
         ];
+    }
+
+    /**
+     * TCK-2743 — l'heure reçue, ramenée à l'instant qu'elle désigne ({@see InstantRecu}) : la règle, la
+     * comparaison et l'écriture lisent le même instant.
+     */
+    public function scheduledAt(): ?CarbonImmutable
+    {
+        return InstantRecu::ouNul($this->validated('scheduled_at'));
     }
 }

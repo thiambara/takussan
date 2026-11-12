@@ -6,6 +6,8 @@ use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\VisitType;
 use App\Models\PropertyVisit;
 use App\Rules\PersonnelDeLAgence;
+use App\Support\InstantRecu;
+use Carbon\CarbonImmutable;
 use Illuminate\Validation\Rule;
 
 /**
@@ -52,5 +54,14 @@ class UpdatePropertyVisitRequest extends BaseFormRequest
             'notes' => ['sometimes', 'nullable', 'string'],
             'type' => ['sometimes', Rule::enum(VisitType::class)],
         ];
+    }
+
+    /**
+     * TCK-2743 — l'heure reçue, ramenée à l'instant qu'elle désigne ({@see InstantRecu}) : la règle, la
+     * comparaison et l'écriture lisent le même instant.
+     */
+    public function scheduledAt(): ?CarbonImmutable
+    {
+        return InstantRecu::ouNul($this->validated('scheduled_at'));
     }
 }

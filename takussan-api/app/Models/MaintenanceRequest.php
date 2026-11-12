@@ -18,6 +18,7 @@ use App\Services\Membership\MembershipCapabilityResolver;
 use App\Services\Property\BailleurDuBien;
 use App\Sorts\MaintenancePrioritySort;
 use App\Support\Http\ParametreUnique;
+use App\Support\InstantRecu;
 use App\Support\Query\DepartageQueryBuilder;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -205,11 +206,8 @@ class MaintenanceRequest extends AbstractModel implements HasAuditAgency, HasMed
      */
     public static function scheduledInstant(string|DateTimeInterface $value): CarbonImmutable
     {
-        $instant = $value instanceof DateTimeInterface
-            ? CarbonImmutable::instance($value)
-            : CarbonImmutable::parse($value, self::SCHEDULED_TIMEZONE);
-
-        return $instant->setTimezone(config('app.timezone'));
+        // TCK-2743 — le cas particulier de LA conversion du dépôt.
+        return InstantRecu::utc($value, self::SCHEDULED_TIMEZONE);
     }
 
     /**

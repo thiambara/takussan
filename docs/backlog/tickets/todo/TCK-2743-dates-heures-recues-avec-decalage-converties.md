@@ -155,4 +155,23 @@ période par `FinInclusive::de()`, la tranche de visite publique (`->utc()`).
   même chose pour « 0099-01-01 » et une chaîne terminée par un octet nul. La conversion partagée de la voie (a) est
   l'endroit où refuser ces formes (un format ISO 8601 strict à la frontière), plutôt qu'une règle de plus par champ.
 
-_(à remplir par implementing-specs)_
+**Décisions du porteur (2026-11-12)** : (a) ; tout le périmètre (≈ 22 sites), livré par lots — helper et visites,
+puis P2, puis P3, puis la garde ; pas de règle ISO 8601 stricte dans cette passe (ticket de suite) ; les bornes des
+rapports (`GrowthReportingRequest`, `RevenueReportingRequest`, `ReportExportRequest`) sont des lectures, exceptions
+motivées de la garde.
+
+**Lot 1 — le helper et les visites.**
+- `App\Support\InstantRecu::utc()` / `::ouNul()` : LA conversion. `MaintenanceRequest::scheduledInstant()` en est le
+  cas particulier (comportement inchangé : `MaintenanceScheduleOffsetTest`, `MaintenanceSchedulingHorizonTest` verts),
+  et `CreneauDeVisite` juge par elle l'instant qui sera stocké.
+- Un accesseur par FormRequest de visite : `scheduledAt()` sur `StorePropertyVisitRequest`,
+  `UpdatePropertyVisitRequest`, `ReschedulePropertyVisitRequest`, `ConfirmPropertyVisitRequest`,
+  `Public\VisitRequestPublicPropertyRequest` ; `lignes()` sur `BulkConfirmPropertyVisitsRequest` (lot).
+- Les 7 écritures : `store` substitue l'instant dans `$data` avant ses deux branches (visiteur, agence) — le doublon
+  au même créneau (`activeVisitAtSameSlot`) se juge donc sur l'instant ; `update` le substitue avant la garde du
+  report, les gardes du bien et de l'agent, l'écriture et l'annonce du déplacement (AC2) ; `reschedule`, `confirm`,
+  `bulkConfirm` passent l'accesseur au service ; la demande publique hors tranche aussi.
+- Tests : `tests/Feature/Visits/HeureDeVisiteAvecDecalageTest.php` (11 ; 9 rouges avant le correctif, les deux verts
+  d'avant — hors grille converti, sans décalage — ne prouvent rien du correctif et n'en sont pas la preuve). Ablations
+  7/7 rouges (store, update, reschedule, confirm, lot, publique, helper sans `setTimezone`). 45 fichiers voisins
+  (visites, demandes publiques, interventions) joués un à un : verts.

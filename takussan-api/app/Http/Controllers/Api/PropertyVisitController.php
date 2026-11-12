@@ -291,7 +291,8 @@ class PropertyVisitController extends Controller
     public function bulkConfirm(BulkConfirmPropertyVisitsRequest $request): JsonResponse
     {
         $user = $request->user();
-        $rows = collect($request->validated('visits'));
+        // TCK-2743 — les heures du lot, ramenées à l'instant qu'elles désignent.
+        $rows = collect($request->lignes());
         $visits = PropertyVisit::query()->with('property')->whereKey($rows->pluck('id')->map(fn ($id) => (int) $id)->all())->get()->keyBy('id');
 
         $results = $rows->map(function (array $row) use ($user, $visits) {
@@ -306,8 +307,7 @@ class PropertyVisitController extends Controller
                 abort_code_unless($user->can('update', $visit), 403, 'http.forbidden');
                 abort_code_unless($this->agitPourLeBien($user, $visit), 403, 'visit.staff_only');
 
-                $scheduledAt = $row['scheduled_at'] ?? null;
-                $confirmed = $this->scheduling->confirmOrFail($visit, $scheduledAt !== null ? Carbon::parse($scheduledAt) : null);
+                $confirmed = $this->scheduling->confirmOrFail($visit, $row['scheduled_at']);
                 $confirmed->load('property', 'visitor');
 
                 // L'avis part après la transaction de la ligne ; son échec ne défait pas la confirmation.
@@ -433,6 +433,8 @@ class PropertyVisitController extends Controller
     public function store(StorePropertyVisitRequest $request): JsonResponse
     {
         $data = $request->validated();
+        // TCK-2743 — l'instant désigné, pour les deux écritures (le visiteur, l'agence) et le doublon.
+        $data['scheduled_at'] = $request->scheduledAt();
 
         // TCK-1072 (P62.06) — un bien absent reçoit le refus d'un bien fermé aux visites.
         $property = $request->property();
@@ -593,12 +595,18 @@ class PropertyVisitController extends Controller
         // from scheduled → completed without populating `completed_at`,
         // which silently breaks the feedback-window lockout.
         $data = $request->validated();
+        // TCK-2743 — l'instant désigné : la garde du report, celles du bien et de l'agent, l'écriture
+        // et l'annonce du déplacement lisent le même. Le même instant écrit avec un autre décalage
+        // n'est pas un déplacement.
+        if (array_key_exists('scheduled_at', $data)) {
+            $data['scheduled_at'] = $request->scheduledAt();
+        }
 
         // TCK-1838 (P184.04) — déplacer l'heure suit la règle du report (`rescheduleOrFail`) :
         // hors statut actif (`no_show`…), plus rien ne confirme ni ne reporte la visite, et le
         // visiteur recevait l'annonce d'un rendez-vous mort. Notes, type et agent restent ouverts.
         if (array_key_exists('scheduled_at', $data)
-            && ! Carbon::parse($data['scheduled_at'])->equalTo($visit->scheduled_at)) {
+            && ! $data['scheduled_at']?->equalTo($visit->scheduled_at)) {
             abort_code_unless(
                 in_array($visit->status, VisitSchedulingService::ACTIVE_STATUSES, true),
                 422,
@@ -629,7 +637,7 @@ class PropertyVisitController extends Controller
             $temps = array_key_exists('scheduled_at', $data) || array_key_exists('duration_minutes', $data);
             if ($visit->status === VisitStatus::Confirmed && ($temps || array_key_exists('agent_id', $data))) {
                 $newStart = array_key_exists('scheduled_at', $data)
-                    ? Carbon::parse($data['scheduled_at'])
+                    ? Carbon::instance($data['scheduled_at'])
                     : $visit->scheduled_at;
                 $newDuration = array_key_exists('duration_minutes', $data)
                     ? $data['duration_minutes']
@@ -693,7 +701,7 @@ class PropertyVisitController extends Controller
      */
     public function reschedule(ReschedulePropertyVisitRequest $request, PropertyVisit $visit): JsonResponse
     {
-        $visit = $this->scheduling->rescheduleOrFail($visit, Carbon::parse($request->validated('scheduled_at')));
+        $visit = $this->scheduling->rescheduleOrFail($visit, $request->scheduledAt());
 
         $this->notifier->rescheduledByVisitor($visit->fresh(['property', 'agent']));
 
@@ -713,8 +721,7 @@ class PropertyVisitController extends Controller
         // locks so two concurrent confirm calls cannot both pass the
         // overlap check and both win.
         // TCK-2502 — l'heure fixée en confirmant ; exigée pour une visite demandée par tranche.
-        $scheduledAt = $request->validated('scheduled_at');
-        $visit = $this->scheduling->confirmOrFail($visit, $scheduledAt !== null ? Carbon::parse($scheduledAt) : null);
+        $visit = $this->scheduling->confirmOrFail($visit, $request->scheduledAt());
         $visit->load('property', 'visitor');
 
         $sms = $this->notifier->confirmed($visit, $request->user());

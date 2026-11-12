@@ -11,7 +11,9 @@ use App\Rules\ClientDeLAgence;
 use App\Rules\CreneauDeVisite;
 use App\Rules\PersonnelDeLAgence;
 use App\Rules\TelephoneJoignable;
+use App\Support\InstantRecu;
 use App\Support\TelephoneSaisi;
+use Carbon\CarbonImmutable;
 use Illuminate\Validation\Rule;
 
 /**
@@ -192,5 +194,14 @@ class StorePropertyVisitRequest extends BaseFormRequest
             'create_customer' => ['sometimes', 'boolean'],
             'allow_duplicate' => ['sometimes', 'boolean'],
         ];
+    }
+
+    /**
+     * TCK-2743 — l'heure reçue, ramenée à l'instant qu'elle désigne ({@see InstantRecu}) : la règle, la
+     * comparaison et l'écriture lisent le même instant.
+     */
+    public function scheduledAt(): CarbonImmutable
+    {
+        return InstantRecu::utc((string) $this->validated('scheduled_at'));
     }
 }
