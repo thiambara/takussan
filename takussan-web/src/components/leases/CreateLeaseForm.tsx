@@ -67,13 +67,32 @@ interface CreateLeaseFormProps {
    * `completed`, ce qui libère ses nuits.
    */
   readonly bookingId?: number;
+  /**
+   * TCK-2643 — `/app/leases/new?property=…` : venu de la fiche du bien (TCK-2639), le bien est
+   * préchoisi. Retenu seulement s'il figure parmi les biens proposés : le formulaire n'envoie jamais
+   * un bien que le sélecteur ne montre pas.
+   */
+  readonly propertyId?: number;
 }
 
-export function CreateLeaseForm({ bookingId }: CreateLeaseFormProps = {}) {
+export function CreateLeaseForm({ bookingId, propertyId }: CreateLeaseFormProps = {}) {
   if (bookingId) {
     return <CreateLeaseFormDepuisReservation bookingId={bookingId} />;
   }
+  if (propertyId) {
+    return <CreateLeaseFormDepuisBien propertyId={propertyId} />;
+  }
   return <FormulaireDuBail reservation={null} />;
+}
+
+/** Attend les biens proposés avant de monter le formulaire : ses valeurs initiales ne se rejouent pas. */
+function CreateLeaseFormDepuisBien({ propertyId }: { readonly propertyId: number }) {
+  const query = useLeasePropertyOptions();
+  if (query.isLoading) {
+    return <Skeleton className="h-48 rounded-xl" />;
+  }
+  const propose = (query.data?.data ?? []).some((bien) => bien.id === propertyId);
+  return <FormulaireDuBail reservation={null} bienPrechoisi={propose ? propertyId : undefined} />;
 }
 
 /** `useBooking` ne s'appelle que sur ce chemin : le formulaire vierge ne lit aucune réservation. */
@@ -104,7 +123,13 @@ function valeursDeLaReservation(reservation: Booking): Partial<CreateLeaseFormVa
   };
 }
 
-function FormulaireDuBail({ reservation }: { readonly reservation: Booking | null }) {
+function FormulaireDuBail({
+  reservation,
+  bienPrechoisi,
+}: {
+  readonly reservation: Booking | null;
+  readonly bienPrechoisi?: number;
+}) {
   const t = useTranslations('lease.form');
   const tLease = useTranslations('lease');
   const tCommon = useTranslations('common');
@@ -132,6 +157,7 @@ function FormulaireDuBail({ reservation }: { readonly reservation: Booking | nul
       payment_day: 1,
       terms: '',
       special_conditions: '',
+      ...(bienPrechoisi ? { property_id: bienPrechoisi } : {}),
       ...(reservation ? valeursDeLaReservation(reservation) : {}),
     },
     onSubmit: async (values) => {
