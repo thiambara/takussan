@@ -35,6 +35,15 @@ vi.mock('@/lib/queries/conversations', () => ({
   useConsignerGesteDuClient: () => ({ mutate: vi.fn() }),
   useToggleMute: () => ({ mutate: vi.fn() }),
 }));
+// La réduction d'une image (canvas) n'existe pas sous jsdom : le test dit ce qu'elle rend.
+let apresReduction: ((f: File) => File) | null = null;
+vi.mock('@/lib/messages/piece-jointe', async (importOriginal) => {
+  const vrai = await importOriginal<typeof import('@/lib/messages/piece-jointe')>();
+  return {
+    ...vrai,
+    preparerImage: async (f: File) => (apresReduction ? apresReduction(f) : vrai.preparerImage(f)),
+  };
+});
 vi.mock('@/hooks/useIntersectionObserver', () => ({ useIntersectionObserver: () => false }));
 // Le micro : ce que le composeur lui demande (masqué au repos ou non), et un geste qui le dit actif.
 vi.mock('../VoiceNoteRecorder', () => ({
@@ -64,6 +73,7 @@ beforeEach(() => {
   roles = ['agent'];
   type = 'direct';
   messages = [];
+  apresReduction = null;
   envoyerPiece.mockReset().mockResolvedValue({ data: {} });
   envoyerTexte.mockReset().mockResolvedValue({ data: {} });
   vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:apercu'), revokeObjectURL: vi.fn() }));
@@ -106,6 +116,16 @@ describe('<ChatView> — la pièce jointe (TCK-2632)', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Envoyer' }));
     });
     expect(envoyerPiece).toHaveBeenCalledWith({ file: photo, type: 'image', content: '' });
+  });
+
+  it('une photo qui dépasse encore 8 Mo une fois réduite est refusée, et rien ne part', async () => {
+    apresReduction = (f) => fichier(f.name, 'image/jpeg', 9 * MO);
+    monter();
+    await choisir('champ-photo', fichier('terrasse.jpg', 'image/jpeg', 30 * MO));
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Cette photo dépasse 8 Mo, même réduite'));
+    expect(screen.queryByText('terrasse.jpg')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Envoyer' })).not.toBeInTheDocument();
+    expect(envoyerPiece).not.toHaveBeenCalled();
   });
 
   it('« Retirer » rend le composeur au texte', async () => {

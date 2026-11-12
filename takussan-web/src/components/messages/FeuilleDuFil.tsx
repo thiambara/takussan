@@ -62,6 +62,12 @@ export function FeuilleDuFil({ conversationId, open, onOpenChange }: FeuilleDuFi
   const messageErreur = useMessageErreurApi();
   /** L'échec d'un geste de la feuille, dit en tête de la feuille (P228.06 : aucune mutation muette). */
   const [erreur, setErreur] = useState<string | null>(null);
+  /** Fermer efface la phrase : rouverte, la feuille ne dit pas un échec périmé. */
+  const changerOuverture = (ouverte: boolean) => {
+    if (!ouverte) setErreur(null);
+    onOpenChange(ouverte);
+  };
+  const fermer = () => changerOuverture(false);
 
   const conversation = conversationData?.data;
   const titre = conversation
@@ -78,7 +84,7 @@ export function FeuilleDuFil({ conversationId, open, onOpenChange }: FeuilleDuFi
     <>
       <FeuilleDuBas
         open={open}
-        onOpenChange={onOpenChange}
+        onOpenChange={changerOuverture}
         titre={titre}
         pied={
           peutPlanifier ? (
@@ -87,7 +93,7 @@ export function FeuilleDuFil({ conversationId, open, onOpenChange }: FeuilleDuFi
               size="xl"
               className="w-full"
               onClick={() => {
-                onOpenChange(false);
+                fermer();
                 setPlanifier(true);
               }}
             >
@@ -159,9 +165,14 @@ export function FeuilleDuFil({ conversationId, open, onOpenChange }: FeuilleDuFi
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => {
-                if (client)
-                  geste.mutate({ id: client.id, channel: 'whatsapp' }, { onError: () => setErreur(t('chat.gesteNonConsigne')) });
-                onOpenChange(false);
+                // L'échec se dit DANS la feuille : elle ne se ferme donc qu'une fois le geste noté,
+                // et reste ouverte sur la phrase s'il ne l'est pas (P228.06 — vérification de TCK-2632).
+                if (!client) return;
+                setErreur(null);
+                geste.mutate(
+                  { id: client.id, channel: 'whatsapp' },
+                  { onSuccess: () => fermer(), onError: () => setErreur(t('chat.gesteNonConsigne')) },
+                );
               }}
               className={RANGEE}
             >

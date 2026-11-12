@@ -3,6 +3,7 @@
  * le bien, la fiche du client (« nom · étape »), WhatsApp et la sourdine. Elle ne montre que ce que
  * `/context` rend : sans `customer` (un client, un bailleur), ni fiche ni numéro.
  */
+import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -86,6 +87,40 @@ describe('<FeuilleDuFil> (TCK-2632, téléphone)', () => {
     const feuille = screen.getByRole('dialog', { name: 'Malick Seck' });
     await userEvent.click(within(feuille).getByRole('button', { name: 'Couper les notifications' }));
     expect(within(feuille).getByRole('alert').textContent).not.toBe('');
+  });
+
+  /** La page tient l'ouverture : fermer la feuille la retire vraiment du document. */
+  function FeuilleTenue() {
+    const [ouverte, setOuverte] = useState(true);
+    return (
+      <>
+        <FeuilleDuFil conversationId={21} open={ouverte} onOpenChange={setOuverte} />
+        <button type="button" onClick={() => setOuverte(true)}>
+          rouvrir
+        </button>
+      </>
+    );
+  }
+
+  it('P228.06 — WhatsApp non noté : la feuille reste ouverte et le dit, la phrase ne survit pas à la fermeture', async () => {
+    geste.mockImplementation((_v: unknown, o: { onError: () => void }) => o.onError());
+    render(withIntl(<FeuilleTenue />));
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Malick Seck' })).getByRole('link', { name: /Écrire sur WhatsApp/ }));
+    const feuille = screen.getByRole('dialog', { name: 'Malick Seck' });
+    expect(within(feuille).getByRole('alert')).toHaveTextContent('Le contact n’a pas été noté sur la fiche du client.');
+
+    await userEvent.keyboard('{Escape}');
+    await vi.waitFor(() => expect(screen.queryByRole('dialog', { name: 'Malick Seck' })).not.toBeInTheDocument());
+    geste.mockReset();
+    await userEvent.click(screen.getByRole('button', { name: 'rouvrir' }));
+    expect(within(screen.getByRole('dialog', { name: 'Malick Seck' })).queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('WhatsApp noté : la feuille se ferme', async () => {
+    geste.mockImplementation((_v: unknown, o: { onSuccess: () => void }) => o.onSuccess());
+    render(withIntl(<FeuilleTenue />));
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Malick Seck' })).getByRole('link', { name: /Écrire sur WhatsApp/ }));
+    await vi.waitFor(() => expect(screen.queryByRole('dialog', { name: 'Malick Seck' })).not.toBeInTheDocument());
   });
 
   it('sans fiche rendue (un client, un bailleur) : ni fiche ni numéro, le bien et la sourdine restent', () => {
