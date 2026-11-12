@@ -165,6 +165,48 @@ export async function fetchDashboardCustomer(
   return res.data;
 }
 
+/**
+ * TCK-2589 — les attributs CALCULÉS que la fiche client demande au show : la prochaine action, la
+ * relance due et le référent (TCK-2588). Ce ne sont pas des colonnes : `CustomerCommercialAttributes`
+ * les retire de `fields[customers]` avant spatie, et le show rend alors la ressource ENTIÈRE avec eux
+ * (mesuré le 2026-11-12). C'est la seule exception à la garde « aucun `fields` vers un show »
+ * (`show-sans-fields.garde.test.ts`) : elle vérifie que ces noms sont tous des attributs calculés de
+ * l'API, et qu'aucun autre nom n'est envoyé.
+ */
+export const ATTRIBUTS_CALCULES_DE_LA_FICHE = ['next_action', 'follow_up', 'referent'] as const;
+
+/**
+ * TCK-2589 — ce que la fiche lit en une requête : pièces, étiquettes, bien d'intérêt, origine, les
+ * trois prochaines visites et les comptes du dossier. Les visites et les comptes ne sont rendus
+ * qu'au personnel de l'agence de la fiche : absents, la fiche ne les montre pas.
+ */
+export const INCLUSIONS_DE_LA_FICHE = [
+  'documents',
+  'tags',
+  'interestedProperty',
+  'origin',
+  'upcomingVisits',
+  'visitsCount',
+  'bookingsCount',
+  'leasesCount',
+] as const;
+
+/**
+ * TCK-2589 — la lecture de la fiche client (`/app/customers/[id]`). Distincte de
+ * {@link fetchDashboardCustomer}, que lit le panneau du pipeline : la fiche en demande davantage.
+ */
+export async function fetchFicheDuClient(token: string, customerId: number): Promise<CustomerDetail> {
+  const qs = buildQueryString({
+    fields: { customers: [...ATTRIBUTS_CALCULES_DE_LA_FICHE] },
+    include: [...INCLUSIONS_DE_LA_FICHE],
+  });
+  const res = await apiRequest<ApiResponse<CustomerDetail>>(
+    cheminApi`/api/customers/${customerId}${requete(qs)}`,
+    { token },
+  );
+  return res.data;
+}
+
 export async function createCustomer(
   token: string,
   payload: CustomerFormPayload,

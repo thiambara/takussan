@@ -35,7 +35,7 @@ vi.mock('@/lib/auth/guards', () => ({ assertCanReachAgentArea: () => {} }));
 
 const fetchCustomerMock = vi.fn();
 vi.mock('@/lib/queries/customers', () => ({
-  fetchDashboardCustomer: (...a: unknown[]) => fetchCustomerMock(...a),
+  fetchFicheDuClient: (...a: unknown[]) => fetchCustomerMock(...a),
   fetchCustomerNotes: async () => [],
   fetchCustomerRelationships: async () => [],
   fetchCrmTags: async () => [],

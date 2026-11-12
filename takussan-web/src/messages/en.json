@@ -3489,6 +3489,38 @@
       "pieceDIdentite": "ID document",
       "memeNumero": "same number",
       "plusTardDansModifier": "Occupation, language, ID document, bedrooms, stage, cities and minimum budget: under “Edit” on the record, whenever you have time."
+    },
+    "fiche": {
+      "referentCourt": "agent {nom}",
+      "depuis": "client since {date}",
+      "gestesNonNotes": "The contact was not logged on the record.",
+      "prochaine": {
+        "titre": "Next action",
+        "visite": "Viewing {jour} · {heure}",
+        "aConfirmer": "To be confirmed",
+        "confirmer": "Confirm",
+        "fixerLHeure": "Set the time",
+        "confirmationRefusee": "The viewing was not confirmed.",
+        "tache": "Task · {jour}",
+        "tacheSansTitre": "A task",
+        "rien": "Nothing planned."
+      },
+      "cherche": {
+        "titre": "Looking for",
+        "location": "Rent",
+        "achat": "Purchase",
+        "plafond": "≤ {montant}",
+        "vide": "No search yet.",
+        "correspondants": "{count, plural, =0 {No matching property} one {# matching property} other {# matching properties}}",
+        "correspondantsSansNombre": "Matching properties"
+      },
+      "origine": {
+        "titre": "Origin",
+        "demandeSur": "Request of {date} about “{bien}”",
+        "demandeSurSansDate": "Request about “{bien}”",
+        "demande": "Request of {date}",
+        "demandeSansDate": "Request received"
+      }
     }
   },
   "agentCrm": {
@@ -3619,7 +3651,8 @@
       "me": "Assign to me",
       "pick": "Pick an agent",
       "designate": "Assign",
-      "failed": "The account owner could not be assigned."
+      "failed": "The account owner could not be assigned.",
+      "changer": "Change"
     },
     "pipeline": {
       "stageSelect": "Stage of {name}",

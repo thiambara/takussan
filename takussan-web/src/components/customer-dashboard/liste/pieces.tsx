@@ -104,8 +104,11 @@ export function EtapeDuClient({ stage }: { readonly stage: CustomerListItem['pip
   return <StatusBadge label={label} tone={PIPELINE_STAGE_TONE[stage] ?? 'neutral'} />;
 }
 
-/** Les initiales d'un client, en pastille ronde (`taille` : 44 au téléphone, 32 au bureau). */
-export function InitialesDuClient({ texte, taille }: { readonly texte: string; readonly taille: 32 | 44 }) {
+/**
+ * Les initiales d'un client, en pastille ronde (`taille` : 44 au téléphone, 32 au bureau ; 52 en tête
+ * de la fiche au téléphone, TCK-2589).
+ */
+export function InitialesDuClient({ texte, taille }: { readonly texte: string; readonly taille: 32 | 44 | 52 }) {
   return (
     <span
       aria-hidden="true"
@@ -113,7 +116,7 @@ export function InitialesDuClient({ texte, taille }: { readonly texte: string; r
         'inline-flex flex-none items-center justify-center rounded-full bg-fond-avatar font-semibold text-encre-avatar',
         // Maquette : 44 px et 16 px sous le pouce ; 32 px et 12 px au bureau (densité ×0,9 : 8,89 pas ; le texte
         // au jeton `text-legende`, 11 px — un `text-[…]` est refusé par check-valeurs-arbitraires-app).
-        taille === 44 ? 'size-11 text-base' : 'size-[calc(var(--spacing)*8.89)] text-legende',
+        taille === 52 ? 'size-13 text-lg' : taille === 44 ? 'size-11 text-base' : 'size-[calc(var(--spacing)*8.89)] text-legende',
       )}
     >
       {texte}

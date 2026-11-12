@@ -40,8 +40,27 @@ final class CustomerTimeline
 {
     public const TYPES = ['note', 'visit', 'contact', 'stage'];
 
-    /** Le départage d'un même instant : stable, et le même d'une page à l'autre. */
-    private const RANGS = ['note' => 1, 'visit' => 2, 'contact' => 3, 'stage' => 4];
+    /** Les jalons d'une visite qui entrent au fil (TCK-2589, décision 7a). */
+    public const JALONS = ['created', 'confirmed', 'cancelled'];
+
+    /**
+     * Le départage d'un même instant : stable, et le même d'une page à l'autre. Les jalons d'une
+     * visite vont du plus avancé au premier, comme le fil va du plus récent au plus ancien.
+     */
+    private const RANGS = [
+        'note' => 1,
+        'visit.cancelled' => 2,
+        'visit.confirmed' => 3,
+        'visit.created' => 4,
+        'contact' => 5,
+        'stage' => 6,
+    ];
+
+    /**
+     * Une visite confirmée dans cet intervalle après sa création a été CRÉÉE confirmée (planifiée
+     * par l'agence) : personne ne l'a demandée, le fil ne montre que sa confirmation.
+     */
+    private const CREEE_CONFIRMEE_SECONDES = 5;
 
     /**
      * @param  list<string>  $types  sous-ensemble de {@see self::TYPES} ; vide = tous
@@ -52,7 +71,7 @@ final class CustomerTimeline
 
         $sources = array_values(array_filter([
             in_array('note', $types, true) ? $this->notes($customer, $staff) : null,
-            in_array('visit', $types, true) && $staff ? $this->visits($customer, $reader) : null,
+            ...(in_array('visit', $types, true) && $staff ? $this->visits($customer, $reader) : []),
             in_array('contact', $types, true) && $staff ? $this->contacts($customer) : null,
             in_array('stage', $types, true) ? $this->stages($customer) : null,
         ]));
@@ -85,15 +104,37 @@ final class CustomerTimeline
             ->where('customer_id', $customer->id)
             ->when(! $staff, fn ($q) => $q->withoutVisitReports())
             ->toBase()
-            ->select([DB::raw("'note' as type"), DB::raw(self::RANGS['note'].' as rang'), 'customer_notes.id', 'customer_notes.created_at as occurs_at']);
+            ->select([DB::raw("'note' as type"), DB::raw(self::RANGS['note'].' as rang'), 'customer_notes.id', 'customer_notes.created_at as occurs_at', DB::raw('NULL as jalon')]);
     }
 
-    private function visits(Customer $customer, User $reader): QueryBuilder
+    /**
+     * Trois sélections, une par jalon, sous la MÊME règle de lecture (`VisitesLisibles`) : la
+     * demande (création), la confirmation et l'annulation. La fin d'une visite est portée par son
+     * compte rendu, une note du fil.
+     *
+     * @return list<QueryBuilder>
+     */
+    private function visits(Customer $customer, User $reader): array
     {
-        return VisitesLisibles::pour($reader)
+        $jalon = fn (string $nom, string $colonne) => VisitesLisibles::pour($reader)
             ->where('property_visits.customer_id', $customer->id)
+            ->whereNotNull("property_visits.{$colonne}")
             ->toBase()
-            ->select([DB::raw("'visit' as type"), DB::raw(self::RANGS['visit'].' as rang'), 'property_visits.id', 'property_visits.created_at as occurs_at']);
+            ->select([
+                DB::raw("'visit' as type"),
+                DB::raw(self::RANGS["visit.{$nom}"].' as rang'),
+                'property_visits.id',
+                "property_visits.{$colonne} as occurs_at",
+                DB::raw("'{$nom}' as jalon"),
+            ]);
+
+        return [
+            $jalon('created', 'created_at')->where(fn ($q) => $q
+                ->whereNull('property_visits.confirmed_at')
+                ->orWhereRaw("property_visits.confirmed_at > property_visits.created_at + interval '".self::CREEE_CONFIRMEE_SECONDES." seconds'")),
+            $jalon('confirmed', 'confirmed_at'),
+            $jalon('cancelled', 'cancelled_at'),
+        ];
     }
 
     private function contacts(Customer $customer): QueryBuilder
@@ -106,7 +147,7 @@ final class CustomerTimeline
                 ->where(fn ($c) => $c->where('subject_type', Customer::class)->where('subject_id', $customer->id))
                 ->orWhere(fn ($l) => $l->where('subject_type', PropertyContactLead::class)->whereIn('subject_id', $leadIds)))
             ->toBase()
-            ->select([DB::raw("'contact' as type"), DB::raw(self::RANGS['contact'].' as rang'), 'activity_log.id', 'activity_log.created_at as occurs_at']);
+            ->select([DB::raw("'contact' as type"), DB::raw(self::RANGS['contact'].' as rang'), 'activity_log.id', 'activity_log.created_at as occurs_at', DB::raw('NULL as jalon')]);
     }
 
     private function stages(Customer $customer): QueryBuilder
@@ -117,13 +158,13 @@ final class CustomerTimeline
             ->where('event', 'updated')
             ->whereNotNull('attribute_changes->attributes->pipeline_stage')
             ->toBase()
-            ->select([DB::raw("'stage' as type"), DB::raw(self::RANGS['stage'].' as rang'), 'activity_log.id', 'activity_log.created_at as occurs_at']);
+            ->select([DB::raw("'stage' as type"), DB::raw(self::RANGS['stage'].' as rang'), 'activity_log.id', 'activity_log.created_at as occurs_at', DB::raw('NULL as jalon')]);
     }
 
     /**
      * Une requête par type présent dans la page, jamais une par ligne.
      *
-     * @param  Collection<int, object{type: string, id: int|string, occurs_at: mixed}>  $rows
+     * @param  Collection<int, object{type: string, id: int|string, occurs_at: mixed, jalon: ?string}>  $rows
      * @return Collection<int, array<string, mixed>>
      */
     private function hydrate(Collection $rows, bool $staff): Collection
@@ -134,7 +175,7 @@ final class CustomerTimeline
         $visits = PropertyVisit::query()
             ->with(['property' => fn ($p) => $p->withTrashed()->select(['id', 'title'])])
             ->whereKey($ids('visit'))
-            ->get(['id', 'property_id', 'status', 'scheduled_at', 'created_at'])
+            ->get(['id', 'property_id', 'status', 'scheduled_at', 'created_at', 'confirmed_at', 'cancelled_at'])
             ->keyBy('id');
         $logs = Activity::query()->with('causer')->whereKey([...$ids('contact'), ...$ids('stage')])->get()->keyBy('id');
 
@@ -143,7 +184,7 @@ final class CustomerTimeline
 
             return match ($row->type) {
                 'note' => isset($notes[$id]) ? $this->note($notes[$id], $staff) : null,
-                'visit' => isset($visits[$id]) ? $this->visit($visits[$id]) : null,
+                'visit' => isset($visits[$id]) ? $this->visit($visits[$id], (string) $row->jalon) : null,
                 'contact' => isset($logs[$id]) ? $this->contact($logs[$id]) : null,
                 'stage' => isset($logs[$id]) ? $this->stage($logs[$id]) : null,
                 default => null,
@@ -177,12 +218,20 @@ final class CustomerTimeline
     }
 
     /** @return array<string, mixed> */
-    private function visit(PropertyVisit $visit): array
+    private function visit(PropertyVisit $visit, string $jalon): array
     {
+        $at = match ($jalon) {
+            'confirmed' => $visit->confirmed_at,
+            'cancelled' => $visit->cancelled_at,
+            default => $visit->created_at,
+        };
+
         return [
             'type' => 'visit',
             'id' => $visit->id,
-            'at' => BaseResource::instantOnWire($visit->created_at),
+            'milestone' => $jalon,
+            'at' => BaseResource::instantOnWire($at),
+            // Le statut COURANT de la visite : le jalon dit ce qui s'est passé à `at`.
             'status' => $visit->status?->value,
             'scheduled_at' => BaseResource::instantOnWire($visit->scheduled_at),
             'property' => $visit->property !== null ? ['id' => $visit->property->id, 'title' => $visit->property->title] : null,

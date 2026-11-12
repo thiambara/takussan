@@ -3446,6 +3446,38 @@
       "pieceDIdentite": "Pièce d’identité",
       "memeNumero": "même numéro",
       "plusTardDansModifier": "Profession, langue, pièce d’identité, chambres, étape, villes et budget minimum : dans « Modifier » de la fiche, quand vous aurez le temps."
+    },
+    "fiche": {
+      "referentCourt": "référent {nom}",
+      "depuis": "client depuis le {date}",
+      "gestesNonNotes": "Le contact n’a pas été noté sur la fiche.",
+      "prochaine": {
+        "titre": "Prochaine action",
+        "visite": "Visite {jour} · {heure}",
+        "aConfirmer": "À confirmer",
+        "confirmer": "Confirmer",
+        "fixerLHeure": "Fixer l’heure",
+        "confirmationRefusee": "La visite n’a pas été confirmée.",
+        "tache": "Tâche · {jour}",
+        "tacheSansTitre": "Une tâche",
+        "rien": "Rien de prévu."
+      },
+      "cherche": {
+        "titre": "Sa recherche",
+        "location": "Location",
+        "achat": "Achat",
+        "plafond": "≤ {montant}",
+        "vide": "Pas encore de recherche.",
+        "correspondants": "{count, plural, =0 {Aucun bien ne correspond} one {# bien correspond} other {# biens correspondent}}",
+        "correspondantsSansNombre": "Biens correspondants"
+      },
+      "origine": {
+        "titre": "Origine",
+        "demandeSur": "Demande du {date} sur « {bien} »",
+        "demandeSurSansDate": "Demande sur « {bien} »",
+        "demande": "Demande du {date}",
+        "demandeSansDate": "Demande reçue"
+      }
     }
   },
   "agentCrm": {
@@ -3576,7 +3608,8 @@
       "me": "Me désigner",
       "pick": "Choisir un agent",
       "designate": "Désigner",
-      "failed": "Le référent n'a pas pu être désigné."
+      "failed": "Le référent n'a pas pu être désigné.",
+      "changer": "Changer"
     },
     "pipeline": {
       "stageSelect": "Étape de {name}",

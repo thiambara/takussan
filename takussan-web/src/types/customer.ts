@@ -85,6 +85,36 @@ export interface CustomerDetail extends CustomerListItem {
   locale?: 'fr' | 'en' | 'wo' | null;
   /** TCK-2582 — le bien d'intérêt, rendu sous `include=interestedProperty` (TCK-2586). */
   interested_property?: { id: number; title: string; slug: string | null } | null;
+  /**
+   * TCK-2582 — la demande d'où vient la fiche (`include=origin`) ; `message` au seul personnel de
+   * l'agence de la fiche.
+   */
+  origin?: CustomerOrigin | null;
+  /** TCK-2588 — les trois prochaines visites (`include=upcomingVisits`), au seul personnel. */
+  upcoming_visits?: readonly CustomerUpcomingVisit[];
+  /** TCK-2588, TCK-2589 — les comptes du dossier, au seul personnel (absents sinon). */
+  visits_count?: number;
+  bookings_count?: number;
+  leases_count?: number;
+  tasks_count?: number;
+  documents?: CustomerDocument[];
+  tags?: { id: number; name: string; slug: string; color: string | null }[];
+}
+
+/** TCK-2582 — l'origine d'une fiche : la demande de contact reçue sur un bien. */
+export interface CustomerOrigin {
+  readonly contact_lead_id: number;
+  readonly received_at: string | null;
+  readonly message?: string | null;
+  readonly property: { readonly id: number; readonly title: string; readonly slug: string | null } | null;
+}
+
+/** TCK-2588 — une prochaine visite de la fiche. */
+export interface CustomerUpcomingVisit {
+  readonly id: number;
+  readonly property_id: number | null;
+  readonly status: string | null;
+  readonly scheduled_at: string | null;
 }
 
 export interface CustomerNote {

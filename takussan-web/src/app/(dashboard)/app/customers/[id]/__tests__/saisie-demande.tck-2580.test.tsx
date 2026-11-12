@@ -29,7 +29,7 @@ vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: { id: 3 }, tok
 const profils = vi.hoisted(() => ({ courant: null as unknown }));
 vi.mock('@/hooks/useProfiles', () => ({ useMyProfiles: () => ({ data: profils.courant }) }));
 vi.mock('@/lib/queries/customers', () => ({
-  fetchDashboardCustomer: async () => ({
+  fetchFicheDuClient: async () => ({
     id: 7,
     first_name: 'Awa',
     last_name: 'Diop',

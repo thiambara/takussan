@@ -3,6 +3,8 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { ATTRIBUTS_CALCULES, attributsCalcules } from './attributs-calcules-de-l-api';
+
 /**
  * TCK-1184 (P100.04), TCK-1186 (P100.05) — toute colonne que le front demande par `fields[<table>]` est dans le
  * `$queryFields` d'un modèle de cette table.
@@ -41,29 +43,8 @@ const HORS_BUILD_QUERY: Record<string, string> = {
   radar_observatory: 'Admin\\RadarObservatoryController::market (TCK-2393) : les SECTIONS du marché, lues par RadarObservatoryRequest — aucune table `radar_observatory`',
 };
 
-/**
- * TCK-2590 — attributs CALCULÉS qu'un modèle accepte dans `fields[<table>]` hors de `$queryFields` :
- * son `buildQuery()` les retire de la requête avant spatie, et la ressource les rend. Les noms sont
- * lus dans la constante `FIELDS` du fichier de l'API, jamais recopiés ; la garde vérifie que
- * `buildQuery()` passe encore la requête par `strip()`. Ils ne valent que là où ce modèle est la
- * racine de la requête : demandés par un `include=` d'un autre modèle, spatie les refuserait.
- */
-const ATTRIBUTS_CALCULES: Record<string, { readonly source: string; readonly modele: string; readonly appel: RegExp }> = {
-  customers: {
-    source: 'Services/Crm/CustomerCommercialAttributes.php',
-    modele: 'Models/Customer.php',
-    // Un APPEL sur la requête, pas la mention `{@see …::strip()}` du docblock.
-    appel: /=\s*CustomerCommercialAttributes::strip\(\$request\b/,
-  },
-};
-
-function attributsCalcules(table: string): string[] {
-  const entree = ATTRIBUTS_CALCULES[table];
-  if (!entree) return [];
-  const php = readFileSync(join(RACINE, 'takussan-api', 'app', entree.source), 'utf8');
-  const bloc = /public const FIELDS = \[([^\]]*)\];/.exec(php);
-  return bloc ? [...bloc[1].matchAll(/'([a-z0-9_]+)'/g)].map((m) => m[1]) : [];
-}
+// TCK-2590 — `ATTRIBUTS_CALCULES` et `attributsCalcules()` vivent dans `attributs-calcules-de-l-api.ts`,
+// lus aussi par la garde `show-sans-fields` (TCK-2589).
 
 /** Sites d'appel dont l'endpoint ignore `fields` alors que le modèle de la table l'ouvrirait. */
 const SITES_HORS_BUILD_QUERY: Record<string, string> = {

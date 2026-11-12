@@ -12,6 +12,7 @@ use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\VisitStatus;
 use App\Models\Lease;
 use App\Models\Property;
+use App\Models\PropertyContactLead;
 use App\Models\PropertyVisit;
 use App\Models\User;
 use App\Services\Crm\ContactGestureService;
@@ -109,10 +110,88 @@ class CustomerTimelineTest extends ApiTestCase
 
         $this->assertSame(['lead', 'qualified', $this->admin->id], [$etape['from'], $etape['to'], $etape['causer']['id']]);
         $this->assertSame(['call', $this->admin->id], [$contact['channel'], $contact['causer']['id']]);
-        $this->assertSame([$visite->id, 'confirmed', $this->bien->id], [$lue['id'], $lue['status'], $lue['property']['id']]);
+        $this->assertSame([$visite->id, 'confirmed', 'confirmed', $this->bien->id], [$lue['id'], $lue['milestone'], $lue['status'], $lue['property']['id']]);
         $this->assertSame(['id', 'title'], array_keys($lue['property']));
         $this->assertSame([$note->id, 'Cherche un F3 à Mermoz', $this->admin->id], [$notee['id'], $notee['body'], $notee['author']['id']]);
         $this->assertStringNotContainsString('jamais servie', json_encode($json));
+    }
+
+    /** @return list<string> le fil, du plus récent au plus ancien, en `type:jalon|kind` */
+    private function suite(): array
+    {
+        return array_map(
+            fn (array $e) => $e['type'].':'.($e['milestone'] ?? $e['kind'] ?? $e['channel'] ?? $e['to'] ?? ''),
+            $this->fil('?per_page=50')['data'],
+        );
+    }
+
+    /**
+     * AC2 — « Demande reçue » (avec le message), « Réponse WhatsApp (Sokhna) », « Visite confirmée »,
+     * « Compte rendu : Intéressé » : la visite entre au fil à sa CONFIRMATION, pas à sa création.
+     */
+    public function test_ac2_la_demande_la_reponse_la_confirmation_puis_le_compte_rendu(): void
+    {
+        $sokhna = $this->personnel($this->agence);
+        Carbon::setTestNow('2026-11-03 14:31:00');
+        $lead = PropertyContactLead::factory()->create(['property_id' => $this->bien->id, 'customer_id' => $this->fiche->id, 'message' => 'Une visite samedi est-elle possible ?']);
+        $this->note(['kind' => CustomerNoteKind::LeadMessage, 'body' => 'Une visite samedi est-elle possible ?', 'author_id' => null]);
+        // Le client demande la visite AVANT la réponse : sa demande reste à sa place, sa confirmation à la sienne.
+        Carbon::setTestNow('2026-11-03 14:40:00');
+        $visite = $this->visite(null, ['status' => VisitStatus::Scheduled, 'agent_id' => $sokhna->id]);
+        Carbon::setTestNow('2026-11-03 15:02:00');
+        app(ContactGestureService::class)->onLead($lead, $sokhna, ContactGestureChannel::Whatsapp);
+        Carbon::setTestNow('2026-11-04 09:00:00');
+        $visite->update(['status' => VisitStatus::Confirmed]);
+        Carbon::setTestNow('2026-11-07 11:30:00');
+        $visite->update(['report_outcome' => 'interested']);
+        $this->note(['kind' => CustomerNoteKind::VisitReport, 'property_visit_id' => $visite->id, 'body' => 'Intéressé', 'author_id' => $sokhna->id]);
+        Carbon::setTestNow();
+
+        Sanctum::actingAs($this->admin);
+
+        $this->assertSame(
+            ['note:visit_report', 'visit:confirmed', 'contact:whatsapp', 'visit:created', 'note:lead_message'],
+            $this->suite(),
+        );
+        $data = $this->fil('?per_page=50')['data'];
+        $this->assertSame($sokhna->id, $data[2]['causer']['id']);
+        $this->assertSame('interested', $data[0]['report']['outcome']);
+        $this->assertSame('Une visite samedi est-elle possible ?', $data[4]['body']);
+    }
+
+    public function test_une_visite_creee_confirmee_n_a_pas_de_demande_au_fil(): void
+    {
+        Carbon::setTestNow('2026-11-05 10:00:00');
+        $planifiee = $this->visite();
+        $attente = $this->visite(null, ['status' => VisitStatus::Scheduled]);
+        $tot = $this->visite(null, ['status' => VisitStatus::Scheduled]);
+        Carbon::setTestNow('2026-11-05 10:00:03');
+        $tot->update(['status' => VisitStatus::Confirmed]);
+        Carbon::setTestNow('2026-11-05 11:00:00');
+        $attente->update(['status' => VisitStatus::Confirmed]);
+        Carbon::setTestNow();
+
+        Sanctum::actingAs($this->admin);
+        $jalons = collect($this->fil('?filter[type]=visit')['data'])->groupBy('id')->map(fn ($e) => $e->pluck('milestone')->all());
+
+        $this->assertSame(['confirmed'], $jalons[$planifiee->id]);
+        $this->assertSame(['confirmed'], $jalons[$tot->id]);
+        $this->assertSame(['confirmed', 'created'], $jalons[$attente->id]);
+    }
+
+    public function test_l_annulation_entre_au_fil_et_les_jalons_d_un_meme_instant_ont_un_ordre(): void
+    {
+        Carbon::setTestNow('2026-11-05 10:00:00');
+        $visite = $this->visite(null, ['status' => VisitStatus::Scheduled]);
+        Carbon::setTestNow('2026-11-06 10:00:00');
+        $visite->update(['status' => VisitStatus::Confirmed, 'cancelled_at' => now()]);
+        Carbon::setTestNow();
+
+        Sanctum::actingAs($this->admin);
+        $data = $this->fil('?filter[type]=visit')['data'];
+
+        $this->assertSame(['cancelled', 'confirmed', 'created'], array_column($data, 'milestone'));
+        $this->assertSame([$data[0]['at'], '2026-11-05'], [$data[1]['at'], substr($data[2]['at'], 0, 10)]);
     }
 
     public function test_le_compte_rendu_porte_son_verdict_courant_au_personnel(): void
