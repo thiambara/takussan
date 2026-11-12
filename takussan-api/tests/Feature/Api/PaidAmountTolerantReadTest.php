@@ -134,6 +134,34 @@ class PaidAmountTolerantReadTest extends ApiTestCase
         $this->assertEquals(150_000.0, $aging['total']['amount']);
     }
 
+    /**
+     * TCK-2721 (contre-vérification) — `metadata.gateway_expected_amount` se lisait par un `::numeric`
+     * nu dans `LeasePayment::scopeWhereExpectedAmountNear` : une valeur non numérique écrite hors du
+     * modèle faisait lever la recherche de rapprochement (`PaymentSearchService`) et le matcher
+     * (`ReconciliationMatcher`). Il passe par le même fragment que `paid_amount`, et le montant que
+     * le scope compare est celui que `expectedBankAmount()` lit en PHP : absent ou `null` → `amount`,
+     * sinon le `(float)` de PHP.
+     */
+    public function test_le_montant_attendu_lit_gateway_expected_amount_comme_expected_bank_amount(): void
+    {
+        $ecarts = [];
+        foreach ([...self::VALEURS, 'ABSENT'] as $i => $brut) {
+            $ligne = $this->loyer("G-{$i}", 2000, PaymentStatus::Paid, '2026-11-05', '0');
+            $attendu = $brut === 'ABSENT' ? '' : ',"gateway_expected_amount":'.str_replace("'", "''", $brut);
+            DB::table('lease_payments')->where('id', $ligne->id)->update([
+                'metadata' => DB::raw("'{\"gateway\":{\"settled_by\":\"txn_{$i}\"}{$attendu}}'::jsonb"),
+            ]);
+            $php = $ligne->fresh()->expectedBankAmount();
+
+            $trouve = LeasePayment::query()->whereKey($ligne->id)->whereExpectedAmountNear($php, 0.01)->exists();
+            if (! $trouve) {
+                $ecarts[] = "{$brut} : PHP {$php}, absent du scope";
+            }
+        }
+
+        $this->assertSame([], $ecarts);
+    }
+
     private function loyer(string $ref, float $montant, PaymentStatus $statut, string $echeance, string $paidAmountJson): LeasePayment
     {
         $ligne = LeasePayment::factory()->create([

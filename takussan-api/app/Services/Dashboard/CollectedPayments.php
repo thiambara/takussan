@@ -86,6 +86,22 @@ final class CollectedPayments
         return str_replace('lease_payments.', $table.'.', self::PAID_AMOUNT_META_SQL);
     }
 
+    /**
+     * TCK-2721 (contre-vérification) — la même lecture pour une AUTRE clé numérique de `metadata`
+     * (`gateway_expected_amount`, `LeasePayment::scopeWhereExpectedAmountNear`) : un seul fragment,
+     * au cast défensif, et non un `::numeric` nu par clé. Absent ou `null` → 0, comme
+     * `paid_amount` : l'appelant dont le repli est autre le pose devant. La clé est un nom du code,
+     * jamais une entrée : elle est vérifiée, puisqu'elle entre dans le SQL.
+     */
+    public static function metadataNumberSql(string $metadataColumn, string $key): string
+    {
+        if (preg_match('/^[a-z_]+$/', $key) !== 1) {
+            throw new \InvalidArgumentException("Clé de metadata invalide : {$key}");
+        }
+
+        return str_replace(['lease_payments.metadata', "'paid_amount'"], [$metadataColumn, "'{$key}'"], self::PAID_AMOUNT_META_SQL);
+    }
+
     /** Montant encaissé d'une échéance : ce qui a été payé, moins ce qui a été rendu (TCK-1214). */
     public const LEASE_NET_SQL = 'lease_payments.amount - COALESCE(lease_payments.refund_amount, 0)';
 

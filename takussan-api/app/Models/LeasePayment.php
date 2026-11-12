@@ -8,6 +8,7 @@ use App\Models\Concerns\HasPaymentAttributes;
 use App\Models\Contracts\HasAuditAgency;
 use App\Models\Enums\LeasePaymentType;
 use App\Models\Enums\PaymentStatus;
+use App\Services\Dashboard\CollectedPayments;
 use App\Services\Payments\PaymentGatewayService;
 use App\Services\Pdf\PrintedIdentity;
 use Illuminate\Database\Eloquent\Builder;
@@ -247,12 +248,18 @@ class LeasePayment extends AbstractModel implements HasAuditAgency
         $lateFee = $query->qualifyColumn('late_fee_amount');
         $lateFeePaidAt = $query->qualifyColumn('late_fee_paid_at');
         $paidAt = $query->qualifyColumn('paid_at');
+        // TCK-2721 (contre-vérification) — le montant figé se lit comme `expectedBankAmount()` le lit
+        // en PHP : absent ou `null` → `amount`, sinon le `(float)` de PHP, par le fragment partagé avec
+        // `paid_amount`. Un `::numeric` nu levait sur une valeur non numérique écrite hors du modèle,
+        // et la recherche de rapprochement comme le matcher tombaient en 500.
+        $expected = CollectedPayments::metadataNumberSql($metadata, 'gateway_expected_amount');
         $offline = "{$rowAmount} + CASE WHEN {$lateFeePaidAt} IS NOT NULL AND {$paidAt} IS NOT NULL "
             ."AND {$lateFeePaidAt}::date = {$paidAt}::date THEN COALESCE({$lateFee}, 0) ELSE 0 END";
 
         return $query->whereRaw(
             "ABS(CASE WHEN {$settledBy} IS NOT NULL AND {$settledBy} <> ? "
-            ."THEN COALESCE(({$metadata}->>'gateway_expected_amount')::numeric, {$rowAmount}) "
+            ."THEN CASE WHEN COALESCE(jsonb_typeof({$metadata}->'gateway_expected_amount'), 'null') = 'null' "
+            ."THEN {$rowAmount} ELSE {$expected} END "
             ."ELSE {$offline} END - ?) < ?",
             [PaymentGatewayService::SETTLED_MANUALLY, $amount, $tolerance],
         );
