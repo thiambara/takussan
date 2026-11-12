@@ -126,7 +126,13 @@ export function CreationDuClient({ open, onClose, initial, visiteDOrigine }: Cre
     if (await form.trigger([...CHAMPS_DE_L_IDENTITE])) setEtape(2);
   };
 
+  // Vérification adverse de TCK-2590 — fermer (« Annuler », Échap, le voile) abandonne la saisie : le
+  // panneau reste monté par la liste, et sans `reset()` le brouillon revenait à la réouverture (la
+  // frappe s'ajoutait à l'ancienne), avec l'alerte de doublon et l'avertissement de départ encore armés.
   const fermer = () => {
+    form.reset();
+    setALaFin(null);
+    autoriserDoublon.current = null;
     setEtape(1);
     onClose();
   };

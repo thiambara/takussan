@@ -7,6 +7,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { withIntl } from '@/test/intl';
@@ -211,5 +212,51 @@ describe('rien ne se perd du formulaire d’avant', () => {
     await screen.findByRole('radio', { name: 'Louer' });
     expect(screen.queryByRole('button', { name: /Plus de champs/ })).toBeNull();
     expect(screen.getByText(/Profession, langue, pièce d’identité, chambres, étape, villes et budget minimum : dans « Modifier »/)).toBeInTheDocument();
+  });
+});
+
+describe('fermer abandonne la saisie (vérification adverse de TCK-2590)', () => {
+  function Liste() {
+    const [ouvert, setOuvert] = useState(true);
+    return (
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <button type="button" onClick={() => setOuvert(true)}>Rouvrir</button>
+        <CreationDuClient open={ouvert} onClose={() => setOuvert(false)} />
+      </QueryClientProvider>
+    );
+  }
+  const avertit = () => {
+    const evenement = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(evenement);
+    return evenement.defaultPrevented;
+  };
+
+  it('« Annuler » au bureau : rouverte, la création est vide, sans doublon, et le départ n’est plus retenu', async () => {
+    bureau(true);
+    const user = userEvent.setup();
+    render(withIntl(<Liste />));
+    await identite(user, '70 648 20');
+    await screen.findByText('Déjà dans vos clients');
+    expect(avertit()).toBe(true);
+
+    await user.click(screen.getByRole('button', { name: 'Annuler' }));
+    expect(avertit()).toBe(false);
+    await user.click(screen.getByRole('button', { name: 'Rouvrir' }));
+
+    expect(await screen.findByLabelText(/Prénom/)).toHaveValue('');
+    expect(screen.getByLabelText('Téléphone')).toHaveValue('');
+    expect(screen.queryByText('Déjà dans vos clients')).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText(/Prénom/), 'Awa');
+    expect(screen.getByLabelText(/Prénom/)).toHaveValue('Awa');
+  });
+
+  it('Échap au téléphone : même abandon', async () => {
+    const user = userEvent.setup();
+    render(withIntl(<Liste />));
+    await user.type(screen.getByLabelText(/Prénom/), 'Astou');
+    await user.keyboard('{Escape}');
+    expect(avertit()).toBe(false);
+    await user.click(screen.getByRole('button', { name: 'Rouvrir' }));
+    expect(await screen.findByLabelText(/Prénom/)).toHaveValue('');
   });
 });
