@@ -19,6 +19,8 @@ use Spatie\Activitylog\Models\Activity;
  *
  * TCK-2583 — et ses gestes de contact (`event = contacted`, `channel`), y compris ceux posés sur la
  * demande de contact qu'elle a convertie : une ligne « WhatsApp », « Appel »… Jamais de coordonnée.
+ * TCK-2754 — au seul personnel de l'agence de la fiche, comme le fil (`CustomerTimeline`) et
+ * `last_contacted_at` : sortis de la requête pour les autres lecteurs, total compris.
  *
  * L'onglet « Activité » de la console appelait `/api/audit-log`, réservé au super-admin et à
  * l'admin d'agence : pour un agent, 403 avalé en liste vide. Ce journal-ci s'autorise par la
@@ -76,14 +78,19 @@ class CustomerActivityFeed
                     // Contre-vérification adverse de TCK-2591 — « Plus tard » sur l'étape proposée dit
                     // qu'il y en avait une, donc un fait interne de l'agence (compte rendu, visite,
                     // candidature, bail, peut-être sur le bien d'un autre bailleur) : au seul personnel.
+                    // TCK-2754 — les gestes de contact de même : qui a appelé et quand, c'est le
+                    // dernier contact que la fiche cache au bailleur auteur (`last_contacted_at`).
                     ->when(! $withVisitReports, fn (Builder $w) => $w->where(fn (Builder $e) => $e
                         ->whereNull('event')
-                        ->orWhere('event', '!=', CustomerSuggestedStageQuery::DISMISSED_EVENT))))
+                        ->orWhereNotIn('event', [CustomerSuggestedStageQuery::DISMISSED_EVENT, ContactGestureService::EVENT]))))
                     ->orWhere(fn (Builder $n) => $n->where('subject_type', CustomerNote::class)->whereIn('subject_id', $noteIds))
                     ->orWhere(fn (Builder $t) => $t->where('subject_type', Task::class)->whereIn('subject_id', $taskIds))
-                    ->orWhere(fn (Builder $l) => $l->where('subject_type', PropertyContactLead::class)
+                    // TCK-2754 — une demande rattachée n'entre au journal que par ses gestes de
+                    // contact : au seul personnel, comme ceux de la fiche.
+                    ->when($withVisitReports, fn (Builder $w) => $w->orWhere(fn (Builder $l) => $l
+                        ->where('subject_type', PropertyContactLead::class)
                         ->whereIn('subject_id', $leadIds)
-                        ->where('event', ContactGestureService::EVENT));
+                        ->where('event', ContactGestureService::EVENT)));
             })
             ->orderByDesc('created_at')
             ->orderByDesc('id')

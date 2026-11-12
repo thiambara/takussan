@@ -54,4 +54,8 @@ Le bailleur qui a ajouté une fiche client la relit sans apprendre qui l'agence 
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+Décision a) (team-lead, 2026-11-12). `CustomerActivityFeed::paginate()` : hors personnel, le sujet `Customer` exclut `contacted` avec `DISMISSED_EVENT` (`orWhereNotIn`), et la branche `PropertyContactLead` n'est posée que pour le personnel. Le filtre est dans la requête, donc le total ne les compte pas.
+
+Pas d'entrée « mise à jour » au même instant : `ContactGestureService::touchCustomer()` écrit `last_contacted_at` par la requête (`toBase()`), sans journal. Le test le vérifie aussi : aucune entrée du bailleur ne porte l'heure d'un geste.
+
+Test : `tests/Feature/Crm/CustomerActivityContactStaffOnlyTest.php` (AC1, AC2). Ablations rouges : filtre de la fiche retiré, branche de la demande ouverte au bailleur, branche retirée au personnel, filtre appliqué au personnel.
