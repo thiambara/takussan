@@ -905,20 +905,29 @@ rien attraper.*
     visites passent par `VisitSchedulingService::verrouillerBienPuisVisite()` ; le retrait d'un
     membre (`AgencyMemberRemovalService::lockMarkedProperties()`) et l'effacement d'un compte
     (`AccountDeletionService::lockInGlobalOrder()`) prennent leurs biens AVANT la ligne `users` ;
-    `AgentAbsenceService::update()` prend l'absent avant la délégation. Plusieurs lignes d'une même
-    table : par identifiant croissant (`orderBy('id')`).
+    `AgentAbsenceService::update()` prend l'absent avant la délégation ; l'acceptation d'une invitation
+    de bailleur par un compte existant (`InvitationService::verrouillerLesBiensLies()`, TCK-2755) prend
+    les biens saisis pour lui avant toute écriture de `users` — contre la confirmation d'une visite d'un
+    de ces biens, 4 à 9 interblocages sur 20 sans lui. Plusieurs lignes d'une même table : par
+    identifiant croissant (`orderBy('id')`).
 
     ⚠ **Une ÉCRITURE verrouille sa ligne comme un `for update`.** Un `update()` ou un `delete()` — de
     modèle ou de masse — sur un bien, après la ligne `users`, inverse l'ordre aussi sûrement qu'un
-    `lockForUpdate()`. D'où la règle : tout ce qu'un écrivain écrit APRÈS une ligne plus basse dans
-    l'ordre est verrouillé AVANT elle, **par la requête même qui l'écrira**
+    `lockForUpdate()`. (Un `UPDATE` qui ne touche pas de clé prend `FOR NO KEY UPDATE` : il ne heurte
+    pas le `KEY SHARE` d'une clé étrangère, mais heurte tout `for update` — celui d'une visite
+    compris.) D'où la règle : tout ce qu'un écrivain écrit APRÈS une ligne plus basse dans l'ordre est
+    verrouillé AVANT elle, **par la requête même qui l'écrira**
     (`ErasedAccountListings::candidates()`, `TitulaireALaSaisie::biensLies()`), jamais par une copie.
 
     ⚠ **L'épingle ne voit pas tout.** L'ordre est épinglé par `DB::listen` sur les `select … for
     update` (`VisitAgentOverlapTest`, `OrdreDesVerrousDuRetraitTest`) : elle ne voit ni les verrous
-    implicites des `update`, ni ceux des clés étrangères à l'insertion. C'est pourquoi le test de
-    l'effacement affirme que chaque bien ÉCRIT figure dans la passe des biens, au lieu de compter
-    des verrous. Un écrivain neuf qui touche ces tables s'y ajoute — par discipline : rien ne le force.
+    implicites des `update`, ni ceux des clés étrangères — à l'insertion comme à un `update` qui POSE
+    la colonne : poser `owner_profiles.user_id` prend un `KEY SHARE` sur la ligne `users` visée, et
+    toucher une ligne qui référence `users` compte donc comme prendre `users` (TCK-2755, le témoin de
+    la course : 4 interblocages sur 20 sans aucune écriture de `users` ;
+    `OrdreDesVerrousDeLAcceptationTest` épingle donc aussi cet `update "owner_profiles"`). C'est
+    pourquoi le test de l'effacement affirme que chaque bien ÉCRIT figure dans la passe des biens, au
+    lieu de compter des verrous. Un écrivain neuf qui touche ces tables s'y ajoute — par discipline : rien ne le force.
 
 **Les pièges MySQL qui ont DISPARU** — ne plus les chercher : `DEFAULT` sur `JSON`/`TEXT` (accepté
 par PostgreSQL), `dropUnique`/`dropIndex` sur une colonne portant une FK (voir n°8), et la limite

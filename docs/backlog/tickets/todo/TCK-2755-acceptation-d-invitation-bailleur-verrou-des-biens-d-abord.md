@@ -68,3 +68,28 @@ de la visite. `delier` écrit le bien même quand le transfert est refusé (titu
   `$S/impl/verif/c2744f/correctif-acceptation.diff` (hors dépôt) ; la méthode y est posée dans le docblock
   d'`acceptForUser`, à déplacer.
 - Rapport : `$S/impl/verif/TCK-2744-d3d4-contre.json` (hors dépôt).
+
+## Notes d'implémentation
+
+- `InvitationService::verrouillerLesBiensLies()` (privée, à côté de `delierLesBiens`) : la requête mesurée par
+  verif-commercial, renommée et sortie du docblock d'`acceptForUser`. Appelée en tête des transactions
+  d'`acceptForAccount` (avant la pose de l'e-mail) et d'`acceptForUser` (avant le prénom) ; dans
+  `acceptForAccount`, l'appel imbriqué d'`acceptForUser` la rejoue sous le même verrou, sans effet.
+  `acceptAsNewUser` n'est pas touché : sa ligne `users` naît dans la transaction, personne d'autre ne la tient.
+- `tests/Feature/Invitation/OrdreDesVerrousDeLAcceptationTest.php` (AC2, AC3) — les requêtes comptées à partir
+  du `BEGIN` de l'acceptation (`TransactionBeginning`) :
+  - compte sans nom (`acceptForUser`) et compte sans e-mail (`acceptForAccount`) : le `select … for update`
+    des biens liés précède toute requête qui nomme `users`, par `order by "id"` ;
+  - le témoin, compte nommé : il précède l'`update "owner_profiles" … "user_id"` (la clé étrangère vers
+    `users`, que l'épingle ne voit pas en nommant `users`) ;
+  - une invitation d'agent : aucun `from "properties" … for update`.
+- Ablations, une à une, toutes rouges puis restaurées : sans l'appel d'`acceptForAccount` (1 rouge), sans celui
+  d'`acceptForUser` (rouge sur le compte sans nom, puis sur le témoin), garde de type remplacée par `true` (AC3
+  rouge), sans `orderBy('id')` (2 rouges).
+- AC4 : `tests/Feature/Invitation` + `PropertyPendingOwnerTest`, `PropertyOwnerTransferTest`,
+  `PropertyOwnerDesignationTest` — 318 tests verts (2026-11-12, 14:58, load 7).
+- `takussan-api/CLAUDE.md`, piège 10 : les trois corrections (l'écrivain, la clé étrangère sur un `UPDATE` qui
+  pose la colonne, `FOR NO KEY UPDATE`).
+- AC1 (la course, 20 × 3 variantes) n'est pas rejouée ici : le harnais de verif-commercial tournait dans
+  `wt-2744f`, retiré depuis. Le correctif mesuré à 0/20 est le même texte de requête aux deux mêmes places ;
+  la course est à rejouer sur l'arbre commité.
