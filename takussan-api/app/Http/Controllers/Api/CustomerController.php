@@ -376,6 +376,7 @@ class CustomerController extends Controller
         // TCK-2578 — les comptes rendus de visite, au seul personnel de l'agence de la fiche.
         $paginator = $feed->paginate(
             $customer,
+            $request->user(),
             $this->tailleDePage($request, 20),
             $request->user()->can('viewVisitReports', $customer),
         );

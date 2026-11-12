@@ -132,12 +132,17 @@ class CustomerTimelineFicheEtTachesTest extends ApiTestCase
         $this->assertSame(['email'], $fil[2]['fields']);
     }
 
-    /** Même lecture que `GET …/activity` : le bailleur auteur lit la vie de sa fiche, pas les gestes de l'agence. */
+    /**
+     * Même lecture que `GET …/activity` : le bailleur auteur lit la vie de sa fiche, pas les gestes de
+     * l'agence. Sa tâche y entre ; celle qu'il ne peut pas ouvrir non (TCK-2589, `TaskPolicy::view` —
+     * `CustomerTimelineTachesLisiblesTest`).
+     */
     public function test_le_bailleur_auteur_lit_la_fiche_et_les_taches_comme_au_journal(): void
     {
         Sanctum::actingAs($this->admin);
         $this->putJson("/api/customers/{$this->fiche->id}", ['occupation' => 'Enseignante'])->assertOk();
-        Task::factory()->create(['taskable_type' => Customer::class, 'taskable_id' => $this->fiche->id, 'title' => 'Envoyer les biens']);
+        Task::factory()->create(['taskable_type' => Customer::class, 'taskable_id' => $this->fiche->id, 'title' => 'Envoyer les biens', 'created_by_id' => $this->bailleurAuteur->id]);
+        Task::factory()->create(['taskable_type' => Customer::class, 'taskable_id' => $this->fiche->id, 'title' => 'Vérifier la solvabilité', 'created_by_id' => $this->admin->id, 'assigned_to_id' => $this->admin->id]);
         app(ContactGestureService::class)->onCustomer($this->fiche, $this->admin, ContactGestureChannel::Call);
         $this->app['auth']->forgetGuards();
 
@@ -157,7 +162,7 @@ class CustomerTimelineFicheEtTachesTest extends ApiTestCase
     {
         Sanctum::actingAs($this->admin);
         $this->putJson("/api/customers/{$this->fiche->id}", ['first_name' => 'Awa'])->assertOk();
-        Task::factory()->create(['taskable_type' => Customer::class, 'taskable_id' => $this->fiche->id]);
+        Task::factory()->create(['taskable_type' => Customer::class, 'taskable_id' => $this->fiche->id, 'created_by_id' => $this->admin->id]);
 
         $this->assertSame(['record:updated'], $this->suite($this->fil('?filter[type]=record')));
         $this->assertSame(['task:created'], $this->suite($this->fil('?filter[type]=task')));
@@ -166,7 +171,7 @@ class CustomerTimelineFicheEtTachesTest extends ApiTestCase
     /** D'une tâche, seuls sa création et son passage à « faite » : ni un renommage, ni « en cours », ni l'annulation. */
     public function test_seuls_la_creation_et_le_passage_a_faite_d_une_tache_entrent(): void
     {
-        $tache = Task::factory()->create(['taskable_type' => Customer::class, 'taskable_id' => $this->fiche->id, 'title' => 'Avant']);
+        $tache = Task::factory()->create(['taskable_type' => Customer::class, 'taskable_id' => $this->fiche->id, 'title' => 'Avant', 'created_by_id' => $this->admin->id]);
         $tache->update(['title' => 'Après']);
         $tache->update(['status' => 'in_progress']);
         $tache->update(['status' => 'cancelled']);
@@ -184,7 +189,7 @@ class CustomerTimelineFicheEtTachesTest extends ApiTestCase
     public function test_la_tache_d_une_autre_fiche_n_entre_pas(): void
     {
         $autre = $this->ficheClient($this->agence);
-        Task::factory()->create(['taskable_type' => Customer::class, 'taskable_id' => $autre->id]);
+        Task::factory()->create(['taskable_type' => Customer::class, 'taskable_id' => $autre->id, 'created_by_id' => $this->admin->id]);
 
         Sanctum::actingAs($this->admin);
         $this->assertSame([], $this->fil());
@@ -205,7 +210,9 @@ class CustomerTimelineFicheEtTachesTest extends ApiTestCase
         $remplir = function (int $n): void {
             for ($i = 0; $i < $n; $i++) {
                 $this->fiche->update(['occupation' => "Métier {$i} ".uniqid()]);
-                $tache = Task::factory()->create(['taskable_type' => Customer::class, 'taskable_id' => $this->fiche->id, 'created_by_id' => $this->personnel($this->agence)->id]);
+                // TCK-2589 — une tâche que l'admin ouvre : celle d'un agent, assignée à lui (lecture d'équipe).
+                $agent = $this->personnel($this->agence);
+                $tache = Task::factory()->create(['taskable_type' => Customer::class, 'taskable_id' => $this->fiche->id, 'created_by_id' => $agent->id, 'assigned_to_id' => $agent->id]);
                 $tache->update(['status' => 'done']);
             }
         };

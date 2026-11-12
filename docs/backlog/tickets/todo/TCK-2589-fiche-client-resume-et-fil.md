@@ -91,3 +91,33 @@ L'agent qui ouvre la fiche pendant que le client parle sait sans toucher qui il 
 ## Notes d'implémentation
 
 _(à remplir par implementing-specs)_
+
+**Réserve « titres de tâches » de la contre-vérification de verif-commercial (2026-11-12).** Avant ce
+correctif, le bailleur auteur d'une fiche et l'agent auteur sans `crm.view_all` lisaient au fil et
+dans `GET /api/customers/{id}/activity` le titre de la tâche que l'admin s'était donnée sur leur
+fiche, alors que `GET /api/tasks/{id}` leur rendait 403. Décision de la session : une entrée de tâche
+du fil et du journal suit `TaskPolicy::view`. Une tâche que le lecteur ne peut pas ouvrir est omise,
+sans entrée ni titre, et le total ne la compte pas.
+
+- `Task::scopeLisiblesSurUnParentPar(User, ?int $parentAgencyId)` est la forme SQL de `view` pour
+  les tâches d'un parent connu. Elle couvre le créateur membre, l'assigné personnel, le suppléant
+  d'une absence en vigueur et le lecteur d'équipe. Les bornes d'agence se jugent une fois pour la
+  requête, jamais par ligne : le compte de requêtes du fil reste constant.
+- `Task::scopeAssigneAuPersonnelActifDe(int)` reprend la borne « assigné personnel actif » de
+  `filter[team]=1`. `TaskController::teamScope` la lit désormais, si bien que la liste d'équipe et le
+  fil n'ont qu'une seule définition.
+- `CustomerTimeline::tasks()` et `CustomerActivityFeed::paginate()` reçoivent le lecteur. La
+  signature du journal devient `paginate(Customer, User $reader, int $perPage, bool $withVisitReports)`.
+- Tests : `tests/Feature/Crm/CustomerTimelineTachesLisiblesTest.php`.
+  - L'admin lit sa tâche au fil et au journal. L'agent auteur sans vue d'équipe et le bailleur
+    auteur ne la lisent pas, et leur réponse ne contient pas son titre. L'agent garde la tâche qu'il
+    a créée et celle qu'on lui a confiée. Le lecteur d'équipe lit la tâche d'un collègue.
+  - Un test de parité vérifie que la clause SQL rend exactement ce que `$user->can('view', $task)`
+    ouvre, pour six lecteurs et neuf tâches : absence, suspension, tâche supprimée, tâche sans
+    assigné. Le compte de chaque lecteur est épinglé.
+- Fixtures de `CustomerTimelineFicheEtTachesTest` : les tâches de fabrique n'avaient ni créateur ni
+  assigné, et personne d'autre que le super-admin ne les ouvre. Elles portent désormais un auteur
+  réel. Le cas du bailleur auteur ajoute une tâche de l'admin, qui reste hors du fil comme du journal.
+- Ablations : sept, une à la fois, toutes rouges puis restaurées. On retire la clause du fil, puis
+  celle du journal. On neutralise chacune des branches équipe, absences, créateur et assigné. Enfin,
+  on retire la borne « assigné personnel actif » de la branche d'équipe.

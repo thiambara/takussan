@@ -97,7 +97,7 @@ final class CustomerTimeline
             in_array('contact', $types, true) && $staff ? $this->contacts($customer) : null,
             in_array('stage', $types, true) ? $this->stages($customer) : null,
             ...(in_array('record', $types, true) ? $this->records($customer) : []),
-            ...(in_array('task', $types, true) ? $this->tasks($customer) : []),
+            ...(in_array('task', $types, true) ? $this->tasks($customer, $reader) : []),
         ]));
 
         $perPage = min(max($perPage, 1), 100);
@@ -213,15 +213,17 @@ final class CustomerTimeline
 
     /**
      * Les tâches de la fiche (supprimées comprises, comme le journal) : leur création, et leur
-     * passage à « faite ».
+     * passage à « faite ». TCK-2589 — celles que le lecteur peut ouvrir (`TaskPolicy::view`) :
+     * une tâche qu'on ne lui ouvre pas n'a ni entrée ni titre au fil.
      *
      * @return list<QueryBuilder>
      */
-    private function tasks(Customer $customer): array
+    private function tasks(Customer $customer, User $reader): array
     {
         $taskIds = Task::withTrashed()
             ->where('taskable_type', Customer::class)
             ->where('taskable_id', $customer->id)
+            ->lisiblesSurUnParentPar($reader, $customer->agency_id !== null ? (int) $customer->agency_id : null)
             ->select('id');
         $journal = fn (string $jalon) => Activity::query()
             ->where('subject_type', Task::class)

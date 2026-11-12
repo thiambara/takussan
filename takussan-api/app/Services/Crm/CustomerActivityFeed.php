@@ -7,6 +7,7 @@ use App\Models\CustomerNote;
 use App\Models\Enums\CustomerNoteKind;
 use App\Models\PropertyContactLead;
 use App\Models\Task;
+use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -58,8 +59,11 @@ class CustomerActivityFeed
      * TCK-2578 (ADR-0101 § 2) — `$withVisitReports` : le lecteur est-il du personnel de l'agence
      * (`CustomerPolicy::viewVisitReports`) ? Sinon les notes `visit_report` sortent de la requête
      * elle-même, et le total ne les compte pas. Fermé par défaut.
+     *
+     * TCK-2589 — les tâches de la fiche, celles que `$reader` peut ouvrir (`TaskPolicy::view`),
+     * comme le fil : une tâche qu'on ne lui ouvre pas sort de la requête, total compris.
      */
-    public function paginate(Customer $customer, int $perPage = 20, bool $withVisitReports = false): LengthAwarePaginator
+    public function paginate(Customer $customer, User $reader, int $perPage = 20, bool $withVisitReports = false): LengthAwarePaginator
     {
         $noteIds = CustomerNote::withTrashed()
             ->where('customer_id', $customer->id)
@@ -68,6 +72,7 @@ class CustomerActivityFeed
         $taskIds = Task::withTrashed()
             ->where('taskable_type', Customer::class)
             ->where('taskable_id', $customer->id)
+            ->lisiblesSurUnParentPar($reader, $customer->agency_id !== null ? (int) $customer->agency_id : null)
             ->pluck('id');
         $leadIds = PropertyContactLead::query()->where('customer_id', $customer->id)->pluck('id');
 
