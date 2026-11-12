@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\CustomerNote;
 use App\Models\Enums\CustomerNoteKind;
 use App\Policies\CustomerPolicy;
+use App\Policies\PropertyVisitPolicy;
 use App\Services\Crm\CustomerCommercialAttributes;
 use App\Services\Membership\MembershipCapabilityResolver;
 use App\Support\Masking;
@@ -126,6 +127,11 @@ class CustomerResource extends BaseResource
                     'property_id' => $v->property_id,
                     'status' => $v->status?->value,
                     'scheduled_at' => $this->iso($v->scheduled_at),
+                    // TCK-2589 — « Confirmer » de la fiche : la tranche demandée (une demande par
+                    // tranche se confirme sur sa page, où l'heure se choisit), et la règle même
+                    // d'`abilities.manage` du show de visite. Rien du visiteur ni de la fiche.
+                    'preferred_window' => $this->enumValue($v->preferred_window),
+                    'manage' => PropertyVisitPolicy::gere($request->user(), $v),
                 ])->values(),
             ),
             'added_by' => $this->when(
@@ -241,6 +247,35 @@ class CustomerResource extends BaseResource
         foreach (Customer::query()->select(['id', 'agency_id', 'added_by_id'])->whereKey($ids)->get() as $fiche) {
             $request->attributes->set('tck808.fiche.'.$fiche->getKey(), $fiche);
         }
+    }
+
+    /**
+     * TCK-2589 (lot C2) — rend `$render` sous une amorce des profils de l'appelant dans les agences
+     * des biens des visites à venir chargées ({@see MembershipCapabilityResolver::primed()}) :
+     * `upcoming_visits[].manage` ({@see PropertyVisitPolicy::gere()}) jugeait sinon le personnel et le
+     * bailleur de chaque visite par ses propres requêtes. Sans visite à venir chargée, rien.
+     *
+     * @template T
+     *
+     * @param  iterable<Customer>  $customers
+     * @param  \Closure(): T  $render
+     * @return T
+     */
+    public static function avecVisitesAmorcees(Request $request, iterable $customers, \Closure $render): mixed
+    {
+        $agences = [];
+        foreach ($customers as $customer) {
+            if ($customer->relationLoaded('upcomingVisits')) {
+                foreach ($customer->upcomingVisits as $visite) {
+                    $agences[] = $visite->property?->agency_id;
+                }
+            }
+        }
+        if ($request->user() === null || $agences === []) {
+            return $render();
+        }
+
+        return MembershipCapabilityResolver::primed([$request->user()->id], $agences, $render);
     }
 
     private function ficheJugeable(Request $request): Customer

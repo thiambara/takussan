@@ -26,7 +26,11 @@ describe('TCK-2589 — la lecture de la fiche client', () => {
       at: next_action.at,
       bien: 'Studio meublé',
       aConfirmer: true,
+      gere: false,
+      aTranche: false,
     });
+    // C2 — gérer et la tranche viennent de `upcoming_visits` (manage, preferred_window).
+    expect(prochaineVisite({ next_action, upcoming_visits: [{ id: 9, property_id: 3, status: 'scheduled', scheduled_at: next_action.at, manage: true, preferred_window: 'morning' }] })).toMatchObject({ gere: true, aTranche: true });
     expect(prochaineVisite({ next_action, upcoming_visits: [{ id: 9, property_id: 3, status: 'confirmed', scheduled_at: next_action.at }] })?.aConfirmer).toBe(false);
     expect(prochaineVisite({ next_action: { ...next_action, type: 'task' } })).toBeNull();
     expect(prochaineVisite({ next_action: null })).toBeNull();

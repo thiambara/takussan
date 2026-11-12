@@ -92,6 +92,8 @@ class CustomerListQueryCountTest extends ApiTestCase
             $this->assertSame('overdue_task', $ligne['follow_up']['reason']);
             $this->assertSame($this->agent->id, $ligne['referent']['id']);
             $this->assertCount(1, $ligne['upcoming_visits']);
+            // TCK-2589 — `manage` jugé pour chaque visite à venir, sans requête par ligne.
+            $this->assertTrue($ligne['upcoming_visits'][0]['manage']);
         }
 
         return $n;

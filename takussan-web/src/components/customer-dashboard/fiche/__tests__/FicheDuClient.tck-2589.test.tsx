@@ -40,11 +40,12 @@ const geste = vi.hoisted(() => ({ mutate: vi.fn(), isError: false }));
 vi.mock('@/lib/queries/customer-gestures', () => ({ useEnregistrerContactClient: () => geste }));
 
 const visites = vi.hoisted(() => ({
-  detail: null as null | { data: { status: string; abilities?: { manage: boolean }; preferred_window?: string | null } },
+  // C2 — la fiche ne lit plus la visite : « Confirmer » se décide sur `upcoming_visits` seul.
+  detail: vi.fn(),
   confirmer: { mutate: vi.fn(), isPending: false, isError: false, error: null as unknown },
 }));
 vi.mock('@/lib/queries/visits', () => ({
-  useVisit: () => ({ data: visites.detail }),
+  useVisit: (...a: unknown[]) => visites.detail(...a),
   useConfirmVisit: () => visites.confirmer,
 }));
 
@@ -93,7 +94,7 @@ const MARIAMA: CustomerDetail = {
   metadata: null,
   agency_id: 4,
   origin: { contact_lead_id: 5, received_at: '2026-11-03T14:31:00Z', message: 'Une visite samedi est-elle possible ?', property: { id: 9, title: 'Studio meublé · Mermoz', slug: 's' } },
-  upcoming_visits: [{ id: 3, property_id: 9, status: 'scheduled', scheduled_at: '2030-11-14T10:00:00Z' }],
+  upcoming_visits: [{ id: 3, property_id: 9, status: 'scheduled', scheduled_at: '2030-11-14T10:00:00Z', preferred_window: null, manage: true }],
   visits_count: 1,
   bookings_count: 0,
   leases_count: 0,
@@ -122,7 +123,6 @@ function rendu(customer: CustomerDetail = MARIAMA) {
 beforeEach(() => {
   vi.clearAllMocks();
   geste.isError = false;
-  visites.detail = { data: { status: 'scheduled', abilities: { manage: true }, preferred_window: null } };
   visites.confirmer.isError = false;
   visites.confirmer.error = null;
   lectures.taches.mockResolvedValue([]);
@@ -165,18 +165,18 @@ describe('TCK-2589 — la tête et le résumé de la fiche client', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Confirmer' }));
     expect(visites.confirmer.mutate).toHaveBeenCalledTimes(1);
     expect(nav.refresh).toHaveBeenCalled();
+    // Aucune lecture de la visite (son visiteur, sa fiche) pour décider d'un bouton.
+    expect(visites.detail).not.toHaveBeenCalled();
   });
 
   it('1a — sans le droit de gérer la visite, aucun « Confirmer »', () => {
-    visites.detail = { data: { status: 'scheduled', abilities: { manage: false }, preferred_window: null } };
-    rendu();
+    rendu({ ...MARIAMA, upcoming_visits: [{ ...MARIAMA.upcoming_visits![0], manage: false }] });
     expect(screen.queryByRole('button', { name: 'Confirmer' })).toBeNull();
     expect(screen.getByText('À confirmer')).toBeInTheDocument();
   });
 
   it('1a — une demande par tranche se confirme sur sa fiche, où l’heure se choisit', () => {
-    visites.detail = { data: { status: 'scheduled', abilities: { manage: true }, preferred_window: 'morning' } };
-    rendu();
+    rendu({ ...MARIAMA, upcoming_visits: [{ ...MARIAMA.upcoming_visits![0], preferred_window: 'morning' }] });
     expect(screen.queryByRole('button', { name: 'Confirmer' })).toBeNull();
     expect(screen.getByRole('link', { name: 'Fixer l’heure' })).toHaveAttribute('href', '/app/visits/3');
   });

@@ -10,12 +10,12 @@ import { ChevronRight, Loader2, Search } from 'lucide-react';
 import { CitationDuMessage, Surtitre } from '@/components/leads/boite/pieces';
 import { useAuth } from '@/context/AuthContext';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import { nombreDeCorrespondances, prochaineVisite, tacheSuivante } from '@/lib/crm/fiche-du-client';
+import { nombreDeCorrespondances, prochaineVisite, tacheSuivante, type ProchaineVisite } from '@/lib/crm/fiche-du-client';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { AGENT_CRM_QUERY_KEY, fetchMatchingProperties } from '@/lib/queries/agent-crm';
 import { PIPELINE_QUERY_KEY } from '@/hooks/pipelineKeys';
 import { fetchCustomerTasks } from '@/lib/queries/pipeline';
-import { useConfirmVisit, useVisit } from '@/lib/queries/visits';
+import { useConfirmVisit } from '@/lib/queries/visits';
 import { jourADakar } from '@/lib/visites/par-le-temps';
 import { jourEnClair } from '@/lib/visites/planification';
 import { cn } from '@/lib/utils';
@@ -65,22 +65,21 @@ function CaseDuJour({ at }: { readonly at: string }) {
 }
 
 /**
- * « Confirmer » : seulement quand la visite le permet à ce lecteur (`abilities.manage`, la règle de
- * `POST …/confirm`) et qu'elle a une heure fixée ; une demande par tranche se confirme sur sa fiche,
- * où l'heure se choisit. Le refus de l'API se dit, sous le bouton.
+ * « Confirmer » : seulement quand la visite le permet à ce lecteur (`upcoming_visits[].manage`, la
+ * règle de `POST …/confirm`, servie avec la fiche — aucune lecture de la visite, ni de son visiteur)
+ * et qu'elle a une heure fixée ; une demande par tranche se confirme sur sa page, où l'heure se
+ * choisit. Le refus de l'API se dit, sous le bouton.
  */
-function ConfirmerLaVisite({ visitId }: { readonly visitId: number }) {
+function ConfirmerLaVisite({ visite }: { readonly visite: ProchaineVisite }) {
   const t = useTranslations('crm.fiche.prochaine');
   const router = useRouter();
   const messageErreur = useMessageErreurApi();
-  const visite = useVisit(visitId);
-  const confirmer = useConfirmVisit(visitId);
-  const v = visite.data?.data;
-  if (!v || v.abilities?.manage !== true || v.status !== 'scheduled') return null;
-  if (v.preferred_window) {
+  const confirmer = useConfirmVisit(visite.id);
+  if (!visite.gere || !visite.aConfirmer) return null;
+  if (visite.aTranche) {
     return (
       <Link
-        href={`/app/visits/${visitId}`}
+        href={`/app/visits/${visite.id}`}
         className="inline-flex h-11 flex-none items-center justify-center rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring"
       >
         {t('fixerLHeure')}
@@ -149,7 +148,7 @@ export function ProchaineActionDuClient({ customer, className }: { readonly cust
           {visite.bien ? <p className="truncate text-sm text-encre-douce">{visite.bien}</p> : null}
           {visite.aConfirmer ? <p className="text-ui text-muted-foreground">{t('aConfirmer')}</p> : null}
         </div>
-        {visite.aConfirmer ? <ConfirmerLaVisite visitId={visite.id} /> : null}
+        {visite.aConfirmer ? <ConfirmerLaVisite visite={visite} /> : null}
       </div>
     );
   } else if (action?.type === 'task') {

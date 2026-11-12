@@ -458,7 +458,10 @@ class Customer extends AbstractModel
      */
     public function upcomingVisits(): HasMany
     {
+        // TCK-2589 — le bien de chaque visite (son agence, son titulaire), lu en UNE requête par
+        // chargement : `upcoming_visits[].manage` en juge ({@see \App\Policies\PropertyVisitPolicy::gere()}).
         return $this->hasMany(PropertyVisit::class)
+            ->with('property:id,agency_id,user_id')
             ->whereIn('property_visits.status', CustomerNextActionQuery::VISIT_STATUSES)
             ->where('property_visits.scheduled_at', '>=', now())
             ->orderBy('property_visits.scheduled_at')

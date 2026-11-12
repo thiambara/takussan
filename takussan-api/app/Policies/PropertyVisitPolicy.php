@@ -135,6 +135,17 @@ class PropertyVisitPolicy extends BasePolicy
     }
 
     /**
+     * P152.04 — GÉRER la visite : confirmer, clore, déclarer manquée, déplacer ou annuler au nom de
+     * ceux qui gèrent le bien, c'est `update` ET {@see agitPourLeBien()}, comme le contrôleur.
+     * TCK-2589 — la règle d'`abilities.manage` du show de visite ET de `upcoming_visits[].manage` de
+     * la fiche client : une seule méthode, pour que les deux ne divergent pas.
+     */
+    public static function gere(User $user, PropertyVisit $visit): bool
+    {
+        return $user->can('update', $visit) && self::agitPourLeBien($user, $visit);
+    }
+
+    /**
      * P152.04 — déplacée de `PropertyVisitController` pour que `PropertyVisitResource` la lise.
      *
      * L'appelant agit-il au nom de ceux qui gèrent le bien — et peut-il donc confirmer, clore,

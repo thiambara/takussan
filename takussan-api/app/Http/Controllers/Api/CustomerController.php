@@ -60,7 +60,12 @@ class CustomerController extends Controller
         // page quand `fields[customers]` ne l'a pas lue (règle des visites et de l'origine).
         CustomerResource::primeFiches($request, $paginator->getCollection());
 
-        return $this->paginated($paginator, CustomerResource::collection($paginator)->toArray($request));
+        // TCK-2589 (lot C2) — `upcoming_visits[].manage` jugé pour la page entière.
+        return $this->paginated($paginator, CustomerResource::avecVisitesAmorcees(
+            $request,
+            $paginator->getCollection(),
+            fn () => CustomerResource::collection($paginator)->toArray($request),
+        ));
     }
 
     public function store(StoreCustomerRequest $request, CustomerDuplicateDetector $duplicates): JsonResponse
@@ -182,7 +187,7 @@ class CustomerController extends Controller
         CustomerCommercialAttributes::attach($request, $request->user(), [(int) $customer->id]);
 
         return $this->json([
-            'data' => CustomerResource::make($customer)->resolve($request),
+            'data' => CustomerResource::avecVisitesAmorcees($request, [$customer], fn () => CustomerResource::make($customer)->resolve($request)),
         ]);
     }
 

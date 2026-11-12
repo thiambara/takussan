@@ -115,6 +115,10 @@ export interface CustomerUpcomingVisit {
   readonly property_id: number | null;
   readonly status: string | null;
   readonly scheduled_at: string | null;
+  /** TCK-2589 — la tranche demandée (`morning`…) quand l'heure reste à fixer ; `null` sinon. */
+  readonly preferred_window?: string | null;
+  /** TCK-2589 — l'`abilities.manage` du show de visite, pour cette visite et ce lecteur. */
+  readonly manage?: boolean;
 }
 
 export interface CustomerNote {

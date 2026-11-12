@@ -115,11 +115,9 @@ class PropertyVisitResource extends BaseResource
             ]),
             'created_at' => $this->iso($this->created_at),
             // P152.04 — sur LA visite de la route seulement (une batterie de règles par ligne d'une
-            // liste coûterait) : confirmer, clore, déclarer manquée, déplacer ou annuler au nom de
-            // ceux qui gèrent le bien, c'est `update` ET `agitPourLeBien`, comme le contrôleur.
+            // liste coûterait) : {@see PropertyVisitPolicy::gere()}.
             'abilities' => $this->when($this->isDetailRequest($request), fn (): array => [
-                'manage' => $request->user()->can('update', $this->resource)
-                    && PropertyVisitPolicy::agitPourLeBien($request->user(), $this->resource),
+                'manage' => PropertyVisitPolicy::gere($request->user(), $this->resource),
                 // Vérification de TCK-2581 — déposer l'avis du VISITEUR : le `$isCustomer` de
                 // `PropertyVisitController::feedback`, le visiteur (`visitor_id`) ou le client
                 // rattaché par la fiche (`customer.user_id`). Le front le déduisait de `customer`,

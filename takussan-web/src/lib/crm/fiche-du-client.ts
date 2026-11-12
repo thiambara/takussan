@@ -31,6 +31,10 @@ export interface ProchaineVisite {
   readonly bien: string | null;
   /** `scheduled` : demandée, à confirmer. */
   readonly aConfirmer: boolean;
+  /** Le lecteur la gère (confirmer, fixer l'heure) : `upcoming_visits[].manage` de l'API. */
+  readonly gere: boolean;
+  /** Une tranche demandée : l'heure se fixe sur la page de la visite. */
+  readonly aTranche: boolean;
 }
 
 /**
@@ -41,7 +45,14 @@ export function prochaineVisite(customer: Pick<CustomerDetail, 'next_action' | '
   const a = customer.next_action;
   if (!a || a.type !== 'visit') return null;
   const v: CustomerUpcomingVisit | undefined = customer.upcoming_visits?.find((x) => x.id === a.id);
-  return { id: a.id, at: a.at, bien: a.label, aConfirmer: v?.status === 'scheduled' };
+  return {
+    id: a.id,
+    at: a.at,
+    bien: a.label,
+    aConfirmer: v?.status === 'scheduled',
+    gere: v?.manage === true,
+    aTranche: Boolean(v?.preferred_window),
+  };
 }
 
 /**
