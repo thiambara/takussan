@@ -199,10 +199,8 @@ export function useLeaseCustomer(customerId: number | null | undefined) {
   return useApiQuery<ApiResponse<CustomerListItem>>(
     ['leases', 'customer', customerId ?? 0],
     cheminApi`/api/customers/${customerId ?? 0}`,
-    {
-      params: { fields: { customers: ['id', 'first_name', 'last_name', 'email', 'phone', 'user_id'] } },
-      enabled: Boolean(customerId && customerId > 0),
-    },
+    // Un `show` rend la ressource entière et ignore `fields` (P60.03) : rien à lui envoyer.
+    { enabled: Boolean(customerId && customerId > 0) },
   );
 }
 
